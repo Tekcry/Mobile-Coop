@@ -14,7 +14,7 @@ try {
   assert(p0.credits === 500 && p0.xp === 0, 'fresh profile: 500 cr, level 1');
 
   // Armory via controller
-  await press(page, BTN.DOWN);
+  for (let i = 0; i < 6 && !/Armory/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   assert(/Armory/.test(await focusedText(page)), 'focus Armory');
   await press(page, BTN.A);
   assert(await q('.armory-screen'), 'Armory opens');
