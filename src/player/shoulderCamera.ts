@@ -1,20 +1,24 @@
 import { Camera, FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
+import { CAMERA, framing } from '../config/camera';
+import type { CharacterRig } from './characterRig';
 import { springStep } from '../anim/rigMath';
 
+/** Kept for older callers: the framing values now live in `config/camera.ts`. */
 export const CAMERA_TUNING = {
-  pivotHeightStand: 1.58,
-  pivotHeightCrouch: 1.08,
-  shoulderOffset: 0.82,
-  boomHip: 2.55,
-  boomAds: 1.25,
-  height: 0.12,
-  minPitch: -1.25,
-  maxPitch: 1.1,
-  collisionPadding: 0.22,
-  shoulderSwapSpeed: 8,
-  adsSpeed: 12,
+  get pivotHeightStand(): number {
+    return CAMERA.pivotStand;
+  },
+  get pivotHeightCrouch(): number {
+    return CAMERA.pivotCrouch;
+  },
+  get minPitch(): number {
+    return CAMERA.minPitch;
+  },
+  get maxPitch(): number {
+    return CAMERA.maxPitch;
+  },
 };
 
 /**
@@ -34,12 +38,21 @@ export class ShoulderCamera {
   /** FOV multiplier while fully ADS (weapon zoom). */
   adsZoom = 0.75;
   baseFovDeg = 90;
-  private boom = CAMERA_TUNING.boomHip;
+  private boom = CAMERA.boomHip;
+  /** State nudges set by the player each frame. */
+  crouch = 0;
+  dash = 0;
+  lean = 0;
+  private leanS = 0;
+  private dashS = 0;
+  private bobT = 0;
+  private headHidden = false;
+  private allHidden = false;
   private recoilPitch = 0;
   private recoilYaw = 0;
   private trauma = 0;
   private t = 0;
-  private pivotY = CAMERA_TUNING.pivotHeightStand;
+  private pivotY = CAMERA.pivotStand;
   /** Smoothed feet height so step-ups and landings do not jolt the view. */
   private footY = Number.NaN;
   /** Critically damped follow state (x/z position, shoulder side, ADS blend). */
@@ -53,7 +66,7 @@ export class ShoulderCamera {
   readonly pivot = new Vector3();
   readonly forward = new Vector3(0, 0, 1);
   /** Distance from camera to pivot; used to fade the player model when too close. */
-  boomActual = CAMERA_TUNING.boomHip;
+  boomActual = CAMERA.boomHip;
   private rr = new PhysicsRaycastResult();
   private shoulderPt = new Vector3();
   private desired = new Vector3();
@@ -75,7 +88,7 @@ export class ShoulderCamera {
 
   addLook(dYaw: number, dPitch: number): void {
     this.yaw += dYaw;
-    this.pitch = Math.max(CAMERA_TUNING.minPitch, Math.min(CAMERA_TUNING.maxPitch, this.pitch + dPitch));
+    this.pitch = Math.max(CAMERA.minPitch, Math.min(CAMERA.maxPitch, this.pitch + dPitch));
   }
 
   /** Weapon recoil kick in radians. Pitch kick is applied to aim then partially recovered. */
@@ -83,7 +96,7 @@ export class ShoulderCamera {
     this.recoilPitch += pitch;
     this.recoilYaw += yaw;
     // Most of the kick is transient (recovers); a small part climbs permanently.
-    this.pitch = Math.min(CAMERA_TUNING.maxPitch, this.pitch + pitch * 0.32);
+    this.pitch = Math.min(CAMERA.maxPitch, this.pitch + pitch * 0.32);
     this.yaw += yaw * 0.32;
   }
 
@@ -100,8 +113,10 @@ export class ShoulderCamera {
   }
 
   update(dt: number, feet: Vector3, crouch: number): void {
-    const T = CAMERA_TUNING;
+    const T = CAMERA;
     this.t += dt;
+    this.leanS += (this.lean - this.leanS) * Math.min(1, dt * 8);
+    this.dashS += (this.dash - this.dashS) * Math.min(1, dt * 5);
     // critically damped: smooth start and stop, no overshoot or jitter
     [this.side, this.sideV] = springStep(this.side, this.sideV, this.shoulder, MOVEMENT.camShoulder, dt);
     [this.ads, this.adsV] = springStep(this.ads, this.adsV, this.adsTarget, MOVEMENT.camAds, dt);
@@ -111,8 +126,11 @@ export class ShoulderCamera {
     this.recoilYaw -= this.recoilYaw * recover;
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
 
-    const targetPivotY = T.pivotHeightStand + (T.pivotHeightCrouch - T.pivotHeightStand) * crouch;
-    this.pivotY += (targetPivotY - this.pivotY) * Math.min(1, dt * 10);
+    const fr = framing(this.ads, crouch, this.dashS);
+    this.pivotY += (fr.pivot - this.pivotY) * Math.min(1, dt * 10);
+    // weighted bob only while dashing (the tactical glide keeps the view steady)
+    this.bobT += dt * (7 + this.dashS * 5);
+    const bob = Math.sin(this.bobT * 2) * T.dashBob * this.dashS;
     if (Number.isNaN(this.footY) || Math.abs(feet.y - this.footY) > 3) {
       this.footY = feet.y;
       this.footV = 0;
@@ -125,7 +143,7 @@ export class ShoulderCamera {
     }
     [this.fx, this.fvx] = springStep(this.fx, this.fvx, feet.x, MOVEMENT.camFollow, dt);
     [this.fz, this.fvz] = springStep(this.fz, this.fvz, feet.z, MOVEMENT.camFollow, dt);
-    this.pivot.set(this.fx, this.footY + this.pivotY, this.fz);
+    this.pivot.set(this.fx, this.footY + this.pivotY + bob, this.fz);
 
     const yaw = this.aimYaw;
     const pitch = this.aimPitch;
@@ -134,9 +152,9 @@ export class ShoulderCamera {
     const rightX = Math.cos(yaw);
     const rightZ = -Math.sin(yaw);
 
-    const boomTarget = T.boomHip + (T.boomAds - T.boomHip) * this.ads;
-    const shoulder = T.shoulderOffset * (1 - 0.25 * this.ads) * this.side;
-    // shoulder point (beside the head), then boom backwards along view
+    const boomTarget = fr.boom;
+    // shoulder point beside the head (follows a lean), then the boom straight back along the view
+    const shoulder = fr.shoulder * this.side + this.leanS * T.leanShift;
     const sx = this.pivot.x + rightX * shoulder;
     const sy = this.pivot.y + T.height;
     const sz = this.pivot.z + rightZ * shoulder;
@@ -154,7 +172,7 @@ export class ShoulderCamera {
     if (eng) {
       this.rr.reset();
       eng.raycastToRef(shoulderPt, desired, this.rr, q);
-      if (this.rr.hasHit) dist = Math.max(0.3, Vector3.Distance(shoulderPt, this.rr.hitPoint) - T.collisionPadding);
+      if (this.rr.hasHit) dist = Math.max(T.minBoom, Vector3.Distance(shoulderPt, this.rr.hitPoint) - T.padding);
     }
     // snap in instantly, ease back out
     this.boom = dist < this.boom ? dist : this.boom + (dist - this.boom) * Math.min(1, dt * 5);
@@ -171,6 +189,25 @@ export class ShoulderCamera {
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     const zoom = 1 + (this.adsZoom - 1) * this.ads;
     this.camera.fov = ((this.baseFovDeg * Math.PI) / 180) * zoom;
+  }
+
+  /**
+   * Tight spaces: rather than swinging the camera away, hide the parts of the body it gets too close
+   * to (head first, then everything). Only touches visibility when a threshold is crossed.
+   */
+  applyBodyFade(rig: CharacterRig): void {
+    rig.headNode.computeWorldMatrix(true);
+    const dHead = Vector3.Distance(this.camera.position, rig.headNode.getAbsolutePosition());
+    const hideHead = dHead < CAMERA.hideHead;
+    const hideAll = this.boomActual < CAMERA.hideAll;
+    if (hideAll !== this.allHidden) {
+      this.allHidden = hideAll;
+      rig.root.setEnabled(!hideAll);
+    }
+    if (hideHead !== this.headHidden) {
+      this.headHidden = hideHead;
+      for (const m of rig.parts) if (m.parent === rig.headNode) m.isVisible = !hideHead;
+    }
   }
 
   /** Ray from the camera through the screen centre. */

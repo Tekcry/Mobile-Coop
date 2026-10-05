@@ -135,7 +135,7 @@ export class MenuState implements AppState {
     }
     if (this.rig) {
       this.rig.root.rotation.y = this.framing === 'menu' ? Math.PI + 0.5 + Math.sin(this.t2 * 0.3) * 0.3 : this.previewYaw;
-      this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, roll: -1, aimPitch: 0, aim: 0.05, kick: 0 });
+      this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0.05, kick: 0 });
     }
     for (const fn of this.frameHooks) fn(dt);
   }

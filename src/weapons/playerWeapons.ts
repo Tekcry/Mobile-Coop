@@ -8,6 +8,7 @@ import { spreadDir } from './ballistics';
 import type { Grenades } from './grenades';
 import type { Vfx } from '../vfx/vfx';
 import type { PartPattern } from '../world/partLibrary';
+import { classWeight } from './weaponCarry';
 import { GRENADE, WEAPONS, type WeaponDef, type WeaponId } from './weaponDefs';
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
 import { computeStats, damageAt, recoilKick, sampleSpread, spreadDeg, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
@@ -54,6 +55,8 @@ export class PlayerWeapons {
   private bloom = 0;
   private shotIndex = 0;
   private sinceShot = 99;
+  /** A semi-auto press made while the weapon was still coming up fires once it is raised. */
+  private queuedT = 0;
   infiniteAmmo = false;
   /** Extra spread factor (blind fire from cover). */
   spreadMul = 1;
@@ -161,6 +164,8 @@ export class PlayerWeapons {
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.current;
     this.player.reload = this.reloading ? this.reloadProgress : -1;
+    this.player.sinceShot = this.sinceShot;
+    this.player.weaponWeight = s.def.weight ?? classWeight(s.def.class);
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.grenadeCd = Math.max(0, this.grenadeCd - dt);
     this.sinceShot += dt;
@@ -202,8 +207,13 @@ export class PlayerWeapons {
     if (inp.pressed('grenade') || inp.pressed('quick1')) this.throwGrenade();
 
     // fire
-    const wants = s.def.fireMode === 'auto' ? inp.down('fire') : inp.pressed('fire');
+    if (inp.pressed('fire')) this.queuedT = 0.35;
+    this.queuedT = Math.max(0, this.queuedT - dt);
+    const wants = s.def.fireMode === 'auto' ? inp.down('fire') : this.queuedT > 0;
     if (!wants || this.swapping || this.reloading || ctl.weaponBlocked || this.cooldown > 0) return;
+    // raise-to-fire: the trigger is live only once the weapon is up from its ready position
+    if (!this.player.carry.canFire(this.player.carryIn)) return;
+    this.queuedT = 0;
     if (s.mag <= 0) {
       if (inp.pressed('fire')) this.events.onDryFire?.(s.def);
       if (s.reserve > 0 || this.infiniteAmmo) this.startReload();

@@ -229,7 +229,7 @@ export class CoverController {
     ci.coverPressed = inp.pressed('cover');
     ci.crouchPressed = inp.pressed('crouch');
     ci.jumpPressed = inp.pressed('jump');
-    ci.sprint = inp.down('sprint') && w.mag > 0.5;
+    ci.sprint = inp.down('dash') && w.mag > 0.5;
     ci.ads = p.ads || inp.down('ads');
     ci.fire = inp.down('fire');
     ci.low = this.low;
@@ -326,8 +326,9 @@ export class CoverController {
     const pose = p.coverPose;
     this.spreadMul = 1;
     pose.blind = false;
-    pose.peek = 0;
-    pose.vault = -1;
+    pose.lean = 0;
+    pose.peekOver = 0;
+    if (pose.traverse === 'vault') pose.traverse = 'none';
     const st = this.sm.state;
     if (st === 'none') {
       c.override = null;
@@ -339,7 +340,7 @@ export class CoverController {
       const dx = t.x - p.position.x;
       const dz = t.z - p.position.z;
       const d = Math.hypot(dx, dz) || 1;
-      const v = MOVEMENT.sprintSpeed;
+      const v = MOVEMENT.dashSpeed;
       this.vel.x = (dx / d) * v;
       this.vel.z = (dz / d) * v;
       c.override = { velocity: this.vel, yaw: Math.atan2(dx, dz), crouch: false };
@@ -354,7 +355,8 @@ export class CoverController {
       this.kin.y += lift;
       c.override = { kinematic: this.kin, yaw: Math.atan2(v.to.x - v.from.x, v.to.z - v.from.z), crouch: true };
       pose.cover = 'none';
-      pose.vault = Math.min(1, this.sm.t / VAULT_TIME);
+      pose.traverse = 'vault';
+      pose.traverseT = Math.min(1, this.sm.t / VAULT_TIME);
       return;
     }
     if (!seg) return;
@@ -421,14 +423,14 @@ export class CoverController {
       else if (this.peekSide !== 0) {
         targetS = this.peekSide < 0 ? -0.5 : seg.len + 0.5;
         standoff = COVER_STANDOFF + 0.08;
-        pose.peek = this.leanSide(seg, this.peekSide);
+        pose.lean = this.leanSide(seg, this.peekSide);
       }
     } else if (st === 'blind') {
       yaw = undefined;
       this.spreadMul = 3;
       pose.blind = true;
       const e = nearestEdge(seg, loc.s);
-      if (!this.low && e.dist < 0.6) pose.peek = this.leanSide(seg, e.side);
+      if (!this.low && e.dist < 0.6) pose.lean = this.leanSide(seg, e.side);
     }
     if (st === 'in' && this.peekReturn >= 0) {
       // returning from a peek: slide back to where we were

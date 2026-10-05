@@ -19,12 +19,13 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   fireLeft: { id: 'fireLeft', action: 'fire', size: 70, icon: 'fire', label: 'Fire (left)' },
   ads: { id: 'ads', action: 'ads', size: 68, icon: 'ads', label: 'Aim' },
   reload: { id: 'reload', action: 'reload', size: 56, icon: 'reload', label: 'Reload' },
-  jump: { id: 'jump', action: 'jump', size: 64, icon: 'jump', label: 'Jump' },
-  crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch / Roll' },
+  jump: { id: 'jump', action: 'jump', size: 64, icon: 'jump', label: 'Vault / climb' },
+  crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch' },
   swap: { id: 'swap', action: 'swapNext', size: 58, icon: 'swap', label: 'Swap weapon' },
   grenade: { id: 'grenade', action: 'grenade', size: 54, icon: 'grenade', label: 'Grenade' },
   interact: { id: 'interact', action: 'interact', size: 60, icon: 'interact', label: 'Interact' },
   cover: { id: 'cover', action: 'cover', size: 60, icon: 'cover', label: 'Cover' },
+  dash: { id: 'dash', action: 'dash', size: 54, icon: 'dash', label: 'Dash' },
   shoulder: { id: 'shoulder', action: 'shoulderSwap', size: 46, icon: 'shoulder', label: 'Swap shoulder' },
   pause: { id: 'pause', action: 'pause', size: 44, icon: 'pause', label: 'Pause' },
 };
@@ -170,8 +171,8 @@ export class TouchControls {
       let dx = e.clientX - role.ox;
       let dy = e.clientY - role.oy;
       const d = Math.hypot(dx, dy);
-      // Pushing well past the rim (forward) sprints.
-      this.state.set('touch-move', 'sprint', d > rad * 1.45 && dy < -Math.abs(dx));
+      // Flicking the stick well past its rim (any direction) starts a bounding dash that way.
+      this.state.set('touch-move', 'dash', d > rad * 1.5);
       if (d > rad) {
         dx = (dx / d) * rad;
         dy = (dy / d) * rad;
@@ -196,7 +197,7 @@ export class TouchControls {
     if (!role) return;
     if (role.kind === 'move') {
       this.state.setMove('touch-move', 0, 0);
-      this.state.set('touch-move', 'sprint', false);
+      this.state.set('touch-move', 'dash', false);
       this.knob.style.transform = 'translate(-50%, -50%)';
       this.elements.get('move')!.classList.remove('active');
       this.applyLayout();

@@ -1,4 +1,4 @@
-import type { Vector3 } from '../core/babylon';
+import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
 import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
@@ -7,26 +7,66 @@ import { CharacterRig } from './characterRig';
 import { PlayerController, type PlayerInput } from './playerController';
 import { ShoulderCamera } from './shoulderCamera';
 import { avatarFactory } from '../cosmetics/avatarFactory';
+import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
+import { lookCap } from './movement';
+import { G } from '../physics/groups';
+import type { TraverseKind } from '../anim/animGraph';
 
-/** The local player: input -> controller (fixed step) -> camera + rig (per frame). */
+/** Pose inputs other systems (cover, corners, traversal) drive on the player's rig. */
+export interface PlayerPose {
+  cover: 'none' | 'low' | 'high';
+  /** Cover surface side in the character's frame (-1 left, 1 right). */
+  wallSide: number;
+  /** Lean around an edge (-1 left .. 1 right), hips planted. */
+  lean: number;
+  /** Low cover: rise over the top 0..1. */
+  peekOver: number;
+  blind: boolean;
+  edgeLook: number;
+  traverse: TraverseKind;
+  traverseT: number;
+  /** Dash-in slide 0..1, or < 0. */
+  slide: number;
+  /** Doorway check 0..1, or < 0. */
+  check: number;
+}
+
+const Q = { membership: G.PLAYER, collideWith: G.STATIC };
+
+/**
+ * The local player: input -> controller (fixed step) -> camera + rig (per frame). Owns the weapon carry
+ * state (ready positions, raise-to-fire) and the context probes that pick a ready position (walls in
+ * front, tight corridors). Look input is rate-capped so the view never out-turns the body.
+ */
 export class Player {
   readonly controller: PlayerController;
   readonly rig: CharacterRig;
   readonly cam: ShoulderCamera;
+  readonly carry = new WeaponCarry();
+  readonly carryIn = emptyCarryInput();
   private adsToggled = false;
   ads = false;
-  /** Set by weapons when firing so the body turns to face the aim. */
+  /** Set by weapons when firing (kept for callers; the carry's raise now drives the pose). */
   aimLockTimer = 0;
   kick = 0;
   alive = true;
   /** Reload progress 0..1 (or -1), set by PlayerWeapons for the animation layer. */
   reload = -1;
-  /** Cover pose (set by the cover controller). */
-  coverPose: { cover: 'none' | 'low' | 'high'; peek: number; blind: boolean; vault: number } = { cover: 'none', peek: 0, blind: false, vault: -1 };
+  /** Seconds since the last shot and weapon mass factor (set by PlayerWeapons). */
+  sinceShot = 99;
+  weaponWeight = 1;
+  /** Pose driven by cover / corners / traversal. */
+  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, check: -1 };
+  /** Context flags for the ready position (set by the corner/cover systems each step). */
+  context = { doorway: false, coverEdge: false };
   /** Called when landing from a fall (speed in m/s). */
   onLand: ((speed: number) => void) | null = null;
   private wasGrounded = true;
   private fallSpeed = 0;
+  private probeT = 0;
+  private rr = new PhysicsRaycastResult();
+  private a = new Vector3();
+  private b = new Vector3();
 
   constructor(
     readonly world: World,
@@ -42,41 +82,90 @@ export class Player {
     const s = getSettings();
     this.cam.shoulder = s.gameplay.defaultShoulder === 'left' ? -1 : 1;
     this.cam.baseFovDeg = s.video.fov;
+    const eng = world.scene.getPhysicsEngine() as PhysicsEngine;
+    this.rig.groundProbe = (x, z, yFrom) => {
+      this.rr.reset();
+      eng.raycastToRef(this.a.set(x, yFrom, z), this.b.set(x, yFrom - 1.2, z), this.rr, Q);
+      return this.rr.hasHit ? this.rr.hitPoint.y : null;
+    };
   }
 
   get position(): Vector3 {
     return this.controller.pos;
   }
 
+  /** Weapon raised enough to be "aiming" (tightest turn and look rates). */
+  get aiming(): boolean {
+    return this.carry.raise > 0.5;
+  }
+
+  private ray(from: Vector3, to: Vector3): boolean {
+    this.rr.reset();
+    (this.world.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(from, to, this.rr, Q);
+    return this.rr.hasHit;
+  }
+
+  /** Walls in front (muzzle would clip) and close on both sides (corridor): picks compressed/high ready. */
+  private probeContext(): void {
+    const c = this.controller;
+    const yaw = this.cam.yaw;
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
+    const y = c.pos.y + (c.crouched ? 0.9 : 1.35);
+    const reach = 0.95;
+    this.carryIn.nearWall = this.ray(this.a.set(c.pos.x, y, c.pos.z), this.b.set(c.pos.x + fx * reach, y, c.pos.z + fz * reach));
+    const side = 0.8;
+    const left = this.ray(this.a.set(c.pos.x, y, c.pos.z), this.b.set(c.pos.x - fz * side, y, c.pos.z + fx * side));
+    const right = this.ray(this.a.set(c.pos.x, y, c.pos.z), this.b.set(c.pos.x + fz * side, y, c.pos.z - fx * side));
+    this.carryIn.tight = left && right;
+  }
+
   /** Simulation step. */
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.getSettings();
+    const c = this.controller;
     if (s.gameplay.adsToggle) {
       if (inp.pressed('ads')) this.adsToggled = !this.adsToggled;
       this.ads = this.adsToggled;
     } else {
       this.ads = inp.down('ads');
     }
-    if (this.controller.weaponBlocked) this.ads = false;
+    if (c.weaponBlocked || this.coverPose.traverse !== 'none') this.ads = false;
     if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
+
+    // weapon carry: ready position from context, raised only to aim or fire
+    this.probeT -= dt;
+    if (this.probeT <= 0) {
+      this.probeT = 0.1;
+      this.probeContext();
+    }
+    const ci = this.carryIn;
+    ci.ads = this.ads;
+    ci.fire = this.alive && inp.down('fire');
+    ci.sinceShot = this.sinceShot;
+    ci.doorway = this.context.doorway;
+    ci.coverEdge = this.context.coverEdge;
+    ci.dashing = c.weaponBlocked;
+    ci.reloading = this.reload >= 0;
+    ci.traversing = this.coverPose.traverse !== 'none';
+    ci.coverRaise = this.coverPose.lean !== 0 || this.coverPose.peekOver > 0.5 || this.coverPose.blind;
+    ci.weight = this.weaponWeight;
+    this.carry.update(dt, ci);
+
     const pi: PlayerInput = {
       moveX: inp.move.x,
       moveY: inp.move.y,
-      jump: inp.pressed('jump'),
       crouchPressed: inp.pressed('crouch'),
       crouchHeld: inp.down('crouch'),
       crouchToggle: s.gameplay.crouchToggle,
-      sprint: inp.down('sprint') && !inp.down('fire'),
+      dashPressed: inp.pressed('dash'),
       ads: this.ads,
-      aimLock: this.aimLockTimer > 0 || inp.down('fire'),
+      aiming: this.aiming || inp.down('fire'),
+      reloading: this.reload >= 0,
     };
-    if (!this.alive) {
-      pi.moveX = pi.moveY = 0;
-      pi.jump = false;
-    }
-    this.controller.fixedUpdate(dt, pi, this.cam.yaw);
-    const c = this.controller;
+    if (!this.alive) pi.moveX = pi.moveY = 0;
+    c.fixedUpdate(dt, pi, this.cam.yaw);
     if (!c.grounded) this.fallSpeed = Math.max(this.fallSpeed, -c.cc.getVelocity().y);
     if (c.grounded && !this.wasGrounded && this.fallSpeed > 4) this.onLand?.(this.fallSpeed);
     if (c.grounded) this.fallSpeed = 0;
@@ -86,10 +175,17 @@ export class Player {
   /** Render-rate update: look, camera, animation. */
   frameUpdate(dt: number, alpha: number, look: { x: number; y: number }): void {
     const c = this.controller;
-    if (this.alive) this.cam.addLook(look.x, look.y);
+    if (this.alive && dt > 0) {
+      // the view never turns faster than the body can follow (stance-limited)
+      const cap = lookCap(this.aiming || this.ads, c.dashing) * dt;
+      this.cam.addLook(Math.max(-cap, Math.min(cap, look.x)), Math.max(-cap, Math.min(cap, look.y)));
+    }
     this.cam.adsTarget = this.ads ? 1 : 0;
     this.cam.baseFovDeg = this.getSettings().video.fov;
     c.interpolate(alpha);
+    this.cam.crouch = c.crouchBlend;
+    this.cam.dash = c.dashing ? 1 : 0;
+    this.cam.lean = this.coverPose.lean;
     this.cam.update(dt, c.renderPos, c.crouchBlend);
     this.world.frame(c.renderPos);
 
@@ -98,29 +194,37 @@ export class Player {
     root.rotation.y = c.renderYaw;
     this.kick = Math.max(0, this.kick - dt * 8);
     const cp = this.coverPose;
-    const aiming = c.weaponBlocked ? 0 : this.ads || this.aimLockTimer > 0 ? 1 : 0.15;
     let aimYaw = this.cam.yaw - c.renderYaw;
     aimYaw = Math.atan2(Math.sin(aimYaw), Math.cos(aimYaw));
+    const w = this.carry.w;
     this.rig.animate(dt, {
       speed: c.speed,
       localX: c.localMove.x,
       localZ: c.localMove.z,
       grounded: c.grounded,
       crouch: c.crouchBlend,
-      roll: c.rollT,
+      kneel: c.kneeling,
       aimPitch: this.cam.pitch,
-      aimYaw: aiming > 0.5 ? aimYaw : aimYaw * 0.5,
-      aim: aiming,
+      aimYaw,
+      aim: this.carry.raise,
+      carry: w,
+      weight: this.weaponWeight,
       kick: this.kick,
-      sprint: c.sprinting,
+      dash: c.dashing ? 1 : 0,
+      landing: Math.min(1, c.landT * 2),
       reload: this.reload,
       cover: cp.cover,
-      peek: cp.peek,
+      wallSide: cp.wallSide,
+      lean: cp.lean,
+      peekOver: cp.peekOver,
       blind: cp.blind,
-      vault: cp.vault,
+      edgeLook: cp.edgeLook,
+      traverse: cp.traverse,
+      traverseT: cp.traverseT,
+      slide: cp.slide,
+      check: cp.check,
     });
-    // Hide the body if the camera is pushed into it (tight spaces).
-    root.setEnabled(this.cam.boomActual > 0.75);
+    this.cam.applyBodyFade(this.rig);
   }
 
   dispose(): void {
@@ -129,4 +233,3 @@ export class Player {
     this.cam.camera.dispose();
   }
 }
-

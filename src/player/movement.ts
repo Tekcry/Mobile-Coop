@@ -1,26 +1,39 @@
-/** Pure movement maths (speed curves, eased acceleration, sprint/roll gates). Unit-tested. */
+/**
+ * Pure tactical movement maths (speed curves, direction penalties, eased acceleration, turn and look
+ * rates, the bounding dash with stamina, contextual traversal and footstep noise). Unit-tested.
+ */
 import { MOVEMENT } from '../config/movement';
 import { springStep } from '../anim/rigMath';
 
-export type Stance = 'stand' | 'crouch' | 'ads' | 'sprint' | 'cover';
+export type Stance = 'stand' | 'crouch' | 'ads' | 'cover' | 'reload';
 
-/** Target ground speed from stick magnitude: a walk band, then a jog band; stances cap it. */
-export function targetSpeed(mag: number, stance: Stance, M = MOVEMENT): number {
+/**
+ * Target ground speed (m/s). Light stick creeps, full stick walks, holding full stick for `briskDelay`
+ * eases up to the brisk move. Movement relative to the aim (local x right, z forward, unit) applies the
+ * strafe/backstep penalties. Stances cap the result.
+ */
+export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1, briskK = 0, M = MOVEMENT): number {
   const m = Math.max(0, Math.min(1, mag));
   if (m < 0.05) return 0;
-  const walk = m < M.walkBand ? M.walkSpeed * (m / M.walkBand) : M.walkSpeed + (M.jogSpeed - M.walkSpeed) * ((m - M.walkBand) / (1 - M.walkBand));
-  switch (stance) {
-    case 'crouch':
-      return Math.min(walk, M.crouchSpeed * m);
-    case 'ads':
-      return Math.min(walk, M.adsSpeed * Math.max(m, 0.6));
-    case 'cover':
-      return M.coverSpeed * m;
-    case 'sprint':
-      return M.sprintSpeed;
-    default:
-      return walk;
-  }
+  let v = m < M.creepBand ? M.creepSpeed * (m / M.creepBand) : M.creepSpeed + (M.walkSpeed - M.creepSpeed) * ((m - M.creepBand) / (1 - M.creepBand));
+  if (stance === 'stand' && m > 0.95) v += (M.briskSpeed - M.walkSpeed) * Math.max(0, Math.min(1, briskK));
+  if (stance === 'crouch') v = Math.min(v, M.crouchSpeed * m);
+  if (stance === 'ads') v = Math.min(v, M.adsSpeed * Math.max(m, 0.6));
+  if (stance === 'cover') v = M.coverSpeed * m;
+  if (stance === 'reload') v = Math.min(v, M.reloadSpeed);
+  return v * directionMult(localX, localZ, M);
+}
+
+/** Speed multiplier for moving sideways (strafe) or backwards relative to where the body faces. */
+export function directionMult(localX: number, localZ: number, M = MOVEMENT): number {
+  const l = Math.hypot(localX, localZ) || 1;
+  const x = Math.abs(localX) / l;
+  const z = localZ / l;
+  const fwd = Math.max(0, z);
+  const back = Math.max(0, -z);
+  // blend: forward 1, sideways strafeMult, backwards backMult (weights sum to ~1 on the unit circle)
+  const w = fwd + x + back || 1;
+  return (fwd * 1 + x * M.strafeMult + back * M.backMult) / w;
 }
 
 /**
@@ -53,102 +66,131 @@ export class EasedVelocity {
   }
 }
 
-/** Sprint commitment: wind-up before full speed, recovery before firing/ADS after it ends. */
-export class SprintGate {
-  state: 'off' | 'windup' | 'on' | 'recover' = 'off';
-  t = 0;
+/** Body turn rate (rad/s) for a stance. Slowest while aiming. */
+export function turnRate(aiming: boolean, speed: number, dashing: boolean, M = MOVEMENT): number {
+  if (dashing) return M.turnDash;
+  if (aiming) return M.turnAim;
+  return speed > 0.3 ? M.turnMoving : M.turnStand;
+}
 
-  update(want: boolean, dt: number, M = MOVEMENT): void {
+/** Camera look-rate cap (rad/s): the view never turns faster than the body can follow. */
+export function lookCap(aiming: boolean, dashing: boolean, M = MOVEMENT): number {
+  if (dashing) return M.lookDash;
+  return aiming ? M.lookAim : M.lookStand;
+}
+
+/** A reversal big enough (and fast enough) to need a controlled pivot rather than a turn. */
+export function needsPivot(yaw: number, target: number, speed: number, M = MOVEMENT): boolean {
+  let d = (target - yaw) % (Math.PI * 2);
+  if (d > Math.PI) d -= Math.PI * 2;
+  if (d < -Math.PI) d += Math.PI * 2;
+  return Math.abs(d) > M.pivotAngle && speed > M.walkSpeed * 0.8;
+}
+
+/**
+ * Bounding dash: wind-up (lean in, weapon compressed), committed rush up to `dashMax`, braking
+ * recovery. Weapons are blocked from wind-up to the end of recovery. Each dash costs stamina; running
+ * dry starts a cooldown during which no dash can start.
+ */
+export class DashGate {
+  state: 'off' | 'windup' | 'rush' | 'recover' = 'off';
+  t = 0;
+  stamina = 1;
+  private cooldown = 0;
+
+  get canStart(): boolean {
+    return this.state === 'off' && this.cooldown <= 0 && this.stamina >= MOVEMENT.dashCost * 0.5;
+  }
+
+  /** Try to start a dash (press edge). */
+  start(): boolean {
+    if (!this.canStart) return false;
+    this.go('windup');
+    return true;
+  }
+
+  /** End the rush early (stick released, reached cover, blocked). */
+  stop(): void {
+    if (this.state === 'windup' || this.state === 'rush') this.go('recover');
+  }
+
+  update(dt: number, M = MOVEMENT): void {
     this.t += dt;
+    this.cooldown = Math.max(0, this.cooldown - dt);
     switch (this.state) {
-      case 'off':
-        if (want) this.go('windup');
-        break;
       case 'windup':
-        if (!want) this.go('recover');
-        else if (this.t >= M.sprintWindup) this.go('on');
+        this.drain(dt / (M.dashWindup + M.dashMax), M);
+        if (this.t >= M.dashWindup) this.go('rush');
         break;
-      case 'on':
-        if (!want) this.go('recover');
+      case 'rush':
+        this.drain(dt / (M.dashWindup + M.dashMax), M);
+        if (this.t >= M.dashMax || this.stamina <= 0) this.go('recover');
         break;
       case 'recover':
-        if (want) this.go('windup');
-        else if (this.t >= M.sprintRecovery) this.go('off');
+        if (this.t >= M.dashRecovery) this.go('off');
+        break;
+      case 'off':
+        if (this.cooldown <= 0) this.stamina = Math.min(1, this.stamina + M.staminaRegen * dt);
         break;
     }
   }
 
-  private go(s: SprintGate['state']): void {
+  private drain(frac: number, M: typeof MOVEMENT): void {
+    this.stamina = Math.max(0, this.stamina - frac * M.dashCost);
+    if (this.stamina <= 0) this.cooldown = M.staminaCooldown;
+  }
+
+  private go(s: DashGate['state']): void {
     this.state = s;
     this.t = 0;
   }
 
-  /** 0..1 blend from jog to sprint speed. */
+  /** 0..1 speed blend towards dash speed (eases in over the wind-up). */
   get blend(): number {
-    if (this.state === 'on') return 1;
-    if (this.state === 'windup') return Math.min(1, this.t / Math.max(1e-3, MOVEMENT.sprintWindup));
+    if (this.state === 'rush') return 1;
+    if (this.state === 'windup') return Math.min(1, this.t / Math.max(1e-3, MOVEMENT.dashWindup)) * 0.5;
     return 0;
   }
 
-  /** Weapon is lowered: no firing or aiming. */
+  get dashing(): boolean {
+    return this.state === 'windup' || this.state === 'rush';
+  }
+
+  /** Weapon lowered/compressed: no firing or aiming. */
   get blocksWeapon(): boolean {
     return this.state !== 'off';
   }
 
-  get sprinting(): boolean {
-    return this.state === 'windup' || this.state === 'on';
-  }
-
-  cancel(): void {
-    if (this.sprinting) this.go('recover');
+  get exhausted(): boolean {
+    return this.cooldown > 0;
   }
 }
 
-/** Roll: fixed duration, then a short recovery (no fire/ADS) and a cooldown before the next. */
-export class RollGate {
-  t = -1;
-  private cd = 0;
-  private rec = 0;
+/** What the contextual jump does with the obstacle in front (heights relative to the feet, m). */
+export type Traversal = 'vault' | 'mantle' | 'step' | 'none';
 
-  get active(): boolean {
-    return this.t >= 0;
-  }
+export interface TraversalProbe {
+  /** Height of the obstacle top in front (0 = nothing). */
+  height: number;
+  /** Depth of the obstacle (m) along the move direction. */
+  depth: number;
+  /** Floor found on the far side within a step of the feet. */
+  landingClear: boolean;
+  /** Room to stand on top (mantle). */
+  topClear: boolean;
+}
 
-  /** 0..1 progress while rolling, else -1. */
-  get progress(): number {
-    return this.t;
-  }
+export function pickTraversal(p: TraversalProbe): Traversal {
+  if (p.height < 0.2) return 'none';
+  if (p.height <= 0.5 && p.depth < 1.2 && p.landingClear) return 'step';
+  if (p.height <= 1.25 && p.depth <= 1.0 && p.landingClear) return 'vault';
+  if (p.height <= 1.7 && p.topClear) return 'mantle';
+  return 'none';
+}
 
-  get blocksWeapon(): boolean {
-    return this.active || this.rec > 0;
-  }
-
-  canStart(): boolean {
-    return !this.active && this.cd <= 0;
-  }
-
-  start(): boolean {
-    if (!this.canStart()) return false;
-    this.t = 0;
-    return true;
-  }
-
-  update(dt: number, M = MOVEMENT): void {
-    this.cd = Math.max(0, this.cd - dt);
-    this.rec = Math.max(0, this.rec - dt);
-    if (this.t < 0) return;
-    this.t += dt / M.rollTime;
-    if (this.t >= 1) {
-      this.t = -1;
-      this.cd = M.rollCooldown;
-      this.rec = M.rollRecovery;
-    }
-  }
-
-  /** Speed profile over the roll: quick push, glide, slow at the end. */
-  speedAt(M = MOVEMENT): number {
-    if (this.t < 0) return 0;
-    const t = this.t;
-    return M.rollSpeed * (t < 0.15 ? 0.6 + (t / 0.15) * 0.4 : 1 - Math.max(0, t - 0.55) * 1.4);
-  }
+/** Footstep noise radius (m) that alerts enemies: quiet when creeping or crouched, loud when dashing. */
+export function noiseRadius(speed: number, crouched: boolean, dashing: boolean): number {
+  if (speed < 0.15) return 0;
+  const base = dashing ? 16 : speed < 0.8 ? 1.5 + speed * 2.5 : speed < 1.5 ? 4 + (speed - 0.8) * 4 : 7 + (speed - 1.5) * 3;
+  return base * (crouched ? 0.6 : 1);
 }

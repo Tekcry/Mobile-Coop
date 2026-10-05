@@ -2,7 +2,7 @@ import { Color4, Quaternion, TransformNode, Vector3, type AbstractMesh, type Ins
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
-import { AnimGraph, defaultInput, type AnimInput } from '../anim/animGraph';
+import { AnimGraph, defaultInput, type AnimInput, type TraverseKind } from '../anim/animGraph';
 import { solveTwoBone } from '../anim/rigMath';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
 
@@ -20,24 +20,42 @@ export interface RigPose {
   grounded: boolean;
   /** 0 standing .. 1 fully crouched. */
   crouch: number;
-  /** Roll progress 0..1 while rolling, else <0. */
-  roll: number;
   /** Aim pitch in radians (up positive). */
   aimPitch: number;
-  /** 0 relaxed .. 1 weapon raised. */
+  /** Weapon raise: 0 at the ready position .. 1 shouldered on the aim line. */
   aim: number;
   /** Momentary kick from firing 0..1. */
   kick: number;
   aimYaw?: number;
-  sprint?: boolean;
+  kneel?: boolean;
+  /** Ready-position weights (default: low ready). */
+  carry?: { low: number; high: number; compressed: number };
+  /** Weapon mass factor (1 = rifle). */
+  weight?: number;
   reload?: number;
   yawRate?: number;
   armed?: boolean;
+  /** Dash blend 0..1. */
+  dash?: number;
+  /** Dash-in slide progress 0..1, or < 0. */
+  slide?: number;
+  /** Landing recovery 0..1. */
+  landing?: number;
   cover?: AnimInput['cover'];
-  peek?: number;
+  /** Side of the cover surface in the character's frame (-1 left, 1 right). */
+  wallSide?: number;
+  /** Lean around an edge (-1 left .. 1 right), hips planted. */
+  lean?: number;
+  /** Rise over low cover 0..1. */
+  peekOver?: number;
   blind?: boolean;
-  vault?: number;
+  /** Glance towards a nearby edge (-1 / 0 / 1). */
+  edgeLook?: number;
+  traverse?: TraverseKind;
+  traverseT?: number;
   melee?: number;
+  /** Doorway check sweep 0..1, or < 0. */
+  check?: number;
 }
 
 export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'shoulderL' | 'shoulderR' | 'elbowL' | 'elbowR' | 'hipL' | 'hipR' | 'kneeL' | 'kneeR';
@@ -46,6 +64,25 @@ export type FkPose = Partial<Record<JointName, readonly [number, number, number]
 
 /** Build -> look body type (and enemies can override with their own build). */
 const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 'lean', athletic: 'athletic', broad: 'broad' };
+
+/** Max joint angular speeds (rad/s) by joint name suffix: realistic limits, also blend continuity. */
+const JOINT_RATE = new Map<string, number>([
+  ['pelvis', 8],
+  ['spine', 8],
+  ['chest', 9],
+  ['neck', 10],
+  ['head', 12],
+  ['shL', 22],
+  ['shR', 22],
+  ['elL', 24],
+  ['elR', 24],
+  ['hipL', 26],
+  ['hipR', 26],
+  ['knL', 30],
+  ['knR', 30],
+]);
+
+const approachTo = (x: number, target: number, dt: number, tau: number): number => target + (x - target) * Math.exp(-dt / tau);
 
 /** Beyond this distance (m) from the camera a rig animates at half rate. */
 export const ANIM_LOD_DISTANCE = 22;
@@ -128,6 +165,20 @@ export class CharacterRig {
   emote: ((rig: CharacterRig, t: number) => FkPose | void) | null = null;
   emoteTime = 0;
   private emoteW = 0;
+  /** Weapon in the left hand (cover on the right side): grip/foregrip swap and mirrored aim pocket. */
+  leftHanded = false;
+  private handBlend = 0;
+  /** World point for the off hand on the cover surface (set by the cover system), or null. */
+  coverHand: Vector3 | null = null;
+  /** Ground height under a world XZ (raycast) for foot IK, or null to skip. */
+  groundProbe: ((x: number, z: number, yFrom: number) => number | null) | null = null;
+  private footOffL = 0;
+  private footOffR = 0;
+  private prevRot = new Map<TransformNode, Quaternion>();
+  /** Joint-rate limiter hits (debug overlay warning counter). */
+  limited = 0;
+  /** Last graph output (debug overlay: layer weights, weapon bob). */
+  lastTargets: ReturnType<AnimGraph['update']> | null = null;
   private lastFk: FkPose | null = null;
   private pelvisRest: number;
   private bodyPivot: number;
@@ -424,19 +475,31 @@ export class CharacterRig {
     i.localZ = s.localZ;
     i.grounded = s.grounded;
     i.crouch = s.crouch;
-    i.roll = s.roll;
+    i.kneel = s.kneel ?? false;
     i.aimPitch = s.aimPitch;
-    i.aim = s.aim;
+    i.raise = s.aim;
     i.kick = s.kick;
     i.aimYaw = s.aimYaw ?? 0;
-    i.sprint = s.sprint ?? false;
+    const cr = s.carry;
+    i.carryLow = cr ? cr.low : 1;
+    i.carryHigh = cr ? cr.high : 0;
+    i.carryComp = cr ? cr.compressed : 0;
+    i.weight = s.weight ?? 1;
     i.reload = s.reload ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
+    i.dash = s.dash ?? 0;
+    i.slide = s.slide ?? -1;
+    i.landing = s.landing ?? 0;
     i.cover = s.cover ?? 'none';
-    i.peek = s.peek ?? 0;
+    i.wallSide = s.wallSide ?? 0;
+    i.lean = s.lean ?? 0;
+    i.peekOver = s.peekOver ?? 0;
     i.blind = s.blind ?? false;
-    i.vault = s.vault ?? -1;
+    i.edgeLook = s.edgeLook ?? 0;
+    i.traverse = s.traverse ?? 'none';
+    i.traverseT = s.traverseT ?? 0;
     i.melee = s.melee ?? -1;
+    i.check = s.check ?? -1;
     const yaw = this.root.rotation.y;
     if (s.yawRate !== undefined) i.yawRate = s.yawRate;
     else if (this.prevYaw !== null && dt > 0) {
@@ -446,7 +509,8 @@ export class CharacterRig {
     }
     this.prevYaw = yaw;
     const t = this.graph.update(dt, i);
-    this.applyTargets(t);
+    this.applyTargets(t, dt);
+    this.lastTargets = t;
     // emote overrides blend in/out
     let fk: FkPose | null = null;
     if (this.emote) {
@@ -464,38 +528,83 @@ export class CharacterRig {
     this.graph.hit(strength, side);
   }
 
-  private applyTargets(t: ReturnType<AnimGraph['update']>): void {
+  private applyTargets(t: ReturnType<AnimGraph['update']>, dt: number): void {
     const p = this.p;
-    // body tumble (rolls) about the hips
     this.body.rotationQuaternion!.copyFrom(Quaternion.RotationAxisToRef(Vector3.RightReadOnly, t.tumble, tmpQ));
     const pe = t.pelvis;
-    this.hips.position.set(pe.x, this.pelvisRest + pe.y, pe.z);
+    // ground foot IK: probe under each foot; the pelvis drops to the lower foot so both legs reach
+    let footOffL = 0;
+    let footOffR = 0;
+    if (this.groundProbe && this.input.grounded && this.input.traverse === 'none') {
+      footOffL = this.probeFoot(t.footL);
+      footOffR = this.probeFoot(t.footR);
+    }
+    this.footOffL = approachTo(this.footOffL, footOffL, dt, 0.08);
+    this.footOffR = approachTo(this.footOffR, footOffR, dt, 0.08);
+    const pelvisDrop = Math.min(0, this.footOffL, this.footOffR);
+    this.hips.position.set(pe.x, this.pelvisRest + pe.y + pelvisDrop, pe.z);
     Quaternion.RotationYawPitchRollToRef(pe.yaw, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
-    // the spine counters most of the pelvis tilt so the chest stays readable
+    // the spine counters most of the pelvis tilt so the chest stays level (stabilised gun platform)
     const sp = t.spine;
-    Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.4, sp.pitch * 0.45 - pe.pitch * 0.6, sp.roll * 0.5 - pe.roll * 0.7, this.spine.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.4, sp.pitch * 0.45 - pe.pitch * 0.6, sp.roll * 0.5 - pe.roll * 0.4, this.spine.rotationQuaternion!);
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.6, sp.pitch * 0.55, sp.roll * 0.5, this.torso.rotationQuaternion!);
-    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.4, 0, this.neck.rotationQuaternion!);
-    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.6, t.head.pitch * 0.6, 0, this.headNode.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.4, t.head.roll * 0.5, this.neck.rotationQuaternion!);
+    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.6, t.head.pitch * 0.6, t.head.roll * 0.5, this.headNode.rotationQuaternion!);
+    for (const j of [this.hips, this.spine, this.torso, this.neck, this.headNode]) this.limitJoint(j, dt);
 
-    // aim pocket: rest + layer offsets; orientation = body yaw, aim pitch (world), layer rotation
+    // aim pocket: rest + layer offsets, mirrored to the left shoulder when switched hands in cover
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
     const w = t.weapon;
-    this.weaponPivot.position.set(p.shoulderHalf * 0.55 + w.x, p.y.shoulder - chestY - 0.1 + w.y, 0.3 + w.z);
+    this.handBlend = approachTo(this.handBlend, this.leftHanded ? 1 : 0, dt, 0.12);
+    const mirror = 1 - this.handBlend * 2;
+    this.weaponPivot.position.set((p.shoulderHalf * 0.55 + w.x) * mirror, p.y.shoulder - chestY - 0.1 + w.y, 0.3 + w.z);
     this.torso.computeWorldMatrix(true);
     const aimYaw = this.root.rotation.y + this.input.aimYaw;
-    Quaternion.RotationYawPitchRollToRef(aimYaw + w.yaw, -this.input.aimPitch + w.pitch, w.roll, tmpQ);
-    // when tumbling the gun goes with the body
+    Quaternion.RotationYawPitchRollToRef(aimYaw + w.yaw * mirror, -this.input.aimPitch + w.pitch, w.roll * mirror, tmpQ);
     if (Math.abs(t.tumble) > 1e-3) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
     this.setWorldRot(this.weaponPivot, this.torso, tmpQ);
+    this.limitJoint(this.weaponPivot, dt, 14 / Math.max(0.7, this.input.weight));
 
-    // arms
+    // arms: the dominant hand takes the grip, the other the foregrip (or the cover surface / magazine)
     const gripW = this.heldWeapon ? t.grip : 0;
-    this.solveArm(1, gripW, 1, t.handR);
-    this.solveArm(-1, gripW, t.offGrip, t.handL);
+    const leftGrips = this.handBlend > 0.5;
+    this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? t.offCover : 0, !leftGrips);
+    this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : t.offCover, leftGrips);
     // legs
-    this.solveLeg(this.hipL, this.kneeL, this.ankleL, t.footL, t.footPitchL, -1);
-    this.solveLeg(this.hipR, this.kneeR, this.ankleR, t.footR, t.footPitchR, 1);
+    this.solveLeg(this.hipL, this.kneeL, this.ankleL, t.footL, t.footPitchL, -1, footOffL - pelvisDrop);
+    this.solveLeg(this.hipR, this.kneeR, this.ankleR, t.footR, t.footPitchR, 1, footOffR - pelvisDrop);
+    for (const j of [this.shoulderL, this.shoulderR, this.elbowL, this.elbowR, this.hipL, this.hipR, this.kneeL, this.kneeR]) this.limitJoint(j, dt);
+  }
+
+  /** Ground height offset under a root-space foot target (m, negative = ground lower). */
+  private probeFoot(f: { x: number; y: number; z: number }): number {
+    const world = this.bodyToWorld(f, tmpB);
+    const rootY = this.root.position.y;
+    const hitY = this.groundProbe!(world.x, world.z, rootY + 0.5);
+    if (hitY === null) return 0;
+    return Math.max(-0.35, Math.min(0.35, hitY - rootY));
+  }
+
+  /**
+   * Realism limit + blend continuity: a joint's local rotation may not change faster than its max
+   * angular speed. Any abrupt pose change (state switch, IK flip, emote) is spread over a few frames,
+   * so motion stays continuous (an inertialization-style safety net under the weighted blends).
+   */
+  private limitJoint(node: TransformNode, dt: number, maxRate = JOINT_RATE.get(node.name.split('-').pop() ?? '') ?? 20): void {
+    const q = node.rotationQuaternion!;
+    const prev = this.prevRot.get(node);
+    if (!prev) {
+      this.prevRot.set(node, q.clone());
+      return;
+    }
+    const dot = Math.min(1, Math.abs(Quaternion.Dot(prev, q)));
+    const angle = 2 * Math.acos(dot);
+    const max = maxRate * Math.max(dt, 1 / 240);
+    if (angle > max) {
+      Quaternion.SlerpToRef(prev, q, max / angle, q);
+      this.limited++;
+    }
+    prev.copyFrom(q);
   }
 
   /** Set a node's world rotation through its parent. */
@@ -517,7 +626,11 @@ export class CharacterRig {
     return Vector3.TransformNormalToRef(tmpE, this.body.getWorldMatrix(), out).normalize();
   }
 
-  private solveArm(side: 1 | -1, gripW: number, offW: number, free: { x: number; y: number; z: number }): void {
+  /**
+   * Arm IK. `isGrip`: this hand holds the trigger grip (else the foregrip / magazine / cover surface).
+   * `coverW` blends the support hand onto the cover surface point (`coverHand`).
+   */
+  private solveArm(side: 1 | -1, gripW: number, offW: number, free: { x: number; y: number; z: number }, coverW = 0, isGrip = side > 0): void {
     const sh = side > 0 ? this.shoulderR : this.shoulderL;
     const el = side > 0 ? this.elbowR : this.elbowL;
     const wr = side > 0 ? this.wristR : this.wristL;
@@ -528,12 +641,13 @@ export class CharacterRig {
     const target = this.bodyToWorld(free, tmpA);
     if (gripW > 0 && this.heldWeapon) {
       this.heldWeapon.computeWorldMatrix(true);
-      const local = side > 0 ? this.grip : offW >= 1 ? this.foregrip : Vector3.LerpToRef(this.magPoint, this.foregrip, offW, tmpE);
+      const local = isGrip ? this.grip : offW >= 1 ? this.foregrip : Vector3.LerpToRef(this.magPoint, this.foregrip, offW, tmpE);
       Vector3.TransformCoordinatesToRef(local, this.heldWeapon.getWorldMatrix(), tmpB);
       // the wrist sits a little behind the palm point
       Vector3.LerpToRef(target, tmpB, gripW, target);
       target.y += 0.035 * gripW;
     }
+    if (coverW > 0 && this.coverHand && !isGrip) Vector3.LerpToRef(target, this.coverHand, coverW, target);
     // elbows down/out/back
     this.dirToWorld(side * 0.55, -1, -0.35, tmpPole);
     solveTwoBone(S, target, p.upperArm.len, p.forearm.len, tmpPole, tmpC, tmpD);
@@ -548,10 +662,10 @@ export class CharacterRig {
     sh.computeWorldMatrix(true);
     this.setWorldRot(el, sh, tmpQ);
     // hand: follow the weapon when gripping, else continue the forearm
-    if (gripW > 0.5 && this.heldWeapon) {
+    if (gripW > 0.5 && this.heldWeapon && !(coverW > 0.5 && !isGrip)) {
       // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side
       this.heldWeapon.computeWorldMatrix(true);
-      Quaternion.RotationYawPitchRollToRef(0, side > 0 ? 0.25 : -1.2, side > 0 ? 0 : -side * 0.4, tmpQ2);
+      Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);
       el.computeWorldMatrix(true);
       this.setWorldRot(wr, el, tmpQ3);
@@ -560,11 +674,12 @@ export class CharacterRig {
     }
   }
 
-  private solveLeg(hip: TransformNode, knee: TransformNode, ankle: TransformNode, foot: { x: number; y: number; z: number }, footPitch: number, side: number): void {
+  private solveLeg(hip: TransformNode, knee: TransformNode, ankle: TransformNode, foot: { x: number; y: number; z: number }, footPitch: number, side: number, groundOff = 0): void {
     const p = this.p;
     hip.computeWorldMatrix(true);
     const H = hip.getAbsolutePosition();
     const target = this.bodyToWorld(foot, tmpA);
+    target.y += groundOff;
     // knees forward and slightly out
     this.dirToWorld(side * 0.12, 0, 1, tmpPole);
     solveTwoBone(H, target, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);

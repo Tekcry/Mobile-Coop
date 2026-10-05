@@ -14,7 +14,7 @@ export const BUTTON_ACTIONS = [
   'pause',
   'grenade',
   'shoulderSwap',
-  'sprint',
+  'dash',
   'quick1',
   'quick2',
   'quick3',

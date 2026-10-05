@@ -12,6 +12,7 @@ export const TOUCH_CONTROL_IDS = [
   'grenade',
   'interact',
   'cover',
+  'dash',
   'shoulder',
   'pause',
 ] as const;
@@ -74,6 +75,7 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   grenade: { x: 0.93, y: 0.42, scale: 0.8 },
   interact: { x: 0.62, y: 0.62, scale: 0.85 },
   cover: { x: 0.62, y: 0.42, scale: 0.85 },
+  dash: { x: 0.3, y: 0.88, scale: 0.8 },
   shoulder: { x: 0.7, y: 0.09, scale: 0.75 },
   pause: { x: 0.79, y: 0.09, scale: 0.75 },
 };

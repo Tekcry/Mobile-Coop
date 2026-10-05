@@ -54,6 +54,8 @@ export interface WeaponDef {
   /** Weapon-local hand points: trigger grip (right hand) and foregrip (left hand). */
   grip: [number, number, number];
   foregrip: [number, number, number];
+  /** Mass factor for carry and handling (1 = rifle); defaults by class (`classWeight`). */
+  weight?: number;
 }
 
 export interface GrenadeDef {

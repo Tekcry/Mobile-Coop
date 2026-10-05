@@ -105,7 +105,6 @@ export class EnemyPuppet implements Damageable {
       localZ: (lx * sy + lz * cy) * inv,
       grounded: true,
       crouch: this.crouch,
-      roll: -1,
       aimPitch: 0,
       aim: this.def.melee ? 0 : this.aim,
       kick: this.def.melee ? 0 : this.kick,

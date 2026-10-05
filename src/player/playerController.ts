@@ -8,7 +8,7 @@ import {
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { EasedVelocity, RollGate, SprintGate, targetSpeed, type Stance } from './movement';
+import { DashGate, EasedVelocity, needsPivot, targetSpeed, turnRate, type Stance } from './movement';
 
 /** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
 export const PLAYER_TUNING = MOVEMENT;
@@ -27,22 +27,30 @@ export interface MoveOverride {
 export interface PlayerInput {
   moveX: number;
   moveY: number;
-  jump: boolean;
-  /** Edge: crouch/roll button pressed this step. */
+  /** Edge: crouch button pressed this step. */
   crouchPressed: boolean;
   /** Level: crouch button held (hold mode). */
   crouchHeld: boolean;
   crouchToggle: boolean;
-  sprint: boolean;
+  /** Edge: dash pressed this step. */
+  dashPressed: boolean;
   ads: boolean;
-  /** Character faces the camera (aiming or firing). */
-  aimLock: boolean;
+  /** Weapon raised or firing (tightest turn rate). */
+  aiming: boolean;
+  /** Reloading: moving drops to creep speed. */
+  reloading: boolean;
 }
 
 const UP = new Vector3(0, 1, 0);
 const DOWN = new Vector3(0, -1, 0);
 
-/** Havok character controller with walk/sprint/crouch/roll/jump and step/slope handling. */
+/**
+ * Tactical (SWAT-style) Havok character controller. The body faces the aim (weapon-led: legs sidestep
+ * and backstep, feet never cross), turning at a stance-limited rate; large reversals at speed become a
+ * controlled pivot. Speed is analog (creep, walk, brisk) with strafe/backstep penalties and eased
+ * acceleration. The only fast movement is the committed bounding dash. There is no free jump: traversal
+ * (vault, mantle, step, drop) is driven through `override.kinematic` by the traversal/cover systems.
+ */
 export class PlayerController {
   static stickForce = 1.2;
   readonly cc: PhysicsCharacterController;
@@ -57,24 +65,32 @@ export class PlayerController {
   crouched = false;
   /** Visual crouch blend 0..1. */
   crouchBlend = 0;
-  readonly roll = new RollGate();
-  readonly sprint = new SprintGate();
+  /** Crouched and stopped for a moment: one-knee kneel (steadier aim). */
+  kneeling = false;
+  private stillT = 0;
+  readonly dash = new DashGate();
   readonly vel = new EasedVelocity();
-  private rollDir = new Vector3(0, 0, 1);
+  private dashDir = new Vector3(0, 0, 1);
+  /** True during the dash wind-up and rush (kept as `sprinting` for animation/net flags). */
   sprinting = false;
-  /** Set each step by the cover system (or null). */
+  /** Set each step by the cover/traversal systems (or null). */
   override: MoveOverride | null = null;
   /** Ignore this step's crouch press (consumed by the cover system). */
   swallowCrouch = false;
   speed = 0;
   localMove = { x: 0, z: 0 };
+  /** Seconds left in a controlled pivot (large reversal at speed). */
+  pivotT = 0;
+  /** Seconds the stick has been at full deflection (eases into the brisk move). */
+  private fullT = 0;
+  /** Landing recovery after a drop (s): slows to a creep. */
+  landT = 0;
+  private fallSpeed = 0;
   private height: number = MOVEMENT.standHeight;
   private support: CharacterSurfaceInfo | null = null;
   private wish = new Vector3();
   private tmp = new Vector3();
   private crouchToggled = false;
-  /** After take-off, ignore "supported" (contact tolerance) briefly so the jump is not cancelled. */
-  private airborneLock = 0;
   /** Disable movement (dead, cutscene, menus). */
   frozen = false;
   /** External speed multiplier (e.g. weapon weight). */
@@ -119,18 +135,22 @@ export class PlayerController {
     return this.crouched ? 1.05 : 1.6;
   }
 
+  /** The dash replaced the old roll: kept for callers that ask (always false). */
   get isRolling(): boolean {
-    return this.roll.active;
+    return false;
   }
 
-  /** Roll progress 0..1 while rolling, else -1. */
   get rollT(): number {
-    return this.roll.progress;
+    return -1;
   }
 
-  /** Weapon lowered: sprinting (incl. wind-up/recovery) or rolling/recovering. */
+  get dashing(): boolean {
+    return this.dash.dashing;
+  }
+
+  /** Weapon lowered/compressed: dashing (wind-up to recovery) or recovering from a landing. */
   get weaponBlocked(): boolean {
-    return this.sprint.blocksWeapon || this.roll.blocksWeapon;
+    return this.dash.blocksWeapon || this.landT > 0.15;
   }
 
   /** Cover takes over crouching: forget a pending crouch toggle. */
@@ -141,6 +161,11 @@ export class PlayerController {
   /** Current capsule height (crouch-aware). */
   get capsuleHeight(): number {
     return this.height;
+  }
+
+  /** Wish direction (world XZ, length = stick magnitude) of the last step. */
+  get wishDir(): Vector3 {
+    return this.wish;
   }
 
   teleport(feet: Vector3, yaw?: number): void {
@@ -174,18 +199,21 @@ export class PlayerController {
     const ov = this.override;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
-    this.roll.update(dt);
+    this.landT = Math.max(0, this.landT - dt);
 
-    // committed kinematic move (vault): no collision, exact path
+    // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
       this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
       this.cc.setVelocity(Vector3.Zero());
       this.syncFeet();
-      if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, T.turnSpeed * 2 * dt);
+      if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, T.turnStand * 1.5 * dt);
       this.speed = Vector3.Distance(this.pos, this.prevPos) / Math.max(dt, 1e-4);
+      this.vel.reset();
       this.grounded = true;
-      this.sprint.update(false, dt);
-      this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, dt * 12);
+      this.dash.update(dt);
+      this.sprinting = false;
+      if (ov.crouch !== undefined) this.applyCrouch(ov.crouch);
+      this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, dt / T.crouchTime * 3);
       return;
     }
 
@@ -199,55 +227,58 @@ export class PlayerController {
     this.wish.set(fz * mx + fx * my, 0, -fx * mx + fz * my);
     if (this.wish.lengthSquared() > 1) this.wish.normalize();
 
-    // crouch / roll
+    // crouch (no roll: crouch always toggles/holds)
     const crouchPressed = input.crouchPressed && !this.swallowCrouch;
     this.swallowCrouch = false;
-    if (!this.frozen && !ov && crouchPressed && this.grounded && !this.isRolling) {
-      if (mag > 0.5 && this.roll.start()) {
-        this.rollDir.copyFrom(this.wish).normalize();
-        this.crouchToggled = false;
-      } else if (input.crouchToggle) {
-        this.crouchToggled = !this.crouchToggled;
-      }
-    }
+    if (!this.frozen && !ov && crouchPressed && this.grounded && input.crouchToggle) this.crouchToggled = !this.crouchToggled;
     let wantCrouch = input.crouchToggle ? this.crouchToggled : input.crouchHeld;
     if (ov?.crouch !== undefined) wantCrouch = ov.crouch;
-    if (this.isRolling) wantCrouch = true;
-    if (input.jump && this.crouchToggled) {
+    if (this.dash.dashing) wantCrouch = false;
+    this.applyCrouch(wantCrouch);
+
+    // bounding dash: press to start; ends at max time, when the stick is released, or on stamina out
+    if (!ov && !this.frozen && input.dashPressed && this.grounded && mag > 0.3 && this.dash.start()) {
+      this.dashDir.copyFrom(this.wish).normalize();
       this.crouchToggled = false;
-      wantCrouch = false;
     }
-    if (wantCrouch && !this.crouched) {
-      this.setHeight(T.crouchHeight);
-      this.crouched = true;
-    } else if (!wantCrouch && this.crouched && this.hasHeadroom()) {
-      this.setHeight(T.standHeight);
-      this.crouched = false;
+    if (this.dash.dashing && mag < 0.2 && this.dash.state === 'rush') this.dash.stop();
+    this.dash.update(dt);
+    this.sprinting = this.dash.dashing;
+    if (this.dash.dashing && mag > 0.3) {
+      // limited steering while committed
+      const want = Math.atan2(this.wish.x, this.wish.z);
+      const cur = Math.atan2(this.dashDir.x, this.dashDir.z);
+      const a = turnTowards(cur, want, T.turnDash * dt);
+      this.dashDir.set(Math.sin(a), 0, Math.cos(a));
     }
 
-    // sprint is a commitment: forward, grounded, standing, not aiming; wind-up then recovery
-    const wantSprint = !ov && input.sprint && !input.ads && !this.crouched && my > 0.5 && this.grounded && !this.isRolling;
-    this.sprint.update(wantSprint, dt);
-    this.sprinting = this.sprint.sprinting;
-    const stance: Stance = ov ? 'cover' : this.crouched ? 'crouch' : input.ads ? 'ads' : 'stand';
-    let speedTarget = targetSpeed(mag, stance);
-    if (this.sprint.sprinting) speedTarget += (T.sprintSpeed - speedTarget) * this.sprint.blend;
-    speedTarget *= this.speedMul;
+    // speed: analog creep/walk/brisk with direction penalties relative to the body (which faces the aim)
+    this.fullT = mag > 0.95 && !input.ads && !input.aiming ? this.fullT + dt : 0;
+    const briskK = Math.max(0, Math.min(1, (this.fullT - T.briskDelay) / 0.5));
+    const bs = Math.sin(this.yaw);
+    const bc = Math.cos(this.yaw);
+    const lx = mag > 0 ? (this.wish.x * bc - this.wish.z * bs) / mag : 0;
+    const lz = mag > 0 ? (this.wish.x * bs + this.wish.z * bc) / mag : 1;
+    const stance: Stance = ov ? 'cover' : input.reloading ? 'reload' : this.crouched ? 'crouch' : input.ads || input.aiming ? 'ads' : 'stand';
+    let speedTarget = targetSpeed(mag, stance, lx, lz, briskK) * this.speedMul;
+    // controlled pivot: a big reversal at speed slows the body while it turns round
+    if (!this.dash.dashing && !ov && this.pivotT <= 0 && needsPivot(this.yaw, camYaw, this.speed)) this.pivotT = T.pivotTime;
+    this.pivotT = Math.max(0, this.pivotT - dt);
+    if (this.pivotT > 0) speedTarget *= 0.35;
+    if (this.landT > 0) speedTarget = Math.min(speedTarget, T.creepSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
     let tx = this.wish.x * inv;
     let tz = this.wish.z * inv;
+    if (this.dash.dashing) {
+      const ds = T.walkSpeed + (T.dashSpeed - T.walkSpeed) * this.dash.blend;
+      tx = this.dashDir.x * ds;
+      tz = this.dashDir.z * ds;
+    }
     if (ov?.velocity) {
       tx = ov.velocity.x;
       tz = ov.velocity.z;
     }
-    if (this.isRolling) {
-      const rs = this.roll.speedAt();
-      tx = this.rollDir.x * rs;
-      tz = this.rollDir.z * rs;
-      this.vel.reset(tx, tz);
-    } else if (this.grounded) {
-      this.vel.step(tx, tz, dt);
-    }
+    if (this.grounded) this.vel.step(tx, tz, dt);
     const desired = this.tmp.set(this.vel.x, 0, this.vel.z);
 
     if (this.grounded && mag > 0.1) this.stepAssist(dt);
@@ -255,20 +286,9 @@ export class PlayerController {
     // Havok character controller step
     const support = (this.support = this.cc.checkSupport(dt, DOWN));
     const cur = this.cc.getVelocity();
-    this.airborneLock = Math.max(0, this.airborneLock - dt);
-    const grounded = support.supportedState === CharacterSupportedState.SUPPORTED && this.airborneLock === 0;
+    const grounded = support.supportedState === CharacterSupportedState.SUPPORTED;
     let out: Vector3;
-    if (grounded && input.jump && !this.frozen && !this.isRolling && !ov) {
-      // modest, committed jump: keep the take-off velocity
-      const u = Math.sqrt(2 * -GRAVITY.y * T.jumpHeight);
-      const along = cur.dot(UP);
-      out = cur.add(UP.scale(u - along));
-      out.x = desired.x;
-      out.z = desired.z;
-      this.grounded = false;
-      this.airborneLock = 0.2;
-      this.sprint.cancel();
-    } else if (grounded) {
+    if (grounded) {
       out = this.cc.calculateMovement(dt, this.forwardVec(), support.averageSurfaceNormal, cur, support.averageSurfaceVelocity, desired, UP);
       out.subtractInPlace(support.averageSurfaceVelocity);
       if (out.dot(UP) > 1e-3) {
@@ -282,30 +302,36 @@ export class PlayerController {
       out.addInPlace(support.averageSurfaceVelocity);
       // Small stick force keeps the capsule in contact (no hovering within contact tolerance).
       out.subtractInPlace(support.averageSurfaceNormal.scale(PlayerController.stickForce));
-      if (!this.grounded) this.vel.reset(cur.x, cur.z);
+      if (!this.grounded) {
+        // controlled landing: recovery scales with the fall
+        if (this.fallSpeed > 3) this.landT = Math.min(0.7, 0.15 + (this.fallSpeed - 3) * 0.08);
+        this.vel.reset(cur.x * 0.3, cur.z * 0.3);
+        this.fallSpeed = 0;
+      }
       this.grounded = true;
     } else {
-      // air: committed arc, minimal control
+      // dropping off a ledge: committed arc, minimal control
       const k = Math.min(1, T.airControl * dt * 10);
       out = new Vector3(cur.x + (tx - cur.x) * k, cur.y, cur.z + (tz - cur.z) * k).addInPlace(GRAVITY.scale(dt));
       this.vel.reset(out.x, out.z);
+      this.fallSpeed = Math.max(this.fallSpeed, -out.y);
       this.grounded = false;
     }
     this.cc.setVelocity(out);
     this.cc.integrate(dt, support, GRAVITY);
     this.syncFeet();
 
-    // facing
+    // facing: weapon-led. The body faces the aim (dash: the rush direction), at a stance-limited rate.
     const v = this.cc.getVelocity();
     this.speed = Math.hypot(v.x, v.z);
+    const aiming = input.ads || input.aiming;
     if (ov?.yaw !== undefined) {
-      this.yaw = turnTowards(this.yaw, ov.yaw, T.turnSpeed * dt);
-    } else if (input.aimLock || input.ads) {
-      this.yaw = turnTowards(this.yaw, camYaw, T.turnSpeed * 1.6 * dt);
-    } else if (this.isRolling) {
-      this.yaw = turnTowards(this.yaw, Math.atan2(this.rollDir.x, this.rollDir.z), T.turnSpeed * 2 * dt);
-    } else if (mag > 0.1) {
-      this.yaw = turnTowards(this.yaw, Math.atan2(this.wish.x, this.wish.z), T.turnSpeed * dt);
+      this.yaw = turnTowards(this.yaw, ov.yaw, T.turnMoving * dt);
+    } else if (this.dash.dashing) {
+      this.yaw = turnTowards(this.yaw, Math.atan2(this.dashDir.x, this.dashDir.z), turnRate(false, this.speed, true) * 2.5 * dt);
+    } else {
+      const rate = this.pivotT > 0 ? Math.PI / T.pivotTime : turnRate(aiming, this.speed, false);
+      this.yaw = turnTowards(this.yaw, camYaw, rate * dt);
     }
     // local move for animation
     const s = Math.sin(this.yaw);
@@ -313,7 +339,20 @@ export class PlayerController {
     const invS = this.speed > 0.01 ? 1 / this.speed : 0;
     this.localMove.x = (v.x * c - v.z * s) * invS;
     this.localMove.z = (v.x * s + v.z * c) * invS;
-    this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, dt * 12);
+    // kneel: crouched and still for a moment
+    this.stillT = this.crouched && this.speed < 0.1 ? this.stillT + dt : 0;
+    this.kneeling = this.stillT > 0.25;
+    this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, (dt / T.crouchTime) * 3);
+  }
+
+  private applyCrouch(want: boolean): void {
+    if (want && !this.crouched) {
+      this.setHeight(MOVEMENT.crouchHeight);
+      this.crouched = true;
+    } else if (!want && this.crouched && this.hasHeadroom()) {
+      this.setHeight(MOVEMENT.standHeight);
+      this.crouched = false;
+    }
   }
 
   private stepCd = 0;

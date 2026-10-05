@@ -151,8 +151,9 @@ describe('gait and blending', () => {
       expect(g.weights.filter((w) => w > 0).length).toBeLessThanOrEqual(2);
     }
     expect(gaitAt(GAIT[1]!.speed).weights[1]).toBeCloseTo(1);
-    expect(gaitAt(2.45).stride).toBeGreaterThan(GAIT[1]!.stride);
-    expect(gaitAt(2.45).stride).toBeLessThan(GAIT[2]!.stride);
+    const mid = (GAIT[1]!.speed + GAIT[2]!.speed) / 2;
+    expect(gaitAt(mid).stride).toBeGreaterThan(GAIT[1]!.stride);
+    expect(gaitAt(mid).stride).toBeLessThan(GAIT[2]!.stride);
   });
   it('lower-body states cross-fade over ~200 ms with weights summing to 1', () => {
     const g = new AnimGraph(proportions());
@@ -174,17 +175,21 @@ describe('gait and blending', () => {
     expect(h.weights.crouch).toBeGreaterThan(0.2);
     expect(h.weights.locomotion).toBeGreaterThan(0.2);
   });
-  it('state priority: roll > vault > air > cover > crouch > locomotion', () => {
+  it('state priority: traverse > slide > air > cover > kneel/crouch > locomotion', () => {
     const i = defaultInput();
     expect(pickLower(i)).toBe('locomotion');
+    i.crouch = 1;
+    expect(pickLower(i)).toBe('crouch');
+    i.kneel = true;
+    expect(pickLower(i)).toBe('kneel');
     i.cover = 'low';
     expect(pickLower(i)).toBe('cover');
     i.grounded = false;
     expect(pickLower(i)).toBe('air');
-    i.vault = 0.2;
-    expect(pickLower(i)).toBe('vault');
-    i.roll = 0.5;
-    expect(pickLower(i)).toBe('roll');
+    i.slide = 0.2;
+    expect(pickLower(i)).toBe('slide');
+    i.traverse = 'vault';
+    expect(pickLower(i)).toBe('traverse');
   });
   it('crouching lowers the pelvis and the aim layer raises the weapon', () => {
     const g = new AnimGraph(proportions());
@@ -193,7 +198,7 @@ describe('gait and blending', () => {
     const standY = g.out.pelvis.y;
     const lowPitch = g.out.weapon.pitch;
     i.crouch = 1;
-    i.aim = 1;
+    i.raise = 1;
     for (let k = 0; k < 60; k++) g.update(1 / 60, i);
     expect(g.out.pelvis.y).toBeLessThan(standY - 0.2);
     expect(g.out.weapon.pitch).toBeLessThan(lowPitch);

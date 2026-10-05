@@ -583,14 +583,13 @@ export class Enemy implements Damageable {
       localZ: (this.vel.x * s + this.vel.z * c) * inv,
       grounded: true,
       crouch: this.crouch,
-      roll: -1,
       aimPitch: this.aimPitch,
       aim: aiming,
       kick: this.def.melee ? 0 : this.kick,
       melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
       cover: this.coverPose,
-      peek: this.coverPeek,
-      sprint: !this.def.melee && sp > this.def.runSpeed * 0.8 && aiming < 0.5,
+      lean: this.coverPeek,
+      dash: !this.def.melee && sp > this.def.runSpeed * 0.8 && aiming < 0.5 ? 1 : 0,
     });
     this.rig.headNode.computeWorldMatrix(true);
     this.head.copyFrom(this.rig.headNode.getAbsolutePosition());

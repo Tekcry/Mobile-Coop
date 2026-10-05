@@ -28,7 +28,6 @@ export class RemoteAvatar {
   private kick = 0;
   private crouch = 0;
   private aim = 0;
-  private roll = -1;
   private prev = new Vector3();
   private speed = 0;
   private tmpA = new Vector3();
@@ -97,7 +96,6 @@ export class RemoteAvatar {
     const f = this.flags;
     this.crouch += ((f & PF.crouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 10);
     this.aim += ((f & (PF.ads | PF.firing) ? 1 : 0.15) - this.aim) * Math.min(1, dt * 10);
-    this.roll = f & PF.roll ? (this.roll < 0 ? 0 : Math.min(0.99, this.roll + dt / 0.55)) : -1;
     this.kick = Math.max(0, this.kick - dt * 8);
     const r = this.rig.root;
     r.position.copyFrom(this.pos);
@@ -112,11 +110,10 @@ export class RemoteAvatar {
       localZ: (lx * sy + lz * cy) * inv,
       grounded: (f & PF.grounded) !== 0,
       crouch: this.crouch,
-      roll: this.roll,
       aimPitch: this.pitch,
       aim: this.aim,
       kick: this.kick,
-      sprint: (f & PF.sprint) !== 0,
+      dash: (f & PF.sprint) !== 0 ? 1 : 0,
     });
     // downed: lie on the side
     r.rotation.z = this.dead ? Math.PI / 2 : 0;

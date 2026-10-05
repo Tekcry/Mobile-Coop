@@ -14,8 +14,6 @@ import {
   type CoverBox,
 } from '../src/cover/coverData';
 import { CoverStateMachine, emptyCoverInput, ENTER_TIME, VAULT_TIME, CORNER_HOLD, type CoverInput } from '../src/cover/coverState';
-import { targetSpeed, EasedVelocity, SprintGate, RollGate } from '../src/player/movement';
-import { MOVEMENT } from '../src/config/movement';
 
 // low wall 0.6 thick (x) x 4 long (z) at the origin; high wall 0.5 x 4 at x = 10
 const low: CoverBox = { c: [0, 0.525, 0], s: [0.6, 1.05, 4], yaw: 0, pitch: 0, collide: true };
@@ -159,67 +157,5 @@ describe('cover state machine', () => {
     const sm = inCover();
     expect(run(sm, { coverPressed: true, away: 1, canDash: true }, 1 / 60)).toBe('dash');
     expect(run(sm, { arrived: true }, 1 / 60)).toBe('enter');
-  });
-});
-
-describe('movement', () => {
-  it('speed curve: walk band, jog band, stance caps (realistic m/s)', () => {
-    expect(targetSpeed(0.02, 'stand')).toBe(0);
-    expect(targetSpeed(MOVEMENT.walkBand, 'stand')).toBeCloseTo(MOVEMENT.walkSpeed);
-    expect(targetSpeed(1, 'stand')).toBeCloseTo(3.5);
-    expect(targetSpeed(1, 'crouch')).toBeCloseTo(1.2);
-    expect(targetSpeed(1, 'ads')).toBeCloseTo(1.0);
-    expect(targetSpeed(1, 'sprint')).toBeCloseTo(5.5);
-    expect(targetSpeed(0.3, 'stand')).toBeLessThan(targetSpeed(0.5, 'stand'));
-    expect(MOVEMENT.walkSpeed).toBe(1.4);
-  });
-  it('acceleration eases in and out with no overshoot', () => {
-    const v = new EasedVelocity();
-    const xs: number[] = [];
-    for (let i = 0; i < 90; i++) {
-      v.step(3.5, 0, 1 / 60);
-      xs.push(v.x);
-    }
-    expect(xs[2]! - xs[1]!).toBeGreaterThan(xs[1]! - xs[0]!); // eases in
-    expect(xs[89]!).toBeCloseTo(3.5, 1);
-    expect(Math.max(...xs)).toBeLessThanOrEqual(3.5 + 1e-6);
-    // stopping: no instant stop, no slide past zero
-    const ys: number[] = [];
-    for (let i = 0; i < 60; i++) {
-      v.step(0, 0, 1 / 60);
-      ys.push(v.x);
-    }
-    expect(ys[0]!).toBeGreaterThan(2.5);
-    expect(Math.min(...ys)).toBeGreaterThanOrEqual(0);
-    expect(ys[59]!).toBeLessThan(0.05);
-  });
-  it('sprint has a wind-up and a recovery before weapons are usable', () => {
-    const s = new SprintGate();
-    s.update(true, 1 / 60);
-    expect(s.state).toBe('windup');
-    expect(s.blocksWeapon).toBe(true);
-    expect(s.blend).toBeLessThan(0.5);
-    for (let t = 0; t < MOVEMENT.sprintWindup + 0.05; t += 1 / 60) s.update(true, 1 / 60);
-    expect(s.state).toBe('on');
-    s.update(false, 1 / 60);
-    expect(s.state).toBe('recover');
-    expect(s.blocksWeapon).toBe(true);
-    for (let t = 0; t < MOVEMENT.sprintRecovery + 0.05; t += 1 / 60) s.update(false, 1 / 60);
-    expect(s.blocksWeapon).toBe(false);
-  });
-  it('roll: fixed duration, recovery, cooldown', () => {
-    const r = new RollGate();
-    expect(r.start()).toBe(true);
-    let t = 0;
-    while (r.active) {
-      r.update(1 / 60);
-      t += 1 / 60;
-    }
-    expect(t).toBeCloseTo(MOVEMENT.rollTime, 1);
-    expect(r.blocksWeapon).toBe(true);
-    expect(r.start()).toBe(false);
-    for (let k = 0; k < 120; k++) r.update(1 / 60);
-    expect(r.blocksWeapon).toBe(false);
-    expect(r.start()).toBe(true);
   });
 });

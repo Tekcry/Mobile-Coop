@@ -78,7 +78,7 @@ export class TrainingDummy implements Damageable {
         this.rig.root.rotation.x = 0;
         this.hitboxes.setEnabled(true);
       }
-      this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, roll: -1, aimPitch: 0, aim: 0, kick: 0 });
+      this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 });
       return;
     }
     const prevX = this.pos.x;
@@ -89,7 +89,7 @@ export class TrainingDummy implements Damageable {
     const speed = dt > 0 ? Math.abs(this.pos.x - prevX) / dt : 0;
     this.rig.root.position.copyFrom(this.pos);
     this.rig.root.rotation.y = this.yaw;
-    this.rig.animate(dt, { speed, localX: 1, localZ: 0, grounded: true, crouch: 0, roll: -1, aimPitch: 0, aim: 0.3, kick: 0 });
+    this.rig.animate(dt, { speed, localX: 1, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0.3, kick: 0 });
     this.rig.headNode.computeWorldMatrix(true);
     this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
     this.hitboxes.sync(this.pos, this.head);
