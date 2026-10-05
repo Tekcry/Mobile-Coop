@@ -103,6 +103,7 @@ export class InputManager {
   poll(now: number, dt: number): void {
     const style = this.gamepad.style;
     this.gamepad.poll(now, dt);
+    this.touch.update(dt);
     if (style !== this.gamepad.style) this.applyModeClass();
   }
 

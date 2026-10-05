@@ -39,6 +39,7 @@ import { TraversalController } from '../player/traversal';
 import { CornerController } from '../cover/cornerController';
 import { noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
+import type { TouchAction } from '../input/touchControls';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
 
 export type { ModeId };
@@ -88,6 +89,17 @@ export interface SessionCallbacks {
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
+/** Contextual touch action button states (shared objects: no per-frame allocation). */
+const ACT_TAKE: TouchAction = { action: 'cover', label: 'Take cover', icon: 'cover' };
+const ACT_LEAVE: TouchAction = { action: 'cover', label: 'Leave cover', icon: 'cover' };
+const ACT_VAULT: TouchAction = { action: 'jump', label: 'Vault', icon: 'jump' };
+const ACT_USE: TouchAction = { action: 'interact', label: 'Use', icon: 'interact' };
+const TRAVERSE_ACT: Record<string, TouchAction> = {
+  step: { action: 'jump', label: 'Step up', icon: 'jump' },
+  vault: { action: 'jump', label: 'Vault', icon: 'jump' },
+  mantle: { action: 'jump', label: 'Climb', icon: 'jump' },
+  drop: { action: 'jump', label: 'Drop down', icon: 'jump' },
+};
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', none: '' };
 
 export class GameState implements AppState {
@@ -402,8 +414,7 @@ export class GameState implements AppState {
   enter(): void {
     this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
-    this.app.input.touch.setControlHidden('interact', true);
-    this.app.input.touch.setControlHidden('cover', true);
+    this.app.input.touch.setAction(null);
     this.mode?.start();
   }
 
@@ -507,7 +518,6 @@ export class GameState implements AppState {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = it;
     }
-    this.app.input.touch.setControlHidden('interact', !it);
     if (!it) {
       this.hud.setInteract(null);
       return;
@@ -730,7 +740,6 @@ export class GameState implements AppState {
     this.suppression.add(0.3);
   }
 
-  private coverLabel = '';
   private markerPt = new Vector3();
 
 
@@ -767,12 +776,19 @@ export class GameState implements AppState {
     } else this.hud.setCoverMarker(-1, 0, '');
     const th = this.traversal.hint;
     this.hud.setAction(th && !c.inCover ? (TRAVERSE_LABEL[th.kind] ?? null) : null);
-    const show = !!c.candidate || c.inCover;
-    const label = c.inCover ? 'in' : show ? 'av' : '';
-    if (label !== this.coverLabel) {
-      this.coverLabel = label;
-      this.app.input.touch.setControlHidden('cover', !show);
+    // the touch contextual action button: what one tap does right now
+    const it = this.interactTarget;
+    let a: TouchAction | null = null;
+    if (c.inCover) a = c.low ? ACT_VAULT : ACT_LEAVE;
+    else if (it) {
+      ACT_USE.label = it.label.length > 14 ? 'Use' : it.label;
+      a = ACT_USE;
+    } else if (c.candidate) a = ACT_TAKE;
+    else if (th) {
+      const t = TRAVERSE_ACT[th.kind];
+      a = t ?? null;
     }
+    this.app.input.touch.setAction(a);
   }
 
   private updateHud(): void {

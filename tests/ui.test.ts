@@ -28,7 +28,7 @@ describe('settings sanitising', () => {
   it('clamps numbers and rejects bad enums', () => {
     const s = sanitizeSettings({
       gamepad: { deadzoneLeft: 9, curve: 'wobbly', invertY: 'yes' },
-      touch: { opacity: -1, layout: { fire: { x: 2, y: 0.5, scale: 0.1 } } },
+      touch: { opacity: -1, layoutVersion: 2, layout: { fire: { x: 2, y: 0.5, scale: 0.1 } } },
       video: { renderScale: Number.NaN },
     });
     expect(s.gamepad.deadzoneLeft).toBe(0.5);
@@ -52,5 +52,38 @@ describe('spatial focus: multi-column panels', () => {
     const upgrade = { x: 680, y: 215, w: 144, h: 36 };
     const wideRow = { x: 383, y: 472, w: 456, h: 48 };
     expect(pickSpatial(from, [wideRow, upgrade], 'down')).toBe(1);
+  });
+});
+
+describe('touch layout migration (v1 -> v2)', () => {
+  it('moves untouched v1 placements and the old fire stick to the new defaults, keeps customised ones', () => {
+    const d = defaultSettings();
+    const s = sanitizeSettings({
+      touch: {
+        layout: {
+          move: { x: 0.16, y: 0.7, scale: 1 }, // v1 default
+          fire: { x: 0.8, y: 0.6, scale: 1.2 }, // customised fire stick (role changed)
+          reload: { x: 0.5, y: 0.5, scale: 1 }, // customised
+          jump: { x: 0.9, y: 0.9, scale: 1 }, // removed control
+        },
+      },
+    });
+    expect(s.touch.layoutVersion).toBe(2);
+    expect(s.touch.layout.move).toEqual(d.touch.layout.move);
+    expect(s.touch.layout.fire).toEqual(d.touch.layout.fire);
+    expect(s.touch.layout.reload).toEqual({ x: 0.5, y: 0.5, scale: 1 });
+    expect(s.touch.layout.look).toEqual(d.touch.layout.look);
+    expect(s.touch.layout.action).toEqual(d.touch.layout.action);
+    expect((s.touch.layout as Record<string, unknown>).jump).toBeUndefined();
+    expect(s.touch.dashFlick).toBe(false);
+  });
+  it('keeps v2 layouts and per-control opacity as stored', () => {
+    const s = sanitizeSettings({ touch: { layoutVersion: 2, layout: { fire: { x: 0.3, y: 0.4, scale: 1, alpha: 0.5 } } } });
+    expect(s.touch.layout.fire).toEqual({ x: 0.3, y: 0.4, scale: 1, alpha: 0.5 });
+  });
+  it('presets cover every control and the left-handed one mirrors', async () => {
+    const { LAYOUT_PRESETS, TOUCH_CONTROL_IDS } = await import('../src/core/settings');
+    for (const l of Object.values(LAYOUT_PRESETS)) for (const id of TOUCH_CONTROL_IDS) expect(l[id]).toBeDefined();
+    expect(LAYOUT_PRESETS.lefty.fire.x).toBeCloseTo(1 - LAYOUT_PRESETS.default.fire.x);
   });
 });

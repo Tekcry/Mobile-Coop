@@ -2,20 +2,21 @@ import { clamp, type CurveKind } from '../input/stickMath';
 
 export const TOUCH_CONTROL_IDS = [
   'move',
+  'look',
   'fire',
   'fireLeft',
   'ads',
   'reload',
-  'jump',
+  'action',
   'crouch',
   'swap',
   'grenade',
-  'interact',
-  'cover',
   'dash',
   'shoulder',
   'pause',
 ] as const;
+/** Touch layout format version (2: camera stick, contextual action button). */
+export const TOUCH_LAYOUT_VERSION = 2;
 export type TouchControlId = (typeof TOUCH_CONTROL_IDS)[number];
 
 /** Control centre in normalised screen space (0..1) and per-control scale. */
@@ -23,6 +24,8 @@ export interface ControlPlacement {
   x: number;
   y: number;
   scale: number;
+  /** Per-control opacity multiplier (1 = the global opacity). */
+  alpha?: number;
 }
 
 export type AimAssistLevel = 'off' | 'low' | 'standard' | 'high';
@@ -37,6 +40,19 @@ export interface Settings {
     invertY: boolean;
     aimAssist: AimAssistLevel;
     haptics: boolean;
+    /** Camera stick: look speed at full deflection (rad/s), dead zone, acceleration when held out. */
+    lookSpeed: number;
+    lookDeadzone: number;
+    lookAccel: boolean;
+    /** Dragging anywhere in the empty upper right also turns the camera. */
+    dragLook: boolean;
+    /** Extra fire button on the left. */
+    fireLeft: boolean;
+    /** Dragging from the fire button also turns the camera (off: fire never moves the view). */
+    fireDragLook: boolean;
+    /** Flicking the move stick past its rim dashes. */
+    dashFlick: boolean;
+    layoutVersion: number;
     layout: Record<TouchControlId, ControlPlacement>;
   };
   gamepad: {
@@ -69,18 +85,55 @@ export interface Settings {
   gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; autoCover: boolean; coverDash: boolean; slowBeat: boolean };
 }
 
+/**
+ * Default layout (landscape phone): floating move stick on the left; on the right the camera stick
+ * sits where the thumb rests, fire above-left of it (the thumb rolls up from the stick), aim above it,
+ * the contextual action button to its left, the rest further out.
+ */
 export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
+  move: { x: 0.16, y: 0.7, scale: 1 },
+  look: { x: 0.86, y: 0.71, scale: 1 },
+  fire: { x: 0.71, y: 0.52, scale: 1 },
+  fireLeft: { x: 0.08, y: 0.36, scale: 0.8 },
+  ads: { x: 0.885, y: 0.36, scale: 1 },
+  reload: { x: 0.78, y: 0.27, scale: 1 },
+  action: { x: 0.6, y: 0.8, scale: 1 },
+  crouch: { x: 0.965, y: 0.53, scale: 1 },
+  swap: { x: 0.49, y: 0.88, scale: 1 },
+  grenade: { x: 0.585, y: 0.5, scale: 1 },
+  dash: { x: 0.35, y: 0.88, scale: 1 },
+  shoulder: { x: 0.68, y: 0.09, scale: 1 },
+  pause: { x: 0.79, y: 0.09, scale: 1 },
+};
+
+/** Claw: fire and aim move up to the top-right (index finger), the right thumb stays on the camera. */
+export const CLAW_LAYOUT: Record<TouchControlId, ControlPlacement> = {
+  ...DEFAULT_LAYOUT,
+  fire: { x: 0.9, y: 0.2, scale: 1 },
+  ads: { x: 0.76, y: 0.2, scale: 1 },
+  reload: { x: 0.64, y: 0.2, scale: 1 },
+  grenade: { x: 0.69, y: 0.48, scale: 1 },
+  shoulder: { x: 0.5, y: 0.09, scale: 1 },
+  pause: { x: 0.585, y: 0.09, scale: 1 },
+};
+
+/** Left-handed: everything mirrored. */
+export const LEFTY_LAYOUT: Record<TouchControlId, ControlPlacement> = Object.fromEntries(
+  Object.entries(DEFAULT_LAYOUT).map(([k, p]) => [k, { ...p, x: 1 - p.x }]),
+) as Record<TouchControlId, ControlPlacement>;
+
+export const LAYOUT_PRESETS = { default: DEFAULT_LAYOUT, claw: CLAW_LAYOUT, lefty: LEFTY_LAYOUT } as const;
+
+/** Version-1 defaults: a stored placement equal to these was never customised (migration). */
+const V1_DEFAULT_LAYOUT: Record<string, ControlPlacement> = {
   move: { x: 0.16, y: 0.7, scale: 1 },
   fire: { x: 0.86, y: 0.62, scale: 1 },
   fireLeft: { x: 0.08, y: 0.36, scale: 0.8 },
   ads: { x: 0.74, y: 0.78, scale: 1 },
   reload: { x: 0.77, y: 0.45, scale: 0.85 },
-  jump: { x: 0.93, y: 0.82, scale: 0.9 },
   crouch: { x: 0.84, y: 0.9, scale: 0.85 },
   swap: { x: 0.62, y: 0.88, scale: 0.85 },
   grenade: { x: 0.93, y: 0.42, scale: 0.8 },
-  interact: { x: 0.62, y: 0.62, scale: 0.85 },
-  cover: { x: 0.62, y: 0.42, scale: 0.85 },
   dash: { x: 0.3, y: 0.88, scale: 0.8 },
   shoulder: { x: 0.7, y: 0.09, scale: 0.75 },
   pause: { x: 0.79, y: 0.09, scale: 0.75 },
@@ -96,6 +149,14 @@ export function defaultSettings(): Settings {
       invertY: false,
       aimAssist: 'standard',
       haptics: true,
+      lookSpeed: 2.6,
+      lookDeadzone: 0.1,
+      lookAccel: true,
+      dragLook: true,
+      fireLeft: false,
+      fireDragLook: false,
+      dashFlick: false,
+      layoutVersion: TOUCH_LAYOUT_VERSION,
       layout: structuredClone(DEFAULT_LAYOUT),
     },
     gamepad: {
@@ -141,10 +202,18 @@ export function sanitizeSettings(raw: unknown): Settings {
   const gp = sub(r, 'gameplay');
   const lay = sub(t, 'layout');
   const layout = {} as Record<TouchControlId, ControlPlacement>;
+  // layouts from before the camera stick: keep customised placements of controls that still exist;
+  // untouched (v1 default) ones and the new controls take the new defaults
+  const oldVersion = num(t.layoutVersion, 1, 1, 99) < TOUCH_LAYOUT_VERSION;
   for (const id of TOUCH_CONTROL_IDS) {
     const p = sub(lay, id);
     const dp = d.touch.layout[id];
-    layout[id] = { x: num(p.x, dp.x, 0, 1), y: num(p.y, dp.y, 0, 1), scale: num(p.scale, dp.scale, 0.5, 2) };
+    const v1 = V1_DEFAULT_LAYOUT[id];
+    // v1 "fire" was the right aim-and-fire stick; its spot now belongs to the camera stick, so it resets
+    const untouched = oldVersion && (!v1 || id === 'fire' || (p.x === v1.x && p.y === v1.y && p.scale === v1.scale));
+    const place: ControlPlacement = untouched ? { ...dp } : { x: num(p.x, dp.x, 0, 1), y: num(p.y, dp.y, 0, 1), scale: num(p.scale, dp.scale, 0.5, 2) };
+    if (!untouched && typeof p.alpha === 'number') place.alpha = num(p.alpha, 1, 0.2, 1.6);
+    layout[id] = place;
   }
   return {
     touch: {
@@ -155,6 +224,14 @@ export function sanitizeSettings(raw: unknown): Settings {
       invertY: bool(t.invertY, d.touch.invertY),
       aimAssist: pick(t.aimAssist, AIM, d.touch.aimAssist),
       haptics: bool(t.haptics, d.touch.haptics),
+      lookSpeed: num(t.lookSpeed, d.touch.lookSpeed, 0.5, 8),
+      lookDeadzone: num(t.lookDeadzone, d.touch.lookDeadzone, 0, 0.5),
+      lookAccel: bool(t.lookAccel, d.touch.lookAccel),
+      dragLook: bool(t.dragLook, d.touch.dragLook),
+      fireLeft: bool(t.fireLeft, d.touch.fireLeft),
+      fireDragLook: bool(t.fireDragLook, d.touch.fireDragLook),
+      dashFlick: bool(t.dashFlick, d.touch.dashFlick),
+      layoutVersion: TOUCH_LAYOUT_VERSION,
       layout,
     },
     gamepad: {

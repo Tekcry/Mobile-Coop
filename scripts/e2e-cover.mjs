@@ -217,8 +217,9 @@ try {
   c = await P();
   assert(c.state === 'in', `auto-snap on approach when enabled (${c.state})`);
   await G(() => window.__app.settings.update((s) => void (s.gameplay.autoCover = false)));
-  const btn = await G(() => { const el = window.__app.input.touch.elements.get('cover'); return el ? !el.classList.contains('tc-hidden') : false; });
-  assert(btn, 'touch cover button visible in cover');
+  await sim(0.3);
+  const btn = await G(() => { const t = window.__app.input.touch; const c = t.actionContext; return c ? `${c.action}:${c.label}` : 'none'; });
+  assert(/^(cover|jump):/.test(btn), `touch action button offers a cover action (leave / vault) in cover (${btn})`);
   // keyboard C toggles out
   await page.keyboard.press('KeyC');
   await sim(0.3);

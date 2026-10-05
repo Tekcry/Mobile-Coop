@@ -11,6 +11,7 @@ const P: Record<string, string> = {
   noise: '<path d="M4 10v4"/><path d="M8 7v10"/><path d="M12 4v16"/><path d="M16 8v8"/><path d="M20 11v2"/>',
   cover: '<path d="M3 21V11h8v10"/><path d="M11 21V6h7v15"/><path d="M2 21h20"/><circle cx="6.5" cy="7" r="2"/>',
   interact: '<path d="M8 13V5a1.5 1.5 0 0 1 3 0v6"/><path d="M11 11V4a1.5 1.5 0 0 1 3 0v7"/><path d="M14 11V6a1.5 1.5 0 0 1 3 0v8c0 4-3 7-7 7-3 0-5-2-6-4l-2-4a1.5 1.5 0 0 1 2.6-1.5L8 14"/>',
+  look: '<circle cx="12" cy="12" r="3"/><path d="M12 3v3M12 18v3M3 12h3M18 12h3"/><path d="M5.6 5.6l1.4 1.4M17 17l1.4 1.4"/>',
   shoulder: '<path d="M9 5L3 12l6 7"/><path d="M15 5l6 7-6 7"/>',
   pause: '<path d="M8 5v14M16 5v14"/>',
   move: '<circle cx="12" cy="12" r="9"/>',

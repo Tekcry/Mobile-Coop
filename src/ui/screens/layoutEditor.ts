@@ -1,5 +1,5 @@
 import type { App } from '../../core/app';
-import { DEFAULT_LAYOUT, TOUCH_CONTROL_IDS, type TouchControlId } from '../../core/settings';
+import { LAYOUT_PRESETS, TOUCH_CONTROL_IDS, type TouchControlId } from '../../core/settings';
 import { TOUCH_DEFS } from '../../input/touchControls';
 import { h } from '../dom';
 import { icon } from '../icons';
@@ -12,7 +12,8 @@ const STEP = 0.01;
 
 /**
  * Drag controls to reposition (touch), or with a controller: focus a control,
- * A to grab, stick/d-pad to move, LB/RB to resize, A/B to drop.
+ * A to grab, stick/d-pad to move, LB/RB to resize, A/B to drop. Presets (Default / Claw / Left-handed),
+ * per-control size and opacity, a thumb-reach overlay and a preview (handles drawn as in game).
  */
 export class LayoutEditorScreen extends Screen {
   override readonly showBack = false;
@@ -20,6 +21,8 @@ export class LayoutEditorScreen extends Screen {
   private grabbed: TouchControlId | null = null;
   private selected: TouchControlId = 'fire';
   private info: HTMLElement;
+  private reach: HTMLElement[] = [];
+  private preview = false;
 
   constructor(private app: App) {
     super('layout-editor');
@@ -40,14 +43,34 @@ export class LayoutEditorScreen extends Screen {
       this.handles.set(id, el);
       area.append(el);
     }
+    // thumb reach: comfortable (green) and stretch (amber) arcs from each bottom corner
+    for (const side of ['l', 'r']) {
+      const el = h('div', { class: `le-reach ${side}` });
+      this.reach.push(el);
+      area.append(el);
+    }
     this.info = h('div', { class: 'le-info' });
+    const preset = (label: string, key: keyof typeof LAYOUT_PRESETS): HTMLElement =>
+      button(label, () => {
+        app.settings.update((s) => void (s.touch.layout = structuredClone(LAYOUT_PRESETS[key])));
+        this.layout();
+      });
     const bar = h(
       'div',
       { class: 'le-toolbar' },
       button('Smaller', () => this.resize(-0.05)),
       button('Larger', () => this.resize(0.05)),
-      button('Reset all', () => {
-        app.settings.update((s) => void (s.touch.layout = structuredClone(DEFAULT_LAYOUT)));
+      button('Fainter', () => this.fade(-0.15)),
+      button('Bolder', () => this.fade(0.15)),
+      preset('Default', 'default'),
+      preset('Claw', 'claw'),
+      preset('Left-handed', 'lefty'),
+      button('Reach', () => {
+        for (const el of this.reach) el.classList.toggle('show');
+      }),
+      button('Preview', () => {
+        this.preview = !this.preview;
+        this.el.classList.toggle('le-preview', this.preview);
         this.layout();
       }),
       button('Done', () => this.manager.pop(), { class: 'primary' }),
@@ -62,20 +85,22 @@ export class LayoutEditorScreen extends Screen {
 
   private layout(): void {
     const t = this.app.settings.get().touch;
-    this.el.style.setProperty('--tc-opacity', '0.9');
+    this.el.style.setProperty('--tc-opacity', this.preview ? String(t.opacity) : '0.9');
     for (const id of TOUCH_CONTROL_IDS) {
       const el = this.handles.get(id)!;
       const p = t.layout[id];
       const size = TOUCH_DEFS[id].size * p.scale * t.scale;
       el.style.width = `${size}px`;
       el.style.height = `${size}px`;
+      el.style.setProperty('--tc-alpha', String(p.alpha ?? 1));
+      el.hidden = this.preview && id === 'fireLeft' && !t.fireLeft;
       el.style.left = `calc(var(--sal) + (100% - var(--sal) - var(--sar)) * ${p.x})`;
       el.style.top = `calc(var(--sat) + (100% - var(--sat) - var(--sab)) * ${p.y})`;
       el.classList.toggle('grabbed', this.grabbed === id);
       el.classList.toggle('selected', this.selected === id);
     }
     const p = t.layout[this.selected];
-    this.info.textContent = `${TOUCH_DEFS[this.selected].label} · size ${Math.round(p.scale * 100)}%${
+    this.info.textContent = `${TOUCH_DEFS[this.selected].label} · size ${Math.round(p.scale * 100)}% · opacity ${Math.round((p.alpha ?? 1) * 100)}%${
       this.grabbed ? ' · moving' : ''
     }`;
   }
@@ -107,6 +132,15 @@ export class LayoutEditorScreen extends Screen {
       const p = s.touch.layout[id];
       p.x += dx;
       p.y += dy;
+    });
+    this.layout();
+  }
+
+  private fade(d: number): void {
+    const id = this.selected;
+    this.app.settings.update((s) => {
+      const p = s.touch.layout[id];
+      p.alpha = Math.max(0.2, Math.min(1.6, (p.alpha ?? 1) + d));
     });
     this.layout();
   }

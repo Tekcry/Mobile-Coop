@@ -63,6 +63,10 @@ export class CinematicPost {
         e.setFloat('time', (this.t * 24) % 1000);
         e.setFloat('aspect', pp.width / Math.max(1, pp.height));
       };
+      // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
+      // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the
+      // framebuffer it renders into. Unbind after the draw.
+      pp.onAfterRenderObservable.add(() => (pp.getEngine() as unknown as { unbindAllTextures(): void }).unbindAllTextures());
       this.pp = pp;
     } else if (!needed && this.pp) {
       this.pp.dispose(this.camera);

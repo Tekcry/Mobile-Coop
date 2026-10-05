@@ -40,17 +40,58 @@ try {
     await frames(page, 1);
   }
   const r2 = await state();
-  assert(r2.yaw - yaw0 > 0.1 && r2.my > 0.5, `look while moving (yaw +${(r2.yaw - yaw0).toFixed(2)})`);
+  assert(r2.yaw - yaw0 > 0.1 && r2.my > 0.5, `drag-look while moving (yaw +${(r2.yaw - yaw0).toFixed(2)})`);
   await end();
   await frames(page, 3);
   const r3 = await state();
   assert(r3.mx === 0 && r3.my === 0, 'release recentres stick');
-  // fire button hold
-  const fire = await page.locator('.tc-fire').boundingBox();
-  await touch(page, 'touchStart', [{ x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 3 }]);
+  // floating move stick: touching anywhere on the left half re-centres the base there
+  const endF = await drag(page, { x: vp.width * 0.3, y: vp.height * 0.5 }, { x: vp.width * 0.3 + 50, y: vp.height * 0.5 });
+  await frames(page, 2);
+  const fl = await page.evaluate(() => {
+    const el = document.querySelector('.tc-move').getBoundingClientRect();
+    return { cx: el.left + el.width / 2, mx: window.__app.input.state.move.x };
+  });
+  assert(Math.abs(fl.cx - vp.width * 0.3) < 4 && fl.mx > 0.5, `floating stick centres on the touch (${fl.cx.toFixed(0)}, move x ${fl.mx.toFixed(2)})`);
+  await endF();
   await frames(page, 3);
-  assert((await state()).fire, 'fire held');
+  // camera-only right stick: rate based (holding it deflected keeps turning), never fires
+  const look = await page.locator('.tc-look').boundingBox();
+  const lc = { x: look.x + look.width / 2, y: look.y + look.height / 2 };
+  await touch(page, 'touchStart', [{ x: lc.x, y: lc.y, id: 5 }]);
+  await touch(page, 'touchMove', [{ x: lc.x + look.width * 0.45, y: lc.y, id: 5 }]);
+  const ys = [];
+  for (let i = 0; i < 3; i++) {
+    await frames(page, 12);
+    ys.push((await state()).yaw);
+  }
+  const held = await state();
+  assert(ys[1] - ys[0] > 0.02 && ys[2] - ys[1] > 0.02, `camera stick turns at a rate while held (${ys.map((v) => v.toFixed(2)).join(' ')})`);
+  assert(!held.fire, 'camera stick never fires');
   await touch(page, 'touchEnd', []);
+  await frames(page, 30);
+  const y1 = (await state()).yaw;
+  await frames(page, 10);
+  assert(Math.abs((await state()).yaw - y1) < 0.01, 'camera stops when the stick is released');
+  // fire button hold: fires, and the camera does not move
+  const fire = await page.locator('.tc-fire').boundingBox();
+  const fy0 = (await state()).yaw;
+  await touch(page, 'touchStart', [{ x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 3 }]);
+  await touch(page, 'touchMove', [{ x: fire.x + fire.width / 2 + 30, y: fire.y + fire.height / 2, id: 3 }]);
+  await frames(page, 3);
+  const fs = await state();
+  assert(fs.fire, 'fire held');
+  assert(Math.abs(fs.yaw - fy0) < 0.01, 'fire button never moves the camera (default)');
+  await touch(page, 'touchEnd', []);
+  // sizes: fire >= 76 px, secondary >= 56 px
+  const sizes = await page.evaluate(() =>
+    Object.fromEntries([...document.querySelectorAll('.touch-layer .tc')].filter((e) => !e.hidden && !e.classList.contains('tc-hidden')).map((e) => [e.className.match(/tc-(\w+)/g).find((c) => c !== 'tc-btn' && c !== 'tc-stick')?.slice(3), e.getBoundingClientRect().width])),
+  );
+  assert(sizes.fire >= 76, `fire button ${sizes.fire}px`);
+  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'dash', 'ads']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
+  // contextual action button shows its label
+  const label = await page.evaluate(() => document.querySelector('.tc-action .tc-label')?.textContent ?? '');
+  assert(typeof label === 'string', `action button label "${label}"`);
   // pause via touch
   await page.locator('.tc-pause').tap();
   await page.waitForSelector('.pause-screen', { timeout: 5000 });

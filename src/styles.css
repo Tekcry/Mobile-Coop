@@ -630,8 +630,47 @@ body {
   align-items: center;
   justify-content: center;
   color: #fff;
-  opacity: var(--tc-opacity);
+  opacity: calc(var(--tc-opacity) * var(--tc-alpha, 1));
   touch-action: none;
+}
+.tc-idle {
+  filter: grayscale(1);
+  opacity: calc(var(--tc-opacity) * var(--tc-alpha, 1) * 0.45);
+}
+.tc-label {
+  position: absolute;
+  top: 100%;
+  margin-top: 2px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  text-shadow: 0 1px 2px #000;
+}
+.tc-look > svg {
+  position: absolute;
+  opacity: 0.5;
+}
+.le-reach {
+  position: absolute;
+  bottom: 0;
+  width: 60vh;
+  height: 60vh;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(70, 200, 120, 0.18) 0 55%, rgba(255, 200, 60, 0.12) 55% 80%, transparent 80%);
+  pointer-events: none;
+  display: none;
+}
+.le-reach.show {
+  display: block;
+}
+.le-reach.l {
+  left: 0;
+  transform: translate(-50%, 50%);
+}
+.le-reach.r {
+  right: 0;
+  transform: translate(50%, 50%);
 }
 .tc-btn,
 .le-handle:not(.tc-move) {
@@ -692,8 +731,14 @@ body {
   inset: 0;
 }
 .le-handle {
-  opacity: 0.9;
   cursor: grab;
+}
+.le-preview .le-label,
+.le-preview .le-reach {
+  display: none;
+}
+.le-preview .le-handle.selected {
+  border-color: rgba(255, 255, 255, 0.55) !important;
 }
 .le-handle.selected {
   border-color: var(--accent) !important;
@@ -725,7 +770,10 @@ body {
 }
 .le-toolbar {
   display: flex;
-  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(92vw, 720px);
+  gap: 6px;
 }
 .le-info {
   font-weight: 700;
