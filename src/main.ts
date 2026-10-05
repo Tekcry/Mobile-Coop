@@ -1,11 +1,13 @@
 import './styles.css';
-import { createEngine, applyRenderScale } from './core/engine';
-import { GameLoop } from './core/loop';
-import { DebugOverlay } from './ui/debugOverlay';
+import { App } from './core/app';
 import { loadHavok } from './physics/havok';
-import { setupServiceWorker, setupRotateOverlay, suppressBrowserGestures } from './pwa/pwa';
+import { setupServiceWorker, setupRotateOverlay, suppressBrowserGestures, enterFullscreenLandscape, isStandalone } from './pwa/pwa';
 import { flags } from './core/flags';
-import { createSandboxScene } from './world/sandbox';
+import { MenuState } from './world/menuScene';
+import { MainMenuScreen } from './ui/screens/mainMenu';
+import { SettingsScreen } from './ui/screens/settingsScreen';
+import { ControlsTestState } from './game/controlsTestState';
+import { requestPersistence } from './save/db';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -17,25 +19,49 @@ function setBoot(progress: number, status: string): void {
 async function boot(): Promise<void> {
   suppressBrowserGestures();
   setupRotateOverlay();
-  setupServiceWorker(() => console.info('[pwa] offline ready'));
+  setupServiceWorker(() => app.toasts.show('Ready to play offline', 'ok'));
 
   const canvas = document.getElementById('game') as HTMLCanvasElement;
-  const engine = createEngine(canvas, { antialias: false });
-  applyRenderScale(engine, 1);
-  window.addEventListener('resize', () => engine.resize());
+  const app = new App(canvas);
+  (window as unknown as { __app: App }).__app = app;
 
-  const loop = new GameLoop(engine);
-  const debug = new DebugOverlay(engine, loop);
-  if (flags.debug) debug.toggle(true);
+  setBoot(0.15, 'Loading settings…');
+  await app.loadSettings();
+  if (flags.debug) app.debug.toggle(true);
+  void requestPersistence();
 
-  setBoot(0.3, 'Loading physics…');
+  setBoot(0.35, 'Loading physics…');
   await loadHavok();
-  setBoot(0.7, 'Building scene…');
+  setBoot(0.8, 'Building scene…');
 
-  const { scene, hooks } = await createSandboxScene(engine);
-  loop.attach(scene, hooks);
-  debug.setScene(scene);
-  loop.start();
+  const goToMenu = (): void => {
+    app.screens.clear();
+    app.setState(new MenuState(app.engine));
+    app.screens.push(new MainMenuScreen(app));
+  };
+
+  MainMenuScreen.entries.push(
+    (a) => ({
+      label: 'Controls test',
+      icon: 'play',
+      order: 10,
+      action: () => {
+        void ControlsTestState.create(a, goToMenu).then((st) => {
+          a.screens.clear();
+          a.setState(st);
+        });
+      },
+    }),
+    (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
+  );
+
+  goToMenu();
+  app.start();
+
+  // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.
+  if (!isStandalone()) {
+    window.addEventListener('pointerup', () => void enterFullscreenLandscape(), { once: true });
+  }
 
   setBoot(1, 'Ready');
   document.getElementById('boot')?.classList.add('done');

@@ -9,8 +9,11 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
 - `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
 - `npm run lint` - ESLint (typescript-eslint)
 - `npm run icons` - regenerate procedural PWA icons into `public/icons/`
-- `node scripts/smoke.mjs http://localhost:4173/ --shot=out.png` - headless mobile-emulated smoke test
-  against `npm run preview`. Fails on any console error or page error. Uses the preinstalled Chromium.
+- `npm run e2e` - serves `dist/` and runs the headless e2e suites (needs a prior `npm run build`):
+  - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
+  - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad
+  - `scripts/e2e-touch.mjs` touch-only: taps menus, multi-touch drags the virtual sticks
+  Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
@@ -28,6 +31,7 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
 | `core/` | `babylon.ts` import surface, engine creation, `GameLoop` (fixed 60Hz sim + manual Havok step), event bus, feature flags, scene manager |
 | `input/` | Action map; touch, gamepad, keyboard/mouse sources all write the same `InputState` |
 | `ui/` | DOM overlay UI. `FocusNav` spatial navigation shared by every menu; screen stack; HUD; debug overlay |
+| `game/` | App states for play sessions (game state, modes, controls test) |
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller (Havok `PhysicsCharacterController`), over-the-shoulder camera |
 | `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades |
@@ -47,6 +51,28 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
 fixed 1/60 s inside an accumulator (max 4 steps/frame, backlog dropped). Order per step:
 `fixedUpdate(dt)` -> `onBeforePhysicsObservable` -> `physics._step` -> `onAfterPhysicsObservable`.
 After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
+
+## Input
+- Actions (`input/actions.ts`) are the only thing game/UI code reads. Sources: `GamepadSource` (polled each
+  frame, standard mapping in `gamepadMapping.ts`), `TouchControls` (DOM virtual sticks/buttons, layout from
+  settings), `KeyboardMouseSource` (desktop testing only).
+- `InputState` merges sources per action (down if any source holds it), latches press edges until consumed,
+  and `releaseAll()` blocks still-held buttons until released so state changes never cause phantom presses.
+- Edges are consumed after each fixed step (gameplay) or by `ScreenManager.update` (menus open).
+- `InputManager` owns the active mode (`touch|gamepad|kbm`), sets `body.input-*` classes; CSS uses them to
+  show/hide the focus ring, glyph prompts, and the touch layer.
+- iOS exposes a controller only after its first button press: `GamepadSource` scans on every poll, not just on
+  `gamepadconnected`.
+
+## UI
+- Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus`
+  is navigable; `data-adjust` elements take left/right as `nav-adjust`; `data-capture-nav` elements take all
+  directions as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.
+- Use `ui/widgets.ts` (button, toggle, slider, choice, TabView, Dialog). They work identically by touch and pad.
+- Screens give footer `hints()`; prompts render glyphs for Xbox/PlayStation/keyboard, picked by CSS.
+- Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
+- No `backdrop-filter` over the canvas (expensive on phones). `.screens` container is pointer-events: none;
+  children opt in.
 
 ## Performance budget (mid-range phone, 60fps)
 - Draw calls < 120 in combat. Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.

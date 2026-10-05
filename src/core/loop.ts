@@ -4,6 +4,8 @@ export const FIXED_DT = 1 / 60;
 const MAX_STEPS_PER_FRAME = 4;
 
 export interface LoopHooks {
+  /** Once per render frame, before any fixed steps (input polling, menus). */
+  beforeFrame?(dt: number): void;
   /** Fixed-rate simulation step (input, AI, character controller). Runs before physics. */
   fixedUpdate(dt: number): void;
   /** Variable-rate per-frame update (camera, HUD, VFX). alpha = interpolation factor. */
@@ -46,6 +48,7 @@ export class GameLoop {
     const hooks = this.hooks;
     if (!scene || !hooks) return;
     const dt = Math.min(this.engine.getDeltaTime() / 1000, 0.1);
+    hooks.beforeFrame?.(dt);
     if (!this.paused) {
       this.acc += dt;
       let steps = 0;

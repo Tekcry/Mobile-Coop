@@ -1,0 +1,113 @@
+// Controller-only navigation test: every step uses the fake gamepad, never the screen.
+// Run against `npm run preview` (default http://localhost:4173/).
+import { launch, press, stick, BTN, focusedText, assert } from './e2e-lib.mjs';
+
+const url = process.argv[2] ?? 'http://localhost:4173/';
+const { browser, page, errors } = await launch({ url });
+const q = (sel) => page.evaluate((s) => !!document.querySelector(s), sel);
+const settings = () => page.evaluate(() => window.__app.settings.get());
+let failed = false;
+try {
+  console.log('hot-plug + iOS first-press detection');
+  await page.evaluate(() => window.__pad.connect());
+  await press(page, BTN.LB); // harmless on main menu; reveals the pad like iOS
+  await page.waitForTimeout(250);
+  const toast = await page.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.textContent).join('|'));
+  assert(/Controller connected/.test(toast), `connect toast ("${toast}")`);
+  assert(await page.evaluate(() => document.body.classList.contains('input-gamepad')), 'mode = gamepad');
+
+  console.log('main menu');
+  const first = await focusedText(page);
+  assert(first.length > 0, `initial focus "${first}"`);
+  await press(page, BTN.DOWN);
+  let f = await focusedText(page);
+  while (!/Settings/.test(f)) {
+    await press(page, BTN.DOWN);
+    const nf = await focusedText(page);
+    if (nf === f) break;
+    f = nf;
+  }
+  assert(/Settings/.test(f), 'd-pad reaches Settings');
+  await press(page, BTN.A);
+  assert(await q('.settings-screen'), 'A opens settings');
+  const tab0 = await page.evaluate(() => document.querySelector('.tab.active')?.textContent);
+  await press(page, BTN.RB);
+  const tab1 = await page.evaluate(() => document.querySelector('.tab.active')?.textContent);
+  assert(tab0 !== tab1 && tab1 === 'Controller', `RB switches tab (${tab0} -> ${tab1})`);
+  // find the horizontal sensitivity slider
+  for (let i = 0; i < 8 && !/Horizontal/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(/Horizontal/.test(await focusedText(page)), 'focus on Horizontal sensitivity');
+  const before = (await settings()).gamepad.lookSensitivityX;
+  await press(page, BTN.RIGHT);
+  await press(page, BTN.RIGHT);
+  const after = (await settings()).gamepad.lookSensitivityX;
+  assert(after > before, `d-pad right raises slider (${before} -> ${after})`);
+  // left stick nav
+  await stick(page, 1, 1);
+  assert(/Vertical/.test(await focusedText(page)), 'left stick moves focus down');
+  await press(page, BTN.LB);
+  await press(page, BTN.LB);
+  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Gameplay', 'LB wraps tabs backwards');
+  await press(page, BTN.B);
+  assert(!(await q('.settings-screen')), 'B closes settings');
+  assert(/Settings/.test(await focusedText(page)), 'focus restored to Settings');
+
+  console.log('layout editor');
+  await press(page, BTN.A);
+  for (let i = 0; i < 8 && !/Edit button layout/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  await press(page, BTN.A);
+  assert(await q('.layout-editor'), 'layout editor opens');
+  const fx = (await settings()).touch.layout;
+  const focusedCtl = await page.evaluate(() => document.querySelector('.le-handle.focused .le-label')?.textContent);
+  await press(page, BTN.A); // grab
+  await press(page, BTN.RIGHT);
+  await press(page, BTN.RIGHT);
+  await press(page, BTN.A); // drop
+  const fx2 = (await settings()).touch.layout;
+  const moved = Object.keys(fx).filter((k) => fx[k].x !== fx2[k].x);
+  assert(moved.length === 1, `grab+move+drop moved one control (${focusedCtl}: ${moved})`);
+  await press(page, BTN.RB);
+  const fx3 = (await settings()).touch.layout;
+  assert(Object.keys(fx).some((k) => fx3[k].scale > fx2[k].scale), 'RB enlarges selected control');
+  await press(page, BTN.B);
+  await press(page, BTN.B);
+  await press(page, BTN.B);
+  assert(await q('.main-menu') && !(await q('.settings-screen')), 'B backs out to main menu');
+
+  console.log('in-game pause flow');
+  for (let i = 0; i < 6 && !/Controls test/.test(await focusedText(page)); i++) await press(page, BTN.UP);
+  assert(/Controls test/.test(await focusedText(page)), 'menu wraps / reaches Controls test');
+  await press(page, BTN.A);
+  await page.waitForFunction(() => !document.querySelector('.main-menu'), null, { timeout: 15000 });
+  assert(await page.evaluate(() => document.querySelector('.touch-layer')?.hidden === true), 'touch controls hidden in gamepad mode');
+  await press(page, BTN.START);
+  assert(await q('.pause-screen'), 'Start opens pause');
+  await press(page, BTN.B);
+  assert(!(await q('.pause-screen')), 'B resumes');
+  await press(page, BTN.START);
+  await press(page, BTN.DOWN);
+  await press(page, BTN.DOWN);
+  assert(/Quit/.test(await focusedText(page)), 'focus Quit');
+  await press(page, BTN.A);
+  assert(await q('.dialog'), 'confirm dialog');
+  assert(/Quit/.test(await focusedText(page)), 'dialog primary focused');
+  await press(page, BTN.A);
+  await page.waitForTimeout(400);
+  assert(await q('.main-menu'), 'quit returns to main menu');
+
+  console.log('disconnect');
+  await page.evaluate(() => window.__pad.disconnect());
+  await page.waitForTimeout(300);
+  const t2 = await page.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.textContent).join('|'));
+  assert(/disconnected/.test(t2), 'disconnect toast');
+  assert(await page.evaluate(() => document.body.classList.contains('input-touch')), 'mode reverts to touch');
+} catch (e) {
+  failed = true;
+  console.error(String(e));
+  await page.screenshot({ path: process.env.SHOT ?? '/tmp/e2e-pad-fail.png' });
+} finally {
+  const bad = errors.filter((e) => !e.includes('GPU stall') && !e.includes('swiftshader'));
+  console.log(bad.length ? 'console problems:\n' + bad.join('\n') : 'no console errors');
+  await browser.close();
+  process.exit(failed || bad.some((e) => e.startsWith('[error]') || e.startsWith('[pageerror]')) ? 1 : 0);
+}
