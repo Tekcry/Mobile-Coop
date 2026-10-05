@@ -17,6 +17,7 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
+  - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
   - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
@@ -49,7 +50,7 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
 | `save/` | IndexedDB wrapper, versioned schema, migrations, export/import |
 | `audio/` | WebAudio synth voices and mixer |
 | `vfx/` | Pooled particles, tracers, decals |
-| `net/` | Optional coop (Trystero), message schemas + validation |
+| `net/` | Optional coop: transports (Trystero / BroadcastChannel), protocol validation, session/lobby, host + client sims, lobby UI |
 | `pwa/` | Service worker registration, fullscreen/orientation, gesture suppression |
 | `config/` | JSON/TS content data (weapons, enemies, unlock tables) |
 
@@ -110,6 +111,24 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   interactables and calls mode hooks. `GameState.endSession` shows results; `GameState.rewardHook` lets
   progression add rewards.
 - `?autostart=<mapId>&mode=<sandbox|wave|mission>` boots straight into a match (dev/tests).
+
+## Coop (`src/net`)
+- Entry: `main.ts` registers the Co-op menu entry and `?room=CODE` handling; both `import('./net/coopUi')`.
+  `CoopApi` (startGame/goToMenu/profile) is how net talks back to the shell. Never import `src/net` statically.
+- `Transport` (`transport.ts`): `send(msg, to?)`, `onMessage/onPeerJoin/onPeerLeave`. `trysteroTransport`
+  (WebRTC, Nostr signalling, room `ss-<code>`) or `localTransport` (BroadcastChannel, `?net=local`, for tests).
+- `protocol.ts`: every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps).
+  Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
+- `NetSession`: lobby state, ready/start, routing. Clients accept authoritative messages (lobby/start/snap/
+  ev/end) only from the host; the host accepts gameplay messages only from lobby members. No host migration.
+- `GameOptions.net = { role, attach(g) }` -> `GameState.net: NetAttachment` (fixed/frame hooks, death,
+  revive, pickups, blips, end). Client sessions set `GameState.puppet` (no AI/mode; health from snapshots;
+  local `damageMul = 0`). Coop never pauses the sim (pause menu only takes input).
+- `CoopHost`: remote players (`RemotePlayer` = Damageable + hitbox + PlayerRef), 15 Hz snapshots, event
+  queue, enemy position history for lag compensation, shot/blast checks via pure `validate.ts`, per-player
+  kill tallies sent in `end`. `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with
+  `SnapshotBuffer`/`ClockSync` (`interp.ts`), sends `pstate` at 20 Hz and hits as `shot`; rewards come from
+  `clampEnd` + `coopSessionStats` of the host report.
 
 ## Progression and saves
 - Pure maths in `progression/` (levels, rewards, upgrades, attachments, unlocks, profile ops). UI calls

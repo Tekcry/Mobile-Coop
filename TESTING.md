@@ -109,3 +109,22 @@ MFi / Bluetooth controller:
 - [ ] Ground/walls show a faint grid and darker wall bases; enemies flash white when hit; brass flies out of the gun; landing from the platform puffs dust.
 - [ ] Settings > Video > Quality: Auto/Low/Medium/High. FPS overlay line `quality` shows the active level. On Auto, a heavy fight on a weaker phone drops the level instead of stuttering; it climbs back after calm.
 - [ ] 10-minute wave session: no gradual slowdown or audio crackle (memory/GC stable).
+
+## Phase 9 - Co-op (needs 2+ devices online)
+- [ ] Main menu shows Co-op. In airplane mode the entry says Offline and the Co-op screen shows the offline notice; Retry works once back online. Single player still works offline.
+- [ ] Device A: Co-op > Host a room. A 5-character code appears. Share link opens the share sheet (or copies the link).
+- [ ] Device B: Co-op > Join with code; enter the code with the on-screen keypad by touch, then again by controller (d-pad + A). Or open the shared link: it goes straight to the lobby.
+- [ ] Both lobbies list both players with their names/tags; B's Ready toggles the state on A; Start is blocked (with a toast) until B is ready.
+- [ ] Host changes mode/map/difficulty; B sees it update. Start: both load the same map.
+- [ ] In the match: each sees the other's avatar (their customised look), walking/crouching/rolling/aiming animations, weapon swaps, muzzle flashes and tracers; teammates show on the minimap.
+- [ ] B's hits register on enemies (hit markers immediately, kill marker when the host confirms); B's kills appear in the kill feed on A as "<name>: ... down".
+- [ ] Enemies move smoothly on B (no rubber-banding at ~100-200 ms ping). B's grenades damage enemies.
+- [ ] B takes damage with direction indicators; B's health/shield bar matches the host's view. B downed: lies on the ground on A; revived when the wave is cleared.
+- [ ] Pickups taken by either player disappear for both; B gets the heal/ammo.
+- [ ] Emotes from either player play on the other's screen.
+- [ ] Pause menu on either device does not freeze the match.
+- [ ] Everyone downed: both get results; B's results show B's own kills and rewards; B's level/credits persist after reload.
+- [ ] Play again returns both to the lobby with ready states cleared.
+- [ ] B closes the app mid-match: A gets "<name> left"; reopening the link drops B back into the running match.
+- [ ] A (host) quits: B gets "Host left" and returns to the menu.
+- [ ] 3 and 4 players: everyone sees everyone; a 5th gets "Room full".

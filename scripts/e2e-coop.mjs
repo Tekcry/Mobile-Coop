@@ -43,6 +43,7 @@ try {
   await B.keyboard.press('Enter');
   await until(B, () => window.__coop?.session.hostId && window.__coop.session.players.size === 2, null, 15000, 'client sees host lobby');
   await until(A, () => window.__coop.session.players.size === 2, null, 5000, 'host sees client');
+  if (process.env.SHOTS) await B.screenshot({ path: `${process.env.SHOTS}/coop-lobby.png` });
   const startBlocked = await GA(() => document.querySelector('.lobby-actions .btn')?.classList.contains('blocked'));
   assert(startBlocked, 'start is blocked until everyone is ready');
 
@@ -70,6 +71,11 @@ try {
   await until(A, () => window.__app.current.enemyMgr.alive > 0, null, 10000, 'enemies spawn');
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
   await until(B, () => window.__app.current.net.puppets.size > 0, null, 10000, 'puppets on client');
+  if (process.env.SHOTS) {
+    await wait(800);
+    await B.screenshot({ path: `${process.env.SHOTS}/coop-client.png` });
+    await A.screenshot({ path: `${process.env.SHOTS}/coop-host.png` });
+  }
   const counts = await Promise.all([GA(() => window.__app.current.enemyMgr.alive), GB(() => window.__app.current.net.puppets.size)]);
   assert(Math.abs(counts[0] - counts[1]) <= 1, `client mirrors host enemies (${counts})`);
   const info = await GB(() => document.querySelector('.hud-mode, .mode-info')?.textContent ?? window.__app.current.net.info);

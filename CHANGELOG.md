@@ -1,5 +1,33 @@
 # Changelog
 
+## 0.9.0 - Phase 9: Online co-op (optional, behind `flags.coop`)
+- 2-4 player co-op over WebRTC (Trystero, Nostr public signalling) for Wave Survival and Free Roam.
+  Mission stays single player. Everything lives in `src/net`, loaded only by dynamic `import()` from the
+  main menu's Co-op entry or a `?room=CODE` link; single player never loads it.
+- Lobby: host a room (5-character code, no confusable characters) or join by code (on-screen keypad for
+  controllers, typing on keyboards) or invite link (share sheet / clipboard). Player list with tags,
+  ready-up, host picks mode/map/difficulty, Start blocked until everyone is ready. All by touch or pad.
+- Host-authoritative simulation: the host runs AI, waves, pickups and every player's health. 15 Hz
+  snapshots (players, enemies, objective, mode info, pickup mask) + batched events (enemy tracers,
+  explosions, kills, banners, pickups, emotes, damage direction, revives).
+- Clients predict their own movement and fire; enemies are interpolated puppets (~120 ms buffer, clock
+  sync, short extrapolation) with local hit volumes. Hits are sent to the host, which checks the fire
+  rate (token bucket per weapon), origin, range, line of sight and the target's lag-compensated position
+  (up to 600 ms rewind), and caps damage at the fully upgraded maximum. Grenades are re-detonated by the host.
+- Remote players render with their own avatar look, weapon, animation flags, muzzle flashes, tracers and
+  positional gunfire; shown on the minimap. Downed players are revived when the wave is cleared
+  (sandbox: after 3 s); the match ends when everyone is down.
+- Rewards: each player's save gets their own line of the host's report, after parsing (types, ranges,
+  string sanitising) and plausibility clamping against the match length (kill rate, headshots <= kills,
+  per-kind/per-weapon totals, wave count, score bound).
+- Disconnects: leavers are announced and removed; rejoining with the code drops a player back into a
+  running match; the host leaving ends the session with a "Host left" dialog; a 4-player cap; a 15 s
+  timeout when no host answers. Offline: the Co-op entry and screen show an offline state with Retry.
+- `?net=local` uses a BroadcastChannel transport between tabs (tests, local debugging).
+- Tests: protocol validation, interpolation, clock sync, rate limiting, shot geometry, stat clamping,
+  lobby/session handshake (authority, late join, room cap, host left). `scripts/e2e-coop.mjs` drives two
+  pages through lobby -> match -> hits -> downed/revive -> results -> lobby -> host leaves, plus offline.
+
 ## 0.8.0 - Phase 8: Audio, VFX polish, performance, adaptive quality
 - WebAudio engine (no files): compressor, sfx/music/ui buses tied to settings, voice cap, per-sound
   throttling, cheap stereo-pan + distance attenuation for positional sounds. Context unlocks on first gesture.
