@@ -1,5 +1,7 @@
 import { Camera, FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
+import { MOVEMENT } from '../config/movement';
+import { springStep } from '../anim/rigMath';
 
 export const CAMERA_TUNING = {
   pivotHeightStand: 1.58,
@@ -40,6 +42,14 @@ export class ShoulderCamera {
   private pivotY = CAMERA_TUNING.pivotHeightStand;
   /** Smoothed feet height so step-ups and landings do not jolt the view. */
   private footY = Number.NaN;
+  /** Critically damped follow state (x/z position, shoulder side, ADS blend). */
+  private fx = Number.NaN;
+  private fz = 0;
+  private fvx = 0;
+  private fvz = 0;
+  private sideV = 0;
+  private adsV = 0;
+  private footV = 0;
   readonly pivot = new Vector3();
   readonly forward = new Vector3(0, 0, 1);
   /** Distance from camera to pivot; used to fade the player model when too close. */
@@ -92,8 +102,10 @@ export class ShoulderCamera {
   update(dt: number, feet: Vector3, crouch: number): void {
     const T = CAMERA_TUNING;
     this.t += dt;
-    this.side += (this.shoulder - this.side) * Math.min(1, dt * T.shoulderSwapSpeed);
-    this.ads += (this.adsTarget - this.ads) * Math.min(1, dt * T.adsSpeed);
+    // critically damped: smooth start and stop, no overshoot or jitter
+    [this.side, this.sideV] = springStep(this.side, this.sideV, this.shoulder, MOVEMENT.camShoulder, dt);
+    [this.ads, this.adsV] = springStep(this.ads, this.adsV, this.adsTarget, MOVEMENT.camAds, dt);
+    this.ads = Math.max(0, Math.min(1, this.ads));
     const recover = Math.min(1, dt * 9);
     this.recoilPitch -= this.recoilPitch * recover;
     this.recoilYaw -= this.recoilYaw * recover;
@@ -101,9 +113,19 @@ export class ShoulderCamera {
 
     const targetPivotY = T.pivotHeightStand + (T.pivotHeightCrouch - T.pivotHeightStand) * crouch;
     this.pivotY += (targetPivotY - this.pivotY) * Math.min(1, dt * 10);
-    if (Number.isNaN(this.footY) || Math.abs(feet.y - this.footY) > 3) this.footY = feet.y;
-    this.footY += (feet.y - this.footY) * Math.min(1, dt * 14);
-    this.pivot.set(feet.x, this.footY + this.pivotY, feet.z);
+    if (Number.isNaN(this.footY) || Math.abs(feet.y - this.footY) > 3) {
+      this.footY = feet.y;
+      this.footV = 0;
+    }
+    [this.footY, this.footV] = springStep(this.footY, this.footV, feet.y, 14, dt);
+    if (Number.isNaN(this.fx) || Math.hypot(feet.x - this.fx, feet.z - this.fz) > 3) {
+      this.fx = feet.x;
+      this.fz = feet.z;
+      this.fvx = this.fvz = 0;
+    }
+    [this.fx, this.fvx] = springStep(this.fx, this.fvx, feet.x, MOVEMENT.camFollow, dt);
+    [this.fz, this.fvz] = springStep(this.fz, this.fvz, feet.z, MOVEMENT.camFollow, dt);
+    this.pivot.set(this.fx, this.footY + this.pivotY, this.fz);
 
     const yaw = this.aimYaw;
     const pitch = this.aimPitch;

@@ -2,21 +2,22 @@ import {
   BallAndSocketConstraint,
   PhysicsBody,
   PhysicsMotionType,
-  PhysicsShapeBox,
   PhysicsShapeCapsule,
-  Quaternion,
   TransformNode,
   Vector3,
   type PhysicsShape,
   type Scene,
 } from '../core/babylon';
-import { G, MASK } from '../physics/groups';
+import { G } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
 
 /**
- * Three-body ragdoll (upper body + two legs joined by ball-and-socket hips). The rig's
- * pivots are re-parented onto physics nodes; after settling, bodies are removed and
- * the corpse sinks away.
+ * Five-body ragdoll fitted to the shared rig: torso (pelvis..head), two legs and two arms,
+ * joined by ball-and-socket constraints at the hips and shoulders. Knees/elbows keep the pose
+ * they died in. Rig joints are re-parented onto physics nodes (world transforms preserved), so the
+ * smooth body parts simply ride along. Limbs never collide with their own torso; torsos collide
+ * with the world, props and other ragdolls. After settling the bodies are removed and the corpse
+ * sinks away. Count is capped by `BUDGET.maxRagdolls`.
  */
 export class Ragdoll {
   private nodes: TransformNode[] = [];
@@ -31,70 +32,59 @@ export class Ragdoll {
     private rig: CharacterRig,
     impulse: Vector3,
   ) {
-    const k = rig.height / 1.8;
+    const p = rig.p;
+    rig.heldWeapon = null;
+    rig.emote = null;
     rig.root.computeWorldMatrix(true);
-    const rot = Quaternion.RotationYawPitchRoll(rig.root.rotation.y, 0, 0);
     const mk = (src: TransformNode, name: string): TransformNode => {
       src.computeWorldMatrix(true);
       const n = new TransformNode(name, this.scene);
       n.position.copyFrom(src.getAbsolutePosition());
-      n.rotationQuaternion = rot.clone();
+      n.rotationQuaternion = src.absoluteRotationQuaternion.clone();
       this.nodes.push(n);
       return n;
     };
     const torsoN = mk(rig.hips, 'rag-torso');
-    const legLN = mk(rig.hipL, 'rag-legL');
-    const legRN = mk(rig.hipR, 'rag-legR');
-    // detach legs first (they are children of hips)
-    for (const [leg, node] of [
-      [rig.hipL, legLN],
-      [rig.hipR, legRN],
-    ] as const) {
-      leg.parent = node;
-      leg.position.setAll(0);
-      leg.rotation.setAll(0);
-    }
-    rig.kneeL.rotation.x = 0.2;
-    rig.kneeR.rotation.x = 0.2;
-    rig.hips.parent = torsoN;
-    rig.hips.position.setAll(0);
-    rig.hips.rotation.setAll(0);
+    const legs = [mk(rig.hipL, 'rag-legL'), mk(rig.hipR, 'rag-legR')] as const;
+    const arms = [mk(rig.shoulderL, 'rag-armL'), mk(rig.shoulderR, 'rag-armR')] as const;
+    // limbs first (they are descendants of the pelvis), then the pelvis itself
+    rig.hipL.setParent(legs[0]);
+    rig.hipR.setParent(legs[1]);
+    rig.shoulderL.setParent(arms[0]);
+    rig.shoulderR.setParent(arms[1]);
+    rig.hips.setParent(torsoN);
 
-    const filt = (s: PhysicsShape): PhysicsShape => {
+    const filt = (s: PhysicsShape, self: boolean): PhysicsShape => {
       s.filterMembershipMask = G.RAGDOLL;
-      s.filterCollideMask = MASK.RAGDOLL_COLLIDE;
-      s.material = { friction: 0.8, restitution: 0.05 };
+      s.filterCollideMask = self ? G.STATIC | G.PROP | G.RAGDOLL : G.STATIC | G.PROP;
+      s.material = { friction: 0.85, restitution: 0.05 };
       this.shapes.push(s);
       return s;
     };
-    const torsoShape = filt(new PhysicsShapeBox(new Vector3(0, 0.38 * k, 0), Quaternion.Identity(), new Vector3(0.42 * k, 0.9 * k, 0.28 * k), scene));
-    const legShape = (): PhysicsShape => filt(new PhysicsShapeCapsule(new Vector3(0, -0.1 * k, 0), new Vector3(0, -0.75 * k, 0), 0.09 * k, scene));
+    const torsoTop = p.y.neck - p.y.hip + p.head.h * 0.3;
+    const torsoShape = filt(new PhysicsShapeCapsule(new Vector3(0, 0.02, 0), new Vector3(0, torsoTop, 0), p.chest.d * 0.55, scene), true);
+    const legLen = (p.thigh.len + p.calf.len) * 0.92;
+    const armLen = (p.upperArm.len + p.forearm.len) * 0.9;
     const body = (node: TransformNode, shape: PhysicsShape, mass: number): PhysicsBody => {
       const b = new PhysicsBody(node, PhysicsMotionType.DYNAMIC, false, scene);
       b.shape = shape;
       b.setMassProperties({ mass });
-      b.setAngularDamping(0.8);
+      b.setAngularDamping(0.9);
       b.setLinearDamping(0.2);
       this.bodies.push(b);
       return b;
     };
-    const tb = body(torsoN, torsoShape, 30);
-    const lb = body(legLN, legShape(), 8);
-    const rb = body(legRN, legShape(), 8);
-    const hipOff = (leg: TransformNode): Vector3 => leg.getAbsolutePosition().subtract(torsoN.position);
-    for (const [leg, b] of [
-      [legLN, lb],
-      [legRN, rb],
-    ] as const) {
-      const pivotA = hipOff(leg);
-      // pivots are in body-local space; torso has rotation `rot`
-      const inv = rot.clone().invert();
-      const local = new Vector3();
-      pivotA.rotateByQuaternionToRef(inv, local);
-      const c = new BallAndSocketConstraint(local, Vector3.Zero(), Vector3.Up(), Vector3.Up(), scene);
-      tb.addConstraint(b, c);
-    }
-    tb.applyImpulse(impulse, torsoN.position.add(new Vector3(0, 0.6 * k, 0)));
+    const tb = body(torsoN, torsoShape, 34);
+    torsoN.computeWorldMatrix(true);
+    const invTorso = torsoN.getWorldMatrix().clone().invert();
+    const join = (limb: TransformNode, shape: PhysicsShape, mass: number): void => {
+      const b = body(limb, shape, mass);
+      const pivotA = Vector3.TransformCoordinates(limb.position, invTorso);
+      tb.addConstraint(b, new BallAndSocketConstraint(pivotA, Vector3.Zero(), Vector3.Up(), Vector3.Up(), scene));
+    };
+    for (const l of legs) join(l, filt(new PhysicsShapeCapsule(new Vector3(0, -0.06, 0), new Vector3(0, -legLen, 0), p.thigh.r0 * 0.85, scene), false), 10);
+    for (const a of arms) join(a, filt(new PhysicsShapeCapsule(new Vector3(0, -0.04, 0), new Vector3(0, -armLen, 0), p.upperArm.r0, scene), false), 4);
+    tb.applyImpulse(impulse, torsoN.position.add(new Vector3(0, 0.45, 0)));
   }
 
   update(dt: number): void {

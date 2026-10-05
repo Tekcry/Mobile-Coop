@@ -1,77 +1,55 @@
-import type { CharacterRig } from '../player/characterRig';
+import type { CharacterRig, FkPose } from '../player/characterRig';
 
 export interface EmoteDef {
   duration: number;
-  /** Applied after the regular animation each frame. */
-  pose(rig: CharacterRig, t: number): void;
+  /** Joint overrides (Euler x, y, z, limbs hanging down in the bind pose), blended over the animation. */
+  pose(t: number): FkPose;
 }
 
 const s = Math.sin;
 
-/** Procedural emote poses (overrides on top of the rig animation). */
+/** Procedural emote poses. The rig cross-fades into and out of them (no snaps). */
 export const EMOTE_POSES: Record<string, EmoteDef> = {
   wave: {
     duration: 2.2,
-    pose: (r, t) => {
-      r.shoulderR.rotation.set(0, 0, 2.6 + s(t * 10) * 0.35);
-      r.elbowR.rotation.set(0, 0, 0.4);
-    },
+    pose: (t) => ({ shoulderR: [0, 0, 2.6 + s(t * 10) * 0.3], elbowR: [0, 0, 0.5] }),
   },
   salute: {
     duration: 2,
-    pose: (r) => {
-      r.shoulderR.rotation.set(-0.3, -0.6, 2.2);
-      r.elbowR.rotation.set(0, 0, 2.2);
-    },
+    pose: () => ({ shoulderR: [-0.4, -0.5, 2.0], elbowR: [0, 0, 2.3] }),
   },
   point: {
     duration: 1.8,
-    pose: (r, t) => {
-      r.shoulderR.rotation.set(-Math.PI / 2 - 0.2, 0, 0);
-      r.elbowR.rotation.set(0, 0, 0);
-      r.torso.rotation.y = s(t * 2) * 0.15;
-    },
+    pose: (t) => ({ shoulderR: [-Math.PI / 2 - 0.15, 0, 0], elbowR: [-0.05, 0, 0], chest: [0, s(t * 2) * 0.15, 0] }),
   },
   dance: {
     duration: 4,
-    pose: (r, t) => {
-      r.hips.rotation.y = s(t * 6) * 0.5;
-      r.hips.position.y += Math.abs(s(t * 6)) * 0.08;
-      r.shoulderL.rotation.set(0, 0, -2.4 - s(t * 6) * 0.4);
-      r.shoulderR.rotation.set(0, 0, 2.4 - s(t * 6) * 0.4);
-      r.hipL.rotation.x = s(t * 6) * 0.4;
-      r.hipR.rotation.x = -s(t * 6) * 0.4;
-    },
+    pose: (t) => ({
+      pelvis: [0, s(t * 6) * 0.4, 0],
+      pelvisLift: Math.abs(s(t * 6)) * 0.06,
+      shoulderL: [0, 0, -2.3 - s(t * 6) * 0.35],
+      shoulderR: [0, 0, 2.3 - s(t * 6) * 0.35],
+      elbowL: [0, 0, -0.4],
+      elbowR: [0, 0, 0.4],
+    }),
   },
   flex: {
     duration: 2.4,
-    pose: (r, t) => {
+    pose: (t) => {
       const k = Math.min(1, t * 3);
-      r.shoulderL.rotation.set(0, 0, -1.6 * k);
-      r.shoulderR.rotation.set(0, 0, 1.6 * k);
-      r.elbowL.rotation.set(0, 0, -1.9 * k);
-      r.elbowR.rotation.set(0, 0, 1.9 * k);
-      r.torso.rotation.x = -0.1;
+      return { shoulderL: [0, 0, -1.55 * k], shoulderR: [0, 0, 1.55 * k], elbowL: [0, 0, -1.9 * k], elbowR: [0, 0, 1.9 * k], chest: [-0.08, 0, 0] };
     },
   },
   clap: {
     duration: 2.4,
-    pose: (r, t) => {
-      const c = Math.abs(s(t * 9)) * 0.35;
-      r.shoulderL.rotation.set(-1.3, 0.6 - c, 0);
-      r.shoulderR.rotation.set(-1.3, -0.6 + c, 0);
-      r.elbowL.rotation.set(-0.4, 0, 0);
-      r.elbowR.rotation.set(-0.4, 0, 0);
+    pose: (t) => {
+      const c = Math.abs(s(t * 9)) * 0.3;
+      return { shoulderL: [-1.25, 0.55 - c, 0], shoulderR: [-1.25, -0.55 + c, 0], elbowL: [-0.5, 0, 0], elbowR: [-0.5, 0, 0] };
     },
   },
   laugh: {
     duration: 2.4,
-    pose: (r, t) => {
-      r.torso.rotation.x = -0.25 + s(t * 14) * 0.05;
-      r.neck.rotation.x = -0.4;
-      r.shoulderL.rotation.set(-0.4, 0, -0.3);
-      r.shoulderR.rotation.set(-0.4, 0, 0.3);
-    },
+    pose: (t) => ({ chest: [-0.2 + s(t * 14) * 0.04, 0, 0], neck: [-0.35, 0, 0], shoulderL: [-0.35, 0, -0.25], shoulderR: [-0.35, 0, 0.25], elbowL: [-0.8, 0, 0], elbowR: [-0.8, 0, 0] }),
   },
 };
 
@@ -85,7 +63,7 @@ export function playEmote(rig: CharacterRig, id: string): boolean {
       r.emote = null;
       return;
     }
-    e.pose(r, t);
+    return e.pose(t);
   };
   return true;
 }

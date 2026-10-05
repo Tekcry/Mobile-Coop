@@ -19,6 +19,10 @@ export class Player {
   aimLockTimer = 0;
   kick = 0;
   alive = true;
+  /** Reload progress 0..1 (or -1), set by PlayerWeapons for the animation layer. */
+  reload = -1;
+  /** Cover pose (set by the cover controller). */
+  coverPose: { cover: 'none' | 'low' | 'high'; peek: number; blind: boolean; vault: number } = { cover: 'none', peek: 0, blind: false, vault: -1 };
   /** Called when landing from a fall (speed in m/s). */
   onLand: ((speed: number) => void) | null = null;
   private wasGrounded = true;
@@ -31,7 +35,7 @@ export class Player {
     private getSettings: () => Settings,
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
-    this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 1.8, 'player');
+    this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 1.75, 'player');
     for (const m of this.rig.parts) world.addShadowCaster(m);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
@@ -53,7 +57,7 @@ export class Player {
     } else {
       this.ads = inp.down('ads');
     }
-    if (this.controller.isRolling || this.controller.sprinting) this.ads = false;
+    if (this.controller.weaponBlocked) this.ads = false;
     if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
     const pi: PlayerInput = {
@@ -93,7 +97,10 @@ export class Player {
     root.position.copyFrom(c.renderPos);
     root.rotation.y = c.renderYaw;
     this.kick = Math.max(0, this.kick - dt * 8);
-    const aiming = this.ads || this.aimLockTimer > 0 ? 1 : 0.15;
+    const cp = this.coverPose;
+    const aiming = c.weaponBlocked ? 0 : this.ads || this.aimLockTimer > 0 ? 1 : 0.15;
+    let aimYaw = this.cam.yaw - c.renderYaw;
+    aimYaw = Math.atan2(Math.sin(aimYaw), Math.cos(aimYaw));
     this.rig.animate(dt, {
       speed: c.speed,
       localX: c.localMove.x,
@@ -102,8 +109,15 @@ export class Player {
       crouch: c.crouchBlend,
       roll: c.rollT,
       aimPitch: this.cam.pitch,
+      aimYaw: aiming > 0.5 ? aimYaw : aimYaw * 0.5,
       aim: aiming,
       kick: this.kick,
+      sprint: c.sprinting,
+      reload: this.reload,
+      cover: cp.cover,
+      peek: cp.peek,
+      blind: cp.blind,
+      vault: cp.vault,
     });
     // Hide the body if the camera is pushed into it (tight spaces).
     root.setEnabled(this.cam.boomActual > 0.75);

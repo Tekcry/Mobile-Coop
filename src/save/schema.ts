@@ -6,7 +6,7 @@ import { sanitizeAttachments } from '../progression/attachments';
 import { STARTER_UNLOCKS } from '../progression/unlocks';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 3;
+export const SAVE_VERSION = 4;
 
 export interface WeaponProgress {
   upgrades: WeaponUpgrades;

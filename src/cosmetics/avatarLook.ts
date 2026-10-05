@@ -1,11 +1,20 @@
 /** Data describing a modular primitive avatar. Pure data: safe to save and send over the network. */
-export const BODY_TYPES = ['slim', 'regular', 'heavy'] as const;
-export const HEADS = ['round', 'square', 'hex', 'tall'] as const;
-export const HAIRS = ['none', 'buzz', 'mohawk', 'long', 'bun', 'spikes'] as const;
+export const BODY_TYPES = ['average', 'lean', 'athletic', 'broad'] as const;
+export const HEADS = ['round', 'oval', 'strong', 'long'] as const;
+export const HAIRS = ['none', 'buzz', 'mohawk', 'long', 'bun', 'swept'] as const;
 export const TORSOS = ['tee', 'vest', 'armor', 'jacket', 'hoodie'] as const;
 export const LEGS = ['pants', 'cargo', 'shorts', 'armored'] as const;
-export const BACKPACKS = ['none', 'pack', 'radio', 'tank', 'blade'] as const;
-export const HELMETS = ['none', 'cap', 'combat', 'visor', 'beret', 'horns'] as const;
+export const BACKPACKS = ['none', 'pack', 'radio', 'tank', 'bedroll'] as const;
+export const HELMETS = ['none', 'cap', 'combat', 'visor', 'beret', 'headset'] as const;
+
+/** Option ids renamed by the v4 avatar overhaul (hard-edged/cartoon parts became smooth, realistic ones). */
+export const LEGACY_LOOK_IDS: Record<string, Record<string, string>> = {
+  body: { slim: 'lean', regular: 'average', heavy: 'broad' },
+  head: { square: 'strong', hex: 'oval', tall: 'long' },
+  hair: { spikes: 'swept' },
+  backpack: { blade: 'bedroll' },
+  helmet: { horns: 'headset' },
+};
 export const PATTERNS = ['solid', 'stripes', 'camo', 'digital', 'tiger', 'checker'] as const;
 
 export type BodyType = (typeof BODY_TYPES)[number];
@@ -50,7 +59,7 @@ export const PALETTE_COLORS = [
 
 export function defaultLook(): AvatarLook {
   return {
-    body: 'regular',
+    body: 'average',
     head: 'round',
     hair: 'buzz',
     torso: 'vest',
@@ -79,17 +88,21 @@ export function sanitizeLook(raw: unknown): AvatarLook {
   const d = defaultLook();
   if (typeof raw !== 'object' || raw === null) return d;
   const r = raw as Record<string, unknown>;
-  const pick = <T extends string>(v: unknown, list: readonly T[], def: T): T => (list.includes(v as T) ? (v as T) : def);
+  const pick = <T extends string>(v: unknown, list: readonly T[], def: T, cat?: string): T => {
+    const legacy = cat && typeof v === 'string' ? LEGACY_LOOK_IDS[cat]?.[v] : undefined;
+    const val = legacy ?? v;
+    return list.includes(val as T) ? (val as T) : def;
+  };
   const c = (typeof r.colors === 'object' && r.colors !== null ? r.colors : {}) as Record<string, unknown>;
   const col = (k: keyof AvatarColors): string => (typeof c[k] === 'string' && HEX.test(c[k] as string) ? (c[k] as string) : d.colors[k]);
   return {
-    body: pick(r.body, BODY_TYPES, d.body),
-    head: pick(r.head, HEADS, d.head),
-    hair: pick(r.hair, HAIRS, d.hair),
+    body: pick(r.body, BODY_TYPES, d.body, 'body'),
+    head: pick(r.head, HEADS, d.head, 'head'),
+    hair: pick(r.hair, HAIRS, d.hair, 'hair'),
     torso: pick(r.torso, TORSOS, d.torso),
     legs: pick(r.legs, LEGS, d.legs),
-    backpack: pick(r.backpack, BACKPACKS, d.backpack),
-    helmet: pick(r.helmet, HELMETS, d.helmet),
+    backpack: pick(r.backpack, BACKPACKS, d.backpack, 'backpack'),
+    helmet: pick(r.helmet, HELMETS, d.helmet, 'helmet'),
     pattern: pick(r.pattern, PATTERNS, d.pattern),
     colors: {
       skin: col('skin'),

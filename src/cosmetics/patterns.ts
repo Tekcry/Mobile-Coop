@@ -26,30 +26,29 @@ vec3 applyPattern(vec3 c1, vec3 c2, vec4 pat, vec3 p) {
   // fold 3D into 2D so every face gets a pattern
   vec2 uv = vec2(q.x + q.z * 0.7, q.y + q.z * 0.3);
   float m = 0.0;
+  // every edge is a smoothstep: patterns read as soft-edged on smooth bodies at any distance
   if (id < 0.5) return c1;
-  else if (id < 1.5) m = step(0.5, fract(uv.y * 4.0));
+  else if (id < 1.5) m = smoothstep(-0.3, 0.3, sin(uv.y * 25.13));
   else if (id < 2.5) {
     float n = pNoise(uv * 3.0) * 0.65 + pNoise(uv * 7.0) * 0.35;
-    if (n > 0.62) return c2;
-    if (n > 0.46) return mix(c1, c2, 0.45);
-    return c1;
+    vec3 c = mix(c1, mix(c1, c2, 0.45), smoothstep(0.43, 0.49, n));
+    return mix(c, c2, smoothstep(0.59, 0.65, n));
   }
   else if (id < 3.5) {
-    float n = pHash(floor(uv * 9.0));
-    if (n > 0.66) return c2;
-    if (n > 0.4) return mix(c1, c2, 0.5);
-    return c1;
+    float n = pNoise(uv * 9.0) * 0.7 + pNoise(uv * 19.0) * 0.3;
+    vec3 c = mix(c1, mix(c1, c2, 0.5), smoothstep(0.42, 0.47, n));
+    return mix(c, c2, smoothstep(0.6, 0.65, n));
   }
-  else if (id < 4.5) m = step(0.62, fract(uv.y * 3.0 + pNoise(uv * 4.0) * 1.2));
-  else if (id < 5.5) m = mod(floor(uv.x * 4.0) + floor(uv.y * 4.0), 2.0);
+  else if (id < 4.5) m = smoothstep(0.55, 0.68, fract(uv.y * 3.0 + pNoise(uv * 4.0) * 1.2));
+  else if (id < 5.5) m = smoothstep(-0.25, 0.25, sin(uv.x * 12.566) * sin(uv.y * 12.566));
   else if (id < 6.5) {
     vec2 g = fract(uv * 14.0);
-    m = step(0.5, g.x) * 0.6 + step(0.5, g.y) * 0.4;
+    m = smoothstep(0.4, 0.6, g.x) * 0.6 + smoothstep(0.4, 0.6, g.y) * 0.4;
     return mix(c1, c2, m * 0.5);
   }
   else {
     vec2 h = abs(fract(uv * vec2(5.0, 8.66)) - 0.5);
-    m = step(0.42, max(h.x * 1.6, h.y));
+    m = smoothstep(0.36, 0.46, max(h.x * 1.6, h.y));
   }
   return mix(c1, c2, m);
 }

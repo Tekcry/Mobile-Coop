@@ -7,23 +7,22 @@ import {
 } from '../core/babylon';
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
+import { MOVEMENT } from '../config/movement';
+import { EasedVelocity, RollGate, SprintGate, targetSpeed, type Stance } from './movement';
 
-export const PLAYER_TUNING = {
-  walkSpeed: 5.0,
-  sprintSpeed: 7.4,
-  crouchSpeed: 2.6,
-  adsSpeed: 3.0,
-  jumpHeight: 1.2,
-  airControl: 0.35,
-  rollSpeed: 8.5,
-  rollTime: 0.48,
-  rollCooldown: 0.65,
-  standHeight: 1.8,
-  crouchHeight: 1.15,
-  radius: 0.34,
-  turnSpeed: 14,
-  maxStep: 0.42,
-};
+/** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
+export const PLAYER_TUNING = MOVEMENT;
+
+/**
+ * Lets another system (cover) drive the controller for a step: a desired horizontal velocity and
+ * facing; or a kinematic feet position (vaults) that bypasses collision for committed moves.
+ */
+export interface MoveOverride {
+  velocity?: { x: number; z: number };
+  yaw?: number;
+  crouch?: boolean;
+  kinematic?: Vector3;
+}
 
 export interface PlayerInput {
   moveX: number;
@@ -58,13 +57,16 @@ export class PlayerController {
   crouched = false;
   /** Visual crouch blend 0..1. */
   crouchBlend = 0;
-  rollT = -1;
-  private rollCd = 0;
+  readonly roll = new RollGate();
+  readonly sprint = new SprintGate();
+  readonly vel = new EasedVelocity();
   private rollDir = new Vector3(0, 0, 1);
   sprinting = false;
+  /** Set each step by the cover system (or null). */
+  override: MoveOverride | null = null;
   speed = 0;
   localMove = { x: 0, z: 0 };
-  private height = PLAYER_TUNING.standHeight;
+  private height: number = MOVEMENT.standHeight;
   private support: CharacterSurfaceInfo | null = null;
   private wish = new Vector3();
   private tmp = new Vector3();
@@ -81,14 +83,17 @@ export class PlayerController {
     spawn: Vector3,
     yaw: number,
   ) {
-    const center = spawn.add(new Vector3(0, PLAYER_TUNING.standHeight / 2 + 0.02, 0));
+    const center = spawn.add(new Vector3(0, MOVEMENT.standHeight / 2 + 0.02, 0));
     this.cc = new PhysicsCharacterController(
       center,
-      { capsuleHeight: PLAYER_TUNING.standHeight, capsuleRadius: PLAYER_TUNING.radius },
+      { capsuleHeight: MOVEMENT.standHeight, capsuleRadius: MOVEMENT.radius },
       scene,
     );
+    // we ease velocity ourselves (EasedVelocity); the controller should follow it exactly
+    this.cc.acceleration = 1;
+    this.cc.maxAcceleration = 80;
     this.cc.maxSlopeCosine = Math.cos((50 * Math.PI) / 180);
-    this.cc.maxStepHeight = PLAYER_TUNING.maxStep;
+    this.cc.maxStepHeight = MOVEMENT.maxStep;
     this.cc.characterStrength = 900;
     this.cc.characterMass = 80;
     this.cc.keepDistance = 0.04;
@@ -113,12 +118,28 @@ export class PlayerController {
   }
 
   get isRolling(): boolean {
-    return this.rollT >= 0;
+    return this.roll.active;
+  }
+
+  /** Roll progress 0..1 while rolling, else -1. */
+  get rollT(): number {
+    return this.roll.progress;
+  }
+
+  /** Weapon lowered: sprinting (incl. wind-up/recovery) or rolling/recovering. */
+  get weaponBlocked(): boolean {
+    return this.sprint.blocksWeapon || this.roll.blocksWeapon;
+  }
+
+  /** Current capsule height (crouch-aware). */
+  get capsuleHeight(): number {
+    return this.height;
   }
 
   teleport(feet: Vector3, yaw?: number): void {
     this.cc.setPosition(feet.add(new Vector3(0, this.height / 2 + 0.02, 0)));
     this.cc.setVelocity(Vector3.Zero());
+    this.vel.reset();
     this.syncFeet();
     this.prevPos.copyFrom(this.pos);
     this.renderPos.copyFrom(this.pos);
@@ -127,14 +148,14 @@ export class PlayerController {
 
   private setHeight(h: number): void {
     if (h === this.height) return;
-    this.cc.setShapeOptions({ capsuleHeight: h, capsuleRadius: PLAYER_TUNING.radius }, true);
+    this.cc.setShapeOptions({ capsuleHeight: h, capsuleRadius: MOVEMENT.radius }, true);
     this.height = h;
     this.applyFilters();
   }
 
   private hasHeadroom(): boolean {
     const top = this.pos.add(new Vector3(0, this.height, 0));
-    const res = this.scene.getPhysicsEngine()?.raycast(top, top.add(new Vector3(0, PLAYER_TUNING.standHeight - this.height + 0.05, 0)), {
+    const res = this.scene.getPhysicsEngine()?.raycast(top, top.add(new Vector3(0, MOVEMENT.standHeight - this.height + 0.05, 0)), {
       membership: G.PLAYER,
       collideWith: G.STATIC,
     });
@@ -142,10 +163,24 @@ export class PlayerController {
   }
 
   fixedUpdate(dt: number, input: PlayerInput, camYaw: number): void {
-    const T = PLAYER_TUNING;
+    const T = MOVEMENT;
+    const ov = this.override;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
-    this.rollCd = Math.max(0, this.rollCd - dt);
+    this.roll.update(dt);
+
+    // committed kinematic move (vault): no collision, exact path
+    if (ov?.kinematic) {
+      this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
+      this.cc.setVelocity(Vector3.Zero());
+      this.syncFeet();
+      if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, T.turnSpeed * 2 * dt);
+      this.speed = Vector3.Distance(this.pos, this.prevPos) / Math.max(dt, 1e-4);
+      this.grounded = true;
+      this.sprint.update(false, dt);
+      this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, dt * 12);
+      return;
+    }
 
     // wish direction (camera relative)
     const fx = Math.sin(camYaw);
@@ -155,11 +190,11 @@ export class PlayerController {
     const mag = Math.min(1, Math.hypot(mx, my));
     if (mag < 0.05) mx = my = 0;
     this.wish.set(fz * mx + fx * my, 0, -fx * mx + fz * my);
+    if (this.wish.lengthSquared() > 1) this.wish.normalize();
 
     // crouch / roll
-    if (!this.frozen && input.crouchPressed && this.grounded && !this.isRolling) {
-      if (mag > 0.5 && this.rollCd === 0) {
-        this.rollT = 0;
+    if (!this.frozen && !ov && input.crouchPressed && this.grounded && !this.isRolling) {
+      if (mag > 0.5 && this.roll.start()) {
         this.rollDir.copyFrom(this.wish).normalize();
         this.crouchToggled = false;
       } else if (input.crouchToggle) {
@@ -167,6 +202,7 @@ export class PlayerController {
       }
     }
     let wantCrouch = input.crouchToggle ? this.crouchToggled : input.crouchHeld;
+    if (ov?.crouch !== undefined) wantCrouch = ov.crouch;
     if (this.isRolling) wantCrouch = true;
     if (input.jump && this.crouchToggled) {
       this.crouchToggled = false;
@@ -180,21 +216,30 @@ export class PlayerController {
       this.crouched = false;
     }
 
-    // speed selection
-    this.sprinting = input.sprint && !input.ads && !this.crouched && my > 0.5 && this.grounded;
-    let maxSpeed = this.crouched ? T.crouchSpeed : input.ads ? T.adsSpeed : this.sprinting ? T.sprintSpeed : T.walkSpeed;
-    maxSpeed *= this.speedMul;
-    const desired = this.tmp.copyFrom(this.wish).scaleInPlace(maxSpeed);
-
-    if (this.isRolling) {
-      this.rollT += dt / T.rollTime;
-      const ease = 1 - this.rollT * 0.5;
-      desired.copyFrom(this.rollDir).scaleInPlace(T.rollSpeed * ease);
-      if (this.rollT >= 1) {
-        this.rollT = -1;
-        this.rollCd = T.rollCooldown;
-      }
+    // sprint is a commitment: forward, grounded, standing, not aiming; wind-up then recovery
+    const wantSprint = !ov && input.sprint && !input.ads && !this.crouched && my > 0.5 && this.grounded && !this.isRolling;
+    this.sprint.update(wantSprint, dt);
+    this.sprinting = this.sprint.sprinting;
+    const stance: Stance = ov ? 'cover' : this.crouched ? 'crouch' : input.ads ? 'ads' : 'stand';
+    let speedTarget = targetSpeed(mag, stance);
+    if (this.sprint.sprinting) speedTarget += (T.sprintSpeed - speedTarget) * this.sprint.blend;
+    speedTarget *= this.speedMul;
+    const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
+    let tx = this.wish.x * inv;
+    let tz = this.wish.z * inv;
+    if (ov?.velocity) {
+      tx = ov.velocity.x;
+      tz = ov.velocity.z;
     }
+    if (this.isRolling) {
+      const rs = this.roll.speedAt();
+      tx = this.rollDir.x * rs;
+      tz = this.rollDir.z * rs;
+      this.vel.reset(tx, tz);
+    } else if (this.grounded) {
+      this.vel.step(tx, tz, dt);
+    }
+    const desired = this.tmp.set(this.vel.x, 0, this.vel.z);
 
     if (this.grounded && mag > 0.1) this.stepAssist(dt);
 
@@ -204,15 +249,16 @@ export class PlayerController {
     this.airborneLock = Math.max(0, this.airborneLock - dt);
     const grounded = support.supportedState === CharacterSupportedState.SUPPORTED && this.airborneLock === 0;
     let out: Vector3;
-    if (grounded && input.jump && !this.frozen && !this.isRolling) {
+    if (grounded && input.jump && !this.frozen && !this.isRolling && !ov) {
+      // modest, committed jump: keep the take-off velocity
       const u = Math.sqrt(2 * -GRAVITY.y * T.jumpHeight);
       const along = cur.dot(UP);
       out = cur.add(UP.scale(u - along));
-      // keep horizontal intent on take-off
       out.x = desired.x;
       out.z = desired.z;
       this.grounded = false;
       this.airborneLock = 0.2;
+      this.sprint.cancel();
     } else if (grounded) {
       out = this.cc.calculateMovement(dt, this.forwardVec(), support.averageSurfaceNormal, cur, support.averageSurfaceVelocity, desired, UP);
       out.subtractInPlace(support.averageSurfaceVelocity);
@@ -227,13 +273,13 @@ export class PlayerController {
       out.addInPlace(support.averageSurfaceVelocity);
       // Small stick force keeps the capsule in contact (no hovering within contact tolerance).
       out.subtractInPlace(support.averageSurfaceNormal.scale(PlayerController.stickForce));
+      if (!this.grounded) this.vel.reset(cur.x, cur.z);
       this.grounded = true;
     } else {
-      // air: limited control, keep vertical velocity, apply gravity
-      const air = new Vector3(cur.x, 0, cur.z);
-      const target = new Vector3(desired.x, 0, desired.z);
-      air.addInPlace(target.subtract(air).scale(Math.min(1, T.airControl * dt * 10)));
-      out = new Vector3(air.x, cur.y, air.z).addInPlace(GRAVITY.scale(dt));
+      // air: committed arc, minimal control
+      const k = Math.min(1, T.airControl * dt * 10);
+      out = new Vector3(cur.x + (tx - cur.x) * k, cur.y, cur.z + (tz - cur.z) * k).addInPlace(GRAVITY.scale(dt));
+      this.vel.reset(out.x, out.z);
       this.grounded = false;
     }
     this.cc.setVelocity(out);
@@ -243,8 +289,10 @@ export class PlayerController {
     // facing
     const v = this.cc.getVelocity();
     this.speed = Math.hypot(v.x, v.z);
-    if (input.aimLock || input.ads) {
-      this.yaw = turnTowards(this.yaw, camYaw, T.turnSpeed * 2 * dt);
+    if (ov?.yaw !== undefined) {
+      this.yaw = turnTowards(this.yaw, ov.yaw, T.turnSpeed * dt);
+    } else if (input.aimLock || input.ads) {
+      this.yaw = turnTowards(this.yaw, camYaw, T.turnSpeed * 1.6 * dt);
     } else if (this.isRolling) {
       this.yaw = turnTowards(this.yaw, Math.atan2(this.rollDir.x, this.rollDir.z), T.turnSpeed * 2 * dt);
     } else if (mag > 0.1) {
@@ -253,9 +301,9 @@ export class PlayerController {
     // local move for animation
     const s = Math.sin(this.yaw);
     const c = Math.cos(this.yaw);
-    const inv = this.speed > 0.01 ? 1 / this.speed : 0;
-    this.localMove.x = (v.x * c - v.z * s) * inv;
-    this.localMove.z = (v.x * s + v.z * c) * inv;
+    const invS = this.speed > 0.01 ? 1 / this.speed : 0;
+    this.localMove.x = (v.x * c - v.z * s) * invS;
+    this.localMove.z = (v.x * s + v.z * c) * invS;
     this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, dt * 12);
   }
 
@@ -269,7 +317,7 @@ export class PlayerController {
     if (this.stepCd > 0) return;
     const eng = this.scene.getPhysicsEngine();
     if (!eng) return;
-    const T = PLAYER_TUNING;
+    const T = MOVEMENT;
     const dir = this.wish.clone();
     dir.y = 0;
     if (dir.lengthSquared() < 1e-4) return;

@@ -34,7 +34,7 @@ describe('save migrations', () => {
     expect(s.weapons.rifle.upgrades).toEqual({ damage: 2, magazine: 1, recoil: 0, reload: 3 });
     // out-of-range upgrade clamped
     expect(s.weapons.smg.upgrades.damage).toBe(5);
-    expect(s.avatar.body).toBe('regular');
+    expect(s.avatar.body).toBe('average');
     expect(s.emotes).toHaveLength(4);
   });
   it('v2 -> v3 adds cosmetics without losing data', () => {
@@ -45,6 +45,30 @@ describe('save migrations', () => {
     expect(s.profile.tag.title).toBe('Rookie');
     expect(s.weapons.rifle.camo).toBe('factory');
   });
+  it('v3 -> v4 renames avatar options and owned part unlocks', () => {
+    const V3 = {
+      version: 3,
+      createdAt: 1,
+      updatedAt: 2,
+      profile: { name: 'Vet', xp: 900, credits: 120, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, stats: { matches: 3, wins: 0, kills: 40, headshots: 9, bestWave: 4, timePlayed: 900 } },
+      unlocks: ['weapon:rifle', 'weapon:pistol', 'part:body:heavy', 'part:head:hex', 'part:helmet:horns', 'part:backpack:blade', 'part:hair:spikes', 'camo:factory'],
+      weapons: { rifle: { upgrades: { damage: 1, magazine: 0, recoil: 0, reload: 0 }, kills: 12, attachments: [], camo: 'factory' } },
+      loadout: { primary: 'rifle', secondary: 'pistol' },
+      avatar: { body: 'heavy', head: 'hex', hair: 'spikes', torso: 'vest', legs: 'cargo', backpack: 'blade', helmet: 'horns', pattern: 'solid', colors: { skin: '#c68a5e' } },
+      emotes: ['wave', 'salute', '', ''],
+    };
+    const { data, from, steps } = migrate(V3);
+    expect(from).toBe(3);
+    expect(steps).toBe(SAVE_VERSION - 3);
+    const s = sanitizeSave(data);
+    expect(s.avatar).toMatchObject({ body: 'broad', head: 'oval', hair: 'swept', backpack: 'bedroll', helmet: 'headset', torso: 'vest' });
+    expect(s.avatar.colors.skin).toBe('#c68a5e');
+    expect(s.unlocks).toEqual(expect.arrayContaining(['part:body:broad', 'part:head:oval', 'part:helmet:headset', 'part:backpack:bedroll', 'part:hair:swept', 'weapon:rifle']));
+    expect(s.unlocks).not.toContain('part:helmet:horns');
+    expect(s.profile.xp).toBe(900);
+    expect(s.weapons.rifle.kills).toBe(12);
+  });
+
   it('current saves pass through untouched', () => {
     const d = defaultSave(123);
     d.profile.xp = 777;

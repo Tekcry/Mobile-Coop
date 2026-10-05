@@ -10,6 +10,7 @@ import { G } from '../physics/groups';
 import { Health } from './health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from './damage';
 import type { Player } from '../player/player';
+import { hitVolumes, proportions } from '../player/proportions';
 
 /** Makes the local player damageable: health/shield + a kinematic hit capsule. */
 export class PlayerTarget implements Damageable {
@@ -32,7 +33,9 @@ export class PlayerTarget implements Damageable {
     readonly id = 'local',
   ) {
     this.node = new TransformNode('player-hitbox', scene);
-    this.shape = new PhysicsShapeCapsule(new Vector3(0, 0.35, 0), new Vector3(0, 1.4, 0), 0.32, scene);
+    const hv = hitVolumes(proportions('average'));
+    // one capsule incl. the head (players have no separate headshot volume)
+    this.shape = new PhysicsShapeCapsule(new Vector3(0, hv.bodyY0, 0), new Vector3(0, hv.headY - hv.bodyR * 0.5, 0), hv.bodyR, scene);
     this.shape.filterMembershipMask = G.PLAYER_HITBOX;
     this.shape.filterCollideMask = G.PROJECTILE;
     this.body = new PhysicsBody(this.node, PhysicsMotionType.ANIMATED, false, scene);

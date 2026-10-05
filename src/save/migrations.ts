@@ -1,4 +1,5 @@
 import { SAVE_VERSION } from './schema';
+import { LEGACY_LOOK_IDS } from '../cosmetics/avatarLook';
 
 /**
  * Versioned migrations. Each step takes the previous version's raw object and returns the next.
@@ -6,6 +7,9 @@ import { SAVE_VERSION } from './schema';
  *  v1 (prototype): { version: 1, xp, money, unlocked: string[], upgrades: { [weapon]: {damage,...} } }
  *  v2: renamed money -> credits, nested under profile; per-weapon { upgrades, kills }; loadout
  *  v3: avatar look, emotes, player tag, weapon attachments + camo, lifetime stats
+ *  v4: avatar overhaul - renamed look options (slim/regular/heavy -> lean/average/broad, square/hex/tall
+ *      heads -> strong/oval/long, spikes -> swept, blade -> bedroll, horns -> headset) in the look and
+ *      in owned `part:` unlock ids
  */
 type Raw = Record<string, unknown>;
 type Migration = (s: Raw) => Raw;
@@ -45,6 +49,24 @@ export const MIGRATIONS: Record<number, Migration> = {
       avatar: undefined,
       emotes: ['wave', 'salute', '', ''],
     };
+  },
+  3: (s) => {
+    const look = isObj(s.avatar) ? { ...s.avatar } : s.avatar;
+    if (isObj(look)) {
+      for (const [cat, map] of Object.entries(LEGACY_LOOK_IDS)) {
+        const v = look[cat];
+        if (typeof v === 'string' && map[v]) look[cat] = map[v];
+      }
+    }
+    const unlocks = Array.isArray(s.unlocks)
+      ? s.unlocks.map((u: unknown) => {
+          if (typeof u !== 'string') return u;
+          const m = /^part:([a-z]+):([a-z]+)$/.exec(u);
+          const to = m ? LEGACY_LOOK_IDS[m[1]!]?.[m[2]!] : undefined;
+          return to ? `part:${m![1]}:${to}` : u;
+        })
+      : s.unlocks;
+    return { ...s, version: 4, avatar: look, unlocks };
   },
 };
 

@@ -38,7 +38,7 @@ export class MenuState implements AppState {
   private weapon: WeaponModel | null = null;
   /** Avatar yaw (rotated by stick / drag in the customiser). */
   previewYaw = Math.PI;
-  private framing: 'menu' | 'customize' = 'menu';
+  private framing: 'menu' | 'customize' | 'inspect' = 'menu';
   private t2 = 0;
 
   constructor(engine: Engine) {
@@ -95,10 +95,11 @@ export class MenuState implements AppState {
   setAvatar(look: AvatarLook, weapon: WeaponId = 'rifle', camo = 'factory'): void {
     this.weapon?.dispose();
     this.rig?.dispose();
-    this.rig = new CharacterRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 1.8, 'preview');
+    this.rig = new CharacterRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 1.75, 'preview');
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
     this.weapon = new WeaponModel(this.scene, this.parts, WEAPONS[weapon], c.colors, this.rig.weaponPivot, c.pattern);
+    this.weapon.hold(this.rig);
   }
 
   emote(id: string): void {
@@ -123,7 +124,7 @@ export class MenuState implements AppState {
       cam.radius += (7 - cam.radius) * Math.min(1, dt * 3);
       cam.target.x += (0 - cam.target.x) * Math.min(1, dt * 3);
       cam.beta += (1.25 - cam.beta) * Math.min(1, dt * 3);
-    } else {
+    } else if (this.framing === 'customize') {
       // front view, avatar on the right third (UI panel on the left)
       const a = -Math.PI / 2;
       cam.alpha += (a - cam.alpha) * Math.min(1, dt * 4);

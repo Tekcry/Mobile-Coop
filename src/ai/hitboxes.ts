@@ -9,6 +9,7 @@ import {
 } from '../core/babylon';
 import { G } from '../physics/groups';
 import type { DamageRegistry, Damageable } from '../game/damage';
+import { hitVolumes, proportions, STANDARD_HEIGHT, type Build } from '../player/proportions';
 
 /**
  * Kinematic hit volumes for a character: a body capsule (also blocks the player and props)
@@ -27,14 +28,16 @@ export class Hitboxes {
     private registry: DamageRegistry,
     target: Damageable,
     readonly scale = 1,
+    build: Build = 'average',
   ) {
-    const s = scale;
+    // fitted to the shared rig's proportions (body type differences are within a few cm)
+    const hv = hitVolumes(proportions(build, STANDARD_HEIGHT * scale));
     this.bodyNode = new TransformNode('hb-body', scene);
     this.headNode = new TransformNode('hb-head', scene);
-    const cap = new PhysicsShapeCapsule(new Vector3(0, 0.38 * s, 0), new Vector3(0, 1.18 * s, 0), 0.3 * s, scene);
+    const cap = new PhysicsShapeCapsule(new Vector3(0, hv.bodyY0, 0), new Vector3(0, hv.bodyY1, 0), hv.bodyR, scene);
     cap.filterMembershipMask = G.ENEMY | G.ENEMY_HITBOX;
     cap.filterCollideMask = G.PLAYER | G.PROJECTILE | G.PROP;
-    const sph = new PhysicsShapeSphere(Vector3.Zero(), 0.18 * s, scene);
+    const sph = new PhysicsShapeSphere(Vector3.Zero(), hv.headR, scene);
     sph.filterMembershipMask = G.ENEMY_HITBOX;
     sph.filterCollideMask = G.PROJECTILE;
     this.shapes.push(cap, sph);

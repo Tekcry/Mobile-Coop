@@ -1,5 +1,6 @@
 import { Vector3, type Scene } from '../core/babylon';
-import { CharacterRig } from '../player/characterRig';
+import type { CharacterRig } from '../player/characterRig';
+import { buildEnemyRig } from '../ai/enemyRig';
 import { Hitboxes } from '../ai/hitboxes';
 import { ENEMIES, type EnemyDef } from '../ai/enemyDefs';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
@@ -41,10 +42,9 @@ export class EnemyPuppet implements Damageable {
     kind: EnemyState['k'],
   ) {
     this.def = ENEMIES[kind];
-    this.rig = new CharacterRig(scene, (shape, hex) => world.parts.instance(shape, hex, 'enemy-part'), this.def.look, 1.8 * this.def.scale, `p${id}`);
-    for (const m of this.rig.parts) world.addShadowCaster(m);
+    this.rig = buildEnemyRig(scene, world, this.def, `p${id}`).rig;
     this.rig.setEnabled(false);
-    this.hitboxes = new Hitboxes(scene, registry, this, this.def.scale);
+    this.hitboxes = new Hitboxes(scene, registry, this, this.def.scale, this.def.build);
   }
 
   get alive(): boolean {
@@ -108,9 +108,9 @@ export class EnemyPuppet implements Damageable {
       roll: -1,
       aimPitch: 0,
       aim: this.def.melee ? 0 : this.aim,
-      kick: this.kick,
+      kick: this.def.melee ? 0 : this.kick,
+      melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
     });
-    if (this.def.melee && this.kick > 0) this.rig.shoulderR.rotation.x = -1.4 * this.kick;
     this.rig.headNode.computeWorldMatrix(true);
     this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
     this.hitboxes?.sync(this.pos, this.head);
@@ -124,6 +124,7 @@ export class EnemyPuppet implements Damageable {
     this.hitboxes = null;
     this.registry.removeTarget(this);
     const rig = this.rig;
+    if (rig) rig.heldWeapon = null;
     this.rig = null;
     return rig;
   }

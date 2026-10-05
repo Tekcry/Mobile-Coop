@@ -15,15 +15,16 @@ interface PartOption {
 /** Avatar part options per category. Options without `req` are free starters. */
 export const PART_OPTIONS: Record<PartCategory, PartOption[]> = {
   body: [
-    { value: 'slim', name: 'Slim' },
-    { value: 'regular', name: 'Regular' },
-    { value: 'heavy', name: 'Heavy' },
+    { value: 'average', name: 'Average' },
+    { value: 'lean', name: 'Lean' },
+    { value: 'athletic', name: 'Athletic' },
+    { value: 'broad', name: 'Broad' },
   ],
   head: [
     { value: 'round', name: 'Round' },
-    { value: 'square', name: 'Square' },
-    { value: 'hex', name: 'Hex', req: { level: 3 } },
-    { value: 'tall', name: 'Tall', req: { level: 6 } },
+    { value: 'strong', name: 'Strong jaw' },
+    { value: 'oval', name: 'Oval', req: { level: 3 } },
+    { value: 'long', name: 'Long', req: { level: 6 } },
   ],
   hair: [
     { value: 'none', name: 'Bald' },
@@ -31,7 +32,7 @@ export const PART_OPTIONS: Record<PartCategory, PartOption[]> = {
     { value: 'long', name: 'Long' },
     { value: 'mohawk', name: 'Mohawk', req: { level: 2 } },
     { value: 'bun', name: 'Bun', req: { level: 4 } },
-    { value: 'spikes', name: 'Spikes', req: { level: 8 } },
+    { value: 'swept', name: 'Swept back', req: { level: 8 } },
   ],
   torso: [
     { value: 'tee', name: 'T-shirt' },
@@ -51,7 +52,7 @@ export const PART_OPTIONS: Record<PartCategory, PartOption[]> = {
     { value: 'pack', name: 'Day pack' },
     { value: 'radio', name: 'Radio', req: { level: 4 } },
     { value: 'tank', name: 'Air tanks', req: { level: 10 } },
-    { value: 'blade', name: 'Blade', req: { level: 5, price: 900 } },
+    { value: 'bedroll', name: 'Bedroll', req: { level: 5, price: 900 } },
   ],
   helmet: [
     { value: 'none', name: 'None' },
@@ -59,7 +60,7 @@ export const PART_OPTIONS: Record<PartCategory, PartOption[]> = {
     { value: 'combat', name: 'Combat helmet' },
     { value: 'beret', name: 'Beret', req: { level: 5 } },
     { value: 'visor', name: 'Visor helmet', req: { level: 8 } },
-    { value: 'horns', name: 'Horned helm', req: { level: 6, price: 1200 } },
+    { value: 'headset', name: 'Comms headset', req: { level: 6, price: 1200 } },
   ],
   pattern: [
     { value: 'solid', name: 'Solid' },

@@ -43,7 +43,7 @@ export class RemoteAvatar {
     private ballistics: Ballistics,
     readonly info: PlayerInfo,
   ) {
-    this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.8, `remote-${info.id}`);
+    this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.75, `remote-${info.id}`);
     for (const m of this.rig.parts) world.addShadowCaster(m);
     this.rig.setEnabled(false);
   }
@@ -54,13 +54,18 @@ export class RemoteAvatar {
 
   private setWeapon(id: WeaponId): void {
     if (id === this.weapon) return;
-    if (this.weapon) this.models.get(this.weapon)?.setVisible(false);
     let m = this.models.get(id);
     if (!m) {
       m = new WeaponModel(this.world.scene, this.world.parts, WEAPONS[id], DEFAULT_WEAPON_COLORS, this.rig.weaponPivot);
       this.models.set(id, m);
     }
-    m.setVisible(true);
+    // previous gun to its holster (one per holster)
+    for (const [wid, other] of this.models) {
+      if (wid === id) continue;
+      if (wid === this.weapon && other.holsterSlot !== m.holsterSlot) other.holster(this.rig);
+      else other.setVisible(false);
+    }
+    m.hold(this.rig);
     this.weapon = id;
   }
 
@@ -111,10 +116,11 @@ export class RemoteAvatar {
       aimPitch: this.pitch,
       aim: this.aim,
       kick: this.kick,
+      sprint: (f & PF.sprint) !== 0,
     });
     // downed: lie on the side
     r.rotation.z = this.dead ? Math.PI / 2 : 0;
-    if (this.dead) r.position.y += 0.25;
+    if (this.dead) r.position.y += 0.22;
     this.fireVisuals(dt);
   }
 

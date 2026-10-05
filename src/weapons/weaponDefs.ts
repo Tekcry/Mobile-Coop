@@ -5,7 +5,8 @@ export type WeaponId = 'pistol' | 'smg' | 'rifle' | 'shotgun' | 'sniper';
 export const WEAPON_IDS: readonly WeaponId[] = ['pistol', 'smg', 'rifle', 'shotgun', 'sniper'];
 
 export interface ModelPart {
-  shape: 'box' | 'cyl';
+  /** Authored as box/cyl; rendered with rounded edges (rbox/rcyl). */
+  shape: 'box' | 'cyl' | 'pill' | 'capsule';
   size: [number, number, number];
   pos: [number, number, number];
   rot?: [number, number, number];
@@ -50,6 +51,9 @@ export interface WeaponDef {
   price: number;
   model: ModelPart[];
   muzzle: [number, number, number];
+  /** Weapon-local hand points: trigger grip (right hand) and foregrip (left hand). */
+  grip: [number, number, number];
+  foregrip: [number, number, number];
 }
 
 export interface GrenadeDef {
@@ -88,7 +92,9 @@ export function validateWeaponDefs(data: unknown): Record<WeaponId, WeaponDef> {
     if ((w.falloffEnd as number) < (w.falloffStart as number)) throw new Error(`weapons.${id}: falloffEnd < falloffStart`);
     if ((w.magSize as number) < 1 || (w.pellets as number) < 1) throw new Error(`weapons.${id}: magSize/pellets < 1`);
     if (!Array.isArray(w.model) || !Array.isArray(w.muzzle)) throw new Error(`weapons.${id}: model/muzzle missing`);
-    out[id] = { ...(w as unknown as WeaponDef), id };
+    const v3 = (v: unknown, def: [number, number, number]): [number, number, number] =>
+      Array.isArray(v) && v.length === 3 && v.every((n) => typeof n === 'number' && Number.isFinite(n)) ? (v as [number, number, number]) : def;
+    out[id] = { ...(w as unknown as WeaponDef), id, grip: v3(w.grip, [0, -0.07, 0]), foregrip: v3(w.foregrip, [0, -0.05, 0.2]) };
   }
   return out;
 }

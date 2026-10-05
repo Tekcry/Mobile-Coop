@@ -1,5 +1,7 @@
 import { Vector3, type Scene } from '../core/babylon';
-import { CharacterRig } from '../player/characterRig';
+import type { CharacterRig } from '../player/characterRig';
+import type { WeaponModel } from '../weapons/weaponModel';
+import { buildEnemyRig } from './enemyRig';
 import { Hitboxes } from './hitboxes';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
@@ -59,6 +61,7 @@ export class Enemy implements Damageable {
   state: EnemyState = 'idle';
   private stateT = 0;
   private rig: CharacterRig;
+  private gun: WeaponModel | null;
   private hitboxes: Hitboxes;
   private vel = new Vector3();
   private target: PlayerRef | null = null;
@@ -101,9 +104,10 @@ export class Enemy implements Damageable {
     this.pos = spawn.clone();
     this.pos.y = ctx.nav.heightAt(spawn.x, spawn.z);
     this.yaw = yaw;
-    this.rig = new CharacterRig(ctx.scene, (shape, hex) => ctx.world.parts.instance(shape, hex, 'enemy-part'), def.look, 1.8 * def.scale, this.id);
-    for (const m of this.rig.parts) ctx.world.addShadowCaster(m);
-    this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale);
+    const built = buildEnemyRig(ctx.scene, ctx.world, def, this.id);
+    this.rig = built.rig;
+    this.gun = built.gun;
+    this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
     this.syncVisual(0);
   }
 
@@ -167,6 +171,7 @@ export class Enemy implements Damageable {
     this.setState('dead');
     this.hitboxes.dispose();
     this.ctx.registry.removeTarget(this);
+    this.rig.heldWeapon = null;
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
     imp.y += h.kind === 'explosion' ? 25 : 3;
     if (this.ctx.canRagdoll()) {
@@ -561,9 +566,10 @@ export class Enemy implements Damageable {
       roll: -1,
       aimPitch: this.aimPitch,
       aim: aiming,
-      kick: this.kick,
+      kick: this.def.melee ? 0 : this.kick,
+      melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
+      sprint: !this.def.melee && sp > this.def.runSpeed * 0.8 && aiming < 0.5,
     });
-    if (this.def.melee && this.kick > 0) this.rig.shoulderR.rotation.x = -1.4 * this.kick;
     this.rig.headNode.computeWorldMatrix(true);
     this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
     this.hitboxes.sync(this.pos, this.head);
@@ -573,6 +579,7 @@ export class Enemy implements Damageable {
     if (this.alive) {
       this.hitboxes.dispose();
       this.ctx.registry.removeTarget(this);
+      this.gun?.dispose();
       this.rig.dispose();
     }
     this.ctx.releaseCover(this);

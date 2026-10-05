@@ -79,6 +79,7 @@ export class PlayerWeapons {
       const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern);
       for (const m of model.parts) world.addShadowCaster(m);
       model.setVisible(false);
+      this.recency.push(this.slots.length);
       this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model });
     }
     this.equip(0);
@@ -114,8 +115,29 @@ export class PlayerWeapons {
     return t;
   }
 
+  /** Slot indices, most recently held first (decides which spare guns show in the holsters). */
+  private recency: number[] = [];
+
+  /** Put every weapon except `held` (or all, during a swap) into the holsters; one per holster. */
+  private holsterAll(held: number): void {
+    const rig = this.player.rig;
+    const used = new Set<string>();
+    for (const j of this.recency) {
+      const m = this.slots[j]!.model;
+      if (j === held) continue;
+      if (used.has(m.holsterSlot)) {
+        m.setVisible(false);
+        continue;
+      }
+      used.add(m.holsterSlot);
+      m.holster(rig);
+    }
+  }
+
   private equip(i: number): void {
-    this.slots.forEach((s, j) => s.model.setVisible(j === i));
+    this.recency = [i, ...this.recency.filter((j) => j !== i)];
+    this.holsterAll(i);
+    this.slots[i]!.model.hold(this.player.rig);
     this.index = i;
     const d = this.current.def;
     this.player.cam.adsZoom = this.current.stats.adsZoom;
@@ -136,6 +158,7 @@ export class PlayerWeapons {
 
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.current;
+    this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.cooldown = Math.max(0, this.cooldown - dt);
     this.grenadeCd = Math.max(0, this.grenadeCd - dt);
     this.sinceShot += dt;
@@ -149,7 +172,8 @@ export class PlayerWeapons {
       const d = inp.pressed('swapNext') ? 1 : -1;
       this.reloadT = -1;
       this.index = (this.index + d + this.slots.length) % this.slots.length;
-      this.slots.forEach((sl) => sl.model.setVisible(false));
+      // the outgoing gun goes to its holster; hands are free until the new one is drawn
+      this.holsterAll(-1);
       this.swapT = SWAP_TIME;
       this.events.onSwap?.(this.current.def);
       return;
@@ -177,7 +201,7 @@ export class PlayerWeapons {
 
     // fire
     const wants = s.def.fireMode === 'auto' ? inp.down('fire') : inp.pressed('fire');
-    if (!wants || this.swapping || this.reloading || ctl.isRolling || this.cooldown > 0) return;
+    if (!wants || this.swapping || this.reloading || ctl.weaponBlocked || this.cooldown > 0) return;
     if (s.mag <= 0) {
       if (inp.pressed('fire')) this.events.onDryFire?.(s.def);
       if (s.reserve > 0 || this.infiniteAmmo) this.startReload();
