@@ -52,6 +52,11 @@ export class Hud {
   private coverState: HTMLElement;
   private feed: HTMLElement;
   private vignette: HTMLElement;
+  private suppressEl: HTMLElement;
+  private staminaFill: HTMLElement;
+  private staminaBar: HTMLElement;
+  private exposureEl: HTMLElement;
+  private noiseEl: HTMLElement;
   private last: Partial<Record<string, string | number | boolean>> = {};
   private hitTimer: ReturnType<typeof setTimeout> | null = null;
   readonly minimapSlot: HTMLElement;
@@ -60,12 +65,18 @@ export class Hud {
     this.hpFill = h('div', { class: 'bar-fill hp' });
     this.shFill = h('div', { class: 'bar-fill sh' });
     this.hpText = h('div', { class: 'vital-text' });
+    this.staminaFill = h('i');
+    this.staminaBar = h('div', { class: 'bar stamina' }, this.staminaFill);
+    this.exposureEl = h('div', { class: 'tac-exposure', html: '<b>EXPOSED</b><span><i></i><i></i><i></i><i></i><i></i></span>' });
+    this.noiseEl = h('div', { class: 'tac-noise', html: `${icon('noise', 14)}<span><i></i><i></i><i></i></span>` });
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
       h('div', { class: 'bar shield' }, this.shFill),
       h('div', { class: 'bar health' }, this.hpFill),
       this.hpText,
+      this.staminaBar,
+      h('div', { class: 'hud-tac' }, this.exposureEl, this.noiseEl),
     );
     this.wName = h('div', { class: 'w-name' });
     this.wMag = h('span', { class: 'w-mag' });
@@ -113,11 +124,13 @@ export class Hud {
     this.coverState = h('div', { class: 'hud-cover-state' });
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
+    this.suppressEl = h('div', { class: 'hud-suppress' });
     this.minimapSlot = h('div', { class: 'hud-minimap' });
     this.el = h(
       'div',
       { class: 'hud' },
       this.vignette,
+      this.suppressEl,
       vitals,
       h('div', { class: 'hud-top' }, compass, this.objective, this.modeInfo),
       this.minimapSlot,
@@ -243,6 +256,28 @@ export class Hud {
       this.coverState.innerHTML = state ? `${icon('cover', 16)}<span>${state}</span>` : '';
       this.coverState.classList.toggle('show', !!state);
     });
+  }
+
+  /**
+   * Tactical indicators: dash stamina (only while not full), exposure to the nearest threats (hidden
+   * with no threats: < 0), footstep noise (0..3 bars) and the suppression vignette.
+   */
+  setTactical(stamina: number, exposure: number, noiseBars: number, suppression: number): void {
+    this.set('stam', Math.round(stamina * 40), () => {
+      this.staminaFill.style.width = `${stamina * 100}%`;
+      this.staminaBar.classList.toggle('show', stamina < 0.99);
+    });
+    const ex = exposure < 0 ? -1 : Math.round(exposure * 5);
+    this.set('expo', ex, () => {
+      this.exposureEl.classList.toggle('show', ex >= 0);
+      this.exposureEl.dataset.level = String(Math.max(0, ex));
+      this.exposureEl.querySelectorAll('i').forEach((el, i) => el.classList.toggle('on', i < ex));
+    });
+    this.set('noise', noiseBars, () => {
+      this.noiseEl.dataset.level = String(noiseBars);
+      this.noiseEl.querySelectorAll('i').forEach((el, i) => el.classList.toggle('on', i < noiseBars));
+    });
+    this.set('supp', Math.round(suppression * 20), () => (this.suppressEl.style.opacity = String(Math.min(0.85, suppression * 0.9))));
   }
 
   /** Cover-to-cover marker at a screen position (percent of the HUD), or hidden when x < 0. */

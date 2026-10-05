@@ -34,7 +34,8 @@ export class Grenades {
     private explosions: Explosions,
   ) {}
 
-  throw(from: Vector3, dir: Vector3, team: Team, owner: string, carryVel?: Vector3): void {
+  /** `dir` is a unit direction (thrown at the standard speed), or with `isVelocity` the exact launch velocity. */
+  throw(from: Vector3, dir: Vector3, team: Team, owner: string, carryVel?: Vector3, isVelocity = false): void {
     if (this.live.length >= 6) return;
     const node = new TransformNode('grenade', this.scene);
     node.position.copyFrom(from);
@@ -53,7 +54,7 @@ export class Grenades {
     body.shape = shape;
     body.setMassProperties({ mass: 0.4 });
     body.setAngularDamping(1.5);
-    const v = dir.scale(GRENADE.throwSpeed).addInPlace(new Vector3(0, GRENADE.upBias, 0));
+    const v = isVelocity ? dir.clone() : dir.scale(GRENADE.throwSpeed).addInPlace(new Vector3(0, GRENADE.upBias, 0));
     if (carryVel) v.addInPlace(carryVel.scale(0.5));
     body.setLinearVelocity(v);
     this.live.push({ node, body, shape, mesh, blink, fuse: GRENADE.fuse, team, owner });

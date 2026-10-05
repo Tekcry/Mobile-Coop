@@ -9,6 +9,8 @@ import { ENEMIES, type Difficulty, type EnemyKind } from './enemyDefs';
 import { Ragdoll } from './ragdoll';
 import { BUDGET } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
+import type { Grenades } from '../weapons/grenades';
+import { GRAVITY } from '../physics/havok';
 
 export const MAX_ALIVE = 10;
 
@@ -26,6 +28,13 @@ export class EnemyManager {
   onEnemyMelee: ((e: Enemy) => void) | null = null;
   onEnemyWindup: ((e: Enemy) => void) | null = null;
   kills = 0;
+  /** Grenade system enemies throw with (set by the game state). */
+  grenades: Grenades | null = null;
+  /** Enemy assigned to flank a player holding cover (one at a time). */
+  private flanker: Enemy | null = null;
+  private grenadeT = 0;
+  /** Grenades thrown (tests / debug). */
+  grenadesThrown = 0;
 
   constructor(
     scene: Scene,
@@ -67,6 +76,17 @@ export class EnemyManager {
       onShot: (e, a, b) => this.onEnemyShot?.(e, a, b),
       onMelee: (e) => this.onEnemyMelee?.(e),
       onWindup: (e) => this.onEnemyWindup?.(e),
+      isFlanker: (e) => this.flanker === e,
+      throwGrenade: (e, from, to) => {
+        // one grenade in the air at a time across the squad
+        if (!this.grenades || this.grenadeT > 0) return false;
+        this.grenadeT = 8;
+        this.grenadesThrown++;
+        const T = 1.15;
+        const v = new Vector3((to.x - from.x) / T, (to.y + 0.3 - from.y + 0.5 * -GRAVITY.y * T * T) / T, (to.z - from.z) / T);
+        this.grenades.throw(from, v, 'enemy', e.id, undefined, true);
+        return true;
+      },
       canRagdoll: () => this.ragdolls.filter((r) => !r.done).length < BUDGET.maxRagdolls,
       addRagdoll: (_e, rig: CharacterRig, imp: Vector3) => this.ragdolls.push(new Ragdoll(scene, rig, imp)),
     };
@@ -100,6 +120,32 @@ export class EnemyManager {
     for (const e of this.enemies) if (e.alive && Vector3.Distance(e.pos, pos) < radius) e.alert();
   }
 
+  /** Footsteps: unalerted enemies within radius walk over to investigate. */
+  hear(pos: Vector3, radius: number): void {
+    for (const e of this.enemies) if (e.alive && Vector3.Distance(e.pos, pos) < radius) e.hear(pos.x, pos.z);
+  }
+
+  /** Pick (or drop) the flanker: someone with cover tactics once a player has held cover a while. */
+  private assignFlanker(): void {
+    const held = this.players().some((p) => p.target.alive && p.cover && (p.coverT ?? 0) > 4);
+    if (!held) {
+      this.flanker = null;
+      return;
+    }
+    if (this.flanker?.alive) return;
+    let best: Enemy | null = null;
+    let bd = Infinity;
+    for (const e of this.enemies) {
+      if (!e.alive || !e.alerted || e.def.melee || !e.def.usesCover) continue;
+      const d = this.players()[0] ? Vector3.Distance(e.pos, this.players()[0]!.feet) : 0;
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    this.flanker = best;
+  }
+
   private refreshFlow(): void {
     const goals = this.players()
       .filter((p) => p.target.alive)
@@ -112,7 +158,9 @@ export class EnemyManager {
     if (this.flowT <= 0) {
       this.flowT = 0.5;
       this.refreshFlow();
+      this.assignFlanker();
     }
+    this.grenadeT = Math.max(0, this.grenadeT - dt);
     for (const e of this.enemies) e.update(dt);
     for (const r of this.ragdolls) r.update(dt);
     // drop dead entries

@@ -8,6 +8,7 @@ const P: Record<string, string> = {
   swap: '<path d="M4 8h14l-4-4"/><path d="M20 16H6l4 4"/>',
   grenade: '<circle cx="11" cy="14" r="6"/><path d="M11 8V5h4l2 2"/><circle cx="18" cy="4" r="1.5"/>',
   dash: '<path d="M4 17l5-5-5-5"/><path d="M11 17l5-5-5-5"/><path d="M18 6v12"/>',
+  noise: '<path d="M4 10v4"/><path d="M8 7v10"/><path d="M12 4v16"/><path d="M16 8v8"/><path d="M20 11v2"/>',
   cover: '<path d="M3 21V11h8v10"/><path d="M11 21V6h7v15"/><path d="M2 21h20"/><circle cx="6.5" cy="7" r="2"/>',
   interact: '<path d="M8 13V5a1.5 1.5 0 0 1 3 0v6"/><path d="M11 11V4a1.5 1.5 0 0 1 3 0v7"/><path d="M14 11V6a1.5 1.5 0 0 1 3 0v8c0 4-3 7-7 7-3 0-5-2-6-4l-2-4a1.5 1.5 0 0 1 2.6-1.5L8 14"/>',
   shoulder: '<path d="M9 5L3 12l6 7"/><path d="M15 5l6 7-6 7"/>',

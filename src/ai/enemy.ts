@@ -11,6 +11,7 @@ import type { Vfx } from '../vfx/vfx';
 import type { NavGrid, P2 } from './navGrid';
 import { COVER_STANDOFF, type CoverPoint } from '../world/levelBuilder';
 import { coverPose, nearestEdge, type CoverSegment } from '../cover/coverData';
+import { coverQuality, flanks, type CoverSpot } from '../game/tactics';
 import { DIFFICULTY, type Difficulty, type EnemyDef } from './enemyDefs';
 import { G, MASK } from '../physics/groups';
 import { spreadDir } from '../weapons/ballistics';
@@ -26,6 +27,11 @@ export interface PlayerRef {
   feet: Vector3;
   speed: number;
   crouched: boolean;
+  /** Cover face the player is using (null in the open) and seconds spent in it. */
+  cover?: CoverSpot | null;
+  coverT?: number;
+  /** Near-miss / impact report for suppression (local player only). */
+  suppress?(from: Vector3, to: Vector3, hit: boolean): void;
 }
 
 export interface AiContext {
@@ -48,6 +54,10 @@ export interface AiContext {
   onShot?(e: Enemy, from: Vector3, to: Vector3): void;
   onMelee?(e: Enemy): void;
   onWindup?(e: Enemy): void;
+  /** Lob a grenade from `from` to land near `to`; false if unavailable. */
+  throwGrenade?(e: Enemy, from: Vector3, to: Vector3): boolean;
+  /** This enemy is the one assigned to flank a player holding cover. */
+  isFlanker?(e: Enemy): boolean;
   canRagdoll(): boolean;
   addRagdoll(e: Enemy, rig: CharacterRig, impulse: Vector3): void;
 }
@@ -97,6 +107,14 @@ export class Enemy implements Damageable {
   alerted = false;
   private coverPose: 'none' | 'low' | 'high' = 'none';
   private coverPeek = 0;
+  /** Last place the target was seen (aim point) and seconds since. */
+  private lastKnown = new Vector3();
+  private lastSeenT = 99;
+  /** Heard something (footsteps): walk over to look, without full alert. */
+  private investigate: P2 | null = null;
+  private blindPlan = false;
+  private grenadeCd = rand(5, 10);
+  private flanking = false;
 
   constructor(
     private ctx: AiContext,
@@ -157,6 +175,15 @@ export class Enemy implements Damageable {
     this.coverPicked = false;
   }
 
+  /** A noise nobody saw: walk over and look (sight then alerts). */
+  hear(x: number, z: number): void {
+    if (this.alerted || !this.alive || this.def.melee) {
+      if (!this.alerted && this.def.melee) this.alert();
+      return;
+    }
+    this.investigate = [x, z];
+  }
+
   alert(): void {
     if (this.alerted || !this.alive) return;
     this.alerted = true;
@@ -198,6 +225,8 @@ export class Enemy implements Damageable {
     this.fireT = Math.max(0, this.fireT - dt);
     this.meleeCd = Math.max(0, this.meleeCd - dt);
     this.stagger = Math.max(0, this.stagger - dt);
+    this.lastSeenT += dt;
+    this.grenadeCd -= dt;
     this.strafeT -= dt;
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
@@ -235,6 +264,10 @@ export class Enemy implements Damageable {
     best.target.aimPoint(this.tmp);
     const h = this.ctx.ballistics.ray(eye, this.tmp, G.STATIC);
     this.los = !h.hit || h.distance > Vector3.Distance(eye, this.tmp) - 0.3;
+    if (this.los) {
+      this.lastKnown.copyFrom(this.tmp);
+      this.lastSeenT = 0;
+    }
     if (!this.alerted) {
       // idle enemies notice within a forward cone or when very close
       const toward = Math.atan2(best.feet.x - this.pos.x, best.feet.z - this.pos.z);
@@ -246,6 +279,12 @@ export class Enemy implements Damageable {
   private decide(dt: number): { point: P2 | null; speed: number; face: number | null } {
     const def = this.def;
     const t = this.target;
+    if (!this.alerted && this.investigate) {
+      // tactical walk to the noise, weapon up
+      const ip = this.investigate;
+      if (Math.hypot(ip[0] - this.pos.x, ip[1] - this.pos.z) < 1.2) this.investigate = null;
+      return { point: this.ctx.nav.lineClear([this.pos.x, this.pos.z], ip) ? ip : this.chasePoint(ip, false), speed: def.walkSpeed * 0.8, face: null };
+    }
     if (!this.alerted || !t) return { point: null, speed: 0, face: null };
     if (this.stagger > 0) return { point: null, speed: 0, face: this.faceTarget() };
     const toTarget = this.faceTarget();
@@ -284,11 +323,14 @@ export class Enemy implements Damageable {
           this.setState(def.usesCover && Math.random() < 0.6 ? 'seekCover' : 'attack');
           return { point: null, speed: 0, face: toTarget };
         }
-        return { point: this.chasePoint(tp, false), speed: def.runSpeed, face: null };
+        return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
       }
       case 'attack': {
-        this.tryFire(dt);
-        if (!this.los && this.stateT > 1.2) {
+        // lost sight a moment ago: keep their head down with suppressive fire at the last position
+        if (this.los) this.tryFire(dt);
+        else if (this.lastSeenT < 2.5) this.tryFire(dt, 'suppress');
+        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
+        if (!this.los && this.stateT > 2.6) {
           this.setState('chase');
         } else if (this.dist > def.engageMax + 3) {
           this.setState('chase');
@@ -342,14 +384,16 @@ export class Enemy implements Damageable {
           this.setState('attack');
           return { point: null, speed: 0, face: toTarget };
         }
-        // hide / peek cycle
+        if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
+        // hide / peek cycle; some hide phases blind-fire over/around the cover at the last position
         const cycle = this.stateT % 3.6;
         const peeking = cycle > 2.0;
         this.wantCrouch = cp.low ? !peeking : false;
+        if (cycle < dt * 1.5) this.blindPlan = Math.random() < 0.3;
         if (peeking) {
           this.tryFire(dt);
           if (cycle > 3.55) this.peekCycles++;
-        }
+        } else if (this.blindPlan && cycle > 0.6 && cycle < 1.6 && this.lastSeenT < 6) this.tryFire(dt, 'blind');
         // high cover: step out past the nearest edge to peek (same faces the player uses)
         let pt: P2 = [cp.pos.x, cp.pos.z];
         this.coverPose = cp.low ? 'low' : 'high';
@@ -372,6 +416,32 @@ export class Enemy implements Damageable {
       default:
         return { point: null, speed: 0, face: null };
     }
+  }
+
+  /**
+   * Squad tactics against a player holding cover: the assigned flanker moves to cover that sees past
+   * it; anyone in range may lob a grenade to flush them out. Returns true if it acted this step.
+   */
+  private tactics(t: PlayerRef): boolean {
+    const pc = t.cover;
+    if (!pc || this.def.melee) {
+      this.flanking = false;
+      return false;
+    }
+    if (this.grenadeCd <= 0 && (t.coverT ?? 0) > 6 && this.dist > 7 && this.dist < 22 && this.lastSeenT < 8 && this.ctx.throwGrenade) {
+      this.grenadeCd = rand(12, 18);
+      const from = this.eye(new Vector3());
+      if (this.ctx.throwGrenade(this, from, t.feet)) {
+        this.kick = 1;
+        return true;
+      }
+    }
+    if (!this.flanking && this.def.usesCover && this.ctx.isFlanker?.(this) && !flanks(pc, this.pos.x, this.pos.z)) {
+      this.flanking = true;
+      this.setState('seekCover');
+      return true;
+    }
+    return false;
   }
 
   private faceTarget(): number {
@@ -411,10 +481,14 @@ export class Enemy implements Damageable {
       const dx = t.feet.x - c.pos.x;
       const dz = t.feet.z - c.pos.z;
       const dT = Math.hypot(dx, dz);
-      if (dT < this.def.engageMin || dT > this.def.engageMax) continue;
-      if ((c.normal.x * dx + c.normal.z * dz) / dT < 0.55) continue;
+      const flank = this.flanking && t.cover;
+      if (dT < (flank ? 4 : this.def.engageMin) || dT > this.def.engageMax) continue;
+      if ((c.normal.x * dx + c.normal.z * dz) / dT < (flank ? 0.3 : 0.55)) continue;
+      // flanker: only spots that see past the player's cover
+      if (flank && t.cover && !flanks(t.cover, c.pos.x, c.pos.z)) continue;
       if (!this.ctx.nav.isWalkable(this.ctx.nav.cellOf(c.pos.x, c.pos.z))) continue;
-      const score = dMe + Math.abs(dT - 14) * 0.5;
+      const q = coverQuality({ nx: c.normal.x, nz: c.normal.z, low: c.low, x: c.pos.x, z: c.pos.z }, [{ x: t.feet.x, z: t.feet.z }]);
+      const score = dMe + Math.abs(dT - 14) * 0.5 - q * 6;
       if (score < bestScore) {
         bestScore = score;
         best = i;
@@ -432,10 +506,10 @@ export class Enemy implements Damageable {
     return true;
   }
 
-  private tryFire(dt: number): void {
+  private tryFire(dt: number, mode: 'aim' | 'suppress' | 'blind' = 'aim'): void {
     const w = this.def.weapon;
     const t = this.target;
-    if (!w || !t || !this.los || this.dist > w.range) {
+    if (!w || !t || (mode === 'aim' && !this.los) || this.dist > w.range) {
       this.windup = 0;
       return;
     }
@@ -456,21 +530,24 @@ export class Enemy implements Damageable {
       this.pauseT = rand(w.pauseMin, w.pauseMax);
       this.windup = 0;
     }
-    this.shoot(t, w);
+    this.shoot(t, w, mode);
   }
 
-  private shoot(t: PlayerRef, w: NonNullable<EnemyDef['weapon']>): void {
+  private shoot(t: PlayerRef, w: NonNullable<EnemyDef['weapon']>, mode: 'aim' | 'suppress' | 'blind' = 'aim'): void {
     const d = DIFFICULTY[this.ctx.difficulty];
     const origin = this.eye(new Vector3());
     origin.y -= 0.2 * this.def.scale;
     origin.x += Math.sin(this.yaw) * 0.45 + Math.cos(this.yaw) * 0.18;
     origin.z += Math.cos(this.yaw) * 0.45 - Math.sin(this.yaw) * 0.18;
-    const aim = t.target.aimPoint(new Vector3());
+    // blind fire comes over / around the cover; suppressive and blind fire go at the last known spot
+    if (mode === 'blind') origin.y = Math.max(origin.y, this.pos.y + 1.25);
+    const aim = mode === 'aim' ? t.target.aimPoint(new Vector3()) : this.lastKnown.clone();
     const dir = aim.subtract(origin).normalize();
     // accuracy: settles in over the first second of sight, worse against moving/rolling targets
     const settle = Math.min(1, 0.45 + this.losT * 0.55);
     const moving = Math.min(1, t.speed / 5);
-    const spread = (w.spreadDeg * (1 + moving * 0.8) * (t.crouched ? 0.9 : 1)) / (d.accuracy * settle);
+    const modeMul = mode === 'blind' ? 3 : mode === 'suppress' ? 1.6 : 1;
+    const spread = (w.spreadDeg * (1 + moving * 0.8) * (t.crouched ? 0.9 : 1) * modeMul) / (d.accuracy * settle);
     const off = sampleSpread(spread, Math.random(), Math.random());
     spreadDir(dir, off.x, off.y, dir);
     const end = origin.add(dir.scale(w.range));
@@ -479,6 +556,7 @@ export class Enemy implements Damageable {
     this.ctx.vfx.muzzleFlash(origin, this.def.kind === 'heavy' ? 0.3 : 0.2);
     this.kick = 1;
     this.ctx.onShot?.(this, origin, h.point);
+    for (const p of this.ctx.players()) p.suppress?.(origin, h.point, h.target === p.target);
     if (!h.hit) return;
     this.ctx.ballistics.impactFx(h, dir);
     if (h.target && h.target.team === 'player') {
@@ -486,7 +564,7 @@ export class Enemy implements Damageable {
         amount: w.damage * d.damage,
         point: h.point,
         dir,
-        part: 'body',
+        part: h.part ?? 'body',
         kind: 'bullet',
         attackerTeam: 'enemy',
         attackerId: this.id,

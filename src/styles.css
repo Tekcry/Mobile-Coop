@@ -777,6 +777,72 @@ body {
   background: radial-gradient(ellipse at center, transparent 45%, rgba(200, 20, 20, 0.7) 100%);
   transition: opacity 0.3s;
 }
+.hud-suppress {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, transparent 50%, rgba(8, 10, 14, 0.85) 100%);
+  transition: opacity 0.25s;
+}
+.bar.stamina {
+  height: 3px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.bar.stamina.show {
+  opacity: 1;
+}
+.bar.stamina i {
+  display: block;
+  height: 100%;
+  background: #f2c94c;
+}
+.hud-tac {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  margin-top: 4px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #cfe8ff;
+}
+.tac-exposure {
+  display: none;
+  align-items: center;
+  gap: 4px;
+}
+.tac-exposure.show {
+  display: flex;
+}
+.tac-exposure span,
+.tac-noise span {
+  display: flex;
+  gap: 2px;
+}
+.tac-exposure i,
+.tac-noise i {
+  width: 6px;
+  height: 8px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.tac-exposure i.on {
+  background: #ffb03b;
+}
+.tac-exposure[data-level='4'] i.on,
+.tac-exposure[data-level='5'] i.on {
+  background: #ff4d3d;
+}
+.tac-noise {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+.tac-noise i.on {
+  background: #8fd3ff;
+}
 .hud-vitals {
   position: absolute;
   top: calc(var(--sat) + 10px);
@@ -1784,7 +1850,7 @@ body {
 .hud-cover-state {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--sab) + 18%);
+  bottom: calc(var(--sab) + 27%);
   transform: translateX(-50%);
   display: none;
   align-items: center;

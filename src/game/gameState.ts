@@ -16,7 +16,7 @@ import { Hud, type HudFrame } from '../ui/hud/hud';
 import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
 import { computeAssist, type AimTarget } from '../weapons/aimAssist';
-import { MASK } from '../physics/groups';
+import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
@@ -38,6 +38,7 @@ import { CoverController } from '../cover/coverController';
 import { TraversalController } from '../player/traversal';
 import { CornerController } from '../cover/cornerController';
 import { noiseRadius } from '../player/movement';
+import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
 
 export type { ModeId };
 
@@ -106,6 +107,20 @@ export class GameState implements AppState {
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
   private noiseT = 0;
+  /** Incoming fire pressure on the local player (near misses, impacts close by). */
+  readonly suppression = new Suppression();
+  /** Fraction of the player visible to the best-placed threat (0..1), and the current cover's quality. */
+  exposure = 0;
+  coverQ = 1;
+  private exposureT = 0;
+  private expPts: P3[] = [];
+  private expEyes: P3[] = [];
+  private headTmp = new Vector3();
+  private rayA = new Vector3();
+  private rayB = new Vector3();
+  private coverSpot: CoverSpot = { nx: 0, nz: 0, low: false, x: 0, z: 0 };
+  private coverHeldT = 0;
+  private swayT = 0;
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
   private menuOpen = false;
@@ -159,7 +174,24 @@ export class GameState implements AppState {
     );
     this.target = new PlayerTarget(this.scene, this.registry, this.player);
     this.stats = emptyStats(opts.mode, opts.map.id);
-    this.localRef = { id: 'local', target: this.target, feet: this.player.position, speed: 0, crouched: false };
+    this.localRef = {
+      id: 'local',
+      target: this.target,
+      feet: this.player.position,
+      speed: 0,
+      crouched: false,
+      cover: null,
+      coverT: 0,
+      suppress: (from, to, hit) => {
+        if (hit || !this.player.alive) return;
+        const head = this.target.headPoint(this.headTmp);
+        const before = this.suppression.value;
+        this.suppression.nearMiss(segPointDist(from, to, head));
+        this.suppression.impact(Vector3.Distance(to, head));
+        // a close crack makes the body flinch away
+        if (this.suppression.value - before > 0.05) this.player.rig.hit(0.35, from.x - head.x > 0 ? -1 : 1);
+      },
+    };
     this.hud = new Hud(app.uiRoot);
     this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.traversal = new TraversalController(this.scene, this.player);
@@ -212,6 +244,7 @@ export class GameState implements AppState {
         if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}  +${e.def.xp} XP`, 'kill');
         this.mode?.onEnemyKilled(e, h);
       };
+      w.enemyMgr.grenades = this.grenades;
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => {
         if (who !== 'local') {
@@ -457,10 +490,14 @@ export class GameState implements AppState {
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
     if (this.player.rig.emote && (Math.hypot(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
+    const coverWas = this.cover.state;
     if (!this.traversal.active) this.cover.fixedUpdate(dt, inp);
+    // cover shot away / destroyed under the player: stumble out of it
+    if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
     this.traversal.fixedUpdate(dt, inp.pressed('jump'), this.cover.state !== 'none', this.cover.exitDir);
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
-    this.weapons.spreadMul = this.cover.spreadMul;
+    this.suppression.update(dt);
+    this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
     this.target.sync();
     this.weapons.fixedUpdate(dt, inp);
@@ -474,8 +511,10 @@ export class GameState implements AppState {
       this.noiseT = 0.25;
       const c = this.player.controller;
       this.noise = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) : 0;
-      if (this.noise > 0) this.enemyMgr?.noise(this.player.position, this.noise);
+      if (this.noise > 0) this.enemyMgr?.hear(this.player.position, this.noise);
     }
+    this.updateCoverRef(dt);
+    this.updateExposure(dt);
     this.enemyMgr?.update(dt);
     if (this.puppet) this.pickups?.update(dt, []);
     else
@@ -498,6 +537,7 @@ export class GameState implements AppState {
         this.cover.reset();
         this.traversal.reset();
         this.corners.reset();
+        this.suppression.reset();
         this.player.controller.teleport(sp, this.player.cam.yaw);
         this.target.revive();
         // brief spawn protection
@@ -538,12 +578,73 @@ export class GameState implements AppState {
     if (dt > 0) this.applyAimAssist(look, dt);
     this.prevAds = this.player.ads;
     this.app.input.setAds(this.player.ads);
+    // suppression: the aim wanders (smooth, small) while rounds are cracking past
+    const sway = this.suppression.sway;
+    if (sway > 0 && dt > 0) {
+      this.swayT += dt;
+      look.x += Math.cos(this.swayT * 2.3) * sway * 2.3 * dt;
+      look.y += Math.cos(this.swayT * 1.7 + 1) * sway * 1.2 * dt;
+    }
     this.player.frameUpdate(dt, alpha, look);
     this.vfx.update(dt);
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
     this.net?.frameUpdate(dt);
     this.updateHud();
+  }
+
+  /** Publish the player's cover (for enemy flanking / grenades) and how long it has been held. */
+  private updateCoverRef(dt: number): void {
+    const c = this.cover;
+    const seg = c.inCover ? c.seg : null;
+    if (seg) {
+      const sp = this.coverSpot;
+      sp.nx = seg.nx;
+      sp.nz = seg.nz;
+      sp.low = c.low;
+      sp.x = this.player.position.x;
+      sp.z = this.player.position.z;
+      this.coverHeldT += dt;
+      this.localRef.cover = sp;
+    } else {
+      this.coverHeldT = 0;
+      this.localRef.cover = null;
+    }
+    this.localRef.coverT = this.coverHeldT;
+  }
+
+  /** Exposure sampling (4 Hz): rays from the nearest alerted threats' eyes to points on the player's volumes. */
+  private updateExposure(dt: number): void {
+    this.exposureT -= dt;
+    if (this.exposureT > 0) return;
+    this.exposureT = 0.25;
+    const eyes = this.expEyes;
+    eyes.length = 0;
+    const p = this.player;
+    for (const e of this.enemyMgr?.enemies ?? []) {
+      if (!e.alive || !e.alerted || e.def.melee) continue;
+      if (Vector3.Distance(e.pos, p.position) > 45) continue;
+      eyes.push({ x: e.pos.x, y: e.pos.y + 1.55 * e.def.scale, z: e.pos.z });
+      if (eyes.length >= 4) break;
+    }
+    const c = p.controller;
+    exposurePoints(p.position, c.crouchBlend, Math.cos(c.yaw), -Math.sin(c.yaw), p.coverPose.lean, this.expPts);
+    this.exposure = exposureFraction(this.expPts, eyes, (a, b) => {
+      this.rayA.set(a.x, a.y, a.z);
+      this.rayB.set(b.x, b.y, b.z);
+      const h = this.ballistics.ray(this.rayA, this.rayB, G.STATIC);
+      return h.hit && h.distance < Vector3.Distance(this.rayA, this.rayB) - 0.15;
+    });
+    this.coverQ = this.localRef.cover ? coverQuality(this.localRef.cover, eyes) : 1;
+  }
+
+  /** Lost the cover being used (shot away / destroyed): a short stagger. */
+  private stumble(): void {
+    const p = this.player;
+    p.controller.landT = Math.max(p.controller.landT, 0.45);
+    p.rig.hit(0.8, 0);
+    p.cam.shake(0.35);
+    this.suppression.add(0.3);
   }
 
   private coverLabel = '';
@@ -567,7 +668,11 @@ export class GameState implements AppState {
               ? 'Low cover'
               : 'High cover';
     const prompt = st === 'none' && c.candidate ? (this.app.input.mode === 'gamepad' ? 'Hold: Take cover' : 'Take cover') : null;
-    this.hud.setCover(prompt, stateText);
+    // cover quality against the current threats: warn when the cover no longer protects
+    const flanked = c.inCover && this.coverQ < 0.3 && this.expEyes.length > 0;
+    this.hud.setCover(prompt, stateText && flanked ? `${stateText} · flanked` : stateText);
+    const ctl = this.player.controller;
+    this.hud.setTactical(ctl.dash.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     // cover-to-cover marker over the target, projected to the screen
     const tg = c.state === 'in' ? c.target : null;
     if (tg) {
