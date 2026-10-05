@@ -560,7 +560,7 @@ export class CoverController {
       speedAlong = along * MOVEMENT.coverSpeed * (this.swapT >= 0 ? 0.25 : 1);
       // brake early enough that the eased stop lands on the edge, not past it
       const cur = c.vel.x * seg.tx + c.vel.z * seg.tz;
-      const stopDist = Math.abs(cur) * (2 / MOVEMENT.decel);
+      const stopDist = (cur * cur) / (2 * 3) + Math.abs(cur) * 0.12;
       const lo = EDGE_MARGIN;
       const hi = seg.len - EDGE_MARGIN;
       if (speedAlong > 0 && loc.s + stopDist >= hi) speedAlong = 0;

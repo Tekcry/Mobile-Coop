@@ -50,7 +50,9 @@ export class EasedVelocity {
 
   step(tx: number, tz: number, dt: number, M = MOVEMENT): void {
     const speeding = tx * tx + tz * tz > this.x * this.x + this.z * this.z;
-    const w = speeding ? M.accel : M.decel;
+    // fixed spring rates (the player's root motion now uses the jerk-limited MotionDriver)
+    const w = speeding ? 8 : 10;
+    void M;
     [this.x, this.ax] = springStep(this.x, this.ax, tx, w, dt);
     [this.z, this.az] = springStep(this.z, this.az, tz, w, dt);
     if (Math.abs(this.x) < 1e-3 && tx === 0) this.x = this.ax = 0;
@@ -72,21 +74,13 @@ export class EasedVelocity {
 export function turnRate(aiming: boolean, speed: number, dashing: boolean, M = MOVEMENT): number {
   if (dashing) return M.turnDash;
   if (aiming) return M.turnAim;
-  return speed > 0.3 ? M.turnMoving : M.turnStand;
+  return speed > 0.3 ? M.turnMoving : M.turnMoving * 1.25;
 }
 
 /** Camera look-rate cap (rad/s): the view never turns faster than the body can follow. */
 export function lookCap(aiming: boolean, dashing: boolean, M = MOVEMENT): number {
   if (dashing) return M.lookDash;
   return aiming ? M.lookAim : M.lookStand;
-}
-
-/** A reversal big enough (and fast enough) to need a controlled pivot rather than a turn. */
-export function needsPivot(yaw: number, target: number, speed: number, M = MOVEMENT): boolean {
-  let d = (target - yaw) % (Math.PI * 2);
-  if (d > Math.PI) d -= Math.PI * 2;
-  if (d < -Math.PI) d += Math.PI * 2;
-  return Math.abs(d) > M.pivotAngle && speed > M.walkSpeed * 0.8;
 }
 
 /**

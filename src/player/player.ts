@@ -9,6 +9,8 @@ import { ShoulderCamera } from './shoulderCamera';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { lookCap } from './movement';
+import { wrapPi } from '../anim/motion';
+import { MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { TraverseKind } from '../anim/animGraph';
 
@@ -179,6 +181,9 @@ export class Player {
       // the view never turns faster than the body can follow (stance-limited)
       const cap = lookCap(this.aiming || this.ads, c.dashing) * dt;
       this.cam.addLook(Math.max(-cap, Math.min(cap, look.x)), Math.max(-cap, Math.min(cap, look.y)));
+      // the upper body can only twist so far ahead of the feet: the view waits for the body to turn
+      const rel = wrapPi(this.cam.yaw - c.renderYaw);
+      if (Math.abs(rel) > MOVEMENT.twistMax) this.cam.yaw = c.renderYaw + Math.sign(rel) * MOVEMENT.twistMax;
     }
     this.cam.adsTarget = this.ads ? 1 : 0;
     this.cam.baseFovDeg = this.getSettings().video.fovH;

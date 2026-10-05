@@ -8,7 +8,8 @@ import {
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { DashGate, EasedVelocity, needsPivot, targetSpeed, turnRate, type Stance } from './movement';
+import { DashGate, EasedVelocity, targetSpeed, type Stance } from './movement';
+import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 
 /** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
 export const PLAYER_TUNING = MOVEMENT;
@@ -43,6 +44,9 @@ export interface PlayerInput {
   reloading: boolean;
 }
 
+/** Motion caps for cover-driven moves: snappier so the standoff controller stays stable. */
+const COVER_MOTION = { ...MOVEMENT, accelMax: 3, decelMax: 4, jerkMax: 30, velGain: 10, startShift: 0.12, rootDip: 0.02 };
+
 const UP = new Vector3(0, 1, 0);
 const DOWN = new Vector3(0, -1, 0);
 
@@ -71,7 +75,12 @@ export class PlayerController {
   kneeling = false;
   private stillT = 0;
   readonly dash = new DashGate();
+  /** Root motion: jerk-limited velocity, gait clock, starts/stops/stepped turns/pivots. */
+  readonly motion: MotionDriver;
+  /** Kept for callers: mirrors the driver's velocity; `reset` also resets the driver. */
   readonly vel = new EasedVelocity();
+  /** Stance progress 0 (standing) .. 1 (crouched), advanced at the stance transition rates. */
+  private crouchK = 0;
   private dashDir = new Vector3(0, 0, 1);
   /** True during the dash wind-up and rush (kept as `sprinting` for animation/net flags). */
   sprinting = false;
@@ -81,8 +90,10 @@ export class PlayerController {
   swallowCrouch = false;
   speed = 0;
   localMove = { x: 0, z: 0 };
-  /** Seconds left in a controlled pivot (large reversal at speed). */
-  pivotT = 0;
+  /** Seconds left in a controlled pivot (kept for the debug overlay; the driver owns pivots). */
+  get pivotT(): number {
+    return this.motion.state === 'pivot' ? 1 : 0;
+  }
   /** Seconds the stick has been at full deflection (eases into the brisk move). */
   private fullT = 0;
   /** Landing recovery after a drop (s): slows to a creep. */
@@ -91,6 +102,7 @@ export class PlayerController {
   private height: number = MOVEMENT.standHeight;
   private support: CharacterSurfaceInfo | null = null;
   private wish = new Vector3();
+  private motionIn = emptyMotionInput();
   private tmp = new Vector3();
   private crouchToggled = false;
   /** Disable movement (dead, cutscene, menus). */
@@ -122,6 +134,7 @@ export class PlayerController {
     this.cc.keepDistance = 0.04;
     this.applyFilters();
     this.yaw = this.prevYaw = this.renderYaw = yaw;
+    this.motion = new MotionDriver(yaw);
     this.syncFeet();
     this.prevPos.copyFrom(this.pos);
     this.renderPos.copyFrom(this.pos);
@@ -177,6 +190,7 @@ export class PlayerController {
     this.cc.setPosition(feet.add(new Vector3(0, this.height / 2 + 0.02, 0)));
     this.cc.setVelocity(Vector3.Zero());
     this.vel.reset();
+    this.motion.reset(yaw ?? this.yaw);
     this.syncFeet();
     this.prevPos.copyFrom(this.pos);
     this.renderPos.copyFrom(this.pos);
@@ -211,14 +225,15 @@ export class PlayerController {
       this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
       this.cc.setVelocity(Vector3.Zero());
       this.syncFeet();
-      if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, T.turnStand * 1.5 * dt);
+      if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, T.turnMoving * 1.5 * dt);
       this.speed = Vector3.Distance(this.pos, this.prevPos) / Math.max(dt, 1e-4);
       this.vel.reset();
+      this.motion.reset(this.yaw);
       this.grounded = true;
       this.dash.update(dt);
       this.sprinting = false;
       if (ov.crouch !== undefined) this.applyCrouch(ov.crouch);
-      this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, dt / T.crouchTime * 3);
+      this.updateStance(dt);
       return;
     }
 
@@ -259,23 +274,19 @@ export class PlayerController {
 
     // speed: analog creep/walk/brisk with direction penalties relative to the body (which faces the aim)
     this.fullT = mag > 0.95 && !input.ads && !input.aiming ? this.fullT + dt : 0;
-    const briskK = Math.max(0, Math.min(1, (this.fullT - T.briskDelay) / 0.5));
+    const briskK = Math.max(0, Math.min(1, (this.fullT - T.briskDelay) / 0.6));
     const bs = Math.sin(this.yaw);
     const bc = Math.cos(this.yaw);
     const lx = mag > 0 ? (this.wish.x * bc - this.wish.z * bs) / mag : 0;
     const lz = mag > 0 ? (this.wish.x * bs + this.wish.z * bc) / mag : 1;
     const stance: Stance = ov ? 'cover' : input.reloading ? 'reload' : this.crouched ? 'crouch' : input.ads || input.aiming ? 'ads' : 'stand';
     let speedTarget = targetSpeed(mag, stance, lx, lz, briskK) * this.speedMul * this.stanceMul;
-    // controlled pivot: a big reversal at speed slows the body while it turns round
-    if (!this.dash.dashing && !ov && this.pivotT <= 0 && needsPivot(this.yaw, camYaw, this.speed)) this.pivotT = T.pivotTime;
-    this.pivotT = Math.max(0, this.pivotT - dt);
-    if (this.pivotT > 0) speedTarget *= 0.35;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.creepSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
     let tx = this.wish.x * inv + (mag > 0.1 ? this.steer.x : 0);
     let tz = this.wish.z * inv + (mag > 0.1 ? this.steer.z : 0);
     if (this.dash.dashing) {
-      const ds = T.walkSpeed + (T.dashSpeed - T.walkSpeed) * this.dash.blend;
+      const ds = this.dash.state === 'rush' ? T.dashSpeed : Math.max(T.walkSpeed, this.motion.speed);
       tx = this.dashDir.x * ds;
       tz = this.dashDir.z * ds;
     }
@@ -283,8 +294,17 @@ export class PlayerController {
       tx = ov.velocity.x;
       tz = ov.velocity.z;
     }
-    if (this.grounded) this.vel.step(tx, tz, dt);
-    const desired = this.tmp.set(this.vel.x, 0, this.vel.z);
+    // root motion: the driver owns velocity (jerk-limited, weight shift, stride modulation) and facing
+    const mi = this.motionIn;
+    mi.vx = tx;
+    mi.vz = tz;
+    mi.aiming = input.ads || input.aiming;
+    mi.dashing = this.dash.dashing;
+    mi.yaw = this.dash.dashing ? Math.atan2(this.dashDir.x, this.dashDir.z) : ov?.yaw ?? camYaw;
+    if (this.grounded) this.motion.step(dt, mi, ov?.velocity ? COVER_MOTION : T);
+    this.vel.x = this.motion.vx;
+    this.vel.z = this.motion.vz;
+    const desired = this.tmp.set(this.motion.outX, 0, this.motion.outZ);
 
     if (this.grounded && mag > 0.1) this.stepAssist(dt);
 
@@ -326,18 +346,13 @@ export class PlayerController {
     this.cc.integrate(dt, support, GRAVITY);
     this.syncFeet();
 
-    // facing: weapon-led. The body faces the aim (dash: the rush direction), at a stance-limited rate.
+    // facing: the driver's (weapon-led, stance-limited, stepped on the spot); overrides may turn faster
     const v = this.cc.getVelocity();
     this.speed = Math.hypot(v.x, v.z);
-    const aiming = input.ads || input.aiming;
-    if (ov?.yaw !== undefined) {
-      this.yaw = turnTowards(this.yaw, ov.yaw, (ov.turnRate ?? T.turnMoving) * dt);
-    } else if (this.dash.dashing) {
-      this.yaw = turnTowards(this.yaw, Math.atan2(this.dashDir.x, this.dashDir.z), turnRate(false, this.speed, true) * 2.5 * dt);
-    } else {
-      const rate = ov?.turnRate ?? (this.pivotT > 0 ? Math.PI / T.pivotTime : turnRate(aiming, this.speed, false));
-      this.yaw = turnTowards(this.yaw, camYaw, rate * dt);
-    }
+    if (ov?.yaw !== undefined && ov.turnRate !== undefined) {
+      this.yaw = turnTowards(this.yaw, ov.yaw, ov.turnRate * dt);
+      this.motion.yaw = this.yaw;
+    } else this.yaw = this.motion.yaw;
     // local move for animation
     const s = Math.sin(this.yaw);
     const c = Math.cos(this.yaw);
@@ -348,7 +363,16 @@ export class PlayerController {
     // (stick idle and barely moving: small standoff corrections in cover do not count as moving)
     this.stillT = this.crouched && mag < 0.1 && this.speed < 0.4 ? this.stillT + dt : 0;
     this.kneeling = this.stillT > 0.25;
-    this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, (dt / T.crouchTime) * 3);
+    this.updateStance(dt);
+  }
+
+  /** Eased stance transition: crouching takes `crouchTime`, standing up `standTime`. */
+  private updateStance(dt: number): void {
+    const T = MOVEMENT;
+    const target = this.crouched ? 1 : 0;
+    const rate = target > this.crouchK ? 1 / T.crouchTime : 1 / T.standTime;
+    this.crouchK = target > this.crouchK ? Math.min(target, this.crouchK + rate * dt) : Math.max(target, this.crouchK - rate * dt);
+    this.crouchBlend = easeInOut(this.crouchK);
   }
 
   private applyCrouch(want: boolean): void {

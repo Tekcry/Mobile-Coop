@@ -4,7 +4,6 @@ import {
   EasedVelocity,
   directionMult,
   lookCap,
-  needsPivot,
   noiseRadius,
   pickTraversal,
   targetSpeed,
@@ -21,12 +20,12 @@ describe('tactical movement speeds', () => {
   it('creep, walk, brisk, stance caps (m/s)', () => {
     expect(targetSpeed(0.02, 'stand')).toBe(0);
     expect(targetSpeed(MOVEMENT.creepBand, 'stand')).toBeCloseTo(MOVEMENT.creepSpeed);
-    expect(targetSpeed(1, 'stand')).toBeCloseTo(1.2);
-    expect(targetSpeed(1, 'stand', 0, 1, 1)).toBeCloseTo(2.0);
-    expect(targetSpeed(1, 'crouch')).toBeCloseTo(0.9);
-    expect(targetSpeed(1, 'ads')).toBeCloseTo(1.0);
-    expect(targetSpeed(1, 'cover')).toBeCloseTo(1.0);
-    expect(targetSpeed(1, 'reload', 0, 1, 1)).toBeCloseTo(0.6);
+    expect(targetSpeed(1, 'stand')).toBeCloseTo(0.9);
+    expect(targetSpeed(1, 'stand', 0, 1, 1)).toBeCloseTo(1.4);
+    expect(targetSpeed(1, 'crouch')).toBeCloseTo(0.55);
+    expect(targetSpeed(1, 'ads')).toBeCloseTo(0.7);
+    expect(targetSpeed(1, 'cover')).toBeCloseTo(0.5);
+    expect(targetSpeed(1, 'reload', 0, 1, 1)).toBeCloseTo(0.45);
     expect(targetSpeed(0.3, 'stand')).toBeLessThan(targetSpeed(0.6, 'stand'));
   });
   it('no running: nothing outside a dash exceeds brisk speed', () => {
@@ -38,10 +37,10 @@ describe('tactical movement speeds', () => {
     expect(directionMult(0, 1)).toBeCloseTo(1);
     expect(directionMult(1, 0)).toBeCloseTo(0.9);
     expect(directionMult(0, -1)).toBeCloseTo(0.7);
-    expect(targetSpeed(1, 'stand', 0, -1)).toBeCloseTo(1.2 * 0.7);
+    expect(targetSpeed(1, 'stand', 0, -1)).toBeCloseTo(0.9 * 0.7);
     // brisk is forward only
-    expect(targetSpeed(1, 'stand', 1, 0, 1)).toBeCloseTo(1.2 * 0.9);
-    expect(targetSpeed(1, 'stand', 0, -1, 1)).toBeCloseTo(1.2 * 0.7);
+    expect(targetSpeed(1, 'stand', 1, 0, 1)).toBeCloseTo(0.9 * 0.9);
+    expect(targetSpeed(1, 'stand', 0, -1, 1)).toBeCloseTo(0.9 * 0.7);
   });
   it('eased start and stop, no overshoot', () => {
     const v = new EasedVelocity();
@@ -70,14 +69,6 @@ describe('turning', () => {
     expect(turnRate(false, 1, false)).toBeLessThan(turnRate(false, 0, false));
     expect(turnRate(false, 5, true)).toBeLessThan(turnRate(true, 0, false));
     expect(lookCap(true, false)).toBeLessThan(lookCap(false, false));
-  });
-  it('reversals at speed need a pivot; small turns or standing still do not', () => {
-    expect(needsPivot(0, Math.PI, 1.2)).toBe(true);
-    expect(needsPivot(0, 0.5, 1.2)).toBe(false);
-    expect(needsPivot(0, Math.PI, 0.2)).toBe(false);
-    expect(needsPivot(3, -3, 1.2)).toBe(false); // wraps: only 0.28 rad apart
-    expect(MOVEMENT.pivotTime).toBeGreaterThanOrEqual(0.4);
-    expect(MOVEMENT.pivotTime).toBeLessThanOrEqual(0.6);
   });
 });
 
