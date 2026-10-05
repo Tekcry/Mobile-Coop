@@ -7,6 +7,7 @@ import type { Ballistics, RayHit } from './ballistics';
 import { spreadDir } from './ballistics';
 import type { Grenades } from './grenades';
 import type { Vfx } from '../vfx/vfx';
+import type { PartPattern } from '../world/partLibrary';
 import { GRENADE, WEAPONS, type WeaponDef, type WeaponId } from './weaponDefs';
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
 import { computeStats, damageAt, recoilKick, sampleSpread, spreadDeg, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
@@ -16,6 +17,7 @@ export interface LoadoutEntry {
   upgrades?: WeaponUpgrades;
   mods?: StatMods;
   colors?: WeaponColors;
+  pattern?: PartPattern;
 }
 
 export interface WeaponSlot {
@@ -74,7 +76,7 @@ export class PlayerWeapons {
     for (const e of loadout) {
       const def = WEAPONS[e.id];
       const stats = computeStats(def, e.upgrades ?? NO_UPGRADES, e.mods);
-      const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot);
+      const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern);
       for (const m of model.parts) world.addShadowCaster(m);
       model.setVisible(false);
       this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model });

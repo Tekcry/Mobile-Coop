@@ -87,3 +87,14 @@ MFi / Bluetooth controller:
 - [ ] Settings > Data > Export save file: on iPhone/Android the share sheet appears (save to Files/Drive); on desktop a .json downloads.
 - [ ] Settings > Data > Import save file: pick the exported file, confirm, progress is restored.
 - [ ] Settings > Data > Reset all progress: confirm dialog, then a fresh profile.
+
+## Phase 7 - Customiser and cosmetics (Main menu > Customise)
+- [ ] The avatar stands on the right with the weapon; drag on it (touch) or use the right stick (controller) to rotate.
+- [ ] Every tab (Body, Torso, Legs, Gear, Pattern, Tag, Emotes) works by tap and by controller (LB/RB tabs, d-pad, A).
+- [ ] Changing an owned option updates the preview instantly and is still there after leaving and reopening.
+- [ ] A 🔒 option previews with a lock note; leaving the screen reverts it. If affordable, the note's Unlock button buys and keeps it.
+- [ ] Pattern tab: pick Stripes/Camo (after unlocking) - the shirt and trousers show the pattern; pattern colour swatches change it.
+- [ ] Tag tab: Random callsign (controller-friendly) or type a name (touch keyboard); title/emblem/colour show on the main-menu badge.
+- [ ] Emotes tab: assign slots; the preview plays the emote. In a match press d-pad right/down/left, or use the emote bar in the pause menu.
+- [ ] Armory > Camo: after 10 rifle kills Woodland is available; the camo shows on the gun in the menu and in matches.
+- [ ] FPS unaffected with patterned avatars and camo weapons on screen.

@@ -14,6 +14,14 @@ import {
 import type { AppState } from '../core/app';
 import { flatMat, PALETTE } from './materials';
 import { mulberry } from '../core/rng';
+import { PartLibrary } from './partLibrary';
+import { CharacterRig } from '../player/characterRig';
+import { avatarFactory } from '../cosmetics/avatarFactory';
+import type { AvatarLook } from '../cosmetics/avatarLook';
+import { WeaponModel } from '../weapons/weaponModel';
+import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
+import { camoById } from '../cosmetics/catalog';
+import { playEmote } from '../cosmetics/emotes';
 
 /** Lightweight diorama behind the menus. No physics. */
 export class MenuState implements AppState {
@@ -25,6 +33,13 @@ export class MenuState implements AppState {
   private t = 0;
   /** Extra per-frame callbacks (avatar preview rotation etc.). */
   readonly frameHooks = new Set<(dt: number) => void>();
+  readonly parts: PartLibrary;
+  private rig: CharacterRig | null = null;
+  private weapon: WeaponModel | null = null;
+  /** Avatar yaw (rotated by stick / drag in the customiser). */
+  previewYaw = Math.PI;
+  private framing: 'menu' | 'customize' = 'menu';
+  private t2 = 0;
 
   constructor(engine: Engine) {
     const scene = new Scene(engine);
@@ -73,6 +88,26 @@ export class MenuState implements AppState {
       m.isPickable = false;
       m.freezeWorldMatrix();
     }
+    this.parts = new PartLibrary(scene);
+  }
+
+  /** (Re)build the preview avatar holding a weapon with its camo. */
+  setAvatar(look: AvatarLook, weapon: WeaponId = 'rifle', camo = 'factory'): void {
+    this.weapon?.dispose();
+    this.rig?.dispose();
+    this.rig = new CharacterRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 1.8, 'preview');
+    this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
+    const c = camoById(camo);
+    this.weapon = new WeaponModel(this.scene, this.parts, WEAPONS[weapon], c.colors, this.rig.weaponPivot, c.pattern);
+  }
+
+  emote(id: string): void {
+    if (this.rig) playEmote(this.rig, id);
+  }
+
+  setFraming(f: 'menu' | 'customize'): void {
+    this.framing = f;
+    if (f === 'customize') this.previewYaw = Math.PI;
   }
 
   enter(): void {}
@@ -81,7 +116,26 @@ export class MenuState implements AppState {
 
   frameUpdate(dt: number): void {
     this.t += dt;
-    this.camera.alpha += dt * 0.05;
+    this.t2 += dt;
+    const cam = this.camera;
+    if (this.framing === 'menu') {
+      cam.alpha += dt * 0.05;
+      cam.radius += (7 - cam.radius) * Math.min(1, dt * 3);
+      cam.target.x += (0 - cam.target.x) * Math.min(1, dt * 3);
+      cam.beta += (1.25 - cam.beta) * Math.min(1, dt * 3);
+    } else {
+      // front view, avatar on the right third (UI panel on the left)
+      const a = -Math.PI / 2;
+      cam.alpha += (a - cam.alpha) * Math.min(1, dt * 4);
+      cam.radius += (3.6 - cam.radius) * Math.min(1, dt * 4);
+      cam.beta += (1.42 - cam.beta) * Math.min(1, dt * 4);
+      cam.target.x += (-0.95 - cam.target.x) * Math.min(1, dt * 4);
+      cam.target.y += (1.15 - cam.target.y) * Math.min(1, dt * 4);
+    }
+    if (this.rig) {
+      this.rig.root.rotation.y = this.framing === 'menu' ? Math.PI + 0.5 + Math.sin(this.t2 * 0.3) * 0.3 : this.previewYaw;
+      this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, roll: -1, aimPitch: 0, aim: 0.05, kick: 0 });
+    }
     for (const fn of this.frameHooks) fn(dt);
   }
 }

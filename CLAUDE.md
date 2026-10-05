@@ -17,6 +17,7 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
+  - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
@@ -120,6 +121,14 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   saves of any known version.
 - New unlockables: add to `UNLOCKS` (or `registerUnlocks` from another module) with an id prefix
   (`weapon:`, `att:`, `camo:`, `part:`, `pattern:`, `emote:`, `tag:`, `color:`).
+
+## Cosmetics
+- `cosmetics/catalog.ts` is the single list of avatar options, camos, emotes, titles, emblems; it registers
+  unlock items at import (imported first in `main.ts`, before `autoGrant`).
+- Patterns: `PatternPlugin` (StandardMaterial plugin) reads per-instance `pattern` (id, scale) and
+  `color2`; ids in `cosmetics/patterns.ts`, GLSL there too. `PartLibrary.instance(..., pattern)` sets them.
+- `avatarFactory` puts the look's pattern on torso/legs slots; `WeaponModel` puts the camo pattern on
+  `body` parts. Emotes are pose overrides (`cosmetics/emotes.ts`) run via `CharacterRig.emote`.
 
 ## Performance budget (mid-range phone, 60fps)
 - Draw calls < 120 in combat. Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.

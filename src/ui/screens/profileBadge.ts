@@ -1,6 +1,7 @@
 import type { App } from '../../core/app';
 import { levelInfo } from '../../progression/profile';
 import { h } from '../dom';
+import { emblemSvg } from '../../cosmetics/catalog';
 
 /** Level, XP bar, credits and tag. Re-renders on save changes. */
 export function profileBadge(app: App): HTMLElement {
@@ -11,7 +12,7 @@ export function profileBadge(app: App): HTMLElement {
     const pct = li.need ? Math.round((li.into / li.need) * 100) : 100;
     el.innerHTML = '';
     el.append(
-      h('div', { class: 'badge-top' }, h('span', { class: 'badge-level', text: String(li.level) }), h('div', { class: 'badge-name' },
+      h('div', { class: 'badge-top' }, h('span', { class: 'badge-level', text: String(li.level) }), h('span', { class: 'badge-emblem', html: emblemSvg(s.profile.tag.emblem, 22, s.profile.tag.color) }), h('div', { class: 'badge-name' },
         h('b', { text: s.profile.name }),
         h('span', { class: 'badge-tag', text: s.profile.tag.title, style: { color: s.profile.tag.color } }),
       )),

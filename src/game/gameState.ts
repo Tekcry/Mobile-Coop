@@ -28,6 +28,7 @@ import { emptyStats, type GameMode, type ModeId, type SessionStats } from './mod
 import { WaveMode } from './modes/waveMode';
 import { MissionMode } from './modes/missionMode';
 import { ResultsScreen } from '../ui/screens/resultsScreen';
+import { playEmote } from '../cosmetics/emotes';
 
 export type { ModeId };
 
@@ -38,6 +39,8 @@ export interface GameOptions {
   difficulty?: Difficulty;
   look?: AvatarLook;
   loadout?: LoadoutEntry[];
+  /** Equipped emote ids (quick slots). */
+  emotes?: string[];
 }
 
 export interface SessionCallbacks {
@@ -262,9 +265,18 @@ export class GameState implements AppState {
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
+        this.emoteBar(),
       ),
     );
   }
+
+  /** Play an emote on the local player (also broadcast in coop). */
+  emote(id: string): void {
+    if (!id || !this.player.alive) return;
+    if (playEmote(this.player.rig, id)) this.onEmote?.(id);
+  }
+
+  onEmote: ((id: string) => void) | null = null;
 
   private onPlayerDeath(): void {
     if (this.mode) {
@@ -273,6 +285,27 @@ export class GameState implements AppState {
     }
     this.hud.banner('DOWN', 'Respawning…', 2500);
     this.scheduleRespawn(this.world.layout.playerSpawns[0]!.pos, 3);
+  }
+
+  private emoteBar(): HTMLElement | null {
+    const ids = (this.opts.emotes ?? []).filter(Boolean);
+    if (!ids.length) return null;
+    const bar = document.createElement('div');
+    bar.className = 'emote-bar';
+    for (const id of ids) {
+      const b = document.createElement('button');
+      b.className = 'btn small';
+      b.dataset.focus = '';
+      b.textContent = id[0]!.toUpperCase() + id.slice(1);
+      b.addEventListener('click', () => {
+        this.app.screens.pop();
+        this.paused = false;
+        this.app.input.setGameplayActive(true);
+        this.emote(id);
+      });
+      bar.appendChild(b);
+    }
+    return bar;
   }
 
   /** Proximity + hold-to-interact with objectives. */
@@ -309,6 +342,10 @@ export class GameState implements AppState {
       return;
     }
     this.time += dt;
+    // quick emotes on the d-pad (right, down, left)
+    const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
+    if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
+    if (this.player.rig.emote && (Math.hypot(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
     this.player.fixedUpdate(dt, inp);
     this.target.sync();
     this.weapons.fixedUpdate(dt, inp);

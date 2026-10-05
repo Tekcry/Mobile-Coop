@@ -1,5 +1,20 @@
 # Changelog
 
+## 0.7.0 - Phase 7: Avatar customiser and cosmetics
+- Customiser with live 3D preview on the menu stage (rotate by right stick or drag): body type, head,
+  hair, torso, legs, helmet, backpack, skin/hair/clothing/accent/boot/gear colours, clothing pattern.
+- Procedural patterns via a StandardMaterial plugin with per-instance attributes (`pattern`, `color2`):
+  stripes, camo, digital, tiger, checker, carbon, hex. Still one draw call per part shape.
+- Weapon camos: Factory, mastery camos per weapon (Woodland, Desert, Urban, Tiger, Gold at mastery 1-5)
+  and Store camos (Carbon, Arctic, Neon); picked in the Armory, shown in the preview and in matches.
+- Cosmetic catalogue registers every part, pattern, camo, emote, title and emblem in the unlock table
+  with level/price/mastery requirements; locked items can be previewed (with an Unlock button) but are
+  never saved until owned.
+- Emotes (wave, salute, point, dance, flex, clap, laugh) as procedural rig poses; 4 slots, d-pad
+  right/down/left in matches, emote bar in the pause menu, cancelled by moving or shooting.
+- Player tag: callsign (text or random), title, emblem, colour; shown on the profile badge.
+- `scripts/e2e-cosmetics.mjs`.
+
 ## 0.6.0 - Phase 6: Progression, unlocks, upgrades, saves
 - XP and levels (1-50, quadratic curve), credits, level-up bonus credits (`progression/levels.ts`).
 - Match rewards from kills by type, headshots, waves/objectives, victory, accuracy, difficulty

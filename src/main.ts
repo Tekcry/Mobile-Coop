@@ -1,4 +1,5 @@
 import './styles.css';
+import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
 import { setupServiceWorker, setupRotateOverlay, suppressBrowserGestures, enterFullscreenLandscape, isStandalone } from './pwa/pwa';
@@ -17,6 +18,8 @@ import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
+import { CustomizeScreen } from './ui/screens/customizeScreen';
+import { camoById } from './cosmetics/catalog';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -55,7 +58,10 @@ async function boot(): Promise<void> {
 
   const goToMenu = (): void => {
     app.screens.clear();
-    app.setState(new MenuState(app.engine));
+    const ms = new MenuState(app.engine);
+    app.setState(ms);
+    const sv = app.save.get();
+    ms.setAvatar(sv.avatar, sv.loadout.primary, sv.weapons[sv.loadout.primary].camo);
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));
     app.screens.push(menu);
@@ -70,13 +76,18 @@ async function boot(): Promise<void> {
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
     (a) => ({ label: 'Armory', sub: 'Loadout · Upgrades', icon: 'gun', order: 20, action: () => a.screens.push(new ArmoryScreen(a)) }),
+    (a) => ({ label: 'Customise', sub: 'Avatar · Tag · Emotes', icon: 'user', order: 25, action: () => a.screens.push(new CustomizeScreen(a)) }),
     (a) => ({ label: 'Store', sub: 'Unlocks', icon: 'trophy', order: 30, action: () => a.screens.push(new StoreScreen(a)) }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 
   const startGame = (base: GameOptions): void => {
     const sv = app.save.get();
-    const opts: GameOptions = { ...base, loadout: base.loadout ?? loadoutEntries(sv, base.mode), look: base.look ?? sv.avatar };
+    const skin = (_w: string, camo: string): { colors: ReturnType<typeof camoById>['colors']; pattern?: ReturnType<typeof camoById>['pattern'] } => {
+      const c = camoById(camo);
+      return c.pattern ? { colors: c.colors, pattern: c.pattern } : { colors: c.colors };
+    };
+    const opts: GameOptions = { ...base, loadout: base.loadout ?? loadoutEntries(sv, base.mode, skin), look: base.look ?? sv.avatar, emotes: sv.emotes };
     app.screens.clear();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');

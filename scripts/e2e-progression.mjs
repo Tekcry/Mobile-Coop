@@ -39,7 +39,7 @@ try {
 
   // Store: level up via save, then buy the SMG
   await G(() => window.__app.save.update((d) => { d.profile.xp = 600; d.profile.credits = 700; }));
-  await press(page, BTN.DOWN);
+  for (let i = 0; i < 6 && !/Store/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   await press(page, BTN.A);
   assert(await q('.store-screen'), 'Store opens');
   assert(/Buy · 600 cr/.test(await focusedText(page)), `first buyable item focused ("${await focusedText(page)}")`);

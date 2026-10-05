@@ -1,5 +1,5 @@
 import { TransformNode, Vector3, type AbstractMesh, type Scene } from '../core/babylon';
-import type { PartLibrary } from '../world/partLibrary';
+import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import type { WeaponDef } from './weaponDefs';
 
 export interface WeaponColors {
@@ -16,12 +16,12 @@ export class WeaponModel {
   readonly parts: AbstractMesh[] = [];
   readonly muzzleLocal: Vector3;
 
-  constructor(scene: Scene, lib: PartLibrary, def: WeaponDef, colors: WeaponColors, parent: TransformNode) {
+  constructor(scene: Scene, lib: PartLibrary, def: WeaponDef, colors: WeaponColors, parent: TransformNode, pattern?: PartPattern) {
     this.node = new TransformNode(`wpn-${def.id}`, scene);
     this.node.parent = parent;
     for (const p of def.model) {
       const hex = p.color === 'body' || p.color === 'grip' || p.color === 'accent' ? colors[p.color] : p.color;
-      const m = lib.instance(p.shape, hex, `wpn-${def.id}-part`);
+      const m = lib.instance(p.shape, hex, `wpn-${def.id}-part`, p.color === 'body' ? pattern : undefined);
       m.parent = this.node;
       m.scaling.set(...p.size);
       m.position.set(...p.pos);

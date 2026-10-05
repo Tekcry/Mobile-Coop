@@ -133,12 +133,12 @@ export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: Weapon
 }
 
 /** Weapons for a match from the profile (sandbox: every weapon, still with your upgrades). */
-export function loadoutEntries(s: SaveData, mode: SessionStats['mode'], colors?: (w: WeaponId) => LoadoutEntry['colors']): LoadoutEntry[] {
+export function loadoutEntries(s: SaveData, mode: SessionStats['mode'], skin?: (w: WeaponId, camo: string) => Pick<LoadoutEntry, 'colors' | 'pattern'>): LoadoutEntry[] {
   const ids: WeaponId[] = mode === 'sandbox' ? ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] : [s.loadout.primary, s.loadout.secondary];
   return ids.map((id) => ({
     id,
     upgrades: s.weapons[id].upgrades,
     mods: combinedMods(s.weapons[id].attachments),
-    colors: colors?.(id),
+    ...(skin?.(id, s.weapons[id].camo) ?? {}),
   }));
 }

@@ -8,6 +8,7 @@ import { canUpgrade, TRACKS, TRACK_LABEL } from '../../progression/upgrades';
 import { attachmentsFor, combinedMods, type AttachmentSlot } from '../../progression/attachments';
 import { describeReq, unlockById, unlockState } from '../../progression/unlocks';
 import { MASTERY_KILLS } from '../../progression/levels';
+import { CAMOS, camoUnlockId } from '../../cosmetics/catalog';
 import { h } from '../dom';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
@@ -31,7 +32,7 @@ export class ArmoryScreen extends Screen {
   constructor(private app: App) {
     super('armory-screen');
     this.idx = Math.max(0, ORDER.indexOf(app.save.get().loadout.primary));
-    this.strip = h('div', { class: 'tab-strip' });
+    this.strip = h('div', { class: 'tab-strip scrollable' });
     this.panel = h('div', { class: 'armory-panel scrollable' });
     this.el.append(h('div', { class: 'screen-head' }, h('div', { class: 'screen-title', text: 'Armory' }), profileBadge(app)), this.strip, this.panel);
     this.render();
@@ -126,6 +127,11 @@ export class ArmoryScreen extends Screen {
       att.append(ch);
       if (lockedN) att.append(h('div', { class: 'row-note', text: `${lockedN} more in the Store: ${opts.filter((a) => !owns(s, `att:${a.id}`)).map((a) => a.name).join(', ')}` }));
     }
+    // camo
+    const camoOpts = CAMOS.filter((c) => owns(s, camoUnlockId(w, c.id))).map((c) => ({ value: c.id, label: c.name }));
+    const camoChoice = keyed(choice('Camo', camoOpts, () => wp.camo, (v) => this.mutate((d) => void (d.weapons[w].camo = v))), 'camo');
+    if (!ownsW) camoChoice.setAttribute('disabled', '');
+    att.append(camoChoice, h('div', { class: 'row-note', text: 'Mastery levels unlock Woodland, Desert, Urban, Tiger and Gold camos for this weapon.' }));
     const m = weaponMastery(s, w);
     const nextK = MASTERY_KILLS[m];
     const mastery = h('div', { class: 'row-note', text: `Mastery ${m}/5 · ${wp.kills} kills${nextK ? ` · next at ${nextK}` : ' · mastered'}` });

@@ -6,6 +6,7 @@ import type { AvatarLook } from '../cosmetics/avatarLook';
 import { CharacterRig } from './characterRig';
 import { PlayerController, type PlayerInput } from './playerController';
 import { ShoulderCamera } from './shoulderCamera';
+import { avatarFactory } from '../cosmetics/avatarFactory';
 
 /** The local player: input -> controller (fixed step) -> camera + rig (per frame). */
 export class Player {
@@ -26,7 +27,7 @@ export class Player {
     private getSettings: () => Settings,
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
-    this.rig = new CharacterRig(world.scene, (shape, hex) => world.parts.instance(shape, hex, 'player-part'), look, 1.8, 'player');
+    this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 1.8, 'player');
     for (const m of this.rig.parts) world.addShadowCaster(m);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;

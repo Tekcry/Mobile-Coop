@@ -157,7 +157,7 @@ export class TabView {
   onChange: ((i: number) => void) | null = null;
 
   constructor(private tabs: TabDef[]) {
-    const strip = h('div', { class: 'tab-strip' });
+    const strip = h('div', { class: 'tab-strip scrollable' });
     const body = h('div', { class: 'tab-body scrollable' });
     tabs.forEach((t, i) => {
       const hd = h('button', { class: 'tab', text: t.label, focus: true, onClick: () => this.select(i) });
