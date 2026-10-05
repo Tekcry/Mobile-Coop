@@ -17,7 +17,7 @@ export class Pickups {
   private items: Pickup[] = [];
   private t = 0;
   respawnDelay = 30;
-  onPickup: ((kind: PickupKind) => void) | null = null;
+  onPickup: ((kind: PickupKind, who: string) => void) | null = null;
 
   constructor(
     scene: Scene,
@@ -49,7 +49,7 @@ export class Pickups {
   }
 
   /** Returns kinds collected by a player at `feet`. */
-  update(dt: number, players: readonly { feet: Vector3; needs: (k: PickupKind) => boolean }[]): void {
+  update(dt: number, players: readonly { id: string; feet: Vector3; needs: (k: PickupKind) => boolean }[]): void {
     this.t += dt;
     for (const it of this.items) {
       if (!it.active) {
@@ -63,7 +63,7 @@ export class Pickups {
         if (Vector3.DistanceSquared(p.feet, it.base) < 1.4 * 1.4 && Math.abs(p.feet.y - it.base.y) < 1.2 && p.needs(it.kind)) {
           this.activate(it, false);
           it.respawnT = this.respawnDelay;
-          this.onPickup?.(it.kind);
+          this.onPickup?.(it.kind, p.id);
           break;
         }
       }
@@ -73,6 +73,26 @@ export class Pickups {
   private activate(it: Pickup, on: boolean): void {
     it.active = on;
     it.node.setEnabled(on);
+  }
+
+  /** Bit i set = pickup i available (coop snapshots). */
+  get mask(): number {
+    let m = 0;
+    this.items.forEach((it, i) => {
+      if (it.active && i < 30) m |= 1 << i;
+    });
+    return m;
+  }
+
+  /** Mirror the host's availability (coop client); animates but never collects. */
+  setMask(m: number): void {
+    this.items.forEach((it, i) => {
+      if (i < 30) {
+        const on = (m & (1 << i)) !== 0;
+        if (on !== it.active) this.activate(it, on);
+        it.respawnT = 1e9;
+      }
+    });
   }
 
   respawnAll(): void {

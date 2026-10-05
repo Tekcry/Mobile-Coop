@@ -72,6 +72,7 @@ export class WaveMode implements GameMode {
       this.g.hud.feedItem(`Wave bonus +${bonus}`, 'xp');
       this.g.events.emit('waveCleared', { n: this.wave });
       this.g.pickups?.respawnAll();
+      this.g.reviveAll();
       this.g.weapons.addAmmo(0.35);
       this.phase = 'intermission';
       this.t = 10;

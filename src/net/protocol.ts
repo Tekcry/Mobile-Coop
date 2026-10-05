@@ -61,7 +61,10 @@ export type NetEvent =
   | { e: 'feed'; text: string }
   | { e: 'pickup'; player: string; kind: 'ammo' | 'health' }
   | { e: 'emote'; player: string; id: string }
-  | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' };
+  | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' }
+  /** A player took damage from a source at (x, z). */
+  | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
+  | { e: 'revive'; player: string; x: number; y: number; z: number };
 
 export interface EndStats {
   won: boolean;
@@ -78,8 +81,9 @@ export type Msg =
   | { t: 'ready'; ready: boolean }
   | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number }
   | { t: 'pstate'; s: PlayerState }
-  | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number }
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string }
+  | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
+  /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number }
   | { t: 'ev'; events: NetEvent[] }
   | { t: 'emote'; id: string }
   /** Client grenade detonation (host validates distance and applies damage). */
@@ -189,6 +193,19 @@ function netEvent(v: unknown): NetEvent | null {
       const kind = oneOf(v.kind, ['hit', 'head', 'kill'] as const);
       return player && kind ? { e: 'hitConfirm', player, kind } : null;
     }
+    case 'hurt': {
+      const player = id(v.player);
+      const x = num(v.x, -WORLD, WORLD);
+      const z = num(v.z, -WORLD, WORLD);
+      return player && x !== null && z !== null ? { e: 'hurt', player, x, z, boom: v.boom === true } : null;
+    }
+    case 'revive': {
+      const player = id(v.player);
+      const x = num(v.x, -WORLD, WORLD);
+      const y = num(v.y, -50, 100);
+      const z = num(v.z, -WORLD, WORLD);
+      return player && x !== null && y !== null && z !== null ? { e: 'revive', player, x, y, z } : null;
+    }
     default:
       return null;
   }
@@ -295,6 +312,7 @@ export function parseMessage(raw: unknown): Msg | null {
         part,
         rt: num(raw.rt, 0, 1e7) ?? 0,
         dist: num(raw.dist, 0, 300) ?? 0,
+        dmg: num(raw.dmg, 0, 1000) ?? 0,
       };
     }
     case 'snap': {
@@ -303,7 +321,8 @@ export function parseMessage(raw: unknown): Msg | null {
       if (time === null) return null;
       const players = raw.players.slice(0, MAX_PLAYERS).map(playerState).filter((p): p is PlayerState => !!p);
       const enemies = raw.enemies.slice(0, MAX_ENEMIES).map(enemyState).filter((e): e is EnemyState => !!e);
-      return { t: 'snap', time, players, enemies, obj: safeText(raw.obj, 80) ?? '', info: safeText(raw.info, 120) ?? '' };
+      const pk = Math.floor(num(raw.pk, 0, 2 ** 30) ?? 0);
+      return { t: 'snap', time, players, enemies, obj: safeText(raw.obj, 80) ?? '', info: safeText(raw.info, 120) ?? '', pk };
     }
     case 'ev': {
       if (!Array.isArray(raw.events)) return null;

@@ -40,7 +40,9 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
   };
   const em = g.enemyMgr;
   if (em) {
-    em.onEnemyShot = (e) => {
+    const prevEnemyShot = em.onEnemyShot;
+    em.onEnemyShot = (e, from, to) => {
+      prevEnemyShot?.(e, from, to);
       e.center(tmp);
       const s = a.spatial(tmp.x, tmp.y, tmp.z, 70);
       if (s.gain > 0.03) sfx.gunshot(e.def.kind === 'heavy' ? 'heavy' : 'rifle', s.gain, s.pan, Math.max(1, s.dist));
@@ -62,6 +64,11 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     g.events.on('waveCleared', () => sfx.objective()),
     g.events.on('objective', () => sfx.objective()),
     g.events.on('pickup', ({ kind }) => sfx.pickup(kind)),
+    // coop: shots fired by teammates or host-simulated enemies
+    g.events.on('remoteShot', ({ cls, x, y, z }) => {
+      const s = a.spatial(x, y, z, 70);
+      if (s.gain > 0.03) sfx.gunshot(cls, s.gain, s.pan, Math.max(1, s.dist));
+    }),
   ];
   app.music.start();
   const frame = (dt: number): void => {
@@ -80,7 +87,8 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
         sfx.footstep(c.crouched ? 0.5 : 1);
       }
     }
-    const alive = em?.alive ?? 0;
+    let alive = em?.alive ?? 0;
+    if (!em && g.puppet) for (const _ of g.registry.hostiles('player')) alive++;
     app.music.setIntensity(g.opts.mode === 'sandbox' ? 0 : Math.min(1, alive / 5));
   };
   return {

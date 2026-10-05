@@ -22,7 +22,7 @@ export class EnemyManager {
   private ctx: AiContext;
   onKilled: ((e: Enemy, h: HitInfo) => void) | null = null;
   /** Audio hooks. */
-  onEnemyShot: ((e: Enemy) => void) | null = null;
+  onEnemyShot: ((e: Enemy, from: Vector3, to: Vector3) => void) | null = null;
   onEnemyMelee: ((e: Enemy) => void) | null = null;
   onEnemyWindup: ((e: Enemy) => void) | null = null;
   kills = 0;
@@ -63,7 +63,7 @@ export class EnemyManager {
         this.releaseCover(e);
         this.onKilled?.(e, h);
       },
-      onShot: (e) => this.onEnemyShot?.(e),
+      onShot: (e, a, b) => this.onEnemyShot?.(e, a, b),
       onMelee: (e) => this.onEnemyMelee?.(e),
       onWindup: (e) => this.onEnemyWindup?.(e),
       canRagdoll: () => this.ragdolls.filter((r) => !r.done).length < BUDGET.maxRagdolls,

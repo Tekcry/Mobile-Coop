@@ -45,6 +45,31 @@ export interface GameOptions {
   loadout?: LoadoutEntry[];
   /** Equipped emote ids (quick slots). */
   emotes?: string[];
+  /** Coop: attaches the host/client sim. Provided by `src/net` (dynamically imported), never by single player. */
+  net?: NetHooks;
+}
+
+/** What the coop layer plugs into a session. */
+export interface NetAttachment {
+  /** After the local simulation, every fixed step. */
+  fixedUpdate(dt: number): void;
+  frameUpdate(dt: number): void;
+  /** Local player died. Return true if the net layer handles it (respawn/revive). */
+  onLocalDeath(): boolean;
+  /** Host: the session ended (broadcast results). */
+  onEnd?(won: boolean, subtitle: string): void;
+  /** Host: revive every downed player (wave cleared). */
+  reviveAll?(): void;
+  /** Extra pickers for pickups (host: remote players). */
+  pickers?(): { id: string; feet: Vector3; needs: (k: 'ammo' | 'health') => boolean }[];
+  onPickup?(kind: 'ammo' | 'health', who: string): void;
+  blips?(): Blip[];
+  dispose(): void;
+}
+
+export interface NetHooks {
+  role: 'host' | 'client';
+  attach(g: GameState): NetAttachment;
 }
 
 export interface SessionCallbacks {
@@ -70,6 +95,7 @@ export class GameState implements AppState {
   readonly minimap: Minimap;
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
+  private menuOpen = false;
   private time = 0;
   private respawnT = -1;
   private prevAds = false;
@@ -92,6 +118,10 @@ export class GameState implements AppState {
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
+  /** Coop attachment (null in single player). */
+  net: NetAttachment | null = null;
+  /** Coop client: enemies, waves and objectives are driven by the host. */
+  readonly puppet: boolean;
 
   private constructor(
     readonly app: App,
@@ -100,6 +130,7 @@ export class GameState implements AppState {
     private cb: SessionCallbacks,
   ) {
     this.scene = world.scene;
+    this.puppet = opts.net?.role === 'client';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     this.vfx = new Vfx(this.scene);
@@ -144,19 +175,31 @@ export class GameState implements AppState {
       if (d < radius * 2) app.input.rumble(1, 1, 220);
     };
 
-    if (opts.mode !== 'sandbox') {
+    if (this.puppet) {
+      const w = this as { -readonly [K in keyof GameState]: GameState[K] };
+      if (opts.mode !== 'sandbox') w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
+      // health is host-authoritative: local damage never applies
+      this.target.damageMul = 0;
+    } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.nav = buildNavGrid(this.scene, world.level, spawn.pos);
       w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, opts.difficulty ?? 'normal', () => this.playerRefs());
       w.enemyMgr.onKilled = (e, h) => {
-        this.stats.kills++;
-        this.stats.byKind[e.def.kind]++;
-        if (h.part === 'head') this.stats.headshots++;
+        // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local
+        if (h.attackerId === 'local' || h.attackerId === '') {
+          this.stats.kills++;
+          this.stats.byKind[e.def.kind]++;
+          if (h.part === 'head') this.stats.headshots++;
+        }
         if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}  +${e.def.xp} XP`, 'kill');
         this.mode?.onEnemyKilled(e, h);
       };
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
-      w.pickups.onPickup = (k) => {
+      w.pickups.onPickup = (k, who) => {
+        if (who !== 'local') {
+          this.net?.onPickup?.(k, who);
+          return;
+        }
         this.events.emit('pickup', { kind: k });
         if (k === 'health') this.target.health.heal(50);
         else this.weapons.addAmmo(0.5);
@@ -164,10 +207,13 @@ export class GameState implements AppState {
       };
       w.interactables = new Interactables(this.scene, world.parts);
       w.mode = opts.mode === 'wave' ? new WaveMode(this) : new MissionMode(this);
-      this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? [])];
+      this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
       app.debug.extra.set('ai', () => `enemies ${this.enemyMgr?.alive ?? 0} nav ${this.nav?.w}x${this.nav?.h}`);
     }
 
+    if (this.puppet || opts.mode === 'sandbox') {
+      this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
+    }
     if (opts.mode === 'sandbox') {
       this.weapons.infiniteAmmo = true;
       const d = (x: number, z: number, yaw: number, strafe = 0): void => {
@@ -194,7 +240,9 @@ export class GameState implements AppState {
       shadows: v.shadows,
       shadowMapSize: v.quality === 'high' ? 2048 : 1024,
     });
-    return new GameState(app, world, opts, cb);
+    const g = new GameState(app, world, opts, cb);
+    if (opts.net) g.net = opts.net.attach(g);
+    return g;
   }
 
   applyQuality(level: QualityLevel, userShadows: boolean): void {
@@ -212,6 +260,12 @@ export class GameState implements AppState {
     return this.playerRefs().some((p) => p.target.alive);
   }
 
+  /** Revive the local player (if down) and, in coop, everyone else. */
+  reviveAll(): void {
+    if (!this.player.alive && this.respawnT < 0) this.scheduleRespawn(this.world.layout.playerSpawns[0]!.pos, 0.5);
+    this.net?.reviveAll?.();
+  }
+
   scheduleRespawn(at: Vector3, seconds: number): void {
     this.respawnAt = at.clone();
     this.respawnT = seconds;
@@ -221,6 +275,7 @@ export class GameState implements AppState {
   endSession(won: boolean, subtitle: string): void {
     if (this.ended) return;
     this.ended = true;
+    this.net?.onEnd?.(won, subtitle);
     this.stats.won = won;
     this.stats.time = Math.round(this.time);
     let shots = 0;
@@ -242,6 +297,10 @@ export class GameState implements AppState {
     }, 1800);
   }
 
+  get isEnded(): boolean {
+    return this.ended;
+  }
+
   get simulating(): boolean {
     return !this.paused;
   }
@@ -254,6 +313,8 @@ export class GameState implements AppState {
   }
 
   exit(): void {
+    this.net?.dispose();
+    this.net = null;
     this.audio?.dispose();
     this.app.input.setGameplayActive(false);
     this.app.debug.extra.delete('player');
@@ -273,14 +334,17 @@ export class GameState implements AppState {
   }
 
   pause(): void {
-    if (this.paused) return;
-    this.paused = true;
+    if (this.paused || this.menuOpen) return;
+    // coop never freezes the shared simulation; the menu just takes the input
+    if (this.net) this.menuOpen = true;
+    else this.paused = true;
     this.app.input.setGameplayActive(false);
     this.app.screens.push(
       new PauseScreen(
         this.app,
         () => {
           this.paused = false;
+          this.menuOpen = false;
           this.app.input.setGameplayActive(true);
         },
         () => this.cb.quit(),
@@ -301,6 +365,7 @@ export class GameState implements AppState {
   onEmote: ((id: string) => void) | null = null;
 
   private onPlayerDeath(): void {
+    if (this.net?.onLocalDeath()) return;
     if (this.mode) {
       this.mode.onPlayerDeath();
       return;
@@ -322,6 +387,7 @@ export class GameState implements AppState {
       b.addEventListener('click', () => {
         this.app.screens.pop();
         this.paused = false;
+        this.menuOpen = false;
         this.app.input.setGameplayActive(true);
         this.emote(id);
       });
@@ -376,14 +442,19 @@ export class GameState implements AppState {
     this.explosions.update();
     for (const d of this.dummies) d.update(dt);
     this.enemyMgr?.update(dt);
-    this.pickups?.update(dt, [
-      {
-        feet: this.player.position,
-        needs: (k) => this.player.alive && (k === 'health' ? this.target.health.hp < this.target.health.maxHp : true),
-      },
-    ]);
+    if (this.puppet) this.pickups?.update(dt, []);
+    else
+      this.pickups?.update(dt, [
+        {
+          id: 'local',
+          feet: this.player.position,
+          needs: (k) => this.player.alive && (k === 'health' ? this.target.health.hp < this.target.health.maxHp : true),
+        },
+        ...(this.net?.pickers?.() ?? []),
+      ]);
     this.updateInteract(dt);
     this.mode?.fixedUpdate(dt);
+    this.net?.fixedUpdate(dt);
     this.target.health.update(dt);
     if (this.respawnT >= 0) {
       this.respawnT -= dt;
@@ -393,7 +464,7 @@ export class GameState implements AppState {
         this.target.revive();
         // brief spawn protection
         this.target.damageMul = 0;
-        setTimeout(() => (this.target.damageMul = 1), 2000);
+        setTimeout(() => (this.target.damageMul = this.puppet ? 0 : 1), 2000);
         this.respawnAt = null;
       }
     }
@@ -432,6 +503,7 @@ export class GameState implements AppState {
     this.vfx.update(dt);
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
+    this.net?.frameUpdate(dt);
     this.updateHud();
   }
 

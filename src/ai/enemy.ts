@@ -40,7 +40,7 @@ export interface AiContext {
   reserveCover(e: Enemy, idx: number): boolean;
   releaseCover(e: Enemy): void;
   onKilled(e: Enemy, h: HitInfo): void;
-  onShot?(e: Enemy): void;
+  onShot?(e: Enemy, from: Vector3, to: Vector3): void;
   onMelee?(e: Enemy): void;
   onWindup?(e: Enemy): void;
   canRagdoll(): boolean;
@@ -109,6 +109,16 @@ export class Enemy implements Damageable {
 
   get alive(): boolean {
     return this.health.alive;
+  }
+
+  /** 0 standing .. 1 crouched (cover). */
+  get crouchBlend(): number {
+    return this.crouch;
+  }
+
+  /** Weapon raised (coop snapshots). */
+  get aiming(): boolean {
+    return this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0;
   }
 
   center(out: Vector3): Vector3 {
@@ -443,7 +453,7 @@ export class Enemy implements Damageable {
     this.ctx.vfx.tracer(origin, h.point, w.tracer, 0.02);
     this.ctx.vfx.muzzleFlash(origin, this.def.kind === 'heavy' ? 0.3 : 0.2);
     this.kick = 1;
-    this.ctx.onShot?.(this);
+    this.ctx.onShot?.(this, origin, h.point);
     if (!h.hit) return;
     this.ctx.ballistics.impactFx(h, dir);
     if (h.target && h.target.team === 'player') {

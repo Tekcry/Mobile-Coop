@@ -20,6 +20,8 @@ export class Explosions {
   private queue: Pending[] = [];
   /** Hook for camera shake / audio. Receives centre and radius. */
   onExplode: ((pos: Vector3, radius: number) => void) | null = null;
+  /** Local player's own grenade detonated (coop clients forward it to the host). */
+  onLocalBlast: ((pos: Vector3) => void) | null = null;
 
   constructor(
     private registry: DamageRegistry,
@@ -35,6 +37,7 @@ export class Explosions {
 
   explode(pos: Vector3, radius: number, damage: number, force: number, team: Team, attackerId: string): void {
     this.queue.push({ pos: pos.clone(), radius, damage, force, team, attackerId });
+    if (team === 'player' && attackerId === 'local') this.onLocalBlast?.(pos);
   }
 
   /** Process queued explosions (call once per fixed step). */

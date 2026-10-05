@@ -88,6 +88,11 @@ export class PlayerWeapons {
     return this.slots[this.index]!;
   }
 
+  /** Fired within the last 0.2 s (coop animation flag). */
+  get firingRecently(): boolean {
+    return this.sinceShot < 0.2;
+  }
+
   get reloading(): boolean {
     return this.reloadT >= 0;
   }
