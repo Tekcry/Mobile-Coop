@@ -63,6 +63,10 @@ async function boot(): Promise<void> {
     app.setState(ms);
     const sv = app.save.get();
     ms.setAvatar(sv.avatar, sv.loadout.primary, sv.weapons[sv.loadout.primary].camo);
+    app.onAvatarStyle = () => {
+      const v = app.save.get();
+      if (app.current === ms) ms.setAvatar(v.avatar, v.loadout.primary, v.weapons[v.loadout.primary].camo);
+    };
     app.music.start();
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));

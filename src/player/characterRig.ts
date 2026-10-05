@@ -82,6 +82,17 @@ export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'should
 /** Forward-kinematics override (Euler x, y, z) per joint, used by emotes. */
 export type FkPose = Partial<Record<JointName, readonly [number, number, number]>> & { pelvisLift?: number };
 
+/** Avatar render style: classic stick figure (default) or the detailed smooth body. */
+export type AvatarStyle = 'stick' | 'detailed';
+let DEFAULT_STYLE: AvatarStyle = 'stick';
+/** Style for rigs built from now on (set from Settings > Video). */
+export function setAvatarStyle(s: AvatarStyle): void {
+  DEFAULT_STYLE = s;
+}
+export function avatarStyle(): AvatarStyle {
+  return DEFAULT_STYLE;
+}
+
 /** Build -> look body type (and enemies can override with their own build). */
 const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 'lean', athletic: 'athletic', broad: 'broad' };
 
@@ -221,7 +232,7 @@ export class CharacterRig {
     look: AvatarLook,
     readonly height = 1.75,
     name = 'rig',
-    opts: { build?: Build; armor?: boolean } = {},
+    opts: { build?: Build; armor?: boolean; style?: AvatarStyle } = {},
   ) {
     const p = proportions(opts.build ?? BUILD_OF[look.body], height);
     this.p = p;
@@ -263,7 +274,9 @@ export class CharacterRig {
     this.backSocket.rotationQuaternion = Quaternion.RotationYawPitchRoll(Math.PI / 2, 0, -0.9);
     this.hipSocket = n('hipHolster', this.hips, p.pelvis.w / 2 + 0.03, -0.02, 0.0);
     this.hipSocket.rotationQuaternion = Quaternion.RotationYawPitchRoll(0, Math.PI / 2 - 0.15, 0);
-    this.buildParts(make, look, p, opts.armor ?? false);
+    this.style = opts.style ?? DEFAULT_STYLE;
+    if (this.style === 'stick') this.buildStick(make, look, p);
+    else this.buildParts(make, look, p, opts.armor ?? false);
     DEBUG_RIGS.add(this);
   }
 
@@ -287,6 +300,76 @@ export class CharacterRig {
       [this.hipR, this.kneeR],
       [this.kneeR, this.ankleR],
     ];
+  }
+
+  /** Render style this rig was built with. */
+  style: AvatarStyle = 'stick';
+
+  /**
+   * Classic stick figure on the same skeleton: a sphere head, thin capsule segments (spine, neck,
+   * shoulder and hip bars, limbs) and small joint spheres so no pose opens a gap. One body colour
+   * (patterns apply) and an accent on the head; three shared shapes, so all characters cost a few
+   * draw calls.
+   */
+  private buildStick(make: PartFactory, look: AvatarLook, p: Proportions): void {
+    const c = look.colors;
+    const body = c.torso;
+    const k = p.height / 1.75;
+    const girth = Math.max(0.85, Math.min(1.25, p.chest.w / 0.34));
+    const rLimb = 0.024 * k * girth;
+    const rBody = 0.034 * k * girth;
+    const joint = 0.06 * k * girth;
+    const add = (shape: PartShape, hex: string, slot: string, parent: TransformNode, sx: number, sy: number, sz: number, x = 0, y = 0, z = 0, rz = 0): void => {
+      const m = make(shape, hex, slot);
+      m.parent = parent;
+      m.scaling.set(sx, sy, sz);
+      m.position.set(x, y, z);
+      if (rz) m.rotation.z = rz;
+      this.parts.push(m);
+    };
+    // a capsule segment of length `len` hanging from (or rising above) its joint; the unit capsule
+    // is 0.5 wide and 1 long
+    const seg = (parent: TransformNode, len: number, r: number, dir: 1 | -1, slot = 'torso', hex = body): void => add('capsule', hex, slot, parent, r * 4, len + r * 2, r * 4, 0, (dir * len) / 2, 0);
+    const ball = (parent: TransformNode, d: number, hex = body, slot = 'torso', y = 0): void => add('sphere', hex, slot, parent, d, d, d, 0, y, 0);
+    const Y = p.y;
+    const chestY = Y.waist + 0.13 * k;
+    // spine in three bending parts: pelvis -> waist -> chest -> neck base
+    seg(this.hips, Y.waist - Y.hip, rBody, 1);
+    seg(this.spine, chestY - Y.waist, rBody, 1);
+    seg(this.torso, Y.neck - chestY, rBody, 1);
+    ball(this.hips, joint * 1.15);
+    ball(this.spine, joint);
+    ball(this.torso, joint);
+    // shoulder and hip bars
+    add('capsule', body, 'torso', this.torso, rBody * 4, p.shoulderHalf * 2 + rBody * 2, rBody * 4, 0, Y.shoulder - chestY, -0.01, Math.PI / 2);
+    add('capsule', body, 'torso', this.hips, rBody * 4, p.hipHalf * 2 + rBody * 2, rBody * 4, 0, -0.03, 0, Math.PI / 2);
+    // neck and head (accent colour)
+    seg(this.neck, p.neck.len + p.head.h * 0.1, rLimb * 1.1, 1);
+    ball(this.headNode, p.head.h * 0.95, c.accent, 'accent');
+    // arms
+    for (const [sh, el, wr] of [
+      [this.shoulderL, this.elbowL, this.wristL],
+      [this.shoulderR, this.elbowR, this.wristR],
+    ] as const) {
+      ball(sh, joint);
+      seg(sh, p.upperArm.len, rLimb, -1);
+      ball(el, joint * 0.85);
+      seg(el, p.forearm.len, rLimb * 0.9, -1);
+      ball(wr, joint * 0.95, body, 'torso', -p.hand.len * 0.3);
+    }
+    // legs
+    for (const [hp, kn, an] of [
+      [this.hipL, this.kneeL, this.ankleL],
+      [this.hipR, this.kneeR, this.ankleR],
+    ] as const) {
+      ball(hp, joint);
+      seg(hp, p.thigh.len, rLimb * 1.15, -1);
+      ball(kn, joint * 0.9);
+      seg(kn, p.calf.len, rLimb, -1);
+      ball(an, joint * 0.8);
+      // foot: a flat rounded bar forward along the ground
+      add('pill', body, 'torso', an, rLimb * 3.2, rLimb * 2.2, p.foot.len * 0.9, 0, -Y.ankle * 0.55, p.foot.len * 0.28);
+    }
   }
 
   // ------------------------------------------------------------------------------------------

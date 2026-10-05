@@ -1,3 +1,4 @@
+import { avatarStyle, setAvatarStyle } from '../player/characterRig';
 import type { Engine, Scene } from './babylon';
 import { GameLoop, type LoopHooks } from './loop';
 import { createEngine } from './engine';
@@ -29,6 +30,8 @@ export interface AppState {
 
 /** Service container shared by every state and screen. */
 export class App {
+  /** Rebuild previews when the avatar style changes (set by the menu). */
+  onAvatarStyle: (() => void) | null = null;
   readonly engine: Engine;
   readonly loop: GameLoop;
   readonly settings: SettingsStore;
@@ -77,8 +80,13 @@ export class App {
 
     this.input.events.on('padConnected', ({ id }) => this.toasts.show(`Controller connected: ${shortPadName(id)}`, 'ok'));
     this.input.events.on('padDisconnected', () => this.toasts.show('Controller disconnected', 'warn'));
+    setAvatarStyle(this.settings.get().video.avatarStyle);
     this.settings.subscribe((s) => {
       this.audio.setVolumes(s.audio);
+      if (s.video.avatarStyle !== avatarStyle()) {
+        setAvatarStyle(s.video.avatarStyle);
+        this.onAvatarStyle?.();
+      }
       if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps);
     });
     // Backgrounding (home button, app switch, screen lock): save now, silence audio, pause single player.
