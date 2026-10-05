@@ -33,6 +33,9 @@ Retrofits the player, enemies, coop remotes, training dummies and the customiser
   crouch moved to Ctrl). Settings: auto-snap, cover dash.
 - Debug overlay: Skeleton view (bones, controller capsule, hit volumes) and a live movement/camera Tune panel.
 - Hit volumes and the controller capsule are derived from the proportions (player capsule 1.75 m x 0.30 m).
+- Fixed: a quit triggered mid-tick could animate the disposed player rig (GameState and rigs now ignore
+  updates after exit). Animation LOD: rigs beyond 22 m solve IK at half rate. Probe (10 enemies, headless):
+  ~1.9 ms CPU per fixed step (was ~1.0 ms with the box rig), 25 draw calls.
 - Choices: characters stay instanced (one draw call per smooth shape) instead of merging meshes per character,
   which would cost a draw call per character; IK hands follow the weapon rather than the weapon following the
   hand, so aim is exact; cover data is generated from geometry rather than hand-tagged, so new maps get cover

@@ -22,7 +22,7 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`);
     else if (process.env.VERBOSE) console.log(`[${m.type()}] ${m.text()}`);
   });
-  page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
+  page.on("pageerror", (e) => errors.push(`[pageerror] ${e.message}${process.env.STACK ? "\n" + e.stack : ""}`));
   // Fake standard-mapping gamepad, controllable via window.__pad.
   await page.addInitScript(() => {
     const pad = {

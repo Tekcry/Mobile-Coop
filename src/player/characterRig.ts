@@ -47,6 +47,9 @@ export type FkPose = Partial<Record<JointName, readonly [number, number, number]
 /** Build -> look body type (and enemies can override with their own build). */
 const BUILD_OF: Record<AvatarLook['body'], Build> = { average: 'average', lean: 'lean', athletic: 'athletic', broad: 'broad' };
 
+/** Beyond this distance (m) from the camera a rig animates at half rate. */
+export const ANIM_LOD_DISTANCE = 22;
+
 const tmpA = new Vector3();
 const tmpB = new Vector3();
 const tmpC = new Vector3();
@@ -401,6 +404,20 @@ export class CharacterRig {
 
   /** Procedural animation. Call every render frame. */
   animate(dt: number, s: RigPose): void {
+    if (this.disposed) return;
+    // animation LOD: rigs far from the camera (matching the mesh LOD) solve IK every other frame
+    const cam = this.root.getScene().activeCamera;
+    if (cam) {
+      const p = this.root.position;
+      const c = cam.globalPosition;
+      const far = (p.x - c.x) ** 2 + (p.z - c.z) ** 2 > ANIM_LOD_DISTANCE * ANIM_LOD_DISTANCE;
+      if (far && (this.lodSkip = !this.lodSkip)) {
+        this.lodDt += dt;
+        return;
+      }
+    }
+    dt += this.lodDt;
+    this.lodDt = 0;
     const i = this.input;
     i.speed = s.speed;
     i.localX = s.localX;
@@ -616,7 +633,12 @@ export class CharacterRig {
     });
   }
 
+  private disposed = false;
+  private lodSkip = false;
+  private lodDt = 0;
+
   dispose(): void {
+    this.disposed = true;
     DEBUG_RIGS.delete(this);
     for (const m of this.parts) m.dispose();
     this.root.dispose();

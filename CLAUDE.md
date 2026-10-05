@@ -129,7 +129,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   Upper body: aim layer (raised vs low-ready, sprint carry, reload with off-hand to the mag, recoil spring,
   blind fire), spine/head look-at, breathing, sway, accel/turn lean, hit react (`rig.hit`). Two-bone IK puts
   hands on the weapon's `grip`/`foregrip` (weapons.json) and feet on the gait targets. Emotes return an
-  `FkPose` that is slerped over the result (fade in/out).
+  `FkPose` that is slerped over the result (fade in/out). Rigs beyond `ANIM_LOD_DISTANCE` (22 m) animate at
+  half rate; `animate` is a no-op after `dispose` (and `GameState` ignores updates after `exit`).
 - Weapons: `WeaponModel.hold(rig)` (hands IK'd to it) / `holster(rig)` (long guns on the back, pistol on the hip;
   one per holster). Deaths: `Ragdoll` = 5 Havok bodies (torso, legs, arms) with ball-and-socket joints at hips
   and shoulders, limbs never collide with their own torso, capped by `BUDGET.maxRagdolls`.

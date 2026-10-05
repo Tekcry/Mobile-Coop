@@ -99,6 +99,8 @@ export class GameState implements AppState {
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
   private menuOpen = false;
+  /** Set on exit: a quit triggered mid-tick must not run this tick's remaining updates on disposed objects. */
+  private exited = false;
   private time = 0;
   private respawnT = -1;
   private prevAds = false;
@@ -319,6 +321,7 @@ export class GameState implements AppState {
   }
 
   exit(): void {
+    this.exited = true;
     this.net?.dispose();
     this.net = null;
     this.audio?.dispose();
@@ -431,6 +434,7 @@ export class GameState implements AppState {
   }
 
   fixedUpdate(dt: number): void {
+    if (this.exited) return;
     const inp = this.app.input.state;
     if (inp.pressed('pause')) {
       this.pause();
@@ -505,6 +509,7 @@ export class GameState implements AppState {
   }
 
   frameUpdate(dt: number, alpha: number): void {
+    if (this.exited) return;
     const look = this.app.input.state.consumeLook();
     if (dt > 0) this.applyAimAssist(look, dt);
     this.prevAds = this.player.ads;
