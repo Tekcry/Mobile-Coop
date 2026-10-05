@@ -50,6 +50,7 @@ export class EnemyManager {
       flow: () => this.flowField,
       enemies: () => this.enemies,
       cover: world.level.cover,
+      coverSegments: world.level.coverSegments,
       reserveCover: (e, idx) => {
         const o = this.coverOwner.get(idx);
         if (o && o !== e && o.alive) return false;

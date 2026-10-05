@@ -18,14 +18,14 @@ const KEYS: Record<PromptButton, string> = {
  * Renders a controller/keyboard prompt. All variants are emitted and CSS picks one by
  * body class (input-gamepad / input-kbm, pad-ps), so prompts update instantly on mode change.
  */
-export function promptHtml(btn: PromptButton): string {
+export function promptHtml(btn: PromptButton, key?: string): string {
   const x = GLYPHS.xbox[btn];
   const ps = GLYPHS.playstation[btn];
   const shape = btn.length === 1 ? 'round' : 'pill';
   return (
     `<span class="glyph g-pad g-xbox ${shape} gx-${btn}">${x}</span>` +
     `<span class="glyph g-pad g-ps ${shape} gp-${btn}">${ps}</span>` +
-    `<span class="glyph g-key">${KEYS[btn]}</span>`
+    `<span class="glyph g-key">${key ?? KEYS[btn]}</span>`
   );
 }
 

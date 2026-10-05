@@ -64,6 +64,8 @@ export class PlayerController {
   sprinting = false;
   /** Set each step by the cover system (or null). */
   override: MoveOverride | null = null;
+  /** Ignore this step's crouch press (consumed by the cover system). */
+  swallowCrouch = false;
   speed = 0;
   localMove = { x: 0, z: 0 };
   private height: number = MOVEMENT.standHeight;
@@ -131,6 +133,11 @@ export class PlayerController {
     return this.sprint.blocksWeapon || this.roll.blocksWeapon;
   }
 
+  /** Cover takes over crouching: forget a pending crouch toggle. */
+  clearCrouchToggle(): void {
+    this.crouchToggled = false;
+  }
+
   /** Current capsule height (crouch-aware). */
   get capsuleHeight(): number {
     return this.height;
@@ -193,7 +200,9 @@ export class PlayerController {
     if (this.wish.lengthSquared() > 1) this.wish.normalize();
 
     // crouch / roll
-    if (!this.frozen && !ov && input.crouchPressed && this.grounded && !this.isRolling) {
+    const crouchPressed = input.crouchPressed && !this.swallowCrouch;
+    this.swallowCrouch = false;
+    if (!this.frozen && !ov && crouchPressed && this.grounded && !this.isRolling) {
       if (mag > 0.5 && this.roll.start()) {
         this.rollDir.copyFrom(this.wish).normalize();
         this.crouchToggled = false;

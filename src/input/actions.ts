@@ -9,6 +9,8 @@ export const BUTTON_ACTIONS = [
   'swapNext',
   'swapPrev',
   'interact',
+  /** Take/leave cover (touch button, controller B-hold, keyboard C). */
+  'cover',
   'pause',
   'grenade',
   'shoulderSwap',

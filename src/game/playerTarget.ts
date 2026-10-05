@@ -11,6 +11,7 @@ import { Health } from './health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from './damage';
 import type { Player } from '../player/player';
 import { hitVolumes, proportions } from '../player/proportions';
+import { DEBUG_VOLUMES, type DebugVolume } from '../ui/debugVolumes';
 
 /** Makes the local player damageable: health/shield + a kinematic hit capsule. */
 export class PlayerTarget implements Damageable {
@@ -42,7 +43,11 @@ export class PlayerTarget implements Damageable {
     this.body.shape = this.shape;
     this.body.disablePreStep = false;
     registry.register(this.body, this, 'body');
+    this.dbg = { node: this.node, kind: 'capsule', y0: hv.bodyY0, y1: hv.headY - hv.bodyR * 0.5, r: hv.bodyR, color: '#50a0ff' };
+    DEBUG_VOLUMES.add(this.dbg);
   }
+
+  private dbg: DebugVolume;
 
   get alive(): boolean {
     return this.health.alive;
@@ -59,7 +64,8 @@ export class PlayerTarget implements Damageable {
   /** Follow the controller. Crouch/roll shrink the target by lowering it. */
   sync(): void {
     this.node.position.copyFrom(this.player.position);
-    if (this.player.controller.crouched) this.node.position.y -= 0.5;
+    // crouching (incl. low cover) lowers the whole volume: only the top of the head clears waist-high cover
+    if (this.player.controller.crouched) this.node.position.y -= 0.65;
   }
 
   applyDamage(h: HitInfo): DamageResult {
@@ -82,6 +88,7 @@ export class PlayerTarget implements Damageable {
   }
 
   dispose(): void {
+    DEBUG_VOLUMES.delete(this.dbg);
     this.registry.unregisterBody(this.body);
     this.body.dispose();
     this.shape.dispose();

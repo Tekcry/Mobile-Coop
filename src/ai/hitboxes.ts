@@ -9,6 +9,7 @@ import {
 } from '../core/babylon';
 import { G } from '../physics/groups';
 import type { DamageRegistry, Damageable } from '../game/damage';
+import { DEBUG_VOLUMES, type DebugVolume } from '../ui/debugVolumes';
 import { hitVolumes, proportions, STANDARD_HEIGHT, type Build } from '../player/proportions';
 
 /**
@@ -22,6 +23,7 @@ export class Hitboxes {
   readonly head: PhysicsBody;
   private shapes: (PhysicsShapeCapsule | PhysicsShapeSphere)[] = [];
   private enabled = true;
+  private dbg: DebugVolume[];
 
   constructor(
     scene: Scene,
@@ -49,6 +51,11 @@ export class Hitboxes {
     this.head.disablePreStep = false;
     registry.register(this.body, target, 'body');
     registry.register(this.head, target, 'head');
+    this.dbg = [
+      { node: this.bodyNode, kind: 'capsule', y0: hv.bodyY0, y1: hv.bodyY1, r: hv.bodyR, color: '#ff5050' },
+      { node: this.headNode, kind: 'sphere', y0: 0, y1: 0, r: hv.headR, color: '#ffd040' },
+    ];
+    for (const d of this.dbg) DEBUG_VOLUMES.add(d);
   }
 
   /** Place at feet position; `headPos` from the rig's head node world position. */
@@ -69,6 +76,7 @@ export class Hitboxes {
   }
 
   dispose(): void {
+    for (const d of this.dbg) DEBUG_VOLUMES.delete(d);
     this.registry.unregisterBody(this.body);
     this.registry.unregisterBody(this.head);
     this.body.dispose();

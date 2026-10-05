@@ -4,6 +4,7 @@ import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
 import { AnimGraph, defaultInput, type AnimInput } from '../anim/animGraph';
 import { solveTwoBone } from '../anim/rigMath';
+import { DEBUG_RIGS } from '../ui/debugVolumes';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 export type PartFactory = (shape: PartShape, hex: string, slot: string) => AbstractMesh;
@@ -178,6 +179,7 @@ export class CharacterRig {
     this.hipSocket = n('hipHolster', this.hips, p.pelvis.w / 2 + 0.03, -0.02, 0.0);
     this.hipSocket.rotationQuaternion = Quaternion.RotationYawPitchRoll(0, Math.PI / 2 - 0.15, 0);
     this.buildParts(make, look, p, opts.armor ?? false);
+    DEBUG_RIGS.add(this);
   }
 
   /** All joints, for the debug skeleton view. Pairs of (parent, child). */
@@ -615,6 +617,7 @@ export class CharacterRig {
   }
 
   dispose(): void {
+    DEBUG_RIGS.delete(this);
     for (const m of this.parts) m.dispose();
     this.root.dispose();
   }

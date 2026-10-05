@@ -46,6 +46,8 @@ export class Hud {
   private modeInfo: HTMLElement;
   private bannerEl: HTMLElement;
   private interactEl: HTMLElement;
+  private coverEl: HTMLElement;
+  private coverState: HTMLElement;
   private feed: HTMLElement;
   private vignette: HTMLElement;
   private last: Partial<Record<string, string | number | boolean>> = {};
@@ -103,6 +105,8 @@ export class Hud {
     this.modeInfo = h('div', { class: 'hud-mode' });
     this.bannerEl = h('div', { class: 'hud-banner' });
     this.interactEl = h('div', { class: 'hud-interact' });
+    this.coverEl = h('div', { class: 'hud-interact hud-cover' });
+    this.coverState = h('div', { class: 'hud-cover-state' });
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
     this.minimapSlot = h('div', { class: 'hud-minimap' });
@@ -117,6 +121,8 @@ export class Hud {
       h('div', { class: 'hud-center' }, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
       this.interactEl,
+      this.coverEl,
+      this.coverState,
       this.feed,
     );
     parent.appendChild(this.el);
@@ -215,6 +221,21 @@ export class Hud {
     this.set('int', text ?? '', () => {
       this.interactEl.innerHTML = text ? `${promptHtml('Y')}<span>${text}</span>` : '';
       this.interactEl.classList.toggle('show', !!text);
+    });
+  }
+
+  /**
+   * Cover prompt (when cover is in reach) and the current cover state badge. Prompts render the
+   * controller glyph (hold B), keyboard key (C) or, on touch, just the text next to the cover button.
+   */
+  setCover(prompt: string | null, state: string | null): void {
+    this.set('coverP', prompt ?? '', () => {
+      this.coverEl.innerHTML = prompt ? `${promptHtml('B', 'C')}<span>${prompt}</span>` : '';
+      this.coverEl.classList.toggle('show', !!prompt);
+    });
+    this.set('coverS', state ?? '', () => {
+      this.coverState.innerHTML = state ? `${icon('cover', 16)}<span>${state}</span>` : '';
+      this.coverState.classList.toggle('show', !!state);
     });
   }
 

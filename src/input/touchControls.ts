@@ -24,6 +24,7 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   swap: { id: 'swap', action: 'swapNext', size: 58, icon: 'swap', label: 'Swap weapon' },
   grenade: { id: 'grenade', action: 'grenade', size: 54, icon: 'grenade', label: 'Grenade' },
   interact: { id: 'interact', action: 'interact', size: 60, icon: 'interact', label: 'Interact' },
+  cover: { id: 'cover', action: 'cover', size: 60, icon: 'cover', label: 'Cover' },
   shoulder: { id: 'shoulder', action: 'shoulderSwap', size: 46, icon: 'shoulder', label: 'Swap shoulder' },
   pause: { id: 'pause', action: 'pause', size: 44, icon: 'pause', label: 'Pause' },
 };

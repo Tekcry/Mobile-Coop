@@ -55,6 +55,8 @@ export class PlayerWeapons {
   private shotIndex = 0;
   private sinceShot = 99;
   infiniteAmmo = false;
+  /** Extra spread factor (blind fire from cover). */
+  spreadMul = 1;
   /** Last hitscan shot (debugging / tests). */
   lastShot: { origin: Vector3; aim: Vector3; hit: Vector3; target: string } | null = null;
   events: CombatEvents = {};
@@ -148,7 +150,7 @@ export class PlayerWeapons {
   currentSpread(): number {
     const s = this.current;
     const moving = Math.min(1, this.player.controller.speed / 5);
-    return spreadDeg(s.def, s.stats, this.player.cam.ads, moving, this.bloom);
+    return spreadDeg(s.def, s.stats, this.player.cam.ads, moving, this.bloom) * this.spreadMul;
   }
 
   addAmmo(fraction: number): void {

@@ -39,6 +39,8 @@ export { CreateGround } from '@babylonjs/core/Meshes/Builders/groundBuilder';
 export { CreatePlane } from '@babylonjs/core/Meshes/Builders/planeBuilder';
 export { CreateTorus } from '@babylonjs/core/Meshes/Builders/torusBuilder';
 export { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder';
+export { CreateLineSystem } from '@babylonjs/core/Meshes/Builders/linesBuilder';
+export type { LinesMesh } from '@babylonjs/core/Meshes/linesMesh';
 export { Observable } from '@babylonjs/core/Misc/observable';
 export { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 export { EngineInstrumentation } from '@babylonjs/core/Instrumentation/engineInstrumentation';

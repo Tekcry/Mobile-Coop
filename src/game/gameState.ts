@@ -33,6 +33,8 @@ import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
 import type { QualityLevel } from '../core/quality';
+import { MOVEMENT } from '../config/movement';
+import { CoverController } from '../cover/coverController';
 
 export type { ModeId };
 
@@ -93,6 +95,7 @@ export class GameState implements AppState {
   readonly target: PlayerTarget;
   readonly hud: Hud;
   readonly minimap: Minimap;
+  readonly cover: CoverController;
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
   private menuOpen = false;
@@ -146,6 +149,7 @@ export class GameState implements AppState {
     this.stats = emptyStats(opts.mode, opts.map.id);
     this.localRef = { id: 'local', target: this.target, feet: this.player.position, speed: 0, crouched: false };
     this.hud = new Hud(app.uiRoot);
+    this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
 
@@ -226,6 +230,7 @@ export class GameState implements AppState {
       this.hud.setObjective('Free roam - try every weapon');
     }
 
+    app.debug.controllerCapsules = () => [{ feet: this.player.position, height: this.player.controller.capsuleHeight, radius: MOVEMENT.radius }];
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
       return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(1)}${c.crouched ? ' crouch' : ''}${c.isRolling ? ' roll' : ''}`;
@@ -309,6 +314,7 @@ export class GameState implements AppState {
     this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
     this.app.input.touch.setControlHidden('interact', true);
+    this.app.input.touch.setControlHidden('cover', true);
     this.mode?.start();
   }
 
@@ -318,6 +324,7 @@ export class GameState implements AppState {
     this.audio?.dispose();
     this.app.input.setGameplayActive(false);
     this.app.debug.extra.delete('player');
+    this.app.debug.controllerCapsules = null;
     this.app.debug.extra.delete('ai');
     this.mode?.dispose();
     this.enemyMgr?.clear();
@@ -434,6 +441,8 @@ export class GameState implements AppState {
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
     if (this.player.rig.emote && (Math.hypot(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
+    this.cover.fixedUpdate(dt, inp);
+    this.weapons.spreadMul = this.cover.spreadMul;
     this.player.fixedUpdate(dt, inp);
     this.target.sync();
     this.weapons.fixedUpdate(dt, inp);
@@ -460,6 +469,7 @@ export class GameState implements AppState {
       this.respawnT -= dt;
       if (this.respawnT < 0) {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
+        this.cover.reset();
         this.player.controller.teleport(sp, this.player.cam.yaw);
         this.target.revive();
         // brief spawn protection
@@ -507,6 +517,34 @@ export class GameState implements AppState {
     this.updateHud();
   }
 
+  private coverLabel = '';
+
+  /** Contextual cover prompt, state badge and touch button. */
+  private updateCoverHud(): void {
+    const c = this.cover;
+    const st = c.state;
+    const stateText =
+      st === 'none' || st === 'vault' || st === 'dash'
+        ? null
+        : st === 'peek'
+          ? c.low
+            ? 'Aiming over'
+            : 'Peeking'
+          : st === 'blind'
+            ? 'Blind fire'
+            : c.low
+              ? 'Low cover'
+              : 'High cover';
+    const prompt = st === 'none' && c.candidate ? (this.app.input.mode === 'gamepad' ? 'Hold: Take cover' : 'Take cover') : null;
+    this.hud.setCover(prompt, stateText);
+    const show = !!c.candidate || c.inCover;
+    const label = c.inCover ? 'in' : show ? 'av' : '';
+    if (label !== this.coverLabel) {
+      this.coverLabel = label;
+      this.app.input.touch.setControlHidden('cover', !show);
+    }
+  }
+
   private updateHud(): void {
     const cam = this.player.cam;
     const w = this.weapons.current;
@@ -545,6 +583,7 @@ export class GameState implements AppState {
       if (b.kind === 'objective') f.markers.push({ bearing: Math.atan2(b.x - this.player.position.x, b.z - this.player.position.z), kind: 'objective' });
     }
     this.hud.update(f);
+    this.updateCoverHud();
     const p = this.player.controller.renderPos;
     this.minimap.draw(performance.now(), p.x, p.z, cam.yaw, blips);
   }

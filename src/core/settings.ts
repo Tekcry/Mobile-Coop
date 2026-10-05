@@ -11,6 +11,7 @@ export const TOUCH_CONTROL_IDS = [
   'swap',
   'grenade',
   'interact',
+  'cover',
   'shoulder',
   'pause',
 ] as const;
@@ -58,7 +59,7 @@ export interface Settings {
     showFps: boolean;
   };
   audio: { master: number; sfx: number; music: number; ui: number };
-  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean };
+  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; autoCover: boolean; coverDash: boolean };
 }
 
 export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
@@ -72,6 +73,7 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   swap: { x: 0.62, y: 0.88, scale: 0.85 },
   grenade: { x: 0.93, y: 0.42, scale: 0.8 },
   interact: { x: 0.62, y: 0.62, scale: 0.85 },
+  cover: { x: 0.62, y: 0.42, scale: 0.85 },
   shoulder: { x: 0.7, y: 0.09, scale: 0.75 },
   pause: { x: 0.79, y: 0.09, scale: 0.75 },
 };
@@ -103,7 +105,7 @@ export function defaultSettings(): Settings {
     mouse: { sensitivity: 1, invertY: false },
     video: { quality: 'auto', renderScale: 1, shadows: true, fov: 90, showFps: false },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, autoCover: false, coverDash: false },
   };
 }
 
@@ -180,6 +182,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       defaultShoulder: pick(gp.defaultShoulder, ['right', 'left'] as const, d.gameplay.defaultShoulder),
       adsToggle: bool(gp.adsToggle, d.gameplay.adsToggle),
       crouchToggle: bool(gp.crouchToggle, d.gameplay.crouchToggle),
+      autoCover: bool(gp.autoCover, d.gameplay.autoCover),
+      coverDash: bool(gp.coverDash, d.gameplay.coverDash),
     },
   };
 }

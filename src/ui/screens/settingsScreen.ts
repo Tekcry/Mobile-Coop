@@ -154,6 +154,8 @@ export class SettingsScreen extends Screen {
             choice('Default shoulder', [{ value: 'right', label: 'Right' }, { value: 'left', label: 'Left' }] as const, () => s().gameplay.defaultShoulder, (v) => upd((d) => void (d.gameplay.defaultShoulder = v))),
             choice('Aim down sights', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.adsToggle, (v) => upd((d) => void (d.gameplay.adsToggle = v))),
             choice('Crouch', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))),
+            toggle('Auto-snap to cover', () => s().gameplay.autoCover, (v) => upd((d) => void (d.gameplay.autoCover = v))),
+            toggle('Cover-to-cover dash', () => s().gameplay.coverDash, (v) => upd((d) => void (d.gameplay.coverDash = v))),
             section(
               'Mouse (desktop testing)',
               slider('Mouse sensitivity', { min: 0.2, max: 4, step: 0.05, get: () => s().mouse.sensitivity, set: (v) => upd((d) => void (d.mouse.sensitivity = v)), format: mult }),

@@ -17,6 +17,12 @@ import {
 } from '../core/babylon';
 import { G } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
+import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
+import { MOVEMENT } from '../config/movement';
+import { proportions } from '../player/proportions';
+
+/** Gap between a body in cover and the surface (shared by the player and AI). */
+export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
 
 export interface BoxPiece {
   c: [number, number, number];
@@ -43,6 +49,9 @@ export interface CoverPoint {
   normal: Vector3;
   /** Low cover can be shot over while crouched-peeking; high cover needs leaning out. */
   low: boolean;
+  /** Cover face this point lies on, and the position along it. */
+  seg: number;
+  s: number;
 }
 
 export interface BuiltLevel {
@@ -52,6 +61,8 @@ export interface BuiltLevel {
   boxes: BoxPiece[];
   cylinders: CylPiece[];
   cover: CoverPoint[];
+  /** Cover faces (player cover system + AI peeking). */
+  coverSegments: CoverSegment[];
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   dispose(): void;
 }
@@ -68,7 +79,6 @@ function hexToRgb(hex: string): [number, number, number] {
 export class LevelBuilder {
   readonly boxes: BoxPiece[] = [];
   readonly cylinders: CylPiece[] = [];
-  readonly cover: CoverPoint[] = [];
   bounds = { minX: -20, maxX: 20, minZ: -20, maxZ: 20 };
 
   box(cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, color: string, yaw = 0, pitch = 0, collide = true, visible = true): this {
@@ -125,39 +135,14 @@ export class LevelBuilder {
     return this;
   }
 
-  /** Waist-high cover with cover points on both long sides. */
+  /** Waist-high cover (cover faces are generated for every solid piece at build time). */
   lowCover(x: number, z: number, len: number, color: string, yaw = 0, h = 1.05, thick = 0.6): this {
-    this.box(x, h / 2, z, thick, h, len, color, yaw);
-    this.addCoverAlong(x, z, len, yaw, thick, true);
-    return this;
+    return this.box(x, h / 2, z, thick, h, len, color, yaw);
   }
 
-  /** Full-height cover wall chunk; cover points at both sides near the edges. */
+  /** Full-height cover wall chunk. */
   highCover(x: number, z: number, len: number, color: string, yaw = 0, h = 2.6, thick = 0.5): this {
-    this.box(x, h / 2, z, thick, h, len, color, yaw);
-    this.addCoverAlong(x, z, len, yaw, thick, false);
-    return this;
-  }
-
-  private addCoverAlong(x: number, z: number, len: number, yaw: number, thick: number, low: boolean): void {
-    // wall runs along local Z; its faces point along local X
-    const ax = Math.sin(yaw);
-    const az = Math.cos(yaw);
-    const nx = Math.cos(yaw);
-    const nz = -Math.sin(yaw);
-    const n = Math.max(1, Math.round(len / 1.6));
-    for (const side of [-1, 1]) {
-      for (let i = 0; i < n; i++) {
-        const t = n === 1 ? 0 : -len / 2 + 0.6 + ((len - 1.2) * i) / (n - 1);
-        const off = thick / 2 + 0.55;
-        this.cover.push({
-          pos: new Vector3(x + ax * t + nx * off * side, 0, z + az * t + nz * off * side),
-          // The protected side is the opposite face.
-          normal: new Vector3(-nx * side, 0, -nz * side),
-          low,
-        });
-      }
-    }
+    return this.box(x, h / 2, z, thick, h, len, color, yaw);
   }
 
   /** Bounding walls around the play area. */
@@ -250,13 +235,22 @@ export class LevelBuilder {
     const body = new PhysicsBody(root, PhysicsMotionType.STATIC, false, scene);
     body.shape = container;
 
+    const coverSegments = buildCoverSegments(this.boxes, this.cylinders);
+    const cover: CoverPoint[] = coverPointsFromSegments(coverSegments, COVER_STANDOFF).map((p) => ({
+      pos: new Vector3(p.x, p.y, p.z),
+      normal: new Vector3(p.nx, 0, p.nz),
+      low: p.low,
+      seg: p.seg,
+      s: p.s,
+    }));
     return {
       root,
       body,
       meshes,
       boxes: this.boxes,
       cylinders: this.cylinders,
-      cover: this.cover,
+      cover,
+      coverSegments,
       bounds: this.bounds,
       dispose: () => {
         body.dispose();

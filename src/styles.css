@@ -1706,3 +1706,60 @@ body {
   flex-wrap: wrap;
   gap: 8px;
 }
+.debug-tools {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  pointer-events: auto;
+}
+.debug-tools button {
+  font: inherit;
+  color: #cfe;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 3px;
+  padding: 3px 6px;
+}
+.debug-tools button.on {
+  background: rgba(80, 224, 128, 0.35);
+}
+.debug-tune {
+  pointer-events: auto;
+  margin-top: 4px;
+  display: grid;
+  gap: 2px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+.debug-tune label {
+  display: grid;
+  grid-template-columns: 92px 110px 34px;
+  align-items: center;
+  gap: 4px;
+}
+.debug-tune input {
+  width: 110px;
+}
+.hud-cover {
+  top: 72%;
+}
+.hud-cover-state {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--sab) + 18%);
+  transform: translateX(-50%);
+  display: none;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #cfe8ff;
+  background: rgba(10, 13, 18, 0.5);
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.hud-cover-state.show {
+  display: flex;
+}

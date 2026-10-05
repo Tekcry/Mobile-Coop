@@ -9,7 +9,8 @@ import type { World } from '../world/world';
 import type { Ballistics } from '../weapons/ballistics';
 import type { Vfx } from '../vfx/vfx';
 import type { NavGrid, P2 } from './navGrid';
-import type { CoverPoint } from '../world/levelBuilder';
+import { COVER_STANDOFF, type CoverPoint } from '../world/levelBuilder';
+import { coverPose, nearestEdge, type CoverSegment } from '../cover/coverData';
 import { DIFFICULTY, type Difficulty, type EnemyDef } from './enemyDefs';
 import { G, MASK } from '../physics/groups';
 import { spreadDir } from '../weapons/ballistics';
@@ -39,6 +40,8 @@ export interface AiContext {
   flow(): Float32Array;
   enemies(): readonly Enemy[];
   cover: readonly CoverPoint[];
+  /** Cover faces (for peeking around the nearest edge). */
+  coverSegments: readonly CoverSegment[];
   reserveCover(e: Enemy, idx: number): boolean;
   releaseCover(e: Enemy): void;
   onKilled(e: Enemy, h: HitInfo): void;
@@ -92,6 +95,8 @@ export class Enemy implements Damageable {
   private coverPicked = false;
   private flash = 0;
   alerted = false;
+  private coverPose: 'none' | 'low' | 'high' = 'none';
+  private coverPeek = 0;
 
   constructor(
     private ctx: AiContext,
@@ -139,6 +144,10 @@ export class Enemy implements Damageable {
 
   private setState(s: EnemyState): void {
     if (this.state === s) return;
+    if (s !== 'inCover') {
+      this.coverPose = 'none';
+      this.coverPeek = 0;
+    }
     if (this.state === 'inCover' || this.state === 'seekCover') {
       if (s !== 'inCover') this.ctx.releaseCover(this);
     }
@@ -341,11 +350,22 @@ export class Enemy implements Damageable {
           this.tryFire(dt);
           if (cycle > 3.55) this.peekCycles++;
         }
-        // high cover: step out sideways to peek
+        // high cover: step out past the nearest edge to peek (same faces the player uses)
         let pt: P2 = [cp.pos.x, cp.pos.z];
+        this.coverPose = cp.low ? 'low' : 'high';
+        this.coverPeek = 0;
         if (!cp.low && peeking) {
-          const side = this.strafe;
-          pt = [cp.pos.x - cp.normal.z * 0.9 * side, cp.pos.z + cp.normal.x * 0.9 * side];
+          const seg = this.ctx.coverSegments[cp.seg];
+          const edge = seg ? nearestEdge(seg, cp.s) : null;
+          if (seg && edge && edge.dist < 3) {
+            const p = coverPose(seg, edge.side < 0 ? -0.45 : seg.len + 0.45, COVER_STANDOFF + 0.2);
+            pt = [p.x, p.z];
+            // lean towards the open side, seen from the enemy (facing the cover)
+            this.coverPeek = -edge.side;
+          } else {
+            const side = this.strafe;
+            pt = [cp.pos.x - cp.normal.z * 0.9 * side, cp.pos.z + cp.normal.x * 0.9 * side];
+          }
         }
         return { point: pt, speed: def.walkSpeed, face: toTarget };
       }
@@ -568,6 +588,8 @@ export class Enemy implements Damageable {
       aim: aiming,
       kick: this.def.melee ? 0 : this.kick,
       melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
+      cover: this.coverPose,
+      peek: this.coverPeek,
       sprint: !this.def.melee && sp > this.def.runSpeed * 0.8 && aiming < 0.5,
     });
     this.rig.headNode.computeWorldMatrix(true);
