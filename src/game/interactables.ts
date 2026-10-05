@@ -1,4 +1,5 @@
-import { TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
+import type { Vector3} from '../core/babylon';
+import { TransformNode, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
 import type { PartLibrary } from '../world/partLibrary';
 
 export type InteractKind = 'terminal' | 'cache' | 'extract';
@@ -40,7 +41,7 @@ export class Interactables {
       ps.push(m);
       return m;
     };
-    let light: InstancedMesh | null = null;
+    let light: InstancedMesh;
     if (kind === 'terminal') {
       add('box', '#3a4048', [0.7, 1.1, 0.45], [0, 0.55, 0]);
       add('box', '#1c1f24', [0.6, 0.4, 0.05], [0, 0.95, 0.24]);
