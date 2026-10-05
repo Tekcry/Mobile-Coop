@@ -132,7 +132,7 @@ export class TraversalController {
    * Fixed step. `jumpPressed` is the contextual action; `blocked` while another system (cover) owns
    * the controller. Returns true while a traversal drives the player.
    */
-  fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean): boolean {
+  fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null): boolean {
     const p = this.player;
     const c = p.controller;
     const pose = p.coverPose;
@@ -160,7 +160,7 @@ export class TraversalController {
     this.probeT -= dt;
     if (this.probeT <= 0 || jumpPressed) {
       this.probeT = 0.2;
-      const d = this.probeDir();
+      const d = dir ?? this.probeDir();
       this.hint = this.probe(c.pos, d.x, d.z);
       if (this.hint) this.dir.set(d.x, 0, d.z);
     }

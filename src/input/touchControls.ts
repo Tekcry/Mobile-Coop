@@ -36,7 +36,7 @@ const STICK_RADIUS = 56;
 type PointerRole =
   | { kind: 'move'; ox: number; oy: number }
   | { kind: 'look'; lx: number; ly: number }
-  | { kind: 'button'; id: TouchControlId; lx: number; ly: number };
+  | { kind: 'button'; id: TouchControlId; lx: number; ly: number; ox: number; oy: number; swiped?: boolean };
 
 /** On-screen dual-stick controls. All positions come from settings (editable layout). */
 export class TouchControls {
@@ -137,8 +137,9 @@ export class TouchControls {
     if (target && !target.classList.contains('tc-hidden')) {
       const id = target.dataset.control as TouchControlId;
       const def = TOUCH_DEFS[id];
-      this.pointers.set(e.pointerId, { kind: 'button', id, lx: e.clientX, ly: e.clientY });
-      if (def.action) this.state.set(`touch-${id}`, def.action, true);
+      this.pointers.set(e.pointerId, { kind: 'button', id, lx: e.clientX, ly: e.clientY, ox: e.clientX, oy: e.clientY });
+      // the cover button acts on release: a tap takes/leaves cover, a swipe moves cover-to-cover
+      if (def.action && id !== 'cover') this.state.set(`touch-${id}`, def.action, true);
       target.classList.add('active');
       this.haptic(8);
       return;
@@ -179,6 +180,17 @@ export class TouchControls {
       }
       this.knob.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       this.state.setMove('touch-move', dx / rad, -dy / rad);
+    } else if (role.kind === 'button' && role.id === 'cover' && !role.swiped) {
+      // swiping off the cover button: move to cover in that direction (or out of cover that way)
+      const dx = e.clientX - role.ox;
+      const dy = e.clientY - role.oy;
+      const d = Math.hypot(dx, dy);
+      if (d > 38) {
+        role.swiped = true;
+        this.state.coverSwipe.x = dx / d;
+        this.state.coverSwipe.y = -dy / d;
+        this.haptic(12);
+      }
     } else if (role.kind === 'look' || (role.kind === 'button' && TOUCH_DEFS[role.id].look)) {
       this.lookDelta(e.clientX - role.lx, e.clientY - role.ly);
       role.lx = e.clientX;
@@ -203,7 +215,9 @@ export class TouchControls {
       this.applyLayout();
     } else if (role.kind === 'button') {
       const def = TOUCH_DEFS[role.id];
-      if (def.action) this.state.set(`touch-${role.id}`, def.action, false);
+      if (role.id === 'cover') {
+        if (!role.swiped) this.state.tap('cover');
+      } else if (def.action) this.state.set(`touch-${role.id}`, def.action, false);
       this.elements.get(role.id)?.classList.remove('active');
     }
   }

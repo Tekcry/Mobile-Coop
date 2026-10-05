@@ -6,8 +6,8 @@
  *   in --fire, no aim--> blind (inaccurate, minimal exposure) --stop--> in
  *   in --push past an outside corner--> corner (pivot round it) --> in
  *   in --jump at low cover (landing clear)--> vault --> none
- *   in --cover + push away (setting)--> dash (run to the next cover) --> enter
- *   in --cover/crouch again, sprint, roll, jump at high cover, back away, cover gone, death--> none
+ *   in --dash, or cover + push towards a marked cover--> dash (run, or SWAT turn, to it) --> enter
+ *   in --cover/crouch again, dash with no target, jump at high cover, back away, cover gone, death--> none
  */
 export type CoverStateName = 'none' | 'enter' | 'in' | 'peek' | 'blind' | 'corner' | 'vault' | 'dash';
 
@@ -27,8 +27,10 @@ export interface CoverInput {
   cornerPush: number;
   low: boolean;
   canVault: boolean;
-  /** A dash target exists (setting on, cover in the push direction). */
+  /** A dash target exists (setting on, cover in the push / look direction). */
   canDash: boolean;
+  /** Dash pressed (or a swipe on the touch cover button) this step. */
+  dashPressed: boolean;
   /** Dash arrived at its target. */
   arrived: boolean;
 }
@@ -36,7 +38,7 @@ export interface CoverInput {
 export const ENTER_TIME = 0.25;
 export const CORNER_TIME = 0.35;
 export const VAULT_TIME = 0.55;
-export const AWAY_TIME = 0.2;
+export const AWAY_TIME = 0.3;
 export const CORNER_HOLD = 0.25;
 export const BLIND_RELEASE = 0.25;
 export const DASH_TIMEOUT = 2.5;
@@ -56,6 +58,7 @@ export function emptyCoverInput(): CoverInput {
     low: true,
     canVault: false,
     canDash: false,
+    dashPressed: false,
     arrived: false,
   };
 }
@@ -131,7 +134,7 @@ export class CoverStateMachine {
           this.go('none', 'gone');
           break;
         }
-        if (i.coverPressed && i.away > 0.5 && i.canDash) {
+        if (i.canDash && (i.dashPressed || (i.coverPressed && i.away > 0.5))) {
           this.go('dash', 'dash');
           break;
         }
@@ -148,7 +151,8 @@ export class CoverStateMachine {
           else this.go('none', 'jump');
           break;
         }
-        this.awayT = i.away > 0.6 && !i.ads ? this.awayT + dt : 0;
+        // sticky but not trapping: a firm push away for a moment leaves cover
+        this.awayT = i.away > 0.75 && !i.ads ? this.awayT + dt : 0;
         if (this.awayT >= AWAY_TIME) {
           this.go('none', 'backed-off');
           break;

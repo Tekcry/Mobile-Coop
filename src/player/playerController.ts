@@ -22,6 +22,8 @@ export interface MoveOverride {
   yaw?: number;
   crouch?: boolean;
   kinematic?: Vector3;
+  /** Turn rate (rad/s) towards `yaw` (default: the moving turn rate). */
+  turnRate?: number;
 }
 
 export interface PlayerInput {
@@ -329,11 +331,11 @@ export class PlayerController {
     this.speed = Math.hypot(v.x, v.z);
     const aiming = input.ads || input.aiming;
     if (ov?.yaw !== undefined) {
-      this.yaw = turnTowards(this.yaw, ov.yaw, T.turnMoving * dt);
+      this.yaw = turnTowards(this.yaw, ov.yaw, (ov.turnRate ?? T.turnMoving) * dt);
     } else if (this.dash.dashing) {
       this.yaw = turnTowards(this.yaw, Math.atan2(this.dashDir.x, this.dashDir.z), turnRate(false, this.speed, true) * 2.5 * dt);
     } else {
-      const rate = this.pivotT > 0 ? Math.PI / T.pivotTime : turnRate(aiming, this.speed, false);
+      const rate = ov?.turnRate ?? (this.pivotT > 0 ? Math.PI / T.pivotTime : turnRate(aiming, this.speed, false));
       this.yaw = turnTowards(this.yaw, camYaw, rate * dt);
     }
     // local move for animation
@@ -343,7 +345,8 @@ export class PlayerController {
     this.localMove.x = (v.x * c - v.z * s) * invS;
     this.localMove.z = (v.x * s + v.z * c) * invS;
     // kneel: crouched and still for a moment
-    this.stillT = this.crouched && this.speed < 0.1 ? this.stillT + dt : 0;
+    // (stick idle and barely moving: small standoff corrections in cover do not count as moving)
+    this.stillT = this.crouched && mag < 0.1 && this.speed < 0.4 ? this.stillT + dt : 0;
     this.kneeling = this.stillT > 0.25;
     this.crouchBlend += ((this.crouched ? 1 : 0) - this.crouchBlend) * Math.min(1, (dt / T.crouchTime) * 3);
   }

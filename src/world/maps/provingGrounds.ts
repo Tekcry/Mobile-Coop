@@ -48,6 +48,7 @@ export const provingGrounds: MapDef = {
     // cover garden (centre / south)
     b.lowCover(-5, -6, 4, C.wall);
     b.lowCover(5, -6, 4, C.wall);
+    b.lowCover(-5, -1.2, 2.4, C.wall); // in line with the one above, 1.6 m gap: SWAT turn
     b.lowCover(0, -12, 6, C.wall, Math.PI / 2);
     b.highCover(-10, 2, 4, C.wallDark);
     b.highCover(10, 2, 4, C.wallDark);

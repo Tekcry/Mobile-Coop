@@ -6,17 +6,33 @@ import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { awayAmount, clampAlong, coverPose, EDGE_MARGIN, findSnap, locate, nearestEdge, projectOnTangent, type CoverSegment } from './coverData';
-import { CORNER_TIME, CoverStateMachine, emptyCoverInput, VAULT_TIME, type CoverStateName } from './coverState';
+import { CORNER_TIME, CoverStateMachine, emptyCoverInput, ENTER_TIME, VAULT_TIME, type CoverStateName } from './coverState';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 const ease = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
+/** Turn-and-swap when reversing direction along cover (s). */
+export const SWAP_TIME = 0.3;
+/** SWAT turn speed (m/s): low and quick across a gap to the next collinear cover. */
+export const SWAT_SPEED = 2.8;
+
+export interface CoverTarget {
+  seg: CoverSegment;
+  s: number;
+  kind: 'dash' | 'swat';
+  x: number;
+  z: number;
+}
+
 /**
- * Player cover: finds cover faces near the player, snaps into them with an eased move, strafes
- * along them, peeks/blind-fires, pivots round outside corners, vaults low cover and (optionally)
- * dashes to the next cover. Drives the character controller through `controller.override` and the
- * animation through `player.coverPose`. All checks against the world are raycasts, so destroyed or
- * moved geometry simply makes the cover invalid and the player steps out.
+ * Player cover: finds cover faces near the player, snaps into them with an eased move (or a slide
+ * when dashing in), holds a side-on stance with the shoulder to the surface (reversing direction
+ * plays a turn-and-swap), strafes along the face, peeks over low cover or leans out in place at high
+ * cover edges, blind-fires, pivots round outside corners, turns onto the adjoining face at inside
+ * corners, vaults low cover and moves cover-to-cover (bounding dash or a low SWAT turn across a gap)
+ * to the marked target. Drives the controller through `controller.override` and the animation
+ * through `player.coverPose`. All checks against the world are raycasts, so destroyed or moved
+ * geometry simply makes the cover invalid and the player steps out.
  */
 export class CoverController {
   readonly sm = new CoverStateMachine();
@@ -39,8 +55,20 @@ export class CoverController {
   private savedShoulder: 1 | -1 | null = null;
   private corner: { cx: number; cz: number; from: Vector3; next: CoverSegment; nextS: number } | null = null;
   private vault: { from: Vector3; to: Vector3; top: number } | null = null;
-  private dashTo: { seg: CoverSegment; s: number } | null = null;
+  private dashTo: CoverTarget | null = null;
   private recheckT = 0;
+  /** Facing along the tangent (+1 / -1) while side-on, and the turn-and-swap timer (< 0 = none). */
+  faceDir: 1 | -1 = 1;
+  swapT = -1;
+  /** Turn-and-swaps so far (debug overlay / tests). */
+  swaps = 0;
+  /** Marked cover-to-cover target (shown on the HUD), refreshed a few times a second. */
+  target: CoverTarget | null = null;
+  private targetT = 0;
+  private insideT = 0;
+  private slide = false;
+  /** Direction to probe for a mantle after jumping out of cover (consumed by traversal). */
+  exitDir: { x: number; z: number } | null = null;
   /** Spread multiplier requested for blind fire. */
   spreadMul = 1;
 
@@ -101,17 +129,17 @@ export class CoverController {
     const p = this.player;
     const c = p.controller;
     this.candidate = null;
-    if (!p.alive || !c.grounded || c.isRolling) return;
+    if (!p.alive || !c.grounded) return;
     // facing: move direction if moving, else where the body faces
     const dir = w.mag > 0 ? w : { x: Math.sin(c.yaw), z: Math.cos(c.yaw) };
     const hit = findSnap(this.segments, { x: p.position.x, y: p.position.y, z: p.position.z, dirX: dir.x, dirZ: dir.z, reach: 1.6 });
     if (hit && this.snapClear(hit.seg, hit.s)) this.candidate = hit;
   }
 
-  private findDash(w: { x: number; z: number; mag: number }): { seg: CoverSegment; s: number } | null {
+  private findDash(w: { x: number; z: number; mag: number }): CoverTarget | null {
     if (!this.settings().gameplay.coverDash || w.mag === 0 || !this.seg) return null;
     const feet = this.player.position;
-    let best: { seg: CoverSegment; s: number } | null = null;
+    let best: CoverTarget | null = null;
     let bd = Infinity;
     for (const seg of this.segments) {
       if (seg.piece === this.seg.piece || Math.abs(seg.y - feet.y) > 0.6) continue;
@@ -126,7 +154,66 @@ export class CoverController {
       if (loc.dist < 0.2) continue;
       if (d < bd && !this.ray(this.from.set(feet.x, feet.y + 0.9, feet.z), this.to.set(p.x, feet.y + 0.9, p.z))) {
         bd = d;
-        best = { seg, s };
+        best = { seg, s, kind: 'dash', x: p.x, z: p.z };
+      }
+    }
+    return best;
+  }
+
+  /**
+   * SWAT turn: at an edge, pushing past it, with another face continuing in line beyond a gap
+   * (0.4-3.5 m): cross low and quick to it.
+   */
+  private findSwat(along: number): CoverTarget | null {
+    const seg = this.seg;
+    if (!seg || Math.abs(along) < 0.4) return null;
+    const side = along > 0 ? 1 : -1;
+    const e = nearestEdge(seg, this.s);
+    if (e.side !== side || e.dist > EDGE_MARGIN + 0.35) return null;
+    const ex = side > 0 ? seg.bx : seg.ax;
+    const ez = side > 0 ? seg.bz : seg.az;
+    let best: CoverTarget | null = null;
+    let bd = Infinity;
+    for (const o of this.segments) {
+      if (o.piece === seg.piece || o.len < 0.8) continue;
+      if (o.nx * seg.nx + o.nz * seg.nz < 0.9) continue;
+      // in line with this face
+      if (Math.abs((o.ax - seg.ax) * seg.nx + (o.az - seg.az) * seg.nz) > 0.35) continue;
+      const da = ((o.ax - ex) * seg.tx + (o.az - ez) * seg.tz) * side;
+      const db = ((o.bx - ex) * seg.tx + (o.bz - ez) * seg.tz) * side;
+      const gap = Math.min(da, db);
+      if (gap < 0.4 || gap > 3.5 || gap >= bd) continue;
+      // land just inside the near end of the next face
+      const nearA = da <= db;
+      const s = nearA ? EDGE_MARGIN + 0.1 : o.len - EDGE_MARGIN - 0.1;
+      const p = coverPose(o, s, COVER_STANDOFF);
+      const y = this.player.position.y + 0.6;
+      const f = this.player.position;
+      if (this.ray(this.from.set(f.x, y, f.z), this.to.set(p.x, y, p.z))) continue;
+      bd = gap;
+      best = { seg: o, s, kind: 'swat', x: p.x, z: p.z };
+    }
+    return best;
+  }
+
+  /** Adjoining face at an inside corner, ahead along the tangent in `dir`. */
+  private insideNext(dir: number): { seg: CoverSegment; s: number } | null {
+    const seg = this.seg!;
+    const f = this.player.position;
+    const dx = seg.tx * dir;
+    const dz = seg.tz * dir;
+    let best: { seg: CoverSegment; s: number } | null = null;
+    let bd = Infinity;
+    for (const o of this.segments) {
+      if (o === seg || o.nx * dx + o.nz * dz > -0.7) continue;
+      const loc = locate(o, f.x, f.z);
+      if (loc.dist < -0.2 || loc.dist > 1.4) continue;
+      if (loc.s < -0.3 || loc.s > o.len + 0.3) continue;
+      if (loc.dist < bd) {
+        bd = loc.dist;
+        // step off the corner along the new face, away from the old wall
+        const away = (o.tx * seg.nx + o.tz * seg.nz) >= 0 ? 1 : -1;
+        best = { seg: o, s: clampAlong(o, loc.s + away * 0.35).s };
       }
     }
     return best;
@@ -192,14 +279,35 @@ export class CoverController {
     return this.goneT < 0.12;
   }
 
-  private enter(seg: CoverSegment, s: number): void {
+  private enter(seg: CoverSegment, s: number, face?: 1 | -1): void {
+    const c = this.player.controller;
     this.seg = seg;
     this.s = s;
     this.enterFrom.copyFrom(this.player.position);
     const cls = this.probeHeight(this.player.position.x, this.player.position.y, this.player.position.z, seg);
     this.low = cls ? cls === 'low' : seg.low;
-    this.player.controller.clearCrouchToggle();
+    c.clearCrouchToggle();
+    // side-on: face along the face towards where the camera looks
+    const yaw = this.player.cam.yaw;
+    this.faceDir = face ?? (Math.sin(yaw) * seg.tx + Math.cos(yaw) * seg.tz >= 0 ? 1 : -1);
+    this.swapT = -1;
+    this.insideT = 0;
+    // arriving at speed (bounding dash) slides in
+    this.slide = c.dashing || c.speed > 3;
+    if (c.dashing) c.dash.stop();
     this.sm.snap();
+  }
+
+  private faceYaw(seg: CoverSegment, dir: number): number {
+    return Math.atan2(seg.tx * dir, seg.tz * dir);
+  }
+
+  /** Wall side in the character's frame when facing along the tangent (-1 left, 1 right). */
+  private wallSide(seg: CoverSegment, dir: number): number {
+    const fx = seg.tx * dir;
+    const fz = seg.tz * dir;
+    // right of facing f = (f.z, -f.x); the wall is towards -n
+    return -(seg.nx * fz - seg.nz * fx) >= 0 ? 1 : -1;
   }
 
   private setShoulder(side: 1 | -1 | null): void {
@@ -213,11 +321,25 @@ export class CoverController {
     cam.shoulder = side;
   }
 
+  /** Swipe on the touch cover button -> camera-relative world direction (consumed). */
+  private takeSwipe(inp: InputState): { x: number; z: number; mag: number } | null {
+    const sw = inp.coverSwipe;
+    if (sw.x === 0 && sw.y === 0) return null;
+    const yaw = this.player.cam.yaw;
+    const fx = Math.sin(yaw);
+    const fz = Math.cos(yaw);
+    const out = { x: fz * sw.x + fx * sw.y, z: -fx * sw.x + fz * sw.y, mag: 1 };
+    sw.x = sw.y = 0;
+    return out;
+  }
+
   /** Run before the player's own fixed step. */
   fixedUpdate(dt: number, inp: InputState): void {
     const p = this.player;
     const c = p.controller;
-    const w = this.wish(inp);
+    const swipe = this.takeSwipe(inp);
+    const w = swipe ?? this.wish(inp);
+    this.exitDir = null;
     const wasIn = this.sm.inCover || this.sm.state === 'vault' || this.sm.state === 'dash';
     if (!this.sm.inCover && this.sm.state !== 'vault' && this.sm.state !== 'dash') this.findCandidate(w);
     else this.candidate = null;
@@ -226,10 +348,10 @@ export class CoverController {
     const seg = this.seg;
     const ci = emptyCoverInput();
     ci.alive = p.alive;
-    ci.coverPressed = inp.pressed('cover');
+    ci.coverPressed = inp.pressed('cover') || (!!swipe && !this.sm.inCover);
     ci.crouchPressed = inp.pressed('crouch');
     ci.jumpPressed = inp.pressed('jump');
-    ci.sprint = inp.down('dash') && w.mag > 0.5;
+    ci.dashPressed = inp.pressed('dash') || (!!swipe && this.sm.inCover);
     ci.ads = p.ads || inp.down('ads');
     ci.fire = inp.down('fire');
     ci.low = this.low;
@@ -242,28 +364,39 @@ export class CoverController {
       const edge = clampAlong(seg, loc.s, EDGE_MARGIN + 0.04).edge;
       if (edge !== 0 && Math.sign(along) === edge && Math.abs(along) > 0.5 && this.cornerTarget(edge)) ci.cornerPush = edge;
       if (ci.jumpPressed) ci.canVault = this.canVault();
-      if (ci.coverPressed) {
-        const d = this.findDash(w);
-        ci.canDash = !!d;
-        this.dashTo = d;
-      }
-    }
+      // cover-to-cover target: SWAT turn past the edge we push towards, else cover in the push/look direction
+      this.targetT -= dt;
+      if (this.sm.state === 'in' && (this.targetT <= 0 || ci.dashPressed || ci.coverPressed)) {
+        this.targetT = 0.2;
+        const yaw = p.cam.yaw;
+        const look = { x: Math.sin(yaw), z: Math.cos(yaw), mag: 1 };
+        const dir = w.mag > 0.3 && (ci.away > 0.3 || swipe) ? w : look;
+        this.target = this.findSwat(along) ?? this.findDash(dir);
+      } else if (this.sm.state !== 'in') this.target = null;
+      const t = this.target;
+      ci.canDash = !!t && (t.kind === 'swat' || c.dash.canStart);
+      if (ci.canDash && (ci.dashPressed || ci.coverPressed)) this.dashTo = t;
+      // dash with nowhere to go: break out of cover and dash in the stick direction
+      ci.sprint = ci.dashPressed && !ci.canDash && w.mag > 0.5;
+    } else this.target = null;
     if (this.sm.state === 'dash' && this.dashTo) {
-      const t = coverPose(this.dashTo.seg, this.dashTo.s, COVER_STANDOFF);
-      ci.arrived = Math.hypot(t.x - p.position.x, t.z - p.position.z) < 0.6;
+      ci.arrived = Math.hypot(this.dashTo.x - p.position.x, this.dashTo.z - p.position.z) < 0.5;
     }
-    // rolling out of cover: let the press through to the controller
-    const rollOut = ci.crouchPressed && w.mag > 0.5 && this.sm.inCover;
     const prev = this.sm.state;
     const st = this.sm.step(dt, ci);
     if (st !== prev) this.onTransition(prev, st);
+    if (prev !== 'none' && st === 'none' && this.sm.reason === 'jump' && seg) this.exitDir = { x: -seg.nx, z: -seg.nz };
 
-    // --- entering from outside
+    // --- entering from outside: press (or swipe), auto-cover, or dashing straight into a face
     if (st === 'none' && !wasIn && this.candidate) {
-      const auto = this.settings().gameplay.autoCover && c.speed > 1 && this.candidate && w.mag > 0.5 && -(w.x * this.candidate.seg.nx + w.z * this.candidate.seg.nz) > 0.8 && locate(this.candidate.seg, p.position.x, p.position.z).dist < COVER_STANDOFF + 0.45;
-      if (ci.coverPressed || auto) this.enter(this.candidate.seg, this.candidate.s);
+      const cand = this.candidate;
+      const into = -(w.x * cand.seg.nx + w.z * cand.seg.nz);
+      const dist = locate(cand.seg, p.position.x, p.position.z).dist;
+      const auto = this.settings().gameplay.autoCover && c.speed > 0.7 && w.mag > 0.5 && into > 0.8 && dist < COVER_STANDOFF + 0.45;
+      const dashIn = c.dashing && into > 0.7 && dist < COVER_STANDOFF + 0.9;
+      if (ci.coverPressed || auto || dashIn) this.enter(cand.seg, cand.s);
     }
-    if (st !== prev && prev !== 'none' && this.sm.state === 'none' && (ci.crouchPressed || ci.coverPressed) && !rollOut) c.swallowCrouch = true;
+    if (st !== prev && prev !== 'none' && this.sm.state === 'none' && (ci.crouchPressed || ci.coverPressed)) c.swallowCrouch = true;
     this.act(dt, inp, w);
   }
 
@@ -302,15 +435,20 @@ export class CoverController {
       if (this.rr.hasHit) to.y = this.rr.hitPoint.y;
       this.vault = { from: feet.clone(), to, top: seg.y + seg.height + 0.12 };
     }
-    if (st === 'dash') this.seg = null;
+    if (st === 'dash') {
+      this.seg = null;
+      this.target = null;
+      if (this.dashTo?.kind === 'dash') p.controller.dash.start();
+    }
     if (st === 'enter' && prev === 'dash' && this.dashTo) {
-      this.seg = this.dashTo.seg;
-      this.s = this.dashTo.s;
-      const cls = this.probeHeight(p.position.x, p.position.y, p.position.z, this.seg);
-      this.low = cls ? cls === 'low' : this.seg.low;
-      this.enterFrom.copyFrom(p.position);
+      const swat = this.dashTo.kind === 'swat';
+      const dir = this.faceDir;
+      this.enter(this.dashTo.seg, this.dashTo.s, swat ? dir : undefined);
+      this.slide = !swat;
     }
     if (st === 'none') {
+      this.slide = false;
+      this.swapT = -1;
       this.setShoulder(null);
       if (prev === 'vault') p.controller.vel.reset();
       this.seg = null;
@@ -328,6 +466,8 @@ export class CoverController {
     pose.blind = false;
     pose.lean = 0;
     pose.peekOver = 0;
+    pose.slide = -1;
+    pose.wallSide = 0;
     if (pose.traverse === 'vault') pose.traverse = 'none';
     const st = this.sm.state;
     if (st === 'none') {
@@ -336,14 +476,16 @@ export class CoverController {
       return;
     }
     if (st === 'dash' && this.dashTo) {
-      const t = coverPose(this.dashTo.seg, this.dashTo.s, COVER_STANDOFF);
+      const t = this.dashTo;
+      const swat = t.kind === 'swat';
       const dx = t.x - p.position.x;
       const dz = t.z - p.position.z;
       const d = Math.hypot(dx, dz) || 1;
-      const v = MOVEMENT.dashSpeed;
+      // ease off over the last metre so the arrival blends into the snap
+      const v = (swat ? SWAT_SPEED : MOVEMENT.dashSpeed) * Math.min(1, 0.45 + d * 0.55);
       this.vel.x = (dx / d) * v;
       this.vel.z = (dz / d) * v;
-      c.override = { velocity: this.vel, yaw: Math.atan2(dx, dz), crouch: false };
+      c.override = { velocity: this.vel, yaw: Math.atan2(dx, dz), crouch: swat, turnRate: swat ? 12 : 6 };
       pose.cover = 'none';
       return;
     }
@@ -373,13 +515,14 @@ export class CoverController {
       const a = a0 + (a1 - a0) * k;
       const r = r0 + (r1 - r0) * k;
       this.kin.set(cr.cx + Math.cos(a) * r, p.position.y, cr.cz + Math.sin(a) * r);
-      // face the surface as it turns
-      const yaw0 = Math.atan2(-seg.nx, -seg.nz);
-      let yaw1 = Math.atan2(-cr.next.nx, -cr.next.nz);
+      // side-on all the way round: facing along the face, then along the next face
+      const yaw0 = this.faceYaw(seg, this.faceDir);
+      let yaw1 = this.faceYaw(cr.next, this.faceDir);
       while (yaw1 - yaw0 > Math.PI) yaw1 -= Math.PI * 2;
       while (yaw1 - yaw0 < -Math.PI) yaw1 += Math.PI * 2;
-      c.override = { kinematic: this.kin, yaw: yaw0 + (yaw1 - yaw0) * k, crouch: this.low };
+      c.override = { kinematic: this.kin, yaw: yaw0 + (yaw1 - yaw0) * k, crouch: this.low, turnRate: 14 };
       pose.cover = this.low ? 'low' : 'high';
+      pose.wallSide = this.wallSide(seg, this.faceDir);
       if (k >= 1 || this.sm.t + dt >= CORNER_TIME) {
         this.seg = cr.next;
         this.s = cr.nextS;
@@ -392,14 +535,29 @@ export class CoverController {
     let targetS = loc.s;
     let speedAlong = 0;
     let crouch = this.low;
-    const coverYaw = Math.atan2(-seg.nx, -seg.nz);
-    let yaw: number | undefined = coverYaw;
-    let standoff = COVER_STANDOFF;
+    let yaw: number | undefined = this.faceYaw(seg, this.faceDir);
+    let turn = Math.PI / SWAP_TIME;
+    const standoff = COVER_STANDOFF;
+    const edge = nearestEdge(seg, loc.s);
+    p.context.coverEdge = edge.dist < 0.5;
+    p.context.doorway = false;
+    if (this.swapT >= 0) {
+      this.swapT += dt;
+      if (this.swapT >= SWAP_TIME) this.swapT = -1;
+    }
     if (st === 'enter') {
       targetS = clampAlong(seg, this.s).s;
+      if (this.slide) pose.slide = Math.min(1, this.sm.t / ENTER_TIME);
     } else if (st === 'in') {
       const along = projectOnTangent(seg, w.x, w.z) * w.mag;
-      speedAlong = along * MOVEMENT.coverSpeed;
+      // reversing direction: turn-and-swap (shoulder stays to the wall, the weapon changes hands)
+      if (Math.abs(along) > 0.3 && Math.sign(along) !== this.faceDir) {
+        this.faceDir = along > 0 ? 1 : -1;
+        this.swapT = 0;
+        this.swaps++;
+        yaw = this.faceYaw(seg, this.faceDir);
+      }
+      speedAlong = along * MOVEMENT.coverSpeed * (this.swapT >= 0 ? 0.25 : 1);
       // brake early enough that the eased stop lands on the edge, not past it
       const cur = c.vel.x * seg.tx + c.vel.z * seg.tz;
       const stopDist = Math.abs(cur) * (2 / MOVEMENT.decel);
@@ -409,7 +567,21 @@ export class CoverController {
       if (speedAlong < 0 && loc.s - stopDist <= lo) speedAlong = 0;
       if (loc.s > hi + 0.02) speedAlong = (hi - loc.s) / 0.15;
       if (loc.s < lo - 0.02) speedAlong = (lo - loc.s) / 0.15;
-      if (speedAlong !== 0 && this.blockedAlong(Math.sign(speedAlong))) speedAlong = 0;
+      // inside corner: a wall right along the tangent; keep pushing to turn onto it
+      const dir = Math.sign(along);
+      if (dir !== 0 && Math.abs(along) > 0.5 && this.blockedAlong(dir)) {
+        speedAlong = 0;
+        this.insideT += dt;
+        if (this.insideT > 0.25) {
+          this.insideT = 0;
+          const next = this.insideNext(dir);
+          if (next) {
+            const face: 1 | -1 = next.seg.tx * seg.nx + next.seg.tz * seg.nz >= 0 ? 1 : -1;
+            this.enter(next.seg, next.s, face);
+            this.slide = false;
+          }
+        }
+      } else this.insideT = 0;
       // re-probe the height as we move (stacked crates, broken runs)
       this.recheckT -= dt;
       if (this.recheckT <= 0) {
@@ -418,24 +590,34 @@ export class CoverController {
         if (cls) this.low = cls === 'low';
       }
     } else if (st === 'peek') {
-      yaw = undefined; // body follows the aim
-      if (this.low) crouch = false;
-      else if (this.peekSide !== 0) {
-        targetS = this.peekSide < 0 ? -0.5 : seg.len + 0.5;
-        standoff = COVER_STANDOFF + 0.08;
+      yaw = undefined; // body turns to the aim
+      turn = 9;
+      if (this.low) {
+        crouch = false;
+        pose.peekOver = 1;
+      } else if (this.peekSide !== 0) {
+        // lean out in place at the edge: the capsule stays in cover, the upper body leans past it
+        targetS = this.peekSide < 0 ? EDGE_MARGIN : seg.len - EDGE_MARGIN;
         pose.lean = this.leanSide(seg, this.peekSide);
       }
     } else if (st === 'blind') {
       yaw = undefined;
+      turn = 9;
       this.spreadMul = 3;
       pose.blind = true;
-      const e = nearestEdge(seg, loc.s);
-      if (!this.low && e.dist < 0.6) pose.lean = this.leanSide(seg, e.side);
+      if (!this.low && edge.dist < 0.6) pose.lean = this.leanSide(seg, edge.side);
     }
     if (st === 'in' && this.peekReturn >= 0) {
       // returning from a peek: slide back to where we were
       targetS = this.peekReturn;
       if (Math.abs(loc.s - this.peekReturn) < 0.05 || w.mag > 0.2) this.peekReturn = -1;
+    }
+    if (yaw !== undefined) pose.wallSide = this.wallSide(seg, this.faceDir);
+    // camera on the shoulder of the side being faced (hysteresis so small look changes do not flip it)
+    if ((st === 'in' || st === 'enter') && this.sm.t > 0.05) {
+      const cy = p.cam.yaw;
+      const dot = (seg.tx * Math.cos(cy) - seg.tz * Math.sin(cy)) * this.faceDir;
+      if (Math.abs(dot) > 0.35) this.setShoulder(dot > 0 ? 1 : -1);
     }
     // velocity: along the face (input or towards a target point) + hold the standoff from the surface
     const k = st === 'enter' ? Math.max(0.05, 0.25 - this.sm.t) : 0.12;
@@ -443,7 +625,7 @@ export class CoverController {
     const toward = Math.max(-3.5, Math.min(3.5, (standoff - loc.dist) / (st === 'enter' ? k : 0.1)));
     this.vel.x = seg.tx * speedAlong + seg.nx * toward;
     this.vel.z = seg.tz * speedAlong + seg.nz * toward;
-    c.override = { velocity: this.vel, yaw, crouch };
+    c.override = { velocity: this.vel, yaw, crouch, turnRate: turn };
     pose.cover = this.low ? 'low' : 'high';
     void inp;
   }
@@ -459,6 +641,9 @@ export class CoverController {
   /** Forced reset (respawn/teleport). */
   reset(): void {
     this.sm.reset();
+    this.target = null;
+    this.dashTo = null;
+    this.slide = false;
     this.setShoulder(null);
     this.seg = null;
     this.corner = null;

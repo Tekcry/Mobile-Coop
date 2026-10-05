@@ -458,7 +458,7 @@ export class GameState implements AppState {
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
     if (this.player.rig.emote && (Math.hypot(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
     if (!this.traversal.active) this.cover.fixedUpdate(dt, inp);
-    this.traversal.fixedUpdate(dt, inp.pressed('jump'), this.cover.state !== 'none');
+    this.traversal.fixedUpdate(dt, inp.pressed('jump'), this.cover.state !== 'none', this.cover.exitDir);
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.weapons.spreadMul = this.cover.spreadMul;
     this.player.fixedUpdate(dt, inp);
@@ -547,6 +547,7 @@ export class GameState implements AppState {
   }
 
   private coverLabel = '';
+  private markerPt = new Vector3();
 
 
   /** Contextual cover prompt, state badge and touch button. */
@@ -567,6 +568,15 @@ export class GameState implements AppState {
               : 'High cover';
     const prompt = st === 'none' && c.candidate ? (this.app.input.mode === 'gamepad' ? 'Hold: Take cover' : 'Take cover') : null;
     this.hud.setCover(prompt, stateText);
+    // cover-to-cover marker over the target, projected to the screen
+    const tg = c.state === 'in' ? c.target : null;
+    if (tg) {
+      this.markerPt.set(tg.x, this.player.position.y + (tg.seg.low ? 0.9 : 1.4), tg.z);
+      Vector3.TransformCoordinatesToRef(this.markerPt, this.scene.getTransformMatrix(), this.markerPt);
+      const vis = this.markerPt.z > 0 && this.markerPt.z < 1 && Math.abs(this.markerPt.x) < 1 && Math.abs(this.markerPt.y) < 1;
+      const label = tg.kind === 'swat' ? 'SWAT turn' : 'Move to cover';
+      this.hud.setCoverMarker(vis ? (this.markerPt.x * 0.5 + 0.5) * 100 : -1, (0.5 - this.markerPt.y * 0.5) * 100, label);
+    } else this.hud.setCoverMarker(-1, 0, '');
     const th = this.traversal.hint;
     this.hud.setAction(th && !c.inCover ? (TRAVERSE_LABEL[th.kind] ?? null) : null);
     const show = !!c.candidate || c.inCover;

@@ -1,6 +1,6 @@
 import { GLYPHS } from '../input/gamepadMapping';
 
-export type PromptButton = 'A' | 'B' | 'X' | 'Y' | 'LB' | 'RB' | 'LT' | 'RT' | 'START';
+export type PromptButton = 'A' | 'B' | 'X' | 'Y' | 'LB' | 'RB' | 'LT' | 'RT' | 'LS' | 'START';
 
 const KEYS: Record<PromptButton, string> = {
   A: 'Enter',
@@ -8,6 +8,7 @@ const KEYS: Record<PromptButton, string> = {
   X: 'R',
   Y: 'F',
   LB: 'Q',
+  LS: 'Shift',
   RB: 'E',
   LT: 'RMB',
   RT: 'LMB',

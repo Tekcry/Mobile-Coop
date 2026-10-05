@@ -48,6 +48,7 @@ export class Hud {
   private interactEl: HTMLElement;
   private coverEl: HTMLElement;
   private actionEl: HTMLElement;
+  private markerEl: HTMLElement;
   private coverState: HTMLElement;
   private feed: HTMLElement;
   private vignette: HTMLElement;
@@ -108,6 +109,7 @@ export class Hud {
     this.interactEl = h('div', { class: 'hud-interact' });
     this.coverEl = h('div', { class: 'hud-interact hud-cover' });
     this.actionEl = h('div', { class: 'hud-interact hud-action' });
+    this.markerEl = h('div', { class: 'hud-cover-marker' });
     this.coverState = h('div', { class: 'hud-cover-state' });
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
@@ -125,6 +127,7 @@ export class Hud {
       this.interactEl,
       this.coverEl,
       this.actionEl,
+      this.markerEl,
       this.coverState,
       this.feed,
     );
@@ -240,6 +243,16 @@ export class Hud {
       this.coverState.innerHTML = state ? `${icon('cover', 16)}<span>${state}</span>` : '';
       this.coverState.classList.toggle('show', !!state);
     });
+  }
+
+  /** Cover-to-cover marker at a screen position (percent of the HUD), or hidden when x < 0. */
+  setCoverMarker(xPct: number, yPct: number, label: string): void {
+    const show = xPct >= 0;
+    this.set('cmk', show ? label : '', () => {
+      this.markerEl.innerHTML = show ? `<i></i><span>${promptHtml('LS', 'Shift')}${label}</span>` : '';
+      this.markerEl.classList.toggle('show', show);
+    });
+    if (show) this.markerEl.style.transform = `translate(${xPct.toFixed(1)}vw, ${yPct.toFixed(1)}vh)`;
   }
 
   /** Contextual traversal prompt (jump button: vault, climb, step up, drop down). */

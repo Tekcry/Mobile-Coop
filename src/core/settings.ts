@@ -108,7 +108,7 @@ export function defaultSettings(): Settings {
     mouse: { sensitivity: 1, invertY: false },
     video: { quality: 'auto', renderScale: 1, shadows: true, fovH: 75, showFps: false },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, autoCover: false, coverDash: false },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, autoCover: false, coverDash: true },
   };
 }
 

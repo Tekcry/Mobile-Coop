@@ -153,6 +153,18 @@ describe('cover state machine', () => {
     expect(sm.cornerSide).toBe(1);
     expect(run(sm, {}, 0.5)).toBe('in');
   });
+  it('dash press goes to the marked cover; with no target it breaks out of cover', () => {
+    const sm = inCover();
+    expect(run(sm, { dashPressed: true, canDash: true }, 1 / 60)).toBe('dash');
+    const sm2 = inCover();
+    expect(run(sm2, { dashPressed: true, canDash: false, sprint: true }, 1 / 60)).toBe('none');
+  });
+  it('sticky: a light push away does not leave cover, a firm one does after a moment', () => {
+    const sm = inCover();
+    expect(run(sm, { away: 0.6 }, 1)).toBe('in');
+    expect(run(sm, { away: 1 }, 0.2)).toBe('in');
+    expect(run(sm, { away: 1 }, 0.2)).toBe('none');
+  });
   it('dash goes to the next cover when allowed', () => {
     const sm = inCover();
     expect(run(sm, { coverPressed: true, away: 1, canDash: true }, 1 / 60)).toBe('dash');
