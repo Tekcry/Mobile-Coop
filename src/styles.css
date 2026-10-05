@@ -1789,6 +1789,15 @@ body {
 .debug-tools button.on {
   background: rgba(80, 224, 128, 0.35);
 }
+.debug-tune-title {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  color: #8fd3ff;
+}
+.debug-trace {
+  display: block;
+  margin-top: 2px;
+}
 .debug-tune {
   pointer-events: auto;
   margin-top: 4px;

@@ -1,5 +1,7 @@
 import { Color4, CreateLineSystem, SceneInstrumentation, Vector3, type Engine, type LinesMesh, type Scene } from '../core/babylon';
-import { MOVEMENT, MOVEMENT_RANGES, type MovementKey } from '../config/movement';
+import { MOVEMENT, MOVEMENT_RANGES } from '../config/movement';
+import { CAMERA } from '../config/camera';
+import { CARRY } from '../weapons/weaponCarry';
 import { DEBUG_RIGS, DEBUG_VOLUMES } from './debugVolumes';
 import type { GameLoop } from '../core/loop';
 
@@ -25,6 +27,9 @@ export class DebugOverlay {
   private lines: LinesMesh | null = null;
   private tools: HTMLDivElement;
   private tune: HTMLDivElement;
+  /** Live traces (e.g. weapon bob): sampled every frame, drawn as a line graph. */
+  private traces = new Map<string, { fn: () => number; scale: number; buf: number[]; color: string }>();
+  private traceCanvas: HTMLCanvasElement;
 
   constructor(private engine: Engine, private loop: GameLoop) {
     this.el = document.createElement('div');
@@ -39,6 +44,10 @@ export class DebugOverlay {
     this.tune = document.createElement('div');
     this.tune.className = 'debug-tune';
     this.tune.hidden = true;
+    this.traceCanvas = document.createElement('canvas');
+    this.traceCanvas.width = 120;
+    this.traceCanvas.height = 32;
+    this.traceCanvas.className = 'debug-trace';
     const btn = (label: string, fn: (b: HTMLButtonElement) => void): HTMLButtonElement => {
       const b = document.createElement('button');
       b.type = 'button';
@@ -58,7 +67,7 @@ export class DebugOverlay {
       }),
     );
     this.buildTune();
-    this.el.append(this.text, this.graph, this.tools, this.tune);
+    this.el.append(this.text, this.graph, this.traceCanvas, this.tools, this.tune);
     document.body.appendChild(this.el);
     window.addEventListener('keydown', (e) => {
       if (e.code === 'F3') this.toggle();
@@ -69,27 +78,59 @@ export class DebugOverlay {
     engine.onEndFrameObservable.add(() => this.onFrame());
   }
 
-  /** Live movement/camera tuning: sliders bound to the MOVEMENT table (applies immediately). */
+  /** Add a live trace (value per frame; `scale` = value at the top of the graph). */
+  addTrace(key: string, fn: () => number, scale: number, color = '#8fd3ff'): void {
+    this.traces.set(key, { fn, scale, buf: [], color });
+  }
+
+  removeTrace(key: string): void {
+    this.traces.delete(key);
+  }
+
+  /** Live tuning: sliders bound to the movement, camera and weapon-carry tables (apply immediately). */
   private buildTune(): void {
-    for (const [k, range] of Object.entries(MOVEMENT_RANGES) as [MovementKey, [number, number, number]][]) {
-      const row = document.createElement('label');
-      const name = document.createElement('span');
-      name.textContent = k;
-      const val = document.createElement('b');
-      const input = document.createElement('input');
-      input.type = 'range';
-      input.min = String(range[0]);
-      input.max = String(range[1]);
-      input.step = String(range[2]);
-      input.value = String(MOVEMENT[k]);
-      val.textContent = String(MOVEMENT[k]);
-      input.addEventListener('input', () => {
-        (MOVEMENT as Record<MovementKey, number>)[k] = Number(input.value);
-        val.textContent = input.value;
-      });
-      row.append(name, input, val);
-      this.tune.append(row);
-    }
+    const table = (title: string, obj: Record<string, number>, ranges: Record<string, readonly [number, number, number]>): void => {
+      const h = document.createElement('b');
+      h.className = 'debug-tune-title';
+      h.textContent = title;
+      this.tune.append(h);
+      for (const [k, range] of Object.entries(ranges)) {
+        const row = document.createElement('label');
+        const name = document.createElement('span');
+        name.textContent = k;
+        const val = document.createElement('b');
+        const input = document.createElement('input');
+        input.type = 'range';
+        input.min = String(range[0]);
+        input.max = String(range[1]);
+        input.step = String(range[2]);
+        input.value = String(obj[k]);
+        val.textContent = String(obj[k]);
+        input.addEventListener('input', () => {
+          obj[k] = Number(input.value);
+          val.textContent = input.value;
+        });
+        row.append(name, input, val);
+        this.tune.append(row);
+      }
+    };
+    table('Movement', MOVEMENT as unknown as Record<string, number>, MOVEMENT_RANGES);
+    table('Camera', CAMERA as unknown as Record<string, number>, {
+      boomHip: [0.6, 2.5, 0.05],
+      boomAds: [0.4, 1.5, 0.05],
+      shoulderHip: [0.2, 0.9, 0.02],
+      shoulderAds: [0.2, 0.8, 0.02],
+      pivotStand: [1.2, 1.9, 0.02],
+      height: [-0.4, 0.4, 0.02],
+      leanShift: [0, 0.8, 0.02],
+      dashBoom: [0, 0.8, 0.05],
+    });
+    table('Weapon carry', CARRY as unknown as Record<string, number>, {
+      raiseTime: [0.05, 0.4, 0.01],
+      lowerTime: [0.1, 0.8, 0.01],
+      holdAfterFire: [0, 2, 0.05],
+      readyFade: [0.05, 0.6, 0.01],
+    });
   }
 
   private clearLines(): void {
@@ -180,6 +221,10 @@ export class DebugOverlay {
     this.last = now;
     if (!this.visible) return;
     if (this.skeleton) this.drawSkeleton();
+    for (const t of this.traces.values()) {
+      t.buf.push(t.fn());
+      if (t.buf.length > 120) t.buf.shift();
+    }
     this.frameTimes.push(ft);
     if (this.frameTimes.length > 120) this.frameTimes.shift();
     if (now < this.nextPaint) return;
@@ -197,6 +242,28 @@ export class DebugOverlay {
     for (const [k, fn] of this.extra) lines.push(`${k} ${fn()}`);
     this.text.textContent = lines.join('\n');
     this.drawGraph();
+    this.drawTraces();
+  }
+
+  private drawTraces(): void {
+    const c = this.traceCanvas;
+    c.hidden = this.traces.size === 0;
+    const g = c.getContext('2d');
+    if (!g || c.hidden) return;
+    const { width: w, height: h } = c;
+    g.clearRect(0, 0, w, h);
+    g.fillStyle = 'rgba(255,255,255,0.15)';
+    g.fillRect(0, h / 2, w, 1);
+    for (const t of this.traces.values()) {
+      g.strokeStyle = t.color;
+      g.beginPath();
+      t.buf.forEach((v, i) => {
+        const y = h / 2 - (v / t.scale) * (h / 2);
+        if (i === 0) g.moveTo(i, y);
+        else g.lineTo(i, y);
+      });
+      g.stroke();
+    }
   }
 
   private drawGraph(): void {

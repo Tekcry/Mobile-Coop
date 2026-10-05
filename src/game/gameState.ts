@@ -280,8 +280,31 @@ export class GameState implements AppState {
     app.debug.controllerCapsules = () => [{ feet: this.player.position, height: this.player.controller.capsuleHeight, radius: MOVEMENT.radius }];
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
-      return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(1)}${c.crouched ? ' crouch' : ''}${c.isRolling ? ' roll' : ''}`;
+      const stance = c.kneeling ? ' kneel' : c.crouched ? ' crouch' : '';
+      return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(2)}${stance} dash ${c.dash.state} stam ${c.dash.stamina.toFixed(2)}${c.pivotT > 0 ? ' pivot' : ''}`;
     });
+    app.debug.extra.set('carry', () => {
+      const k = this.player.carry;
+      return `${k.ready} raise ${k.raise.toFixed(2)} w ${k.w.low.toFixed(2)}/${k.w.high.toFixed(2)}/${k.w.compressed.toFixed(2)} wt ${this.player.weaponWeight.toFixed(2)}`;
+    });
+    app.debug.extra.set('cover', () => {
+      const c = this.cover;
+      const pose = this.player.coverPose;
+      return `${c.state} face ${c.faceDir} swaps ${c.swaps} lean ${pose.lean.toFixed(2)} q ${this.coverQ.toFixed(2)} trav ${this.traversal.kind}${this.corners.door ? ' door' : ''}`;
+    });
+    app.debug.extra.set('combat', () => `exposure ${this.exposure.toFixed(2)} suppress ${this.suppression.value.toFixed(2)} noise ${this.noise.toFixed(1)}m`);
+    let lastLimited = 0;
+    app.debug.extra.set('anim', () => {
+      const r = this.player.rig;
+      const w = r.graph.weights;
+      const top = (Object.entries(w) as [string, number][]).filter(([, v]) => v > 0.01).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' ');
+      const layers = Object.entries(r.lastTargets?.layers ?? {}).filter(([, v]) => v > 0.01).map(([k, v]) => `${k} ${v.toFixed(2)}`).join(' ');
+      // joint-rate limiter hits since the last paint: > 0 means a pose tried to snap (a blend bug)
+      const lim = r.limited - lastLimited;
+      lastLimited = r.limited;
+      return `${top} | ${layers}${lim > 0 ? `  !limit x${lim}` : ''}`;
+    });
+    app.debug.addTrace('bob', () => this.player.rig.lastTargets?.weaponBob ?? 0, 0.03);
   }
 
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
@@ -371,7 +394,8 @@ export class GameState implements AppState {
     this.net = null;
     this.audio?.dispose();
     this.app.input.setGameplayActive(false);
-    this.app.debug.extra.delete('player');
+    for (const k of ['player', 'carry', 'cover', 'combat', 'anim']) this.app.debug.extra.delete(k);
+    this.app.debug.removeTrace('bob');
     this.app.debug.controllerCapsules = null;
     this.app.debug.extra.delete('ai');
     this.mode?.dispose();
