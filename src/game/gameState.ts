@@ -32,6 +32,7 @@ import { playEmote } from '../cosmetics/emotes';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
+import type { QualityLevel } from '../core/quality';
 
 export type { ModeId };
 
@@ -133,6 +134,10 @@ export class GameState implements AppState {
       app.input.rumble(0.6, 0.3, 90);
     };
     this.target.onDeath = () => this.onPlayerDeath();
+    this.player.onLand = (v) => {
+      this.vfx.landDust(this.player.position, Math.min(1.5, v / 8));
+      this.player.cam.shake(Math.min(0.25, v * 0.02));
+    };
     this.explosions.onExplode = (pos, radius) => {
       const d = Vector3.Distance(pos, this.player.position);
       this.player.cam.shake(Math.max(0, 0.9 - d / (radius * 3)));
@@ -183,12 +188,18 @@ export class GameState implements AppState {
 
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
     const v = app.settings.get().video;
+    // Shadow generator exists whenever the user allows shadows; quality levels toggle it live.
     const world = await World.create(app.engine, opts.map, {
       seed: opts.seed,
-      shadows: v.shadows && v.quality !== 'low',
+      shadows: v.shadows,
       shadowMapSize: v.quality === 'high' ? 2048 : 1024,
     });
     return new GameState(app, world, opts, cb);
+  }
+
+  applyQuality(level: QualityLevel, userShadows: boolean): void {
+    this.world.setShadows(level.shadows && userShadows, level.shadowRefresh);
+    this.vfx.density = level.vfxDensity;
   }
 
   playerRefs(): PlayerRef[] {

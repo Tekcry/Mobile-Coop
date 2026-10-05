@@ -16,6 +16,7 @@ import {
   type Scene,
 } from '../core/babylon';
 import { G } from '../physics/groups';
+import { LevelMaterialPlugin } from './levelMaterialPlugin';
 
 export interface BoxPiece {
   c: [number, number, number];
@@ -175,6 +176,7 @@ export class LevelBuilder {
     const mat = new StandardMaterial(`levelMat-${name}`, scene);
     mat.diffuseColor = Color3.White();
     mat.specularColor = Color3.Black();
+    new LevelMaterialPlugin(mat);
     mat.freeze();
 
     const boxMesh = CreateBox(`lvl-box`, { size: 1 }, scene);

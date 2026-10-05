@@ -83,8 +83,11 @@ export class Enemy implements Damageable {
   private kick = 0;
   private head = new Vector3();
   private tmp = new Vector3();
+  private tmpEye = new Vector3();
+  private desired = new Vector3();
   private lunge = 0;
   private coverPicked = false;
+  private flash = 0;
   alerted = false;
 
   constructor(
@@ -141,6 +144,7 @@ export class Enemy implements Damageable {
     if (!this.alive || h.attackerTeam === 'enemy') return { dealt: 0, killed: false };
     const mult = h.part === 'head' ? this.def.headMult : this.def.armor;
     const dealt = this.health.damage(h.amount * mult);
+    this.flash = 1;
     this.alert();
     if (dealt > 35) this.stagger = 0.35;
     // getting shot in the open pushes cover users to find cover
@@ -203,7 +207,7 @@ export class Enemy implements Damageable {
       this.los = false;
       return;
     }
-    const eye = this.eye(new Vector3());
+    const eye = this.eye(this.tmpEye);
     best.target.aimPoint(this.tmp);
     const h = this.ctx.ballistics.ray(eye, this.tmp, G.STATIC);
     this.los = !h.hit || h.distance > Vector3.Distance(eye, this.tmp) - 0.3;
@@ -461,7 +465,7 @@ export class Enemy implements Damageable {
 
   private move(dt: number, goal: P2 | null, speed: number, face: number | null): void {
     const nav = this.ctx.nav;
-    const desired = new Vector3();
+    const desired = this.desired.setAll(0);
     if (goal) {
       desired.set(goal[0] - this.pos.x, 0, goal[1] - this.pos.z);
       const l = desired.length();
@@ -535,6 +539,8 @@ export class Enemy implements Damageable {
     const c = Math.cos(this.yaw);
     const inv = sp > 0.01 ? 1 / sp : 0;
     this.kick = Math.max(0, this.kick - dt * 8);
+    this.flash = Math.max(0, this.flash - dt * 9);
+    this.rig.setFlash(this.flash * 0.75);
     const aiming = this.def.melee ? 0 : this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0 ? 1 : 0.2;
     this.rig.animate(dt, {
       speed: sp,

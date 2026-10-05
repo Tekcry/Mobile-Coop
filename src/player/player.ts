@@ -19,6 +19,10 @@ export class Player {
   aimLockTimer = 0;
   kick = 0;
   alive = true;
+  /** Called when landing from a fall (speed in m/s). */
+  onLand: ((speed: number) => void) | null = null;
+  private wasGrounded = true;
+  private fallSpeed = 0;
 
   constructor(
     readonly world: World,
@@ -68,6 +72,11 @@ export class Player {
       pi.jump = false;
     }
     this.controller.fixedUpdate(dt, pi, this.cam.yaw);
+    const c = this.controller;
+    if (!c.grounded) this.fallSpeed = Math.max(this.fallSpeed, -c.cc.getVelocity().y);
+    if (c.grounded && !this.wasGrounded && this.fallSpeed > 4) this.onLand?.(this.fallSpeed);
+    if (c.grounded) this.fallSpeed = 0;
+    this.wasGrounded = c.grounded;
   }
 
   /** Render-rate update: look, camera, animation. */

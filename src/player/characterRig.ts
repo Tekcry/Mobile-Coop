@@ -1,4 +1,4 @@
-import { TransformNode, type AbstractMesh, type Scene } from '../core/babylon';
+import { Color4, TransformNode, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 
@@ -282,6 +282,22 @@ export class CharacterRig {
       this.emoteTime += dt;
       this.emote(this, this.emoteTime);
     }
+  }
+
+  private baseColors: Color4[] | null = null;
+  private flashK = 0;
+
+  /** Tint every part towards white (hit feedback). k = 0..1. Only touches buffers when k changes. */
+  setFlash(k: number): void {
+    if (Math.abs(k - this.flashK) < 0.02 && !(k === 0 && this.flashK !== 0)) return;
+    this.flashK = k;
+    const parts = this.parts as InstancedMesh[];
+    if (!this.baseColors) this.baseColors = parts.map((m) => (m.instancedBuffers?.color as Color4 | undefined)?.clone() ?? new Color4(1, 1, 1, 1));
+    parts.forEach((m, i) => {
+      if (!m.instancedBuffers) return;
+      const b = this.baseColors![i]!;
+      m.instancedBuffers.color = new Color4(b.r + (1 - b.r) * k, b.g + (0.92 - b.g) * k, b.b + (0.85 - b.b) * k, 1);
+    });
   }
 
   dispose(): void {

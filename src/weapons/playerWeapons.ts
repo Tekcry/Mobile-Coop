@@ -245,6 +245,8 @@ export class PlayerWeapons {
         this.vfx.tracer(this.muzzle, h.point, def.tracer, def.pellets > 1 ? 0.012 : 0.022);
       }
     }
+    // brass (not for the shotgun pump or sniper bolt mid-shot)
+    if (def.class !== 'shotgun') this.vfx.casing(this.muzzle.subtract(baseDir.scale(0.3)), new Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)));
     // muzzle flash, recoil, bloom
     this.vfx.muzzleFlash(this.muzzle, def.pellets > 1 ? 0.3 : def.class === 'pistol' ? 0.16 : 0.22);
     const k = recoilKick(def, s.stats, this.shotIndex++);

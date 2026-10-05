@@ -12,7 +12,8 @@ export class Sfx {
 
   /** Noise burst through a filter. */
   private burst(bus: Bus, gain: number, pan: number, type: BiquadFilterType, freq: number, q: number, decay: number, freqEnd?: number): void {
-    const ctx = this.a.ctx!;
+    const ctx = this.a.ctx;
+    if (!ctx || ctx.state !== 'running') return;
     const t = ctx.currentTime;
     const out = this.a.out(bus, gain, pan, decay + 0.05);
     const n = this.a.noise();
@@ -31,7 +32,8 @@ export class Sfx {
 
   /** Pitched tone with an exponential pitch glide. */
   private tone(bus: Bus, gain: number, pan: number, type: OscillatorType, f0: number, f1: number, decay: number, delay = 0, attack = 0.003): void {
-    const ctx = this.a.ctx!;
+    const ctx = this.a.ctx;
+    if (!ctx || ctx.state !== 'running') return;
     const t = ctx.currentTime + delay;
     const out = this.a.out(bus, gain, pan, decay + delay + 0.05);
     if (!out) return;
@@ -89,11 +91,9 @@ export class Sfx {
   /** Magazine out / in / bolt clicks spread over the reload time. */
   reload(seconds: number): void {
     if (!this.a.allow('reload', 0.2)) return;
-    const ctx = this.a.ctx!;
     const steps = [0.1, seconds * 0.45, seconds * 0.85];
     steps.forEach((d, i) => {
       setTimeout(() => {
-        if (ctx.state !== 'running') return;
         this.burst('sfx', 0.35, 0.2, 'bandpass', i === 2 ? 2600 : 1600, 3, 0.05);
         this.tone('sfx', 0.18, 0.2, 'square', i === 1 ? 420 : 300, 200, 0.04);
       }, d * 1000);

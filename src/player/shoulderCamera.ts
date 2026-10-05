@@ -1,4 +1,4 @@
-import { Camera, FreeCamera, Vector3, type Scene } from '../core/babylon';
+import { Camera, FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 
 export const CAMERA_TUNING = {
@@ -44,6 +44,11 @@ export class ShoulderCamera {
   readonly forward = new Vector3(0, 0, 1);
   /** Distance from camera to pivot; used to fade the player model when too close. */
   boomActual = CAMERA_TUNING.boomHip;
+  private rr = new PhysicsRaycastResult();
+  private shoulderPt = new Vector3();
+  private desired = new Vector3();
+  private camPos = new Vector3();
+  private static readonly Q = { membership: G.PLAYER, collideWith: G.STATIC };
 
   constructor(private scene: Scene) {
     this.camera = new FreeCamera('ots', new Vector3(0, 2, -4), scene);
@@ -113,24 +118,26 @@ export class ShoulderCamera {
     const sx = this.pivot.x + rightX * shoulder;
     const sy = this.pivot.y + T.height;
     const sz = this.pivot.z + rightZ * shoulder;
-    let shoulderPt = new Vector3(sx, sy, sz);
-    const eng = this.scene.getPhysicsEngine();
-    const q = { membership: G.PLAYER, collideWith: G.STATIC };
+    const shoulderPt = this.shoulderPt.set(sx, sy, sz);
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
+    const q = ShoulderCamera.Q;
     if (eng) {
       // keep the shoulder point itself out of walls in tight corridors
-      const r0 = eng.raycast(this.pivot, shoulderPt, q);
-      if (r0.hasHit) shoulderPt = Vector3.Lerp(this.pivot, r0.hitPoint, 0.75);
+      this.rr.reset();
+      eng.raycastToRef(this.pivot, shoulderPt, this.rr, q);
+      if (this.rr.hasHit) Vector3.LerpToRef(this.pivot, this.rr.hitPoint, 0.75, shoulderPt);
     }
-    const desired = shoulderPt.subtract(this.forward.scale(boomTarget));
+    const desired = this.forward.scaleToRef(-boomTarget, this.desired).addInPlace(shoulderPt);
     let dist = boomTarget;
     if (eng) {
-      const r = eng.raycast(shoulderPt, desired, q);
-      if (r.hasHit) dist = Math.max(0.3, Vector3.Distance(shoulderPt, r.hitPoint) - T.collisionPadding);
+      this.rr.reset();
+      eng.raycastToRef(shoulderPt, desired, this.rr, q);
+      if (this.rr.hasHit) dist = Math.max(0.3, Vector3.Distance(shoulderPt, this.rr.hitPoint) - T.collisionPadding);
     }
     // snap in instantly, ease back out
     this.boom = dist < this.boom ? dist : this.boom + (dist - this.boom) * Math.min(1, dt * 5);
     this.boomActual = this.boom;
-    const pos = shoulderPt.subtract(this.forward.scale(this.boom));
+    const pos = this.forward.scaleToRef(-this.boom, this.camPos).addInPlace(shoulderPt);
 
     // shake (smooth pseudo-noise)
     const s = this.trauma * this.trauma;

@@ -92,6 +92,13 @@ export class World {
     this.shadow?.addShadowCaster(m, false);
   }
 
+  /** Live quality toggle: shadows on/off and shadow map refresh rate. */
+  setShadows(enabled: boolean, refreshRate: number): void {
+    this.sun.shadowEnabled = enabled && !!this.shadow;
+    const map = this.shadow?.getShadowMap();
+    if (map) map.refreshRate = refreshRate;
+  }
+
   /** Keep the sun's shadow frustum centred on the player. */
   frame(focus: Vector3): void {
     if (this.shadow) {

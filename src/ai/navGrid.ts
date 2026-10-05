@@ -40,6 +40,8 @@ const DIRS: ReadonlyArray<[number, number, number]> = [
 class Heap {
   private items: number[] = [];
   private pri: number[] = [];
+  /** Priority of the most recently popped item (lets Dijkstra skip stale duplicates). */
+  lastPri: number | undefined;
   get size(): number {
     return this.items.length;
   }
@@ -63,6 +65,7 @@ class Heap {
     const a = this.items;
     const b = this.pri;
     const top = a[0]!;
+    this.lastPri = b[0];
     const last = a.pop()!;
     const lp = b.pop()!;
     if (a.length > 0) {
@@ -166,7 +169,9 @@ export class NavGrid {
     seen[seed] = 1;
     while (stack.length) {
       const i = stack.pop()!;
-      for (const j of this.neighbours(i)) {
+      const n = this.fillNeighbours(i);
+      for (let k = 0; k < n; k++) {
+        const j = this.nb[k]!;
         if (!seen[j]) {
           seen[j] = 1;
           stack.push(j);
@@ -205,20 +210,40 @@ export class NavGrid {
     return this.walk[a] === 1 && this.walk[b] === 1 && Math.abs(this.height[a]! - this.height[b]!) <= this.step;
   }
 
-  *neighbours(i: number): Iterable<number> {
+  /** Neighbour buffer reused by every search (no per-expansion allocation). */
+  private nb = new Int32Array(8);
+  private nbDiag = new Uint8Array(8);
+
+  /**
+   * Fill `this.nb` with steppable neighbours of i; returns the count. Diagonals are only allowed
+   * when both adjacent orthogonals are steppable (no corner cutting). `this.nbDiag[k]` marks diagonals.
+   */
+  private fillNeighbours(i: number): number {
     const ix = i % this.w;
     const iz = (i / this.w) | 0;
-    for (const [dx, dz] of DIRS) {
+    let n = 0;
+    for (let k = 0; k < 8; k++) {
+      const d = DIRS[k]!;
+      const dx = d[0];
+      const dz = d[1];
       const j = this.index(ix + dx, iz + dz);
       if (j < 0 || !this.canStep(i, j)) continue;
       if (dx !== 0 && dz !== 0) {
-        // no corner cutting
         const a = this.index(ix + dx, iz);
         const b = this.index(ix, iz + dz);
         if (a < 0 || b < 0 || !this.canStep(i, a) || !this.canStep(i, b)) continue;
       }
-      yield j;
+      this.nb[n] = j;
+      this.nbDiag[n] = dx !== 0 && dz !== 0 ? 1 : 0;
+      n++;
     }
+    return n;
+  }
+
+  /** Neighbour list (allocates; for tests and tooling only). */
+  neighbours(i: number): number[] {
+    const n = this.fillNeighbours(i);
+    return Array.from(this.nb.subarray(0, n));
   }
 
   nearestWalkable(x: number, z: number, maxRing = 12): number {
@@ -292,11 +317,10 @@ export class NavGrid {
         break;
       }
       const gc = this.gScore[cur]!;
-      const ix = cur % this.w;
-      const iz = (cur / this.w) | 0;
-      for (const j of this.neighbours(cur)) {
-        const diag = j % this.w !== ix && ((j / this.w) | 0) !== iz;
-        const ng = gc + (diag ? SQRT2 : 1);
+      const n = this.fillNeighbours(cur);
+      for (let k = 0; k < n; k++) {
+        const j = this.nb[k]!;
+        const ng = gc + (this.nbDiag[k] ? SQRT2 : 1);
         if (this.stamp[j] !== gen || ng < this.gScore[j]!) {
           this.stamp[j] = gen;
           this.gScore[j] = ng;
@@ -345,11 +369,12 @@ export class NavGrid {
     while (heap.size) {
       const cur = heap.pop();
       const dc = dist[cur]!;
-      const ix = cur % this.w;
-      const iz = (cur / this.w) | 0;
-      for (const j of this.neighbours(cur)) {
-        const diag = j % this.w !== ix && ((j / this.w) | 0) !== iz;
-        const nd = dc + (diag ? SQRT2 : 1);
+      // stale duplicate entry (dist is Float32, so compare with a tolerance)
+      if ((heap.lastPri ?? dc) > dc + 1e-3) continue;
+      const n = this.fillNeighbours(cur);
+      for (let k = 0; k < n; k++) {
+        const j = this.nb[k]!;
+        const nd = dc + (this.nbDiag[k] ? SQRT2 : 1);
         if (nd < dist[j]!) {
           dist[j] = nd;
           heap.push(j, nd);
@@ -366,7 +391,9 @@ export class NavGrid {
     if (c < 0) return null;
     let best = c;
     let bd = dist[c]!;
-    for (const j of this.neighbours(c)) {
+    const n = this.fillNeighbours(c);
+    for (let k = 0; k < n; k++) {
+      const j = this.nb[k]!;
       if (dist[j]! < bd) {
         bd = dist[j]!;
         best = j;

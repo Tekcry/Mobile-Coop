@@ -209,6 +209,24 @@ export class Vfx {
     this.sparks(pos, UP, 14, '#ffb347');
   }
 
+  /** Ejected brass: small tumbling box to the shooter's right. */
+  casing(pos: Vector3, right: Vector3): void {
+    if (this.density < 0.6) return;
+    const v = right.scale(1.6 + Math.random() * 0.8);
+    v.y += 1.6 + Math.random() * 0.6;
+    this.emit(false, pos, v, new Color4(0.85, 0.66, 0.25, 1), 0.6, 0.025, 0, 12);
+  }
+
+  /** Ring of dust when landing or sliding. */
+  landDust(pos: Vector3, amount = 1): void {
+    const c = Color4.FromHexString('#b8ad98ff');
+    const n = Math.max(2, Math.round(6 * this.density * amount));
+    for (let i = 0; i < n; i++) {
+      const a = (i / n) * Math.PI * 2;
+      this.emit(true, pos.add(new Vector3(Math.cos(a) * 0.2, 0.05, Math.sin(a) * 0.2)), new Vector3(Math.cos(a) * 1.4, 0.4, Math.sin(a) * 1.4), c, 0.5, 0.12, 0.35, -0.6);
+    }
+  }
+
   /** Coloured burst for character hits. */
   hit(pos: Vector3, dir: Vector3, hex: string, count = 5): void {
     this.sparks(pos, dir.scale(-1), count, hex);

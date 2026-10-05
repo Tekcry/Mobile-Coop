@@ -1,6 +1,6 @@
 import type { Engine, Scene } from './babylon';
 import { GameLoop, type LoopHooks } from './loop';
-import { createEngine, applyRenderScale } from './engine';
+import { createEngine } from './engine';
 import { SettingsStore } from './settings';
 import { InputManager } from '../input/inputManager';
 import { FocusNav } from '../ui/focusNav';
@@ -14,6 +14,7 @@ import { uiHooks } from '../ui/widgets';
 import { AudioEngine } from '../audio/audioEngine';
 import { Sfx } from '../audio/sfx';
 import { Music } from '../audio/music';
+import { QualityManager, type QualityTarget } from './qualityManager';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -42,6 +43,7 @@ export class App {
   readonly audio = new AudioEngine();
   readonly sfx = new Sfx(this.audio);
   readonly music = new Music(this.audio);
+  readonly quality: QualityManager;
   private state: AppState | null = null;
   private time = 0;
 
@@ -56,6 +58,8 @@ export class App {
     this.screens = new ScreenManager(screensEl, this.nav);
     this.input = new InputManager(canvas, this.uiRoot, this.settings);
     this.toasts = new Toasts(this.uiRoot);
+    this.quality = new QualityManager(this.engine, this.settings);
+    this.debug.extra.set('quality', () => `${this.quality.level.name}${this.quality.auto ? ' (auto)' : ''}`);
     uiHooks.blocked = (msg) => {
       this.toasts.show(msg, 'warn', 1800);
       this.sfx.denied();
@@ -75,7 +79,6 @@ export class App {
     this.input.events.on('padDisconnected', () => this.toasts.show('Controller disconnected', 'warn'));
     this.settings.subscribe((s) => {
       this.audio.setVolumes(s.audio);
-      applyRenderScale(this.engine, s.video.renderScale);
       if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps);
     });
     window.addEventListener('resize', () => this.engine.resize());
@@ -89,7 +92,7 @@ export class App {
       console.warn('settings load failed, using defaults', e);
       this.settings.load(undefined);
     }
-    applyRenderScale(this.engine, this.settings.get().video.renderScale);
+    this.quality.apply();
     this.audio.setVolumes(this.settings.get().audio);
   }
 
@@ -103,6 +106,8 @@ export class App {
     this.state = next;
     next.enter();
     this.loop.attach(next.scene, this.hooks(next));
+    const qt = next as Partial<QualityTarget>;
+    this.quality.setTarget(typeof qt.applyQuality === 'function' ? (next as unknown as QualityTarget) : null);
     this.debug.setScene(next.scene);
     if (prev && prev.scene !== next.scene && !prev.scene.isDisposed) prev.scene.dispose();
   }
@@ -119,7 +124,10 @@ export class App {
         s.fixedUpdate(dt);
         this.input.state.consumeEdges();
       },
-      frameUpdate: (dt, alpha) => s.frameUpdate(dt, alpha),
+      frameUpdate: (dt, alpha) => {
+        s.frameUpdate(dt, alpha);
+        if (s.simulating) this.quality.sample(this.engine.getDeltaTime());
+      },
     };
   }
 
