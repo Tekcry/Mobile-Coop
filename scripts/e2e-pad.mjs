@@ -104,7 +104,8 @@ try {
 
   console.log('disconnect');
   await page.evaluate(() => window.__pad.disconnect());
-  await page.waitForTimeout(300);
+  // the pad is noticed on the next poll; under software GL a frame can take a while
+  await page.waitForFunction(() => [...document.querySelectorAll('.toast')].some((t) => /disconnected/.test(t.textContent ?? '')), null, { timeout: 8000 }).catch(() => {});
   const t2 = await page.evaluate(() => [...document.querySelectorAll('.toast')].map((t) => t.textContent).join('|'));
   assert(/disconnected/.test(t2), 'disconnect toast');
   assert(await page.evaluate(() => document.body.classList.contains('input-touch')), 'mode reverts to touch');
