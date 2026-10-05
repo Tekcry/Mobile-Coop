@@ -31,7 +31,7 @@ export class EnemyManager {
   /** Grenade system enemies throw with (set by the game state). */
   grenades: Grenades | null = null;
   /** Enemy assigned to flank a player holding cover (one at a time). */
-  private flanker: Enemy | null = null;
+  flanker: Enemy | null = null;
   private grenadeT = 0;
   /** Grenades thrown (tests / debug). */
   grenadesThrown = 0;

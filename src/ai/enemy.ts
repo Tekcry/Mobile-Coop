@@ -114,7 +114,8 @@ export class Enemy implements Damageable {
   private investigate: P2 | null = null;
   private blindPlan = false;
   private grenadeCd = rand(5, 10);
-  private flanking = false;
+  /** Assigned to flank a player holding cover (debug / tests). */
+  flanking = false;
 
   constructor(
     private ctx: AiContext,

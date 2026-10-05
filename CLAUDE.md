@@ -13,11 +13,15 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
   - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad
   - `scripts/e2e-touch.mjs` touch-only: taps menus, multi-touch drags the virtual sticks
-  - `scripts/e2e-move.mjs` character controller checks on Proving Grounds
+  - `scripts/e2e-move.mjs` tactical speeds, strafe/backstep, dash + stamina, no free jump, kneel, contextual
+    vault/climb/step/drop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
-  - `scripts/e2e-cover.mjs` movement speeds, cover snap/strafe/edge/peek/blind fire/vault/corner/auto-snap
+  - `scripts/e2e-cover.mjs` cover snap side-on, turn-and-swap, kneel, peek/blind fire/vault, lean in place,
+    outside/inside corners, SWAT turn, cover-to-cover dash + slide + HUD marker, touch swipe, auto-snap
+  - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
+    exposure HUD, enemy grenades/flanker, footstep noise investigation
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
   - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
@@ -43,12 +47,12 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
 | `core/` | `babylon.ts` import surface, engine creation, `GameLoop` (fixed 60Hz sim + manual Havok step), event bus, feature flags, scene manager |
 | `input/` | Action map; touch, gamepad, keyboard/mouse sources all write the same `InputState` |
 | `ui/` | DOM overlay UI. `FocusNav` spatial navigation shared by every menu; screen stack; HUD; debug overlay |
-| `game/` | Play session state, game modes, damage/health, pickups, interactables |
+| `game/` | Play session state, game modes, damage/health, pickups, interactables, `tactics` (exposure, cover quality, suppression; pure) |
 | `physics/` | Havok loading, collision groups, body budget |
-| `player/` | Character controller (Havok `PhysicsCharacterController`), movement maths, proportions, shared `CharacterRig`, camera |
+| `player/` | Character controller (Havok `PhysicsCharacterController`), tactical movement maths, contextual traversal, proportions, shared `CharacterRig`, camera |
 | `anim/` | Pure animation: `AnimGraph` (layered state machine + blend tree -> IK targets), `rigMath` (two-bone IK, gait, springs) |
-| `cover/` | Cover faces (`coverData`, pure), `CoverStateMachine` (pure), `CoverController` (player cover) |
-| `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades |
+| `cover/` | Cover faces (`coverData`, pure), `CoverStateMachine` (pure), `CoverController` (player cover), corners/doorways (`corners` pure, `CornerController`) |
+| `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades, `WeaponCarry` (ready positions, raise-to-fire) |
 | `ai/` | Enemy state machines, grid navmesh + A*, cover points |
 | `world/` | Modular tile kit and procedural map builders |
 | `progression/` | XP/levels/currency maths, unlock tables, upgrade trees (pure, unit-tested) |
@@ -58,7 +62,7 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
 | `vfx/` | Pooled particles, tracers, decals |
 | `net/` | Optional coop: transports (Trystero / BroadcastChannel), protocol validation, session/lobby, host + client sims, lobby UI |
 | `pwa/` | Service worker registration, fullscreen/orientation, gesture suppression |
-| `config/` | JSON/TS content data (weapons, enemies, unlock tables) |
+| `config/` | JSON/TS content data (weapons, enemies, unlock tables), `movement.ts` and `camera.ts` feel tables |
 
 ## Game loop
 `GameLoop` disables Babylon's automatic physics (`scene.physicsEnabled = false`) and steps Havok itself at a
@@ -123,13 +127,16 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
   centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
-- Animation: callers pass a `RigPose` (speed, local move dir, grounded, crouch, roll, aim, aimPitch/aimYaw, kick,
-  sprint, reload, cover/peek/blind/vault, melee) to `rig.animate(dt, pose)`. `AnimGraph` picks the lower-body
-  state (roll > vault > air > cover > crouch > locomotion) and cross-fades weights over 200 ms (`FADE`);
-  locomotion is a blend tree over `GAIT` (idle/walk/jog/sprint: stride, duty, lift, bob, swing, lean). Feet
-  follow `gaitFoot` with cadence from ground speed, so planted feet never slide; turning in place steps.
-  Upper body: aim layer (raised vs low-ready, sprint carry, reload with off-hand to the mag, recoil spring,
-  blind fire), spine/head look-at, breathing, sway, accel/turn lean, hit react (`rig.hit`). Two-bone IK puts
+- Animation: callers pass a `RigPose` (speed, local move dir, grounded, crouch, kneel, aim = weapon raise 0..1,
+  carry = ready-position weights, weight, aimPitch/aimYaw, kick, dash, slide, landing, reload, cover/wallSide/
+  lean/peekOver/blind/edgeLook, traverse/traverseT, check, melee) to `rig.animate(dt, pose)`. `AnimGraph` picks
+  the lower-body state (traverse > slide > air > cover > kneel/crouch > locomotion) and cross-fades weights
+  (`FADE` 200 ms; faster for slide/traverse, slower into kneel); locomotion is a blend tree over the tactical
+  `GAIT` (idle/creep/walk/brisk/dash). Feet follow `gaitFoot` with cadence from ground speed (planted feet never
+  slide) and sidestep without crossing (`lateralOffset`). Upper body: ready positions (low / high / compressed,
+  `READY_POSES`) blended to the raised aim pose, reload, recoil spring, blind fire, lean, doorway check sweep,
+  spine/head look-at, breathing, mass-weighted sway and turn follow-through, hit react (`rig.hit`). A per-joint
+  angular rate limit (`JOINT_RATE`) is the continuity/realism safety net; `rig.limited` counts its hits. Two-bone IK puts
   hands on the weapon's `grip`/`foregrip` (weapons.json) and feet on the gait targets. Emotes return an
   `FkPose` that is slerped over the result (fade in/out). Rigs beyond `ANIM_LOD_DISTANCE` (22 m) animate at
   half rate; `animate` is a no-op after `dispose` (and `GameState` ignores updates after `exit`).
@@ -137,15 +144,34 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   one per holster). Deaths: `Ragdoll` = 5 Havok bodies (torso, legs, arms) with ball-and-socket joints at hips
   and shoulders, limbs never collide with their own torso, capped by `BUDGET.maxRagdolls`.
 
-## Movement and camera
+## Movement and camera (SWAT-style)
 - All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
-  walk 1.4, jog 3.5, sprint 5.5, crouch 1.2, ADS 1.0, cover 1.3 m/s; stick < `walkBand` walks, above jogs.
-- `player/movement.ts` (pure): `targetSpeed`, `EasedVelocity` (critically damped per axis: eased starts and
-  stops, no overshoot), `SprintGate` (wind-up before full speed, recovery before fire/ADS), `RollGate` (fixed
-  0.6 s roll, recovery, cooldown). `PlayerController.weaponBlocked` gates firing/ADS. Jump is modest (0.45 m),
-  air control minimal. The controller follows the eased velocity exactly (`cc.acceleration = 1`).
-- `PlayerController.override` lets cover drive a step (velocity + facing + crouch, or a kinematic feet path).
-- Camera: critically damped follow (`camFollow`), shoulder swap and ADS springs; render interpolation unchanged.
+  creep 0.6, walk 1.2, brisk 2.0 (full stick forward held `briskDelay`), ADS 1.0, crouch 0.9, cover 1.0,
+  reload 0.6 m/s; strafe x0.9, backstep x0.7. Nothing runs except the dash (5.5 m/s).
+- `player/movement.ts` (pure): `targetSpeed`, `directionMult`, `EasedVelocity` (critically damped per axis),
+  `turnRate`/`lookCap` (stance-limited body turn; the view never out-turns the body), `needsPivot` (reversal
+  at speed = 0.5 s pivot), `DashGate` (wind-up, rush up to 1.5 s, recovery; stamina + cooldown; weapon blocked
+  throughout), `pickTraversal` (step <= 0.65 m, vault <= 1.25 m and thin, mantle <= 1.7 m), `noiseRadius`.
+- Body is strafe-locked to the aim (`PlayerController`); kneel = crouched and still. There is no free jump:
+  `TraversalController` (`player/traversal.ts`) probes ahead (5 Hz, for the HUD prompt) and on jump plays a
+  committed kinematic step / vault / mantle / drop. Footstep noise goes to `EnemyManager.hear` (investigate).
+- `PlayerController.override` lets cover/traversal drive a step (velocity + facing + turn rate + crouch, or a
+  kinematic feet path); `steer` is a gentle velocity bias (slicing the pie); `stanceMul` slows (leaning).
+- Weapon carry (`weapons/weaponCarry.ts`, pure): ready position from context (`pickReady`: compressed near walls,
+  doorways, cover edges, dashing, reloading; high in tight corridors/traversal; else low), raised only to aim or
+  fire; firing raises first (`CARRY.raiseTime` x weapon `weight`, `classWeight`), the trigger is live at
+  `fireThreshold`, held `holdAfterFire` after the last shot. `PlayerWeapons` gates on `carry.canFire`.
+- Camera (`config/camera.ts` `CAMERA` + `framing()`): tight over-the-shoulder always (boom 1.2 / ADS 0.75, shoulder
+  0.5, pivot 1.6, camera just below head height). FOV is horizontal at 16:9 (`video.fovH`, default 75) with a
+  fixed vertical FOV (Hor+). Nudges: crouch, dash (wider), lean (shoulder point follows). Shoulder swap spring
+  ~250 ms. Tight spaces: boom collision pushes in, then `applyBodyFade` hides the head / body.
+
+## Corners and doorways
+- `cover/corners.ts` (pure): `findDoorways` (0.7-1.8 m gaps between collinear high faces), `outsideCorners`,
+  `sliceSteer` (ease out to a ~1 m standoff approaching a corner), `doorSide`, `pickLean`.
+- `CornerController` (runs when not in cover/traversal): slice-the-pie steer + compressed ready near corners,
+  doorway compressed ready + check sweep on crossing, contextual lean while aiming with the aim line blocked
+  (probes centre/left/right; shoulder swap and restore; hips planted via `stanceMul`).
 
 ## Cover (`src/cover`)
 - `buildCoverSegments(boxes, cylinders)` (called by `LevelBuilder.build`) makes a face per side of every upright,
@@ -155,19 +181,37 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Run-time probing (raycasts) re-checks the real cover height (stacked crates, slopes), the snap point (floor,
   clear path), inside corners/narrow gaps, vault landing, corner swings and that the surface still exists.
 - `CoverStateMachine`: none -> enter (250 ms eased) -> in <-> peek (aim) / blind (fire without aim) / corner
-  (hold against an outside edge) ; vault (jump at clear low cover) ; dash (setting) ; exits on cover/crouch,
-  sprint, roll, jump at high cover, backing away, lost surface, death.
+  (hold against an outside edge) ; vault (jump at clear low cover) ; dash (dash press or cover + push towards
+  the marked target) ; exits on cover/crouch, dash with no target, jump at high cover (traversal may then
+  mantle via `exitDir`), a firm push away (sticky: `away > 0.75` for `AWAY_TIME`), lost surface, death.
+- Side-on: the body faces along the face (`faceDir`), shoulder to the wall (`wallSide`); reversing direction is a
+  turn-and-swap (`SWAP_TIME` 0.3 s, `swaps` counter); kneels at low cover when still. Peek at high cover moves to
+  the edge and leans in place (capsule stays in cover). Entering at speed slides in. Pushing into an inside
+  corner turns onto the adjoining face. `target` (5 Hz) is the cover-to-cover destination in the push/look
+  direction, or a SWAT turn (low, `SWAT_SPEED`) to collinear cover beyond a gap; the HUD projects a marker.
 - `CoverController` (player): standoff `COVER_STANDOFF` (capsule radius + 5 cm, > body depth); strafes along
   the tangent with predictive braking at edges; low cover peek stands up; high cover peek leans out past the
   edge and moves the camera to that shoulder (restored after); blind fire = spread x3 and minimal exposure.
   Exposure is physical: the hit capsule follows the controller (crouch lowers it 0.65 m).
-- Input: action `cover` = touch contextual button, controller B-hold (`COVER_HOLD` 0.28 s; B tap stays
-  crouch/roll; B in cover leaves), keyboard C (crouch moved to Ctrl). Settings: `gameplay.autoCover`,
-  `gameplay.coverDash`. HUD: `hud.setCover(prompt, state)`.
+- Input: action `cover` = touch contextual button (acts on release; a swipe off it sets `InputState.coverSwipe`
+  = move to cover that way / leave), controller B-hold (`COVER_HOLD` 0.28 s; B tap = crouch; B in cover
+  leaves), keyboard C (crouch on Ctrl). `dash` = LS click / touch dash button or stick flick / Shift. Settings:
+  `gameplay.autoCover`, `gameplay.coverDash` (default on). HUD: `setCover`, `setCoverMarker`, `setAction`.
+
+## Combat around cover
+- Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs
+  x0.75. Enemies aim at the torso volume.
+- `game/tactics.ts` (pure): `exposureFraction`/`exposurePoints` (GameState samples rays from up to 4 alerted
+  threats at 4 Hz), `coverQuality` (badge "flanked" below 0.3), `flanks`, `segPointDist`, `Suppression`
+  (near misses / impacts close to the head; holds then decays; spread, aim sway, flinch, vignette).
+- Losing the cover being used (`reason === 'gone'`) stumbles the player. HUD `setTactical` shows stamina,
+  exposure, noise and the suppression vignette.
 
 ## Debug overlay
 - F3 / 3-finger tap. Buttons: Skeleton (bones, controller capsules, hit volumes as lines; things register in
-  `ui/debugVolumes.ts`) and Tune (sliders bound to `MOVEMENT`).
+  `ui/debugVolumes.ts`) and Tune (sliders for `MOVEMENT`, `CAMERA`, `CARRY`). Lines: player, carry, cover,
+  combat, anim (layer weights, `!limit` = joint-rate limiter hits). `addTrace` graphs a value per frame (weapon
+  bob).
 
 ## Combat
 - Weapon content is JSON (`config/weapons.json`), validated by `validateWeaponDefs`; maths in
@@ -180,7 +224,12 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## AI and modes
 - `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only
   for cover moves, and are constrained to nav cells (no physics character controller per enemy).
-- Enemy brains (`ai/enemy.ts`) think at ~4 Hz (LOS raycasts staggered) and act every fixed step.
+- Enemy brains (`ai/enemy.ts`) think at ~4 Hz (LOS raycasts staggered) and act every fixed step. Tactics: walk
+  when they can see the target, run only to contact/between covers; suppressive fire at the last known
+  position, blind fire in some hide phases; cover choice weighted by `coverQuality`; `EnemyManager` assigns one
+  flanker against a player holding cover (> 4 s) and allows one grenade in the air at a time (player camping
+  the same cover > 6 s); `hear()` makes unalerted enemies investigate footsteps (`PlayerRef.cover/coverT/
+  suppress` carry the player side).
 - `EnemyManager` caps alive enemies (10) and ragdolls (`BUDGET.maxRagdolls`).
 - Modes implement `GameMode` (`game/modes/`); `GameState` owns world, player, combat, AI, pickups,
   interactables and calls mode hooks. `GameState.endSession` shows results; `GameState.rewardHook` lets

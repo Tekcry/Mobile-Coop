@@ -134,21 +134,56 @@ MFi / Bluetooth controller:
 - [ ] Joints: no gaps or seams at shoulders, elbows, hips, knees or neck while walking, crouching, rolling, reloading, peeking and emoting.
 - [ ] Customiser: Average / Lean / Athletic / Broad change build only slightly; heads, hair, helmets, packs, colours, patterns and tag work; preview matches in-game.
 - [ ] Two-hand grip on every weapon (left hand on the foregrip); spare guns visible on the back / pistol on the hip; reload moves the off hand to the magazine.
-- [ ] Movement: light stick walks (~1.4 m/s), full stick jogs (~3.5), sprint (~5.5) only after a short wind-up and cannot fire; after sprinting there is a brief delay before ADS/fire. Stops ease out, no sliding. Jump is low and committed. Roll has a fixed length and cooldown.
+- [ ] Movement: superseded by the tactical model below (1.1.0).
 - [ ] Feet do not slide when walking, jogging, strafing, backpedalling or turning on the spot; torso leans into acceleration and turns; head follows the aim.
 - [ ] Camera: smooth follow (no jitter on stairs/slopes), smooth shoulder swap and ADS zoom.
-- [ ] Cover snap: walk up to low cover, prompt shows; hold B (pad), tap the cover button (touch) or C (keyboard): character eases in (no teleport), crouched, facing the wall, not clipping into it.
+- [ ] Cover snap: walk up to low cover, prompt shows; hold B (pad), tap the cover button (touch) or C (keyboard): character eases in (no teleport), side-on with the shoulder to the wall (kneeling at low cover), not clipping into it.
 - [ ] Strafe along cover in both directions; stops at edges without falling off or clipping; inside corners stop; outside corners (building walls) pivot round when you keep pushing.
 - [ ] Low cover: hold aim to pop up and shoot over, release to drop; fire without aim = blind fire over the top (inaccurate).
-- [ ] High cover: aim near an edge leans out past it and moves the camera to that shoulder; release returns and restores the shoulder. Enemies can only hit what is exposed.
+- [ ] High cover: aim near an edge leans out in place (feet stay in cover) and moves the camera to that shoulder; release leans back and restores the shoulder. Enemies can only hit what is exposed.
 - [ ] Vault: A/jump at low cover vaults over smoothly when the far side is clear.
-- [ ] Leaving: B / C / button again, sprint, roll, jump at high cover, or backing away.
-- [ ] Settings > Gameplay: auto-snap on approach; cover-to-cover dash (cover button while pushing towards the next cover).
+- [ ] Leaving: B / C / button again, dash with no cover marked, jump at high cover, or a firm push away (a light push does not leave).
+- [ ] Settings > Gameplay: auto-snap on approach; cover-to-cover (on by default, see below).
 - [ ] Stairs and slopes near cover, narrow gaps between crates, pillars (rounded surfaces): no snapping into geometry; dying in cover ragdolls normally.
 - [ ] Touch vs controller parity: every cover action available on both; prompts show the right glyphs; menus still navigable.
 - [ ] Grunts and heavies take cover behind the same walls, crouch behind low cover and peek out at high-cover edges.
 - [ ] Debug overlay (F3 / 3-finger tap): Skeleton shows bones, capsule and hit volumes aligned to the body; Tune sliders change speeds live.
 - [ ] Frame time with 8 enemies in the open and with 8 in cover stays within budget (debug overlay draws/ms).
+
+## Tactical overhaul (1.1.0) - Proving Grounds, then a Wave match
+Movement (SWAT-style):
+- [ ] Light stick creeps (~0.6 m/s), full stick is a tactical walk (~1.2), holding full stick forward eases into a brisk move (~2.0) after ~0.6 s. Strafing is a little slower, backing up slower still. Nothing runs except the dash.
+- [ ] The body faces the aim (weapon leads); feet sidestep without crossing; turning has weight (slower while aiming); reversing at speed plays a short pivot.
+- [ ] Starts and stops are eased; no sliding. Crouch (~0.3 s) and, when still, a one-knee kneel (~0.4 s).
+- [ ] Dash: LS click / dash button / flicking the touch stick past its rim, or Shift. Short wind-up, rush (~5.5 m/s, up to 1.5 s), braking recovery; no firing from wind-up to recovery. Repeated dashes drain stamina (HUD bar under health) and then lock out briefly.
+- [ ] Jump is contextual: A / jump button / Space vaults low cover (red/orange walls), climbs a 0.9 m block, steps up a 0.6 m block, drops off the platform edge. In the open it does nothing. The HUD prompt names the action before you press.
+- [ ] Footstep noise (HUD bars) rises with speed; creeping up behind an unaware grunt does not alert it; dashing nearby does.
+Weapon ready positions:
+- [ ] Out of combat the weapon sits at low ready (muzzle down); near a wall or doorway it pulls in to compressed ready; in a tight corridor high ready. It only comes up while aiming or firing.
+- [ ] Firing from ready raises first (rifle ~0.15 s, pistol quicker, sniper slower); it stays up ~0.6 s after the last shot, then eases down. A semi-auto tap during the raise still fires once raised.
+- [ ] Reloading slows you to a creep.
+Camera:
+- [ ] Always a tight over-the-shoulder view: head and shoulders upper left, crosshair clear; FOV 75 at 16:9 (wider phones see more at the sides, not less height). ADS pushes in. Crouch lowers, dash widens slightly, lean shifts with the body.
+- [ ] Shoulder swap (RS click) takes about a quarter of a second, no snapping. In tight spaces the camera pushes in and hides the head rather than clipping.
+Corners and doorways (north-west lane):
+- [ ] Walking along the free-standing wall towards its end eases you out to ~1 m from it (slicing the pie) with the weapon compressed.
+- [ ] Aiming with the wall end in front leans out to the open side (camera to that shoulder); movement is only a shuffle while leaning; releasing restores the shoulder.
+- [ ] Walking through the 1.1 m doorway: compressed ready on approach, a quick left-right check sweep as you step through.
+Cover v2:
+- [ ] Reversing direction in cover plays a ~0.3 s turn-and-swap (weapon to the other hand, camera to that shoulder).
+- [ ] Dashing into cover (dash then cover, or dash straight at a face) slides in.
+- [ ] Inside corners (inside the building shell, north-east corner): keep pushing into the corner and you turn onto the adjoining wall.
+- [ ] Cover-to-cover: looking or pushing towards another cover shows a diamond marker; dash (or cover while pushing towards it) runs there and slides in. At the end of the low wall with another in line beyond the gap, pushing past the edge marks a SWAT turn: a low, quick crossing.
+- [ ] Touch: tap the cover button to take/leave cover; swipe from it towards another cover to move there (or away to leave).
+- [ ] Jumping at deep low cover / blocks climbs (mantle); at thin low cover vaults.
+Combat around cover (Wave match):
+- [ ] Only what sticks out can be hit: crouched behind low cover the head barely clears; leaning moves head and torso out (Skeleton view shows the three player volumes moving).
+- [ ] Rounds cracking past darken the screen edges, make the aim wander slightly, widen the spread and make the body flinch; it fades after a second without fire.
+- [ ] HUD "EXPOSED" meter rises when visible to enemies; the cover badge says "flanked" when your cover no longer protects you.
+- [ ] Enemies walk tactically when they can see you and rush only between covers; they suppress your last position, blind-fire from cover, one of them works round to flank if you stay put, and grenades come in if you camp the same cover.
+- [ ] Losing your cover (destroyed / gone) stumbles you briefly.
+Debug overlay:
+- [ ] Lines for player (stance, dash, stamina, pivot), carry (ready weights, raise, weight), cover (state, facing, swaps, lean, quality, traversal, doorway), combat (exposure, suppression, noise) and anim (state + layer weights; "!limit" flags a pose that tried to snap). The small trace graph shows the weapon bob (should stay near flat while walking). Tune has movement, camera and weapon-carry sliders.
 
 ## Phase 10 - Release checklist
 
@@ -182,10 +217,10 @@ Menus (every screen must be fully usable without touching the screen):
 Gameplay mapping:
 - [ ] LS move, RS look (sensitivity, curve, invert-Y and dead zones from Settings > Controller apply).
 - [ ] RT fire (analog threshold), LT aim (hold or toggle per setting); aim assist slows near targets on Standard/High, off when disabled.
-- [ ] RB / LB next / previous weapon; X reload; A jump; B crouch (tap) / roll (tap while moving) / cover (hold); Y interact.
-- [ ] LS click sprint (wind-up, cannot fire while sprinting); RS click shoulder swap.
+- [ ] RB / LB next / previous weapon; X reload; A contextual vault / climb / step / drop; B crouch (tap) / cover (hold); Y interact.
+- [ ] LS click dash (wind-up, cannot fire while dashing; in cover: to the marked cover); RS click shoulder swap.
 - [ ] D-pad up grenade; right/down/left quick emotes.
-- [ ] In cover: B leaves, A vaults low cover, LT peeks, RT blind-fires, pushing past an outside corner pivots.
+- [ ] In cover: B leaves, A vaults low cover, LT peeks / leans, RT blind-fires, pushing past an outside corner pivots, into an inside corner turns, LS click moves to the marked cover / SWAT turn.
 - [ ] Start pauses (single player) / opens the menu without pausing (co-op).
 - [ ] Haptics: firing, hits, explosions and damage rumble (if the controller supports it); off when Haptics is disabled.
 

@@ -1,5 +1,60 @@
 # Changelog
 
+## 1.1.0 - Cover-first tactical overhaul
+SWAT-style movement, a tight over-the-shoulder camera, weapon ready positions, weighted animation and an
+intuitive, deeper cover system.
+- Movement: analog creep (0.6 m/s) / tactical walk (1.2) / brisk (2.0, full stick forward held 0.6 s), ADS 1.0,
+  crouch 0.9, cover 1.0, reload 0.6; strafing x0.9, backstepping x0.7. The body faces the aim (strafe-locked,
+  weapon-led) at a stance-limited turn rate, and the view is capped to what the body can follow; reversing at
+  speed plays a 0.5 s pivot. Feet sidestep without crossing. Crouch ~0.3 s; crouched and still kneels.
+- Bounding dash replaces sprint and roll: LS click / dash button / touch stick flick / Shift. 150 ms wind-up, rush
+  at 5.5 m/s for up to 1.5 s, 300 ms braking recovery, no firing throughout; stamina with a lockout when empty.
+- No free jump. Jump is contextual (`TraversalController`): step up (<= 0.65 m), vault (low and thin, clear
+  landing), mantle (<= 1.7 m with room on top) or a controlled drop at a ledge, each a committed eased move with
+  a HUD prompt naming it beforehand.
+- Footstep noise scales with speed (creeping is near silent, dashing carries) and draws unalerted enemies over to
+  investigate.
+- Weapon carry: low ready by default, compressed near walls, doorways, cover edges, while dashing and reloading,
+  high ready in tight corridors and traversal; cross-faded. Raised only to aim or fire: firing from ready raises
+  first (rifle 150 ms, scaled by weapon weight: pistol faster, shotgun and sniper slower), the weapon holds up
+  0.6 s after the last shot. Semi-auto taps during the raise fire once up. Weapons have a mass factor
+  (`weight`, class default) that also drives sway and inertia.
+- Camera: always a tight over-the-shoulder framing (boom 1.2 m, ADS 0.75, shoulder 0.5, pivot 1.6, camera just
+  below head height so the head and shoulders sit upper left). FOV setting is now horizontal at 16:9
+  (`video.fovH`, default 75) with the vertical FOV fixed, so ultra-wide phones see more at the sides instead of
+  cropping the body. Nudges for crouch, dash and lean; ~250 ms weighted shoulder swap; in tight spaces the
+  camera pushes in and hides the head/body rather than clipping.
+- Corners and doorways (pure detection from cover faces): slicing the pie eases you out to ~1 m from an outside
+  corner with the weapon compressed; aiming with a wall edge or door frame in the way leans out to the open side
+  (hips planted, camera to that shoulder, restored after); doorways get compressed ready and a check sweep when
+  stepping through. Proving Grounds has a new close-quarters lane (doorway wall + free-standing wall).
+- Cover v2: side-on stance with the shoulder to the wall and a 0.3 s turn-and-swap when reversing; kneel at low
+  cover; lean in place at high-cover edges (the capsule stays in cover); dashing in slides into cover; pushing
+  into inside corners turns onto the adjoining wall; cover-to-cover targets in the push/look direction with a
+  HUD diamond marker (on by default) and a low SWAT turn across gaps to in-line cover; touch swipe from the
+  cover button; jumping out of cover can mantle; sticky but not trapping (a firm push away for 0.3 s leaves).
+- Combat around cover: split player hit volumes (legs, torso, head) that follow crouch and lean; exposure sampled
+  by rays from the nearest threats (HUD meter); suppression from near misses and nearby impacts (vignette, aim
+  wander, wider spread, flinch); cover quality against current threats (badge shows "flanked"); losing your
+  cover stumbles you.
+- Enemies use the same tactics: walk when they can see you and rush only between covers, suppress your last
+  known position, blind-fire from cover, choose cover by quality, one is assigned to flank a player holding
+  cover, and grenades come in if you camp the same cover.
+- HUD: stamina bar, exposure meter, noise bars, suppression vignette, traversal prompt, cover-to-cover marker.
+- Animation: tactical gait (creep/walk/brisk/dash), kneel, slide, traversal and doorway-check poses, ready
+  positions, mass-weighted sway and turn follow-through, per-joint angular rate limits as the continuity safety
+  net. Debug overlay: player/carry/cover/combat/anim lines (layer weights, joint-limit warnings), weapon bob
+  trace, camera and weapon-carry tuning.
+- Input: action `sprint` renamed `dash`; touch `dash` button; `LS` prompt glyph. Settings: cover-to-cover on by
+  default; FOV key changed (old FOV values reset to 75).
+- Tests: `tests/tactical.test.ts`, `tests/corners.test.ts`, `tests/tactics.test.ts`; e2e-move and e2e-cover
+  rewritten for the new model; new `scripts/e2e-tactics.mjs`. Probe (10 enemies, headless): ~2.2 ms CPU per
+  fixed step (v1.0.0: ~2.4).
+- Choices: traversal and cover are separate controllers sharing `PlayerController.override` rather than one
+  merged state machine, so each stays small and testable; exposure is sampled with a handful of rays at 4 Hz
+  instead of per-shot visibility; contextual lean is probe-driven (works at any wall edge or door frame without
+  tagging); the FOV setting was re-keyed rather than migrated because the meaning changed (horizontal at 16:9).
+
 ## 1.0.0 - Phase 10: Hardening and release
 - Offline end-to-end test (`scripts/e2e-offline.mjs`): every file in the service worker's precache manifest is
   cached (including the lazy co-op chunks and the Havok WASM), the game boots and plays a Wave match with the
