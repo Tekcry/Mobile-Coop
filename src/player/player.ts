@@ -1,4 +1,4 @@
-import { Vector3 } from '../core/babylon';
+import type { Vector3 } from '../core/babylon';
 import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
