@@ -159,10 +159,17 @@ class CoopScreen extends Screen {
 class JoinScreen extends Screen {
   private code = '';
   private slots: HTMLElement[] = [];
+  /** Physical keyboard typing. Runs in the capture phase and swallows the keys it uses so the
+   *  keyboard action map (Backspace = back, Enter = confirm, WASD = navigate) never sees them. */
   private keyHandler = (e: KeyboardEvent): void => {
-    if (e.key === 'Backspace') this.del();
-    else if (e.key === 'Enter') this.join();
-    else if (e.key.length === 1) this.add(e.key);
+    if (this.manager.top !== this) return;
+    const k = e.key;
+    if (k === 'Backspace') this.del();
+    else if (k === 'Enter') this.join();
+    else if (k.length === 1 && /[a-z0-9]/i.test(k)) this.add(k);
+    else return;
+    e.preventDefault();
+    e.stopImmediatePropagation();
   };
 
   constructor(
@@ -189,11 +196,11 @@ class JoinScreen extends Screen {
   }
 
   override onShow(): void {
-    window.addEventListener('keydown', this.keyHandler);
+    window.addEventListener('keydown', this.keyHandler, true);
   }
 
   override onHide(): void {
-    window.removeEventListener('keydown', this.keyHandler);
+    window.removeEventListener('keydown', this.keyHandler, true);
   }
 
   private render(): void {
@@ -346,7 +353,9 @@ class LobbyScreen extends Screen {
 
   private buildActions(keepFocus = false): void {
     const s = this.c.session;
-    const focusedIdx = keepFocus ? Array.from(this.actions.children).indexOf(this.c.app.nav.focused as HTMLElement) : -1;
+    let focusedIdx = keepFocus ? Array.from(this.actions.children).indexOf(this.c.app.nav.focused as HTMLElement) : -1;
+    // the main button was disabled while connecting: move focus onto it once usable
+    if ((this.actions.firstChild as HTMLButtonElement | null)?.disabled) focusedIdx = 0;
     const share = button('Share link', () => void this.share(), { icon: 'wifi' });
     const leave = button('Leave', () => this.onBack(), { icon: 'back' });
     let main: HTMLElement;

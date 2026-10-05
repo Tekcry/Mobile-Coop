@@ -10,6 +10,12 @@ export async function launch({ url = 'http://localhost:4173/', params = '', touc
   });
   const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
   const ctx = await browser.newContext({ ...(touch ? { ...dev } : { viewport: { width: 1280, height: 640 } }), acceptDownloads: true });
+  const { page, errors } = await openPage(ctx, url, params);
+  return { browser, ctx, page, errors };
+}
+
+/** Open another page in an existing context (coop tests: pages share BroadcastChannel + IndexedDB). */
+export async function openPage(ctx, url = 'http://localhost:4173/', params = '') {
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => {
@@ -53,7 +59,7 @@ export async function launch({ url = 'http://localhost:4173/', params = '', touc
     null,
     { timeout: 60000 },
   );
-  return { browser, ctx, page, errors };
+  return { page, errors };
 }
 
 export const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, SELECT: 8, START: 9, LS: 10, RS: 11, UP: 12, DOWN: 13, LEFT: 14, RIGHT: 15 };
