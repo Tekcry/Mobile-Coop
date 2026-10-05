@@ -46,14 +46,23 @@ export class SaveManager {
   private listeners = new Set<(s: SaveData) => void>();
   /** Set if IndexedDB is unavailable (private mode): play continues with an in-memory profile. */
   storageError: string | null = null;
+  /**
+   * The stored profile could not be read (newer app version, corrupt data): play continues on a fresh
+   * in-memory profile but nothing is written, so the stored data is never overwritten.
+   */
+  readOnly = false;
 
   get(): SaveData {
     return this.data;
   }
 
+  /** Raw stored data that could not be loaded (kept so an explicit import/reset can back it up first). */
+  private unreadable: unknown = undefined;
+
   async load(): Promise<void> {
+    let raw: unknown = undefined;
     try {
-      const raw = await dbGet<unknown>('profile', KEY);
+      raw = await dbGet<unknown>('profile', KEY);
       if (raw === undefined) {
         this.data = defaultSave();
         await this.flush();
@@ -68,6 +77,8 @@ export class SaveManager {
     } catch (e) {
       console.warn('save load failed', e);
       this.storageError = e instanceof Error ? e.message : String(e);
+      this.readOnly = true;
+      this.unreadable = raw;
       this.data = defaultSave();
     }
     this.notify();
@@ -89,6 +100,7 @@ export class SaveManager {
       clearTimeout(this.timer);
       this.timer = null;
     }
+    if (this.readOnly) return;
     try {
       await dbPut('profile', KEY, this.data);
     } catch (e) {
@@ -112,8 +124,18 @@ export class SaveManager {
   }
 
   /** Replace the profile with an imported one (current profile backed up first). */
+  /** Explicit user action (import/reset) on a read-only profile: keep the unreadable data, then allow writes. */
+  private async unlock(): Promise<void> {
+    if (!this.readOnly) return;
+    if (this.unreadable !== undefined) await this.backup(this.unreadable, 'unreadable');
+    this.unreadable = undefined;
+    this.readOnly = false;
+    this.storageError = null;
+  }
+
   async importText(text: string): Promise<void> {
     const save = parseExport(text);
+    await this.unlock();
     await this.backup(this.data, 'pre-import');
     this.data = save;
     await this.flush();
@@ -121,6 +143,7 @@ export class SaveManager {
   }
 
   async reset(): Promise<void> {
+    await this.unlock();
     await this.backup(this.data, 'pre-reset');
     this.data = defaultSave();
     await this.flush();

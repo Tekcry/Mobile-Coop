@@ -20,6 +20,8 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/e2e-cover.mjs` movement speeds, cover snap/strafe/edge/peek/blind fire/vault/corner/auto-snap
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
   - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
+  - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
+    pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
   - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the customiser rig (proportion/silhouette checks)
@@ -235,6 +237,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Dynamic physics bodies capped (see `physics/budget`). Projectiles/effects pooled, never allocated per shot.
 - Render scale: DPR capped at 1.5, then adaptive quality scales further.
 - Avoid per-frame allocations in hot paths: reuse `Vector3` temporaries.
+
+## Robustness rules
+- `App` isolates state updates: an exception in `fixedUpdate`/`frameUpdate` is logged (rate-limited) and toasted
+  once; input polling and menus keep running. `GameState` ignores updates after `exit()` (quit can happen mid-tick).
+- Backgrounding (`visibilitychange`/`pagehide`): flush the save, suspend audio, pause single player (co-op opens
+  the menu without pausing).
+- `SaveManager.readOnly`: if the stored profile cannot be read (newer version, corrupt), play continues on an
+  in-memory profile and nothing is written; an explicit import/reset backs the unreadable data up first.
+- Release checklist (offline, migration, controller) is the Phase 10 section of TESTING.md; README has deploy steps.
 
 ## Conventions
 - Files: camelCase `.ts`; one main class per file. Tests in `tests/*.test.ts`.

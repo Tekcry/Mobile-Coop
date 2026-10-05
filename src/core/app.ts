@@ -81,8 +81,26 @@ export class App {
       this.audio.setVolumes(s.audio);
       if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps);
     });
+    // Backgrounding (home button, app switch, screen lock): save now, silence audio, pause single player.
+    document.addEventListener('visibilitychange', () => this.onVisibility(document.hidden));
+    window.addEventListener('pagehide', () => void this.save.flush());
     window.addEventListener('resize', () => this.engine.resize());
     window.addEventListener('orientationchange', () => setTimeout(() => this.engine.resize(), 200));
+  }
+
+  private audioWasRunning = false;
+
+  private onVisibility(hidden: boolean): void {
+    const ctx = this.audio.ctx;
+    if (hidden) {
+      void this.save.flush();
+      this.audioWasRunning = ctx?.state === 'running';
+      if (this.audioWasRunning) void ctx?.suspend();
+      const st = this.state as (AppState & { pause?: () => void }) | null;
+      if (st && typeof st.pause === 'function' && !this.screens.isOpen) st.pause();
+    } else if (this.audioWasRunning) {
+      void ctx?.resume();
+    }
   }
 
   async loadSettings(): Promise<void> {
@@ -112,6 +130,21 @@ export class App {
     if (prev && prev.scene !== next.scene && !prev.scene.isDisposed) prev.scene.dispose();
   }
 
+  private lastError = 0;
+
+  /**
+   * A bug in one system must not wedge the whole loop (input polling, menus, quit). State updates are
+   * isolated: errors are logged (rate-limited) and surfaced once as a toast, and the next frame runs.
+   */
+  private report(e: unknown): void {
+    const now = performance.now();
+    if (now - this.lastError > 2000) {
+      console.error(e);
+      if (this.lastError === 0) this.toasts.show('Something went wrong - still running', 'warn');
+      this.lastError = now;
+    }
+  }
+
   private hooks(s: AppState): LoopHooks {
     return {
       beforeFrame: (dt) => {
@@ -121,11 +154,19 @@ export class App {
         this.loop.paused = !s.simulating;
       },
       fixedUpdate: (dt) => {
-        s.fixedUpdate(dt);
+        try {
+          s.fixedUpdate(dt);
+        } catch (e) {
+          this.report(e);
+        }
         this.input.state.consumeEdges();
       },
       frameUpdate: (dt, alpha) => {
-        s.frameUpdate(dt, alpha);
+        try {
+          s.frameUpdate(dt, alpha);
+        } catch (e) {
+          this.report(e);
+        }
         if (s.simulating) this.quality.sample(this.engine.getDeltaTime());
       },
     };

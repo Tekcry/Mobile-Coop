@@ -158,4 +158,21 @@ describe('SaveManager + IndexedDB', () => {
     expect(m.get().profile.name).toBe('Imported');
     expect((await dbKeys('backups')).some((k) => k.includes('pre-import'))).toBe(true);
   });
+  it('never overwrites a save it cannot read (newer version); an explicit import backs it up first', async () => {
+    const future = { ...defaultSave(), version: SAVE_VERSION + 5, profile: { ...defaultSave().profile, credits: 99999 } };
+    await dbPut('profile', 'main', future);
+    const m = new SaveManager();
+    await m.load();
+    expect(m.readOnly).toBe(true);
+    expect(m.storageError).toMatch(/newer/);
+    m.update((s) => void (s.profile.credits = 1));
+    await m.flush();
+    const stored = await dbGet<{ version: number; profile: { credits: number } }>('profile', 'main');
+    expect(stored?.version).toBe(SAVE_VERSION + 5);
+    expect(stored?.profile.credits).toBe(99999);
+    await m.importText(serializeExport(defaultSave()));
+    expect(m.readOnly).toBe(false);
+    expect((await dbKeys('backups')).some((k) => k.includes('unreadable'))).toBe(true);
+    expect((await dbGet<{ version: number }>('profile', 'main'))?.version).toBe(SAVE_VERSION);
+  });
 });

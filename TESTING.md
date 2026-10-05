@@ -149,3 +149,46 @@ MFi / Bluetooth controller:
 - [ ] Grunts and heavies take cover behind the same walls, crouch behind low cover and peek out at high-cover edges.
 - [ ] Debug overlay (F3 / 3-finger tap): Skeleton shows bones, capsule and hit volumes aligned to the body; Tune sliders change speeds live.
 - [ ] Frame time with 8 enemies in the open and with 8 in cover stays within budget (debug overlay draws/ms).
+
+## Phase 10 - Release checklist
+
+### Offline and install
+- [ ] First visit online; wait for the "Ready to play offline" toast. Airplane mode, fully close the tab/app, reopen: boots, menus work, a Wave match and Proving Grounds play normally.
+- [ ] Installed (Home Screen) app in airplane mode: same as above; Co-op shows the offline notice and nothing else is blocked.
+- [ ] Deploy a new version while the app is closed; next online launch picks it up (auto-update), progress intact.
+- [ ] Switch to another app mid-match: on return the match is paused, music/sound are silent while away, progress was saved.
+
+### Save migration
+- [ ] Settings > Data > Import an exported file from an older build (v1-v3): level, credits, unlocks, upgrades, look and loadout carry over; renamed avatar parts map to their new equivalents.
+- [ ] A save from a newer build opened in an older build: Settings > Data explains it was left untouched; playing does not overwrite it.
+- [ ] Private browsing / storage blocked: game still plays; Data tab warns that progress will not be kept.
+
+### Controller (Xbox and PlayStation layouts; MFi on iOS)
+Connect, hot-plug and prompts:
+- [ ] iOS: controller is detected after its first button press; Android/desktop: on connect. "Controller connected" toast; touch controls hide; prompts switch to the pad's glyphs (Xbox letters / PlayStation shapes).
+- [ ] Unplug or switch off mid-match: "Controller disconnected" toast, touch controls return, no stuck movement or firing. Reconnect: works again without reloading.
+- [ ] Touching the screen switches back to touch mode; pressing a pad button switches to pad mode.
+
+Menus (every screen must be fully usable without touching the screen):
+- [ ] Main menu: d-pad / left stick moves the focus ring, A selects, wraps top/bottom.
+- [ ] B goes back from every sub-screen; Start/B closes the pause menu; dialogs: A confirms, B cancels.
+- [ ] LB / RB switch tabs (Settings, Armory, Store, Customise).
+- [ ] Sliders and choices change with left/right; toggles with A.
+- [ ] Customise: right stick rotates the preview; locked items show the lock note and the Unlock button is reachable.
+- [ ] Layout editor: select a control with A, move it with the stick, A to drop.
+- [ ] Co-op: Host / Join; code keypad typing with d-pad + A, Del and Join reachable; lobby Ready / Start / Share / Leave.
+- [ ] Results screen: A = Play again, B = Main menu.
+
+Gameplay mapping:
+- [ ] LS move, RS look (sensitivity, curve, invert-Y and dead zones from Settings > Controller apply).
+- [ ] RT fire (analog threshold), LT aim (hold or toggle per setting); aim assist slows near targets on Standard/High, off when disabled.
+- [ ] RB / LB next / previous weapon; X reload; A jump; B crouch (tap) / roll (tap while moving) / cover (hold); Y interact.
+- [ ] LS click sprint (wind-up, cannot fire while sprinting); RS click shoulder swap.
+- [ ] D-pad up grenade; right/down/left quick emotes.
+- [ ] In cover: B leaves, A vaults low cover, LT peeks, RT blind-fires, pushing past an outside corner pivots.
+- [ ] Start pauses (single player) / opens the menu without pausing (co-op).
+- [ ] Haptics: firing, hits, explosions and damage rumble (if the controller supports it); off when Haptics is disabled.
+
+### Final pass
+- [ ] Full Wave run to wave 5+ and a Mission win on a mid-range phone: no hitches, frame time stable (debug overlay), no audio crackle.
+- [ ] Two phones co-op through a full wave, then Play again, then host leaves.

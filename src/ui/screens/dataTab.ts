@@ -11,7 +11,9 @@ export function dataTab(app: App, screen: SettingsScreen): TabDef {
     label: 'Data',
     build: () => {
       const s = app.save.get();
-      const status = app.save.storageError
+      const status = app.save.readOnly && app.save.storageError && /newer|version/i.test(app.save.storageError)
+        ? `Your saved progress is from a newer version of the game and was left untouched. Update the app (reload when online) to continue it.`
+        : app.save.storageError
         ? `Storage unavailable (${app.save.storageError}). Progress will not be kept - export it before closing.`
         : `Saved on this device (IndexedDB). Profile created ${new Date(s.createdAt).toLocaleDateString()}.`;
       const file = h('input', { attrs: { type: 'file', accept: 'application/json,.json' }, style: { display: 'none' } }) as HTMLInputElement;

@@ -34,7 +34,6 @@ export default defineConfig({
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,
-      includeAssets: ['icons/*.png', 'icons/*.svg'],
       manifest: {
         name: 'Shoulder Strike',
         short_name: 'Strike',

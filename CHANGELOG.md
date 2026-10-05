@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.0.0 - Phase 10: Hardening and release
+- Offline end-to-end test (`scripts/e2e-offline.mjs`): every file in the service worker's precache manifest is
+  cached (including the lazy co-op chunks and the Havok WASM), the game boots and plays a Wave match with the
+  network cut, backgrounding pauses, co-op shows its offline state, and a v1 save written straight into
+  IndexedDB is migrated on boot with a backup and survives reloads.
+- Saves: a profile that cannot be read (from a newer version, or corrupt) is never overwritten; play continues
+  on an in-memory profile, Settings > Data explains why, and an explicit import/reset backs the old data up first.
+- Loop: an error in one system no longer wedges input polling and menus (isolated, logged, toasted once).
+- Backgrounding the app saves immediately, silences audio and pauses single player.
+- PWA: removed duplicate icon entries from the precache manifest.
+- TESTING.md release checklist (offline/install, migration, full controller checklist); README with play,
+  develop and GitHub Pages deploy instructions.
+- e2e: pad disconnect check waits for the poll instead of a fixed 300 ms; page errors can print stacks (`STACK=1`).
+
 ## 0.10.0 - Avatar, movement and cover overhaul
 Retrofits the player, enemies, coop remotes, training dummies and the customiser preview.
 - One shared rig with realistic proportions (1.75 m, ~7.5 heads, shoulders ~2 head heights, chest-to-waist
