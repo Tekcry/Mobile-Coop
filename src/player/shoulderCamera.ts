@@ -3,7 +3,7 @@ import { G } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
 import { CAMERA, framing } from '../config/camera';
 import type { CharacterRig } from './characterRig';
-import { springStep } from '../anim/rigMath';
+import { Spring } from '../anim/rigMath';
 
 /** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
 export function vfovFromH16x9(hDeg: number): number {
@@ -27,47 +27,63 @@ export const CAMERA_TUNING = {
 };
 
 /**
- * Over-the-shoulder camera: yaw/pitch from look input, boom with collision against
- * static geometry, shoulder swap, ADS zoom, recoil (with recovery) and trauma shake.
+ * Weighted cinematic over-the-shoulder camera. Gameplay sets the look targets (`yaw`, `pitch`); the
+ * rendered view follows them with slight inertia (critically damped, no overshoot). Position follows
+ * the feet with a 150-250 ms lag and looks ahead along the movement; every framing change (crouch,
+ * ADS, cover, lean, dash, shoulder swap) blends over 350-600 ms; the shoulder swap arcs back behind
+ * the head. Subtle handheld drift (steadier when kneeling or aiming) and a damped footstep micro-bob
+ * give it weight. The boom pulls in smoothly against walls (never pops) and eases back out.
+ * Updated every render frame from interpolated targets.
  */
 export class ShoulderCamera {
   readonly camera: FreeCamera;
+  /** Look targets (gameplay). */
   yaw = 0;
   pitch = 0;
+  /** Rendered view angles (follow the targets with slight inertia). */
+  viewYaw = Number.NaN;
+  viewPitch = 0;
+  /** Rendered view angular speed (rad/s), for the debug graph and smoothness tests. */
+  angVel = 0;
   /** Target shoulder: 1 = right, -1 = left. */
   shoulder: 1 | -1 = 1;
-  private side = 1;
   /** 0 hip .. 1 ADS. */
   ads = 0;
   adsTarget = 0;
   /** FOV multiplier while fully ADS (weapon zoom). */
   adsZoom = 0.75;
   baseFovDeg = CAMERA.fov;
-  private boom = CAMERA.boomHip;
   /** State nudges set by the player each frame. */
   crouch = 0;
   dash = 0;
   lean = 0;
-  private leanS = 0;
-  private dashS = 0;
-  private bobT = 0;
+  /** In cover (slow push-in). */
+  cover = 0;
+  /** Steadiness 0..1 (kneeling, aiming): scales the handheld drift down. */
+  steady = 0;
+  private sSide = new Spring(1);
+  private sAds = new Spring();
+  private sPivot = new Spring(CAMERA.pivotStand);
+  private sLean = new Spring();
+  private sDash = new Spring();
+  private sCover = new Spring();
+  private sFootY = new Spring(Number.NaN);
+  private sFx = new Spring(Number.NaN);
+  private sFz = new Spring();
+  private sLookX = new Spring();
+  private sLookZ = new Spring();
+  private sYaw = new Spring();
+  private sPitch = new Spring();
+  private sBob = new Spring();
+  private sBoom = new Spring(CAMERA.boomHip);
+  private lastFx = Number.NaN;
+  private lastFz = 0;
   private headHidden = false;
   private allHidden = false;
   private recoilPitch = 0;
   private recoilYaw = 0;
   private trauma = 0;
   private t = 0;
-  private pivotY = CAMERA.pivotStand;
-  /** Smoothed feet height so step-ups and landings do not jolt the view. */
-  private footY = Number.NaN;
-  /** Critically damped follow state (x/z position, shoulder side, ADS blend). */
-  private fx = Number.NaN;
-  private fz = 0;
-  private fvx = 0;
-  private fvz = 0;
-  private sideV = 0;
-  private adsV = 0;
-  private footV = 0;
   readonly pivot = new Vector3();
   readonly forward = new Vector3(0, 0, 1);
   /** Distance from camera to pivot; used to fade the player model when too close. */
@@ -111,6 +127,19 @@ export class ShoulderCamera {
     this.trauma = Math.min(1, this.trauma + amount);
   }
 
+  /** A footstep landed (heel strike): a tiny damped dip of the view (strength ~0..1). */
+  footstep(strength = 1): void {
+    this.sBob.kick(-0.12 * Math.min(1.5, strength));
+  }
+
+  /** Snap the rendered view to the targets (teleport, respawn). */
+  snap(): void {
+    this.viewYaw = this.yaw;
+    this.viewPitch = this.pitch;
+    this.sYaw.reset();
+    this.sPitch.reset();
+  }
+
   /** Aim yaw/pitch including transient recoil. */
   get aimYaw(): number {
     return this.yaw + this.recoilYaw * 0.4;
@@ -122,50 +151,74 @@ export class ShoulderCamera {
   update(dt: number, feet: Vector3, crouch: number): void {
     const T = CAMERA;
     this.t += dt;
-    this.leanS += (this.lean - this.leanS) * Math.min(1, dt * 8);
-    this.dashS += (this.dash - this.dashS) * Math.min(1, dt * 5);
-    // critically damped: smooth start and stop, no overshoot or jitter
-    [this.side, this.sideV] = springStep(this.side, this.sideV, this.shoulder, MOVEMENT.camShoulder, dt);
-    [this.ads, this.adsV] = springStep(this.ads, this.adsV, this.adsTarget, MOVEMENT.camAds, dt);
-    this.ads = Math.max(0, Math.min(1, this.ads));
+    if (dt <= 0) dt = 1e-4;
+    // framing blends (critically damped: 350-600 ms, no overshoot)
+    const side = this.sSide.step(this.shoulder, MOVEMENT.camShoulder, dt);
+    this.ads = Math.max(0, Math.min(1, this.sAds.step(this.adsTarget, MOVEMENT.camAds, dt)));
+    const leanS = this.sLean.step(this.lean, 8, dt);
+    const dashS = this.sDash.step(this.dash, 6, dt);
+    const coverS = this.sCover.step(this.cover, 3, dt);
     const recover = Math.min(1, dt * 9);
     this.recoilPitch -= this.recoilPitch * recover;
     this.recoilYaw -= this.recoilYaw * recover;
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
 
-    const fr = framing(this.ads, crouch, this.dashS);
-    this.pivotY += (fr.pivot - this.pivotY) * Math.min(1, dt * 10);
-    // weighted bob only while dashing (the tactical glide keeps the view steady)
-    this.bobT += dt * (7 + this.dashS * 5);
-    const bob = Math.sin(this.bobT * 2) * T.dashBob * this.dashS;
-    if (Number.isNaN(this.footY) || Math.abs(feet.y - this.footY) > 3) {
-      this.footY = feet.y;
-      this.footV = 0;
+    const fr = framing(this.ads, crouch, dashS);
+    const pivotY = this.sPivot.step(fr.pivot, 8, dt);
+    // follow: feet height and position lag slightly; look ahead along the movement
+    if (Number.isNaN(this.sFootY.x) || Math.abs(feet.y - this.sFootY.x) > 3) this.sFootY.reset(feet.y);
+    const footY = this.sFootY.step(feet.y, 14, dt);
+    if (Number.isNaN(this.sFx.x) || Math.hypot(feet.x - this.sFx.x, feet.z - this.sFz.x) > 3) {
+      this.sFx.reset(feet.x);
+      this.sFz.reset(feet.z);
+      this.lastFx = feet.x;
+      this.lastFz = feet.z;
+      this.sLookX.reset();
+      this.sLookZ.reset();
     }
-    [this.footY, this.footV] = springStep(this.footY, this.footV, feet.y, 14, dt);
-    if (Number.isNaN(this.fx) || Math.hypot(feet.x - this.fx, feet.z - this.fz) > 3) {
-      this.fx = feet.x;
-      this.fz = feet.z;
-      this.fvx = this.fvz = 0;
-    }
-    [this.fx, this.fvx] = springStep(this.fx, this.fvx, feet.x, MOVEMENT.camFollow, dt);
-    [this.fz, this.fvz] = springStep(this.fz, this.fvz, feet.z, MOVEMENT.camFollow, dt);
-    this.pivot.set(this.fx, this.footY + this.pivotY + bob, this.fz);
+    const vx = (feet.x - this.lastFx) / dt;
+    const vz = (feet.z - this.lastFz) / dt;
+    this.lastFx = feet.x;
+    this.lastFz = feet.z;
+    const la = 0.14;
+    const lx = this.sLookX.step(Math.max(-0.3, Math.min(0.3, vx * la)), 5, dt);
+    const lz = this.sLookZ.step(Math.max(-0.3, Math.min(0.3, vz * la)), 5, dt);
+    const fx = this.sFx.step(feet.x, MOVEMENT.camFollow, dt);
+    const fz = this.sFz.step(feet.z, MOVEMENT.camFollow, dt);
+    const bob = this.sBob.step(0, 16, dt);
+    this.pivot.set(fx + lx, footY + pivotY + bob, fz + lz);
 
-    const yaw = this.aimYaw;
-    const pitch = this.aimPitch;
+    // rendered rotation: slight inertia on the look (no overshoot)
+    if (Number.isNaN(this.viewYaw)) this.snap();
+    const prevYaw = this.viewYaw;
+    const prevPitch = this.viewPitch;
+    const ty = this.aimYaw;
+    let dy = ty - this.viewYaw;
+    while (dy > Math.PI) dy -= Math.PI * 2;
+    while (dy < -Math.PI) dy += Math.PI * 2;
+    // spring on the remaining error (state is the error itself, so wrap-around is seamless)
+    this.sYaw.x = -dy;
+    this.sYaw.step(0, 34, dt);
+    this.viewYaw = ty + this.sYaw.x;
+    this.sPitch.x = this.viewPitch - this.aimPitch;
+    this.sPitch.step(0, 34, dt);
+    this.viewPitch = this.aimPitch + this.sPitch.x;
+    // handheld drift: tiny and slow; steadier kneeling / aiming, a touch more when dashing
+    const drift = 0.0026 * (1 - 0.65 * Math.min(1, this.steady)) * (1 + dashS * 0.5);
+    const yaw = this.viewYaw + (Math.sin(this.t * 0.53) * 0.6 + Math.sin(this.t * 1.31 + 1) * 0.4) * drift;
+    const pitch = this.viewPitch + (Math.sin(this.t * 0.41 + 2) * 0.6 + Math.sin(this.t * 1.07) * 0.4) * drift - dashS * 0.03;
+    const dYaw = yaw - prevYaw;
+    this.angVel = Math.hypot(dYaw, pitch - prevPitch) / dt;
     const cp = Math.cos(pitch);
     this.forward.set(Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp);
     const rightX = Math.cos(yaw);
     const rightZ = -Math.sin(yaw);
 
-    const boomTarget = fr.boom;
-    // shoulder point beside the head (follows a lean), then the boom straight back along the view
-    const shoulder = fr.shoulder * this.side + this.leanS * T.leanShift;
-    const sx = this.pivot.x + rightX * shoulder;
-    const sy = this.pivot.y + T.height;
-    const sz = this.pivot.z + rightZ * shoulder;
-    const shoulderPt = this.shoulderPt.set(sx, sy, sz);
+    // boom: framing, cover push-in, and the shoulder swap arcs back behind the head
+    const arc = 0.2 * (1 - side * side);
+    const boomTarget = fr.boom - coverS * 0.12 + arc;
+    const shoulder = fr.shoulder * side + leanS * T.leanShift;
+    const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height, this.pivot.z + rightZ * shoulder);
     const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
     const q = ShoulderCamera.Q;
     if (eng) {
@@ -181,10 +234,10 @@ export class ShoulderCamera {
       eng.raycastToRef(shoulderPt, desired, this.rr, q);
       if (this.rr.hasHit) dist = Math.max(T.minBoom, Vector3.Distance(shoulderPt, this.rr.hitPoint) - T.padding);
     }
-    // snap in instantly, ease back out
-    this.boom = dist < this.boom ? dist : this.boom + (dist - this.boom) * Math.min(1, dt * 5);
-    this.boomActual = this.boom;
-    const pos = this.forward.scaleToRef(-this.boom, this.camPos).addInPlace(shoulderPt);
+    // pull in quickly but smoothly (never pops), ease back out slowly; never behind a wall
+    const boomNow = this.sBoom.step(dist, dist < this.sBoom.x ? 40 : 7, dt);
+    this.boomActual = Math.min(boomNow, dist + 0.04);
+    const pos = this.forward.scaleToRef(-this.boomActual, this.camPos).addInPlace(shoulderPt);
 
     // shake (smooth pseudo-noise)
     const s = this.trauma * this.trauma;
@@ -195,7 +248,7 @@ export class ShoulderCamera {
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     const zoom = 1 + (this.adsZoom - 1) * this.ads;
-    this.camera.fov = vfovFromH16x9(this.baseFovDeg) * zoom;
+    this.camera.fov = vfovFromH16x9(this.baseFovDeg + dashS * 4) * zoom;
   }
 
   /**

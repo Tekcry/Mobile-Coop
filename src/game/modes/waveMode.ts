@@ -20,6 +20,7 @@ export class WaveMode implements GameMode {
 
   start(): void {
     this.g.hud.banner('WAVE SURVIVAL', 'Get ready', 2500);
+    this.g.letterbox(2.5);
     this.g.hud.setObjective('Survive as many waves as you can');
   }
 

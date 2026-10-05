@@ -49,6 +49,7 @@ export class MissionMode implements GameMode {
       }
     });
     this.g.hud.banner('OPERATION BLACKOUT', 'Hack both terminals', 2800);
+    this.g.letterbox(2.8);
     this.updateObjective();
   }
 

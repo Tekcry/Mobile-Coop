@@ -126,6 +126,8 @@ export class SettingsScreen extends Screen {
             toggle('Shadows', () => s().video.shadows, (v) => upd((d) => void (d.video.shadows = v))),
             slider('Field of view (horizontal, 16:9)', { min: 60, max: 100, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
             toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
+            toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))),
+            toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))),
             button('Enter fullscreen', () => void enterFullscreenLandscape(), { class: 'subtle' }),
             resetBtn('video', 'video'),
           ),
@@ -156,6 +158,7 @@ export class SettingsScreen extends Screen {
             choice('Crouch', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))),
             toggle('Auto-snap to cover', () => s().gameplay.autoCover, (v) => upd((d) => void (d.gameplay.autoCover = v))),
             toggle('Cover-to-cover dash', () => s().gameplay.coverDash, (v) => upd((d) => void (d.gameplay.coverDash = v))),
+            toggle('Slow-motion beat on the last enemy in a room', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))),
             section(
               'Mouse (desktop testing)',
               slider('Mouse sensitivity', { min: 0.2, max: 4, step: 0.05, get: () => s().mouse.sensitivity, set: (v) => upd((d) => void (d.mouse.sensitivity = v)), format: mult }),

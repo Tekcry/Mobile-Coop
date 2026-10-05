@@ -65,6 +65,13 @@ export class DebugOverlay {
         this.tune.hidden = !this.tune.hidden;
         b.classList.toggle('on', !this.tune.hidden);
       }),
+      // slow motion for reviewing blends: 1x -> 0.5x -> 0.25x -> 1x
+      btn('1x', (b) => {
+        const next = this.loop.timeScale === 1 ? 0.5 : this.loop.timeScale === 0.5 ? 0.25 : 1;
+        this.loop.timeScale = next;
+        b.textContent = `${next}x`;
+        b.classList.toggle('on', next !== 1);
+      }),
     );
     this.buildTune();
     this.el.append(this.text, this.graph, this.traceCanvas, this.tools, this.tune);
@@ -150,12 +157,22 @@ export class DebugOverlay {
       colors.push(pts.map(() => c));
     };
     const boneC = new Color4(0.3, 1, 0.5, 1);
+    const plantC = new Color4(0.2, 1, 0.3, 1);
+    const swingC = new Color4(1, 0.6, 0.1, 1);
     for (const rig of DEBUG_RIGS) {
       if (!rig.root.isEnabled()) continue;
       for (const [a, b] of rig.bones()) {
         a.computeWorldMatrix(true);
         b.computeWorldMatrix(true);
         push([a.getAbsolutePosition().clone(), b.getAbsolutePosition().clone()], boneC);
+      }
+      // foot contacts: green cross = planted (locked), orange = swinging, with a line to the landing spot
+      for (const f of [rig.planner.L, rig.planner.R]) {
+        const c = f.contact ? plantC : swingC;
+        const y = f.y + 0.01;
+        push([new Vector3(f.x - 0.07, y, f.z), new Vector3(f.x + 0.07, y, f.z)], c);
+        push([new Vector3(f.x, y, f.z - 0.07), new Vector3(f.x, y, f.z + 0.07)], c);
+        if (!f.contact) push([new Vector3(f.x, y, f.z), new Vector3(f.toX, f.toY + 0.01, f.toZ)], c);
       }
     }
     const ring = (c: Vector3, r: number, axis: 'y' | 'x' | 'z', n = 16): Vector3[] => {

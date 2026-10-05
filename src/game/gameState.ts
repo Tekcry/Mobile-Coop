@@ -38,6 +38,7 @@ import { CoverController } from '../cover/coverController';
 import { TraversalController } from '../player/traversal';
 import { CornerController } from '../cover/cornerController';
 import { noiseRadius } from '../player/movement';
+import { CinematicPost } from '../vfx/cinematicPost';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
 
 export type { ModeId };
@@ -121,6 +122,11 @@ export class GameState implements AppState {
   private coverSpot: CoverSpot = { nx: 0, nz: 0, low: false, x: 0, z: 0 };
   private coverHeldT = 0;
   private swayT = 0;
+  /** Cinematic post pass (vignette, grain, letterbox). */
+  readonly post: CinematicPost;
+  private postKey = '';
+  private beatT = 0;
+  private letterboxT = 0;
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
   private menuOpen = false;
@@ -195,6 +201,7 @@ export class GameState implements AppState {
     this.hud = new Hud(app.uiRoot);
     this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.traversal = new TraversalController(this.scene, this.player);
+    this.post = new CinematicPost(this.player.cam.camera);
     this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
@@ -305,6 +312,18 @@ export class GameState implements AppState {
       return `${top} | ${layers}${lim > 0 ? `  !limit x${lim}` : ''}`;
     });
     app.debug.addTrace('bob', () => this.player.rig.lastTargets?.weaponBob ?? 0, 0.03);
+    // velocity (white, top = 4 m/s) and acceleration (yellow, top = 3 m/s^2)
+    app.debug.addTrace('speed', () => this.player.controller.motion.speed * 2 - 4, 4, '#ffffff');
+    app.debug.addTrace('accel', () => this.player.controller.motion.accel, 3, '#ffd34d');
+    // camera angular speed (pink, top = 3 rad/s): spikes would be snaps
+    app.debug.addTrace('cam', () => Math.min(3, this.player.cam.angVel) * 2 - 3, 3, '#ff7ad9');
+    app.debug.extra.set('clips', () => {
+      const r = this.player.rig;
+      const g = r.graph;
+      const clips = g.activeClips().map((c) => `${c.name} ${c.w.toFixed(2)}@${c.t.toFixed(2)}`).join(' | ');
+      const pl = r.planner;
+      return `${clips}\nsync ${g.phase.toFixed(2)} inert ${g.inert.maxOffset.toFixed(3)} (${g.inert.count}) feet ${pl.L.contact ? 'L' : '-'}${pl.R.contact ? 'R' : '-'} slide ${(pl.L.slide + pl.R.slide).toFixed(3)}m motion ${this.player.controller.motion.state}`;
+    });
   }
 
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
@@ -390,12 +409,15 @@ export class GameState implements AppState {
 
   exit(): void {
     this.exited = true;
+    // never leave the loop in slow motion
+    this.app.loop.timeScale = 1;
+    this.post.dispose();
     this.net?.dispose();
     this.net = null;
     this.audio?.dispose();
     this.app.input.setGameplayActive(false);
-    for (const k of ['player', 'carry', 'cover', 'combat', 'anim']) this.app.debug.extra.delete(k);
-    this.app.debug.removeTrace('bob');
+    for (const k of ['player', 'carry', 'cover', 'combat', 'anim', 'clips']) this.app.debug.extra.delete(k);
+    for (const k of ['bob', 'speed', 'accel', 'cam']) this.app.debug.removeTrace(k);
     this.app.debug.controllerCapsules = null;
     this.app.debug.extra.delete('ai');
     this.mode?.dispose();
@@ -610,6 +632,7 @@ export class GameState implements AppState {
       look.y += Math.cos(this.swayT * 1.7 + 1) * sway * 1.2 * dt;
     }
     this.player.frameUpdate(dt, alpha, look);
+    this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
     this.vfx.update(dt);
     this.audio?.frame(dt);
@@ -661,6 +684,41 @@ export class GameState implements AppState {
       return h.hit && h.distance < Vector3.Distance(this.rayA, this.rayB) - 0.15;
     });
     this.coverQ = this.localRef.cover ? coverQuality(this.localRef.cover, eyes) : 1;
+  }
+
+  /**
+   * Cinematic beats: a brief slow-down (e.g. the last enemy in a room), and a letterbox for stingers.
+   * The beat runs in real time and restores normal speed afterwards.
+   */
+  slowBeat(seconds = 0.25, scale = 0.6): void {
+    if (!this.app.settings.get().gameplay.slowBeat || this.net) return;
+    this.beatT = seconds;
+    this.app.loop.timeScale = scale;
+  }
+
+  letterbox(seconds: number): void {
+    this.letterboxT = seconds;
+    this.post.letterbox(true);
+  }
+
+  private updateCinematic(dt: number): void {
+    const v = this.app.settings.get().video;
+    const key = `${v.vignette}${v.filmGrain}`;
+    if (key !== this.postKey) {
+      this.postKey = key;
+      this.post.configure(v.vignette, v.filmGrain);
+    }
+    const scale = this.app.loop.timeScale || 1;
+    const real = dt / scale;
+    if (this.beatT > 0) {
+      this.beatT -= real;
+      if (this.beatT <= 0) this.app.loop.timeScale = 1;
+    }
+    if (this.letterboxT > 0) {
+      this.letterboxT -= real;
+      if (this.letterboxT <= 0) this.post.letterbox(false);
+    }
+    this.post.update(real);
   }
 
   /** Lost the cover being used (shot away / destroyed): a short stagger. */

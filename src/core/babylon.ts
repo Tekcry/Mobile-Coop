@@ -42,6 +42,8 @@ export { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder';
 export { CreateLineSystem } from '@babylonjs/core/Meshes/Builders/linesBuilder';
 export type { LinesMesh } from '@babylonjs/core/Meshes/linesMesh';
 export { Observable } from '@babylonjs/core/Misc/observable';
+export { PostProcess } from '@babylonjs/core/PostProcesses/postProcess';
+export { Effect } from '@babylonjs/core/Materials/effect';
 export { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 export { EngineInstrumentation } from '@babylonjs/core/Instrumentation/engineInstrumentation';
 export { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
@@ -75,6 +77,7 @@ import '@babylonjs/core/Rendering/edgesRenderer';
 import '@babylonjs/core/Rendering/boundingBoxRenderer';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
+import '@babylonjs/core/Shaders/postprocess.vertex';
 
 // Babylon 9 stubs out methods whose side-effect module is missing. Warn loudly
 // so the smoke test catches any missing import above.

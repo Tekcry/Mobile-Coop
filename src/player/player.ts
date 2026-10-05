@@ -198,6 +198,8 @@ export class Player {
     this.cam.crouch = c.crouchBlend;
     this.cam.dash = c.dashing ? 1 : 0;
     this.cam.lean = this.coverPose.lean;
+    this.cam.cover = this.coverPose.cover !== 'none' ? 1 : 0;
+    this.cam.steady = Math.max(c.kneeling ? 1 : c.crouchBlend * 0.5, this.ads ? 0.8 : 0);
     this.cam.update(dt, c.renderPos, c.crouchBlend);
     this.world.frame(c.renderPos);
 
@@ -256,6 +258,9 @@ export class Player {
     rp.restX = c.renderPos.x + (sp > 0.01 ? (m.vx / sp) * stopD : 0);
     rp.restZ = c.renderPos.z + (sp > 0.01 ? (m.vz / sp) * stopD : 0);
     this.rig.animate(dt, rp);
+    // footsteps carry into the camera as a tiny damped dip (scaled by how hard the step lands)
+    const pl = this.rig.planner;
+    if ((pl.L.landed || pl.R.landed) && c.grounded) this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));
     this.cam.applyBodyFade(this.rig);
   }
 
