@@ -60,6 +60,7 @@ export class EnemyManager {
       enemies: () => this.enemies,
       cover: world.level.cover,
       coverSegments: world.level.coverSegments,
+      rooms: world.layout.rooms ?? [],
       reserveCover: (e, idx) => {
         const o = this.coverOwner.get(idx);
         if (o && o !== e && o.alive) return false;
@@ -136,7 +137,7 @@ export class EnemyManager {
     let best: Enemy | null = null;
     let bd = Infinity;
     for (const e of this.enemies) {
-      if (!e.alive || !e.alerted || e.def.melee || !e.def.usesCover) continue;
+      if (!e.alive || !e.alerted || e.def.melee || !e.def.usesCover || e.hold) continue;
       const d = this.players()[0] ? Vector3.Distance(e.pos, this.players()[0]!.feet) : 0;
       if (d < bd) {
         bd = d;

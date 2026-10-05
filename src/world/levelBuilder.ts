@@ -104,6 +104,28 @@ export class LevelBuilder {
     return this.box((x1 + x2) / 2, y + h / 2, (z1 + z2) / 2, thick, h, len, color, yaw);
   }
 
+  /** Wall along X at `z` from x0 to x1 with door gaps [a, b] (sorted, increasing). */
+  wallX(z: number, x0: number, x1: number, gaps: readonly (readonly [number, number])[], h: number, color: string, thick = 0.3): this {
+    let x = x0;
+    for (const [a, e] of gaps) {
+      if (a > x) this.wall(x, z, a, z, h, color, thick);
+      x = e;
+    }
+    if (x1 > x) this.wall(x, z, x1, z, h, color, thick);
+    return this;
+  }
+
+  /** Wall along Z at `x` from z0 to z1 with door gaps [a, b] (sorted, increasing). */
+  wallZ(x: number, z0: number, z1: number, gaps: readonly (readonly [number, number])[], h: number, color: string, thick = 0.3): this {
+    let z = z0;
+    for (const [a, e] of gaps) {
+      if (a > z) this.wall(x, z, x, a, h, color, thick);
+      z = e;
+    }
+    if (z1 > z) this.wall(x, z, x, z1, h, color, thick);
+    return this;
+  }
+
   /** Inclined slab rising `rise` over `len` along yaw. */
   ramp(x: number, z: number, w: number, len: number, rise: number, color: string, yaw = 0, y = 0, visible = true): this {
     const pitch = -Math.atan2(rise, len);

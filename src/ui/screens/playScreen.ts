@@ -10,6 +10,7 @@ import { button, choice } from '../widgets';
 const MODES: { id: ModeId; label: string; desc: string }[] = [
   { id: 'wave', label: 'Wave Survival', desc: 'Endless waves of grunts, runners and heavies. How long can you last?' },
   { id: 'mission', label: 'Mission', desc: 'Hack two terminals, steal the intel, hold the extraction point.' },
+  { id: 'clear', label: 'Clear', desc: 'Room by room: clear every room of the building. Squads hold their ground.' },
   { id: 'sandbox', label: 'Free Roam', desc: 'Practice range with every weapon and training targets.' },
 ];
 

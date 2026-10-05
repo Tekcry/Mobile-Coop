@@ -66,7 +66,8 @@ try {
     ys.push((await state()).yaw);
   }
   const held = await state();
-  assert(ys[1] - ys[0] > 0.02 && ys[2] - ys[1] > 0.02, `camera stick turns at a rate while held (${ys.map((v) => v.toFixed(2)).join(' ')})`);
+  const dYaw = (a, b) => Math.atan2(Math.sin(b - a), Math.cos(b - a));
+  assert(dYaw(ys[0], ys[1]) > 0.02 && dYaw(ys[1], ys[2]) > 0.02, `camera stick turns at a rate while held (${ys.map((v) => v.toFixed(2)).join(' ')})`);
   assert(!held.fire, 'camera stick never fires');
   await touch(page, 'touchEnd', []);
   await frames(page, 30);

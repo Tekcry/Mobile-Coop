@@ -995,6 +995,21 @@ body {
   max-width: 34vw;
   text-align: center;
 }
+.hud-room {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #e9d9a8;
+  text-shadow: 0 1px 2px #000;
+}
+.hud-room.cleared {
+  color: #8fe0a0;
+}
+.hud-room.cleared::after {
+  content: ' \2713';
+}
+.hud-room:empty,
 .hud-objective:empty,
 .hud-mode:empty {
   display: none;
@@ -1032,6 +1047,15 @@ body {
   background: rgba(10, 13, 18, 0.35);
   padding: 4px 12px;
   border-radius: 8px;
+}
+/* touch: the bottom centre belongs to the thumbs (dash / swap / action), so the weapon readout sits
+   under the vitals */
+.input-touch .hud-weapon {
+  bottom: auto;
+  top: calc(var(--sat) + 78px);
+  left: calc(var(--sal) + 14px);
+  transform: none;
+  text-align: left;
 }
 .input-gamepad .hud-weapon,
 .input-kbm .hud-weapon {

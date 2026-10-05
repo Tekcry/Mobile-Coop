@@ -3,7 +3,7 @@ import type { EnemyKind } from '../../ai/enemyDefs';
 import type { HitInfo } from '../damage';
 import type { Blip } from '../../ui/hud/minimap';
 
-export type ModeId = 'sandbox' | 'wave' | 'mission';
+export type ModeId = 'sandbox' | 'wave' | 'mission' | 'clear';
 
 export interface SessionStats {
   mode: ModeId;

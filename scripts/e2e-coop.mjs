@@ -98,7 +98,15 @@ try {
   const v1 = await GA((id) => ({ alive: window.__app.current.enemyMgr.enemies.find((e) => e.id === id)?.alive ?? false, viol: window.__app.current.net.remotes.values().next().value.violations }), bogus);
   assert(v1.alive && v1.viol >= 1, `impossible shot rejected (${JSON.stringify(v1)})`);
   // move the client next to the enemy (host grants a teleport window, like a respawn) and shoot it
-  await GA(() => { const g = window.__app.current; for (const r of g.net.remotes.values()) r.allowTeleport(5); for (const e of g.enemyMgr.enemies) e['stagger'] = 99; });
+  // stand the victim on open floor (the default map is close quarters) so the client has a clear line
+  await GA((id) => {
+    const g = window.__app.current;
+    for (const r of g.net.remotes.values()) r.allowTeleport(5);
+    for (const e of g.enemyMgr.enemies) e['stagger'] = 99;
+    const v = g.enemyMgr.enemies.find((e) => e.id === id);
+    if (v && g.world.map.id === 'warehouse') v.pos.set(6, 0, -6);
+  }, victim);
+  await wait(400);
   await GB((id) => {
     const g = window.__app.current;
     const p = g.net.puppets.get(id);

@@ -27,6 +27,8 @@ import { Interactables, type Interactable } from './interactables';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
 import { WaveMode } from './modes/waveMode';
 import { MissionMode } from './modes/missionMode';
+import { ClearMode } from './modes/clearMode';
+import { roomAt } from '../world/rooms';
 import { ResultsScreen } from '../ui/screens/resultsScreen';
 import { playEmote } from '../cosmetics/emotes';
 import { EventBus } from '../core/events';
@@ -126,6 +128,9 @@ export class GameState implements AppState {
   exposure = 0;
   coverQ = 1;
   private exposureT = 0;
+  private roomT = 0;
+  /** Room the local player is in (index into `world.layout.rooms`, -1 outside / untagged map). */
+  currentRoom = -1;
   private expPts: P3[] = [];
   private expEyes: P3[] = [];
   private headTmp = new Vector3();
@@ -276,7 +281,7 @@ export class GameState implements AppState {
         this.hud.feedItem(k === 'health' ? '+50 health' : 'Ammo refilled');
       };
       w.interactables = new Interactables(this.scene, world.parts);
-      w.mode = opts.mode === 'wave' ? new WaveMode(this) : new MissionMode(this);
+      w.mode = opts.mode === 'wave' ? new WaveMode(this) : opts.mode === 'clear' ? new ClearMode(this) : new MissionMode(this);
       this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
       app.debug.extra.set('ai', () => `enemies ${this.enemyMgr?.alive ?? 0} nav ${this.nav?.w}x${this.nav?.h}`);
     }
@@ -571,6 +576,7 @@ export class GameState implements AppState {
     }
     this.updateCoverRef(dt);
     this.updateExposure(dt);
+    this.updateRoomTag(dt);
     this.enemyMgr?.update(dt);
     if (this.puppet) this.pickups?.update(dt, []);
     else
@@ -669,6 +675,20 @@ export class GameState implements AppState {
       this.localRef.cover = null;
     }
     this.localRef.coverT = this.coverHeldT;
+  }
+
+  /** Room tag (4 Hz) on maps with tagged rooms; Clear mode marks cleared rooms. */
+  private updateRoomTag(dt: number): void {
+    const rooms = this.world.layout.rooms;
+    if (!rooms?.length) return;
+    this.roomT -= dt;
+    if (this.roomT > 0) return;
+    this.roomT = 0.25;
+    const p = this.player.position;
+    const ri = roomAt(rooms, p.x, p.z);
+    this.currentRoom = ri;
+    const cleared = ri >= 0 && this.mode instanceof ClearMode && this.mode.tracker.isCleared(ri);
+    this.hud.setRoom(ri >= 0 ? rooms[ri]!.name : null, cleared);
   }
 
   /** Exposure sampling (4 Hz): rays from the nearest alerted threats' eyes to points on the player's volumes. */

@@ -44,6 +44,7 @@ export class Hud {
   private compassMarks: HTMLElement;
   private objective: HTMLElement;
   private modeInfo: HTMLElement;
+  private roomEl: HTMLElement;
   private bannerEl: HTMLElement;
   private interactEl: HTMLElement;
   private coverEl: HTMLElement;
@@ -116,6 +117,7 @@ export class Hud {
     const compass = h('div', { class: 'hud-compass' }, this.compassStrip, this.compassMarks, h('div', { class: 'compass-caret' }));
     this.objective = h('div', { class: 'hud-objective' });
     this.modeInfo = h('div', { class: 'hud-mode' });
+    this.roomEl = h('div', { class: 'hud-room' });
     this.bannerEl = h('div', { class: 'hud-banner' });
     this.interactEl = h('div', { class: 'hud-interact' });
     this.coverEl = h('div', { class: 'hud-interact hud-cover' });
@@ -132,7 +134,7 @@ export class Hud {
       this.vignette,
       this.suppressEl,
       vitals,
-      h('div', { class: 'hud-top' }, compass, this.objective, this.modeInfo),
+      h('div', { class: 'hud-top' }, compass, this.roomEl, this.objective, this.modeInfo),
       this.minimapSlot,
       weapon,
       h('div', { class: 'hud-center' }, this.cross, this.hit, svg, this.dmgWrap),
@@ -230,6 +232,15 @@ export class Hud {
 
   setObjective(text: string): void {
     this.set('obj', text, () => (this.objective.textContent = text));
+  }
+
+  /** Room tag under the compass (close-quarters maps); `cleared` marks it as secured. */
+  setRoom(name: string | null, cleared = false): void {
+    const key = name ? `${name}|${cleared}` : '';
+    this.set('room', key, () => {
+      this.roomEl.textContent = name ?? '';
+      this.roomEl.classList.toggle('cleared', cleared);
+    });
   }
 
   setModeInfo(html: string): void {

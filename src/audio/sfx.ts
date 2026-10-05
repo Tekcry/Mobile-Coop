@@ -162,6 +162,14 @@ export class Sfx {
     [523, 659, 784].forEach((f, i) => this.tone('ui', 0.25, 0, 'triangle', f, f, 0.18, i * 0.09));
   }
 
+  /** Room-clear stinger: low swell under a rising two-note figure; the final room resolves higher. */
+  stinger(final = false): void {
+    this.tone('ui', 0.16, 0, 'sine', 110, 110, 0.9, 0, 0.12);
+    this.tone('ui', 0.12, 0, 'triangle', 165, 165, 0.8, 0.02, 0.1);
+    const notes = final ? [440, 554, 659, 880] : [392, 523];
+    notes.forEach((f, i) => this.tone('ui', 0.2, 0, 'triangle', f, f, 0.35, 0.12 + i * 0.13, 0.02));
+  }
+
   /** Wave start horn / alarm. */
   horn(): void {
     this.tone('sfx', 0.22, 0, 'sawtooth', 220, 210, 0.8, 0, 0.05);

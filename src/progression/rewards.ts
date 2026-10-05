@@ -37,8 +37,9 @@ export function computeRewards(s: SessionStats, difficulty: Difficulty): Session
     const w = Math.min(nn(s.waves), 100);
     if (w) lines.push({ label: `Waves survived (${w})`, xp: 150 * w + 25 * w * w, credits: 30 * w });
   } else {
-    const o = Math.min(nn(s.objectives), 10);
-    if (o) lines.push({ label: `Objectives (${o})`, xp: 300 * o, credits: 50 * o });
+    const o = Math.min(nn(s.objectives), s.mode === 'clear' ? 20 : 10);
+    if (o && s.mode === 'clear') lines.push({ label: `Rooms cleared (${o})`, xp: 180 * o, credits: 30 * o });
+    else if (o) lines.push({ label: `Objectives (${o})`, xp: 300 * o, credits: 50 * o });
   }
   if (s.won) lines.push({ label: 'Victory', xp: 500, credits: 150 });
   const shots = nn(s.shots);

@@ -19,6 +19,7 @@ import { sampleSpread } from '../weapons/weaponStats';
 import { wrapAngle } from '../player/playerController';
 import { emptyMotionInput, MotionDriver } from '../anim/motion';
 import type { RigPose } from '../player/characterRig';
+import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -50,6 +51,8 @@ export interface AiContext {
   cover: readonly CoverPoint[];
   /** Cover faces (for peeking around the nearest edge). */
   coverSegments: readonly CoverSegment[];
+  /** Room tags of the map (empty when it has none). */
+  rooms: readonly RoomRect[];
   reserveCover(e: Enemy, idx: number): boolean;
   releaseCover(e: Enemy): void;
   onKilled(e: Enemy, h: HitInfo): void;
@@ -124,6 +127,15 @@ export class Enemy implements Damageable {
   private grenadeCd = rand(5, 10);
   /** Assigned to flank a player holding cover (debug / tests). */
   flanking = false;
+  /**
+   * Room this enemy holds (Clear mode squads): it fights from inside, takes cover inside and never
+   * chases out; with the target outside it falls back to its post and watches the last known position.
+   */
+  hold: RoomRect | null = null;
+  private post: P2 = [0, 0];
+  /** Room index at the last think, and a short pause at doorways when moving into a new room unseen. */
+  private room = -1;
+  private doorCheck = 0;
 
   constructor(
     private ctx: AiContext,
@@ -139,6 +151,7 @@ export class Enemy implements Damageable {
     this.motion = new MotionDriver(yaw);
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = yaw;
+    this.post = [this.pos.x, this.pos.z];
     const built = buildEnemyRig(ctx.scene, ctx.world, def, this.id);
     this.rig = built.rig;
     this.gun = built.gun;
@@ -241,6 +254,7 @@ export class Enemy implements Damageable {
     this.stagger = Math.max(0, this.stagger - dt);
     this.lastSeenT += dt;
     this.grenadeCd -= dt;
+    this.doorCheck = Math.max(0, this.doorCheck - dt);
     this.strafeT -= dt;
     this.thinkT -= dt;
     if (this.thinkT <= 0) {
@@ -257,6 +271,15 @@ export class Enemy implements Damageable {
   }
 
   private perceive(): void {
+    // entering a new room without sight of the target: stop at the threshold and check it first
+    const rooms = this.ctx.rooms;
+    if (rooms.length) {
+      const ri = roomAt(rooms, this.pos.x, this.pos.z);
+      if (ri !== this.room) {
+        if (this.room >= 0 && ri >= 0 && this.alerted && !this.los && this.state === 'chase' && !this.def.melee) this.doorCheck = 0.7;
+        this.room = ri;
+      }
+    }
     // nearest living player
     let best: PlayerRef | null = null;
     let bd = Infinity;
@@ -296,6 +319,7 @@ export class Enemy implements Damageable {
     if (!this.alerted && this.investigate) {
       // tactical walk to the noise, weapon up
       const ip = this.investigate;
+      if (this.hold && !inRoom(this.hold, ip[0], ip[1])) clampToRoom(this.hold, ip[0], ip[1], 0.8, ip);
       if (Math.hypot(ip[0] - this.pos.x, ip[1] - this.pos.z) < 1.2) this.investigate = null;
       return { point: this.ctx.nav.lineClear([this.pos.x, this.pos.z], ip) ? ip : this.chasePoint(ip, false), speed: def.walkSpeed * 0.8, face: null };
     }
@@ -303,6 +327,9 @@ export class Enemy implements Damageable {
     if (this.stagger > 0) return { point: null, speed: 0, face: this.faceTarget() };
     const toTarget = this.faceTarget();
     const tp: P2 = [t.feet.x, t.feet.z];
+    // holding a room against a target outside it
+    const outside = this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5);
+    if (this.doorCheck > 0 && !this.los) return { point: null, speed: 0, face: null };
 
     // ---- melee (runner) ----
     if (def.melee) {
@@ -337,6 +364,12 @@ export class Enemy implements Damageable {
           this.setState(def.usesCover && Math.random() < 0.6 ? 'seekCover' : 'attack');
           return { point: null, speed: 0, face: toTarget };
         }
+        if (outside) {
+          // hold: back to the post, weapon on the last known position
+          const face = Math.atan2(this.lastKnown.x - this.pos.x, this.lastKnown.z - this.pos.z);
+          const atPost = Math.hypot(this.post[0] - this.pos.x, this.post[1] - this.pos.z) < 0.5;
+          return { point: atPost ? null : this.post, speed: def.walkSpeed, face: this.lastSeenT < 30 ? face : null };
+        }
         return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
       }
       case 'attack': {
@@ -362,7 +395,9 @@ export class Enemy implements Damageable {
         const len = Math.hypot(dx, dz) || 1;
         const sx = (-dz / len) * this.strafe + (dx / len) * away;
         const sz = (dx / len) * this.strafe + (dz / len) * away;
-        return { point: [this.pos.x + sx * 2, this.pos.z + sz * 2], speed: def.walkSpeed * (this.windup > 0 || this.burstLeft > 0 ? 0.4 : 0.8), face: toTarget };
+        const sp: P2 = [this.pos.x + sx * 2, this.pos.z + sz * 2];
+        if (this.hold) clampToRoom(this.hold, sp[0], sp[1], 0.6, sp);
+        return { point: sp, speed: def.walkSpeed * (this.windup > 0 || this.burstLeft > 0 ? 0.4 : 0.8), face: toTarget };
       }
       case 'seekCover': {
         if (!this.coverPicked) {
@@ -492,6 +527,7 @@ export class Enemy implements Damageable {
       const c = cover[i]!;
       const dMe = Math.hypot(c.pos.x - this.pos.x, c.pos.z - this.pos.z);
       if (dMe > 14) continue;
+      if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2)) continue;
       const dx = t.feet.x - c.pos.x;
       const dz = t.feet.z - c.pos.z;
       const dT = Math.hypot(dx, dz);

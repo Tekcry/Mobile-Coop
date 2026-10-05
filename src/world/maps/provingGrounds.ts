@@ -2,13 +2,21 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import { PALETTE } from '../materials';
+import type { RoomDef } from '../rooms';
+
+/** Mini room set (north west) for Clear mode and close-quarters tests: two rooms off a hall. */
+const ROOMS: RoomDef[] = [
+  { id: 'miniA', name: 'Room A', minX: -30, maxX: -22, minZ: 12, maxZ: 20, squad: [{ kind: 'grunt', x: -27.5, z: 17.5, yaw: Math.PI }] },
+  { id: 'miniB', name: 'Room B', minX: -22, maxX: -15.5, minZ: 12, maxZ: 20, squad: [{ kind: 'grunt', x: -19.5, z: 17.8, yaw: Math.PI }] },
+  { id: 'miniC', name: 'Back Hall', minX: -30, maxX: -15.5, minZ: 20, maxZ: 30, squad: [{ kind: 'grunt', x: -24, z: 27, yaw: Math.PI }] },
+];
 
 /** Test map: movement features (steps, slopes, stairs, crouch tunnel), cover and physics props. */
 export const provingGrounds: MapDef = {
   id: 'proving',
   name: 'Proving Grounds',
   description: 'Training yard with ramps, stairs, cover and physics props.',
-  modes: ['sandbox', 'wave'],
+  modes: ['sandbox', 'wave', 'clear'],
   theme: {
     sky: '#8fb8de',
     horizon: '#d5e6f2',
@@ -67,6 +75,13 @@ export const provingGrounds: MapDef = {
     b.wall(12, -18, 12, -21, 3.2, C.wall);
     b.wall(12, -24, 12, -26, 3.2, C.wall);
     b.box(18, 3.3, -22, 12.4, 0.2, 8.4, C.concreteDark);
+    // mini room set (north west): doors 1.1 m
+    b.wallX(12, -30, -15.5, [[-27, -25.9], [-18.6, -17.5]], 3, C.wall);
+    b.wallZ(-22, 12, 20, [[15.5, 16.6]], 3, C.wallDark);
+    b.wallX(20, -30, -15.5, [[-19, -17.9]], 3, C.wall);
+    b.wallZ(-15.5, 12, 30, [[24, 25.1]], 3, C.wall);
+    b.lowCover(-26, 15, 1.6, C.wallDark, Math.PI / 2);
+    b.block(-18, 22.5, 1.2, 1.1, 1.2, C.crate);
 
     const props: MapLayout['props'] = [];
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
@@ -76,7 +91,7 @@ export const provingGrounds: MapDef = {
     props.push({ kind: 'explosiveBarrel', pos: v(-3, -9) }, { kind: 'explosiveBarrel', pos: v(3, -9) }, { kind: 'explosiveBarrel', pos: v(16, -14) });
     props.push({ kind: 'crate', pos: v(18, -22) }, { kind: 'smallCrate', pos: v(19.2, -22.2) }, { kind: 'box', pos: v(0, 16, 2.6) });
 
-    const enemySpawns = [v(-25, 25), v(25, 25), v(-25, -25), v(25, 0), v(-25, 0), v(0, 26)];
+    const enemySpawns = [v(-21, 25), v(25, 25), v(-25, -25), v(25, 0), v(-25, 0), v(0, 26)];
     return {
       playerSpawns: [
         { pos: v(0, -2), yaw: 0 },
@@ -92,6 +107,7 @@ export const provingGrounds: MapDef = {
         { pos: v(6, -2), kind: 'health' },
         { pos: v(0, 16, 2.6), kind: 'ammo' },
       ],
+      rooms: ROOMS,
     };
   },
 };

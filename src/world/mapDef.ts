@@ -1,6 +1,7 @@
 import type { Vector3 } from '../core/babylon';
 import type { LevelBuilder } from './levelBuilder';
 import type { PropKind } from './props';
+import type { RoomDef } from './rooms';
 
 export interface MapTheme {
   sky: string;
@@ -28,6 +29,8 @@ export interface MapLayout {
   objectives: { id: string; pos: Vector3; kind: 'terminal' | 'cache' | 'extract' }[];
   /** Supply crates (ammo / health pickups). */
   pickups: { pos: Vector3; kind: 'ammo' | 'health' }[];
+  /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
+  rooms?: RoomDef[];
 }
 
 export interface MapDef {
@@ -36,6 +39,6 @@ export interface MapDef {
   description: string;
   theme: MapTheme;
   /** Modes this map supports. */
-  modes: ('wave' | 'mission' | 'sandbox')[];
+  modes: ('wave' | 'mission' | 'sandbox' | 'clear')[];
   build(b: LevelBuilder, seed: number): MapLayout;
 }

@@ -18,16 +18,18 @@ async function sim(s, setup) {
 }
 /** Point the camera at a world point (aim straight, no assist). */
 const aimAt = (x, y, z) => G(([x, y, z]) => {
-  const g = window.__app.current; const c = g.player.cam.camera.position;
-  // iterate twice since the camera position depends on yaw/pitch
-  for (let i = 0; i < 3; i++) {
-    const cp = g.player.cam.camera.position;
+  // The camera is spring-driven (follow lag, shoulder offset follows the view): aim, snap the view and
+  // let the rig settle a few times so the aim converges from the final camera position.
+  const g = window.__app.current;
+  const cam = g.player.cam;
+  for (let i = 0; i < 4; i++) {
+    const cp = cam.camera.position;
     const dx = x - cp.x, dy = y - cp.y, dz = z - cp.z;
-    g.player.cam.yaw = Math.atan2(dx, dz);
-    g.player.cam.pitch = Math.atan2(dy, Math.hypot(dx, dz));
-    g.player.cam.update(0, g.player.controller.renderPos, 0);
+    cam.yaw = Math.atan2(dx, dz);
+    cam.pitch = Math.atan2(dy, Math.hypot(dx, dz));
+    cam.snap();
+    window.__app.loop.stepHeadless(0.1);
   }
-  void c;
 }, [x, y, z]);
 try {
   await G(() => { window.__pad.connect(); window.__app.settings.update((s) => { s.gamepad.aimAssist = 'off'; }); });
@@ -64,7 +66,11 @@ try {
   assert((await G(() => window.__app.current.weapons.current.def.id)) === 'pistol', 'LB swaps to previous weapon');
   await G(() => window.__pad.set(6, 1));
   await sim(0.5);
+  // the ADS framing blend (350-600 ms) moves the camera: re-aim once it has settled
   await aimAt(-4, 1.68, 8);
+  await sim(0.6);
+  await aimAt(-4, 1.68, 8);
+  await sim(0.15);
   await sim(0.05, [[BTN.RT, 1]]);
   await sim(0.2);
   await G(() => window.__pad.set(6, 0));
@@ -91,8 +97,9 @@ try {
   const d2 = await G(() => { const d = window.__app.current.dummies[3]; const v = d.aimPoint(d['pos'].clone()); return [v.x, v.y, v.z]; });
   await aimAt(d2[0], d2[1], d2[2]);
   await G(() => window.__pad.set(6, 1)); // ADS for accuracy
-  await sim(0.4);
+  await sim(0.7);
   await aimAt(d2[0], d2[1], d2[2]);
+  await sim(0.15, [[6, 1]]);
   await sim(0.05, [[BTN.RT, 1], [6, 1]]);
   await sim(0.3, [[6, 1]]);
   await G(() => window.__pad.set(6, 0));

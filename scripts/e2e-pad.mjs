@@ -54,7 +54,7 @@ try {
 
   console.log('layout editor');
   await press(page, BTN.A);
-  for (let i = 0; i < 8 && !/Edit button layout/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  for (let i = 0; i < 24 && !/Edit button layout/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
   await press(page, BTN.A);
   assert(await q('.layout-editor'), 'layout editor opens');
   const fx = (await settings()).touch.layout;
