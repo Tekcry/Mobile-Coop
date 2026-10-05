@@ -47,6 +47,7 @@ export class Hud {
   private bannerEl: HTMLElement;
   private interactEl: HTMLElement;
   private coverEl: HTMLElement;
+  private actionEl: HTMLElement;
   private coverState: HTMLElement;
   private feed: HTMLElement;
   private vignette: HTMLElement;
@@ -106,6 +107,7 @@ export class Hud {
     this.bannerEl = h('div', { class: 'hud-banner' });
     this.interactEl = h('div', { class: 'hud-interact' });
     this.coverEl = h('div', { class: 'hud-interact hud-cover' });
+    this.actionEl = h('div', { class: 'hud-interact hud-action' });
     this.coverState = h('div', { class: 'hud-cover-state' });
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
@@ -122,6 +124,7 @@ export class Hud {
       this.bannerEl,
       this.interactEl,
       this.coverEl,
+      this.actionEl,
       this.coverState,
       this.feed,
     );
@@ -236,6 +239,14 @@ export class Hud {
     this.set('coverS', state ?? '', () => {
       this.coverState.innerHTML = state ? `${icon('cover', 16)}<span>${state}</span>` : '';
       this.coverState.classList.toggle('show', !!state);
+    });
+  }
+
+  /** Contextual traversal prompt (jump button: vault, climb, step up, drop down). */
+  setAction(text: string | null): void {
+    this.set('act', text ?? '', () => {
+      this.actionEl.innerHTML = text ? `${promptHtml('A', 'Space')}<span>${text}</span>` : '';
+      this.actionEl.classList.toggle('show', !!text);
     });
   }
 

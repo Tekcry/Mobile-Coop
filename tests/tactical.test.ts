@@ -39,6 +39,9 @@ describe('tactical movement speeds', () => {
     expect(directionMult(1, 0)).toBeCloseTo(0.9);
     expect(directionMult(0, -1)).toBeCloseTo(0.7);
     expect(targetSpeed(1, 'stand', 0, -1)).toBeCloseTo(1.2 * 0.7);
+    // brisk is forward only
+    expect(targetSpeed(1, 'stand', 1, 0, 1)).toBeCloseTo(1.2 * 0.9);
+    expect(targetSpeed(1, 'stand', 0, -1, 1)).toBeCloseTo(1.2 * 0.7);
   });
   it('eased start and stop, no overshoot', () => {
     const v = new EasedVelocity();
@@ -131,6 +134,7 @@ describe('contextual traversal and noise', () => {
   it('picks step / vault / mantle / none by obstacle', () => {
     expect(pickTraversal({ height: 0.1, depth: 1, landingClear: true, topClear: true })).toBe('none');
     expect(pickTraversal({ height: 0.4, depth: 0.5, landingClear: true, topClear: true })).toBe('step');
+    expect(pickTraversal({ height: 0.6, depth: 2.4, landingClear: false, topClear: true })).toBe('step');
     expect(pickTraversal({ height: 1.0, depth: 0.5, landingClear: true, topClear: true })).toBe('vault');
     expect(pickTraversal({ height: 1.0, depth: 3, landingClear: false, topClear: true })).toBe('mantle');
     expect(pickTraversal({ height: 1.6, depth: 3, landingClear: false, topClear: true })).toBe('mantle');

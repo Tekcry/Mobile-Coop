@@ -35,6 +35,8 @@ import { attachGameAudio } from '../audio/gameAudio';
 import type { QualityLevel } from '../core/quality';
 import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
+import { TraversalController } from '../player/traversal';
+import { noiseRadius } from '../player/movement';
 
 export type { ModeId };
 
@@ -83,6 +85,8 @@ export interface SessionCallbacks {
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
+const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', none: '' };
+
 export class GameState implements AppState {
   readonly scene: Scene;
   readonly player: Player;
@@ -96,6 +100,10 @@ export class GameState implements AppState {
   readonly hud: Hud;
   readonly minimap: Minimap;
   readonly cover: CoverController;
+  readonly traversal: TraversalController;
+  /** Current footstep noise radius (m), for the HUD and tests. */
+  noise = 0;
+  private noiseT = 0;
   readonly dummies: TrainingDummy[] = [];
   private paused = false;
   private menuOpen = false;
@@ -152,6 +160,7 @@ export class GameState implements AppState {
     this.localRef = { id: 'local', target: this.target, feet: this.player.position, speed: 0, crouched: false };
     this.hud = new Hud(app.uiRoot);
     this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
+    this.traversal = new TraversalController(this.scene, this.player);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
 
@@ -445,7 +454,8 @@ export class GameState implements AppState {
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
     if (this.player.rig.emote && (Math.hypot(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
-    this.cover.fixedUpdate(dt, inp);
+    if (!this.traversal.active) this.cover.fixedUpdate(dt, inp);
+    this.traversal.fixedUpdate(dt, inp.pressed('jump'), this.cover.state !== 'none');
     this.weapons.spreadMul = this.cover.spreadMul;
     this.player.fixedUpdate(dt, inp);
     this.target.sync();
@@ -454,6 +464,14 @@ export class GameState implements AppState {
     this.grenades.update(dt);
     this.explosions.update();
     for (const d of this.dummies) d.update(dt);
+    // footsteps make noise that scales with speed (creeping is near silent, dashing carries)
+    this.noiseT -= dt;
+    if (this.noiseT <= 0) {
+      this.noiseT = 0.25;
+      const c = this.player.controller;
+      this.noise = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) : 0;
+      if (this.noise > 0) this.enemyMgr?.noise(this.player.position, this.noise);
+    }
     this.enemyMgr?.update(dt);
     if (this.puppet) this.pickups?.update(dt, []);
     else
@@ -474,6 +492,7 @@ export class GameState implements AppState {
       if (this.respawnT < 0) {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
         this.cover.reset();
+        this.traversal.reset();
         this.player.controller.teleport(sp, this.player.cam.yaw);
         this.target.revive();
         // brief spawn protection
@@ -524,6 +543,7 @@ export class GameState implements AppState {
 
   private coverLabel = '';
 
+
   /** Contextual cover prompt, state badge and touch button. */
   private updateCoverHud(): void {
     const c = this.cover;
@@ -542,6 +562,8 @@ export class GameState implements AppState {
               : 'High cover';
     const prompt = st === 'none' && c.candidate ? (this.app.input.mode === 'gamepad' ? 'Hold: Take cover' : 'Take cover') : null;
     this.hud.setCover(prompt, stateText);
+    const th = this.traversal.hint;
+    this.hud.setAction(th && !c.inCover ? (TRAVERSE_LABEL[th.kind] ?? null) : null);
     const show = !!c.candidate || c.inCover;
     const label = c.inCover ? 'in' : show ? 'av' : '';
     if (label !== this.coverLabel) {

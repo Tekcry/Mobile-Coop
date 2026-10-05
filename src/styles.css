@@ -1743,6 +1743,9 @@ body {
 .hud-cover {
   top: 72%;
 }
+.hud-action {
+  top: 79%;
+}
 .hud-cover-state {
   position: absolute;
   left: 50%;
