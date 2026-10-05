@@ -11,6 +11,9 @@ import { dbGet, dbPut } from '../save/db';
 import { SaveManager } from '../save/saveManager';
 import { h } from '../ui/dom';
 import { uiHooks } from '../ui/widgets';
+import { AudioEngine } from '../audio/audioEngine';
+import { Sfx } from '../audio/sfx';
+import { Music } from '../audio/music';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -36,6 +39,9 @@ export class App {
   readonly uiRoot: HTMLElement;
   /** Player profile (IndexedDB, versioned). */
   readonly save = new SaveManager();
+  readonly audio = new AudioEngine();
+  readonly sfx = new Sfx(this.audio);
+  readonly music = new Music(this.audio);
   private state: AppState | null = null;
   private time = 0;
 
@@ -50,11 +56,25 @@ export class App {
     this.screens = new ScreenManager(screensEl, this.nav);
     this.input = new InputManager(canvas, this.uiRoot, this.settings);
     this.toasts = new Toasts(this.uiRoot);
-    uiHooks.blocked = (msg) => this.toasts.show(msg, 'warn', 1800);
+    uiHooks.blocked = (msg) => {
+      this.toasts.show(msg, 'warn', 1800);
+      this.sfx.denied();
+    };
+    // UI sounds: focus moves (controller/keyboard), confirms, backs
+    document.addEventListener('nav-focus', () => {
+      if (this.input.mode !== 'touch') this.sfx.uiMove();
+    });
+    document.addEventListener('click', (e) => {
+      const b = (e.target as HTMLElement | null)?.closest('.btn, .tab, .row-choice, .row-toggle, .swatch');
+      if (b && !b.classList.contains('blocked')) this.sfx.uiConfirm();
+    });
+    this.screens.onBack = () => this.sfx.uiBack();
+    this.input.events.on('mode', () => this.audio.ensure());
 
     this.input.events.on('padConnected', ({ id }) => this.toasts.show(`Controller connected: ${shortPadName(id)}`, 'ok'));
     this.input.events.on('padDisconnected', () => this.toasts.show('Controller disconnected', 'warn'));
     this.settings.subscribe((s) => {
+      this.audio.setVolumes(s.audio);
       applyRenderScale(this.engine, s.video.renderScale);
       if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps);
     });
@@ -70,6 +90,7 @@ export class App {
       this.settings.load(undefined);
     }
     applyRenderScale(this.engine, this.settings.get().video.renderScale);
+    this.audio.setVolumes(this.settings.get().audio);
   }
 
   get current(): AppState | null {

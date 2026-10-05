@@ -41,6 +41,8 @@ export interface AiContext {
   releaseCover(e: Enemy): void;
   onKilled(e: Enemy, h: HitInfo): void;
   onShot?(e: Enemy): void;
+  onMelee?(e: Enemy): void;
+  onWindup?(e: Enemy): void;
   canRagdoll(): boolean;
   addRagdoll(e: Enemy, rig: CharacterRig, impulse: Vector3): void;
 }
@@ -226,6 +228,7 @@ export class Enemy implements Damageable {
       if (this.dist <= def.melee.range && this.meleeCd === 0) {
         this.meleeCd = def.melee.cooldown;
         this.kick = 1;
+        this.ctx.onMelee?.(this);
         t.target.applyDamage({
           amount: def.melee.damage * DIFFICULTY[this.ctx.difficulty].damage,
           point: t.feet.clone(),
@@ -401,6 +404,7 @@ export class Enemy implements Damageable {
       this.pauseT -= dt;
       if (this.pauseT > 0) return;
       if (w.windup > 0 && this.windup < w.windup) {
+        if (this.windup === 0) this.ctx.onWindup?.(this);
         this.windup += dt;
         return;
       }

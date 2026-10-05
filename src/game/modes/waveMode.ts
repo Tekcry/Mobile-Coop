@@ -30,6 +30,7 @@ export class WaveMode implements GameMode {
     this.phase = 'fighting';
     this.spawnT = 0.5;
     this.g.hud.banner(`WAVE ${this.wave}`, `${this.queue.length} hostiles`, 2000);
+    this.g.events.emit('wave', { n: this.wave });
   }
 
   private pickSpawn(): Vector3 | null {
@@ -69,6 +70,7 @@ export class WaveMode implements GameMode {
       this.g.stats.waves = this.wave;
       this.g.hud.banner(`WAVE ${this.wave} CLEARED`, `+${bonus}`, 2500);
       this.g.hud.feedItem(`Wave bonus +${bonus}`, 'xp');
+      this.g.events.emit('waveCleared', { n: this.wave });
       this.g.pickups?.respawnAll();
       this.g.weapons.addAmmo(0.35);
       this.phase = 'intermission';

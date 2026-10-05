@@ -73,6 +73,7 @@ export class MissionMode implements GameMode {
     this.g.stats.score += 500;
     this.checkpoint = it.pos.clone();
     this.g.hud.feedItem('Objective +500', 'xp');
+    this.g.events.emit('objective', { id: it.id });
     if (it.kind === 'terminal') {
       this.g.enemyMgr!.noise(it.pos, 35);
       if (this.terminals.every((t) => t.done)) {
@@ -84,6 +85,7 @@ export class MissionMode implements GameMode {
       this.step = 'extract';
       if (this.extract) this.g.interactables!.setEnabled(this.extract, true);
       this.g.hud.banner('ALARM', 'Get to the extraction point', 2400);
+      this.g.events.emit('alarm', {});
       this.reinforceT = 2;
     }
     this.updateObjective();

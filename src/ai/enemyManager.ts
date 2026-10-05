@@ -21,6 +21,10 @@ export class EnemyManager {
   private coverOwner = new Map<number, Enemy>();
   private ctx: AiContext;
   onKilled: ((e: Enemy, h: HitInfo) => void) | null = null;
+  /** Audio hooks. */
+  onEnemyShot: ((e: Enemy) => void) | null = null;
+  onEnemyMelee: ((e: Enemy) => void) | null = null;
+  onEnemyWindup: ((e: Enemy) => void) | null = null;
   kills = 0;
 
   constructor(
@@ -59,6 +63,9 @@ export class EnemyManager {
         this.releaseCover(e);
         this.onKilled?.(e, h);
       },
+      onShot: (e) => this.onEnemyShot?.(e),
+      onMelee: (e) => this.onEnemyMelee?.(e),
+      onWindup: (e) => this.onEnemyWindup?.(e),
       canRagdoll: () => this.ragdolls.filter((r) => !r.done).length < BUDGET.maxRagdolls,
       addRagdoll: (_e, rig: CharacterRig, imp: Vector3) => this.ragdolls.push(new Ragdoll(scene, rig, imp)),
     };

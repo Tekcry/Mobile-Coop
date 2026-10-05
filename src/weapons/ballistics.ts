@@ -38,6 +38,8 @@ export class Ballistics {
   private res = new PhysicsRaycastResult();
   private projectiles: Projectile[] = [];
   private eng: PhysicsEngine;
+  /** Impact hook (audio). */
+  onImpact: ((p: Vector3, onCharacter: boolean) => void) | null = null;
 
   constructor(
     scene: Scene,
@@ -87,6 +89,7 @@ export class Ballistics {
   /** Common impact visuals for a resolved hit. */
   impactFx(h: RayHit, dir: Vector3): void {
     if (!h.hit) return;
+    this.onImpact?.(h.point, !!h.target);
     if (h.target) {
       this.vfx.hit(h.point, dir, h.part === 'head' ? '#ffe066' : '#ff6b5a', h.part === 'head' ? 7 : 4);
     } else if (h.prop) {

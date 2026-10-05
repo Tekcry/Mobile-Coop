@@ -47,6 +47,7 @@ async function boot(): Promise<void> {
     let report: SessionReport | null = null;
     app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
     await app.save.flush();
+    if (report && (report as SessionReport).levelUps > 0) setTimeout(() => app.sfx.levelUp(), 600);
     return report ? rewardsPanel(report) : null;
   };
   if (flags.debug) app.debug.toggle(true);
@@ -62,6 +63,7 @@ async function boot(): Promise<void> {
     app.setState(ms);
     const sv = app.save.get();
     ms.setAvatar(sv.avatar, sv.loadout.primary, sv.weapons[sv.loadout.primary].camo);
+    app.music.start();
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));
     app.screens.push(menu);

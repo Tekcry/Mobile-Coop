@@ -59,6 +59,8 @@ export abstract class Screen {
 /** Stack of screens. Owns UI input routing and the shared FocusNav. */
 export class ScreenManager {
   private stack: Screen[] = [];
+  /** Sound hook for back/close. */
+  onBack: (() => void) | null = null;
   private listeners = new Set<(open: boolean) => void>();
 
   constructor(
@@ -141,6 +143,7 @@ export class ScreenManager {
   /** Same as pressing B on screen `s`. */
   back(s: Screen): void {
     if (this.top !== s) return;
+    if (!s.root) this.onBack?.();
     if (!s.onBack() && !s.root) this.pop();
   }
 

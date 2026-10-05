@@ -29,6 +29,9 @@ import { WaveMode } from './modes/waveMode';
 import { MissionMode } from './modes/missionMode';
 import { ResultsScreen } from '../ui/screens/resultsScreen';
 import { playEmote } from '../cosmetics/emotes';
+import { EventBus } from '../core/events';
+import type { GameEvents } from './gameEvents';
+import { attachGameAudio } from '../audio/gameAudio';
 
 export type { ModeId };
 
@@ -85,6 +88,8 @@ export class GameState implements AppState {
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => PlayerRef[] = () => [];
   static rewardHook: RewardHook | null = null;
+  readonly events = new EventBus<GameEvents>();
+  private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
 
   private constructor(
@@ -147,6 +152,7 @@ export class GameState implements AppState {
       };
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k) => {
+        this.events.emit('pickup', { kind: k });
         if (k === 'health') this.target.health.heal(50);
         else this.weapons.addAmmo(0.5);
         this.hud.feedItem(k === 'health' ? '+50 health' : 'Ammo refilled');
@@ -230,12 +236,14 @@ export class GameState implements AppState {
   }
 
   enter(): void {
+    this.audio = attachGameAudio(this.app, this);
     this.app.input.setGameplayActive(true);
     this.app.input.touch.setControlHidden('interact', true);
     this.mode?.start();
   }
 
   exit(): void {
+    this.audio?.dispose();
     this.app.input.setGameplayActive(false);
     this.app.debug.extra.delete('player');
     this.app.debug.extra.delete('ai');
@@ -273,7 +281,10 @@ export class GameState implements AppState {
   /** Play an emote on the local player (also broadcast in coop). */
   emote(id: string): void {
     if (!id || !this.player.alive) return;
-    if (playEmote(this.player.rig, id)) this.onEmote?.(id);
+    if (playEmote(this.player.rig, id)) {
+      this.onEmote?.(id);
+      this.events.emit('emote', { id });
+    }
   }
 
   onEmote: ((id: string) => void) | null = null;
@@ -408,6 +419,7 @@ export class GameState implements AppState {
     this.app.input.setAds(this.player.ads);
     this.player.frameUpdate(dt, alpha, look);
     this.vfx.update(dt);
+    this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
     this.updateHud();
   }
