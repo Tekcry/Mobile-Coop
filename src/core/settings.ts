@@ -101,7 +101,7 @@ export function defaultSettings(): Settings {
       vibration: true,
     },
     mouse: { sensitivity: 1, invertY: false },
-    video: { quality: 'auto', renderScale: 1, shadows: true, fov: 70, showFps: false },
+    video: { quality: 'auto', renderScale: 1, shadows: true, fov: 90, showFps: false },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true },
   };
@@ -167,7 +167,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       quality: pick(v.quality, QUALITY, d.video.quality),
       renderScale: num(v.renderScale, d.video.renderScale, 0.5, 1),
       shadows: bool(v.shadows, d.video.shadows),
-      fov: num(v.fov, d.video.fov, 55, 90),
+      fov: num(v.fov, d.video.fov, 70, 110),
       showFps: bool(v.showFps, d.video.showFps),
     },
     audio: {

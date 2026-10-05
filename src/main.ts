@@ -6,7 +6,8 @@ import { flags } from './core/flags';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { SettingsScreen } from './ui/screens/settingsScreen';
-import { ControlsTestState } from './game/controlsTestState';
+import { GameState, type GameOptions } from './game/gameState';
+import { getMap } from './world/maps';
 import { requestPersistence } from './save/db';
 
 function setBoot(progress: number, status: string): void {
@@ -41,21 +42,32 @@ async function boot(): Promise<void> {
   };
 
   MainMenuScreen.entries.push(
-    (a) => ({
-      label: 'Controls test',
+    () => ({
+      label: 'Free roam',
+      sub: 'Proving Grounds',
       icon: 'play',
       order: 10,
-      action: () => {
-        void ControlsTestState.create(a, goToMenu).then((st) => {
-          a.screens.clear();
-          a.setState(st);
-        });
-      },
+      action: () => startGame({ map: getMap('proving'), mode: 'sandbox', seed: 1 }),
     }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 
-  goToMenu();
+  const startGame = (opts: GameOptions): void => {
+    app.screens.clear();
+    setBoot(0.5, 'Loading map…');
+    document.getElementById('boot')?.classList.remove('done');
+    void GameState.create(app, opts, goToMenu)
+      .then((st) => app.setState(st))
+      .catch((e: unknown) => {
+        console.error(e);
+        app.toasts.show('Failed to load map', 'warn');
+        goToMenu();
+      })
+      .finally(() => document.getElementById('boot')?.classList.add('done'));
+  };
+
+  if (flags.autostart) startGame({ map: getMap(flags.autostart), mode: 'sandbox', seed: 1 });
+  else goToMenu();
   app.start();
 
   // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.

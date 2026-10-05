@@ -4,7 +4,10 @@ import { launch, assert, frames, drag, touch } from './e2e-lib.mjs';
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url });
 let failed = false;
-const readout = () => page.evaluate(() => document.querySelector('.input-readout')?.textContent ?? '');
+const state = () => page.evaluate(() => {
+  const a = window.__app; const st = a.input.state; const p = a.current.player;
+  return { mx: st.move.x, my: st.move.y, fire: st.down('fire'), yaw: p ? p.cam.yaw : 0 };
+});
 try {
   assert(await page.evaluate(() => document.body.classList.contains('input-touch')), 'starts in touch mode');
   await page.locator('.btn', { hasText: 'Settings' }).tap();
@@ -14,32 +17,34 @@ try {
   await page.locator('.settings-screen .screen-back').tap();
   await page.waitForSelector('.settings-screen', { state: 'detached' });
   assert(true, 'back button closes settings');
-  await page.locator('.btn', { hasText: 'Controls test' }).tap();
-  await page.waitForSelector('.input-readout', { timeout: 15000 });
+  await page.locator('.btn', { hasText: 'Free roam' }).tap();
+  await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 20000 });
   await frames(page, 5);
   assert(await page.evaluate(() => document.querySelector('.touch-layer')?.hidden === false), 'touch controls visible');
   const vp = page.viewportSize();
   // left stick: drag up -> forward
   const end = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 60 });
   await frames(page, 2);
-  const r1 = await readout();
-  assert(/move -?0\.\d+, 0\.[5-9]|move -?0\.\d+, 1\.00/.test(r1), `stick forward (${r1.split('\n')[1]})`);
+  const r1 = await state();
+  assert(r1.my > 0.5, `stick forward (move ${r1.mx.toFixed(2)}, ${r1.my.toFixed(2)})`);
+  const yaw0 = r1.yaw;
   // simultaneously look with right side (second finger)
   await touch(page, 'touchMove', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 60, id: 0 }, { x: vp.width * 0.6, y: vp.height * 0.4, id: 1 }]);
   for (let i = 1; i <= 5; i++) {
     await touch(page, 'touchMove', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 60, id: 0 }, { x: vp.width * 0.6 + i * 20, y: vp.height * 0.4, id: 1 }]);
     await frames(page, 1);
   }
-  const r2 = await readout();
-  assert(/yaw [1-9]|yaw 0\.[1-9]/.test(r2) && /move -?0\.\d+, (0\.[5-9]|1\.00)/.test(r2), `look while moving (${r2.split('\n')[2]})`);
+  const r2 = await state();
+  assert(r2.yaw - yaw0 > 0.1 && r2.my > 0.5, `look while moving (yaw +${(r2.yaw - yaw0).toFixed(2)})`);
   await end();
   await frames(page, 3);
-  assert(/move 0\.00, 0\.00/.test(await readout()), 'release recentres stick');
+  const r3 = await state();
+  assert(r3.mx === 0 && r3.my === 0, 'release recentres stick');
   // fire button hold
   const fire = await page.locator('.tc-fire').boundingBox();
   await touch(page, 'touchStart', [{ x: fire.x + fire.width / 2, y: fire.y + fire.height / 2, id: 3 }]);
   await frames(page, 3);
-  assert(/held .*fire/.test(await readout()), 'fire held');
+  assert((await state()).fire, 'fire held');
   await touch(page, 'touchEnd', []);
   // pause via touch
   await page.locator('.tc-pause').tap();

@@ -10,6 +10,7 @@ export { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 export { Scalar } from '@babylonjs/core/Maths/math.scalar';
 export { Ray } from '@babylonjs/core/Culling/ray';
 export { FreeCamera } from '@babylonjs/core/Cameras/freeCamera';
+export { Camera } from '@babylonjs/core/Cameras/camera';
 export { ArcRotateCamera } from '@babylonjs/core/Cameras/arcRotateCamera';
 export { TargetCamera } from '@babylonjs/core/Cameras/targetCamera';
 export { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
@@ -66,6 +67,8 @@ import '@babylonjs/core/Physics/v2/physicsEngineComponent';
 import '@babylonjs/core/Meshes/thinInstanceMesh';
 import '@babylonjs/core/Culling/ray';
 import '@babylonjs/core/Rendering/edgesRenderer';
+import '@babylonjs/core/Rendering/boundingBoxRenderer';
+import '@babylonjs/core/Rendering/outlineRenderer';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 
 // Babylon 9 stubs out methods whose side-effect module is missing. Warn loudly

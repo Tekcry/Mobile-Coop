@@ -29,3 +29,19 @@ MFi / Bluetooth controller:
 - [ ] Settings > Controller > Test vibration rumbles (where the browser supports it; iOS Safari currently does not).
 - [ ] Turn the controller off: "Controller disconnected" toast; touching the screen shows the touch controls again.
 - [ ] Touch the screen while a controller is connected: touch controls reappear; press a controller button: they hide.
+
+## Phase 3 - Player and camera (Main menu > Free roam)
+- [ ] Move with the left stick / touch stick: the character runs, turns smoothly, legs and arms animate.
+- [ ] Push the touch stick past its rim forward (or click L3): sprint is faster.
+- [ ] A / jump button: jumps about 1.2 m, lands cleanly.
+- [ ] B / crouch while standing still: toggles crouch (camera lowers). B while moving: forward roll.
+- [ ] West yard (yellow/red blocks): walk onto the three yellow steps without jumping; the two red ones block you.
+- [ ] East ramps: the two grey ramps are walkable, the red steep one is not.
+- [ ] North platform: climb the stairs (smooth, no bouncing) and the ramp on the other side.
+- [ ] South-west tunnel: crouch-walk through; you cannot stand up inside.
+- [ ] Walk into crates and barrels: they get pushed and tumble.
+- [ ] Right stick / right-side drag rotates the camera; up/down limits feel natural; invert-Y setting works.
+- [ ] Shoulder button (or R3) swaps the camera to the other shoulder smoothly.
+- [ ] Hold LT / Aim: camera zooms in over the shoulder, character faces where you aim.
+- [ ] Back the camera into a wall: it moves in front of the wall instead of clipping through; the character hides if the camera gets too close.
+- [ ] FPS overlay stays at 58-60 while running around the map.

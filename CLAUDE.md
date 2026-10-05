@@ -13,6 +13,8 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
   - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad
   - `scripts/e2e-touch.mjs` touch-only: taps menus, multi-touch drags the virtual sticks
+  - `scripts/e2e-move.mjs` character controller checks on Proving Grounds
+  - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
 ## Hard rules
@@ -73,6 +75,17 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
 - No `backdrop-filter` over the canvas (expensive on phones). `.screens` container is pointer-events: none;
   children opt in.
+
+## World and player
+- Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
+  `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups). Register in `world/maps/index.ts`.
+- `LevelBuilder.build` emits thin instances (boxes, cylinders) and one static body with a container shape.
+  Use `visible=false` pieces for collision-only helpers (stairs collide as a ramp).
+- Characters use `CharacterRig` with a `PartFactory`; `PartLibrary` instances share unit meshes and one
+  material with per-instance colour, so any number of characters costs ~5 draw calls.
+- `PlayerController` runs in `fixedUpdate`; `Player.frameUpdate` interpolates, updates camera and animation.
+- Collision groups/masks/budgets live in `physics/groups.ts`. The player's character-controller body is also
+  its hit volume for enemy shots.
 
 ## Performance budget (mid-range phone, 60fps)
 - Draw calls < 120 in combat. Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.

@@ -78,7 +78,7 @@ export class App {
     next.enter();
     this.loop.attach(next.scene, this.hooks(next));
     this.debug.setScene(next.scene);
-    if (prev && prev.scene !== next.scene) prev.scene.dispose();
+    if (prev && prev.scene !== next.scene && !prev.scene.isDisposed) prev.scene.dispose();
   }
 
   private hooks(s: AppState): LoopHooks {

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.0 - Phase 3: Player, camera, test map
+- Havok `PhysicsCharacterController` player: walk/sprint/crouch/roll/jump, slopes up to ~50°, ray-probe step
+  assist for steps up to 0.42 m (Havok's own step-up needs the sweep to clear the capsule radius), ground
+  stick force along the surface normal, headroom check before standing, render interpolation.
+- Over-the-shoulder camera: shoulder swap (smooth), ADS boom and FOV zoom, boom collision against static
+  geometry (snap in, ease out), recoil with recovery, trauma shake, smoothed foot height, horizontal FOV.
+- Modular level kit: boxes/ramps/stairs/walls/cover/pillars rendered as thin instances (1 draw call per
+  shape) and one static Havok body with a container shape. Stairs collide as a smooth invisible ramp.
+- Primitive modular character rig (body type, head, hair, torso, legs, backpack, helmet) with procedural
+  walk/crouch/roll/air/aim animation; parts are instanced from a shared part library (per-instance colour).
+- Physics props (crates, barrels, explosive barrels, boxes), instanced, budget-capped, pushable.
+- Proving Grounds test map: step row, slope row, stairs and ramp onto a platform, crouch tunnel, cover.
+- Sky dome, fog, sun with optional shadow map following the player.
+- `scripts/e2e-move.mjs`: automated movement checks (walk speed, jump, crouch, roll, steps, slopes, stairs,
+  tunnel, prop pushing).
+
 ## 0.2.0 - Phase 2: Input and menus
 - Action map with touch, gamepad (standard mapping) and keyboard/mouse sources feeding one `InputState`.
 - Touch: floating left stick (push past rim to sprint), right-side look, fire-and-look button, ADS, reload,

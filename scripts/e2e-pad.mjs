@@ -75,8 +75,8 @@ try {
   assert(await q('.main-menu') && !(await q('.settings-screen')), 'B backs out to main menu');
 
   console.log('in-game pause flow');
-  for (let i = 0; i < 6 && !/Controls test/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  assert(/Controls test/.test(await focusedText(page)), 'menu wraps / reaches Controls test');
+  for (let i = 0; i < 6 && !/Free roam/.test(await focusedText(page)); i++) await press(page, BTN.UP);
+  assert(/Free roam/.test(await focusedText(page)), 'menu wraps / reaches Free roam');
   await press(page, BTN.A);
   await page.waitForFunction(() => !document.querySelector('.main-menu'), null, { timeout: 15000 });
   assert(await page.evaluate(() => document.querySelector('.touch-layer')?.hidden === true), 'touch controls hidden in gamepad mode');
