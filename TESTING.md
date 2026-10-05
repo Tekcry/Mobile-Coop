@@ -128,3 +128,24 @@ MFi / Bluetooth controller:
 - [ ] B closes the app mid-match: A gets "<name> left"; reopening the link drops B back into the running match.
 - [ ] A (host) quits: B gets "Host left" and returns to the menu.
 - [ ] 3 and 4 players: everyone sees everyone; a 5th gets "Room full".
+
+## Overhaul - avatars, movement, cover (Proving Grounds is the test map)
+- [ ] Silhouettes: player, enemies (runner lean, grunt average, heavy broad with plates), coop teammates and the customiser preview share one realistic build; everything reads round at gameplay distance (no boxy parts).
+- [ ] Joints: no gaps or seams at shoulders, elbows, hips, knees or neck while walking, crouching, rolling, reloading, peeking and emoting.
+- [ ] Customiser: Average / Lean / Athletic / Broad change build only slightly; heads, hair, helmets, packs, colours, patterns and tag work; preview matches in-game.
+- [ ] Two-hand grip on every weapon (left hand on the foregrip); spare guns visible on the back / pistol on the hip; reload moves the off hand to the magazine.
+- [ ] Movement: light stick walks (~1.4 m/s), full stick jogs (~3.5), sprint (~5.5) only after a short wind-up and cannot fire; after sprinting there is a brief delay before ADS/fire. Stops ease out, no sliding. Jump is low and committed. Roll has a fixed length and cooldown.
+- [ ] Feet do not slide when walking, jogging, strafing, backpedalling or turning on the spot; torso leans into acceleration and turns; head follows the aim.
+- [ ] Camera: smooth follow (no jitter on stairs/slopes), smooth shoulder swap and ADS zoom.
+- [ ] Cover snap: walk up to low cover, prompt shows; hold B (pad), tap the cover button (touch) or C (keyboard): character eases in (no teleport), crouched, facing the wall, not clipping into it.
+- [ ] Strafe along cover in both directions; stops at edges without falling off or clipping; inside corners stop; outside corners (building walls) pivot round when you keep pushing.
+- [ ] Low cover: hold aim to pop up and shoot over, release to drop; fire without aim = blind fire over the top (inaccurate).
+- [ ] High cover: aim near an edge leans out past it and moves the camera to that shoulder; release returns and restores the shoulder. Enemies can only hit what is exposed.
+- [ ] Vault: A/jump at low cover vaults over smoothly when the far side is clear.
+- [ ] Leaving: B / C / button again, sprint, roll, jump at high cover, or backing away.
+- [ ] Settings > Gameplay: auto-snap on approach; cover-to-cover dash (cover button while pushing towards the next cover).
+- [ ] Stairs and slopes near cover, narrow gaps between crates, pillars (rounded surfaces): no snapping into geometry; dying in cover ragdolls normally.
+- [ ] Touch vs controller parity: every cover action available on both; prompts show the right glyphs; menus still navigable.
+- [ ] Grunts and heavies take cover behind the same walls, crouch behind low cover and peek out at high-cover edges.
+- [ ] Debug overlay (F3 / 3-finger tap): Skeleton shows bones, capsule and hit volumes aligned to the body; Tune sliders change speeds live.
+- [ ] Frame time with 8 enemies in the open and with 8 in cover stays within budget (debug overlay draws/ms).

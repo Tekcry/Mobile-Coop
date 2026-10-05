@@ -17,10 +17,12 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
+  - `scripts/e2e-cover.mjs` movement speeds, cover snap/strafe/edge/peek/blind fire/vault/corner/auto-snap
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
   - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
+  - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the customiser rig (proportion/silhouette checks)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
 ## Hard rules
@@ -41,7 +43,9 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
 | `ui/` | DOM overlay UI. `FocusNav` spatial navigation shared by every menu; screen stack; HUD; debug overlay |
 | `game/` | Play session state, game modes, damage/health, pickups, interactables |
 | `physics/` | Havok loading, collision groups, body budget |
-| `player/` | Character controller (Havok `PhysicsCharacterController`), over-the-shoulder camera |
+| `player/` | Character controller (Havok `PhysicsCharacterController`), movement maths, proportions, shared `CharacterRig`, camera |
+| `anim/` | Pure animation: `AnimGraph` (layered state machine + blend tree -> IK targets), `rigMath` (two-bone IK, gait, springs) |
+| `cover/` | Cover faces (`coverData`, pure), `CoverStateMachine` (pure), `CoverController` (player cover) |
 | `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades |
 | `ai/` | Enemy state machines, grid navmesh + A*, cover points |
 | `world/` | Modular tile kit and procedural map builders |
@@ -87,12 +91,80 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups). Register in `world/maps/index.ts`.
 - `LevelBuilder.build` emits thin instances (boxes, cylinders) and one static body with a container shape.
   Use `visible=false` pieces for collision-only helpers (stairs collide as a ramp).
-- Characters use `CharacterRig` with a `PartFactory`; `PartLibrary` instances share unit meshes and one
+- Characters use `CharacterRig` (see "Characters" below) with a `PartFactory`; `PartLibrary` instances share unit meshes and one
   material with per-instance colour, so any number of characters costs ~5 draw calls.
 - `PlayerController` runs in `fixedUpdate`; `Player.frameUpdate` interpolates, updates camera and animation.
 - Collision groups/masks/budgets live in `physics/groups.ts`. Shots raycast with membership `PROJECTILE`
   and a `collideWith` mask; hit volumes (`ai/hitboxes.ts`, `game/playerTarget.ts`) are ANIMATED bodies
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
+
+## Characters (one rig for player, enemies, coop remotes, dummies and the customiser)
+- `player/proportions.ts` (pure) is the single source of body sizes. Average build at 1.75 m:
+
+  | Landmark | Value | | Limb (len, r0 -> r1) | Value |
+  | --- | --- | --- | --- | --- |
+  | Head h / w / d | 0.229 / 0.158 / 0.19 (7.5 heads tall) | | Upper arm | 0.30, 0.050 -> 0.038 |
+  | Shoulder joint y / outer width | 1.435 / 0.46 (~2 head heights) | | Forearm | 0.26, 0.040 -> 0.028 |
+  | Neck base / waist / hip joint y | 1.48 / 1.05 / 0.915 | | Thigh | 0.415, 0.082 -> 0.054 |
+  | Knee / ankle y | 0.50 / 0.075 | | Calf | 0.425, 0.057 -> 0.036 |
+  | Chest w x d / waist w x d | 0.34 x 0.22 / 0.28 x 0.185 | | Hand / foot | 0.17 / 0.27 long |
+
+  Builds (`average | lean | athletic | broad`) only scale girth (0.88-1.15), shoulders (0.95-1.10), waist and
+  chest within that range (`BUILD_MODS`). Enemies: runner lean 1.74 m, grunt average 1.77 m, heavy broad
+  1.83 m with plates (`config/enemies.json` `height/build/plated/gun`). `hitVolumes(p)` derives hit capsules.
+- Mesh rules: bodies, gear and weapons use only smooth shapes from `world/smoothMeshes.ts` via `PartLibrary`
+  (`sphere, capsule, limbA, limbL, torso, dome, helmet, rcyl, rbox, pill, torus`): surfaces of revolution or
+  superellipsoids with shared vertices and computed normals (no seams). Hard shapes (`box, cyl, cone, hex`) are
+  for world props only. Each smooth shape has a hi and lo tessellation (`LOD_DISTANCE` 16 m, per-instance LOD).
+  Joints are spheres sleeved into tapered limbs (limbs hang along -Y from their joint) so no pose opens gaps.
+  Patterns/camos are procedural with smoothstep edges. One material, instanced: ~20 draw calls for all characters.
+- Rig: root -> body (tumble pivot) -> pelvis(`hips`) -> spine -> chest(`torso`) -> neck -> head(`headNode`, head
+  centre); chest -> shoulder -> elbow -> wrist; pelvis -> hip -> knee -> ankle; sockets `weaponPivot` (aim
+  pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
+- Animation: callers pass a `RigPose` (speed, local move dir, grounded, crouch, roll, aim, aimPitch/aimYaw, kick,
+  sprint, reload, cover/peek/blind/vault, melee) to `rig.animate(dt, pose)`. `AnimGraph` picks the lower-body
+  state (roll > vault > air > cover > crouch > locomotion) and cross-fades weights over 200 ms (`FADE`);
+  locomotion is a blend tree over `GAIT` (idle/walk/jog/sprint: stride, duty, lift, bob, swing, lean). Feet
+  follow `gaitFoot` with cadence from ground speed, so planted feet never slide; turning in place steps.
+  Upper body: aim layer (raised vs low-ready, sprint carry, reload with off-hand to the mag, recoil spring,
+  blind fire), spine/head look-at, breathing, sway, accel/turn lean, hit react (`rig.hit`). Two-bone IK puts
+  hands on the weapon's `grip`/`foregrip` (weapons.json) and feet on the gait targets. Emotes return an
+  `FkPose` that is slerped over the result (fade in/out).
+- Weapons: `WeaponModel.hold(rig)` (hands IK'd to it) / `holster(rig)` (long guns on the back, pistol on the hip;
+  one per holster). Deaths: `Ragdoll` = 5 Havok bodies (torso, legs, arms) with ball-and-socket joints at hips
+  and shoulders, limbs never collide with their own torso, capped by `BUDGET.maxRagdolls`.
+
+## Movement and camera
+- All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
+  walk 1.4, jog 3.5, sprint 5.5, crouch 1.2, ADS 1.0, cover 1.3 m/s; stick < `walkBand` walks, above jogs.
+- `player/movement.ts` (pure): `targetSpeed`, `EasedVelocity` (critically damped per axis: eased starts and
+  stops, no overshoot), `SprintGate` (wind-up before full speed, recovery before fire/ADS), `RollGate` (fixed
+  0.6 s roll, recovery, cooldown). `PlayerController.weaponBlocked` gates firing/ADS. Jump is modest (0.45 m),
+  air control minimal. The controller follows the eased velocity exactly (`cc.acceleration = 1`).
+- `PlayerController.override` lets cover drive a step (velocity + facing + crouch, or a kinematic feet path).
+- Camera: critically damped follow (`camFollow`), shoulder swap and ADS springs; render interpolation unchanged.
+
+## Cover (`src/cover`)
+- `buildCoverSegments(boxes, cylinders)` (called by `LevelBuilder.build`) makes a face per side of every upright,
+  visible, colliding piece >= 0.75 m tall: low (0.75-1.45 m, crouch) or high (>= 1.6 m, standing); pillars become
+  octagons. Faces carry outward normals, depth and outside-corner links. AI cover points
+  (`level.cover`) are sampled from the same faces; enemies peek past the nearest edge of high cover.
+- Run-time probing (raycasts) re-checks the real cover height (stacked crates, slopes), the snap point (floor,
+  clear path), inside corners/narrow gaps, vault landing, corner swings and that the surface still exists.
+- `CoverStateMachine`: none -> enter (250 ms eased) -> in <-> peek (aim) / blind (fire without aim) / corner
+  (hold against an outside edge) ; vault (jump at clear low cover) ; dash (setting) ; exits on cover/crouch,
+  sprint, roll, jump at high cover, backing away, lost surface, death.
+- `CoverController` (player): standoff `COVER_STANDOFF` (capsule radius + 5 cm, > body depth); strafes along
+  the tangent with predictive braking at edges; low cover peek stands up; high cover peek leans out past the
+  edge and moves the camera to that shoulder (restored after); blind fire = spread x3 and minimal exposure.
+  Exposure is physical: the hit capsule follows the controller (crouch lowers it 0.65 m).
+- Input: action `cover` = touch contextual button, controller B-hold (`COVER_HOLD` 0.28 s; B tap stays
+  crouch/roll; B in cover leaves), keyboard C (crouch moved to Ctrl). Settings: `gameplay.autoCover`,
+  `gameplay.coverDash`. HUD: `hud.setCover(prompt, state)`.
+
+## Debug overlay
+- F3 / 3-finger tap. Buttons: Skeleton (bones, controller capsules, hit volumes as lines; things register in
+  `ui/debugVolumes.ts`) and Tune (sliders bound to `MOVEMENT`).
 
 ## Combat
 - Weapon content is JSON (`config/weapons.json`), validated by `validateWeaponDefs`; maths in

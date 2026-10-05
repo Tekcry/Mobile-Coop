@@ -29,7 +29,7 @@ try {
   await hold(0, -1, 1.0);
   const p1 = await P();
   const walked = p1.z - p0.z;
-  assert(walked > 3.5 && walked < 6, `walks ~5 m/s forward (${walked.toFixed(2)} m in 1 s)`);
+  assert(walked > 2.3 && walked < 3.6, `jogs ~3.5 m/s forward incl. ease-in (${walked.toFixed(2)} m in 1 s)`);
 
   // jump
   await settle();
@@ -38,7 +38,7 @@ try {
   for (let i = 0; i < 12; i++) { await frames(page, 1); maxY = Math.max(maxY, (await P()).y); }
   await page.evaluate(() => window.__pad.set(0, 0));
   await settle(1);
-  assert(maxY > 0.6, `jump rises (peak ${maxY.toFixed(2)} m)`);
+  assert(maxY > 0.3 && maxY < 0.7, `modest jump (peak ${maxY.toFixed(2)} m)`);
   assert((await P()).grounded, 'lands again');
 
   // crouch toggle (B while still)
@@ -88,14 +88,14 @@ try {
   // stairs onto platform: stairs at x=8.2,z=16 descending toward +x (yaw -90 means rising toward -x)
   await tp(13, 0, 16, -Math.PI / 2);
   await settle(0.3);
-  const sp = await hold(0, -1, 2.2);
+  const sp = await hold(0, -1, 3.8);
   assert(sp > 2.45, `stairs reach platform (peak y=${sp.toFixed(2)})`);
 
   // crouch tunnel (roof at 1.4): walk in crouched, cannot stand inside
   await tp(-10.75, 0, -26, 0);
   await settle(0.3);
   await press(page, BTN.B);
-  await hold(0, -1, 1.2);
+  await hold(0, -1, 2.2);
   const pt = await P();
   assert(pt.z > -24.5, `crouch-walks into tunnel (z=${pt.z.toFixed(2)})`);
   await press(page, BTN.B);

@@ -1,5 +1,43 @@
 # Changelog
 
+## 0.10.0 - Avatar, movement and cover overhaul
+Retrofits the player, enemies, coop remotes, training dummies and the customiser preview.
+- One shared rig with realistic proportions (1.75 m, ~7.5 heads, shoulders ~2 head heights, chest-to-waist
+  taper, limbs tapering thigh -> knee -> ankle and shoulder -> wrist), built only from smooth shapes: surfaces of
+  revolution (torso, tapered limbs with muscle swell, domes, helmets, rounded cylinders) and superellipsoids
+  (rounded boxes, mitten hands, boots, plates) with shared-vertex normals and a low-poly LOD beyond 16 m.
+  Joint spheres sleeve into the limbs so there are no gaps in any pose. Still instanced from one material.
+- Body types are now Average / Lean / Athletic / Broad (girth and shoulders within ~0.9-1.15x). Enemies differ
+  by build and gear: lean runner, average grunt with a rifle, broad plated heavy with an SMG-class gun.
+- Customiser options adapted to the smooth style: heads Round / Strong jaw / Oval / Long, Swept hair, Bedroll
+  pack, Comms headset (replacing hard-edged hex/square heads, spikes, blade and horns). Patterns and camos now
+  have soft edges. Save v4 migrates looks and owned unlocks to the new ids (test with a literal v3 save).
+- Layered procedural animation (`anim/`): lower-body state machine with 200 ms cross-fades and a speed-driven
+  blend tree (idle/walk/jog/sprint, crouch, strafe, backpedal, turn-in-place steps, jump/air/land compression,
+  roll), planted feet synced to ground speed, two-bone IK for feet and both hands (correct two-hand grip on
+  each weapon's foregrip), separate aim layer with spine/head look-at, recoil spring, reload (off-hand to the
+  magazine), sprint carry, blind fire, weapon sway, breathing, lean into acceleration and turns, hit react,
+  emotes blended over the top. Holstered guns show on the back (long guns) or hip (pistol).
+- Ragdolls re-fitted: five bodies (torso, legs, arms) with ball-and-socket hips and shoulders.
+- Movement: realistic speeds (walk 1.4, jog 3.5, sprint 5.5, crouch 1.2, ADS 1.0 m/s) in a tunable data table,
+  critically damped acceleration/deceleration (eased, no instant stops or sliding), committed sprint with a
+  wind-up and a recovery before firing/ADS, modest 0.45 m jump with minimal air control, fixed 0.6 s roll with
+  recovery and cooldown. Camera follow, shoulder swap and ADS use critically damped springs.
+- Cover system: cover faces generated from every upright map piece (both maps and Proving Grounds; walls,
+  crates, low walls, pillars), probed at run time for real height, clearance and inside corners. Snap with an
+  eased 250 ms move (button, B-hold or C; optional auto-snap), strafe along the face with edge stops, aim over
+  low cover / lean out at high-cover edges with automatic shoulder swap, blind fire (x3 spread, stays covered),
+  pivot round outside corners, vault low cover, optional cover-to-cover dash. Cancels on sprint, roll, jump,
+  backing off, lost surface or death. Enemies use the same faces and peek past edges.
+- Contextual cover prompt, state badge and touch button; `cover` action across touch/pad/keyboard (keyboard
+  crouch moved to Ctrl). Settings: auto-snap, cover dash.
+- Debug overlay: Skeleton view (bones, controller capsule, hit volumes) and a live movement/camera Tune panel.
+- Hit volumes and the controller capsule are derived from the proportions (player capsule 1.75 m x 0.30 m).
+- Choices: characters stay instanced (one draw call per smooth shape) instead of merging meshes per character,
+  which would cost a draw call per character; IK hands follow the weapon rather than the weapon following the
+  hand, so aim is exact; cover data is generated from geometry rather than hand-tagged, so new maps get cover
+  for free.
+
 ## 0.9.0 - Phase 9: Online co-op (optional, behind `flags.coop`)
 - 2-4 player co-op over WebRTC (Trystero, Nostr public signalling) for Wave Survival and Free Roam.
   Mission stays single player. Everything lives in `src/net`, loaded only by dynamic `import()` from the
