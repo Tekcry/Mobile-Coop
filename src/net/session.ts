@@ -133,6 +133,11 @@ export class NetSession {
       return;
     }
     if (msg.t === 'hello') return; // other clients introducing themselves; the host's lobby is authoritative
+    // a full room's host refuses us before we ever see its lobby
+    if (msg.t === 'bye' && !this.hostId && /full/i.test(msg.reason)) {
+      this.events.emit('full', {});
+      return;
+    }
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
