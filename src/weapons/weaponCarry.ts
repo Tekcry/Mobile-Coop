@@ -34,14 +34,14 @@ export interface CarryInput {
 }
 
 export const CARRY = {
-  /** Seconds to raise from ready to shouldered for weight 1. */
-  raiseTime: 0.15,
+  /** Seconds to raise from ready to shouldered for weight 1 (trigger live after ~0.3 s). */
+  raiseTime: 0.35,
   /** Seconds to lower back to ready for weight 1. */
-  lowerTime: 0.35,
+  lowerTime: 0.55,
   /** Stay raised this long after the last shot. */
   holdAfterFire: 0.6,
   /** Ready-position cross-fade (s). */
-  readyFade: 0.22,
+  readyFade: 0.32,
   /** Fraction of the raise at which the trigger is live. */
   fireThreshold: 0.85,
 };

@@ -153,7 +153,7 @@ describe('weapon carry', () => {
     i.doorway = true;
     expect(pickReady(i)).toBe('compressed');
   });
-  it('raise before firing takes 120-180 ms (rifle), heavier is slower', () => {
+  it('raise before firing takes 250-350 ms (rifle), heavier is slower', () => {
     const raiseTime = (weight: number): number => {
       const c = new WeaponCarry();
       const i = emptyCarryInput();
@@ -167,8 +167,8 @@ describe('weapon carry', () => {
       return t;
     };
     const rifle = raiseTime(1);
-    expect(rifle).toBeGreaterThanOrEqual(0.1);
-    expect(rifle).toBeLessThanOrEqual(0.2);
+    expect(rifle).toBeGreaterThanOrEqual(0.25);
+    expect(rifle).toBeLessThanOrEqual(0.35);
     expect(raiseTime(0.7)).toBeLessThan(rifle);
     expect(raiseTime(1.35)).toBeGreaterThan(rifle);
   });

@@ -107,3 +107,33 @@ export function springStep(x: number, v: number, target: number, omega: number, 
 export function approach(x: number, target: number, tau: number, dt: number): number {
   return tau <= 0 ? target : target + (x - target) * Math.exp(-dt / tau);
 }
+
+/**
+ * Critically damped spring with state in fields (allocation-free for per-frame use).
+ * `omega` ~ 4 / settle time.
+ */
+export class Spring {
+  constructor(
+    public x = 0,
+    public v = 0,
+  ) {}
+
+  step(target: number, omega: number, dt: number): number {
+    const e = Math.exp(-omega * dt);
+    const d = this.x - target;
+    const t1 = (this.v + omega * d) * dt;
+    this.x = target + (d + t1) * e;
+    this.v = (this.v - omega * t1) * e;
+    return this.x;
+  }
+
+  /** Add an instantaneous velocity kick (impulse). */
+  kick(dv: number): void {
+    this.v += dv;
+  }
+
+  reset(x = 0): void {
+    this.x = x;
+    this.v = 0;
+  }
+}

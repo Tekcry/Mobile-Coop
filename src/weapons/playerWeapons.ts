@@ -41,7 +41,14 @@ export interface CombatEvents {
 }
 
 const DEG = Math.PI / 180;
-const SWAP_TIME = 0.4;
+/** Weapon swap (s): holster the current gun, draw the next (the model changes hands half way). */
+const SWAP_TIME = 0.9;
+/** Grenade throw (s) and the moment it leaves the hand. */
+const GRENADE_TIME = 1.2;
+const GRENADE_RELEASE = 0.68;
+/** Reload durations relative to the weapon's base reload time: rifle 1.9 s -> 2.6 s / 3.1 s. */
+export const RELOAD_TACTICAL_MULT = 1.37;
+export const RELOAD_EMPTY_MULT = 1.63;
 
 /** The local player's weapons: fire modes, spread/bloom, recoil, reload, swap, grenades. */
 export class PlayerWeapons {
@@ -52,6 +59,11 @@ export class PlayerWeapons {
   private grenadeCd = 0;
   private reloadT = -1;
   private swapT = -1;
+  private swapEquipped = false;
+  private reloadTotal = 1;
+  private reloadEmpty = false;
+  private grenadeT = -1;
+  private grenadeThrown = false;
   private bloom = 0;
   private shotIndex = 0;
   private sinceShot = 99;
@@ -104,11 +116,16 @@ export class PlayerWeapons {
   }
 
   get reloadProgress(): number {
-    return this.reloading ? 1 - this.reloadT / this.current.stats.reloadTime : 0;
+    return this.reloading ? 1 - this.reloadT / this.reloadTotal : 0;
   }
 
   get swapping(): boolean {
     return this.swapT >= 0;
+  }
+
+  /** Throwing a grenade (wind-up to recovery): no firing, aiming or reloading. */
+  get throwing(): boolean {
+    return this.grenadeT >= 0;
   }
 
   private tallyFor(id: WeaponId): { shots: number; hits: number; kills: number; heads: number } {
@@ -164,6 +181,9 @@ export class PlayerWeapons {
   fixedUpdate(dt: number, inp: InputState): void {
     const s = this.current;
     this.player.reload = this.reloading ? this.reloadProgress : -1;
+    this.player.reloadEmpty = this.reloadEmpty;
+    this.player.swapT = this.swapT >= 0 ? this.swapT / SWAP_TIME : -1;
+    this.player.grenadeT = this.grenadeT >= 0 ? this.grenadeT / GRENADE_TIME : -1;
     this.player.sinceShot = this.sinceShot;
     this.player.weaponWeight = s.def.weight ?? classWeight(s.def.class);
     this.cooldown = Math.max(0, this.cooldown - dt);
@@ -175,19 +195,35 @@ export class PlayerWeapons {
     const ctl = this.player.controller;
 
     // swap (pressing again mid-swap keeps cycling)
-    if ((inp.pressed('swapNext') || inp.pressed('swapPrev')) && this.slots.length > 1) {
+    if ((inp.pressed('swapNext') || inp.pressed('swapPrev')) && this.slots.length > 1 && !this.throwing) {
       const d = inp.pressed('swapNext') ? 1 : -1;
       this.reloadT = -1;
       this.index = (this.index + d + this.slots.length) % this.slots.length;
-      // the outgoing gun goes to its holster; hands are free until the new one is drawn
-      this.holsterAll(-1);
-      this.swapT = SWAP_TIME;
+      // a swap already past the holster point restarts from the draw; otherwise it keeps going
+      if (this.swapT < 0 || this.swapEquipped) {
+        this.swapT = 0;
+        this.swapEquipped = false;
+      }
       this.events.onSwap?.(this.current.def);
       return;
     }
     if (this.swapT >= 0) {
-      this.swapT -= dt;
-      if (this.swapT < 0) this.equip(this.index);
+      this.swapT += dt;
+      // half way: the outgoing gun reaches its holster and the next one comes out in the hand
+      if (!this.swapEquipped && this.swapT >= SWAP_TIME * 0.45) {
+        this.swapEquipped = true;
+        this.equip(this.index);
+      }
+      if (this.swapT >= SWAP_TIME) this.swapT = -1;
+    }
+    // grenade: prep, pin, wind-up, release (thrown), recover
+    if (this.grenadeT >= 0) {
+      this.grenadeT += dt;
+      if (!this.grenadeThrown && this.grenadeT >= GRENADE_TIME * GRENADE_RELEASE) {
+        this.grenadeThrown = true;
+        this.releaseGrenade();
+      }
+      if (this.grenadeT >= GRENADE_TIME) this.grenadeT = -1;
     }
 
     // reload
@@ -199,7 +235,7 @@ export class PlayerWeapons {
         s.mag += take;
         if (!this.infiniteAmmo) s.reserve -= take;
       }
-    } else if (inp.pressed('reload') && s.mag < s.stats.magSize && (s.reserve > 0 || this.infiniteAmmo)) {
+    } else if (inp.pressed('reload') && !this.throwing && !this.swapping && s.mag < s.stats.magSize && (s.reserve > 0 || this.infiniteAmmo)) {
       this.startReload();
     }
 
@@ -210,7 +246,7 @@ export class PlayerWeapons {
     if (inp.pressed('fire')) this.queuedT = 0.35;
     this.queuedT = Math.max(0, this.queuedT - dt);
     const wants = s.def.fireMode === 'auto' ? inp.down('fire') : this.queuedT > 0;
-    if (!wants || this.swapping || this.reloading || ctl.weaponBlocked || this.cooldown > 0) return;
+    if (!wants || this.swapping || this.reloading || this.throwing || ctl.weaponBlocked || this.cooldown > 0) return;
     // raise-to-fire: the trigger is live only once the weapon is up from its ready position
     if (!this.player.carry.canFire(this.player.carryIn)) return;
     this.queuedT = 0;
@@ -222,15 +258,26 @@ export class PlayerWeapons {
     this.shoot();
   }
 
+  /** Tactical reload (a round still chambered) or the longer empty reload (charging handle). */
   private startReload(): void {
-    this.reloadT = this.current.stats.reloadTime;
-    this.events.onReload?.(this.current.def);
+    const s = this.current;
+    this.reloadEmpty = s.mag <= 0;
+    this.reloadTotal = s.stats.reloadTime * (this.reloadEmpty ? RELOAD_EMPTY_MULT : RELOAD_TACTICAL_MULT);
+    this.reloadT = this.reloadTotal;
+    this.events.onReload?.(s.def);
   }
 
+  /** Start the throw; the grenade leaves the hand at the release point of the animation. */
   private throwGrenade(): void {
-    if (this.grenades <= 0 || this.grenadeCd > 0) return;
+    if (this.grenades <= 0 || this.grenadeCd > 0 || this.throwing || this.swapping) return;
     this.grenades--;
     this.grenadeCd = GRENADE.cooldown;
+    this.reloadT = -1;
+    this.grenadeT = 0;
+    this.grenadeThrown = false;
+  }
+
+  private releaseGrenade(): void {
     const cam = this.player.cam;
     const from = cam.pivot.add(new Vector3(0, 0.1, 0)).addInPlace(cam.forward.scale(0.5));
     const v = this.player.controller.cc.getVelocity();

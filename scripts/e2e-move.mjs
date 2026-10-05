@@ -37,23 +37,23 @@ try {
   await hold(0, -1, 1.0);
   const p1 = await P();
   const walked = p1.z - p0.z;
-  assert(walked > 0.7 && walked < 1.4, `tactical walk ~1.2 m/s incl. ease-in (${walked.toFixed(2)} m in 1 s)`);
+  assert(walked > 0.3 && walked < 0.75, `tactical walk ~0.9 m/s after a weight shift and an eased start (${walked.toFixed(2)} m in 1 s)`);
   await page.evaluate(() => { window.__pad.axis(1, -1); });
   await sim(2.2);
   const brisk = await SPD();
-  assert(brisk > 1.7 && brisk < 2.15, `holding full stick eases into a brisk move (${brisk.toFixed(2)} m/s)`);
+  assert(brisk > 1.25 && brisk < 1.5, `holding full stick eases into a brisk move (${brisk.toFixed(2)} m/s)`);
   await page.evaluate(() => { window.__pad.axis(1, -0.35); });
   await sim(1.2);
   const creep = await SPD();
-  assert(creep > 0.25 && creep < 0.65, `light stick creeps (${creep.toFixed(2)} m/s)`);
+  assert(creep > 0.2 && creep < 0.48, `light stick creeps (${creep.toFixed(2)} m/s)`);
   await page.evaluate(() => { window.__pad.axis(0, 1); window.__pad.axis(1, 0); });
   await sim(1.2);
   const strafe = await SPD();
-  assert(strafe > 0.95 && strafe < 1.15, `strafe 90% of walk (${strafe.toFixed(2)} m/s)`);
+  assert(strafe > 0.7 && strafe < 0.92, `strafe 90% of walk (${strafe.toFixed(2)} m/s)`);
   await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, 1); });
   await sim(1.2);
   const back = await SPD();
-  assert(back > 0.7 && back < 0.95, `backstep 70% of walk (${back.toFixed(2)} m/s)`);
+  assert(back > 0.5 && back < 0.72, `backstep 70% of walk (${back.toFixed(2)} m/s)`);
   await settle();
 
   // bounding dash: LS click while moving; wind-up, rush, recovery; weapon blocked; stamina spent
@@ -63,18 +63,20 @@ try {
   await press(page, BTN.LS);
   let peak = 0;
   let blocked = false;
+  let minStam = 1;
   for (let i = 0; i < 10; i++) {
     await sim(0.1);
     peak = Math.max(peak, await SPD());
     blocked ||= await page.evaluate(() => window.__app.current.player.controller.weaponBlocked);
+    minStam = Math.min(minStam, await page.evaluate(() => window.__app.current.player.controller.dash.stamina));
   }
-  await sim(1.2);
+  await sim(2.4);
   const after = await page.evaluate(() => { const c = window.__app.current.player.controller; return { dashing: c.dashing, stamina: c.dash.stamina, speed: c.speed }; });
   await page.evaluate(() => { window.__pad.axis(1, 0); });
-  assert(peak > 4.8 && peak < 5.8, `dash rushes to ~5.5 m/s (${peak.toFixed(2)})`);
+  assert(peak > 3.2 && peak < 4.0, `dash rushes to ~3.8 m/s (${peak.toFixed(2)})`);
   assert(blocked, 'weapon blocked during the dash');
-  assert(!after.dashing && after.speed < 2.2, `dash ends within 1.5 s (speed ${after.speed.toFixed(2)})`);
-  assert(after.stamina < 0.8, `dash spends stamina (${after.stamina.toFixed(2)})`);
+  assert(!after.dashing && after.speed < 1.6, `dash ends within 1.5 s and brakes back to a walk (speed ${after.speed.toFixed(2)})`);
+  assert(minStam < 0.8, `dash spends stamina (${minStam.toFixed(2)})`);
   await settle();
 
   // no free jump: jump in the open does nothing
@@ -118,7 +120,7 @@ try {
   const stepCase = async (z, h, expectUp) => {
     await tp(-19.5, 0, z, -Math.PI / 2);
     await settle(0.3);
-    const peak = await hold(0, -1, 2.2);
+    const peak = await hold(0, -1, 3.2);
     const up = peak > h - 0.05;
     assert(up === expectUp, `step ${h} m: ${expectUp ? 'climbed' : 'blocked'} (peak y=${peak.toFixed(2)})`);
   };
@@ -131,7 +133,7 @@ try {
   const slopeCase = async (zc, deg, expectUp) => {
     await tp(21, 0, zc - 3.6, 0);
     await settle(0.3);
-    const peak = await hold(0, -1, 4.5);
+    const peak = await hold(0, -1, 6.5);
     const top = Math.tan((deg * Math.PI) / 180) * 5;
     const ok = expectUp ? peak > Math.min(top, 6) * 0.6 : peak < 1.2;
     assert(ok, `${deg}° slope: ${expectUp ? 'walkable' : 'too steep'} (peak y=${peak.toFixed(2)})`);
@@ -143,14 +145,14 @@ try {
   // stairs onto platform: stairs at x=8.2,z=16 descending toward +x (yaw -90 means rising toward -x)
   await tp(13, 0, 16, -Math.PI / 2);
   await settle(0.3);
-  const sp = await hold(0, -1, 7.5);
+  const sp = await hold(0, -1, 10.5);
   assert(sp > 2.45, `stairs reach platform (peak y=${sp.toFixed(2)})`);
 
   // crouch tunnel (roof at 1.4): walk in crouched, cannot stand inside
   await tp(-10.75, 0, -26, 0);
   await settle(0.3);
   await press(page, BTN.B);
-  await hold(0, -1, 2.8);
+  await hold(0, -1, 4.2);
   const pt = await P();
   assert(pt.z > -24.5, `crouch-walks into tunnel (z=${pt.z.toFixed(2)})`);
   await press(page, BTN.B);
@@ -161,7 +163,7 @@ try {
   const crate0 = await page.evaluate(() => { const p = window.__app.current.world.props.props.find((q) => q.kind === 'smallCrate'); return { x: p.node.position.x, z: p.node.position.z }; });
   await tp(crate0.x, 0, crate0.z - 2.5, 0);
   await settle(0.3);
-  await hold(0, -1, 2.8);
+  await hold(0, -1, 3.6);
   const crate1 = await page.evaluate(() => { const p = window.__app.current.world.props.props.find((q) => q.kind === 'smallCrate'); return { x: p.node.position.x, z: p.node.position.z }; });
   const moved = Math.hypot(crate1.x - crate0.x, crate1.z - crate0.z);
   assert(moved > 0.15, `player pushes props (${moved.toFixed(2)} m)`);

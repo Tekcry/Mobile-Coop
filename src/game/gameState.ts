@@ -610,6 +610,7 @@ export class GameState implements AppState {
       look.y += Math.cos(this.swayT * 1.7 + 1) * sway * 1.2 * dt;
     }
     this.player.frameUpdate(dt, alpha, look);
+    this.enemyMgr?.frameUpdate(dt, alpha);
     this.vfx.update(dt);
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);

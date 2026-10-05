@@ -79,6 +79,9 @@ export class PlayerController {
   readonly motion: MotionDriver;
   /** Kept for callers: mirrors the driver's velocity; `reset` also resets the driver. */
   readonly vel = new EasedVelocity();
+  /** Gait clock at the previous step and interpolated for rendering. */
+  private prevPhase = 0;
+  renderPhase = 0;
   /** Stance progress 0 (standing) .. 1 (crouched), advanced at the stance transition rates. */
   private crouchK = 0;
   private dashDir = new Vector3(0, 0, 1);
@@ -218,6 +221,7 @@ export class PlayerController {
     const ov = this.override;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
+    this.prevPhase = this.motion.phase;
     this.landT = Math.max(0, this.landT - dt);
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
@@ -430,6 +434,10 @@ export class PlayerController {
   interpolate(alpha: number): void {
     Vector3.LerpToRef(this.prevPos, this.pos, alpha, this.renderPos);
     this.renderYaw = lerpAngle(this.prevYaw, this.yaw, alpha);
+    // gait clock between the last two steps (wrapping)
+    let d = this.motion.phase - this.prevPhase;
+    if (d < -0.5) d += 1;
+    this.renderPhase = (this.prevPhase + d * alpha + 1) % 1;
   }
 
   get onGroundSupport(): CharacterSurfaceInfo | null {

@@ -94,6 +94,11 @@ export class MotionDriver {
     return Math.hypot(this.vx, this.vz);
   }
 
+  /** Where the body is heading: the end of a stepped turn, else the current facing. */
+  get goalYaw(): number {
+    return this.state === 'turn' ? this.turnTo : this.yaw;
+  }
+
   get accel(): number {
     return Math.hypot(this.ax, this.az);
   }

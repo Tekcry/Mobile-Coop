@@ -28,7 +28,7 @@ async function holdCover() {
     if ((await P()).state !== 'none') break;
   }
   await G(() => window.__pad.set(1, 0));
-  await sim(0.4);
+  await sim(1.0);
 }
 const near = (a, b, e) => Math.abs(a - b) <= e;
 try {
@@ -55,7 +55,7 @@ try {
   const badge = await G(() => document.querySelector('.hud-cover-state.show')?.textContent ?? '');
   assert(/low cover/i.test(badge), `state badge (${badge})`);
   // strafe right on screen (camera faces -x, so right is +z) to the far edge
-  await sim(2.5, { lx: 1 });
+  await sim(4.6, { lx: 1 });
   c = await P();
   assert(c.state === "in" && near(c.z, -4.22, 0.12), `strafes along the face and stops at the edge (${JSON.stringify(c)}, ${await G(() => window.__app.current.cover.sm.reason)})`);
   assert(near(c.x, -4.35, 0.08), `keeps the standoff while moving (x=${c.x.toFixed(2)})`);
@@ -143,8 +143,8 @@ try {
   c = await P();
   const segN = c.seg;
   assert(c.state === 'in' && !c.low && c.nz < -0.9, `snaps to the inner north wall (${JSON.stringify(c)})`);
-  await sim(2.4, { lx: 1 });
-  await sim(0.6);
+  await sim(4.0, { lx: 1 });
+  await sim(1.0);
   c = await P();
   assert(c.state === 'in' && c.seg !== segN && c.nx < -0.9 && near(c.x, 23.8 - 0.35, 0.12), `pushing into the inside corner turns onto the adjoining wall (seg ${segN}->${c.seg}, x=${c.x.toFixed(2)})`);
 
@@ -153,7 +153,7 @@ try {
   await tp(-3.7, -5, -Math.PI / 2);
   await sim(0.3);
   await holdCover();
-  await sim(1.6, { lx: 1 });
+  await sim(2.8, { lx: 1 });
   c = await P();
   const piece0 = c.piece;
   await G(() => { window.__pad.axis(0, 1); });
@@ -204,7 +204,7 @@ try {
   await tp(-3.7, -6, -Math.PI / 2);
   await sim(0.3);
   await G(() => { const s = window.__app.input.state; s.coverSwipe.x = 0; s.coverSwipe.y = 1; });
-  await sim(0.6);
+  await sim(1.2);
   assert((await P()).state === 'in', 'swipe towards cover takes it');
   await press(page, BTN.B);
   await sim(0.4);
@@ -212,7 +212,8 @@ try {
   console.log('auto snap + touch button');
   await G(() => window.__app.settings.update((s) => void (s.gameplay.autoCover = true)));
   await tp(-2.6, -6, -Math.PI / 2);
-  await sim(2.0, { ly: -1 });
+  await sim(2.6, { ly: -1 });
+  await sim(1.0);
   c = await P();
   assert(c.state === 'in', `auto-snap on approach when enabled (${c.state})`);
   await G(() => window.__app.settings.update((s) => void (s.gameplay.autoCover = false)));

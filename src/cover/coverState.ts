@@ -35,7 +35,8 @@ export interface CoverInput {
   arrived: boolean;
 }
 
-export const ENTER_TIME = 0.25;
+/** Default cover entry time (s); the controller scales it by the approach distance. */
+export const ENTER_TIME = 0.8;
 export const CORNER_TIME = 0.35;
 export const VAULT_TIME = 0.55;
 export const AWAY_TIME = 0.3;
@@ -72,6 +73,8 @@ export class CoverStateMachine {
   private noFireT = 0;
   /** Which corner is being pivoted (-1 / 1) while in 'corner'. */
   cornerSide = 0;
+  /** Entry duration for the current snap (s). */
+  enterTime = ENTER_TIME;
   /** Last transition reason (debug/tests). */
   reason = '';
 
@@ -114,7 +117,7 @@ export class CoverStateMachine {
       case 'enter':
         if (!i.valid) this.go('none', 'gone');
         else if (i.sprint || i.coverPressed) this.go('none', 'cancel');
-        else if (this.t >= ENTER_TIME) this.go('in', 'entered');
+        else if (this.t >= this.enterTime) this.go('in', 'entered');
         break;
       case 'dash':
         if (i.arrived) this.go('enter', 'arrived');

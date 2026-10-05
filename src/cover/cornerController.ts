@@ -110,7 +110,8 @@ export class CornerController {
     } else p.coverPose.check = -1;
 
     // contextual lean while aiming with the aim line blocked close in front
-    const aiming = p.ads || p.aiming;
+    // aim input only (the lean itself raises the weapon, so the raise cannot keep the lean alive)
+    const aiming = p.ads || p.carryIn.fire;
     if (aiming) {
       this.probeT -= dt;
       if (this.probeT <= 0) {
@@ -139,6 +140,8 @@ export class CornerController {
       }
     } else this.endLean(dt, false);
     p.coverPose.lean = this.lean;
+    // lean out of the left side with the weapon in the left hand
+    p.rig.leftHanded = this.leanSide < 0 || (this.leanSide === 0 && this.lean < -0.5);
   }
 
   private endLean(dt: number, hard: boolean): void {

@@ -6,7 +6,7 @@ import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { awayAmount, clampAlong, coverPose, EDGE_MARGIN, findSnap, locate, nearestEdge, projectOnTangent, type CoverSegment } from './coverData';
-import { CORNER_TIME, CoverStateMachine, emptyCoverInput, ENTER_TIME, VAULT_TIME, type CoverStateName } from './coverState';
+import { CORNER_TIME, CoverStateMachine, emptyCoverInput, VAULT_TIME, type CoverStateName } from './coverState';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 const ease = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -295,8 +295,21 @@ export class CoverController {
     // arriving at speed (bounding dash) slides in
     this.slide = c.dashing || c.speed > 3;
     if (c.dashing) c.dash.stop();
+    // entry: decelerate into the wall over the approach (longer from further out), eased
+    const loc = locate(seg, this.player.position.x, this.player.position.z);
+    this.enterS0 = loc.s;
+    this.enterD0 = loc.dist;
+    const d = Math.hypot(clampAlong(seg, s).s - loc.s, loc.dist - COVER_STANDOFF);
+    this.sm.enterTime = this.slide ? 0.6 : Math.max(0.6, Math.min(0.95, 0.55 + d * 0.25));
     this.sm.snap();
   }
+
+  private enterS0 = 0;
+  private enterD0 = 0;
+  /** Stepping back off the wall after leaving cover (s left). */
+  private exitStepT = 0;
+  private exitNx = 0;
+  private exitNz = 0;
 
   private faceYaw(seg: CoverSegment, dir: number): number {
     return Math.atan2(seg.tx * dir, seg.tz * dir);
@@ -447,6 +460,12 @@ export class CoverController {
       this.slide = !swat;
     }
     if (st === 'none') {
+      // a deliberate release steps back off the wall
+      if (this.seg && (this.sm.reason === 'released' || this.sm.reason === 'backed-off')) {
+        this.exitStepT = 0.45;
+        this.exitNx = this.seg.nx;
+        this.exitNz = this.seg.nz;
+      }
       this.slide = false;
       this.swapT = -1;
       this.setShoulder(null);
@@ -471,8 +490,19 @@ export class CoverController {
     if (pose.traverse === 'vault') pose.traverse = 'none';
     const st = this.sm.state;
     if (st === 'none') {
-      c.override = null;
+      p.rig.leftHanded = false;
       pose.cover = 'none';
+      if (this.exitStepT > 0) {
+        // step back off the wall (eased), weapon coming off the compressed carry
+        this.exitStepT = Math.max(0, this.exitStepT - dt);
+        const v = 0.55 * Math.sin(Math.PI * (1 - this.exitStepT / 0.45));
+        this.vel.x = this.exitNx * v;
+        this.vel.z = this.exitNz * v;
+        c.override = w.mag > 0.3 ? null : { velocity: this.vel };
+        if (w.mag > 0.3) this.exitStepT = 0;
+        return;
+      }
+      c.override = null;
       return;
     }
     if (st === 'dash' && this.dashTo) {
@@ -545,9 +575,13 @@ export class CoverController {
       this.swapT += dt;
       if (this.swapT >= SWAP_TIME) this.swapT = -1;
     }
+    let enterK = -1;
     if (st === 'enter') {
-      targetS = clampAlong(seg, this.s).s;
-      if (this.slide) pose.slide = Math.min(1, this.sm.t / ENTER_TIME);
+      // eased approach: quick off the mark, decelerating over the last part into the wall
+      const u = Math.min(1, this.sm.t / this.sm.enterTime);
+      enterK = 1 - Math.pow(1 - u, 3);
+      targetS = this.enterS0 + (clampAlong(seg, this.s).s - this.enterS0) * enterK;
+      if (this.slide) pose.slide = u;
     } else if (st === 'in') {
       const along = projectOnTangent(seg, w.x, w.z) * w.mag;
       // reversing direction: turn-and-swap (shoulder stays to the wall, the weapon changes hands)
@@ -613,6 +647,8 @@ export class CoverController {
       if (Math.abs(loc.s - this.peekReturn) < 0.05 || w.mag > 0.2) this.peekReturn = -1;
     }
     if (yaw !== undefined) pose.wallSide = this.wallSide(seg, this.faceDir);
+    // weapon in the outside hand (away from the wall / towards the side being leaned out of)
+    p.rig.leftHanded = pose.lean !== 0 ? pose.lean < 0 : yaw !== undefined && !this.low ? pose.wallSide > 0 : false;
     // camera on the shoulder of the side being faced (hysteresis so small look changes do not flip it)
     if ((st === 'in' || st === 'enter') && this.sm.t > 0.05) {
       const cy = p.cam.yaw;
@@ -620,9 +656,12 @@ export class CoverController {
       if (Math.abs(dot) > 0.35) this.setShoulder(dot > 0 ? 1 : -1);
     }
     // velocity: along the face (input or towards a target point) + hold the standoff from the surface
-    const k = st === 'enter' ? Math.max(0.05, 0.25 - this.sm.t) : 0.12;
-    if (speedAlong === 0 && Math.abs(targetS - loc.s) > 0.02) speedAlong = Math.max(-3, Math.min(3, (targetS - loc.s) / k));
-    const toward = Math.max(-3.5, Math.min(3.5, (standoff - loc.dist) / (st === 'enter' ? k : 0.1)));
+    // seek target points gently (the root motion has weight; a hard P-gain would overshoot)
+    const k = st === 'enter' ? 0.08 : 0.25;
+    const cap = st === 'enter' ? 3 : 0.9;
+    if (speedAlong === 0 && Math.abs(targetS - loc.s) > 0.02) speedAlong = Math.max(-cap, Math.min(cap, (targetS - loc.s) / k));
+    const wantDist = enterK >= 0 ? this.enterD0 + (standoff - this.enterD0) * enterK : standoff;
+    const toward = Math.max(-3.5, Math.min(3.5, (wantDist - loc.dist) / (st === 'enter' ? k : 0.1)));
     this.vel.x = seg.tx * speedAlong + seg.nx * toward;
     this.vel.z = seg.tz * speedAlong + seg.nz * toward;
     c.override = { velocity: this.vel, yaw, crouch, turnRate: turn };

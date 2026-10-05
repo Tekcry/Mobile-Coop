@@ -1,23 +1,45 @@
 /**
- * Layered procedural animation graph (tactical / SWAT style). Pure (no Babylon), unit-tested.
+ * Layered, clip-based animation graph (pure: no Babylon). Evaluated every render frame.
  *
- * Lower body: a state machine (locomotion / crouch / kneel / air / slide / cover / traverse) whose
- * states cross-fade by weight over `FADE`; locomotion is a blend tree over the tactical gaits (idle ->
- * creep -> walk -> brisk -> dash) driven by ground speed, with a weapon-led rolling walk: soft knees,
- * level upper body, sidesteps and backsteps whose feet never cross, planted feet locked to the ground.
- * Upper body: the weapon-carry layer (low / high / compressed ready blended by weight, raised on the
- * aim line by `raise`), reload, recoil spring, blind fire; spine/head look-at; additive breathing, sway
- * (scaled by weapon weight), lean, landing compression, hit react and flinch. Stabilisation counter-
- * animates the weapon and head against gait bob so the sight picture stays steady while walking.
- * Output: IK targets in the character's root space (+Z forward, +Y up, feet at y = 0).
+ * Lower body: a 2D blend space (speed x direction) over keyed locomotion cycles, standing and
+ * crouched, all sampled at the gait clock so blends never fight the feet; a timed kneel pose; start
+ * weight shift, stop settle and pivot clips driven by the motion driver's state; cover, traversal,
+ * slide and air poses. Switches between these are inertialized (the jump decays through a critically
+ * damped curve per joint group), never cut or linearly faded.
+ * Upper body: weapon ready positions blended to the raised aim pose; reload (tactical / empty), swap and
+ * grenade clips; head-first peek and lean sequencing; recoil absorbed through the spine; spine/head
+ * look-at; breathing after 2 s still; hit flinch; acceleration lean.
+ * Balance: a pelvis spring compressed on every heel strike and shifted over the support foot.
+ * Feet are placed by the rig's world-space FootPlanner from the stance and gait values output here.
  */
 import type { Proportions } from '../player/proportions';
-import { approach, cadence, clamp, gaitFoot, lerp, smoothstep, springStep, type V3 } from './rigMath';
+import { overClip, addClip, type Clip } from './clip';
+import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
+import { stepLength, type MotionState } from './motion';
+import { MOVEMENT } from '../config/movement';
+import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
+import {
+  BRISK,
+  CREEP,
+  CROUCH_BACK,
+  CROUCH_IDLE,
+  CROUCH_STRAFE_L,
+  CROUCH_STRAFE_R,
+  CROUCH_WALK,
+  DASH,
+  IDLE,
+  KNEEL,
+  WALK,
+  WALK_BACK,
+  WALK_STRAFE_L,
+  WALK_STRAFE_R,
+} from './clips/locomotion';
+import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, SWAP, VAULT } from './clips/actions';
 
 export const FADE = 0.2;
 export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'cover', 'traverse'] as const;
 export type LowerState = (typeof LOWER_STATES)[number];
-export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step';
+export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop';
 
 export interface AnimInput {
   /** Horizontal ground speed (m/s) and local movement direction (x right, z forward). */
@@ -25,7 +47,7 @@ export interface AnimInput {
   localX: number;
   localZ: number;
   grounded: boolean;
-  /** 0 standing .. 1 crouched (target). */
+  /** 0 standing .. 1 crouched (eased by the controller). */
   crouch: number;
   /** Crouched and still: one-knee kneel. */
   kneel: boolean;
@@ -42,13 +64,18 @@ export interface AnimInput {
   weight: number;
   /** Momentary recoil 0..1. */
   kick: number;
-  /** Reload progress 0..1, or < 0. */
+  /** Reload progress 0..1, or < 0; empty = the longer reload with the charging handle. */
   reload: number;
-  /** Body yaw rate (rad/s), for turn-in-place steps and lean. */
+  reloadEmpty: boolean;
+  /** Weapon swap progress 0..1, or < 0. */
+  swap: number;
+  /** Grenade throw progress 0..1, or < 0. */
+  grenade: number;
+  /** Body yaw rate (rad/s). */
   yawRate: number;
   /** Holding a weapon (two-hand grip). */
   armed: boolean;
-  /** Dash blend 0..1 (low crouched rush). */
+  /** Dash blend 0..1. */
   dash: number;
   /** Dash-in slide progress 0..1, or < 0. */
   slide: number;
@@ -71,6 +98,16 @@ export interface AnimInput {
   melee: number;
   /** Doorway check sweep 0..1, or < 0. */
   check: number;
+  /** Gait clock from the motion driver (0..1), or < 0 to integrate from speed. */
+  phase: number;
+  /** Motion driver state and time in it ('' when there is no driver: enemies, remotes). */
+  motion: MotionState | '';
+  motionT: number;
+  /** Root acceleration in the body frame (m/s^2): forward, right. */
+  accelFwd: number;
+  accelSide: number;
+  /** Weapon changing hands 0..1, or < 0 (set by the rig). */
+  handSwap: number;
 }
 
 export function defaultInput(): AnimInput {
@@ -90,6 +127,9 @@ export function defaultInput(): AnimInput {
     weight: 1,
     kick: 0,
     reload: -1,
+    reloadEmpty: false,
+    swap: -1,
+    grenade: -1,
     yawRate: 0,
     armed: true,
     dash: 0,
@@ -105,51 +145,18 @@ export function defaultInput(): AnimInput {
     traverseT: 0,
     melee: -1,
     check: -1,
-  };
-}
-
-/** Tactical gait blend tree: per-speed stance travel (m), duty factor, foot lift, pelvis bob, arm swing, lean. */
-export const GAIT = [
-  { speed: 0, stride: 0.25, duty: 0.65, lift: 0.05, bob: 0, swing: 0, lean: 0 },
-  { speed: 0.6, stride: 0.4, duty: 0.68, lift: 0.05, bob: 0.008, swing: 0.05, lean: 0.03 },
-  { speed: 1.2, stride: 0.6, duty: 0.64, lift: 0.07, bob: 0.014, swing: 0.1, lean: 0.05 },
-  { speed: 2.0, stride: 0.8, duty: 0.58, lift: 0.09, bob: 0.022, swing: 0.15, lean: 0.08 },
-  { speed: 5.5, stride: 1.25, duty: 0.36, lift: 0.16, bob: 0.05, swing: 0.6, lean: 0.25 },
-] as const;
-
-export type GaitParams = { stride: number; duty: number; lift: number; bob: number; swing: number; lean: number };
-
-/** Blend-tree lookup: linear between neighbouring gait nodes, clamped at the ends. */
-export function gaitAt(speed: number): GaitParams & { weights: number[] } {
-  const w = GAIT.map(() => 0);
-  const s = Math.max(0, speed);
-  let i = GAIT.length - 2;
-  for (let j = 0; j < GAIT.length - 1; j++) {
-    if (s <= GAIT[j + 1]!.speed) {
-      i = j;
-      break;
-    }
-  }
-  const a = GAIT[i]!;
-  const b = GAIT[i + 1]!;
-  const t = clamp((s - a.speed) / (b.speed - a.speed), 0, 1);
-  w[i] = 1 - t;
-  w[i + 1] = t;
-  return {
-    stride: lerp(a.stride, b.stride, t),
-    duty: lerp(a.duty, b.duty, t),
-    lift: lerp(a.lift, b.lift, t),
-    bob: lerp(a.bob, b.bob, t),
-    swing: lerp(a.swing, b.swing, t),
-    lean: lerp(a.lean, b.lean, t),
-    weights: w,
+    phase: -1,
+    motion: '',
+    motionT: 0,
+    accelFwd: 0,
+    accelSide: 0,
+    handSwap: -1,
   };
 }
 
 /**
- * Lateral foot offset for a gait foot. Sideways components keep each foot on its own side: the lead
- * foot steps out and the trail foot closes in, so the feet never cross (the along-travel term is the
- * same for both, keeping planted feet locked).
+ * Lateral foot offset for a sidestep: the lead foot steps out and the trail foot closes in, so the
+ * feet never cross (kept as a utility; the planner enforces the same rule in world space).
  */
 export function lateralOffset(dx: number, along: number, stride: number, side: -1 | 1): number {
   return dx * along + side * Math.abs(dx) * stride * 0.5;
@@ -161,21 +168,20 @@ export interface RigTargets {
   /** Spine + chest rotation (split between both). */
   spine: { pitch: number; yaw: number; roll: number };
   head: { pitch: number; yaw: number; roll: number };
-  /** Ankle targets in root space, and foot pitch (toe down +). */
-  footL: V3;
-  footR: V3;
-  footPitchL: number;
-  footPitchR: number;
   /** Weapon pose relative to the aim pocket: offsets (m) and rotation (rad). */
   weapon: { x: number; y: number; z: number; pitch: number; yaw: number; roll: number };
-  /** 1 = both hands on the weapon (IK), 0 = free arms (swing targets below). */
+  /** 1 = both hands on the weapon (IK), 0 = free arms (targets below). */
   grip: number;
-  /** Off-hand: 1 = on the foregrip, 0 = on the magazine (reload) or free. */
+  /** Off hand: weights on the foregrip, the magazine well, the cover surface (rest = free target). */
   offGrip: number;
-  /** Off-hand on the cover surface (weight; the rig supplies the world point). */
+  offMag: number;
   offCover: number;
   handL: V3;
   handR: V3;
+  /** Ideal stance per foot (root space, m) and heel raise / pitch offsets. */
+  stance: { lX: number; lZ: number; rX: number; rZ: number; lY: number; rY: number; lPitch: number; rPitch: number };
+  /** Gait values for the foot planner. */
+  gait: { phase: number; duty: number; liftH: number; cycleTime: number; moving: boolean };
   /** Whole-body tumble about the hips (unused by tactical states; kept for completeness). */
   tumble: number;
   /** Layer weights for the debug overlay. */
@@ -189,16 +195,15 @@ export function emptyTargets(): RigTargets {
     pelvis: { x: 0, y: 0, z: 0, pitch: 0, roll: 0, yaw: 0 },
     spine: { pitch: 0, yaw: 0, roll: 0 },
     head: { pitch: 0, yaw: 0, roll: 0 },
-    footL: { x: 0, y: 0, z: 0 },
-    footR: { x: 0, y: 0, z: 0 },
-    footPitchL: 0,
-    footPitchR: 0,
     weapon: { x: 0, y: 0, z: 0, pitch: 0, yaw: 0, roll: 0 },
     grip: 1,
     offGrip: 1,
+    offMag: 0,
     offCover: 0,
     handL: { x: 0, y: 0, z: 0 },
     handR: { x: 0, y: 0, z: 0 },
+    stance: { lX: -0.11, lZ: 0.04, rX: 0.11, rZ: -0.02, lY: 0, rY: 0, lPitch: 0, rPitch: 0 },
+    gait: { phase: 0, duty: 0.63, liftH: 0.065, cycleTime: 1.1, moving: false },
     tumble: 0,
     layers: {},
     weaponBob: 0,
@@ -222,41 +227,66 @@ export const READY_POSES = {
   compressed: { x: -0.12, y: -0.1, z: -0.2, pitch: 0.3, yaw: -0.4, roll: 0.22 },
 } as const;
 
+const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP };
+
+/** Active-clip slots for the debug overlay timeline. */
+export interface ClipSlot {
+  name: string;
+  w: number;
+  t: number;
+}
+
+const SLOTS = 10;
+
 export class AnimGraph {
   readonly weights: Record<LowerState, number> = { locomotion: 1, crouch: 0, kneel: 0, air: 0, slide: 0, cover: 0, traverse: 0 };
   state: LowerState = 'locomotion';
+  /** Gait clock in use (driver's, or integrated from speed). */
   phase = 0;
   readonly out = emptyTargets();
-  /** Smoothed layer parameters. */
-  private crouchS = 0;
+  /** Final pose (after inertialization) and the pre-inertialization source. */
+  readonly pose: Pose = newPose();
+  private src: Pose = newPose();
+  private stand: Pose = newPose();
+  private crouch: Pose = newPose();
+  readonly inert = new Inertializer();
+  /** Debug timeline: active clips (name, weight, time). */
+  readonly slots: ClipSlot[] = Array.from({ length: SLOTS }, () => ({ name: '', w: 0, t: 0 }));
+  private nSlots = 0;
+  // timers and smoothed parameters
+  private idleT = Math.random() * 4;
+  private stillT = 0;
+  private kneelW = 0;
+  private startT = -1;
+  private settleT = -1;
+  private exitT = -1;
+  private landT = -1;
+  private coverT = 0;
+  private prevMotion: MotionState | '' = '';
+  private prevCover: AnimInput['cover'] = 'none';
+  private prevAction = '';
   private raiseS = 0;
   private dashS = 0;
-  private reloadS = 0;
+  private reloadW = 0;
   private blindS = 0;
-  private leanS = 0;
-  private peekS = 0;
-  private gripS = 1;
-  private speedS = 0;
-  private dirX = 0;
-  private dirZ = 1;
-  private prevSpeed = 0;
-  private accelLean = 0;
-  private turnLean = 0;
-  private land = 0;
-  private landV = 0;
-  private wasGrounded = true;
-  private airT = 0;
-  private hitX = 0;
-  private hitV = 0;
-  private hitSide = 0;
-  private breathe = Math.random() * 10;
-  private recoil = 0;
-  private recoilV = 0;
+  private leanHead = new Spring();
+  private leanBody = new Spring();
   private wallS = 0;
   private edgeS = 0;
-  private coverLowS = 0;
-  private yawLag = 0;
-  private yawLagV = 0;
+  private dirX = 0;
+  private dirZ = 1;
+  private moveW = 0;
+  private accelLean = new Spring();
+  private accelRoll = new Spring();
+  private pelSpring = new Spring();
+  private supportX = new Spring();
+  private hit = new Spring();
+  private hitSide = 0;
+  private recoil = new Spring();
+  private yawLag = new Spring();
+  private support = 0;
+  private pelBase = new Spring(-0.04);
+  private bobResidual = 0;
 
   constructor(private p: Proportions) {}
 
@@ -264,22 +294,31 @@ export class AnimGraph {
     this.p = p;
   }
 
-  private addFeet(L: V3, R: V3, w: number, lx: number, ly: number, lz: number, rx: number, ry: number, rz: number): void {
-    L.x += lx * w;
-    L.y += ly * w;
-    L.z += lz * w;
-    R.x += rx * w;
-    R.y += ry * w;
-    R.z += rz * w;
-  }
-
   /** Additive hit reaction / flinch (side: -1 from the left .. 1 from the right). */
-  hit(strength: number, side = 0): void {
-    this.hitV += 6 * clamp(strength, 0, 1);
+  hitReact(strength: number, side = 0): void {
+    this.hit.kick(4.5 * clamp(strength, 0, 1));
     this.hitSide = side;
   }
 
-  /** Cross-fade the lower-body state weights towards `target` over `fade` seconds (sum stays 1). */
+  /** Heel strike from the foot planner: the pelvis compresses (1-2 cm, heavier with more mass). */
+  heelStrike(mass = 1): void {
+    this.pelSpring.kick(-0.6 * clamp(mass, 0.6, 1.6));
+  }
+
+  /** Support side from the planner (-1 left foot only, 1 right only, 0 both / none). */
+  setSupport(side: number): void {
+    this.support = side;
+  }
+
+  private slot(name: string, w: number, t: number): void {
+    if (w <= 0.001 || this.nSlots >= SLOTS) return;
+    const s = this.slots[this.nSlots++]!;
+    s.name = name;
+    s.w = w;
+    s.t = t;
+  }
+
+  /** Cross-fade bookkeeping for the debug overlay (the pose itself is inertialized). */
   fade(target: LowerState, dt: number, fade = FADE): void {
     this.state = target;
     const step = fade > 0 ? dt / fade : 1;
@@ -292,262 +331,396 @@ export class AnimGraph {
     for (const s of LOWER_STATES) this.weights[s] /= sum || 1;
   }
 
+  /** Locomotion blend space (speed x direction) for one posture into `out`. */
+  private locomotion(out: Pose, crouched: boolean, i: AnimInput, ph: number): void {
+    out.set(NEUTRAL_POSE);
+    // idle: a static ready stance; breathing and weight shifts after 2 s still
+    const idle = crouched ? CROUCH_IDLE : IDLE;
+    overClip(out, idle, 0, 1);
+    overClip(out, idle, this.idleT, smoothstep((this.stillT - 2) / 1.5));
+    if (this.moveW <= 0) return;
+    // direction weights from the smoothed local move direction
+    const fw = Math.max(0, this.dirZ);
+    const bw = Math.max(0, -this.dirZ);
+    const sw = Math.abs(this.dirX);
+    const tot = fw + bw + sw || 1;
+    const s = Math.max(0, i.speed);
+    this.moveAcc = 0;
+    this.tmpMove.set(out);
+    if (crouched) {
+      this.addMove(CROUCH_WALK, fw / tot, ph);
+      this.addMove(CROUCH_BACK, bw / tot, ph);
+      this.addMove(this.dirX > 0 ? CROUCH_STRAFE_R : CROUCH_STRAFE_L, sw / tot, ph);
+    } else {
+      // forward: between the neighbouring speed nodes
+      const a = fwdNode(s);
+      const na = FWD[a]!;
+      const nb = FWD[a + 1]!;
+      const k = clamp((s - na.speed) / (nb.speed - na.speed), 0, 1);
+      this.addMove(na.clip, (fw / tot) * (1 - k), ph);
+      this.addMove(nb.clip, (fw / tot) * k, ph);
+      this.addMove(WALK_BACK, bw / tot, ph);
+      this.addMove(this.dirX > 0 ? WALK_STRAFE_R : WALK_STRAFE_L, sw / tot, ph);
+    }
+    lerpPose(out, out, this.tmpMove, this.moveW);
+  }
+
+  private tmpMove: Pose = newPose();
+  private moveAcc = 0;
+
+  /** Sequential weighted blend into tmpMove (exact weighted average of the added clips). */
+  private addMove(c: Clip, w: number, ph: number): void {
+    if (w <= 0) return;
+    this.moveAcc += w;
+    overClip(this.tmpMove, c, ph, w / this.moveAcc);
+  }
+
   update(dt: number, i: AnimInput): RigTargets {
     const p = this.p;
     const o = this.out;
     const k = p.height / 1.75;
-    const target = pickLower(i);
-    this.fade(target, dt, target === 'slide' || target === 'traverse' ? 0.1 : target === 'kneel' ? 0.35 : FADE);
-    const W = this.weights;
     const mass = clamp(i.weight, 0.5, 1.6);
+    this.nSlots = 0;
+    let trigger = false;
 
-    // --- smoothed parameters (time constants scale with weapon mass where the weapon moves)
-    this.crouchS = approach(this.crouchS, i.crouch, 0.1, dt);
-    this.raiseS = approach(this.raiseS, i.raise, 0.03, dt);
-    this.dashS = approach(this.dashS, i.dash, 0.12, dt);
-    this.reloadS = approach(this.reloadS, i.reload >= 0 ? 1 : 0, 0.12 * mass, dt);
-    this.blindS = approach(this.blindS, i.blind ? 1 : 0, 0.12 * mass, dt);
-    this.leanS = approach(this.leanS, i.lean, 0.14, dt);
-    this.peekS = approach(this.peekS, i.peekOver, 0.14, dt);
-    this.gripS = approach(this.gripS, i.armed ? 1 : 0, 0.15, dt);
-    this.speedS = approach(this.speedS, i.speed, 0.08, dt);
-    this.wallS = approach(this.wallS, i.wallSide, 0.18, dt);
-    this.edgeS = approach(this.edgeS, i.edgeLook, 0.2, dt);
-    this.coverLowS = approach(this.coverLowS, i.cover === 'low' ? 1 : 0, 0.15, dt);
+    // --- lower state (inertialized on change)
+    const target = pickLower(i);
+    if (target !== this.state) trigger = true;
+    this.fade(target, dt, target === 'slide' || target === 'traverse' ? 0.12 : target === 'kneel' ? 0.35 : FADE);
+
+    // --- clocks and smoothed parameters
+    const still = i.speed < 0.05;
+    this.stillT = still ? this.stillT + dt : 0;
+    this.idleT += dt;
+    if (i.phase >= 0) this.phase = i.phase;
+    else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed))) * dt) % 1;
+    const ph = this.phase;
+    this.moveW = approach(this.moveW, smoothstep(i.speed / 0.22), 0.08, dt);
     const dl = Math.hypot(i.localX, i.localZ);
-    if (dl > 0.1 && i.speed > 0.1) {
-      this.dirX = approach(this.dirX, i.localX / dl, 0.12, dt);
-      this.dirZ = approach(this.dirZ, i.localZ / dl, 0.12, dt);
+    if (dl > 0.1 && i.speed > 0.05) {
+      this.dirX = approach(this.dirX, i.localX / dl, 0.18, dt);
+      this.dirZ = approach(this.dirZ, i.localZ / dl, 0.18, dt);
     }
     const dn = Math.hypot(this.dirX, this.dirZ) || 1;
-    const dx = this.dirX / dn;
-    const dz = this.dirZ / dn;
-    const accel = dt > 0 ? (i.speed - this.prevSpeed) / dt : 0;
-    this.prevSpeed = i.speed;
-    this.accelLean = approach(this.accelLean, clamp(accel * 0.025, -0.1, 0.1) * dz, 0.2, dt);
-    this.turnLean = approach(this.turnLean, clamp(-i.yawRate * this.speedS * 0.015, -0.1, 0.1), 0.22, dt);
-    // torso/weapon follow-through behind fast turns (mass-weighted)
-    [this.yawLag, this.yawLagV] = springStep(this.yawLag, this.yawLagV, clamp(-i.yawRate * 0.04 * mass, -0.25, 0.25), 10 / mass, dt);
-    if (i.grounded && !this.wasGrounded) this.landV -= clamp(this.airT * 2.2, 0.4, 2.2);
-    this.airT = i.grounded ? 0 : this.airT + dt;
-    this.wasGrounded = i.grounded;
-    [this.land, this.landV] = springStep(this.land, this.landV, -i.landing * 0.6, 14, dt);
-    [this.hitX, this.hitV] = springStep(this.hitX, this.hitV, 0, 16, dt);
-    [this.recoil, this.recoilV] = springStep(this.recoil, this.recoilV, i.kick, 28 / Math.sqrt(mass), dt);
-    this.breathe += dt;
+    this.dirX /= dn;
+    this.dirZ /= dn;
+    this.raiseS = approach(this.raiseS, i.raise, 0.02, dt);
+    this.dashS = approach(this.dashS, i.dash, 0.15, dt);
+    this.blindS = approach(this.blindS, i.blind ? 1 : 0, 0.12 * mass, dt);
+    this.wallS = approach(this.wallS, i.wallSide, 0.2, dt);
+    this.edgeS = approach(this.edgeS, i.edgeLook, 0.22, dt);
+    const inCover = i.cover !== 'none';
+    this.coverT = inCover ? this.coverT + dt : 0;
 
-    // --- gait: planted feet (cadence from ground speed), stepping when turning in place
-    const turnStep = this.speedS < 0.3 ? Math.min(0.9, Math.abs(i.yawRate) * 0.3) : 0;
-    const gs = Math.max(this.speedS, turnStep);
-    const g = gaitAt(gs);
-    const crouchK = this.crouchS;
-    const stride = g.stride * (1 - crouchK * 0.3) * k;
-    const duty = g.duty;
-    if (i.grounded) this.phase = (this.phase + cadence(gs, stride, duty) * dt) % 1;
-    const fL = gaitFoot(this.phase, stride, g.lift, duty);
-    const fR = gaitFoot(this.phase + 0.5, stride, g.lift, duty);
-    const moving = smoothstep(gs / 0.3);
-    const hip = p.hipHalf;
-    const footY = p.y.ankle;
-    // tactical stance: feet about shoulder width, support (left) foot slightly forward
-    const stanceW = hip * 1.25 * (1 + crouchK * 0.35);
-    const supportZ = 0.07 * k * (1 - moving * 0.7);
+    // --- locomotion blend space, standing and crouched, then the posture blend
+    const crouchK = clamp(i.crouch, 0, 1);
+    const src = this.src;
+    if (crouchK < 0.999) this.locomotion(this.stand, false, i, ph);
+    if (crouchK > 0.001) this.locomotion(this.crouch, true, i, ph);
+    if (crouchK <= 0.001) src.set(this.stand);
+    else if (crouchK >= 0.999) src.set(this.crouch);
+    else lerpPose(src, this.stand, this.crouch, crouchK);
+    this.slot(crouchK > 0.5 ? 'crouch loco' : 'loco', 1, ph);
 
-    const pel = o.pelvis;
-    pel.x = pel.z = pel.yaw = 0;
-    let pelY = 0;
-    let pelPitch = 0;
-    let pelRoll = 0;
-    const L = o.footL;
-    const R = o.footR;
-    L.x = L.y = L.z = R.x = R.y = R.z = 0;
-    let pitchL = 0;
-    let pitchR = 0;
-    const addFeet = this.addFeet;
-    const ax = dx * moving;
-    const az = dz * moving;
-    const gaitFeet = (w: number, liftK: number): void => {
-      if (w <= 0) return;
-      addFeet(
-        L,
-        R,
-        w,
-        -stanceW + lateralOffset(ax, fL.along, stride, -1),
-        footY + fL.up * liftK * moving,
-        az * fL.along + supportZ,
-        stanceW + lateralOffset(ax, fR.along, stride, 1),
-        footY + fR.up * liftK * moving,
-        az * fR.along - supportZ * 0.5,
-      );
-      pitchL += w * (fL.planted ? 0 : -0.3 * moving);
-      pitchR += w * (fR.planted ? 0 : -0.3 * moving);
-    };
-    // gait bob (the part stabilisation removes from the weapon and head)
-    const bobRaw = g.bob * Math.cos(this.phase * Math.PI * 4) * moving;
-    // locomotion: soft knees, slight forward lean, dash = low crouched rush
-    {
-      const w = W.locomotion;
-      gaitFeet(w, 1);
-      pelY += w * (bobRaw - 0.04 * k - this.dashS * 0.1 * k);
-      pelPitch += w * (0.08 + g.lean * dz * (1 - this.dashS) + this.dashS * 0.3);
-      pelRoll += w * Math.sin(this.phase * Math.PI * 2) * 0.02 * moving;
-    }
-    const crouchDrop = 0.36 * k;
-    {
-      const w = W.crouch;
-      gaitFeet(w, 0.7);
-      pelY += w * (-crouchDrop + bobRaw * 0.6);
-      pelPitch += w * 0.3;
-    }
-    // kneel: rear (right) knee down, front foot planted forward
-    const kneelDrop = 0.5 * k;
-    {
-      const w = W.kneel;
-      addFeet(L, R, w, -stanceW * 0.9, footY, 0.3 * k, stanceW * 0.8, footY + 0.06 * k, -0.34 * k);
-      pitchR += w * 1.25;
-      pelY += w * -kneelDrop;
-      pelPitch += w * 0.12;
-    }
-    // cover: side-on, shoulder to the surface; low cover kneels, high cover stands flush
-    {
-      const w = W.cover;
-      if (w > 0) {
-        const low = this.coverLowS * (1 - this.peekS * 0.75);
-        // feet: kneel pattern behind low cover, shoulder-width stance at high cover; sidesteps use the gait
-        const stepping = moving;
-        addFeet(L, R, w * (1 - stepping) * low, -stanceW * 0.9, footY, 0.28 * k, stanceW * 0.8, footY + 0.06 * k, -0.32 * k);
-        addFeet(L, R, w * (1 - stepping) * (1 - low), -stanceW, footY, 0.04, stanceW, footY, -0.04);
-        gaitFeet(w * stepping, 0.6);
-        pitchR += w * (1 - stepping) * low * 1.25;
-        pelY += w * (-(kneelDrop * (1 - stepping) + crouchDrop * stepping) * low - 0.03 * (1 - low));
-        pelPitch += w * (0.1 + 0.2 * low * stepping);
-        // shoulder against the wall: hips shift and the torso rests towards it
-        pel.x += w * this.wallS * 0.04 * k;
-        pelRoll += w * this.wallS * 0.05;
-      }
-    }
-    // air (drops): legs ready for the landing
-    {
-      const w = W.air;
-      const up = clamp(0.1 + this.airT * 0.25, 0.1, 0.25);
-      addFeet(L, R, w, -hip, footY + up, 0.08, hip, footY + up * 0.7, -0.05);
-      pelPitch += w * 0.1;
-    }
-    // dash-in slide: low, lead leg forward, trail leg folded, torso upright towards the cover
-    {
-      const w = W.slide;
-      if (w > 0) {
-        const t = clamp(i.slide, 0, 1);
-        const s = Math.sin(Math.PI * Math.min(1, t * 1.2));
-        addFeet(L, R, w, -hip, footY + 0.02, 0.45 * k * s + 0.1, hip * 0.9, footY + 0.05, -0.25 * k);
-        pitchL += w * -0.4 * s;
-        pitchR += w * 1.0;
-        pelY += w * -0.55 * k * (0.4 + 0.6 * s);
-        pelPitch += w * -0.12 * s;
-      }
-    }
-    // traversal: vault (legs swing over), mantle (hands up, knees tucked), step (high knee)
-    {
-      const w = W.traverse;
-      if (w > 0) {
-        const t = clamp(i.traverseT, 0, 1);
-        const arc = Math.sin(Math.PI * t);
-        if (i.traverse === 'vault') {
-          addFeet(L, R, w, -hip + 0.15 * arc, footY + 0.35 * arc, 0.1, hip + 0.25 * arc, footY + 0.3 * arc, 0.05);
-          pelY += w * -0.1 * arc;
-          pelPitch += w * 0.35 * arc;
-        } else if (i.traverse === 'mantle') {
-          const tuck = Math.sin(Math.PI * clamp(t * 1.3, 0, 1));
-          addFeet(L, R, w, -hip, footY + 0.45 * tuck, 0.15 * tuck, hip, footY + 0.3 * tuck, -0.05);
-          pelPitch += w * 0.45 * tuck;
-          pelY += w * -0.15 * tuck;
-        } else {
-          addFeet(L, R, w, -hip, footY + 0.3 * arc, 0.2 * arc, hip, footY, -0.05);
-          pelPitch += w * 0.1 * arc;
-        }
-      }
-    }
-    pelY += this.land * 0.12 * k;
-    pel.y = pelY;
-    pel.pitch = pelPitch * 0.5 + this.accelLean * 0.5;
-    pel.roll = pelRoll + this.turnLean;
-    o.tumble = 0;
-    o.footPitchL = pitchL;
-    o.footPitchR = pitchR;
+    // --- kneel: one knee down behind low cover or when crouched and still (eased over kneelTime)
+    const wantKneel = (i.kneel || (i.cover === 'low' && still)) && i.peekOver < 0.5 && crouchK > 0.5;
+    const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
+    this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
+    const kw = smoothstep(this.kneelW);
+    overClip(src, KNEEL, this.idleT, kw);
+    this.slot('kneel', kw, this.idleT);
 
-    // --- upper body: spine/head follow the aim; lean around edges with the hips planted
-    const breath = Math.sin(this.breathe * 1.6) * 0.01;
+    // --- start / stop / pivot clips from the motion driver
+    if (i.motion === 'start' && this.prevMotion !== 'start') this.startT = 0;
+    if (i.motion !== this.prevMotion && (i.motion === 'idle' || i.motion === 'turn') && (this.prevMotion === 'stop' || this.prevMotion === 'pivot')) this.settleT = 0;
+    if (i.motion === 'pivot' && this.prevMotion !== 'pivot') trigger = true;
+    this.prevMotion = i.motion;
+    if (this.startT >= 0) {
+      addClip(src, START_SHIFT, this.startT, 1 - crouchK * 0.5);
+      this.slot('start', 1, this.startT);
+      this.startT += dt;
+      if (this.startT > START_SHIFT.duration) this.startT = -1;
+    }
+    if (this.settleT >= 0) {
+      addClip(src, STOP_SETTLE, this.settleT, 1);
+      this.slot('settle', 1, this.settleT);
+      this.settleT += dt;
+      if (this.settleT > STOP_SETTLE.duration) this.settleT = -1;
+    }
+    if (i.motion === 'pivot') {
+      const t = clamp(i.motionT / MOVEMENT.pivotTime, 0, 1);
+      addClip(src, PIVOT, t, 1);
+      this.slot('pivot', 1, t);
+    }
+
+    // --- cover: side-on, shoulder to the wall; the entry is a timed clip; leaving pushes off
+    if (inCover && this.prevCover === 'none') trigger = true;
+    if (!inCover && this.prevCover !== 'none') {
+      this.exitT = 0;
+      trigger = true;
+    }
+    this.prevCover = i.cover;
+    if (inCover) {
+      const settled = Math.min(this.coverT, COVER_ENTER.duration);
+      addClip(src, COVER_ENTER_SIDE, settled, 1, this.wallS || 1);
+      addClip(src, COVER_ENTER, settled, 1);
+      this.slot('cover enter', this.coverT < COVER_ENTER.duration ? 1 : 0.3, settled);
+      // reloading in cover: tuck in closer to the wall
+      src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.025 * this.reloadW;
+    }
+    if (this.exitT >= 0) {
+      addClip(src, COVER_EXIT, this.exitT, 1);
+      this.slot('cover exit', 1, this.exitT);
+      this.exitT += dt;
+      if (this.exitT > COVER_EXIT.duration) this.exitT = -1;
+    }
+
+    // --- traversal, slide, air, landing
+    if (i.traverse !== 'none') {
+      overClip(src, TRAVERSE_CLIP[i.traverse], clamp(i.traverseT, 0, 1), 1);
+      this.slot(i.traverse, 1, i.traverseT);
+    }
+    if (i.slide >= 0) {
+      overClip(src, SLIDE, clamp(i.slide, 0, 1), 1);
+      this.slot('slide', 1, i.slide);
+    }
+    if (!i.grounded) {
+      src[CH.fLY] = src[CH.fLY]! + 0.14;
+      src[CH.fRY] = src[CH.fRY]! + 0.1;
+      src[CH.pelPitch] = src[CH.pelPitch]! + 0.1;
+    }
+    if (i.landing > 0.5 && this.landT < 0) this.landT = 0;
+    if (this.landT >= 0) {
+      addClip(src, LAND, this.landT, 1);
+      this.landT += dt;
+      if (this.landT > LAND.duration) this.landT = -1;
+    }
+    // dash: low, driving rush (the dash cycle is in the blend space; this adds the wind-up crouch)
+    src[CH.pelY] = src[CH.pelY]! - this.dashS * 0.04;
+
+    // --- acceleration lean (into acceleration, back against braking); the chest stays steadier
+    const lean = this.accelLean.step(clamp(i.accelFwd * 0.04, -0.14, 0.14), 14, dt);
+    const roll = this.accelRoll.step(clamp(-i.accelSide * 0.025, -0.08, 0.08), 12, dt);
+    src[CH.pelPitch] = src[CH.pelPitch]! + lean;
+    src[CH.spPitch] = src[CH.spPitch]! - lean * 0.45;
+    src[CH.pelRoll] = src[CH.pelRoll]! + roll;
+
+    // --- weapon actions (inertialized as they start and end)
+    const action = i.reload >= 0 ? (i.reloadEmpty ? 'reloadE' : 'reloadT') : i.swap >= 0 ? 'swap' : i.grenade >= 0 ? 'grenade' : i.handSwap >= 0 ? 'hands' : '';
+    if (action !== this.prevAction) trigger = true;
+    this.prevAction = action;
+
+    // --- upper body: aim, lean (head first), checks
     const aimPitch = clamp(i.aimPitch, -1.2, 1.2);
     const raise = this.raiseS;
-    const sp = o.spine;
-    // stabilisation: the spine counters the pelvis tilt/bob so the chest (and weapon) stay level
-    sp.pitch = -aimPitch * 0.45 * (0.35 + raise * 0.65) + pelPitch * 0.35 + this.accelLean + breath - this.hitX * 0.12 + this.dashS * 0.2 + crouchK * 0.1;
-    sp.yaw = clamp(i.aimYaw, -0.9, 0.9) * 0.6 + raise * 0.2 * this.gripS + this.yawLag;
-    const lean = this.leanS;
-    sp.roll = this.hitX * 0.1 * this.hitSide - lean * 0.38 - pel.roll * 0.8;
-    pel.x += lean * 0.1 * k;
-    // head: steady (counter-bob), looks along the aim, glances at edges and sweeps on doorway checks
+    const breath = Math.sin(this.idleT * 1.6) * 0.008;
+    // head-first peek: the head leans out first, the body follows; coming back the body (and weapon)
+    // return first and the head follows
+    // the weapon changes to the outside hand before any lean starts
+    const leanIn = i.handSwap >= 0 ? 0 : i.lean;
+    const peekOut = Math.abs(leanIn) > 0.01;
+    const headTarget = leanIn;
+    const hd = this.leanHead.step(headTarget, peekOut ? 22 : 9, dt);
+    const bodyTarget = peekOut ? (Math.abs(hd) > Math.abs(leanIn) * 0.55 ? leanIn : 0) : 0;
+    const bd = this.leanBody.step(bodyTarget, peekOut ? 11 : 16, dt);
+    const yl = this.yawLag.step(clamp(-i.yawRate * 0.04 * mass, -0.25, 0.25), 10 / mass, dt);
+    src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08;
+    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * (i.armed ? 1 : 0) + yl;
+    src[CH.spRoll] = src[CH.spRoll]! - bd * 0.38;
+    src[CH.pelX] = src[CH.pelX]! + bd * 0.05 * k;
     const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
-    o.head.pitch = -aimPitch * 0.45 - sp.pitch * 0.3 + bobRaw * 2;
-    o.head.yaw = clamp(i.aimYaw, -0.9, 0.9) * 0.4 - raise * 0.18 * this.gripS + this.edgeS * 0.45 + check;
-    o.head.roll = lean * 0.2;
+    src[CH.hdPitch] = src[CH.hdPitch]! - aimPitch * 0.45;
+    src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 + this.edgeS * 0.45 + check + hd * 0.12;
+    src[CH.hdRoll] = src[CH.hdRoll]! + hd * 0.22;
+    if (Math.abs(i.lean) > 0.01 || Math.abs(hd) > 0.01) this.slot('lean', Math.abs(hd), bd);
+    if (i.check >= 0) this.slot('check', 1, i.check);
 
-    // --- weapon layer: ready positions blended by weight, raised by `raise`; additive reload/blind/recoil/sway
-    const wp = o.weapon;
+    // --- weapon layer: ready positions blended by weight, raised by `raise`; edge prep tucks it in
+    const swapBump = i.handSwap >= 0 ? Math.sin(Math.PI * clamp(i.handSwap, 0, 1)) : 0;
+    let cl = i.carryLow;
+    let chh = i.carryHigh;
+    let cc = i.carryComp;
+    if (swapBump > 0) {
+      cl *= 1 - swapBump;
+      chh *= 1 - swapBump;
+      cc = cc * (1 - swapBump) + swapBump;
+    }
+    const ready = 1 - raise * (1 - swapBump);
     const rl = READY_POSES.low;
     const rh = READY_POSES.high;
     const rc = READY_POSES.compressed;
-    const cl = i.carryLow;
-    const ch = i.carryHigh;
-    const cc = i.carryComp;
-    const ready = 1 - raise;
-    const reloadK = this.reloadS;
-    const rt = i.reload >= 0 ? i.reload : 1;
-    const sway = (Math.sin(this.breathe * 1.3) * 0.005 + Math.sin(this.breathe * 0.7) * 0.003) * mass * (1 - (i.kneel ? 0.5 : 0));
-    // stabilisation: remove most of the gait bob from the weapon (residual reported as weaponBob)
-    const bobComp = -bobRaw * 0.85 * (W.locomotion + W.crouch * 0.6);
+    const sway = (Math.sin(this.idleT * 1.3) * 0.005 + Math.sin(this.idleT * 0.7) * 0.003) * mass * (1 - kw * 0.5);
+    const rec = this.recoil.step(i.kick, 26 / Math.sqrt(mass), dt);
     const blindLow = i.cover === 'low' ? 1 : 0;
-    wp.x = ready * (rl.x * cl + rh.x * ch + rc.x * cc) + this.blindS * (1 - blindLow) * lean * 0.22;
-    wp.y = ready * (rl.y * cl + rh.y * ch + rc.y * cc) + sway + bobComp + reloadK * -0.05 + this.blindS * (blindLow ? 0.42 : 0.1);
-    wp.z = ready * (rl.z * cl + rh.z * ch + rc.z * cc) - this.recoil * 0.05 / Math.sqrt(mass) + reloadK * -0.06;
-    wp.pitch = ready * (rl.pitch * cl + rh.pitch * ch + rc.pitch * cc) + reloadK * 0.35 * Math.sin(Math.PI * rt) - this.recoil * 0.12 / mass + sway * 2;
-    wp.yaw = ready * (rl.yaw * cl + rh.yaw * ch + rc.yaw * cc) + this.blindS * (1 - blindLow) * lean * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;
-    wp.roll = ready * (rl.roll * cl + rh.roll * ch + rc.roll * cc) + reloadK * 0.4 * Math.sin(Math.PI * rt);
-    o.weaponBob = bobRaw + bobComp;
-    o.grip = this.gripS;
-    // off hand: magazine mid-reload; on the cover surface when settled in cover at the ready
-    o.offGrip = 1 - reloadK * smoothstep(Math.sin(Math.PI * rt) * 1.6);
-    o.offCover = W.cover * ready * (1 - moving) * (1 - reloadK) * 0.8;
-
-    // --- free arms (unarmed, melee): swing opposite the legs
-    const swing = g.swing * moving * Math.sin(this.phase * Math.PI * 2);
-    const shY = p.y.shoulder + pelY;
+    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc) + this.blindS * (1 - blindLow) * bd * 0.22;
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc) + sway + this.blindS * (blindLow ? 0.42 : 0.1);
+    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc) - (rec * 0.05) / Math.sqrt(mass);
+    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc) - (rec * 0.12) / mass + sway * 2;
+    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc) + this.blindS * (1 - blindLow) * bd * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;
+    src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc);
+    // recoil absorbed through the shoulder and spine
+    src[CH.spPitch] = src[CH.spPitch]! - rec * 0.05 / mass;
+    src[CH.pelPitch] = src[CH.pelPitch]! - rec * 0.015 / mass;
+    // grip and off hand defaults (cover: off hand to the wall when settled and lowered)
+    src[CH.grip] = i.armed ? 1 : 0;
+    src[CH.offGrip] = 1;
+    src[CH.offMag] = 0;
+    // the hand reaches the wall during the entry (0.18-0.42 s) and rests there while still and lowered
+    src[CH.offCover] = inCover ? 0.85 * ready * (1 - this.moveW) * smoothstep((this.coverT - 0.18) / 0.24) : 0;
+    // free hands hang at the sides (swing a little with the gait when unarmed)
+    const swing = 0.1 * this.moveW * Math.sin(ph * Math.PI * 2);
+    const shY = p.y.shoulder - 0.04 * k;
     const armLen = p.upperArm.len + p.forearm.len;
-    o.handL.x = -p.shoulderHalf - 0.06;
-    o.handL.y = shY - armLen * 0.92 + Math.abs(swing) * 0.06;
-    o.handL.z = 0.05 + swing * 0.3;
-    o.handR.x = p.shoulderHalf + 0.06;
-    o.handR.y = shY - armLen * 0.92 + Math.abs(swing) * 0.06;
-    o.handR.z = 0.05 - swing * 0.3;
+    src[CH.hLX] = -p.shoulderHalf - 0.06;
+    src[CH.hLY] = shY - armLen * 0.92;
+    src[CH.hLZ] = 0.05 + swing * 0.3;
+    src[CH.hRX] = p.shoulderHalf + 0.06;
+    src[CH.hRY] = shY - armLen * 0.92;
+    src[CH.hRZ] = 0.05 - swing * 0.3;
+    // reload / swap / grenade clips over the weapon layer
+    this.reloadW = approach(this.reloadW, i.reload >= 0 ? 1 : 0, 0.08 * mass, dt);
+    if (i.reload >= 0 || this.reloadW > 0.01) {
+      const rt = i.reload >= 0 ? i.reload : 1;
+      overClip(src, i.reloadEmpty ? RELOAD_EMPTY : RELOAD_TACTICAL, rt, this.reloadW);
+      this.slot(i.reloadEmpty ? 'reload empty' : 'reload', this.reloadW, rt);
+    }
+    if (i.swap >= 0) {
+      overClip(src, SWAP, i.swap, 1);
+      this.slot('swap', 1, i.swap);
+    }
+    if (i.grenade >= 0) {
+      overClip(src, GRENADE, i.grenade, 1);
+      this.slot('grenade', 1, i.grenade);
+    }
     if (i.melee >= 0) {
       const m = Math.sin(Math.PI * clamp(i.melee, 0, 1));
-      o.handR.x = p.shoulderHalf * (1 - m * 0.8);
-      o.handR.y = shY - 0.25 + m * 0.2;
-      o.handR.z = 0.15 + m * 0.45;
+      src[CH.hRX] = p.shoulderHalf * (1 - m * 0.8);
+      src[CH.hRY] = shY - 0.25 + m * 0.2;
+      src[CH.hRZ] = 0.15 + m * 0.45;
     }
 
-    // --- layer weights (debug overlay)
-    const ly = o.layers;
-    for (const s of LOWER_STATES) ly[s] = W[s];
-    ly.raise = raise;
-    ly.low = ready * cl;
-    ly.high = ready * ch;
-    ly.compressed = ready * cc;
-    ly.reload = reloadK;
-    ly.blind = this.blindS;
-    ly.lean = Math.abs(lean);
-    ly.dash = this.dashS;
-    ly.hit = Math.min(1, Math.abs(this.hitX) * 4);
+    // --- additive: hit flinch, heel-strike compression, weight over the support foot
+    const hx = this.hit.step(0, 9, dt);
+    src[CH.spPitch] = src[CH.spPitch]! - hx * 0.12;
+    src[CH.spRoll] = src[CH.spRoll]! + hx * 0.1 * this.hitSide;
+    src[CH.hdPitch] = src[CH.hdPitch]! - hx * 0.08;
+    const comp = this.pelSpring.step(0, 15, dt);
+    src[CH.pelY] = src[CH.pelY]! + comp;
+    const sup = this.supportX.step(this.moveW > 0.3 ? 0 : this.support * 0.012, 10, dt);
+    src[CH.pelX] = src[CH.pelX]! + sup;
+
+    // --- stabilisation: most of the gait bob is taken out of the weapon (the head is world-stabilised)
+    const bob = src[CH.pelY]! - this.pelBase.step(src[CH.pelY]!, 6, dt);
+    src[CH.wpY] = src[CH.wpY]! - bob * 0.8;
+    this.bobResidual = bob * 0.2;
+
+    // --- inertialize discrete switches, then output
+    if (trigger) this.inert.trigger(src, dt);
+    const pose = this.inert.apply(src, this.pose, dt);
+    this.writeTargets(pose, i, k, ph);
+    this.out.weaponBob = this.bobResidual;
     return o;
   }
+
+  /** Map the pose to rig targets and the planner's stance/gait values. */
+  private writeTargets(q: Pose, i: AnimInput, k: number, ph: number): void {
+    const o = this.out;
+    const pe = o.pelvis;
+    pe.x = q[CH.pelX]! * k;
+    pe.y = q[CH.pelY]! * k;
+    pe.z = q[CH.pelZ]! * k;
+    pe.pitch = q[CH.pelPitch]!;
+    pe.roll = q[CH.pelRoll]!;
+    pe.yaw = q[CH.pelYaw]!;
+    o.spine.pitch = q[CH.spPitch]!;
+    o.spine.yaw = q[CH.spYaw]!;
+    o.spine.roll = q[CH.spRoll]!;
+    o.head.pitch = q[CH.hdPitch]!;
+    o.head.yaw = q[CH.hdYaw]!;
+    o.head.roll = q[CH.hdRoll]!;
+    const w = o.weapon;
+    w.x = q[CH.wpX]!;
+    w.y = q[CH.wpY]!;
+    w.z = q[CH.wpZ]!;
+    w.pitch = q[CH.wpPitch]!;
+    w.yaw = q[CH.wpYaw]!;
+    w.roll = q[CH.wpRoll]!;
+    o.grip = clamp(q[CH.grip]!, 0, 1);
+    o.offGrip = clamp(q[CH.offGrip]!, 0, 1);
+    o.offMag = clamp(q[CH.offMag]!, 0, 1);
+    o.offCover = clamp(q[CH.offCover]!, 0, 1);
+    o.handL.x = q[CH.hLX]! * k;
+    o.handL.y = q[CH.hLY]! * k;
+    o.handL.z = q[CH.hLZ]! * k;
+    o.handR.x = q[CH.hRX]! * k;
+    o.handR.y = q[CH.hRY]! * k;
+    o.handR.z = q[CH.hRZ]! * k;
+    // stance: shoulder-width tactical stance, support (left) foot slightly forward
+    const half = this.p.hipHalf * 1.2 * q[CH.width]!;
+    const st = o.stance;
+    st.lX = (-half + q[CH.fLX]!) * k;
+    st.lZ = (0.05 + q[CH.fLZ]!) * k;
+    st.rX = (half + q[CH.fRX]!) * k;
+    st.rZ = (-0.03 + q[CH.fRZ]!) * k;
+    st.lY = q[CH.fLY]! * k;
+    st.rY = q[CH.fRY]! * k;
+    st.lPitch = q[CH.fLPitch]!;
+    st.rPitch = q[CH.fRPitch]!;
+    // gait values for the planner: duty and lift from the blended cycle at this speed
+    const s = Math.max(0, i.speed);
+    const g = o.gait;
+    g.phase = ph;
+    // near the end of a stop the gait clock crawls: hand the last step to deliberate idle stepping
+    g.moving = s > (i.motion === 'stop' ? 0.3 : 0.05) && i.grounded;
+    g.cycleTime = s > 0.05 ? (2 * stepLength(s)) / s : 1.2;
+    let duty: number;
+    let lift: number;
+    if (i.crouch > 0.5) {
+      duty = CROUCH_WALK.duty;
+      lift = CROUCH_WALK.liftH;
+    } else {
+      const a = fwdNode(s);
+      const na = FWD[a]!;
+      const nb = FWD[a + 1]!;
+      const kk = clamp((s - na.speed) / (nb.speed - na.speed), 0, 1);
+      duty = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
+      lift = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
+    }
+    g.duty = clamp(duty, 0.4, 0.75);
+    g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2);
+    // layer weights for the overlay
+    const ly = o.layers;
+    for (const st2 of LOWER_STATES) ly[st2] = this.weights[st2];
+    ly.raise = this.raiseS;
+    ly.low = i.carryLow;
+    ly.high = i.carryHigh;
+    ly.compressed = i.carryComp;
+    ly.reload = this.reloadW;
+    ly.blind = this.blindS;
+    ly.dash = this.dashS;
+    ly.kneel = smoothstep(this.kneelW);
+    ly.inert = this.inert.maxOffset;
+  }
+
+  /** Active clips this frame (debug overlay). */
+  activeClips(): readonly ClipSlot[] {
+    return this.slots.slice(0, this.nSlots);
+  }
+}
+
+const NEUTRAL_POSE: Pose = newPose();
+
+const FWD: readonly { speed: number; clip: Clip }[] = [
+  { speed: 0, clip: CREEP },
+  { speed: 0.45, clip: CREEP },
+  { speed: 0.9, clip: WALK },
+  { speed: 1.4, clip: BRISK },
+  { speed: 3.8, clip: DASH },
+];
+
+/** Index of the lower forward node bracketing a speed. */
+function fwdNode(s: number): number {
+  let a = 0;
+  while (a < FWD.length - 2 && s > FWD[a + 1]!.speed) a++;
+  return a;
 }

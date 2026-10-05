@@ -141,7 +141,7 @@ export class TraversalController {
       const dur = TRAVERSE_TIME[this.kind as keyof typeof TRAVERSE_TIME];
       const k = Math.min(1, this.t / dur);
       this.path(k);
-      pose.traverse = this.kind === 'drop' ? 'step' : this.kind;
+      pose.traverse = this.kind;
       pose.traverseT = k;
       c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' };
       if (k >= 1) {

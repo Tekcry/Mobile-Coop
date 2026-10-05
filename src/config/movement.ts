@@ -29,8 +29,8 @@ export const MOVEMENT = {
   /** Weight shift onto the support foot before the first step from standstill (s). */
   startShift: 0.3,
   /** Step length (m) = stepLen0 + stepLenK * speed; a gait cycle is two steps. */
-  stepLen0: 0.28,
-  stepLenK: 0.24,
+  stepLen0: 0.27,
+  stepLenK: 0.22,
   /** Speed dip at each heel strike (fraction), mean 1 over the stride: the root follows the steps. */
   rootDip: 0.05,
   /** Body turn rates (rad/s): moving, aiming (110 deg/s), dashing; angular acceleration (rad/s^2). */

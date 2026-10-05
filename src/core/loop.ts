@@ -23,6 +23,10 @@ export class GameLoop {
   /** Last measured costs in ms (for debug overlay). */
   readonly stats = { simMs: 0, physicsMs: 0, steps: 0 };
   paused = false;
+  /** Simulation speed (slow motion < 1): scales the time fed to the accumulator and frame updates. */
+  timeScale = 1;
+  /** Tools/tests: real-time frames only render; the sim advances only through `stepHeadless`. */
+  manual = false;
 
   constructor(private engine: Engine) {}
 
@@ -45,14 +49,17 @@ export class GameLoop {
 
   /**
    * Advance simulation by `seconds` without rendering (automated tests / bots).
-   * Runs the same hook order as a real frame, one fixed step per "frame".
+   * Runs the same hook order as a real frame. `renderHz` (a multiple of 60) runs that many frame
+   * updates per second between the fixed steps with the matching interpolation alphas, as a display
+   * at that refresh rate would (60 vs 120 Hz parity tests).
    */
-  stepHeadless(seconds: number): void {
+  stepHeadless(seconds: number, renderHz = 60): void {
     const scene = this.scene;
     const hooks = this.hooks;
     if (!scene || !hooks) return;
     const physics = scene.getPhysicsEngine();
     const n = Math.round(seconds / FIXED_DT);
+    const sub = Math.max(1, Math.round(renderHz / 60));
     for (let i = 0; i < n && this.scene === scene; i++) {
       hooks.beforeFrame?.(FIXED_DT);
       if (this.paused) continue;
@@ -62,7 +69,9 @@ export class GameLoop {
         physics._step(FIXED_DT);
         scene.onAfterPhysicsObservable.notifyObservers(scene);
       }
-      hooks.frameUpdate(FIXED_DT, 1);
+      if (sub === 1) hooks.frameUpdate(FIXED_DT, 1);
+      // e.g. 120 Hz: one frame right after the step (alpha 0) and one half way (alpha 0.5)
+      else for (let j = 0; j < sub && this.scene === scene; j++) hooks.frameUpdate(FIXED_DT / sub, j / sub);
     }
   }
 
@@ -70,7 +79,11 @@ export class GameLoop {
     const scene = this.scene;
     const hooks = this.hooks;
     if (!scene || !hooks) return;
-    const dt = Math.min(this.engine.getDeltaTime() / 1000, 0.1);
+    if (this.manual) {
+      scene.render();
+      return;
+    }
+    const dt = Math.min(this.engine.getDeltaTime() / 1000, 0.1) * this.timeScale;
     hooks.beforeFrame?.(dt);
     if (!this.paused) {
       this.acc += dt;

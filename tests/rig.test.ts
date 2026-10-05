@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { BUILDS, headsTall, hitVolumes, proportions } from '../src/player/proportions';
-import { solveTwoBone, gaitFoot, cadence, springStep, v3, type V3 } from '../src/anim/rigMath';
-import { AnimGraph, defaultInput, gaitAt, GAIT, LOWER_STATES, pickLower, FADE } from '../src/anim/animGraph';
+import { solveTwoBone, springStep, v3, type V3 } from '../src/anim/rigMath';
+import { AnimGraph, defaultInput, LOWER_STATES, pickLower, FADE } from '../src/anim/animGraph';
 import { MOVEMENT } from '../src/config/movement';
 import { coverStandoff } from '../src/cover/coverData';
 
@@ -124,37 +124,6 @@ describe('two-bone IK', () => {
 });
 
 describe('gait and blending', () => {
-  it('planted feet do not slide: stance travel per second equals ground speed', () => {
-    for (const speed of [1.4, 3.5, 5.5]) {
-      const g = gaitAt(speed);
-      const c = cadence(speed, g.stride, g.duty);
-      const dt = 1 / 600;
-      // foot movement relative to the body during stance must cancel the body's motion
-      const p0 = 0.1;
-      const a = gaitFoot(p0, g.stride, g.lift, g.duty);
-      const b = gaitFoot(p0 + c * dt, g.stride, g.lift, g.duty);
-      expect(a.planted && b.planted).toBe(true);
-      expect((a.along - b.along) / dt).toBeCloseTo(speed, 1);
-    }
-  });
-  it('swing lifts the foot, stance keeps it on the ground', () => {
-    const st = gaitFoot(0.3, 1, 0.1);
-    const sw = gaitFoot(0.8, 1, 0.1);
-    expect(st.up).toBe(0);
-    expect(sw.up).toBeGreaterThan(0.05);
-  });
-  it('blend tree weights interpolate between neighbouring gaits and sum to 1', () => {
-    for (const s of [0, 0.7, 1.4, 2.5, 3.5, 4.5, 5.5, 8]) {
-      const g = gaitAt(s);
-      const sum = g.weights.reduce((x, y) => x + y, 0);
-      expect(sum).toBeCloseTo(1, 6);
-      expect(g.weights.filter((w) => w > 0).length).toBeLessThanOrEqual(2);
-    }
-    expect(gaitAt(GAIT[1]!.speed).weights[1]).toBeCloseTo(1);
-    const mid = (GAIT[1]!.speed + GAIT[2]!.speed) / 2;
-    expect(gaitAt(mid).stride).toBeGreaterThan(GAIT[1]!.stride);
-    expect(gaitAt(mid).stride).toBeLessThan(GAIT[2]!.stride);
-  });
   it('lower-body states cross-fade over ~200 ms with weights summing to 1', () => {
     const g = new AnimGraph(proportions());
     const i = defaultInput();

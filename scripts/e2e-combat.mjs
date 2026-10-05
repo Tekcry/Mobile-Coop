@@ -44,7 +44,7 @@ try {
   await frames(page, 3);
   console.log('    aim probe:', await G(() => { const g = window.__app.current; const c = g.player.cam; const o = c.camera.position; const h = g.ballistics.ray(o, o.add(c.forward.scale(40)), 0xffff); return `${h.target?.id ?? 'none'} at ${h.distance.toFixed(1)}  yaw=${c.yaw.toFixed(3)} cam=${o.x.toFixed(2)},${o.z.toFixed(2)}`; }));
   const mag0 = await G(() => window.__app.current.weapons.current.mag);
-  await sim(0.35, [[BTN.RT, 1]]);
+  await sim(0.75, [[BTN.RT, 1]]);
   const mag1 = await G(() => window.__app.current.weapons.current.mag);
   assert(mag0 - mag1 >= 2, `RT fires automatic rifle (${mag0} -> ${mag1})`);
   console.log('    last shot:', await G(() => { const l = window.__app.current.weapons.lastShot; const f = (v) => `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`; return `${l.target} origin ${f(l.origin)} aim ${f(l.aim)} hit ${f(l.hit)}`; }));
@@ -60,7 +60,7 @@ try {
   // headshot: aim at head height
   await aimAt(-4, 1.68, 8);
   await press(page, BTN.LB); // swap prev -> pistol (semi)
-  await sim(0.6);
+  await sim(1.1);
   assert((await G(() => window.__app.current.weapons.current.def.id)) === 'pistol', 'LB swaps to previous weapon');
   await G(() => window.__pad.set(6, 1));
   await sim(0.5);
@@ -80,12 +80,12 @@ try {
   // reload
   await press(page, BTN.X);
   assert(await G(() => window.__app.current.weapons.reloading), 'X starts reload');
-  await sim(1.4);
+  await sim(2.1);
   assert((await G(() => window.__app.current.weapons.current.mag)) === 12, 'reload refills magazine');
 
   // sniper projectile (slot order rifle, smg, shotgun, sniper, pistol): pistol -> LB -> sniper
   await press(page, BTN.LB);
-  await sim(0.6);
+  await sim(1.1);
   assert((await G(() => window.__app.current.weapons.current.def.id)) === 'sniper', 'swap to sniper');
   await G(() => window.__app.current.dummies[3].health.reset());
   const d2 = await G(() => { const d = window.__app.current.dummies[3]; const v = d.aimPoint(d['pos'].clone()); return [v.x, v.y, v.z]; });
@@ -111,7 +111,7 @@ try {
   await sim(0.3);
   await press(page, BTN.RB); // sniper -> pistol
   await press(page, BTN.RB); // pistol -> rifle
-  await sim(0.6);
+  await sim(1.3);
   const bp = await G(() => { const p = window.__app.current.world.props.props.filter((q) => q.kind === 'explosiveBarrel' && q.alive).sort((a, b) => Math.hypot(a.node.position.x + 3, a.node.position.z + 9) - Math.hypot(b.node.position.x + 3, b.node.position.z + 9))[0]; return [p.node.position.x, p.node.position.y, p.node.position.z]; });
   await aimAt(bp[0], bp[1], bp[2]);
   await sim(1.2, [[BTN.RT, 1]]);

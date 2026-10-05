@@ -168,6 +168,11 @@ export class EnemyManager {
     for (let i = this.ragdolls.length - 1; i >= 0; i--) if (this.ragdolls[i]!.done) this.ragdolls.splice(i, 1);
   }
 
+  /** Render-rate animation (interpolated between fixed steps). */
+  frameUpdate(dt: number, alpha: number): void {
+    for (const e of this.enemies) e.frame(dt, alpha);
+  }
+
   clear(): void {
     for (const e of this.enemies) e.dispose();
     this.enemies.length = 0;

@@ -3,7 +3,7 @@ import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { CharacterRig } from './characterRig';
+import { CharacterRig, type RigPose } from './characterRig';
 import { PlayerController, type PlayerInput } from './playerController';
 import { ShoulderCamera } from './shoulderCamera';
 import { avatarFactory } from '../cosmetics/avatarFactory';
@@ -54,6 +54,11 @@ export class Player {
   alive = true;
   /** Reload progress 0..1 (or -1), set by PlayerWeapons for the animation layer. */
   reload = -1;
+  /** Reload is the empty one; weapon swap and grenade throw progress 0..1 or -1 (set by PlayerWeapons). */
+  reloadEmpty = false;
+  swapT = -1;
+  grenadeT = -1;
+  private rigPose: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
   /** Seconds since the last shot and weapon mass factor (set by PlayerWeapons). */
   sinceShot = 99;
   weaponWeight = 1;
@@ -149,7 +154,8 @@ export class Player {
     ci.doorway = this.context.doorway;
     ci.coverEdge = this.context.coverEdge;
     ci.dashing = c.weaponBlocked;
-    ci.reloading = this.reload >= 0;
+    // reloading, swapping and throwing all keep the weapon tucked in and down
+    ci.reloading = this.reload >= 0 || this.swapT >= 0 || this.grenadeT >= 0;
     ci.traversing = this.coverPose.traverse !== 'none';
     ci.coverRaise = this.coverPose.lean !== 0 || this.coverPose.peekOver > 0.5 || this.coverPose.blind;
     ci.weight = this.weaponWeight;
@@ -182,8 +188,9 @@ export class Player {
       const cap = lookCap(this.aiming || this.ads, c.dashing) * dt;
       this.cam.addLook(Math.max(-cap, Math.min(cap, look.x)), Math.max(-cap, Math.min(cap, look.y)));
       // the upper body can only twist so far ahead of the feet: the view waits for the body to turn
+      // (not in cover or traversal, where the body is placed side-on by the cover system)
       const rel = wrapPi(this.cam.yaw - c.renderYaw);
-      if (Math.abs(rel) > MOVEMENT.twistMax) this.cam.yaw = c.renderYaw + Math.sign(rel) * MOVEMENT.twistMax;
+      if (!c.override && this.coverPose.cover === 'none' && Math.abs(rel) > MOVEMENT.twistMax) this.cam.yaw = c.renderYaw + Math.sign(rel) * MOVEMENT.twistMax;
     }
     this.cam.adsTarget = this.ads ? 1 : 0;
     this.cam.baseFovDeg = this.getSettings().video.fovH;
@@ -202,33 +209,53 @@ export class Player {
     let aimYaw = this.cam.yaw - c.renderYaw;
     aimYaw = Math.atan2(Math.sin(aimYaw), Math.cos(aimYaw));
     const w = this.carry.w;
-    this.rig.animate(dt, {
-      speed: c.speed,
-      localX: c.localMove.x,
-      localZ: c.localMove.z,
-      grounded: c.grounded,
-      crouch: c.crouchBlend,
-      kneel: c.kneeling,
-      aimPitch: this.cam.pitch,
-      aimYaw,
-      aim: this.carry.raise,
-      carry: w,
-      weight: this.weaponWeight,
-      kick: this.kick,
-      dash: c.dashing ? 1 : 0,
-      landing: Math.min(1, c.landT * 2),
-      reload: this.reload,
-      cover: cp.cover,
-      wallSide: cp.wallSide,
-      lean: cp.lean,
-      peekOver: cp.peekOver,
-      blind: cp.blind,
-      edgeLook: cp.edgeLook,
-      traverse: cp.traverse,
-      traverseT: cp.traverseT,
-      slide: cp.slide,
-      check: cp.check,
-    });
+    // the rig pose object is reused every frame (no per-frame allocation)
+    const rp = this.rigPose;
+    const m = c.motion;
+    rp.speed = c.speed;
+    rp.localX = c.localMove.x;
+    rp.localZ = c.localMove.z;
+    rp.grounded = c.grounded;
+    rp.crouch = c.crouchBlend;
+    rp.kneel = c.kneeling;
+    rp.aimPitch = this.cam.pitch;
+    rp.aimYaw = aimYaw;
+    rp.aim = this.carry.raise;
+    rp.carry = w;
+    rp.weight = this.weaponWeight;
+    rp.kick = this.kick;
+    rp.dash = c.dashing ? 1 : 0;
+    rp.landing = Math.min(1, c.landT * 2);
+    rp.reload = this.reload;
+    rp.reloadEmpty = this.reloadEmpty;
+    rp.swap = this.swapT;
+    rp.grenade = this.grenadeT;
+    rp.cover = cp.cover;
+    rp.wallSide = cp.wallSide;
+    rp.lean = cp.lean;
+    rp.peekOver = cp.peekOver;
+    rp.blind = cp.blind;
+    rp.edgeLook = cp.edgeLook;
+    rp.traverse = cp.traverse;
+    rp.traverseT = cp.traverseT;
+    rp.slide = cp.slide;
+    rp.check = cp.check;
+    // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
+    rp.phase = c.renderPhase;
+    rp.motion = m.state;
+    rp.motionT = m.stateT;
+    const by = c.renderYaw;
+    rp.accelFwd = m.ax * Math.sin(by) + m.az * Math.cos(by);
+    rp.accelSide = m.ax * Math.cos(by) - m.az * Math.sin(by);
+    rp.velX = c.override?.kinematic ? undefined : m.outX;
+    rp.velZ = c.override?.kinematic ? undefined : m.outZ;
+    rp.goalYaw = m.goalYaw;
+    // stopping: the last steps land where the body will come to rest
+    const sp = m.speed;
+    const stopD = sp > 0.01 ? (sp * sp) / (2 * MOVEMENT.decelMax) + sp * (MOVEMENT.decelMax / MOVEMENT.jerkMax) * 0.5 : 0;
+    rp.restX = c.renderPos.x + (sp > 0.01 ? (m.vx / sp) * stopD : 0);
+    rp.restZ = c.renderPos.z + (sp > 0.01 ? (m.vz / sp) * stopD : 0);
+    this.rig.animate(dt, rp);
     this.cam.applyBodyFade(this.rig);
   }
 

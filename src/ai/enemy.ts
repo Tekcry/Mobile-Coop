@@ -16,7 +16,9 @@ import { DIFFICULTY, type Difficulty, type EnemyDef } from './enemyDefs';
 import { G, MASK } from '../physics/groups';
 import { spreadDir } from '../weapons/ballistics';
 import { sampleSpread } from '../weapons/weaponStats';
-import { turnTowards, wrapAngle } from '../player/playerController';
+import { wrapAngle } from '../player/playerController';
+import { emptyMotionInput, MotionDriver } from '../anim/motion';
+import type { RigPose } from '../player/characterRig';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -77,6 +79,12 @@ export class Enemy implements Damageable {
   private gun: WeaponModel | null;
   private hitboxes: Hitboxes;
   private vel = new Vector3();
+  /** Same root motion as the player: weighted starts/stops, stepped turns, stride-synced gait. */
+  private motion: MotionDriver;
+  private motionIn = emptyMotionInput();
+  private prevPos = new Vector3();
+  private prevYaw = 0;
+  private rp: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
   private target: PlayerRef | null = null;
   private los = false;
   private losT = 0;
@@ -128,11 +136,14 @@ export class Enemy implements Damageable {
     this.pos = spawn.clone();
     this.pos.y = ctx.nav.heightAt(spawn.x, spawn.z);
     this.yaw = yaw;
+    this.motion = new MotionDriver(yaw);
+    this.prevPos.copyFrom(this.pos);
+    this.prevYaw = yaw;
     const built = buildEnemyRig(ctx.scene, ctx.world, def, this.id);
     this.rig = built.rig;
     this.gun = built.gun;
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
-    this.syncVisual(0);
+    this.frame(0, 1);
   }
 
   get alive(): boolean {
@@ -223,6 +234,8 @@ export class Enemy implements Damageable {
   update(dt: number): void {
     if (!this.alive) return;
     this.stateT += dt;
+    this.prevPos.copyFrom(this.pos);
+    this.prevYaw = this.yaw;
     this.fireT = Math.max(0, this.fireT - dt);
     this.meleeCd = Math.max(0, this.meleeCd - dt);
     this.stagger = Math.max(0, this.stagger - dt);
@@ -240,7 +253,7 @@ export class Enemy implements Damageable {
     const goal = this.decide(dt);
     this.move(dt, goal.point, goal.speed, goal.face);
     this.crouch += ((this.wantCrouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
-    this.syncVisual(dt);
+    this.syncHitboxes();
   }
 
   private perceive(): void {
@@ -607,36 +620,34 @@ export class Enemy implements Damageable {
         desired.z += (dz / d) * (0.9 - d) * 4;
       }
     }
-    this.vel.x += (desired.x - this.vel.x) * Math.min(1, dt * 10);
-    this.vel.z += (desired.z - this.vel.z) * Math.min(1, dt * 10);
+    // root motion through the driver: weighted starts and stops, turns at the aim rate
+    const running = speed > this.def.walkSpeed * 1.2;
+    const mi = this.motionIn;
+    mi.vx = desired.x;
+    mi.vz = desired.z;
+    const dl = Math.hypot(desired.x, desired.z);
+    mi.yaw = face ?? (dl > 0.3 ? Math.atan2(desired.x, desired.z) : this.motion.yaw);
+    mi.aiming = face !== null && !this.def.melee;
+    mi.dashing = running;
+    this.motion.step(dt, mi);
+    this.vel.x = this.motion.outX;
+    this.vel.z = this.motion.outZ;
     const nx = this.pos.x + this.vel.x * dt;
     const nz = this.pos.z + this.vel.z * dt;
-    const cur = nav.cellOf(this.pos.x, this.pos.z);
-    const tryMove = (x: number, z: number): boolean => {
-      const c = nav.cellOf(x, z);
-      if (c === cur || (c >= 0 && nav.canStep(cur < 0 ? c : cur, c)) || !nav.isWalkable(cur)) {
-        if (c >= 0 && nav.isWalkable(c)) {
-          this.pos.x = x;
-          this.pos.z = z;
-          return true;
-        }
-      }
-      return false;
-    };
-    if (!tryMove(nx, nz)) {
+    this.navCell = nav.cellOf(this.pos.x, this.pos.z);
+    if (!this.tryMove(nx, nz)) {
       // slide along an axis
-      if (!tryMove(nx, this.pos.z)) {
+      if (!this.tryMove(nx, this.pos.z)) {
         this.vel.x = 0;
-        if (!tryMove(this.pos.x, nz)) this.vel.z = 0;
+        if (!this.tryMove(this.pos.x, nz)) this.vel.z = 0;
       } else {
         this.vel.z = 0;
       }
+      if (this.vel.x === 0 && this.vel.z === 0) this.motion.reset(this.motion.yaw);
     }
     const gh = nav.heightAt(this.pos.x, this.pos.z);
     this.pos.y += (gh - this.pos.y) * Math.min(1, dt * 12);
-    const sp = Math.hypot(this.vel.x, this.vel.z);
-    const targetYaw = face ?? (sp > 0.3 ? Math.atan2(this.vel.x, this.vel.z) : this.yaw);
-    this.yaw = turnTowards(this.yaw, targetYaw, this.def.turnSpeed * dt);
+    this.yaw = this.motion.yaw;
     if (this.target) {
       this.target.target.aimPoint(this.tmp);
       const dy = this.tmp.y - (this.pos.y + 1.4 * this.def.scale);
@@ -644,10 +655,34 @@ export class Enemy implements Damageable {
     }
   }
 
-  private syncVisual(dt: number): void {
+  private navCell = -1;
+
+  /** Move to (x, z) if the nav grid allows the step (no closure: called every step for every enemy). */
+  private tryMove(x: number, z: number): boolean {
+    const nav = this.ctx.nav;
+    const cur = this.navCell;
+    const c = nav.cellOf(x, z);
+    if (c === cur || (c >= 0 && nav.canStep(cur < 0 ? c : cur, c)) || !nav.isWalkable(cur)) {
+      if (c >= 0 && nav.isWalkable(c)) {
+        this.pos.x = x;
+        this.pos.z = z;
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** Hit volumes follow the body (fixed step; the head from the last rendered pose). */
+  private syncHitboxes(): void {
+    this.hitboxes.sync(this.pos, this.head);
+  }
+
+  /** Render-rate animation with interpolation between fixed steps. */
+  frame(dt: number, alpha: number): void {
+    if (!this.alive) return;
     const r = this.rig.root;
-    r.position.copyFrom(this.pos);
-    r.rotation.y = this.yaw;
+    Vector3.LerpToRef(this.prevPos, this.pos, alpha, r.position);
+    r.rotation.y = this.prevYaw + wrapAngle(this.yaw - this.prevYaw) * alpha;
     const sp = Math.hypot(this.vel.x, this.vel.z);
     const s = Math.sin(this.yaw);
     const c = Math.cos(this.yaw);
@@ -656,23 +691,30 @@ export class Enemy implements Damageable {
     this.flash = Math.max(0, this.flash - dt * 9);
     this.rig.setFlash(this.flash * 0.75);
     const aiming = this.def.melee ? 0 : this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0 ? 1 : 0.2;
-    this.rig.animate(dt, {
-      speed: sp,
-      localX: (this.vel.x * c - this.vel.z * s) * inv,
-      localZ: (this.vel.x * s + this.vel.z * c) * inv,
-      grounded: true,
-      crouch: this.crouch,
-      aimPitch: this.aimPitch,
-      aim: aiming,
-      kick: this.def.melee ? 0 : this.kick,
-      melee: this.def.melee && this.kick > 0 ? 1 - this.kick : -1,
-      cover: this.coverPose,
-      lean: this.coverPeek,
-      dash: !this.def.melee && sp > this.def.runSpeed * 0.8 && aiming < 0.5 ? 1 : 0,
-    });
+    const m = this.motion;
+    const rp = this.rp;
+    rp.speed = sp;
+    rp.localX = (this.vel.x * c - this.vel.z * s) * inv;
+    rp.localZ = (this.vel.x * s + this.vel.z * c) * inv;
+    rp.crouch = this.crouch;
+    rp.aimPitch = this.aimPitch;
+    rp.aim = aiming;
+    rp.kick = this.def.melee ? 0 : this.kick;
+    rp.melee = this.def.melee && this.kick > 0 ? 1 - this.kick : -1;
+    rp.cover = this.coverPose;
+    rp.lean = this.coverPeek;
+    rp.dash = !this.def.melee && sp > this.def.runSpeed * 0.8 && aiming < 0.5 ? 1 : 0;
+    rp.phase = m.phase;
+    rp.motion = m.state;
+    rp.motionT = m.stateT;
+    rp.accelFwd = m.ax * s + m.az * c;
+    rp.accelSide = m.ax * c - m.az * s;
+    rp.velX = this.vel.x;
+    rp.velZ = this.vel.z;
+    rp.goalYaw = m.goalYaw;
+    this.rig.animate(dt, rp);
     this.rig.headNode.computeWorldMatrix(true);
     this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
-    this.hitboxes.sync(this.pos, this.head);
   }
 
   dispose(): void {
