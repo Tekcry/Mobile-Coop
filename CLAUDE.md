@@ -130,6 +130,14 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - `avatarFactory` puts the look's pattern on torso/legs slots; `WeaponModel` puts the camo pattern on
   `body` parts. Emotes are pose overrides (`cosmetics/emotes.ts`) run via `CharacterRig.emote`.
 
+## Audio and quality
+- `app.audio` (AudioEngine), `app.sfx` (Sfx voices), `app.music`. Every voice must early-out when the
+  context is missing/suspended (before the first gesture). Game wiring lives in `audio/gameAudio.ts`.
+- `app.quality` (QualityManager) applies `QUALITY_LEVELS` to engine scaling and to the current state if it
+  implements `applyQuality(level, userShadows)` (GameState does). Frame samples only while simulating.
+- `node scripts/perf.mjs` prints CPU ms per fixed step, heap churn and draw calls for a 10-enemy fight.
+  Hot paths must not allocate per step (no generators/closures/temporary vectors in AI/nav loops).
+
 ## Performance budget (mid-range phone, 60fps)
 - Draw calls < 120 in combat. Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.
 - Dynamic physics bodies capped (see `physics/budget`). Projectiles/effects pooled, never allocated per shot.

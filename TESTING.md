@@ -98,3 +98,14 @@ MFi / Bluetooth controller:
 - [ ] Emotes tab: assign slots; the preview plays the emote. In a match press d-pad right/down/left, or use the emote bar in the pause menu.
 - [ ] Armory > Camo: after 10 rifle kills Woodland is available; the camo shows on the gun in the menu and in matches.
 - [ ] FPS unaffected with patterned avatars and camo weapons on screen.
+
+## Phase 8 - Audio, polish, performance
+- [ ] Tap once on the first screen: menu music (soft pad) starts. Volume sliders in Settings > Audio change master/effects/music/interface live.
+- [ ] Menu navigation by controller ticks; selecting confirms; Back plays a falling tone; locked items buzz.
+- [ ] Each weapon sounds different (pistol snap, SMG rattle, rifle crack, shotgun boom, sniper crack + tail). Reload clicks match the animation length.
+- [ ] Enemy gunfire comes from the correct side (wear headphones) and is quieter/muffled when far.
+- [ ] Explosions boom and shake; heavies make a rising whine before firing; runners swipe.
+- [ ] Music gets a beat when several enemies are active and calms down between waves.
+- [ ] Ground/walls show a faint grid and darker wall bases; enemies flash white when hit; brass flies out of the gun; landing from the platform puffs dust.
+- [ ] Settings > Video > Quality: Auto/Low/Medium/High. FPS overlay line `quality` shows the active level. On Auto, a heavy fight on a weaker phone drops the level instead of stuttering; it climbs back after calm.
+- [ ] 10-minute wave session: no gradual slowdown or audio crackle (memory/GC stable).

@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.8.0 - Phase 8: Audio, VFX polish, performance, adaptive quality
+- WebAudio engine (no files): compressor, sfx/music/ui buses tied to settings, voice cap, per-sound
+  throttling, cheap stereo-pan + distance attenuation for positional sounds. Context unlocks on first gesture.
+- Synth SFX: per-class gunshots (near and distant/muffled enemy fire), reload clicks, dry fire, swap,
+  impacts, hit/headshot/kill cues, hurt, explosions, grenade throw, runner swipe, heavy wind-up, footsteps,
+  pickups, objective chime, wave/alarm horn, level-up arpeggio, UI move/confirm/back/denied.
+- Procedural music: minor chord pad bed + combat layer (bass pulse, kick, hats) that fades with the
+  number of active enemies.
+- Adaptive quality (`core/quality.ts`, pure + tested): four levels (render scale, DPR cap, shadows,
+  shadow refresh rate, VFX density); 'Auto' steps down after ~2 s of slow frames and up after ~12 s of
+  headroom, with warm-up and cooldowns; fixed presets also available. Live-applied, shown in the FPS overlay.
+- Level shading plugin: distance-faded world grid, wall-base contact darkening, face tint, speckle.
+- Enemy hit flash, ejected casings, landing dust + camera thump.
+- Performance: nav-grid searches no longer allocate (generator removed) - CPU per fixed step with 10
+  enemies fell from ~1.9 ms to ~1.0 ms and GC churn from ~3.6 MB/s to ~0.9 MB/s in the headless probe;
+  camera collision rays reuse results; enemy movement reuses vectors. ~10 draw calls in a 10-enemy fight.
+- `scripts/perf.mjs` performance probe. Fixed: sounds could throw before audio was unlocked.
+
 ## 0.7.0 - Phase 7: Avatar customiser and cosmetics
 - Customiser with live 3D preview on the menu stage (rotate by right stick or drag): body type, head,
   hair, torso, legs, helmet, backpack, skin/hair/clothing/accent/boot/gear colours, clothing pattern.

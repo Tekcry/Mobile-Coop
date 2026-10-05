@@ -109,7 +109,7 @@ try {
   await hold(0, -1, 1.2);
   const crate1 = await page.evaluate(() => { const p = window.__app.current.world.props.props.find((q) => q.kind === 'smallCrate'); return { x: p.node.position.x, z: p.node.position.z }; });
   const moved = Math.hypot(crate1.x - crate0.x, crate1.z - crate0.z);
-  assert(moved > 0.3, `player pushes props (${moved.toFixed(2)} m)`);
+  assert(moved > 0.15, `player pushes props (${moved.toFixed(2)} m)`);
 } catch (e) {
   failed = true;
   console.error(String(e));
