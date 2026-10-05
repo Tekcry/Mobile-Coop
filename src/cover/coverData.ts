@@ -1,3 +1,4 @@
+import { hyp2 } from '../core/mathx';
 /**
  * Cover geometry. Pure (no Babylon/DOM), unit-tested.
  *
@@ -113,7 +114,7 @@ export function buildCoverSegments(boxes: readonly CoverBox[], cyls: readonly Co
 function pushFace(out: CoverSegment[], a: [number, number], b: [number, number], y: number, height: number, low: boolean, depth: number, piece: number): void {
   const dx = b[0] - a[0];
   const dz = b[1] - a[1];
-  const len = Math.hypot(dx, dz);
+  const len = hyp2(dx, dz);
   const tx = dx / (len || 1);
   const tz = dz / (len || 1);
   // corners are counter-clockwise seen from above (+y): outward normal is the tangent turned clockwise

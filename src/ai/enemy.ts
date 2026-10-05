@@ -20,6 +20,7 @@ import { wrapAngle } from '../player/playerController';
 import { emptyMotionInput, MotionDriver } from '../anim/motion';
 import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
+import { hyp2 } from '../core/mathx';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -320,7 +321,7 @@ export class Enemy implements Damageable {
       // tactical walk to the noise, weapon up
       const ip = this.investigate;
       if (this.hold && !inRoom(this.hold, ip[0], ip[1])) clampToRoom(this.hold, ip[0], ip[1], 0.8, ip);
-      if (Math.hypot(ip[0] - this.pos.x, ip[1] - this.pos.z) < 1.2) this.investigate = null;
+      if (hyp2(ip[0] - this.pos.x, ip[1] - this.pos.z) < 1.2) this.investigate = null;
       return { point: this.ctx.nav.lineClear([this.pos.x, this.pos.z], ip) ? ip : this.chasePoint(ip, false), speed: def.walkSpeed * 0.8, face: null };
     }
     if (!this.alerted || !t) return { point: null, speed: 0, face: null };
@@ -367,7 +368,7 @@ export class Enemy implements Damageable {
         if (outside) {
           // hold: back to the post, weapon on the last known position
           const face = Math.atan2(this.lastKnown.x - this.pos.x, this.lastKnown.z - this.pos.z);
-          const atPost = Math.hypot(this.post[0] - this.pos.x, this.post[1] - this.pos.z) < 0.5;
+          const atPost = hyp2(this.post[0] - this.pos.x, this.post[1] - this.pos.z) < 0.5;
           return { point: atPost ? null : this.post, speed: def.walkSpeed, face: this.lastSeenT < 30 ? face : null };
         }
         return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
@@ -392,7 +393,7 @@ export class Enemy implements Damageable {
         const away = this.dist < def.engageMin ? -1 : 0;
         const dx = t.feet.x - this.pos.x;
         const dz = t.feet.z - this.pos.z;
-        const len = Math.hypot(dx, dz) || 1;
+        const len = hyp2(dx, dz) || 1;
         const sx = (-dz / len) * this.strafe + (dx / len) * away;
         const sz = (dx / len) * this.strafe + (dz / len) * away;
         const sp: P2 = [this.pos.x + sx * 2, this.pos.z + sz * 2];
@@ -414,7 +415,7 @@ export class Enemy implements Damageable {
           this.setState('inCover');
           return { point: null, speed: 0, face: toTarget };
         }
-        if (Math.hypot(wp[0] - this.pos.x, wp[1] - this.pos.z) < 0.35) this.path.shift();
+        if (hyp2(wp[0] - this.pos.x, wp[1] - this.pos.z) < 0.35) this.path.shift();
         return { point: wp, speed: def.runSpeed, face: null };
       }
       case 'inCover': {
@@ -426,7 +427,7 @@ export class Enemy implements Damageable {
         // flanked? leave
         const dirX = t.feet.x - cp.pos.x;
         const dirZ = t.feet.z - cp.pos.z;
-        const l = Math.hypot(dirX, dirZ) || 1;
+        const l = hyp2(dirX, dirZ) || 1;
         const protects = (cp.normal.x * dirX + cp.normal.z * dirZ) / l;
         if (protects < 0.2 || this.peekCycles >= 3 || this.dist < def.engageMin * 0.7) {
           this.peekCycles = 0;
@@ -509,7 +510,7 @@ export class Enemy implements Damageable {
     if (p && zig && this.dist > 5) {
       const dx = p[0] - me[0];
       const dz = p[1] - me[1];
-      const l = Math.hypot(dx, dz) || 1;
+      const l = hyp2(dx, dz) || 1;
       const s = Math.sin(this.stateT * 4 + this.pos.x) * 0.6;
       const cand: P2 = [p[0] + (-dz / l) * s, p[1] + (dx / l) * s];
       if (nav.lineClear(me, cand)) p = cand;
@@ -525,12 +526,12 @@ export class Enemy implements Damageable {
     let bestScore = Infinity;
     for (let i = 0; i < cover.length; i++) {
       const c = cover[i]!;
-      const dMe = Math.hypot(c.pos.x - this.pos.x, c.pos.z - this.pos.z);
+      const dMe = hyp2(c.pos.x - this.pos.x, c.pos.z - this.pos.z);
       if (dMe > 14) continue;
       if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2)) continue;
       const dx = t.feet.x - c.pos.x;
       const dz = t.feet.z - c.pos.z;
-      const dT = Math.hypot(dx, dz);
+      const dT = hyp2(dx, dz);
       const flank = this.flanking && t.cover;
       if (dT < (flank ? 4 : this.def.engageMin) || dT > this.def.engageMax) continue;
       if ((c.normal.x * dx + c.normal.z * dz) / dT < (flank ? 0.3 : 0.55)) continue;
@@ -636,7 +637,9 @@ export class Enemy implements Damageable {
       else desired.setAll(0);
     }
     // separation from other enemies and players
-    for (const o of this.ctx.enemies()) {
+    const others = this.ctx.enemies();
+    for (let k = 0; k < others.length; k++) {
+      const o = others[k]!;
       if (o === this || !o.alive) continue;
       const dx = this.pos.x - o.pos.x;
       const dz = this.pos.z - o.pos.z;
@@ -647,10 +650,12 @@ export class Enemy implements Damageable {
         desired.z += (dz / d) * (1.1 - d) * 3;
       }
     }
-    for (const p of this.ctx.players()) {
+    const pls = this.ctx.players();
+    for (let k = 0; k < pls.length; k++) {
+      const p = pls[k]!;
       const dx = this.pos.x - p.feet.x;
       const dz = this.pos.z - p.feet.z;
-      const d = Math.hypot(dx, dz);
+      const d = hyp2(dx, dz);
       if (d < 0.9 && d > 1e-3) {
         desired.x += (dx / d) * (0.9 - d) * 4;
         desired.z += (dz / d) * (0.9 - d) * 4;
@@ -661,7 +666,7 @@ export class Enemy implements Damageable {
     const mi = this.motionIn;
     mi.vx = desired.x;
     mi.vz = desired.z;
-    const dl = Math.hypot(desired.x, desired.z);
+    const dl = hyp2(desired.x, desired.z);
     mi.yaw = face ?? (dl > 0.3 ? Math.atan2(desired.x, desired.z) : this.motion.yaw);
     mi.aiming = face !== null && !this.def.melee;
     mi.dashing = running;
@@ -719,7 +724,7 @@ export class Enemy implements Damageable {
     const r = this.rig.root;
     Vector3.LerpToRef(this.prevPos, this.pos, alpha, r.position);
     r.rotation.y = this.prevYaw + wrapAngle(this.yaw - this.prevYaw) * alpha;
-    const sp = Math.hypot(this.vel.x, this.vel.z);
+    const sp = hyp2(this.vel.x, this.vel.z);
     const s = Math.sin(this.yaw);
     const c = Math.cos(this.yaw);
     const inv = sp > 0.01 ? 1 / sp : 0;

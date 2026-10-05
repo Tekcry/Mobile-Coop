@@ -4,6 +4,7 @@ import { MOVEMENT } from '../config/movement';
 import { CAMERA, framing } from '../config/camera';
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
+import { hyp2 } from '../core/mathx';
 
 /** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
 export function vfovFromH16x9(hDeg: number): number {
@@ -168,7 +169,7 @@ export class ShoulderCamera {
     // follow: feet height and position lag slightly; look ahead along the movement
     if (Number.isNaN(this.sFootY.x) || Math.abs(feet.y - this.sFootY.x) > 3) this.sFootY.reset(feet.y);
     const footY = this.sFootY.step(feet.y, 14, dt);
-    if (Number.isNaN(this.sFx.x) || Math.hypot(feet.x - this.sFx.x, feet.z - this.sFz.x) > 3) {
+    if (Number.isNaN(this.sFx.x) || hyp2(feet.x - this.sFx.x, feet.z - this.sFz.x) > 3) {
       this.sFx.reset(feet.x);
       this.sFz.reset(feet.z);
       this.lastFx = feet.x;
@@ -208,7 +209,7 @@ export class ShoulderCamera {
     const yaw = this.viewYaw + (Math.sin(this.t * 0.53) * 0.6 + Math.sin(this.t * 1.31 + 1) * 0.4) * drift;
     const pitch = this.viewPitch + (Math.sin(this.t * 0.41 + 2) * 0.6 + Math.sin(this.t * 1.07) * 0.4) * drift - dashS * 0.03;
     const dYaw = yaw - prevYaw;
-    this.angVel = Math.hypot(dYaw, pitch - prevPitch) / dt;
+    this.angVel = hyp2(dYaw, pitch - prevPitch) / dt;
     const cp = Math.cos(pitch);
     this.forward.set(Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp);
     const rightX = Math.cos(yaw);

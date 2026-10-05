@@ -3,6 +3,7 @@
  * standoff from an outside corner while working round it), the contextual lean and the doorway check.
  */
 import type { CoverSegment } from './coverData';
+import { hyp2 } from '../core/mathx';
 
 export interface Doorway {
   x: number;
@@ -64,7 +65,7 @@ export function findDoorways(segs: readonly CoverSegment[]): Doorway[] {
       const m = (g0 + g1) / 2;
       const x = a.ax + a.tx * m - a.nx * a.depth * 0.5;
       const z = a.az + a.tz * m - a.nz * a.depth * 0.5;
-      if (out.some((d) => Math.hypot(d.x - x, d.z - z) < 0.5)) continue;
+      if (out.some((d) => hyp2(d.x - x, d.z - z) < 0.5)) continue;
       out.push({ x, z, nx: a.nx, nz: a.nz, tx: a.tx, tz: a.tz, width });
     }
   }
@@ -89,7 +90,7 @@ export function outsideCorners(segs: readonly CoverSegment[]): OutsideCorner[] {
 
 function distToSeg(s: CoverSegment, x: number, z: number): number {
   const t = Math.max(0, Math.min(s.len, (x - s.ax) * s.tx + (z - s.az) * s.tz));
-  return Math.hypot(x - (s.ax + s.tx * t), z - (s.az + s.tz * t));
+  return hyp2(x - (s.ax + s.tx * t), z - (s.az + s.tz * t));
 }
 
 /**
@@ -116,7 +117,7 @@ export function doorSide(d: Doorway, x: number, z: number): { side: number; insi
   const dz = z - d.z;
   const side = dx * d.nx + dz * d.nz;
   const lat = Math.abs(dx * d.tx + dz * d.tz);
-  return { side, inside: lat < d.width / 2 + 0.2, dist: Math.hypot(dx, dz) };
+  return { side, inside: lat < d.width / 2 + 0.2, dist: hyp2(dx, dz) };
 }
 
 /**

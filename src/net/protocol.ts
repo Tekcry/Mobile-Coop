@@ -5,6 +5,7 @@
 import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
+import { hyp3 } from '../core/mathx';
 
 export const PROTOCOL_VERSION = 1;
 export const MAX_PLAYERS = 4;
@@ -297,7 +298,7 @@ export function parseMessage(raw: unknown): Msg | null {
       const target = id(raw.target);
       const part = oneOf(raw.part, ['head', 'body'] as const);
       if (!w || !target || !part || o.some((n) => n === null) || d.some((n) => n === null)) return null;
-      const len = Math.hypot(d[0]!, d[1]!, d[2]!);
+      const len = hyp3(d[0]!, d[1]!, d[2]!);
       if (len < 0.5) return null;
       return {
         t: 'shot',

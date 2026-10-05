@@ -4,6 +4,7 @@ import { CAMERA } from '../config/camera';
 import { CARRY } from '../weapons/weaponCarry';
 import { DEBUG_RIGS, DEBUG_VOLUMES } from './debugVolumes';
 import type { GameLoop } from '../core/loop';
+import type { PacingSnapshot } from '../core/pacing';
 
 /**
  * FPS / frame-time overlay. Toggle with F3, the settings switch, or a 3-finger tap.
@@ -21,6 +22,9 @@ export class DebugOverlay {
   private text: HTMLPreElement;
   /** Extra lines provided by game systems. */
   readonly extra = new Map<string, () => string>();
+  /** Frame pacing against the display budget (refresh detection, percentiles); set by the app. */
+  pacing: (() => PacingSnapshot) | null = null;
+  private budgetMs = 1000 / 60;
   /** Movement controller capsules to draw in the skeleton view (set by the play session). */
   controllerCapsules: (() => { feet: Vector3; height: number; radius: number }[]) | null = null;
   private skeleton = false;
@@ -250,12 +254,19 @@ export class DebugOverlay {
     const avg = this.frameTimes.reduce((a, b) => a + b, 0) / n;
     const worst = Math.max(...this.frameTimes);
     const s = this.scene;
+    const pc = this.pacing?.();
     const lines = [
       `FPS ${(1000 / avg).toFixed(0)}  avg ${avg.toFixed(1)}ms  max ${worst.toFixed(1)}ms`,
+      pc
+        ? `display ${pc.hz || '?'}Hz budget ${pc.budgetMs.toFixed(2)}ms${pc.hz === 60 && /iPhone|iPad/.test(navigator.userAgent) ? ' (Safari may cap rAF at 60)' : ''}\n` +
+          `pacing p50 ${pc.p50.toFixed(1)} p95 ${pc.p95.toFixed(1)} p99 ${pc.p99.toFixed(1)}ms  drops ${(pc.dropShare * 100).toFixed(1)}%\n` +
+          `cpu/frame p50 ${pc.cpuP50.toFixed(2)} p95 ${pc.cpuP95.toFixed(2)}ms`
+        : '',
       `sim ${this.loop.stats.simMs.toFixed(2)}ms  phys ${this.loop.stats.physicsMs.toFixed(2)}ms  steps ${this.loop.stats.steps}`,
       `draws ${this.instr?.drawCallsCounter.current ?? '-'}  active ${s?.getActiveMeshes().length ?? 0}/${s?.meshes.length ?? 0}`,
       `res ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}  scale ${(1 / this.engine.getHardwareScalingLevel()).toFixed(2)}`,
     ];
+    if (pc?.budgetMs) this.budgetMs = pc.budgetMs;
     for (const [k, fn] of this.extra) lines.push(`${k} ${fn()}`);
     this.text.textContent = lines.join('\n');
     this.drawGraph();
@@ -288,13 +299,16 @@ export class DebugOverlay {
     if (!g) return;
     const { width: w, height: h } = this.graph;
     g.clearRect(0, 0, w, h);
-    g.fillStyle = 'rgba(255,255,255,0.15)';
-    g.fillRect(0, h - (16.7 / 50) * h, w, 1);
+    // pacing graph: bars per frame against the display budget line (scale = 3 budgets)
+    const b = this.budgetMs;
+    const top = b * 3;
+    g.fillStyle = 'rgba(255,255,255,0.25)';
+    g.fillRect(0, h - (b / top) * h, w, 1);
     const ft = this.frameTimes;
     for (let i = 0; i < ft.length; i++) {
       const v = ft[i]!;
-      const bh = Math.min(h, (v / 50) * h);
-      g.fillStyle = v > 20 ? '#ff5050' : v > 17.5 ? '#ffc040' : '#50e080';
+      const bh = Math.min(h, (v / top) * h);
+      g.fillStyle = v > b * 1.5 ? '#ff5050' : v > b * 1.1 ? '#ffc040' : '#50e080';
       g.fillRect(i, h - bh, 1, bh);
     }
   }

@@ -13,7 +13,10 @@ const run = (c: AdaptiveController, ms: number, seconds: number) => {
 
 describe('adaptive quality', () => {
   it('levels are ordered cheapest first', () => {
-    for (let i = 1; i < QUALITY_LEVELS.length; i++) expect(QUALITY_LEVELS[i]!.renderScale).toBeGreaterThan(QUALITY_LEVELS[i - 1]!.renderScale);
+    const cost = (l: (typeof QUALITY_LEVELS)[number]): number => l.renderScale * l.dprCap;
+    for (let i = 1; i < QUALITY_LEVELS.length; i++) expect(cost(QUALITY_LEVELS[i]!)).toBeGreaterThan(cost(QUALITY_LEVELS[i - 1]!));
+    expect(QUALITY_LEVELS.at(-1)!.name).toBe('ultra');
+    expect(QUALITY_LEVELS.at(-1)!.dprCap).toBe(3);
   });
   it('ignores the warm-up period', () => {
     const c = new AdaptiveController(2);

@@ -2,6 +2,7 @@ import type { ButtonAction } from './actions';
 import type { InputState } from './inputState';
 import { TOUCH_CONTROL_IDS, type Settings, type TouchControlId } from '../core/settings';
 import { icon } from '../ui/icons';
+import { hyp2 } from '../core/mathx';
 
 interface ControlDef {
   id: TouchControlId;
@@ -226,7 +227,7 @@ export class TouchControls {
     // camera stick: floats where the thumb lands within its zone (around its home spot)
     const lc = this.centre('look');
     const lr = TOUCH_DEFS.look.size * t.layout.look.scale * t.scale;
-    if (Math.hypot(x - lc.x, y - lc.y) < lr * 1.1 && !roles.some((p) => p.kind === 'look')) {
+    if (hyp2(x - lc.x, y - lc.y) < lr * 1.1 && !roles.some((p) => p.kind === 'look')) {
       this.pointers.set(e.pointerId, { kind: 'look', ox: x, oy: y, x, y });
       this.dirty = true;
       return;
@@ -258,7 +259,7 @@ export class TouchControls {
       // swiping off the action button: move to cover in that direction (or out of cover that way)
       const dx = e.clientX - role.ox;
       const dy = e.clientY - role.oy;
-      const d = Math.hypot(dx, dy);
+      const d = hyp2(dx, dy);
       if (d > 38) {
         role.swiped = true;
         this.state.coverSwipe.x = dx / d;
@@ -315,7 +316,7 @@ export class TouchControls {
       const rad = STICK_RADIUS * t.layout.move.scale * t.scale;
       let dx = move.x - move.ox;
       let dy = move.y - move.oy;
-      const d = Math.hypot(dx, dy);
+      const d = hyp2(dx, dy);
       this.state.set('touch-move', 'dash', t.dashFlick && d > rad * 1.5);
       if (d > rad) {
         dx = (dx / d) * rad;
@@ -344,7 +345,7 @@ export class TouchControls {
       const rad = LOOK_RADIUS * t.layout.look.scale * t.scale;
       let dx = look.x - look.ox;
       let dy = look.y - look.oy;
-      const d = Math.hypot(dx, dy);
+      const d = hyp2(dx, dy);
       if (d > rad) {
         dx = (dx / d) * rad;
         dy = (dy / d) * rad;

@@ -1,3 +1,4 @@
+import { hyp3 } from '../core/mathx';
 /**
  * WebAudio engine: buses (sfx, music, ui) -> compressor -> destination.
  * Everything is synthesised; no audio files. The context is created/resumed on the first
@@ -147,7 +148,7 @@ export class AudioEngine {
     const dx = x - L.x;
     const dy = y - L.y;
     const dz = z - L.z;
-    const dist = Math.hypot(dx, dy, dz);
+    const dist = hyp3(dx, dy, dz);
     const gain = Math.max(0, 1 / (1 + (dist / (range * 0.25)) ** 2));
     const pan = dist > 0.5 ? ((dx * L.rx + dz * L.rz) / dist) * 0.8 : 0;
     return { gain, pan, dist };

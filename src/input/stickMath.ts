@@ -1,11 +1,12 @@
 import type { Vec2 } from './actions';
+import { hyp2 } from '../core/mathx';
 
 /**
  * Radial dead zone with rescale: inside `inner` -> 0, beyond `outer` -> full,
  * linear remap in between so there is no jump at the dead-zone edge.
  */
 export function applyRadialDeadzone(x: number, y: number, inner: number, outer = 0.98): Vec2 {
-  const mag = Math.hypot(x, y);
+  const mag = hyp2(x, y);
   if (mag <= inner || mag === 0) return { x: 0, y: 0 };
   const t = Math.min(1, (mag - inner) / Math.max(1e-6, outer - inner));
   return { x: (x / mag) * t, y: (y / mag) * t };
@@ -24,7 +25,7 @@ const CURVE_EXP: Record<CurveKind, number> = { linear: 1, classic: 1.6, precise:
 
 /** Response curve applied to the magnitude, preserving direction. */
 export function applyCurve(v: Vec2, curve: CurveKind): Vec2 {
-  const mag = Math.hypot(v.x, v.y);
+  const mag = hyp2(v.x, v.y);
   if (mag === 0) return { x: 0, y: 0 };
   const m = Math.pow(Math.min(1, mag), CURVE_EXP[curve]);
   return { x: (v.x / mag) * m, y: (v.y / mag) * m };

@@ -7,6 +7,7 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { World } from '../world/world';
 import { SnapshotBuffer } from './interp';
 import type { EnemyState } from './protocol';
+import { hyp2 } from '../core/mathx';
 
 /**
  * Client-side stand-in for a host-simulated enemy: interpolated rig + local hit volumes so the
@@ -84,7 +85,7 @@ export class EnemyPuppet implements Damageable {
     }
     const lx = this.pos.x - this.prev.x;
     const lz = this.pos.z - this.prev.z;
-    const moved = Math.hypot(lx, lz);
+    const moved = hyp2(lx, lz);
     this.speed += (Math.min(dt > 0 ? moved / dt : 0, 10) - this.speed) * Math.min(1, dt * 10);
     this.prev.copyFrom(this.pos);
     const st = s.state.st;

@@ -15,6 +15,7 @@
  * Everything is in seconds: identical results at any step size within reason.
  */
 import { MOVEMENT } from '../config/movement';
+import { hyp2 } from '../core/mathx';
 
 export type MotionState = 'idle' | 'start' | 'move' | 'stop' | 'turn' | 'pivot';
 
@@ -91,7 +92,7 @@ export class MotionDriver {
   }
 
   get speed(): number {
-    return Math.hypot(this.vx, this.vz);
+    return hyp2(this.vx, this.vz);
   }
 
   /** Where the body is heading: the end of a stepped turn, else the current facing. */
@@ -100,7 +101,7 @@ export class MotionDriver {
   }
 
   get accel(): number {
-    return Math.hypot(this.ax, this.az);
+    return hyp2(this.ax, this.az);
   }
 
   reset(yaw = this.yaw): void {
@@ -118,7 +119,7 @@ export class MotionDriver {
   step(dt: number, i: MotionInput, M = MOVEMENT): void {
     if (dt <= 0) return;
     this.stateT += dt;
-    const want = Math.hypot(i.vx, i.vz);
+    const want = hyp2(i.vx, i.vz);
     const speed = this.speed;
     let tx = i.vx;
     let tz = i.vz;
@@ -175,14 +176,14 @@ export class MotionDriver {
     // braking when the change opposes the current velocity
     const braking = ex * this.vx + ez * this.vz < 0;
     const cap = braking ? Math.max(M.decelMax, accelMax) : accelMax;
-    const dl = Math.hypot(dax, daz);
+    const dl = hyp2(dax, daz);
     if (dl > cap) {
       dax *= cap / dl;
       daz *= cap / dl;
     }
     let jx = dax - this.ax;
     let jz = daz - this.az;
-    const jl = Math.hypot(jx, jz);
+    const jl = hyp2(jx, jz);
     const jmax = (i.dashing ? M.jerkMax * 2 : M.jerkMax) * dt;
     if (jl > jmax) {
       jx *= jmax / jl;

@@ -1,3 +1,4 @@
+import { hyp3 } from '../core/mathx';
 /** Small pure maths for procedural animation: vectors, two-bone IK, gait, springs. No Babylon. */
 
 export interface V3 {
@@ -12,7 +13,7 @@ export const sub = (a: V3, b: V3): V3 => v3(a.x - b.x, a.y - b.y, a.z - b.z);
 export const scale = (a: V3, s: number): V3 => v3(a.x * s, a.y * s, a.z * s);
 export const dot = (a: V3, b: V3): number => a.x * b.x + a.y * b.y + a.z * b.z;
 export const cross = (a: V3, b: V3): V3 => v3(a.y * b.z - a.z * b.y, a.z * b.x - a.x * b.z, a.x * b.y - a.y * b.x);
-export const len = (a: V3): number => Math.hypot(a.x, a.y, a.z);
+export const len = (a: V3): number => hyp3(a.x, a.y, a.z);
 export const norm = (a: V3): V3 => {
   const l = len(a) || 1;
   return v3(a.x / l, a.y / l, a.z / l);
@@ -35,7 +36,7 @@ export function solveTwoBone(root: V3, target: V3, a: number, b: number, pole: V
   let dx = target.x - root.x;
   let dy = target.y - root.y;
   let dz = target.z - root.z;
-  const l = Math.hypot(dx, dy, dz) || 1e-6;
+  const l = hyp3(dx, dy, dz) || 1e-6;
   dx /= l;
   dy /= l;
   dz /= l;
@@ -47,7 +48,7 @@ export function solveTwoBone(root: V3, target: V3, a: number, b: number, pole: V
   let bx = pole.x - dx * pd;
   let by = pole.y - dy * pd;
   let bz = pole.z - dz * pd;
-  let bl = Math.hypot(bx, by, bz);
+  let bl = hyp3(bx, by, bz);
   if (bl < 1e-6) {
     // pole parallel to the reach: any perpendicular will do
     bx = Math.abs(dy) < 0.9 ? 0 : 0;
@@ -57,7 +58,7 @@ export function solveTwoBone(root: V3, target: V3, a: number, b: number, pole: V
     bx -= dx * pd;
     by -= dy * pd;
     bz -= dz * pd;
-    bl = Math.hypot(bx, by, bz) || 1;
+    bl = hyp3(bx, by, bz) || 1;
   }
   bx /= bl;
   by /= bl;

@@ -21,7 +21,9 @@ export class GameLoop {
   private hooks: LoopHooks | null = null;
   private scene: Scene | null = null;
   /** Last measured costs in ms (for debug overlay). */
-  readonly stats = { simMs: 0, physicsMs: 0, steps: 0 };
+  readonly stats = { simMs: 0, physicsMs: 0, steps: 0, frameCpuMs: 0 };
+  /** After every real frame: rAF interval and the CPU work of the frame (sim + update + render submit), ms. */
+  onFrameEnd: ((intervalMs: number, cpuMs: number) => void) | null = null;
   paused = false;
   /** Simulation speed (slow motion < 1): scales the time fed to the accumulator and frame updates. */
   timeScale = 1;
@@ -76,6 +78,14 @@ export class GameLoop {
   }
 
   private tick(): void {
+    const t0 = performance.now();
+    this.frame();
+    const cpu = performance.now() - t0;
+    this.stats.frameCpuMs = cpu;
+    this.onFrameEnd?.(this.engine.getDeltaTime(), cpu);
+  }
+
+  private frame(): void {
     const scene = this.scene;
     const hooks = this.hooks;
     if (!scene || !hooks) return;

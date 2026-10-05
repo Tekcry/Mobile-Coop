@@ -43,6 +43,7 @@ import { noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import type { TouchAction } from '../input/touchControls';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
+import { hyp2, hyp3 } from '../core/mathx';
 
 export type { ModeId };
 
@@ -550,7 +551,7 @@ export class GameState implements AppState {
     // quick emotes on the d-pad (right, down, left)
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
-    if (this.player.rig.emote && (Math.hypot(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
+    if (this.player.rig.emote && (hyp2(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
     const coverWas = this.cover.state;
     if (!this.traversal.active) this.cover.fixedUpdate(dt, inp);
     // cover shot away / destroyed under the player: stumble out of it
@@ -625,11 +626,11 @@ export class GameState implements AppState {
       const dx = this.tmp.x - cp.x;
       const dy = this.tmp.y - cp.y;
       const dz = this.tmp.z - cp.z;
-      const dist = Math.hypot(dx, dy, dz);
+      const dist = hyp3(dx, dy, dz);
       targets.push({ yaw: Math.atan2(dx, dz), pitch: Math.asin(dy / Math.max(dist, 1e-3)), distance: dist });
     }
     const adsStart = this.player.ads && !this.prevAds;
-    const r = computeAssist(level, cam.yaw, cam.pitch, targets, Math.hypot(look.x, look.y) / Math.max(dt, 1e-3) / 3, this.player.controller.speed > 0.5, adsStart, dt);
+    const r = computeAssist(level, cam.yaw, cam.pitch, targets, hyp2(look.x, look.y) / Math.max(dt, 1e-3) / 3, this.player.controller.speed > 0.5, adsStart, dt);
     look.x = look.x * r.lookScale + r.dYaw;
     look.y = look.y * r.lookScale + r.dPitch;
   }

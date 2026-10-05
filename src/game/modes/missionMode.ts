@@ -7,6 +7,7 @@ import type { GameMode } from './gameMode';
 import type { Interactable } from '../interactables';
 import type { Blip } from '../../ui/hud/minimap';
 import { killScore } from './waveLogic';
+import { hyp2 } from '../../core/mathx';
 
 type Step = 'terminals' | 'cache' | 'extract' | 'done';
 
@@ -117,7 +118,7 @@ export class MissionMode implements GameMode {
       }
     }
     if (this.step === 'extract' && this.extract) {
-      const inZone = this.g.playerRefs().some((pl) => pl.target.alive && Math.hypot(pl.feet.x - this.extract!.pos.x, pl.feet.z - this.extract!.pos.z) < EXTRACT_RADIUS);
+      const inZone = this.g.playerRefs().some((pl) => pl.target.alive && hyp2(pl.feet.x - this.extract!.pos.x, pl.feet.z - this.extract!.pos.z) < EXTRACT_RADIUS);
       if (inZone) this.extractT += dt;
       if (this.extractT >= EXTRACT_TIME) {
         this.step = 'done';

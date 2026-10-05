@@ -7,6 +7,7 @@ import type { Blip } from '../../ui/hud/minimap';
 import { killScore } from './waveLogic';
 import { roomAt, roomCentre, type RoomDef, type SquadSlot } from '../../world/rooms';
 import { RoomClearTracker } from '../roomClear';
+import { hyp2 } from '../../core/mathx';
 
 /** Alive cap for squads (the enemy manager caps at 10; keep one spare). */
 const SQUAD_CAP = 9;
@@ -64,7 +65,7 @@ export class ClearMode implements GameMode {
     const players = this.g.playerRefs();
     const dist = (p: Pending): number => {
       let d = Infinity;
-      for (const pl of players) d = Math.min(d, Math.hypot(pl.feet.x - p.slot.x, pl.feet.z - p.slot.z));
+      for (const pl of players) d = Math.min(d, hyp2(pl.feet.x - p.slot.x, pl.feet.z - p.slot.z));
       return d;
     };
     this.pending.sort((a, b) => dist(a) - dist(b));
@@ -94,7 +95,7 @@ export class ClearMode implements GameMode {
     this.g.stats.score += ROOM_SCORE;
     const [cx, cz] = roomCentre(r);
     this.checkpoint = this.g.player.position.clone();
-    if (Math.hypot(cx - this.checkpoint.x, cz - this.checkpoint.z) > 30) this.checkpoint.set(cx, 0, cz);
+    if (hyp2(cx - this.checkpoint.x, cz - this.checkpoint.z) > 30) this.checkpoint.set(cx, 0, cz);
     this.g.hud.feedItem(`${r.name} clear +${ROOM_SCORE}`, 'xp');
     this.g.events.emit('roomCleared', { id: r.id, n: t.cleared, total: t.total });
     if (t.done) {

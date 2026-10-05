@@ -4,6 +4,7 @@
  */
 import { MOVEMENT } from '../config/movement';
 import { springStep } from '../anim/rigMath';
+import { hyp2 } from '../core/mathx';
 
 export type Stance = 'stand' | 'crouch' | 'ads' | 'cover' | 'reload';
 
@@ -17,7 +18,7 @@ export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1,
   if (m < 0.05) return 0;
   let v = m < M.creepBand ? M.creepSpeed * (m / M.creepBand) : M.creepSpeed + (M.walkSpeed - M.creepSpeed) * ((m - M.creepBand) / (1 - M.creepBand));
   // the brisk move is forward only (strafing and backstepping stay at walk pace)
-  const fwd = Math.max(0, Math.min(1, (localZ / (Math.hypot(localX, localZ) || 1) - 0.6) / 0.35));
+  const fwd = Math.max(0, Math.min(1, (localZ / (hyp2(localX, localZ) || 1) - 0.6) / 0.35));
   if (stance === 'stand' && m > 0.95) v += (M.briskSpeed - M.walkSpeed) * Math.max(0, Math.min(1, briskK)) * fwd;
   if (stance === 'crouch') v = Math.min(v, M.crouchSpeed * m);
   if (stance === 'ads') v = Math.min(v, M.adsSpeed * Math.max(m, 0.6));
@@ -28,7 +29,7 @@ export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1,
 
 /** Speed multiplier for moving sideways (strafe) or backwards relative to where the body faces. */
 export function directionMult(localX: number, localZ: number, M = MOVEMENT): number {
-  const l = Math.hypot(localX, localZ) || 1;
+  const l = hyp2(localX, localZ) || 1;
   const x = Math.abs(localX) / l;
   const z = localZ / l;
   const fwd = Math.max(0, z);
@@ -66,7 +67,7 @@ export class EasedVelocity {
   }
 
   get speed(): number {
-    return Math.hypot(this.x, this.z);
+    return hyp2(this.x, this.z);
   }
 }
 

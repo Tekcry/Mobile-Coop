@@ -20,6 +20,7 @@ import { LevelMaterialPlugin } from './levelMaterialPlugin';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
 import { MOVEMENT } from '../config/movement';
 import { proportions } from '../player/proportions';
+import { hyp2 } from '../core/mathx';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -99,7 +100,7 @@ export class LevelBuilder {
   wall(x1: number, z1: number, x2: number, z2: number, h: number, color: string, thick = 0.4, y = 0): this {
     const dx = x2 - x1;
     const dz = z2 - z1;
-    const len = Math.hypot(dx, dz);
+    const len = hyp2(dx, dz);
     const yaw = Math.atan2(dx, dz);
     return this.box((x1 + x2) / 2, y + h / 2, (z1 + z2) / 2, thick, h, len, color, yaw);
   }
@@ -129,7 +130,7 @@ export class LevelBuilder {
   /** Inclined slab rising `rise` over `len` along yaw. */
   ramp(x: number, z: number, w: number, len: number, rise: number, color: string, yaw = 0, y = 0, visible = true): this {
     const pitch = -Math.atan2(rise, len);
-    const slope = Math.hypot(len, rise);
+    const slope = hyp2(len, rise);
     const t = 0.3;
     // Slab centre: midpoint of the top surface lowered by half thickness along the normal.
     const cy = y + rise / 2 - (t / 2) * Math.cos(pitch);

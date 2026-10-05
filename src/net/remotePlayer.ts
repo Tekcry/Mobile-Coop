@@ -9,6 +9,7 @@ import { WEAPONS } from '../weapons/weaponDefs';
 import { shotLimiter, type RateLimiter } from './validate';
 import { PF, type PlayerState } from './protocol';
 import type { RemoteAvatar } from './remoteAvatar';
+import { hyp2 } from '../core/mathx';
 
 /** Max plausible horizontal speed (sprint + roll burst + slack), m/s. */
 const MAX_SPEED = 11;
@@ -82,7 +83,7 @@ export class RemotePlayer implements Damageable {
     this.lastT = now;
     const dx = s.x - this.feet.x;
     const dz = s.z - this.feet.z;
-    const d = Math.hypot(dx, dz);
+    const d = hyp2(dx, dz);
     const max = MAX_SPEED * dt + 0.75;
     if (d > max && this.teleportGrace <= 0 && this.state) {
       const k = max / d;

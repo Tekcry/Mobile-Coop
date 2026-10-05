@@ -1,3 +1,4 @@
+import { hyp2, hyp3 } from '../core/mathx';
 /**
  * Combat-around-cover maths (pure, unit-tested): exposure sampling, cover quality, suppression and
  * near-miss geometry. Shared by the player (HUD, effects) and the AI (cover choice, flanking).
@@ -64,7 +65,7 @@ export function coverQuality(c: CoverSpot, threats: readonly { x: number; z: num
   for (const t of threats) {
     const dx = t.x - c.x;
     const dz = t.z - c.z;
-    const d = Math.hypot(dx, dz) || 1;
+    const d = hyp2(dx, dz) || 1;
     // threat should be behind the face: direction to it opposite the outward normal
     const facing = -(c.nx * dx + c.nz * dz) / d;
     const q = Math.max(0, Math.min(1, (facing - 0.2) / 0.6));
@@ -79,7 +80,7 @@ export function coverQuality(c: CoverSpot, threats: readonly { x: number; z: num
 export function flanks(c: CoverSpot, x: number, z: number): boolean {
   const dx = x - c.x;
   const dz = z - c.z;
-  const d = Math.hypot(dx, dz) || 1;
+  const d = hyp2(dx, dz) || 1;
   return -(c.nx * dx + c.nz * dz) / d < 0.25;
 }
 
@@ -90,7 +91,7 @@ export function segPointDist(a: P3, b: P3, p: P3): number {
   const abz = b.z - a.z;
   const l2 = abx * abx + aby * aby + abz * abz || 1;
   const t = Math.max(0, Math.min(1, ((p.x - a.x) * abx + (p.y - a.y) * aby + (p.z - a.z) * abz) / l2));
-  return Math.hypot(a.x + abx * t - p.x, a.y + aby * t - p.y, a.z + abz * t - p.z);
+  return hyp3(a.x + abx * t - p.x, a.y + aby * t - p.y, a.z + abz * t - p.z);
 }
 
 export const SUPPRESS = {

@@ -8,6 +8,7 @@ import { killScore, waveClearBonus } from '../game/modes/waveLogic';
 import type { EndStats } from './protocol';
 import type { SessionStats } from '../game/modes/gameMode';
 import { ENEMY_KINDS } from '../ai/enemyDefs';
+import { hyp2, hyp3 } from '../core/mathx';
 
 export interface V3 {
   x: number;
@@ -56,7 +57,7 @@ export function rayPointDistance(o: V3, d: V3, p: V3): { along: number; perp: nu
   const cx = o.x + d.x * along - p.x;
   const cy = o.y + d.y * along - p.y;
   const cz = o.z + d.z * along - p.z;
-  return { along, perp: Math.hypot(cx, cy, cz) };
+  return { along, perp: hyp3(cx, cy, cz) };
 }
 
 export interface ShotClaim {
@@ -77,7 +78,7 @@ export function checkShot(c: ShotClaim, shooterFeet: V3, targetBody: V3, targetH
   const dx = c.origin.x - shooterFeet.x;
   const dz = c.origin.z - shooterFeet.z;
   const dy = c.origin.y - shooterFeet.y;
-  if (Math.hypot(dx, dz) > 3.5 || dy < -1 || dy > 3) return { ok: false, reason: 'origin' };
+  if (hyp2(dx, dz) > 3.5 || dy < -1 || dy > 3) return { ok: false, reason: 'origin' };
   const aim = c.part === 'head' ? targetHead : targetBody;
   const r = rayPointDistance(c.origin, c.dir, aim);
   if (r.along > range + 2) return { ok: false, reason: 'range' };
@@ -87,7 +88,7 @@ export function checkShot(c: ShotClaim, shooterFeet: V3, targetBody: V3, targetH
 
 /** Grenade detonations must be near the thrower (throw range + roll) and rate-limited. */
 export function checkBlast(p: V3, shooterFeet: V3): boolean {
-  return Math.hypot(p.x - shooterFeet.x, p.z - shooterFeet.z) < 38 && Math.abs(p.y - shooterFeet.y) < 15;
+  return hyp2(p.x - shooterFeet.x, p.z - shooterFeet.z) < 38 && Math.abs(p.y - shooterFeet.y) < 15;
 }
 
 type PlayerEnd = EndStats['players'][string];

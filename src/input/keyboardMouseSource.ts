@@ -1,6 +1,7 @@
 import type { ButtonAction } from './actions';
 import type { InputState } from './inputState';
 import type { Settings } from '../core/settings';
+import { hyp2 } from '../core/mathx';
 
 const SRC = 'kbm';
 
@@ -95,7 +96,7 @@ export class KeyboardMouseSource {
     for (const a of KEYMAP[e.code] ?? []) this.state.set(SRC, a, down);
     const x = (this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('KeyA') ? 1 : 0);
     const y = (this.keys.has('KeyW') ? 1 : 0) - (this.keys.has('KeyS') ? 1 : 0);
-    const len = Math.hypot(x, y) || 1;
+    const len = hyp2(x, y) || 1;
     this.state.setMove(SRC, x / len, y / len);
     if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
   }

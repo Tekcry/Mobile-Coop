@@ -3,6 +3,7 @@ import { G } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
 import { pickTraversal, type Traversal } from './movement';
 import type { Player } from './player';
+import { hyp2 } from '../core/mathx';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -123,7 +124,7 @@ export class TraversalController {
   private probeDir(): { x: number; z: number } {
     const c = this.player.controller;
     const w = c.wishDir;
-    const l = Math.hypot(w.x, w.z);
+    const l = hyp2(w.x, w.z);
     if (l > 0.3) return { x: w.x / l, z: w.z / l };
     return { x: Math.sin(c.yaw), z: Math.cos(c.yaw) };
   }

@@ -1,3 +1,4 @@
+import { hyp2 } from '../core/mathx';
 /**
  * 2.5D navigation grid. Pure (no Babylon): heights come from an injected sampler
  * (Havok raycasts at runtime, functions in tests); walls/cover are rasterised analytically.
@@ -36,21 +37,31 @@ const DIRS: ReadonlyArray<[number, number, number]> = [
   [1, 1, SQRT2], [1, -1, SQRT2], [-1, 1, SQRT2], [-1, -1, SQRT2],
 ];
 
-/** Binary min-heap keyed by Float32 priorities. */
+/** Binary min-heap keyed by Float32 priorities, on growable typed arrays (reused: no per-query allocation). */
 class Heap {
-  private items: number[] = [];
-  private pri: number[] = [];
+  private items = new Int32Array(256);
+  private pri = new Float32Array(256);
+  private n = 0;
   /** Priority of the most recently popped item (lets Dijkstra skip stale duplicates). */
-  lastPri: number | undefined;
+  lastPri = 0;
   get size(): number {
-    return this.items.length;
+    return this.n;
+  }
+  clear(): void {
+    this.n = 0;
   }
   push(item: number, p: number): void {
+    if (this.n === this.items.length) {
+      const a2 = new Int32Array(this.n * 2);
+      a2.set(this.items);
+      const b2 = new Float32Array(this.n * 2);
+      b2.set(this.pri);
+      this.items = a2;
+      this.pri = b2;
+    }
     const a = this.items;
     const b = this.pri;
-    a.push(item);
-    b.push(p);
-    let i = a.length - 1;
+    let i = this.n++;
     while (i > 0) {
       const par = (i - 1) >> 1;
       if (b[par]! <= p) break;
@@ -65,12 +76,12 @@ class Heap {
     const a = this.items;
     const b = this.pri;
     const top = a[0]!;
-    this.lastPri = b[0];
-    const last = a.pop()!;
-    const lp = b.pop()!;
-    if (a.length > 0) {
+    this.lastPri = b[0]!;
+    const n = --this.n;
+    if (n > 0) {
+      const last = a[n]!;
+      const lp = b[n]!;
       let i = 0;
-      const n = a.length;
       for (;;) {
         let c = 2 * i + 1;
         if (c >= n) break;
@@ -97,6 +108,8 @@ export class NavGrid {
   readonly walk: Uint8Array;
   readonly step: number;
   private gScore: Float32Array;
+  /** Shared priority queue for path and flow queries (not re-entrant). */
+  private heap = new Heap();
   private came: Int32Array;
   private stamp: Uint32Array;
   private gen = 1;
@@ -146,7 +159,7 @@ export class NavGrid {
           const dz = z - b.cz;
           let inside: boolean;
           if (b.round) {
-            inside = Math.hypot(dx, dz) <= b.hx + r;
+            inside = hyp2(dx, dz) <= b.hx + r;
           } else {
             // rotate into box local space (yaw about +Y, Babylon left-handed: local x = cos*dx - sin*dz)
             const lx = c * dx + s * dz;
@@ -274,7 +287,7 @@ export class NavGrid {
 
   /** Grid line walk: true if every cell on the segment is steppable from the previous one. */
   lineClear(a: P2, b: P2): boolean {
-    const dist = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const dist = hyp2(b[0] - a[0], b[1] - a[1]);
     const steps = Math.max(1, Math.ceil(dist / (this.cell * 0.5)));
     let prev = this.cellOf(a[0], a[1]);
     if (!this.isWalkable(prev)) return false;
@@ -296,7 +309,8 @@ export class NavGrid {
     if (s < 0 || g < 0) return null;
     if (s === g) return [to];
     const gen = ++this.gen;
-    const heap = new Heap();
+    const heap = this.heap;
+    heap.clear();
     const [gx, gz] = this.center(g);
     const hfn = (i: number): number => {
       const [x, z] = this.center(i);
@@ -359,8 +373,10 @@ export class NavGrid {
   flowField(goals: readonly P2[], out?: Float32Array): Float32Array {
     const dist = out ?? new Float32Array(this.walk.length);
     dist.fill(Infinity);
-    const heap = new Heap();
-    for (const gp of goals) {
+    const heap = this.heap;
+    heap.clear();
+    for (let gi = 0; gi < goals.length; gi++) {
+      const gp = goals[gi]!;
       const g = this.nearestWalkable(gp[0], gp[1]);
       if (g < 0) continue;
       dist[g] = 0;
@@ -370,7 +386,7 @@ export class NavGrid {
       const cur = heap.pop();
       const dc = dist[cur]!;
       // stale duplicate entry (dist is Float32, so compare with a tolerance)
-      if ((heap.lastPri ?? dc) > dc + 1e-3) continue;
+      if (heap.lastPri > dc + 1e-3) continue;
       const n = this.fillNeighbours(cur);
       for (let k = 0; k < n; k++) {
         const j = this.nb[k]!;

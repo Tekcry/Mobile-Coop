@@ -7,6 +7,7 @@ import { solveTwoBone } from '../anim/rigMath';
 import { emptyPlannerInput, FootPlanner } from '../anim/footPlanner';
 import type { MotionState } from '../anim/motion';
 import { DEBUG_RIGS } from '../ui/debugVolumes';
+import { hyp2 } from '../core/mathx';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
 export type PartFactory = (shape: PartShape, hex: string, slot: string) => AbstractMesh;
@@ -124,6 +125,23 @@ const tmpC = new Vector3();
 const tmpD = new Vector3();
 const tmpE = new Vector3();
 const tmpPole = new Vector3();
+/**
+ * Recompute one node's world matrix from its parent's current one. `computeWorldMatrix(true)` re-forces
+ * the whole parent chain on every call (it was 35% of the sim's CPU at 10 rigs); the rig instead
+ * refreshes nodes top-down once after changing them, so each node is computed from a fresh parent.
+ */
+function fresh(n: TransformNode): void {
+  (n as unknown as { _isDirty: boolean })._isDirty = true;
+  n.computeWorldMatrix();
+}
+
+/** Refresh `n` and its ancestors below `anchor` (already fresh), top-down. */
+function freshBelow(n: TransformNode, anchor: TransformNode): void {
+  const p = n.parent as TransformNode | null;
+  if (p && p !== anchor) freshBelow(p, anchor);
+  fresh(n);
+}
+
 const tmpQ = new Quaternion();
 const tmpQ2 = new Quaternion();
 const tmpQ3 = new Quaternion();
@@ -716,6 +734,9 @@ export class CharacterRig {
   private applyTargets(t: ReturnType<AnimGraph['update']>, dt: number, free: boolean): void {
     const p = this.p;
     this.body.rotationQuaternion!.copyFrom(Quaternion.RotationAxisToRef(Vector3.RightReadOnly, t.tumble, tmpQ));
+    // root (moved by the caller) and body: the one forced update per frame; everything below is
+    // refreshed top-down with `fresh`
+    this.body.computeWorldMatrix(true);
     const pe = t.pelvis;
     const L = this.planner.L;
     const R = this.planner.R;
@@ -740,7 +761,7 @@ export class CharacterRig {
     let need = 0;
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? L : R;
-      const dh = Math.hypot(f.x - rp.x, f.z - rp.z) * 0.85;
+      const dh = hyp2(f.x - rp.x, f.z - rp.z) * 0.85;
       const footY = f.y + p.y.ankle + (k === 0 ? st.lY : st.rY);
       const reachV = Math.sqrt(Math.max(0, legLen * legLen - dh * dh));
       need = Math.max(need, hipY - footY - reachV);
@@ -757,6 +778,9 @@ export class CharacterRig {
     this.limitJoint(this.spine, dt);
     this.limitJoint(this.torso, dt);
     this.limitJoint(this.neck, dt);
+    fresh(this.hips);
+    fresh(this.spine);
+    fresh(this.torso);
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
     Quaternion.RotationYawPitchRollToRef(yaw + this.input.aimYaw * 0.85 + t.head.yaw * 0.25, -this.input.aimPitch * 0.8 + t.head.pitch * 0.4, t.head.roll * 0.6, tmpQ);
     this.setWorldRot(this.headNode, this.neck, tmpQ);
@@ -767,7 +791,6 @@ export class CharacterRig {
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
     this.weaponPivot.position.set((p.shoulderHalf * 0.55 + w.x) * mirror, p.y.shoulder - chestY - 0.1 + w.y, 0.3 + w.z);
-    this.torso.computeWorldMatrix(true);
     const aimYaw = yaw + this.input.aimYaw;
     Quaternion.RotationYawPitchRollToRef(aimYaw + w.yaw * mirror, -this.input.aimPitch + w.pitch, w.roll * mirror, tmpQ);
     if (Math.abs(t.tumble) > 1e-3) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
@@ -776,6 +799,8 @@ export class CharacterRig {
     else Quaternion.SlerpToRef(this.aimQ, tmpQ, 1 - Math.exp(-dt / (0.035 * Math.max(0.6, this.input.weight))), this.aimQ);
     this.setWorldRot(this.weaponPivot, this.torso, this.aimQ);
     this.limitJoint(this.weaponPivot, dt, 14 / Math.max(0.7, this.input.weight));
+    fresh(this.weaponPivot);
+    if (this.heldWeapon) freshBelow(this.heldWeapon, this.weaponPivot);
 
     // arms: the dominant hand takes the grip, the other the foregrip / magazine / cover surface
     const gripW = this.heldWeapon ? t.grip : 0;
@@ -826,14 +851,13 @@ export class CharacterRig {
 
   /** Set a node's world rotation through its parent. */
   private setWorldRot(node: TransformNode, parent: TransformNode, world: Quaternion): void {
-    parent.computeWorldMatrix(true);
+    fresh(parent);
     const inv = Quaternion.InverseToRef(parent.absoluteRotationQuaternion, tmpQ2);
     inv.multiplyToRef(world, node.rotationQuaternion!);
   }
 
   /** Root/body-space point -> world. */
   private bodyToWorld(v: { x: number; y: number; z: number }, out: Vector3): Vector3 {
-    this.body.computeWorldMatrix(true);
     tmpE.set(v.x, v.y - this.bodyPivot, v.z);
     return Vector3.TransformCoordinatesToRef(tmpE, this.body.getWorldMatrix(), out);
   }
@@ -852,12 +876,11 @@ export class CharacterRig {
     const el = side > 0 ? this.elbowR : this.elbowL;
     const wr = side > 0 ? this.wristR : this.wristL;
     const p = this.p;
-    sh.computeWorldMatrix(true);
+    fresh(sh);
     const S = sh.getAbsolutePosition();
     // free-swing target, then the weapon grip blended over it
     const target = this.bodyToWorld(free, tmpA);
     if (gripW > 0 && this.heldWeapon) {
-      this.heldWeapon.computeWorldMatrix(true);
       const m = this.heldWeapon.getWorldMatrix();
       if (isGrip) {
         Vector3.TransformCoordinatesToRef(this.grip, m, tmpB);
@@ -890,15 +913,12 @@ export class CharacterRig {
     // forearm
     tmpD.subtractToRef(tmpC, tmpA);
     boneRotation(tmpA, tmpE, tmpQ);
-    sh.computeWorldMatrix(true);
     this.setWorldRot(el, sh, tmpQ);
     // hand: follow the weapon when gripping, else continue the forearm
     if (gripW > 0.5 && this.heldWeapon && !(coverW > 0.5 && !isGrip)) {
       // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side
-      this.heldWeapon.computeWorldMatrix(true);
       Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);
-      el.computeWorldMatrix(true);
       this.setWorldRot(wr, el, tmpQ3);
     } else {
       wr.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
@@ -908,7 +928,7 @@ export class CharacterRig {
   /** Leg IK onto a world ankle target; the foot takes its world yaw and the swing / pose pitch. */
   private solveLegWorld(hip: TransformNode, knee: TransformNode, ankle: TransformNode, x: number, y: number, z: number, footYaw: number, footPitch: number, side: number): void {
     const p = this.p;
-    hip.computeWorldMatrix(true);
+    fresh(hip);
     const H = hip.getAbsolutePosition();
     tmpA.set(x, y, z);
     // knees forward (along the foot) and slightly out
@@ -921,11 +941,9 @@ export class CharacterRig {
     this.setWorldRot(hip, hip.parent as TransformNode, tmpQ3);
     tmpD.subtractToRef(tmpC, tmpB);
     boneRotation(tmpB, tmpPole, tmpQ);
-    hip.computeWorldMatrix(true);
     this.setWorldRot(knee, hip, tmpQ);
     // foot: world yaw from the planner, pitch from the swing (toe-off / heel strike) and the pose
     Quaternion.RotationYawPitchRollToRef(footYaw, footPitch, 0, tmpQ3);
-    knee.computeWorldMatrix(true);
     this.setWorldRot(ankle, knee, tmpQ3);
   }
 

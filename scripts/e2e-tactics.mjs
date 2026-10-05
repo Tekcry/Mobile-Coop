@@ -49,8 +49,9 @@ try {
   await tp(-16, 5.9, Math.PI);
   await run(0.3, 0, 0, false);
   const sh0 = await G(() => window.__app.current.player.cam.shoulder);
-  await run(0.8, 0, 0, true);
-  const lean = await G(() => ({ lean: window.__app.current.corners.lean, sh: window.__app.current.player.cam.shoulder, head: window.__app.current.target.headPoint(new window.__app.current.player.position.constructor()).x, x: window.__app.current.player.position.x }));
+  const leanRun = await run(1.2, 0, 0, true, `JSON.stringify({ lean: g.corners.lean, sh: g.player.cam.shoulder, head: g.target.headPoint(new g.player.position.constructor()).x, x: g.player.position.x })`);
+  // read inside the simulated run: between evaluate calls real frames tick without the forced aim
+  const lean = JSON.parse(leanRun.at(-1));
   assert(Math.abs(lean.lean) > 0.95, `aiming with the wall end blocking the aim line leans out (${lean.lean.toFixed(2)})`);
   assert(Math.abs(lean.head - lean.x) > 0.3, `head hit volume moves out with the lean (${(lean.head - lean.x).toFixed(2)} m)`);
   const speedLean = await run(0.8, 1, 0, true, 'g.player.controller.speed');

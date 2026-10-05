@@ -7,6 +7,7 @@ import type { Settings } from '../core/settings';
 import { COVER_STANDOFF } from '../world/levelBuilder';
 import { awayAmount, clampAlong, coverPose, EDGE_MARGIN, findSnap, locate, nearestEdge, projectOnTangent, type CoverSegment } from './coverData';
 import { CORNER_TIME, CoverStateMachine, emptyCoverInput, VAULT_TIME, type CoverStateName } from './coverState';
+import { hyp2 } from '../core/mathx';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 const ease = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -120,7 +121,7 @@ export class CoverController {
     const fz = Math.cos(yaw);
     const mx = inp.move.x;
     const my = inp.move.y;
-    const mag = Math.min(1, Math.hypot(mx, my));
+    const mag = Math.min(1, hyp2(mx, my));
     if (mag < 0.15) return { x: 0, z: 0, mag: 0 };
     return { x: (fz * mx + fx * my) / mag, z: (-fx * mx + fz * my) / mag, mag };
   }
@@ -148,7 +149,7 @@ export class CoverController {
       const p = coverPose(seg, s, COVER_STANDOFF);
       const dx = p.x - feet.x;
       const dz = p.z - feet.z;
-      const d = Math.hypot(dx, dz);
+      const d = hyp2(dx, dz);
       if (d < 1.5 || d > 8 || (dx * w.x + dz * w.z) / d < 0.8) continue;
       // must approach the face from its front
       if (loc.dist < 0.2) continue;
@@ -299,7 +300,7 @@ export class CoverController {
     const loc = locate(seg, this.player.position.x, this.player.position.z);
     this.enterS0 = loc.s;
     this.enterD0 = loc.dist;
-    const d = Math.hypot(clampAlong(seg, s).s - loc.s, loc.dist - COVER_STANDOFF);
+    const d = hyp2(clampAlong(seg, s).s - loc.s, loc.dist - COVER_STANDOFF);
     this.sm.enterTime = this.slide ? 0.6 : Math.max(0.6, Math.min(0.95, 0.55 + d * 0.25));
     this.sm.snap();
   }
@@ -393,7 +394,7 @@ export class CoverController {
       ci.sprint = ci.dashPressed && !ci.canDash && w.mag > 0.5;
     } else this.target = null;
     if (this.sm.state === 'dash' && this.dashTo) {
-      ci.arrived = Math.hypot(this.dashTo.x - p.position.x, this.dashTo.z - p.position.z) < 0.5;
+      ci.arrived = hyp2(this.dashTo.x - p.position.x, this.dashTo.z - p.position.z) < 0.5;
     }
     const prev = this.sm.state;
     const st = this.sm.step(dt, ci);
@@ -510,7 +511,7 @@ export class CoverController {
       const swat = t.kind === 'swat';
       const dx = t.x - p.position.x;
       const dz = t.z - p.position.z;
-      const d = Math.hypot(dx, dz) || 1;
+      const d = hyp2(dx, dz) || 1;
       // ease off over the last metre so the arrival blends into the snap
       const v = (swat ? SWAT_SPEED : MOVEMENT.dashSpeed) * Math.min(1, 0.45 + d * 0.55);
       this.vel.x = (dx / d) * v;
@@ -540,8 +541,8 @@ export class CoverController {
       let a1 = Math.atan2(to.z - cr.cz, to.x - cr.cx);
       while (a1 - a0 > Math.PI) a1 -= Math.PI * 2;
       while (a1 - a0 < -Math.PI) a1 += Math.PI * 2;
-      const r0 = Math.hypot(cr.from.x - cr.cx, cr.from.z - cr.cz);
-      const r1 = Math.hypot(to.x - cr.cx, to.z - cr.cz);
+      const r0 = hyp2(cr.from.x - cr.cx, cr.from.z - cr.cz);
+      const r1 = hyp2(to.x - cr.cx, to.z - cr.cz);
       const a = a0 + (a1 - a0) * k;
       const r = r0 + (r1 - r0) * k;
       this.kin.set(cr.cx + Math.cos(a) * r, p.position.y, cr.cz + Math.sin(a) * r);

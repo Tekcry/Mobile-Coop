@@ -29,7 +29,7 @@ export interface ControlPlacement {
 }
 
 export type AimAssistLevel = 'off' | 'low' | 'standard' | 'high';
-export type QualityPreset = 'auto' | 'low' | 'medium' | 'high';
+export type QualityPreset = 'auto' | 'low' | 'medium' | 'high' | 'ultra';
 
 export interface Settings {
   touch: {
@@ -180,7 +180,7 @@ export function defaultSettings(): Settings {
 
 const AIM: readonly AimAssistLevel[] = ['off', 'low', 'standard', 'high'];
 const CURVES: readonly CurveKind[] = ['linear', 'classic', 'precise', 'aggressive'];
-const QUALITY: readonly QualityPreset[] = ['auto', 'low', 'medium', 'high'];
+const QUALITY: readonly QualityPreset[] = ['auto', 'low', 'medium', 'high', 'ultra'];
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);

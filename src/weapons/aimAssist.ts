@@ -1,4 +1,5 @@
 import type { AimAssistLevel } from '../core/settings';
+import { hyp2 } from '../core/mathx';
 
 export interface AssistParams {
   /** Look sensitivity multiplier while the crosshair is over/near a target. */
@@ -66,7 +67,7 @@ export function computeAssist(
     if (t.distance > 60) continue;
     const dy = wrap(t.yaw - camYaw);
     const dp = t.pitch - camPitch;
-    const err = Math.hypot(dy * Math.cos(camPitch), dp);
+    const err = hyp2(dy * Math.cos(camPitch), dp);
     if (err < bestErr) {
       bestErr = err;
       best = i;

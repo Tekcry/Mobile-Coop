@@ -62,7 +62,9 @@ export class App {
     this.input = new InputManager(canvas, this.uiRoot, this.settings);
     this.toasts = new Toasts(this.uiRoot);
     this.quality = new QualityManager(this.engine, this.settings);
-    this.debug.extra.set('quality', () => `${this.quality.level.name}${this.quality.auto ? ' (auto)' : ''}`);
+    this.debug.extra.set('quality', () => `${this.quality.level.name}${this.quality.auto ? ' (auto)' : ''}  res x${this.quality.res.scale.toFixed(2)}`);
+    this.debug.pacing = () => this.quality.pacing();
+    this.loop.onFrameEnd = (interval, cpu) => this.quality.frame(interval, cpu, this.current?.simulating ?? false);
     uiHooks.blocked = (msg) => {
       this.toasts.show(msg, 'warn', 1800);
       this.sfx.denied();
@@ -175,7 +177,6 @@ export class App {
         } catch (e) {
           this.report(e);
         }
-        if (s.simulating) this.quality.sample(this.engine.getDeltaTime());
       },
     };
   }

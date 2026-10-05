@@ -1,3 +1,4 @@
+import { hyp2 } from '../core/mathx';
 /**
  * World-space foot planner (pure, allocation-free, unit-tested).
  *
@@ -206,7 +207,7 @@ export class FootPlanner {
     for (const side of [-1, 1] as const) {
       const f = side < 0 ? this.L : this.R;
       this.ideal(i, side, i.rootX, i.rootZ, i.goalYaw);
-      const err = Math.hypot(f.x - this.ix, f.z - this.iz) / PLANNER.idleErr + Math.abs(wrap(f.yaw - i.goalYaw)) / PLANNER.idleYawErr;
+      const err = hyp2(f.x - this.ix, f.z - this.iz) / PLANNER.idleErr + Math.abs(wrap(f.yaw - i.goalYaw)) / PLANNER.idleYawErr;
       if (err > worstErr) {
         worstErr = err;
         worst = f;
@@ -225,14 +226,14 @@ export class FootPlanner {
     const dx = f.x - i.rootX;
     const dz = f.z - i.rootZ;
     // a planted foot trails up to half a stance behind the hip at speed
-    const reach = Math.max(i.reach, Math.hypot(i.velX, i.velZ) * i.duty * i.cycleTime * 0.5 + 0.3);
-    if (Math.hypot(dx, dz) > reach) {
+    const reach = Math.max(i.reach, hyp2(i.velX, i.velZ) * i.duty * i.cycleTime * 0.5 + 0.3);
+    if (hyp2(dx, dz) > reach) {
       // out of reach while locked: drag (counted) back to the reach limit; a real step follows
-      const d = Math.hypot(dx, dz);
+      const d = hyp2(dx, dz);
       const k = reach / d;
       const nx = i.rootX + dx * k;
       const nz = i.rootZ + dz * k;
-      f.slide += Math.hypot(nx - f.x, nz - f.z);
+      f.slide += hyp2(nx - f.x, nz - f.z);
       f.x = nx;
       f.z = nz;
       void side;
@@ -274,7 +275,7 @@ export class FootPlanner {
     // limit the step length from where the foot left the ground
     const sx = tx - f.fromX;
     const sz = tz - f.fromZ;
-    const sl = Math.hypot(sx, sz);
+    const sl = hyp2(sx, sz);
     if (sl > PLANNER.maxStep) {
       tx = f.fromX + (sx * PLANNER.maxStep) / sl;
       tz = f.fromZ + (sz * PLANNER.maxStep) / sl;

@@ -1,4 +1,5 @@
 import { BUTTON_ACTIONS, type ButtonAction, type ButtonState, type Vec2 } from './actions';
+import { hyp2 } from '../core/mathx';
 
 /**
  * Aggregated action state. Each source sets its own contribution per action;
@@ -62,7 +63,7 @@ export class InputState {
         by = v.y;
       }
     }
-    const len = Math.hypot(bx, by);
+    const len = hyp2(bx, by);
     if (len > 1) {
       bx /= len;
       by /= len;

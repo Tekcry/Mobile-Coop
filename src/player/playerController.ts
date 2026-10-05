@@ -10,6 +10,7 @@ import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
 import { DashGate, EasedVelocity, targetSpeed, type Stance } from './movement';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
+import { hyp2 } from '../core/mathx';
 
 /** Movement constants live in `config/movement.ts` (live-tunable). Kept as an alias for older code. */
 export const PLAYER_TUNING = MOVEMENT;
@@ -246,7 +247,7 @@ export class PlayerController {
     const fz = Math.cos(camYaw);
     let mx = this.frozen ? 0 : input.moveX;
     let my = this.frozen ? 0 : input.moveY;
-    const mag = Math.min(1, Math.hypot(mx, my));
+    const mag = Math.min(1, hyp2(mx, my));
     if (mag < 0.05) mx = my = 0;
     this.wish.set(fz * mx + fx * my, 0, -fx * mx + fz * my);
     if (this.wish.lengthSquared() > 1) this.wish.normalize();
@@ -352,7 +353,7 @@ export class PlayerController {
 
     // facing: the driver's (weapon-led, stance-limited, stepped on the spot); overrides may turn faster
     const v = this.cc.getVelocity();
-    this.speed = Math.hypot(v.x, v.z);
+    this.speed = hyp2(v.x, v.z);
     if (ov?.yaw !== undefined && ov.turnRate !== undefined) {
       this.yaw = turnTowards(this.yaw, ov.yaw, ov.turnRate * dt);
       this.motion.yaw = this.yaw;

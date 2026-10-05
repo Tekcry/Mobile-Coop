@@ -25,6 +25,7 @@ const QUALITY_OPTS: { value: QualityPreset; label: string }[] = [
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
+  { value: 'ultra', label: 'Ultra 120' },
 ];
 
 const pct = (v: number): string => `${Math.round(v * 100)}%`;

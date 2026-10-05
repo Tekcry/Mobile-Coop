@@ -35,6 +35,7 @@ import {
   WALK_STRAFE_R,
 } from './clips/locomotion';
 import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, SWAP, VAULT } from './clips/actions';
+import { hyp2 } from '../core/mathx';
 
 export const FADE = 0.2;
 export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'cover', 'traverse'] as const;
@@ -323,12 +324,16 @@ export class AnimGraph {
     this.state = target;
     const step = fade > 0 ? dt / fade : 1;
     let sum = 0;
-    for (const s of LOWER_STATES) {
-      const w = this.weights[s];
-      this.weights[s] = s === target ? Math.min(1, w + step) : Math.max(0, w - step);
-      sum += this.weights[s];
+    const W = this.weights;
+    for (let k = 0; k < LOWER_STATES.length; k++) {
+      const s = LOWER_STATES[k]!;
+      const w = W[s];
+      const nw = s === target ? (w + step > 1 ? 1 : w + step) : w - step < 0 ? 0 : w - step;
+      W[s] = nw;
+      sum += nw;
     }
-    for (const s of LOWER_STATES) this.weights[s] /= sum || 1;
+    const inv = 1 / (sum || 1);
+    for (let k = 0; k < LOWER_STATES.length; k++) W[LOWER_STATES[k]!] *= inv;
   }
 
   /** Locomotion blend space (speed x direction) for one posture into `out`. */
@@ -396,12 +401,12 @@ export class AnimGraph {
     else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed))) * dt) % 1;
     const ph = this.phase;
     this.moveW = approach(this.moveW, smoothstep(i.speed / 0.22), 0.08, dt);
-    const dl = Math.hypot(i.localX, i.localZ);
+    const dl = hyp2(i.localX, i.localZ);
     if (dl > 0.1 && i.speed > 0.05) {
       this.dirX = approach(this.dirX, i.localX / dl, 0.18, dt);
       this.dirZ = approach(this.dirZ, i.localZ / dl, 0.18, dt);
     }
-    const dn = Math.hypot(this.dirX, this.dirZ) || 1;
+    const dn = hyp2(this.dirX, this.dirZ) || 1;
     this.dirX /= dn;
     this.dirZ /= dn;
     this.raiseS = approach(this.raiseS, i.raise, 0.02, dt);
@@ -690,7 +695,7 @@ export class AnimGraph {
     g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2);
     // layer weights for the overlay
     const ly = o.layers;
-    for (const st2 of LOWER_STATES) ly[st2] = this.weights[st2];
+    for (let k = 0; k < LOWER_STATES.length; k++) ly[LOWER_STATES[k]!] = this.weights[LOWER_STATES[k]!];
     ly.raise = this.raiseS;
     ly.low = i.carryLow;
     ly.high = i.carryHigh;

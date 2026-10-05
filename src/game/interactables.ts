@@ -1,6 +1,7 @@
 import type { Vector3} from '../core/babylon';
 import { TransformNode, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
 import type { PartLibrary } from '../world/partLibrary';
+import { hyp2 } from '../core/mathx';
 
 export type InteractKind = 'terminal' | 'cache' | 'extract';
 
@@ -70,7 +71,7 @@ export class Interactables {
     let bd = reach;
     for (const it of this.items) {
       if (!it.enabled || it.done || it.kind === 'extract') continue;
-      const d = Math.hypot(it.pos.x - feet.x, it.pos.z - feet.z);
+      const d = hyp2(it.pos.x - feet.x, it.pos.z - feet.z);
       if (d < bd && Math.abs(it.pos.y - feet.y) < 1.5) {
         bd = d;
         best = it;

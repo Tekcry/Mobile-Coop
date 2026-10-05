@@ -11,6 +11,7 @@ import { RemoteAvatar } from './remoteAvatar';
 import { EnemyPuppet } from './enemyPuppet';
 import { clampEnd, coopSessionStats } from './validate';
 import { infoToHtml, localFlags } from './netShared';
+import { hyp3 } from '../core/mathx';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -143,7 +144,7 @@ export class CoopClient implements NetAttachment {
     const dx = h.point.x - o.x;
     const dy = h.point.y - o.y;
     const dz = h.point.z - o.z;
-    const len = Math.hypot(dx, dy, dz) || 1;
+    const len = hyp3(dx, dy, dz) || 1;
     this.s.toHost({
       t: 'shot',
       w: h.weapon ?? this.g.weapons.current.def.id,

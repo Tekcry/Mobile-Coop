@@ -10,6 +10,7 @@ import type { Vfx } from '../vfx/vfx';
 import type { Ballistics } from '../weapons/ballistics';
 import { SnapshotBuffer } from './interp';
 import { PF, type PlayerInfo, type PlayerState } from './protocol';
+import { hyp2 } from '../core/mathx';
 
 /**
  * Another player's body, rendered from interpolated states: rig animation from speed/flags,
@@ -87,7 +88,7 @@ export class RemoteAvatar {
     this.pitch = st.pitch;
     this.flags = st.f;
     this.setWeapon(st.w);
-    const moved = Math.hypot(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
+    const moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     const inst = dt > 0 ? moved / dt : 0;
     this.speed += (Math.min(inst, 12) - this.speed) * Math.min(1, dt * 10);
     const lx = this.pos.x - this.prev.x;
