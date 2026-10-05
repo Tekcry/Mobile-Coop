@@ -46,6 +46,8 @@ export class CharacterRig {
   readonly kneeR: TransformNode;
   /** Attach weapon models here (right hand, points +Z). */
   readonly weaponSocket: TransformNode;
+  /** Weapon carry pivot (under hips): points along the aim when aiming, low-ready otherwise. */
+  readonly weaponPivot: TransformNode;
   /** Head pivot (for headshot hitbox placement). */
   readonly headNode: TransformNode;
   private phase = 0;
@@ -83,6 +85,7 @@ export class CharacterRig {
     this.kneeL = n('knL', this.hipL, 0, -0.43, 0);
     this.kneeR = n('knR', this.hipR, 0, -0.43, 0);
     this.weaponSocket = n('weapon', this.elbowR, 0, -0.26, 0.05);
+    this.weaponPivot = n('weaponPivot', this.hips, 0.16 * w, 0.42, 0.24);
 
     const c = look.colors;
     const p = (shape: PartShape, hex: string, slot: string, parent: TransformNode, sx: number, sy: number, sz: number, x = 0, y = 0, z = 0): AbstractMesh => {
@@ -258,6 +261,11 @@ export class CharacterRig {
     this.shoulderL.rotation.z = lerp(0.08, 0, s.aim);
     this.shoulderR.rotation.z = lerp(-0.08, 0, s.aim);
     this.elbowL.rotation.x = lerp(-0.35, -0.6, s.aim);
+
+    // weapon: low-ready when relaxed, along aim pitch when raised
+    this.weaponPivot.rotation.x = lerp(0.75, -s.aimPitch, s.aim) - s.kick * 0.12;
+    this.weaponPivot.rotation.y = lerp(-0.5, 0, s.aim);
+    this.weaponPivot.position.z = (0.24 - s.kick * 0.04) * (this.height / 1.8);
 
     // roll: tuck and spin forward
     if (s.roll >= 0) {

@@ -9,17 +9,19 @@ export const G = {
   /** Enemy hit volumes (head/body) for weapon raycasts. */
   ENEMY_HITBOX: 1 << 7,
   TRIGGER: 1 << 8,
+  /** Player hit capsule (separate from the controller so the controller never collides with it). */
+  PLAYER_HITBOX: 1 << 9,
 } as const;
 
 export const MASK = {
   /** What blocks the camera boom and line of sight. */
   WORLD: G.STATIC,
-  /** What the player capsule collides with. Its controller body is also its hit volume (PROJECTILE). */
-  PLAYER_COLLIDE: G.STATIC | G.PROP | G.ENEMY | G.PROJECTILE,
+  /** What the player controller capsule collides with. */
+  PLAYER_COLLIDE: G.STATIC | G.PROP | G.ENEMY,
   /** What a player bullet can hit. */
   PLAYER_SHOT: G.STATIC | G.PROP | G.ENEMY_HITBOX | G.RAGDOLL,
   /** What an enemy bullet can hit. */
-  ENEMY_SHOT: G.STATIC | G.PROP | G.PLAYER,
+  ENEMY_SHOT: G.STATIC | G.PROP | G.PLAYER_HITBOX,
   PROP_COLLIDE: G.STATIC | G.PROP | G.PLAYER | G.ENEMY | G.RAGDOLL | G.PROJECTILE,
   RAGDOLL_COLLIDE: G.STATIC | G.PROP | G.RAGDOLL,
   PROJECTILE_COLLIDE: G.STATIC | G.PROP | G.ENEMY | G.PLAYER,

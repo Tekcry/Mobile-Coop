@@ -1,0 +1,12 @@
+{
+  "name": "Frag Grenade",
+  "fuse": 2.4,
+  "throwSpeed": 16,
+  "upBias": 4,
+  "radius": 6,
+  "damage": 150,
+  "force": 55,
+  "maxCarry": 3,
+  "startCount": 2,
+  "cooldown": 0.8
+}

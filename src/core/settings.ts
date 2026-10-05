@@ -72,8 +72,8 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   swap: { x: 0.62, y: 0.88, scale: 0.85 },
   grenade: { x: 0.93, y: 0.42, scale: 0.8 },
   interact: { x: 0.62, y: 0.62, scale: 0.85 },
-  shoulder: { x: 0.93, y: 0.18, scale: 0.75 },
-  pause: { x: 0.5, y: 0.07, scale: 0.75 },
+  shoulder: { x: 0.7, y: 0.09, scale: 0.75 },
+  pause: { x: 0.79, y: 0.09, scale: 0.75 },
 };
 
 export function defaultSettings(): Settings {

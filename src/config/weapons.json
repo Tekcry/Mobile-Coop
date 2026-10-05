@@ -1,0 +1,648 @@
+{
+  "pistol": {
+    "name": "P9 Sidearm",
+    "class": "pistol",
+    "slot": "secondary",
+    "fireMode": "semi",
+    "kind": "hitscan",
+    "rpm": 380,
+    "damage": 26,
+    "headMult": 2.0,
+    "falloffStart": 14,
+    "falloffEnd": 40,
+    "minDamageMult": 0.55,
+    "pellets": 1,
+    "range": 90,
+    "magSize": 12,
+    "reserve": 84,
+    "reloadTime": 1.25,
+    "spreadHip": 1.8,
+    "spreadAds": 0.35,
+    "spreadMove": 1.2,
+    "spreadPerShot": 0.7,
+    "spreadRecovery": 7,
+    "maxSpread": 5,
+    "recoilPitch": 1.6,
+    "recoilYaw": 0.35,
+    "recoilPattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.3,
+        1.1
+      ],
+      [
+        -0.3,
+        1
+      ],
+      [
+        0.2,
+        0.9
+      ]
+    ],
+    "adsZoom": 0.82,
+    "moveSpeedMult": 1.0,
+    "impulse": 6,
+    "tracer": "#ffe2a0",
+    "unlockLevel": 1,
+    "price": 0,
+    "model": [
+      {
+        "shape": "box",
+        "size": [
+          0.06,
+          0.1,
+          0.22
+        ],
+        "pos": [
+          0,
+          0.02,
+          0.08
+        ],
+        "color": "body"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.05,
+          0.12,
+          0.06
+        ],
+        "pos": [
+          0,
+          -0.06,
+          0.02
+        ],
+        "color": "grip"
+      },
+      {
+        "shape": "cyl",
+        "size": [
+          0.025,
+          0.06,
+          0.025
+        ],
+        "pos": [
+          0,
+          0.04,
+          0.21
+        ],
+        "rot": [
+          1.5708,
+          0,
+          0
+        ],
+        "color": "accent"
+      }
+    ],
+    "muzzle": [
+      0,
+      0.04,
+      0.25
+    ]
+  },
+  "smg": {
+    "name": "V-12 Hornet",
+    "class": "smg",
+    "slot": "primary",
+    "fireMode": "auto",
+    "kind": "hitscan",
+    "rpm": 880,
+    "damage": 16,
+    "headMult": 1.6,
+    "falloffStart": 10,
+    "falloffEnd": 30,
+    "minDamageMult": 0.45,
+    "pellets": 1,
+    "range": 70,
+    "magSize": 32,
+    "reserve": 192,
+    "reloadTime": 1.6,
+    "spreadHip": 2.4,
+    "spreadAds": 0.9,
+    "spreadMove": 0.8,
+    "spreadPerShot": 0.22,
+    "spreadRecovery": 9,
+    "maxSpread": 5.5,
+    "recoilPitch": 0.75,
+    "recoilYaw": 0.45,
+    "recoilPattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.4,
+        0.9
+      ],
+      [
+        0.7,
+        0.8
+      ],
+      [
+        0.3,
+        1
+      ],
+      [
+        -0.4,
+        0.9
+      ],
+      [
+        -0.8,
+        0.8
+      ],
+      [
+        -0.2,
+        1
+      ],
+      [
+        0.5,
+        0.9
+      ]
+    ],
+    "adsZoom": 0.85,
+    "moveSpeedMult": 1.05,
+    "impulse": 4,
+    "tracer": "#ffd27a",
+    "unlockLevel": 2,
+    "price": 600,
+    "model": [
+      {
+        "shape": "box",
+        "size": [
+          0.07,
+          0.11,
+          0.36
+        ],
+        "pos": [
+          0,
+          0.03,
+          0.12
+        ],
+        "color": "body"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.05,
+          0.18,
+          0.06
+        ],
+        "pos": [
+          0,
+          -0.08,
+          0.14
+        ],
+        "color": "accent"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.05,
+          0.1,
+          0.06
+        ],
+        "pos": [
+          0,
+          -0.05,
+          0.0
+        ],
+        "color": "grip"
+      },
+      {
+        "shape": "cyl",
+        "size": [
+          0.03,
+          0.12,
+          0.03
+        ],
+        "pos": [
+          0,
+          0.04,
+          0.34
+        ],
+        "rot": [
+          1.5708,
+          0,
+          0
+        ],
+        "color": "grip"
+      }
+    ],
+    "muzzle": [
+      0,
+      0.04,
+      0.41
+    ]
+  },
+  "rifle": {
+    "name": "AR-7 Vanguard",
+    "class": "rifle",
+    "slot": "primary",
+    "fireMode": "auto",
+    "kind": "hitscan",
+    "rpm": 620,
+    "damage": 22,
+    "headMult": 1.8,
+    "falloffStart": 25,
+    "falloffEnd": 60,
+    "minDamageMult": 0.6,
+    "pellets": 1,
+    "range": 120,
+    "magSize": 30,
+    "reserve": 150,
+    "reloadTime": 1.9,
+    "spreadHip": 2.0,
+    "spreadAds": 0.25,
+    "spreadMove": 1.4,
+    "spreadPerShot": 0.3,
+    "spreadRecovery": 6,
+    "maxSpread": 5,
+    "recoilPitch": 1.0,
+    "recoilYaw": 0.3,
+    "recoilPattern": [
+      [
+        0,
+        1.1
+      ],
+      [
+        0.2,
+        1
+      ],
+      [
+        0.4,
+        0.9
+      ],
+      [
+        0.1,
+        1
+      ],
+      [
+        -0.3,
+        0.9
+      ],
+      [
+        -0.5,
+        0.8
+      ],
+      [
+        -0.1,
+        1
+      ],
+      [
+        0.3,
+        0.9
+      ]
+    ],
+    "adsZoom": 0.72,
+    "moveSpeedMult": 0.97,
+    "impulse": 7,
+    "tracer": "#ffc65a",
+    "unlockLevel": 1,
+    "price": 0,
+    "model": [
+      {
+        "shape": "box",
+        "size": [
+          0.07,
+          0.12,
+          0.5
+        ],
+        "pos": [
+          0,
+          0.03,
+          0.16
+        ],
+        "color": "body"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.06,
+          0.1,
+          0.2
+        ],
+        "pos": [
+          0,
+          0.0,
+          -0.18
+        ],
+        "color": "accent"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.05,
+          0.2,
+          0.07
+        ],
+        "pos": [
+          0,
+          -0.1,
+          0.17
+        ],
+        "rot": [
+          0.25,
+          0,
+          0
+        ],
+        "color": "grip"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.05,
+          0.1,
+          0.06
+        ],
+        "pos": [
+          0,
+          -0.06,
+          0.0
+        ],
+        "color": "grip"
+      },
+      {
+        "shape": "cyl",
+        "size": [
+          0.03,
+          0.22,
+          0.03
+        ],
+        "pos": [
+          0,
+          0.05,
+          0.48
+        ],
+        "rot": [
+          1.5708,
+          0,
+          0
+        ],
+        "color": "grip"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.03,
+          0.05,
+          0.12
+        ],
+        "pos": [
+          0,
+          0.12,
+          0.12
+        ],
+        "color": "grip"
+      }
+    ],
+    "muzzle": [
+      0,
+      0.05,
+      0.6
+    ]
+  },
+  "shotgun": {
+    "name": "M4 Breacher",
+    "class": "shotgun",
+    "slot": "primary",
+    "fireMode": "semi",
+    "kind": "hitscan",
+    "rpm": 85,
+    "damage": 11,
+    "headMult": 1.4,
+    "falloffStart": 6,
+    "falloffEnd": 22,
+    "minDamageMult": 0.25,
+    "pellets": 9,
+    "range": 45,
+    "magSize": 6,
+    "reserve": 42,
+    "reloadTime": 2.6,
+    "spreadHip": 5.5,
+    "spreadAds": 4.0,
+    "spreadMove": 0.8,
+    "spreadPerShot": 0,
+    "spreadRecovery": 10,
+    "maxSpread": 7,
+    "recoilPitch": 4.2,
+    "recoilYaw": 0.8,
+    "recoilPattern": [
+      [
+        0,
+        1
+      ],
+      [
+        0.3,
+        1
+      ],
+      [
+        -0.3,
+        1
+      ]
+    ],
+    "adsZoom": 0.9,
+    "moveSpeedMult": 0.95,
+    "impulse": 3,
+    "tracer": "#ffe9b8",
+    "unlockLevel": 4,
+    "price": 1200,
+    "model": [
+      {
+        "shape": "box",
+        "size": [
+          0.08,
+          0.12,
+          0.42
+        ],
+        "pos": [
+          0,
+          0.02,
+          0.1
+        ],
+        "color": "body"
+      },
+      {
+        "shape": "cyl",
+        "size": [
+          0.05,
+          0.5,
+          0.05
+        ],
+        "pos": [
+          0,
+          0.06,
+          0.38
+        ],
+        "rot": [
+          1.5708,
+          0,
+          0
+        ],
+        "color": "grip"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.07,
+          0.07,
+          0.22
+        ],
+        "pos": [
+          0,
+          -0.03,
+          0.36
+        ],
+        "color": "accent"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.06,
+          0.12,
+          0.22
+        ],
+        "pos": [
+          0,
+          -0.02,
+          -0.18
+        ],
+        "color": "accent"
+      }
+    ],
+    "muzzle": [
+      0,
+      0.06,
+      0.64
+    ]
+  },
+  "sniper": {
+    "name": "LR-50 Longshot",
+    "class": "sniper",
+    "slot": "primary",
+    "fireMode": "semi",
+    "kind": "projectile",
+    "projectileSpeed": 340,
+    "projectileGravity": 4,
+    "rpm": 48,
+    "damage": 120,
+    "headMult": 2.5,
+    "falloffStart": 80,
+    "falloffEnd": 160,
+    "minDamageMult": 0.8,
+    "pellets": 1,
+    "range": 220,
+    "magSize": 5,
+    "reserve": 30,
+    "reloadTime": 2.9,
+    "spreadHip": 6,
+    "spreadAds": 0.02,
+    "spreadMove": 3,
+    "spreadPerShot": 0,
+    "spreadRecovery": 6,
+    "maxSpread": 8,
+    "recoilPitch": 5.5,
+    "recoilYaw": 0.6,
+    "recoilPattern": [
+      [
+        0,
+        1
+      ]
+    ],
+    "adsZoom": 0.32,
+    "moveSpeedMult": 0.9,
+    "impulse": 18,
+    "tracer": "#ffffff",
+    "unlockLevel": 6,
+    "price": 2000,
+    "model": [
+      {
+        "shape": "box",
+        "size": [
+          0.07,
+          0.12,
+          0.62
+        ],
+        "pos": [
+          0,
+          0.03,
+          0.18
+        ],
+        "color": "body"
+      },
+      {
+        "shape": "cyl",
+        "size": [
+          0.035,
+          0.5,
+          0.035
+        ],
+        "pos": [
+          0,
+          0.05,
+          0.72
+        ],
+        "rot": [
+          1.5708,
+          0,
+          0
+        ],
+        "color": "grip"
+      },
+      {
+        "shape": "cyl",
+        "size": [
+          0.07,
+          0.24,
+          0.07
+        ],
+        "pos": [
+          0,
+          0.15,
+          0.14
+        ],
+        "rot": [
+          1.5708,
+          0,
+          0
+        ],
+        "color": "accent"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.06,
+          0.14,
+          0.26
+        ],
+        "pos": [
+          0,
+          -0.01,
+          -0.26
+        ],
+        "color": "accent"
+      },
+      {
+        "shape": "box",
+        "size": [
+          0.05,
+          0.1,
+          0.06
+        ],
+        "pos": [
+          0,
+          -0.06,
+          0.0
+        ],
+        "color": "grip"
+      }
+    ],
+    "muzzle": [
+      0,
+      0.05,
+      0.97
+    ]
+  }
+}

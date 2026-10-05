@@ -14,6 +14,7 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad
   - `scripts/e2e-touch.mjs` touch-only: taps menus, multi-touch drags the virtual sticks
   - `scripts/e2e-move.mjs` character controller checks on Proving Grounds
+  - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
@@ -84,8 +85,17 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Characters use `CharacterRig` with a `PartFactory`; `PartLibrary` instances share unit meshes and one
   material with per-instance colour, so any number of characters costs ~5 draw calls.
 - `PlayerController` runs in `fixedUpdate`; `Player.frameUpdate` interpolates, updates camera and animation.
-- Collision groups/masks/budgets live in `physics/groups.ts`. The player's character-controller body is also
-  its hit volume for enemy shots.
+- Collision groups/masks/budgets live in `physics/groups.ts`. Shots raycast with membership `PROJECTILE`
+  and a `collideWith` mask; hit volumes (`ai/hitboxes.ts`, `game/playerTarget.ts`) are ANIMATED bodies
+  registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
+
+## Combat
+- Weapon content is JSON (`config/weapons.json`), validated by `validateWeaponDefs`; maths in
+  `weapons/weaponStats.ts` (pure). Add a weapon: JSON entry + id in `WEAPON_IDS`.
+- `PlayerWeapons` (fixed step) owns fire/reload/swap/grenades; `Ballistics` owns rays and pooled swept
+  projectiles; `Explosions` queues detonations (never recursive); `Vfx` pools every effect.
+- Anything shootable implements `Damageable` and registers its bodies with `DamageRegistry`.
+- HUD (`ui/hud/hud.ts`) only writes DOM when a value changes; minimap redraws at 20 Hz.
 
 ## Performance budget (mid-range phone, 60fps)
 - Draw calls < 120 in combat. Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.

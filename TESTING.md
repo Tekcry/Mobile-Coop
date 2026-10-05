@@ -45,3 +45,20 @@ MFi / Bluetooth controller:
 - [ ] Hold LT / Aim: camera zooms in over the shoulder, character faces where you aim.
 - [ ] Back the camera into a wall: it moves in front of the wall instead of clipping through; the character hides if the camera gets too close.
 - [ ] FPS overlay stays at 58-60 while running around the map.
+
+## Phase 4 - Shooting and HUD (Main menu > Free roam)
+- [ ] Fire (touch Fire / RT): rifle fires automatically with tracers, muzzle flash and impact sparks/decals.
+- [ ] Hold Fire and drag on the touch Fire button: you can steer the aim while firing.
+- [ ] The crosshair widens when moving and while firing, tightens when aiming (ADS / LT); turns red over a target.
+- [ ] Hit markers flash on hits, yellow on headshots, red on kills. Targets fall over and stand up again after ~3 s.
+- [ ] Swap (⇄ / RB / LB) cycles rifle, SMG, shotgun, sniper, pistol; HUD name and ammo update.
+- [ ] Pistol, shotgun and sniper fire once per press; SMG and rifle are automatic.
+- [ ] Reload (touch ↻ / X) shows the ring around the crosshair and refills the magazine.
+- [ ] Sniper with ADS zooms strongly; distant target hit after a short travel time.
+- [ ] Grenade (touch grenade / d-pad up): arcs, bounces, blinks faster, explodes, pushes crates, shakes the camera.
+- [ ] Shoot a red barrel: it explodes; standing close damages you (red arc shows the direction, vignette at low health).
+- [ ] Shield (blue) recovers a few seconds after taking damage. At zero health: DOWN banner, respawn after 3 s.
+- [ ] Aim assist: Settings > Controller (or Touch) > Aim assist High vs Off - near a strafing target the aim slows and follows on High.
+- [ ] Controller rumbles on shots/explosions where supported. Phone vibrates lightly on touch buttons (Android).
+- [ ] Minimap rotates with the camera, red dots for targets; compass letters move as you turn.
+- [ ] FPS overlay stays near 60 while firing the SMG continuously and throwing grenades.

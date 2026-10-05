@@ -67,8 +67,9 @@ export class ShoulderCamera {
   kick(pitch: number, yaw: number): void {
     this.recoilPitch += pitch;
     this.recoilYaw += yaw;
-    this.pitch = Math.min(CAMERA_TUNING.maxPitch, this.pitch + pitch * 0.6);
-    this.yaw += yaw * 0.6;
+    // Most of the kick is transient (recovers); a small part climbs permanently.
+    this.pitch = Math.min(CAMERA_TUNING.maxPitch, this.pitch + pitch * 0.32);
+    this.yaw += yaw * 0.32;
   }
 
   shake(amount: number): void {

@@ -1,7 +1,7 @@
 /** Inline SVG icons (no external assets). 24x24 viewBox, stroke = currentColor. */
 const P: Record<string, string> = {
   fire: '<circle cx="12" cy="12" r="7"/><path d="M12 2v5M12 17v5M2 12h5M17 12h5"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/>',
-  ads: '<circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M1 12h4M19 12h4"/>',
+  ads: '<path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7S1 12 1 12z"/><circle cx="12" cy="12" r="3"/>',
   reload: '<path d="M20 12a8 8 0 1 1-2.3-5.7"/><path d="M20 4v5h-5"/>',
   jump: '<path d="M5 14l7-7 7 7"/><path d="M5 20l7-7 7 7"/>',
   crouch: '<path d="M5 4l7 7 7-7"/><path d="M5 10l7 7 7-7"/><path d="M4 21h16"/>',

@@ -42,6 +42,7 @@ export { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstr
 export { EngineInstrumentation } from '@babylonjs/core/Instrumentation/engineInstrumentation';
 export { ParticleSystem } from '@babylonjs/core/Particles/particleSystem';
 export { HavokPlugin } from '@babylonjs/core/Physics/v2/Plugins/havokPlugin';
+export type { PhysicsEngine } from '@babylonjs/core/Physics/v2/physicsEngine';
 export { PhysicsAggregate } from '@babylonjs/core/Physics/v2/physicsAggregate';
 export { PhysicsBody } from '@babylonjs/core/Physics/v2/physicsBody';
 export {

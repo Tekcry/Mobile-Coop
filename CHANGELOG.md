@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.4.0 - Phase 4: Shooting and HUD
+- Data-driven weapons (`config/weapons.json`, validated on load): pistol, SMG, assault rifle, shotgun
+  (9 pellets), sniper (swept-ray projectile with drop), plus frag grenade (`config/grenade.json`).
+  Per-weapon fire rate, fire mode, spread (hip/ADS/move/bloom), recoil pattern, damage falloff, head
+  multiplier, magazine, reserve, reload time, ADS zoom, move speed, impulse, primitive model parts.
+- Pure stats maths (`weapons/weaponStats.ts`): upgrade tracks (damage, magazine, recoil, reload), falloff,
+  spread, recoil pattern, DPS. Unit-tested, including balance invariants.
+- Hit detection: crosshair ray from the player's depth along the camera, then muzzle-to-aim-point ray;
+  shoulder-to-muzzle check so cover in front of the barrel is respected. Head and body hit volumes.
+- Damage registry, health + regenerating shield, explosions with line-of-sight and falloff, explosive
+  barrels (chain reactions queued), prop impulses, player death and respawn.
+- Aim assist (friction, magnetism, ADS snap) for controller and touch, levels Off/Low/Standard/High.
+- Recoil (mostly transient with recovery), camera shake on firing/explosions, controller rumble.
+- Pooled instanced VFX: tracers, muzzle flash, sparks, dust, bullet decals, explosions.
+- HUD: health/shield, ammo + grenades, dynamic crosshair (spread, on-target), hit/headshot/kill markers,
+  reload ring, damage direction arcs, low-health vignette, compass with markers, rotating minimap,
+  objective line, banner, interact prompt, feed.
+- Sandbox mode: all five weapons, infinite reserve, training dummies (static and strafing) that respawn.
+- `scripts/e2e-combat.mjs`.
+
 ## 0.3.0 - Phase 3: Player, camera, test map
 - Havok `PhysicsCharacterController` player: walk/sprint/crouch/roll/jump, slopes up to ~50°, ray-probe step
   assist for steps up to 0.42 m (Havok's own step-up needs the sweep to clear the capsule radius), ground

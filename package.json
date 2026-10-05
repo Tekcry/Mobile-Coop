@@ -11,7 +11,8 @@
     "lint": "eslint .",
     "test": "vitest run",
     "icons": "node scripts/gen-icons.mjs",
-    "e2e": "node scripts/run-e2e.mjs"
+    "e2e": "node scripts/run-e2e.mjs",
+    "check": "npm run lint && npm test && npm run build"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

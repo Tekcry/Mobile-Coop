@@ -58,7 +58,7 @@ export class Player {
       crouchPressed: inp.pressed('crouch'),
       crouchHeld: inp.down('crouch'),
       crouchToggle: s.gameplay.crouchToggle,
-      sprint: inp.down('sprint'),
+      sprint: inp.down('sprint') && !inp.down('fire'),
       ads: this.ads,
       aimLock: this.aimLockTimer > 0 || inp.down('fire'),
     };

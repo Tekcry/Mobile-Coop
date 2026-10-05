@@ -19,6 +19,7 @@ try {
   assert(true, 'back button closes settings');
   await page.locator('.btn', { hasText: 'Free roam' }).tap();
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 20000 });
+  await page.evaluate(() => window.__app.settings.update((s) => { s.touch.aimAssist = 'off'; }));
   await frames(page, 5);
   assert(await page.evaluate(() => document.querySelector('.touch-layer')?.hidden === false), 'touch controls visible');
   const vp = page.viewportSize();
