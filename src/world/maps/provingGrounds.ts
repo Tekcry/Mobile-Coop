@@ -56,6 +56,10 @@ export const provingGrounds: MapDef = {
     b.pillar(6, 6, 0.5, 4, C.concrete);
     b.pillar(-14, -6, 0.6, 4, C.concrete);
     b.pillar(14, -6, 0.6, 4, C.concrete);
+    // close-quarters lane (north west): a wall with a 1.1 m doorway, and a free-standing wall corner
+    b.wall(-27, 8, -20.55, 8, 3, C.wall);
+    b.wall(-19.45, 8, -14, 8, 3, C.wall);
+    b.wall(-16, 0.5, -16, 5, 3, C.wallDark);
     // L-shaped building shell (south east) with doorway
     b.wall(12, -18, 24, -18, 3.2, C.wall);
     b.wall(24, -18, 24, -26, 3.2, C.wall);

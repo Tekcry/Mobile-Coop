@@ -36,6 +36,7 @@ import type { QualityLevel } from '../core/quality';
 import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import { TraversalController } from '../player/traversal';
+import { CornerController } from '../cover/cornerController';
 import { noiseRadius } from '../player/movement';
 
 export type { ModeId };
@@ -101,6 +102,7 @@ export class GameState implements AppState {
   readonly minimap: Minimap;
   readonly cover: CoverController;
   readonly traversal: TraversalController;
+  readonly corners: CornerController;
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
   private noiseT = 0;
@@ -161,6 +163,7 @@ export class GameState implements AppState {
     this.hud = new Hud(app.uiRoot);
     this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.traversal = new TraversalController(this.scene, this.player);
+    this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
 
@@ -456,6 +459,7 @@ export class GameState implements AppState {
     if (this.player.rig.emote && (Math.hypot(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
     if (!this.traversal.active) this.cover.fixedUpdate(dt, inp);
     this.traversal.fixedUpdate(dt, inp.pressed('jump'), this.cover.state !== 'none');
+    this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.weapons.spreadMul = this.cover.spreadMul;
     this.player.fixedUpdate(dt, inp);
     this.target.sync();
@@ -493,6 +497,7 @@ export class GameState implements AppState {
         const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
         this.cover.reset();
         this.traversal.reset();
+        this.corners.reset();
         this.player.controller.teleport(sp, this.player.cam.yaw);
         this.target.revive();
         // brief spawn protection
@@ -579,8 +584,9 @@ export class GameState implements AppState {
     const o = cam.camera.position;
     const hit = this.ballistics.ray(o, o.add(cam.forward.scale(w.def.range)), MASK.PLAYER_SHOT);
     this.onTarget = !!(hit.target && hit.target.alive && hit.target.team === 'enemy');
-    const hfov = cam.camera.fov;
-    const spreadPx = (Math.tan((this.weapons.currentSpread() * Math.PI) / 180) / Math.tan(hfov / 2)) * (window.innerWidth / 2);
+    // vertical FOV is fixed (Hor+): scale the spread by the half-height of the view
+    const vfov = cam.camera.fov;
+    const spreadPx = (Math.tan((this.weapons.currentSpread() * Math.PI) / 180) / Math.tan(vfov / 2)) * (window.innerHeight / 2);
     const th = this.target.health;
     const f: HudFrame = {
       hp: th.hp,

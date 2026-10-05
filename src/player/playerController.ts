@@ -93,8 +93,11 @@ export class PlayerController {
   private crouchToggled = false;
   /** Disable movement (dead, cutscene, menus). */
   frozen = false;
-  /** External speed multiplier (e.g. weapon weight). */
+  /** External speed multipliers: weapon handling, and stance (leaning: hips planted). */
   speedMul = 1;
+  stanceMul = 1;
+  /** Gentle world-space velocity bias (m/s) added to free movement (slicing-the-pie standoff). */
+  readonly steer = { x: 0, z: 0 };
 
   constructor(
     private scene: Scene,
@@ -260,15 +263,15 @@ export class PlayerController {
     const lx = mag > 0 ? (this.wish.x * bc - this.wish.z * bs) / mag : 0;
     const lz = mag > 0 ? (this.wish.x * bs + this.wish.z * bc) / mag : 1;
     const stance: Stance = ov ? 'cover' : input.reloading ? 'reload' : this.crouched ? 'crouch' : input.ads || input.aiming ? 'ads' : 'stand';
-    let speedTarget = targetSpeed(mag, stance, lx, lz, briskK) * this.speedMul;
+    let speedTarget = targetSpeed(mag, stance, lx, lz, briskK) * this.speedMul * this.stanceMul;
     // controlled pivot: a big reversal at speed slows the body while it turns round
     if (!this.dash.dashing && !ov && this.pivotT <= 0 && needsPivot(this.yaw, camYaw, this.speed)) this.pivotT = T.pivotTime;
     this.pivotT = Math.max(0, this.pivotT - dt);
     if (this.pivotT > 0) speedTarget *= 0.35;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.creepSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
-    let tx = this.wish.x * inv;
-    let tz = this.wish.z * inv;
+    let tx = this.wish.x * inv + (mag > 0.1 ? this.steer.x : 0);
+    let tz = this.wish.z * inv + (mag > 0.1 ? this.steer.z : 0);
     if (this.dash.dashing) {
       const ds = T.walkSpeed + (T.dashSpeed - T.walkSpeed) * this.dash.blend;
       tx = this.dashDir.x * ds;

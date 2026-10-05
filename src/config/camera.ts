@@ -14,8 +14,9 @@ export const CAMERA = {
   /** Pivot (spine top) height above the feet: standing / crouched (m). */
   pivotStand: 1.6,
   pivotCrouch: 1.12,
-  /** Camera height above the pivot (m). */
-  height: 0.1,
+  /** Camera height relative to the pivot (m): just below the head, so the head and shoulders sit in
+   *  the upper left of the frame. */
+  height: -0.12,
   /** Dash: slightly wider framing (extra boom, m). */
   dashBoom: 0.25,
   /** Lean: the shoulder point follows the leaning upper body (m at full lean). */

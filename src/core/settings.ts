@@ -56,7 +56,8 @@ export interface Settings {
     quality: QualityPreset;
     renderScale: number;
     shadows: boolean;
-    fov: number;
+    /** Horizontal FOV (degrees) at a 16:9 reference; wider screens see more at the sides (Hor+). */
+    fovH: number;
     showFps: boolean;
   };
   audio: { master: number; sfx: number; music: number; ui: number };
@@ -105,7 +106,7 @@ export function defaultSettings(): Settings {
       vibration: true,
     },
     mouse: { sensitivity: 1, invertY: false },
-    video: { quality: 'auto', renderScale: 1, shadows: true, fov: 90, showFps: false },
+    video: { quality: 'auto', renderScale: 1, shadows: true, fovH: 75, showFps: false },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, autoCover: false, coverDash: false },
   };
@@ -171,7 +172,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       quality: pick(v.quality, QUALITY, d.video.quality),
       renderScale: num(v.renderScale, d.video.renderScale, 0.5, 1),
       shadows: bool(v.shadows, d.video.shadows),
-      fov: num(v.fov, d.video.fov, 70, 110),
+      fovH: num(v.fovH, d.video.fovH, 60, 100),
       showFps: bool(v.showFps, d.video.showFps),
     },
     audio: {

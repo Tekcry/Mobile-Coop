@@ -124,7 +124,7 @@ export class SettingsScreen extends Screen {
             choice('Quality', QUALITY_OPTS, () => s().video.quality, (v) => upd((d) => void (d.video.quality = v))),
             slider('Render scale', { min: 0.5, max: 1, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
             toggle('Shadows', () => s().video.shadows, (v) => upd((d) => void (d.video.shadows = v))),
-            slider('Field of view (horizontal)', { min: 70, max: 110, step: 1, get: () => s().video.fov, set: (v) => upd((d) => void (d.video.fov = v)), format: (v) => `${v}°` }),
+            slider('Field of view (horizontal, 16:9)', { min: 60, max: 100, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
             toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
             button('Enter fullscreen', () => void enterFullscreenLandscape(), { class: 'subtle' }),
             resetBtn('video', 'video'),

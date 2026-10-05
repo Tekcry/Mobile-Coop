@@ -5,6 +5,11 @@ import { CAMERA, framing } from '../config/camera';
 import type { CharacterRig } from './characterRig';
 import { springStep } from '../anim/rigMath';
 
+/** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
+export function vfovFromH16x9(hDeg: number): number {
+  return 2 * Math.atan(Math.tan((hDeg * Math.PI) / 360) * (9 / 16));
+}
+
 /** Kept for older callers: the framing values now live in `config/camera.ts`. */
 export const CAMERA_TUNING = {
   get pivotHeightStand(): number {
@@ -37,7 +42,7 @@ export class ShoulderCamera {
   adsTarget = 0;
   /** FOV multiplier while fully ADS (weapon zoom). */
   adsZoom = 0.75;
-  baseFovDeg = 90;
+  baseFovDeg = CAMERA.fov;
   private boom = CAMERA.boomHip;
   /** State nudges set by the player each frame. */
   crouch = 0;
@@ -77,7 +82,9 @@ export class ShoulderCamera {
     this.camera = new FreeCamera('ots', new Vector3(0, 2, -4), scene);
     this.camera.minZ = 0.05;
     this.camera.maxZ = 220;
-    this.camera.fovMode = Camera.FOVMODE_HORIZONTAL_FIXED;
+    // Hor+: the vertical FOV is fixed from the horizontal setting at 16:9, so tall framing (head to
+    // hips) holds on any aspect and ultra-wide phones simply see more at the sides
+    this.camera.fovMode = Camera.FOVMODE_VERTICAL_FIXED;
     this.camera.inputs.clear();
     scene.activeCamera = this.camera;
   }
@@ -188,7 +195,7 @@ export class ShoulderCamera {
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     const zoom = 1 + (this.adsZoom - 1) * this.ads;
-    this.camera.fov = ((this.baseFovDeg * Math.PI) / 180) * zoom;
+    this.camera.fov = vfovFromH16x9(this.baseFovDeg) * zoom;
   }
 
   /**

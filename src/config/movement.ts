@@ -55,7 +55,7 @@ export const MOVEMENT = {
   maxStep: 0.42,
   /** Camera spring frequencies (rad/s). */
   camFollow: 24,
-  camShoulder: 11,
+  camShoulder: 16,
   camAds: 14,
 };
 
