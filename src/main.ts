@@ -7,7 +7,7 @@ import { flags } from './core/flags';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { SettingsScreen } from './ui/screens/settingsScreen';
-import { GameState, type GameOptions } from './game/gameState';
+import { GameState, type GameOptions, type SessionCallbacks } from './game/gameState';
 import { getMap } from './world/maps';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
@@ -83,7 +83,30 @@ async function boot(): Promise<void> {
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 
-  const startGame = (base: GameOptions): void => {
+  // Coop is optional and isolated: only reached through a dynamic import behind the flag.
+  const coopApi = {
+    startGame: (o: GameOptions, cb: SessionCallbacks) => startGame(o, cb),
+    goToMenu,
+    profile: () => {
+      const sv = app.save.get();
+      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar };
+    },
+  };
+  const loadCoop = () => import('./net/coopUi');
+  if (flags.coop) {
+    MainMenuScreen.entries.push((a) => ({
+      label: 'Co-op',
+      sub: navigator.onLine ? '2-4 players · Room code' : 'Offline',
+      icon: 'wifi',
+      order: 15,
+      action: () =>
+        void loadCoop()
+          .then((m) => m.openCoop(a, coopApi))
+          .catch(() => a.toasts.show('Co-op unavailable', 'warn')),
+    }));
+  }
+
+  const startGame = (base: GameOptions, cbOverride?: SessionCallbacks): void => {
     const sv = app.save.get();
     const skin = (_w: string, camo: string): { colors: ReturnType<typeof camoById>['colors']; pattern?: ReturnType<typeof camoById>['pattern'] } => {
       const c = camoById(camo);
@@ -93,18 +116,23 @@ async function boot(): Promise<void> {
     app.screens.clear();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
-    void GameState.create(app, opts, { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
+    void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
       .then((st) => app.setState(st))
       .catch((e: unknown) => {
         console.error(e);
         app.toasts.show('Failed to load map', 'warn');
-        goToMenu();
+        if (cbOverride) cbOverride.quit();
+        else goToMenu();
       })
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
 
   if (flags.autostart) startGame({ map: getMap(flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1 });
   else goToMenu();
+  if (flags.coop && flags.room && !flags.autostart) {
+    const room = flags.room;
+    void loadCoop().then((m) => m.openJoinLink(app, coopApi, room));
+  }
   app.start();
 
   // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.

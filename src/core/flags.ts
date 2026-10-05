@@ -6,6 +6,10 @@ export interface Flags {
   autostart: string | null;
   /** Mode for autostart: sandbox | wave | mission. */
   mode: 'sandbox' | 'wave' | 'mission' | null;
+  /** Coop room code from a share link (?room=CODE). */
+  room: string | null;
+  /** Coop transport: 'local' = BroadcastChannel between tabs (tests), default WebRTC. */
+  net: 'local' | 'webrtc';
 }
 
 function readParams(): URLSearchParams {
@@ -23,4 +27,6 @@ export const flags: Flags = {
   debug: params.get('debug') === '1',
   autostart: params.get('autostart'),
   mode: (['sandbox', 'wave', 'mission'] as const).find((m) => m === params.get('mode')) ?? null,
+  room: params.get('room'),
+  net: params.get('net') === 'local' ? 'local' : 'webrtc',
 };
