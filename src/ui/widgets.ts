@@ -9,8 +9,13 @@ export interface ButtonOpts {
   class?: string;
   autofocus?: boolean;
   disabled?: boolean;
+  /** Focusable but inactive; pressing it explains why (locked items, not enough credits). */
+  blocked?: string;
   sub?: string;
 }
+
+/** App-level hooks for widgets (set once by the app). */
+export const uiHooks = { blocked: (_msg: string): void => {} };
 
 export function button(label: string, onClick: () => void, opts: ButtonOpts = {}): HTMLButtonElement {
   const b = h('button', { class: `btn ${opts.class ?? ''}`, focus: true });
@@ -20,8 +25,14 @@ export function button(label: string, onClick: () => void, opts: ButtonOpts = {}
   if (opts.sub) b.append(h('span', { class: 'btn-sub', text: opts.sub }));
   if (opts.autofocus) b.dataset.autofocus = '';
   if (opts.disabled) b.disabled = true;
+  if (opts.blocked) b.classList.add('blocked');
   b.addEventListener('click', () => {
-    if (!b.disabled) onClick();
+    if (b.disabled) return;
+    if (opts.blocked) {
+      uiHooks.blocked(opts.blocked);
+      return;
+    }
+    onClick();
   });
   return b;
 }

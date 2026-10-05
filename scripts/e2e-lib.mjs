@@ -9,7 +9,7 @@ export async function launch({ url = 'http://localhost:4173/', params = '', touc
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
   });
   const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
-  const ctx = await browser.newContext(touch ? { ...dev } : { viewport: { width: 1280, height: 640 } });
+  const ctx = await browser.newContext({ ...(touch ? { ...dev } : { viewport: { width: 1280, height: 640 } }), acceptDownloads: true });
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => {

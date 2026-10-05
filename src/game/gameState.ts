@@ -116,7 +116,7 @@ export class GameState implements AppState {
         this.stats.weaponKills[weapon] = (this.stats.weaponKills[weapon] ?? 0) + 1;
       }
     };
-    this.weapons.events.onShot = () => this.enemyMgr?.noise(this.player.position, 28);
+    this.weapons.events.onShot = () => this.enemyMgr?.noise(this.player.position, 28 * this.weapons.current.stats.noise);
     this.target.onDamaged = (h, dealt) => {
       this.stats.damageTaken += dealt;
       const bearing = Math.atan2(h.sourcePos.x - this.player.position.x, h.sourcePos.z - this.player.position.z);
@@ -139,7 +139,7 @@ export class GameState implements AppState {
         this.stats.kills++;
         this.stats.byKind[e.def.kind]++;
         if (h.part === 'head') this.stats.headshots++;
-        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}`, 'kill');
+        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}  +${e.def.xp} XP`, 'kill');
         this.mode?.onEnemyKilled(e, h);
       };
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);

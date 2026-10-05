@@ -32,15 +32,17 @@ export function pickSpatial(from: Rect, candidates: readonly Rect[], dir: Dir): 
     const centreAlong = (ccx - fcx) * dx + (ccy - fcy) * dy;
     if (centreAlong <= 1) continue;
     along = Math.max(0, along);
-    let perp: number;
+    // gap between the rects on the perpendicular axis (0 when they overlap)
+    let perpGap: number;
+    let centrePerp: number;
     if (dx !== 0) {
-      const overlap = Math.min(from.y + from.h, c.y + c.h) - Math.max(from.y, c.y);
-      perp = overlap > 0 ? 0 : Math.abs(ccy - fcy);
+      perpGap = Math.max(0, Math.max(from.y, c.y) - Math.min(from.y + from.h, c.y + c.h));
+      centrePerp = Math.abs(ccy - fcy);
     } else {
-      const overlap = Math.min(from.x + from.w, c.x + c.w) - Math.max(from.x, c.x);
-      perp = overlap > 0 ? 0 : Math.abs(ccx - fcx);
+      perpGap = Math.max(0, Math.max(from.x, c.x) - Math.min(from.x + from.w, c.x + c.w));
+      centrePerp = Math.abs(ccx - fcx);
     }
-    const score = along + perp * 3 + Math.abs(dx !== 0 ? ccy - fcy : ccx - fcx) * 0.05;
+    const score = along + perpGap * 8 + centrePerp * 0.1;
     if (score < bestScore) {
       bestScore = score;
       best = i;

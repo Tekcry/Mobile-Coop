@@ -45,3 +45,12 @@ describe('settings sanitising', () => {
     expect(s.audio.music).toBe(0.25);
   });
 });
+
+describe('spatial focus: multi-column panels', () => {
+  it('moves down to a slightly offset button instead of a far, wide row', () => {
+    const from = { x: 539, y: 130, w: 118, h: 44 };
+    const upgrade = { x: 680, y: 215, w: 144, h: 36 };
+    const wideRow = { x: 383, y: 472, w: 456, h: 48 };
+    expect(pickSpatial(from, [wideRow, upgrade], 'down')).toBe(1);
+  });
+});

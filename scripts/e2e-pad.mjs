@@ -47,7 +47,7 @@ try {
   assert(/Vertical/.test(await focusedText(page)), 'left stick moves focus down');
   await press(page, BTN.LB);
   await press(page, BTN.LB);
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Gameplay', 'LB wraps tabs backwards');
+  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Data', 'LB wraps tabs backwards');
   await press(page, BTN.B);
   assert(!(await q('.settings-screen')), 'B closes settings');
   assert(/Settings/.test(await focusedText(page)), 'focus restored to Settings');

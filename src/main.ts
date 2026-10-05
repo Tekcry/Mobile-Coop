@@ -10,6 +10,13 @@ import { GameState, type GameOptions } from './game/gameState';
 import { getMap } from './world/maps';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
+import { ArmoryScreen } from './ui/screens/armoryScreen';
+import { StoreScreen } from './ui/screens/storeScreen';
+import { profileBadge } from './ui/screens/profileBadge';
+import { rewardsPanel } from './ui/screens/rewardsPanel';
+import { dataTab } from './ui/screens/dataTab';
+import { extraSettingsTabs } from './ui/screens/settingsScreen';
+import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -29,6 +36,16 @@ async function boot(): Promise<void> {
 
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();
+  setBoot(0.25, 'Loading profile…');
+  await app.save.load();
+  app.save.update((d) => void autoGrant(d));
+  extraSettingsTabs.push(dataTab);
+  GameState.rewardHook = async (stats, opts) => {
+    let report: SessionReport | null = null;
+    app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
+    await app.save.flush();
+    return report ? rewardsPanel(report) : null;
+  };
   if (flags.debug) app.debug.toggle(true);
   void requestPersistence();
 
@@ -39,7 +56,9 @@ async function boot(): Promise<void> {
   const goToMenu = (): void => {
     app.screens.clear();
     app.setState(new MenuState(app.engine));
-    app.screens.push(new MainMenuScreen(app));
+    const menu = new MainMenuScreen(app);
+    menu.badge.append(profileBadge(app));
+    app.screens.push(menu);
   };
 
   MainMenuScreen.entries.push(
@@ -50,14 +69,18 @@ async function boot(): Promise<void> {
       order: 10,
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
+    (a) => ({ label: 'Armory', sub: 'Loadout · Upgrades', icon: 'gun', order: 20, action: () => a.screens.push(new ArmoryScreen(a)) }),
+    (a) => ({ label: 'Store', sub: 'Unlocks', icon: 'trophy', order: 30, action: () => a.screens.push(new StoreScreen(a)) }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 
-  const startGame = (opts: GameOptions): void => {
+  const startGame = (base: GameOptions): void => {
+    const sv = app.save.get();
+    const opts: GameOptions = { ...base, loadout: base.loadout ?? loadoutEntries(sv, base.mode), look: base.look ?? sv.avatar };
     app.screens.clear();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
-    void GameState.create(app, opts, { quit: goToMenu, restart: () => startGame({ ...opts, seed: opts.seed + 1 }) })
+    void GameState.create(app, opts, { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
       .then((st) => app.setState(st))
       .catch((e: unknown) => {
         console.error(e);

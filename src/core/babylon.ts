@@ -5,7 +5,7 @@
  */
 export { Engine } from '@babylonjs/core/Engines/engine';
 export { Scene } from '@babylonjs/core/scene';
-export { Vector3, Vector2, Quaternion, Matrix, TmpVectors } from '@babylonjs/core/Maths/math.vector';
+export { Vector3, Vector2, Vector4, Quaternion, Matrix, TmpVectors } from '@babylonjs/core/Maths/math.vector';
 export { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 export { Scalar } from '@babylonjs/core/Maths/math.scalar';
 export { Ray } from '@babylonjs/core/Culling/ray';
@@ -20,6 +20,8 @@ export { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator'
 export { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 export { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 export { Material } from '@babylonjs/core/Materials/material';
+export { MaterialPluginBase } from '@babylonjs/core/Materials/materialPluginBase';
+export type { MaterialDefines } from '@babylonjs/core/Materials/materialDefines';
 export { Texture } from '@babylonjs/core/Materials/Textures/texture';
 export { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 export { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';

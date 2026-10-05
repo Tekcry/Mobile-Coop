@@ -16,6 +16,7 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/e2e-move.mjs` character controller checks on Proving Grounds
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
+  - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
@@ -108,6 +109,17 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   interactables and calls mode hooks. `GameState.endSession` shows results; `GameState.rewardHook` lets
   progression add rewards.
 - `?autostart=<mapId>&mode=<sandbox|wave|mission>` boots straight into a match (dev/tests).
+
+## Progression and saves
+- Pure maths in `progression/` (levels, rewards, upgrades, attachments, unlocks, profile ops). UI calls
+  `app.save.update(d => op(d, ...))`; `SaveManager` sanitises, debounces and persists to IndexedDB.
+- Save schema: `save/schema.ts` (`SAVE_VERSION`). Changing the shape = bump the version, add a
+  migration in `save/migrations.ts` (input is the previous version's raw object), extend `sanitizeSave`,
+  and add a test in `tests/save.test.ts` with a literal old save.
+- Export format: `{ magic: 'shoulder-strike-save', version, exportedAt, data }`; import also accepts bare
+  saves of any known version.
+- New unlockables: add to `UNLOCKS` (or `registerUnlocks` from another module) with an id prefix
+  (`weapon:`, `att:`, `camo:`, `part:`, `pattern:`, `emote:`, `tag:`, `color:`).
 
 ## Performance budget (mid-range phone, 60fps)
 - Draw calls < 120 in combat. Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.

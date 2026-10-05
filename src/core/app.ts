@@ -8,7 +8,9 @@ import { ScreenManager } from '../ui/screen';
 import { Toasts } from '../ui/toast';
 import { DebugOverlay } from '../ui/debugOverlay';
 import { dbGet, dbPut } from '../save/db';
+import { SaveManager } from '../save/saveManager';
 import { h } from '../ui/dom';
+import { uiHooks } from '../ui/widgets';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -32,6 +34,8 @@ export class App {
   readonly toasts: Toasts;
   readonly debug: DebugOverlay;
   readonly uiRoot: HTMLElement;
+  /** Player profile (IndexedDB, versioned). */
+  readonly save = new SaveManager();
   private state: AppState | null = null;
   private time = 0;
 
@@ -46,6 +50,7 @@ export class App {
     this.screens = new ScreenManager(screensEl, this.nav);
     this.input = new InputManager(canvas, this.uiRoot, this.settings);
     this.toasts = new Toasts(this.uiRoot);
+    uiHooks.blocked = (msg) => this.toasts.show(msg, 'warn', 1800);
 
     this.input.events.on('padConnected', ({ id }) => this.toasts.show(`Controller connected: ${shortPadName(id)}`, 'ok'));
     this.input.events.on('padDisconnected', () => this.toasts.show('Controller disconnected', 'warn'));

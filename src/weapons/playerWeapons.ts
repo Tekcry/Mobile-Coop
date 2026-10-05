@@ -9,11 +9,12 @@ import type { Grenades } from './grenades';
 import type { Vfx } from '../vfx/vfx';
 import { GRENADE, WEAPONS, type WeaponDef, type WeaponId } from './weaponDefs';
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
-import { computeStats, damageAt, recoilKick, sampleSpread, spreadDeg, NO_UPGRADES, type EffectiveStats, type WeaponUpgrades } from './weaponStats';
+import { computeStats, damageAt, recoilKick, sampleSpread, spreadDeg, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 
 export interface LoadoutEntry {
   id: WeaponId;
   upgrades?: WeaponUpgrades;
+  mods?: StatMods;
   colors?: WeaponColors;
 }
 
@@ -72,7 +73,7 @@ export class PlayerWeapons {
   ) {
     for (const e of loadout) {
       const def = WEAPONS[e.id];
-      const stats = computeStats(def, e.upgrades ?? NO_UPGRADES);
+      const stats = computeStats(def, e.upgrades ?? NO_UPGRADES, e.mods);
       const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot);
       for (const m of model.parts) world.addShadowCaster(m);
       model.setVisible(false);
@@ -110,7 +111,7 @@ export class PlayerWeapons {
     this.slots.forEach((s, j) => s.model.setVisible(j === i));
     this.index = i;
     const d = this.current.def;
-    this.player.cam.adsZoom = d.adsZoom;
+    this.player.cam.adsZoom = this.current.stats.adsZoom;
     this.player.controller.speedMul = d.moveSpeedMult;
   }
 

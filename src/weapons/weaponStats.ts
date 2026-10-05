@@ -19,7 +19,24 @@ export const UPGRADE_EFFECT = {
   reload: 0.07,
 } as const;
 
+/** Multiplicative modifiers from attachments (all 1 = none). */
+export interface StatMods {
+  damage: number;
+  magSize: number;
+  recoil: number;
+  spreadHip: number;
+  spreadAds: number;
+  adsZoom: number;
+  reload: number;
+  noise: number;
+}
+
+export const NO_MODS: StatMods = { damage: 1, magSize: 1, recoil: 1, spreadHip: 1, spreadAds: 1, adsZoom: 1, reload: 1, noise: 1 };
+
 export interface EffectiveStats {
+  adsZoom: number;
+  /** Gunfire noise radius multiplier (suppressors). */
+  noise: number;
   damage: number;
   magSize: number;
   reloadTime: number;
@@ -33,21 +50,23 @@ export interface EffectiveStats {
 const clampLvl = (n: number): number => Math.max(0, Math.min(MAX_UPGRADE, Math.floor(n || 0)));
 
 /** Base stats with upgrades applied. Pure and deterministic (tested). */
-export function computeStats(def: WeaponDef, up: WeaponUpgrades = NO_UPGRADES): EffectiveStats {
+export function computeStats(def: WeaponDef, up: WeaponUpgrades = NO_UPGRADES, mods: StatMods = NO_MODS): EffectiveStats {
   const d = clampLvl(up.damage);
   const m = clampLvl(up.magazine);
   const r = clampLvl(up.recoil);
   const l = clampLvl(up.reload);
   const magBonus = m === 0 ? 0 : Math.max(m, Math.round(def.magSize * UPGRADE_EFFECT.magazine * m));
   return {
-    damage: def.damage * (1 + UPGRADE_EFFECT.damage * d),
-    magSize: def.magSize + magBonus,
-    reloadTime: def.reloadTime * (1 - UPGRADE_EFFECT.reload * l),
-    recoilPitch: def.recoilPitch * (1 - UPGRADE_EFFECT.recoil * r),
-    recoilYaw: def.recoilYaw * (1 - UPGRADE_EFFECT.recoil * r),
+    damage: def.damage * (1 + UPGRADE_EFFECT.damage * d) * mods.damage,
+    magSize: Math.max(1, Math.round((def.magSize + magBonus) * mods.magSize)),
+    reloadTime: def.reloadTime * (1 - UPGRADE_EFFECT.reload * l) * mods.reload,
+    recoilPitch: def.recoilPitch * (1 - UPGRADE_EFFECT.recoil * r) * mods.recoil,
+    recoilYaw: def.recoilYaw * (1 - UPGRADE_EFFECT.recoil * r) * mods.recoil,
     fireInterval: 60 / def.rpm,
-    spreadHip: def.spreadHip,
-    spreadAds: def.spreadAds,
+    spreadHip: def.spreadHip * mods.spreadHip,
+    spreadAds: def.spreadAds * mods.spreadAds,
+    adsZoom: def.adsZoom * mods.adsZoom,
+    noise: mods.noise,
   };
 }
 

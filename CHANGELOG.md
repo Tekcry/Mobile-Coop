@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.0 - Phase 6: Progression, unlocks, upgrades, saves
+- XP and levels (1-50, quadratic curve), credits, level-up bonus credits (`progression/levels.ts`).
+- Match rewards from kills by type, headshots, waves/objectives, victory, accuracy, difficulty
+  multiplier; clamped against bad input (`progression/rewards.ts`).
+- Weapon mastery from kills (5 levels). Upgrade trees per weapon: damage, magazine, recoil, reload
+  (5 levels each, credit cost scaled by weapon tier, player-level gates).
+- Attachments (optic, barrel, underbarrel, magazine; 8 total) as multiplicative stat modifiers,
+  one per slot, weapon compatibility rules. Suppressor reduces gunfire alert radius.
+- Unlock tables (`progression/unlocks.ts`) for weapons and attachments with level/mastery/price
+  requirements; free items auto-granted; extensible for cosmetics.
+- Save system: IndexedDB profile with versioned schema (v3), migrations from v1/v2, sanitiser that
+  repairs tampered values, automatic backups before migrations/imports/resets (last 3 kept),
+  export to a JSON file (share sheet on mobile, download elsewhere) and import with confirmation.
+- UI: profile badge (level, XP bar, credits, tag), Armory (loadout, stat bars with upgrade deltas,
+  upgrade tree, attachment slots, mastery), Store (unlock catalogue by category), rewards breakdown
+  with animated XP bar and level-up/unlock notices, Settings > Data tab.
+- Locked/unaffordable buttons stay focusable for controllers and explain why when pressed.
+- Spatial navigation scoring uses edge gaps (more reliable in multi-column screens).
+- `scripts/e2e-progression.mjs`.
+
 ## 0.5.0 - Phase 5: Enemies, AI, modes, second map
 - Nav grid (`ai/navGrid.ts`, pure): heights sampled from Havok at load, walls/cover/pillars rasterised
   analytically with agent radius, step-height connectivity, unreachable islands pruned. A* with string

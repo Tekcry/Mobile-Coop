@@ -75,3 +75,15 @@ MFi / Bluetooth controller:
 - [ ] Mission deaths respawn you at the last objective with a lives counter.
 - [ ] Minimap/compass show objective markers (yellow) and pickups (green).
 - [ ] FPS stays above ~55 with 8-10 enemies fighting.
+
+## Phase 6 - Progression and saves
+- [ ] Main menu badge shows level 1, 0 XP, 500 cr on a fresh install.
+- [ ] Armory: LB/RB (or tap tabs) cycles weapons; locked weapons show their requirement; pressing a locked button explains why.
+- [ ] Buy a rifle Damage upgrade: credits drop, a pip lights, the Damage/DPS bars grow (green delta).
+- [ ] Play a Wave match, get kills, die: results list XP/credit lines, the XP bar animates, level-ups and new Store items are announced.
+- [ ] Store: after reaching level 2, the SMG is buyable; buy it and equip it as primary in the Armory; next match starts with it.
+- [ ] Buy an attachment (e.g. Red Dot at level 2) in the Store, then fit it in Armory > Attachments.
+- [ ] Close the app completely and reopen (also offline): level, credits, unlocks and loadout are kept.
+- [ ] Settings > Data > Export save file: on iPhone/Android the share sheet appears (save to Files/Drive); on desktop a .json downloads.
+- [ ] Settings > Data > Import save file: pick the exported file, confirm, progress is restored.
+- [ ] Settings > Data > Reset all progress: confirm dialog, then a fresh profile.
