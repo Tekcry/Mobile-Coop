@@ -185,6 +185,38 @@ Combat around cover (Wave match):
 Debug overlay:
 - [ ] Lines for player (stance, dash, stamina, pivot), carry (ready weights, raise, weight), cover (state, facing, swaps, lean, quality, traversal, doorway), combat (exposure, suppression, noise) and anim (state + layer weights; "!limit" flags a pose that tried to snap). The small trace graph shows the weapon bob (should stay near flat while walking). Tune has movement, camera and weapon-carry sliders.
 
+## Cinematic update (1.2.0) - Proving Grounds, Warehouse, then a Clear run
+Use the debug overlay (F3 / 3-finger tap): Skeleton shows foot contacts (green planted, orange swinging), the
+slow-motion button reviews blends at 0.5x / 0.25x.
+Pace and weight:
+- [ ] Pushing the stick: a visible weight shift before the first step, then up to a walk over about a second. Letting go: one or two settling steps over ~0.6 s, no sliding. Nothing feels floaty or instant.
+- [ ] Walk ~0.9 m/s, full stick held forward eases into a brisk ~1.4 m/s; strafing and backing stay at walk pace; creeping with a light stick.
+- [ ] Turning on the spot steps the feet round (90 degrees in ~0.6 s, two or three plants); aiming turns smoothly and no faster than ~110 deg/s.
+- [ ] Crouch ~0.45 s, kneel when still ~0.5 s, stand ~0.6 s. Dash: a short wind-up, the rush, a braking recovery.
+- [ ] Planted feet never slide (Skeleton: green markers stay put) while walking, strafing, backing up and stopping.
+Weapon handling:
+- [ ] Ready to aim ~0.35 s, back to ready ~0.55 s. Tactical reload ~2.6 s (off hand to the magazine and back), empty ~3.1 s with the charging handle; swap ~0.9 s; grenade ~1.2 s (pin, wind, release).
+Cover:
+- [ ] Taking cover glides in over ~0.8 s and the support hand reaches the wall first; peeking leads with the head, the weapon follows (~0.4 s); at a left edge the weapon changes hands before the lean; leaving steps back.
+- [ ] Getting hit flinches and recovers within half a second.
+Camera:
+- [ ] Follows with a slight lag and leads where you move; ADS / crouch blends take about half a second; the shoulder swap swings round behind the head (~0.4 s); no jitter when stopping or turning; a tiny handheld drift; dash widens the view slightly; the camera never pops in tight corridors.
+- [ ] Vignette on by default; film grain optional (Settings > Video); letterbox at mission start and on stingers; a brief slow-motion beat on the kill that clears a room (setting).
+Avatar:
+- [ ] Default stick figure; Settings > Video > Avatar style switches to the detailed body (customiser preview follows); colours and camos still apply.
+Warehouse and Clear mode:
+- [ ] Play defaults to Warehouse for Wave, Mission and Clear (Free Roam stays on Proving Grounds). The room tag under the compass names where you are.
+- [ ] Clear: squads hold their rooms (they wait inside, take cover inside, do not chase you out); the counter reads "Rooms cleared n/9"; each room clear shows a banner and stinger; the last one ends with victory. Chasing enemies pause at doorways before entering.
+Mobile controls (phone):
+- [ ] Left thumb anywhere on the left half places the move stick; flick-to-dash only if enabled. The right stick only turns the camera (rate based: holding it keeps turning; fine control near the centre; speeds up at the rim). Drag-look in the empty upper right works if enabled.
+- [ ] The fire button never moves the camera (unless "Fire button also drags to look" is on); ADS button; the action button's label changes with context (Take cover, Leave cover, Vault, Climb, Step up, Drop down, Use) and a swipe from it moves cover to cover.
+- [ ] Buttons are comfortable on a 6.9" phone: fire >= 76 px, others >= 56 px apart; nothing sits under the home indicator or the Dynamic Island in either landscape orientation.
+- [ ] Layout editor: Default / Claw / Left-handed presets, Smaller / Larger, Fainter / Bolder per control, Reach overlay, Preview. An older layout keeps its customised buttons after updating.
+120 Hz (iPhone 17 Pro Max):
+- [ ] Debug overlay shows "display 120Hz budget 8.33ms" (if it says 60 Hz in Safari, check Settings > Apps > Safari > Advanced > Feature Flags for a 60 fps cap and try the installed app).
+- [ ] Warehouse fight with 10 enemies: pacing p95 within the budget, drops < 1%, quality settles on Ultra 120 in Auto (or High with resolution scale near 1).
+- [ ] 10-minute thermal soak (Clear or Wave on Warehouse, plugged out, brightness 50%): the pacing graph stays green, no sustained drops, the resolution scale may step down but never oscillates; the phone is warm, not hot.
+
 ## Phase 10 - Release checklist
 
 ### Offline and install

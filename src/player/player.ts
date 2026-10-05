@@ -158,7 +158,8 @@ export class Player {
     ci.reloading = this.reload >= 0 || this.swapT >= 0 || this.grenadeT >= 0;
     ci.traversing = this.coverPose.traverse !== 'none';
     ci.coverRaise = this.coverPose.lean !== 0 || this.coverPose.peekOver > 0.5 || this.coverPose.blind;
-    ci.weight = this.weaponWeight;
+    // peeking from cover the head leads and the weapon follows a beat later (out by ~350-450 ms)
+    ci.weight = this.weaponWeight * (this.coverPose.cover !== 'none' && ci.ads ? 1.35 : 1);
     this.carry.update(dt, ci);
 
     const pi: PlayerInput = {

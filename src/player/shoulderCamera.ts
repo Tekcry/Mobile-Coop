@@ -205,7 +205,8 @@ export class ShoulderCamera {
     this.sPitch.step(0, 34, dt);
     this.viewPitch = this.aimPitch + this.sPitch.x;
     // handheld drift: tiny and slow; steadier kneeling / aiming, a touch more when dashing
-    const drift = 0.0026 * (1 - 0.65 * Math.min(1, this.steady)) * (1 + dashS * 0.5);
+    // yaw and pitch peaks combine: 0.0018 rad per axis keeps the total under 0.15 deg
+    const drift = 0.0018 * (1 - 0.65 * Math.min(1, this.steady)) * (1 + dashS * 0.5);
     const yaw = this.viewYaw + (Math.sin(this.t * 0.53) * 0.6 + Math.sin(this.t * 1.31 + 1) * 0.4) * drift;
     const pitch = this.viewPitch + (Math.sin(this.t * 0.41 + 2) * 0.6 + Math.sin(this.t * 1.07) * 0.4) * drift - dashS * 0.03;
     const dYaw = yaw - prevYaw;

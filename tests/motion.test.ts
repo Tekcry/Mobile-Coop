@@ -103,16 +103,30 @@ describe('motion driver: facing', () => {
   it('turning 90 degrees on the spot is two stepped chunks in about 0.6 s', () => {
     const d = new MotionDriver(0);
     let chunks = 0;
-    let last = d.state;
+    let lastTo = Number.NaN;
     let done = -1;
     run(d, 1.5, (i) => (i.yaw = Math.PI / 2), 60, (t) => {
-      if (d.state === 'turn' && last !== 'turn') chunks++;
-      last = d.state;
+      // chunks chain back to back while turning: count each new chunk target
+      if (d.state === 'turn' && d['turnTo'] !== lastTo) {
+        chunks++;
+        lastTo = d['turnTo'];
+      }
       if (done < 0 && Math.abs(wrapPi(Math.PI / 2 - d.yaw)) < 0.02) done = t;
     });
     expect(chunks).toBe(2);
     expect(done).toBeGreaterThan(0.5);
     expect(done).toBeLessThan(0.75);
+  });
+  it('a turn steps on until the feet face the aim (no 20 degree leftover after a sweep)', () => {
+    const d = new MotionDriver(0);
+    // the aim sweeps 90 degrees but is held back at first (as the camera twist limit does)
+    const i = emptyMotionInput();
+    for (let k = 0; k < 120; k++) {
+      i.yaw = Math.min(Math.PI / 2, i.yaw + 6 / 60, d.yaw + 1.3);
+      d.step(1 / 60, i);
+    }
+    expect(Math.abs(wrapPi(Math.PI / 2 - d.yaw))).toBeLessThan(0.13);
+    expect(d.state).toBe('idle');
   });
   it('small aim changes on the spot do not step', () => {
     const d = new MotionDriver(0);

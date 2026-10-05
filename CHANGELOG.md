@@ -1,5 +1,60 @@
 # Changelog
 
+## 1.2.0 - Cinematic tactical animation, close-quarters Warehouse, mobile controls, 120 Hz
+Slower, weighted, cinematic SWAT pacing in close quarters, tuned for top-end phones at 120 Hz.
+- Pace: creep 0.45, walk 0.9, brisk 1.4 (forward only), crouch 0.55, ADS 0.7, cover 0.5, reload 0.45 m/s; dash
+  3.8 m/s with a 300 ms wind-up and 450 ms recovery. `MotionDriver` (player and enemies): 250-400 ms weight shift
+  before the first step, walk speed over ~0.9 s, stops in 0.5-0.8 s with settling steps, capped acceleration /
+  deceleration / jerk (Tune panel), stepped 90 deg turns in ~0.6 s with plants (a turn keeps stepping until the
+  feet face the aim), aim turns <= 110 deg/s, planted pivots. Stance: crouch 0.45 s, kneel 0.5 s, stand 0.6 s.
+  Frame-rate independent.
+- Animation system: a clip library in code (keyed monotone curves over pose channels, cycles with contact duty
+  and lift, timed clips with events), a 2D locomotion blend space, start / stop / pivot / cover / traversal clips,
+  root motion with stride modulation, inertialization on every state switch (180-350 ms), heel-strike weight,
+  balance and support shifts. World-space foot planner: planted feet locked (< 1 cm slide), swing arcs with toe-off
+  and heel strike, no crossing, distance-matched stops, error-driven idle steps, shorter side-steps. Hand IK onto
+  the grip, foregrip, magazine well or the cover wall; head world-stabilised; weapon orientation lags with mass.
+- Weapon clips: ready transitions 320 ms, raise 350 ms, lower 550 ms, tactical reload 2.6 s / empty 3.1 s (charge
+  handle), swap 0.9 s (equipped at 45%), grenade 1.2 s (release at 68%).
+- Cover choreography: 0.6-0.95 s eased entry with the support hand reaching the wall first, head-first peeks
+  with the weapon out by ~400 ms, weapon changes hands (~0.35 s) before leaning out of a left edge, reloads
+  tucked against the wall, 0.4-0.6 s step-back exit, vault and mantle clips. Hit flinch recovers in 0.3-0.6 s.
+- Stick-figure avatar (default) on the shared skeleton; the detailed body stays selectable (Settings > Video >
+  Avatar style). Saves and cosmetics unchanged.
+- Camera: ~200 ms follow lag with look-ahead, rotation inertia, 350-600 ms framing blends, ~400 ms shoulder swap
+  on an arc, cover push-in, handheld drift <= 0.15 deg, footstep micro-bob <= 1 cm, dash FOV +4 deg, smooth
+  collision pull-in; updated every render frame. Cinematic post pass (vignette on by default, optional film
+  grain, letterbox for stingers) and a 0.25 s slow-motion beat (setting).
+- Warehouse map (default for Mission, Wave and the new Clear mode): truck yard, loading dock, dispatch, workshop,
+  service corridor, racking aisles, factory floor, mezzanine, offices; roofed with skylights and hanging lights.
+  Tagged rooms (HUD room tag on every mode). Clear mode: room-holding squads, "Rooms cleared n/N", stingers
+  (banner, audio, slow beat, letterbox), three lives. Enemies hold their rooms (fight and take cover inside,
+  never chase out) and chasing enemies stop to check a room before entering it unseen. Proving Grounds gained a
+  three-room mini set.
+- Mobile controls: floating move stick (flick-to-dash optional, off by default); camera-only right stick (rate
+  based, dead zone, response curve, smoothing, acceleration) plus optional drag-look; a separate fire button
+  (84 px) that never moves the camera (optional left fire, optional fire drag-look); ADS button; one contextual
+  action button (take / leave cover, vault, climb, step, drop, open / use; swipe for cover to cover); secondary
+  buttons >= 56 px; the weapon readout moves under the vitals in touch mode. Layout editor: presets (Default,
+  Claw, Left-handed), per-control size and opacity, thumb-reach overlay, preview. Touch layouts migrate (v2).
+- 120 Hz: refresh-rate detection (Safari may cap rAF at 60), frame pacing percentiles and a pacing graph against
+  the budget in the debug overlay, an "Ultra 120" quality tier (DPR cap 3), dynamic resolution with hysteresis,
+  adaptive quality relative to the display budget (headroom judged on CPU work). The rig now refreshes world
+  matrices top-down instead of re-forcing the whole parent chain per joint: CPU per frame -55%, animation
+  ~0.037 ms per character. Allocation-free `hyp2`/`hyp3` instead of `Math.hypot`, typed-array nav heaps.
+  Warehouse, 10 enemies, CPU per 120 Hz frame p50 0.65 / p95 1.65 / p99 2.2 ms, 17-30 draw calls.
+- Debug overlay: active clip timeline, foot contact markers, speed / acceleration / camera traces, slow motion
+  0.25x / 0.5x, pacing lines.
+- Tests: unit tests for motion, curves / clips / inertialization / graph, foot planner, pacing, rooms and room
+  clearing, touch layout migration and presets; new `e2e-anim` (every timing and smoothness bar above in the
+  running game, plus 60 vs 120 Hz parity) and `e2e-clear`; `e2e-touch` rewritten for the new controls;
+  `perf.mjs` (percentiles at 120 Hz, animation cost per character, allocations with top allocators, draw calls,
+  `--budget`) and `soak.mjs`; `anim-sheet.mjs` contact sheets.
+- Choices: clips are authored as curves in code (no external assets, tree-shaken, diffable) and evaluated into a
+  flat channel pose; inertialization replaces cross-fades so state changes never pop; the foot planner works in
+  world space so feet lock regardless of root motion; Clear mode is single player (co-op modes unchanged);
+  remaining per-frame allocation is V8 number boxing and Havok marshalling, so the budget is per frame, not zero.
+
 ## 1.1.0 - Cover-first tactical overhaul
 SWAT-style movement, a tight over-the-shoulder camera, weapon ready positions, weighted animation and an
 intuitive, deeper cover system.

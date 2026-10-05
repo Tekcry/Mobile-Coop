@@ -72,7 +72,7 @@ export const MOVEMENT = {
   radius: 0.3,
   maxStep: 0.42,
   /** Camera spring frequencies (rad/s). */
-  camFollow: 18,
+  camFollow: 10,
   camShoulder: 10,
   camAds: 11,
 };

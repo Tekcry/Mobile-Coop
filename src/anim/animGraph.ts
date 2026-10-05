@@ -398,7 +398,7 @@ export class AnimGraph {
     this.stillT = still ? this.stillT + dt : 0;
     this.idleT += dt;
     if (i.phase >= 0) this.phase = i.phase;
-    else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed))) * dt) % 1;
+    else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed, undefined, lateralShare(i)))) * dt) % 1;
     const ph = this.phase;
     this.moveW = approach(this.moveW, smoothstep(i.speed / 0.22), 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
@@ -571,7 +571,10 @@ export class AnimGraph {
     src[CH.offGrip] = 1;
     src[CH.offMag] = 0;
     // the hand reaches the wall during the entry (0.18-0.42 s) and rests there while still and lowered
-    src[CH.offCover] = inCover ? 0.85 * ready * (1 - this.moveW) * smoothstep((this.coverT - 0.18) / 0.24) : 0;
+    // the support hand reaches for the wall first (during the entry glide), then stays on it while
+    // holding still; moving along the cover takes it back to the weapon
+    const entering = this.coverT < COVER_ENTER.duration;
+    src[CH.offCover] = inCover ? 0.85 * ready * (entering ? 1 : 1 - this.moveW) * smoothstep((this.coverT - 0.18) / 0.24) : 0;
     // free hands hang at the sides (swing a little with the gait when unarmed)
     const swing = 0.1 * this.moveW * Math.sin(ph * Math.PI * 2);
     const shY = p.y.shoulder - 0.04 * k;
@@ -677,7 +680,7 @@ export class AnimGraph {
     g.phase = ph;
     // near the end of a stop the gait clock crawls: hand the last step to deliberate idle stepping
     g.moving = s > (i.motion === 'stop' ? 0.3 : 0.05) && i.grounded;
-    g.cycleTime = s > 0.05 ? (2 * stepLength(s)) / s : 1.2;
+    g.cycleTime = s > 0.05 ? (2 * stepLength(s, undefined, lateralShare(i))) / s : 1.2;
     let duty: number;
     let lift: number;
     if (i.crouch > 0.5) {
@@ -714,6 +717,12 @@ export class AnimGraph {
 }
 
 const NEUTRAL_POSE: Pose = newPose();
+
+/** Sideways share of the local movement direction (0 forward/back .. 1 pure strafe). */
+function lateralShare(i: AnimInput): number {
+  const l = Math.sqrt(i.localX * i.localX + i.localZ * i.localZ);
+  return l > 1e-4 ? Math.min(1, Math.abs(i.localX) / l) : 0;
+}
 
 const FWD: readonly { speed: number; clip: Clip }[] = [
   { speed: 0, clip: CREEP },

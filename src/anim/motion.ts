@@ -44,9 +44,16 @@ export function wrapPi(a: number): number {
   return a;
 }
 
-/** Step length (m) at a ground speed; a gait cycle is two steps. */
-export function stepLength(speed: number, M = MOVEMENT): number {
-  return M.stepLen0 + M.stepLenK * Math.max(0, speed);
+/** A stepped turn keeps stepping until the feet are within this of the aim (rad, ~7 deg). */
+const TURN_SETTLE = 0.12;
+
+/**
+ * Step length (m) at a ground speed; a gait cycle is two steps. Side-steps are shorter (feet cannot
+ * pass each other sideways, so a full-length stride would spread them ~1 m): `lateral` = |sideways
+ * share of the velocity| (0..1) shortens steps to 60% at a pure strafe, with a higher cadence.
+ */
+export function stepLength(speed: number, M = MOVEMENT, lateral = 0): number {
+  return (M.stepLen0 + M.stepLenK * Math.max(0, speed)) * (1 - 0.4 * lateral * lateral);
 }
 
 /**
@@ -212,13 +219,26 @@ export class MotionDriver {
 
     // --- gait clock and stride modulation
     const sp = this.speed;
-    if (sp > 0.02) this.phase = (this.phase + (sp / (2 * stepLength(sp, M))) * dt) % 1;
+    if (sp > 0.02) {
+      const lat = Math.min(1, Math.abs(this.vx * Math.cos(this.yaw) - this.vz * Math.sin(this.yaw)) / sp);
+      this.phase = (this.phase + (sp / (2 * stepLength(sp, M, lat))) * dt) % 1;
+    }
     const mod = sp > 0.1 ? rootModulation(this.phase, M) : 1;
     this.outX = this.vx * mod;
     this.outZ = this.vz * mod;
 
     // --- facing
     this.updateYaw(dt, i, sp, M);
+  }
+
+  /** One stepped turn chunk (at most `turnChunk`) towards a yaw error. */
+  private startChunk(err: number, M: typeof MOVEMENT): void {
+    const chunk = Math.sign(err) * Math.min(Math.abs(err), M.turnChunk);
+    this.turnFrom = this.yaw;
+    this.turnTo = wrapPi(this.yaw + chunk);
+    this.turnDur = Math.max(0.18, M.turnChunkTime * (Math.abs(chunk) / M.turnChunk));
+    this.stateT = 0;
+    this.go('turn');
   }
 
   private updateYaw(dt: number, i: MotionInput, sp: number, M: typeof MOVEMENT): void {
@@ -228,20 +248,20 @@ export class MotionDriver {
       const prev = this.yaw;
       this.yaw = wrapPi(this.turnFrom + wrapPi(this.turnTo - this.turnFrom) * easeInOut(k));
       this.yawRate = wrapPi(this.yaw - prev) / dt;
-      if (k >= 1) this.go('idle');
+      if (k >= 1) {
+        // a turn, once started, steps on until the feet face the aim (start / stop hysteresis):
+        // the aim may have moved on while this chunk played
+        const rest = wrapPi(i.yaw - this.yaw);
+        if (Math.abs(rest) > TURN_SETTLE && sp < 0.15 && !i.aiming && !i.dashing) this.startChunk(rest, M);
+        else this.go('idle');
+      }
       return;
     }
     const still = sp < 0.15 && (this.state === 'idle' || this.state === 'start');
     if (still && !i.aiming && !i.dashing) {
       // stepped turn on the spot once the aim leads the feet far enough
       this.yawRate = 0;
-      if (this.state === 'idle' && Math.abs(err) > M.turnThreshold) {
-        const chunk = Math.sign(err) * Math.min(Math.abs(err), M.turnChunk);
-        this.turnFrom = this.yaw;
-        this.turnTo = wrapPi(this.yaw + chunk);
-        this.turnDur = Math.max(0.18, M.turnChunkTime * (Math.abs(chunk) / M.turnChunk));
-        this.go('turn');
-      }
+      if (this.state === 'idle' && Math.abs(err) > M.turnThreshold) this.startChunk(err, M);
       return;
     }
     // continuous, eased turn at the stance rate (faster if the aim is about to out-twist the body)
