@@ -43,6 +43,29 @@ export class GameLoop {
     this.engine.runRenderLoop(() => this.tick());
   }
 
+  /**
+   * Advance simulation by `seconds` without rendering (automated tests / bots).
+   * Runs the same hook order as a real frame, one fixed step per "frame".
+   */
+  stepHeadless(seconds: number): void {
+    const scene = this.scene;
+    const hooks = this.hooks;
+    if (!scene || !hooks) return;
+    const physics = scene.getPhysicsEngine();
+    const n = Math.round(seconds / FIXED_DT);
+    for (let i = 0; i < n && this.scene === scene; i++) {
+      hooks.beforeFrame?.(FIXED_DT);
+      if (this.paused) continue;
+      hooks.fixedUpdate(FIXED_DT);
+      if (physics) {
+        scene.onBeforePhysicsObservable.notifyObservers(scene);
+        physics._step(FIXED_DT);
+        scene.onAfterPhysicsObservable.notifyObservers(scene);
+      }
+      hooks.frameUpdate(FIXED_DT, 1);
+    }
+  }
+
   private tick(): void {
     const scene = this.scene;
     const hooks = this.hooks;

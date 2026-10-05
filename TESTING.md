@@ -62,3 +62,16 @@ MFi / Bluetooth controller:
 - [ ] Controller rumbles on shots/explosions where supported. Phone vibrates lightly on touch buttons (Android).
 - [ ] Minimap rotates with the camera, red dots for targets; compass letters move as you turn.
 - [ ] FPS overlay stays near 60 while firing the SMG continuously and throwing grenades.
+
+## Phase 5 - Enemies and modes (Main menu > Play)
+- [ ] Play screen: change Mode / Map / Difficulty by tap and by d-pad left/right; Deploy starts the match.
+- [ ] Wave Survival on Dust Depot: "WAVE 1" banner, enemies arrive from off-screen and path around buildings (they don't walk through walls).
+- [ ] Grunts duck behind low walls and pop up to shoot; behind tall walls they step out sideways. Flank one: it leaves cover.
+- [ ] Runners (yellow hoodies) sprint in zigzags and hit you up close. Heavies are slow, spin up, then hose bullets; body shots do less.
+- [ ] Killed enemies collapse as ragdolls and sink away after a few seconds.
+- [ ] Wave cleared: bonus banner, pickups (green ammo, white/red health) reappear; walking over them refills.
+- [ ] Die: DEFEAT results screen with stats; Play again restarts; Main menu returns. Works by controller and by touch.
+- [ ] Mission: enemies start unaware; shooting nearby alerts them. Hold Y / Interact at a terminal (progress %), do both, grab the intel on the central platform, then stand in the green beacon until extraction reaches 100% -> VICTORY.
+- [ ] Mission deaths respawn you at the last objective with a lives counter.
+- [ ] Minimap/compass show objective markers (yellow) and pickups (green).
+- [ ] FPS stays above ~55 with 8-10 enemies fighting.

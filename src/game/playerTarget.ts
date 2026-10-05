@@ -64,7 +64,7 @@ export class PlayerTarget implements Damageable {
     const amount = h.amount * this.damageMul * (this.player.controller.isRolling ? 0.5 : 1);
     const dealt = this.health.damage(amount);
     this.damageTaken += dealt;
-    this.onDamaged?.(h, dealt);
+    if (dealt > 0) this.onDamaged?.(h, dealt);
     const killed = !this.health.alive;
     if (killed) {
       this.player.alive = false;

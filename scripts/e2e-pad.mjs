@@ -74,11 +74,18 @@ try {
   await press(page, BTN.B);
   assert(await q('.main-menu') && !(await q('.settings-screen')), 'B backs out to main menu');
 
-  console.log('in-game pause flow');
-  for (let i = 0; i < 6 && !/Free roam/.test(await focusedText(page)); i++) await press(page, BTN.UP);
-  assert(/Free roam/.test(await focusedText(page)), 'menu wraps / reaches Free roam');
+  console.log('play setup + in-game pause flow');
+  for (let i = 0; i < 6 && !/^Play/.test(await focusedText(page)); i++) await press(page, BTN.UP);
+  assert(/^Play/.test(await focusedText(page)), 'menu wraps / reaches Play');
   await press(page, BTN.A);
-  await page.waitForFunction(() => !document.querySelector('.main-menu'), null, { timeout: 15000 });
+  assert(await q('.play-screen'), 'A opens the play setup');
+  assert(/Mode/.test(await focusedText(page)), 'mode picker focused first');
+  await press(page, BTN.LEFT);
+  assert(/Free Roam/.test(await focusedText(page)), 'd-pad left cycles mode to Free Roam');
+  for (let i = 0; i < 6 && !/Deploy/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  assert(/Deploy/.test(await focusedText(page)), 'focus Deploy');
+  await press(page, BTN.A);
+  await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   assert(await page.evaluate(() => document.querySelector('.touch-layer')?.hidden === true), 'touch controls hidden in gamepad mode');
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');

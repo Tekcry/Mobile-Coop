@@ -17,7 +17,11 @@ try {
   await page.locator('.settings-screen .screen-back').tap();
   await page.waitForSelector('.settings-screen', { state: 'detached' });
   assert(true, 'back button closes settings');
-  await page.locator('.btn', { hasText: 'Free roam' }).tap();
+  await page.locator('.btn', { hasText: 'Play' }).first().tap();
+  await page.waitForSelector('.play-screen');
+  await page.locator('.play-screen .row-choice').first().locator('.choice-arrow').first().tap();
+  assert(/Free Roam/.test(await page.evaluate(() => document.querySelector('.play-screen .choice-val')?.textContent ?? '')), 'tap arrow picks Free Roam');
+  await page.locator('.btn', { hasText: 'Deploy' }).tap();
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 20000 });
   await page.evaluate(() => window.__app.settings.update((s) => { s.touch.aimAssist = 'off'; }));
   await frames(page, 5);

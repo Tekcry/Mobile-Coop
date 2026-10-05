@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.5.0 - Phase 5: Enemies, AI, modes, second map
+- Nav grid (`ai/navGrid.ts`, pure): heights sampled from Havok at load, walls/cover/pillars rasterised
+  analytically with agent radius, step-height connectivity, unreachable islands pruned. A* with string
+  pulling, multi-source Dijkstra flow field (shared chase field, refreshed at 2 Hz), line checks.
+- Enemies from `config/enemies.json` (validated): Grunt (rifle bursts, takes cover, peeks from low cover,
+  steps out from high cover, abandons flanked cover), Runner (zigzag charge, lunge, melee), Heavy (armour,
+  minigun wind-up, staggers). Perception with LOS + view cone + gunfire noise, accuracy that settles over
+  time and drops against moving targets, separation steering, nav-constrained movement.
+- Three-body physics ragdolls (ball-and-socket hips), budget-capped, settle then sink.
+- Wave Survival: escalating compositions (pure, tested), off-screen spawn selection, intermissions,
+  pickups refresh, scoring, game over -> results.
+- Mission "Operation Blackout": pre-placed unaware squads, hold-to-hack terminals, intel cache, alarm
+  reinforcements, timed extraction zone, 3 lives with checkpoints.
+- Second map "Dust Depot": procedural 3x3 compound from modules (warehouses, container yard, ruins,
+  plaza with high ground), seeded variation.
+- Walk-over ammo/health pickups, objective props with HUD prompt and hold progress.
+- Play setup screen (mode, map, difficulty), results screen (Play again / Main menu).
+- Difficulty (enemy damage, accuracy, health). Spawn protection after respawn.
+- `GameLoop.stepHeadless()` for fast automated simulation; `scripts/e2e-modes.mjs`.
+
 ## 0.4.0 - Phase 4: Shooting and HUD
 - Data-driven weapons (`config/weapons.json`, validated on load): pistol, SMG, assault rifle, shotgun
   (9 pellets), sniper (swept-ray projectile with drop), plus frag grenade (`config/grenade.json`).

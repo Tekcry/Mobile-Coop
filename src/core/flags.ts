@@ -4,6 +4,8 @@ export interface Flags {
   debug: boolean;
   /** Skip menus and boot straight into a map (dev convenience). */
   autostart: string | null;
+  /** Mode for autostart: sandbox | wave | mission. */
+  mode: 'sandbox' | 'wave' | 'mission' | null;
 }
 
 function readParams(): URLSearchParams {
@@ -20,4 +22,5 @@ export const flags: Flags = {
   coop: params.get('coop') !== '0',
   debug: params.get('debug') === '1',
   autostart: params.get('autostart'),
+  mode: (['sandbox', 'wave', 'mission'] as const).find((m) => m === params.get('mode')) ?? null,
 };

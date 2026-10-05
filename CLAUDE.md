@@ -15,6 +15,8 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
   - `scripts/e2e-touch.mjs` touch-only: taps menus, multi-touch drags the virtual sticks
   - `scripts/e2e-move.mjs` character controller checks on Proving Grounds
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
+  - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
+  Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
@@ -34,7 +36,7 @@ installable PWA, fully playable offline. Hosted on GitHub Pages.
 | `core/` | `babylon.ts` import surface, engine creation, `GameLoop` (fixed 60Hz sim + manual Havok step), event bus, feature flags, scene manager |
 | `input/` | Action map; touch, gamepad, keyboard/mouse sources all write the same `InputState` |
 | `ui/` | DOM overlay UI. `FocusNav` spatial navigation shared by every menu; screen stack; HUD; debug overlay |
-| `game/` | App states for play sessions (game state, modes, controls test) |
+| `game/` | Play session state, game modes, damage/health, pickups, interactables |
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller (Havok `PhysicsCharacterController`), over-the-shoulder camera |
 | `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades |
@@ -96,6 +98,16 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   projectiles; `Explosions` queues detonations (never recursive); `Vfx` pools every effect.
 - Anything shootable implements `Damageable` and registers its bodies with `DamageRegistry`.
 - HUD (`ui/hud/hud.ts`) only writes DOM when a value changes; minimap redraws at 20 Hz.
+
+## AI and modes
+- `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only
+  for cover moves, and are constrained to nav cells (no physics character controller per enemy).
+- Enemy brains (`ai/enemy.ts`) think at ~4 Hz (LOS raycasts staggered) and act every fixed step.
+- `EnemyManager` caps alive enemies (10) and ragdolls (`BUDGET.maxRagdolls`).
+- Modes implement `GameMode` (`game/modes/`); `GameState` owns world, player, combat, AI, pickups,
+  interactables and calls mode hooks. `GameState.endSession` shows results; `GameState.rewardHook` lets
+  progression add rewards.
+- `?autostart=<mapId>&mode=<sandbox|wave|mission>` boots straight into a match (dev/tests).
 
 ## Performance budget (mid-range phone, 60fps)
 - Draw calls < 120 in combat. Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.

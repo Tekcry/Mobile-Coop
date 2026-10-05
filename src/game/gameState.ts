@@ -17,16 +17,36 @@ import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
 import { computeAssist, type AimTarget } from '../weapons/aimAssist';
 import { MASK } from '../physics/groups';
+import { buildNavGrid } from '../ai/navBuild';
+import type { NavGrid } from '../ai/navGrid';
+import { EnemyManager } from '../ai/enemyManager';
+import type { PlayerRef } from '../ai/enemy';
+import type { Difficulty } from '../ai/enemyDefs';
+import { Pickups } from './pickups';
+import { Interactables, type Interactable } from './interactables';
+import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
+import { WaveMode } from './modes/waveMode';
+import { MissionMode } from './modes/missionMode';
+import { ResultsScreen } from '../ui/screens/resultsScreen';
 
-export type ModeId = 'sandbox' | 'wave' | 'mission';
+export type { ModeId };
 
 export interface GameOptions {
   map: MapDef;
   mode: ModeId;
   seed: number;
+  difficulty?: Difficulty;
   look?: AvatarLook;
   loadout?: LoadoutEntry[];
 }
+
+export interface SessionCallbacks {
+  quit(): void;
+  restart(): void;
+}
+
+/** Hook for progression (Phase 6): turns session stats into rewards shown on the results screen. */
+export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
 export class GameState implements AppState {
@@ -50,12 +70,25 @@ export class GameState implements AppState {
   private tmp = new Vector3();
   /** Extra blips/markers contributed by the active mode. */
   extraBlips: () => Blip[] = () => [];
+  readonly nav: NavGrid | null = null;
+  readonly enemyMgr: EnemyManager | null = null;
+  readonly pickups: Pickups | null = null;
+  readonly interactables: Interactables | null = null;
+  readonly mode: GameMode | null = null;
+  readonly stats: SessionStats;
+  private ended = false;
+  private respawnAt: Vector3 | null = null;
+  private interactTarget: Interactable | null = null;
+  /** Remote players (coop) contribute here; local player is always included. */
+  remotePlayers: () => PlayerRef[] = () => [];
+  static rewardHook: RewardHook | null = null;
+  private localRef: PlayerRef;
 
   private constructor(
     readonly app: App,
     readonly world: World,
     readonly opts: GameOptions,
-    private onQuit: () => void,
+    private cb: SessionCallbacks,
   ) {
     this.scene = world.scene;
     const spawn = world.layout.playerSpawns[0]!;
@@ -70,15 +103,22 @@ export class GameState implements AppState {
       app.input.rumble(s, w, ms),
     );
     this.target = new PlayerTarget(this.scene, this.registry, this.player);
+    this.stats = emptyStats(opts.mode, opts.map.id);
+    this.localRef = { id: 'local', target: this.target, feet: this.player.position, speed: 0, crouched: false };
     this.hud = new Hud(app.uiRoot);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
 
-    this.weapons.events.onHit = (kind) => {
+    this.weapons.events.onHit = (kind, weapon) => {
       this.hud.hitMarker(kind);
-      if (kind === 'kill') app.input.rumble(0.5, 0.8, 120);
+      if (kind === 'kill') {
+        app.input.rumble(0.5, 0.8, 120);
+        this.stats.weaponKills[weapon] = (this.stats.weaponKills[weapon] ?? 0) + 1;
+      }
     };
-    this.target.onDamaged = (h) => {
+    this.weapons.events.onShot = () => this.enemyMgr?.noise(this.player.position, 28);
+    this.target.onDamaged = (h, dealt) => {
+      this.stats.damageTaken += dealt;
       const bearing = Math.atan2(h.sourcePos.x - this.player.position.x, h.sourcePos.z - this.player.position.z);
       this.hud.damageFrom(bearing - this.player.cam.yaw);
       this.player.cam.shake(h.kind === 'explosion' ? 0.5 : 0.12);
@@ -90,6 +130,29 @@ export class GameState implements AppState {
       this.player.cam.shake(Math.max(0, 0.9 - d / (radius * 3)));
       if (d < radius * 2) app.input.rumble(1, 1, 220);
     };
+
+    if (opts.mode !== 'sandbox') {
+      const w = this as { -readonly [K in keyof GameState]: GameState[K] };
+      w.nav = buildNavGrid(this.scene, world.level, spawn.pos);
+      w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, opts.difficulty ?? 'normal', () => this.playerRefs());
+      w.enemyMgr.onKilled = (e, h) => {
+        this.stats.kills++;
+        this.stats.byKind[e.def.kind]++;
+        if (h.part === 'head') this.stats.headshots++;
+        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}`, 'kill');
+        this.mode?.onEnemyKilled(e, h);
+      };
+      w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
+      w.pickups.onPickup = (k) => {
+        if (k === 'health') this.target.health.heal(50);
+        else this.weapons.addAmmo(0.5);
+        this.hud.feedItem(k === 'health' ? '+50 health' : 'Ammo refilled');
+      };
+      w.interactables = new Interactables(this.scene, world.parts);
+      w.mode = opts.mode === 'wave' ? new WaveMode(this) : new MissionMode(this);
+      this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? [])];
+      app.debug.extra.set('ai', () => `enemies ${this.enemyMgr?.alive ?? 0} nav ${this.nav?.w}x${this.nav?.h}`);
+    }
 
     if (opts.mode === 'sandbox') {
       this.weapons.infiniteAmmo = true;
@@ -109,14 +172,54 @@ export class GameState implements AppState {
     });
   }
 
-  static async create(app: App, opts: GameOptions, onQuit: () => void): Promise<GameState> {
+  static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
     const v = app.settings.get().video;
     const world = await World.create(app.engine, opts.map, {
       seed: opts.seed,
       shadows: v.shadows && v.quality !== 'low',
       shadowMapSize: v.quality === 'high' ? 2048 : 1024,
     });
-    return new GameState(app, world, opts, onQuit);
+    return new GameState(app, world, opts, cb);
+  }
+
+  playerRefs(): PlayerRef[] {
+    this.localRef.speed = this.player.controller.speed;
+    this.localRef.crouched = this.player.controller.crouched;
+    return [this.localRef, ...this.remotePlayers()];
+  }
+
+  anyPlayerAlive(): boolean {
+    return this.playerRefs().some((p) => p.target.alive);
+  }
+
+  scheduleRespawn(at: Vector3, seconds: number): void {
+    this.respawnAt = at.clone();
+    this.respawnT = seconds;
+  }
+
+  /** End the session and show results (rewards are added by the progression hook). */
+  endSession(won: boolean, subtitle: string): void {
+    if (this.ended) return;
+    this.ended = true;
+    this.stats.won = won;
+    this.stats.time = Math.round(this.time);
+    let shots = 0;
+    let hits = 0;
+    for (const t of this.weapons.tally.values()) {
+      shots += t.shots;
+      hits += t.hits;
+    }
+    this.stats.shots = shots;
+    this.stats.hits = hits;
+    this.hud.banner(won ? 'VICTORY' : 'DEFEAT', subtitle, 2500);
+    setTimeout(() => {
+      this.paused = true;
+      this.app.input.setGameplayActive(false);
+      const rewards = GameState.rewardHook ? GameState.rewardHook(this.stats, this.opts) : Promise.resolve(null);
+      void rewards.then((el) =>
+        this.app.screens.push(new ResultsScreen(this.app, this.stats, won, subtitle, el, () => this.cb.restart(), () => this.cb.quit())),
+      );
+    }, 1800);
   }
 
   get simulating(): boolean {
@@ -125,11 +228,18 @@ export class GameState implements AppState {
 
   enter(): void {
     this.app.input.setGameplayActive(true);
+    this.app.input.touch.setControlHidden('interact', true);
+    this.mode?.start();
   }
 
   exit(): void {
     this.app.input.setGameplayActive(false);
     this.app.debug.extra.delete('player');
+    this.app.debug.extra.delete('ai');
+    this.mode?.dispose();
+    this.enemyMgr?.clear();
+    this.pickups?.dispose();
+    this.interactables?.dispose();
     this.hud.dispose();
     for (const d of this.dummies) d.dispose();
     this.grenades.dispose();
@@ -151,14 +261,45 @@ export class GameState implements AppState {
           this.paused = false;
           this.app.input.setGameplayActive(true);
         },
-        () => this.onQuit(),
+        () => this.cb.quit(),
       ),
     );
   }
 
   private onPlayerDeath(): void {
+    if (this.mode) {
+      this.mode.onPlayerDeath();
+      return;
+    }
     this.hud.banner('DOWN', 'Respawning…', 2500);
-    this.respawnT = 3;
+    this.scheduleRespawn(this.world.layout.playerSpawns[0]!.pos, 3);
+  }
+
+  /** Proximity + hold-to-interact with objectives. */
+  private updateInteract(dt: number): void {
+    const ints = this.interactables;
+    if (!ints) return;
+    ints.update(dt);
+    const it = this.player.alive ? ints.nearest(this.player.position) : null;
+    if (it !== this.interactTarget) {
+      if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
+      this.interactTarget = it;
+    }
+    this.app.input.touch.setControlHidden('interact', !it);
+    if (!it) {
+      this.hud.setInteract(null);
+      return;
+    }
+    const holding = this.app.input.state.down('interact');
+    if (holding) it.progress += dt;
+    else it.progress = Math.max(0, it.progress - dt * 2);
+    const pct = it.holdTime > 0 ? Math.min(1, it.progress / it.holdTime) : 0;
+    this.hud.setInteract(it.holdTime > 0 ? `${it.label} (hold) ${pct > 0 ? Math.round(pct * 100) + '%' : ''}` : it.label);
+    if ((it.holdTime === 0 && this.app.input.state.pressed('interact')) || (it.holdTime > 0 && it.progress >= it.holdTime)) {
+      if (this.mode instanceof MissionMode) this.mode.onInteract(it);
+      this.interactTarget = null;
+      this.hud.setInteract(null);
+    }
   }
 
   fixedUpdate(dt: number): void {
@@ -175,14 +316,26 @@ export class GameState implements AppState {
     this.grenades.update(dt);
     this.explosions.update();
     for (const d of this.dummies) d.update(dt);
+    this.enemyMgr?.update(dt);
+    this.pickups?.update(dt, [
+      {
+        feet: this.player.position,
+        needs: (k) => this.player.alive && (k === 'health' ? this.target.health.hp < this.target.health.maxHp : true),
+      },
+    ]);
+    this.updateInteract(dt);
+    this.mode?.fixedUpdate(dt);
     this.target.health.update(dt);
     if (this.respawnT >= 0) {
       this.respawnT -= dt;
       if (this.respawnT < 0) {
-        const sp = this.world.layout.playerSpawns[0]!;
-        this.player.controller.teleport(sp.pos, sp.yaw);
-        this.player.cam.yaw = sp.yaw;
+        const sp = this.respawnAt ?? this.world.layout.playerSpawns[0]!.pos;
+        this.player.controller.teleport(sp, this.player.cam.yaw);
         this.target.revive();
+        // brief spawn protection
+        this.target.damageMul = 0;
+        setTimeout(() => (this.target.damageMul = 1), 2000);
+        this.respawnAt = null;
       }
     }
   }
@@ -218,6 +371,7 @@ export class GameState implements AppState {
     this.app.input.setAds(this.player.ads);
     this.player.frameUpdate(dt, alpha, look);
     this.vfx.update(dt);
+    this.mode?.frameUpdate(dt);
     this.updateHud();
   }
 

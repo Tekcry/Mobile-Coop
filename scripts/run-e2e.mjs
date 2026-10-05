@@ -13,7 +13,7 @@ for (let i = 0; i < 40; i++) {
   }
   await wait(250);
 }
-const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-move', 'e2e-combat'];
+const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-move', 'e2e-combat', 'e2e-modes'];
 let failed = 0;
 for (const s of suites) {
   console.log(`\n=== ${s} ===`);

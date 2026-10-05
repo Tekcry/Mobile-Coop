@@ -9,6 +9,7 @@ import { SettingsScreen } from './ui/screens/settingsScreen';
 import { GameState, type GameOptions } from './game/gameState';
 import { getMap } from './world/maps';
 import { requestPersistence } from './save/db';
+import { PlayScreen } from './ui/screens/playScreen';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -42,12 +43,12 @@ async function boot(): Promise<void> {
   };
 
   MainMenuScreen.entries.push(
-    () => ({
-      label: 'Free roam',
-      sub: 'Proving Grounds',
+    (a) => ({
+      label: 'Play',
+      sub: 'Waves · Mission · Free roam',
       icon: 'play',
       order: 10,
-      action: () => startGame({ map: getMap('proving'), mode: 'sandbox', seed: 1 }),
+      action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
@@ -56,7 +57,7 @@ async function boot(): Promise<void> {
     app.screens.clear();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
-    void GameState.create(app, opts, goToMenu)
+    void GameState.create(app, opts, { quit: goToMenu, restart: () => startGame({ ...opts, seed: opts.seed + 1 }) })
       .then((st) => app.setState(st))
       .catch((e: unknown) => {
         console.error(e);
@@ -66,7 +67,7 @@ async function boot(): Promise<void> {
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
 
-  if (flags.autostart) startGame({ map: getMap(flags.autostart), mode: 'sandbox', seed: 1 });
+  if (flags.autostart) startGame({ map: getMap(flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1 });
   else goToMenu();
   app.start();
 
