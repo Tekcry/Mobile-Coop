@@ -73,8 +73,9 @@ export const CRAWL = makeClip({
     grip: [0, 0, 1, 0],
     offGrip: [0, 0, 1, 0],
     pelY: [0, -0.5, 0.25, -0.48, 0.5, -0.5, 0.75, -0.48, 1, -0.5],
+    // the rig's spine counters most of the pelvis pitch: chest pitch ~ 0.4 * pelvis + spine (here ~1.45 rad)
     pelPitch: [0, 1.0, 1, 1.0],
-    spPitch: [0, 0.35, 1, 0.35],
+    spPitch: [0, 1.05, 1, 1.05],
     hdPitch: [0, -0.9, 1, -0.9],
     hLX: [0, -0.18, 1, -0.18],
     hRX: [0, 0.18, 1, 0.18],
@@ -91,3 +92,28 @@ export const CRAWL = makeClip({
     wpPitch: [0, -0.9, 1, -0.9],
   },
 });
+
+/** Landing roll (normalised): tuck, the rig tumbles the body a full turn forward (`rollTumble`), feet come
+ *  back under it, rise into the run. The tuck keeps the curled body about a shoulder's width off the floor. */
+export const ROLL = makeClip({
+  name: 'roll',
+  duration: 1,
+  keys: {
+    pelY: [0, -0.2, 0.15, -0.5, 0.7, -0.5, 0.9, -0.3, 1, -0.05],
+    pelPitch: [0, 0.3, 0.15, 0.7, 0.7, 0.7, 1, 0.1],
+    spPitch: [0, 0.2, 0.15, 0.6, 0.7, 0.6, 1, 0.05],
+    hdPitch: [0, 0.3, 0.15, 0.7, 0.7, 0.7, 1, 0],
+    fLY: [0, 0.05, 0.2, 0.35, 0.7, 0.35, 0.9, 0.08, 1, 0],
+    fRY: [0, 0.05, 0.2, 0.3, 0.7, 0.3, 0.9, 0.05, 1, 0],
+    fLZ: [0, 0, 0.2, 0.2, 0.7, 0.2, 1, 0],
+    fRZ: [0, -0.05, 0.2, 0.15, 0.7, 0.15, 1, -0.05],
+    wpPitch: [0, 0, 0.2, -0.5, 0.8, -0.5, 1, 0],
+    offGrip: [0, 1, 0.15, 0.6, 0.85, 0.6, 1, 1],
+  },
+});
+
+/** Body tumble (rad) through a roll at progress t: a full turn between the tuck and the rise. */
+export function rollTumble(t: number): number {
+  const k = Math.max(0, Math.min(1, (t - 0.12) / 0.72));
+  return Math.PI * 2 * k * k * (3 - 2 * k);
+}

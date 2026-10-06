@@ -19,6 +19,7 @@ import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
 import { LightRig } from './lightRig';
+import { Breakables } from './breakables';
 
 export interface WorldOptions {
   shadows: boolean;
@@ -36,6 +37,8 @@ export class World {
   readonly sky: Mesh;
   /** Map lights (bulbs + the capped real-light pool); idle on maps without lights. */
   readonly lightRig: LightRig;
+  /** Window glass and duct grates (separate bodies that open). */
+  readonly breakables: Breakables;
 
   private constructor(
     readonly scene: Scene,
@@ -80,6 +83,7 @@ export class World {
     // gameplay light level everywhere (moonlight / daylight); after the props so their materials take the pool
     level.lights.ambient = th.lightLevel ?? 0.75;
     this.lightRig = new LightRig(scene, level.lights);
+    this.breakables = new Breakables(scene, level.anchors);
   }
 
   static async create(engine: Engine, map: MapDef, opts: WorldOptions): Promise<World> {
@@ -116,6 +120,7 @@ export class World {
 
   dispose(): void {
     this.lightRig.dispose();
+    this.breakables.dispose();
     this.props.dispose();
     this.level.dispose();
     this.parts.dispose();

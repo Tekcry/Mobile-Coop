@@ -22,7 +22,9 @@ Blacklist style.
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-traverse.mjs` Proving Grounds course (north east): ladder bottom / top entry, climb rate, slide, step
     off; drainpipe to a lip, climb up; ledge grab, shimmy rate, jump across, outside corner, climb up, hold-B lower
-    in, drop; horizontal pipe; keyboard E; touch prompts; planted hands / feet locked (< 1 cm), arms reach grips
+    in, drop; horizontal pipe; landing bands (soft / roll / heavy + noise + recovery); grab while falling; zipline;
+    open / glazed windows; duct unscrew, crawl, vent drop + roll, kick (fresh page); keyboard E; touch prompts;
+    planted hands / feet locked (< 1 cm), arms reach grips
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
     aiming, after a sprint / cover / lean, no residual offsets, level horizon after a shake) + headless cover bars: 3 m snap glide, hand
     contact, sticky exit, sprint slide, edge peeks, peek in/out timing, left-edge hand switch, corner offered and swung on the button (never automatic), no spin from quick aim /
@@ -338,6 +340,18 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   render frame (`TraversalController.frameUpdate`, interpolated body parameter); the climb clip phase follows
   the hand swings. Prompts (`GameState.anchorPrompts`): 'vault' (Climb / Grab / Climb up), 'jumpTo', 'drop'
   (Drop / Slide / Hang).
+- 2b: landings (`player/movement.ts` `LANDING` / `landingKind` / `landingNoise`; `PlayerController` tracks the fall's
+  top, `lastLanding`, `landings`, `landVX/Z`, `registerLanding` for committed falls, `launch(v)` to fly off an
+  anchor): a roll is a committed traversal (`kind 'roll'`, `ROLL` clip + `rollTumble` -> graph `tumble`; the rig
+  turns the feet over with it), heavy = `landT` recovery; GameState makes landing / glass / kick noise
+  (`eventNoise`, held on the meter). Falling past a lip: `AttachController.fallProbe` (Y grabs). Zipline: auto axis,
+  `finish` launches along the cable. Windows: `TraversalController.windowProbe` (reach rule in `anchors.reach`)
+  -> a vault through, breaking the glass (`hintWindow`). Ducts: `AttachController.vent` (tap kick / hold unscrew
+  via `useHeld/useHeldT`), crawl with hands planted on the floor, `ductEnd` (wall vent: crawl out; ceiling vent:
+  committed drop, `exitDur`, registered as a landing). `Breakables` (`world/breakables.ts`): glass / grate panels as
+  their own static bodies + thin instances, `open(key, how)`, `onOpen`. `anchorFirst`: ladder / drainpipe / duct /
+  zipline hints beat geometric moves. Lowering into a hang is `AttachController.lower` (separate from `hint`).
+  While attached the graph skips the swap clip (the stowed weapon goes straight to its slot).
 - Rig world targets: `reachL/R` (palm points, weight; the wrist sits behind the palm along the reach) override the
   weapon / clip hands; `plantL/R` (sole points) override the feet while off the ground planner.
 - Input: `drop` is raised with `crouch` by `InputState` (alias), `interactHold` after `INTERACT_HOLD` 0.3 s;

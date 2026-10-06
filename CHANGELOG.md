@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.9.0 - 2.0 phase 2b: landings, ziplines, windows, ducts
+- Landings (no fall damage, Blacklist): under 2.5 m a soft landing; 2.5-4.5 m a roll that keeps the momentum
+  (the body turns over forward, then carries on at a run; skipped when a wall is too close); over 4.5 m a heavy
+  landing with a 0.6 s recovery. Each band is louder (3 / 8 / 14 m) and enemies hear it.
+- Falling past a lip (or a pipe): a "Grab" prompt shows while it passes the hands, Y grabs it.
+- Ziplines: Y under the high end; speed builds to 6 m/s; B lets go and the body flies on with the cable's speed;
+  at the end it carries off the cable and lands.
+- Windows: Y at an open window vaults through it; at a glazed one the vault shatters the glass on the way (15 m).
+  Glass and duct grates are separate breakable bodies (`world/breakables.ts`, two draw calls).
+- Ducts: at a vent, tap Y to kick the grate in (quick, 10 m noise) or hold Y to unscrew it (1.2 s, silent, progress on
+  the prompt); crawl through at ~0.9 m/s (tight camera, hands planted on the duct floor); out through a wall vent,
+  or drop through a ceiling vent into the room below (a committed fall, landing like any other: a roll from 2.5 m),
+  or back out of the entry.
+- Placed anchors (ladders, drainpipes, ducts, ziplines) win over a step / vault / mantle the geometry offers at the
+  same spot; lips and pipes give way to them. Lowering into a hang is its own hint (never in the way of a climb).
+- Ladder tops are offered only walking out towards the edge the ladder hangs off.
+- The noise meter holds one-off noises (glass, kicks, landings) for a moment.
+- Fixes: the stowed weapon's swap pose no longer bends the body while hanging / climbing / crawling.
+- Proving Grounds: a zipline off the tower; a shed (south east) with an open and a glazed window, a door, and a duct
+  on its ceiling reached by a ladder platform, with a ceiling vent into the shed.
+- Tests: e2e-traverse (landing bands + noise + recovery, grab while falling, zipline, both windows, unscrew / kick /
+  crawl / vent drop), unit tests for landing bands and the window / duct / ladder-top reach rules.
+
 ## 1.8.0 - 2.0 phase 2a: ledges, ladders and pipes
 - Ladders: Y at the bottom climbs on (or at the top: turn round and step on); climb at 1.6 rungs/s with the hands and
   feet stepping rung to rung; B slides to the bottom (pushing up stops it); step off at the top or the bottom.

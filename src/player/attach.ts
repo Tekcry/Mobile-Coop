@@ -231,6 +231,8 @@ export class AttachMachine {
   height = 1.75;
   /** This entry's blend time (s): the spec's, or longer for a jump / lowering in from above. */
   enterDur = 0.3;
+  /** This exit's blend time (s): the spec's, or a drop's fall time. */
+  exitDur = 0.3;
   /** Steps spent at a range end while pushing past it (the caller exits on it). */
   edge: AttachEdge = 'none';
   private range = { min: 0, max: 0 };
@@ -248,7 +250,7 @@ export class AttachMachine {
     const sp = this.spec;
     if (!sp) return 0;
     if (this.phase === 'enter') return Math.min(1, this.t / this.enterDur);
-    if (this.phase === 'exit') return Math.min(1, this.t / sp.exit);
+    if (this.phase === 'exit') return Math.min(1, this.t / this.exitDur);
     return 1;
   }
 
@@ -275,8 +277,9 @@ export class AttachMachine {
   }
 
   /** Start blending off the anchor. */
-  beginExit(reason: ExitReason): void {
+  beginExit(reason: ExitReason, time?: number): void {
     if (this.kind === 'none' || this.phase === 'exit') return;
+    this.exitDur = time ?? ATTACH[this.kind].exit;
     this.phase = 'exit';
     this.t = 0;
     this.exitReason = reason;

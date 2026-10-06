@@ -615,7 +615,8 @@ export function reach(a: Anchor, x: number, y: number, z: number, dirX: number, 
       const fz = Math.cos(a.facing);
       if (Math.abs(y - a.base.y) < 0.4 && q.dist < REACH.horiz && dirX * fx + dirZ * fz > 0.2) return { anchor: a, entry: 'bottom', s: 0, dist: q.dist };
       const tdist = hyp2(x - a.top.x, z - a.top.z);
-      if (Math.abs(y - a.top.y) < 0.4 && tdist < REACH.ladderTop) return { anchor: a, entry: 'top', s: a.top.y - a.base.y, dist: tdist };
+      // from the top: walking towards the edge the ladder hangs off (facing away from the wall it leans on)
+      if (Math.abs(y - a.top.y) < 0.4 && tdist < REACH.ladderTop && -(dirX * fx + dirZ * fz) > 0.3) return { anchor: a, entry: 'top', s: a.top.y - a.base.y, dist: tdist };
       return null;
     }
     case 'pipeV': {
@@ -650,11 +651,23 @@ export function reach(a: Anchor, x: number, y: number, z: number, dirX: number, 
       const g = a.entry;
       const d = hyp2(x - g.pos.x, z - g.pos.z);
       if (d > 1.1 || Math.abs(g.pos.y - y) > 1.2) return null;
+      // facing into the vent
+      if (g.where === 'wall' && -(dirX * g.nx + dirZ * g.nz) < 0.3) return null;
       return { anchor: a, entry: 'side', s: 0, dist: d };
     }
     case 'window': {
-      if (q.dist > 1.2 || Math.abs(q.y - y) > 0.4) return null;
-      return { anchor: a, entry: 'side', s: q.s, dist: q.dist };
+      // from either side, facing through it, close enough, the sill at vault height, room to pass
+      const nx = Math.sin(a.yaw);
+      const nz = Math.cos(a.yaw);
+      const rx = x - a.c.x;
+      const rz = z - a.c.z;
+      const side = rx * nx + rz * nz;
+      const lat = rx * nz - rz * nx;
+      if (Math.abs(side) < 0.25 || Math.abs(side) > 1.4 || Math.abs(lat) > a.w / 2 - 0.2 || a.h < 0.9) return null;
+      const up = a.sillHeight - y;
+      if (up < 0.3 || up > 1.3) return null;
+      if (-Math.sign(side) * (dirX * nx + dirZ * nz) < 0.6) return null;
+      return { anchor: a, entry: 'side', s: lat + a.w / 2, dist: Math.abs(side) };
     }
     case 'door': {
       if (q.dist > 1.3 || Math.abs(q.y - y) > 0.4) return null;
@@ -664,7 +677,16 @@ export function reach(a: Anchor, x: number, y: number, z: number, dirX: number, 
 }
 
 /** Best anchor in reach (smallest distance, ties to the one most in front). `kinds` filters. */
-export function nearestInReach(anchors: TraversalAnchors, x: number, y: number, z: number, dirX: number, dirZ: number, kinds?: readonly AnchorKind[]): ReachResult | null {
+export function nearestInReach(
+  anchors: TraversalAnchors,
+  x: number,
+  y: number,
+  z: number,
+  dirX: number,
+  dirZ: number,
+  kinds?: readonly AnchorKind[],
+  accept?: (r: ReachResult) => boolean,
+): ReachResult | null {
   let best: ReachResult | null = null;
   let bestScore = Infinity;
   const all = anchors.all;
@@ -675,7 +697,7 @@ export function nearestInReach(anchors: TraversalAnchors, x: number, y: number, 
     const q = closestOn(a, x, y, z);
     if (q.dist > 3) continue;
     const r = reach(a, x, y, z, dirX, dirZ);
-    if (!r) continue;
+    if (!r || (accept && !accept(r))) continue;
     const score = r.dist;
     if (score < bestScore) {
       bestScore = score;

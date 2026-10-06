@@ -94,6 +94,56 @@ export const provingGrounds: MapDef = {
     b.pillar(23, 23.5, 0.1, 2.5, C.metal);
     b.pillar(28.6, 23.5, 0.1, 2.5, C.metal);
     b.pipeH(23, 23.5, 28.6, 23.5, 2.4);
+    // zipline off the tower's south edge down towards the shed
+    b.pillar(26.4, 9.62, 0.06, 2.3, C.metal, 3.6);
+    b.zipline({ x: 26.4, y: 5.5, z: 9.4 }, { x: 24.5, y: 2.3, z: 1.5 });
+
+    // shed (south east, 6 x 6 m): an open window (south), a glazed one (north) and a door; a duct on its ceiling
+    // slab, entered from a platform (ladder on its west face) by its grate, dropping into the shed through a
+    // ceiling vent
+    const SH = 3;
+    b.wall(23, -8, 25.4, -8, SH, C.wall, 0.3);
+    b.wall(26.6, -8, 29, -8, SH, C.wall, 0.3);
+    b.box(26, 0.45, -8, 1.2, 0.9, 0.3, C.wall);
+    b.box(26, 2.55, -8, 1.2, 0.9, 0.3, C.wall);
+    b.windowAt(26, 1.5, -8, 1.2, 1.2, 0, { sill: 0.9, open: true });
+    b.wall(23, -2, 24.4, -2, SH, C.wall, 0.3);
+    b.wall(25.6, -2, 27, -2, SH, C.wall, 0.3);
+    b.wall(28.2, -2, 29, -2, SH, C.wall, 0.3);
+    b.box(25, 0.45, -2, 1.2, 0.9, 0.3, C.wall);
+    b.box(25, 2.55, -2, 1.2, 0.9, 0.3, C.wall);
+    b.box(27.6, 2.6, -2, 1.2, 0.8, 0.3, C.wall);
+    b.windowAt(25, 1.5, -2, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: true });
+    b.wall(23, -8.15, 23, -1.85, SH, C.wallDark, 0.3);
+    b.wall(29, -8.15, 29, -1.85, SH, C.wallDark, 0.3);
+    // ceiling slab (3.0 - 3.2) around a 0.7 m vent hole at (27.35, -5)
+    const vx0 = 27.0;
+    const vx1 = 27.7;
+    const vz0 = -5.35;
+    const vz1 = -4.65;
+    b.box((22.85 + vx0) / 2, 3.1, -5, vx0 - 22.85, 0.2, 6.3, C.concreteDark);
+    b.box((vx1 + 29.15) / 2, 3.1, -5, 29.15 - vx1, 0.2, 6.3, C.concreteDark);
+    b.box((vx0 + vx1) / 2, 3.1, (-8.15 + vz0) / 2, vx1 - vx0, 0.2, vz0 + 8.15, C.concreteDark);
+    b.box((vx0 + vx1) / 2, 3.1, (vz1 - 1.85) / 2, vx1 - vx0, 0.2, -1.85 - vz1, C.concreteDark);
+    // the duct: a 1 x 0.8 m tunnel on the slab from the platform (x 22.2) to past the vent (x 28)
+    const duct0 = b.boxes.length;
+    b.box(22.6, 3.1, -5, 0.8, 0.2, 1.2, C.metal);
+    b.box(25.1, 3.6, -5.55, 5.8, 0.8, 0.1, C.metal);
+    b.box(25.1, 3.6, -4.45, 5.8, 0.8, 0.1, C.metal);
+    b.box(25.1, 4.05, -5, 5.8, 0.1, 1.2, C.metal);
+    b.box(28.0, 3.6, -5, 0.1, 0.8, 1.0, C.metal);
+    for (let k = duct0; k < b.boxes.length; k++) b.boxes[k]!.noLedge = true;
+    b.duct(
+      [
+        { x: 22.45, y: 3.2, z: -5 },
+        { x: 27.35, y: 3.2, z: -5 },
+      ],
+      { pos: { x: 22.2, y: 3.6, z: -5 }, nx: -1, ny: 0, nz: 0, where: 'wall' },
+      { pos: { x: 27.35, y: 3.1, z: -5 }, nx: 0, ny: -1, nz: 0, where: 'ceiling' },
+    );
+    // the platform at the duct mouth, a ladder up its west face
+    b.block(21.6, -5, 1.2, 3.2, 2, C.concreteDark);
+    b.ladder(20.95, -5, 0, 3.2, Math.PI / 2);
 
     const props: MapLayout['props'] = [];
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);

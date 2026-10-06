@@ -24,3 +24,17 @@ describe('avatar look validation', () => {
     expect(l.colors.torso).toBe('#123456');
   });
 });
+
+describe('landings', () => {
+  it('bands by fall height: soft, roll 2.5-4.5 m, heavy beyond; louder each band', async () => {
+    const { landingKind, landingNoise, LANDING } = await import('../src/player/movement');
+    expect(landingKind(0.3)).toBe('none');
+    expect(landingKind(1.5)).toBe('soft');
+    expect(landingKind(LANDING.roll)).toBe('roll');
+    expect(landingKind(4.5)).toBe('roll');
+    expect(landingKind(4.6)).toBe('heavy');
+    expect(landingNoise('soft')).toBeLessThan(landingNoise('roll'));
+    expect(landingNoise('roll')).toBeLessThan(landingNoise('heavy'));
+    expect(LANDING.heavyRecovery).toBeCloseTo(0.6);
+  });
+});

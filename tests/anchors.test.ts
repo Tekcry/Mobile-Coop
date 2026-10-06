@@ -22,6 +22,7 @@ import {
   type Ledge,
   type PipeHorizontal,
   type PipeVertical,
+  type WindowAnchor,
   type Zipline,
 } from '../src/world/anchors';
 
@@ -228,5 +229,46 @@ describe('anchor geometry', () => {
     const near = anchorsNear(anchors, 4, 0, 0, 6);
     expect(near[0]!.anchor).toBe(pipe);
     expect(near.map((n) => n.anchor.kind)).toContain('ladder');
+  });
+});
+
+describe('2b reach rules', () => {
+  const a = new TraversalAnchors();
+  const win = a.add<WindowAnchor>({ kind: 'window', c: { x: 0, y: 1.5, z: 0 }, w: 1.2, h: 1.2, yaw: 0, sillHeight: 0.9, breakable: true, open: false });
+  const duct = a.add<Duct>({
+    kind: 'duct',
+    path: [
+      { x: 0.25, y: 3, z: 10 },
+      { x: 5, y: 3, z: 10 },
+    ],
+    entry: { pos: { x: 0, y: 3.35, z: 10 }, nx: -1, ny: 0, nz: 0, where: 'wall' },
+    exit: { pos: { x: 5, y: 2.9, z: 10 }, nx: 0, ny: -1, nz: 0, where: 'ceiling' },
+    grates: [],
+  });
+  const lad = a.add<Ladder>({ kind: 'ladder', base: { x: 20, y: 0, z: 0 }, top: { x: 20, y: 3, z: 0.45 }, facing: 0, rung: 0.3, width: 0.5 });
+
+  it('windows: from either side facing through, sill at vault height, within the frame', () => {
+    expect(reach(win, 0, 0, -0.8, 0, 1)?.entry).toBe('side');
+    expect(reach(win, 0, 0, 0.8, 0, -1)?.entry).toBe('side');
+    // facing away, too far, off to the side of the frame, sill too high
+    expect(reach(win, 0, 0, -0.8, 0, -1)).toBeNull();
+    expect(reach(win, 0, 0, -2, 0, 1)).toBeNull();
+    expect(reach(win, 0.55, 0, -0.8, 0, 1)).toBeNull();
+    expect(reach(win, 0, -0.6, -0.8, 0, 1)).toBeNull();
+  });
+
+  it('ducts: at the grate, facing into it', () => {
+    expect(reach(duct, -0.6, 3, 10, 1, 0)?.entry).toBe('side');
+    expect(reach(duct, -0.6, 3, 10, -1, 0)).toBeNull();
+    expect(reach(duct, -0.6, 0, 10, 1, 0)).toBeNull();
+  });
+
+  it('ladder tops: walking out towards the edge it hangs off, not facing back', () => {
+    expect(reach(lad, 20, 3, 0.9, 0, -1)?.entry).toBe('top');
+    expect(reach(lad, 20, 3, 0.9, 0, 1)).toBeNull();
+  });
+
+  it('nearestInReach takes an accept filter', () => {
+    expect(nearestInReach(a, 0, 0, -0.8, 0, 1, undefined, (r) => r.anchor.kind !== 'window')).toBeNull();
   });
 });

@@ -179,3 +179,20 @@ export function noiseRadius(speed: number, crouched: boolean, sprinting: boolean
   }
   return speed <= M.walkSpeed + 0.05 ? 1.5 + speed * 1.8 : 4 + (speed - M.walkSpeed) * 3.6;
 }
+
+/** Landing bands by fall height (m): under `roll` a soft landing, up to `heavy` a roll that keeps the momentum,
+ *  beyond it a heavy landing with a recovery. No fall damage (Blacklist), but every band is louder. */
+export const LANDING = { soft: 0.6, roll: 2.5, heavy: 4.5, heavyRecovery: 0.6 } as const;
+export type LandingKind = 'none' | 'soft' | 'roll' | 'heavy';
+
+export function landingKind(fall: number): LandingKind {
+  if (fall < LANDING.soft) return 'none';
+  if (fall < LANDING.roll) return 'soft';
+  if (fall <= LANDING.heavy) return 'roll';
+  return 'heavy';
+}
+
+/** Noise radius of a landing (m): a soft drop is quiet, a heavy landing carries. */
+export function landingNoise(kind: LandingKind): number {
+  return kind === 'heavy' ? 14 : kind === 'roll' ? 8 : kind === 'soft' ? 3 : 0;
+}

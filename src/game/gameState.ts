@@ -39,11 +39,11 @@ import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
-import { ATTACH_LABEL } from '../player/attachController';
+import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
 import type { Ledge } from '../world/anchors';
 import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
-import { noiseRadius } from '../player/movement';
+import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
@@ -223,6 +223,8 @@ export class GameState implements AppState {
     this.hud.world.onTap = (id) => this.onWorldPrompt(id);
     this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.traversal = new TraversalController(this.scene, this.player, world.level.anchors);
+    this.traversal.breakables = world.breakables;
+    world.breakables.onOpen = (key, how, at) => this.onBreakable(key, how, at);
     this.post = new CinematicPost(this.player.cam.camera);
     this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
@@ -547,6 +549,38 @@ export class GameState implements AppState {
     }
   }
 
+  /** Glass shattering and grates kicked in are loud; an unscrewed grate is silent. */
+  private onBreakable(key: string, how: 'break' | 'kick' | 'unscrew', at: Vector3): void {
+    const r = how === 'break' ? 15 : how === 'kick' ? 10 : 0;
+    if (key.startsWith('glass')) this.vfx.sparks(at, Vector3.Up(), 14, '#cfeaf5');
+    else this.vfx.dust(at, Vector3.Up(), '#7a8086');
+    if (r <= 0) return;
+    this.eventNoise(r);
+    this.enemyMgr?.hear(at, r);
+  }
+
+  private landSeen = 0;
+  /** Loudest one-off noise (glass, kicks, landings) and how long it still shows on the noise meter (s). */
+  private evNoise = 0;
+  private evNoiseT = 0;
+
+  private eventNoise(r: number): void {
+    this.evNoise = Math.max(this.evNoise, r);
+    this.evNoiseT = 0.8;
+    this.noise = Math.max(this.noise, r);
+  }
+
+  /** Landings make noise by how hard they were (a heavy landing carries). */
+  private landingNoise(): void {
+    const c = this.player.controller;
+    if (c.landings === this.landSeen) return;
+    this.landSeen = c.landings;
+    const r = landingNoise(c.lastLanding);
+    if (r <= 0 || !this.player.alive) return;
+    this.eventNoise(r);
+    this.enemyMgr?.hear(this.player.position, r);
+  }
+
   /** Player light level at `LIGHT.playerHz`; lights blocked by level geometry do not count. */
   private updateLight(dt: number): void {
     const reg = this.world.level.lights;
@@ -599,6 +633,8 @@ export class GameState implements AppState {
     ti.dropPressed = inp.pressed('drop');
     ti.dropHeld = inp.down('drop');
     ti.dropHeldT = inp.heldTime('drop');
+    ti.useHeld = inp.down('interact');
+    ti.useHeldT = inp.heldTime('interact');
     this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget, this.cover.state !== 'none', this.cover.exitDir);
     // attached (ladder, pipe, hang, duct): both hands busy, the weapon goes to its slot; its framing preset
     this.weapons.setStowed(this.traversal.attached && !!this.traversal.attach.spec?.holster);
@@ -615,13 +651,17 @@ export class GameState implements AppState {
     for (const d of this.dummies) d.update(dt);
     // footsteps make noise that scales with speed (creeping is near silent, dashing carries)
     this.noiseT -= dt;
+    this.evNoiseT -= dt;
+    if (this.evNoiseT <= 0) this.evNoise = 0;
     if (this.noiseT <= 0) {
       this.noiseT = 0.25;
       const c = this.player.controller;
-      this.noise = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) : 0;
-      if (this.noise > 0) this.enemyMgr?.hear(this.player.position, this.noise);
+      const steps = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) : 0;
+      if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
+      this.noise = Math.max(steps, this.evNoise);
     }
     this.updateLight(dt);
+    this.landingNoise();
     this.updateCoverRef(dt);
     this.updateExposure(dt);
     this.updateRoomTag(dt);
@@ -883,7 +923,7 @@ export class GameState implements AppState {
     else w.set('cover', null, 0, 0);
     // traversal (not in cover): on the obstacle face, or on the floor at the ledge
     const th = this.traversal.hint;
-    const tl = th && !c.inCover && st !== 'dash' ? (TRAVERSE_LABEL[th.kind] ?? '') : '';
+    const tl = th && !c.inCover && st !== 'dash' && !anchorFirst(this.traversal.attachHint) ? (TRAVERSE_LABEL[th.kind] ?? '') : '';
     if (tl && th && cand) {
       // the same surface offers cover too: vault sits beside the cover prompt (camera-right side)
       const yaw = this.player.cam.yaw;
@@ -939,21 +979,27 @@ export class GameState implements AppState {
       return;
     }
     w.set('jumpTo', null, 0, 0);
-    // from the ground: the anchor in reach when nothing closer (step / vault / mantle) is offered
-    const h = ac.hint;
-    const geo = t.hint && t.hint.kind !== 'drop';
-    if (!h || geo || this.cover.state !== 'none') {
+    // opening a grate: the unscrew progress on it
+    const v = ac.vent;
+    if (v) {
+      const g = v.duct.entry;
+      const lbl = v.progress > 0 ? `${ATTACH_LABEL.unscrew} ${Math.round(v.progress * 100)}%` : ATTACH_LABEL.ventClosed!;
+      if (this.project(g.pos.x, g.pos.y + 0.45, g.pos.z)) w.set('vault', lbl, this.scr.x, this.scr.y);
       w.set('drop', null, 0, 0);
       return;
     }
-    // at a hangable edge traverse still drops down; the drop control (hold) / its prompt lowers into a hang
-    if (h.entry === 'above') {
-      const a = h.anchor as Ledge;
-      if (this.project(a.a.x + a.tx * h.s, a.top + 0.45, a.a.z + a.tz * h.s)) w.set('drop', ATTACH_LABEL.ledgeAbove!, this.scr.x, this.scr.y);
+    // from the ground: the anchor in reach when nothing closer (step / vault / mantle) is offered
+    const h = ac.hint;
+    const geo = t.hint && t.hint.kind !== 'drop' && !anchorFirst(h);
+    const blocked = !!geo || this.cover.state !== 'none';
+    // at a hangable edge the drop control (hold) / its prompt lowers into a hang (traverse there still drops)
+    const low = blocked ? null : ac.lower;
+    if (low) {
+      const a = low.anchor as Ledge;
+      if (this.project(a.a.x + a.tx * low.s, a.top + 0.45, a.a.z + a.tz * low.s)) w.set('drop', ATTACH_LABEL.ledgeAbove!, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);
-      return;
-    }
-    w.set('drop', null, 0, 0);
+    } else w.set('drop', null, 0, 0);
+    if (!h || blocked) return;
     const a = h.anchor;
     const g = this.promptPt;
     const feetY = this.player.position.y;
@@ -973,6 +1019,9 @@ export class GameState implements AppState {
         g.set(a.a.x + ((a.b.x - a.a.x) * h.s) / l, a.hangHeight, a.a.z + ((a.b.z - a.a.z) * h.s) / l);
         break;
       }
+      case 'duct':
+        g.set(a.entry.pos.x, a.entry.pos.y + 0.45, a.entry.pos.z);
+        break;
       default:
         g.set(a.kind === 'zipline' ? a.a.x : this.player.position.x, a.kind === 'zipline' ? a.a.y : feetY + 1, a.kind === 'zipline' ? a.a.z : this.player.position.z);
     }

@@ -293,6 +293,17 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 2b - Landings, ziplines, windows, ducts (1.9.0) - Proving Grounds, east side
+- [ ] Walk off the tower (3.6 m): a roll that keeps you moving; off the 2.3 m blocks: a soft landing. Enemies in
+      Wave mode turn towards a heavy landing.
+- [ ] Drop off the tower beside its south wall and press Y as the lip passes: you catch it.
+- [ ] Zipline from the tower's south edge: speed builds, B lets go mid-way (you fly on), riding to the end you land
+      running.
+- [ ] Shed: Y at the open south window vaults in; Y at the glazed north window shatters it and vaults out (loud).
+- [ ] Ladder platform west of the shed: at the vent tap Y kicks it in (loud), or hold Y to unscrew (silent, the
+      prompt counts up); crawl through; at the end you drop into the shed and roll. Pull back at the start to leave.
+- [ ] The camera never pokes outside the duct; the stick-figure guns on the back stay inside the duct.
+
 ## 2.0 phase 2a - Ledges, ladders, pipes (1.8.0) - Proving Grounds, north east corner
 - [ ] Ladder (tower, west side): Y climbs on; stick up climbs, hands and feet land on rungs (no sliding); B slides to
       the bottom; climbing past the top steps onto the tower. From the tower top, Y at the ladder steps on facing it.

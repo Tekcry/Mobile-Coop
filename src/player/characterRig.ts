@@ -1054,6 +1054,26 @@ export class CharacterRig {
       L.y = R.y = rp.y;
       L.yaw = R.yaw = yaw;
       L.pitch = R.pitch = 0;
+      // tumbling (landing roll): the feet turn over with the body about the hip pivot
+      if (Math.abs(t.tumble) > 1e-3) {
+        const tc = Math.cos(t.tumble);
+        const ts = Math.sin(t.tumble);
+        const py = rp.y + this.bodyPivot;
+        for (let k = 0; k < 2; k++) {
+          const f = k === 0 ? L : R;
+          const dx = f.x - rp.x;
+          const dz = f.z - rp.z;
+          const vf = dx * s + dz * c;
+          const vr = dx * c - dz * s;
+          const vy = f.y + p.y.ankle - py;
+          const vf2 = vy * ts + vf * tc;
+          const vy2 = vy * tc - vf * ts;
+          f.x = rp.x + vr * c + vf2 * s;
+          f.z = rp.z - vr * s + vf2 * c;
+          f.y = py + vy2 - p.y.ankle;
+          f.pitch = t.tumble;
+        }
+      }
       // attached: soles onto rungs / wall pads
       const pl = this.plantL;
       const pr = this.plantR;

@@ -4,12 +4,15 @@ import type { TraverseKind } from '../anim/animGraph';
 import type { AttachCamera } from '../config/camera';
 import {
   anchorsNear,
+  closestOn,
+  ductPoint,
   findJumpTarget,
   HANG,
   ledgeContinuation,
   nearestInReach,
   type Anchor,
   type AttachEntry,
+  type Duct,
   type JumpTarget,
   type Ledge,
   type P3,
@@ -19,6 +22,7 @@ import {
 import { AttachMachine, attachPose, axisInput, LADDER_SLIDE, PIPE_SLIDE, type AttachPose, type ExitReason } from './attach';
 import { GripStepper, type GripLimb } from './gripStepper';
 import type { Player } from './player';
+import type { Breakables } from '../world/breakables';
 
 /** Player input for attached states (set by GameState before each fixed step). */
 export interface AttachInput {
@@ -29,10 +33,25 @@ export interface AttachInput {
   dropHeld: boolean;
   /** Seconds drop has been held. */
   dropHeldT: number;
+  /** The use control (Y / E) is down, and for how long (hold to unscrew a grate). */
+  useHeld: boolean;
+  useHeldT: number;
 }
 
 /** Anchors offered from the ground (the traverse button attaches). */
-const GROUND_KINDS = ['ladder', 'pipeV', 'pipeH', 'ledge', 'zipline'] as const;
+const GROUND_KINDS = ['ladder', 'pipeV', 'pipeH', 'ledge', 'zipline', 'duct'] as const;
+const LOWER_KINDS = ['ledge'] as const;
+/** Placed anchors that win over a step / vault / mantle the geometry offers at the same spot (a ladder or a duct
+ *  is what the player is facing on purpose); lips and pipes give way to them. */
+export function anchorFirst(r: ReachResult | null): boolean {
+  const k = r?.anchor.kind;
+  return k === 'ladder' || k === 'pipeV' || k === 'duct' || k === 'zipline';
+}
+const isAbove = (r: ReachResult): boolean => r.entry === 'above';
+const notAbove = (r: ReachResult): boolean => r.entry !== 'above';
+/** Unscrewing a grate (s, after the hold delay) and the press length under which a press is a kick. */
+export const UNSCREW_TIME = 1.2;
+const KICK_TAP = 0.3;
 /** Hold drop this long at a hangable edge to lower into a hang (s). */
 export const LOWER_HOLD = 0.3;
 /** Lowering in from the top (turn round, step out, drop to the hands) and stepping onto a ladder from its top (s). */
@@ -48,6 +67,9 @@ export const ATTACH_LABEL: Record<string, string> = {
   pipeV: 'Climb',
   pipeH: 'Grab',
   ledgeBelow: 'Grab',
+  ventClosed: 'Kick vent',
+  ventOpen: 'Crawl in',
+  unscrew: 'Unscrewing',
   ledgeAbove: 'Hang',
   zipline: 'Zipline',
   climbUp: 'Climb up',
@@ -67,9 +89,15 @@ const angleTo = (a: number, b: number): number => Math.atan2(Math.sin(b - a), Ma
  */
 export class AttachController {
   readonly m = new AttachMachine();
-  readonly input: AttachInput = { moveX: 0, moveY: 0, camYaw: 0, dropPressed: false, dropHeld: false, dropHeldT: 0 };
+  readonly input: AttachInput = { moveX: 0, moveY: 0, camYaw: 0, dropPressed: false, dropHeld: false, dropHeldT: 0, useHeld: false, useHeldT: 0 };
+  /** Window glass and duct grates (set by the traversal controller's owner). */
+  breakables: Breakables | null = null;
+  /** Opening a duct grate: the duct, seconds since the press, and the unscrew progress 0..1 (prompt ring). */
+  vent: { duct: Duct; t: number; progress: number } | null = null;
   /** What traverse would attach to from the ground (prompt), refreshed with the traversal probe. */
   hint: ReachResult | null = null;
+  /** A lip to lower into a hang from (the drop control held, or its prompt), refreshed with the probe. */
+  lower: ReachResult | null = null;
   /** While attached: the anchor a traverse press would jump to (stick pointing at it), or null. */
   jump: JumpTarget | null = null;
   /** Lower into the hang at the edge on the next step (the touch prompt). */
@@ -89,6 +117,8 @@ export class AttachController {
   private hands = new GripStepper({ offL: -0.2, offR: 0.2, slack: 0.14, swingTime: HAND_SWING, lead: 0.8, grid: 0, gridOrigin: 0, min: 0, max: 1 });
   private feet = new GripStepper({ offL: 0, offR: 0.3, slack: 0.3, swingTime: FOOT_SWING, lead: 1, grid: 0.3, gridOrigin: 0, min: 0, max: 1 });
   private jumpT = 0;
+  /** Height of the vent drop under way (m; 0 = none). */
+  private ventDrop = 0;
   /** Ladder: a drop press slides to the bottom (pushing up stops it). */
   private sliding = false;
   private wish = { x: 0, z: 0 };
@@ -100,6 +130,8 @@ export class AttachController {
     kin: Vector3,
     /** Is a standing body's worth of space free above (x, y, z)? (raycasts, owned by TraversalController) */
     private roomAt: (x: number, y: number, z: number) => boolean,
+    /** Floor height under (x, z) from `yFrom` down, or null. */
+    private floorAt: (x: number, z: number, yFrom: number) => number | null,
   ) {
     this.kin = kin;
   }
@@ -112,27 +144,60 @@ export class AttachController {
     return this.m.spec?.camera ?? null;
   }
 
-  /** Anchor to attach to from the feet along `dir` (or null). */
+  /** Anchor the traverse button attaches to from the feet along `dir` (or null); also refreshes `lower`. */
   probe(feet: Vector3, dx: number, dz: number): ReachResult | null {
-    const r = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, GROUND_KINDS);
-    if (!r) return null;
-    // climbing onto a lip from below / lowering from above needs the hang spot clear of the floor and walls
-    if (r.anchor.kind === 'ledge' && r.entry === 'above') {
-      const p = attachPose(r.anchor, r.s, 1, this.player.rig.height, this.ap);
-      if (!this.roomAt(p.x, p.y + 0.3, p.z)) return null;
+    // lowering into a hang is the drop control's: a separate hint, never in the way of a climb / grab
+    const low = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, LOWER_KINDS, isAbove);
+    this.lower = null;
+    if (low) {
+      // the hang spot below the lip must be clear of the floor and walls
+      const p = attachPose(low.anchor, low.s, 1, this.player.rig.height, this.ap);
+      if (this.roomAt(p.x, p.y + 0.3, p.z)) this.lower = low;
     }
-    return r;
+    return nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, GROUND_KINDS, notAbove);
+  }
+
+  /**
+   * Falling past a lip (or a pipe): it is in the hands' path when it sits 1.5-2.35 m above the falling feet, within
+   * reach of the body on its outer side. Returns it as a 'below' entry (the traverse button grabs it).
+   */
+  fallProbe(feet: Vector3): ReachResult | null {
+    const near = anchorsNear(this.anchors, feet.x, feet.y, feet.z, 0.7, ['ledge', 'pipeH']);
+    for (const n of near) {
+      const a = n.anchor;
+      const top = a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : 0;
+      const up = top - feet.y;
+      if (up < 1.5 || up > 2.35) continue;
+      if (a.kind === 'ledge') {
+        if (!a.canHang) continue;
+        const q = closestOn(a, feet.x, feet.y, feet.z);
+        if ((feet.x - q.x) * a.nx + (feet.z - q.z) * a.nz < -0.05) continue;
+        return { anchor: a, entry: 'below', s: q.s, dist: n.dist };
+      }
+      const q = closestOn(a, feet.x, feet.y, feet.z);
+      return { anchor: a, entry: 'below', s: q.s, dist: n.dist };
+    }
+    return null;
   }
 
   /** Label for the ground prompt. */
   hintLabel(r: ReachResult): string {
     if (r.anchor.kind === 'ledge') return r.entry === 'above' ? ATTACH_LABEL.ledgeAbove! : ATTACH_LABEL.ledgeBelow!;
+    if (r.anchor.kind === 'duct') return this.breakables?.isOpen(`grate:${r.anchor.id}:entry`) === false ? ATTACH_LABEL.ventClosed! : ATTACH_LABEL.ventOpen!;
     return ATTACH_LABEL[r.anchor.kind] ?? '';
   }
 
   /** Attach from the ground. */
-  attachFrom(r: ReachResult): boolean {
+  attachFrom(r: ReachResult, enterTime?: number): boolean {
     const a = r.anchor;
+    if (a.kind === 'duct') {
+      // a closed grate is opened first: a tap kicks it in, a hold unscrews it
+      if (this.breakables?.isOpen(`grate:${a.id}:entry`) === false) {
+        this.vent = { duct: a, t: 0, progress: 0 };
+        return true;
+      }
+      return this.attachTo(a, 0, 'side', 1, 0.55);
+    }
     let face = 1;
     if (a.kind === 'pipeH') {
       // hang facing across the pipe on the side the camera looks along
@@ -142,7 +207,7 @@ export class AttachController {
       const cz = Math.cos(this.input.camYaw);
       face = az * cx - ax * cz >= 0 ? 1 : -1;
     }
-    const t = r.entry === 'above' ? LOWER_TIME : r.entry === 'top' && a.kind === 'ladder' ? LADDER_TOP_TIME : undefined;
+    const t = enterTime ?? (r.entry === 'above' ? LOWER_TIME : r.entry === 'top' && a.kind === 'ladder' ? LADDER_TOP_TIME : undefined);
     return this.attachTo(a, r.s, r.entry, face, t);
   }
 
@@ -191,8 +256,22 @@ export class AttachController {
 
   private finish(reason: ExitReason | null): void {
     const c = this.player.controller;
+    const a = this.m.anchor;
+    const v = this.m.v;
     const r = this.m.finish() ?? reason;
     c.override = null;
+    if (this.ventDrop > 0) {
+      c.registerLanding(this.ventDrop, 0, 0);
+      this.ventDrop = 0;
+    }
+    // off a zipline (let go or at its end): fly on along the cable with its speed
+    if (a && a.kind === 'zipline' && (r === 'drop' || r === 'end')) {
+      const dx = a.b.x - a.a.x;
+      const dy = a.b.y - a.a.y;
+      const dz = a.b.z - a.a.z;
+      const l = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+      c.launch((dx / l) * v, (dy / l) * v * 0.5, (dz / l) * v);
+    }
     const pose = this.player.coverPose;
     pose.traverse = 'none';
     pose.traverseT = 0;
@@ -261,6 +340,17 @@ export class AttachController {
         f.min = a.base.y;
         f.max = a.top.y - 1;
         break;
+      case 'duct':
+        // crawling: hands planted on the duct floor ahead of the shoulders, staggered
+        h.offL = 0.38 * k;
+        h.offR = 0.58 * k;
+        h.slack = 0.2;
+        h.lead = 1;
+        h.swingTime = 0.22;
+        h.grid = 0;
+        h.min = 0;
+        h.max = 1e6;
+        break;
       default:
         break;
     }
@@ -272,6 +362,75 @@ export class AttachController {
   /** Body parameter on the grip axis: along the lip / pipe (s), or the feet height for climbs. */
   private gripBody(a: Anchor, s: number): number {
     return a.kind === 'ladder' || a.kind === 'pipeV' ? a.base.y + s : s;
+  }
+
+  /**
+   * Opening a duct grate (before attaching): standing at it facing in; a short press kicks it (loud, quick), a
+   * hold unscrews it over `UNSCREW_TIME` (quiet); letting go mid-unscrew stops. Returns true while it owns the body.
+   */
+  updateVent(dt: number): boolean {
+    const v = this.vent;
+    if (!v) return false;
+    const c = this.player.controller;
+    const g = v.duct.entry;
+    v.t += dt;
+    const inp = this.input;
+    const key = `grate:${v.duct.id}:entry`;
+    c.override = { velocity: { x: 0, z: 0 }, yaw: Math.atan2(-g.nx, -g.nz), turnRate: 10 };
+    if (!this.player.alive || hyp2(inp.moveX, inp.moveY) > 0.6) {
+      this.vent = null;
+      c.override = null;
+      return false;
+    }
+    let opened = false;
+    if (!inp.useHeld && v.t > 0.02) {
+      if (v.progress <= 0 && v.t < KICK_TAP + 0.1) {
+        this.breakables?.open(key, 'kick');
+        opened = true;
+      } else {
+        // let go mid-unscrew: stop (the progress is lost)
+        this.vent = null;
+        c.override = null;
+        return false;
+      }
+    } else if (inp.useHeldT >= KICK_TAP) {
+      v.progress = Math.min(1, (inp.useHeldT - KICK_TAP) / UNSCREW_TIME);
+      if (v.progress >= 1) {
+        this.breakables?.open(key, 'unscrew');
+        opened = true;
+      }
+    }
+    if (!opened) return true;
+    this.vent = null;
+    c.override = null;
+    this.attachTo(v.duct, 0, 'side', 1, 0.55);
+    return true;
+  }
+
+  /** The end of a duct: out through the exit grate (crawl out of a wall vent, drop through a ceiling vent), or
+   *  back out of the entry. */
+  private ductEnd(d: Duct, edge: 'min' | 'max'): void {
+    const g = edge === 'max' ? d.exit : d.entry;
+    if (edge === 'max') this.breakables?.open(`grate:${d.id}:exit`, 'unscrew');
+    if (g.where !== 'wall') {
+      // ceiling vent (a grate in the duct floor): a committed drop through it to the floor below (the capsule
+      // would snag in the hole), landing like any fall (a roll from 2.5 m)
+      const fy = this.floorAt(g.pos.x, g.pos.z, g.pos.y - 0.2);
+      const p = attachPose(d, this.m.s, this.m.face, this.player.rig.height, this.ap);
+      this.end.x = p.x;
+      this.end.z = p.z;
+      this.end.y = fy ?? p.y - 3;
+      this.ventDrop = Math.max(0, p.y - this.end.y);
+      this.m.beginExit('end', Math.max(0.25, Math.sqrt((2 * this.ventDrop) / 9.81)));
+      return;
+    }
+    const ex = g.pos.x + g.nx * 0.75;
+    const ez = g.pos.z + g.nz * 0.75;
+    const fy = this.floorAt(ex, ez, g.pos.y + 0.5);
+    this.end.x = ex;
+    this.end.z = ez;
+    this.end.y = fy ?? g.pos.y - 0.35;
+    this.m.beginExit('end');
   }
 
   /** Fixed step while attached: input along the anchor, transfers, jumps, exits, root path. */
@@ -314,7 +473,8 @@ export class AttachController {
       else if (a.kind === 'pipeV' && (edge === 'max' || (jumpPressed && m.s >= m.limits.max - 0.05))) this.pipeTop(a);
       else if (edge === 'max' && a.kind === 'ladder') this.detach('top');
       else if (edge === 'min' && (a.kind === 'ladder' || a.kind === 'pipeV')) this.detach('bottom');
-      else if (edge !== 'none' && (a.kind === 'duct' || a.kind === 'zipline')) this.detach('end');
+      else if (edge !== 'none' && a.kind === 'zipline') this.finish('end');
+      else if (edge !== 'none' && a.kind === 'duct') this.ductEnd(a, edge);
       if (!m.active) return;
     }
     this.path();
@@ -342,6 +502,9 @@ export class AttachController {
         this.kin.set(f.x + (p.x - f.x) * e, f.y + (p.y - f.y) * e + arc, f.z + (p.z - f.z) * e);
       }
       yaw = this.fromYaw + angleTo(this.fromYaw, p.yaw) * smooth(k / 0.7);
+    } else if (m.phase === 'exit' && this.ventDrop > 0) {
+      // falling through a ceiling vent: free fall straight down
+      this.kin.set(p.x, p.y - this.ventDrop * k * k, p.z);
     } else if (m.phase === 'exit') {
       // climbing up rises first, then steps in (like the mantle)
       const climb = m.exitReason === 'climb' || m.exitReason === 'top';
@@ -355,7 +518,7 @@ export class AttachController {
     const pose = this.player.coverPose;
     const fam: TraverseKind = a.kind === 'ladder' || a.kind === 'pipeV' ? 'climb' : a.kind === 'duct' ? 'crawl' : 'hang';
     const climbOut = m.phase === 'exit' && (m.exitReason === 'climb' || m.exitReason === 'top');
-    pose.traverse = climbOut ? 'mantle' : fam;
+    pose.traverse = climbOut ? 'mantle' : this.ventDrop > 0 && m.phase === 'exit' ? 'drop' : fam;
     pose.traverseT = climbOut ? k : fam === 'hang' ? 0 : this.cadence();
   }
 
@@ -452,7 +615,7 @@ export class AttachController {
     const a = m.anchor!;
     const s = this.sPrev + (m.s - this.sPrev) * alpha;
     const body = this.gripBody(a, s);
-    this.hands.update(dt, body, m.v);
+    this.hands.update(dt, body, m.kind === 'duct' ? m.v * m.face : m.v);
     if (a.kind === 'ladder' || a.kind === 'pipeV') this.feet.update(dt, body, m.v);
     const k = m.progress;
     const w = m.phase === 'exit' ? 1 - smooth(k / 0.7) : m.phase === 'enter' ? smooth((k - 0.25) / 0.75) : 1;
@@ -532,10 +695,25 @@ export class AttachController {
         }
         return;
       }
+      case 'duct': {
+        // hands on the duct floor beside the path ahead, lifted mid-swing
+        for (let i = 0; i < 2; i++) {
+          const g = i === 0 ? hL : hR;
+          const t = i === 0 ? L : R;
+          const sd = i === 0 ? -1 : 1;
+          const q = ductPoint(a, this.hands.pos(g), this.dp);
+          t.x = q.x + rx * 0.17 * sd;
+          t.z = q.z + rz * 0.17 * sd;
+          t.y = q.y + 0.05 + this.hands.lift(g) * 0.07;
+        }
+        return;
+      }
       default:
         L.w = R.w = 0;
     }
   }
+
+  private dp = { x: 0, y: 0, z: 0, dx: 0, dz: 1 };
 
   /** A hand on a ledge lip at its stepper parameter (lifted and pulled back a little mid-swing). */
   private alongLip(l: Ledge, g: GripLimb, t: { x: number; y: number; z: number }): void {
@@ -565,5 +743,7 @@ export class AttachController {
   reset(): void {
     if (this.m.active) this.finish('gone');
     this.hint = null;
+    this.lower = null;
+    this.vent = null;
   }
 }

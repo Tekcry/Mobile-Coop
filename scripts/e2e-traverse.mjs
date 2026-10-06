@@ -8,7 +8,8 @@ const { browser, page, errors } = await launch({ url, params: 'autostart=proving
 let failed = false;
 
 // page helpers: stepping with a held stick / buttons, measuring contacts on every rendered (120 Hz) frame
-await page.evaluate(() => {
+const setup = () =>
+  page.evaluate(() => {
   const H = {
     st: () => window.__app.current,
     tp(x, y, z, yaw) {
@@ -89,16 +90,19 @@ await page.evaluate(() => {
         x: c.pos.x, y: c.pos.y, z: c.pos.z, yaw: c.yaw, grounded: c.grounded,
         attached: ac.active, kind: a?.kind ?? null, id: a?.id ?? -1, nx: a?.nx ?? 0, nz: a?.nz ?? 0, phase: ac.m.phase, s: ac.m.s, v: ac.m.v,
         held: !!st.player.rig.heldWeapon, cam: st.player.cam.attach, trav: st.player.coverPose.traverse,
-        hint: ac.hint ? `${ac.hint.anchor.kind}:${ac.hint.entry}` : null,
+        hint: ac.hint ? `${ac.hint.anchor.kind}:${ac.hint.entry}` : ac.lower ? `${ac.lower.anchor.kind}:${ac.lower.entry}` : null,
         prompt: st.hud.world.label('vault'), jumpPrompt: st.hud.world.label('jumpTo'), dropPrompt: st.hud.world.label('drop'),
         jump: ac.jump ? ac.jump.anchor.id : -1,
+        landing: c.lastLanding, fall: c.lastFall, landT: c.landT, noise: st.noise, tkind: st.traversal.kind,
+        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1,
       };
     },
   };
   window.__tr = H;
   window.__app.loop.manual = true;
 });
-/** State, after a rendered frame so world prompts project through the current view. */
+/** State, after a rendered frame so world prompts project through the current view. */;
+await setup();
 const I = async () => {
   await frames(page, 2);
   await page.evaluate(() => window.__app.loop.stepHeadless(1 / 60, 120));
@@ -272,6 +276,128 @@ try {
   i = await I();
   assert(!i.attached && i.grounded, 'dropped off the pipe');
 
+  // --- landings: soft under 2.5 m, a roll that keeps going from 2.5-4.5 m, a heavy landing beyond (loud)
+  const fall = async (y) => {
+    await tp(24, y, 4, 0);
+    const seen = await page.evaluate(() => {
+      const st = window.__tr.st();
+      let roll = false;
+      let maxNoise = 0;
+      for (let i = 0; i < 150; i++) {
+        window.__app.loop.stepHeadless(1 / 60, 120);
+        if (st.traversal.kind === 'roll') roll = true;
+        maxNoise = Math.max(maxNoise, st.noise);
+      }
+      return { roll, maxNoise };
+    });
+    return { ...seen, ...(await I()) };
+  };
+  let L = await fall(1.6);
+  assert(L.landing === 'soft' && !L.roll, `a 1.6 m fall is a soft landing (${L.landing})`);
+  L = await fall(3.4);
+  assert(L.landing === 'roll' && L.roll && L.z > 4.6, `a 3.4 m fall rolls out of it, moving on (${L.landing}, z ${f2(L.z)})`);
+  L = await fall(5.5);
+  assert(L.landing === 'heavy' && !L.roll && L.maxNoise >= 14, `a 5.5 m fall is a heavy, loud landing (${L.landing}, noise ${L.maxNoise})`);
+  await tp(24, 5.5, 4, 0);
+  await page.evaluate(() => { window.__app.loop.stepHeadless(4 / 60, 120); for (let i = 0; i < 80 && !window.__tr.st().player.controller.grounded; i++) window.__app.loop.stepHeadless(1 / 60, 120); window.__app.loop.stepHeadless(2 / 60, 120); });
+  i = await I();
+  assert(i.landT > 0.4, `heavy landing recovery (${f2(i.landT)} s left)`);
+
+  // --- falling past a lip: Y in the window grabs it
+  await tp(27, 5.2, 9.0, 0);
+  const grabbed = await page.evaluate(() => {
+    const st = window.__tr.st();
+    for (let i = 0; i < 60; i++) {
+      window.__app.loop.stepHeadless(1 / 60, 120);
+      if (st.traversal.attachCtl.hint && !st.traversal.attachCtl.active) {
+        window.__tr.tap(3);
+        break;
+      }
+    }
+    window.__app.loop.stepHeadless(0.3, 120);
+    return st.traversal.attachCtl.active && st.traversal.attachCtl.m.anchor.kind === 'ledge';
+  });
+  assert(grabbed, 'falling past a lip, Y grabs it');
+  await tap(BTN.B);
+  await run(1);
+
+  // --- zipline off the tower: attach at the high end, speed builds, fly off the end and land
+  await tp(26.5, 3.6, 10.2, Math.PI);
+  await run(0.4);
+  i = await I();
+  assert(i.hint === 'zipline:side' && i.prompt === 'Zipline', `zipline offered on the tower (${i.hint}, "${i.prompt}")`);
+  await tap(BTN.Y);
+  let vmax = 0;
+  for (let k = 0; k < 16; k++) {
+    await run(0.15);
+    const z = await page.evaluate(() => { const ac = window.__tr.st().traversal.attachCtl; return { a: ac.active, v: ac.m.v, k: ac.m.anchor?.kind }; });
+    if (z.a && z.k === 'zipline') vmax = Math.max(vmax, z.v);
+    if (!z.a && k > 2) break;
+  }
+  await run(1.5);
+  i = await I();
+  assert(vmax > 4 && vmax <= 6.01, `zipline speed builds to ${f2(vmax)} m/s (<= 6)`);
+  assert(!i.attached && i.grounded && i.z < 3 && i.y < 0.2, `off the end of the cable and landed (z ${f2(i.z)})`);
+
+  // --- windows: vault through an open one; a glazed one shatters (loud) as you go through
+  await tp(26, 0, -9.2, 0);
+  await run(0.4);
+  i = await I();
+  assert(i.vault === 'Vault', `open window offers a vault ("${i.vault}")`);
+  await tap(BTN.Y);
+  await run(1.2);
+  i = await I();
+  assert(i.z > -7.6 && i.grounded, `vaulted in through the window (z ${f2(i.z)})`);
+  await tp(25, 0, -3.1, 0);
+  await run(0.4);
+  await tap(BTN.Y);
+  const glass = await page.evaluate(() => { const st = window.__tr.st(); let n = 0; for (let k = 0; k < 40; k++) { window.__app.loop.stepHeadless(1 / 60, 120); n = Math.max(n, st.noise); } return { open: st.world.breakables.isOpen(`glass:${st.world.level.anchors.windows.find((w) => !w.open).id}`), n }; });
+  await run(0.8);
+  i = await I();
+  assert(glass.open && glass.n >= 15, `the glazed window shatters, loud (noise ${glass.n})`);
+  assert(i.z > -1.6, `broke through and out (z ${f2(i.z)})`);
+
+  // --- duct: unscrew the grate quietly (hold Y), crawl through, drop into the shed through the ceiling vent
+  await tp(21.75, 3.2, -5, Math.PI / 2);
+  await run(0.4);
+  i = await I();
+  assert(i.hint === 'duct:side' && i.vault === 'Kick vent', `vent offered at the duct mouth (${i.hint}, "${i.vault}")`);
+  const unscrew = await page.evaluate(() => {
+    const st = window.__tr.st();
+    window.__pad.set(3, 1);
+    let mid = -1;
+    let noise = 0;
+    for (let k = 0; k < 110; k++) {
+      window.__app.loop.stepHeadless(1 / 60, 120);
+      const v = st.traversal.attachCtl.vent;
+      if (v && k === 60) mid = v.progress;
+      noise = Math.max(noise, st.noise);
+    }
+    window.__pad.set(3, 0);
+    window.__app.loop.stepHeadless(0.6, 120);
+    return { mid, noise, att: st.traversal.attachCtl.active, kind: st.traversal.attachCtl.m.anchor?.kind };
+  });
+  assert(unscrew.mid > 0.3 && unscrew.mid < 0.9, `holding Y unscrews the grate (${f2(unscrew.mid)} at 1 s)`);
+  assert(unscrew.att && unscrew.kind === 'duct' && unscrew.noise < 3, `crawled in quietly (noise ${unscrew.noise})`);
+  i = await I();
+  assert(i.cam === 'duct' && i.trav === 'crawl' && !i.held, 'duct: tight framing, crawl pose, weapon stowed');
+  const d0 = i.x;
+  r = await run(1, 0, 1);
+  i = await I();
+  assert(Math.abs((i.x - d0) - 0.9) < 0.2, `crawls at ~0.9 m/s (${f2(i.x - d0)})`);
+  let rolled = false;
+  for (let k = 0; k < 30; k++) {
+    await run(0.25, 0, 1);
+    const st = await page.evaluate(() => ({ a: window.__tr.st().traversal.attachCtl.active, roll: window.__tr.st().traversal.kind === 'roll' }));
+    rolled ||= st.roll;
+    if (!st.a) break;
+  }
+  await page.evaluate(() => { for (let k = 0; k < 90; k++) { window.__app.loop.stepHeadless(1 / 60, 120); if (window.__tr.st().traversal.kind === 'roll') window.__rolled = true; } });
+  rolled ||= await page.evaluate(() => !!window.__rolled);
+  i = await I();
+  assert(!i.attached && i.y < 0.2 && i.x > 26.5 && i.x < 29 && i.z > -8 && i.z < -2, `dropped through the ceiling vent into the shed (${f2(i.x)}, ${f2(i.y)}, ${f2(i.z)})`);
+  assert(rolled || i.landing === 'roll', `the 3.2 m drop rolls (${i.landing})`);
+
   // --- keyboard: E attaches (ladder), C lets go of a ledge
   await tp(25.2, 0, 11, Math.PI / 2);
   await run(0.4);
@@ -284,25 +410,53 @@ try {
   await runOff(8, 0, -1);
 
   // --- touch: tapping the world prompt grabs the ledge
-  await tp(25.45, 0, 16, Math.PI / 2);
+  // a touch player: no pad (the layer switches to touch)
   await page.evaluate(() => { window.__pad.disconnect(); });
+  await tp(25.45, 0, 16, Math.PI / 2);
   await page.evaluate(() => window.__app.loop.stepHeadless(0.4, 120));
   await page.evaluate(() => { window.__app.loop.manual = false; });
   await frames(page, 6);
-  await page.waitForSelector('.wp-vault.show .wp-body', { timeout: 5000 });
-  const box = await (await page.$('.wp-vault.show .wp-body')).boundingBox();
-  assert(!!box, 'touch: the grab prompt is on screen');
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-  await page.waitForTimeout(900);
+  /** Tap a world prompt where it is drawn right now (retrying across frames); returns whether one was there. */
+  const tapPrompt = async (sel, done) => {
+    for (let k = 0; k < 8; k++) {
+      const b = await page.evaluate((sel) => { const r = document.querySelector(sel)?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; }, sel);
+      if (b) {
+        await page.touchscreen.tap(b.x, b.y);
+        await page.waitForTimeout(700);
+        if (await done()) return true;
+      } else await frames(page, 2);
+    }
+    return false;
+  };
+  const attachedNow = () => page.evaluate(() => window.__tr.st().traversal.attachCtl.active);
+  assert(await tapPrompt('.wp-vault.show .wp-body', attachedNow), 'touch: tapping the grab prompt grabs the ledge');
   i = await I();
-  assert(i.attached && i.kind === 'ledge', 'touch: tapping the prompt grabs the ledge');
-  await page.waitForSelector('.wp-drop.show .wp-body', { timeout: 5000 });
-  const dbox = await (await page.$('.wp-drop.show .wp-body')).boundingBox();
-  assert(!!dbox, 'touch: the drop prompt is on screen');
-  await page.touchscreen.tap(dbox.x + dbox.width / 2, dbox.y + dbox.height / 2);
-  await page.waitForTimeout(1200);
+  assert(i.kind === 'ledge', 'touch: hanging from the ledge');
+  assert(await tapPrompt('.wp-drop.show .wp-body', async () => !(await attachedNow())), 'touch: tapping the drop prompt lets go');
   i = await I();
   assert(!i.attached, 'touch: tapping drop lets go');
+
+  // --- a grate kicked in: quick and loud (fresh match, so the grate is closed again)
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
+  await frames(page, 5);
+  await setup();
+  await page.evaluate(() => window.__pad.connect());
+  await tp(21.75, 3.2, -5, Math.PI / 2);
+  await run(0.4);
+  const kick = await page.evaluate(() => {
+    const st = window.__tr.st();
+    window.__tr.tap(3);
+    let noise = st.noise;
+    let t = 4 / 60;
+    for (let k = 0; k < 60 && !st.traversal.attachCtl.active; k++) {
+      window.__app.loop.stepHeadless(1 / 60, 120);
+      t += 1 / 60;
+      noise = Math.max(noise, st.noise);
+    }
+    return { att: st.traversal.attachCtl.active, t, noise };
+  });
+  assert(kick.att && kick.t < 0.3 && kick.noise >= 10, `a tap kicks the grate in: quick, loud (${f2(kick.t)} s, noise ${kick.noise})`);
 
   const errs = errors.filter((e) => !/favicon|DevTools/.test(e));
   assert(errs.length === 0, `no console errors (${errs.join(' | ')})`);
