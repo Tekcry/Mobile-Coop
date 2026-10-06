@@ -13,7 +13,7 @@
  * Feet are placed by the rig's world-space FootPlanner from the stance and gait values output here.
  */
 import type { Proportions } from '../player/proportions';
-import { overClip, addClip, type Clip } from './clip';
+import { overClip, addClip, mirrorClip, type Clip } from './clip';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
 import { stepLength, type MotionState } from './motion';
 import { MOVEMENT } from '../config/movement';
@@ -33,6 +33,10 @@ import {
 } from './clips/locomotion';
 import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, COVER_TURN, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
 import { hyp2 } from '../core/mathx';
+
+/** The kneel with the right knee up (the clip has the left knee up): in cover the raised knee is on the wall
+ *  side, so the weapon (in the open-side hand) rests beside the kneeling leg, not across the raised one. */
+const KNEEL_M = mirrorClip(KNEEL);
 
 export const FADE = 0.2;
 export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'cover', 'traverse'] as const;
@@ -212,6 +216,8 @@ export interface RigTargets {
   weaponBob: number;
   /** Cheek weld 0..1 (raised to aim): the neck bends the head down onto the stock, eyes stay on the aim. */
   weld: number;
+  /** How far the weapon is raised onto the aim line 0..1 (lowered it follows the body, raised the aim). */
+  aimW: number;
 }
 
 export function emptyTargets(): RigTargets {
@@ -232,6 +238,7 @@ export function emptyTargets(): RigTargets {
     layers: {},
     weaponBob: 0,
     weld: 0,
+    aimW: 0,
   };
 }
 
@@ -251,23 +258,34 @@ export function pickLower(i: AnimInput): LowerState {
  * the sight line under the dominant eye with the stock in the shoulder; the head dips onto the stock
  * (`SIGHT_HEAD` pitch, roll toward the gun). Scaled by the aim raise.
  */
-export const SIGHT_RAISE = { x: -0.065, y: 0.17, z: 0 };
+export const SIGHT_RAISE = { x: 0.042, y: 0.12, z: 0 };
 export const SIGHT_HEAD = { roll: 0.15 };
+
+/** Heel strike pelvis kick (spring velocity, m/s): how hard each footfall lands. */
+export const HEEL_KICK = 1.1;
+/**
+ * Tactical carriage with a weapon: the chest forward over the hips, knees soft, head up (eyes level) - never
+ * upright like a mannequin. More bent over moving along cover; a little more leaning into a raised weapon.
+ */
+export const HUNCH = { spine: 0.2, pelvis: 0.05, head: 0.17, drop: 0.035, cover: 0.16, coverDrop: 0.05, aim: 0.07 };
 
 export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
   low: { x: 0, y: -0.08, z: -0.02, pitch: 0.8, yaw: -0.6, roll: 0.2 },
   high: { x: -0.03, y: 0.07, z: -0.12, pitch: -1.0, yaw: -0.08, roll: 0 },
   // pulled in tight to the chest, muzzle forward and down (never swung across into a wall beside you)
-  compressed: { x: -0.06, y: -0.08, z: -0.22, pitch: 0.6, yaw: -0.12, roll: 0.1 },
+  compressed: { x: -0.06, y: -0.08, z: -0.12, pitch: 0.6, yaw: -0.12, roll: 0.1 },
 } as const;
 /**
  * In cover: tucked against the chest on the open side, muzzle down along the wall and angled away from it
  * (`yaw` is turned away from the wall side), so it never pokes into the cover; raised from here to aim.
  */
-export const COVER_READY = { x: 0.03, y: -0.12, z: -0.12, pitch: 1.05, yaw: 0.28, roll: 0 };
+export const COVER_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, roll: 0 };
 /** Crouched / kneeling in cover: muzzle flatter and the gun carried higher, clear of the raised knee. */
-export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.12, yaw: 0.16 };
+export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.12, yaw: 0.16, x: 0 };
+/** Kneeling still in cover (added to the crouched carry): out beside the kneeling leg on the open side,
+ *  muzzle angled down past the knee, clear of the raised thigh and the curled chest. */
+export const COVER_READY_KNEEL = { x: 0.12, y: 0.1, pitch: -0.25, yaw: 0.15 };
 
 const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT };
 
@@ -299,6 +317,7 @@ export class AnimGraph {
   private idleT = Math.random() * 4;
   private stillT = 0;
   private kneelW = 0;
+  private kneelClip: Clip = KNEEL;
   private startT = -1;
   private settleT = -1;
   private exitT = -1;
@@ -359,9 +378,9 @@ export class AnimGraph {
     this.hitSide = side;
   }
 
-  /** Heel strike from the foot planner: the pelvis compresses (1-2 cm, heavier with more mass). */
+  /** Heel strike from the foot planner: the pelvis compresses (2-4 cm, heavier with more mass): weight lands. */
   heelStrike(mass = 1): void {
-    this.pelSpring.kick(-0.6 * clamp(mass, 0.6, 1.6));
+    this.pelSpring.kick(-HEEL_KICK * clamp(mass, 0.6, 1.6));
   }
 
   /** Support side from the planner (-1 left foot only, 1 right only, 0 both / none). */
@@ -491,7 +510,10 @@ export class AnimGraph {
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
-    overClip(src, KNEEL, this.idleT, kw);
+    const kneelClip = inCover && this.wallS > 0 ? KNEEL_M : KNEEL;
+    if (kneelClip !== this.kneelClip && kw > 0.01) trigger = true;
+    this.kneelClip = kneelClip;
+    overClip(src, kneelClip, this.idleT, kw);
     this.slot('kneel', kw, this.idleT);
 
     // --- start / stop / pivot clips from the motion driver
@@ -579,13 +601,23 @@ export class AnimGraph {
     src[CH.pelRoll] = src[CH.pelRoll]! + roll;
     // ducking behind low cover: curl the back over the knees, the head down but eyes forward
     const duckS = this.duckS.step(i.duck, 16, dt);
-    src[CH.pelPitch] = src[CH.pelPitch]! + duckS * 0.25;
-    src[CH.spPitch] = src[CH.spPitch]! + duckS * 0.55;
-    src[CH.hdPitch] = src[CH.hdPitch]! - duckS * 0.35;
+    src[CH.pelPitch] = src[CH.pelPitch]! + duckS * 0.45;
+    src[CH.spPitch] = src[CH.spPitch]! + duckS * 1.15;
+    src[CH.hdPitch] = src[CH.hdPitch]! - duckS * 0.7;
     // crouched aim over low cover: the back straightens out of the crouch hunch and the weapon comes up
     // to the cheek (the rig then rises only until the muzzle clears), so only eyes, head and gun show
     const overS = this.overS.step(i.aimOver, 20, dt);
     src[CH.spPitch] = src[CH.spPitch]! - overS * 0.18;
+
+    // --- tactical carriage (armed): hunched over the weapon; more bent over moving along cover
+    if (i.armed) {
+      const hunch = 1 - this.dashS * 0.4;
+      const along = inCover && i.cover === 'high' ? this.moveW : 0;
+      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.cover * along + HUNCH.aim * this.raiseS;
+      src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
+      src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - HUNCH.cover * 0.6 * along;
+      src[CH.pelY] = src[CH.pelY]! - HUNCH.drop * hunch * (1 - crouchK * 0.6) - HUNCH.coverDrop * along;
+    }
 
     // --- weapon actions (inertialized as they start and end)
     const action = i.reload >= 0 ? (i.reloadEmpty ? 'reloadE' : 'reloadT') : i.swap >= 0 ? 'swap' : i.grenade >= 0 ? 'grenade' : i.handSwap >= 0 ? 'hands' : '';
@@ -608,12 +640,14 @@ export class AnimGraph {
     const bd = this.leanBody.step(bodyTarget, 24, dt);
     const yl = this.yawLag.step(clamp(-i.yawRate * 0.04 * mass, -0.25, 0.25), 10 / mass, dt);
     src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08;
-    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * (i.armed ? 1 : 0) + yl;
+    // raised, the chest blades towards the shooting shoulder (mirrored with the hand holding the weapon)
+    const handS = i.hand < 0 ? -1 : 1;
+    src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * handS * (i.armed ? 1 : 0) + yl;
     src[CH.spRoll] = src[CH.spRoll]! - bd * 0.52;
     src[CH.pelX] = src[CH.pelX]! + bd * 0.17 * k;
     const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
     src[CH.hdPitch] = src[CH.hdPitch]! - aimPitch * 0.45;
-    src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 + this.edgeS * 0.45 + check + hd * 0.12;
+    src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 * handS + this.edgeS * 0.45 + check + hd * 0.12;
     src[CH.hdRoll] = src[CH.hdRoll]! + hd * 0.22;
     if (Math.abs(i.lean) > 0.01 || Math.abs(hd) > 0.01) this.slot('lean', Math.abs(hd), bd);
     if (i.check >= 0) this.slot('check', 1, i.check);
@@ -648,19 +682,22 @@ export class AnimGraph {
     const nw = 1 - cw;
     const awayYaw = (this.wallS === 0 ? 1 : -Math.sign(this.wallS)) * (i.hand < 0 ? -1 : 1);
     const cr = COVER_READY;
+    // kneeling still (not leaning out): the carry moves out beside the kneeling leg
+    const kneelK = kw * (1 - Math.min(1, Math.abs(bd)));
     cl *= nw;
     chh *= nw;
     cc *= nw;
-    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + this.blindS * (1 - blindLow) * bd * 0.22 + sight * SIGHT_RAISE.x;
-    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + (cr.y + COVER_READY_CROUCH.y * crouchK) * cw) + sway + this.blindS * (blindLow ? 0.42 : 0.1) + sight * SIGHT_RAISE.y;
+    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + (cr.x + COVER_READY_CROUCH.x * crouchK + COVER_READY_KNEEL.x * kneelK) * cw) + this.blindS * (1 - blindLow) * bd * 0.22 + sight * SIGHT_RAISE.x;
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + (cr.y + COVER_READY_CROUCH.y * crouchK + COVER_READY_KNEEL.y * kneelK) * cw) + sway + this.blindS * (blindLow ? 0.42 : 0.1) + sight * SIGHT_RAISE.y;
     src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sight * SIGHT_RAISE.z;
-    src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll;
+    src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS;
     this.out.weld = sight;
+    this.out.aimW = raiseW;
     // crouched / kneeling the muzzle points out past the knees rather than down into them
     // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
-    const crPitch = (cr.pitch - (cr.pitch - COVER_READY_CROUCH.pitch) * crouchK) * (1 - 0.6 * Math.min(1, Math.abs(bd)));
+    const crPitch = (cr.pitch - (cr.pitch - COVER_READY_CROUCH.pitch) * crouchK) * (1 - 0.6 * Math.min(1, Math.abs(bd))) + COVER_READY_KNEEL.pitch * kneelK;
     src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * 0.12) / mass + sway * 2;
-    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + (cr.yaw + COVER_READY_CROUCH.yaw * crouchK) * cw * awayYaw) + this.blindS * (1 - blindLow) * bd * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;
+    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + (cr.yaw + COVER_READY_CROUCH.yaw * crouchK + COVER_READY_KNEEL.yaw * kneelK) * cw * awayYaw) + this.blindS * (1 - blindLow) * bd * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;
     src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc + cr.roll * cw);
     // recoil absorbed through the shoulder and spine
     src[CH.spPitch] = src[CH.spPitch]! - rec * 0.05 / mass;

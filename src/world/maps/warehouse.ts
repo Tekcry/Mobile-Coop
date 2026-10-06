@@ -142,11 +142,11 @@ export const warehouse: MapDef = {
     b.block(-18.5, -17.2, 3, 0.08, 1.2, STEEL).block(-10.5, -17.2, 3, 0.08, 1.2, STEEL);
 
     // dispatch: desks and a shelf
-    b.block(-1, -15.2, 1.8, 0.8, 0.8, DESK).block(3.2, -13.4, 0.8, 0.8, 1.8, DESK);
+    b.block(-1, -15.2, 1.8, 0.95, 0.8, DESK).block(3.2, -13.4, 0.8, 0.95, 1.8, DESK);
     b.block(5.3, -17.1, 0.8, 2.0, 1.6, STEEL);
 
     // workshop: benches, a lathe, lockers
-    b.block(10, -14.6, 2.4, 0.9, 0.9, DESK).block(16, -13.2, 0.9, 0.9, 2.4, DESK);
+    b.block(10, -14.6, 2.4, 1.0, 0.9, DESK).block(16, -13.2, 0.9, 1.0, 2.4, DESK);
     b.block(21, -15.6, 1.4, 1.8, 1.4, STEEL);
     b.block(23.45, -13.8, 0.6, 2.0, 2.6, STEEL);
 
@@ -180,15 +180,15 @@ export const warehouse: MapDef = {
     b.block(11.5, 15.8, 1.2, 1.1, 1.2, CRATE, 2.6).block(17.5, 14.2, 1.2, 1.3, 1.2, CRATE, 2.6).block(18.7, 14.3, 1.0, 1.0, 1.0, CRATE, 2.6);
 
     // offices: desks, filing cabinets
-    b.block(-2.2, 15, 1.6, 0.8, 0.8, DESK).block(0.8, 13.6, 0.8, 0.8, 1.4, DESK);
-    b.block(4.6, 15.6, 1.8, 0.8, 0.9, DESK);
+    b.block(-2.2, 15, 1.6, 0.95, 0.8, DESK).block(0.8, 13.6, 0.8, 0.95, 1.4, DESK);
+    b.block(4.6, 15.6, 1.8, 0.95, 0.9, DESK);
     b.block(7.4, 17.2, 0.6, 1.8, 1.0, STEEL).block(-3.5, 17.3, 0.6, 1.8, 0.9, STEEL);
 
     // yard: trailer, container, jersey barriers
     b.block(-3.5, -22.5, 7, 2.8, 2.5, '#d8d8d8').box(-3.5, 0.45, -22.5, 6.2, 0.9, 2.3, '#2a2d30', 0, 0, false);
     b.block(9, -23, 6, 2.6, 2.4, '#3d6e8f');
-    b.lowCover(-14, -21.5, 3, CONCRETE, Math.PI / 2, 0.9, 0.6);
-    b.lowCover(16, -21.2, 2.6, CONCRETE, Math.PI / 2, 0.9, 0.6);
+    b.lowCover(-14, -21.5, 3, CONCRETE, Math.PI / 2, 1.0, 0.6);
+    b.lowCover(16, -21.2, 2.6, CONCRETE, Math.PI / 2, 1.0, 0.6);
 
     // roof with skylight strips and hanging lights (visual only: no collision, nav samples the floor)
     for (let z = -18; z < 18; z += 6) b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);

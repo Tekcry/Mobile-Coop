@@ -42,8 +42,8 @@ export const MOVEMENT = {
   /** Step length (m) = stepLen0 + stepLenK * speed; a gait cycle is two steps. */
   stepLen0: 0.3,
   stepLenK: 0.2,
-  /** Speed dip at each heel strike (fraction), mean 1 over the stride. */
-  rootDip: 0.04,
+  /** Speed dip at each heel strike (fraction), mean 1 over the stride: each step lands and pushes off. */
+  rootDip: 0.08,
   /** Facing the travel direction (not aiming): turn rate at sneak pace and at sprint (rad/s). */
   turnTravelSlow: (540 * Math.PI) / 180,
   turnTravelFast: (300 * Math.PI) / 180,

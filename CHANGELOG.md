@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.5.0 - Weighted movie movement, no clipping body or gun, walking round corners
+- Movie stealth movement: every gait is exaggerated - deeper bob and rise, more hip sway and shoulder twist,
+  stronger lean into turns. The operative carries a tactical hunch whenever armed (spine and head forward,
+  shoulders rolled over the gun, hips a little lower), deeper along cover: walking along a wall is gun-ready
+  and bent over.
+- Weighted steps: each footfall checks the body (a heavier heel-strike compression and a pulse in the root speed:
+  plant, then push) and kicks the camera, so steps land instead of gliding; the sprint bob is kept tighter so the
+  feet stay locked.
+- No unrealistic limbs: legs are solved before the head and weapon, knees never go below the floor (the hips
+  rise instead), knees never knock together (they bow outward when close), and low cover hiding curls the back
+  over the knees rather than folding the legs. Map low cover is slightly taller (0.95-1.0 m) so hiding never
+  needs a crushed pose.
+- The gun never clips the operative: aiming puts the sight under the eye beside (not inside) the head, and a
+  body push-out keeps every weapon clear of the head, torso and legs in every stance, carry, reload and swap;
+  kneeling in cover mirrors to the open side so the gun is held away from the knees.
+- Corners: aiming further round a high cover edge walks the operative out around the wall (up to 1.4 m, step by
+  step along the face, round the corner and along the side) until the line of fire is clear; the gun stays tucked
+  until then and the step-out path is checked so the gun never meets the wall. Aiming over low cover rises on the
+  eye line, side-on until the gun is clear of the top.
+- Aim while sprinting ends the sprint and raises the weapon. Sprinting keeps the low ready (the compressed tuck
+  drove the gun into the chest at full stride).
+- Tests: e2e-clip now checks head, trunk, knees (floor and gap), feet and elbows against the gun and world, aims
+  every weapon, aims walking and crouched; e2e-move checks aim cancelling a sprint.
+
 ## 1.4.0 - Sights at the eye, no weapon clipping, cover step-out, Blacklist camera
 - Aiming is a real cheek weld, never hip fire: raised to aim or fire, the weapon's sight line sits under the
   dominant eye (within ~1 cm for every weapon), the head bends down onto the stock and the shoulders lift into it.

@@ -267,6 +267,14 @@ Controls:
 - [ ] Camera: standing, the operative is small in the left third of the screen with the room ahead; crouched in cover, low in the lower left (compare the Blacklist screenshots); aiming pushes in over the shoulder.
 - [ ] In cover, looking at another cover does nothing; looking at it and holding the stick towards it marks it (staying in cover); A / Space then moves there.
 
+## Body, weight and corners (1.5.0) - Proving Grounds, then Warehouse
+- [ ] Aim with every weapon, standing, crouched and walking: the gun sits at the cheek, never inside the head; nothing pokes through the chest, arms or legs in any stance, sprint, reload or swap.
+- [ ] Low cover: hide, kneel, move along it and aim over it - knees never go into the floor, legs never splay, the knees never knock together.
+- [ ] At a high cover edge, aim well round the corner: the operative walks out around the wall step by step until the shot is clear, the gun stays tucked until then and never touches the wall; aiming back steps in again.
+- [ ] Sprint, then pull aim (LT / right mouse / Aim): the sprint ends at once and the weapon comes up.
+- [ ] Walk, jog and sprint: shoulders hunched over the gun, head forward; clear bob, sway and hip twist; each footfall lands with a visible check (body and camera dip), no sliding.
+- [ ] Moving along cover: gun ready, bent over; entering, leaving and swapping sides read like a film.
+
 ## PC mouse (1.3.2) - Chrome, Edge, Firefox, Safari on a desktop
 - [ ] Start Free Roam with a mouse click: the cursor disappears and moving the mouse looks around straight away (if the browser refuses, "Click to capture the mouse" shows and one click on the game captures it without firing).
 - [ ] Left button fires, right button aims, the wheel swaps weapons, WASD / Space / C / Shift / E / R work.

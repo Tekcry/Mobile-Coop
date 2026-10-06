@@ -154,6 +154,8 @@ export class Player {
     } else {
       this.ads = inp.down('ads');
     }
+    // aiming while sprinting ends the sprint and raises the weapon
+    if (this.ads && c.sprinting && this.coverPose.traverse === 'none') c.cancelSprint();
     if (c.weaponBlocked || this.coverPose.traverse !== 'none') this.ads = false;
     if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
@@ -280,7 +282,8 @@ export class Player {
     rp.traverseT = cp.traverseT;
     rp.slide = cp.slide;
     rp.coverTurn = cp.turn;
-    rp.peekClear = cp.gunClear ? 1 : 0;
+    // the weapon comes up only once it clears: past an edge (cover controller) or over the top (the rig's rise)
+    rp.peekClear = cp.gunClear && (cp.peekOver <= 0.5 || this.rig.overClear) ? 1 : 0;
     rp.check = cp.check;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
     rp.phase = c.renderPhase;

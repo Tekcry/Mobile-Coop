@@ -148,7 +148,8 @@ describe('weapon carry', () => {
     for (let k = 0; k < 30; k++) c.update(DT, i);
     expect(c.raise).toBeLessThan(0.01);
     expect(c.canFire(i)).toBe(false);
-    expect(c.ready).toBe('compressed');
+    // sprinting carries the low ready (the compressed tuck pushed the gun into the chest at a sprint)
+    expect(c.ready).toBe('low');
   });
   it('ready weights cross-fade and always sum to 1', () => {
     const c = new WeaponCarry();

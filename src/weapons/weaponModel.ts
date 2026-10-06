@@ -67,6 +67,11 @@ export class WeaponModel {
     this.node.rotationQuaternion!.copyFromFloats(0, 0, 0, 1);
     rig.grip.set(...this.def.grip);
     rig.foregrip.set(...this.def.foregrip);
+    const e = this.ext;
+    rig.gunSpan.z0 = e.z0;
+    rig.gunSpan.z1 = e.z1;
+    rig.gunSpan.bore = this.def.muzzle[1];
+    rig.gunSpan.top = e.y1;
     if (this.magLocal) rig.magPoint.copyFrom(this.magLocal);
     else rig.magPoint.set(0, this.def.grip[1] - 0.08, (this.def.grip[2] + this.def.foregrip[2]) * 0.5);
     rig.heldWeapon = this.node;

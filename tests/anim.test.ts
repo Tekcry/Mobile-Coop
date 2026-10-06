@@ -143,7 +143,7 @@ describe('graph', () => {
     expect(h.out.stance.rZ).toBeLessThan(-0.2);
     expect(h.out.stance.lZ).toBeGreaterThan(0.2);
   });
-  it('heel strikes compress the pelvis by 1-2 cm and it recovers', () => {
+  it('heel strikes compress the pelvis by 1-3 cm (weighted) and it recovers', () => {
     const g = new AnimGraph(proportions());
     const i = defaultInput();
     for (let k = 0; k < 240; k++) g.update(1 / 120, i);
@@ -155,7 +155,7 @@ describe('graph', () => {
       low = Math.min(low, g.out.pelvis.y);
     }
     expect(y0 - low).toBeGreaterThan(0.008);
-    expect(y0 - low).toBeLessThan(0.025);
+    expect(y0 - low).toBeLessThan(0.03);
     expect(Math.abs(g.out.pelvis.y - y0)).toBeLessThan(0.003);
   });
   it('spring helper settles without overshoot', () => {

@@ -16,9 +16,10 @@ const ease = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * 
 
 /** Turn-and-swap when reversing direction along cover (s). */
 export const SWAP_TIME = 0.3;
-/** Edge peek step-out: how far past the edge the body may step so the line of fire clears the cover (m),
- *  the search step, the lean's lateral reach of the weapon past the body centre and the muzzle reach (m). */
-export const STEP_OUT_MAX = 0.8;
+/** Edge peek step-out: how far the body may move from the lean spot so the line of fire clears the cover (m;
+ *  along the face to its end, round the corner on the standoff circle, then along the side), the search
+ *  step, the lean's lateral reach of the weapon past the body centre and the muzzle reach (m). */
+export const STEP_OUT_MAX = 1.4;
 const STEP_OUT_STEP = 0.05;
 const LEAN_REACH = 0.18;
 const MUZZLE_REACH = 1.0;
@@ -647,6 +648,7 @@ export class CoverController {
 
     // enter / in / peek / blind: drive along the face
     const loc = locate(seg, p.position.x, p.position.z);
+    let stepping = false;
     let targetS = loc.s;
     let speedAlong = 0;
     let crouch = this.low;
@@ -682,7 +684,7 @@ export class CoverController {
       pose.cover = this.low ? 'low' : 'high';
       if (this.low) pose.top = this.coverTop(seg);
       pose.wallSide = this.wallSide(seg, this.faceDir);
-      p.rig.leftHanded = !this.low && pose.wallSide > 0;
+      p.rig.leftHanded = pose.wallSide > 0;
       this.autoShoulder(seg, st);
       return;
     } else if (st === 'in') {
@@ -737,6 +739,12 @@ export class CoverController {
         // a crouched aim over the top: the rig rises only until the weapon clears it
         crouch = true;
         pose.peekOver = 1;
+        // stay side-on while rising and raising the weapon; turn to the aim only once the eye and the raised
+        // weapon are over the top (the half-raised muzzle would otherwise sweep through it)
+        if (!p.rig.overClear || p.rig.graph.out.aimW < 0.85) {
+          yaw = this.faceYaw(seg, this.faceDir);
+          turn = Math.PI / SWAP_TIME;
+        }
       } else if (this.peekSide !== 0) {
         // lean out at the edge; aiming further across the cover steps out past the edge as far as the line
         // of fire needs to clear it (searched at 10 Hz or when the aim swings), and back in as it allows
@@ -747,9 +755,13 @@ export class CoverController {
           this.stepYaw = p.cam.yaw;
           this.stepOut = this.neededStep(seg, edgeS);
         }
-        targetS = edgeS + this.peekSide * this.stepOut;
+        this.stepPoint(seg, edgeS, this.stepOut);
+        this.stepTarget.x = this.stepPt.x;
+        this.stepTarget.z = this.stepPt.z;
+        stepping = true;
+        targetS = edgeS;
         pose.lean = this.leanSide(seg, this.peekSide);
-        pose.gunClear = Math.abs(loc.s - targetS) < 0.08 && !this.fireLineBlocked(seg, loc.s);
+        pose.gunClear = hyp2(this.stepPt.x - p.position.x, this.stepPt.z - p.position.z) < 0.08 && !this.fireLineBlocked(seg, p.position.x, p.position.z);
         // until the line of fire is clear the body stays side-on, facing the edge (the weapon in front of the
         // chest would otherwise swing through the cover as the body turns to the aim)
         if (!pose.gunClear) {
@@ -784,7 +796,7 @@ export class CoverController {
     }
     if (yaw !== undefined) pose.wallSide = this.wallSide(seg, this.faceDir);
     // weapon in the outside hand (away from the wall / towards the side being leaned out of)
-    p.rig.leftHanded = pose.lean !== 0 ? pose.lean < 0 : yaw !== undefined && !this.low ? pose.wallSide > 0 : false;
+    p.rig.leftHanded = pose.lean !== 0 ? pose.lean < 0 : yaw !== undefined ? pose.wallSide > 0 : false;
     this.autoShoulder(seg, st);
     // velocity: along the face (input or towards a target point) + hold the standoff from the surface
     // seek target points gently (the root motion has weight; a hard P-gain would overshoot)
@@ -795,6 +807,15 @@ export class CoverController {
     const toward = Math.max(-3.5, Math.min(3.5, (standoff - loc.dist) / 0.1));
     this.vel.x = seg.tx * speedAlong + seg.nx * toward;
     this.vel.z = seg.tz * speedAlong + seg.nz * toward;
+    if (stepping) {
+      // edge peek: straight to the step-out spot (along the face, round the corner), eased
+      const dx = this.stepTarget.x - p.position.x;
+      const dz = this.stepTarget.z - p.position.z;
+      const dd = hyp2(dx, dz);
+      const v = Math.min(cap, dd / k);
+      this.vel.x = dd > 1e-4 ? (dx / dd) * v : 0;
+      this.vel.z = dd > 1e-4 ? (dz / dd) * v : 0;
+    }
     // big turns in cover swing through facing away from the wall (back to it), never through the wall, so the
     // weapon in front of the chest stays on the open side
     if (yaw !== undefined) {
@@ -822,13 +843,41 @@ export class CoverController {
   /** Edge peek step-out past the edge (m) and its search timer / the aim it was searched for. */
   stepOut = 0;
   private stepT = 0;
+  private stepPt = { x: 0, z: 0 };
+  private stepTarget = { x: 0, z: 0 };
   private stepYaw = 0;
+
+  /** Step-out spot: along the face from the lean spot to its end, then round the outside corner on the
+   *  standoff circle, then back along the side of the cover (written to `stepPt`). */
+  private stepPoint(seg: CoverSegment, edgeS: number, d: number): void {
+    const side = this.peekSide;
+    const endS = side > 0 ? seg.len : 0;
+    const toEnd = Math.abs(endS - edgeS);
+    const s = edgeS + side * Math.min(d, toEnd);
+    let x = seg.ax + seg.tx * s + seg.nx * COVER_STANDOFF;
+    let z = seg.az + seg.tz * s + seg.nz * COVER_STANDOFF;
+    if (d > toEnd) {
+      const cx = seg.ax + seg.tx * endS;
+      const cz = seg.az + seg.tz * endS;
+      const arc = (Math.PI / 2) * COVER_STANDOFF;
+      const a = Math.min(Math.PI / 2, (d - toEnd) / COVER_STANDOFF);
+      x = cx + (seg.nx * Math.cos(a) + seg.tx * side * Math.sin(a)) * COVER_STANDOFF;
+      z = cz + (seg.nz * Math.cos(a) + seg.tz * side * Math.sin(a)) * COVER_STANDOFF;
+      const rest = d - toEnd - arc;
+      if (rest > 0) {
+        x -= seg.nx * rest;
+        z -= seg.nz * rest;
+      }
+    }
+    this.stepPt.x = x;
+    this.stepPt.z = z;
+  }
 
   /**
    * Would the line of fire (eye height, from the leaning weapon out to the muzzle and a little beyond, along
-   * the aim) pass through cover if the body stood at `s` on the face?
+   * the aim) pass through cover if the body stood at (x, z)?
    */
-  private fireLineBlocked(seg: CoverSegment, s: number): boolean {
+  private fireLineBlocked(seg: CoverSegment, bx: number, bz: number): boolean {
     const p = this.player;
     const side = this.peekSide;
     const eye = p.rig.headNode.getAbsolutePosition().y - 0.04;
@@ -837,8 +886,8 @@ export class CoverController {
     const dx = Math.sin(yaw) * cp;
     const dy = Math.sin(p.cam.pitch);
     const dz = Math.cos(yaw) * cp;
-    const x = seg.ax + seg.tx * (s + side * LEAN_REACH) + seg.nx * COVER_STANDOFF;
-    const z = seg.az + seg.tz * (s + side * LEAN_REACH) + seg.nz * COVER_STANDOFF;
+    const x = bx + seg.tx * side * LEAN_REACH;
+    const z = bz + seg.tz * side * LEAN_REACH;
     this.from.set(x - dx * 0.15, eye - dy * 0.15, z - dz * 0.15);
     this.to.set(x + dx * MUZZLE_REACH, eye + dy * MUZZLE_REACH, z + dz * MUZZLE_REACH);
     if (this.ray(this.from, this.to)) return true;
@@ -848,9 +897,18 @@ export class CoverController {
     return this.ray(this.from, this.to);
   }
 
-  /** Smallest step past the edge (from the lean-in-place spot) whose line of fire clears the cover. */
+  /** Smallest step-out (from the lean spot, round the corner if needed) whose line of fire clears the cover;
+   *  the walk there must be clear too. */
   private neededStep(seg: CoverSegment, edgeS: number): number {
-    for (let d = 0; d <= STEP_OUT_MAX + 1e-6; d += STEP_OUT_STEP) if (!this.fireLineBlocked(seg, edgeS + this.peekSide * d)) return d;
+    const y = this.player.position.y + 0.5;
+    for (let d = 0; d <= STEP_OUT_MAX + 1e-6; d += STEP_OUT_STEP) {
+      this.stepPoint(seg, edgeS, d);
+      const sx = this.stepPt.x;
+      const sz = this.stepPt.z;
+      // never step into something (another piece, a wall round the corner)
+      if (d > 0 && this.ray(this.from.set(sx, y, sz), this.to.set(sx, y + 0.9, sz))) return Math.max(0, d - STEP_OUT_STEP);
+      if (!this.fireLineBlocked(seg, sx, sz)) return d;
+    }
     return STEP_OUT_MAX;
   }
 

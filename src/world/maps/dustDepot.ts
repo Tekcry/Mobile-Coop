@@ -73,7 +73,7 @@ const plaza: Module = (b, cx, cz, rng, props) => {
   b.block(cx, cz, 5, 1.2, 5, WALL_DARK);
   b.ramp(cx - 4.6, cz, 2.4, 4.2, 1.2, WALL, Math.PI / 2);
   b.stairs(cx + 4.6, cz, 2.4, 4.2, 1.2, 5, WALL, -Math.PI / 2);
-  b.lowCover(cx, cz + 1.9, 2.2, WALL, Math.PI / 2, 0.9, 0.3);
+  b.lowCover(cx, cz + 1.9, 2.2, WALL, Math.PI / 2, 0.95, 0.3);
   b.lowCover(cx - 6, cz - 6, 2.5, WALL, 0.6);
   b.lowCover(cx + 6, cz + 6, 2.5, WALL, 0.6);
   b.lowCover(cx + 6, cz - 6, 2.5, WALL, -0.6);

@@ -18,7 +18,7 @@ Blacklist style.
     fire button never moves the camera, control sizes, action button only for "use", take-cover / badge prompt taps
   - `scripts/e2e-mouse.mjs` PC mouse capture: click captures (never fires), look, fire, wheel swap, Esc pauses,
     Resume re-captures
-  - `scripts/e2e-move.mjs` stealth speeds (sneak .. sprint), aim strafe/backstep, sprint toggle, no free jump,
+  - `scripts/e2e-move.mjs` stealth speeds (sneak .. sprint), aim strafe/backstep, sprint toggle, aim ends a sprint, no free jump,
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
     aiming, after a sprint / cover / lean, no residual offsets) + headless cover bars: 3 m snap glide, hand
@@ -40,7 +40,9 @@ Blacklist style.
     snaps), crouched aim over low cover, keyboard Space
   - `scripts/e2e-clip.mjs` weapon clipping sweep: every frame of wall-side movement, high / low cover (idle,
     moving, turn-and-swap, reload, swap), edge-peek aim sweeps both edges standing / crouched (with step-out),
-    aim over, vault: no gun point inside the world (> 2 cm), legs grazed <= 2.5 cm (`--only=name --log`)
+    aim over, vault, aim every weapon, aim walking / crouched: no gun point inside the world (> 2 cm), legs grazed
+    <= 2.5 cm, gun clear of the head (> -1 cm) and trunk (> -2 cm), elbows (> -3 cm), knees above the floor and
+    > 9 cm apart, feet > 6 cm apart (`--only=name --log`)
   - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
     exposure HUD, enemy grenades/flanker, footstep noise investigation
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
@@ -198,8 +200,12 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   roll (leans into turns, <= 8 deg), cover enter/exit and tuck (reload / swap / grenade in cover), traversal,
   slide, land, reloads, per-slot swaps (`swapClipFor(from, to)`), grenade, ready positions blended to the aim
   pose, head-first lean (head ~60 ms ahead, body/weapon out ~0.2 s, back ~0.2 s; gated by the 0.18 s hand swap),
-  breathing, recoil, heel-strike compression, hit flinch (`rig.hit`, recovers 0.3-0.6 s). State switches trigger
-  the `Inertializer` (offset decays critically damped per channel group, 120-250 ms).
+  breathing, recoil, heel-strike compression (`HEEL_KICK`), hit flinch (`rig.hit`, recovers 0.3-0.6 s). State
+  switches trigger the `Inertializer` (offset decays critically damped per channel group, 120-250 ms).
+- Film style: gaits are exaggerated by `GAIT_STYLE` (`clips/locomotion.ts`: bob, rise, sway, twist; jog / sprint
+  keep a smaller bob so feet stay locked); armed, the body carries a tactical `HUNCH` (spine, pelvis, head forward,
+  hips lower; deeper in cover and less when aiming). Weighted steps: `MOVEMENT.rootDip` (each footfall checks then
+  pushes the root speed) + heel kick + a camera footstep kick.
 - `FootPlanner` (world space): contacts from the gait clock while moving (landing spot = where the hip will be
   mid-stance; distance-matched to the stop point), locked while planted (< 1 cm), swing arcs with toe-off and
   heel pitch, no crossing, error-driven idle steps (turning on the spot plants steps). Side-steps are 60% length
@@ -209,7 +215,12 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   joint; a growing need is met at once, release eases); leg IK twist references stay defined in a deep sneak
   (kneecap away from the shin); planted feet measure reach from under the hip and toe off early at speed; a
   relaxed stance tolerates a front-back stagger (one settling step); the head is world-stabilised; the
-  weapon's orientation lags by its mass. A per-joint angular rate limit (`JOINT_RATE`) is the safety net
+  weapon's orientation lags by its mass. Legs solve before the head and weapon: knees never go under
+  `KNEE_FLOOR` (the hips rise), knees closer than `KNEE_GAP` bow outward (steeper pole), and low cover hiding
+  curls the back (`rig.curl`, graph `duck`) instead of crushing the legs. The weapon blends from the body to the
+  aim by `aimW`, sits beside the head when aimed (`SIGHT_RAISE`, `NECK_WELD`), and `clearBody()` pushes it out
+  of the trunk, head and leg capsules (`rig.gunSpan` from `WeaponModel.hold`). Kneeling in cover mirrors
+  (`KNEEL_M`) so the gun is on the open side. A per-joint angular rate limit (`JOINT_RATE`) is the safety net
   (`rig.limited`). The rig refreshes world matrices top-down once per node (`fresh`), never
   `computeWorldMatrix(true)` per joint (it re-forces the whole chain). Emotes return an `FkPose` slerped over the
   result. Rigs beyond `ANIM_LOD_DISTANCE` (22 m) animate at half rate; `animate` is a no-op after `dispose`.
@@ -227,7 +238,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## Movement and camera (stealth operative)
 - All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
   crouched sneak 0.8 / crouch walk 1.8 / crouch run 2.6, standing walk 1.4 / jog 2.8, sprint 5.0 m/s (toggle or
-  hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered), aiming 1.4 / 1.0 crouched; strafe x0.9
+  hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered at the low ready; aiming ends it via
+  `cancelSprint`), aiming 1.4 / 1.0 crouched; strafe x0.9
   and backstep x0.75 only while aiming; analog by stick bands (`sneakBand`, `walkBand`, `crouchWalkBand`); cover
   1.2 / 0.9 crouched, cover-to-cover run 3.6. Stance times: crouch 0.25 s, kneel 0.3 s, stand 0.28 s.
   `ENEMY_MOTION` keeps the enemies' slower, weighted tuning.
@@ -304,12 +316,13 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - `CoverController` (player): standoff `COVER_STANDOFF` (capsule radius + 5 cm, > body depth); strafes along
   the tangent with predictive braking at edges; low cover hides (the rig's `lift` ducks until the head top is
   `HIDE_MARGIN` 7 cm under `coverTop`) and the over-peek stays crouched (`aimOver`: back straightened, weapon at
-  the cheek, rising only until the aim pocket clears the top by `OVER_CLEAR`; camera eye >= top + `COVER_EYE`);
+  the cheek, rising until the eye is `OVER_EYE` above the top, side-on until `rig.overClear`; camera eye >= top + `COVER_EYE`);
   `aimLimit` (`cover/coverAim.ts`, pure: edge / over / wall arcs, pitch floor over low cover) clamps the camera
   so every aimable angle shoots clear, and fire waits until the weapon is out (`player.coverFireBlocked`); while
   the view eases into the arc the body holds side-on with the weapon tucked; edge peeks step out past the edge as
-  far as the predicted line of fire needs to clear the cover (`stepOut` <= `STEP_OUT_MAX` 0.8 m, searched at 10 Hz
-  or on an aim swing by `fireLineBlocked`; `EDGE_BACK` lets the aim come 0.35 rad back across the cover), the body
+  far as the predicted line of fire needs to clear the cover (`stepOut` <= `STEP_OUT_MAX` 1.4 m along a path round
+  the corner, `stepPoint`: along the face, round the edge on the standoff circle, along the side; `neededStep`
+  checks the fire line and that the path is free; `EDGE_BACK` lets the aim come 0.7 rad back across the cover), the body
   stays side-on facing the edge and the weapon tucked (`pose.gunClear` -> graph `peekClear`) until the line is
   clear, then turns to the aim; big turns in cover swing through facing away from the wall (back to it); edge peeks lean out past the edge and
   move the camera to that shoulder (restored after); the head leads and the weapon is out in ~0.2 s; at a left

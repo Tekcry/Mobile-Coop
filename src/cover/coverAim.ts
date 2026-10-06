@@ -22,8 +22,9 @@ export interface AimLimit {
 }
 
 /** How far back across the face (rad) an edge peek may aim: the body steps out past the edge as far as the
- *  line of fire needs (up to `STEP_OUT_MAX`), so a little back over the cover is still a clean shot. */
-export const EDGE_BACK = 0.35;
+ *  line of fire needs (up to `STEP_OUT_MAX`, round the corner if needed), so aiming well back across the cover
+ *  is still a clean shot. */
+export const EDGE_BACK = 0.7;
 /** How far round past the edge (rad from straight across the cover) an edge peek may aim. */
 export const EDGE_ROUND = 2.36;
 /** Over low cover: half-width of the yaw arc (rad). */

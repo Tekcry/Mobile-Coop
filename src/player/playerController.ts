@@ -417,6 +417,11 @@ export class PlayerController {
   }
 
   /** End a sprint (if any) and restore the stance it interrupted. */
+  /** Aiming cuts a sprint short: the weapon comes straight up. */
+  cancelSprint(): void {
+    if (this.sprint.sprinting) this.endSprint();
+  }
+
   private endSprint(): void {
     if (this.sprint.sprinting) this.sprint.stop();
     if (this.sprintWas) this.crouchToggled = this.crouchBeforeSprint || this.crouchToggled;

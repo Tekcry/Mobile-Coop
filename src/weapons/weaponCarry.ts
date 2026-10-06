@@ -4,7 +4,8 @@
  * At rest the weapon sits in a ready position, chosen by context and blended by weight:
  *  - low ready (default in the open): muzzle 35-45 degrees down, slightly inboard
  *  - high ready (tight corridors, traversal): muzzle up
- *  - compressed ready (near walls, doorways, cover edges, dashing, reloading): pulled to the chest
+ *  - compressed ready (near walls, doorways, cover edges, reloading): pulled to the chest
+ *    (sprinting keeps the low ready: the tuck would drive the gun into the chest at full stride)
  * It is raised (shouldered, on the aim line) only while aiming or firing. Firing from a ready position
  * first raises the weapon (time scaled by weapon weight); after the last shot it stays up briefly, then
  * eases back down. `canFire` gates the trigger until the weapon is up.
@@ -65,7 +66,7 @@ export function emptyCarryInput(): CarryInput {
 
 /** Which ready position the context calls for (when not raised). */
 export function pickReady(i: CarryInput): ReadyPos {
-  if (i.dashing || i.reloading || i.nearWall || i.doorway || i.coverEdge) return 'compressed';
+  if (i.reloading || i.nearWall || i.doorway || i.coverEdge) return 'compressed';
   if (i.traversing || i.tight) return 'high';
   return 'low';
 }

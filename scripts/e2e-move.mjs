@@ -95,11 +95,26 @@ try {
   await page.evaluate(() => { window.__pad.axis(1, 0); });
   await sim(0.6);
   const after = await page.evaluate(() => { const c = window.__app.current.player.controller; return { sprinting: c.sprinting, speed: c.speed, crouched: c.crouched }; });
-  assert(peak > 4.6 && peak < 5.1, `sprint reaches ~5 m/s (${peak.toFixed(2)})`);
+  // the step pulse (each footfall checks then pushes, rootDip 8%) lifts the peak a little over the 5 m/s mean
+  assert(peak > 4.6 && peak < 5.5, `sprint reaches ~5 m/s (${peak.toFixed(2)} peak)`);
   assert(blocked && stood && still, `sprinting: weapon lowered, standing, still sprinting after 0.8 s (stamina-free)`);
   assert(!after.sprinting && after.speed < 0.1 && after.crouched, `releasing the stick ends the sprint, stops within 0.6 s, back in the crouch (speed ${after.speed.toFixed(2)})`);
   await press(page, BTN.B);
   await settle();
+
+  // aiming while sprinting ends the sprint and raises the weapon (no need to release the stick)
+  await tp(0, 0, -14, Math.PI / 2);
+  await page.evaluate(() => { window.__pad.axis(1, -1); });
+  await sim(0.3);
+  await press(page, BTN.LS);
+  await sim(0.5);
+  const sprintBefore = await page.evaluate(() => window.__app.current.player.controller.sprinting);
+  await page.evaluate(() => window.__pad.set(6, 1));
+  await sim(0.5);
+  const aimSprint = await page.evaluate(() => { const p = window.__app.current.player; return { sprinting: p.controller.sprinting, raise: p.carry.raise, speed: p.controller.speed }; });
+  await page.evaluate(() => { window.__pad.set(6, 0); window.__pad.axis(1, 0); });
+  await settle();
+  assert(sprintBefore && !aimSprint.sprinting && aimSprint.raise > 0.85 && aimSprint.speed < 1.6, `aim while sprinting: sprint ends, weapon up (${aimSprint.raise.toFixed(2)}), aim pace (${aimSprint.speed.toFixed(2)} m/s)`);
 
   // no free jump: jump in the open does nothing
   await tp(0, 0, -2, 0);
