@@ -147,6 +147,25 @@ export class Sfx {
     this.burst('sfx', 0.08 * gain, pan, 'lowpass', 500 + Math.random() * 200, 1, 0.06);
   }
 
+  /** A bulb shot out / glass tinkle. */
+  glass(gain: number, pan = 0): void {
+    if (!this.a.allow('glass', 0.06)) return;
+    this.burst('sfx', 0.3 * gain, pan, 'highpass', 4200, 1.5, 0.22);
+    this.tone('sfx', 0.08 * gain, pan, 'sine', 3800, 3000, 0.12, 0.02);
+  }
+
+  /** A light switch / panel click. */
+  click(): void {
+    if (!this.a.allow('click', 0.08)) return;
+    this.burst('sfx', 0.22, 0, 'bandpass', 3200, 4, 0.025);
+  }
+
+  /** A body thumps down. */
+  thud(gain = 1): void {
+    if (!this.a.allow('thud', 0.15)) return;
+    this.burst('sfx', 0.35 * gain, 0, 'lowpass', 260, 1, 0.18, 90);
+  }
+
   windup(gain: number, pan: number): void {
     if (!this.a.allow('windup', 0.6)) return;
     this.tone('sfx', 0.18 * gain, pan, 'sawtooth', 70, 300, 0.6, 0, 0.3);

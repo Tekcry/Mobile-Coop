@@ -224,3 +224,46 @@ describe('ambient zones', () => {
     expect(lightLevelAt(r, -5, 1, 0)).toBeGreaterThan(0.5);
   });
 });
+
+describe('shooting lights', () => {
+  it('a shot passing a bulb hits the nearest one along it; misses, past the end and switched-off lights do not', async () => {
+    const { lightOnRay } = await import('../src/world/lights');
+    const r = new LightRegistry();
+    const a = r.add({ x: 0, y: 3, z: 5 });
+    const b = r.add({ x: 0, y: 3, z: 10 });
+    expect(lightOnRay(r, 0, 3, 0, 0, 3, 20)).toBe(a.id);
+    expect(lightOnRay(r, 0, 3, 0, 0, 3.5, 20)).toBe(a.id);
+    expect(lightOnRay(r, 0, 3, 0, 1, 3, 20)).toBe(-1);
+    expect(lightOnRay(r, 0, 3, 0, 0, 3, 4)).toBe(-1);
+    r.destroy(a.id);
+    expect(lightOnRay(r, 0, 3, 0, 0, 3, 20)).toBe(b.id);
+    r.setOn(b.id, false);
+    expect(lightOnRay(r, 0, 3, 0, 0, 3, 20)).toBe(-1);
+  });
+});
+
+describe('bodies and alarms', () => {
+  it('a body in a lamp pool is seen from far; in shadow only up close; never behind beyond arm reach', async () => {
+    const { bodyNoticed, BODY } = await import('../src/ai/bodies');
+    expect(bodyNoticed(12, 0, 0.9)).toBe(true);
+    expect(bodyNoticed(6, 0, 0.12)).toBe(false);
+    expect(bodyNoticed(BODY.close - 0.2, Math.PI, 0)).toBe(true);
+    expect(bodyNoticed(5, Math.PI, 1)).toBe(false);
+    expect(bodyNoticed(BODY.range + 1, 0, 1)).toBe(false);
+  });
+  it('alarm runners pick the nearest working panel in range and stand off the wall', async () => {
+    const { nearestPanel, alarmStandPoint, ALARM } = await import('../src/ai/alarm');
+    const ps = [
+      { id: 'a', x: 0, y: 0, z: 0, yaw: 0, disabled: false },
+      { id: 'b', x: 10, y: 0, z: 0, yaw: Math.PI / 2, disabled: false },
+    ];
+    expect(nearestPanel(ps, 8, 0)?.id).toBe('b');
+    ps[1]!.disabled = true;
+    expect(nearestPanel(ps, 8, 0)?.id).toBe('a');
+    expect(nearestPanel(ps, ALARM.range + 5, 0)).toBeNull();
+    const out: [number, number] = [0, 0];
+    alarmStandPoint(ps[1]!, out);
+    expect(out[0]).toBeCloseTo(10 + ALARM.standoff, 5);
+    expect(nearestPanel(ps, 0, 0, 2, 5)).toBeNull();
+  });
+});

@@ -26,6 +26,10 @@ import { hyp2 } from '../core/mathx';
 import { instantDetect, noiseSuspicion, seenAt, sightRate, stepMeter, type SightInput } from './perception';
 import { AlertMachine, emptyAlertInput, type AlertLevel } from './alertState';
 import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
+import { BODY, bodyNoticed } from './bodies';
+import type { Body } from './body';
+import { ALARM, alarmStandPoint, type AlarmPanel } from './alarm';
+import type { LightDef, LightRegistry } from '../world/lights';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -71,8 +75,13 @@ export interface AiContext {
   throwGrenade?(e: Enemy, from: Vector3, to: Vector3): boolean;
   /** This enemy is the one assigned to flank a player holding cover. */
   isFlanker?(e: Enemy): boolean;
-  canRagdoll(): boolean;
-  addRagdoll(e: Enemy, rig: CharacterRig, impulse: Vector3): void;
+  /** Down (killed or knocked out): the rig becomes a body in the world. */
+  addBody(e: Enemy, rig: CharacterRig, impulse: Vector3, lethal: boolean): void;
+  bodies(): readonly Body[];
+  bodyFound(e: Enemy, b: Body): void;
+  revive(b: Body): void;
+  alarmRaised(): boolean;
+  raiseAlarm(e: Enemy, p: AlarmPanel): void;
   /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
    *  sent at it, as in Wave). */
   stealth(): boolean;
@@ -172,6 +181,14 @@ export class Enemy implements Damageable {
   private routePath: P2[] = [];
   private routeGoal: P2 = [NaN, NaN];
   private routeT = 0;
+  /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
+  private searchOwn = false;
+  /** A knocked-out squadmate to wake (found body). */
+  private reviving: Body | null = null;
+  /** Running to an alarm panel (combat), and time spent working it. */
+  private alarm: AlarmPanel | null = null;
+  private alarmT = 0;
+  private alarmPt: P2 = [0, 0];
   private meP: P2 = [0, 0];
   private coverPose: 'none' | 'low' | 'high' = 'none';
   private coverPeek = 0;
@@ -301,13 +318,59 @@ export class Enemy implements Damageable {
     if (this.called <= 0) this.called = delay;
   }
 
-  /** Something to search for without a sighting (a body, lights cut) around (x, z). */
-  searchAt(x: number, z: number): void {
+  /** Something to search for without a sighting (a body, lights cut) around (x, z); with `revive`, wake that
+   *  knocked-out victim first. */
+  searchAt(x: number, z: number, revive: Body | null = null): void {
     if (!this.alive || this.alerted) return;
     this.stimulus[0] = x;
     this.stimulus[1] = z;
     this.hasStimulus = true;
     this.searchReq = true;
+    this.searchOwn = true;
+    if (revive) this.reviving = revive;
+  }
+
+  /** Something caught the eye at (x, z) (not enough to walk over): raise the meter to `level` and look. */
+  notice(x: number, z: number, level: number): void {
+    if (!this.alive || this.alerted) return;
+    this.meter = Math.max(this.meter, level);
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+  }
+
+  /** Assigned to raise the alarm at this panel. */
+  runAlarm(p: AlarmPanel): void {
+    this.alarm = p;
+    this.alarmT = 0;
+    alarmStandPoint(p, this.alarmPt);
+  }
+
+  get runningAlarm(): boolean {
+    return this.alarm !== null;
+  }
+
+  /** Looking for something in the dark (investigating, searching, or hunting unseen): a flashlight on. */
+  torchWanted(reg: LightRegistry): boolean {
+    const lvl = this.aware.level;
+    const looking = lvl === 'investigating' || lvl === 'searching' || (lvl === 'alert' && !this.los);
+    return looking && reg.ambientAt(this.pos.x, this.pos.y + 1.4, this.pos.z) < 0.35;
+  }
+
+  /** The flashlight follows the head: at eye height ahead of the face, pointing where it looks (a bit down). */
+  placeTorch(l: LightDef): void {
+    const s = Math.sin(this.yaw);
+    const c = Math.cos(this.yaw);
+    l.x = this.pos.x + s * 0.35 + c * 0.15;
+    l.y = this.pos.y + (this.crouch > 0.5 ? 1.0 : 1.45) * this.def.scale;
+    l.z = this.pos.z + c * 0.35 - s * 0.15;
+    const cone = l.cone;
+    if (cone) {
+      const p = 0.16;
+      cone.dx = s * Math.cos(p);
+      cone.dy = -Math.sin(p);
+      cone.dz = c * Math.cos(p);
+    }
   }
 
   /** Straight to combat (spawned alerted, shot, tests). */
@@ -326,6 +389,7 @@ export class Enemy implements Damageable {
       if (!this.alertIn.called) this.ctx.callAlert(this);
     } else if (from === 'alert') {
       // combat over: drop out of cover / fights and search
+      this.alarm = null;
       this.setState('idle');
       this.burstLeft = 0;
       this.windup = 0;
@@ -333,7 +397,9 @@ export class Enemy implements Damageable {
     if (to === 'searching') {
       this.searchK = 0;
       this.spotSet = false;
+      if (from === 'alert') this.searchOwn = false;
     }
+    if (to !== 'searching') this.reviving = null;
     if (to === 'investigating') this.spotSet = false;
     if (to === 'unaware' || to === 'cooldown') {
       this.hasStimulus = false;
@@ -360,19 +426,23 @@ export class Enemy implements Damageable {
     return { dealt, killed: !this.health.alive };
   }
 
-  private die(h: HitInfo): void {
+  private die(h: HitInfo, lethal = true): void {
     this.setState('dead');
     this.hitboxes.dispose();
     this.ctx.registry.removeTarget(this);
     this.rig.heldWeapon = null;
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
     imp.y += h.kind === 'explosion' ? 25 : 3;
-    if (this.ctx.canRagdoll()) {
-      this.ctx.addRagdoll(this, this.rig, imp);
-    } else {
-      this.rig.dispose();
-    }
+    // the rig stays in the world as a body (ragdoll when one can be spared)
+    this.ctx.addBody(this, this.rig, imp, lethal);
     this.ctx.onKilled(this, h);
+  }
+
+  /** Knocked out (non-lethal takedown): down like a kill, but wakes if a squadmate finds the body. */
+  knockOut(h: HitInfo): void {
+    if (!this.alive) return;
+    this.health.damage(this.health.hp);
+    this.die(h, false);
   }
 
   /** Fixed-step brain + movement. */
@@ -481,6 +551,28 @@ export class Enemy implements Damageable {
       this.hasStimulus = true;
     }
     if (this.alerted && this.los) this.ctx.reportSighting(best);
+    this.lookForBodies(eye);
+  }
+
+  /** Not in combat: notice a downed body (light, distance, field of view, line of sight). One ray at most. */
+  private lookForBodies(eye: Vector3): void {
+    if (this.alerted || this.def.melee) return;
+    const bodies = this.ctx.bodies();
+    let pick: Body | null = null;
+    let pd = Infinity;
+    for (let i = 0; i < bodies.length; i++) {
+      const b = bodies[i]!;
+      if (b.found || !b.present) continue;
+      const d = hyp2(b.pos.x - this.pos.x, b.pos.z - this.pos.z);
+      if (d >= pd || d >= BODY.range) continue;
+      const ang = wrapAngle(Math.atan2(b.pos.x - this.pos.x, b.pos.z - this.pos.z) - this.yaw);
+      if (!bodyNoticed(d, ang, b.light)) continue;
+      pd = d;
+      pick = b;
+    }
+    if (!pick) return;
+    this.tmpHips.set(pick.pos.x, pick.pos.y + 0.15, pick.pos.z);
+    if (this.losTo(eye, this.tmpHips, 0.35)) this.ctx.bodyFound(this, pick);
   }
 
   private losTo(eye: Vector3, to: Vector3, slack: number): boolean {
@@ -571,6 +663,26 @@ export class Enemy implements Damageable {
       }
       case 'investigating':
       case 'searching': {
+        const rv = this.reviving;
+        if (lvl === 'searching' && rv) {
+          if (!rv.present) this.reviving = null;
+          else {
+            this.spot[0] = rv.pos.x;
+            this.spot[1] = rv.pos.z;
+            if (hyp2(rv.pos.x - this.pos.x, rv.pos.z - this.pos.z) < 1.1) {
+              // kneel over the victim and bring them round
+              this.wantCrouch = true;
+              rv.reviveT += dt;
+              if (rv.reviveT >= BODY.reviveTime) {
+                this.reviving = null;
+                this.wantCrouch = false;
+                this.ctx.revive(rv);
+              }
+              return { point: null, speed: 0, face: Math.atan2(rv.pos.x - this.pos.x, rv.pos.z - this.pos.z) };
+            }
+            return { point: this.goTo(this.spot, dt, 0.9), speed: def.walkSpeed * SEARCH_PACE, face: null };
+          }
+        }
         if (lvl === 'investigating') {
           // the latest stimulus is the spot
           this.spot[0] = this.stimulus[0];
@@ -581,7 +693,7 @@ export class Enemy implements Damageable {
           }
         } else if (!this.spotSet) {
           // next point of the sweep round the last known position (or the stimulus)
-          const k = this.ctx.lkpValid() && this.ctx.stealth() ? this.ctx.lkp : null;
+          const k = this.ctx.lkpValid() && this.ctx.stealth() && !this.searchOwn ? this.ctx.lkp : null;
           const cx = this.hasStimulus && !k ? this.stimulus[0] : k ? k.x : this.pos.x;
           const cz = this.hasStimulus && !k ? this.stimulus[1] : k ? k.z : this.pos.z;
           if (this.searchK === 0) {
@@ -632,6 +744,24 @@ export class Enemy implements Damageable {
     if (!t) return { point: null, speed: 0, face: null };
     if (this.stagger > 0) return { point: null, speed: 0, face: this.faceTarget() };
     const toTarget = this.faceTarget();
+    // raising the alarm: run to the panel and work it (unless it is disabled or already raised)
+    const ap = this.alarm;
+    if (ap) {
+      if (ap.disabled || this.ctx.alarmRaised()) this.alarm = null;
+      else {
+        const d = hyp2(this.alarmPt[0] - this.pos.x, this.alarmPt[1] - this.pos.z);
+        if (d < 0.8) {
+          this.alarmT += dt;
+          if (this.alarmT >= ALARM.holdTime) {
+            this.alarm = null;
+            this.ctx.raiseAlarm(this, ap);
+          }
+          return { point: null, speed: 0, face: ap.yaw + Math.PI };
+        }
+        this.alarmT = 0;
+        return { point: this.goTo(this.alarmPt, dt, 0.5), speed: def.runSpeed, face: null };
+      }
+    }
     // stealth: out of sight they go for where they last knew the target was, not where it is
     const known = this.los || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
     const tp: P2 = [known.x, known.z];

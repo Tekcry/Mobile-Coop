@@ -93,6 +93,8 @@ export class PlayerWeapons {
   /** Last hitscan shot (debugging / tests). */
   lastShot: { origin: Vector3; aim: Vector3; hit: Vector3; target: string } | null = null;
   events: CombatEvents = {};
+  /** Every hitscan ray (origin -> where it stopped): lights can be shot out along it. */
+  onRay: ((from: Vector3, to: Vector3) => void) | null = null;
   /** Shots/hits per weapon for accuracy + mastery. */
   readonly tally = new Map<WeaponId, { shots: number; hits: number; kills: number; heads: number }>();
   private tmpO = new Vector3();
@@ -415,6 +417,7 @@ export class PlayerWeapons {
       const h = this.ballistics.ray(origin, end, MASK.PLAYER_SHOT);
       this.lastShot = { origin: origin.clone(), aim: aimPoint.clone(), hit: h.point.clone(), target: h.target?.id ?? (h.prop ? 'prop' : h.hit ? 'world' : 'none') };
       this.resolveHit(h, dir.clone(), h.distance, s);
+      this.onRay?.(origin, h.point);
       if (!firstEnd || p % 3 === 0) {
         firstEnd = h.point;
         this.vfx.tracer(this.muzzle, h.point, def.tracer, def.pellets > 1 ? 0.012 : 0.022);

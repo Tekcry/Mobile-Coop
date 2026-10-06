@@ -29,6 +29,17 @@ try {
         em.clear();
         em.lkpValid = false;
         em.sightT = 99;
+        em.alarmRaised = false;
+        for (const p of em.alarms) p.disabled = false;
+        for (const it of g.interactables.items) if (it.kind === 'alarm') { it.done = false; g.interactables.setEnabled(it, true); }
+        const reg = g.world.level.lights;
+        for (const l of reg.lights) {
+          if (l.kind === 'flashlight') continue;
+          l.destroyed = false;
+          l.on = true;
+        }
+        reg.version++;
+        if (g.stealth.carry) g.stealth.dropCarried();
         g.cover.reset();
         g.traversal.reset();
         st.releaseAll();
@@ -54,6 +65,11 @@ try {
       },
       step(s) {
         a.loop.stepHeadless(s, 120);
+      },
+      kill(e, knockOut = false) {
+        const h = { amount: 999, point: e.pos.clone(), dir: new V(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 1 };
+        if (knockOut) e.knockOut(h);
+        else e.applyDamage(h);
       },
     };
   });
@@ -260,6 +276,208 @@ try {
     });
     assert(r.a && r.b, `an unaware guard walks its route (${r.a} ${r.b})`);
     assert(r.level === 'unaware', `and stays unaware (${r.level})`);
+  });
+
+  await scen('bodies', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      t.light(0);
+      t.tp(-22, -24, 0);
+      // lit: a body in the factory floor lamp pool, a guard 9 m away facing it
+      const v = t.spawn('grunt', 0, -3, 0);
+      t.kill(v);
+      const w = t.spawn('grunt', 0.5, 6, Math.PI);
+      const mate = t.spawn('grunt', 8, 8, 0);
+      let found = false;
+      for (let i = 0; i < 40 && !found; i++) {
+        t.step(0.1);
+        found = em.bodiesFound > 0;
+      }
+      const lw = w.level;
+      t.step(1);
+      const lmate = mate.level;
+      // shadow: a body in the dark aisle, a guard 6 m away facing it
+      t.reset();
+      t.light(0);
+      t.tp(-22, -24, 0);
+      const f0 = em.bodiesFound;
+      const v2 = t.spawn('grunt', -14.5, 10.5, 0);
+      t.kill(v2);
+      t.spawn('grunt', -14.5, 16.5, Math.PI);
+      t.step(5);
+      const dark = em.bodiesFound - f0;
+      t.light(null);
+      return { found, lw, lmate, dark, bodies: em.bodies.length };
+    });
+    assert(r.found, 'a body in the light is found');
+    assert(r.lw === 'searching', `the finder searches (${r.lw})`);
+    assert(r.lmate === 'searching', `the squad is told and searches too (${r.lmate})`);
+    assert(r.dark === 0, `a body in the dark at 6 m is not found (${r.dark})`);
+  });
+
+  await scen('carry', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const st = window.__app.input.state;
+      t.light(0);
+      const v = t.spawn('grunt', -18, -21, 0);
+      t.tp(-18, -23.5, 0);
+      t.step(0.2);
+      t.kill(v);
+      t.step(4);
+      const b = em.bodies[0];
+      t.tp(b.pos.x, b.pos.z - 0.9, 0);
+      t.step(0.2);
+      const offer = g.interactTarget?.label;
+      st.tap('interact');
+      t.step(0.1);
+      const carrying = !!g.stealth.carry;
+      const stowed = g.weapons.stowed;
+      st.setMove('t', 0, 1);
+      st.tap('dash');
+      t.step(1.5);
+      const speed = g.player.controller.speed;
+      st.setMove('t', 0, 0);
+      t.step(0.3);
+      // put down, pick up again, then into the dumpster
+      st.tap('interact');
+      t.step(2.5);
+      const dropped = !g.stealth.carry && em.bodies[0]?.present;
+      const b2 = em.bodies[0];
+      t.tp(b2.pos.x - 0.8, b2.pos.z, Math.PI / 2);
+      t.step(0.2);
+      st.tap('interact');
+      t.step(0.2);
+      const again = !!g.stealth.carry;
+      t.tp(-21.6, -20.2, Math.PI);
+      t.step(0.2);
+      const hideOffer = g.interactTarget?.label;
+      st.tap('interact');
+      t.step(0.2);
+      t.light(null);
+      return { offer, carrying, stowed, speed, dropped, again, hideOffer, hidden: g.stealth.bodiesHidden, present: em.bodies.filter((x) => x.present).length };
+    });
+    assert(r.offer === 'Pick up body', `standing at a body offers to pick it up (${r.offer})`);
+    assert(r.carrying && r.stowed, 'picking it up puts it on the shoulder and stows the weapon');
+    assert(r.speed < 2.4, `carrying is slow, no sprint (${r.speed.toFixed(2)} m/s)`);
+    assert(r.dropped, 'it can be put down again');
+    assert(r.again, 'and picked up again');
+    assert(r.hideOffer === 'Hide body', `at the dumpster: hide it (${r.hideOffer})`);
+    assert(r.hidden === 1 && r.present === 0, 'hidden bodies are gone for good');
+  });
+
+  await scen('lights', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const reg = g.world.level.lights;
+      t.light(0);
+      t.tp(-22, -24, 0);
+      // shoot out the factory floor lamp at (0, -3): the nearest guard comes to look with a flashlight
+      const e = t.spawn('grunt', 6, 3, 0);
+      const lamp = reg.lights.find((l) => l.kind === 'lamp' && l.x === 0 && l.z === -3);
+      const before = reg.countOn();
+      g.weapons.onRay(new t.V(0, 1.5, -10), new t.V(0, 8.6, 4));
+      const out = lamp.destroyed;
+      t.step(1.5);
+      const lv = e.level;
+      t.step(1);
+      const torch = em.torchesOn;
+      // switch: the floor circuit off at its wall switch
+      t.reset();
+      t.light(0);
+      const e2 = t.spawn('grunt', 4, -2, Math.PI);
+      const sw = g.interactables.items.find((i) => i.id === 'switch-4');
+      t.tp(sw.pos.x, sw.pos.z + 0.6, Math.PI);
+      t.step(0.2);
+      const swOffer = g.interactTarget?.label;
+      const on0 = reg.countOn();
+      window.__app.input.state.tap('interact');
+      t.step(0.2);
+      const on1 = reg.countOn();
+      t.step(1.5);
+      const lv2 = e2.level;
+      t.light(null);
+      return { before, out, lv, torch, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
+    });
+    assert(r.out, 'a shot through a bulb puts the light out');
+    assert(r.lv === 'investigating', `the nearest guard comes to look (${r.lv})`);
+    assert(r.torch >= 1, `with a flashlight in the dark (${r.torch} on)`);
+    assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);
+    assert(r.on1 < r.on0, `switching turns the room's circuit off (${r.on0} -> ${r.on1})`);
+    assert(r.lv2 === 'investigating', `the room going dark is investigated (${r.lv2})`);
+  });
+
+  await scen('alarm', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      const st = window.__app.input.state;
+      t.light(0);
+      t.tp(-22, 16, 0);
+      const e = t.spawn('grunt', 2, 6, 0);
+      e.alert();
+      const n0 = em.alive;
+      let raised = false;
+      for (let i = 0; i < 100 && !raised; i++) {
+        t.step(0.1);
+        raised = em.alarmRaised;
+      }
+      t.step(0.5);
+      const n1 = em.alive;
+      // disable a panel first (hold), then nobody can raise it
+      t.reset();
+      t.light(0);
+      const panel = g.interactables.items.find((i) => i.id === 'alarm-1');
+      t.tp(panel.pos.x + 0.7, panel.pos.z, -Math.PI / 2);
+      t.step(0.2);
+      const offer = g.interactTarget?.label;
+      st.set('t', 'interact', true);
+      t.step(1.5);
+      st.set('t', 'interact', false);
+      const dis = em.alarms[1].disabled;
+      em.alarms[0].disabled = true;
+      t.tp(-22, 16, 0);
+      const e2 = t.spawn('grunt', 2, 6, 0);
+      e2.alert();
+      t.step(8);
+      t.light(null);
+      return { raised, n0, n1, offer, dis, raised2: em.alarmRaised };
+    });
+    assert(r.raised, 'an alerted guard runs to the alarm panel and raises it');
+    assert(r.n1 > r.n0, `reinforcements come in (${r.n0} -> ${r.n1})`);
+    assert(/Disable alarm/.test(r.offer ?? ''), `the panel can be disabled (${r.offer})`);
+    assert(r.dis && !r.raised2, 'a disabled panel never raises the alarm');
+  });
+
+  await scen('revive', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const em = g.enemyMgr;
+      t.light(0);
+      t.tp(-22, -24, 0);
+      const v = t.spawn('grunt', 0, -3, 0);
+      t.kill(v, true);
+      const w = t.spawn('grunt', 0.5, 6, Math.PI);
+      const n0 = em.alive;
+      let woke = false;
+      for (let i = 0; i < 200 && !woke; i++) {
+        t.step(0.1);
+        woke = em.alive > n0;
+      }
+      const lethal = em.bodies.length;
+      t.light(null);
+      return { woke, lethal, wl: w.level };
+    });
+    assert(r.woke, 'a knocked-out guard is woken when a squadmate finds him');
+    assert(r.lethal === 0, `and the body is gone (${r.lethal} left)`);
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));

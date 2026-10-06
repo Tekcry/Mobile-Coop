@@ -20,6 +20,10 @@ import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
 import { LightRig } from './lightRig';
 import { Breakables } from './breakables';
+import { makeCone } from './lights';
+
+/** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
+export const FLASHLIGHTS = 4;
 
 export interface WorldOptions {
   shadows: boolean;
@@ -82,6 +86,13 @@ export class World {
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
     // gameplay light level everywhere (moonlight / daylight); after the props so their materials take the pool
     level.lights.ambient = th.lightLevel ?? 0.75;
+    // dark maps: a few flashlight slots enemies switch on to search (moving cone lights, off until used)
+    const reg = level.lights;
+    if (reg.ambient < 0.5 || reg.zones.some((z) => z.ambient < 0.5)) {
+      for (let i = 0; i < FLASHLIGHTS; i++) {
+        reg.add({ kind: 'flashlight', x: 0, y: -50, z: 0, radius: 13, intensity: 0.85, color: [0.95, 0.96, 1], cone: makeCone(0, 0, 1, 0.34, 0.2), on: false, destructible: false, electric: false });
+      }
+    }
     this.lightRig = new LightRig(scene, level.lights);
     this.breakables = new Breakables(scene, level.anchors);
   }

@@ -293,6 +293,15 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 3b - Bodies, lights, alarms (1.13.0) - Warehouse, Clear
+- [ ] Drop a guard: the body stays. Walk up to it: "Pick up body"; carry it (slow, no weapon), put it down, pick it up again.
+- [ ] Carry a body to the yard dumpster or the dispatch cabinet: "Hide body"; it is gone.
+- [ ] Leave a body in a lamp pool in a guard's view: he finds it, searches round it, others nearby join.
+- [ ] Shoot a lamp bulb: it goes out with a tinkle; a guard comes to look with a flashlight (the beam lights you up).
+- [ ] Use a wall switch: the room's lamps go off; someone comes to look at the switch.
+- [ ] Get spotted near an alarm panel: a guard runs to it; stop him or ALARM sounds and three more come in from the yard.
+- [ ] Hold Y / E at an alarm panel first: "Alarm disabled"; it can no longer be raised.
+
 ## 2.0 phase 3a - Perception and alert states (1.12.0) - Warehouse, Clear
 - [ ] It is night: the yard is moonlit, inside is dark with pools under the lit lamps. The light meter (top left) dims and turns blue in shadow.
 - [ ] Guards walk their routes or stand post and glance about. Crouch-walk behind one in the dark: no arc.

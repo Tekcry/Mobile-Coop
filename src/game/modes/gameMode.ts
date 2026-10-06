@@ -49,6 +49,8 @@ export interface GameMode {
   fixedUpdate(dt: number): void;
   frameUpdate(dt: number): void;
   onEnemyKilled(e: Enemy, h: HitInfo): void;
+  /** An enemy came (back) into play: a knocked-out one woken by a squadmate, or reinforcements. */
+  onEnemyJoined?(e: Enemy): void;
   onPlayerDeath(): void;
   blips(): Blip[];
   dispose(): void;

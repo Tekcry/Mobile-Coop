@@ -1425,7 +1425,8 @@ export class CharacterRig {
     });
   }
 
-  private disposed = false;
+  /** Disposed (no longer animates or renders). */
+  disposed = false;
   private lodSkip = false;
   private lodDt = 0;
 

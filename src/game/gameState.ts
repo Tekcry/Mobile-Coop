@@ -46,6 +46,7 @@ import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { LkpGhost } from '../vfx/lkpGhost';
+import { StealthSystems } from './stealthSystems';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
@@ -166,6 +167,8 @@ export class GameState implements AppState {
   readonly pickups: Pickups | null = null;
   readonly interactables: Interactables | null = null;
   readonly mode: GameMode | null = null;
+  /** Bodies, switches, shot-out lights and alarm panels (modes with enemies). */
+  readonly stealth: StealthSystems | null = null;
   readonly stats: SessionStats;
   private ended = false;
   private respawnAt: Vector3 | null = null;
@@ -293,6 +296,11 @@ export class GameState implements AppState {
       };
       w.interactables = new Interactables(this.scene, world.parts);
       w.mode = opts.mode === 'wave' ? new WaveMode(this) : opts.mode === 'clear' ? new ClearMode(this) : new MissionMode(this);
+      w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
+        this.eventNoise(r);
+        this.enemyMgr?.hear(at, r);
+      });
+      this.weapons.onRay = (a, b) => this.stealth?.shotRay(a, b);
       this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
       app.debug.extra.set('ai', () => {
         const em = this.enemyMgr;
@@ -463,6 +471,7 @@ export class GameState implements AppState {
     this.mode?.dispose();
     this.enemyMgr?.clear();
     this.pickups?.dispose();
+    this.stealth?.dispose();
     this.interactables?.dispose();
     this.hud.dispose();
     this.app.input.touch.setControlHidden('action', false);
@@ -544,7 +553,8 @@ export class GameState implements AppState {
     const ints = this.interactables;
     if (!ints) return;
     ints.update(dt);
-    const it = this.player.alive ? ints.nearest(this.player.position) : null;
+    const carryIt = this.stealth?.carryTarget(this.player.position) ?? null;
+    const it = carryIt ?? (this.player.alive ? ints.nearest(this.player.position) : null);
     if (it !== this.interactTarget) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = it;
@@ -559,7 +569,8 @@ export class GameState implements AppState {
     const pct = it.holdTime > 0 ? Math.min(1, it.progress / it.holdTime) : 0;
     this.hud.setInteract(it.holdTime > 0 ? `${it.label} (hold) ${pct > 0 ? Math.round(pct * 100) + '%' : ''}` : it.label);
     if ((it.holdTime === 0 && this.app.input.state.pressed('interact')) || (it.holdTime > 0 && it.progress >= it.holdTime)) {
-      if (this.mode instanceof MissionMode) this.mode.onInteract(it);
+      if (it.onUse) it.onUse(it);
+      else if (this.mode instanceof MissionMode) this.mode.onInteract(it);
       this.interactTarget = null;
       this.hud.setInteract(null);
     }
@@ -638,7 +649,9 @@ export class GameState implements AppState {
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
     if (this.player.rig.emote && (hyp2(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
     const coverWas = this.cover.state;
-    if (!this.traversal.active) this.cover.fixedUpdate(dt, inp);
+    // a body on the shoulder: no cover, no traversal, weapon stowed, slow
+    const carrying = this.stealth?.carrying ?? false;
+    if (!this.traversal.active && !carrying) this.cover.fixedUpdate(dt, inp);
     // cover shot away / destroyed under the player: stumble out of it
     if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
     // Y / E is contextual: an interactable in reach takes it, else it traverses
@@ -652,12 +665,13 @@ export class GameState implements AppState {
     ti.useHeld = inp.down('interact');
     ti.useHeldT = inp.heldTime('interact');
     ti.sprintHeld = inp.down('dash');
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget, this.cover.state !== 'none', this.cover.exitDir);
-    // attached (ladder, pipe, hang, duct): both hands busy, the weapon goes to its slot; its framing preset
-    this.weapons.setStowed(this.traversal.attached && !!this.traversal.attach.spec?.holster);
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget && !carrying, this.cover.state !== 'none', this.cover.exitDir);
+    // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
+    this.weapons.setStowed((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying);
     this.player.cam.attach = this.traversal.cameraPreset;
     this.player.cam.attachYaw = this.player.controller.yaw;
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
+    this.stealth?.fixedUpdate();
     this.suppression.update(dt);
     this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
@@ -760,6 +774,7 @@ export class GameState implements AppState {
       look.y += Math.cos(this.swayT * 1.7 + 1) * sway * 1.2 * dt;
     }
     this.traversal.frameUpdate(dt, alpha);
+    this.stealth?.frameUpdate();
     this.player.frameUpdate(dt, alpha, look, this.app.input.state.move);
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);

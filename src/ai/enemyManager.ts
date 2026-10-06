@@ -6,18 +6,21 @@ import type { Vfx } from '../vfx/vfx';
 import type { NavGrid } from './navGrid';
 import { Enemy, type AiContext, type PlayerRef } from './enemy';
 import { ENEMIES, type Difficulty, type EnemyKind } from './enemyDefs';
-import { Ragdoll } from './ragdoll';
 import { BUDGET } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
 import type { Grenades } from '../weapons/grenades';
 import { GRAVITY } from '../physics/havok';
+import { Body } from './body';
+import { BODY } from './bodies';
+import { lightLevelAt, type LightDef } from '../world/lights';
+import { nearestPanel, type AlarmPanel } from './alarm';
+import { hyp2 } from '../core/mathx';
 
 export const MAX_ALIVE = 10;
 
-/** Owns enemies, the shared chase flow field, cover reservations and ragdolls. */
+/** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
   readonly enemies: Enemy[] = [];
-  private ragdolls: Ragdoll[] = [];
   private flowField: Float32Array;
   private flowT = 0;
   private coverOwner = new Map<number, Enemy>();
@@ -47,6 +50,26 @@ export class EnemyManager {
   sightT = 99;
   /** Radio range for a detection call (m). */
   static readonly RADIO = 22;
+  /** Downed enemies lying in the world (findable, carriable). */
+  readonly bodies: Body[] = [];
+  /** A body was found by an enemy (audio / HUD / stats). */
+  onBodyFound: ((e: Enemy, b: Body) => void) | null = null;
+  /** A body appeared (GameState makes it carriable) or went for good. */
+  onBodyAdded: ((b: Body) => void) | null = null;
+  onBodyRemoved: ((b: Body) => void) | null = null;
+  /** A knocked-out enemy was revived (modes count it back in). */
+  onRevived: ((e: Enemy, b: Body) => void) | null = null;
+  bodiesFound = 0;
+  /** Alarm panels on the map; raised once per match (reinforcements). */
+  readonly alarms: AlarmPanel[] = [];
+  alarmRaised = false;
+  onAlarm: ((e: Enemy, p: AlarmPanel) => void) | null = null;
+  private alarmRunner: Enemy | null = null;
+  private alarmT = 0;
+  /** Flashlight slots (dark maps) and who holds each. */
+  private torches: LightDef[] = [];
+  private torchOwner: (Enemy | null)[] = [];
+  private world: World;
 
   constructor(
     scene: Scene,
@@ -58,6 +81,12 @@ export class EnemyManager {
     public difficulty: Difficulty,
     private players: () => readonly PlayerRef[],
   ) {
+    this.world = world;
+    for (const l of world.level.lights.lights) {
+      if (l.kind !== 'flashlight') continue;
+      this.torches.push(l);
+      this.torchOwner.push(null);
+    }
     this.flowField = new Float32Array(nav.walk.length);
     this.ctx = {
       scene,
@@ -120,10 +149,166 @@ export class EnemyManager {
         for (const o of this.enemies) if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
         return n;
       },
-      canRagdoll: () => this.ragdolls.filter((r) => !r.done).length < BUDGET.maxRagdolls,
-      addRagdoll: (_e, rig: CharacterRig, imp: Vector3) => this.ragdolls.push(new Ragdoll(scene, rig, imp)),
+      addBody: (e, rig: CharacterRig, imp: Vector3, lethal: boolean) => {
+        this.addBody(new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll()));
+      },
+      bodies: () => this.bodies,
+      bodyFound: (e, b) => this.bodyFound(e, b),
+      revive: (b) => this.revive(b),
+      alarmRaised: () => this.alarmRaised,
+      raiseAlarm: (e, p) => this.raiseAlarm(e, p),
     };
     this.refreshFlow();
+  }
+
+  /** Bodies still simulating as ragdolls are under the budget. */
+  canRagdoll(): boolean {
+    let n = 0;
+    for (const b of this.bodies) if (b.simulating) n++;
+    return n < BUDGET.maxRagdolls;
+  }
+
+  addBody(b: Body): void {
+    this.bodies.push(b);
+    this.onBodyAdded?.(b);
+    // cap: drop the oldest (found / hidden first)
+    while (this.bodies.length > BODY.max) {
+      let k = this.bodies.findIndex((x) => (x.found || x.hidden) && !x.carried);
+      if (k < 0) k = this.bodies.findIndex((x) => !x.carried);
+      if (k < 0) break;
+      this.removeBody(this.bodies[k]!);
+    }
+  }
+
+  removeBody(b: Body): void {
+    const k = this.bodies.indexOf(b);
+    if (k < 0) return;
+    this.bodies.splice(k, 1);
+    b.dispose();
+    this.onBodyRemoved?.(b);
+  }
+
+  /** A body was spotted: the finder searches round it (a knocked-out victim gets woken), the squad is told. */
+  private bodyFound(e: Enemy, b: Body): void {
+    if (b.found || !b.present) return;
+    b.found = true;
+    this.bodiesFound++;
+    e.searchAt(b.pos.x, b.pos.z, b.lethal ? null : b);
+    for (const o of this.enemies) {
+      if (o === e || !o.alive || o.alerted) continue;
+      if (Vector3.Distance(o.pos, e.pos) < EnemyManager.RADIO) o.searchAt(b.pos.x, b.pos.z, null);
+    }
+    this.onBodyFound?.(e, b);
+  }
+
+  /** An alerted enemy worked a panel: reinforcements (once per match). */
+  private raiseAlarm(e: Enemy, p: AlarmPanel): void {
+    if (this.alarmRaised || p.disabled) return;
+    this.alarmRaised = true;
+    this.alarmRunner = null;
+    this.onAlarm?.(e, p);
+  }
+
+  /** Bring a reinforcement squad in at `at` (alerted, told the last known position). */
+  reinforce(kind: EnemyKind, at: Vector3, n: number): Enemy[] {
+    const out: Enemy[] = [];
+    for (let i = 0; i < n; i++) {
+      const e = this.spawn(kind, at.add(new Vector3((i - (n - 1) / 2) * 1.2, 0, (i % 2) * 1.1)), true, Math.random() * 6);
+      if (e) out.push(e);
+    }
+    return out;
+  }
+
+  /** Lights went out at a point: the nearest calm enemy comes to look (with a flashlight in the dark), others
+   *  nearby turn to look. */
+  lightsOut(x: number, z: number): void {
+    let best: Enemy | null = null;
+    let bd = 25;
+    for (const e of this.enemies) {
+      if (!e.alive || e.alerted || e.def.melee) continue;
+      const d = hyp2(e.pos.x - x, e.pos.z - z);
+      if (d < bd) {
+        bd = d;
+        best = e;
+      }
+    }
+    for (const e of this.enemies) {
+      if (!e.alive || e.alerted || e === best) continue;
+      if (hyp2(e.pos.x - x, e.pos.z - z) < 14) e.notice(x, z, 0.32);
+    }
+    best?.hear(x, z, Math.max(6, bd * 1.6));
+  }
+
+  /** Assign the alarm runner: an alerted enemy near a working panel (stealth rules only). */
+  private assignAlarm(): void {
+    if (!this.stealth || this.alarmRaised || !this.alarms.length) return;
+    const r = this.alarmRunner;
+    if (r && r.alive && r.alerted && r.runningAlarm) return;
+    this.alarmRunner = null;
+    let best: Enemy | null = null;
+    let bp: AlarmPanel | null = null;
+    let bd = Infinity;
+    for (const e of this.enemies) {
+      if (!e.alive || !e.alerted || e.def.melee) continue;
+      const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
+      if (!p) continue;
+      const d = hyp2(p.x - e.pos.x, p.z - e.pos.z);
+      if (d < bd) {
+        bd = d;
+        best = e;
+        bp = p;
+      }
+    }
+    if (best && bp) {
+      best.runAlarm(bp);
+      this.alarmRunner = best;
+    }
+  }
+
+  /** Flashlights: enemies looking for something in the dark switch one on; it follows their head. */
+  private updateTorches(): void {
+    const ts = this.torches;
+    if (!ts.length) return;
+    const reg = this.world.level.lights;
+    // release
+    for (let i = 0; i < ts.length; i++) {
+      const o = this.torchOwner[i];
+      if (o && !(o.alive && o.torchWanted(reg))) {
+        this.torchOwner[i] = null;
+        reg.setOn(ts[i]!.id, false);
+      }
+    }
+    // acquire
+    for (const e of this.enemies) {
+      if (!e.alive || this.torchOwner.includes(e) || !e.torchWanted(reg)) continue;
+      const k = this.torchOwner.indexOf(null);
+      if (k < 0) break;
+      this.torchOwner[k] = e;
+      reg.setOn(ts[k]!.id, true);
+    }
+    // follow
+    for (let i = 0; i < ts.length; i++) {
+      const o = this.torchOwner[i];
+      if (o) o.placeTorch(ts[i]!);
+    }
+  }
+
+  /** Who has a flashlight on (tests / debug). */
+  get torchesOn(): number {
+    let n = 0;
+    for (const o of this.torchOwner) if (o) n++;
+    return n;
+  }
+
+  /** Wake a knocked-out victim: back on their feet, searching. */
+  private revive(b: Body): void {
+    if (!b.present || b.lethal) return;
+    const e = new Enemy(this.ctx, b.def, b.pos.clone(), Math.random() * 6);
+    e.health.damage(e.health.maxHp * 0.4);
+    this.enemies.push(e);
+    this.removeBody(b);
+    e.searchAt(e.pos.x, e.pos.z, null);
+    this.onRevived?.(e, b);
   }
 
   private releaseCover(e: Enemy): void {
@@ -216,12 +401,26 @@ export class EnemyManager {
       this.refreshFlow();
       this.assignFlanker();
     }
+    this.alarmT -= dt;
+    if (this.alarmT <= 0) {
+      this.alarmT = 0.5;
+      this.assignAlarm();
+    }
     this.grenadeT = Math.max(0, this.grenadeT - dt);
     for (const e of this.enemies) e.update(dt);
-    for (const r of this.ragdolls) r.update(dt);
+    this.updateTorches();
+    // bodies: settle, and sample the light on them now and then (how findable they are)
+    const lights = this.world.level.lights;
+    for (const b of this.bodies) {
+      b.update(dt);
+      b.lightT -= dt;
+      if (b.lightT <= 0 && b.present) {
+        b.lightT = 1;
+        b.light = lightLevelAt(lights, b.pos.x, b.pos.y + 0.2, b.pos.z);
+      }
+    }
     // drop dead entries
     for (let i = this.enemies.length - 1; i >= 0; i--) if (!this.enemies[i]!.alive) this.enemies.splice(i, 1);
-    for (let i = this.ragdolls.length - 1; i >= 0; i--) if (this.ragdolls[i]!.done) this.ragdolls.splice(i, 1);
   }
 
   /** Render-rate animation (interpolated between fixed steps). */
@@ -232,8 +431,7 @@ export class EnemyManager {
   clear(): void {
     for (const e of this.enemies) e.dispose();
     this.enemies.length = 0;
-    for (const r of this.ragdolls) r.dispose();
-    this.ragdolls.length = 0;
+    for (const b of [...this.bodies]) this.removeBody(b);
     this.coverOwner.clear();
   }
 }

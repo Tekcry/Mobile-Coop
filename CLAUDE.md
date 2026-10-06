@@ -468,6 +468,24 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   while seen, shown at the LKP while hunted unseen (`GameState.updateStealthHud`).
 - Light: `LightRegistry.zones` / `ambientAt` (`LevelBuilder.ambientZone`); Warehouse is a night map (yard 0.3,
   interior 0.12, `LAMPS_ON`, lamp `group` per room).
+- Bodies (3b): `Enemy.die` / `knockOut` hand the rig to `EnemyManager.addBody` -> `ai/body.ts` `Body` (a `Ragdoll`
+  with `keep` that stays settled, or laid flat when `canRagdoll` is out of budget; `BODY.max` kept). Enemies not in
+  combat look for bodies each think (`bodyNoticed`: field x `lightFactor(body.light)` x distance, close range
+  always; one ray) -> `bodyFound`: finder `searchAt(x, z, revive?)`, squad within `RADIO` searches; a non-lethal
+  body is revived (`BODY.reviveTime`, `onRevived` -> mode `onEnemyJoined`). Carry (`game/stealthSystems.ts`): a
+  fresh unarmed rig (`buildBodyRig`) parented to the player's chest in a fixed over-the-shoulder pose; the player's
+  `reachL/R` hold its knees; weapon stowed, `speedCap` `BODY.carrySpeed`, no sprint / cover / traversal; drop = a
+  short `Ragdoll` (settle 2.2 s); hide spots (`MapLayout.hideSpots`) remove it.
+- Lights (3b): `PlayerWeapons.onRay` -> `StealthSystems.shotRay` -> `lightOnRay` (pure) + `LightRegistry.destroy`;
+  `MapLayout.switches` toggle a `group`; both call `EnemyManager.lightsOut` (nearest calm enemy investigates, others
+  `notice`). Flashlights: `World` adds `FLASHLIGHTS` (4) `kind 'flashlight'` lights on dark maps; the manager gives
+  them to enemies with `torchWanted` (investigating / searching / hunting unseen where `ambientAt` < 0.35) and
+  `placeTorch` moves them each step; `LightRig` re-places pooled flashlights every frame (no bulb).
+- Alarms (3b): `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted
+  enemy (`runAlarm`, run speed) to work it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the
+  `MapLayout.reinforce` point furthest from the player). The player disables a panel with a hold.
+- Interactables: kinds `switch`, `alarm`, `hide`, `body` with per-item `reach` and `onUse`; `nearest(feet, reach,
+  only)` (hide spots only with `only`); `GameState.updateInteract` calls `onUse` (else Mission).
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

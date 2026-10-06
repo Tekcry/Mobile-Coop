@@ -91,6 +91,14 @@ export class ClearMode implements GameMode {
     }
   }
 
+  /** A hostile came into play (woken, or reinforcements): it counts, holding the room it is in. */
+  onEnemyJoined(e: Enemy): void {
+    let room = roomAt(this.rooms, e.pos.x, e.pos.z);
+    if (room < 0) room = 0;
+    e.hold = this.rooms[room]!;
+    this.tracker.assign(e.id, room);
+  }
+
   /** A room emptied (silent): it becomes the respawn checkpoint. */
   private onCleared(room: number): void {
     const [cx, cz] = roomCentre(this.rooms[room]!);

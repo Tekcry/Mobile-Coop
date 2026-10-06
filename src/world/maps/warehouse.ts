@@ -244,6 +244,10 @@ export const warehouse: MapDef = {
     b.block(4.6, 15.6, 1.8, 0.95, 0.9, DESK);
     b.block(7.4, 17.2, 0.6, 1.8, 1.0, STEEL).block(-3.5, 17.3, 0.6, 1.8, 0.9, STEEL);
 
+    // a dumpster in the yard and a big cabinet in the dispatch office (hide bodies in them)
+    b.block(-21.6, -21.8, 1.9, 1.2, 1.1, '#2f5a3c').box(-21.6, 1.25, -21.8, 1.95, 0.08, 1.15, '#244a30', 0, 0, false);
+    b.block(-3.3, -17.3, 1.2, 2.0, 0.7, STEEL);
+
     // yard: trailer, container, jersey barriers
     b.block(-3.5, -22.5, 7, 2.8, 2.5, '#d8d8d8').box(-3.5, 0.45, -22.5, 6.2, 0.9, 2.3, '#2a2d30', 0, 0, false);
     b.block(9, -23, 6, 2.6, 2.4, '#3d6e8f');
@@ -301,6 +305,20 @@ export const warehouse: MapDef = {
         { pos: v(21, 14.5, 2.6), kind: 'health' },
       ],
       rooms: ROOMS,
+      switches: [
+        { pos: v(-4.15, -13), yaw: -Math.PI / 2, group: 0 },
+        { pos: v(-2.8, -11.15), yaw: Math.PI, group: 1 },
+        { pos: v(8, -11.15), yaw: Math.PI, group: 2 },
+        { pos: v(-4.15, 2), yaw: -Math.PI / 2, group: 4 },
+        { pos: v(-2, -8.65), yaw: 0, group: 5 },
+        { pos: v(1.85, 13), yaw: -Math.PI / 2, group: 7 },
+      ],
+      alarms: [
+        { pos: v(-4.15, -8.2), yaw: -Math.PI / 2 },
+        { pos: v(-3.85, 6), yaw: Math.PI / 2 },
+      ],
+      hideSpots: [{ pos: v(-21.6, -20.6) }, { pos: v(22.7, -13.8) }, { pos: v(-3.3, -16.5) }],
+      reinforce: [v(-14.5, -25.5), v(18, -24.5)],
     };
   },
 };

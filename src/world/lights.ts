@@ -299,3 +299,35 @@ export function nearestLights(reg: LightRegistry, x: number, y: number, z: numbe
   }
   return n;
 }
+
+/** Radius of a light's bulb / fixture for shooting it out (m). */
+export const BULB_RADIUS = 0.22;
+
+/**
+ * The first shootable light (on, not destroyed, destructible, fixed) a shot from (ax, ay, az) to (bx, by, bz)
+ * passes within `BULB_RADIUS` of, or -1. Allocation-free.
+ */
+export function lightOnRay(reg: LightRegistry, ax: number, ay: number, az: number, bx: number, by: number, bz: number): number {
+  const dx = bx - ax;
+  const dy = by - ay;
+  const dz = bz - az;
+  const len2 = dx * dx + dy * dy + dz * dz;
+  if (len2 < 1e-8) return -1;
+  let best = -1;
+  let bt = Infinity;
+  const ls = reg.lights;
+  for (let i = 0; i < ls.length; i++) {
+    const l = ls[i]!;
+    if (!l.on || l.destroyed || !l.destructible || l.kind === 'flashlight') continue;
+    const t = ((l.x - ax) * dx + (l.y - ay) * dy + (l.z - az) * dz) / len2;
+    if (t < 0 || t > 1 || t >= bt) continue;
+    const px = ax + dx * t - l.x;
+    const py = ay + dy * t - l.y;
+    const pz = az + dz * t - l.z;
+    if (px * px + py * py + pz * pz <= BULB_RADIUS * BULB_RADIUS) {
+      bt = t;
+      best = l.id;
+    }
+  }
+  return best;
+}

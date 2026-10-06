@@ -34,6 +34,14 @@ export interface MapLayout {
   pickups: { pos: Vector3; kind: 'ammo' | 'health' }[];
   /** Tagged rooms (HUD room tag, Clear mode, enemies holding rooms). */
   rooms?: RoomDef[];
+  /** Light switches on walls (facing `yaw`): each turns a lamp circuit (`group`) on / off. */
+  switches?: { pos: Vector3; yaw: number; group: number }[];
+  /** Alarm panels on walls: an alerted enemy who reaches one calls reinforcements. */
+  alarms?: { pos: Vector3; yaw: number }[];
+  /** Where a carried body can be hidden (in front of a container / locker). */
+  hideSpots?: { pos: Vector3 }[];
+  /** Where reinforcement squads come in. */
+  reinforce?: Vector3[];
 }
 
 export interface MapDef {

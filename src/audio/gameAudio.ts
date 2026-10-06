@@ -61,6 +61,9 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
   const offs = [
     g.events.on('wave', () => sfx.horn()),
     g.events.on('alarm', () => sfx.horn()),
+    g.events.on('lightOut', ({ shot }) => (shot ? sfx.glass(1) : sfx.click())),
+    g.events.on('lightSwitch', () => sfx.click()),
+    g.events.on('body', ({ action }) => (action === 'pickup' ? sfx.thud(0.5) : sfx.thud(1))),
     g.events.on('waveCleared', () => sfx.objective()),
     g.events.on('objective', () => sfx.objective()),
     g.events.on('operationComplete', () => sfx.stinger(true)),

@@ -9,6 +9,13 @@ export interface GameEvents {
   /** Clear mode: every hostile down (the only feedback the mode gives). */
   operationComplete: Record<string, never>;
   alarm: Record<string, never>;
+  /** A light was shot out / switched (stealth). */
+  lightOut: { x: number; y: number; z: number; shot: boolean };
+  lightSwitch: { on: boolean };
+  /** An enemy found a body. */
+  bodyFound: { x: number; z: number };
+  /** The player picked up / put down / hid a body. */
+  body: { action: 'pickup' | 'drop' | 'hide' };
   pickup: { kind: PickupKind };
   emote: { id: string };
   /** Coop: a shot by a teammate or a host-simulated enemy (audio only). */

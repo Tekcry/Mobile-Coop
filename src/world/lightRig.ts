@@ -28,6 +28,9 @@ export class LightRig {
   private version = -1;
   /** Real lights in use (from quality). */
   active = MAX_REAL_LIGHTS;
+  /** Pool slots placed at the last pick. */
+  private used = 0;
+  private bulbCount = 0;
 
   constructor(
     scene: Scene,
@@ -63,9 +66,12 @@ export class LightRig {
     const m = new Matrix();
     for (let i = 0; i < n; i++) {
       const l = reg.lights[i]!;
+      // moving lights (enemy flashlights) have no fixed bulb
+      if (l.kind === 'flashlight') continue;
       Matrix.TranslationToRef(l.x, l.y, l.z, m);
       m.copyToArray(mtx, i * 16);
     }
+    this.bulbCount = n;
     this.bulbColors = new Float32Array(n * 4);
     mesh.thinInstanceSetBuffer('matrix', mtx, 16, true);
     mesh.thinInstanceSetBuffer('color', this.bulbColors, 4, false);
@@ -79,7 +85,14 @@ export class LightRig {
     if (!this.bulbs) return;
     this.pickT -= dt;
     const changed = this.version !== this.reg.version;
-    if (!changed && this.pickT > 0) return;
+    if (!changed && this.pickT > 0) {
+      // moving lights follow every frame between picks
+      for (let i = 0; i < this.used; i++) {
+        const l = this.reg.lights[this.ids[i]!]!;
+        if (l.kind === 'flashlight') this.place(this.pool[i]!, l);
+      }
+      return;
+    }
     this.pickT = PICK_INTERVAL;
     if (changed) {
       this.version = this.reg.version;
@@ -87,6 +100,7 @@ export class LightRig {
     }
     const n = nearestLights(this.reg, cx, cy, cz, this.ids, this.dist);
     const use = Math.min(n, this.active);
+    this.used = use;
     for (let i = 0; i < MAX_REAL_LIGHTS; i++) {
       const s = this.pool[i]!;
       if (i < use) this.place(s, this.reg.lights[this.ids[i]!]!);
@@ -113,7 +127,7 @@ export class LightRig {
   private paintBulbs(): void {
     const c = this.bulbColors;
     if (!c || !this.bulbs) return;
-    for (let i = 0; i < this.reg.lights.length; i++) {
+    for (let i = 0; i < this.bulbCount; i++) {
       const l = this.reg.lights[i]!;
       const k = l.on && !l.destroyed ? 1 : 0.08;
       c[i * 4] = l.color[0] * k;

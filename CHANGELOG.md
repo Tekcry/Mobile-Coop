@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.13.0 - 2.0 phase 3b: bodies, lights, flashlights, alarms
+- Bodies stay where they fall (the ragdoll settles and remains; a still body when no ragdoll can be spared; up to
+  12 kept). Enemies notice them by light, distance and field of view (`ai/bodies.ts`): a body in a lamp pool is
+  seen from far off, one left in shadow only by someone almost tripping over it. A found body sends the finder
+  searching round it and radios the squad (22 m) to search too; a knocked-out victim is woken by the finder (3 s
+  kneeling over it) and comes back searching (Clear counts it again). Knock-outs arrive with takedowns (phase 4).
+- Carry: "Pick up body" (Y / E / the action button) puts it over the shoulder (torso down the back, the hands on
+  its legs); carrying is slow (2.2 m/s, no sprint), the weapon stowed, no cover or traversal. "Drop body" puts it
+  down (a short ragdoll drop, a small thud); at a dumpster / cabinet "Hide body" removes it for good.
+- Lights: any hitscan shot through a bulb puts that light out (glass, 5 m noise). Wall switches turn a room's lamp
+  circuit on and off. A room going dark or a bulb shot out brings the nearest calm enemy to look (others nearby
+  turn to look). Enemies investigating or searching in the dark switch on a flashlight (four moving cone lights in
+  the light model, so being in the beam shows you; rendered by the real-light pool).
+- Alarms: two panels on the Warehouse. An alerted enemy within 30 m runs to the nearest working panel and works it
+  for 1.6 s: ALARM banner, horn, a reinforcement squad (2 grunts, a heavy) comes in at the yard entry furthest
+  from the player (Clear counts them). Hold interact at a panel (1.2 s) to disable it first.
+- Interactables: switches, alarm panels, hiding spots and bodies alongside the objectives, each with its own reach
+  and use (`onUse`); map layouts list `switches`, `alarms`, `hideSpots`, `reinforce`.
+- Tests: unit tests for body notice, alarm panels and shooting lights (`lightOnRay`); e2e-stealth-ai body found in
+  light / not in shadow, squad search, carry / drop / hide, shooting a light (investigation + flashlight), the
+  switch, alarm + reinforcements, a disabled panel, waking a knocked-out guard.
+
 ## 1.12.0 - 2.0 phase 3a: perception, alert states, last known position
 - Perception (`ai/perception.ts`): a 55 deg / 25 m focused cone and slower peripheral vision (100 deg, 12 m); an
   awareness meter fills by distance, the light on the body (squared: shadow hides far more), stance, motion
