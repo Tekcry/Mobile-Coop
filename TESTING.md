@@ -293,6 +293,10 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.1.1 - Main menu (phone)
+- [ ] The main menu is dark with beams over the operator, who stands to the right of the buttons; Customise shows
+      the outfit colours clearly; menus stay smooth (no frame drops on the menu).
+
 ## 2.1.0 - Co-op depth (two phones)
 - [ ] Hunter in co-op: knock a guard out; both phones show the body until one player hides it.
 - [ ] Ping (D-pad left / Z / touch Ping) on a guard and on a spot: the other phone shows it, following the guard.

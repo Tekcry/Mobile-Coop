@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1 - Main menu at night
+- The menu backdrop is a dark stage: the operator stands on the pad under a warm overhead lamp, with a cool rim
+  light behind and a distant lamp in the yard; visible light beams, the tri-lens glowing, the lamp breathing a
+  little. The operator stands in the open right side of the screen (the menu has the left); Customise brings up a
+  brighter fill so colours read true.
+
 ## 2.1.0 - Co-op depth, multi-level AI, three new maps
 - Co-op: bodies stay down on every screen (and vanish for everyone when hidden, carried or revived); team pings
   (D-pad left / Z / the touch Ping button: marks the spot or the guard under the crosshair, in your colour, with

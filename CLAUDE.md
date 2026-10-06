@@ -186,6 +186,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Touch scrolling: `pwa.suppressBrowserGestures` lets a drag through when it starts inside `.scrollable` or any
   element that overflows with `overflow: auto / scroll` (`canScroll`); everything else is the game's. The back
   button (`Screen.attachChrome`) sits top left (screens get `.with-back` padding) and acts on pointer up.
+- Menu backdrop (`world/menuScene.ts` `MenuState`): a dark stage - `LIGHTS` (warm key over the operator, cool rim
+  behind, a distant lamp) as `SpotLight`s with additive `lightCone` beams (vertex alpha over height subdivisions),
+  a dim hemispheric fill (brighter while customising), the lens glow on; the camera's `targetScreenOffset` puts
+  the operator in the right half beside the menu.
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus`
   is navigable; `data-adjust` elements take left/right as `nav-adjust`; `data-capture-nav` elements take all
   directions as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.
