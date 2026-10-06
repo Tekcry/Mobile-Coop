@@ -3,11 +3,12 @@
 A mobile-first, third-person stealth shooter in the style of Splinter Cell: Blacklist that runs in the browser and
 installs as an app. Single player is complete and fully offline; online co-op (2-4) and PvP (up to 8) are optional.
 
-- **Modes:** Hunter (clear every hostile, undetected if you can), Infiltration (four missions: uploads, bugs,
+- **Modes:** Hunter (clear every hostile, undetected if you can), Infiltration (seven missions: uploads, bugs,
   rescues, sabotage, intel, extraction), Wave Survival, Mission, Training and Free Roam on the Warehouse (night),
-  Dust Depot, the Embassy and the Proving Grounds. Co-op runs every mode; PvP has Team Deathmatch (4v4) and
-  Free-for-all.
-- **Stealth:** light and shadow, noise, alert states with a last known position, bodies, switches and shootable
+  the Embassy, the Mansion, the Port, the Refinery, Dust Depot and the Proving Grounds. Co-op runs every mode with
+  team pings, shared bodies, Mark & Execute and dual takedowns; PvP has Team Deathmatch (4v4) and Free-for-all.
+- **Stealth:** light and shadow, noise, alert states with a last known position (guards follow across storeys, up
+  stairs and ladders), bodies, switches and shootable
   lamps, alarms, doors; night vision and sonar goggles; takedowns from every angle and Mark & Execute.
 - **Traversal:** ladders, drainpipes, ledges, pipes, ducts, windows, ziplines, vaults and climbs.
 - **Gadgets:** frag, sleeping gas, flashbang, EMP, noisemaker, sticky cam, tri-rotor drone, proximity mine.

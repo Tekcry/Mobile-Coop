@@ -1,6 +1,6 @@
 # Changelog
 
-## 2.1.0 (in progress) - Co-op depth, multi-level AI, new maps
+## 2.1.0 - Co-op depth, multi-level AI, three new maps
 - Co-op: bodies stay down on every screen (and vanish for everyone when hidden, carried or revived); team pings
   (D-pad left / Z / the touch Ping button: marks the spot or the guard under the crosshair, in your colour, with
   an edge arrow when off screen); clients use Mark & Execute (a takedown earns the charge, checked by the host);
