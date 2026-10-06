@@ -6,7 +6,8 @@ export interface GameEvents {
   waveCleared: { n: number };
   objective: { id: string };
   /** Clear mode: a room was secured (n of total). */
-  roomCleared: { id: string; n: number; total: number };
+  /** Clear mode: every hostile down (the only feedback the mode gives). */
+  operationComplete: Record<string, never>;
   alarm: Record<string, never>;
   pickup: { kind: PickupKind };
   emote: { id: string };

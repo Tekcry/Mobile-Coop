@@ -4,7 +4,6 @@ import type { HitInfo } from '../damage';
 import type { GameState } from '../gameState';
 import type { GameMode } from './gameMode';
 import type { Blip } from '../../ui/hud/minimap';
-import { killScore } from './waveLogic';
 import { roomAt, roomCentre, type RoomDef, type SquadSlot } from '../../world/rooms';
 import { RoomClearTracker } from '../roomClear';
 import { hyp2 } from '../../core/mathx';
@@ -13,7 +12,6 @@ import { hyp2 } from '../../core/mathx';
 const SQUAD_CAP = 9;
 /** Squads never pop in this close to a player. */
 const SPAWN_MIN_DIST = 7;
-const ROOM_SCORE = 300;
 
 interface Pending {
   room: number;
@@ -21,10 +19,12 @@ interface Pending {
 }
 
 /**
- * Room-by-room clearance of a tagged building. Each room's squad holds it (unaware until they see or
- * hear you); a room is clear once you have been inside and its squad is down. Squads beyond the alive
- * cap spawn later, nearest rooms first and never in sight range. Stingers on each room; the last one
- * ends the session. Three lives with a checkpoint at the last cleared room.
+ * Clearance of a tagged building. Each room's squad holds it (unaware until they see or hear you);
+ * squads beyond the alive cap spawn later, nearest rooms first and never in sight range. The HUD shows
+ * only "Enemies left N" (alive + still to spawn): no room names or counts, no lives, no score and no
+ * per-room feedback or rewards. The last hostile down completes the operation (banner, stinger, slow
+ * beat, letterbox). Going down respawns at a checkpoint (the last room emptied) with three tries,
+ * silently counted.
  */
 export class ClearMode implements GameMode {
   readonly id = 'clear' as const;
@@ -53,9 +53,14 @@ export class ClearMode implements GameMode {
     });
     this.fill();
     const name = this.g.world.map.name.toUpperCase();
-    this.g.hud.banner(`CLEAR THE ${name}`, `${this.rooms.length} rooms · squads hold their ground`, 2800);
+    this.g.hud.banner(`CLEAR THE ${name}`, '', 2800);
     this.g.letterbox(2.8);
-    this.updateObjective();
+    this.g.hud.setObjective('');
+  }
+
+  /** Hostiles left in the operation (alive + still to spawn). */
+  get enemiesLeft(): number {
+    return this.tracker.hostilesLeft;
   }
 
   /** Spawn pending squads, nearest rooms first, while under the cap and out of the player's face. */
@@ -83,31 +88,21 @@ export class ClearMode implements GameMode {
     }
   }
 
-  private updateObjective(): void {
-    const t = this.tracker;
-    this.g.hud.setObjective(t.done ? 'Building clear' : `Clear every room (${t.cleared}/${t.total})`);
-  }
-
-  private onCleared(room: number, byKill: boolean): void {
-    const r = this.rooms[room]!;
-    const t = this.tracker;
-    this.g.stats.objectives = t.cleared;
-    this.g.stats.score += ROOM_SCORE;
-    const [cx, cz] = roomCentre(r);
+  /** A room emptied (silent): it becomes the respawn checkpoint. */
+  private onCleared(room: number): void {
+    const [cx, cz] = roomCentre(this.rooms[room]!);
     this.checkpoint = this.g.player.position.clone();
     if (hyp2(cx - this.checkpoint.x, cz - this.checkpoint.z) > 30) this.checkpoint.set(cx, 0, cz);
-    this.g.hud.feedItem(`${r.name} clear +${ROOM_SCORE}`, 'xp');
-    this.g.events.emit('roomCleared', { id: r.id, n: t.cleared, total: t.total });
-    if (t.done) {
-      this.g.hud.banner('BUILDING CLEAR', `Rooms cleared ${t.cleared}/${t.total}`, 2600);
-      this.g.slowBeat(0.4, 0.5);
-      this.g.letterbox(2.6);
-      this.endT = 2.6;
-    } else {
-      this.g.hud.banner(`${r.name.toUpperCase()} CLEAR`, `Rooms cleared ${t.cleared}/${t.total}`, 1700);
-      if (byKill) this.g.slowBeat();
-    }
-    this.updateObjective();
+  }
+
+  /** Every hostile down: the only feedback the mode gives. */
+  private complete(): void {
+    if (this.endT >= 0) return;
+    this.g.events.emit('operationComplete', {});
+    this.g.hud.banner('OPERATION COMPLETE', '', 2600);
+    this.g.slowBeat(0.4, 0.5);
+    this.g.letterbox(2.6);
+    this.endT = 2.6;
   }
 
   fixedUpdate(dt: number): void {
@@ -115,7 +110,7 @@ export class ClearMode implements GameMode {
       this.endT -= dt;
       if (this.endT <= 0) {
         this.endT = 0;
-        this.g.endSession(true, 'All rooms cleared');
+        this.g.endSession(true, 'Operation complete');
       }
       return;
     }
@@ -138,27 +133,23 @@ export class ClearMode implements GameMode {
       if (left && left === this.tracker.hostiles(ri)) {
         this.pending = this.pending.filter((q) => q.room !== ri);
         const d = this.tracker.drop(ri);
-        if (d >= 0) this.onCleared(d, true);
+        if (d >= 0) this.onCleared(d);
       }
     }
     const c = this.tracker.visit(ri);
-    if (c >= 0) this.onCleared(c, false);
+    if (c >= 0) this.onCleared(c);
+    if (this.tracker.hostilesLeft === 0) this.complete();
   }
 
   frameUpdate(): void {
-    const t = this.tracker;
-    const parts = [
-      `<span>Rooms cleared <b>${t.cleared}/${t.total}</b></span>`,
-      `<span>Lives <b>${this.lives}</b></span>`,
-      `<span>Score <b>${this.g.stats.score}</b></span>`,
-    ];
-    this.g.hud.setModeInfo(parts.join(''));
+    this.g.hud.setModeInfo(`<span>Enemies left <b>${this.enemiesLeft}</b></span>`);
   }
 
   onEnemyKilled(e: Enemy, h: HitInfo): void {
-    this.g.stats.score += killScore(e.def.kind, h.part === 'head', 2);
+    void h;
     const c = this.tracker.killed(e.id);
-    if (c >= 0) this.onCleared(c, true);
+    if (c >= 0) this.onCleared(c);
+    if (this.tracker.hostilesLeft === 0) this.complete();
   }
 
   onPlayerDeath(): void {
@@ -166,10 +157,10 @@ export class ClearMode implements GameMode {
     this.lives--;
     if (this.lives <= 0) {
       this.endT = 0;
-      this.g.endSession(false, `Rooms cleared ${this.tracker.cleared}/${this.tracker.total}`);
+      this.g.endSession(false, 'Operation failed');
       return;
     }
-    this.g.hud.banner('DOWN', `${this.lives} ${this.lives === 1 ? 'life' : 'lives'} left`, 2500);
+    this.g.hud.banner('DOWN', '', 2500);
     this.g.scheduleRespawn(this.checkpoint, 3);
   }
 

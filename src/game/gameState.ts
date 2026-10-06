@@ -615,6 +615,8 @@ export class GameState implements AppState {
 
   /** Aim assist for controller/touch: friction + magnetism + ADS snap. */
   private assistScale = 1;
+  /** Enemy blips on the minimap last frame (tests). */
+  enemyBlips = 0;
 
   private applyAimAssist(look: { x: number; y: number }, dt: number): void {
     const mode = this.app.input.mode;
@@ -694,8 +696,8 @@ export class GameState implements AppState {
     const p = this.player.position;
     const ri = roomAt(rooms, p.x, p.z);
     this.currentRoom = ri;
-    const cleared = ri >= 0 && this.mode instanceof ClearMode && this.mode.tracker.isCleared(ri);
-    this.hud.setRoom(ri >= 0 ? rooms[ri]!.name : null, cleared);
+    // Clear mode shows no room names (only the hostiles left)
+    this.hud.setRoom(ri >= 0 && !(this.mode instanceof ClearMode) ? rooms[ri]!.name : null);
   }
 
   /** Exposure sampling (4 Hz): rays from the nearest alerted threats' eyes to points on the player's volumes. */
@@ -847,10 +849,16 @@ export class GameState implements AppState {
       markers: [],
     };
     const blips: Blip[] = [];
-    for (const t of this.registry.hostiles('player')) {
-      t.center(this.tmp);
-      blips.push({ x: this.tmp.x, z: this.tmp.z, kind: 'enemy' });
-    }
+    // Clear mode: no enemy blips (find them yourself)
+    const showEnemies = !(this.mode instanceof ClearMode);
+    let enemyBlips = 0;
+    if (showEnemies)
+      for (const t of this.registry.hostiles('player')) {
+        t.center(this.tmp);
+        blips.push({ x: this.tmp.x, z: this.tmp.z, kind: 'enemy' });
+        enemyBlips++;
+      }
+    this.enemyBlips = enemyBlips;
     for (const g of this.grenades.positions()) blips.push({ x: g.x, z: g.z, kind: 'danger' });
     blips.push(...this.extraBlips());
     for (const b of blips) {

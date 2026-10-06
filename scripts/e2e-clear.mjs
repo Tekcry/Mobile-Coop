@@ -1,6 +1,9 @@
-// Warehouse + Clear mode: room tags, squads holding rooms, room-clear stingers (slow beat, letterbox),
-// rooms cleared counter, victory; doorway checks by chasing enemies; Proving Grounds mini room set;
-// Warehouse as the default Mission / Wave map.
+// Warehouse + Clear mode: the HUD shows only "Enemies left N" (alive + still to spawn): no room names,
+// room counts, lives, score, objective or enemy blips; squads hold their rooms; clearing a room gives no
+// feedback (no banner, stinger, slow beat, feed or XP); going down shows "DOWN" with no lives counter;
+// the last hostile down completes the operation (OPERATION COMPLETE banner, stinger, slow beat,
+// letterbox); results have no rooms row and one completion reward. Room tags still show in Wave mode;
+// doorway checks by chasing enemies; Proving Grounds mini room set; Warehouse as the default map.
 import { launch, frames, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -48,7 +51,9 @@ const HELPERS = () => {
         room: document.querySelector('.hud-room')?.textContent ?? '',
         roomCleared: document.querySelector('.hud-room')?.classList.contains('cleared') ?? false,
         mode: document.querySelector('.hud-mode')?.textContent ?? '',
+        objective: document.querySelector('.hud-objective')?.textContent ?? '',
         banner: document.querySelector('.hud-banner')?.textContent ?? '',
+        feed: [...document.querySelectorAll('.hud-feed > *')].map((e) => e.textContent).join(' | '),
       };
     },
   };
@@ -58,6 +63,10 @@ console.log('warehouse clear mode');
 await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
   await G(HELPERS);
   await sim(0.5);
+  const left = () => G(() => {
+    const g = window.__app.current;
+    return { n: g.mode.enemiesLeft, alive: g.enemyMgr.enemies.filter((e) => e.alive).length, pending: g.mode['pending'].length };
+  });
   const s0 = await G(() => {
     const g = window.__app.current;
     const em = g.enemyMgr;
@@ -66,26 +75,30 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
       total: g.mode.tracker.total,
       alive: em.alive,
       held: em.enemies.filter((e) => e.alive && e.hold).length,
-      alerted: em.enemies.filter((e) => e.alive && e.alerted).length,
       hud: window.__h.hud(),
       bars: g.post.barsTarget,
+      blips: g.mode.blips().length + g.enemyBlips,
     };
   });
+  let L = await left();
   assert(s0.map === 'warehouse' && s0.total === 9, `warehouse with 9 tagged rooms (${s0.map}, ${s0.total})`);
   assert(s0.alive >= 8 && s0.held === s0.alive, `squads spawned holding their rooms (${s0.held}/${s0.alive})`);
-  assert(/Rooms cleared 0\/9/.test(s0.hud.mode), `HUD "Rooms cleared 0/9" (${s0.hud.mode})`);
-  assert(s0.bars === 1, 'letterbox stinger at the start');
-  assert(s0.hud.room === '', 'no room tag in the yard');
+  assert(L.n === L.alive + L.pending && L.pending > 0, `enemies left counts alive + still to spawn (${L.n} = ${L.alive} + ${L.pending})`);
+  assert(s0.hud.mode.trim() === `Enemies left ${L.n}`, `HUD shows only "Enemies left ${L.n}" (${s0.hud.mode})`);
+  assert(!/room|lives|score/i.test(s0.hud.mode + s0.hud.objective), `no room counts, lives, score or objective (${s0.hud.mode} / ${s0.hud.objective})`);
+  assert(!/\d+ rooms/i.test(s0.hud.banner), `opening banner has no room count (${s0.hud.banner})`);
+  assert(s0.bars === 1, 'letterbox at the start');
+  assert(s0.blips === 0, 'no enemy blips');
 
-  // room tag follows the player
+  // no room names, even inside a tagged room
   await G(() => window.__h.tp(-12, -14, 0));
   await sim(0.6);
   let hud = await G(() => window.__h.hud());
-  assert(hud.room === 'Loading Dock', `room tag "${hud.room}"`);
+  assert(hud.room === '', `no room tag inside the Loading Dock (${hud.room})`);
 
   await G(() => {
-    window.__roomEvents = [];
-    window.__app.current.events.on('roomCleared', (ev) => window.__roomEvents.push(ev));
+    window.__ops = 0;
+    window.__app.current.events.on('operationComplete', () => window.__ops++);
   });
   // holding: an alerted squad member with the target outside its room stays inside it
   const hold = await G(() => {
@@ -103,51 +116,84 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
     return { alive: e.alive, x: e.pos.x, z: e.pos.z, inside: e.pos.x >= r.minX - 0.6 && e.pos.x <= r.maxX + 0.6 && e.pos.z >= r.minZ - 0.6 && e.pos.z <= r.maxZ + 0.6 };
   }, hold);
   assert(hold && held.inside, `alerted squad holds its room instead of chasing (${held.x.toFixed(1)}, ${held.z.toFixed(1)})`);
-  // the corridor has no squad: it cleared on entry
-  hud = await G(() => window.__h.hud());
-  const ev0 = await G(() => window.__roomEvents.map((e) => e.id));
-  assert(ev0.join() === 'corridor' && /Rooms cleared 1\/9/.test(hud.mode), `empty corridor clears on entry (${ev0}, ${hud.mode})`);
 
-  // clear the dock: visit + squad down -> stinger, slow beat, counter
+  // clear the dock: no feedback at all, the counter just drops
   await G(() => window.__h.tp(-12, -14, 0));
   await sim(0.5);
+  const before = (await left()).n;
   const beat = await G(() => {
     const g = window.__app.current;
+    const xp0 = g.stats.score;
     const squad = g.enemyMgr.enemies.filter((e) => e.alive && e.hold?.id === 'dock');
     for (const e of squad) window.__h.kill(e);
-    return { killed: squad.length, scale: window.__app.loop.timeScale };
+    return { killed: squad.length, scale: window.__app.loop.timeScale, xp0 };
   });
-  assert(beat.killed >= 1 && beat.scale < 1, `last kill in a room plays the slow-motion beat (x${beat.scale})`);
   await sim(0.5);
   hud = await G(() => window.__h.hud());
-  const ev = await G(() => window.__roomEvents);
-  assert(ev.length === 2 && ev[1].id === 'dock' && /Rooms cleared 2\/9/.test(hud.mode), `dock cleared: event + counter (${hud.mode})`);
-  assert(/LOADING DOCK CLEAR/.test(hud.banner), `room-clear banner (${hud.banner})`);
-  assert(hud.roomCleared, 'room tag marked cleared');
-  assert((await G(() => window.__app.loop.timeScale)) === 1, 'time scale back to normal after the beat');
+  L = await left();
+  const after = await G(() => ({ ops: window.__ops, score: window.__app.current.stats.score, bars: window.__app.current.post.barsTarget }));
+  assert(beat.killed >= 1 && L.n === before - beat.killed, `dock squad down: enemies left ${before} -> ${L.n}`);
+  assert(beat.scale === 1 && after.ops === 0, `no slow beat or stinger for a room (x${beat.scale}, ${after.ops} stingers)`);
+  assert(!/dock|room|cleared/i.test(hud.banner) && !/clear|room|dock/i.test(hud.feed), `no room banner or feed item (${hud.banner} / ${hud.feed})`);
+  assert(after.score === beat.xp0, `no per-room score (${beat.xp0} -> ${after.score})`);
+  assert(hud.mode.trim() === `Enemies left ${L.n}`, `counter updated (${hud.mode})`);
 
+  // going down: "DOWN", no lives counter
+  await G(() => {
+    const g = window.__app.current;
+    g.target.damageMul = 1;
+    g.player.health?.damage?.(99999);
+    g.target.applyDamage?.({ amount: 99999, point: g.player.position.clone(), dir: new g.player.position.constructor(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: 'test', sourcePos: g.player.position.clone(), impulse: 1 });
+  });
+  await sim(0.4);
+  hud = await G(() => window.__h.hud());
+  assert(/DOWN/.test(hud.banner) && !/li(fe|ves)|\d/i.test(hud.banner.replace('DOWN', '')), `"DOWN" with no lives counter (${hud.banner})`);
+  await sim(3.5);
+  await G(() => (window.__app.current.target.damageMul = 0));
 
   // clear the rest: visit each room, put its squad down; later squads spawn as the cap frees up
   const order = ['dispatch', 'workshop', 'floor', 'racking', 'office', 'manager', 'mezz'];
   const at = { dispatch: [-2, -12.2], workshop: [8, -12.5], floor: [0, 0], racking: [-6.5, 0], office: [0.5, 16.8], manager: [3.2, 13.2], mezz: [10, 16] };
-  for (let pass = 0; pass < 3; pass++) {
+  let lastKill = null;
+  for (let pass = 0; pass < 4; pass++) {
     for (const id of order) {
       const [x, z] = at[id];
       await G(([x, z]) => window.__h.tp(x, z, 0), [x, z]);
       await sim(0.6);
-      await G((id) => {
-        for (const e of window.__app.current.enemyMgr.enemies.filter((e) => e.alive && e.hold?.id === id)) window.__h.kill(e);
-      }, id);
+      lastKill = await G((id) => {
+        let scale = null;
+        for (const e of window.__app.current.enemyMgr.enemies.filter((e) => e.alive && e.hold?.id === id)) {
+          window.__h.kill(e);
+          scale = window.__app.loop.timeScale;
+        }
+        return scale;
+      }, id) ?? lastKill;
       await sim(0.6);
+      if ((await left()).n === 0) break;
     }
-    if (await G(() => window.__app.current.mode.tracker.done)) break;
+    if ((await left()).n === 0) break;
   }
-  const end = await G(() => ({ cleared: window.__app.current.mode.tracker.cleared, order: window.__app.current.mode.tracker.order.length }));
-  assert(end.cleared === 9, `every room cleared (${end.cleared}/9)`);
+  L = await left();
+  hud = await G(() => window.__h.hud());
+  const fin = await G(() => ({ ops: window.__ops, bars: window.__app.current.post.barsTarget, scale: window.__app.loop.timeScale }));
+  assert(L.n === 0, `every hostile down (${L.n} left)`);
+  assert(fin.ops === 1 && /OPERATION COMPLETE/.test(hud.banner), `completion: OPERATION COMPLETE banner + stinger (${hud.banner}, ${fin.ops})`);
+  assert(lastKill !== null && lastKill < 1 && fin.bars === 1, `completion: slow beat (x${lastKill}) and letterbox`);
   await sim(3.5);
   await page.waitForSelector('.results-screen', { timeout: 15000 });
   const res = await G(() => document.querySelector('.results-screen')?.textContent ?? '');
-  assert(/Rooms cleared/.test(res) && /victory|all rooms cleared/i.test(res), 'results: victory with rooms cleared');
+  assert(/victory/i.test(res) && !/rooms cleared/i.test(res), 'results: victory, no rooms row');
+  assert(/Operation complete/.test(res) && !/Room/.test(res), 'results: one completion reward, no per-room rewards');
+});
+
+console.log('wave mode keeps its HUD (room tags)');
+await run('autostart=warehouse&mode=wave', async ({ G, sim }) => {
+  await G(HELPERS);
+  await sim(0.5);
+  await G(() => window.__h.tp(-12, -14, 0));
+  await sim(0.6);
+  const hud = await G(() => window.__h.hud());
+  assert(hud.room === 'Loading Dock' && /wave/i.test(hud.mode), `room tag and wave info in Wave mode (${hud.room}, ${hud.mode})`);
 });
 
 console.log('chasing enemies check doorways');
@@ -181,7 +227,7 @@ await run('autostart=proving&mode=clear', async ({ G, sim }) => {
   assert(s.total === 3 && s.alive === 3, `Proving Grounds mini room set: 3 rooms, 3 holders (${s.total}, ${s.alive})`);
   await G(() => window.__h.tp(-26, 13, 0));
   await sim(0.6);
-  assert((await G(() => window.__h.hud().room)) === 'Room A', 'mini room tag');
+  assert((await G(() => window.__h.hud().room)) === '', 'no room tag in Clear mode on the mini set');
 });
 await run('', async ({ page, G }) => {
   // play screen: Warehouse is the default for Wave, Mission and Clear

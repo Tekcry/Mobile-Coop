@@ -29,7 +29,7 @@ export class ResultsScreen extends Screen {
       row('Kills', stats.kills),
       row('Headshots', stats.headshots),
       row('Accuracy', `${acc}%`),
-      stats.mode === 'wave' ? row('Waves survived', stats.waves) : row(stats.mode === 'clear' ? 'Rooms cleared' : 'Objectives', stats.objectives),
+      stats.mode === 'wave' ? row('Waves survived', stats.waves) : stats.mode === 'clear' ? null : row('Objectives', stats.objectives),
       row('Time', fmtTime(stats.time)),
     );
     const list = h(

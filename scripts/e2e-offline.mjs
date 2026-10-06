@@ -92,7 +92,10 @@ console.log('old save migration on boot');
   const { browser: br, page: pg, errors: er } = await launch({ url, params: '' });
   try {
     // write a v1 save directly into IndexedDB (as an old build would have), then reload
+    await pg.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
     await pg.evaluate(async () => {
+      // the running page must not flush its own profile over the old save on unload (pagehide flush)
+      window.__app.save.readOnly = true;
       const V1 = { version: 1, name: 'Veteran', xp: 4321, money: 950, unlocked: ['weapon:rifle', 'weapon:pistol', 'weapon:smg'], upgrades: { rifle: { damage: 2, magazine: 1, recoil: 0, reload: 3 } } };
       await new Promise((res, rej) => {
         const r = indexedDB.open('shoulder-strike', 1);

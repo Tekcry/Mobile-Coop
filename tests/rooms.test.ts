@@ -47,6 +47,22 @@ describe('room clear tracker', () => {
     expect(t.visit(0)).toBe(0);
     expect(t.done).toBe(true);
   });
+  it('hostiles left counts alive and still-to-spawn squad members across rooms', () => {
+    const t = new RoomClearTracker(3);
+    t.expect(0, 2);
+    t.expect(2, 3);
+    expect(t.hostilesLeft).toBe(5);
+    t.assign('a', 0);
+    t.assign('b', 1); // a room without pending slots
+    expect(t.hostilesLeft).toBe(6);
+    t.killed('a');
+    t.killed('b');
+    expect(t.hostilesLeft).toBe(4);
+    t.drop(2);
+    expect(t.hostilesLeft).toBe(1);
+    t.killed('ghost');
+    expect(t.hostilesLeft).toBe(1);
+  });
   it('pending (unspawned) squad members block a room until assigned and killed or dropped', () => {
     const t = new RoomClearTracker(1);
     t.expect(0, 2);

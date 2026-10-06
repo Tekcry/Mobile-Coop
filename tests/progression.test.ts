@@ -50,6 +50,15 @@ describe('rewards', () => {
     expect(r.xp).toBe(r.lines.reduce((a, l) => a + l.xp, 0));
     expect(r.credits).toBeGreaterThan(0);
   });
+  it('Clear mode: no per-room rewards, a single completion reward', () => {
+    const c = emptyStats('clear', 'warehouse');
+    c.objectives = 9;
+    c.won = true;
+    const r = computeRewards(c, 'normal');
+    expect(r.lines.map((l) => l.label)).toEqual(['Operation complete']);
+    c.won = false;
+    expect(computeRewards(c, 'normal').lines).toEqual([]);
+  });
   it('hard pays more than normal, easy less', () => {
     expect(computeRewards(s, 'hard').xp).toBeGreaterThan(computeRewards(s, 'normal').xp);
     expect(computeRewards(s, 'easy').xp).toBeLessThan(computeRewards(s, 'normal').xp);

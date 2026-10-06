@@ -122,6 +122,11 @@ try {
   await wait(500);
   let killed = false;
   for (let i = 0; i < 40 && !killed; i++) {
+    // keep the host's teleport grace open until the client's moved state arrives (slow under a loaded
+    // machine); shot validation itself is unchanged
+    await GA(() => {
+      for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2);
+    });
     await GB((id) => {
       const g = window.__app.current;
       const p = g.net.puppets.get(id);

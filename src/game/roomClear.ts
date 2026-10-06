@@ -71,6 +71,13 @@ export class RoomClearTracker {
     return (this.remaining[room] ?? 0) + (this.pending[room] ?? 0);
   }
 
+  /** Hostiles left in the operation: alive squad members plus those still to spawn (all rooms). */
+  get hostilesLeft(): number {
+    let n = 0;
+    for (let i = 0; i < this.total; i++) n += this.remaining[i]! + this.pending[i]!;
+    return n;
+  }
+
   get done(): boolean {
     return this.cleared >= this.total;
   }

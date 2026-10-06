@@ -63,7 +63,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     g.events.on('alarm', () => sfx.horn()),
     g.events.on('waveCleared', () => sfx.objective()),
     g.events.on('objective', () => sfx.objective()),
-    g.events.on('roomCleared', ({ n, total }) => sfx.stinger(n >= total)),
+    g.events.on('operationComplete', () => sfx.stinger(true)),
     g.events.on('pickup', ({ kind }) => sfx.pickup(kind)),
     // coop: shots fired by teammates or host-simulated enemies
     g.events.on('remoteShot', ({ cls, x, y, z }) => {
