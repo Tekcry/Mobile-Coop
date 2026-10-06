@@ -30,7 +30,7 @@ export class MainMenuScreen extends Screen {
         { class: 'menu-left' },
         h('div', { class: 'game-title', html: 'SHOULDER<br><span>STRIKE</span>' }),
         this.list,
-        h('div', { class: 'version', text: `v${__APP_VERSION__}` }),
+        h('div', { class: 'version', text: `v${__APP_VERSION__}${__PREVIEW__ ? ' PREVIEW' : ''}` }),
       ),
       this.badge,
     );

@@ -1,0 +1,23 @@
+name: Preview check
+
+# A push to dev is checked here; when it passes, "Build and deploy to GitHub Pages" rebuilds the site with the
+# dev build under /preview/ (that workflow runs on the default branch, which the Pages environment allows).
+on:
+  push:
+    branches: [dev]
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run lint
+      - run: npm test

@@ -3,12 +3,15 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 // GitHub Pages serves from /<repo>/. The deploy workflow sets VITE_BASE.
 const base = process.env.VITE_BASE ?? '/';
+// Preview build (dev branch) served under /<repo>/preview/ next to the live game (VITE_PREVIEW=1).
+const preview = process.env.VITE_PREVIEW === '1';
 
 export default defineConfig({
   base,
   define: {
     __APP_VERSION__: JSON.stringify(process.env.npm_package_version ?? '0.0.0'),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
+    __PREVIEW__: JSON.stringify(preview),
   },
   optimizeDeps: {
     // Havok resolves its WASM relative to its own module; prebundling breaks that.
@@ -35,8 +38,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: null,
       manifest: {
-        name: 'Shoulder Strike',
-        short_name: 'Strike',
+        name: preview ? 'Shoulder Strike (Preview)' : 'Shoulder Strike',
+        short_name: preview ? 'Strike Preview' : 'Strike',
         description: 'Mobile third-person shooter. Plays offline.',
         theme_color: '#11151c',
         background_color: '#11151c',
@@ -56,6 +59,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
+        // the live game's worker never answers for the preview build under /preview/ (its own worker does)
+        navigateFallbackDenylist: preview ? [] : [/\/preview(\/|$)/],
       },
       devOptions: { enabled: false },
     }),

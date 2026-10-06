@@ -1,10 +1,15 @@
 name: Build and deploy to GitHub Pages
 
+# The site holds two builds: the live game (default branch) at /<repo>/ and the preview (dev branch) at
+# /<repo>/preview/. A push to the default branch, or a passing "Preview check" on dev, rebuilds both.
 on:
   push:
     branches: [main, master]
   pull_request:
   workflow_dispatch:
+  workflow_run:
+    workflows: [Preview check]
+    types: [completed]
 
 permissions:
   contents: read
@@ -12,11 +17,13 @@ permissions:
   id-token: write
 
 concurrency:
-  group: pages-${{ github.ref }}
+  group: pages-${{ github.event_name == 'pull_request' && github.ref || 'site' }}
   cancel-in-progress: true
 
 jobs:
-  build:
+  # pull requests: check the change only (no deploy)
+  check:
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,17 +34,58 @@ jobs:
       - run: npm ci
       - run: npm run lint
       - run: npm test
-      - name: Build
-        run: npm run build
-        env:
-          # Pages serves project sites from /<repo-name>/
-          VITE_BASE: /${{ github.event.repository.name }}/
+      - run: npm run build
+
+  build:
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success')
+    runs-on: ubuntu-latest
+    env:
+      # Pages serves project sites from /<repo-name>/
+      BASE: /${{ github.event.repository.name }}/
+    steps:
+      - name: Live (default branch)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          path: live
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: live/package-lock.json
+      - name: Build live
+        working-directory: live
+        run: |
+          npm ci
+          npm run lint
+          npm test
+          VITE_BASE=$BASE npm run build
+      - name: Is there a dev branch?
+        id: dev
+        run: |
+          if git -C live ls-remote --exit-code --heads origin dev >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Preview (dev branch)
+        if: steps.dev.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: dev
+          path: preview
+      - name: Build preview into /preview/
+        if: steps.dev.outputs.exists == 'true'
+        working-directory: preview
+        run: |
+          npm ci
+          VITE_BASE=${BASE}preview/ VITE_PREVIEW=1 npm run build
+          cp -r dist ../live/dist/preview
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: dist
+          path: live/dist
 
   deploy:
-    if: github.event_name != 'pull_request' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     needs: build
     runs-on: ubuntu-latest
     environment:

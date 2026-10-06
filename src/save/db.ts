@@ -2,7 +2,9 @@
  * Minimal promise wrapper over IndexedDB. One database, a few object stores
  * keyed by string. Works in node tests with `fake-indexeddb/auto`.
  */
-export const DB_NAME = 'shoulder-strike';
+// the preview build (dev branch, same origin as the live game) keeps its own save, so it can never migrate or
+// overwrite the live one
+export const DB_NAME = typeof __PREVIEW__ !== 'undefined' && __PREVIEW__ ? 'shoulder-strike-preview' : 'shoulder-strike';
 /** Bump when adding object stores; add the store in `upgrade`. */
 export const DB_VERSION = 1;
 export const STORES = ['kv', 'profile', 'backups'] as const;

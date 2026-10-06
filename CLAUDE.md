@@ -63,6 +63,13 @@ Blacklist style.
   - `node scripts/soak.mjs [minutes=10]` real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
+## Branches and deploy
+- Work goes to `dev`; the default branch (`master`) is the live game. Pages hosts both: live at `/<repo>/`, the
+  `dev` build at `/<repo>/preview/` (`VITE_PREVIEW=1`: `__PREVIEW__`, version label "PREVIEW", its own IndexedDB
+  `shoulder-strike-preview`, the live worker's `navigateFallbackDenylist` skips `/preview/`). `preview.yml` checks
+  `dev` pushes; `deploy.yml` (default branch, also on `workflow_run` of that check) builds both and deploys. Release
+  = merge `dev` into `master`.
+
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
 - No external art/audio. Visuals are procedural/primitive; audio is WebAudio synthesis.

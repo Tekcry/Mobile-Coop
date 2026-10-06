@@ -55,6 +55,20 @@ The workflow in `.github/workflows/deploy.yml` lints, tests, builds with the rig
    service worker scope resolve under that path.
 4. For a custom domain or a user/organisation site served from `/`, set `VITE_BASE: /` in the workflow.
 
+### Preview builds (`dev` branch)
+
+Work in progress goes to the `dev` branch; the live game is the default branch. The site carries both:
+
+- live: `https://<user>.github.io/<repository>/` (default branch)
+- preview: `https://<user>.github.io/<repository>/preview/` (`dev`; the main menu shows the version with
+  PREVIEW)
+
+A push to `dev` runs **Preview check** (lint + tests); when it passes, **Build and deploy to GitHub Pages** rebuilds
+the site from both branches (it runs on the default branch, so the Pages environment's branch rules allow it). A
+push to the default branch does the same. The preview keeps its own save (IndexedDB `shoulder-strike-preview`), so
+trying a new build never migrates or overwrites the live save, and the live game's offline worker never answers
+for `/preview/`. To release, merge `dev` into the default branch.
+
 Updates install automatically: the service worker precaches each new build and switches on the next launch.
 Saves live in IndexedDB on each device and survive updates; the schema is versioned and migrated
 (Settings > Data also exports/imports a save file).
