@@ -1,7 +1,7 @@
 // Builds nothing: serves the existing dist/ with `vite preview` and runs every e2e script.
 import { spawn } from 'node:child_process';
 
-const PORT = 4179;
+const PORT = Number(process.env.E2E_PORT ?? 4179);
 const url = `http://localhost:${PORT}/`;
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
