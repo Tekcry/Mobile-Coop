@@ -29,6 +29,8 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   shoulder: { id: 'shoulder', action: 'shoulderSwap', size: 46, icon: 'shoulder', label: 'Swap shoulder' },
   pause: { id: 'pause', action: 'pause', size: 44, icon: 'pause', label: 'Pause' },
   vision: { id: 'vision', action: 'vision', size: 56, icon: 'goggles', label: 'Goggles (night vision / sonar)' },
+  mark: { id: 'mark', action: 'mark', size: 56, icon: 'mark', label: 'Mark (while aiming)' },
+  execute: { id: 'execute', action: 'execute', size: 76, icon: 'execute', label: 'Execute (when ready)' },
 };
 
 /** What the contextual action button does right now. */

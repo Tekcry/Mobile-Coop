@@ -101,6 +101,13 @@ export class PlayerWeapons {
   private tmpD = new Vector3();
   private muzzle = new Vector3();
 
+  /** The current weapon's muzzle in world space (a fresh vector). */
+  muzzlePoint(): Vector3 {
+    const out = new Vector3();
+    this.current.model.muzzleWorld(out);
+    return out;
+  }
+
   constructor(
     private world: World,
     private player: Player,
@@ -259,7 +266,9 @@ export class PlayerWeapons {
     const ctl = this.player.controller;
 
     // swap (pressing again mid-swap keeps cycling)
-    if ((inp.pressed('swapNext') || inp.pressed('swapPrev')) && this.slots.length > 1 && !this.throwing && !this.stowed) {
+    // (aiming, RB marks instead of swapping)
+    const swapPress = (inp.pressed('swapNext') && !this.player.ads) || inp.pressed('swapPrev');
+    if (swapPress && this.slots.length > 1 && !this.throwing && !this.stowed) {
       const d = inp.pressed('swapNext') ? 1 : -1;
       this.reloadT = -1;
       this.index = (this.index + d + this.slots.length) % this.slots.length;

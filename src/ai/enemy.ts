@@ -236,6 +236,40 @@ export class Enemy implements Damageable {
     return this.health.alive;
   }
 
+  /** Seized in a takedown (the attacker's controller places the body; no brain). */
+  taken = false;
+
+  /** Grabbed: the brain stops, the body struggles (arms up to the attacker's hold, head back). */
+  beginTakedown(choke: boolean): void {
+    this.taken = true;
+    this.burstLeft = 0;
+    this.windup = 0;
+    this.vel.setAll(0);
+    this.rig.emote = (_r, t) => {
+      const k = Math.min(1, t * 5);
+      const w = Math.sin(t * 17) * 0.12 * k;
+      return choke
+        ? { neck: [-0.55 * k, 0, 0], shoulderL: [-1.9 * k, 0, -0.4 * k + w], shoulderR: [-1.9 * k, 0, 0.4 * k - w], elbowL: [0, 0, -1.7 * k], elbowR: [0, 0, 1.7 * k], pelvisLift: -0.08 * k }
+        : { neck: [0.35 * k, 0, 0], chest: [0.25 * k, 0, 0], shoulderL: [-0.8 * k, 0, -0.6 * k + w], shoulderR: [-0.8 * k, 0, 0.6 * k - w] };
+    };
+    this.rig.emoteTime = 0;
+  }
+
+  /** Place the seized body (fixed step). */
+  holdAt(x: number, y: number, z: number, yaw: number): void {
+    this.pos.set(x, y, z);
+    this.yaw = yaw;
+  }
+
+  /** Let go (an interrupted takedown): staggered, and very much aware now. */
+  releaseTakedown(): void {
+    if (!this.taken) return;
+    this.taken = false;
+    this.rig.emote = null;
+    this.stagger = 0.6;
+    this.alert();
+  }
+
   /** The target was in line of sight (any body sample) at the last think. */
   get inSight(): boolean {
     return this.sight.exposure > 0;
@@ -461,6 +495,11 @@ export class Enemy implements Damageable {
     this.stateT += dt;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
+    // in a takedown: the attacker drives the body, the brain is off
+    if (this.taken) {
+      this.syncHitboxes();
+      return;
+    }
     this.fireT = Math.max(0, this.fireT - dt);
     this.meleeCd = Math.max(0, this.meleeCd - dt);
     this.stagger = Math.max(0, this.stagger - dt);

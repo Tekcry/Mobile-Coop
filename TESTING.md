@@ -293,6 +293,16 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 4 - Takedowns, Mark & Execute (1.16.0) - Warehouse, Clear
+- [ ] Sneak up behind a guard: "Takedown" over him. Tap Y / E / the prompt: a choke, he drops (knocked out). Hold: a strike (killed).
+- [ ] From the front works too; from the side only while he has not noticed you.
+- [ ] In low cover with a guard across it: the takedown vaults over. From the mezzanine edge onto a guard below: a drop takedown.
+- [ ] Hanging at the mezzanine lip with a guard standing over it: pull him down. At the workshop window with a guard outside: pull him through.
+- [ ] Get shot during a takedown: it breaks off and he is free and alert.
+- [ ] After a takedown a white diamond (charge) shows. Aim (LT / RMB / touch aim) and press RB / T / the Mark button on up to three guards: white chevrons; red once all are in sight and range.
+- [ ] Y / keyboard Y / the Execute button: a slowed sequence drops each marked guard; the charge is spent.
+- [ ] Touch: Mark appears only while aiming, Execute only when ready; the takedown prompt is tappable (long press = lethal).
+
 ## 2.0 phase 3d - Night vision and sonar (1.15.0) - Warehouse, Clear
 - [ ] Press View (pad), N (keyboard) or the goggles button (touch): night vision; dark aisles become readable, lamps glare.
 - [ ] Press again: sonar; guards behind walls show as orange silhouettes for a moment every 6 s, with a ring and a ping.

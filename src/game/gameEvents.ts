@@ -16,6 +16,10 @@ export interface GameEvents {
   bodyFound: { x: number; z: number };
   /** The player picked up / put down / hid a body. */
   body: { action: 'pickup' | 'drop' | 'hide' };
+  /** A takedown started / finished / was broken off; Mark & Execute. */
+  takedown: { phase: 'start' | 'done' | 'abort'; lethal: boolean; kind: string };
+  mark: { on: boolean };
+  execute: { phase: 'start' | 'shot' | 'done' };
   /** Goggles switched (audio) / a sonar pulse went out. */
   vision: { mode: 'off' | 'night' | 'sonar' };
   sonar: Record<string, never>;

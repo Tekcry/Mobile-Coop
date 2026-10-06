@@ -39,6 +39,8 @@ export interface PlayerPose {
   gunClear: boolean;
   /** Doorway check 0..1, or < 0. */
   check: number;
+  /** Takedown strike progress 0..1, or < 0. */
+  melee: number;
 }
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
@@ -56,6 +58,8 @@ export class Player {
   readonly carryIn = emptyCarryInput();
   private adsToggled = false;
   ads = false;
+  /** Aim regardless of input (Mark & Execute raises the weapon for its shots). */
+  forceAds = false;
   /** Set by weapons when firing (kept for callers; the carry's raise now drives the pose). */
   aimLockTimer = 0;
   kick = 0;
@@ -80,7 +84,7 @@ export class Player {
   sinceShot = 99;
   weaponWeight = 1;
   /** Pose driven by cover / corners / traversal. */
-  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1 };
+  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1, melee: -1 };
   /** Context flags for the ready position (set by the corner/cover systems each step). */
   context = { doorway: false, coverEdge: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -156,6 +160,7 @@ export class Player {
     }
     // aiming while sprinting ends the sprint and raises the weapon
     if (this.ads && c.sprinting && this.coverPose.traverse === 'none') c.cancelSprint();
+    if (this.forceAds) this.ads = true;
     if (c.weaponBlocked || this.coverPose.traverse !== 'none') this.ads = false;
     if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
@@ -286,6 +291,7 @@ export class Player {
     // the weapon comes up only once it clears: past an edge (cover controller) or over the top (the rig's rise)
     rp.peekClear = cp.gunClear && (cp.peekOver <= 0.5 || this.rig.overClear) ? 1 : 0;
     rp.check = cp.check;
+    rp.melee = cp.melee;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
     rp.phase = c.renderPhase;
     rp.motion = m.state;

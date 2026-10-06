@@ -22,6 +22,9 @@ export const BUTTON_ACTIONS = [
   'dash',
   /** Goggles: cycle off -> night vision -> sonar. */
   'vision',
+  /** Mark the enemy under the crosshair (aiming) / run Mark & Execute when ready. */
+  'mark',
+  'execute',
   'quick1',
   'quick2',
   'quick3',

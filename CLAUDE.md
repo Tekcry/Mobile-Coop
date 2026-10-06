@@ -55,6 +55,8 @@ Blacklist style.
     > 9 cm apart, feet > 6 cm apart (`--only=name --log`)
   - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
     exposure HUD, enemy grenades/flanker, footstep noise investigation
+  - `scripts/e2e-takedown.mjs` takedown kinds (ground rules, over low cover, above, below, window), tap / hold,
+    5 cm alignment, damage interrupt, Execute charge, marks through cover, no execute out of sight, execute
   - `scripts/e2e-stealth-ai.mjs` night Warehouse: shadow vs light detection, the arc warns first, no sight through
     walls, noise -> suspicious -> investigating, squad radio, LKP + ghost + converge + search ends, patrols
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
@@ -130,8 +132,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Bindings (section 7 of 1.3.0): gamepad LS move, RS look, LT aim, RT fire, A `cover` (take / leave /
   cover-to-cover), B `crouch` (stand / crouch at high cover), Y `jump` + `interact` (contextual: an interactable
   in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
-  R3 shoulder, RB/LB weapons, D-pad up grenade, others emotes, View `vision` (goggles). Keyboard: Space cover,
-  C / Ctrl crouch, Shift sprint, E traverse / interact, R reload, Q / X weapons, N goggles; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
+  R3 shoulder, RB/LB weapons (RB `mark` while aiming), D-pad up grenade, others emotes, View `vision` (goggles);
+  Y also takedown / execute (contextual). Keyboard: Space cover, C / Ctrl crouch, Shift sprint, E traverse /
+  interact / takedown, R reload, Q / X weapons, N goggles, T mark, Y execute; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
   smoothing, so releasing never steps the rate).
 - Touch (`input/touchControls.ts`): pointer handlers only record state; `update(dt)` (per frame, from
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
@@ -502,6 +505,23 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `Silhouettes`.
 - Interactables: kinds `switch`, `alarm`, `hide`, `body`, `door` with per-item `reach` and `onUse`; `nearest(feet, reach,
   only)` (hide spots only with `only`); `GameState.updateInteract` calls `onUse` (else Mission).
+
+## Takedowns and Mark & Execute (2.0 phase 4)
+- `game/takedown.ts` (pure, `TAKEDOWN`): `pickTakedown(input)` -> kind (`behind` / `front` / `side` (calm only) /
+  `corner` / `overCover` / `above` / `below` / `window`) + aligned attacker spot, facing, approach (with `arc`),
+  strike, optional `victimTo`; `approachPoint`; `lethalFromHold`.
+- `game/takedownController.ts`: each fixed step (after cover / traversal / corners) finds the offer (nearest enemy
+  within 5 m, one LOS ray; attacker state from traversal / cover / window hint), shows the `takedown` world
+  prompt; the interact press starts it (`holding` decides lethal after `lethalHold`; touch `touchPress`). Running:
+  `controller.override.kinematic` along the path, `Enemy.beginTakedown` / `holdAt` / `releaseTakedown` (brain off,
+  struggle emote), `coverPose.melee` strike, `reachL/R` on the victim (frame update), weapon stowed; damage (hp +
+  shield) aborts; finish = `applyDamage` (lethal) or `knockOut`, `marks.earn()`, noise.
+- `game/marks.ts` (pure) `MarkSet` (toggle, prune, earn, ready, consume) + `executeStep`; `game/executeController.ts`
+  (mark under the camera's aim ray while `player.ads`, readiness at 4 Hz with LOS from the eye, the sequence:
+  `loop.timeScale` `EXECUTE.slowScale` unless co-op, letterbox, `player.forceAds`, camera turned to each head,
+  one lethal head shot each). HUD: `ui/hud/markers.ts` chevrons, `Hud.setCharge`.
+- GameState order: busy (takedown / execute from the last step) skips cover and blocks traversal's jump; Y is a
+  takedown when offered, else execute when ready, else interact / traverse.
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

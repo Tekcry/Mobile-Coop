@@ -1,5 +1,31 @@
 # Changelog
 
+## 1.16.0 - 2.0 phase 4: takedowns, Mark & Execute
+- Takedowns (`game/takedown.ts`, pure; `game/takedownController.ts`): a "Takedown" prompt over a guard in reach;
+  Y / E / tap the prompt. Tap = non-lethal (a choke, knocked out: wakes if found), hold = lethal (a strike); it
+  starts on the press and the hold decides (0.3 s). Kinds: on the ground from behind or the front at any
+  awareness, from the side only on a calm guard; round a corner from high cover; over low cover (the attacker
+  vaults it); from above (a drop off a ledge, deck, pipe, zipline or vent onto a guard 1.1-4.6 m below); from
+  below (hanging at a lip, a guard standing over it is pulled down); through a window (pulled through). The
+  attacker's feet follow an eased path onto a spot aligned to the victim (within 5 cm), the victim is seized
+  (brain off, a struggle pose, pulled where the kind says), the weapon is stowed, the hands go to the victim.
+  Taking damage breaks it off (the victim breaks free, alerted). Noise: a choke 1.2 m, a strike 3 m.
+- Mark & Execute (`game/marks.ts`, pure; `game/executeController.ts`): a melee takedown earns an Execute charge
+  (max 1). While aiming, RB / T / the touch Mark button toggles a mark on the guard under the crosshair (up to 3;
+  4 later with the upgrade): white chevrons over them, red when every mark is in weapon range and line of sight.
+  Then Y / keyboard Y / the touch Execute button: a slowed (x0.5, single player) letterboxed sequence turns to each
+  mark in order and drops it with a head shot (~0.14 s each). Marks persist through cover moves; nothing happens
+  out of sight. HUD: a charge pip on the tactical strip.
+- Input: actions `mark` (pad RB while aiming - swapping weapons needs the weapon lowered then -, keyboard T) and
+  `execute` (keyboard Y; pad Y when ready); touch Mark (shown while aiming) and Execute (shown when ready)
+  buttons. RB while aiming no longer swaps weapons.
+- Deferred to phase 5 (gadgets): the sleeping-gas grenade and gas cam; co-op dual takedowns and shared marks to
+  phase 10; the victim rig is not yet in the clip checks.
+- Tests: unit tests for takedown kinds / alignment / tap-hold and the mark set; `e2e-takedown` (ground kinds and
+  rules, tap / hold, 5 cm alignment, interrupt by damage, over low cover, from above, from below, through a
+  window, charge, marks through cover, no execute without sight, execute). e2e-anim steps the sim only
+  (`loop.manual`): real-time frames between its checks advanced it by a load-dependent amount.
+
 ## 1.15.1 - stealth feedback
 - Lamps: a lit strip is the light's fixture: a shot anywhere along it puts it out (not only its middle), and the
   whole strip goes dark (`LightDef.fixture`, a box hit test `rayBox`; the light rig draws fixtures as boxes). Yard

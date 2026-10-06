@@ -26,6 +26,9 @@ await G(() => {
   const c = p.controller;
   const V = p.position.constructor;
   g.target.damageMul = 0;
+  // every measurement steps the sim itself: no real-time frames in between (on a loaded machine they would
+  // advance it by a varying amount between checks)
+  a.loop.manual = true;
   const st = a.input.state;
   window.__t = {
     tp(x, z, yaw) {

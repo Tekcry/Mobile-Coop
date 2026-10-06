@@ -49,6 +49,9 @@ import { LkpGhost } from '../vfx/lkpGhost';
 import { Silhouettes } from '../vfx/silhouettes';
 import { VISION, VisionState } from './vision';
 import { StealthSystems } from './stealthSystems';
+import { TakedownController } from './takedownController';
+import { ExecuteController } from './executeController';
+import { MarkSet } from './marks';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
@@ -187,6 +190,10 @@ export class GameState implements AppState {
   private ended = false;
   private respawnAt: Vector3 | null = null;
   private interactTarget: Interactable | null = null;
+  /** Mark & Execute marks and charges; melee takedowns; the execute sequence. */
+  readonly marks = new MarkSet();
+  readonly takedown: TakedownController;
+  readonly execute: ExecuteController;
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => PlayerRef[] = () => [];
   static rewardHook: RewardHook | null = null;
@@ -247,6 +254,8 @@ export class GameState implements AppState {
     world.breakables.onOpen = (key, how, at) => this.onBreakable(key, how, at);
     this.post = new CinematicPost(this.player.cam.camera);
     this.ghost = new LkpGhost(this.scene);
+    this.takedown = new TakedownController(this);
+    this.execute = new ExecuteController(this);
     this.sonarMarks = new Silhouettes(this.scene, 'sonar', 12, new Color3(1, 0.55, 0.18), true);
     this.sonarRing = CreateTorus('sonarRing', { diameter: 1, thickness: 0.012, tessellation: 48 }, this.scene);
     const rm = new StandardMaterial('sonarRingMat', this.scene);
@@ -592,6 +601,13 @@ export class GameState implements AppState {
     const ints = this.interactables;
     if (!ints) return;
     ints.update(dt);
+    // a takedown on offer / running or Mark & Execute ready takes the button
+    if (this.takedown.offer || this.takedown.active || this.execute.running || this.execute.ready) {
+      if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
+      this.interactTarget = null;
+      this.hud.setInteract(this.execute.ready && !this.takedown.offer && !this.takedown.active ? 'Execute' : null);
+      return;
+    }
     const carryIt = this.stealth?.carryTarget(this.player.position) ?? null;
     const it = carryIt ?? (this.player.alive ? ints.nearest(this.player.position) : null);
     if (it !== this.interactTarget) {
@@ -690,7 +706,9 @@ export class GameState implements AppState {
     const coverWas = this.cover.state;
     // a body on the shoulder: no cover, no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
-    if (!this.traversal.active && !carrying) this.cover.fixedUpdate(dt, inp);
+    // a takedown or an execute running (from the last step): cover and traversal stand aside
+    const busy = this.takedown.active !== null || this.execute.running !== null;
+    if (!this.traversal.active && !carrying && !busy) this.cover.fixedUpdate(dt, inp);
     // cover shot away / destroyed under the player: stumble out of it
     if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
     // Y / E is contextual: an interactable in reach takes it, else it traverses
@@ -704,13 +722,20 @@ export class GameState implements AppState {
     ti.useHeld = inp.down('interact');
     ti.useHeldT = inp.heldTime('interact');
     ti.sprintHeld = inp.down('dash');
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget && !carrying, this.cover.state !== 'none', this.cover.exitDir);
+    const offer = this.takedown.offer !== null || this.execute.ready;
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none', this.cover.exitDir);
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
-    this.weapons.setStowed((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying);
+    this.weapons.setStowed((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null);
     this.player.cam.attach = this.traversal.cameraPreset;
     this.player.cam.attachYaw = this.player.controller.yaw;
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.stealth?.fixedUpdate();
+    // Mark & Execute, then takedowns (Y / E: a takedown on offer, else execute when ready, else the rest)
+    if (!this.puppet) {
+      const execPressed = inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached);
+      const executing = this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
+      if (!executing) this.takedown.fixedUpdate(dt, inp.pressed('interact') && !execPressed, inp.down('interact'));
+    }
     this.suppression.update(dt);
     this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;
     this.player.fixedUpdate(dt, inp);
@@ -818,6 +843,7 @@ export class GameState implements AppState {
     }
     this.traversal.frameUpdate(dt, alpha);
     this.stealth?.frameUpdate();
+    this.takedown.frameUpdate();
     this.player.frameUpdate(dt, alpha, look, this.app.input.state.move);
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
@@ -900,6 +926,20 @@ export class GameState implements AppState {
     }
     arcs.end();
     this.hud.setLight(this.lightLevel, this.lightLevel < LIGHT.shadow);
+    // Mark & Execute: chevrons over marked enemies (red when executable), the charge, touch buttons
+    const mk = this.hud.markers;
+    mk.begin();
+    if (em && this.marks.ids.length) {
+      for (const e of em.enemies) {
+        if (!e.alive || !this.marks.has(e.id)) continue;
+        if (this.project(e.pos.x, e.pos.y + 2.1 * e.def.scale, e.pos.z)) mk.add(this.scr.x, this.scr.y, this.execute.ready);
+      }
+    }
+    mk.end();
+    this.hud.setCharge(this.marks.charges, this.execute.ready);
+    const touch = this.app.input.touch;
+    touch.setControlHidden('mark', !this.player.ads || !em);
+    touch.setControlHidden('execute', !this.execute.ready);
     // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
     const g = this.ghost;
     if (em && em.stealth) {
@@ -1093,6 +1133,13 @@ export class GameState implements AppState {
       w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
     } else if (!(stateText && seg)) w.set('vault', null, 0, 0);
     this.anchorPrompts();
+    // takedown: on the victim, above the head
+    const off = this.takedown.active ? null : this.takedown.offer;
+    if (off) {
+      const e = off.e;
+      const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
+      w.set('takedown', ok ? 'Takedown' : null, this.scr.x, this.scr.y);
+    } else w.set('takedown', null, 0, 0);
     const ctl = this.player.controller;
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     // cover-to-cover marker on the target face
@@ -1195,6 +1242,11 @@ export class GameState implements AppState {
   private onWorldPromptHold(id: WorldPromptId, down: boolean): void {
     if (this.paused || this.exited) return;
     const inp = this.app.input.state;
+    // takedown by touch: a tap is non-lethal, a long press lethal
+    if (id === 'takedown') {
+      this.takedown.touchPress(down);
+      return;
+    }
     if (down && id === 'vault' && this.traversal.attachHint?.anchor.kind === 'duct') {
       this.promptHeld = true;
       this.ventByTouch = true;

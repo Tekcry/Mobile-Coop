@@ -4,6 +4,7 @@ import { promptHtml } from '../prompts';
 import type { Minimap } from './minimap';
 import { WorldPrompts } from './worldPrompts';
 import { AwarenessArcs } from './awareness';
+import { Markers } from './markers';
 
 export interface HudFrame {
   hp: number;
@@ -63,6 +64,9 @@ export class Hud {
   private lightFill: HTMLElement;
   /** Enemy awareness arcs round the crosshair. */
   readonly arcs = new AwarenessArcs();
+  /** Mark & Execute chevrons. */
+  readonly markers: Markers;
+  private chargeEl: HTMLElement;
   private last: Partial<Record<string, string | number | boolean>> = {};
   private hitTimer: ReturnType<typeof setTimeout> | null = null;
   readonly minimapSlot: HTMLElement;
@@ -78,6 +82,7 @@ export class Hud {
     this.lightFill = h('i');
     this.lightEl = h('div', { class: 'tac-light', title: 'Light' }, h('b', { text: '◐' }), h('span', {}, this.lightFill));
     this.visionEl = h('div', { class: 'tac-vision' });
+    this.chargeEl = h('div', { class: 'tac-charge', title: 'Execute charge' });
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
@@ -85,7 +90,7 @@ export class Hud {
       h('div', { class: 'bar health' }, this.hpFill),
       this.hpText,
       this.staminaBar,
-      h('div', { class: 'hud-tac' }, this.lightEl, this.visionEl, this.exposureEl, this.noiseEl),
+      h('div', { class: 'hud-tac' }, this.lightEl, this.chargeEl, this.visionEl, this.exposureEl, this.noiseEl),
     );
     this.wName = h('div', { class: 'w-name' });
     this.wMag = h('span', { class: 'w-mag' });
@@ -147,6 +152,7 @@ export class Hud {
       this.feed,
     );
     parent.appendChild(this.el);
+    this.markers = new Markers(this.el);
     this.world = new WorldPrompts(parent);
   }
 
@@ -283,6 +289,14 @@ export class Hud {
     const v = Math.round(level * 20);
     this.set('light', v, () => (this.lightFill.style.width = `${Math.max(6, level * 100)}%`));
     this.set('lightS', shadow, () => this.lightEl.classList.toggle('shadow', shadow));
+  }
+
+  /** Execute charges (a pip per charge) and whether the marks can be executed now. */
+  setCharge(charges: number, ready: boolean): void {
+    this.set('charge', `${charges}|${ready}`, () => {
+      this.chargeEl.textContent = charges > 0 ? '◆'.repeat(charges) : '';
+      this.chargeEl.classList.toggle('ready', ready);
+    });
   }
 
   /** Goggles: the mode in use, or the sonar recharging (seconds left). */

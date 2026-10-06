@@ -921,6 +921,37 @@ body {
 .tac-vision[data-mode='cool'] {
   color: rgba(255, 255, 255, 0.4);
 }
+.tac-charge {
+  color: #ffffff;
+  font-size: 11px;
+}
+.tac-charge.ready {
+  color: #ff4433;
+}
+.hud-marks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.hud-marks .mark {
+  position: absolute;
+  width: 18px;
+  height: 14px;
+  transform: translate(-50%, -100%);
+}
+.hud-marks .mark i {
+  display: block;
+  width: 0;
+  height: 0;
+  margin: 0 auto;
+  border-left: 9px solid transparent;
+  border-right: 9px solid transparent;
+  border-top: 12px solid rgba(255, 255, 255, 0.92);
+  filter: drop-shadow(0 0 2px rgba(0, 0, 0, 0.8));
+}
+.hud-marks .mark.ready i {
+  border-top-color: #ff4433;
+}
 .hud-awareness {
   position: absolute;
   left: 0;
