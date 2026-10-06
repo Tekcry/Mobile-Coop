@@ -1,5 +1,5 @@
 // Progression + save: armory by controller, buying, match rewards, IndexedDB persistence, export/import.
-import { launch, frames, press, BTN, focusedText, assert } from './e2e-lib.mjs';
+import { launch, frames, press, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -14,7 +14,7 @@ try {
   assert(p0.credits === 500 && p0.xp === 0, 'fresh profile: 500 cr, level 1');
 
   // Armory via controller
-  for (let i = 0; i < 6 && !/Armory/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  await focusTo(page, /Armory/);
   assert(/Armory/.test(await focusedText(page)), 'focus Armory');
   await press(page, BTN.A);
   assert(await q('.armory-screen'), 'Armory opens');
@@ -39,7 +39,7 @@ try {
 
   // Store: level up via save, then buy the SMG
   await G(() => window.__app.save.update((d) => { d.profile.xp = 600; d.profile.credits = 700; }));
-  for (let i = 0; i < 6 && !/Store/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  await focusTo(page, /Store/);
   await press(page, BTN.A);
   assert(await q('.store-screen'), 'Store opens');
   assert(/Buy · 600 cr/.test(await focusedText(page)), `first buyable item focused ("${await focusedText(page)}")`);

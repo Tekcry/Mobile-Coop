@@ -193,7 +193,8 @@ try {
       t.step(0.2);
       const l1 = e.level;
       const z0 = e.pos.z;
-      for (let k = 0; k < 6; k++) {
+      // it looks for ALERT.hearLook (1.8 s) before walking over
+      for (let k = 0; k < 9; k++) {
         g.enemyMgr.hear(g.player.position, 9);
         t.step(0.25);
       }
@@ -407,9 +408,10 @@ try {
       const lamp2 = reg.lights.find((l) => l.kind === 'lamp' && l.x === 9 && l.z === -9);
       g.weapons.onRay(new t.V(9, 1, -7.8), new t.V(9, 9, -7.8));
       const end = lamp2.destroyed;
-      t.step(1.5);
+      // it looks for ALERT.hearLook (1.8 s), then walks over
+      t.step(2.2);
       const lv = e.level;
-      t.step(1);
+      t.step(0.3);
       const torch = em.torchesOn;
       // switch: the floor circuit off at its wall switch
       t.reset();
@@ -423,7 +425,7 @@ try {
       window.__app.input.state.tap('interact');
       t.step(0.2);
       const on1 = reg.countOn();
-      t.step(1.5);
+      t.step(2.2);
       const lv2 = e2.level;
       t.light(null);
       return { before, out, end, lv, torch, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };

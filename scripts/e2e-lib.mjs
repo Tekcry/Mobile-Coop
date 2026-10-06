@@ -92,6 +92,29 @@ export function focusedText(page) {
   return page.evaluate(() => document.querySelector('.focused')?.textContent?.trim() ?? '(none)');
 }
 
+/** Moves the pad focus to the visible `[data-focus]` element whose text matches `re` (grids: steps towards it). */
+export async function focusTo(page, re, max = 12) {
+  for (let i = 0; i < max; i++) {
+    const dir = await page.evaluate((src) => {
+      const r = new RegExp(src);
+      const cur = document.querySelector('.focused');
+      if (cur && r.test(cur.textContent ?? '')) return 'done';
+      const els = Array.from(document.querySelectorAll('[data-focus]')).filter((e) => e.offsetParent && r.test(e.textContent ?? ''));
+      const t = els[0];
+      if (!cur || !t) return 'down';
+      const a = cur.getBoundingClientRect();
+      const b = t.getBoundingClientRect();
+      const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+      const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+      if (Math.abs(dy) > Math.min(a.height, b.height) / 2) return dy > 0 ? 'down' : 'up';
+      return dx > 0 ? 'right' : 'left';
+    }, re.source);
+    if (dir === 'done') return true;
+    await press(page, BTN[dir.toUpperCase()]);
+  }
+  return re.test(await focusedText(page));
+}
+
 export function assert(cond, msg) {
   if (!cond) throw new Error('ASSERT: ' + msg);
   console.log('  ok -', msg);

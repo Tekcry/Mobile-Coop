@@ -143,7 +143,7 @@ try {
     a.input.state.move.y = 0;
     g.noise = 0;
     m.hear(p.position, 16);
-    a.loop.stepHeadless(3);
+    a.loop.stepHeadless(4.5);
     return { creepNoise, moved: Math.hypot(e.pos.x - 0, e.pos.z - z0), alerted: e.alerted };
   });
   assert(n.creepNoise < 1, `a crouched sneak is near silent (${n.creepNoise.toFixed(1)} m)`);
