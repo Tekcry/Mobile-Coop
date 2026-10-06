@@ -23,6 +23,9 @@ import { ENEMY_MOTION } from '../config/movement';
 import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
+import { instantDetect, noiseSuspicion, seenAt, sightRate, stepMeter, type SightInput } from './perception';
+import { AlertMachine, emptyAlertInput, type AlertLevel } from './alertState';
+import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -70,13 +73,32 @@ export interface AiContext {
   isFlanker?(e: Enemy): boolean;
   canRagdoll(): boolean;
   addRagdoll(e: Enemy, rig: CharacterRig, impulse: Vector3): void;
+  /** Stealth rules: enemies only know where the target is from what they see and hear (else they are
+   *  sent at it, as in Wave). */
+  stealth(): boolean;
+  /** Shared last known position of the target (valid once anyone has seen / located it). */
+  lkp: Vector3;
+  lkpValid(): boolean;
+  /** An alerted enemy sees the target: the shared last known position follows it. */
+  reportSighting(p: PlayerRef): void;
+  /** Detected: radio the squad. */
+  callAlert(e: Enemy): void;
+  /** This enemy's slot among the searchers (fans the sweep out). */
+  searchSlot(e: Enemy): number;
 }
 
 let nextId = 1;
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
+/** Calm paces (x the combat walk, which is a slow aimed walk): patrol, investigating, searching. */
+const PATROL_PACE = 1.25;
+const INVESTIGATE_PACE = 1.45;
+const SEARCH_PACE = 1.6;
+/** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
+const EXPOSE_HIPS = 0.52;
 
 export class Enemy implements Damageable {
-  readonly id = `e${nextId++}`;
+  readonly num = nextId++;
+  readonly id = `e${this.num}`;
   readonly team = 'enemy' as const;
   readonly health: Health;
   readonly pos: Vector3;
@@ -118,18 +140,44 @@ export class Enemy implements Damageable {
   private head = new Vector3();
   private tmp = new Vector3();
   private tmpEye = new Vector3();
+  private tmpHead = new Vector3();
+  private tmpHips = new Vector3();
   private desired = new Vector3();
   private lunge = 0;
   private coverPicked = false;
   private flash = 0;
-  alerted = false;
+  /** Alert level (unaware .. alert) and the awareness meter towards the target (0..1). */
+  readonly aware = new AlertMachine();
+  meter = 0;
+  /** Sight fill rate at the last think (/s) and seconds since the target was last in sight. */
+  private rate = 0;
+  sinceSeen = 99;
+  private sight: SightInput = { dist: 0, angle: 0, light: 1, crouched: false, speed: 0, exposure: 0, sensitivity: 1 };
+  private alertIn = emptyAlertInput();
+  private walker: PatrolWalker;
+  /** Where the last stimulus (glimpse, noise) came from, and whether there is one. */
+  private stimulus: P2 = [0, 0];
+  private hasStimulus = false;
+  private heard = false;
+  private gunfire = false;
+  private called = 0;
+  private searchReq = false;
+  /** Investigating / searching: the current spot, how far round the search ring, and the look-round. */
+  private spot: P2 = [0, 0];
+  private spotSet = false;
+  private spotArrived = false;
+  private spotLookT = 0;
+  private lookBase = 0;
+  private searchK = 0;
+  private routePath: P2[] = [];
+  private routeGoal: P2 = [NaN, NaN];
+  private routeT = 0;
+  private meP: P2 = [0, 0];
   private coverPose: 'none' | 'low' | 'high' = 'none';
   private coverPeek = 0;
   /** Last place the target was seen (aim point) and seconds since. */
   private lastKnown = new Vector3();
   private lastSeenT = 99;
-  /** Heard something (footsteps): walk over to look, without full alert. */
-  private investigate: P2 | null = null;
   private blindPlan = false;
   private grenadeCd = rand(5, 10);
   /** Assigned to flank a player holding cover (debug / tests). */
@@ -159,6 +207,7 @@ export class Enemy implements Damageable {
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = yaw;
     this.post = [this.pos.x, this.pos.z];
+    this.walker = new PatrolWalker(null, this.pos.x, this.pos.z, yaw, this.num);
     const built = buildEnemyRig(ctx.scene, ctx.world, def, this.id);
     this.rig = built.rig;
     this.gun = built.gun;
@@ -168,6 +217,20 @@ export class Enemy implements Damageable {
 
   get alive(): boolean {
     return this.health.alive;
+  }
+
+  /** In combat (the alert level). */
+  get alerted(): boolean {
+    return this.aware.alert;
+  }
+
+  get level(): AlertLevel {
+    return this.aware.level;
+  }
+
+  /** Walk a route while unaware (null = stand post at the spawn point). */
+  setPatrol(route: PatrolRoute | null): void {
+    this.walker = new PatrolWalker(route, this.post[0], this.post[1], this.yaw, this.num);
   }
 
   /** 0 standing .. 1 crouched (cover). */
@@ -207,19 +270,75 @@ export class Enemy implements Damageable {
     this.coverPicked = false;
   }
 
-  /** A noise nobody saw: walk over and look (sight then alerts). */
-  hear(x: number, z: number): void {
-    if (this.alerted || !this.alive || this.def.melee) {
-      if (!this.alerted && this.def.melee) this.alert();
+  /** A noise from (x, z) audible to `radius` (m): suspicion by distance, and a place to look. */
+  hear(x: number, z: number, radius = 8): void {
+    if (this.alerted || !this.alive) return;
+    const s = noiseSuspicion(hyp2(x - this.pos.x, z - this.pos.z), radius);
+    if (s <= 0) return;
+    if (this.def.melee && s >= 0.6) {
+      this.alert();
       return;
     }
-    this.investigate = [x, z];
+    this.meter = Math.max(this.meter, s);
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+    this.heard = true;
   }
 
+  /** Gunfire close by: straight to combat, towards it. */
+  hearGunfire(x: number, z: number): void {
+    if (!this.alive) return;
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+    this.gunfire = true;
+  }
+
+  /** A squadmate radioed a detection: alert after a short reaction delay. */
+  radio(delay: number): void {
+    if (!this.alive || this.alerted) return;
+    if (this.called <= 0) this.called = delay;
+  }
+
+  /** Something to search for without a sighting (a body, lights cut) around (x, z). */
+  searchAt(x: number, z: number): void {
+    if (!this.alive || this.alerted) return;
+    this.stimulus[0] = x;
+    this.stimulus[1] = z;
+    this.hasStimulus = true;
+    this.searchReq = true;
+  }
+
+  /** Straight to combat (spawned alerted, shot, tests). */
   alert(): void {
     if (this.alerted || !this.alive) return;
-    this.alerted = true;
-    if (this.state === 'idle') this.setState('chase');
+    this.aware.set('alert');
+    this.onLevel('unaware', 'alert');
+  }
+
+  /** Side effects of an alert-level change. */
+  private onLevel(from: AlertLevel, to: AlertLevel): void {
+    if (to === 'alert') {
+      this.meter = 1;
+      if (this.state === 'idle') this.setState('chase');
+      // a radioed alert is not relayed (no chain across the map)
+      if (!this.alertIn.called) this.ctx.callAlert(this);
+    } else if (from === 'alert') {
+      // combat over: drop out of cover / fights and search
+      this.setState('idle');
+      this.burstLeft = 0;
+      this.windup = 0;
+    }
+    if (to === 'searching') {
+      this.searchK = 0;
+      this.spotSet = false;
+    }
+    if (to === 'investigating') this.spotSet = false;
+    if (to === 'unaware' || to === 'cooldown') {
+      this.hasStimulus = false;
+      this.walker.rejoin(this.pos.x, this.pos.z);
+    }
   }
 
   applyDamage(h: HitInfo): DamageResult {
@@ -227,6 +346,12 @@ export class Enemy implements Damageable {
     const mult = h.part === 'head' ? this.def.headMult : this.def.armor;
     const dealt = this.health.damage(h.amount * mult);
     this.flash = 1;
+    if (!this.alerted && h.sourcePos) {
+      this.stimulus[0] = h.sourcePos.x;
+      this.stimulus[1] = h.sourcePos.z;
+      this.lastKnown.copyFrom(h.sourcePos);
+      this.lastSeenT = 0;
+    }
     this.alert();
     if (dealt > 35) this.stagger = 0.35;
     // getting shot in the open pushes cover users to find cover
@@ -270,6 +395,7 @@ export class Enemy implements Damageable {
     }
     if (this.los) this.losT += dt;
     else this.losT = 0;
+    this.updateAwareness(dt);
 
     const goal = this.decide(dt);
     this.move(dt, goal.point, goal.speed, goal.face);
@@ -302,50 +428,213 @@ export class Enemy implements Damageable {
     this.dist = bd;
     if (!best) {
       this.los = false;
+      this.rate = 0;
       return;
     }
     const eye = this.eye(this.tmpEye);
+    // line of sight to the chest, head and hips: in combat any of them is enough to shoot at; the fraction
+    // in view scales how fast an unaware enemy notices
     best.target.aimPoint(this.tmp);
-    const h = this.ctx.ballistics.ray(eye, this.tmp, G.STATIC);
-    this.los = !h.hit || h.distance > Vector3.Distance(eye, this.tmp) - 0.3;
-    // chest hidden (ducked behind low cover): only the head may show
+    const chest = this.losTo(eye, this.tmp, 0.3);
+    if (chest) this.lastKnown.copyFrom(this.tmp);
+    let head = false;
+    let n = chest ? 1 : 0;
     this.losHead = false;
-    if (!this.los && best.target.headPoint) {
-      best.target.headPoint(this.tmp);
-      const hh = this.ctx.ballistics.ray(eye, this.tmp, G.STATIC);
-      this.los = this.losHead = !hh.hit || hh.distance > Vector3.Distance(eye, this.tmp) - 0.2;
+    if (best.target.headPoint) {
+      best.target.headPoint(this.tmpHead);
+      head = this.losTo(eye, this.tmpHead, 0.2);
+      if (head) {
+        n++;
+        if (!chest) {
+          this.losHead = true;
+          this.lastKnown.copyFrom(this.tmpHead);
+        }
+      }
     }
-    if (this.los) {
-      this.lastKnown.copyFrom(this.tmp);
-      this.lastSeenT = 0;
+    this.los = chest || head;
+    // hips (only needed for the meter, so skipped in combat)
+    if (!this.alerted) {
+      const top = best.target.headPoint ? this.tmpHead.y : this.tmp.y + 0.4;
+      this.tmpHips.set(best.feet.x, best.feet.y + (top - best.feet.y) * EXPOSE_HIPS, best.feet.z);
+      if (this.losTo(eye, this.tmpHips, 0.2)) n++;
     }
+    const samples = best.target.headPoint ? 3 : 2;
+    if (this.los) this.lastSeenT = 0;
     // light on the target (perception reads it): the owner's sample, else the registry at the aim point
     const lights = this.ctx.world.level.lights;
     this.targetLight = best.light ?? lightLevelAt(lights, this.tmp.x, this.tmp.y, this.tmp.z);
-    if (!this.alerted) {
-      // idle enemies notice within a forward cone or when very close
-      const toward = Math.atan2(best.feet.x - this.pos.x, best.feet.z - this.pos.z);
-      const inCone = Math.abs(wrapAngle(toward - this.yaw)) < 1.1;
-      // a crouched target is harder to spot: shorter sight and proximity ranges
-      const k = best.crouched ? 0.6 : 1;
-      if ((this.los && inCone && bd < 30 * k) || bd < 6 * k) this.alert();
+    // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
+    const si = this.sight;
+    si.dist = bd;
+    si.angle = wrapAngle(Math.atan2(best.feet.x - this.pos.x, best.feet.z - this.pos.z) - this.yaw);
+    si.light = this.targetLight;
+    si.crouched = best.crouched;
+    si.speed = best.speed;
+    si.exposure = this.alerted ? (this.los ? 1 : 0) : n / samples;
+    si.sensitivity = this.aware.sensitivity;
+    this.rate = sightRate(si);
+    if (!this.alerted && instantDetect(si)) this.meter = 1;
+    if (this.rate > 0 && !this.alerted) {
+      // what caught the eye: look there (and investigate there)
+      this.stimulus[0] = best.feet.x;
+      this.stimulus[1] = best.feet.z;
+      this.hasStimulus = true;
+    }
+    if (this.alerted && this.los) this.ctx.reportSighting(best);
+  }
+
+  private losTo(eye: Vector3, to: Vector3, slack: number): boolean {
+    const h = this.ctx.ballistics.ray(eye, to, G.STATIC);
+    return !h.hit || h.distance > Vector3.Distance(eye, to) - slack;
+  }
+
+  /** Per fixed step: the awareness meter and the alert level. */
+  private updateAwareness(dt: number): void {
+    const seen = this.alerted ? this.los : seenAt(this.rate);
+    this.sinceSeen = seen ? 0 : this.sinceSeen + dt;
+    if (!this.alerted) this.meter = stepMeter(this.meter, this.rate, dt, this.sinceSeen);
+    if (this.called > 0) {
+      this.called -= dt;
+      if (this.called <= 0) this.alertIn.called = true;
+    }
+    const i = this.alertIn;
+    i.meter = this.meter;
+    // outside stealth rules (Wave) they are sent at the target: combat never cools into a search
+    i.seeing = seen || (this.alerted && !this.ctx.stealth());
+    i.arrived = this.spotArrived;
+    i.sinceSeen = this.sinceSeen;
+    i.heard = this.heard;
+    i.damaged = false;
+    i.gunfire = this.gunfire;
+    i.search = this.searchReq;
+    const from = this.aware.level;
+    if (this.aware.step(dt, i)) this.onLevel(from, this.aware.level);
+    // in combat without sight: arriving at the last known position with nothing there starts the search
+    if (this.aware.level === 'alert' && !this.los && this.ctx.stealth() && this.state === 'chase' && this.sinceSeen > 1.5) {
+      const k = this.ctx.lkpValid() ? this.ctx.lkp : null;
+      if (k && hyp2(k.x - this.pos.x, k.z - this.pos.z) < 1.5) {
+        this.aware.set('searching');
+        this.onLevel('alert', 'searching');
+      }
+    }
+    if (this.aware.level !== 'alert' && this.meter >= 1) this.meter = 0.99;
+    i.called = false;
+    this.heard = false;
+    this.gunfire = false;
+    this.searchReq = false;
+  }
+
+  /** Head towards a floor point: straight when the line is clear, else along an A* path (replanned when the
+   *  goal moves). Returns the next waypoint, or null when there. */
+  private goTo(p: P2, dt: number, near = 0.6): P2 | null {
+    const me = this.meP;
+    me[0] = this.pos.x;
+    me[1] = this.pos.z;
+    if (hyp2(p[0] - me[0], p[1] - me[1]) < near) return null;
+    const nav = this.ctx.nav;
+    if (nav.lineClear(me, p)) {
+      this.routePath.length = 0;
+      return p;
+    }
+    this.routeT -= dt;
+    const moved = !(hyp2(p[0] - this.routeGoal[0], p[1] - this.routeGoal[1]) < 1.5);
+    if ((moved && this.routeT <= 0) || this.routePath.length === 0) {
+      this.routeT = 1;
+      this.routeGoal[0] = p[0];
+      this.routeGoal[1] = p[1];
+      this.routePath = nav.findPath(me, p, 3000) ?? [];
+      if (this.routePath.length === 0) return null;
+    }
+    const wp = this.routePath[0]!;
+    if (hyp2(wp[0] - me[0], wp[1] - me[1]) < 0.4) this.routePath.shift();
+    return this.routePath[0] ?? p;
+  }
+
+  /** Not in combat: patrol / post, look at a stimulus, investigate it, or search. */
+  private calmDecide(dt: number): { point: P2 | null; speed: number; face: number | null } {
+    const def = this.def;
+    const lvl = this.aware.level;
+    this.spotArrived = false;
+    switch (lvl) {
+      case 'unaware':
+      case 'cooldown': {
+        const g = this.walker.step(dt, this.pos.x, this.pos.z);
+        const ly = this.walker.lookYaw;
+        // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
+        const wp = g ? (this.goTo(g, dt, 0.05) ?? g) : null;
+        return { point: wp, speed: def.walkSpeed * PATROL_PACE, face: g || Number.isNaN(ly) ? null : ly };
+      }
+      case 'suspicious': {
+        // stop and look at what caught the eye / ear
+        const face = this.hasStimulus ? Math.atan2(this.stimulus[0] - this.pos.x, this.stimulus[1] - this.pos.z) : null;
+        return { point: null, speed: 0, face };
+      }
+      case 'investigating':
+      case 'searching': {
+        if (lvl === 'investigating') {
+          // the latest stimulus is the spot
+          this.spot[0] = this.stimulus[0];
+          this.spot[1] = this.stimulus[1];
+          if (!this.hasStimulus) {
+            this.spot[0] = this.pos.x;
+            this.spot[1] = this.pos.z;
+          }
+        } else if (!this.spotSet) {
+          // next point of the sweep round the last known position (or the stimulus)
+          const k = this.ctx.lkpValid() && this.ctx.stealth() ? this.ctx.lkp : null;
+          const cx = this.hasStimulus && !k ? this.stimulus[0] : k ? k.x : this.pos.x;
+          const cz = this.hasStimulus && !k ? this.stimulus[1] : k ? k.z : this.pos.z;
+          if (this.searchK === 0) {
+            this.spot[0] = cx;
+            this.spot[1] = cz;
+          } else searchPoint(cx, cz, this.searchK - 1, this.ctx.searchSlot(this), this.spot);
+          const c = this.ctx.nav.nearestWalkable(this.spot[0], this.spot[1], 4);
+          if (c >= 0) {
+            const cc = this.ctx.nav.center(c);
+            this.spot[0] = cc[0];
+            this.spot[1] = cc[1];
+          }
+          this.spotSet = true;
+          this.spotLookT = 0;
+        }
+        if (this.hold && !inRoom(this.hold, this.spot[0], this.spot[1])) clampToRoom(this.hold, this.spot[0], this.spot[1], 0.8, this.spot);
+        const d = hyp2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z);
+        const there = d < 1.1;
+        if (there) {
+          this.spotArrived = true;
+          if (this.spotLookT === 0) this.lookBase = this.yaw;
+          this.spotLookT += dt;
+          if (lvl === 'searching' && this.spotLookT >= PATROL.searchLook) {
+            this.searchK++;
+            this.spotSet = false;
+          }
+          // look round: sweep either side of the arrival facing
+          return { point: null, speed: 0, face: this.lookBase + Math.sin(this.spotLookT * 1.6) * 1.0 };
+        }
+        this.spotLookT = 0;
+        const wp = this.goTo(this.spot, dt);
+        if (!wp && lvl === 'searching' && this.routePath.length === 0 && d > 1.1) {
+          // unreachable: skip it
+          this.searchK++;
+          this.spotSet = false;
+        }
+        return { point: wp, speed: def.walkSpeed * (lvl === 'searching' ? SEARCH_PACE : INVESTIGATE_PACE), face: null };
+      }
+      default:
+        return { point: null, speed: 0, face: null };
     }
   }
 
   private decide(dt: number): { point: P2 | null; speed: number; face: number | null } {
     const def = this.def;
     const t = this.target;
-    if (!this.alerted && this.investigate) {
-      // tactical walk to the noise, weapon up
-      const ip = this.investigate;
-      if (this.hold && !inRoom(this.hold, ip[0], ip[1])) clampToRoom(this.hold, ip[0], ip[1], 0.8, ip);
-      if (hyp2(ip[0] - this.pos.x, ip[1] - this.pos.z) < 1.2) this.investigate = null;
-      return { point: this.ctx.nav.lineClear([this.pos.x, this.pos.z], ip) ? ip : this.chasePoint(ip, false), speed: def.walkSpeed * 0.8, face: null };
-    }
-    if (!this.alerted || !t) return { point: null, speed: 0, face: null };
+    if (!this.alerted) return this.calmDecide(dt);
+    if (!t) return { point: null, speed: 0, face: null };
     if (this.stagger > 0) return { point: null, speed: 0, face: this.faceTarget() };
     const toTarget = this.faceTarget();
-    const tp: P2 = [t.feet.x, t.feet.z];
+    // stealth: out of sight they go for where they last knew the target was, not where it is
+    const known = this.los || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
+    const tp: P2 = [known.x, known.z];
     // holding a room against a target outside it
     const outside = this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5);
     if (this.doorCheck > 0 && !this.los) return { point: null, speed: 0, face: null };
@@ -515,6 +804,7 @@ export class Enemy implements Damageable {
   private faceTarget(): number {
     const t = this.target;
     if (!t) return this.yaw;
+    if (!this.los && this.ctx.stealth() && this.ctx.lkpValid()) return Math.atan2(this.ctx.lkp.x - this.pos.x, this.ctx.lkp.z - this.pos.z);
     return Math.atan2(t.feet.x - this.pos.x, t.feet.z - this.pos.z);
   }
 
@@ -752,7 +1042,8 @@ export class Enemy implements Damageable {
     this.kick = Math.max(0, this.kick - dt * 8);
     this.flash = Math.max(0, this.flash - dt * 9);
     this.rig.setFlash(this.flash * 0.75);
-    const aiming = this.def.melee ? 0 : this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0 ? 1 : 0.2;
+    const lvl = this.aware.level;
+    const aiming = this.def.melee ? 0 : this.state === 'attack' || this.state === 'inCover' || this.burstLeft > 0 || this.windup > 0 ? 1 : lvl === 'investigating' || lvl === 'searching' ? 0.7 : lvl === 'suspicious' ? 0.4 : 0.2;
     const m = this.motion;
     const rp = this.rp;
     rp.speed = sp;

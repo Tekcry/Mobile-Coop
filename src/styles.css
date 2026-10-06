@@ -883,6 +883,42 @@ body {
 .tac-exposure[data-level='5'] i.on {
   background: #ff4d3d;
 }
+.tac-light {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.tac-light b {
+  font-size: 11px;
+  color: #ffe6a8;
+}
+.tac-light span {
+  display: block;
+  width: 34px;
+  height: 5px;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+.tac-light i {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, #6d6a5e, #ffe6a8);
+  transition: width 0.15s;
+}
+.tac-light.shadow b {
+  color: #6f8db0;
+}
+.tac-light.shadow i {
+  background: #3f5f86;
+}
+.hud-awareness {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
 .tac-noise {
   display: flex;
   align-items: center;

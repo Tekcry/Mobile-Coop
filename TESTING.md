@@ -293,6 +293,15 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 3a - Perception and alert states (1.12.0) - Warehouse, Clear
+- [ ] It is night: the yard is moonlit, inside is dark with pools under the lit lamps. The light meter (top left) dims and turns blue in shadow.
+- [ ] Guards walk their routes or stand post and glance about. Crouch-walk behind one in the dark: no arc.
+- [ ] Walk into a lamp pool in front of a guard: a white arc fills round the crosshair before he spots you (turns red).
+- [ ] Make noise near a guard out of sight (sprint, drop from height): he turns, then comes to look.
+- [ ] Get spotted, then slip away: a pale ghost of you stays where you were seen; they converge on it and search, then give up after ~30 s.
+- [ ] Spotted guards radio the ones nearby (they join a moment later); far ones stay calm.
+- [ ] Wave on Warehouse still sends enemies straight at you.
+
 ## 2.0 phase 2 feedback (1.11.0) - Proving Grounds, north east
 - [ ] Ladder: climbing up and down feels quick (3 rungs/s); holding sprint climbs faster; hands and feet step one at a time.
 - [ ] Walk up to a ladder next to a wall top: the ladder is offered, not the lip.

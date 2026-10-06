@@ -99,6 +99,17 @@ export function makeCone(dx: number, dy: number, dz: number, outer: number, inne
   return { dx: dx / l, dy: dy / l, dz: dz / l, cosOuter: Math.cos(outer), cosInner: Math.cos(Math.min(inner, outer - 1e-3)) };
 }
 
+/** A box with its own ambient level (indoors under a roof is darker than a moonlit yard). */
+export interface AmbientZone {
+  minX: number;
+  maxX: number;
+  minY: number;
+  maxY: number;
+  minZ: number;
+  maxZ: number;
+  ambient: number;
+}
+
 /** Occlusion test: true when something blocks the light from reaching the point. */
 export type Occluder = (l: LightDef, x: number, y: number, z: number) => boolean;
 
@@ -109,6 +120,8 @@ export class LightRegistry {
   ambient = 0.7;
   /** Bumped on every change (renderers and caches re-read when it moves). */
   version = 0;
+  /** Boxes with their own ambient (the smallest containing box wins). */
+  readonly zones: AmbientZone[] = [];
   /** Lights switched off for a while (EMP): id -> seconds left. */
   private outFor = new Map<number, number>();
 
@@ -132,6 +145,28 @@ export class LightRegistry {
     this.lights.push(l);
     this.version++;
     return l;
+  }
+
+  addZone(z: AmbientZone): void {
+    this.zones.push(z);
+    this.version++;
+  }
+
+  /** Ambient level at a point: the smallest zone containing it, else the global ambient. */
+  ambientAt(x: number, y: number, z: number): number {
+    let v = this.ambient;
+    let best = Infinity;
+    const zs = this.zones;
+    for (let i = 0; i < zs.length; i++) {
+      const b = zs[i]!;
+      if (x < b.minX || x > b.maxX || y < b.minY || y > b.maxY || z < b.minZ || z > b.maxZ) continue;
+      const vol = (b.maxX - b.minX) * (b.maxY - b.minY) * (b.maxZ - b.minZ);
+      if (vol < best) {
+        best = vol;
+        v = b.ambient;
+      }
+    }
+    return v;
   }
 
   get(id: number): LightDef | null {
@@ -209,7 +244,7 @@ export class LightRegistry {
 
 /** How lit a point is: ambient plus every light's contribution (optionally occluded), clamped 0..1. */
 export function lightLevelAt(reg: LightRegistry, x: number, y: number, z: number, occluded?: Occluder): number {
-  let v = reg.ambient;
+  let v = reg.zones.length ? reg.ambientAt(x, y, z) : reg.ambient;
   const ls = reg.lights;
   for (let i = 0; i < ls.length; i++) {
     const l = ls[i]!;

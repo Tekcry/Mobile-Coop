@@ -3,6 +3,7 @@ import { icon } from '../icons';
 import { promptHtml } from '../prompts';
 import type { Minimap } from './minimap';
 import { WorldPrompts } from './worldPrompts';
+import { AwarenessArcs } from './awareness';
 
 export interface HudFrame {
   hp: number;
@@ -57,6 +58,10 @@ export class Hud {
   private staminaBar: HTMLElement;
   private exposureEl: HTMLElement;
   private noiseEl: HTMLElement;
+  private lightEl: HTMLElement;
+  private lightFill: HTMLElement;
+  /** Enemy awareness arcs round the crosshair. */
+  readonly arcs = new AwarenessArcs();
   private last: Partial<Record<string, string | number | boolean>> = {};
   private hitTimer: ReturnType<typeof setTimeout> | null = null;
   readonly minimapSlot: HTMLElement;
@@ -69,6 +74,8 @@ export class Hud {
     this.staminaBar = h('div', { class: 'bar stamina' }, this.staminaFill);
     this.exposureEl = h('div', { class: 'tac-exposure', html: '<b>EXPOSED</b><span><i></i><i></i><i></i><i></i><i></i></span>' });
     this.noiseEl = h('div', { class: 'tac-noise', html: `${icon('noise', 14)}<span><i></i><i></i><i></i></span>` });
+    this.lightFill = h('i');
+    this.lightEl = h('div', { class: 'tac-light', title: 'Light' }, h('b', { text: '◐' }), h('span', {}, this.lightFill));
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
@@ -76,7 +83,7 @@ export class Hud {
       h('div', { class: 'bar health' }, this.hpFill),
       this.hpText,
       this.staminaBar,
-      h('div', { class: 'hud-tac' }, this.exposureEl, this.noiseEl),
+      h('div', { class: 'hud-tac' }, this.lightEl, this.exposureEl, this.noiseEl),
     );
     this.wName = h('div', { class: 'w-name' });
     this.wMag = h('span', { class: 'w-mag' });
@@ -132,7 +139,7 @@ export class Hud {
       h('div', { class: 'hud-top' }, compass, this.roomEl, this.objective, this.modeInfo),
       this.minimapSlot,
       weapon,
-      h('div', { class: 'hud-center' }, this.cross, this.hit, svg, this.dmgWrap),
+      h('div', { class: 'hud-center' }, this.arcs.canvas, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
       this.interactEl,
       this.feed,
@@ -267,6 +274,13 @@ export class Hud {
       this.noiseEl.querySelectorAll('i').forEach((el, i) => el.classList.toggle('on', i < noiseBars));
     });
     this.set('supp', Math.round(suppression * 20), () => (this.suppressEl.style.opacity = String(Math.min(0.85, suppression * 0.9))));
+  }
+
+  /** Light meter: how lit the body is (0 dark .. 1); `shadow` marks being hidden in it. */
+  setLight(level: number, shadow: boolean): void {
+    const v = Math.round(level * 20);
+    this.set('light', v, () => (this.lightFill.style.width = `${Math.max(6, level * 100)}%`));
+    this.set('lightS', shadow, () => this.lightEl.classList.toggle('shadow', shadow));
   }
 
   /** Small right-side feed (kills, XP, pickups). */

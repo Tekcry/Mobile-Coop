@@ -45,6 +45,7 @@ import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
+import { LkpGhost } from '../vfx/lkpGhost';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
@@ -228,6 +229,7 @@ export class GameState implements AppState {
     this.traversal.breakables = world.breakables;
     world.breakables.onOpen = (key, how, at) => this.onBreakable(key, how, at);
     this.post = new CinematicPost(this.player.cam.camera);
+    this.ghost = new LkpGhost(this.scene);
     this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
@@ -292,7 +294,19 @@ export class GameState implements AppState {
       w.interactables = new Interactables(this.scene, world.parts);
       w.mode = opts.mode === 'wave' ? new WaveMode(this) : opts.mode === 'clear' ? new ClearMode(this) : new MissionMode(this);
       this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
-      app.debug.extra.set('ai', () => `enemies ${this.enemyMgr?.alive ?? 0} nav ${this.nav?.w}x${this.nav?.h}`);
+      app.debug.extra.set('ai', () => {
+        const em = this.enemyMgr;
+        if (!em) return '';
+        const lv: Record<string, number> = {};
+        let top = 0;
+        for (const e of em.enemies) {
+          if (!e.alive) continue;
+          lv[e.level] = (lv[e.level] ?? 0) + 1;
+          if (e.meter > top) top = e.meter;
+        }
+        const by = Object.entries(lv).map(([k, n]) => `${k} ${n}`).join(' ');
+        return `enemies ${em.alive} ${by} | meter ${top.toFixed(2)} lkp ${em.lkpValid ? `${em.lkp.x.toFixed(1)},${em.lkp.z.toFixed(1)}` : '-'} light ${this.lightLevel.toFixed(2)}${em.stealth ? ' stealth' : ''}`;
+      });
     }
 
     if (this.puppet || opts.mode === 'sandbox') {
@@ -592,7 +606,7 @@ export class GameState implements AppState {
     this.lightT = 1 / LIGHT.playerHz;
     const p = this.player.position;
     const h = 1.75 * (1 - 0.35 * this.player.controller.crouchBlend);
-    this.lightLevel = reg.lights.length ? bodyLightLevel(reg, p.x, p.y, p.z, h, this.lightOccluder) : reg.ambient;
+    this.lightLevel = reg.lights.length ? bodyLightLevel(reg, p.x, p.y, p.z, h, this.lightOccluder) : reg.ambientAt(p.x, p.y + h * 0.6, p.z);
     this.localRef.light = this.lightLevel;
   }
 
@@ -749,11 +763,46 @@ export class GameState implements AppState {
     this.player.frameUpdate(dt, alpha, look, this.app.input.state.move);
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
+    this.updateStealthHud(dt);
     this.vfx.update(dt);
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
     this.net?.frameUpdate(dt);
     this.updateHud();
+  }
+
+  /** Last Known Position ghost (stealth rules only). */
+  ghost: LkpGhost;
+
+  /**
+   * Stealth HUD per render frame: awareness arcs round the crosshair (enemies noticing: white filling, red
+   * once detected and in sight), the light meter, and the LKP ghost where the hunters think the player is
+   * (while nobody sees them).
+   */
+  private updateStealthHud(dt: number): void {
+    const arcs = this.hud.arcs;
+    arcs.begin();
+    const em = this.enemyMgr;
+    const p = this.player.position;
+    const camYaw = this.player.cam.yaw;
+    if (em && !this.puppet) {
+      for (const e of em.enemies) {
+        if (!e.alive) continue;
+        const red = e.alerted && e.sinceSeen < 0.6;
+        if (!red && (e.alerted || e.meter < 0.02)) continue;
+        const b = Math.atan2(e.pos.x - p.x, e.pos.z - p.z) - camYaw;
+        arcs.add(Math.atan2(Math.sin(b), Math.cos(b)), e.meter, red);
+      }
+    }
+    arcs.end();
+    this.hud.setLight(this.lightLevel, this.lightLevel < LIGHT.shadow);
+    // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
+    const g = this.ghost;
+    if (em && em.stealth) {
+      if (em.sightT < 0.25 && em.lkpValid) g.capture(this.player.rig, em.lkp);
+      g.show = em.lkpValid && em.sightT > 0.6 && em.hunting && hyp2(g.at.x - em.lkp.x, g.at.z - em.lkp.z) < 1.5;
+    } else g.show = false;
+    g.update(dt);
   }
 
   /** Publish the player's cover (for enemy flanking / grenades) and how long it has been held. */

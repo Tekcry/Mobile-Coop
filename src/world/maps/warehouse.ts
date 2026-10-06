@@ -2,6 +2,7 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
+import { makeCone } from '../lights';
 
 const CONCRETE = '#8e9396';
 const FLOOR = '#6f7477';
@@ -15,6 +16,20 @@ const HAZARD = '#e8b923';
 const DESK = '#8a6a4c';
 const LIGHT = '#fff1c8';
 const ROOF = '#4a4f55';
+const LAMP_OFF = '#3b3b38';
+
+/** Lamp strips that are lit (x, z of the strip). */
+const LAMPS_ON = new Set([
+  '-18,-15', '-9,-9', '0,-15', '9,-15', '9,-9',
+  '-18,-3', '-9,3', '-18,15',
+  '0,-3', '18,-3', '9,3', '9,9', '18,15', '0,15',
+]);
+
+/** Circuit per room (light switches turn a room's lamps off). */
+function lampGroup(x: number, z: number): number {
+  const i = ROOMS.findIndex((r) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ);
+  return i < 0 ? 19 : i;
+}
 
 const H = 3.2; // interior wall height
 const T = 0.3; // interior wall thickness
@@ -31,7 +46,7 @@ const ROOMS: RoomDef[] = [
     minZ: -18,
     maxZ: -6,
     squad: [
-      { kind: 'grunt', x: -19, z: -10.5, yaw: Math.PI },
+      { kind: 'grunt', x: -19, z: -10.5, yaw: Math.PI, route: [[-19, -10.5], [-12.5, -8.6], [-16.5, -14.8]], wait: 3 },
       { kind: 'grunt', x: -7.5, z: -15.5, yaw: -2.4 },
     ],
   },
@@ -44,7 +59,7 @@ const ROOMS: RoomDef[] = [
     minZ: -18,
     maxZ: -11,
     squad: [
-      { kind: 'grunt', x: 20.5, z: -12.5, yaw: Math.PI },
+      { kind: 'grunt', x: 20.5, z: -12.5, yaw: Math.PI, route: [[20.5, -12.5], [13, -12.2], [8.5, -16.5]] },
       { kind: 'runner', x: 11, z: -16.8, yaw: 0.6 },
     ],
   },
@@ -58,7 +73,7 @@ const ROOMS: RoomDef[] = [
     maxZ: 18,
     squad: [
       { kind: 'grunt', x: -18.5, z: 1, yaw: Math.PI },
-      { kind: 'grunt', x: -10.5, z: 10, yaw: Math.PI },
+      { kind: 'grunt', x: -10.5, z: 10, yaw: Math.PI, route: [[-10.5, 14.5], [-10.5, -3.5]], wait: 2 },
       { kind: 'runner', x: -14.5, z: 15.5, yaw: Math.PI },
     ],
   },
@@ -70,7 +85,7 @@ const ROOMS: RoomDef[] = [
     minZ: -8.8,
     maxZ: 12,
     squad: [
-      { kind: 'grunt', x: 7.5, z: -1.5, yaw: Math.PI },
+      { kind: 'grunt', x: 7.5, z: -1.5, yaw: Math.PI, route: [[7.5, -1.5], [11.5, -6.2], [17, 1], [11.5, 7]] },
       { kind: 'grunt', x: 15.5, z: 6.5, yaw: -2.6 },
       { kind: 'heavy', x: 19.5, z: -4.5, yaw: -1.9 },
     ],
@@ -83,7 +98,7 @@ const ROOMS: RoomDef[] = [
     minZ: 12,
     maxZ: 18,
     squad: [
-      { kind: 'grunt', x: 13, z: 14.2, yaw: Math.PI },
+      { kind: 'grunt', x: 13, z: 14.2, yaw: Math.PI, route: [[13, 14.2], [21.5, 13.1]], wait: 3 },
       { kind: 'grunt', x: 22.5, z: 16.5, yaw: Math.PI },
     ],
   },
@@ -103,14 +118,16 @@ export const warehouse: MapDef = {
   description: 'Close quarters: dock, racking aisles, offices, corridors and a factory floor.',
   modes: ['clear', 'mission', 'wave'],
   theme: {
-    sky: '#5d6f82',
-    horizon: '#a9b3ba',
+    sky: '#0b111b',
+    horizon: '#2b3440',
     ground: '#5f6364',
     fogStart: 30,
     fogEnd: 90,
     sunDir: [0.35, -1, 0.55],
-    sunIntensity: 0.55,
-    ambient: 0.62,
+    // night: moonlight in the yard, dark inside but for the lamps that are on
+    sunIntensity: 0.16,
+    ambient: 0.3,
+    lightLevel: 0.3,
   },
   build(b: LevelBuilder): MapLayout {
     // ground, yard and building floor
@@ -235,7 +252,19 @@ export const warehouse: MapDef = {
 
     // roof with skylight strips and hanging lights (visual only: no collision, nav samples the floor)
     for (let z = -18; z < 18; z += 6) b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);
-    for (let x = -18; x <= 18; x += 9) for (let z = -15; z <= 15; z += 6) b.box(x, 5.2, z, 0.25, 0.08, 2.6, LIGHT, 0, 0, false);
+    // lamps: only some are on (pools of light, dark aisles between); each room's lamps are one circuit
+    for (let x = -18; x <= 18; x += 9) {
+      for (let z = -15; z <= 15; z += 6) {
+        const on = LAMPS_ON.has(`${x},${z}`);
+        b.box(x, 5.2, z, 0.25, 0.08, 2.6, on ? LIGHT : LAMP_OFF, 0, 0, false);
+        if (on) b.light({ kind: 'lamp', x, y: 5.05, z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: lampGroup(x, z) });
+      }
+    }
+    // floodlights over the dock doors and the workshop door, the yard is moonlit; indoors is dark
+    b.light({ kind: 'spot', x: -18.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20 });
+    b.light({ kind: 'spot', x: -10.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20 });
+    b.light({ kind: 'spot', x: 11.5, y: 4.6, z: -18.6, radius: 7, intensity: 0.8, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.3, 0.7), group: 20 });
+    b.ambientZone(-24, 24, -18, 18, 0.12, -1, 6.2);
 
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
     const props: MapLayout['props'] = [

@@ -20,6 +20,10 @@ export interface SquadSlot {
   z: number;
   /** Facing while holding (radians, 0 = +Z). */
   yaw: number;
+  /** Patrol route while unaware (floor points, walked in order from the slot); none = stand post. */
+  route?: [number, number][];
+  /** Pause at each route point (s). */
+  wait?: number;
 }
 
 export interface RoomDef extends RoomRect {

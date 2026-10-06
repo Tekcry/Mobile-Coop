@@ -55,6 +55,8 @@ Blacklist style.
     > 9 cm apart, feet > 6 cm apart (`--only=name --log`)
   - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
     exposure HUD, enemy grenades/flanker, footstep noise investigation
+  - `scripts/e2e-stealth-ai.mjs` night Warehouse: shadow vs light detection, the arc warns first, no sight through
+    walls, noise -> suspicious -> investigating, squad radio, LKP + ghost + converge + search ends, patrols
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
   - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
   - `scripts/e2e-clear.mjs` Warehouse + Clear mode: only "Enemies left N" (alive + pending), no room tags /
@@ -67,7 +69,7 @@ Blacklist style.
   - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the customiser rig (proportion/silhouette checks)
   - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
     reload|swap|grenade|cover|highcover|peek|vault> [frames] [interval] [side|front|back|ots]` contact sheet
-  - `node scripts/perf.mjs [--budget]` Warehouse, 10 enemies: CPU per 120 Hz frame p50/p95/p99, animation ms per
+  - `node scripts/perf.mjs [--budget]` (`STEALTH=1`: ten unaware enemies perceiving) Warehouse, 10 enemies: CPU per 120 Hz frame p50/p95/p99, animation ms per
     character, allocations (per simulated second / per frame, top allocators), draw calls (`PROFILE=1` CPU profile)
   - `node scripts/soak.mjs [minutes=10]` real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
@@ -101,7 +103,7 @@ Blacklist style.
 | `anim/` | Pure animation: `MotionDriver` (root motion), `curves`/`pose`/`clip` + `clips/` (clip library), `Inertializer`, `AnimGraph` (clip graph -> IK targets), `FootPlanner` (world-space feet), `rigMath` (two-bone IK, `Spring`) |
 | `cover/` | Cover faces (`coverData`, pure), `CoverStateMachine` (pure), `CoverController` (player cover), corners/doorways (`corners` pure, `CornerController`) |
 | `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades, `WeaponCarry` (ready positions, raise-to-fire) |
-| `ai/` | Enemy state machines, grid navmesh + A*, cover points |
+| `ai/` | Enemy state machines, grid navmesh + A*, cover points; `perception` (sight / noise maths), `alertState` (alert levels), `patrol` (routes, posts, search points) - all pure |
 | `world/` | Modular tile kit and map builders (Warehouse, Dust Depot, Proving Grounds), `rooms` (room tags; pure), `anchors` (traversal anchors; pure), `lights` (light model; pure), `lightRig` (renders it) |
 | `progression/` | XP/levels/currency maths, unlock tables, upgrade trees (pure, unit-tested) |
 | `cosmetics/` | Avatar part catalogue, procedural materials/camos |
@@ -444,6 +446,28 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   against an outside corner (`CoverController.cornerSide`), `move` on the cover-to-cover target. One height per surface: `seg.y +
   min(PROMPT_Y 0.55, height / 2)`; `flush()` pushes overlapping prompts apart and keeps them on screen. Glyphs by
   pad / keyboard, icons and tap-to-act by touch.
+
+## Stealth AI (2.0 phase 3a)
+- `ai/perception.ts` (pure, `PERCEPTION`): `sightRate` = rate x (1 - d / range)^1.5 x field (55 deg focus, 25 m;
+  peripheral 100 deg, 12 m, x0.35) x `lightFactor` (`visibilityFromLight`^2) x stance x `motionFactor` x exposure
+  (fraction of chest / head / hips in line of sight) x state sensitivity, plus a close-range term (2.2 m, moving),
+  capped at `maxRate`; `instantDetect` (point blank, lit, in focus); `stepMeter` (rises by what exceeds `leak`,
+  holds `hold`, drains `decay`); `noiseSuspicion(dist, radius)`.
+- `ai/alertState.ts` (pure): `AlertMachine` unaware -> suspicious -> investigating -> alert -> searching ->
+  cooldown (`ALERT` times, `SENSITIVITY` per level). `Enemy.alerted` = level alert (combat).
+- `Enemy`: perceives at ~4 Hz (rays to chest, head, hips; hips skipped in combat), integrates the meter per fixed
+  step (`updateAwareness`), `calmDecide` drives patrol (`PatrolWalker`: `SquadSlot.route` / post with glances),
+  look at the stimulus, walk to it (`goTo`: straight or A*), search sweeps (`searchPoint`, `searchSlot`). Inputs:
+  `hear(x, z, radius)`, `hearGunfire`, `radio(delay)`, `searchAt` (bodies / lights, phase 3b), `alert()`.
+- `EnemyManager.stealth` (Clear, Mission): shared `lkp` (sightings by alerted enemies, located gunfire), flow field
+  to the LKP (never the real position), chase / face the LKP out of sight, arriving with nothing there starts the
+  search; `callAlert` radios within `RADIO` 22 m (a radioed alert does not relay); `sightT`, `hunting`. Off (Wave),
+  enemies are sent at the players and combat never cools into a search.
+- HUD: `ui/hud/awareness.ts` arcs round the crosshair (canvas, drawn only while showing; `shown / maxFill /
+  anyRed`), `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette, 2 draw calls) captured from the rig
+  while seen, shown at the LKP while hunted unseen (`GameState.updateStealthHud`).
+- Light: `LightRegistry.zones` / `ambientAt` (`LevelBuilder.ambientZone`); Warehouse is a night map (yard 0.3,
+  interior 0.12, `LAMPS_ON`, lamp `group` per room).
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

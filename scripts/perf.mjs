@@ -14,22 +14,33 @@ const enforce = args.includes('--budget');
 // non-inlined calls and Havok's embind marshalling (young-generation churn, no retained objects).
 const BUDGET = { cpuP95Ms: 3.5, animPerCharMs: 0.04, drawCalls: 80, kbPerFrame: 96 };
 
-const { browser, page, errors } = await launch({ url, params: `autostart=warehouse&mode=wave&debug=1${process.env.WARM ? '&warm=' + process.env.WARM : ''}` });
+// STEALTH=1: the ten are unaware (stealth rules, patrols / posts, full perception with exposure rays)
+const stealth = !!process.env.STEALTH;
+const { browser, page, errors } = await launch({ url, params: `autostart=warehouse&mode=${stealth ? 'clear' : 'wave'}&debug=1${process.env.WARM ? '&warm=' + process.env.WARM : ''}` });
 await frames(page, 10);
-await page.evaluate(() => {
+await page.evaluate((stealth) => {
   const app = window.__app;
   const g = app.current;
   g.target.damageMul = 0;
+  if (stealth) {
+    g.mode.pending.length = 0;
+    g.enemyMgr.clear();
+  }
   const V = g.player.position.constructor;
   // factory floor fight: player at the south door, ten enemies spread over the floor
   g.player.controller.teleport(new V(3, 0, -7.5), 0);
   g.player.cam.yaw = 0;
   const spots = [[-1, -2], [4, -3], [8, -1], [12, 0.5], [16, -4], [-1, 4], [4, 6], [8, 3], [13, 7], [18, 4]];
-  for (let i = 0; i < 10; i++) g.enemyMgr.spawn(['grunt', 'runner', 'heavy'][i % 3], new V(spots[i][0], 0, spots[i][1]), true);
+  for (let i = 0; i < 10; i++) {
+    const e = g.enemyMgr.spawn(['grunt', 'runner', 'heavy'][i % 3], new V(spots[i][0], 0, spots[i][1]), !stealth, i * 0.6);
+    // stealth: half walk short beats, all keep looking; the player crouches in the dark doorway
+    if (stealth && i % 2 === 0) e.setPatrol({ points: [[spots[i][0], spots[i][1]], [spots[i][0] + 2, spots[i][1] + 1.5]], wait: 1 });
+  }
+  if (stealth) g.player.controller['crouchToggled'] = true;
   // warm up long enough for the JIT to optimise the hot paths (boxed doubles in baseline code would
   // otherwise dominate the allocation profile)
   for (let i = 0; i < Number(new URLSearchParams(location.search).get("warm") ?? 16); i++) app.loop.stepHeadless(0.5, 120);
-});
+}, stealth);
 
 // CPU per simulated 120 Hz display frame, sampled per frame
 const cpu = await page.evaluate(() => {

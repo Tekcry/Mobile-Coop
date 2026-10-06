@@ -35,6 +35,18 @@ export class EnemyManager {
   private grenadeT = 0;
   /** Grenades thrown (tests / debug). */
   grenadesThrown = 0;
+  /**
+   * Stealth rules (Clear, Mission): enemies know where a player is only from sight, sound and each other,
+   * chase the shared last known position and search it. Off (Wave): they are sent at the players.
+   */
+  stealth = false;
+  /** Shared last known position of the players (the latest sighting / located noise). */
+  readonly lkp = new Vector3();
+  lkpValid = false;
+  /** Seconds since an alerted enemy last had a player in sight. */
+  sightT = 99;
+  /** Radio range for a detection call (m). */
+  static readonly RADIO = 22;
 
   constructor(
     scene: Scene,
@@ -88,6 +100,26 @@ export class EnemyManager {
         this.grenades.throw(from, v, 'enemy', e.id, undefined, true);
         return true;
       },
+      stealth: () => this.stealth,
+      lkp: this.lkp,
+      lkpValid: () => this.lkpValid,
+      reportSighting: (p) => {
+        this.lkp.copyFrom(p.feet);
+        this.lkpValid = true;
+        this.sightT = 0;
+      },
+      callAlert: (e) => {
+        for (const o of this.enemies) {
+          if (o === e || !o.alive || o.alerted) continue;
+          const d = Vector3.Distance(o.pos, e.pos);
+          if (d < EnemyManager.RADIO) o.radio(0.4 + d * 0.03 + Math.random() * 0.3);
+        }
+      },
+      searchSlot: (e) => {
+        let n = 0;
+        for (const o of this.enemies) if (o !== e && o.alive && o.level === 'searching' && o.num < e.num) n++;
+        return n;
+      },
       canRagdoll: () => this.ragdolls.filter((r) => !r.done).length < BUDGET.maxRagdolls,
       addRagdoll: (_e, rig: CharacterRig, imp: Vector3) => this.ragdolls.push(new Ragdoll(scene, rig, imp)),
     };
@@ -116,14 +148,29 @@ export class EnemyManager {
     return e;
   }
 
-  /** Alert enemies within radius (gunfire noise). */
+  /** Gunfire heard within radius: those enemies go to combat towards it (and it locates the shooter). */
   noise(pos: Vector3, radius: number): void {
-    for (const e of this.enemies) if (e.alive && Vector3.Distance(e.pos, pos) < radius) e.alert();
+    let any = false;
+    for (const e of this.enemies) {
+      if (!e.alive || Vector3.Distance(e.pos, pos) >= radius) continue;
+      e.hearGunfire(pos.x, pos.z);
+      any = true;
+    }
+    if (any) {
+      this.lkp.copyFrom(pos);
+      this.lkpValid = true;
+    }
   }
 
-  /** Footsteps: unalerted enemies within radius walk over to investigate. */
+  /** A noise (footsteps, landings, glass...): unalerted enemies within radius grow suspicious and look. */
   hear(pos: Vector3, radius: number): void {
-    for (const e of this.enemies) if (e.alive && Vector3.Distance(e.pos, pos) < radius) e.hear(pos.x, pos.z);
+    for (const e of this.enemies) if (e.alive && Vector3.Distance(e.pos, pos) < radius) e.hear(pos.x, pos.z, radius);
+  }
+
+  /** Any enemy in combat or searching (the last known position matters). */
+  get hunting(): boolean {
+    for (const e of this.enemies) if (e.alive && (e.alerted || e.level === 'searching')) return true;
+    return false;
   }
 
   /** Pick (or drop) the flanker: someone with cover tactics once a player has held cover a while. */
@@ -148,13 +195,21 @@ export class EnemyManager {
   }
 
   private refreshFlow(): void {
-    const goals = this.players()
-      .filter((p) => p.target.alive)
-      .map((p) => [p.feet.x, p.feet.z] as [number, number]);
+    // stealth: towards where they think the players are, never where they really are
+    const goals = this.stealth
+      ? this.lkpValid
+        ? [[this.lkp.x, this.lkp.z] as [number, number]]
+        : []
+      : this.players()
+          .filter((p) => p.target.alive)
+          .map((p) => [p.feet.x, p.feet.z] as [number, number]);
     if (goals.length) this.nav.flowField(goals, this.flowField);
   }
 
   update(dt: number): void {
+    this.sightT += dt;
+    // nobody hunting any more: the last known position is forgotten
+    if (this.lkpValid && this.sightT > 2 && !this.hunting) this.lkpValid = false;
     this.flowT -= dt;
     if (this.flowT <= 0) {
       this.flowT = 0.5;

@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.12.0 - 2.0 phase 3a: perception, alert states, last known position
+- Perception (`ai/perception.ts`): a 55 deg / 25 m focused cone and slower peripheral vision (100 deg, 12 m); an
+  awareness meter fills by distance, the light on the body (squared: shadow hides far more), stance, motion
+  (still .. sprint) and how much of the body is in view (three line-of-sight samples). Weak evidence (a dim shape)
+  never builds up; out of sight the meter holds, then drains. Within 2.2 m a moving body is noticed in any light;
+  point blank in full light in the cone is instant, anything else takes at least ~0.3 s (the arc shows first).
+- Alert states (`ai/alertState.ts`): unaware (patrol route or post with glances) -> suspicious (stops and looks)
+  -> investigating (walks over and looks round) -> alert (the existing combat AI) -> searching (sweeps out from
+  the last known position on a widening ring, searchers fanned out) -> cooldown (45 s, still jumpy). One heard
+  noise is enough to go and look. Detection radios squadmates within 22 m (no relay); damage and gunfire go
+  straight to combat.
+- Last known position (stealth rules): enemies chase and search where they last saw (or heard the shots of) the
+  player, never where the player is; a pale ghost of the player in the last-seen pose marks it once they lose
+  sight; it clears when the search ends. Wave keeps enemies sent at the player (no stealth rules).
+- HUD: awareness arcs round the crosshair (white filling = noticing, red = detected and in sight); a light meter on
+  the tactical strip (blue in shadow).
+- Night Warehouse: moonlit yard (0.3), dark interior (0.12) with 14 of 30 lamp strips lit (pools, dark aisles
+  between; each room's lamps are one circuit for switches later), floodlights at the doors. Clear-mode squads walk
+  routes (dock, workshop, racking, factory floor, mezzanine) or stand post. `LightRegistry` ambient zones.
+- Blacklist rules where the plan was open: the focused cone is 55 deg in total; investigating after one sound;
+  radio range 22 m without relays; the search lasts 25 s.
+- Tests: unit tests for the detection maths, alert transitions, patrols / search points and ambient zones;
+  `e2e-stealth-ai` (shadow vs light, the arc warns first, no sight through walls, noise -> investigate, radio,
+  LKP + ghost + converge + search ends, patrols); `perf.mjs` with `STEALTH=1` (ten unaware enemies perceiving).
+
 ## 1.11.0 - 2.0 phase 2 feedback: faster climbing, pipe tops, passing climbers
 - Ladders: 3 rungs/s (was 1.6), hold sprint for 5 rungs/s; hands and feet step quicker with the climb; an upright
   pose (body close to the rungs, head up), one limb moving at a time.

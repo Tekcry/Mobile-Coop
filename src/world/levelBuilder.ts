@@ -273,6 +273,12 @@ export class LevelBuilder {
     return this;
   }
 
+  /** A box with its own ambient light level (an unlit interior under a roof). */
+  ambientZone(minX: number, maxX: number, minZ: number, maxZ: number, ambient: number, minY = -1, maxY = 8): this {
+    this.lights.addZone({ minX, maxX, minY, maxY, minZ, maxZ, ambient });
+    return this;
+  }
+
   build(scene: Scene, name: string): BuiltLevel {
     const root = new TransformNode(`level-${name}`, scene);
     const mat = new StandardMaterial(`levelMat-${name}`, scene);

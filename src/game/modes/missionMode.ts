@@ -41,6 +41,7 @@ export class MissionMode implements GameMode {
     }
     for (const t of this.terminals) ints.setEnabled(t, true);
     // pre-placed squads, unaware until they see or hear you
+    this.g.enemyMgr!.stealth = true;
     const kinds: EnemyKind[] = ['grunt', 'grunt', 'runner'];
     this.g.world.layout.enemySpawns.forEach((s, i) => {
       const n = i % 3 === 0 ? 3 : 2;
