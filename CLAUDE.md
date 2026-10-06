@@ -60,6 +60,8 @@ Blacklist style.
   - `scripts/e2e-enemies.mjs` heavy (plates / back / face plate, lethal-only frontal takedown), enforcer (shield,
     no frontal grab, pushes), sniper (laser, glint refuses a mark, relocates), dog (smell in the dark, takedown),
     drone operator (spots, shot down, EMP), officer (buff, alarm first), radio check, callouts, Perfectionist
+  - `scripts/e2e-levels.mjs` multi-level AI: three storeys per column, Warehouse ladder links both ways, a runner
+    chasing the player up a rack ladder and back down
   - `scripts/e2e-missions.mjs` Hunter alarm doubles the hostiles; Infiltration objective types to success (download
     pauses away + noticed pulses, intel any order, plant, rescue + escort, sabotage, extraction, results rating and
     style bars) and failure (Ghost contract detection, three downs); routes per objective + 25 anchors per map
@@ -396,8 +398,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   zipline hints beat geometric moves. Lowering into a hang is `AttachController.lower` (separate from `hint`).
 - 2c: maps place anchors for alternate routes (Warehouse windows, rack ladders, mezzanine ladder / zipline, a duct
   into the manager's office; Dust Depot windows and wall-top routes). `REACH.grabMax` 2.7, `LEDGE.climbDepth` 0.38.
-  `BoxPiece.overhead` (`LevelBuilder.mark`): ceiling slabs / ducts the nav sampler looks through (multi-level nav is
-  Phase 7). Clean poses: quick stow (`STOW_RATE`), outside-corner transfers curve through `via`, jumps need
+  `BoxPiece.overhead` (`LevelBuilder.mark`): ceiling slabs / ducts that are never nav blockers for the floor under
+  them (the layered grid keeps both surfaces). Clean poses: quick stow (`STOW_RATE`), outside-corner transfers curve through `via`, jumps need
   `lineClear`, `CLIMB_UP` / `VENT_DROP` / `WINDOW_VAULT` clips, `PIPE_STANDOFF`, `plantFade`; the camera clamps the
   orbit to the preset's `cone` around `cam.attachYaw`.
   While attached the graph skips the swap clip (the stowed weapon goes straight to its slot).
@@ -664,6 +666,16 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## AI and modes
 - `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only
   for cover moves, and are constrained to nav cells (no physics character controller per enemy).
+- Multi-level (2.1): the grid is layered - up to 3 standing surfaces per column (`sampleLayers`: rays cast on from
+  under each piece hit, a surface needs `HEADROOM` 1.7 m), cell = `layer * cols + column`; columns join by height
+  (`stepTo`), never by layer number. Links (`navLinks`): ladders both ways (`kind 'ladder'`, route foot -> rungs ->
+  top), ledge drops 1-2.2 m one way; A* / Dijkstra take them (`fillPredecessors` for the flow field), paths split
+  at them (`Waypoint.link`), `flowNext` returns a link's start. Every query takes an optional height (`cellOf`,
+  `heightAt`, `nearestWalkable` (soft: the storey nearest it), `lineClear(a, b, ya, yb)`, `findPath(.., fromY,
+  toY)`, `flowField(goals, out, ys)`, `flowNext(.., y)`); NaN = the lowest surface. Enemies: `cellNear` keeps
+  their storey, `goTo` defaults to their own height, `beginLink` / `runLink` (walk 1.5, climb 1.1 up / 1.4 down,
+  drop 6 m/s; `climbing` -> `traverse 'climb'` pose; dogs wait at the foot), `linksTaken`. `SquadSlot.y` spawns on
+  an upper storey.
 - Enemy brains (`ai/enemy.ts`) think at ~4 Hz (LOS raycasts staggered) and act every fixed step. Tactics: walk
   when they can see the target, run only to contact/between covers; suppressive fire at the last known
   position, blind fire in some hide phases; cover choice weighted by `coverQuality`; `EnemyManager` assigns one

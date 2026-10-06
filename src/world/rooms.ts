@@ -12,6 +12,9 @@ export interface RoomRect {
   maxX: number;
   minZ: number;
   maxZ: number;
+  /** Storey bounds (feet height; default every height): rooms on an upper floor over rooms below. */
+  minY?: number;
+  maxY?: number;
 }
 
 export interface SquadSlot {
@@ -20,6 +23,8 @@ export interface SquadSlot {
   z: number;
   /** Facing while holding (radians, 0 = +Z). */
   yaw: number;
+  /** Height of its storey (upper floors, roofs; default the lowest surface there). */
+  y?: number;
   /** Patrol route while unaware (floor points, walked in order from the slot); none = stand post. */
   route?: [number, number][];
   /** Pause at each route point (s). */
@@ -31,17 +36,20 @@ export interface RoomDef extends RoomRect {
   squad?: SquadSlot[];
 }
 
-export function inRoom(r: RoomRect, x: number, z: number, margin = 0): boolean {
+/** Is (x, z) in the room (with a height y: on its storey too; NaN = any storey)? */
+export function inRoom(r: RoomRect, x: number, z: number, margin = 0, y = Number.NaN): boolean {
+  if (y === y && ((r.minY !== undefined && y < r.minY - 0.5) || (r.maxY !== undefined && y >= r.maxY))) return false;
   return x >= r.minX - margin && x <= r.maxX + margin && z >= r.minZ - margin && z <= r.maxZ + margin;
 }
 
-/** Index of the room containing (x, z), the smallest one when rooms overlap; -1 outside every room. */
-export function roomAt(rooms: readonly RoomRect[], x: number, z: number): number {
+/** Index of the room containing (x, z) (on the storey at y when given), the smallest one when rooms overlap;
+ *  -1 outside every room. */
+export function roomAt(rooms: readonly RoomRect[], x: number, z: number, y = Number.NaN): number {
   let best = -1;
   let bestArea = Infinity;
   for (let i = 0; i < rooms.length; i++) {
     const r = rooms[i]!;
-    if (!inRoom(r, x, z)) continue;
+    if (!inRoom(r, x, z, 0, y)) continue;
     const a = (r.maxX - r.minX) * (r.maxZ - r.minZ);
     if (a < bestArea) {
       bestArea = a;

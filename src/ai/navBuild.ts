@@ -1,10 +1,20 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import type { BuiltLevel } from '../world/levelBuilder';
-import { NavGrid, type NavBlocker } from './navGrid';
+import { NavGrid, type NavBlocker, type NavLinkInput, type NavSample } from './navGrid';
 import { insideBox } from '../world/anchors';
+import { hyp2 } from '../core/mathx';
 
-/** Builds the nav grid for a level: heights via Havok raycasts, blockers from level pieces. */
+/** Standing room an enemy needs over a surface (m). */
+const HEADROOM = 1.7;
+/** Ledge drops enemies take (m): above the lower bound it is a link, beyond the upper they go round. */
+const DROP_MIN = 1.0;
+const DROP_MAX = 2.2;
+
+/**
+ * Builds the nav grid for a level: every standing surface per column via Havok raycasts (a floor, a storey
+ * over it, a roof), blockers from level pieces, links for ladders (both ways) and drops off ledges (down).
+ */
 export function buildNavGrid(scene: Scene, level: BuiltLevel, seed: Vector3): NavGrid {
   const eng = scene.getPhysicsEngine() as PhysicsEngine;
   const res = new PhysicsRaycastResult();
@@ -21,9 +31,35 @@ export function buildNavGrid(scene: Scene, level: BuiltLevel, seed: Vector3): Na
     if (!c.collide) continue;
     blockers.push({ cx: c.c[0], cz: c.c[2], hx: c.r, hz: c.r, yaw: 0, bottom: c.c[1] - c.h / 2, top: c.c[1] + c.h / 2, round: true });
   }
-  // overhead pieces (ceiling slabs, ducts, catwalks over rooms): the floor under them is what the nav walks on
-  const overhead = level.boxes.filter((b) => b.overhead && b.collide);
   const bd = level.bounds;
+  // solids bucketed on a coarse grid by their footprint circle (a lookup per ray hit stays cheap)
+  const BUCKET = 4;
+  const bw = Math.max(1, Math.ceil((bd.maxX - bd.minX) / BUCKET));
+  const bh = Math.max(1, Math.ceil((bd.maxZ - bd.minZ) / BUCKET));
+  const buckets: (typeof level.boxes)[] = Array.from({ length: bw * bh }, () => []);
+  for (const o of level.boxes) {
+    if (!o.collide || Math.abs(o.pitch) > 1e-3) continue;
+    const r = hyp2(o.s[0], o.s[2]) / 2;
+    const x0 = Math.max(0, Math.floor((o.c[0] - r - bd.minX) / BUCKET));
+    const x1 = Math.min(bw - 1, Math.floor((o.c[0] + r - bd.minX) / BUCKET));
+    const z0 = Math.max(0, Math.floor((o.c[2] - r - bd.minZ) / BUCKET));
+    const z1 = Math.min(bh - 1, Math.floor((o.c[2] + r - bd.minZ) / BUCKET));
+    for (let iz = z0; iz <= z1; iz++) for (let ix = x0; ix <= x1; ix++) buckets[iz * bw + ix]!.push(o);
+  }
+  const cyls = level.cylinders.filter((c) => c.collide);
+  /** Bottom of the solid piece just under a hit at (x, y, z) (to cast on below it), or NaN. */
+  const pieceBottom = (x: number, y: number, z: number): number => {
+    let bottom = Number.NaN;
+    const ix = Math.min(bw - 1, Math.max(0, Math.floor((x - bd.minX) / BUCKET)));
+    const iz = Math.min(bh - 1, Math.max(0, Math.floor((z - bd.minZ) / BUCKET)));
+    for (const o of buckets[iz * bw + ix]!) if (insideBox(o, x, y, z, 0.01)) bottom = Math.min(bottom === bottom ? bottom : Infinity, o.c[1] - o.s[1] / 2);
+    for (const c of cyls) {
+      if (Math.abs(y - c.c[1]) <= c.h / 2 + 0.01 && hyp2(x - c.c[0], z - c.c[2]) <= c.r + 0.01) bottom = Math.min(bottom === bottom ? bottom : Infinity, c.c[1] - c.h / 2);
+    }
+    return bottom;
+  };
+  let top = 14;
+  for (const b of level.boxes) top = Math.max(top, b.c[1] + b.s[1] / 2 + 1);
   return new NavGrid({
     minX: bd.minX,
     maxX: bd.maxX,
@@ -33,25 +69,60 @@ export function buildNavGrid(scene: Scene, level: BuiltLevel, seed: Vector3): Na
     agentRadius: 0.32,
     stepHeight: 0.45,
     blockers,
+    links: navLinks(level),
     seed: [seed.x, seed.z],
-    sample: (x, z) => {
-      let y = 12;
-      for (let k = 0; k < 4; k++) {
+    sample: () => ({ h: 0, ok: false }),
+    sampleLayers: (x, z) => {
+      const out: NavSample[] = [];
+      let y = top;
+      let ceiling = Infinity;
+      for (let k = 0; k < 8 && y > -1.5; k++) {
         from.set(x, y, z);
         to.set(x, -2, z);
         res.reset();
         eng.raycastToRef(from, to, res, { membership: G.PROJECTILE, collideWith: G.STATIC });
-        if (!res.hasHit) return { h: 0, ok: false };
+        if (!res.hasHit) break;
         const hy = res.hitPoint.y;
-        let skip = false;
-        for (let i = 0; i < overhead.length && !skip; i++) skip = insideBox(overhead[i]!, x, hy - 0.02, z, 0.01);
-        if (!skip) return { h: hy, ok: res.hitNormal.y > 0.65 };
-        // look through it: continue from just under the piece
-        let bottom = hy;
-        for (const o of overhead) if (insideBox(o, x, hy - 0.02, z, 0.01)) bottom = Math.min(bottom, o.c[1] - o.s[1] / 2);
-        y = bottom - 0.02;
+        if (ceiling - hy >= HEADROOM) out.push({ h: hy, ok: res.hitNormal.y > 0.65 });
+        // cast on from under the piece hit (a ray starting inside a solid would miss it)
+        const b = pieceBottom(x, hy - 0.02, z);
+        ceiling = b === b ? b : hy - 0.35;
+        y = ceiling - 0.02;
       }
-      return { h: 0, ok: false };
+      out.reverse();
+      return out;
     },
   });
+}
+
+/** Ladders (climbed both ways) and drops off generated / placed ledges, as routes for the grid to resolve. */
+export function navLinks(level: Pick<BuiltLevel, 'anchors'>): NavLinkInput[] {
+  const links: NavLinkInput[] = [];
+  for (const l of level.anchors.ladders) {
+    const fx = Math.sin(l.facing);
+    const fz = Math.cos(l.facing);
+    const sx = l.base.x - fx * 0.32;
+    const sz = l.base.z - fz * 0.32;
+    links.push({
+      kind: 'ladder',
+      twoWay: true,
+      pts: [l.base.x - fx * 0.7, l.base.y, l.base.z - fz * 0.7, sx, l.base.y, sz, sx, l.top.y, sz, l.top.x + fx * 0.3, l.top.y, l.top.z + fz * 0.3],
+    });
+  }
+  for (const e of level.anchors.ledges) {
+    if (e.drop < DROP_MIN || e.drop > DROP_MAX || e.len < 0.8) continue;
+    const n = Math.max(1, Math.floor(e.len / 1.6));
+    for (let i = 0; i < n; i++) {
+      const t = (i + 0.5) / n;
+      const x = e.a.x + (e.b.x - e.a.x) * t;
+      const z = e.a.z + (e.b.z - e.a.z) * t;
+      const low = e.top - e.drop;
+      links.push({
+        kind: 'drop',
+        twoWay: false,
+        pts: [x - e.nx * 0.45, e.top, z - e.nz * 0.45, x + e.nx * 0.2, e.top, z + e.nz * 0.2, x + e.nx * 0.65, low, z + e.nz * 0.65],
+      });
+    }
+  }
+  return links;
 }

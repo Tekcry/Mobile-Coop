@@ -1130,7 +1130,7 @@ export class GameState implements AppState {
     if (this.roomT > 0) return;
     this.roomT = 0.25;
     const p = this.player.position;
-    const ri = roomAt(rooms, p.x, p.z);
+    const ri = roomAt(rooms, p.x, p.z, p.y);
     this.currentRoom = ri;
     // Clear mode shows no room names (only the hostiles left)
     this.hud.setRoom(ri >= 0 && !(this.mode instanceof ClearMode) ? rooms[ri]!.name : null);

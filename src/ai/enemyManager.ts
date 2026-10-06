@@ -346,10 +346,10 @@ export class EnemyManager {
 
   spawn(kind: EnemyKind, pos: Vector3, alerted = true, yaw = 0): Enemy | null {
     if (this.alive >= MAX_ALIVE) return null;
-    const c = this.nav.nearestWalkable(pos.x, pos.z, 8);
+    const c = this.nav.nearestWalkable(pos.x, pos.z, 8, pos.y);
     if (c < 0) return null;
     const [x, z] = this.nav.center(c);
-    const e = new Enemy(this.ctx, ENEMIES[kind], new Vector3(x, 0, z), yaw);
+    const e = new Enemy(this.ctx, ENEMIES[kind], new Vector3(x, this.nav.height[c]!, z), yaw);
     if (alerted) e.alert();
     this.enemies.push(e);
     if (kind === 'droneOp') this.drones.push(new ReconDrone(this.scene, this.world.parts, this.registry, this.ballistics, this.vfx, e));
@@ -463,14 +463,11 @@ export class EnemyManager {
 
   private refreshFlow(): void {
     // stealth: towards where they think the players are, never where they really are
-    const goals = this.stealth
-      ? this.lkpValid
-        ? [[this.lkp.x, this.lkp.z] as [number, number]]
-        : []
-      : this.players()
-          .filter((p) => p.target.alive)
-          .map((p) => [p.feet.x, p.feet.z] as [number, number]);
-    if (goals.length) this.nav.flowField(goals, this.flowField);
+    const live = this.players().filter((p) => p.target.alive);
+    const goals = this.stealth ? (this.lkpValid ? [[this.lkp.x, this.lkp.z] as [number, number]] : []) : live.map((p) => [p.feet.x, p.feet.z] as [number, number]);
+    // heights pick the storey (a roof, an upper floor) the goal is on
+    const ys = this.stealth ? [this.lkp.y] : live.map((p) => p.feet.y);
+    if (goals.length) this.nav.flowField(goals, this.flowField, ys);
   }
 
   update(dt: number): void {

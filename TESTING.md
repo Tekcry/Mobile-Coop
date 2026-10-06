@@ -299,6 +299,10 @@ Controls:
 - [ ] Client: a takedown, then mark two guards and Execute: both drop on the host's screen too.
 - [ ] Client throws gas at a patrol: the host's guards fall asleep. Two takedowns at once: "DUAL TAKEDOWN".
 
+## 2.1.0 - Multi-level AI (phone)
+- [ ] Warehouse Wave: climb a rack ladder; runners climb after you, guards shoot from the floor; come down and
+      a guard on the rack climbs down. Embassy Hunter: get seen on a roof, drop out of sight - guards search up there.
+
 ## 2.0.1 - Feedback fixes - phone
 - [ ] Main menu fits without scrolling in landscape; a long list (Settings tabs, HQ, Store) scrolls by dragging.
 - [ ] Back button (top left) works on the first tap on every screen, including HQ, Armory, Store and Settings.

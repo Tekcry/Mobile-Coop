@@ -87,7 +87,7 @@ export class InfiltrationMode implements GameMode {
         i++;
         continue;
       }
-      const e = em.spawn(q.slot.kind, new Vector3(q.slot.x, 0, q.slot.z), false, q.slot.yaw);
+      const e = em.spawn(q.slot.kind, new Vector3(q.slot.x, q.slot.y ?? Number.NaN, q.slot.z), false, q.slot.yaw);
       if (!e) break;
       const r = rooms[q.room];
       if (r) e.hold = r;

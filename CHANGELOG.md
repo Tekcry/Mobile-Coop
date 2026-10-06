@@ -6,6 +6,9 @@
   an edge arrow when off screen); clients use Mark & Execute (a takedown earns the charge, checked by the host);
   clients' gas, flashbangs, EMPs and noisemakers act on the host's guards and show for everyone; two takedowns
   within 1.5 s are a Dual Takedown.
+- Multi-level AI: the nav grid keeps every storey (a floor, the storey over it, a roof); guards use stairs,
+  climb ladders up and down (in a climbing pose) and drop off low ledges to reach you or the last place they saw
+  you - rack tops and roofs are no longer safe spots. Dogs wait at the foot of a ladder.
 
 ## 2.0.1 - Feedback: menus, back buttons, calmer guards, fair PvP
 - Main menu: a compact two-column grid (Play across the top) that fits a landscape phone; every menu that

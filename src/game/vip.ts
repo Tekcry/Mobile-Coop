@@ -84,11 +84,11 @@ export class Vip {
       let tx = to.x;
       let tz = to.z;
       const nav = this.nav;
-      if (nav && !nav.lineClear([this.pos.x, this.pos.z], [to.x, to.z])) {
+      if (nav && !nav.lineClear([this.pos.x, this.pos.z], [to.x, to.z], this.pos.y, to.y)) {
         this.pathT -= dt;
         if (this.pathT <= 0 || !this.path.length) {
           this.pathT = 1;
-          this.path = nav.findPath([this.pos.x, this.pos.z], [to.x, to.z], 8000) ?? [];
+          this.path = nav.findPath([this.pos.x, this.pos.z], [to.x, to.z], 8000, this.pos.y, to.y) ?? [];
         }
         const wp = this.path[0];
         if (wp) {
@@ -115,11 +115,11 @@ export class Vip {
     const nx = this.pos.x + this.vel.x * dt;
     const nz = this.pos.z + this.vel.z * dt;
     const nav = this.nav;
-    if (!nav || nav.isWalkable(nav.cellOf(nx, nz))) {
+    if (!nav || nav.isWalkable(nav.cellNear(nav.cellOf(this.pos.x, this.pos.z, this.pos.y), nx, nz))) {
       this.pos.x = nx;
       this.pos.z = nz;
     }
-    if (nav) this.pos.y += (nav.heightAt(this.pos.x, this.pos.z) - this.pos.y) * Math.min(1, dt * 10);
+    if (nav) this.pos.y += (nav.heightAt(this.pos.x, this.pos.z, this.pos.y) - this.pos.y) * Math.min(1, dt * 10);
     this.yaw = this.motion.yaw;
     this.crouch += ((crouched ? 1 : 0) - this.crouch) * Math.min(1, dt * 6);
   }

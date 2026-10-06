@@ -9,7 +9,7 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { World } from '../world/world';
 import type { Ballistics } from '../weapons/ballistics';
 import type { Vfx } from '../vfx/vfx';
-import type { NavGrid, P2 } from './navGrid';
+import type { NavGrid, NavLink, P2, Waypoint } from './navGrid';
 import { COVER_STANDOFF, type CoverPoint } from '../world/levelBuilder';
 import { coverPose, nearestEdge, type CoverSegment } from '../cover/coverData';
 import { coverQuality, flanks, type CoverSpot } from '../game/tactics';
@@ -137,7 +137,7 @@ export class Enemy implements Damageable {
   private thinkT = Math.random() * 0.25;
   /** Light level on the target at the last think (0 dark .. 1 lit). */
   targetLight = 1;
-  private path: P2[] = [];
+  private path: Waypoint[] = [];
   coverIdx = -1;
   private burstLeft = 0;
   private fireT = 0;
@@ -184,7 +184,7 @@ export class Enemy implements Damageable {
   private spotLookT = 0;
   private lookBase = 0;
   private searchK = 0;
-  private routePath: P2[] = [];
+  private routePath: Waypoint[] = [];
   private routeGoal: P2 = [NaN, NaN];
   private routeT = 0;
   /** Searching round its own stimulus (a body, a light) rather than the shared last known position. */
@@ -245,7 +245,7 @@ export class Enemy implements Damageable {
     const d = DIFFICULTY[ctx.difficulty];
     this.health = new Health(def.hp * d.hp);
     this.pos = spawn.clone();
-    this.pos.y = ctx.nav.heightAt(spawn.x, spawn.z);
+    this.pos.y = ctx.nav.heightAt(spawn.x, spawn.z, spawn.y);
     this.yaw = yaw;
     this.motion = new MotionDriver(yaw);
     this.prevPos.copyFrom(this.pos);
@@ -315,6 +315,7 @@ export class Enemy implements Damageable {
   /** Grabbed: the brain stops, the body struggles (arms up to the attacker's hold, head back). */
   beginTakedown(choke: boolean): void {
     this.taken = true;
+    this.endLink();
     this.burstLeft = 0;
     this.windup = 0;
     this.vel.setAll(0);
@@ -694,6 +695,12 @@ export class Enemy implements Damageable {
     else this.losT = 0;
     this.updateAwareness(dt);
 
+    // on a ladder / dropping off a ledge: the route drives the body until it is off
+    if (this.link) {
+      this.runLink(dt);
+      this.syncHitboxes();
+      return;
+    }
     const goal = this.decide(dt);
     this.move(dt, goal.point, goal.speed, goal.face);
     this.crouch += ((this.wantCrouch ? 1 : 0) - this.crouch) * Math.min(1, dt * 8);
@@ -704,7 +711,7 @@ export class Enemy implements Damageable {
     // entering a new room without sight of the target: stop at the threshold and check it first
     const rooms = this.ctx.rooms;
     if (rooms.length) {
-      const ri = roomAt(rooms, this.pos.x, this.pos.z);
+      const ri = roomAt(rooms, this.pos.x, this.pos.z, this.pos.y);
       if (ri !== this.room) {
         if (this.room >= 0 && ri >= 0 && this.alerted && !this.los && this.state === 'chase' && !this.def.melee) this.doorCheck = 0.7;
         this.room = ri;
@@ -857,13 +864,15 @@ export class Enemy implements Damageable {
 
   /** Head towards a floor point: straight when the line is clear, else along an A* path (replanned when the
    *  goal moves). Returns the next waypoint, or null when there. */
-  private goTo(p: P2, dt: number, near = 0.6): P2 | null {
+  private goTo(p: P2, dt: number, near = 0.6, y = Number.NaN): Waypoint | null {
+    // no height given: the storey nearest its own (patrol routes and heard spots are floor points)
+    if (y !== y) y = this.pos.y;
     const me = this.meP;
     me[0] = this.pos.x;
     me[1] = this.pos.z;
-    if (hyp2(p[0] - me[0], p[1] - me[1]) < near) return null;
+    if (hyp2(p[0] - me[0], p[1] - me[1]) < near && (y !== y || Math.abs(y - this.pos.y) < 1.2)) return null;
     const nav = this.ctx.nav;
-    if (nav.lineClear(me, p)) {
+    if (nav.lineClear(me, p, this.pos.y, y)) {
       this.routePath.length = 0;
       return p;
     }
@@ -873,11 +882,12 @@ export class Enemy implements Damageable {
       this.routeT = 1;
       this.routeGoal[0] = p[0];
       this.routeGoal[1] = p[1];
-      this.routePath = nav.findPath(me, p, 3000) ?? [];
+      this.routePath = nav.findPath(me, p, 3000, this.pos.y, y) ?? [];
       if (this.routePath.length === 0) return null;
     }
     const wp = this.routePath[0]!;
-    if (hyp2(wp[0] - me[0], wp[1] - me[1]) < 0.4) this.routePath.shift();
+    // a ladder / drop waypoint is taken (and dropped) by `move`
+    if (!wp.link && hyp2(wp[0] - me[0], wp[1] - me[1]) < 0.4) this.routePath.shift();
     return this.routePath[0] ?? p;
   }
 
@@ -1019,7 +1029,7 @@ export class Enemy implements Damageable {
     const known = this.los || this.smelled || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
     const tp: P2 = [known.x, known.z];
     // holding a room against a target outside it
-    const outside = this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5);
+    const outside = this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5, t.feet.y);
     if (this.doorCheck > 0 && !this.los) return { point: null, speed: 0, face: null };
 
     // ---- melee (runner) ----
@@ -1044,7 +1054,7 @@ export class Enemy implements Damageable {
       this.lunge -= dt;
       const speed = this.lunge > 0 ? def.melee.lunge : def.runSpeed;
       if (this.dist < 1.2) return { point: null, speed: 0, face: toTarget };
-      return { point: this.chasePoint(tp, true), speed, face: null };
+      return { point: this.chasePoint(tp, true, known.y), speed, face: null };
     }
 
     // ---- ranged ----
@@ -1123,7 +1133,7 @@ export class Enemy implements Damageable {
           this.setState('inCover');
           return { point: null, speed: 0, face: toTarget };
         }
-        if (hyp2(wp[0] - this.pos.x, wp[1] - this.pos.z) < 0.35) this.path.shift();
+        if (!wp.link && hyp2(wp[0] - this.pos.x, wp[1] - this.pos.z) < 0.35) this.path.shift();
         return { point: wp, speed: def.runSpeed, face: null };
       }
       case 'inCover': {
@@ -1210,19 +1220,19 @@ export class Enemy implements Damageable {
   }
 
   /** Direct line if clear, else follow the shared flow field. Runners zigzag. */
-  private chasePoint(tp: P2, zig: boolean): P2 | null {
+  private chasePoint(tp: P2, zig: boolean, ty = Number.NaN): Waypoint | null {
     const nav = this.ctx.nav;
     const me: P2 = [this.pos.x, this.pos.z];
-    let p: P2 | null;
-    if (this.dist < 18 && nav.lineClear(me, tp)) p = tp;
-    else p = nav.flowNext(this.ctx.flow(), me[0], me[1]);
-    if (p && zig && this.dist > 5) {
+    let p: Waypoint | null;
+    if (this.dist < 18 && nav.lineClear(me, tp, this.pos.y, ty)) p = tp;
+    else p = nav.flowNext(this.ctx.flow(), me[0], me[1], this.pos.y);
+    if (p && !p.link && zig && this.dist > 5) {
       const dx = p[0] - me[0];
       const dz = p[1] - me[1];
       const l = hyp2(dx, dz) || 1;
       const s = Math.sin(this.stateT * 4 + this.pos.x) * 0.6;
       const cand: P2 = [p[0] + (-dz / l) * s, p[1] + (dx / l) * s];
-      if (nav.lineClear(me, cand)) p = cand;
+      if (nav.lineClear(me, cand, this.pos.y)) p = cand;
     }
     return p;
   }
@@ -1238,7 +1248,7 @@ export class Enemy implements Damageable {
       const dMe = hyp2(c.pos.x - this.pos.x, c.pos.z - this.pos.z);
       if (dMe > (this.relocating ? 22 : 14)) continue;
       if (this.relocating && dMe < 5) continue;
-      if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2)) continue;
+      if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2, c.pos.y)) continue;
       const dx = t.feet.x - c.pos.x;
       const dz = t.feet.z - c.pos.z;
       const dT = hyp2(dx, dz);
@@ -1247,7 +1257,7 @@ export class Enemy implements Damageable {
       if ((c.normal.x * dx + c.normal.z * dz) / dT < (flank ? 0.3 : 0.55)) continue;
       // flanker: only spots that see past the player's cover
       if (flank && t.cover && !flanks(t.cover, c.pos.x, c.pos.z)) continue;
-      if (!this.ctx.nav.isWalkable(this.ctx.nav.cellOf(c.pos.x, c.pos.z))) continue;
+      if (!this.ctx.nav.isWalkable(this.ctx.nav.cellOf(c.pos.x, c.pos.z, c.pos.y))) continue;
       const q = coverQuality({ nx: c.normal.x, nz: c.normal.z, low: c.low, x: c.pos.x, z: c.pos.z }, [{ x: t.feet.x, z: t.feet.z }]);
       const score = dMe + Math.abs(dT - 14) * 0.5 - q * 6;
       if (score < bestScore) {
@@ -1257,7 +1267,7 @@ export class Enemy implements Damageable {
     }
     if (best < 0 || !this.ctx.reserveCover(this, best)) return false;
     const c = cover[best]!;
-    const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000);
+    const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000, this.pos.y, c.pos.y);
     if (!path) {
       this.ctx.releaseCover(this);
       return false;
@@ -1343,8 +1353,16 @@ export class Enemy implements Damageable {
     }
   }
 
-  private move(dt: number, goal: P2 | null, speed: number, face: number | null): void {
+  private move(dt: number, goal: Waypoint | null, speed: number, face: number | null): void {
     const nav = this.ctx.nav;
+    if (goal?.link) {
+      // dogs never climb: they wait at the foot
+      if (this.def.quadruped) goal = null;
+      else if (hyp2(goal[0] - this.pos.x, goal[1] - this.pos.z) < 0.5) {
+        this.beginLink(goal.link);
+        return;
+      }
+    }
     const desired = this.desired.setAll(0);
     if (goal) {
       desired.set(goal[0] - this.pos.x, 0, goal[1] - this.pos.z);
@@ -1391,7 +1409,7 @@ export class Enemy implements Damageable {
     this.vel.z = this.motion.outZ;
     const nx = this.pos.x + this.vel.x * dt;
     const nz = this.pos.z + this.vel.z * dt;
-    this.navCell = nav.cellOf(this.pos.x, this.pos.z);
+    this.navCell = nav.cellOf(this.pos.x, this.pos.z, this.pos.y);
     if (!this.tryMove(nx, nz)) {
       // slide along an axis
       if (!this.tryMove(nx, this.pos.z)) {
@@ -1402,7 +1420,7 @@ export class Enemy implements Damageable {
       }
       if (this.vel.x === 0 && this.vel.z === 0) this.motion.reset(this.motion.yaw);
     }
-    const gh = nav.heightAt(this.pos.x, this.pos.z);
+    const gh = nav.heightAt(this.pos.x, this.pos.z, this.pos.y);
     this.pos.y += (gh - this.pos.y) * Math.min(1, dt * 12);
     this.yaw = this.motion.yaw;
     if (this.target) {
@@ -1410,6 +1428,68 @@ export class Enemy implements Damageable {
       const dy = this.tmp.y - (this.pos.y + 1.4 * this.def.scale);
       this.aimPitch = Math.atan2(dy, Math.max(0.5, this.dist));
     }
+  }
+
+  // --- ladders and drops (nav links) ---
+
+  /** The link being taken (route points flat x, y, z) and the distance along it. */
+  private link: NavLink | null = null;
+  private linkS = 0;
+  /** On a ladder's climb (pose) and the climb phase. */
+  private climbing = false;
+  private climbT = 0;
+  /** Links taken (tests). */
+  linksTaken = 0;
+
+  private beginLink(l: NavLink): void {
+    this.link = l;
+    this.linkS = 0;
+    this.climbT = 0;
+    this.linksTaken++;
+    if (this.routePath[0]?.link === l) this.routePath.shift();
+    if (this.path[0]?.link === l) this.path.shift();
+    this.vel.setAll(0);
+    this.motion.reset(this.motion.yaw);
+  }
+
+  private endLink(): void {
+    if (!this.link) return;
+    this.link = null;
+    this.climbing = false;
+    this.navCell = -1;
+  }
+
+  /** Move along the link's route: walking legs at a walk, a ladder's rise at climbing speed, a drop falls. */
+  private runLink(dt: number): void {
+    const l = this.link!;
+    const p = l.pts;
+    // the leg the distance is on
+    let s = this.linkS;
+    for (let k = 0; k + 3 < p.length; k += 3) {
+      const len = Math.sqrt((p[k + 3]! - p[k]!) ** 2 + (p[k + 4]! - p[k + 1]!) ** 2 + (p[k + 5]! - p[k + 2]!) ** 2);
+      if (s <= len || k + 6 >= p.length) {
+        const dy = p[k + 4]! - p[k + 1]!;
+        const flat = hyp2(p[k + 3]! - p[k]!, p[k + 5]! - p[k + 2]!);
+        const vertical = Math.abs(dy) > flat;
+        const speed = !vertical ? 1.5 : l.kind === 'drop' ? 6 : dy > 0 ? 1.1 : 1.4;
+        s += speed * dt;
+        this.linkS += speed * dt;
+        const t = len > 1e-4 ? Math.min(1, s / len) : 1;
+        this.pos.set(p[k]! + (p[k + 3]! - p[k]!) * t, p[k + 1]! + dy * t, p[k + 2]! + (p[k + 5]! - p[k + 2]!) * t);
+        if (!vertical && flat > 0.05) this.yaw = this.motion.yaw = Math.atan2(p[k + 3]! - p[k]!, p[k + 5]! - p[k + 2]!);
+        this.climbing = vertical && l.kind === 'ladder';
+        if (this.climbing) this.climbT += dt * speed * 1.6;
+        if (t >= 1 && k + 6 >= p.length) {
+          this.endLink();
+          this.navCell = l.b;
+          this.motion.reset(this.yaw);
+          return;
+        }
+        return;
+      }
+      s -= len;
+    }
+    this.endLink();
   }
 
   /** Only the target's head is in sight (the rest is behind cover). */
@@ -1421,7 +1501,7 @@ export class Enemy implements Damageable {
   private tryMove(x: number, z: number): boolean {
     const nav = this.ctx.nav;
     const cur = this.navCell;
-    const c = nav.cellOf(x, z);
+    const c = nav.cellNear(cur, x, z);
     if (c === cur || (c >= 0 && nav.canStep(cur < 0 ? c : cur, c)) || !nav.isWalkable(cur)) {
       if (c >= 0 && nav.isWalkable(c)) {
         this.pos.x = x;
@@ -1476,6 +1556,9 @@ export class Enemy implements Damageable {
     rp.velX = this.vel.x;
     rp.velZ = this.vel.z;
     rp.goalYaw = m.goalYaw;
+    rp.traverse = this.climbing ? 'climb' : 'none';
+    rp.traverseT = this.climbT;
+    if (this.climbing) rp.aim = 0;
     if (this.dog) {
       const alertK = lvl === 'unaware' ? 0 : 1;
       this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);

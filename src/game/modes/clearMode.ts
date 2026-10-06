@@ -89,7 +89,7 @@ export class ClearMode implements GameMode {
         i++;
         continue;
       }
-      const e = em.spawn(p.slot.kind, new Vector3(p.slot.x, 0, p.slot.z), p.alerted === true, p.slot.yaw);
+      const e = em.spawn(p.slot.kind, new Vector3(p.slot.x, p.slot.y ?? Number.NaN, p.slot.z), p.alerted === true, p.slot.yaw);
       if (!e) break;
       if (!p.alerted) {
         e.hold = this.rooms[p.room]!;
@@ -103,7 +103,7 @@ export class ClearMode implements GameMode {
 
   /** A hostile came into play (woken, or reinforcements): it counts, holding the room it is in. */
   onEnemyJoined(e: Enemy): void {
-    let room = roomAt(this.rooms, e.pos.x, e.pos.z);
+    let room = roomAt(this.rooms, e.pos.x, e.pos.z, e.pos.y);
     if (room < 0) room = 0;
     e.hold = this.rooms[room]!;
     this.tracker.assign(e.id, room);
@@ -113,7 +113,7 @@ export class ClearMode implements GameMode {
   onAlarm(at: Vector3): boolean {
     const n = this.tracker.hostilesLeft;
     if (n <= 0) return true;
-    let room = roomAt(this.rooms, at.x, at.z);
+    let room = roomAt(this.rooms, at.x, at.z, at.y);
     if (room < 0) {
       // the nearest room to the entry point
       let bd = Infinity;
@@ -170,7 +170,7 @@ export class ClearMode implements GameMode {
     if (this.checkT > 0) return;
     this.checkT = 0.25;
     const p = this.g.player.position;
-    const ri = roomAt(this.rooms, p.x, p.z);
+    const ri = roomAt(this.rooms, p.x, p.z, p.y);
     if (ri !== this.current) {
       this.current = ri;
       this.inRoomT = 0;
