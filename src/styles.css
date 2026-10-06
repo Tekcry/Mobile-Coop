@@ -912,6 +912,15 @@ body {
 .tac-light.shadow i {
   background: #3f5f86;
 }
+.tac-vision {
+  color: #7dff9b;
+}
+.tac-vision[data-mode='sonar'] {
+  color: #ffb36b;
+}
+.tac-vision[data-mode='cool'] {
+  color: rgba(255, 255, 255, 0.4);
+}
 .hud-awareness {
   position: absolute;
   left: 0;

@@ -1,9 +1,10 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
 
 /**
- * One combined full-screen pass for the cinematic look: gentle vignette, optional film grain and a
- * letterbox for stinger moments (mission start, room cleared). Kept to a single cheap pass so it fits
- * the 120 fps budget; disabled entirely when every effect is off.
+ * One combined full-screen pass for the cinematic look: gentle vignette, optional film grain, a
+ * letterbox for stinger moments (mission start, room cleared) and the night-vision goggles (green
+ * phosphor: the dark lifted, bright lights blooming out, heavy grain, a tube vignette). Kept to a single
+ * cheap pass so it fits the 120 fps budget; disabled entirely when every effect is off.
  */
 Effect.ShadersStore['cinematicFragmentShader'] = `
 precision mediump float;
@@ -14,13 +15,21 @@ uniform float grain;
 uniform float bars;
 uniform float time;
 uniform float aspect;
+uniform float nv;
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
   vec2 d = vUV - 0.5;
   d.x *= aspect;
+  float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
+  if (nv > 0.0) {
+    float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
+    float g = 1.0 - exp(-l * 7.0);
+    vec3 p = vec3(0.2, 1.0, 0.35) * (0.05 + g * 1.1) + (n - 0.5) * 0.14;
+    float tube = smoothstep(0.82, 0.38, length(d));
+    c.rgb = mix(c.rgb, p * mix(1.0, tube, 0.85), nv);
+  }
   float v = smoothstep(0.95, 0.3, length(d));
   c.rgb *= mix(1.0, v, vignette);
-  float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
   c.rgb += (n - 0.5) * grain;
   float b = bars * 0.11;
   float edge = smoothstep(b, b + 0.002, vUV.y) * smoothstep(b, b + 0.002, 1.0 - vUV.y);
@@ -35,6 +44,8 @@ export class CinematicPost {
   /** Letterbox amount 0..1 (eased by `bars` towards `barsTarget`). */
   bars = 0;
   barsTarget = 0;
+  /** Night-vision blend 0..1. */
+  private nv = 0;
   private t = 0;
 
   constructor(private camera: Camera) {}
@@ -46,6 +57,13 @@ export class CinematicPost {
     this.sync();
   }
 
+  /** Night-vision goggles blend (0 off .. 1). */
+  setNightVision(k: number): void {
+    if (k === this.nv) return;
+    this.nv = k;
+    this.sync();
+  }
+
   /** Show the letterbox for a moment (stingers). */
   letterbox(on: boolean): void {
     this.barsTarget = on ? 1 : 0;
@@ -53,15 +71,16 @@ export class CinematicPost {
   }
 
   private sync(force = false): void {
-    const needed = this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || force;
+    const needed = this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect'], null, 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv'], null, 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
         e.setFloat('bars', this.bars);
         e.setFloat('time', (this.t * 24) % 1000);
         e.setFloat('aspect', pp.width / Math.max(1, pp.height));
+        e.setFloat('nv', this.nv);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

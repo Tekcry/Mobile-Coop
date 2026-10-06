@@ -51,7 +51,7 @@ const BTN_THRESHOLD = 0.5;
 /**
  * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled
  * separately. A cover / cover-to-cover, B crouch (stand / crouch at high cover), Y traverse + interact
- * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder.
+ * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder, View goggles.
  */
 export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'cover'],
@@ -62,7 +62,7 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.RB, 'swapNext'],
   [PAD.LB, 'swapPrev'],
   [PAD.START, 'pause'],
-  [PAD.SELECT, 'pause'],
+  [PAD.SELECT, 'vision'],
   [PAD.LS, 'dash'],
   [PAD.RS, 'shoulderSwap'],
   [PAD.UP, 'quick1'],

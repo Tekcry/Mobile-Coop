@@ -16,6 +16,9 @@ export interface GameEvents {
   bodyFound: { x: number; z: number };
   /** The player picked up / put down / hid a body. */
   body: { action: 'pickup' | 'drop' | 'hide' };
+  /** Goggles switched (audio) / a sonar pulse went out. */
+  vision: { mode: 'off' | 'night' | 'sonar' };
+  sonar: Record<string, never>;
   /** A door opened / closed (audio). */
   door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number };
   pickup: { kind: PickupKind };

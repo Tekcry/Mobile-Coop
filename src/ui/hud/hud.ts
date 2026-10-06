@@ -59,6 +59,7 @@ export class Hud {
   private exposureEl: HTMLElement;
   private noiseEl: HTMLElement;
   private lightEl: HTMLElement;
+  private visionEl: HTMLElement;
   private lightFill: HTMLElement;
   /** Enemy awareness arcs round the crosshair. */
   readonly arcs = new AwarenessArcs();
@@ -76,6 +77,7 @@ export class Hud {
     this.noiseEl = h('div', { class: 'tac-noise', html: `${icon('noise', 14)}<span><i></i><i></i><i></i></span>` });
     this.lightFill = h('i');
     this.lightEl = h('div', { class: 'tac-light', title: 'Light' }, h('b', { text: '◐' }), h('span', {}, this.lightFill));
+    this.visionEl = h('div', { class: 'tac-vision' });
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
@@ -83,7 +85,7 @@ export class Hud {
       h('div', { class: 'bar health' }, this.hpFill),
       this.hpText,
       this.staminaBar,
-      h('div', { class: 'hud-tac' }, this.lightEl, this.exposureEl, this.noiseEl),
+      h('div', { class: 'hud-tac' }, this.lightEl, this.visionEl, this.exposureEl, this.noiseEl),
     );
     this.wName = h('div', { class: 'w-name' });
     this.wMag = h('span', { class: 'w-mag' });
@@ -281,6 +283,15 @@ export class Hud {
     const v = Math.round(level * 20);
     this.set('light', v, () => (this.lightFill.style.width = `${Math.max(6, level * 100)}%`));
     this.set('lightS', shadow, () => this.lightEl.classList.toggle('shadow', shadow));
+  }
+
+  /** Goggles: the mode in use, or the sonar recharging (seconds left). */
+  setVision(mode: 'off' | 'night' | 'sonar', cooldown: number): void {
+    const text = mode === 'night' ? 'NV' : mode === 'sonar' ? 'SONAR' : cooldown > 0 ? `SONAR ${Math.ceil(cooldown)}` : '';
+    this.set('vision', text, () => {
+      this.visionEl.textContent = text;
+      this.visionEl.dataset.mode = mode === 'off' ? (cooldown > 0 ? 'cool' : 'off') : mode;
+    });
   }
 
   /** Small right-side feed (kills, XP, pickups). */

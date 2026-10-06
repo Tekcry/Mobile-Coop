@@ -130,14 +130,14 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Bindings (section 7 of 1.3.0): gamepad LS move, RS look, LT aim, RT fire, A `cover` (take / leave /
   cover-to-cover), B `crouch` (stand / crouch at high cover), Y `jump` + `interact` (contextual: an interactable
   in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
-  R3 shoulder, RB/LB weapons, D-pad up grenade, others emotes. Keyboard: Space cover, C / Ctrl crouch, Shift
-  sprint, E traverse / interact, R reload, Q / X weapons; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
+  R3 shoulder, RB/LB weapons, D-pad up grenade, others emotes, View `vision` (goggles). Keyboard: Space cover,
+  C / Ctrl crouch, Shift sprint, E traverse / interact, R reload, Q / X weapons, N goggles; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
   smoothing, so releasing never steps the rate).
 - Touch (`input/touchControls.ts`): pointer handlers only record state; `update(dt)` (per frame, from
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
   default); crouch toggle, sprint toggle; camera-only right stick (rate based: dead zone, response curve, 50 ms smoothing, acceleration when
   held at the rim; never fires); optional drag-look in the empty upper right; separate fire button (84 px; optional
-  left fire; optional fire drag-look); ADS; a contextual action button only to use an interactable (`setAction(TouchAction)` from
+  left fire; optional fire drag-look); ADS; goggles (`vision`); a contextual action button only to use an interactable (`setAction(TouchAction)` from
   `GameState`, hidden otherwise; acts on release). Cover, vault/climb/step/drop and cover-to-cover are the world
   prompts (`ui/hud/worldPrompts.ts`), tapped directly. Secondary buttons >= 56 px. Layout: `settings.touch.layout` (`TOUCH_CONTROL_IDS`, per-control `x, y,
   scale, alpha?`), presets `LAYOUT_PRESETS` (default / claw / lefty), `TOUCH_LAYOUT_VERSION` 2 (v1 layouts keep
@@ -493,6 +493,11 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `open(d, quiet | bash | enemy)` drops the body and swings the leaf, `close` refuses an occupied doorway;
   `pushOpen` (enemies, each step), sprint bash and the interact (`door` kind) live in `StealthSystems`; `onSound`
   -> `door` event (audio) + noise (quiet 2 m, bash 10 m).
+- Goggles (3d): `game/vision.ts` (pure) `VisionState` (action `vision` cycles off / night / sonar; `VISION` pulse
+  period, reveal, range, max run, recharge). Night vision is the `nv` uniform of `CinematicPost`
+  (`setNightVision`); sonar pulses capture enemies in range into `GameState.sonarMarks` (`vfx/silhouettes.ts`,
+  overlay = depth ALWAYS), plus a torus ring; `Hud.setVision` on the tactical strip. The LKP ghost uses the same
+  `Silhouettes`.
 - Interactables: kinds `switch`, `alarm`, `hide`, `body`, `door` with per-item `reach` and `onUse`; `nearest(feet, reach,
   only)` (hide spots only with `only`); `GameState.updateInteract` calls `onUse` (else Mission).
 

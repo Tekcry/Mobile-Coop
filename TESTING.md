@@ -293,6 +293,12 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 3d - Night vision and sonar (1.15.0) - Warehouse, Clear
+- [ ] Press View (pad), N (keyboard) or the goggles button (touch): night vision; dark aisles become readable, lamps glare.
+- [ ] Press again: sonar; guards behind walls show as orange silhouettes for a moment every 6 s, with a ring and a ping.
+- [ ] After ~18 s sonar switches off and "SONAR n" counts down its recharge; pressing the button skips sonar until then.
+- [ ] Night vision on an iPhone at 120 Hz: no frame drops (the debug pacing graph stays under the line).
+
 ## 2.0 phase 3c - Surfaces, doors, shot noise (1.14.0) - Warehouse, Clear
 - [ ] Walk across the yard (gravel), the mezzanine (metal) and the office (carpet): steps sound different; the noise meter is higher on metal, lower on carpet.
 - [ ] At a closed door: "Open door" eases it open with a creak; "Close door" shuts it. Guards behind a closed door cannot see you.

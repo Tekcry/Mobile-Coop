@@ -20,6 +20,8 @@ export const BUTTON_ACTIONS = [
   'grenade',
   'shoulderSwap',
   'dash',
+  /** Goggles: cycle off -> night vision -> sonar. */
+  'vision',
   'quick1',
   'quick2',
   'quick3',

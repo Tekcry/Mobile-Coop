@@ -1,5 +1,18 @@
 # Changelog
 
+## 1.15.0 - 2.0 phase 3d: night vision and sonar goggles
+- Goggles (`game/vision.ts`): one button cycles off -> night vision -> sonar -> off. Gamepad View (it used to
+  duplicate Start's pause), keyboard N, and a new touch button (top bar, 56 px; existing layouts get it at its
+  default spot).
+- Night vision: green phosphor in the one cinematic pass (the dark lifted, lamps blooming out, heavy grain, a
+  tube vignette), faded in over 0.25 s. Gameplay light is unchanged: being seen still depends on the light on you.
+- Sonar: a pulse every 6 s marks every enemy within 30 m as an orange silhouette drawn through walls (their pose at
+  the pulse, 2.5 s, fading), with a ring sweeping out and a soft ping. It runs 18 s, then recharges 12 s (shown
+  on the tactical strip; the cycle skips sonar meanwhile). Marks and the LKP ghost share `vfx/silhouettes.ts`
+  (thin-instanced figures, 2 draw calls per set).
+- Tests: unit tests for the goggle states; e2e-stealth-ai vision (night vision, sonar through a wall, fade, run
+  out, recharge); e2e-touch checks the goggles button size.
+
 ## 1.14.0 - 2.0 phase 3c: surfaces, doors, shot noise
 - Floor surfaces (`world/surfaces.ts`): footsteps are louder on metal (x1.6), grates, gravel and wood, quieter on
   carpet (x0.6), and sound different (ringing steel, gravel crunch, soft carpet). Warehouse: a gravel yard, a steel

@@ -18,6 +18,7 @@ const KEYMAP: Record<string, ButtonAction[]> = {
   KeyF: ['interact'],
   KeyG: ['grenade'],
   KeyV: ['shoulderSwap'],
+  KeyN: ['vision'],
   ShiftLeft: ['dash'],
   KeyP: ['pause'],
   Escape: ['pause', 'uiBack'],

@@ -195,6 +195,19 @@ export class Sfx {
     }
   }
 
+  /** Goggles down (whine up) / up (click). */
+  goggles(on: boolean): void {
+    if (!this.a.allow('goggles', 0.1)) return;
+    if (on) this.tone('ui', 0.06, 0, 'sine', 900, 4200, 0.35, 0, 0.05);
+    else this.burst('ui', 0.15, 0, 'bandpass', 2600, 4, 0.03);
+  }
+
+  /** Sonar pulse: a soft low ping with a falling tail. */
+  sonar(): void {
+    this.tone('ui', 0.12, 0, 'sine', 1300, 1250, 0.5, 0, 0.01);
+    this.tone('ui', 0.06, 0, 'sine', 650, 420, 0.9, 0.05, 0.05);
+  }
+
   /** A body thumps down. */
   thud(gain = 1): void {
     if (!this.a.allow('thud', 0.15)) return;

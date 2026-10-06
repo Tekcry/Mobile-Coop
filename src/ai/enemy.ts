@@ -236,6 +236,11 @@ export class Enemy implements Damageable {
     return this.health.alive;
   }
 
+  /** The animated body (sonar marks). */
+  get bodyRig(): CharacterRig {
+    return this.rig;
+  }
+
   /** In combat (the alert level). */
   get alerted(): boolean {
     return this.aware.alert;

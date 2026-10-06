@@ -63,6 +63,8 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     g.events.on('alarm', () => sfx.horn()),
     g.events.on('lightOut', ({ shot }) => (shot ? sfx.glass(1) : sfx.click())),
     g.events.on('lightSwitch', () => sfx.click()),
+    g.events.on('vision', ({ mode }) => sfx.goggles(mode !== 'off')),
+    g.events.on('sonar', () => sfx.sonar()),
     g.events.on('door', ({ how, x, z }) => {
       const s = a.spatial(x, 1, z, how === 'bash' ? 40 : 20);
       if (s.gain > 0.03) sfx.door(how, s.gain, s.pan);

@@ -90,7 +90,7 @@ try {
     Object.fromEntries([...document.querySelectorAll('.touch-layer .tc')].filter((e) => !e.hidden && !e.classList.contains('tc-hidden')).map((e) => [e.className.match(/tc-(\w+)/g).find((c) => c !== 'tc-btn' && c !== 'tc-stick')?.slice(3), e.getBoundingClientRect().width])),
   );
   assert(sizes.fire >= 76, `fire button ${sizes.fire}px`);
-  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'dash', 'ads']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
+  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'dash', 'ads', 'vision']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
   // the action button is only for "use": hidden with nothing in reach
   const actHidden = await page.evaluate(() => document.querySelector('.tc-action').classList.contains('tc-hidden'));
   assert(actHidden, 'action button hidden with nothing to use');

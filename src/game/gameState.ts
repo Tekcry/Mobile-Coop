@@ -1,5 +1,5 @@
 import type { App, AppState } from '../core/app';
-import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
+import { Color3, CreateTorus, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
 import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
@@ -46,6 +46,8 @@ import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { LkpGhost } from '../vfx/lkpGhost';
+import { Silhouettes } from '../vfx/silhouettes';
+import { VISION, VisionState } from './vision';
 import { StealthSystems } from './stealthSystems';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
@@ -242,6 +244,15 @@ export class GameState implements AppState {
     world.breakables.onOpen = (key, how, at) => this.onBreakable(key, how, at);
     this.post = new CinematicPost(this.player.cam.camera);
     this.ghost = new LkpGhost(this.scene);
+    this.sonarMarks = new Silhouettes(this.scene, 'sonar', 12, new Color3(1, 0.55, 0.18), true);
+    this.sonarRing = CreateTorus('sonarRing', { diameter: 1, thickness: 0.012, tessellation: 48 }, this.scene);
+    const rm = new StandardMaterial('sonarRingMat', this.scene);
+    rm.disableLighting = true;
+    rm.emissiveColor = new Color3(1, 0.6, 0.25);
+    rm.alpha = 0;
+    this.sonarRing.material = rm;
+    this.sonarRing.isPickable = false;
+    this.sonarRing.setEnabled(false);
     this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
@@ -721,6 +732,7 @@ export class GameState implements AppState {
       this.noise = Math.max(steps, this.evNoise);
     }
     this.updateLight(dt);
+    this.updateVision(dt);
     this.landingNoise();
     this.updateCoverRef(dt);
     this.updateExposure(dt);
@@ -807,6 +819,7 @@ export class GameState implements AppState {
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
     this.updateStealthHud(dt);
+    this.renderVision();
     this.vfx.update(dt);
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
@@ -816,6 +829,47 @@ export class GameState implements AppState {
 
   /** Last Known Position ghost (stealth rules only). */
   ghost: LkpGhost;
+  /** Goggles (night vision / sonar), the sonar's enemy marks and its pulse ring. */
+  readonly vision = new VisionState();
+  sonarMarks: Silhouettes;
+  private sonarRing: Mesh;
+
+  /** Goggles per fixed step: the button cycles modes; a sonar pulse marks every enemy in range. */
+  private updateVision(dt: number): void {
+    const v = this.vision;
+    if (this.app.input.state.pressed('vision') && this.player.alive) {
+      v.cycle();
+      this.events.emit('vision', { mode: v.mode });
+    }
+    if (!v.step(dt)) return;
+    this.events.emit('sonar', {});
+    const m = this.sonarMarks;
+    m.begin();
+    const p = this.player.position;
+    for (const e of this.enemyMgr?.enemies ?? []) {
+      if (!e.alive || hyp2(e.pos.x - p.x, e.pos.z - p.z) > VISION.sonarRange) continue;
+      if (!m.add(e.bodyRig)) break;
+    }
+    m.end();
+  }
+
+  /** Goggles per render frame: night vision blend, sonar marks fading, the pulse ring growing. */
+  private renderVision(): void {
+    const v = this.vision;
+    this.post.setNightVision(v.night);
+    this.sonarMarks.setAlpha(v.markAlpha * 0.6);
+    const t = v.sincePulse;
+    const ring = this.sonarRing;
+    if (t < 0.9) {
+      const r = (t / 0.9) * VISION.sonarRange;
+      ring.setEnabled(true);
+      ring.position.copyFrom(this.player.position);
+      ring.position.y += 0.15;
+      ring.scaling.set(r * 2, 1, r * 2);
+      (ring.material as StandardMaterial).alpha = 0.5 * (1 - t / 0.9);
+    } else if (ring.isEnabled()) ring.setEnabled(false);
+    this.hud.setVision(v.mode, v.cooldown);
+  }
 
   /**
    * Stealth HUD per render frame: awareness arcs round the crosshair (enemies noticing: white filling, red
