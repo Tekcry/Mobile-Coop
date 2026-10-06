@@ -461,7 +461,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## Performance budget (iPhone 17 Pro Max class, 120 Hz)
 - 8.33 ms per frame, worst case <= 6.5 ms work; CPU <= 3.5 ms, GPU <= 4 ms. `perf.mjs --budget` checks the CPU
   side: p95 CPU per 120 Hz frame <= 3.5 ms (measured ~1.7 ms on Warehouse with 10 enemies), animation <= 0.04 ms
-  per character (~0.037), draw calls <= 80 (~17-30), allocations <= 96 KB per frame (~75: V8 boxing doubles at
+  per character (~0.037 when last calibrated; the SwiftShader VM drifts, so compare against the previous
+  build side by side before blaming a change), draw calls <= 80 (~17-30), allocations <= 96 KB per frame (~75: V8 boxing doubles at
   call boundaries and Havok embind marshalling; no retained objects). GPU time and thermals need a device:
   debug overlay pacing graph + `soak.mjs` / the 10-minute soak in TESTING.md.
 - Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.

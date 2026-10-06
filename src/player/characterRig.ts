@@ -226,6 +226,13 @@ function clrSet(k: number, a: Vector3, b: Vector3, r: number): void {
   clrCap[o + 6] = l2 > 1e-9 ? 1 / l2 : 0;
   clrCap[o + 7] = r;
 }
+const headPt = new Vector3();
+const ankLPt = new Vector3();
+const ankRPt = new Vector3();
+/** A node's world position from its (already fresh) parent: no world matrix of its own to refresh. */
+function posIn(n: TransformNode, out: Vector3): Vector3 {
+  return Vector3.TransformCoordinatesToRef(n.position, (n.parent as TransformNode).getWorldMatrix(), out);
+}
 /** Raised, the sight line sits this far (m) above the head centre: the eye line of the stick head. */
 const SIGHT_EYE = 0.0;
 /** Body clearance kept around the held weapon (m). */
@@ -878,9 +885,9 @@ export class CharacterRig {
     this.overClear = false;
     let curl = 0;
     // the head is fresh from the solve (an emote may have moved it since)
-    if (this.coverMode !== 'none' && this.emoteW > 0) fresh(this.headNode);
+    if (this.coverMode !== 'none' && this.emoteW > 0) fresh(this.neck);
     if (this.coverMode === 'hide') {
-      const top = this.headNode.getAbsolutePosition().y + this.p.head.h * 0.5 - rp.y;
+      const top = posIn(this.headNode, headPt).y + this.p.head.h * 0.5 - rp.y;
       // curl the back (and sink a little) until the head is under the top; very low cover can leave the
       // head showing rather than fold the legs into the floor
       const err = top - (this.coverTop - HIDE_MARGIN);
@@ -890,7 +897,7 @@ export class CharacterRig {
     } else if (this.coverMode === 'over') {
       // rise until the eye (and so the weapon at the cheek, just below it) is over the top: measured on the
       // head, not the weapon, so a weapon still held down never stalls the rise
-      const eye = this.headNode.getAbsolutePosition().y - rp.y;
+      const eye = posIn(this.headNode, headPt).y - rp.y;
       want = this.lift + (this.coverTop + OVER_EYE - eye);
       tau = 0.07;
       this.overClear = eye >= this.coverTop + OVER_EYE - 0.04;
@@ -912,7 +919,7 @@ export class CharacterRig {
     const m = w.getWorldMatrix();
     // hips, neck (setWorldRot of the head), head, knees and ankles are already fresh this frame
     const P = this.hips.getAbsolutePosition();
-    const Hc = this.headNode.getAbsolutePosition();
+    const Hc = posIn(this.headNode, headPt);
     // trunk (pelvis -> neck base), head ball, and the legs (solved this frame, before the weapon); legs get
     // extra margin (a thin stick limb still reads as touching just outside its radius)
     clrSet(0, P, this.neck.getAbsolutePosition(), this.p.chest.d * 0.5 + CLEAR_MARGIN);
@@ -920,9 +927,9 @@ export class CharacterRig {
     const thighR = this.p.thigh.r0 + CLEAR_MARGIN + 0.035;
     const calfR = this.p.calf.r0 + CLEAR_MARGIN + 0.035;
     clrSet(2, this.hipL.getAbsolutePosition(), this.kneeL.getAbsolutePosition(), thighR);
-    clrSet(3, this.kneeL.getAbsolutePosition(), this.ankleL.getAbsolutePosition(), calfR);
+    clrSet(3, this.kneeL.getAbsolutePosition(), posIn(this.ankleL, ankLPt), calfR);
     clrSet(4, this.hipR.getAbsolutePosition(), this.kneeR.getAbsolutePosition(), thighR);
-    clrSet(5, this.kneeR.getAbsolutePosition(), this.ankleR.getAbsolutePosition(), calfR);
+    clrSet(5, this.kneeR.getAbsolutePosition(), posIn(this.ankleR, ankRPt), calfR);
     // gun samples in world space (bore line and top edge, stock to muzzle), moved with each push
     const e = m.m;
     const half = CLR_PTS / 2;
@@ -1067,8 +1074,6 @@ export class CharacterRig {
     // so the weapon below is placed against this frame's legs
     this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
     this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
-    // knees and ankles refreshed once: the anatomy checks below and the weapon's body clearance read them
-    this.freshLegs();
     // anatomy: a knee never sinks into the floor (deep kneel, hiding curl): lift the pelvis and solve again
     const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
@@ -1079,7 +1084,6 @@ export class CharacterRig {
       fresh(this.torso);
       this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
       this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
-      this.freshLegs();
     }
     // anatomy: the knees never knock through each other (side-steps, leaning out): bow them outward
     const kneeGap = Vector3.Distance(this.kneeL.getAbsolutePosition(), this.kneeR.getAbsolutePosition());
@@ -1088,7 +1092,6 @@ export class CharacterRig {
       const bow = KNEE_OUT + (1 - kneeGap / KNEE_GAP) * 6;
       this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
       this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
-      this.freshLegs();
     }
     // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
     const lHip = this.limitJoint(this.hipL, dt);
@@ -1098,12 +1101,10 @@ export class CharacterRig {
     if (lh) {
       fresh(this.hipL);
       fresh(this.kneeL);
-      fresh(this.ankleL);
     }
     if (rh) {
       fresh(this.hipR);
       fresh(this.kneeR);
-      fresh(this.ankleR);
     }
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
     Quaternion.RotationYawPitchRollToRef(
@@ -1114,8 +1115,6 @@ export class CharacterRig {
     );
     this.setWorldRot(this.headNode, this.neck, tmpQ);
     this.limitJoint(this.headNode, dt);
-    // fresh for the weapon's clearance and the cover height control (nothing above it moves after this)
-    fresh(this.headNode);
 
     // aim pocket: rest + layer offsets, mirrored to the left shoulder when switched hands in cover
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
@@ -1304,7 +1303,7 @@ export class CharacterRig {
     const e = this.heldWeapon!.getWorldMatrix().m;
     const zc = (g.z0 + g.z1) * 0.5;
     const sightY = g.top * e[5]! + zc * e[9]! + e[13]!;
-    const dy = (this.headNode.getAbsolutePosition().y + SIGHT_EYE - sightY) * w;
+    const dy = (posIn(this.headNode, headPt).y + SIGHT_EYE - sightY) * w;
     if (Math.abs(dy) < 2e-4) return;
     // world up -> the pocket's parent (torso) space
     (this.weaponPivot.parent as TransformNode).getWorldMatrix().invertToRef(clrM);
@@ -1313,12 +1312,6 @@ export class CharacterRig {
     this.weaponPivot.position.addInPlace(tmpE);
     fresh(this.weaponPivot);
     freshBelow(this.heldWeapon!, this.weaponPivot);
-  }
-
-  /** After the leg solves: hips and knees are fresh (each `setWorldRot` refreshes the parent); the ankles. */
-  private freshLegs(): void {
-    fresh(this.ankleL);
-    fresh(this.ankleR);
   }
 
   /** Blend an FK pose (emotes) over the procedural result. */
