@@ -1,5 +1,30 @@
 # Changelog
 
+## 2.0.0 - Shoulder Strike 2.0: the Blacklist overhaul (release candidate)
+The 1.7.0 - 1.23.0 phases together; details under each version below.
+- A stealth operative: light and shadow, noise, alert states with a last known position and searches, bodies to
+  find, carry and hide, switches and shootable lamps, alarms, doors, night vision and sonar (1.12 - 1.15).
+- Traversal: ladders, drainpipes, ledges with shimmy / corners / jumps, pipes, ducts with vents, windows,
+  ziplines, landings and rolls, on every map (1.8 - 1.11).
+- Takedowns from every angle (behind, front, over cover, from above, below, through windows) and Mark & Execute
+  (1.16); eight gadgets on a wheel (1.17).
+- Enemies: guards, runners, heavies, snipers, shield enforcers, dogs, drone operators, officers; barks and radio;
+  Rookie to Perfectionist (1.18).
+- Modes: Hunter (an alarm doubles the hostiles), Infiltration (four missions on the new Embassy and the
+  Warehouse), play styles Ghost / Panther / Assault (1.19); Training (1.23).
+- Arsenal of 16 with visible attachments, the suit, HQ upgrades, challenges, presets, play-style cash (1.20).
+- Co-op for 2-4 in every mode (objectives, doors, takedowns and revives synced) and PvP: Team Deathmatch 4v4 and
+  Free-for-all for 8 (1.21).
+- The operator look (tri-lens goggles), enemy silhouettes and faction colours, light cones, contact shadows,
+  per-map grades (1.22); the Blacklist-minimal HUD, touch layout v3, accessibility options and a controls screen
+  (1.23).
+- Saves: v6 (every older version migrates, a backup kept); settings move to the operator and touch layout v3 once.
+- Release checks: full e2e (27 suites) green; 10-minute soaks on the Warehouse, the Embassy and the Dust Depot;
+  perf on the heaviest scenes (see TESTING.md); offline: every precache entry, an Infiltration mission offline.
+- Known gaps (not in 2.0): the Port / Mansion / Refinery maps of the plan, multi-level AI navigation, co-op
+  bodies / Mark & Execute / non-frag gadgets by clients, pings and dual takedowns, a four-footed planner for the
+  dog (it trots procedurally).
+
 ## 1.23.0 - 2.0 phase 11: Blacklist-minimal HUD, touch layout v3, accessibility, controls screen, training course
 - HUD: health is the screen-edge vignette (it reddens with damage; the bars are an option); the ammo and gadget
   readout shows on any change, a reload or a low magazine and fades after 3 s (option: always); the use prompt

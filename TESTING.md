@@ -492,13 +492,19 @@ Menus (every screen must be fully usable without touching the screen):
 Gameplay mapping:
 - [ ] LS move, RS look (sensitivity, curve, invert-Y and dead zones from Settings > Controller apply).
 - [ ] RT fire (analog threshold), LT aim (hold or toggle per setting); aim assist slows near targets on Standard/High, off when disabled.
-- [ ] RB / LB next / previous weapon; X reload; A contextual vault / climb / step / drop; B crouch (tap) / cover (hold); Y interact.
-- [ ] LS click dash (wind-up, cannot fire while dashing; in cover: to the marked cover); RS click shoulder swap.
-- [ ] D-pad up grenade; right/down/left quick emotes.
-- [ ] In cover: B leaves, A vaults low cover, LT peeks / leans, RT blind-fires, pushing past an outside corner pivots, into an inside corner turns, LS click moves to the marked cover / SWAT turn.
+- [ ] RB / LB next / previous weapon (RB marks while aiming); X reload (hold: next weapon); A take / leave cover and
+      cover-to-cover; B crouch; Y traverse / use / takedown (hold: lethal) / Execute when ready.
+- [ ] L3 sprint; R3 shoulder swap; View goggles (night vision / sonar).
+- [ ] D-pad up gadget (hold aims, release throws); D-pad down gadget wheel (hold); right / left emotes.
+- [ ] In cover: A leaves (or to the marked cover), Y vaults low cover, LT peeks / leans, RT blind-fires, A at an
+      outside edge swings round the corner, pushing into an inside corner turns.
 - [ ] Start pauses (single player) / opens the menu without pausing (co-op).
 - [ ] Haptics: firing, hits, explosions and damage rumble (if the controller supports it); off when Haptics is disabled.
 
 ### Final pass
+- [ ] 2.0: Play > Training to the end on a phone; a Hunter run on the Warehouse at night, ghosted; an
+      Infiltration mission per insertion; four phones in co-op Hunter; eight in Team Deathmatch (or as many as
+      available) through to the result; the 10-minute soak (`scripts/soak.mjs`, debug overlay) on the Warehouse
+      and the Embassy.
 - [ ] Full Wave run to wave 5+ and a Mission win on a mid-range phone: no hitches, frame time stable (debug overlay), no audio crackle.
 - [ ] Two phones co-op through a full wave, then Play again, then host leaves.

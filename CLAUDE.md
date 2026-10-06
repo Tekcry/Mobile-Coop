@@ -87,7 +87,7 @@ Blacklist style.
     reload|swap|grenade|cover|highcover|peek|vault> [frames] [interval] [side|front|back|ots]` contact sheet
   - `node scripts/perf.mjs [--budget]` (`STEALTH=1`: ten unaware enemies perceiving) Warehouse, 10 enemies: CPU per 120 Hz frame p50/p95/p99, animation ms per
     character, allocations (per simulated second / per frame, top allocators), draw calls (`PROFILE=1` CPU profile)
-  - `node scripts/soak.mjs [minutes=10]` real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
+  - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
 ## Branches and deploy
