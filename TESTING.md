@@ -293,6 +293,16 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0.0 release candidate - automated results (SwiftShader VM; frame times there are not representative)
+- Soak, 10 minutes each (`scripts/soak.mjs`): Warehouse / Wave heap growth 4.6 MB, Embassy / Hunter 4.8 MB, Dust
+  Depot / Wave 5.8 MB; no leaks, adaptive quality settles.
+- Perf (`scripts/perf.mjs --budget`): Warehouse / Wave CPU p95 ~2.0 ms, draw calls 58, allocations ~86 KB per
+  120 Hz frame; stealth scenes (`STEALTH=1`): Warehouse CPU p95 1.1 ms, draw calls 35-40, allocations 110-165 KB
+  per frame (over the 96 KB line: boxed numbers in the animation graph's blend, a pre-existing cost); Embassy CPU
+  p95 1.0 ms, 38 draw calls, 65 KB per frame. Animation per character 0.032-0.047 ms (VM drift).
+- On a device: run the soak on the Warehouse at night and the Embassy with the debug overlay; pacing within the
+  120 Hz budget with the light cones on.
+
 ## 2.0 phase 11 - HUD, touch v3, accessibility, training (1.23.0)
 - [ ] In a match: no health bars; take damage, the screen edge reddens. Ammo shows when firing / reloading and
       fades after a few seconds. Hold to use a panel: the ring fills.
