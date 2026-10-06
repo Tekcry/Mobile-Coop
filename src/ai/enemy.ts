@@ -1214,5 +1214,7 @@ export class Enemy implements Damageable {
       this.rig.dispose();
     }
     this.ctx.releaseCover(this);
+    // gone from the world: never counts as alive again (stale references see it)
+    this.health.hp = 0;
   }
 }

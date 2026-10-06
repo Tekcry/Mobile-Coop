@@ -437,6 +437,14 @@ export class EnemyManager {
     for (const e of this.enemies) e.dispose();
     this.enemies.length = 0;
     for (const b of [...this.bodies]) this.removeBody(b);
+    // nobody left to hold a job: the alarm run, the flank, the flashlights
+    this.alarmRunner = null;
+    this.flanker = null;
+    const reg = this.world.level.lights;
+    for (let i = 0; i < this.torches.length; i++) {
+      if (this.torchOwner[i]) reg.setOn(this.torches[i]!.id, false);
+      this.torchOwner[i] = null;
+    }
     this.coverOwner.clear();
   }
 }

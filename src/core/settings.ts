@@ -105,7 +105,7 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   dash: { x: 0.35, y: 0.88, scale: 1 },
   shoulder: { x: 0.68, y: 0.09, scale: 1 },
   pause: { x: 0.79, y: 0.09, scale: 1 },
-  vision: { x: 0.565, y: 0.09, scale: 1 },
+  vision: { x: 0.655, y: 0.27, scale: 1 },
 };
 
 /** Claw: fire and aim move up to the top-right (index finger), the right thumb stays on the camera. */
@@ -117,7 +117,7 @@ export const CLAW_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   grenade: { x: 0.69, y: 0.48, scale: 1 },
   shoulder: { x: 0.5, y: 0.09, scale: 1 },
   pause: { x: 0.585, y: 0.09, scale: 1 },
-  vision: { x: 0.4, y: 0.09, scale: 1 },
+  vision: { x: 0.57, y: 0.33, scale: 1 },
 };
 
 /** Left-handed: everything mirrored. */
