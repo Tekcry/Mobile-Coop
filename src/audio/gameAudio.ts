@@ -65,6 +65,15 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     g.events.on('lightSwitch', () => sfx.click()),
     g.events.on('vision', ({ mode }) => sfx.goggles(mode !== 'off')),
     g.events.on('sonar', () => sfx.sonar()),
+    g.events.on('gadget', ({ kind, phase }) => {
+      if (phase === 'throw') return; // (the throw itself sounds through onGrenade)
+      else if (phase === 'detonate') sfx.gadget(kind === 'flash' ? 'flash' : kind === 'emp' ? 'emp' : kind === 'drone' ? 'emp' : 'gas');
+      else if (phase === 'pulse') sfx.gadget('chirp', kind === 'noise' ? 1 : 0.6);
+      else if (phase === 'view' || phase === 'exit') sfx.gadget('feed');
+      else if (phase === 'dart') sfx.gadget('dart');
+      else if (phase === 'destroyed') sfx.explosion(0.25, 0);
+      else if (phase !== 'trigger') sfx.gadget('beep');
+    }),
     g.events.on('door', ({ how, x, z }) => {
       const s = a.spatial(x, 1, z, how === 'bash' ? 40 : 20);
       if (s.gain > 0.03) sfx.door(how, s.gain, s.pan);

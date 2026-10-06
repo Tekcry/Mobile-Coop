@@ -13,7 +13,7 @@ for (let i = 0; i < 40; i++) {
   }
   await wait(250);
 }
-const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-progression', 'e2e-cosmetics', 'e2e-cover', 'e2e-clip', 'e2e-tactics', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-clear', 'e2e-coop', 'e2e-offline'];
+const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-progression', 'e2e-cosmetics', 'e2e-cover', 'e2e-clip', 'e2e-tactics', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-clear', 'e2e-coop', 'e2e-offline'];
 let failed = 0;
 for (const s of suites) {
   console.log(`\n=== ${s} ===`);

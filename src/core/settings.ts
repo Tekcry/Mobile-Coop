@@ -17,6 +17,7 @@ export const TOUCH_CONTROL_IDS = [
   'vision',
   'mark',
   'execute',
+  'gadgets',
 ] as const;
 /** Touch layout format version (2: camera stick, contextual action button). */
 export const TOUCH_LAYOUT_VERSION = 2;
@@ -110,6 +111,7 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   vision: { x: 0.655, y: 0.27, scale: 1 },
   mark: { x: 0.965, y: 0.3, scale: 1 },
   execute: { x: 0.44, y: 0.42, scale: 1 },
+  gadgets: { x: 0.515, y: 0.62, scale: 1 },
 };
 
 /** Claw: fire and aim move up to the top-right (index finger), the right thumb stays on the camera. */
@@ -123,6 +125,7 @@ export const CLAW_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   pause: { x: 0.585, y: 0.09, scale: 1 },
   vision: { x: 0.57, y: 0.33, scale: 1 },
   mark: { x: 0.9, y: 0.36, scale: 1 },
+  gadgets: { x: 0.6, y: 0.62, scale: 1 },
 };
 
 /** Left-handed: everything mirrored. */

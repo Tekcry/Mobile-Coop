@@ -17,7 +17,10 @@ export const BUTTON_ACTIONS = [
   /** Take/leave cover (touch button, controller B-hold, keyboard C). */
   'cover',
   'pause',
+  /** The gadget button: held = aim the arc, released = throw (placed / flown gadgets go on the press). */
   'grenade',
+  /** Gadget wheel: held open (pad / keyboard), toggled (touch). */
+  'gadgetWheel',
   'shoulderSwap',
   'dash',
   /** Goggles: cycle off -> night vision -> sonar. */

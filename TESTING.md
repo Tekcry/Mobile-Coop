@@ -293,6 +293,21 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 5 - Gadgets (1.17.0) - Warehouse, Clear
+- [ ] Hold D-pad down / Tab: the gadget wheel opens and time slows. Push the stick (or move the mouse) to a slot,
+      release: it is selected (HUD icon by the ammo). Touch: tap the wheel button, tap a slot.
+- [ ] Hold D-pad up / G / the gadget button: a dotted arc and a landing ring. Release: thrown along it.
+- [ ] Sleeping gas into a group: they drop (knocked out; a squadmate finding one wakes him).
+- [ ] Flashbang: guards facing it stagger blind for a few seconds, then fight. Look at it yourself: white-out.
+- [ ] EMP near lamps: they go out for ~8 s and come back; a guard investigates the darkness.
+- [ ] Noisemaker on a wall: it chirps; a guard walks over to check (not a fight).
+- [ ] Sticky cam: the view jumps to it (blue-grey feed). Fire pings (guards come), Y gasses (once), RB / T marks,
+      B returns. Your operator stands still meanwhile.
+- [ ] Drone: launches into its feed; fly where you look; RT darts a guard (knocked out); Y shock burst ends it; an
+      alerted guard shoots it down; it drops when the battery runs out (the feed shows seconds left).
+- [ ] Mine: placed at the feet, the light blinks then stays; a guard stepping near sets it off.
+- [ ] Touch: the action button reads Gas / Shock in a feed; the crouch button returns.
+
 ## 2.0 phase 4 - Takedowns, Mark & Execute (1.16.0) - Warehouse, Clear
 - [ ] Sneak up behind a guard: "Takedown" over him. Tap Y / E / the prompt: a choke, he drops (knocked out). Hold: a strike (killed).
 - [ ] From the front works too; from the side only while he has not noticed you.

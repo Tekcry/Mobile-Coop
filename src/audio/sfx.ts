@@ -208,6 +208,37 @@ export class Sfx {
     this.tone('ui', 0.06, 0, 'sine', 650, 420, 0.9, 0.05, 0.05);
   }
 
+  /** Gadgets: a flashbang crack, a gas hiss, an EMP zap, a noisemaker chirp, a feed static blip, a dart pop,
+   *  a beep (place / stick / select). */
+  gadget(kind: 'flash' | 'gas' | 'emp' | 'chirp' | 'feed' | 'dart' | 'beep', gain = 1): void {
+    if (!this.a.allow(`gadget-${kind}`, 0.06)) return;
+    switch (kind) {
+      case 'flash':
+        this.burst('sfx', 1.2 * gain, 0, 'highpass', 1800, 0.6, 0.6);
+        this.tone('sfx', 0.25 * gain, 0, 'sine', 3800, 3600, 2.2, 0.05, 0.05);
+        break;
+      case 'gas':
+        this.burst('sfx', 0.35 * gain, 0, 'highpass', 3000, 0.4, 1.6);
+        break;
+      case 'emp':
+        this.tone('sfx', 0.3 * gain, 0, 'square', 60, 1200, 0.45);
+        this.burst('sfx', 0.3 * gain, 0, 'bandpass', 5000, 3, 0.3);
+        break;
+      case 'chirp':
+        this.tone('sfx', 0.18 * gain, 0, 'square', 1800, 2400, 0.08);
+        this.tone('sfx', 0.18 * gain, 0, 'square', 1800, 2400, 0.08, 0.12);
+        break;
+      case 'feed':
+        this.burst('ui', 0.12 * gain, 0, 'bandpass', 2400, 0.6, 0.18);
+        break;
+      case 'dart':
+        this.burst('sfx', 0.2 * gain, 0, 'bandpass', 1400, 2, 0.06, 600);
+        break;
+      default:
+        this.tone('ui', 0.1 * gain, 0, 'sine', 1500, 1500, 0.06);
+    }
+  }
+
   /** A body thumps down. */
   thud(gain = 1): void {
     if (!this.a.allow('thud', 0.15)) return;

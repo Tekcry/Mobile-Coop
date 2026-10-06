@@ -57,6 +57,8 @@ import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
 import { hyp2, hyp3 } from '../core/mathx';
+import { GadgetSystem } from './gadgetSystem';
+import { InputState } from '../input/inputState';
 
 export type { ModeId };
 
@@ -194,6 +196,10 @@ export class GameState implements AppState {
   readonly marks = new MarkSet();
   readonly takedown: TakedownController;
   readonly execute: ExecuteController;
+  /** Gadgets: the wheel, throws, remote views, effects (phase 5). */
+  readonly gadgets: GadgetSystem;
+  /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
+  private readonly blankInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
   remotePlayers: () => PlayerRef[] = () => [];
   static rewardHook: RewardHook | null = null;
@@ -256,6 +262,12 @@ export class GameState implements AppState {
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
     this.execute = new ExecuteController(this);
+    this.gadgets = new GadgetSystem(this);
+    this.hud.gadgets.onPick = (id) => {
+      this.gadgets.select(id);
+      this.gadgets.closeWheel(false);
+    };
+    this.hud.gadgets.onClose = () => this.gadgets.closeWheel(false);
     this.sonarMarks = new Silhouettes(this.scene, 'sonar', 12, new Color3(1, 0.55, 0.18), true);
     this.sonarRing = CreateTorus('sonarRing', { diameter: 1, thickness: 0.012, tessellation: 48 }, this.scene);
     const rm = new StandardMaterial('sonarRingMat', this.scene);
@@ -520,6 +532,7 @@ export class GameState implements AppState {
     this.enemyMgr?.clear();
     this.pickups?.dispose();
     this.stealth?.dispose();
+    this.gadgets.dispose();
     this.interactables?.dispose();
     this.hud.dispose();
     this.app.input.touch.setControlHidden('action', false);
@@ -693,12 +706,15 @@ export class GameState implements AppState {
 
   fixedUpdate(dt: number): void {
     if (this.exited) return;
-    const inp = this.app.input.state;
-    if (inp.pressed('pause')) {
+    const real = this.app.input.state;
+    if (real.pressed('pause')) {
+      this.gadgets.closeWheel(false);
       this.pause();
       return;
     }
     this.time += dt;
+    // the gadget wheel / a remote view (sticky cam, drone) takes the input: the operator gets none
+    const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
     // quick emotes on the d-pad (right, down, left)
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
@@ -787,6 +803,7 @@ export class GameState implements AppState {
         this.cover.reset();
         this.traversal.reset();
         this.corners.reset();
+        this.gadgets.reset();
         this.suppression.reset();
         this.player.controller.teleport(sp, this.player.cam.yaw);
         this.target.revive();
@@ -831,7 +848,13 @@ export class GameState implements AppState {
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
     const look = this.app.input.state.consumeLook();
-    if (dt > 0) this.applyAimAssist(look, dt);
+    // the wheel cursor / remote view takes the look
+    const gadgetInput = this.gadgets.takesInput;
+    if (gadgetInput) {
+      this.gadgets.look(look.x, look.y);
+      look.x = look.y = 0;
+    }
+    if (dt > 0 && !gadgetInput) this.applyAimAssist(look, dt);
     this.prevAds = this.player.ads;
     this.app.input.setAds(this.player.ads);
     // suppression: the aim wanders (smooth, small) while rounds are cracking past
@@ -844,7 +867,9 @@ export class GameState implements AppState {
     this.traversal.frameUpdate(dt, alpha);
     this.stealth?.frameUpdate();
     this.takedown.frameUpdate();
-    this.player.frameUpdate(dt, alpha, look, this.app.input.state.move);
+    this.player.frameUpdate(dt, alpha, look, gadgetInput ? this.blankInp.move : this.app.input.state.move);
+    this.gadgets.frameUpdate(dt);
+    this.updateGadgetHud();
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
     this.updateStealthHud(dt);
@@ -938,7 +963,7 @@ export class GameState implements AppState {
     mk.end();
     this.hud.setCharge(this.marks.charges, this.execute.ready);
     const touch = this.app.input.touch;
-    touch.setControlHidden('mark', !this.player.ads || !em);
+    touch.setControlHidden('mark', (!this.player.ads && !this.gadgets.remote) || !em);
     touch.setControlHidden('execute', !this.execute.ready);
     // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
     const g = this.ghost;
@@ -1021,6 +1046,14 @@ export class GameState implements AppState {
   letterbox(seconds: number): void {
     this.letterboxT = seconds;
     this.post.letterbox(true);
+  }
+
+  /** Gadget wheel and the remote feed overlay. */
+  private updateGadgetHud(): void {
+    const gs = this.gadgets;
+    const inv = this.weapons.gadgets;
+    this.hud.gadgets.update(gs.wheelOpen, gs.wheelSlot, inv.counts, inv.selected);
+    this.hud.gadgets.setFeed(gs.feedText(this.app.input.mode));
   }
 
   private updateCinematic(dt: number): void {
@@ -1153,8 +1186,9 @@ export class GameState implements AppState {
     const it = this.interactTarget;
     if (it) ACT_USE.label = it.label.length > 14 ? 'Use' : it.label;
     const touchCtl = this.app.input.touch;
-    touchCtl.setAction(it ? ACT_USE : null);
-    touchCtl.setControlHidden('action', !it);
+    const ga = this.gadgets.touchAction();
+    touchCtl.setAction(ga ?? (it ? ACT_USE : null));
+    touchCtl.setControlHidden('action', !ga && !it);
   }
 
   /** Anchor prompts: what traverse attaches to from the ground; climb up / jump / drop while attached. */
@@ -1295,7 +1329,8 @@ export class GameState implements AppState {
       mag: w.mag,
       magSize: w.stats.magSize,
       reserve: this.weapons.infiniteAmmo ? Infinity : w.reserve,
-      grenades: this.weapons.grenades,
+      gadget: this.weapons.gadgets.selected,
+      grenades: this.weapons.gadgets.count,
       reloadProgress: this.weapons.reloadProgress,
       spreadPx,
       onTarget: this.onTarget,

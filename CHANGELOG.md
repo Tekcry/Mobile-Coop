@@ -1,5 +1,29 @@
 # Changelog
 
+## 1.17.0 - 2.0 phase 5: gadgets
+- Eight gadgets (`game/gadgets.ts`, pure; `game/gadgetSystem.ts`): frag, sleeping gas (a cloud for 6 s: 0.8 s in it
+  knocks a guard out), flashbang (guards facing it are blind for up to 4 s - staggering, hands to the face - then
+  alert; turned away, a 1.2 s daze; it whites the screen out if you look at it), EMP (lights within 9 m out for
+  8 s, close guards dazed, a guard investigates the dark), noisemaker (sticks where it lands, a lure pulse every
+  1.5 s for 6 s), sticky cam (sticks, its feed opens: look round, fire pings a lure, Y releases its gas once, mark
+  from it, X next cam, B back), tri-rotor drone (launches into its feed: fly where it looks, a stun dart, a shock
+  burst that knocks out round it and spends the drone; 40 s battery, 35 m range; calm guards that see it look over,
+  alerted ones shoot it down), proximity mine (placed at the feet, arms in 1.5 s, a guard within 1.6 m sets it
+  off). Starting carry: 2 frag, 2 gas, 2 flash, 1 EMP, 2 noise, 2 cams, 1 drone, 1 mine; ammo pickups add a frag.
+- The gadget wheel: hold D-pad down / Tab (time slows to x0.3 in single player), the stick or mouse picks a slot,
+  release selects. Touch: a wheel button (tap opens, tap a slot). The HUD shows the selected gadget and count.
+- The gadget button (D-pad up / G / touch gadget): held, a dotted arc to a landing ring; released, thrown.
+  Placed / flown gadgets go on the press; with the drone out (or every cam thrown) it re-opens the feed.
+- Remote feeds (cam / drone): a camera-feed look (`CinematicPost.setFeed`), a corner frame and the controls for the
+  input mode; the operator stands still (the rest of the step gets no input). Touch: fire, the action button
+  (Gas / Shock), Mark, crouch to return.
+- Input: action `gadgetWheel`; the pad's D-pad up is the gadget (was `quick1`), D-pad down the wheel (the down
+  emote is on the keyboard's 3 only now).
+- Blacklist differences: gadgets are not yet bought or upgraded (phase 8); the drone's shock is non-lethal; co-op
+  syncs no gadget effects yet (phase 10).
+- Tests: unit tests for the inventory, wheel, arc and drone flight; `e2e-gadgets` (wheel by pad and touch, arc,
+  gas, flash, EMP, noise, sticky cam, drone, mine); e2e-touch checks the wheel button size.
+
 ## 1.16.1 - fixes
 - Foot planting: an early toe-off already in the air goes on from its progress and lands on the gait clock
   (1.15.1 kept the larger of the two, so a sprinting foot arrived early, behind the body, and slid up to 2.6 cm

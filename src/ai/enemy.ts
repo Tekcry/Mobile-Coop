@@ -238,6 +238,25 @@ export class Enemy implements Damageable {
 
   /** Seized in a takedown (the attacker's controller places the body; no brain). */
   taken = false;
+  /** Flashbanged: blind and staggering for this long (no perception, no fire), then alert. */
+  blindT = 0;
+  /** Seconds breathing sleeping gas (the gadget system knocks out at its threshold; decays outside). */
+  gas = 0;
+
+  /** Blinded by a flashbang: hands to the face, staggering on the spot, then straight to combat. */
+  blind(seconds: number): void {
+    if (!this.alive || this.taken) return;
+    this.blindT = Math.max(this.blindT, seconds);
+    this.burstLeft = 0;
+    this.windup = 0;
+    this.vel.setAll(0);
+    this.rig.emote = (_r, t) => {
+      const k = Math.min(1, t * 6);
+      const w = Math.sin(t * 9) * 0.1;
+      return { neck: [0.45 * k, w, 0], chest: [0.3 * k, 0, 0], shoulderL: [-2.1 * k, 0, -0.5 * k], shoulderR: [-2.1 * k, 0, 0.5 * k], elbowL: [0, 0, -2.2 * k], elbowR: [0, 0, 2.2 * k], pelvisLift: -0.06 * k };
+    };
+    this.rig.emoteTime = 0;
+  }
 
   /** Grabbed: the brain stops, the body struggles (arms up to the attacker's hold, head back). */
   beginTakedown(choke: boolean): void {
@@ -498,6 +517,18 @@ export class Enemy implements Damageable {
     // in a takedown: the attacker drives the body, the brain is off
     if (this.taken) {
       this.syncHitboxes();
+      return;
+    }
+    // flashbanged: no brain until the eyes clear, then combat
+    if (this.blindT > 0) {
+      this.blindT -= dt;
+      this.vel.setAll(0);
+      this.syncHitboxes();
+      if (this.blindT <= 0) {
+        this.blindT = 0;
+        this.rig.emote = null;
+        this.alert();
+      }
       return;
     }
     this.fireT = Math.max(0, this.fireT - dt);

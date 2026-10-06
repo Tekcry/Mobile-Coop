@@ -12,6 +12,7 @@ import { classWeight } from './weaponCarry';
 import { GRENADE, WEAPONS, modelExtents, type WeaponDef, type WeaponId } from './weaponDefs';
 import { assignCarrySlots, type CarrySlot } from './carrySlots';
 import { GrenadePouches } from './grenadePouches';
+import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
 
 const modelLength = (d: WeaponDef): number => {
@@ -69,7 +70,9 @@ const STOW_RATE = 2.5;
 export class PlayerWeapons {
   readonly slots: WeaponSlot[] = [];
   index = 0;
-  grenades = GRENADE.startCount;
+  /** Gadgets carried (the wheel selects one); thrown kinds go out through `onThrow`, placed / flown through
+   *  `onPlace`. */
+  readonly gadgets = new GadgetInventory();
   /** Belt pouches showing the grenades carried. */
   readonly pouches: GrenadePouches;
   private cooldown = 0;
@@ -245,7 +248,7 @@ export class PlayerWeapons {
 
   addAmmo(fraction: number): void {
     for (const s of this.slots) s.reserve = Math.min(s.def.reserve * 2, s.reserve + Math.ceil(s.def.reserve * fraction));
-    this.grenades = Math.min(GRENADE.maxCarry, this.grenades + 1);
+    this.gadgets.add('frag');
   }
 
   fixedUpdate(dt: number, inp: InputState): void {
@@ -334,8 +337,7 @@ export class PlayerWeapons {
       this.startReload();
     }
 
-    // grenade
-    if (inp.pressed('grenade') || inp.pressed('quick1')) this.throwGrenade();
+    // (gadget throws are started by the gadget system: tap / hold of the gadget button decides use vs wheel)
 
     // fire
     if (inp.pressed('fire')) this.queuedT = 0.35;
@@ -362,23 +364,52 @@ export class PlayerWeapons {
     this.events.onReload?.(s.def);
   }
 
-  /** Start the throw; the grenade leaves the hand at the release point of the animation. */
-  private throwGrenade(): void {
-    if (this.grenades <= 0 || this.grenadeCd > 0 || this.throwing || this.swapping) return;
-    this.grenades--;
+  /** Throw / use the selected gadget (the gadget system calls this; frag with no handler). Returns false when it
+   *  cannot (none left, busy). Thrown kinds play the throw and go out at its release (`onThrow`). */
+  useGadget(): boolean {
+    if (this.grenadeCd > 0 || this.throwing || this.swapping || this.stowed) return false;
+    const g = this.gadgets;
+    const def = GADGETS[g.selected];
+    if (def.use === 'place' || def.use === 'fly') {
+      if (!this.onPlace || !g.take()) return false;
+      this.grenadeCd = GRENADE.cooldown;
+      this.onPlace(g.selected);
+      return true;
+    }
+    if (!g.take()) return false;
+    this.throwKind = g.selected;
     this.grenadeCd = GRENADE.cooldown;
     this.reloadT = -1;
     this.grenadeT = 0;
     this.grenadeThrown = false;
+    return true;
+  }
+
+  /** Where a throw leaves the hand and its launch velocity (the predicted arc uses the same). */
+  throwStart(outFrom: Vector3, outVel: Vector3): void {
+    const cam = this.player.cam;
+    outFrom.copyFrom(cam.pivot).addInPlaceFromFloats(0, 0.1, 0).addInPlace(cam.forward.scale(0.5));
+    const v = this.player.controller.cc.getVelocity();
+    outVel.copyFrom(cam.forward).scaleInPlace(GRENADE.throwSpeed).addInPlaceFromFloats(0, GRENADE.upBias, 0).addInPlace(v.scale(0.5));
   }
 
   private releaseGrenade(): void {
-    const cam = this.player.cam;
-    const from = cam.pivot.add(new Vector3(0, 0.1, 0)).addInPlace(cam.forward.scale(0.5));
-    const v = this.player.controller.cc.getVelocity();
-    this.grenadeSys.throw(from, cam.forward.clone(), 'player', 'local', v);
+    const from = new Vector3();
+    const vel = new Vector3();
+    this.throwStart(from, vel);
+    if (this.onThrow) this.onThrow(this.throwKind, from, vel);
+    else this.grenadeSys.throw(from, vel, 'player', 'local', undefined, true);
     this.player.aimLockTimer = 0.4;
     this.events.onGrenade?.();
+  }
+
+  onThrow: ((id: GadgetId, from: Vector3, vel: Vector3) => void) | null = null;
+  onPlace: ((id: GadgetId) => void) | null = null;
+  private throwKind: GadgetId = 'frag';
+
+  /** Frags carried (belt pouches, pickups). */
+  get grenades(): number {
+    return this.gadgets.counts.frag;
   }
 
   private shoot(): void {

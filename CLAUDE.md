@@ -57,6 +57,9 @@ Blacklist style.
     exposure HUD, enemy grenades/flanker, footstep noise investigation
   - `scripts/e2e-takedown.mjs` takedown kinds (ground rules, over low cover, above, below, window), tap / hold,
     5 cm alignment, damage interrupt, Execute charge, marks through cover, no execute out of sight, execute
+  - `scripts/e2e-gadgets.mjs` wheel (hold opens + slows time, stick picks, release selects, touch tap), arc preview,
+    gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure, sticky cam feed
+    (operator still, ping, gas, back), drone (flies, dart, battery), mine
   - `scripts/e2e-stealth-ai.mjs` night Warehouse: shadow vs light detection, the arc warns first, no sight through
     walls, noise -> suspicious -> investigating, squad radio, LKP + ghost + converge + search ends, patrols
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
@@ -132,9 +135,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Bindings (section 7 of 1.3.0): gamepad LS move, RS look, LT aim, RT fire, A `cover` (take / leave /
   cover-to-cover), B `crouch` (stand / crouch at high cover), Y `jump` + `interact` (contextual: an interactable
   in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
-  R3 shoulder, RB/LB weapons (RB `mark` while aiming), D-pad up grenade, others emotes, View `vision` (goggles);
+  R3 shoulder, RB/LB weapons (RB `mark` while aiming), D-pad up `grenade` (the gadget: hold aims the arc, release
+  throws), D-pad down `gadgetWheel` (hold), right / left emotes, View `vision` (goggles);
   Y also takedown / execute (contextual). Keyboard: Space cover, C / Ctrl crouch, Shift sprint, E traverse /
-  interact / takedown, R reload, Q / X weapons, N goggles, T mark, Y execute; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
+  interact / takedown, R reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold); mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
   smoothing, so releasing never steps the rate).
 - Touch (`input/touchControls.ts`): pointer handlers only record state; `update(dt)` (per frame, from
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
@@ -522,6 +526,30 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   one lethal head shot each). HUD: `ui/hud/markers.ts` chevrons, `Hud.setCharge`.
 - GameState order: busy (takedown / execute from the last step) skips cover and blocks traversal's jump; Y is a
   takedown when offered, else execute when ready, else interact / traverse.
+
+## Gadgets (2.0 phase 5)
+- `game/gadgets.ts` (pure): `GADGETS` (frag, sleeping gas, flashbang, EMP, noisemaker, sticky cam, tri-rotor drone,
+  proximity mine: carry / max, `use` throw | stick | place | fly, fuse, radius, duration), `GADGET_IDS` (wheel order,
+  clockwise from the top), `GadgetInventory` (counts, selected, cycle, take, add, restock), `wheelSlot`,
+  `predictArc`, `DRONE` + `droneStep` (camera-relative flight, range from the launch point, altitude band, battery).
+- `PlayerWeapons.gadgets` replaces the grenade count (`grenades` = frags; pouches show them); `useGadget()` plays
+  the throw (released through `onThrow(id, from, vel)` at the clip's release) or places (`onPlace`); `throwStart`
+  is the launch point / velocity the arc preview uses. `Grenades.throw(..., kind, color, fuse)`; non-frag kinds go
+  off through `onDetonate`.
+- `game/gadgetSystem.ts` (`GameState.gadgets`): runs first each fixed step with the real input and returns true while
+  the wheel or a remote view has it (the rest of the step then gets `blankInp`); `look()` takes the frame's look
+  (wheel cursor / remote view); `frameUpdate` after the player's camera (the remote view owns the camera: position,
+  rotation, FOV; arc dots + landing ring; drone pose). Wheel: pad / keyboard hold `gadgetWheel` `WHEEL_HOLD`
+  (stick or look picks, release selects), touch press toggles it and a slot tap selects (`hud.gadgets.onPick`);
+  `loop.timeScale` `WHEEL_SLOW` unless co-op. Effects: gas clouds (`Enemy.gas` seconds -> `knockOut` at `GAS_KO`),
+  flashbang (`Enemy.blind(s)`: brain off, hands-to-face emote, then `alert()`; facing it the full duration;
+  `CinematicPost.whiteOut` for the operator facing it), EMP (`LightRegistry.disrupt` + `update` each step, `lightsOut`,
+  dazes close guards, kills the operator's own drone), noisemaker (stick-on, `hear` pulses), sticky cam (stick-on,
+  feed opens: lure ping (fire), gas once (Y), mark (RB / T), next (X), back (B / gadget)), drone (launch into the
+  feed: fly where it looks, stun dart (fire, `knockOut`), shock burst (Y, non-lethal in `radius`, spends it), alerted
+  guards in sight shoot it down, calm ones `notice`), mine (placed, arms after 1.5 s, an enemy within 1.6 m sets
+  off a frag-strength blast). The feed look is `CinematicPost.setFeed`; `ui/hud/gadgetWheel.ts` (wheel + feed
+  overlay text per input mode); touch: the action button is "Gas" / "Shock" in a feed, Mark is shown there too.
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

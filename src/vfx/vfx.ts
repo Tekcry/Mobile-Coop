@@ -209,6 +209,15 @@ export class Vfx {
     this.sparks(pos, UP, 14, '#ffb347');
   }
 
+  /** Soft drifting puff (gas clouds, flash smoke): one sphere particle. */
+  puff(x: number, y: number, z: number, color: Color4, size: number, life: number): void {
+    this.tmpP.set(x, y, z);
+    this.tmpV.set((Math.random() - 0.5) * 0.4, 0.15 + Math.random() * 0.2, (Math.random() - 0.5) * 0.4);
+    this.emit(true, this.tmpP, this.tmpV, color, life, size, size * 0.8, -0.05);
+  }
+  private tmpP = new Vector3();
+  private tmpV = new Vector3();
+
   /** Ejected brass: small tumbling box to the shooter's right. */
   casing(pos: Vector3, right: Vector3): void {
     if (this.density < 0.6) return;

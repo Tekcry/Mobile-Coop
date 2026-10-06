@@ -17,6 +17,7 @@ const KEYMAP: Record<string, ButtonAction[]> = {
   KeyQ: ['swapPrev', 'uiTabPrev'],
   KeyF: ['interact'],
   KeyG: ['grenade'],
+  Tab: ['gadgetWheel'],
   KeyV: ['shoulderSwap'],
   KeyN: ['vision'],
   KeyT: ['mark'],
@@ -178,6 +179,6 @@ export class KeyboardMouseSource {
     const y = (this.keys.has('KeyW') ? 1 : 0) - (this.keys.has('KeyS') ? 1 : 0);
     const len = hyp2(x, y) || 1;
     this.state.setMove(SRC, x / len, y / len);
-    if (e.code === 'Space' || e.code.startsWith('Arrow')) e.preventDefault();
+    if (e.code === 'Space' || e.code === 'Tab' || e.code.startsWith('Arrow')) e.preventDefault();
   }
 }

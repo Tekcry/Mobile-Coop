@@ -5,6 +5,7 @@ import type { Minimap } from './minimap';
 import { WorldPrompts } from './worldPrompts';
 import { AwarenessArcs } from './awareness';
 import { Markers } from './markers';
+import { GadgetWheel } from './gadgetWheel';
 
 export interface HudFrame {
   hp: number;
@@ -15,6 +16,8 @@ export interface HudFrame {
   mag: number;
   magSize: number;
   reserve: number;
+  /** Selected gadget (icon) and how many are carried. */
+  gadget: string;
   grenades: number;
   reloadProgress: number;
   /** Crosshair gap in CSS pixels. */
@@ -38,7 +41,10 @@ export class Hud {
   private wName: HTMLElement;
   private wMag: HTMLElement;
   private wRes: HTMLElement;
+  /** Gadget wheel and the remote feed overlay. */
+  readonly gadgets: GadgetWheel;
   private gCount: HTMLElement;
+  private gIcon!: HTMLElement;
   private cross: HTMLElement;
   private hit: HTMLElement;
   private ring: SVGCircleElement;
@@ -96,12 +102,13 @@ export class Hud {
     this.wMag = h('span', { class: 'w-mag' });
     this.wRes = h('span', { class: 'w-res' });
     this.gCount = h('span', { class: 'w-gren' });
+    this.gIcon = h('span', { class: 'w-gren-icon', html: icon('frag', 16) });
     const weapon = h(
       'div',
       { class: 'hud-weapon' },
       this.wName,
       h('div', { class: 'w-ammo' }, this.wMag, h('span', { class: 'w-sep', text: '/' }), this.wRes),
-      h('div', { class: 'w-extra', html: `<span class="w-gren-icon">${icon('grenade', 16)}</span>` }, this.gCount),
+      h('div', { class: 'w-extra' }, this.gIcon, this.gCount),
     );
     this.cross = h('div', { class: 'crosshair' }, h('i', { class: 'ch t' }), h('i', { class: 'ch b' }), h('i', { class: 'ch l' }), h('i', { class: 'ch r' }), h('i', { class: 'ch dot' }));
     this.hit = h('div', { class: 'hitmarker' }, h('i'), h('i'), h('i'), h('i'));
@@ -154,6 +161,7 @@ export class Hud {
     parent.appendChild(this.el);
     this.markers = new Markers(this.el);
     this.world = new WorldPrompts(parent);
+    this.gadgets = new GadgetWheel(parent);
   }
 
   setMinimap(m: Minimap): void {
@@ -188,6 +196,7 @@ export class Hud {
     });
     this.set('res', f.reserve, () => (this.wRes.textContent = Number.isFinite(f.reserve) ? String(f.reserve) : '∞'));
     this.set('gr', f.grenades, () => (this.gCount.textContent = `×${f.grenades}`));
+    this.set('gi', f.gadget, () => (this.gIcon.innerHTML = icon(f.gadget, 16)));
     const gap = Math.round(Math.min(60, 4 + f.spreadPx));
     this.set('gap', gap, () => this.cross.style.setProperty('--gap', `${gap}px`));
     this.set('ot', f.onTarget, () => this.cross.classList.toggle('on-target', f.onTarget));
@@ -320,5 +329,6 @@ export class Hud {
   dispose(): void {
     this.el.remove();
     this.world.dispose();
+    this.gadgets.dispose();
   }
 }
