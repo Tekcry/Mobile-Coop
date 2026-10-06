@@ -141,6 +141,43 @@ export class PlayerWeapons {
     return this.swapT >= 0;
   }
 
+  /** Weapon away while both hands are busy (ladders, pipes, hanging, ducts). */
+  private stowed = false;
+
+  /**
+   * Stow / draw for attached traversal: stowing plays the swap's holster half and holds there (hands empty,
+   * every gun in its carry slot); drawing continues the same swap from its slot back into the hands. A swap
+   * already running carries on into the stow.
+   */
+  setStowed(v: boolean): void {
+    if (v === this.stowed) return;
+    this.stowed = v;
+    this.reloadT = -1;
+    const rig = this.player.rig;
+    if (v) {
+      if (this.swapT >= 0 && this.swapPhase >= 2) {
+        // mid-draw: the gun goes straight back to its slot
+        this.holsterAll(-1);
+        this.swapPhase = 1;
+        this.swapT = SWAP_TIME * SWAP_HOLSTER;
+      } else if (this.swapT < 0) {
+        this.swapT = 0;
+        this.swapPhase = 0;
+        this.player.swapFrom = this.reach(this.held);
+        this.player.swapTo = this.reach(this.index);
+      }
+    } else if (this.swapT < 0 && !rig.heldWeapon) {
+      // fully stowed: draw from the slot (the swap from its holstered beat)
+      this.swapT = SWAP_TIME * SWAP_HOLSTER;
+      this.swapPhase = 1;
+      this.player.swapFrom = this.player.swapTo = this.reach(this.index);
+    }
+  }
+
+  get isStowed(): boolean {
+    return this.stowed;
+  }
+
   /** Throwing a grenade (wind-up to recovery): no firing, aiming or reloading. */
   get throwing(): boolean {
     return this.grenadeT >= 0;
@@ -217,7 +254,7 @@ export class PlayerWeapons {
     const ctl = this.player.controller;
 
     // swap (pressing again mid-swap keeps cycling)
-    if ((inp.pressed('swapNext') || inp.pressed('swapPrev')) && this.slots.length > 1 && !this.throwing) {
+    if ((inp.pressed('swapNext') || inp.pressed('swapPrev')) && this.slots.length > 1 && !this.throwing && !this.stowed) {
       const d = inp.pressed('swapNext') ? 1 : -1;
       this.reloadT = -1;
       this.index = (this.index + d + this.slots.length) % this.slots.length;
@@ -246,7 +283,9 @@ export class PlayerWeapons {
         this.swapPhase = 1;
         this.holsterAll(-1);
       }
-      if (this.swapPhase === 1 && f >= SWAP_TAKE) {
+      // stowed: hold at the holstered beat (hands empty) until drawn again
+      if (this.stowed && this.swapPhase >= 1) this.swapT = SWAP_TIME * SWAP_HOLSTER;
+      else if (this.swapPhase === 1 && f >= SWAP_TAKE) {
         this.swapPhase = 2;
         this.slots[this.index]!.model.inHand(this.player.rig);
       }
@@ -256,6 +295,7 @@ export class PlayerWeapons {
       }
       if (this.swapT >= SWAP_TIME) this.swapT = -1;
     }
+    if (this.stowed) return;
     // grenade: prep, pin, wind-up, release (thrown), recover
     if (this.grenadeT >= 0) {
       this.grenadeT += dt;

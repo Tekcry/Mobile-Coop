@@ -232,7 +232,7 @@ export class Player {
     this.cam.lift = this.rig.lift;
     this.cam.coverTop = this.coverPose.top;
     this.cam.update(dt, c.renderPos, c.crouchBlend);
-    this.world.frame(c.renderPos);
+    this.world.frame(c.renderPos, dt);
 
     const root = this.rig.root;
     root.position.copyFrom(c.renderPos);

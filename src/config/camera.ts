@@ -47,3 +47,37 @@ export function framing(ads: number, crouch: number, dash: number, C = CAMERA): 
     pivot: C.pivotStand + (C.pivotCrouch - C.pivotStand) * crouch,
   };
 }
+
+/** Attached traversal states (ladder, pipe, hang, duct, zipline): framing preset per state. `boom` / `shoulder`
+ *  / `pivot` replace the hip framing (pivot above the feet), `pitch` biases the view (rad, + up) and `cone`
+ *  bounds the free orbit around the anchor's facing (rad; Math.PI = free). Blended in over `blend` seconds. */
+export interface AttachFraming {
+  boom: number;
+  shoulder: number;
+  pivot: number;
+  pitch: number;
+  cone: number;
+  blend: number;
+}
+
+export type AttachCamera = 'hang' | 'ladder' | 'pipe' | 'pipeH' | 'duct' | 'zipline';
+
+export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
+  // hanging: pulled back and lower, showing the drop
+  hang: { boom: 2.9, shoulder: 0.5, pivot: 1.35, pitch: -0.25, cone: 2.2, blend: 0.3 },
+  // ladder / drainpipe: over the shoulder, looking up or down the climb
+  ladder: { boom: 2.0, shoulder: 0.55, pivot: 1.5, pitch: 0.1, cone: 2.4, blend: 0.25 },
+  pipe: { boom: 2.0, shoulder: 0.55, pivot: 1.5, pitch: 0.1, cone: 2.4, blend: 0.25 },
+  pipeH: { boom: 2.6, shoulder: 0.5, pivot: 1.4, pitch: -0.15, cone: Math.PI, blend: 0.3 },
+  // duct: tight, low
+  duct: { boom: 0.9, shoulder: 0.22, pivot: 0.55, pitch: -0.05, cone: 1.2, blend: 0.2 },
+  zipline: { boom: 2.8, shoulder: 0.45, pivot: 1.2, pitch: -0.2, cone: Math.PI, blend: 0.25 },
+};
+
+/** Blend a framing (in place) from the hip framing towards an attached preset by `w` 0..1. */
+export function attachFraming<T extends { boom: number; shoulder: number; pivot: number }>(base: T, preset: AttachFraming, w: number): T {
+  base.boom += (preset.boom - base.boom) * w;
+  base.shoulder += (preset.shoulder - base.shoulder) * w;
+  base.pivot += (preset.pivot - base.pivot) * w;
+  return base;
+}

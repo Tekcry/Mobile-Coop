@@ -1,5 +1,30 @@
 # Changelog
 
+## 1.7.0 - 2.0 "Blacklist" overhaul, phase 1: foundations (no visible change)
+- Traversal anchors (`world/anchors.ts`, pure): ladders, vertical / horizontal pipes, ledges, ducts, windows, doors and
+  ziplines as map data in the built level (`BuiltLevel.anchors`). Ledges are generated from box tops like cover faces
+  (lip >= 1.9 m off the floor, cut where another piece sits on or presses against it, linked round outside corners,
+  climb-up only where the top is >= 0.45 m deep), with manual additions / suppressions; `LevelBuilder.ladder / pipeV /
+  pipeH / zipline / duct / windowAt / door / ledge / noLedge`. Reach tests, hang points, lip grips, rung snapping.
+- Attached locomotion (`player/attach.ts`, pure): one state machine for ladder, pipe, hang, duct and zipline - stick
+  mapping along the anchor, root path, enter / on / exit blends, camera framing preset and allowed actions per state.
+  `TraversalController` runs it beside the committed moves (`attachTo`, `detach`): ladder climb at 1.6 rungs/s, slide
+  on held drop, step off the top or bottom; drop lets go; climb up from a ledge.
+- Rig: hands take world grips independent of the weapon (`reachL/R`), feet take world soles while attached
+  (`plantL/R`); new `hang`, `climb`, `crawl` poses. Attaching stows the weapon through the swap's holster half and
+  draws it again after.
+- Camera: framing presets per attached state (`ATTACH_FRAMING`), blended in and out.
+- Input: `drop` (raised by the crouch control on every device) and `interactHold` (interact held 0.3 s);
+  `InputState` tracks hold time and progress for hold rings.
+- Light model (`world/lights.ts`, pure): a registry of lights (radius, cone, intensity, on / off, shoot-out, switch
+  groups, EMP outages) and `lightLevelAt` / `bodyLightLevel`; the player is sampled at 10 Hz (occlusion rays only for
+  lights in range), enemies sample their target in their think tick. `LightRig` renders a capped pool of real lights
+  (by quality, nearest the camera) plus emissive bulbs; maps without lights create nothing. Map themes take a
+  gameplay `lightLevel` (default daylight 0.75).
+- Decisions (Blacklist-style): hanging, ladders and pipes holster the long gun; drop on a ladder slides, elsewhere it
+  lets go. Anchors live in the built level (`BuiltLevel`), not `MapLayout`, since ledges come from the geometry.
+- Tests: anchors, lights, attach machine, input holds (unit).
+
 ## 1.6.0 - Tactical stance, sights at the eye, smooth gait, cover jog and corner prompt
 - Aiming and firing bring the weapon up to eye level beside the head (stock high, elbows up), so shooting never
   reads as hip fire.

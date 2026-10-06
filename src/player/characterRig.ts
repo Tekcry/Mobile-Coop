@@ -102,6 +102,14 @@ export interface RigPose {
   restZ?: number;
 }
 
+/** A world point with a blend weight (rig hand / foot targets). */
+export interface WorldTarget {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
 export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'shoulderL' | 'shoulderR' | 'elbowL' | 'elbowR' | 'hipL' | 'hipR' | 'kneeL' | 'kneeR';
 /** Forward-kinematics override (Euler x, y, z) per joint, used by emotes. */
 export type FkPose = Partial<Record<JointName, readonly [number, number, number]>> & { pelvisLift?: number };
@@ -335,6 +343,17 @@ export class CharacterRig {
   private handBlend = 0;
   /** World point for the off hand on the cover surface (set by the cover system), or null. */
   coverHand: Vector3 | null = null;
+  /**
+   * World grips for the hands, independent of any weapon (rungs, pipe, ledge lip, a victim in a takedown):
+   * the palm point and a weight 0..1. Weighted over the weapon / clip target; the wrist sits behind the palm
+   * along the reach so the hand closes on the grip. Set by attached traversal; zero weight = unused.
+   */
+  readonly reachL: WorldTarget = { x: 0, y: 0, z: 0, w: 0 };
+  readonly reachR: WorldTarget = { x: 0, y: 0, z: 0, w: 0 };
+  /** World sole targets for the feet (rungs, wall pads) and a weight 0..1; used while the feet are off the
+   *  ground planner (airborne / traversing / attached). */
+  readonly plantL: WorldTarget = { x: 0, y: 0, z: 0, w: 0 };
+  readonly plantR: WorldTarget = { x: 0, y: 0, z: 0, w: 0 };
   /** Ground height under a world XZ (raycast) for foot IK, or null to skip. */
   groundProbe: ((x: number, z: number, yFrom: number) => number | null) | null = null;
   /** World-space foot placement (contacts, locking, swing arcs, idle stepping). */
@@ -1035,6 +1054,19 @@ export class CharacterRig {
       L.y = R.y = rp.y;
       L.yaw = R.yaw = yaw;
       L.pitch = R.pitch = 0;
+      // attached: soles onto rungs / wall pads
+      const pl = this.plantL;
+      const pr = this.plantR;
+      if (pl.w > 0) {
+        L.x += (pl.x - L.x) * pl.w;
+        L.y += (pl.y - L.y) * pl.w;
+        L.z += (pl.z - L.z) * pl.w;
+      }
+      if (pr.w > 0) {
+        R.x += (pr.x - R.x) * pr.w;
+        R.y += (pr.y - R.y) * pr.w;
+        R.z += (pr.z - R.z) * pr.w;
+      }
     }
     // pelvis drops so both feet stay reachable with soft knees (wide steps, lower ground, kneeling):
     // each foot measured from its own hip joint (pelvis offset and hip width), and a growing need is met
@@ -1247,6 +1279,15 @@ export class CharacterRig {
       }
     }
     if (coverW > 0 && this.coverHand && !isGrip) Vector3.LerpToRef(target, this.coverHand, coverW, target);
+    // world grip (rung, pipe, lip): the wrist sits behind the palm along the reach from the shoulder
+    const reach = side > 0 ? this.reachR : this.reachL;
+    if (reach.w > 0) {
+      tmpB.set(reach.x - S.x, reach.y - S.y, reach.z - S.z);
+      const len = tmpB.length();
+      const back = len > 1e-4 ? (p.hand.len * 0.45) / len : 0;
+      tmpB.set(reach.x - tmpB.x * back, reach.y - tmpB.y * back, reach.z - tmpB.z * back);
+      Vector3.LerpToRef(target, tmpB, Math.min(1, reach.w), target);
+    }
     // elbows down/out/back
     this.dirToWorld(side * 0.55, -1, -0.35, tmpPole);
     solveTwoBone(S, target, p.upperArm.len, p.forearm.len, tmpPole, tmpC, tmpD);
@@ -1260,7 +1301,7 @@ export class CharacterRig {
     boneRotation(tmpA, tmpE, tmpQ);
     this.setWorldRot(el, sh, tmpQ);
     // hand: follow the weapon when gripping, else continue the forearm
-    if (gripW > 0.5 && this.heldWeapon && !(coverW > 0.5 && !isGrip)) {
+    if (gripW > 0.5 && this.heldWeapon && !(coverW > 0.5 && !isGrip) && reach.w < 0.5) {
       // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side
       Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);

@@ -1,5 +1,5 @@
 import type { App, AppState } from '../core/app';
-import { Vector3, type Scene } from '../core/babylon';
+import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
 import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
@@ -39,6 +39,7 @@ import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
+import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
@@ -120,6 +121,9 @@ export class GameState implements AppState {
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
   private noiseT = 0;
+  /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
+  lightLevel = 1;
+  private lightT = 0;
   /** Incoming fire pressure on the local player (near misses, impacts close by). */
   readonly suppression = new Suppression();
   /** Fraction of the player visible to the best-placed threat (0..1), and the current cover's quality. */
@@ -358,6 +362,7 @@ export class GameState implements AppState {
   applyQuality(level: QualityLevel, userShadows: boolean): void {
     this.world.setShadows(level.shadows && userShadows, level.shadowRefresh);
     this.vfx.density = level.vfxDensity;
+    this.world.lightRig.active = level.realLights;
   }
 
   playerRefs(): PlayerRef[] {
@@ -540,6 +545,34 @@ export class GameState implements AppState {
     }
   }
 
+  /** Player light level at `LIGHT.playerHz`; lights blocked by level geometry do not count. */
+  private updateLight(dt: number): void {
+    const reg = this.world.level.lights;
+    reg.update(dt);
+    this.lightT -= dt;
+    if (this.lightT > 0) return;
+    this.lightT = 1 / LIGHT.playerHz;
+    const p = this.player.position;
+    const h = 1.75 * (1 - 0.35 * this.player.controller.crouchBlend);
+    this.lightLevel = reg.lights.length ? bodyLightLevel(reg, p.x, p.y, p.z, h, this.lightOccluder) : reg.ambient;
+    this.localRef.light = this.lightLevel;
+  }
+
+  private lightFrom = new Vector3();
+  private lightTo = new Vector3();
+  private lightRay = new PhysicsRaycastResult();
+  /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
+  private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
+    this.lightFrom.set(l.x, l.y, l.z);
+    // stop short of the body so the player's own hit volumes never count
+    const d = Vector3.Distance(this.lightFrom, this.lightTo.set(x, y, z));
+    if (d < 0.3) return false;
+    this.lightTo.subtractInPlace(this.lightFrom).scaleInPlace((d - 0.25) / d).addInPlace(this.lightFrom);
+    this.lightRay.reset();
+    (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.lightFrom, this.lightTo, this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
+    return this.lightRay.hasHit;
+  };
+
   fixedUpdate(dt: number): void {
     if (this.exited) return;
     const inp = this.app.input.state;
@@ -557,7 +590,16 @@ export class GameState implements AppState {
     // cover shot away / destroyed under the player: stumble out of it
     if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
     // Y / E is contextual: an interactable in reach takes it, else it traverses
+    const ti = this.traversal.input;
+    ti.moveX = inp.move.x;
+    ti.moveY = inp.move.y;
+    ti.camYaw = this.player.cam.yaw;
+    ti.dropPressed = inp.pressed('drop');
+    ti.dropHeld = inp.down('drop');
     this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget, this.cover.state !== 'none', this.cover.exitDir);
+    // attached (ladder, pipe, hang, duct): both hands busy, the weapon goes to its slot; its framing preset
+    this.weapons.setStowed(this.traversal.attached && !!this.traversal.attach.spec?.holster);
+    this.player.cam.attach = this.traversal.cameraPreset;
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.suppression.update(dt);
     this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;
@@ -576,6 +618,7 @@ export class GameState implements AppState {
       this.noise = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) : 0;
       if (this.noise > 0) this.enemyMgr?.hear(this.player.position, this.noise);
     }
+    this.updateLight(dt);
     this.updateCoverRef(dt);
     this.updateExposure(dt);
     this.updateRoomTag(dt);

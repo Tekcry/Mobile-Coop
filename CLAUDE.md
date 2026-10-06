@@ -88,12 +88,12 @@ Blacklist style.
 | `ui/` | DOM overlay UI. `FocusNav` spatial navigation shared by every menu; screen stack; HUD; debug overlay |
 | `game/` | Play session state, game modes (wave, mission, clear, sandbox), damage/health, pickups, interactables, `tactics` (exposure, cover quality, suppression; pure), `roomClear` (pure) |
 | `physics/` | Havok loading, collision groups, body budget |
-| `player/` | Character controller (Havok `PhysicsCharacterController`), tactical movement maths, contextual traversal, proportions, shared `CharacterRig`, camera |
+| `player/` | Character controller (Havok `PhysicsCharacterController`), tactical movement maths, contextual traversal + `attach` (attached-state machine; pure), proportions, shared `CharacterRig`, camera |
 | `anim/` | Pure animation: `MotionDriver` (root motion), `curves`/`pose`/`clip` + `clips/` (clip library), `Inertializer`, `AnimGraph` (clip graph -> IK targets), `FootPlanner` (world-space feet), `rigMath` (two-bone IK, `Spring`) |
 | `cover/` | Cover faces (`coverData`, pure), `CoverStateMachine` (pure), `CoverController` (player cover), corners/doorways (`corners` pure, `CornerController`) |
 | `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades, `WeaponCarry` (ready positions, raise-to-fire) |
 | `ai/` | Enemy state machines, grid navmesh + A*, cover points |
-| `world/` | Modular tile kit and map builders (Warehouse, Dust Depot, Proving Grounds), `rooms` (room tags; pure) |
+| `world/` | Modular tile kit and map builders (Warehouse, Dust Depot, Proving Grounds), `rooms` (room tags; pure), `anchors` (traversal anchors; pure), `lights` (light model; pure), `lightRig` (renders it) |
 | `progression/` | XP/levels/currency maths, unlock tables, upgrade trees (pure, unit-tested) |
 | `cosmetics/` | Avatar part catalogue, procedural materials/camos |
 | `save/` | IndexedDB wrapper, versioned schema, migrations, export/import |
@@ -299,6 +299,46 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   magnetism fades at the centre, so sweeping across a target never jolts the view.
 - Cinematic post (`vfx/cinematicPost.ts`): one pass for vignette, optional film grain and letterbox (stingers);
   `GameState.slowBeat()` (0.25 s at 0.6x, setting `gameplay.slowBeat`) and `letterbox(seconds)`.
+
+## Traversal anchors and attached states (2.0 phase 1)
+- `world/anchors.ts` (pure): `Ladder {base, top, facing, rung, width}`, `PipeVertical {base, top, side}`,
+  `PipeHorizontal {a, b, hangHeight}`, `Ledge {a, b, top, n, t, len, drop, canHang, canClimbUp, nextA/B}`,
+  `Duct {path, entry, exit, grates}`, `WindowAnchor`, `Door`, `Zipline {a, b}` in a `TraversalAnchors` (ids index
+  `all`; co-op sends them). `generateLedges(boxes)` makes lips from box tops (`LEDGE.minDrop` 1.9 m, cut by pieces on
+  or against them, broad-phase by bounding circles, `noLedge` pieces skipped); `LevelBuilder` places the rest
+  (`ladder/pipeV/pipeH/zipline/duct/windowAt/door/ledge/noLedge`; their visuals never collide) and `build` adds the
+  generated ledges (lips outside the bounds disabled) to `BuiltLevel.anchors`. Helpers: `closestOn`, `reach` (entry:
+  bottom / top / below / above / side), `nearestInReach`, `anchorsNear`, `hangPoint` (`HANG.drop` 2.0 m under the
+  lip at 1.75 m), `lipGrips`, `nearestRung`, `ductPoint`.
+- `player/attach.ts` (pure): `AttachMachine` (none -> enter -> on -> exit) with `ATTACH` specs per kind (axis:
+  vertical / along / path / auto; speed + accel with a first-frame response; enter / exit times; `camera` preset;
+  `allow` sidearm / takedown / drop / traverse / gadgets; `holster`). `axisInput` maps the stick (camera relative
+  along tangents), `attachPose` gives the feet + facing on the anchor, `attachRange` the travel range, `update`
+  reports pushing past an end (`edge`). Ladder 1.6 rungs/s (`LADDER_RUNG_RATE`), slide `LADDER_SLIDE`; zipline
+  builds to `ZIP_SPEED` 6 m/s.
+- `TraversalController.attach` runs it: `attachTo(anchor, s, entry)`, `detach(reason)`; `input` (move, camera yaw,
+  drop) is filled by `GameState` each step. While attached it drives `override.kinematic`, sets `coverPose.traverse`
+  to the pose family (`hang` / `climb` / `crawl`, clips in `anim/clips/traverse.ts`; `traverseT` = climb cadence) and
+  the rig's world targets; `GameState` stows the weapon (`PlayerWeapons.setStowed`: the swap's holster half, held)
+  and sets `cam.attach` (framing preset `ATTACH_FRAMING` in `config/camera.ts`, blended by `blend`).
+- Rig world targets: `reachL/R` (palm points, weight; the wrist sits behind the palm along the reach) override the
+  weapon / clip hands; `plantL/R` (sole points) override the feet while off the ground planner.
+- Input: `drop` is raised with `crouch` by `InputState` (alias), `interactHold` after `INTERACT_HOLD` 0.3 s;
+  `heldTime` / `holdProgress` for rings (`InputState.tick` from `InputManager.poll`).
+
+## Light model (2.0 phase 1)
+- `world/lights.ts` (pure): `LightRegistry` (lights with radius, optional cone, intensity, on / destroyed, switch
+  `group`, `electric` for EMP `disrupt`, `version` bumped on change; `ambient` from `MapTheme.lightLevel`, default
+  0.75 daylight). `lightLevelAt` = ambient + sum of `intensity * falloff * cone`, clamped, optional `Occluder`
+  (only called for lights in range); `bodyLightLevel` = brighter of chest / head; `visibilityFromLight` (0.25 in
+  darkness .. 1); `nearestLights` (allocation-free, for rendering).
+- `GameState.updateLight` samples the player at `LIGHT.playerHz` (10 Hz) with static-geometry occlusion rays
+  (`lightLevel`, `localRef.light`); `Enemy.perceive` stores `targetLight` each think (the ref's sample or the
+  registry at the aim point).
+- `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of
+  `MAX_REAL_LIGHTS` spot lights (lamps = wide downward cone) given to the nearest lights at 4 Hz; quality sets how
+  many are lit (`QualityLevel.realLights`). Pool lights are never enabled / disabled (no recompiles); materials
+  get `maxSimultaneousLights` for the pool. Maps without lights create nothing.
 
 ## Corners and doorways
 - `cover/corners.ts` (pure): `findDoorways` (0.7-1.8 m gaps between collinear high faces), `outsideCorners`,

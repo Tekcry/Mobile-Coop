@@ -32,6 +32,7 @@ import {
   WALK_STRAFE_R,
 } from './clips/locomotion';
 import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, COVER_TURN, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
+import { CLIMB, CRAWL, HANG } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 
 /** The kneel with the right knee up (the clip has the left knee up): in cover the raised knee is on the wall
@@ -41,7 +42,9 @@ const KNEEL_M = mirrorClip(KNEEL);
 export const FADE = 0.2;
 export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'cover', 'traverse'] as const;
 export type LowerState = (typeof LOWER_STATES)[number];
-export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop';
+/** Committed moves (vault .. hop) and the attached pose family (hang, climb, crawl: keyed over the climb
+ *  cadence, `traverseT`). */
+export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop' | 'hang' | 'climb' | 'crawl';
 
 export interface AnimInput {
   /** Horizontal ground speed (m/s) and local movement direction (x right, z forward). */
@@ -288,7 +291,7 @@ export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.15, yaw: 0.24, x: 0.05 };
  *  muzzle angled down past the knee, clear of the raised thigh and the curled chest. */
 export const COVER_READY_KNEEL = { x: 0.12, y: 0.1, pitch: -0.25, yaw: 0.15 };
 
-const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT };
+const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, hang: HANG, climb: CLIMB, crawl: CRAWL };
 
 /** Active-clip slots for the debug overlay timeline. */
 export interface ClipSlot {
@@ -571,7 +574,9 @@ export class AnimGraph {
 
     // --- traversal, slide, air, landing
     if (i.traverse !== 'none') {
-      overClip(src, TRAVERSE_CLIP[i.traverse], clamp(i.traverseT, 0, 1), 1);
+      const tc = TRAVERSE_CLIP[i.traverse];
+      // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
+      overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
       this.slot(i.traverse, 1, i.traverseT);
     }
     if (i.slide >= 0) {

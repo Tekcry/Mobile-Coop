@@ -293,6 +293,12 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 1 - Foundations (1.7.0) - Proving Grounds, then Warehouse
+- [ ] Nothing looks or plays differently from 1.6.0: movement, cover, vaults, combat, camera, HUD.
+- [ ] Frame pacing graph (debug overlay) unchanged on Warehouse with 10 enemies.
+- [ ] B / C / touch crouch still crouches and toggles stance at high cover (it now also raises `drop`).
+- [ ] Holding Y / E on an objective terminal still fills its ring; a tap still vaults.
+
 ## Phase 10 - Release checklist
 
 ### Offline and install

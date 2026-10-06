@@ -1,6 +1,11 @@
 import { BUTTON_ACTIONS, type ButtonAction, type ButtonState, type Vec2 } from './actions';
 import { hyp2 } from '../core/mathx';
 
+/** Actions another one raises with it (same holders): the crouch control is also `drop` while attached. */
+const ALIAS: Partial<Record<ButtonAction, ButtonAction>> = { crouch: 'drop' };
+/** Seconds `interact` must be held before `interactHold` goes down (a tap stays a tap). */
+export const INTERACT_HOLD = 0.3;
+
 /**
  * Aggregated action state. Each source sets its own contribution per action;
  * an action is down if any source holds it. Edges latch until consumed so a
@@ -9,6 +14,8 @@ import { hyp2 } from '../core/mathx';
 export class InputState {
   readonly buttons = {} as Record<ButtonAction, ButtonState>;
   private holders = {} as Record<ButtonAction, Set<string>>;
+  /** Seconds each action has been held (0 when up). Advanced by `tick`. */
+  private heldFor = {} as Record<ButtonAction, number>;
   /** Actions held during releaseAll(): ignored until every source lets go once. */
   private blocked = new Set<ButtonAction>();
   /** Move vector, x right, y forward, magnitude <= 1. Max across sources. */
@@ -26,10 +33,17 @@ export class InputState {
     for (const a of BUTTON_ACTIONS) {
       this.buttons[a] = { down: false, pressed: false, released: false };
       this.holders[a] = new Set();
+      this.heldFor[a] = 0;
     }
   }
 
   set(source: string, action: ButtonAction, down: boolean): void {
+    const alias = ALIAS[action];
+    if (alias) this.setOne(source, alias, down);
+    this.setOne(source, action, down);
+  }
+
+  private setOne(source: string, action: ButtonAction, down: boolean): void {
     if (this.blocked.has(action)) {
       if (!down) this.blocked.delete(action);
       return;
@@ -41,8 +55,32 @@ export class InputState {
     const has = holders.size > 0;
     const b = this.buttons[action];
     b.down = has;
-    if (has && !had) b.pressed = true;
+    if (has && !had) {
+      b.pressed = true;
+      this.heldFor[action] = 0;
+    }
     if (!has && had) b.released = true;
+  }
+
+  /**
+   * Advance hold timers (once per frame, from `InputManager.poll`) and derive hold actions: `interactHold`
+   * goes down once `interact` has been held `INTERACT_HOLD` s.
+   */
+  tick(dt: number): void {
+    for (const a of BUTTON_ACTIONS) this.heldFor[a] = this.buttons[a].down ? this.heldFor[a] + dt : 0;
+    const hold = this.buttons.interact.down && this.heldFor.interact >= INTERACT_HOLD;
+    if (hold !== this.buttons.interactHold.down) this.setOne('hold', 'interactHold', hold);
+  }
+
+  /** Seconds `a` has been held (0 when up). */
+  heldTime(a: ButtonAction): number {
+    return this.buttons[a].down ? this.heldFor[a] : 0;
+  }
+
+  /** Hold progress 0..1 towards `duration` seconds (for UI rings); `delay` ignores a short tap. */
+  holdProgress(a: ButtonAction, duration: number, delay = 0): number {
+    const t = this.heldTime(a) - delay;
+    return t <= 0 ? 0 : Math.min(1, t / Math.max(1e-3, duration));
   }
 
   /** Momentary tap (down+up in one go), e.g. a UI swipe or keyboard repeat. */

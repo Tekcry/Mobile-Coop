@@ -12,6 +12,9 @@ export interface MapTheme {
   sunDir: [number, number, number];
   sunIntensity: number;
   ambient: number;
+  /** Gameplay light level everywhere before any lamp (0 pitch dark .. 1; default 0.75, daylight): the
+   *  light meter and enemy perception read it (`LightRegistry.ambient`). */
+  lightLevel?: number;
 }
 
 export interface PropPlacement {

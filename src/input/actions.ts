@@ -9,6 +9,11 @@ export const BUTTON_ACTIONS = [
   'swapNext',
   'swapPrev',
   'interact',
+  /** Let go while attached (ladder, pipe, ledge, zipline): the crouch control (B / C / Ctrl / touch crouch)
+   *  raises it too, so it needs no binding of its own. */
+  'drop',
+  /** Hold-to-use (doors, downloads, hacking): down once `interact` has been held `INTERACT_HOLD` s. */
+  'interactHold',
   /** Take/leave cover (touch button, controller B-hold, keyboard C). */
   'cover',
   'pause',

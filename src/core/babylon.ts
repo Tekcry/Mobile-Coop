@@ -16,6 +16,8 @@ export { TargetCamera } from '@babylonjs/core/Cameras/targetCamera';
 export { HemisphericLight } from '@babylonjs/core/Lights/hemisphericLight';
 export { DirectionalLight } from '@babylonjs/core/Lights/directionalLight';
 export { PointLight } from '@babylonjs/core/Lights/pointLight';
+export { SpotLight } from '@babylonjs/core/Lights/spotLight';
+export type { Light } from '@babylonjs/core/Lights/light';
 export { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
 export { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 export { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';

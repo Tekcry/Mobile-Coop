@@ -1,4 +1,5 @@
 import { Vector3, type Scene } from '../core/babylon';
+import { lightLevelAt } from '../world/lights';
 import type { CharacterRig } from '../player/characterRig';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { buildEnemyRig } from './enemyRig';
@@ -37,6 +38,8 @@ export interface PlayerRef {
   coverT?: number;
   /** Near-miss / impact report for suppression (local player only). */
   suppress?(from: Vector3, to: Vector3, hit: boolean): void;
+  /** Light level on the body 0..1 (sampled by the owner; enemies sample it themselves when absent). */
+  light?: number;
 }
 
 export interface AiContext {
@@ -95,6 +98,8 @@ export class Enemy implements Damageable {
   private losT = 0;
   private dist = 99;
   private thinkT = Math.random() * 0.25;
+  /** Light level on the target at the last think (0 dark .. 1 lit). */
+  targetLight = 1;
   private path: P2[] = [];
   coverIdx = -1;
   private burstLeft = 0;
@@ -314,6 +319,9 @@ export class Enemy implements Damageable {
       this.lastKnown.copyFrom(this.tmp);
       this.lastSeenT = 0;
     }
+    // light on the target (perception reads it): the owner's sample, else the registry at the aim point
+    const lights = this.ctx.world.level.lights;
+    this.targetLight = best.light ?? lightLevelAt(lights, this.tmp.x, this.tmp.y, this.tmp.z);
     if (!this.alerted) {
       // idle enemies notice within a forward cone or when very close
       const toward = Math.atan2(best.feet.x - this.pos.x, best.feet.z - this.pos.z);

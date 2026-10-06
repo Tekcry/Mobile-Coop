@@ -7,15 +7,17 @@ export interface QualityLevel {
   /** Shadow map refresh: 1 = every frame, 2 = every other frame. */
   shadowRefresh: number;
   vfxDensity: number;
+  /** Map lights rendered as real (per-pixel) lights, nearest first; the rest are emissive fakes. */
+  realLights: number;
 }
 
 export const QUALITY_LEVELS: readonly QualityLevel[] = [
-  { name: 'potato', renderScale: 0.6, dprCap: 1, shadows: false, shadowRefresh: 2, vfxDensity: 0.4 },
-  { name: 'low', renderScale: 0.75, dprCap: 1.25, shadows: false, shadowRefresh: 2, vfxDensity: 0.6 },
-  { name: 'medium', renderScale: 0.9, dprCap: 1.5, shadows: true, shadowRefresh: 2, vfxDensity: 0.85 },
-  { name: 'high', renderScale: 1, dprCap: 1.75, shadows: true, shadowRefresh: 1, vfxDensity: 1 },
+  { name: 'potato', renderScale: 0.6, dprCap: 1, shadows: false, shadowRefresh: 2, vfxDensity: 0.4, realLights: 1 },
+  { name: 'low', renderScale: 0.75, dprCap: 1.25, shadows: false, shadowRefresh: 2, vfxDensity: 0.6, realLights: 2 },
+  { name: 'medium', renderScale: 0.9, dprCap: 1.5, shadows: true, shadowRefresh: 2, vfxDensity: 0.85, realLights: 3 },
+  { name: 'high', renderScale: 1, dprCap: 1.75, shadows: true, shadowRefresh: 1, vfxDensity: 1, realLights: 4 },
   /** "Ultra 120": top phones on 120 Hz displays (native-ish resolution, everything on). */
-  { name: 'ultra', renderScale: 1, dprCap: 3, shadows: true, shadowRefresh: 1, vfxDensity: 1 },
+  { name: 'ultra', renderScale: 1, dprCap: 3, shadows: true, shadowRefresh: 1, vfxDensity: 1, realLights: 4 },
 ];
 
 export const PRESET_INDEX = { low: 1, medium: 2, high: 3, ultra: 4 } as const;

@@ -1,7 +1,7 @@
 import { Camera, FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { CAMERA, framing } from '../config/camera';
+import { ATTACH_FRAMING, attachFraming, CAMERA, framing, type AttachCamera, type AttachFraming } from '../config/camera';
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
@@ -60,6 +60,10 @@ export class ShoulderCamera {
   baseFovDeg = CAMERA.fov;
   /** State nudges set by the player each frame. */
   crouch = 0;
+  /** Attached traversal framing preset (null = none). */
+  attach: AttachCamera | null = null;
+  private attachPreset: AttachFraming | null = null;
+  private sAttach = new Spring(0);
   /** Pelvis lift of the low cover height control (m): the pivot rises with a crouched aim over cover. */
   lift = 0;
   /** Low cover top above the feet (m; 0 = none): the eye stays just above it, so hiding still sees over. */
@@ -183,6 +187,10 @@ export class ShoulderCamera {
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
 
     const fr = framing(this.ads, crouch, dashS);
+    // attached traversal (ladder, hang, duct...): its framing preset blends in and back out
+    if (this.attach) this.attachPreset = ATTACH_FRAMING[this.attach];
+    const attachW = this.sAttach.step(this.attach ? 1 : 0, 4 / Math.max(0.05, this.attachPreset?.blend ?? 0.25), dt);
+    if (this.attachPreset && attachW > 1e-3) attachFraming(fr, this.attachPreset, Math.min(1, attachW));
     const overEye = this.coverTop > 0 ? this.coverTop + COVER_EYE - T.height : 0;
     const pivotY = this.sPivot.step(Math.max(fr.pivot + Math.max(0, this.lift), overEye), 10, dt);
     // follow: feet height and position lag slightly; look ahead along the movement

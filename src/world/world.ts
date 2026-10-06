@@ -18,6 +18,7 @@ import { LevelBuilder, type BuiltLevel } from './levelBuilder';
 import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
+import { LightRig } from './lightRig';
 
 export interface WorldOptions {
   shadows: boolean;
@@ -33,6 +34,8 @@ export class World {
   readonly sun: DirectionalLight;
   readonly hemi: HemisphericLight;
   readonly sky: Mesh;
+  /** Map lights (bulbs + the capped real-light pool); idle on maps without lights. */
+  readonly lightRig: LightRig;
 
   private constructor(
     readonly scene: Scene,
@@ -74,6 +77,9 @@ export class World {
     }
     this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
+    // gameplay light level everywhere (moonlight / daylight); after the props so their materials take the pool
+    level.lights.ambient = th.lightLevel ?? 0.75;
+    this.lightRig = new LightRig(scene, level.lights);
   }
 
   static async create(engine: Engine, map: MapDef, opts: WorldOptions): Promise<World> {
@@ -100,13 +106,16 @@ export class World {
   }
 
   /** Keep the sun's shadow frustum centred on the player. */
-  frame(focus: Vector3): void {
+  frame(focus: Vector3, dt = 0): void {
+    const cam = this.scene.activeCamera;
+    if (cam) this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
     if (this.shadow) {
       this.sun.position.copyFrom(focus).subtractInPlace(this.sun.direction.scale(40));
     }
   }
 
   dispose(): void {
+    this.lightRig.dispose();
     this.props.dispose();
     this.level.dispose();
     this.parts.dispose();

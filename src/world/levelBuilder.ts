@@ -21,6 +21,8 @@ import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverS
 import { MOVEMENT } from '../config/movement';
 import { proportions } from '../player/proportions';
 import { hyp2 } from '../core/mathx';
+import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
+import { LightRegistry, type LightInit } from './lights';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -34,6 +36,8 @@ export interface BoxPiece {
   collide: boolean;
   /** Collision-only pieces (e.g. the smooth ramp under stairs) are not rendered. */
   visible?: boolean;
+  /** Never generate ledges from this piece (manual override). */
+  noLedge?: boolean;
 }
 
 export interface CylPiece {
@@ -64,6 +68,10 @@ export interface BuiltLevel {
   cover: CoverPoint[];
   /** Cover faces (player cover system + AI peeking). */
   coverSegments: CoverSegment[];
+  /** Traversal anchors: generated ledges plus the map's ladders, pipes, ducts, windows, doors, ziplines. */
+  anchors: TraversalAnchors;
+  /** Every light of the level (gameplay light sampling + the renderer's capped real-light set). */
+  lights: LightRegistry;
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   dispose(): void;
 }
@@ -81,6 +89,11 @@ export class LevelBuilder {
   readonly boxes: BoxPiece[] = [];
   readonly cylinders: CylPiece[] = [];
   bounds = { minX: -20, maxX: 20, minZ: -20, maxZ: 20 };
+  /** Placed anchors (ledges are generated at build time and added after these). */
+  readonly anchors = new TraversalAnchors();
+  readonly lights = new LightRegistry();
+  /** Manual ledge suppressions (x, z, radius). */
+  private noLedgeAt: [number, number, number][] = [];
 
   box(cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, color: string, yaw = 0, pitch = 0, collide = true, visible = true): this {
     this.boxes.push({ c: [cx, cy, cz], s: [sx, sy, sz], yaw, pitch, color, collide, visible });
@@ -179,6 +192,74 @@ export class LevelBuilder {
     return this;
   }
 
+  // --- traversal anchors (data + simple visuals; visuals never collide, so they make no cover or ledges)
+
+  /** Ladder against a wall: climbing line at (x, z) from floor `y0` to the top floor `y1`, the climber
+   *  facing `facing` (yaw, towards the wall). */
+  ladder(x: number, z: number, y0: number, y1: number, facing: number, color = '#5b5f63', width = 0.5, rung = 0.3): Ladder {
+    const fx = Math.sin(facing);
+    const fz = Math.cos(facing);
+    const rx = fz;
+    const rz = -fx;
+    const h = y1 - y0;
+    // rails stand just off the wall, the rungs between them
+    const off = 0.06;
+    for (const sd of [-1, 1]) this.box(x + rx * sd * (width / 2) - fx * off, y0 + (h + 0.9) / 2, z + rz * sd * (width / 2) - fz * off, 0.05, h + 0.9, 0.05, color, facing, 0, false);
+    for (let y = rung; y < h + 0.85; y += rung) this.box(x - fx * off, y0 + y, z - fz * off, width, 0.035, 0.035, color, facing, 0, false);
+    return this.anchors.add<Ladder>({ kind: 'ladder', base: { x, y: y0, z }, top: { x: x + fx * 0.45, y: y1, z: z + fz * 0.45 }, facing, rung, width });
+  }
+
+  /** Vertical (drain) pipe at (x, z) from `y0` to `y1`; the climber faces `side` (yaw, towards the pipe). */
+  pipeV(x: number, z: number, y0: number, y1: number, side: number, color = '#6d7378', radius = 0.06): PipeVertical {
+    this.cylinders.push({ c: [x, (y0 + y1) / 2, z], r: radius, h: y1 - y0, color, collide: false });
+    return this.anchors.add<PipeVertical>({ kind: 'pipeV', base: { x, y: y0, z }, top: { x, y: y1, z }, side, radius });
+  }
+
+  /** Horizontal pipe from a to b at height `y` (hang from it hand over hand). */
+  pipeH(ax: number, az: number, bx: number, bz: number, y: number, color = '#6d7378', radius = 0.06): PipeHorizontal {
+    const len = hyp2(bx - ax, bz - az);
+    this.box((ax + bx) / 2, y, (az + bz) / 2, radius * 2, radius * 2, len, color, Math.atan2(bx - ax, bz - az), 0, false);
+    return this.anchors.add<PipeHorizontal>({ kind: 'pipeH', a: { x: ax, y, z: az }, b: { x: bx, y, z: bz }, hangHeight: y, radius });
+  }
+
+  /** Zipline cable from a (high end) to b. */
+  zipline(a: P3, b: P3, color = '#2b2d30'): Zipline {
+    const len = hyp2(b.x - a.x, b.z - a.z);
+    const pitch = Math.atan2(a.y - b.y, len);
+    this.box((a.x + b.x) / 2, (a.y + b.y) / 2, (a.z + b.z) / 2, 0.025, 0.025, hyp2(len, a.y - b.y), color, Math.atan2(b.x - a.x, b.z - a.z), pitch, false);
+    return this.anchors.add<Zipline>({ kind: 'zipline', a: { ...a }, b: { ...b } });
+  }
+
+  /** Crawlable duct along `path` (feet height) with entry / exit grates. */
+  duct(path: P3[], entry: Grate, exit: Grate, grates: Grate[] = []): Duct {
+    return this.anchors.add<Duct>({ kind: 'duct', path: path.map((p) => ({ ...p })), entry, exit, grates });
+  }
+
+  windowAt(cx: number, cy: number, cz: number, w: number, h: number, yaw: number, opts: { sill?: number; breakable?: boolean; open?: boolean } = {}): WindowAnchor {
+    return this.anchors.add<WindowAnchor>({ kind: 'window', c: { x: cx, y: cy, z: cz }, w, h, yaw, sillHeight: opts.sill ?? cy - h / 2, breakable: opts.breakable ?? true, open: opts.open ?? false });
+  }
+
+  door(hx: number, hy: number, hz: number, width: number, yaw: number, opts: { height?: number; swing?: 1 | -1; locked?: boolean; breachable?: boolean } = {}): Door {
+    return this.anchors.add<Door>({ kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true });
+  }
+
+  /** Manual ledge (in addition to the generated ones). */
+  ledge(ax: number, az: number, bx: number, bz: number, top: number, opts: { drop?: number; canHang?: boolean; canClimbUp?: boolean } = {}): Ledge {
+    return this.anchors.add<Ledge>(makeLedge(ax, az, bx, bz, top, opts));
+  }
+
+  /** No generated ledges within `r` of (x, z). */
+  noLedge(x: number, z: number, r: number): this {
+    this.noLedgeAt.push([x, z, r]);
+    return this;
+  }
+
+  /** A light (lamp, spot, window glow...). */
+  light(init: LightInit): this {
+    this.lights.add(init);
+    return this;
+  }
+
   build(scene: Scene, name: string): BuiltLevel {
     const root = new TransformNode(`level-${name}`, scene);
     const mat = new StandardMaterial(`levelMat-${name}`, scene);
@@ -259,6 +340,17 @@ export class LevelBuilder {
     body.shape = container;
 
     const coverSegments = buildCoverSegments(this.boxes, this.cylinders);
+    // ledges from box tops; lips whose hang point would be outside the play area are dropped
+    const anchors = this.anchors;
+    generateLedges(this.boxes, anchors);
+    const bd = this.bounds;
+    for (const l of anchors.ledges) {
+      if (l.piece === 0) continue;
+      const mx = (l.a.x + l.b.x) / 2 + l.nx * 0.5;
+      const mz = (l.a.z + l.b.z) / 2 + l.nz * 0.5;
+      if (mx < bd.minX || mx > bd.maxX || mz < bd.minZ || mz > bd.maxZ) l.canHang = l.canClimbUp = false;
+    }
+    for (const [x, z, r] of this.noLedgeAt) suppressLedgesNear(anchors, x, z, r);
     const cover: CoverPoint[] = coverPointsFromSegments(coverSegments, COVER_STANDOFF).map((p) => ({
       pos: new Vector3(p.x, p.y, p.z),
       normal: new Vector3(p.nx, 0, p.nz),
@@ -274,6 +366,8 @@ export class LevelBuilder {
       cylinders: this.cylinders,
       cover,
       coverSegments,
+      anchors,
+      lights: this.lights,
       bounds: this.bounds,
       dispose: () => {
         body.dispose();
