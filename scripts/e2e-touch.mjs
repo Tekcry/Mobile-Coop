@@ -95,13 +95,13 @@ try {
   assert(actHidden, 'action button hidden with nothing to use');
   // cover by touch: tap the take-cover prompt on the wall (a real touch on the world prompt)
   await page.evaluate(() => { const g = window.__app.current; const p = g.player; g.cover.reset(); p.controller.teleport(new p.controller.pos.constructor(-3.7, 0, -6), -Math.PI / 2); p.cam.yaw = -Math.PI / 2; p.cam.pitch = -0.1; });
-  await page.waitForSelector('.wp-cover.show', { timeout: 5000 });
+  await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 5000 });
   let box = await (await page.$('.wp-cover.show .wp-body')).boundingBox();
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
   await page.waitForTimeout(900);
   let cst = await page.evaluate(() => window.__app.current.cover.state);
   assert(cst === 'in', `tapping the take-cover prompt on the surface takes cover (${cst})`);
-  await page.waitForSelector('.wp-state.show', { timeout: 5000 });
+  await page.waitForSelector('.wp-state.show .wp-body', { timeout: 5000 });
   const badgeTxt = await page.evaluate(() => document.querySelector('.wp-state.show').textContent);
   assert(/low cover/i.test(badgeTxt) && /leave/i.test(badgeTxt), `cover badge on the surface offers leave by touch (${badgeTxt})`);
   box = await (await page.$('.wp-state.show .wp-body')).boundingBox();
