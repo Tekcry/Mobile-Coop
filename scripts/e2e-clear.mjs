@@ -234,13 +234,14 @@ await run('', async ({ page, G }) => {
   await page.locator('.btn', { hasText: 'Play' }).first().tap();
   await page.waitForSelector('.play-screen');
   const seen = [];
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < 5; i++) {
     const t = await G(() => [...document.querySelectorAll('.play-screen .choice-val')].map((e) => e.textContent));
     seen.push(t.join(' / '));
     await page.locator('.play-screen .row-choice').first().locator('.choice-arrow').last().tap();
   }
   const byMode = Object.fromEntries(seen.map((s) => s.split(' / ')));
-  assert(byMode['Wave Survival'] === 'Warehouse' && byMode['Mission'] === 'Warehouse' && byMode['Clear'] === 'Warehouse', `Warehouse default for Wave / Mission / Clear (${seen.join('; ')})`);
+  assert(byMode['Wave Survival'] === 'Warehouse' && byMode['Mission'] === 'Warehouse' && byMode['Hunter'] === 'Warehouse', `Warehouse default for Wave / Mission / Hunter (${seen.join('; ')})`);
+  assert(/Diplomatic Pouch/.test(byMode['Infiltration'] ?? ''), `Infiltration lists the missions (${byMode['Infiltration']})`);
   assert(byMode['Free Roam'] === 'Proving Grounds', 'Free Roam stays on Proving Grounds');
 });
 

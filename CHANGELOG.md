@@ -1,5 +1,41 @@
 # Changelog
 
+## 1.19.0 - 2.0 phase 7: Hunter, Infiltration missions, the Embassy
+- Hunter: Clear is renamed Hunter in the Play menu (`?mode=hunter`; `?mode=clear` still works). Start undetected,
+  clear every hostile. If an enemy raises the alarm the hostiles double (Blacklist's rule): as many again come in
+  from the entry point furthest from you, hunting (alerted, not holding rooms). Results show "Detected" and the
+  Ghost / Panther / Assault bars.
+- Play styles (`game/playstyle.ts`, pure): knock-outs, non-lethal takedowns, unseen objectives and hidden bodies
+  score Ghost; unseen kills, lethal takedowns and Mark & Execute score Panther; anything done while detected,
+  alarms and explosions score Assault. Detection = an enemy going to combat on you (stealth rules).
+- Infiltration (`game/missions.ts` pure + `config/missions.json`, validated; `game/modes/infiltrationMode.ts`):
+  objective chains per map - download (start it at the terminal; it uploads while you stay within 9 m, pauses
+  when you leave, and every 10 s the traffic is noticed: a noise pulse guards come to check), plant / hack and
+  sabotage (holds; the charge goes off as you leave), rescue (free the asset - a hostage on his knees - who then
+  follows you, crouching with you, round walls by A*), intel (three items, any order) and extraction (a zone; with
+  the asset). Mission rules: no alarms / no kills / undetected as a bonus or a fail condition ("Ghost
+  contract"). 1-3 insertion points per mission. Extraction is a stinger (slow beat, letterbox, banner); results
+  show a 0-3 star rating and the bonuses kept. Four missions: Diplomatic Pouch, Asset Recovery and Blackout (Ghost
+  contract) on the Embassy, Cold Storage on the Warehouse.
+- Mission board: the Play menu's Infiltration mode lists the missions with their best rating, play-style split
+  and wins, the insertion choice and the difficulty. Saves keep the best run per mission (save v5: `missions`;
+  migration from v4).
+- The Embassy (night): a walled compound - front court (fountain, hedges, cars, gatehouse, a gate tower with a
+  sniper), west garden, service yard and garage - and a residence (lobby, security office, server room,
+  reception, the ambassador's office, corridor, conference room, staff room, archive) under a walkable roof:
+  roof ducts drop into the server room and the ambassador's office, drainpipes and a ladder go up, a pipe runs
+  along the east facade, ziplines run from the roof to the court and the garage roof, windows (glazed and open)
+  and doors. 25 placed anchors and ~100 hangable lips; light pools and dark gardens; switches, alarms, hide spots.
+  Hunter and Wave work there too.
+- Autostart: `?autostart=<map>&mode=infiltration&mission=<id>&insertion=<id>`. Perf: `MAP=embassy node scripts/perf.mjs`.
+- Plan gaps (kept for later, noted for the summary): Port, Mansion and Refinery are not built; multi-level nav
+  (enemies on roofs by ladder links) is not done - enemies stay on the ground / ramped decks; Dust Depot is not
+  rebuilt for verticality. The route check counts the ground plus anchors within 14 m above / through each site.
+- Tests: `tests/missions.test.ts` (validation, chain, download pauses, rules, rating, play styles); save v4 -> v5;
+  `e2e-missions` (Hunter doubling; download + intel + extract with results; plant + rescue (the asset follows) +
+  extract; sabotage + extract; Ghost contract fails on detection; three downs fail; routes and 25+ anchors per
+  mission map); e2e-anchors covers the Embassy; e2e-clear reads the Hunter / Infiltration menu entries.
+
 ## 1.18.0 - 2.0 phase 6: enemy archetypes, squads, difficulty
 - Archetypes (`ai/archetypes.ts`, pure rules; `config/enemies.json`): Guard (the grunt renamed; rifle, flashlight at
   night), Heavy (plates in front x0.45, the back x1.5, the face plate x2.2; from the front only a lethal takedown),

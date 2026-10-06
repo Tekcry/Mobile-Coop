@@ -293,6 +293,19 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 7 - Hunter and Infiltration (1.19.0) - Warehouse, Embassy
+- [ ] Play > Hunter on the Warehouse: get spotted and let a guard reach an alarm panel - "Hostiles doubled", the
+      counter doubles and squads come in hunting. Results: Detected count and three play-style bars.
+- [ ] Play > Infiltration: the board lists four missions with stars; pick Diplomatic Pouch, Rooftop insertion.
+- [ ] Drop through the roof duct into the server room, start the upload, step out of range (the % stops), come
+      back; guards come to check the noise now and then. Take the three intel folders, leave by the back gate.
+- [ ] Asset Recovery: bug the conference phone (hold), free the kneeling asset (hold), walk him out the front gate
+      (he follows, crouches with you).
+- [ ] Blackout: plant the charge on the generator; get seen once - the contract fails.
+- [ ] Results: stars, bonuses kept; the board shows the best rating afterwards (and after a reload).
+- [ ] Embassy routes: roof by the north ladder / front drainpipes; zipline to the court; the east pipe to the
+      ambassador's window; both roof ducts.
+
 ## 2.0 phase 6 - Enemy archetypes (1.18.0) - Warehouse, Clear
 - [ ] Dock: a dog trots beside the patrolling guard. Crouch behind a crate within a few metres: it growls and
       comes for you even in the dark. A takedown from behind or sleeping gas puts it down.

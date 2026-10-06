@@ -1,5 +1,6 @@
 import './styles.css';
 import { parseDifficulty } from './ai/archetypes';
+import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
@@ -37,6 +38,8 @@ async function boot(): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const app = new App(canvas);
   (window as unknown as { __app: App }).__app = app;
+  // tests: the bundled mission definitions
+  (window as unknown as { __missions: typeof MISSIONS }).__missions = MISSIONS;
 
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();
@@ -132,7 +135,11 @@ async function boot(): Promise<void> {
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
 
-  if (flags.autostart) startGame({ map: getMap(flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty) });
+  if (flags.autostart) {
+    // infiltration: the mission picks its map
+    const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
+    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined });
+  }
   else goToMenu();
   if (flags.coop && flags.room && !flags.autostart) {
     const room = flags.room;

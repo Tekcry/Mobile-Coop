@@ -2233,3 +2233,49 @@ body {
 .hud-barks .bark[hidden] {
   display: none;
 }
+/* results: play style bars and mission rating (phase 7) */
+.style-bars {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0;
+}
+.style-bar {
+  display: grid;
+  grid-template-columns: 70px 1fr 50px;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+.style-bar i {
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  position: relative;
+  overflow: hidden;
+}
+.style-bar i::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: var(--w, 0%);
+  border-radius: 4px;
+  background: #9bb2c8;
+}
+.style-bar.ghost i::after {
+  background: #7fd0ff;
+}
+.style-bar.panther i::after {
+  background: #b07cff;
+}
+.style-bar.assault i::after {
+  background: #ff7a5a;
+}
+.style-bar b {
+  text-align: right;
+}
+.mission-rating {
+  margin: 8px 0 2px;
+  font-size: 18px;
+  letter-spacing: 0.1em;
+  color: #ffd23f;
+}

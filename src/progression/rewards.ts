@@ -41,8 +41,10 @@ export function computeRewards(s: SessionStats, difficulty: Difficulty): Session
     const o = Math.min(nn(s.objectives), 10);
     if (o) lines.push({ label: `Objectives (${o})`, xp: 300 * o, credits: 50 * o });
   }
-  // Clear mode: no per-room rewards, one reward for completing the operation
-  if (s.won) lines.push(s.mode === 'clear' ? { label: 'Operation complete', xp: 2000, credits: 400 } : { label: 'Victory', xp: 500, credits: 150 });
+  // Clear mode: no per-room rewards, one reward for completing the operation; Infiltration pays the mission
+  // and each bonus rule kept
+  if (s.won) lines.push(s.mode === 'clear' ? { label: 'Operation complete', xp: 2000, credits: 400 } : s.mode === 'infiltration' ? { label: 'Mission complete', xp: 1800, credits: 350 } : { label: 'Victory', xp: 500, credits: 150 });
+  if (s.won && s.mode === 'infiltration') for (const b of (s.bonuses ?? []).slice(0, 3)) lines.push({ label: `Bonus: ${b}`, xp: 400, credits: 80 });
   const shots = nn(s.shots);
   const acc = shots >= 20 ? nn(s.hits) / shots : 0;
   if (acc >= 0.4) lines.push({ label: `Accuracy ${Math.round(acc * 100)}%`, xp: Math.round(acc * 300), credits: Math.round(acc * 40) });

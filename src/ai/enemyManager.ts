@@ -426,6 +426,12 @@ export class EnemyManager {
     for (const e of this.enemies) if (e.alive && Vector3.Distance(e.pos, pos) < radius) e.hear(pos.x, pos.z, radius);
   }
 
+  /** Any enemy in combat (the operator has been detected). */
+  get anyAlerted(): boolean {
+    for (const e of this.enemies) if (e.alive && e.alerted) return true;
+    return false;
+  }
+
   /** Any enemy in combat or searching (the last known position matters). */
   get hunting(): boolean {
     for (const e of this.enemies) if (e.alive && (e.alerted || e.level === 'searching')) return true;

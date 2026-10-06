@@ -6,7 +6,7 @@ import { sanitizeAttachments } from '../progression/attachments';
 import { STARTER_UNLOCKS } from '../progression/unlocks';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 5;
 
 export interface WeaponProgress {
   upgrades: WeaponUpgrades;
@@ -22,6 +22,17 @@ export interface LifetimeStats {
   headshots: number;
   bestWave: number;
   timePlayed: number;
+}
+
+/** Best result per Infiltration mission (rating 0-3 stars, play-style points of that run). */
+export interface MissionRecord {
+  rating: number;
+  score: number;
+  ghost: number;
+  panther: number;
+  assault: number;
+  plays: number;
+  wins: number;
 }
 
 export interface PlayerTag {
@@ -47,6 +58,8 @@ export interface SaveData {
   avatar: AvatarLook;
   /** Equipped emotes (4 quick slots). */
   emotes: string[];
+  /** Infiltration records by mission id (v5). */
+  missions: Record<string, MissionRecord>;
 }
 
 export function defaultWeaponProgress(): WeaponProgress {
@@ -72,6 +85,7 @@ export function defaultSave(now = Date.now()): SaveData {
     loadout: { primary: 'rifle', secondary: 'pistol' },
     avatar: defaultLook(),
     emotes: ['wave', 'salute', '', ''],
+    missions: {},
   };
 }
 
@@ -115,6 +129,21 @@ export function sanitizeSave(raw: unknown): SaveData {
   let secondary: WeaponId = isWeapon(lo.secondary) ? lo.secondary : 'pistol';
   if (!unlocks.includes(`weapon:${primary}`)) primary = 'rifle';
   if (!unlocks.includes(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'pistol' ? 'rifle' : 'pistol';
+  const missions: Record<string, MissionRecord> = {};
+  if (isObj(raw.missions)) {
+    for (const [id, r] of Object.entries(raw.missions).slice(0, 64)) {
+      if (!/^[a-z0-9-]{1,48}$/.test(id) || !isObj(r)) continue;
+      missions[id] = {
+        rating: int(r.rating, 0, 3, 0),
+        score: int(r.score, 0, 1e9, 0),
+        ghost: int(r.ghost, 0, 1e9, 0),
+        panther: int(r.panther, 0, 1e9, 0),
+        assault: int(r.assault, 0, 1e9, 0),
+        plays: int(r.plays, 0, 1e9, 0),
+        wins: int(r.wins, 0, 1e9, 0),
+      };
+    }
+  }
   const emotes = Array.isArray(raw.emotes) ? raw.emotes.slice(0, 4).map((e) => (typeof e === 'string' ? e.slice(0, 24) : '')) : d.emotes;
   while (emotes.length < 4) emotes.push('');
   return {
@@ -144,5 +173,6 @@ export function sanitizeSave(raw: unknown): SaveData {
     loadout: { primary, secondary },
     avatar: sanitizeLook(raw.avatar),
     emotes,
+    missions,
   };
 }

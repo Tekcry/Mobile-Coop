@@ -165,6 +165,7 @@ export class StealthSystems {
     this.release();
     this.g.hud.feedItem('Body hidden');
     this.g.events.emit('body', { action: 'hide' });
+    this.g.style.record('bodyHidden', this.g.detected);
   }
 
   private release(): void {
@@ -208,6 +209,7 @@ export class StealthSystems {
     const g = this.g;
     g.hud.banner('ALARM', 'Reinforcements inbound', 2200);
     g.events.emit('alarm', {});
+    g.style.record('alarm', true);
     for (const q of this.panels) if (q.panel === p) this.ints.setIndicator(q.it, '#ff3b30');
     const pts = g.world.layout.reinforce ?? [];
     if (!pts.length) return;
@@ -221,6 +223,8 @@ export class StealthSystems {
         at = q;
       }
     }
+    // Hunter: the mode doubles the hostiles itself
+    if (g.mode?.onAlarm?.(at)) return;
     const kinds: EnemyKind[] = ['grunt', 'grunt', 'heavy'];
     for (let i = 0; i < ALARM.squad; i++) {
       const e = this.em.reinforce(kinds[i % kinds.length]!, at.add(new Vector3(i * 1.3 - 1.3, 0, 0)), 1)[0];

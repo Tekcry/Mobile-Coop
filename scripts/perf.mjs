@@ -16,7 +16,9 @@ const BUDGET = { cpuP95Ms: 3.5, animPerCharMs: 0.04, drawCalls: 80, kbPerFrame: 
 
 // STEALTH=1: the ten are unaware (stealth rules, patrols / posts, full perception with exposure rays)
 const stealth = !!process.env.STEALTH;
-const { browser, page, errors } = await launch({ url, params: `autostart=warehouse&mode=${stealth ? 'clear' : 'wave'}&debug=1${process.env.WARM ? '&warm=' + process.env.WARM : ''}` });
+// MAP=embassy: the embassy court (the same ten enemies)
+const MAP = process.env.MAP ?? 'warehouse';
+const { browser, page, errors } = await launch({ url, params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${process.env.WARM ? '&warm=' + process.env.WARM : ''}` });
 await frames(page, 10);
 await page.evaluate((stealth) => {
   const app = window.__app;
@@ -28,9 +30,12 @@ await page.evaluate((stealth) => {
   }
   const V = g.player.position.constructor;
   // factory floor fight: player at the south door, ten enemies spread over the floor
-  g.player.controller.teleport(new V(3, 0, -7.5), 0);
+  const emb = location.search.includes('autostart=embassy');
+  g.player.controller.teleport(emb ? new V(0, 0, -19) : new V(3, 0, -7.5), 0);
   g.player.cam.yaw = 0;
-  const spots = [[-1, -2], [4, -3], [8, -1], [12, 0.5], [16, -4], [-1, 4], [4, 6], [8, 3], [13, 7], [18, 4]];
+  const spots = emb
+    ? [[-6, -12], [-3, -6], [3, -6], [6, -12], [10, -3], [-10, -3], [-2, 4], [3, 7], [8, 4], [-7, 7]]
+    : [[-1, -2], [4, -3], [8, -1], [12, 0.5], [16, -4], [-1, 4], [4, 6], [8, 3], [13, 7], [18, 4]];
   for (let i = 0; i < 10; i++) {
     const e = g.enemyMgr.spawn(['grunt', 'heavy', 'sniper', 'enforcer', 'dog', 'droneOp', 'officer', 'runner', 'grunt', 'grunt'][i % 10], new V(spots[i][0], 0, spots[i][1]), !stealth, i * 0.6);
     // stealth: half walk short beats, all keep looking; the player crouches in the dark doorway

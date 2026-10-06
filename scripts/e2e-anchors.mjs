@@ -8,6 +8,7 @@ const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 const MAPS = [
   ['proving', 'sandbox'],
   ['warehouse', 'clear'],
+  ['embassy', 'clear'],
   ['depot', 'wave'],
 ];
 let failed = false;

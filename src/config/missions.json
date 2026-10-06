@@ -1,0 +1,68 @@
+[
+  {
+    "id": "embassy-pouch",
+    "name": "Diplomatic Pouch",
+    "map": "embassy",
+    "brief": "Upload the embassy's server logs, gather three pieces of intel around the compound and slip out the back gate.",
+    "insertions": [
+      { "id": "gate", "name": "Front gate", "x": 0, "z": -20.2, "yaw": 0 },
+      { "id": "drain", "name": "Storm drain (west garden)", "x": -21, "z": -3.2, "yaw": 0.3 },
+      { "id": "roof", "name": "Rooftop (helicopter)", "x": 8, "y": 3.9, "z": 9, "yaw": 3.14 }
+    ],
+    "objectives": [
+      { "type": "download", "id": "logs", "label": "Upload the server logs", "x": -14, "z": 2.4, "yaw": 3.14, "time": 40 },
+      { "type": "intel", "id": "intel", "label": "Gather the intel", "items": [[-12.5, 0, -18.0], [13.5, 0, 13.6], [23.2, 0, 14.6]] },
+      { "type": "extract", "id": "out", "label": "Leave by the back gate", "x": -23, "z": 19, "radius": 3 }
+    ],
+    "rules": { "noAlarms": "bonus", "undetected": "bonus" }
+  },
+  {
+    "id": "embassy-asset",
+    "name": "Asset Recovery",
+    "map": "embassy",
+    "brief": "Bug the conference room, free the asset held in the ambassador's office and walk him out of the front gate.",
+    "insertions": [
+      { "id": "gate", "name": "Front gate", "x": 0, "z": -20.2, "yaw": 0 },
+      { "id": "drain", "name": "Storm drain (west garden)", "x": -21, "z": -3.2, "yaw": 0.3 },
+      { "id": "roof", "name": "Rooftop (helicopter)", "x": 8, "y": 3.9, "z": 9, "yaw": 3.14 }
+    ],
+    "objectives": [
+      { "type": "plant", "id": "bug", "label": "Bug the conference phone", "x": -12, "z": 14.1, "yaw": 0, "time": 3 },
+      { "type": "rescue", "id": "asset", "label": "Free the asset", "vip": [15.2, 0, 3.2], "x": 15.2, "z": 3.2, "time": 1.5 },
+      { "type": "extract", "id": "out", "label": "Get the asset out the front gate", "x": 0, "z": -19.5, "radius": 3 }
+    ],
+    "rules": { "noKills": "bonus", "undetected": "bonus" }
+  },
+  {
+    "id": "embassy-blackout",
+    "name": "Blackout (Ghost contract)",
+    "map": "embassy",
+    "brief": "Plant a charge on the generator in the service yard and get out unseen. Detection fails the contract.",
+    "insertions": [
+      { "id": "drain", "name": "Storm drain (west garden)", "x": -21, "z": -3.2, "yaw": 0.3 },
+      { "id": "roof", "name": "Rooftop (helicopter)", "x": 8, "y": 3.9, "z": 9, "yaw": 3.14 }
+    ],
+    "objectives": [
+      { "type": "sabotage", "id": "charge", "label": "Plant the charge on the generator", "x": 21.6, "z": -6, "yaw": 1.57, "time": 4 },
+      { "type": "extract", "id": "out", "label": "Leave by the back gate", "x": -23, "z": 19, "radius": 3 }
+    ],
+    "rules": { "undetected": "fail", "noAlarms": "bonus" }
+  },
+  {
+    "id": "warehouse-cold",
+    "name": "Cold Storage",
+    "map": "warehouse",
+    "brief": "Hack the manager's terminal, collect the shipping manifests and extract from the east lot.",
+    "insertions": [
+      { "id": "yard", "name": "Truck yard", "x": -14.5, "z": -24, "yaw": 0 },
+      { "id": "lot", "name": "East lot", "x": 18, "z": -24.5, "yaw": 0 },
+      { "id": "window", "name": "Workshop window", "x": 11.5, "z": -20.5, "yaw": 0 }
+    ],
+    "objectives": [
+      { "type": "plant", "id": "hack", "label": "Hack the manager's terminal", "x": 5.2, "z": 16.2, "yaw": 0, "time": 4 },
+      { "type": "intel", "id": "manifests", "label": "Collect the manifests", "items": [[-1, 0, -14.2], [10, 0, -13.6], [17.5, 2.6, 13.2]] },
+      { "type": "extract", "id": "out", "label": "Extract from the east lot", "x": 18.5, "z": -23.2, "radius": 3 }
+    ],
+    "rules": { "noAlarms": "bonus", "noKills": "bonus" }
+  }
+]

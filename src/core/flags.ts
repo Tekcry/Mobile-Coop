@@ -5,7 +5,10 @@ export interface Flags {
   /** Skip menus and boot straight into a map (dev convenience). */
   autostart: string | null;
   /** Mode for autostart: sandbox | wave | mission. */
-  mode: 'sandbox' | 'wave' | 'mission' | 'clear' | null;
+  mode: 'sandbox' | 'wave' | 'mission' | 'clear' | 'infiltration' | null;
+  /** Infiltration: mission id and insertion id for autostart. */
+  mission: string | null;
+  insertion: string | null;
   /** Difficulty for autostart (rookie | normal | realistic | perfectionist). */
   difficulty: string | null;
   /** Coop room code from a share link (?room=CODE). */
@@ -28,7 +31,10 @@ export const flags: Flags = {
   coop: params.get('coop') !== '0',
   debug: params.get('debug') === '1',
   autostart: params.get('autostart'),
-  mode: (['sandbox', 'wave', 'mission', 'clear'] as const).find((m) => m === params.get('mode')) ?? null,
+  // Hunter is the 2.0 name for Clear (both work)
+  mode: params.get('mode') === 'hunter' ? 'clear' : ((['sandbox', 'wave', 'mission', 'clear', 'infiltration'] as const).find((m) => m === params.get('mode')) ?? null),
+  mission: params.get('mission'),
+  insertion: params.get('insertion'),
   difficulty: params.get('difficulty'),
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',

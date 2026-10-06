@@ -2,23 +2,29 @@ import type { App } from '../../core/app';
 import type { GameOptions, ModeId } from '../../game/gameState';
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from '../../ai/archetypes';
 import { MAPS } from '../../world/maps';
+import { MISSIONS, missionById } from '../../game/missions';
 import { h } from '../dom';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button, choice } from '../widgets';
 
 const MODES: { id: ModeId; label: string; desc: string }[] = [
-  { id: 'wave', label: 'Wave Survival', desc: 'Endless waves of grunts, runners and heavies. How long can you last?' },
+  { id: 'wave', label: 'Wave Survival', desc: 'Endless waves of guards, dogs, enforcers and heavies. How long can you last?' },
   { id: 'mission', label: 'Mission', desc: 'Hack two terminals, steal the intel, hold the extraction point.' },
-  { id: 'clear', label: 'Clear', desc: 'Room by room: clear every room of the building. Squads hold their ground.' },
+  { id: 'clear', label: 'Hunter', desc: 'Clear every hostile in the area, starting undetected. If they raise the alarm, their numbers double.' },
+  { id: 'infiltration', label: 'Infiltration', desc: 'Objective missions: uploads, bugs, rescues, sabotage, intel and extraction. Choose your way in.' },
   { id: 'sandbox', label: 'Free Roam', desc: 'Practice range with every weapon and training targets.' },
 ];
+
+const STARS = (n: number): string => '\u2605'.repeat(n) + '\u2606'.repeat(3 - n);
 
 /** Mode -> map -> difficulty, then start. */
 export class PlayScreen extends Screen {
   private mode: ModeId = 'wave';
   private mapId = MAPS[0]!.id;
   private difficulty: Difficulty = 'normal';
+  private missionId = MISSIONS[0]!.id;
+  private insertion = MISSIONS[0]!.insertions[0]!.id;
   private desc: HTMLElement;
   private body: HTMLElement;
 
@@ -38,6 +44,10 @@ export class PlayScreen extends Screen {
   }
 
   private build(): void {
+    if (this.mode === 'infiltration') {
+      this.buildMissions();
+      return;
+    }
     const maps = this.mapsForMode();
     if (!maps.some((m) => m.id === this.mapId)) this.mapId = maps[0]!.id;
     const map = maps.find((m) => m.id === this.mapId)!;
@@ -73,6 +83,55 @@ export class PlayScreen extends Screen {
       class: 'primary big',
     });
     this.body.replaceChildren(modeChoice, mapChoice, diff, this.desc, go);
+  }
+
+  /** Infiltration: the mission board (best rating and play-style split per mission), insertion, difficulty. */
+  private buildMissions(): void {
+    const m = missionById(this.missionId) ?? MISSIONS[0]!;
+    if (!m.insertions.some((i) => i.id === this.insertion)) this.insertion = m.insertions[0]!.id;
+    const rec = this.app.save.get().missions[m.id];
+    const modeChoice = choice(
+      'Mode',
+      MODES.map((x) => ({ value: x.id, label: x.label })),
+      () => this.mode,
+      (v) => {
+        this.mode = v;
+        this.rebuild();
+      },
+    );
+    modeChoice.dataset.autofocus = '';
+    const missionChoice = choice(
+      'Mission',
+      MISSIONS.map((x) => ({ value: x.id, label: `${x.name}  ${STARS(this.app.save.get().missions[x.id]?.rating ?? 0)}` })),
+      () => this.missionId,
+      (v) => {
+        this.missionId = v;
+        this.rebuild();
+      },
+    );
+    const insChoice = choice(
+      'Insertion',
+      m.insertions.map((i) => ({ value: i.id, label: i.name })),
+      () => this.insertion,
+      (v) => (this.insertion = v),
+    );
+    const diff = choice(
+      'Difficulty',
+      DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label })),
+      () => this.difficulty,
+      (v) => (this.difficulty = v),
+    );
+    const map = MAPS.find((x) => x.id === m.map)!;
+    const rules = (['noAlarms', 'noKills', 'undetected'] as const)
+      .filter((k) => m.rules[k] !== 'off')
+      .map((k) => `${k === 'noAlarms' ? 'No alarms' : k === 'noKills' ? 'No kills' : 'Undetected'} (${m.rules[k]})`);
+    const best = rec ? `Best ${STARS(rec.rating)}  ·  Ghost ${rec.ghost} / Panther ${rec.panther} / Assault ${rec.assault}  ·  ${rec.wins}/${rec.plays} won` : 'Not played yet';
+    this.desc.textContent = `${map.name}: ${m.brief}  ·  Objectives: ${m.objectives.map((o) => o.label).join(', ')}${rules.length ? '  ·  Rules: ' + rules.join(', ') : ''}  ·  ${best}`;
+    const go = button('Deploy', () => this.start({ map, mode: 'infiltration', difficulty: this.difficulty, seed: 1, missionId: m.id, insertion: this.insertion }), {
+      icon: 'play',
+      class: 'primary big',
+    });
+    this.body.replaceChildren(modeChoice, missionChoice, insChoice, diff, this.desc, go);
   }
 
   private rebuild(): void {

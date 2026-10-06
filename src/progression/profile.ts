@@ -86,6 +86,20 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     st.bestWave = Math.max(st.bestWave, stats.waves);
     st.timePlayed += Math.min(36000, stats.time);
   }
+  // Infiltration: the best run per mission
+  if (stats.missionId && /^[a-z0-9-]{1,48}$/.test(stats.missionId)) {
+    const r = (s.missions[stats.missionId] ??= { rating: 0, score: 0, ghost: 0, panther: 0, assault: 0, plays: 0, wins: 0 });
+    r.plays++;
+    if (stats.won) r.wins++;
+    const rating = Math.max(0, Math.min(3, Math.floor(stats.rating ?? 0)));
+    if (rating > r.rating || (rating === r.rating && stats.score > r.score)) {
+      r.rating = rating;
+      r.score = Math.min(1e9, Math.max(0, Math.floor(stats.score)));
+      r.ghost = Math.floor(stats.style.ghost);
+      r.panther = Math.floor(stats.style.panther);
+      r.assault = Math.floor(stats.style.assault);
+    }
+  }
   const granted = autoGrant(s);
   const ctxAfter = unlockContext(s);
   const nowBuyable = UNLOCKS.filter((u) => unlockState(u, ctxAfter) === 'buyable' && !buyableBefore.has(u.id));

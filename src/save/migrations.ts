@@ -68,6 +68,8 @@ export const MIGRATIONS: Record<number, Migration> = {
       : s.unlocks;
     return { ...s, version: 4, avatar: look, unlocks };
   },
+  // v4 -> v5: Infiltration mission records (none yet)
+  4: (s) => ({ ...s, version: 5, missions: isObj(s.missions) ? s.missions : {} }),
 };
 
 export class SaveVersionError extends Error {}

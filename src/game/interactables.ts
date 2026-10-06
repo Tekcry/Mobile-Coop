@@ -4,7 +4,7 @@ import type { PartLibrary } from '../world/partLibrary';
 import { hyp2 } from '../core/mathx';
 
 /** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
-export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door';
+export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge';
 
 const KIND_COLOR: Record<InteractKind, string> = {
   terminal: '#3fc1ff',
@@ -15,6 +15,9 @@ const KIND_COLOR: Record<InteractKind, string> = {
   hide: '#2a2f36',
   body: '#2a2f36',
   door: '#2a2f36',
+  vip: '#2a2f36',
+  intel: '#ffd23f',
+  charge: '#ff6b5a',
 };
 
 export interface Interactable {
@@ -72,7 +75,14 @@ export class Interactables {
       add('box', '#6b1c18', [0.32, 0.42, 0.07], [0, 1.4, 0.035]);
       add('box', '#d9d9d9', [0.14, 0.14, 0.02], [0, 1.36, 0.075]);
       light = add('box', KIND_COLOR.alarm, [0.08, 0.05, 0.03], [0, 1.55, 0.08]);
-    } else if (kind === 'hide' || kind === 'body' || kind === 'door') {
+    } else if (kind === 'intel') {
+      // a document folder on whatever it sits on
+      add('box', '#c9b98a', [0.32, 0.04, 0.24], [0, 0.02, 0]);
+      light = add('box', KIND_COLOR.intel, [0.08, 0.03, 0.08], [0.1, 0.05, 0.06]);
+    } else if (kind === 'charge') {
+      add('box', '#3a3f45', [0.5, 0.9, 0.5], [0, 0.45, 0]);
+      light = add('box', KIND_COLOR.charge, [0.12, 0.08, 0.02], [0, 0.75, 0.26]);
+    } else if (kind === 'hide' || kind === 'body' || kind === 'door' || kind === 'vip') {
       // no visuals
     } else if (kind === 'terminal') {
       add('box', '#3a4048', [0.7, 1.1, 0.45], [0, 0.55, 0]);

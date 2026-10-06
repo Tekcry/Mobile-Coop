@@ -69,6 +69,28 @@ describe('save migrations', () => {
     expect(s.weapons.rifle.kills).toBe(12);
   });
 
+  it('v4 -> v5 adds empty mission records; records are sanitised', () => {
+    const V4 = {
+      version: 4,
+      createdAt: 1,
+      updatedAt: 2,
+      profile: { name: 'Vet', xp: 900, credits: 120, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, stats: { matches: 3, wins: 0, kills: 40, headshots: 9, bestWave: 4, timePlayed: 900 } },
+      unlocks: ['weapon:rifle', 'weapon:pistol', 'camo:factory'],
+      weapons: { rifle: { upgrades: { damage: 1, magazine: 0, recoil: 0, reload: 0 }, kills: 12, attachments: [], camo: 'factory' } },
+      loadout: { primary: 'rifle', secondary: 'pistol' },
+      avatar: { body: 'broad', head: 'oval', hair: 'swept', torso: 'vest', legs: 'cargo', backpack: 'bedroll', helmet: 'headset', pattern: 'solid', colors: { skin: '#c68a5e' } },
+      emotes: ['wave', 'salute', '', ''],
+    };
+    const { data, from } = migrate(V4);
+    expect(from).toBe(4);
+    const s = sanitizeSave(data);
+    expect(s.missions).toEqual({});
+    expect(s.profile.xp).toBe(900);
+    const bad = sanitizeSave({ ...data, missions: { 'embassy-pouch': { rating: 9, score: -5, ghost: 10 }, 'BAD ID!': { rating: 1 } } });
+    expect(bad.missions['embassy-pouch']).toMatchObject({ rating: 3, score: 0, ghost: 10, plays: 0 });
+    expect(bad.missions['BAD ID!']).toBeUndefined();
+  });
+
   it('current saves pass through untouched', () => {
     const d = defaultSave(123);
     d.profile.xp = 777;

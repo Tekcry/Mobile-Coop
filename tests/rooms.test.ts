@@ -122,7 +122,8 @@ describe('map room layouts', async () => {
       for (const r of rooms)
         for (const s of r.squad ?? []) {
           expect(inRoom(r, s.x, s.z), `${r.id} squad at ${s.x},${s.z}`).toBe(true);
-          const deck = map.id === 'warehouse' && r.id === 'mezz' ? 2.6 : 0;
+          // raised posts: the Warehouse mezzanine, the Embassy gate tower
+          const deck = map.id === 'warehouse' && r.id === 'mezz' ? 2.6 : map.id === 'embassy' && s.kind === 'sniper' ? 3.2 : 0;
           expect(blocked(b, s.x, s.z, deck, 0.3), `${r.id} squad at ${s.x},${s.z} inside geometry`).toBe(false);
         }
       for (const sp of layout.enemySpawns) expect(blocked(b, sp.x, sp.z, 0, 0.3), `spawn ${sp.x},${sp.z}`).toBe(false);

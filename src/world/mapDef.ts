@@ -53,6 +53,6 @@ export interface MapDef {
   description: string;
   theme: MapTheme;
   /** Modes this map supports. */
-  modes: ('wave' | 'mission' | 'sandbox' | 'clear')[];
+  modes: ('wave' | 'mission' | 'sandbox' | 'clear' | 'infiltration')[];
   build(b: LevelBuilder, seed: number): MapLayout;
 }

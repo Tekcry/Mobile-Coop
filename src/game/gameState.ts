@@ -59,6 +59,8 @@ import type { WorldPromptId } from '../ui/hud/worldPrompts';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
+import { InfiltrationMode } from './modes/infiltrationMode';
+import { StyleTracker } from './playstyle';
 import { InputState } from '../input/inputState';
 
 export type { ModeId };
@@ -74,6 +76,9 @@ export interface GameOptions {
   emotes?: string[];
   /** Coop: attaches the host/client sim. Provided by `src/net` (dynamically imported), never by single player. */
   net?: NetHooks;
+  /** Infiltration: the mission and the insertion point chosen. */
+  missionId?: string;
+  insertion?: string;
 }
 
 /** What the coop layer plugs into a session. */
@@ -197,6 +202,10 @@ export class GameState implements AppState {
   readonly marks = new MarkSet();
   readonly takedown: TakedownController;
   readonly execute: ExecuteController;
+  /** Play-style points (Ghost / Panther / Assault) for the results and the economy. */
+  readonly style = new StyleTracker();
+  /** An enemy is in combat on the operator (stealth rules); flips record a detection. */
+  detected = false;
   /** Gadgets: the wheel, throws, remote views, effects (phase 5). */
   readonly gadgets: GadgetSystem;
   /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
@@ -334,6 +343,13 @@ export class GameState implements AppState {
           if (h.part === 'head') this.stats.headshots++;
         }
         if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}  +${e.def.xp} XP`, 'kill');
+        if (h.attackerId === 'local' || h.attackerId === '') {
+          const ev = h.kind === 'melee' ? (e.ko ? 'takedownNonLethal' : 'takedownLethal') : this.execute.running ? 'execute' : e.ko ? 'knockout' : 'kill';
+          this.style.record(ev, this.detected);
+          if (h.part === 'head' && !e.ko) this.style.record('headshot', this.detected);
+          if (h.kind === 'explosion') this.style.record('explosion', this.detected);
+          if (e.ko) this.stats.knockouts++;
+        }
         this.mode?.onEnemyKilled(e, h);
       };
       w.enemyMgr.grenades = this.grenades;
@@ -353,7 +369,7 @@ export class GameState implements AppState {
         this.hud.feedItem(k === 'health' ? '+50 health' : 'Ammo refilled');
       };
       w.interactables = new Interactables(this.scene, world.parts);
-      w.mode = opts.mode === 'wave' ? new WaveMode(this) : opts.mode === 'clear' ? new ClearMode(this) : new MissionMode(this);
+      w.mode = opts.mode === 'wave' ? new WaveMode(this) : opts.mode === 'clear' ? new ClearMode(this) : opts.mode === 'infiltration' ? new InfiltrationMode(this) : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -495,6 +511,8 @@ export class GameState implements AppState {
     }
     this.stats.shots = shots;
     this.stats.hits = hits;
+    this.stats.style = { ...this.style.points };
+    this.stats.detections = this.style.detections;
     this.hud.banner(won ? 'VICTORY' : 'DEFEAT', subtitle, 2500);
     setTimeout(() => {
       this.paused = true;
@@ -644,7 +662,7 @@ export class GameState implements AppState {
     this.hud.setInteract(it.holdTime > 0 ? `${it.label} (hold) ${pct > 0 ? Math.round(pct * 100) + '%' : ''}` : it.label);
     if ((it.holdTime === 0 && this.app.input.state.pressed('interact')) || (it.holdTime > 0 && it.progress >= it.holdTime)) {
       if (it.onUse) it.onUse(it);
-      else if (this.mode instanceof MissionMode) this.mode.onInteract(it);
+      else this.mode?.onInteract?.(it);
       this.interactTarget = null;
       this.hud.setInteract(null);
     }
@@ -788,6 +806,11 @@ export class GameState implements AppState {
     this.updateExposure(dt);
     this.updateRoomTag(dt);
     this.enemyMgr?.update(dt);
+    // detection: an enemy went to combat on the operator (stealth rules only)
+    const em = this.enemyMgr;
+    const det = !!em && em.stealth && em.anyAlerted;
+    if (det && !this.detected) this.style.record('detected', true);
+    this.detected = det;
     if (this.puppet) this.pickups?.update(dt, []);
     else
       this.pickups?.update(dt, [
@@ -1366,7 +1389,7 @@ export class GameState implements AppState {
     };
     const blips: Blip[] = [];
     // Clear mode: no enemy blips (find them yourself)
-    const showEnemies = !(this.mode instanceof ClearMode);
+    const showEnemies = !(this.mode instanceof ClearMode) && !(this.mode instanceof InfiltrationMode);
     let enemyBlips = 0;
     if (showEnemies)
       for (const t of this.registry.hostiles('player')) {

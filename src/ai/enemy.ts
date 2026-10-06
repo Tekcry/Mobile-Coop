@@ -632,9 +632,13 @@ export class Enemy implements Damageable {
     this.ctx.onKilled(this, h);
   }
 
+  /** Went down knocked out (not killed). */
+  ko = false;
+
   /** Knocked out (non-lethal takedown): down like a kill, but wakes if a squadmate finds the body. */
   knockOut(h: HitInfo): void {
     if (!this.alive) return;
+    this.ko = true;
     this.health.damage(this.health.hp);
     this.die(h, false);
   }

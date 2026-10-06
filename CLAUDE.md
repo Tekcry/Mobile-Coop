@@ -60,6 +60,9 @@ Blacklist style.
   - `scripts/e2e-enemies.mjs` heavy (plates / back / face plate, lethal-only frontal takedown), enforcer (shield,
     no frontal grab, pushes), sniper (laser, glint refuses a mark, relocates), dog (smell in the dark, takedown),
     drone operator (spots, shot down, EMP), officer (buff, alarm first), radio check, callouts, Perfectionist
+  - `scripts/e2e-missions.mjs` Hunter alarm doubles the hostiles; Infiltration objective types to success (download
+    pauses away + noticed pulses, intel any order, plant, rescue + escort, sabotage, extraction, results rating and
+    style bars) and failure (Ghost contract detection, three downs); routes per objective + 25 anchors per map
   - `scripts/e2e-gadgets.mjs` wheel (hold opens + slows time, stick picks, release selects, touch tap), arc preview,
     gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure, sticky cam feed
     (operator still, ping, gas, back), drone (flies, dart, battery), mine
@@ -572,6 +575,24 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Barks: `ai/barks.ts` (`BARKS`, `RADIO_BARKS`, `BarkVoice` cooldowns); `ui/hud/barks.ts` `BarkView` (pool, placed by
   `GameState.placeBark`); `bark` event -> `sfx.radio()` for radio lines.
 - `GameState.difficultyDef`; Perfectionist turns off `ExecuteController` and `VisionState.sonarAllowed`.
+
+## Modes 2.0: Hunter and Infiltration (phase 7)
+- Hunter = `ClearMode` (`id 'clear'`, labelled Hunter; `?mode=hunter`); `GameMode.onAlarm(at)` (from
+  `StealthSystems.onAlarm`) returns true when the mode brings its own reinforcements: Hunter adds `hostilesLeft`
+  more pending slots (alerted, not holding) at the entry point (`alarmAdded`).
+- Play styles: `game/playstyle.ts` `StyleTracker` (`GameState.style`; `GameState.detected` flips record
+  `detected`); kills / knock-outs / takedowns / executes from `enemyMgr.onKilled` (`Enemy.ko`), alarms and hidden
+  bodies from `StealthSystems`; `SessionStats.style / detections / knockouts`; results bars (`style-bars`).
+- Infiltration: `game/missions.ts` (`MISSIONS` from `config/missions.json`, `validateMissions`, `ObjectiveChain`,
+  `DOWNLOAD`, `evaluateRules`, `missionRating`), `game/modes/infiltrationMode.ts` (insertion teleport, room squads
+  with a fill like Hunter, per-objective interactables with `onUse`: kinds `terminal`, `charge`, `vip`, `intel`,
+  `extract`; download progress while within `DOWNLOAD.range`, `noticed()` -> `enemyMgr.hear`; `Vip`
+  (`game/vip.ts`) follows by A*; rules fail at once; `finish` sets `stats.missionId / rating / bonuses`).
+  `GameOptions.missionId / insertion`; `GameMode.onInteract`. Save v5 `missions` (`MissionRecord`, best run;
+  `applySession`). Play screen: Infiltration shows the mission board. `window.__missions` for tests.
+- Embassy (`world/maps/embassy.ts`): `slabWithHoles` (roof with vent holes, overhead), `roofDuct`; rooms with
+  squads (sniper on the tower at 3.2 m). Gap lists for `wallX / wallZ` must be sorted (an unsorted list bridges a
+  doorway).
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

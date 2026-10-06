@@ -16,9 +16,14 @@ const SPAWN_MIN_DIST = 7;
 interface Pending {
   room: number;
   slot: SquadSlot;
+  /** Alarm reinforcements: come in hunting (alerted, not holding a room). */
+  alerted?: boolean;
 }
 
 /**
+ * Hunter (2.0; `?mode=hunter` or the old `?mode=clear`): clearance of a tagged building, starting undetected. If
+ * an enemy raises the alarm the hostiles double (Blacklist's rule): as many again come in from the entry points,
+ * hunting.
  * Clearance of a tagged building. Each room's squad holds it (unaware until they see or hear you);
  * squads beyond the alive cap spawn later, nearest rooms first and never in sight range. The HUD shows
  * only "Enemies left N" (alive + still to spawn): no room names or counts, no lives, no score and no
@@ -37,6 +42,8 @@ export class ClearMode implements GameMode {
   private endT = -1;
   lives = 3;
   private checkpoint: Vector3;
+  /** Hostiles added by the alarm (tests). */
+  alarmAdded = 0;
 
   constructor(private g: GameState) {
     this.rooms = g.world.layout.rooms ?? [];
@@ -82,10 +89,12 @@ export class ClearMode implements GameMode {
         i++;
         continue;
       }
-      const e = em.spawn(p.slot.kind, new Vector3(p.slot.x, 0, p.slot.z), false, p.slot.yaw);
+      const e = em.spawn(p.slot.kind, new Vector3(p.slot.x, 0, p.slot.z), p.alerted === true, p.slot.yaw);
       if (!e) break;
-      e.hold = this.rooms[p.room]!;
-      em.joinSquad(e, p.room);
+      if (!p.alerted) {
+        e.hold = this.rooms[p.room]!;
+        em.joinSquad(e, p.room);
+      }
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait });
       this.tracker.assign(e.id, p.room);
       this.pending.splice(i, 1);
@@ -98,6 +107,35 @@ export class ClearMode implements GameMode {
     if (room < 0) room = 0;
     e.hold = this.rooms[room]!;
     this.tracker.assign(e.id, room);
+  }
+
+  /** The alarm: the hostiles double - as many again come in from the entry point, hunting. */
+  onAlarm(at: Vector3): boolean {
+    const n = this.tracker.hostilesLeft;
+    if (n <= 0) return true;
+    let room = roomAt(this.rooms, at.x, at.z);
+    if (room < 0) {
+      // the nearest room to the entry point
+      let bd = Infinity;
+      this.rooms.forEach((r, i) => {
+        const [cx, cz] = roomCentre(r);
+        const d = hyp2(cx - at.x, cz - at.z);
+        if (d < bd) {
+          bd = d;
+          room = i;
+        }
+      });
+    }
+    const kinds = ['grunt', 'grunt', 'heavy', 'enforcer'] as const;
+    for (let i = 0; i < n; i++) {
+      const slot: SquadSlot = { kind: kinds[i % kinds.length]!, x: at.x + ((i % 4) - 1.5) * 1.3, z: at.z + Math.floor(i / 4) * 1.2, yaw: 0 };
+      this.pending.push({ room, slot, alerted: true });
+    }
+    this.tracker.expect(room, n);
+    this.alarmAdded += n;
+    this.g.hud.banner('ALARM', 'Hostiles doubled', 2400);
+    this.fill();
+    return true;
   }
 
   /** A room emptied (silent): it becomes the respawn checkpoint. */
