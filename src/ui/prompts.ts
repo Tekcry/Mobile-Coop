@@ -6,7 +6,7 @@ const KEYS: Record<PromptButton, string> = {
   A: 'Enter',
   B: 'Esc',
   X: 'R',
-  Y: 'F',
+  Y: 'E',
   LB: 'Q',
   LS: 'Shift',
   RB: 'E',

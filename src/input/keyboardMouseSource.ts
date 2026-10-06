@@ -7,11 +7,13 @@ const SRC = 'kbm';
 
 /** Desktop testing only. */
 const KEYMAP: Record<string, ButtonAction[]> = {
-  Space: ['jump'],
-  KeyC: ['cover'],
+  // Space cover, C crouch, Shift sprint, E traverse / interact (contextual)
+  Space: ['cover'],
+  KeyC: ['crouch'],
   ControlLeft: ['crouch'],
   KeyR: ['reload'],
-  KeyE: ['swapNext', 'uiTabNext'],
+  KeyE: ['jump', 'interact', 'uiTabNext'],
+  KeyX: ['swapNext'],
   KeyQ: ['swapPrev', 'uiTabPrev'],
   KeyF: ['interact'],
   KeyG: ['grenade'],

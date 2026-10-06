@@ -557,7 +557,8 @@ export class GameState implements AppState {
     if (!this.traversal.active) this.cover.fixedUpdate(dt, inp);
     // cover shot away / destroyed under the player: stumble out of it
     if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
-    this.traversal.fixedUpdate(dt, inp.pressed('jump'), this.cover.state !== 'none', this.cover.exitDir);
+    // Y / E is contextual: an interactable in reach takes it, else it traverses
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget, this.cover.state !== 'none', this.cover.exitDir);
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.suppression.update(dt);
     this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;
@@ -613,6 +614,8 @@ export class GameState implements AppState {
   }
 
   /** Aim assist for controller/touch: friction + magnetism + ADS snap. */
+  private assistScale = 1;
+
   private applyAimAssist(look: { x: number; y: number }, dt: number): void {
     const mode = this.app.input.mode;
     if (mode === 'kbm') return;
@@ -632,8 +635,10 @@ export class GameState implements AppState {
     }
     const adsStart = this.player.ads && !this.prevAds;
     const r = computeAssist(level, cam.yaw, cam.pitch, targets, hyp2(look.x, look.y) / Math.max(dt, 1e-3) / 3, this.player.controller.speed > 0.5, adsStart, dt);
-    look.x = look.x * r.lookScale + r.dYaw;
-    look.y = look.y * r.lookScale + r.dPitch;
+    // the slowdown eases in and out over ~60 ms so sweeping across a target never jolts the view
+    this.assistScale += (r.lookScale - this.assistScale) * (1 - Math.exp(-dt / 0.06));
+    look.x = look.x * this.assistScale + r.dYaw;
+    look.y = look.y * this.assistScale + r.dPitch;
   }
 
   frameUpdate(dt: number, alpha: number): void {
@@ -781,7 +786,7 @@ export class GameState implements AppState {
             : c.low
               ? 'Low cover'
               : 'High cover';
-    const prompt = st === 'none' && c.candidate ? (this.app.input.mode === 'gamepad' ? 'Hold: Take cover' : 'Take cover') : null;
+    const prompt = st === 'none' && c.candidate ? 'Take cover' : null;
     // cover quality against the current threats: warn when the cover no longer protects
     const flanked = c.inCover && this.coverQ < 0.3 && this.expEyes.length > 0;
     this.hud.setCover(prompt, stateText && flanked ? `${stateText} · flanked` : stateText);

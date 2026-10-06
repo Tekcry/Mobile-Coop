@@ -270,6 +270,8 @@ export class AnimGraph {
   private raiseS = 0;
   private dashS = 0;
   private reloadW = 0;
+  /** Tucked in against the cover while reloading / swapping / throwing. */
+  tuckW = 0;
   private blindS = 0;
   private leanHead = new Spring();
   private leanBody = new Spring();
@@ -473,9 +475,12 @@ export class AnimGraph {
       addClip(src, COVER_ENTER_SIDE, settled, 1, this.wallS || 1);
       addClip(src, COVER_ENTER, settled, 1);
       this.slot('cover enter', this.coverT < COVER_ENTER.duration ? 1 : 0.3, settled);
-      // reloading in cover: tuck in closer to the wall
-      src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.025 * this.reloadW;
-    }
+      // reloading, swapping or throwing in cover: tuck in closer to the wall, a little lower
+      this.tuckW = approach(this.tuckW, i.reload >= 0 || i.swap >= 0 || i.grenade >= 0 ? 1 : 0, 0.12, dt);
+      src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
+      src[CH.pelY] = src[CH.pelY]! - 0.03 * this.tuckW;
+      src[CH.spPitch] = src[CH.spPitch]! + 0.06 * this.tuckW;
+    } else this.tuckW = 0;
     if (this.exitT >= 0) {
       addClip(src, COVER_EXIT, this.exitT, 1);
       this.slot('cover exit', 1, this.exitT);
@@ -530,9 +535,10 @@ export class AnimGraph {
     const leanIn = i.handSwap >= 0 ? 0 : i.lean;
     const peekOut = Math.abs(leanIn) > 0.01;
     const headTarget = leanIn;
-    const hd = this.leanHead.step(headTarget, peekOut ? 22 : 9, dt);
+    // out: head ~60 ms ahead, weapon and body out by ~200 ms; back: body in ~180 ms, head just behind
+    const hd = this.leanHead.step(headTarget, peekOut ? 34 : 18, dt);
     const bodyTarget = peekOut ? (Math.abs(hd) > Math.abs(leanIn) * 0.55 ? leanIn : 0) : 0;
-    const bd = this.leanBody.step(bodyTarget, peekOut ? 11 : 16, dt);
+    const bd = this.leanBody.step(bodyTarget, 24, dt);
     const yl = this.yawLag.step(clamp(-i.yawRate * 0.04 * mass, -0.25, 0.25), 10 / mass, dt);
     src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08;
     src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * (i.armed ? 1 : 0) + yl;

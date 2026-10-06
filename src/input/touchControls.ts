@@ -22,10 +22,10 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   ads: { id: 'ads', action: 'ads', size: 68, icon: 'ads', label: 'Aim' },
   reload: { id: 'reload', action: 'reload', size: 58, icon: 'reload', label: 'Reload' },
   action: { id: 'action', action: null, size: 74, icon: 'cover', label: 'Action (cover / vault / use)' },
-  crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch / kneel' },
+  crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch (toggle)' },
   swap: { id: 'swap', action: 'swapNext', size: 56, icon: 'swap', label: 'Swap weapon' },
   grenade: { id: 'grenade', action: 'grenade', size: 56, icon: 'grenade', label: 'Grenade' },
-  dash: { id: 'dash', action: 'dash', size: 56, icon: 'dash', label: 'Dash' },
+  dash: { id: 'dash', action: 'dash', size: 56, icon: 'dash', label: 'Sprint (toggle)' },
   shoulder: { id: 'shoulder', action: 'shoulderSwap', size: 46, icon: 'shoulder', label: 'Swap shoulder' },
   pause: { id: 'pause', action: 'pause', size: 44, icon: 'pause', label: 'Pause' },
 };

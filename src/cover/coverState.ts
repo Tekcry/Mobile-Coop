@@ -1,13 +1,14 @@
 /**
  * Cover state machine. Pure, unit-tested; the CoverController supplies inputs and acts on states.
  *
- *   none --snap--> enter (eased move, ~250 ms) --> in (low | high)
- *   in --aim--> peek (pop up / lean out at the edge) --release--> in
+ *   none --snap--> enter (glide, 0.25-0.45 s by distance) --> in (low | high; crouch toggles stance at high)
+ *   in --aim--> peek (pop up over low cover, or lean round an edge, standing or crouched) --release--> in
  *   in --fire, no aim--> blind (inaccurate, minimal exposure) --stop--> in
- *   in --push past an outside corner--> corner (pivot round it) --> in
+ *   in --push past an outside corner--> corner (swing round it) --> in
  *   in --jump at low cover (landing clear)--> vault --> none
- *   in --dash, or cover + push towards a marked cover--> dash (run, or SWAT turn, to it) --> enter
- *   in --cover/crouch again, dash with no target, jump at high cover, back away, cover gone, death--> none
+ *   in --cover (or sprint) with a marked cover--> dash (run, or SWAT turn, to it; a push away cancels) --> enter
+ *   in --cover with no marked cover, sprint with no target, jump at high cover, back away, cover gone,
+ *        death--> none
  */
 export type CoverStateName = 'none' | 'enter' | 'in' | 'peek' | 'blind' | 'corner' | 'vault' | 'dash';
 
@@ -33,13 +34,15 @@ export interface CoverInput {
   dashPressed: boolean;
   /** Dash arrived at its target. */
   arrived: boolean;
+  /** Input pushing against the dash direction, 0..1 (cancels a cover-to-cover move). */
+  against: number;
 }
 
 /** Default cover entry time (s); the controller scales it by the approach distance. */
-export const ENTER_TIME = 0.8;
-export const CORNER_TIME = 0.35;
+export const ENTER_TIME = 0.35;
+export const CORNER_TIME = 0.5;
 export const VAULT_TIME = 0.55;
-export const AWAY_TIME = 0.3;
+export const AWAY_TIME = 0.25;
 export const CORNER_HOLD = 0.25;
 export const BLIND_RELEASE = 0.25;
 export const DASH_TIMEOUT = 2.5;
@@ -61,6 +64,7 @@ export function emptyCoverInput(): CoverInput {
     canDash: false,
     dashPressed: false,
     arrived: false,
+    against: 0,
   };
 }
 
@@ -121,7 +125,12 @@ export class CoverStateMachine {
         break;
       case 'dash':
         if (i.arrived) this.go('enter', 'arrived');
-        else if (this.t > DASH_TIMEOUT || i.crouchPressed || i.jumpPressed) this.go('none', 'dash-cancel');
+        else if (this.t > DASH_TIMEOUT || i.jumpPressed) this.go('none', 'dash-cancel');
+        else {
+          // a firm push back against the move cancels it (sticky, like leaving cover)
+          this.awayT = i.against > 0.75 ? this.awayT + dt : 0;
+          if (this.awayT >= AWAY_TIME * 0.6) this.go('none', 'dash-cancel');
+        }
         break;
       case 'vault':
         if (this.t >= VAULT_TIME) this.go('none', 'vaulted');
@@ -137,11 +146,12 @@ export class CoverStateMachine {
           this.go('none', 'gone');
           break;
         }
-        if (i.canDash && (i.dashPressed || (i.coverPressed && i.away > 0.5))) {
+        // cover-to-cover: cover (or sprint) with a marked target; crouch only changes stance (controller)
+        if (i.canDash && (i.dashPressed || i.coverPressed)) {
           this.go('dash', 'dash');
           break;
         }
-        if (i.coverPressed || i.crouchPressed) {
+        if (i.coverPressed) {
           this.go('none', 'released');
           break;
         }

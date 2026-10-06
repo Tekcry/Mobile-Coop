@@ -126,7 +126,7 @@ try {
     await tp(x, y, z, yaw);
     await settle(0.5);
     const hint = await page.evaluate(() => window.__app.current.traversal.hint?.kind ?? 'none');
-    await press(page, BTN.A);
+    await press(page, BTN.Y);
     const kinds = new Set();
     for (let i = 0; i < 14; i++) { await sim(0.1); kinds.add(await page.evaluate(() => window.__app.current.traversal.kind)); }
     await settle(0.8);

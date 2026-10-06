@@ -1,7 +1,9 @@
-// Cover system on Proving Grounds (fake gamepad + keyboard): snap side-on, strafe + edge stop,
-// turn-and-swap, kneel, aim over low cover, blind fire, release, vault, lean in place at a high-cover
-// edge with shoulder swap, outside-corner pivot, inside corner, SWAT turn, cover-to-cover dash with a
-// slide-in and HUD marker, touch swipe, auto-snap setting, HUD prompt and touch button.
+// Cover system on Proving Grounds (fake gamepad + keyboard; A cover, B crouch, Y traverse, L3 sprint):
+// snap side-on, strafe + edge stop, turn-and-swap, kneel, aim over low cover, blind fire, B keeps
+// cover, A leaves, Y vaults, lean in place at a high-cover edge with shoulder swap, stand / crouch at
+// high cover and a crouched edge peek, outside-corner swing, inside corner, SWAT turn, cover-to-cover
+// with A to the marked cover (slide-in, HUD marker), touch swipe, auto-snap setting, HUD prompt, touch
+// button, keyboard Space.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -21,14 +23,9 @@ async function sim(seconds, { lx = 0, ly = 0, buttons = [] } = {}) {
   await G((b) => { window.__pad.axis(0, 0); window.__pad.axis(1, 0); for (const i of b) window.__pad.set(i, 0); }, buttons);
   await frames(page, 2);
 }
-async function holdCover() {
-  await G(() => window.__pad.set(1, 1));
-  for (let i = 0; i < 60; i++) {
-    await frames(page, 1);
-    if ((await P()).state !== 'none') break;
-  }
-  await G(() => window.__pad.set(1, 0));
-  await sim(1.0);
+async function takeCover() {
+  await press(page, BTN.A);
+  await sim(0.8);
 }
 const near = (a, b, e) => Math.abs(a - b) <= e;
 try {
@@ -45,9 +42,9 @@ try {
   await frames(page, 3);
   const prompt = await G(() => document.querySelector('.hud-cover.show')?.textContent ?? '');
   assert(/cover/i.test(prompt), `HUD shows cover prompt (${prompt})`);
-  await holdCover();
+  await takeCover();
   let c = await P();
-  assert(c.state === 'in' && c.low && c.crouched, `B-hold snaps into low cover crouched (${JSON.stringify(c)})`);
+  assert(c.state === 'in' && c.low && c.crouched, `A snaps into low cover crouched (${JSON.stringify(c)})`);
   assert(near(c.x, -4.7 + 0.35, 0.08), `flush with standoff (x=${c.x.toFixed(2)})`);
   assert(Math.abs(Math.sin(c.yaw)) < 0.3 && c.wall !== 0, `side-on: faces along the face, shoulder to the wall (yaw ${c.yaw.toFixed(2)}, wall side ${c.wall})`);
   await sim(0.4);
@@ -85,23 +82,28 @@ try {
   await sim(0.5);
   c = await P();
   assert(c.state === 'in', 'blind fire ends when the trigger is released');
-  // leave with B tap: no stray crouch toggle
+  // B is stance only: low cover stays crouched in cover
   await press(page, BTN.B);
   await sim(0.4);
   c = await P();
-  assert(c.state === 'none' && !c.crouched, `B leaves cover standing (${c.state}, crouched ${c.crouched})`);
-  // vault
-  await holdCover();
+  assert(c.state === 'in' && c.crouched, `B keeps low cover (crouched) (${c.state})`);
+  // leave with A: no stray crouch toggle
   await press(page, BTN.A);
+  await sim(0.4);
+  c = await P();
+  assert(c.state === 'none' && !c.crouched, `A leaves cover standing (${c.state}, crouched ${c.crouched})`);
+  // vault
+  await takeCover();
+  await press(page, BTN.Y);
   await sim(0.9);
   c = await P();
-  assert(c.state === 'none' && c.x < -5.4 && Math.abs(c.y) < 0.15, `A vaults over low cover (x=${c.x.toFixed(2)} y=${c.y.toFixed(2)})`);
+  assert(c.state === 'none' && c.x < -5.4 && Math.abs(c.y) < 0.15, `Y vaults over low cover (x=${c.x.toFixed(2)} y=${c.y.toFixed(2)})`);
 
   console.log('high cover');
   // high cover at x=-10 (faces x = -9.75 / -10.25), z 0..4; stand east facing west
   await tp(-8.8, 2.5, -Math.PI / 2);
   await sim(0.3);
-  await holdCover();
+  await takeCover();
   c = await P();
   assert(c.state === 'in' && !c.low && !c.crouched, `snaps into high cover standing (${JSON.stringify(c)})`);
   await sim(1.5, { lx: 1 });
@@ -117,12 +119,27 @@ try {
   c = await P();
   assert(c.state === 'in' && c.z < 4.0 && c.lean === 0, `releasing aim leans back into cover (z=${c.z.toFixed(2)})`);
   assert(c.shoulder === sh0, `shoulder restored after peeking (peek ${peekShoulder}, now ${c.shoulder})`);
+  // B at high cover: crouch behind it, peek round the edge crouched, B again stands
+  await press(page, BTN.B);
+  await sim(0.6);
+  c = await P();
+  assert(c.state === 'in' && !c.low && c.crouched, `B crouches behind high cover, still in cover (${c.state}, crouched ${c.crouched})`);
+  await G(() => window.__pad.set(6, 1));
+  await sim(0.8);
+  c = await P();
+  assert(c.state === 'peek' && c.lean !== 0 && c.crouched, `crouched peek round the high-cover edge (lean ${c.lean}, crouched ${c.crouched})`);
+  await G(() => window.__pad.set(6, 0));
+  await sim(0.6);
+  await press(page, BTN.B);
+  await sim(0.6);
+  c = await P();
+  assert(c.state === 'in' && !c.crouched, `B again stands behind high cover (${c.state})`);
 
   console.log('outside corner');
   // building 10 x 6 at (0,16): +x face at x=5 (z 13..19); corner to the +z face at z=19
   await tp(5.9, 17.5, -Math.PI / 2);
   await sim(0.3);
-  await holdCover();
+  await takeCover();
   c = await P();
   const seg0 = c.seg;
   assert(c.state === 'in' && !c.low, `snaps to the building wall (${JSON.stringify(c)})`);
@@ -133,13 +150,13 @@ try {
   }
   await sim(0.5);
   c = await P();
-  assert(c.state === 'in' && c.seg !== seg0 && near(c.z, 19.35, 0.1), `pushing past the edge pivots round the outside corner onto the next face (seg ${seg0}->${c.seg}, z=${c.z.toFixed(2)})`);
+  assert(c.state === 'in' && c.seg !== seg0 && near(c.z, 19.35, 0.1), `pushing past the edge swings round the outside corner onto the next face (seg ${seg0}->${c.seg}, z=${c.z.toFixed(2)})`);
 
   console.log('inside corner');
   // building shell: north wall z=-18 (inner face z=-18.2) meets the east wall x=24 (inner face x=23.8)
   await tp(22.2, -19.0, 0);
   await sim(0.3);
-  await holdCover();
+  await takeCover();
   c = await P();
   const segN = c.seg;
   assert(c.state === 'in' && !c.low && c.nz < -0.9, `snaps to the inner north wall (${JSON.stringify(c)})`);
@@ -152,12 +169,17 @@ try {
   // low cover east face x=-4.7, z -8..-4; in line beyond a 1.6 m gap: z -2.4..0
   await tp(-3.7, -5, -Math.PI / 2);
   await sim(0.3);
-  await holdCover();
+  await takeCover();
   await sim(2.8, { lx: 1 });
   c = await P();
   const piece0 = c.piece;
+  // keep pushing past the edge while the target is read (it re-targets 5x a second)
   await G(() => { window.__pad.axis(0, 1); });
-  await sim(0.3, { lx: 1 });
+  await G((s) => new Promise((res) => {
+    const st = window.__app.current; let t = 0;
+    const orig = st.fixedUpdate.bind(st);
+    st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; res(); } };
+  }), 0.3);
   const swat = await G(() => { const t = window.__app.current.cover.target; return t ? t.kind : 'none'; });
   await G(() => { window.__pad.axis(0, 1); });
   await press(page, BTN.LS);
@@ -172,18 +194,18 @@ try {
   assert(swat === 'swat' && sawCrouchedDash, `at the edge with cover in line beyond a gap: SWAT turn, low (target ${swat})`);
   assert(c.state === 'in' && c.piece !== piece0 && c.z > -2.4, `SWAT turn lands in the next cover (z=${c.z.toFixed(2)})`);
 
-  console.log('cover-to-cover dash');
+  console.log('cover-to-cover');
   // from the low cover's east face, look at the low wall to the south (north face z=-11.7)
   await tp(-3.7, -6, -Math.PI / 2);
   await sim(0.3);
-  await holdCover();
+  await takeCover();
   await G(() => { const p = window.__app.current.player; p.cam.yaw = Math.atan2(-2 - p.position.x, -11.35 - p.position.z); });
   await sim(0.4);
   const tgt = await G(() => { const t = window.__app.current.cover.target; return t ? { kind: t.kind, x: t.x, z: t.z } : null; });
   await frames(page, 3);
   const marker = await G(() => !!document.querySelector('.hud-cover-marker.show'));
   assert(tgt && tgt.kind === 'dash' && marker, `marked cover-to-cover target in the look direction + HUD marker (${JSON.stringify(tgt)}, marker ${marker})`);
-  await press(page, BTN.LS);
+  await press(page, BTN.A);
   let slid = false;
   let dashed = false;
   for (let i = 0; i < 25; i++) {
@@ -194,7 +216,7 @@ try {
     if (dashed && q.st === 'in') break;
   }
   c = await P();
-  assert(dashed && slid && c.state === 'in' && c.nz > 0.9 && c.low, `dash runs to the marked cover and slides in (${JSON.stringify({ dashed, slid, state: c.state, nz: c.nz })})`);
+  assert(dashed && slid && c.state === 'in' && c.nz > 0.9 && c.low, `A runs to the marked cover and slides in (${JSON.stringify({ dashed, slid, state: c.state, nz: c.nz })})`);
 
   console.log('touch swipe');
   await G(() => { const s = window.__app.input.state; s.coverSwipe.x = 0; s.coverSwipe.y = 1; });
@@ -206,7 +228,7 @@ try {
   await G(() => { const s = window.__app.input.state; s.coverSwipe.x = 0; s.coverSwipe.y = 1; });
   await sim(1.2);
   assert((await P()).state === 'in', 'swipe towards cover takes it');
-  await press(page, BTN.B);
+  await press(page, BTN.A);
   await sim(0.4);
 
   console.log('auto snap + touch button');
@@ -220,10 +242,10 @@ try {
   await sim(0.3);
   const btn = await G(() => { const t = window.__app.input.touch; const c = t.actionContext; return c ? `${c.action}:${c.label}` : 'none'; });
   assert(/^(cover|jump):/.test(btn), `touch action button offers a cover action (leave / vault) in cover (${btn})`);
-  // keyboard C toggles out
-  await page.keyboard.press('KeyC');
+  // keyboard Space toggles out
+  await page.keyboard.press('Space');
   await sim(0.3);
-  assert((await P()).state === 'none', 'keyboard C leaves cover');
+  assert((await P()).state === 'none', 'keyboard Space leaves cover');
 } catch (e) {
   failed = true;
   console.error(String(e));

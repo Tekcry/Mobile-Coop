@@ -23,15 +23,23 @@ export interface CoverTarget {
   kind: 'dash' | 'swat';
   x: number;
   z: number;
+  /** Waypoint round a corner when the straight line is blocked (null = straight). */
+  via: { x: number; z: number } | null;
 }
 
+/** Snap reach (m) and the glide time range (s) by distance. */
+export const SNAP_REACH = 3;
+export const GLIDE_MIN = 0.25;
+export const GLIDE_MAX = 0.42;
+
 /**
- * Player cover: finds cover faces near the player, snaps into them with an eased move (or a slide
- * when dashing in), holds a side-on stance with the shoulder to the surface (reversing direction
- * plays a turn-and-swap), strafes along the face, peeks over low cover or leans out in place at high
- * cover edges, blind-fires, pivots round outside corners, turns onto the adjoining face at inside
- * corners, vaults low cover and moves cover-to-cover (bounding dash or a low SWAT turn across a gap)
- * to the marked target. Drives the controller through `controller.override` and the animation
+ * Player cover: finds cover faces up to 3 m away, snaps into them with a 0.25-0.45 s glide (a slide
+ * when sprinting in), holds a side-on stance with the shoulder to the surface (reversing direction
+ * plays a turn-and-swap; crouch toggles standing / crouched at high cover), strafes along the face,
+ * peeks over low cover or round an edge (standing or crouched, leaning in place), blind-fires, swings
+ * round outside corners, turns onto the adjoining face at inside corners, vaults low cover and moves
+ * cover-to-cover (bounding run, routed round a corner when needed, or a low SWAT turn across a gap)
+ * to the marked target; pushing back cancels the move. Drives the controller through `controller.override` and the animation
  * through `player.coverPose`. All checks against the world are raycasts, so destroyed or moved
  * geometry simply makes the cover invalid and the player steps out.
  */
@@ -72,6 +80,11 @@ export class CoverController {
   exitDir: { x: number; z: number } | null = null;
   /** Spread multiplier requested for blind fire. */
   spreadMul = 1;
+  /** Crouched behind high cover (crouch toggles it; low cover is always crouched). */
+  highCrouch = false;
+  /** Peek kind for the current peek: over low cover, or round an edge. */
+  peekKind: 'over' | 'edge' | 'none' = 'none';
+  private glideV0 = { x: 0, z: 0 };
 
   constructor(
     scene: Scene,
@@ -133,7 +146,7 @@ export class CoverController {
     if (!p.alive || !c.grounded) return;
     // facing: move direction if moving, else where the body faces
     const dir = w.mag > 0 ? w : { x: Math.sin(c.yaw), z: Math.cos(c.yaw) };
-    const hit = findSnap(this.segments, { x: p.position.x, y: p.position.y, z: p.position.z, dirX: dir.x, dirZ: dir.z, reach: 1.6 });
+    const hit = findSnap(this.segments, { x: p.position.x, y: p.position.y, z: p.position.z, dirX: dir.x, dirZ: dir.z, reach: SNAP_REACH });
     if (hit && this.snapClear(hit.seg, hit.s)) this.candidate = hit;
   }
 
@@ -153,10 +166,40 @@ export class CoverController {
       if (d < 1.5 || d > 8 || (dx * w.x + dz * w.z) / d < 0.8) continue;
       // must approach the face from its front
       if (loc.dist < 0.2) continue;
-      if (d < bd && !this.ray(this.from.set(feet.x, feet.y + 0.9, feet.z), this.to.set(p.x, feet.y + 0.9, p.z))) {
+      if (d >= bd) continue;
+      const y = feet.y + 0.9;
+      if (!this.ray(this.from.set(feet.x, y, feet.z), this.to.set(p.x, y, p.z))) {
         bd = d;
-        best = { seg, s, kind: 'dash', x: p.x, z: p.z };
+        best = { seg, s, kind: 'dash', x: p.x, z: p.z, via: null };
+        continue;
       }
+      // blocked: route round one end of the current cover (out past its corner, then on)
+      const via = this.routeVia(p.x, p.z, y);
+      if (via) {
+        bd = d;
+        best = { seg, s, kind: 'dash', x: p.x, z: p.z, via };
+      }
+    }
+    return best;
+  }
+
+  /** A waypoint just past an end of the current face from which both legs of the move are clear. */
+  private routeVia(tx: number, tz: number, y: number): { x: number; z: number } | null {
+    const seg = this.seg!;
+    const feet = this.player.position;
+    let best: { x: number; z: number } | null = null;
+    let bl = Infinity;
+    for (const side of [-1, 1] as const) {
+      const ex = side < 0 ? seg.ax : seg.bx;
+      const ez = side < 0 ? seg.az : seg.bz;
+      const wx = ex + seg.tx * side * 0.55 + seg.nx * 0.55;
+      const wz = ez + seg.tz * side * 0.55 + seg.nz * 0.55;
+      const len = hyp2(wx - feet.x, wz - feet.z) + hyp2(tx - wx, tz - wz);
+      if (len >= bl) continue;
+      if (this.ray(this.from.set(feet.x, y, feet.z), this.to.set(wx, y, wz))) continue;
+      if (this.ray(this.from.set(wx, y, wz), this.to.set(tx, y, tz))) continue;
+      bl = len;
+      best = { x: wx, z: wz };
     }
     return best;
   }
@@ -192,7 +235,7 @@ export class CoverController {
       const f = this.player.position;
       if (this.ray(this.from.set(f.x, y, f.z), this.to.set(p.x, y, p.z))) continue;
       bd = gap;
-      best = { seg: o, s, kind: 'swat', x: p.x, z: p.z };
+      best = { seg: o, s, kind: 'swat', x: p.x, z: p.z, via: null };
     }
     return best;
   }
@@ -288,25 +331,29 @@ export class CoverController {
     const cls = this.probeHeight(this.player.position.x, this.player.position.y, this.player.position.z, seg);
     this.low = cls ? cls === 'low' : seg.low;
     c.clearCrouchToggle();
+    this.highCrouch = false;
     // side-on: face along the face towards where the camera looks
     const yaw = this.player.cam.yaw;
     this.faceDir = face ?? (Math.sin(yaw) * seg.tx + Math.cos(yaw) * seg.tz >= 0 ? 1 : -1);
     this.swapT = -1;
     this.insideT = 0;
-    // arriving at speed (bounding dash) slides in
+    // arriving at speed (sprint, bounding run) slides in
     this.slide = c.dashing || c.speed > 3;
     if (c.dashing) c.sprint.stop();
-    // entry: decelerate into the wall over the approach (longer from further out), eased
-    const loc = locate(seg, this.player.position.x, this.player.position.z);
-    this.enterS0 = loc.s;
-    this.enterD0 = loc.dist;
-    const d = hyp2(clampAlong(seg, s).s - loc.s, loc.dist - COVER_STANDOFF);
-    this.sm.enterTime = this.slide ? 0.6 : Math.max(0.6, Math.min(0.95, 0.55 + d * 0.25));
+    // entry: a glide to the snap point, 0.25 s close in up to 0.45 s from 3 m, eased into the wall and
+    // carrying the current velocity into its start (Hermite path)
+    const to = coverPose(seg, clampAlong(seg, s).s, COVER_STANDOFF);
+    const d = hyp2(to.x - this.enterFrom.x, to.z - this.enterFrom.z);
+    this.sm.enterTime = Math.max(GLIDE_MIN, Math.min(GLIDE_MAX, GLIDE_MIN + d * ((GLIDE_MAX - GLIDE_MIN) / SNAP_REACH)));
+    // only the part of the current velocity heading for the snap point carries in
+    const ux = d > 1e-3 ? (to.x - this.enterFrom.x) / d : 0;
+    const uz = d > 1e-3 ? (to.z - this.enterFrom.z) / d : 0;
+    const along = Math.max(0, Math.min(c.vel.x * ux + c.vel.z * uz, (1.5 * d) / this.sm.enterTime));
+    this.glideV0.x = ux * along;
+    this.glideV0.z = uz * along;
     this.sm.snap();
   }
 
-  private enterS0 = 0;
-  private enterD0 = 0;
   /** Stepping back off the wall after leaving cover (s left). */
   private exitStepT = 0;
   private exitNx = 0;
@@ -394,7 +441,17 @@ export class CoverController {
       ci.sprint = ci.dashPressed && !ci.canDash && w.mag > 0.5;
     } else this.target = null;
     if (this.sm.state === 'dash' && this.dashTo) {
-      ci.arrived = hyp2(this.dashTo.x - p.position.x, this.dashTo.z - p.position.z) < 0.5;
+      const t = this.dashTo;
+      ci.arrived = hyp2(t.x - p.position.x, t.z - p.position.z) < 0.5;
+      // pushing back against the move (towards where we came from) cancels it
+      const gx = (t.via ? t.via.x : t.x) - p.position.x;
+      const gz = (t.via ? t.via.z : t.z) - p.position.z;
+      const gd = hyp2(gx, gz) || 1;
+      ci.against = Math.max(0, -(w.x * gx + w.z * gz) / gd) * w.mag;
+    }
+    // crouch in cover: stand / crouch behind high cover (low cover is always crouched)
+    if (ci.crouchPressed && (this.sm.state === 'in' || this.sm.state === 'peek' || this.sm.state === 'blind') && !this.low) {
+      this.highCrouch = !this.highCrouch;
     }
     const prev = this.sm.state;
     const st = this.sm.step(dt, ci);
@@ -419,19 +476,22 @@ export class CoverController {
     if (st === 'peek' && this.seg) {
       this.peekReturn = this.s;
       this.peekSide = 0;
-      if (!this.low) {
-        const e = nearestEdge(this.seg, this.s);
-        if (e.dist < 1.6) {
-          this.peekSide = e.side;
-          // camera to the shoulder on the open side (seen from behind the player, facing the cover)
-          const yaw = p.cam.yaw;
-          const rx = Math.cos(yaw);
-          const rz = -Math.sin(yaw);
-          const dot = (this.seg.tx * rx + this.seg.tz * rz) * e.side;
-          this.setShoulder(dot >= 0 ? 1 : -1);
-        }
+      this.peekKind = this.low ? 'over' : 'none';
+      const e = nearestEdge(this.seg, this.s);
+      const yaw = p.cam.yaw;
+      // low cover: at an edge, looking past it, lean round it crouched instead of popping up
+      const pastEdge = (Math.sin(yaw) * this.seg.tx + Math.cos(yaw) * this.seg.tz) * e.side > 0.25;
+      if ((!this.low && e.dist < 1.6) || (this.low && e.dist < 0.7 && pastEdge)) {
+        this.peekSide = e.side;
+        this.peekKind = 'edge';
+        // camera to the shoulder on the open side (seen from behind the player, facing the cover)
+        const rx = Math.cos(yaw);
+        const rz = -Math.sin(yaw);
+        const dot = (this.seg.tx * rx + this.seg.tz * rz) * e.side;
+        this.setShoulder(dot >= 0 ? 1 : -1);
       }
     }
+    if (st !== 'peek') this.peekKind = 'none';
     if (prev === 'peek' && st !== 'peek') this.setShoulder(null);
     if (st === 'corner' && this.seg) {
       const side = this.sm.cornerSide < 0 ? -1 : 1;
@@ -508,14 +568,18 @@ export class CoverController {
     if (st === 'dash' && this.dashTo) {
       const t = this.dashTo;
       const swat = t.kind === 'swat';
-      const dx = t.x - p.position.x;
-      const dz = t.z - p.position.z;
+      // round the corner first, then on to the cover
+      if (t.via && hyp2(t.via.x - p.position.x, t.via.z - p.position.z) < 0.45) t.via = null;
+      const gx = t.via ? t.via.x : t.x;
+      const gz = t.via ? t.via.z : t.z;
+      const dx = gx - p.position.x;
+      const dz = gz - p.position.z;
       const d = hyp2(dx, dz) || 1;
       // ease off over the last metre so the arrival blends into the snap
-      const v = (swat ? SWAT_SPEED : MOVEMENT.coverRunSpeed) * Math.min(1, 0.45 + d * 0.55);
+      const v = (swat ? SWAT_SPEED : MOVEMENT.coverRunSpeed) * (t.via ? 1 : Math.min(1, 0.45 + d * 0.55));
       this.vel.x = (dx / d) * v;
       this.vel.z = (dz / d) * v;
-      c.override = { velocity: this.vel, yaw: Math.atan2(dx, dz), crouch: swat, turnRate: swat ? 12 : 6 };
+      c.override = { velocity: this.vel, yaw: Math.atan2(dx, dz), crouch: swat, turnRate: swat ? 12 : 9, run: true };
       pose.cover = 'none';
       return;
     }
@@ -575,13 +639,29 @@ export class CoverController {
       this.swapT += dt;
       if (this.swapT >= SWAP_TIME) this.swapT = -1;
     }
-    let enterK = -1;
     if (st === 'enter') {
-      // eased approach: quick off the mark, decelerating over the last part into the wall
-      const u = Math.min(1, this.sm.t / this.sm.enterTime);
-      enterK = 1 - Math.pow(1 - u, 3);
-      targetS = this.enterS0 + (clampAlong(seg, this.s).s - this.enterS0) * enterK;
+      // glide: Hermite path from where we were (with our velocity) to the snap point, at rest on arrival
+      const T = this.sm.enterTime;
+      const u = Math.min(1, (this.sm.t + dt) / T);
+      const to = coverPose(seg, clampAlong(seg, this.s).s, standoff);
+      const a = this.enterFrom;
+      const u2 = u * u;
+      const u3 = u2 * u;
+      const h01 = 3 * u2 - 2 * u3;
+      const h10 = u3 - 2 * u2 + u;
+      const d01 = (6 * u - 6 * u2) / T;
+      const d10 = (3 * u2 - 4 * u + 1) / T;
+      const px = a.x + (to.x - a.x) * h01 + this.glideV0.x * T * h10;
+      const pz = a.z + (to.z - a.z) * h01 + this.glideV0.z * T * h10;
+      this.vel.x = (to.x - a.x) * d01 + this.glideV0.x * T * d10 + (px - p.position.x) * 12;
+      this.vel.z = (to.z - a.z) * d01 + this.glideV0.z * T * d10 + (pz - p.position.z) * 12;
       if (this.slide) pose.slide = u;
+      c.override = { velocity: this.vel, yaw, crouch: this.low, turnRate: Math.PI / Math.max(0.2, T * 0.8), glide: true };
+      pose.cover = this.low ? 'low' : 'high';
+      pose.wallSide = this.wallSide(seg, this.faceDir);
+      p.rig.leftHanded = !this.low && pose.wallSide > 0;
+      this.autoShoulder(seg, st);
+      return;
     } else if (st === 'in') {
       const along = projectOnTangent(seg, w.x, w.z) * w.mag;
       // reversing direction: turn-and-swap (shoulder stays to the wall, the weapon changes hands)
@@ -591,7 +671,8 @@ export class CoverController {
         this.swaps++;
         yaw = this.faceYaw(seg, this.faceDir);
       }
-      speedAlong = along * MOVEMENT.coverSpeed * (this.swapT >= 0 ? 0.25 : 1);
+      crouch = this.low || this.highCrouch;
+      speedAlong = along * (crouch ? MOVEMENT.coverCrouchSpeed : MOVEMENT.coverSpeed) * (this.swapT >= 0 ? 0.25 : 1);
       // brake early enough that the eased stop lands on the edge, not past it
       const cur = c.vel.x * seg.tx + c.vel.z * seg.tz;
       const stopDist = (cur * cur) / (2 * 3) + Math.abs(cur) * 0.12;
@@ -626,7 +707,8 @@ export class CoverController {
     } else if (st === 'peek') {
       yaw = undefined; // body turns to the aim
       turn = 9;
-      if (this.low) {
+      crouch = this.low || this.highCrouch;
+      if (this.peekKind === 'over') {
         crouch = false;
         pose.peekOver = 1;
       } else if (this.peekSide !== 0) {
@@ -639,6 +721,7 @@ export class CoverController {
       turn = 9;
       this.spreadMul = 3;
       pose.blind = true;
+      crouch = this.low || this.highCrouch;
       if (!this.low && edge.dist < 0.6) pose.lean = this.leanSide(seg, edge.side);
     }
     if (st === 'in' && this.peekReturn >= 0) {
@@ -649,24 +732,26 @@ export class CoverController {
     if (yaw !== undefined) pose.wallSide = this.wallSide(seg, this.faceDir);
     // weapon in the outside hand (away from the wall / towards the side being leaned out of)
     p.rig.leftHanded = pose.lean !== 0 ? pose.lean < 0 : yaw !== undefined && !this.low ? pose.wallSide > 0 : false;
-    // camera on the shoulder of the side being faced (hysteresis so small look changes do not flip it)
-    if ((st === 'in' || st === 'enter') && this.sm.t > 0.05) {
-      const cy = p.cam.yaw;
-      const dot = (seg.tx * Math.cos(cy) - seg.tz * Math.sin(cy)) * this.faceDir;
-      if (Math.abs(dot) > 0.35) this.setShoulder(dot > 0 ? 1 : -1);
-    }
+    this.autoShoulder(seg, st);
     // velocity: along the face (input or towards a target point) + hold the standoff from the surface
     // seek target points gently (the root motion has weight; a hard P-gain would overshoot)
-    const k = st === 'enter' ? 0.08 : 0.25;
-    const cap = st === 'enter' ? 3 : 0.9;
+    const k = 0.25;
+    const cap = 0.9;
     if (speedAlong === 0 && Math.abs(targetS - loc.s) > 0.02) speedAlong = Math.max(-cap, Math.min(cap, (targetS - loc.s) / k));
-    const wantDist = enterK >= 0 ? this.enterD0 + (standoff - this.enterD0) * enterK : standoff;
-    const toward = Math.max(-3.5, Math.min(3.5, (wantDist - loc.dist) / (st === 'enter' ? k : 0.1)));
+    const toward = Math.max(-3.5, Math.min(3.5, (standoff - loc.dist) / 0.1));
     this.vel.x = seg.tx * speedAlong + seg.nx * toward;
     this.vel.z = seg.tz * speedAlong + seg.nz * toward;
     c.override = { velocity: this.vel, yaw, crouch, turnRate: turn };
     pose.cover = this.low ? 'low' : 'high';
     void inp;
+  }
+
+  /** Camera on the shoulder of the side being faced (hysteresis so small look changes do not flip it). */
+  private autoShoulder(seg: CoverSegment, st: CoverStateName): void {
+    if ((st !== 'in' && st !== 'enter') || this.sm.t <= 0.05) return;
+    const cy = this.player.cam.yaw;
+    const dot = (seg.tx * Math.cos(cy) - seg.tz * Math.sin(cy)) * this.faceDir;
+    if (Math.abs(dot) > 0.35) this.setShoulder(dot > 0 ? 1 : -1);
   }
 
   /** Lean direction in the character's frame (facing -n): +1 = to its right. */

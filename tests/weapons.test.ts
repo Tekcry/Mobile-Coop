@@ -100,6 +100,17 @@ describe('aim assist', () => {
     const far = [{ yaw: 1.2, pitch: 0, distance: 10 }];
     expect(computeAssist('high', 0, 0, far, 1, true, true, 1 / 60).target).toBe(-1);
   });
+  it('friction fades smoothly across the cone edge (no step in the look rate)', () => {
+    let prev = 1;
+    let maxStep = 0;
+    for (let deg = 10; deg >= 0; deg -= 0.05) {
+      const s = computeAssist('high', 0, 0, [{ yaw: (deg * Math.PI) / 180, pitch: 0, distance: 15 }], 0, false, false, 1 / 60).lookScale;
+      maxStep = Math.max(maxStep, Math.abs(s - prev));
+      prev = s;
+    }
+    expect(prev).toBeCloseTo(0.45);
+    expect(maxStep).toBeLessThan(0.02);
+  });
   it('higher levels assist more', () => {
     const lo = computeAssist('low', 0, 0, near, 1, true, false, 1 / 60);
     const hi = computeAssist('high', 0, 0, near, 1, true, false, 1 / 60);

@@ -256,11 +256,11 @@ export class Hud {
 
   /**
    * Cover prompt (when cover is in reach) and the current cover state badge. Prompts render the
-   * controller glyph (hold B), keyboard key (C) or, on touch, just the text next to the cover button.
+   * controller glyph (A), keyboard key (Space) or, on touch, just the text next to the cover button.
    */
   setCover(prompt: string | null, state: string | null): void {
     this.set('coverP', prompt ?? '', () => {
-      this.coverEl.innerHTML = prompt ? `${promptHtml('B', 'C')}<span>${prompt}</span>` : '';
+      this.coverEl.innerHTML = prompt ? `${promptHtml('A', 'Space')}<span>${prompt}</span>` : '';
       this.coverEl.classList.toggle('show', !!prompt);
     });
     this.set('coverS', state ?? '', () => {
@@ -295,7 +295,7 @@ export class Hud {
   setCoverMarker(xPct: number, yPct: number, label: string): void {
     const show = xPct >= 0;
     this.set('cmk', show ? label : '', () => {
-      this.markerEl.innerHTML = show ? `<i></i><span>${promptHtml('LS', 'Shift')}${label}</span>` : '';
+      this.markerEl.innerHTML = show ? `<i></i><span>${promptHtml('A', 'Space')}${label}</span>` : '';
       this.markerEl.classList.toggle('show', show);
     });
     if (show) this.markerEl.style.transform = `translate(${xPct.toFixed(1)}vw, ${yPct.toFixed(1)}vh)`;
@@ -304,7 +304,7 @@ export class Hud {
   /** Contextual traversal prompt (jump button: vault, climb, step up, drop down). */
   setAction(text: string | null): void {
     this.set('act', text ?? '', () => {
-      this.actionEl.innerHTML = text ? `${promptHtml('A', 'Space')}<span>${text}</span>` : '';
+      this.actionEl.innerHTML = text ? `${promptHtml('Y', 'E')}<span>${text}</span>` : '';
       this.actionEl.classList.toggle('show', !!text);
     });
   }

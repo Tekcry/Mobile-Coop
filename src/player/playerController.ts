@@ -26,6 +26,10 @@ export interface MoveOverride {
   kinematic?: Vector3;
   /** Turn rate (rad/s) towards `yaw` (default: the moving turn rate). */
   turnRate?: number;
+  /** `velocity` follows an already-eased path (cover snap glide): track it tightly. */
+  glide?: boolean;
+  /** `velocity` is a run (cover-to-cover): the free-movement tuning at sprint acceleration. */
+  run?: boolean;
 }
 
 export interface PlayerInput {
@@ -49,6 +53,8 @@ export interface PlayerInput {
 
 /** Motion caps for cover-driven moves: snappier so the standoff controller stays stable. */
 const COVER_MOTION = { ...MOVEMENT, accelMax: 3, decelMax: 4, jerkMax: 30, velGain: 10, startShift: 0.12, rootDip: 0.02 };
+/** Cover snap glide: the path is already eased (cover controller), the driver just follows it. */
+const GLIDE_MOTION = { ...MOVEMENT, accelMax: 40, decelMax: 40, jerkMax: 2000, velGain: 40, brakeGain: 40, startShift: 0, rootDip: 0.02 };
 
 const UP = new Vector3(0, 1, 0);
 const DOWN = new Vector3(0, -1, 0);
@@ -236,7 +242,7 @@ export class PlayerController {
       this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
       this.cc.setVelocity(Vector3.Zero());
       this.syncFeet();
-      if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, T.turnMoving * 1.5 * dt);
+      if (ov.yaw !== undefined) this.yaw = turnTowards(this.yaw, ov.yaw, (ov.turnRate ?? T.turnMoving * 1.5) * dt);
       this.speed = Vector3.Distance(this.pos, this.prevPos) / Math.max(dt, 1e-4);
       this.vel.reset();
       this.motion.reset(this.yaw);
@@ -326,12 +332,12 @@ export class PlayerController {
     mi.vx = tx;
     mi.vz = tz;
     mi.aiming = aiming;
-    mi.sprinting = this.sprint.sprinting;
+    mi.sprinting = this.sprint.sprinting || !!ov?.run;
     // not aiming and free: face the travel direction (the camera orbits freely); else face the
     // override's yaw (cover) or the aim
     mi.faceTravel = !aiming && !ov?.velocity && ov?.yaw === undefined;
     mi.yaw = ov?.yaw ?? camYaw;
-    if (this.grounded) this.motion.step(dt, mi, ov?.velocity ? COVER_MOTION : T);
+    if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
     this.vel.x = this.motion.vx;
     this.vel.z = this.motion.vz;
     const desired = this.tmp.set(this.motion.outX, 0, this.motion.outZ);

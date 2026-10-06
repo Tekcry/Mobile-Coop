@@ -10,6 +10,8 @@ import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
+/** Weapon changing hands at a left cover edge (s): 150-200 ms. */
+export const HAND_SWAP_TIME = 0.18;
 
 export type PartFactory = (shape: PartShape, hex: string, slot: string) => AbstractMesh;
 
@@ -666,14 +668,14 @@ export class CharacterRig {
       i.yawRate = d / dt;
     }
     this.prevYaw = yaw;
-    // weapon changing hands (cover edge prep): eased over 0.35 s; the graph tucks the weapon in
+    // weapon changing hands (cover edge prep): eased over HAND_SWAP_TIME; the graph tucks the weapon in
     const handTarget = this.leftHanded ? 1 : 0;
     if (handTarget !== this.handBlend && this.handSwap < 0) {
       this.handSwap = 0;
       this.handFrom = this.handBlend;
     }
     if (this.handSwap >= 0) {
-      this.handSwap = Math.min(1, this.handSwap + dt / 0.35);
+      this.handSwap = Math.min(1, this.handSwap + dt / HAND_SWAP_TIME);
       const e = this.handSwap * this.handSwap * (3 - 2 * this.handSwap);
       this.handBlend = this.handFrom + (handTarget - this.handFrom) * e;
       if (this.handSwap >= 1) {
@@ -761,18 +763,25 @@ export class CharacterRig {
       L.yaw = R.yaw = yaw;
       L.pitch = R.pitch = 0;
     }
-    // pelvis drops so both feet stay reachable with soft knees (wide steps, lower ground, kneeling)
+    // pelvis drops so both feet stay reachable with soft knees (wide steps, lower ground, kneeling):
+    // each foot measured from its own hip joint (pelvis offset and hip width), and a growing need is met
+    // at once (a lagging drop lets the trailing leg overstretch and the planted ankle slide at toe-off);
+    // easing back up stays smooth
     const legLen = (p.thigh.len + p.calf.len) * 0.97;
     const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y - 0.03;
+    const yc = Math.cos(yaw);
+    const ys = Math.sin(yaw);
     let need = 0;
     for (let k = 0; k < 2; k++) {
       const f = k === 0 ? L : R;
-      const dh = hyp2(f.x - rp.x, f.z - rp.z) * 0.85;
+      const hx = pe.x + (k === 0 ? -p.hipHalf : p.hipHalf);
+      const dh = hyp2(f.x - (rp.x + hx * yc + pe.z * ys), f.z - (rp.z - hx * ys + pe.z * yc));
       const footY = f.y + p.y.ankle + (k === 0 ? st.lY : st.rY);
       const reachV = Math.sqrt(Math.max(0, legLen * legLen - dh * dh));
       need = Math.max(need, hipY - footY - reachV);
     }
-    this.pelvisDrop = approachTo(this.pelvisDrop, Math.max(0, Math.min(0.4, need)), dt, 0.05);
+    need = Math.max(0, Math.min(0.4, need));
+    this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, 0.08);
     this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, pe.z);
     Quaternion.RotationYawPitchRollToRef(pe.yaw, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
     // the spine counters most of the pelvis tilt and twist so the chest stays square (gun platform)

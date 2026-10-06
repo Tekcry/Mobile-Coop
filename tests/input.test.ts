@@ -42,7 +42,8 @@ describe('stick maths', () => {
 describe('gamepad mapping', () => {
   it('maps the standard layout to gameplay and UI actions', () => {
     const f = mapPad(snap({ [PAD.A]: 1, [PAD.X]: 1, [PAD.RB]: 1, [PAD.START]: 1 }), tuning);
-    expect(f.buttons.jump).toBe(true);
+    expect(f.buttons.cover).toBe(true);
+    expect(f.buttons.jump).toBeUndefined();
     expect(f.buttons.uiConfirm).toBe(true);
     expect(f.buttons.reload).toBe(true);
     expect(f.buttons.swapNext).toBe(true);
@@ -50,9 +51,10 @@ describe('gamepad mapping', () => {
     expect(f.buttons.pause).toBe(true);
     expect(f.buttons.fire).toBeUndefined();
   });
-  it('B is crouch in game and back in menus; Y interact; d-pad quick items', () => {
+  it('B is crouch in game and back in menus; Y traverse + interact; d-pad quick items', () => {
     const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.LEFT]: 1 }), tuning);
-    expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact).toBe(true);
+    expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact && f.buttons.jump).toBe(true);
+    expect(f.buttons.cover).toBeUndefined();
     expect(f.buttons.quick1 && f.buttons.quick4 && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
   });
   it('triggers: RT fires, LT aims, respecting dead zone', () => {

@@ -146,15 +146,25 @@ try {
       let max = 0;
       let minSpeed = 99;
       let prev = c.yaw;
+      // bank: the hips' up vector tilting towards the inside of the turn (left here: negative)
+      const hips = window.__app.current.player.rig.hips;
+      const V = window.__app.current.player.position.constructor;
+      const up = new V(0, 1, 0);
+      let bankIn = 0;
+      let bankMax = 0;
       // swing the stick 90 degrees (camera stays put): the body arcs round
       t.run(0.8, { x: -(inp.y ?? 1), y: 0 }, () => {
         const d = Math.atan2(Math.sin(c.yaw - prev), Math.cos(c.yaw - prev));
         prev = c.yaw;
         max = Math.max(max, Math.abs(d) * 60);
         minSpeed = Math.min(minSpeed, c.speed);
+        const u = hips.getDirection(up);
+        const tilt = (Math.asin(Math.max(-1, Math.min(1, u.x * Math.cos(c.yaw) - u.z * Math.sin(c.yaw)))) * 180) / Math.PI;
+        bankMax = Math.max(bankMax, Math.abs(tilt));
+        bankIn = Math.min(bankIn, tilt);
         return 0;
       });
-      return { max: (max * 180) / Math.PI, minSpeed };
+      return { max: (max * 180) / Math.PI, minSpeed, bankMax, bankIn };
     };
     const jog = rate({ y: 1 });
     const sprint = rate({ y: 1, taps: { 1: 'dash' } });
@@ -174,6 +184,7 @@ try {
     return { jog, sprint, aim: (aimMax * 180) / Math.PI };
   });
   assert(turns.jog.max <= 545 && turns.jog.max > 250 && turns.jog.minSpeed > 2.2, `90 deg direction change at a jog arcs round (${turns.jog.max.toFixed(0)} deg/s, speed stays above ${f2(turns.jog.minSpeed)} m/s)`);
+  assert(turns.jog.bankIn < -1.5 && turns.jog.bankMax <= 8 && turns.sprint.bankMax <= 8, `leans into turns, <= 8 deg (jog ${f2(-turns.jog.bankIn)} deg in, max ${f2(turns.jog.bankMax)}; sprint max ${f2(turns.sprint.bankMax)})`);
   assert(turns.sprint.max <= 305, `sprinting turns no faster than 300 deg/s (${turns.sprint.max.toFixed(0)})`);
   assert(turns.aim <= 365 && turns.aim > 200, `aiming: the body follows the aim at <= 360 deg/s (${turns.aim.toFixed(0)})`);
 
@@ -392,7 +403,9 @@ try {
       return 0;
     });
     t.run(1.0, {});
-    // look through the right stick (30 ms smoothing): full right for 1 s, then release, at 120 Hz
+    // look through the right stick (30 ms smoothing): full right for 1 s, then release, at 120 Hz, in
+    // the open (after the sprint above the boom could be pulled in by a wall as it swings round)
+    t.tp(8, -14, -Math.PI / 2);
     let prevF = null;
     let prevW = null;
     let maxW = 0;
@@ -401,7 +414,11 @@ try {
       const f = cm.forward;
       if (prevF) {
         const d = Math.acos(Math.min(1, prevF.x * f.x + prevF.y * f.y + prevF.z * f.z)) * 120;
-        if (prevW !== null) maxA = Math.max(maxA, Math.abs(d - prevW) * 120);
+        if (prevW !== null && Math.abs(d - prevW) * 120 > maxA) {
+          maxA = Math.abs(d - prevW) * 120;
+          window.__maxAAt = `frame ${window.__lookK}, ${d.toFixed(2)} from ${prevW.toFixed(2)} rad/s`;
+        }
+        window.__lookK = (window.__lookK ?? 0) + 1;
         prevW = d;
         maxW = Math.max(maxW, d);
       }
@@ -420,7 +437,7 @@ try {
     t.run(0.5, {}, null, 120);
     hooks.frameUpdate = fu;
     window.__pad.disconnect();
-    return { drift, lag: lagSum / Math.max(1, lagN), bob: yMax - yMin, swap90, arcMax, ads90, sprintFov: sprintMax - base, maxW, maxA };
+    return { drift, lag: lagSum / Math.max(1, lagN), bob: yMax - yMin, swap90, arcMax, ads90, sprintFov: sprintMax - base, maxW, maxA, maxAAt: window.__maxAAt };
   });
   assert(cam.drift <= 0.15, `handheld drift <= 0.15 deg (${cam.drift.toFixed(3)} deg)`);
   assert(within(cam.lag, 0.08, 0.15), `camera follow lag ${f2(cam.lag)} s (80-150 ms)`);
@@ -428,7 +445,7 @@ try {
   assert(within(cam.swap90, 0.15, 0.32) && cam.arcMax > 0.05, `shoulder swap ${f2(cam.swap90)} s (~250 ms) on an arc (+${f2(cam.arcMax)} m boom)`);
   assert(within(cam.ads90, 0.12, 0.25), `aim framing blend ${f2(cam.ads90)} s (150-250 ms)`);
   assert(within(cam.sprintFov, 2.5, 4.5), `sprint widens the FOV by ${f2(cam.sprintFov)} deg (+4)`);
-  assert(cam.maxW > 2 && cam.maxW < 6.5 && cam.maxA < 250, `stick look: angular velocity / acceleration bounded (${f2(cam.maxW)} rad/s, ${f2(cam.maxA)} rad/s^2)`);
+  assert(cam.maxW > 2 && cam.maxW < 6.5 && cam.maxA < 250, `stick look: angular velocity / acceleration bounded (${f2(cam.maxW)} rad/s, ${f2(cam.maxA)} rad/s^2${process.env.SOFT ? ', ' + cam.maxAAt : ''})`);
 
   // ---------------------------------------------------------------- 60 vs 120 Hz parity
   console.log('60 vs 120 Hz parity');

@@ -83,12 +83,18 @@ export function computeAssist(
     res.target = best;
     return res;
   }
-  if (errDeg <= p.frictionDeg) {
-    res.lookScale = p.slowdown;
+  // friction fades in and out across the cone edge (full inside half the cone, none past 1.5x): a hard
+  // edge steps the look rate as the crosshair crosses it, which reads as a camera jolt
+  const fw = p.frictionDeg > 0 ? Math.min(1, Math.max(0, (p.frictionDeg * 1.5 - errDeg) / p.frictionDeg)) : 0;
+  if (fw > 0) {
+    res.lookScale = 1 - (1 - p.slowdown) * fw * fw * (3 - 2 * fw);
     res.target = best;
   }
   if (errDeg <= p.magnetDeg && (inputMag > 0.05 || playerMoving)) {
-    const strength = (1 - errDeg / p.magnetDeg) * p.magnetism * dt;
+    // the pull fades to nothing at the centre (within ~1 deg): it changes sign as the crosshair crosses the
+    // target, and a full-strength flip would kick the view
+    const c = Math.min(1, errDeg);
+    const strength = (1 - errDeg / p.magnetDeg) * p.magnetism * dt * c * c * (3 - 2 * c);
     const k = Math.min(1, strength / Math.max(bestErr, 1e-4));
     res.dYaw = bestDy * k;
     res.dPitch = bestDp * k;

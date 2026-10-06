@@ -4,8 +4,8 @@ import type { InputState } from './inputState';
 import { NavRepeater } from './navRepeat';
 import type { Settings } from '../core/settings';
 
-/** How long B must be held to take cover (seconds; `now` is the app clock in seconds). */
-export const COVER_HOLD = 0.28;
+/** How long X must be held to swap weapons instead of reloading (seconds, app clock). */
+export const SWAP_HOLD = 0.35;
 const SRC = 'pad';
 const NAV_DIRS: ButtonAction[] = ['uiUp', 'uiDown', 'uiLeft', 'uiRight'];
 /** Radians per second at sensitivity 1, full deflection. */
@@ -27,7 +27,7 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  private bDownAt = -1;
+  private xDownAt = -1;
   private activeIndex = -1;
   private repeaters = new Map<ButtonAction, NavRepeater>(NAV_DIRS.map((d) => [d, new NavRepeater()]));
   private lastTimestamps = new Map<number, number>();
@@ -113,7 +113,7 @@ export class GamepadSource {
     if (frame.active) this.events.onActive();
 
     for (const a of [
-      'fire', 'ads', 'reload', 'jump', 'crouch', 'swapNext', 'swapPrev', 'interact', 'pause',
+      'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause',
       'shoulderSwap', 'dash', 'quick1', 'quick2', 'quick3', 'quick4',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext',
     ] as const) {
@@ -122,13 +122,16 @@ export class GamepadSource {
     for (const d of NAV_DIRS) {
       if (this.repeaters.get(d)!.update(frame.buttons[d] === true, now)) this.state.tap(d);
     }
-    // B held = take cover (B tap stays crouch/roll); fires once per hold
-    const b = frame.buttons.crouch === true;
-    if (b && this.bDownAt < 0) this.bDownAt = now;
-    if (!b) this.bDownAt = -1;
-    if (b && this.bDownAt >= 0 && now - this.bDownAt >= COVER_HOLD) {
-      this.state.tap('cover');
-      this.bDownAt = Number.POSITIVE_INFINITY;
+    // X: tap = reload (on release), hold = swap to the next weapon (once per hold)
+    const x = frame.buttons.reload === true;
+    if (x && this.xDownAt < 0) this.xDownAt = now;
+    if (x && this.xDownAt >= 0 && now - this.xDownAt >= SWAP_HOLD) {
+      this.state.tap('swapNext');
+      this.xDownAt = Number.POSITIVE_INFINITY;
+    }
+    if (!x) {
+      if (this.xDownAt >= 0 && Number.isFinite(this.xDownAt)) this.state.tap('reload');
+      this.xDownAt = -1;
     }
     this.state.setMove(SRC, frame.move.x, frame.move.y);
     const ads = this.adsActive ? s.adsMultiplier : 1;

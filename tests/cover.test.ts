@@ -130,8 +130,9 @@ describe('cover state machine', () => {
     run(sm, { fire: true }, 0.05);
     expect(run(sm, { ads: true }, 0.05)).toBe('peek');
   });
-  it('exits on release, crouch, sprint, backing away, lost surface or death', () => {
-    for (const i of [{ coverPressed: true }, { crouchPressed: true }, { sprint: true }, { valid: false }, { alive: false }] as Partial<CoverInput>[]) {
+  it('exits on release, sprint, backing away, lost surface or death; crouch keeps cover (stance only)', () => {
+    expect(run(inCover(false), { crouchPressed: true }, 1 / 60)).toBe('in');
+    for (const i of [{ coverPressed: true }, { sprint: true }, { valid: false }, { alive: false }] as Partial<CoverInput>[]) {
       const sm = inCover();
       expect(run(sm, i, 1 / 60)).toBe('none');
     }
@@ -151,7 +152,8 @@ describe('cover state machine', () => {
     expect(run(sm, { cornerPush: 1 }, CORNER_HOLD * 0.5)).toBe('in');
     expect(run(sm, { cornerPush: 1 }, CORNER_HOLD)).toBe('corner');
     expect(sm.cornerSide).toBe(1);
-    expect(run(sm, {}, 0.5)).toBe('in');
+    expect(run(sm, {}, 0.3)).toBe('corner');
+    expect(run(sm, {}, 0.3)).toBe('in');
   });
   it('dash press goes to the marked cover; with no target it breaks out of cover', () => {
     const sm = inCover();
@@ -165,9 +167,15 @@ describe('cover state machine', () => {
     expect(run(sm, { away: 1 }, 0.2)).toBe('in');
     expect(run(sm, { away: 1 }, 0.2)).toBe('none');
   });
-  it('dash goes to the next cover when allowed', () => {
+  it('cover with a marked target moves cover to cover; a push back cancels the move', () => {
     const sm = inCover();
-    expect(run(sm, { coverPressed: true, away: 1, canDash: true }, 1 / 60)).toBe('dash');
+    expect(run(sm, { coverPressed: true, canDash: true }, 1 / 60)).toBe('dash');
     expect(run(sm, { arrived: true }, 1 / 60)).toBe('enter');
+    const sm2 = inCover();
+    run(sm2, { coverPressed: true, canDash: true }, 1 / 60);
+    expect(run(sm2, { against: 0.5 }, 0.5)).toBe('dash');
+    expect(run(sm2, { against: 1 }, 0.1)).toBe('dash');
+    expect(run(sm2, { against: 1 }, 0.1)).toBe('none');
+    expect(sm2.reason).toBe('dash-cancel');
   });
 });
