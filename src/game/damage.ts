@@ -16,6 +16,8 @@ export interface HitInfo {
   weapon?: WeaponId;
   sourcePos: Vector3;
   impulse: number;
+  /** Knock out instead of killing (crossbow sleep bolts). */
+  nonLethal?: boolean;
 }
 
 export interface DamageResult {

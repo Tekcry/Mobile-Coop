@@ -9,6 +9,8 @@ export interface Flags {
   /** Infiltration: mission id and insertion id for autostart. */
   mission: string | null;
   insertion: string | null;
+  /** Autostart loadout (comma-separated weapon ids; tests). */
+  loadout: string[] | null;
   /** Difficulty for autostart (rookie | normal | realistic | perfectionist). */
   difficulty: string | null;
   /** Coop room code from a share link (?room=CODE). */
@@ -34,6 +36,7 @@ export const flags: Flags = {
   // Hunter is the 2.0 name for Clear (both work)
   mode: params.get('mode') === 'hunter' ? 'clear' : ((['sandbox', 'wave', 'mission', 'clear', 'infiltration'] as const).find((m) => m === params.get('mode')) ?? null),
   mission: params.get('mission'),
+  loadout: params.get('loadout')?.split(',').filter(Boolean) ?? null,
   insertion: params.get('insertion'),
   difficulty: params.get('difficulty'),
   room: params.get('room'),

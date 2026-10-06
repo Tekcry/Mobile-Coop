@@ -70,6 +70,9 @@ export class TakedownController {
     return this.active !== null;
   }
 
+  /** Suit gloves: takedowns take this much of the time. */
+  handsMul = 1;
+
   /** Touch: the takedown prompt is pressed (starts it) / released. */
   touchHeld = false;
   touchPress(down: boolean): void {
@@ -149,7 +152,7 @@ export class TakedownController {
     const a = this.active!;
     const { e, plan } = a;
     const c = g.player.controller;
-    a.t += dt;
+    a.t += dt / this.handsMul;
     // tap or hold: let go before `lethalHold` = non-lethal, still held then = lethal
     if (!a.decided) {
       if (!this.holding) a.decided = true;

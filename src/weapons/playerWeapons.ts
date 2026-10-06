@@ -11,6 +11,7 @@ import type { PartPattern } from '../world/partLibrary';
 import { classWeight } from './weaponCarry';
 import { GRENADE, WEAPONS, modelExtents, type WeaponDef, type WeaponId } from './weaponDefs';
 import { assignCarrySlots, type CarrySlot } from './carrySlots';
+import { withAttachments } from '../progression/attachments';
 import { GrenadePouches } from './grenadePouches';
 import { GADGETS, GadgetInventory, type GadgetId } from '../game/gadgets';
 import type { SwapReach } from '../anim/clips/actions';
@@ -28,6 +29,8 @@ export interface LoadoutEntry {
   mods?: StatMods;
   colors?: WeaponColors;
   pattern?: PartPattern;
+  /** Attachment ids (visible on the model; their stat mods come in `mods`). */
+  attachments?: string[];
 }
 
 export interface WeaponSlot {
@@ -36,6 +39,12 @@ export interface WeaponSlot {
   mag: number;
   reserve: number;
   model: WeaponModel;
+  /** Bolts knock out instead of killing (the crossbow without lethal bolts). */
+  nonLethal: boolean;
+  /** Thin material a round goes through (m; 0 = none) and what it keeps. */
+  pen: number;
+  /** Has a magnifying scope. */
+  scoped: boolean;
 }
 
 export type HitKind = 'hit' | 'head' | 'kill';
@@ -66,6 +75,8 @@ export const RELOAD_EMPTY_MULT = 1.63;
 /** The local player's weapons: fire modes, spread/bloom, recoil, reload, swap, grenades. */
 /** Holstering for attached traversal runs this much faster than a swap's holster beat (~0.14 s to the slot). */
 const STOW_RATE = 2.5;
+/** Thin material (m) a round goes through by class (doors, glazing, thin partitions); half the damage after. */
+const PENETRATION: Record<string, number> = { pistol: 0.08, smg: 0.1, rifle: 0.2, lmg: 0.25, dmr: 0.32, sniper: 0.32 };
 
 export class PlayerWeapons {
   readonly slots: WeaponSlot[] = [];
@@ -91,6 +102,13 @@ export class PlayerWeapons {
   /** A semi-auto press made while the weapon was still coming up fires once it is raised. */
   private queuedT = 0;
   infiniteAmmo = false;
+  /** The current weapon has a magnifying scope (sway when aimed). */
+  get scoped(): boolean {
+    return this.current.scoped;
+  }
+
+  /** Suit gloves: swaps take this much of the time. */
+  handsMul = 1;
   /** Extra spread factor (blind fire from cover). */
   spreadMul = 1;
   /** Last hitscan shot (debugging / tests). */
@@ -121,14 +139,16 @@ export class PlayerWeapons {
     private rumble: (s: number, w: number, ms: number) => void,
   ) {
     // every carried weapon gets its own slot on the body (back / sling / thigh), so all stay visible
-    this.carrySlots = assignCarrySlots(loadout.map((e) => ({ cls: WEAPONS[e.id].class, length: modelLength(WEAPONS[e.id]) })));
-    for (const e of loadout) {
-      const def = WEAPONS[e.id];
+    const defs = loadout.map((e) => withAttachments(WEAPONS[e.id], e.attachments ?? []));
+    this.carrySlots = assignCarrySlots(defs.map((d) => ({ cls: d.class, length: modelLength(d) })));
+    for (let i = 0; i < loadout.length; i++) {
+      const e = loadout[i]!;
+      const def = defs[i]!;
       const stats = computeStats(def, e.upgrades ?? NO_UPGRADES, e.mods);
       const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern);
       for (const m of model.parts) world.addShadowCaster(m);
       model.setVisible(false);
-      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model });
+      this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model, nonLethal: def.nonLethal === true && !(e.attachments ?? []).includes('lethalBolts'), pen: PENETRATION[def.class] ?? 0, scoped: def.model.some((p) => p.role === 'scope') });
     }
     this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
@@ -293,7 +313,7 @@ export class PlayerWeapons {
     }
     if (this.swapT >= 0) {
       // stowing for a climb / hang is quick: both hands are wanted on the anchor
-      this.swapT += this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt;
+      this.swapT += (this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt) / this.handsMul;
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
       const f = this.swapT / SWAP_TIME;
@@ -458,6 +478,8 @@ export class PlayerWeapons {
       this.lastShot = { origin: origin.clone(), aim: aimPoint.clone(), hit: h.point.clone(), target: h.target?.id ?? (h.prop ? 'prop' : h.hit ? 'world' : 'none') };
       this.resolveHit(h, dir.clone(), h.distance, s);
       this.onRay?.(origin, h.point);
+      // penetration: through thin world geometry, on with half the damage
+      if (s.pen > 0 && h.hit && !h.target && !h.prop) this.penetrate(h.point, dir, h.distance, s);
       if (!firstEnd || p % 3 === 0) {
         firstEnd = h.point;
         this.vfx.tracer(this.muzzle, h.point, def.tracer, def.pellets > 1 ? 0.012 : 0.022);
@@ -466,7 +488,8 @@ export class PlayerWeapons {
     // brass (not for the shotgun pump or sniper bolt mid-shot)
     if (def.class !== 'shotgun') this.vfx.casing(this.muzzle.subtract(baseDir.scale(0.3)), new Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)));
     // muzzle flash, recoil, bloom
-    this.vfx.muzzleFlash(this.muzzle, def.pellets > 1 ? 0.3 : def.class === 'pistol' ? 0.16 : 0.22);
+    // a suppressor hides most of the flash
+    this.vfx.muzzleFlash(this.muzzle, (def.pellets > 1 ? 0.3 : def.class === 'pistol' ? 0.16 : 0.22) * (s.stats.noise < 0.6 ? 0.35 : 1));
     const k = recoilKick(def, s.stats, this.shotIndex++);
     const adsDamp = 1 - cam.ads * 0.35;
     cam.kick(k.pitch * DEG * adsDamp, k.yaw * DEG * adsDamp);
@@ -476,11 +499,29 @@ export class PlayerWeapons {
     this.events.onShot?.(def);
   }
 
-  private resolveHit(h: RayHit, dir: Vector3, travelled: number, s: WeaponSlot): void {
+  /** Rounds through thin material (m), tests. */
+  penetrations = 0;
+
+  /** A round that stopped on world geometry: if it is thinner than the weapon's penetration, carry on past it. */
+  private penetrate(at: Vector3, dir: Vector3, travelled: number, s: WeaponSlot): void {
+    // from beyond the far side back towards the entry: the first face hit is the exit
+    const far = at.add(dir.scale(s.pen + 0.02));
+    const back = this.ballistics.ray(far, at, MASK.WORLD);
+    if (!back.hit || back.distance < 0.005) return;
+    const exit = back.point.add(dir.scale(0.01));
+    const left = s.def.range - travelled;
+    if (left <= 0.5) return;
+    const h2 = this.ballistics.ray(exit, exit.add(dir.scale(left)), MASK.PLAYER_SHOT);
+    this.penetrations++;
+    this.resolveHit(h2, dir.clone(), travelled + h2.distance, s, 0.5);
+    this.onRay?.(exit, h2.point);
+  }
+
+  private resolveHit(h: RayHit, dir: Vector3, travelled: number, s: WeaponSlot, factor = 1): void {
     if (!h.hit) return;
     this.ballistics.impactFx(h, dir);
     const head = h.part === 'head';
-    const dmg = damageAt(s.def, s.stats, travelled, head);
+    const dmg = damageAt(s.def, s.stats, travelled, head) * factor;
     if (h.target && h.target.team !== 'player') {
       const res = h.target.applyDamage({
         amount: dmg,
@@ -493,6 +534,7 @@ export class PlayerWeapons {
         weapon: s.def.id,
         sourcePos: this.player.cam.pivot.clone(),
         impulse: s.def.impulse,
+        nonLethal: s.nonLethal,
       });
       const t = this.tallyFor(s.def.id);
       t.hits++;

@@ -577,6 +577,12 @@ export class Enemy implements Damageable {
 
   applyDamage(h: HitInfo): DamageResult {
     if (!this.alive || h.attackerTeam === 'enemy') return { dealt: 0, killed: false };
+    // a sleep bolt: down at once, knocked out
+    if (h.nonLethal) {
+      const hp = this.health.hp;
+      this.knockOut(h);
+      return { dealt: hp, killed: true };
+    }
     let mult = h.part === 'head' ? this.def.headMult : this.def.armor;
     const kind = this.def.kind;
     if (h.kind !== 'explosion') {

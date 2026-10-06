@@ -70,6 +70,9 @@ export const MIGRATIONS: Record<number, Migration> = {
   },
   // v4 -> v5: Infiltration mission records (none yet)
   4: (s) => ({ ...s, version: 5, missions: isObj(s.missions) ? s.missions : {} }),
+  // v5 -> v6: suit, HQ upgrades, challenges, loadout presets (issued kit; the 1.x weapons keep their ids, now the
+  // P45 / MP5 / 552 / M870 / M700, so unlocks and upgrades carry over as they are)
+  5: (s) => ({ ...s, version: 6 }),
 };
 
 export class SaveVersionError extends Error {}

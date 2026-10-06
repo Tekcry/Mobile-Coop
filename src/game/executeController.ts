@@ -13,6 +13,8 @@ import type { GameState } from './gameState';
  */
 export class ExecuteController {
   ready = false;
+  /** Execute shots fired (challenges). */
+  shots = 0;
   /** Marks refused because of a sniper's glint (tests). */
   glintRefused = 0;
   running: { targets: Enemy[]; t: number; shot: number; fromYaw: number; fromPitch: number } | null = null;
@@ -132,6 +134,7 @@ export class ExecuteController {
     if (st.k >= 0.6 && r.shot < st.index) {
       r.shot = st.index;
       if (e.alive) {
+        this.shots++;
         const muzzle = g.weapons.muzzlePoint();
         const dir = this.head.subtract(muzzle).normalize();
         g.vfx.tracer(muzzle, this.head, g.weapons.current.def.tracer, 0.022);

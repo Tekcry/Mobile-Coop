@@ -61,6 +61,8 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
 import { StyleTracker } from './playstyle';
+import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
+import { GADGET_IDS, type GadgetId } from './gadgets';
 import { InputState } from '../input/inputState';
 
 export type { ModeId };
@@ -79,6 +81,11 @@ export interface GameOptions {
   /** Infiltration: the mission and the insertion point chosen. */
   missionId?: string;
   insertion?: string;
+  /** The suit worn and the HQ upgrades bought (single player; defaults = issued kit). */
+  suit?: SuitLoadout;
+  hq?: HqLevels;
+  /** Gadget selected at the start (the loadout preset's). */
+  gadget?: string;
 }
 
 /** What the coop layer plugs into a session. */
@@ -202,6 +209,9 @@ export class GameState implements AppState {
   readonly marks = new MarkSet();
   readonly takedown: TakedownController;
   readonly execute: ExecuteController;
+  /** Suit and HQ effects for this session. */
+  readonly suit: SuitStats;
+  readonly hq: HqStats;
   /** Play-style points (Ghost / Panther / Assault) for the results and the economy. */
   readonly style = new StyleTracker();
   /** An enemy is in combat on the operator (stealth rules); flips record a detection. */
@@ -274,6 +284,15 @@ export class GameState implements AppState {
     this.execute = new ExecuteController(this);
     this.gadgets = new GadgetSystem(this);
     this.vision.sonarAllowed = this.difficultyDef.sonar;
+    // suit and HQ: armour, hands, gadget carry, marks
+    this.suit = suitStats(opts.suit ?? defaultSuit());
+    this.hq = hqStats(opts.hq ?? defaultHq());
+    this.target.armorMul = this.suit.damage;
+    this.weapons.handsMul = this.suit.hands;
+    this.takedown.handsMul = this.suit.hands;
+    for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
+    this.marks.max += this.hq.extraMarks;
+    if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
     this.hud.gadgets.onPick = (id) => {
       this.gadgets.select(id);
       this.gadgets.closeWheel(false);
@@ -513,6 +532,10 @@ export class GameState implements AppState {
     this.stats.hits = hits;
     this.stats.style = { ...this.style.points };
     this.stats.detections = this.style.detections;
+    this.stats.alarms = this.style.alarms;
+    this.stats.takedownsByKind = { ...this.takedown.done.byKind };
+    this.stats.executes = this.execute.shots;
+    this.stats.gadgetKos = this.gadgets.stats.gassed + this.gadgets.stats.darts + this.gadgets.stats.shocked + this.gadgets.stats.mineKills;
     this.hud.banner(won ? 'VICTORY' : 'DEFEAT', subtitle, 2500);
     setTimeout(() => {
       this.paused = true;
@@ -795,7 +818,7 @@ export class GameState implements AppState {
       const c = this.player.controller;
       const pp = this.player.position;
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
-      const steps = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) * SURFACE_NOISE[this.surface] : 0;
+      const steps = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
       if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
       this.noise = Math.max(steps, this.evNoise);
     }
@@ -833,6 +856,8 @@ export class GameState implements AppState {
         this.traversal.reset();
         this.corners.reset();
         this.gadgets.reset();
+        // HQ supply drops: gadgets restocked at the checkpoint
+        if (this.hq.restock) this.weapons.gadgets.restock();
         this.suppression.reset();
         this.player.controller.teleport(sp, this.player.cam.yaw);
         this.target.revive();
@@ -887,6 +912,14 @@ export class GameState implements AppState {
     this.prevAds = this.player.ads;
     this.app.input.setAds(this.player.ads);
     // suppression: the aim wanders (smooth, small) while rounds are cracking past
+    // scoped (marksman optics): a slow breathing sway, steadier crouched and still
+    if (dt > 0 && this.player.cam.ads > 0.6 && this.weapons.scoped) {
+      this.scopeT += dt;
+      const c = this.player.controller;
+      const k = (c.crouched ? 0.45 : 1) * (c.speed > 0.3 ? 1.8 : 1) * 0.0035;
+      look.x += Math.cos(this.scopeT * 0.9) * k * 0.9 * dt;
+      look.y += Math.sin(this.scopeT * 1.3) * k * 1.3 * dt;
+    }
     const sway = this.suppression.sway;
     if (sway > 0 && dt > 0) {
       this.swayT += dt;
@@ -931,7 +964,7 @@ export class GameState implements AppState {
     m.begin();
     const p = this.player.position;
     for (const e of this.enemyMgr?.enemies ?? []) {
-      if (!e.alive || hyp2(e.pos.x - p.x, e.pos.z - p.z) > VISION.sonarRange) continue;
+      if (!e.alive || hyp2(e.pos.x - p.x, e.pos.z - p.z) > VISION.sonarRange * this.sonarMul) continue;
       if (!m.add(e.bodyRig)) break;
     }
     m.end();
@@ -945,7 +978,7 @@ export class GameState implements AppState {
     const t = v.sincePulse;
     const ring = this.sonarRing;
     if (t < 0.9) {
-      const r = (t / 0.9) * VISION.sonarRange;
+      const r = (t / 0.9) * VISION.sonarRange * this.sonarMul;
       ring.setEnabled(true);
       ring.position.copyFrom(this.player.position);
       ring.position.y += 0.15;
@@ -1077,6 +1110,13 @@ export class GameState implements AppState {
     this.letterboxT = seconds;
     this.post.letterbox(true);
   }
+
+  /** Sonar range from the goggles tier and the HQ amplifier. */
+  get sonarMul(): number {
+    return this.suit.sonarRange * this.hq.sonarRange;
+  }
+
+  private scopeT = 0;
 
   /** Difficulty tier rules (perception, damage, Mark & Execute / sonar allowed). */
   get difficultyDef(): DifficultyDef {
@@ -1388,15 +1428,19 @@ export class GameState implements AppState {
       markers: [],
     };
     const blips: Blip[] = [];
-    // Clear mode: no enemy blips (find them yourself)
-    const showEnemies = !(this.mode instanceof ClearMode) && !(this.mode instanceof InfiltrationMode);
+    // Hunter / Infiltration: no enemy blips (find them yourself) unless the HQ radar is bought (within its range)
+    const stealthMode = this.mode instanceof ClearMode || this.mode instanceof InfiltrationMode;
+    const radar = stealthMode ? this.hq.radar : Infinity;
     let enemyBlips = 0;
-    if (showEnemies)
+    if (radar > 0) {
+      const pp = this.player.position;
       for (const t of this.registry.hostiles('player')) {
         t.center(this.tmp);
+        if (hyp2(this.tmp.x - pp.x, this.tmp.z - pp.z) > radar) continue;
         blips.push({ x: this.tmp.x, z: this.tmp.z, kind: 'enemy' });
         enemyBlips++;
       }
+    }
     this.enemyBlips = enemyBlips;
     for (const g of this.grenades.positions()) blips.push({ x: g.x, z: g.z, kind: 'danger' });
     blips.push(...this.extraBlips());

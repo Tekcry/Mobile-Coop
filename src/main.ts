@@ -1,4 +1,7 @@
 import './styles.css';
+import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
+import { HqScreen } from './ui/screens/hqScreen';
+import { suitLook } from './progression/suit';
 import { parseDifficulty } from './ai/archetypes';
 import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
@@ -86,6 +89,7 @@ async function boot(): Promise<void> {
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
     (a) => ({ label: 'Armory', sub: 'Loadout · Upgrades', icon: 'gun', order: 20, action: () => a.screens.push(new ArmoryScreen(a)) }),
+    (a) => ({ label: 'HQ', sub: 'Suit · Upgrades · Challenges · Loadouts', icon: 'goggles', order: 22, action: () => a.screens.push(new HqScreen(a)) }),
     (a) => ({ label: 'Customise', sub: 'Avatar · Tag · Emotes', icon: 'user', order: 25, action: () => a.screens.push(new CustomizeScreen(a)) }),
     (a) => ({ label: 'Store', sub: 'Unlocks', icon: 'trophy', order: 30, action: () => a.screens.push(new StoreScreen(a)) }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
@@ -120,7 +124,17 @@ async function boot(): Promise<void> {
       const c = camoById(camo);
       return c.pattern ? { colors: c.colors, pattern: c.pattern } : { colors: c.colors };
     };
-    const opts: GameOptions = { ...base, loadout: base.loadout ?? loadoutEntries(sv, base.mode, skin), look: base.look ?? sv.avatar, emotes: sv.emotes };
+    // single player: the suit worn (its look too), HQ upgrades and the preset's gadget
+    const coop = !!base.net;
+    const opts: GameOptions = {
+      ...base,
+      loadout: base.loadout ?? loadoutEntries(sv, base.mode, skin),
+      look: base.look ?? suitLook(sv.avatar, sv.suit.worn),
+      emotes: sv.emotes,
+      suit: base.suit ?? (coop ? undefined : sv.suit.worn),
+      hq: base.hq ?? (coop ? undefined : sv.hq),
+      gadget: base.gadget ?? sv.presets[sv.preset]?.gadget,
+    };
     app.screens.clear();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
@@ -138,7 +152,7 @@ async function boot(): Promise<void> {
   if (flags.autostart) {
     // infiltration: the mission picks its map
     const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
-    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined });
+    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
   }
   else goToMenu();
   if (flags.coop && flags.room && !flags.autostart) {

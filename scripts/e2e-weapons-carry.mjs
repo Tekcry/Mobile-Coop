@@ -85,141 +85,157 @@ const install = () => {
 await G(install);
 
 try {
-  console.log('slots');
-  let r = await G(() => {
-    const w = window.__app.current.weapons;
-    const s = window.__w;
-    s.tp(8, -14, -Math.PI / 2);
-    const rig = window.__app.current.player.rig;
-    return {
-      n: w.slots.length,
-      slots: w.carrySlots,
-      visible: w.slots.every((sl) => sl.model.node.isEnabled()),
-      held: rig.heldWeapon === w.current.model.node,
-      parents: s.carried().map((e) => `${e.id}:${e.slot}:${e.model.node.parent?.name}`),
-      pouches: window.__app.current.weapons.pouches.count,
-    };
-  });
-  assert(r.n === 5 && new Set(r.slots).size === 5 && !r.slots.includes(null), `five weapons, five distinct slots (${r.slots.join(', ')})`);
-  assert(r.visible && r.held, `every weapon visible: one in the hands, the rest carried (${r.parents.join(' ')})`);
-  assert(r.pouches >= 1, `grenade pouches on the belt (${r.pouches})`);
-
-  console.log('back carry: vertical, muzzle up, within 10 deg of the spine');
-  const stances = [
-    ['idle', {}],
-    ['walk', { y: 0.5 }],
-    ['jog', { y: 1 }],
-    ['sprint', { y: 1, taps: { 1: 'dash' } }],
-    ['crouch walk', { y: 0.8, taps: { 1: 'crouch' } }],
-    ['aim strafe', { x: 1, ads: true }],
-  ];
-  for (const [name, inp] of stances) {
-    r = await G((inp) => {
+  let r;
+  // every weapon of the arsenal: the Free Roam five, then the rest in loadouts that fill the body's slots
+  const checkLoadout = async (label, n) => {
+    console.log('slots');
+    r = await G(() => {
+      const w = window.__app.current.weapons;
       const s = window.__w;
       s.tp(8, -14, -Math.PI / 2);
-      let worst = 0;
-      let minUp = 1;
-      let clips = [];
-      s.run(1.4, {
-        ...inp,
-        each() {
-          for (const b of s.backAngles()) {
-            worst = Math.max(worst, b.deg);
-            minUp = Math.min(minUp, b.upY);
-          }
-        },
-      });
-      clips = s.clips();
-      window.__app.current.player.controller['crouchToggled'] = false;
-      return { worst, minUp, clips };
-    }, inp);
-    // crouched the operative is bent over the knees, so the back guns lean forward with the spine
-    const upMin = name === 'crouch walk' ? 0.35 : 0.7;
-    assert(r.worst <= 10 && r.minUp > upMin, `${name}: back guns within ${f2(r.worst)} deg of the spine, muzzle up (bore up ${f2(r.minUp)} > ${upMin})`);
-    assert(r.clips.length === 0, `${name}: nothing clips (${r.clips.join(', ') || 'none'})`);
-  }
+      const rig = window.__app.current.player.rig;
+      return {
+        n: w.slots.length,
+        slots: w.carrySlots,
+        visible: w.slots.every((sl) => sl.model.node.isEnabled()),
+        held: rig.heldWeapon === w.current.model.node,
+        parents: s.carried().map((e) => `${e.id}:${e.slot}:${e.model.node.parent?.name}`),
+        pouches: window.__app.current.weapons.pouches.count,
+      };
+    });
+    assert(r.n === n && new Set(r.slots).size === n && !r.slots.includes(null), `${label}: ${n} weapons, ${n} distinct slots (${r.slots.join(', ')})`);
+    assert(r.visible && r.held, `every weapon visible: one in the hands, the rest carried (${r.parents.join(' ')})`);
+    assert(r.pouches >= 1, `grenade pouches on the belt (${r.pouches})`);
 
-  console.log('hands on the grip points');
-  r = await G(() => {
-    const s = window.__w;
-    const g = window.__app.current;
-    const rig = g.player.rig;
-    const V = g.player.position.constructor;
-    const out = [];
-    for (let i = 0; i < g.weapons.slots.length; i++) {
-      s.tp(8, -14, -Math.PI / 2);
-      // swap to weapon i, then aim
-      let guard = 0;
-      while (g.weapons.index !== i && guard++ < 6) s.run(1.1, { taps: { 1: 'swapNext' } });
-      s.run(1.0, { ads: true });
-      const st = window.__app.input.state;
-      st.set('carry', 'ads', true);
-      window.__app.loop.stepHeadless(0.3, 120);
-      const m = rig.heldWeapon.getWorldMatrix();
-      // the wrist sits behind / under the palm point in weapon space (characterRig WRIST_TRIGGER /
-      // WRIST_SUPPORT; right hand on the grip, left on the foregrip)
-      const gp = V.TransformCoordinates(rig.grip.add(new V(0.01, -0.015, -0.065)), m);
-      const fp = V.TransformCoordinates(rig.foregrip.add(new V(-0.015, -0.055, -0.035)), m);
-      rig.wristR.computeWorldMatrix(true);
-      rig.wristL.computeWorldMatrix(true);
-      const wr = rig.wristR.getAbsolutePosition();
-      const wl = rig.wristL.getAbsolutePosition();
-      const dR = Math.hypot(wr.x - gp.x, wr.y - gp.y, wr.z - gp.z);
-      const dL = Math.hypot(wl.x - fp.x, wl.y - fp.y, wl.z - fp.z);
-      st.set('carry', 'ads', false);
-      out.push({ id: g.weapons.current.def.id, dR, dL });
+    console.log('back carry: vertical, muzzle up, within 10 deg of the spine');
+    const stances = [
+      ['idle', {}],
+      ['walk', { y: 0.5 }],
+      ['jog', { y: 1 }],
+      ['sprint', { y: 1, taps: { 1: 'dash' } }],
+      ['crouch walk', { y: 0.8, taps: { 1: 'crouch' } }],
+      ['aim strafe', { x: 1, ads: true }],
+    ];
+    for (const [name, inp] of stances) {
+      r = await G((inp) => {
+        const s = window.__w;
+        s.tp(8, -14, -Math.PI / 2);
+        let worst = 0;
+        let minUp = 1;
+        let clips = [];
+        s.run(1.4, {
+          ...inp,
+          each() {
+            for (const b of s.backAngles()) {
+              worst = Math.max(worst, b.deg);
+              minUp = Math.min(minUp, b.upY);
+            }
+          },
+        });
+        clips = s.clips();
+        window.__app.current.player.controller['crouchToggled'] = false;
+        return { worst, minUp, clips };
+      }, inp);
+      // crouched the operative is bent over the knees, so the back guns lean forward with the spine
+      const upMin = name === 'crouch walk' ? 0.35 : 0.7;
+      assert(r.worst <= 10 && r.minUp > upMin, `${name}: back guns within ${f2(r.worst)} deg of the spine, muzzle up (bore up ${f2(r.minUp)} > ${upMin})`);
+      assert(r.clips.length === 0, `${name}: nothing clips (${r.clips.join(', ') || 'none'})`);
     }
-    return out;
-  });
-  for (const h of r) assert(h.dR <= 0.02 && h.dL <= 0.02, `${h.id}: hands within 2 cm of the grip (${(h.dR * 100).toFixed(1)} cm) and support point (${(h.dL * 100).toFixed(1)} cm)`);
 
-  console.log('swap reaches each slot');
-  r = await G(() => {
-    const s = window.__w;
-    const g = window.__app.current;
-    const rig = g.player.rig;
-    const w = g.weapons;
-    s.tp(8, -14, -Math.PI / 2);
-    const out = [];
-    for (let k = 0; k < w.slots.length; k++) {
-      const from = w.slots[w.index].model;
-      const toIdx = (w.index + 1) % w.slots.length;
-      const to = w.slots[toIdx].model;
-      const fromSlot = w.carrySlots[w.index];
-      const toSlot = w.carrySlots[toIdx];
-      let t = 0;
-      let nearFrom = 9;
-      let nearTo = 9;
-      let dur = 0;
-      s.run(1 / 60, { taps: { 1: 'swapNext' } });
-      while (w.swapping && t < 2) {
-        window.__app.loop.stepHeadless(1 / 60, 120);
-        t += 1 / 60;
+    console.log('hands on the grip points');
+    r = await G(() => {
+      const s = window.__w;
+      const g = window.__app.current;
+      const rig = g.player.rig;
+      const V = g.player.position.constructor;
+      const out = [];
+      for (let i = 0; i < g.weapons.slots.length; i++) {
+        s.tp(8, -14, -Math.PI / 2);
+        // swap to weapon i, then aim
+        let guard = 0;
+        while (g.weapons.index !== i && guard++ < 6) s.run(1.1, { taps: { 1: 'swapNext' } });
+        s.run(1.0, { ads: true });
+        const st = window.__app.input.state;
+        st.set('carry', 'ads', true);
+        window.__app.loop.stepHeadless(0.3, 120);
+        const m = rig.heldWeapon.getWorldMatrix();
+        // the wrist sits behind / under the palm point in weapon space (characterRig WRIST_TRIGGER /
+        // WRIST_SUPPORT; right hand on the grip, left on the foregrip)
+        const gp = V.TransformCoordinates(rig.grip.add(new V(0.01, -0.015, -0.065)), m);
+        const fp = V.TransformCoordinates(rig.foregrip.add(new V(-0.015, -0.055, -0.035)), m);
         rig.wristR.computeWorldMatrix(true);
+        rig.wristL.computeWorldMatrix(true);
         const wr = rig.wristR.getAbsolutePosition();
-        // distance from the hand to where the gun sits in its slot (the outgoing one once holstered)
-        for (const [m, key] of [[from, 'f'], [to, 't']]) {
-          if (m.slot === null) continue;
-          m.node.computeWorldMatrix(true);
-          const c = m.node.getAbsolutePosition();
-          // nearest point along the gun's length
-          const dir = m.node.getDirection(new wr.constructor(0, 0, 1));
-          let best = 9;
-          for (let z = m.ext.z0; z <= m.ext.z1; z += 0.05) best = Math.min(best, Math.hypot(wr.x - c.x - dir.x * z, wr.y - c.y - dir.y * z, wr.z - c.z - dir.z * z));
-          if (key === 'f') nearFrom = Math.min(nearFrom, best);
-          else nearTo = Math.min(nearTo, best);
-        }
+        const wl = rig.wristL.getAbsolutePosition();
+        const dR = Math.hypot(wr.x - gp.x, wr.y - gp.y, wr.z - gp.z);
+        const dL = Math.hypot(wl.x - fp.x, wl.y - fp.y, wl.z - fp.z);
+        st.set('carry', 'ads', false);
+        out.push({ id: g.weapons.current.def.id, dR, dL });
       }
-      dur = t + 1 / 60;
-      s.run(0.3);
-      out.push({ from: fromSlot, to: toSlot, nearFrom, nearTo, dur });
+      return out;
+    });
+    for (const h of r) assert(h.dR <= 0.02 && h.dL <= 0.02, `${h.id}: hands within 2 cm of the grip (${(h.dR * 100).toFixed(1)} cm) and support point (${(h.dL * 100).toFixed(1)} cm)`);
+
+    console.log('swap reaches each slot');
+    r = await G(() => {
+      const s = window.__w;
+      const g = window.__app.current;
+      const rig = g.player.rig;
+      const w = g.weapons;
+      s.tp(8, -14, -Math.PI / 2);
+      const out = [];
+      for (let k = 0; k < w.slots.length; k++) {
+        const from = w.slots[w.index].model;
+        const toIdx = (w.index + 1) % w.slots.length;
+        const to = w.slots[toIdx].model;
+        const fromSlot = w.carrySlots[w.index];
+        const toSlot = w.carrySlots[toIdx];
+        let t = 0;
+        let nearFrom = 9;
+        let nearTo = 9;
+        let dur = 0;
+        s.run(1 / 60, { taps: { 1: 'swapNext' } });
+        while (w.swapping && t < 2) {
+          window.__app.loop.stepHeadless(1 / 60, 120);
+          t += 1 / 60;
+          rig.wristR.computeWorldMatrix(true);
+          const wr = rig.wristR.getAbsolutePosition();
+          // distance from the hand to where the gun sits in its slot (the outgoing one once holstered)
+          for (const [m, key] of [[from, 'f'], [to, 't']]) {
+            if (m.slot === null) continue;
+            m.node.computeWorldMatrix(true);
+            const c = m.node.getAbsolutePosition();
+            // nearest point along the gun's length
+            const dir = m.node.getDirection(new wr.constructor(0, 0, 1));
+            let best = 9;
+            for (let z = m.ext.z0; z <= m.ext.z1; z += 0.05) best = Math.min(best, Math.hypot(wr.x - c.x - dir.x * z, wr.y - c.y - dir.y * z, wr.z - c.z - dir.z * z));
+            if (key === 'f') nearFrom = Math.min(nearFrom, best);
+            else nearTo = Math.min(nearTo, best);
+          }
+        }
+        dur = t + 1 / 60;
+        s.run(0.3);
+        out.push({ from: fromSlot, to: toSlot, nearFrom, nearTo, dur });
+      }
+      return out;
+    });
+    for (const sw of r) {
+      assert(sw.dur >= 0.8 && sw.dur <= 1.0, `swap ${sw.from} -> ${sw.to}: ${f2(sw.dur)} s (0.8-1.0 s)`);
+      assert(sw.nearFrom < 0.25 && sw.nearTo < 0.25, `swap ${sw.from} -> ${sw.to}: the hand reaches both slots (${(sw.nearFrom * 100).toFixed(0)} / ${(sw.nearTo * 100).toFixed(0)} cm)`);
     }
-    return out;
-  });
-  for (const sw of r) {
-    assert(sw.dur >= 0.8 && sw.dur <= 1.0, `swap ${sw.from} -> ${sw.to}: ${f2(sw.dur)} s (0.8-1.0 s)`);
-    assert(sw.nearFrom < 0.25 && sw.nearTo < 0.25, `swap ${sw.from} -> ${sw.to}: the hand reaches both slots (${(sw.nearFrom * 100).toFixed(0)} / ${(sw.nearTo * 100).toFixed(0)} cm)`);
+  };
+  await checkLoadout('Free Roam', 5);
+  for (const lo of ['ak,dmr,lmg,vector,fiveseven', 'tavor,semiShotgun,crossbow,p90,pistolSd', 'breacher,pistol']) {
+    console.log(`loadout ${lo}`);
+    await page.goto(`${url}?autostart=proving&loadout=${lo}`);
+    await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
+    await page.waitForTimeout(800);
+    await G(install);
+    await checkLoadout(lo, lo.split(',').length);
   }
+  await page.goto(`${url}?autostart=proving`);
+  await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
+  await G(install);
 
   console.log('backpack + detailed style');
   // both styles, with the deepest backpack: rebuild the match with the new look

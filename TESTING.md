@@ -293,6 +293,17 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 8 - Arsenal, suit, HQ (1.20.0)
+- [ ] Store: the new weapons from level 2 (9mm SD) to 12 (M249). Armory: each shows its model; fit a suppressor /
+      scope / grip / extended mag: they appear on the gun in the armory and in the hands.
+- [ ] Shoot through a door with a rifle (a guard behind is hit); a pistol does not go through a wall.
+- [ ] The DMR / M700 scope sways gently; crouch and stand still to steady it.
+- [ ] Crossbow: a guard hit drops knocked out (non-lethal); with Lethal Bolts he dies.
+- [ ] HQ > Suit: buy the light vest, wear it (the operator gets a vest; footsteps a bit louder on the meter);
+      boots quiet them. HQ > Upgrades: radar shows nearby enemies on the minimap in Hunter.
+- [ ] Finish a Hunter run sneaking: Ghost / Panther cash lines in the rewards; HQ > Challenges progress.
+- [ ] HQ > Loadouts: save the current weapons to a preset, pick it on the Play screen; its gadget is selected.
+
 ## 2.0 phase 7 - Hunter and Infiltration (1.19.0) - Warehouse, Embassy
 - [ ] Play > Hunter on the Warehouse: get spotted and let a guard reach an alarm panel - "Hostiles doubled", the
       counter doubles and squads come in hunting. Results: Detected count and three play-style bars.

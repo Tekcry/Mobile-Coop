@@ -66,7 +66,7 @@ export function computeStats(def: WeaponDef, up: WeaponUpgrades = NO_UPGRADES, m
     spreadHip: def.spreadHip * mods.spreadHip,
     spreadAds: def.spreadAds * mods.spreadAds,
     adsZoom: def.adsZoom * mods.adsZoom,
-    noise: mods.noise,
+    noise: mods.noise * (def.noise ?? 1),
   };
 }
 

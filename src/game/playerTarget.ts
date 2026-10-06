@@ -41,6 +41,8 @@ export class PlayerTarget implements Damageable {
   onDeath: ((h: HitInfo) => void) | null = null;
   /** Damage multiplier (difficulty, invulnerability during respawn). */
   damageMul = 1;
+  /** Suit armour (damage taken multiplier; stays on through spawn protection). */
+  armorMul = 1;
 
   constructor(
     private scene: Scene,
@@ -119,7 +121,7 @@ export class PlayerTarget implements Damageable {
   applyDamage(h: HitInfo): DamageResult {
     if (!this.alive || h.attackerTeam === 'player') return { dealt: 0, killed: false };
     const zone = h.part === 'head' ? PLAYER_PART_MULT.head : h.point.y - this.player.position.y < 0.85 - this.player.controller.crouchBlend * 0.35 ? PLAYER_PART_MULT.legs : 1;
-    const amount = h.amount * this.damageMul * zone;
+    const amount = h.amount * this.damageMul * this.armorMul * zone;
     const dealt = this.health.damage(amount);
     this.damageTaken += dealt;
     if (dealt > 0) this.onDamaged?.(h, dealt);

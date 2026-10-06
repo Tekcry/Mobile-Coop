@@ -3,6 +3,8 @@ import type { GameOptions, ModeId } from '../../game/gameState';
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from '../../ai/archetypes';
 import { MAPS } from '../../world/maps';
 import { MISSIONS, missionById } from '../../game/missions';
+import { applyPreset } from '../../progression/profile';
+import { WEAPONS, type WeaponId } from '../../weapons/weaponDefs';
 import { h } from '../dom';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
@@ -82,7 +84,7 @@ export class PlayScreen extends Screen {
       icon: 'play',
       class: 'primary big',
     });
-    this.body.replaceChildren(modeChoice, mapChoice, diff, this.desc, go);
+    this.body.replaceChildren(modeChoice, mapChoice, diff, this.presetChoice(), this.desc, go);
   }
 
   /** Infiltration: the mission board (best rating and play-style split per mission), insertion, difficulty. */
@@ -131,7 +133,18 @@ export class PlayScreen extends Screen {
       icon: 'play',
       class: 'primary big',
     });
-    this.body.replaceChildren(modeChoice, missionChoice, insChoice, diff, this.desc, go);
+    this.body.replaceChildren(modeChoice, missionChoice, insChoice, diff, this.presetChoice(), this.desc, go);
+  }
+
+  /** The loadout preset to deploy with (weapons and starting gadget; edited in HQ). */
+  private presetChoice(): HTMLElement {
+    const sv = this.app.save.get();
+    return choice(
+      'Loadout',
+      sv.presets.map((p, i) => ({ value: i, label: `${p.name}: ${WEAPONS[p.primary as WeaponId]?.name ?? p.primary}` })),
+      () => this.app.save.get().preset,
+      (i) => this.app.save.update((d) => applyPreset(d, i)),
+    );
   }
 
   private rebuild(): void {

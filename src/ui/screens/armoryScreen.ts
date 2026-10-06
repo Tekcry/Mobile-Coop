@@ -1,7 +1,7 @@
 import type { App } from '../../core/app';
 import { WEAPONS, type WeaponId } from '../../weapons/weaponDefs';
 
-const ORDER: WeaponId[] = ['rifle', 'smg', 'shotgun', 'sniper', 'pistol'];
+const ORDER: WeaponId[] = ['rifle', 'smg', 'shotgun', 'sniper', 'pistol', 'ak', 'tavor', 'lmg', 'vector', 'p90', 'semiShotgun', 'breacher', 'dmr', 'crossbow', 'fiveseven', 'pistolSd'];
 import { computeStats, MAX_UPGRADE } from '../../weapons/weaponStats';
 import { buyUnlock, buyUpgrade, owns, setAttachment, setLoadout, unlockContext, weaponMastery, levelInfo } from '../../progression/profile';
 import { canUpgrade, TRACKS, TRACK_LABEL } from '../../progression/upgrades';

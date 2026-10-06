@@ -1,5 +1,39 @@
 # Changelog
 
+## 1.20.0 - 2.0 phase 8: arsenal, attachments, suit, HQ, economy
+- Arsenal of 16 (`config/weapons.json`, procedural models by role at real sizes): pistols - P45 Compact (the old
+  P9), FN Five-7, 9mm SD (integral suppressor); SMGs - MP5 Kurz (the old V-12), Vector .45, P-90 (bullpup, top
+  magazine); rifles - 552 Commando (the old AR-7), AK-74, TAR-21 (bullpup); shotguns - M870 Pump (the old M4),
+  M1014 Semi, Breacher; marksman - M14 DMR (scoped), M700 Bolt (the old LR-50); the Silent Crossbow (sleep bolts
+  knock out; Lethal Bolts in its magazine slot kill; near silent); the M249 SAW (100-round box, bipod). The 1.x
+  weapons keep their ids, so unlocks, upgrades and kills carry over. New unlocks from level 2 to 12.
+- Attachments are visible (`withAttachments`, pure): red dot / 4x scope on top, suppressor or compensator on the
+  muzzle (the muzzle moves out), vertical grip / laser under the front, a longer or a taped double magazine, red
+  broadheads; carry placement and clip checks use the attached model.
+- Handling: a slow breathing sway through magnifying scopes (steadier crouched and still); a suppressor hides most
+  of the muzzle flash; rounds go through thin world geometry (doors, glazing, thin partitions: pistols 8 cm, SMGs
+  10, rifles 20, the LMG 25, DMR / bolt 32) with half the damage after; brass ejects (pooled) as before.
+- The suit (HQ > Suit): vest (no armour .. heavy: -45 % damage for +45 % footstep noise), gloves (swaps and
+  takedowns up to 22 % faster), boots (footstep noise down to 60 %), goggles (sonar range +25 / +50 %, faster
+  recharge), pouches (+1 / +2 of each gadget); tiers bought in order by level and credits, any owned tier worn;
+  the look follows (vest / plate carrier, headset goggles, a rig on the back, dark boots).
+- HQ upgrades: minimap radar (enemies within 15 / 25 m in Hunter and Infiltration), sonar amplifier (+20 % per
+  level), execute capacity (+1 mark), supply drops (gadgets restocked at checkpoints), field medic training
+  (co-op revives faster; used from phase 10).
+- Economy: Hunter and Infiltration pay Ghost / Panther / Assault cash and XP from the play-style points (x the
+  difficulty); challenges ("10 takedowns from above", "Knock out 25", "50 headshots", "Mark & Execute 15",
+  "3 missions undetected", "Hunter without an alarm", "20 gadget knock-outs") pay once on completion.
+- Loadout presets: three (Ghost / Panther / Assault to start) with weapons and the starting gadget; saved and
+  used in HQ > Loadouts, picked on the Play screen (Loadout row). Co-op partners see the loadout in the lobby
+  as before.
+- Save v6 (`suit`, `hq`, `challenges`, `presets`, `preset`; migration from v5 issues the basic kit).
+- Plan notes: the attachment slots stay optic / barrel (suppressor or muzzle device) / underbarrel / magazine; the
+  crossbow is a compact pistol-grip one (16 cm limbs) so it carries on the back with other long guns.
+- Tests: `tests/economy.test.ts` (arsenal, attachments model, suit, HQ, challenges, style cash, profile ops, save
+  v5 -> v6); carry dimensions for all 16; e2e-weapons-carry runs every weapon (three more loadouts, `?loadout=`);
+  e2e-progression buys a suit tier, an HQ upgrade and a suppressed AK and checks them in the match and after a
+  reload.
+
 ## 1.19.0 - 2.0 phase 7: Hunter, Infiltration missions, the Embassy
 - Hunter: Clear is renamed Hunter in the Play menu (`?mode=hunter`; `?mode=clear` still works). Start undetected,
   clear every hostile. If an enemy raises the alarm the hostiles double (Blacklist's rule): as many again come in

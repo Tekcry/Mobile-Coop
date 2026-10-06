@@ -594,6 +594,21 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   squads (sniper on the tower at 3.2 m). Gap lists for `wallX / wallZ` must be sorted (an unsorted list bridges a
   doorway).
 
+## Arsenal, suit, HQ, economy (2.0 phase 8)
+- 16 weapons (`WEAPON_IDS`; the 1.x five keep ids). Optional `WeaponDef.noise` (x the stat), `nonLethal` (crossbow;
+  `HitInfo.nonLethal` -> `Enemy.knockOut`). `withAttachments(def, ids)` (progression/attachments.ts, pure) returns
+  the def with attachment parts and the moved muzzle; `LoadoutEntry.attachments`; `PlayerWeapons` builds from it
+  (slots carry `nonLethal`, `pen` = `PENETRATION[class]`, `scoped`). `penetrate()` casts back from beyond the hit
+  to find the exit face. Back carry: a centre gun stands off `CENTRE_CLEAR` minus its top-to-bore depth.
+- `progression/suit.ts` (pure): `SUIT` tiers, `suitStats` (damage, noise, hands, sonar, gadgets), `suitLook`, `HQ`
+  + `hqStats` (radar, sonarRange, extraMarks, restock, reviveSpeed), `canBuySuit / canBuyHq`, `CHALLENGES` +
+  `challengeProgress`, `styleLines` (`STYLE_PAY`), presets. Profile ops `buySuit / wearSuit / buyHq / savePreset /
+  applyPreset`; `applySession` pays challenges (`SessionStats.takedownsByKind / executes / gadgetKos / alarms`).
+- `GameOptions.suit / hq / gadget` (single player from the save in `main.ts`; the look via `suitLook`); GameState
+  applies `target.armorMul`, `weapons.handsMul`, `takedown.handsMul`, gadget counts, `marks.max`, footstep noise
+  x `suit.noise`, `sonarMul`, radar blips, restock on respawn. `ui/screens/hqScreen.ts` (Suit / Upgrades /
+  Challenges / Loadouts); Play screen Loadout row. Save v6. `?loadout=a,b` for autostart (tests).
+
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs
   x0.75. Enemies aim at the torso volume.

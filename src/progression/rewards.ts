@@ -1,6 +1,7 @@
 import type { SessionStats } from '../game/modes/gameMode';
 import { DIFFICULTY, type Difficulty } from '../ai/archetypes';
 import { ENEMIES, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
+import { styleLines } from './suit';
 
 /** Kill rewards per kind (from the enemy defs). */
 export const XP_PER_KILL: Record<EnemyKind, number> = Object.fromEntries(ENEMY_KINDS.map((k) => [k, ENEMIES[k].xp])) as Record<EnemyKind, number>;
@@ -45,6 +46,8 @@ export function computeRewards(s: SessionStats, difficulty: Difficulty): Session
   // and each bonus rule kept
   if (s.won) lines.push(s.mode === 'clear' ? { label: 'Operation complete', xp: 2000, credits: 400 } : s.mode === 'infiltration' ? { label: 'Mission complete', xp: 1800, credits: 350 } : { label: 'Victory', xp: 500, credits: 150 });
   if (s.won && s.mode === 'infiltration') for (const b of (s.bonuses ?? []).slice(0, 3)) lines.push({ label: `Bonus: ${b}`, xp: 400, credits: 80 });
+  // play style pays (stealth modes): Ghost / Panther / Assault cash
+  if (s.mode === 'clear' || s.mode === 'infiltration') for (const l of styleLines(s.style)) lines.push(l);
   const shots = nn(s.shots);
   const acc = shots >= 20 ? nn(s.hits) / shots : 0;
   if (acc >= 0.4) lines.push({ label: `Accuracy ${Math.round(acc * 100)}%`, xp: Math.round(acc * 300), credits: Math.round(acc * 40) });

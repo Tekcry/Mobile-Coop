@@ -17,6 +17,8 @@ const CARRY_GAP = 0.012;
 /** Back carry: muzzle-up guns side by side (thin side to the back), butts at this height on the chest. */
 const BACK_X = 0.07;
 const BACK_BUTT_Y = -0.4;
+/** A centre back gun keeps its bore at least this far (m) behind its top surface's rest plane (head clearance). */
+const CENTRE_CLEAR = 0.09;
 /** Sling: the hanging gun splays out from the leg (rad), more than the thigh swings out on a side-step. */
 const SLING_SPLAY = 0.12;
 /** Kept this much (rad) outside the thigh when the leg swings the gun out. */
@@ -114,7 +116,8 @@ export class WeaponModel {
       // the butt and the top surface rest at the slot point
       const sx = side * BACK_X;
       const sy = BACK_BUTT_Y;
-      const sz = -p.chest.d / 2 - rig.backGear - CARRY_GAP;
+      // the centre gun passes behind the head: one whose bore runs near its top (no optic above it) stands off more
+      const sz = -p.chest.d / 2 - rig.backGear - CARRY_GAP - (side === 0 ? Math.max(0, CENTRE_CLEAR - (e.y1 - this.def.muzzle[1])) : 0);
       n.position.set(sx - ay.x * e.y1 - az.x * e.z0, sy - ay.y * e.y1 - az.y * e.z0, sz - ay.z * e.y1 - az.z * e.z0);
     } else if (slot === 'sling') {
       n.parent = rig.hips;

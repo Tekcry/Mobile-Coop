@@ -32,6 +32,11 @@ export interface SessionStats {
   missionId?: string;
   rating?: number;
   bonuses?: string[];
+  /** Challenge inputs: takedowns by kind, executes, gadget knock-outs / kills, alarms raised. */
+  takedownsByKind?: Record<string, number>;
+  executes?: number;
+  gadgetKos?: number;
+  alarms?: number;
 }
 
 export function emptyStats(mode: ModeId, mapId: string): SessionStats {
