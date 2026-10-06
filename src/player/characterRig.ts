@@ -199,21 +199,28 @@ function freshBelow(n: TransformNode, anchor: TransformNode): void {
 }
 
 const tmpQ = new Quaternion();
-const clrPt = new Vector3();
-const clrA = new Vector3();
-const clrB = new Vector3();
 const clrDir = new Vector3();
 const clrM = new Matrix();
-const clrL = [new Vector3(), new Vector3(), new Vector3(), new Vector3(), new Vector3(), new Vector3()];
-let clrBest = 0;
-/** Accumulate one overlap (`depth` > 0) along `clrA` (length `len`) into the body push-out. */
-function clrAdd(depth: number, len: number): void {
-  if (depth <= 0) return;
-  const k = depth / Math.max(1e-6, len);
-  clrDir.x += clrA.x * k;
-  clrDir.y += clrA.y * k;
-  clrDir.z += clrA.z * k;
-  if (depth > clrBest) clrBest = depth;
+/** Body capsules for the weapon push-out, 8 floats each: start xyz, segment xyz, 1/|segment|^2, radius. */
+const CLR_N = 6;
+const clrCap = new Float64Array(CLR_N * 8);
+/** Gun sample points (world xyz), bore line and top edge. */
+const CLR_PTS = 14;
+const clrPts = new Float64Array(CLR_PTS * 3);
+function clrSet(k: number, a: Vector3, b: Vector3, r: number): void {
+  const o = k * 8;
+  clrCap[o] = a.x;
+  clrCap[o + 1] = a.y;
+  clrCap[o + 2] = a.z;
+  const sx = b.x - a.x;
+  const sy = b.y - a.y;
+  const sz = b.z - a.z;
+  clrCap[o + 3] = sx;
+  clrCap[o + 4] = sy;
+  clrCap[o + 5] = sz;
+  const l2 = sx * sx + sy * sy + sz * sz;
+  clrCap[o + 6] = l2 > 1e-9 ? 1 / l2 : 0;
+  clrCap[o + 7] = r;
 }
 /** Body clearance kept around the held weapon (m). */
 const CLEAR_MARGIN = 0.015;
@@ -859,8 +866,9 @@ export class CharacterRig {
     let tau = 0.12;
     this.overClear = false;
     let curl = 0;
+    // the head is fresh from the solve (an emote may have moved it since)
+    if (this.coverMode !== 'none' && this.emoteW > 0) fresh(this.headNode);
     if (this.coverMode === 'hide') {
-      fresh(this.headNode);
       const top = this.headNode.getAbsolutePosition().y + this.p.head.h * 0.5 - rp.y;
       // curl the back (and sink a little) until the head is under the top; very low cover can leave the
       // head showing rather than fold the legs into the floor
@@ -871,7 +879,6 @@ export class CharacterRig {
     } else if (this.coverMode === 'over') {
       // rise until the eye (and so the weapon at the cheek, just below it) is over the top: measured on the
       // head, not the weapon, so a weapon still held down never stalls the rise
-      fresh(this.headNode);
       const eye = this.headNode.getAbsolutePosition().y - rp.y;
       want = this.lift + (this.coverTop + OVER_EYE - eye);
       tau = 0.07;
@@ -884,67 +891,93 @@ export class CharacterRig {
 
   /**
    * Push the held weapon out of the body: sample its bore line and top edge against the trunk (a capsule
-   * pelvis -> neck base) and the head ball, and translate the aim pocket out along the deepest overlap.
-   * Up to three passes; no allocation. Returns the distance pushed (m).
+   * pelvis -> neck base), the head ball and the leg capsules, and translate the aim pocket out along the
+   * summed overlap. Up to four passes on flat typed arrays (no allocation, no calls in the inner loop).
+   * Returns the distance pushed (m).
    */
   private clearBody(): number {
     const w = this.heldWeapon!;
     const g = this.gunSpan;
     const m = w.getWorldMatrix();
-    fresh(this.neck);
-    fresh(this.headNode);
+    // hips, neck (setWorldRot of the head), head, knees and ankles are already fresh this frame
     const P = this.hips.getAbsolutePosition();
-    const N = this.neck.getAbsolutePosition();
     const Hc = this.headNode.getAbsolutePosition();
-    const trunkR = this.p.chest.d * 0.5;
-    const headR = this.p.head.h * 0.46;
-    // legs (solved this frame, before the weapon): thigh and shin capsules
-    clrL[0]!.copyFrom(this.hipL.getAbsolutePosition());
-    clrL[1]!.copyFrom(this.kneeL.getAbsolutePosition());
-    clrL[2]!.copyFrom(this.ankleL.getAbsolutePosition());
-    clrL[3]!.copyFrom(this.hipR.getAbsolutePosition());
-    clrL[4]!.copyFrom(this.kneeR.getAbsolutePosition());
-    clrL[5]!.copyFrom(this.ankleR.getAbsolutePosition());
-    const thighR = this.p.thigh.r0;
-    const calfR = this.p.calf.r0;
+    // trunk (pelvis -> neck base), head ball, and the legs (solved this frame, before the weapon); legs get
+    // extra margin: the joint rate limit may still move them a little after this
+    clrSet(0, P, this.neck.getAbsolutePosition(), this.p.chest.d * 0.5 + CLEAR_MARGIN);
+    clrSet(1, Hc, Hc, this.p.head.h * 0.46 + CLEAR_MARGIN);
+    const thighR = this.p.thigh.r0 + CLEAR_MARGIN + 0.02;
+    const calfR = this.p.calf.r0 + CLEAR_MARGIN + 0.02;
+    clrSet(2, this.hipL.getAbsolutePosition(), this.kneeL.getAbsolutePosition(), thighR);
+    clrSet(3, this.kneeL.getAbsolutePosition(), this.ankleL.getAbsolutePosition(), calfR);
+    clrSet(4, this.hipR.getAbsolutePosition(), this.kneeR.getAbsolutePosition(), thighR);
+    clrSet(5, this.kneeR.getAbsolutePosition(), this.ankleR.getAbsolutePosition(), calfR);
+    // gun samples in world space (bore line and top edge, stock to muzzle), moved with each push
+    const e = m.m;
+    const half = CLR_PTS / 2;
+    for (let k = 0; k < half; k++) {
+      const z = g.z0 + ((g.z1 - g.z0) * k) / (half - 1);
+      for (let j = 0; j < 2; j++) {
+        const y = j === 0 ? g.bore : g.top;
+        const o = (k * 2 + j) * 3;
+        clrPts[o] = y * e[4]! + z * e[8]! + e[12]!;
+        clrPts[o + 1] = y * e[5]! + z * e[9]! + e[13]!;
+        clrPts[o + 2] = y * e[6]! + z * e[10]! + e[14]!;
+      }
+    }
     let pushed = 0;
+    let ox = 0;
+    let oy = 0;
+    let oz = 0;
     for (let pass = 0; pass < 4; pass++) {
       // every overlap pushes along its own normal; the summed push resolves several contacts at once
-      clrBest = 0;
-      clrDir.setAll(0);
-      for (let k = 0; k <= 8; k++) {
-        const z = g.z0 + ((g.z1 - g.z0) * k) / 8;
-        for (let j = 0; j < 2; j++) {
-          Vector3.TransformCoordinatesFromFloatsToRef(0, j === 0 ? g.bore : g.top, z, m, clrPt);
-          // trunk: distance to the spine segment
-          clrA.copyFrom(N).subtractInPlace(P);
-          const t = Math.max(0, Math.min(1, Vector3.Dot(clrB.copyFrom(clrPt).subtractInPlace(P), clrA) / Math.max(1e-6, clrA.lengthSquared())));
-          clrB.copyFrom(P).addInPlace(clrA.scaleInPlace(t));
-          clrA.copyFrom(clrPt).subtractInPlace(clrB);
-          let d = clrA.length();
-          clrAdd(trunkR + CLEAR_MARGIN - d, d);
-          clrA.copyFrom(clrPt).subtractInPlace(Hc);
-          d = clrA.length();
-          clrAdd(headR + CLEAR_MARGIN - d, d);
-          for (let s = 0; s < 4; s++) {
-            const A = clrL[s < 2 ? s : s + 1]!;
-            const B = clrL[s < 2 ? s + 1 : s + 2]!;
-            const r = s % 2 === 0 ? thighR : calfR;
-            clrA.copyFrom(B).subtractInPlace(A);
-            const u = Math.max(0, Math.min(1, Vector3.Dot(clrB.copyFrom(clrPt).subtractInPlace(A), clrA) / Math.max(1e-6, clrA.lengthSquared())));
-            clrB.copyFrom(A).addInPlace(clrA.scaleInPlace(u));
-            clrA.copyFrom(clrPt).subtractInPlace(clrB);
-            d = clrA.length();
-            // legs get extra margin: the joint rate limit may still move them a little after this
-            clrAdd(r + CLEAR_MARGIN + 0.02 - d, d);
-          }
+      let best = 0;
+      let sx = 0;
+      let sy = 0;
+      let sz = 0;
+      for (let k = 0; k < CLR_PTS; k++) {
+        const px = clrPts[k * 3]! + ox;
+        const py = clrPts[k * 3 + 1]! + oy;
+        const pz = clrPts[k * 3 + 2]! + oz;
+        for (let c = 0; c < CLR_N; c++) {
+          const o = c * 8;
+          const ax = clrCap[o]!;
+          const ay = clrCap[o + 1]!;
+          const az = clrCap[o + 2]!;
+          const vx = clrCap[o + 3]!;
+          const vy = clrCap[o + 4]!;
+          const vz = clrCap[o + 5]!;
+          let t = ((px - ax) * vx + (py - ay) * vy + (pz - az) * vz) * clrCap[o + 6]!;
+          t = t < 0 ? 0 : t > 1 ? 1 : t;
+          const dx = px - ax - vx * t;
+          const dy = py - ay - vy * t;
+          const dz = pz - az - vz * t;
+          const r = clrCap[o + 7]!;
+          const d2 = dx * dx + dy * dy + dz * dz;
+          if (d2 >= r * r) continue;
+          const d = Math.sqrt(d2);
+          const depth = r - d;
+          const f = depth / (d > 1e-6 ? d : 1e-6);
+          sx += dx * f;
+          sy += dy * f;
+          sz += dz * f;
+          if (depth > best) best = depth;
         }
       }
       // the summed push, at least as long as the deepest overlap
-      const sl = clrDir.length();
-      if (sl > 1e-6) clrDir.scaleInPlace(Math.max(clrBest, Math.min(sl, clrBest * 2)) / sl);
-      const best = clrDir.length();
-      if (best <= 1e-4) break;
+      const sl = Math.sqrt(sx * sx + sy * sy + sz * sz);
+      if (sl <= 1e-4) break;
+      const len = Math.max(best, Math.min(sl, best * 2));
+      sx *= len / sl;
+      sy *= len / sl;
+      sz *= len / sl;
+      ox += sx;
+      oy += sy;
+      oz += sz;
+      pushed += len;
+    }
+    if (pushed > 0) {
+      clrDir.set(ox, oy, oz);
       // world push -> the pocket's parent (torso) space
       const pm = (this.weaponPivot.parent as TransformNode).getWorldMatrix();
       pm.invertToRef(clrM);
@@ -952,7 +985,6 @@ export class CharacterRig {
       this.weaponPivot.position.addInPlace(clrDir);
       fresh(this.weaponPivot);
       freshBelow(w, this.weaponPivot);
-      pushed += best;
     }
     return pushed;
   }
@@ -1024,6 +1056,8 @@ export class CharacterRig {
     // so the weapon below is placed against this frame's legs
     this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
     this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
+    // knees and ankles refreshed once: the anatomy checks below and the weapon's body clearance read them
+    this.freshLegs();
     // anatomy: a knee never sinks into the floor (deep kneel, hiding curl): lift the pelvis and solve again
     const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
@@ -1034,21 +1068,23 @@ export class CharacterRig {
       fresh(this.torso);
       this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
       this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
+      this.freshLegs();
     }
     // anatomy: the knees never knock through each other (side-steps, leaning out): bow them outward
-    fresh(this.kneeL);
-    fresh(this.kneeR);
     const kneeGap = Vector3.Distance(this.kneeL.getAbsolutePosition(), this.kneeR.getAbsolutePosition());
     if (kneeGap < KNEE_GAP) {
       // steeper bow the closer they came (a pole up to ~70 deg outward)
       const bow = KNEE_OUT + (1 - kneeGap / KNEE_GAP) * 6;
       this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1, bow);
       this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
+      this.freshLegs();
     }
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
     Quaternion.RotationYawPitchRollToRef(yaw + this.input.aimYaw * 0.85 + t.head.yaw * 0.25, -this.input.aimPitch * 0.8 + t.head.pitch * 0.4, t.head.roll * 0.6, tmpQ);
     this.setWorldRot(this.headNode, this.neck, tmpQ);
     this.limitJoint(this.headNode, dt);
+    // fresh for the weapon's clearance and the cover height control (nothing above it moves after this)
+    fresh(this.headNode);
 
     // aim pocket: rest + layer offsets, mirrored to the left shoulder when switched hands in cover
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
@@ -1228,6 +1264,12 @@ export class CharacterRig {
     // foot: world yaw from the planner, pitch from the swing (toe-off / heel strike) and the pose
     Quaternion.RotationYawPitchRollToRef(footYaw, footPitch, 0, tmpQ3);
     this.setWorldRot(ankle, knee, tmpQ3);
+  }
+
+  /** After the leg solves: hips and knees are fresh (each `setWorldRot` refreshes the parent); the ankles. */
+  private freshLegs(): void {
+    fresh(this.ankleL);
+    fresh(this.ankleR);
   }
 
   /** Blend an FK pose (emotes) over the procedural result. */
