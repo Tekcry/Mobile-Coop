@@ -32,6 +32,7 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   vision: { id: 'vision', action: 'vision', size: 56, icon: 'goggles', label: 'Goggles (night vision / sonar)' },
   mark: { id: 'mark', action: 'mark', size: 56, icon: 'mark', label: 'Mark (while aiming)' },
   execute: { id: 'execute', action: 'execute', size: 76, icon: 'execute', label: 'Execute (when ready)' },
+  takedown: { id: 'takedown', action: 'interact', size: 72, icon: 'interact', label: 'Takedown (when on offer: tap knocks out, hold is lethal)' },
 };
 
 /** What the contextual action button does right now. */

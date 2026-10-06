@@ -143,8 +143,11 @@ export class ShoulderCamera {
     this.yaw += yaw * 0.32;
   }
 
+  /** Settings > Accessibility: camera shake strength (0 .. 1). */
+  shakeMul = 1;
+
   shake(amount: number): void {
-    this.trauma = Math.min(1, this.trauma + amount);
+    this.trauma = Math.min(1, this.trauma + amount * this.shakeMul);
   }
 
   /** A hard contact (slamming into cover): a sharp dip of the view and a short shake (strength 0..1). */

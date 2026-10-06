@@ -16,9 +16,16 @@ interface Item {
 export class BarkView {
   readonly el: HTMLElement;
   private items: Item[] = [];
+  /** Subtitles at the bottom (Settings > Accessibility): the last line, with its speaker. */
+  subtitles = true;
+  private sub: HTMLElement;
+  private subT = 0;
 
   constructor(parent: HTMLElement) {
     this.el = h('div', { class: 'hud-barks' });
+    this.sub = h('div', { class: 'hud-subtitle' });
+    this.sub.hidden = true;
+    parent.appendChild(this.sub);
     for (let i = 0; i < BARK.max; i++) {
       const el = h('div', { class: 'bark' });
       el.hidden = true;
@@ -38,6 +45,16 @@ export class BarkView {
     it.el.classList.toggle('radio', radio);
     it.el.hidden = false;
     it.key = '';
+    if (this.subtitles) {
+      this.sub.textContent = `${radio ? 'Radio' : 'Guard'}: ${line}`;
+      this.sub.hidden = false;
+      this.subT = BARK.show + 0.5;
+    }
+  }
+
+  /** The subtitle line showing ('' when none; tests). */
+  get subtitle(): string {
+    return this.sub.hidden ? '' : (this.sub.textContent ?? '');
   }
 
   /** Lines showing (tests). */
@@ -47,6 +64,10 @@ export class BarkView {
 
   /** Per frame: age the lines, and place each over its speaker (`place` returns false when off screen). */
   update(dt: number, place: (who: string, out: { x: number; y: number }) => boolean): void {
+    if (this.subT > 0) {
+      this.subT -= dt;
+      if (this.subT <= 0 || !this.subtitles) this.sub.hidden = true;
+    }
     const p = this.pt;
     for (const it of this.items) {
       if (it.t <= 0) continue;
@@ -69,6 +90,8 @@ export class BarkView {
   private pt = { x: 0, y: 0 };
 
   clear(): void {
+    this.subT = 0;
+    this.sub.hidden = true;
     for (const it of this.items) {
       it.t = 0;
       it.who = '';

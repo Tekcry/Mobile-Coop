@@ -19,6 +19,8 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => {
+    // SwiftShader / ANGLE performance notes about its own command buffer are not the game's problems
+    if (/GL Driver Message \(OpenGL, Performance/.test(m.text())) return;
     if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`);
     else if (process.env.VERBOSE) console.log(`[${m.type()}] ${m.text()}`);
   });

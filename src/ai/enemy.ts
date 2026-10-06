@@ -429,8 +429,12 @@ export class Enemy implements Damageable {
     return glint(this.yaw, this.aimPitch, this.tmpEye.x, this.tmpEye.y, this.tmpEye.z, x, y, z);
   }
 
+  /** A training target: sees and hears nothing (the training course). */
+  passive = false;
+
   /** The perception multiplier: difficulty, plus an officer close by. */
   private get perceptionMul(): number {
+    if (this.passive) return 0;
     return DIFFICULTY[this.ctx.difficulty].perception * (this.buff ? 1.1 : 1);
   }
 
@@ -451,7 +455,7 @@ export class Enemy implements Damageable {
 
   /** A noise from (x, z) audible to `radius` (m): suspicion by distance, and a place to look. */
   hear(x: number, z: number, radius = 8): void {
-    if (this.alerted || !this.alive) return;
+    if (this.alerted || !this.alive || this.passive) return;
     const s = noiseSuspicion(hyp2(x - this.pos.x, z - this.pos.z), radius);
     if (s <= 0) return;
     if (this.def.melee && s >= 0.6) {
@@ -777,7 +781,7 @@ export class Enemy implements Damageable {
         this.lastSeenT = 0;
       }
     }
-    if (!this.alerted && instantDetect(si)) this.meter = 1;
+    if (!this.alerted && !this.passive && instantDetect(si)) this.meter = 1;
     if (this.rate > 0 && !this.alerted) {
       // what caught the eye: look there (and investigate there)
       this.stimulus[0] = best.feet.x;

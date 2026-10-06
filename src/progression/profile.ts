@@ -80,7 +80,7 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     if (m1 > m0) masteryUps.push({ weapon: w, level: m1 });
   }
   // lifetime stats
-  if (stats.mode !== 'sandbox') {
+  if (stats.mode !== 'sandbox' && stats.mode !== 'training') {
     const st = s.profile.stats;
     st.matches++;
     if (stats.won) st.wins++;
@@ -116,7 +116,7 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     detections: stats.detections,
     alarms: stats.alarms ?? 0,
   });
-  if (stats.mode !== 'sandbox') {
+  if (stats.mode !== 'sandbox' && stats.mode !== 'training') {
     for (const c of CHALLENGES) {
       if (s.challenges.done.includes(c.id)) continue;
       s.challenges.progress[c.id] = Math.min(1e6, (s.challenges.progress[c.id] ?? 0) + (add[c.id] ?? 0));

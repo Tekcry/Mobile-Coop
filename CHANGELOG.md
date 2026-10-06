@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.23.0 - 2.0 phase 11: Blacklist-minimal HUD, touch layout v3, accessibility, controls screen, training course
+- HUD: health is the screen-edge vignette (it reddens with damage; the bars are an option); the ammo and gadget
+  readout shows on any change, a reload or a low magazine and fades after 3 s (option: always); the use prompt
+  has a hold ring that fills while held; the compass objective marker and awareness arcs as before.
+- Touch layout v3 (`TOUCH_LAYOUT_VERSION` 3): a Takedown button that appears only while a takedown is on offer
+  (tap knocks out, hold is lethal), alongside Mark (while aiming) and Execute (when ready); v2 layouts keep every
+  placement, the new button takes its default spot.
+- Settings > Accessibility: Controls (every binding for controller, keyboard and mouse, touch), HUD size,
+  health bar, always-on ammo, colour-blind-safe awareness colours (blue filling, orange when alerted),
+  subtitles for barks and radio (on by default), held actions by tap (downloads, alarm panels, revives, plants
+  start on a tap and keep going), camera shake strength. Aim assist tiers stay per input (off / low / standard /
+  high); aim, crouch and sprint have hold / toggle as before.
+- Training (Play > Training, Proving Grounds): ten steps, one verb each - move, sneak, cover, vault, ladder,
+  goggles, a takedown on a passive guard, marking two more, Execute, a gadget - with a marker on the target and the
+  input for the device in use; the operator cannot be hurt; a step not done in 90 s is skipped; a small reward
+  on completion.
+- Tests: `tests/training.test.ts`, touch v3 migration and accessibility clamps in `tests/ui.test.ts`;
+  `scripts/e2e-training.mjs` plays the whole course by touch (the Takedown, Mark and Execute buttons, HUD
+  defaults); e2e-pad reaches Accessibility and the Controls screen by pad. e2e-lib ignores SwiftShader's own
+  performance notes; e2e-move samples traversal kinds every frame; e2e-coop retries a revive under load.
+
 ## 1.22.0 - 2.0 phase 9: the operator, enemy silhouettes and factions, light cones, contact shadows, colour grade
 - The operator is the new default look: a fitted suit with a plate carrier, magazine pouches, shoulder straps,
   belt with a radio pouch, elbow and knee pads, gloves, thigh panels, and a balaclava with the tri-lens goggle

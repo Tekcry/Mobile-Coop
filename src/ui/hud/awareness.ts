@@ -10,6 +10,8 @@ const HALF = 0.22;
 const WIDTH = 5;
 
 export class AwarenessArcs {
+  /** Colour-blind-safe palette: blue filling, orange when alerted (Settings > Accessibility). */
+  colorSafe = false;
   readonly canvas: HTMLCanvasElement;
   private ctx: CanvasRenderingContext2D | null;
   private bearing = new Float32Array(MAX);
@@ -76,7 +78,7 @@ export class AwarenessArcs {
       c.stroke();
       // fills from both ends towards the middle
       const k = red ? 1 : f;
-      c.strokeStyle = red ? 'rgba(255,64,48,0.95)' : 'rgba(255,255,255,0.92)';
+      c.strokeStyle = red ? (this.colorSafe ? 'rgba(255,160,30,0.97)' : 'rgba(255,64,48,0.95)') : this.colorSafe ? 'rgba(120,200,255,0.95)' : 'rgba(255,255,255,0.92)';
       c.beginPath();
       c.arc(cx, cx, RADIUS, a - HALF * k, a + HALF * k);
       c.stroke();

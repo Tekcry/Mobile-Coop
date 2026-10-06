@@ -24,6 +24,8 @@ export function computeRewards(s: SessionStats, difficulty: Difficulty): Session
   const lines: RewardLine[] = [];
   const nn = (v: number): number => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
   if (s.mode === 'sandbox') return { lines: [], xp: 0, credits: 0 };
+  // the training course pays a small one-off-sized thank-you each time (nothing to farm)
+  if (s.mode === 'training') return s.won ? { lines: [{ label: 'Training complete', xp: 300, credits: 50 }], xp: 300, credits: 50 } : { lines: [], xp: 0, credits: 0 };
   // PvP: eliminations, headshots, the result (no difficulty)
   if (s.mode === 'tdm' || s.mode === 'ffa') {
     const k = Math.min(nn(s.kills), 300);

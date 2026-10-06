@@ -18,9 +18,10 @@ export const TOUCH_CONTROL_IDS = [
   'mark',
   'execute',
   'gadgets',
+  'takedown',
 ] as const;
-/** Touch layout format version (2: camera stick, contextual action button). */
-export const TOUCH_LAYOUT_VERSION = 2;
+/** Touch layout format version (2: camera stick, contextual action button; 3: takedown button). */
+export const TOUCH_LAYOUT_VERSION = 3;
 export type TouchControlId = (typeof TOUCH_CONTROL_IDS)[number];
 
 /** Control centre in normalised screen space (0..1) and per-control scale. */
@@ -89,6 +90,23 @@ export interface Settings {
   };
   audio: { master: number; sfx: number; music: number; ui: number };
   gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; coverDash: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean };
+  /** Accessibility and HUD. */
+  access: {
+    /** HUD size multiplier (0.8 .. 1.4). */
+    hudScale: number;
+    /** Health as bars (else only the screen-edge vignette, Blacklist style). */
+    healthBar: boolean;
+    /** Ammo and gadget count always shown (else on change / reload, then they fade). */
+    ammoAlways: boolean;
+    /** Colour-blind-safe awareness and alert colours (blue -> orange instead of white -> yellow -> red). */
+    colorSafe: boolean;
+    /** Enemy barks and radio as subtitles at the bottom. */
+    subtitles: boolean;
+    /** Held actions (downloads, alarm panels, revives, plants) start on a tap and keep going. */
+    holdToggle: boolean;
+    /** Camera shake strength (0 .. 1). */
+    shake: number;
+  };
 }
 
 /**
@@ -114,6 +132,7 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   mark: { x: 0.965, y: 0.3, scale: 1 },
   execute: { x: 0.44, y: 0.42, scale: 1 },
   gadgets: { x: 0.515, y: 0.62, scale: 1 },
+  takedown: { x: 0.6, y: 0.62, scale: 1 },
 };
 
 /** Claw: fire and aim move up to the top-right (index finger), the right thumb stays on the camera. */
@@ -188,6 +207,7 @@ export function defaultSettings(): Settings {
     video: { quality: 'auto', renderScale: 1, shadows: true, fovH: 75, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
+    access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
 
@@ -213,17 +233,20 @@ export function sanitizeSettings(raw: unknown): Settings {
   const v = sub(r, 'video');
   const a = sub(r, 'audio');
   const gp = sub(r, 'gameplay');
+  const ac = sub(r, 'access');
   const lay = sub(t, 'layout');
   const layout = {} as Record<TouchControlId, ControlPlacement>;
   // layouts from before the camera stick: keep customised placements of controls that still exist;
   // untouched (v1 default) ones and the new controls take the new defaults
-  const oldVersion = num(t.layoutVersion, 1, 1, 99) < TOUCH_LAYOUT_VERSION;
+  // (v2 -> v3 only adds controls: every stored placement is kept)
+  const fromV1 = num(t.layoutVersion, 1, 1, 99) < 2;
   for (const id of TOUCH_CONTROL_IDS) {
     const p = sub(lay, id);
     const dp = d.touch.layout[id];
     const v1 = V1_DEFAULT_LAYOUT[id];
     // v1 "fire" was the right aim-and-fire stick; its spot now belongs to the camera stick, so it resets
-    const untouched = oldVersion && (!v1 || id === 'fire' || (p.x === v1.x && p.y === v1.y && p.scale === v1.scale));
+    const isNew = !isObj(lay[id]);
+    const untouched = isNew || (fromV1 && (!v1 || id === 'fire' || (p.x === v1.x && p.y === v1.y && p.scale === v1.scale)));
     const place: ControlPlacement = untouched ? { ...dp } : { x: num(p.x, dp.x, 0, 1), y: num(p.y, dp.y, 0, 1), scale: num(p.scale, dp.scale, 0.5, 2) };
     if (!untouched && typeof p.alpha === 'number') place.alpha = num(p.alpha, 1, 0.2, 1.6);
     layout[id] = place;
@@ -289,6 +312,15 @@ export function sanitizeSettings(raw: unknown): Settings {
       slowBeat: bool(gp.slowBeat, d.gameplay.slowBeat),
       sprintHold: bool(gp.sprintHold, d.gameplay.sprintHold),
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
+    },
+    access: {
+      hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),
+      healthBar: bool(ac.healthBar, d.access.healthBar),
+      ammoAlways: bool(ac.ammoAlways, d.access.ammoAlways),
+      colorSafe: bool(ac.colorSafe, d.access.colorSafe),
+      subtitles: bool(ac.subtitles, d.access.subtitles),
+      holdToggle: bool(ac.holdToggle, d.access.holdToggle),
+      shake: num(ac.shake, d.access.shake, 0, 1),
     },
   };
 }

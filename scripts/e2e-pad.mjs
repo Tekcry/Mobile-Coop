@@ -48,6 +48,24 @@ try {
   await press(page, BTN.LB);
   await press(page, BTN.LB);
   assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Data', 'LB wraps tabs backwards');
+  // Accessibility: HUD size by d-pad, the Controls screen per input type
+  await press(page, BTN.LB);
+  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Accessibility', 'Accessibility tab');
+  assert(/Controls/.test(await focusedText(page)), `first focus on Controls ("${await focusedText(page)}")`);
+  await press(page, BTN.DOWN);
+  assert(/HUD size/.test(await focusedText(page)), 'focus HUD size');
+  const hs0 = (await settings()).access.hudScale;
+  await press(page, BTN.RIGHT);
+  assert((await settings()).access.hudScale > hs0, 'd-pad right enlarges the HUD');
+  await press(page, BTN.UP);
+  await press(page, BTN.A);
+  assert(await q('.controls-screen'), 'A opens the Controls screen');
+  const ct0 = await page.evaluate(() => document.querySelector('.controls-screen .tab.active')?.textContent);
+  await press(page, BTN.RB);
+  const ct1 = await page.evaluate(() => document.querySelector('.controls-screen .tab.active')?.textContent);
+  assert(ct0 === 'Controller' && ct1 !== ct0 && (await page.evaluate(() => document.querySelectorAll('.controls-screen .tab-panel.active .controls-row').length)) > 8, `controls per input type (${ct0} -> ${ct1})`);
+  await press(page, BTN.B);
+  assert(!(await q('.controls-screen')) && (await q('.settings-screen')), 'B returns to Settings');
   await press(page, BTN.B);
   assert(!(await q('.settings-screen')), 'B closes settings');
   assert(/Settings/.test(await focusedText(page)), 'focus restored to Settings');

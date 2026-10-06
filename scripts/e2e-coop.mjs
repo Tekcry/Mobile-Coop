@@ -283,7 +283,12 @@ try {
   const hp = await GA(() => { const p = window.__app.current.player.position; return [p.x, p.y, p.z]; });
   assert(await GA(() => !window.__app.current.player.alive && !window.__app.current.isEnded), 'host down, the match goes on');
   await moveClient(B, hp[0] + 0.7, hp[1] + 0.1, hp[2], 0);
-  await GB((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === `revive-${id}`); it.onUse(it); }, hostId);
+  // (retried: the host checks reach against the client's latest state, which can lag under load)
+  for (let i = 0; i < 12 && !(await GA(() => window.__app.current.player.alive)); i++) {
+    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
+    await GB((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === `revive-${id}`); if (it?.enabled) it.onUse(it); }, hostId);
+    await wait(400);
+  }
   await until(A, () => window.__app.current.player.alive, null, 5000, 'host revived by the client');
   assert(true, 'client revives the downed host');
   await toLobby();

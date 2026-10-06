@@ -76,6 +76,8 @@ Blacklist style.
   - `scripts/e2e-clear.mjs` Warehouse + Clear mode: only "Enemies left N" (alive + pending), no room tags /
     counts / lives / score / blips, no per-room feedback, "DOWN", OPERATION COMPLETE stinger, results without a
     rooms row; Wave keeps room tags; doorway checks; mini room set; Warehouse default for Wave / Mission / Clear
+  - `scripts/e2e-training.mjs` the training course by touch: hints per device, each step advancing, the
+    Takedown / Mark / Execute buttons, HUD defaults (no health bar, ammo fades), the results
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
@@ -157,8 +159,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   left fire; optional fire drag-look); ADS; goggles (`vision`); a contextual action button only to use an interactable (`setAction(TouchAction)` from
   `GameState`, hidden otherwise; acts on release). Cover, vault/climb/step/drop and cover-to-cover are the world
   prompts (`ui/hud/worldPrompts.ts`), tapped directly. Secondary buttons >= 56 px. Layout: `settings.touch.layout` (`TOUCH_CONTROL_IDS`, per-control `x, y,
-  scale, alpha?`), presets `LAYOUT_PRESETS` (default / claw / lefty), `TOUCH_LAYOUT_VERSION` 2 (v1 layouts keep
-  customised placements; the old fire stick and untouched controls take the new defaults). Layout editor: presets,
+  scale, alpha?`), presets `LAYOUT_PRESETS` (default / claw / lefty), `TOUCH_LAYOUT_VERSION` 3 (v1 layouts keep
+  customised placements, the old fire stick and untouched controls take the new defaults; v2 -> v3 keeps every
+  stored placement and adds the `takedown` button, shown only while a takedown is on offer, action `interact`). Layout editor: presets,
   size, opacity, thumb-reach overlay, preview.
 - `InputState` merges sources per action (down if any source holds it), latches press edges until consumed,
   and `releaseAll()` blocks still-held buttons until released so state changes never cause phantom presses.
@@ -169,6 +172,14 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `gamepadconnected`.
 
 ## UI
+- HUD (Blacklist-minimal, `Hud.setAccess` per frame from `settings.access`): health = the screen-edge vignette
+  (bars optional, `.no-hbar`), the weapon readout fades (`.quiet`) 3 s after the last change, hold ring on the use
+  prompt (`setInteract(text, progress)`), subtitles (`BarkView.subtitles`), colour-safe arcs
+  (`AwarenessArcs.colorSafe`), `--hud-scale` (CSS `zoom`), camera `shakeMul`, held actions by tap
+  (`access.holdToggle`, `GameState.holdLatch`). `ControlsScreen` (Settings > Accessibility) lists bindings per
+  input type (`CONTROLS`; keep it in step with the mappings).
+- Training (`game/training.ts` pure steps, `modes/trainingMode.ts`, Proving Grounds, `?mode=training`): passive
+  guards (`Enemy.passive`), invulnerable operator, a step skipped after 90 s.
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus`
   is navigable; `data-adjust` elements take left/right as `nav-adjust`; `data-capture-nav` elements take all
   directions as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.

@@ -15,6 +15,7 @@ const MODES: { id: ModeId; label: string; desc: string }[] = [
   { id: 'mission', label: 'Mission', desc: 'Hack two terminals, steal the intel, hold the extraction point.' },
   { id: 'clear', label: 'Hunter', desc: 'Clear every hostile in the area, starting undetected. If they raise the alarm, their numbers double.' },
   { id: 'infiltration', label: 'Infiltration', desc: 'Objective missions: uploads, bugs, rescues, sabotage, intel and extraction. Choose your way in.' },
+  { id: 'training', label: 'Training', desc: 'Learn each move, one at a time: cover, vaults, ladders, goggles, takedowns, Mark & Execute, gadgets.' },
   { id: 'sandbox', label: 'Free Roam', desc: 'Practice range with every weapon and training targets.' },
 ];
 

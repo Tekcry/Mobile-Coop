@@ -2286,3 +2286,81 @@ body {
   letter-spacing: 0.1em;
   color: #ffd23f;
 }
+
+/* Controls screen: one row per binding */
+.controls-list {
+  display: grid;
+  gap: 4px;
+}
+.controls-row {
+  display: grid;
+  grid-template-columns: minmax(120px, 34%) 1fr;
+  gap: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.04);
+  align-items: center;
+  min-height: 40px;
+}
+.controls-row b {
+  color: var(--text);
+}
+.controls-row span {
+  color: #b8c2cc;
+}
+
+/* Subtitles (barks / radio), bottom centre above the touch controls */
+.hud-subtitle {
+  position: absolute;
+  left: 50%;
+  bottom: calc(var(--sab, 0px) + 22%);
+  transform: translateX(-50%);
+  max-width: 70%;
+  padding: 3px 10px;
+  border-radius: 6px;
+  background: rgba(8, 10, 14, 0.62);
+  color: #f1f1ef;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+  pointer-events: none;
+}
+/* HUD size (Settings > Accessibility) */
+.hud > .hud-vitals,
+.hud > .hud-weapon,
+.hud > .hud-top,
+.hud > .hud-minimap,
+.hud > .hud-feed,
+.hud > .hud-interact,
+.hud > .hud-subtitle {
+  zoom: var(--hud-scale, 1);
+}
+/* health as the screen-edge vignette only (Blacklist): the bars hidden */
+.hud.no-hbar .bar.health,
+.hud.no-hbar .bar.shield,
+.hud.no-hbar .vital-text {
+  display: none;
+}
+/* ammo and gadget count fade out until something changes */
+.hud-weapon {
+  transition: opacity 0.6s;
+}
+.hud-weapon.quiet {
+  opacity: 0;
+}
+/* hold ring on the use prompt (fills while held) */
+.hud-interact {
+  --p: 0deg;
+}
+.hud-interact .hold-ring {
+  display: none;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: conic-gradient(#4fdc7c var(--p), rgba(255, 255, 255, 0.18) 0);
+  -webkit-mask: radial-gradient(circle, transparent 8px, #000 9px);
+  mask: radial-gradient(circle, transparent 8px, #000 9px);
+}
+.hud-interact.hold .hold-ring {
+  display: block;
+}

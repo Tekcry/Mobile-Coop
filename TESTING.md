@@ -293,6 +293,15 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 11 - HUD, touch v3, accessibility, training (1.23.0)
+- [ ] In a match: no health bars; take damage, the screen edge reddens. Ammo shows when firing / reloading and
+      fades after a few seconds. Hold to use a panel: the ring fills.
+- [ ] Touch: walk up behind a guard - the Takedown button appears; tap it (knock out) / hold it (lethal). Mark
+      shows while aiming, Execute when ready. An old customised layout keeps its placements.
+- [ ] Settings > Accessibility: Controls lists every binding for the device; HUD size changes the HUD; colour-safe
+      arcs are blue / orange; subtitles show guard lines at the bottom; "Tap to start" runs a download on a tap.
+- [ ] Play > Training: finish all ten steps with each input type (pad, touch, keyboard); hints match the device.
+
 ## 2.0 phase 9 - Visual overhaul (1.22.0) - Warehouse, Dust Depot, Embassy
 - [ ] A fresh install shows the operator (suit, carrier, pads, balaclava, tri-lens); toggle night vision: the
       lenses glow green. Settings > Video > Avatar style: Stick still works.

@@ -61,6 +61,7 @@ import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppressi
 import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
+import { TrainingMode } from './modes/trainingMode';
 import { StyleTracker } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, type GadgetId } from './gadgets';
@@ -396,7 +397,16 @@ export class GameState implements AppState {
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
       w.interactables = new Interactables(this.scene, world.parts);
-      w.mode = opts.mode === 'wave' ? new WaveMode(this) : opts.mode === 'clear' ? new ClearMode(this) : opts.mode === 'infiltration' ? new InfiltrationMode(this) : new MissionMode(this);
+      w.mode =
+        opts.mode === 'wave'
+          ? new WaveMode(this)
+          : opts.mode === 'clear'
+            ? new ClearMode(this)
+            : opts.mode === 'infiltration'
+              ? new InfiltrationMode(this)
+              : opts.mode === 'training'
+                ? new TrainingMode(this)
+                : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
@@ -675,6 +685,9 @@ export class GameState implements AppState {
     return bar;
   }
 
+  /** The held item latched by a tap (`access.holdToggle`). */
+  private holdLatch: Interactable | null = null;
+
   /** Proximity + hold-to-interact with objectives. */
   private updateInteract(dt: number): void {
     const ints = this.interactables;
@@ -692,16 +705,22 @@ export class GameState implements AppState {
     if (it !== this.interactTarget) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = it;
+      this.holdLatch = null;
     }
     if (!it) {
       this.hud.setInteract(null);
       return;
     }
-    const holding = this.app.input.state.down('interact');
+    // held actions: hold the button, or (Settings > Accessibility) tap to start and tap again to stop
+    let holding = this.app.input.state.down('interact');
+    if (it.holdTime > 0 && this.app.settings.get().access.holdToggle) {
+      if (this.app.input.state.pressed('interact')) this.holdLatch = this.holdLatch === it ? null : it;
+      holding = this.holdLatch === it;
+    }
     if (holding) it.progress += dt;
     else it.progress = Math.max(0, it.progress - dt * 2);
     const pct = it.holdTime > 0 ? Math.min(1, it.progress / it.holdTime) : 0;
-    this.hud.setInteract(it.holdTime > 0 ? `${it.label} (hold) ${pct > 0 ? Math.round(pct * 100) + '%' : ''}` : it.label);
+    this.hud.setInteract(it.holdTime > 0 ? `${it.label} (hold) ${pct > 0 ? Math.round(pct * 100) + '%' : ''}` : it.label, it.holdTime > 0 ? pct : -1);
     if ((it.holdTime === 0 && this.app.input.state.pressed('interact')) || (it.holdTime > 0 && it.progress >= it.holdTime)) {
       if (it.onUse) it.onUse(it);
       else this.mode?.onInteract?.(it);
@@ -1063,6 +1082,8 @@ export class GameState implements AppState {
     const touch = this.app.input.touch;
     touch.setControlHidden('mark', (!this.player.ads && !this.gadgets.remote) || !em);
     touch.setControlHidden('execute', !this.execute.ready);
+    // touch v3: the takedown button only while one is on offer (and through the move, for the hold)
+    touch.setControlHidden('takedown', !this.takedown.offer && !this.takedown.active);
     // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
     const g = this.ghost;
     if (em && em.stealth) {
@@ -1435,6 +1456,9 @@ export class GameState implements AppState {
 
   private updateHud(): void {
     const cam = this.player.cam;
+    const acc = this.app.settings.get().access;
+    this.hud.setAccess(acc);
+    cam.shakeMul = acc.shake;
     const w = this.weapons.current;
     // crosshair on target?
     const o = cam.camera.position;

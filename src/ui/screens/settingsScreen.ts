@@ -6,6 +6,7 @@ import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button, choice, section, slider, TabView, toggle, type TabDef } from '../widgets';
 import { LayoutEditorScreen } from './layoutEditor';
+import { ControlsScreen } from './controlsScreen';
 import { enterFullscreenLandscape } from '../../pwa/pwa';
 
 const AIM_OPTS: { value: AimAssistLevel; label: string }[] = [
@@ -175,6 +176,24 @@ export class SettingsScreen extends Screen {
               toggle('Invert Y (mouse)', () => s().mouse.invertY, (v) => upd((d) => void (d.mouse.invertY = v))),
             ),
             resetBtn('gameplay', 'gameplay'),
+          ),
+      },
+      {
+        id: 'access',
+        label: 'Accessibility',
+        build: () =>
+          h(
+            'div',
+            { class: 'rows' },
+            button('Controls', () => app.screens.push(new ControlsScreen(app)), { icon: 'gear' }),
+            slider('HUD size', { min: 0.8, max: 1.4, step: 0.05, get: () => s().access.hudScale, set: (v) => upd((d) => void (d.access.hudScale = v)), format: mult }),
+            toggle('Health bar (off: screen-edge vignette only)', () => s().access.healthBar, (v) => upd((d) => void (d.access.healthBar = v))),
+            toggle('Always show ammo and gadgets', () => s().access.ammoAlways, (v) => upd((d) => void (d.access.ammoAlways = v))),
+            toggle('Colour-blind-safe awareness colours', () => s().access.colorSafe, (v) => upd((d) => void (d.access.colorSafe = v))),
+            toggle('Subtitles for enemy barks and radio', () => s().access.subtitles, (v) => upd((d) => void (d.access.subtitles = v))),
+            choice('Held actions (downloads, panels, revives)', [{ value: false, label: 'Hold' }, { value: true, label: 'Tap to start' }], () => s().access.holdToggle, (v) => upd((d) => void (d.access.holdToggle = v))),
+            slider('Camera shake', { min: 0, max: 1, step: 0.1, get: () => s().access.shake, set: (v) => upd((d) => void (d.access.shake = v)), format: (v) => `${Math.round(v * 100)}%` }),
+            resetBtn('access', 'access'),
           ),
       },
     ];
