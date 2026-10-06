@@ -46,6 +46,17 @@ export interface LightDef {
   electric: boolean;
   /** Switch / circuit group: switches turn a whole group on or off (-1 = none). */
   group: number;
+  /** The visible fixture (a lamp strip, a flood housing): its box is what a shot hits and what goes dark when
+   *  the light is out; null = a small bulb at the light. */
+  fixture: LightFixture | null;
+}
+
+/** A light's fixture box: size (m) and its centre's height above the light. */
+export interface LightFixture {
+  sx: number;
+  sy: number;
+  sz: number;
+  oy: number;
 }
 
 export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z'>> & { x: number; y: number; z: number };
@@ -141,6 +152,7 @@ export class LightRegistry {
       destroyed: false,
       electric: init.electric ?? true,
       group: init.group ?? -1,
+      fixture: init.fixture ?? null,
     };
     this.lights.push(l);
     this.version++;
@@ -300,8 +312,38 @@ export function nearestLights(reg: LightRegistry, x: number, y: number, z: numbe
   return n;
 }
 
-/** Radius of a light's bulb / fixture for shooting it out (m). */
+/** Radius of a light's bulb for shooting it out (m); padding round a fixture box. */
 export const BULB_RADIUS = 0.22;
+const FIXTURE_PAD = 0.06;
+
+/** Entry parameter (0..1 along a -> a + d) of a segment into an axis-aligned box, or -1 if it misses. */
+export function rayBox(ax: number, ay: number, az: number, dx: number, dy: number, dz: number, cx: number, cy: number, cz: number, hx: number, hy: number, hz: number): number {
+  let t0 = 0;
+  let t1 = 1;
+  const o = [ax - cx, ay - cy, az - cz];
+  const d = [dx, dy, dz];
+  const h = [hx, hy, hz];
+  for (let k = 0; k < 3; k++) {
+    const dk = d[k]!;
+    const ok = o[k]!;
+    const hk = h[k]!;
+    if (Math.abs(dk) < 1e-9) {
+      if (ok < -hk || ok > hk) return -1;
+      continue;
+    }
+    let ta = (-hk - ok) / dk;
+    let tb = (hk - ok) / dk;
+    if (ta > tb) {
+      const s = ta;
+      ta = tb;
+      tb = s;
+    }
+    if (ta > t0) t0 = ta;
+    if (tb < t1) t1 = tb;
+    if (t0 > t1) return -1;
+  }
+  return t0;
+}
 
 /**
  * The first shootable light (on, not destroyed, destructible, fixed) a shot from (ax, ay, az) to (bx, by, bz)
@@ -319,6 +361,16 @@ export function lightOnRay(reg: LightRegistry, ax: number, ay: number, az: numbe
   for (let i = 0; i < ls.length; i++) {
     const l = ls[i]!;
     if (!l.on || l.destroyed || !l.destructible || l.kind === 'flashlight') continue;
+    const f = l.fixture;
+    if (f) {
+      // slab test against the fixture box (a little padded: a strip a few cm thick is a fair target)
+      const t = rayBox(ax, ay, az, dx, dy, dz, l.x, l.y + f.oy, l.z, f.sx / 2 + FIXTURE_PAD, f.sy / 2 + FIXTURE_PAD, f.sz / 2 + FIXTURE_PAD);
+      if (t >= 0 && t <= 1 && t < bt) {
+        bt = t;
+        best = l.id;
+      }
+      continue;
+    }
     const t = ((l.x - ax) * dx + (l.y - ay) * dy + (l.z - az) * dz) / len2;
     if (t < 0 || t > 1 || t >= bt) continue;
     const px = ax + dx * t - l.x;

@@ -236,6 +236,11 @@ export class Enemy implements Damageable {
     return this.health.alive;
   }
 
+  /** The target was in line of sight (any body sample) at the last think. */
+  get inSight(): boolean {
+    return this.sight.exposure > 0;
+  }
+
   /** The animated body (sonar marks). */
   get bodyRig(): CharacterRig {
     return this.rig;

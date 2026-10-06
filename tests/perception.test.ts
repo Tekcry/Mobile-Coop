@@ -284,3 +284,16 @@ describe('surfaces', () => {
     expect(SURFACE_NOISE.carpet).toBeLessThan(SURFACE_NOISE.concrete);
   });
 });
+
+describe('light fixtures', () => {
+  it('a lamp strip is hit anywhere along its fixture box, not only at the bulb', async () => {
+    const { lightOnRay, rayBox } = await import('../src/world/lights');
+    const r = new LightRegistry();
+    const l = r.add({ x: 0, y: 5, z: 0, fixture: { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15 } });
+    // a shot up at the end of the strip (1.2 m from the light centre)
+    expect(lightOnRay(r, 0, 1, 1.2, 0, 9, 1.2)).toBe(l.id);
+    expect(lightOnRay(r, 0, 1, 1.6, 0, 9, 1.6)).toBe(-1);
+    expect(rayBox(-1, 0, 0, 2, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5)).toBeCloseTo(0.25, 5);
+    expect(rayBox(-1, 2, 0, 2, 0, 0, 0, 0, 0, 0.5, 0.5, 0.5)).toBe(-1);
+  });
+});

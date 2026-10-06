@@ -160,18 +160,25 @@ try {
       const e = t.spawn('grunt', -2, -13, 0);
       t.tp(-2, -9.9, Math.PI);
       const st = window.__app.input.state;
+      const g = window.__app.current;
       let max = 0;
+      let arcs = 0;
+      let meter = 0;
       for (let k = 0; k < 30; k++) {
         st.setMove('t', k % 10 < 5 ? 0.7 : -0.7, 0);
         t.step(0.1);
+        g.frameUpdate(0.1, 1);
         // sight only (footsteps are heard through the wall, rightly)
         max = Math.max(max, e.rate);
+        meter = Math.max(meter, e.meter);
+        arcs = Math.max(arcs, g.hud.arcs.shown);
       }
       st.setMove('t', 0, 0);
       t.light(null);
-      return { max, level: e.level };
+      return { max, level: e.level, arcs, meter };
     });
     assert(r.max === 0, `no sight through walls (sight rate ${r.max.toFixed(2)}, ${r.level})`);
+    assert(r.arcs === 0, `a guard who only hears you through a wall shows no arc (meter ${r.meter.toFixed(2)}, ${r.arcs} arcs)`);
   });
 
   await scen('noise', async () => {
@@ -394,6 +401,10 @@ try {
       const before = reg.countOn();
       g.weapons.onRay(new t.V(0, 1.5, -10), new t.V(0, 8.6, 4));
       const out = lamp.destroyed;
+      // the far end of another strip (1.2 m from its centre) is a hit too
+      const lamp2 = reg.lights.find((l) => l.kind === 'lamp' && l.x === 9 && l.z === -9);
+      g.weapons.onRay(new t.V(9, 1, -7.8), new t.V(9, 9, -7.8));
+      const end = lamp2.destroyed;
       t.step(1.5);
       const lv = e.level;
       t.step(1);
@@ -413,9 +424,10 @@ try {
       t.step(1.5);
       const lv2 = e2.level;
       t.light(null);
-      return { before, out, lv, torch, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
+      return { before, out, end, lv, torch, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
     });
     assert(r.out, 'a shot through a bulb puts the light out');
+    assert(r.end, 'a shot at the end of a lamp strip puts it out too');
     assert(r.lv === 'investigating', `the nearest guard comes to look (${r.lv})`);
     assert(r.torch >= 1, `with a flashlight in the dark (${r.torch} on)`);
     assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);

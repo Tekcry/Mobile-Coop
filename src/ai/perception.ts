@@ -22,7 +22,7 @@ export const PERCEPTION = {
   /** Width of the focus -> peripheral blend (rad). */
   edgeBlend: 0.18,
   /** Fill rate (/s) for a fully visible, still-standing body in full light at 0 m in focus. */
-  rate: 2.6,
+  rate: 2.2,
   /** Distance falloff exponent: rate x (1 - d / range)^distPow. */
   distPow: 1.5,
   /** Within this anyone notices a moving body, whatever the light or angle (bumping into them). */
@@ -37,7 +37,7 @@ export const PERCEPTION = {
   decay: 0.18,
   /** Evidence below this rate (/s) never builds up (a dim shape at the edge of sight): the meter only
    *  rises by what exceeds it, and drains at half the decay while that is all there is. */
-  leak: 0.15,
+  leak: 0.2,
   /** Thresholds: suspicious (white arc shows and the enemy looks), investigate. Detection is 1. */
   suspicious: 0.3,
   investigate: 0.6,

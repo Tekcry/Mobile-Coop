@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.15.1 - stealth feedback
+- Lamps: a lit strip is the light's fixture: a shot anywhere along it puts it out (not only its middle), and the
+  whole strip goes dark (`LightDef.fixture`, a box hit test `rayBox`; the light rig draws fixtures as boxes). Yard
+  floodlights have housings too.
+- Awareness arcs only show for enemies that can see the player (line of sight to any body point) or are within
+  2.5 m; a guard who only hears footsteps through a wall no longer gives himself away. The meter is a little less
+  twitchy (base rate 2.2, weak-evidence leak 0.2 /s).
+
 ## 1.15.0 - 2.0 phase 3d: night vision and sonar goggles
 - Goggles (`game/vision.ts`): one button cycles off -> night vision -> sonar -> off. Gamepad View (it used to
   duplicate Start's pause), keyboard N, and a new touch button (56 px, beside reload; existing layouts get it at its

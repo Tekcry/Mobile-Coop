@@ -105,6 +105,9 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
 const SHOT_NOISE = 28;
+/** Awareness arcs: shown for enemies in line of sight or within `ARC_NEAR` m, once the meter passes `ARC_MIN`. */
+const ARC_NEAR = 2.5;
+const ARC_MIN = 0.06;
 const SUPPRESSED_NOISE = 0.6;
 const IMPACT_NOISE = 4;
 
@@ -885,8 +888,12 @@ export class GameState implements AppState {
     if (em && !this.puppet) {
       for (const e of em.enemies) {
         if (!e.alive) continue;
+        // only enemies that can see the player (or are close by) show an arc: a guard who merely heard
+        // something through a wall does not give himself away
+        const near = hyp2(e.pos.x - p.x, e.pos.z - p.z) < ARC_NEAR;
+        if (!e.inSight && !near) continue;
         const red = e.alerted && e.sinceSeen < 0.6;
-        if (!red && (e.alerted || e.meter < 0.02)) continue;
+        if (!red && (e.alerted || e.meter < ARC_MIN)) continue;
         const b = Math.atan2(e.pos.x - p.x, e.pos.z - p.z) - camYaw;
         arcs.add(Math.atan2(Math.sin(b), Math.cos(b)), e.meter, red);
       }

@@ -14,7 +14,6 @@ const BEAM = '#e07b22';
 const CRATE = '#a8784a';
 const HAZARD = '#e8b923';
 const DESK = '#8a6a4c';
-const LIGHT = '#fff1c8';
 const ROOF = '#4a4f55';
 const LAMP_OFF = '#3b3b38';
 
@@ -266,15 +265,15 @@ export const warehouse: MapDef = {
     // lamps: only some are on (pools of light, dark aisles between); each room's lamps are one circuit
     for (let x = -18; x <= 18; x += 9) {
       for (let z = -15; z <= 15; z += 6) {
-        const on = LAMPS_ON.has(`${x},${z}`);
-        b.box(x, 5.2, z, 0.25, 0.08, 2.6, on ? LIGHT : LAMP_OFF, 0, 0, false);
-        if (on) b.light({ kind: 'lamp', x, y: 5.05, z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: lampGroup(x, z) });
+        // a lit strip is the light's fixture (shoot anywhere along it; it goes dark), an unlit one is just a box
+        if (LAMPS_ON.has(`${x},${z}`)) b.light({ kind: 'lamp', x, y: 5.05, z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: lampGroup(x, z), fixture: { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15 } });
+        else b.box(x, 5.2, z, 0.25, 0.08, 2.6, LAMP_OFF, 0, 0, false);
       }
     }
     // floodlights over the dock doors and the workshop door, the yard is moonlit; indoors is dark
-    b.light({ kind: 'spot', x: -18.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20 });
-    b.light({ kind: 'spot', x: -10.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20 });
-    b.light({ kind: 'spot', x: 11.5, y: 4.6, z: -18.6, radius: 7, intensity: 0.8, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.3, 0.7), group: 20 });
+    b.light({ kind: 'spot', x: -18.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
+    b.light({ kind: 'spot', x: -10.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
+    b.light({ kind: 'spot', x: 11.5, y: 4.6, z: -18.6, radius: 7, intensity: 0.8, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.3, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
     b.ambientZone(-24, 24, -18, 18, 0.12, -1, 6.2);
     // surfaces: a gravel yard, a steel mezzanine deck and rack tops, carpeted offices
     b.surface('gravel', -27, 27, -29, -18.2);

@@ -1,4 +1,4 @@
-import { Color3, CreateSphere, Matrix, SpotLight, StandardMaterial, Vector3, type Mesh, type Scene } from '../core/babylon';
+import { Color3, CreateBox, CreateSphere, Matrix, Quaternion, SpotLight, StandardMaterial, Vector3, type Mesh, type Scene } from '../core/babylon';
 import { nearestLights, type LightDef, type LightRegistry } from './lights';
 
 /** Real lights the pool holds (quality decides how many are used, `QualityLevel.realLights`). */
@@ -21,6 +21,7 @@ const LAMP_CONE = Math.PI * 0.97;
 export class LightRig {
   private pool: SpotLight[] = [];
   private bulbs: Mesh | null = null;
+  private fixtures: Mesh | null = null;
   private bulbColors: Float32Array | null = null;
   private ids = new Int32Array(MAX_REAL_LIGHTS);
   private dist = new Float32Array(MAX_REAL_LIGHTS);
@@ -63,16 +64,36 @@ export class LightRig {
     mesh.material = mat;
     mesh.isPickable = false;
     const mtx = new Float32Array(n * 16);
+    const fmtx = new Float32Array(n * 16);
     const m = new Matrix();
+    let fixtures = 0;
     for (let i = 0; i < n; i++) {
       const l = reg.lights[i]!;
       // moving lights (enemy flashlights) have no fixed bulb
       if (l.kind === 'flashlight') continue;
+      const f = l.fixture;
+      if (f) {
+        // a fixture box instead of a bulb (it goes dark with the light)
+        Matrix.ComposeToRef(new Vector3(f.sx, f.sy, f.sz), Quaternion.Identity(), new Vector3(l.x, l.y + f.oy, l.z), m);
+        m.copyToArray(fmtx, i * 16);
+        fixtures++;
+        continue;
+      }
       Matrix.TranslationToRef(l.x, l.y, l.z, m);
       m.copyToArray(mtx, i * 16);
     }
     this.bulbCount = n;
     this.bulbColors = new Float32Array(n * 4);
+    if (fixtures) {
+      const fm = CreateBox('lightFixtures', { size: 1 }, scene);
+      fm.material = mat;
+      fm.isPickable = false;
+      fm.thinInstanceSetBuffer('matrix', fmtx, 16, true);
+      fm.thinInstanceSetBuffer('color', this.bulbColors, 4, false);
+      fm.thinInstanceRefreshBoundingInfo(false);
+      fm.freezeWorldMatrix();
+      this.fixtures = fm;
+    }
     mesh.thinInstanceSetBuffer('matrix', mtx, 16, true);
     mesh.thinInstanceSetBuffer('color', this.bulbColors, 4, false);
     mesh.thinInstanceRefreshBoundingInfo(false);
@@ -136,12 +157,14 @@ export class LightRig {
       c[i * 4 + 3] = 1;
     }
     this.bulbs.thinInstanceBufferUpdated('color');
+    this.fixtures?.thinInstanceBufferUpdated('color');
   }
 
   dispose(): void {
     for (const s of this.pool) s.dispose();
     this.bulbs?.material?.dispose();
     this.bulbs?.dispose();
+    this.fixtures?.dispose();
     this.pool.length = 0;
     this.bulbs = null;
   }

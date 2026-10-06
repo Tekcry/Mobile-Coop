@@ -464,8 +464,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   search; `callAlert` radios within `RADIO` 22 m (a radioed alert does not relay); `sightT`, `hunting`. Off (Wave),
   enemies are sent at the players and combat never cools into a search.
 - HUD: `ui/hud/awareness.ts` arcs round the crosshair (canvas, drawn only while showing; `shown / maxFill /
-  anyRed`), `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette, 2 draw calls) captured from the rig
+  anyRed`; only for enemies `inSight` or within `ARC_NEAR` 2.5 m), `Hud.setLight` meter; `vfx/lkpGhost.ts` (thin-instanced silhouette, 2 draw calls) captured from the rig
   while seen, shown at the LKP while hunted unseen (`GameState.updateStealthHud`).
+- Light fixtures: `LightDef.fixture` (box size + offset) is the shot target (`rayBox`) and is drawn by the light rig
+  as a box that goes dark with the light (Warehouse lamp strips, flood housings).
 - Light: `LightRegistry.zones` / `ambientAt` (`LevelBuilder.ambientZone`); Warehouse is a night map (yard 0.3,
   interior 0.12, `LAMPS_ON`, lamp `group` per room).
 - Bodies (3b): `Enemy.die` / `knockOut` hand the rig to `EnemyManager.addBody` -> `ai/body.ts` `Body` (a `Ragdoll`
