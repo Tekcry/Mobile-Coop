@@ -267,6 +267,15 @@ Controls:
 - [ ] Camera: standing, the operative is small in the left third of the screen with the room ahead; crouched in cover, low in the lower left (compare the Blacklist screenshots); aiming pushes in over the shoulder.
 - [ ] In cover, looking at another cover does nothing; looking at it and holding the stick towards it marks it (staying in cover); A / Space then moves there.
 
+## Stance, aim and cover (1.6.0) - Proving Grounds, then Warehouse
+- [ ] Aim and fire (with and without aiming): the gun comes up to eye level beside the head for every weapon; nothing reads as hip fire.
+- [ ] Stand, walk, jog: chest forward over the hips, knees bent; the head and gun glide with little up-and-down; footfalls feel planted, no jolts on starting, stopping or turning.
+- [ ] Crouch, crouch-walk, kneel: clearly bent over the knees.
+- [ ] Standing still, look all around with the camera: only the head turns; the gun and hands stay put until you aim.
+- [ ] In cover, move along the wall standing and crouched: a jog, and it stops a step back from each edge.
+- [ ] No cover badge on the wall you are using. Push against an outside corner: "Round corner" shows on the edge and nothing happens until you press cover; then it swings round and you stay in cover with the stick still held.
+- [ ] At an edge, aim and release quickly while moving left and right: the body never spins round or turns through the wall.
+
 ## Level horizon (1.5.1) - Warehouse
 - [ ] Vault / climb over the mezzanine railing and drop to the floor, then look all around (up, down, left, right): the horizon stays level. Repeat after taking hits and after firing the shotgun and sniper.
 

@@ -34,6 +34,10 @@ export interface RigPose {
   /** Momentary kick from firing 0..1. */
   kick: number;
   aimYaw?: number;
+  /** Head-only glance towards where the camera looks (rad, yaw right-positive / pitch up), lowered: the
+   *  gun, arms and spine stay put while the view orbits. */
+  lookYaw?: number;
+  lookPitch?: number;
   kneel?: boolean;
   /** Ready-position weights (default: low ready). */
   carry?: { low: number; high: number; compressed: number };
@@ -165,7 +169,7 @@ export const LIFT_RISE = 0.6;
 /** Knees point along the foot and this much outward (pole), so they never knock together in a side-step. */
 export const KNEE_OUT = 0.12;
 /** Closest the two knee centres may come (m): two kneecaps side by side. */
-export const KNEE_GAP = 0.12;
+export const KNEE_GAP = 0.15;
 /** A knee's centre never goes lower than this above the floor (m): the kneecap rests on it. */
 export const KNEE_FLOOR = 0.05;
 
@@ -222,6 +226,8 @@ function clrSet(k: number, a: Vector3, b: Vector3, r: number): void {
   clrCap[o + 6] = l2 > 1e-9 ? 1 / l2 : 0;
   clrCap[o + 7] = r;
 }
+/** Raised, the sight line sits this far (m) above the head centre: the eye line of the stick head. */
+const SIGHT_EYE = 0.0;
 /** Body clearance kept around the held weapon (m). */
 const CLEAR_MARGIN = 0.015;
 const tmpQ2 = new Quaternion();
@@ -300,6 +306,9 @@ export class CharacterRig {
   lift = 0;
   /** Hiding curl 0..1 (back over the knees, head tucked). */
   curl = 0;
+  /** Head-only glance (see `RigPose.lookYaw`). */
+  private lookYaw = 0;
+  private lookPitch = 0;
   /** Aiming over low cover: the weapon has cleared the top. */
   overClear = false;
   private coverTop = 0;
@@ -727,6 +736,8 @@ export class CharacterRig {
     i.raise = s.aim;
     i.kick = s.kick;
     i.aimYaw = s.aimYaw ?? 0;
+    this.lookYaw = s.lookYaw ?? 0;
+    this.lookPitch = s.lookPitch ?? 0;
     const cr = s.carry;
     i.carryLow = cr ? cr.low : 1;
     i.carryHigh = cr ? cr.high : 0;
@@ -903,11 +914,11 @@ export class CharacterRig {
     const P = this.hips.getAbsolutePosition();
     const Hc = this.headNode.getAbsolutePosition();
     // trunk (pelvis -> neck base), head ball, and the legs (solved this frame, before the weapon); legs get
-    // extra margin: the joint rate limit may still move them a little after this
+    // extra margin (a thin stick limb still reads as touching just outside its radius)
     clrSet(0, P, this.neck.getAbsolutePosition(), this.p.chest.d * 0.5 + CLEAR_MARGIN);
     clrSet(1, Hc, Hc, this.p.head.h * 0.46 + CLEAR_MARGIN);
-    const thighR = this.p.thigh.r0 + CLEAR_MARGIN + 0.02;
-    const calfR = this.p.calf.r0 + CLEAR_MARGIN + 0.02;
+    const thighR = this.p.thigh.r0 + CLEAR_MARGIN + 0.035;
+    const calfR = this.p.calf.r0 + CLEAR_MARGIN + 0.035;
     clrSet(2, this.hipL.getAbsolutePosition(), this.kneeL.getAbsolutePosition(), thighR);
     clrSet(3, this.kneeL.getAbsolutePosition(), this.ankleL.getAbsolutePosition(), calfR);
     clrSet(4, this.hipR.getAbsolutePosition(), this.kneeR.getAbsolutePosition(), thighR);
@@ -1079,8 +1090,28 @@ export class CharacterRig {
       this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1, bow);
       this.freshLegs();
     }
+    // the legs' rate limit before anything is placed against them (the weapon's clearance sees the final legs)
+    const lHip = this.limitJoint(this.hipL, dt);
+    const lh = this.limitJoint(this.kneeL, dt) || lHip;
+    const rHip = this.limitJoint(this.hipR, dt);
+    const rh = this.limitJoint(this.kneeR, dt) || rHip;
+    if (lh) {
+      fresh(this.hipL);
+      fresh(this.kneeL);
+      fresh(this.ankleL);
+    }
+    if (rh) {
+      fresh(this.hipR);
+      fresh(this.kneeR);
+      fresh(this.ankleR);
+    }
     // head: world-stabilised (eyes level): looks along the aim plus the head channel
-    Quaternion.RotationYawPitchRollToRef(yaw + this.input.aimYaw * 0.85 + t.head.yaw * 0.25, -this.input.aimPitch * 0.8 + t.head.pitch * 0.4, t.head.roll * 0.6, tmpQ);
+    Quaternion.RotationYawPitchRollToRef(
+      yaw + this.input.aimYaw * 0.85 + this.lookYaw + t.head.yaw * 0.25,
+      -this.input.aimPitch * 0.8 - this.lookPitch + t.head.pitch * 0.4,
+      t.head.roll * 0.6,
+      tmpQ,
+    );
     this.setWorldRot(this.headNode, this.neck, tmpQ);
     this.limitJoint(this.headNode, dt);
     // fresh for the weapon's clearance and the cover height control (nothing above it moves after this)
@@ -1111,6 +1142,9 @@ export class CharacterRig {
     fresh(this.weaponPivot);
     if (this.heldWeapon) {
       freshBelow(this.heldWeapon, this.weaponPivot);
+      // raised: the sight line comes level with the eye, closed loop on the posed head (any stance, hunch or
+      // lean), so an aimed or fired weapon is always up at the eye, never down at the chest
+      if (t.weld > 0.01) this.sightToEye(t.weld);
       // self-collision: the weapon never passes through the trunk or the head (pushed out before the hands
       // take it, so the grips stay in the hands)
       this.gunPush = this.clearBody();
@@ -1125,10 +1159,6 @@ export class CharacterRig {
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
     this.limitJoint(this.elbowR, dt);
-    this.limitJoint(this.hipL, dt);
-    this.limitJoint(this.hipR, dt);
-    this.limitJoint(this.kneeL, dt);
-    this.limitJoint(this.kneeR, dt);
   }
 
   /**
@@ -1138,7 +1168,7 @@ export class CharacterRig {
    */
   private jointRate = new Map<TransformNode, number>();
 
-  private limitJoint(node: TransformNode, dt: number, rate?: number): void {
+  private limitJoint(node: TransformNode, dt: number, rate?: number): boolean {
     let maxRate = rate ?? this.jointRate.get(node);
     if (maxRate === undefined) {
       maxRate = JOINT_RATE.get(node.name.split('-').pop() ?? '') ?? 20;
@@ -1148,16 +1178,18 @@ export class CharacterRig {
     const prev = this.prevRot.get(node);
     if (!prev) {
       this.prevRot.set(node, q.clone());
-      return;
+      return false;
     }
     const dot = Math.min(1, Math.abs(Quaternion.Dot(prev, q)));
     const angle = 2 * Math.acos(dot);
     const max = maxRate * Math.max(dt, 1 / 240);
-    if (angle > max) {
+    const hit = angle > max;
+    if (hit) {
       Quaternion.SlerpToRef(prev, q, max / angle, q);
       this.limited++;
     }
     prev.copyFrom(q);
+    return hit;
   }
 
   /** Set a node's world rotation through its parent. */
@@ -1264,6 +1296,23 @@ export class CharacterRig {
     // foot: world yaw from the planner, pitch from the swing (toe-off / heel strike) and the pose
     Quaternion.RotationYawPitchRollToRef(footYaw, footPitch, 0, tmpQ3);
     this.setWorldRot(ankle, knee, tmpQ3);
+  }
+
+  /** Lift (or lower) the aim pocket so the weapon's sight line sits at the head centre (eye), by `w` 0..1. */
+  private sightToEye(w: number): void {
+    const g = this.gunSpan;
+    const e = this.heldWeapon!.getWorldMatrix().m;
+    const zc = (g.z0 + g.z1) * 0.5;
+    const sightY = g.top * e[5]! + zc * e[9]! + e[13]!;
+    const dy = (this.headNode.getAbsolutePosition().y + SIGHT_EYE - sightY) * w;
+    if (Math.abs(dy) < 2e-4) return;
+    // world up -> the pocket's parent (torso) space
+    (this.weaponPivot.parent as TransformNode).getWorldMatrix().invertToRef(clrM);
+    tmpE.set(0, dy, 0);
+    Vector3.TransformNormalToRef(tmpE, clrM, tmpE);
+    this.weaponPivot.position.addInPlace(tmpE);
+    fresh(this.weaponPivot);
+    freshBelow(this.heldWeapon!, this.weaponPivot);
   }
 
   /** After the leg solves: hips and knees are fresh (each `setWorldRot` refreshes the parent); the ankles. */

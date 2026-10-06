@@ -75,7 +75,7 @@ export class Player {
   swapFrom: SwapReach = 'backC';
   swapTo: SwapReach = 'backC';
   grenadeT = -1;
-  private rigPose: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
+  private rigPose: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, lookYaw: 0, lookPitch: 0 };
   /** Seconds since the last shot and weapon mass factor (set by PlayerWeapons). */
   sinceShot = 99;
   weaponWeight = 1;
@@ -239,12 +239,11 @@ export class Player {
     root.rotation.y = c.renderYaw;
     this.kick = Math.max(0, this.kick - dt * 8);
     const cp = this.coverPose;
-    // aiming: the upper body follows the aim; not aiming the view orbits freely, so the head only
-    // glances towards where the camera looks (the spine stays with the travel direction)
+    // aiming: the upper body follows the aim; not aiming the view orbits freely and only the head glances
+    // towards where the camera looks (spine, arms and gun stay put until an action raises the weapon)
     const rel = wrapPi(this.cam.yaw - c.renderYaw);
     const raise = this.carry.raise;
-    const glance = Math.max(-0.9, Math.min(0.9, rel)) * 0.45;
-    const aimYaw = rel * raise + glance * (1 - raise);
+    const aimYaw = rel * raise;
     const w = this.carry.w;
     // the rig pose object is reused every frame (no per-frame allocation)
     const rp = this.rigPose;
@@ -255,8 +254,10 @@ export class Player {
     rp.grounded = c.grounded;
     rp.crouch = c.crouchBlend;
     rp.kneel = c.kneeling;
-    rp.aimPitch = this.cam.pitch * (0.35 + 0.65 * raise);
+    rp.aimPitch = this.cam.pitch * raise;
     rp.aimYaw = aimYaw;
+    rp.lookYaw = Math.max(-1.1, Math.min(1.1, rel)) * 0.5 * (1 - raise);
+    rp.lookPitch = Math.max(-0.6, Math.min(0.6, this.cam.pitch)) * 0.5 * (1 - raise);
     rp.aim = this.carry.raise;
     rp.carry = w;
     rp.weight = this.weaponWeight;

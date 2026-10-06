@@ -56,14 +56,14 @@ try {
   assert((await P()).kneel, 'kneels behind low cover when still');
   await frames(page, 3);
   const badge = await G(() => document.querySelector('.wp-state.show')?.textContent ?? '');
-  assert(/low cover/i.test(badge), `cover type badge on the surface (${badge})`);
+  assert(badge === '', `no cover badge on the wall in use (${badge})`);
   const vaultP = await G(() => document.querySelector('.wp-vault.show')?.textContent ?? '');
   assert(/vault/i.test(vaultP), `vault prompt on the low cover (${vaultP})`);
   assert(!(await G(() => document.querySelector('.wp-cover.show'))), 'no take-cover prompt while in cover');
   // strafe right on screen (camera faces -x, so right is +z) to the far edge
   await sim(4.6, { lx: 1 });
   c = await P();
-  assert(c.state === "in" && near(c.z, -4.22, 0.12), `strafes along the face and stops at the edge (${JSON.stringify(c)}, ${await G(() => window.__app.current.cover.sm.reason)})`);
+  assert(c.state === "in" && near(c.z, -4.45, 0.08), `strafes along the face and stops a step back from the edge (${JSON.stringify(c)}, ${await G(() => window.__app.current.cover.sm.reason)})`);
   assert(near(c.x, -4.35, 0.08), `keeps the standoff while moving (x=${c.x.toFixed(2)})`);
   const faceRight = c.face;
   const swaps0 = await G(() => window.__app.current.cover.swaps);
@@ -154,14 +154,23 @@ try {
   c = await P();
   const seg0 = c.seg;
   assert(c.state === 'in' && !c.low, `snaps to the building wall (${JSON.stringify(c)})`);
-  for (let i = 0; i < 20; i++) {
+  // pushing against the edge offers the corner (prompt on the edge); it never swings on its own
+  let offered = false;
+  for (let i = 0; i < 20 && !offered; i++) {
     await sim(0.35, { lx: 1 });
-    c = await P();
-    if (c.seg !== seg0) break;
+    await G(() => window.__pad.axis(0, 1));
+    await frames(page, 4);
+    offered = await G(() => window.__app.current.cover.cornerSide !== 0);
   }
+  const cornerP = await G(() => document.querySelector('.wp-corner.show')?.textContent ?? '');
+  await sim(1.0, { lx: 1 });
+  c = await P();
+  assert(offered && /corner/i.test(cornerP) && c.seg === seg0, `pushing against the edge shows the corner prompt and never swings on its own (${cornerP}, seg ${c.seg})`);
+  // A while pushing swings round it
+  await sim(0.8, { lx: 1, buttons: [BTN.A] });
   await sim(0.5);
   c = await P();
-  assert(c.state === 'in' && c.seg !== seg0 && near(c.z, 19.35, 0.1), `pushing past the edge swings round the outside corner onto the next face (seg ${seg0}->${c.seg}, z=${c.z.toFixed(2)})`);
+  assert(c.state === 'in' && c.seg !== seg0 && near(c.z, 19.35, 0.1), `A while pushing against the edge swings round the outside corner onto the next face (seg ${seg0}->${c.seg}, z=${c.z.toFixed(2)})`);
 
   console.log('inside corner');
   // building shell: north wall z=-18 (inner face z=-18.2) meets the east wall x=24 (inner face x=23.8)
@@ -243,10 +252,8 @@ try {
 
   console.log('prompt taps (touch)');
   const tapPrompt = (id) => G((id) => { const e = document.querySelector(`.wp-${id}.show`); if (!e) return false; e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); e.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); return true; }, id);
-  assert(await tapPrompt('state'), 'cover badge is tappable');
-  await sim(0.4);
-  c = await P();
-  assert(c.state === 'none', `tapping the cover badge leaves cover even with a target marked (${c.state})`);
+  assert(!(await tapPrompt('state')), 'no cover badge on the wall in use (nothing to tap)');
+  await G(() => window.__app.current.cover.reset());
   await tp(-3.7, -6, -Math.PI / 2);
   await sim(0.3);
   await frames(page, 3);

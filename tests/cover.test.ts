@@ -13,7 +13,7 @@ import {
   projectOnTangent,
   type CoverBox,
 } from '../src/cover/coverData';
-import { CoverStateMachine, emptyCoverInput, ENTER_TIME, VAULT_TIME, CORNER_HOLD, type CoverInput } from '../src/cover/coverState';
+import { CoverStateMachine, emptyCoverInput, ENTER_TIME, VAULT_TIME, type CoverInput } from '../src/cover/coverState';
 
 // low wall 0.6 thick (x) x 4 long (z) at the origin; high wall 0.5 x 4 at x = 10
 const low: CoverBox = { c: [0, 0.525, 0], s: [0.6, 1.05, 4], yaw: 0, pitch: 0, collide: true };
@@ -147,10 +147,11 @@ describe('cover state machine', () => {
     sm = inCover(false);
     expect(run(sm, { jumpPressed: true, low: false, canVault: false }, 1 / 60)).toBe('none');
   });
-  it('holding against an outside corner pivots round it', () => {
+  it('an outside corner is turned only with the cover button while pushing against the edge', () => {
     const sm = inCover();
-    expect(run(sm, { cornerPush: 1 }, CORNER_HOLD * 0.5)).toBe('in');
-    expect(run(sm, { cornerPush: 1 }, CORNER_HOLD)).toBe('corner');
+    // holding against it never swings on its own
+    expect(run(sm, { cornerPush: 1 }, 1)).toBe('in');
+    expect(run(sm, { cornerPush: 1, coverPressed: true }, 1 / 60)).toBe('corner');
     expect(sm.cornerSide).toBe(1);
     expect(run(sm, {}, 0.3)).toBe('corner');
     expect(run(sm, {}, 0.3)).toBe('in');

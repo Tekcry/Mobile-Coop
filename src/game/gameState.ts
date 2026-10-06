@@ -808,7 +808,6 @@ export class GameState implements AppState {
     const c = this.cover;
     const st = c.state;
     const w = this.hud.world;
-    const touch = this.app.input.mode === 'touch';
     const stateText =
       st === 'none' || st === 'vault' || st === 'dash'
         ? null
@@ -825,10 +824,13 @@ export class GameState implements AppState {
     const flanked = c.inCover && this.coverQ < 0.3 && this.expEyes.length > 0;
     const seg = c.seg;
     if (stateText && seg) {
-      const badge = flanked ? `${stateText} · flanked` : stateText;
-      this.onFace('state', touch && st === 'in' ? `${badge} · Leave` : badge, seg, c.s + c.faceDir * PROMPT_ALONG, true);
+      // nothing labels the wall being used (no cover type badge): only a warning when it stops protecting
+      this.onFace('state', flanked ? 'Flanked' : null, seg, c.s + c.faceDir * PROMPT_ALONG, true);
       this.onFace('vault', c.low && (st === 'in' || st === 'peek') ? 'Vault' : null, seg, c.s - c.faceDir * PROMPT_ALONG, true);
     } else w.set('state', null, 0, 0);
+    // round an outside corner: only offered while pushing against the edge; the cover button swings round
+    if (seg && st === 'in' && c.cornerSide !== 0) this.onFace('corner', 'Round corner', seg, c.cornerSide < 0 ? 0 : seg.len, true);
+    else w.set('corner', null, 0, 0);
     const cand = st === 'none' ? c.candidate : null;
     if (cand) this.onFace('cover', 'Take cover', cand.seg, cand.s);
     else w.set('cover', null, 0, 0);
@@ -867,7 +869,7 @@ export class GameState implements AppState {
   private onWorldPrompt(id: WorldPromptId): void {
     if (this.paused || this.exited) return;
     const inp = this.app.input.state;
-    if (id === 'cover' || id === 'move') inp.tap('cover');
+    if (id === 'cover' || id === 'move' || id === 'corner') inp.tap('cover');
     else if (id === 'vault') inp.tap('jump');
     else if (id === 'state') inp.coverLeave = true;
   }

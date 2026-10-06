@@ -5,7 +5,8 @@
 //    sprint / cover / lean / traversal (framing back to default); 360 deg looks while aiming.
 //  - cover (headless, 120 Hz render): 3 m snap with a 0.25-0.45 s glide and hand contact, slide in from a
 //    sprint, crouched edge peek at low cover, head-first peek with the weapon out in 150-250 ms and back
-//    in 150-250 ms, hand switch at a left edge in 150-200 ms, corner swing 0.4-0.6 s, sticky exit ~0.25 s,
+//    in 150-250 ms, hand switch at a left edge in 150-200 ms, corner offered (never automatic) and swung on the
+//    cover button in 0.4-0.6 s, sticky exit ~0.25 s,
 //    cover-to-cover routed round a corner, a push back cancelling the move, reload tucked in, auto
 //    shoulder to the faced side.
 import { launch, frames, assert as hard } from './e2e-lib.mjs';
@@ -388,13 +389,69 @@ try {
     st.tap('cover');
     H.run(0.6);
     st.move.x = 1;
-    H.until(() => H.cover().state === 'corner', 6);
+    // pushing against the edge offers the corner (prompt), never swings on its own
+    H.until(() => H.cover().cornerSide !== 0, 6);
+    const offered = H.cover().cornerSide;
+    H.run(1.0);
+    const held = H.cover().state;
+    st.tap('cover');
+    H.until(() => H.cover().state === 'corner', 0.2);
     const t = H.until(() => H.cover().state !== 'corner', 2);
     st.move.x = 0;
     H.run(0.3);
-    return { t, state: H.cover().state };
+    return { t, state: H.cover().state, offered, held };
   });
-  assert(cv.state === 'in' && within(cv.t, 0.4, 0.6), `corner swing ${f2(cv.t)} s (0.4-0.6 s)`);
+  assert(cv.offered !== 0 && cv.held === 'in', `corner: pushing against the edge offers it and never swings on its own (${JSON.stringify(cv)})`);
+  assert(cv.state === 'in' && within(cv.t, 0.4, 0.6), `corner swing on the cover button ${f2(cv.t)} s (0.4-0.6 s)`);
+
+  // turning to an edge peek from facing the other way: the tucked turn swings via the open side (back to the
+  // wall), never through it, and quick aim / direction changes never spin the body round
+  cv = await G(() => {
+    const H = window.__h;
+    const st = window.__app.input.state;
+    const p = window.__app.current.player;
+    const c = p.controller;
+    // high cover at x=-10 (east face x=-9.75, z 0..4; into the wall = yaw -pi/2)
+    H.tp(-8.8, 3.4, -Math.PI / 2);
+    st.tap('cover');
+    H.run(0.8);
+    st.move.x = -1; // a tap left: turn to face the left (z = 0) edge, still near the right one
+    H.run(0.12);
+    st.move.x = 0;
+    H.run(0.5);
+    p.cam.yaw = -Math.PI / 2 + 0.8; // look past the right (z = 4) edge
+    st.set('stealth-spin', 'ads', true);
+    let wall = -1;
+    let un = c.yaw;
+    let prev = c.yaw;
+    let lo = un;
+    let hi = un;
+    const track = () => {
+      if (!p.coverPose.gunClear) wall = Math.max(wall, Math.cos(c.yaw + Math.PI / 2));
+      let d = c.yaw - prev;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      prev = c.yaw;
+      un += d;
+      lo = Math.min(lo, un);
+      hi = Math.max(hi, un);
+      return false;
+    };
+    H.until(track, 1.2);
+    // quick changes: aim off / on with quick taps left and right along the wall
+    for (let k = 0; k < 8; k++) {
+      st.set('stealth-spin', 'ads', k % 2 === 1);
+      st.move.x = k % 4 < 2 ? -1 : 1;
+      H.until(track, 0.12);
+      st.move.x = 0;
+      H.until(track, 0.25);
+    }
+    st.set('stealth-spin', 'ads', false);
+    st.move.x = 0;
+    H.run(0.5);
+    return { wall, range: hi - lo, state: window.__app.current.cover.state };
+  });
+  assert(cv.wall < 0.5, `edge peek from facing away: the tucked turn never faces the wall (max ${f2(cv.wall)})`);
+  assert(cv.state === 'in' && cv.range < Math.PI * 1.25, `quick aim / direction changes in cover: no spin (yaw range ${f2(cv.range)} rad, ${cv.state})`);
 
   // reload / swap tucked in; the camera on the shoulder of the side being faced
   cv = await G(() => {

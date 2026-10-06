@@ -101,14 +101,15 @@ try {
   await page.waitForTimeout(900);
   let cst = await page.evaluate(() => window.__app.current.cover.state);
   assert(cst === 'in', `tapping the take-cover prompt on the surface takes cover (${cst})`);
-  await page.waitForSelector('.wp-state.show .wp-body', { timeout: 5000 });
-  const badgeTxt = await page.evaluate(() => document.querySelector('.wp-state.show').textContent);
-  assert(/low cover/i.test(badgeTxt) && /leave/i.test(badgeTxt), `cover badge on the surface offers leave by touch (${badgeTxt})`);
-  box = await (await page.$('.wp-state.show .wp-body')).boundingBox();
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-  await page.waitForTimeout(600);
+  await page.waitForTimeout(300);
+  const badge = await page.evaluate(() => !!document.querySelector('.wp-state.show'));
+  assert(!badge, 'no cover badge or button on the wall in use');
+  // leaving by touch: push the move stick away from the wall
+  await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, -1));
+  await page.waitForTimeout(700);
+  await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 0));
   cst = await page.evaluate(() => window.__app.current.cover.state);
-  assert(cst === 'none', `tapping the badge leaves cover (${cst})`);
+  assert(cst === 'none', `pushing away from the wall leaves cover (${cst})`);
   // pause via touch
   await page.locator('.tc-pause').tap();
   await page.waitForSelector('.pause-screen', { timeout: 5000 });

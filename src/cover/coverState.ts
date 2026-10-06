@@ -24,7 +24,8 @@ export interface CoverInput {
   fire: boolean;
   /** Input pushing away from the cover, 0..1. */
   away: number;
-  /** Pressed against an edge with an outside corner beyond it (-1 / 1), else 0. */
+  /** Pressed against an edge with an outside corner beyond it (-1 / 1), else 0: the corner prompt shows and
+   *  cover then swings round it (never on its own). */
   cornerPush: number;
   low: boolean;
   canVault: boolean;
@@ -43,7 +44,6 @@ export const ENTER_TIME = 0.35;
 export const CORNER_TIME = 0.5;
 export const VAULT_TIME = 0.55;
 export const AWAY_TIME = 0.25;
-export const CORNER_HOLD = 0.25;
 export const BLIND_RELEASE = 0.25;
 export const DASH_TIMEOUT = 2.5;
 
@@ -73,7 +73,6 @@ export class CoverStateMachine {
   /** Time in the current state. */
   t = 0;
   private awayT = 0;
-  private cornerT = 0;
   private noFireT = 0;
   /** Which corner is being pivoted (-1 / 1) while in 'corner'. */
   cornerSide = 0;
@@ -106,7 +105,6 @@ export class CoverStateMachine {
     this.t = 0;
     this.reason = why;
     this.awayT = 0;
-    this.cornerT = 0;
     this.noFireT = 0;
   }
 
@@ -151,6 +149,12 @@ export class CoverStateMachine {
           this.go('dash', 'dash');
           break;
         }
+        // round an outside corner: only on the cover button while pushing against the edge (the prompt shows)
+        if (i.coverPressed && i.cornerPush !== 0 && this.state === 'in') {
+          this.cornerSide = i.cornerPush;
+          this.go('corner', 'corner');
+          break;
+        }
         if (i.coverPressed) {
           this.go('none', 'released');
           break;
@@ -172,11 +176,7 @@ export class CoverStateMachine {
           break;
         }
         if (this.state === 'in') {
-          this.cornerT = i.cornerPush !== 0 && !i.ads ? this.cornerT + dt : 0;
-          if (this.cornerT >= CORNER_HOLD) {
-            this.cornerSide = i.cornerPush;
-            this.go('corner', 'corner');
-          } else if (i.ads) this.go('peek', 'aim');
+          if (i.ads) this.go('peek', 'aim');
           else if (i.fire) this.go('blind', 'blind');
         } else if (this.state === 'peek') {
           if (!i.ads) this.go('in', 'aim-release');

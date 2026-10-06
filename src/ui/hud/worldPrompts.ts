@@ -3,7 +3,7 @@ import { icon } from '../icons';
 import { promptHtml } from '../prompts';
 
 /** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
-export type WorldPromptId = 'cover' | 'vault' | 'state' | 'move';
+export type WorldPromptId = 'cover' | 'vault' | 'state' | 'move' | 'corner';
 
 interface Item {
   el: HTMLElement;
@@ -15,7 +15,7 @@ interface Item {
   sy: number;
 }
 
-const PROMPT_IDS: readonly WorldPromptId[] = ['cover', 'vault', 'state', 'move'];
+const PROMPT_IDS: readonly WorldPromptId[] = ['cover', 'vault', 'state', 'move', 'corner'];
 /** Overlap estimate: label width per character, padding (glyph or icon), and the row height (vw / vh). */
 const CHAR_VW = 1.25;
 const PAD_VW = 4;
@@ -24,12 +24,14 @@ const MIN_DY = 7;
 const GLYPH: Record<WorldPromptId, string> = {
   cover: promptHtml('A', 'Space'),
   move: promptHtml('A', 'Space'),
+  corner: promptHtml('A', 'Space'),
   vault: promptHtml('Y', 'E'),
   state: '',
 };
 const TOUCH_ICON: Record<WorldPromptId, string> = {
   cover: icon('cover', 18),
   move: icon('cover', 18),
+  corner: icon('cover', 18),
   vault: icon('jump', 18),
   state: icon('cover', 16),
 };

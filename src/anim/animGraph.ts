@@ -255,19 +255,20 @@ export function pickLower(i: AnimInput): LowerState {
 /** Ready-position weapon poses (offsets from the aim pocket; pitch + = muzzle down). */
 /**
  * Raised to aim, the weapon comes up to the eye (cheek weld): this offset from the rest aim pocket puts
- * the sight line under the dominant eye with the stock in the shoulder; the head dips onto the stock
+ * the sight line level with the eye, beside the head (stock high in the shoulder, elbows up); the head dips onto the stock
  * (`SIGHT_HEAD` pitch, roll toward the gun). Scaled by the aim raise.
  */
-export const SIGHT_RAISE = { x: 0.042, y: 0.12, z: 0 };
+export const SIGHT_RAISE = { x: 0.08, y: 0.215, z: 0.02 };
 export const SIGHT_HEAD = { roll: 0.15 };
 
 /** Heel strike pelvis kick (spring velocity, m/s): how hard each footfall lands. */
-export const HEEL_KICK = 1.1;
+export const HEEL_KICK = 0.45;
 /**
- * Tactical carriage with a weapon: the chest forward over the hips, knees soft, head up (eyes level) - never
- * upright like a mannequin. More bent over moving along cover; a little more leaning into a raised weapon.
+ * Tactical carriage with a weapon: the chest well forward over the hips, hips back, knees bent, head up (eyes
+ * level) - never upright like a mannequin. More bent over moving along cover and crouched (`crouch`: over the
+ * knees); a little more leaning into a raised weapon.
  */
-export const HUNCH = { spine: 0.2, pelvis: 0.05, head: 0.17, drop: 0.035, cover: 0.16, coverDrop: 0.05, aim: 0.07 };
+export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, cover: 0.2, coverDrop: 0.06, aim: 0.05, crouch: 0.34 };
 
 export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
@@ -282,7 +283,7 @@ export const READY_POSES = {
  */
 export const COVER_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, roll: 0 };
 /** Crouched / kneeling in cover: muzzle flatter and the gun carried higher, clear of the raised knee. */
-export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.12, yaw: 0.16, x: 0 };
+export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.15, yaw: 0.24, x: 0.05 };
 /** Kneeling still in cover (added to the crouched carry): out beside the kneeling leg on the open side,
  *  muzzle angled down past the knee, clear of the raised thigh and the curled chest. */
 export const COVER_READY_KNEEL = { x: 0.12, y: 0.1, pitch: -0.25, yaw: 0.15 };
@@ -611,11 +612,15 @@ export class AnimGraph {
 
     // --- tactical carriage (armed): hunched over the weapon; more bent over moving along cover
     if (i.armed) {
-      const hunch = 1 - this.dashS * 0.4;
+      // (a reload opens the chest up a little so the support arm can reach the magazine well)
+      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW);
       const along = inCover && i.cover === 'high' ? this.moveW : 0;
-      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.cover * along + HUNCH.aim * this.raiseS;
+      // crouched: bent well over the knees (half of it straightens into a raised weapon); in cover the cover
+      // hunch bends over the tucked weapon instead (the tuck stays clear of the thighs and the wall)
+      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (inCover ? 0 : 1);
+      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.cover * along + HUNCH.aim * this.raiseS + crouchBend;
       src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
-      src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - HUNCH.cover * 0.6 * along;
+      src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - HUNCH.cover * 0.6 * along - crouchBend * 0.7;
       src[CH.pelY] = src[CH.pelY]! - HUNCH.drop * hunch * (1 - crouchK * 0.6) - HUNCH.coverDrop * along;
     }
 
@@ -678,27 +683,46 @@ export class AnimGraph {
     // in cover the ready is the cover tuck: muzzle down along the wall, turned away from it (the rig mirrors
     // yaw with the hand, so the away side is relative to the hand holding it)
     this.coverReadyW = approach(this.coverReadyW, inCover ? 1 : 0, 0.25, dt);
-    const cw = this.coverReadyW;
-    const nw = 1 - cw;
+    // turning round at high cover (turn-and-swap, corner swing): the gun comes up to the high ready (muzzle up,
+    // tight in) while the hands change - nothing sticks out sideways into the wall (low cover keeps its tuck)
+    const turnK = inCover && i.cover === 'high' && i.coverTurn >= 0 ? Math.sin(Math.PI * clamp(i.coverTurn, 0, 1)) : 0;
+    const cw = this.coverReadyW * (1 - turnK);
+    const nw = 1 - this.coverReadyW;
     const awayYaw = (this.wallS === 0 ? 1 : -Math.sign(this.wallS)) * (i.hand < 0 ? -1 : 1);
     const cr = COVER_READY;
     // kneeling still (not leaning out): the carry moves out beside the kneeling leg
     const kneelK = kw * (1 - Math.min(1, Math.abs(bd)));
+    // gliding into cover the open-ground carry comes in tight to the chest (compressed) until the tuck takes
+    // over, so a low-ready muzzle never reaches into the cover or the floor on the way in
+    const enterK = inCover ? 1 - smoothstep(this.coverT / COVER_ENTER.duration) : 0;
+    cc += (cl + chh) * enterK;
+    cl *= 1 - enterK;
+    chh *= 1 - enterK;
     cl *= nw;
-    chh *= nw;
+    chh = chh * nw + this.coverReadyW * turnK;
     cc *= nw;
-    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + (cr.x + COVER_READY_CROUCH.x * crouchK + COVER_READY_KNEEL.x * kneelK) * cw) + this.blindS * (1 - blindLow) * bd * 0.22 + sight * SIGHT_RAISE.x;
-    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + (cr.y + COVER_READY_CROUCH.y * crouchK + COVER_READY_KNEEL.y * kneelK) * cw) + sway + this.blindS * (blindLow ? 0.42 : 0.1) + sight * SIGHT_RAISE.y;
+    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + (cr.x + COVER_READY_CROUCH.x * crouchK + COVER_READY_KNEEL.x * kneelK + 0.06 * this.moveW * crouchK) * cw) + this.blindS * (1 - blindLow) * bd * 0.22 + sight * SIGHT_RAISE.x;
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + (cr.y + COVER_READY_CROUCH.y * crouchK + COVER_READY_KNEEL.y * kneelK + 0.08 * this.moveW * crouchK) * cw) + sway + this.blindS * (blindLow ? 0.42 : 0.1) + sight * SIGHT_RAISE.y;
     src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sight * SIGHT_RAISE.z;
     src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS;
     this.out.weld = sight;
     this.out.aimW = raiseW;
     // crouched / kneeling the muzzle points out past the knees rather than down into them
     // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
-    const crPitch = (cr.pitch - (cr.pitch - COVER_READY_CROUCH.pitch) * crouchK) * (1 - 0.6 * Math.min(1, Math.abs(bd))) + COVER_READY_KNEEL.pitch * kneelK;
+    // turning round at low cover the tucked muzzle comes up towards level (pointing down it would reach the
+    // floor past the end of the cover as the body swings); moving crouched along cover it is carried flatter too
+    const lowTurn = inCover && i.cover === 'low' && i.coverTurn >= 0 ? Math.sin(Math.PI * clamp(i.coverTurn, 0, 1)) : 0;
+    const crPitch = ((cr.pitch - (cr.pitch - COVER_READY_CROUCH.pitch) * crouchK) * (1 - 0.6 * Math.min(1, Math.abs(bd))) + COVER_READY_KNEEL.pitch * kneelK) * (1 - 0.7 * lowTurn) - 0.3 * this.moveW * crouchK;
     src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * 0.12) / mass + sway * 2;
     src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + (cr.yaw + COVER_READY_CROUCH.yaw * crouchK + COVER_READY_KNEEL.yaw * kneelK) * cw * awayYaw) + this.blindS * (1 - blindLow) * bd * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;
     src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc + cr.roll * cw);
+    // bent over in a crouch the lowered muzzle comes up with the chest and the gun sits further out, clear of
+    // the thighs (the lowered weapon is oriented with the body, not the spine)
+    // (the open-ground carries only, crouching into cover included: the cover tucks have their own crouch pose)
+    const bendK = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * ready * nw;
+    src[CH.wpPitch] = src[CH.wpPitch]! - bendK * 1.1;
+    src[CH.wpZ] = src[CH.wpZ]! + bendK * 0.16;
+    src[CH.wpY] = src[CH.wpY]! + bendK * 0.06;
     // recoil absorbed through the shoulder and spine
     src[CH.spPitch] = src[CH.spPitch]! - rec * 0.05 / mass;
     src[CH.pelPitch] = src[CH.pelPitch]! - rec * 0.015 / mass;
@@ -727,6 +751,12 @@ export class AnimGraph {
       const rt = i.reload >= 0 ? i.reload : 1;
       overClip(src, i.reloadEmpty ? RELOAD_EMPTY : RELOAD_TACTICAL, rt, this.reloadW);
       this.slot(i.reloadEmpty ? 'reload empty' : 'reload', this.reloadW, rt);
+      // held a little further out while reloading: the support arm reaches the magazine with the elbow clear of
+      // the chest (compact guns hunched in cover would fold it in)
+      src[CH.wpZ] = src[CH.wpZ]! + 0.07 * this.reloadW;
+      // crouched / curled over, the reach to the pouch goes out to the side so the elbow clears the chest
+      src[CH.hLX] = src[CH.hLX]! - 0.09 * this.reloadW * crouchK;
+      src[CH.hLZ] = src[CH.hLZ]! + 0.05 * this.reloadW * crouchK;
     }
     if (i.swap >= 0) {
       overClip(src, swapClipFor(i.swapFrom, i.swapTo), i.swap, 1);

@@ -8,7 +8,7 @@ import { COVER_STANDOFF } from '../world/levelBuilder';
 import { awayAmount, clampAlong, coverPose, EDGE_MARGIN, findSnap, locate, nearestEdge, projectOnTangent, type CoverSegment } from './coverData';
 import { CORNER_TIME, CoverStateMachine, emptyCoverInput, VAULT_TIME, type CoverStateName } from './coverState';
 import { hyp2 } from '../core/mathx';
-import { edgeLimit, overLimit, wallLimit, type AimLimit } from './coverAim';
+import { edgeLimit, overLimit, wallLimit, wrapAngle, type AimLimit } from './coverAim';
 import { OVER_CLEAR } from '../player/characterRig';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
@@ -16,6 +16,8 @@ const ease = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * 
 
 /** Turn-and-swap when reversing direction along cover (s). */
 export const SWAP_TIME = 0.3;
+/** Strafing along a face stops this far (m) from its end: a step back from the edge, never on it. */
+export const EDGE_STOP = 0.45;
 /** Edge peek step-out: how far the body may move from the lean spot so the line of fire clears the cover (m;
  *  along the face to its end, round the corner on the standoff circle, then along the side), the search
  *  step, the lean's lateral reach of the weapon past the body centre and the muzzle reach (m). */
@@ -65,6 +67,10 @@ export class CoverController {
   s = 0;
   /** Best cover in reach (for the prompt / touch button), or null. */
   candidate: { seg: CoverSegment; s: number } | null = null;
+  /** Pushing against an edge with an outside corner beyond it (-1 / 1, else 0): the corner prompt shows and
+   *  the cover button swings round it. */
+  cornerSide: -1 | 0 | 1 = 0;
+  private cornerHeld = false;
   /** Live low/high class from probing (stacked crates, slopes). */
   low = true;
   private eng: PhysicsEngine;
@@ -302,7 +308,9 @@ export class CoverController {
     if (!next || next.len < EDGE_MARGIN * 2 + 0.2) return null;
     const cx = side < 0 ? seg.ax : seg.bx;
     const cz = side < 0 ? seg.az : seg.bz;
-    const nextS = side < 0 ? next.len - EDGE_MARGIN : EDGE_MARGIN;
+    // land a step back from the new face's end, like a strafe stop
+    const m = Math.max(EDGE_MARGIN, Math.min(EDGE_STOP, next.len * 0.5 - 0.05));
+    const nextS = side < 0 ? next.len - m : m;
     const p = coverPose(next, nextS, COVER_STANDOFF);
     const y = this.player.position.y + 0.9;
     // swing point diagonally off the corner; both legs of the swing must be clear
@@ -417,6 +425,7 @@ export class CoverController {
     ci.crouchPressed = inp.pressed('crouch');
     ci.jumpPressed = inp.pressed('jump');
     ci.dashPressed = inp.pressed('dash');
+    this.cornerSide = 0;
     const leave = inp.coverLeave && this.sm.inCover;
     inp.coverLeave = false;
     if (leave) ci.coverPressed = true;
@@ -425,12 +434,17 @@ export class CoverController {
     ci.low = this.low;
     if (seg && this.sm.inCover) {
       ci.valid = this.sm.state === 'enter' || this.sm.state === 'corner' || this.surfacePresent(dt);
-      ci.away = awayAmount(seg, w.x, w.z) * w.mag;
+      // after swinging round a corner the stick still points the old way (now away from the new face): it
+      // only counts as leaving once it has been let go
+      if (this.sm.state === 'corner') this.cornerHeld = true;
+      else if (w.mag < 0.3) this.cornerHeld = false;
+      ci.away = this.cornerHeld ? 0 : awayAmount(seg, w.x, w.z) * w.mag;
       const loc = locate(seg, p.position.x, p.position.z);
       this.s = loc.s;
       const along = projectOnTangent(seg, w.x, w.z) * w.mag;
-      const edge = clampAlong(seg, loc.s, EDGE_MARGIN + 0.04).edge;
-      if (edge !== 0 && Math.sign(along) === edge && Math.abs(along) > 0.5 && this.cornerTarget(edge)) ci.cornerPush = edge;
+      const edge = clampAlong(seg, loc.s, EDGE_STOP + 0.04).edge;
+      if (this.sm.state === 'in' && edge !== 0 && Math.sign(along) === edge && Math.abs(along) > 0.5 && this.cornerTarget(edge)) ci.cornerPush = edge;
+      this.cornerSide = ci.cornerPush as -1 | 0 | 1;
       if (ci.jumpPressed) ci.canVault = this.canVault();
       // cover-to-cover target only on intent: the stick held towards the cover AND the view looking at it
       // (SWAT turn past the edge pushed towards, else cover in the stick direction); refreshed at 5 Hz and
@@ -697,14 +711,19 @@ export class CoverController {
         yaw = this.faceYaw(seg, this.faceDir);
       }
       // the turn swings through facing away from the wall (back to it), so the weapon stays on the open side
-      if (this.swapT >= 0 && this.swapT < SWAP_TIME * 0.5) yaw = Math.atan2(seg.nx, seg.nz);
+      // (straight to the new side when already facing across low cover after aiming over it: never a full
+      // half turn away and back)
+      const outward = Math.cos(c.yaw - Math.atan2(seg.nx, seg.nz));
+      if (this.swapT >= 0 && this.swapT < SWAP_TIME * 0.5 && outward > -0.5) yaw = Math.atan2(seg.nx, seg.nz);
       crouch = this.low || this.highCrouch;
       speedAlong = along * (crouch ? MOVEMENT.coverCrouchSpeed : MOVEMENT.coverSpeed) * (this.swapT >= 0 ? 0.25 : 1);
       // brake early enough that the eased stop lands on the edge, not past it
       const cur = c.vel.x * seg.tx + c.vel.z * seg.tz;
-      const stopDist = (cur * cur) / (2 * 3) + Math.abs(cur) * 0.12;
-      const lo = EDGE_MARGIN;
-      const hi = seg.len - EDGE_MARGIN;
+      const stopDist = (cur * cur) / (2 * 4) + Math.abs(cur) * 0.1;
+      // stop with the body a step back from the end (the peek / step-out takes it to the edge)
+      const stop = Math.min(EDGE_STOP, seg.len * 0.5 - 0.05);
+      const lo = Math.max(EDGE_MARGIN, stop);
+      const hi = seg.len - lo;
       if (speedAlong > 0 && loc.s + stopDist >= hi) speedAlong = 0;
       if (speedAlong < 0 && loc.s - stopDist <= lo) speedAlong = 0;
       if (loc.s > hi + 0.02) speedAlong = (hi - loc.s) / 0.15;
@@ -816,12 +835,25 @@ export class CoverController {
       this.vel.x = dd > 1e-4 ? (dx / dd) * v : 0;
       this.vel.z = dd > 1e-4 ? (dz / dd) * v : 0;
     }
-    // big turns in cover swing through facing away from the wall (back to it), never through the wall, so the
-    // weapon in front of the chest stays on the open side
-    if (yaw !== undefined) {
-      let d = yaw - c.yaw;
-      d = Math.atan2(Math.sin(d), Math.cos(d));
-      if (Math.abs(d) > 1.75) yaw = Math.atan2(seg.nx, seg.nz);
+    // turning in cover never wraps through the blocked side: angles are measured from a safe centre and never
+    // cross its opposite. Big
+    // turns swing through the open side (the weapon in front of the chest never passes through the wall),
+    // and a quick aim swing or a flicker between side-on and aimed can never spin the body round
+    {
+      // turning to the aim (weapon clear): within the aim arc, never round behind it; any side-on / tucked
+      // turn: via facing away from the wall, never through it
+      const target = yaw ?? p.cam.yaw;
+      const lim = yaw === undefined ? p.aimLimit : null;
+      const centre = lim ? lim.yaw : Math.atan2(seg.nx, seg.nz);
+      const fc = wrapAngle(c.yaw - centre);
+      const ft = wrapAngle(target - centre);
+      const stepMax = turn * dt;
+      // already facing the blocked side (aiming across low cover): leave it the short way
+      if (Math.abs(fc) > Math.PI - 0.6) yaw = target;
+      else {
+        yaw = centre + fc + Math.max(-stepMax, Math.min(stepMax, ft - fc));
+        turn *= 1.01;
+      }
     }
     // a peek's lean / step-out follows its eased target directly (quick, like the snap glide)
     c.override = { velocity: this.vel, yaw, crouch, turnRate: turn, glide: st === 'peek' };

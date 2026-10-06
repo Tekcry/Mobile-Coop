@@ -15,14 +15,15 @@ Blacklist style.
   - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
   - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad
   - `scripts/e2e-touch.mjs` touch-only: taps menus, floating move stick, rate-based camera stick, drag-look,
-    fire button never moves the camera, control sizes, action button only for "use", take-cover / badge prompt taps
+    fire button never moves the camera, control sizes, action button only for "use", take-cover prompt tap, no cover badge in cover, a push away leaves
   - `scripts/e2e-mouse.mjs` PC mouse capture: click captures (never fires), look, fire, wheel swap, Esc pauses,
     Resume re-captures
   - `scripts/e2e-move.mjs` stealth speeds (sneak .. sprint), aim strafe/backstep, sprint toggle, aim ends a sprint, no free jump,
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
     aiming, after a sprint / cover / lean, no residual offsets, level horizon after a shake) + headless cover bars: 3 m snap glide, hand
-    contact, sticky exit, sprint slide, edge peeks, peek in/out timing, left-edge hand switch, corner swing, tuck,
+    contact, sticky exit, sprint slide, edge peeks, peek in/out timing, left-edge hand switch, corner offered and swung on the button (never automatic), no spin from quick aim /
+    direction changes, tuck,
     auto shoulder, routed cover-to-cover, push-back cancel
   - `scripts/e2e-weapons-carry.mjs` Free Roam loadout: five slots, back guns within 10 deg of the spine in six
     gaits, no clipping (both avatar styles, with a backpack), hands within 2 cm of the grips, swap reach + timing
@@ -34,8 +35,8 @@ Blacklist style.
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
   - `scripts/e2e-cover.mjs` (A cover, B crouch, Y traverse) snap side-on, turn-and-swap, kneel, peek/blind
-    fire/vault, B keeps cover, stand/crouch at high cover + crouched edge peek, lean in place, outside/inside
-    corners, SWAT turn, cover-to-cover only when looking at it with the stick held towards it + slide + marker,
+    fire/vault, B keeps cover, stand/crouch at high cover + crouched edge peek, lean in place, outside corners (corner prompt + A, never automatic) /
+    inside corners, edge stop a step back, no cover badge, SWAT turn, cover-to-cover only when looking at it with the stick held towards it + slide + marker,
     world prompts (low on the surface, tapped by touch), manual cover only (walking / sprinting into a wall never
     snaps), crouched aim over low cover, keyboard Space
   - `scripts/e2e-clip.mjs` weapon clipping sweep: every frame of wall-side movement, high / low cover (idle,
@@ -202,10 +203,11 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   pose, head-first lean (head ~60 ms ahead, body/weapon out ~0.2 s, back ~0.2 s; gated by the 0.18 s hand swap),
   breathing, recoil, heel-strike compression (`HEEL_KICK`), hit flinch (`rig.hit`, recovers 0.3-0.6 s). State
   switches trigger the `Inertializer` (offset decays critically damped per channel group, 120-250 ms).
-- Film style: gaits are exaggerated by `GAIT_STYLE` (`clips/locomotion.ts`: bob, rise, sway, twist; jog / sprint
-  keep a smaller bob so feet stay locked); armed, the body carries a tactical `HUNCH` (spine, pelvis, head forward,
-  hips lower; deeper in cover and less when aiming). Weighted steps: `MOVEMENT.rootDip` (each footfall checks then
-  pushes the root speed) + heel kick + a camera footstep kick.
+- Gait style: `GAIT_STYLE` (`clips/locomotion.ts`) keeps height smooth (small loading dip and rise, smaller still at
+  jog / sprint) and shows the weight in hip sway and twist; armed, the body carries a tactical `HUNCH` (chest well
+  forward over the hips, knees bent, head up; deeper along cover; `crouch`: bent over the knees, half of it
+  straightening into a raised weapon). Footfalls: a small `MOVEMENT.rootDip` speed check, `HEEL_KICK` and a tiny
+  camera footstep kick.
 - `FootPlanner` (world space): contacts from the gait clock while moving (landing spot = where the hip will be
   mid-stance; distance-matched to the stop point), locked while planted (< 1 cm), swing arcs with toe-off and
   heel pitch, no crossing, error-driven idle steps (turning on the spot plants steps). Side-steps are 60% length
@@ -215,7 +217,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   joint; a growing need is met at once, release eases); leg IK twist references stay defined in a deep sneak
   (kneecap away from the shin); planted feet measure reach from under the hip and toe off early at speed; a
   relaxed stance tolerates a front-back stagger (one settling step); the head is world-stabilised; the
-  weapon's orientation lags by its mass. Legs solve before the head and weapon: knees never go under
+  weapon's orientation lags by its mass. Legs solve (and are rate limited) before the head and weapon: knees never go under
   `KNEE_FLOOR` (the hips rise), knees closer than `KNEE_GAP` bow outward (steeper pole), and low cover hiding
   curls the back (`rig.curl`, graph `duck`) instead of crushing the legs. The weapon blends from the body to the
   aim by `aimW`, sits beside the head when aimed (`SIGHT_RAISE`, `NECK_WELD`), and `clearBody()` pushes it out
@@ -241,7 +243,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered at the low ready; aiming ends it via
   `cancelSprint`), aiming 1.4 / 1.0 crouched; strafe x0.9
   and backstep x0.75 only while aiming; analog by stick bands (`sneakBand`, `walkBand`, `crouchWalkBand`); cover
-  1.2 / 0.9 crouched, cover-to-cover run 3.6. Stance times: crouch 0.25 s, kneel 0.3 s, stand 0.28 s.
+  2.3 / 1.25 crouched (a jog along the wall; `COVER_MOTION` never pivots), cover-to-cover run 3.6. Stance times: crouch 0.25 s, kneel 0.3 s, stand 0.28 s.
   `ENEMY_MOTION` keeps the enemies' slower, weighted tuning.
 - `anim/motion.ts` `MotionDriver` (pure; player and enemies): first-frame response, 90% speed in 0.2-0.35 s
   (sprint <= 0.45), stops in 0.2-0.35 s (`brakeGain`), capped acceleration / deceleration / jerk (never carrying
@@ -264,14 +266,20 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   doorways, cover edges, sprinting, reloading; high in tight corridors/traversal; else low), raised only to aim or
   fire (raise ~170 ms, lower ~300 ms; `CARRY.raiseTime` x weapon `weight`), the trigger is live at
   `fireThreshold`, held `holdAfterFire` after the last shot. `PlayerWeapons` gates on `carry.canFire`.
-  Raised = a cheek weld, never hip fire: `SIGHT_RAISE` (anim graph) lifts the gun so its sight line is under the
-  dominant eye (~1 cm), the neck flexes the head onto the stock (`out.weld` -> `NECK_WELD`) and the shoulders lift
+  Raised = a cheek weld, never hip fire: `SIGHT_RAISE` (anim graph) lifts the gun so its sight line is level with
+  the eye beside the head (stock high, elbows up) and the rig closes the loop on the posed head
+  (`sightToEye`, any stance, hunch or lean), the neck flexes the head onto the stock (`out.weld` -> `NECK_WELD`) and the shoulders lift
   into it (`SHOULDER_WELD`). Ready poses (`READY_POSES`): low (stock in the shoulder, muzzle ~45 deg down across),
   compressed (tight to the chest, muzzle forward-down, never swung across into a wall), high; in cover
   `COVER_READY` (muzzle down along the wall, turned away from it, relative to the hand holding it;
-  `COVER_READY_CROUCH`: flatter and higher, clear of the knees; coming up toward level as the body leans out).
+  `COVER_READY_CROUCH`: flatter, higher and further out, clear of the knees; coming up toward level as the body
+  leans out; carried flatter moving crouched). Gliding into cover the carry is compressed until the tuck takes
+  over; turning round at high cover (turn-and-swap, corner) it goes to the high ready, at low cover the tucked
+  muzzle comes up; crouched in the open the lowered muzzle lifts with the crouch.
 - Camera (`config/camera.ts` `CAMERA` + `framing()`): free orbit - look input applies the same frame and nothing
-  holds the view back (no twist clamp, no look cap); Splinter Cell: Blacklist framing - the operative small in
+  holds the view back (no twist clamp, no look cap); lowered, looking around only turns the head
+  (`RigPose.lookYaw/lookPitch`): spine, arms and gun move with the camera only once raised (`aimYaw/aimPitch` x
+  raise); Splinter Cell: Blacklist framing - the operative small in
   the left third (boom 2.2 / ADS 1.5, shoulder 0.62 / 0.58, pivot 1.62 / crouched 1.18, height -0.08; crouched
   low in the lower left), a sneak frames a touch tighter, cover pulls back `coverBoom` to show the room. FOV is horizontal at 16:9 (`video.fovH`, default 75), Hor+. Springs
   updated every render frame: follow 80-150 ms with look-ahead, aim framing 150-250 ms, shoulder swap ~250 ms on
@@ -299,8 +307,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   (`level.cover`) are sampled from the same faces; enemies peek past the nearest edge of high cover.
 - Run-time probing (raycasts) re-checks the real cover height (stacked crates, slopes), the snap point (floor,
   clear path), inside corners/narrow gaps, vault landing, corner swings and that the surface still exists.
-- `CoverStateMachine`: none -> enter (glide) -> in <-> peek (aim) / blind (fire without aim) / corner (hold
-  against an outside edge, 0.5 s swing) ; vault (traverse at clear low cover) ; dash (cover or sprint with a
+- `CoverStateMachine`: none -> enter (glide) -> in <-> peek (aim) / blind (fire without aim) / corner (the cover
+  button while pushing against an outside edge, `cornerPush`; never automatic; 0.5 s swing; afterwards the
+  still-held stick is not "away" until released) ; vault (traverse at clear low cover) ; dash (cover or sprint with a
   marked target; a push back against it for ~0.15 s cancels) ; exits on cover with no target, sprint with no
   target, traverse at high cover (traversal may then mantle via `exitDir`), a firm push away (sticky: `away >
   0.75` for `AWAY_TIME` 0.25 s), lost surface, death. Crouch never leaves cover: it toggles standing / crouched
@@ -316,7 +325,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `SWAT_SPEED`) to collinear cover beyond a gap; pushing towards a marked target never counts as backing out of
   cover; the marker is a world prompt on the target.
 - `CoverController` (player): standoff `COVER_STANDOFF` (capsule radius + 5 cm, > body depth); strafes along
-  the tangent with predictive braking at edges; low cover hides (the rig's `lift` ducks until the head top is
+  the tangent with predictive braking, stopping `EDGE_STOP` 0.45 m short of an edge (peeks / step-out go on from
+  there); low cover hides (the rig's `lift` ducks until the head top is
   `HIDE_MARGIN` 7 cm under `coverTop`) and the over-peek stays crouched (`aimOver`: back straightened, weapon at
   the cheek, rising until the eye is `OVER_EYE` above the top, side-on until `rig.overClear`; camera eye >= top + `COVER_EYE`);
   `aimLimit` (`cover/coverAim.ts`, pure: edge / over / wall arcs, pitch floor over low cover) clamps the camera
@@ -326,7 +336,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   the corner, `stepPoint`: along the face, round the edge on the standoff circle, along the side; `neededStep`
   checks the fire line and that the path is free; `EDGE_BACK` lets the aim come 0.7 rad back across the cover), the body
   stays side-on facing the edge and the weapon tucked (`pose.gunClear` -> graph `peekClear`) until the line is
-  clear, then turns to the aim; big turns in cover swing through facing away from the wall (back to it); edge peeks lean out past the edge and
+  clear, then turns to the aim; every turn in cover is measured from a safe centre and never wraps through its opposite (side-on / tucked:
+  via facing away from the wall, never through it; turning to the aim: within the aim arc), so quick aim and
+  direction changes never spin the body; already facing across low cover it leaves the short way; edge peeks lean out past the edge and
   move the camera to that shoulder (restored after); the head leads and the weapon is out in ~0.2 s; at a left
   edge the weapon changes hands (`HAND_SWAP_TIME` 0.18 s, `rig.leftHanded`) before the lean; leaving pushes off
   (`EXIT_PUSH` 0.9 m/s over 0.45 s); blind fire = spread x3 and minimal exposure. Moves are played big (film):
@@ -335,13 +347,13 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   Exposure is physical: the hit volumes follow the posed rig (ducking lowers them); enemies seeing only the
   head aim at it (`Damageable.headPoint`).
 - Input: cover is manual only (no auto-snap): action `cover` = controller A, keyboard Space or a tap on the
-  take-cover / cover-to-cover prompt; tapping the cover badge sets `InputState.coverLeave` (leave even with a
-  target marked). `dash` (sprint) = L3 / touch sprint button (stick flick optional) / Shift. Setting:
+  take-cover / cover-to-cover / corner prompt; leaving is the cover button (no target) or a firm push away. `dash` (sprint) = L3 / touch sprint button (stick flick optional) / Shift. Setting:
   `gameplay.coverDash` (cover-to-cover, default on).
 - World prompts (`WorldPrompts`, layer `.hud-world` above the touch layer, below menus; `GameState.updateCoverHud`):
   `cover` on the candidate face, `vault` on the traversal obstacle (`TraversalController.hintAt`; beside the cover
-  prompt when both apply), `state` badge and in-cover `vault` along the face in use (on the low cover's top edge,
-  since the camera looks over it), `move` on the cover-to-cover target. One height per surface: `seg.y +
+  prompt when both apply), in-cover `vault` along the face in use (on the low cover's top edge, since the camera
+  looks over it), no badge on the face in use (`state` only warns "Flanked"), `corner` on the edge while pushing
+  against an outside corner (`CoverController.cornerSide`), `move` on the cover-to-cover target. One height per surface: `seg.y +
   min(PROMPT_Y 0.55, height / 2)`; `flush()` pushes overlapping prompts apart and keeps them on screen. Glyphs by
   pad / keyboard, icons and tap-to-act by touch.
 

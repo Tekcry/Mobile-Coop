@@ -133,7 +133,9 @@ try {
       window.__app.current.player.controller['crouchToggled'] = false;
       return { worst, minUp, clips };
     }, inp);
-    assert(r.worst <= 10 && r.minUp > 0.7, `${name}: back guns within ${f2(r.worst)} deg of the spine, muzzle up (bore up ${f2(r.minUp)})`);
+    // crouched the operative is bent over the knees, so the back guns lean forward with the spine
+    const upMin = name === 'crouch walk' ? 0.35 : 0.7;
+    assert(r.worst <= 10 && r.minUp > upMin, `${name}: back guns within ${f2(r.worst)} deg of the spine, muzzle up (bore up ${f2(r.minUp)} > ${upMin})`);
     assert(r.clips.length === 0, `${name}: nothing clips (${r.clips.join(', ') || 'none'})`);
   }
 

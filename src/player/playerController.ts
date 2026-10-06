@@ -51,10 +51,12 @@ export interface PlayerInput {
   reloading: boolean;
 }
 
-/** Motion caps for cover-driven moves: snappier so the standoff controller stays stable. */
-const COVER_MOTION = { ...MOVEMENT, accelMax: 3, decelMax: 4, jerkMax: 30, velGain: 10, startShift: 0.12, rootDip: 0.02 };
+/** Motion caps for cover-driven moves: snappier so the standoff controller stays stable; a jog along the wall
+ *  gets up to pace quickly. Never a planted pivot in cover: reversing along the wall is a turn-and-swap (the
+ *  cover controller owns the facing). */
+const COVER_MOTION = { ...MOVEMENT, accelMax: 6, decelMax: 7, jerkMax: 60, velGain: 10, startShift: 0.08, rootDip: 0.01, pivotMinSpeed: 99 };
 /** Cover snap glide: the path is already eased (cover controller), the driver just follows it. */
-const GLIDE_MOTION = { ...MOVEMENT, accelMax: 40, decelMax: 40, jerkMax: 2000, velGain: 40, brakeGain: 40, startShift: 0, rootDip: 0.02 };
+const GLIDE_MOTION = { ...MOVEMENT, accelMax: 40, decelMax: 40, jerkMax: 2000, velGain: 40, brakeGain: 40, startShift: 0, rootDip: 0.01, pivotMinSpeed: 99 };
 
 const UP = new Vector3(0, 1, 0);
 const DOWN = new Vector3(0, -1, 0);

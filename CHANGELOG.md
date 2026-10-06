@@ -1,5 +1,27 @@
 # Changelog
 
+## 1.6.0 - Tactical stance, sights at the eye, smooth gait, cover jog and corner prompt
+- Aiming and firing bring the weapon up to eye level beside the head (stock high, elbows up), so shooting never
+  reads as hip fire.
+- Tactical stance: chest well forward over the hips, knees bent, head up; crouched the operative is bent over the
+  knees (straightening a little into a raised weapon).
+- Smooth, weighted gait: much less up-and-down (head and weapon glide), the weight shown in the hip sway and
+  twist; the per-step speed pulse, heel kick and camera footstep dip are small.
+- Looking around with the camera only turns the head; the gun, hands and spine move only when you aim or fire.
+- Cover: moving along a wall is a jog (2.3 m/s standing, 1.25 crouched) and gets up to pace quickly; the
+  operative stops a step back from an edge instead of on it.
+- The weapon stays clear of walls, floor and body through the new poses: compressed while gliding into cover,
+  high ready while turning round at high cover, a lifted muzzle crouched, the arms opened up for a reload.
+- Cover corners are never turned automatically: pushing against an outside corner shows a "Round corner" prompt
+  on the edge, and the cover button (A / Space / tap) swings round it. Holding the stick on afterwards no longer
+  pushes you out of the new wall.
+- No cover badge on the wall you are using (only a "Flanked" warning); leave with the cover button or by pushing
+  away.
+- Fix: the body could spin round on the spot when aiming at cover edges while moving quickly. Turns in cover never
+  pass through the wall or wrap round, and cover moves never trigger the open-ground planted pivot.
+- Tests: e2e-cover (corner prompt + button, no badge, edge stop), e2e-stealth (corner never automatic, no spin,
+  tucked turns never face the wall), e2e-touch (no badge, push away leaves), unit test for the corner button.
+
 ## 1.5.1 - Level horizon after shakes
 - Fix: the view could stay tilted after a hard landing (vaulting off the Warehouse mezzanine), a hit, an
   explosion or shotgun / sniper fire, changing as you turned and only clearing on the next shake. The engine

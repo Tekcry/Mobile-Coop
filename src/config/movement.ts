@@ -16,8 +16,8 @@ export const MOVEMENT = {
   adsSpeed: 1.4,
   adsCrouchSpeed: 1.0,
   /** Shuffling along cover (standing / crouched). */
-  coverSpeed: 1.2,
-  coverCrouchSpeed: 0.9,
+  coverSpeed: 2.3,
+  coverCrouchSpeed: 1.25,
   /** Cover-to-cover run (low, fast). */
   coverRunSpeed: 3.6,
   /** Moving while reloading / swapping. */
@@ -43,7 +43,7 @@ export const MOVEMENT = {
   stepLen0: 0.3,
   stepLenK: 0.2,
   /** Speed dip at each heel strike (fraction), mean 1 over the stride: each step lands and pushes off. */
-  rootDip: 0.08,
+  rootDip: 0.025,
   /** Facing the travel direction (not aiming): turn rate at sneak pace and at sprint (rad/s). */
   turnTravelSlow: (540 * Math.PI) / 180,
   turnTravelFast: (300 * Math.PI) / 180,
@@ -115,7 +115,8 @@ export const MOVEMENT_RANGES: Partial<Record<MovementKey, [number, number, numbe
   sprintSpeed: [3, 7, 0.1],
   adsSpeed: [0.5, 2.5, 0.05],
   adsCrouchSpeed: [0.4, 2, 0.05],
-  coverSpeed: [0.4, 2, 0.05],
+  coverSpeed: [0.4, 3.5, 0.05],
+  coverCrouchSpeed: [0.4, 3, 0.05],
   strafeMult: [0.5, 1, 0.01],
   backMult: [0.4, 1, 0.01],
   accelMax: [2, 25, 0.5],

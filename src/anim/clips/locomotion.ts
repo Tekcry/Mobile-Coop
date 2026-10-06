@@ -10,11 +10,11 @@
 import { makeClip, mirrorClip, type Clip } from '../clip';
 
 /**
- * Movie-style exaggeration of every gait cycle (a stealth action film, not a documentary): the loading dip
- * (weight landing), the hip sway and the hip / chest twist are played this much bigger than life.
+ * Gait styling against life size: height stays smooth (a small loading dip and rise, so the head and the
+ * weapon glide), while the weight shows in the hip sway and the hip / chest twist.
  */
-export const GAIT_STYLE = { bob: 1.8, rise: 1.1, sway: 1.5, twist: 1.5 };
-// (the jog and sprint keep a smaller dip: at speed a deeper one would let the planted foot slip)
+export const GAIT_STYLE = { bob: 0.55, rise: 0.5, sway: 1.2, twist: 1.3 };
+// (the jog and sprint keep an even smaller dip: at speed the body glides on bent knees)
 /** Two-step periodic shape: value at heel strike, loading dip, mid-stance, per side. */
 const bob = (base: number, dip: number, rise: number, k = GAIT_STYLE.bob): number[] => {
   const d = dip * k;
@@ -109,7 +109,7 @@ export const JOG = makeClip({
   duty: 0.48,
   liftH: 0.12,
   keys: {
-    pelY: bob(-0.07, 0.025, 0.012, 1.25),
+    pelY: bob(-0.07, 0.025, 0.012, 0.5),
     pelX: sway(0.014),
     pelRoll: sway(0.035),
     pelYaw: twist(0.1),
@@ -125,7 +125,7 @@ export const DASH = makeClip({
   duty: 0.42,
   liftH: 0.16,
   keys: {
-    pelY: bob(-0.13, 0.03, 0.02, 1),
+    pelY: bob(-0.13, 0.03, 0.02, 0.45),
     pelX: sway(0.012),
     pelRoll: sway(0.03),
     pelYaw: twist(0.12),

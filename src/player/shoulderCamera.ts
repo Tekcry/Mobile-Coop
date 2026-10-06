@@ -150,7 +150,7 @@ export class ShoulderCamera {
 
   /** A footstep landed (heel strike): a tiny damped dip of the view (strength ~0..1). */
   footstep(strength = 1): void {
-    this.sBob.kick(-0.17 * Math.min(1.5, strength));
+    this.sBob.kick(-0.05 * Math.min(1.5, strength));
   }
 
   /** Snap the rendered view to the targets (teleport, respawn). */
