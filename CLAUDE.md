@@ -69,7 +69,8 @@ Blacklist style.
   - `scripts/e2e-stealth-ai.mjs` night Warehouse: shadow vs light detection, the arc warns first, no sight through
     walls, noise -> suspicious -> investigating, squad radio, LKP + ghost + converge + search ends, patrols
   - `scripts/e2e-coop.mjs` two pages over `?net=local` (a third for PvP): lobby, wave match, validated hits, revive, results;
-    Hunter (puppet alert levels, door sync, a client door use, a client takedown, a client reviving the host),
+    Hunter (puppet alert levels, door sync, a client door use, a client takedown, kept / hidden bodies, pings both
+    ways, a client execute, a client gas cloud on the host's guards, a dual takedown, a client reviving the host),
     Infiltration objectives on the client, Team Deathmatch (teams, opponents-only hit volumes, no friendly fire,
     a validated elimination, respawn, results) and Free-for-all; host leaving, offline
   - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
@@ -147,10 +148,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   cover-to-cover), B `crouch` (stand / crouch at high cover), Y `jump` + `interact` (contextual: an interactable
   in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
   R3 shoulder, RB/LB weapons (RB `mark` while aiming), D-pad up `grenade` (the gadget: hold aims the arc, release
-  throws), D-pad down `gadgetWheel` (hold), right / left emotes, View `vision` (goggles);
+  throws), D-pad down `gadgetWheel` (hold), right emote, left `ping` (co-op), View `vision` (goggles);
   Y also takedown / execute (contextual). Keyboard: Space cover, C / Ctrl crouch, Shift sprint, E traverse /
   interact / takedown, R reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold), 1-8 pick
-  a gadget (`InputState.gadgetPick`), J / K / L emotes; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
+  a gadget (`InputState.gadgetPick`), J / K / L emotes, Z ping; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
   smoothing, so releasing never steps the rate).
 - Touch (`input/touchControls.ts`): pointer handlers only record state; `update(dt)` (per frame, from
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
@@ -712,6 +713,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   host enemy (denied -> `tdDenied`). The host hears clients (footsteps by `noiseRadius`, shots by `PF.firing`,
   `PF.quiet` = suppressed). Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` /
   `onRespawn`); everyone down -> the mode.
+- Co-op depth (2.1): bodies - the host lists lying bodies (`Body.enemyId`, not hidden / carried) in `snap.bodies`
+  when it changes; clients keep those ragdolls (`keep`, `BODY.max`) and drop the ones it leaves out. Pings
+  (action `ping`: D-pad left, Z, touch `ping` in co-op): `GameState.sendPing` (aim ray) -> `NetAttachment.ping` ->
+  `ping` msg / event (host rate 0.8 s, near the sender), `GameState.addPing` + `ui/hud/pings.ts` (follows a pinged
+  guard, edge arrows off screen). Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the
+  host relays them (`gadget` msg / event, 1 s rate, <= 40 m) and runs `remoteEffect` on its guards. Mark &
+  Execute on clients: a client takedown earns `RemotePlayer.execCharges` (<= 3); shots with `ex` open a 5 s /
+  5-shot window that kills outright. Dual takedowns: two players finishing within `DUAL_WINDOW` 1.5 s ->
+  banner (relayed) + style.
 - PvP fairness: `pvpLoadout` (base damage), no suit / HQ in `tdm | ffa`, `maxHitDamage(def, head, false)` on the host.
 - PvP (`net/pvp.ts`, pure: `PvpScore`, `pickSpawn`, `balanceTeam`, `pvpInfo`): `GameState.pvp` (no AI / mode;
   pickups only); the host owns the score (`frag` events, `score` + `tl` in snapshots), respawns (`PVP.respawn`,

@@ -20,6 +20,9 @@ export const MAX_DOORS = 96;
 const WORLD = 400;
 
 /** Co-op: wave, free roam, Hunter (`clear`), Infiltration. PvP: team deathmatch (4v4), free-for-all (8). */
+/** Gadgets whose effect crosses the net. */
+export type NetGadget = 'gas' | 'flash' | 'emp' | 'noise';
+export const NET_GADGETS: readonly NetGadget[] = ['gas', 'flash', 'emp', 'noise'];
 export type NetMode = 'wave' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa';
 export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infiltration', 'tdm', 'ffa'];
 export const isPvp = (m: NetMode | string): m is 'tdm' | 'ffa' => m === 'tdm' || m === 'ffa';
@@ -110,7 +113,11 @@ export type NetEvent =
   /** PvP: `victim` eliminated by `by` (equal = self / world). */
   | { e: 'frag'; victim: string; by: string; head: boolean }
   /** Co-op: a takedown the host refused (the client lets go of its puppet). */
-  | { e: 'tdDenied'; player: string; enemy: string };
+  | { e: 'tdDenied'; player: string; enemy: string }
+  /** A ping by `player` at a spot or on an enemy (`target`, '' = the spot). */
+  | { e: 'ping'; player: string; x: number; y: number; z: number; target: string }
+  /** A player's gadget went off / stuck there (gas, flashbang, EMP, noisemaker): everyone sees it. */
+  | { e: 'gadget'; player: string; kind: NetGadget; x: number; y: number; z: number };
 
 export interface EndStats {
   won: boolean;
@@ -131,13 +138,17 @@ export type Msg =
   | { t: 'team'; team: number }
   | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string }
   | { t: 'pstate'; s: PlayerState }
-  | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
+  | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number; ex: boolean }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; score?: ScoreLine[]; tl?: number }
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; score?: ScoreLine[]; tl?: number; bodies?: string[] }
   /** Client used a mirrored item (the host checks reach and that it is usable). */
   | { t: 'use'; id: string }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean }
+  /** Client ping (the host relays it to everyone). */
+  | { t: 'ping'; x: number; y: number; z: number; target: string }
+  /** Client gadget effect (the host applies it to its guards and tells everyone). */
+  | { t: 'gadget'; kind: NetGadget; x: number; y: number; z: number }
   | { t: 'ev'; events: NetEvent[] }
   | { t: 'emote'; id: string }
   /** Client grenade detonation (host validates distance and applies damage). */
@@ -306,6 +317,22 @@ function netEvent(v: unknown): NetEvent | null {
       const enemy = id(v.enemy);
       return player && enemy ? { e: 'tdDenied', player, enemy } : null;
     }
+    case 'gadget': {
+      const player = id(v.player);
+      const kind = oneOf(v.kind, NET_GADGETS);
+      const x = num(v.x, -WORLD, WORLD);
+      const y = num(v.y, -50, 100);
+      const z = num(v.z, -WORLD, WORLD);
+      return player && kind && x !== null && y !== null && z !== null ? { e: 'gadget', player, kind, x, y, z } : null;
+    }
+    case 'ping': {
+      const player = id(v.player);
+      const x = num(v.x, -WORLD, WORLD);
+      const y = num(v.y, -50, 100);
+      const z = num(v.z, -WORLD, WORLD);
+      if (!player || x === null || y === null || z === null) return null;
+      return { e: 'ping', player, x, y, z, target: id(v.target) ?? '' };
+    }
     default:
       return null;
   }
@@ -390,6 +417,20 @@ export function parseMessage(raw: unknown): Msg | null {
       const iid = id(raw.id);
       return iid ? { t: 'use', id: iid } : null;
     }
+    case 'gadget': {
+      const kind = oneOf(raw.kind, NET_GADGETS);
+      const x = num(raw.x, -WORLD, WORLD);
+      const y = num(raw.y, -50, 100);
+      const z = num(raw.z, -WORLD, WORLD);
+      return kind && x !== null && y !== null && z !== null ? { t: 'gadget', kind, x, y, z } : null;
+    }
+    case 'ping': {
+      const x = num(raw.x, -WORLD, WORLD);
+      const y = num(raw.y, -50, 100);
+      const z = num(raw.z, -WORLD, WORLD);
+      if (x === null || y === null || z === null) return null;
+      return { t: 'ping', x, y, z, target: id(raw.target) ?? '' };
+    }
     case 'td': {
       const target = id(raw.target);
       const ph = oneOf(raw.ph, ['start', 'done', 'abort'] as const);
@@ -430,6 +471,7 @@ export function parseMessage(raw: unknown): Msg | null {
         rt: num(raw.rt, 0, 1e7) ?? 0,
         dist: num(raw.dist, 0, 300) ?? 0,
         dmg: num(raw.dmg, 0, 1000) ?? 0,
+        ex: raw.ex === true,
       };
     }
     case 'snap': {
@@ -450,6 +492,7 @@ export function parseMessage(raw: unknown): Msg | null {
         out.doors = ds;
       }
       if (Array.isArray(raw.score)) out.score = raw.score.slice(0, MAX_PLAYERS).map(scoreLine).filter((l): l is ScoreLine => !!l);
+      if (Array.isArray(raw.bodies)) out.bodies = raw.bodies.slice(0, MAX_ENEMIES).map((b) => id(b)).filter((b): b is string => !!b);
       const tl = num(raw.tl, 0, 3600);
       if (tl !== null) out.tl = tl;
       return out;

@@ -28,6 +28,8 @@ export const BUTTON_ACTIONS = [
   /** Mark the enemy under the crosshair (aiming) / run Mark & Execute when ready. */
   'mark',
   'execute',
+  /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
+  'ping',
   'quick1',
   'quick2',
   'quick3',

@@ -33,6 +33,7 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   mark: { id: 'mark', action: 'mark', size: 56, icon: 'mark', label: 'Mark (while aiming)' },
   execute: { id: 'execute', action: 'execute', size: 76, icon: 'execute', label: 'Execute (when ready)' },
   takedown: { id: 'takedown', action: 'interact', size: 72, icon: 'interact', label: 'Takedown (when on offer: tap knocks out, hold is lethal)' },
+  ping: { id: 'ping', action: 'ping', size: 56, icon: 'mark', label: 'Ping (co-op)' },
 };
 
 /** What the contextual action button does right now. */

@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.0 (in progress) - Co-op depth, multi-level AI, new maps
+- Co-op: bodies stay down on every screen (and vanish for everyone when hidden, carried or revived); team pings
+  (D-pad left / Z / the touch Ping button: marks the spot or the guard under the crosshair, in your colour, with
+  an edge arrow when off screen); clients use Mark & Execute (a takedown earns the charge, checked by the host);
+  clients' gas, flashbangs, EMPs and noisemakers act on the host's guards and show for everyone; two takedowns
+  within 1.5 s are a Dual Takedown.
+
 ## 2.0.1 - Feedback: menus, back buttons, calmer guards, fair PvP
 - Main menu: a compact two-column grid (Play across the top) that fits a landscape phone; every menu that
   overflows scrolls by touch (drags inside any scrolling list are no longer swallowed as game gestures).

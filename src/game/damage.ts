@@ -18,6 +18,8 @@ export interface HitInfo {
   impulse: number;
   /** Knock out instead of killing (crossbow sleep bolts). */
   nonLethal?: boolean;
+  /** A Mark & Execute shot (co-op: the host lets it kill once the shooter's charge is checked). */
+  execute?: boolean;
 }
 
 export interface DamageResult {

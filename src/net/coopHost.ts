@@ -33,6 +33,11 @@ const SHOT_NOISE = 28;
 /** A client takedown: the victim within this of the client (m), and let go after this long without an outcome (s). */
 const TD_REACH = 3;
 const TD_MAX = 6;
+/** Two takedowns by different players this close together (s) make a dual takedown. */
+const DUAL_WINDOW = 1.5;
+/** A client's execute: open this long (s) for this many kill shots once a charge is spent. */
+const EXEC_WINDOW = 5;
+const EXEC_SHOTS = 5;
 
 interface Hist {
   t: number;
@@ -69,6 +74,7 @@ export class CoopHost implements NetAttachment {
   private itemsT = 0;
   private itemsSig = '';
   private doorsSig = '';
+  private bodiesSig = '';
   private history = new Map<string, Hist[]>();
   private selfHist: Hist[] = [];
   private tallies = new Map<string, Tally>();
@@ -183,6 +189,37 @@ export class CoopHost implements NetAttachment {
       this.push({ e: 'boom', x: pos.x, y: pos.y, z: pos.z, r });
     };
     g.onEmote = (id) => this.push({ e: 'emote', player: this.s.selfId, id });
+    // the host's own gas / flash / EMP / noisemaker: everyone sees it
+    g.gadgets.onLocal = (kind, at) => {
+      if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') this.push({ e: 'gadget', player: this.s.selfId, kind, x: at.x, y: at.y, z: at.z });
+    };
+    this.offs.push(
+      g.events.on('takedown', (e) => {
+        if (e.phase === 'done') this.takedownDone(this.s.selfId);
+      }),
+    );
+  }
+
+  /** Takedowns finished by two players within `DUAL_WINDOW` s: a dual takedown. */
+  private lastTd: { by: string; t: number } | null = null;
+  /** Dual takedowns this match (tests). */
+  duals = 0;
+
+  private takedownDone(by: string): void {
+    // a remote's takedown earns it an execute charge (the host checks its execute shots against it)
+    const rr = this.remotes.get(by);
+    if (rr) rr.execCharges = Math.min(3, rr.execCharges + 1);
+    const l = this.lastTd;
+    if (l && l.by !== by && this.time - l.t <= DUAL_WINDOW) {
+      const sub = `${this.name(l.by)} + ${this.name(by)}`;
+      this.g.hud.banner('DUAL TAKEDOWN', sub, 1800);
+      this.push({ e: 'banner', title: 'DUAL TAKEDOWN', sub });
+      this.duals++;
+      this.g.style.record('takedownNonLethal', this.g.detected);
+      this.lastTd = null;
+      return;
+    }
+    this.lastTd = { by, t: this.time };
   }
 
   private push(e: NetEvent): void {
@@ -398,6 +435,24 @@ export class CoopHost implements NetAttachment {
       case 'td':
         this.onTakedown(r, msg);
         break;
+      case 'gadget': {
+        // thrown from near the sender, one a second at most
+        const last = this.gadgetAt.get(r.id) ?? -9;
+        if (!r.alive || this.time - last < 1 || hyp2(msg.x - r.feet.x, msg.z - r.feet.z) > 40) return;
+        this.gadgetAt.set(r.id, this.time);
+        this.g.gadgets.remoteEffect(msg.kind, new Vector3(msg.x, msg.y, msg.z));
+        this.push({ e: 'gadget', player: r.id, kind: msg.kind, x: msg.x, y: msg.y, z: msg.z });
+        break;
+      }
+      case 'ping': {
+        // one a second at most, from somewhere near the sender
+        const last = this.pingAt.get(r.id) ?? -9;
+        if (this.time - last < 0.8 || hyp2(msg.x - r.feet.x, msg.z - r.feet.z) > 150) return;
+        this.pingAt.set(r.id, this.time);
+        this.push({ e: 'ping', player: r.id, x: msg.x, y: msg.y, z: msg.z, target: msg.target });
+        this.g.addPing(r.id, msg.x, msg.y, msg.z, msg.target, this.color(r.id));
+        break;
+      }
     }
   }
 
@@ -446,6 +501,7 @@ export class CoopHost implements NetAttachment {
     if (m.lethal) e.applyDamage(hit);
     else e.knockOut(hit);
     this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2);
+    this.takedownDone(r.id);
   }
 
   private release(eid: string): void {
@@ -502,8 +558,20 @@ export class CoopHost implements NetAttachment {
     const feet = new Vector3();
     const pose = this.rewindHist(this.history.get(enemy.id), m.rt, feet);
     if (!pose) enemy.center(feet).addInPlaceFromFloats(0, -1, 0);
-    const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
+    let dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
     if (dmg <= 0) return;
+    // Mark & Execute: a kill shot while an execute is open (a charge opens one; a few shots, a few seconds)
+    if (m.ex) {
+      if (r.execUntil < this.time && r.execCharges > 0) {
+        r.execCharges--;
+        r.execUntil = this.time + EXEC_WINDOW;
+        r.execLeft = EXEC_SHOTS;
+      }
+      if (r.execUntil >= this.time && r.execLeft > 0) {
+        r.execLeft--;
+        dmg = 9999;
+      }
+    }
     const aim = (m.part === 'head' ? this.tmpH : this.tmpB).clone();
     enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
   }
@@ -559,6 +627,20 @@ export class CoopHost implements NetAttachment {
     };
   }
 
+  private pingAt = new Map<string, number>();
+  private gadgetAt = new Map<string, number>();
+
+  private color(id: string): string {
+    return this.s.players.get(id)?.tag.color ?? '#4fdc7c';
+  }
+
+  /** The host's own ping: shown here and sent to everyone. */
+  ping(x: number, y: number, z: number, target: string): void {
+    const me = this.s.selfId;
+    this.push({ e: 'ping', player: me, x, y, z, target });
+    this.g.addPing(me, x, y, z, target, this.color(me));
+  }
+
   /** Usable things clients mirror (bodies and hiding spots stay with whoever is carrying). */
   private items(): NetItem[] {
     const out: NetItem[] = [];
@@ -592,14 +674,20 @@ export class CoopHost implements NetAttachment {
     // items and doors when they change (and every few seconds for late joiners)
     const items = this.items();
     const doors = this.doors();
+    // bodies still lying (not carried off, hidden or revived): clients keep those ragdolls
+    const bodies: string[] = [];
+    for (const b of this.g.enemyMgr?.bodies ?? []) if (b.enemyId && !b.hidden && !b.carried && bodies.length < MAX_ENEMIES) bodies.push(b.enemyId);
+    const bsig = bodies.join();
     const isig = items.map((i) => `${i.id}${i.on ? 1 : 0}${i.label}`).join();
     const dsig = doors.join();
-    if (isig !== this.itemsSig || dsig !== this.doorsSig || this.itemsT <= 0) {
+    if (isig !== this.itemsSig || dsig !== this.doorsSig || bsig !== this.bodiesSig || this.itemsT <= 0) {
       this.itemsSig = isig;
       this.doorsSig = dsig;
+      this.bodiesSig = bsig;
       this.itemsT = ITEMS_EVERY;
       snap.items = items;
       snap.doors = doors;
+      snap.bodies = bodies;
     }
     if (this.score) {
       snap.score = this.score.lines();
@@ -818,5 +906,6 @@ export class CoopHost implements NetAttachment {
     for (const r of this.remotes.values()) r.dispose();
     this.remotes.clear();
     this.g.remotePlayers = () => [];
+    this.g.gadgets.onLocal = null;
   }
 }

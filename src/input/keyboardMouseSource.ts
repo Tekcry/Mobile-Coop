@@ -30,6 +30,7 @@ const KEYMAP: Record<string, ButtonAction[]> = {
   KeyJ: ['quick2'],
   KeyK: ['quick3'],
   KeyL: ['quick4'],
+  KeyZ: ['ping'],
 };
 
 const UI_TAPS: Record<string, ButtonAction> = {

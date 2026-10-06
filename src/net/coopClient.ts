@@ -4,6 +4,7 @@ import type { Blip } from '../ui/hud/minimap';
 import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
 import { BUDGET } from '../physics/groups';
+import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
@@ -32,6 +33,8 @@ export class CoopClient implements NetAttachment {
   private puppetList: EnemyPuppet[] = [];
   private targets = new Map<string, PvpTarget>();
   private ragdolls: Ragdoll[] = [];
+  /** Bodies the host still has lying, by enemy id (dropped when its `snap.bodies` leaves one out). */
+  private kept = new Map<string, Ragdoll>();
   private dying: EnemyPuppet[] = [];
   private clock = new ClockSync();
   private sendT = 0;
@@ -58,6 +61,10 @@ export class CoopClient implements NetAttachment {
       s.toHost({ t: 'blast', x: p.x, y: p.y, z: p.z });
     };
     g.onEmote = (id) => s.toHost({ t: 'emote', id });
+    // our gas / flash / EMP / noisemaker: the host applies it to the guards
+    g.gadgets.onLocal = (kind, at) => {
+      if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
+    };
     g.takedownVictims = () => this.puppetList;
     if (!this.pvp && g.opts.mode !== 'sandbox') {
       this.ints = new Interactables(g.scene, g.world.parts);
@@ -156,6 +163,10 @@ export class CoopClient implements NetAttachment {
     g.pickups?.setMask(m.pk);
     if (m.items) this.syncItems(m.items);
     if (m.doors) this.syncDoors(m.doors);
+    if (m.bodies) {
+      // carried off, hidden or revived on the host (snaps and events arrive in order, so a kept body is listed)
+      for (const id of [...this.kept.keys()]) if (!m.bodies.includes(id)) this.dropBody(id);
+    }
     if (m.obj !== this.obj) {
       this.obj = m.obj;
       g.hud.setObjective(m.obj);
@@ -235,7 +246,8 @@ export class CoopClient implements NetAttachment {
       part: h.part,
       rt: Math.max(0, this.renderTime),
       dist: len,
-      dmg: h.amount,
+      dmg: Math.min(1000, h.amount),
+      ex: h.execute === true,
     });
   }
 
@@ -279,12 +291,16 @@ export class CoopClient implements NetAttachment {
           if (g.takedown.active?.e === p) g.takedown.abort();
           const rig = p.die();
           if (rig) {
-            const alive = this.ragdolls.filter((r) => !r.done).length;
-            if (alive < BUDGET.maxRagdolls) {
+            // the oldest kept body makes room (as the host's BODY.max does)
+            if (this.kept.size >= BODY.max) this.dropBody(this.kept.keys().next().value!);
+            const falling = this.ragdolls.filter((r) => !r.done && !r.settled).length;
+            if (falling < BUDGET.maxRagdolls) {
               const away = p.pos.subtract(g.player.position);
               away.y = 0;
               away.normalize().scaleInPlace(12).addInPlaceFromFloats(0, 3, 0);
-              this.ragdolls.push(new Ragdoll(g.scene, rig, away));
+              const r = new Ragdoll(g.scene, rig, away, true);
+              this.ragdolls.push(r);
+              this.kept.set(e.enemy, r);
             } else rig.dispose();
           } else this.dying.push(p);
           this.puppets.delete(e.enemy);
@@ -352,6 +368,12 @@ export class CoopClient implements NetAttachment {
         break;
       case 'hitConfirm':
         break;
+      case 'gadget':
+        if (e.player !== me) g.gadgets.remoteEffect(e.kind, new Vector3(e.x, e.y, e.z));
+        break;
+      case 'ping':
+        if (e.player !== me) g.addPing(e.player, e.x, e.y, e.z, e.target, this.s.players.get(e.player)?.tag.color ?? '#4fdc7c');
+        break;
     }
   }
 
@@ -406,8 +428,22 @@ export class CoopClient implements NetAttachment {
     }
   }
 
+  private dropBody(id: string): void {
+    const r = this.kept.get(id);
+    if (!r) return;
+    this.kept.delete(id);
+    r.dispose();
+  }
+
   onLocalDeath(): boolean {
     return true;
+  }
+
+  /** Own ping: shown at once, the host relays it. */
+  ping(x: number, y: number, z: number, target: string): void {
+    const me = this.s.selfId;
+    this.s.toHost({ t: 'ping', x, y, z, target });
+    this.g.addPing(me, x, y, z, target, this.s.players.get(me)?.tag.color ?? '#4fdc7c');
   }
 
   shadows(b: BlobShadows): void {
@@ -431,7 +467,9 @@ export class CoopClient implements NetAttachment {
     this.puppetList = [];
     this.dying.length = 0;
     this.ragdolls.length = 0;
+    this.kept.clear();
     this.ints?.dispose();
     this.g.explosions.onLocalBlast = null;
+    this.g.gadgets.onLocal = null;
   }
 }

@@ -120,7 +120,7 @@ export class NetSession {
       if (this.phase === 'lobby') this.setTeam(from, msg.team);
       return;
     }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td') {
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'ping' || msg.t === 'gadget') {
       this.events.emit('game', { msg, from });
     }
   }

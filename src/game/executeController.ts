@@ -1,9 +1,15 @@
 import { Vector3 } from '../core/babylon';
-import type { Enemy } from '../ai/enemy';
+import type { TakedownVictim } from './takedownController';
 import { G, MASK } from '../physics/groups';
 import { EXECUTE, executeStep } from './marks';
 import { hyp2 } from '../core/mathx';
 import type { GameState } from './gameState';
+
+/** What Mark & Execute needs from a target: an `Enemy`, or a co-op client's puppet of the host's enemy. */
+export type ExecTarget = TakedownVictim & {
+  aimPoint(out: Vector3): Vector3;
+  glintFor(x: number, y: number, z: number): number;
+};
 
 /**
  * Mark & Execute at run time (phase 4). While aiming, the mark button toggles a mark on the enemy under the
@@ -17,7 +23,7 @@ export class ExecuteController {
   shots = 0;
   /** Marks refused because of a sniper's glint (tests). */
   glintRefused = 0;
-  running: { targets: Enemy[]; t: number; shot: number; fromYaw: number; fromPitch: number } | null = null;
+  running: { targets: ExecTarget[]; t: number; shot: number; fromYaw: number; fromPitch: number } | null = null;
   private checkT = 0;
   private o = new Vector3();
   private d = new Vector3();
@@ -27,13 +33,14 @@ export class ExecuteController {
 
   constructor(private g: GameState) {}
 
-  private enemyById(id: string): Enemy | null {
-    for (const e of this.g.enemyMgr?.enemies ?? []) if (e.id === id) return e;
+  private enemyById(id: string): ExecTarget | null {
+    const vs = this.g.takedownVictims() as readonly ExecTarget[];
+    for (let i = 0; i < vs.length; i++) if (vs[i]!.id === id) return vs[i]!;
     return null;
   }
 
   /** In weapon range and line of sight from the eye. */
-  private clear(e: Enemy): boolean {
+  private clear(e: ExecTarget): boolean {
     const g = this.g;
     const p = g.player.position;
     if (!e.alive || e.taken) return false;
@@ -92,7 +99,7 @@ export class ExecuteController {
 
   private start(): void {
     const g = this.g;
-    const targets: Enemy[] = [];
+    const targets: ExecTarget[] = [];
     for (const id of g.marks.consume()) {
       const e = this.enemyById(id);
       if (e) targets.push(e);
@@ -139,7 +146,7 @@ export class ExecuteController {
         const dir = this.head.subtract(muzzle).normalize();
         g.vfx.tracer(muzzle, this.head, g.weapons.current.def.tracer, 0.022);
         g.vfx.muzzleFlash(muzzle, 0.25);
-        e.applyDamage({ amount: 9999, point: this.head.clone(), dir, part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: muzzle, impulse: 2 });
+        e.applyDamage({ amount: 9999, point: this.head.clone(), dir, part: 'head', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: g.weapons.current.def.id, sourcePos: muzzle, impulse: 2, execute: true });
         g.weapons.events.onShot?.(g.weapons.current.def);
       }
       g.events.emit('execute', { phase: 'shot' });

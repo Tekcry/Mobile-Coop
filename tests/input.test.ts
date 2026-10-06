@@ -51,11 +51,11 @@ describe('gamepad mapping', () => {
     expect(f.buttons.pause).toBe(true);
     expect(f.buttons.fire).toBeUndefined();
   });
-  it('B is crouch in game and back in menus; Y traverse + interact; d-pad gadget, wheel and emotes', () => {
+  it('B is crouch in game and back in menus; Y traverse + interact; d-pad gadget, wheel, ping and emote', () => {
     const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.DOWN]: 1, [PAD.LEFT]: 1 }), tuning);
     expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact && f.buttons.jump).toBe(true);
     expect(f.buttons.cover).toBeUndefined();
-    expect(f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.quick4 && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
+    expect(f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.ping && !f.buttons.quick4 && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
   });
   it('triggers: RT fires, LT aims, respecting dead zone', () => {
     expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, ads: true });

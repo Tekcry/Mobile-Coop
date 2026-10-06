@@ -224,6 +224,7 @@ try {
   await startMode('clear', 'warehouse');
   await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
   await until(B, () => window.__app.current.net.puppets.size > 0, null, 15000, 'hunter puppets');
+  const hostId0 = await GA(() => window.__coop.session.selfId);
   const calm = await GB(() => [...window.__app.current.net.puppets.values()].filter((p) => p.level === 'unaware').length);
   assert(calm > 0, `puppets carry the host's alert levels (${calm} calm)`);
   const door = await GA(() => {
@@ -272,6 +273,65 @@ try {
   assert(tdStarted === true, `client takedown offered on the host's guard (${tdStarted})`);
   await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, tdv, 8000, 'host knocks the guard out');
   assert(true, 'client takedown knocks the host enemy out');
+  // the knocked-out guard lies on the client as long as the host has the body
+  await until(B, (id) => window.__app.current.net.kept.has(id), tdv, 6000, 'client keeps the body');
+  assert(true, 'client keeps the body the host has lying');
+  await GA((id) => { const b = window.__app.current.enemyMgr.bodies.find((x) => x.enemyId === id); if (b) b.hidden = true; }, tdv);
+  await until(B, (id) => !window.__app.current.net.kept.has(id), tdv, 8000, 'client drops the hidden body');
+  assert(true, 'a body hidden on the host leaves the client');
+  // pings: the client marks a spot, the host shows it in the client's colour
+  const clientId = await GB(() => window.__coop.session.selfId);
+  await GB(() => window.__app.current.net.ping(6, 0.5, -3, ''));
+  await until(A, (id) => window.__app.current.pings.some((p) => p.by === id), clientId, 5000, 'host shows the client ping');
+  assert(true, 'a client ping reaches the host');
+  await GA(() => window.__app.current.net.ping(4, 0.5, -3, ''));
+  await until(B, (id) => window.__app.current.pings.some((p) => p.by === id), hostId0, 5000, 'client shows the host ping');
+  assert(true, 'a host ping reaches the client');
+  // Mark & Execute: the client's takedown earned it a charge; an execute shot downs a guard outright
+  const charges = await GA(() => [...window.__app.current.net.remotes.values()][0].execCharges);
+  assert(charges >= 1, `a client takedown earns an execute charge (${charges})`);
+  const exv = await GA(() => {
+    const g = window.__app.current;
+    const e = g.enemyMgr.enemies.find((x) => x.alive && x.def.kind === 'grunt') ?? g.enemyMgr.enemies.find((x) => x.alive && !x.def.quadruped && x.def.kind !== 'heavy' && x.def.kind !== 'enforcer');
+    e.pos.set(6, 0, -3.8);
+    return e.id;
+  });
+  await wait(600);
+  let executed = false;
+  for (let i = 0; i < 30 && !executed; i++) {
+    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
+    await GB((id) => {
+      const g = window.__app.current;
+      const p = g.net.puppets.get(id);
+      if (!p) return;
+      const src = g.player.position.add(new p.pos.constructor(0, 1.58, 0));
+      const pt = p.center(new p.pos.constructor());
+      p.applyDamage({ amount: 5, point: pt, dir: pt.subtract(src).normalize(), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3, execute: true });
+    }, exv);
+    await wait(250);
+    executed = await GA((id) => !window.__app.current.enemyMgr.enemies.some((e) => e.id === id && e.alive), exv);
+  }
+  if (!executed) {
+    console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ kind: e?.def.kind, pos: e && [e.pos.x, e.pos.z], hp: e?.health.hp, client: [r.feet.x, r.feet.z], viol: r.violations, ch: r.execCharges, left: r.execLeft, until: r.execUntil, t: g.net.time }); }, exv));
+    console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); return JSON.stringify({ puppet: p && [p.pos.x, p.pos.z], me: [g.player.position.x, g.player.position.z] }); }, exv));
+  }
+  assert(executed, 'a client execute shot downs the guard (host checks the charge)');
+  // gadgets: a client's gas cloud acts on the host's guards
+  const gv = await GA(() => {
+    const g = window.__app.current;
+    const e = g.enemyMgr.enemies.find((x) => x.alive);
+    e.pos.set(8, 0, -7);
+    return e?.id;
+  });
+  await wait(400);
+  await GB(() => { const g = window.__app.current; g.gadgets['detonate']('gas', new g.player.position.constructor(8, 0.3, -7)); });
+  await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || !e.alive || e.gas > 0; }, gv, 6000, 'host guard breathes the client gas');
+  assert(true, "a client's gas cloud reaches the host's guards");
+  // dual takedown: two players finishing takedowns together
+  await GA(([a, b]) => { const n = window.__app.current.net; n['takedownDone'](a); n['takedownDone'](b); }, [hostId0, clientId]);
+  assert((await GA(() => window.__app.current.net.duals)) === 1, 'two takedowns together count as a dual takedown');
+  await until(B, () => /DUAL TAKEDOWN/.test(document.querySelector('.hud')?.textContent ?? document.body.textContent), null, 4000, 'client sees the dual takedown');
+  assert(true, 'the dual takedown banner reaches the client');
   // the host goes down: a team-mate can revive (the client, through its mirrored revive point)
   await GA(() => {
     const g = window.__app.current;

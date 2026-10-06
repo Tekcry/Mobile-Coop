@@ -293,6 +293,12 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.1.0 - Co-op depth (two phones)
+- [ ] Hunter in co-op: knock a guard out; both phones show the body until one player hides it.
+- [ ] Ping (D-pad left / Z / touch Ping) on a guard and on a spot: the other phone shows it, following the guard.
+- [ ] Client: a takedown, then mark two guards and Execute: both drop on the host's screen too.
+- [ ] Client throws gas at a patrol: the host's guards fall asleep. Two takedowns at once: "DUAL TAKEDOWN".
+
 ## 2.0.1 - Feedback fixes - phone
 - [ ] Main menu fits without scrolling in landscape; a long list (Settings tabs, HQ, Store) scrolls by dragging.
 - [ ] Back button (top left) works on the first tap on every screen, including HQ, Armory, Store and Settings.

@@ -168,7 +168,9 @@ export class EnemyManager {
         return n;
       },
       addBody: (e, rig: CharacterRig, imp: Vector3, lethal: boolean) => {
-        this.addBody(new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll()));
+        const b = new Body(scene, world, e.def, lethal, rig, imp, this.canRagdoll());
+        b.enemyId = e.id;
+        this.addBody(b);
       },
       bodies: () => this.bodies,
       bodyFound: (e, b) => this.bodyFound(e, b),

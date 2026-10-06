@@ -338,9 +338,28 @@ export class GadgetSystem {
     g.events.emit('gadget', { kind: 'drone', phase: 'place' });
   }
 
-  private detonate(kind: GadgetId, at: Vector3): void {
+  /** Co-op: a gadget of ours went off (gas, flash, EMP) or stuck (noisemaker) here: the net layer sends it on. */
+  onLocal: ((kind: GadgetId, at: Vector3) => void) | null = null;
+
+  /**
+   * Co-op: a team-mate's gadget at `at`. On the host it has its full effect on the guards; on a client the guards
+   * are the host's, so it is the look (puffs, sparks, the white-out, lights flickering) and nothing else.
+   */
+  remoteEffect(kind: GadgetId, at: Vector3): void {
+    if (kind === 'noise') {
+      const mesh = this.g.world.parts.instance('sphere', GADGETS.noise.color, 'gadget');
+      mesh.scaling.setAll(0.11);
+      mesh.position.copyFrom(at);
+      this.noisers.push({ p: at.clone(), t: GADGETS.noise.duration, next: GADGETS.noise.fuse, mesh });
+      return;
+    }
+    if (kind === 'gas' || kind === 'flash' || kind === 'emp') this.detonate(kind, at, true);
+  }
+
+  private detonate(kind: GadgetId, at: Vector3, remote = false): void {
     const g = this.g;
     const d = GADGETS[kind];
+    if (!remote) this.onLocal?.(kind, at);
     g.events.emit('gadget', { kind, phase: 'detonate' });
     if (kind === 'gas') this.gasCloud(at.x, at.y, at.z, d.radius, d.duration);
     else if (kind === 'flash') this.flashbang(at);
@@ -444,6 +463,7 @@ export class GadgetSystem {
         if (f.kind === 'noise') {
           f.mesh.position.copyFrom(this.b);
           this.noisers.push({ p: this.b.clone(), t: GADGETS.noise.duration, next: GADGETS.noise.fuse, mesh: f.mesh });
+          this.onLocal?.('noise', this.b);
         } else {
           f.mesh.dispose();
           this.stickCam(this.b, this.hitN, f.v);

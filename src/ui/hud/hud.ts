@@ -6,6 +6,7 @@ import { WorldPrompts } from './worldPrompts';
 import { AwarenessArcs } from './awareness';
 import { Markers } from './markers';
 import { GadgetWheel } from './gadgetWheel';
+import { PingView } from './pings';
 import { BarkView } from './barks';
 
 export interface HudFrame {
@@ -76,6 +77,7 @@ export class Hud {
   readonly markers: Markers;
   /** Enemy callouts over their heads. */
   readonly barks: BarkView;
+  readonly pings: PingView;
   private chargeEl: HTMLElement;
   private last: Partial<Record<string, string | number | boolean>> = {};
   private hitTimer: ReturnType<typeof setTimeout> | null = null;
@@ -165,6 +167,7 @@ export class Hud {
     parent.appendChild(this.el);
     this.markers = new Markers(this.el);
     this.barks = new BarkView(this.el);
+    this.pings = new PingView(this.el);
     this.world = new WorldPrompts(parent);
     this.gadgets = new GadgetWheel(parent);
   }

@@ -42,6 +42,8 @@ export class Body {
   reviveT = 0;
   /** Seconds since it went down. */
   age = 0;
+  /** The enemy it was (co-op: clients keep that enemy's ragdoll while the body exists). */
+  enemyId = '';
   private ragdoll: Ragdoll | null = null;
   private rig: CharacterRig | null = null;
 

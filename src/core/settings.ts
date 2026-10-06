@@ -19,6 +19,7 @@ export const TOUCH_CONTROL_IDS = [
   'execute',
   'gadgets',
   'takedown',
+  'ping',
 ] as const;
 /** Touch layout format version (2: camera stick, contextual action button; 3: takedown button). */
 export const TOUCH_LAYOUT_VERSION = 3;
@@ -133,6 +134,7 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   execute: { x: 0.44, y: 0.42, scale: 1 },
   gadgets: { x: 0.515, y: 0.62, scale: 1 },
   takedown: { x: 0.6, y: 0.62, scale: 1 },
+  ping: { x: 0.57, y: 0.09, scale: 1 },
 };
 
 /** Claw: fire and aim move up to the top-right (index finger), the right thumb stays on the camera. */

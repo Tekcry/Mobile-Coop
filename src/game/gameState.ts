@@ -13,6 +13,7 @@ import { Grenades } from '../weapons/grenades';
 import { PlayerWeapons, pvpLoadout, type LoadoutEntry } from '../weapons/playerWeapons';
 import { PlayerTarget } from './playerTarget';
 import { Hud, type HudFrame } from '../ui/hud/hud';
+import { PING_LIFE, PING_MAX } from '../ui/hud/pings';
 import { Minimap, type Blip } from '../ui/hud/minimap';
 import { TrainingDummy } from './trainingDummy';
 import { computeAssist, type AimTarget } from '../weapons/aimAssist';
@@ -101,6 +102,8 @@ export interface NetAttachment {
   onEnd?(won: boolean, subtitle: string): void;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
+  /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
+  ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
   shadows?(b: BlobShadows): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
@@ -804,6 +807,7 @@ export class GameState implements AppState {
     // the gadget wheel / a remote view (sticky cam, drone) takes the input: the operator gets none
     const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
     // quick emotes on the d-pad (right, down, left)
+    if (inp.pressed('ping') && this.net && !this.pvp && this.player.alive) this.sendPing();
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
     if (this.player.rig.emote && (hyp2(inp.move.x, inp.move.y) > 0.2 || inp.down('fire') || inp.down('ads'))) this.player.rig.emote = null;
@@ -835,10 +839,10 @@ export class GameState implements AppState {
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.stealth?.fixedUpdate();
     // Mark & Execute, then takedowns (Y / E: a takedown on offer, else execute when ready, else the rest)
-    // (co-op clients: takedowns on the host's enemies; Mark & Execute stays with the host)
+    // (co-op clients: takedowns and Mark & Execute on the host's enemies, through their puppets)
     if (!this.pvp) {
-      const execPressed = !this.puppet && (inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached));
-      const executing = !this.puppet && this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
+      const execPressed = inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached);
+      const executing = this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
       if (!executing) this.takedown.fixedUpdate(dt, inp.pressed('interact') && !execPressed, inp.down('interact'));
     }
     this.suppression.update(dt);
@@ -985,6 +989,7 @@ export class GameState implements AppState {
     this.mode?.frameUpdate(dt);
     this.net?.frameUpdate(dt);
     this.drawShadows();
+    this.renderPings(dt);
     this.updateHud();
   }
 
@@ -1087,6 +1092,7 @@ export class GameState implements AppState {
     touch.setControlHidden('execute', !this.execute.ready);
     // touch v3: the takedown button only while one is on offer (and through the move, for the hold)
     touch.setControlHidden('takedown', !this.takedown.offer && !this.takedown.active);
+    touch.setControlHidden('ping', !this.net || this.pvp);
     // ghost: frozen at the last sighting; shown once the hunters have lost sight of the player
     const g = this.ghost;
     if (em && em.stealth) {
@@ -1236,7 +1242,69 @@ export class GameState implements AppState {
   private markerPt = new Vector3();
   private scr = { x: 0, y: 0 };
 
-  /** Project a world point to percent of the view; false when behind the camera or off screen. */
+  /** Co-op pings showing (one per player; the newest replaces that player's last). */
+  readonly pings: { by: string; x: number; y: number; z: number; target: string; color: string; t: number }[] = [];
+
+  /** Show a ping from `by` (the net layer calls this for its own and the team's). */
+  addPing(by: string, x: number, y: number, z: number, target: string, color: string): void {
+    const old = this.pings.findIndex((p) => p.by === by);
+    if (old >= 0) this.pings.splice(old, 1);
+    if (this.pings.length >= PING_MAX) this.pings.shift();
+    this.pings.push({ by, x, y, z, target, color, t: PING_LIFE });
+    this.app.sfx.hitMarker('hit');
+  }
+
+  /** The ping button: what the crosshair is on (a guard, else the spot), up to 120 m. */
+  private sendPing(): void {
+    const cam = this.player.cam;
+    const o = cam.camera.position;
+    const hit = this.ballistics.ray(o, o.add(cam.forward.scale(120)), MASK.PLAYER_SHOT);
+    if (!hit.hit) return;
+    const t = hit.target && hit.target.team === 'enemy' ? hit.target.id : '';
+    this.net?.ping?.(hit.point.x, hit.point.y, hit.point.z, t);
+  }
+
+  /** Pings per render frame: age, follow a pinged guard, place on screen (on the edge when off it). */
+  private renderPings(dt: number): void {
+    const v = this.hud.pings;
+    v.begin();
+    const vs = this.pings.length ? this.takedownVictims() : null;
+    const p = this.player.position;
+    for (let i = this.pings.length - 1; i >= 0; i--) {
+      const g = this.pings[i]!;
+      g.t -= dt;
+      if (g.t <= 0) {
+        this.pings.splice(i, 1);
+        continue;
+      }
+      if (g.target && vs) {
+        let alive = false;
+        for (let k = 0; k < vs.length; k++) {
+          const e = vs[k]!;
+          if (e.id !== g.target) continue;
+          if (e.alive) {
+            g.x = e.pos.x;
+            g.y = e.pos.y + 1.9 * e.def.scale;
+            g.z = e.pos.z;
+            alive = true;
+          }
+          break;
+        }
+        if (!alive) g.target = '';
+      }
+      const dist = hyp2(g.x - p.x, g.z - p.z);
+      const fade = Math.min(1, g.t / 0.8);
+      if (this.project(g.x, g.y + 0.2, g.z)) v.add(this.scr.x, this.scr.y, g.color, dist, !!g.target, false, fade);
+      else {
+        // off screen: on the left / right edge towards it
+        const rel = Math.atan2(g.x - p.x, g.z - p.z) - this.player.cam.yaw;
+        const s = Math.sin(rel);
+        v.add(s >= 0 ? 96 : 4, 45, g.color, dist, !!g.target, true, fade);
+      }
+    }
+    v.end();
+  }
+
   private project(x: number, y: number, z: number): boolean {
     const m = this.markerPt.set(x, y, z);
     Vector3.TransformCoordinatesToRef(m, this.scene.getTransformMatrix(), m);

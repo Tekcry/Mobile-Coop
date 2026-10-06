@@ -67,6 +67,20 @@ describe('net message validation', () => {
     expect(m?.t === 'ev' && m.events.map((e) => e.e)).toEqual(['boom', 'banner', 'kill']);
     expect(m?.t === 'ev' && m.events[0]).toMatchObject({ r: 12 });
   });
+  it('pings, gadgets, execute shots and kept bodies', () => {
+    expect(parseMessage({ t: 'ping', x: 1, y: 0, z: 2, target: 'e4' })).toEqual({ t: 'ping', x: 1, y: 0, z: 2, target: 'e4' });
+    expect(parseMessage({ t: 'ping', x: 1e9, y: 0, z: 2 })).toMatchObject({ x: 400, target: '' });
+    expect(parseMessage({ t: 'ping', x: 'a', y: 0, z: 2 })).toBeNull();
+    expect(parseMessage({ t: 'gadget', kind: 'gas', x: 1, y: 0, z: 2 })).toEqual({ t: 'gadget', kind: 'gas', x: 1, y: 0, z: 2 });
+    expect(parseMessage({ t: 'gadget', kind: 'frag', x: 1, y: 0, z: 2 })).toBeNull();
+    const ev = parseMessage({ t: 'ev', events: [{ e: 'ping', player: 'p1', x: 0, y: 0, z: 0 }, { e: 'gadget', player: 'p1', kind: 'emp', x: 0, y: 0, z: 0 }, { e: 'gadget', player: 'p1', kind: 'nuke', x: 0, y: 0, z: 0 }] });
+    expect(ev?.t === 'ev' && ev.events.map((e) => e.e)).toEqual(['ping', 'gadget']);
+    const shot = { t: 'shot', w: 'rifle', ox: 0, oy: 1, oz: 0, dx: 0, dy: 0, dz: 1, target: 'e3', part: 'head', rt: 10, dist: 12 };
+    expect(parseMessage({ ...shot, ex: true })).toMatchObject({ ex: true });
+    expect(parseMessage({ ...shot, ex: 'yes' })).toMatchObject({ ex: false });
+    const snap = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, bodies: ['e1', '../x', 7, 'e2'] });
+    expect(snap?.t === 'snap' && snap.bodies).toEqual(['e1', 'e2']);
+  });
 });
 
 describe('room codes', () => {

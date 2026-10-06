@@ -34,6 +34,10 @@ export class RemotePlayer implements Damageable {
   private limiters = new Map<WeaponId, RateLimiter>();
   private blastT = -Infinity;
   violations = 0;
+  /** Mark & Execute: charges earned by this player's takedowns, and an open execute (until, shots left). */
+  execCharges = 0;
+  execUntil = -1;
+  execLeft = 0;
   onDamaged: ((h: HitInfo, dealt: number) => void) | null = null;
   onDeath: (() => void) | null = null;
 
