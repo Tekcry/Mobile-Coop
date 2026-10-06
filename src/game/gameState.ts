@@ -10,7 +10,7 @@ import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
 import { Explosions } from '../weapons/explosions';
 import { Grenades } from '../weapons/grenades';
-import { PlayerWeapons, type LoadoutEntry } from '../weapons/playerWeapons';
+import { PlayerWeapons, pvpLoadout, type LoadoutEntry } from '../weapons/playerWeapons';
 import { PlayerTarget } from './playerTarget';
 import { Hud, type HudFrame } from '../ui/hud/hud';
 import { Minimap, type Blip } from '../ui/hud/minimap';
@@ -257,8 +257,11 @@ export class GameState implements AppState {
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
     this.explosions = new Explosions(this.registry, world.props, this.vfx, this.ballistics);
     this.grenades = new Grenades(this.scene, world.parts, this.explosions);
-    const loadout: LoadoutEntry[] =
+    const pvpMatch = opts.mode === 'tdm' || opts.mode === 'ffa';
+    const base: LoadoutEntry[] =
       opts.loadout ?? (opts.mode === 'sandbox' ? (['rifle', 'smg', 'shotgun', 'sniper', 'pistol'] as const).map((id) => ({ id })) : [{ id: 'rifle' }, { id: 'pistol' }]);
+    // PvP is fair: no damage upgrades or damage mods (and below: no suit armour, no HQ perks)
+    const loadout = pvpMatch ? pvpLoadout(base) : base;
     this.weapons = new PlayerWeapons(world, this.player, this.ballistics, this.grenades, this.vfx, loadout, (s, w, ms) =>
       app.input.rumble(s, w, ms),
     );
@@ -299,8 +302,8 @@ export class GameState implements AppState {
     this.gadgets = new GadgetSystem(this);
     this.vision.sonarAllowed = this.difficultyDef.sonar;
     // suit and HQ: armour, hands, gadget carry, marks
-    this.suit = suitStats(opts.suit ?? defaultSuit());
-    this.hq = hqStats(opts.hq ?? defaultHq());
+    this.suit = suitStats(opts.suit && !pvpMatch ? opts.suit : defaultSuit());
+    this.hq = hqStats(opts.hq && !pvpMatch ? opts.hq : defaultHq());
     this.target.armorMul = this.suit.damage;
     this.weapons.handsMul = this.suit.hands;
     this.takedown.handsMul = this.suit.hands;

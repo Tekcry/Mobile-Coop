@@ -25,7 +25,7 @@ describe('takedown kinds', () => {
   it('over low cover: only a victim across it', () => {
     expect(pickTakedown(base({ state: 'lowCover', coverNx: 0, coverNz: -1, vz: 1.7 }))?.kind).toBe('overCover');
     // same side as the attacker (beyond reach for a ground takedown)
-    expect(pickTakedown(base({ state: 'lowCover', coverNx: 0, coverNz: 1, vz: 1.7 }))).toBeNull();
+    expect(pickTakedown(base({ state: 'lowCover', coverNx: 0, coverNz: 1, vz: 1.85 }))).toBeNull();
   });
   it('from above: a drop onto someone below, from a ledge / pipe / zipline too', () => {
     expect(pickTakedown(base({ ay: 3, vz: 1.5 }))?.kind).toBe('above');

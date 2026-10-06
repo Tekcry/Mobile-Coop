@@ -174,10 +174,10 @@ export function noiseRadius(speed: number, crouched: boolean, sprinting: boolean
   if (speed < 0.15) return 0;
   if (sprinting) return 18;
   if (crouched) {
-    if (speed <= M.sneakSpeed + 0.05) return 0.3 + speed * 0.6;
-    return speed <= M.crouchWalkSpeed + 0.05 ? 1 + (speed - M.sneakSpeed) * 1.5 : 2.5 + (speed - M.crouchWalkSpeed) * 3;
+    if (speed <= M.sneakSpeed + 0.05) return 0.2 + speed * 0.4;
+    return speed <= M.crouchWalkSpeed + 0.05 ? 0.6 + (speed - M.sneakSpeed) * 1.1 : 1.9 + (speed - M.crouchWalkSpeed) * 2.6;
   }
-  return speed <= M.walkSpeed + 0.05 ? 1.5 + speed * 1.8 : 4 + (speed - M.walkSpeed) * 3.6;
+  return speed <= M.walkSpeed + 0.05 ? 1 + speed * 1.3 : 3 + (speed - M.walkSpeed) * 3;
 }
 
 /** Landing bands by fall height (m): under `roll` a soft landing, up to `heavy` a roll that keeps the momentum,

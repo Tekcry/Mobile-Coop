@@ -491,7 +491,7 @@ export class CoopHost implements NetAttachment {
     const aim = m.part === 'head' ? head : body;
     const los = this.g.ballistics.ray(o, aim, G.STATIC);
     if (los.hit && los.distance < Vector3.Distance(o, aim) - 0.4) return 0;
-    return Math.min(m.dmg, maxHitDamage(def, m.part === 'head'));
+    return Math.min(m.dmg, maxHitDamage(def, m.part === 'head', !this.score));
   }
 
   private onShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {

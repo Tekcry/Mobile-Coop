@@ -180,6 +180,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   input type (`CONTROLS`; keep it in step with the mappings).
 - Training (`game/training.ts` pure steps, `modes/trainingMode.ts`, Proving Grounds, `?mode=training`): passive
   guards (`Enemy.passive`), invulnerable operator, a step skipped after 90 s.
+- Touch scrolling: `pwa.suppressBrowserGestures` lets a drag through when it starts inside `.scrollable` or any
+  element that overflows with `overflow: auto / scroll` (`canScroll`); everything else is the game's. The back
+  button (`Screen.attachChrome`) sits top left (screens get `.with-back` padding) and acts on pointer up.
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus`
   is navigable; `data-adjust` elements take left/right as `nav-adjust`; `data-capture-nav` elements take all
   directions as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.
@@ -492,6 +495,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   step (`updateAwareness`), `calmDecide` drives patrol (`PatrolWalker`: `SquadSlot.route` / post with glances),
   look at the stimulus, walk to it (`goTo`: straight or A*), search sweeps (`searchPoint`, `searchSlot`). Inputs:
   `hear(x, z, radius)`, `hearGunfire`, `radio(delay)`, `searchAt` (bodies / lights, phase 3b), `alert()`.
+- 2.0.1 tuning (guards calmer): `PATROL.wait` 5.5 s, glances every 10 s; `ENEMY_CALM_MOTION` (60 deg/s turns while
+  not in combat / searching); `noiseSuspicion` rises with the square of closeness (edge noises < suspicious);
+  `noiseRadius` walk 1 + 1.3 v; the close-range sense from behind ignores a sneak / crouched approach;
+  `TAKEDOWN.reach` 1.8, `behindCone` 0.56 pi.
 - `EnemyManager.stealth` (Clear, Mission): shared `lkp` (sightings by alerted enemies, located gunfire), flow field
   to the LKP (never the real position), chase / face the LKP out of sight, arriving with nothing there starts the
   search; `callAlert` radios within `RADIO` 22 m (a radioed alert does not relay); `sightT`, `hunting`. Off (Wave),
@@ -705,6 +712,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   host enemy (denied -> `tdDenied`). The host hears clients (footsteps by `noiseRadius`, shots by `PF.firing`,
   `PF.quiet` = suppressed). Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` /
   `onRespawn`); everyone down -> the mode.
+- PvP fairness: `pvpLoadout` (base damage), no suit / HQ in `tdm | ffa`, `maxHitDamage(def, head, false)` on the host.
 - PvP (`net/pvp.ts`, pure: `PvpScore`, `pickSpawn`, `balanceTeam`, `pvpInfo`): `GameState.pvp` (no AI / mode;
   pickups only); the host owns the score (`frag` events, `score` + `tl` in snapshots), respawns (`PVP.respawn`,
   protection), the end (`winner` in `end`). Damage rules: `PlayerTarget.friendly` / `RemotePlayer.friendly`

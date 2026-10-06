@@ -51,8 +51,9 @@ describe('perception: sight rate', () => {
     expect(sightRate(base({ exposure: 0.34 }))).toBeLessThan(sightRate(base({ exposure: 1 })));
     expect(sightRate(base({ exposure: 0 }))).toBe(0);
   });
-  it('close by: a moving body is felt in the dark and from behind, a still one behind is not', () => {
-    expect(sightRate(base({ dist: 1, angle: Math.PI, light: 0, speed: 1.4 }))).toBeGreaterThan(0.3);
+  it('close by: walking up behind is felt in the dark; sneaking up behind (the takedown) and standing still are not', () => {
+    expect(sightRate(base({ dist: 0.8, angle: Math.PI, light: 0, speed: 1.4 }))).toBeGreaterThan(PERCEPTION.leak);
+    expect(sightRate(base({ dist: 0.8, angle: Math.PI, light: 0, speed: 0.8, crouched: true }))).toBe(0);
     expect(sightRate(base({ dist: 1, angle: Math.PI, light: 0, speed: 0 }))).toBe(0);
   });
   it('point blank in full light in focus is instant; anything else gives a warning first', () => {
@@ -76,9 +77,10 @@ describe('perception: sight rate', () => {
     // a lit walker at 10 m fills in about a second even after the leak
     expect(1 / (sightRate(base()) - PERCEPTION.leak)).toBeLessThan(1.6);
   });
-  it('noise: anything heard is suspicious, close noises reach the investigate level', () => {
+  it('noise: faint noises at the edge of hearing are ignored, nearer ones are suspicious, close ones investigated', () => {
     expect(noiseSuspicion(9, 8)).toBe(0);
-    expect(noiseSuspicion(7.5, 8)).toBeGreaterThanOrEqual(PERCEPTION.suspicious);
+    expect(noiseSuspicion(7.5, 8)).toBeLessThan(PERCEPTION.suspicious);
+    expect(noiseSuspicion(3, 8)).toBeGreaterThanOrEqual(PERCEPTION.suspicious);
     expect(noiseSuspicion(0.5, 8)).toBeGreaterThanOrEqual(PERCEPTION.investigate);
   });
 });

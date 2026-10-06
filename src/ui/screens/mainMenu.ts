@@ -22,7 +22,7 @@ export class MainMenuScreen extends Screen {
 
   constructor(private app: App) {
     super('main-menu');
-    this.list = h('div', { class: 'menu-list', attrs: { 'data-wrap': '' } });
+    this.list = h('div', { class: 'menu-list scrollable', attrs: { 'data-wrap': '' } });
     this.badge = h('div', { class: 'profile-badge' });
     this.el.append(
       h(

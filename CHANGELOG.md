@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.0.1 - Feedback: menus, back buttons, calmer guards, fair PvP
+- Main menu: a compact two-column grid (Play across the top) that fits a landscape phone; every menu that
+  overflows scrolls by touch (drags inside any scrolling list are no longer swallowed as game gestures).
+- Back button: larger (54 px with a wider hit area), top left beside the title (the profile badge used to cover
+  it on several screens), acts on release so a thumb that drifts still counts, shows a pressed state.
+- Guards (more chances to stay unseen and take them down): they linger longer at patrol points (5.5 s) and glance
+  round rarely and slowly (every 10 s, narrower); calm guards turn at 60 deg/s instead of snapping round; distant
+  footsteps no longer make them suspicious (only nearer ones do, investigations only close in) and every
+  footstep is quieter (walk 2.8 m, crouch walk 2 m, sneak 0.5 m); they take longer before walking over to a sound;
+  sneaking or crouch-walking up behind a guard is no longer felt (walking still is, within 1.8 m); takedowns
+  reach 1.8 m and count as "behind" over a wider arc.
+- PvP (Team Deathmatch, Free-for-all): no damage bonuses - weapons at base damage (no damage upgrades or damage
+  mods; handling attachments stay), no suit armour or HQ perks; the host caps hits at base damage.
+
 ## 2.0.0 - Shoulder Strike 2.0: the Blacklist overhaul (release candidate)
 The 1.7.0 - 1.23.0 phases together; details under each version below.
 - A stealth operative: light and shadow, noise, alert states with a last known position and searches, bodies to

@@ -50,9 +50,32 @@ export abstract class Screen {
   /** Adds the touch back button once. Called by the manager. */
   attachChrome(): void {
     if (this.root || !this.showBack || this.backBtn) return;
-    this.backBtn = h('button', { class: 'screen-back nofocus', html: icon('back', 22), attrs: { 'aria-label': 'Back' } });
-    this.backBtn.addEventListener('click', () => this.manager.back(this));
-    this.el.prepend(this.backBtn);
+    // top left, beside the title (the top right holds profile badges and tab strips that used to cover it); acts
+    // on pointer up inside it so a thumb that drifts a little still counts, never twice
+    const b = (this.backBtn = h('button', { class: 'screen-back nofocus', html: icon('back', 24), attrs: { 'aria-label': 'Back' } }));
+    let down = false;
+    b.addEventListener('pointerdown', (e) => {
+      down = true;
+      b.classList.add('pressed');
+      b.setPointerCapture?.(e.pointerId);
+    });
+    const done = (): void => {
+      down = false;
+      b.classList.remove('pressed');
+    };
+    b.addEventListener('pointerup', (e) => {
+      if (!down) return;
+      done();
+      e.preventDefault();
+      this.manager.back(this);
+    });
+    b.addEventListener('pointercancel', done);
+    // keyboard / assistive activation
+    b.addEventListener('click', (e) => {
+      if ((e as MouseEvent).detail === 0) this.manager.back(this);
+    });
+    this.el.classList.add('with-back');
+    this.el.prepend(b);
   }
 }
 

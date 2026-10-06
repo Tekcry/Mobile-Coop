@@ -12,9 +12,9 @@ export type AlertLevel = 'unaware' | 'suspicious' | 'investigating' | 'searching
 
 export const ALERT = {
   /** Seconds suspicious with a sound to place before walking over to it. */
-  hearLook: 1.0,
+  hearLook: 1.8,
   /** Seconds suspicious with the meter still above `lingerMeter` before investigating anyway. */
-  lingerLook: 2.5,
+  lingerLook: 3.2,
   lingerMeter: 0.15,
   /** Seconds suspicious with nothing more before calming down. */
   suspiciousTime: 3.5,

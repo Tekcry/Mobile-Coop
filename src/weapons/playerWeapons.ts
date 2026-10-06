@@ -33,6 +33,11 @@ export interface LoadoutEntry {
   attachments?: string[];
 }
 
+/** PvP: every weapon at its base damage (no damage upgrades or damage mods; handling attachments stay). */
+export function pvpLoadout(entries: LoadoutEntry[]): LoadoutEntry[] {
+  return entries.map((e) => ({ ...e, upgrades: undefined, mods: e.mods ? { ...e.mods, damage: 1 } : undefined }));
+}
+
 export interface WeaponSlot {
   def: WeaponDef;
   stats: EffectiveStats;

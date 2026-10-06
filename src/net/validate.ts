@@ -43,8 +43,10 @@ export function shotLimiter(def: WeaponDef): RateLimiter {
 }
 
 /** Highest per-hit damage possible with full upgrades and no falloff. */
-export function maxHitDamage(def: WeaponDef, head: boolean): number {
-  const st = computeStats(def, { damage: MAX_UPGRADE, magazine: MAX_UPGRADE, recoil: MAX_UPGRADE, reload: MAX_UPGRADE });
+export function maxHitDamage(def: WeaponDef, head: boolean, upgraded = true): number {
+  // PvP plays every weapon at base damage, so its cap is the base
+  const u = upgraded ? MAX_UPGRADE : 0;
+  const st = computeStats(def, { damage: u, magazine: u, recoil: u, reload: u });
   return damageAt(def, st, 0, head) * 1.02;
 }
 

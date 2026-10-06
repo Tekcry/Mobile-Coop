@@ -26,8 +26,8 @@ export const PERCEPTION = {
   /** Distance falloff exponent: rate x (1 - d / range)^distPow. */
   distPow: 1.5,
   /** Within this anyone notices a moving body, whatever the light or angle (bumping into them). */
-  closeRange: 2.2,
-  closeRate: 1.8,
+  closeRange: 1.8,
+  closeRate: 1.5,
   /** Point blank in full light, in focus: detected at once. */
   instantRange: 1.6,
   /** Fill-rate cap (/s): anything short of point blank takes at least ~0.3 s (the arc shows first). */
@@ -132,7 +132,8 @@ export function sightRate(i: SightInput): number {
   // behind, it is not
   if (i.dist < P.closeRange && i.speed > 0.15) {
     const k = 1 - i.dist / P.closeRange;
-    const behind = field > 0 ? 1 : 0.5;
+    // behind: a walk or faster is felt, a sneak / crouched approach is not (the takedown window)
+    const behind = field > 0 ? 1 : motion > 0.8 ? 0.4 : 0;
     rate += P.closeRate * k * behind * Math.min(1, motion) * stance;
   }
   rate *= i.sensitivity;
@@ -167,10 +168,15 @@ export function stepMeter(meter: number, rate: number, dt: number, sinceSeen: nu
  * A noise heard at `dist` from a source audible to `radius`: the meter floor it pushes to (0 when out of
  * earshot). Anything heard makes the listener suspicious; close noises reach the investigate level.
  */
+/**
+ * Suspicion from a noise of `radius` heard at `dist` (0 = nothing). Faint noises at the edge of hearing stay below
+ * the suspicious threshold (a guard does not react to every distant footstep); the closer, the more it climbs:
+ * suspicious from about the inner 60 %, an investigation only close in.
+ */
 export function noiseSuspicion(dist: number, radius: number): number {
   if (radius <= 0 || dist >= radius) return 0;
   const k = 1 - dist / radius;
-  return PERCEPTION.suspicious + 0.05 + (PERCEPTION.investigate + 0.1 - PERCEPTION.suspicious - 0.05) * k;
+  return 0.12 + (PERCEPTION.investigate + 0.1 - 0.12) * k * k;
 }
 
 function smooth(t: number): number {

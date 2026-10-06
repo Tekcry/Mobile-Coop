@@ -177,3 +177,15 @@ describe('pvp lobby', () => {
     expect(started).toMatchObject({ mode: 'infiltration', mission: 'embassy-asset' });
   });
 });
+
+describe('pvp fairness', () => {
+  it('weapons play at base damage and the host caps hits at it', async () => {
+    const { pvpLoadout } = await import('../src/weapons/playerWeapons');
+    const { maxHitDamage } = await import('../src/net/validate');
+    const { WEAPONS } = await import('../src/weapons/weaponDefs');
+    const l = pvpLoadout([{ id: 'rifle', upgrades: { damage: 5, magazine: 2, recoil: 0, reload: 0 }, mods: { damage: 1.2, magSize: 1, recoil: 0.8, spreadHip: 1, spreadAds: 1, adsZoom: 1, reload: 1, noise: 0.5 } }]);
+    expect(l[0]!.upgrades).toBeUndefined();
+    expect(l[0]!.mods).toMatchObject({ damage: 1, recoil: 0.8, noise: 0.5 });
+    expect(maxHitDamage(WEAPONS.rifle, false, false)).toBeLessThan(maxHitDamage(WEAPONS.rifle, false, true));
+  });
+});

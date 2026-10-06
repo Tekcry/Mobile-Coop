@@ -14,7 +14,7 @@ export type AttackerState = 'ground' | 'lowCover' | 'highCover' | 'hang' | 'clim
 
 export const TAKEDOWN = {
   /** Ground reach (feet to feet, m) and height tolerance. */
-  reach: 1.6,
+  reach: 1.8,
   dy: 0.45,
   /** Over low cover: reach across it. */
   coverReach: 1.9,
@@ -35,7 +35,7 @@ export const TAKEDOWN = {
   pullTime: 0.55,
   lethalHold: 0.3,
   /** Behind / front cones (rad from the victim's facing). */
-  behindCone: (2 * Math.PI) / 3,
+  behindCone: Math.PI * 0.56,
   frontCone: Math.PI / 3,
 } as const;
 

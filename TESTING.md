@@ -293,6 +293,13 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0.1 - Feedback fixes - phone
+- [ ] Main menu fits without scrolling in landscape; a long list (Settings tabs, HQ, Store) scrolls by dragging.
+- [ ] Back button (top left) works on the first tap on every screen, including HQ, Armory, Store and Settings.
+- [ ] Hunter on the Warehouse: walking past a guard at 4-5 m behind him does not make him suspicious; sneaking up
+      behind a guard gets the takedown prompt without him turning; posted guards rarely glance round.
+- [ ] Team Deathmatch: an upgraded rifle and a stock rifle take the same number of hits to eliminate.
+
 ## 2.0.0 release candidate - automated results (SwiftShader VM; frame times there are not representative)
 - Soak, 10 minutes each (`scripts/soak.mjs`): Warehouse / Wave heap growth 4.6 MB, Embassy / Hunter 4.8 MB, Dust
   Depot / Wave 5.8 MB; no leaks, adaptive quality settles.
