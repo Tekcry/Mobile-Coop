@@ -1,5 +1,5 @@
 import type { Enemy } from '../../ai/enemy';
-import type { EnemyKind } from '../../ai/enemyDefs';
+import { emptyKinds, type EnemyKind } from '../../ai/enemyDefs';
 import type { HitInfo } from '../damage';
 import type { Blip } from '../../ui/hud/minimap';
 
@@ -31,7 +31,7 @@ export function emptyStats(mode: ModeId, mapId: string): SessionStats {
     score: 0,
     kills: 0,
     headshots: 0,
-    byKind: { grunt: 0, runner: 0, heavy: 0 },
+    byKind: emptyKinds(),
     waves: 0,
     objectives: 0,
     time: 0,

@@ -23,6 +23,8 @@ export class InputState {
   /** Leave cover now, even with a cover-to-cover target marked (touch: tapping the cover badge). Consumed by
    *  the cover system. */
   coverLeave = false;
+  /** Keyboard 1-8: pick that gadget (wheel slot), -1 none. Consumed by the gadget system. */
+  gadgetPick = -1;
   private moveBySource = new Map<string, Vec2>();
   /** Accumulated look delta in radians (yaw, pitch). Consumed per render frame. */
   readonly look: Vec2 = { x: 0, y: 0 };

@@ -1,3 +1,4 @@
+import { emptyKinds } from '../src/ai/enemyDefs';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
 import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES } from '../src/net/protocol';
@@ -59,7 +60,7 @@ describe('net message validation', () => {
     expect(m.stats.won).toBe(false);
     expect(m.stats.waves).toBe(200);
     expect(m.stats.score).toBe(0);
-    expect(m.stats.players.me).toEqual({ kills: 2000, headshots: 3, byKind: { grunt: 5, runner: 0, heavy: 0 }, weaponKills: { rifle: 4 } });
+    expect(m.stats.players.me).toEqual({ kills: 2000, headshots: 3, byKind: { ...emptyKinds(), grunt: 5, runner: 0, heavy: 0 }, weaponKills: { rifle: 4 } });
   });
   it('events validate per kind', () => {
     const m = parseMessage({ t: 'ev', events: [{ e: 'boom', x: 1, y: 0, z: 1, r: 99 }, { e: 'banner', title: '<script>', sub: 'ok' }, { e: 'nuke' }, { e: 'kill', enemy: 'e1', kind: 'heavy', by: 'p1', head: true }] });
@@ -193,7 +194,7 @@ describe('host validation', () => {
         subtitle: '',
         waves: 50,
         score: 1e7,
-        players: { me: { kills: 500, headshots: 900, byKind: { grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, smg: 400 } } },
+        players: { me: { kills: 500, headshots: 900, byKind: { ...emptyKinds(), grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, smg: 400 } } },
       },
       60,
     );
@@ -204,12 +205,12 @@ describe('host validation', () => {
     expect(me.byKind.grunt + me.byKind.runner + me.byKind.heavy).toBeLessThanOrEqual(me.kills);
     expect((me.weaponKills.rifle ?? 0) + (me.weaponKills.smg ?? 0)).toBeLessThanOrEqual(me.kills);
     expect(end.score).toBeLessThan(1e7);
-    const honest = clampEnd({ won: false, subtitle: '', waves: 2, score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } } }, 120);
+    const honest = clampEnd({ won: false, subtitle: '', waves: 2, score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } } }, 120);
     expect(honest.score).toBe(1500);
     expect(honest.players.me!.kills).toBe(9);
   });
   it('rewards use only this player’s line of the host report', () => {
-    const s = coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 3, score: 900, players: { a: { kills: 4, headshots: 1, byKind: { grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } } }, 'b');
+    const s = coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 3, score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } } }, 'b');
     expect(s.kills).toBe(7);
     expect(s.waves).toBe(3);
     expect(coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 1, score: 0, players: {} }, 'zz').kills).toBe(0);
@@ -265,10 +266,10 @@ describe('net session', () => {
     expect(host.allReady).toBe(true);
     let started: unknown = null;
     cli.events.on('start', (s) => (started = s));
-    host.setSettings('sandbox', 'proving', 'hard');
+    host.setSettings('sandbox', 'proving', 'realistic');
     expect(cli.mode).toBe('sandbox');
     host.startMatch();
-    expect(started).toMatchObject({ mode: 'sandbox', map: 'proving', difficulty: 'hard' });
+    expect(started).toMatchObject({ mode: 'sandbox', map: 'proving', difficulty: 'realistic' });
   });
   it('late joiners get the running match; leavers are announced', () => {
     const h = hub();

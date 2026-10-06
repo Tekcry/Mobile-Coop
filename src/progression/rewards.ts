@@ -1,9 +1,10 @@
 import type { SessionStats } from '../game/modes/gameMode';
-import type { Difficulty } from '../ai/enemyDefs';
+import { DIFFICULTY, type Difficulty } from '../ai/archetypes';
+import { ENEMIES, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 
-export const XP_PER_KILL = { grunt: 100, runner: 80, heavy: 260 } as const;
-export const CREDITS_PER_KILL = { grunt: 15, runner: 12, heavy: 40 } as const;
-const REWARD_MULT: Record<Difficulty, number> = { easy: 0.8, normal: 1, hard: 1.35 };
+/** Kill rewards per kind (from the enemy defs). */
+export const XP_PER_KILL: Record<EnemyKind, number> = Object.fromEntries(ENEMY_KINDS.map((k) => [k, ENEMIES[k].xp])) as Record<EnemyKind, number>;
+export const CREDITS_PER_KILL: Record<EnemyKind, number> = Object.fromEntries(ENEMY_KINDS.map((k) => [k, ENEMIES[k].credits])) as Record<EnemyKind, number>;
 
 export interface RewardLine {
   label: string;
@@ -22,11 +23,11 @@ export function computeRewards(s: SessionStats, difficulty: Difficulty): Session
   const lines: RewardLine[] = [];
   const nn = (v: number): number => (Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
   if (s.mode === 'sandbox') return { lines: [], xp: 0, credits: 0 };
-  const kinds = ['grunt', 'runner', 'heavy'] as const;
+  const kinds = ENEMY_KINDS;
   let kxp = 0;
   let kcr = 0;
   for (const k of kinds) {
-    const n = Math.min(nn(s.byKind[k]), 500);
+    const n = Math.min(nn(s.byKind[k] ?? 0), 500);
     kxp += n * XP_PER_KILL[k];
     kcr += n * CREDITS_PER_KILL[k];
   }
@@ -45,7 +46,7 @@ export function computeRewards(s: SessionStats, difficulty: Difficulty): Session
   const shots = nn(s.shots);
   const acc = shots >= 20 ? nn(s.hits) / shots : 0;
   if (acc >= 0.4) lines.push({ label: `Accuracy ${Math.round(acc * 100)}%`, xp: Math.round(acc * 300), credits: Math.round(acc * 40) });
-  const m = REWARD_MULT[difficulty];
+  const m = DIFFICULTY[difficulty]?.reward ?? 1;
   if (m !== 1) {
     const bx = lines.reduce((a, l) => a + l.xp, 0);
     const bc = lines.reduce((a, l) => a + l.credits, 0);

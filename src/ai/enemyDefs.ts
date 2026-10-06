@@ -3,8 +3,16 @@ import { defaultLook, sanitizeLook, type AvatarLook } from '../cosmetics/avatarL
 import { BUILDS, type Build } from '../player/proportions';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 
-export type EnemyKind = 'grunt' | 'runner' | 'heavy';
-export const ENEMY_KINDS: readonly EnemyKind[] = ['grunt', 'runner', 'heavy'];
+/** `grunt` is the Guard (rifle; a flashlight at night). */
+export type EnemyKind = 'grunt' | 'runner' | 'heavy' | 'sniper' | 'enforcer' | 'dog' | 'droneOp' | 'officer';
+export const ENEMY_KINDS: readonly EnemyKind[] = ['grunt', 'runner', 'heavy', 'sniper', 'enforcer', 'dog', 'droneOp', 'officer'];
+
+/** A per-kind tally starting at zero. */
+export function emptyKinds(): Record<EnemyKind, number> {
+  const o = {} as Record<EnemyKind, number>;
+  for (const k of ENEMY_KINDS) o[k] = 0;
+  return o;
+}
 
 export interface EnemyWeapon {
   damage: number;
@@ -51,6 +59,8 @@ export interface EnemyDef {
   xp: number;
   credits: number;
   look: AvatarLook;
+  /** Four-legged (the dog): its own body model on the shared brain; smells as well as sees. */
+  quadruped: boolean;
 }
 
 export function validateEnemyDefs(data: unknown): Record<EnemyKind, EnemyDef> {
@@ -65,19 +75,14 @@ export function validateEnemyDefs(data: unknown): Record<EnemyKind, EnemyDef> {
     const base = defaultLook();
     const l = (e.look ?? {}) as Record<string, unknown>;
     const look = sanitizeLook({ ...base, ...l, colors: { ...base.colors, ...((l.colors as object) ?? {}) } });
-    const height = Math.max(1.6, Math.min(1.95, e.height as number));
+    const height = Math.max(e.quadruped === true ? 0.5 : 1.6, Math.min(1.95, e.height as number));
     const build = BUILDS.includes(e.build as Build) ? (e.build as Build) : 'average';
     const gun = WEAPON_IDS.includes(e.gun as WeaponId) ? (e.gun as WeaponId) : null;
-    out[k] = { ...(e as unknown as EnemyDef), kind: k, look, height, scale: height / 1.75, build, plated: e.plated === true, gun };
+    out[k] = { ...(e as unknown as EnemyDef), kind: k, look, height, scale: height / 1.75, build, plated: e.plated === true, gun, quadruped: e.quadruped === true };
   }
   return out;
 }
 
 export const ENEMIES: Record<EnemyKind, EnemyDef> = validateEnemyDefs(raw);
 
-export type Difficulty = 'easy' | 'normal' | 'hard';
-export const DIFFICULTY: Record<Difficulty, { damage: number; accuracy: number; hp: number; reward: number }> = {
-  easy: { damage: 0.6, accuracy: 0.7, hp: 0.85, reward: 0.8 },
-  normal: { damage: 1, accuracy: 1, hp: 1, reward: 1 },
-  hard: { damage: 1.4, accuracy: 1.3, hp: 1.2, reward: 1.35 },
-};
+export { DIFFICULTY, DIFFICULTIES, parseDifficulty, type Difficulty } from './archetypes';

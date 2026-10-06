@@ -239,6 +239,14 @@ export class Sfx {
     }
   }
 
+  /** Enemy radio: a squelch and a two-tone chirp. */
+  radio(): void {
+    if (!this.a.allow('radio', 0.4)) return;
+    this.burst('sfx', 0.08, 0.2, 'bandpass', 2200, 1.2, 0.12);
+    this.tone('sfx', 0.05, 0.2, 'square', 1250, 1250, 0.05, 0.12);
+    this.tone('sfx', 0.05, 0.2, 'square', 950, 950, 0.05, 0.19);
+  }
+
   /** A body thumps down. */
   thud(gain = 1): void {
     if (!this.a.allow('thud', 0.15)) return;

@@ -22,6 +22,7 @@ import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import type { PlayerRef } from '../ai/enemy';
 import type { Difficulty } from '../ai/enemyDefs';
+import { DIFFICULTY, type DifficultyDef } from '../ai/archetypes';
 import { Pickups } from './pickups';
 import { Interactables, type Interactable } from './interactables';
 import { emptyStats, type GameMode, type ModeId, type SessionStats } from './modes/gameMode';
@@ -263,6 +264,7 @@ export class GameState implements AppState {
     this.takedown = new TakedownController(this);
     this.execute = new ExecuteController(this);
     this.gadgets = new GadgetSystem(this);
+    this.vision.sonarAllowed = this.difficultyDef.sonar;
     this.hud.gadgets.onPick = (id) => {
       this.gadgets.select(id);
       this.gadgets.closeWheel(false);
@@ -335,6 +337,10 @@ export class GameState implements AppState {
         this.mode?.onEnemyKilled(e, h);
       };
       w.enemyMgr.grenades = this.grenades;
+      w.enemyMgr.onBark = (e, line, radio) => {
+        this.hud.barks.say(e.id, line, radio);
+        this.events.emit('bark', { radio });
+      };
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       w.pickups.onPickup = (k, who) => {
         if (who !== 'local') {
@@ -870,6 +876,7 @@ export class GameState implements AppState {
     this.player.frameUpdate(dt, alpha, look, gadgetInput ? this.blankInp.move : this.app.input.state.move);
     this.gadgets.frameUpdate(dt);
     this.updateGadgetHud();
+    this.hud.barks.update(dt, this.placeBark);
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
     this.updateStealthHud(dt);
@@ -1048,6 +1055,25 @@ export class GameState implements AppState {
     this.post.letterbox(true);
   }
 
+  /** Difficulty tier rules (perception, damage, Mark & Execute / sonar allowed). */
+  get difficultyDef(): DifficultyDef {
+    return DIFFICULTY[this.opts.difficulty ?? 'normal'];
+  }
+
+  /** Bark position: over the speaker's head (false when gone or off screen). */
+  private placeBark = (who: string, out: { x: number; y: number }): boolean => {
+    const em = this.enemyMgr;
+    if (!em) return false;
+    for (const e of em.enemies) {
+      if (e.id !== who || !e.alive) continue;
+      if (!this.project(e.pos.x, e.pos.y + (e.dog ? 1.0 : 2.15 * e.def.scale), e.pos.z)) return false;
+      out.x = this.scr.x;
+      out.y = this.scr.y;
+      return true;
+    }
+    return false;
+  };
+
   /** Gadget wheel and the remote feed overlay. */
   private updateGadgetHud(): void {
     const gs = this.gadgets;
@@ -1171,7 +1197,7 @@ export class GameState implements AppState {
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      w.set('takedown', ok ? 'Takedown' : null, this.scr.x, this.scr.y);
+      w.set('takedown', ok ? (off.lethalOnly ? 'Lethal takedown' : 'Takedown') : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
     const ctl = this.player.controller;
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);

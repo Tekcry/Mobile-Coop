@@ -27,10 +27,9 @@ const KEYMAP: Record<string, ButtonAction[]> = {
   Escape: ['pause', 'uiBack'],
   Backspace: ['uiBack'],
   Enter: ['uiConfirm'],
-  Digit1: ['quick1'],
-  Digit2: ['quick2'],
-  Digit3: ['quick3'],
-  Digit4: ['quick4'],
+  KeyJ: ['quick2'],
+  KeyK: ['quick3'],
+  KeyL: ['quick4'],
 };
 
 const UI_TAPS: Record<string, ButtonAction> = {
@@ -175,6 +174,11 @@ export class KeyboardMouseSource {
       e.preventDefault();
     }
     for (const a of KEYMAP[e.code] ?? []) this.state.set(SRC, a, down);
+    // 1-8 pick a gadget (wheel order)
+    if (down && e.code.startsWith('Digit')) {
+      const n = Number(e.code.slice(5));
+      if (n >= 1 && n <= 8) this.state.gadgetPick = n - 1;
+    }
     const x = (this.keys.has('KeyD') ? 1 : 0) - (this.keys.has('KeyA') ? 1 : 0);
     const y = (this.keys.has('KeyW') ? 1 : 0) - (this.keys.has('KeyS') ? 1 : 0);
     const len = hyp2(x, y) || 1;

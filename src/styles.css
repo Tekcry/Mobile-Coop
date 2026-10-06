@@ -2202,3 +2202,34 @@ body {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9);
   white-space: nowrap;
 }
+/* enemy callouts (phase 6) */
+.hud-barks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+.hud-barks .bark {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.55);
+  color: #f4f4f4;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+  transition: opacity 0.35s;
+}
+.hud-barks .bark.radio {
+  color: #9fe3ff;
+}
+.hud-barks .bark.radio::before {
+  content: '\25C9  ';
+  font-size: 9px;
+}
+.hud-barks .bark.fade {
+  opacity: 0;
+}
+.hud-barks .bark[hidden] {
+  display: none;
+}

@@ -13,6 +13,8 @@ import type { GameState } from './gameState';
  */
 export class ExecuteController {
   ready = false;
+  /** Marks refused because of a sniper's glint (tests). */
+  glintRefused = 0;
   running: { targets: Enemy[]; t: number; shot: number; fromYaw: number; fromPitch: number } | null = null;
   private checkT = 0;
   private o = new Vector3();
@@ -52,6 +54,12 @@ export class ExecuteController {
       const e = this.enemyById(id);
       return !!e && e.alive;
     });
+    // Perfectionist: no Mark & Execute
+    if (!g.difficultyDef.execute) {
+      this.ready = false;
+      if (m.ids.length) m.clear();
+      return false;
+    }
     // mark / unmark what the crosshair is on (aiming)
     if (markPressed && g.player.ads) {
       g.player.cam.aimRay(this.o, this.d);
@@ -60,7 +68,12 @@ export class ExecuteController {
       const t = h.target;
       if (t && t.team === 'enemy' && t.alive) {
         const e = this.enemyById(t.id);
-        if (e && m.toggle(e.id)) g.events.emit('mark', { on: m.has(e.id) });
+        // a sniper's scope glinting at you hides him from the mark
+        const cp = g.player.cam.camera.position;
+        if (e && !m.has(e.id) && e.glintFor(cp.x, cp.y, cp.z) > 0.05) {
+          this.glintRefused++;
+          g.hud.feedItem("Can't mark through the glint");
+        } else if (e && m.toggle(e.id)) g.events.emit('mark', { on: m.has(e.id) });
       }
     }
     this.checkT -= dt;

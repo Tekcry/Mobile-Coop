@@ -30,6 +30,10 @@ import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { ALARM, alarmStandPoint, type AlarmPanel } from './alarm';
 import type { LightDef, LightRegistry } from '../world/lights';
+import { ARCHETYPE, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate } from './archetypes';
+import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
+import { DogModel } from './dogModel';
+import type { InstancedMesh } from '../core/babylon';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
 
@@ -94,6 +98,8 @@ export interface AiContext {
   callAlert(e: Enemy): void;
   /** This enemy's slot among the searchers (fans the sweep out). */
   searchSlot(e: Enemy): number;
+  /** A callout (shown near the speaker; radio lines chirp). */
+  onBark?(e: Enemy, line: string, radio: boolean): void;
 }
 
 let nextId = 1;
@@ -204,6 +210,27 @@ export class Enemy implements Damageable {
    * chases out; with the target outside it falls back to its post and watches the last known position.
    */
   hold: RoomRect | null = null;
+  /** Squad (Clear: the room's index) for radio checks; -1 = none. */
+  squad = -1;
+  /** An officer is close by: better aim, faster reactions (set by the manager). */
+  buff = false;
+  /** Callouts. */
+  readonly voice: BarkVoice;
+  /** The dog's handler (found among its squad) and whether it can smell the target now. */
+  leader: Enemy | null = null;
+  private smelled = false;
+  /** Four-legged body (the dog), shown instead of the humanoid rig. */
+  readonly dog: DogModel | null = null;
+  /** Enforcer shield; sniper laser and scope glint. */
+  private shield: InstancedMesh | null = null;
+  private laser: InstancedMesh | null = null;
+  private glintMesh: InstancedMesh | null = null;
+  /** Sniper: shots from this position and time since the first; picking a new post. */
+  shotsHere = 0;
+  private postT = 0;
+  private relocating = false;
+  /** Sniper relocations (tests). */
+  relocations = 0;
   private post: P2 = [0, 0];
   /** Room index at the last think, and a short pause at doorways when moving into a new room unseen. */
   private room = -1;
@@ -229,6 +256,32 @@ export class Enemy implements Damageable {
     this.rig = built.rig;
     this.gun = built.gun;
     this.hitboxes = new Hitboxes(ctx.scene, ctx.registry, this, def.scale, def.build);
+    this.voice = new BarkVoice(this.num);
+    const parts = ctx.world.parts;
+    if (def.quadruped) {
+      // the dog: its own body on the shared brain; the humanoid rig stays hidden
+      this.rig.root.setEnabled(false);
+      this.gun?.dispose();
+      this.gun = null;
+      this.dog = new DogModel(ctx.scene, parts, def.look.colors.torso, def.look.colors.accent);
+    }
+    if (def.kind === 'enforcer') {
+      const sh = parts.instance('rbox', '#20242b', 'shield');
+      sh.parent = this.rig.root;
+      sh.scaling.set(0.58, 0.95 * def.scale, 0.07);
+      sh.position.set(-0.08, 1.05 * def.scale, 0.45);
+      const visor = parts.instance('rbox', '#7fb6d9', 'shield-visor');
+      visor.parent = sh;
+      visor.scaling.set(0.6, 0.12, 0.5);
+      visor.position.set(0, 0.32, 0.4);
+      this.shield = sh;
+    }
+    if (def.kind === 'sniper') {
+      this.laser = parts.instance('cyl', '#ff2a1a', 'laser');
+      this.laser.isVisible = false;
+      this.glintMesh = parts.instance('sphere', '#ffffff', 'glint');
+      this.glintMesh.isVisible = false;
+    }
     this.frame(0, 1);
   }
 
@@ -247,6 +300,7 @@ export class Enemy implements Damageable {
   blind(seconds: number): void {
     if (!this.alive || this.taken) return;
     this.blindT = Math.max(this.blindT, seconds);
+    this.bark('blind');
     this.burstLeft = 0;
     this.windup = 0;
     this.vel.setAll(0);
@@ -335,6 +389,51 @@ export class Enemy implements Damageable {
     return out.copyFrom(this.pos).addInPlaceFromFloats(0, (this.crouch > 0.5 ? 1.0 : 1.55) * this.def.scale, 0);
   }
 
+  /** Say a line for `ev` (the dog growls whatever the event). */
+  bark(ev: BarkEvent): void {
+    if (!this.alive) return;
+    const e = this.dog && ev !== 'blind' ? 'dog' : ev;
+    const line = this.voice.say(e);
+    if (line) this.ctx.onBark?.(this, line, RADIO_BARKS.has(e));
+  }
+
+  /** Shots stopped by the enforcer's shield (tests). */
+  shieldBlocks = 0;
+
+  /** The dog's handler: the nearest living, calm-or-not humanoid of its squad (or anyone close) - kept once found. */
+  private findLeader(): Enemy | null {
+    const l = this.leader;
+    if (l && l.alive) return l;
+    this.leader = null;
+    let best: Enemy | null = null;
+    let bd = 10;
+    for (const o of this.ctx.enemies()) {
+      if (o === this || !o.alive || o.dog) continue;
+      if (this.squad >= 0 && o.squad !== this.squad) continue;
+      const d = hyp2(o.pos.x - this.pos.x, o.pos.z - this.pos.z);
+      if (d < bd) {
+        bd = d;
+        best = o;
+      }
+    }
+    this.leader = best;
+    return best;
+  }
+
+  /** Sniper aiming: how much its scope glints towards a viewer at (x, y, z), 0..1. */
+  glintFor(x: number, y: number, z: number): number {
+    if (this.def.kind !== 'sniper' || !this.alive || this.taken || this.blindT > 0) return 0;
+    const aiming = this.windup > 0 || ((this.state === 'attack' || this.state === 'inCover') && this.los);
+    if (!aiming) return 0;
+    this.eye(this.tmpEye);
+    return glint(this.yaw, this.aimPitch, this.tmpEye.x, this.tmpEye.y, this.tmpEye.z, x, y, z);
+  }
+
+  /** The perception multiplier: difficulty, plus an officer close by. */
+  private get perceptionMul(): number {
+    return DIFFICULTY[this.ctx.difficulty].perception * (this.buff ? 1.1 : 1);
+  }
+
   private setState(s: EnemyState): void {
     if (this.state === s) return;
     if (s !== 'inCover') {
@@ -404,6 +503,7 @@ export class Enemy implements Damageable {
 
   /** Assigned to raise the alarm at this panel. */
   runAlarm(p: AlarmPanel): void {
+    this.bark('alarm');
     this.alarm = p;
     this.alarmT = 0;
     alarmStandPoint(p, this.alarmPt);
@@ -445,6 +545,11 @@ export class Enemy implements Damageable {
 
   /** Side effects of an alert-level change. */
   private onLevel(from: AlertLevel, to: AlertLevel): void {
+    if (to === 'suspicious') this.bark('suspicious');
+    else if (to === 'investigating') this.bark('investigate');
+    else if (to === 'alert') this.bark('contact');
+    else if (to === 'searching' && from === 'alert') this.bark(this.def.kind === 'officer' ? 'search' : 'lost');
+    else if (to === 'cooldown') this.bark('clear');
     if (to === 'alert') {
       this.meter = 1;
       if (this.state === 'idle') this.setState('chase');
@@ -472,7 +577,24 @@ export class Enemy implements Damageable {
 
   applyDamage(h: HitInfo): DamageResult {
     if (!this.alive || h.attackerTeam === 'enemy') return { dealt: 0, killed: false };
-    const mult = h.part === 'head' ? this.def.headMult : this.def.armor;
+    let mult = h.part === 'head' ? this.def.headMult : this.def.armor;
+    const kind = this.def.kind;
+    if (h.kind !== 'explosion') {
+      // heavy: plates in front, an exposed back, the face plate a weak point
+      if (kind === 'heavy') mult = heavyMult(this.yaw, h.dir.x, h.dir.z, h.part === 'head' ? 'head' : 'body');
+      // enforcer: rounds from the front stop on the shield
+      if (kind === 'enforcer' && h.kind === 'bullet' && !this.taken && shieldBlocks(this.yaw, h.dir.x, h.dir.z)) {
+        this.ctx.vfx.sparks(h.point, h.dir.scale(-1), 5, '#d8e4ff');
+        this.shieldBlocks++;
+        if (!this.alerted && h.sourcePos) {
+          this.stimulus[0] = h.sourcePos.x;
+          this.stimulus[1] = h.sourcePos.z;
+          this.hasStimulus = true;
+        }
+        this.alert();
+        return { dealt: 0, killed: false };
+      }
+    }
     const dealt = this.health.damage(h.amount * mult);
     this.flash = 1;
     if (!this.alerted && h.sourcePos) {
@@ -493,6 +615,15 @@ export class Enemy implements Damageable {
     this.setState('dead');
     this.hitboxes.dispose();
     this.ctx.registry.removeTarget(this);
+    if (this.laser) this.laser.isVisible = false;
+    if (this.glintMesh) this.glintMesh.isVisible = false;
+    if (this.dog) {
+      // the dog lies where it fell (no humanoid body to find or carry)
+      this.dog.layDown();
+      this.rig.dispose();
+      this.ctx.onKilled(this, h);
+      return;
+    }
     this.rig.heldWeapon = null;
     const imp = h.dir.scale(Math.min(80, 8 + h.impulse * 3) * (h.kind === 'explosion' ? 2.5 : 1));
     imp.y += h.kind === 'explosion' ? 25 : 3;
@@ -531,6 +662,8 @@ export class Enemy implements Damageable {
       }
       return;
     }
+    this.voice.tick(dt);
+    if (this.shotsHere > 0) this.postT += dt;
     this.fireT = Math.max(0, this.fireT - dt);
     this.meleeCd = Math.max(0, this.meleeCd - dt);
     this.stagger = Math.max(0, this.stagger - dt);
@@ -621,8 +754,19 @@ export class Enemy implements Damageable {
     si.crouched = best.crouched;
     si.speed = best.speed;
     si.exposure = this.alerted ? (this.los ? 1 : 0) : n / samples;
-    si.sensitivity = this.aware.sensitivity;
+    si.sensitivity = this.aware.sensitivity * this.perceptionMul;
     this.rate = sightRate(si);
+    // the dog smells what it cannot see (no light or line of sight needed)
+    this.smelled = false;
+    if (this.dog) {
+      const sm = smellRate(bd, best.crouched) * this.perceptionMul;
+      if (sm > 0) {
+        this.smelled = true;
+        if (sm > this.rate) this.rate = sm;
+        best.target.aimPoint(this.lastKnown);
+        this.lastSeenT = 0;
+      }
+    }
     if (!this.alerted && instantDetect(si)) this.meter = 1;
     if (this.rate > 0 && !this.alerted) {
       // what caught the eye: look there (and investigate there)
@@ -662,7 +806,7 @@ export class Enemy implements Damageable {
 
   /** Per fixed step: the awareness meter and the alert level. */
   private updateAwareness(dt: number): void {
-    const seen = this.alerted ? this.los : seenAt(this.rate);
+    const seen = this.alerted ? this.los || this.smelled : seenAt(this.rate);
     this.sinceSeen = seen ? 0 : this.sinceSeen + dt;
     if (!this.alerted) this.meter = stepMeter(this.meter, this.rate, dt, this.sinceSeen);
     if (this.called > 0) {
@@ -731,6 +875,20 @@ export class Enemy implements Damageable {
     switch (lvl) {
       case 'unaware':
       case 'cooldown': {
+        // the dog heels beside its handler
+        if (this.dog) {
+          const h = this.findLeader();
+          if (h) {
+            const s = Math.sin(h.yaw);
+            const c = Math.cos(h.yaw);
+            const heel = ARCHETYPE.dog.heel;
+            this.spot[0] = h.pos.x + c * heel - s * 0.5;
+            this.spot[1] = h.pos.z - s * heel - c * 0.5;
+            const far = hyp2(this.spot[0] - this.pos.x, this.spot[1] - this.pos.z);
+            if (far < 0.5) return { point: null, speed: 0, face: h.yaw };
+            return { point: this.goTo(this.spot, dt, 0.3), speed: far > 3 ? def.runSpeed * 0.6 : def.walkSpeed * PATROL_PACE * 1.2, face: null };
+          }
+        }
         const g = this.walker.step(dt, this.pos.x, this.pos.z);
         const ly = this.walker.lookYaw;
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
@@ -844,7 +1002,7 @@ export class Enemy implements Damageable {
       }
     }
     // stealth: out of sight they go for where they last knew the target was, not where it is
-    const known = this.los || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
+    const known = this.los || this.smelled || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
     const tp: P2 = [known.x, known.z];
     // holding a room against a target outside it
     const outside = this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5);
@@ -876,6 +1034,24 @@ export class Enemy implements Damageable {
     }
 
     // ---- ranged ----
+    // sniper: a few shots from a post, then move to another (the laser and glint gave it away)
+    if (def.kind === 'sniper' && sniperRelocate(this.shotsHere, this.postT) && this.state !== 'seekCover') {
+      this.shotsHere = 0;
+      this.postT = 0;
+      this.relocating = true;
+      this.relocations++;
+      this.ctx.releaseCover(this);
+      this.coverIdx = -1;
+      this.setState('seekCover');
+    }
+    // enforcer: shield up, walks into the fire
+    if (def.kind === 'enforcer' && this.state === 'attack') {
+      if (this.los) this.tryFire(dt);
+      else if (this.lastSeenT < 2.5) this.tryFire(dt, 'suppress');
+      if (!this.los && this.stateT > 3) this.setState('chase');
+      const close = this.dist <= def.engageMin + 0.5;
+      return { point: close ? null : this.chasePoint(tp, false), speed: ARCHETYPE.enforcer.pushSpeed, face: toTarget };
+    }
     switch (this.state) {
       case 'idle':
       case 'chase': {
@@ -927,7 +1103,7 @@ export class Enemy implements Damageable {
           }
         }
         if (this.stateT > 6) this.setState('attack');
-        if (this.los && this.stateT > 0.5) this.tryFire(dt);
+        if (this.los && this.stateT > 0.5 && def.kind !== 'sniper') this.tryFire(dt);
         const wp = this.path[0];
         if (!wp) {
           this.setState('inCover');
@@ -1046,7 +1222,8 @@ export class Enemy implements Damageable {
     for (let i = 0; i < cover.length; i++) {
       const c = cover[i]!;
       const dMe = hyp2(c.pos.x - this.pos.x, c.pos.z - this.pos.z);
-      if (dMe > 14) continue;
+      if (dMe > (this.relocating ? 22 : 14)) continue;
+      if (this.relocating && dMe < 5) continue;
       if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2)) continue;
       const dx = t.feet.x - c.pos.x;
       const dz = t.feet.z - c.pos.z;
@@ -1073,6 +1250,11 @@ export class Enemy implements Damageable {
     }
     this.coverIdx = best;
     this.path = path;
+    if (this.relocating) {
+      this.shotsHere = 0;
+      this.postT = 0;
+    }
+    this.relocating = false;
     return true;
   }
 
@@ -1114,10 +1296,11 @@ export class Enemy implements Damageable {
     const aim = mode === 'aim' ? (this.losHead && t.target.headPoint ? t.target.headPoint(new Vector3()) : t.target.aimPoint(new Vector3())) : this.lastKnown.clone();
     const dir = aim.subtract(origin).normalize();
     // accuracy: settles in over the first second of sight, worse against moving/rolling targets
-    const settle = Math.min(1, 0.45 + this.losT * 0.55);
+    const settle = Math.min(1, 0.45 + (this.losT * 0.55) / DIFFICULTY[this.ctx.difficulty].reaction);
+    if (this.def.kind === 'sniper') this.shotsHere++;
     const moving = Math.min(1, t.speed / 5);
     const modeMul = mode === 'blind' ? 3 : mode === 'suppress' ? 1.6 : 1;
-    const spread = (w.spreadDeg * (1 + moving * 0.8) * (t.crouched ? 0.9 : 1) * modeMul) / (d.accuracy * settle);
+    const spread = (w.spreadDeg * (1 + moving * 0.8) * (t.crouched ? 0.9 : 1) * modeMul) / (d.accuracy * settle * (this.buff ? ARCHETYPE.officer.accuracy : 1));
     const off = sampleSpread(spread, Math.random(), Math.random());
     spreadDir(dir, off.x, off.y, dir);
     const end = origin.add(dir.scale(w.range));
@@ -1242,7 +1425,10 @@ export class Enemy implements Damageable {
 
   /** Render-rate animation with interpolation between fixed steps. */
   frame(dt: number, alpha: number): void {
-    if (!this.alive) return;
+    if (!this.alive) {
+      if (this.dog) this.dog.update(dt, this.pos.x, this.pos.y, this.pos.z, this.yaw, 0, 0, 0);
+      return;
+    }
     const r = this.rig.root;
     Vector3.LerpToRef(this.prevPos, this.pos, alpha, r.position);
     r.rotation.y = this.prevYaw + wrapAngle(this.yaw - this.prevYaw) * alpha;
@@ -1276,9 +1462,41 @@ export class Enemy implements Damageable {
     rp.velX = this.vel.x;
     rp.velZ = this.vel.z;
     rp.goalYaw = m.goalYaw;
-    this.rig.animate(dt, rp);
-    this.rig.headNode.computeWorldMatrix(true);
-    this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
+    if (this.dog) {
+      const alertK = lvl === 'unaware' ? 0 : 1;
+      this.dog.update(dt, r.position.x, r.position.y, r.position.z, r.rotation.y, sp, alertK, this.kick);
+      this.head.copyFrom(this.dog.head);
+    } else {
+      this.rig.animate(dt, rp);
+      this.rig.headNode.computeWorldMatrix(true);
+      this.head.copyFrom(this.rig.headNode.getAbsolutePosition());
+    }
+    if (this.laser) this.sniperFx();
+  }
+
+  /** Sniper: the laser from the scope along the aim while it aims, and the glint (sized for the local view). */
+  private sniperFx(): void {
+    const laser = this.laser!;
+    const t = this.target;
+    const on = !!t && !this.taken && this.blindT <= 0 && (this.windup > 0 || ((this.state === 'attack' || this.state === 'inCover') && this.los));
+    laser.isVisible = on;
+    if (!on || !t) return;
+    const eye = this.eye(this.tmpEye);
+    t.target.aimPoint(this.tmp);
+    const dx = this.tmp.x - eye.x;
+    const dy = this.tmp.y - eye.y;
+    const dz = this.tmp.z - eye.z;
+    const len = Math.max(0.1, Math.sqrt(dx * dx + dy * dy + dz * dz));
+    laser.position.set(eye.x + dx * 0.5, eye.y + dy * 0.5, eye.z + dz * 0.5);
+    laser.scaling.set(0.012, len, 0.012);
+    laser.rotation.set(Math.acos(Math.max(-1, Math.min(1, dy / len))), Math.atan2(dx, dz), 0);
+    const g = this.glintMesh!;
+    const k = glint(this.yaw, this.aimPitch, eye.x, eye.y, eye.z, this.tmp.x, this.tmp.y, this.tmp.z);
+    g.isVisible = k > 0.05;
+    if (g.isVisible) {
+      g.position.set(eye.x + Math.sin(this.yaw) * 0.25, eye.y - 0.02, eye.z + Math.cos(this.yaw) * 0.25);
+      g.scaling.setAll(0.08 + 0.12 * k);
+    }
   }
 
   dispose(): void {
@@ -1288,6 +1506,10 @@ export class Enemy implements Damageable {
       this.gun?.dispose();
       this.rig.dispose();
     }
+    this.dog?.dispose();
+    this.shield?.dispose();
+    this.laser?.dispose();
+    this.glintMesh?.dispose();
     this.ctx.releaseCover(this);
     // gone from the world: never counts as alive again (stale references see it)
     this.health.hp = 0;

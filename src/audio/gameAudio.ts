@@ -65,6 +65,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     g.events.on('lightSwitch', () => sfx.click()),
     g.events.on('vision', ({ mode }) => sfx.goggles(mode !== 'off')),
     g.events.on('sonar', () => sfx.sonar()),
+    g.events.on('bark', ({ radio }) => radio && sfx.radio()),
     g.events.on('gadget', ({ kind, phase }) => {
       if (phase === 'throw') return; // (the throw itself sounds through onGrenade)
       else if (phase === 'detonate') sfx.gadget(kind === 'flash' ? 'flash' : kind === 'emp' ? 'emp' : kind === 'drone' ? 'emp' : 'gas');

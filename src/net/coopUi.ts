@@ -6,6 +6,7 @@ import { Screen } from '../ui/screen';
 import type { Hint } from '../ui/prompts';
 import { button, choice, Dialog } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
+import { DIFFICULTIES, DIFFICULTY } from '../ai/archetypes';
 import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
 import { NetSession, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
@@ -243,11 +244,7 @@ const MODE_OPTS: { value: NetMode; label: string }[] = [
   { value: 'wave', label: 'Wave Survival' },
   { value: 'sandbox', label: 'Free Roam' },
 ];
-const DIFF_OPTS: { value: Difficulty; label: string }[] = [
-  { value: 'easy', label: 'Easy' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'hard', label: 'Hard' },
-];
+const DIFF_OPTS: { value: Difficulty; label: string }[] = DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label }));
 
 class LobbyScreen extends Screen {
   private list: HTMLElement;

@@ -4,7 +4,7 @@
  */
 import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
-import { ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
+import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 
 export const PROTOCOL_VERSION = 1;
@@ -14,7 +14,8 @@ export const MAX_EVENTS = 48;
 const WORLD = 400;
 
 export type NetMode = 'wave' | 'sandbox';
-export type Difficulty = 'easy' | 'normal' | 'hard';
+import { parseDifficulty, type Difficulty } from '../ai/archetypes';
+export type { Difficulty };
 
 export interface PlayerInfo {
   id: string;
@@ -237,6 +238,12 @@ function killsRecord<K extends string>(v: unknown, keys: readonly K[] | null, ca
   return out;
 }
 
+function kindsFrom(bk: Record<string, number>): Record<EnemyKind, number> {
+  const o = emptyKinds();
+  for (const k of ENEMY_KINDS) o[k] = bk[k] ?? 0;
+  return o;
+}
+
 function endStats(v: unknown): EndStats | null {
   if (!isObj(v)) return null;
   const players: EndStats['players'] = {};
@@ -247,7 +254,7 @@ function endStats(v: unknown): EndStats | null {
     players[pid] = {
       kills: Math.floor(num(p.kills, 0, 2000) ?? 0),
       headshots: Math.floor(num(p.headshots, 0, 2000) ?? 0),
-      byKind: { grunt: bk.grunt ?? 0, runner: bk.runner ?? 0, heavy: bk.heavy ?? 0 },
+      byKind: kindsFrom(bk),
       weaponKills: killsRecord(p.weaponKills, WEAPON_IDS, 2000),
     };
   }
@@ -261,7 +268,6 @@ function endStats(v: unknown): EndStats | null {
 }
 
 const MODES: readonly NetMode[] = ['wave', 'sandbox'];
-const DIFFS: readonly Difficulty[] = ['easy', 'normal', 'hard'];
 
 /** Validate an incoming message. Returns null for anything malformed. */
 export function parseMessage(raw: unknown): Msg | null {
@@ -282,7 +288,7 @@ export function parseMessage(raw: unknown): Msg | null {
         players.push({ id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true });
       }
       const mode = oneOf(raw.mode, MODES);
-      const difficulty = oneOf(raw.difficulty, DIFFS);
+      const difficulty = raw.difficulty === undefined ? null : parseDifficulty(raw.difficulty);
       const phase = oneOf(raw.phase, ['lobby', 'playing'] as const);
       const map = id(raw.map);
       if (!mode || !difficulty || !phase || !map) return null;
@@ -294,7 +300,7 @@ export function parseMessage(raw: unknown): Msg | null {
     }
     case 'start': {
       const mode = oneOf(raw.mode, MODES);
-      const difficulty = oneOf(raw.difficulty, DIFFS);
+      const difficulty = raw.difficulty === undefined ? null : parseDifficulty(raw.difficulty);
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;

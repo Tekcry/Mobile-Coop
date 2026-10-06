@@ -172,6 +172,12 @@ export class GadgetSystem {
       this.remoteStep(dt, inp);
       return true;
     }
+    // keyboard 1-8: straight to a gadget
+    if (inp.gadgetPick >= 0) {
+      const id = GADGET_IDS[inp.gadgetPick];
+      inp.gadgetPick = -1;
+      if (id) this.select(id);
+    }
     // the wheel: pad / keyboard hold it open (release selects); touch toggles it (a tap on a slot selects)
     const touch = g.app.input.mode === 'touch';
     if (this.wheelOpen) {
@@ -382,6 +388,8 @@ export class GadgetSystem {
     const n = g.world.level.lights.disrupt(at.x, at.y, at.z, d.radius, d.duration);
     this.stats.empLights += n;
     if (n) g.enemyMgr?.lightsOut(at.x, at.z);
+    // enemy recon drones in range drop
+    g.enemyMgr?.empAt(at.x, at.y, at.z, d.radius);
     // electronics: the operator's own drone / cams in range go dark too
     if (this.drone && hyp3(this.drone.s.x - at.x, this.drone.s.y - at.y, this.drone.s.z - at.z) < d.radius) this.destroyDrone();
     // enemies close by are dazed for a moment (their kit sparks)

@@ -28,6 +28,8 @@ export interface GameEvents {
   /** Gadgets (audio): thrown, gone off, placed, stuck, a pulse / ping, a dart, a remote view opened / closed. */
   gadget: { kind: string; phase: 'select' | 'throw' | 'detonate' | 'place' | 'stick' | 'pulse' | 'dart' | 'view' | 'exit' | 'destroyed' | 'trigger' };
   pickup: { kind: PickupKind };
+  /** An enemy callout (a radio line chirps). */
+  bark: { radio: boolean };
   emote: { id: string };
   /** Coop: a shot by a teammate or a host-simulated enemy (audio only). */
   remoteShot: { cls: string; x: number; y: number; z: number };

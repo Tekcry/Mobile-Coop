@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.18.0 - 2.0 phase 6: enemy archetypes, squads, difficulty
+- Archetypes (`ai/archetypes.ts`, pure rules; `config/enemies.json`): Guard (the grunt renamed; rifle, flashlight at
+  night), Heavy (plates in front x0.45, the back x1.5, the face plate x2.2; from the front only a lethal takedown),
+  Sniper (laser while it aims, a scope glint when it points at you - it cannot be marked through the glint;
+  relocates to a new post 5-22 m away after 2 shots or 9 s), Enforcer (a shield stops rounds from within 70 deg of
+  the front; no frontal grab; walks into the fire at 1.1 m/s with a pistol - flank him), Dog (a procedural
+  quadruped on the shared brain: heels beside its handler, smells you within 6 m (4.2 m crouched) whatever the
+  light or walls, runs you down and bites; a takedown or gas puts it down), Drone operator (flies a recon drone
+  that orbits him at 3.4 m; its camera needs no light; what it sees goes to him - suspicion, then an alert and
+  the squad radio; shoot it down or EMP it; it falls when he goes down), Officer (squadmates within 12 m aim x1.25
+  better and react faster; runs the alarm himself first; calls the search).
+- Squads: Clear mode puts each room's squad on a roster; every ~40 s a calm member radios a check, and a silent
+  (downed) member is missed: the caller goes to look where he was. Warehouse squads now include a dog with the
+  dock guard, a drone operator in dispatch, an enforcer in the workshop, a sniper on the mezzanine and an officer
+  in the office. Waves add enforcers (wave 4+), dogs (5+), a sniper (6+), an officer (7+), a drone operator (8+).
+- Callouts (`ai/barks.ts`): short lines over the speaker's head ("Huh?", "Checking it out.", "Contact!", "Lost
+  him!", "Man down!", "Radio check.", "No answer...", "*growl*"...), per-speaker cooldowns (urgent lines cut in),
+  radio lines with a synthesized chirp; no voice audio.
+- Difficulty tiers: Rookie, Normal, Realistic, Perfectionist (perception, damage, accuracy, hit points, reaction
+  and rewards scale; Perfectionist has no Mark & Execute and no sonar). Old lobbies' easy / hard read as Rookie /
+  Realistic. `?difficulty=` for autostart.
+- Gadgets: keyboard 1-8 pick a gadget directly (the plan's "1-5 plus G"); emotes move to J / K / L.
+- Blacklist differences: the dog's body is procedural primitives on the humanoid brain (no dog ragdoll: it lies on
+  its side); the recon drone orbits its operator rather than flying patrol routes; co-op clients show the new
+  kinds from phase 10.
+- Tests: `tests/archetypes.test.ts` (armour by direction, grab rules, shield arc, sniper relocation and glint, dog
+  smell, radio check, voices, tiers, waves); `e2e-enemies` (each archetype's signature, officer buff and alarm,
+  radio check, callouts, Perfectionist); perf spawns ten mixed archetypes.
+
 ## 1.17.0 - 2.0 phase 5: gadgets
 - Eight gadgets (`game/gadgets.ts`, pure; `game/gadgetSystem.ts`): frag, sleeping gas (a cloud for 6 s: 0.8 s in it
   knocks a guard out), flashbang (guards facing it are blind for up to 4 s - staggering, hands to the face - then

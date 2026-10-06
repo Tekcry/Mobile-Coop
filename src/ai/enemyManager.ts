@@ -14,7 +14,9 @@ import { Body } from './body';
 import { BODY } from './bodies';
 import { lightLevelAt, type LightDef } from '../world/lights';
 import { nearestPanel, type AlarmPanel } from './alarm';
-import { hyp2 } from '../core/mathx';
+import { hyp2, hyp3 } from '../core/mathx';
+import { ARCHETYPE, DIFFICULTY } from './archetypes';
+import { ReconDrone } from './reconDrone';
 
 export const MAX_ALIVE = 10;
 
@@ -70,14 +72,28 @@ export class EnemyManager {
   private torches: LightDef[] = [];
   private torchOwner: (Enemy | null)[] = [];
   private world: World;
+  /** Drone operators' recon drones. */
+  readonly drones: ReconDrone[] = [];
+  /** Dead / knocked-out dogs (their own bodies, lying where they fell). */
+  private dogCorpses: Enemy[] = [];
+  /** Squad rosters (members kept after they go down) for radio checks; reported silent members. */
+  private squads = new Map<number, Enemy[]>();
+  private silent = new Set<Enemy>();
+  private radioT: number = ARCHETYPE.radio.period;
+  /** Radio checks run / members found silent (tests). */
+  radioChecks = 0;
+  radioMisses = 0;
+  private buffT = 0;
+  /** Callouts (GameState shows them). */
+  onBark: ((e: Enemy, line: string, radio: boolean) => void) | null = null;
 
   constructor(
-    scene: Scene,
+    private scene: Scene,
     world: World,
     readonly nav: NavGrid,
-    registry: DamageRegistry,
-    ballistics: Ballistics,
-    vfx: Vfx,
+    private registry: DamageRegistry,
+    private ballistics: Ballistics,
+    private vfx: Vfx,
     public difficulty: Difficulty,
     private players: () => readonly PlayerRef[],
   ) {
@@ -116,6 +132,7 @@ export class EnemyManager {
         this.onKilled?.(e, h);
       },
       onShot: (e, a, b) => this.onEnemyShot?.(e, a, b),
+      onBark: (e, line, radio) => this.onBark?.(e, line, radio),
       onMelee: (e) => this.onEnemyMelee?.(e),
       onWindup: (e) => this.onEnemyWindup?.(e),
       isFlanker: (e) => this.flanker === e,
@@ -127,6 +144,7 @@ export class EnemyManager {
         const T = 1.15;
         const v = new Vector3((to.x - from.x) / T, (to.y + 0.3 - from.y + 0.5 * -GRAVITY.y * T * T) / T, (to.z - from.z) / T);
         this.grenades.throw(from, v, 'enemy', e.id, undefined, true);
+        e.bark('grenade');
         return true;
       },
       stealth: () => this.stealth,
@@ -141,7 +159,7 @@ export class EnemyManager {
         for (const o of this.enemies) {
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
-          if (d < EnemyManager.RADIO) o.radio(0.4 + d * 0.03 + Math.random() * 0.3);
+          if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * DIFFICULTY[this.difficulty].reaction * (o.buff ? ARCHETYPE.officer.reaction : 1));
         }
       },
       searchSlot: (e) => {
@@ -193,6 +211,7 @@ export class EnemyManager {
     if (b.found || !b.present) return;
     b.found = true;
     this.bodiesFound++;
+    e.bark('body');
     e.searchAt(b.pos.x, b.pos.z, b.lethal ? null : b);
     for (const o of this.enemies) {
       if (o === e || !o.alive || o.alerted) continue;
@@ -252,7 +271,8 @@ export class EnemyManager {
       if (!e.alive || !e.alerted || e.def.melee) continue;
       const p = nearestPanel(this.alarms, e.pos.x, e.pos.z, 2, e.pos.y);
       if (!p) continue;
-      const d = hyp2(p.x - e.pos.x, p.z - e.pos.z);
+      // an officer calls it in himself
+      const d = hyp2(p.x - e.pos.x, p.z - e.pos.z) * (e.def.kind === 'officer' ? 0.25 : 1);
       if (d < bd) {
         bd = d;
         best = e;
@@ -330,7 +350,61 @@ export class EnemyManager {
     const e = new Enemy(this.ctx, ENEMIES[kind], new Vector3(x, 0, z), yaw);
     if (alerted) e.alert();
     this.enemies.push(e);
+    if (kind === 'droneOp') this.drones.push(new ReconDrone(this.scene, this.world.parts, this.registry, this.ballistics, this.vfx, e));
     return e;
+  }
+
+  /** Put an enemy on a squad's roster (radio checks; the dog's handler comes from its squad). */
+  joinSquad(e: Enemy, squad: number): void {
+    e.squad = squad;
+    let r = this.squads.get(squad);
+    if (!r) {
+      r = [];
+      this.squads.set(squad, r);
+    }
+    if (!r.includes(e)) r.push(e);
+  }
+
+  /** Squad radio checks (stealth rules): a calm caller checks in; a silent member gets looked for. */
+  radioCheckNow(): void {
+    this.radioChecks++;
+    for (const [, roster] of this.squads) {
+      let caller: Enemy | null = null;
+      for (const m of roster) {
+        if (!m.alive || m.alerted || m.dog) continue;
+        if (!caller || m.def.kind === 'officer') caller = m;
+      }
+      if (!caller || caller.level !== 'unaware') continue;
+      caller.bark('radioCheck');
+      let missed = false;
+      for (const m of roster) {
+        if (m.alive || this.silent.has(m)) continue;
+        this.silent.add(m);
+        this.radioMisses++;
+        missed = true;
+        caller.searchAt(m.pos.x, m.pos.z, null);
+      }
+      if (missed) caller.bark('missed');
+      else
+        for (const m of roster)
+          if (m !== caller && m.alive && !m.dog) {
+            m.bark('radioOk');
+            break;
+          }
+    }
+  }
+
+  /** EMP at a point: recon drones in range drop. */
+  empAt(x: number, y: number, z: number, r: number): number {
+    let n = 0;
+    for (const d of this.drones) {
+      if (!d.alive) continue;
+      if (hyp3(d.pos.x - x, d.pos.y - y, d.pos.z - z) <= r) {
+        d.emp();
+        n++;
+      }
+    }
+    return n;
   }
 
   /** Gunfire heard within radius: those enemies go to combat towards it (and it locates the shooter). */
@@ -407,6 +481,20 @@ export class EnemyManager {
       this.assignAlarm();
     }
     this.grenadeT = Math.max(0, this.grenadeT - dt);
+    // officers buff squadmates round them
+    this.buffT -= dt;
+    if (this.buffT <= 0) {
+      this.buffT = 0.5;
+      this.updateBuffs();
+    }
+    if (this.stealth && this.squads.size) {
+      this.radioT -= dt;
+      if (this.radioT <= 0) {
+        this.radioT = ARCHETYPE.radio.period + (Math.random() * 2 - 1) * ARCHETYPE.radio.jitter;
+        this.radioCheckNow();
+      }
+    }
+    this.updateDrones(dt);
     const doors = this.world.doors;
     for (const e of this.enemies) {
       e.update(dt);
@@ -424,18 +512,75 @@ export class EnemyManager {
         b.light = lightLevelAt(lights, b.pos.x, b.pos.y + 0.2, b.pos.z);
       }
     }
-    // drop dead entries
-    for (let i = this.enemies.length - 1; i >= 0; i--) if (!this.enemies[i]!.alive) this.enemies.splice(i, 1);
+    // drop dead entries (a dog keeps its own body: kept to draw and dispose)
+    for (let i = this.enemies.length - 1; i >= 0; i--) {
+      const e = this.enemies[i]!;
+      if (e.alive) continue;
+      if (e.dog) this.dogCorpses.push(e);
+      this.enemies.splice(i, 1);
+    }
+  }
+
+  private updateBuffs(): void {
+    const r = ARCHETYPE.officer.buffRadius;
+    for (const e of this.enemies) {
+      e.buff = false;
+      if (!e.alive) continue;
+      for (const o of this.enemies) {
+        if (o === e || !o.alive || o.def.kind !== 'officer') continue;
+        if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < r) {
+          e.buff = true;
+          break;
+        }
+      }
+    }
+  }
+
+  /** A recon drone sees a player: its operator grows suspicious, then is alerted (the squad radioed). */
+  private onDroneSpot = (d: ReconDrone, p: PlayerRef, full: boolean): void => {
+    const op = d.operator;
+    if (op.alerted || full) {
+      if (!op.alerted) {
+        op.notice(p.feet.x, p.feet.z, 0.99);
+        op.bark('drone');
+        op.alert();
+      }
+      this.lkp.copyFrom(p.feet);
+      this.lkpValid = true;
+      this.sightT = 0;
+    } else op.notice(p.feet.x, p.feet.z, Math.min(0.9, 0.3 + d.meter * 0.6));
+  };
+
+  private updateDrones(dt: number): void {
+    const players = this.players();
+    const perc = DIFFICULTY[this.difficulty].perception;
+    for (let i = this.drones.length - 1; i >= 0; i--) {
+      const d = this.drones[i]!;
+      const floor = this.nav.heightAt(d.pos.x, d.pos.z);
+      const keep = d.update(dt, players, perc, floor, this.onDroneSpot);
+      if (!keep) {
+        d.dispose();
+        this.drones.splice(i, 1);
+      }
+    }
   }
 
   /** Render-rate animation (interpolated between fixed steps). */
   frameUpdate(dt: number, alpha: number): void {
     for (const e of this.enemies) e.frame(dt, alpha);
+    for (const e of this.dogCorpses) e.frame(dt, alpha);
+    for (const d of this.drones) d.frame(dt);
   }
 
   clear(): void {
     for (const e of this.enemies) e.dispose();
     this.enemies.length = 0;
+    for (const e of this.dogCorpses) e.dispose();
+    this.dogCorpses.length = 0;
+    for (const d of this.drones) d.dispose();
+    this.drones.length = 0;
+    this.squads.clear();
+    this.silent.clear();
     for (const b of [...this.bodies]) this.removeBody(b);
     // nobody left to hold a job: the alarm run, the flank, the flashlights
     this.alarmRunner = null;

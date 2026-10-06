@@ -57,6 +57,9 @@ Blacklist style.
     exposure HUD, enemy grenades/flanker, footstep noise investigation
   - `scripts/e2e-takedown.mjs` takedown kinds (ground rules, over low cover, above, below, window), tap / hold,
     5 cm alignment, damage interrupt, Execute charge, marks through cover, no execute out of sight, execute
+  - `scripts/e2e-enemies.mjs` heavy (plates / back / face plate, lethal-only frontal takedown), enforcer (shield,
+    no frontal grab, pushes), sniper (laser, glint refuses a mark, relocates), dog (smell in the dark, takedown),
+    drone operator (spots, shot down, EMP), officer (buff, alarm first), radio check, callouts, Perfectionist
   - `scripts/e2e-gadgets.mjs` wheel (hold opens + slows time, stick picks, release selects, touch tap), arc preview,
     gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure, sticky cam feed
     (operator still, ping, gas, back), drone (flies, dart, battery), mine
@@ -138,7 +141,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   R3 shoulder, RB/LB weapons (RB `mark` while aiming), D-pad up `grenade` (the gadget: hold aims the arc, release
   throws), D-pad down `gadgetWheel` (hold), right / left emotes, View `vision` (goggles);
   Y also takedown / execute (contextual). Keyboard: Space cover, C / Ctrl crouch, Shift sprint, E traverse /
-  interact / takedown, R reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold); mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
+  interact / takedown, R reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold), 1-8 pick
+  a gadget (`InputState.gadgetPick`), J / K / L emotes; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
   smoothing, so releasing never steps the rate).
 - Touch (`input/touchControls.ts`): pointer handlers only record state; `update(dt)` (per frame, from
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
@@ -550,6 +554,24 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   guards in sight shoot it down, calm ones `notice`), mine (placed, arms after 1.5 s, an enemy within 1.6 m sets
   off a frag-strength blast). The feed look is `CinematicPost.setFeed`; `ui/hud/gadgetWheel.ts` (wheel + feed
   overlay text per input mode); touch: the action button is "Gas" / "Shock" in a feed, Mark is shown there too.
+
+## Enemy archetypes (2.0 phase 6)
+- `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal =
+  lethal only, enforcer frontal = none; `TakedownController` offers `lethalOnly`), `sniperRelocate`, `glint`,
+  `smellRate`, `radioCheck`, `DIFFICULTY` tiers (`rookie | normal | realistic | perfectionist`: perception, damage,
+  accuracy, hp, reaction, reward, `execute`, `sonar`; `parseDifficulty` reads easy / hard). `enemyDefs.ts` re-exports
+  them; `ENEMY_KINDS` adds `sniper | enforcer | dog | droneOp | officer` (`emptyKinds()` for tallies; `quadruped`).
+- `Enemy`: `perceptionMul` (tier x officer buff), dog smell (`smelled` keeps an alerted dog on the target),
+  `applyDamage` plates / shield (`shieldBlocks`), sniper `shotsHere` / `relocations` (`relocating` picks a post
+  5-22 m away), `glintFor(viewer)`, laser + glint meshes (`sniperFx`), enforcer push in `attack`, dog heel
+  (`findLeader` in its squad), `DogModel` (`ai/dogModel.ts`) instead of the rig (rig root disabled; dead dogs kept
+  in `EnemyManager.dogCorpses`), `bark(ev)` -> `ctx.onBark`, `squad`, `buff`.
+- `EnemyManager`: `ReconDrone`s (`ai/reconDrone.ts`, Damageable + ANIMATED sphere, orbit, camera cone, `onDroneSpot`,
+  `empAt`), officer buffs (2 Hz), alarm runner weighted to officers, `joinSquad` + `radioCheckNow` (period
+  `ARCHETYPE.radio`, stealth only), radio delays x tier reaction x officer.
+- Barks: `ai/barks.ts` (`BARKS`, `RADIO_BARKS`, `BarkVoice` cooldowns); `ui/hud/barks.ts` `BarkView` (pool, placed by
+  `GameState.placeBark`); `bark` event -> `sfx.radio()` for radio lines.
+- `GameState.difficultyDef`; Perfectionist turns off `ExecuteController` and `VisionState.sonarAllowed`.
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

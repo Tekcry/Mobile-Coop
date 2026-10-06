@@ -46,10 +46,12 @@ const ROOMS: RoomDef[] = [
     maxZ: -6,
     squad: [
       { kind: 'grunt', x: -19, z: -10.5, yaw: Math.PI, route: [[-19, -10.5], [-12.5, -8.6], [-16.5, -14.8]], wait: 3 },
+      // the handler's dog heels beside him
+      { kind: 'dog', x: -18, z: -11.3, yaw: Math.PI },
       { kind: 'grunt', x: -7.5, z: -15.5, yaw: -2.4 },
     ],
   },
-  { id: 'dispatch', name: 'Dispatch', minX: -4, maxX: 6, minZ: -18, maxZ: -11, squad: [{ kind: 'grunt', x: 2.5, z: -16.5, yaw: -1.2 }] },
+  { id: 'dispatch', name: 'Dispatch', minX: -4, maxX: 6, minZ: -18, maxZ: -11, squad: [{ kind: 'droneOp', x: 2.5, z: -16.5, yaw: -1.2 }] },
   {
     id: 'workshop',
     name: 'Workshop',
@@ -59,7 +61,7 @@ const ROOMS: RoomDef[] = [
     maxZ: -11,
     squad: [
       { kind: 'grunt', x: 20.5, z: -12.5, yaw: Math.PI, route: [[20.5, -12.5], [13, -12.2], [8.5, -16.5]] },
-      { kind: 'runner', x: 11, z: -16.8, yaw: 0.6 },
+      { kind: 'enforcer', x: 11, z: -16.8, yaw: 0.6 },
     ],
   },
   { id: 'corridor', name: 'Corridor', minX: -4, maxX: 24, minZ: -11, maxZ: -8.8 },
@@ -98,10 +100,11 @@ const ROOMS: RoomDef[] = [
     maxZ: 18,
     squad: [
       { kind: 'grunt', x: 13, z: 14.2, yaw: Math.PI, route: [[13, 14.2], [21.5, 13.1]], wait: 3 },
-      { kind: 'grunt', x: 22.5, z: 16.5, yaw: Math.PI },
+      // overwatch on the deck
+      { kind: 'sniper', x: 22.5, z: 16.5, yaw: Math.PI },
     ],
   },
-  { id: 'office', name: 'Office', minX: -4, maxX: 2, minZ: 12, maxZ: 18, squad: [{ kind: 'grunt', x: -2.5, z: 16.8, yaw: Math.PI }] },
+  { id: 'office', name: 'Office', minX: -4, maxX: 2, minZ: 12, maxZ: 18, squad: [{ kind: 'officer', x: -2.5, z: 16.8, yaw: Math.PI }] },
   { id: 'manager', name: "Manager's Office", minX: 2, maxX: 8, minZ: 12, maxZ: 18, squad: [{ kind: 'heavy', x: 6.2, z: 13.4, yaw: -1.6 }] },
 ];
 

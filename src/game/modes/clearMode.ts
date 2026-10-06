@@ -85,6 +85,7 @@ export class ClearMode implements GameMode {
       const e = em.spawn(p.slot.kind, new Vector3(p.slot.x, 0, p.slot.z), false, p.slot.yaw);
       if (!e) break;
       e.hold = this.rooms[p.room]!;
+      em.joinSquad(e, p.room);
       if (p.slot.route) e.setPatrol({ points: p.slot.route, wait: p.slot.wait });
       this.tracker.assign(e.id, p.room);
       this.pending.splice(i, 1);

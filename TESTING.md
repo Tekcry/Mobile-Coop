@@ -293,6 +293,20 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 6 - Enemy archetypes (1.18.0) - Warehouse, Clear
+- [ ] Dock: a dog trots beside the patrolling guard. Crouch behind a crate within a few metres: it growls and
+      comes for you even in the dark. A takedown from behind or sleeping gas puts it down.
+- [ ] Dispatch: a red-lit drone circles the drone operator. Stand under it: "Drone has him!". Shoot it down / EMP.
+- [ ] Workshop: the enforcer's shield sparks when shot from the front; he walks at you; flank and shoot his back.
+- [ ] Factory floor heavy: shots to his chest barely hurt, his back and face plate do; in front of him the prompt
+      reads "Lethal takedown".
+- [ ] Mezzanine sniper: a red laser and a glint when he aims at you; marking him then says "Can't mark through
+      the glint"; after a couple of shots he moves.
+- [ ] Office officer: alert him near the alarm panel - he runs it himself.
+- [ ] Take one guard of a squad out quietly and wait ~40 s: "Radio check." - "No answer..." - one comes to look.
+- [ ] Callouts float over heads (radio lines in blue with a chirp).
+- [ ] Play menu: Rookie / Normal / Realistic / Perfectionist. Perfectionist: no sonar on the goggles, no marks.
+
 ## 2.0 phase 5 - Gadgets (1.17.0) - Warehouse, Clear
 - [ ] Hold D-pad down / Tab: the gadget wheel opens and time slows. Push the stick (or move the mouse) to a slot,
       release: it is selected (HUD icon by the ammo). Touch: tap the wheel button, tap a slot.

@@ -7,7 +7,7 @@ import { computeStats, damageAt, MAX_UPGRADE } from '../weapons/weaponStats';
 import { killScore, waveClearBonus } from '../game/modes/waveLogic';
 import type { EndStats } from './protocol';
 import type { SessionStats } from '../game/modes/gameMode';
-import { ENEMY_KINDS } from '../ai/enemyDefs';
+import { emptyKinds, ENEMY_KINDS } from '../ai/enemyDefs';
 import { hyp2, hyp3 } from '../core/mathx';
 
 export interface V3 {
@@ -138,7 +138,7 @@ export function coopSessionStats(base: SessionStats, end: EndStats, selfId: stri
     score: end.score,
     kills: me?.kills ?? 0,
     headshots: me?.headshots ?? 0,
-    byKind: me ? { ...me.byKind } : { grunt: 0, runner: 0, heavy: 0 },
+    byKind: me ? { ...me.byKind } : emptyKinds(),
     weaponKills: me ? { ...me.weaponKills } : {},
   };
 }

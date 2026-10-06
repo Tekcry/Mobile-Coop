@@ -1,6 +1,6 @@
 import type { App } from '../../core/app';
 import type { GameOptions, ModeId } from '../../game/gameState';
-import type { Difficulty } from '../../ai/enemyDefs';
+import { DIFFICULTIES, DIFFICULTY, type Difficulty } from '../../ai/archetypes';
 import { MAPS } from '../../world/maps';
 import { h } from '../dom';
 import { Screen } from '../screen';
@@ -62,11 +62,7 @@ export class PlayScreen extends Screen {
     );
     const diff = choice(
       'Difficulty',
-      [
-        { value: 'easy', label: 'Easy' },
-        { value: 'normal', label: 'Normal' },
-        { value: 'hard', label: 'Hard' },
-      ] as { value: Difficulty; label: string }[],
+      DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label })),
       () => this.difficulty,
       (v) => (this.difficulty = v),
     );

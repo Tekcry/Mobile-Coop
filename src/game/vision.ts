@@ -34,10 +34,13 @@ export class VisionState {
   /** Night vision blend 0..1 (eased). */
   night = 0;
 
-  /** The vision button: off -> night -> sonar (unless recharging) -> off. */
+  /** Sonar available (Perfectionist difficulty has none). */
+  sonarAllowed = true;
+
+  /** The vision button: off -> night -> sonar (unless recharging or not allowed) -> off. */
   cycle(): VisionMode {
     if (this.mode === 'off') this.set('night');
-    else if (this.mode === 'night') this.set(this.cooldown > 0 ? 'off' : 'sonar');
+    else if (this.mode === 'night') this.set(this.cooldown > 0 || !this.sonarAllowed ? 'off' : 'sonar');
     else this.set('off');
     return this.mode;
   }

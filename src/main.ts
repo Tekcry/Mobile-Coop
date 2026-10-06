@@ -1,4 +1,5 @@
 import './styles.css';
+import { parseDifficulty } from './ai/archetypes';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
@@ -131,7 +132,7 @@ async function boot(): Promise<void> {
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
 
-  if (flags.autostart) startGame({ map: getMap(flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1 });
+  if (flags.autostart) startGame({ map: getMap(flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty) });
   else goToMenu();
   if (flags.coop && flags.room && !flags.autostart) {
     const room = flags.room;

@@ -4,6 +4,7 @@ import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
 import { approachPoint, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
 import type { GameState } from './gameState';
+import { grabRule } from '../ai/archetypes';
 
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
 const NOISE_CHOKE = 1.2;
@@ -21,7 +22,7 @@ const SCAN = 5;
  */
 export class TakedownController {
   /** On offer this step. */
-  offer: { e: Enemy; plan: TakedownPlan } | null = null;
+  offer: { e: Enemy; plan: TakedownPlan; lethalOnly: boolean } | null = null;
   /** Running; `decided` once tap / hold is known (released early = non-lethal, held through = lethal). */
   active: { e: Enemy; plan: TakedownPlan; lethal: boolean; decided: boolean; t: number; from: Vector3; vFrom: Vector3; hp: number } | null = null;
   /** The press that started it is still held (pad / keyboard, or the touch prompt). */
@@ -83,6 +84,8 @@ export class TakedownController {
   start(lethal?: boolean): void {
     const o = this.offer;
     if (!o || this.active) return;
+    // a heavy can only be struck down from the front (no choke through the plates)
+    if (o.lethalOnly) lethal = true;
     const g = this.g;
     const c = g.player.controller;
     // leaving cover / the anchor for moves that carry the attacker; hanging pulls stay on the lip
@@ -96,7 +99,7 @@ export class TakedownController {
     g.events.emit('takedown', { phase: 'start', lethal: lethal === true, kind: o.plan.kind });
   }
 
-  private find(): { e: Enemy; plan: TakedownPlan } | null {
+  private find(): { e: Enemy; plan: TakedownPlan; lethalOnly: boolean } | null {
     const g = this.g;
     const em = g.enemyMgr;
     if (!em) return null;
@@ -135,7 +138,10 @@ export class TakedownController {
     const h = g.ballistics.ray(this.eye, this.head, G.STATIC);
     i.los = !h.hit || h.distance > Vector3.Distance(this.eye, this.head) - 0.2;
     const plan = pickTakedown(i);
-    return plan ? { e: best, plan } : null;
+    if (!plan) return null;
+    // archetypes: an enforcer's shield stops a grab from the front, a heavy only falls to a strike there
+    const rule = grabRule(best.def.kind, plan.kind);
+    return rule === 'no' ? null : { e: best, plan, lethalOnly: rule === 'lethal' };
   }
 
   private run(dt: number): void {

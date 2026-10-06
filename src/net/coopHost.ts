@@ -1,4 +1,5 @@
 import { Vector3 } from '../core/babylon';
+import { emptyKinds } from '../ai/enemyDefs';
 import type { GameState, NetAttachment } from '../game/gameState';
 import type { Enemy } from '../ai/enemy';
 import type { HitInfo } from '../game/damage';
@@ -26,7 +27,7 @@ interface Hist {
 }
 
 type Tally = EndStats['players'][string];
-const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: { grunt: 0, runner: 0, heavy: 0 }, weaponKills: {} });
+const emptyTally = (): Tally => ({ kills: 0, headshots: 0, byKind: emptyKinds(), weaponKills: {} });
 
 /**
  * Host side of a coop match. The host runs the full simulation (AI, waves, pickups) and owns

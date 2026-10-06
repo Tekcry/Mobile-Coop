@@ -32,7 +32,7 @@ await page.evaluate((stealth) => {
   g.player.cam.yaw = 0;
   const spots = [[-1, -2], [4, -3], [8, -1], [12, 0.5], [16, -4], [-1, 4], [4, 6], [8, 3], [13, 7], [18, 4]];
   for (let i = 0; i < 10; i++) {
-    const e = g.enemyMgr.spawn(['grunt', 'runner', 'heavy'][i % 3], new V(spots[i][0], 0, spots[i][1]), !stealth, i * 0.6);
+    const e = g.enemyMgr.spawn(['grunt', 'heavy', 'sniper', 'enforcer', 'dog', 'droneOp', 'officer', 'runner', 'grunt', 'grunt'][i % 10], new V(spots[i][0], 0, spots[i][1]), !stealth, i * 0.6);
     // stealth: half walk short beats, all keep looking; the player crouches in the dark doorway
     if (stealth && i % 2 === 0) e.setPatrol({ points: [[spots[i][0], spots[i][1]], [spots[i][0] + 2, spots[i][1] + 1.5]], wait: 1 });
   }
