@@ -153,12 +153,14 @@ await run('autostart=warehouse&mode=clear', [
         const t = window.__t;
         const g = window.__app.current;
         t.tp(8, 0, -4, 0);
+        // (no alarm run: an alerted sniper would otherwise go for a panel)
+        g.enemyMgr.alarmRaised = true;
         const e = t.spawn('sniper', 8, 9, Math.PI, true);
         const p0 = e.pos.clone();
         let laser = false;
         let glintMax = 0;
         let refused = 0;
-        for (let i = 0; i < 60 && e.relocations === 0; i++) {
+        for (let i = 0; i < 90 && e.relocations === 0; i++) {
           t.step(0.1);
           g.frameUpdate(1 / 120, 1);
           laser = laser || e['laser'].isVisible;
