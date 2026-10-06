@@ -236,6 +236,8 @@ try {
       const g = window.__app.current;
       const em = g.enemyMgr;
       t.light(1);
+      // no alarm run (Hunter would bring the doubled hostiles in hunting, and they find you)
+      em.alarmRaised = true;
       const e = t.spawn('grunt', 0, 5, Math.PI);
       t.tp(-0.5, 0, 0);
       let k = 0;
