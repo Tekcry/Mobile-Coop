@@ -1,3 +1,4 @@
+import type { Surface, SurfaceArea } from './surfaces';
 import {
   Color3,
   CreateBox,
@@ -75,6 +76,8 @@ export interface BuiltLevel {
   anchors: TraversalAnchors;
   /** Every light of the level (gameplay light sampling + the renderer's capped real-light set). */
   lights: LightRegistry;
+  /** Marked floor surfaces (footstep loudness / sound); unmarked floor is the map theme's default. */
+  surfaces: SurfaceArea[];
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   dispose(): void;
 }
@@ -95,6 +98,7 @@ export class LevelBuilder {
   /** Placed anchors (ledges are generated at build time and added after these). */
   readonly anchors = new TraversalAnchors();
   readonly lights = new LightRegistry();
+  readonly surfaces: SurfaceArea[] = [];
   /** Manual ledge suppressions (x, z, radius). */
   private noLedgeAt: [number, number, number][] = [];
 
@@ -273,6 +277,12 @@ export class LevelBuilder {
     return this;
   }
 
+  /** Mark a floor area's surface (`top` = its walking height). */
+  surface(kind: Surface, minX: number, maxX: number, minZ: number, maxZ: number, top = 0): this {
+    this.surfaces.push({ kind, minX, maxX, minZ, maxZ, top });
+    return this;
+  }
+
   /** A box with its own ambient light level (an unlit interior under a roof). */
   ambientZone(minX: number, maxX: number, minZ: number, maxZ: number, ambient: number, minY = -1, maxY = 8): this {
     this.lights.addZone({ minX, maxX, minY, maxY, minZ, maxZ, ambient });
@@ -387,6 +397,7 @@ export class LevelBuilder {
       coverSegments,
       anchors,
       lights: this.lights,
+      surfaces: this.surfaces,
       bounds: this.bounds,
       dispose: () => {
         body.dispose();

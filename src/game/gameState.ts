@@ -47,6 +47,7 @@ import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { StealthSystems } from './stealthSystems';
+import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
@@ -99,6 +100,12 @@ export interface SessionCallbacks {
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
+/** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
+ *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
+const SHOT_NOISE = 28;
+const SUPPRESSED_NOISE = 0.6;
+const IMPACT_NOISE = 4;
+
 /** Touch action button: only for interactables now (cover and traversal prompts sit on the surfaces). */
 const ACT_USE: TouchAction = { action: 'interact', label: 'Use', icon: 'interact' };
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
@@ -125,6 +132,8 @@ export class GameState implements AppState {
   /** Current footstep noise radius (m), for the HUD and tests. */
   noise = 0;
   private noiseT = 0;
+  /** Floor surface under the player (footstep loudness / sound), sampled with the footstep noise. */
+  surface: Surface = 'concrete';
   /** Light level on the player's body 0..1 (light meter, perception), sampled at `LIGHT.playerHz`. */
   lightLevel = 1;
   private lightT = 0;
@@ -244,7 +253,15 @@ export class GameState implements AppState {
         this.stats.weaponKills[weapon] = (this.stats.weaponKills[weapon] ?? 0) + 1;
       }
     };
-    this.weapons.events.onShot = () => this.enemyMgr?.noise(this.player.position, 28 * this.weapons.current.stats.noise);
+    // shots: a loud report puts everyone in earshot into combat; a suppressed one (noise x0.6 or less) only
+    // makes them suspicious of where it came from
+    this.weapons.events.onShot = () => {
+      const n = this.weapons.current.stats.noise;
+      const r = SHOT_NOISE * n;
+      this.eventNoise(r);
+      if (n <= SUPPRESSED_NOISE) this.enemyMgr?.hear(this.player.position, r);
+      else this.enemyMgr?.noise(this.player.position, r);
+    };
     this.target.onDamaged = (h, dealt) => {
       this.stats.damageTaken += dealt;
       const bearing = Math.atan2(h.sourcePos.x - this.player.position.x, h.sourcePos.z - this.player.position.z);
@@ -300,7 +317,11 @@ export class GameState implements AppState {
         this.eventNoise(r);
         this.enemyMgr?.hear(at, r);
       });
-      this.weapons.onRay = (a, b) => this.stealth?.shotRay(a, b);
+      this.weapons.onRay = (a, b) => {
+        this.stealth?.shotRay(a, b);
+        // the round lands somewhere: a thud / ricochet close by is heard
+        this.enemyMgr?.hear(b, IMPACT_NOISE);
+      };
       this.extraBlips = () => [...(this.mode?.blips() ?? []), ...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
       app.debug.extra.set('ai', () => {
         const em = this.enemyMgr;
@@ -320,6 +341,10 @@ export class GameState implements AppState {
     if (this.puppet || opts.mode === 'sandbox') {
       this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
     }
+    // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients do not sync
+    // door state yet, so theirs stand open
+    if (this.puppet) world.doors.openAll();
+    else world.doors.arm();
     if (opts.mode === 'sandbox') {
       this.weapons.infiniteAmmo = true;
       const d = (x: number, z: number, yaw: number, strafe = 0): void => {
@@ -679,6 +704,7 @@ export class GameState implements AppState {
     this.weapons.fixedUpdate(dt, inp);
     this.ballistics.update(dt);
     this.grenades.update(dt);
+    this.world.doors.update(dt);
     this.explosions.update();
     for (const d of this.dummies) d.update(dt);
     // footsteps make noise that scales with speed (creeping is near silent, dashing carries)
@@ -688,7 +714,9 @@ export class GameState implements AppState {
     if (this.noiseT <= 0) {
       this.noiseT = 0.25;
       const c = this.player.controller;
-      const steps = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) : 0;
+      const pp = this.player.position;
+      this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
+      const steps = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) * SURFACE_NOISE[this.surface] : 0;
       if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
       this.noise = Math.max(steps, this.evNoise);
     }

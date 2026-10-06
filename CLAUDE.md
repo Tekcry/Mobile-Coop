@@ -484,7 +484,16 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Alarms (3b): `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted
   enemy (`runAlarm`, run speed) to work it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the
   `MapLayout.reinforce` point furthest from the player). The player disables a panel with a hold.
-- Interactables: kinds `switch`, `alarm`, `hide`, `body` with per-item `reach` and `onUse`; `nearest(feet, reach,
+- Sound (3c): `world/surfaces.ts` (pure) `surfaceAt(level.surfaces, ...)` (`LevelBuilder.surface`, default
+  `MapTheme.floor`) scales footstep noise (`SURFACE_NOISE`) and picks the footstep voice (`GameState.surface`).
+  Shots: `SHOT_NOISE` x weapon noise; at or below `SUPPRESSED_NOISE` it is `hear` (suspicion), else `noise`
+  (combat); `onRay` hits are heard within `IMPACT_NOISE`.
+- Doors (3c): `world/doors.ts` `Doors` (from `Door` anchors via `LevelBuilder.door`): one thin-instanced leaf mesh,
+  a static body only while closed, created by `arm()` after the nav grid is built (co-op clients `openAll()`);
+  `open(d, quiet | bash | enemy)` drops the body and swings the leaf, `close` refuses an occupied doorway;
+  `pushOpen` (enemies, each step), sprint bash and the interact (`door` kind) live in `StealthSystems`; `onSound`
+  -> `door` event (audio) + noise (quiet 2 m, bash 10 m).
+- Interactables: kinds `switch`, `alarm`, `hide`, `body`, `door` with per-item `reach` and `onUse`; `nearest(feet, reach,
   only)` (hide spots only with `only`); `GameState.updateInteract` calls `onUse` (else Mission).
 
 ## Combat around cover

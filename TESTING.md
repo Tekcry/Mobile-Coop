@@ -293,6 +293,13 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 3c - Surfaces, doors, shot noise (1.14.0) - Warehouse, Clear
+- [ ] Walk across the yard (gravel), the mezzanine (metal) and the office (carpet): steps sound different; the noise meter is higher on metal, lower on carpet.
+- [ ] At a closed door: "Open door" eases it open with a creak; "Close door" shuts it. Guards behind a closed door cannot see you.
+- [ ] Sprint into a closed door: it bangs open and nearby guards react.
+- [ ] A patrolling guard opens a closed door on his beat.
+- [ ] With a suppressor fitted, a shot near an unaware guard makes him look round, not open fire; without one he goes to combat.
+
 ## 2.0 phase 3b - Bodies, lights, alarms (1.13.0) - Warehouse, Clear
 - [ ] Drop a guard: the body stays. Walk up to it: "Pick up body"; carry it (slow, no weapon), put it down, pick it up again.
 - [ ] Carry a body to the yard dumpster or the dispatch cabinet: "Hide body"; it is gone.

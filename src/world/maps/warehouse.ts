@@ -244,6 +244,13 @@ export const warehouse: MapDef = {
     b.block(4.6, 15.6, 1.8, 0.95, 0.9, DESK);
     b.block(7.4, 17.2, 0.6, 1.8, 1.0, STEEL).block(-3.5, 17.3, 0.6, 1.8, 0.9, STEEL);
 
+    // doors (swing into the room side): office, manager's office, dispatch <-> workshop, two off the corridor
+    b.door(-1.5, 0, 12, 1.1, Math.PI / 2, { swing: -1 });
+    b.door(2, 0, 15.5, 1.1, 0, { swing: 1 });
+    b.door(6, 0, -16, 1.1, 0, { swing: -1 });
+    b.door(18, 0, -8.8, 1.1, Math.PI / 2, { swing: 1 });
+    b.door(14, 0, -11, 1.1, Math.PI / 2, { swing: -1 });
+
     // a dumpster in the yard and a big cabinet in the dispatch office (hide bodies in them)
     b.block(-21.6, -21.8, 1.9, 1.2, 1.1, '#2f5a3c').box(-21.6, 1.25, -21.8, 1.95, 0.08, 1.15, '#244a30', 0, 0, false);
     b.block(-3.3, -17.3, 1.2, 2.0, 0.7, STEEL);
@@ -269,6 +276,11 @@ export const warehouse: MapDef = {
     b.light({ kind: 'spot', x: -10.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20 });
     b.light({ kind: 'spot', x: 11.5, y: 4.6, z: -18.6, radius: 7, intensity: 0.8, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.3, 0.7), group: 20 });
     b.ambientZone(-24, 24, -18, 18, 0.12, -1, 6.2);
+    // surfaces: a gravel yard, a steel mezzanine deck and rack tops, carpeted offices
+    b.surface('gravel', -27, 27, -29, -18.2);
+    b.surface('metal', 8, 24, 12, 18, 2.6);
+    for (const x of [-20.5, -16.5, -12.5, -8.5]) b.surface('metal', x - 0.5, x + 0.5, -4.2, 16.6, 2.8);
+    b.surface('carpet', -4, 8, 12.15, 18);
 
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
     const props: MapLayout['props'] = [

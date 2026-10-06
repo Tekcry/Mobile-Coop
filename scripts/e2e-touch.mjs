@@ -97,6 +97,8 @@ try {
   // cover by touch: tap the take-cover prompt on the wall (a real touch on the world prompt)
   await page.evaluate(() => { const g = window.__app.current; const p = g.player; g.cover.reset(); p.controller.teleport(new p.controller.pos.constructor(-3.7, 0, -6), -Math.PI / 2); p.cam.yaw = -Math.PI / 2; p.cam.pitch = -0.1; });
   await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 5000 });
+  // the camera springs settle after the teleport (the prompt moves with the view until then)
+  await page.waitForTimeout(600);
   let box = await (await page.$('.wp-cover.show .wp-body')).boundingBox();
   await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
   await page.waitForTimeout(900);

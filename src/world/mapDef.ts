@@ -2,6 +2,7 @@ import type { Vector3 } from '../core/babylon';
 import type { LevelBuilder } from './levelBuilder';
 import type { PropKind } from './props';
 import type { RoomDef } from './rooms';
+import type { Surface } from './surfaces';
 
 export interface MapTheme {
   sky: string;
@@ -15,6 +16,8 @@ export interface MapTheme {
   /** Gameplay light level everywhere before any lamp (0 pitch dark .. 1; default 0.75, daylight): the
    *  light meter and enemy perception read it (`LightRegistry.ambient`). */
   lightLevel?: number;
+  /** Floor surface where none is marked (default concrete). */
+  floor?: Surface;
 }
 
 export interface PropPlacement {

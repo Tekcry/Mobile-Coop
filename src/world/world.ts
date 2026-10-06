@@ -20,6 +20,7 @@ import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
 import { LightRig } from './lightRig';
 import { Breakables } from './breakables';
+import { Doors } from './doors';
 import { makeCone } from './lights';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
@@ -43,6 +44,8 @@ export class World {
   readonly lightRig: LightRig;
   /** Window glass and duct grates (separate bodies that open). */
   readonly breakables: Breakables;
+  /** Hinged doors (collision while closed, armed once the nav grid is built). */
+  readonly doors: Doors;
 
   private constructor(
     readonly scene: Scene,
@@ -95,6 +98,7 @@ export class World {
     }
     this.lightRig = new LightRig(scene, level.lights);
     this.breakables = new Breakables(scene, level.anchors);
+    this.doors = new Doors(scene, level.anchors);
   }
 
   static async create(engine: Engine, map: MapDef, opts: WorldOptions): Promise<World> {
@@ -132,6 +136,7 @@ export class World {
   dispose(): void {
     this.lightRig.dispose();
     this.breakables.dispose();
+    this.doors.dispose();
     this.props.dispose();
     this.level.dispose();
     this.parts.dispose();

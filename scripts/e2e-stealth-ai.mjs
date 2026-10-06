@@ -40,6 +40,16 @@ try {
         }
         reg.version++;
         if (g.stealth.carry) g.stealth.dropCarried();
+        // doors shut again
+        const doors = g.world.doors;
+        for (const d of doors.list) {
+          d.open = 0;
+          d.target = 0;
+          doors['write'](d);
+          doors['addBody'](d);
+        }
+        doors['mesh']?.thinInstanceBufferUpdated('matrix');
+        g.noise = 0;
         g.cover.reset();
         g.traversal.reset();
         st.releaseAll();
@@ -478,6 +488,147 @@ try {
     });
     assert(r.woke, 'a knocked-out guard is woken when a squadmate finds him');
     assert(r.lethal === 0, `and the body is gone (${r.lethal} left)`);
+  });
+
+  await scen('surfaces', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      t.light(0);
+      const walk = (x, y, z, yaw) => {
+        g.player.controller.teleport(new t.V(x, y, z), yaw);
+        g.player.cam.yaw = yaw;
+        t.step(0.3);
+        st.setMove('t', 0, 0.6);
+        let n = 0;
+        let surf = '';
+        for (let i = 0; i < 12; i++) {
+          t.step(0.1);
+          n = Math.max(n, g.noise);
+          surf = g.surface;
+        }
+        st.setMove('t', 0, 0);
+        t.step(0.4);
+        return { n, surf };
+      };
+      const concrete = walk(8, 0, -5, Math.PI / 2);
+      const metal = walk(13.5, 2.6, 14.6, Math.PI / 2);
+      const carpet = walk(-2.5, 0, 13.4, 0);
+      t.light(null);
+      return { concrete, metal, carpet };
+    });
+    assert(r.concrete.surf === 'concrete' && r.metal.surf === 'metal' && r.carpet.surf === 'carpet', `surfaces under foot (${r.concrete.surf}, ${r.metal.surf}, ${r.carpet.surf})`);
+    assert(r.metal.n > r.concrete.n && r.concrete.n > r.carpet.n, `walking is loudest on metal, quietest on carpet (${r.metal.n.toFixed(1)} / ${r.concrete.n.toFixed(1)} / ${r.carpet.n.toFixed(1)} m)`);
+  });
+
+  await scen('shots', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      t.light(0);
+      t.tp(0, -5, Math.PI);
+      const e = t.spawn('grunt', 0, 5, 0);
+      t.step(0.3);
+      const stats = g.weapons.current.stats;
+      const n0 = stats.noise;
+      stats.noise = 0.45;
+      g.weapons.events.onShot(g.weapons.current.def);
+      t.step(0.2);
+      const supp = e.level;
+      stats.noise = n0;
+      t.reset();
+      t.light(0);
+      t.tp(0, -5, Math.PI);
+      const e2 = t.spawn('grunt', 0, 5, 0);
+      t.step(0.3);
+      g.weapons.events.onShot(g.weapons.current.def);
+      t.step(0.2);
+      const loud = e2.level;
+      t.reset();
+      t.light(0);
+      t.tp(-22, -24, 0);
+      const e3 = t.spawn('grunt', 0, 5, 0);
+      t.step(0.3);
+      g.weapons.onRay(new t.V(-5, 1, 5), new t.V(1.5, 1, 6));
+      t.step(0.2);
+      const impact = e3.level;
+      t.light(null);
+      return { supp, loud, impact };
+    });
+    assert(r.supp === 'suspicious', `a suppressed shot only makes a guard suspicious (${r.supp})`);
+    assert(r.loud === 'alert', `a loud shot puts him in combat (${r.loud})`);
+    assert(r.impact === 'suspicious', `a round landing close by is heard (${r.impact})`);
+  });
+
+  await scen('doors', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      const g = window.__app.current;
+      const st = window.__app.input.state;
+      const doors = g.world.doors;
+      const d = doors.nearest(-0.95, 12, 0.5);
+      // a closed door blocks sight: a lit walker on the far side is not seen
+      t.light(1);
+      const e = t.spawn('grunt', -0.95, 15, Math.PI);
+      t.tp(-0.95, 9.8, 0);
+      let blocked = 0;
+      for (let i = 0; i < 20; i++) {
+        st.setMove('t', i % 10 < 5 ? 0.5 : -0.5, 0);
+        t.step(0.1);
+        blocked = Math.max(blocked, e.rate);
+      }
+      st.setMove('t', 0, 0);
+      // opened quietly by hand: a creak (2 m), then he can see through
+      t.tp(-0.95, 11.2, 0);
+      t.step(0.2);
+      const offer = g.interactTarget?.label;
+      g.noise = 0;
+      st.tap('interact');
+      t.step(0.1);
+      const quiet = g.noise;
+      t.step(1.4);
+      const open = d.open;
+      t.tp(-0.95, 9.8, 0);
+      let seen = 0;
+      for (let i = 0; i < 10; i++) {
+        t.step(0.1);
+        seen = Math.max(seen, e.rate);
+      }
+      // bashed open at a sprint: loud
+      t.reset();
+      t.light(0);
+      // (from beside the conveyor, angled at the doorway)
+      t.tp(-2.6, 8.2, Math.atan2(1.65, 3.8));
+      t.step(0.3);
+      st.setMove('t', 0, 1);
+      st.tap('dash');
+      let bash = 0;
+      for (let i = 0; i < 60 && d.target === 0; i++) t.step(0.05);
+      t.step(0.1);
+      bash = g.noise;
+      st.setMove('t', 0, 0);
+      const bashed = d.target === 1;
+      // a guard walking his beat through a closed door opens it
+      t.reset();
+      t.light(0);
+      t.tp(-22, -24, 0);
+      const w = t.spawn('grunt', -0.95, 14.5, Math.PI);
+      w.setPatrol({ points: [[-0.95, 14.5], [-0.95, 8.5]], wait: 1 });
+      let through = false;
+      for (let i = 0; i < 80 && !through; i++) {
+        t.step(0.25);
+        through = w.pos.z < 11;
+      }
+      t.light(null);
+      return { blocked, offer, quiet, open, seen, bash, bashed, through, dOpen: d.target };
+    });
+    assert(r.blocked === 0, `a closed door blocks sight (${r.blocked.toFixed(2)})`);
+    assert(r.offer === 'Open door', `at a door: open it (${r.offer})`);
+    assert(r.quiet > 0 && r.quiet <= 2.5, `opening by hand is a quiet creak (${r.quiet.toFixed(1)} m)`);
+    assert(r.open === 1 && r.seen > 0, `once open he sees through (${r.seen.toFixed(2)})`);
+    assert(r.bashed && r.bash >= 8, `sprinting into a door bashes it open, loud (${r.bash.toFixed(1)} m)`);
+    assert(r.through && r.dOpen === 1, 'a guard walking through opens the door');
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));

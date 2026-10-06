@@ -591,8 +591,9 @@ export class Enemy implements Damageable {
     }
     const i = this.alertIn;
     i.meter = this.meter;
-    // outside stealth rules (Wave) they are sent at the target: combat never cools into a search
-    i.seeing = seen || (this.alerted && !this.ctx.stealth());
+    // outside stealth rules (Wave) they are sent at the target: combat never cools into a search; nor does a
+    // run to an alarm panel
+    i.seeing = seen || (this.alerted && !this.ctx.stealth()) || this.alarm !== null;
     i.arrived = this.spotArrived;
     i.sinceSeen = this.sinceSeen;
     i.heard = this.heard;

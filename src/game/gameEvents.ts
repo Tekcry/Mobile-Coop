@@ -16,6 +16,8 @@ export interface GameEvents {
   bodyFound: { x: number; z: number };
   /** The player picked up / put down / hid a body. */
   body: { action: 'pickup' | 'drop' | 'hide' };
+  /** A door opened / closed (audio). */
+  door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number };
   pickup: { kind: PickupKind };
   emote: { id: string };
   /** Coop: a shot by a teammate or a host-simulated enemy (audio only). */

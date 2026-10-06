@@ -32,10 +32,10 @@ await run('autostart=depot&mode=wave', async ({ page, G, sim }) => {
   // kill everything as it spawns until the wave clears
   let maxRag = 0;
   for (let i = 0; i < 40; i++) {
-    if (i > 0) maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr['ragdolls'].length));
+    if (i > 0) maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr.bodies.filter((b) => b.simulating).length));
     const done = await G((i) => { const g = window.__app.current; for (const e of [...g.enemyMgr.enemies]) if (e.alive) e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: i % 2 ? 'head' : 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 5 }); return g.mode.wave >= 2; }, i);
     await sim(0.1);
-    maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr['ragdolls'].length));
+    maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr.bodies.filter((b) => b.simulating).length));
     if (done) break;
     await sim(1);
   }

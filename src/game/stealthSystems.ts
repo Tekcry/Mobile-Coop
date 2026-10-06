@@ -7,11 +7,15 @@ import type { EnemyKind } from '../ai/enemyDefs';
 import { lightOnRay, type LightRegistry } from '../world/lights';
 import type { Interactable, Interactables } from './interactables';
 import type { GameState } from './gameState';
+import type { DoorState } from '../world/doors';
 import { hyp2 } from '../core/mathx';
 
 /** Noise radii (m): a bulb shot out, a body put down. */
 const SHOT_LIGHT_NOISE = 5;
 const DROP_NOISE = 3;
+/** Door noise radii (m): eased open / shut by hand, bashed open at a sprint. */
+const DOOR_QUIET_NOISE = 2;
+const DOOR_BASH_NOISE = 10;
 
 /**
  * Stealth fixtures in a match (phase 3b): bodies the player can pick up, carry (slow, weapon stowed, hands on
@@ -30,6 +34,7 @@ export class StealthSystems {
   /** The "Drop body" action (not in the world: offered while carrying with no hiding spot near). */
   private dropIt: Interactable;
   private kneeL = new Vector3();
+  private doorIts: { d: DoorState; it: Interactable }[] = [];
   private kneeR = new Vector3();
 
   constructor(
@@ -70,6 +75,24 @@ export class StealthSystems {
     });
     // a free-standing item for "Drop body" (never added to the world list)
     this.dropIt = { id: 'drop-body', kind: 'body', pos: new Vector3(), label: 'Drop body', holdTime: 0, enabled: true, done: false, progress: 0, node: null!, parts: [], light: null, onUse: () => this.dropCarried() };
+    // doors: open / close by hand, bash open at a sprint
+    const doors = g.world.doors;
+    for (const d of doors.list) {
+      const it = ints.add(`door-${d.anchor.id}`, 'door', new Vector3(d.cx, d.anchor.hinge.y, d.cz), 'Open door', 0);
+      it.reach = 1.4;
+      it.onUse = () => {
+        if (d.target === 0) doors.open(d, 'quiet');
+        else doors.close(d, (x, z, r) => this.occupied(x, z, r));
+      };
+      ints.setEnabled(it, !d.anchor.locked);
+      this.doorIts.push({ d, it });
+    }
+    doors.onSound = (d, how) => {
+      g.events.emit('door', { how, x: d.cx, z: d.cz });
+      if (how === 'enemy') return;
+      const r = how === 'bash' ? DOOR_BASH_NOISE : DOOR_QUIET_NOISE;
+      this.noise(r, new Vector3(d.cx, d.anchor.hinge.y, d.cz));
+    };
     em.onBodyAdded = (b) => this.addBody(b);
     em.onBodyRemoved = (b) => {
       const it = this.bodyIts.get(b);
@@ -205,8 +228,27 @@ export class StealthSystems {
     }
   }
 
-  /** Fixed step: body interact positions, carry movement rules. Call after the corner controller (speed cap). */
+  /** Someone (the player or an enemy) stands within `r` of (x, z). */
+  private occupied(x: number, z: number, r: number): boolean {
+    const p = this.g.player.position;
+    if (hyp2(p.x - x, p.z - z) < r) return true;
+    for (const e of this.em.enemies) if (e.alive && hyp2(e.pos.x - x, e.pos.z - z) < r) return true;
+    return false;
+  }
+
+  /** Fixed step: body interact positions, carry movement rules, doors. Call after the corner controller. */
   fixedUpdate(): void {
+    for (const { d, it } of this.doorIts) it.label = d.target === 0 ? 'Open door' : 'Close door';
+    // sprinting into a closed door bashes it open
+    const pc = this.g.player.controller;
+    if (pc.dashing && pc.speed > 3) {
+      const dr = this.g.world.doors.nearest(pc.pos.x, pc.pos.z, 1.1);
+      if (dr && dr.target === 0) {
+        const vx = Math.sin(pc.yaw);
+        const vz = Math.cos(pc.yaw);
+        if ((dr.cx - pc.pos.x) * vx + (dr.cz - pc.pos.z) * vz > 0) this.g.world.doors.open(dr, 'bash');
+      }
+    }
     for (const [b, it] of this.bodyIts) {
       it.pos.copyFrom(b.pos);
       const show = b.present;

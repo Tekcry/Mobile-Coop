@@ -267,3 +267,20 @@ describe('bodies and alarms', () => {
     expect(nearestPanel(ps, 0, 0, 2, 5)).toBeNull();
   });
 });
+
+describe('surfaces', () => {
+  it('the highest marked area at the feet wins; elsewhere the default; louder on metal, quieter on carpet', async () => {
+    const { surfaceAt, SURFACE_NOISE } = await import('../src/world/surfaces');
+    const areas = [
+      { kind: 'metal' as const, minX: 0, maxX: 4, minZ: 0, maxZ: 4, top: 2.6 },
+      { kind: 'carpet' as const, minX: -2, maxX: 2, minZ: -2, maxZ: 2, top: 0 },
+    ];
+    expect(surfaceAt(areas, 1, 2.6, 1, 'concrete')).toBe('metal');
+    // under the deck: the floor there
+    expect(surfaceAt(areas, 1, 0, 1, 'concrete')).toBe('carpet');
+    expect(surfaceAt(areas, 3, 0, 3, 'concrete')).toBe('concrete');
+    expect(surfaceAt(areas, 9, 0, 9, 'gravel')).toBe('gravel');
+    expect(SURFACE_NOISE.metal).toBeGreaterThan(SURFACE_NOISE.concrete);
+    expect(SURFACE_NOISE.carpet).toBeLessThan(SURFACE_NOISE.concrete);
+  });
+});

@@ -63,6 +63,10 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
     g.events.on('alarm', () => sfx.horn()),
     g.events.on('lightOut', ({ shot }) => (shot ? sfx.glass(1) : sfx.click())),
     g.events.on('lightSwitch', () => sfx.click()),
+    g.events.on('door', ({ how, x, z }) => {
+      const s = a.spatial(x, 1, z, how === 'bash' ? 40 : 20);
+      if (s.gain > 0.03) sfx.door(how, s.gain, s.pan);
+    }),
     g.events.on('body', ({ action }) => (action === 'pickup' ? sfx.thud(0.5) : sfx.thud(1))),
     g.events.on('waveCleared', () => sfx.objective()),
     g.events.on('objective', () => sfx.objective()),
@@ -88,7 +92,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
       stepT -= dt;
       if (stepT <= 0) {
         stepT = c.sprinting ? 0.27 : c.crouched ? 0.5 : 0.36;
-        sfx.footstep(c.crouched ? 0.5 : 1);
+        sfx.footstep(c.crouched ? 0.5 : 1, 0, g.surface);
       }
     }
     let alive = em?.alive ?? 0;

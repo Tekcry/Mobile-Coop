@@ -3,8 +3,8 @@ import { TransformNode, type AbstractMesh, type InstancedMesh, type Scene } from
 import type { PartLibrary } from '../world/partLibrary';
 import { hyp2 } from '../core/mathx';
 
-/** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies. */
-export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body';
+/** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
+export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door';
 
 const KIND_COLOR: Record<InteractKind, string> = {
   terminal: '#3fc1ff',
@@ -14,6 +14,7 @@ const KIND_COLOR: Record<InteractKind, string> = {
   alarm: '#ff3b30',
   hide: '#2a2f36',
   body: '#2a2f36',
+  door: '#2a2f36',
 };
 
 export interface Interactable {
@@ -71,7 +72,7 @@ export class Interactables {
       add('box', '#6b1c18', [0.32, 0.42, 0.07], [0, 1.4, 0.035]);
       add('box', '#d9d9d9', [0.14, 0.14, 0.02], [0, 1.36, 0.075]);
       light = add('box', KIND_COLOR.alarm, [0.08, 0.05, 0.03], [0, 1.55, 0.08]);
-    } else if (kind === 'hide' || kind === 'body') {
+    } else if (kind === 'hide' || kind === 'body' || kind === 'door') {
       // no visuals
     } else if (kind === 'terminal') {
       add('box', '#3a4048', [0.7, 1.1, 0.45], [0, 0.55, 0]);

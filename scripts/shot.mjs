@@ -1,7 +1,7 @@
 // Screenshot helper: node scripts/shot.mjs <out.png> [query] [waitFrames] [js-to-eval-before-shot]
 import { launch, frames } from './e2e-lib.mjs';
 const [out, query = '', wait = '60', js = ''] = process.argv.slice(2);
-const { browser, page, errors } = await launch({ params: query });
+const { browser, page, errors } = await launch({ params: query, url: process.env.URL ?? 'http://localhost:4173/' });
 await frames(page, Number(wait));
 if (js) console.log('eval:', await page.evaluate(js));
 await page.screenshot({ path: out });

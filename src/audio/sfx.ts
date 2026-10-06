@@ -1,3 +1,4 @@
+import type { Surface } from '../world/surfaces';
 import type { AudioEngine, Bus } from './audioEngine';
 
 /** Procedural sound effects. Each function schedules a short node graph and lets it free itself. */
@@ -142,9 +143,28 @@ export class Sfx {
     this.burst('sfx', 0.5 * gain, pan, 'bandpass', 500, 1.2, 0.18, 1800);
   }
 
-  footstep(gain: number, pan = 0): void {
+  /** A footstep on a surface: dull concrete, ringing metal / grate, gravel crunch, soft carpet, wood knock. */
+  footstep(gain: number, pan = 0, surface: Surface = 'concrete'): void {
     if (!this.a.allow('step', 0.18)) return;
-    this.burst('sfx', 0.08 * gain, pan, 'lowpass', 500 + Math.random() * 200, 1, 0.06);
+    const r = Math.random();
+    switch (surface) {
+      case 'metal':
+      case 'grate':
+        this.burst('sfx', 0.09 * gain, pan, 'bandpass', 1500 + r * 400, 3, 0.07);
+        this.tone('sfx', 0.03 * gain, pan, 'triangle', surface === 'metal' ? 620 + r * 60 : 900 + r * 80, 500, 0.12);
+        break;
+      case 'gravel':
+        this.burst('sfx', 0.1 * gain, pan, 'highpass', 1800 + r * 900, 0.7, 0.09);
+        break;
+      case 'carpet':
+        this.burst('sfx', 0.05 * gain, pan, 'lowpass', 320 + r * 80, 0.8, 0.05);
+        break;
+      case 'wood':
+        this.burst('sfx', 0.08 * gain, pan, 'bandpass', 380 + r * 90, 2, 0.08);
+        break;
+      default:
+        this.burst('sfx', 0.08 * gain, pan, 'lowpass', 500 + r * 200, 1, 0.06);
+    }
   }
 
   /** A bulb shot out / glass tinkle. */
@@ -158,6 +178,21 @@ export class Sfx {
   click(): void {
     if (!this.a.allow('click', 0.08)) return;
     this.burst('sfx', 0.22, 0, 'bandpass', 3200, 4, 0.025);
+  }
+
+  /** A door: a slow creak eased open, a bang when bashed, a latch click shutting. */
+  door(how: 'quiet' | 'bash' | 'enemy' | 'close', gain: number, pan: number): void {
+    if (!this.a.allow('door', 0.2)) return;
+    if (how === 'bash') {
+      this.burst('sfx', 0.6 * gain, pan, 'lowpass', 900, 0.8, 0.3, 140);
+      this.burst('sfx', 0.25 * gain, pan, 'bandpass', 2400, 2, 0.06);
+    } else if (how === 'close') {
+      this.burst('sfx', 0.25 * gain, pan, 'lowpass', 500, 1, 0.12, 160);
+      this.burst('sfx', 0.12 * gain, pan, 'bandpass', 3000, 5, 0.03);
+    } else {
+      // hinge creak: a scratchy rising saw
+      this.tone('sfx', 0.05 * gain, pan, 'sawtooth', how === 'enemy' ? 210 : 170, how === 'enemy' ? 300 : 250, how === 'enemy' ? 0.45 : 0.8, 0, 0.12);
+    }
   }
 
   /** A body thumps down. */

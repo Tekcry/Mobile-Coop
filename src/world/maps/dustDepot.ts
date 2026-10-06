@@ -103,6 +103,7 @@ export const dustDepot: MapDef = {
     sunDir: [0.5, -1, 0.3],
     sunIntensity: 0.95,
     ambient: 0.65,
+    floor: 'gravel',
   },
   build(b: LevelBuilder, seed: number): MapLayout {
     const rng = mulberry(seed * 7919 + 13);

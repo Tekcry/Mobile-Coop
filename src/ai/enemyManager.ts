@@ -407,7 +407,12 @@ export class EnemyManager {
       this.assignAlarm();
     }
     this.grenadeT = Math.max(0, this.grenadeT - dt);
-    for (const e of this.enemies) e.update(dt);
+    const doors = this.world.doors;
+    for (const e of this.enemies) {
+      e.update(dt);
+      // walking into a closed door pushes it open
+      if (doors.list.length && e.alive) doors.pushOpen(e.pos.x, e.pos.z);
+    }
     this.updateTorches();
     // bodies: settle, and sample the light on them now and then (how findable they are)
     const lights = this.world.level.lights;

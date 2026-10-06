@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.14.0 - 2.0 phase 3c: surfaces, doors, shot noise
+- Floor surfaces (`world/surfaces.ts`): footsteps are louder on metal (x1.6), grates, gravel and wood, quieter on
+  carpet (x0.6), and sound different (ringing steel, gravel crunch, soft carpet). Warehouse: a gravel yard, a steel
+  mezzanine deck and rack tops, carpeted offices; Dust Depot is gravel throughout.
+- Doors (the `Door` anchors, finally in play): five on the Warehouse (offices, dispatch / workshop, off the
+  corridor). Closed doors block movement, sight and lamp light. Y / E / the action button opens one quietly (a 1 s
+  creak, heard within 2 m) or shuts it (never on someone in the doorway); sprinting into a closed door bashes it
+  open (loud). Enemies open doors they walk into. Doorways stay on the nav grid. (Co-op clients do not sync doors
+  yet: theirs stand open.)
+- Shots: a suppressed weapon (noise x0.6 or less, the suppressor attachment) only makes guards in earshot
+  suspicious of where it came from; a loud one still puts them in combat. Every shot also shows on the noise meter,
+  and a round landing within 4 m of a guard is heard.
+- An enemy running to an alarm panel stays in combat until he gets there.
+- Tests: unit tests for surfaces; e2e-stealth-ai surfaces (metal > concrete > carpet), suppressed vs loud shots,
+  impacts, doors (sight blocked, quiet open, sprint bash, a guard walking through). e2e-touch waits for the camera
+  to settle before tapping the cover prompt; e2e-modes counts ragdolls from the bodies.
+
 ## 1.13.0 - 2.0 phase 3b: bodies, lights, flashlights, alarms
 - Bodies stay where they fall (the ragdoll settles and remains; a still body when no ragdoll can be spared; up to
   12 kept). Enemies notice them by light, distance and field of view (`ai/bodies.ts`): a body in a lamp pool is
