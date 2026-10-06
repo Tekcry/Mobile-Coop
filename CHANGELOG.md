@@ -19,6 +19,9 @@ The 1.7.0 - 1.23.0 phases together; details under each version below.
   per-map grades (1.22); the Blacklist-minimal HUD, touch layout v3, accessibility options and a controls screen
   (1.23).
 - Saves: v6 (every older version migrates, a backup kept); settings move to the operator and touch layout v3 once.
+- Fixes in the release candidate: the hip-sling gun hangs 3.5 cm outside the thigh (the detailed body's hip and
+  cargo pocket swung into a P90 in a side-step); the weapon port and rail details sit flush in the receiver; the
+  operator's thigh panel only without cargo trousers.
 - Release checks: full e2e (27 suites) green; 10-minute soaks on the Warehouse, the Embassy and the Dust Depot;
   perf on the heaviest scenes (see TESTING.md); offline: every precache entry, an Infiltration mission offline.
 - Known gaps (not in 2.0): the Port / Mansion / Refinery maps of the plan, multi-level AI navigation, co-op

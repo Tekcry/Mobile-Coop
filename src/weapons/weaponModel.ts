@@ -23,6 +23,8 @@ const CENTRE_CLEAR = 0.09;
 const SLING_SPLAY = 0.12;
 /** Kept this much (rad) outside the thigh when the leg swings the gun out. */
 const SLING_MARGIN = 0.12;
+/** The sling hangs this far (m) outside the thigh (the detailed body's hip and cargo pocket swing in a side-step). */
+const SLING_GAP = 0.035;
 
 const ax = new Vector3();
 const ay = new Vector3();
@@ -68,8 +70,9 @@ export class WeaponModel {
         m.position.set(px, py, pz);
         this.parts.push(m);
       };
-      detail('#0d0e10', 0.006, h * 0.32, l * 0.22, x + w / 2 + 0.002, y + h * 0.12, z + l * 0.08);
-      if (def.class !== 'shotgun') detail(colors.grip, w * 0.55, 0.012, l * 0.62, x, y + h / 2 + 0.005, z);
+      // (set into the receiver's faces, so the carried model's extents - and the slot clearances - stay the same)
+      detail('#0d0e10', 0.006, h * 0.32, l * 0.22, x + w / 2 - 0.0025, y + h * 0.12, z + l * 0.08);
+      if (def.class !== 'shotgun') detail(colors.grip, w * 0.55, 0.012, l * 0.62, x, y + h / 2 - 0.0055, z);
     }
     this.muzzleLocal = new Vector3(...def.muzzle);
     this.ext = modelExtents(def);
@@ -164,7 +167,7 @@ export class WeaponModel {
     Quaternion.RotationQuaternionFromAxisToRef(ax, ay, az, n.rotationQuaternion!);
     // pivot: the inner face of the stock end, just outside the thigh at belt height
     const yc = (e.y0 + e.y1) / 2;
-    const px = -(rig.p.hipHalf + rig.thighOuter + CARRY_GAP);
+    const px = -(rig.p.hipHalf + rig.thighOuter + SLING_GAP);
     const py = -0.02;
     const pz = -0.02;
     n.position.set(px - ax.x * e.x1 - ay.x * yc - az.x * e.z0, py - ax.y * e.x1 - ay.y * yc - az.y * e.z0, pz - ax.z * e.x1 - ay.z * yc - az.z * e.z0);
