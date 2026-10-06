@@ -650,7 +650,7 @@ export function reach(a: Anchor, x: number, y: number, z: number, dirX: number, 
     case 'duct': {
       const g = a.entry;
       const d = hyp2(x - g.pos.x, z - g.pos.z);
-      if (d > 1.1 || Math.abs(g.pos.y - y) > 1.2) return null;
+      if (d > 1.1 || Math.abs(g.pos.y - y) > 1.4) return null;
       // facing into the vent
       if (g.where === 'wall' && -(dirX * g.nx + dirZ * g.nz) < 0.3) return null;
       return { anchor: a, entry: 'side', s: 0, dist: d };
@@ -698,7 +698,9 @@ export function nearestInReach(
     if (q.dist > 3) continue;
     const r = reach(a, x, y, z, dirX, dirZ);
     if (!r || (accept && !accept(r))) continue;
-    const score = r.dist;
+    // a placed climber (ladder, drainpipe) or vent beats the lip beside it
+    const placed = a.kind === 'ladder' || a.kind === 'pipeV' || a.kind === 'duct' || a.kind === 'zipline';
+    const score = r.dist - (placed ? 0.6 : 0);
     if (score < bestScore) {
       bestScore = score;
       best = r;

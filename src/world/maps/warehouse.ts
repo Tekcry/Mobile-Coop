@@ -207,17 +207,17 @@ export const warehouse: MapDef = {
     b.box((vx0 + vx1) / 2, 3.3, (12.15 + vz0) / 2, vx1 - vx0, 0.2, vz0 - 12.15, CONCRETE);
     b.box((vx0 + vx1) / 2, 3.3, (vz1 + 17.85) / 2, vx1 - vx0, 0.2, 17.85 - vz1, CONCRETE);
     b.box(8.12, 3.3, 15, 0.55, 0.2, 1.2, STEEL);
-    b.box(7.05, 3.8, 14.45, 2.7, 0.8, 0.1, STEEL);
-    b.box(7.05, 3.8, 15.55, 2.7, 0.8, 0.1, STEEL);
-    b.box(7.05, 4.25, 15, 2.7, 0.1, 1.2, STEEL);
-    b.box(5.7, 3.8, 15, 0.1, 0.8, 1.0, STEEL);
+    b.box(7.05, 3.95, 14.45, 2.7, 1.1, 0.1, STEEL);
+    b.box(7.05, 3.95, 15.55, 2.7, 1.1, 0.1, STEEL);
+    b.box(7.05, 4.55, 15, 2.7, 0.1, 1.2, STEEL);
+    b.box(5.7, 3.95, 15, 0.1, 1.1, 1.0, STEEL);
     b.mark(slab0, { overhead: true, noLedge: true });
     b.duct(
       [
         { x: 8.15, y: 3.4, z: 15 },
         { x: 6.75, y: 3.4, z: 15 },
       ],
-      { pos: { x: 8.4, y: 3.8, z: 15 }, nx: 1, ny: 0, nz: 0, where: 'wall' },
+      { pos: { x: 8.4, y: 3.85, z: 15 }, nx: 1, ny: 0, nz: 0, where: 'wall' },
       { pos: { x: 6.75, y: 3.3, z: 15 }, nx: 0, ny: -1, nz: 0, where: 'ceiling' },
     );
     b.block(11.5, 15.8, 1.2, 1.1, 1.2, CRATE, 2.6).block(17.5, 14.2, 1.2, 1.3, 1.2, CRATE, 2.6).block(18.7, 14.3, 1.0, 1.0, 1.0, CRATE, 2.6);

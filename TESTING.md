@@ -293,6 +293,14 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 2 feedback (1.11.0) - Proving Grounds, north east
+- [ ] Ladder: climbing up and down feels quick (3 rungs/s); holding sprint climbs faster; hands and feet step one at a time.
+- [ ] Walk up to a ladder next to a wall top: the ladder is offered, not the lip.
+- [ ] Drainpipe: the climb stops at the top; Y climbs up off it; pushing sideways swings onto the lip beside it.
+- [ ] Shimmy along a lip past the drainpipe: it swings onto the pipe; push sideways to carry on along the lip.
+- [ ] Ducts: crawling, the guns on the back never poke through the roof.
+- [ ] Moving fast along high cover: no sudden dip of the body or the gun into the floor.
+
 ## 2.0 phase 2c - Routes on every map (1.10.0) - Warehouse, Dust Depot
 - [ ] Warehouse yard: vault in through the workshop window. Dispatch: Y at the glass shatters through to the corridor.
 - [ ] Racking: climb a rack ladder, walk the rack top, sprint and hop the cross aisle.

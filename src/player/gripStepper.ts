@@ -32,6 +32,9 @@ export interface GripConfig {
   /** Allowed range of grips. */
   min: number;
   max: number;
+  /** The next limb may set off once the other is half way (a quick hand-over-hand); off = strictly one at a time
+   *  (feet on rungs: two swinging legs would cross). */
+  overlap?: boolean;
 }
 
 const snap = (v: number, c: GripConfig): number => {
@@ -77,7 +80,7 @@ export class GripStepper {
     for (let k = 0; k < 2; k++) {
       const g = k === 0 ? this.L : this.R;
       const o = k === 0 ? this.R : this.L;
-      if (g.swing >= 0 || (o.swing >= 0 && o.swing < 0.5)) continue;
+      if (g.swing >= 0 || (o.swing >= 0 && (c.overlap === false || o.swing < 0.5))) continue;
       const off = k === 0 ? c.offL : c.offR;
       const e = body + off - g.at;
       const oe = body + (k === 0 ? c.offR : c.offL) - o.at;

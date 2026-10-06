@@ -127,13 +127,13 @@ export const provingGrounds: MapDef = {
     b.box((vx1 + 29.15) / 2, 3.1, -5, 29.15 - vx1, 0.2, 6.3, C.concreteDark);
     b.box((vx0 + vx1) / 2, 3.1, (-8.15 + vz0) / 2, vx1 - vx0, 0.2, vz0 + 8.15, C.concreteDark);
     b.box((vx0 + vx1) / 2, 3.1, (vz1 - 1.85) / 2, vx1 - vx0, 0.2, -1.85 - vz1, C.concreteDark);
-    // the duct: a 1 x 0.8 m tunnel on the slab from the platform (x 22.2) to past the vent (x 28.3)
+    // the duct: a 1 x 1.1 m crawlspace on the slab from the platform (x 22.2) to past the vent (x 28.3)
     const duct0 = b.boxes.length;
     b.box(22.6, 3.1, -5, 0.8, 0.2, 1.2, C.metal);
-    b.box(25.25, 3.6, -5.55, 6.1, 0.8, 0.1, C.metal);
-    b.box(25.25, 3.6, -4.45, 6.1, 0.8, 0.1, C.metal);
-    b.box(25.25, 4.05, -5, 6.1, 0.1, 1.2, C.metal);
-    b.box(28.3, 3.6, -5, 0.1, 0.8, 1.0, C.metal);
+    b.box(25.25, 3.75, -5.55, 6.1, 1.1, 0.1, C.metal);
+    b.box(25.25, 3.75, -4.45, 6.1, 1.1, 0.1, C.metal);
+    b.box(25.25, 4.35, -5, 6.1, 0.1, 1.2, C.metal);
+    b.box(28.3, 3.75, -5, 0.1, 1.1, 1.0, C.metal);
     b.mark(duct0, { noLedge: true });
     b.mark(slab0, { overhead: true });
     b.duct(
@@ -141,7 +141,7 @@ export const provingGrounds: MapDef = {
         { x: 22.45, y: 3.2, z: -5 },
         { x: 27.35, y: 3.2, z: -5 },
       ],
-      { pos: { x: 22.2, y: 3.6, z: -5 }, nx: -1, ny: 0, nz: 0, where: 'wall' },
+      { pos: { x: 22.2, y: 3.65, z: -5 }, nx: -1, ny: 0, nz: 0, where: 'wall' },
       { pos: { x: 27.35, y: 3.1, z: -5 }, nx: 0, ny: -1, nz: 0, where: 'ceiling' },
     );
     // the platform at the duct mouth, a ladder up its west face

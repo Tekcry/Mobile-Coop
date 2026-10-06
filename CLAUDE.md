@@ -324,7 +324,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   vertical / along / path / auto; speed + accel with a first-frame response; enter / exit times; `camera` preset;
   `allow` sidearm / takedown / drop / traverse / gadgets; `holster`). `axisInput` maps the stick (camera relative
   along tangents), `attachPose` gives the feet + facing on the anchor, `attachRange` the travel range, `update`
-  reports pushing past an end (`edge`). Ladder 1.6 rungs/s (`LADDER_RUNG_RATE`), slide `LADDER_SLIDE`; zipline
+  reports pushing past an end (`edge`). Ladder 3 rungs/s (`LADDER_RUNG_RATE`; sprint held `LADDER_SPRINT_RATE` 5, drainpipe x`PIPE_SPRINT`), slide `LADDER_SLIDE`; zipline
   builds to `ZIP_SPEED` 6 m/s.
 - `TraversalController.attach` runs it: `attachTo(anchor, s, entry)`, `detach(reason)`; `input` (move, camera yaw,
   drop) is filled by `GameState` each step. While attached it drives `override.kinematic`, sets `coverPose.traverse`
@@ -338,7 +338,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   lets go (a ladder slides to the bottom, latched), traverse jumps to `jump` (`findJumpTarget`: <= 2.5 m from the
   grip centre along the camera-relative stick, into the wall = up, same-facing lips preferred) or climbs up
   (`canClimb`: room on top); pushing past a lip's end continues round the corner (`ledgeContinuation`) unless a
-  jump target is under the stick; a drainpipe's top takes the lip above. Entries from above / a ladder top turn
+  jump target is under the stick; a drainpipe's top waits: traverse climbs up off it (`pipeLip` with room), a sideways push (`sidePush`) swings onto a lip beside a ladder / drainpipe (`stepOffSideways`); shimmying past a climber crossing the lip swings onto it (`passClimber`; `transferT` stops ping-pong); placed climbers outscore lips in `nearestInReach`. Entries from above / a ladder top turn
   round and step out before dropping to the hands. Hands and feet step with `GripStepper` (pure: locked contacts,
   the worse-off limb swings to a new grip, the next may start half way through, optional rung grid) driven per
   render frame (`TraversalController.frameUpdate`, interpolated body parameter); the climb clip phase follows

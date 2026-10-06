@@ -48,19 +48,22 @@ export const CLIMB = makeClip({
     offGrip: [0, 0, 1, 0],
     hLX: [0, -0.2, 1, -0.2],
     hRX: [0, 0.2, 1, 0.2],
-    hLY: [0, 1.55, 0.25, 1.75, 0.5, 1.95, 0.75, 1.75, 1, 1.55],
-    hRY: [0, 1.95, 0.25, 1.75, 0.5, 1.55, 0.75, 1.75, 1, 1.95],
-    hLZ: [0, 0.3, 1, 0.3],
-    hRZ: [0, 0.3, 1, 0.3],
+    hLY: [0, 1.45, 0.25, 1.6, 0.5, 1.75, 0.75, 1.6, 1, 1.45],
+    hRY: [0, 1.75, 0.25, 1.6, 0.5, 1.45, 0.75, 1.6, 1, 1.75],
+    hLZ: [0, 0.25, 1, 0.25],
+    hRZ: [0, 0.25, 1, 0.25],
     fLY: [0, 0.3, 0.25, 0.15, 0.5, 0, 0.75, 0.15, 1, 0.3],
     fRY: [0, 0, 0.25, 0.15, 0.5, 0.3, 0.75, 0.15, 1, 0],
     // (the feet are on the rungs / the wall by the rig's plants; unplanted they stay plumb under the hips)
     fLZ: [0, 0, 1, 0],
     fRZ: [0, 0, 1, 0],
-    pelZ: [0, -0.06, 1, -0.06],
-    pelPitch: [0, 0.12, 0.5, 0.08, 1, 0.12],
-    spPitch: [0, -0.05, 1, -0.05],
-    hdPitch: [0, -0.2, 1, -0.2],
+    // upright and in close to the climb: hips over the feet, chest to the rungs, head up a little; the body
+    // rises with each push of the stepping leg
+    pelY: [0, -0.04, 0.25, 0, 0.5, -0.04, 0.75, 0, 1, -0.04],
+    pelPitch: [0, 0.04, 0.5, 0.02, 1, 0.04],
+    pelRoll: [0, 0.04, 0.5, -0.04, 1, 0.04],
+    spPitch: [0, 0.06, 1, 0.06],
+    hdPitch: [0, -0.12, 1, -0.12],
     width: [0, 0.75, 1, 0.75],
     wpPitch: [0, -0.9, 1, -0.9],
   },
@@ -74,10 +77,11 @@ export const CRAWL = makeClip({
   keys: {
     grip: [0, 0, 1, 0],
     offGrip: [0, 0, 1, 0],
-    pelY: [0, -0.5, 0.25, -0.48, 0.5, -0.5, 0.75, -0.48, 1, -0.5],
-    // the rig's spine counters most of the pelvis pitch: chest pitch ~ 0.4 * pelvis + spine (here ~1.45 rad)
+    pelY: [0, -0.54, 0.25, -0.52, 0.5, -0.54, 0.75, -0.52, 1, -0.54],
+    // the rig's spine counters most of the pelvis pitch: chest pitch ~ 0.4 * pelvis + spine (here ~1.57 rad: the
+    // back flat, so the long guns on it lie along it under the duct's roof)
     pelPitch: [0, 1.0, 1, 1.0],
-    spPitch: [0, 1.05, 1, 1.05],
+    spPitch: [0, 1.17, 1, 1.17],
     hdPitch: [0, -0.9, 1, -0.9],
     hLX: [0, -0.18, 1, -0.18],
     hRX: [0, 0.18, 1, 0.18],

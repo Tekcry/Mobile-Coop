@@ -19,7 +19,7 @@ import {
   type ReachResult,
   type TraversalAnchors,
 } from '../world/anchors';
-import { AttachMachine, attachPose, axisInput, LADDER_SLIDE, PIPE_SLIDE, type AttachPose, type ExitReason } from './attach';
+import { AttachMachine, attachPose, axisInput, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, type AttachPose, type ExitReason } from './attach';
 import { GripStepper, type GripLimb } from './gripStepper';
 import type { Player } from './player';
 import type { Breakables } from '../world/breakables';
@@ -36,6 +36,8 @@ export interface AttachInput {
   /** The use control (Y / E) is down, and for how long (hold to unscrew a grate). */
   useHeld: boolean;
   useHeldT: number;
+  /** Sprint held: climb ladders / drainpipes faster. */
+  sprintHeld: boolean;
 }
 
 /** Anchors offered from the ground (the traverse button attaches). */
@@ -94,7 +96,7 @@ const angleTo = (a: number, b: number): number => Math.atan2(Math.sin(b - a), Ma
  */
 export class AttachController {
   readonly m = new AttachMachine();
-  readonly input: AttachInput = { moveX: 0, moveY: 0, camYaw: 0, dropPressed: false, dropHeld: false, dropHeldT: 0, useHeld: false, useHeldT: 0 };
+  readonly input: AttachInput = { moveX: 0, moveY: 0, camYaw: 0, dropPressed: false, dropHeld: false, dropHeldT: 0, useHeld: false, useHeldT: 0, sprintHeld: false };
   /** Window glass and duct grates (set by the traversal controller's owner). */
   breakables: Breakables | null = null;
   /** Opening a duct grate: the duct, seconds since the press, and the unscrew progress 0..1 (prompt ring). */
@@ -123,7 +125,7 @@ export class AttachController {
   /** Body parameter last fixed step and this one (render interpolation of the grips). */
   private sPrev = 0;
   private hands = new GripStepper({ offL: -0.2, offR: 0.2, slack: 0.14, swingTime: HAND_SWING, lead: 0.8, grid: 0, gridOrigin: 0, min: 0, max: 1 });
-  private feet = new GripStepper({ offL: 0, offR: 0.3, slack: 0.3, swingTime: FOOT_SWING, lead: 1, grid: 0.3, gridOrigin: 0, min: 0, max: 1 });
+  private feet = new GripStepper({ offL: 0, offR: 0.3, slack: 0.3, swingTime: FOOT_SWING, lead: 1, grid: 0.3, gridOrigin: 0, min: 0, max: 1, overlap: false });
   private jumpT = 0;
   /** Height of the vent drop under way (m; 0 = none). */
   private ventDrop = 0;
@@ -267,9 +269,19 @@ export class AttachController {
       this.end.x = p.x - a.nx * (HANG.out + 0.45);
       this.end.y = a.top;
       this.end.z = p.z - a.nz * (HANG.out + 0.45);
+    } else if (reason === 'climb' && a.kind === 'pipeV') {
+      // straight up off the top of the drainpipe onto what it runs up to
+      const l = this.pipeLip(a, true);
+      if (l) {
+        this.end.x = a.base.x - l.nx * 0.55;
+        this.end.y = l.top;
+        this.end.z = a.base.z - l.nz * 0.55;
+        this.climbNx = l.nx;
+        this.climbNz = l.nz;
+      }
     }
     // climbing up off a lip is a full pull-up (longer than the spec's blend)
-    this.m.beginExit(reason, reason === 'climb' && a.kind === 'ledge' ? CLIMB_UP_TIME : undefined);
+    this.m.beginExit(reason, reason === 'climb' ? CLIMB_UP_TIME : undefined);
   }
 
   private finish(reason: ExitReason | null): void {
@@ -475,21 +487,30 @@ export class AttachController {
       axis = -1;
       rate = PIPE_SLIDE;
       jumpPressed = false;
+    } else if (inp.sprintHeld && (a.kind === 'ladder' || a.kind === 'pipeV')) {
+      // sprint held: a quick climb
+      rate = a.kind === 'ladder' ? LADDER_SPRINT_RATE * a.rung : PIPE_SPRINT;
     }
+    // climbing: the stick's sideways push (for stepping off onto a lip beside the climb)
+    const side = a.kind === 'ladder' || a.kind === 'pipeV' ? this.sidePush(a) : 0;
+    if (side !== 0) axis = 0;
     const edge = m.update(dt, axis, rate);
+    this.transferT -= dt;
     // what traverse would do from here (prompts): jump where the stick points, else climb up
     this.jumpT -= dt;
     if (m.phase === 'on' && (this.jumpT <= 0 || jumpPressed)) {
       this.jumpT = 0.2;
       this.jump = this.findJump(a);
-      this.canClimb = a.kind === 'ledge' && a.canClimbUp && this.climbRoom(a);
+      this.canClimb = a.kind === 'ledge' ? a.canClimbUp && this.climbRoom(a) : a.kind === 'pipeV' && m.s >= m.limits.max - 0.03 && !!this.pipeLip(a, true);
     }
     if (m.phase === 'on') {
       if (inp.dropPressed && sp.allow.drop && a.kind !== 'ladder') this.detach('drop');
       else if (jumpPressed && this.jump) this.jumpTo(this.jump);
       else if (jumpPressed && this.canClimb) this.detach('climb');
-      else if (a.kind === 'ledge' && edge !== 'none' && !this.jump) this.cornerTransfer(a, edge === 'min' ? -1 : 1);
-      else if (a.kind === 'pipeV' && (edge === 'max' || (jumpPressed && m.s >= m.limits.max - 0.05))) this.pipeTop(a);
+      else if (side !== 0 && this.transferT <= 0) this.stepOffSideways(a, side);
+      else if (a.kind === 'ledge' && Math.abs(axis) > 0.25 && this.transferT <= 0 && this.passClimber(a, axis > 0 ? 1 : -1)) {
+        // (swung onto a ladder / drainpipe crossing the lip)
+      } else if (a.kind === 'ledge' && edge !== 'none' && !this.jump) this.cornerTransfer(a, edge === 'min' ? -1 : 1);
       else if (edge === 'max' && a.kind === 'ladder') this.detach('top');
       else if (edge === 'min' && (a.kind === 'ladder' || a.kind === 'pipeV')) this.detach('bottom');
       else if (edge !== 'none' && a.kind === 'zipline') this.finish('end');
@@ -541,9 +562,9 @@ export class AttachController {
       const t = this.end;
       // pulling up from a hang the body eases out from the face (knees and elbows clear the wall), then in over
       // the top
-      const out = m.exitReason === 'climb' && a.kind === 'ledge' ? Math.sin(Math.PI * Math.min(1, k / 0.62)) * 0.12 : 0;
-      const ox = a.kind === 'ledge' ? a.nx * out : 0;
-      const oz = a.kind === 'ledge' ? a.nz * out : 0;
+      const out = m.exitReason === 'climb' && (a.kind === 'ledge' || a.kind === 'pipeV') ? Math.sin(Math.PI * Math.min(1, k / 0.62)) * 0.12 : 0;
+      const ox = (a.kind === 'ledge' ? a.nx : this.climbNx) * out;
+      const oz = (a.kind === 'ledge' ? a.nz : this.climbNz) * out;
       this.kin.set(p.x + (t.x - p.x) * fwd + ox, p.y + (t.y - p.y) * up, p.z + (t.z - p.z) * fwd + oz);
     } else this.kin.set(p.x, p.y, p.z);
     c.override = { kinematic: this.kin, yaw, turnRate: 30, crouch: a.kind === 'duct' };
@@ -551,7 +572,7 @@ export class AttachController {
     const pose = this.player.coverPose;
     const fam: TraverseKind = a.kind === 'ladder' || a.kind === 'pipeV' ? 'climb' : a.kind === 'duct' ? 'crawl' : 'hang';
     const climbOut = m.phase === 'exit' && (m.exitReason === 'climb' || m.exitReason === 'top');
-    pose.traverse = climbOut ? (a.kind === 'ledge' ? 'climbUp' : 'mantle') : this.ventDrop > 0 && m.phase === 'exit' ? (k < VENT_LOWER_K ? 'ventDrop' : 'drop') : fam;
+    pose.traverse = climbOut ? (m.exitReason === 'climb' ? 'climbUp' : 'mantle') : this.ventDrop > 0 && m.phase === 'exit' ? (k < VENT_LOWER_K ? 'ventDrop' : 'drop') : fam;
     pose.traverseT = climbOut ? k : this.ventDrop > 0 && m.phase === 'exit' ? Math.min(1, k / VENT_LOWER_K) : fam === 'hang' ? 0 : this.cadence();
   }
 
@@ -590,28 +611,87 @@ export class AttachController {
     }
   }
 
-  /** Top of a drainpipe: onto a lip near its top (hang), else stay. */
-  private pipeTop(a: Anchor): void {
-    if (a.kind !== 'pipeV') return;
+  /** Outward normal of the lip a drainpipe climb-up goes over. */
+  private climbNx = 0;
+  private climbNz = 0;
+  /** Seconds before another lip / climber transfer may start (no ping-pong between them). */
+  private transferT = 0;
+
+  /** The lip at the top of a drainpipe (to climb up onto): one beside / behind the pipe at about its top. */
+  private pipeLip(a: Anchor, needRoom: boolean): Ledge | null {
+    if (a.kind !== 'pipeV') return null;
     const near = anchorsNear(this.anchors, a.top.x, a.top.y, a.top.z, 1.0, ['ledge']);
     for (const n of near) {
       const l = n.anchor as Ledge;
       if (!l.canHang || Math.abs(l.top - a.top.y) > 0.8) continue;
-      const dx = a.top.x - l.a.x;
-      const dz = a.top.z - l.a.z;
-      const s = Math.max(0.3, Math.min(l.len - 0.3, dx * l.tx + dz * l.tz));
-      const c = this.player.controller.pos;
-      const fx = c.x;
-      const fz = c.z;
-      if (!this.attachTo(l, s, 'side', 1, 0.5)) return;
-      // up the last of the pipe first, then in under the lip (the bent knees never meet the wall)
-      const q = attachPose(l, s, 1, this.player.rig.height, this.jp);
-      this.viaPt.x = fx;
-      this.viaPt.z = fz;
-      this.viaPt.y = q.y;
-      this.via = this.viaPt;
-      return;
+      if (needRoom && !(l.canClimbUp && this.roomAt(a.base.x - l.nx * 0.6, l.top + 0.05, a.base.z - l.nz * 0.6))) continue;
+      return l;
     }
+    return null;
+  }
+
+  /**
+   * The stick's push across a climb (ladder / drainpipe), camera relative: -1 left / 1 right of the climber, or 0.
+   * Only a clear sideways push counts (up / down is the climb).
+   */
+  private sidePush(a: Anchor): number {
+    const inp = this.input;
+    if (Math.abs(inp.moveX) < 0.55 || Math.abs(inp.moveX) < Math.abs(inp.moveY)) return 0;
+    const yaw = a.kind === 'ladder' ? a.facing : a.kind === 'pipeV' ? a.side : 0;
+    const cy = Math.cos(inp.camYaw);
+    const sy = Math.sin(inp.camYaw);
+    const wx = inp.moveX * cy + inp.moveY * sy;
+    const wz = -inp.moveX * sy + inp.moveY * cy;
+    const r = wx * Math.cos(yaw) - wz * Math.sin(yaw);
+    return r > 0.4 ? 1 : r < -0.4 ? -1 : 0;
+  }
+
+  /** Off a ladder / drainpipe sideways onto a lip at the hands' height on that side (passing by, or at the top). */
+  private stepOffSideways(a: Anchor, side: number): boolean {
+    if (a.kind !== 'ladder' && a.kind !== 'pipeV') return false;
+    const yaw = a.kind === 'ladder' ? a.facing : a.side;
+    const rx = Math.cos(yaw);
+    const rz = -Math.sin(yaw);
+    const k = this.player.rig.height / 1.75;
+    const handY = this.player.controller.pos.y + HANG.drop * k;
+    const tx = a.base.x + rx * side * 0.5;
+    const tz = a.base.z + rz * side * 0.5;
+    const near = anchorsNear(this.anchors, tx, handY, tz, 0.6, ['ledge']);
+    for (const n of near) {
+      const l = n.anchor as Ledge;
+      if (!l.canHang || Math.abs(l.top - handY) > 0.45) continue;
+      // the lip faces the same way the climber's back does (it is on this wall)
+      if (l.nx * Math.sin(yaw) + l.nz * Math.cos(yaw) > -0.5) continue;
+      const s = Math.max(0.3, Math.min(l.len - 0.3, (tx - l.a.x) * l.tx + (tz - l.a.z) * l.tz));
+      if (!this.attachTo(l, s, 'side', 1, 0.4)) return false;
+      this.transferT = 0.5;
+      return true;
+    }
+    return false;
+  }
+
+  /** Shimmying along a lip past a ladder / drainpipe that crosses it: swing onto the climb. */
+  private passClimber(l: Ledge, dir: 1 | -1): boolean {
+    const m = this.m;
+    const ax = l.a.x + l.tx * (m.s + dir * 0.35);
+    const az = l.a.z + l.tz * (m.s + dir * 0.35);
+    const k = this.player.rig.height / 1.75;
+    const feet = l.top - HANG.drop * k;
+    const near = anchorsNear(this.anchors, ax, l.top, az, 0.45, ['ladder', 'pipeV']);
+    for (const n of near) {
+      const c = n.anchor;
+      if (c.kind !== 'ladder' && c.kind !== 'pipeV') continue;
+      // on this wall, and the climb runs past the hands
+      const yaw = c.kind === 'ladder' ? c.facing : c.side;
+      if (l.nx * Math.sin(yaw) + l.nz * Math.cos(yaw) > -0.5) continue;
+      if (c.base.y > feet + 0.1 || c.top.y < l.top - 0.2) continue;
+      const lim = { min: 0, max: Math.max(0, c.top.y - c.base.y - (c.kind === 'ladder' ? 0.55 : 1.05) * this.player.rig.height) };
+      const sv = Math.max(lim.min, Math.min(lim.max, feet - c.base.y));
+      if (!this.attachTo(c, sv, 'side', 1, 0.35)) return false;
+      this.transferT = 0.5;
+      return true;
+    }
+    return false;
   }
 
   /** The anchor the stick points at from the current grip (camera relative; into the wall = up). */
@@ -679,6 +759,12 @@ export class AttachController {
     const a = m.anchor!;
     const s = this.sPrev + (m.s - this.sPrev) * alpha;
     const body = this.gripBody(a, s);
+    if (a.kind === 'ladder' || a.kind === 'pipeV') {
+      // quicker reaches the quicker the climb (a sprint up a ladder)
+      const sp = Math.max(0.9, Math.abs(m.v));
+      this.hands.cfg.swingTime = Math.min(HAND_SWING, 0.18 * (0.9 / sp));
+      this.feet.cfg.swingTime = Math.min(FOOT_SWING, 0.22 * (0.9 / sp));
+    }
     this.hands.update(dt, body, m.kind === 'duct' ? m.v * m.face : m.v);
     if (a.kind === 'ladder' || a.kind === 'pipeV') this.feet.update(dt, body, m.v);
     const k = m.progress;
@@ -752,8 +838,8 @@ export class AttachController {
         // feet: on the rungs (ladder) or pressed to the wall beside the pipe
         fl.w = fr.w = w;
         this.plantFade = w;
-        const fSpan = a.kind === 'ladder' ? 0.12 : 0.16;
-        const back = a.kind === 'ladder' ? 0.1 : 0.02;
+        const fSpan = a.kind === 'ladder' ? 0.15 : 0.16;
+        const back = a.kind === 'ladder' ? 0.13 : 0.02;
         for (let i = 0; i < 2; i++) {
           const g = i === 0 ? this.feet.L : this.feet.R;
           const t = i === 0 ? fl : fr;

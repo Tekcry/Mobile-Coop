@@ -49,8 +49,11 @@ export interface AttachSpec {
   holster: boolean;
 }
 
-/** Ladders climb at this many rungs per second (the hand / foot cadence matches it). */
-export const LADDER_RUNG_RATE = 1.6;
+/** Ladders climb at this many rungs per second (the hand / foot cadence matches it), and faster with sprint held. */
+export const LADDER_RUNG_RATE = 3;
+export const LADDER_SPRINT_RATE = 5;
+/** Drainpipes climb faster with sprint held (m/s). */
+export const PIPE_SPRINT = 1.35;
 /** Ladders: hold drop to slide down this fast (m/s). */
 export const LADDER_SLIDE = 4.5;
 /** Vertical pipe: hold down + traverse to slide (m/s). */
@@ -151,7 +154,7 @@ export interface AttachPose {
 
 /** Ladder / pipe standoff from the climbing line to the body's root (m): a drainpipe hugs the wall, so the body
  *  keeps a little further off it (bent knees clear the face). */
-export const CLIMB_STANDOFF = 0.28;
+export const CLIMB_STANDOFF = 0.32;
 export const PIPE_STANDOFF = 0.34;
 
 /** Root-motion path: feet and facing at parameter `s` along the anchor. `face` (+1 / -1) picks which way a

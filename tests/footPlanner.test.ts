@@ -107,4 +107,27 @@ describe('foot planner', () => {
     expect(frames.at(-1)!.landed).toBeGreaterThanOrEqual(2);
     expect(maxPlantedSlide(frames)).toBeLessThan(0.01);
   });
+  it('an early toe-off keeps its progress when the clock opens the swing window (no snap back)', () => {
+    const p = new FootPlanner();
+    const i = emptyPlannerInput();
+    i.dt = 1 / 120;
+    i.moving = true;
+    i.velZ = 2.3;
+    i.duty = 0.62;
+    i.cycleTime = 0.6;
+    i.phase = 0.3;
+    p.update(i);
+    // the body pulls ahead of the planted left foot: it toes off early (contact window still open)
+    i.rootZ = 0.6;
+    let prev = p.L.z;
+    let back = 0;
+    for (let k = 0; k < 60; k++) {
+      i.phase = (i.phase + i.dt / i.cycleTime) % 1;
+      i.rootZ += i.velZ * i.dt;
+      p.update(i);
+      if (!p.L.contact) back = Math.max(back, prev - p.L.z);
+      prev = p.L.z;
+    }
+    expect(back).toBeLessThan(0.002);
+  });
 });

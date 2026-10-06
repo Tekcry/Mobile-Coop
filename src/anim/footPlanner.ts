@@ -153,7 +153,8 @@ export class FootPlanner {
       const wantContact = sinceStrike < i.duty;
       if (!wantContact) {
         const s = (sinceStrike - i.duty) / (1 - i.duty);
-        if (f.contact || f.swing < 0) this.beginSwing(f, i, (1 - i.duty) * i.cycleTime, i.liftH);
+        const fresh = f.contact || f.swing < 0;
+        if (fresh) this.beginSwing(f, i, (1 - i.duty) * i.cycleTime, i.liftH);
         // slow near starts and stops, but a step never hangs in the air for long
         f.stepDur = Math.min(0.6, (1 - i.duty) * i.cycleTime);
         // remaining time to land, then half a stance ahead so mid-stance is under the hip
@@ -174,8 +175,11 @@ export class FootPlanner {
           }
         }
         this.aim(f, i, side, rx, rz, i.yaw);
-        this.swingTo(f, i, s);
-        f.stepT = s * f.stepDur;
+        // an early toe-off already in the air keeps its progress (restarting from the clock's 0 snaps the
+        // foot back to where it left the ground and the pelvis drops to reach it)
+        const sp = fresh ? s : Math.max(s, f.swing);
+        this.swingTo(f, i, sp);
+        f.stepT = sp * f.stepDur;
       } else if (!f.contact) {
         // a step still in the air when the clock says contact (e.g. an idle step as walking starts)
         if (f.swing >= 0.9) this.land(f);

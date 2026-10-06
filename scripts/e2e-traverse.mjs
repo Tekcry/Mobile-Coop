@@ -94,7 +94,7 @@ const setup = () =>
         prompt: st.hud.world.label('vault'), jumpPrompt: st.hud.world.label('jumpTo'), dropPrompt: st.hud.world.label('drop'),
         jump: ac.jump ? ac.jump.anchor.id : -1,
         landing: c.lastLanding, fall: c.lastFall, landT: c.landT, noise: st.noise, tkind: st.traversal.kind,
-        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1,
+        vault: st.hud.world.label('vault'), vent: ac.vent ? ac.vent.progress : -1, geo: st.traversal.hint?.kind ?? null, cover: st.cover.state, coverCand: !!st.cover.candidate,
       };
     },
   };
@@ -144,9 +144,16 @@ try {
   let r = await run(1.5, 0, 1);
   i = await I();
   const rate = (i.s - s0) / 1.5 / 0.3;
-  assert(rate > 1.35 && rate < 1.7, `climbs at ~1.6 rungs/s (${rate.toFixed(2)})`);
+  assert(rate > 2.6 && rate < 3.15, `climbs at ~3 rungs/s (${rate.toFixed(2)})`);
   contacts(r, 'ladder');
   assert(r.maxFootDrift < 0.01, `ladder: planted feet locked on the rungs (${(r.maxFootDrift * 100).toFixed(2)} cm)`);
+  // sprint held climbs faster (~5 rungs/s), contacts still locked
+  const s1 = (await I()).s;
+  r = await run(0.6, 0, 1, [BTN.LS]);
+  i = await I();
+  const fast = (i.s - s1) / 0.6 / 0.3;
+  assert(i.attached && fast > 4 && fast < 5.3, `sprint climbs faster (${fast.toFixed(2)} rungs/s)`);
+  contacts(r, 'ladder sprint');
   await runOff(8, 0, 1);
   await run(0.5);
   i = await I();
@@ -173,7 +180,7 @@ try {
   await tp(25.2, 0, 11, Math.PI / 2);
   await run(0.3);
   await tap(BTN.Y);
-  await run(4, 0, 1);
+  await run(1.8, 0, 1);
   const hi = (await I()).y;
   await tap(BTN.B);
   r = await run(0.5);
@@ -197,14 +204,31 @@ try {
   contacts(r, 'drainpipe');
   r = await run(3, 0, 1);
   i = await I();
-  assert(i.attached && i.kind === 'ledge' && i.nz < -0.9, `at the top of the pipe it takes the tower's lip (${i.kind})`);
-  await run(0.5);
-  i = await I();
-  assert(i.prompt === 'Climb up', `climb up offered on the lip ("${i.prompt}")`);
+  assert(i.attached && i.kind === 'pipeV', `at the top the pipe stops and waits (${i.kind})`);
+  assert(i.prompt === 'Climb up', `climb up offered at the top of the pipe ("${i.prompt}")`);
   await tap(BTN.Y);
-  await run(1.2);
+  await run(1.3);
   i = await I();
-  assert(!i.attached && i.y > 3.5 && i.grounded, `climbed up onto the tower (y ${f2(i.y)})`);
+  assert(!i.attached && i.y > 3.5 && i.grounded, `climbed straight up off the pipe onto the tower (y ${f2(i.y)})`);
+  // sideways at the top: onto the lip beside the pipe (camera facing the wall: stick right = +x)
+  await tp(27.8, 0, 8.95, 0);
+  await run(0.4);
+  await tap(BTN.Y);
+  await run(3.4, 0, 1);
+  await run(0.6, 1, 0);
+  i = await I();
+  assert(i.attached && i.kind === 'ledge' && i.nz < -0.9 && i.x > 27.9, `sideways at the top steps onto the lip (${i.kind}, x ${f2(i.x)})`);
+  // shimmying back past the pipe swings onto it, carrying on swings off it onto the lip beyond
+  let seenPipe = false;
+  for (let k = 0; k < 16; k++) {
+    await run(0.15, -1, 0);
+    const q = await page.evaluate(() => window.__tr.st().traversal.attachCtl.m.anchor?.kind);
+    if (q === 'pipeV') seenPipe = true;
+  }
+  i = await I();
+  assert(seenPipe && i.kind === 'ledge' && i.x < 27.6, `shimmying past the pipe climbs onto it and back off beyond (pipe ${seenPipe}, x ${f2(i.x)})`);
+  await tap(BTN.B);
+  await run(1.2);
 
   // --- ledge from below: grab, shimmy at ~1.2 m/s with locked hands, corner, jump across, climb up
   await tp(25.45, 0, 16, Math.PI / 2);
@@ -393,13 +417,19 @@ try {
       const from = p.position.clone();
       from.y += 0.45;
       const h = st.ballistics.ray(from, cp.clone(), 1);
-      // inside the tunnel's 1 x 0.8 m section (the duct floor is at 3.2, its roof at 4.0)
-      if (h.hit || cp.y < 3.2 || cp.y > 4.0 || Math.abs(cp.z + 5) > 0.5) worst++;
+      // inside the crawlspace's 1 x 1.1 m section (the duct floor is at 3.2, its roof at 4.3)
+      if (h.hit || cp.y < 3.2 || cp.y > 4.3 || Math.abs(cp.z + 5) > 0.5) worst++;
     }
     p.cam.yaw = Math.PI / 2;
     return worst;
   });
   assert(camIn === 0, `duct: the camera never leaves the tunnel (${camIn} of 4 views outside)`);
+  const gunTop = await page.evaluate(() => {
+    let y = -9;
+    for (const sl of window.__tr.st().weapons.slots) for (const m of sl.model.node.getChildMeshes()) { m.computeWorldMatrix(true); y = Math.max(y, m.getBoundingInfo().boundingBox.maximumWorld.y); }
+    return y;
+  });
+  assert(gunTop < 4.28, `duct: the guns on the back stay under the roof (top ${f2(gunTop)} < 4.28)`);
   const d0 = i.x;
   r = await run(1, 0, 1);
   i = await I();

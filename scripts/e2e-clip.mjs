@@ -65,7 +65,7 @@ const res = await page.evaluate(([only, log]) => {
     acc.minHead = Math.min(acc.minHead, head);
     acc.minChest = Math.min(acc.minChest, chest);
     acc.n++;
-    if (pen > 0.02) { acc.wall++; if (window.__dbg) acc.log.push(`t ${acc.n} pen ${(pen*100).toFixed(0)} st ${g.cover.state} lean ${p.rig.graph.leanOut.toFixed(2)} raise ${p.carry.raise.toFixed(2)} side ${g.cover['peekSide']} kind ${g.cover.peekKind} aim ${(p.cam.yaw).toFixed(2)} body ${c.yaw.toFixed(2)} hand ${p.rig.leftHanded} step ${g.cover.stepOut.toFixed(2)} clear ${p.coverPose.gunClear} ` + (() => { const sg = g.cover.seg; if (!sg) return ''; const S = (P) => ((P.x - sg.ax) * sg.tx + (P.z - sg.az) * sg.tz).toFixed(2); const mz = V.TransformCoordinates(new V(0, def.muzzle[1], z1), m); const bt = V.TransformCoordinates(new V(0, def.muzzle[1], z0), m); return `len ${sg.len.toFixed(2)} body s ${S(p.position)} butt s ${S(bt)} muzzle s ${S(mz)} eye s ${S(p.rig.headNode.getAbsolutePosition())} | n ${sg.nx.toFixed(2)},${sg.nz.toFixed(2)} t ${sg.tx.toFixed(2)},${sg.tz.toFixed(2)} depth ${sg.depth.toFixed(2)}`; })()); }
+    if (pen > 0.02) { acc.wall++; if (window.__dbg) acc.log.push(`t ${acc.n} pen ${(pen*100).toFixed(0)} w ${g.weapons.current?.def?.id ?? g.weapons.slots?.[g.weapons.index]?.def?.id} sw ${g.weapons.swapT?.toFixed?.(2)} stow ${g.weapons.stowed} st ${g.cover.state} lean ${p.rig.graph.leanOut.toFixed(2)} raise ${p.carry.raise.toFixed(2)} side ${g.cover['peekSide']} kind ${g.cover.peekKind} aim ${(p.cam.yaw).toFixed(2)} body ${c.yaw.toFixed(2)} hand ${p.rig.leftHanded} step ${g.cover.stepOut.toFixed(2)} clear ${p.coverPose.gunClear} ` + (() => { const sg = g.cover.seg; if (!sg) return ''; const S = (P) => ((P.x - sg.ax) * sg.tx + (P.z - sg.az) * sg.tz).toFixed(2) + "/" + ((P.x - sg.ax) * sg.nx + (P.z - sg.az) * sg.nz).toFixed(2) + "/" + P.y.toFixed(2); const mz = V.TransformCoordinates(new V(0, def.muzzle[1], z1), m); const bt = V.TransformCoordinates(new V(0, def.muzzle[1], z0), m); return `len ${sg.len.toFixed(2)} body s ${S(p.position)} butt s ${S(bt)} muzzle s ${S(mz)} eye s ${S(p.rig.headNode.getAbsolutePosition())} | n ${sg.nx.toFixed(2)},${sg.nz.toFixed(2)} t ${sg.tx.toFixed(2)},${sg.tz.toFixed(2)} depth ${sg.depth.toFixed(2)}`; })()); }
     acc.maxPen = Math.max(acc.maxPen, pen);
     if (leg < 0) { acc.leg++; if (window.__dbg) acc.log.push(`t ${acc.n} LEG ${(leg*100).toFixed(1)} st ${g.cover.state} lean ${p.rig.graph.leanOut.toFixed(2)} hand ${p.rig.leftHanded} hs ${p.rig['handSwap'].toFixed(2)} clear ${p.coverPose.gunClear} body ${c.yaw.toFixed(2)} aim ${p.cam.yaw.toFixed(2)} crouch ${c.crouched} turn ${p.coverPose.turn.toFixed(2)}`); }
     acc.minLeg = Math.min(acc.minLeg, leg);
@@ -94,7 +94,9 @@ const res = await page.evaluate(([only, log]) => {
     const hh = g.ballistics.ray(from, hc, 1);
     if (hh.hit) { const d = V.Distance(hh.point, hc); if (d > pen) { pen = d; where = 'head'; } }
     for (const n of [rig.kneeL, rig.kneeR, rig.ankleL, rig.ankleR]) n.computeWorldMatrix(true);
-    acc.minKnees = Math.min(acc.minKnees, V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition()));
+    const kd = V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition());
+    if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} feet ${c.pos.y.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} v ${g.traversal.attachCtl.m.v.toFixed(2)} pose ${p.coverPose.traverse}`);
+    acc.minKnees = Math.min(acc.minKnees, kd);
     acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
     acc.n++;
     acc.maxBody = Math.max(acc.maxBody ?? 0, pen);

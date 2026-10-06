@@ -1,5 +1,22 @@
 # Changelog
 
+## 1.11.0 - 2.0 phase 2 feedback: faster climbing, pipe tops, passing climbers
+- Ladders: 3 rungs/s (was 1.6), hold sprint for 5 rungs/s; hands and feet step quicker with the climb; an upright
+  pose (body close to the rungs, head up), one limb moving at a time.
+- Drainpipes: hold sprint to climb ~35% faster. At the top the climb stops and waits: Y ("Climb up") climbs
+  straight off the top onto the roof / wall top, or push sideways to swing onto a lip beside the pipe.
+- Ladders / drainpipes: pushing sideways at a lip beside the climb swings onto it (hang); shimmying along a lip past
+  a ladder or drainpipe crossing it swings onto the climb (then sideways again to carry on along the lip).
+- A ladder or drainpipe wins over the lip beside it when both are in reach (walking up to a ladder always offers it).
+- Crawlspaces are 1.1 m tall (Proving Grounds, Warehouse); the crawl keeps a flat back so the back guns clear the roof.
+- Prompts: the ledge "Grab" prompt sits on the face just under the lip; the pipe prompt under the pipe.
+- Fix: a trailing foot that toed off early (overstretched at > 2 m/s) no longer snaps back to where it left the
+  ground when the gait clock's swing window opens (the pelvis dropped up to 25 cm for a frame; seen moving along
+  high cover).
+- Deferred (feedback, Blacklist has it): the kicked vent cover falling / the unscrewed cover set down beside the entry.
+- Tests: e2e-traverse (ladder rate, sprint rate, pipe top waits / Climb up / sideways onto the lip, shimmy past a
+  pipe), unit test for the early toe-off.
+
 ## 1.10.0 - 2.0 phase 2c: routes on every map, clean traversal poses
 - Warehouse: a window from the truck yard into the workshop; a glazed window between dispatch and the corridor;
   ladders onto two racks (walk the rack tops, sprint-hop the cross aisle); a ladder up to the mezzanine; a zipline

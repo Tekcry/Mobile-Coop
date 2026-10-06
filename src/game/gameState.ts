@@ -637,6 +637,7 @@ export class GameState implements AppState {
     ti.dropHeldT = inp.heldTime('drop');
     ti.useHeld = inp.down('interact');
     ti.useHeldT = inp.heldTime('interact');
+    ti.sprintHeld = inp.down('dash');
     this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget, this.cover.state !== 'none', this.cover.exitDir);
     // attached (ladder, pipe, hang, duct): both hands busy, the weapon goes to its slot; its framing preset
     this.weapons.setStowed(this.traversal.attached && !!this.traversal.attach.spec?.holster);
@@ -1008,7 +1009,8 @@ export class GameState implements AppState {
     const feetY = this.player.position.y;
     switch (a.kind) {
       case 'ledge':
-        g.set(a.a.x + a.tx * h.s, a.top + 0.1, a.a.z + a.tz * h.s);
+        // on the face just under the lip (the lip itself is at the top edge of the view up close)
+        g.set(a.a.x + a.tx * h.s + a.nx * 0.05, a.top - 0.35, a.a.z + a.tz * h.s + a.nz * 0.05);
         break;
       case 'ladder':
         if (h.entry === 'top') g.set(a.top.x, a.top.y + 0.3, a.top.z);
@@ -1019,7 +1021,7 @@ export class GameState implements AppState {
         break;
       case 'pipeH': {
         const l = Math.max(1e-3, hyp2(a.b.x - a.a.x, a.b.z - a.a.z));
-        g.set(a.a.x + ((a.b.x - a.a.x) * h.s) / l, a.hangHeight, a.a.z + ((a.b.z - a.a.z) * h.s) / l);
+        g.set(a.a.x + ((a.b.x - a.a.x) * h.s) / l, a.hangHeight - 0.3, a.a.z + ((a.b.z - a.a.z) * h.s) / l);
         break;
       }
       case 'duct':
