@@ -235,13 +235,14 @@ await run('', async ({ page, G }) => {
   await page.waitForSelector('.play-screen');
   const seen = [];
   for (let i = 0; i < 6; i++) {
-    const t = await G(() => [...document.querySelectorAll('.play-screen .choice-val')].map((e) => e.textContent));
+    // Infiltration lists the missions as cards (their names stand in for the map)
+    const t = await G(() => [...document.querySelectorAll('.play-screen .choice-val')].slice(0, 1).map((e) => e.textContent).concat([...document.querySelectorAll('.play-screen .mission-card .mc-name')].map((e) => e.textContent).join(', ') || [...document.querySelectorAll('.play-screen .choice-val')][1]?.textContent));
     seen.push(t.join(' / '));
     await page.locator('.play-screen .row-choice').first().locator('.choice-arrow').last().tap();
   }
   const byMode = Object.fromEntries(seen.map((s) => s.split(' / ')));
   assert(byMode['Wave Survival'] === 'Warehouse' && byMode['Mission'] === 'Warehouse' && byMode['Hunter'] === 'Warehouse', `Warehouse default for Wave / Mission / Hunter (${seen.join('; ')})`);
-  assert(/Diplomatic Pouch/.test(byMode['Infiltration'] ?? ''), `Infiltration lists the missions (${byMode['Infiltration']})`);
+  assert(/Diplomatic Pouch/.test(byMode['Infiltration'] ?? ''), `Infiltration lists the mission cards (${byMode['Infiltration']})`);
   assert(byMode['Free Roam'] === 'Proving Grounds', 'Free Roam stays on Proving Grounds');
 });
 
