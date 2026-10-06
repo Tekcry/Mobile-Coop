@@ -293,6 +293,17 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 2a - Ledges, ladders, pipes (1.8.0) - Proving Grounds, north east corner
+- [ ] Ladder (tower, west side): Y climbs on; stick up climbs, hands and feet land on rungs (no sliding); B slides to
+      the bottom; climbing past the top steps onto the tower. From the tower top, Y at the ladder steps on facing it.
+- [ ] Drainpipe (tower, south side): climbs, takes the lip at the top, "Climb up" puts you on the tower.
+- [ ] Hang blocks: Y under the 2.3 m wall grabs it; shimmy both ways at a steady pace; push past the far end with
+      the stick towards the second block: "Jump" shows on it, Y jumps across; round the far corner; Y climbs up.
+- [ ] On top of a block at the edge: hold B (or tap "Hang") lowers into a hang; B drops.
+- [ ] Horizontal pipe: Y under it grabs, stick moves along it, B drops.
+- [ ] Touch: every prompt above is a button; the camera framing changes on the ladder / hang and returns after.
+- [ ] Holding crouch (hold mode) while walking up to an edge never lowers you over it.
+
 ## 2.0 phase 1 - Foundations (1.7.0) - Proving Grounds, then Warehouse
 - [ ] Nothing looks or plays differently from 1.6.0: movement, cover, vaults, combat, camera, HUD.
 - [ ] Frame pacing graph (debug overlay) unchanged on Warehouse with 10 enemies.

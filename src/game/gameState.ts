@@ -39,6 +39,8 @@ import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
+import { ATTACH_LABEL } from '../player/attachController';
+import type { Ledge } from '../world/anchors';
 import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { noiseRadius } from '../player/movement';
@@ -220,7 +222,7 @@ export class GameState implements AppState {
     this.hud = new Hud(app.uiRoot);
     this.hud.world.onTap = (id) => this.onWorldPrompt(id);
     this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
-    this.traversal = new TraversalController(this.scene, this.player);
+    this.traversal = new TraversalController(this.scene, this.player, world.level.anchors);
     this.post = new CinematicPost(this.player.cam.camera);
     this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
@@ -596,6 +598,7 @@ export class GameState implements AppState {
     ti.camYaw = this.player.cam.yaw;
     ti.dropPressed = inp.pressed('drop');
     ti.dropHeld = inp.down('drop');
+    ti.dropHeldT = inp.heldTime('drop');
     this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget, this.cover.state !== 'none', this.cover.exitDir);
     // attached (ladder, pipe, hang, duct): both hands busy, the weapon goes to its slot; its framing preset
     this.weapons.setStowed(this.traversal.attached && !!this.traversal.attach.spec?.holster);
@@ -698,6 +701,7 @@ export class GameState implements AppState {
       look.x += Math.cos(this.swayT * 2.3) * sway * 2.3 * dt;
       look.y += Math.cos(this.swayT * 1.7 + 1) * sway * 1.2 * dt;
     }
+    this.traversal.frameUpdate(dt, alpha);
     this.player.frameUpdate(dt, alpha, look, this.app.input.state.move);
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
@@ -874,7 +878,7 @@ export class GameState implements AppState {
     // round an outside corner: only offered while pushing against the edge; the cover button swings round
     if (seg && st === 'in' && c.cornerSide !== 0) this.onFace('corner', 'Round corner', seg, c.cornerSide < 0 ? 0 : seg.len, true);
     else w.set('corner', null, 0, 0);
-    const cand = st === 'none' ? c.candidate : null;
+    const cand = st === 'none' && !this.traversal.attached ? c.candidate : null;
     if (cand) this.onFace('cover', 'Take cover', cand.seg, cand.s);
     else w.set('cover', null, 0, 0);
     // traversal (not in cover): on the obstacle face, or on the floor at the ledge
@@ -891,6 +895,7 @@ export class GameState implements AppState {
       const ok = this.project(at.x, at.y + up, at.z);
       w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
     } else if (!(stateText && seg)) w.set('vault', null, 0, 0);
+    this.anchorPrompts();
     const ctl = this.player.controller;
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     // cover-to-cover marker on the target face
@@ -908,12 +913,84 @@ export class GameState implements AppState {
     touchCtl.setControlHidden('action', !it);
   }
 
+  /** Anchor prompts: what traverse attaches to from the ground; climb up / jump / drop while attached. */
+  private anchorPrompts(): void {
+    const w = this.hud.world;
+    const t = this.traversal;
+    const ac = t.attachCtl;
+    const m = ac.m;
+    if (m.active) {
+      const a = m.anchor!;
+      const on = m.phase === 'on';
+      const rig = this.player.rig;
+      const hx = (rig.reachL.x + rig.reachR.x) / 2;
+      const hy = (rig.reachL.y + rig.reachR.y) / 2;
+      const hz = (rig.reachL.z + rig.reachR.z) / 2;
+      // climb up: on the lip above the hands
+      if (on && ac.canClimb && !ac.jump && this.project(hx, hy + 0.12, hz)) w.set('vault', ATTACH_LABEL.climbUp!, this.scr.x, this.scr.y);
+      else w.set('vault', null, 0, 0);
+      const j = on ? ac.jump : null;
+      if (j && this.project(j.grip.x, j.grip.y + 0.1, j.grip.z)) w.set('jumpTo', ATTACH_LABEL.jump!, this.scr.x, this.scr.y);
+      else w.set('jumpTo', null, 0, 0);
+      // drop (slide on a ladder): under the hands
+      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : ATTACH_LABEL.drop!;
+      if (on && lbl && this.project(hx, hy - 0.5, hz)) w.set('drop', lbl, this.scr.x, this.scr.y);
+      else w.set('drop', null, 0, 0);
+      return;
+    }
+    w.set('jumpTo', null, 0, 0);
+    // from the ground: the anchor in reach when nothing closer (step / vault / mantle) is offered
+    const h = ac.hint;
+    const geo = t.hint && t.hint.kind !== 'drop';
+    if (!h || geo || this.cover.state !== 'none') {
+      w.set('drop', null, 0, 0);
+      return;
+    }
+    // at a hangable edge traverse still drops down; the drop control (hold) / its prompt lowers into a hang
+    if (h.entry === 'above') {
+      const a = h.anchor as Ledge;
+      if (this.project(a.a.x + a.tx * h.s, a.top + 0.45, a.a.z + a.tz * h.s)) w.set('drop', ATTACH_LABEL.ledgeAbove!, this.scr.x, this.scr.y);
+      else w.set('drop', null, 0, 0);
+      return;
+    }
+    w.set('drop', null, 0, 0);
+    const a = h.anchor;
+    const g = this.promptPt;
+    const feetY = this.player.position.y;
+    switch (a.kind) {
+      case 'ledge':
+        g.set(a.a.x + a.tx * h.s, a.top + 0.1, a.a.z + a.tz * h.s);
+        break;
+      case 'ladder':
+        if (h.entry === 'top') g.set(a.top.x, a.top.y + 0.3, a.top.z);
+        else g.set(a.base.x, feetY + 1.1, a.base.z);
+        break;
+      case 'pipeV':
+        g.set(a.base.x, feetY + 1.1, a.base.z);
+        break;
+      case 'pipeH': {
+        const l = Math.max(1e-3, hyp2(a.b.x - a.a.x, a.b.z - a.a.z));
+        g.set(a.a.x + ((a.b.x - a.a.x) * h.s) / l, a.hangHeight, a.a.z + ((a.b.z - a.a.z) * h.s) / l);
+        break;
+      }
+      default:
+        g.set(a.kind === 'zipline' ? a.a.x : this.player.position.x, a.kind === 'zipline' ? a.a.y : feetY + 1, a.kind === 'zipline' ? a.a.z : this.player.position.z);
+    }
+    if (this.project(g.x, g.y, g.z)) w.set('vault', ac.hintLabel(h), this.scr.x, this.scr.y);
+  }
+
+  private promptPt = new Vector3();
+
   /** A tap on a world prompt (touch): the same as the button it shows. */
   private onWorldPrompt(id: WorldPromptId): void {
     if (this.paused || this.exited) return;
     const inp = this.app.input.state;
     if (id === 'cover' || id === 'move' || id === 'corner') inp.tap('cover');
-    else if (id === 'vault') inp.tap('jump');
+    else if (id === 'vault' || id === 'jumpTo') inp.tap('jump');
+    else if (id === 'drop') {
+      if (this.traversal.attached) inp.tap('drop');
+      else this.traversal.attachCtl.lowerRequest = true;
+    }
     else if (id === 'state') inp.coverLeave = true;
   }
 

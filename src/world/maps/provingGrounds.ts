@@ -83,6 +83,18 @@ export const provingGrounds: MapDef = {
     b.lowCover(-26, 15, 1.6, C.wallDark, Math.PI / 2);
     b.block(-18, 22.5, 1.2, 1.1, 1.2, C.crate);
 
+    // traversal course (north east, driven by e2e-traverse): a 3.6 m tower with a ladder (west face) and a
+    // drainpipe (south face) up to its lip; two 2.3 m hang blocks 2 m apart (grab, shimmy, round the corners,
+    // jump across, climb up); a horizontal pipe between two posts
+    b.block(27.5, 11, 3, 3.6, 3, C.concreteDark);
+    b.ladder(25.95, 11, 0, 3.6, Math.PI / 2);
+    b.pipeV(27.8, 9.42, 0, 3.6, 0);
+    b.block(27.5, 16, 3, 2.3, 3, C.wall);
+    b.block(27.5, 20, 3, 2.3, 2, C.wall);
+    b.pillar(23, 23.5, 0.1, 2.5, C.metal);
+    b.pillar(28.6, 23.5, 0.1, 2.5, C.metal);
+    b.pipeH(23, 23.5, 28.6, 23.5, 2.4);
+
     const props: MapLayout['props'] = [];
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
     props.push({ kind: 'crate', pos: v(-3, 3) }, { kind: 'crate', pos: v(-1.9, 3.1), yaw: 0.2 }, { kind: 'crate', pos: v(-2.45, 3.05, 1.02) });

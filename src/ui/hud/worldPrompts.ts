@@ -3,7 +3,7 @@ import { icon } from '../icons';
 import { promptHtml } from '../prompts';
 
 /** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
-export type WorldPromptId = 'cover' | 'vault' | 'state' | 'move' | 'corner';
+export type WorldPromptId = 'cover' | 'vault' | 'state' | 'move' | 'corner' | 'jumpTo' | 'drop';
 
 interface Item {
   el: HTMLElement;
@@ -15,7 +15,7 @@ interface Item {
   sy: number;
 }
 
-const PROMPT_IDS: readonly WorldPromptId[] = ['cover', 'vault', 'state', 'move', 'corner'];
+const PROMPT_IDS: readonly WorldPromptId[] = ['cover', 'vault', 'state', 'move', 'corner', 'jumpTo', 'drop'];
 /** Overlap estimate: label width per character, padding (glyph or icon), and the row height (vw / vh). */
 const CHAR_VW = 1.25;
 const PAD_VW = 4;
@@ -26,6 +26,8 @@ const GLYPH: Record<WorldPromptId, string> = {
   move: promptHtml('A', 'Space'),
   corner: promptHtml('A', 'Space'),
   vault: promptHtml('Y', 'E'),
+  jumpTo: promptHtml('Y', 'E'),
+  drop: promptHtml('B', 'C'),
   state: '',
 };
 const TOUCH_ICON: Record<WorldPromptId, string> = {
@@ -33,6 +35,8 @@ const TOUCH_ICON: Record<WorldPromptId, string> = {
   move: icon('cover', 18),
   corner: icon('cover', 18),
   vault: icon('jump', 18),
+  jumpTo: icon('jump', 18),
+  drop: icon('crouch', 18),
   state: icon('cover', 16),
 };
 

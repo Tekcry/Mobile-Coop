@@ -149,7 +149,7 @@ export interface AttachPose {
 }
 
 /** Ladder / pipe standoff from the climbing line to the body's root (m). */
-export const CLIMB_STANDOFF = 0.38;
+export const CLIMB_STANDOFF = 0.28;
 
 /** Root-motion path: feet and facing at parameter `s` along the anchor. `face` (+1 / -1) picks which way a
  *  body faces along a pipe / zipline / duct (set at entry). Writes into `out`. */
@@ -229,6 +229,8 @@ export class AttachMachine {
   travelled = 0;
   /** Body height (m) for the travel range. */
   height = 1.75;
+  /** This entry's blend time (s): the spec's, or longer for a jump / lowering in from above. */
+  enterDur = 0.3;
   /** Steps spent at a range end while pushing past it (the caller exits on it). */
   edge: AttachEdge = 'none';
   private range = { min: 0, max: 0 };
@@ -245,14 +247,15 @@ export class AttachMachine {
   get progress(): number {
     const sp = this.spec;
     if (!sp) return 0;
-    if (this.phase === 'enter') return Math.min(1, this.t / sp.enter);
+    if (this.phase === 'enter') return Math.min(1, this.t / this.enterDur);
     if (this.phase === 'exit') return Math.min(1, this.t / sp.exit);
     return 1;
   }
 
-  enter(a: Anchor, s0: number, entry: AttachEntry, face = 1, height = 1.75, speed = 0): boolean {
+  enter(a: Anchor, s0: number, entry: AttachEntry, face = 1, height = 1.75, speed = 0, enterTime?: number): boolean {
     const kind = attachKindOf(a);
     if (!kind) return false;
+    this.enterDur = enterTime ?? ATTACH[kind].enter;
     this.kind = kind;
     this.anchor = a;
     this.entry = entry;
@@ -300,7 +303,7 @@ export class AttachMachine {
     const sp = this.spec;
     if (!sp || !this.anchor) return 'none';
     this.t += dt;
-    if (this.phase === 'enter' && this.t >= sp.enter) {
+    if (this.phase === 'enter' && this.t >= this.enterDur) {
       this.phase = 'on';
       this.t = 0;
     }
@@ -312,7 +315,7 @@ export class AttachMachine {
       target = this.phase === 'exit' ? this.v : ZIP_SPEED;
     } else {
       // a slight hold while still settling onto the anchor (the hands find their grips first)
-      const gate = this.phase === 'enter' ? Math.min(1, this.t / (sp.enter * 0.5)) : this.phase === 'exit' ? 0 : 1;
+      const gate = this.phase === 'enter' ? Math.min(1, this.t / (this.enterDur * 0.5)) : this.phase === 'exit' ? 0 : 1;
       target = axis * (rate ?? sp.speed) * gate;
       if (rate !== undefined) accel = Math.max(accel, rate * 6);
     }

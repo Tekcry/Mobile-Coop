@@ -160,9 +160,9 @@ export const LEDGE = {
 /** Body placement hanging from a lip (proportions at 1.75 m; callers scale). */
 export const HANG = {
   /** Feet below the lip (arms overhead, a slight bend). */
-  drop: 2.0,
+  drop: 1.9,
   /** Body centre out from the face. */
-  out: 0.3,
+  out: 0.22,
 } as const;
 
 /** Reach bands for attaching (m, from the feet). */
@@ -695,4 +695,123 @@ export function anchorsNear(anchors: TraversalAnchors, x: number, y: number, z: 
   }
   out.sort((p, q) => p.dist - q.dist);
   return out;
+}
+
+/**
+ * The lip continuing from one end of a ledge (`side` -1 = the a end, 1 = the b end): its linked outside-corner
+ * neighbour, else any hangable lip at the same height whose end meets this one (an inside corner or a
+ * collinear neighbour). Returns the ledge and the parameter to continue at (just inside its meeting end).
+ */
+export function ledgeContinuation(anchors: TraversalAnchors, l: Ledge, side: -1 | 1, gap = 0.45): { ledge: Ledge; s: number } | null {
+  const link = side < 0 ? l.nextA : l.nextB;
+  const ex = side < 0 ? l.a.x : l.b.x;
+  const ez = side < 0 ? l.a.z : l.b.z;
+  if (link >= 0) {
+    const n = anchors.get(link);
+    if (n && n.kind === 'ledge' && n.canHang) return { ledge: n, s: side < 0 ? n.len - LEDGE.edgeMargin : LEDGE.edgeMargin };
+  }
+  let best: { ledge: Ledge; s: number } | null = null;
+  let bd = gap;
+  for (const o of anchors.ledges) {
+    if (o === l || !o.canHang || Math.abs(o.top - l.top) > 0.12) continue;
+    // never fold back onto a lip facing the opposite way
+    if (o.nx * l.nx + o.nz * l.nz < -0.5) continue;
+    const da = hyp2(o.a.x - ex, o.a.z - ez);
+    const db = hyp2(o.b.x - ex, o.b.z - ez);
+    if (da < bd) {
+      bd = da;
+      best = { ledge: o, s: Math.min(o.len / 2, LEDGE.edgeMargin) };
+    }
+    if (db < bd) {
+      bd = db;
+      best = { ledge: o, s: Math.max(o.len / 2, o.len - LEDGE.edgeMargin) };
+    }
+  }
+  return best;
+}
+
+/** Grip point of an anchor nearest a point (ledge lip / pipe axis / rung line), for jump targets. */
+function gripNear(a: Anchor, x: number, y: number, z: number, out: P3 & { s: number }): boolean {
+  switch (a.kind) {
+    case 'ledge': {
+      if (!a.canHang) return false;
+      const q = closestOnSegment(a.a.x, a.a.z, a.b.x, a.b.z, x, z);
+      const m = Math.min(LEDGE.edgeMargin, a.len / 2);
+      out.s = Math.max(m, Math.min(a.len - m, q.s));
+      out.x = a.a.x + a.tx * out.s;
+      out.z = a.a.z + a.tz * out.s;
+      out.y = a.top;
+      return true;
+    }
+    case 'pipeH': {
+      const q = closestOnSegment(a.a.x, a.a.z, a.b.x, a.b.z, x, z);
+      out.s = Math.max(0.2, Math.min(q.len - 0.2, q.s));
+      const t = q.len > 0 ? out.s / q.len : 0;
+      out.x = a.a.x + (a.b.x - a.a.x) * t;
+      out.z = a.a.z + (a.b.z - a.a.z) * t;
+      out.y = a.hangHeight;
+      return true;
+    }
+    case 'pipeV':
+    case 'ladder': {
+      out.x = a.base.x;
+      out.z = a.base.z;
+      out.y = Math.max(a.base.y + 1.6, Math.min(a.top.y, y));
+      out.s = out.y - a.base.y - 1.75;
+      return out.s >= -0.01;
+    }
+    default:
+      return false;
+  }
+}
+
+export interface JumpTarget {
+  anchor: Anchor;
+  /** Parameter to attach at and the grip point the hands go to. */
+  s: number;
+  grip: P3;
+  dist: number;
+}
+
+/**
+ * Ledge-to-ledge / pipe jump: the anchor within `maxGap` (m, grip to grip) of the current grip that lies most
+ * along the wanted direction (`dirX/dirZ` horizontal, unit; `up` -1..1 for jumps up / down), excluding the one
+ * held. Needs the direction to point at it (cos >= `minCos`). Lips facing `faceX/faceZ` (the held lip's normal)
+ * are preferred.
+ */
+export function findJumpTarget(anchors: TraversalAnchors, from: P3, exclude: number, dirX: number, dirZ: number, up: number, maxGap = 2.5, minCos = 0.6, faceX = 0, faceZ = 0): JumpTarget | null {
+  const g = { x: 0, y: 0, z: 0, s: 0 };
+  let best: JumpTarget | null = null;
+  let bestScore = -Infinity;
+  const all = anchors.all;
+  for (let i = 0; i < all.length; i++) {
+    const a = all[i]!;
+    if (a.id === exclude) continue;
+    if (a.kind !== 'ledge' && a.kind !== 'pipeH' && a.kind !== 'pipeV' && a.kind !== 'ladder') continue;
+    // a cheap reject: far anchors
+    const q = closestOn(a, from.x, from.y, from.z);
+    if (q.dist > maxGap + 0.5) continue;
+    if (!gripNear(a, from.x + dirX * 1.2, from.y + up * 1.2, from.z + dirZ * 1.2, g)) continue;
+    const dx = g.x - from.x;
+    const dy = g.y - from.y;
+    const dz = g.z - from.z;
+    const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+    if (d < 0.5 || d > maxGap) continue;
+    // a jump never goes more than 1.2 m up
+    if (dy > 1.2) continue;
+    const h = hyp2(dx, dz);
+    // direction: horizontal intent and the vertical push
+    const cos = h > 0.3 ? (dx * dirX + dz * dirZ) / h : 0;
+    const vert = up !== 0 ? (dy / d) * Math.sign(up) : 0;
+    const aim = up !== 0 && Math.abs(up) > 0.6 && h < 0.8 ? vert : cos;
+    if (aim < minCos) continue;
+    // a lip facing the same way as the one held reads as the continuation (hanging stays on that face)
+    const same = a.kind === 'ledge' ? a.nx * faceX + a.nz * faceZ : 0;
+    const score = aim * 2 - d * 0.4 + same * 0.6;
+    if (score > bestScore) {
+      bestScore = score;
+      best = { anchor: a, s: g.s, grip: { x: g.x, y: g.y, z: g.z }, dist: d };
+    }
+  }
+  return best;
 }

@@ -20,6 +20,9 @@ Blacklist style.
     Resume re-captures
   - `scripts/e2e-move.mjs` stealth speeds (sneak .. sprint), aim strafe/backstep, sprint toggle, aim ends a sprint, no free jump,
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
+  - `scripts/e2e-traverse.mjs` Proving Grounds course (north east): ladder bottom / top entry, climb rate, slide, step
+    off; drainpipe to a lip, climb up; ledge grab, shimmy rate, jump across, outside corner, climb up, hold-B lower
+    in, drop; horizontal pipe; keyboard E; touch prompts; planted hands / feet locked (< 1 cm), arms reach grips
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
     aiming, after a sprint / cover / lean, no residual offsets, level horizon after a shake) + headless cover bars: 3 m snap glide, hand
     contact, sticky exit, sprint slide, edge peeks, peek in/out timing, left-edge hand switch, corner offered and swung on the button (never automatic), no spin from quick aim /
@@ -308,8 +311,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   or against them, broad-phase by bounding circles, `noLedge` pieces skipped); `LevelBuilder` places the rest
   (`ladder/pipeV/pipeH/zipline/duct/windowAt/door/ledge/noLedge`; their visuals never collide) and `build` adds the
   generated ledges (lips outside the bounds disabled) to `BuiltLevel.anchors`. Helpers: `closestOn`, `reach` (entry:
-  bottom / top / below / above / side), `nearestInReach`, `anchorsNear`, `hangPoint` (`HANG.drop` 2.0 m under the
-  lip at 1.75 m), `lipGrips`, `nearestRung`, `ductPoint`.
+  bottom / top / below / above / side), `nearestInReach`, `anchorsNear`, `hangPoint` (`HANG.drop` 1.9 m under the
+  lip at 1.75 m, `HANG.out` 0.22 m off the face), `lipGrips`, `nearestRung`, `ductPoint`, `ledgeContinuation`,
+  `findJumpTarget`. Climbers stand `CLIMB_STANDOFF` 0.28 m off the rungs / pipe.
 - `player/attach.ts` (pure): `AttachMachine` (none -> enter -> on -> exit) with `ATTACH` specs per kind (axis:
   vertical / along / path / auto; speed + accel with a first-frame response; enter / exit times; `camera` preset;
   `allow` sidearm / takedown / drop / traverse / gadgets; `holster`). `axisInput` maps the stick (camera relative
@@ -321,6 +325,19 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   to the pose family (`hang` / `climb` / `crawl`, clips in `anim/clips/traverse.ts`; `traverseT` = climb cadence) and
   the rig's world targets; `GameState` stows the weapon (`PlayerWeapons.setStowed`: the swap's holster half, held)
   and sets `cam.attach` (framing preset `ATTACH_FRAMING` in `config/camera.ts`, blended by `blend`).
+- Run time (`player/attachController.ts`, owned by `TraversalController.attachCtl`): from the ground the traversal
+  probe also asks `probe` (anchors in reach, 5 Hz); traverse attaches when no step / vault / mantle is offered
+  (ladder bottom / top, drainpipe, pipe and lip from below); at a hangable edge traverse still drops down and the
+  drop control held `LOWER_HOLD` (a fresh press) or the "Hang" prompt (`lowerRequest`) lowers in. Attached: drop
+  lets go (a ladder slides to the bottom, latched), traverse jumps to `jump` (`findJumpTarget`: <= 2.5 m from the
+  grip centre along the camera-relative stick, into the wall = up, same-facing lips preferred) or climbs up
+  (`canClimb`: room on top); pushing past a lip's end continues round the corner (`ledgeContinuation`) unless a
+  jump target is under the stick; a drainpipe's top takes the lip above. Entries from above / a ladder top turn
+  round and step out before dropping to the hands. Hands and feet step with `GripStepper` (pure: locked contacts,
+  the worse-off limb swings to a new grip, the next may start half way through, optional rung grid) driven per
+  render frame (`TraversalController.frameUpdate`, interpolated body parameter); the climb clip phase follows
+  the hand swings. Prompts (`GameState.anchorPrompts`): 'vault' (Climb / Grab / Climb up), 'jumpTo', 'drop'
+  (Drop / Slide / Hang).
 - Rig world targets: `reachL/R` (palm points, weight; the wrist sits behind the palm along the reach) override the
   weapon / clip hands; `plantL/R` (sole points) override the feet while off the ground planner.
 - Input: `drop` is raised with `crouch` by `InputState` (alias), `interactHold` after `INTERACT_HOLD` 0.3 s;

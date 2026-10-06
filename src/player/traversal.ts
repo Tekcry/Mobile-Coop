@@ -4,24 +4,13 @@ import { MOVEMENT } from '../config/movement';
 import { pickTraversal, type Traversal } from './movement';
 import type { Player } from './player';
 import { hyp2 } from '../core/mathx';
-import { AttachMachine, attachPose, axisInput, climbCadence, LADDER_SLIDE, PIPE_SLIDE, type AttachPose, type ExitReason } from './attach';
-import { HANG, lipGrips, nearestRung, type Anchor, type AttachEntry, type P3 } from '../world/anchors';
-import type { TraverseKind } from '../anim/animGraph';
+import type { AttachMachine, ExitReason } from './attach';
+import { AttachController, LOWER_HOLD, type AttachInput } from './attachController';
+import type { Anchor, AttachEntry, ReachResult, TraversalAnchors } from '../world/anchors';
 import type { AttachCamera } from '../config/camera';
-
-/** Player input for attached states (set by GameState before each fixed step). */
-export interface AttachInput {
-  moveX: number;
-  moveY: number;
-  camYaw: number;
-  dropPressed: boolean;
-  dropHeld: boolean;
-}
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
-/** Signed shortest turn from a to b (rad). */
-const angleTo = (a: number, b: number): number => Math.atan2(Math.sin(b - a), Math.cos(b - a));
 
 /** Durations (s) of each committed traversal from a standstill; quicker in stride (see `duration`). */
 export const TRAVERSE_TIME: Record<Exclude<Traversal, 'none'> | 'drop' | 'hop', number> = { step: 0.4, vault: 0.7, mantle: 1.0, drop: 0.35, hop: 0.5 };
@@ -75,207 +64,64 @@ export class TraversalController {
   private top = 0;
   private probeT = 0;
   /** Attached locomotion (ladder, pipe, hang, duct, zipline). */
-  readonly attach = new AttachMachine();
-  /** Input for the attached states (GameState fills it each fixed step). */
-  readonly input: AttachInput = { moveX: 0, moveY: 0, camYaw: 0, dropPressed: false, dropHeld: false };
-  /** Where the attach blend starts (enter) and where the exit blend ends. */
-  private attachFrom = new Vector3();
-  private attachEnd = new Vector3();
-  private attachFromYaw = 0;
-  private ap: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
-  private gl: P3 = { x: 0, y: 0, z: 0 };
-  private gr: P3 = { x: 0, y: 0, z: 0 };
-  /** Called when an attached state ends (reason), e.g. to draw the weapon again. */
-  onDetach: ((reason: ExitReason | null) => void) | null = null;
-
+  readonly attachCtl: AttachController;
+  /** Where the attach hint's grip is (prompt). */
+  readonly attachAt = new Vector3();
   constructor(
     scene: Scene,
     private player: Player,
+    anchors: TraversalAnchors,
   ) {
     this.eng = scene.getPhysicsEngine() as PhysicsEngine;
+    this.attachCtl = new AttachController(player, anchors, this.kin, (x, y, z) => this.roomAt(x, y, z));
+  }
+
+  /** A standing body's worth of free space above (x, y, z) (and nothing solid at the feet). */
+  private roomAt(x: number, y: number, z: number): boolean {
+    return this.ray(this.a.set(x, y + 0.05, z), this.b.set(x, y + MOVEMENT.standHeight, z)) === null;
+  }
+
+  get attach(): AttachMachine {
+    return this.attachCtl.m;
+  }
+
+  get input(): AttachInput {
+    return this.attachCtl.input;
   }
 
   get active(): boolean {
-    return this.kind !== 'none' || this.attach.active;
+    return this.kind !== 'none' || this.attachCtl.active;
   }
 
   /** Attached (ladder, pipe, hang, duct, zipline), including its enter / exit blends. */
   get attached(): boolean {
-    return this.attach.active;
+    return this.attachCtl.active;
   }
 
   /** Camera framing preset while attached (null otherwise). */
   get cameraPreset(): AttachCamera | null {
-    return this.attach.spec?.camera ?? null;
+    return this.attachCtl.camera;
   }
 
-  /**
-   * Attach to an anchor now (from the traverse probe, a chain transition, or tests): blends from the current
-   * feet onto the anchor at `s`. Returns false if the anchor is not an attached kind.
-   */
+  /** Anchor a traverse press would attach to from the ground (prompt). */
+  get attachHint(): ReachResult | null {
+    return this.attachCtl.hint;
+  }
+
+  /** Attach to an anchor now (tests, chains): blends from the current feet onto it. */
   attachTo(a: Anchor, s: number, entry: AttachEntry = 'side', face = 1): boolean {
-    const c = this.player.controller;
     if (this.kind !== 'none') return false;
-    if (!this.attach.enter(a, s, entry, face, this.player.rig.height, c.speed)) return false;
-    this.attachFrom.copyFrom(c.pos);
-    this.attachFromYaw = c.yaw;
     this.hint = null;
-    return true;
+    return this.attachCtl.attachTo(a, s, entry, face);
   }
 
-  /** Let go of / step off the anchor (blends off; 'drop' releases at once and gravity takes over). */
   detach(reason: ExitReason): void {
-    if (!this.attach.active) return;
-    const a = this.attach.anchor!;
-    const c = this.player.controller;
-    if (reason === 'drop' || reason === 'damage' || reason === 'gone') {
-      this.endAttach(reason);
-      return;
-    }
-    // exit target: the top floor (ladder / climb up), the floor at the base, or the current spot
-    if (reason === 'top' && a.kind === 'ladder') this.attachEnd.set(a.top.x + Math.sin(a.facing) * 0.15, a.top.y, a.top.z + Math.cos(a.facing) * 0.15);
-    else if (reason === 'climb' && a.kind === 'ledge') {
-      const p = attachPose(a, this.attach.s, 1, this.player.rig.height, this.ap);
-      this.attachEnd.set(p.x - a.nx * (0.3 + 0.45), a.top, p.z - a.nz * (0.3 + 0.45));
-    } else this.attachEnd.copyFrom(c.pos);
-    this.attach.beginExit(reason);
+    this.attachCtl.detach(reason);
   }
 
-  private endAttach(reason: ExitReason | null): void {
-    const c = this.player.controller;
-    const r = this.attach.finish() ?? reason;
-    c.override = null;
-    const pose = this.player.coverPose;
-    pose.traverse = 'none';
-    pose.traverseT = 0;
-    const rig = this.player.rig;
-    rig.reachL.w = rig.reachR.w = rig.plantL.w = rig.plantR.w = 0;
-    this.onDetach?.(r);
-  }
-
-  /** Fixed step while attached: input along the anchor, root path, rig targets, exits. */
-  private updateAttached(dt: number, jumpPressed: boolean): void {
-    const m = this.attach;
-    const a = m.anchor!;
-    const sp = m.spec!;
-    const c = this.player.controller;
-    const inp = this.input;
-    const h = this.player.rig.height;
-    // slides: hold drop on a ladder; down + traverse on a drainpipe
-    let rate: number | undefined;
-    let axis = axisInput(a, sp, inp.moveX, inp.moveY, inp.camYaw, m.s);
-    if (a.kind === 'ladder' && inp.dropHeld && m.phase === 'on') {
-      axis = -1;
-      rate = LADDER_SLIDE;
-    } else if (a.kind === 'pipeV' && inp.moveY < -0.5 && jumpPressed && m.phase === 'on') {
-      axis = -1;
-      rate = PIPE_SLIDE;
-    }
-    const edge = m.update(dt, axis, rate);
-    if (m.phase === 'on') {
-      if (inp.dropPressed && sp.allow.drop && a.kind !== 'ladder') this.detach('drop');
-      else if (a.kind === 'ledge' && jumpPressed && a.canClimbUp) this.detach('climb');
-      else if (edge === 'max' && a.kind === 'ladder') this.detach('top');
-      else if (edge === 'min' && (a.kind === 'ladder' || a.kind === 'pipeV')) this.detach('bottom');
-      else if (edge !== 'none' && (a.kind === 'duct' || a.kind === 'zipline')) this.detach('end');
-      if (!m.active) return;
-    }
-    // root path: blend on from where the body was, along the anchor, blend off to the exit point
-    const p = attachPose(a, m.s, m.face, h, this.ap);
-    const k = m.progress;
-    const e = k * k * (3 - 2 * k);
-    if (m.phase === 'enter') {
-      this.kin.set(this.attachFrom.x + (p.x - this.attachFrom.x) * e, this.attachFrom.y + (p.y - this.attachFrom.y) * e, this.attachFrom.z + (p.z - this.attachFrom.z) * e);
-    } else if (m.phase === 'exit') {
-      // climbing up rises first, then steps in (like the mantle)
-      const up = m.exitReason === 'climb' || m.exitReason === 'top' ? Math.min(1, e / 0.6) : e;
-      const fwd = m.exitReason === 'climb' || m.exitReason === 'top' ? Math.max(0, (e - 0.35) / 0.65) : e;
-      this.kin.set(p.x + (this.attachEnd.x - p.x) * fwd, p.y + (this.attachEnd.y - p.y) * up, p.z + (this.attachEnd.z - p.z) * fwd);
-    } else this.kin.set(p.x, p.y, p.z);
-    c.override = { kinematic: this.kin, yaw: m.phase === 'enter' && k < 0.5 ? this.attachFromYaw + angleTo(this.attachFromYaw, p.yaw) * e * 2 : p.yaw, turnRate: 14, crouch: a.kind === 'duct' };
-    // pose family and cadence
-    const pose = this.player.coverPose;
-    const fam: TraverseKind = a.kind === 'ladder' || a.kind === 'pipeV' ? 'climb' : a.kind === 'duct' ? 'crawl' : 'hang';
-    const rung = a.kind === 'ladder' ? a.rung : 0.3;
-    const cad = climbCadence(m.travelled, rung);
-    pose.traverse = m.phase === 'exit' && (m.exitReason === 'climb' || m.exitReason === 'top') ? 'mantle' : fam;
-    pose.traverseT = pose.traverse === 'mantle' ? k : fam === 'hang' ? 0 : (cad.lead > 0 ? 0 : 0.5) + cad.swing * 0.5;
-    this.gripTargets(a, p, m.phase === 'exit' ? 1 - k : m.phase === 'enter' ? e : 1);
-    if (m.phase === 'exit' && k >= 1) this.endAttach(null);
-  }
-
-  /** Hands on the anchor's grips (rungs, pipe, lip, cable) and feet on rungs, weighted by `w`. */
-  private gripTargets(a: Anchor, p: AttachPose, w: number): void {
-    const rig = this.player.rig;
-    const L = rig.reachL;
-    const R = rig.reachR;
-    const fl = rig.plantL;
-    const fr = rig.plantR;
-    L.w = R.w = w;
-    fl.w = fr.w = 0;
-    const k = rig.height / 1.75;
-    const rx = Math.cos(p.yaw);
-    const rz = -Math.sin(p.yaw);
-    switch (a.kind) {
-      case 'ledge':
-        lipGrips(a, Math.max(0.2, Math.min(a.len - 0.2, this.attach.s)), 0.2 * k, this.gl, this.gr);
-        L.x = this.gl.x;
-        L.y = this.gl.y;
-        L.z = this.gl.z;
-        R.x = this.gr.x;
-        R.y = this.gr.y;
-        R.z = this.gr.z;
-        return;
-      case 'ladder': {
-        // hands on the rungs at about head height, feet on the rungs below; the lead side reaches higher
-        const cad = climbCadence(this.attach.travelled, a.rung);
-        const hy = nearestRung(a, p.y + 1.62 * k);
-        const fx = a.base.x - Math.sin(a.facing) * 0.04;
-        const fz = a.base.z - Math.cos(a.facing) * 0.04;
-        L.x = fx - rx * a.width * 0.35;
-        L.z = fz - rz * a.width * 0.35;
-        L.y = Math.min(a.top.y + 0.6, hy + (cad.lead === -1 ? a.rung : 0));
-        R.x = fx + rx * a.width * 0.35;
-        R.z = fz + rz * a.width * 0.35;
-        R.y = Math.min(a.top.y + 0.6, hy + (cad.lead === 1 ? a.rung : 0));
-        fl.w = fr.w = w;
-        fl.x = fx - rx * 0.12;
-        fl.z = fz - rz * 0.12;
-        fl.y = nearestRung(a, p.y + 0.15) + (cad.lead === 1 ? a.rung : 0) - 0.02;
-        fr.x = fx + rx * 0.12;
-        fr.z = fz + rz * 0.12;
-        fr.y = nearestRung(a, p.y + 0.15) + (cad.lead === -1 ? a.rung : 0) - 0.02;
-        return;
-      }
-      case 'pipeV': {
-        const cad = climbCadence(this.attach.travelled, 0.3);
-        const top = p.y + 1.75 * k;
-        L.x = R.x = a.base.x;
-        L.z = R.z = a.base.z;
-        L.y = top + (cad.lead === -1 ? 0.15 : -0.15);
-        R.y = top + (cad.lead === 1 ? 0.15 : -0.15);
-        return;
-      }
-      case 'pipeH':
-      case 'zipline': {
-        const ax = a.b.x - a.a.x;
-        const az = a.b.z - a.a.z;
-        const l = hyp2(ax, az) || 1;
-        const tx = ax / l;
-        const tz = az / l;
-        const y = a.kind === 'pipeH' ? a.hangHeight : p.y + HANG.drop * k;
-        const span = a.kind === 'zipline' ? 0.06 : 0.22 * k;
-        // the hands spread along the pipe (sideways shimmy) or together on the trolley (zipline)
-        L.x = p.x - tx * span;
-        L.z = p.z - tz * span;
-        R.x = p.x + tx * span;
-        R.z = p.z + tz * span;
-        L.y = R.y = y;
-        return;
-      }
-      default:
-        L.w = R.w = 0;
-    }
+  /** Render frame: hand / foot contacts while attached. */
+  frameUpdate(dt: number, alpha: number): void {
+    this.attachCtl.frameUpdate(dt, alpha);
   }
 
   private ray(from: Vector3, to: Vector3): number | null {
@@ -371,9 +217,8 @@ export class TraversalController {
     const p = this.player;
     const c = p.controller;
     const pose = p.coverPose;
-    if (this.attach.active) {
-      if (!p.alive) this.detach('damage');
-      else this.updateAttached(dt, jumpPressed);
+    if (this.attachCtl.active) {
+      this.attachCtl.fixedUpdate(dt, jumpPressed);
       return true;
     }
     if (this.active) {
@@ -398,8 +243,10 @@ export class TraversalController {
       }
       return true;
     }
+    const ac = this.attachCtl;
     if (blocked || !p.alive || !c.grounded) {
       this.hint = null;
+      ac.hint = null;
       return false;
     }
     this.probeT -= dt;
@@ -407,11 +254,24 @@ export class TraversalController {
       this.probeT = 0.2;
       const d = dir ?? this.probeDir();
       this.hint = this.probe(c.pos, d.x, d.z);
+      ac.hint = ac.probe(c.pos, d.x, d.z);
       if (this.hint) {
         this.dir.set(d.x, 0, d.z);
         const f = this.hint.kind === 'hop' || this.hint.kind === 'drop' ? 0.6 : this.hint.front;
         this.hintAt.set(c.pos.x + d.x * f, c.pos.y, c.pos.z + d.z * f);
       }
+    }
+    // anchors: a climb / grab when nothing closer is offered (a step, vault or mantle wins)
+    const h = this.hint;
+    const ah = ac.hint;
+    const geo = h && h.kind !== 'drop';
+    // lowering into a hang is the drop control (held) or its prompt; traverse at the edge still drops down
+    // (a press made at the edge: crouch held for a while in hold mode never lowers you over it)
+    const lower = ah?.entry === 'above' && ((ac.input.dropHeldT >= LOWER_HOLD && ac.input.dropHeldT < LOWER_HOLD + 0.5) || ac.lowerRequest);
+    ac.lowerRequest = false;
+    if (ah && !geo && (lower || (jumpPressed && ah.entry !== 'above'))) {
+      this.hint = null;
+      return ac.attachFrom(ah);
     }
     if (jumpPressed && this.hint) {
       this.kind = this.hint.kind;
@@ -476,6 +336,6 @@ export class TraversalController {
   reset(): void {
     this.kind = 'none';
     this.hint = null;
-    if (this.attach.active) this.endAttach('gone');
+    this.attachCtl.reset();
   }
 }

@@ -1,5 +1,25 @@
 # Changelog
 
+## 1.8.0 - 2.0 phase 2a: ledges, ladders and pipes
+- Ladders: Y at the bottom climbs on (or at the top: turn round and step on); climb at 1.6 rungs/s with the hands and
+  feet stepping rung to rung; B slides to the bottom (pushing up stops it); step off at the top or the bottom.
+- Drainpipes: climb at ~0.9 m/s hand over hand; at the top it takes the lip above (then climb up).
+- Ledges: Y grabs a lip 1.6-2.45 m above the feet; at an edge, hold B (or tap the "Hang" prompt) to lower into a hang
+  (Y there still drops down). Shimmy at ~1.2 m/s hand over hand, round outside corners and onto neighbouring lips;
+  Y climbs up where there is room; B lets go. With the stick pointing at another lip / pipe / ladder within 2.5 m a
+  "Jump" marker shows on it and Y jumps across (pushing into the wall jumps up). At the end of a lip the stick
+  pointing at a jump target holds there instead of wrapping round the corner (Blacklist).
+- Horizontal pipes: Y grabs from below, hand over hand along it, B drops.
+- Contacts: planted hands and feet never slide (`GripStepper`: each grip stays locked until the limb trails too far,
+  then swings to the next grip, rungs snapped); the arms always reach their grips.
+- World prompts: Climb / Grab / Hang from the ground; Climb up, Jump (on the target) and Drop / Slide (B) while
+  attached; all tappable by touch. No take-cover prompt while attached.
+- Proving Grounds: a traversal course in the north east (tower with ladder and drainpipe, two hang blocks to jump
+  between, a horizontal pipe).
+- Tuning: hang point 1.9 m under the lip and 0.22 m out from the face; climbers stand 0.28 m off the rungs.
+- Tests: e2e-traverse (every verb above by pad, keyboard E and touch prompts; speeds; contacts < 1 cm), unit tests
+  for the grip stepper, ledge continuation and jump targets.
+
 ## 1.7.0 - 2.0 "Blacklist" overhaul, phase 1: foundations (no visible change)
 - Traversal anchors (`world/anchors.ts`, pure): ladders, vertical / horizontal pipes, ledges, ducts, windows, doors and
   ziplines as map data in the built level (`BuiltLevel.anchors`). Ledges are generated from box tops like cover faces
