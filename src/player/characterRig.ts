@@ -911,8 +911,10 @@ export class CharacterRig {
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
     // raised to the eye the shoulder girdle lifts into the stock
     const shY = p.y.shoulder - chestY + t.weld * SHOULDER_WELD;
-    this.shoulderL.position.y = shY;
-    this.shoulderR.position.y = shY;
+    if (Math.abs(this.shoulderR.position.y - shY) > 1e-5) {
+      this.shoulderL.position.y = shY;
+      this.shoulderR.position.y = shY;
+    }
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
     this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y, AIM_POCKET.z + w.z);
