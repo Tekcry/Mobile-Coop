@@ -92,6 +92,23 @@ describe('save migrations', () => {
     expect(bad.missions['BAD ID!']).toBeUndefined();
   });
 
+  it('every old version (v1 .. v5 literal saves) reaches the current one with the 2.0 kit', () => {
+    const base = { createdAt: 1, updatedAt: 2, profile: { name: 'Old', xp: 500, credits: 77, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, stats: { matches: 1, wins: 0, kills: 3, headshots: 1, bestWave: 1, timePlayed: 60 } }, unlocks: ['weapon:rifle', 'weapon:pistol'], weapons: { rifle: { upgrades: { damage: 1, magazine: 0, recoil: 0, reload: 0 }, kills: 2 } }, loadout: { primary: 'rifle', secondary: 'pistol' } };
+    const olds: Record<string, unknown>[] = [V1, { ...base, version: 2 }, { ...base, version: 3, emotes: ['wave', '', '', ''] }, { ...base, version: 4, emotes: ['wave', '', '', ''] }, { ...base, version: 5, emotes: ['wave', '', '', ''], missions: {} }];
+    for (const o of olds) {
+      const { data, from } = migrate(o);
+      expect(from).toBe(o.version);
+      const sv = sanitizeSave(data);
+      expect(sv.version).toBe(SAVE_VERSION);
+      expect(sv.profile.xp).toBeGreaterThan(0);
+      expect(sv.suit.owned).toBeDefined();
+      expect(sv.hq).toBeDefined();
+      expect(sv.presets).toHaveLength(3);
+      expect(sv.missions).toEqual({});
+      expect(sv.unlocks).toContain('weapon:rifle');
+    }
+  });
+
   it('current saves pass through untouched', () => {
     const d = defaultSave(123);
     d.profile.xp = 777;

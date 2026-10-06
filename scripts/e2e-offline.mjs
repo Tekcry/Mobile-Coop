@@ -57,6 +57,13 @@ try {
   await G(() => window.__app.loop.stepHeadless(8));
   const alive = await G(() => window.__app.current.enemyMgr.alive);
   assert(alive > 0, `wave match runs offline (${alive} enemies)`);
+  // an Infiltration mission (the Embassy) offline: objectives, guards, the download runs at the terminal
+  await page.goto(url + '?autostart=embassy&mode=infiltration');
+  await booted();
+  await page.waitForFunction(() => window.__app?.current?.mode?.id === 'infiltration', null, { timeout: 60000 });
+  await G(() => window.__app.loop.stepHeadless(3));
+  const inf = await G(() => ({ obj: window.__app.current.hud['objective'].textContent, guards: window.__app.current.enemyMgr.alive }));
+  assert(inf.obj.length > 0 && inf.guards > 0, `an Infiltration mission runs offline ("${inf.obj}", ${inf.guards} guards)`);
 
   console.log('backgrounding');
   await G(() => {
