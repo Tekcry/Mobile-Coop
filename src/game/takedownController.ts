@@ -130,9 +130,11 @@ export class TakedownController {
     const p = g.player.position;
     let best: TakedownVictim | null = null;
     let bd = SCAN;
+    // a guard in combat who knows this operator is there cannot be taken by surprise (each player separately)
+    const known = g.spottedLocal;
     for (let k = 0; k < vs.length; k++) {
       const e = vs[k]!;
-      if (!e.alive || e.taken) continue;
+      if (!e.alive || e.taken || (known && e.level === 'alert')) continue;
       const d = hyp2(e.pos.x - p.x, e.pos.z - p.z);
       if (d < bd) {
         bd = d;

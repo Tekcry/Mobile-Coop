@@ -480,7 +480,7 @@ export class CoopHost implements NetAttachment {
     }
     const held = this.seized.get(e.id);
     if (m.ph === 'start') {
-      if (!r.alive || (held && held.by !== r.id) || (!held && e.taken) || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
+      if (!r.alive || (held && held.by !== r.id) || (!held && e.taken) || (r.ref.spotted && e.level === 'alert') || hyp2(e.pos.x - r.feet.x, e.pos.z - r.feet.z) > TD_REACH) {
         deny();
         return;
       }
@@ -663,7 +663,7 @@ export class CoopHost implements NetAttachment {
     const players: PlayerState[] = [this.selfState()];
     for (const r of this.remotes.values()) {
       if (!r.state) continue;
-      players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, sh: r.health.shield, f: r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead });
+      players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, sh: r.health.shield, f: ((r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead) & ~PF.spotted) | (r.ref.spotted ? PF.spotted : 0) });
     }
     const enemies: EnemyState[] = [];
     for (const e of this.g.enemyMgr?.enemies ?? []) {
@@ -727,7 +727,7 @@ export class CoopHost implements NetAttachment {
     for (const r of this.remotes.values()) {
       const st = r.state;
       if (!r.alive || !st) continue;
-      if (steps) {
+      if (steps && (st.f & PF.silent) === 0 && (st.f & PF.grounded) !== 0) {
         const n = noiseRadius(r.ref.speed, (st.f & PF.crouch) !== 0, (st.f & PF.sprint) !== 0);
         if (n > 0) em.hear(r.feet, n);
       }

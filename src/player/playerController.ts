@@ -103,6 +103,9 @@ export class PlayerController {
   /** Ignore this step's crouch press (consumed by the cover system). */
   swallowCrouch = false;
   speed = 0;
+  /** Footstep noise this step: 'free' by gait, 'silent' (climbing, vaults, cover glides and moves along cover),
+   *  'crouched' (a cover-to-cover run is a crouched run). */
+  steps: 'free' | 'silent' | 'crouched' = 'free';
   localMove = { x: 0, z: 0 };
   /** Seconds left in a controlled pivot (kept for the debug overlay; the driver owns pivots). */
   get pivotT(): number {
@@ -265,6 +268,7 @@ export class PlayerController {
     this.prevYaw = this.yaw;
     this.prevPhase = this.motion.phase;
     this.landT = Math.max(0, this.landT - dt);
+    this.steps = !ov ? 'free' : ov.run ? 'crouched' : 'silent';
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {

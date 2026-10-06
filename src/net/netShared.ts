@@ -14,6 +14,7 @@ export function localFlags(g: GameState): number {
   if (!p.alive) f |= PF.dead;
   if (c.sprinting) f |= PF.sprint;
   if (g.weapons.current.stats.noise <= 0.6) f |= PF.quiet;
+  if (c.steps === 'silent') f |= PF.silent;
   return f;
 }
 

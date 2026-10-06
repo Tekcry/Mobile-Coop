@@ -40,6 +40,8 @@ export abstract class Screen {
     return false;
   }
   onTab(_dir: -1 | 1): void {}
+  /** Y / E: the screen's second action (Loadout: customise). */
+  onAlt(): void {}
   update(_dt: number): void {}
   /** Screens that cannot be dismissed with B (e.g. the root main menu). */
   readonly root: boolean = false;
@@ -189,6 +191,7 @@ export class ScreenManager {
     if (input.pressed('uiRight')) this.nav.move('right');
     if (input.pressed('uiTabPrev')) s.onTab(-1);
     if (input.pressed('uiTabNext')) s.onTab(1);
+    if (input.pressed('uiAlt')) s.onAlt();
     if (input.pressed('uiConfirm')) this.nav.confirm();
     else if (input.pressed('uiBack')) this.back(s);
     this.top?.update(dt);

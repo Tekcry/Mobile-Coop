@@ -7,7 +7,7 @@ import { STARTER_UNLOCKS } from '../progression/unlocks';
 import { CHALLENGES, defaultHq, defaultPresets, defaultSuit, HQ, HQ_IDS, PRESETS, SUIT, SUIT_PIECES, type HqLevels, type LoadoutPreset, type SuitLoadout } from '../progression/suit';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 6;
+export const SAVE_VERSION = 7;
 
 export interface WeaponProgress {
   upgrades: WeaponUpgrades;
@@ -92,7 +92,7 @@ export function defaultSave(now = Date.now()): SaveData {
     },
     unlocks: [...STARTER_UNLOCKS, 'emote:wave', 'emote:salute', 'tag:Rookie', 'camo:factory', 'pattern:solid'],
     weapons,
-    loadout: { primary: 'rifle', secondary: 'pistol' },
+    loadout: { primary: 'pistolSd', secondary: 'rifle' },
     avatar: defaultLook(),
     emotes: ['wave', 'salute', '', ''],
     missions: {},
@@ -141,10 +141,10 @@ export function sanitizeSave(raw: unknown): SaveData {
   const unlocks = Array.isArray(raw.unlocks) ? [...new Set(raw.unlocks.filter((x): x is string => typeof x === 'string' && x.length < 64))] : [];
   for (const s of d.unlocks) if (!unlocks.includes(s)) unlocks.push(s);
   const lo = isObj(raw.loadout) ? raw.loadout : {};
-  let primary: WeaponId = isWeapon(lo.primary) ? lo.primary : 'rifle';
-  let secondary: WeaponId = isWeapon(lo.secondary) ? lo.secondary : 'pistol';
-  if (!unlocks.includes(`weapon:${primary}`)) primary = 'rifle';
-  if (!unlocks.includes(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'pistol' ? 'rifle' : 'pistol';
+  let primary: WeaponId = isWeapon(lo.primary) ? lo.primary : 'pistolSd';
+  let secondary: WeaponId = isWeapon(lo.secondary) ? lo.secondary : 'rifle';
+  if (!unlocks.includes(`weapon:${primary}`)) primary = 'pistolSd';
+  if (!unlocks.includes(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'rifle' ? 'pistolSd' : 'rifle';
   const missions: Record<string, MissionRecord> = {};
   if (isObj(raw.missions)) {
     for (const [id, r] of Object.entries(raw.missions).slice(0, 64)) {

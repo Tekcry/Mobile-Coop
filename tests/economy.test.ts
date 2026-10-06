@@ -147,7 +147,7 @@ describe('profile ops and save v6', () => {
     expect(bad.suit.worn.boots).toBe(0);
     expect(bad.hq.radar).toBe(2);
     expect(bad.preset).toBe(2);
-    expect(bad.presets[0]!.primary).toBe('rifle');
+    expect(bad.presets[0]!.primary).toBe('pistolSd');
     expect(bad.presets[0]!.name).toBe('bx');
   });
 });

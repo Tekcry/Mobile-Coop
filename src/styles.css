@@ -2663,66 +2663,6 @@ body {
   border-radius: 2px;
 }
 
-/* Loadout: categories | the operator | options */
-.loadout-main {
-  display: flex;
-  flex: 1;
-  min-height: 0;
-  gap: 10px;
-}
-.loadout-stage {
-  flex: 1;
-  position: relative;
-  touch-action: none;
-  cursor: grab;
-  min-width: 80px;
-}
-.stage-hint {
-  position: absolute;
-  bottom: 6px;
-  left: 50%;
-  transform: translateX(-50%);
-  font-size: 10px;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-  color: var(--muted);
-  white-space: nowrap;
-}
-.input-gamepad .stage-hint::after {
-  content: ' (right stick)';
-}
-.loadout-main > .tab-body.loadout-panel {
-  flex: none;
-  width: min(46vw, 440px);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  padding: 8px 10px;
-}
-.loadout-panel .rows {
-  max-width: none;
-}
-.weapon-card {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  background: rgba(12, 20, 19, 0.86);
-  border: 1px solid var(--line);
-  padding: 8px 12px;
-}
-.weapon-actions {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-}
-.w-title {
-  font-size: 18px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
 .pips i.on {
   background: var(--accent);
 }
@@ -2882,39 +2822,14 @@ body {
   font-weight: 800;
 }
 
-/* compact Loadout header: the title and the wallet on one short line */
-.screen-head.slim {
-  align-items: center;
-  min-height: 40px;
-  margin-bottom: 6px;
-}
-.screen-head.slim .screen-title {
-  margin: 0;
-}
-.wallet {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 6px 12px;
-  background: rgba(8, 14, 14, 0.82);
-  border: 1px solid var(--line);
-  font-size: 13px;
-  letter-spacing: 0.12em;
-}
-.loadout-screen .tab-strip.side-nav {
-  width: clamp(140px, 19vw, 200px);
-}
-.loadout-panel .row,
 .tabview.side .row {
   min-height: 36px;
   padding: 4px 10px;
 }
-.loadout-panel .section,
 .tabview.side .section {
   gap: 4px;
   margin-bottom: 4px;
 }
-.loadout-panel .choice-arrow,
 .tabview.side .choice-arrow {
   min-width: 28px;
   min-height: 28px;
@@ -2930,4 +2845,369 @@ body {
 }
 .lobby-player.me {
   border-color: var(--accent);
+}
+
+/* Loadout (Blacklist gear screen): list | operator | details, actions along the bottom */
+.loadout-screen {
+  padding: calc(var(--sat) + 6px) calc(var(--sar) + 14px) calc(var(--sab) + 6px) calc(var(--sal) + 14px);
+}
+.lo-top {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-height: 26px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.net-brand {
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  font-size: 13px;
+}
+.net-ticker {
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.wallet {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  letter-spacing: 0.12em;
+}
+.lo-main {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(220px, 33vw) 1fr minmax(190px, 26vw);
+  gap: 10px;
+  margin-top: 6px;
+}
+.lo-left {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.lo-crumb {
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lo-title {
+  font-size: 21px;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  margin-top: 2px;
+}
+.lo-sub {
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  color: var(--text);
+  opacity: 0.8;
+}
+.lo-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 5px;
+  background: linear-gradient(90deg, rgba(8, 14, 14, 0.88), rgba(8, 14, 14, 0.62));
+  border-left: 2px solid var(--line);
+}
+.lo-group {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  color: var(--accent);
+  padding: 6px 10px 2px;
+}
+.lo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  min-height: 30px;
+  padding: 3px 10px;
+  border: 0;
+  border-bottom: 1px solid rgba(140, 255, 205, 0.05);
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  text-align: left;
+  cursor: pointer;
+}
+.loadout-screen .lo-row.focused {
+  background: linear-gradient(90deg, rgba(56, 224, 140, 0.24), rgba(56, 224, 140, 0.05));
+  box-shadow: inset 3px 0 0 var(--accent);
+  outline: none;
+}
+.lo-label {
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.lo-row.m-locked .lo-label {
+  color: var(--muted);
+}
+.lo-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
+  color: var(--muted);
+  font-size: 12px;
+}
+.lo-val.price {
+  color: var(--gold);
+}
+.lo-row:not(.m-buyable) .lo-val {
+  color: var(--text);
+  opacity: 0.75;
+}
+.lo-ic {
+  display: inline-flex;
+}
+.lo-ic.ok {
+  color: var(--accent);
+}
+.lo-stage {
+  position: relative;
+  touch-action: none;
+  cursor: grab;
+  min-width: 60px;
+}
+.lo-detail {
+  align-self: start;
+  max-height: 100%;
+  overflow-y: auto;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 7px 10px 8px;
+}
+.lo-panel + .lo-panel,
+.lo-panel + .lo-note {
+  margin-top: 8px;
+}
+.lo-ptitle {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  padding-bottom: 4px;
+  margin-bottom: 4px;
+  border-bottom: 1px solid var(--line);
+}
+.lo-bar {
+  margin: 3px 0;
+}
+.lo-bl {
+  display: block;
+  font-size: 10px;
+  letter-spacing: 0.12em;
+}
+.lo-segs {
+  display: flex;
+  gap: 2px;
+  margin-top: 1px;
+}
+.lo-segs i {
+  flex: 1;
+  height: 6px;
+  background: rgba(255, 255, 255, 0.08);
+}
+.lo-segs i.on {
+  background: var(--accent);
+}
+.lo-segs i.up {
+  background: #b8ffd8;
+}
+.lo-segs i.down {
+  background: #e0443e;
+}
+.lo-line {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  padding: 2px 0;
+  border-top: 1px solid rgba(140, 255, 205, 0.06);
+}
+.lo-line .was {
+  color: var(--muted);
+}
+.lo-line .arrow,
+.lo-line .up {
+  color: var(--accent);
+}
+.lo-note {
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--muted);
+  margin-top: 4px;
+}
+.lo-note.lock {
+  color: var(--gold);
+}
+.lo-acts {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 22px;
+  min-height: 32px;
+  margin-top: 6px;
+}
+.lo-act {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 12px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+.input-touch .lo-act {
+  min-height: 36px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+}
+.lo-act.blocked {
+  opacity: 0.5;
+}
+.lo-list.form {
+  padding: 4px 8px;
+}
+.lo-form {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.lo-form .row {
+  min-height: 34px;
+  padding: 3px 8px;
+}
+.lo-form .swatch-label {
+  width: 78px;
+}
+.lo-form .swatch {
+  width: 22px;
+  height: 22px;
+}
+
+/* 2.3: compact menus - more on screen, the operator visible beside them */
+.screen {
+  padding: calc(var(--sat) + 8px) calc(var(--sar) + 14px) calc(var(--sab) + 6px) calc(var(--sal) + 14px);
+}
+.screen.with-back {
+  padding-left: calc(var(--sal) + 64px);
+}
+.screen-back {
+  width: 44px;
+  height: 44px;
+  top: calc(var(--sat) + 6px);
+}
+.screen-title {
+  font-size: 17px;
+  margin-bottom: 5px;
+  letter-spacing: 0.12em;
+}
+.rows {
+  gap: 3px;
+  max-width: 600px;
+}
+.section {
+  gap: 3px;
+  margin-bottom: 3px;
+}
+.row {
+  min-height: 32px;
+  padding: 3px 10px;
+  gap: 12px;
+  font-size: 12px;
+  letter-spacing: 0.06em;
+}
+.row-note {
+  font-size: 11px;
+}
+.choice-arrow,
+.tabview.side .choice-arrow {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  min-height: 24px;
+  font-size: 16px;
+}
+.choice-val {
+  font-size: 12px;
+}
+.switch {
+  width: 38px;
+  height: 22px;
+}
+.switch .knob {
+  width: 16px;
+  height: 16px;
+}
+.btn {
+  font-size: 13px;
+  min-height: 36px;
+  padding: 6px 12px;
+}
+.btn.big {
+  min-height: 40px;
+  font-size: 14px;
+}
+.tab-strip.side-nav {
+  width: clamp(130px, 18vw, 180px);
+}
+.side-nav .tab {
+  min-height: 32px;
+  padding: 5px 10px;
+  font-size: 12px;
+}
+.tabview.side .row {
+  min-height: 30px;
+}
+.main-menu .menu-left {
+  width: min(280px, 34vw);
+}
+.game-title,
+.main-menu .game-title {
+  font-size: clamp(24px, 3.8vw, 38px);
+  margin: 2px 0 6px;
+}
+.btn.menu-item {
+  min-height: 34px;
+  padding: 5px 12px;
+  font-size: 14px;
+}
+.play-screen .rows {
+  max-width: 560px;
+}
+.settings-screen .tabview {
+  max-width: 780px;
+}
+.mission-cards {
+  max-width: 600px;
 }

@@ -45,7 +45,9 @@ export interface PlayerInfo {
 }
 
 /** Bit flags in player state. */
-export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128 } as const;
+/** Player flags; `silent`: footsteps make no noise this moment (cover glides / moves, climbing, vaults);
+ *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them). */
+export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512 } as const;
 
 export interface PlayerState {
   id: string;
@@ -208,7 +210,7 @@ function playerState(v: unknown): PlayerState | null {
     yaw,
     pitch,
     speed: num(v.speed, 0, 20) ?? 0,
-    f: Math.floor(num(v.f, 0, 255) ?? 0),
+    f: Math.floor(num(v.f, 0, 1023) ?? 0),
     w,
     hp: num(v.hp, 0, 100) ?? 100,
     sh: num(v.sh, 0, 50) ?? 0,

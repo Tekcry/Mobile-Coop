@@ -99,6 +99,8 @@ try {
       t.reset();
       t.tp(2, 0, -2.2, 0);
       const e2 = t.spawn(2, -1, Math.PI);
+      // (a guard that has not noticed the operator yet: in the dark)
+      e2.passive = true;
       t.step(0.4);
       const offer2 = g.takedown.offer?.plan.kind;
       t.press(0.4);
@@ -115,8 +117,30 @@ try {
       e3.update = () => {};
       t.step(0.1);
       const sideAlert = g.takedown.offer?.plan.kind ?? null;
-      return { offer, prompt, aligned: run.aligned, ko, charge, offer2, lethal, sideCalm, sideAlert, stats: g.takedown.done };
+      // a guard in combat who has seen this operator: no takedown; one alerted without seeing them (radioed): yes
+      t.reset();
+      t.tp(2, 0, -2.2, 0);
+      const e4 = t.spawn(2, -1, Math.PI);
+      let k = 0;
+      while (!e4.alerted && k++ < 120) t.step(1 / 60);
+      e4.update = () => {};
+      t.step(0.2);
+      const seenOffer = g.takedown.offer?.plan.kind ?? null;
+      const spotted = g.spottedLocal;
+      t.reset();
+      t.tp(2, 0, -2.2, 0);
+      // (nobody in combat for a moment: no guard knows the operator is there any more)
+      t.step(0.1);
+      const e5 = t.spawn(2, -1, Math.PI);
+      e5.passive = true;
+      e5.alert();
+      e5.update = () => {};
+      t.step(0.2);
+      const calledOffer = g.takedown.offer?.plan.kind ?? null;
+      return { offer, prompt, aligned: run.aligned, ko, charge, offer2, lethal, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
     });
+    assert(r.spotted && r.seenOffer === null, `a guard in combat who saw you offers no takedown (${r.seenOffer}, spotted ${r.spotted})`);
+    assert(r.calledOffer === 'front', `one alerted without seeing you still can be taken (${r.calledOffer})`);
     assert(r.offer === 'behind' && r.prompt, `behind a guard: takedown offered on him (${r.offer}, prompt ${r.prompt})`);
     assert(r.aligned < 0.05, `the attacker is aligned within 5 cm (${(r.aligned * 100).toFixed(1)} cm)`);
     assert(r.ko, 'a tap is non-lethal: he is knocked out');

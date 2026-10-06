@@ -43,6 +43,7 @@ export const BUTTON_ACTIONS = [
   'uiBack',
   'uiTabPrev',
   'uiTabNext',
+  'uiAlt',
 ] as const;
 
 export type ButtonAction = (typeof BUTTON_ACTIONS)[number];

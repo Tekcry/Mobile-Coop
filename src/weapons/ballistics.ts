@@ -64,6 +64,20 @@ export class Ballistics {
   }
 
   /** Raycast and resolve what was hit. Reuses an internal result object. */
+  /** True when nothing in `collideWith` lies between the two points (no allocation). */
+  clear(from: Vector3, to: Vector3, collideWith: number): boolean {
+    this.res.reset();
+    this.eng.raycastToRef(from, to, this.res, { membership: G.PROJECTILE, collideWith });
+    return !this.res.hasHit;
+  }
+
+  /** Distance to the first hit in `collideWith` along the segment, or the segment's length (no allocation). */
+  hitDistance(from: Vector3, to: Vector3, collideWith: number): number {
+    this.res.reset();
+    this.eng.raycastToRef(from, to, this.res, { membership: G.PROJECTILE, collideWith });
+    return this.res.hasHit ? Vector3.Distance(from, this.res.hitPoint) : Vector3.Distance(from, to);
+  }
+
   ray(from: Vector3, to: Vector3, collideWith: number): RayHit {
     this.res.reset();
     this.eng.raycastToRef(from, to, this.res, { membership: G.PROJECTILE, collideWith });

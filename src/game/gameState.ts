@@ -93,6 +93,8 @@ export interface GameOptions {
 
 /** What the coop layer plugs into a session. */
 export interface NetAttachment {
+  /** Client: the host reports guards in combat know this operator is there. */
+  spotted?(): boolean;
   /** After the local simulation, every fixed step. */
   fixedUpdate(dt: number): void;
   frameUpdate(dt: number): void;
@@ -236,6 +238,10 @@ export class GameState implements AppState {
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;
   private localRef: PlayerRef;
+  /** The local operator has been seen by a guard in combat (no takedowns on guards in combat). */
+  get spottedLocal(): boolean {
+    return this.localRef.spotted === true || this.net?.spotted?.() === true;
+  }
   /** Coop attachment (null in single player). */
   net: NetAttachment | null = null;
   /** Coop client: enemies, waves and objectives are driven by the host. */
@@ -864,7 +870,7 @@ export class GameState implements AppState {
       const c = this.player.controller;
       const pp = this.player.position;
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
-      const steps = this.player.alive ? noiseRadius(c.speed, c.crouched, c.dashing) * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
+      const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched', c.dashing && c.steps === 'free') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
       if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
       this.noise = Math.max(steps, this.evNoise);
     }

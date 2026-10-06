@@ -8,7 +8,7 @@ import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
-import { isPvp, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine } from './protocol';
+import { isPvp, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine } from './protocol';
 import { ClockSync } from './interp';
 import { RemoteAvatar } from './remoteAvatar';
 import { EnemyPuppet } from './enemyPuppet';
@@ -216,7 +216,15 @@ export class CoopClient implements NetAttachment {
   }
 
   /** Host-authoritative health for the local player. */
+  /** The host says guards in combat know this operator is there. */
+  private selfSpotted = false;
+
+  spotted(): boolean {
+    return this.selfSpotted;
+  }
+
   private applySelf(p: PlayerState): void {
+    this.selfSpotted = (p.f & PF.spotted) !== 0;
     const g = this.g;
     const h = g.target.health;
     h.hp = p.hp;

@@ -80,6 +80,7 @@ export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.START, 'uiBack'],
   [PAD.LB, 'uiTabPrev'],
   [PAD.RB, 'uiTabNext'],
+  [PAD.Y, 'uiAlt'],
   [PAD.UP, 'uiUp'],
   [PAD.DOWN, 'uiDown'],
   [PAD.LEFT, 'uiLeft'],

@@ -6,7 +6,7 @@ import type { Vfx } from '../vfx/vfx';
 import type { NavGrid } from './navGrid';
 import { Enemy, type AiContext, type PlayerRef } from './enemy';
 import { ENEMIES, type Difficulty, type EnemyKind } from './enemyDefs';
-import { BUDGET } from '../physics/groups';
+import { BUDGET, G } from '../physics/groups';
 import type { CharacterRig } from '../player/characterRig';
 import type { Grenades } from '../weapons/grenades';
 import { GRAVITY } from '../physics/havok';
@@ -16,9 +16,13 @@ import { lightLevelAt, type LightDef } from '../world/lights';
 import { nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, DIFFICULTY } from './archetypes';
+import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
 
 export const MAX_ALIVE = 10;
+
+/** Share of a noise's reach heard through a wall. */
+export const MUFFLE = 0.45;
 
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {
@@ -47,6 +51,8 @@ export class EnemyManager {
   stealth = false;
   /** Shared last known position of the players (the latest sighting / located noise). */
   readonly lkp = new Vector3();
+  private readonly earA = new Vector3();
+  private readonly earB = new Vector3();
   lkpValid = false;
   /** Seconds since an alerted enemy last had a player in sight. */
   sightT = 99;
@@ -151,6 +157,7 @@ export class EnemyManager {
       lkp: this.lkp,
       lkpValid: () => this.lkpValid,
       reportSighting: (p) => {
+        p.spotted = true;
         this.lkp.copyFrom(p.feet);
         this.lkpValid = true;
         this.sightT = 0;
@@ -160,6 +167,12 @@ export class EnemyManager {
           if (o === e || !o.alive || o.alerted) continue;
           const d = Vector3.Distance(o.pos, e.pos);
           if (d < EnemyManager.RADIO) o.radio((0.4 + d * 0.03 + Math.random() * 0.3) * DIFFICULTY[this.difficulty].reaction * (o.buff ? ARCHETYPE.officer.reaction : 1));
+        }
+      },
+      shout: (e) => {
+        for (const o of this.enemies) {
+          if (o === e || !o.alive || o.alerted) continue;
+          if (hyp2(o.pos.x - e.pos.x, o.pos.z - e.pos.z) < ALERT.shout && Math.abs(o.pos.y - e.pos.y) < 2.5) o.radio(0.3 + Math.random() * 0.3);
         }
       },
       searchSlot: (e) => {
@@ -308,11 +321,52 @@ export class EnemyManager {
       this.torchOwner[k] = e;
       reg.setOn(ts[k]!.id, true);
     }
-    // follow
+    // follow; the beam stops at the first wall (rays along the centre and the cone's edges, round robin at 15 Hz
+    // per torch), so it never lights the room behind
+    this.torchTick = (this.torchTick + 1) % ts.length;
     for (let i = 0; i < ts.length; i++) {
       const o = this.torchOwner[i];
-      if (o) o.placeTorch(ts[i]!);
+      if (!o) continue;
+      const l = ts[i]!;
+      o.placeTorch(l);
+      if (i === this.torchTick || l.reach === undefined) l.reach = this.beamReach(l);
     }
+  }
+
+  private torchTick = 0;
+
+  /** Longest unobstructed run of a cone light (centre and four edge rays), plus a little spill. */
+  private beamReach(l: LightDef): number {
+    const c = l.cone;
+    if (!c) return l.radius;
+    const half = Math.acos(c.cosOuter) * 0.75;
+    let best = 0;
+    this.earA.set(l.x, l.y, l.z);
+    // an orthonormal pair across the beam
+    const hx = -c.dz;
+    const hz = c.dx;
+    const hl = hyp2(hx, hz) || 1;
+    const ux = hx / hl;
+    const uz = hz / hl;
+    const vx = c.dy * uz;
+    const vy = c.dz * ux - c.dx * uz;
+    const vz = -c.dy * ux;
+    const t = Math.tan(half);
+    for (let k = 0; k < 5; k++) {
+      const a = k === 0 ? 0 : t * (k === 1 || k === 3 ? (k === 1 ? 1 : -1) : 0);
+      const b = k === 2 ? t : k === 4 ? -t : 0;
+      let dx = c.dx + ux * a + vx * b;
+      let dy = c.dy + vy * b;
+      let dz = c.dz + uz * a + vz * b;
+      const n = hyp3(dx, dy, dz) || 1;
+      dx /= n;
+      dy /= n;
+      dz /= n;
+      this.earB.set(l.x + dx * l.radius, l.y + dy * l.radius, l.z + dz * l.radius);
+      const d = this.ballistics.hitDistance(this.earA, this.earB, G.STATIC);
+      if (d > best) best = d;
+    }
+    return Math.min(l.radius, best + 0.4);
   }
 
   /** Who has a flashlight on (tests / debug). */
@@ -423,9 +477,22 @@ export class EnemyManager {
     }
   }
 
-  /** A noise (footsteps, landings, glass...): unalerted enemies within radius grow suspicious and look. */
+  /** A noise (footsteps, landings, glass...): unalerted enemies within radius grow suspicious and look. A wall
+   *  between the noise and the listener muffles it to `MUFFLE` of its reach. */
   hear(pos: Vector3, radius: number): void {
-    for (const e of this.enemies) if (e.alive && Vector3.Distance(e.pos, pos) < radius) e.hear(pos.x, pos.z, radius);
+    for (const e of this.enemies) {
+      if (!e.alive || e.alerted) continue;
+      const d = Vector3.Distance(e.pos, pos);
+      if (d >= radius) continue;
+      let r = radius;
+      if (d > radius * MUFFLE) {
+        // (at head height: low cover and crates do not muffle, walls do)
+        this.earA.set(pos.x, pos.y + 1.5, pos.z);
+        this.earB.set(e.pos.x, e.pos.y + 1.6, e.pos.z);
+        if (!this.ballistics.clear(this.earA, this.earB, G.STATIC)) r = radius * MUFFLE;
+      }
+      if (d < r) e.hear(pos.x, pos.z, r);
+    }
   }
 
   /** Any enemy in combat (the operator has been detected). */
@@ -507,6 +574,13 @@ export class EnemyManager {
       if (doors.list.length && e.alive) doors.pushOpen(e.pos.x, e.pos.z);
     }
     this.updateTorches();
+    // nobody in combat any more: no player is known to be there (takedowns open again)
+    let fighting = false;
+    for (const e of this.enemies) if (e.alive && e.level === 'alert') fighting = true;
+    if (!fighting) {
+      const ps = this.players();
+      for (let i = 0; i < ps.length; i++) ps[i]!.spotted = false;
+    }
     // bodies: settle, and sample the light on them now and then (how findable they are)
     const lights = this.world.level.lights;
     for (const b of this.bodies) {

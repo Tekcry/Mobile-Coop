@@ -24,8 +24,8 @@ const A = (id: string, name: string, level: number, price: number): UnlockItem =
 export const UNLOCKS: UnlockItem[] = [
   W('rifle', '552 Commando', 1, 0),
   W('pistol', 'P45 Compact', 1, 0),
+  W('pistolSd', '9mm SD', 1, 0),
   W('smg', 'MP5 Kurz', 2, 600),
-  W('pistolSd', '9mm SD', 2, 500),
   W('fiveseven', 'FN Five-7', 3, 700),
   W('shotgun', 'M870 Pump', 4, 1200),
   W('ak', 'AK-74', 4, 1100),
@@ -49,7 +49,7 @@ export const UNLOCKS: UnlockItem[] = [
   A('lethalBolts', 'Lethal Bolts', 6, 400),
 ];
 
-export const STARTER_UNLOCKS = ['weapon:rifle', 'weapon:pistol'];
+export const STARTER_UNLOCKS = ['weapon:rifle', 'weapon:pistol', 'weapon:pistolSd'];
 
 export function registerUnlocks(items: UnlockItem[]): void {
   for (const it of items) if (!UNLOCKS.some((u) => u.id === it.id)) UNLOCKS.push(it);

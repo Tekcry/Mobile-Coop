@@ -4,7 +4,8 @@
  * unaware (patrol / post) -> suspicious (stops, looks at the stimulus) -> investigating (walks over and looks
  * round) -> alert (combat) -> searching (sweeps out from the last known position) -> cooldown (back to the
  * route, still jumpy: "I'm sure I saw something") -> unaware. Detection (meter 1), damage, gunfire nearby or
- * a squadmate's call go straight to alert. Searches always end.
+ * a squadmate's call go straight to alert. Searches end, but after combat a guard never goes back to unaware: the
+ * cooldown (on edge, looking harder) is where they stay.
  */
 import { PERCEPTION } from './perception';
 
@@ -12,7 +13,7 @@ export type AlertLevel = 'unaware' | 'suspicious' | 'investigating' | 'searching
 
 export const ALERT = {
   /** Seconds suspicious with a sound to place before walking over to it. */
-  hearLook: 1.8,
+  hearLook: 2.4,
   /** Seconds suspicious with the meter still above `lingerMeter` before investigating anyway. */
   lingerLook: 3.2,
   lingerMeter: 0.15,
@@ -23,11 +24,14 @@ export const ALERT = {
   /** Investigating gives up after this long even if the spot was never reached. */
   investigateMax: 20,
   /** Seconds in combat without sight before searching. */
-  lostSight: 6,
+  lostSight: 12,
   /** Search length (s). */
-  searchTime: 25,
-  /** Back to normal after (s). */
+  searchTime: 60,
+  /** Back to normal after (s) - only after an investigation; never after combat. */
   cooldownTime: 45,
+  /** A spotter radios the sighting in after this (s); guards within `shout` (m) hear the shout at once. */
+  callIn: 2.5,
+  shout: 8,
 } as const;
 
 /** How hard each state looks (sight-rate multiplier). */
@@ -71,6 +75,8 @@ export class AlertMachine {
   lookT = 0;
   /** Calm level to return to after a suspicious moment / investigation. */
   private calm: 'unaware' | 'cooldown' = 'unaware';
+  /** Has been in combat: stays on edge (cooldown) for good. */
+  fought = false;
   /** Transitions so far (tests / debug). */
   changes = 0;
   /** A sound was heard during this suspicious moment (one is enough to go and look). */
@@ -92,6 +98,7 @@ export class AlertMachine {
 
   set(level: AlertLevel): void {
     if (this.level === level) return;
+    if (level === 'alert') this.fought = true;
     if (level === 'cooldown') this.calm = 'cooldown';
     if (level === 'unaware') this.calm = 'unaware';
     this.level = level;
@@ -119,7 +126,7 @@ export class AlertMachine {
           this.set('suspicious');
           this.sound = i.heard;
         }
-        else if (this.level === 'cooldown' && this.t >= ALERT.cooldownTime) this.set('unaware');
+        else if (this.level === 'cooldown' && !this.fought && this.t >= ALERT.cooldownTime) this.set('unaware');
         break;
       case 'suspicious':
         if (i.heard) this.sound = true;

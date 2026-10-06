@@ -172,12 +172,10 @@ export function pickTraversal(p: TraversalProbe): Traversal {
  */
 export function noiseRadius(speed: number, crouched: boolean, sprinting: boolean, M = MOVEMENT): number {
   if (speed < 0.15) return 0;
-  if (sprinting) return 18;
-  if (crouched) {
-    if (speed <= M.sneakSpeed + 0.05) return 0.2 + speed * 0.4;
-    return speed <= M.crouchWalkSpeed + 0.05 ? 0.6 + (speed - M.sneakSpeed) * 1.1 : 1.9 + (speed - M.crouchWalkSpeed) * 2.6;
-  }
-  return speed <= M.walkSpeed + 0.05 ? 1 + speed * 1.3 : 3 + (speed - M.walkSpeed) * 3;
+  if (sprinting) return 9;
+  // sneaking, crouch walking and a slow walk are silent; a crouch run and a jog carry a few metres
+  if (crouched) return speed <= M.crouchWalkSpeed + 0.05 ? 0 : 1 + (speed - M.crouchWalkSpeed) * 1.5;
+  return speed <= M.walkSpeed + 0.05 ? 0 : 1.2 + (speed - M.walkSpeed) * 1.6;
 }
 
 /** Landing bands by fall height (m): under `roll` a soft landing, up to `heavy` a roll that keeps the momentum,
@@ -194,5 +192,5 @@ export function landingKind(fall: number): LandingKind {
 
 /** Noise radius of a landing (m): a soft drop is quiet, a heavy landing carries. */
 export function landingNoise(kind: LandingKind): number {
-  return kind === 'heavy' ? 14 : kind === 'roll' ? 8 : kind === 'soft' ? 3 : 0;
+  return kind === 'heavy' ? 11 : kind === 'roll' ? 5 : kind === 'soft' ? 1.2 : 0;
 }

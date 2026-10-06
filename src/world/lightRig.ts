@@ -196,7 +196,7 @@ export class LightRig {
 
   private place(s: SpotLight, l: LightDef): void {
     s.position.set(l.x, l.y, l.z);
-    s.range = l.radius;
+    s.range = l.reach ?? l.radius;
     s.intensity = l.intensity * 1.6;
     s.diffuse.set(l.color[0], l.color[1], l.color[2]);
     if (l.cone) {

@@ -27,6 +27,8 @@ try {
       V,
       reset() {
         em.clear();
+        // (an alarm in an earlier scenario queues Hunter's reinforcements)
+        g.mode.pending.length = 0;
         em.lkpValid = false;
         em.sightT = 99;
         em.alarmRaised = false;
@@ -221,14 +223,44 @@ try {
       let k = 0;
       while (!a.alerted && k++ < 300) t.step(1 / 60);
       const bBefore = b.alerted;
+      const pending = a.radioT;
       t.step(1.5);
+      const bMid = b.alerted;
+      const farMid = far.level;
+      t.step(3);
       t.light(null);
-      return { a: a.alerted, bBefore, b: b.alerted, far: far.level, lkp: g.enemyMgr.lkpValid };
+      return { a: a.alerted, bBefore, bMid, pending, b: b.alerted, far: farMid, lkp: g.enemyMgr.lkpValid };
     });
     assert(r.a, 'the guard who sees the player is alerted');
-    assert(r.b && !r.bBefore, 'a squadmate within radio range joins after a short delay');
+    assert(r.pending > 1.5 && !r.bMid, `the spotter takes a moment to radio it in (${r.pending.toFixed(1)} s)`);
+    assert(r.b && !r.bBefore, 'a squadmate within radio range joins once it is called in');
     assert(r.far !== 'alert', `a guard out of radio range is not told (${r.far})`);
     assert(r.lkp, 'the sighting sets the last known position');
+  });
+
+  await scen('radio window', async () => {
+    const r = await G(() => {
+      const t = window.__t;
+      t.light(1);
+      const a = t.spawn('grunt', 0, 5, Math.PI);
+      const b = t.spawn('grunt', 10, 9, Math.PI);
+      const near = t.spawn('grunt', 3, 8, Math.PI);
+      t.tp(-0.5, 0, 0);
+      let k = 0;
+      while (!a.alerted && k++ < 300) t.step(1 / 60);
+      // the guard close by hears the shout at once
+      t.step(0.8);
+      const nearOn = near.alerted;
+      // the spotter is taken out (silently) before the call goes out
+      a.knockOut({ amount: 999, point: a.pos.clone(), dir: new t.V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: a.pos.clone(), impulse: 0 });
+      near.knockOut({ amount: 999, point: near.pos.clone(), dir: new t.V(0, 0, 1), part: 'body', kind: 'melee', attackerTeam: 'player', attackerId: 'local', sourcePos: near.pos.clone(), impulse: 0 });
+      t.tp(-21, -24, 0);
+      t.step(5);
+      t.light(null);
+      return { nearOn, b: b.level };
+    });
+    assert(r.nearOn, 'a squadmate close by joins at once (the shout)');
+    assert(r.b !== 'alert', `the spotter taken out before calling it in: nobody else is told (${r.b})`);
   });
 
   await scen('lkp', async () => {
@@ -255,6 +287,8 @@ try {
       let closest = 99;
       let wallhack = false;
       for (let i = 0; i < 500; i++) {
+        // (the mode's later squads stay out of it: this is about the one guard)
+        for (const x of em.enemies) if (x !== e) x.passive = true;
         t.step(0.05);
         g.frameUpdate(0.05, 1);
         if (g.ghost.visible) ghost = true;
@@ -408,8 +442,8 @@ try {
       const lamp2 = reg.lights.find((l) => l.kind === 'lamp' && l.x === 9 && l.z === -9);
       g.weapons.onRay(new t.V(9, 1, -7.8), new t.V(9, 9, -7.8));
       const end = lamp2.destroyed;
-      // it looks for ALERT.hearLook (1.8 s), then walks over
-      t.step(2.2);
+      // it looks for ALERT.hearLook (2.4 s), then walks over
+      t.step(2.8);
       const lv = e.level;
       t.step(0.3);
       const torch = em.torchesOn;
@@ -425,7 +459,7 @@ try {
       window.__app.input.state.tap('interact');
       t.step(0.2);
       const on1 = reg.countOn();
-      t.step(2.2);
+      t.step(2.8);
       const lv2 = e2.level;
       t.light(null);
       return { before, out, end, lv, torch, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
@@ -558,7 +592,12 @@ try {
       t.tp(0, -5, Math.PI);
       const e2 = t.spawn('grunt', 0, 5, 0);
       t.step(0.3);
+      // (an unsuppressed report: the issued 9mm SD is quiet)
+      const st2 = g.weapons.current.stats;
+      const n1 = st2.noise;
+      st2.noise = 1;
       g.weapons.events.onShot(g.weapons.current.def);
+      st2.noise = n1;
       t.step(0.2);
       const loud = e2.level;
       t.reset();

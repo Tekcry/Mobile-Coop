@@ -12,7 +12,7 @@ const KEYMAP: Record<string, ButtonAction[]> = {
   KeyC: ['crouch'],
   ControlLeft: ['crouch'],
   KeyR: ['reload'],
-  KeyE: ['jump', 'interact', 'uiTabNext'],
+  KeyE: ['jump', 'interact', 'uiTabNext', 'uiAlt'],
   KeyX: ['swapNext'],
   KeyQ: ['swapPrev', 'uiTabPrev'],
   KeyF: ['interact'],

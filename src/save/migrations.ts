@@ -73,6 +73,15 @@ export const MIGRATIONS: Record<number, Migration> = {
   // v5 -> v6: suit, HQ upgrades, challenges, loadout presets (issued kit; the 1.x weapons keep their ids, now the
   // P45 / MP5 / 552 / M870 / M700, so unlocks and upgrades carry over as they are)
   5: (s) => ({ ...s, version: 6 }),
+  // v6 -> v7: the 9mm SD is issued and is the primary of the issued kit (a loadout or preset still on the old
+  // issue, 552 + P45, moves to 9mm SD + 552; chosen kit stays)
+  6: (s) => {
+    const issue = (p: unknown): boolean => isObj(p) && p.primary === 'rifle' && p.secondary === 'pistol';
+    const sd = (p: Raw): Raw => ({ ...p, primary: 'pistolSd', secondary: 'rifle' });
+    const loadout = issue(s.loadout) ? sd(s.loadout as Raw) : s.loadout;
+    const presets = Array.isArray(s.presets) ? s.presets.map((p, i) => (i < 2 && issue(p) ? sd(p as Raw) : p)) : s.presets;
+    return { ...s, version: 7, loadout, presets };
+  },
 };
 
 export class SaveVersionError extends Error {}

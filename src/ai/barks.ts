@@ -17,6 +17,7 @@ export type BarkEvent =
   | 'grenade'
   | 'alarm'
   | 'clear'
+  | 'callIn'
   | 'drone';
 
 export const BARKS: Record<BarkEvent, readonly string[]> = {
@@ -35,12 +36,13 @@ export const BARKS: Record<BarkEvent, readonly string[]> = {
   alarm: ['Raising the alarm!', 'Sound the alarm!'],
   clear: ['Must have been nothing.', 'Back to it.', 'All quiet.'],
   drone: ['Drone has him!', 'Eyes in the sky - contact!'],
+  callIn: ['All units, contact!', 'Command, intruder on site!', 'Contact, my position!'],
 };
 
 /** Radio lines (a chirp plays with them). */
-export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search']);
+export const RADIO_BARKS: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['radioCheck', 'radioOk', 'missed', 'alarm', 'drone', 'search', 'callIn']);
 /** Urgent lines cut through a speaker's cooldown. */
-const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm']);
+const URGENT: ReadonlySet<BarkEvent> = new Set<BarkEvent>(['contact', 'body', 'blind', 'grenade', 'alarm', 'callIn']);
 
 export const BARK = {
   /** Seconds between one speaker's lines; on screen this long. */

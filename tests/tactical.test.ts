@@ -76,18 +76,17 @@ describe('contextual traversal and noise', () => {
     expect(pickTraversal({ height: 1.6, depth: 3, landingClear: false, topClear: false })).toBe('none');
     expect(pickTraversal({ height: 2.4, depth: 0.5, landingClear: true, topClear: true })).toBe('none');
   });
-  it('noise by stance and pace: sneak near silent, crouch walk quiet, jog audible, sprint loud', () => {
+  it('noise by stance and pace: sneak, crouch walk and a slow walk silent, jog a few metres, sprint ~9 m', () => {
     expect(noiseRadius(0, false, false)).toBe(0);
-    const sneak = noiseRadius(0.8, true, false);
-    const crouchWalk = noiseRadius(1.8, true, false);
-    const walk = noiseRadius(1.4, false, false);
+    expect(noiseRadius(0.8, true, false)).toBe(0);
+    expect(noiseRadius(1.8, true, false)).toBe(0);
+    expect(noiseRadius(1.4, false, false)).toBe(0);
     const jog = noiseRadius(2.8, false, false);
     const sprint = noiseRadius(5, false, true);
-    expect(sneak).toBeLessThan(1);
-    expect(crouchWalk).toBeLessThan(walk);
-    expect(walk).toBeLessThan(jog);
-    expect(jog).toBeGreaterThan(7);
+    expect(jog).toBeGreaterThan(2.5);
+    expect(jog).toBeLessThan(5);
     expect(sprint).toBeGreaterThan(jog * 1.5);
+    expect(sprint).toBeLessThanOrEqual(10);
     expect(noiseRadius(2.6, true, false)).toBeLessThan(jog);
   });
 });

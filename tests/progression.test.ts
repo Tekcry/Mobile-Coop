@@ -163,8 +163,8 @@ describe('profile operations', () => {
     buyUnlock(s, 'att:grip');
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(true);
     const lo = loadoutEntries(s, 'wave');
-    expect(lo.map((e) => e.id)).toEqual(['rifle', 'pistol']);
-    expect(lo[0]!.mods!.recoil).toBeCloseTo(0.88);
+    expect(lo.map((e) => e.id)).toEqual(['pistolSd', 'rifle']);
+    expect(lo[1]!.mods!.recoil).toBeCloseTo(0.88);
     expect(buyUpgrade(s, 'smg', 'damage').ok).toBe(false); // smg locked
   });
   it('setLoadout swaps instead of duplicating', () => {

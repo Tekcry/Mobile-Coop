@@ -216,7 +216,7 @@ export class MenuState implements AppState {
     const cam = this.camera;
     // the menu fills the left: the operator stands in the open right side of the screen
     // (the Loadout screen: centred between the category list on the left and the options on the right)
-    const ox = this.framing === 'menu' ? 1.6 : this.framing === 'weapon' ? -0.3 : -0.75;
+    const ox = this.framing === 'menu' ? 1.6 : this.framing === 'weapon' ? -0.05 : -0.1;
     cam.targetScreenOffset.x += (ox - cam.targetScreenOffset.x) * Math.min(1, dt * 4);
     if (this.framing === 'menu') {
       // a slow sway round the front, never behind

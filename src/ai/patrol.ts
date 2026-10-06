@@ -21,10 +21,10 @@ export interface PatrolRoute {
 export const PATROL = {
   /** Arrival radius (m). */
   arrive: 0.45,
-  /** Pause at each route point (s): guards linger (2.0.1: they moved too often). */
-  wait: 5.5,
+  /** Pause at each route point (s): guards hold their spots (2.0.1 / 2.3: they moved too often). */
+  wait: 9,
   /** Post glances: every `glanceEvery` s turn up to `glanceYaw` rad either side for `glanceHold` s (calm, rare). */
-  glanceEvery: 10,
+  glanceEvery: 14,
   glanceYaw: 0.6,
   glanceHold: 2.4,
   /** Search ring: first radius, growth per point, cap (m). */
@@ -32,7 +32,7 @@ export const PATROL = {
   searchStep: 2.5,
   searchMax: 11,
   /** Look-round at each search point (s). */
-  searchLook: 1.6,
+  searchLook: 3,
 } as const;
 
 /** Walks a route: `step` returns the point to head for, or null while paused (then `lookYaw` says where). */

@@ -131,9 +131,20 @@ describe('save migrations', () => {
     expect(s.profile.credits).toBe(0);
     expect(s.profile.xp).toBe(0);
     expect(s.profile.name).not.toMatch(/[<>]/);
-    // sniper not unlocked -> falls back
-    expect(s.loadout.primary).toBe('rifle');
-    expect(s.loadout.secondary).toBe('pistol');
+    // sniper not unlocked -> falls back to the issued kit
+    expect(s.loadout.primary).toBe('pistolSd');
+    expect(s.loadout.secondary).toBe('rifle');
+  });
+  it('v6 -> v7: the issued 552 + P45 becomes 9mm SD + 552; a chosen kit stays', () => {
+    const v6 = { ...defaultSave(5), version: 6, loadout: { primary: 'rifle', secondary: 'pistol' }, presets: [{ name: 'Ghost', primary: 'rifle', secondary: 'pistol', gadget: 'gas' }, { name: 'Panther', primary: 'rifle', secondary: 'pistol', gadget: 'flash' }, { name: 'Assault', primary: 'rifle', secondary: 'pistol', gadget: 'frag' }], unlocks: ['weapon:rifle', 'weapon:pistol'] };
+    const s = sanitizeSave(migrate(v6).data);
+    expect(s.version).toBe(7);
+    expect(s.unlocks).toContain('weapon:pistolSd');
+    expect(s.loadout).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
+    expect(s.presets[0]!.primary).toBe('pistolSd');
+    expect(s.presets[2]!.primary).toBe('rifle');
+    const chosen = sanitizeSave(migrate({ ...v6, unlocks: ['weapon:rifle', 'weapon:pistol', 'weapon:smg'], loadout: { primary: 'smg', secondary: 'pistol' } }).data);
+    expect(chosen.loadout).toEqual({ primary: 'smg', secondary: 'pistol' });
   });
 });
 

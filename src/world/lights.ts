@@ -49,6 +49,8 @@ export interface LightDef {
   /** The visible fixture (a lamp strip, a flood housing): its box is what a shot hits and what goes dark when
    *  the light is out; null = a small bulb at the light. */
   fixture: LightFixture | null;
+  /** Rendering only: how far the beam reaches before geometry stops it (a flashlight on a wall); unset = radius. */
+  reach?: number;
 }
 
 /** A light's fixture box: size (m) and its centre's height above the light. */

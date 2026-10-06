@@ -252,8 +252,8 @@ export const PRESETS = 3;
 
 export function defaultPresets(): LoadoutPreset[] {
   return [
-    { name: 'Ghost', primary: 'rifle', secondary: 'pistol', gadget: 'gas' },
-    { name: 'Panther', primary: 'rifle', secondary: 'pistol', gadget: 'flash' },
+    { name: 'Ghost', primary: 'pistolSd', secondary: 'rifle', gadget: 'gas' },
+    { name: 'Panther', primary: 'pistolSd', secondary: 'rifle', gadget: 'flash' },
     { name: 'Assault', primary: 'rifle', secondary: 'pistol', gadget: 'frag' },
   ];
 }

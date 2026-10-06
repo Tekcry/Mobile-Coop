@@ -146,6 +146,10 @@ describe('alert states', () => {
     expect(m.level).toBe('searching');
     run(m, ALERT.searchTime + 0.2, (i) => (i.sinceSeen = 99));
     expect(m.level).toBe('cooldown');
+    // after combat they stay on edge for good
+    run(m, ALERT.cooldownTime * 3, () => {});
+    expect(m.level).toBe('cooldown');
+    expect(m.sensitivity).toBeGreaterThan(1);
   });
   it('found again while searching: alert', () => {
     const m = new AlertMachine();

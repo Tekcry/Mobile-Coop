@@ -24,7 +24,7 @@ import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
 import { instantDetect, noiseSuspicion, seenAt, sightRate, stepMeter, type SightInput } from './perception';
-import { AlertMachine, emptyAlertInput, type AlertLevel } from './alertState';
+import { ALERT, AlertMachine, emptyAlertInput, type AlertLevel } from './alertState';
 import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
@@ -51,6 +51,9 @@ export interface PlayerRef {
   suppress?(from: Vector3, to: Vector3, hit: boolean): void;
   /** Light level on the body 0..1 (sampled by the owner; enemies sample it themselves when absent). */
   light?: number;
+  /** Seen by a guard in combat this alert: those guards know this player is there (no takedowns on them). Cleared
+   *  when no guard is in combat any more. Each player separately (co-op). */
+  spotted?: boolean;
 }
 
 export interface AiContext {
@@ -96,6 +99,8 @@ export interface AiContext {
   reportSighting(p: PlayerRef): void;
   /** Detected: radio the squad. */
   callAlert(e: Enemy): void;
+  /** The spotter's shout: squadmates close by join at once (no radio needed). */
+  shout?(e: Enemy): void;
   /** This enemy's slot among the searchers (fans the sweep out). */
   searchSlot(e: Enemy): number;
   /** A callout (shown near the speaker; radio lines chirp). */
@@ -105,9 +110,12 @@ export interface AiContext {
 let nextId = 1;
 const rand = (a: number, b: number): number => a + Math.random() * (b - a);
 /** Calm paces (x the combat walk, which is a slow aimed walk): patrol, investigating, searching. */
-const PATROL_PACE = 1.25;
-const INVESTIGATE_PACE = 1.45;
-const SEARCH_PACE = 1.6;
+const PATROL_PACE = 1.1;
+const INVESTIGATE_PACE = 1.2;
+const SEARCH_PACE = 1.3;
+/** Out of sight in combat: walking up on the last known position (x walk speed); a hold between bounds (s). */
+const ADVANCE_PACE = 1.15;
+const ADVANCE_HOLD = 2.5;
 /** Body sample heights for exposure (fractions of the target's height above the feet, then the head). */
 const EXPOSE_HIPS = 0.52;
 
@@ -160,6 +168,11 @@ export class Enemy implements Damageable {
   private desired = new Vector3();
   private lunge = 0;
   private coverPicked = false;
+  /** Out of sight in combat: moving up on the last known position cover to cover (a bound, then a hold). */
+  private advancing = false;
+  private advanceCd = 0;
+  /** Where the target is believed to be (the real position in sight, else the shared last known one). */
+  private readonly knownPt: P2 = [0, 0];
   private flash = 0;
   /** Alert level (unaware .. alert) and the awareness meter towards the target (0..1). */
   readonly aware = new AlertMachine();
@@ -176,6 +189,10 @@ export class Enemy implements Damageable {
   private heard = false;
   private gunfire = false;
   private called = 0;
+  /** Seconds until a spotter's radio call goes out (0 = none pending); taking them out first stops it. */
+  radioT = 0;
+  /** The alert being raised is loud (shot, hit, a flashbang): it is called in at once. */
+  private loudAlert = false;
   private searchReq = false;
   /** Investigating / searching: the current spot, how far round the search ring, and the look-round. */
   private spot: P2 = [0, 0];
@@ -544,6 +561,7 @@ export class Enemy implements Damageable {
   /** Straight to combat (spawned alerted, shot, tests). */
   alert(): void {
     if (this.alerted || !this.alive) return;
+    this.loudAlert = true;
     this.aware.set('alert');
     this.onLevel('unaware', 'alert');
   }
@@ -558,8 +576,18 @@ export class Enemy implements Damageable {
     if (to === 'alert') {
       this.meter = 1;
       if (this.state === 'idle') this.setState('chase');
-      // a radioed alert is not relayed (no chain across the map)
-      if (!this.alertIn.called) this.ctx.callAlert(this);
+      // a radioed alert is not relayed (no chain across the map). A loud alert (gunfire, a hit) is called in at
+      // once; a sighting is shouted to guards close by and radioed after `ALERT.callIn` - take the spotter out
+      // before that and nobody else hears of it
+      if (!this.alertIn.called) {
+        if (this.loudAlert || this.gunfire || !this.ctx.stealth()) this.ctx.callAlert(this);
+        else {
+          if (this.target && this.los) this.target.spotted = true;
+          this.ctx.shout?.(this);
+          this.radioT = ALERT.callIn * DIFFICULTY[this.ctx.difficulty].reaction * (this.buff ? ARCHETYPE.officer.reaction : 1);
+        }
+      }
+      this.loudAlert = false;
     } else if (from === 'alert') {
       // combat over: drop out of cover / fights and search
       this.alarm = null;
@@ -606,7 +634,9 @@ export class Enemy implements Damageable {
         return { dealt: 0, killed: false };
       }
     }
-    const dealt = this.health.damage(h.amount * mult);
+    // one round to the head drops any guard but a heavy (its face plate rules above)
+    const headshot = h.kind === 'bullet' && h.part === 'head' && kind !== 'heavy';
+    const dealt = this.health.damage(headshot ? this.health.hp : h.amount * mult);
     this.flash = 1;
     if (!this.alerted && h.sourcePos) {
       this.stimulus[0] = h.sourcePos.x;
@@ -678,6 +708,16 @@ export class Enemy implements Damageable {
       return;
     }
     this.voice.tick(dt);
+    if (this.radioT > 0) {
+      this.radioT -= dt;
+      if (this.radioT <= 0) {
+        this.radioT = 0;
+        if (this.alerted) {
+          this.ctx.callAlert(this);
+          this.bark('callIn');
+        }
+      }
+    }
     if (this.shotsHere > 0) this.postT += dt;
     this.fireT = Math.max(0, this.fireT - dt);
     this.meleeCd = Math.max(0, this.meleeCd - dt);
@@ -1028,6 +1068,9 @@ export class Enemy implements Damageable {
     // stealth: out of sight they go for where they last knew the target was, not where it is
     const known = this.los || this.smelled || !this.ctx.stealth() || !this.ctx.lkpValid() ? t.feet : this.ctx.lkp;
     const tp: P2 = [known.x, known.z];
+    this.knownPt[0] = known.x;
+    this.knownPt[1] = known.z;
+    this.advanceCd -= dt;
     // holding a room against a target outside it
     const outside = this.hold !== null && !inRoom(this.hold, t.feet.x, t.feet.z, 1.5, t.feet.y);
     if (this.doorCheck > 0 && !this.los) return { point: null, speed: 0, face: null };
@@ -1080,7 +1123,9 @@ export class Enemy implements Damageable {
       case 'idle':
       case 'chase': {
         if (this.los && this.dist <= def.engageMax) {
-          this.setState(def.usesCover && Math.random() < 0.6 ? 'seekCover' : 'attack');
+          // in a fight they get behind something first
+          this.advancing = false;
+          this.setState(def.usesCover && Math.random() < 0.85 ? 'seekCover' : 'attack');
           return { point: null, speed: 0, face: toTarget };
         }
         if (outside) {
@@ -1088,6 +1133,21 @@ export class Enemy implements Damageable {
           const face = Math.atan2(this.lastKnown.x - this.pos.x, this.lastKnown.z - this.pos.z);
           const atPost = hyp2(this.post[0] - this.pos.x, this.post[1] - this.pos.z) < 0.5;
           return { point: atPost ? null : this.post, speed: def.walkSpeed, face: this.lastSeenT < 30 ? face : null };
+        }
+        // out of sight (stealth): move up on the last known position from cover to cover, weapon on it, never a
+        // run into the open; the last stretch is walked
+        if (!this.los && this.ctx.stealth() && def.usesCover) {
+          const dk = hyp2(tp[0] - this.pos.x, tp[1] - this.pos.z);
+          if (dk > 7 && this.advanceCd <= 0) {
+            if (this.pickAdvance(tp, known.y)) {
+              this.setState('seekCover');
+              this.coverPicked = true;
+              this.advancing = true;
+              return { point: null, speed: 0, face: toTarget };
+            }
+            this.advanceCd = 1.5;
+          }
+          return { point: this.chasePoint(tp, false), speed: def.walkSpeed * ADVANCE_PACE, face: null };
         }
         return { point: this.chasePoint(tp, false), speed: this.los ? def.walkSpeed : def.runSpeed, face: null };
       }
@@ -1100,12 +1160,12 @@ export class Enemy implements Damageable {
           this.setState('chase');
         } else if (this.dist > def.engageMax + 3) {
           this.setState('chase');
-        } else if (def.usesCover && this.stateT > rand(5, 9)) {
+        } else if (def.usesCover && this.stateT > rand(2.5, 4.5)) {
           this.setState('seekCover');
         }
         // strafe / keep range
         if (this.strafeT <= 0) {
-          this.strafeT = rand(1.2, 2.6);
+          this.strafeT = rand(2, 4);
           this.strafe = Math.random() < 0.5 ? 1 : -1;
         }
         const away = this.dist < def.engageMin ? -1 : 0;
@@ -1116,7 +1176,7 @@ export class Enemy implements Damageable {
         const sz = (dx / len) * this.strafe + (dz / len) * away;
         const sp: P2 = [this.pos.x + sx * 2, this.pos.z + sz * 2];
         if (this.hold) clampToRoom(this.hold, sp[0], sp[1], 0.6, sp);
-        return { point: sp, speed: def.walkSpeed * (this.windup > 0 || this.burstLeft > 0 ? 0.4 : 0.8), face: toTarget };
+        return { point: sp, speed: def.walkSpeed * (this.windup > 0 || this.burstLeft > 0 ? 0.3 : 0.55), face: toTarget };
       }
       case 'seekCover': {
         if (!this.coverPicked) {
@@ -1126,7 +1186,7 @@ export class Enemy implements Damageable {
             return { point: null, speed: 0, face: toTarget };
           }
         }
-        if (this.stateT > 6) this.setState('attack');
+        if (this.stateT > 6) this.setState(this.advancing && !this.los ? 'chase' : 'attack');
         if (this.los && this.stateT > 0.5 && def.kind !== 'sniper') this.tryFire(dt);
         const wp = this.path[0];
         if (!wp) {
@@ -1134,7 +1194,7 @@ export class Enemy implements Damageable {
           return { point: null, speed: 0, face: toTarget };
         }
         if (!wp.link && hyp2(wp[0] - this.pos.x, wp[1] - this.pos.z) < 0.35) this.path.shift();
-        return { point: wp, speed: def.runSpeed, face: null };
+        return { point: wp, speed: this.advancing ? def.runSpeed * 0.75 : def.runSpeed, face: null };
       }
       case 'inCover': {
         const cp = this.ctx.cover[this.coverIdx];
@@ -1142,25 +1202,33 @@ export class Enemy implements Damageable {
           this.setState('attack');
           return { point: null, speed: 0, face: toTarget };
         }
+        // a bound done: hold here a moment covering the way ahead, then the next
+        if (this.advancing && !this.los) {
+          this.coverPose = cp.low ? 'low' : 'high';
+          this.wantCrouch = cp.low;
+          if (this.stateT > ADVANCE_HOLD) this.setState('chase');
+          return { point: [cp.pos.x, cp.pos.z], speed: def.walkSpeed, face: toTarget };
+        }
+        this.advancing = false;
         // flanked? leave
         const dirX = t.feet.x - cp.pos.x;
         const dirZ = t.feet.z - cp.pos.z;
         const l = hyp2(dirX, dirZ) || 1;
         const protects = (cp.normal.x * dirX + cp.normal.z * dirZ) / l;
-        if (protects < 0.2 || this.peekCycles >= 3 || this.dist < def.engageMin * 0.7) {
+        if (protects < 0.2 || this.peekCycles >= 5 || this.dist < def.engageMin * 0.7) {
           this.peekCycles = 0;
           this.setState('attack');
           return { point: null, speed: 0, face: toTarget };
         }
         if (this.tactics(t)) return { point: null, speed: 0, face: toTarget };
         // hide / peek cycle; some hide phases blind-fire over/around the cover at the last position
-        const cycle = this.stateT % 3.6;
-        const peeking = cycle > 2.0;
+        const cycle = this.stateT % 4.2;
+        const peeking = cycle > 2.4;
         this.wantCrouch = cp.low ? !peeking : false;
         if (cycle < dt * 1.5) this.blindPlan = Math.random() < 0.3;
         if (peeking) {
           this.tryFire(dt);
-          if (cycle > 3.55) this.peekCycles++;
+          if (cycle > 4.15) this.peekCycles++;
         } else if (this.blindPlan && cycle > 0.6 && cycle < 1.6 && this.lastSeenT < 6) this.tryFire(dt, 'blind');
         // high cover: step out past the nearest edge to peek (same faces the player uses)
         let pt: P2 = [cp.pos.x, cp.pos.z];
@@ -1237,6 +1305,42 @@ export class Enemy implements Damageable {
     return p;
   }
 
+  /** Next bound towards the last known position: cover closer to it (by 3 m at least), facing it, within 12 m. */
+  private pickAdvance(tp: P2, ty: number): boolean {
+    const cover = this.ctx.cover;
+    const myD = hyp2(tp[0] - this.pos.x, tp[1] - this.pos.z);
+    let best = -1;
+    let bestScore = Infinity;
+    for (let i = 0; i < cover.length; i++) {
+      const c = cover[i]!;
+      const dMe = hyp2(c.pos.x - this.pos.x, c.pos.z - this.pos.z);
+      if (dMe < 2.5 || dMe > 12) continue;
+      if (Number.isFinite(ty) && Math.abs(c.pos.y - ty) > 2.5 && Math.abs(c.pos.y - this.pos.y) > 2.5) continue;
+      if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2, c.pos.y)) continue;
+      const dx = tp[0] - c.pos.x;
+      const dz = tp[1] - c.pos.z;
+      const dT = hyp2(dx, dz);
+      if (dT > myD - 3 || dT < 3) continue;
+      if ((c.normal.x * dx + c.normal.z * dz) / dT < 0.3) continue;
+      if (!this.ctx.nav.isWalkable(this.ctx.nav.cellOf(c.pos.x, c.pos.z, c.pos.y))) continue;
+      const score = dT + dMe * 0.5;
+      if (score < bestScore) {
+        bestScore = score;
+        best = i;
+      }
+    }
+    if (best < 0 || !this.ctx.reserveCover(this, best)) return false;
+    const c = cover[best]!;
+    const path = this.ctx.nav.findPath([this.pos.x, this.pos.z], [c.pos.x, c.pos.z], 3000, this.pos.y, c.pos.y);
+    if (!path) {
+      this.ctx.releaseCover(this);
+      return false;
+    }
+    this.coverIdx = best;
+    this.path = path;
+    return true;
+  }
+
   private pickCover(): boolean {
     const t = this.target;
     if (!t) return false;
@@ -1249,8 +1353,9 @@ export class Enemy implements Damageable {
       if (dMe > (this.relocating ? 22 : 14)) continue;
       if (this.relocating && dMe < 5) continue;
       if (this.hold && !inRoom(this.hold, c.pos.x, c.pos.z, -0.2, c.pos.y)) continue;
-      const dx = t.feet.x - c.pos.x;
-      const dz = t.feet.z - c.pos.z;
+      // (from where they believe the target is: never the real position out of sight)
+      const dx = this.knownPt[0] - c.pos.x;
+      const dz = this.knownPt[1] - c.pos.z;
       const dT = hyp2(dx, dz);
       const flank = this.flanking && t.cover;
       if (dT < (flank ? 4 : this.def.engageMin) || dT > this.def.engageMax) continue;
@@ -1258,7 +1363,7 @@ export class Enemy implements Damageable {
       // flanker: only spots that see past the player's cover
       if (flank && t.cover && !flanks(t.cover, c.pos.x, c.pos.z)) continue;
       if (!this.ctx.nav.isWalkable(this.ctx.nav.cellOf(c.pos.x, c.pos.z, c.pos.y))) continue;
-      const q = coverQuality({ nx: c.normal.x, nz: c.normal.z, low: c.low, x: c.pos.x, z: c.pos.z }, [{ x: t.feet.x, z: t.feet.z }]);
+      const q = coverQuality({ nx: c.normal.x, nz: c.normal.z, low: c.low, x: c.pos.x, z: c.pos.z }, [{ x: this.knownPt[0], z: this.knownPt[1] }]);
       const score = dMe + Math.abs(dT - 14) * 0.5 - q * 6;
       if (score < bestScore) {
         bestScore = score;

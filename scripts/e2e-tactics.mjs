@@ -142,12 +142,17 @@ try {
     const z0 = e.pos.z;
     a.input.state.move.y = 0;
     g.noise = 0;
+    // through the wall between them a 16 m noise is muffled (not heard at 10 m); a louder one is
     m.hear(p.position, 16);
-    a.loop.stepHeadless(4.5);
-    return { creepNoise, moved: Math.hypot(e.pos.x - 0, e.pos.z - z0), alerted: e.alerted };
+    a.loop.stepHeadless(3);
+    const muffled = e.level;
+    m.hear(p.position, 26);
+    a.loop.stepHeadless(7);
+    return { creepNoise, moved: Math.hypot(e.pos.x - 0, e.pos.z - z0), alerted: e.alerted, level: e.level, muffled };
   });
   assert(n.creepNoise < 1, `a crouched sneak is near silent (${n.creepNoise.toFixed(1)} m)`);
-  assert(n.moved > 1, `a heard footstep draws an unalerted enemy to investigate (${n.moved.toFixed(2)} m)`);
+  assert(n.moved > 1, `a heard footstep draws an unalerted enemy to investigate (${n.moved.toFixed(2)} m, ${n.level})`);
+  assert(n.muffled === 'unaware', `a wall muffles a noise (${n.muffled})`);
 } catch (e) {
   failed = true;
   console.error(String(e));
