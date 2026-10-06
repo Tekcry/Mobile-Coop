@@ -1,7 +1,7 @@
 // Attached traversal on the Proving Grounds course (north east): ladder (bottom / top entry, climb, slide, step
 // off), drainpipe to a lip, ledge grab / shimmy / corners / jump across / climb up / lower in / drop, horizontal
 // pipe; hands and feet locked on contacts (< 1 cm while gripping); speed bands; touch + keyboard reach the verbs.
-import { launch, frames, BTN, assert } from './e2e-lib.mjs';
+import { launch, frames, BTN, assert, touch } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
@@ -461,6 +461,24 @@ try {
   await frames(page, 5);
   await setup();
   await page.evaluate(() => window.__pad.connect());
+  await tp(21.75, 3.2, -5, Math.PI / 2);
+  await run(0.4);
+  // touch: holding the vent prompt unscrews (progress shows), letting go early stops it
+  await page.evaluate(() => { window.__app.loop.manual = false; });
+  await frames(page, 6);
+  const vb = await page.evaluate(() => { const r = document.querySelector('.wp-vault.show .wp-body')?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; });
+  assert(!!vb, 'touch: the vent prompt is on screen');
+  await touch(page, 'touchStart', [{ x: vb.x, y: vb.y, id: 7 }]);
+  let held = -1;
+  for (let k = 0; k < 40 && held < 0.2; k++) {
+    await frames(page, 2);
+    held = await page.evaluate(() => window.__tr.st().traversal.attachCtl.vent?.progress ?? -1);
+  }
+  await touch(page, 'touchEnd', []);
+  await frames(page, 4);
+  const after = await page.evaluate(() => ({ vent: window.__tr.st().traversal.attachCtl.vent, open: window.__tr.st().world.breakables.isOpen(`grate:${window.__tr.st().world.level.anchors.ducts[0].id}:entry`) }));
+  assert(held > 0.15 && !after.vent && !after.open, `touch: holding the vent prompt unscrews (${f2(held)}), letting go early stops it`);
+  await page.evaluate(() => { window.__app.loop.manual = true; window.__pad.connect(); });
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);
   const kick = await page.evaluate(() => {
