@@ -33,7 +33,8 @@ Blacklist style.
   - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
   - `scripts/e2e-cover.mjs` (A cover, B crouch, Y traverse) snap side-on, turn-and-swap, kneel, peek/blind
     fire/vault, B keeps cover, stand/crouch at high cover + crouched edge peek, lean in place, outside/inside
-    corners, SWAT turn, cover-to-cover + slide + HUD marker, touch swipe, auto-snap, keyboard Space
+    corners, SWAT turn, cover-to-cover + slide + marker, world prompts (low on the surface, tapped by touch),
+    manual cover only (walking / sprinting into a wall never snaps), crouched aim over low cover, keyboard Space
   - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
     exposure HUD, enemy grenades/flanker, footstep noise investigation
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
@@ -106,9 +107,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
   default); crouch toggle, sprint toggle; camera-only right stick (rate based: dead zone, response curve, 50 ms smoothing, acceleration when
   held at the rim; never fires); optional drag-look in the empty upper right; separate fire button (84 px; optional
-  left fire; optional fire drag-look); ADS; one contextual action button (`setAction(TouchAction)` from
-  `GameState`: take/leave cover, vault, climb, step, drop, open/use; acts on release, a swipe moves cover to
-  cover). Secondary buttons >= 56 px. Layout: `settings.touch.layout` (`TOUCH_CONTROL_IDS`, per-control `x, y,
+  left fire; optional fire drag-look); ADS; a contextual action button only to use an interactable (`setAction(TouchAction)` from
+  `GameState`, hidden otherwise; acts on release). Cover, vault/climb/step/drop and cover-to-cover are the world
+  prompts (`ui/hud/worldPrompts.ts`), tapped directly. Secondary buttons >= 56 px. Layout: `settings.touch.layout` (`TOUCH_CONTROL_IDS`, per-control `x, y,
   scale, alpha?`), presets `LAYOUT_PRESETS` (default / claw / lefty), `TOUCH_LAYOUT_VERSION` 2 (v1 layouts keep
   customised placements; the old fire stick and untouched controls take the new defaults). Layout editor: presets,
   size, opacity, thumb-reach overlay, preview.
@@ -194,7 +195,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   mid-stance; distance-matched to the stop point), locked while planted (< 1 cm), swing arcs with toe-off and
   heel pitch, no crossing, error-driven idle steps (turning on the spot plants steps). Side-steps are 60% length
   (`stepLength(..., lateral)`). Two-bone IK puts feet on it and hands on the weapon's `grip`/`foregrip`/magazine
-  well or the cover surface; the pelvis drops so both feet stay reachable (each leg measured from its own hip
+  well (wrists offset behind / under the palm points in weapon space, `WRIST_TRIGGER` / `WRIST_SUPPORT`, so the
+  elbows bend) or the cover surface; the pelvis drops so both feet stay reachable (each leg measured from its own hip
   joint; a growing need is met at once, release eases); leg IK twist references stay defined in a deep sneak
   (kneecap away from the shin); planted feet measure reach from under the hip and toe off early at speed; a
   relaxed stance tolerates a front-back stagger (one settling step); the head is world-stabilised; the
@@ -280,17 +282,30 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   or crouched, leaning in place (capsule stays in cover). Pushing into an inside corner turns onto the adjoining
   face. `target` (5 Hz) is the cover-to-cover destination in the push/look direction (routed via a waypoint past
   the current face's end when the straight line is blocked), or a SWAT turn (low, `SWAT_SPEED`) to collinear
-  cover beyond a gap; the HUD projects a marker.
+  cover beyond a gap; the marker is a world prompt on the target.
 - `CoverController` (player): standoff `COVER_STANDOFF` (capsule radius + 5 cm, > body depth); strafes along
-  the tangent with predictive braking at edges; low cover peek stands up; edge peeks lean out past the edge and
+  the tangent with predictive braking at edges; low cover hides (the rig's `lift` ducks until the head top is
+  `HIDE_MARGIN` 7 cm under `coverTop`) and the over-peek stays crouched (`aimOver`: back straightened, weapon at
+  the cheek, rising only until the aim pocket clears the top by `OVER_CLEAR`; camera eye >= top + `COVER_EYE`);
+  `aimLimit` (`cover/coverAim.ts`, pure: edge / over / wall arcs, pitch floor over low cover) clamps the camera
+  so every aimable angle shoots clear, and fire waits until the weapon is out (`player.coverFireBlocked`); edge peeks lean out past the edge and
   move the camera to that shoulder (restored after); the head leads and the weapon is out in ~0.2 s; at a left
-  edge the weapon changes hands (`HAND_SWAP_TIME` 0.18 s, `rig.leftHanded`) before the lean; leaving steps back
-  (0.4-0.6 s); blind fire = spread x3 and minimal exposure.
-  Exposure is physical: the hit capsule follows the controller (crouch lowers it 0.65 m).
-- Input: action `cover` = the touch contextual action button when it offers cover (acts on release; a swipe off it sets `InputState.coverSwipe`
-  = move to cover that way / leave), controller A, keyboard Space. `dash` (sprint) = L3 / touch sprint button
-  (stick flick optional) / Shift. Settings: `gameplay.autoCover`, `gameplay.coverDash` (cover-to-cover, default
-  on). HUD: `setCover`, `setCoverMarker` (A / Space glyph), `setAction` (Y / E glyph).
+  edge the weapon changes hands (`HAND_SWAP_TIME` 0.18 s, `rig.leftHanded`) before the lean; leaving pushes off
+  (`EXIT_PUSH` 0.9 m/s over 0.45 s); blind fire = spread x3 and minimal exposure. Moves are played big (film):
+  `COVER_ENTER` slams in with `cam.impact` by approach speed, `COVER_TURN` ducks through turn-and-swap and corner
+  swings (`pose.turn`), `COVER_EXIT` pushes off.
+  Exposure is physical: the hit volumes follow the posed rig (ducking lowers them); enemies seeing only the
+  head aim at it (`Damageable.headPoint`).
+- Input: cover is manual only (no auto-snap): action `cover` = controller A, keyboard Space or a tap on the
+  take-cover / cover-to-cover prompt; tapping the cover badge sets `InputState.coverLeave` (leave even with a
+  target marked). `dash` (sprint) = L3 / touch sprint button (stick flick optional) / Shift. Setting:
+  `gameplay.coverDash` (cover-to-cover, default on).
+- World prompts (`WorldPrompts`, layer `.hud-world` above the touch layer, below menus; `GameState.updateCoverHud`):
+  `cover` on the candidate face, `vault` on the traversal obstacle (`TraversalController.hintAt`; beside the cover
+  prompt when both apply), `state` badge and in-cover `vault` along the face in use (on the low cover's top edge,
+  since the camera looks over it), `move` on the cover-to-cover target. One height per surface: `seg.y +
+  min(PROMPT_Y 0.55, height / 2)`; `flush()` pushes overlapping prompts apart and keeps them on screen. Glyphs by
+  pad / keyboard, icons and tap-to-act by touch.
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

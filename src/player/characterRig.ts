@@ -46,6 +46,8 @@ export interface RigPose {
   dash?: number;
   /** Dash-in slide progress 0..1, or < 0. */
   slide?: number;
+  /** Turn-and-swap / corner swing in cover 0..1, or < 0. */
+  coverTurn?: number;
   /** Landing recovery 0..1. */
   landing?: number;
   cover?: AnimInput['cover'];
@@ -55,6 +57,12 @@ export interface RigPose {
   lean?: number;
   /** Rise over low cover 0..1. */
   peekOver?: number;
+  /**
+   * Low cover top above the feet (m; 0 = none) and what to do about it: 'hide' keeps the head below the
+   * top (ducks and hunches), 'over' raises just enough for the weapon to clear it (crouched aim).
+   */
+  coverTop?: number;
+  coverMode?: 'none' | 'hide' | 'over';
   blind?: boolean;
   /** Glance towards a nearby edge (-1 / 0 / 1). */
   edgeLook?: number;
@@ -125,10 +133,29 @@ const JOINT_RATE = new Map<string, number>([
 
 const approachTo = (x: number, target: number, dt: number, tau: number): number => target + (x - target) * Math.exp(-dt / tau);
 
+/** Aim pocket rest in the chest frame: x as a fraction of the shoulder half-width, y below the shoulder, z forward. */
+export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
+
+/**
+ * Wrist position relative to the palm point on the gun (weapon space: x across, y up, z along the bore;
+ * x is mirrored for the left hand): the trigger hand's wrist sits behind the pistol grip, the support
+ * hand's under and behind the handguard with the fingers wrapped over it.
+ */
+export const WRIST_TRIGGER: readonly [number, number, number] = [0.01, -0.015, -0.065];
+export const WRIST_SUPPORT: readonly [number, number, number] = [0.015, -0.055, -0.035];
+
+/** Low cover: the head stays this far below the top when hiding; the aim pocket this far above it when
+ *  aiming over. Pelvis lift range (m): down when ducking (full hunch at LIFT_DUCK), up from the crouch. */
+export const HIDE_MARGIN = 0.07;
+export const OVER_CLEAR = 0.13;
+export const LIFT_DUCK = 0.3;
+export const LIFT_RISE = 0.6;
+
 /** Beyond this distance (m) from the camera a rig animates at half rate. */
 export const ANIM_LOD_DISTANCE = 22;
 
 const tmpA = new Vector3();
+const tmpF = new Vector3();
 const tmpB = new Vector3();
 const tmpC = new Vector3();
 const tmpD = new Vector3();
@@ -221,6 +248,12 @@ export class CharacterRig {
   readonly magPoint = new Vector3(0, -0.14, 0.12);
   /** Weapon node whose grips the hands follow (null = free arms). */
   heldWeapon: TransformNode | null = null;
+  /** Low cover height control: pelvis offset (m, + up) and its inputs (see `coverHeight`). */
+  lift = 0;
+  /** Aiming over low cover: the weapon has cleared the top. */
+  overClear = false;
+  private coverTop = 0;
+  private coverMode: 'none' | 'hide' | 'over' = 'none';
   /** Depth (m) of gear on the back beyond the chest shell (carried weapons stand off it). */
   backGear = 0;
   /** Sideways reach (m) of the thigh's surface and gear from the hip joint. */
@@ -658,6 +691,7 @@ export class CharacterRig {
     i.armed = s.armed ?? !!this.heldWeapon;
     i.dash = s.dash ?? 0;
     i.slide = s.slide ?? -1;
+    i.coverTurn = s.coverTurn ?? -1;
     i.landing = s.landing ?? 0;
     i.cover = s.cover ?? 'none';
     i.wallSide = s.wallSide ?? 0;
@@ -675,6 +709,10 @@ export class CharacterRig {
     i.accelFwd = s.accelFwd ?? 0;
     i.accelSide = s.accelSide ?? 0;
     i.intent = s.intent ?? 0;
+    this.coverTop = s.coverTop ?? 0;
+    this.coverMode = this.coverTop > 0 ? (s.coverMode ?? 'none') : 'none';
+    i.duck = Math.max(0, Math.min(1, -this.lift / LIFT_DUCK));
+    i.aimOver = this.coverMode === 'over' ? 1 : 0;
     const yaw = this.root.rotation.y;
     // root velocity: supplied by the motion driver, else measured from the root's movement
     const rp = this.root.position;
@@ -759,7 +797,38 @@ export class CharacterRig {
     this.emoteW = Math.max(0, Math.min(1, this.emoteW + (fk ? dt : -dt) / 0.2));
     if (this.emoteW > 0 && this.lastFk) this.applyFk(this.lastFk, this.emoteW);
     if (this.emoteW === 0) this.lastFk = null;
+    this.coverHeight(dt);
     for (let k = 0; k < this.onPosed.length; k++) this.onPosed[k]!();
+  }
+
+  /**
+   * Low cover height control, from the pose just solved (applies next frame): 'hide' ducks (pelvis down,
+   * spine hunched through `duck`) until the top of the head is below the cover top; 'over' raises the
+   * pelvis from the crouch until the aim pocket is just above it (a crouched aim, not standing up).
+   * Elsewhere the lift eases back to zero. Proportional on the measured height error, so it adapts to
+   * builds, heights and the kneel.
+   */
+  private coverHeight(dt: number): void {
+    const rp = this.root.position;
+    let want = 0;
+    let tau = 0.12;
+    this.overClear = false;
+    if (this.coverMode === 'hide') {
+      fresh(this.headNode);
+      const top = this.headNode.getAbsolutePosition().y + this.p.head.h * 0.5 - rp.y;
+      // ducking lowers the head ~1.5x the pelvis (the hunch adds to it)
+      const err = top - (this.coverTop - HIDE_MARGIN);
+      want = Math.min(0, this.lift - err / 1.5);
+      tau = 0.1;
+    } else if (this.coverMode === 'over') {
+      fresh(this.weaponPivot);
+      const pocket = this.weaponPivot.getAbsolutePosition().y - rp.y;
+      want = this.lift + (this.coverTop + OVER_CLEAR - pocket);
+      tau = 0.07;
+      this.overClear = pocket >= this.coverTop + OVER_CLEAR * 0.7;
+    }
+    want = Math.max(-LIFT_DUCK, Math.min(LIFT_RISE, want));
+    this.lift += (want - this.lift) * (1 - Math.exp(-dt / tau));
   }
 
   /** Hit reaction (additive flinch, recovers over ~0.4 s). */
@@ -796,7 +865,7 @@ export class CharacterRig {
     // at once (a lagging drop lets the trailing leg overstretch and the planted ankle slide at toe-off);
     // easing back up stays smooth
     const legLen = (p.thigh.len + p.calf.len) * 0.97;
-    const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y - 0.03;
+    const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y + this.lift - 0.03;
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
     let need = 0;
@@ -810,7 +879,7 @@ export class CharacterRig {
     }
     need = Math.max(0, Math.min(0.4, need));
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, 0.08);
-    this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, pe.z);
+    this.hips.position.set(pe.x, this.pelvisRest + pe.y + this.lift - this.pelvisDrop, pe.z);
     Quaternion.RotationYawPitchRollToRef(pe.yaw, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
     // the spine counters most of the pelvis tilt and twist so the chest stays square (gun platform)
     const sp = t.spine;
@@ -833,7 +902,7 @@ export class CharacterRig {
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
-    this.weaponPivot.position.set((p.shoulderHalf * 0.55 + w.x) * mirror, p.y.shoulder - chestY - 0.1 + w.y, 0.3 + w.z);
+    this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y, AIM_POCKET.z + w.z);
     const aimYaw = yaw + this.input.aimYaw;
     Quaternion.RotationYawPitchRollToRef(aimYaw + w.yaw * mirror, -this.input.aimPitch + w.pitch, w.roll * mirror, tmpQ);
     if (Math.abs(t.tumble) > 1e-3) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
@@ -925,24 +994,27 @@ export class CharacterRig {
     const target = this.bodyToWorld(free, tmpA);
     if (gripW > 0 && this.heldWeapon) {
       const m = this.heldWeapon.getWorldMatrix();
+      // the hand wraps the gun: the wrist sits behind / under the palm point (weapon space), so the arm
+      // reaches only as far as a real one and the elbows bend
       if (isGrip) {
-        Vector3.TransformCoordinatesToRef(this.grip, m, tmpB);
+        tmpF.copyFrom(this.grip).addInPlaceFromFloats(WRIST_TRIGGER[0] * side, WRIST_TRIGGER[1], WRIST_TRIGGER[2]);
+        Vector3.TransformCoordinatesToRef(tmpF, m, tmpB);
         Vector3.LerpToRef(target, tmpB, gripW, target);
       } else {
         // off hand: free target -> magazine well -> foregrip, by weight
         const onMag = Math.min(1, magW) * gripW;
         if (onMag > 0) {
-          Vector3.TransformCoordinatesToRef(this.magPoint, m, tmpB);
+          tmpF.copyFrom(this.magPoint).addInPlaceFromFloats(WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2]);
+          Vector3.TransformCoordinatesToRef(tmpF, m, tmpB);
           Vector3.LerpToRef(target, tmpB, onMag, target);
         }
         const onGrip = Math.min(1, offW) * gripW;
         if (onGrip > 0) {
-          Vector3.TransformCoordinatesToRef(this.foregrip, m, tmpB);
+          tmpF.copyFrom(this.foregrip).addInPlaceFromFloats(WRIST_SUPPORT[0] * side, WRIST_SUPPORT[1], WRIST_SUPPORT[2]);
+          Vector3.TransformCoordinatesToRef(tmpF, m, tmpB);
           Vector3.LerpToRef(target, tmpB, onGrip, target);
         }
       }
-      // the wrist sits a little behind the palm point
-      target.y += 0.035 * gripW;
     }
     if (coverW > 0 && this.coverHand && !isGrip) Vector3.LerpToRef(target, this.coverHand, coverW, target);
     // elbows down/out/back

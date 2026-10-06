@@ -31,7 +31,7 @@ import {
   WALK_STRAFE_L,
   WALK_STRAFE_R,
 } from './clips/locomotion';
-import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
+import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, COVER_TURN, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
 import { hyp2 } from '../core/mathx';
 
 export const FADE = 0.2;
@@ -80,6 +80,8 @@ export interface AnimInput {
   dash: number;
   /** Dash-in slide progress 0..1, or < 0. */
   slide: number;
+  /** Turn-and-swap / corner swing in cover 0..1, or < 0: a ducking spin. */
+  coverTurn: number;
   /** Landing recovery 0..1. */
   landing: number;
   cover: 'none' | 'low' | 'high';
@@ -89,6 +91,10 @@ export interface AnimInput {
   lean: number;
   /** Low cover: rise to aim over the top 0..1. */
   peekOver: number;
+  /** Ducking behind low cover 0..1 (hunch the spine, tuck the head; the rig lowers the pelvis). */
+  duck: number;
+  /** Crouched aim over low cover 0..1: lean over the top with the weapon up at the cheek. */
+  aimOver: number;
   blind: boolean;
   /** Head/muzzle turned towards a nearby edge: -1 left, 1 right, 0 none. */
   edgeLook: number;
@@ -140,11 +146,14 @@ export function defaultInput(): AnimInput {
     armed: true,
     dash: 0,
     slide: -1,
+    coverTurn: -1,
     landing: 0,
     cover: 'none',
     wallSide: 0,
     lean: 0,
     peekOver: 0,
+    duck: 0,
+    aimOver: 0,
     blind: false,
     edgeLook: 0,
     traverse: 'none',
@@ -229,7 +238,8 @@ export function pickLower(i: AnimInput): LowerState {
 
 /** Ready-position weapon poses (offsets from the aim pocket; pitch + = muzzle down). */
 export const READY_POSES = {
-  low: { x: -0.03, y: -0.13, z: -0.05, pitch: 0.7, yaw: -0.12, roll: 0.05 },
+  // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
+  low: { x: 0, y: -0.08, z: -0.02, pitch: 0.8, yaw: -0.6, roll: 0.2 },
   high: { x: -0.03, y: 0.07, z: -0.12, pitch: -1.0, yaw: -0.08, roll: 0 },
   compressed: { x: -0.12, y: -0.1, z: -0.2, pitch: 0.3, yaw: -0.4, roll: 0.22 },
 } as const;
@@ -278,6 +288,15 @@ export class AnimGraph {
   /** Tucked in against the cover while reloading / swapping / throwing. */
   tuckW = 0;
   private blindS = 0;
+
+  /** How far the body / weapon is leaned out (signed, follows the lean target) and raised for blind fire. */
+  get leanOut(): number {
+    return this.leanBody.x;
+  }
+
+  get blindOut(): number {
+    return this.blindS;
+  }
   private leanHead = new Spring();
   private leanBody = new Spring();
   private wallS = 0;
@@ -286,6 +305,8 @@ export class AnimGraph {
   private dirZ = 1;
   private moveW = 0;
   private accelLean = new Spring();
+  private duckS = new Spring();
+  private overS = new Spring();
   private intentLean = 0;
   private accelRoll = new Spring();
   private pelSpring = new Spring();
@@ -480,6 +501,10 @@ export class AnimGraph {
       addClip(src, COVER_ENTER_SIDE, settled, 1, this.wallS || 1);
       addClip(src, COVER_ENTER, settled, 1);
       this.slot('cover enter', this.coverT < COVER_ENTER.duration ? 1 : 0.3, settled);
+      if (i.coverTurn >= 0) {
+        addClip(src, COVER_TURN, clamp(i.coverTurn, 0, 1), 1);
+        this.slot('cover turn', 1, i.coverTurn);
+      }
       // reloading, swapping or throwing in cover: tuck in closer to the wall, a little lower
       this.tuckW = approach(this.tuckW, i.reload >= 0 || i.swap >= 0 || i.grenade >= 0 ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
@@ -524,6 +549,15 @@ export class AnimGraph {
     src[CH.pelPitch] = src[CH.pelPitch]! + lean;
     src[CH.spPitch] = src[CH.spPitch]! - lean * 0.45;
     src[CH.pelRoll] = src[CH.pelRoll]! + roll;
+    // ducking behind low cover: curl the back over the knees, the head down but eyes forward
+    const duckS = this.duckS.step(i.duck, 16, dt);
+    src[CH.pelPitch] = src[CH.pelPitch]! + duckS * 0.25;
+    src[CH.spPitch] = src[CH.spPitch]! + duckS * 0.55;
+    src[CH.hdPitch] = src[CH.hdPitch]! - duckS * 0.35;
+    // crouched aim over low cover: the back straightens out of the crouch hunch and the weapon comes up
+    // to the cheek (the rig then rises only until the muzzle clears), so only eyes, head and gun show
+    const overS = this.overS.step(i.aimOver, 20, dt);
+    src[CH.spPitch] = src[CH.spPitch]! - overS * 0.18;
 
     // --- weapon actions (inertialized as they start and end)
     const action = i.reload >= 0 ? (i.reloadEmpty ? 'reloadE' : 'reloadT') : i.swap >= 0 ? 'swap' : i.grenade >= 0 ? 'grenade' : i.handSwap >= 0 ? 'hands' : '';
@@ -547,8 +581,8 @@ export class AnimGraph {
     const yl = this.yawLag.step(clamp(-i.yawRate * 0.04 * mass, -0.25, 0.25), 10 / mass, dt);
     src[CH.spPitch] = src[CH.spPitch]! - aimPitch * 0.45 * (0.35 + raise * 0.65) + breath + this.dashS * 0.2 + crouchK * 0.08;
     src[CH.spYaw] = src[CH.spYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.6 + raise * 0.2 * (i.armed ? 1 : 0) + yl;
-    src[CH.spRoll] = src[CH.spRoll]! - bd * 0.38;
-    src[CH.pelX] = src[CH.pelX]! + bd * 0.05 * k;
+    src[CH.spRoll] = src[CH.spRoll]! - bd * 0.52;
+    src[CH.pelX] = src[CH.pelX]! + bd * 0.17 * k;
     const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
     src[CH.hdPitch] = src[CH.hdPitch]! - aimPitch * 0.45;
     src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 + this.edgeS * 0.45 + check + hd * 0.12;
@@ -574,7 +608,7 @@ export class AnimGraph {
     const rec = this.recoil.step(i.kick, 26 / Math.sqrt(mass), dt);
     const blindLow = i.cover === 'low' ? 1 : 0;
     src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc) + this.blindS * (1 - blindLow) * bd * 0.22;
-    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc) + sway + this.blindS * (blindLow ? 0.42 : 0.1);
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc) + sway + this.blindS * (blindLow ? 0.42 : 0.1) + this.overS.x * 0.21;
     src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc) - (rec * 0.05) / Math.sqrt(mass);
     src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc) - (rec * 0.12) / mass + sway * 2;
     src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc) + this.blindS * (1 - blindLow) * bd * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;

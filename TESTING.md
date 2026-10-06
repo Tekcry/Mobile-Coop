@@ -249,6 +249,15 @@ Controls:
 120 Hz:
 - [ ] Warehouse Clear run with 10 enemies: pacing p95 within the 8.33 ms budget, drops < 1%; 10-minute soak stays green.
 
+## Cover update (1.3.1) - Proving Grounds low wall and crates, then Warehouse
+- [ ] Walk and sprint straight into low and high cover: nothing happens until you press A / Space or tap "Take cover".
+- [ ] "Take cover" sits low on the wall you would snap to (below the crosshair) and keeps one height as you walk along it; a vaultable low wall also shows Vault beside it, never overlapping.
+- [ ] In low cover the head is fully below the top (kneeling and moving); from an enemy's eye line nothing shows. Aiming over stays crouched: only head, shoulders and gun come over, and shots clear the top.
+- [ ] The cover badge ("Low cover", "High cover", "Peeking", "flanked") sits on the wall beside you, not mid-screen; by touch tapping it leaves cover and tapping Vault vaults.
+- [ ] Low ready: elbows clearly bent, muzzle down and across the body, stock at the shoulder.
+- [ ] Entering cover reads like a film: a shoulder slam with a camera hit, a ducking spin on turn-and-swap and corner swings, a firm push off when leaving.
+- [ ] At every peek (both edges, high and low, standing and crouched, over the top) aim as far as the view allows and fire: no shot hits your own cover; angles you cannot shoot from cannot be aimed at.
+
 ## Phase 10 - Release checklist
 
 ### Offline and install

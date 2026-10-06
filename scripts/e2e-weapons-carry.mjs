@@ -154,15 +154,16 @@ try {
       st.set('carry', 'ads', true);
       window.__app.loop.stepHeadless(0.3, 120);
       const m = rig.heldWeapon.getWorldMatrix();
-      const gp = V.TransformCoordinates(rig.grip, m);
-      const fp = V.TransformCoordinates(rig.foregrip, m);
+      // the wrist sits behind / under the palm point in weapon space (characterRig WRIST_TRIGGER /
+      // WRIST_SUPPORT; right hand on the grip, left on the foregrip)
+      const gp = V.TransformCoordinates(rig.grip.add(new V(0.01, -0.015, -0.065)), m);
+      const fp = V.TransformCoordinates(rig.foregrip.add(new V(-0.015, -0.055, -0.035)), m);
       rig.wristR.computeWorldMatrix(true);
       rig.wristL.computeWorldMatrix(true);
       const wr = rig.wristR.getAbsolutePosition();
       const wl = rig.wristL.getAbsolutePosition();
-      // the wrist sits 3.5 cm above the palm point
-      const dR = Math.hypot(wr.x - gp.x, wr.y - gp.y - 0.035, wr.z - gp.z);
-      const dL = Math.hypot(wl.x - fp.x, wl.y - fp.y - 0.035, wl.z - fp.z);
+      const dR = Math.hypot(wr.x - gp.x, wr.y - gp.y, wr.z - gp.z);
+      const dL = Math.hypot(wl.x - fp.x, wl.y - fp.y, wl.z - fp.z);
       st.set('carry', 'ads', false);
       out.push({ id: g.weapons.current.def.id, dR, dL });
     }

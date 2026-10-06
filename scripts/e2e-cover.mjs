@@ -2,8 +2,9 @@
 // snap side-on, strafe + edge stop, turn-and-swap, kneel, aim over low cover, blind fire, B keeps
 // cover, A leaves, Y vaults, lean in place at a high-cover edge with shoulder swap, stand / crouch at
 // high cover and a crouched edge peek, outside-corner swing, inside corner, SWAT turn, cover-to-cover
-// with A to the marked cover (slide-in, HUD marker), touch swipe, auto-snap setting, HUD prompt, touch
-// button, keyboard Space.
+// with A to the marked cover (slide-in, marker on the target), never an automatic snap, world prompts on
+// the surfaces (take cover / vault / cover badge / cover-to-cover, low on the surface, tapped by touch),
+// the touch action button only for "use", keyboard Space.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -40,8 +41,11 @@ try {
   const cand = await G(() => !!window.__app.current.cover.candidate);
   assert(cand, 'cover candidate found in reach');
   await frames(page, 3);
-  const prompt = await G(() => document.querySelector('.hud-cover.show')?.textContent ?? '');
-  assert(/cover/i.test(prompt), `HUD shows cover prompt (${prompt})`);
+  const prompt = await G(() => { const e = document.querySelector('.wp-cover.show'); return e ? { text: e.textContent, tf: e.style.transform } : null; });
+  assert(prompt && /take cover/i.test(prompt.text), `take cover prompt shows on the surface (${JSON.stringify(prompt)})`);
+  const promptY = +(/,\s*([\d.]+)vh/.exec(prompt.tf)?.[1] ?? 0);
+  assert(promptY > 55, `the prompt sits low on the surface, below the crosshair (${promptY}vh)`);
+  assert(!(await G(() => document.querySelector('.hud-cover, .hud-cover-state, .hud-action'))), 'no centre-screen cover prompt or badge');
   await takeCover();
   let c = await P();
   assert(c.state === 'in' && c.low && c.crouched, `A snaps into low cover crouched (${JSON.stringify(c)})`);
@@ -49,8 +53,12 @@ try {
   assert(Math.abs(Math.sin(c.yaw)) < 0.3 && c.wall !== 0, `side-on: faces along the face, shoulder to the wall (yaw ${c.yaw.toFixed(2)}, wall side ${c.wall})`);
   await sim(0.4);
   assert((await P()).kneel, 'kneels behind low cover when still');
-  const badge = await G(() => document.querySelector('.hud-cover-state.show')?.textContent ?? '');
-  assert(/low cover/i.test(badge), `state badge (${badge})`);
+  await frames(page, 3);
+  const badge = await G(() => document.querySelector('.wp-state.show')?.textContent ?? '');
+  assert(/low cover/i.test(badge), `cover type badge on the surface (${badge})`);
+  const vaultP = await G(() => document.querySelector('.wp-vault.show')?.textContent ?? '');
+  assert(/vault/i.test(vaultP), `vault prompt on the low cover (${vaultP})`);
+  assert(!(await G(() => document.querySelector('.wp-cover.show'))), 'no take-cover prompt while in cover');
   // strafe right on screen (camera faces -x, so right is +z) to the far edge
   await sim(4.6, { lx: 1 });
   c = await P();
@@ -68,7 +76,9 @@ try {
   await G(() => window.__pad.set(6, 1));
   await sim(0.3);
   c = await P();
-  assert(c.state === 'peek' && !c.crouched, `aiming pops up over low cover (${c.state}, crouched ${c.crouched})`);
+  assert(c.state === 'peek' && c.crouched, `aiming over low cover stays crouched (${c.state}, crouched ${c.crouched})`);
+  const head = await G(() => { const p = window.__app.current.player; return p.rig.headNode.getAbsolutePosition().y - p.position.y; });
+  assert(head < 1.45, `only the head and gun come over the top, not a full stand (head centre ${head.toFixed(2)} m)`);
   await G(() => window.__pad.set(6, 0));
   await sim(0.3);
   c = await P();
@@ -203,7 +213,7 @@ try {
   await sim(0.4);
   const tgt = await G(() => { const t = window.__app.current.cover.target; return t ? { kind: t.kind, x: t.x, z: t.z } : null; });
   await frames(page, 3);
-  const marker = await G(() => !!document.querySelector('.hud-cover-marker.show'));
+  const marker = await G(() => !!document.querySelector('.wp-move.show'));
   assert(tgt && tgt.kind === 'dash' && marker, `marked cover-to-cover target in the look direction + HUD marker (${JSON.stringify(tgt)}, marker ${marker})`);
   await press(page, BTN.A);
   let slid = false;
@@ -218,30 +228,41 @@ try {
   c = await P();
   assert(dashed && slid && c.state === 'in' && c.nz > 0.9 && c.low, `A runs to the marked cover and slides in (${JSON.stringify({ dashed, slid, state: c.state, nz: c.nz })})`);
 
-  console.log('touch swipe');
-  await G(() => { const s = window.__app.input.state; s.coverSwipe.x = 0; s.coverSwipe.y = 1; });
-  await sim(0.2);
+  console.log('prompt taps (touch)');
+  const tapPrompt = (id) => G((id) => { const e = document.querySelector(`.wp-${id}.show`); if (!e) return false; e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); e.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); return true; }, id);
+  assert(await tapPrompt('state'), 'cover badge is tappable');
+  await sim(0.4);
   c = await P();
-  assert(c.state === 'none', `swipe away with no cover beyond leaves cover (${c.state})`);
+  assert(c.state === 'none', `tapping the cover badge leaves cover even with a target marked (${c.state})`);
   await tp(-3.7, -6, -Math.PI / 2);
   await sim(0.3);
-  await G(() => { const s = window.__app.input.state; s.coverSwipe.x = 0; s.coverSwipe.y = 1; });
+  await frames(page, 3);
+  assert(await tapPrompt('cover'), 'take cover prompt is tappable');
+  await sim(0.9);
+  assert((await P()).state === 'in', 'tapping the take cover prompt takes cover');
+  await frames(page, 3);
+  assert(await tapPrompt('vault'), 'vault prompt is tappable in low cover');
   await sim(1.2);
-  assert((await P()).state === 'in', 'swipe towards cover takes it');
-  await press(page, BTN.A);
-  await sim(0.4);
-
-  console.log('auto snap + touch button');
-  await G(() => window.__app.settings.update((s) => void (s.gameplay.autoCover = true)));
-  await tp(-2.6, -6, -Math.PI / 2);
-  await sim(2.6, { ly: -1 });
-  await sim(1.0);
   c = await P();
-  assert(c.state === 'in', `auto-snap on approach when enabled (${c.state})`);
-  await G(() => window.__app.settings.update((s) => void (s.gameplay.autoCover = false)));
+  assert(c.state === 'none' && c.x < -5.3, `tapping vault vaults the low cover (x=${c.x.toFixed(2)})`);
+
+  console.log('manual cover only + touch button');
+  // walking and sprinting straight into a wall never snaps to it
+  await tp(-2.6, -6, -Math.PI / 2);
+  await sim(2.0, { ly: -1 });
+  c = await P();
+  assert(c.state === 'none', `walking into cover does not take it (${c.state})`);
+  await tp(-1.2, -6, -Math.PI / 2);
+  await press(page, BTN.LS);
+  await sim(1.5, { ly: -1 });
+  c = await P();
+  assert(c.state === 'none', `sprinting into cover does not take it (${c.state})`);
+  await sim(0.5);
+  await tp(-3.7, -6, -Math.PI / 2);
   await sim(0.3);
-  const btn = await G(() => { const t = window.__app.input.touch; const c = t.actionContext; return c ? `${c.action}:${c.label}` : 'none'; });
-  assert(/^(cover|jump):/.test(btn), `touch action button offers a cover action (leave / vault) in cover (${btn})`);
+  await takeCover();
+  const btn = await G(() => { const t = window.__app.input.touch; const c = t.actionContext; return { ctx: c ? `${c.action}:${c.label}` : 'none', hidden: t.elements.get('action').classList.contains('tc-hidden') }; });
+  assert(btn.ctx === 'none' && btn.hidden, `touch action button hidden with nothing to use (cover / vault are world prompts) (${JSON.stringify(btn)})`);
   // keyboard Space toggles out
   await page.keyboard.press('Space');
   await sim(0.3);

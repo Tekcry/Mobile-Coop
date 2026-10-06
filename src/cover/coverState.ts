@@ -30,7 +30,7 @@ export interface CoverInput {
   canVault: boolean;
   /** A dash target exists (setting on, cover in the push / look direction). */
   canDash: boolean;
-  /** Dash pressed (or a swipe on the touch cover button) this step. */
+  /** Dash pressed this step. */
   dashPressed: boolean;
   /** Dash arrived at its target. */
   arrived: boolean;

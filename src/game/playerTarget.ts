@@ -2,6 +2,7 @@ import {
   PhysicsBody,
   PhysicsMotionType,
   PhysicsShapeCapsule,
+  Quaternion,
   TransformNode,
   Vector3,
   type Scene,
@@ -77,9 +78,10 @@ export class PlayerTarget implements Damageable {
     return out.copyFrom(this.torso.node.position).addInPlaceFromFloats(0, 0.2, 0);
   }
 
-  /** Where enemies aim: the torso (follows a lean / peek). */
+  /** Where enemies aim: the upper chest (follows the pose: a duck behind cover, a lean, a peek). */
   aimPoint(out: Vector3): Vector3 {
-    return out.copyFrom(this.torso.node.position).addInPlaceFromFloats(0, 0.3, 0);
+    const d = this.spineDir;
+    return out.copyFrom(this.torso.node.position).addInPlaceFromFloats(d.x * 0.3, d.y * 0.3, d.z * 0.3);
   }
 
   /** Head volume centre (exposure sampling, near-miss checks). */
@@ -87,23 +89,31 @@ export class PlayerTarget implements Damageable {
     return out.copyFrom(this.head.node.position);
   }
 
-  /** Follow the controller and the pose (crouch, lean). */
+  private spineDir = new Vector3(0, 1, 0);
+  private tmpQ = new Quaternion();
+
+  /**
+   * Follow the pose itself (the rig's last solved frame): legs up to the pelvis, the torso along the
+   * spine from the pelvis to the neck, the head on the head. Ducking below low cover, leaning past an edge
+   * or rising to aim over the top moves exactly what is exposed.
+   */
   sync(): void {
-    const p = this.player;
-    const c = p.controller;
-    const feet = p.position;
-    const crouch = c.crouchBlend;
-    const lean = p.coverPose.lean;
-    const rx = Math.cos(c.yaw);
-    const rz = -Math.sin(c.yaw);
-    // legs: shorten by sinking into the floor when crouched
-    this.legs.node.position.set(feet.x, feet.y - crouch * 0.38, feet.z);
-    // torso: hips at ~0.88 m standing, ~0.55 m crouched; leans out with the upper body
-    const ty = 0.88 - crouch * 0.33;
-    this.torso.node.position.set(feet.x + rx * lean * 0.2, feet.y + ty, feet.z + rz * lean * 0.2);
-    // head: above the shoulders, further out on a lean
-    const hy = 1.62 - crouch * 0.52;
-    this.head.node.position.set(feet.x + rx * lean * 0.36, feet.y + hy, feet.z + rz * lean * 0.36);
+    const feet = this.player.position;
+    const rig = this.player.rig;
+    const pelvis = rig.hips.getAbsolutePosition();
+    const neck = rig.neck.getAbsolutePosition();
+    // legs: sink so their top meets the pelvis
+    this.legs.node.position.set(feet.x, pelvis.y - 0.88, feet.z);
+    // torso: from the pelvis along the spine
+    neck.subtractToRef(pelvis, this.spineDir);
+    if (this.spineDir.lengthSquared() < 1e-6) this.spineDir.set(0, 1, 0);
+    this.spineDir.normalize();
+    this.torso.node.position.copyFrom(pelvis);
+    Quaternion.FromUnitVectorsToRef(Vector3.UpReadOnly, this.spineDir, this.tmpQ);
+    if (!this.torso.node.rotationQuaternion) this.torso.node.rotationQuaternion = new Quaternion();
+    this.torso.node.rotationQuaternion.copyFrom(this.tmpQ);
+    // head
+    this.head.node.position.copyFrom(rig.headNode.getAbsolutePosition());
   }
 
   applyDamage(h: HitInfo): DamageResult {

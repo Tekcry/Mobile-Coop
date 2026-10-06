@@ -28,6 +28,7 @@ const SCENARIOS = {
   grenade: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('grenade');" } },
   cover: { pos: [-3.7, -6], yaw: -Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('cover');" } },
   highcover: { pos: [-8.8, 2.5], yaw: -Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('cover');" } },
+  lowpeek: { pos: [-3.7, -6], yaw: -Math.PI / 2, pre: 0.6, input: (t) => ({ ads: t > 1.2 }), at: { 0: "a.input.state.tap('cover');" } },
   peek: { pos: [-8.8, 3.4], yaw: -Math.PI / 2, pre: 0.6, input: (t) => ({ ads: t > 1.2 }), at: { 0: "a.input.state.tap('cover');" } },
   vault: { pos: [-3.8, -6], yaw: -Math.PI / 2, pre: 0.8, input: () => ({}), at: { 0: "a.input.state.tap('jump');" } },
 };

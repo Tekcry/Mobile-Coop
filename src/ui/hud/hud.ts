@@ -2,6 +2,7 @@ import { h } from '../dom';
 import { icon } from '../icons';
 import { promptHtml } from '../prompts';
 import type { Minimap } from './minimap';
+import { WorldPrompts } from './worldPrompts';
 
 export interface HudFrame {
   hp: number;
@@ -47,10 +48,8 @@ export class Hud {
   private roomEl: HTMLElement;
   private bannerEl: HTMLElement;
   private interactEl: HTMLElement;
-  private coverEl: HTMLElement;
-  private actionEl: HTMLElement;
-  private markerEl: HTMLElement;
-  private coverState: HTMLElement;
+  /** Cover / vault prompts, the cover badge and the cover-to-cover marker, on the world surfaces. */
+  readonly world: WorldPrompts;
   private feed: HTMLElement;
   private vignette: HTMLElement;
   private suppressEl: HTMLElement;
@@ -120,10 +119,6 @@ export class Hud {
     this.roomEl = h('div', { class: 'hud-room' });
     this.bannerEl = h('div', { class: 'hud-banner' });
     this.interactEl = h('div', { class: 'hud-interact' });
-    this.coverEl = h('div', { class: 'hud-interact hud-cover' });
-    this.actionEl = h('div', { class: 'hud-interact hud-action' });
-    this.markerEl = h('div', { class: 'hud-cover-marker' });
-    this.coverState = h('div', { class: 'hud-cover-state' });
     this.feed = h('div', { class: 'hud-feed' });
     this.vignette = h('div', { class: 'hud-vignette' });
     this.suppressEl = h('div', { class: 'hud-suppress' });
@@ -140,13 +135,10 @@ export class Hud {
       h('div', { class: 'hud-center' }, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
       this.interactEl,
-      this.coverEl,
-      this.actionEl,
-      this.markerEl,
-      this.coverState,
       this.feed,
     );
     parent.appendChild(this.el);
+    this.world = new WorldPrompts(parent);
   }
 
   setMinimap(m: Minimap): void {
@@ -155,6 +147,7 @@ export class Hud {
 
   setVisible(v: boolean): void {
     this.el.hidden = !v;
+    this.world.setVisible(v);
   }
 
   private set(key: string, v: string | number | boolean, apply: () => void): void {
@@ -255,21 +248,6 @@ export class Hud {
   }
 
   /**
-   * Cover prompt (when cover is in reach) and the current cover state badge. Prompts render the
-   * controller glyph (A), keyboard key (Space) or, on touch, just the text next to the cover button.
-   */
-  setCover(prompt: string | null, state: string | null): void {
-    this.set('coverP', prompt ?? '', () => {
-      this.coverEl.innerHTML = prompt ? `${promptHtml('A', 'Space')}<span>${prompt}</span>` : '';
-      this.coverEl.classList.toggle('show', !!prompt);
-    });
-    this.set('coverS', state ?? '', () => {
-      this.coverState.innerHTML = state ? `${icon('cover', 16)}<span>${state}</span>` : '';
-      this.coverState.classList.toggle('show', !!state);
-    });
-  }
-
-  /**
    * Tactical indicators: dash stamina (only while not full), exposure to the nearest threats (hidden
    * with no threats: < 0), footstep noise (0..3 bars) and the suppression vignette.
    */
@@ -291,24 +269,6 @@ export class Hud {
     this.set('supp', Math.round(suppression * 20), () => (this.suppressEl.style.opacity = String(Math.min(0.85, suppression * 0.9))));
   }
 
-  /** Cover-to-cover marker at a screen position (percent of the HUD), or hidden when x < 0. */
-  setCoverMarker(xPct: number, yPct: number, label: string): void {
-    const show = xPct >= 0;
-    this.set('cmk', show ? label : '', () => {
-      this.markerEl.innerHTML = show ? `<i></i><span>${promptHtml('A', 'Space')}${label}</span>` : '';
-      this.markerEl.classList.toggle('show', show);
-    });
-    if (show) this.markerEl.style.transform = `translate(${xPct.toFixed(1)}vw, ${yPct.toFixed(1)}vh)`;
-  }
-
-  /** Contextual traversal prompt (jump button: vault, climb, step up, drop down). */
-  setAction(text: string | null): void {
-    this.set('act', text ?? '', () => {
-      this.actionEl.innerHTML = text ? `${promptHtml('Y', 'E')}<span>${text}</span>` : '';
-      this.actionEl.classList.toggle('show', !!text);
-    });
-  }
-
   /** Small right-side feed (kills, XP, pickups). */
   feedItem(text: string, kind = ''): void {
     const it = h('div', { class: `feed-item ${kind}`, text });
@@ -320,5 +280,6 @@ export class Hud {
 
   dispose(): void {
     this.el.remove();
+    this.world.dispose();
   }
 }

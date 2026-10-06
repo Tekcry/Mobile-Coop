@@ -27,6 +27,9 @@ export const CAMERA_TUNING = {
   },
 };
 
+/** Low cover: the camera eye sits this far above the top (m). */
+export const COVER_EYE = 0.26;
+
 /**
  * Weighted cinematic over-the-shoulder camera. Gameplay sets the look targets (`yaw`, `pitch`); the
  * rendered view follows them with slight inertia (critically damped, no overshoot). Position follows
@@ -36,6 +39,7 @@ export const CAMERA_TUNING = {
  * give it weight. The boom pulls in smoothly against walls (never pops) and eases back out.
  * Updated every render frame from interpolated targets.
  */
+
 export class ShoulderCamera {
   readonly camera: FreeCamera;
   /** Look targets (gameplay). */
@@ -56,6 +60,10 @@ export class ShoulderCamera {
   baseFovDeg = CAMERA.fov;
   /** State nudges set by the player each frame. */
   crouch = 0;
+  /** Pelvis lift of the low cover height control (m): the pivot rises with a crouched aim over cover. */
+  lift = 0;
+  /** Low cover top above the feet (m; 0 = none): the eye stays just above it, so hiding still sees over. */
+  coverTop = 0;
   dash = 0;
   lean = 0;
   /** In cover (slow push-in). */
@@ -129,6 +137,13 @@ export class ShoulderCamera {
     this.trauma = Math.min(1, this.trauma + amount);
   }
 
+  /** A hard contact (slamming into cover): a sharp dip of the view and a short shake (strength 0..1). */
+  impact(strength: number): void {
+    const s = Math.max(0, Math.min(1, strength));
+    this.sBob.kick(-0.7 * s);
+    this.trauma = Math.min(1, this.trauma + 0.16 * s);
+  }
+
   /** A footstep landed (heel strike): a tiny damped dip of the view (strength ~0..1). */
   footstep(strength = 1): void {
     this.sBob.kick(-0.12 * Math.min(1.5, strength));
@@ -164,7 +179,8 @@ export class ShoulderCamera {
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
 
     const fr = framing(this.ads, crouch, dashS);
-    const pivotY = this.sPivot.step(fr.pivot, 8, dt);
+    const overEye = this.coverTop > 0 ? this.coverTop + COVER_EYE - T.height : 0;
+    const pivotY = this.sPivot.step(Math.max(fr.pivot + Math.max(0, this.lift), overEye), 10, dt);
     // follow: feet height and position lag slightly; look ahead along the movement
     if (Number.isNaN(this.sFootY.x) || Math.abs(feet.y - this.sFootY.x) > 3) this.sFootY.reset(feet.y);
     const footY = this.sFootY.step(feet.y, 14, dt);

@@ -1,5 +1,33 @@
 # Changelog
 
+## 1.3.1 - Cover feedback: hide for real, crouched aim, world prompts, manual cover
+- Low cover hides you: the body ducks (hips down, back curled over the knees, head tucked) until the top of the
+  head is ~7 cm under the cover top, kneeling or moving along it. Aiming over low cover stays crouched: the back
+  straightens and the weapon comes up to the cheek, rising only until the muzzle clears the top (eyes, head and
+  gun show; no full stand). The camera keeps a view over the top.
+- Low ready with bent arms: the stock stays in the shoulder pocket and the muzzle angles ~45 deg down across
+  the body; the wrists sit behind / under the palm points on the gun, so the support elbow bends ~130 deg instead
+  of locking straight.
+- Cinematic cover moves: the entry slams shoulder-first into the wall (hips thrown over, spine whipping into
+  it, a crunch down and a camera hit scaled by the approach speed), a ducking spin through the turn-and-swap and
+  the corner swing, a hard push off when leaving (step back ~0.26 m), wider leans at edge peeks.
+- Manual cover only: walking or sprinting into a wall never takes cover; the Auto-snap setting is gone. Only
+  A / Space or a tap on the take-cover prompt does.
+- World prompts (Splinter Cell: Blacklist style): "Take cover" sits on the face a press would snap to, low on it
+  (at most 0.55 m up, one height per surface), vault / climb / step on the obstacle at the same kind of height, the
+  cover type badge ("Low cover", "Peeking", "· flanked") on the face in use, the cover-to-cover marker on the
+  target. Prompts never overlap and stay on screen. By touch the prompt is the button (tap the badge to leave
+  cover); the touch action button now only appears to use an interactable. The centre-screen prompts and the swipe
+  gesture are gone.
+- No wall shots from cover: aim is limited to angles the weapon can shoot from each peek (round an edge: from
+  straight across round to behind the shoulder; over low cover: a wide arc whose lowest pitch clears the top,
+  tighter sideways; high cover away from an edge: never into the wall). Inside those limits every shot clears the
+  cover; firing waits until the weapon is actually out (lean / rise / blind raise). The barrel-through-wall check
+  now runs from the head, not the camera.
+- Hit volumes follow the posed body (ducking really lowers them); enemies that only see your head aim at it.
+- Tests: unit tests for the cover aim limits; e2e-cover covers the world prompts, prompt taps, manual-only
+  cover and the crouched aim over; e2e-weapons-carry uses the new wrist model.
+
 ## 1.3.0 - Stealth movement, Blacklist-style cover, realistic weapons, minimal Clear mode
 A stealth operative: fluid, quick and cover-oriented, still weighted. Built and checked against the
 iPhone 17 Pro Max class target (120 Hz).

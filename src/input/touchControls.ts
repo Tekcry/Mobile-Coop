@@ -21,7 +21,7 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   fireLeft: { id: 'fireLeft', action: 'fire', size: 72, icon: 'fire', label: 'Fire (left)' },
   ads: { id: 'ads', action: 'ads', size: 68, icon: 'ads', label: 'Aim' },
   reload: { id: 'reload', action: 'reload', size: 58, icon: 'reload', label: 'Reload' },
-  action: { id: 'action', action: null, size: 74, icon: 'cover', label: 'Action (cover / vault / use)' },
+  action: { id: 'action', action: null, size: 74, icon: 'interact', label: 'Use' },
   crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch (toggle)' },
   swap: { id: 'swap', action: 'swapNext', size: 56, icon: 'swap', label: 'Swap weapon' },
   grenade: { id: 'grenade', action: 'grenade', size: 56, icon: 'grenade', label: 'Grenade' },
@@ -45,14 +45,14 @@ type PointerRole =
   | { kind: 'move'; ox: number; oy: number; x: number; y: number }
   | { kind: 'look'; ox: number; oy: number; x: number; y: number }
   | { kind: 'drag'; lx: number; ly: number }
-  | { kind: 'button'; id: TouchControlId; lx: number; ly: number; ox: number; oy: number; swiped?: boolean; action?: ButtonAction };
+  | { kind: 'button'; id: TouchControlId; lx: number; ly: number; ox: number; oy: number; action?: ButtonAction };
 
 /**
  * On-screen controls. Left: a floating move stick (anywhere in the left 40%). Right: a floating
  * camera-only stick (rate-based look with its own curve, dead zone, smoothing and acceleration; it
- * never fires or aims), a separate fire button that never moves the view, aim, and one contextual
- * action button (take / leave cover, vault, climb, step, drop, open, use; swiping from it moves
- * cover-to-cover). Pointer handlers only record positions and press edges; the visuals and the look
+ * never fires or aims), a separate fire button that never moves the view, aim, and a contextual
+ * action button shown only to use an interactable (cover, vault and cover-to-cover are the world
+ * prompts on the surfaces, `WorldPrompts`, tapped directly). Pointer handlers only record positions and press edges; the visuals and the look
  * are applied once per frame in `update`, so handlers never touch layout.
  */
 export class TouchControls {
@@ -148,7 +148,7 @@ export class TouchControls {
     this.context = a;
     const el = this.elements.get('action')!;
     el.classList.toggle('tc-idle', !a);
-    el.innerHTML = icon(a?.icon ?? 'cover', 28);
+    el.innerHTML = icon(a?.icon ?? 'interact', 28);
     this.actionLabel.textContent = a?.label ?? '';
     el.appendChild(this.actionLabel);
   }
@@ -216,7 +216,7 @@ export class TouchControls {
       const def = TOUCH_DEFS[id];
       const role: PointerRole = { kind: 'button', id, lx: e.clientX, ly: e.clientY, ox: e.clientX, oy: e.clientY };
       this.pointers.set(e.pointerId, role);
-      // the action button acts on release: a tap does the action, a swipe moves cover-to-cover
+      // the action button (use) acts on release
       if (def.action) this.state.set(`touch-${id}`, def.action, true);
       target.classList.add('active');
       this.haptic(8);
@@ -255,17 +255,6 @@ export class TouchControls {
       role.x = e.clientX - this.left;
       role.y = e.clientY - this.top;
       this.dirty = true;
-    } else if (role.kind === 'button' && role.id === 'action' && !role.swiped) {
-      // swiping off the action button: move to cover in that direction (or out of cover that way)
-      const dx = e.clientX - role.ox;
-      const dy = e.clientY - role.oy;
-      const d = hyp2(dx, dy);
-      if (d > 38) {
-        role.swiped = true;
-        this.state.coverSwipe.x = dx / d;
-        this.state.coverSwipe.y = -dy / d;
-        this.haptic(12);
-      }
     } else if (role.kind === 'drag' || (role.kind === 'button' && (role.id === 'fire' || role.id === 'fireLeft') && this.getSettings().touch.fireDragLook)) {
       // coalesced moves sum to the same delta; read the latest position
       this.lookDelta(e.clientX - role.lx, e.clientY - role.ly);
@@ -292,7 +281,7 @@ export class TouchControls {
     } else if (role.kind === 'button') {
       const def = TOUCH_DEFS[role.id];
       if (role.id === 'action') {
-        if (!role.swiped && this.context) this.state.tap(this.context.action);
+        if (this.context) this.state.tap(this.context.action);
       } else if (def.action) this.state.set(`touch-${role.id}`, def.action, false);
       this.elements.get(role.id)?.classList.remove('active');
     }

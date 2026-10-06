@@ -47,6 +47,8 @@ export class TraversalController {
   private sprint0 = false;
   /** What jump would do right now (for the prompt), refreshed at 5 Hz. */
   hint: TraverseProbe | null = null;
+  /** Where the hint's obstacle face (or ledge) is: on the ground under it, at the feet height. */
+  readonly hintAt = new Vector3();
   private eng: PhysicsEngine;
   private rr = new PhysicsRaycastResult();
   private a = new Vector3();
@@ -193,7 +195,11 @@ export class TraversalController {
       this.probeT = 0.2;
       const d = dir ?? this.probeDir();
       this.hint = this.probe(c.pos, d.x, d.z);
-      if (this.hint) this.dir.set(d.x, 0, d.z);
+      if (this.hint) {
+        this.dir.set(d.x, 0, d.z);
+        const f = this.hint.kind === 'hop' || this.hint.kind === 'drop' ? 0.6 : this.hint.front;
+        this.hintAt.set(c.pos.x + d.x * f, c.pos.y, c.pos.z + d.z * f);
+      }
     }
     if (jumpPressed && this.hint) {
       this.kind = this.hint.kind;

@@ -303,6 +303,13 @@ export class Enemy implements Damageable {
     best.target.aimPoint(this.tmp);
     const h = this.ctx.ballistics.ray(eye, this.tmp, G.STATIC);
     this.los = !h.hit || h.distance > Vector3.Distance(eye, this.tmp) - 0.3;
+    // chest hidden (ducked behind low cover): only the head may show
+    this.losHead = false;
+    if (!this.los && best.target.headPoint) {
+      best.target.headPoint(this.tmp);
+      const hh = this.ctx.ballistics.ray(eye, this.tmp, G.STATIC);
+      this.los = this.losHead = !hh.hit || hh.distance > Vector3.Distance(eye, this.tmp) - 0.2;
+    }
     if (this.los) {
       this.lastKnown.copyFrom(this.tmp);
       this.lastSeenT = 0;
@@ -595,7 +602,7 @@ export class Enemy implements Damageable {
     origin.z += Math.cos(this.yaw) * 0.45 - Math.sin(this.yaw) * 0.18;
     // blind fire comes over / around the cover; suppressive and blind fire go at the last known spot
     if (mode === 'blind') origin.y = Math.max(origin.y, this.pos.y + 1.25);
-    const aim = mode === 'aim' ? t.target.aimPoint(new Vector3()) : this.lastKnown.clone();
+    const aim = mode === 'aim' ? (this.losHead && t.target.headPoint ? t.target.headPoint(new Vector3()) : t.target.aimPoint(new Vector3())) : this.lastKnown.clone();
     const dir = aim.subtract(origin).normalize();
     // accuracy: settles in over the first second of sight, worse against moving/rolling targets
     const settle = Math.min(1, 0.45 + this.losT * 0.55);
@@ -698,6 +705,9 @@ export class Enemy implements Damageable {
       this.aimPitch = Math.atan2(dy, Math.max(0.5, this.dist));
     }
   }
+
+  /** Only the target's head is in sight (the rest is behind cover). */
+  private losHead = false;
 
   private navCell = -1;
 

@@ -1,5 +1,6 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
 import type { SwapReach } from '../anim/clips/actions';
+import { clampAim, type AimLimit, type AimState } from '../cover/coverAim';
 import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
@@ -24,12 +25,16 @@ export interface PlayerPose {
   lean: number;
   /** Low cover: rise over the top 0..1. */
   peekOver: number;
+  /** Low cover top above the feet (m; 0 = not at low cover). */
+  top: number;
   blind: boolean;
   edgeLook: number;
   traverse: TraverseKind;
   traverseT: number;
   /** Dash-in slide 0..1, or < 0. */
   slide: number;
+  /** Turn-and-swap or corner swing in cover 0..1, or < 0. */
+  turn: number;
   /** Doorway check 0..1, or < 0. */
   check: number;
 }
@@ -58,6 +63,11 @@ export class Player {
   /** Reload is the empty one; weapon swap and grenade throw progress 0..1 or -1 (set by PlayerWeapons). */
   reloadEmpty = false;
   swapT = -1;
+  /** Cover sets the angles a peek / blind fire may aim at (null = free). */
+  aimLimit: AimLimit | null = null;
+  private aimState: AimState = { yaw: 0, pitch: 0, inside: false };
+  /** The weapon is not out past the cover yet (peek / rise / blind raise still moving): no shots. */
+  coverFireBlocked = false;
   /** Where the hand holsters the outgoing gun and draws the next (carry slot kinds). */
   swapFrom: SwapReach = 'backC';
   swapTo: SwapReach = 'backC';
@@ -67,7 +77,7 @@ export class Player {
   sinceShot = 99;
   weaponWeight = 1;
   /** Pose driven by cover / corners / traversal. */
-  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, check: -1 };
+  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, check: -1 };
   /** Context flags for the ready position (set by the corner/cover systems each step). */
   context = { doorway: false, coverEdge: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -194,6 +204,16 @@ export class Player {
       // the view back; when aiming the body turns to the view instead)
       this.cam.addLook(look.x, look.y);
       this.recentre(dt, look);
+      // from cover the aim stays within the angles the weapon can shoot along
+      const lim = this.aimLimit;
+      const as = this.aimState;
+      if (lim) {
+        as.yaw = this.cam.yaw;
+        as.pitch = this.cam.pitch;
+        clampAim(as, lim, dt);
+        this.cam.yaw = as.yaw;
+        this.cam.pitch = as.pitch;
+      } else as.inside = false;
     }
     this.cam.adsTarget = this.ads ? 1 : 0;
     this.cam.baseFovDeg = this.getSettings().video.fovH;
@@ -204,6 +224,8 @@ export class Player {
     this.cam.cover = this.coverPose.cover !== 'none' ? 1 : 0;
     this.cam.steady = Math.max(c.kneeling ? 1 : c.crouchBlend * 0.5, this.ads ? 0.8 : 0);
     this.cam.pace = c.speed;
+    this.cam.lift = this.rig.lift;
+    this.cam.coverTop = this.coverPose.top;
     this.cam.update(dt, c.renderPos, c.crouchBlend);
     this.world.frame(c.renderPos);
 
@@ -246,11 +268,15 @@ export class Player {
     rp.wallSide = cp.wallSide;
     rp.lean = cp.lean;
     rp.peekOver = cp.peekOver;
+    rp.coverTop = cp.top;
+    // low cover: aiming over it rises just enough; otherwise stay below the top
+    rp.coverMode = cp.top > 0 ? (cp.peekOver > 0.5 ? 'over' : 'hide') : 'none';
     rp.blind = cp.blind;
     rp.edgeLook = cp.edgeLook;
     rp.traverse = cp.traverse;
     rp.traverseT = cp.traverseT;
     rp.slide = cp.slide;
+    rp.coverTurn = cp.turn;
     rp.check = cp.check;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
     rp.phase = c.renderPhase;
@@ -278,6 +304,13 @@ export class Player {
     rp.restX = c.renderPos.x + (sp > 0.01 ? (m.vx / sp) * stopD : 0);
     rp.restZ = c.renderPos.z + (sp > 0.01 ? (m.vz / sp) * stopD : 0);
     this.rig.animate(dt, rp);
+    // from cover, no shot until the weapon is actually out: leaned past the edge, risen over the top, or
+    // raised above it for blind fire (else the round would go into the cover)
+    const cp2 = this.coverPose;
+    const g = this.rig.graph;
+    this.coverFireBlocked =
+      cp2.cover !== 'none' &&
+      (cp2.lean !== 0 ? Math.abs(g.leanOut) < 0.85 : cp2.peekOver > 0.5 ? !this.rig.overClear : cp2.blind && cp2.cover === 'low' ? g.blindOut < 0.85 : false);
     // footsteps carry into the camera as a tiny damped dip (scaled by how hard the step lands)
     const pl = this.rig.planner;
     if ((pl.L.landed || pl.R.landed) && c.grounded) this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));

@@ -37,11 +37,13 @@ import { attachGameAudio } from '../audio/gameAudio';
 import type { QualityLevel } from '../core/quality';
 import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
+import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
 import { CornerController } from '../cover/cornerController';
 import { noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import type { TouchAction } from '../input/touchControls';
+import type { WorldPromptId } from '../ui/hud/worldPrompts';
 import { coverQuality, exposureFraction, exposurePoints, segPointDist, Suppression, type CoverSpot, type P3 } from './tactics';
 import { hyp2, hyp3 } from '../core/mathx';
 
@@ -92,19 +94,13 @@ export interface SessionCallbacks {
 export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTMLElement | null>;
 
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
-/** Contextual touch action button states (shared objects: no per-frame allocation). */
-const ACT_TAKE: TouchAction = { action: 'cover', label: 'Take cover', icon: 'cover' };
-const ACT_LEAVE: TouchAction = { action: 'cover', label: 'Leave cover', icon: 'cover' };
-const ACT_VAULT: TouchAction = { action: 'jump', label: 'Vault', icon: 'jump' };
+/** Touch action button: only for interactables now (cover and traversal prompts sit on the surfaces). */
 const ACT_USE: TouchAction = { action: 'interact', label: 'Use', icon: 'interact' };
-const TRAVERSE_ACT: Record<string, TouchAction> = {
-  step: { action: 'jump', label: 'Step up', icon: 'jump' },
-  vault: { action: 'jump', label: 'Vault', icon: 'jump' },
-  mantle: { action: 'jump', label: 'Climb', icon: 'jump' },
-  drop: { action: 'jump', label: 'Drop down', icon: 'jump' },
-  hop: { action: 'jump', label: 'Jump', icon: 'jump' },
-};
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
+/** World prompts sit low on the surface they act on, at one height per surface (m above its base). */
+const PROMPT_Y = 0.55;
+/** Along the face from the player in cover: the badge ahead, the vault prompt behind (m). */
+const PROMPT_ALONG = 0.55;
 
 export class GameState implements AppState {
   readonly scene: Scene;
@@ -218,6 +214,7 @@ export class GameState implements AppState {
       },
     };
     this.hud = new Hud(app.uiRoot);
+    this.hud.world.onTap = (id) => this.onWorldPrompt(id);
     this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.traversal = new TraversalController(this.scene, this.player);
     this.post = new CinematicPost(this.player.cam.camera);
@@ -443,6 +440,8 @@ export class GameState implements AppState {
     this.pickups?.dispose();
     this.interactables?.dispose();
     this.hud.dispose();
+    this.app.input.touch.setControlHidden('action', false);
+    this.app.input.touch.setAction(null);
     for (const d of this.dummies) d.dispose();
     this.grenades.dispose();
     this.weapons.dispose();
@@ -770,12 +769,46 @@ export class GameState implements AppState {
   }
 
   private markerPt = new Vector3();
+  private scr = { x: 0, y: 0 };
 
+  /** Project a world point to percent of the view; false when behind the camera or off screen. */
+  private project(x: number, y: number, z: number): boolean {
+    const m = this.markerPt.set(x, y, z);
+    Vector3.TransformCoordinatesToRef(m, this.scene.getTransformMatrix(), m);
+    if (!(m.z > 0 && m.z < 1 && Math.abs(m.x) < 1.05 && Math.abs(m.y) < 1.05)) return false;
+    this.scr.x = (m.x * 0.5 + 0.5) * 100;
+    this.scr.y = (0.5 - m.y * 0.5) * 100;
+    return true;
+  }
 
-  /** Contextual cover prompt, state badge and touch button. */
+  /**
+   * A world prompt on a cover face at `s` (clamped onto the face), at the face's prompt height; `edge`
+   * puts it on the top edge of low cover instead (in cover the camera looks over it, so the face below
+   * is out of view). A low prompt that is off screen falls back to the top edge.
+   */
+  private onFace(id: WorldPromptId, label: string | null, seg: CoverSegment, s: number, edge = false): void {
+    const w = this.hud.world;
+    if (!label) return w.set(id, null, 0, 0);
+    const ss = Math.max(0.15, Math.min(seg.len - 0.15, s));
+    // just proud of the surface so it never sinks into it
+    const x = seg.ax + seg.tx * ss + seg.nx * 0.04;
+    const z = seg.az + seg.tz * ss + seg.nz * 0.04;
+    const top = seg.y + seg.height;
+    let ok = !(edge && seg.low) && this.project(x, seg.y + Math.min(PROMPT_Y, seg.height * 0.5), z);
+    if (!ok && seg.low) ok = this.project(x, top, z);
+    w.set(id, ok ? label : null, this.scr.x, this.scr.y);
+  }
+
+  /**
+   * Cover prompts on the surfaces (Blacklist style): "Take cover" on the face a press would snap to,
+   * the cover type badge on the face in use (by touch tapping it leaves cover), vault / climb / step on
+   * the obstacle, the cover-to-cover marker on the target. The touch action button is only for "use".
+   */
   private updateCoverHud(): void {
     const c = this.cover;
     const st = c.state;
+    const w = this.hud.world;
+    const touch = this.app.input.mode === 'touch';
     const stateText =
       st === 'none' || st === 'vault' || st === 'dash'
         ? null
@@ -788,36 +821,55 @@ export class GameState implements AppState {
             : c.low
               ? 'Low cover'
               : 'High cover';
-    const prompt = st === 'none' && c.candidate ? 'Take cover' : null;
     // cover quality against the current threats: warn when the cover no longer protects
     const flanked = c.inCover && this.coverQ < 0.3 && this.expEyes.length > 0;
-    this.hud.setCover(prompt, stateText && flanked ? `${stateText} · flanked` : stateText);
+    const seg = c.seg;
+    if (stateText && seg) {
+      const badge = flanked ? `${stateText} · flanked` : stateText;
+      this.onFace('state', touch && st === 'in' ? `${badge} · Leave` : badge, seg, c.s + c.faceDir * PROMPT_ALONG, true);
+      this.onFace('vault', c.low && (st === 'in' || st === 'peek') ? 'Vault' : null, seg, c.s - c.faceDir * PROMPT_ALONG, true);
+    } else w.set('state', null, 0, 0);
+    const cand = st === 'none' ? c.candidate : null;
+    if (cand) this.onFace('cover', 'Take cover', cand.seg, cand.s);
+    else w.set('cover', null, 0, 0);
+    // traversal (not in cover): on the obstacle face, or on the floor at the ledge
+    const th = this.traversal.hint;
+    const tl = th && !c.inCover && st !== 'dash' ? (TRAVERSE_LABEL[th.kind] ?? '') : '';
+    if (tl && th && cand) {
+      // the same surface offers cover too: vault sits beside the cover prompt (camera-right side)
+      const yaw = this.player.cam.yaw;
+      const side = Math.cos(yaw) * cand.seg.tx - Math.sin(yaw) * cand.seg.tz >= 0 ? 1 : -1;
+      this.onFace('vault', tl, cand.seg, cand.s + side * PROMPT_ALONG);
+    } else if (tl && th) {
+      const at = this.traversal.hintAt;
+      const up = th.kind === 'drop' || th.kind === 'hop' ? 0.12 : Math.max(0.2, Math.min(PROMPT_Y, th.height * 0.5));
+      const ok = this.project(at.x, at.y + up, at.z);
+      w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
+    } else if (!(stateText && seg)) w.set('vault', null, 0, 0);
     const ctl = this.player.controller;
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
-    // cover-to-cover marker over the target, projected to the screen
-    const tg = c.state === 'in' ? c.target : null;
+    // cover-to-cover marker on the target face
+    const tg = st === 'in' ? c.target : null;
     if (tg) {
-      this.markerPt.set(tg.x, this.player.position.y + (tg.seg.low ? 0.9 : 1.4), tg.z);
-      Vector3.TransformCoordinatesToRef(this.markerPt, this.scene.getTransformMatrix(), this.markerPt);
-      const vis = this.markerPt.z > 0 && this.markerPt.z < 1 && Math.abs(this.markerPt.x) < 1 && Math.abs(this.markerPt.y) < 1;
-      const label = tg.kind === 'swat' ? 'SWAT turn' : 'Move to cover';
-      this.hud.setCoverMarker(vis ? (this.markerPt.x * 0.5 + 0.5) * 100 : -1, (0.5 - this.markerPt.y * 0.5) * 100, label);
-    } else this.hud.setCoverMarker(-1, 0, '');
-    const th = this.traversal.hint;
-    this.hud.setAction(th && !c.inCover ? (TRAVERSE_LABEL[th.kind] ?? null) : null);
-    // the touch contextual action button: what one tap does right now
+      const ok = this.project(tg.x, tg.seg.y + Math.min(PROMPT_Y, tg.seg.height * 0.5), tg.z);
+      w.set('move', ok ? (tg.kind === 'swat' ? 'SWAT turn' : 'Move to cover') : null, this.scr.x, this.scr.y);
+    } else w.set('move', null, 0, 0);
+    w.flush();
+    // the touch action button: only to use an interactable in reach
     const it = this.interactTarget;
-    let a: TouchAction | null = null;
-    if (c.inCover) a = c.low ? ACT_VAULT : ACT_LEAVE;
-    else if (it) {
-      ACT_USE.label = it.label.length > 14 ? 'Use' : it.label;
-      a = ACT_USE;
-    } else if (c.candidate) a = ACT_TAKE;
-    else if (th) {
-      const t = TRAVERSE_ACT[th.kind];
-      a = t ?? null;
-    }
-    this.app.input.touch.setAction(a);
+    if (it) ACT_USE.label = it.label.length > 14 ? 'Use' : it.label;
+    const touchCtl = this.app.input.touch;
+    touchCtl.setAction(it ? ACT_USE : null);
+    touchCtl.setControlHidden('action', !it);
+  }
+
+  /** A tap on a world prompt (touch): the same as the button it shows. */
+  private onWorldPrompt(id: WorldPromptId): void {
+    if (this.paused || this.exited) return;
+    const inp = this.app.input.state;
+    if (id === 'cover' || id === 'move') inp.tap('cover');
+    else if (id === 'vault') inp.tap('jump');
+    else if (id === 'state') inp.coverLeave = true;
   }
 
   private updateHud(): void {

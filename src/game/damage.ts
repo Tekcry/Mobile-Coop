@@ -31,6 +31,8 @@ export interface Damageable {
   center(out: Vector3): Vector3;
   /** Where aim assist should pull (usually chest). */
   aimPoint(out: Vector3): Vector3;
+  /** Head position, when it can be seen on its own (a player ducked behind low cover but peeking). */
+  headPoint?(out: Vector3): Vector3;
   applyDamage(h: HitInfo): DamageResult;
 }
 

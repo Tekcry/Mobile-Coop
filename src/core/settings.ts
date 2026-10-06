@@ -82,7 +82,7 @@ export interface Settings {
     avatarStyle: 'stick' | 'detailed';
   };
   audio: { master: number; sfx: number; music: number; ui: number };
-  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; autoCover: boolean; coverDash: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean };
+  gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; coverDash: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean };
 }
 
 /**
@@ -174,7 +174,7 @@ export function defaultSettings(): Settings {
     mouse: { sensitivity: 1, invertY: false },
     video: { quality: 'auto', renderScale: 1, shadows: true, fovH: 75, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'stick' },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
-    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, autoCover: false, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
+    gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
   };
 }
 
@@ -270,7 +270,6 @@ export function sanitizeSettings(raw: unknown): Settings {
       defaultShoulder: pick(gp.defaultShoulder, ['right', 'left'] as const, d.gameplay.defaultShoulder),
       adsToggle: bool(gp.adsToggle, d.gameplay.adsToggle),
       crouchToggle: bool(gp.crouchToggle, d.gameplay.crouchToggle),
-      autoCover: bool(gp.autoCover, d.gameplay.autoCover),
       coverDash: bool(gp.coverDash, d.gameplay.coverDash),
       slowBeat: bool(gp.slowBeat, d.gameplay.slowBeat),
       sprintHold: bool(gp.sprintHold, d.gameplay.sprintHold),

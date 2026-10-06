@@ -288,7 +288,7 @@ export class PlayerWeapons {
     const wants = s.def.fireMode === 'auto' ? inp.down('fire') : this.queuedT > 0;
     if (!wants || this.swapping || this.reloading || this.throwing || ctl.weaponBlocked || this.cooldown > 0) return;
     // raise-to-fire: the trigger is live only once the weapon is up from its ready position
-    if (!this.player.carry.canFire(this.player.carryIn)) return;
+    if (!this.player.carry.canFire(this.player.carryIn) || this.player.coverFireBlocked) return;
     this.queuedT = 0;
     if (s.mag <= 0) {
       if (inp.pressed('fire')) this.events.onDryFire?.(s.def);
@@ -346,11 +346,14 @@ export class PlayerWeapons {
     const aimHit = this.ballistics.ray(camStart, aimEnd, MASK.PLAYER_SHOT);
     const aimPoint = aimHit.hit && aimHit.distance > 0.5 ? aimHit.point : aimEnd;
 
-    // 2) fire from the muzzle towards the aim point (muzzle blocked by cover -> hits cover)
+    // 2) fire from the muzzle towards the aim point. If the barrel pokes through a wall (the line from the
+    // shooter's head to the muzzle is blocked) the round starts at the head instead and hits that wall.
+    // The head, not the camera pivot: leaning out past a cover edge, the pivot stays behind the cover
+    // and the line from it would cut the corner the shooter is leaning round.
     s.model.muzzleWorld(this.muzzle);
-    const shoulder = cam.pivot;
-    const block = this.ballistics.ray(shoulder, this.muzzle, MASK.WORLD);
-    const origin = block.hit ? shoulder : this.muzzle;
+    const head = this.player.rig.headNode.getAbsolutePosition();
+    const block = this.ballistics.ray(head, this.muzzle, MASK.WORLD);
+    const origin = block.hit ? head : this.muzzle;
     const baseDir = aimPoint.subtract(origin).normalize();
     const spread = this.currentSpread();
     const dir = new Vector3();
