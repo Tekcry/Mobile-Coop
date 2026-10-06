@@ -155,6 +155,11 @@ describe('cover state machine', () => {
     expect(run(sm, {}, 0.3)).toBe('corner');
     expect(run(sm, {}, 0.3)).toBe('in');
   });
+  it('pushing towards a marked cover-to-cover target aims the move instead of leaving', () => {
+    const sm = inCover();
+    expect(run(sm, { away: 1, canDash: true }, 1)).toBe('in');
+    expect(run(sm, { away: 1, canDash: true, coverPressed: true }, 1 / 60)).toBe('dash');
+  });
   it('dash press goes to the marked cover; with no target it breaks out of cover', () => {
     const sm = inCover();
     expect(run(sm, { dashPressed: true, canDash: true }, 1 / 60)).toBe('dash');

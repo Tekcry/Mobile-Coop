@@ -127,7 +127,7 @@ export class DebugOverlay {
     };
     table('Movement', MOVEMENT as unknown as Record<string, number>, MOVEMENT_RANGES);
     table('Camera', CAMERA as unknown as Record<string, number>, {
-      boomHip: [0.6, 2.5, 0.05],
+      boomHip: [0.6, 3.5, 0.05],
       boomAds: [0.4, 1.5, 0.05],
       shoulderHip: [0.2, 0.9, 0.02],
       shoulderAds: [0.2, 0.8, 0.02],

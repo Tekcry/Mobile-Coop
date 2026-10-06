@@ -16,6 +16,15 @@ const ease = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * 
 
 /** Turn-and-swap when reversing direction along cover (s). */
 export const SWAP_TIME = 0.3;
+/** Edge peek step-out: how far past the edge the body may step so the line of fire clears the cover (m),
+ *  the search step, the lean's lateral reach of the weapon past the body centre and the muzzle reach (m). */
+export const STEP_OUT_MAX = 0.8;
+const STEP_OUT_STEP = 0.05;
+const LEAN_REACH = 0.18;
+const MUZZLE_REACH = 1.0;
+/** Cover-to-cover needs the stick held (deflection) towards the cover and the view within ~50 deg of it. */
+const TARGET_STICK = 0.5;
+const TARGET_LOOK_COS = 0.64;
 /** Peak speed of the step back off the wall when leaving cover (m/s): a firm push off. */
 export const EXIT_PUSH = 0.9;
 /** Hitting the wall at the end of a glide: camera impact by the approach speed (m/s at full strength). */
@@ -80,6 +89,7 @@ export class CoverController {
   /** Marked cover-to-cover target (shown on the HUD), refreshed a few times a second. */
   target: CoverTarget | null = null;
   private targetT = 0;
+  private heldT = false;
   private insideT = 0;
   private slide = false;
   /** Direction to probe for a mantle after jumping out of cover (consumed by traversal). */
@@ -421,14 +431,25 @@ export class CoverController {
       const edge = clampAlong(seg, loc.s, EDGE_MARGIN + 0.04).edge;
       if (edge !== 0 && Math.sign(along) === edge && Math.abs(along) > 0.5 && this.cornerTarget(edge)) ci.cornerPush = edge;
       if (ci.jumpPressed) ci.canVault = this.canVault();
-      // cover-to-cover target: SWAT turn past the edge we push towards, else cover in the push/look direction
+      // cover-to-cover target only on intent: the stick held towards the cover AND the view looking at it
+      // (SWAT turn past the edge pushed towards, else cover in the stick direction); refreshed at 5 Hz and
+      // the moment the stick is pushed or released
       this.targetT -= dt;
-      if (this.sm.state === 'in' && (this.targetT <= 0 || ci.dashPressed || ci.coverPressed)) {
+      const held = w.mag > TARGET_STICK;
+      if (this.sm.state === 'in' && (this.targetT <= 0 || held !== this.heldT || ci.dashPressed || ci.coverPressed)) {
         this.targetT = 0.2;
-        const yaw = p.cam.yaw;
-        const look = { x: Math.sin(yaw), z: Math.cos(yaw), mag: 1 };
-        const dir = w.mag > 0.3 && ci.away > 0.3 ? w : look;
-        this.target = this.findSwat(along) ?? this.findDash(dir);
+        this.heldT = held;
+        let t: CoverTarget | null = null;
+        if (held) {
+          t = this.findSwat(along) ?? this.findDash(w);
+          if (t) {
+            const dx = t.x - p.position.x;
+            const dz = t.z - p.position.z;
+            const d = hyp2(dx, dz) || 1;
+            if ((Math.sin(p.cam.yaw) * dx + Math.cos(p.cam.yaw) * dz) / d < TARGET_LOOK_COS) t = null;
+          }
+        }
+        this.target = t;
       } else if (this.sm.state !== 'in') this.target = null;
       const t = this.target;
       ci.canDash = !leave && !!t && (t.kind === 'swat' || c.sprint.canStart);
@@ -468,6 +489,8 @@ export class CoverController {
     if (st === 'peek' && this.seg) {
       this.peekReturn = this.s;
       this.peekSide = 0;
+      this.stepOut = 0;
+      this.stepT = 0;
       this.peekKind = this.low ? 'over' : 'none';
       const e = nearestEdge(this.seg, this.s);
       const yaw = p.cam.yaw;
@@ -541,6 +564,7 @@ export class CoverController {
     p.aimLimit = null;
     pose.slide = -1;
     pose.turn = -1;
+    pose.gunClear = true;
     pose.wallSide = 0;
     if (pose.traverse === 'vault') pose.traverse = 'none';
     const st = this.sm.state;
@@ -670,6 +694,8 @@ export class CoverController {
         this.swaps++;
         yaw = this.faceYaw(seg, this.faceDir);
       }
+      // the turn swings through facing away from the wall (back to it), so the weapon stays on the open side
+      if (this.swapT >= 0 && this.swapT < SWAP_TIME * 0.5) yaw = Math.atan2(seg.nx, seg.nz);
       crouch = this.low || this.highCrouch;
       speedAlong = along * (crouch ? MOVEMENT.coverCrouchSpeed : MOVEMENT.coverSpeed) * (this.swapT >= 0 ? 0.25 : 1);
       // brake early enough that the eased stop lands on the edge, not past it
@@ -712,9 +738,24 @@ export class CoverController {
         crouch = true;
         pose.peekOver = 1;
       } else if (this.peekSide !== 0) {
-        // lean out in place at the edge: the capsule stays in cover, the upper body leans past it
-        targetS = this.peekSide < 0 ? EDGE_MARGIN : seg.len - EDGE_MARGIN;
+        // lean out at the edge; aiming further across the cover steps out past the edge as far as the line
+        // of fire needs to clear it (searched at 10 Hz or when the aim swings), and back in as it allows
+        const edgeS = this.peekSide < 0 ? EDGE_MARGIN : seg.len - EDGE_MARGIN;
+        this.stepT -= dt;
+        if (this.stepT <= 0 || Math.abs(p.cam.yaw - this.stepYaw) > 0.05) {
+          this.stepT = 0.1;
+          this.stepYaw = p.cam.yaw;
+          this.stepOut = this.neededStep(seg, edgeS);
+        }
+        targetS = edgeS + this.peekSide * this.stepOut;
         pose.lean = this.leanSide(seg, this.peekSide);
+        pose.gunClear = Math.abs(loc.s - targetS) < 0.08 && !this.fireLineBlocked(seg, loc.s);
+        // until the line of fire is clear the body stays side-on, facing the edge (the weapon in front of the
+        // chest would otherwise swing through the cover as the body turns to the aim)
+        if (!pose.gunClear) {
+          yaw = this.faceYaw(seg, this.peekSide);
+          turn = Math.PI / SWAP_TIME;
+        }
       }
     } else if (st === 'blind') {
       yaw = undefined;
@@ -725,7 +766,17 @@ export class CoverController {
       if (!this.low && edge.dist < 0.6) pose.lean = this.leanSide(seg, edge.side);
     }
     // aiming / firing from cover: only angles the weapon can shoot along (never into the cover)
-    if (st === 'peek' || st === 'blind') p.aimLimit = this.aimLimitFor(seg, st, edge);
+    if (st === 'peek' || st === 'blind') {
+      p.aimLimit = this.aimLimitFor(seg, st, edge);
+      // the view is still easing into the allowed arc: hold side-on with the weapon tucked until it is in
+      if (st === 'peek' && !p.aimState.inside) {
+        pose.gunClear = false;
+        if (yaw === undefined) {
+          yaw = this.faceYaw(seg, this.peekSide !== 0 ? this.peekSide : this.faceDir);
+          turn = Math.PI / SWAP_TIME;
+        }
+      }
+    }
     if (st === 'in' && this.peekReturn >= 0) {
       // returning from a peek: slide back to where we were
       targetS = this.peekReturn;
@@ -738,12 +789,21 @@ export class CoverController {
     // velocity: along the face (input or towards a target point) + hold the standoff from the surface
     // seek target points gently (the root motion has weight; a hard P-gain would overshoot)
     const k = 0.25;
-    const cap = 0.9;
+    // stepping out past an edge to take a shot is quick; settling elsewhere is gentle
+    const cap = st === 'peek' ? 1.8 : 0.9;
     if (speedAlong === 0 && Math.abs(targetS - loc.s) > 0.02) speedAlong = Math.max(-cap, Math.min(cap, (targetS - loc.s) / k));
     const toward = Math.max(-3.5, Math.min(3.5, (standoff - loc.dist) / 0.1));
     this.vel.x = seg.tx * speedAlong + seg.nx * toward;
     this.vel.z = seg.tz * speedAlong + seg.nz * toward;
-    c.override = { velocity: this.vel, yaw, crouch, turnRate: turn };
+    // big turns in cover swing through facing away from the wall (back to it), never through the wall, so the
+    // weapon in front of the chest stays on the open side
+    if (yaw !== undefined) {
+      let d = yaw - c.yaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      if (Math.abs(d) > 1.75) yaw = Math.atan2(seg.nx, seg.nz);
+    }
+    // a peek's lean / step-out follows its eased target directly (quick, like the snap glide)
+    c.override = { velocity: this.vel, yaw, crouch, turnRate: turn, glide: st === 'peek' };
     pose.cover = this.low ? 'low' : 'high';
     // low cover: the rig keeps the head below this (or the weapon just above it when aiming over)
     if (this.low) pose.top = this.coverTop(seg);
@@ -759,6 +819,40 @@ export class CoverController {
   }
 
   private limit: AimLimit = { yaw: 0, half: Math.PI, clear: Infinity, reach: 1 };
+  /** Edge peek step-out past the edge (m) and its search timer / the aim it was searched for. */
+  stepOut = 0;
+  private stepT = 0;
+  private stepYaw = 0;
+
+  /**
+   * Would the line of fire (eye height, from the leaning weapon out to the muzzle and a little beyond, along
+   * the aim) pass through cover if the body stood at `s` on the face?
+   */
+  private fireLineBlocked(seg: CoverSegment, s: number): boolean {
+    const p = this.player;
+    const side = this.peekSide;
+    const eye = p.rig.headNode.getAbsolutePosition().y - 0.04;
+    const yaw = p.cam.yaw;
+    const cp = Math.cos(p.cam.pitch);
+    const dx = Math.sin(yaw) * cp;
+    const dy = Math.sin(p.cam.pitch);
+    const dz = Math.cos(yaw) * cp;
+    const x = seg.ax + seg.tx * (s + side * LEAN_REACH) + seg.nx * COVER_STANDOFF;
+    const z = seg.az + seg.tz * (s + side * LEAN_REACH) + seg.nz * COVER_STANDOFF;
+    this.from.set(x - dx * 0.15, eye - dy * 0.15, z - dz * 0.15);
+    this.to.set(x + dx * MUZZLE_REACH, eye + dy * MUZZLE_REACH, z + dz * MUZZLE_REACH);
+    if (this.ray(this.from, this.to)) return true;
+    // the gun's underside / support hand, a hand's breadth lower
+    this.from.y -= 0.12;
+    this.to.y -= 0.12;
+    return this.ray(this.from, this.to);
+  }
+
+  /** Smallest step past the edge (from the lean-in-place spot) whose line of fire clears the cover. */
+  private neededStep(seg: CoverSegment, edgeS: number): number {
+    for (let d = 0; d <= STEP_OUT_MAX + 1e-6; d += STEP_OUT_STEP) if (!this.fireLineBlocked(seg, edgeS + this.peekSide * d)) return d;
+    return STEP_OUT_MAX;
+  }
 
   /** The aim arc for a peek / blind fire from this face (see `coverAim`). */
   private aimLimitFor(seg: CoverSegment, st: CoverStateName, edge: { side: number; dist: number }): AimLimit {

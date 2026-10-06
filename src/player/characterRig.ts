@@ -48,6 +48,8 @@ export interface RigPose {
   slide?: number;
   /** Turn-and-swap / corner swing in cover 0..1, or < 0. */
   coverTurn?: number;
+  /** Edge peek: 1 when the line of fire clears the cover (the weapon comes up only then). */
+  peekClear?: number;
   /** Landing recovery 0..1. */
   landing?: number;
   cover?: AnimInput['cover'];
@@ -135,6 +137,10 @@ const approachTo = (x: number, target: number, dt: number, tau: number): number 
 
 /** Aim pocket rest in the chest frame: x as a fraction of the shoulder half-width, y below the shoulder, z forward. */
 export const AIM_POCKET = { x: 0.3, y: -0.1, z: 0.27 };
+/** Neck flexion at a full cheek weld (rad): the eye drops onto the sight line. */
+export const NECK_WELD = 0.75;
+/** Shoulders lift into the stock at a full weld (m): the raised arms elevate the shoulder girdle. */
+export const SHOULDER_WELD = 0.04;
 
 /**
  * Wrist position relative to the palm point on the gun (weapon space: x across, y up, z along the bore;
@@ -692,6 +698,7 @@ export class CharacterRig {
     i.dash = s.dash ?? 0;
     i.slide = s.slide ?? -1;
     i.coverTurn = s.coverTurn ?? -1;
+    i.peekClear = s.peekClear ?? 1;
     i.landing = s.landing ?? 0;
     i.cover = s.cover ?? 'none';
     i.wallSide = s.wallSide ?? 0;
@@ -749,6 +756,7 @@ export class CharacterRig {
       }
     }
     i.handSwap = this.handSwap;
+    i.hand = 1 - this.handBlend * 2;
 
     const t = this.graph.update(dt, i);
 
@@ -885,7 +893,8 @@ export class CharacterRig {
     const sp = t.spine;
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.4 - pe.yaw * 0.6, sp.pitch * 0.45 - pe.pitch * 0.6, sp.roll * 0.5 - pe.roll * 0.4, this.spine.rotationQuaternion!);
     Quaternion.RotationYawPitchRollToRef(sp.yaw * 0.6, sp.pitch * 0.55, sp.roll * 0.5, this.torso.rotationQuaternion!);
-    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3, t.head.roll * 0.4, this.neck.rotationQuaternion!);
+    // cheek weld: the neck flexes the head down and forward onto the stock (the head stays level, below)
+    Quaternion.RotationYawPitchRollToRef(t.head.yaw * 0.4, t.head.pitch * 0.3 + t.weld * NECK_WELD, t.head.roll * 0.4, this.neck.rotationQuaternion!);
     this.limitJoint(this.hips, dt);
     this.limitJoint(this.spine, dt);
     this.limitJoint(this.torso, dt);
@@ -900,6 +909,10 @@ export class CharacterRig {
 
     // aim pocket: rest + layer offsets, mirrored to the left shoulder when switched hands in cover
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
+    // raised to the eye the shoulder girdle lifts into the stock
+    const shY = p.y.shoulder - chestY + t.weld * SHOULDER_WELD;
+    this.shoulderL.position.y = shY;
+    this.shoulderR.position.y = shY;
     const w = t.weapon;
     const mirror = 1 - this.handBlend * 2;
     this.weaponPivot.position.set((p.shoulderHalf * AIM_POCKET.x + w.x) * mirror, p.y.shoulder - chestY + AIM_POCKET.y + w.y, AIM_POCKET.z + w.z);

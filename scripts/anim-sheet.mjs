@@ -1,7 +1,7 @@
 // Animation contact sheet: runs a scenario on Proving Grounds and captures frames from a side camera
 // that follows the player, then lays them out in a grid (for reviewing blends and timing).
 //   node scripts/anim-sheet.mjs out.png <scenario> [frames=12] [interval=0.1] [view=side|front|back|ots]
-// Scenarios: walk, jog, sneak, crouchrun, sprint, start, stop, turn, crouch, cover, peek, reload, swap, grenade, vault, dash, strafe
+// Scenarios: aim, walk, jog, sneak, crouchrun, sprint, start, stop, turn, crouch, cover, peek, reload, swap, grenade, vault, dash, strafe
 import { launch } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
@@ -30,6 +30,7 @@ const SCENARIOS = {
   highcover: { pos: [-8.8, 2.5], yaw: -Math.PI / 2, pre: 0.6, input: () => ({}), at: { 0: "a.input.state.tap('cover');" } },
   lowpeek: { pos: [-3.7, -6], yaw: -Math.PI / 2, pre: 0.6, input: (t) => ({ ads: t > 1.2 }), at: { 0: "a.input.state.tap('cover');" } },
   peek: { pos: [-8.8, 3.4], yaw: -Math.PI / 2, pre: 0.6, input: (t) => ({ ads: t > 1.2 }), at: { 0: "a.input.state.tap('cover');" } },
+  aim: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ ads: true }) },
   vault: { pos: [-3.8, -6], yaw: -Math.PI / 2, pre: 0.8, input: () => ({}), at: { 0: "a.input.state.tap('jump');" } },
 };
 

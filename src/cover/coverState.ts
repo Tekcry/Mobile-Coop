@@ -164,8 +164,9 @@ export class CoverStateMachine {
           else this.go('none', 'jump');
           break;
         }
-        // sticky but not trapping: a firm push away for a moment leaves cover
-        this.awayT = i.away > 0.75 && !i.ads ? this.awayT + dt : 0;
+        // sticky but not trapping: a firm push away for a moment leaves cover (not while pushing towards a
+        // marked cover-to-cover target: that is aiming the move, cover / sprint then goes)
+        this.awayT = i.away > 0.75 && !i.ads && !i.canDash ? this.awayT + dt : 0;
         if (this.awayT >= AWAY_TIME) {
           this.go('none', 'backed-off');
           break;

@@ -258,6 +258,15 @@ Controls:
 - [ ] Entering cover reads like a film: a shoulder slam with a camera hit, a ducking spin on turn-and-swap and corner swings, a firm push off when leaving.
 - [ ] At every peek (both edges, high and low, standing and crouched, over the top) aim as far as the view allows and fire: no shot hits your own cover; angles you cannot shoot from cannot be aimed at.
 
+## Aim, carry and cover (1.4.0) - Proving Grounds, then Warehouse
+- [ ] Aim (LT / right mouse / touch Aim): the rifle comes up to the eye - head down on the stock, sights in front of the eye - for every weapon; firing without aiming raises it the same way.
+- [ ] Walk, crouch-walk and sprint along walls on either side, and through doorways: the gun never goes into a wall or a leg.
+- [ ] High cover: the gun is tucked on the open side, muzzle down along the wall; reverse direction (turn-and-swap), reload, swap, crouch: nothing pokes through the wall.
+- [ ] At a high cover edge, aim round the corner, then swing the aim across towards the wall: the operative steps out past the edge as needed and back in; shots never hit your own cover; the gun only comes up once it is clear.
+- [ ] Low cover: kneeling and moving, the gun is held forward and down clear of the knees.
+- [ ] Camera: standing, the operative is small in the left third of the screen with the room ahead; crouched in cover, low in the lower left (compare the Blacklist screenshots); aiming pushes in over the shoulder.
+- [ ] In cover, looking at another cover does nothing; looking at it and holding the stick towards it marks it (staying in cover); A / Space then moves there.
+
 ## PC mouse (1.3.2) - Chrome, Edge, Firefox, Safari on a desktop
 - [ ] Start Free Roam with a mouse click: the cursor disappears and moving the mouse looks around straight away (if the browser refuses, "Click to capture the mouse" shows and one click on the game captures it without firing).
 - [ ] Left button fires, right button aims, the wheel swaps weapons, WASD / Space / C / Shift / E / R work.

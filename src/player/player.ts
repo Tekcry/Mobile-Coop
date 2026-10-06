@@ -35,6 +35,8 @@ export interface PlayerPose {
   slide: number;
   /** Turn-and-swap or corner swing in cover 0..1, or < 0. */
   turn: number;
+  /** Edge peek: the line of fire from where the body is clears the cover (else the gun stays tucked). */
+  gunClear: boolean;
   /** Doorway check 0..1, or < 0. */
   check: number;
 }
@@ -65,7 +67,8 @@ export class Player {
   swapT = -1;
   /** Cover sets the angles a peek / blind fire may aim at (null = free). */
   aimLimit: AimLimit | null = null;
-  private aimState: AimState = { yaw: 0, pitch: 0, inside: false };
+  /** The aim against the current cover limit (`inside` = within it, read by the cover controller). */
+  readonly aimState: AimState = { yaw: 0, pitch: 0, inside: false };
   /** The weapon is not out past the cover yet (peek / rise / blind raise still moving): no shots. */
   coverFireBlocked = false;
   /** Where the hand holsters the outgoing gun and draws the next (carry slot kinds). */
@@ -77,7 +80,7 @@ export class Player {
   sinceShot = 99;
   weaponWeight = 1;
   /** Pose driven by cover / corners / traversal. */
-  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, check: -1 };
+  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1 };
   /** Context flags for the ready position (set by the corner/cover systems each step). */
   context = { doorway: false, coverEdge: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -277,6 +280,7 @@ export class Player {
     rp.traverseT = cp.traverseT;
     rp.slide = cp.slide;
     rp.coverTurn = cp.turn;
+    rp.peekClear = cp.gunClear ? 1 : 0;
     rp.check = cp.check;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
     rp.phase = c.renderPhase;
@@ -310,7 +314,7 @@ export class Player {
     const g = this.rig.graph;
     this.coverFireBlocked =
       cp2.cover !== 'none' &&
-      (cp2.lean !== 0 ? Math.abs(g.leanOut) < 0.85 : cp2.peekOver > 0.5 ? !this.rig.overClear : cp2.blind && cp2.cover === 'low' ? g.blindOut < 0.85 : false);
+      (cp2.lean !== 0 ? Math.abs(g.leanOut) < 0.85 || !cp2.gunClear : cp2.peekOver > 0.5 ? !this.rig.overClear : cp2.blind && cp2.cover === 'low' ? g.blindOut < 0.85 : false);
     // footsteps carry into the camera as a tiny damped dip (scaled by how hard the step lands)
     const pl = this.rig.planner;
     if ((pl.L.landed || pl.R.landed) && c.grounded) this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));

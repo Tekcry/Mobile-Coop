@@ -223,11 +223,11 @@ export class ShoulderCamera {
     const rightX = Math.cos(yaw);
     const rightZ = -Math.sin(yaw);
 
-    // boom: framing, cover push-in, and the shoulder swap arcs back behind the head
+    // boom: framing, cover pull-back (show the room), and the shoulder swap arcs back behind the head
     const arc = 0.2 * (1 - side * side);
-    // pace: a sneak frames tighter, a jog / sprint pulls back a little (sprint adds the dash framing)
+    // pace: a sneak frames a touch tighter, a jog / sprint pulls back a little (sprint adds the dash framing)
     const paceS = this.sPace.step(Math.min(1, this.pace / 2.8), 4, dt);
-    const boomTarget = fr.boom - coverS * 0.12 + arc + (paceS - 0.45) * 0.22 * (1 - this.ads);
+    const boomTarget = fr.boom + coverS * T.coverBoom * (1 - this.ads) + arc + (paceS - 0.45) * 0.16 * (1 - this.ads);
     const shoulder = fr.shoulder * side + leanS * T.leanShift;
     const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height, this.pivot.z + rightZ * shoulder);
     const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;

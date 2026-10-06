@@ -35,8 +35,12 @@ Blacklist style.
   - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
   - `scripts/e2e-cover.mjs` (A cover, B crouch, Y traverse) snap side-on, turn-and-swap, kneel, peek/blind
     fire/vault, B keeps cover, stand/crouch at high cover + crouched edge peek, lean in place, outside/inside
-    corners, SWAT turn, cover-to-cover + slide + marker, world prompts (low on the surface, tapped by touch),
-    manual cover only (walking / sprinting into a wall never snaps), crouched aim over low cover, keyboard Space
+    corners, SWAT turn, cover-to-cover only when looking at it with the stick held towards it + slide + marker,
+    world prompts (low on the surface, tapped by touch), manual cover only (walking / sprinting into a wall never
+    snaps), crouched aim over low cover, keyboard Space
+  - `scripts/e2e-clip.mjs` weapon clipping sweep: every frame of wall-side movement, high / low cover (idle,
+    moving, turn-and-swap, reload, swap), edge-peek aim sweeps both edges standing / crouched (with step-out),
+    aim over, vault: no gun point inside the world (> 2 cm), legs grazed <= 2.5 cm (`--only=name --log`)
   - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
     exposure HUD, enemy grenades/flanker, footstep noise investigation
   - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
@@ -248,11 +252,18 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   doorways, cover edges, sprinting, reloading; high in tight corridors/traversal; else low), raised only to aim or
   fire (raise ~170 ms, lower ~300 ms; `CARRY.raiseTime` x weapon `weight`), the trigger is live at
   `fireThreshold`, held `holdAfterFire` after the last shot. `PlayerWeapons` gates on `carry.canFire`.
+  Raised = a cheek weld, never hip fire: `SIGHT_RAISE` (anim graph) lifts the gun so its sight line is under the
+  dominant eye (~1 cm), the neck flexes the head onto the stock (`out.weld` -> `NECK_WELD`) and the shoulders lift
+  into it (`SHOULDER_WELD`). Ready poses (`READY_POSES`): low (stock in the shoulder, muzzle ~45 deg down across),
+  compressed (tight to the chest, muzzle forward-down, never swung across into a wall), high; in cover
+  `COVER_READY` (muzzle down along the wall, turned away from it, relative to the hand holding it;
+  `COVER_READY_CROUCH`: flatter and higher, clear of the knees; coming up toward level as the body leans out).
 - Camera (`config/camera.ts` `CAMERA` + `framing()`): free orbit - look input applies the same frame and nothing
-  holds the view back (no twist clamp, no look cap); tight over-the-shoulder (boom 1.2 / ADS 0.75, shoulder 0.5,
-  pivot 1.6), framing tightens at lower pace. FOV is horizontal at 16:9 (`video.fovH`, default 75), Hor+. Springs
+  holds the view back (no twist clamp, no look cap); Splinter Cell: Blacklist framing - the operative small in
+  the left third (boom 2.2 / ADS 1.5, shoulder 0.62 / 0.58, pivot 1.62 / crouched 1.18, height -0.08; crouched
+  low in the lower left), a sneak frames a touch tighter, cover pulls back `coverBoom` to show the room. FOV is horizontal at 16:9 (`video.fovH`, default 75), Hor+. Springs
   updated every render frame: follow 80-150 ms with look-ahead, aim framing 150-250 ms, shoulder swap ~250 ms on
-  an arc, auto shoulder in cover / at peeks, cover push-in, optional auto-recentre after 1.5 s of no look input
+  an arc, auto shoulder in cover / at peeks, optional auto-recentre after 1.5 s of no look input
   while moving (`gameplay.autoRecentre`), handheld drift (<= 0.15 deg), micro-bob (<= 1 cm), sprint FOV +4 deg.
   Tight spaces: the boom pulls in fast and eases out slowly, then `applyBodyFade` hides the head / body.
 - Aim assist (`weapons/aimAssist.ts`): friction fades across the cone edge (and over ~60 ms in `GameState`),
@@ -285,15 +296,22 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   3 m: a Hermite glide carrying the approach velocity, 0.25-0.42 s by distance (`GLIDE_MIN/MAX`), a slide when
   sprinting. Peeks (`peekKind`): over low cover, or round an edge of low (aiming past it) or high cover, standing
   or crouched, leaning in place (capsule stays in cover). Pushing into an inside corner turns onto the adjoining
-  face. `target` (5 Hz) is the cover-to-cover destination in the push/look direction (routed via a waypoint past
-  the current face's end when the straight line is blocked), or a SWAT turn (low, `SWAT_SPEED`) to collinear
-  cover beyond a gap; the marker is a world prompt on the target.
+  face. `target` (5 Hz, and the moment the stick is pushed / released) is the cover-to-cover destination only on
+  intent: the stick held towards it (> `TARGET_STICK`) AND the view looking at it (`TARGET_LOOK_COS`, ~50 deg)
+  (routed via a waypoint past the current face's end when the straight line is blocked), or a SWAT turn (low,
+  `SWAT_SPEED`) to collinear cover beyond a gap; pushing towards a marked target never counts as backing out of
+  cover; the marker is a world prompt on the target.
 - `CoverController` (player): standoff `COVER_STANDOFF` (capsule radius + 5 cm, > body depth); strafes along
   the tangent with predictive braking at edges; low cover hides (the rig's `lift` ducks until the head top is
   `HIDE_MARGIN` 7 cm under `coverTop`) and the over-peek stays crouched (`aimOver`: back straightened, weapon at
   the cheek, rising only until the aim pocket clears the top by `OVER_CLEAR`; camera eye >= top + `COVER_EYE`);
   `aimLimit` (`cover/coverAim.ts`, pure: edge / over / wall arcs, pitch floor over low cover) clamps the camera
-  so every aimable angle shoots clear, and fire waits until the weapon is out (`player.coverFireBlocked`); edge peeks lean out past the edge and
+  so every aimable angle shoots clear, and fire waits until the weapon is out (`player.coverFireBlocked`); while
+  the view eases into the arc the body holds side-on with the weapon tucked; edge peeks step out past the edge as
+  far as the predicted line of fire needs to clear the cover (`stepOut` <= `STEP_OUT_MAX` 0.8 m, searched at 10 Hz
+  or on an aim swing by `fireLineBlocked`; `EDGE_BACK` lets the aim come 0.35 rad back across the cover), the body
+  stays side-on facing the edge and the weapon tucked (`pose.gunClear` -> graph `peekClear`) until the line is
+  clear, then turns to the aim; big turns in cover swing through facing away from the wall (back to it); edge peeks lean out past the edge and
   move the camera to that shoulder (restored after); the head leads and the weapon is out in ~0.2 s; at a left
   edge the weapon changes hands (`HAND_SWAP_TIME` 0.18 s, `rig.leftHanded`) before the lean; leaving pushes off
   (`EXIT_PUSH` 0.9 m/s over 0.45 s); blind fire = spread x3 and minimal exposure. Moves are played big (film):

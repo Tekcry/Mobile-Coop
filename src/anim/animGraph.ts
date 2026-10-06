@@ -82,6 +82,8 @@ export interface AnimInput {
   slide: number;
   /** Turn-and-swap / corner swing in cover 0..1, or < 0: a ducking spin. */
   coverTurn: number;
+  /** Edge peek: 1 when the line of fire clears the cover, 0 while still stepping out (weapon stays tucked). */
+  peekClear: number;
   /** Landing recovery 0..1. */
   landing: number;
   cover: 'none' | 'low' | 'high';
@@ -118,6 +120,8 @@ export interface AnimInput {
   intent: number;
   /** Weapon changing hands 0..1, or < 0 (set by the rig). */
   handSwap: number;
+  /** Which hand holds the weapon: 1 right .. -1 left (the rig mirrors weapon x / yaw / roll by it). */
+  hand: number;
 }
 
 export function defaultInput(): AnimInput {
@@ -147,6 +151,7 @@ export function defaultInput(): AnimInput {
     dash: 0,
     slide: -1,
     coverTurn: -1,
+    peekClear: 1,
     landing: 0,
     cover: 'none',
     wallSide: 0,
@@ -167,6 +172,7 @@ export function defaultInput(): AnimInput {
     accelSide: 0,
     intent: 0,
     handSwap: -1,
+    hand: 1,
   };
 }
 
@@ -204,6 +210,8 @@ export interface RigTargets {
   layers: Record<string, number>;
   /** Vertical weapon bob left after stabilisation (m), for tests and the debug trace. */
   weaponBob: number;
+  /** Cheek weld 0..1 (raised to aim): the neck bends the head down onto the stock, eyes stay on the aim. */
+  weld: number;
 }
 
 export function emptyTargets(): RigTargets {
@@ -223,6 +231,7 @@ export function emptyTargets(): RigTargets {
     tumble: 0,
     layers: {},
     weaponBob: 0,
+    weld: 0,
   };
 }
 
@@ -237,12 +246,28 @@ export function pickLower(i: AnimInput): LowerState {
 }
 
 /** Ready-position weapon poses (offsets from the aim pocket; pitch + = muzzle down). */
+/**
+ * Raised to aim, the weapon comes up to the eye (cheek weld): this offset from the rest aim pocket puts
+ * the sight line under the dominant eye with the stock in the shoulder; the head dips onto the stock
+ * (`SIGHT_HEAD` pitch, roll toward the gun). Scaled by the aim raise.
+ */
+export const SIGHT_RAISE = { x: -0.065, y: 0.17, z: 0 };
+export const SIGHT_HEAD = { roll: 0.15 };
+
 export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
   low: { x: 0, y: -0.08, z: -0.02, pitch: 0.8, yaw: -0.6, roll: 0.2 },
   high: { x: -0.03, y: 0.07, z: -0.12, pitch: -1.0, yaw: -0.08, roll: 0 },
-  compressed: { x: -0.12, y: -0.1, z: -0.2, pitch: 0.3, yaw: -0.4, roll: 0.22 },
+  // pulled in tight to the chest, muzzle forward and down (never swung across into a wall beside you)
+  compressed: { x: -0.06, y: -0.08, z: -0.22, pitch: 0.6, yaw: -0.12, roll: 0.1 },
 } as const;
+/**
+ * In cover: tucked against the chest on the open side, muzzle down along the wall and angled away from it
+ * (`yaw` is turned away from the wall side), so it never pokes into the cover; raised from here to aim.
+ */
+export const COVER_READY = { x: 0.03, y: -0.12, z: -0.12, pitch: 1.05, yaw: 0.28, roll: 0 };
+/** Crouched / kneeling in cover: muzzle flatter and the gun carried higher, clear of the raised knee. */
+export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.12, yaw: 0.16 };
 
 const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT };
 
@@ -287,6 +312,9 @@ export class AnimGraph {
   private reloadW = 0;
   /** Tucked in against the cover while reloading / swapping / throwing. */
   tuckW = 0;
+  /** In-cover ready weight (eased ~0.25 s). */
+  private coverReadyW = 0;
+  private clearW = 1;
   private blindS = 0;
 
   /** How far the body / weapon is leaned out (signed, follows the lean target) and raised for blind fire. */
@@ -600,19 +628,40 @@ export class AnimGraph {
       chh *= 1 - swapBump;
       cc = cc * (1 - swapBump) + swapBump;
     }
-    const ready = 1 - raise * (1 - swapBump);
+    // at an edge peek the weapon comes up only as the body leans out past the edge (never raised into it)
+    this.clearW = approach(this.clearW, i.peekClear, 0.08, dt);
+    const leanK = (peekOut ? smoothstep(Math.abs(bd) / Math.max(0.05, Math.abs(leanIn)) / 0.8) : 1) * this.clearW;
+    const raiseW = raise * leanK;
+    const ready = 1 - raiseW * (1 - swapBump);
     const rl = READY_POSES.low;
     const rh = READY_POSES.high;
     const rc = READY_POSES.compressed;
     const sway = (Math.sin(this.idleT * 1.3) * 0.005 + Math.sin(this.idleT * 0.7) * 0.003) * mass * (1 - kw * 0.5);
     const rec = this.recoil.step(i.kick, 26 / Math.sqrt(mass), dt);
     const blindLow = i.cover === 'low' ? 1 : 0;
-    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc) + this.blindS * (1 - blindLow) * bd * 0.22;
-    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc) + sway + this.blindS * (blindLow ? 0.42 : 0.1) + this.overS.x * 0.21;
-    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc) - (rec * 0.05) / Math.sqrt(mass);
-    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc) - (rec * 0.12) / mass + sway * 2;
-    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc) + this.blindS * (1 - blindLow) * bd * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;
-    src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc);
+    // raised: up to the eye (blind fire holds it out over / round the cover instead)
+    const sight = raiseW * (1 - this.blindS);
+    // in cover the ready is the cover tuck: muzzle down along the wall, turned away from it (the rig mirrors
+    // yaw with the hand, so the away side is relative to the hand holding it)
+    this.coverReadyW = approach(this.coverReadyW, inCover ? 1 : 0, 0.25, dt);
+    const cw = this.coverReadyW;
+    const nw = 1 - cw;
+    const awayYaw = (this.wallS === 0 ? 1 : -Math.sign(this.wallS)) * (i.hand < 0 ? -1 : 1);
+    const cr = COVER_READY;
+    cl *= nw;
+    chh *= nw;
+    cc *= nw;
+    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + this.blindS * (1 - blindLow) * bd * 0.22 + sight * SIGHT_RAISE.x;
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + (cr.y + COVER_READY_CROUCH.y * crouchK) * cw) + sway + this.blindS * (blindLow ? 0.42 : 0.1) + sight * SIGHT_RAISE.y;
+    src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sight * SIGHT_RAISE.z;
+    src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll;
+    this.out.weld = sight;
+    // crouched / kneeling the muzzle points out past the knees rather than down into them
+    // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
+    const crPitch = (cr.pitch - (cr.pitch - COVER_READY_CROUCH.pitch) * crouchK) * (1 - 0.6 * Math.min(1, Math.abs(bd)));
+    src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * 0.12) / mass + sway * 2;
+    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + (cr.yaw + COVER_READY_CROUCH.yaw * crouchK) * cw * awayYaw) + this.blindS * (1 - blindLow) * bd * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;
+    src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc + cr.roll * cw);
     // recoil absorbed through the shoulder and spine
     src[CH.spPitch] = src[CH.spPitch]! - rec * 0.05 / mass;
     src[CH.pelPitch] = src[CH.pelPitch]! - rec * 0.015 / mass;

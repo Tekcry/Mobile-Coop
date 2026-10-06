@@ -168,17 +168,17 @@ describe('weapon carry', () => {
 });
 
 describe('camera framing', () => {
-  it('tight over-the-shoulder: hip 1.2 m boom, 0.5 m shoulder, 1.6 m pivot; ADS pushes in', () => {
+  it('Blacklist over-the-shoulder: hip 2.2 m boom, 0.62 m shoulder, 1.62 m pivot; ADS pushes in', () => {
     const hip = framing(0, 0, 0);
-    expect(hip.boom).toBeCloseTo(1.2);
-    expect(hip.shoulder).toBeCloseTo(0.5);
-    expect(hip.pivot).toBeCloseTo(1.6);
+    expect(hip.boom).toBeCloseTo(2.2);
+    expect(hip.shoulder).toBeCloseTo(0.62);
+    expect(hip.pivot).toBeCloseTo(1.62);
     const ads = framing(1, 0, 0);
-    expect(ads.boom).toBeCloseTo(0.75);
+    expect(ads.boom).toBeCloseTo(1.5);
     expect(ads.shoulder).toBeLessThan(hip.shoulder);
     expect(framing(0, 1, 0).pivot).toBeLessThan(hip.pivot);
     expect(framing(0, 0, 1).boom).toBeGreaterThan(hip.boom);
-    expect(framing(0, 0, 1).boom).toBeLessThan(1.6); // a nudge, never a chase camera
+    expect(framing(0, 0, 1).boom).toBeLessThan(2.6); // a nudge, never a chase camera
     expect(CAMERA.fov).toBe(75);
   });
 });

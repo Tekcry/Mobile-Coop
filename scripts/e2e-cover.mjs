@@ -2,7 +2,8 @@
 // snap side-on, strafe + edge stop, turn-and-swap, kneel, aim over low cover, blind fire, B keeps
 // cover, A leaves, Y vaults, lean in place at a high-cover edge with shoulder swap, stand / crouch at
 // high cover and a crouched edge peek, outside-corner swing, inside corner, SWAT turn, cover-to-cover
-// with A to the marked cover (slide-in, marker on the target), never an automatic snap, world prompts on
+// with A to the marked cover (only while looking at it with the stick held towards it; slide-in, marker on the
+// target), never an automatic snap, world prompts on
 // the surfaces (take cover / vault / cover badge / cover-to-cover, low on the surface, tapped by touch),
 // the touch action button only for "use", keyboard Space.
 import { launch, frames, press, BTN, assert } from './e2e-lib.mjs';
@@ -183,19 +184,21 @@ try {
   await sim(2.8, { lx: 1 });
   c = await P();
   const piece0 = c.piece;
-  // keep pushing past the edge while the target is read (it re-targets 5x a second)
-  await G(() => { window.__pad.axis(0, 1); });
+  // a cover-to-cover target needs intent: look towards the next cover and hold the stick that way
+  const noLook = await G(() => { const t = window.__app.current.cover.target; return t ? t.kind : 'none'; });
+  assert(noLook === 'none', `no cover-to-cover target without looking at it and holding the stick towards it (${noLook})`);
+  await G(() => { const p = window.__app.current.player; p.cam.yaw = 0; window.__pad.axis(1, -1); });
   await G((s) => new Promise((res) => {
     const st = window.__app.current; let t = 0;
     const orig = st.fixedUpdate.bind(st);
     st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; res(); } };
   }), 0.3);
   const swat = await G(() => { const t = window.__app.current.cover.target; return t ? t.kind : 'none'; });
-  await G(() => { window.__pad.axis(0, 1); });
+  await G(() => { window.__pad.axis(1, -1); });
   await press(page, BTN.LS);
   let sawCrouchedDash = false;
   for (let i = 0; i < 12; i++) {
-    await sim(0.1, { lx: 1 });
+    await sim(0.1, { ly: -1 });
     const q = await P();
     if (q.state === 'dash' && q.crouched) sawCrouchedDash = true;
   }
@@ -211,11 +214,21 @@ try {
   await takeCover();
   await G(() => { const p = window.__app.current.player; p.cam.yaw = Math.atan2(-2 - p.position.x, -11.35 - p.position.z); });
   await sim(0.4);
-  const tgt = await G(() => { const t = window.__app.current.cover.target; return t ? { kind: t.kind, x: t.x, z: t.z } : null; });
+  const lookOnly = await G(() => !!window.__app.current.cover.target);
+  assert(!lookOnly, 'looking at another cover alone marks nothing (the stick must be held towards it too)');
+  // hold the stick towards it (camera forward) for longer than the sticky exit: stays in cover, target marked
+  await G(() => window.__pad.axis(1, -1));
+  await G((s) => new Promise((res) => {
+    const st = window.__app.current; let t = 0;
+    const orig = st.fixedUpdate.bind(st);
+    st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; res(); } };
+  }), 0.6);
   await frames(page, 3);
+  const tgt = await G(() => { const t = window.__app.current.cover.target; return t ? { kind: t.kind, x: t.x, z: t.z, st: window.__app.current.cover.state } : null; });
   const marker = await G(() => !!document.querySelector('.wp-move.show'));
-  assert(tgt && tgt.kind === 'dash' && marker, `marked cover-to-cover target in the look direction + HUD marker (${JSON.stringify(tgt)}, marker ${marker})`);
+  assert(tgt && tgt.kind === 'dash' && tgt.st === 'in' && marker, `looking at it + stick held towards it: target marked, still in cover, marker on it (${JSON.stringify(tgt)}, marker ${marker})`);
   await press(page, BTN.A);
+  await G(() => window.__pad.axis(1, 0));
   let slid = false;
   let dashed = false;
   for (let i = 0; i < 25; i++) {

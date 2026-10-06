@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.4.0 - Sights at the eye, no weapon clipping, cover step-out, Blacklist camera
+- Aiming is a real cheek weld, never hip fire: raised to aim or fire, the weapon's sight line sits under the
+  dominant eye (within ~1 cm for every weapon), the head bends down onto the stock and the shoulders lift into it.
+- Tactical carry everywhere: the compressed ready (near walls, doorways) is pulled tight to the chest, muzzle
+  forward and down, instead of swung across the body into a wall. In cover the weapon is tucked on the open side,
+  muzzle down along the wall and turned away from it (crouched / kneeling: flatter and higher, clear of the knees).
+- No clipping: turn-and-swap and other big turns in cover swing through facing away from the wall (back to it),
+  so the gun never passes through it; at an edge peek the gun comes up only once the body has leaned out and the
+  line of fire is clear; a new clipping sweep (e2e-clip) checks every frame of wall-side movement, high and low
+  cover, edge-peek aim sweeps, aim over, reload, swap and vault: no gun point inside the world, legs at most grazed.
+- Step out to shoot: aiming further across from an edge steps the operative out past the edge as far as the line
+  of fire needs (up to 0.8 m) and back in as you aim round again, so you can shoot anywhere in the room you can
+  aim, including a little back across the cover; the body stays side-on with the weapon tucked until the shot is
+  clear. Aim that starts outside the allowed arc eases in with the weapon held down.
+- Camera: Splinter Cell: Blacklist framing - further back (2.2 m) and wider (0.62 m right), so the operative stands
+  small in the left third (crouched in cover: low in the lower left) and most of the screen is the room; cover
+  pulls back slightly; aiming pushes in over the shoulder (1.5 m).
+- Cover-to-cover only on intent: a target is marked only while you look at the cover and hold the stick towards
+  it; then press cover. Holding the stick towards a marked cover never pushes you out of the one you are in.
+- Tests: e2e-clip (new), e2e-cover (cover-to-cover intent), unit tests for the wider edge arc and the sticky exit.
+
 ## 1.3.2 - PC mouse capture
 - The mouse is captured in a match on PC browsers (pointer lock): the click that starts or resumes a match
   captures it, and any click on the game while it is free does (that click never fires; a "Click to capture the

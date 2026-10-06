@@ -1,24 +1,25 @@
 /**
- * Over-the-shoulder camera framing (tunable). Reference: the camera sits just behind and right of the
- * right shoulder at about head height, so the character fills the left third of the screen (head and
- * shoulders upper left, cropped around the hips) with the crosshair clear of the body. The framing never
- * pulls out to a chase camera; states only nudge it.
+ * Over-the-shoulder camera framing (tunable), Splinter Cell: Blacklist style: the camera sits a couple of
+ * metres behind and well right of the shoulder at about shoulder height, so the whole operative stands
+ * small in the left third of the screen (head to knees, crouched: low in the lower left) and most of the
+ * frame is the room ahead. Aiming pushes in over the shoulder; states only nudge it.
  */
 export const CAMERA = {
   /** Distance behind the shoulder point (m): hip / ADS. */
-  boomHip: 1.2,
-  boomAds: 0.75,
+  boomHip: 2.2,
+  boomAds: 1.5,
   /** Lateral offset of the shoulder point from the spine (m): hip / ADS. */
-  shoulderHip: 0.5,
-  shoulderAds: 0.4,
+  shoulderHip: 0.62,
+  shoulderAds: 0.58,
   /** Pivot (spine top) height above the feet: standing / crouched (m). */
-  pivotStand: 1.6,
-  pivotCrouch: 1.12,
-  /** Camera height relative to the pivot (m): just below the head, so the head and shoulders sit in
-   *  the upper left of the frame. */
-  height: -0.12,
+  pivotStand: 1.62,
+  pivotCrouch: 1.18,
+  /** Camera height relative to the pivot (m): about shoulder height, looking over the operative. */
+  height: -0.08,
   /** Dash: slightly wider framing (extra boom, m). */
-  dashBoom: 0.25,
+  dashBoom: 0.3,
+  /** In cover: the camera pulls back a little to show the room (m). */
+  coverBoom: 0.2,
   /** Lean: the shoulder point follows the leaning upper body (m at full lean). */
   leanShift: 0.38,
   /** Gap kept between the camera and walls (m); the boom never shrinks below `minBoom`. */

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  EDGE_BACK,
   EDGE_ROUND,
   OVER_HALF,
   WALL_HALF,
@@ -25,15 +26,15 @@ describe('cover aim limits', () => {
     expect(wrapAngle(-Math.PI * 2.5)).toBeCloseTo(-Math.PI / 2);
   });
 
-  it('edge peek: from straight across round past the edge, never back across the cover', () => {
+  it('edge peek: from a little back across the cover (stepping out) round past the edge, never along it behind', () => {
     // peeking past the +x edge
     const l = edgeLimit(NX, NZ, 1, 0, lim());
     expect(l.clear).toBe(Infinity);
     const lo = wrapAngle(l.yaw - l.half);
     const hi = wrapAngle(l.yaw + l.half);
-    // one end is straight across, the other EDGE_ROUND round towards +x
-    expect(Math.min(Math.abs(wrapAngle(lo - ACROSS)), Math.abs(wrapAngle(hi - ACROSS)))).toBeLessThan(1e-6);
-    expect(l.half * 2).toBeCloseTo(EDGE_ROUND);
+    // one end is EDGE_BACK back across the cover (away from the edge side), the other EDGE_ROUND round towards +x
+    expect(Math.min(Math.abs(wrapAngle(lo - ACROSS)), Math.abs(wrapAngle(hi - ACROSS)))).toBeCloseTo(EDGE_BACK);
+    expect(l.half * 2).toBeCloseTo(EDGE_ROUND + EDGE_BACK);
     // +x is yaw +pi/2: inside; -x (back across the face, behind the cover) is outside
     expect(Math.abs(wrapAngle(Math.PI / 2 - l.yaw))).toBeLessThanOrEqual(l.half);
     expect(Math.abs(wrapAngle(-Math.PI / 2 - l.yaw))).toBeGreaterThan(l.half);
