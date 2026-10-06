@@ -2,11 +2,13 @@ import { EventBus } from '../core/events';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { parseMessage, PROTOCOL_VERSION, MAX_PLAYERS, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import type { Transport } from './transport';
+import type { WeaponId } from '../weapons/weaponDefs';
 
 export interface LocalProfile {
   name: string;
   tag: PlayerInfo['tag'];
   look: AvatarLook;
+  loadout: WeaponId[];
 }
 
 export interface StartInfo {
@@ -69,7 +71,7 @@ export class NetSession {
   }
 
   private hello(): Msg {
-    return { t: 'hello', v: PROTOCOL_VERSION, name: this.me.name, tag: this.me.tag, look: this.me.look };
+    return { t: 'hello', v: PROTOCOL_VERSION, name: this.me.name, tag: this.me.tag, look: this.me.look, loadout: this.me.loadout };
   }
 
   send(msg: Msg, to?: string): void {
@@ -96,7 +98,7 @@ export class NetSession {
         return;
       }
       const prev = this.players.get(from);
-      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, ready: prev?.ready ?? false, host: false });
+      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false });
       this.broadcastLobby();
       // late join / reconnect during a match
       if (this.phase === 'playing' && this.start) this.send({ t: 'start', ...this.start, time: 0 }, from);
@@ -123,7 +125,7 @@ export class NetSession {
       // keep our own entry authoritative locally
       const mine = this.players.get(this.selfId)!;
       this.players.clear();
-      for (const p of msg.players) this.players.set(p.id, p.id === this.selfId ? { ...p, ...{ name: mine.name, tag: mine.tag, look: mine.look } } : p);
+      for (const p of msg.players) this.players.set(p.id, p.id === this.selfId ? { ...p, ...{ name: mine.name, tag: mine.tag, look: mine.look, loadout: mine.loadout } } : p);
       if (!this.players.has(this.selfId)) this.players.set(this.selfId, mine);
       this.mode = msg.mode;
       this.map = msg.map;

@@ -1,4 +1,5 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine } from '../core/babylon';
+import type { SwapReach } from '../anim/clips/actions';
 import type { InputState } from '../input/inputState';
 import type { Settings } from '../core/settings';
 import type { World } from '../world/world';
@@ -57,6 +58,9 @@ export class Player {
   /** Reload is the empty one; weapon swap and grenade throw progress 0..1 or -1 (set by PlayerWeapons). */
   reloadEmpty = false;
   swapT = -1;
+  /** Where the hand holsters the outgoing gun and draws the next (carry slot kinds). */
+  swapFrom: SwapReach = 'backC';
+  swapTo: SwapReach = 'backC';
   grenadeT = -1;
   private rigPose: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0 };
   /** Seconds since the last shot and weapon mass factor (set by PlayerWeapons). */
@@ -235,6 +239,8 @@ export class Player {
     rp.reload = this.reload;
     rp.reloadEmpty = this.reloadEmpty;
     rp.swap = this.swapT;
+    rp.swapFrom = this.swapFrom;
+    rp.swapTo = this.swapTo;
     rp.grenade = this.grenadeT;
     rp.cover = cp.cover;
     rp.wallSide = cp.wallSide;

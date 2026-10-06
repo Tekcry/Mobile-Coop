@@ -1,3 +1,4 @@
+import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
 import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES } from '../src/net/protocol';
 import { mulberry } from '../src/core/rng';
@@ -33,6 +34,12 @@ describe('net message validation', () => {
     expect(m.tag.color).toBe('#ff8a1e');
     expect(m.look.hair).toBe('buzz');
     expect(parseMessage({ t: 'pstate', s: { ...ps, id: '../../etc' } })).toBeNull();
+  });
+  it('loadout: known weapons only, no repeats, capped', () => {
+    const m = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: ['rifle', 'rifle', 'railgun', 7, 'pistol', 'smg', 'sniper', 'shotgun', 'smg'] });
+    expect(m?.t === 'hello' && m.loadout).toEqual(['rifle', 'pistol', 'smg', 'sniper', 'shotgun']);
+    const n = parseMessage({ t: 'hello', v: 1, name: 'A', tag: {}, look: {}, loadout: 'rifle' });
+    expect(n?.t === 'hello' && n.loadout).toEqual([]);
   });
   it('caps array sizes and drops bad entries', () => {
     const enemies = Array.from({ length: 100 }, (_, i) => ({ id: `e${i}`, k: i % 7 === 0 ? 'dragon' : 'grunt', x: 0, y: 0, z: 0, yaw: 0, st: 0, hp: 1 }));
@@ -244,7 +251,7 @@ function hub() {
   return { make };
 }
 
-const prof = (name: string) => ({ name, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, look: defaultLook() });
+const prof = (name: string) => ({ name, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, look: defaultLook(), loadout: ['rifle', 'pistol'] as WeaponId[] });
 
 describe('net session', () => {
   it('lobby handshake, ready-up and start', () => {

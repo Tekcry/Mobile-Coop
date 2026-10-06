@@ -84,6 +84,13 @@ try {
   assert(avatar === 1, 'client renders the host avatar');
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
   assert(hostSeesClient, 'host renders the client avatar');
+  // the client's whole loadout shows on its avatar: one in the hands, the rest carried in their slots
+  const carried = await GA(() => {
+    const av = window.__app.current.net.remotes.values().next().value.avatar;
+    const ms = [...av['models'].values()];
+    return { n: ms.length, held: ms.filter((m) => m.slot === null && m.node.isEnabled()).length, slotted: ms.filter((m) => m.slot !== null && m.node.isEnabled()).map((m) => m.slot), loadout: av.info.loadout };
+  });
+  assert(carried.loadout.length === 2 && carried.n === 2 && carried.held === 1 && carried.slotted.length === 1, `remote avatar carries its loadout (${JSON.stringify(carried)})`);
 
   console.log('client hit is validated by the host and credited');
   const victim = await GB(() => window.__app.current.net.puppets.keys().next().value);

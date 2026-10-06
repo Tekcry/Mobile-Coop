@@ -31,7 +31,7 @@ import {
   WALK_STRAFE_L,
   WALK_STRAFE_R,
 } from './clips/locomotion';
-import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, SWAP, VAULT } from './clips/actions';
+import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
 import { hyp2 } from '../core/mathx';
 
 export const FADE = 0.2;
@@ -67,6 +67,9 @@ export interface AnimInput {
   reloadEmpty: boolean;
   /** Weapon swap progress 0..1, or < 0. */
   swap: number;
+  /** Carry slot kinds the swap holsters to / draws from. */
+  swapFrom: SwapReach;
+  swapTo: SwapReach;
   /** Grenade throw progress 0..1, or < 0. */
   grenade: number;
   /** Body yaw rate (rad/s). */
@@ -130,6 +133,8 @@ export function defaultInput(): AnimInput {
     reload: -1,
     reloadEmpty: false,
     swap: -1,
+    swapFrom: 'backC',
+    swapTo: 'backC',
     grenade: -1,
     yawRate: 0,
     armed: true,
@@ -604,7 +609,7 @@ export class AnimGraph {
       this.slot(i.reloadEmpty ? 'reload empty' : 'reload', this.reloadW, rt);
     }
     if (i.swap >= 0) {
-      overClip(src, SWAP, i.swap, 1);
+      overClip(src, swapClipFor(i.swapFrom, i.swapTo), i.swap, 1);
       this.slot('swap', 1, i.swap);
     }
     if (i.grenade >= 0) {

@@ -9,7 +9,15 @@ import type { Grenades } from './grenades';
 import type { Vfx } from '../vfx/vfx';
 import type { PartPattern } from '../world/partLibrary';
 import { classWeight } from './weaponCarry';
-import { GRENADE, WEAPONS, type WeaponDef, type WeaponId } from './weaponDefs';
+import { GRENADE, WEAPONS, modelExtents, type WeaponDef, type WeaponId } from './weaponDefs';
+import { assignCarrySlots, type CarrySlot } from './carrySlots';
+import { GrenadePouches } from './grenadePouches';
+import type { SwapReach } from '../anim/clips/actions';
+
+const modelLength = (d: WeaponDef): number => {
+  const e = modelExtents(d);
+  return e.z1 - e.z0;
+};
 import { WeaponModel, DEFAULT_WEAPON_COLORS, type WeaponColors } from './weaponModel';
 import { computeStats, damageAt, recoilKick, sampleSpread, spreadDeg, NO_UPGRADES, type EffectiveStats, type StatMods, type WeaponUpgrades } from './weaponStats';
 
@@ -43,6 +51,10 @@ export interface CombatEvents {
 const DEG = Math.PI / 180;
 /** Weapon swap (s): holster the current gun, draw the next (the model changes hands half way). */
 const SWAP_TIME = 0.9;
+/** Swap beats (fractions of SWAP_TIME): holstered, taken from its slot, settled in the aim pocket. */
+const SWAP_HOLSTER = 0.38;
+const SWAP_TAKE = 0.58;
+const SWAP_HOLD = 0.8;
 /** Grenade throw (s) and the moment it leaves the hand. */
 const GRENADE_TIME = 1.2;
 const GRENADE_RELEASE = 0.68;
@@ -55,11 +67,14 @@ export class PlayerWeapons {
   readonly slots: WeaponSlot[] = [];
   index = 0;
   grenades = GRENADE.startCount;
+  /** Belt pouches showing the grenades carried. */
+  readonly pouches: GrenadePouches;
   private cooldown = 0;
   private grenadeCd = 0;
   private reloadT = -1;
   private swapT = -1;
-  private swapEquipped = false;
+  /** 0 = taking the gun off, 1 = holstered (hands empty), 2 = drawing (in the hand), 3 = in the pocket. */
+  private swapPhase = 3;
   private reloadTotal = 1;
   private reloadEmpty = false;
   private grenadeT = -1;
@@ -90,15 +105,18 @@ export class PlayerWeapons {
     loadout: LoadoutEntry[],
     private rumble: (s: number, w: number, ms: number) => void,
   ) {
+    // every carried weapon gets its own slot on the body (back / sling / thigh), so all stay visible
+    this.carrySlots = assignCarrySlots(loadout.map((e) => ({ cls: WEAPONS[e.id].class, length: modelLength(WEAPONS[e.id]) })));
     for (const e of loadout) {
       const def = WEAPONS[e.id];
       const stats = computeStats(def, e.upgrades ?? NO_UPGRADES, e.mods);
       const model = new WeaponModel(world.scene, world.parts, def, e.colors ?? DEFAULT_WEAPON_COLORS, player.rig.weaponPivot, e.pattern);
       for (const m of model.parts) world.addShadowCaster(m);
       model.setVisible(false);
-      this.recency.push(this.slots.length);
       this.slots.push({ def, stats, mag: stats.magSize, reserve: def.reserve, model });
     }
+    this.pouches = new GrenadePouches(world.parts, player.rig, this.grenades);
+    for (const m of this.pouches.parts) world.addShadowCaster(m);
     this.equip(0);
   }
 
@@ -137,27 +155,30 @@ export class PlayerWeapons {
     return t;
   }
 
-  /** Slot indices, most recently held first (decides which spare guns show in the holsters). */
-  private recency: number[] = [];
+  /** Body slot per loadout entry (null only if the body is full). */
+  readonly carrySlots: (CarrySlot | null)[];
+  /** The weapon in the hands (the swap changes `index` first, the hands half way). */
+  private held = 0;
 
-  /** Put every weapon except `held` (or all, during a swap) into the holsters; one per holster. */
+  /** Put every weapon except `held` into its own carry slot. */
   private holsterAll(held: number): void {
     const rig = this.player.rig;
-    const used = new Set<string>();
-    for (const j of this.recency) {
-      const m = this.slots[j]!.model;
+    for (let j = 0; j < this.slots.length; j++) {
       if (j === held) continue;
-      if (used.has(m.holsterSlot)) {
-        m.setVisible(false);
-        continue;
-      }
-      used.add(m.holsterSlot);
-      m.holster(rig);
+      const m = this.slots[j]!.model;
+      const slot = this.carrySlots[j];
+      if (slot) m.holster(rig, slot);
+      else m.setVisible(false);
     }
   }
 
+  /** Where the hand reaches to holster / draw a weapon. */
+  private reach(i: number): SwapReach {
+    return this.carrySlots[i] ?? 'backC';
+  }
+
   private equip(i: number): void {
-    this.recency = [i, ...this.recency.filter((j) => j !== i)];
+    this.held = i;
     this.holsterAll(i);
     this.slots[i]!.model.hold(this.player.rig);
     this.index = i;
@@ -183,6 +204,7 @@ export class PlayerWeapons {
     this.player.reload = this.reloading ? this.reloadProgress : -1;
     this.player.reloadEmpty = this.reloadEmpty;
     this.player.swapT = this.swapT >= 0 ? this.swapT / SWAP_TIME : -1;
+    this.pouches.setCount(this.grenades);
     this.player.grenadeT = this.grenadeT >= 0 ? this.grenadeT / GRENADE_TIME : -1;
     this.player.sinceShot = this.sinceShot;
     this.player.weaponWeight = s.def.weight ?? classWeight(s.def.class);
@@ -199,19 +221,37 @@ export class PlayerWeapons {
       const d = inp.pressed('swapNext') ? 1 : -1;
       this.reloadT = -1;
       this.index = (this.index + d + this.slots.length) % this.slots.length;
-      // a swap already past the holster point restarts from the draw; otherwise it keeps going
-      if (this.swapT < 0 || this.swapEquipped) {
+      if (this.swapT < 0) {
         this.swapT = 0;
-        this.swapEquipped = false;
+        this.swapPhase = 0;
+        this.player.swapFrom = this.reach(this.held);
+      } else if (this.swapPhase >= 2) {
+        // already drawing: the drawn gun goes back to its slot and the hand goes for the new choice
+        this.player.swapFrom = this.reach(this.held);
+        this.holsterAll(-1);
+        this.swapT = SWAP_TIME * SWAP_HOLSTER;
+        this.swapPhase = 1;
       }
+      // (before the draw starts the hand simply goes for the new choice)
+      this.player.swapTo = this.reach(this.index);
       this.events.onSwap?.(this.current.def);
       return;
     }
     if (this.swapT >= 0) {
       this.swapT += dt;
-      // half way: the outgoing gun reaches its holster and the next one comes out in the hand
-      if (!this.swapEquipped && this.swapT >= SWAP_TIME * 0.45) {
-        this.swapEquipped = true;
+      // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
+      // brings it up, then it settles into the aim pocket with both hands on it
+      const f = this.swapT / SWAP_TIME;
+      if (this.swapPhase === 0 && f >= SWAP_HOLSTER) {
+        this.swapPhase = 1;
+        this.holsterAll(-1);
+      }
+      if (this.swapPhase === 1 && f >= SWAP_TAKE) {
+        this.swapPhase = 2;
+        this.slots[this.index]!.model.inHand(this.player.rig);
+      }
+      if (this.swapPhase === 2 && f >= SWAP_HOLD) {
+        this.swapPhase = 3;
         this.equip(this.index);
       }
       if (this.swapT >= SWAP_TIME) this.swapT = -1;
@@ -376,6 +416,7 @@ export class PlayerWeapons {
   }
 
   dispose(): void {
+    this.pouches.dispose();
     for (const s of this.slots) s.model.dispose();
   }
 }

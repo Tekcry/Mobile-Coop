@@ -93,7 +93,7 @@ async function boot(): Promise<void> {
     goToMenu,
     profile: () => {
       const sv = app.save.get();
-      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar };
+      return { name: sv.profile.name, tag: sv.profile.tag, look: sv.avatar, loadout: [sv.loadout.primary, sv.loadout.secondary] };
     },
   };
   const loadCoop = () => import('./net/coopUi');

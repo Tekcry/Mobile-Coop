@@ -4,6 +4,8 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import { playEmote } from '../cosmetics/emotes';
 import { WeaponModel, DEFAULT_WEAPON_COLORS } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
+import { assignCarrySlots } from '../weapons/carrySlots';
+import { GrenadePouches } from '../weapons/grenadePouches';
 import { MASK } from '../physics/groups';
 import type { World } from '../world/world';
 import type { Vfx } from '../vfx/vfx';
@@ -24,6 +26,7 @@ export class RemoteAvatar {
   pitch = 0;
   flags = 0;
   private models = new Map<WeaponId, WeaponModel>();
+  private pouches: GrenadePouches;
   private weapon: WeaponId | null = null;
   private fireT = 0;
   private kick = 0;
@@ -45,6 +48,8 @@ export class RemoteAvatar {
   ) {
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.75, `remote-${info.id}`);
     for (const m of this.rig.parts) world.addShadowCaster(m);
+    this.pouches = new GrenadePouches(world.parts, this.rig);
+    for (const m of this.pouches.parts) world.addShadowCaster(m);
     this.rig.setEnabled(false);
   }
 
@@ -52,20 +57,32 @@ export class RemoteAvatar {
     return (this.flags & PF.dead) !== 0;
   }
 
-  private setWeapon(id: WeaponId): void {
-    if (id === this.weapon) return;
+  /** A model for a carried weapon (created once, kept for the session). */
+  private model(id: WeaponId): WeaponModel {
     let m = this.models.get(id);
     if (!m) {
       m = new WeaponModel(this.world.scene, this.world.parts, WEAPONS[id], DEFAULT_WEAPON_COLORS, this.rig.weaponPivot);
+      for (const part of m.parts) this.world.addShadowCaster(part);
       this.models.set(id, m);
     }
-    // previous gun to its holster (one per holster)
-    for (const [wid, other] of this.models) {
-      if (wid === id) continue;
-      if (wid === this.weapon && other.holsterSlot !== m.holsterSlot) other.holster(this.rig);
-      else other.setVisible(false);
-    }
-    m.hold(this.rig);
+    return m;
+  }
+
+  /** In the hands: `id`; every other carried weapon (lobby loadout + any seen held) in its own slot. */
+  private setWeapon(id: WeaponId): void {
+    if (id === this.weapon) return;
+    for (const w of this.info.loadout) this.model(w);
+    this.model(id);
+    const ids = [...this.models.keys()];
+    const slots = assignCarrySlots(ids.map((w) => ({ cls: WEAPONS[w].class, length: this.models.get(w)!.ext.z1 - this.models.get(w)!.ext.z0 })));
+    ids.forEach((w, i) => {
+      const m = this.models.get(w)!;
+      const slot = slots[i];
+      if (w === id) return;
+      if (slot) m.holster(this.rig, slot);
+      else m.setVisible(false);
+    });
+    this.model(id).hold(this.rig);
     this.weapon = id;
   }
 
@@ -143,6 +160,7 @@ export class RemoteAvatar {
   }
 
   dispose(): void {
+    this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();
     this.models.clear();
     this.rig.dispose();

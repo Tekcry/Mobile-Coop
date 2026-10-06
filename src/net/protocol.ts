@@ -21,6 +21,8 @@ export interface PlayerInfo {
   name: string;
   tag: { title: string; color: string; emblem: string };
   look: AvatarLook;
+  /** Carried weapons (all of them show on the avatar: back, sling, thigh). */
+  loadout: WeaponId[];
   ready: boolean;
   host: boolean;
 }
@@ -77,7 +79,7 @@ export interface EndStats {
 }
 
 export type Msg =
-  | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook }
+  | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[] }
   | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing' }
   | { t: 'ready'; ready: boolean }
   | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number }
@@ -105,6 +107,17 @@ const oneOf = <T extends string>(v: unknown, list: readonly T[]): T | null => (l
 const HEX = /^#[0-9a-f]{6}$/i;
 const ID = /^[A-Za-z0-9_-]{1,40}$/;
 const id = (v: unknown): string | null => (typeof v === 'string' && ID.test(v) ? v : null);
+
+/** Loadout: known weapon ids only, no repeats, at most one of each. */
+function loadout(v: unknown): WeaponId[] {
+  if (!Array.isArray(v)) return [];
+  const out: WeaponId[] = [];
+  for (const w of v.slice(0, 16)) {
+    const id = oneOf(w, WEAPON_IDS);
+    if (id && !out.includes(id)) out.push(id);
+  }
+  return out;
+}
 
 function tag(v: unknown): PlayerInfo['tag'] {
   const o = isObj(v) ? v : {};
@@ -257,7 +270,7 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'hello': {
       const v = num(raw.v, 0, 1e6);
       if (v === null) return null;
-      return { t: 'hello', v, name: safeText(raw.name, 16) || 'Operator', tag: tag(raw.tag), look: sanitizeLook(raw.look) };
+      return { t: 'hello', v, name: safeText(raw.name, 16) || 'Operator', tag: tag(raw.tag), look: sanitizeLook(raw.look), loadout: loadout(raw.loadout) };
     }
     case 'lobby': {
       if (!Array.isArray(raw.players)) return null;
@@ -266,7 +279,7 @@ export function parseMessage(raw: unknown): Msg | null {
         if (!isObj(p)) continue;
         const pid = id(p.id);
         if (!pid) continue;
-        players.push({ id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), ready: p.ready === true, host: p.host === true });
+        players.push({ id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true });
       }
       const mode = oneOf(raw.mode, MODES);
       const difficulty = oneOf(raw.difficulty, DIFFS);

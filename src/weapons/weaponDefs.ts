@@ -12,6 +12,8 @@ export interface ModelPart {
   rot?: [number, number, number];
   /** 'body' | 'grip' | 'accent' slots take the skin colours; anything else is a literal hex. */
   color: string;
+  /** What the part is (dimension checks, the magazine well): barrel, receiver, grip, mag, stock, ... */
+  role?: string;
 }
 
 export interface WeaponDef {
@@ -99,6 +101,37 @@ export function validateWeaponDefs(data: unknown): Record<WeaponId, WeaponDef> {
     out[id] = { ...(w as unknown as WeaponDef), id, grip: v3(w.grip, [0, -0.07, 0]), foregrip: v3(w.foregrip, [0, -0.05, 0.2]) };
   }
   return out;
+}
+
+/** Weapon-local axis-aligned extents of a model (m): x across, y up, z along the bore. */
+export interface ModelExtents {
+  x0: number;
+  x1: number;
+  y0: number;
+  y1: number;
+  z0: number;
+  z1: number;
+}
+
+/** Extents of a weapon's parts (rotations about x, as authored for cylinders and angled grips). */
+export function modelExtents(def: Pick<WeaponDef, 'model'>): ModelExtents {
+  const e: ModelExtents = { x0: Infinity, x1: -Infinity, y0: Infinity, y1: -Infinity, z0: Infinity, z1: -Infinity };
+  for (const p of def.model) {
+    const [sx, sy0, sz0] = p.size;
+    const rx = p.rot?.[0] ?? 0;
+    const c = Math.abs(Math.cos(rx));
+    const s = Math.abs(Math.sin(rx));
+    const sy = sy0 * c + sz0 * s;
+    const sz = sy0 * s + sz0 * c;
+    const [x, y, z] = p.pos;
+    e.x0 = Math.min(e.x0, x - sx / 2);
+    e.x1 = Math.max(e.x1, x + sx / 2);
+    e.y0 = Math.min(e.y0, y - sy / 2);
+    e.y1 = Math.max(e.y1, y + sy / 2);
+    e.z0 = Math.min(e.z0, z - sz / 2);
+    e.z1 = Math.max(e.z1, z + sz / 2);
+  }
+  return e;
 }
 
 export const WEAPONS: Record<WeaponId, WeaponDef> = validateWeaponDefs(raw);

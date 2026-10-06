@@ -1,4 +1,5 @@
 import { Color4, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
+import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { proportions, type Build, type Proportions } from './proportions';
@@ -68,6 +69,9 @@ export interface RigPose {
   reloadEmpty?: boolean;
   /** Weapon swap / grenade throw progress 0..1, or < 0. */
   swap?: number;
+  /** Where the hand holsters the outgoing weapon and draws the next (carry slot kinds). */
+  swapFrom?: SwapReach;
+  swapTo?: SwapReach;
   grenade?: number;
   /** Motion driver: gait clock, state and time in it, body-frame acceleration, root velocity. */
   phase?: number;
@@ -217,6 +221,12 @@ export class CharacterRig {
   readonly magPoint = new Vector3(0, -0.14, 0.12);
   /** Weapon node whose grips the hands follow (null = free arms). */
   heldWeapon: TransformNode | null = null;
+  /** Depth (m) of gear on the back beyond the chest shell (carried weapons stand off it). */
+  backGear = 0;
+  /** Sideways reach (m) of the thigh's surface and gear from the hip joint. */
+  thighOuter = 0;
+  /** Called after each solved pose (carried gear that reacts to the body, e.g. a sling pushed by the thigh). */
+  readonly onPosed: (() => void)[] = [];
   /** Extra emote overrides (set by the emote player). */
   emote: ((rig: CharacterRig, t: number) => FkPose | void) | null = null;
   emoteTime = 0;
@@ -302,6 +312,21 @@ export class CharacterRig {
     this.style = opts.style ?? DEFAULT_STYLE;
     if (this.style === 'stick') this.buildStick(make, look, p);
     else this.buildParts(make, look, p, opts.armor ?? false);
+    // how far gear on the back (vest plate, hood, backpack) stands off the chest shell: carried weapons
+    // rest beyond it
+    let back = 0;
+    for (const m of this.parts) {
+      if (m.parent !== this.torso) continue;
+      const rx = m.rotation.x;
+      const half = (Math.abs(Math.cos(rx)) * m.scaling.z + Math.abs(Math.sin(rx)) * m.scaling.y) / 2;
+      back = Math.max(back, -(m.position.z - half) - p.chest.d / 2);
+    }
+    this.backGear = back;
+    // how far the thigh (hip ball, limb, cargo pocket) reaches out sideways from the hip joint: the thigh
+    // holster and the hip sling rest beyond it
+    let thigh = p.thigh.r0;
+    for (const m of this.parts) if (m.parent === this.hipR || m.parent === this.hipL) thigh = Math.max(thigh, Math.abs(m.position.x) + m.scaling.x / 2);
+    this.thighOuter = thigh;
     DEBUG_RIGS.add(this);
   }
 
@@ -627,6 +652,8 @@ export class CharacterRig {
     i.reload = s.reload ?? -1;
     i.reloadEmpty = s.reloadEmpty ?? false;
     i.swap = s.swap ?? -1;
+    i.swapFrom = s.swapFrom ?? 'backC';
+    i.swapTo = s.swapTo ?? 'backC';
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
     i.dash = s.dash ?? 0;
@@ -732,6 +759,7 @@ export class CharacterRig {
     this.emoteW = Math.max(0, Math.min(1, this.emoteW + (fk ? dt : -dt) / 0.2));
     if (this.emoteW > 0 && this.lastFk) this.applyFk(this.lastFk, this.emoteW);
     if (this.emoteW === 0) this.lastFk = null;
+    for (let k = 0; k < this.onPosed.length; k++) this.onPosed[k]!();
   }
 
   /** Hit reaction (additive flinch, recovers over ~0.4 s). */

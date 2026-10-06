@@ -51,25 +51,62 @@ export const RELOAD_EMPTY = makeClip({
   events: { magOut: 0.2, magIn: 0.54, charge: 0.78 },
 });
 
-/** Weapon swap (0.9 s): both hands come off, the gun goes to its holster (0.45), the next is drawn. */
-export const SWAP = makeClip({
-  name: 'swap',
-  duration: 1,
-  keys: {
-    grip: [0, 1, 0.12, 1, 0.22, 0, 0.62, 0, 0.8, 1],
-    offGrip: [0, 1, 0.1, 0, 0.82, 0, 0.92, 1],
-    hRX: [0, 0.18, 0.3, 0.2, 0.45, 0.16, 0.6, 0.2],
-    hRY: [0, 1.25, 0.3, 1.5, 0.45, 1.52, 0.6, 1.3],
-    hRZ: [0, 0.25, 0.3, 0.0, 0.45, -0.12, 0.6, 0.12],
-    hLX: [0, -0.18, 1, -0.18],
-    hLY: [0, 1.05, 0.5, 1.0, 1, 1.05],
-    hLZ: [0, 0.12, 1, 0.12],
-    wpPitch: [0, 0, 0.2, 0.5, 0.75, 0.45, 1, 0],
-    spYaw: [0, 0, 0.3, 0.14, 0.45, 0.16, 0.65, 0.04, 1, 0],
-    hdPitch: [0, 0, 0.35, 0.08, 1, 0],
-  },
-  events: { holstered: 0.45 },
-});
+/** Where the right hand goes to holster / draw, per carry slot (body space: x right, y up, z forward). */
+export type SwapReach = 'backL' | 'backC' | 'backR' | 'sling' | 'thigh';
+const REACH: Record<SwapReach, [number, number, number]> = {
+  // over the shoulder to the upper half of the gun on the back
+  backL: [-0.06, 1.55, -0.18],
+  backC: [0.0, 1.55, -0.2],
+  backR: [0.08, 1.5, -0.2],
+  // across to the left-hip sling
+  sling: [-0.16, 1.0, 0.1],
+  // down to the right thigh holster
+  thigh: [0.21, 0.74, 0.0],
+};
+const BACK = (r: SwapReach): boolean => r === 'backL' || r === 'backC' || r === 'backR';
+
+function swapClip(from: SwapReach, to: SwapReach) {
+  const f = REACH[from];
+  const t = REACH[to];
+  return makeClip({
+    name: `swap ${from}>${to}`,
+    duration: 1,
+    keys: {
+      grip: [0, 1, 0.12, 1, 0.22, 0, 0.8, 0, 0.88, 1],
+      offGrip: [0, 1, 0.1, 0, 0.86, 0, 0.94, 1],
+      // out to the outgoing gun's slot (holstered at 0.38), on to the incoming one's (taken at 0.58), then
+      // up to the aim pocket (in the pocket at 0.8)
+      hRX: [0, 0.18, 0.26, f[0], 0.38, f[0], 0.52, t[0], 0.6, t[0], 0.8, 0.18],
+      hRY: [0, 1.25, 0.26, f[1], 0.38, f[1], 0.52, t[1], 0.6, t[1], 0.8, 1.25],
+      hRZ: [0, 0.25, 0.26, f[2], 0.38, f[2], 0.52, t[2], 0.6, t[2], 0.8, 0.25],
+      hLX: [0, -0.18, 1, -0.18],
+      hLY: [0, 1.05, 0.5, 1.0, 1, 1.05],
+      hLZ: [0, 0.12, 1, 0.12],
+      wpPitch: [0, 0, 0.2, 0.5, 0.75, 0.45, 1, 0],
+      // the chest turns towards the reach (right shoulder / left hip / right thigh)
+      spYaw: [0, 0, 0.26, BACK(from) ? 0.16 : from === 'sling' ? -0.3 : 0.08, 0.38, BACK(from) ? 0.18 : from === 'sling' ? -0.32 : 0.1, 0.56, BACK(to) ? 0.14 : to === 'sling' ? -0.3 : 0.08, 1, 0],
+      spPitch: [0, 0, 0.35, BACK(from) ? 0 : 0.16, 0.56, BACK(to) ? 0 : 0.14, 1, 0],
+      hdPitch: [0, 0, 0.35, 0.08, 1, 0],
+    },
+    events: { holstered: 0.38, drawn: 0.58 },
+  });
+}
+
+/**
+ * Weapon swap (0.9 s): both hands come off, the right hand takes the gun to its slot (back, sling or
+ * thigh; holstered at 0.45) and draws the next from its slot. One clip per (from, to) pair, built once.
+ */
+const SWAPS = new Map<string, ReturnType<typeof makeClip>>();
+export function swapClipFor(from: SwapReach, to: SwapReach): ReturnType<typeof makeClip> {
+  const key = `${from}>${to}`;
+  let c = SWAPS.get(key);
+  if (!c) {
+    c = swapClip(from, to);
+    SWAPS.set(key, c);
+  }
+  return c;
+}
+export const SWAP = swapClipFor('backC', 'backC');
 
 /** Grenade (1.2 s): off hand to the vest, pin, wind up behind the head, throw (release), recover. */
 export const GRENADE = makeClip({
