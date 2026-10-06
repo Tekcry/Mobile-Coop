@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.16.1 - fixes
+- Foot planting: an early toe-off already in the air goes on from its progress and lands on the gait clock
+  (1.15.1 kept the larger of the two, so a sprinting foot arrived early, behind the body, and slid up to 2.6 cm
+  once planted). Sprint feet are locked again (< 1 cm) and the high-cover move clip case stays clean.
+- e2e-anchors marks the frozen enemies as taken: a guard beyond a window offered a window takedown (which wins
+  over the vault, as intended) instead of the traversal under test.
+
 ## 1.16.0 - 2.0 phase 4: takedowns, Mark & Execute
 - Takedowns (`game/takedown.ts`, pure; `game/takedownController.ts`): a "Takedown" prompt over a guard in reach;
   Y / E / tap the prompt. Tap = non-lethal (a choke, knocked out: wakes if found), hold = lethal (a strike); it

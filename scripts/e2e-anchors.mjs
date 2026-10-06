@@ -24,8 +24,13 @@ for (const [map, mode] of MAPS) {
       const st = a.input.state;
       const V = p.position.constructor;
       a.loop.manual = true;
-      // keep enemies out of it (they would shoot): freeze the AI
-      if (g.enemyMgr) for (const e of g.enemyMgr.enemies) e.update = () => {};
+      // keep enemies out of it (they would shoot, and one beyond a window offers a takedown instead): freeze the
+      // AI and mark them taken
+      if (g.enemyMgr)
+        for (const e of g.enemyMgr.enemies) {
+          e.update = () => {};
+          e.taken = true;
+        }
       g.target.health.invulnerable = true;
       const L = g.world.level.anchors;
       const out = [];
