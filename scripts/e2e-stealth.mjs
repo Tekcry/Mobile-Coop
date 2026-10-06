@@ -436,8 +436,14 @@ try {
         p.cam.yaw = (k / 24) * Math.PI * 2;
         const t = c['findDash']({ x: Math.sin(p.cam.yaw), z: Math.cos(p.cam.yaw), mag: 1 });
         if (t && t.via) {
+          // intent: looking at it and holding the stick towards it (camera forward)
+          st.move.x = 0;
+          st.move.y = 1;
           H.run(0.3);
-          if (!c.target || !c.target.via) continue;
+          if (!c.target || !c.target.via) {
+            st.move.y = 0;
+            continue;
+          }
           const goal = c.target.seg;
           st.tap('cover');
           let viaSeen = false;
@@ -445,6 +451,7 @@ try {
             if (c.state === 'dash' && c['dashTo']?.via) viaSeen = true;
             return c.state === 'in' || c.state === 'none';
           }, 4);
+          st.move.y = 0;
           return { found: true, viaSeen, state: c.state, arrived: c.seg === goal };
         }
       }
@@ -462,6 +469,7 @@ try {
     st.tap('cover');
     H.run(0.6);
     p.cam.yaw = Math.atan2(-2 - p.position.x, -11.35 - p.position.z);
+    st.move.y = 1; // stick held towards it (camera forward): cover-to-cover needs that intent
     H.run(0.4);
     const had = !!c.target;
     st.tap('cover');
