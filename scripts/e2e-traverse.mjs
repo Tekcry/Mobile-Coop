@@ -381,6 +381,25 @@ try {
   assert(unscrew.att && unscrew.kind === 'duct' && unscrew.noise < 3, `crawled in quietly (noise ${unscrew.noise})`);
   i = await I();
   assert(i.cam === 'duct' && i.trav === 'crawl' && !i.held, 'duct: tight framing, crawl pose, weapon stowed');
+  // the camera stays inside the duct, looking ahead or turned round
+  const camIn = await page.evaluate(() => {
+    const st = window.__tr.st();
+    const p = st.player;
+    let worst = 0;
+    for (const yaw of [Math.PI / 2, 0, Math.PI, -Math.PI / 2 + 0.3]) {
+      p.cam.yaw = yaw;
+      window.__app.loop.stepHeadless(0.3, 120);
+      const cp = p.cam.camera.position;
+      const from = p.position.clone();
+      from.y += 0.45;
+      const h = st.ballistics.ray(from, cp.clone(), 1);
+      // inside the tunnel's 1 x 0.8 m section (the duct floor is at 3.2, its roof at 4.0)
+      if (h.hit || cp.y < 3.2 || cp.y > 4.0 || Math.abs(cp.z + 5) > 0.5) worst++;
+    }
+    p.cam.yaw = Math.PI / 2;
+    return worst;
+  });
+  assert(camIn === 0, `duct: the camera never leaves the tunnel (${camIn} of 4 views outside)`);
   const d0 = i.x;
   r = await run(1, 0, 1);
   i = await I();

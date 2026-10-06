@@ -99,7 +99,8 @@ export function attachRange(a: Anchor, height = 1.75): { min: number; max: numbe
       return { min: m, max: len - m };
     }
     case 'pipeH':
-      return { min: 0.2, max: Math.max(0.2, len - 0.2) };
+      // the hands stay clear of whatever holds the pipe up at its ends
+      return { min: Math.min(0.45, len / 2), max: Math.max(Math.min(0.45, len / 2), len - 0.45) };
     default:
       return { min: 0, max: len };
   }
@@ -148,8 +149,10 @@ export interface AttachPose {
   yaw: number;
 }
 
-/** Ladder / pipe standoff from the climbing line to the body's root (m). */
+/** Ladder / pipe standoff from the climbing line to the body's root (m): a drainpipe hugs the wall, so the body
+ *  keeps a little further off it (bent knees clear the face). */
 export const CLIMB_STANDOFF = 0.28;
+export const PIPE_STANDOFF = 0.34;
 
 /** Root-motion path: feet and facing at parameter `s` along the anchor. `face` (+1 / -1) picks which way a
  *  body faces along a pipe / zipline / duct (set at entry). Writes into `out`. */
@@ -160,8 +163,9 @@ export function attachPose(a: Anchor, s: number, face: number, height: number, o
     case 'pipeV': {
       const yaw = a.kind === 'ladder' ? a.facing : a.side;
       out.yaw = yaw;
-      out.x = a.base.x - Math.sin(yaw) * CLIMB_STANDOFF * k;
-      out.z = a.base.z - Math.cos(yaw) * CLIMB_STANDOFF * k;
+      const off = a.kind === 'ladder' ? CLIMB_STANDOFF : PIPE_STANDOFF;
+      out.x = a.base.x - Math.sin(yaw) * off * k;
+      out.z = a.base.z - Math.cos(yaw) * off * k;
       out.y = a.base.y + s;
       return out;
     }

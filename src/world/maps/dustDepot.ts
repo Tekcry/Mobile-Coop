@@ -22,8 +22,15 @@ const warehouse: Module = (b, cx, cz, rng, props) => {
   const z1 = cz + d / 2;
   const door = 2.6;
   // south and north walls with a centred door each, east/west with an off-centre door
-  b.wall(x0, z0, cx - door / 2, z0, h, WALL);
+  // south wall: a door and an open window (vault through)
+  b.wall(x0, z0, cx - 4.6, z0, h, WALL);
+  b.wall(cx - 3.4, z0, cx - door / 2, z0, h, WALL);
+  b.box(cx - 4, 0.45, z0, 1.2, 0.9, 0.4, WALL);
+  b.box(cx - 4, 2.75, z0, 1.2, 1.3, 0.4, WALL);
+  b.windowAt(cx - 4, 1.5, z0, 1.2, 1.2, 0, { sill: 0.9, open: true });
   b.wall(cx + door / 2, z0, x1, z0, h, WALL);
+  // a crate against the east wall: mantle it, grab the wall top, climb along it, drop inside
+  b.block(x1 + 0.95, cz + 2, 1.2, 1.2, 1.4, '#8a6a4c');
   b.wall(x0, z1, cx - door / 2 + 3, z1, h, WALL);
   b.wall(cx + door / 2 + 3, z1, x1, z1, h, WALL);
   b.wall(x0, z0, x0, cz - 1, h, WALL_DARK);

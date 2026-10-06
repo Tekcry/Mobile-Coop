@@ -1,5 +1,26 @@
 # Changelog
 
+## 1.10.0 - 2.0 phase 2c: routes on every map, clean traversal poses
+- Warehouse: a window from the truck yard into the workshop; a glazed window between dispatch and the corridor;
+  ladders onto two racks (walk the rack tops, sprint-hop the cross aisle); a ladder up to the mezzanine; a zipline
+  from the mezzanine over the factory floor; a duct from the mezzanine over the manager's office (until now a dead
+  end) with a ceiling vent into it. Mezzanine and container edges (2.6 m) can now be grabbed from the floor.
+- Dust Depot: every warehouse gets an open window and a crate below its east wall (mantle it, grab the wall top,
+  walk along it, drop in); container tops and ruin walls are climbable.
+- Reach: lips up to 2.7 m over the feet can be grabbed; 0.4 m wall tops can be climbed onto and walked along.
+- Camera: while attached the orbit stays within the state's cone around the body's facing (soft edge).
+- No body or limb ever goes into the world while traversing (new e2e-clip checks): the weapon stows in ~0.14 s; the
+  ladder's bottom exit steps back off it; outside corners are swung round on a curve outside both faces; a jump
+  "up" only takes something above and every jump needs a clear flight line; a dedicated climb-up (feet walk up
+  the face, the knee comes over only above the lip, the body eases out from the wall); hang feet hang plumb; a
+  drainpipe keeps 0.34 m off the wall; horizontal pipes keep the hands off their posts; the vent drop lowers
+  through the hatch on the hands (the head stays in the duct) before letting go; ceiling hatches are 0.8 m; a
+  low dive through windows (1.2 m openings); the landing roll rides up over its back.
+- Nav: pieces marked `overhead` (ceiling slabs, ducts) are looked through by the nav sampler and never block.
+- Tests: e2e-anchors (every placed anchor on every map offered from its approach and engaged; hangable lips per map),
+  e2e-clip traversal scenarios (ladder climb / slide, drainpipe + lip, shimmy + corner, climb up, pipe, duct +
+  vent, window vault, zipline, landing roll: no body point into the world), e2e-traverse camera inside the duct.
+
 ## 1.9.0 - 2.0 phase 2b: landings, ziplines, windows, ducts
 - Landings (no fall damage, Blacklist): under 2.5 m a soft landing; 2.5-4.5 m a roll that keeps the momentum
   (the body turns over forward, then carries on at a run; skipped when a wall is too close); over 4.5 m a heavy

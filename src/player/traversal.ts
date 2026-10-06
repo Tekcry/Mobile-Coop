@@ -48,6 +48,8 @@ export interface TraverseProbe {
  */
 export class TraversalController {
   kind: Traversal | 'drop' | 'hop' | 'roll' = 'none';
+  /** The committed vault goes through a window (a low dive). */
+  private throughWindow = false;
   /** Landing counter last seen (a new landing in the roll band starts a roll). */
   private landings = 0;
   t = 0;
@@ -98,6 +100,7 @@ export class TraversalController {
       this.kin,
       (x, y, z) => this.roomAt(x, y, z),
       (x, z, y) => this.floor(x, z, y, 3),
+      (ax, ay, az, bx, by, bz) => this.ray(this.a.set(ax, ay, az), this.b.set(bx, by, bz)) === null,
     );
   }
 
@@ -276,7 +279,7 @@ export class TraversalController {
       this.t += dt;
       const k = Math.min(1, this.t / this.dur);
       this.path(k);
-      pose.traverse = this.kind;
+      pose.traverse = this.throughWindow ? 'windowVault' : this.kind;
       pose.traverseT = k;
       c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' };
       if (k >= 1) {
@@ -289,6 +292,7 @@ export class TraversalController {
           if (this.sprint0) c.resumeSprint();
         }
         this.kind = 'none';
+        this.throughWindow = false;
         pose.traverse = 'none';
         pose.traverseT = 0;
       }
@@ -347,6 +351,7 @@ export class TraversalController {
       // a glazed window shatters as the vault goes through it (loud)
       const w = this.hintWindow;
       if (w && !w.open) this.breakables?.open(`glass:${w.id}`, 'break');
+      this.throughWindow = !!w;
       this.kind = this.hint.kind;
       this.t = 0;
       this.speed0 = c.speed;
@@ -379,6 +384,7 @@ export class TraversalController {
     const len = hit === null ? ROLL_LENGTH : Math.min(ROLL_LENGTH, hit - 0.4);
     if (len < ROLL_MIN) return false;
     this.kind = 'roll';
+    this.throughWindow = false;
     this.t = 0;
     this.speed0 = Math.max(sp, 2.5);
     this.sprint0 = false;
@@ -415,9 +421,10 @@ export class TraversalController {
         break;
       }
       case 'roll': {
-        // momentum carries through, easing out as the body comes back up
+        // momentum carries through, easing out as the body comes back up; the curled body rides up a little
+        // over its back (the tumble pivot is at the hips) so the shoulders roll over the floor, not through it
         h = k * (2 - k);
-        y = f.y + (e.y - f.y) * h;
+        y = f.y + (e.y - f.y) * h + 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, (k - 0.1) / 0.75)));
         break;
       }
       case 'hop': {

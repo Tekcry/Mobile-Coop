@@ -62,6 +62,8 @@ export class ShoulderCamera {
   crouch = 0;
   /** Attached traversal framing preset (null = none). */
   attach: AttachCamera | null = null;
+  /** Body facing while attached: the orbit stays within the preset's cone around it. */
+  attachYaw = 0;
   private attachPreset: AttachFraming | null = null;
   private sAttach = new Spring(0);
   /** Pelvis lift of the low cover height control (m): the pivot rises with a crouched aim over cover. */
@@ -189,6 +191,13 @@ export class ShoulderCamera {
     const fr = framing(this.ads, crouch, dashS);
     // attached traversal (ladder, hang, duct...): its framing preset blends in and back out
     if (this.attach) this.attachPreset = ATTACH_FRAMING[this.attach];
+    // attached: the free orbit stays within the state's cone around the body's facing (a soft edge)
+    if (this.attach && this.attachPreset && this.attachPreset.cone < Math.PI) {
+      const cone = this.attachPreset.cone;
+      let d = this.yaw - this.attachYaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      if (Math.abs(d) > cone) this.yaw = this.attachYaw + Math.sign(d) * (cone + (Math.abs(d) - cone) * Math.exp(-dt / 0.06));
+    }
     const attachW = this.sAttach.step(this.attach ? 1 : 0, 4 / Math.max(0.05, this.attachPreset?.blend ?? 0.25), dt);
     if (this.attachPreset && attachW > 1e-3) attachFraming(fr, this.attachPreset, Math.min(1, attachW));
     const overEye = this.coverTop > 0 ? this.coverTop + COVER_EYE - T.height : 0;

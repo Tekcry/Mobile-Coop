@@ -25,6 +25,8 @@ Blacklist style.
     in, drop; horizontal pipe; landing bands (soft / roll / heavy + noise + recovery); grab while falling; zipline;
     open / glazed windows; duct unscrew, crawl, vent drop + roll, kick (fresh page); keyboard E; touch prompts;
     planted hands / feet locked (< 1 cm), arms reach grips
+  - `scripts/e2e-anchors.mjs` every placed anchor on every map (ladders bottom / top, drainpipes, pipes, ziplines,
+    ducts, windows both sides) is offered from its approach and engages; hangable lips per map
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
     aiming, after a sprint / cover / lean, no residual offsets, level horizon after a shake) + headless cover bars: 3 m snap glide, hand
     contact, sticky exit, sprint slide, edge peeks, peek in/out timing, left-edge hand switch, corner offered and swung on the button (never automatic), no spin from quick aim /
@@ -44,7 +46,9 @@ Blacklist style.
     inside corners, edge stop a step back, no cover badge, SWAT turn, cover-to-cover only when looking at it with the stick held towards it + slide + marker,
     world prompts (low on the surface, tapped by touch), manual cover only (walking / sprinting into a wall never
     snaps), crouched aim over low cover, keyboard Space
-  - `scripts/e2e-clip.mjs` weapon clipping sweep: every frame of wall-side movement, high / low cover (idle,
+  - `scripts/e2e-clip.mjs` traversal: no body point (trunk, head, thighs, calves, upper arms; raycast from the hips)
+    > 3 cm into the world while climbing, hanging, shimmying, climbing up, crawling, dropping through a vent,
+    vaulting a window, on a zipline or rolling; plus the weapon clipping sweep: every frame of wall-side movement, high / low cover (idle,
     moving, turn-and-swap, reload, swap), edge-peek aim sweeps both edges standing / crouched (with step-out),
     aim over, vault, aim every weapon, aim walking / crouched: no gun point inside the world (> 2 cm), legs grazed
     <= 2.5 cm, gun clear of the head (> -1 cm) and trunk (> -2 cm), elbows (> -3 cm), knees above the floor and
@@ -351,6 +355,12 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   committed drop, `exitDur`, registered as a landing). `Breakables` (`world/breakables.ts`): glass / grate panels as
   their own static bodies + thin instances, `open(key, how)`, `onOpen`. `anchorFirst`: ladder / drainpipe / duct /
   zipline hints beat geometric moves. Lowering into a hang is `AttachController.lower` (separate from `hint`).
+- 2c: maps place anchors for alternate routes (Warehouse windows, rack ladders, mezzanine ladder / zipline, a duct
+  into the manager's office; Dust Depot windows and wall-top routes). `REACH.grabMax` 2.7, `LEDGE.climbDepth` 0.38.
+  `BoxPiece.overhead` (`LevelBuilder.mark`): ceiling slabs / ducts the nav sampler looks through (multi-level nav is
+  Phase 7). Clean poses: quick stow (`STOW_RATE`), outside-corner transfers curve through `via`, jumps need
+  `lineClear`, `CLIMB_UP` / `VENT_DROP` / `WINDOW_VAULT` clips, `PIPE_STANDOFF`, `plantFade`; the camera clamps the
+  orbit to the preset's `cone` around `cam.attachYaw`.
   While attached the graph skips the swap clip (the stowed weapon goes straight to its slot).
 - Rig world targets: `reachL/R` (palm points, weight; the wrist sits behind the palm along the reach) override the
   weapon / clip hands; `plantL/R` (sole points) override the feet while off the ground planner.

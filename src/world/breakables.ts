@@ -28,8 +28,9 @@ interface Panel {
   pos: Vector3;
 }
 
-/** Grate size (m): a square vent cover. */
+/** Grate sizes (m): a square wall vent cover, and a ceiling hatch (big enough to drop through). */
 export const GRATE_SIZE = 0.7;
+export const HATCH_SIZE = 0.8;
 
 /**
  * Panels that block a traversal route until opened: the glass in glazed windows and the covers on duct grates.
@@ -58,7 +59,8 @@ export class Breakables {
     }
     const grate = (key: string, g: Grate): void => {
       const flat = g.where !== 'wall';
-      grates.push({ key, c: new Vector3(g.pos.x, g.pos.y, g.pos.z), s: new Vector3(GRATE_SIZE, flat ? 0.04 : GRATE_SIZE, flat ? GRATE_SIZE : 0.04), yaw: flat ? 0 : Math.atan2(g.nx, g.nz), pitch: 0 });
+      const sz = flat ? HATCH_SIZE : GRATE_SIZE;
+      grates.push({ key, c: new Vector3(g.pos.x, g.pos.y, g.pos.z), s: new Vector3(sz, flat ? 0.04 : sz, flat ? sz : 0.04), yaw: flat ? 0 : Math.atan2(g.nx, g.nz), pitch: 0 });
     };
     for (const d of anchors.ducts) {
       grate(`grate:${d.id}:entry`, d.entry);

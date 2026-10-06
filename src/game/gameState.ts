@@ -639,6 +639,7 @@ export class GameState implements AppState {
     // attached (ladder, pipe, hang, duct): both hands busy, the weapon goes to its slot; its framing preset
     this.weapons.setStowed(this.traversal.attached && !!this.traversal.attach.spec?.holster);
     this.player.cam.attach = this.traversal.cameraPreset;
+    this.player.cam.attachYaw = this.player.controller.yaw;
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.suppression.update(dt);
     this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;

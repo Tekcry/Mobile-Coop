@@ -63,6 +63,9 @@ export const RELOAD_TACTICAL_MULT = 1.37;
 export const RELOAD_EMPTY_MULT = 1.63;
 
 /** The local player's weapons: fire modes, spread/bloom, recoil, reload, swap, grenades. */
+/** Holstering for attached traversal runs this much faster than a swap's holster beat (~0.14 s to the slot). */
+const STOW_RATE = 2.5;
+
 export class PlayerWeapons {
   readonly slots: WeaponSlot[] = [];
   index = 0;
@@ -275,7 +278,8 @@ export class PlayerWeapons {
       return;
     }
     if (this.swapT >= 0) {
-      this.swapT += dt;
+      // stowing for a climb / hang is quick: both hands are wanted on the anchor
+      this.swapT += this.stowed && this.swapPhase === 0 ? dt * STOW_RATE : dt;
       // the outgoing gun goes into its slot (hands empty), the hand takes the next from its slot and
       // brings it up, then it settles into the aim pocket with both hands on it
       const f = this.swapT / SWAP_TIME;

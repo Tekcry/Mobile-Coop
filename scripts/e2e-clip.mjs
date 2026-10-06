@@ -70,6 +70,51 @@ const res = await page.evaluate(([only, log]) => {
     if (leg < 0) { acc.leg++; if (window.__dbg) acc.log.push(`t ${acc.n} LEG ${(leg*100).toFixed(1)} st ${g.cover.state} lean ${p.rig.graph.leanOut.toFixed(2)} hand ${p.rig.leftHanded} hs ${p.rig['handSwap'].toFixed(2)} clear ${p.coverPose.gunClear} body ${c.yaw.toFixed(2)} aim ${p.cam.yaw.toFixed(2)} crouch ${c.crouched} turn ${p.coverPose.turn.toFixed(2)}`); }
     acc.minLeg = Math.min(acc.minLeg, leg);
   };
+  // traversal: no part of the body (trunk, head, thighs, calves, upper arms) goes into the world: each sample point
+  // is raycast from the hips; a hit before the point is how far it is inside (hands and feet are on the grips and
+  // rungs, so the forearms and feet are left out)
+  const bodyPts = [[rig.hips, rig.neck, 0.12], [rig.hipL, rig.kneeL, 0.07], [rig.kneeL, rig.ankleL, 0.05], [rig.hipR, rig.kneeR, 0.07], [rig.kneeR, rig.ankleR, 0.05], [rig.shoulderL, rig.elbowL, 0.045], [rig.shoulderR, rig.elbowR, 0.045]];
+  const from = new V(), pt = new V();
+  const bodyCheck = (acc) => {
+    for (const n of [rig.hips, rig.spine, rig.torso, rig.neck, rig.headNode, rig.hipL, rig.kneeL, rig.ankleL, rig.hipR, rig.kneeR, rig.ankleR, rig.shoulderL, rig.elbowL, rig.shoulderR, rig.elbowR]) n.computeWorldMatrix(true);
+    from.copyFrom(rig.hips.getAbsolutePosition());
+    let pen = 0;
+    let where = '';
+    for (const [A, B, r] of bodyPts) {
+      const a0 = A.getAbsolutePosition(), b0 = B.getAbsolutePosition();
+      // a calf stops short of the ankle (the foot is on the floor / rung)
+      const last = B === rig.ankleL || B === rig.ankleR ? 3 : 4;
+      for (let k = 0; k <= last; k++) {
+        V.LerpToRef(a0, b0, k / 4, pt);
+        const h = g.ballistics.ray(from, pt, 1);
+        if (h.hit) { const d = V.Distance(h.point, pt) - r * 0.5; if (d > pen) { pen = d; where = B.name; } }
+      }
+    }
+    const hc = rig.headNode.getAbsolutePosition();
+    const hh = g.ballistics.ray(from, hc, 1);
+    if (hh.hit) { const d = V.Distance(hh.point, hc); if (d > pen) { pen = d; where = 'head'; } }
+    for (const n of [rig.kneeL, rig.kneeR, rig.ankleL, rig.ankleR]) n.computeWorldMatrix(true);
+    acc.minKnees = Math.min(acc.minKnees, V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition()));
+    acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
+    acc.n++;
+    acc.maxBody = Math.max(acc.maxBody ?? 0, pen);
+    if (pen > 0.03) { acc.body = (acc.body ?? 0) + 1; if (window.__dbg) acc.log.push(`t ${acc.n} BODY ${(pen * 100).toFixed(1)} at ${where} feet ${c.pos.x.toFixed(2)},${c.pos.y.toFixed(2)},${c.pos.z.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} kind ${g.traversal.kind}`); }
+  };
+  const runBody = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, body: 0, maxBody: 0, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; bodyCheck(acc); check(acc); } return acc; };
+  const merge = (r, r2) => { r.n += r2.n; r.body += r2.body; r.maxBody = Math.max(r.maxBody, r2.maxBody); r.minKnees = Math.min(r.minKnees, r2.minKnees); r.minFeet = Math.min(r.minFeet, r2.minFeet); r.log.push(...r2.log); return r; };
+  const tpY = (x, y, z, yaw) => { g.cover.reset(); g.traversal.reset(); st.releaseAll(); c.teleport(new V(x, y, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
+  const T = {
+    'ladder climb': () => { tpY(25.2, 0, 11, Math.PI / 2); st.tap('jump'); return runBody(7, () => move(0, 1)); },
+    'ladder down + slide': () => { tpY(26.7, 3.6, 11, -Math.PI / 2); st.tap('jump'); const r = runBody(2.5, () => move(0, -1)); move(0, 0); st.tap('drop'); const r2 = runBody(2); return merge(r, r2); },
+    'drainpipe + lip': () => { tpY(27.8, 0, 8.95, 0); st.tap('jump'); const r = runBody(5, () => move(0, 1)); st.tap('jump'); const r2 = runBody(1.5); return merge(r, r2); },
+    'hang shimmy + corner': () => { tpY(25.45, 0, 16, Math.PI / 2); st.tap('jump'); runBody(0.5); return runBody(4.5, (t) => move(t < 1 ? 1 : -1, 0)); },
+    'hang climb up': () => { tpY(25.45, 0, 16, Math.PI / 2); st.tap('jump'); runBody(0.6); st.tap('jump'); return runBody(1.6); },
+    'pipe hand over hand': () => { tpY(25.5, 0, 23.1, 0); p.cam.yaw = Math.PI / 2; st.tap('jump'); return runBody(3, () => move(0, 1)); },
+    'duct crawl + vent': () => { tpY(21.75, 3.2, -5, Math.PI / 2); st.tap('jump'); runBody(0.8); return runBody(8, () => move(0, 1)); },
+    'window vault': () => { tpY(26, 0, -9.2, 0); st.tap('jump'); return runBody(1.5); },
+    'zipline': () => { tpY(26.5, 3.6, 10.2, Math.PI); st.tap('jump'); return runBody(3); },
+    'landing roll': () => { tpY(24, 3.4, 4, 0); return runBody(2); },
+  };
   const tp = (x, z, yaw) => { g.cover.reset(); st.releaseAll(); if (c.crouched) c['crouchToggled'] = false; c.teleport(new V(x, 0, z), yaw); p.cam.yaw = yaw; p.cam.pitch = 0; a.loop.stepHeadless(0.5, 120); };
   const run = (sec, f) => { const acc = { n: 0, wall: 0, maxPen: 0, leg: 0, minLeg: 9, minHead: 9, minChest: 9, minElbow: 9, minKnees: 9, minFeet: 9, log: [] }; let t = 0; while (t < sec) { f?.(t); a.loop.stepHeadless(1 / 30, 120); t += 1 / 30; check(acc); } return acc; };
   const move = (x, y) => st.setMove('t', x, y);
@@ -100,6 +145,13 @@ const res = await page.evaluate(([only, log]) => {
     'low vault': () => { tp(-3.7, -6, -Math.PI / 2); st.tap('cover'); run(1); st.tap('jump'); return run(1.5); },
   };
   const out = [];
+  for (const [k, f] of Object.entries(T)) {
+    if (only && !k.includes(only)) continue;
+    const r = f();
+    move(0, 0); st.releaseAll();
+    out.push({ name: k, trav: true, ...r, text: `${k.padEnd(22)} frames ${String(r.n).padStart(3)}  body ${String(r.body).padStart(3)} (max ${(r.maxBody * 100).toFixed(1)} cm)  knees ${(r.minKnees * 100).toFixed(1)} feet ${(r.minFeet * 100).toFixed(1)}` + (r.log.length ? '\n  ' + r.log.join('\n  ') : '') });
+  }
+  g.traversal.reset();
   for (const [k, f] of Object.entries(S)) {
     if (only && !k.includes(only)) continue;
     const r = f();
@@ -110,6 +162,12 @@ const res = await page.evaluate(([only, log]) => {
 }, [only, log]);
 for (const r of res) {
   console.log(r.text);
+  if (r.trav) {
+    assert(r.body === 0, `${r.name}: no part of the body goes into the world (${r.body} frames, max ${(r.maxBody * 100).toFixed(1)} cm)`);
+    assert(r.minKnees > 0.09, `${r.name}: the knees never knock through each other (min ${(r.minKnees * 100).toFixed(1)} cm apart)`);
+    assert(r.minFeet > 0.06, `${r.name}: the feet never cross through each other (min ${(r.minFeet * 100).toFixed(1)} cm apart)`);
+    continue;
+  }
   assert(r.wall === 0, `${r.name}: the gun never goes into the world (${r.wall} frames, max ${(r.maxPen * 100).toFixed(1)} cm)`);
   assert(r.minLeg > -0.025, `${r.name}: the gun clears the legs (min ${(r.minLeg * 100).toFixed(1)} cm)`);
   assert(r.minHead > -0.01, `${r.name}: the gun clears the head (min ${(r.minHead * 100).toFixed(1)} cm)`);

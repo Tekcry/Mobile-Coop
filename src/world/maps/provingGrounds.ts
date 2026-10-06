@@ -95,7 +95,8 @@ export const provingGrounds: MapDef = {
     b.pillar(28.6, 23.5, 0.1, 2.5, C.metal);
     b.pipeH(23, 23.5, 28.6, 23.5, 2.4);
     // zipline off the tower's south edge down towards the shed
-    b.pillar(26.4, 9.62, 0.06, 2.3, C.metal, 3.6);
+    b.pillar(26.12, 9.6, 0.06, 2.3, C.metal, 3.6);
+    b.box(26.26, 5.55, 9.5, 0.3, 0.05, 0.05, C.metal, 0, 0, false);
     b.zipline({ x: 26.4, y: 5.5, z: 9.4 }, { x: 24.5, y: 2.3, z: 1.5 });
 
     // shed (south east, 6 x 6 m): an open window (south), a glazed one (north) and a door; a duct on its ceiling
@@ -116,23 +117,25 @@ export const provingGrounds: MapDef = {
     b.windowAt(25, 1.5, -2, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: true });
     b.wall(23, -8.15, 23, -1.85, SH, C.wallDark, 0.3);
     b.wall(29, -8.15, 29, -1.85, SH, C.wallDark, 0.3);
-    // ceiling slab (3.0 - 3.2) around a 0.7 m vent hole at (27.35, -5)
-    const vx0 = 27.0;
-    const vx1 = 27.7;
-    const vz0 = -5.35;
-    const vz1 = -4.65;
+    // ceiling slab (3.0 - 3.2) around a 0.8 m vent hatch at (27.35, -5)
+    const slab0 = b.boxes.length;
+    const vx0 = 26.95;
+    const vx1 = 27.75;
+    const vz0 = -5.4;
+    const vz1 = -4.6;
     b.box((22.85 + vx0) / 2, 3.1, -5, vx0 - 22.85, 0.2, 6.3, C.concreteDark);
     b.box((vx1 + 29.15) / 2, 3.1, -5, 29.15 - vx1, 0.2, 6.3, C.concreteDark);
     b.box((vx0 + vx1) / 2, 3.1, (-8.15 + vz0) / 2, vx1 - vx0, 0.2, vz0 + 8.15, C.concreteDark);
     b.box((vx0 + vx1) / 2, 3.1, (vz1 - 1.85) / 2, vx1 - vx0, 0.2, -1.85 - vz1, C.concreteDark);
-    // the duct: a 1 x 0.8 m tunnel on the slab from the platform (x 22.2) to past the vent (x 28)
+    // the duct: a 1 x 0.8 m tunnel on the slab from the platform (x 22.2) to past the vent (x 28.3)
     const duct0 = b.boxes.length;
     b.box(22.6, 3.1, -5, 0.8, 0.2, 1.2, C.metal);
-    b.box(25.1, 3.6, -5.55, 5.8, 0.8, 0.1, C.metal);
-    b.box(25.1, 3.6, -4.45, 5.8, 0.8, 0.1, C.metal);
-    b.box(25.1, 4.05, -5, 5.8, 0.1, 1.2, C.metal);
-    b.box(28.0, 3.6, -5, 0.1, 0.8, 1.0, C.metal);
-    for (let k = duct0; k < b.boxes.length; k++) b.boxes[k]!.noLedge = true;
+    b.box(25.25, 3.6, -5.55, 6.1, 0.8, 0.1, C.metal);
+    b.box(25.25, 3.6, -4.45, 6.1, 0.8, 0.1, C.metal);
+    b.box(25.25, 4.05, -5, 6.1, 0.1, 1.2, C.metal);
+    b.box(28.3, 3.6, -5, 0.1, 0.8, 1.0, C.metal);
+    b.mark(duct0, { noLedge: true });
+    b.mark(slab0, { overhead: true });
     b.duct(
       [
         { x: 22.45, y: 3.2, z: -5 },

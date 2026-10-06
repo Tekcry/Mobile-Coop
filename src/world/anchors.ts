@@ -147,8 +147,8 @@ export const LEDGE = {
   minDrop: 1.9,
   /** Shortest usable lip. */
   minLen: 0.6,
-  /** Top depth needed to climb up onto it (else hang only: a thin wall). */
-  climbDepth: 0.45,
+  /** Top depth needed to climb up onto it (else hang only: a thin wall); a 0.4 m wall top is walkable. */
+  climbDepth: 0.38,
   /** Clearance above the lip that must be free of other pieces to grab it. */
   clearAbove: 0.35,
   /** Usable range keeps the hands off the corners. */
@@ -169,7 +169,7 @@ export const HANG = {
 export const REACH = {
   /** Lip heights above the feet that can be jumped to and grabbed. */
   grabMin: 1.6,
-  grabMax: 2.45,
+  grabMax: 2.7,
   /** Horizontal reach to a lip, ladder or pipe. */
   horiz: 0.85,
   /** Standing on top: how close to the lip to lower into a hang. */
@@ -801,7 +801,19 @@ export interface JumpTarget {
  * held. Needs the direction to point at it (cos >= `minCos`). Lips facing `faceX/faceZ` (the held lip's normal)
  * are preferred.
  */
-export function findJumpTarget(anchors: TraversalAnchors, from: P3, exclude: number, dirX: number, dirZ: number, up: number, maxGap = 2.5, minCos = 0.6, faceX = 0, faceZ = 0): JumpTarget | null {
+export function findJumpTarget(
+  anchors: TraversalAnchors,
+  from: P3,
+  exclude: number,
+  dirX: number,
+  dirZ: number,
+  up: number,
+  maxGap = 2.5,
+  minCos = 0.6,
+  faceX = 0,
+  faceZ = 0,
+  clear?: (to: JumpTarget) => boolean,
+): JumpTarget | null {
   const g = { x: 0, y: 0, z: 0, s: 0 };
   let best: JumpTarget | null = null;
   let bestScore = -Infinity;
@@ -819,8 +831,9 @@ export function findJumpTarget(anchors: TraversalAnchors, from: P3, exclude: num
     const dz = g.z - from.z;
     const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
     if (d < 0.5 || d > maxGap) continue;
-    // a jump never goes more than 1.2 m up
+    // a jump never goes more than 1.2 m up; a jump "up" (pushing into the wall) only takes something above
     if (dy > 1.2) continue;
+    if (up > 0.6 && dy < 0.4) continue;
     const h = hyp2(dx, dz);
     // direction: horizontal intent and the vertical push
     const cos = h > 0.3 ? (dx * dirX + dz * dirZ) / h : 0;
@@ -831,8 +844,11 @@ export function findJumpTarget(anchors: TraversalAnchors, from: P3, exclude: num
     const same = a.kind === 'ledge' ? a.nx * faceX + a.nz * faceZ : 0;
     const score = aim * 2 - d * 0.4 + same * 0.6;
     if (score > bestScore) {
+      const cand = { anchor: a, s: g.s, grip: { x: g.x, y: g.y, z: g.z }, dist: d };
+      // the flight path must be free (never through the corner of a building)
+      if (clear && !clear(cand)) continue;
       bestScore = score;
-      best = { anchor: a, s: g.s, grip: { x: g.x, y: g.y, z: g.z }, dist: d };
+      best = cand;
     }
   }
   return best;

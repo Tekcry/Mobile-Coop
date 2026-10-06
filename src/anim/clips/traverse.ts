@@ -27,8 +27,9 @@ export const HANG = makeClip({
     pelPitch: [0, -0.06, 1, -0.06],
     spPitch: [0, -0.1, 1, -0.1],
     hdPitch: [0, -0.15, 1, -0.15],
-    fLZ: [0, 0.06, 1, 0.06],
-    fRZ: [0, 0.03, 1, 0.03],
+    // feet a little back from the wall (the shins hang plumb, clear of the face)
+    fLZ: [0, -0.06, 1, -0.06],
+    fRZ: [0, -0.08, 1, -0.08],
     fLY: [0, 0.04, 1, 0.04],
     fRY: [0, 0.02, 1, 0.02],
     width: [0, 0.6, 1, 0.6],
@@ -53,8 +54,9 @@ export const CLIMB = makeClip({
     hRZ: [0, 0.3, 1, 0.3],
     fLY: [0, 0.3, 0.25, 0.15, 0.5, 0, 0.75, 0.15, 1, 0.3],
     fRY: [0, 0, 0.25, 0.15, 0.5, 0.3, 0.75, 0.15, 1, 0],
-    fLZ: [0, 0.08, 1, 0.08],
-    fRZ: [0, 0.08, 1, 0.08],
+    // (the feet are on the rungs / the wall by the rig's plants; unplanted they stay plumb under the hips)
+    fLZ: [0, 0, 1, 0],
+    fRZ: [0, 0, 1, 0],
     pelZ: [0, -0.06, 1, -0.06],
     pelPitch: [0, 0.12, 0.5, 0.08, 1, 0.12],
     spPitch: [0, -0.05, 1, -0.05],
@@ -117,3 +119,83 @@ export function rollTumble(t: number): number {
   const k = Math.max(0, Math.min(1, (t - 0.12) / 0.72));
   return Math.PI * 2 * k * k * (3 - 2 * k);
 }
+
+/** Climbing up from a hang (normalised): pull up with the feet walking up the face behind the body, the knee
+ *  comes over onto the top only once the hips are above the lip, then stand. */
+export const CLIMB_UP = makeClip({
+  name: 'climbUp',
+  duration: 1,
+  keys: {
+    grip: [0, 0, 1, 0],
+    offGrip: [0, 0, 0.9, 0, 1, 1],
+    pelPitch: [0, 0, 0.35, 0.2, 0.62, 0.35, 0.85, 0.15, 1, 0.05],
+    spPitch: [0, -0.05, 0.45, 0.25, 0.7, 0.2, 1, 0],
+    hdPitch: [0, -0.2, 0.5, 0.1, 1, 0],
+    fLY: [0, 0.05, 0.35, 0.2, 0.55, 0.3, 0.7, 0.45, 0.85, 0.1, 1, 0],
+    fRY: [0, 0.05, 0.4, 0.15, 0.6, 0.2, 0.8, 0.25, 0.92, 0.05, 1, 0],
+    fLZ: [0, -0.1, 0.55, -0.12, 0.72, 0.15, 1, 0],
+    fRZ: [0, -0.12, 0.6, -0.14, 0.85, 0.05, 1, 0],
+    pelY: [0, 0, 0.6, -0.1, 0.8, -0.2, 1, 0],
+    hLY: [0, 2.0, 0.4, 1.3, 0.7, 1.0, 1, 1.0],
+    hRY: [0, 2.0, 0.4, 1.3, 0.7, 1.0, 1, 1.0],
+    hLZ: [0, 0.25, 1, 0.25],
+    hRZ: [0, 0.25, 1, 0.25],
+    wpPitch: [0, -0.9, 0.9, -0.8, 1, 0],
+  },
+});
+
+/** Dropping through a ceiling vent (normalised over the lowering): from the crawl, the hips swing down through the
+ *  hole while the chest comes upright, hanging on the edges by the end (the root drops at the same time, so the
+ *  head stays inside the duct until it is over the hole). */
+export const VENT_DROP = makeClip({
+  name: 'ventDrop',
+  duration: 1,
+  keys: {
+    grip: [0, 0, 1, 0],
+    offGrip: [0, 0, 1, 0],
+    pelPitch: [0, 1.0, 0.65, 0, 1, -0.06],
+    spPitch: [0, 1.05, 0.65, -0.05, 1, -0.1],
+    pelY: [0, -0.5, 0.55, -0.15, 1, 0],
+    hdPitch: [0, -0.9, 0.7, -0.2, 1, -0.15],
+    fLZ: [0, -0.5, 0.6, -0.06, 1, -0.06],
+    fRZ: [0, -0.38, 0.6, -0.08, 1, -0.08],
+    fLY: [0, 0.1, 1, 0.04],
+    fRY: [0, 0.1, 1, 0.02],
+    fLPitch: [0, 1.3, 0.6, 0, 1, 0],
+    fRPitch: [0, 1.3, 0.6, 0, 1, 0],
+    // hands tucked in at the chest while the shoulders pass the hole, then up for the edges
+    hLX: [0, -0.12, 1, -0.16],
+    hRX: [0, 0.12, 1, 0.16],
+    hLY: [0, 0.6, 0.5, 1.3, 1, 1.95],
+    hRY: [0, 0.6, 0.5, 1.3, 1, 1.95],
+    hLZ: [0, 0.15, 1, 0.08],
+    hRZ: [0, 0.15, 1, 0.08],
+    width: [0, 1, 1, 0.6],
+    wpPitch: [0, -0.9, 1, -0.9],
+  },
+});
+
+/** Vaulting through a window (normalised): dip, hands on the sill, a low dive with the body near horizontal and
+ *  the legs tucked through the 1.2 m opening, land, rise. */
+export const WINDOW_VAULT = makeClip({
+  name: 'windowVault',
+  duration: 1,
+  keys: {
+    grip: [0, 1, 0.15, 0, 0.8, 0, 0.95, 1],
+    offGrip: [0, 1, 0.12, 0, 0.8, 0, 0.95, 1],
+    pelY: [0, 0, 0.2, -0.25, 0.45, -0.45, 0.7, -0.4, 0.9, -0.15, 1, -0.05],
+    pelPitch: [0, 0, 0.2, 0.4, 0.45, 0.75, 0.65, 0.6, 0.85, 0.2, 1, 0.05],
+    spPitch: [0, 0, 0.2, 0.35, 0.45, 0.85, 0.65, 0.7, 0.85, 0.2, 1, 0],
+    hdPitch: [0, 0, 0.3, -0.5, 0.65, -0.5, 1, 0],
+    fLY: [0, 0, 0.3, 0.35, 0.6, 0.45, 0.85, 0.05, 1, 0],
+    fRY: [0, 0, 0.3, 0.4, 0.6, 0.5, 0.85, 0.05, 1, 0],
+    fLZ: [0, 0, 0.45, -0.1, 0.7, 0.1, 1, 0],
+    hLX: [0, -0.2, 1, -0.2],
+    hRX: [0, 0.2, 1, 0.2],
+    hLY: [0, 1.0, 0.25, 0.95, 0.5, 0.7, 0.8, 0.9, 1, 1.0],
+    hRY: [0, 1.0, 0.25, 0.95, 0.5, 0.7, 0.8, 0.9, 1, 1.0],
+    hLZ: [0, 0.3, 0.25, 0.45, 0.5, 0.2, 1, 0.2],
+    hRZ: [0, 0.3, 0.25, 0.45, 0.5, 0.2, 1, 0.2],
+    wpPitch: [0, 0, 0.2, -0.7, 0.8, -0.6, 1, 0],
+  },
+});

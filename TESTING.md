@@ -293,6 +293,15 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 2c - Routes on every map (1.10.0) - Warehouse, Dust Depot
+- [ ] Warehouse yard: vault in through the workshop window. Dispatch: Y at the glass shatters through to the corridor.
+- [ ] Racking: climb a rack ladder, walk the rack top, sprint and hop the cross aisle.
+- [ ] Factory floor: ladder up to the mezzanine (or grab its edge from below); zipline down from the deck.
+- [ ] Mezzanine west end: the vent into the duct; crawl over the manager's office and drop in through the hatch.
+- [ ] Dust Depot: a warehouse's south window; the crate by its east wall, grab the wall top, walk it, drop inside.
+- [ ] Container tops: grab, climb up, walk across. Nothing pokes through walls while climbing, hanging or crawling.
+- [ ] On a ladder / hanging, the camera cannot be spun all the way round (it stops softly).
+
 ## 2.0 phase 2b - Landings, ziplines, windows, ducts (1.9.0) - Proving Grounds, east side
 - [ ] Walk off the tower (3.6 m): a roll that keeps you moving; off the 2.3 m blocks: a soft landing. Enemies in
       Wave mode turn towards a heavy landing.

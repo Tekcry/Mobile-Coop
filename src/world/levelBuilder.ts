@@ -38,6 +38,9 @@ export interface BoxPiece {
   visible?: boolean;
   /** Never generate ledges from this piece (manual override). */
   noLedge?: boolean;
+  /** Above head height over a walkable floor (ceiling slab, duct, catwalk): the nav grid samples the floor
+   *  under it and does not treat it as a blocker. */
+  overhead?: boolean;
 }
 
 export interface CylPiece {
@@ -246,6 +249,16 @@ export class LevelBuilder {
   /** Manual ledge (in addition to the generated ones). */
   ledge(ax: number, az: number, bx: number, bz: number, top: number, opts: { drop?: number; canHang?: boolean; canClimbUp?: boolean } = {}): Ledge {
     return this.anchors.add<Ledge>(makeLedge(ax, az, bx, bz, top, opts));
+  }
+
+  /** Mark the pieces added since `from` (an index into `boxes`): overhead and / or without ledges. */
+  mark(from: number, flags: { overhead?: boolean; noLedge?: boolean }): this {
+    for (let k = from; k < this.boxes.length; k++) {
+      const b = this.boxes[k]!;
+      if (flags.overhead) b.overhead = true;
+      if (flags.noLedge) b.noLedge = true;
+    }
+    return this;
   }
 
   /** No generated ledges within `r` of (x, z). */
