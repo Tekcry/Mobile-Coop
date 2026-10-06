@@ -101,8 +101,14 @@ export class RemotePlayer implements Damageable {
     this.teleportGrace = seconds;
   }
 
+  private protectT = 0;
+
   update(dt: number): void {
     this.teleportGrace = Math.max(0, this.teleportGrace - dt);
+    if (this.protectT > 0) {
+      this.protectT -= dt;
+      if (this.protectT <= 0) this.damageMul = 1;
+    }
     this.health.update(dt);
   }
 
@@ -128,8 +134,16 @@ export class RemotePlayer implements Damageable {
     return true;
   }
 
+  /** Hits that do not hurt (team-mates); PvP replaces it with the match's rules. */
+  friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
+  /** The last hit taken (PvP credit). */
+  lastHit: HitInfo | null = null;
+  /** Feet history for lag-compensated PvP shots. */
+  readonly history: { t: number; x: number; y: number; z: number; c: number }[] = [];
+
   applyDamage(h: HitInfo): DamageResult {
-    if (!this.alive || h.attackerTeam === 'player') return { dealt: 0, killed: false };
+    if (!this.alive || this.friendly(h)) return { dealt: 0, killed: false };
+    this.lastHit = h;
     const rolling = ((this.state?.f ?? 0) & PF.roll) !== 0;
     const dealt = this.health.damage(h.amount * this.damageMul * (rolling ? 0.5 : 1));
     if (dealt > 0) this.onDamaged?.(h, dealt);
@@ -141,12 +155,13 @@ export class RemotePlayer implements Damageable {
     return { dealt, killed };
   }
 
-  revive(at: Vector3): void {
+  revive(at: Vector3, protect = 2): void {
+    this.lastHit = null;
     this.health.reset();
     this.feet.copyFrom(at);
     this.allowTeleport();
     this.damageMul = 0;
-    setTimeout(() => (this.damageMul = 1), 2000);
+    this.protectT = protect;
     this.sync();
   }
 

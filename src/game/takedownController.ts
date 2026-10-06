@@ -1,5 +1,8 @@
 import { Vector3 } from '../core/babylon';
-import type { Enemy } from '../ai/enemy';
+import type { EnemyDef } from '../ai/enemyDefs';
+import type { AlertLevel } from '../ai/alertState';
+import type { CharacterRig } from '../player/characterRig';
+import type { DamageResult, HitInfo } from './damage';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
 import { approachPoint, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
@@ -12,6 +15,24 @@ const NOISE_STRIKE = 3;
 /** Candidates within this (m) are checked (one line-of-sight ray per step, the nearest). */
 const SCAN = 5;
 
+/** What a takedown needs from its victim: an `Enemy`, or a co-op client's puppet of the host's enemy. */
+export interface TakedownVictim {
+  readonly id: string;
+  readonly pos: Vector3;
+  readonly yaw: number;
+  readonly alive: boolean;
+  readonly def: EnemyDef;
+  readonly alerted: boolean;
+  readonly level: AlertLevel;
+  readonly bodyRig: CharacterRig;
+  taken: boolean;
+  beginTakedown(choke: boolean): void;
+  holdAt(x: number, y: number, z: number, yaw: number): void;
+  releaseTakedown(): void;
+  applyDamage(h: HitInfo): DamageResult;
+  knockOut(h: HitInfo): void;
+}
+
 /**
  * Runs melee takedowns (phase 4). Each fixed step it finds the takedown on offer (the nearest enemy the geometry
  * allows, `pickTakedown`), shows it as a world prompt on the victim, and on the interact press plays it: the
@@ -22,9 +43,9 @@ const SCAN = 5;
  */
 export class TakedownController {
   /** On offer this step. */
-  offer: { e: Enemy; plan: TakedownPlan; lethalOnly: boolean } | null = null;
+  offer: { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } | null = null;
   /** Running; `decided` once tap / hold is known (released early = non-lethal, held through = lethal). */
-  active: { e: Enemy; plan: TakedownPlan; lethal: boolean; decided: boolean; t: number; from: Vector3; vFrom: Vector3; hp: number } | null = null;
+  active: { e: TakedownVictim; plan: TakedownPlan; lethal: boolean; decided: boolean; t: number; from: Vector3; vFrom: Vector3; hp: number } | null = null;
   /** The press that started it is still held (pad / keyboard, or the touch prompt). */
   holding = false;
   /** Counts (stats / tests). */
@@ -102,14 +123,15 @@ export class TakedownController {
     g.events.emit('takedown', { phase: 'start', lethal: lethal === true, kind: o.plan.kind });
   }
 
-  private find(): { e: Enemy; plan: TakedownPlan; lethalOnly: boolean } | null {
+  private find(): { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } | null {
     const g = this.g;
-    const em = g.enemyMgr;
-    if (!em) return null;
+    const vs = g.takedownVictims();
+    if (!vs.length) return null;
     const p = g.player.position;
-    let best: Enemy | null = null;
+    let best: TakedownVictim | null = null;
     let bd = SCAN;
-    for (const e of em.enemies) {
+    for (let k = 0; k < vs.length; k++) {
+      const e = vs[k]!;
       if (!e.alive || e.taken) continue;
       const d = hyp2(e.pos.x - p.x, e.pos.z - p.z);
       if (d < bd) {

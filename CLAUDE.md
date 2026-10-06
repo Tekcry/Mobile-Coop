@@ -68,7 +68,10 @@ Blacklist style.
     (operator still, ping, gas, back), drone (flies, dart, battery), mine
   - `scripts/e2e-stealth-ai.mjs` night Warehouse: shadow vs light detection, the arc warns first, no sight through
     walls, noise -> suspicious -> investigating, squad radio, LKP + ghost + converge + search ends, patrols
-  - `scripts/e2e-coop.mjs` two pages over `?net=local`: lobby, match, validated hits, revive, results, host leaving, offline
+  - `scripts/e2e-coop.mjs` two pages over `?net=local` (a third for PvP): lobby, wave match, validated hits, revive, results;
+    Hunter (puppet alert levels, door sync, a client door use, a client takedown, a client reviving the host),
+    Infiltration objectives on the client, Team Deathmatch (teams, opponents-only hit volumes, no friendly fire,
+    a validated elimination, respawn, results) and Free-for-all; host leaving, offline
   - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
   - `scripts/e2e-clear.mjs` Warehouse + Clear mode: only "Enemies left N" (alive + pending), no room tags /
     counts / lives / score / blips, no per-room feedback, "DOWN", OPERATION COMPLETE stinger, results without a
@@ -644,7 +647,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   the same cover > 6 s); `hear()` makes unalerted enemies investigate footsteps (`PlayerRef.cover/coverT/
   suppress` carry the player side).
 - `EnemyManager` caps alive enemies (10) and ragdolls (`BUDGET.maxRagdolls`).
-- Modes implement `GameMode` (`game/modes/`); `GameState` owns world, player, combat, AI, pickups,
+- Modes implement `GameMode` (`game/modes/`; `ModeId` also has `tdm | ffa`, run by the net host, not a mode); `GameState` owns world, player, combat, AI, pickups,
   interactables and calls mode hooks. `GameState.endSession` shows results; `GameState.rewardHook` lets
   progression add rewards.
 - Clear mode (`game/modes/clearMode.ts`): each tagged room's squad spawns unalerted holding it (`Enemy.hold`: fights
@@ -676,6 +679,22 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   kill tallies sent in `end`. `CoopClient`: `EnemyPuppet`s + `RemoteAvatar`s interpolated with
   `SnapshotBuffer`/`ClockSync` (`interp.ts`), sends `pstate` at 20 Hz and hits as `shot`; rewards come from
   `clampEnd` + `coopSessionStats` of the host report.
+- Modes (`NetMode`): co-op `wave | clear | infiltration | sandbox` (`COOP_MAX` 4), PvP `tdm | ffa` (`MAX_PLAYERS`
+  8, `TEAM_MAX` 4 a side); `capacity(mode)` gates joins and `startMatch` (`overCapacity`). Lobby/start carry
+  `mission` (Infiltration); `PlayerInfo.team` (balanced on join, `team` message / `requestTeam`).
+- Co-op sync: snapshots carry enemy `al` (alert level, +4 seized), and when changed (or every 2 s) `items`
+  (usable interactables: objectives, switches, alarms, doors, revive points; clients mirror them in their own
+  `Interactables` and send `use`, the host checks reach) and `doors` (open indices; clients `Doors.setOpen`).
+  Client takedowns: `GameState.takedownVictims` = puppets (`TakedownVictim`), `td start/done/abort` seizes the
+  host enemy (denied -> `tdDenied`). The host hears clients (footsteps by `noiseRadius`, shots by `PF.firing`,
+  `PF.quiet` = suppressed). Downed: `revive` interactables on bodies (`NetAttachment.onLocalDeath` /
+  `onRespawn`); everyone down -> the mode.
+- PvP (`net/pvp.ts`, pure: `PvpScore`, `pickSpawn`, `balanceTeam`, `pvpInfo`): `GameState.pvp` (no AI / mode;
+  pickups only); the host owns the score (`frag` events, `score` + `tl` in snapshots), respawns (`PVP.respawn`,
+  protection), the end (`winner` in `end`). Damage rules: `PlayerTarget.friendly` / `RemotePlayer.friendly`
+  from `PvpScore.hostile`; host shots hit opponents through `Hitboxes` on their avatars; client shots hit
+  `PvpTarget`s (hit volumes on opponent avatars) and are sent with the player id, rewound on the host
+  (`RemotePlayer.history`, host `selfHist`). Results: eliminations / deaths (`SessionStats.deaths`).
 
 ## Progression and saves
 - Pure maths in `progression/` (levels, rewards, upgrades, attachments, unlocks, profile ops). UI calls

@@ -108,8 +108,11 @@ try {
   const shots = await G(() => window.__app.current.weapons.tally.get('sniper'));
   assert(shots.shots === 1 && shots.hits === 1, `sniper projectile travels and hits (${JSON.stringify(shots)})`);
 
-  // grenade near dummy[1] at (3, 0, 10) via d-pad up (quick1)
-  const g0 = await G(() => window.__app.current.weapons.grenades);
+  // grenade near dummy[1] at (3, 0, 10) via d-pad up (quick1); the preset may have picked another gadget
+  const g0 = await G(() => {
+    window.__app.current.weapons.gadgets.select('frag');
+    return window.__app.current.weapons.grenades;
+  });
   await aimAt(3, 2.5, 10);
   await press(page, BTN.UP);
   assert((await G(() => window.__app.current.weapons.grenades)) === g0 - 1, 'd-pad up throws a grenade');

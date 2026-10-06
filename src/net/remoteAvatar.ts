@@ -1,4 +1,4 @@
-import { Vector3 } from '../core/babylon';
+import { Vector3, type InstancedMesh } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import { playEmote } from '../cosmetics/emotes';
@@ -13,6 +13,7 @@ import type { Ballistics } from '../weapons/ballistics';
 import { SnapshotBuffer } from './interp';
 import { PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
+import { TEAM_COLORS } from './pvp';
 
 /**
  * Another player's body, rendered from interpolated states: rig animation from speed/flags,
@@ -90,6 +91,18 @@ export class RemoteAvatar {
     playEmote(this.rig, id);
   }
 
+  private marker: InstancedMesh | null = null;
+
+  /** Team-mate marker (team deathmatch): a small diamond over the head in the team's colour. */
+  markTeam(team: number): void {
+    if (this.marker) return;
+    const m = this.world.parts.instance('sphere', TEAM_COLORS[team === 1 ? 1 : 0], 'team-mark');
+    m.parent = this.rig.root;
+    m.scaling.set(0.09, 0.14, 0.09);
+    m.position.set(0, 2.08, 0);
+    this.marker = m;
+  }
+
   /** Render-rate update at `renderTime` (in the buffer's clock). */
   update(dt: number, renderTime: number): void {
     const s = this.buf.sample(renderTime);
@@ -160,6 +173,8 @@ export class RemoteAvatar {
   }
 
   dispose(): void {
+    this.marker?.dispose();
+    this.marker = null;
     this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();
     this.models.clear();

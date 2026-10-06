@@ -4,11 +4,14 @@ import type { Blip } from '../ui/hud/minimap';
 import { Ragdoll } from '../ai/ragdoll';
 import { BUDGET } from '../physics/groups';
 import type { HitInfo } from '../game/damage';
+import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
-import type { EndStats, Msg, NetEvent, PlayerState } from './protocol';
+import { isPvp, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine } from './protocol';
 import { ClockSync } from './interp';
 import { RemoteAvatar } from './remoteAvatar';
 import { EnemyPuppet } from './enemyPuppet';
+import { PvpTarget } from './pvpTarget';
+import { pvpInfo, type PvpMode } from './pvp';
 import { clampEnd, coopSessionStats } from './validate';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
@@ -17,14 +20,18 @@ const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
 
 /**
- * Client side of a coop match. Only the local player is simulated (predicted); enemies, waves,
- * pickups and health come from host snapshots. Own hits are resolved against local puppets
- * for instant feedback and sent to the host for the real outcome.
+ * Client side of a match. Only the local player is simulated (predicted); enemies, modes, pickups, objectives, doors
+ * and health come from host snapshots. Own hits are resolved against local puppets (PvP: opponents' hit volumes)
+ * for instant feedback and sent to the host for the real outcome; objectives, doors and revives are used through
+ * mirrored interactables (`use`); takedowns seize a puppet here and the host's enemy there (`td`).
  */
 export class CoopClient implements NetAttachment {
   private avatars = new Map<string, RemoteAvatar>();
   private puppets = new Map<string, EnemyPuppet>();
+  private puppetList: EnemyPuppet[] = [];
+  private targets = new Map<string, PvpTarget>();
   private ragdolls: Ragdoll[] = [];
+  private dying: EnemyPuppet[] = [];
   private clock = new ClockSync();
   private sendT = 0;
   private time = 0;
@@ -33,17 +40,28 @@ export class CoopClient implements NetAttachment {
   private info = '';
   private ended = false;
   private lastBlast: { p: Vector3; t: number } | null = null;
+  private ints: Interactables | null = null;
+  private items = new Map<string, Interactable>();
+  private readonly pvp: PvpMode | null;
+  private score: ScoreLine[] = [];
+  private deaths = 0;
 
   constructor(
     private g: GameState,
     private s: NetSession,
   ) {
+    this.pvp = isPvp(g.opts.mode) ? (g.opts.mode as PvpMode) : null;
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
     g.explosions.onLocalBlast = (p) => {
       this.lastBlast = { p: p.clone(), t: this.time };
       s.toHost({ t: 'blast', x: p.x, y: p.y, z: p.z });
     };
     g.onEmote = (id) => s.toHost({ t: 'emote', id });
+    g.takedownVictims = () => this.puppetList;
+    if (!this.pvp && g.opts.mode !== 'sandbox') {
+      this.ints = new Interactables(g.scene, g.world.parts);
+      (g as { interactables: Interactables | null }).interactables = this.ints;
+    }
     g.hud.setObjective('Connecting to host…');
   }
 
@@ -66,6 +84,13 @@ export class CoopClient implements NetAttachment {
     }
   }
 
+  /** Opponent in this match? (PvP: free-for-all everyone, team deathmatch the other side) */
+  private hostile(id: string): boolean {
+    if (!this.pvp) return false;
+    if (this.pvp === 'ffa') return true;
+    return (this.s.players.get(id)?.team ?? 0) !== (this.s.players.get(this.s.selfId)?.team ?? 0);
+  }
+
   private avatar(st: PlayerState): RemoteAvatar | null {
     let a = this.avatars.get(st.id);
     if (!a) {
@@ -74,9 +99,22 @@ export class CoopClient implements NetAttachment {
       const g = this.g;
       a = new RemoteAvatar(g.world, g.vfx, g.ballistics, info);
       a.onFire = (cls, at) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z });
+      if (this.pvp === 'tdm' && !this.hostile(st.id)) a.markTeam(info.team);
       this.avatars.set(st.id, a);
+      if (this.hostile(st.id)) {
+        const t = new PvpTarget(g.scene, g.registry, st.id, a);
+        t.onShot = (h) => this.sendShot(st.id, h);
+        this.targets.set(st.id, t);
+      }
     }
     return a;
+  }
+
+  private dropAvatar(id: string): void {
+    this.avatars.get(id)?.dispose();
+    this.avatars.delete(id);
+    this.targets.get(id)?.dispose();
+    this.targets.delete(id);
   }
 
   private onSnap(m: Extract<Msg, { t: 'snap' }>): void {
@@ -91,20 +129,17 @@ export class CoopClient implements NetAttachment {
       seen.add(p.id);
       this.avatar(p)?.buf.push(m.time, p);
     }
-    for (const [id, a] of this.avatars) {
-      if (!seen.has(id)) {
-        a.dispose();
-        this.avatars.delete(id);
-      }
-    }
+    for (const id of [...this.avatars.keys()]) if (!seen.has(id)) this.dropAvatar(id);
     const live = new Set<string>();
     for (const e of m.enemies) {
       live.add(e.id);
       let p = this.puppets.get(e.id);
       if (!p) {
-        p = new EnemyPuppet(g.scene, g.world, g.registry, e.id, e.k);
-        p.onShot = (h) => this.sendShot(p!, h);
-        this.puppets.set(e.id, p);
+        const np = new EnemyPuppet(g.scene, g.world, g.registry, e.id, e.k);
+        np.onShot = (h) => this.sendShot(np.id, h);
+        np.onTakedown = (ph, lethal) => this.s.toHost({ t: 'td', target: np.id, ph, lethal });
+        this.puppets.set(e.id, np);
+        p = np;
       }
       p.stale = 0;
       p.buf.push(m.time, e);
@@ -116,15 +151,56 @@ export class CoopClient implements NetAttachment {
         this.puppets.delete(id);
       }
     }
+    this.puppetList = [...this.puppets.values()];
     g.pickups?.setMask(m.pk);
+    if (m.items) this.syncItems(m.items);
+    if (m.doors) this.syncDoors(m.doors);
     if (m.obj !== this.obj) {
       this.obj = m.obj;
       g.hud.setObjective(m.obj);
     }
-    if (m.info !== this.info) {
+    if (this.pvp) {
+      if (m.score) this.score = m.score;
+      g.hud.setModeInfo(pvpInfo(this.pvp, this.score, this.s.selfId, m.tl ?? 0));
+    } else if (m.info !== this.info) {
       this.info = m.info;
       g.hud.setModeInfo(infoToHtml(m.info));
     }
+  }
+
+  /** Mirror the host's usable things: create / move / enable; gone from the list = removed. */
+  private syncItems(list: NetItem[]): void {
+    const ints = this.ints;
+    if (!ints) return;
+    const keep = new Set<string>();
+    for (const n of list) {
+      keep.add(n.id);
+      let it = this.items.get(n.id);
+      if (!it) {
+        it = ints.add(n.id, n.k, new Vector3(n.x, n.y, n.z), n.label, n.hold, n.yaw);
+        it.reach = n.reach;
+        const id = n.id;
+        it.onUse = () => this.s.toHost({ t: 'use', id });
+        this.items.set(n.id, it);
+      }
+      it.pos.set(n.x, n.y, n.z);
+      it.node.position.set(n.x, n.y, n.z);
+      it.label = n.label;
+      // your own revive point is for the others
+      const on = n.on && n.id !== `revive-${this.s.selfId}`;
+      if (it.enabled !== on) ints.setEnabled(it, on);
+      if (!on) it.progress = 0;
+    }
+    for (const [id, it] of this.items) {
+      if (keep.has(id)) continue;
+      ints.remove(it);
+      this.items.delete(id);
+    }
+  }
+
+  private syncDoors(open: number[]): void {
+    const doors = this.g.world.doors;
+    for (const d of doors.list) doors.setOpen(d, open.includes(d.index));
   }
 
   /** Host-authoritative health for the local player. */
@@ -135,11 +211,11 @@ export class CoopClient implements NetAttachment {
     h.shield = p.sh;
     if (p.hp <= 0 && g.player.alive) {
       g.player.alive = false;
-      g.hud.banner('DOWN', g.opts.mode === 'wave' ? 'Back in when the wave is cleared' : 'Respawning…', 2500);
+      if (!this.pvp) g.hud.banner('DOWN', g.opts.mode === 'sandbox' ? 'Respawning…' : 'A team-mate can revive you', 2500);
     }
   }
 
-  private sendShot(p: EnemyPuppet, h: HitInfo): void {
+  private sendShot(target: string, h: HitInfo): void {
     const o = h.sourcePos;
     const dx = h.point.x - o.x;
     const dy = h.point.y - o.y;
@@ -154,12 +230,16 @@ export class CoopClient implements NetAttachment {
       dx: dx / len,
       dy: dy / len,
       dz: dz / len,
-      target: p.id,
+      target,
       part: h.part,
       rt: Math.max(0, this.renderTime),
       dist: len,
       dmg: h.amount,
     });
+  }
+
+  private name(id: string): string {
+    return this.s.players.get(id)?.name ?? 'Operator';
   }
 
   private onEvent(e: NetEvent): void {
@@ -195,6 +275,7 @@ export class CoopClient implements NetAttachment {
       case 'kill': {
         const p = this.puppets.get(e.enemy);
         if (p) {
+          if (g.takedown.active?.e === p) g.takedown.abort();
           const rig = p.die();
           if (rig) {
             const alive = this.ragdolls.filter((r) => !r.done).length;
@@ -204,8 +285,9 @@ export class CoopClient implements NetAttachment {
               away.normalize().scaleInPlace(12).addInPlaceFromFloats(0, 3, 0);
               this.ragdolls.push(new Ragdoll(g.scene, rig, away));
             } else rig.dispose();
-          }
+          } else this.dying.push(p);
           this.puppets.delete(e.enemy);
+          this.puppetList = [...this.puppets.values()];
         }
         if (e.by === me) {
           g.hud.hitMarker('kill');
@@ -213,9 +295,26 @@ export class CoopClient implements NetAttachment {
           g.app.input.rumble(0.5, 0.8, 120);
           g.hud.feedItem(`${p?.def.name ?? 'Hostile'} ${e.head ? 'headshot' : 'down'}`, 'kill');
         } else {
-          const who = this.s.players.get(e.by)?.name ?? 'Ally';
-          g.hud.feedItem(`${who}: ${p?.def.name ?? 'hostile'} ${e.head ? 'headshot' : 'down'}`);
+          g.hud.feedItem(`${this.name(e.by)}: ${p?.def.name ?? 'hostile'} ${e.head ? 'headshot' : 'down'}`);
         }
+        break;
+      }
+      case 'frag': {
+        if (e.victim === me) this.deaths++;
+        if (e.by === me && e.victim !== me) {
+          g.hud.hitMarker('kill');
+          g.app.sfx.hitMarker('kill');
+          g.app.input.rumble(0.5, 0.8, 120);
+          g.hud.feedItem(`${this.name(e.victim)} eliminated${e.head ? ' (headshot)' : ''}`, 'kill');
+        } else if (e.victim === me) g.hud.banner('ELIMINATED', e.by === me ? '' : `by ${this.name(e.by)}`, 2500);
+        else g.hud.feedItem(e.by === e.victim ? `${this.name(e.victim)} died` : `${this.name(e.by)} > ${this.name(e.victim)}`);
+        break;
+      }
+      case 'tdDenied': {
+        if (e.player !== me) break;
+        const p = this.puppets.get(e.enemy);
+        if (p && g.takedown.active?.e === p) g.takedown.abort();
+        p?.deny();
         break;
       }
       case 'banner':
@@ -244,9 +343,11 @@ export class CoopClient implements NetAttachment {
       }
       case 'revive':
         if (e.player !== me) break;
+        g.cover.reset();
+        g.traversal.reset();
         g.player.controller.teleport(new Vector3(e.x, e.y, e.z), g.player.cam.yaw);
         g.target.revive();
-        g.hud.banner('BACK IN', '', 1500);
+        if (!this.pvp) g.hud.banner('BACK IN', '', 1500);
         break;
       case 'hitConfirm':
         break;
@@ -256,7 +357,12 @@ export class CoopClient implements NetAttachment {
   private onEndMsg(raw: EndStats): void {
     this.ended = true;
     const end = clampEnd(raw, this.time);
+    if (this.pvp) {
+      const team = this.s.players.get(this.s.selfId)?.team ?? 0;
+      end.won = end.winner !== '' && (end.winner === this.s.selfId || end.winner === `team${team}`);
+    }
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
+    if (this.pvp) this.g.stats.deaths = this.deaths;
     this.g.endSession(end.won, end.subtitle);
   }
 
@@ -289,7 +395,9 @@ export class CoopClient implements NetAttachment {
   frameUpdate(dt: number): void {
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
-    for (const p of this.puppets.values()) p.update(dt, t);
+    for (const tg of this.targets.values()) tg.sync();
+    for (const p of this.puppetList) p.update(dt, t);
+    for (const p of this.dying) p.settle(dt);
     for (let i = this.ragdolls.length - 1; i >= 0; i--) {
       const r = this.ragdolls[i]!;
       r.update(dt);
@@ -303,18 +411,21 @@ export class CoopClient implements NetAttachment {
 
   blips(): Blip[] {
     const out: Blip[] = [];
-    for (const a of this.avatars.values()) out.push({ x: a.pos.x, z: a.pos.z, kind: 'ally' });
+    for (const [id, a] of this.avatars) if (!this.hostile(id)) out.push({ x: a.pos.x, z: a.pos.z, kind: 'ally' });
     return out;
   }
 
   dispose(): void {
     for (const o of this.offs) o();
-    for (const a of this.avatars.values()) a.dispose();
+    for (const id of [...this.avatars.keys()]) this.dropAvatar(id);
     for (const p of this.puppets.values()) p.dispose();
+    for (const p of this.dying) p.dispose();
     for (const r of this.ragdolls) r.dispose();
-    this.avatars.clear();
     this.puppets.clear();
+    this.puppetList = [];
+    this.dying.length = 0;
     this.ragdolls.length = 0;
+    this.ints?.dispose();
     this.g.explosions.onLocalBlast = null;
   }
 }

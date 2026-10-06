@@ -126,7 +126,7 @@ export const embassy: MapDef = {
   id: 'embassy',
   name: 'Embassy',
   description: 'Night: a walled compound, a residence with a walkable roof, roof ducts and dark gardens.',
-  modes: ['infiltration', 'clear', 'wave'],
+  modes: ['infiltration', 'clear', 'wave', 'tdm', 'ffa'],
   theme: {
     sky: '#070b14',
     horizon: '#1e2633',

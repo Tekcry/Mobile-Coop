@@ -293,6 +293,16 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 10 - Co-op 4 and PvP (1.21.0) - two to eight devices
+- [ ] Co-op > Host: Mode lists Wave, Hunter, Infiltration, Free Roam, Team Deathmatch, Free-for-all. Four phones
+      join a Hunter room; a fifth is told the room is full (switch to a PvP mode and it can join).
+- [ ] Hunter with two: the client sees calm guards, opens a door (the host sees it open), takes a guard down from
+      behind (tap: knocked out), and revives the host when he goes down (hold on the body).
+- [ ] Infiltration with two (Diplomatic Pouch): the client sees the objective, starts the download, both extract.
+- [ ] Team Deathmatch with 3+: teams split, "Join Red" moves you if there is room; team-mates have a marker;
+      shooting a team-mate does nothing; an elimination scores, the victim respawns away from enemies after 4 s.
+- [ ] Free-for-all: everyone can hit everyone; the HUD shows You / Lead and the clock; the end shows the winner.
+
 ## 2.0 phase 8 - Arsenal, suit, HQ (1.20.0)
 - [ ] Store: the new weapons from level 2 (9mm SD) to 12 (M249). Armory: each shows its model; fit a suppressor /
       scope / grip / extended mag: they appear on the gun in the armory and in the hands.

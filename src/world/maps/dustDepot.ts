@@ -93,7 +93,7 @@ export const dustDepot: MapDef = {
   id: 'depot',
   name: 'Dust Depot',
   description: 'Sun-baked supply depot: warehouses, container stacks and ruins.',
-  modes: ['wave', 'mission'],
+  modes: ['wave', 'mission', 'tdm', 'ffa'],
   theme: {
     sky: '#7fb0d8',
     horizon: '#e8dcc4',

@@ -7,13 +7,24 @@ import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 
-export const PROTOCOL_VERSION = 1;
-export const MAX_PLAYERS = 4;
+export const PROTOCOL_VERSION = 2;
+/** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
+export const MAX_PLAYERS = 8;
+export const COOP_MAX = 4;
+export const TEAM_MAX = 4;
 export const MAX_ENEMIES = 32;
 export const MAX_EVENTS = 48;
+/** Usable things (objectives, switches, doors, revives) mirrored to clients; open doors listed. */
+export const MAX_ITEMS = 48;
+export const MAX_DOORS = 96;
 const WORLD = 400;
 
-export type NetMode = 'wave' | 'sandbox';
+/** Co-op: wave, free roam, Hunter (`clear`), Infiltration. PvP: team deathmatch (4v4), free-for-all (8). */
+export type NetMode = 'wave' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa';
+export const NET_MODES: readonly NetMode[] = ['wave', 'sandbox', 'clear', 'infiltration', 'tdm', 'ffa'];
+export const isPvp = (m: NetMode | string): m is 'tdm' | 'ffa' => m === 'tdm' || m === 'ffa';
+/** Players a mode takes. */
+export const capacity = (m: NetMode): number => (isPvp(m) ? MAX_PLAYERS : COOP_MAX);
 import { parseDifficulty, type Difficulty } from '../ai/archetypes';
 export type { Difficulty };
 
@@ -26,10 +37,12 @@ export interface PlayerInfo {
   loadout: WeaponId[];
   ready: boolean;
   host: boolean;
+  /** Team deathmatch side (0 / 1); co-op and free-for-all ignore it. */
+  team: number;
 }
 
 /** Bit flags in player state. */
-export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64 } as const;
+export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128 } as const;
 
 export interface PlayerState {
   id: string;
@@ -55,6 +68,31 @@ export interface EnemyState {
   /** 0 idle/chase, 1 attack/aim, 2 crouched (cover), 3 dead */
   st: number;
   hp: number;
+  /** Alert level: 0 calm, 1 suspicious / investigating, 2 searching, 3 combat; +4 = seized in a takedown. */
+  al: number;
+}
+
+/** A usable thing on the host (mirrored on clients, used through `use`). */
+export interface NetItem {
+  id: string;
+  k: 'terminal' | 'cache' | 'switch' | 'alarm' | 'door' | 'intel' | 'charge' | 'revive';
+  x: number;
+  y: number;
+  z: number;
+  yaw: number;
+  label: string;
+  hold: number;
+  reach: number;
+  on: boolean;
+}
+export const ITEM_KINDS: readonly NetItem['k'][] = ['terminal', 'cache', 'switch', 'alarm', 'door', 'intel', 'charge', 'revive'];
+
+/** PvP scoreboard line. */
+export interface ScoreLine {
+  id: string;
+  k: number;
+  d: number;
+  team: number;
 }
 
 export type NetEvent =
@@ -68,7 +106,11 @@ export type NetEvent =
   | { e: 'hitConfirm'; player: string; kind: 'hit' | 'head' | 'kill' }
   /** A player took damage from a source at (x, z). */
   | { e: 'hurt'; player: string; x: number; z: number; boom: boolean }
-  | { e: 'revive'; player: string; x: number; y: number; z: number };
+  | { e: 'revive'; player: string; x: number; y: number; z: number }
+  /** PvP: `victim` eliminated by `by` (equal = self / world). */
+  | { e: 'frag'; victim: string; by: string; head: boolean }
+  /** Co-op: a takedown the host refused (the client lets go of its puppet). */
+  | { e: 'tdDenied'; player: string; enemy: string };
 
 export interface EndStats {
   won: boolean;
@@ -77,17 +119,25 @@ export interface EndStats {
   score: number;
   /** Per player id. */
   players: Record<string, { kills: number; headshots: number; byKind: Record<EnemyKind, number>; weaponKills: Record<string, number> }>;
+  /** PvP: the winner ('team0' / 'team1' / a player id; '' = draw). */
+  winner: string;
 }
 
 export type Msg =
   | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[] }
-  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing' }
+  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string }
   | { t: 'ready'; ready: boolean }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number }
+  /** Ask the host for a TDM side. */
+  | { t: 'team'; team: number }
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
-  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number }
+  | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; score?: ScoreLine[]; tl?: number }
+  /** Client used a mirrored item (the host checks reach and that it is usable). */
+  | { t: 'use'; id: string }
+  /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
+  | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean }
   | { t: 'ev'; events: NetEvent[] }
   | { t: 'emote'; id: string }
   /** Client grenade detonation (host validates distance and applies damage). */
@@ -147,7 +197,7 @@ function playerState(v: unknown): PlayerState | null {
     yaw,
     pitch,
     speed: num(v.speed, 0, 20) ?? 0,
-    f: Math.floor(num(v.f, 0, 127) ?? 0),
+    f: Math.floor(num(v.f, 0, 255) ?? 0),
     w,
     hp: num(v.hp, 0, 100) ?? 100,
     sh: num(v.sh, 0, 50) ?? 0,
@@ -163,7 +213,32 @@ function enemyState(v: unknown): EnemyState | null {
   const z = num(v.z, -WORLD, WORLD);
   const yaw = num(v.yaw, -1e4, 1e4);
   if (eid === null || !k || x === null || y === null || z === null || yaw === null) return null;
-  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1 };
+  return { id: eid, k, x, y, z, yaw, st: Math.floor(num(v.st, 0, 3) ?? 0), hp: num(v.hp, 0, 1) ?? 1, al: Math.floor(num(v.al, 0, 7) ?? 0) };
+}
+
+function netItem(v: unknown): NetItem | null {
+  if (!isObj(v)) return null;
+  const iid = id(v.id);
+  const k = oneOf(v.k, ITEM_KINDS);
+  const x = num(v.x, -WORLD, WORLD);
+  const y = num(v.y, -50, 100);
+  const z = num(v.z, -WORLD, WORLD);
+  if (!iid || !k || x === null || y === null || z === null) return null;
+  return { id: iid, k, x, y, z, yaw: num(v.yaw, -10, 10) ?? 0, label: safeText(v.label, 24) || 'Use', hold: num(v.hold, 0, 10) ?? 0, reach: num(v.reach, 0.5, 4) ?? 1.8, on: v.on === true };
+}
+
+function scoreLine(v: unknown): ScoreLine | null {
+  if (!isObj(v)) return null;
+  const pid = id(v.id);
+  if (!pid) return null;
+  return { id: pid, k: Math.floor(num(v.k, 0, 999) ?? 0), d: Math.floor(num(v.d, 0, 999) ?? 0), team: Math.floor(num(v.team, 0, 1) ?? 0) };
+}
+
+function playerInfo(p: unknown): PlayerInfo | null {
+  if (!isObj(p)) return null;
+  const pid = id(p.id);
+  if (!pid) return null;
+  return { id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true, team: p.team === 1 ? 1 : 0 };
 }
 
 function netEvent(v: unknown): NetEvent | null {
@@ -221,6 +296,16 @@ function netEvent(v: unknown): NetEvent | null {
       const z = num(v.z, -WORLD, WORLD);
       return player && x !== null && y !== null && z !== null ? { e: 'revive', player, x, y, z } : null;
     }
+    case 'frag': {
+      const victim = id(v.victim);
+      const by = id(v.by);
+      return victim && by ? { e: 'frag', victim, by, head: v.head === true } : null;
+    }
+    case 'tdDenied': {
+      const player = id(v.player);
+      const enemy = id(v.enemy);
+      return player && enemy ? { e: 'tdDenied', player, enemy } : null;
+    }
     default:
       return null;
   }
@@ -264,10 +349,13 @@ function endStats(v: unknown): EndStats | null {
     waves: Math.floor(num(v.waves, 0, 200) ?? 0),
     score: Math.floor(num(v.score, 0, 1e7) ?? 0),
     players,
+    winner: id(v.winner) ?? '',
   };
 }
 
-const MODES: readonly NetMode[] = ['wave', 'sandbox'];
+const MODES = NET_MODES;
+/** Mission ids are plain slugs ('' = none). */
+const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
 /** Validate an incoming message. Returns null for anything malformed. */
 export function parseMessage(raw: unknown): Msg | null {
@@ -282,21 +370,30 @@ export function parseMessage(raw: unknown): Msg | null {
       if (!Array.isArray(raw.players)) return null;
       const players: PlayerInfo[] = [];
       for (const p of raw.players.slice(0, MAX_PLAYERS)) {
-        if (!isObj(p)) continue;
-        const pid = id(p.id);
-        if (!pid) continue;
-        players.push({ id: pid, name: safeText(p.name, 16) || 'Operator', tag: tag(p.tag), look: sanitizeLook(p.look), loadout: loadout(p.loadout), ready: p.ready === true, host: p.host === true });
+        const info = playerInfo(p);
+        if (info) players.push(info);
       }
       const mode = oneOf(raw.mode, MODES);
       const difficulty = raw.difficulty === undefined ? null : parseDifficulty(raw.difficulty);
       const phase = oneOf(raw.phase, ['lobby', 'playing'] as const);
       const map = id(raw.map);
       if (!mode || !difficulty || !phase || !map) return null;
-      return { t: 'lobby', players, mode, map, difficulty, phase };
+      return { t: 'lobby', players, mode, map, difficulty, phase, mission: mission(raw.mission) };
     }
     case 'ready': {
       const r = bool(raw.ready);
       return r === null ? null : { t: 'ready', ready: r };
+    }
+    case 'team':
+      return raw.team === 0 || raw.team === 1 ? { t: 'team', team: raw.team } : null;
+    case 'use': {
+      const iid = id(raw.id);
+      return iid ? { t: 'use', id: iid } : null;
+    }
+    case 'td': {
+      const target = id(raw.target);
+      const ph = oneOf(raw.ph, ['start', 'done', 'abort'] as const);
+      return target && ph ? { t: 'td', target, ph, lethal: raw.lethal === true } : null;
     }
     case 'start': {
       const mode = oneOf(raw.mode, MODES);
@@ -304,7 +401,7 @@ export function parseMessage(raw: unknown): Msg | null {
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0 };
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission) };
     }
     case 'pstate': {
       const s = playerState(raw.s);
@@ -342,7 +439,20 @@ export function parseMessage(raw: unknown): Msg | null {
       const players = raw.players.slice(0, MAX_PLAYERS).map(playerState).filter((p): p is PlayerState => !!p);
       const enemies = raw.enemies.slice(0, MAX_ENEMIES).map(enemyState).filter((e): e is EnemyState => !!e);
       const pk = Math.floor(num(raw.pk, 0, 2 ** 30) ?? 0);
-      return { t: 'snap', time, players, enemies, obj: safeText(raw.obj, 80) ?? '', info: safeText(raw.info, 120) ?? '', pk };
+      const out: Extract<Msg, { t: 'snap' }> = { t: 'snap', time, players, enemies, obj: safeText(raw.obj, 80) ?? '', info: safeText(raw.info, 120) ?? '', pk };
+      if (Array.isArray(raw.items)) out.items = raw.items.slice(0, MAX_ITEMS).map(netItem).filter((i): i is NetItem => !!i);
+      if (Array.isArray(raw.doors)) {
+        const ds: number[] = [];
+        for (const d of raw.doors.slice(0, MAX_DOORS)) {
+          const n = num(d, 0, 4095);
+          if (n !== null && !ds.includes(Math.floor(n))) ds.push(Math.floor(n));
+        }
+        out.doors = ds;
+      }
+      if (Array.isArray(raw.score)) out.score = raw.score.slice(0, MAX_PLAYERS).map(scoreLine).filter((l): l is ScoreLine => !!l);
+      const tl = num(raw.tl, 0, 3600);
+      if (tl !== null) out.tl = tl;
+      return out;
     }
     case 'ev': {
       if (!Array.isArray(raw.events)) return null;

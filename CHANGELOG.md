@@ -1,5 +1,34 @@
 # Changelog
 
+## 1.21.0 - 2.0 phase 10: four-player co-op in every mode, PvP (Team Deathmatch 4v4, Free-for-all 8)
+- Co-op (2-4) now runs Wave, Hunter, Infiltration (any mission; the lobby picks it) and Free Roam. The host runs
+  the match; clients see the host's enemies with their alert state (the dog as a dog), use objectives, switches,
+  alarm panels and doors through mirrored interactables (`use`, reach checked by the host), see the host's doors
+  open and close (door states are synced; doorways no longer stand open for clients), take guards down (the
+  takedown seizes the host's enemy, `td`; tap = knock-out, hold = lethal) and are heard (footsteps by speed and
+  stance, shots by weapon; suppressed = suspicion only).
+- Downed in co-op: a team-mate holds the revive point on the body (2.5 s; HQ medic training makes it faster);
+  everyone down hands over to the mode (Hunter / Infiltration lives at the checkpoint, Wave ends). Infiltration
+  downloads and the extraction count any operator standing there; the rescued asset follows the nearest.
+- PvP: Team Deathmatch (4v4, first to 30) and Free-for-all (up to 8, first to 15), 8 minutes, on the Warehouse,
+  Dust Depot and Embassy. Teams balance on join; "Join Blue / Red" in the lobby. Client hits on players are
+  rewound to what the shooter saw and checked like enemy hits; the host's own shots resolve through hit volumes
+  on opponents; no friendly fire; respawn after 4 s at the spawn furthest from opponents, 2 s of protection.
+  HUD: team scores in team colours (or You / Lead) and the clock; kill feed "A > B"; team-mates carry a marker.
+  Results: eliminations, deaths, headshots; rewards pay eliminations and the result.
+- Lobby: capacity per mode (co-op 4, PvP 8; start is blocked with too many players), mission choice for
+  Infiltration, team colours. Protocol v2 (`team`, `use`, `td`; snapshot `items`, `doors`, `score`, `tl`, enemy
+  `al`; events `frag`, `tdDenied`; end `winner`).
+- Not synced yet (noted): bodies (clients see a ragdoll, not a body to carry), Mark & Execute by clients, gadgets
+  thrown by clients other than frags (the host re-detonates frags only), alarm panels held by clients finish on
+  the client's hold.
+- Tests: `tests/pvp.test.ts` (teams, scoring, spawns, HUD line, rewards, new messages and caps, 8-player lobby,
+  team switch, mission in the start); e2e-coop adds Hunter (calm puppets, door sync, a door used by the client, a
+  client takedown, the client reviving the host), Infiltration (mission map and objectives on the client) and a
+  third player for Team Deathmatch (teams, hit volumes only on opponents, no friendly fire, a validated
+  elimination, respawn, results on every page) and Free-for-all. e2e-combat selects the frag before the d-pad
+  throw (the preset may pick another gadget).
+
 ## 1.20.0 - 2.0 phase 8: arsenal, attachments, suit, HQ, economy
 - Arsenal of 16 (`config/weapons.json`, procedural models by role at real sizes): pistols - P45 Compact (the old
   P9), FN Five-7, 9mm SD (integral suppressor); SMGs - MP5 Kurz (the old V-12), Vector .45, P-90 (bullpup, top

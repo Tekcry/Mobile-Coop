@@ -22,7 +22,10 @@ export class ResultsScreen extends Screen {
     super('results-screen');
     const acc = stats.shots > 0 ? Math.round((stats.hits / stats.shots) * 100) : 0;
     const row = (k: string, v: string | number): HTMLElement => h('div', { class: 'stat' }, h('span', { text: k }), h('b', { text: String(v) }));
-    const grid = h(
+    const pvp = stats.mode === 'tdm' || stats.mode === 'ffa';
+    const grid = pvp
+      ? h('div', { class: 'stat-grid' }, row('Eliminations', stats.kills), row('Deaths', stats.deaths ?? 0), row('Headshots', stats.headshots), row('Accuracy', `${acc}%`), row('Time', fmtTime(stats.time)))
+      : h(
       'div',
       { class: 'stat-grid' },
       row('Score', stats.score),

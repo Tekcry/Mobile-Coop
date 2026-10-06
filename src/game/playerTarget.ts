@@ -118,8 +118,14 @@ export class PlayerTarget implements Damageable {
     this.head.node.position.copyFrom(rig.headNode.getAbsolutePosition());
   }
 
+  /** Hits that do not hurt (team-mates); PvP replaces it with the match's rules. */
+  friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
+  /** The last hit taken (PvP credit). */
+  lastHit: HitInfo | null = null;
+
   applyDamage(h: HitInfo): DamageResult {
-    if (!this.alive || h.attackerTeam === 'player') return { dealt: 0, killed: false };
+    if (!this.alive || this.friendly(h)) return { dealt: 0, killed: false };
+    this.lastHit = h;
     const zone = h.part === 'head' ? PLAYER_PART_MULT.head : h.point.y - this.player.position.y < 0.85 - this.player.controller.crouchBlend * 0.35 ? PLAYER_PART_MULT.legs : 1;
     const amount = h.amount * this.damageMul * this.armorMul * zone;
     const dealt = this.health.damage(amount);

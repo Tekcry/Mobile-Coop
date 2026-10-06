@@ -195,6 +195,7 @@ describe('host validation', () => {
         waves: 50,
         score: 1e7,
         players: { me: { kills: 500, headshots: 900, byKind: { ...emptyKinds(), grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, smg: 400 } } },
+        winner: '',
       },
       60,
     );
@@ -205,15 +206,15 @@ describe('host validation', () => {
     expect(me.byKind.grunt + me.byKind.runner + me.byKind.heavy).toBeLessThanOrEqual(me.kills);
     expect((me.weaponKills.rifle ?? 0) + (me.weaponKills.smg ?? 0)).toBeLessThanOrEqual(me.kills);
     expect(end.score).toBeLessThan(1e7);
-    const honest = clampEnd({ won: false, subtitle: '', waves: 2, score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } } }, 120);
+    const honest = clampEnd({ won: false, subtitle: '', waves: 2, score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } }, winner: '' }, 120);
     expect(honest.score).toBe(1500);
     expect(honest.players.me!.kills).toBe(9);
   });
   it('rewards use only this player’s line of the host report', () => {
-    const s = coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 3, score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } } }, 'b');
+    const s = coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 3, score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } }, winner: '' }, 'b');
     expect(s.kills).toBe(7);
     expect(s.waves).toBe(3);
-    expect(coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 1, score: 0, players: {} }, 'zz').kills).toBe(0);
+    expect(coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 1, score: 0, players: {}, winner: '' }, 'zz').kills).toBe(0);
   });
   it('mode info round-trips through plain text', () => {
     const html = '<span>Wave <b>3</b></span><span>Hostiles <b>5</b></span><span>Score <b>1200</b></span>';
@@ -279,7 +280,7 @@ describe('net session', () => {
     let got = false;
     late.events.on('start', () => (got = true));
     // the late client subscribed after construction: a re-hello (reconnect) triggers the start again
-    late.transport.send({ t: 'hello', v: 1, name: 'Late', tag: {}, look: {} });
+    late.transport.send({ t: 'hello', v: 2, name: 'Late', tag: {}, look: {} });
     expect(got).toBe(true);
     let left = '';
     host.events.on('peerLeft', (p) => (left = p.name));
@@ -310,7 +311,7 @@ describe('net session', () => {
     const fifth = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
     fifth.events.on('full', () => (full = true));
-    fifth.transport.send({ t: 'hello', v: 1, name: 'X', tag: {}, look: {} }, 'H');
+    fifth.transport.send({ t: 'hello', v: 2, name: 'X', tag: {}, look: {} }, 'H');
     expect(host.players.size).toBe(4);
     expect(full).toBe(true);
   });

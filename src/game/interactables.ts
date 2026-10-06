@@ -4,7 +4,7 @@ import type { PartLibrary } from '../world/partLibrary';
 import { hyp2 } from '../core/mathx';
 
 /** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
-export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge';
+export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive';
 
 const KIND_COLOR: Record<InteractKind, string> = {
   terminal: '#3fc1ff',
@@ -18,6 +18,7 @@ const KIND_COLOR: Record<InteractKind, string> = {
   vip: '#2a2f36',
   intel: '#ffd23f',
   charge: '#ff6b5a',
+  revive: '#4fdc7c',
 };
 
 export interface Interactable {
@@ -82,7 +83,7 @@ export class Interactables {
     } else if (kind === 'charge') {
       add('box', '#3a3f45', [0.5, 0.9, 0.5], [0, 0.45, 0]);
       light = add('box', KIND_COLOR.charge, [0.12, 0.08, 0.02], [0, 0.75, 0.26]);
-    } else if (kind === 'hide' || kind === 'body' || kind === 'door' || kind === 'vip') {
+    } else if (kind === 'hide' || kind === 'body' || kind === 'door' || kind === 'vip' || kind === 'revive') {
       // no visuals
     } else if (kind === 'terminal') {
       add('box', '#3a4048', [0.7, 1.1, 0.45], [0, 0.55, 0]);

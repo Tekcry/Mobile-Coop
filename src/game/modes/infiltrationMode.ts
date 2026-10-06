@@ -238,12 +238,24 @@ export class InfiltrationMode implements GameMode {
       this.fill();
     }
     const o = this.chain.current;
-    const p = g.player.position;
-    // the asset follows
-    if (this.vip) this.vip.update(dt, p, g.player.controller.crouched);
+    // co-op: any operator standing counts (the asset follows the nearest)
+    const refs = g.playerRefs();
+    let lead = refs[0]!;
+    if (this.vip && refs.length > 1) {
+      let bd = Infinity;
+      for (const r of refs) {
+        const d = hyp2(r.feet.x - this.vip.pos.x, r.feet.z - this.vip.pos.z);
+        if (r.target.alive && d < bd) {
+          bd = d;
+          lead = r;
+        }
+      }
+    }
+    if (this.vip) this.vip.update(dt, lead.feet, lead.crouched);
     if (!o) return;
+    const near = (range: number, dy: number): boolean => refs.some((r) => r.target.alive && hyp2(r.feet.x - o.x, r.feet.z - o.z) < range && Math.abs(r.feet.y - o.y) < dy);
     if (o.type === 'download' && this.downloading) {
-      if (g.player.alive && hyp2(p.x - o.x, p.z - o.z) < DOWNLOAD.range && Math.abs(p.y - o.y) < 2.5) {
+      if (near(DOWNLOAD.range, 2.5)) {
         const site = new Vector3(o.x, o.y, o.z);
         if (this.chain.hold(dt)) this.completed(o);
         // the traffic is noticed now and then: guards come to look
@@ -252,7 +264,7 @@ export class InfiltrationMode implements GameMode {
       }
     }
     if (o.type === 'extract') {
-      const inZone = g.player.alive && hyp2(p.x - o.x, p.z - o.z) < o.radius;
+      const inZone = near(o.radius, 6);
       const vipOk = !this.vip || !this.vip.free || hyp2(this.vip.pos.x - o.x, this.vip.pos.z - o.z) < o.radius * 2;
       this.extractT = inZone && vipOk ? this.extractT + dt : 0;
       if (this.extractT >= EXTRACT_HOLD && this.chain.reach()) this.complete();

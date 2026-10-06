@@ -1,6 +1,7 @@
 import { EventBus } from '../core/events';
 import type { AvatarLook } from '../cosmetics/avatarLook';
-import { parseMessage, PROTOCOL_VERSION, MAX_PLAYERS, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
+import { capacity, isPvp, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
+import { balanceTeam, canJoinTeam } from './pvp';
 import type { Transport } from './transport';
 import type { WeaponId } from '../weapons/weaponDefs';
 
@@ -16,6 +17,8 @@ export interface StartInfo {
   map: string;
   seed: number;
   difficulty: Difficulty;
+  /** Infiltration: the mission ('' otherwise). */
+  mission: string;
 }
 
 export interface SessionEvents {
@@ -39,6 +42,7 @@ export class NetSession {
   mode: NetMode = 'wave';
   map = 'depot';
   difficulty: Difficulty = 'normal';
+  mission = '';
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -50,7 +54,7 @@ export class NetSession {
     private me: LocalProfile,
   ) {
     this.hostId = role === 'host' ? transport.selfId : null;
-    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host' });
+    this.players.set(transport.selfId, { id: transport.selfId, ...me, ready: role === 'host', host: role === 'host', team: 0 });
     transport.onMessage = (raw, from) => this.receive(raw, from);
     transport.onPeerJoin = (id) => {
       // introduce ourselves to every newcomer
@@ -93,12 +97,13 @@ export class NetSession {
   private hostReceive(msg: Msg, from: string): void {
     if (msg.t === 'hello') {
       if (msg.v !== PROTOCOL_VERSION) return;
-      if (!this.players.has(from) && this.players.size >= MAX_PLAYERS) {
+      if (!this.players.has(from) && this.players.size >= capacity(this.mode)) {
         this.send({ t: 'bye', reason: 'Room is full' }, from);
         return;
       }
       const prev = this.players.get(from);
-      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false });
+      const team = prev?.team ?? balanceTeam([...this.players.values()].map((p) => p.team));
+      this.players.set(from, { id: from, name: msg.name, tag: msg.tag, look: msg.look, loadout: msg.loadout, ready: prev?.ready ?? false, host: false, team });
       this.broadcastLobby();
       // late join / reconnect during a match
       if (this.phase === 'playing' && this.start) this.send({ t: 'start', ...this.start, time: 0 }, from);
@@ -111,7 +116,11 @@ export class NetSession {
       this.broadcastLobby();
       return;
     }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast') {
+    if (msg.t === 'team') {
+      if (this.phase === 'lobby') this.setTeam(from, msg.team);
+      return;
+    }
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td') {
       this.events.emit('game', { msg, from });
     }
   }
@@ -130,6 +139,7 @@ export class NetSession {
       this.mode = msg.mode;
       this.map = msg.map;
       this.difficulty = msg.difficulty;
+      this.mission = msg.mission;
       this.phase = msg.phase;
       this.events.emit('lobby', { players: [...this.players.values()] });
       return;
@@ -143,7 +153,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission };
       this.events.emit('start', this.start);
       return;
     }
@@ -171,7 +181,7 @@ export class NetSession {
   broadcastLobby(): void {
     if (!this.isHost) return;
     const players = [...this.players.values()];
-    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase });
+    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission });
     this.events.emit('lobby', { players });
   }
 
@@ -182,23 +192,50 @@ export class NetSession {
     else this.toHost({ t: 'ready', ready });
   }
 
-  setSettings(mode: NetMode, map: string, difficulty: Difficulty): void {
+  setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission): void {
     if (!this.isHost) return;
+    // switching into team deathmatch: even the sides out
+    if (isPvp(mode) && mode !== this.mode) {
+      const ps = [...this.players.values()];
+      ps.forEach((p, i) => (p.team = i % 2));
+    }
     this.mode = mode;
     this.map = map;
     this.difficulty = difficulty;
+    this.mission = mode === 'infiltration' ? mission : '';
     this.broadcastLobby();
+  }
+
+  /** Change side (host: anyone; clients ask with `requestTeam`). Refused when that side is full. */
+  setTeam(id: string, team: number): boolean {
+    if (!this.isHost) return false;
+    const p = this.players.get(id);
+    if (!p || p.team === team || !canJoinTeam([...this.players.values()].map((q) => q.team), team)) return false;
+    p.team = team;
+    this.broadcastLobby();
+    return true;
+  }
+
+  requestTeam(team: number): void {
+    if (this.isHost) this.setTeam(this.selfId, team);
+    else this.toHost({ t: 'team', team });
   }
 
   get allReady(): boolean {
     return [...this.players.values()].every((p) => p.ready || p.host);
   }
 
+  /** Too many players for the chosen mode (co-op takes 4). */
+  get overCapacity(): boolean {
+    return this.players.size > capacity(this.mode);
+  }
+
   /** Host: start the match for everyone. */
   startMatch(): StartInfo | null {
     if (!this.isHost) return null;
     this.phase = 'playing';
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty };
+    if (this.overCapacity) return null;
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission };
     this.send({ t: 'start', ...this.start, time: 0 });
     this.broadcastLobby();
     this.events.emit('start', this.start);

@@ -50,7 +50,7 @@ import { LkpGhost } from '../vfx/lkpGhost';
 import { Silhouettes } from '../vfx/silhouettes';
 import { VISION, VisionState } from './vision';
 import { StealthSystems } from './stealthSystems';
-import { TakedownController } from './takedownController';
+import { TakedownController, type TakedownVictim } from './takedownController';
 import { ExecuteController } from './executeController';
 import { MarkSet } from './marks';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
@@ -99,6 +99,8 @@ export interface NetAttachment {
   onEnd?(won: boolean, subtitle: string): void;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
+  /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
+  onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */
   pickers?(): { id: string; feet: Vector3; needs: (k: 'ammo' | 'health') => boolean }[];
   onPickup?(kind: 'ammo' | 'health', who: string): void;
@@ -230,6 +232,10 @@ export class GameState implements AppState {
   net: NetAttachment | null = null;
   /** Coop client: enemies, waves and objectives are driven by the host. */
   readonly puppet: boolean;
+  /** PvP (team deathmatch / free-for-all): no AI or mode; the net host keeps the score. */
+  readonly pvp: boolean;
+  /** Who a takedown can be done on (enemies; co-op clients: the host's enemies as puppets). */
+  takedownVictims: () => readonly TakedownVictim[] = () => this.enemyMgr?.enemies ?? [];
 
   private constructor(
     readonly app: App,
@@ -239,6 +245,7 @@ export class GameState implements AppState {
   ) {
     this.scene = world.scene;
     this.puppet = opts.net?.role === 'client';
+    this.pvp = opts.mode === 'tdm' || opts.mode === 'ffa';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     this.vfx = new Vfx(this.scene);
@@ -350,6 +357,10 @@ export class GameState implements AppState {
       if (opts.mode !== 'sandbox') w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
       // health is host-authoritative: local damage never applies
       this.target.damageMul = 0;
+    } else if (this.pvp) {
+      const w = this as { -readonly [K in keyof GameState]: GameState[K] };
+      w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
+      w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
     } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
       w.nav = buildNavGrid(this.scene, world.level, spawn.pos);
@@ -377,16 +388,7 @@ export class GameState implements AppState {
         this.events.emit('bark', { radio });
       };
       w.pickups = new Pickups(this.scene, world.parts, world.layout.pickups);
-      w.pickups.onPickup = (k, who) => {
-        if (who !== 'local') {
-          this.net?.onPickup?.(k, who);
-          return;
-        }
-        this.events.emit('pickup', { kind: k });
-        if (k === 'health') this.target.health.heal(50);
-        else this.weapons.addAmmo(0.5);
-        this.hud.feedItem(k === 'health' ? '+50 health' : 'Ammo refilled');
-      };
+      w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
       w.interactables = new Interactables(this.scene, world.parts);
       w.mode = opts.mode === 'wave' ? new WaveMode(this) : opts.mode === 'clear' ? new ClearMode(this) : opts.mode === 'infiltration' ? new InfiltrationMode(this) : new MissionMode(this);
       w.stealth = new StealthSystems(this, w.enemyMgr, w.interactables, (r, at) => {
@@ -414,13 +416,12 @@ export class GameState implements AppState {
       });
     }
 
-    if (this.puppet || opts.mode === 'sandbox') {
+    if (this.puppet || opts.mode === 'sandbox' || this.pvp) {
       this.extraBlips = () => [...(this.pickups?.blips() ?? []), ...(this.net?.blips?.() ?? [])];
     }
-    // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients do not sync
-    // door state yet, so theirs stand open
-    if (this.puppet) world.doors.openAll();
-    else world.doors.arm();
+    // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
+    // host's door states (snapshots)
+    world.doors.arm();
     if (opts.mode === 'sandbox') {
       this.weapons.infiniteAmmo = true;
       const d = (x: number, z: number, yaw: number, strafe = 0): void => {
@@ -492,6 +493,17 @@ export class GameState implements AppState {
     this.world.setShadows(level.shadows && userShadows, level.shadowRefresh);
     this.vfx.density = level.vfxDensity;
     this.world.lightRig.active = level.realLights;
+  }
+
+  private pickedUp(k: 'ammo' | 'health', who: string): void {
+    if (who !== 'local') {
+      this.net?.onPickup?.(k, who);
+      return;
+    }
+    this.events.emit('pickup', { kind: k });
+    if (k === 'health') this.target.health.heal(50);
+    else this.weapons.addAmmo(0.5);
+    this.hud.feedItem(k === 'health' ? '+50 health' : 'Ammo refilled');
   }
 
   playerRefs(): PlayerRef[] {
@@ -794,9 +806,10 @@ export class GameState implements AppState {
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.stealth?.fixedUpdate();
     // Mark & Execute, then takedowns (Y / E: a takedown on offer, else execute when ready, else the rest)
-    if (!this.puppet) {
-      const execPressed = inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached);
-      const executing = this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
+    // (co-op clients: takedowns on the host's enemies; Mark & Execute stays with the host)
+    if (!this.pvp) {
+      const execPressed = !this.puppet && (inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached));
+      const executing = !this.puppet && this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
       if (!executing) this.takedown.fixedUpdate(dt, inp.pressed('interact') && !execPressed, inp.down('interact'));
     }
     this.suppression.update(dt);
@@ -865,6 +878,7 @@ export class GameState implements AppState {
         this.target.damageMul = 0;
         setTimeout(() => (this.target.damageMul = this.puppet ? 0 : 1), 2000);
         this.respawnAt = null;
+        this.net?.onRespawn?.(sp);
       }
     }
   }

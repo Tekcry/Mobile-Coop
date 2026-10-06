@@ -152,7 +152,16 @@ export class Doors {
     return true;
   }
 
-  /** Every door open, no collision (co-op clients until door state is synced). */
+  /** Force a door's state (co-op clients follow the host): open drops the body and swings, closed restores it. */
+  setOpen(d: DoorState, open: boolean): void {
+    if ((d.target === 1) === open) return;
+    d.target = open ? 1 : 0;
+    d.rate = 1 / (open ? DOOR.quietTime : DOOR.closeTime);
+    // (closed: the body comes back when the leaf is shut, in `update`)
+    if (open) this.removeBody(d);
+  }
+
+  /** Every door open, no collision. */
   openAll(): void {
     for (const d of this.list) {
       this.removeBody(d);

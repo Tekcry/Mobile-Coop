@@ -1103,6 +1103,13 @@ body {
 .hud-mode b {
   color: var(--text);
 }
+/* PvP: team scores in the team colours (Blue / Red) */
+.hud-mode .pvp-team.t0 b {
+  color: #3fa2ff;
+}
+.hud-mode .pvp-team.t1 b {
+  color: #ff4b3e;
+}
 .hud-minimap {
   position: absolute;
   top: calc(var(--sat) + 8px);
