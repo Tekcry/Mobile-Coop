@@ -51,6 +51,9 @@ export class WorldPrompts {
   readonly el: HTMLElement;
   private items = {} as Record<WorldPromptId, Item>;
   onTap: ((id: WorldPromptId) => void) | null = null;
+  /** Touch down / up on a prompt (hold interactions: unscrewing a vent). */
+  onDown: ((id: WorldPromptId) => void) | null = null;
+  onUp: ((id: WorldPromptId) => void) | null = null;
 
   constructor(parent: HTMLElement) {
     this.el = h('div', { class: 'hud-world' });
@@ -61,16 +64,28 @@ export class WorldPrompts {
       el.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         e.preventDefault();
+        // the label may change while held (hold progress): keep the pointer on the prompt itself
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch {
+          /* synthetic events have no active pointer */
+        }
         el.classList.add('active');
+        if (el.classList.contains('show')) this.onDown?.(id);
       });
       el.addEventListener('pointerup', (e) => {
         e.stopPropagation();
+        this.onUp?.(id);
         if (!el.classList.contains('active')) return;
         el.classList.remove('active');
         if (el.classList.contains('show')) this.onTap?.(id);
       });
-      el.addEventListener('pointerleave', () => el.classList.remove('active'));
-      el.addEventListener('pointercancel', () => el.classList.remove('active'));
+      const cancel = (): void => {
+        if (el.classList.contains('active')) this.onUp?.(id);
+        el.classList.remove('active');
+      };
+      el.addEventListener('pointerleave', cancel);
+      el.addEventListener('pointercancel', cancel);
       this.el.appendChild(el);
       this.items[id] = { el, key: '', x: -1, y: -1, sx: -1, sy: -1 };
     }

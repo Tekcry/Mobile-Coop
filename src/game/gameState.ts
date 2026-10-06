@@ -221,6 +221,8 @@ export class GameState implements AppState {
     };
     this.hud = new Hud(app.uiRoot);
     this.hud.world.onTap = (id) => this.onWorldPrompt(id);
+    this.hud.world.onDown = (id) => this.onWorldPromptHold(id, true);
+    this.hud.world.onUp = (id) => this.onWorldPromptHold(id, false);
     this.cover = new CoverController(this.scene, this.player, world.level.coverSegments, () => app.settings.get());
     this.traversal = new TraversalController(this.scene, this.player, world.level.anchors);
     this.traversal.breakables = world.breakables;
@@ -1031,12 +1033,34 @@ export class GameState implements AppState {
 
   private promptPt = new Vector3();
 
+  /** Touch held on a prompt: at a closed vent, holding it is holding the use button (unscrew) and a quick tap kicks
+   *  (the press goes in at once; letting go releases the use button). */
+  private promptHeld = false;
+  private ventByTouch = false;
+  private onWorldPromptHold(id: WorldPromptId, down: boolean): void {
+    if (this.paused || this.exited) return;
+    const inp = this.app.input.state;
+    if (down && id === 'vault' && this.traversal.attachHint?.anchor.kind === 'duct') {
+      this.promptHeld = true;
+      this.ventByTouch = true;
+      inp.set('touch-prompt', 'interact', true);
+      inp.tap('jump');
+    } else if (!down && this.promptHeld) {
+      this.promptHeld = false;
+      inp.set('touch-prompt', 'interact', false);
+    }
+  }
+
   /** A tap on a world prompt (touch): the same as the button it shows. */
   private onWorldPrompt(id: WorldPromptId): void {
     if (this.paused || this.exited) return;
     const inp = this.app.input.state;
     if (id === 'cover' || id === 'move' || id === 'corner') inp.tap('cover');
-    else if (id === 'vault' || id === 'jumpTo') inp.tap('jump');
+    else if (id === 'vault' || id === 'jumpTo') {
+      // (a vent prompt pressed on touch-down already did it)
+      if (this.ventByTouch && id === 'vault') this.ventByTouch = false;
+      else inp.tap('jump');
+    }
     else if (id === 'drop') {
       if (this.traversal.attached) inp.tap('drop');
       else this.traversal.attachCtl.lowerRequest = true;

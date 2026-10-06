@@ -62,7 +62,8 @@ try {
   await touch(page, 'touchMove', [{ x: lc.x + look.width * 0.45, y: lc.y, id: 5 }]);
   const ys = [];
   for (let i = 0; i < 3; i++) {
-    await frames(page, 12);
+    // short samples: on slow software-GL frames a long one turns past half a circle and reads backwards
+    await frames(page, 4);
     ys.push((await state()).yaw);
   }
   const held = await state();
