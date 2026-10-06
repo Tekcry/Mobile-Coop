@@ -181,8 +181,12 @@ await run('autostart=warehouse&mode=clear', [
           }
         }
         const shots = g.weapons ? e.relocations : 0;
-        t.step(4);
-        const moved = Math.hypot(e.pos.x - p0.x, e.pos.z - p0.z);
+        // the walk to the new perch (its path length varies with the perch picked)
+        let moved = 0;
+        for (let k = 0; k < 24 && moved <= 3; k++) {
+          t.step(0.5);
+          moved = Math.hypot(e.pos.x - p0.x, e.pos.z - p0.z);
+        }
         return { laser, glintMax, refused, marked: g.marks.has(e.id), relocations: e.relocations, moved, shots };
       });
       assert(r.laser, 'its laser shows while it aims');
