@@ -1,5 +1,54 @@
 # Changelog
 
+## 1.3.0 - Stealth movement, Blacklist-style cover, realistic weapons, minimal Clear mode
+A stealth operative: fluid, quick and cover-oriented, still weighted. Built and checked against the
+iPhone 17 Pro Max class target (120 Hz).
+- Camera fix: the view could get stuck on an angle after sprinting or looking around until you aimed (a
+  twist clamp plus a stance turn cap held the view back). The camera now orbits freely: look input applies the
+  same frame, nothing holds it back, and no offset is left after a sprint, cover, a lean or traversal
+  (e2e-stealth reproduces the old bug and covers 360 deg looks standing, crouched, moving, aiming, after a
+  sprint, after cover and after a lean).
+- Movement: crouched sneak 0.8 / crouch walk 1.8 / crouch run 2.6 m/s, standing walk 1.4 / jog 2.8 m/s, sprint
+  5.0 m/s (toggle or hold, no stamina, stands you up, weapon lowered), aiming 1.4 standing / 1.0 crouched;
+  strafe x0.9 and backstep x0.75 only while aiming. Visible on the first frame, 90% speed in 0.2-0.35 s
+  (sprint <= 0.45 s), stops in 0.2-0.35 s with one settling step, direction changes under 90 deg arc round,
+  reversals are a 0.3 s planted pivot. Not aiming the body faces its travel (540 deg/s at a sneak to 300 deg/s at
+  a sprint) and does not turn with the camera when still; aiming turns <= 360 deg/s. Traversal in stride (vault,
+  mantle up to 1.8 m, step, drop, and a sprinting hop over gaps). Noise by stance and speed; crouching shrinks
+  the distance enemies see you from.
+- Camera: 80-150 ms follow with look-ahead, aim framing 150-250 ms, ~250 ms shoulder swap on an arc, framing
+  that tightens at lower pace, auto shoulder in cover and at peeks, optional auto-recentre after 1.5 s of no
+  look input while moving (Settings > Gameplay). Collision pull-in, body fade, drift <= 0.15 deg, bob <= 1 cm.
+- Cover: snap from up to 3 m with a 0.25-0.42 s glide (a slide from a sprint) and the support hand on the wall;
+  low and high cover, stand or crouch at high cover (crouch toggles); peeks over low cover and round the edges
+  of low and high cover, standing or crouched, head first with the weapon out in ~0.2 s and back in ~0.2 s; the
+  weapon changes hands at a left edge in 0.18 s; shuffle, edge look, 0.5 s corner swing, inside-corner turn;
+  cover-to-cover to the marked cover (routed round a corner when needed) or a SWAT turn, cancelled by pushing
+  back; blind fire, vault / mantle from cover, a 0.25 s sticky exit; reloads, swaps and grenades tucked in.
+- Animation: gaits for sneak, crouch walk, crouch run, walk, jog, sprint and aim strafes; start, stop and pivot
+  overlapping the root motion; leaning into turns (<= 8 deg); planted feet locked to the millimetre in every
+  gait (the pelvis drop now measures each leg from its own hip, without lag); stance changes 0.25-0.28 s; aim
+  raise ~170 ms, lower ~300 ms; inertialization 120-250 ms. Both avatar styles.
+- Weapons: realistic sizes (rifle 0.84 m, SMG 0.60, shotgun 1.00, sniper 1.15, pistol 0.19; barrels 12-22 mm;
+  receivers 30-60 mm wide), hands on the grip points within 2 cm. Every carried weapon is visible: long guns
+  vertically on the back (left / centre / right, muzzle up, within 10 deg of the spine, standing off vests and
+  backpacks), compact guns on a left-hip sling that swings out with the thigh, the pistol low on the right
+  thigh, grenades in belt pouches. Swaps reach to each slot (holster, take, bring up) and stay 0.8-1.0 s.
+  Co-op remotes show their whole loadout (the lobby carries it).
+- Clear mode: the HUD shows only "Enemies left N" (alive + still to spawn): no room names, room counts, lives,
+  score, objective or enemy blips, and no per-room banners, stingers, slow beats, feed items or rewards. Going
+  down shows "DOWN". Completing the operation is the only feedback (OPERATION COMPLETE banner, stinger, slow
+  beat, letterbox); results have no rooms row and a single completion reward. Wave and Mission are unchanged.
+- Controls: gamepad A cover / cover-to-cover, B crouch (stand / crouch at high cover), Y traverse / vault /
+  interact, X reload (hold to swap), L3 sprint, R3 shoulder, RB/LB weapons, D-pad grenade / gadgets, LT aim,
+  RT fire. Touch: contextual action button, crouch toggle, sprint toggle, aim. Keyboard: Space cover, C crouch,
+  Shift sprint, E traverse / interact.
+- Aim assist no longer jolts the camera when sweeping across a target (friction fades in space and time,
+  magnetism fades at the centre).
+- Tests: e2e-anim rewritten to the new bars, new e2e-stealth (camera + cover) and e2e-weapons-carry, e2e-clear
+  rewritten, e2e-cover / move / tactics / combat / coop updated; unit tests for weapon dimensions, carry slots,
+  Clear rewards and the hostiles-left count.
+
 ## 1.2.0 - Cinematic tactical animation, close-quarters Warehouse, mobile controls, 120 Hz
 Slower, weighted, cinematic SWAT pacing in close quarters, tuned for top-end phones at 120 Hz.
 - Pace: creep 0.45, walk 0.9, brisk 1.4 (forward only), crouch 0.55, ADS 0.7, cover 0.5, reload 0.45 m/s; dash

@@ -217,6 +217,38 @@ Mobile controls (phone):
 - [ ] Warehouse fight with 10 enemies: pacing p95 within the budget, drops < 1%, quality settles on Ultra 120 in Auto (or High with resolution scale near 1).
 - [ ] 10-minute thermal soak (Clear or Wave on Warehouse, plugged out, brightness 50%): the pacing graph stays green, no sustained drops, the resolution scale may step down but never oscillates; the phone is warm, not hot.
 
+## Stealth update (1.3.0) - iPhone 17 Pro Max: Proving Grounds, then a Clear run on Warehouse
+Use the debug overlay (F3 / 3-finger tap): Skeleton shows foot contacts, slow motion reviews blends.
+Feel (touch and controller):
+- [ ] The character responds the moment you push the stick (a lean on the first frame), reaches speed in about a quarter of a second and stops within a third of a second with one settling step. Nothing feels floaty, nothing feels instant.
+- [ ] Sneak (light stick, crouched) ~0.8, crouch walk ~1.8, crouch run ~2.6; walk ~1.4, jog ~2.8 m/s; sprint (L3 / Shift / touch Sprint) ~5 m/s, toggle by default (Settings > Gameplay > Sprint: Hold), no stamina, stands you up and lowers the weapon.
+- [ ] Not aiming: moving turns the body towards where you go; standing still and looking around does not turn the body. Turning 90 degrees while moving arcs round without slowing; reversing plants and pivots (~0.3 s). Aiming: the body follows the aim smoothly.
+- [ ] Vault, climb (up to ~1.8 m), step and drop flow out of a run without a stop; a sprint over a gap hops it.
+- [ ] Planted feet never slide in any gait (Skeleton: green markers stay put), including aim strafes and sprints.
+Camera:
+- [ ] Look round 360 degrees standing, crouched, moving, sprinting, aiming, after leaving cover and after a lean: the view never sticks on an angle and never lags behind your thumb.
+- [ ] Follow ~0.1 s with a lead; aim framing ~0.2 s; R3 / touch shoulder swap ~0.25 s on an arc; the camera takes the open shoulder in cover and at peeks; with auto-recentre on, it eases behind you after 1.5 s of moving without looking.
+Cover:
+- [ ] A (Space / touch action) snaps to cover up to ~3 m away with a quick glide (a slide from a sprint), the support hand touching the wall. B toggles standing / crouched at high cover. A again (or a firm push away for a quarter second) leaves.
+- [ ] Aim over low cover pops up; aim at an edge (low or high, standing or crouched) leans round it head first, weapon out in ~0.2 s, back in ~0.2 s; at a left edge the weapon changes hands quickly.
+- [ ] Look at another cover: the marker shows; A runs to it (round a corner if needed) or SWAT-turns across a gap; pulling back cancels. Pushing past an outside corner swings round it (~0.5 s); pushing into an inside corner turns onto the next wall.
+- [ ] Blind fire, Y to vault low cover / mantle from high cover, and reload / swap / grenade tuck in against the wall.
+Weapon carry (Free Roam carries all five):
+- [ ] Weapons look slim and real-sized (rifle ~0.84 m, pistol ~0.19 m); both hands sit on the grips.
+- [ ] Every carried weapon is visible: long guns vertical on the back (muzzles up), the SMG on the left-hip sling (it swings out when the leg pushes it), the pistol low on the right thigh, grenades in belt pouches. Nothing pokes through the body, a vest or a backpack, in either avatar style, walking, sprinting, crouching or strafing.
+- [ ] Swapping (RB / LB, X hold, touch Swap) reaches to the gun's slot, puts it away, takes the next from its slot and brings it up in under a second.
+- [ ] Co-op: the other player's avatar shows their whole loadout.
+Clear mode (Warehouse):
+- [ ] The HUD shows only "Enemies left N" - no room names, room counts, lives, score, objective line or enemy blips on the minimap.
+- [ ] Clearing a room gives no banner, stinger, slow motion, feed item or reward; the counter just drops. Going down shows "DOWN" only.
+- [ ] Dropping the last hostile: OPERATION COMPLETE, stinger, slow-motion beat and letterbox; results have no rooms row and one "Operation complete" reward. Wave and Mission HUDs unchanged (room tag still shows there).
+Controls:
+- [ ] Gamepad: LS move, RS look, LT aim, RT fire, A cover / cover-to-cover, B crouch, L3 sprint, Y traverse / vault / use, X reload (hold to swap), RB / LB weapons, D-pad grenade / emotes, R3 shoulder. Prompts show the right glyphs.
+- [ ] Touch: contextual action, crouch toggle, sprint toggle, aim; every press responds on the next frame.
+- [ ] Keyboard: Space cover, C crouch, Shift sprint, E traverse / use.
+120 Hz:
+- [ ] Warehouse Clear run with 10 enemies: pacing p95 within the 8.33 ms budget, drops < 1%; 10-minute soak stays green.
+
 ## Phase 10 - Release checklist
 
 ### Offline and install

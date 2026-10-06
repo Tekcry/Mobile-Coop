@@ -81,7 +81,7 @@ export const MOVEMENT = {
 };
 
 /**
- * Enemy root motion: guards keep the slower, weighted 1.2.0 tuning (weight shift, stepped turns),
+ * Enemy root motion: guards keep the slower, weighted 1.2.0-era tuning (weight shift, stepped turns),
  * at their own speeds from `config/enemies.json`.
  */
 export const ENEMY_MOTION = {
