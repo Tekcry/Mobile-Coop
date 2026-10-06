@@ -88,7 +88,7 @@ export function detectVersion(raw: unknown): number {
 /** Run every migration from the save's version up to SAVE_VERSION. Throws on future versions. */
 export function migrate(raw: unknown): { data: Raw; from: number; steps: number } {
   const from = detectVersion(raw);
-  if (from === 0) throw new SaveVersionError('Not a Shoulder Strike save');
+  if (from === 0) throw new SaveVersionError('Not a Silent But Deadly save');
   if (from > SAVE_VERSION) throw new SaveVersionError(`Save is from a newer version (v${from}); update the app first`);
   let cur = structuredClone(raw) as Raw;
   let steps = 0;

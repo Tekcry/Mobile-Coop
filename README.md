@@ -1,4 +1,4 @@
-# Shoulder Strike
+# Silent But Deadly
 
 A mobile-first, third-person stealth shooter in the style of Splinter Cell: Blacklist that runs in the browser and
 installs as an app. Single player is complete and fully offline; online co-op (2-4) and PvP (up to 8) are optional.
@@ -17,7 +17,7 @@ installs as an app. Single player is complete and fully offline; online co-op (2
 - **Combat:** 16 weapons with visible attachments, upgrades and camos; cover with peeks, blind fire, corners and
   cover-to-cover moves.
 - **Progression:** XP, credits, play-style cash (Ghost / Panther / Assault), the suit, HQ upgrades, challenges,
-  loadout presets, weapon mastery and an avatar customiser with emotes and tags.
+  loadout presets, weapon mastery, outfits, emotes and tags - all in one Loadout screen with live previews.
 - **Controls:** touch (editable layout), any standard controller (Xbox / PlayStation / MFi) with full menu
   navigation, keyboard and mouse; Settings > Accessibility lists every binding.
 - **Built with:** TypeScript, Vite, Babylon.js 9 and Havok physics (WASM bundled), WebAudio synthesis, no external

@@ -293,6 +293,14 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.2.0 - Silent But Deadly menus (phone + controller)
+- [ ] Installed icon and name read "Silent But Deadly"; an existing save (level, credits, unlocks) is still there.
+- [ ] Main menu: green theme, stacked logo, the menu list fits without scrolling; every screen uses the same style.
+- [ ] Loadout: each category on the left (touch and LB / RB); changing a weapon, attachment, camo, suit piece or
+      outfit part shows on the operator at once; a locked one previews with its requirement and buys in place;
+      leaving restores the saved look; drag / right stick turns the operator.
+- [ ] Settings side categories and Infiltration mission cards work by touch and controller.
+
 ## 2.1.1 - Main menu (phone)
 - [ ] The main menu is dark with beams over the operator, who stands to the right of the buttons; Customise shows
       the outfit colours clearly; menus stay smooth (no frame drops on the menu).

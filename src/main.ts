@@ -1,6 +1,5 @@
 import './styles.css';
 import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
-import { HqScreen } from './ui/screens/hqScreen';
 import { suitLook } from './progression/suit';
 import { parseDifficulty } from './ai/archetypes';
 import { MISSIONS, missionById } from './game/missions';
@@ -16,14 +15,13 @@ import { GameState, type GameOptions, type SessionCallbacks } from './game/gameS
 import { getMap } from './world/maps';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
-import { ArmoryScreen } from './ui/screens/armoryScreen';
-import { StoreScreen } from './ui/screens/storeScreen';
+import { LoadoutScreen } from './ui/screens/loadoutScreen';
+import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
-import { CustomizeScreen } from './ui/screens/customizeScreen';
 import { camoById } from './cosmetics/catalog';
 
 function setBoot(progress: number, status: string): void {
@@ -68,11 +66,13 @@ async function boot(): Promise<void> {
     app.screens.clear();
     const ms = new MenuState(app.engine);
     app.setState(ms);
-    const sv = app.save.get();
-    ms.setAvatar(sv.avatar, sv.loadout.primary, sv.weapons[sv.loadout.primary].camo);
+    showSavedOperator(app);
     app.onAvatarStyle = () => {
-      const v = app.save.get();
-      if (app.current === ms) ms.setAvatar(v.avatar, v.loadout.primary, v.weapons[v.loadout.primary].camo);
+      // (a new avatar style rebuilds the same request: clear what the preview remembers)
+      if (app.current === ms) {
+        ms.forget();
+        showSavedOperator(app);
+      }
     };
     app.music.start();
     const menu = new MainMenuScreen(app);
@@ -88,10 +88,7 @@ async function boot(): Promise<void> {
       order: 10,
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
-    (a) => ({ label: 'Armory', sub: 'Loadout · Upgrades', icon: 'gun', order: 20, action: () => a.screens.push(new ArmoryScreen(a)) }),
-    (a) => ({ label: 'HQ', sub: 'Suit · Upgrades · Challenges · Loadouts', icon: 'goggles', order: 22, action: () => a.screens.push(new HqScreen(a)) }),
-    (a) => ({ label: 'Customise', sub: 'Avatar · Tag · Emotes', icon: 'user', order: 25, action: () => a.screens.push(new CustomizeScreen(a)) }),
-    (a) => ({ label: 'Store', sub: 'Unlocks', icon: 'trophy', order: 30, action: () => a.screens.push(new StoreScreen(a)) }),
+    (a) => ({ label: 'Loadout', sub: 'Weapons · Gear · Appearance · HQ', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 

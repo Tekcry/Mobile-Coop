@@ -38,9 +38,10 @@ const encodePng = (w, h, rgba) => {
   ]);
 };
 
-const BG = [17, 21, 28];
-const ACCENT = [255, 138, 30];
-const LIGHT = [235, 240, 245];
+const BG = [7, 11, 12];
+const ACCENT = [56, 224, 140];
+const LIGHT = [214, 255, 230];
+const RIM = [26, 44, 38];
 
 // Signed-distance shapes in normalised [-1,1] space.
 const sdCircle = (x, y, r) => Math.hypot(x, y) - r;
@@ -58,14 +59,22 @@ function shade(x, y, { maskable, rounded }) {
   if (bgD > 0) return [0, 0, 0, 0];
   // vertical gradient background
   const g = 0.5 + 0.5 * y;
-  col = BG.map((c) => c + 14 * (1 - g));
-  // crosshair ring
-  const ring = Math.abs(sdCircle(u, v, 0.56)) - 0.07;
-  // tick marks
-  const ticks = Math.min(sdBox(u, v - 0.66, 0.06, 0.16), sdBox(u, v + 0.66, 0.06, 0.16), sdBox(u - 0.66, v, 0.16, 0.06), sdBox(u + 0.66, v, 0.16, 0.06));
-  const dot = sdCircle(u, v, 0.13);
-  if (Math.min(ring, ticks) < 0) col = ACCENT;
-  if (dot < 0) col = LIGHT;
+  col = BG.map((c) => c + 10 * (1 - g));
+  // tri-lens night-vision goggles: two lenses side by side, a third above between them, glowing green
+  const lenses = [
+    [-0.36, 0.16, 0.25],
+    [0.36, 0.16, 0.25],
+    [0, -0.34, 0.21],
+  ];
+  let glow = 0;
+  for (const [cx, cy, r] of lenses) {
+    const d = sdCircle(u - cx, v - cy, r);
+    glow = Math.max(glow, Math.exp(-Math.max(0, d) * 7) * 0.55);
+    if (d < 0.07) col = RIM;
+    if (d < 0) col = ACCENT;
+    if (sdCircle(u - cx + r * 0.3, v - cy + r * 0.3, r * 0.28) < 0) col = LIGHT;
+  }
+  if (col !== ACCENT && col !== LIGHT && col !== RIM) col = col.map((c, i) => c + (ACCENT[i] - c) * glow * 0.35);
   return [...col, 255];
 }
 
@@ -104,6 +113,6 @@ writeFileSync('public/icons/apple-touch-icon-180.png', render(180, { maskable: f
 writeFileSync('public/icons/favicon-64.png', render(64, { maskable: false, rounded: true }));
 writeFileSync(
   'public/icons/favicon.svg',
-  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 2 2"><rect x="-1" y="-1" width="2" height="2" rx="0.22" fill="#11151c"/><circle r="0.56" fill="none" stroke="#ff8a1e" stroke-width="0.14"/><g fill="#ff8a1e"><rect x="-0.06" y="-0.82" width="0.12" height="0.32"/><rect x="-0.06" y="0.5" width="0.12" height="0.32"/><rect x="-0.82" y="-0.06" width="0.32" height="0.12"/><rect x="0.5" y="-0.06" width="0.32" height="0.12"/></g><circle r="0.13" fill="#ebf0f5"/></svg>`,
+  `<svg xmlns="http://www.w3.org/2000/svg" viewBox="-1 -1 2 2"><rect x="-1" y="-1" width="2" height="2" rx="0.22" fill="#070b0c"/><g fill="#38e08c" stroke="#1a2c26" stroke-width="0.07"><circle cx="-0.36" cy="0.16" r="0.25"/><circle cx="0.36" cy="0.16" r="0.25"/><circle cx="0" cy="-0.34" r="0.21"/></g><g fill="#d6ffe6"><circle cx="-0.43" cy="0.09" r="0.07"/><circle cx="0.29" cy="0.09" r="0.07"/><circle cx="-0.06" cy="-0.4" r="0.06"/></g></svg>`,
 );
 console.info('icons written');

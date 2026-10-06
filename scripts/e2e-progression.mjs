@@ -1,4 +1,5 @@
-// Progression + save: armory by controller, buying, match rewards, IndexedDB persistence, export/import.
+// Progression + save: the Loadout screen by controller (live preview, upgrades, buying in place, suit, HQ),
+// match rewards, IndexedDB persistence, export/import.
 import { launch, frames, press, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 
@@ -13,22 +14,25 @@ try {
   const p0 = await G(() => window.__app.save.get().profile);
   assert(p0.credits === 500 && p0.xp === 0, 'fresh profile: 500 cr, level 1');
 
-  // Armory via controller
-  await focusTo(page, /Armory/);
-  assert(/Armory/.test(await focusedText(page)), 'focus Armory');
+  // Loadout via controller: the weapon picker, an upgrade bought with A
+  await focusTo(page, /Loadout/);
+  assert(/Loadout/.test(await focusedText(page)), 'focus Loadout');
   await press(page, BTN.A);
-  assert(await q('.armory-screen'), 'Armory opens');
+  assert(await q('.loadout-screen'), 'Loadout opens');
   assert(/552 Commando/.test(await G(() => document.querySelector('.w-title')?.textContent)), 'starts on the rifle');
-  await press(page, BTN.RB);
-  assert(/MP5/.test(await G(() => document.querySelector('.w-title')?.textContent)), 'RB cycles to SMG');
-  assert(/Locked/.test(await focusedText(page)), `SMG is locked at level 1 ("${await focusedText(page)}")`);
-  await press(page, BTN.LB);
+  assert(/Weapon/.test(await focusedText(page)), `the weapon picker is focused ("${await focusedText(page)}")`);
+  await press(page, BTN.RIGHT);
+  assert(/MP5/.test(await G(() => document.querySelector('.w-title')?.textContent)), 'right cycles to the SMG (the operator holds it)');
+  assert(await G(() => JSON.parse(window.__app.current.shown)[1] === 'smg'), 'the preview holds the SMG');
+  const lock = await G(() => document.querySelector('.tab-panel.active .lock-line')?.textContent ?? '');
+  assert(/Level 2/.test(lock), `the SMG shows what it needs ("${lock}")`);
+  await press(page, BTN.LEFT);
   // buy a damage upgrade on the rifle with A
   const seq = [];
-  for (let i = 0; i < 8 && !/Upgrade/.test(await focusedText(page)); i++) { seq.push(await focusedText(page)); await press(page, BTN.DOWN); }
+  for (let i = 0; i < 10 && !/^\d+ cr$/.test(await focusedText(page)); i++) { seq.push(await focusedText(page)); await press(page, BTN.DOWN); }
   console.log('    nav:', seq.join(' | '));
   const before = await G(() => window.__app.save.get().weapons.rifle.upgrades);
-  assert(/Upgrade · \d+ cr/.test(await focusedText(page)), `focus an upgrade button ("${await focusedText(page)}")`);
+  assert(/^\d+ cr$/.test(await focusedText(page)), `focus an upgrade button ("${await focusedText(page)}")`);
   await press(page, BTN.A);
   const after = await G(() => window.__app.save.get().weapons.rifle.upgrades);
   const spent = 500 - (await G(() => window.__app.save.get().profile.credits));
@@ -37,12 +41,13 @@ try {
   assert((await G(() => document.querySelectorAll('.pips i.on').length)) === 1, 'upgrade pip lit');
   await press(page, BTN.B);
 
-  // Store: level up via save, then buy the SMG
+  // buying in place: level up via save, then buy the SMG from its lock line
   await G(() => window.__app.save.update((d) => { d.profile.xp = 600; d.profile.credits = 700; }));
-  await focusTo(page, /Store/);
+  await focusTo(page, /Loadout/);
   await press(page, BTN.A);
-  assert(await q('.store-screen'), 'Store opens');
-  assert(/Buy · 600 cr/.test(await focusedText(page)), `first buyable item focused ("${await focusedText(page)}")`);
+  await press(page, BTN.RIGHT);
+  await focusTo(page, /Buy · 600 cr/);
+  assert(/Buy · 600 cr/.test(await focusedText(page)), `the buy button is reachable ("${await focusedText(page)}")`);
   await press(page, BTN.A);
   assert(await G(() => window.__app.save.get().unlocks.includes('weapon:smg')), 'buying unlocks the SMG');
   await press(page, BTN.B);
@@ -89,16 +94,20 @@ try {
     });
   });
   await page.waitForTimeout(300);
-  await page.locator('.btn', { hasText: 'HQ' }).first().tap();
-  await page.waitForSelector('.hq-screen');
-  await page.locator('[data-key="vest1"]').tap();
-  await page.locator('.tab', { hasText: 'Upgrades' }).tap();
-  await page.locator('[data-key="marks"]').tap();
+  await page.locator('.btn', { hasText: 'Loadout' }).first().tap();
+  await page.waitForSelector('.loadout-screen');
+  await page.locator('.side-nav .tab', { hasText: 'Gear' }).tap();
+  // the next vest tier previews on the operator, then buy it in place
+  await page.locator('[data-key="suit-vest"] .choice-arrow').nth(1).tap();
+  const vestPreview = await G(() => JSON.parse(window.__app.current.shown)[0].torso);
+  await page.locator('[data-key="buy-vest"]').tap();
+  await page.locator('.side-nav .tab', { hasText: 'HQ' }).tap();
+  await page.locator('[data-key="hq-marks"]').tap();
   const hq = await G(() => {
     const s = window.__app.save.get();
     return { vest: s.suit.worn.vest, marks: s.hq.marks, credits: s.profile.credits };
   });
-  assert(hq.vest === 1 && hq.marks === 1 && hq.credits < 20000, `HQ: suit tier and upgrade bought (${JSON.stringify(hq)})`);
+  assert(hq.vest === 1 && hq.marks === 1 && hq.credits < 20000, `Loadout: suit tier and HQ upgrade bought (${JSON.stringify(hq)}, previewed torso ${vestPreview})`);
   await G(() => window.__app.save.update((d) => {
     d.unlocks.push('weapon:ak');
     d.weapons.ak.attachments = ['suppressor'];

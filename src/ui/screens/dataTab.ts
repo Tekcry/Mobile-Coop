@@ -9,6 +9,7 @@ export function dataTab(app: App, screen: SettingsScreen): TabDef {
   return {
     id: 'data',
     label: 'Data',
+    icon: 'data',
     build: () => {
       const s = app.save.get();
       const status = app.save.readOnly && app.save.storageError && /newer|version/i.test(app.save.storageError)
@@ -67,12 +68,12 @@ export function dataTab(app: App, screen: SettingsScreen): TabDef {
 function exportSave(app: App): void {
   const text = app.save.exportText();
   const blob = new Blob([text], { type: 'application/json' });
-  const name = `shoulder-strike-save-${new Date().toISOString().slice(0, 10)}.json`;
+  const name = `silent-but-deadly-save-${new Date().toISOString().slice(0, 10)}.json`;
   const file = typeof File !== 'undefined' ? new File([blob], name, { type: 'application/json' }) : null;
   // Mobile: prefer the share sheet (Files / Drive); fall back to a download link.
   const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
   if (file && nav.canShare?.({ files: [file] })) {
-    void nav.share({ files: [file], title: 'Shoulder Strike save' }).catch(() => download(blob, name));
+    void nav.share({ files: [file], title: 'Silent But Deadly save' }).catch(() => download(blob, name));
   } else {
     download(blob, name);
   }

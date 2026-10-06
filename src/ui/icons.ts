@@ -33,6 +33,19 @@ const P: Record<string, string> = {
   wifi: '<path d="M2 9a15 15 0 0 1 20 0"/><path d="M5 13a10 10 0 0 1 14 0"/><path d="M8.5 16.5a5 5 0 0 1 7 0"/><circle cx="12" cy="20" r="1" fill="currentColor"/>',
   trophy: '<path d="M7 4h10v5a5 5 0 0 1-10 0z"/><path d="M7 6H4a3 3 0 0 0 3 4M17 6h3a3 3 0 0 1-3 4M12 14v4M8 21h8"/>',
   gun: '<path d="M3 9h15l2 2v2h-6l-1 2h-3l-1 4H5l1-4H3z"/>',
+  vest: '<path d="M8 3h8l1 4-2 2v12H9V9L7 7z"/><path d="M9 13h6M9 17h6"/>',
+  shirt: '<path d="M8 3l-5 3 2 4 3-1v12h8V9l3 1 2-4-5-3a4 4 0 0 1-8 0z"/>',
+  tag: '<path d="M3 12V4h8l10 10-8 8z"/><circle cx="7.5" cy="8.5" r="1.5"/>',
+  hq: '<path d="M3 21V9l9-6 9 6v12"/><path d="M9 21v-7h6v7"/>',
+  monitor: '<rect x="3" y="4" width="18" height="12" rx="1"/><path d="M8 20h8M12 16v4"/>',
+  speaker: '<path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9a4 4 0 0 1 0 6M18.5 6.5a8 8 0 0 1 0 11"/>',
+  pad: '<path d="M6 8h12a4 4 0 0 1 4 4v1a3 3 0 0 1-5.4 1.8L15 13H9l-1.6 1.8A3 3 0 0 1 2 13v-1a4 4 0 0 1 4-4z"/><path d="M7 10v3M5.5 11.5h3"/><circle cx="16" cy="11" r="0.8"/><circle cx="18" cy="12.5" r="0.8"/>',
+  hand: '<path d="M9 11V4.5a1.5 1.5 0 0 1 3 0V10"/><path d="M12 10V3.5a1.5 1.5 0 0 1 3 0V10"/><path d="M15 10V5.5a1.5 1.5 0 0 1 3 0V14a7 7 0 0 1-7 7h-1a6 6 0 0 1-5-3l-2.5-4.5a1.5 1.5 0 0 1 2.6-1.5L9 14"/>',
+  access: '<circle cx="12" cy="4.5" r="2"/><path d="M4 8l8 2 8-2M12 10v5l-3 6M12 15l3 6"/>',
+  data: '<ellipse cx="12" cy="5.5" rx="8" ry="3"/><path d="M4 5.5v13c0 1.7 3.6 3 8 3s8-1.3 8-3v-13M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/>',
+  chevron: '<path d="M9 5l7 7-7 7"/>',
+  lock: '<rect x="5" y="11" width="14" height="10" rx="1"/><path d="M8 11V7a4 4 0 0 1 8 0v4"/>',
+  list: '<path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/>',
 };
 
 export function icon(name: keyof typeof P | string, size = 24): string {

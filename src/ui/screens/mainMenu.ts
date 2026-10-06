@@ -3,6 +3,7 @@ import { h } from '../dom';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button } from '../widgets';
+import { icon } from '../icons';
 
 export interface MenuEntry {
   label: string;
@@ -28,8 +29,9 @@ export class MainMenuScreen extends Screen {
       h(
         'div',
         { class: 'menu-left' },
-        h('div', { class: 'game-title', html: 'SHOULDER<br><span>STRIKE</span>' }),
+        h('div', { class: 'game-title', html: '<span class="t1">SILENT</span><span class="t2">BUT</span><span class="t3">DEADLY</span>' }),
         this.list,
+        h('div', { class: 'tagline', text: 'Observe  /  Infiltrate  /  Complete' }),
         h('div', { class: 'version', text: `v${__APP_VERSION__}${__PREVIEW__ ? ' PREVIEW' : ''}` }),
       ),
       this.badge,
@@ -43,15 +45,14 @@ export class MainMenuScreen extends Screen {
     this.list.replaceChildren();
     const entries = MainMenuScreen.entries.map((f) => f(this.app)).sort((a, b) => a.order - b.order);
     entries.forEach((e, i) => {
-      this.list.append(
-        button(e.label, e.action, {
-          icon: e.icon,
-          sub: e.sub,
-          autofocus: i === 0,
-          disabled: e.disabled?.() ?? false,
-          class: i === 0 ? 'primary big' : 'big',
-        }),
-      );
+      // a plain list: the first entry (Play) is lit, every entry shows a chevron when focused
+      const b = button(e.label, e.action, {
+        autofocus: i === 0,
+        disabled: e.disabled?.() ?? false,
+        class: i === 0 ? 'menu-item lit' : 'menu-item',
+      });
+      b.insertAdjacentHTML('beforeend', `<span class="menu-chev">${icon('chevron', 18)}</span>`);
+      this.list.append(b);
     });
     if (prevIdx >= 0) this.lastFocus = (this.list.children[prevIdx] as HTMLElement | undefined) ?? null;
   }

@@ -55,6 +55,7 @@ export class SettingsScreen extends Screen {
       {
         id: 'touch',
         label: 'Touch',
+        icon: 'hand',
         build: () =>
           h(
             'div',
@@ -86,6 +87,7 @@ export class SettingsScreen extends Screen {
       {
         id: 'pad',
         label: 'Controller',
+        icon: 'pad',
         build: () => {
           const status = h('div', { class: 'row-note' });
           const refresh = (): void => {
@@ -126,6 +128,7 @@ export class SettingsScreen extends Screen {
       {
         id: 'video',
         label: 'Video',
+        icon: 'monitor',
         build: () =>
           h(
             'div',
@@ -145,6 +148,7 @@ export class SettingsScreen extends Screen {
       {
         id: 'audio',
         label: 'Audio',
+        icon: 'speaker',
         build: () =>
           h(
             'div',
@@ -159,6 +163,7 @@ export class SettingsScreen extends Screen {
       {
         id: 'gameplay',
         label: 'Gameplay',
+        icon: 'gear',
         build: () =>
           h(
             'div',
@@ -181,6 +186,7 @@ export class SettingsScreen extends Screen {
       {
         id: 'access',
         label: 'Accessibility',
+        icon: 'access',
         build: () =>
           h(
             'div',
@@ -198,7 +204,7 @@ export class SettingsScreen extends Screen {
       },
     ];
     for (const extra of extraSettingsTabs) tabs.push(extra(app, this));
-    this.tabs = new TabView(tabs);
+    this.tabs = new TabView(tabs, { side: true });
     this.tabs.onChange = () => app.nav.refresh();
     this.el.append(h('div', { class: 'screen-title', text: 'Settings' }), this.tabs.el);
   }
@@ -215,7 +221,7 @@ export class SettingsScreen extends Screen {
 
   override hints(): Hint[] {
     return [
-      { btn: 'LB/RB', label: 'Tabs' },
+      { btn: 'LB/RB', label: 'Category' },
       { btn: 'A', label: 'Select' },
       { btn: 'B', label: 'Back' },
     ];

@@ -16,7 +16,7 @@ import {
   type Engine,
 } from '../core/babylon';
 import type { AppState } from '../core/app';
-import { flatMat, PALETTE } from './materials';
+import { flatMat } from './materials';
 import { mulberry } from '../core/rng';
 import { PartLibrary } from './partLibrary';
 import { CharacterRig } from '../player/characterRig';
@@ -24,13 +24,14 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { WeaponModel } from '../weapons/weaponModel';
 import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
+import { withAttachments } from '../progression/attachments';
 import { camoById } from '../cosmetics/catalog';
 import { playEmote } from '../cosmetics/emotes';
 
 /** The diorama's lights: a warm key overhead in front of the operator, a cool rim behind, a lamp in the distance. */
 const LIGHTS: { pos: [number, number, number]; at: [number, number, number]; angle: number; intensity: number; color: [number, number, number]; cone: number }[] = [
   { pos: [0.3, 4.7, -0.9], at: [0, 0.9, 0], angle: 0.42, intensity: 3.0, color: [1, 0.85, 0.64], cone: 0.16 },
-  { pos: [-1.5, 4.3, 2.4], at: [0, 1.3, 0], angle: 0.36, intensity: 2.6, color: [0.55, 0.72, 1], cone: 0.12 },
+  { pos: [-1.5, 4.3, 2.4], at: [0, 1.3, 0], angle: 0.36, intensity: 2.6, color: [0.45, 0.9, 0.72], cone: 0.12 },
   { pos: [6, 5.2, 7], at: [6, 0, 7], angle: 0.5, intensity: 1.3, color: [1, 0.78, 0.5], cone: 0.08 },
 ];
 
@@ -59,6 +60,10 @@ function lightCone(scene: Scene, name: string, len: number, half: number, color:
   return cone;
 }
 
+/** Camera framings: the main menu (operator right of the buttons), the Loadout screen (operator between the
+ *  category list and the options, full body) and its weapon view (closer, the weapon raised). */
+export type MenuFraming = 'menu' | 'loadout' | 'weapon';
+
 /** Lightweight diorama behind the menus: a dark stage, the operator in pools of light. No physics. */
 export class MenuState implements AppState {
   readonly scene: Scene;
@@ -74,7 +79,7 @@ export class MenuState implements AppState {
   private weapon: WeaponModel | null = null;
   /** Avatar yaw (rotated by stick / drag in the customiser). */
   previewYaw = Math.PI;
-  private framing: 'menu' | 'customize' | 'inspect' = 'menu';
+  private framing: MenuFraming = 'menu';
   private t2 = 0;
   private key: SpotLight | null = null;
   private hemi: HemisphericLight;
@@ -134,7 +139,7 @@ export class MenuState implements AppState {
     pad.material = flatMat(scene, '#24272b');
     const ring = CreateCylinder('ring', { diameter: 3.4, height: 0.12, tessellation: 8 }, scene);
     ring.position.y = 0.06;
-    ring.material = flatMat(scene, PALETTE.accent, { emissive: 0.6 });
+    ring.material = flatMat(scene, '#38e08c', { emissive: 0.6 });
 
     // Scattered crates / walls: silhouettes in the dark, a few caught by the distant lamp.
     const crate = flatMat(scene, '#5a4a36');
@@ -157,14 +162,26 @@ export class MenuState implements AppState {
     this.parts = new PartLibrary(scene);
   }
 
-  /** (Re)build the preview avatar holding a weapon with its camo. */
-  setAvatar(look: AvatarLook, weapon: WeaponId = 'rifle', camo = 'factory'): void {
+  /** What the preview shows (rebuilt only when it changes). */
+  private shown = '';
+
+  /** Rebuild on the next request even if it matches (the avatar style changed). */
+  forget(): void {
+    this.shown = '';
+  }
+
+  /** (Re)build the preview operator: the look (suit applied by the caller) holding a weapon with its attachments
+   *  and camo. Live previews call it on every change; an unchanged request is free. */
+  setAvatar(look: AvatarLook, weapon: WeaponId = 'rifle', camo = 'factory', attachments: readonly string[] = []): void {
+    const key = JSON.stringify([look, weapon, camo, attachments]);
+    if (key === this.shown && this.rig) return;
+    this.shown = key;
     this.weapon?.dispose();
     this.rig?.dispose();
     this.rig = new CharacterRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 1.75, 'preview');
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
-    this.weapon = new WeaponModel(this.scene, this.parts, WEAPONS[weapon], c.colors, this.rig.weaponPivot, c.pattern);
+    this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern);
     this.weapon.hold(this.rig);
     // the tri-lens glows in the dark
     this.rig.setLensGlow(true);
@@ -174,10 +191,15 @@ export class MenuState implements AppState {
     if (this.rig) playEmote(this.rig, id);
   }
 
-  setFraming(f: 'menu' | 'customize'): void {
+  setFraming(f: MenuFraming): void {
+    if (f !== 'menu' && this.framing === 'menu') this.previewYaw = Math.PI;
+    // the weapon view turns the operator side-on so the gun shows
+    if (f === 'weapon' && this.framing !== 'weapon') this.previewYaw = Math.PI - 0.45;
+    if (f === 'loadout' && this.framing === 'weapon') this.previewYaw = Math.PI;
     this.framing = f;
-    if (f === 'customize') this.previewYaw = Math.PI;
   }
+
+  private aimW = 0.05;
 
   enter(): void {}
   exit(): void {}
@@ -187,13 +209,14 @@ export class MenuState implements AppState {
     this.t += dt;
     this.t2 += dt;
     // customising needs to see the colours: a brighter fill there, the dark stage elsewhere
-    const fill = this.framing === 'menu' ? 0.14 : 0.75;
+    const fill = this.framing === 'menu' ? 0.14 : 0.7;
     this.hemi.intensity += (fill - this.hemi.intensity) * Math.min(1, dt * 3);
     // the key light breathes a touch (a hanging lamp)
     if (this.key) this.key.intensity = 2.6 * (1 + Math.sin(this.t * 1.3) * 0.02 + Math.sin(this.t * 3.7) * 0.01);
     const cam = this.camera;
     // the menu fills the left: the operator stands in the open right side of the screen
-    const ox = this.framing === 'menu' ? 1.6 : 0;
+    // (the Loadout screen: centred between the category list on the left and the options on the right)
+    const ox = this.framing === 'menu' ? 1.6 : this.framing === 'weapon' ? -0.3 : -0.75;
     cam.targetScreenOffset.x += (ox - cam.targetScreenOffset.x) * Math.min(1, dt * 4);
     if (this.framing === 'menu') {
       // a slow sway round the front, never behind
@@ -202,18 +225,20 @@ export class MenuState implements AppState {
       cam.target.x += (0 - cam.target.x) * Math.min(1, dt * 3);
       cam.beta += (1.4 - cam.beta) * Math.min(1, dt * 3);
       cam.target.y += (1.45 - cam.target.y) * Math.min(1, dt * 3);
-    } else if (this.framing === 'customize') {
-      // front view, avatar on the right third (UI panel on the left)
-      const a = -Math.PI / 2;
-      cam.alpha += (a - cam.alpha) * Math.min(1, dt * 4);
-      cam.radius += (3.6 - cam.radius) * Math.min(1, dt * 4);
-      cam.beta += (1.42 - cam.beta) * Math.min(1, dt * 4);
-      cam.target.x += (-0.95 - cam.target.x) * Math.min(1, dt * 4);
-      cam.target.y += (1.15 - cam.target.y) * Math.min(1, dt * 4);
+    } else {
+      // front view of the full figure; the weapon view comes in to the chest and raises the gun
+      const k = Math.min(1, dt * 4);
+      const w = this.framing === 'weapon';
+      cam.alpha += (-Math.PI / 2 - cam.alpha) * k;
+      cam.radius += ((w ? 2.9 : 3.5) - cam.radius) * k;
+      cam.beta += ((w ? 1.5 : 1.42) - cam.beta) * k;
+      cam.target.x += (0 - cam.target.x) * k;
+      cam.target.y += ((w ? 1.3 : 1.0) - cam.target.y) * k;
     }
+    this.aimW += ((this.framing === 'weapon' ? 0.9 : 0.05) - this.aimW) * Math.min(1, dt * 5);
     if (this.rig) {
       this.rig.root.rotation.y = this.framing === 'menu' ? Math.PI + 0.25 + Math.sin(this.t2 * 0.3) * 0.2 : this.previewYaw;
-      this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0.05, kick: 0 });
+      this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: this.aimW, kick: 0 });
     }
     for (const fn of this.frameHooks) fn(dt);
   }

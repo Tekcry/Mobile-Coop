@@ -7,7 +7,7 @@ await frames(page, 30);
 await page.evaluate((y) => {
   document.querySelector('.screens').style.display = 'none';
   const m = window.__app.current;
-  m.setFraming('customize');
+  m.setFraming('loadout');
   m.previewYaw = Number(y);
   m.setFraming = () => {};
   m.framing = 'inspect';

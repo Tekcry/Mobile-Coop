@@ -404,7 +404,7 @@ class LobbyScreen extends Screen {
     const link = shareLink(this.c.session.code);
     const nav = navigator as Navigator & { share?: (d: { title: string; url: string }) => Promise<void> };
     try {
-      if (nav.share) await nav.share({ title: 'Shoulder Strike co-op', url: link });
+      if (nav.share) await nav.share({ title: 'Silent But Deadly co-op', url: link });
       else {
         await navigator.clipboard.writeText(link);
         this.c.app.toasts.show('Invite link copied', 'ok');

@@ -103,15 +103,24 @@ export class PlayScreen extends Screen {
       },
     );
     modeChoice.dataset.autofocus = '';
-    const missionChoice = choice(
-      'Mission',
-      MISSIONS.map((x) => ({ value: x.id, label: `${x.name}  ${STARS(this.app.save.get().missions[x.id]?.rating ?? 0)}` })),
-      () => this.missionId,
-      (v) => {
-        this.missionId = v;
-        this.rebuild();
-      },
-    );
+    // the mission board: a card per mission (its map's night sky, the brief, where, best rating)
+    const missionChoice = h('div', { class: 'mission-cards scrollable', attrs: { 'data-wrap': '' } });
+    for (const x of MISSIONS) {
+      const mp = MAPS.find((q) => q.id === x.map)!;
+      const card = h(
+        'button',
+        { class: `mission-card${x.id === m.id ? ' sel' : ''}`, focus: true, onClick: () => {
+          this.missionId = x.id;
+          this.rebuild();
+        } },
+        h('span', { class: 'mc-art', style: { background: `linear-gradient(180deg, ${mp.theme.sky} 0%, ${mp.theme.horizon} 70%, ${mp.theme.ground} 100%)` } }),
+        h('span', { class: 'mc-name', text: x.name }),
+        h('span', { class: 'mc-brief', text: x.brief }),
+        h('span', { class: 'mc-loc', text: `${mp.name}  ·  ${STARS(this.app.save.get().missions[x.id]?.rating ?? 0)}` }),
+      );
+      card.dataset.mission = x.id;
+      missionChoice.append(card);
+    }
     const insChoice = choice(
       'Insertion',
       m.insertions.map((i) => ({ value: i.id, label: i.name })),
@@ -129,7 +138,7 @@ export class PlayScreen extends Screen {
       .filter((k) => m.rules[k] !== 'off')
       .map((k) => `${k === 'noAlarms' ? 'No alarms' : k === 'noKills' ? 'No kills' : 'Undetected'} (${m.rules[k]})`);
     const best = rec ? `Best ${STARS(rec.rating)}  ·  Ghost ${rec.ghost} / Panther ${rec.panther} / Assault ${rec.assault}  ·  ${rec.wins}/${rec.plays} won` : 'Not played yet';
-    this.desc.textContent = `${map.name}: ${m.brief}  ·  Objectives: ${m.objectives.map((o) => o.label).join(', ')}${rules.length ? '  ·  Rules: ' + rules.join(', ') : ''}  ·  ${best}`;
+    this.desc.textContent = `Objectives: ${m.objectives.map((o) => o.label).join(', ')}${rules.length ? '  ·  Rules: ' + rules.join(', ') : ''}  ·  ${best}`;
     const go = button('Deploy', () => this.start({ map, mode: 'infiltration', difficulty: this.difficulty, seed: 1, missionId: m.id, insertion: this.insertion }), {
       icon: 'play',
       class: 'primary big',
@@ -149,9 +158,12 @@ export class PlayScreen extends Screen {
   }
 
   private rebuild(): void {
-    const idx = Array.from(this.body.children).indexOf(this.app.nav.focused as HTMLElement);
+    const f = this.app.nav.focused as HTMLElement | null;
+    const mission = f?.dataset.mission;
+    const idx = Array.from(this.body.children).indexOf(f as HTMLElement);
     this.build();
-    const el = this.body.children[Math.max(0, idx)] as HTMLElement | undefined;
+    // a mission card keeps the focus on the card picked
+    const el = mission ? this.body.querySelector<HTMLElement>(`[data-mission="${mission}"]`) : (this.body.children[Math.max(0, idx)] as HTMLElement | undefined);
     this.app.nav.setRoot(this.el, el ?? null);
   }
 

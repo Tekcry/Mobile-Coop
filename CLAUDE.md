@@ -1,6 +1,7 @@
-# Shoulder Strike - architecture and conventions
+# Silent But Deadly - architecture and conventions
 
-Mobile-only third-person over-the-shoulder shooter. Static web app (Vite + TypeScript + Babylon.js 9 + Havok),
+Silent But Deadly (renamed from Shoulder Strike in 2.2.0; internal ids keep the old name for compatibility:
+IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id). Mobile-only third-person over-the-shoulder shooter. Static web app (Vite + TypeScript + Babylon.js 9 + Havok),
 installable PWA, fully playable offline. Hosted on GitHub Pages. Target: top-end phones at 120 Hz (8.33 ms frames);
 a stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
 Blacklist style.
@@ -40,7 +41,7 @@ Blacklist style.
     FOV/stick-look bounds, 60 vs 120 Hz parity
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
-  - `scripts/e2e-progression.mjs` armory/store by controller, rewards, IndexedDB persistence, export/import
+  - `scripts/e2e-progression.mjs` Loadout by controller (live weapon preview, lock line, upgrade, buy in place), suit / HQ by touch, rewards, IndexedDB persistence, export/import
   - `scripts/e2e-cover.mjs` (A cover, B crouch, Y traverse) snap side-on, turn-and-swap, kneel, peek/blind
     fire/vault, B keeps cover, stand/crouch at high cover + crouched edge peek, lean in place, outside corners (corner prompt + A, never automatic) /
     inside corners, edge stop a step back, no cover badge, SWAT turn, cover-to-cover only when looking at it with the stick held towards it + slide + marker,
@@ -75,7 +76,7 @@ Blacklist style.
     ways, a client execute, a client gas cloud on the host's guards, a dual takedown, a client reviving the host),
     Infiltration objectives on the client, Team Deathmatch (teams, opponents-only hit volumes, no friendly fire,
     a validated elimination, respawn, results) and Free-for-all; host leaving, offline
-  - `scripts/e2e-cosmetics.mjs` customiser by controller, locked previews, emotes, camo, in-game look
+  - `scripts/e2e-cosmetics.mjs` Loadout appearance by controller, live / locked previews on the operator, revert on exit, emotes, camo, in-game look
   - `scripts/e2e-clear.mjs` Warehouse + Clear mode: only "Enemies left N" (alive + pending), no room tags /
     counts / lives / score / blips, no per-room feedback, "DOWN", OPERATION COMPLETE stinger, results without a
     rooms row; Wave keeps room tags; doorway checks; mini room set; Warehouse default for Wave / Mission / Clear
@@ -85,7 +86,7 @@ Blacklist style.
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
-  - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the customiser rig (proportion/silhouette checks)
+  - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the Loadout operator (proportion/silhouette checks)
   - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
     reload|swap|grenade|cover|highcover|peek|vault> [frames] [interval] [side|front|back|ots]` contact sheet
   - `node scripts/perf.mjs [--budget]` (`STEALTH=1`: ten unaware enemies perceiving) Warehouse, 10 enemies: CPU per 120 Hz frame p50/p95/p99, animation ms per
@@ -189,7 +190,16 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Menu backdrop (`world/menuScene.ts` `MenuState`): a dark stage - `LIGHTS` (warm key over the operator, cool rim
   behind, a distant lamp) as `SpotLight`s with additive `lightCone` beams (vertex alpha over height subdivisions),
   a dim hemispheric fill (brighter while customising), the lens glow on; the camera's `targetScreenOffset` puts
-  the operator in the right half beside the menu.
+  the operator in the right half beside the menu. `setFraming('menu' | 'loadout' | 'weapon')`; `setAvatar(look,
+  weapon, camo, attachments)` rebuilds only when the key (`shown`) changes; `ui/screens/operator.ts`
+  `showSavedOperator` puts the saved look back.
+- Loadout (`ui/screens/loadoutScreen.ts`, the only upgrade / customisation screen): side `TabView` (Weapons, Gear,
+  Appearance, Tag & Emotes, HQ), the operator in the middle, options on the right. Owned choices save at once;
+  locked ones are drafts (previewed only) with a `lockLine` (requirement + Buy / Claim in place); `refresh()`
+  rebuilds the tab and restores focus by `data-key`; `onHide` commits and restores the saved operator.
+- Theme (`styles.css` `:root`): dark green palette (`--accent` #38e08c, `--gold` credits), condensed font stack;
+  main menu = stacked logo + `.menu-item` list; `TabView(tabs, { side: true })` = vertical icon nav (no bumper
+  glyphs; LB / RB still cycle through `cycle`).
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus`
   is navigable; `data-adjust` elements take left/right as `nav-adjust`; `data-capture-nav` elements take all
   directions as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.
@@ -217,7 +227,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   and a `collideWith` mask; hit volumes (`ai/hitboxes.ts`, `game/playerTarget.ts`) are ANIMATED bodies
   registered in the `DamageRegistry`, which maps bodies to `Damageable`s.
 
-## Characters (one rig for player, enemies, coop remotes, dummies and the customiser)
+## Characters (one rig for player, enemies, coop remotes, dummies and the menu operator)
 - `player/proportions.ts` (pure) is the single source of body sizes. Average build at 1.75 m:
 
   | Landmark | Value | | Limb (len, r0 -> r1) | Value |
@@ -648,8 +658,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   applyPreset`; `applySession` pays challenges (`SessionStats.takedownsByKind / executes / gadgetKos / alarms`).
 - `GameOptions.suit / hq / gadget` (single player from the save in `main.ts`; the look via `suitLook`); GameState
   applies `target.armorMul`, `weapons.handsMul`, `takedown.handsMul`, gadget counts, `marks.max`, footstep noise
-  x `suit.noise`, `sonarMul`, radar blips, restock on respawn. `ui/screens/hqScreen.ts` (Suit / Upgrades /
-  Challenges / Loadouts); Play screen Loadout row. Save v6. `?loadout=a,b` for autostart (tests).
+  x `suit.noise`, `sonarMul`, radar blips, restock on respawn. `ui/screens/loadoutScreen.ts` (Gear / HQ tabs;
+  presets on Weapons); Play screen Loadout row. Save v6. `?loadout=a,b` for autostart (tests).
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.2.0 - Silent But Deadly
+- The game is now called Silent But Deadly (title, install name, icon: green tri-lens goggles). Saves, exports and
+  co-op rooms from Shoulder Strike carry over unchanged.
+- New menu look: dark green tactical theme, condensed type, the stacked logo and a lit menu list on the main menu
+  (Observe / Infiltrate / Complete), Settings with a side category list, Infiltration missions as picture cards.
+- One Loadout screen replaces Armory, HQ, Customise and Store: Weapons (loadout preset, gadget, equip, stats,
+  upgrades, attachments, camo), Gear (suit pieces), Appearance, Tag & Emotes, HQ (upgrades, challenges). Every change
+  shows on the operator at once - locked weapons, attachments, camos, suit pieces and outfit parts are previewed
+  too, with their requirement and a Buy button in place; leaving puts the saved look back. Drag or use the right
+  stick to turn the operator; the weapon page frames the gun.
+
 ## 2.1.1 - Main menu at night
 - The menu backdrop is a dark stage: the operator stands on the pad under a warm overhead lamp, with a cool rim
   light behind and a distant lamp in the yard; visible light beams, the tri-lens glowing, the lamp breathing a
