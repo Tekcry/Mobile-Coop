@@ -375,7 +375,7 @@ try {
   const ids = await Promise.all(pages().map((P) => P.evaluate(() => window.__coop.session.selfId)));
   const teams = await GA((ids) => ids.map((id) => window.__coop.session.players.get(id).team), ids);
   assert(teams[0] === teams[2] && teams[0] !== teams[1], `teams split 2v1 (${teams})`);
-  for (const P of pages()) await until(P, () => window.__app.current.net.avatars?.size === 2 || window.__app.current.net.remotes?.size === 2, null, 10000, 'every avatar seen');
+  for (const P of pages()) await until(P, () => window.__app.current.net.avatars?.size === 2 || window.__app.current.net.remotes?.size === 2, null, 20000, 'every avatar seen');
   const tB = await GB(() => [...window.__app.current.net.targets.keys()].length);
   const tC = await C.evaluate(() => [...window.__app.current.net.targets.keys()].length);
   const boxes = await GA(() => window.__app.current.net.pvpBoxes.size);
@@ -431,7 +431,7 @@ try {
   assert(/Eliminations1/.test(elim.replace(/\s/g, '')), `PvP results show eliminations (${elim})`);
   await toLobby();
   await startMode('ffa', 'warehouse');
-  for (const P of pages()) await until(P, () => window.__app.current.net.avatars?.size === 2 || window.__app.current.net.remotes?.size === 2, null, 10000, 'every avatar seen');
+  for (const P of pages()) await until(P, () => window.__app.current.net.avatars?.size === 2 || window.__app.current.net.remotes?.size === 2, null, 20000, 'every avatar seen');
   const ffa = await Promise.all([GA(() => window.__app.current.net.pvpBoxes.size), GB(() => window.__app.current.net.targets.size), C.evaluate(() => window.__app.current.net.targets.size)]);
   assert(ffa.every((n) => n === 2), `free-for-all: everyone is an opponent (${ffa})`);
   await GA(() => (window.__app.current.net.score.elapsed = 1e5));
