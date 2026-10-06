@@ -299,6 +299,12 @@ Controls:
 - [ ] Client: a takedown, then mark two guards and Execute: both drop on the host's screen too.
 - [ ] Client throws gas at a patrol: the host's guards fall asleep. Two takedowns at once: "DUAL TAKEDOWN".
 
+## 2.1.0 - New maps (phone)
+- [ ] Mansion, Port, Refinery: play each in Hunter and its Infiltration mission; every objective can be reached on
+      foot, from above and through a door / window / duct; guards upstairs come down the stairs when alerted.
+- [ ] Frame pacing on each (debug overlay): within the 120 Hz budget with the lights on. (VM: CPU p95 1.6-2.6 ms,
+      draw calls 33-61; allocations 91-109 KB per frame, the animation graph's boxing as on the Warehouse.)
+
 ## 2.1.0 - Multi-level AI (phone)
 - [ ] Warehouse Wave: climb a rack ladder; runners climb after you, guards shoot from the floor; come down and
       a guard on the rack climbs down. Embassy Hunter: get seen on a roof, drop out of sight - guards search up there.

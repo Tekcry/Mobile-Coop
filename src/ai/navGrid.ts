@@ -152,6 +152,8 @@ export class NavGrid {
   readonly cols: number;
   readonly height: Float32Array;
   readonly walk: Uint8Array;
+  /** A sampled surface (walkable or not: blocked, pruned) - storeys are picked among these. */
+  readonly surf: Uint8Array;
   readonly step: number;
   readonly links: NavLink[] = [];
   /** First link out of / into a cell (-1 = none), chained through `linkNext` / `rlinkNext`. */
@@ -179,6 +181,7 @@ export class NavGrid {
     const n = this.cols * this.layers;
     this.height = new Float32Array(n);
     this.walk = new Uint8Array(n);
+    this.surf = new Uint8Array(n);
     this.gScore = new Float32Array(n);
     this.came = new Int32Array(n);
     this.cameLink = new Int32Array(n);
@@ -193,11 +196,13 @@ export class NavGrid {
           const i = l * this.cols + col;
           this.height[i] = ss[l]!.h;
           this.walk[i] = ss[l]!.ok ? 1 : 0;
+          this.surf[i] = 1;
         }
       } else {
         const s = input.sample(x, z);
         this.height[col] = s.h;
         this.walk[col] = s.ok ? 1 : 0;
+        this.surf[col] = 1;
       }
     }
     this.rasterBlockers(input);
@@ -325,8 +330,8 @@ export class NavGrid {
   }
 
   /**
-   * Cell at (x, z): with a height `y` the walkable surface closest to it, else the lowest walkable one (a column
-   * with none gives its layer 0 cell, unwalkable; outside the grid -1).
+   * Cell at (x, z): with a height `y` the surface closest to it (walkable or not: a blocked cell by a wall is still
+   * that storey), else the lowest walkable one (a column with none gives its layer 0 cell; outside the grid -1).
    */
   cellOf(x: number, z: number, y = Number.NaN): number {
     const col = this.index(Math.floor((x - this.ox) / this.cell), Math.floor((z - this.oz) / this.cell));
@@ -339,8 +344,11 @@ export class NavGrid {
     let bd = Infinity;
     for (let l = 0; l < this.layers; l++) {
       const i = l * this.cols + col;
-      if (!this.walk[i]) continue;
-      if (y !== y) return i;
+      if (y !== y) {
+        if (this.walk[i]) return i;
+        continue;
+      }
+      if (!this.surf[i]) continue;
       const d = Math.abs(this.height[i]! - y);
       if (d < bd) {
         bd = d;
@@ -530,8 +538,8 @@ export class NavGrid {
         prev = c;
       }
     }
-    // with a height for b: it must end on the storey there (the surface in that column closest to yb)
-    return yb !== yb || this.layers === 1 || prev === this.pick(prev % this.cols, yb);
+    // with a height for b: it must end on the storey there (near yb, or the surface in that column closest to it)
+    return yb !== yb || this.layers === 1 || Math.abs(this.height[prev]! - yb) <= LAYER_PICK || prev === this.pick(prev % this.cols, yb);
   }
 
   /**

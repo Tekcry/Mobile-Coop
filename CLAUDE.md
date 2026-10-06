@@ -25,7 +25,7 @@ Blacklist style.
     in, drop; horizontal pipe; landing bands (soft / roll / heavy + noise + recovery); grab while falling; zipline;
     open / glazed windows; duct unscrew, crawl, vent drop + roll, kick (fresh page); keyboard E; touch prompts;
     planted hands / feet locked (< 1 cm), arms reach grips
-  - `scripts/e2e-anchors.mjs` every placed anchor on every map (ladders bottom / top, drainpipes, pipes, ziplines,
+  - `scripts/e2e-anchors.mjs` every placed anchor on every map (seven) (ladders bottom / top, drainpipes, pipes, ziplines,
     ducts, windows both sides) is offered from its approach and engages; hangable lips per map
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
     aiming, after a sprint / cover / lean, no residual offsets, level horizon after a shake) + headless cover bars: 3 m snap glide, hand
@@ -123,7 +123,7 @@ Blacklist style.
 | `cover/` | Cover faces (`coverData`, pure), `CoverStateMachine` (pure), `CoverController` (player cover), corners/doorways (`corners` pure, `CornerController`) |
 | `weapons/` | Data-driven weapons, hitscan + pooled projectiles, recoil/spread, grenades, `WeaponCarry` (ready positions, raise-to-fire) |
 | `ai/` | Enemy state machines, grid navmesh + A*, cover points; `perception` (sight / noise maths), `alertState` (alert levels), `patrol` (routes, posts, search points) - all pure |
-| `world/` | Modular tile kit and map builders (Warehouse, Dust Depot, Proving Grounds), `rooms` (room tags; pure), `anchors` (traversal anchors; pure), `lights` (light model; pure), `lightRig` (renders it) |
+| `world/` | Modular tile kit and map builders (Warehouse, Embassy, Mansion, Port, Refinery, Dust Depot, Proving Grounds), `rooms` (room tags; pure), `anchors` (traversal anchors; pure), `lights` (light model; pure), `lightRig` (renders it) |
 | `progression/` | XP/levels/currency maths, unlock tables, upgrade trees (pure, unit-tested) |
 | `cosmetics/` | Avatar part catalogue, procedural materials/camos |
 | `save/` | IndexedDB wrapper, versioned schema, migrations, export/import |
@@ -622,6 +622,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Embassy (`world/maps/embassy.ts`): `slabWithHoles` (roof with vent holes, overhead), `roofDuct`; rooms with
   squads (sniper on the tower at 3.2 m). Gap lists for `wallX / wallZ` must be sorted (an unsorted list bridges a
   doorway).
+- 2.1 maps (multi-storey; `maps/storey.ts`: `wallXAt / wallZAt` walls on any storey, `windowX / windowZ` vaultable
+  windows, `glassX / glassZ` fixed panes where nothing stands outside): Mansion (night, urban; a two-storey house -
+  grand staircase through a stairwell in the upper slab, balcony + ladder, flat roof with a duct into the vault
+  office, rooms on both storeys via `minY / maxY`), Port (night, maritime; container stacks with ladders, a
+  customs shed with a mezzanine office, a moored ship: gangway, deck, bridge + lookout, bosun's store, a pier hut),
+  Refinery (dusk, desert; tank tops joined by catwalks, a pipe-rack walkway, a unit platform, a two-storey control
+  building with an outside stair, shelters / huts). One Infiltration mission each (`mansion-vault`,
+  `port-manifest`, `refinery-flare`). Landings must overlap a stair top (else the nav sees the ramp's end cap: a
+  seam); squads on raised floors set `SquadSlot.y`.
 
 ## Arsenal, suit, HQ, economy (2.0 phase 8)
 - 16 weapons (`WEAPON_IDS`; the 1.x five keep ids). Optional `WeaponDef.noise` (x the stat), `nonLethal` (crossbow;

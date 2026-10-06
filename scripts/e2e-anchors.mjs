@@ -9,6 +9,9 @@ const MAPS = [
   ['proving', 'sandbox'],
   ['warehouse', 'clear'],
   ['embassy', 'clear'],
+  ['mansion', 'clear'],
+  ['port', 'clear'],
+  ['refinery', 'clear'],
   ['depot', 'wave'],
 ];
 let failed = false;

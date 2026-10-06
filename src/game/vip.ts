@@ -115,7 +115,7 @@ export class Vip {
     const nx = this.pos.x + this.vel.x * dt;
     const nz = this.pos.z + this.vel.z * dt;
     const nav = this.nav;
-    if (!nav || nav.isWalkable(nav.cellNear(nav.cellOf(this.pos.x, this.pos.z, this.pos.y), nx, nz))) {
+    if (!nav || nav.isWalkable(nav.cellOf(nx, nz, this.pos.y))) {
       this.pos.x = nx;
       this.pos.z = nz;
     }

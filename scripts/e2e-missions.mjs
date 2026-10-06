@@ -262,7 +262,7 @@ await run('autostart=warehouse&mode=infiltration&mission=warehouse-cold', [
 ]);
 
 // routes: every mission objective has the ground plus two anchor routes (above / through) within reach
-for (const map of ['embassy', 'warehouse']) {
+for (const map of ['embassy', 'warehouse', 'mansion', 'port', 'refinery']) {
   await run(`autostart=${map}&mode=infiltration`, [
     [
       `${map} routes`,
@@ -280,9 +280,10 @@ for (const map of ['embassy', 'warehouse']) {
               const sites = o.type === 'intel' ? o.items.map((i) => ({ x: i[0], y: i[1], z: i[2] })) : [{ x: o.x, y: o.y, z: o.z }];
               for (const s of sites) {
                 // the grid is flood-filled from the spawn: a walkable cell at the site is reachable on foot
-                const c = nav.nearestWalkable(s.x, s.z, 3);
+                // (on the site's storey: an upper floor or a deck is reachable on foot too)
+                const c = nav.nearestWalkable(s.x, s.z, 3, s.y);
                 const cc = c >= 0 ? nav.center(c) : [1e9, 1e9];
-                const ground = c >= 0 && nav.isWalkable(c) && Math.hypot(cc[0] - s.x, cc[1] - s.z) < 1.5 && (s.y < 1 || o.type === 'intel');
+                const ground = c >= 0 && nav.isWalkable(c) && Math.hypot(cc[0] - s.x, cc[1] - s.z) < 1.5 && (Math.abs(nav.height[c] - s.y) < 0.6 || o.type === 'intel');
                 void ins;
                 const R = 14;
                 const near = (x, z) => Math.hypot(x - s.x, z - s.z) < R;

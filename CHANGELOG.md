@@ -9,6 +9,13 @@
 - Multi-level AI: the nav grid keeps every storey (a floor, the storey over it, a roof); guards use stairs,
   climb ladders up and down (in a climbing pose) and drop off low ledges to reach you or the last place they saw
   you - rack tops and roofs are no longer safe spots. Dogs wait at the foot of a ladder.
+- New maps, each in Hunter, Wave, Infiltration (a mission each), Team Deathmatch and Free-for-all:
+  - Mansion (night): a walled estate and a two-storey house - grand staircase, balcony, gallery, the vault office
+    upstairs (a roof duct drops into it), garage, pool house. Mission "Private Collection".
+  - Port (night): container stacks with ladders, a customs shed with a mezzanine office, a moored cargo ship (gangway,
+    deck, bridge with a lookout, bosun's store), the pier. Mission "Dead Reckoning".
+  - Refinery (dusk): tank tops joined by catwalks, a pipe-rack walkway, process units under a burning flare, a
+    two-storey control building, a loading bay. Mission "Flashpoint".
 
 ## 2.0.1 - Feedback: menus, back buttons, calmer guards, fair PvP
 - Main menu: a compact two-column grid (Play across the top) that fits a landscape phone; every menu that

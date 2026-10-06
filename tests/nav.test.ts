@@ -72,7 +72,8 @@ describe('NavGrid storeys and links', () => {
     const g = storeys({ links: [drop], seed: [5, 0] });
     // seeded on the floor under the deck: the deck is pruned (nothing climbs to it)
     expect(g.walk[g.cols + g.cellOf(5, 0)]).toBe(0);
-    expect(g.height[g.cellOf(5, 0, 3)]).toBe(0);
+    // asked for the deck height: the (pruned) deck cell, not the floor under it
+    expect(g.isWalkable(g.cellOf(5, 0, 3))).toBe(false);
     const deck = new NavGrid({
       minX: -10, maxX: 10, minZ: -10, maxZ: 10, cell: 0.5,
       sample: () => ({ h: 0, ok: true }),
