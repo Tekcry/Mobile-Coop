@@ -267,6 +267,9 @@ Controls:
 - [ ] Camera: standing, the operative is small in the left third of the screen with the room ahead; crouched in cover, low in the lower left (compare the Blacklist screenshots); aiming pushes in over the shoulder.
 - [ ] In cover, looking at another cover does nothing; looking at it and holding the stick towards it marks it (staying in cover); A / Space then moves there.
 
+## Level horizon (1.5.1) - Warehouse
+- [ ] Vault / climb over the mezzanine railing and drop to the floor, then look all around (up, down, left, right): the horizon stays level. Repeat after taking hits and after firing the shotgun and sniper.
+
 ## Body, weight and corners (1.5.0) - Proving Grounds, then Warehouse
 - [ ] Aim with every weapon, standing, crouched and walking: the gun sits at the cheek, never inside the head; nothing pokes through the chest, arms or legs in any stance, sprint, reload or swap.
 - [ ] Low cover: hide, kneel, move along it and aim over it - knees never go into the floor, legs never splay, the knees never knock together.

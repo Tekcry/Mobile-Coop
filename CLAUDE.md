@@ -21,7 +21,7 @@ Blacklist style.
   - `scripts/e2e-move.mjs` stealth speeds (sneak .. sprint), aim strafe/backstep, sprint toggle, aim ends a sprint, no free jump,
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
-    aiming, after a sprint / cover / lean, no residual offsets) + headless cover bars: 3 m snap glide, hand
+    aiming, after a sprint / cover / lean, no residual offsets, level horizon after a shake) + headless cover bars: 3 m snap glide, hand
     contact, sticky exit, sprint slide, edge peeks, peek in/out timing, left-edge hand switch, corner swing, tuck,
     auto shoulder, routed cover-to-cover, push-back cancel
   - `scripts/e2e-weapons-carry.mjs` Free Roam loadout: five slots, back guns within 10 deg of the spine in six
@@ -278,6 +278,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   an arc, auto shoulder in cover / at peeks, optional auto-recentre after 1.5 s of no look input
   while moving (`gameplay.autoRecentre`), handheld drift (<= 0.15 deg), micro-bob (<= 1 cm), sprint FOV +4 deg.
   Tight spaces: the boom pulls in fast and eases out slowly, then `applyBodyFade` hides the head / body.
+  Shake roll is `rotation.z`; the camera sets `updateUpVectorFromRotation` (Babylon otherwise rebuilds the up
+  vector, pitch included, only when `rotation.z` changes, freezing a tilted horizon when a shake ends).
 - Aim assist (`weapons/aimAssist.ts`): friction fades across the cone edge (and over ~60 ms in `GameState`),
   magnetism fades at the centre, so sweeping across a target never jolts the view.
 - Cinematic post (`vfx/cinematicPost.ts`): one pass for vignette, optional film grain and letterbox (stingers);

@@ -112,6 +112,10 @@ export class ShoulderCamera {
     // hips) holds on any aspect and ultra-wide phones simply see more at the sides
     this.camera.fovMode = Camera.FOVMODE_VERTICAL_FIXED;
     this.camera.inputs.clear();
+    // the up vector follows the full rotation every frame; otherwise Babylon rebuilds it (pitch included)
+    // only when rotation.z changes, so the frame a shake's roll ends leaves the horizon tilted by that
+    // frame's pitch for good (a lasting tilt after a hard landing, a hit or an explosion)
+    this.camera.updateUpVectorFromRotation = true;
     scene.activeCamera = this.camera;
   }
 

@@ -1,5 +1,13 @@
 # Changelog
 
+## 1.5.1 - Level horizon after shakes
+- Fix: the view could stay tilted after a hard landing (vaulting off the Warehouse mezzanine), a hit, an
+  explosion or shotgun / sniper fire, changing as you turned and only clearing on the next shake. The engine
+  rebuilt the camera's up vector (pitch included) only when the shake's roll changed, so the frame the roll
+  ended froze a tilted horizon. The up vector now follows the camera rotation every frame.
+- Weapon body clearance is allocation-free and cheaper (animation back within the per-character budget).
+- Tests: e2e-stealth checks a level horizon after a shake at a new pitch and yaw.
+
 ## 1.5.0 - Weighted movie movement, no clipping body or gun, walking round corners
 - Movie stealth movement: every gait is exaggerated - deeper bob and rise, more hip sway and shoulder twist,
   stronger lean into turns. The operative carries a tactical hunch whenever armed (spine and head forward,

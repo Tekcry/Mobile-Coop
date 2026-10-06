@@ -206,6 +206,18 @@ try {
   r = await lookFor(1300, 6);
   await G(() => window.__app.input.state.set('stealth-ads', 'ads', false));
   assert(Math.abs(r.turned) >= r.real * 0.97, `aiming: full 360 look (${f2(r.turned)} of ${f2(r.real)} rad)`);
+  // a shake's roll (hard landing, hit, explosion) never leaves the horizon tilted once it settles, at any
+  // pitch or yaw (Babylon rebuilds the up vector, pitch included, only when the roll changes)
+  await G(() => { const p = window.__app.current.player; p.cam.pitch = -0.35; p.cam.shake(0.8); });
+  await wait(1200);
+  await lookFor(700, 3);
+  const roll = await G(() => {
+    const p = window.__app.current.player;
+    const right = p.cam.camera.getDirection(new p.position.constructor(1, 0, 0));
+    return (Math.asin(Math.max(-1, Math.min(1, right.y))) * 180) / Math.PI;
+  });
+  await G(() => (window.__app.current.player.cam.pitch = 0));
+  assert(Math.abs(roll) < 0.2, `after a shake: the horizon is level again at a new yaw (roll ${f2(roll)} deg)`);
 
   // ---------------------------------------------------------------- cover (headless, exact timing)
   console.log('cover');
