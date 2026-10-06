@@ -18,7 +18,13 @@ export interface MapTheme {
   lightLevel?: number;
   /** Floor surface where none is marked (default concrete). */
   floor?: Surface;
+  /** Enemy faction colourway (default urban). */
+  faction?: Faction;
+  /** Colour grade (cinematic post): tint multiplier, saturation, contrast (defaults 1). */
+  grade?: { tint?: [number, number, number]; saturation?: number; contrast?: number };
 }
+
+export type Faction = 'urban' | 'desert' | 'maritime';
 
 export interface PropPlacement {
   kind: PropKind;

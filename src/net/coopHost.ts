@@ -5,6 +5,7 @@ import type { Enemy } from '../ai/enemy';
 import type { HitInfo } from '../game/damage';
 import type { Interactable } from '../game/interactables';
 import type { Blip } from '../ui/hud/minimap';
+import type { BlobShadows } from '../vfx/blobShadows';
 import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { G } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
@@ -729,6 +730,13 @@ export class CoopHost implements NetAttachment {
       hb.setEnabled(true);
       r.avatar.rig.headNode.computeWorldMatrix(true);
       hb.sync(r.avatar.pos, r.avatar.rig.headNode.getAbsolutePosition());
+    }
+  }
+
+  shadows(b: BlobShadows): void {
+    for (const r of this.remotes.values()) {
+      const p = r.avatar.pos;
+      b.add(p.x, p.y, p.z, 0.42);
     }
   }
 

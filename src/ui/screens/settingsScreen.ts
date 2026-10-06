@@ -134,7 +134,7 @@ export class SettingsScreen extends Screen {
             toggle('Shadows', () => s().video.shadows, (v) => upd((d) => void (d.video.shadows = v))),
             slider('Field of view (horizontal, 16:9)', { min: 60, max: 100, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
             toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
-            choice('Avatar style', [{ value: 'stick' as const, label: 'Stick' }, { value: 'detailed' as const, label: 'Detailed' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
+            choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
             toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))),
             toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))),
             button('Enter fullscreen', () => void enterFullscreenLandscape(), { class: 'subtle' }),

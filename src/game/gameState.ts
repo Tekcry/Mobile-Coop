@@ -46,6 +46,7 @@ import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
+import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { Silhouettes } from '../vfx/silhouettes';
 import { VISION, VisionState } from './vision';
@@ -99,6 +100,8 @@ export interface NetAttachment {
   onEnd?(won: boolean, subtitle: string): void;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
+  /** Contact shadows for the characters the net layer draws (remote players, puppets). */
+  shadows?(b: BlobShadows): void;
   /** Host: the local player respawned at `at` (a checkpoint): bring the others back too. */
   onRespawn?(at: Vector3): void;
   /** Extra pickers for pickups (host: remote players). */
@@ -181,6 +184,7 @@ export class GameState implements AppState {
   private swayT = 0;
   /** Cinematic post pass (vignette, grain, letterbox). */
   readonly post: CinematicPost;
+  readonly blobs: BlobShadows;
   private postKey = '';
   private beatT = 0;
   private letterboxT = 0;
@@ -285,7 +289,9 @@ export class GameState implements AppState {
     this.traversal = new TraversalController(this.scene, this.player, world.level.anchors);
     this.traversal.breakables = world.breakables;
     world.breakables.onOpen = (key, how, at) => this.onBreakable(key, how, at);
+    this.blobs = new BlobShadows(this.scene);
     this.post = new CinematicPost(this.player.cam.camera);
+    this.post.setGrade(world.map.theme.grade);
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
     this.execute = new ExecuteController(this);
@@ -579,6 +585,7 @@ export class GameState implements AppState {
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
+    this.blobs.dispose();
     this.net?.dispose();
     this.net = null;
     this.audio?.dispose();
@@ -955,7 +962,19 @@ export class GameState implements AppState {
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
     this.net?.frameUpdate(dt);
+    this.drawShadows();
     this.updateHud();
+  }
+
+  /** Contact shadows: the player, enemies, dummies, the net layer's characters. */
+  private drawShadows(): void {
+    const b = this.blobs;
+    b.begin();
+    const p = this.player.position;
+    b.add(p.x, p.y, p.z, 0.42);
+    for (const e of this.enemyMgr?.enemies ?? []) if (e.alive) b.add(e.pos.x, e.pos.y, e.pos.z, e.dog ? 0.42 : 0.4 * e.def.scale);
+    this.net?.shadows?.(b);
+    b.end();
   }
 
   /** Last Known Position ghost (stealth rules only). */
@@ -988,6 +1007,8 @@ export class GameState implements AppState {
   private renderVision(): void {
     const v = this.vision;
     this.post.setNightVision(v.night);
+    // the tri-lens glows while a mode is on
+    this.player.rig.setLensGlow(v.mode !== 'off');
     this.sonarMarks.setAlpha(v.markAlpha * 0.6);
     const t = v.sincePulse;
     const ring = this.sonarRing;

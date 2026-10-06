@@ -26,6 +26,7 @@ export const provingGrounds: MapDef = {
     sunDir: [-0.45, -1, 0.35],
     sunIntensity: 0.85,
     ambient: 0.7,
+    grade: { tint: [1.0, 1.0, 1.0], saturation: 0.95, contrast: 1.03 },
   },
   build(b: LevelBuilder): MapLayout {
     const C = PALETTE;

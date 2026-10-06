@@ -130,6 +130,9 @@ export const warehouse: MapDef = {
     sunIntensity: 0.16,
     ambient: 0.3,
     lightLevel: 0.3,
+    faction: 'urban',
+    // night: cold blue-green, a little desaturated, punchy
+    grade: { tint: [0.92, 1.0, 1.08], saturation: 0.85, contrast: 1.08 },
   },
   build(b: LevelBuilder): MapLayout {
     // ground, yard and building floor

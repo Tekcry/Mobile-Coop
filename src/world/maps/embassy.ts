@@ -138,6 +138,9 @@ export const embassy: MapDef = {
     ambient: 0.28,
     lightLevel: 0.22,
     floor: 'gravel',
+    faction: 'maritime',
+    // night by the sea: steel blue
+    grade: { tint: [0.9, 0.98, 1.1], saturation: 0.8, contrast: 1.1 },
   },
   build(b: LevelBuilder): MapLayout {
     // ground and compound wall

@@ -1,3 +1,4 @@
+import { defaultLook } from '../src/cosmetics/avatarLook';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { migrate, detectVersion, SaveVersionError } from '../src/save/migrations';
@@ -34,7 +35,7 @@ describe('save migrations', () => {
     expect(s.weapons.rifle.upgrades).toEqual({ damage: 2, magazine: 1, recoil: 0, reload: 3 });
     // out-of-range upgrade clamped
     expect(s.weapons.smg.upgrades.damage).toBe(5);
-    expect(s.avatar.body).toBe('average');
+    expect(s.avatar.body).toBe(defaultLook().body);
     expect(s.emotes).toHaveLength(4);
   });
   it('v2 -> v3 adds cosmetics without losing data', () => {

@@ -91,11 +91,14 @@ export function suitStats(s: SuitLoadout): SuitStats {
 export function suitLook(base: AvatarLook, s: SuitLoadout): AvatarLook {
   const look: AvatarLook = { ...base, colors: { ...base.colors } };
   const v = tier('vest', s.vest);
-  if (v === 1) look.torso = 'vest';
-  if (v >= 2) look.torso = 'armor';
+  const op = base.torso === 'operator';
+  // the operator keeps the fitted suit (its carrier shows the vest); heavy armour adds the leg plates
+  if (!op && v === 1) look.torso = 'vest';
+  if (!op && v >= 2) look.torso = 'armor';
+  if (op && v === 3) look.legs = 'armored';
   if (v === 3) look.colors.accent = '#2a2f36';
   if (tier('pouches', s.pouches) >= 1 && look.backpack === 'none') look.backpack = 'radio';
-  if (tier('goggles', s.goggles) >= 1) look.helmet = 'headset';
+  if (tier('goggles', s.goggles) >= 1 && look.helmet !== 'trilens') look.helmet = 'headset';
   const b = tier('boots', s.boots);
   if (b >= 2) look.colors.boots = b === 3 ? '#0d0f12' : '#1e2227';
   return look;

@@ -62,9 +62,12 @@ describe('suit', () => {
     expect(canBuySuit(owned, 'vest', 1, 1, 99999)).toMatchObject({ ok: false, reason: 'level' });
     expect(canBuySuit(owned, 'vest', 1, 5, 10)).toMatchObject({ ok: false, reason: 'credits' });
     expect(canBuySuit(owned, 'vest', 1, 5, 99999).ok).toBe(true);
-    const look = suitLook(defaultLook(), { ...owned, vest: 2, goggles: 1 });
+    const look = suitLook({ ...defaultLook(), torso: 'vest', helmet: 'combat' }, { ...owned, vest: 2, goggles: 1 });
     expect(look.torso).toBe('armor');
     expect(look.helmet).toBe('headset');
+    // the operator keeps the suit and the tri-lens; heavy armour plates the legs
+    const opLook = suitLook(defaultLook(), { ...owned, vest: 3, goggles: 1 });
+    expect(opLook).toMatchObject({ torso: 'operator', helmet: 'trilens', legs: 'armored' });
   });
 });
 

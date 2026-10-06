@@ -1,6 +1,7 @@
 import { Vector3 } from '../core/babylon';
 import type { GameState, NetAttachment } from '../game/gameState';
 import type { Blip } from '../ui/hud/minimap';
+import type { BlobShadows } from '../vfx/blobShadows';
 import { Ragdoll } from '../ai/ragdoll';
 import { BUDGET } from '../physics/groups';
 import type { HitInfo } from '../game/damage';
@@ -407,6 +408,11 @@ export class CoopClient implements NetAttachment {
 
   onLocalDeath(): boolean {
     return true;
+  }
+
+  shadows(b: BlobShadows): void {
+    for (const a of this.avatars.values()) b.add(a.pos.x, a.pos.y, a.pos.z, 0.42);
+    for (const p of this.puppetList) if (p.alive) b.add(p.pos.x, p.pos.y, p.pos.z, 0.4 * p.def.scale);
   }
 
   blips(): Blip[] {

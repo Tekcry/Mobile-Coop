@@ -1,5 +1,24 @@
 # Changelog
 
+## 1.22.0 - 2.0 phase 9: the operator, enemy silhouettes and factions, light cones, contact shadows, colour grade
+- The operator is the new default look: a fitted suit with a plate carrier, magazine pouches, shoulder straps,
+  belt with a radio pouch, elbow and knee pads, gloves, thigh panels, and a balaclava with the tri-lens goggle
+  (two lenses at the eyes, one above); the lenses glow green while night vision or sonar is on. Built on the
+  detailed body, which is now the default avatar style (settings from before move to it once; Settings > Video >
+  Avatar style keeps Stick). Customiser: "Operator suit" and "Tri-lens goggles" (starters), "Sniper hood" (level 7).
+  With the operator, suit tiers keep the suit (heavy armour adds leg plates) and the tri-lens.
+- Enemy silhouettes per archetype: the guard in a cap, the heavy in a visored helmet with plates and tanks, the
+  sniper in a hood, the enforcer with his shield, the officer in jacket and beret, the drone operator with a
+  headset, the dog as a dog. Faction colourways per map (`MapTheme.faction`, `ai/factions.ts`): urban
+  (Warehouse), desert (Dust Depot), maritime (Embassy).
+- Weapons: an ejection port on every long gun and a top rail under the optic.
+- Lighting: every fixed light casts a faint additive cone (one thin-instanced mesh, fading to the floor, out
+  with the light; hidden at the lowest quality); soft contact shadows under every character (`vfx/blobShadows`,
+  one draw call); a colour grade per map in the cinematic pass (`MapTheme.grade`: tint, saturation, contrast):
+  cold night at the Warehouse, warm dusk at the Depot, steel blue at the Embassy.
+- Tests: suit-look unit test for the operator; e2e-cosmetics, e2e-weapons-carry and e2e-clip with the operator
+  as the default style.
+
 ## 1.21.0 - 2.0 phase 10: four-player co-op in every mode, PvP (Team Deathmatch 4v4, Free-for-all 8)
 - Co-op (2-4) now runs Wave, Hunter, Infiltration (any mission; the lobby picks it) and Free Roam. The host runs
   the match; clients see the host's enemies with their alert state (the dog as a dog), use objectives, switches,

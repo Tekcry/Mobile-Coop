@@ -33,7 +33,7 @@ describe('net message validation', () => {
     expect(m.name).not.toMatch(/[<>]/);
     expect(m.name.length).toBeLessThanOrEqual(16);
     expect(m.tag.color).toBe('#ff8a1e');
-    expect(m.look.hair).toBe('buzz');
+    expect(m.look.hair).toBe(defaultLook().hair);
     expect(parseMessage({ t: 'pstate', s: { ...ps, id: '../../etc' } })).toBeNull();
   });
   it('loadout: known weapons only, no repeats, capped', () => {

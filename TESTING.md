@@ -293,6 +293,15 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.0 phase 9 - Visual overhaul (1.22.0) - Warehouse, Dust Depot, Embassy
+- [ ] A fresh install shows the operator (suit, carrier, pads, balaclava, tri-lens); toggle night vision: the
+      lenses glow green. Settings > Video > Avatar style: Stick still works.
+- [ ] Warehouse at night: lamps throw faint cones; characters have a soft shadow underfoot; the image has a cold
+      grade. Shoot a lamp: its cone goes out.
+- [ ] Enemies read by silhouette at 20 m: cap (guard), helmet + plates (heavy), hood (sniper), shield, beret
+      (officer), headset (drone operator), dog. Dust Depot enemies wear desert colours, Embassy navy.
+- [ ] Frame pacing on a phone in the Warehouse (debug overlay) stays inside the budget with the cones on.
+
 ## 2.0 phase 10 - Co-op 4 and PvP (1.21.0) - two to eight devices
 - [ ] Co-op > Host: Mode lists Wave, Hunter, Infiltration, Free Roam, Team Deathmatch, Free-for-all. Four phones
       join a Hunter room; a fifth is told the room is full (switch to a PvP mode and it can join).

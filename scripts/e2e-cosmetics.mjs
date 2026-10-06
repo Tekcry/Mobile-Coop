@@ -16,13 +16,19 @@ try {
   await press(page, BTN.DOWN);
   await press(page, BTN.DOWN);
   assert(/Hair/.test(await focusedText(page)), 'focus Hair');
-  await press(page, BTN.RIGHT); // buzz -> long (free)
+  await press(page, BTN.RIGHT); // the next free hair
   const hair1 = await G(() => window.__app.save.get().avatar.hair);
   assert(hair1 !== hair0, `owned hair saved immediately (${hair0} -> ${hair1})`);
-  await press(page, BTN.RIGHT); // long -> mohawk (locked at level 1)
-  const note = await G(() => document.querySelector('.lock-note')?.textContent ?? '');
+  // on to the first locked one (mohawk at level 1)
+  let note = '';
+  let saved = hair1;
+  for (let i = 0; i < 4 && !note; i++) {
+    saved = await G(() => window.__app.save.get().avatar.hair);
+    await press(page, BTN.RIGHT);
+    note = await G(() => document.querySelector('.lock-note')?.textContent ?? '');
+  }
   assert(/Mohawk/.test(note) && /preview only/.test(note), `locked item previews with a note ("${note.slice(0, 60)}")`);
-  assert((await G(() => window.__app.save.get().avatar.hair)) === hair1, 'locked selection is not saved');
+  assert((await G(() => window.__app.save.get().avatar.hair)) === saved, 'locked selection is not saved');
   // skin colour swatch
   await press(page, BTN.DOWN);
   const skin0 = await G(() => window.__app.save.get().avatar.colors.skin);
@@ -50,7 +56,7 @@ try {
   assert(rnd !== 'Operator', `random callsign (${rnd})`);
   await press(page, BTN.B);
   // locked preview reverted on exit
-  assert((await G(() => window.__app.save.get().avatar.hair)) === hair1, 'leaving reverts locked previews');
+  assert((await G(() => window.__app.save.get().avatar.hair)) === saved, 'leaving reverts locked previews');
 
   // camo in armory (grant a mastery camo first)
   await G(() => window.__app.save.update((d) => { d.weapons.rifle.kills = 12; d.unlocks.push('camo:rifle:woodland'); }));

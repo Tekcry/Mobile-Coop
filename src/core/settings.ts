@@ -82,8 +82,10 @@ export interface Settings {
     /** Cinematic look: gentle vignette, film grain (one combined pass). */
     vignette: boolean;
     filmGrain: boolean;
-    /** Characters drawn as classic stick figures or the detailed smooth body. */
+    /** Characters drawn as the detailed smooth body (the 2.0 operator; default) or classic stick figures. */
     avatarStyle: 'stick' | 'detailed';
+    /** 2: the 2.0 default (detailed) has been applied once to settings saved before it. */
+    avatarStyleV: number;
   };
   audio: { master: number; sfx: number; music: number; ui: number };
   gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; coverDash: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean };
@@ -183,7 +185,7 @@ export function defaultSettings(): Settings {
       vibration: true,
     },
     mouse: { sensitivity: 1, invertY: false },
-    video: { quality: 'auto', renderScale: 1, shadows: true, fovH: 75, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'stick' },
+    video: { quality: 'auto', renderScale: 1, shadows: true, fovH: 75, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
   };
@@ -269,7 +271,9 @@ export function sanitizeSettings(raw: unknown): Settings {
       showFps: bool(v.showFps, d.video.showFps),
       vignette: bool(v.vignette, d.video.vignette),
       filmGrain: bool(v.filmGrain, d.video.filmGrain),
-      avatarStyle: pick(v.avatarStyle, ['stick', 'detailed'] as const, d.video.avatarStyle),
+      // settings from before 2.0 move to the operator once (the stick style stays a choice)
+      avatarStyle: v.avatarStyleV === 2 ? pick(v.avatarStyle, ['stick', 'detailed'] as const, d.video.avatarStyle) : 'detailed',
+      avatarStyleV: 2,
     },
     audio: {
       master: num(a.master, d.audio.master, 0, 1),

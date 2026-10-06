@@ -1,7 +1,7 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
 
 /**
- * One combined full-screen pass for the cinematic look: gentle vignette, optional film grain, a
+ * One combined full-screen pass for the cinematic look: the map's colour grade, gentle vignette, optional film grain, a
  * letterbox for stinger moments (mission start, room cleared) and the night-vision goggles (green
  * phosphor: the dark lifted, bright lights blooming out, heavy grain, a tube vignette). Kept to a single
  * cheap pass so it fits the 120 fps budget; disabled entirely when every effect is off.
@@ -18,8 +18,16 @@ uniform float aspect;
 uniform float nv;
 uniform float flash;
 uniform float feed;
+uniform vec3 tint;
+uniform float sat;
+uniform float contrast;
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
+  // the map's colour grade: tint, saturation, contrast round mid grey
+  vec3 gr = c.rgb * tint;
+  float gl = dot(gr, vec3(0.299, 0.587, 0.114));
+  gr = mix(vec3(gl), gr, sat);
+  c.rgb = max((gr - 0.5) * contrast + 0.5, 0.0);
   vec2 d = vUV - 0.5;
   d.x *= aspect;
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
@@ -60,6 +68,10 @@ export class CinematicPost {
   /** Remote camera feed look (sticky cam, drone) 0..1. */
   private feed = 0;
   private t = 0;
+  /** Colour grade (identity = off). */
+  private tint: [number, number, number] = [1, 1, 1];
+  private sat = 1;
+  private contrast = 1;
 
   constructor(private camera: Camera) {}
 
@@ -68,6 +80,18 @@ export class CinematicPost {
     this.vignette = vignette ? 0.35 : 0;
     this.grain = grain ? 0.045 : 0;
     this.sync();
+  }
+
+  /** The map's colour grade (tint multiplier, saturation, contrast). */
+  setGrade(g?: { tint?: [number, number, number]; saturation?: number; contrast?: number }): void {
+    this.tint = g?.tint ?? [1, 1, 1];
+    this.sat = g?.saturation ?? 1;
+    this.contrast = g?.contrast ?? 1;
+    this.sync();
+  }
+
+  private get graded(): boolean {
+    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1;
   }
 
   /** Night-vision goggles blend (0 off .. 1). */
@@ -97,9 +121,9 @@ export class CinematicPost {
   }
 
   private sync(force = false): void {
-    const needed = this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || force;
+    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed'], null, 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast'], null, 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -109,6 +133,9 @@ export class CinematicPost {
         e.setFloat('nv', this.nv);
         e.setFloat('flash', this.flash);
         e.setFloat('feed', this.feed);
+        e.setFloat3('tint', this.tint[0], this.tint[1], this.tint[2]);
+        e.setFloat('sat', this.sat);
+        e.setFloat('contrast', this.contrast);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

@@ -56,6 +56,21 @@ export class WeaponModel {
       // the off hand's reload point: the top of the magazine well
       if (p.role === 'mag') this.magLocal = new Vector3(p.pos[0], p.pos[1] + p.size[1] * 0.3, p.pos[2]);
     }
+    // finer detail on long guns: an ejection port on the right of the receiver and a top rail under the optic
+    const rec = def.model.find((p) => p.role === 'receiver');
+    if (rec && def.class !== 'pistol' && def.class !== 'crossbow') {
+      const [w, h, l] = rec.size;
+      const [x, y, z] = rec.pos;
+      const detail = (hex: string, sx: number, sy: number, sz: number, px: number, py: number, pz: number): void => {
+        const m = lib.instance('rbox', hex, `wpn-${def.id}-part`);
+        m.parent = this.node;
+        m.scaling.set(sx, sy, sz);
+        m.position.set(px, py, pz);
+        this.parts.push(m);
+      };
+      detail('#0d0e10', 0.006, h * 0.32, l * 0.22, x + w / 2 + 0.002, y + h * 0.12, z + l * 0.08);
+      if (def.class !== 'shotgun') detail(colors.grip, w * 0.55, 0.012, l * 0.62, x, y + h / 2 + 0.005, z);
+    }
     this.muzzleLocal = new Vector3(...def.muzzle);
     this.ext = modelExtents(def);
   }

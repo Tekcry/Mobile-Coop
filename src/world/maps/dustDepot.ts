@@ -104,6 +104,9 @@ export const dustDepot: MapDef = {
     sunIntensity: 0.95,
     ambient: 0.65,
     floor: 'gravel',
+    faction: 'desert',
+    // dusk: warm, sun-bleached
+    grade: { tint: [1.08, 1.0, 0.88], saturation: 0.92, contrast: 1.05 },
   },
   build(b: LevelBuilder, seed: number): MapLayout {
     const rng = mulberry(seed * 7919 + 13);

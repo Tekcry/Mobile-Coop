@@ -27,7 +27,7 @@
     "credits": 15,
     "look": {
       "torso": "vest",
-      "helmet": "combat",
+      "helmet": "cap",
       "backpack": "radio",
       "hair": "none",
       "colors": {
@@ -162,7 +162,7 @@
     "credits": 35,
     "look": {
       "torso": "vest",
-      "helmet": "cap",
+      "helmet": "hood",
       "backpack": "none",
       "hair": "none",
       "body": "lean",
@@ -298,7 +298,7 @@
     "credits": 30,
     "look": {
       "torso": "vest",
-      "helmet": "cap",
+      "helmet": "headset",
       "backpack": "radio",
       "hair": "none",
       "colors": {

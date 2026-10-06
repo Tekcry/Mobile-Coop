@@ -2,7 +2,7 @@
 // node scripts/rig-shot.mjs out.png [yaw] [js-before]   (yaw: avatar yaw in radians, PI = facing camera)
 import { launch, frames } from './e2e-lib.mjs';
 const [out, yaw = String(Math.PI), js = ''] = process.argv.slice(2);
-const { browser, page, errors } = await launch({ params: '' });
+const { browser, page, errors } = await launch({ params: '', url: process.env.URL ?? 'http://localhost:4173/' });
 await frames(page, 30);
 await page.evaluate((y) => {
   document.querySelector('.screens').style.display = 'none';

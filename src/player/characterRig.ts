@@ -114,9 +114,13 @@ export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'should
 /** Forward-kinematics override (Euler x, y, z) per joint, used by emotes. */
 export type FkPose = Partial<Record<JointName, readonly [number, number, number]>> & { pelvisLift?: number };
 
-/** Avatar render style: classic stick figure (default) or the detailed smooth body. */
+/** Tri-lens goggle lens colours (off / glowing). */
+const LENS_OFF = '#20331f';
+const LENS_ON = '#8dff5a';
+
+/** Avatar render style: classic stick figure or the detailed smooth body (the operator; default). */
 export type AvatarStyle = 'stick' | 'detailed';
-let DEFAULT_STYLE: AvatarStyle = 'stick';
+let DEFAULT_STYLE: AvatarStyle = 'detailed';
 /** Style for rigs built from now on (set from Settings > Video). */
 export function setAvatarStyle(s: AvatarStyle): void {
   DEFAULT_STYLE = s;
@@ -555,7 +559,11 @@ export class CharacterRig {
       this.parts.push(m);
       return m;
     };
-    const longSleeves = look.torso === 'jacket' || look.torso === 'hoodie' || look.torso === 'armor';
+    const operator = look.torso === 'operator';
+    const longSleeves = look.torso === 'jacket' || look.torso === 'hoodie' || look.torso === 'armor' || operator;
+    // gloves (the operator's), else bare hands
+    const hand = operator ? '#16181c' : c.skin;
+    const handSlot = operator ? 'boots' : 'skin';
     const sleeve = longSleeves ? c.torso : c.skin;
     const sleeveSlot = longSleeves ? 'torso' : 'skin';
     const Y = p.y;
@@ -590,6 +598,20 @@ export class CharacterRig {
         break;
       case 'tee':
         break;
+      case 'operator': {
+        // plate carrier front / back over the fitted suit, a row of magazine pouches, shoulder straps, a collar
+        part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.78, 0.3, 0.055, 0, 0.09, front - 0.004);
+        part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.8, 0.32, 0.055, 0, 0.1, -front + 0.004);
+        for (let i = -1; i <= 1; i++) part('rbox', c.accent, 'accent', this.torso, 0.062, 0.085, 0.04, i * 0.07, -0.02, front + 0.035);
+        part('rbox', c.helmet, 'helmet', this.torso, 0.05, 0.06, 0.03, -0.075, 0.17, front + 0.03);
+        part('pill', c.accent, 'accent', this.torso, 0.05, 0.05, p.chest.d * 0.95, -p.shoulderHalf * 0.55, Y.shoulder - chestY - 0.02, 0);
+        part('pill', c.accent, 'accent', this.torso, 0.05, 0.05, p.chest.d * 0.95, p.shoulderHalf * 0.55, Y.shoulder - chestY - 0.02, 0);
+        part('torus', c.torso, 'torso', this.torso, 0.15, 0.24, 0.14, 0, Y.neck - chestY - 0.015, 0);
+        // belt with a radio and a utility pouch
+        part('torus', c.helmet, 'helmet', this.spine, p.waist.w * 1.06, 0.16, p.waist.d * 1.08, 0, -0.04, 0);
+        part('rbox', c.accent, 'accent', this.spine, 0.07, 0.08, 0.045, -p.waist.w * 0.36, -0.05, -p.waist.d * 0.4);
+        break;
+      }
     }
     if (look.torso === 'armor' || armor) {
       part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.85, 0.32, 0.06, 0, 0.1, front - 0.005);
@@ -600,7 +622,9 @@ export class CharacterRig {
 
     // neck + head
     const H = p.head;
-    part('limbA', c.skin, 'skin', this.neck, p.neck.r * 2, p.neck.len + H.h * 0.35, p.neck.r * 2.1, 0, -0.04, -0.005, Math.PI - 0.1);
+    // (the balaclava covers the neck)
+    const masked = look.helmet === 'trilens';
+    part('limbA', masked ? c.torso : c.skin, masked ? 'torso' : 'skin', this.neck, p.neck.r * 2, p.neck.len + H.h * 0.35, p.neck.r * 2.1, 0, -0.04, -0.005, Math.PI - 0.1);
     const hs = look.head === 'oval' ? [0.94, 1.0, 1.0] : look.head === 'long' ? [0.95, 1.07, 0.98] : look.head === 'strong' ? [1.02, 1.0, 1.0] : [1, 1, 1];
     const jaw = look.head === 'strong' ? 0.92 : look.head === 'oval' ? 0.76 : 0.82;
     const hw = H.w * hs[0]!;
@@ -656,6 +680,29 @@ export class CharacterRig {
         part('sphere', c.accent, 'accent', this.headNode, 0.04, 0.075, 0.07, -hw * 0.54, 0, 0);
         part('sphere', c.accent, 'accent', this.headNode, 0.04, 0.075, 0.07, hw * 0.54, 0, 0);
         break;
+      case 'trilens': {
+        // balaclava over the head and face (eyes open), a strap, the tri-lens goggle on its mount: two lenses at
+        // the eyes, one above between them; they glow in a vision mode (`setLensGlow`)
+        part('sphere', c.torso, 'torso', this.headNode, hw * 1.05, hh * 0.9, hd * 1.04, 0, hh * 0.08, -0.004);
+        part('sphere', c.torso, 'torso', this.headNode, hw * jaw * 1.05, hh * 0.52, hd * 0.84, 0, -hh * 0.2, 0.012);
+        part('torus', c.helmet, 'helmet', this.headNode, hw * 1.08, hh * 0.18, hd * 1.08, 0, hh * 0.12, -0.004, -0.1);
+        const z = hd * 0.5 + 0.012;
+        part('rbox', c.helmet, 'helmet', this.headNode, 0.1, 0.05, 0.035, 0, 0.04, z);
+        const lens = (x: number, y: number): void => {
+          part('rcyl', c.helmet, 'helmet', this.headNode, 0.034, 0.042, 0.034, x, y, z + 0.022, Math.PI / 2);
+          this.lenses.push(part('rcyl', LENS_OFF, 'lens', this.headNode, 0.026, 0.006, 0.026, x, y, z + 0.044, Math.PI / 2) as InstancedMesh);
+        };
+        lens(-0.026, 0.022);
+        lens(0.026, 0.022);
+        lens(0, 0.058);
+        break;
+      }
+      case 'hood':
+        // a loose hood over a cap, drawn down at the back (the sniper)
+        part('dome', c.helmet, 'helmet', this.headNode, hw * 1.22, hh * 0.78, hd * 1.2, 0, hh * 0.1, -0.012, -0.1);
+        part('pill', c.helmet, 'helmet', this.headNode, hw * 1.12, hh * 0.7, 0.07, 0, -hh * 0.14, -hd * 0.46, 0.15);
+        part('pill', c.helmet, 'helmet', this.headNode, hw * 0.9, 0.022, 0.1, 0, hh * 0.2, hd * 0.55, -0.12);
+        break;
       case 'none':
         break;
     }
@@ -696,10 +743,12 @@ export class CharacterRig {
       }
       part('sphere', longSleeves ? c.torso : c.skin, longSleeves ? 'torso' : 'skin', el, ua.r1 * 2.1, ua.r1 * 2.1, ua.r1 * 2.1);
       part('limbA', longSleeves ? c.torso : c.skin, longSleeves ? 'torso' : 'skin', el, fa.r0 * 2, fa.len, fa.r0 * 2);
-      part('sphere', c.skin, 'skin', wr, fa.r1 * 2.2, fa.r1 * 2.2, fa.r1 * 2.2);
+      part('sphere', hand, handSlot, wr, fa.r1 * 2.2, fa.r1 * 2.2, fa.r1 * 2.2);
       // mitten: palm faces inwards (towards the body), fingers down
-      part('pill', c.skin, 'skin', wr, p.hand.t * 1.7, p.hand.len * 0.72, p.hand.w, 0, -p.hand.len * 0.4, 0.004);
-      part('capsule', c.skin, 'skin', wr, 0.03, 0.075, 0.03, -side * 0.006, -p.hand.len * 0.25, p.hand.w * 0.48, 0.5, 0, 0);
+      part('pill', hand, handSlot, wr, p.hand.t * 1.7, p.hand.len * 0.72, p.hand.w, 0, -p.hand.len * 0.4, 0.004);
+      part('capsule', hand, handSlot, wr, 0.03, 0.075, 0.03, -side * 0.006, -p.hand.len * 0.25, p.hand.w * 0.48, 0.5, 0, 0);
+      // operator: elbow pad
+      if (operator) part('dome', c.accent, 'accent', el, ua.r1 * 2.4, 0.05, ua.r1 * 2.4, 0, 0.0, -ua.r1 * 0.75, -Math.PI / 2);
     };
     arm(-1, this.shoulderL, this.elbowL, this.wristL);
     arm(1, this.shoulderR, this.elbowR, this.wristR);
@@ -718,7 +767,9 @@ export class CharacterRig {
       const lowerSlot = shorts ? 'skin' : 'legs';
       part('sphere', lower, lowerSlot, kn, th.r1 * 2.1, th.r1 * 2.2, th.r1 * 2.15);
       part('limbL', lower, lowerSlot, kn, cf.r0 * 2, cf.len, cf.r0 * 2);
-      if (look.legs === 'armored' || armor) part('dome', c.accent, 'accent', kn, 0.11, 0.07, 0.12, 0, 0.0, th.r1 * 0.9, Math.PI / 2);
+      if (look.legs === 'armored' || armor || operator) part('dome', c.accent, 'accent', kn, 0.11, 0.07, 0.12, 0, 0.0, th.r1 * 0.9, Math.PI / 2);
+      // operator: a thigh pocket panel on each leg (the pistol holster rides on the right)
+      if (operator) part('rbox', c.accent, 'accent', hp, 0.045, 0.14, 0.11, side * th.r0 * 0.95, -th.len * 0.45, 0.0);
       part('sphere', c.boots, 'boots', an, cf.r1 * 2.6, cf.r1 * 2.4, cf.r1 * 2.6, 0, 0.0, 0);
       // boot: rounded toe forward, sole at the ground (ankle sits at foot.h above it)
       part('pill', c.boots, 'boots', an, p.foot.w, p.foot.h, p.foot.len, 0, -p.y.ankle * 0.45, p.foot.len * 0.28);
@@ -729,6 +780,18 @@ export class CharacterRig {
 
   setEnabled(v: boolean): void {
     this.root.setEnabled(v);
+  }
+
+  /** Tri-lens goggle lenses (empty without the goggle). */
+  private readonly lenses: InstancedMesh[] = [];
+  private lensOn = false;
+
+  /** The tri-lens lenses glow green while a vision mode (night vision, sonar) is on. */
+  setLensGlow(on: boolean): void {
+    if (on === this.lensOn) return;
+    this.lensOn = on;
+    const c = Color4.FromHexString(`${on ? LENS_ON : LENS_OFF}ff`);
+    for (const m of this.lenses) m.instancedBuffers.color = c;
   }
 
   // ------------------------------------------------------------------------------------------
