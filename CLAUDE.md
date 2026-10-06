@@ -15,7 +15,9 @@ Blacklist style.
   - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
   - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad
   - `scripts/e2e-touch.mjs` touch-only: taps menus, floating move stick, rate-based camera stick, drag-look,
-    fire button never moves the camera, control sizes, contextual action label
+    fire button never moves the camera, control sizes, action button only for "use", take-cover / badge prompt taps
+  - `scripts/e2e-mouse.mjs` PC mouse capture: click captures (never fires), look, fire, wheel swap, Esc pauses,
+    Resume re-captures
   - `scripts/e2e-move.mjs` stealth speeds (sneak .. sprint), aim strafe/backstep, sprint toggle, no free jump,
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
@@ -96,12 +98,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## Input
 - Actions (`input/actions.ts`) are the only thing game/UI code reads. Sources: `GamepadSource` (polled each
   frame, standard mapping in `gamepadMapping.ts`), `TouchControls` (DOM virtual sticks/buttons, layout from
-  settings), `KeyboardMouseSource` (desktop testing only).
+  settings), `KeyboardMouseSource` (PC browsers: pointer lock in a match - requested by
+  `setGameplayActive(true)` on the click that starts / resumes, else any click on the game captures without firing;
+  a "click to capture" hint while free; losing it mid-match taps `pause`; mouse buttons are pointer events because
+  Babylon cancels canvas `pointerdown`, which suppresses `mousedown`).
 - Bindings (section 7 of 1.3.0): gamepad LS move, RS look, LT aim, RT fire, A `cover` (take / leave /
   cover-to-cover), B `crouch` (stand / crouch at high cover), Y `jump` + `interact` (contextual: an interactable
   in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
   R3 shoulder, RB/LB weapons, D-pad up grenade, others emotes. Keyboard: Space cover, C / Ctrl crouch, Shift
-  sprint, E traverse / interact, R reload, Q / X weapons. Gamepad look: 30 ms smoothing (acceleration inside the
+  sprint, E traverse / interact, R reload, Q / X weapons; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
   smoothing, so releasing never steps the rate).
 - Touch (`input/touchControls.ts`): pointer handlers only record state; `update(dt)` (per frame, from
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by

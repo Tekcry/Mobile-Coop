@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.3.2 - PC mouse capture
+- The mouse is captured in a match on PC browsers (pointer lock): the click that starts or resumes a match
+  captures it, and any click on the game while it is free does (that click never fires; a "Click to capture the
+  mouse" hint shows meanwhile). Captured: move to look, left button fires, right aims, the wheel swaps weapons.
+  Esc (or alt-tab) frees it and pauses; Resume captures it again.
+- Fix: mouse buttons never reached the game (the engine cancels pointer presses on the canvas, which stops the
+  browser sending mouse presses), so the mouse was never captured and could not fire or aim. Mouse buttons now
+  use pointer events.
+- Tests: new e2e-mouse suite.
+
 ## 1.3.1 - Cover feedback: hide for real, crouched aim, world prompts, manual cover
 - Low cover hides you: the body ducks (hips down, back curled over the knees, head tucked) until the top of the
   head is ~7 cm under the cover top, kneeling or moving along it. Aiming over low cover stays crouched: the back

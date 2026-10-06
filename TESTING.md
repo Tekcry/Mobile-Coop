@@ -258,6 +258,12 @@ Controls:
 - [ ] Entering cover reads like a film: a shoulder slam with a camera hit, a ducking spin on turn-and-swap and corner swings, a firm push off when leaving.
 - [ ] At every peek (both edges, high and low, standing and crouched, over the top) aim as far as the view allows and fire: no shot hits your own cover; angles you cannot shoot from cannot be aimed at.
 
+## PC mouse (1.3.2) - Chrome, Edge, Firefox, Safari on a desktop
+- [ ] Start Free Roam with a mouse click: the cursor disappears and moving the mouse looks around straight away (if the browser refuses, "Click to capture the mouse" shows and one click on the game captures it without firing).
+- [ ] Left button fires, right button aims, the wheel swaps weapons, WASD / Space / C / Shift / E / R work.
+- [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
+- [ ] Menus work with the mouse as before.
+
 ## Phase 10 - Release checklist
 
 ### Offline and install

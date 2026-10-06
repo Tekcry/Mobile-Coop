@@ -40,7 +40,11 @@ export class InputManager {
       },
       onActive: () => this.setMode('gamepad'),
     });
-    this.kbm = new KeyboardMouseSource(this.state, canvas, get, () => this.setMode('kbm'));
+    this.kbm = new KeyboardMouseSource(this.state, canvas, get, () => this.setMode('kbm'), uiRoot);
+    // the mouse capture lost mid-match (Esc, alt-tab): pause, like a PC game
+    this.kbm.onLockLost = () => {
+      if (this.gameplayActive && this._mode === 'kbm') this.state.tap('pause');
+    };
     this.touch = new TouchControls(this.state, get, uiRoot, () => this.setMode('touch'));
     settings.subscribe(() => this.touch.applyLayout());
 
@@ -69,6 +73,7 @@ export class InputManager {
     this._mode = m;
     if (m !== 'kbm') this.kbm.releasePointerLock();
     this.applyModeClass();
+    this.kbm.refreshHint();
     this.refreshTouchVisibility();
     this.events.emit('mode', m);
   }
@@ -84,7 +89,10 @@ export class InputManager {
   setGameplayActive(active: boolean): void {
     this.gameplayActive = active;
     this.kbm.wantPointerLock = active;
+    // starting / resuming a match by mouse or keyboard captures the mouse (that click is the gesture)
+    if (active && this._mode === 'kbm') this.kbm.requestLock();
     if (!active) this.kbm.releasePointerLock();
+    this.kbm.refreshHint();
     this.refreshTouchVisibility();
     if (!active) this.state.releaseAll();
   }

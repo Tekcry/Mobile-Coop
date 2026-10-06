@@ -1976,3 +1976,24 @@ body {
 .input-touch .wp.active .wp-body {
   background: rgba(143, 211, 255, 0.35);
 }
+
+/* PC: the mouse is free during a match (before the first click, or after Esc was refused a re-capture) */
+.mouse-capture-hint {
+  position: fixed;
+  left: 50%;
+  top: 58%;
+  transform: translateX(-50%);
+  z-index: 12;
+  pointer-events: none;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: rgba(10, 13, 18, 0.6);
+  color: #e6f4ff;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.mouse-capture-hint[hidden] {
+  display: none;
+}
