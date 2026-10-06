@@ -8,8 +8,8 @@ import { PlayerController, type PlayerInput } from './playerController';
 import { ShoulderCamera } from './shoulderCamera';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
-import { lookCap } from './movement';
 import { wrapPi } from '../anim/motion';
+import { hyp2 } from '../core/mathx';
 import { MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { TraverseKind } from '../anim/animGraph';
@@ -158,8 +158,7 @@ export class Player {
     ci.reloading = this.reload >= 0 || this.swapT >= 0 || this.grenadeT >= 0;
     ci.traversing = this.coverPose.traverse !== 'none';
     ci.coverRaise = this.coverPose.lean !== 0 || this.coverPose.peekOver > 0.5 || this.coverPose.blind;
-    // peeking from cover the head leads and the weapon follows a beat later (out by ~350-450 ms)
-    ci.weight = this.weaponWeight * (this.coverPose.cover !== 'none' && ci.ads ? 1.35 : 1);
+    ci.weight = this.weaponWeight;
     this.carry.update(dt, ci);
 
     const pi: PlayerInput = {
@@ -168,7 +167,9 @@ export class Player {
       crouchPressed: inp.pressed('crouch'),
       crouchHeld: inp.down('crouch'),
       crouchToggle: s.gameplay.crouchToggle,
-      dashPressed: inp.pressed('dash'),
+      sprintPressed: inp.pressed('dash'),
+      sprintHeld: inp.down('dash'),
+      sprintToggle: !s.gameplay.sprintHold,
       ads: this.ads,
       aiming: this.aiming || inp.down('fire'),
       reloading: this.reload >= 0,
@@ -182,16 +183,13 @@ export class Player {
   }
 
   /** Render-rate update: look, camera, animation. */
-  frameUpdate(dt: number, alpha: number, look: { x: number; y: number }): void {
+  frameUpdate(dt: number, alpha: number, look: { x: number; y: number }, move?: { x: number; y: number }): void {
     const c = this.controller;
     if (this.alive && dt > 0) {
-      // the view never turns faster than the body can follow (stance-limited)
-      const cap = lookCap(this.aiming || this.ads, c.dashing) * dt;
-      this.cam.addLook(Math.max(-cap, Math.min(cap, look.x)), Math.max(-cap, Math.min(cap, look.y)));
-      // the upper body can only twist so far ahead of the feet: the view waits for the body to turn
-      // (not in cover or traversal, where the body is placed side-on by the cover system)
-      const rel = wrapPi(this.cam.yaw - c.renderYaw);
-      if (!c.override && this.coverPose.cover === 'none' && Math.abs(rel) > MOVEMENT.twistMax) this.cam.yaw = c.renderYaw + Math.sign(rel) * MOVEMENT.twistMax;
+      // free orbit: look input applies in full, the same frame, in every state (the body never holds
+      // the view back; when aiming the body turns to the view instead)
+      this.cam.addLook(look.x, look.y);
+      this.recentre(dt, look);
     }
     this.cam.adsTarget = this.ads ? 1 : 0;
     this.cam.baseFovDeg = this.getSettings().video.fovH;
@@ -201,6 +199,7 @@ export class Player {
     this.cam.lean = this.coverPose.lean;
     this.cam.cover = this.coverPose.cover !== 'none' ? 1 : 0;
     this.cam.steady = Math.max(c.kneeling ? 1 : c.crouchBlend * 0.5, this.ads ? 0.8 : 0);
+    this.cam.pace = c.speed;
     this.cam.update(dt, c.renderPos, c.crouchBlend);
     this.world.frame(c.renderPos);
 
@@ -209,8 +208,12 @@ export class Player {
     root.rotation.y = c.renderYaw;
     this.kick = Math.max(0, this.kick - dt * 8);
     const cp = this.coverPose;
-    let aimYaw = this.cam.yaw - c.renderYaw;
-    aimYaw = Math.atan2(Math.sin(aimYaw), Math.cos(aimYaw));
+    // aiming: the upper body follows the aim; not aiming the view orbits freely, so the head only
+    // glances towards where the camera looks (the spine stays with the travel direction)
+    const rel = wrapPi(this.cam.yaw - c.renderYaw);
+    const raise = this.carry.raise;
+    const glance = Math.max(-0.9, Math.min(0.9, rel)) * 0.45;
+    const aimYaw = rel * raise + glance * (1 - raise);
     const w = this.carry.w;
     // the rig pose object is reused every frame (no per-frame allocation)
     const rp = this.rigPose;
@@ -221,7 +224,7 @@ export class Player {
     rp.grounded = c.grounded;
     rp.crouch = c.crouchBlend;
     rp.kneel = c.kneeling;
-    rp.aimPitch = this.cam.pitch;
+    rp.aimPitch = this.cam.pitch * (0.35 + 0.65 * raise);
     rp.aimYaw = aimYaw;
     rp.aim = this.carry.raise;
     rp.carry = w;
@@ -253,6 +256,16 @@ export class Player {
     rp.velX = c.override?.kinematic ? undefined : m.outX;
     rp.velZ = c.override?.kinematic ? undefined : m.outZ;
     rp.goalYaw = m.goalYaw;
+    // anticipation at render rate: the stick this frame against the current pace, along the body
+    if (move && this.alive && !c.override) {
+      const mag = Math.min(1, hyp2(move.x, move.y));
+      const cy = this.cam.yaw;
+      const wx = Math.cos(cy) * move.x + Math.sin(cy) * move.y;
+      const wz = -Math.sin(cy) * move.x + Math.cos(cy) * move.y;
+      const along = mag > 0.05 ? (wx * Math.sin(by) + wz * Math.cos(by)) / mag : 0;
+      const top = c.sprinting ? MOVEMENT.sprintSpeed : c.crouched ? MOVEMENT.crouchRunSpeed : MOVEMENT.jogSpeed;
+      rp.intent = mag * Math.max(0, along) - c.speed / top;
+    } else rp.intent = 0;
     // stopping: the last steps land where the body will come to rest
     const sp = m.speed;
     const stopD = sp > 0.01 ? (sp * sp) / (2 * MOVEMENT.decelMax) + sp * (MOVEMENT.decelMax / MOVEMENT.jerkMax) * 0.5 : 0;
@@ -263,6 +276,28 @@ export class Player {
     const pl = this.rig.planner;
     if ((pl.L.landed || pl.R.landed) && c.grounded) this.cam.footstep(Math.min(1.4, 0.35 + m.speed * 0.45));
     this.cam.applyBodyFade(this.rig);
+  }
+
+  private lookIdleT = 0;
+
+  /**
+   * Gentle auto-recentre: after `recentreDelay` s without look input while moving (not aiming, not in
+   * cover), the view eases round behind the travel direction. Never while the player is looking.
+   */
+  private recentre(dt: number, look: { x: number; y: number }): void {
+    const c = this.controller;
+    this.lookIdleT = Math.abs(look.x) + Math.abs(look.y) > 1e-5 ? 0 : this.lookIdleT + dt;
+    const T = MOVEMENT;
+    if (!this.getSettings().gameplay.autoRecentre || this.lookIdleT < T.recentreDelay) return;
+    if (this.ads || this.aiming || c.override || this.coverPose.cover !== 'none' || c.speed < 0.5) return;
+    const m = c.motion;
+    const heading = Math.atan2(m.vx, m.vz);
+    const err = wrapPi(heading - this.cam.yaw);
+    // ease in over the first half second after the delay, slow near the target
+    const ramp = Math.min(1, (this.lookIdleT - T.recentreDelay) / 0.5);
+    const rate = T.recentreRate * ramp * Math.min(1, Math.abs(err) / 0.6);
+    const step = Math.sign(err) * Math.min(Math.abs(err), rate * dt);
+    this.cam.yaw = wrapPi(this.cam.yaw + step);
   }
 
   dispose(): void {

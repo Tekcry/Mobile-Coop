@@ -8,7 +8,7 @@ import {
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { DashGate, EasedVelocity, targetSpeed, type Stance } from './movement';
+import { SprintGate, EasedVelocity, targetSpeed, type Stance } from './movement';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 
@@ -36,12 +36,14 @@ export interface PlayerInput {
   /** Level: crouch button held (hold mode). */
   crouchHeld: boolean;
   crouchToggle: boolean;
-  /** Edge: dash pressed this step. */
-  dashPressed: boolean;
+  /** Sprint button: edge this step, held, and toggle (press) vs hold mode. */
+  sprintPressed: boolean;
+  sprintHeld: boolean;
+  sprintToggle: boolean;
   ads: boolean;
   /** Weapon raised or firing (tightest turn rate). */
   aiming: boolean;
-  /** Reloading: moving drops to creep speed. */
+  /** Reloading / swapping: moving slows (`reloadMult`). */
   reloading: boolean;
 }
 
@@ -52,11 +54,12 @@ const UP = new Vector3(0, 1, 0);
 const DOWN = new Vector3(0, -1, 0);
 
 /**
- * Tactical (SWAT-style) Havok character controller. The body faces the aim (weapon-led: legs sidestep
- * and backstep, feet never cross), turning at a stance-limited rate; large reversals at speed become a
- * controlled pivot. Speed is analog (creep, walk, brisk) with strafe/backstep penalties and eased
- * acceleration. The only fast movement is the committed bounding dash. There is no free jump: traversal
- * (vault, mantle, step, drop) is driven through `override.kinematic` by the traversal/cover systems.
+ * Stealth-operative Havok character controller. Movement is camera-relative; not aiming, the body faces
+ * where it goes (arcs through turns, a short planted pivot on reversals at speed) and holds its facing
+ * when still, so the camera orbits freely. Aiming, the body is strafe-locked to the aim (strafe and
+ * backstep penalties). Speed is analog per stance (crouched sneak / walk / run, standing walk / jog) with
+ * snappy, jerk-limited acceleration; the sprint is stamina-free. There is no free jump: traversal (vault,
+ * mantle, step, drop) is driven through `override.kinematic` by the traversal/cover systems.
  */
 export class PlayerController {
   static stickForce = 1.2;
@@ -75,7 +78,7 @@ export class PlayerController {
   /** Crouched and stopped for a moment: one-knee kneel (steadier aim). */
   kneeling = false;
   private stillT = 0;
-  readonly dash = new DashGate();
+  readonly sprint = new SprintGate();
   /** Root motion: jerk-limited velocity, gait clock, starts/stops/stepped turns/pivots. */
   readonly motion: MotionDriver;
   /** Kept for callers: mirrors the driver's velocity; `reset` also resets the driver. */
@@ -85,9 +88,8 @@ export class PlayerController {
   renderPhase = 0;
   /** Stance progress 0 (standing) .. 1 (crouched), advanced at the stance transition rates. */
   private crouchK = 0;
-  private dashDir = new Vector3(0, 0, 1);
-  /** True during the dash wind-up and rush (kept as `sprinting` for animation/net flags). */
-  sprinting = false;
+  /** Crouch toggle to restore when a sprint ends (sprinting stands you up). */
+  private crouchBeforeSprint = false;
   /** Set each step by the cover/traversal systems (or null). */
   override: MoveOverride | null = null;
   /** Ignore this step's crouch press (consumed by the cover system). */
@@ -98,8 +100,6 @@ export class PlayerController {
   get pivotT(): number {
     return this.motion.state === 'pivot' ? 1 : 0;
   }
-  /** Seconds the stick has been at full deflection (eases into the brisk move). */
-  private fullT = 0;
   /** Landing recovery after a drop (s): slows to a creep. */
   landT = 0;
   private fallSpeed = 0;
@@ -114,6 +114,8 @@ export class PlayerController {
   /** External speed multipliers: weapon handling, and stance (leaning: hips planted). */
   speedMul = 1;
   stanceMul = 1;
+  /** Hard speed cap (m/s) set per step by other systems (leaning: hips planted, only a shuffle). */
+  speedCap = Infinity;
   /** Gentle world-space velocity bias (m/s) added to free movement (slicing-the-pie standoff). */
   readonly steer = { x: 0, z: 0 };
 
@@ -157,7 +159,6 @@ export class PlayerController {
     return this.crouched ? 1.05 : 1.6;
   }
 
-  /** The dash replaced the old roll: kept for callers that ask (always false). */
   get isRolling(): boolean {
     return false;
   }
@@ -166,13 +167,18 @@ export class PlayerController {
     return -1;
   }
 
-  get dashing(): boolean {
-    return this.dash.dashing;
+  get sprinting(): boolean {
+    return this.sprint.sprinting;
   }
 
-  /** Weapon lowered/compressed: dashing (wind-up to recovery) or recovering from a landing. */
+  /** Legacy name for `sprinting` (cover slide-in, camera, animation, net flags). */
+  get dashing(): boolean {
+    return this.sprint.sprinting;
+  }
+
+  /** Weapon lowered: sprinting or recovering from a landing. */
   get weaponBlocked(): boolean {
-    return this.dash.blocksWeapon || this.landT > 0.15;
+    return this.sprint.blocksWeapon || this.landT > 0.15;
   }
 
   /** Cover takes over crouching: forget a pending crouch toggle. */
@@ -235,8 +241,7 @@ export class PlayerController {
       this.vel.reset();
       this.motion.reset(this.yaw);
       this.grounded = true;
-      this.dash.update(dt);
-      this.sprinting = false;
+      this.endSprint();
       if (ov.crouch !== undefined) this.applyCrouch(ov.crouch);
       this.updateStance(dt);
       return;
@@ -252,48 +257,65 @@ export class PlayerController {
     this.wish.set(fz * mx + fx * my, 0, -fx * mx + fz * my);
     if (this.wish.lengthSquared() > 1) this.wish.normalize();
 
-    // crouch (no roll: crouch always toggles/holds)
+    // crouch (toggle by default; sprinting stands you up, crouching ends the sprint)
     const crouchPressed = input.crouchPressed && !this.swallowCrouch;
     this.swallowCrouch = false;
-    if (!this.frozen && !ov && crouchPressed && this.grounded && input.crouchToggle) this.crouchToggled = !this.crouchToggled;
+    if (!this.frozen && !ov && crouchPressed && this.grounded && input.crouchToggle) {
+      if (this.sprint.sprinting) {
+        this.endSprint();
+        this.crouchToggled = true;
+      } else this.crouchToggled = !this.crouchToggled;
+    }
+
+    // sprint: toggle (press) or hold; ends on aiming, cover, traversal or releasing the stick
+    const aiming = input.ads || input.aiming;
+    if (!ov && !this.frozen && this.grounded && !aiming) {
+      if (input.sprintToggle) {
+        if (input.sprintPressed) {
+          if (this.sprint.sprinting) this.endSprint();
+          else if (mag > 0.3) this.startSprint();
+        }
+      } else if (input.sprintHeld && mag > 0.3) {
+        if (!this.sprint.sprinting) this.startSprint();
+      } else if (this.sprint.sprinting) this.endSprint();
+    }
+    if (this.sprint.sprinting && (ov || aiming || !this.grounded)) this.endSprint();
+    this.sprint.update(dt, mag);
+    if (!this.sprint.sprinting && this.sprintWas) this.endSprint();
+    this.sprintWas = this.sprint.sprinting;
+
     let wantCrouch = input.crouchToggle ? this.crouchToggled : input.crouchHeld;
     if (ov?.crouch !== undefined) wantCrouch = ov.crouch;
-    if (this.dash.dashing) wantCrouch = false;
+    if (this.sprint.sprinting) wantCrouch = false;
     this.applyCrouch(wantCrouch);
 
-    // bounding dash: press to start; ends at max time, when the stick is released, or on stamina out
-    if (!ov && !this.frozen && input.dashPressed && this.grounded && mag > 0.3 && this.dash.start()) {
-      this.dashDir.copyFrom(this.wish).normalize();
-      this.crouchToggled = false;
-    }
-    if (this.dash.dashing && mag < 0.2 && this.dash.state === 'rush') this.dash.stop();
-    this.dash.update(dt);
-    this.sprinting = this.dash.dashing;
-    if (this.dash.dashing && mag > 0.3) {
-      // limited steering while committed
-      const want = Math.atan2(this.wish.x, this.wish.z);
-      const cur = Math.atan2(this.dashDir.x, this.dashDir.z);
-      const a = turnTowards(cur, want, T.turnDash * dt);
-      this.dashDir.set(Math.sin(a), 0, Math.cos(a));
-    }
-
-    // speed: analog creep/walk/brisk with direction penalties relative to the body (which faces the aim)
-    this.fullT = mag > 0.95 && !input.ads && !input.aiming ? this.fullT + dt : 0;
-    const briskK = Math.max(0, Math.min(1, (this.fullT - T.briskDelay) / 0.6));
-    const bs = Math.sin(this.yaw);
-    const bc = Math.cos(this.yaw);
+    // speed: analog per stance; strafe / backstep penalties only while aiming (relative to the aim)
+    const bs = Math.sin(camYaw);
+    const bc = Math.cos(camYaw);
     const lx = mag > 0 ? (this.wish.x * bc - this.wish.z * bs) / mag : 0;
     const lz = mag > 0 ? (this.wish.x * bs + this.wish.z * bc) / mag : 1;
-    const stance: Stance = ov ? 'cover' : input.reloading ? 'reload' : this.crouched ? 'crouch' : input.ads || input.aiming ? 'ads' : 'stand';
-    let speedTarget = targetSpeed(mag, stance, lx, lz, briskK) * this.speedMul * this.stanceMul;
-    if (this.landT > 0) speedTarget = Math.min(speedTarget, T.creepSpeed);
+    const stance: Stance = ov
+      ? this.crouched
+        ? 'coverCrouch'
+        : 'cover'
+      : this.sprint.sprinting
+        ? 'sprint'
+        : aiming
+          ? this.crouched
+            ? 'adsCrouch'
+            : 'ads'
+          : this.crouched
+            ? 'crouch'
+            : 'stand';
+    let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz) * this.speedMul * this.stanceMul);
+    if (input.reloading) speedTarget *= T.reloadMult;
+    if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
     let tx = this.wish.x * inv + (mag > 0.1 ? this.steer.x : 0);
     let tz = this.wish.z * inv + (mag > 0.1 ? this.steer.z : 0);
-    if (this.dash.dashing) {
-      const ds = this.dash.state === 'rush' ? T.dashSpeed : Math.max(T.walkSpeed, this.motion.speed);
-      tx = this.dashDir.x * ds;
-      tz = this.dashDir.z * ds;
+    if (this.sprint.sprinting && mag > 0) {
+      tx = (this.wish.x / mag) * speedTarget;
+      tz = (this.wish.z / mag) * speedTarget;
     }
     if (ov?.velocity) {
       tx = ov.velocity.x;
@@ -303,9 +325,12 @@ export class PlayerController {
     const mi = this.motionIn;
     mi.vx = tx;
     mi.vz = tz;
-    mi.aiming = input.ads || input.aiming;
-    mi.dashing = this.dash.dashing;
-    mi.yaw = this.dash.dashing ? Math.atan2(this.dashDir.x, this.dashDir.z) : ov?.yaw ?? camYaw;
+    mi.aiming = aiming;
+    mi.sprinting = this.sprint.sprinting;
+    // not aiming and free: face the travel direction (the camera orbits freely); else face the
+    // override's yaw (cover) or the aim
+    mi.faceTravel = !aiming && !ov?.velocity && ov?.yaw === undefined;
+    mi.yaw = ov?.yaw ?? camYaw;
     if (this.grounded) this.motion.step(dt, mi, ov?.velocity ? COVER_MOTION : T);
     this.vel.x = this.motion.vx;
     this.vel.z = this.motion.vz;
@@ -369,6 +394,27 @@ export class PlayerController {
     this.stillT = this.crouched && mag < 0.1 && this.speed < 0.4 ? this.stillT + dt : 0;
     this.kneeling = this.stillT > 0.25;
     this.updateStance(dt);
+  }
+
+  private sprintWas = false;
+
+  /** Pick a sprint back up after a traversal (momentum carries through). */
+  resumeSprint(): void {
+    if (!this.sprint.sprinting) this.startSprint();
+    this.sprintWas = true;
+  }
+
+  private startSprint(): void {
+    this.crouchBeforeSprint = this.crouchToggled;
+    this.crouchToggled = false;
+    this.sprint.start();
+  }
+
+  /** End a sprint (if any) and restore the stance it interrupted. */
+  private endSprint(): void {
+    if (this.sprint.sprinting) this.sprint.stop();
+    if (this.sprintWas) this.crouchToggled = this.crouchBeforeSprint || this.crouchToggled;
+    this.sprintWas = false;
   }
 
   /** Eased stance transition: crouching takes `crouchTime`, standing up `standTime`. */

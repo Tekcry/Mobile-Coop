@@ -102,8 +102,9 @@ const TRAVERSE_ACT: Record<string, TouchAction> = {
   vault: { action: 'jump', label: 'Vault', icon: 'jump' },
   mantle: { action: 'jump', label: 'Climb', icon: 'jump' },
   drop: { action: 'jump', label: 'Drop down', icon: 'jump' },
+  hop: { action: 'jump', label: 'Jump', icon: 'jump' },
 };
-const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', none: '' };
+const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
 
 export class GameState implements AppState {
   readonly scene: Scene;
@@ -306,7 +307,7 @@ export class GameState implements AppState {
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
       const stance = c.kneeling ? ' kneel' : c.crouched ? ' crouch' : '';
-      return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(2)}${stance} dash ${c.dash.state} stam ${c.dash.stamina.toFixed(2)}${c.pivotT > 0 ? ' pivot' : ''}`;
+      return `${c.grounded ? 'ground' : 'air'} spd ${c.speed.toFixed(2)}${stance} ${c.sprinting ? ' sprint' : ''}${c.pivotT > 0 ? ' pivot' : ''}`;
     });
     app.debug.extra.set('carry', () => {
       const k = this.player.carry;
@@ -648,7 +649,7 @@ export class GameState implements AppState {
       look.x += Math.cos(this.swayT * 2.3) * sway * 2.3 * dt;
       look.y += Math.cos(this.swayT * 1.7 + 1) * sway * 1.2 * dt;
     }
-    this.player.frameUpdate(dt, alpha, look);
+    this.player.frameUpdate(dt, alpha, look, this.app.input.state.move);
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
     this.vfx.update(dt);
@@ -785,7 +786,7 @@ export class GameState implements AppState {
     const flanked = c.inCover && this.coverQ < 0.3 && this.expEyes.length > 0;
     this.hud.setCover(prompt, stateText && flanked ? `${stateText} · flanked` : stateText);
     const ctl = this.player.controller;
-    this.hud.setTactical(ctl.dash.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
+    this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     // cover-to-cover marker over the target, projected to the screen
     const tg = c.state === 'in' ? c.target : null;
     if (tg) {

@@ -89,10 +89,11 @@ describe('inertialization', () => {
       prev = out[CH.pelY]!;
       if (settled < 0 && Math.abs(out[CH.pelY]! - b[CH.pelY]!) < 0.003) settled = k * dt;
     }
-    // first frame after the switch stays where the pose was (no snap)
-    expect(maxStep).toBeLessThan(0.03);
-    expect(settled).toBeGreaterThan(0.12);
-    expect(settled).toBeLessThan(0.4);
+    // no snap: a 30 cm jump in the source moves the output at most ~4.5 cm per 120 Hz frame (critically
+    // damped over the pelvis group's 220 ms), and it settles within 100-250 ms
+    expect(maxStep).toBeLessThan(0.045);
+    expect(settled).toBeGreaterThan(0.1);
+    expect(settled).toBeLessThan(0.25);
     for (let i = 0; i < NCH; i++) expect(out[i]).toBeCloseTo(b[i]!, 3);
   });
 });

@@ -1,33 +1,48 @@
 /**
- * Pure tactical movement maths (speed curves, direction penalties, eased acceleration, turn and look
- * rates, the bounding dash with stamina, contextual traversal and footstep noise). Unit-tested.
+ * Pure stealth-operative movement maths (analog speed bands per stance, direction penalties while
+ * aiming, eased velocity, the sprint, contextual traversal and footstep noise). Unit-tested.
  */
 import { MOVEMENT } from '../config/movement';
 import { springStep } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
 
-export type Stance = 'stand' | 'crouch' | 'ads' | 'cover' | 'reload';
+/**
+ * Movement stance: standing / crouched free movement (the body faces where it goes), aiming (strafe-
+ * locked, standing or crouched), cover shuffle (standing or crouched) and the sprint.
+ */
+export type Stance = 'stand' | 'crouch' | 'ads' | 'adsCrouch' | 'cover' | 'coverCrouch' | 'sprint';
+
+const band = (m: number, m0: number, m1: number, v0: number, v1: number): number => v0 + (v1 - v0) * ((m - m0) / (m1 - m0));
 
 /**
- * Target ground speed (m/s). Light stick creeps, full stick walks, holding full stick for `briskDelay`
- * eases up to the brisk move. Movement relative to the aim (local x right, z forward, unit) applies the
- * strafe/backstep penalties. Stances cap the result.
+ * Target ground speed (m/s), analog on stick magnitude. Crouched: sneak -> crouch walk -> crouch run;
+ * standing: walk -> jog. Aiming applies the strafe / backstep penalties relative to the aim (local x
+ * right, z forward); otherwise the body faces the travel direction and there is no penalty.
  */
-export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1, briskK = 0, M = MOVEMENT): number {
+export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1, M = MOVEMENT): number {
   const m = Math.max(0, Math.min(1, mag));
   if (m < 0.05) return 0;
-  let v = m < M.creepBand ? M.creepSpeed * (m / M.creepBand) : M.creepSpeed + (M.walkSpeed - M.creepSpeed) * ((m - M.creepBand) / (1 - M.creepBand));
-  // the brisk move is forward only (strafing and backstepping stay at walk pace)
-  const fwd = Math.max(0, Math.min(1, (localZ / (hyp2(localX, localZ) || 1) - 0.6) / 0.35));
-  if (stance === 'stand' && m > 0.95) v += (M.briskSpeed - M.walkSpeed) * Math.max(0, Math.min(1, briskK)) * fwd;
-  if (stance === 'crouch') v = Math.min(v, M.crouchSpeed * m);
-  if (stance === 'ads') v = Math.min(v, M.adsSpeed * Math.max(m, 0.6));
-  if (stance === 'cover') v = M.coverSpeed * m;
-  if (stance === 'reload') v = Math.min(v, M.reloadSpeed);
-  return v * directionMult(localX, localZ, M);
+  switch (stance) {
+    case 'stand':
+      return m < M.walkBand ? band(m, 0, M.walkBand, 0, M.walkSpeed) : band(m, M.walkBand, 1, M.walkSpeed, M.jogSpeed);
+    case 'crouch':
+      if (m < M.sneakBand) return band(m, 0, M.sneakBand, 0, M.sneakSpeed);
+      if (m < M.crouchWalkBand) return band(m, M.sneakBand, M.crouchWalkBand, M.sneakSpeed, M.crouchWalkSpeed);
+      return band(m, M.crouchWalkBand, 1, M.crouchWalkSpeed, M.crouchRunSpeed);
+    case 'ads':
+      return M.adsSpeed * m * directionMult(localX, localZ, M);
+    case 'adsCrouch':
+      return M.adsCrouchSpeed * m * directionMult(localX, localZ, M);
+    case 'cover':
+      return M.coverSpeed * m;
+    case 'coverCrouch':
+      return M.coverCrouchSpeed * m;
+    case 'sprint':
+      return M.sprintSpeed;
+  }
 }
 
-/** Speed multiplier for moving sideways (strafe) or backwards relative to where the body faces. */
+/** Speed multiplier for moving sideways (strafe) or backwards relative to the aim. */
 export function directionMult(localX: number, localZ: number, M = MOVEMENT): number {
   const l = hyp2(localX, localZ) || 1;
   const x = Math.abs(localX) / l;
@@ -49,11 +64,9 @@ export class EasedVelocity {
   private ax = 0;
   private az = 0;
 
-  step(tx: number, tz: number, dt: number, M = MOVEMENT): void {
+  step(tx: number, tz: number, dt: number): void {
     const speeding = tx * tx + tz * tz > this.x * this.x + this.z * this.z;
-    // fixed spring rates (the player's root motion now uses the jerk-limited MotionDriver)
     const w = speeding ? 8 : 10;
-    void M;
     [this.x, this.ax] = springStep(this.x, this.ax, tx, w, dt);
     [this.z, this.az] = springStep(this.z, this.az, tz, w, dt);
     if (Math.abs(this.x) < 1e-3 && tx === 0) this.x = this.ax = 0;
@@ -71,95 +84,63 @@ export class EasedVelocity {
   }
 }
 
-/** Body turn rate (rad/s) for a stance. Slowest while aiming. */
-export function turnRate(aiming: boolean, speed: number, dashing: boolean, M = MOVEMENT): number {
-  if (dashing) return M.turnDash;
-  if (aiming) return M.turnAim;
-  return speed > 0.3 ? M.turnMoving : M.turnMoving * 1.25;
-}
-
-/** Camera look-rate cap (rad/s): the view never turns faster than the body can follow. */
-export function lookCap(aiming: boolean, dashing: boolean, M = MOVEMENT): number {
-  if (dashing) return M.lookDash;
-  return aiming ? M.lookAim : M.lookStand;
-}
-
 /**
- * Bounding dash: wind-up (lean in, weapon compressed), committed rush up to `dashMax`, braking
- * recovery. Weapons are blocked from wind-up to the end of recovery. Each dash costs stamina; running
- * dry starts a cooldown during which no dash can start.
+ * Sprint: stamina-free and immediate (the lean-in is animation only). Toggle (press) or hold; ends when
+ * the stick is released, on aiming / firing, crouching, cover or traversal. The weapon is lowered and
+ * cannot fire while sprinting.
  */
-export class DashGate {
-  state: 'off' | 'windup' | 'rush' | 'recover' = 'off';
+export class SprintGate {
+  state: 'off' | 'rush' = 'off';
+  /** Seconds in the current state. */
   t = 0;
-  stamina = 1;
-  private cooldown = 0;
+  /** Kept for callers that show a stamina bar: sprinting is stamina-free. */
+  readonly stamina = 1;
+  private idleT = 0;
 
   get canStart(): boolean {
-    return this.state === 'off' && this.cooldown <= 0 && this.stamina >= MOVEMENT.dashCost * 0.5;
+    return this.state === 'off';
   }
 
-  /** Try to start a dash (press edge). */
+  /** Start sprinting (press edge / hold). */
   start(): boolean {
-    if (!this.canStart) return false;
-    this.go('windup');
+    if (this.state === 'rush') return false;
+    this.state = 'rush';
+    this.t = 0;
+    this.idleT = 0;
     return true;
   }
 
-  /** End the rush early (stick released, reached cover, blocked). */
   stop(): void {
-    if (this.state === 'windup' || this.state === 'rush') this.go('recover');
-  }
-
-  update(dt: number, M = MOVEMENT): void {
-    this.t += dt;
-    this.cooldown = Math.max(0, this.cooldown - dt);
-    switch (this.state) {
-      case 'windup':
-        this.drain(dt / (M.dashWindup + M.dashMax), M);
-        if (this.t >= M.dashWindup) this.go('rush');
-        break;
-      case 'rush':
-        this.drain(dt / (M.dashWindup + M.dashMax), M);
-        if (this.t >= M.dashMax || this.stamina <= 0) this.go('recover');
-        break;
-      case 'recover':
-        if (this.t >= M.dashRecovery) this.go('off');
-        break;
-      case 'off':
-        if (this.cooldown <= 0) this.stamina = Math.min(1, this.stamina + M.staminaRegen * dt);
-        break;
-    }
-  }
-
-  private drain(frac: number, M: typeof MOVEMENT): void {
-    this.stamina = Math.max(0, this.stamina - frac * M.dashCost);
-    if (this.stamina <= 0) this.cooldown = M.staminaCooldown;
-  }
-
-  private go(s: DashGate['state']): void {
-    this.state = s;
+    if (this.state === 'off') return;
+    this.state = 'off';
     this.t = 0;
   }
 
-  /** 0..1 speed blend towards dash speed (eases in over the wind-up). */
-  get blend(): number {
-    if (this.state === 'rush') return 1;
-    if (this.state === 'windup') return Math.min(1, this.t / Math.max(1e-3, MOVEMENT.dashWindup)) * 0.5;
-    return 0;
+  /** `stickMag` keeps a toggled sprint alive; a short release (< 0.15 s) does not end it. */
+  update(dt: number, stickMag = 1): void {
+    this.t += dt;
+    if (this.state !== 'rush') return;
+    this.idleT = stickMag < 0.2 ? this.idleT + dt : 0;
+    if (this.idleT > 0.15) this.stop();
   }
 
+  get sprinting(): boolean {
+    return this.state === 'rush';
+  }
+
+  /** Same as `sprinting` (legacy name used by cover / camera / animation). */
   get dashing(): boolean {
-    return this.state === 'windup' || this.state === 'rush';
+    return this.state === 'rush';
   }
 
-  /** Weapon lowered/compressed: no firing or aiming. */
+  /** Weapon lowered: no firing or aiming. */
   get blocksWeapon(): boolean {
-    return this.state !== 'off';
+    return this.state === 'rush';
   }
 
-  get exhausted(): boolean {
-    return this.cooldown > 0;
+  /** 0..1 sprint blend (immediate; the lean-in plays in the animation). */
+  get blend(): number {
+    return this.state === 'rush' ? 1 : 0;
   }
 }
 
@@ -181,13 +162,20 @@ export function pickTraversal(p: TraversalProbe): Traversal {
   if (p.height < 0.2) return 'none';
   if (p.height <= 0.65 && p.topClear) return 'step';
   if (p.height <= 1.25 && p.depth <= 1.0 && p.landingClear) return 'vault';
-  if (p.height <= 1.7 && p.topClear) return 'mantle';
+  if (p.height <= 1.8 && p.topClear) return 'mantle';
   return 'none';
 }
 
-/** Footstep noise radius (m) that alerts enemies: quiet when creeping or crouched, loud when dashing. */
-export function noiseRadius(speed: number, crouched: boolean, dashing: boolean): number {
+/**
+ * Footstep noise radius (m) that alerts enemies: a crouched sneak is near silent, crouch walking quiet,
+ * standing jog audible, sprinting loud.
+ */
+export function noiseRadius(speed: number, crouched: boolean, sprinting: boolean, M = MOVEMENT): number {
   if (speed < 0.15) return 0;
-  const base = dashing ? 16 : speed < 0.8 ? 1.5 + speed * 2.5 : speed < 1.5 ? 4 + (speed - 0.8) * 4 : 7 + (speed - 1.5) * 3;
-  return base * (crouched ? 0.6 : 1);
+  if (sprinting) return 18;
+  if (crouched) {
+    if (speed <= M.sneakSpeed + 0.05) return 0.3 + speed * 0.6;
+    return speed <= M.crouchWalkSpeed + 0.05 ? 1 + (speed - M.sneakSpeed) * 1.5 : 2.5 + (speed - M.crouchWalkSpeed) * 3;
+  }
+  return speed <= M.walkSpeed + 0.05 ? 1.5 + speed * 1.8 : 4 + (speed - M.walkSpeed) * 3.6;
 }

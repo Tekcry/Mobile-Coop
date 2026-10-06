@@ -57,6 +57,7 @@ export class CornerController {
     const c = p.controller;
     c.steer.x = c.steer.z = 0;
     c.stanceMul = 1;
+    c.speedCap = Infinity;
     if (!active || !p.alive) {
       this.endLean(dt, true);
       this.checkT = -1;
@@ -132,13 +133,15 @@ export class CornerController {
 
     if (this.leanSide !== 0) {
       this.lean = approach(this.lean, this.leanSide, dt / LEAN_TIME);
-      c.stanceMul = 0.35; // hips planted: only a shuffle while leaning
+      c.speedCap = 0.45; // hips planted: only a shuffle while leaning
       const want: 1 | -1 = this.leanSide < 0 ? -1 : 1;
       if (p.cam.shoulder !== want) {
         if (this.savedShoulder === null) this.savedShoulder = p.cam.shoulder;
         p.cam.shoulder = want;
       }
     } else this.endLean(dt, false);
+    // hips stay planted until the lean is back in, not just while the probe says "blocked"
+    if (Math.abs(this.lean) > 0.05) c.speedCap = 0.45;
     p.coverPose.lean = this.lean;
     // lean out of the left side with the weapon in the left hand
     p.rig.leftHanded = this.leanSide < 0 || (this.leanSide === 0 && this.lean < -0.5);

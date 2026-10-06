@@ -295,7 +295,7 @@ export class CoverController {
     this.insideT = 0;
     // arriving at speed (bounding dash) slides in
     this.slide = c.dashing || c.speed > 3;
-    if (c.dashing) c.dash.stop();
+    if (c.dashing) c.sprint.stop();
     // entry: decelerate into the wall over the approach (longer from further out), eased
     const loc = locate(seg, this.player.position.x, this.player.position.z);
     this.enterS0 = loc.s;
@@ -388,7 +388,7 @@ export class CoverController {
         this.target = this.findSwat(along) ?? this.findDash(dir);
       } else if (this.sm.state !== 'in') this.target = null;
       const t = this.target;
-      ci.canDash = !!t && (t.kind === 'swat' || c.dash.canStart);
+      ci.canDash = !!t && (t.kind === 'swat' || c.sprint.canStart);
       if (ci.canDash && (ci.dashPressed || ci.coverPressed)) this.dashTo = t;
       // dash with nowhere to go: break out of cover and dash in the stick direction
       ci.sprint = ci.dashPressed && !ci.canDash && w.mag > 0.5;
@@ -452,7 +452,6 @@ export class CoverController {
     if (st === 'dash') {
       this.seg = null;
       this.target = null;
-      if (this.dashTo?.kind === 'dash') p.controller.dash.start();
     }
     if (st === 'enter' && prev === 'dash' && this.dashTo) {
       const swat = this.dashTo.kind === 'swat';
@@ -513,7 +512,7 @@ export class CoverController {
       const dz = t.z - p.position.z;
       const d = hyp2(dx, dz) || 1;
       // ease off over the last metre so the arrival blends into the snap
-      const v = (swat ? SWAT_SPEED : MOVEMENT.dashSpeed) * Math.min(1, 0.45 + d * 0.55);
+      const v = (swat ? SWAT_SPEED : MOVEMENT.coverRunSpeed) * Math.min(1, 0.45 + d * 0.55);
       this.vel.x = (dx / d) * v;
       this.vel.z = (dz / d) * v;
       c.override = { velocity: this.vel, yaw: Math.atan2(dx, dz), crouch: swat, turnRate: swat ? 12 : 6 };

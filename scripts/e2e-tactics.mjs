@@ -132,10 +132,12 @@ try {
     const p = g.player;
     p.controller.teleport(new p.controller.pos.constructor(0, 0, -14), 0);
     const e = m.spawn('grunt', new p.controller.pos.constructor(0, 0, -24), false, Math.PI);
-    // creeping: quiet; dashing: carries
+    // a crouched sneak: near silent; a sprint carries
+    p.controller['crouchToggled'] = true;
     a.input.state.move.y = 0.3;
     a.loop.stepHeadless(1.5);
     const creepNoise = g.noise;
+    p.controller['crouchToggled'] = false;
     const z0 = e.pos.z;
     a.input.state.move.y = 0;
     g.noise = 0;
@@ -143,7 +145,7 @@ try {
     a.loop.stepHeadless(3);
     return { creepNoise, moved: Math.hypot(e.pos.x - 0, e.pos.z - z0), alerted: e.alerted };
   });
-  assert(n.creepNoise < 3, `creeping is quiet (${n.creepNoise.toFixed(1)} m)`);
+  assert(n.creepNoise < 1, `a crouched sneak is near silent (${n.creepNoise.toFixed(1)} m)`);
   assert(n.moved > 1, `a heard footstep draws an unalerted enemy to investigate (${n.moved.toFixed(2)} m)`);
 } catch (e) {
   failed = true;

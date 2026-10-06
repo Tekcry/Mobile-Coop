@@ -1,14 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  DashGate,
-  EasedVelocity,
-  directionMult,
-  lookCap,
-  noiseRadius,
-  pickTraversal,
-  targetSpeed,
-  turnRate,
-} from '../src/player/movement';
+import { SprintGate, EasedVelocity, directionMult, noiseRadius, pickTraversal, targetSpeed } from '../src/player/movement';
 import { MOVEMENT } from '../src/config/movement';
 import { CARRY, WeaponCarry, classWeight, emptyCarryInput, pickReady } from '../src/weapons/weaponCarry';
 import { CAMERA, framing } from '../src/config/camera';
@@ -16,108 +7,60 @@ import { lateralOffset } from '../src/anim/animGraph';
 
 const DT = 1 / 60;
 
-describe('tactical movement speeds', () => {
-  it('creep, walk, brisk, stance caps (m/s)', () => {
+describe('stealth movement speeds', () => {
+  it('crouched sneak -> crouch walk -> crouch run, standing walk -> jog, analog on the stick (m/s)', () => {
     expect(targetSpeed(0.02, 'stand')).toBe(0);
-    expect(targetSpeed(MOVEMENT.creepBand, 'stand')).toBeCloseTo(MOVEMENT.creepSpeed);
-    expect(targetSpeed(1, 'stand')).toBeCloseTo(0.9);
-    expect(targetSpeed(1, 'stand', 0, 1, 1)).toBeCloseTo(1.4);
-    expect(targetSpeed(1, 'crouch')).toBeCloseTo(0.55);
-    expect(targetSpeed(1, 'ads')).toBeCloseTo(0.7);
-    expect(targetSpeed(1, 'cover')).toBeCloseTo(0.5);
-    expect(targetSpeed(1, 'reload', 0, 1, 1)).toBeCloseTo(0.45);
-    expect(targetSpeed(0.3, 'stand')).toBeLessThan(targetSpeed(0.6, 'stand'));
+    expect(targetSpeed(MOVEMENT.sneakBand, 'crouch')).toBeCloseTo(0.8);
+    expect(targetSpeed(MOVEMENT.crouchWalkBand, 'crouch')).toBeCloseTo(1.8);
+    expect(targetSpeed(1, 'crouch')).toBeCloseTo(2.6);
+    expect(targetSpeed(MOVEMENT.walkBand, 'stand')).toBeCloseTo(1.4);
+    expect(targetSpeed(1, 'stand')).toBeCloseTo(2.8);
+    expect(targetSpeed(1, 'sprint')).toBeCloseTo(5);
+    expect(targetSpeed(1, 'ads')).toBeCloseTo(1.4);
+    expect(targetSpeed(1, 'adsCrouch')).toBeCloseTo(1.0);
+    for (const st of ['stand', 'crouch'] as const) for (let m = 0.1; m < 0.85; m += 0.1) expect(targetSpeed(m, st)).toBeLessThan(targetSpeed(m + 0.1, st));
   });
-  it('no running: nothing outside a dash exceeds brisk speed', () => {
-    for (const st of ['stand', 'crouch', 'ads', 'cover', 'reload'] as const) {
-      for (let m = 0; m <= 1; m += 0.1) expect(targetSpeed(m, st, 0, 1, 1)).toBeLessThanOrEqual(MOVEMENT.briskSpeed + 1e-9);
-    }
-  });
-  it('strafe 90%, backstep 70%', () => {
-    expect(directionMult(0, 1)).toBeCloseTo(1);
+  it('strafe and backstep penalties only while aiming (x0.9 / x0.75)', () => {
     expect(directionMult(1, 0)).toBeCloseTo(0.9);
-    expect(directionMult(0, -1)).toBeCloseTo(0.7);
-    expect(targetSpeed(1, 'stand', 0, -1)).toBeCloseTo(0.9 * 0.7);
-    // brisk is forward only
-    expect(targetSpeed(1, 'stand', 1, 0, 1)).toBeCloseTo(0.9 * 0.9);
-    expect(targetSpeed(1, 'stand', 0, -1, 1)).toBeCloseTo(0.9 * 0.7);
+    expect(directionMult(0, -1)).toBeCloseTo(0.75);
+    expect(targetSpeed(1, 'ads', 0, -1)).toBeCloseTo(1.4 * 0.75);
+    expect(targetSpeed(1, 'ads', 1, 0)).toBeCloseTo(1.4 * 0.9);
+    // not aiming: the body faces where it goes, so no penalty
+    expect(targetSpeed(1, 'stand', 0, -1)).toBeCloseTo(2.8);
+    expect(targetSpeed(1, 'crouch', 1, 0)).toBeCloseTo(2.6);
   });
-  it('eased start and stop, no overshoot', () => {
+  it('eased velocity helper: no overshoot', () => {
     const v = new EasedVelocity();
     const xs: number[] = [];
     for (let i = 0; i < 90; i++) {
       v.step(1.2, 0, DT);
       xs.push(v.x);
     }
-    expect(xs[2]! - xs[1]!).toBeGreaterThan(xs[1]! - xs[0]!);
     expect(xs[89]!).toBeCloseTo(1.2, 2);
     expect(Math.max(...xs)).toBeLessThanOrEqual(1.2 + 1e-6);
-    const ys: number[] = [];
-    for (let i = 0; i < 60; i++) {
-      v.step(0, 0, DT);
-      ys.push(v.x);
-    }
-    expect(ys[0]!).toBeGreaterThan(0.8);
-    expect(Math.min(...ys)).toBeGreaterThanOrEqual(0);
-    expect(ys[59]!).toBeLessThan(0.02);
   });
 });
 
-describe('turning', () => {
-  it('turn rate limited by stance: aiming slowest (dash aside)', () => {
-    expect(turnRate(true, 0, false)).toBeLessThan(turnRate(false, 1, false));
-    expect(turnRate(false, 1, false)).toBeLessThan(turnRate(false, 0, false));
-    expect(turnRate(false, 5, true)).toBeLessThan(turnRate(true, 0, false));
-    expect(lookCap(true, false)).toBeLessThan(lookCap(false, false));
-  });
-});
-
-describe('dash', () => {
-  it('wind-up, rush up to the max, recovery; weapon blocked throughout', () => {
-    const d = new DashGate();
+describe('sprint', () => {
+  it('immediate, stamina-free, weapon blocked while sprinting', () => {
+    const d = new SprintGate();
     expect(d.start()).toBe(true);
-    expect(d.state).toBe('windup');
+    expect(d.sprinting).toBe(true);
     expect(d.blocksWeapon).toBe(true);
-    let t = 0;
-    while (d.state === 'windup') {
-      d.update(DT);
-      t += DT;
-    }
-    expect(t).toBeCloseTo(MOVEMENT.dashWindup, 1);
-    expect(d.state).toBe('rush');
-    expect(d.blend).toBe(1);
-    t = 0;
-    while (d.state === 'rush') {
-      d.update(DT);
-      t += DT;
-    }
-    expect(t).toBeLessThanOrEqual(MOVEMENT.dashMax + 0.02);
-    expect(d.state).toBe('recover');
-    expect(d.blocksWeapon).toBe(true);
-    for (let k = 0; k < 30; k++) d.update(DT);
-    expect(d.blocksWeapon).toBe(false);
+    for (let k = 0; k < 60 * 30; k++) d.update(DT, 1);
+    expect(d.sprinting).toBe(true);
+    expect(d.stamina).toBe(1);
   });
-  it('stamina: repeated dashes run dry, cooldown, then regenerate', () => {
-    const d = new DashGate();
-    let dashes = 0;
-    for (let k = 0; k < 10 && d.start(); k++) {
-      dashes++;
-      while (d.state !== 'off') d.update(DT);
-    }
-    expect(dashes).toBeGreaterThanOrEqual(2);
-    expect(dashes).toBeLessThan(10);
-    expect(d.start()).toBe(false);
-    for (let k = 0; k < 60 * 8; k++) d.update(DT);
-    expect(d.stamina).toBeCloseTo(1);
-    expect(d.start()).toBe(true);
-  });
-  it('stop() ends the rush early into recovery', () => {
-    const d = new DashGate();
+  it('ends when the stick is released for more than a moment, or on stop()', () => {
+    const d = new SprintGate();
     d.start();
-    for (let k = 0; k < 20; k++) d.update(DT);
+    for (let k = 0; k < 5; k++) d.update(DT, 0);
+    expect(d.sprinting).toBe(true);
+    for (let k = 0; k < 10; k++) d.update(DT, 0);
+    expect(d.sprinting).toBe(false);
+    d.start();
     d.stop();
-    expect(d.state).toBe('recover');
-    expect(d.dashing).toBe(false);
+    expect(d.blocksWeapon).toBe(false);
   });
 });
 
@@ -129,18 +72,23 @@ describe('contextual traversal and noise', () => {
     expect(pickTraversal({ height: 1.0, depth: 0.5, landingClear: true, topClear: true })).toBe('vault');
     expect(pickTraversal({ height: 1.0, depth: 3, landingClear: false, topClear: true })).toBe('mantle');
     expect(pickTraversal({ height: 1.6, depth: 3, landingClear: false, topClear: true })).toBe('mantle');
+    expect(pickTraversal({ height: 1.78, depth: 3, landingClear: false, topClear: true })).toBe('mantle');
     expect(pickTraversal({ height: 1.6, depth: 3, landingClear: false, topClear: false })).toBe('none');
     expect(pickTraversal({ height: 2.4, depth: 0.5, landingClear: true, topClear: true })).toBe('none');
   });
-  it('noise scales with speed: still silent, creep quiet, dash loud, crouch quieter', () => {
+  it('noise by stance and pace: sneak near silent, crouch walk quiet, jog audible, sprint loud', () => {
     expect(noiseRadius(0, false, false)).toBe(0);
-    const creep = noiseRadius(0.6, false, false);
-    const walk = noiseRadius(1.2, false, false);
-    const brisk = noiseRadius(2.0, false, false);
-    expect(creep).toBeLessThan(walk);
-    expect(walk).toBeLessThan(brisk);
-    expect(brisk).toBeLessThan(noiseRadius(5.5, false, true));
-    expect(noiseRadius(1.2, true, false)).toBeLessThan(walk);
+    const sneak = noiseRadius(0.8, true, false);
+    const crouchWalk = noiseRadius(1.8, true, false);
+    const walk = noiseRadius(1.4, false, false);
+    const jog = noiseRadius(2.8, false, false);
+    const sprint = noiseRadius(5, false, true);
+    expect(sneak).toBeLessThan(1);
+    expect(crouchWalk).toBeLessThan(walk);
+    expect(walk).toBeLessThan(jog);
+    expect(jog).toBeGreaterThan(7);
+    expect(sprint).toBeGreaterThan(jog * 1.5);
+    expect(noiseRadius(2.6, true, false)).toBeLessThan(jog);
   });
 });
 
@@ -153,7 +101,7 @@ describe('weapon carry', () => {
     i.doorway = true;
     expect(pickReady(i)).toBe('compressed');
   });
-  it('raise before firing takes 250-350 ms (rifle), heavier is slower', () => {
+  it('raise before firing takes 120-200 ms (rifle), heavier is slower', () => {
     const raiseTime = (weight: number): number => {
       const c = new WeaponCarry();
       const i = emptyCarryInput();
@@ -167,8 +115,8 @@ describe('weapon carry', () => {
       return t;
     };
     const rifle = raiseTime(1);
-    expect(rifle).toBeGreaterThanOrEqual(0.25);
-    expect(rifle).toBeLessThanOrEqual(0.35);
+    expect(rifle).toBeGreaterThanOrEqual(0.1);
+    expect(rifle).toBeLessThanOrEqual(0.2);
     expect(raiseTime(0.7)).toBeLessThan(rifle);
     expect(raiseTime(1.35)).toBeGreaterThan(rifle);
   });

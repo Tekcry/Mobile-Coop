@@ -19,17 +19,14 @@ import { stepLength, type MotionState } from './motion';
 import { MOVEMENT } from '../config/movement';
 import { approach, clamp, smoothstep, Spring, type V3 } from './rigMath';
 import {
-  BRISK,
-  CREEP,
   CROUCH_BACK,
   CROUCH_IDLE,
   CROUCH_STRAFE_L,
   CROUCH_STRAFE_R,
-  CROUCH_WALK,
-  DASH,
+  CROUCH_NODES,
+  FORWARD_NODES,
   IDLE,
   KNEEL,
-  WALK,
   WALK_BACK,
   WALK_STRAFE_L,
   WALK_STRAFE_R,
@@ -40,7 +37,7 @@ import { hyp2 } from '../core/mathx';
 export const FADE = 0.2;
 export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'cover', 'traverse'] as const;
 export type LowerState = (typeof LOWER_STATES)[number];
-export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop';
+export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop';
 
 export interface AnimInput {
   /** Horizontal ground speed (m/s) and local movement direction (x right, z forward). */
@@ -107,6 +104,9 @@ export interface AnimInput {
   /** Root acceleration in the body frame (m/s^2): forward, right. */
   accelFwd: number;
   accelSide: number;
+  /** Render-rate stick intent along the body (-1..1, wanted minus current pace): the lean-in shows on the
+   *  very next frame, before the fixed-rate root motion catches up. */
+  intent: number;
   /** Weapon changing hands 0..1, or < 0 (set by the rig). */
   handSwap: number;
 }
@@ -151,6 +151,7 @@ export function defaultInput(): AnimInput {
     motionT: 0,
     accelFwd: 0,
     accelSide: 0,
+    intent: 0,
     handSwap: -1,
   };
 }
@@ -228,7 +229,7 @@ export const READY_POSES = {
   compressed: { x: -0.12, y: -0.1, z: -0.2, pitch: 0.3, yaw: -0.4, roll: 0.22 },
 } as const;
 
-const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP };
+const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT };
 
 /** Active-clip slots for the debug overlay timeline. */
 export interface ClipSlot {
@@ -278,6 +279,7 @@ export class AnimGraph {
   private dirZ = 1;
   private moveW = 0;
   private accelLean = new Spring();
+  private intentLean = 0;
   private accelRoll = new Spring();
   private pelSpring = new Spring();
   private supportX = new Spring();
@@ -352,18 +354,19 @@ export class AnimGraph {
     const s = Math.max(0, i.speed);
     this.moveAcc = 0;
     this.tmpMove.set(out);
+    // forward: between the neighbouring speed nodes of the posture's set
+    const nodes = crouched ? CROUCH_NODES : FORWARD_NODES;
+    const a = fwdNode(nodes, s);
+    const na = nodes[a]!;
+    const nb = nodes[a + 1]!;
+    const k = clamp((s - na.speed) / (nb.speed - na.speed), 0, 1);
+    this.addMove(na.clip, (fw / tot) * (1 - k), ph);
+    this.addMove(nb.clip, (fw / tot) * k, ph);
+    // backwards and sideways only happen while aiming (strafe-locked)
     if (crouched) {
-      this.addMove(CROUCH_WALK, fw / tot, ph);
       this.addMove(CROUCH_BACK, bw / tot, ph);
       this.addMove(this.dirX > 0 ? CROUCH_STRAFE_R : CROUCH_STRAFE_L, sw / tot, ph);
     } else {
-      // forward: between the neighbouring speed nodes
-      const a = fwdNode(s);
-      const na = FWD[a]!;
-      const nb = FWD[a + 1]!;
-      const k = clamp((s - na.speed) / (nb.speed - na.speed), 0, 1);
-      this.addMove(na.clip, (fw / tot) * (1 - k), ph);
-      this.addMove(nb.clip, (fw / tot) * k, ph);
       this.addMove(WALK_BACK, bw / tot, ph);
       this.addMove(this.dirX > 0 ? WALK_STRAFE_R : WALK_STRAFE_L, sw / tot, ph);
     }
@@ -504,7 +507,9 @@ export class AnimGraph {
     src[CH.pelY] = src[CH.pelY]! - this.dashS * 0.04;
 
     // --- acceleration lean (into acceleration, back against braking); the chest stays steadier
-    const lean = this.accelLean.step(clamp(i.accelFwd * 0.04, -0.14, 0.14), 14, dt);
+    // anticipation: a first-order (not spring) response so it moves on the first frame
+    this.intentLean += (clamp(i.intent, -1, 1) * 0.1 - this.intentLean) * (1 - Math.exp(-dt / 0.05));
+    const lean = this.accelLean.step(clamp(i.accelFwd * 0.025, -0.14, 0.14), 14, dt) + this.intentLean;
     const roll = this.accelRoll.step(clamp(-i.accelSide * 0.025, -0.08, 0.08), 12, dt);
     src[CH.pelPitch] = src[CH.pelPitch]! + lean;
     src[CH.spPitch] = src[CH.spPitch]! - lean * 0.45;
@@ -681,19 +686,13 @@ export class AnimGraph {
     // near the end of a stop the gait clock crawls: hand the last step to deliberate idle stepping
     g.moving = s > (i.motion === 'stop' ? 0.3 : 0.05) && i.grounded;
     g.cycleTime = s > 0.05 ? (2 * stepLength(s, undefined, lateralShare(i))) / s : 1.2;
-    let duty: number;
-    let lift: number;
-    if (i.crouch > 0.5) {
-      duty = CROUCH_WALK.duty;
-      lift = CROUCH_WALK.liftH;
-    } else {
-      const a = fwdNode(s);
-      const na = FWD[a]!;
-      const nb = FWD[a + 1]!;
-      const kk = clamp((s - na.speed) / (nb.speed - na.speed), 0, 1);
-      duty = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
-      lift = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
-    }
+    const nodes = i.crouch > 0.5 ? CROUCH_NODES : FORWARD_NODES;
+    const a = fwdNode(nodes, s);
+    const na = nodes[a]!;
+    const nb = nodes[a + 1]!;
+    const kk = clamp((s - na.speed) / (nb.speed - na.speed), 0, 1);
+    const duty = na.clip.duty + (nb.clip.duty - na.clip.duty) * kk;
+    const lift = na.clip.liftH + (nb.clip.liftH - na.clip.liftH) * kk;
     g.duty = clamp(duty, 0.4, 0.75);
     g.liftH = lift * k * clamp(q[CH.lift]!, 0.3, 2);
     // layer weights for the overlay
@@ -724,17 +723,9 @@ function lateralShare(i: AnimInput): number {
   return l > 1e-4 ? Math.min(1, Math.abs(i.localX) / l) : 0;
 }
 
-const FWD: readonly { speed: number; clip: Clip }[] = [
-  { speed: 0, clip: CREEP },
-  { speed: 0.45, clip: CREEP },
-  { speed: 0.9, clip: WALK },
-  { speed: 1.4, clip: BRISK },
-  { speed: 3.8, clip: DASH },
-];
-
-/** Index of the lower forward node bracketing a speed. */
-function fwdNode(s: number): number {
+/** Index of the lower node bracketing a speed in a forward node set. */
+function fwdNode(nodes: readonly { speed: number }[], s: number): number {
   let a = 0;
-  while (a < FWD.length - 2 && s > FWD[a + 1]!.speed) a++;
+  while (a < nodes.length - 2 && s > nodes[a + 1]!.speed) a++;
   return a;
 }

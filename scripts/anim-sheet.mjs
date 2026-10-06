@@ -1,7 +1,7 @@
 // Animation contact sheet: runs a scenario on Proving Grounds and captures frames from a side camera
 // that follows the player, then lays them out in a grid (for reviewing blends and timing).
 //   node scripts/anim-sheet.mjs out.png <scenario> [frames=12] [interval=0.1] [view=side|front|back|ots]
-// Scenarios: walk, start, stop, turn, crouch, cover, peek, reload, swap, grenade, vault, dash, strafe
+// Scenarios: walk, jog, sneak, crouchrun, sprint, start, stop, turn, crouch, cover, peek, reload, swap, grenade, vault, dash, strafe
 import { launch } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
@@ -11,7 +11,11 @@ const url = process.env.URL ?? 'http://localhost:4173/';
 
 /** Scenario: setup (once) and per-frame input (time t in s since the first frame). */
 const SCENARIOS = {
-  walk: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 1 }, input: () => ({ y: 1 }) },
+  walk: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 0.5 }, input: () => ({ y: 0.5 }) },
+  jog: { pos: [-8, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }) },
+  sneak: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 0.4 }, input: () => ({ y: 0.4 }), at0: "a.input.state.tap('crouch');" },
+  crouchrun: { pos: [-8, -14], yaw: Math.PI / 2, pre: 1.5, warm: { y: 1 }, input: () => ({ y: 1 }), at0: "a.input.state.tap('crouch');" },
+  sprint: { pos: [-14, -14], yaw: Math.PI / 2, pre: 1.2, warm: { y: 1 }, input: () => ({ y: 1 }), at0: "a.input.state.tap('dash');" },
   start: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 1 }) },
   stop: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 1 }, input: () => ({ y: 0 }) },
   strafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.8, warm: { x: 1 }, input: () => ({ x: 1 }) },
@@ -75,6 +79,7 @@ const step = (sec) => page.evaluate((sec) => window.__app.loop.stepHeadless(sec,
 
 // warm up into the scenario
 const pre = sc.pre;
+if (sc.at0) await setInput(sc.warm ?? {}, sc.at0);
 for (let t = 0; t < pre; t += 1 / 60) {
   await setInput(sc.warm ?? {}, null);
   await step(1 / 60);

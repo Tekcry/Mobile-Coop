@@ -28,55 +28,77 @@ const sim = (s) => page.evaluate((s) => new Promise((res) => {
 const SPD = () => page.evaluate(() => window.__app.current.player.controller.speed);
 try {
   await page.evaluate(() => window.__pad.connect());
+  // raw stick values map straight to magnitude (no dead zone or response curve) for exact speed bands
+  await page.evaluate(() => window.__app.settings.update((d) => { d.gamepad.curve = 'linear'; d.gamepad.deadzoneLeft = 0; }));
   await press(page, BTN.RS); // reveal pad
   await settle(0.5);
   const p0 = await P();
   assert(p0.grounded && Math.abs(p0.y) < 0.1, `spawned on ground (y=${p0.y.toFixed(2)})`);
 
-  // tactical speeds: full stick walks (eased), held full stick eases into the brisk move
+  // stealth speeds (analog): standing walk -> jog; crouched sneak -> crouch walk -> crouch run
   await hold(0, -1, 1.0);
   const p1 = await P();
-  const walked = p1.z - p0.z;
-  assert(walked > 0.3 && walked < 0.75, `tactical walk ~0.9 m/s after a weight shift and an eased start (${walked.toFixed(2)} m in 1 s)`);
-  await page.evaluate(() => { window.__pad.axis(1, -1); });
-  await sim(2.2);
-  const brisk = await SPD();
-  assert(brisk > 1.25 && brisk < 1.5, `holding full stick eases into a brisk move (${brisk.toFixed(2)} m/s)`);
-  await page.evaluate(() => { window.__pad.axis(1, -0.35); });
-  await sim(1.2);
-  const creep = await SPD();
-  assert(creep > 0.2 && creep < 0.48, `light stick creeps (${creep.toFixed(2)} m/s)`);
-  await page.evaluate(() => { window.__pad.axis(0, 1); window.__pad.axis(1, 0); });
-  await sim(1.2);
-  const strafe = await SPD();
-  assert(strafe > 0.7 && strafe < 0.92, `strafe 90% of walk (${strafe.toFixed(2)} m/s)`);
-  await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, 1); });
-  await sim(1.2);
-  const back = await SPD();
-  assert(back > 0.5 && back < 0.72, `backstep 70% of walk (${back.toFixed(2)} m/s)`);
+  const ran = p1.z - p0.z;
+  assert(ran > 2.3 && ran < 2.85, `full stick: a jog straight away (${ran.toFixed(2)} m in 1 s, 2.8 m/s target)`);
+  const speedAt = async (x, y, s = 0.8) => {
+    await page.evaluate(([x, y]) => { window.__pad.axis(0, x); window.__pad.axis(1, y); }, [x, y]);
+    await sim(s);
+    return SPD();
+  };
+  const walk = await speedAt(0, -0.5);
+  assert(walk > 1.25 && walk < 1.5, `half stick walks (${walk.toFixed(2)} m/s)`);
+  const slow = await speedAt(0, -0.28);
+  assert(slow > 0.5 && slow < 0.95, `light stick: a slow walk (${slow.toFixed(2)} m/s)`);
+  // not aiming the body faces where it goes: sideways and backwards run at full pace
+  const side = await speedAt(1, 0);
+  assert(side > 2.6, `pushing sideways turns and jogs, no strafe penalty when not aiming (${side.toFixed(2)} m/s)`);
+  const faced = await page.evaluate(() => { const c = window.__app.current.player.controller; return Math.atan2(Math.sin(c.yaw - (c.pos.x !== undefined ? Math.atan2(c.motion.vx, c.motion.vz) : 0)), Math.cos(c.yaw - Math.atan2(c.motion.vx, c.motion.vz))); });
+  assert(Math.abs(faced) < 0.1, `the body faces the travel direction (${faced.toFixed(2)} rad off)`);
+  // aiming: strafe-locked, strafe x0.9, backstep x0.75 of 1.4
+  await tp(0, 0, -2, 0);
+  await settle(0.3);
+  await page.evaluate(() => window.__pad.set(6, 1));
+  const aimStrafe = await speedAt(1, 0, 1.0);
+  const aimBack = await speedAt(0, 1, 1.0);
+  await page.evaluate(() => window.__pad.set(6, 0));
+  assert(aimStrafe > 1.1 && aimStrafe < 1.35, `aiming: strafe 90% of 1.4 (${aimStrafe.toFixed(2)} m/s)`);
+  assert(aimBack > 0.9 && aimBack < 1.12, `aiming: backstep 75% of 1.4 (${aimBack.toFixed(2)} m/s)`);
   await settle();
+  // crouched set (open ground along z=-14)
+  await tp(-10, 0, -14, Math.PI / 2);
+  await settle(0.3);
+  await press(page, BTN.B);
+  const crun = await speedAt(0, -1);
+  const cwalk = await speedAt(0, -0.62);
+  const sneak = await speedAt(0, -0.38);
+  await settle();
+  assert(crun > 2.4 && crun < 2.7, `crouched full stick: crouch run (${crun.toFixed(2)} m/s)`);
+  assert(cwalk > 1.0 && cwalk < 1.9, `crouched mid stick: crouch walk (${cwalk.toFixed(2)} m/s)`);
+  assert(sneak > 0.55 && sneak < 0.85, `crouched light stick: sneak (${sneak.toFixed(2)} m/s)`);
 
-  // bounding dash: LS click while moving; wind-up, rush, recovery; weapon blocked; stamina spent
+  // sprint: LS click while moving, immediate, stamina-free, stands you up; ends on releasing the stick
+  // and returns to the crouch it interrupted
   await tp(0, 0, -14, Math.PI / 2);
   await page.evaluate(() => { window.__pad.axis(1, -1); });
-  await sim(0.4);
+  await sim(0.3);
   await press(page, BTN.LS);
   let peak = 0;
   let blocked = false;
-  let minStam = 1;
-  for (let i = 0; i < 10; i++) {
+  let stood = true;
+  for (let i = 0; i < 8; i++) {
     await sim(0.1);
     peak = Math.max(peak, await SPD());
     blocked ||= await page.evaluate(() => window.__app.current.player.controller.weaponBlocked);
-    minStam = Math.min(minStam, await page.evaluate(() => window.__app.current.player.controller.dash.stamina));
+    stood &&= !(await P()).crouched;
   }
-  await sim(2.4);
-  const after = await page.evaluate(() => { const c = window.__app.current.player.controller; return { dashing: c.dashing, stamina: c.dash.stamina, speed: c.speed }; });
+  const still = await page.evaluate(() => window.__app.current.player.controller.sprinting);
   await page.evaluate(() => { window.__pad.axis(1, 0); });
-  assert(peak > 3.2 && peak < 4.0, `dash rushes to ~3.8 m/s (${peak.toFixed(2)})`);
-  assert(blocked, 'weapon blocked during the dash');
-  assert(!after.dashing && after.speed < 1.6, `dash ends within 1.5 s and brakes back to a walk (speed ${after.speed.toFixed(2)})`);
-  assert(minStam < 0.8, `dash spends stamina (${minStam.toFixed(2)})`);
+  await sim(0.6);
+  const after = await page.evaluate(() => { const c = window.__app.current.player.controller; return { sprinting: c.sprinting, speed: c.speed, crouched: c.crouched }; });
+  assert(peak > 4.6 && peak < 5.1, `sprint reaches ~5 m/s (${peak.toFixed(2)})`);
+  assert(blocked && stood && still, `sprinting: weapon lowered, standing, still sprinting after 0.8 s (stamina-free)`);
+  assert(!after.sprinting && after.speed < 0.1 && after.crouched, `releasing the stick ends the sprint, stops within 0.6 s, back in the crouch (speed ${after.speed.toFixed(2)})`);
+  await press(page, BTN.B);
   await settle();
 
   // no free jump: jump in the open does nothing
@@ -152,9 +174,9 @@ try {
   await tp(-10.75, 0, -26, 0);
   await settle(0.3);
   await press(page, BTN.B);
-  await hold(0, -1, 4.2);
+  await hold(0, -0.5, 3.0);
   const pt = await P();
-  assert(pt.z > -24.5, `crouch-walks into tunnel (z=${pt.z.toFixed(2)})`);
+  assert(pt.z > -24.5 && pt.z < -19.5, `crouch-walks into tunnel (z=${pt.z.toFixed(2)})`);
   await press(page, BTN.B);
   await settle(0.3);
   assert((await P()).crouched, 'stays crouched under the roof');

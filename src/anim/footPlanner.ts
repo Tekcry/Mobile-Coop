@@ -89,7 +89,7 @@ export function emptyPlannerInput(): PlannerInput {
 }
 
 /** Idle stepping thresholds. */
-export const PLANNER = { idleErr: 0.075, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6 };
+export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6 };
 
 const TAU = Math.PI * 2;
 const wrap = (a: number): number => {
@@ -158,7 +158,11 @@ export class FootPlanner {
         f.stepDur = Math.min(0.6, (1 - i.duty) * i.cycleTime);
         // remaining time to land, then half a stance ahead so mid-stance is under the hip
         const toLand = (1 - s) * f.stepDur;
-        const lead = toLand + i.duty * i.cycleTime * 0.5;
+        // land ahead by at most what the leg can reach (at a sprint half a stance would overreach: the
+        // foot lands nearer and toes off early instead)
+        const v = hyp2(i.velX, i.velZ);
+        const ahead = Math.min(i.duty * i.cycleTime * 0.5 * v, i.reach * 0.75);
+        const lead = toLand + (v > 1e-3 ? ahead / v : 0);
         let rx = i.rootX + i.velX * lead;
         let rz = i.rootZ + i.velZ * lead;
         if (i.rest) {
@@ -207,7 +211,13 @@ export class FootPlanner {
     for (const side of [-1, 1] as const) {
       const f = side < 0 ? this.L : this.R;
       this.ideal(i, side, i.rootX, i.rootZ, i.goalYaw);
-      const err = hyp2(f.x - this.ix, f.z - this.iz) / PLANNER.idleErr + Math.abs(wrap(f.yaw - i.goalYaw)) / PLANNER.idleYawErr;
+      // a relaxed stance tolerates a front-back stagger (a stop's settling step leaves one), not a
+      // sideways one
+      const ex = f.x - this.ix;
+      const ez = f.z - this.iz;
+      const fwd = ex * Math.sin(i.goalYaw) + ez * Math.cos(i.goalYaw);
+      const lat = ex * Math.cos(i.goalYaw) - ez * Math.sin(i.goalYaw);
+      const err = hyp2(fwd / PLANNER.idleStagger, lat / PLANNER.idleErr) + Math.abs(wrap(f.yaw - i.goalYaw)) / PLANNER.idleYawErr;
       if (err > worstErr) {
         worstErr = err;
         worst = f;
@@ -223,20 +233,32 @@ export class FootPlanner {
 
   /** A planted foot stays put unless the body has moved out of reach (then it must step). */
   private holdOrStep(f: FootState, i: PlannerInput, side: -1 | 1): void {
-    const dx = f.x - i.rootX;
-    const dz = f.z - i.rootZ;
+    // measured from under its own hip (the foot's stance spot), not the root centre: a side-step's
+    // trailing foot is a hip width further from the centre than the leg is actually stretched
+    const lx = side < 0 ? i.lX : i.rX;
+    const hx = i.rootX + lx * Math.cos(i.yaw);
+    const hz = i.rootZ - lx * Math.sin(i.yaw);
+    const dx = f.x - hx;
+    const dz = f.z - hz;
     // a planted foot trails up to half a stance behind the hip at speed
     const reach = Math.max(i.reach, hyp2(i.velX, i.velZ) * i.duty * i.cycleTime * 0.5 + 0.3);
+    // moving: toe off before the leg is stretched past what the IK can hold planted
+    if (hyp2(dx, dz) > i.reach * 0.92 && i.moving && hyp2(i.velX, i.velZ) > 2) {
+      // accelerating hard (a sprint start): the trailing foot toes off early instead of sliding; the
+      // clock's contact window then lands it ahead
+      this.beginSwing(f, i, Math.min(0.6, (1 - i.duty) * i.cycleTime), i.liftH);
+      this.aim(f, i, side, i.rootX + i.velX * f.stepDur, i.rootZ + i.velZ * f.stepDur, i.yaw);
+      return;
+    }
     if (hyp2(dx, dz) > reach) {
       // out of reach while locked: drag (counted) back to the reach limit; a real step follows
       const d = hyp2(dx, dz);
       const k = reach / d;
-      const nx = i.rootX + dx * k;
-      const nz = i.rootZ + dz * k;
+      const nx = hx + dx * k;
+      const nz = hz + dz * k;
       f.slide += hyp2(nx - f.x, nz - f.z);
       f.x = nx;
       f.z = nz;
-      void side;
     }
   }
 

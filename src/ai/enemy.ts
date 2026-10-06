@@ -18,6 +18,7 @@ import { spreadDir } from '../weapons/ballistics';
 import { sampleSpread } from '../weapons/weaponStats';
 import { wrapAngle } from '../player/playerController';
 import { emptyMotionInput, MotionDriver } from '../anim/motion';
+import { ENEMY_MOTION } from '../config/movement';
 import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
@@ -310,7 +311,9 @@ export class Enemy implements Damageable {
       // idle enemies notice within a forward cone or when very close
       const toward = Math.atan2(best.feet.x - this.pos.x, best.feet.z - this.pos.z);
       const inCone = Math.abs(wrapAngle(toward - this.yaw)) < 1.1;
-      if ((this.los && inCone && bd < 30) || bd < 6) this.alert();
+      // a crouched target is harder to spot: shorter sight and proximity ranges
+      const k = best.crouched ? 0.6 : 1;
+      if ((this.los && inCone && bd < 30 * k) || bd < 6 * k) this.alert();
     }
   }
 
@@ -669,8 +672,8 @@ export class Enemy implements Damageable {
     const dl = hyp2(desired.x, desired.z);
     mi.yaw = face ?? (dl > 0.3 ? Math.atan2(desired.x, desired.z) : this.motion.yaw);
     mi.aiming = face !== null && !this.def.melee;
-    mi.dashing = running;
-    this.motion.step(dt, mi);
+    mi.sprinting = running;
+    this.motion.step(dt, mi, ENEMY_MOTION);
     this.vel.x = this.motion.outX;
     this.vel.z = this.motion.outZ;
     const nx = this.pos.x + this.vel.x * dt;

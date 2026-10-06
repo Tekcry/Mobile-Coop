@@ -1,111 +1,137 @@
 /**
- * Tactical (SWAT-style) movement and camera feel, in one tunable table (live-editable from the debug
- * overlay's Tune panel). Normal movement is slow, weapon-led and precise; the only fast movement is the
- * committed bounding dash.
+ * Stealth-operative movement and camera feel (Blacklist-style), in one tunable table (live-editable from
+ * the debug overlay's Tune panel). Input acts at once; the weight comes from the animation (momentum,
+ * lean, foot plants), never from input lag. Crouched and standing are both full movement stances.
  */
 export const MOVEMENT = {
-  /** Analog speed range (m/s): light stick creeps, full stick is a tactical walk; holding full stick
-   *  forward for `briskDelay` s eases up to the brisk move. */
-  creepSpeed: 0.45,
-  walkSpeed: 0.9,
-  briskSpeed: 1.4,
-  briskDelay: 0.8,
-  adsSpeed: 0.7,
-  crouchSpeed: 0.55,
-  coverSpeed: 0.5,
-  /** Moving while reloading drops to creep speed. */
-  reloadSpeed: 0.45,
-  /** Direction penalties relative to the aim (body faces the aim; legs sidestep/backstep). */
+  /** Crouched (analog on stick magnitude, m/s): sneak -> crouch walk -> crouch run. */
+  sneakSpeed: 0.8,
+  crouchWalkSpeed: 1.8,
+  crouchRunSpeed: 2.6,
+  /** Standing: walk -> jog; sprint (button) stands you up and is loud. */
+  walkSpeed: 1.4,
+  jogSpeed: 2.8,
+  sprintSpeed: 5.0,
+  /** Aiming (strafe-locked to the aim). */
+  adsSpeed: 1.4,
+  adsCrouchSpeed: 1.0,
+  /** Shuffling along cover (standing / crouched). */
+  coverSpeed: 1.2,
+  coverCrouchSpeed: 0.9,
+  /** Cover-to-cover run (low, fast). */
+  coverRunSpeed: 3.6,
+  /** Moving while reloading / swapping. */
+  reloadMult: 0.75,
+  /** Stick bands: crouched sneak ends / crouch walk ends; standing walk ends. */
+  sneakBand: 0.4,
+  crouchWalkBand: 0.85,
+  walkBand: 0.5,
+  /** Strafe / backstep penalties (only while aiming: otherwise the body faces where it goes). */
   strafeMult: 0.9,
-  backMult: 0.7,
-  /** Stick magnitude where creep ends and walk begins. */
-  creepBand: 0.5,
-  /** Root motion limits: acceleration, braking (m/s^2) and jerk (m/s^3). Nothing changes instantly. */
-  accelMax: 1.5,
-  decelMax: 2.0,
-  jerkMax: 9,
-  /** Velocity error gain (1/s) feeding the jerk-limited acceleration. */
-  velGain: 6,
-  /** Weight shift onto the support foot before the first step from standstill (s). */
-  startShift: 0.3,
+  backMult: 0.75,
+  /** Root motion limits: acceleration, braking (m/s^2), jerk (m/s^3). Snappy, never instant. */
+  accelMax: 11,
+  decelMax: 12,
+  jerkMax: 120,
+  sprintAccel: 13,
+  /** Velocity error gain (1/s) feeding the jerk-limited acceleration; braking uses `brakeGain`. */
+  velGain: 12,
+  brakeGain: 30,
+  /** Weight shift before the first step (s): none - it overlaps the motion in the animation. */
+  startShift: 0,
   /** Step length (m) = stepLen0 + stepLenK * speed; a gait cycle is two steps. */
-  stepLen0: 0.27,
-  stepLenK: 0.22,
-  /** Speed dip at each heel strike (fraction), mean 1 over the stride: the root follows the steps. */
-  rootDip: 0.05,
-  /** Body turn rates (rad/s): moving, aiming (110 deg/s), dashing; angular acceleration (rad/s^2). */
+  stepLen0: 0.3,
+  stepLenK: 0.2,
+  /** Speed dip at each heel strike (fraction), mean 1 over the stride. */
+  rootDip: 0.04,
+  /** Facing the travel direction (not aiming): turn rate at sneak pace and at sprint (rad/s). */
+  turnTravelSlow: (540 * Math.PI) / 180,
+  turnTravelFast: (300 * Math.PI) / 180,
+  /** Aiming: strafe-locked turn rate (360 deg/s) and angular acceleration (rad/s^2). */
+  turnAim: (360 * Math.PI) / 180,
+  turnAccel: 60,
+  /** Sprint steering (rad/s). */
+  turnSprint: (300 * Math.PI) / 180,
+  /** Legacy facing for drivers that face an explicit yaw (enemies): moving rate, stepped turns on the spot. */
   turnMoving: 2.4,
-  turnAim: (110 * Math.PI) / 180,
-  turnDash: 1.2,
-  turnAccel: 12,
-  /** Turning on the spot is stepped: chunks of up to `turnChunk` rad over `turnChunkTime` s each,
-   *  started when the aim leads the feet by more than `turnThreshold` rad. */
   turnChunk: 0.785,
   turnChunkTime: 0.3,
   turnThreshold: 0.45,
-  /** Reversing the move direction at speed: planted pivot (s). */
-  pivotTime: 0.6,
-  /** Upper body twist limit (rad): the view may lead the feet by this much at most. */
   twistMax: 1.3,
-  /** Camera look-rate caps (rad/s). */
-  lookStand: 5,
-  lookAim: 2.8,
-  lookDash: 1.6,
-  /** Bounding dash: wind-up, committed rush, braking recovery; stamina-limited. */
-  dashSpeed: 3.8,
-  dashWindup: 0.3,
-  dashMax: 1.5,
-  dashRecovery: 0.45,
-  dashAccel: 4.5,
-  /** Stamina (0..1): one full dash costs `dashCost`; regenerates per second; empty = cooldown. */
-  dashCost: 0.45,
-  staminaRegen: 0.18,
-  staminaCooldown: 1.8,
-  /** Stance transition times (s): stand -> crouch, crouch -> kneel, kneel/crouch -> stand. */
-  crouchTime: 0.45,
-  kneelTime: 0.5,
-  standTime: 0.6,
-  /** Fraction of ground control kept in the air (drops/vault exits only; there is no free jump). */
+  /** Reversing (135-180 deg) above this speed is a planted pivot of `pivotTime` s. */
+  pivotTime: 0.3,
+  pivotMinSpeed: 1.5,
+  /** Stance transition times (s): stand -> crouch, crouch -> kneel, crouch -> stand. */
+  crouchTime: 0.25,
+  kneelTime: 0.3,
+  standTime: 0.28,
+  /** Fraction of ground control kept in the air (drops / vault exits only). */
   airControl: 0.05,
   standHeight: 1.75,
   crouchHeight: 1.15,
   radius: 0.3,
   maxStep: 0.42,
-  /** Camera spring frequencies (rad/s). */
-  camFollow: 10,
-  camShoulder: 10,
-  camAds: 11,
+  /** Camera springs (rad/s): follow (~125 ms lag), shoulder swap (~250 ms), ADS framing (~200 ms). */
+  camFollow: 16,
+  camShoulder: 15.5,
+  camAds: 19,
+  /** Auto-recentre behind the travel direction after this long without look input while moving (s). */
+  recentreDelay: 1.5,
+  recentreRate: 1.6,
+};
+
+/**
+ * Enemy root motion: guards keep the slower, weighted 1.2.0 tuning (weight shift, stepped turns),
+ * at their own speeds from `config/enemies.json`.
+ */
+export const ENEMY_MOTION = {
+  ...MOVEMENT,
+  accelMax: 1.5,
+  decelMax: 2.0,
+  jerkMax: 9,
+  sprintAccel: 4.5,
+  velGain: 6,
+  brakeGain: 6,
+  startShift: 0.3,
+  stepLen0: 0.27,
+  stepLenK: 0.22,
+  rootDip: 0.05,
+  turnAim: (110 * Math.PI) / 180,
+  turnAccel: 12,
+  turnSprint: 1.2,
+  pivotTime: 0.6,
+  pivotMinSpeed: 0.45,
 };
 
 export type MovementKey = keyof typeof MOVEMENT;
 
 /** Ranges for the debug tuning panel. */
 export const MOVEMENT_RANGES: Partial<Record<MovementKey, [number, number, number]>> = {
-  creepSpeed: [0.2, 1.2, 0.05],
-  walkSpeed: [0.5, 2, 0.05],
-  briskSpeed: [0.8, 3, 0.05],
-  adsSpeed: [0.3, 1.5, 0.05],
-  crouchSpeed: [0.2, 1.5, 0.05],
-  coverSpeed: [0.2, 1.5, 0.05],
+  sneakSpeed: [0.3, 1.5, 0.05],
+  crouchWalkSpeed: [0.8, 3, 0.05],
+  crouchRunSpeed: [1.5, 4, 0.05],
+  walkSpeed: [0.6, 2.5, 0.05],
+  jogSpeed: [1.5, 4.5, 0.05],
+  sprintSpeed: [3, 7, 0.1],
+  adsSpeed: [0.5, 2.5, 0.05],
+  adsCrouchSpeed: [0.4, 2, 0.05],
+  coverSpeed: [0.4, 2, 0.05],
   strafeMult: [0.5, 1, 0.01],
   backMult: [0.4, 1, 0.01],
-  accelMax: [0.5, 6, 0.1],
-  decelMax: [0.5, 8, 0.1],
-  jerkMax: [1, 30, 0.5],
-  velGain: [1, 10, 0.1],
-  startShift: [0, 0.6, 0.01],
+  accelMax: [2, 25, 0.5],
+  decelMax: [2, 25, 0.5],
+  jerkMax: [10, 300, 5],
+  velGain: [2, 30, 0.5],
   rootDip: [0, 0.15, 0.005],
-  turnMoving: [0.5, 6, 0.1],
-  turnAim: [0.5, 4, 0.05],
-  turnChunkTime: [0.15, 0.6, 0.01],
-  lookStand: [1, 10, 0.25],
-  lookAim: [0.5, 6, 0.1],
-  dashSpeed: [2, 6, 0.1],
-  dashMax: [0.5, 3, 0.1],
-  dashCost: [0.1, 1, 0.05],
-  crouchTime: [0.15, 1, 0.01],
-  standTime: [0.15, 1.2, 0.01],
-  camFollow: [4, 40, 1],
-  camShoulder: [3, 30, 0.5],
-  camAds: [4, 30, 0.5],
+  turnTravelSlow: [3, 15, 0.1],
+  turnTravelFast: [2, 10, 0.1],
+  turnAim: [2, 12, 0.1],
+  pivotTime: [0.15, 0.6, 0.01],
+  crouchTime: [0.1, 0.6, 0.01],
+  standTime: [0.1, 0.6, 0.01],
+  camFollow: [6, 40, 1],
+  camShoulder: [5, 30, 0.5],
+  camAds: [6, 40, 0.5],
+  recentreDelay: [0.5, 4, 0.1],
+  recentreRate: [0.3, 4, 0.1],
 };

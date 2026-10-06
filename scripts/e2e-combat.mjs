@@ -66,15 +66,15 @@ try {
   assert((await G(() => window.__app.current.weapons.current.def.id)) === 'pistol', 'LB swaps to previous weapon');
   await G(() => window.__pad.set(6, 1));
   await sim(0.5);
-  // the ADS framing blend (350-600 ms) moves the camera: re-aim once it has settled
-  await aimAt(-4, 1.68, 8);
+  // the ADS framing blend moves the camera: re-aim once it has settled, at the head volume's centre
   await sim(0.6);
-  await aimAt(-4, 1.68, 8);
+  const head = await G(() => { const n = window.__app.current.dummies[0]['hitboxes']['headNode']; n.computeWorldMatrix(true); const v = n.getAbsolutePosition(); return [v.x, v.y, v.z]; });
+  await aimAt(head[0], head[1], head[2]);
   await sim(0.15);
   await sim(0.05, [[BTN.RT, 1]]);
   await sim(0.2);
   await G(() => window.__pad.set(6, 0));
-  console.log('    head shot:', await G(() => { const g = window.__app.current; const l = g.weapons.lastShot; const f = (v) => `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`; return `${l.target} origin ${f(l.origin)} aim ${f(l.aim)} hit ${f(l.hit)} headNode ${f(g.dummies[0]['hitboxes']['headNode'].position)} alive ${g.dummies[0].alive}`; }));
+  console.log('    head shot:', await G(() => { const g = window.__app.current; const l = g.weapons.lastShot; const f = (v) => `${v.x.toFixed(2)},${v.y.toFixed(2)},${v.z.toFixed(2)}`; return `spread ${g.weapons['currentSpread']().toFixed(2)} ads ${g.player.cam.ads.toFixed(2)} spd ${g.player.controller.speed.toFixed(2)} bloom ${g.weapons['bloom'].toFixed(2)} ${l.target} origin ${f(l.origin)} aim ${f(l.aim)} hit ${f(l.hit)} headNode ${f(g.dummies[0]['hitboxes']['headNode'].position)} alive ${g.dummies[0].alive}`; }));
   const heads = await G(() => window.__app.current.weapons.tally.get('pistol')?.heads ?? 0);
   assert(heads >= 1, `head hitbox registers headshots (${heads})`);
   // semi-auto: holding RT fires once
@@ -99,9 +99,11 @@ try {
   await G(() => window.__pad.set(6, 1)); // ADS for accuracy
   await sim(0.7);
   await aimAt(d2[0], d2[1], d2[2]);
-  await sim(0.15, [[6, 1]]);
-  await sim(0.05, [[BTN.RT, 1], [6, 1]]);
-  await sim(0.3, [[6, 1]]);
+  await sim(0.15);
+  if (process.env.DBG) console.log('    sniper pre:', await G((d2) => { const g = window.__app.current; const c = g.player.cam; const o = c.camera.position; const h = g.ballistics.ray(o, o.add(c.forward.scale(60)), 0xffff); return `spread ${g.weapons['currentSpread']().toFixed(2)} ads ${c.ads.toFixed(2)} raise ${g.player.carry.raise.toFixed(2)} canFire ${g.player.carry.canFire} ray ${h.target?.id ?? 'none'} ${h.distance.toFixed(1)} body ${g.player.controller.yaw.toFixed(2)} cam ${c.yaw.toFixed(2)} blocked ${g.player.controller.weaponBlocked}`; }, d2));
+  // LT stays held (pad.set above): `sim` would release the buttons it is given at the end
+  await sim(0.05, [[BTN.RT, 1]]);
+  await sim(0.3);
   await G(() => window.__pad.set(6, 0));
   const shots = await G(() => window.__app.current.weapons.tally.get('sniper'));
   assert(shots.shots === 1 && shots.hits === 1, `sniper projectile travels and hits (${JSON.stringify(shots)})`);

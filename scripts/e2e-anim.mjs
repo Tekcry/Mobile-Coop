@@ -1,9 +1,9 @@
-// Animation / camera quality bars, measured in the running game (Proving Grounds, headless stepping):
-// start weight shift and walk-up time, stop settle, foot locking (< 1 cm slide), stepped turns and the
-// aim turn cap, stance timings, weapon clip timings (raise / lower / reloads / swap / grenade),
-// transition continuity, cover entry / peek / edge prep / exit, hit flinch recovery, camera follow lag,
-// framing blends, shoulder swap, bob, drift, dash FOV, bounded angular velocity / acceleration, and
-// 60 vs 120 Hz parity.
+// Animation / camera quality bars for the stealth operative, measured in the running game (Proving
+// Grounds, headless stepping): responsiveness (visible within one frame, 90% speed times, stops, pivots,
+// travel and aim turn rates), stance and aim transitions, weapon clip timings, foot locking (< 1 cm) in
+// every gait, transition continuity, hit flinch, camera follow lag / framing blends / shoulder swap /
+// bob / drift / sprint FOV / bounded angular velocity and acceleration, and 60 vs 120 Hz parity.
+// (Cover choreography bars live in e2e-stealth.)
 import { launch, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -38,6 +38,13 @@ await G(() => {
       st.move.x = st.move.y = 0;
       a.loop.stepHeadless(1.2);
     },
+    /** One render frame without a sim step: input poll + frame update only. */
+    frame(inp) {
+      st.move.x = inp.x ?? 0;
+      st.move.y = inp.y ?? 0;
+      a.loop['hooks'].beforeFrame(1 / 120);
+      a.loop['hooks'].frameUpdate(1 / 120, 0);
+    },
     /** Step `sec` seconds holding input; `sample(t)` per 60 Hz step; `hz` = render rate. */
     run(sec, inp, sample, hz = 60) {
       const out = [];
@@ -63,29 +70,48 @@ await G(() => {
 });
 
 try {
-  // ---------------------------------------------------------------- pace: start / stop
-  console.log('pace');
-  const start = await G(() => {
+  // ---------------------------------------------------------------- responsiveness
+  console.log('responsiveness');
+  const first = await G(() => {
     const t = window.__t;
+    const p = window.__app.current.player;
     t.tp(8, -14, -Math.PI / 2);
-    const c = window.__app.current.player.controller;
-    return t.run(2.2, { y: 1 }, (s) => [s, c.speed]);
+    t.run(0.5, {});
+    const pose0 = Float32Array.from(p.rig.graph.pose);
+    t.frame({ y: 1 });
+    let poseD = 0;
+    const q = p.rig.graph.pose;
+    for (let i = 0; i < q.length; i++) poseD = Math.max(poseD, Math.abs(q[i] - pose0[i]));
+    const r = t.run(1 / 60, { y: 1 }, () => p.controller.speed);
+    return { poseD, speed1: r[0] };
   });
-  const firstMove = start.find(([, v]) => v > 0.05)?.[0] ?? 99;
-  // full stick: walk pace first (brisk only builds after holding it, briskDelay)
-  const plateau = 0.9;
-  const walkAt = start.find(([, v]) => v >= plateau * 0.95)?.[0] ?? 99;
-  assert(within(firstMove, 0.2, 0.45), `weight shift before the first step: ${f2(firstMove)} s (250-400 ms)`);
-  assert(within(walkAt, 0.75, 1.15), `walk speed (${f2(plateau)} m/s) reached over ${f2(walkAt)} s (0.8-1.0 s)`);
+  assert(first.poseD > 0.002 && first.speed1 > 0, `visible on the first frame after input (pose ${first.poseD.toFixed(4)}), root moving on the first step (${first.speed1.toFixed(3)} m/s)`);
+  const reach = async (inp, target, setup) =>
+    G(([inp, target, setup]) => {
+      const t = window.__t;
+      const a = window.__app;
+      const c = a.current.player.controller;
+      t.tp(8, -14, -Math.PI / 2);
+      if (setup) new Function('a', setup)(a);
+      const r = t.run(1.2, inp, (s) => [s, c.speed]);
+      return r.find(([, v]) => v >= target * 0.9)?.[0] ?? 99;
+    }, [inp, target, setup ?? null]);
+  const walkT = await reach({ y: 0.5 }, 1.4);
+  const jogT = await reach({ y: 1 }, 2.8);
+  const sprintT = await reach({ y: 1, taps: { 1: 'dash' } }, 5.0);
+  assert(within(walkT, 0.15, 0.35), `walk: 90% speed in ${f2(walkT)} s (0.2-0.35)`);
+  assert(within(jogT, 0.2, 0.35), `jog: 90% speed in ${f2(jogT)} s (0.2-0.35)`);
+  assert(sprintT <= 0.45, `sprint: 90% speed in ${f2(sprintT)} s (<= 0.45)`);
   const stop = await G(() => {
     const t = window.__t;
     const p = window.__app.current.player;
     const c = p.controller;
-    t.run(1.0, { y: 0.8 });
+    t.tp(8, -14, -Math.PI / 2);
+    t.run(1.0, { y: 1 });
     let plants = 0;
     let prevL = p.rig.planner.L.contact;
     let prevR = p.rig.planner.R.contact;
-    const out = t.run(1.4, {}, (s) => {
+    return t.run(1.0, {}, (s) => {
       const L = p.rig.planner.L.contact;
       const R = p.rig.planner.R.contact;
       if (L && !prevL) plants++;
@@ -94,116 +120,96 @@ try {
       prevR = R;
       return [s, c.speed, plants];
     });
-    return out;
   });
   const stoppedAt = stop.find(([, v]) => v < 0.02)?.[0] ?? 99;
-  const settle = stop.at(-1)[2];
-  assert(within(stoppedAt, 0.45, 0.85), `stop takes ${f2(stoppedAt)} s (0.5-0.8 s)`);
-  assert(within(settle, 1, 3), `stop has settling steps (${settle})`);
-
-  // ---------------------------------------------------------------- foot locking
-  console.log('foot locking');
-  for (const [name, inp] of [['walk', { y: 0.8 }], ['brisk', { y: 1 }], ['strafe', { x: 1 }], ['back', { y: -1 }]]) {
-    const r = await G((inp) => {
-      const t = window.__t;
-      const p = window.__app.current.player;
+  assert(within(stoppedAt, 0.2, 0.36), `stop from a jog in ${f2(stoppedAt)} s (0.2-0.35)`);
+  assert(within(stop.at(-1)[2], 1, 2), `one or two settling steps (${stop.at(-1)[2]})`);
+  const pivot = await G(() => {
+    const t = window.__t;
+    const c = window.__app.current.player.controller;
+    t.tp(8, -14, -Math.PI / 2);
+    t.run(1.0, { y: 1 });
+    let pt = 0;
+    const r = t.run(1.0, { y: -1 }, () => {
+      if (c.motion.state === 'pivot') pt += 1 / 60;
+      return c.speed;
+    });
+    return { pt, end: r.at(-1), yaw: c.yaw };
+  });
+  assert(within(pivot.pt, 0.24, 0.36) && pivot.end > 2.5, `reversing at a jog: ${f2(pivot.pt)} s planted pivot, then off the other way (${f2(pivot.end)} m/s)`);
+  const turns = await G(() => {
+    const t = window.__t;
+    const c = window.__app.current.player.controller;
+    const rate = (inp) => {
       t.tp(8, -14, -Math.PI / 2);
-      t.run(1.6, inp);
-      const lock = { L: null, R: null };
-      let maxSlide = 0;
-      let maxPlanner = 0;
-      let plants = 0;
-      t.run(2.4, inp, () => {
-        for (const side of [-1, 1]) {
-          const k = side < 0 ? 'L' : 'R';
-          const f = p.rig.planner[k];
-          const an = t.ankle(side);
-          if (f.contact) {
-            if (!lock[k]) {
-              lock[k] = { x: an.x, z: an.z, px: f.x, pz: f.z };
-              plants++;
-            }
-            maxSlide = Math.max(maxSlide, Math.hypot(an.x - lock[k].x, an.z - lock[k].z));
-            maxPlanner = Math.max(maxPlanner, Math.hypot(f.x - lock[k].px, f.z - lock[k].pz));
-          } else lock[k] = null;
-        }
+      t.run(1.0, inp);
+      let max = 0;
+      let minSpeed = 99;
+      let prev = c.yaw;
+      // swing the stick 90 degrees (camera stays put): the body arcs round
+      t.run(0.8, { x: -(inp.y ?? 1), y: 0 }, () => {
+        const d = Math.atan2(Math.sin(c.yaw - prev), Math.cos(c.yaw - prev));
+        prev = c.yaw;
+        max = Math.max(max, Math.abs(d) * 60);
+        minSpeed = Math.min(minSpeed, c.speed);
         return 0;
       });
-      return { maxSlide, maxPlanner, plants };
-    }, inp);
-    assert(r.plants >= 3 && r.maxPlanner < 0.01 && r.maxSlide < 0.01, `${name}: planted feet locked (planner ${(r.maxPlanner * 100).toFixed(2)} cm, ankle ${(r.maxSlide * 100).toFixed(2)} cm, ${r.plants} plants)`);
-  }
-
-  // ---------------------------------------------------------------- turning
-  console.log('turning');
-  const turn = await G(() => {
-    const t = window.__t;
-    const p = window.__app.current.player;
-    t.tp(8, -14, -Math.PI / 2);
-    let plants = 0;
-    let pl = p.rig.planner.L.contact;
-    let pr = p.rig.planner.R.contact;
-    // look round 90 degrees quickly; the body follows in steps
-    return t.run(1.6, {}, (s) => {
-      if (p.cam.yaw < 0) p.cam.yaw = Math.min(0, p.cam.yaw + 6 / 60);
-      const L = p.rig.planner.L.contact;
-      const R = p.rig.planner.R.contact;
-      if (L && !pl) plants++;
-      if (R && !pr) plants++;
-      pl = L;
-      pr = R;
-      return [s, p.controller.yaw, plants];
-    });
-  });
-  const turned = turn.find(([, y]) => Math.abs(Math.atan2(Math.sin(y), Math.cos(y))) < (5 * Math.PI) / 180)?.[0] ?? 99;
-  assert(within(turned, 0.45, 0.85), `90 deg turn on the spot in ${f2(turned)} s (~0.6 s)`);
-  if (process.env.SOFT) console.log('    turn trace', turn.filter((_, i) => i % 8 === 0).map(([s, y]) => `${f2(s)}:${f2(y)}`).join(' '));
-  assert(turn.at(-1)[2] >= 2, `turn plants at least two steps (${turn.at(-1)[2]})`);
-  const aimTurn = await G(() => {
-    const t = window.__t;
-    const p = window.__app.current.player;
+      return { max: (max * 180) / Math.PI, minSpeed };
+    };
+    const jog = rate({ y: 1 });
+    const sprint = rate({ y: 1, taps: { 1: 'dash' } });
+    // aim turn: hold ADS, swing the view 90 degrees
     t.tp(8, -14, -Math.PI / 2);
     t.run(0.5, { ads: true });
-    let prev = p.controller.yaw;
-    p.cam.yaw = -Math.PI / 2 + 1.2;
-    let maxRate = 0;
-    t.run(1.4, { ads: true }, () => {
-      const y = p.controller.yaw;
-      const d = Math.atan2(Math.sin(y - prev), Math.cos(y - prev));
-      prev = y;
-      maxRate = Math.max(maxRate, Math.abs(d) * 60);
+    const p = window.__app.current.player;
+    p.cam.yaw += Math.PI / 2;
+    let aimMax = 0;
+    let prev = c.yaw;
+    t.run(0.8, { ads: true }, () => {
+      const d = Math.atan2(Math.sin(c.yaw - prev), Math.cos(c.yaw - prev));
+      prev = c.yaw;
+      aimMax = Math.max(aimMax, Math.abs(d) * 60);
       return 0;
     });
-    return (maxRate * 180) / Math.PI;
+    return { jog, sprint, aim: (aimMax * 180) / Math.PI };
   });
-  assert(aimTurn <= 110 * 1.03, `aiming body turn capped at 110 deg/s (${aimTurn.toFixed(0)} deg/s)`);
+  assert(turns.jog.max <= 545 && turns.jog.max > 250 && turns.jog.minSpeed > 2.2, `90 deg direction change at a jog arcs round (${turns.jog.max.toFixed(0)} deg/s, speed stays above ${f2(turns.jog.minSpeed)} m/s)`);
+  assert(turns.sprint.max <= 305, `sprinting turns no faster than 300 deg/s (${turns.sprint.max.toFixed(0)})`);
+  assert(turns.aim <= 365 && turns.aim > 200, `aiming: the body follows the aim at <= 360 deg/s (${turns.aim.toFixed(0)})`);
 
-  // ---------------------------------------------------------------- stance
-  console.log('stance');
+  // ---------------------------------------------------------------- stance and aim
+  console.log('stance and aim');
   const stance = await G(() => {
     const t = window.__t;
     const p = window.__app.current.player;
     t.tp(8, -14, -Math.PI / 2);
-    const down = t.run(1.0, { taps: { 1: 'crouch' } }, (s) => [s, p.controller.crouchBlend]);
-    t.run(1.0, {});
-    const up = t.run(1.2, { taps: { 1: 'crouch' } }, (s) => [s, p.controller.crouchBlend]);
-    return { down, up };
+    const down = t.run(0.6, { taps: { 1: 'crouch' } }, (s) => [s, p.controller.crouchBlend]);
+    t.run(0.6, {});
+    const up = t.run(0.6, { taps: { 1: 'crouch' } }, (s) => [s, p.controller.crouchBlend]);
+    // while moving: no stop
+    t.run(0.8, { y: 1 });
+    const moving = t.run(0.5, { y: 1, taps: { 1: 'crouch' } }, () => p.controller.speed);
+    t.run(0.5, { y: 1, taps: { 1: 'crouch' } });
+    const raise = t.run(0.5, { ads: true }, (s) => [s, p.carry.raise]);
+    const lower = t.run(0.6, {}, (s) => [s, p.carry.raise]);
+    return { down, up, minMoving: Math.min(...moving), raise, lower };
   });
   const crouchT = stance.down.find(([, v]) => v >= 0.999)?.[0] ?? 99;
   const standT = stance.up.find(([, v]) => v <= 0.001)?.[0] ?? 99;
-  assert(within(crouchT, 0.4, 0.5), `crouch takes ${f2(crouchT)} s (0.45 s)`);
-  assert(within(standT, 0.55, 0.65), `stand takes ${f2(standT)} s (0.6 s)`);
+  assert(within(crouchT, 0.2, 0.3) && within(standT, 0.2, 0.3), `stance change: crouch ${f2(crouchT)} s, stand ${f2(standT)} s (0.2-0.3)`);
+  assert(stance.minMoving > 1.6, `crouching while moving does not stop you (min ${f2(stance.minMoving)} m/s)`);
+  const raiseT = stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99;
+  const lowerT = stance.lower.find(([, v]) => v <= 0.1)?.[0] ?? 99;
+  assert(within(raiseT, 0.1, 0.2), `aim raise ${f2(raiseT)} s (120-200 ms)`);
+  assert(within(lowerT, 0.22, 0.36), `aim lower ${f2(lowerT)} s (250-350 ms)`);
 
   // ---------------------------------------------------------------- weapon clips
   console.log('weapon clips');
   const wpn = await G(() => {
     const t = window.__t;
     const g = window.__app.current;
-    const p = g.player;
     const w = g.weapons;
     t.tp(8, -14, -Math.PI / 2);
-    const raise = t.run(0.8, { ads: true }, (s) => [s, p.carry.raise]);
-    const lower = t.run(1.0, {}, (s) => [s, p.carry.raise]);
     const dur = (flag, tap, prep) => {
       prep?.();
       let on = -1;
@@ -221,17 +227,55 @@ try {
     const swap = dur(() => w.swapping, 'swapNext');
     t.run(1, {});
     const grenade = dur(() => w.throwing, 'grenade');
-    return { raise, lower, tactical, empty, swap, grenade, weapon: w.current.def.id };
+    return { tactical, empty, swap, grenade };
   });
-  const raiseT = wpn.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99;
-  const lowerStart = wpn.lower.findIndex(([, v]) => v < 0.98);
-  const lowerT = (wpn.lower.find(([, v]) => v <= 0.1)?.[0] ?? 99) - (wpn.lower[lowerStart]?.[0] ?? 0);
-  assert(within(raiseT, 0.22, 0.4), `raise to aim ${f2(raiseT)} s (250-350 ms)`);
-  assert(within(lowerT, 0.4, 0.7), `lower back to ready ${f2(lowerT)} s (450-600 ms)`);
   assert(within(wpn.tactical, 2.45, 2.75), `tactical reload ${f2(wpn.tactical)} s (2.6 s)`);
   assert(within(wpn.empty, 2.95, 3.25), `empty reload ${f2(wpn.empty)} s (3.1 s)`);
   assert(within(wpn.swap, 0.8, 1.0), `weapon swap ${f2(wpn.swap)} s (0.8-1.0 s)`);
   assert(within(wpn.grenade, 1.1, 1.3), `grenade throw ${f2(wpn.grenade)} s (1.2 s)`);
+
+  // ---------------------------------------------------------------- foot locking
+  console.log('foot locking');
+  const gaits = [
+    ['walk', { y: 0.5 }],
+    ['jog', { y: 1 }],
+    ['sprint', { y: 1, taps: { 1: 'dash' } }, 'sprint'],
+    ['sneak', { y: 0.35 }, 'crouch'],
+    ['crouch run', { y: 1 }, 'crouch'],
+    ['aim strafe', { x: 1, ads: true }],
+    ['aim back', { y: -1, ads: true }],
+  ];
+  for (const [name, inp, mode] of gaits) {
+    const r = await G(([inp, mode]) => {
+      const t = window.__t;
+      const p = window.__app.current.player;
+      t.tp(12, -14, -Math.PI / 2);
+      if (mode === 'crouch') p.controller['crouchToggled'] = true;
+      t.run(1.0, inp);
+      const keep = { ...inp, taps: undefined };
+      const lock = { L: null, R: null };
+      let maxSlide = 0;
+      let plants = 0;
+      t.run(1.6, keep, () => {
+        for (const side of [-1, 1]) {
+          const k = side < 0 ? 'L' : 'R';
+          const f = p.rig.planner[k];
+          const an = t.ankle(side);
+          if (f.contact) {
+            if (!lock[k]) {
+              lock[k] = { x: an.x, z: an.z };
+              plants++;
+            }
+            maxSlide = Math.max(maxSlide, Math.hypot(an.x - lock[k].x, an.z - lock[k].z));
+          } else lock[k] = null;
+        }
+        return 0;
+      });
+      p.controller['crouchToggled'] = false;
+      return { maxSlide, plants, speed: p.controller.speed };
+    }, [inp, mode ?? null]);
+    assert(r.plants >= 3 && r.maxSlide < 0.01, `${name} (${f2(r.speed)} m/s): planted feet locked (${(r.maxSlide * 100).toFixed(2)} cm, ${r.plants} plants)`);
+  }
 
   // ---------------------------------------------------------------- transitions and flinch
   console.log('transitions');
@@ -245,27 +289,33 @@ try {
     let prev = null;
     const track = () => {
       const q = rig.graph.pose;
+      // per 60 Hz frame, normalised to 0.1. Channels whose spec'd timing needs more (smooth bell curves,
+      // not pops): the ankle pitches (31 / 35, fLPitch / fRPitch) 0.15 - standing from a kneel releases a
+      // 1.2 rad toe flex within the 0.28 s stance change; weapon pitch (15, wpPitch) 0.12 - the 0.7 rad
+      // low ready -> aim within the 120-200 ms raise
+      const allow = (i) => (i === 31 || i === 35 ? 0.15 : i === 15 ? 0.12 : 0.1);
       if (prev)
         for (let i = 0; i < q.length; i++) {
-          const d = Math.abs(q[i] - prev[i]);
-          if (d > maxStep) {
-            maxStep = d;
-            window.__worst = `ch ${i} at step ${window.__k ?? 0}`;
+          const n = (Math.abs(q[i] - prev[i]) * 0.1) / allow(i);
+          if (n > maxStep) {
+            maxStep = n;
+            window.__worst = `channel ${i} at step ${window.__k}`;
           }
         }
       window.__k = (window.__k ?? 0) + 1;
       prev = Float32Array.from(q);
       return 0;
     };
-    // walk -> crouch walk -> stop -> stand -> ADS -> strafe -> reload
-    t.run(1.2, { y: 0.8 }, track);
-    t.run(1.0, { y: 0.8, taps: { 1: 'crouch' } }, track);
-    t.run(1.0, {}, track);
-    t.run(1.0, { taps: { 1: 'crouch' } }, track);
-    t.run(0.8, { ads: true }, track);
-    t.run(1.0, { x: 1, ads: true }, track);
-    t.run(1.5, { taps: { 1: 'reload' } }, track);
-    // hit flinch
+    // jog -> crouch run -> stop -> stand -> aim -> strafe -> sprint -> stop -> reload
+    t.run(1.0, { y: 1 }, track);
+    t.run(1.0, { y: 1, taps: { 1: 'crouch' } }, track);
+    t.run(0.8, {}, track);
+    t.run(0.6, { taps: { 1: 'crouch' } }, track);
+    t.run(0.6, { ads: true }, track);
+    t.run(0.8, { x: 1, ads: true }, track);
+    t.run(1.0, { y: 1, taps: { 1: 'dash' } }, track);
+    t.run(0.8, {}, track);
+    t.run(1.2, { taps: { 1: 'reload' } }, track);
     t.run(0.5, {});
     rig.hit(1, 1);
     const hitSpring = rig.graph['hit'];
@@ -277,90 +327,21 @@ try {
       if (peak > 0 && v < peak * 0.1 && back < 0 && s > 0.05) back = s;
       return 0;
     });
-    return { worst: window.__worst, maxStep, limited: rig.limited - limited0, flinch: back, inertCount: rig.graph.inert.count ?? 0 };
+    return { maxStep, worst: window.__worst, limited: rig.limited - limited0, flinch: back };
   });
-  if (process.env.SOFT) console.log('    worst channel', tr.worst);
-  assert(tr.maxStep < 0.08, `pose channels continuous through every transition (max ${tr.maxStep.toFixed(3)} per 60 Hz frame)`);
-  assert(tr.limited < 40, `joint-rate safety net rarely needed (${tr.limited} hits)`);
+  assert(tr.maxStep < 0.1, `pose channels continuous through every transition (max ${tr.maxStep.toFixed(3)} per 60 Hz frame, normalised${process.env.SOFT ? ', ' + tr.worst : ''})`);
+  assert(tr.limited < 60, `joint-rate safety net rarely needed (${tr.limited} hits)`);
   assert(within(tr.flinch, 0.25, 0.65), `hit flinch recovers in ${f2(tr.flinch)} s (0.3-0.6 s)`);
-
-  // ---------------------------------------------------------------- cover choreography
-  console.log('cover');
-  const cov = await G(() => {
-    const t = window.__t;
-    const g = window.__app.current;
-    const p = g.player;
-    t.tp(-3.7, -6, -Math.PI / 2);
-    let enterAt = -1;
-    let inAt = -1;
-    let handAt = -1;
-    t.run(1.6, { taps: { 1: 'cover' } }, (s) => {
-      const stt = g.cover.state;
-      if (stt === 'enter' && enterAt < 0) enterAt = s;
-      if (stt === 'in' && inAt < 0) inAt = s;
-      if (p.rig.graph.out.offCover > 0.4 && handAt < 0) handAt = s;
-      return 0;
-    });
-    // exit: cover button leaves; measure until the step-back finishes (speed settles)
-    let moving = -1;
-    let still = -1;
-    t.run(1.4, { taps: { 1: 'cover' } }, (s) => {
-      const v = p.controller.speed;
-      if (v > 0.05 && moving < 0) moving = s;
-      if (moving >= 0 && v < 0.02 && still < 0) still = s;
-      return 0;
-    });
-    return { enter: inAt - (enterAt < 0 ? 0 : enterAt) + 1 / 60, handAt, inAt, exit: still, state: g.cover.state };
-  });
-  assert(within(cov.enter, 0.6, 0.95), `cover entry ${f2(cov.enter)} s (0.7-0.9 s)`);
-  assert(cov.handAt >= 0 && cov.handAt < cov.inAt, `support hand reaches the wall first (hand ${f2(cov.handAt)} s, body settled ${f2(cov.inAt)} s)`);
-  assert(cov.state === 'none' && within(cov.exit, 0.3, 0.75), `cover exit ${f2(cov.exit)} s (0.4-0.6 s)`);
-  const peekAt = (z) =>
-    G((z) => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const p = g.player;
-      const gr = p.rig.graph;
-      t.tp(-8.8, z, -Math.PI / 2);
-      t.run(1.4, { taps: { 1: 'cover' } });
-      const state = g.cover.state;
-      let headAt = -1;
-      let wpnAt = -1;
-      let swapDone = -1;
-      let swapStart = -1;
-      let leanHalf = -1;
-      t.run(1.6, { ads: true }, (s) => {
-        const head = Math.abs(gr['leanHead'].x);
-        const body = Math.abs(gr['leanBody'].x);
-        if (head > 0.3 && headAt < 0) headAt = s;
-        if (p.carry.raise > 0.9 && wpnAt < 0) wpnAt = s;
-        if (body > 0.5 && leanHalf < 0) leanHalf = s;
-        if (p.rig.handSwap >= 0 && swapStart < 0) swapStart = s;
-        if (swapStart >= 0 && p.rig.handSwap < 0 && swapDone < 0) swapDone = s;
-        return 0;
-      });
-      return { state, headAt, wpnAt, leanHalf, swapStart, swapDone, leftHanded: p.rig.leftHanded };
-    }, z);
-  // high cover x=-10, z 0..4, facing west: z 3.4 peeks round the north (right) edge, z 0.6 the south (left)
-  const peek = await peekAt(3.4);
-  assert(peek.state === 'in', `took high cover for the peek (${peek.state})`);
-  assert(peek.headAt >= 0 && peek.wpnAt - peek.headAt >= 0.15, `peek: head leads (${f2(peek.headAt)} s) before the weapon is out (${f2(peek.wpnAt)} s)`);
-  assert(within(peek.wpnAt, 0.33, 0.47), `peek: weapon out by ${f2(peek.wpnAt)} s (350-450 ms)`);
-  const left = await peekAt(0.6);
-  assert(left.state === 'in' && left.leftHanded, `left edge: weapon changes hands (${left.state}, left-handed ${left.leftHanded})`);
-  const swapDur = left.swapDone - left.swapStart;
-  assert(left.swapDone >= 0 && left.swapDone <= left.leanHalf && within(swapDur, 0.28, 0.42), `edge prep: hands swap over ${f2(swapDur)} s (300-400 ms) before the lean (half out at ${f2(left.leanHalf)} s)`);
 
   // ---------------------------------------------------------------- camera
   console.log('camera');
   const cam = await G(() => {
     const t = window.__t;
-    const g = window.__app.current;
-    const p = g.player;
+    const a = window.__app;
+    const p = a.current.player;
     const cm = p.cam;
     const C = cm.camera;
     t.tp(8, -14, -Math.PI / 2);
-    // drift while idle: rendered view vs the aim (deg)
     let drift = 0;
     t.run(3, {}, () => {
       const dy = C.rotation.y - cm.viewYaw;
@@ -368,85 +349,86 @@ try {
       drift = Math.max(drift, (Math.hypot(Math.atan2(Math.sin(dy), Math.cos(dy)), dp) * 180) / Math.PI);
       return 0;
     });
-    // steady walk: follow lag and footstep bob
-    t.run(2.0, { y: 0.8 });
+    t.run(1.2, { y: 0.5 });
     let lagSum = 0;
     let lagN = 0;
     let yMin = Infinity;
     let yMax = -Infinity;
-    t.run(2.0, { y: 0.8 }, () => {
+    t.run(1.5, { y: 0.5 }, () => {
       const f = p.controller.renderPos;
-      const sx = cm['sFx'].x;
-      const sz = cm['sFz'].x;
       const v = p.controller.speed;
       if (v > 0.5) {
-        lagSum += Math.hypot(f.x - sx, f.z - sz) / v;
+        lagSum += Math.hypot(f.x - cm['sFx'].x, f.z - cm['sFz'].x) / v;
         lagN++;
       }
       yMin = Math.min(yMin, C.position.y);
       yMax = Math.max(yMax, C.position.y);
       return 0;
     });
-    t.run(1.0, {});
-    // shoulder swap and ADS framing step responses
+    t.run(0.8, {});
     const side0 = cm['sSide'].x;
     cm.swapShoulder();
     let swap90 = -1;
     let arcMax = 0;
     const b0 = cm.boomActual;
-    t.run(1.0, {}, (s) => {
-      const x = cm['sSide'].x;
+    t.run(0.8, {}, (s) => {
       arcMax = Math.max(arcMax, cm.boomActual - b0);
-      if (swap90 < 0 && Math.abs(x - -side0) < 0.2) swap90 = s;
+      if (swap90 < 0 && Math.abs(cm['sSide'].x - -side0) < 0.2) swap90 = s;
       return 0;
     });
     cm.swapShoulder();
-    t.run(0.8, {});
+    t.run(0.6, {});
     let ads90 = -1;
-    t.run(1.0, { ads: true }, (s) => {
+    t.run(0.6, { ads: true }, (s) => {
       if (ads90 < 0 && cm.ads >= 0.9) ads90 = s;
       return 0;
     });
-    t.run(1.0, {});
-    // dash FOV
+    t.run(0.8, {});
     const hfov = (v) => (2 * Math.atan(Math.tan(v / 2) * (16 / 9)) * 180) / Math.PI;
     const base = hfov(C.fov);
-    let dashMax = base;
-    t.run(1.6, { y: 1, taps: { 2: 'dash' } }, () => {
-      dashMax = Math.max(dashMax, hfov(C.fov));
+    let sprintMax = base;
+    t.run(1.2, { y: 1, taps: { 1: 'dash' } }, () => {
+      sprintMax = Math.max(sprintMax, hfov(C.fov));
       return 0;
     });
-    t.run(2.0, {});
-    // angular velocity / acceleration under a scripted look (constant 2 rad/s, then stop) at 120 Hz
+    t.run(1.0, {});
+    // look through the right stick (30 ms smoothing): full right for 1 s, then release, at 120 Hz
     let prevF = null;
     let prevW = null;
     let maxW = 0;
     let maxA = 0;
-    const look = (s) => {
+    const look = () => {
       const f = cm.forward;
       if (prevF) {
-        const d = Math.acos(Math.min(1, prevF.x * f.x + prevF.y * f.y + prevF.z * f.z)) * 60;
-        if (prevW !== null) maxA = Math.max(maxA, Math.abs(d - prevW) * 60);
+        const d = Math.acos(Math.min(1, prevF.x * f.x + prevF.y * f.y + prevF.z * f.z)) * 120;
+        if (prevW !== null) maxA = Math.max(maxA, Math.abs(d - prevW) * 120);
         prevW = d;
         maxW = Math.max(maxW, d);
       }
       prevF = { x: f.x, y: f.y, z: f.z };
-      return s;
     };
-    for (let k = 0; k < 60; k++) {
-      cm.yaw += 2 / 60;
-      t.run(1 / 60, {}, look, 120);
-    }
-    t.run(0.6, {}, look, 120);
-    return { drift, lag: lagSum / Math.max(1, lagN), bob: yMax - yMin, swap90, arcMax, ads90, dashFov: dashMax - base, maxW, maxA };
+    window.__pad.connect();
+    const hooks = a.loop['hooks'];
+    const fu = hooks.frameUpdate;
+    hooks.frameUpdate = (dt, al) => {
+      fu(dt, al);
+      look();
+    };
+    window.__pad.axis(2, 1);
+    t.run(1.0, {}, null, 120);
+    window.__pad.axis(2, 0);
+    t.run(0.5, {}, null, 120);
+    hooks.frameUpdate = fu;
+    window.__pad.disconnect();
+    return { drift, lag: lagSum / Math.max(1, lagN), bob: yMax - yMin, swap90, arcMax, ads90, sprintFov: sprintMax - base, maxW, maxA };
   });
   assert(cam.drift <= 0.15, `handheld drift <= 0.15 deg (${cam.drift.toFixed(3)} deg)`);
-  assert(within(cam.lag, 0.15, 0.25), `camera follow lag ${f2(cam.lag)} s (150-250 ms)`);
+  assert(within(cam.lag, 0.08, 0.15), `camera follow lag ${f2(cam.lag)} s (80-150 ms)`);
   assert(cam.bob <= 0.02, `footstep bob <= 1 cm amplitude (${(cam.bob * 50).toFixed(2)} cm)`);
-  assert(within(cam.swap90, 0.3, 0.5) && cam.arcMax > 0.05, `shoulder swap ${f2(cam.swap90)} s (~400 ms) on an arc (+${f2(cam.arcMax)} m boom)`);
-  assert(within(cam.ads90, 0.3, 0.6), `ADS framing blend ${f2(cam.ads90)} s (350-600 ms)`);
-  assert(within(cam.dashFov, 2.5, 4.5), `dash widens the FOV by ${f2(cam.dashFov)} deg (+4)`);
-  assert(cam.maxW < 2.3 && cam.maxA < 40, `camera angular velocity / acceleration bounded (${f2(cam.maxW)} rad/s, ${f2(cam.maxA)} rad/s^2)`);
+  assert(within(cam.swap90, 0.15, 0.32) && cam.arcMax > 0.05, `shoulder swap ${f2(cam.swap90)} s (~250 ms) on an arc (+${f2(cam.arcMax)} m boom)`);
+  assert(within(cam.ads90, 0.12, 0.25), `aim framing blend ${f2(cam.ads90)} s (150-250 ms)`);
+  assert(within(cam.sprintFov, 2.5, 4.5), `sprint widens the FOV by ${f2(cam.sprintFov)} deg (+4)`);
+  assert(cam.maxW > 2 && cam.maxW < 6.5 && cam.maxA < 250, `stick look: angular velocity / acceleration bounded (${f2(cam.maxW)} rad/s, ${f2(cam.maxA)} rad/s^2)`);
 
   // ---------------------------------------------------------------- 60 vs 120 Hz parity
   console.log('60 vs 120 Hz parity');
@@ -456,10 +438,11 @@ try {
     const p = g.player;
     const go = (hz) => {
       t.tp(8, -14, -Math.PI / 2);
-      t.run(1.0, { y: 0.8 }, null, hz);
+      t.run(1.0, { y: 1 }, null, hz);
       p.cam.yaw = -Math.PI / 2 + 0.6;
-      t.run(1.0, { y: 0.8 }, null, hz);
+      t.run(1.0, { y: 0.6 }, null, hz);
       t.run(1.0, { x: 1 }, null, hz);
+      t.run(0.6, { x: 1, ads: true }, null, hz);
       t.run(1.2, {}, null, hz);
       const c = p.controller;
       const L = p.rig.planner.L;

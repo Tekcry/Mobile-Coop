@@ -10,6 +10,7 @@ import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
+
 export type PartFactory = (shape: PartShape, hex: string, slot: string) => AbstractMesh;
 
 /** High-level animation inputs. Callers describe what the character is doing; the rig's graph
@@ -54,6 +55,8 @@ export interface RigPose {
   blind?: boolean;
   /** Glance towards a nearby edge (-1 / 0 / 1). */
   edgeLook?: number;
+  /** Stick intent along the body, wanted minus current pace (-1..1), at render rate. */
+  intent?: number;
   traverse?: TraverseKind;
   traverseT?: number;
   melee?: number;
@@ -125,6 +128,8 @@ const tmpC = new Vector3();
 const tmpD = new Vector3();
 const tmpE = new Vector3();
 const tmpPole = new Vector3();
+const legHint = new Vector3();
+const legPole = new Vector3();
 /**
  * Recompute one node's world matrix from its parent's current one. `computeWorldMatrix(true)` re-forces
  * the whole parent chain on every call (it was 35% of the sim's CPU at 10 rigs); the rig instead
@@ -640,6 +645,7 @@ export class CharacterRig {
     i.motionT = s.motionT ?? 0;
     i.accelFwd = s.accelFwd ?? 0;
     i.accelSide = s.accelSide ?? 0;
+    i.intent = s.intent ?? 0;
     const yaw = this.root.rotation.y;
     // root velocity: supplied by the motion driver, else measured from the root's movement
     const rp = this.root.position;
@@ -936,11 +942,16 @@ export class CharacterRig {
     const sn = Math.sin(footYaw);
     tmpPole.set(sn + side * 0.12 * c, 0, c - side * 0.12 * sn);
     solveTwoBone(H, tmpA, p.thigh.len, p.calf.len, tmpPole, tmpC, tmpD);
+    // twist references that stay defined at any hip flexion (deep sneak, kneel): the kneecap faces away
+    // from the shin, the shin faces along the thigh; the pole only steers them when the leg is straight
+    // (a pole-only reference flips when the thigh points along it)
     tmpC.subtractToRef(H, tmpB);
-    boneRotation(tmpB, tmpPole, tmpQ3);
+    tmpD.subtractToRef(tmpC, tmpE);
+    legHint.copyFrom(tmpE).normalize().scaleInPlace(-1).addInPlace(tmpPole.scaleToRef(0.3, legPole));
+    boneRotation(tmpB, legHint, tmpQ3);
     this.setWorldRot(hip, hip.parent as TransformNode, tmpQ3);
-    tmpD.subtractToRef(tmpC, tmpB);
-    boneRotation(tmpB, tmpPole, tmpQ);
+    legHint.copyFrom(tmpB).normalize().addInPlace(tmpPole.scaleToRef(0.3, legPole));
+    boneRotation(tmpE, legHint, tmpQ);
     this.setWorldRot(knee, hip, tmpQ);
     // foot: world yaw from the planner, pitch from the swing (toe-off / heel strike) and the pose
     Quaternion.RotationYawPitchRollToRef(footYaw, footPitch, 0, tmpQ3);

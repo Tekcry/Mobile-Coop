@@ -81,12 +81,13 @@ export function copyPose(out: Pose, a: Pose): Pose {
 
 /** Joint groups and their inertialization settle times (s): heavier parts settle slower. */
 export const GROUP_OF: readonly number[] = CHANNELS.map((c) => {
-  if (c.startsWith('pel')) return 0.32;
-  if (c.startsWith('sp')) return 0.26;
-  if (c.startsWith('hd')) return 0.2;
-  if (c.startsWith('wp')) return 0.24;
-  if (c.startsWith('f') || c === 'lift' || c === 'width') return 0.35;
-  return 0.18; // hands, grips
+  // 100-250 ms: quick enough for a responsive operative, long enough that nothing pops
+  if (c.startsWith('pel')) return 0.22;
+  if (c.startsWith('sp')) return 0.2;
+  if (c.startsWith('hd')) return 0.15;
+  if (c.startsWith('wp')) return 0.16;
+  if (c.startsWith('f') || c === 'lift' || c === 'width') return 0.25;
+  return 0.12; // hands, grips
 });
 
 /**

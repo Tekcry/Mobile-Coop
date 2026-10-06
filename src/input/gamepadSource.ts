@@ -11,6 +11,8 @@ const NAV_DIRS: ButtonAction[] = ['uiUp', 'uiDown', 'uiLeft', 'uiRight'];
 /** Radians per second at sensitivity 1, full deflection. */
 const BASE_YAW_RATE = 3.6;
 const BASE_PITCH_RATE = 2.4;
+/** Look smoothing time constant (s). */
+const LOOK_SMOOTH = 0.03;
 
 export interface PadEvents {
   onConnect(id: string, style: PadStyle): void;
@@ -29,6 +31,11 @@ export class GamepadSource {
   private activeIndex = -1;
   private repeaters = new Map<ButtonAction, NavRepeater>(NAV_DIRS.map((d) => [d, new NavRepeater()]));
   private lastTimestamps = new Map<number, number>();
+  /** Look: the stick deflection through a 30 ms smoothing (a touch of rotation inertia that still
+   *  responds on the first frame) and a gentle acceleration while held near full deflection. */
+  private lookX = 0;
+  private lookY = 0;
+  private heldT = 0;
   style: PadStyle = 'xbox';
   /** Multiplier applied to look rate while aiming down sights. */
   adsActive = false;
@@ -125,9 +132,17 @@ export class GamepadSource {
     }
     this.state.setMove(SRC, frame.move.x, frame.move.y);
     const ads = this.adsActive ? s.adsMultiplier : 1;
+    const k = 1 - Math.exp(-dt / LOOK_SMOOTH);
+    this.heldT = Math.abs(frame.look.x) > 0.92 ? this.heldT + dt : 0;
+    // the acceleration goes through the same smoothing, so releasing the stick never steps the rate
+    const accel = 1 + Math.min(0.4, Math.max(0, this.heldT - 0.3) * 0.8);
+    this.lookX += (frame.look.x * accel - this.lookX) * k;
+    this.lookY += (frame.look.y - this.lookY) * k;
+    if (Math.abs(this.lookX) < 1e-4) this.lookX = 0;
+    if (Math.abs(this.lookY) < 1e-4) this.lookY = 0;
     this.state.addLook(
-      frame.look.x * BASE_YAW_RATE * s.lookSensitivityX * ads * dt,
-      frame.look.y * BASE_PITCH_RATE * s.lookSensitivityY * ads * dt,
+      this.lookX * BASE_YAW_RATE * s.lookSensitivityX * ads * dt,
+      this.lookY * BASE_PITCH_RATE * s.lookSensitivityY * ads * dt,
     );
     this.state.fireAnalog = frame.fireAnalog;
   }

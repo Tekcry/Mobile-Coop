@@ -63,7 +63,8 @@ export class GameLoop {
     const n = Math.round(seconds / FIXED_DT);
     const sub = Math.max(1, Math.round(renderHz / 60));
     for (let i = 0; i < n && this.scene === scene; i++) {
-      hooks.beforeFrame?.(FIXED_DT);
+      // like a real display: input is polled every rendered frame (each sub-frame at 120 Hz)
+      hooks.beforeFrame?.(FIXED_DT / sub);
       if (this.paused) continue;
       hooks.fixedUpdate(FIXED_DT);
       if (physics) {
@@ -73,7 +74,11 @@ export class GameLoop {
       }
       if (sub === 1) hooks.frameUpdate(FIXED_DT, 1);
       // e.g. 120 Hz: one frame right after the step (alpha 0) and one half way (alpha 0.5)
-      else for (let j = 0; j < sub && this.scene === scene; j++) hooks.frameUpdate(FIXED_DT / sub, j / sub);
+      else
+        for (let j = 0; j < sub && this.scene === scene; j++) {
+          if (j > 0) hooks.beforeFrame?.(FIXED_DT / sub);
+          hooks.frameUpdate(FIXED_DT / sub, j / sub);
+        }
     }
   }
 

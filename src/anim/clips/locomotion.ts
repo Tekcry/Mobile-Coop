@@ -2,9 +2,10 @@
  * Locomotion and stance clips (authored in code). Cycles are keyed over the gait phase: left heel
  * strike at 0, right at 0.5. Values are root-space metres at 1.75 m and radians.
  *
- * The tactical walk: soft knees (pelvis 4-5 cm low), small forward lean, short steps, the pelvis
- * dipping on each loading response and rising mid-stance, hips shifting over the support foot and
- * turning a little with each step while the chest counter-rotates so the weapon stays square.
+ * The stealth operative: a compact, low, balanced carriage. Standing: a soft-kneed walk, a forward-
+ * leaning jog and a full sprint. Crouched: a deep heel-to-toe sneak, a crouch walk and a low, driving
+ * crouch run. The pelvis dips on each loading response and rises mid-stance, hips shift over the
+ * support foot and turn with each step while the chest counter-rotates so the weapon stays square.
  */
 import { makeClip, mirrorClip, type Clip } from '../clip';
 
@@ -87,6 +88,23 @@ export const BRISK = makeClip({
     spYaw: twist(-0.07),
     pelPitch: [0, 0.14, 0.08, 0.155, 0.25, 0.13, 0.5, 0.14, 0.58, 0.155, 0.75, 0.13],
     hdPitch: bob(0, -0.014, -0.006),
+  },
+});
+
+/** Forward-leaning jog: compact arms, the head steady, a longer flight phase. */
+export const JOG = makeClip({
+  name: 'jog',
+  cycle: true,
+  duty: 0.48,
+  liftH: 0.12,
+  keys: {
+    pelY: bob(-0.07, 0.025, 0.012),
+    pelX: sway(0.014),
+    pelRoll: sway(0.035),
+    pelYaw: twist(0.1),
+    spYaw: twist(-0.09),
+    pelPitch: [0, 0.2, 0.08, 0.22, 0.25, 0.19, 0.5, 0.2, 0.58, 0.22, 0.75, 0.19],
+    hdPitch: bob(-0.05, -0.015, -0.008),
   },
 });
 
@@ -182,6 +200,42 @@ export const CROUCH_STRAFE_R = makeClip({
 });
 export const CROUCH_STRAFE_L = mirrorClip(CROUCH_STRAFE_R, 'crouchStrafeL');
 
+/** Crouched sneak: deep and slow, heel-to-toe, the body barely rising between steps. */
+export const SNEAK = makeClip({
+  name: 'sneak',
+  cycle: true,
+  duty: 0.74,
+  liftH: 0.04,
+  keys: {
+    pelY: bob(-0.4, 0.008, 0.003),
+    pelX: sway(0.022),
+    pelRoll: sway(0.02),
+    pelYaw: twist(0.035),
+    spYaw: twist(-0.03),
+    pelPitch: [0, 0.33, 0.5, 0.33],
+    hdPitch: [0, -0.06, 0.5, -0.06],
+    width: [0, 1.3],
+  },
+});
+
+/** Crouch run: low and driving, forward lean, quick steps, the weapon held in tight. */
+export const CROUCH_RUN = makeClip({
+  name: 'crouchRun',
+  cycle: true,
+  duty: 0.52,
+  liftH: 0.085,
+  keys: {
+    pelY: bob(-0.32, 0.02, 0.01),
+    pelX: sway(0.014),
+    pelRoll: sway(0.03),
+    pelYaw: twist(0.08),
+    spYaw: twist(-0.07),
+    pelPitch: [0, 0.44, 0.1, 0.46, 0.25, 0.42, 0.5, 0.44, 0.6, 0.46, 0.75, 0.42],
+    hdPitch: [0, -0.18, 0.5, -0.18],
+    width: [0, 1.2],
+  },
+});
+
 /** One-knee kneel: left foot planted forward, right knee down (heel up, toes tucked). */
 export const KNEEL = makeClip({
   name: 'kneel',
@@ -202,10 +256,19 @@ export const KNEEL = makeClip({
   },
 });
 
-/** Speed nodes of the standing forward blend (m/s). */
+/** Speed nodes of the standing forward blend (m/s): walk, jog, sprint. */
 export const FORWARD_NODES: readonly { speed: number; clip: Clip }[] = [
-  { speed: 0.45, clip: CREEP },
-  { speed: 0.9, clip: WALK },
-  { speed: 1.4, clip: BRISK },
-  { speed: 3.8, clip: DASH },
+  { speed: 0, clip: CREEP },
+  { speed: 0.7, clip: CREEP },
+  { speed: 1.4, clip: WALK },
+  { speed: 2.8, clip: JOG },
+  { speed: 5.0, clip: DASH },
+];
+
+/** Speed nodes of the crouched forward blend (m/s): sneak, crouch walk, crouch run. */
+export const CROUCH_NODES: readonly { speed: number; clip: Clip }[] = [
+  { speed: 0, clip: SNEAK },
+  { speed: 0.8, clip: SNEAK },
+  { speed: 1.8, clip: CROUCH_WALK },
+  { speed: 2.6, clip: CROUCH_RUN },
 ];

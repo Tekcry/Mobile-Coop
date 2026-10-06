@@ -77,8 +77,13 @@ export class InputState {
     this.look.y += dy;
   }
 
+  private consumed: Vec2 = { x: 0, y: 0 };
+
+  /** Take the accumulated look delta (the returned object is reused: read it before the next call). */
   consumeLook(): Vec2 {
-    const v = { x: this.look.x, y: this.look.y };
+    const v = this.consumed;
+    v.x = this.look.x;
+    v.y = this.look.y;
     this.look.x = 0;
     this.look.y = 0;
     return v;

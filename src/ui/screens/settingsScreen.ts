@@ -167,6 +167,8 @@ export class SettingsScreen extends Screen {
             choice('Crouch', [{ value: false, label: 'Hold' }, { value: true, label: 'Toggle' }], () => s().gameplay.crouchToggle, (v) => upd((d) => void (d.gameplay.crouchToggle = v))),
             toggle('Auto-snap to cover', () => s().gameplay.autoCover, (v) => upd((d) => void (d.gameplay.autoCover = v))),
             toggle('Cover-to-cover dash', () => s().gameplay.coverDash, (v) => upd((d) => void (d.gameplay.coverDash = v))),
+            choice('Sprint', [{ value: false, label: 'Toggle' }, { value: true, label: 'Hold' }], () => s().gameplay.sprintHold, (v) => upd((d) => void (d.gameplay.sprintHold = v))),
+            toggle('Camera recentres behind you while moving', () => s().gameplay.autoRecentre, (v) => upd((d) => void (d.gameplay.autoRecentre = v))),
             toggle('Slow-motion beat on the last enemy in a room', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))),
             section(
               'Mouse (desktop testing)',

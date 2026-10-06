@@ -62,6 +62,9 @@ export class ShoulderCamera {
   cover = 0;
   /** Steadiness 0..1 (kneeling, aiming): scales the handheld drift down. */
   steady = 0;
+  /** Ground speed (m/s): framing tightens at a sneak and opens up with pace. */
+  pace = 0;
+  private sPace = new Spring();
   private sSide = new Spring(1);
   private sAds = new Spring();
   private sPivot = new Spring(CAMERA.pivotStand);
@@ -73,8 +76,6 @@ export class ShoulderCamera {
   private sFz = new Spring();
   private sLookX = new Spring();
   private sLookZ = new Spring();
-  private sYaw = new Spring();
-  private sPitch = new Spring();
   private sBob = new Spring();
   private sBoom = new Spring(CAMERA.boomHip);
   private lastFx = Number.NaN;
@@ -137,8 +138,6 @@ export class ShoulderCamera {
   snap(): void {
     this.viewYaw = this.yaw;
     this.viewPitch = this.pitch;
-    this.sYaw.reset();
-    this.sPitch.reset();
   }
 
   /** Aim yaw/pitch including transient recoil. */
@@ -189,21 +188,13 @@ export class ShoulderCamera {
     const bob = this.sBob.step(0, 16, dt);
     this.pivot.set(fx + lx, footY + pivotY + bob, fz + lz);
 
-    // rendered rotation: slight inertia on the look (no overshoot)
+    // rendered rotation: look input applies the same frame (no lag); smoothing and acceleration live in
+    // the input sources, so the view is exactly where the player points it
     if (Number.isNaN(this.viewYaw)) this.snap();
     const prevYaw = this.viewYaw;
     const prevPitch = this.viewPitch;
-    const ty = this.aimYaw;
-    let dy = ty - this.viewYaw;
-    while (dy > Math.PI) dy -= Math.PI * 2;
-    while (dy < -Math.PI) dy += Math.PI * 2;
-    // spring on the remaining error (state is the error itself, so wrap-around is seamless)
-    this.sYaw.x = -dy;
-    this.sYaw.step(0, 34, dt);
-    this.viewYaw = ty + this.sYaw.x;
-    this.sPitch.x = this.viewPitch - this.aimPitch;
-    this.sPitch.step(0, 34, dt);
-    this.viewPitch = this.aimPitch + this.sPitch.x;
+    this.viewYaw = this.aimYaw;
+    this.viewPitch = this.aimPitch;
     // handheld drift: tiny and slow; steadier kneeling / aiming, a touch more when dashing
     // yaw and pitch peaks combine: 0.0018 rad per axis keeps the total under 0.15 deg
     const drift = 0.0018 * (1 - 0.65 * Math.min(1, this.steady)) * (1 + dashS * 0.5);
@@ -218,7 +209,9 @@ export class ShoulderCamera {
 
     // boom: framing, cover push-in, and the shoulder swap arcs back behind the head
     const arc = 0.2 * (1 - side * side);
-    const boomTarget = fr.boom - coverS * 0.12 + arc;
+    // pace: a sneak frames tighter, a jog / sprint pulls back a little (sprint adds the dash framing)
+    const paceS = this.sPace.step(Math.min(1, this.pace / 2.8), 4, dt);
+    const boomTarget = fr.boom - coverS * 0.12 + arc + (paceS - 0.45) * 0.22 * (1 - this.ads);
     const shoulder = fr.shoulder * side + leanS * T.leanShift;
     const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height, this.pivot.z + rightZ * shoulder);
     const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;

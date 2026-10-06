@@ -77,11 +77,12 @@ describe('foot planner', () => {
     expect(frames.at(-1)!.landed).toBeGreaterThan(5);
     for (const f of frames) expect(f.latL).toBeLessThan(f.latR);
   });
-  it('brisk and dash: no sliding at speed', () => {
-    for (const v of [MOVEMENT.briskSpeed, MOVEMENT.dashSpeed]) {
+  it('jog and sprint: no sliding at speed', () => {
+    for (const v of [MOVEMENT.jogSpeed, MOVEMENT.sprintSpeed]) {
       const { frames, planner } = simulate(4, (i) => {
         i.vz = v;
-        i.dashing = v > 2;
+        i.faceTravel = true;
+        i.sprinting = v > 3;
       });
       expect(maxPlantedSlide(frames)).toBeLessThan(0.01);
       expect(planner.L.slide + planner.R.slide).toBeLessThan(0.01);
