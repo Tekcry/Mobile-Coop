@@ -55,9 +55,10 @@ Blacklist style.
     <= 2.5 cm, gun clear of the head (> -1 cm) and trunk (> -2 cm), elbows (> -3 cm), knees above the floor and
     > 9 cm apart, feet > 6 cm apart (`--only=name --log`)
   - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
-    exposure HUD, enemy grenades/flanker, footstep noise investigation
+    exposure HUD, enemy grenades/flanker, footstep noise investigation, a wall muffles a noise
   - `scripts/e2e-takedown.mjs` takedown kinds (ground rules, over low cover, above, below, window), tap / hold,
-    5 cm alignment, damage interrupt, Execute charge, marks through cover, no execute out of sight, execute
+    5 cm alignment, damage interrupt, Execute charge, marks through cover, no execute out of sight, execute; no takedown
+    on a guard in combat who saw you, one alerted without seeing you still can be
   - `scripts/e2e-enemies.mjs` heavy (plates / back / face plate, lethal-only frontal takedown), enforcer (shield,
     no frontal grab, pushes), sniper (laser, glint refuses a mark, relocates), dog (smell in the dark, takedown),
     drone operator (spots, shot down, EMP), officer (buff, alarm first), radio check, callouts, Perfectionist
@@ -70,7 +71,8 @@ Blacklist style.
     gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure, sticky cam feed
     (operator still, ping, gas, back), drone (flies, dart, battery), mine
   - `scripts/e2e-stealth-ai.mjs` night Warehouse: shadow vs light detection, the arc warns first, no sight through
-    walls, noise -> suspicious -> investigating, squad radio, LKP + ghost + converge + search ends, patrols
+    walls, noise -> suspicious -> investigating, squad radio after the spotter's radio window, the shout to guards
+    close by, a spotter taken out first tells nobody, LKP + ghost + converge + search ends, patrols
   - `scripts/e2e-coop.mjs` two pages over `?net=local` (a third for PvP): lobby, wave match, validated hits, revive, results;
     Hunter (puppet alert levels, door sync, a client door use, a client takedown, kept / hidden bodies, pings both
     ways, a client execute, a client gas cloud on the host's guards, a dual takedown, a client reviving the host),
@@ -152,7 +154,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
   R3 shoulder, RB/LB weapons (RB `mark` while aiming), D-pad up `grenade` (the gadget: hold aims the arc, release
   throws), D-pad down `gadgetWheel` (hold), right emote, left `ping` (co-op), View `vision` (goggles);
-  Y also takedown / execute (contextual). Keyboard: Space cover, C / Ctrl crouch, Shift sprint, E traverse /
+  Y also takedown / execute (contextual); in menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise). Keyboard: Space cover, C / Ctrl crouch, Shift sprint, E traverse /
   interact / takedown, R reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold), 1-8 pick
   a gadget (`InputState.gadgetPick`), J / K / L emotes, Z ping; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
   smoothing, so releasing never steps the rate).
@@ -193,13 +195,21 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   the operator in the right half beside the menu. `setFraming('menu' | 'loadout' | 'weapon')`; `setAvatar(look,
   weapon, camo, attachments)` rebuilds only when the key (`shown`) changes; `ui/screens/operator.ts`
   `showSavedOperator` puts the saved look back.
-- Loadout (`ui/screens/loadoutScreen.ts`, the only upgrade / customisation screen): side `TabView` (Weapons, Gear,
-  Appearance, Tag & Emotes, HQ), the operator in the middle, options on the right. Owned choices save at once;
-  locked ones are drafts (previewed only) with a `lockLine` (requirement + Buy / Claim in place); `refresh()`
-  rebuilds the tab and restores focus by `data-key`; `onHide` commits and restores the saved operator.
+- Loadout (`ui/screens/loadoutScreen.ts`, the only upgrade / customisation screen; Splinter Cell: Blacklist's gear
+  screen): an SBD-NET bar (next challenge, level, credits); a stack of list `Page`s on the left (breadcrumb, title,
+  subtitle, `Row`s: label, value / price / `LV n`, marks equipped (check) / locked (lock) / tune (wrench) / go
+  (chevron), group headers); the operator in the middle; the focused row's details on the right (Power / Accuracy /
+  Range / Control segment bars with the change green / red, magazine, silenced, fire mode, upgrades; suit totals);
+  the action bar along the bottom (A `act`, Y `alt`, B back; tappable). Pages: root (loadout preset, primary,
+  secondary, gadget, suit, appearance, tag & emotes, HQ, challenges) > weapon list per slot > a weapon's attachments
+  & upgrades > camo; suit > part > tiers; appearance > part options / colours; tag (a form); HQ; challenges.
+  Focusing a row previews it (`resetDrafts` then `row.preview`: weapon in hand, attachments, camo, look, suit),
+  locked items too; A equips / buys (then equips) / opens; B pops a page. Owned choices save at once. Touch: a tap
+  on a row not focused previews it, a tap on the focused row (or the action bar) acts.
 - Theme (`styles.css` `:root`): dark green palette (`--accent` #38e08c, `--gold` credits), condensed font stack;
   main menu = stacked logo + `.menu-item` list; `TabView(tabs, { side: true })` = vertical icon nav (no bumper
-  glyphs; LB / RB still cycle through `cycle`).
+  glyphs; LB / RB still cycle through `cycle`). 2.3 compact pass at the end of the file (32 px rows, 17 px titles,
+  narrower Play / Settings so the operator shows).
 - Every menu is a `Screen` on the `ScreenManager` stack. `FocusNav` is shared: any element with `data-focus`
   is navigable; `data-adjust` elements take left/right as `nav-adjust`; `data-capture-nav` elements take all
   directions as `nav-dir`; confirm fires `nav-confirm` then `click`; `data-wrap` containers wrap.
@@ -325,8 +335,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   momentum. Enemies keep stepped turns (explicit facing). Frame-rate independent (60 vs 120 Hz parity tested).
 - `player/movement.ts` (pure): `targetSpeed(mag, stance, localX, localZ)`, `SprintGate` (toggle / hold, ends
   when the stick drops), `pickTraversal` (step <= 0.65 m, vault <= 1.25 m and thin, mantle <= 1.8 m, hop over gaps
-  when sprinting), `noiseRadius(speed, crouched, sprinting)` (sneak < 1 m .. sprint 18 m). Crouched targets are
-  seen at 0.6x the distance.
+  when sprinting), `noiseRadius(speed, crouched, sprinting)` (2.3: sneak, crouch walk and a slow walk 0; crouch
+  run ~2 m, jog ~3.4 m, sprint 9 m). `PlayerController.steps`: 'silent' while an override drives the step (cover
+  glides and moves along cover, climbing, vaults, attached), 'crouched' for a cover-to-cover run; footsteps only
+  when grounded (`PF.silent` carries it for co-op clients). Crouched targets are seen at 0.6x the distance.
 - Kneel = crouched and still. There is no free jump: `TraversalController` (`player/traversal.ts`) probes ahead
   (5 Hz, for the HUD prompt) and on traverse plays a committed step / vault / mantle / drop / hop, timed by speed
   and carrying momentum out (in stride). Footstep noise goes to `EnemyManager.hear` (investigate).
@@ -512,6 +524,20 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   step (`updateAwareness`), `calmDecide` drives patrol (`PatrolWalker`: `SquadSlot.route` / post with glances),
   look at the stimulus, walk to it (`goTo`: straight or A*), search sweeps (`searchPoint`, `searchSlot`). Inputs:
   `hear(x, z, radius)`, `hearGunfire`, `radio(delay)`, `searchAt` (bodies / lights, phase 3b), `alert()`.
+- 2.3: `EnemyManager.hear` muffles a noise to `MUFFLE` (0.45) of its reach when a wall is between it and the
+  listener (one ray at head height; low cover does not muffle). Guards hold longer (`PATROL.wait` 9 s, glances every
+  14 s, `searchLook` 3 s, `hearLook` 2.4 s, slower patrol / investigate / search paces). Combat: `ALERT.lostSight` 12 s,
+  `searchTime` 60 s, and after combat a guard never returns to unaware (`AlertMachine.fought`: cooldown for good).
+  Radio window: a sighting (not a loud alert) is shouted to guards within `ALERT.shout` 8 m at once (`ctx.shout`)
+  and radioed after `ALERT.callIn` 2.5 s (x reaction; `Enemy.radioT`, bark `callIn`); a spotter taken out first
+  tells nobody; gunfire / a hit / a flashbang (`alert()`, `loudAlert`) calls in at once. `PlayerRef.spotted`: set
+  when a guard in combat sees that player (`reportSighting`, a sighting alert), cleared when nobody is in combat;
+  takedowns skip a guard at level alert while the attacker is spotted (`GameState.spottedLocal`, host check on
+  client `td`, `PF.spotted` in snapshots). Tactics: from sight into cover first (85%), attack -> cover after 2.5-4.5 s,
+  longer peek cycles (4.2 s, up to 5), slower strafes; out of sight (stealth) an `advancing` bound to cover closer to
+  the believed position (`pickAdvance`, 3+ m closer, <= 12 m away), a 2.5 s hold, then the next; the last stretch is
+  walked (`ADVANCE_PACE`); cover is picked against `knownPt` (never the real position out of sight). One bullet to the
+  head kills any guard but a heavy (`Enemy.applyDamage`).
 - 2.0.1 tuning (guards calmer): `PATROL.wait` 5.5 s, glances every 10 s; `ENEMY_CALM_MOTION` (60 deg/s turns while
   not in combat / searching); `noiseSuspicion` rises with the square of closeness (edge noises < suspicious);
   `noiseRadius` walk 1 + 1.3 v; the close-range sense from behind ignores a sneak / crouched approach;
@@ -539,7 +565,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `MapLayout.switches` toggle a `group`; both call `EnemyManager.lightsOut` (nearest calm enemy investigates, others
   `notice`). Flashlights: `World` adds `FLASHLIGHTS` (4) `kind 'flashlight'` lights on dark maps; the manager gives
   them to enemies with `torchWanted` (investigating / searching / hunting unseen where `ambientAt` < 0.35) and
-  `placeTorch` moves them each step; `LightRig` re-places pooled flashlights every frame (no bulb).
+  `placeTorch` moves them each step; `LightRig` re-places pooled flashlights every frame (no bulb). The beam stops at
+  geometry: `EnemyManager.beamReach` (centre + four edge rays, round robin, 15 Hz per torch) sets `LightDef.reach`,
+  the pool light's `range`.
 - Alarms (3b): `ai/alarm.ts` (pure) panels from `MapLayout.alarms`; `assignAlarm` (2 Hz) sends the nearest alerted
   enemy (`runAlarm`, run speed) to work it `ALARM.holdTime` -> `onAlarm` -> reinforcements (`reinforce`, at the
   `MapLayout.reinforce` point furthest from the player). The player disables a panel with a hold.
@@ -659,7 +687,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - `GameOptions.suit / hq / gadget` (single player from the save in `main.ts`; the look via `suitLook`); GameState
   applies `target.armorMul`, `weapons.handsMul`, `takedown.handsMul`, gadget counts, `marks.max`, footstep noise
   x `suit.noise`, `sonarMul`, radar blips, restock on respawn. `ui/screens/loadoutScreen.ts` (Gear / HQ tabs;
-  presets on Weapons); Play screen Loadout row. Save v6. `?loadout=a,b` for autostart (tests).
+  root page presets); Play screen Loadout row. Save v6; v7 (2.3) issues the 9mm SD (`STARTER_UNLOCKS`) as the
+  default primary with the 552 secondary (a loadout / preset still on 552 + P45 moves to it). `?loadout=a,b` for
+  autostart (tests).
 
 ## Combat around cover
 - Player hit volumes are split (`PlayerTarget`: legs, torso, head) and follow crouch and lean; head x1.3, legs

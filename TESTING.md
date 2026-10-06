@@ -293,6 +293,19 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 2.3.0 - Guards, noise, loadout (phone + controller)
+- [ ] Crouch walking, a slow walk, moving in cover and climbing past a guard's back do not alert him; a sprint is heard
+      only nearby, and less through a wall.
+- [ ] A guard who spots you: take him out within ~2 s and nobody else comes; leave him and the squad arrives.
+- [ ] After a fight guards search for a minute, then stay watchful (never back to "Must have been nothing" calm).
+- [ ] In a fight guards take cover and fight from it; out of sight they move up cover to cover.
+- [ ] Spotted, no takedown prompt on guards in combat; co-op: a hidden partner still gets takedowns.
+- [ ] Flashlights never light the room behind a wall.
+- [ ] New profile starts with the 9mm SD; a single headshot drops a guard (not a heavy).
+- [ ] Loadout: lists left, operator centre, stats right; focusing previews (locked too); A equips / buys, Y
+      customises, B steps back; by touch, tap to preview, tap again (or the action bar) to act.
+- [ ] Menus fit without scrolling where they used to (Play, Settings categories).
+
 ## 2.2.0 - Silent But Deadly menus (phone + controller)
 - [ ] Installed icon and name read "Silent But Deadly"; an existing save (level, credits, unlocks) is still there.
 - [ ] Main menu: green theme, stacked logo, the menu list fits without scrolling; every screen uses the same style.

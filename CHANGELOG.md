@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.3.0 - Quieter moves, smarter guards, the Blacklist loadout
+- Noise: sneaking, crouch walking and a slow walk are silent, and so is everything in and around cover, climbing,
+  vaults and ladders; a jog carries about 3 m and a sprint 9 m (was 18 - the whole map no longer hears you); walls
+  muffle a noise to under half its reach; soft landings are quieter.
+- Guards hold their posts longer, glance round less, take longer to go and look, and walk when they investigate or
+  search. In a fight they get behind cover first and fight from it; when they lose you they move up on where they
+  last saw you from cover to cover instead of running about. They stay in combat longer, search for a minute and
+  never relax again - they stay on edge for the rest of the operation.
+- Radio: a guard who spots you shouts to anyone right beside him and radios the rest after a couple of seconds -
+  take him out before that and nobody else hears of it (gunfire or a hit is called in at once).
+- Takedowns: a guard in combat who knows you are there cannot be taken by surprise. Each co-op player counts on their
+  own: if one is spotted, the others can still take guards down.
+- Flashlights stop at walls.
+- Weapons: the 9mm SD is issued from the start and is the default primary (the 552 as secondary); saves still on the
+  old issue kit move to it. One round to the head drops any guard but a heavy.
+- Loadout redesigned after Splinter Cell: Blacklist's gear screen: lists on the left (breadcrumb, title, what each
+  item costs or needs, a check on what is equipped), the operator in the middle, the details on the right (Power,
+  Accuracy, Range, Control with the change in green / red, magazine, silenced, upgrades), actions along the bottom
+  (A equip / buy, Y customise, B back). Primary / secondary > weapon > attachments & upgrades > camo; suit parts,
+  appearance, tag, HQ and challenges. Focusing anything shows it on the operator, locked items too.
+- Menus are more compact.
+
 ## 2.2.0 - Silent But Deadly
 - The game is now called Silent But Deadly (title, install name, icon: green tri-lens goggles). Saves, exports and
   co-op rooms from Shoulder Strike carry over unchanged.
