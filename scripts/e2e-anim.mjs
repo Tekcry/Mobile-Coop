@@ -302,9 +302,9 @@ try {
       const q = rig.graph.pose;
       // per 60 Hz frame, normalised to 0.1. Channels whose spec'd timing needs more (smooth bell curves,
       // not pops): the ankle pitches (31 / 35, fLPitch / fRPitch) 0.15 - standing from a kneel releases a
-      // 1.2 rad toe flex within the 0.28 s stance change; weapon pitch (15, wpPitch) 0.12 - the 0.7 rad
-      // low ready -> aim within the 120-200 ms raise
-      const allow = (i) => (i === 31 || i === 35 ? 0.15 : i === 15 ? 0.12 : 0.1);
+      // 1.2 rad toe flex within the 0.28 s stance change; weapon pitch (15, wpPitch) 0.14 - the 0.8 rad
+      // low ready (muzzle ~45 deg down) -> aim within the 120-200 ms raise
+      const allow = (i) => (i === 31 || i === 35 ? 0.15 : i === 15 ? 0.14 : 0.1);
       if (prev)
         for (let i = 0; i < q.length; i++) {
           const n = (Math.abs(q[i] - prev[i]) * 0.1) / allow(i);

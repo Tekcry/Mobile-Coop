@@ -271,7 +271,7 @@ try {
     return { stillIn, t };
   });
   assert(cv.stillIn && within(cv.t, 0.2, 0.32), `sticky exit: a brief push stays, a firm push leaves after ${f2(cv.t)} s (~0.25 s)`);
-  // sprinting into cover slides in
+  // sprinting at cover, then pressing cover once it is in reach: slides in (never on its own)
   cv = await G(() => {
     const H = window.__h;
     const st = window.__app.input.state;
@@ -279,6 +279,7 @@ try {
     st.move.y = 1;
     st.tap('dash');
     H.until(() => window.__app.current.player.controller.sprinting && window.__app.current.player.controller.speed > 3.5, 2);
+    H.until(() => !!window.__app.current.cover.candidate, 2);
     st.tap('cover');
     let slid = false;
     H.until(() => {
@@ -288,7 +289,7 @@ try {
     st.move.y = 0;
     return { slid, state: H.cover().state };
   });
-  assert(cv.slid && cv.state === 'in', `sprinting into cover slides in (${cv.state})`);
+  assert(cv.slid && cv.state === 'in', `cover pressed while sprinting at it slides in (${cv.state})`);
 
   // low cover: aiming at the edge, looking past it, leans round it crouched (not over the top)
   cv = await G(() => {
