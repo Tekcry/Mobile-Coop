@@ -7,6 +7,8 @@
   (ambient occlusion, light shafts, reflections, bloom, depth of field, shadows, lamps, post-effect resolution,
   textures), 20 s each - the device's own GPU says what costs most.
 - Every benchmark line now counts hitches (frames over 50 ms) and the shaders compiled during the run.
+- The benchmark result saves itself to Settings > Feedback the moment it finishes; the report scrolls inside its
+  window (it outgrew a phone screen) and Copy text puts it on the clipboard.
 - Benchmark runs hold the frame governor off (it was adapting during "current settings" runs, so those measured a
   moving target).
 

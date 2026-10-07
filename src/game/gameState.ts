@@ -1131,15 +1131,27 @@ export class GameState implements AppState {
     document.body.classList.remove('photo-mode');
     this.paused = true;
     const text = b.lines.join('\n');
+    // saved as a performance note at once (3.1.2: nothing to tap on a long report)
+    const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: __APP_VERSION__, graphics: b.runs.map((r) => r.label).join(', '), device: navigator.userAgent.slice(0, 160) });
+    e.category = 'performance';
+    e.text = `Benchmark - ${text}`;
+    void this.app.feedback.save(e).then(
+      () => this.app.toasts.show('Benchmark saved to Settings > Feedback', 'ok'),
+      () => this.app.toasts.show('The benchmark could not be saved', 'warn'),
+    );
     this.app.screens.push(
-      new Dialog('Benchmark', text, [
+      new Dialog('Benchmark (saved to Settings > Feedback)', text, [
         {
-          label: 'Save to feedback',
+          label: 'Copy text',
+          // (inside the tap: the clipboard needs the gesture)
           action: () => {
-            const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: __APP_VERSION__, graphics: b.runs.map((r) => r.label).join(', '), device: navigator.userAgent.slice(0, 160) });
-            e.category = 'performance';
-            e.text = `Benchmark - ${text}`;
-            void this.app.feedback.save(e).then(() => this.cb.quit());
+            const done = (ok: boolean): void => {
+              this.app.toasts.show(ok ? 'Copied: paste it anywhere' : 'Copy is not allowed here: Settings > Feedback > Copy as text', ok ? 'ok' : 'warn');
+              this.cb.quit();
+            };
+            const cb = navigator.clipboard;
+            if (cb) cb.writeText(`Benchmark - ${text}`).then(() => done(true), () => done(false));
+            else done(false);
           },
         },
         { label: 'Done', primary: true, action: () => this.cb.quit() },

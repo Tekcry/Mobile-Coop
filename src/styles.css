@@ -573,6 +573,14 @@ body {
   color: var(--muted);
   line-height: 1.4;
   white-space: pre-line;
+  /* (a long report scrolls inside the dialog; its buttons stay on screen) */
+  max-height: 60vh;
+  overflow-y: auto;
+  user-select: text;
+  -webkit-user-select: text;
+}
+.dialog {
+  max-height: 90vh;
 }
 .dialog-buttons {
   display: flex;

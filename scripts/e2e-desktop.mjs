@@ -105,10 +105,17 @@ try {
   await page.waitForFunction(() => /average \d+ fps, 1% low \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? ''), null, { timeout: 240000 });
   const bt = await G(() => ({ text: document.querySelector('.dialog').textContent, hudHidden: document.body.classList.contains('photo-mode') }));
   assert(!bt.hudHidden, `the benchmark reports (${bt.text.match(/Warehouse[^)]*\)/)?.[0]})`);
-  await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Save to feedback/.test(b.textContent)).click());
-  await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
+  // (3.1.2: saved on its own as it finishes; the report scrolls inside the dialog and has Copy text)
   const saved = await G(async () => (await window.__app.feedback.all()).find((e) => e.category === 'performance')?.text ?? '');
-  assert(/Benchmark - Warehouse/.test(saved), 'the result is saved as a performance note');
+  assert(/Benchmark - Warehouse/.test(saved), 'the result is saved as a performance note without a tap');
+  const dlg = await G(() => {
+    const m = document.querySelector('.dialog-msg');
+    const cs = getComputedStyle(m);
+    return { scroll: cs.overflowY, copy: [...document.querySelectorAll('.dialog .btn')].some((b) => /Copy text/.test(b.textContent)) };
+  });
+  assert(dlg.scroll === 'auto' && dlg.copy, `the report scrolls and offers Copy text (${JSON.stringify(dlg)})`);
+  await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
+  await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   // every preset (3.1 ladder, desktop: Low .. Epic): five flights, one line each
   await G(() => window.__app.benchmark('presets'));
   await page.waitForFunction(() => (document.querySelector('.dialog')?.textContent?.match(/average \d+ fps/g) ?? []).length === 5, null, { timeout: 480000 });
