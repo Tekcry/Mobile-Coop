@@ -4,7 +4,7 @@ Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-
 ## Status
 | Phase | Status | Commit |
 | --- | --- | --- |
-| 0 Speed gears, instant stop, roll | done (waiting for review) | see Phase 0 below |
+| 0 Speed gears, instant stop, roll | done (waiting for review) | 0bce184 |
 | 1 Networked movement state | not started | |
 | 2 Split jump, wall jump, pipe legs-up / inverted | not started | |
 | 3 Rappel, fences | not started | |
