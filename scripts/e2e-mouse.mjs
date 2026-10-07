@@ -1,6 +1,7 @@
 // PC keyboard + mouse: the mouse is captured (pointer lock) in a match. A click on the game captures it
 // (that click never fires) and hides the "click to capture" hint; captured, moving looks, left fires,
-// the wheel swaps weapons; losing the capture (Esc) pauses; clicking Resume captures it again.
+// the wheel steps the speed gear (3.2.0; weapons are Q / X); losing the capture (Esc) pauses; clicking Resume
+// captures it again.
 import { launch, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -15,6 +16,7 @@ const st = () =>
       fire: window.__app.input.state.down('fire'),
       yaw: g.player.cam.yaw,
       weapon: g.weapons.index,
+      gear: g.player.controller.gear,
       paused: !g.simulating,
       mode: window.__app.input.mode,
     };
@@ -43,11 +45,31 @@ try {
   await page.mouse.up();
   await page.waitForTimeout(100);
   assert(!(await st()).fire, 'releasing the button stops firing');
-  const w0 = (await st()).weapon;
+  const s0 = await st();
+  // wheel up: a faster gear, wheel down: a slower one (one notch, one gear); the weapon stays
+  await page.mouse.wheel(0, -120);
+  await page.waitForTimeout(300);
+  const up = await st();
   await page.mouse.wheel(0, 120);
+  await page.waitForTimeout(300);
+  await page.mouse.wheel(0, 120);
+  await page.waitForTimeout(300);
+  const down = await st();
+  assert(up.gear === Math.min(6, s0.gear + 1) && down.gear === Math.max(1, s0.gear - 1) && down.weapon === s0.weapon, `wheel steps the speed gear (${s0.gear} -> ${up.gear} -> ${down.gear}), not the weapon (${s0.weapon} -> ${down.weapon})`);
+  // X swaps weapons now
+  await page.keyboard.press('KeyX');
   await page.waitForTimeout(1200);
   s = await st();
-  assert(s.weapon !== w0, `wheel swaps weapons (${w0} -> ${s.weapon})`);
+  assert(s.weapon !== s0.weapon, `X swaps weapons (${s0.weapon} -> ${s.weapon})`);
+  // = / - step the gear too
+  const g0 = s.gear;
+  await page.keyboard.press('Equal');
+  await page.waitForTimeout(150);
+  const g1 = (await st()).gear;
+  await page.keyboard.press('Minus');
+  await page.waitForTimeout(150);
+  const g2 = (await st()).gear;
+  assert(g1 === Math.min(6, g0 + 1) && g2 === g0, `= / - step the gear (${g0} -> ${g1} -> ${g2})`);
   await page.evaluate(() => document.exitPointerLock());
   await page.waitForTimeout(300);
   s = await st();

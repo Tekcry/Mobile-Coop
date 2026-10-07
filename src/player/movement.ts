@@ -2,9 +2,10 @@
  * Pure stealth-operative movement maths (analog speed bands per stance, direction penalties while
  * aiming, eased velocity, the sprint, contextual traversal and footstep noise). Unit-tested.
  */
-import { MOVEMENT } from '../config/movement';
+import { MOVEMENT, NOISE_QUIET } from '../config/movement';
 import { springStep } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
+import { gearCap, stickCurve } from './speedGears';
 
 /**
  * Movement stance: standing / crouched free movement (the body faces where it goes), aiming (strafe-
@@ -15,13 +16,32 @@ export type Stance = 'stand' | 'crouch' | 'ads' | 'adsCrouch' | 'cover' | 'cover
 const band = (m: number, m0: number, m1: number, v0: number, v1: number): number => v0 + (v1 - v0) * ((m - m0) / (m1 - m0));
 
 /**
- * Target ground speed (m/s), analog on stick magnitude. Crouched: sneak -> crouch walk -> crouch run;
- * standing: walk -> jog. Aiming applies the strafe / backstep penalties relative to the aim (local x
- * right, z forward); otherwise the body faces the travel direction and there is no penalty.
+ * Target ground speed (m/s), analog on stick magnitude. With a speed `gear` (the player, 3.2.0 Chaos Theory gears):
+ * the gear's cap for the stance x the stick curve; aiming is capped at `adsSpeed` / `adsCrouchSpeed`; the sprint is
+ * gear 6 standing. Without one (the 2.x bands): crouched sneak -> crouch walk -> crouch run; standing walk -> jog.
+ * Aiming applies the strafe / backstep penalties relative to the aim (local x right, z forward); otherwise the body
+ * faces the travel direction and there is no penalty.
  */
-export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1, M = MOVEMENT): number {
+export function targetSpeed(mag: number, stance: Stance, localX = 0, localZ = 1, M = MOVEMENT, gear?: number): number {
   const m = Math.max(0, Math.min(1, mag));
   if (m < 0.05) return 0;
+  if (gear !== undefined) {
+    const c = stickCurve(m);
+    switch (stance) {
+      case 'stand':
+        return gearCap(gear, false) * c;
+      case 'crouch':
+        return gearCap(gear, true) * c;
+      case 'ads':
+        return Math.min(gearCap(gear, false), M.adsSpeed) * c * directionMult(localX, localZ, M);
+      case 'adsCrouch':
+        return Math.min(gearCap(gear, true), M.adsCrouchSpeed) * c * directionMult(localX, localZ, M);
+      case 'sprint':
+        return gearCap(6, false);
+      default:
+        break;
+    }
+  }
   switch (stance) {
     case 'stand':
       return m < M.walkBand ? band(m, 0, M.walkBand, 0, M.walkSpeed) : band(m, M.walkBand, 1, M.walkSpeed, M.jogSpeed);
@@ -168,14 +188,14 @@ export function pickTraversal(p: TraversalProbe): Traversal {
 
 /**
  * Footstep noise radius (m) that alerts enemies: a crouched sneak is near silent, crouch walking quiet,
- * standing jog audible, sprinting loud.
+ * standing jog audible, sprinting loud. 3.2.0: silent up to `NOISE_QUIET` (crouched gears 1-4, standing gears 1-2).
  */
 export function noiseRadius(speed: number, crouched: boolean, sprinting: boolean, M = MOVEMENT): number {
   if (speed < 0.15) return 0;
   if (sprinting) return 9;
   // sneaking, crouch walking and a slow walk are silent; a crouch run and a jog carry a few metres
-  if (crouched) return speed <= M.crouchWalkSpeed + 0.05 ? 0 : 1 + (speed - M.crouchWalkSpeed) * 1.5;
-  return speed <= M.walkSpeed + 0.05 ? 0 : 1.2 + (speed - M.walkSpeed) * 1.6;
+  if (crouched) return speed <= NOISE_QUIET.crouch ? 0 : 1 + (speed - M.crouchWalkSpeed) * 1.5;
+  return speed <= NOISE_QUIET.stand ? 0 : 1.2 + (speed - M.walkSpeed) * 1.6;
 }
 
 /** Landing bands by fall height (m): under `roll` a soft landing, up to `heavy` a roll that keeps the momentum,

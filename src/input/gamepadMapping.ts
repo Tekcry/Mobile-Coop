@@ -51,8 +51,9 @@ const BTN_THRESHOLD = 0.5;
 /**
  * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled
  * separately. A cover / cover-to-cover, B crouch (stand / crouch at high cover), Y traverse + interact
- * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder, View goggles,
- * D-pad up the gadget (hold to aim), D-pad down the gadget wheel (hold), right an emote, left a co-op ping.
+ * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder. 3.2.0: D-pad up /
+ * down the speed gear, right the gadget (hold to aim), left the gadget wheel (the source: a tap is a co-op ping, a
+ * hold opens the wheel); View goggles (the source: a tap is goggles, a hold an emote).
  */
 export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'cover'],
@@ -67,11 +68,40 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.SELECT, 'vision'],
   [PAD.LS, 'dash'],
   [PAD.RS, 'shoulderSwap'],
-  [PAD.UP, 'grenade'],
-  [PAD.RIGHT, 'quick2'],
-  [PAD.DOWN, 'gadgetWheel'],
-  [PAD.LEFT, 'ping'],
+  [PAD.UP, 'speedUp'],
+  [PAD.DOWN, 'speedDown'],
+  [PAD.RIGHT, 'grenade'],
+  [PAD.LEFT, 'gadgetWheel'],
 ];
+
+/**
+ * Tap or hold on one button (pure; times in seconds): released before `hold` is a tap (reported on release), held
+ * to `hold` is a hold (reported once per press).
+ */
+export class TapHold {
+  private downAt = -1;
+  private fired = false;
+
+  constructor(readonly hold: number) {}
+
+  update(down: boolean, now: number): 'tap' | 'hold' | null {
+    if (down) {
+      if (this.downAt < 0) {
+        this.downAt = now;
+        this.fired = false;
+      }
+      if (!this.fired && now - this.downAt >= this.hold) {
+        this.fired = true;
+        return 'hold';
+      }
+      return null;
+    }
+    const was = this.downAt >= 0 && !this.fired;
+    this.downAt = -1;
+    this.fired = false;
+    return was ? 'tap' : null;
+  }
+}
 
 /** Menu binding. Directions from the d-pad; the left stick is merged in mapPad. */
 export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [

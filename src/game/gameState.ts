@@ -44,7 +44,7 @@ import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
 import { MOBILE_PRESET_IDS, PRESET_IDS, VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
-import { MOVEMENT } from '../config/movement';
+import { CT, MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
@@ -853,6 +853,9 @@ export class GameState implements AppState {
   }
 
   private landSeen = 0;
+  /** Forward rolls already made noise for; alive last step (a respawn resets the speed gear). */
+  private rollSeen = 0;
+  private aliveWas = true;
   /** Loudest one-off noise (glass, kicks, landings) and how long it still shows on the noise meter (s). */
   private evNoise = 0;
   private evNoiseT = 0;
@@ -911,9 +914,12 @@ export class GameState implements AppState {
       return;
     }
     this.time += dt;
+    // back from down / dead (respawn, revive, co-op): the speed gear starts over
+    if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
+    this.aliveWas = this.player.alive;
     // the gadget wheel / a remote view (sticky cam, drone) takes the input: the operator gets none
     const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
-    // quick emotes on the d-pad (right, down, left)
+    // quick emotes (View held on a pad, J / K / L)
     if (inp.pressed('ping') && this.net && !this.pvp && this.player.alive) this.sendPing();
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
@@ -939,6 +945,12 @@ export class GameState implements AppState {
     ti.sprintHeld = inp.down('dash');
     const offer = this.takedown.offer !== null || this.execute.ready;
     this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none', this.cover.exitDir);
+    // the Chaos Theory forward roll is heard close by
+    if (this.traversal.forwardRolls !== this.rollSeen) {
+      this.rollSeen = this.traversal.forwardRolls;
+      this.eventNoise(CT.rollNoise);
+      this.enemyMgr?.hear(this.player.position, CT.rollNoise);
+    }
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
     this.weapons.setStowed((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null);
     this.player.cam.attach = this.traversal.cameraPreset;
@@ -1665,6 +1677,9 @@ export class GameState implements AppState {
       w.set('takedown', ok ? (off.lethalOnly ? 'Lethal takedown' : 'Takedown') : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
     const ctl = this.player.controller;
+    // speed gear: pips by the tactical strip after a change; on touch the rocker shows it all the time
+    this.hud.setGear(ctl.gear, ctl.gears.changes);
+    this.app.input.touch.setGear(ctl.gear);
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     // cover-to-cover marker on the target face
     const tg = st === 'in' ? c.target : null;

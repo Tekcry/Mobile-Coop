@@ -1,5 +1,27 @@
 # Changelog
 
+## 3.2.0 - Chaos Theory movement
+Phase 0 - speed gears, instant stop, roll:
+- Speed gears: six paces, stepped one at a time (controller D-pad up / down, mouse wheel or = / - on PC, the new speed
+  rocker on touch). Crouched 0.5 / 0.9 / 1.3 / 1.8 / 2.3 / 2.8 m/s, standing 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0 m/s;
+  the stick scales the gear's pace, a keyboard or a stick at its rim gives the full pace. Every spawn and respawn
+  starts in gear 3; crouching and standing keep the gear. Sprint is gear 6 standing while it lasts; aiming is still
+  capped at the aim pace. The HUD shows SPD pips by the light meter for 1.5 s after a change; the touch rocker shows
+  them all the time.
+- Footstep noise: crouched gears 1-4 and standing gears 1-2 are silent; faster gears are heard further.
+- Chaos Theory feel on free movement: letting go of the stick stops the operator dead on the next step (the pose
+  settles to idle in 0.12 s, the feet stay planted), starts reach full pace within 0.08 s, direction and gear changes
+  take effect at once, no planted pivots, the body turns at up to 720 deg/s. Cover, cover-to-cover, traversal and
+  the guards move as before (the guards' tuning is now pinned by a test).
+- Forward roll: tap crouch while moving standing in gear 5-6 (or sprinting) - a committed 3 m roll in 0.7 s that
+  comes up crouched; guards within 2 m hear it.
+- Controller: D-pad right is now the gadget (hold to aim, release to throw); D-pad left tapped pings (co-op), held
+  opens the gadget wheel; View tapped is goggles, held plays emote 1. PC: the mouse wheel changes the speed gear
+  (weapons stay on Q / X); new bindable keys Speed up (=) / Speed down (-).
+- Touch layout v4: the speed rocker (right of the move stick's zone) is added to every preset and the layout editor;
+  saved layouts keep every placement.
+- Debug Tune panel: a Chaos Theory table (stop blend, start time, turn rate, roll time / length).
+
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
   device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few

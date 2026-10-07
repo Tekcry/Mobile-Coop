@@ -9,6 +9,8 @@ import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
 import { SprintGate, EasedVelocity, targetSpeed, landingKind, LANDING, type LandingKind, type Stance } from './movement';
+import { GearState, clampGear } from './speedGears';
+import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 
@@ -49,6 +51,9 @@ export interface PlayerInput {
   aiming: boolean;
   /** Reloading / swapping: moving slows (`reloadMult`). */
   reloading: boolean;
+  /** Speed gear up / down pressed this step (3.2.0). */
+  gearUp?: boolean;
+  gearDown?: boolean;
 }
 
 /** Motion caps for cover-driven moves: snappier so the standoff controller stays stable; a jog along the wall
@@ -58,6 +63,9 @@ const COVER_MOTION = { ...MOVEMENT, accelMax: 6, decelMax: 7, jerkMax: 60, velGa
 /** Cover snap glide: the path is already eased (cover controller), the driver just follows it. */
 const GLIDE_MOTION = { ...MOVEMENT, accelMax: 40, decelMax: 40, jerkMax: 2000, velGain: 40, brakeGain: 40, startShift: 0, rootDip: 0.01, pivotMinSpeed: 99 };
 
+/** Character controller acceleration cap (m/s^2) on Chaos Theory free movement: a full stop from a sprint in one
+ *  60 Hz step (the usual 80 m/s^2 takes two or three). */
+const CT_MAX_ACCEL = 600;
 const UP = new Vector3(0, 1, 0);
 const DOWN = new Vector3(0, -1, 0);
 
@@ -87,6 +95,11 @@ export class PlayerController {
   kneeling = false;
   private stillT = 0;
   readonly sprint = new SprintGate();
+  /** Chaos Theory speed gears (3.2.0): kept through stance changes, back to the spawn gear on respawn. Tests can
+   *  start on another gear with `?gear=N`. */
+  readonly gears = new GearState(flags.gear !== null ? clampGear(flags.gear) : undefined);
+  /** Free movement uses the Chaos Theory feel (instant stop / start; `MotionInput.ct`) this step. */
+  ct = false;
   /** Root motion: jerk-limited velocity, gait clock, starts/stops/stepped turns/pivots. */
   readonly motion: MotionDriver;
   /** Kept for callers: mirrors the driver's velocity; `reset` also resets the driver. */
@@ -206,6 +219,16 @@ export class PlayerController {
     this.crouchToggled = false;
   }
 
+  /** End a committed move crouched (the Chaos Theory forward roll): the crouch toggle is set. */
+  setCrouchToggle(): void {
+    this.crouchToggled = true;
+  }
+
+  /** Current speed gear (1..6). */
+  get gear(): number {
+    return this.gears.gear;
+  }
+
   /** Current capsule height (crouch-aware). */
   get capsuleHeight(): number {
     return this.height;
@@ -269,6 +292,9 @@ export class PlayerController {
     this.prevPhase = this.motion.phase;
     this.landT = Math.max(0, this.landT - dt);
     this.steps = !ov ? 'free' : ov.run ? 'crouched' : 'silent';
+    // speed gears step by one per press (kept through stances, cover and traversal)
+    if (input.gearUp) this.gears.step(1);
+    if (input.gearDown) this.gears.step(-1);
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
@@ -346,7 +372,8 @@ export class PlayerController {
           : this.crouched
             ? 'crouch'
             : 'stand';
-    let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz) * this.speedMul * this.stanceMul);
+    // free movement: the speed gear's cap x the stick (cover moves keep their own paces)
+    let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz, T, ov ? undefined : this.gears.gear) * this.speedMul * this.stanceMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
@@ -370,6 +397,11 @@ export class PlayerController {
     // override's yaw (cover) or the aim
     mi.faceTravel = !aiming && !ov?.velocity && ov?.yaw === undefined;
     mi.yaw = ov?.yaw ?? camYaw;
+    // Chaos Theory feel on free movement only: cover glides / moves and cover-to-cover runs keep their tuning
+    this.ct = mi.ct = !ov;
+    // the character controller follows the driver's velocity within a step (Chaos Theory stops and starts land on
+    // the step; the 2.x moves are jerk-limited well inside the usual cap anyway)
+    this.cc.maxAcceleration = this.ct ? CT_MAX_ACCEL : 80;
     if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
     this.vel.x = this.motion.vx;
     this.vel.z = this.motion.vz;

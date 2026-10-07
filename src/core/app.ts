@@ -145,6 +145,8 @@ export class App {
     keyLabels.traverse = bindLabel(k, 'traverse');
     keyLabels.crouch = bindLabel(k, 'crouch');
     keyLabels.reload = bindLabel(k, 'reload');
+    keyLabels.speedUp = bindLabel(k, 'speedUp');
+    keyLabels.speedDown = bindLabel(k, 'speedDown');
   }
 
   /** The GPU the browser renders with (the unmasked renderer string where allowed). */

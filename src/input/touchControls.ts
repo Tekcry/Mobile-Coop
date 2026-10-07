@@ -34,7 +34,26 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   execute: { id: 'execute', action: 'execute', size: 76, icon: 'execute', label: 'Execute (when ready)' },
   takedown: { id: 'takedown', action: 'interact', size: 72, icon: 'interact', label: 'Takedown (when on offer: tap knocks out, hold is lethal)' },
   ping: { id: 'ping', action: 'ping', size: 56, icon: 'mark', label: 'Ping (co-op)' },
+  speed: { id: 'speed', action: null, size: 56, icon: 'dash', label: 'Speed (gear up / down)' },
 };
+
+/** The speed rocker is a tall pill (up half, the six gear pips, down half); every other control is round. */
+export const ROCKER_TALL = 1.9;
+
+/** Box (px) of a control drawn at `size`. */
+export function controlBox(id: TouchControlId, size: number): { w: number; h: number } {
+  return { w: size, h: id === 'speed' ? size * ROCKER_TALL : size };
+}
+
+/** Inner markup of a control (layout editor handles too). */
+export function controlHtml(id: TouchControlId): string {
+  if (id === 'speed') {
+    let pips = '';
+    for (let g = 6; g >= 1; g--) pips += `<i data-g="${g}"></i>`;
+    return `<div class="tc-sp-up">${icon('jump', 18)}</div><div class="tc-sp-pips">${pips}</div><div class="tc-sp-down">${icon('crouch', 18)}</div>`;
+  }
+  return icon(TOUCH_DEFS[id].icon, 26);
+}
 
 /** What the contextual action button does right now. */
 export interface TouchAction {
@@ -96,12 +115,11 @@ export class TouchControls {
     this.layer.className = 'touch-layer';
     this.layer.hidden = true;
     for (const id of TOUCH_CONTROL_IDS) {
-      const def = TOUCH_DEFS[id];
       const el = document.createElement('div');
       const stick = id === 'move' || id === 'look';
       el.className = `tc tc-${id}` + (stick ? ' tc-stick' : ' tc-btn');
       el.dataset.control = id;
-      el.innerHTML = stick ? `<div class="tc-knob"></div>${id === 'look' ? icon('look', 20) : ''}` : icon(def.icon, 26);
+      el.innerHTML = stick ? `<div class="tc-knob"></div>${id === 'look' ? icon('look', 20) : ''}` : controlHtml(id);
       this.layer.appendChild(el);
       this.elements.set(id, el);
     }
@@ -163,6 +181,17 @@ export class TouchControls {
     return this.context;
   }
 
+  private shownGear = 0;
+
+  /** The speed rocker's pips: gears up to the current one lit. */
+  setGear(gear: number): void {
+    if (gear === this.shownGear) return;
+    this.shownGear = gear;
+    const pips = this.elements.get('speed')?.querySelectorAll<HTMLElement>('.tc-sp-pips i');
+    pips?.forEach((p) => p.classList.toggle('on', Number(p.dataset.g) <= gear));
+    this.elements.get('speed')?.setAttribute('data-gear', String(gear));
+  }
+
   setPressedVisual(id: TouchControlId, on: boolean): void {
     this.elements.get(id)?.classList.toggle('active', on);
   }
@@ -173,9 +202,9 @@ export class TouchControls {
     for (const id of TOUCH_CONTROL_IDS) {
       const el = this.elements.get(id)!;
       const p = t.layout[id];
-      const size = TOUCH_DEFS[id].size * p.scale * t.scale;
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
+      const box = controlBox(id, TOUCH_DEFS[id].size * p.scale * t.scale);
+      el.style.width = `${box.w}px`;
+      el.style.height = `${box.h}px`;
       el.style.setProperty('--tc-alpha', String(p.alpha ?? 1));
       el.style.left = `calc(var(--sal) + (100% - var(--sal) - var(--sar)) * ${p.x})`;
       el.style.top = `calc(var(--sat) + (100% - var(--sat) - var(--sab)) * ${p.y})`;
@@ -222,6 +251,8 @@ export class TouchControls {
       const def = TOUCH_DEFS[id];
       const role: PointerRole = { kind: 'button', id, lx: e.clientX, ly: e.clientY, ox: e.clientX, oy: e.clientY };
       this.pointers.set(e.pointerId, role);
+      // the speed rocker: the half pressed steps the gear (a tap each)
+      if (id === 'speed') this.state.tap((e.target as HTMLElement).closest('.tc-sp-down') ? 'speedDown' : 'speedUp');
       // the action button (use) acts on release
       if (def.action) this.state.set(`touch-${id}`, def.action, true);
       target.classList.add('active');

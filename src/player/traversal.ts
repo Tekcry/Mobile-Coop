@@ -1,7 +1,8 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
-import { MOVEMENT } from '../config/movement';
+import { CT, MOVEMENT } from '../config/movement';
 import { pickTraversal, type Traversal } from './movement';
+import { gearCap } from './speedGears';
 import type { Player } from './player';
 import { hyp2 } from '../core/mathx';
 import type { AttachMachine, ExitReason } from './attach';
@@ -50,6 +51,10 @@ export class TraversalController {
   kind: Traversal | 'drop' | 'hop' | 'roll' = 'none';
   /** The committed vault goes through a window (a low dive). */
   private throughWindow = false;
+  /** The roll is the Chaos Theory forward roll (a crouch tap at speed; ends crouched), not a landing roll. */
+  private ctRoll = false;
+  /** Chaos Theory forward rolls started (GameState makes their noise). */
+  forwardRolls = 0;
   /** Landing counter last seen (a new landing in the roll band starts a roll). */
   private landings = 0;
   t = 0;
@@ -281,7 +286,7 @@ export class TraversalController {
       this.path(k);
       pose.traverse = this.throughWindow ? 'windowVault' : this.kind;
       pose.traverseT = k;
-      c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' };
+      c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' || this.ctRoll };
       if (k >= 1) {
         const inStride = this.speed0 >= 1;
         // a standing climb settles; in stride the move lands straight into the gait it came from
@@ -291,8 +296,11 @@ export class TraversalController {
           c.motion.carry(this.dir.x * this.speed0, this.dir.z * this.speed0);
           if (this.sprint0) c.resumeSprint();
         }
+        // the forward roll comes up crouched
+        if (this.ctRoll) c.setCrouchToggle();
         this.kind = 'none';
         this.throughWindow = false;
+        this.ctRoll = false;
         pose.traverse = 'none';
         pose.traverseT = 0;
       }
@@ -317,6 +325,11 @@ export class TraversalController {
       ac.hint = null;
       ac.lower = null;
       return false;
+    }
+    // Chaos Theory: crouch tapped standing at speed (gear 5-6 or sprinting) is a committed forward roll
+    if (ac.input.dropPressed && this.canForwardRoll() && this.startRoll(true)) {
+      c.swallowCrouch = true;
+      return this.fixedUpdate(0, false, false);
     }
     this.probeT -= dt;
     if (this.probeT <= 0 || jumpPressed) {
@@ -366,11 +379,23 @@ export class TraversalController {
     return false;
   }
 
-  /** Roll along the landing velocity (or the facing), as far as there is room. */
-  private startRoll(): boolean {
+  /** A crouch tap now would roll: standing, free, moving at gear 5-6 (or sprinting) with the stick pushed. */
+  private canForwardRoll(): boolean {
     const c = this.player.controller;
-    let dx = c.landVX;
-    let dz = c.landVZ;
+    if (c.crouched || c.override || !c.grounded || this.player.ads) return false;
+    if (c.gear < CT.rollGear && !c.sprinting) return false;
+    const w = c.wishDir;
+    return c.speed >= CT.rollMinSpeed && hyp2(w.x, w.z) > 0.3;
+  }
+
+  /**
+   * Roll along the landing velocity (or the facing), as far as there is room. `forward`: the Chaos Theory forward
+   * roll along the travel direction (`CT.rollLength` in `CT.rollTime`, comes up crouched).
+   */
+  private startRoll(forward = false): boolean {
+    const c = this.player.controller;
+    let dx = forward ? c.motion.vx : c.landVX;
+    let dz = forward ? c.motion.vz : c.landVZ;
     let sp = hyp2(dx, dz);
     if (sp < 0.5) {
       dx = Math.sin(c.yaw);
@@ -380,15 +405,22 @@ export class TraversalController {
       dx /= sp;
       dz /= sp;
     }
-    const hit = this.ray(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (ROLL_LENGTH + 0.4), c.pos.y + 0.45, c.pos.z + dz * (ROLL_LENGTH + 0.4)));
-    const len = hit === null ? ROLL_LENGTH : Math.min(ROLL_LENGTH, hit - 0.4);
+    const full = forward ? CT.rollLength : ROLL_LENGTH;
+    const hit = this.ray(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (full + 0.4), c.pos.y + 0.45, c.pos.z + dz * (full + 0.4)));
+    const len = hit === null ? full : Math.min(full, hit - 0.4);
     if (len < ROLL_MIN) return false;
     this.kind = 'roll';
     this.throughWindow = false;
+    this.ctRoll = forward;
     this.t = 0;
-    this.speed0 = Math.max(sp, 2.5);
+    // the forward roll comes out at the crouched pace of the gear it went in at
+    this.speed0 = forward ? Math.min(sp, gearCap(c.gear, true)) : Math.max(sp, 2.5);
     this.sprint0 = false;
-    this.dur = TRAVERSE_TIME.roll;
+    this.dur = forward ? CT.rollTime : TRAVERSE_TIME.roll;
+    if (forward) {
+      this.forwardRolls++;
+      c.cancelSprint();
+    }
     this.dir.set(dx, 0, dz);
     this.from.copyFrom(c.pos);
     this.to.set(c.pos.x + dx * len, c.pos.y, c.pos.z + dz * len);
@@ -451,6 +483,7 @@ export class TraversalController {
 
   reset(): void {
     this.kind = 'none';
+    this.ctRoll = false;
     this.hint = null;
     this.attachCtl.reset();
   }

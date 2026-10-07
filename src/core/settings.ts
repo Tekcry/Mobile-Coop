@@ -24,9 +24,10 @@ export const TOUCH_CONTROL_IDS = [
   'gadgets',
   'takedown',
   'ping',
+  'speed',
 ] as const;
-/** Touch layout format version (2: camera stick, contextual action button; 3: takedown button). */
-export const TOUCH_LAYOUT_VERSION = 3;
+/** Touch layout format version (2: camera stick, contextual action button; 3: takedown button; 4: speed rocker). */
+export const TOUCH_LAYOUT_VERSION = 4;
 export type TouchControlId = (typeof TOUCH_CONTROL_IDS)[number];
 
 /** Control centre in normalised screen space (0..1) and per-control scale. */
@@ -173,6 +174,8 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   gadgets: { x: 0.515, y: 0.62, scale: 1 },
   takedown: { x: 0.6, y: 0.62, scale: 1 },
   ping: { x: 0.57, y: 0.09, scale: 1 },
+  // 3.2.0 speed rocker (gear up / down): just right of the move stick's zone
+  speed: { x: 0.445, y: 0.67, scale: 1 },
 };
 
 /** Claw: fire and aim move up to the top-right (index finger), the right thumb stays on the camera. */
@@ -356,7 +359,7 @@ export function sanitizeSettings(raw: unknown): Settings {
   const layout = {} as Record<TouchControlId, ControlPlacement>;
   // layouts from before the camera stick: keep customised placements of controls that still exist;
   // untouched (v1 default) ones and the new controls take the new defaults
-  // (v2 -> v3 only adds controls: every stored placement is kept)
+  // (v2 -> v3 and v3 -> v4 only add controls: every stored placement is kept, the new one takes its default spot)
   const fromV1 = num(t.layoutVersion, 1, 1, 99) < 2;
   for (const id of TOUCH_CONTROL_IDS) {
     const p = sub(lay, id);

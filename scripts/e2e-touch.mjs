@@ -90,7 +90,44 @@ try {
     Object.fromEntries([...document.querySelectorAll('.touch-layer .tc')].filter((e) => !e.hidden && !e.classList.contains('tc-hidden')).map((e) => [e.className.match(/tc-(\w+)/g).find((c) => c !== 'tc-btn' && c !== 'tc-stick')?.slice(3), e.getBoundingClientRect().width])),
   );
   assert(sizes.fire >= 76, `fire button ${sizes.fire}px`);
-  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'gadgets', 'dash', 'ads', 'vision']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
+  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'gadgets', 'dash', 'ads', 'vision', 'speed']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
+  // 3.2.0 speed rocker: the up half steps the gear up, the down half down; its pips always show the gear, the HUD
+  // pips show after a change
+  const gearNow = () => page.evaluate(() => ({ gear: window.__app.current.player.controller.gear, pips: document.querySelectorAll('.tc-speed .tc-sp-pips i.on').length, hud: document.querySelector('.tac-gear')?.classList.contains('show') ?? false }));
+  const tapIn = async (sel) => {
+    const b = await page.locator(sel).boundingBox();
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    await frames(page, 4);
+  };
+  const g0 = await gearNow();
+  assert(g0.pips === g0.gear, `rocker pips show the gear (${g0.pips} lit, gear ${g0.gear})`);
+  await tapIn('.tc-speed .tc-sp-up');
+  const g1 = await gearNow();
+  await tapIn('.tc-speed .tc-sp-down');
+  await tapIn('.tc-speed .tc-sp-down');
+  const g2 = await gearNow();
+  assert(g1.gear === g0.gear + 1 && g1.pips === g1.gear && g1.hud && g2.gear === g0.gear - 1 && g2.pips === g2.gear, `rocker: up ${g0.gear} -> ${g1.gear}, down -> ${g2.gear}; HUD pips shown after a change (${g1.hud})`);
+  await page.waitForTimeout(2200);
+  assert(!(await gearNow()).hud, 'HUD gear pips fade after 1.5 s');
+  // forward roll by touch: top gear on the rocker, push the stick, tap crouch
+  for (let i = 0; i < 4; i++) await tapIn('.tc-speed .tc-sp-up');
+  await page.evaluate(() => { const g = window.__app.current; const p = g.player; p.controller.teleport(new p.controller.pos.constructor(-10, 0, -14), Math.PI / 2); p.cam.yaw = Math.PI / 2; });
+  await frames(page, 4);
+  const rolls0 = await page.evaluate(() => window.__app.current.traversal.forwardRolls);
+  const endR = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 70 });
+  await page.waitForFunction(() => window.__app.current.player.controller.speed > 3, null, { timeout: 8000 }).catch(() => {});
+  const cr = await page.locator('.tc-crouch').boundingBox();
+  await touch(page, 'touchStart', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 70, id: 0 }, { x: cr.x + cr.width / 2, y: cr.y + cr.height / 2, id: 7 }]);
+  await frames(page, 2);
+  await touch(page, 'touchEnd', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 70, id: 0 }]);
+  await page.waitForFunction((r) => window.__app.current.traversal.forwardRolls > r, rolls0, { timeout: 6000 }).catch(() => {});
+  await endR();
+  const rolled = await page.evaluate(() => window.__app.current.traversal.forwardRolls);
+  assert(rolled === rolls0 + 1, `touch: crouch at gear 6 while moving rolls (${rolled - rolls0})`);
+  await page.waitForFunction(() => window.__app.current.traversal.kind === 'none', null, { timeout: 6000 }).catch(() => {});
+  await page.evaluate(() => { const c = window.__app.current.player.controller; c.gears.set(4); });
+  await frames(page, 4);
+  if (await page.evaluate(() => window.__app.current.player.controller.crouched)) await tapIn('.tc-crouch');
   // the action button is only for "use": hidden with nothing in reach
   const actHidden = await page.evaluate(() => document.querySelector('.tc-action').classList.contains('tc-hidden'));
   assert(actHidden, 'action button hidden with nothing to use');

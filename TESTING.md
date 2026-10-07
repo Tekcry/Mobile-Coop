@@ -289,9 +289,35 @@ Controls:
 
 ## PC mouse (1.3.2) - Chrome, Edge, Firefox, Safari on a desktop
 - [ ] Start Free Roam with a mouse click: the cursor disappears and moving the mouse looks around straight away (if the browser refuses, "Click to capture the mouse" shows and one click on the game captures it without firing).
-- [ ] Left button fires, right button aims, the wheel swaps weapons, WASD / Space / C / Shift / E / R work.
+- [ ] Left button fires, right button aims, the wheel steps the speed gear (3.2.0; Q / X swap weapons), WASD / Space / C / Shift / E / R work.
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
+
+## 3.2.0 phase 0 - Chaos Theory locomotion: speed gears, instant stop, roll (phone + controller + PC)
+Proving Grounds (Free Roam), open ground south west of the spawn:
+- [ ] Spawn: the operator is in gear 3 (a brisk walk, 2.0 m/s); the HUD shows the SPD pips by the light meter for a
+  moment after each change, then they fade. On the phone the rocker's pips always show the gear.
+- [ ] Controller: D-pad up / down step one gear each press (1..6, no wrap). Full stick in each gear, standing and
+  crouched: six clearly different paces (crouched 0.5 .. 2.8, standing 0.8 .. 5.0 m/s); half stick is about half.
+- [ ] Phone: tap the rocker's top half / bottom half: one gear each tap, the pips follow; the move stick at its rim
+  gives the gear's pace. The rocker sits right of the move stick's zone and does not get in the thumb's way
+  (Default, Claw and Left-handed layouts; the layout editor moves and resizes it).
+- [ ] PC: the mouse wheel up / down and = / - step the gear (Settings > Mouse & Keyboard can rebind = / -); Q / X
+  swap weapons (the wheel no longer does).
+- [ ] Release the stick at any gear: the operator stops dead (no slide, no extra step forward); the feet do not skate;
+  the body settles to idle within a blink (~0.12 s). Starting again is immediate. Reversing at speed: no planted
+  pivot, straight off the other way. Turning sharply: the body snaps round (720 deg/s).
+- [ ] Crouch / stand while moving keeps the gear.
+- [ ] Gear 5 or 6 (or sprinting), moving standing: tap crouch (B / C / the crouch button) = a forward roll, ~3 m in
+  0.7 s, coming up crouched; a guard 2 m away hears it, one 4 m away does not. Gear 1-4: crouch just crouches.
+- [ ] Noise (debug overlay noise meter / guards): crouched gears 1-4 and standing gears 1-2 make no footstep noise;
+  standing gear 3 and up do.
+- [ ] Controller remap: D-pad right = gadget (hold aims, release throws); D-pad left tap = co-op ping, held = the
+  gadget wheel; View tap = goggles, View held = emote 1. Settings > Accessibility > Controls lists it.
+- [ ] Guards walk, turn and run exactly as in 3.1 (their tuning is pinned).
+- [ ] Cover moves, cover-to-cover runs, ladders, ledges and vaults feel as in 3.1 (the Chaos Theory feel applies only to
+  free movement).
+- [ ] An existing touch layout keeps every control where it was after the update and gains the rocker.
 
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
@@ -663,8 +689,9 @@ Gameplay mapping:
 - [ ] RT fire (analog threshold), LT aim (hold or toggle per setting); aim assist slows near targets on Standard/High, off when disabled.
 - [ ] RB / LB next / previous weapon (RB marks while aiming); X reload (hold: next weapon); A take / leave cover and
       cover-to-cover; B crouch; Y traverse / use / takedown (hold: lethal) / Execute when ready.
-- [ ] L3 sprint; R3 shoulder swap; View goggles (night vision / sonar).
-- [ ] D-pad up gadget (hold aims, release throws); D-pad down gadget wheel (hold); right / left emotes.
+- [ ] L3 sprint; R3 shoulder swap; View tap goggles (night vision / sonar), View held emote.
+- [ ] D-pad up / down speed gear; D-pad right gadget (hold aims, release throws); D-pad left tap ping (co-op), held
+      gadget wheel.
 - [ ] In cover: A leaves (or to the marked cover), Y vaults low cover, LT peeks / leans, RT blind-fires, A at an
       outside edge swings round the corner, pushing into an inside corner turns.
 - [ ] Start pauses (single player) / opens the menu without pausing (co-op).

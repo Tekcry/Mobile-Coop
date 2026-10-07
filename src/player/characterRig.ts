@@ -92,6 +92,8 @@ export interface RigPose {
   phase?: number;
   motion?: MotionState;
   motionT?: number;
+  /** Chaos Theory instant stop (3.2.0): blend to idle over this (s), a swing left from moving lands within it. */
+  quickStop?: number;
   accelFwd?: number;
   accelSide?: number;
   velX?: number;
@@ -888,6 +890,7 @@ export class CharacterRig {
     i.phase = s.phase ?? -1;
     i.motion = s.motion ?? '';
     i.motionT = s.motionT ?? 0;
+    i.quickStop = s.quickStop ?? 0;
     i.accelFwd = s.accelFwd ?? 0;
     i.accelSide = s.accelSide ?? 0;
     i.intent = s.intent ?? 0;
@@ -958,6 +961,7 @@ export class CharacterRig {
     pin.restX = s.restX ?? 0;
     pin.restZ = s.restZ ?? 0;
     pin.reach = (this.p.thigh.len + this.p.calf.len) * 0.62;
+    pin.quickStop = s.quickStop ?? 0;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down

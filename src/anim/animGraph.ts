@@ -119,6 +119,8 @@ export interface AnimInput {
   /** Motion driver state and time in it ('' when there is no driver: enemies, remotes). */
   motion: MotionState | '';
   motionT: number;
+  /** Chaos Theory instant stop (3.2.0): the locomotion blends out to idle over this many seconds (0 = the usual). */
+  quickStop: number;
   /** Root acceleration in the body frame (m/s^2): forward, right. */
   accelFwd: number;
   accelSide: number;
@@ -175,6 +177,7 @@ export function defaultInput(): AnimInput {
     phase: -1,
     motion: '',
     motionT: 0,
+    quickStop: 0,
     accelFwd: 0,
     accelSide: 0,
     intent: 0,
@@ -482,7 +485,9 @@ export class AnimGraph {
     if (i.phase >= 0) this.phase = i.phase;
     else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed, undefined, lateralShare(i)))) * dt) % 1;
     const ph = this.phase;
-    this.moveW = approach(this.moveW, smoothstep(i.speed / 0.22), 0.08, dt);
+    // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
+    const moveTarget = smoothstep(i.speed / 0.22);
+    this.moveW = approach(this.moveW, moveTarget, i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
     if (dl > 0.1 && i.speed > 0.05) {
       this.dirX = approach(this.dirX, i.localX / dl, 0.18, dt);
@@ -601,7 +606,10 @@ export class AnimGraph {
     // anticipation: a first-order (not spring) response so it moves on the first frame
     this.intentLean += (clamp(i.intent, -1, 1) * 0.1 - this.intentLean) * (1 - Math.exp(-dt / 0.05));
     const lean = this.accelLean.step(clamp(i.accelFwd * 0.025, -0.14, 0.14), 14, dt) + this.intentLean;
-    const roll = this.accelRoll.step(clamp(-i.accelSide * 0.025, -0.08, 0.08), 12, dt);
+    // (a Chaos Theory sprint turns at 720 deg/s: its roll is held a little lower so the sprint's hunch and the turn
+    // still bank within 8 deg)
+    const rollMax = i.quickStop > 0 ? 0.08 - 0.03 * this.dashS : 0.08;
+    const roll = this.accelRoll.step(clamp(-i.accelSide * 0.025, -rollMax, rollMax), 12, dt);
     src[CH.pelPitch] = src[CH.pelPitch]! + lean;
     src[CH.spPitch] = src[CH.spPitch]! - lean * 0.45;
     src[CH.pelRoll] = src[CH.pelRoll]! + roll;

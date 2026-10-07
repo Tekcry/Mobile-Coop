@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { emptyPlannerInput, FootPlanner } from '../src/anim/footPlanner';
 import { emptyMotionInput, MotionDriver, stepLength } from '../src/anim/motion';
-import { MOVEMENT } from '../src/config/movement';
+import { CT, MOVEMENT } from '../src/config/movement';
 
 /** Drive a planner from a MotionDriver at a render rate; returns per-frame records. */
-function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>, t: number) => void, hz = 120) {
+function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>, t: number) => void, hz = 120, quickStop = 0) {
   const d = new MotionDriver(0);
   const p = new FootPlanner();
   const pi = emptyPlannerInput();
@@ -35,6 +35,7 @@ function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>,
     pi.duty = 0.63;
     pi.cycleTime = sp > 0.05 ? (2 * stepLength(sp)) / sp : 1;
     pi.liftH = 0.065;
+    pi.quickStop = quickStop;
     p.update(pi);
     if (p.L.landed) landings++;
     if (p.R.landed) landings++;
@@ -68,6 +69,45 @@ function maxPlantedSlide(frames: ReturnType<typeof simulate>['frames']): number 
   }
   return worst;
 }
+
+describe('foot planner: Chaos Theory instant stop (3.2.0)', () => {
+  it('a swing left over from moving sets down within CT.stopBlend; planted feet stay locked (< 1 cm)', () => {
+    let swinging = 0;
+    for (const release of [1.0, 1.07, 1.13, 1.21]) {
+      let releasedAt = -1;
+      const { frames } = simulate(
+        2,
+        (i, t) => {
+          i.ct = true;
+          i.faceTravel = true;
+          if (t < release) i.vz = MOVEMENT.jogSpeed;
+          else if (releasedAt < 0) releasedAt = t;
+        },
+        120,
+        CT.stopBlend,
+      );
+      const k0 = Math.round(releasedAt * 120);
+      // the root stops on the release step
+      expect(Math.hypot(frames[k0 + 1]!.x - frames[k0]!.x, frames[k0 + 1]!.z - frames[k0]!.z)).toBeLessThan(1e-6);
+      // the foot in the air at the release lands within the blend (a settling step may follow, in place)
+      const f0 = frames[k0]!;
+      if (!f0.lc || !f0.rc) {
+        swinging++;
+        let down = -1;
+        for (let k = k0 + 1; k < frames.length; k++) {
+          if (frames[k]!.landed > frames[k0]!.landed) {
+            down = (k - k0) / 120;
+            break;
+          }
+        }
+        expect(down).toBeGreaterThanOrEqual(0);
+        expect(down).toBeLessThanOrEqual(CT.stopBlend + 2 / 120);
+      }
+      expect(maxPlantedSlide(frames)).toBeLessThan(0.01);
+    }
+    expect(swinging).toBeGreaterThan(0);
+  });
+});
 
 describe('foot planner', () => {
   it('walking: planted feet do not slide (< 1 cm), feet alternate and never cross', () => {

@@ -14,13 +14,13 @@ const UI_TAPS: Record<string, ButtonAction> = {
 };
 
 const MOUSE_RAD_PER_PX = 0.0024;
-/** Mouse wheel weapon swaps are spaced at least this far apart (ms): one notch, one swap. */
+/** Mouse wheel speed gear steps are spaced at least this far apart (ms): one notch, one gear. */
 const WHEEL_GAP = 140;
 
 /**
  * Keyboard and mouse (PC browsers). In gameplay the mouse is captured with pointer lock: the click that
  * starts or resumes a match captures it, so does any click on the game while it is free (that click
- * never fires). Captured: move = look, left = fire, right = aim, wheel = weapons. Losing the capture in
+ * never fires). Captured: move = look, left = fire, right = aim, wheel = speed gear (3.2.0; weapons are Q / X). Losing the capture in
  * a match (Esc, alt-tab) opens the pause menu. Mouse buttons use pointer events: the engine cancels
  * pointerdown on the canvas, which suppresses the legacy mousedown.
  */
@@ -117,7 +117,8 @@ export class KeyboardMouseSource {
         const now = performance.now();
         if (now - this.wheelT < WHEEL_GAP || e.deltaY === 0) return;
         this.wheelT = now;
-        this.state.tap(e.deltaY > 0 ? 'swapNext' : 'swapPrev');
+        // wheel up: a faster gear; down: a slower one
+        this.state.tap(e.deltaY > 0 ? 'speedDown' : 'speedUp');
       },
       { passive: false },
     );

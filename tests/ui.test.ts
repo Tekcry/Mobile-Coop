@@ -68,7 +68,7 @@ describe('touch layout migration (v1 -> v2)', () => {
         },
       },
     });
-    expect(s.touch.layoutVersion).toBe(3);
+    expect(s.touch.layoutVersion).toBe(4);
     expect(s.touch.layout.move).toEqual(d.touch.layout.move);
     expect(s.touch.layout.fire).toEqual(d.touch.layout.fire);
     expect(s.touch.layout.reload).toEqual({ x: 0.5, y: 0.5, scale: 1 });
@@ -87,7 +87,20 @@ describe('touch layout migration (v1 -> v2)', () => {
     expect(s.touch.layout.mark).toEqual({ x: 0.2, y: 0.2, scale: 1.2 });
     expect(s.touch.layout.look).toEqual({ x: 0.8, y: 0.8, scale: 1 });
     expect(s.touch.layout.takedown).toEqual(d.touch.layout.takedown);
-    expect(s.touch.layoutVersion).toBe(3);
+    expect(s.touch.layoutVersion).toBe(4);
+  });
+  it('v3 -> v4 keeps every stored placement and adds the speed rocker at its default spot', () => {
+    const d = defaultSettings();
+    const stored = { mark: { x: 0.2, y: 0.2, scale: 1.2 }, look: { x: 0.8, y: 0.8, scale: 1 }, takedown: { x: 0.5, y: 0.3, scale: 0.9, alpha: 0.7 }, move: { x: 0.1, y: 0.6, scale: 1.1 } };
+    const s = sanitizeSettings({ touch: { layoutVersion: 3, layout: stored } });
+    expect(s.touch.layout.mark).toEqual(stored.mark);
+    expect(s.touch.layout.look).toEqual(stored.look);
+    expect(s.touch.layout.takedown).toEqual(stored.takedown);
+    expect(s.touch.layout.move).toEqual(stored.move);
+    expect(s.touch.layout.speed).toEqual(d.touch.layout.speed);
+    // right of the move stick's zone (the left 42%), clear of it by its centre
+    expect(d.touch.layout.speed.x).toBeGreaterThan(0.42);
+    expect(s.touch.layoutVersion).toBe(4);
   });
   it('accessibility settings are clamped', () => {
     const s = sanitizeSettings({ access: { hudScale: 9, shake: -1, subtitles: 'no', holdToggle: true } });

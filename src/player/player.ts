@@ -13,7 +13,7 @@ import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 import { matchFov } from '../core/display';
-import { MOVEMENT } from '../config/movement';
+import { CT, MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { TraverseKind } from '../anim/animGraph';
 
@@ -208,6 +208,8 @@ export class Player {
       ads: this.ads,
       aiming: this.aiming || inp.down('fire'),
       reloading: this.reload >= 0,
+      gearUp: inp.pressed('speedUp'),
+      gearDown: inp.pressed('speedDown'),
     };
     if (!this.alive) pi.moveX = pi.moveY = 0;
     c.fixedUpdate(dt, pi, this.cam.yaw);
@@ -307,6 +309,7 @@ export class Player {
     rp.phase = c.renderPhase;
     rp.motion = m.state;
     rp.motionT = m.stateT;
+    rp.quickStop = c.ct ? CT.stopBlend : 0;
     const by = c.renderYaw;
     rp.accelFwd = m.ax * Math.sin(by) + m.az * Math.cos(by);
     rp.accelSide = m.ax * Math.cos(by) - m.az * Math.sin(by);

@@ -107,6 +107,42 @@ try {
   await press(page, BTN.A);
   await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
   assert(await page.evaluate(() => document.querySelector('.touch-layer')?.hidden === true), 'touch controls hidden in gamepad mode');
+  // 3.2.0 controls: D-pad up / down the speed gear, D-pad left held opens the gadget wheel (a tap does not), View tap
+  // goggles, View held an emote
+  const G = (f) => page.evaluate(f);
+  const gear0 = await G(() => window.__app.current.player.controller.gear);
+  await press(page, BTN.UP);
+  const gearUp = await G(() => window.__app.current.player.controller.gear);
+  await press(page, BTN.DOWN);
+  await press(page, BTN.DOWN);
+  const gearDown = await G(() => window.__app.current.player.controller.gear);
+  assert(gearUp === gear0 + 1 && gearDown === gear0 - 1, `d-pad up / down step the speed gear (${gear0} -> ${gearUp} -> ${gearDown})`);
+  const holdBtn = async (b, ms, until) => {
+    await page.evaluate((b) => window.__pad.set(b, 1), b);
+    await page.waitForTimeout(ms);
+    // (the hold is read from the polls: on a slow software-GL frame it lands late)
+    if (until) await page.waitForFunction(until, null, { timeout: 6000 }).catch(() => {});
+    const r = await G(() => ({ wheel: window.__app.current.gadgets.wheelOpen, emote: !!window.__app.current.player.rig.emote }));
+    await page.evaluate((b) => window.__pad.set(b, 0), b);
+    await page.waitForTimeout(150);
+    return r;
+  };
+  await press(page, BTN.LEFT);
+  const tapWheel = await G(() => window.__app.current.gadgets.wheelOpen);
+  const held = await holdBtn(BTN.LEFT, 700, () => window.__app.current.gadgets.wheelOpen);
+  // (time runs slowed while the wheel is open: give the release a moment under software GL)
+  await page.waitForFunction(() => !window.__app.current.gadgets.wheelOpen, null, { timeout: 5000 }).catch(() => {});
+  const shut = await G(() => window.__app.current.gadgets.wheelOpen);
+  assert(!tapWheel && held.wheel && !shut, `d-pad left: a tap leaves the wheel shut, held it opens, released it closes (${tapWheel} / ${held.wheel} / ${shut})`);
+  const v0 = await G(() => window.__app.current.vision.mode);
+  await press(page, BTN.SELECT);
+  await page.waitForTimeout(150);
+  const v1 = await G(() => window.__app.current.vision.mode);
+  assert(v0 === 'off' && v1 === 'night', `View tap: goggles (${v0} -> ${v1})`);
+  const vBefore = await G(() => window.__app.current.vision.mode);
+  const em = await holdBtn(BTN.SELECT, 500, () => !!window.__app.current.player.rig.emote);
+  const v2 = await G(() => window.__app.current.vision.mode);
+  assert(em.emote && v2 === vBefore, `View held: an emote, goggles untouched (${em.emote}, ${vBefore} -> ${v2})`);
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
   await press(page, BTN.B);

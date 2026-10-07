@@ -1,8 +1,7 @@
 import type { App } from '../../core/app';
 import { LAYOUT_PRESETS, TOUCH_CONTROL_IDS, type TouchControlId } from '../../core/settings';
-import { TOUCH_DEFS } from '../../input/touchControls';
+import { TOUCH_DEFS, controlBox, controlHtml } from '../../input/touchControls';
 import { h } from '../dom';
-import { icon } from '../icons';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button } from '../widgets';
@@ -32,7 +31,7 @@ export class LayoutEditorScreen extends Screen {
       const el = h('div', {
         class: `le-handle tc-${id}`,
         focus: true,
-        html: id === 'move' ? '<div class="tc-knob"></div>' : icon(def.icon, 26),
+        html: id === 'move' ? '<div class="tc-knob"></div>' : controlHtml(id),
       });
       el.append(h('span', { class: 'le-label', text: def.label }));
       el.addEventListener('nav-focus', () => this.select(id));
@@ -89,9 +88,9 @@ export class LayoutEditorScreen extends Screen {
     for (const id of TOUCH_CONTROL_IDS) {
       const el = this.handles.get(id)!;
       const p = t.layout[id];
-      const size = TOUCH_DEFS[id].size * p.scale * t.scale;
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
+      const box = controlBox(id, TOUCH_DEFS[id].size * p.scale * t.scale);
+      el.style.width = `${box.w}px`;
+      el.style.height = `${box.h}px`;
       el.style.setProperty('--tc-alpha', String(p.alpha ?? 1));
       el.hidden = this.preview && id === 'fireLeft' && !t.fireLeft;
       el.style.left = `calc(var(--sal) + (100% - var(--sal) - var(--sar)) * ${p.x})`;

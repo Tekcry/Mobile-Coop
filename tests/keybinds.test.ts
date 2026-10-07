@@ -9,6 +9,9 @@ describe('key bindings', () => {
     expect(m.get('ShiftLeft')).toEqual(['dash']);
     expect(m.get('Escape')).toEqual(['pause', 'uiBack']);
     expect(m.get('KeyQ')).toEqual(['swapPrev', 'uiTabPrev']);
+    // 3.2.0 speed gears (the wheel steps them too, fixed in the source)
+    expect(m.get('Equal')).toEqual(['speedUp']);
+    expect(m.get('Minus')).toEqual(['speedDown']);
   });
   it('a key moves from the action that had it (no key on two actions)', () => {
     const b = defaultBinds();

@@ -19,12 +19,16 @@ Blacklist style.
 - `npm run icons` - regenerate procedural PWA icons into `public/icons/`
 - `npm run e2e` - serves `dist/` and runs the headless e2e suites (needs a prior `npm run build`):
   - `scripts/smoke.mjs` boot + console-error check (`--shot=out.png` for a screenshot)
-  - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad
+  - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad; 3.2.0 in a match:
+    D-pad up / down gears, D-pad left tap vs hold (wheel), View tap goggles / hold emote
   - `scripts/e2e-touch.mjs` touch-only: taps menus, floating move stick, rate-based camera stick, drag-look,
-    fire button never moves the camera, control sizes, action button only for "use", take-cover prompt tap, no cover badge in cover, a push away leaves
-  - `scripts/e2e-mouse.mjs` PC mouse capture: click captures (never fires), look, fire, wheel swap, Esc pauses,
-    Resume re-captures
-  - `scripts/e2e-move.mjs` stealth speeds (sneak .. sprint), aim strafe/backstep, sprint toggle, aim ends a sprint, no free jump,
+    fire button never moves the camera, control sizes, action button only for "use", take-cover prompt tap, no cover badge in cover, a push away leaves;
+    3.2.0 speed rocker (up / down halves, pips, HUD pips fade), a forward roll by touch
+  - `scripts/e2e-mouse.mjs` PC mouse capture: click captures (never fires), look, fire, wheel = speed gear (3.2.0),
+    X swaps, = / -, Esc pauses, Resume re-captures
+  - `scripts/e2e-move.mjs` (3.2.0, `gear=none`: spawn gear 3) every gear's speed both stances, stick scaling, gear kept
+    through stances, zero velocity on the release step, planted feet < 2 cm on a stop, forward roll (0.7 s, ~3 m,
+    crouched, 2 m noise) and none at gear 3, aim strafe/backstep, sprint toggle, aim ends a sprint, no free jump,
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-traverse.mjs` Proving Grounds course (north east): ladder bottom / top entry, climb rate, slide, step
     off; drainpipe to a lip, climb up; ledge grab, shimmy rate, jump across, outside corner, climb up, hold-B lower
@@ -40,8 +44,8 @@ Blacklist style.
     auto shoulder, routed cover-to-cover, push-back cancel
   - `scripts/e2e-weapons-carry.mjs` Free Roam loadout: five slots, back guns within 10 deg of the spine in six
     gaits, no clipping (both avatar styles, with a backpack), hands within 2 cm of the grips, swap reach + timing
-  - `scripts/e2e-anim.mjs` quality bars in the running game: first-frame response, 90% speed / stop times, one
-    settling step, pivots, arcs, turn rates, lean into turns, stance and aim raise/lower times, weapon clip
+  - `scripts/e2e-anim.mjs` quality bars in the running game: first-frame response, 3.2.0 Chaos Theory: 95% speed
+    within 0.08 s, a stop on the release step, at most a settling step, no planted pivot, 720 deg/s turns, turn rates, lean into turns, stance and aim raise/lower times, weapon clip
     timings, foot locking (< 1 cm) in seven gaits, pose continuity, flinch, camera lag/blends/bob/drift/sprint
     FOV/stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity (each run from gait phase 0)
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
@@ -172,13 +176,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Bindings (section 7 of 1.3.0): gamepad LS move, RS look, LT aim, RT fire, A `cover` (take / leave /
   cover-to-cover), B `crouch` (stand / crouch at high cover), Y `jump` + `interact` (contextual: an interactable
   in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
-  R3 shoulder, RB/LB weapons (RB `mark` while aiming), D-pad up `grenade` (the gadget: hold aims the arc, release
-  throws), D-pad down `gadgetWheel` (hold), right emote, left `ping` (co-op), View `vision` (goggles);
+  R3 shoulder, RB/LB weapons (RB `mark` while aiming), 3.2.0: D-pad up / down `speedUp` / `speedDown`, right
+  `grenade` (the gadget: hold aims the arc, release throws), left held `gadgetWheel` (`WHEEL_HOLD`, `input/inputState.ts`)
+  / tapped `ping` (co-op), View tapped `vision` (goggles) / held (`SWAP_HOLD`) `quick2` (emote 1) - tap / hold by
+  `TapHold` (`gamepadMapping.ts`, pure) in `GamepadSource`, as X's reload / swap;
   Y also takedown / execute (contextual); in menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise). Keyboard (3.0:
   rebindable, `input/keyBindings.ts` pure: `BINDS` defaults, two inputs per action incl. Mouse 3/4/5, `assignBind`
   moves a key off its old action, `settings.keys`; `KeyboardMouseSource` rebuilds its map when the keys change,
   `captureNext` for the rebinding UI; fixed: Esc / Enter / Backspace / arrows, Q / E menu tabs, 1-8 gadgets, LMB fire,
-  RMB aim, wheel weapons): Space cover, C / Ctrl crouch, Shift sprint, E traverse / interact / takedown, F use, R
+  RMB aim, wheel speed gear (3.2.0)): Space cover, C / Ctrl crouch, Shift sprint, = / - speed gear, E traverse / interact / takedown, F use, R
   reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold), J / K / L emotes, Z ping, V
   shoulder, P pause; mouse look (raw input via `unadjustedMovement` where supported, `mouse.adsMultiplier`).
   In-game key prompts read `ui/prompts.ts` `keyLabels` (set from the bindings). Gamepad look: 30 ms smoothing (acceleration inside the
@@ -192,7 +198,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   prompts (`ui/hud/worldPrompts.ts`), tapped directly. Secondary buttons >= 56 px. Layout: `settings.touch.layout` (`TOUCH_CONTROL_IDS`, per-control `x, y,
   scale, alpha?`), presets `LAYOUT_PRESETS` (default / claw / lefty), `TOUCH_LAYOUT_VERSION` 3 (v1 layouts keep
   customised placements, the old fire stick and untouched controls take the new defaults; v2 -> v3 keeps every
-  stored placement and adds the `takedown` button, shown only while a takedown is on offer, action `interact`). Layout editor: presets,
+  stored placement and adds the `takedown` button, shown only while a takedown is on offer, action `interact`; v3 -> v4
+  (3.2.0) keeps every stored placement and adds the `speed` rocker: a tall pill (`controlBox`, `controlHtml`), the
+  half pressed taps `speedUp` / `speedDown`, six pips from `TouchControls.setGear`). Layout editor: presets,
   size, opacity, thumb-reach overlay, preview.
 - `InputState` merges sources per action (down if any source holds it), latches press edges until consumed,
   and `releaseAll()` blocks still-held buttons until released so state changes never cause phantom presses.
@@ -373,13 +381,33 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 
 ## Movement and camera (stealth operative)
 - Chaos Theory movement (3.2.0, in progress): spec `docs/ct-movement.md`, status `docs/ct-movement-progress.md`.
+- 3.2.0 phase 0 (player free movement only; cover, traversal and enemies keep the rest of this section):
+  speed gears (`player/speedGears.ts` pure, `GEARS` in `config/movement.ts`): 6 gears, spawn / respawn gear 3
+  (`GameState` resets it when the player comes back alive; `?gear=N` for tests, `e2e-lib` adds `gear=4` = the 2.x jog
+  unless a suite names a gear), kept through stance changes; `PlayerController.gears`, `speedUp` / `speedDown`
+  (pad D-pad up / down, wheel + `=` / `-`, touch rocker). Target = gear cap (crouched 0.5 / 0.9 / 1.3 / 1.8 / 2.3 /
+  2.8, standing 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0) x `stickCurve` (dead zone 0.05, linear); `targetSpeed(.., gear)`
+  replaces the stick bands for the player; aiming capped at 1.4 / 1.0; the sprint is gear 6 standing.
+  `NOISE_QUIET` (crouched <= 1.9, standing <= 1.45 m/s silent: crouched gears 1-4, standing 1-2). Chaos Theory feel
+  (`MotionInput.ct`, set by `PlayerController` when no override drives the step; `CT` table + `CT_RANGES` in the
+  Tune panel): stick released = zero velocity on that step (the controller's `maxAcceleration` is 600 then so Havok
+  follows in one step), gait clock frozen, `RigPose.quickStop` = `CT.stopBlend` 0.12 s (the graph's locomotion
+  weight blends out over it; `FootPlanner` sets a swing left from moving down within it, planted feet locked); starts
+  reach 95% within `CT.startTime` 0.08 s (`ctTau` = startTime / 4), direction / gear changes re-target at once, no
+  pivots, travel turns at `CT.turnRate` 720 deg/s (sprint roll lean held to 0.05 rad so the bank stays <= 8 deg).
+  Forward roll: crouch tapped standing at gear >= 5 (or sprinting) while moving >= 1.5 m/s
+  (`TraversalController.canForwardRoll`, the `drop` alias of the press) = `startRoll(true)`: `kind 'roll'`, `ROLL`
+  clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m (shortened by a wall), comes up crouched (`setCrouchToggle`) at the
+  gear's crouched pace; `forwardRolls` -> `GameState` noise `CT.rollNoise` 2 m. HUD: `Hud.setGear` (SPD pips in the
+  tactical strip, `GEARS.pipsShow` 1.5 s after a change); touch rocker `speed` (`TOUCH_LAYOUT_VERSION` 4).
 - All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
   crouched sneak 0.8 / crouch walk 1.8 / crouch run 2.6, standing walk 1.4 / jog 2.8, sprint 5.0 m/s (toggle or
   hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered at the low ready; aiming ends it via
   `cancelSprint`), aiming 1.4 / 1.0 crouched; strafe x0.9
   and backstep x0.75 only while aiming; analog by stick bands (`sneakBand`, `walkBand`, `crouchWalkBand`); cover
   2.3 / 1.25 crouched (a jog along the wall; `COVER_MOTION` never pivots), cover-to-cover run 3.6. Stance times: crouch 0.25 s, kneel 0.3 s, stand 0.28 s.
-  `ENEMY_MOTION` keeps the enemies' slower, weighted tuning.
+  `ENEMY_MOTION` / `ENEMY_CALM_MOTION` keep the enemies' slower, weighted tuning as standalone literals (3.2.0;
+  `tests/motion.test.ts` pins them, so `MOVEMENT` changes never reach the guards).
 - `anim/motion.ts` `MotionDriver` (pure; player and enemies): first-frame response, 90% speed in 0.2-0.35 s
   (sprint <= 0.45), stops in 0.2-0.35 s (`brakeGain`), capped acceleration / deceleration / jerk (never carrying
   more acceleration than the active tuning allows), a gait clock (`phase`) with a heel-strike dip. `faceTravel`

@@ -82,12 +82,17 @@ export interface PlannerInput {
   restZ: number;
   /** Max leg reach from under the hip before a planted foot must step (m). */
   reach: number;
+  /**
+   * Chaos Theory instant stop (3.2.0, s; 0 = off): when moving stops, a foot still in its gait swing sets down within
+   * this instead of finishing the stride at idle pace (planted feet stay locked).
+   */
+  quickStop: number;
   /** Ground height under a point, or null (keeps the root height). */
   ground: ((x: number, z: number, yFrom: number) => number | null) | null;
 }
 
 export function emptyPlannerInput(): PlannerInput {
-  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, ground: null };
+  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, ground: null };
 }
 
 /** Idle stepping thresholds. */
@@ -103,6 +108,10 @@ const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 
 export class FootPlanner {
   readonly L = newFoot();
   readonly R = newFoot();
+  /** Moving on the last update (a quick stop acts on the change to still). */
+  private wasMoving = false;
+  /** A quick stop's swings are still setting down. */
+  private quick = false;
 
   /** Reset both feet to their ideal stance (teleport, spawn). */
   reset(i: PlannerInput): void {
@@ -142,8 +151,21 @@ export class FootPlanner {
   update(i: PlannerInput): void {
     if (!this.L.init) this.reset(i);
     this.L.landed = this.R.landed = false;
+    if (!i.moving && this.wasMoving && i.quickStop > 0) {
+      // instant stop: a swing left over from moving sets down within `quickStop` where it was aiming
+      for (let k = 0; k < 2; k++) {
+        const f = k === 0 ? this.L : this.R;
+        if (f.contact || f.swing < 0) continue;
+        const s = Math.min(0.99, Math.max(0, f.swing));
+        f.stepDur = i.quickStop / (1 - s);
+        f.stepT = s * f.stepDur;
+      }
+      this.quick = true;
+    }
+    this.wasMoving = i.moving;
     if (i.moving) this.updateMoving(i);
     else this.updateIdle(i);
+    if (this.L.contact && this.R.contact) this.quick = false;
   }
 
   // --- moving: contacts from the gait clock -------------------------------------------------
@@ -202,8 +224,9 @@ export class FootPlanner {
     for (const side of [-1, 1] as const) {
       const f = side < 0 ? this.L : this.R;
       if (f.contact) continue;
-      // finish the step; a gait swing left over from moving (slow near a stop) finishes at idle pace
-      if (f.stepDur > PLANNER.idleStepTime * 1.2) {
+      // finish the step; a gait swing left over from moving (slow near a stop) finishes at idle pace (a quick stop
+      // sets it down sooner, already timed above)
+      if (!this.quick && f.stepDur > PLANNER.idleStepTime * 1.2) {
         f.stepDur = PLANNER.idleStepTime;
         f.stepT = Math.max(0, f.swing) * f.stepDur;
       }

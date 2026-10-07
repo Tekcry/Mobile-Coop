@@ -30,6 +30,9 @@ export const BUTTON_ACTIONS = [
   'execute',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',
+  /** Chaos Theory speed gears (3.2.0): one gear up / down. */
+  'speedUp',
+  'speedDown',
   'quick1',
   'quick2',
   'quick3',
