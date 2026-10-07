@@ -13,7 +13,8 @@ async function until(page, fn, arg, timeout = 15000, what = 'condition') {
   try {
     await page.waitForFunction(fn, arg, { timeout, polling: 100 });
   } catch {
-    throw new Error(`timed out waiting for ${what}`);
+    const st = await page.evaluate(() => { const c = window.__app.current; return { state: c?.constructor?.name, mode: c?.opts?.mode, map: c?.opts?.map, net: !!c?.net, ended: c?.isEnded, inGame: window.__coop?.inGame, screens: [...document.querySelectorAll('.screens > *')].map((e) => e.className).join('|') }; }).catch((e) => String(e));
+    throw new Error(`timed out waiting for ${what} (${JSON.stringify(st)})`);
   }
 }
 
@@ -208,7 +209,7 @@ try {
     for (const P of pages().slice(1)) await P.evaluate(() => window.__coop.session.setReady(true));
     await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
     await GA(() => window.__coop.session.startMatch());
-    for (const P of pages()) await until(P, (m) => window.__app.current?.opts.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, 40000, `${mode} match on every page`);
+    for (const P of pages()) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, 40000, `${mode} match on every page`);
     await until(A, (n) => window.__app.current.net.remotes.size === n && [...window.__app.current.net.remotes.values()].every((r) => r.state), pages().length - 1, 15000, 'client states reach the host');
   }
   async function toLobby() {

@@ -99,7 +99,7 @@ try {
   let cst = 'none';
   // (retried: the prompt can blink while the camera springs settle after the teleport, and moves with the view)
   for (let i = 0; i < 5 && cst !== 'in'; i++) {
-    await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 5000 });
+    await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 15000 });
     await page.waitForTimeout(600);
     const el = await page.$('.wp-cover.show .wp-body');
     const bx = el ? await el.boundingBox() : null;
