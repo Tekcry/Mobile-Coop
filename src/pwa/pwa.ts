@@ -21,7 +21,7 @@ export function isStandalone(): boolean {
 
 /**
  * Request fullscreen + landscape lock. Must be called from a user gesture.
- * iOS Safari supports neither on iPhone; the rotate overlay and standalone PWA mode cover it.
+ * iOS Safari supports neither on iPhone; the page is turned to landscape instead (`core/viewRotation.ts`).
  */
 export async function enterFullscreenLandscape(): Promise<void> {
   const el = document.documentElement as HTMLElement & { webkitRequestFullscreen?: () => Promise<void> };
@@ -49,18 +49,6 @@ export async function toggleFullscreen(): Promise<void> {
   } catch {
     /* not supported / denied */
   }
-}
-
-/** Shows a "rotate your device" overlay while in portrait on touch devices. */
-export function setupRotateOverlay(): void {
-  const el = document.getElementById('rotate-overlay');
-  if (!el) return;
-  const mq = window.matchMedia('(orientation: portrait) and (pointer: coarse)');
-  const update = (): void => {
-    el.hidden = !mq.matches;
-  };
-  mq.addEventListener('change', update);
-  update();
 }
 
 /** Block browser gestures that fight with game input (pinch zoom, pull-to-refresh, long-press menus). */

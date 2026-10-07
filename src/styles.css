@@ -17,6 +17,9 @@
   --sar: env(safe-area-inset-right, 0px);
   --sab: env(safe-area-inset-bottom, 0px);
   --sal: env(safe-area-inset-left, 0px);
+  /* viewport units of the page as laid out (3.1.6: swapped while the page is turned to landscape) */
+  --vw: 1vw;
+  --vh: 1vh;
   --font: 'Avenir Next Condensed', 'Roboto Condensed', 'Arial Narrow', 'Helvetica Neue', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
 }
 
@@ -78,13 +81,13 @@ body {
   pointer-events: none;
 }
 .boot-title {
-  font-size: clamp(22px, 5vw, 44px);
+  font-size: clamp(22px, calc(5 * var(--vw)), 44px);
   font-weight: 900;
   letter-spacing: 0.12em;
   color: var(--accent);
 }
 .boot-bar {
-  width: min(60vw, 360px);
+  width: min(calc(60 * var(--vw)), 360px);
   height: 6px;
   background: var(--line);
   border-radius: 3px;
@@ -99,32 +102,6 @@ body {
 #boot-status {
   color: var(--muted);
   font-size: 13px;
-}
-
-/* ---------- rotate overlay ---------- */
-.rotate-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  background: var(--bg);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  font-size: 18px;
-}
-.rotate-overlay[hidden] {
-  display: none;
-}
-.rotate-icon {
-  font-size: 64px;
-  color: var(--accent);
-  animation: spin 2s ease-in-out infinite;
-}
-@keyframes spin {
-  0%, 30% { transform: rotate(0deg); }
-  70%, 100% { transform: rotate(90deg); }
 }
 
 /* ---------- debug overlay ---------- */
@@ -284,7 +261,7 @@ body {
   grid-template-columns: repeat(2, minmax(140px, 200px));
   gap: 8px;
   align-items: stretch;
-  max-height: calc(100vh - var(--sat) - var(--sab) - 110px);
+  max-height: calc(calc(100 * var(--vh)) - var(--sat) - var(--sab) - 110px);
 }
 .main-menu .menu-list > .btn:first-child {
   grid-column: 1 / -1;
@@ -299,7 +276,7 @@ body {
   display: none;
 }
 .main-menu .game-title {
-  font-size: clamp(22px, 3.6vw, 34px);
+  font-size: clamp(22px, calc(3.6 * var(--vw)), 34px);
 }
 .btn-icon {
   display: inline-flex;
@@ -338,7 +315,7 @@ body {
   min-width: 0;
 }
 .game-title {
-  font-size: clamp(24px, 4.6vw, 40px);
+  font-size: clamp(24px, calc(4.6 * var(--vw)), 40px);
   font-weight: 900;
   letter-spacing: 0.1em;
   line-height: 1;
@@ -560,7 +537,7 @@ body {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 18px 20px;
-  max-width: min(460px, 90vw);
+  max-width: min(460px, calc(90 * var(--vw)));
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -574,13 +551,13 @@ body {
   line-height: 1.4;
   white-space: pre-line;
   /* (a long report scrolls inside the dialog; its buttons stay on screen) */
-  max-height: 60vh;
+  max-height: calc(60 * var(--vh));
   overflow-y: auto;
   user-select: text;
   -webkit-user-select: text;
 }
 .dialog {
-  max-height: 90vh;
+  max-height: calc(90 * var(--vh));
 }
 .dialog-buttons {
   display: flex;
@@ -688,8 +665,8 @@ body {
 .le-reach {
   position: absolute;
   bottom: 0;
-  width: 60vh;
-  height: 60vh;
+  width: calc(60 * var(--vh));
+  height: calc(60 * var(--vh));
   border-radius: 50%;
   background: radial-gradient(circle, rgba(70, 200, 120, 0.18) 0 55%, rgba(255, 200, 60, 0.12) 55% 80%, transparent 80%);
   pointer-events: none;
@@ -806,7 +783,7 @@ body {
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
-  max-width: min(92vw, 720px);
+  max-width: min(calc(92 * var(--vw)), 720px);
   gap: 6px;
 }
 .le-info {
@@ -1025,7 +1002,7 @@ body {
   position: absolute;
   top: calc(var(--sat) + 10px);
   left: calc(var(--sal) + 14px);
-  width: min(200px, 26vw);
+  width: min(200px, calc(26 * var(--vw)));
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -1070,7 +1047,7 @@ body {
 }
 .hud-compass {
   position: relative;
-  width: min(300px, 34vw);
+  width: min(300px, calc(34 * var(--vw)));
   height: 22px;
   overflow: hidden;
   background: linear-gradient(90deg, transparent, rgba(0, 0, 0, 0.35) 20%, rgba(0, 0, 0, 0.35) 80%, transparent);
@@ -1122,7 +1099,7 @@ body {
 .hud-objective {
   font-size: 13px;
   font-weight: 700;
-  max-width: 34vw;
+  max-width: calc(34 * var(--vw));
   text-align: center;
 }
 .hud-room {
@@ -1172,8 +1149,8 @@ body {
 .minimap {
   display: block;
   border-radius: 50%;
-  width: min(120px, 26vh) !important;
-  height: min(120px, 26vh) !important;
+  width: min(120px, calc(26 * var(--vh))) !important;
+  height: min(120px, calc(26 * var(--vh))) !important;
 }
 .hud-weapon {
   position: absolute;
@@ -1368,7 +1345,7 @@ body {
   transform: translate(-50%, 0);
 }
 .b-title {
-  font-size: clamp(22px, 5vw, 40px);
+  font-size: clamp(22px, calc(5 * var(--vw)), 40px);
   font-weight: 900;
   letter-spacing: 0.1em;
 }
@@ -1399,7 +1376,7 @@ body {
 .hud-feed {
   position: absolute;
   right: calc(var(--sar) + 12px);
-  top: calc(var(--sat) + min(132px, 30vh));
+  top: calc(var(--sat) + min(132px, calc(30 * var(--vh))));
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -1452,7 +1429,7 @@ body {
   overflow-y: auto;
 }
 .results-title {
-  font-size: clamp(26px, 6vw, 46px);
+  font-size: clamp(26px, calc(6 * var(--vw)), 46px);
   font-weight: 900;
   letter-spacing: 0.14em;
 }
@@ -1645,7 +1622,7 @@ body {
   color: var(--ok);
 }
 .rewards {
-  width: min(520px, 90vw);
+  width: min(520px, calc(90 * var(--vw)));
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -1915,7 +1892,7 @@ body {
   margin-top: 4px;
   display: grid;
   gap: 2px;
-  max-height: 60vh;
+  max-height: calc(60 * var(--vh));
   overflow-y: auto;
 }
 .debug-tune label {
@@ -2054,8 +2031,8 @@ body {
   position: absolute;
   left: 50%;
   top: 50%;
-  width: min(62vh, 360px);
-  height: min(62vh, 360px);
+  width: min(calc(62 * var(--vh)), 360px);
+  height: min(calc(62 * var(--vh)), 360px);
   transform: translate(-50%, -50%);
   border-radius: 50%;
   border: 2px solid rgba(255, 255, 255, 0.18);
@@ -2436,7 +2413,7 @@ body {
   background: linear-gradient(90deg, rgba(3, 6, 7, 0.94) 0%, rgba(3, 6, 7, 0.6) 34%, transparent 58%);
 }
 .main-menu .menu-left {
-  width: min(340px, 40vw);
+  width: min(340px, calc(40 * var(--vw)));
   height: 100%;
   gap: 8px;
 }
@@ -2445,7 +2422,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  font-size: clamp(28px, 5vw, 50px);
+  font-size: clamp(28px, calc(5 * var(--vw)), 50px);
   font-weight: 800;
   letter-spacing: 0.03em;
   line-height: 0.92;
@@ -2576,7 +2553,7 @@ body {
 .tab-strip.side-nav {
   flex-direction: column;
   align-items: stretch;
-  width: clamp(150px, 21vw, 220px);
+  width: clamp(150px, calc(21 * var(--vw)), 220px);
   gap: 2px;
   margin: 0;
   overflow-x: hidden;
@@ -2894,7 +2871,7 @@ body {
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(220px, 33vw) 1fr minmax(190px, 26vw);
+  grid-template-columns: minmax(220px, calc(33 * var(--vw))) 1fr minmax(190px, calc(26 * var(--vw)));
   gap: 10px;
   margin-top: 6px;
 }
@@ -3187,7 +3164,7 @@ body {
   font-size: 14px;
 }
 .tab-strip.side-nav {
-  width: clamp(130px, 18vw, 180px);
+  width: clamp(130px, calc(18 * var(--vw)), 180px);
 }
 .side-nav .tab {
   min-height: 32px;
@@ -3198,11 +3175,11 @@ body {
   min-height: 30px;
 }
 .main-menu .menu-left {
-  width: min(280px, 34vw);
+  width: min(280px, calc(34 * var(--vw)));
 }
 .game-title,
 .main-menu .game-title {
-  font-size: clamp(24px, 3.8vw, 38px);
+  font-size: clamp(24px, calc(3.8 * var(--vw)), 38px);
   margin: 2px 0 6px;
 }
 .btn.menu-item {
@@ -3226,8 +3203,8 @@ body {
   inset: auto;
   left: 50%;
   top: 0;
-  width: min(calc(100vw / var(--ui-scale, 1)), calc(100vh / var(--ui-scale, 1) * 16 / 9));
-  height: calc(100vh / var(--ui-scale, 1));
+  width: min(calc(calc(100 * var(--vw)) / var(--ui-scale, 1)), calc(calc(100 * var(--vh)) / var(--ui-scale, 1) * 16 / 9));
+  height: calc(calc(100 * var(--vh)) / var(--ui-scale, 1));
   transform: scale(var(--ui-scale, 1)) translateX(-50%);
   transform-origin: 0 0;
 }
@@ -3253,9 +3230,6 @@ body {
 .platform-desktop .toasts,
 .platform-desktop .mouse-capture-hint {
   zoom: var(--ui-scale, 1);
-}
-.platform-desktop .rotate-overlay {
-  display: none;
 }
 /* hover states (mouse) */
 .platform-desktop .btn:hover:not(.blocked),
@@ -3399,7 +3373,7 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   background: rgba(0, 0, 0, 0.55);
   color: var(--text);
   font-size: 12px;
-  max-width: 92vw;
+  max-width: calc(92 * var(--vw));
   text-align: center;
   pointer-events: none;
 }
@@ -3471,4 +3445,22 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
   font: 600 14px/1.3 var(--font, system-ui, sans-serif);
   white-space: nowrap;
   pointer-events: none;
+}
+
+/* 3.1.6 forced landscape: a touch device held upright draws the page turned 90 deg clockwise (iOS cannot lock the
+   orientation); its edges map to the screen's: left = top, top = right, right = bottom, bottom = left */
+body.rotated {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: var(--scr-h);
+  height: var(--scr-w);
+  transform-origin: 0 0;
+  transform: translateX(var(--scr-w)) rotate(90deg);
+  --vw: 1vh;
+  --vh: 1vw;
+  --sal: env(safe-area-inset-top, 0px);
+  --sat: env(safe-area-inset-right, 0px);
+  --sar: env(safe-area-inset-bottom, 0px);
+  --sab: env(safe-area-inset-left, 0px);
 }

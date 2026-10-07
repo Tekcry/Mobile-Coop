@@ -27,6 +27,7 @@ import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceT
 import { MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
 import { setAuto } from './settings';
 import { flags } from './flags';
+import { viewHeight, viewWidth } from './viewRotation';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -262,8 +263,8 @@ export class App {
     c.toggle('platform-desktop', p === 'desktop');
     c.toggle('platform-mobile', p === 'mobile');
     c.toggle('can-touch', this.platform.touch);
-    document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, window.innerWidth, window.innerHeight)));
-    document.documentElement.style.setProperty('--hud-inset', `${hudInset(window.innerWidth, window.innerHeight, this.settings.get().video.hudWidth)}px`);
+    document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, viewWidth(), viewHeight())));
+    document.documentElement.style.setProperty('--hud-inset', `${hudInset(viewWidth(), viewHeight(), this.settings.get().video.hudWidth)}px`);
     this.quality?.setMobile(p === 'mobile');
     if (p !== before) {
       this.onPlatform?.();

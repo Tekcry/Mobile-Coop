@@ -308,6 +308,9 @@ Controls:
 - 3.1.4 Medium: without ambient occlusion 70 / 42, textures Low 56 / 40, shadows Low 55, shafts / bloom / lamps 8
   within 2 fps; post effects rebuilt mid-match 49, then shadows rebuilt mid-match 15 (the mid-match slowdown is the
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
+- [ ] 3.1.6 forced landscape (iPhone, rotation lock on, held upright): the game shows turned; hold the phone turned
+  left and play a match - menus tap where they look, sticks / camera / fire go the right way, nothing hides under
+  the Dynamic Island or the home bar; unlock rotation and turn the phone: the normal landscape takes over.
 - [ ] 3.1.5: Feature costs on Ultra, High and Medium: no crash; the tag at the top names each run; Settings >
   Feedback has the note after every run. If it still crashes: the next start shows a toast and a "Crash report" note
   naming the run - send it with the benchmark note.

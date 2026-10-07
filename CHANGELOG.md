@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.1.6 - Forced landscape
+- iPhone browsers cannot lock the orientation (the manifest's `landscape` and `screen.orientation.lock` only work on
+  Android), so with rotation locked the game sat on a "rotate your device" screen. Now a touch device held upright
+  gets the whole page turned 90 degrees: hold the phone turned left (the Dynamic Island on the left). Menus, HUD,
+  sticks and buttons work as in landscape; the safe areas follow the turn. The rotate screen is gone. Turning the
+  phone to landscape with rotation unlocked still uses the browser's own landscape.
+
 ## 3.1.5 - Benchmark crash safety, crash reports
 - iPhone Feature costs on 3.1.4 (Medium, 1912 x 880, every run in its own match - the first valid per-feature
   numbers): your settings 52 fps (1% low 20); without ambient occlusion 70 (1% low 42); textures Low 56 (1% low 40);

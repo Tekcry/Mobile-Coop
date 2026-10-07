@@ -6,7 +6,7 @@ import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
-import { setupServiceWorker, setupRotateOverlay, suppressBrowserGestures, enterFullscreenLandscape, isStandalone } from './pwa/pwa';
+import { setupServiceWorker, suppressBrowserGestures, enterFullscreenLandscape, isStandalone } from './pwa/pwa';
 import { flags } from './core/flags';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
@@ -28,6 +28,7 @@ import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
+import { setupForcedLandscape, viewHeight, viewWidth } from './core/viewRotation';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -38,7 +39,8 @@ function setBoot(progress: number, status: string): void {
 
 async function boot(): Promise<void> {
   suppressBrowserGestures();
-  setupRotateOverlay();
+  // (3.1.6: a phone held upright gets the page turned to landscape; listeners measuring on resize see it turned)
+  setupForcedLandscape(() => window.dispatchEvent(new Event('resize')));
   setupServiceWorker(() => app.toasts.show('Ready to play offline', 'ok'));
 
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -176,7 +178,7 @@ async function boot(): Promise<void> {
   app.benchmark = (kind = 'current') => {
     const s: BenchSession =
       typeof kind === 'string'
-        ? { kind, runs: benchPlan(kind, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features), idx: 0, lines: [] }
+        ? { kind, runs: benchPlan(kind, Math.round(viewWidth() * devicePixelRatio), Math.round(viewHeight() * devicePixelRatio), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features), idx: 0, lines: [] }
         : kind;
     const run = s.runs[s.idx];
     if (!run) return;

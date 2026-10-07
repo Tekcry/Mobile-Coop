@@ -80,6 +80,7 @@ import { StyleTracker } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, type GadgetId } from './gadgets';
 import { InputState } from '../input/inputState';
+import { viewHeight } from '../core/viewRotation';
 
 export type { ModeId };
 
@@ -1899,7 +1900,7 @@ export class GameState implements AppState {
     this.onTarget = !!(hit.target && hit.target.alive && hit.target.team === 'enemy');
     // vertical FOV is fixed (Hor+): scale the spread by the half-height of the view
     const vfov = cam.camera.fov;
-    const spreadPx = (Math.tan((this.weapons.currentSpread() * Math.PI) / 180) / Math.tan(vfov / 2)) * (window.innerHeight / 2);
+    const spreadPx = (Math.tan((this.weapons.currentSpread() * Math.PI) / 180) / Math.tan(vfov / 2)) * (viewHeight() / 2);
     const th = this.target.health;
     const f: HudFrame = {
       hp: th.hp,

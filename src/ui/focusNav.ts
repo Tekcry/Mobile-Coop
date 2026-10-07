@@ -1,4 +1,5 @@
 import { pickSpatial, pickWrap, type Dir, type Rect } from './spatial';
+import { viewRect } from '../core/viewRotation';
 
 export const FOCUS_SELECTOR = '[data-focus]';
 
@@ -110,6 +111,6 @@ export class FocusNav {
 }
 
 function rectOf(el: HTMLElement): Rect {
-  const r = el.getBoundingClientRect();
+  const r = viewRect(el);
   return { x: r.left, y: r.top, w: r.width, h: r.height };
 }

@@ -133,6 +133,35 @@ try {
   await page.locator('.dialog .btn', { hasText: 'Quit' }).tap();
   await page.waitForSelector('.main-menu', { timeout: 10000 });
   assert(true, 'quit by touch');
+  // 3.1.6 forced landscape: a phone held upright (rotation locked) gets the page turned, not a "rotate" screen; taps
+  // and sticks act in the turned space (hold the phone turned left: the screen's top is the game's left)
+  const pt = await launch({ url, touchViewport: { width: 390, height: 844 } });
+  try {
+    const P = pt.page;
+    await P.waitForSelector('.main-menu');
+    await frames(P, 3);
+    const lay = await P.evaluate(() => ({ rotated: document.body.classList.contains('rotated'), w: window.__app.engine.getRenderWidth(), h: window.__app.engine.getRenderHeight(), overlay: !!document.getElementById('rotate-overlay') }));
+    assert(lay.rotated && lay.w > lay.h && !lay.overlay, `upright: the page turns, the game renders landscape (${lay.w}x${lay.h})`);
+    await P.locator('.btn', { hasText: 'Play' }).first().tap();
+    await P.waitForSelector('.play-screen');
+    await P.locator('.play-screen .row-choice').first().locator('.choice-arrow').first().tap();
+    assert(/Free Roam/.test(await P.evaluate(() => document.querySelector('.play-screen .choice-val')?.textContent ?? '')), 'upright: taps land on the turned menu');
+    await P.locator('.btn', { hasText: 'Deploy' }).tap();
+    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
+    await frames(P, 5);
+    // the move stick at the game's lower left = the screen's upper left; the game's "up" is the screen's right
+    const sx = 390 - 0.7 * 390;
+    const sy = 0.18 * 844;
+    const endP = await drag(P, { x: sx, y: sy }, { x: sx + 60, y: sy });
+    await frames(P, 2);
+    const mv = await P.evaluate(() => ({ x: window.__app.input.state.move.x, y: window.__app.input.state.move.y }));
+    await endP();
+    assert(mv.y > 0.5 && Math.abs(mv.x) < 0.3, `upright: the stick pushed to the game's top moves forward (${mv.x.toFixed(2)}, ${mv.y.toFixed(2)})`);
+    const errs = pt.errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+    assert(errs.length === 0, `upright: no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  } finally {
+    await pt.browser.close();
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

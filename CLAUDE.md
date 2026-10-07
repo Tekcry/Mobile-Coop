@@ -211,6 +211,11 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   input type (`CONTROLS`; keep it in step with the mappings).
 - Training (`game/training.ts` pure steps, `modes/trainingMode.ts`, Proving Grounds, `?mode=training`): passive
   guards (`Enemy.passive`), invulnerable operator, a step skipped after 90 s.
+- Forced landscape (3.1.6, `core/viewRotation.ts`): a coarse pointer in a portrait window turns the page
+  (`body.rotated`: `translateX(--scr-w) rotate(90deg)`, `--vw` / `--vh` swapped - styles use `calc(N * var(--vw))`,
+  never raw `vw` / `vh` - and the safe areas remapped). Pointer positions and boxes arrive in screen space: read them
+  through `vx(e)` / `vy(e)` / `viewRect(el)` / `viewWidth()` / `viewHeight()`, never `clientX` / `innerWidth`.
+  `e2e-lib` `launch({ touchViewport })` emulates the phone upright.
 - Touch scrolling: `pwa.suppressBrowserGestures` lets a drag through when it starts inside `.scrollable` or any
   element that overflows with `overflow: auto / scroll` (`canScroll`); everything else is the game's. The back
   button (`Screen.attachChrome`) sits top left (screens get `.with-back` padding) and acts on pointer up.
@@ -234,7 +239,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Platform (3.0, `core/platform.ts` pure: `detectPlatform` from touch points / fine pointer / viewport / user agent,
   `video.platform` Auto / Desktop / Mobile, `?platform=`; `App.applyPlatform` sets `body.platform-desktop|mobile`,
   `can-touch` and `--ui-scale`): desktop lays the menus out for 1280 x 720 and scales `.screens` (transform) and the
-  HUD panels (zoom) to the window (`uiScale`); hides the Touch settings tab (unless `touch`), the rotate overlay and
+  HUD panels (zoom) to the window (`uiScale`); hides the Touch settings tab (unless `touch`), the forced landscape and
   the auto fullscreen; Settings gets Mouse & Keyboard (first on desktop) and the Graphics tab (`graphicsTab`: preset,
   every feature, display; `refreshWidgets` re-reads rows after a preset change). The touch layer still follows the
   input mode (a touchscreen laptop gets it when touched).

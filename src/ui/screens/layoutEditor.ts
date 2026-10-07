@@ -7,6 +7,7 @@ import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button } from '../widgets';
 import type { Dir } from '../spatial';
+import { viewRect, vx, vy } from '../../core/viewRotation';
 
 const STEP = 0.01;
 
@@ -157,9 +158,9 @@ export class LayoutEditorScreen extends Screen {
     el.setPointerCapture(e.pointerId);
     this.select(id);
     const move = (ev: PointerEvent): void => {
-      const r = area.getBoundingClientRect();
-      const x = (ev.clientX - r.left) / r.width;
-      const y = (ev.clientY - r.top) / r.height;
+      const r = viewRect(area);
+      const x = (vx(ev) - r.left) / r.width;
+      const y = (vy(ev) - r.top) / r.height;
       this.app.settings.update((s) => {
         s.touch.layout[id].x = x;
         s.touch.layout[id].y = y;

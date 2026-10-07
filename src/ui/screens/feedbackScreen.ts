@@ -9,6 +9,7 @@ import { blobToDataUrl } from '../../feedback/feedbackStore';
 import { isPhotoHost, PhotoModeScreen } from './photoMode';
 import { shareOrDownload } from '../fileOut';
 import type { SettingsScreen } from './settingsScreen';
+import { viewHeight, viewWidth } from '../../core/viewRotation';
 
 /** Where a note is written: the game's own context (map, mode, position...) plus version, device and graphics. */
 export function feedbackContext(app: App): Record<string, string> {
@@ -20,8 +21,8 @@ export function feedbackContext(app: App): Record<string, string> {
   ctx.graphics = `${app.quality.level.name}, ${app.engine.getRenderWidth()}x${app.engine.getRenderHeight()}${v.fpsCap ? `, cap ${v.fpsCap}` : ''}`;
   const pace = app.quality.pacing();
   if (pace.p50 > 0) ctx.frames = `p50 ${pace.p50.toFixed(1)} ms, p99 ${pace.p99.toFixed(1)} ms @ ${app.quality.hz} Hz`;
-  const w = Math.round(window.innerWidth * devicePixelRatio);
-  const hgt = Math.round(window.innerHeight * devicePixelRatio);
+  const w = Math.round(viewWidth() * devicePixelRatio);
+  const hgt = Math.round(viewHeight() * devicePixelRatio);
   ctx.display = `${w}x${hgt} (${aspectLabel(w, hgt)}) @ ${Math.round(app.quality.hz)} Hz, FOV ${v.fovH} (max ${v.maxFov}), HUD ${v.hudWidth}`;
   ctx.gpu = `${app.gpu.renderer || 'unknown'} (${app.gpu.kind})`;
   const g = app.quality.governor;
