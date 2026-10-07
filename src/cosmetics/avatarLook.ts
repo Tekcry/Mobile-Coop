@@ -2,10 +2,11 @@
 export const BODY_TYPES = ['average', 'lean', 'athletic', 'broad'] as const;
 export const HEADS = ['round', 'oval', 'strong', 'long'] as const;
 export const HAIRS = ['none', 'buzz', 'mohawk', 'long', 'bun', 'swept'] as const;
-export const TORSOS = ['tee', 'vest', 'armor', 'jacket', 'hoodie', 'operator'] as const;
+/** `shade` = the SHADE OPERATIVE voxel figure (3.2, the default): the whole body, the other slots unused. */
+export const TORSOS = ['tee', 'vest', 'armor', 'jacket', 'hoodie', 'shade'] as const;
 export const LEGS = ['pants', 'cargo', 'shorts', 'armored'] as const;
 export const BACKPACKS = ['none', 'pack', 'radio', 'tank', 'bedroll'] as const;
-export const HELMETS = ['none', 'cap', 'combat', 'visor', 'beret', 'headset', 'trilens', 'hood'] as const;
+export const HELMETS = ['none', 'cap', 'combat', 'visor', 'beret', 'headset', 'hood'] as const;
 
 /** Option ids renamed by the v4 avatar overhaul (hard-edged/cartoon parts became smooth, realistic ones). */
 export const LEGACY_LOOK_IDS: Record<string, Record<string, string>> = {
@@ -13,7 +14,9 @@ export const LEGACY_LOOK_IDS: Record<string, Record<string, string>> = {
   head: { square: 'strong', hex: 'oval', tall: 'long' },
   hair: { spikes: 'swept' },
   backpack: { blade: 'bedroll' },
-  helmet: { horns: 'headset' },
+  helmet: { horns: 'headset', trilens: 'none' },
+  // 3.2: the operator suit became SHADE OPERATIVE
+  torso: { operator: 'shade' },
 };
 export const PATTERNS = ['solid', 'stripes', 'camo', 'digital', 'tiger', 'checker'] as const;
 
@@ -57,16 +60,17 @@ export const PALETTE_COLORS = [
   '#3aa37a', '#2a8fb8', '#3f6fd9', '#5e4bc4', '#a04bc4', '#e35d9c',
 ];
 
-/** The operator (2.0): fitted suit, plate carrier, balaclava and tri-lens goggles, charcoal with an orange accent. */
+/** SHADE OPERATIVE (3.2): the voxel operative (`cosmetics/shadeOperative.ts`, palette in `config/shade.ts`). The
+ *  colours here are the base other looks (enemies, the VIP) start from. */
 export function defaultLook(): AvatarLook {
   return {
     body: 'average',
     head: 'round',
     hair: 'none',
-    torso: 'operator',
+    torso: 'shade',
     legs: 'cargo',
     backpack: 'none',
-    helmet: 'trilens',
+    helmet: 'none',
     pattern: 'solid',
     colors: {
       skin: '#e0b08a',
@@ -100,7 +104,7 @@ export function sanitizeLook(raw: unknown): AvatarLook {
     body: pick(r.body, BODY_TYPES, d.body, 'body'),
     head: pick(r.head, HEADS, d.head, 'head'),
     hair: pick(r.hair, HAIRS, d.hair, 'hair'),
-    torso: pick(r.torso, TORSOS, d.torso),
+    torso: pick(r.torso, TORSOS, d.torso, 'torso'),
     legs: pick(r.legs, LEGS, d.legs),
     backpack: pick(r.backpack, BACKPACKS, d.backpack, 'backpack'),
     helmet: pick(r.helmet, HELMETS, d.helmet, 'helmet'),

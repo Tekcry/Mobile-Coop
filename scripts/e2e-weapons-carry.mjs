@@ -242,7 +242,8 @@ try {
   await G(async () => {
     const a = window.__app;
     a.settings.update((d) => void (d.video.avatarStyle = 'detailed'));
-    a.save.update((d) => void (d.avatar.backpack = 'pack'));
+    // (SHADE OPERATIVE, the default, is one skin and ignores the slot: the smooth-part look is checked)
+    a.save.update((d) => void ((d.avatar.backpack = 'pack'), (d.avatar.torso = 'vest')));
     // the save is debounced (200 ms)
     await new Promise((res) => setTimeout(res, 600));
   });

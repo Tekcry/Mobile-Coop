@@ -104,7 +104,7 @@ export class PartLibrary {
     this.pbr = !!atlas;
     const prep = (mesh: Mesh): Mesh => {
       mesh.material = m;
-      mesh.metadata = { skinMaterial: this.skinMaterial };
+      mesh.metadata = { skinMaterial: this.skinMaterial, linear: !!atlas };
       mesh.registerInstancedBuffer('color', 4);
       mesh.instancedBuffers.color = new Color4(1, 1, 1, 1);
       mesh.registerInstancedBuffer('pattern', 4);

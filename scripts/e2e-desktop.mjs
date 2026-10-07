@@ -263,10 +263,6 @@ try {
       return worst;
     };
     const p = g.player.rig;
-    const lens0 = p.voxel.meshes[1].getVerticesData('color').slice();
-    p.setLensGlow(true);
-    const lensChanged = p.voxel.meshes[1].getVerticesData('color').some((c, i) => Math.abs(c - lens0[i]) > 1e-3);
-    p.setLensGlow(false);
     p.setHeadVisible(false);
     const headHidden = !p.voxel.meshes[1].isVisible && p.voxel.meshes[0].isVisible;
     p.setHeadVisible(true);
@@ -282,18 +278,19 @@ try {
       voxel: rigs.filter((r) => r.voxel).length,
       hidden: rigs.every((r) => r.parts.every((m) => !m.isVisible)),
       cast: rigs.every((r) => r.voxel.meshes.every((m) => casters.includes(m))),
-      quads: p.voxel.meshes[0].getTotalIndices() / 6,
+      tris: p.voxel.meshes[0].getTotalIndices() / 3,
+      skin: p.voxel.meshes.every((m) => m.numBoneInfluencers === 4),
       err: Math.max(...rigs.map(err)),
       ragErr: rag?.voxel ? err(rag) : -1,
-      lensChanged,
       headHidden,
     };
   });
-  assert(ch.voxel === ch.n && ch.hidden, `every character is a voxel body, the smooth parts unseen (${ch.voxel} / ${ch.n})`);
-  assert(ch.cast, 'voxel bodies cast shadows');
-  assert(ch.quads > 500, `the operator in 2 cm voxels (${ch.quads} quads)`);
+  assert(ch.voxel === ch.n && ch.hidden, `every character is a skinned body, no smooth parts showing (${ch.voxel} / ${ch.n})`);
+  assert(ch.cast, 'the bodies cast shadows');
+  // 3.2: the operator (SHADE OPERATIVE) is one smooth skin, four joints per vertex
+  assert(ch.skin && ch.tris > 4000, `the operator's smooth skin (${ch.tris} triangles, 4 joints per vertex)`);
   assert(ch.err < 1e-3 && ch.ragErr >= 0 && ch.ragErr < 1e-3, `bones follow the joints, ragdolls too (${ch.err.toExponential(1)}, ${ch.ragErr.toExponential(1)})`);
-  assert(ch.lensChanged && ch.headHidden, 'lens glow and the camera head fade reach the voxels');
+  assert(ch.headHidden, 'the camera head fade reaches the skin');
   // voxel weapons and chips (3.0 phase 4)
   const wp = await e.page.evaluate(() => {
     const g = window.__app.current;

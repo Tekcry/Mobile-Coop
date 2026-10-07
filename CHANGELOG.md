@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased (3.2) - SHADE OPERATIVE
+- New default avatar, SHADE OPERATIVE: a human body in a fitted black tactical suit, built in code. Rounded shapes
+  for the muscles and head (ribcage, waist, glutes, pecs, trapezius, deltoids, biceps, forearms, quads, knees,
+  calves, head and jaw) are sampled into a 2 cm voxel field and turned into one smooth, continuous skin - no
+  blocks. The suit: smooth reinforced panels (chest, back, shoulders, forearms, thigh fronts, knees), darker woven
+  mesh down the sides and inner arms, gloves, boots, a hood with the eyes showing. No equipment yet: armour and gear
+  will come as customisation. Long guns still ride on the back, the pistol on the thigh.
+- The skin bends smoothly at the shoulders, elbows, hips and knees (each vertex follows up to four joints). One mesh
+  per character: 1 draw call per pass (2 for the player, whose head fades when the camera gets close). About 13,000
+  triangles.
+- The old operator suit and tri-lens goggles are gone; saves wearing them become SHADE OPERATIVE. The suit upgrades
+  change SHADE's stats, not its look.
+- Player and co-op hit volumes come from the body the player wears.
+
 ## 3.1.2 - Feature costs benchmark
 - iPhone 17 Pro Max on 3.1.1 (1912 x 880): Low 76 fps, Medium 47, High 41, Ultra 21 (3.1.0: 60 / 19 / 15 / 12) -
   better, still short of the target, and the 1% lows (8-15 fps) show hitches.

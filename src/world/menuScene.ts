@@ -244,7 +244,7 @@ export class MenuState implements AppState {
     const c = camoById(camo);
     this.weapon = new WeaponModel(this.scene, this.parts, withAttachments(WEAPONS[weapon], attachments), c.colors, this.rig.weaponPivot, c.pattern);
     this.weapon.hold(this.rig);
-    // the tri-lens glows in the dark
+    // the visor burns bright on the dark stage
     this.rig.setLensGlow(true);
   }
 

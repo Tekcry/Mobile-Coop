@@ -172,23 +172,93 @@ export class VoxelSink {
   }
 }
 
-export class VoxelBody {
+/**
+ * A character drawn as rigidly skinned voxel meshes: one flat bone per node something hangs from, posed each frame
+ * from the node's transform relative to the root (so a ragdoll re-parenting the joints onto physics nodes still
+ * drives it). Hit flash on the vertex colours; the head on its own meshes for the camera's head fade.
+ */
+export abstract class SkinnedVoxels {
   readonly skeleton: Skeleton;
-  /** [body, head] at full size, then the level-of-detail pair (one body and its LOD when the head is not split). */
+  /** Full size [body, head], then any level-of-detail pair ([body, lod body] when the head is not split). */
   readonly meshes: Mesh[] = [];
-  /** The nodes the parts hang from and their bones (same order). */
+  /** The nodes the voxels hang from and their bones (same order). */
   readonly nodes: TransformNode[] = [];
   readonly bones: Bone[] = [];
-  /** Per merged mesh: the vertex colours as built, and each smooth part's vertices (lens glow). */
-  private baseColors = new Map<Mesh, Float32Array>();
+  /** Per merged mesh: the vertex colours as built. */
+  protected baseColors = new Map<Mesh, Float32Array>();
   private flashColors = new Map<Mesh, Float32Array>();
-  private partVerts = new Map<Mesh, Map<number, Uint32Array>>();
   private obs: Observer<Scene> | null;
   private rootInv = new Matrix();
+  /** The head has its own meshes ([body, head, lod body, lod head]); else [body, lod body]. */
+  protected split = true;
+  private toRoot: Matrix;
 
   constructor(
     scene: Scene,
-    private root: TransformNode,
+    protected root: TransformNode,
+    name: string,
+  ) {
+    this.skeleton = new Skeleton(`${name}-vox`, `${name}-vox`, scene);
+    root.computeWorldMatrix(true);
+    this.toRoot = root.getWorldMatrix().clone().invert();
+    // (the bones read the nodes when the skeleton is prepared, after the parts - created first - updated them)
+    this.obs = scene.onBeforeRenderObservable.add(() => this.bones[0]?.markAsDirty());
+    this.skeleton.onBeforeComputeObservable.add(() => this.pose());
+  }
+
+  /** The bone for a node (created on first use; its bind = the node relative to the root now). */
+  protected boneFor(n: TransformNode, name: string): number {
+    const i = this.nodes.indexOf(n);
+    if (i >= 0) return i;
+    n.computeWorldMatrix(true);
+    const rel = n.getWorldMatrix().multiply(this.toRoot);
+    this.bones.push(new Bone(`${name}-${n.name}`, this.skeleton, null, rel, null, rel));
+    this.nodes.push(n);
+    return this.nodes.length - 1;
+  }
+
+  /** Each bone = its node's world transform relative to the root (no allocation). */
+  private pose(): void {
+    this.root.getWorldMatrix().invertToRef(this.rootInv);
+    for (let i = 0; i < this.bones.length; i++) this.nodes[i]!.getWorldMatrix().multiplyToRef(this.rootInv, this.bones[i]!.getLocalMatrix());
+  }
+
+  /** The head (the camera hides it when it gets too close). */
+  setHeadVisible(v: boolean): void {
+    if (!this.split) return;
+    for (let i = 1; i < this.meshes.length; i += 2) this.meshes[i]!.isVisible = v;
+  }
+
+  /** Tint every vertex towards white (hit feedback), 0..1. */
+  setFlash(k: number): void {
+    for (const [mesh, base] of this.baseColors) {
+      let c = this.flashColors.get(mesh);
+      if (!c) this.flashColors.set(mesh, (c = new Float32Array(base.length)));
+      for (let i = 0; i < base.length; i += 4) {
+        c[i] = base[i]! + (1 - base[i]!) * k;
+        c[i + 1] = base[i + 1]! + (0.92 - base[i + 1]!) * k;
+        c[i + 2] = base[i + 2]! + (0.85 - base[i + 2]!) * k;
+        c[i + 3] = 1;
+      }
+      mesh.updateVerticesData(VertexBuffer.ColorKind, c);
+    }
+  }
+
+  dispose(): void {
+    this.obs?.remove();
+    this.obs = null;
+    for (const m of this.meshes) m.dispose();
+    this.skeleton.dispose();
+  }
+}
+
+export class VoxelBody extends SkinnedVoxels {
+  /** Per merged mesh: each smooth part's vertices (lens glow). */
+  private partVerts = new Map<Mesh, Map<number, Uint32Array>>();
+
+  constructor(
+    scene: Scene,
+    root: TransformNode,
     parts: readonly AbstractMesh[],
     headNode: TransformNode,
     material: Material,
@@ -197,11 +267,7 @@ export class VoxelBody {
     /** The head on its own mesh (the player: the camera fades it); everyone else is one mesh (3.1: a draw less per pass). */
     splitHead = true,
   ) {
-    // one flat bone per node a part hangs from, posed each frame from the node's transform relative to the root (so a
-    // ragdoll re-parenting the joints onto physics nodes still drives it)
-    this.skeleton = new Skeleton(`${name}-vox`, `${name}-vox`, scene);
-    root.computeWorldMatrix(true);
-    const toRoot = root.getWorldMatrix().clone().invert();
+    super(scene, root, name);
     const onJoint = new Map<TransformNode, number[]>();
     parts.forEach((part, pi) => {
       const n = part.parent as TransformNode | null;
@@ -209,10 +275,7 @@ export class VoxelBody {
       let list = onJoint.get(n);
       if (!list) {
         onJoint.set(n, (list = []));
-        n.computeWorldMatrix(true);
-        const rel = n.getWorldMatrix().multiply(toRoot);
-        this.bones.push(new Bone(`${name}-${n.name}`, this.skeleton, null, rel, null, rel));
-        this.nodes.push(n);
+        this.boneFor(n, name);
       }
       list.push(pi);
     });
@@ -252,40 +315,6 @@ export class VoxelBody {
     this.split = splitHead;
     // the smooth parts stay for what reads them, unseen
     for (const p of parts) p.isVisible = false;
-    // (the bones read the nodes when the skeleton is prepared, after the parts - created first - updated them)
-    this.obs = scene.onBeforeRenderObservable.add(() => this.bones[0]?.markAsDirty());
-    this.skeleton.onBeforeComputeObservable.add(() => this.pose());
-  }
-
-  /** Each bone = its node's world transform relative to the root (no allocation). */
-  private pose(): void {
-    this.root.getWorldMatrix().invertToRef(this.rootInv);
-    for (let i = 0; i < this.bones.length; i++) this.nodes[i]!.getWorldMatrix().multiplyToRef(this.rootInv, this.bones[i]!.getLocalMatrix());
-  }
-
-  /** The head (the camera hides it when it gets too close). */
-  setHeadVisible(v: boolean): void {
-    if (!this.split) return;
-    this.meshes[1]!.isVisible = v;
-    this.meshes[3]!.isVisible = v;
-  }
-
-  /** The head has its own meshes ([body, head, lod body, lod head]); else [body, lod body]. */
-  private split = true;
-
-  /** Tint every vertex towards white (hit feedback), 0..1. */
-  setFlash(k: number): void {
-    for (const [mesh, base] of this.baseColors) {
-      let c = this.flashColors.get(mesh);
-      if (!c) this.flashColors.set(mesh, (c = new Float32Array(base.length)));
-      for (let i = 0; i < base.length; i += 4) {
-        c[i] = base[i]! + (1 - base[i]!) * k;
-        c[i + 1] = base[i + 1]! + (0.92 - base[i + 1]!) * k;
-        c[i + 2] = base[i + 2]! + (0.85 - base[i + 2]!) * k;
-        c[i + 3] = 1;
-      }
-      mesh.updateVerticesData(VertexBuffer.ColorKind, c);
-    }
   }
 
   /** A smooth part's colour changed (lens glow): its voxels follow (every level of detail). */
@@ -301,12 +330,5 @@ export class VoxelBody {
       }
       mesh.updateVerticesData(VertexBuffer.ColorKind, base);
     }
-  }
-
-  dispose(): void {
-    this.obs?.remove();
-    this.obs = null;
-    for (const m of this.meshes) m.dispose();
-    this.skeleton.dispose();
   }
 }

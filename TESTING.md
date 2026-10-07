@@ -293,6 +293,18 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 3.2 - SHADE OPERATIVE (phone + controller)
+- [ ] Main menu and Loadout: the operator is SHADE - a smooth human figure in a black hooded suit, the eyes showing.
+  Turn it round: front, back, left and right read cleanly (no blocks, no holes, no spikes).
+- [ ] Free Roam on Proving Grounds: stand, walk, jog, sprint, crouch, crouch-walk. Elbows, knees, shoulders and hips
+  bend without tearing or folding through; the boots stay planted when still.
+- [ ] Cover: high cover, low cover (hidden: the hood stays under the top), edge peek, aim over. The weapon stays in
+  the hands (left at a left edge) and on the aim line; the rifles on the back sit on the suit.
+- [ ] Warehouse at night: the suit reads as black fabric with lighter panels; no shiny banding under the lamps.
+- [ ] Co-op: a remote player on the default look is SHADE.
+- [ ] An older save that wore the operator suit loads as SHADE.
+- [ ] Settings > Graphics > Benchmark on the phone: fps no worse than 3.1.2's line.
+
 ## 3.1.1 - Phone GPU (iPhone 17 Pro Max, Settings > Graphics > Benchmark, each preset)
 | Build | Low | Medium | High | Ultra |
 | --- | --- | --- | --- | --- |

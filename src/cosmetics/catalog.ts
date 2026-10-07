@@ -40,7 +40,7 @@ export const PART_OPTIONS: Record<PartCategory, PartOption[]> = {
     { value: 'jacket', name: 'Field jacket', req: { level: 3 } },
     { value: 'hoodie', name: 'Hoodie', req: { level: 5 } },
     { value: 'armor', name: 'Plate armour', req: { level: 9, price: 800 } },
-    { value: 'operator', name: 'Operator suit' },
+    { value: 'shade', name: 'SHADE operative' },
   ],
   legs: [
     { value: 'pants', name: 'Fatigues' },
@@ -62,7 +62,6 @@ export const PART_OPTIONS: Record<PartCategory, PartOption[]> = {
     { value: 'beret', name: 'Beret', req: { level: 5 } },
     { value: 'visor', name: 'Visor helmet', req: { level: 8 } },
     { value: 'headset', name: 'Comms headset', req: { level: 6, price: 1200 } },
-    { value: 'trilens', name: 'Tri-lens goggles' },
     { value: 'hood', name: 'Sniper hood', req: { level: 7 } },
   ],
   pattern: [

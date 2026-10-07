@@ -11,7 +11,7 @@ import { G } from '../physics/groups';
 import { Health } from './health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from './damage';
 import type { Player } from '../player/player';
-import { hitVolumes, proportions } from '../player/proportions';
+import { hitVolumes } from '../player/proportions';
 import { DEBUG_VOLUMES, type DebugVolume } from '../ui/debugVolumes';
 
 interface Volume {
@@ -50,10 +50,13 @@ export class PlayerTarget implements Damageable {
     private player: Player,
     readonly id = 'local',
   ) {
-    const hv = hitVolumes(proportions('average'));
+    // fitted to the body the player wears (SHADE: 1.80 m, the head sphere round the helmet)
+    const p = player.rig.p;
+    const hv = hitVolumes(p, player.rig.headHit);
     const r = hv.bodyR;
-    this.legs = this.volume('legs', 0.08 + r * 0.8, 0.88 - r * 0.8, r * 0.8, '#5080ff', 'body');
-    this.torso = this.volume('torso', r, 0.58 - r * 0.3, r, '#50a0ff', 'body');
+    this.legTop = p.y.hip - 0.035;
+    this.legs = this.volume('legs', 0.08 + r * 0.8, this.legTop - r * 0.8, r * 0.8, '#5080ff', 'body');
+    this.torso = this.volume('torso', r, p.y.neck - p.y.hip + 0.015 - r * 0.3, r, '#50a0ff', 'body');
     this.head = this.volume('head', -0.03, 0.03, hv.headR, '#80c0ff', 'head');
   }
 
@@ -91,6 +94,8 @@ export class PlayerTarget implements Damageable {
     return out.copyFrom(this.head.node.position);
   }
 
+  /** Top of the leg volume above its node: meets the pelvis. */
+  private legTop: number;
   private spineDir = new Vector3(0, 1, 0);
   private tmpQ = new Quaternion();
 
@@ -105,7 +110,7 @@ export class PlayerTarget implements Damageable {
     const pelvis = rig.hips.getAbsolutePosition();
     const neck = rig.neck.getAbsolutePosition();
     // legs: sink so their top meets the pelvis
-    this.legs.node.position.set(feet.x, pelvis.y - 0.88, feet.z);
+    this.legs.node.position.set(feet.x, pelvis.y - this.legTop, feet.z);
     // torso: from the pelvis along the spine
     neck.subtractToRef(pelvis, this.spineDir);
     if (this.spineDir.lengthSquared() < 1e-6) this.spineDir.set(0, 1, 0);

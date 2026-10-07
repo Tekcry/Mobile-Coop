@@ -315,9 +315,24 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   pocket), `backSocket`, `hipSocket`. Joints use `rotationQuaternion` (root uses Euler `rotation.y`).
 - Avatar style (`video.avatarStyle`, `setAvatarStyle`): `detailed` (default since 2.0; `avatarStyleV` 2 moves older
   settings once) or `stick` (capsule limbs, sphere joints and head, pill feet on the same skeleton). Saves and
-  cosmetics are unchanged (colours apply to both). The default look is the operator (`torso: 'operator'`: suit,
-  carrier, pouches, pads, gloves; `helmet: 'trilens'`: balaclava + tri-lens, `rig.setLensGlow` from the vision
-  mode). Enemy looks get the map's faction colours (`ai/factions.ts` `factionLook`, `MapTheme.faction`).
+  cosmetics are unchanged (colours apply to both). Enemy looks get the map's faction colours (`ai/factions.ts`
+  `factionLook`, `MapTheme.faction`).
+- SHADE OPERATIVE (3.2, the default look `torso: 'shade'`, the other slots unused; old `operator` / `trilens` looks
+  map to it in `sanitizeLook`): a human body in a fitted tactical suit, no equipment yet (armour later as
+  customisation), on the shared 1.75 m skeleton (at 1.80 m ladder grips and knee spacing in `e2e-traverse` /
+  `e2e-clip` regress). `voxel/voxelModelBuilder.ts` (pure): rounded primitives (ellipsoid, round cone, rounded box)
+  in joint spaces, smooth-min blended, sampled into a 2 cm voxel distance field (`SHADE_VOXEL`; each primitive only
+  over its box), one continuous surface by surface nets (vertices projected onto the true surface, normals from the
+  field's gradient), skin weights to up to four joints from each joint's primitives within `weightReach`, colour from
+  the nearest primitive then paint regions. `cosmetics/shadeOperative.ts` (pure): `shadeBody(p)` (muscles and head
+  from `proportions`; suit panels, mesh sides, gloves, boots, the hood's eye opening as paint), `SHADE_JOINTS` (bone
+  order), `SHADE_BIND` (arms out 35 deg, legs 6 deg: nothing touches the body where it should not join). Palette:
+  `config/shade.ts` `SHADE_PALETTE`. `CharacterRig.buildShade` poses the bind pose, builds once per body
+  (`SHADE_BODY`), binds a `voxel/voxelFigure.ts` `VoxelFigure` (one skinned mesh, 4 influences, vertex data cached
+  per model; the player's head-dominant triangles on their own mesh for the camera fade), restores the rest pose.
+  `SkinnedVoxels` (`voxelBody.ts`) is the base shared with `VoxelBody` (bones per node, pose, head fade, flash). No
+  smooth parts behind it (`rig.parts` empty). Animation is the shared graph / IK. Hit volumes: `hitVolumes(p,
+  rig.headHit)` (playerTarget / remotePlayer from the rig's proportions).
 - Rendering extras: `LightRig` light cones (additive, thin-instanced, `CONE_*`), `vfx/blobShadows.ts` contact
   shadows (`GameState.drawShadows`, `NetAttachment.shadows`), `CinematicPost.setGrade(MapTheme.grade)`.
 - Animation: callers pass a `RigPose` (speed, local move dir, grounded, crouch, kneel, aim = weapon raise 0..1,

@@ -1,5 +1,10 @@
 import { Color4, Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
+import { VoxelFigure, type FigurePalette } from '../voxel/voxelFigure';
+import { VoxelModelBuilder, type BodyMesh } from '../voxel/voxelModelBuilder';
+import { SHADE_BIND, SHADE_JOINTS, SHADE_SLOTS, shadeBody, shadeColors, type ShadeJoint } from '../cosmetics/shadeOperative';
+import { SHADE_VOXEL } from '../config/shade';
+import { SURFACE_ID } from '../world/surfaceAtlas';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
@@ -115,11 +120,10 @@ export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'should
 /** Forward-kinematics override (Euler x, y, z) per joint, used by emotes. */
 export type FkPose = Partial<Record<JointName, readonly [number, number, number]>> & { pelvisLift?: number };
 
-/** Tri-lens goggle lens colours (off / glowing). */
-const LENS_OFF = '#20331f';
-const LENS_ON = '#8dff5a';
+/** SHADE OPERATIVE skins per body (proportions key): built once, shared by every character wearing it. */
+const SHADE_BODY = new Map<string, BodyMesh>();
 
-/** Avatar render style: classic stick figure or the detailed smooth body (the operator; default). */
+/** Avatar render style: classic stick figure or the detailed body (SHADE OPERATIVE for the default look). */
 export type AvatarStyle = 'stick' | 'detailed';
 let DEFAULT_STYLE: AvatarStyle = 'detailed';
 /** Style for rigs built from now on (set from Settings > Video). */
@@ -405,6 +409,8 @@ export class CharacterRig {
   ) {
     const p = proportions(opts.build ?? BUILD_OF[look.body], height);
     this.p = p;
+    this.headTop = p.head.h * 0.5;
+    this.headClear = p.head.h * 0.46;
     this.graph = new AnimGraph(p);
     const n = (nm: string, parent: TransformNode | null, x = 0, y = 0, z = 0): TransformNode => {
       const t = new TransformNode(`${name}-${nm}`, scene);
@@ -444,8 +450,9 @@ export class CharacterRig {
     this.hipSocket = n('hipHolster', this.hips, p.pelvis.w / 2 + 0.03, -0.02, 0.0);
     this.hipSocket.rotationQuaternion = Quaternion.RotationYawPitchRoll(0, Math.PI / 2 - 0.15, 0);
     this.style = opts.style ?? DEFAULT_STYLE;
+    const shade = this.style === 'detailed' && look.torso === 'shade';
     if (this.style === 'stick') this.buildStick(make, look, p);
-    else this.buildParts(make, look, p, opts.armor ?? false);
+    else if (!shade) this.buildParts(make, look, p, opts.armor ?? false);
     // how far gear on the back (vest plate, hood, backpack) stands off the chest shell: carried weapons
     // rest beyond it
     let back = 0;
@@ -461,14 +468,94 @@ export class CharacterRig {
     let thigh = p.thigh.r0;
     for (const m of this.parts) if (m.parent === this.hipR || m.parent === this.hipL) thigh = Math.max(thigh, Math.abs(m.position.x) + m.scaling.x / 2);
     this.thighOuter = thigh;
-    // voxels (3.0): the parts merged into one skinned voxel mesh (they stay, unseen, for what reads them)
-    const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
-    if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
+    if (shade) {
+      // SHADE OPERATIVE (3.2): voxel parts on the joints, always voxels (no smooth parts behind them)
+      this.buildShade(scene, make, p, name);
+    } else {
+      // voxels (3.0): the parts merged into one skinned voxel mesh (they stay, unseen, for what reads them)
+      const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
+      if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
+    }
     DEBUG_RIGS.add(this);
   }
 
-  /** The merged voxel body (3.0; null: the smooth parts render). */
-  voxel: VoxelBody | null = null;
+  /** The merged voxel body (3.0; null: the smooth parts render) or the SHADE OPERATIVE skin (3.2). */
+  voxel: VoxelBody | VoxelFigure | null = null;
+  /** Head top above the head joint, and the held weapon's clearance radius round it (m). */
+  headTop: number;
+  headClear: number;
+  /** Head hit sphere radius override (m; 0: from the proportions), for headgear that reaches further. */
+  headHit = 0;
+
+  /**
+   * SHADE OPERATIVE: one continuous smooth skin (`shadeBody`, built once per body by `VoxelModelBuilder`) bound to the
+   * joints in a bind pose with the arms and legs out (`SHADE_BIND`), up to four joints per vertex; one mesh on the
+   * shared skin material (the player's head on its own for the camera fade): two draws for the player, one for anyone
+   * else, in every pass.
+   */
+  private buildShade(scene: Scene, make: PartFactory, p: Proportions, name: string): void {
+    // (the part library's skin material and colour space, read off a throwaway instance)
+    const probe = make('box', '#000000', 'probe') as InstancedMesh;
+    const meta = probe.sourceMesh?.metadata as { skinMaterial?: Material; linear?: boolean } | null | undefined;
+    probe.dispose();
+    const skin = meta?.skinMaterial;
+    if (!skin) return;
+    const joint: Record<ShadeJoint, TransformNode> = {
+      pelvis: this.hips,
+      spine: this.spine,
+      chest: this.torso,
+      neck: this.neck,
+      head: this.headNode,
+      shoulderL: this.shoulderL,
+      shoulderR: this.shoulderR,
+      elbowL: this.elbowL,
+      elbowR: this.elbowR,
+      wristL: this.wristL,
+      wristR: this.wristR,
+      hipL: this.hipL,
+      hipR: this.hipR,
+      kneeL: this.kneeL,
+      kneeR: this.kneeR,
+      ankleL: this.ankleL,
+      ankleR: this.ankleR,
+    };
+    const nodes = SHADE_JOINTS.map((j) => joint[j]);
+    // the bind pose: arms and legs swung out (right +x), so no limb touches the body; restored after binding
+    const bind: [TransformNode, number][] = [
+      [this.shoulderR, SHADE_BIND.arm],
+      [this.shoulderL, -SHADE_BIND.arm],
+      [this.hipR, SHADE_BIND.leg],
+      [this.hipL, -SHADE_BIND.leg],
+    ];
+    for (const [n, a] of bind) n.rotationQuaternion = Quaternion.RotationAxis(Vector3.Forward(), a);
+    this.root.computeWorldMatrix(true);
+    const toRoot = this.root.getWorldMatrix().clone().invert();
+    for (const n of nodes) n.computeWorldMatrix(true);
+    const key = `${p.build}|${p.height.toFixed(3)}`;
+    let body = SHADE_BODY.get(key);
+    if (!body) {
+      const def = shadeBody(p);
+      body = new VoxelModelBuilder(SHADE_VOXEL).build({ ...def, joints: nodes.map((n) => Float32Array.from(n.getWorldMatrix().multiply(toRoot).m)) });
+      SHADE_BODY.set(key, body);
+    }
+    const linear = !!meta?.linear;
+    const col = (hex: string): [number, number, number] => {
+      const c = Color4.FromHexString(`${hex}ff`);
+      return linear ? [c.r ** 2.2, c.g ** 2.2, c.b ** 2.2] : [c.r, c.g, c.b];
+    };
+    const rgb = shadeColors().map(col);
+    // matte fabric everywhere but the boots (a glossy suit bands under the lamps)
+    const fabric = new Set(['suit', 'panel', 'mesh', 'glove', 'skin', 'eye']);
+    const palette: FigurePalette = {
+      rgb,
+      surface: rgb.map((_, v) => (fabric.has(SHADE_SLOTS[v - 1] ?? '') ? SURFACE_ID.fabric : SURFACE_ID.rubber)),
+    };
+    this.voxel = new VoxelFigure(scene, this.root, nodes, body, skin, name, palette, `shade|${key}|${linear}`, SHADE_JOINTS.indexOf('head'), name === 'player');
+    for (const [n] of bind) n.rotationQuaternion = Quaternion.Identity();
+    for (const n of nodes) n.computeWorldMatrix(true);
+    // the hood's top over the head joint (hiding behind low cover keeps it under the top)
+    this.headTop = Math.max(this.headTop, body.bounds[4] - this.headNode.getAbsolutePosition().y + this.root.getAbsolutePosition().y);
+  }
 
   /** What renders (shadow casters): the voxel body's meshes, else the parts. */
   get renderMeshes(): AbstractMesh[] {
@@ -588,11 +675,9 @@ export class CharacterRig {
       this.parts.push(m);
       return m;
     };
-    const operator = look.torso === 'operator';
-    const longSleeves = look.torso === 'jacket' || look.torso === 'hoodie' || look.torso === 'armor' || operator;
-    // gloves (the operator's), else bare hands
-    const hand = operator ? '#16181c' : c.skin;
-    const handSlot = operator ? 'boots' : 'skin';
+    const longSleeves = look.torso === 'jacket' || look.torso === 'hoodie' || look.torso === 'armor';
+    const hand = c.skin;
+    const handSlot = 'skin';
     const sleeve = longSleeves ? c.torso : c.skin;
     const sleeveSlot = longSleeves ? 'torso' : 'skin';
     const Y = p.y;
@@ -627,20 +712,6 @@ export class CharacterRig {
         break;
       case 'tee':
         break;
-      case 'operator': {
-        // plate carrier front / back over the fitted suit, a row of magazine pouches, shoulder straps, a collar
-        part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.78, 0.3, 0.055, 0, 0.09, front - 0.004);
-        part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.8, 0.32, 0.055, 0, 0.1, -front + 0.004);
-        for (let i = -1; i <= 1; i++) part('rbox', c.accent, 'accent', this.torso, 0.062, 0.085, 0.04, i * 0.07, -0.02, front + 0.035);
-        part('rbox', c.helmet, 'helmet', this.torso, 0.05, 0.06, 0.03, -0.075, 0.17, front + 0.03);
-        part('pill', c.accent, 'accent', this.torso, 0.05, 0.05, p.chest.d * 0.95, -p.shoulderHalf * 0.55, Y.shoulder - chestY - 0.02, 0);
-        part('pill', c.accent, 'accent', this.torso, 0.05, 0.05, p.chest.d * 0.95, p.shoulderHalf * 0.55, Y.shoulder - chestY - 0.02, 0);
-        part('torus', c.torso, 'torso', this.torso, 0.15, 0.24, 0.14, 0, Y.neck - chestY - 0.015, 0);
-        // belt with a radio and a utility pouch
-        part('torus', c.helmet, 'helmet', this.spine, p.waist.w * 1.06, 0.16, p.waist.d * 1.08, 0, -0.04, 0);
-        part('rbox', c.accent, 'accent', this.spine, 0.07, 0.08, 0.045, -p.waist.w * 0.36, -0.05, -p.waist.d * 0.4);
-        break;
-      }
     }
     if (look.torso === 'armor' || armor) {
       part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.85, 0.32, 0.06, 0, 0.1, front - 0.005);
@@ -651,9 +722,7 @@ export class CharacterRig {
 
     // neck + head
     const H = p.head;
-    // (the balaclava covers the neck)
-    const masked = look.helmet === 'trilens';
-    part('limbA', masked ? c.torso : c.skin, masked ? 'torso' : 'skin', this.neck, p.neck.r * 2, p.neck.len + H.h * 0.35, p.neck.r * 2.1, 0, -0.04, -0.005, Math.PI - 0.1);
+    part('limbA', c.skin, 'skin', this.neck, p.neck.r * 2, p.neck.len + H.h * 0.35, p.neck.r * 2.1, 0, -0.04, -0.005, Math.PI - 0.1);
     const hs = look.head === 'oval' ? [0.94, 1.0, 1.0] : look.head === 'long' ? [0.95, 1.07, 0.98] : look.head === 'strong' ? [1.02, 1.0, 1.0] : [1, 1, 1];
     const jaw = look.head === 'strong' ? 0.92 : look.head === 'oval' ? 0.76 : 0.82;
     const hw = H.w * hs[0]!;
@@ -709,23 +778,6 @@ export class CharacterRig {
         part('sphere', c.accent, 'accent', this.headNode, 0.04, 0.075, 0.07, -hw * 0.54, 0, 0);
         part('sphere', c.accent, 'accent', this.headNode, 0.04, 0.075, 0.07, hw * 0.54, 0, 0);
         break;
-      case 'trilens': {
-        // balaclava over the head and face (eyes open), a strap, the tri-lens goggle on its mount: two lenses at
-        // the eyes, one above between them; they glow in a vision mode (`setLensGlow`)
-        part('sphere', c.torso, 'torso', this.headNode, hw * 1.05, hh * 0.9, hd * 1.04, 0, hh * 0.08, -0.004);
-        part('sphere', c.torso, 'torso', this.headNode, hw * jaw * 1.05, hh * 0.52, hd * 0.84, 0, -hh * 0.2, 0.012);
-        part('torus', c.helmet, 'helmet', this.headNode, hw * 1.08, hh * 0.18, hd * 1.08, 0, hh * 0.12, -0.004, -0.1);
-        const z = hd * 0.5 + 0.012;
-        part('rbox', c.helmet, 'helmet', this.headNode, 0.1, 0.05, 0.035, 0, 0.04, z);
-        const lens = (x: number, y: number): void => {
-          part('rcyl', c.helmet, 'helmet', this.headNode, 0.034, 0.042, 0.034, x, y, z + 0.022, Math.PI / 2);
-          this.lenses.push(part('rcyl', LENS_OFF, 'lens', this.headNode, 0.026, 0.006, 0.026, x, y, z + 0.044, Math.PI / 2) as InstancedMesh);
-        };
-        lens(-0.026, 0.022);
-        lens(0.026, 0.022);
-        lens(0, 0.058);
-        break;
-      }
       case 'hood':
         // a loose hood over a cap, drawn down at the back (the sniper)
         part('dome', c.helmet, 'helmet', this.headNode, hw * 1.22, hh * 0.78, hd * 1.2, 0, hh * 0.1, -0.012, -0.1);
@@ -776,8 +828,6 @@ export class CharacterRig {
       // mitten: palm faces inwards (towards the body), fingers down
       part('pill', hand, handSlot, wr, p.hand.t * 1.7, p.hand.len * 0.72, p.hand.w, 0, -p.hand.len * 0.4, 0.004);
       part('capsule', hand, handSlot, wr, 0.03, 0.075, 0.03, -side * 0.006, -p.hand.len * 0.25, p.hand.w * 0.48, 0.5, 0, 0);
-      // operator: elbow pad
-      if (operator) part('dome', c.accent, 'accent', el, ua.r1 * 2.4, 0.05, ua.r1 * 2.4, 0, 0.0, -ua.r1 * 0.75, -Math.PI / 2);
     };
     arm(-1, this.shoulderL, this.elbowL, this.wristL);
     arm(1, this.shoulderR, this.elbowR, this.wristR);
@@ -796,10 +846,7 @@ export class CharacterRig {
       const lowerSlot = shorts ? 'skin' : 'legs';
       part('sphere', lower, lowerSlot, kn, th.r1 * 2.1, th.r1 * 2.2, th.r1 * 2.15);
       part('limbL', lower, lowerSlot, kn, cf.r0 * 2, cf.len, cf.r0 * 2);
-      if (look.legs === 'armored' || armor || operator) part('dome', c.accent, 'accent', kn, 0.11, 0.07, 0.12, 0, 0.0, th.r1 * 0.9, Math.PI / 2);
-      // operator: a thigh pocket panel on each leg (cargo trousers already carry one; the sling and holster sit
-      // just outside it)
-      if (operator && look.legs !== 'cargo') part('rbox', c.accent, 'accent', hp, 0.045, 0.14, 0.11, side * th.r0 * 0.95, -th.len * 0.45, 0.0);
+      if (look.legs === 'armored' || armor) part('dome', c.accent, 'accent', kn, 0.11, 0.07, 0.12, 0, 0.0, th.r1 * 0.9, Math.PI / 2);
       part('sphere', c.boots, 'boots', an, cf.r1 * 2.6, cf.r1 * 2.4, cf.r1 * 2.6, 0, 0.0, 0);
       // boot: rounded toe forward, sole at the ground (ankle sits at foot.h above it)
       part('pill', c.boots, 'boots', an, p.foot.w, p.foot.h, p.foot.len, 0, -p.y.ankle * 0.45, p.foot.len * 0.28);
@@ -812,17 +859,9 @@ export class CharacterRig {
     this.root.setEnabled(v);
   }
 
-  /** Tri-lens goggle lenses (empty without the goggle). */
-  private readonly lenses: InstancedMesh[] = [];
-  private lensOn = false;
-
-  /** The tri-lens lenses glow green while a vision mode (night vision, sonar) is on. */
+  /** Vision mode (night vision, sonar) on: lit gear would glow (the SHADE suit has none yet). */
   setLensGlow(on: boolean): void {
-    if (on === this.lensOn) return;
-    this.lensOn = on;
-    const c = Color4.FromHexString(`${on ? LENS_ON : LENS_OFF}ff`);
-    for (const m of this.lenses) m.instancedBuffers.color = c;
-    if (this.voxel) for (const m of this.lenses) this.voxel.setPartColor(this.parts.indexOf(m), c);
+    void on;
   }
 
   // ------------------------------------------------------------------------------------------
@@ -1000,7 +1039,7 @@ export class CharacterRig {
     // the head is fresh from the solve (an emote may have moved it since)
     if (this.coverMode !== 'none' && this.emoteW > 0) fresh(this.neck);
     if (this.coverMode === 'hide') {
-      const top = posIn(this.headNode, headPt).y + this.p.head.h * 0.5 - rp.y;
+      const top = posIn(this.headNode, headPt).y + this.headTop - rp.y;
       // curl the back (and sink a little) until the head is under the top; very low cover can leave the
       // head showing rather than fold the legs into the floor
       const err = top - (this.coverTop - HIDE_MARGIN);
@@ -1036,7 +1075,7 @@ export class CharacterRig {
     // trunk (pelvis -> neck base), head ball, and the legs (solved this frame, before the weapon); legs get
     // extra margin (a thin stick limb still reads as touching just outside its radius)
     clrSet(0, P, this.neck.getAbsolutePosition(), this.p.chest.d * 0.5 + CLEAR_MARGIN);
-    clrSet(1, Hc, Hc, this.p.head.h * 0.46 + CLEAR_MARGIN);
+    clrSet(1, Hc, Hc, this.headClear + CLEAR_MARGIN);
     const thighR = this.p.thigh.r0 + CLEAR_MARGIN + 0.035;
     const calfR = this.p.calf.r0 + CLEAR_MARGIN + 0.035;
     clrSet(2, this.hipL.getAbsolutePosition(), this.kneeL.getAbsolutePosition(), thighR);

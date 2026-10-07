@@ -114,14 +114,15 @@ export interface HitVolumes {
   headR: number;
 }
 
-/** Hit volumes fitted to the body: the capsule spans shins to shoulders, the head sphere the skull. */
-export function hitVolumes(p: Proportions): HitVolumes {
+/** Hit volumes fitted to the body: the capsule spans shins to shoulders, the head sphere the skull (or `headR`
+ *  when headgear reaches further: SHADE's helmet). */
+export function hitVolumes(p: Proportions, headR?: number): HitVolumes {
   const bodyR = Math.min(p.capsuleRadius * 0.85, Math.max(p.chest.w * 0.62, 0.18 * (p.height / STANDARD_HEIGHT)));
   return {
     bodyY0: p.y.knee * 0.45 + bodyR,
     bodyY1: p.y.shoulder + 0.02 - bodyR,
     bodyR,
     headY: p.y.neck + p.neck.len + p.head.h * 0.42,
-    headR: (Math.max(p.head.w, p.head.d) / 2) * 1.15,
+    headR: Math.max(headR ?? 0, (Math.max(p.head.w, p.head.d) / 2) * 1.15),
   };
 }

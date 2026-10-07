@@ -65,9 +65,9 @@ describe('suit', () => {
     const look = suitLook({ ...defaultLook(), torso: 'vest', helmet: 'combat' }, { ...owned, vest: 2, goggles: 1 });
     expect(look.torso).toBe('armor');
     expect(look.helmet).toBe('headset');
-    // the operator keeps the suit and the tri-lens; heavy armour plates the legs
-    const opLook = suitLook(defaultLook(), { ...owned, vest: 3, goggles: 1 });
-    expect(opLook).toMatchObject({ torso: 'operator', helmet: 'trilens', legs: 'armored' });
+    // SHADE OPERATIVE is one figure: the suit changes its stats, never its look
+    const opLook = suitLook(defaultLook(), { ...owned, vest: 3, goggles: 1, pouches: 1 });
+    expect(opLook).toEqual(defaultLook());
   });
 });
 

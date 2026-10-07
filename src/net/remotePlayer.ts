@@ -1,6 +1,6 @@
 import { PhysicsBody, PhysicsMotionType, PhysicsShapeCapsule, TransformNode, Vector3, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
-import { hitVolumes, proportions } from '../player/proportions';
+import { hitVolumes } from '../player/proportions';
 import { Health } from '../game/health';
 import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/damage';
 import type { PlayerRef } from '../ai/enemy';
@@ -50,7 +50,7 @@ export class RemotePlayer implements Damageable {
   ) {
     this.feet.copyFrom(spawn);
     this.node = new TransformNode(`remote-hitbox-${id}`, scene);
-    const hv = hitVolumes(proportions('average'));
+    const hv = hitVolumes(avatar.rig.p, avatar.rig.headHit);
     this.shape = new PhysicsShapeCapsule(new Vector3(0, hv.bodyY0, 0), new Vector3(0, hv.headY - hv.bodyR * 0.5, 0), hv.bodyR, scene);
     this.shape.filterMembershipMask = G.PLAYER_HITBOX;
     this.shape.filterCollideMask = G.PROJECTILE;
