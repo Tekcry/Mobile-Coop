@@ -177,6 +177,7 @@ export class PostStack {
     if (g) return { tex: () => g.getGBuffer().textures[g.getTextureIndex(0)]!, raw: true };
     this.depth ??= this.scene.enableDepthRenderer(this.camera, false, true);
     const d = this.depth;
+    d.enabled = true;
     return { tex: () => d.getDepthMap(), raw: false };
   }
   private key = '';
@@ -210,6 +211,8 @@ export class PostStack {
   focusOn = false;
   /** Called after a rebuild so the cinematic pass can move back to the end of the chain. */
   onRebuilt: (() => void) | null = null;
+  /** Times the stack was rebuilt (a feature, the upscale or Panini changed). */
+  builds = 0;
 
   constructor(
     private scene: Scene,
@@ -222,6 +225,7 @@ export class PostStack {
     const key = JSON.stringify(f) + q.minimal + q.upscale + q.panini;
     if (key === this.key) return;
     this.key = key;
+    this.builds++;
     this.disposeAll();
     if (q.minimal) {
       this.onRebuilt?.();
@@ -446,7 +450,9 @@ export class PostStack {
     this.taa?.dispose();
     this.motion?.dispose(this.camera);
     this.vol?.dispose(this.camera);
-    if (this.depth) this.scene.disableDepthRenderer(this.camera);
+    // (every depth renderer on the camera, depth of field's too: the next build reusing one that depth of field had
+    // paused left fog and TAAU on a stale depth)
+    this.scene.disableDepthRenderer(this.camera);
     if (this.gbr) this.scene.disableGeometryBufferRenderer();
     this.gbr = null;
     this.dofDepth = null;

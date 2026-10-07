@@ -1085,7 +1085,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   at the TAAU ratio (`makeVolumetric(ratio)`; `PostStack.setAdaptive` moves its `_options` with TAAU's) and TAAU sets
   its jitter in `scene.onBeforeCameraRenderObservable` (before shadow maps / G-buffer / any pass ahead of it); the
   G-buffer is enabled at the TAAU ratio; volumetric `steps` uniform (Epic effects 16, else 8); `MOBILE_MAX_DPR` 2
-  (`QualityManager.applyScale` on mobile). `World.relightMaterials` when the shadow spec changes in a match (frozen
+  (`QualityManager.applyScale` on mobile). `World.refreshMaterials` when the shadow spec changes or the post stack rebuilds in a match (3.1.3; `PostStack.builds`; frozen
   materials re-read their lights, refreeze after two frames).
 - `perf.mjs --budget` (no flag) is the test-path regression check (`?gfx=min`: no post stack, no voxel characters,
   20 cm voxels): sim p95 <= 2.5 ms, animation <= 0.04 ms per character, <= 55 draws, <= 0.2 M triangles, allocations

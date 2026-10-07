@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.1.3 - Graphics changes in a match no longer slow every frame
+- iPhone Feature costs on 3.1.2 (1912 x 880): Medium 57 fps with your settings, Ultra 22. But every run that rebuilt
+  the post effects without touching shadows (ambient occlusion, light shafts, reflections, bloom, depth of field,
+  post-effect resolution or textures off) dropped to 8-20 fps and stayed there; the shadow and lamp runs, which make
+  every material rebuild its shaders, were back at full speed. The same happened when changing those settings from
+  the pause menu.
+- A post-effects rebuild in a match now has every frozen material re-read its setup for two frames (as a shadow
+  change already did), then freeze again.
+- Turning ambient occlusion (and screen-space reflections) off mid-match on a preset with depth of field left fog and
+  TAAU reading a depth pass depth of field had paused (a stale depth: smeared upscaling, wrong fog). The camera's
+  depth passes are released with the old effects and the fog's is always running.
+
 ## 3.1.2 - Feature costs benchmark
 - iPhone 17 Pro Max on 3.1.1 (1912 x 880): Low 76 fps, Medium 47, High 41, Ultra 21 (3.1.0: 60 / 19 / 15 / 12) -
   better, still short of the target, and the 1% lows (8-15 fps) show hitches.

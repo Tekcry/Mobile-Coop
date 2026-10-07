@@ -399,19 +399,24 @@ export class World {
     this.setSunShadows(q.shadow);
     // (frozen materials keep the shader built for the old shadow maps - a stale light setup draws with unbound
     // uniform buffers: let every one re-read its lights once, then freeze it again)
-    if (shadowChanged) this.relightMaterials();
+    if (shadowChanged) this.refreshMaterials();
   }
 
   private shadowKey = '';
 
-  private relightMaterials(): void {
+  /**
+   * Frozen materials re-read their whole setup (lights, shadow maps, the post stack's image processing) for two frames,
+   * then freeze again: after a shadow change or a post stack rebuild in a match (3.1.3: on the iPhone a rebuilt stack
+   * left every frame ~4x slower until this ran).
+   */
+  refreshMaterials(): void {
     const frozen: Material[] = [];
     for (const m of this.scene.materials) {
       if (m.isFrozen) {
         m.unfreeze();
         frozen.push(m);
       }
-      m.markAsDirty(Material.LightDirtyFlag);
+      m.markAsDirty(Material.AllDirtyFlag);
     }
     // (two frames: compiled and drawn with the new setup before freezing again)
     let n = 0;

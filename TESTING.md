@@ -298,9 +298,14 @@ Controls:
 | --- | --- | --- | --- | --- |
 | 3.1.0 (2868 x 1320) | 60 avg / 35 1% low | 19 / 8 | 15 / 7 | 12 / 6 |
 | 3.1.1 (1912 x 880) | 76 / 48 | 47 / 15 | 41 / 12 | 21 / 8 |
-| 3.1.2 | | | | |
-- [ ] 3.1.2: Settings > Graphics > Preset Ultra, then Benchmark > Feature costs; again on Medium. Save each to
-  feedback and send the lines (each says the fps without one feature, the hitches and the shaders compiled).
+| 3.1.2 (Feature costs, current settings) | | 57 / 21 | | 22 / 12 |
+| 3.1.3 | | | | |
+- 3.1.2 Feature costs: Medium shadows Low 62 fps, lamps 8 54; Ultra shadows Low 28, lamps 8 23. Every other run
+  (8-20 fps) was the rebuild bug fixed in 3.1.3, not the feature's cost.
+- [ ] 3.1.3: Settings > Graphics > Preset Ultra, then Benchmark > Feature costs; again on Medium. Copy text and send
+  the lines: no run without a feature may come out slower than "current settings".
+- [ ] Mid-match (pause > Settings > Graphics): turn Ambient occlusion off and on, then Bloom: the frame rate stays
+  where it was (3.1.2 dropped ~4x until Shadows were changed).
 - [ ] Fog and light shafts look as before (Medium, Fog weather); no shimmer on the shafts when the camera moves.
 - [ ] Settings > Graphics > Shadows changed in a paused match: shadows switch, nothing goes black or flickers.
 - [ ] Display rate: Settings > Graphics > Target frame rate shows "Display refresh (N Hz)". Every iPhone browser

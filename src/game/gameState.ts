@@ -581,8 +581,11 @@ export class GameState implements AppState {
   }
 
   applyQuality(level: QualityLevel): void {
+    const builds = this.stack.builds;
     this.world.applyQuality(level);
     this.stack.apply(level);
+    // (a post stack rebuilt mid-match: the frozen materials re-read their setup, as after a shadow change)
+    if (builds > 0 && this.stack.builds !== builds) this.world.refreshMaterials();
     this.vfx.density = level.vfxDensity;
     this.weather.setDensity(level.minimal ? 0 : level.vfxDensity);
     const sp = this.world.level.surfacePlugin;

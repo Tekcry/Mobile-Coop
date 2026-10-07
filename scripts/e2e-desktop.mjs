@@ -367,6 +367,30 @@ try {
     return { level: a.quality.governor.level, scene: taau?.inputTexture?.width ?? 0, canvas: a.engine.getRenderWidth(), detail: a.quality.detail, line: a.debug.extra.get('governor')?.() ?? '' };
   });
   assert(gv.scene / gv.canvas < 0.6 && gv.detail.scale < 1 && /governor L\d/.test(gv.line), `the governor steps down when frames are missed (level ${gv.level}: TAAU input ${gv.scene} of ${gv.canvas})`);
+  // 3.1.3: the post stack rebuilt mid-match (Feature costs runs): the frozen materials re-read their setup, then freeze
+  // again; fog / TAAU get a live depth pass even where depth of field had paused the camera's one
+  const rb = await u.page.evaluate(async () => {
+    const a = window.__app;
+    const scene = a.current.scene;
+    const wait = (n) => new Promise((r) => { let k = 0; const o = scene.onAfterRenderObservable.add(() => { if (++k >= n) { scene.onAfterRenderObservable.remove(o); r(); } }); });
+    const frozen = () => scene.materials.filter((m) => m.isFrozen).length;
+    a.quality.setOverride({ preset: 'high', scale: null });
+    await wait(3);
+    const before = frozen();
+    const builds = a.current.stack.builds;
+    a.quality.setOverride({ preset: 'high', scale: null, gfx: { ao: false, reflections: 'off' } });
+    const thawed = frozen();
+    const dr = Object.values(scene._depthRenderer ?? {})[0];
+    let depthFrames = 0;
+    const o = dr?.getDepthMap().onAfterRenderObservable.add(() => depthFrames++);
+    await wait(4);
+    if (o) dr.getDepthMap().onAfterRenderObservable.remove(o);
+    const after = frozen();
+    a.quality.setOverride(null);
+    return { rebuilt: a.current.stack.builds > builds, before, thawed, after, depthFrames, enabled: dr?.enabled ?? null };
+  });
+  assert(rb.rebuilt && rb.before > 0 && rb.thawed < rb.before && rb.after >= rb.before, `a rebuilt post stack refreshes the frozen materials, then freezes them again (${JSON.stringify(rb)})`);
+  assert(rb.enabled === true && rb.depthFrames >= 3, `without the G-buffer the fog / TAAU depth pass renders every frame (${JSON.stringify(rb)})`);
   const uerrs = u.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
   assert(uerrs.length === 0, `ray traced + TAAU + Panini render without console errors${uerrs.length ? ': ' + uerrs.slice(0, 4).join(' | ') : ''}`);
   console.log('desktop e2e passed');
