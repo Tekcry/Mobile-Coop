@@ -1,10 +1,11 @@
 name: Preview check
 
-# A push to dev is checked here; when it passes, "Build and deploy to GitHub Pages" rebuilds the site with the
-# dev build under /preview/ (that workflow runs on the default branch, which the Pages environment allows).
+# A push to dev (or ct-movement) is checked here; when it passes, "Build and deploy to GitHub Pages" rebuilds the
+# site with the dev build under /preview/ and the ct-movement build under /ct/ (that workflow runs on the default
+# branch, which the Pages environment allows).
 on:
   push:
-    branches: [dev]
+    branches: [dev, ct-movement]
 
 permissions:
   contents: read
