@@ -30,6 +30,7 @@ import { proportions } from '../player/proportions';
 import { hyp2 } from '../core/mathx';
 import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
 import { LightRegistry, type LightInit } from './lights';
+import { levelVoxels, type LevelVoxels, type VoxelArt } from '../voxel/levelVoxels';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -89,6 +90,8 @@ export interface BuiltLevel {
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
   /** The level material's procedural-surface plugin (3.0; rain sets `wet`). */
   surfacePlugin: SurfacePlugin | null;
+  /** 3.0 voxels: the pieces rendered as voxels (their shapes, palette and grid); they are left out of `meshes`. */
+  voxels: LevelVoxels | null;
   dispose(): void;
 }
 
@@ -303,10 +306,12 @@ export class LevelBuilder {
    * Build the level. With an `atlas` (3.0) the pieces are PBR with the procedural surfaces (a per-instance `surf`
    * id: floors by what is underfoot, `floor` the map's default; the rest by colour); without, the flat shading.
    */
-  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality } = {}): BuiltLevel {
+  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; voxelSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
     const root = new TransformNode(`level-${name}`, scene);
     // visual-only dressing (3.0): never collides, so nav / cover / ledges are unchanged
     if (opts.detail) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
+    // voxels (3.0): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
+    const voxels = opts.voxelSize ? levelVoxels(this.boxes, this.cylinders, this.surfaces, opts.floor ?? 'concrete', opts.voxelSize, undefined, opts.art ?? null) : null;
     let mat: StandardMaterial | PBRMaterial;
     let surfacePlugin: SurfacePlugin | null = null;
     if (opts.atlas) {
@@ -352,7 +357,8 @@ export class LevelBuilder {
     const tmpQ = new Quaternion();
 
     // Boxes
-    const shown = this.boxes.filter((b) => b.visible !== false);
+    const asMesh = (i: number): boolean => this.boxes[i]!.visible !== false && !voxels?.voxelBox[i];
+    const shown = this.boxes.filter((_b, i) => asMesh(i));
     const bm = new Float32Array(shown.length * 16);
     const bc = new Float32Array(shown.length * 4);
     const bs = new Float32Array(shown.length);
@@ -360,7 +366,7 @@ export class LevelBuilder {
     let vi = 0;
     this.boxes.forEach((b, i) => {
       Quaternion.RotationYawPitchRollToRef(b.yaw, b.pitch, 0, tmpQ);
-      if (b.visible !== false) {
+      if (asMesh(i)) {
         Matrix.ComposeToRef(new Vector3(b.s[0], b.s[1], b.s[2]), tmpQ, new Vector3(b.c[0], b.c[1], b.c[2]), mtx);
         mtx.copyToArray(bm, vi * 16);
         const [r, g, bl] = lin(hexToRgb(b.color));
@@ -383,21 +389,25 @@ export class LevelBuilder {
     const cm = new Float32Array(Math.max(1, this.cylinders.length) * 16);
     const cc = new Float32Array(Math.max(1, this.cylinders.length) * 4);
     const cs = new Float32Array(Math.max(1, this.cylinders.length));
+    let ci = 0;
     this.cylinders.forEach((c, i) => {
-      Matrix.ComposeToRef(new Vector3(c.r * 2, c.h, c.r * 2), unitQ, new Vector3(c.c[0], c.c[1], c.c[2]), mtx);
-      mtx.copyToArray(cm, i * 16);
-      const [r, g, b] = lin(hexToRgb(c.color));
-      cc.set([r, g, b, 1], i * 4);
-      cs[i] = kindOf(c.color, c.r * 2, c.h, c.r * 2, c.c[0], c.c[1] + c.h / 2, c.c[2]);
+      if (!voxels?.voxelCyl[i]) {
+        Matrix.ComposeToRef(new Vector3(c.r * 2, c.h, c.r * 2), unitQ, new Vector3(c.c[0], c.c[1], c.c[2]), mtx);
+        mtx.copyToArray(cm, ci * 16);
+        const [r, g, b] = lin(hexToRgb(c.color));
+        cc.set([r, g, b, 1], ci * 4);
+        cs[ci] = kindOf(c.color, c.r * 2, c.h, c.r * 2, c.c[0], c.c[1] + c.h / 2, c.c[2]);
+        ci++;
+      }
       if (c.collide) {
         const shape = new PhysicsShapeCylinder(new Vector3(0, -c.h / 2, 0), new Vector3(0, c.h / 2, 0), c.r, scene);
         container.addChild(shape, new Vector3(c.c[0], c.c[1], c.c[2]));
       }
     });
-    if (this.cylinders.length) {
-      cylMesh.thinInstanceSetBuffer('matrix', cm, 16, true);
-      cylMesh.thinInstanceSetBuffer('color', cc, 4, true);
-      if (opts.atlas) cylMesh.thinInstanceSetBuffer('surf', cs, 1, true);
+    if (ci) {
+      cylMesh.thinInstanceSetBuffer('matrix', cm.subarray(0, ci * 16), 16, true);
+      cylMesh.thinInstanceSetBuffer('color', cc.subarray(0, ci * 4), 4, true);
+      if (opts.atlas) cylMesh.thinInstanceSetBuffer('surf', cs.subarray(0, ci), 1, true);
     } else {
       cylMesh.isVisible = false;
     }
@@ -446,6 +456,7 @@ export class LevelBuilder {
       surfaces: this.surfaces,
       bounds: this.bounds,
       surfacePlugin,
+      voxels,
       dispose: () => {
         body.dispose();
         container.dispose();

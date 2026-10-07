@@ -160,8 +160,11 @@ try {
   const r = await e.page.evaluate(() => {
     const g = window.__app.current;
     const rig = g.world.lightRig;
-    return { clustered: rig.clustered, placed: rig.placed, shadowed: rig.shadowed, sun: !!g.world.shadow, pps: g.player.cam.camera._postProcesses.filter(Boolean).map((p) => p.name) };
+    const vx = g.world.voxels;
+    return { clustered: rig.clustered, placed: rig.placed, shadowed: rig.shadowed, sun: !!g.world.shadow, pps: g.player.cam.camera._postProcesses.filter(Boolean).map((p) => p.name), vox: vx && { ...vx.stats, size: vx.lv.size, levels: vx.materials.length, casters: vx.meshes.filter((m) => rig.casters.includes(m)).length, meshes: vx.meshes.length } };
   });
+  assert(r.vox && r.vox.size === 0.05 && r.vox.levels === 3 && r.vox.chunks > 20 && r.vox.quads > 1000, `Epic: the Warehouse in 5 cm voxels, three levels of detail (${JSON.stringify(r.vox)})`);
+  assert(r.vox.casters === r.vox.meshes, 'every voxel chunk casts shadows');
   assert(r.placed >= 8 && r.shadowed >= 1, `Epic: real lights placed (${r.placed}, ${r.shadowed} with shadows, clustered ${r.clustered})`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');

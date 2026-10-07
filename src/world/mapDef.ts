@@ -3,6 +3,7 @@ import type { LevelBuilder } from './levelBuilder';
 import type { PropKind } from './props';
 import type { RoomDef } from './rooms';
 import type { Surface } from './surfaces';
+import type { VoxelArt } from '../voxel/levelVoxels';
 
 export interface MapTheme {
   sky: string;
@@ -63,4 +64,6 @@ export interface MapDef {
   /** Modes this map supports. */
   modes: ('wave' | 'mission' | 'sandbox' | 'clear' | 'infiltration' | 'tdm' | 'ffa' | 'training')[];
   build(b: LevelBuilder, seed: number): MapLayout;
+  /** 3.0: the voxel art layer (what the pieces' voxels look like, visual-only dressing); none = plain voxels. */
+  art?: VoxelArt;
 }

@@ -298,6 +298,12 @@ Warehouse focus:
 - [ ] Play lists every mode on the Warehouse (Training on Proving Grounds); Free Roam on the Warehouse has no guards
       and every weapon; Infiltration shows four Warehouse missions only (Cold Storage, Ledger, Courier, Blackout) and
       each can be finished; co-op and PvP lobbies offer the Warehouse.
+Voxels (Epic, the laptop):
+- [ ] Warehouse and Proving Grounds load as voxels (first load: note the time; second load quicker - cached); walls,
+      floors, racks and crates show voxel tones, soft occlusion in corners and lighter worn edges up close; far
+      rooms switch to coarser voxels without visible popping or cracks.
+- [ ] Cover, vaults, ladders, ledges and doors behave exactly as before (hands on the cover surface, feet on floors).
+- [ ] Shadows from lamps / flashlights / the moon fall on and from the voxels; reflections pick them up.
 Displays (gaming laptop: RTX 4090 Laptop, 16 GB; built-in 2560 x 1600 240 Hz; external ultrawide):
 - [ ] The browser runs on the NVIDIA GPU (Settings > Graphics > GPU); switch it to the integrated GPU once: the
       notice appears once with the Windows steps.

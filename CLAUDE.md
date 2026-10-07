@@ -916,6 +916,25 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   cover faces, ledges and the solid set are unchanged. `QualityLevel.detailScale` scales `PartLibrary.setLodScale`
   and `setAnimLodScale` (characterRig). `Vfx`: spent brass (`Brass`: one bounce, then lies at the shooter's floor;
   48 x effects density kept), 160 decals.
+- Voxels (3.0, `src/voxel/`): the level renders as voxels; gameplay still reads the blockout (collision, cover, nav,
+  ledges, anchors, perception). `levelVoxels` (pure) splits the pieces (every side >= `MIN_VOXELS` 1.5 voxels becomes
+  voxels, thinner ones stay thin-instanced boxes / cylinders until the art layer models them) and builds the palette
+  (`Palette`: colour + surface kind + emissive, <= 255) and the grid (`CHUNK` 128 voxels a side, origin on the brick
+  grid). `shapes.ts` (pure): `VoxelShape` box (yaw / pitch as Babylon's) / cylinder, fill / carve / paint, packed 16
+  floats each, `rasterise` by voxel centre (a surface lands within half a voxel). `mesher.ts` (pure) greedy meshing on
+  occupancy only (one-voxel apron, Babylon winding). `chunk.ts` `buildChunk` (pure: rasterise + mesh + bricks) runs in
+  `voxelWorker.ts` through `WorkerPool` (`hardwareConcurrency - 4`, 2..16; inline without Worker). `brickmap.ts`
+  (pure) `Brickmap`: 8^3 bricks, empty / uniform / explicit (pool slots), `fold`, `compact`. `VoxelWorld` (Babylon):
+  chunk jobs per level of detail (level l = 2^l x the size, same chunk extent), meshes per chunk, the brickmap on the
+  GPU (indirection RGBA8 3D: a 0 empty / 254 uniform / 255 explicit slot; pool R8 3D 512 x 512 x 8n; palette RGBA8 256
+  x 1), `VoxelPlugin` (PBR plugin: the voxel behind each pixel -> palette; per-voxel tone / roughness hash; AO and
+  worn convex edges from neighbour voxels; the surface atlas as micro detail inside faces; rain `wet`; emissive;
+  coarse levels search 2^l voxels inward), level of detail per chunk by camera distance at 5 Hz (`VOXEL_LOD` per Detail
+  tier: Epic 30 / 60 m). `voxelCache.ts`: chunk results in IndexedDB `kv` (`voxel:<map>:<seed>:<size>:<levels>:v<VOXEL_VERSION>:<hash>`,
+  newest 4 kept). `World.create(.., { voxel })` (GameState: 5 cm x 3 levels with AO / micro; `?gfx=min` 20 cm x 1, no
+  AO / micro; `?voxels=0` the old boxes); chunk meshes are shadow casters and in the reflection probe.
+  `tests/voxelFit.test.ts`: parity (voxelising changes no cover face, ledge or solid) and fit (+-3 cm on every axis
+  cover face, ledge lip and floor top; round pillars: half a voxel's diagonal plus the curve's sag).
 - Weather (3.0, `MapTheme.weather`: Port rain, Dust Depot dust, Refinery haze): `vfx/weather.ts` `Weather`
   (thin-instanced streaks / motes in a box wrapped round the camera, updated in place, count x effects density),
   `SurfacePlugin.wet` (upward faces darker and glossy, more in cavities: SSR puddles), the volumetric pass's

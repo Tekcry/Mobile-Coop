@@ -6,6 +6,11 @@
   guards, every weapon), co-op and PvP. Proving Grounds stays as a plain range for Free Roam and Training. Embassy,
   Mansion, Port, Refinery and Dust Depot are parked (not offered; kept as they were in 2.3.0 to come back later);
   their mission records and challenges stay in the save.
+- Voxels: the Warehouse and Proving Grounds are built from voxels - 5 cm at Epic near the camera, 10 / 20 cm further
+  out (levels of detail by distance, nearer on High / Ultra) - with a per-voxel colour and roughness variation,
+  ambient occlusion and worn edges between voxels and the procedural surface textures inside each face. Built on all
+  but four of the CPU's threads at load and cached on the device (the second load is quick). Gameplay is untouched:
+  collision, cover, ledges and the guards' navigation are the same as before.
 - Displays: ultrawide 21:9 and 32:9 (up to 7680 x 2160) - the view widens with the screen up to a widest field of
   view (default 120 deg, then the sides stop growing), menus stay a centred 16:9 layout, the HUD keeps to a centred
   16:9 on 32:9 (HUD width: auto / 16:9 / 21:9 / full); the frame-rate cap names the display's refresh (up to 240

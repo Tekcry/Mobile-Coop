@@ -1,6 +1,7 @@
 import type { App, AppState } from '../core/app';
 import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
-import { World } from '../world/world';
+import { VOXEL_LOD, World } from '../world/world';
+import { flags } from '../core/flags';
 import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
@@ -531,7 +532,9 @@ export class GameState implements AppState {
 
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
     const q = app.quality.level;
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail });
+    // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
+    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: 0.05, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: true };
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     return g;

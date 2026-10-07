@@ -36,6 +36,9 @@ export type { MaterialDefines } from '@babylonjs/core/Materials/materialDefines'
 export { Texture } from '@babylonjs/core/Materials/Textures/texture';
 export { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 export { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+export { RawTexture3D } from '@babylonjs/core/Materials/Textures/rawTexture3D';
+export { Constants } from '@babylonjs/core/Engines/constants';
+export type { BaseTexture } from '@babylonjs/core/Materials/Textures/baseTexture';
 export { ProceduralTexture } from '@babylonjs/core/Materials/Textures/Procedurals/proceduralTexture';
 export { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
 export { ReflectionProbe } from '@babylonjs/core/Probes/reflectionProbe';

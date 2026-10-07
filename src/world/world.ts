@@ -27,6 +27,9 @@ import { makeCone } from './lights';
 import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import { SurfaceAtlas } from './surfaceAtlas';
 import { setAnimLodScale } from '../player/characterRig';
+import { VoxelWorld } from '../voxel/voxelWorld';
+import { VOXEL_VERSION } from '../voxel/levelVoxels';
+import { packShapes } from '../voxel/shapes';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
@@ -35,7 +38,22 @@ export interface WorldOptions {
   seed: number;
   /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
   detail?: TierQuality;
+  /** 3.0 voxels (null / absent: the blockout's boxes as before). */
+  voxel?: VoxelOptions | null;
 }
+
+export interface VoxelOptions {
+  /** Finest voxel edge (m). */
+  size: number;
+  /** Levels of detail (1..3). */
+  levels: number;
+  lodDist: [number, number];
+  ao: boolean;
+  micro: boolean;
+}
+
+/** Level-of-detail distances (m) per Detail tier: Epic keeps 5 cm voxels to 30 m. */
+export const VOXEL_LOD: Record<TierQuality, [number, number]> = { high: [15, 30], ultra: [22, 45], epic: [30, 60] };
 
 /** Scene + lighting + level geometry + props for one map. */
 export class World {
@@ -60,6 +78,8 @@ export class World {
     readonly level: BuiltLevel,
     readonly layout: MapLayout,
     atlas: SurfaceAtlas,
+    /** The level's voxels (3.0; null: blockout boxes). */
+    readonly voxels: VoxelWorld | null = null,
   ) {
     this.surfaces = atlas;
     const th = map.theme;
@@ -90,6 +110,7 @@ export class World {
     this.lightRig = new LightRig(scene, level.lights);
     // the level itself casts shadows (walls stop lamp light and the sun)
     for (const m of level.meshes) this.lightRig.addCaster(m);
+    for (const m of voxels?.meshes ?? []) this.lightRig.addCaster(m);
     this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
     // image-based light for the PBR surfaces: the level and sky seen from the middle, captured once
@@ -98,6 +119,7 @@ export class World {
     probe.position.set((bd.minX + bd.maxX) / 2, 2.2, (bd.minZ + bd.maxZ) / 2);
     probe.refreshRate = 0;
     for (const m of level.meshes) probe.renderList?.push(m);
+    for (const m of voxels?.meshes ?? []) probe.renderList?.push(m);
     probe.renderList?.push(this.sky);
     // (assigned after the capture: a material sampling the cube while it renders into it is a feedback loop)
     probe.cubeTexture.onAfterRenderObservable.addOnce(() => {
@@ -121,8 +143,15 @@ export class World {
     const layout = map.build(b, opts.seed);
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = new SurfaceAtlas(scene, 256, 4);
-    const level = b.build(scene, map.id, { atlas, floor: map.theme.floor ?? 'concrete', detail: opts.detail });
-    return new World(scene, map, level, layout, atlas);
+    const vo = opts.voxel ?? null;
+    const level = b.build(scene, map.id, { atlas, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, art: map.art ?? null });
+    let voxels: VoxelWorld | null = null;
+    if (vo && level.voxels) {
+      const lv = level.voxels;
+      const key = `voxel:${map.id}:${opts.seed}:${vo.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(lv.shapes), lv.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
+      voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key });
+    }
+    return new World(scene, map, level, layout, atlas, voxels);
   }
 
   /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). */
@@ -147,7 +176,9 @@ export class World {
         m.markAsDirty(1);
         m.freeze();
       }
+      this.voxels?.refresh();
     }
+    if (!q.minimal) this.voxels?.setLodDistances(...VOXEL_LOD[q.features.detail]);
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal });
     const k = q.minimal ? 1 : q.detailScale;
     this.parts.setLodScale(k);
@@ -186,7 +217,10 @@ export class World {
   /** Keep the sun's shadow frustum centred on the player. */
   frame(focus: Vector3, dt = 0): void {
     const cam = this.scene.activeCamera;
-    if (cam) this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
+    if (cam) {
+      this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
+      this.voxels?.frame(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
+    }
     this.sun.position.copyFrom(focus).subtractInPlace(this.sun.direction.scale(40));
   }
 
@@ -199,9 +233,19 @@ export class World {
     this.doors.dispose();
     this.props.dispose();
     this.level.dispose();
+    this.voxels?.dispose();
     this.parts.dispose();
     this.scene.dispose();
   }
+}
+
+/** FNV-1a over the shapes' bytes and the palette (the voxel cache key). */
+function contentHash(shapes: Float32Array, palette: string): string {
+  let h = 2166136261;
+  const b = new Uint8Array(shapes.buffer, shapes.byteOffset, shapes.byteLength);
+  for (let i = 0; i < b.length; i++) h = Math.imul(h ^ b[i]!, 16777619);
+  for (let i = 0; i < palette.length; i++) h = Math.imul(h ^ palette.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(36);
 }
 
 function makeSky(scene: Scene, top: string, horizon: string): Mesh {

@@ -1,6 +1,7 @@
 node_modules
 dist
 dist-next
+dist-p1
 dev-dist
 *.log
 .DS_Store
