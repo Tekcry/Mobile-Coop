@@ -205,6 +205,8 @@ try {
   assert(!i.attached && Math.abs(i.y - 3.3) < 0.1, `up on the press (y ${f2(i.y)})`);
 
   console.log('service corridor: split jump over the patrol');
+  const splits = await page.evaluate(() => window.__app.current.world.level.anchors.splits.map((g) => [+g.a.x.toFixed(1), +g.a.z.toFixed(1)]));
+  assert(splits.length === 1 && Math.abs(splits[0][1] + 10.1) < 0.2, `one split gap on the Warehouse, in the corridor (${JSON.stringify(splits)})`);
   // the cabinet bank (x 7..11, face z -9.35) and the corridor's south wall (face z -10.85)
   await tp(9, 0, -10.1, Math.PI / 2);
   await run(0.4);

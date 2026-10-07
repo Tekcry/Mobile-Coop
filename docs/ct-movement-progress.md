@@ -1,5 +1,5 @@
 # CT movement - progress
-Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-10-07
+Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-10-08
 
 ## Status
 | Phase | Status | Commit |
@@ -169,6 +169,31 @@ Decisions:
   change); a start plays at once on receipt (both sides within one network delay) rather than from `t0` by `ClockSync`;
   the top of the human ladder is free to aim with no pitch clamp.
 - One more guard (corridor patrol): the split and the corridor needed someone to drop on.
+- The gatehouse moved 2.3 m south: it sealed a pocket against the facade (an unreachable accidental split gap) and
+  would have let a solo player step up to the pump house.
+
+Fixes found by the runs:
+- A grab whose hostage was shot dead never ended (`setSolid` on the dead guard's disposed hit volumes threw before the
+  grab cleared).
+- The takedown offer tried only the nearest guard; from a split / pipe the nearest can be behind a wall. It now tries
+  the three nearest (one ray each).
+- Tests: e2e-clear knows the corridor room and sweeps guards that hold no room (alarm reinforcements); e2e-netmove
+  holds Y until the host page (in the background, slow pad polling) sees it.
+
+Tests run:
+- `npm run lint` clean; `npm test` 56 files, 566 tests passed; `npm run build` ok.
+- Full e2e (32 suites) on the Warehouse build: all passed but e2e-takedown (the dead-hostage grab) and e2e-netmove (the
+  tap timing); both fixed and re-run alone: pass. After the gatehouse move: e2e-takedown, e2e-ct-warehouse,
+  e2e-anchors, e2e-missions, e2e-clear (after the test fix), e2e-levels, e2e-stealth-ai, e2e-coop, e2e-enemies,
+  e2e-gadgets, e2e-tactics, e2e-netmove: pass.
+- Perf against the Phase 1 build on the same VM (interleaved): test path draws 42 / 42, animation per character
+  0.043-0.059 ms vs 0.055-0.065 ms (VM noise both sides; single readings sometimes over the scaled 0.04 budget, as on
+  the baseline); mobile Ultra draws 231 (<= 250), 0.63 M triangles; desktop draws 474 vs 481, 1.32 M vs 1.45 M
+  triangles, sim p95 2.4 vs 3.15 ms, allocations 10.5 vs 10.4 MB/s.
+
+Open issues:
+- e2e-netmove "ladder after a climb" once read a 35 cm ankle error (the grip settle race from Phase 1); it passed on
+  the next runs.
 
 ## Preview
 `ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).

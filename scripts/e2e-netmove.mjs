@@ -324,10 +324,11 @@ try {
   await brace(B, 'client');
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'brace', null, 6000, 'host sees the client braced');
   await until(A, () => !!window.__app.current.team.offer?.boost, null, 4000, 'host offered a boost').catch(async (e) => { console.log(await GA(() => JSON.stringify(window.__app.current.team.offer && { mate: window.__app.current.team.offer.mate.id }))); throw e; });
+  // (Y held until the host's frame sees the press: a page in the background polls the pad slowly)
   await GA(() => window.__pad.set(3, 1));
-  await wait(120);
+  await until(A, () => window.__app.current.team['pressT'] >= 0, null, 4000, 'host sees Y');
   await GA(() => window.__pad.set(3, 0));
-  await until(A, () => window.__app.current.team.count.boosts === 1, null, 4000, 'host boosted').catch(async (e) => { console.log(await GA(() => { const t = window.__app.current.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer }); })); throw e; });
+  await until(A, () => window.__app.current.team.count.boosts === 1, null, 4000, 'host boosted').catch(async (e) => { console.log(await GA(() => { const g = window.__app.current; const t = g.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer, boost: !!t.offer?.boost, pressT: t['pressT'], td: !!g.takedown.offer, ex: g.execute.ready, it: !!g.interactTarget, trav: g.traversal.kind, att: g.traversal.attached, hint: g.traversal.attachCtl.hint?.anchor.kind ?? null, pad: navigator.getGamepads()[0]?.buttons[3]?.pressed, mode: g.app.input.mode }); })); throw e; });
   await until(B, () => window.__app.current.team.state === 'assist', null, 4000, 'client assists');
   await until(A, () => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 6000, 'host on the 4.2 m lip');
   const lipY = await GA(() => window.__app.current.traversal.attach.anchor.top);
@@ -350,7 +351,7 @@ try {
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.avatar.mode === 'stacked' && r.avatar.pos.y > 1.2; }, null, 6000, 'host sees the client on its shoulders');
   // free to aim up there; Y grabs the lip
   await GB(() => { window.__app.current.player.cam.yaw = 0; window.__pad.set(3, 1); });
-  await wait(120);
+  await wait(250);
   await GB(() => window.__pad.set(3, 0));
   await until(B, () => window.__app.current.traversal.attach.phase !== 'none' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 6000, 'client grabs the lip from the top');
   await until(A, () => window.__app.current.team.state === 'none', null, 4000, 'host free once the client is off');

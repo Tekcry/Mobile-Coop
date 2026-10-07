@@ -108,6 +108,9 @@ Warehouse - Chaos Theory routes (more ways in, more height):
 - A chain-link fence closes the dark yard lane off from the east lot: climb it in the dark (quietly at gears 1-3) or walk
   round through the lit gap by the facade. Guards walk round.
 - One more guard: a corridor patrol (Hunter / Infiltration counts include him).
+- The gatehouse in the east lot moved south, clear of the pump house.
+- Takedowns: the offer now tries the three nearest guards (a guard behind a wall no longer hides the one under you);
+  a grab whose hostage is shot dead ends at once.
 
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the

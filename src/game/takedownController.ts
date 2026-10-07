@@ -13,8 +13,10 @@ import { grabRule } from '../ai/archetypes';
 /** Noise radii (m): a choke is near silent, a lethal strike a thud. */
 const NOISE_CHOKE = 1.2;
 const NOISE_STRIKE = 3;
-/** Candidates within this (m) are checked (one line-of-sight ray per step, the nearest). */
+/** Candidates within this (m) are checked (the nearest `TRY`, one line-of-sight ray each). */
 const SCAN = 5;
+/** Candidates tried per step (nearest first; one ray each). */
+const TRY = 3;
 
 /**
  * (3.2.0) A grab from behind: approaching (`hold` false), then holding the guard in front (the operator moves at a
@@ -173,25 +175,51 @@ export class TakedownController {
     g.events.emit('takedown', { phase: 'start', lethal: lethal === true, kind: o.plan.kind });
   }
 
+  /** The nearest candidates (up to `TRY`), nearest first. */
+  private cand: (TakedownVictim | null)[] = [null, null, null];
+  private candD = [0, 0, 0];
+
   private find(): { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } | null {
     const g = this.g;
     const vs = g.takedownVictims();
     if (!vs.length) return null;
     const p = g.player.position;
-    let best: TakedownVictim | null = null;
-    let bd = SCAN;
+    const cand = this.cand;
+    const cd = this.candD;
+    cand[0] = cand[1] = cand[2] = null;
+    cd[0] = cd[1] = cd[2] = SCAN;
     // a guard in combat who knows this operator is there cannot be taken by surprise (each player separately)
     const known = g.spottedLocal;
     for (let k = 0; k < vs.length; k++) {
       const e = vs[k]!;
       if (!e.alive || e.taken || (known && e.level === 'alert')) continue;
       const d = hyp2(e.pos.x - p.x, e.pos.z - p.z);
-      if (d < bd) {
-        bd = d;
-        best = e;
+      // insertion into the three nearest
+      for (let j = 0; j < TRY; j++) {
+        if (d < cd[j]!) {
+          for (let m = TRY - 1; m > j; m--) {
+            cand[m] = cand[m - 1]!;
+            cd[m] = cd[m - 1]!;
+          }
+          cand[j] = e;
+          cd[j] = d;
+          break;
+        }
       }
     }
-    if (!best) return null;
+    // the nearest the geometry allows (a guard behind a wall is passed over for the one below a split / pipe)
+    for (let j = 0; j < TRY; j++) {
+      const best = cand[j];
+      if (!best) break;
+      const o = this.tryVictim(best);
+      if (o) return o;
+    }
+    return null;
+  }
+
+  private tryVictim(best: TakedownVictim): { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } | null {
+    const g = this.g;
+    const p = g.player.position;
     const i = this.inp;
     i.state = this.attackerState();
     i.ax = p.x;
@@ -377,7 +405,8 @@ export class TakedownController {
     g.player.controller.override = null;
     if (this.active?.grab) {
       g.player.controller.speedCap = Infinity;
-      this.active.e.setSolid?.(true);
+      // (a dead hostage's hit volumes are gone)
+      if (this.active.e.alive) this.active.e.setSolid?.(true);
     }
     g.player.coverPose.melee = -1;
     const rig = g.player.rig;

@@ -332,9 +332,9 @@ export const warehouse: MapDef = {
     b.lowCover(16, -21.2, 2.6, CONCRETE, Math.PI / 2, 1.0, 0.6);
     // the trailer's tractor unit (cab, windscreen, bumper)
     b.block(1.4, -22.5, 2.4, 2.5, 2.3, '#8b2b2b').box(2.62, 1.85, -22.5, 0.04, 0.6, 2.0, GLASS, 0, 0, false).box(2.66, 0.45, -22.5, 0.12, 0.3, 2.3, TYRE, 0, 0, false);
-    // a gatehouse in the east lot with a lit window and a door lamp
-    b.block(22.9, -20.6, 2.2, 2.6, 2.0, WALL).box(22.8, 2.68, -20.6, 2.6, 0.12, 2.4, STEEL, 0, 0, false).box(21.78, 1.55, -20.6, 0.04, 0.6, 1.1, '#d9c27a', 0, 0, false);
-    b.light({ kind: 'lamp', x: 21.45, y: 2.45, z: -20.6, radius: 4, intensity: 0.7, color: [1, 0.85, 0.6], group: 20, fixture: { sx: 0.2, sy: 0.12, sz: 0.2, oy: 0.06 } });
+    // a gatehouse in the east lot with a lit window and a door lamp (3.2.0: 2 m clear of the pump house)
+    b.block(22.9, -22.9, 2.2, 2.6, 2.0, WALL).box(22.8, 2.68, -22.9, 2.6, 0.12, 2.4, STEEL, 0, 0, false).box(21.78, 1.55, -22.9, 0.04, 0.6, 1.1, '#d9c27a', 0, 0, false);
+    b.light({ kind: 'lamp', x: 21.45, y: 2.45, z: -22.9, radius: 4, intensity: 0.7, color: [1, 0.85, 0.6], group: 20, fixture: { sx: 0.2, sy: 0.12, sz: 0.2, oy: 0.06 } });
     // a pallet stack between the roller doors (first cover off the spawn), bollards at the door edges
     b.block(-14.5, -19.0, 1.2, 1.1, 1.0, CRATE);
     for (const x of [-20.35, -16.65, -12.35, -8.65]) b.pillar(x, -18.5, 0.13, 0.7, HAZARD);
