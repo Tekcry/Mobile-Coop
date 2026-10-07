@@ -222,8 +222,8 @@ Decisions:
 - Action button priorities: with a cover face and an obstacle both prompted, the stick pushed (or moving) picks the
   obstacle, still picks cover. In cover with nothing else: Leave cover.
 
-Tests: `npm test` 56 files, 567 passed; lint clean; e2e-ct, e2e-ct-warehouse, e2e-touch, e2e-cover, e2e-traverse
-passed on the new build; full suite run below.
+Tests: `npm test` 56 files, 567 passed; lint clean. Full e2e (32 suites) on the new build: all passed but e2e-anchors
+and e2e-netmove, whose split checks still used a single Y; updated to the double jump, both pass.
 
 ## Preview
 `ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).

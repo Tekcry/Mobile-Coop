@@ -214,9 +214,29 @@ try {
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(10, 0, 24.8), Math.PI / 2); g.player.cam.yaw = Math.PI / 2; });
   await wait(600);
-  await until(B, () => window.__app.current.traversal.attachCtl.hint?.anchor.kind === 'split', null, 5000, 'split offered');
-  await pressUntil(3, attachedNow);
-  await until(B, () => window.__app.current.traversal.attach.kind === 'split' && window.__app.current.traversal.attach.phase === 'on', null, 6000, 'client in the split');
+  await until(B, () => window.__app.current.traversal.attachCtl.split?.anchor.kind === 'split', null, 5000, 'split offered');
+  // (3.2.0) a double jump: Y jumps, Y again in the air 0.1 s later braces (timed in the client's own fixed steps)
+  await GB(() => new Promise((res) => {
+    const st = window.__app.current;
+    const inp = window.__app.input.state;
+    const orig = st.fixedUpdate.bind(st);
+    let n = 0;
+    inp.tap('jump');
+    st.fixedUpdate = (dt) => {
+      // (the press before the step that reads it: edges are consumed after each step)
+      if (n === 6) inp.tap('jump');
+      orig(dt);
+      n++;
+      if (n >= 40) {
+        st.fixedUpdate = orig;
+        res();
+      }
+    };
+  }));
+  await until(B, () => window.__app.current.traversal.attach.kind === 'split' && window.__app.current.traversal.attach.phase === 'on', null, 6000, 'client in the split').catch(async (e) => {
+    console.log(await GB(() => { const g = window.__app.current; const t = g.traversal; return JSON.stringify({ leaps: t.leaps, split: !!t.attachCtl.split, att: t.attached, kind: t.attach.kind, pos: [g.player.position.x, g.player.position.y, g.player.position.z], grounded: g.player.controller.grounded, mode: window.__app.input.mode }); }));
+    throw e;
+  });
   await compare('split', 'split');
   // the sidearm aimed from it
   await GB(() => window.__pad.set(6, 1));

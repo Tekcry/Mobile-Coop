@@ -46,12 +46,17 @@ for (const [map, mode] of MAPS) {
         const h = g.ballistics.ray(new V(x, yFrom, z), new V(x, yFrom - 8, z), 1);
         return h.hit ? h.point.y : null;
       };
-      const tryIt = (name, a0, x, z, yFrom, yaw, check) => {
+      const tryIt = (name, a0, x, z, yFrom, yaw, check, double = false) => {
         const fy = floorAt(x, z, yFrom);
         if (fy === null) return out.push({ name, ok: false, why: 'no floor at the approach' });
         tp(x, fy + 0.02, z, yaw);
         const offered = check();
         st.tap('jump');
+        // (3.2.0: a split is a double jump - the second press in the air)
+        if (double) {
+          a.loop.stepHeadless(0.08, 120);
+          st.tap('jump');
+        }
         a.loop.stepHeadless(0.4, 120);
         const engaged = g.traversal.attachCtl.active || g.traversal.attachCtl.vent !== null || g.traversal.kind !== 'none';
         out.push({ name, ok: offered && engaged, why: `offered ${offered} engaged ${engaged}` });
@@ -100,7 +105,7 @@ for (const [map, mode] of MAPS) {
       // (3.2.0) split jump gaps: between the walls at the middle, facing along the corridor
       for (const sg of L.splits) {
         const s0 = sg.len / 2;
-        tryIt(`split ${sg.id}`, sg, sg.a.x + sg.tx * s0, sg.a.z + sg.tz * s0, sg.a.y + 1, Math.atan2(sg.tx, sg.tz), hintIs(sg.id));
+        tryIt(`split ${sg.id}`, sg, sg.a.x + sg.tx * s0, sg.a.z + sg.tz * s0, sg.a.y + 1, Math.atan2(sg.tx, sg.tz), () => g.traversal.attachCtl.split?.anchor.id === sg.id, true);
       }
       // (3.2.0 phase 3) rappel points from the roof facing out, fences from their first side
       for (const r of L.rappels) tryIt(`rappel ${r.id}`, r, r.top.x - r.nx * 0.4, r.top.z - r.nz * 0.4, r.top.y + 1, Math.atan2(r.nx, r.nz), hintIs(r.id));
