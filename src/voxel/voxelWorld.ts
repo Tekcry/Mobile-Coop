@@ -229,7 +229,10 @@ export class VoxelWorld {
       this.textures.push(t);
     }
     this.stats.bytes = ind.byteLength + poolData.byteLength + pal.byteLength;
-    return { index, pool, palette, origin: [...this.lv.origin], size: this.lv.size, bricks: [bm.bx, bm.by, bm.bz], sky: null, skyOrigin: [0, 0, 0], skyCell: 0, skyDims: [1, 1, 1] };
+    // (no sky bake: a 1 x 1 x 1 stand-in, so the material's 3D sampler never shares a unit with a 2D texture)
+    const none = new RawTexture3D(new Uint8Array([255]), 1, 1, 1, Constants.TEXTUREFORMAT_R, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+    this.textures.push(none);
+    return { index, pool, palette, origin: [...this.lv.origin], size: this.lv.size, bricks: [bm.bx, bm.by, bm.bz], sky: none, skyOrigin: [0, 0, 0], skyCell: 0, skyDims: [1, 1, 1] };
   }
 
   /** Level of detail per chunk by camera distance (a few times a second). */
