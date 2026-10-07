@@ -33,6 +33,12 @@ describe('voxel fit and parity (3.0)', () => {
       expect(JSON.stringify(generateLedges(b.boxes).ledges.map((l) => [l.a, l.b, l.top, l.canHang])), map.id).toBe(ledgesBefore);
       expect(lv.shapes.length, map.id).toBeGreaterThan(50);
       expect(lv.palette.length).toBeLessThanOrEqual(256);
+      // the grids hug what they hold (a loose paint volume must not blow the brick indirection up)
+      for (const l of [lv, lv.fine].filter((x) => !!x)) {
+        const span = l!.dims.map((d) => d * l!.size);
+        expect(span[1], `${map.id} ${l!.size} height`).toBeLessThan(20);
+        expect(span[0]! * span[2]!, `${map.id} ${l!.size} area`).toBeLessThan(110 * 110);
+      }
 
       const packed = packShapes(lv.shapes);
       // the blockout itself: the same pieces, plain (no programs, no dressing)

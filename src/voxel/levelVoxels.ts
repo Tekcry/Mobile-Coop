@@ -8,7 +8,7 @@ import { surfaceAt, type Surface, type SurfaceArea } from '../world/surfaces';
 import { pieceKind } from '../world/surfaceKinds';
 import { SURFACE_ID } from '../world/surfaceAtlas';
 import { BRICK } from './brickmap';
-import type { VoxelShape } from './shapes';
+import { ShapeMode, type VoxelShape } from './shapes';
 import type { Prog } from './programs';
 
 /**
@@ -24,7 +24,7 @@ export interface VoxelArt {
 /** Voxels per chunk side at the finest level (coarser levels: the same world extent, fewer voxels). */
 export const CHUNK = 128;
 /** Voxel data format version (bump to invalidate caches). */
-export const VOXEL_VERSION = 2;
+export const VOXEL_VERSION = 3;
 
 export interface PaletteEntry {
   /** Authored colour (#rrggbb, sRGB). */
@@ -106,8 +106,16 @@ export class Palette {
 /** Shape bounds (min x, y, z, max x, y, z): rotated boxes by their circumscribed cube. */
 function boundsOf(x: VoxelShape): [number, number, number, number, number, number] {
   if (x.kind === 'box') {
-    const r = Math.sqrt(x.s[0] * x.s[0] + x.s[1] * x.s[1] + x.s[2] * x.s[2]) / 2;
-    return [x.c[0] - r, x.c[1] - r, x.c[2] - r, x.c[0] + r, x.c[1] + r, x.c[2] + r];
+    // the rotated box's exact extent per axis (pitch about X, then yaw about Y)
+    const [hx, hy, hz] = [x.s[0] / 2, x.s[1] / 2, x.s[2] / 2];
+    const cy = Math.cos(x.yaw);
+    const sy = Math.sin(x.yaw);
+    const cp = Math.cos(x.pitch);
+    const sp = Math.sin(x.pitch);
+    const ex = Math.abs(cy) * hx + Math.abs(sy * sp) * hy + Math.abs(sy * cp) * hz;
+    const ey = Math.abs(cp) * hy + Math.abs(sp) * hz;
+    const ez = Math.abs(sy) * hx + Math.abs(cy * sp) * hy + Math.abs(cy * cp) * hz;
+    return [x.c[0] - ex, x.c[1] - ey, x.c[2] - ez, x.c[0] + ex, x.c[1] + ey, x.c[2] + ez];
   }
   return [x.c[0] - x.r, x.c[1] - x.h / 2, x.c[2] - x.r, x.c[0] + x.r, x.c[1] + x.h / 2, x.c[2] + x.r];
 }
@@ -117,13 +125,15 @@ function gridOf(shapes: readonly VoxelShape[], size: number): { origin: [number,
   const lo = [Infinity, Infinity, Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
   for (const x of shapes) {
+    // only what adds voxels sizes the grid (paint and carve volumes may be loose)
+    if (x.mode !== undefined && x.mode !== ShapeMode.Fill) continue;
     const b = boundsOf(x);
     for (let a = 0; a < 3; a++) {
       lo[a] = Math.min(lo[a]!, b[a]!);
       hi[a] = Math.max(hi[a]!, b[a + 3]!);
     }
   }
-  if (!shapes.length) {
+  if (lo[0] === Infinity) {
     lo[0] = lo[1] = lo[2] = 0;
     hi[0] = hi[1] = hi[2] = 1;
   }
