@@ -15,7 +15,7 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
     build: def.build,
     armor: def.plated,
   });
-  for (const m of rig.parts) world.addShadowCaster(m);
+  for (const m of rig.renderMeshes) world.addShadowCaster(m);
   let gun: WeaponModel | null = null;
   if (def.gun) {
     gun = new WeaponModel(scene, world.parts, WEAPONS[def.gun], ENEMY_GUN, rig.weaponPivot);

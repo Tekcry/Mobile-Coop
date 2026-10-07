@@ -12,7 +12,7 @@ export function buildBodyRig(scene: Scene, world: World, def: EnemyDef, name: st
     build: def.build,
     armor: def.plated,
   });
-  for (const m of rig.parts) world.addShadowCaster(m);
+  for (const m of rig.renderMeshes) world.addShadowCaster(m);
   return rig;
 }
 

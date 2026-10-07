@@ -20,6 +20,10 @@
 - Weather on the Warehouse (Play screen and co-op lobby): Clear, Rain (no rain indoors - it falls through the
   skylights; the yard and the open floor go wet and glossy, puddles turn to mirrors) or Fog (thick, with moonlit
   shafts under the skylights and through the doors). Visual only.
+- Voxel characters: the operator, every guard, co-op players and the menu operator are built from 2 cm voxels (4 cm
+  further away) - suit, carrier, pouches, pads and the tri-lens goggles - with a tone per voxel and fine seams up close,
+  animated as before (ragdolls included); the lens glow, hit flash and the camera's head fade work on them. The stick
+  avatar style stays as it was.
  21:9 and 32:9 (up to 7680 x 2160) - the view widens with the screen up to a widest field of
   view (default 120 deg, then the sides stop growing), menus stay a centred 16:9 layout, the HUD keeps to a centred
   16:9 on 32:9 (HUD width: auto / 16:9 / 21:9 / full); the frame-rate cap names the display's refresh (up to 240

@@ -17,6 +17,7 @@ import { CAPSULE, DOME, HELMET, ROUND_CYL, SPHERE, TORSO, limbProfile, revolve, 
 import { PATTERN_ID, type PatternName } from '../cosmetics/patterns';
 import { SURFACE_ID, type SurfaceAtlas } from './surfaceAtlas';
 import { SurfacePlugin } from './surfacePlugin';
+import { VoxelBodyPlugin } from '../voxel/voxelBodyPlugin';
 import { hsv, pieceKind } from './surfaceKinds';
 
 /** Hard-edged shapes are for world props only; characters, gear and weapons use the smooth set. */
@@ -63,6 +64,7 @@ export class PartLibrary {
   private bases = new Map<PartShape, Mesh>();
   private lods: Mesh[] = [];
   readonly material: StandardMaterial | PBRMaterial;
+  readonly skinMaterial: StandardMaterial | PBRMaterial;
   /** PBR with procedural surfaces (3.0; an atlas given): colours go in linear. */
   private readonly pbr: boolean;
 
@@ -70,32 +72,37 @@ export class PartLibrary {
     private scene: Scene,
     atlas: SurfaceAtlas | null = null,
   ) {
-    let m: StandardMaterial | PBRMaterial;
-    if (atlas) {
-      const pm = new PBRMaterial('partMat', scene);
-      pm.albedoColor = Color3.White();
-      pm.metallic = 0;
-      pm.roughness = 1;
-      pm.usePhysicalLightFalloff = false;
-      // PBR divides diffuse by pi: the lights were authored for the standard material
-      pm.directIntensity = Math.PI;
-      pm.environmentIntensity = 0.5;
-      pm.realTimeFiltering = true;
-      new PatternPlugin(pm);
-      new SurfacePlugin(pm, atlas, 'object');
-      m = pm;
-    } else {
-      const sm = new StandardMaterial('partMat', scene);
+    const make = (name: string): StandardMaterial | PBRMaterial => {
+      if (atlas) {
+        const pm = new PBRMaterial(name, scene);
+        pm.albedoColor = Color3.White();
+        pm.metallic = 0;
+        pm.roughness = 1;
+        pm.usePhysicalLightFalloff = false;
+        // PBR divides diffuse by pi: the lights were authored for the standard material
+        pm.directIntensity = Math.PI;
+        pm.environmentIntensity = 0.5;
+        pm.realTimeFiltering = true;
+        new PatternPlugin(pm);
+        new SurfacePlugin(pm, atlas, 'object');
+        return pm;
+      }
+      const sm = new StandardMaterial(name, scene);
       sm.diffuseColor = Color3.White();
       sm.specularColor = new Color3(0.08, 0.08, 0.08);
       new PatternPlugin(sm);
-      m = sm;
-    }
+      return sm;
+    };
+    const m = make('partMat');
     m.freeze();
     this.material = m;
+    // voxel characters (3.0): merged skinned meshes with per-vertex colour, pattern and voxel grid (not frozen)
+    this.skinMaterial = make('partSkinMat');
+    new VoxelBodyPlugin(this.skinMaterial);
     this.pbr = !!atlas;
     const prep = (mesh: Mesh): Mesh => {
       mesh.material = m;
+      mesh.metadata = { skinMaterial: this.skinMaterial };
       mesh.registerInstancedBuffer('color', 4);
       mesh.instancedBuffers.color = new Color4(1, 1, 1, 1);
       mesh.registerInstancedBuffer('pattern', 4);
@@ -208,6 +215,7 @@ export class PartLibrary {
     for (const b of this.bases.values()) b.dispose();
     for (const l of this.lods) l.dispose();
     this.material.dispose();
+    this.skinMaterial.dispose();
     void this.scene;
   }
 }

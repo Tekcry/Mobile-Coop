@@ -83,7 +83,7 @@ varying float vSurf;
 #ifdef SURF_OBJECT
 vSurfPos = position * vec3(length(finalWorld[0].xyz), length(finalWorld[1].xyz), length(finalWorld[2].xyz));
 vSurfNrm = normal;
-#ifdef INSTANCES
+#if defined(INSTANCES) || defined(PATTERNS)
 vSurf = pattern.z;
 #else
 vSurf = 15.0;

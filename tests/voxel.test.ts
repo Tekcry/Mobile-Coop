@@ -144,3 +144,68 @@ describe('chunk jobs', () => {
     expect(r.solid).toBe(16 * 12 * 16);
   });
 });
+
+describe('mesh voxelizer (characters / weapons)', () => {
+  it('a box and a sphere fill their volume; anisotropic cells', async () => {
+    const { voxeliseMesh } = await import('../src/voxel/meshVoxels');
+    const { VertexData } = await import('../src/core/babylon');
+    const box = VertexData.CreateBox({ size: 1 });
+    const g = voxeliseMesh(box.positions!, box.indices!, [0.1, 0.1, 0.1]);
+    expect([g.nx, g.ny, g.nz]).toEqual([10, 10, 10]);
+    expect(g.solid.reduce((a, b) => a + b, 0)).toBe(1000);
+    const sph = VertexData.CreateSphere({ diameter: 1, segments: 24 });
+    const s = voxeliseMesh(sph.positions!, sph.indices!, [0.05, 0.05, 0.05]);
+    const vol = s.solid.reduce((a, b) => a + b, 0) * 0.05 ** 3;
+    expect(vol).toBeGreaterThan(0.48);
+    expect(vol).toBeLessThan(0.54);
+    // a long thin limb scaled (0.08, 0.42, 0.08) voxelised at 2 cm world: cells 0.25 x 0.0476 x 0.25 of the unit mesh
+    const a = voxeliseMesh(box.positions!, box.indices!, [0.02 / 0.08, 0.02 / 0.42, 0.02 / 0.08]);
+    expect([a.nx, a.ny, a.nz]).toEqual([4, 21, 4]);
+  });
+});
+
+describe('voxel characters: the voxelised parts stay within one voxel of the smooth shapes', () => {
+  it('every smooth shape at body-part scales, 2 cm voxels', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene, VertexBuffer } = await import('../src/core/babylon');
+    const { PartLibrary, SMOOTH_SHAPES } = await import('../src/world/partLibrary');
+    const { voxeliseMesh } = await import('../src/voxel/meshVoxels');
+    const scene = new Scene(new NullEngine());
+    const lib = new PartLibrary(scene);
+    const size = 0.02;
+    // (a head, a chest, an upper arm, a thigh, a hand-sized part)
+    const scales: [number, number, number][] = [[0.158, 0.229, 0.19], [0.34, 0.45, 0.22], [0.1, 0.3, 0.1], [0.164, 0.415, 0.164], [0.06, 0.17, 0.09]];
+    for (const shape of SMOOTH_SHAPES) {
+      const src = lib.instance(shape, '#ffffff').sourceMesh;
+      const pos = src.getVerticesData(VertexBuffer.PositionKind)!;
+      const idx = src.getIndices()!;
+      for (const [sx, sy, sz] of scales) {
+        const cell: [number, number, number] = [size / sx, size / sy, size / sz];
+        const g = voxeliseMesh(pos, idx, cell);
+        const solid = (i: number, j: number, k: number): boolean => i >= 0 && j >= 0 && k >= 0 && i < g.nx && j < g.ny && k < g.nz && g.solid[i + g.nx * (j + g.ny * k)] === 1;
+        let worst = 0;
+        for (let v = 0; v < pos.length; v += 3) {
+          // the vertex's cell, then the nearest solid and the nearest empty cell within two voxels (world distance)
+          const c = [0, 1, 2].map((a) => (pos[v + a]! - g.origin[a]!) / cell[a]!);
+          let dIn = Infinity;
+          let dOut = Infinity;
+          for (let dk = -2; dk <= 2; dk++)
+            for (let dj = -2; dj <= 2; dj++)
+              for (let di = -2; di <= 2; di++) {
+                const i = Math.floor(c[0]!) + di;
+                const j = Math.floor(c[1]!) + dj;
+                const k = Math.floor(c[2]!) + dk;
+                const d = Math.hypot(i + 0.5 - c[0]!, j + 0.5 - c[1]!, k + 0.5 - c[2]!) * size;
+                if (solid(i, j, k)) dIn = Math.min(dIn, d);
+                else dOut = Math.min(dOut, d);
+              }
+          worst = Math.max(worst, dIn, dOut);
+        }
+        // every surface point has a solid and an empty voxel within one voxel diagonal of it
+        expect(worst, `${shape} ${sx}x${sy}x${sz}`).toBeLessThanOrEqual(size * Math.sqrt(3));
+      }
+    }
+    lib.dispose();
+    scene.dispose();
+  });
+});

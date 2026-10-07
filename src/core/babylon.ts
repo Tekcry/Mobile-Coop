@@ -6,6 +6,8 @@
 export { Engine } from '@babylonjs/core/Engines/engine';
 export { Scene } from '@babylonjs/core/scene';
 export { Vector3, Vector2, Vector4, Quaternion, Matrix, TmpVectors } from '@babylonjs/core/Maths/math.vector';
+export { Skeleton } from '@babylonjs/core/Bones/skeleton';
+export { Bone } from '@babylonjs/core/Bones/bone';
 export { Color3, Color4 } from '@babylonjs/core/Maths/math.color';
 export { Scalar } from '@babylonjs/core/Maths/math.scalar';
 export { Ray } from '@babylonjs/core/Culling/ray';
@@ -60,7 +62,7 @@ export { CreateTorus } from '@babylonjs/core/Meshes/Builders/torusBuilder';
 export { CreateDisc } from '@babylonjs/core/Meshes/Builders/discBuilder';
 export { CreateLineSystem } from '@babylonjs/core/Meshes/Builders/linesBuilder';
 export type { LinesMesh } from '@babylonjs/core/Meshes/linesMesh';
-export { Observable } from '@babylonjs/core/Misc/observable';
+export { Observable, type Observer } from '@babylonjs/core/Misc/observable';
 export { PostProcess } from '@babylonjs/core/PostProcesses/postProcess';
 export { Effect } from '@babylonjs/core/Materials/effect';
 export { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';

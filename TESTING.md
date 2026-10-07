@@ -310,6 +310,10 @@ Warehouse art and weather (Epic):
 - [ ] Under the roof it is darker than the yard (but for the lamps); the skylight strips let a little in.
 - [ ] Rain: none inside except under the skylights; the yard and puddles go glossy; Fog: thick with light shafts
       under the skylights; Clear unchanged. Co-op: the host's weather choice reaches the client.
+Voxel characters (Epic):
+- [ ] The operator (menu and in a match), guards, bodies and co-op players are voxel figures; joints never open gaps
+      while running, climbing, in cover or as a ragdoll; goggles glow with night vision; the head disappears when the
+      camera gets close; hits flash; Stick style (Settings) still shows the stick figures.
 Displays (gaming laptop: RTX 4090 Laptop, 16 GB; built-in 2560 x 1600 240 Hz; external ultrawide):
 - [ ] The browser runs on the NVIDIA GPU (Settings > Graphics > GPU); switch it to the integrated GPU once: the
       notice appears once with the Windows steps.

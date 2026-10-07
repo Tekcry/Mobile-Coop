@@ -165,6 +165,13 @@ try {
   });
   assert(r.vox && r.vox.size === 0.05 && r.vox.levels === 3 && r.vox.chunks > 20 && r.vox.quads > 1000, `Epic: the Warehouse in 5 cm voxels, three levels of detail (${JSON.stringify(r.vox)})`);
   assert(r.vox.casters === r.vox.meshes, 'every voxel chunk casts shadows');
+  // the voxel shading made it into the compiled PBR shader (tone, AO, micro detail; not the cheap path's code)
+  const shaded = await e.page.evaluate(() => {
+    const w = window.__app.current.world;
+    const src = (v) => v?.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
+    return [src(w.voxels), src(w.voxelsFine)].map((s) => s.includes('m = vxMat(v)') && s.includes('vxAmbient ='));
+  });
+  assert(shaded.every(Boolean), `voxel chunks compile the full voxel shading (${shaded})`);
   const art = await e.page.evaluate(() => {
     const w = window.__app.current.world;
     return { fine: w.voxelsFine && { size: w.voxelsFine.lv.size, chunks: w.voxelsFine.stats.chunks }, sky: !!w.voxels.skyTex, inside: w.voxels.skyAt(5, 1.2, 0), yard: w.voxels.skyAt(0, 1.2, -24), roofIn: w.voxels.roofAt(5, 0), roofYard: w.voxels.roofAt(0, -24), palette: w.voxels.lv.palette.length };
@@ -173,6 +180,51 @@ try {
   assert(art.sky && art.inside < 0.5 && art.yard > 0.8, `the sky is baked: dark under the roof, open in the yard (${art.inside.toFixed(2)} / ${art.yard.toFixed(2)})`);
   assert(art.roofIn > 5 && art.roofYard < -1e8, `rain stops at the roof, falls in the yard (${art.roofIn})`);
   assert(art.palette > 40, `the art layer's materials (${art.palette} palette entries)`);
+  // voxel characters (3.0 phase 3): one skinned voxel body per character, the smooth parts unseen
+  const ch = await e.page.evaluate(async () => {
+    const g = window.__app.current;
+    const rigs = [g.player.rig, ...g.enemyMgr.enemies.map((x) => x.rig).filter((r) => r && !r.isDog)];
+    const casters = g.world.lightRig.casters;
+    // bones follow the joints: each bone = its node relative to the root
+    const err = (r) => {
+      const v = r.voxel;
+      const inv = r.root.getWorldMatrix().clone().invert();
+      let worst = 0;
+      v.bones.forEach((b, i) => { const m = v.nodes[i].getWorldMatrix().multiply(inv).m; const l = b.getLocalMatrix().m; for (let k = 12; k < 15; k++) worst = Math.max(worst, Math.abs(m[k] - l[k])); });
+      return worst;
+    };
+    const p = g.player.rig;
+    const lens0 = p.voxel.meshes[1].getVerticesData('color').slice();
+    p.setLensGlow(true);
+    const lensChanged = p.voxel.meshes[1].getVerticesData('color').some((c, i) => Math.abs(c - lens0[i]) > 1e-3);
+    p.setLensGlow(false);
+    p.setHeadVisible(false);
+    const headHidden = !p.voxel.meshes[1].isVisible && p.voxel.meshes[0].isVisible;
+    p.setHeadVisible(true);
+    // a ragdoll still drives its voxel body (the joints re-parented onto physics nodes)
+    const victim = g.enemyMgr.enemies.find((x) => x.rig?.voxel);
+    const P = g.player.position.constructor;
+    victim.applyDamage({ amount: 99999, point: victim.pos.clone(), dir: new P(0, 0, 1), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'test', sourcePos: victim.pos.clone(), impulse: 1 });
+    const body = g.enemyMgr.bodies.at(-1);
+    await new Promise((res) => { let n = 0; const o = g.scene.onAfterRenderObservable.add(() => { if (++n >= 3) { o.remove(); res(); } }); });
+    const rag = body?.['rig'];
+    return {
+      n: rigs.length,
+      voxel: rigs.filter((r) => r.voxel).length,
+      hidden: rigs.every((r) => r.parts.every((m) => !m.isVisible)),
+      cast: rigs.every((r) => r.voxel.meshes.every((m) => casters.includes(m))),
+      quads: p.voxel.meshes[0].getTotalIndices() / 6,
+      err: Math.max(...rigs.map(err)),
+      ragErr: rag?.voxel ? err(rag) : -1,
+      lensChanged,
+      headHidden,
+    };
+  });
+  assert(ch.voxel === ch.n && ch.hidden, `every character is a voxel body, the smooth parts unseen (${ch.voxel} / ${ch.n})`);
+  assert(ch.cast, 'voxel bodies cast shadows');
+  assert(ch.quads > 500, `the operator in 2 cm voxels (${ch.quads} quads)`);
+  assert(ch.err < 1e-3 && ch.ragErr >= 0 && ch.ragErr < 1e-3, `bones follow the joints, ragdolls too (${ch.err.toExponential(1)}, ${ch.ragErr.toExponential(1)})`);
+  assert(ch.lensChanged && ch.headHidden, 'lens glow and the camera head fade reach the voxels');
   assert(r.placed >= 8 && r.shadowed >= 1, `Epic: real lights placed (${r.placed}, ${r.shadowed} with shadows, clustered ${r.clustered})`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');

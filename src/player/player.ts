@@ -104,7 +104,7 @@ export class Player {
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 1.75, 'player');
-    for (const m of this.rig.parts) world.addShadowCaster(m);
+    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
     const s = getSettings();

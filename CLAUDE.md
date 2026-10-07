@@ -954,6 +954,20 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `start` messages carry `weather`): rain = `Weather('rain')` with `occluder` = `roofAt` (no rain under roofs; it falls
   through the skylights), voxels wet only where the sky reaches (`setWet`), fog x1.6; fog = fog x4 and the volumetric
   pass's light shafts (`PostStack` `sky` + `shafts`: the sky bake sampled along the first 30 m of each ray).
+- Voxel characters (3.0 phase 3, `voxel/voxelBody.ts`): `setVoxelBodies(opts)` (GameState: 2 cm, 4 cm past
+  `LOD_DISTANCE` x detail; menu stage 2 cm; `?gfx=min` / `?voxels=0`: null, the smooth parts render) makes every
+  'detailed' `CharacterRig` (the stick style stays) a `VoxelBody`: every part on one joint voxelised into one grid in
+  that joint's space (`meshVoxels.ts` `fillMesh`, pure: scanline parity by voxel centre; thin features keep the cell of
+  a surface vertex with none of the part's cells beside it; a later part overwrites an earlier one - balaclava over the
+  head), greedy meshed by value (`greedyMesh(.., byValue)`: faces between parts culled, a quad per part colour), cached
+  per (joint's parts + transforms, size), merged into a body and a head mesh
+  (+ the LOD pair) with per-vertex colour / pattern / `color2` / `vox` (the voxel-grid position: `VoxelBodyPlugin`
+  per-voxel tone and fine seams), rigidly skinned: one flat bone per node a part hangs from, set each frame (skeleton
+  `onBeforeComputeObservable`) to the node's world matrix relative to the root, so ragdolls (joints re-parented onto
+  physics nodes) still drive it. The smooth parts stay, invisible (hit volumes, clearances, ghost / sonar read the
+  joints). `rig.renderMeshes` (shadow casters), `rig.setHeadVisible` (camera fade), `setLensGlow` / `setFlash` reach
+  the vertices (`setPartColor`). `PartLibrary.skinMaterial` (unfrozen twin of the part material + `VoxelBodyPlugin`,
+  `mesh.metadata.skinMaterial` on the bases). Two draws per character (+ shadows).
 - Weather (3.0, `MapTheme.weather`: Port rain, Dust Depot dust, Refinery haze): `vfx/weather.ts` `Weather`
   (thin-instanced streaks / motes in a box wrapped round the camera, updated in place, count x effects density),
   `SurfacePlugin.wet` (upward faces darker and glossy, more in cavities: SSR puddles), the volumetric pass's

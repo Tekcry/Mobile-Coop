@@ -1,4 +1,5 @@
-import { Color4, Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
+import { Color4, Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
@@ -125,6 +126,12 @@ let DEFAULT_STYLE: AvatarStyle = 'detailed';
 export function setAvatarStyle(s: AvatarStyle): void {
   DEFAULT_STYLE = s;
 }
+/** 3.0 voxel characters (null: the smooth parts render, e.g. `?gfx=min`): the 'detailed' style is voxelised. */
+let VOXEL_BODY: VoxelBodyOptions | null = null;
+export function setVoxelBodies(o: VoxelBodyOptions | null): void {
+  VOXEL_BODY = o;
+}
+
 export function avatarStyle(): AvatarStyle {
   return DEFAULT_STYLE;
 }
@@ -454,7 +461,24 @@ export class CharacterRig {
     let thigh = p.thigh.r0;
     for (const m of this.parts) if (m.parent === this.hipR || m.parent === this.hipL) thigh = Math.max(thigh, Math.abs(m.position.x) + m.scaling.x / 2);
     this.thighOuter = thigh;
+    // voxels (3.0): the parts merged into one skinned voxel mesh (they stay, unseen, for what reads them)
+    const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
+    if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY);
     DEBUG_RIGS.add(this);
+  }
+
+  /** The merged voxel body (3.0; null: the smooth parts render). */
+  voxel: VoxelBody | null = null;
+
+  /** What renders (shadow casters): the voxel body's meshes, else the parts. */
+  get renderMeshes(): AbstractMesh[] {
+    return this.voxel ? this.voxel.meshes : this.parts;
+  }
+
+  /** The camera hides the head when it gets too close. */
+  setHeadVisible(v: boolean): void {
+    if (this.voxel) this.voxel.setHeadVisible(v);
+    else for (const m of this.parts) if (m.parent === this.headNode) m.isVisible = v;
   }
 
   /** All joints, for the debug skeleton view. Pairs of (parent, child). */
@@ -798,6 +822,7 @@ export class CharacterRig {
     this.lensOn = on;
     const c = Color4.FromHexString(`${on ? LENS_ON : LENS_OFF}ff`);
     for (const m of this.lenses) m.instancedBuffers.color = c;
+    if (this.voxel) for (const m of this.lenses) this.voxel.setPartColor(this.parts.indexOf(m), c);
   }
 
   // ------------------------------------------------------------------------------------------
@@ -1485,6 +1510,10 @@ export class CharacterRig {
   setFlash(k: number): void {
     if (Math.abs(k - this.flashK) < 0.02 && !(k === 0 && this.flashK !== 0)) return;
     this.flashK = k;
+    if (this.voxel) {
+      this.voxel.setFlash(k);
+      return;
+    }
     const parts = this.parts as InstancedMesh[];
     if (!this.baseColors) this.baseColors = parts.map((m) => (m.instancedBuffers?.color as Color4 | undefined)?.clone() ?? new Color4(1, 1, 1, 1));
     parts.forEach((m, i) => {
@@ -1502,6 +1531,7 @@ export class CharacterRig {
   dispose(): void {
     this.disposed = true;
     DEBUG_RIGS.delete(this);
+    this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
     this.root.dispose();
   }

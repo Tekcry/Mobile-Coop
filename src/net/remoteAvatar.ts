@@ -48,7 +48,7 @@ export class RemoteAvatar {
     readonly info: PlayerInfo,
   ) {
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.75, `remote-${info.id}`);
-    for (const m of this.rig.parts) world.addShadowCaster(m);
+    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.pouches = new GrenadePouches(world.parts, this.rig);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
     this.rig.setEnabled(false);

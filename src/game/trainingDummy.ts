@@ -38,7 +38,7 @@ export class TrainingDummy implements Damageable {
     look.colors.legs = '#6b6252';
     look.colors.helmet = '#8f8a7a';
     this.rig = new CharacterRig(scene, (shape, hex) => world.parts.instance(shape, hex, 'dummy-part'), look, 1.75, this.id, { armor: true });
-    for (const m of this.rig.parts) world.addShadowCaster(m);
+    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.pos = home.clone();
     this.hitboxes = new Hitboxes(scene, registry, this);
     this.update(0);

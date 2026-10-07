@@ -309,7 +309,7 @@ export class ShoulderCamera {
     }
     if (hideHead !== this.headHidden) {
       this.headHidden = hideHead;
-      for (const m of rig.parts) if (m.parent === rig.headNode) m.isVisible = !hideHead;
+      rig.setHeadVisible(!hideHead);
     }
   }
 

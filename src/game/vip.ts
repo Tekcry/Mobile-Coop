@@ -40,7 +40,7 @@ export class Vip {
     look.colors.legs = '#24272e';
     look.colors.accent = '#d9d4c7';
     this.rig = new CharacterRig(scene, (shape, hex) => world.parts.instance(shape, hex, 'vip-part'), look, 1.76, 'vip', { build: 'average' });
-    for (const m of this.rig.parts) world.addShadowCaster(m);
+    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.pos = new Vector3(x, y, z);
     this.yaw = yaw;
     this.prevPos.copyFrom(this.pos);

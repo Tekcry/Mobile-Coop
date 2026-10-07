@@ -20,7 +20,7 @@ import type { AppState } from '../core/app';
 import { flatMat } from './materials';
 import { mulberry } from '../core/rng';
 import { PartLibrary } from './partLibrary';
-import { CharacterRig } from '../player/characterRig';
+import { CharacterRig, setVoxelBodies } from '../player/characterRig';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { WeaponModel } from '../weapons/weaponModel';
@@ -234,6 +234,8 @@ export class MenuState implements AppState {
     this.shown = key;
     this.weapon?.dispose();
     this.rig?.dispose();
+    // voxel operator (3.0; `?gfx=min`: the smooth parts)
+    setVoxelBodies(flags.voxels && flags.gfx !== 'min' ? { size: 0.02, lodSize: 0.04, lodDistance: 1000 } : null);
     this.rig = new CharacterRig(this.scene, avatarFactory(this.parts, look, 'preview-part'), look, 1.75, 'preview');
     this.rig.root.position.copyFrom(this.stage).addInPlaceFromFloats(0, 0.2, 0);
     const c = camoById(camo);
