@@ -1,7 +1,8 @@
 name: Build and deploy to GitHub Pages
 
-# The site holds two builds: the live game (default branch) at /<repo>/ and the preview (dev branch) at
-# /<repo>/preview/. A push to the default branch, or a passing "Preview check" on dev, rebuilds both.
+# The site holds the live game (default branch) at /<repo>/, the preview (dev branch) at /<repo>/preview/ and the
+# Chaos Theory movement preview (ct-movement branch) at /<repo>/ct/. A push to the default branch, or a passing
+# "Preview check" on dev / ct-movement, rebuilds them all.
 on:
   push:
     branches: [main, master]
@@ -81,6 +82,27 @@ jobs:
           npm ci
           VITE_BASE=${BASE}preview/ VITE_PREVIEW=1 npm run build
           cp -r dist ../live/dist/preview
+      - name: Is there a ct-movement branch?
+        id: ct
+        run: |
+          if git -C live ls-remote --exit-code --heads origin ct-movement >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: CT preview (ct-movement branch)
+        if: steps.ct.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: ct-movement
+          path: ct
+      - name: Build the CT preview into /ct/
+        if: steps.ct.outputs.exists == 'true'
+        working-directory: ct
+        run: |
+          npm ci
+          VITE_BASE=${BASE}ct/ VITE_PREVIEW_ID=ct npm run build
+          cp -r dist ../live/dist/ct
       - uses: actions/upload-pages-artifact@v3
         with:
           path: live/dist
