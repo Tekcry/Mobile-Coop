@@ -300,8 +300,10 @@ Controls:
 | 3.1.1 | | | | |
 - [ ] Fog and light shafts look as before (Medium, Fog weather); no shimmer on the shafts when the camera moves.
 - [ ] Settings > Graphics > Shadows changed in a paused match: shadows switch, nothing goes black or flickers.
-- [ ] Safari: Settings > Apps > Safari > Advanced > Feature Flags > "Prefer Page Rendering Updates near 60fps" off,
-  then the benchmark again (the display rate line should read 120 Hz).
+- [ ] Display rate: Settings > Graphics > Target frame rate shows "Display refresh (N Hz)". Every iPhone browser
+  (Chrome too) runs on WebKit; if it reads 60, turn off Settings > Apps > Safari > Advanced > Feature Flags >
+  "Prefer Page Rendering Updates near 60fps", close the browser fully, check again; then try Safari and the Home
+  Screen app. Still 60 everywhere: the phone target is a steady 60 at Ultra (the governor aims at the display rate).
 
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
