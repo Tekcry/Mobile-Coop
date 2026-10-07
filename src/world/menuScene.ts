@@ -71,6 +71,8 @@ export type MenuFraming = 'menu' | 'loadout' | 'weapon';
 
 /** Lightweight diorama behind the menus: a dark stage, the operator in pools of light. No physics. */
 export class MenuState implements AppState {
+  /** The menu stage (3.1: Auto graphics calibrates here). */
+  readonly menuStage = true;
   readonly scene: Scene;
   readonly simulating = true;
   readonly camera: ArcRotateCamera;

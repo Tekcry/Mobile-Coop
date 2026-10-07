@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { capAllows, forPlatform, GRAPHICS_PRESETS, MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, presetOf, qualityLevel, shadowSpec, VOXEL_TIER } from '../src/core/quality';
-import { defaultSettings, sanitizeSettings, setGfx, setPreset } from '../src/core/settings';
+import { defaultSettings, sanitizeSettings, setAuto, setGfx, setPreset } from '../src/core/settings';
 
 describe('graphics settings (3.0)', () => {
   it('every device defaults to Epic at native resolution', () => {
@@ -78,6 +78,25 @@ describe('graphics settings (3.0)', () => {
     expect(b.video.gfx.volLights).toBe(GRAPHICS_PRESETS.epic.volLights);
     expect(b.video.gfx.postRes).toBe(GRAPHICS_PRESETS.epic.postRes);
     expect(sanitizeSettings({ video: { preset: 'low' } }).video.gfx).toEqual(GRAPHICS_PRESETS.low);
+  });
+  it('Auto (3.1): on by default and for 3.0 installs still on Epic; a hand-picked preset or feature turns it off', () => {
+    expect(defaultSettings().video.auto).toBe(true);
+    expect(sanitizeSettings({ video: { preset: 'epic' } }).video.auto).toBe(true);
+    expect(sanitizeSettings({ video: { preset: 'high' } }).video.auto).toBe(false);
+    expect(sanitizeSettings({ video: { preset: 'custom', gfx: { ...GRAPHICS_PRESETS.high, lights: 44 } } }).video.auto).toBe(false);
+    const s = defaultSettings();
+    setAuto(s, null);
+    expect(s.video).toMatchObject({ auto: true, preset: 'high' });
+    setAuto(s, 'medium');
+    expect(s.video).toMatchObject({ auto: true, preset: 'medium', renderScale: PRESET_DISPLAY.medium.renderScale });
+    setPreset(s, 'ultra');
+    expect(s.video.auto).toBe(false);
+    setAuto(s, 'low');
+    setGfx(s, 'bloom', true);
+    expect(s.video.auto).toBe(false);
+    const d = sanitizeSettings({ video: { auto: true, device: { key: 'k', tier: 'ultra', source: 'calibrated' } } }).video.device;
+    expect(d).toEqual({ key: 'k', tier: 'ultra', source: 'calibrated' });
+    expect(sanitizeSettings({ video: { device: { key: 5, tier: 'mega', source: 'x' } } }).video.device).toEqual({ key: '', tier: null, source: 'none' });
   });
   it('the frame limiter renders every other frame for 60 on a 120 Hz display', () => {
     expect(capAllows(8.3, 60, 8.33)).toBe(false);

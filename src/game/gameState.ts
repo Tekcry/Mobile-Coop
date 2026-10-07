@@ -43,6 +43,7 @@ import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
 import { MOBILE_PRESET_IDS, PRESET_IDS, VOXEL_TIER, type QualityLevel } from '../core/quality';
+import type { Adaptive } from '../core/governor';
 import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
@@ -594,6 +595,14 @@ export class GameState implements AppState {
       m?.unfreeze();
       this.scene.onAfterRenderObservable.addOnce(() => m?.freeze());
     }
+  }
+
+  /** The frame governor's detail (3.1; `QualityManager`): resolution, shadows, lights, levels of detail, effects. */
+  applyAdaptive(a: Readonly<Adaptive>, level: QualityLevel): void {
+    this.world.applyAdaptive(a, level);
+    this.stack.setAdaptive(a.scale, a.volLights);
+    this.vfx.density = level.vfxDensity * a.effects;
+    this.weather.setDensity(level.minimal ? 0 : level.vfxDensity * a.effects);
   }
 
   private pickedUp(k: 'ammo' | 'health', who: string): void {

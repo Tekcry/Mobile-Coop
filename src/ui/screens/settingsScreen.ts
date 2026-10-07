@@ -1,6 +1,6 @@
 import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
-import { setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
+import { setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
 import { FPS_CAPS, LIGHT_RANGE, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
 import type { PlatformChoice } from '../../core/platform';
@@ -26,7 +26,8 @@ const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'precise', label: 'Precise' },
   { value: 'aggressive', label: 'Aggressive' },
 ];
-const PRESET_OPTS: { value: GraphicsPreset; label: string }[] = [
+const PRESET_OPTS: { value: GraphicsPreset | 'auto'; label: string }[] = [
+  { value: 'auto', label: 'Auto (this device)' },
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
@@ -263,9 +264,21 @@ export class SettingsScreen extends Screen {
     const upd = st.update.bind(st);
     const pct = (v: number): string => `${Math.round(v * 100)}%`;
     let panel: HTMLElement | null = null;
+    const cap = (p: string): string => p[0]!.toUpperCase() + p.slice(1);
+    const autoNote = h('div', { class: 'row-note auto-note' });
+    const noteText = (): string => {
+      const v = s().video;
+      if (app.detecting) return 'Measuring this device on the menu stage...';
+      const d = v.device;
+      const found = d.tier ? `${cap(d.tier)} (${d.source === 'gpu' ? 'from the GPU' : 'measured'})` : 'not detected yet';
+      return `${v.auto ? `Auto: ${cap(v.preset)}` : 'Auto is off'} - this device: ${found}. In a match the detail adapts to hold the frame rate.`;
+    };
     const refresh = (): void => {
       if (panel) refreshWidgets(panel);
+      autoNote.textContent = noteText();
     };
+    autoNote.textContent = noteText();
+    app.onDetected = refresh;
     const feat = <K extends keyof GraphicsFeatures>(k: K) => ({
       get: (): GraphicsFeatures[K] => s().video.gfx[k],
       set: (v: GraphicsFeatures[K]): void => {
@@ -288,11 +301,21 @@ export class SettingsScreen extends Screen {
       section(
         'Quality',
         // (phones: Low - Ultra; Epic and ray tracing are PC only)
-        choice('Preset', desktop ? PRESET_OPTS : PRESET_OPTS.filter((o) => o.value !== 'epic'), () => s().video.preset, (v) => {
+        choice('Preset', desktop ? PRESET_OPTS : PRESET_OPTS.filter((o) => o.value !== 'epic'), () => (s().video.auto ? 'auto' : s().video.preset), (v) => {
           // (Custom is where hand changes land; picking it keeps the current features)
-          if (v !== 'custom') upd((d) => setPreset(d, v));
+          if (v === 'auto') {
+            upd((d) => setAuto(d, d.video.device.tier));
+            app.detectGraphics();
+          } else if (v !== 'custom') upd((d) => setPreset(d, v));
+          else upd((d) => void (d.video.auto = false));
           refresh();
         }),
+        autoNote,
+        button('Detect again', () => {
+          upd((d) => setAuto(d, d.video.device.tier));
+          app.detectGraphics(true);
+          refresh();
+        }, { class: 'subtle' }),
         ch('Shadows', 'shadows', SHADOW_OPTS),
         slider('Real-time lights', { min: LIGHT_RANGE.min, max: LIGHT_RANGE.max, step: 4, get: () => s().video.gfx.lights, set: (v) => feat('lights').set(v), format: (v) => `${v}` }),
         ch('Anti-aliasing', 'aa', AA_OPTS),
@@ -317,10 +340,10 @@ export class SettingsScreen extends Screen {
       section(
         'Display',
         slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
-        toggle('Dynamic resolution', () => s().video.dynamicRes, (v) => upd((d) => void (d.video.dynamicRes = v))),
+        toggle('Adaptive detail (holds the frame rate in a match)', () => s().video.adaptive, (v) => upd((d) => void (d.video.adaptive = v))),
         choice('Upscaler (with a resolution scale under 100%)', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))),
         slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }),
-        choice('Frame-rate cap', CAP_OPTS.map((o) => (o.value === 0 ? { value: 0, label: `Display refresh (${Math.round(app.quality.hz)} Hz)` } : o)), () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))),
+        choice('Target frame rate', CAP_OPTS.map((o) => (o.value === 0 ? { value: 0, label: `Display refresh (${Math.round(app.quality.hz)} Hz)` } : o)), () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))),
         slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
         slider('Widest field of view (ultrawide)', { min: 90, max: 150, step: 5, get: () => s().video.maxFov, set: (v) => upd((d) => void (d.video.maxFov = v)), format: (v) => `${v}°` }),
         choice('HUD width', HUD_OPTS, () => s().video.hudWidth, (v) => upd((d) => void (d.video.hudWidth = v))),
@@ -344,7 +367,7 @@ export class SettingsScreen extends Screen {
         'Benchmark',
         h('div', {
           class: 'row-note',
-          text: `A ${BENCH.seconds} s camera flight through the Warehouse: average and 1% low FPS per run (save the results as feedback). Every preset: High, Ultra, Epic. Resolutions: the render pixel counts of 2560x1600, 4K and 7680x2160 (where render scale 2 reaches them). Sustained: ${BENCH.sustained / 60} minutes, first vs last minute (a laptop throttling once hot).`,
+          text: `A ${BENCH.seconds} s camera flight through the Warehouse: average and 1% low FPS per run (save the results as feedback). Every preset: Low to Epic (Low to Ultra on phones). Resolutions: the render pixel counts of 2560x1600, 4K and 7680x2160 (where render scale 2 reaches them). Sustained: ${BENCH.sustained / 60} minutes, first vs last minute (a laptop throttling once hot).`,
         }),
         button('Run (current settings)', () => app.benchmark?.('current'), { icon: 'monitor' }),
         button('Every preset', () => app.benchmark?.('presets'), { class: 'subtle' }),

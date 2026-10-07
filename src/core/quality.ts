@@ -58,6 +58,12 @@ export const GRAPHICS_PRESETS: Record<FixedPreset, GraphicsFeatures> = {
   epic: { shadows: 'epic', lights: 32, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: true, volumetrics: true, volLights: 12, postRes: 'full', dof: true, motionBlur: false, lens: true, aa: 'taa', textures: 'epic', detail: 'epic', effects: 'epic' },
 };
 export const PRESET_IDS = ['low', 'medium', 'high', 'ultra', 'epic'] as const;
+/**
+ * PvP (3.1, crossplay fairness): everything that changes how dark, lit or hidden a player looks is the same on every
+ * device - lamp count, lamp / moon shadows, bounce light, contact shadows, light shafts, smoke and particle density.
+ * The rest of the preset (resolution, textures, reflections, depth of field, ...) stays the player's own.
+ */
+export const PVP_LOOK: Readonly<Pick<GraphicsFeatures, 'shadows' | 'lights' | 'ao' | 'gi' | 'volumetrics' | 'effects'>> = { shadows: 'medium', lights: 16, ao: false, gi: true, volumetrics: false, effects: 'high' };
 /** What phones list (Epic and ray-traced reflections are PC only). */
 export const MOBILE_PRESET_IDS = ['low', 'medium', 'high', 'ultra'] as const;
 /**

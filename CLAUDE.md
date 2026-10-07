@@ -843,7 +843,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   5-shot window that kills outright. Dual takedowns: two players finishing within `DUAL_WINDOW` 1.5 s ->
   banner (relayed) + style.
 - PvP fairness: `pvpLoadout` (base damage), no suit / HQ in `tdm | ffa`, `maxHitDamage(def, head, false)` on the host.
-  3.1 crossplay: `core/display.ts` `matchFov` (`PVP_MAX_FOV` 90, `maxFov` = `fovH`: 16:9-equivalent, Vert- on wider
+  3.1 crossplay: `PVP_LOOK` (`core/quality.ts`; `QualityManager.build` in PvP: lights 16, shadows medium, gi on, ao /
+  volumetrics off, effects high - how visible a player is never depends on the device; the governor keeps lights,
+  shadow refresh and effects at full there), `core/display.ts` `matchFov` (`PVP_MAX_FOV` 90, `maxFov` = `fovH`: 16:9-equivalent, Vert- on wider
   screens; `Player.pvp`), `QualityManager.setPvp` (Panini off); graphics never change gameplay or what can be seen (fog on
   every preset, `tests/losParity.test.ts`).
 - PvP (`net/pvp.ts`, pure: `PvpScore`, `pickSpawn`, `balanceTeam`, `pvpInfo`): `GameState.pvp` (no AI / mode;
@@ -890,6 +892,24 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   feeds `RefreshDetector` (raw rAF intervals), `FrameStats` and, only with dynamic resolution, the
   `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|low|medium|high|ultra|epic` overrides for a page;
   `QualityManager.setOverride({ preset, scale })` is the benchmark's per-run override (never saved; ignored under `?gfx=`).
+- Auto graphics (3.1, `core/deviceTier.ts` pure): `tierFromRenderer(renderer, mobile)` (desktop / phone GPU tables,
+  confident or not; iOS "Apple GPU" is not), `deviceKey`, `Calibration` (the ladder top down on the menu stage, each at
+  its render scale x `CALIBRATION.load` 1.4, warm-up 0.6 s + 1.2 s measured, p90 interval <= budget x 1.12; <= 6 s).
+  Settings `video.auto` (default; 3.0 settings on Epic move to it; `setPreset` / `setGfx` turn it off, `setAuto(s,
+  tier)`), `video.device {key, tier, source gpu | calibrated | none}`. `App.detectGraphics(force)` after
+  `loadSettings` and on a platform change: known key -> its tier; else the GPU name; else `calibKey` and
+  `calibFrame` runs it on `MenuState` (`menuStage`) through `QualityManager.setOverride`, aborted off the menu,
+  toast + `onDetected`. Under automation only with `?detect=1` (`?renderer=` fakes the GPU name).
+- Frame governor (3.1, `core/governor.ts` pure): `Governor.frame(interval, budget)` levels 0-10 (`adaptiveAt` ->
+  `Adaptive`: scale 0.92 / 0.84 / 0.76, shadowEvery 2, volLights x0.5, voxelLod x0.75, effects x0.6, lights x0.75,
+  partLod x0.75, scale 0.68), down on a p90 miss (> budget x 1.08, >= 8 frames, 1 s cooldown), up by a trial after
+  6 s doubling to 96 s on a miss; `thermal` (a minute's average 12% over the first at one level, or three failed
+  tries), `lowPower` (a phone at < 40 Hz; App toasts once). `QualityManager` runs it in a match when `video.adaptive`
+  (default; replaces `dynamicRes`) and not under `?gfx=` / a benchmark override; `applyAdaptive` -> canvas scale
+  (no TAAU) and `QualityTarget.applyAdaptive` (GameState: `World.applyAdaptive` - `LightRig.setAdaptive(lit share,
+  shadow refresh)`, sun CSM refresh, voxel / part / anim LOD; `PostStack.setAdaptive` - `Taau.setScale` (the post
+  process's ratio), volumetric light count; vfx / weather density). Reset on a new target or a settings change.
+  Debug line `governor L<n>`; feedback context `adaptive`. `perf.mjs --preset=<p> [--mobile]` (phone budgets per preset).
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
   Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Clear match on the Warehouse with `opts.benchmark`;
   `GameState` flies the camera through the room centres (`pathAt`, Catmull-Rom), guards passive, one flight per run

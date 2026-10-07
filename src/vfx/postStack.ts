@@ -172,8 +172,18 @@ export class PostStack {
   private ids = new Int32Array(VOL_LIGHTS);
   private dist = new Float32Array(VOL_LIGHTS);
   private volCount = 0;
-  /** Lights the volumetric pass may scatter (0: fog only). */
+  /** Lights the volumetric pass may scatter (0: fog only): the preset's x the frame governor's share. */
   private volMax = VOL_LIGHTS;
+  private volBase = VOL_LIGHTS;
+  private volMul = 1;
+  private upscale = 1;
+
+  /** The frame governor (3.1): the TAAU input scale and the share of volumetric lights (uniforms / sizes only). */
+  setAdaptive(scale: number, volLights: number): void {
+    this.volMul = volLights;
+    this.volMax = Math.round(this.volBase * volLights);
+    this.taau?.setScale(Math.max(0.4, this.upscale * scale));
+  }
   private t = 0;
   /** Depth-of-field focus (m) and whether it is wanted now (aiming, menu operator). */
   focus = 10;
@@ -202,6 +212,7 @@ export class PostStack {
     // TAAU first: its input sets the scene's render size; it does the temporal anti-aliasing too
     if (q.upscale < 1) {
       this.depth = scene.enableDepthRenderer(this.camera, false, true);
+      this.upscale = q.upscale;
       this.taau = new Taau(scene, this.camera, q.upscale, this.depth);
     } else if (f.aa === 'taa') {
       const taa = new TAARenderingPipeline('taa', scene, cams);
@@ -251,7 +262,8 @@ export class PostStack {
     }
     // the height fog decides what can be seen at a distance: drawn on every preset (crossplay fairness); the light
     // shafts only with Volumetrics, over the nearest `volLights`
-    this.volMax = f.volumetrics ? Math.max(0, Math.min(VOL_LIGHTS, f.volLights)) : 0;
+    this.volBase = f.volumetrics ? Math.max(0, Math.min(VOL_LIGHTS, f.volLights)) : 0;
+    this.volMax = Math.round(this.volBase * this.volMul);
     this.makeVolumetric();
     const def = new DefaultRenderingPipeline('pc', true, scene, cams);
     def.samples = f.aa === 'msaa' ? 4 : 1;

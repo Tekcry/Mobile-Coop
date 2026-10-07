@@ -22,6 +22,10 @@ import { bindLabel } from '../input/keyBindings';
 import { browserEnv, detectPlatform, platformOverride, uiScale, type PlatformInfo } from './platform';
 import type { BenchKind } from '../game/benchmark';
 import { classifyGpu, hudInset, type GpuKind } from './display';
+import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
+import { MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
+import { setAuto } from './settings';
+import { flags } from './flags';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -78,7 +82,19 @@ export class App {
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
     this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
     this.debug.pacing = () => this.quality.pacing();
-    this.loop.onFrameEnd = (interval, cpu, raf) => this.quality.frame(interval, cpu, this.current?.simulating ?? false, raf);
+    this.debug.extra.set('governor', () => {
+      const g = this.quality.governor;
+      return this.quality.adaptiveOn ? `governor L${g.level}${g.thermal ? ' THERMAL' : ''}${g.lowPower ? ' LOW-POWER' : ''}` : 'governor off';
+    });
+    this.loop.onFrameEnd = (interval, cpu, raf) => {
+      this.quality.frame(interval, cpu, this.current?.simulating ?? false, raf);
+      if (this.calib || this.calibKey) this.calibFrame(raf);
+      const lp = this.quality.governor.lowPower;
+      if (lp !== this.lowPower) {
+        this.lowPower = lp;
+        if (lp) this.toasts.show('Low Power Mode: the game runs at 30 fps', 'warn', 4000);
+      }
+    };
     uiHooks.blocked = (msg) => {
       this.toasts.show(msg, 'warn', 1800);
       this.sfx.denied();
@@ -152,6 +168,90 @@ export class App {
     this.settings.update((d) => void (d.video.gpuNotice = true));
   }
 
+  /** 3.1 Auto graphics: a calibration waiting for (or running on) the menu stage, for this device key. */
+  private calibKey = '';
+  private lowPower = false;
+  private calib: Calibration | null = null;
+  private calibWait = 0;
+  /** Settings > Graphics: the detection finished (the tab re-reads its rows). */
+  onDetected: (() => void) | null = null;
+
+  /**
+   * Auto graphics (3.1): the device's preset - from the GPU's name when it says enough, else measured on the menu
+   * stage (`Calibration`). Re-detects when the device key changes; `force` (Settings > Detect again) measures anyway.
+   * Under automation only with `?detect=1` (tests keep their settings).
+   */
+  detectGraphics(force = false): void {
+    const v = this.settings.get().video;
+    if ((!v.auto && !force) || (navigator.webdriver && !flags.detect)) return;
+    const mobile = this.platform.platform === 'mobile';
+    const key = deviceKey(this.gpu.renderer, this.platform.platform, screen.width, screen.height, devicePixelRatio);
+    if (!force && v.device.key === key && v.device.tier) {
+      if (v.preset !== v.device.tier) this.settings.update((d) => setAuto(d, d.video.device.tier));
+      return;
+    }
+    const guess = tierFromRenderer(flags.renderer ?? this.gpu.renderer, mobile);
+    if (guess.confident && !force) {
+      this.settings.update((d) => {
+        d.video.device = { key, tier: guess.tier, source: 'gpu' };
+        setAuto(d, guess.tier);
+      });
+      this.onDetected?.();
+      return;
+    }
+    this.calibKey = key;
+    this.calibWait = 0;
+  }
+
+  /** Every rendered frame while a calibration waits or runs: only on the menu stage, aborted when it is left. */
+  private calibFrame(rafMs: number): void {
+    const onMenu = !!(this.state as { menuStage?: boolean } | null)?.menuStage;
+    if (!onMenu) {
+      if (this.calib) {
+        // (left the menu: try again next time it is up)
+        this.calib = null;
+        this.quality.setOverride(null);
+      }
+      this.calibWait = 0;
+      return;
+    }
+    if (!this.calib) {
+      // a second on the menu first (the refresh rate is known, the stage has loaded)
+      this.calibWait += rafMs / 1000;
+      if (this.calibWait < 1) return;
+      const ladder: FixedPreset[] = [...(this.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS)].reverse();
+      this.calib = new Calibration(ladder, this.quality.budgetMs);
+      this.calibApply();
+      return;
+    }
+    if (!this.calib.push(rafMs)) return;
+    if (!this.calib.done) {
+      this.calibApply();
+      return;
+    }
+    const tier = this.calib.result;
+    const key = this.calibKey;
+    this.calib = null;
+    this.calibKey = '';
+    this.quality.setOverride(null);
+    this.settings.update((d) => {
+      d.video.device = { key, tier, source: 'calibrated' };
+      if (d.video.auto) setAuto(d, tier);
+    });
+    this.toasts.show(`Graphics: ${tier[0]!.toUpperCase()}${tier.slice(1)} for this device (Settings > Graphics)`, 'ok', 4000);
+    this.onDetected?.();
+  }
+
+  private calibApply(): void {
+    const p = this.calib!.preset;
+    this.quality.setOverride({ preset: p, scale: Math.min(2, PRESET_DISPLAY[p].renderScale * CALIBRATION.load) });
+  }
+
+  /** A calibration is waiting or running. */
+  get detecting(): boolean {
+    return !!this.calibKey;
+  }
+
   /** Detect the platform (setting, `?platform=`), set `body.platform-*` and the desktop UI scale (`--ui-scale`). */
   applyPlatform(): void {
     const before = this.platform.platform;
@@ -164,7 +264,10 @@ export class App {
     document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, window.innerWidth, window.innerHeight)));
     document.documentElement.style.setProperty('--hud-inset', `${hudInset(window.innerWidth, window.innerHeight, this.settings.get().video.hudWidth)}px`);
     this.quality?.setMobile(p === 'mobile');
-    if (p !== before) this.onPlatform?.();
+    if (p !== before) {
+      this.onPlatform?.();
+      if (this.settingsLoaded) this.detectGraphics();
+    }
   }
 
   private onVisibility(hidden: boolean): void {
@@ -189,7 +292,12 @@ export class App {
     }
     this.quality.apply();
     this.audio.setVolumes(this.settings.get().audio);
+    this.settingsLoaded = true;
+    this.applyPlatform();
+    this.detectGraphics();
   }
+
+  private settingsLoaded = false;
 
   get current(): AppState | null {
     return this.state;

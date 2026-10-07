@@ -24,6 +24,8 @@ export function feedbackContext(app: App): Record<string, string> {
   const hgt = Math.round(window.innerHeight * devicePixelRatio);
   ctx.display = `${w}x${hgt} (${aspectLabel(w, hgt)}) @ ${Math.round(app.quality.hz)} Hz, FOV ${v.fovH} (max ${v.maxFov}), HUD ${v.hudWidth}`;
   ctx.gpu = `${app.gpu.renderer || 'unknown'} (${app.gpu.kind})`;
+  const g = app.quality.governor;
+  ctx.adaptive = `${v.auto ? `auto (${v.device.source}: ${v.device.tier ?? '-'})` : 'manual'}, governor ${app.quality.adaptiveOn ? `level ${g.level}` : 'off'}${g.thermal ? ', thermal' : ''}${g.lowPower ? ', low power' : ''}`;
   ctx.device = navigator.userAgent.slice(0, 160);
   return ctx;
 }

@@ -23,6 +23,10 @@ export interface Flags {
   voxels: boolean;
   /** Autostart weather (clear | rain | fog). */
   weather: 'clear' | 'rain' | 'fog' | null;
+  /** 3.1: Auto graphics detection also under automation (`?detect=1`; tests otherwise keep their settings). */
+  detect: boolean;
+  /** Tests: the GPU name detection sees (`?renderer=Apple%20GPU`). */
+  renderer: string | null;
 }
 
 function readParams(): URLSearchParams {
@@ -50,4 +54,6 @@ export const flags: Flags = {
   gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
   voxels: params.get('voxels') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
+  detect: params.get('detect') === '1',
+  renderer: params.get('renderer')?.slice(0, 96) ?? null,
 };

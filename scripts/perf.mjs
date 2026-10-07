@@ -3,22 +3,40 @@
 //  - animation cost per character (rig evaluation, ms)
 //  - allocations per simulated second (sampling heap profiler, incl. collected objects) + top allocators
 //  - draw calls and real rendered frame pacing (SwiftShader: GPU timings are NOT representative)
-// Usage: node scripts/perf.mjs [url] [--json] [--budget] [--desktop]
+// Usage: node scripts/perf.mjs [url] [--json] [--budget] [--desktop] [--preset=low|medium|high|ultra|epic [--mobile]]
 //   (--budget exits 1 when a CPU-side budget is missed)
 //   default: `?gfx=min` - the phone / test-path regression check (the 2.x numbers)
 //   --desktop: `?gfx=epic` - the PC path (voxel characters and weapons, shadows, the post stack): main-thread CPU =
 //   the sim + the render's JS (active mesh evaluation incl. skinning bones), draw calls and triangles over every pass
 //   (shadow maps and post included). GPU time needs the laptop (Settings > Graphics > Benchmark).
+//   --preset=<p> (3.1): that preset (`?gfx=<p>`, the governor off), its budget from the phone table below;
+//   --mobile with it runs the phone platform (no Epic, no ray tracing).
 import { launch, frames } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const asJson = args.includes('--json');
 const enforce = args.includes('--budget');
-const desktop = args.includes('--desktop');
+const preset = args.find((a) => a.startsWith('--preset='))?.slice(9) ?? null;
+if (preset && !['low', 'medium', 'high', 'ultra', 'epic'].includes(preset)) throw new Error(`unknown preset ${preset}`);
+const mobile = args.includes('--mobile');
+const desktop = args.includes('--desktop') || (!!preset && !mobile);
+// (the full renderer: slow to load on software GL)
+const heavy = desktop || !!preset;
+// 3.1 phone budgets per preset (the iPhone 17 Pro Max at Ultra: main thread <= 4 ms of 8.33, <= 250 draws, <= 2 M
+// triangles; older phones on the lower presets). The sim's share is checked here, scaled by machine speed.
+const PRESET_BUDGET = {
+  low: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 120, trisM: 0.8, kbPerSecond: 11520 },
+  medium: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 160, trisM: 1.2, kbPerSecond: 11520 },
+  high: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 200, trisM: 1.6, kbPerSecond: 11520 },
+  ultra: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 250, trisM: 2, kbPerSecond: 11520 },
+  epic: null,
+};
 // allocations: per second (the same garbage whatever the refresh rate - 240 Hz must not double it). What remains is
 // V8 boxing doubles passed to non-inlined calls and Havok's embind marshalling (young-generation churn, nothing kept).
-const BUDGET = desktop
+const BUDGET = preset && PRESET_BUDGET[mobile && preset === 'epic' ? 'ultra' : preset]
+  ? PRESET_BUDGET[mobile && preset === 'epic' ? 'ultra' : preset]
+  : desktop
   ? // 3.0 PC: the main thread <= 3 ms of a 240 Hz frame's 4.17 ms - here the sim's share (<= 2 ms, leaving 1 ms for
     // the render's submission, which only the laptop can time: its benchmark prints the main thread p95; on
     // SwiftShader GL stalls land inside the render's JS); 600 draws / 8 M triangles over every pass incl. shadows
@@ -32,10 +50,10 @@ const stealth = !!process.env.STEALTH;
 const MAP = process.env.MAP ?? 'warehouse';
 const { browser, page, errors } = await launch({
   url,
-  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}`,
+  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${preset ? `&gfx=${preset}&platform=${mobile ? 'mobile' : 'desktop'}` : desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}`,
   ...(desktop ? { touch: false, viewport: { width: 640, height: 360 } } : {}),
 });
-if (desktop) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
+if (heavy) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
 await frames(page, 10);
 await page.evaluate((stealth) => {
   const app = window.__app;
@@ -222,11 +240,11 @@ const real = await page.evaluate(async (desktop) => {
   const p = app.quality.pacing();
   const n = Math.max(1, frames);
   return { hz: p.hz, p50: p.p50, p95: p.p95, p99: p.p99, cpuP50: p.cpuP50, cpuP95: p.cpuP95, draws: Math.round(draws / n), trisM: tris / n / 1e6, evalMs: evalMs / Math.max(1, evals), frames, meshes: scene.meshes.length };
-}, desktop);
+}, heavy);
 
 const out = {
   map: 'warehouse',
-  profile: desktop ? 'desktop (gfx=epic)' : 'test path (gfx=min)',
+  profile: preset ? `preset ${preset} (${mobile ? 'phone' : 'desktop'})` : desktop ? 'desktop (gfx=epic)' : 'test path (gfx=min)',
   enemies: cpu.alive,
   cpu120: { frames: cpu.frames, p50: +cpu.p50.toFixed(3), p95: +cpu.p95.toFixed(3), p99: +cpu.p99.toFixed(3) },
   // the main thread per frame: the sim's p95 + the render's JS (mesh evaluation, bones)

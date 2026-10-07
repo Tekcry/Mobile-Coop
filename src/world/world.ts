@@ -26,6 +26,7 @@ import { Doors } from './doors';
 import { makeCone, type LightRegistry } from './lights';
 import { GI_STRIDE } from '../voxel/skyBake';
 import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
+import type { Adaptive } from '../core/governor';
 import { SurfaceAtlas } from './surfaceAtlas';
 import { setAnimLodScale } from '../player/characterRig';
 import { VoxelWorld } from '../voxel/voxelWorld';
@@ -272,6 +273,21 @@ export class World {
     this.parts.setLodScale(k);
     setAnimLodScale(k);
     this.setSunShadows(q.shadow);
+  }
+
+  /** The frame governor's detail (3.1): run-time only, nothing recompiles. */
+  applyAdaptive(a: Readonly<Adaptive>, q: QualityLevel): void {
+    this.lightRig.setAdaptive(a.lights, a.shadowEvery);
+    const sm = this.shadow?.getShadowMap();
+    if (sm) sm.refreshRate = a.shadowEvery;
+    if (!q.minimal) {
+      const [d1, d2] = VOXEL_LOD[q.features.detail];
+      this.voxels?.setLodDistances(d1 * a.voxelLod, d2 * a.voxelLod);
+      this.voxelsFine?.setLodDistances((d1 / 2) * a.voxelLod, (d2 / 2) * a.voxelLod);
+    }
+    const k = (q.minimal ? 1 : q.detailScale) * a.partLod;
+    this.parts.setLodScale(k);
+    setAnimLodScale(k);
   }
 
   private setSunShadows(spec: ShadowSpec): void {

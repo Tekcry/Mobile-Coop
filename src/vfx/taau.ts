@@ -155,6 +155,14 @@ export class Taau {
     this.pass = pass;
   }
 
+  /** The frame governor (3.1): a new input scale at run time (the post process re-sizes its input; no recompile). */
+  setScale(scale: number): void {
+    if (Math.abs(scale - this.scale) < 1e-4) return;
+    this.scale = scale;
+    (this.pp as unknown as { _options: number })._options = scale;
+    this.reset = 1;
+  }
+
   private makeTargets(w: number, h: number): void {
     const engine = this.scene.getEngine();
     this.ping?.dispose();

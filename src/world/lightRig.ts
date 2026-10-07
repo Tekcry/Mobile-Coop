@@ -71,6 +71,9 @@ export class LightRig {
   private dist = new Float32Array(MAX_REAL_LIGHTS + 16);
   private pickT = 0;
   private version = -1;
+  /** 3.1 frame governor: the share of the light pool lit, shadow maps re-rendered every N frames. */
+  private litScale = 1;
+  private shadowEvery = 1;
   /** Real lights in use (clustered + shadowed). */
   get active(): number {
     return this.pool.length + this.shadowPool.length;
@@ -308,7 +311,8 @@ export class LightRig {
     }
     for (let i = sh; i < this.shadowPool.length; i++) this.idle(this.shadowPool[i]!);
     let k = 0;
-    for (let i = 0; i < use && k < this.pool.length; i++) {
+    const lit = Math.max(1, Math.ceil(this.pool.length * this.litScale));
+    for (let i = 0; i < use && k < lit; i++) {
       if (taken[i]) continue;
       this.put(this.pool[k++]!, this.reg.lights[ids[i]!]!);
     }
@@ -332,8 +336,20 @@ export class LightRig {
       this.fillCasters(s, l);
       // (shadows stay enabled - toggling recompiles every material - an idle map just stops refreshing)
       const sm = s.sg.getShadowMap();
-      if (sm) sm.refreshRate = 1;
+      if (sm) sm.refreshRate = this.shadowEvery;
     }
+  }
+
+  /** The frame governor (3.1): fewer lights lit (no recompiles: the rest of the pool goes idle), shadows refreshed less. */
+  setAdaptive(litScale: number, shadowEvery: number): void {
+    if (litScale === this.litScale && shadowEvery === this.shadowEvery) return;
+    this.litScale = litScale;
+    this.shadowEvery = shadowEvery;
+    for (const s of this.shadowPool) {
+      const sm = s.id >= 0 ? s.sg?.getShadowMap() : null;
+      if (sm) sm.refreshRate = shadowEvery;
+    }
+    this.pickT = 0;
   }
 
   /**

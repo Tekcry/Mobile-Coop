@@ -53,15 +53,22 @@ try {
   await click('.tab', 'Graphics');
   await frames(page, 3);
   const preset = await G(() => [...document.querySelectorAll('.tab-panel.active .row-choice')].find((r) => /Preset/.test(r.textContent)).querySelector('.choice-val').textContent);
-  assert(preset === 'Epic', `Epic by default (${preset})`);
-  await G(() => [...document.querySelectorAll('.tab-panel.active .row-choice')].find((r) => /Preset/.test(r.textContent)).querySelectorAll('.choice-arrow')[0].click());
-  await frames(page, 3);
+  // (3.1: Auto by default; under automation without ?detect=1 it keeps the 3.0 default, Epic)
+  const pv = await G(() => ({ auto: window.__app.settings.get().video.auto, p: window.__app.settings.get().video.preset }));
+  assert(/^Auto/.test(preset) && pv.auto && pv.p === 'epic', `Auto by default (${preset}, ${JSON.stringify(pv)})`);
+  // Auto -> Low -> Medium -> High -> Ultra
+  for (let i = 0; i < 4; i++) {
+    await G(() => [...document.querySelectorAll('.tab-panel.active .row-choice')].find((r) => /Preset/.test(r.textContent)).querySelectorAll('.choice-arrow')[1].click());
+    await frames(page, 2);
+  }
+  await frames(page, 2);
   // (this page runs ?gfx=min, so the level itself stays minimal; the settings and the menu follow the preset)
   let q = await G(() => ({ p: window.__app.settings.get().video.preset, g: window.__app.settings.get().video.gfx, sh: [...document.querySelectorAll('.tab-panel.active .row-choice')].find((r) => /Shadows/.test(r.textContent)).querySelector('.choice-val').textContent }));
   assert(q.p === 'ultra' && q.g.shadows === 'ultra' && q.g.lights === 20 && q.g.aa === 'taa' && q.g.volLights === 8 && q.sh === 'Ultra', `a preset sets every feature, the rows follow (${q.p}, shadows ${q.sh})`);
   // (3.1: a preset also sets its render scale with TAAU; Epic is native)
   const disp = await G(() => ({ s: window.__app.settings.get().video.renderScale, u: window.__app.settings.get().video.upscaler }));
   assert(disp.s === 0.9 && disp.u === 'taau', `Ultra renders at 90% with TAAU (${JSON.stringify(disp)})`);
+  assert(!(await G(() => window.__app.settings.get().video.auto)), 'picking a preset turns Auto off');
   await G(() => [...document.querySelectorAll('.tab-panel.active .row-toggle')].find((r) => /Bloom/.test(r.textContent)).click());
   await frames(page, 2);
   q = await G(() => ({ p: window.__app.settings.get().video.preset, shown: [...document.querySelectorAll('.tab-panel.active .row-choice')].find((r) => /Preset/.test(r.textContent)).querySelector('.choice-val').textContent }));
@@ -155,8 +162,33 @@ try {
     await browser.close();
   }
 
+  // 3.1 Auto graphics: from the GPU's name (software GL = Low), else measured on the menu stage
+  {
+    const d = await launch({ url, params: 'detect=1&platform=desktop', touch: false, viewport: { width: 1280, height: 720 } });
+    browser = d.browser;
+    await d.page.waitForFunction(() => window.__app?.settings.get().video.device.source !== 'none', null, { timeout: 60000 });
+    const v = await d.page.evaluate(() => window.__app.settings.get().video);
+    assert(v.auto && v.device.source === 'gpu' && v.device.tier === 'low' && v.preset === 'low', `Auto: a software renderer starts on Low by its name (${JSON.stringify(v.device)}, ${v.preset})`);
+    await browser.close();
+    const c = await launch({ url, params: 'detect=1&platform=mobile&renderer=Apple%20GPU', touch: true, viewport: { width: 915, height: 412 } });
+    browser = c.browser;
+    await c.page.waitForFunction(() => window.__app?.detecting, null, { timeout: 60000 });
+    const during = await c.page.evaluate(() => window.__app.quality.level.name);
+    await c.page.waitForFunction(() => window.__app.settings.get().video.device.source === 'calibrated', null, { timeout: 60000 });
+    const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: document.querySelector('.toast')?.textContent ?? '', ov: window.__app.quality.level.name }));
+    assert(['low', 'medium', 'high', 'ultra'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: a hidden phone GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
+    assert(/for this device/.test(cv.toast), `the result is shown (${cv.toast})`);
+    await frames(c.page, 3);
+    await c.page.reload();
+    await c.page.waitForFunction(() => window.__app?.current, null, { timeout: 60000 });
+    await frames(c.page, 90);
+    const again = await c.page.evaluate(() => ({ det: window.__app.detecting, v: window.__app.settings.get().video }));
+    assert(!again.det && again.v.device.source === 'calibrated' && again.v.preset === cv.v.device.tier, 'the same device is not measured again');
+    await browser.close();
+  }
+
   // the Epic renderer in a match (small window: software GL)
-  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic', touch: false, viewport: { width: 640, height: 360 } });
+  const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = e.browser;
   await e.page.waitForFunction(() => window.__app.current?.player, null, { timeout: 180000 });
   await frames(e.page, 6);
@@ -284,11 +316,11 @@ try {
   await browser.close();
 
   // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
-  const u = await launch({ url, params: 'autostart=warehouse&gfx=user', touch: false, viewport: { width: 640, height: 360 } });
+  const u = await launch({ url, params: 'autostart=warehouse&gfx=user&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = u.browser;
   await u.page.waitForFunction(() => window.__app.current?.player, null, { timeout: 180000 });
   await frames(u.page, 3);
-  await u.page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.gfx.rtRes = 'half'; d.video.upscaler = 'taau'; d.video.renderScale = 0.67; d.video.panini = 0.5; }));
+  await u.page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.gfx.rtRes = 'half'; d.video.upscaler = 'taau'; d.video.renderScale = 0.67; d.video.panini = 0.5; d.video.adaptive = false; }));
   await frames(u.page, 4);
   const p5 = await u.page.evaluate(() => {
     const a = window.__app;
@@ -302,6 +334,16 @@ try {
   assert(p5.scene > 0 && Math.abs(p5.scene / p5.canvas - 0.67) < 0.02, `TAAU: the scene at 67% of the native canvas (${p5.scene} of ${p5.canvas})`);
   assert(p5.pps.includes('panini') && p5.pps.at(-1) === 'cinematic', `Panini on, the grade pass still last (${p5.panini})`);
   await u.page.screenshot({ path: process.env.SHOT_P5 ?? '/tmp/e2e-p5.png', timeout: 600000 });
+  // 3.1 frame governor: Adaptive detail on, software GL misses every frame - it steps down (TAAU input smaller)
+  await u.page.evaluate(() => window.__app.settings.update((d) => void (d.video.adaptive = true)));
+  await u.page.waitForFunction(() => window.__app.quality.governor.level >= 3, null, { timeout: 300000 });
+  await frames(u.page, 3);
+  const gv = await u.page.evaluate(() => {
+    const a = window.__app;
+    const taau = a.current.player.cam.camera._postProcesses.filter(Boolean).find((p) => p.name === 'taau');
+    return { level: a.quality.governor.level, scene: taau?.inputTexture?.width ?? 0, canvas: a.engine.getRenderWidth(), detail: a.quality.detail, line: a.debug.extra.get('governor')?.() ?? '' };
+  });
+  assert(gv.scene / gv.canvas < 0.6 && gv.detail.scale < 1 && /governor L\d/.test(gv.line), `the governor steps down when frames are missed (level ${gv.level}: TAAU input ${gv.scene} of ${gv.canvas})`);
   const uerrs = u.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
   assert(uerrs.length === 0, `ray traced + TAAU + Panini render without console errors${uerrs.length ? ': ' + uerrs.slice(0, 4).join(' | ') : ''}`);
   console.log('desktop e2e passed');

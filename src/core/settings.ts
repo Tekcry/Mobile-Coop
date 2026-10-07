@@ -91,12 +91,18 @@ export interface Settings {
     platform: PlatformChoice;
     /** Graphics preset; 'custom' once a feature is changed by hand. */
     preset: GraphicsPreset;
+    /** 3.1 Auto: the preset follows the device (`device.tier`); picking a preset or changing a feature turns it off. */
+    auto: boolean;
+    /** 3.1: what the device detection found (`core/deviceTier.ts`); re-detected when `key` no longer matches. */
+    device: DeviceDetection;
     /** The per-feature graphics settings (`core/quality.ts`). */
     gfx: GraphicsFeatures;
     /** Render resolution x native (above 1 supersamples). */
     renderScale: number;
-    /** Steps the render scale down when the GPU falls behind (off by default). */
+    /** Steps the render scale down when the GPU falls behind (3.0; replaced by `adaptive`, used only with it off). */
     dynamicRes: boolean;
+    /** 3.1 Adaptive detail: the frame governor holds the frame rate in a match (`core/governor.ts`). */
+    adaptive: boolean;
     /** Upscaler: off (the render scale is the canvas size) or TAAU (the scene at the render scale, resolved over
      *  frames to the display's full resolution). */
     upscaler: 'off' | 'taau';
@@ -239,7 +245,7 @@ export function defaultSettings(): Settings {
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
-    video: { platform: 'auto', preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -300,10 +306,30 @@ function videoGfx(v: Obj): { preset: GraphicsPreset; gfx: GraphicsFeatures } {
   return { preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic } };
 }
 
-/** Set one graphics feature (the preset becomes Custom unless it now equals one). */
+/** Set one graphics feature (the preset becomes Custom unless it now equals one; Auto turns off). */
 export function setGfx<K extends keyof GraphicsFeatures>(s: Settings, k: K, v: GraphicsFeatures[K]): void {
   s.video.gfx[k] = v;
   s.video.preset = presetOf(s.video.gfx);
+  s.video.auto = false;
+}
+
+export interface DeviceDetection {
+  key: string;
+  tier: FixedPreset | null;
+  /** gpu: from the GPU's name; calibrated: measured on the menu stage; none: not yet. */
+  source: 'gpu' | 'calibrated' | 'none';
+}
+
+function sanitizeDevice(raw: unknown): DeviceDetection {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Obj;
+  const tier = (PRESET_IDS as readonly unknown[]).includes(r.tier) ? (r.tier as FixedPreset) : null;
+  return { key: typeof r.key === 'string' ? r.key.slice(0, 160) : '', tier, source: tier ? pick(r.source, ['gpu', 'calibrated', 'none'] as const, 'none') : 'none' };
+}
+
+/** Auto on: the device's preset (High until it is known). */
+export function setAuto(s: Settings, tier: FixedPreset | null): void {
+  setPreset(s, tier ?? 'high');
+  s.video.auto = true;
 }
 
 /** Apply a named preset: its features and its render resolution (scale + TAAU; the frame governor works within). */
@@ -312,6 +338,7 @@ export function setPreset(s: Settings, p: FixedPreset): void {
   s.video.gfx = { ...GRAPHICS_PRESETS[p] };
   s.video.renderScale = PRESET_DISPLAY[p].renderScale;
   s.video.upscaler = PRESET_DISPLAY[p].upscaler;
+  s.video.auto = false;
 }
 
 /** Merge untrusted data (old saves, imports) over defaults, clamping every field. */
@@ -383,8 +410,12 @@ export function sanitizeSettings(raw: unknown): Settings {
     video: {
       platform: pick(v.platform, ['auto', 'desktop', 'mobile'] as const, d.video.platform),
       ...videoGfx(v),
+      // (3.0 settings: Auto when still on the 3.0 default, Epic; a preset picked by hand stays)
+      auto: bool(v.auto, v.preset === undefined || v.preset === 'epic'),
+      device: sanitizeDevice(v.device),
       renderScale: num(v.renderScale, d.video.renderScale, 0.5, 2),
       dynamicRes: bool(v.dynamicRes, d.video.dynamicRes),
+      adaptive: bool(v.adaptive, d.video.adaptive),
       upscaler: pick(v.upscaler, ['off', 'taau'] as const, d.video.upscaler),
       panini: num(v.panini, d.video.panini, 0, 1),
       fpsCap: pick(v.fpsCap, FPS_CAPS as readonly number[], d.video.fpsCap),

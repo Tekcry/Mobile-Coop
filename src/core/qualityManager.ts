@@ -1,6 +1,7 @@
 import type { Engine } from './babylon';
 import { applyRenderScale } from './engine';
-import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
+import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, PVP_LOOK, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
+import { adaptiveAt, FULL, Governor, type Adaptive } from './governor';
 import { flags } from './flags';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, type PacingSnapshot } from './pacing';
 import type { SettingsStore } from './settings';
@@ -9,6 +10,8 @@ import type { GameLoop } from './loop';
 /** Something that can take quality changes live (the game state, the menu stage). */
 export interface QualityTarget {
   applyQuality(level: QualityLevel): void;
+  /** The frame governor's detail (3.1; cheap at run time: no recompiles). */
+  applyAdaptive?(a: Readonly<Adaptive>, level: QualityLevel): void;
 }
 
 /**
@@ -71,8 +74,45 @@ export class QualityManager {
       this.stats.clear();
     }
     this.stats.push(intervalMs, cpuMs);
-    if (!simulating || !this.auto) return;
+    if (!simulating) return;
+    if (this.adaptiveOn) {
+      this.governor.display(this.hz, this.mobile);
+      if (this.governor.frame(intervalMs, this.budgetMs)) this.applyAdaptive();
+      return;
+    }
+    if (!this.auto) return;
     if (this.res.push(intervalMs, cpuMs, this.budgetMs, intervalMs / 1000)) this.applyScale();
+  }
+
+  /** 3.1 frame governor: steps detail down / up in a match to hold the frame rate. */
+  readonly governor = new Governor();
+  private adaptive: Adaptive = { ...FULL };
+
+  /** The governor runs: Adaptive detail on, in a match, not on a `?gfx=` test page or a benchmark run. */
+  get adaptiveOn(): boolean {
+    return this.settings.get().video.adaptive && !flags.gfx && !this.ov;
+  }
+
+  /** The governor's current detail. */
+  get detail(): Readonly<Adaptive> {
+    return this.adaptive;
+  }
+
+  private applyAdaptive(): void {
+    adaptiveAt(this.adaptiveOn ? this.governor.level : 0, this.adaptive);
+    if (this.pvp) {
+      // (PvP: lighting, shadows and effects stay the shared look)
+      this.adaptive.shadowEvery = 1;
+      this.adaptive.lights = 1;
+      this.adaptive.effects = 1;
+    }
+    this.applyScale();
+    this.target?.applyAdaptive?.(this.adaptive, this._level);
+  }
+
+  private resetGovernor(): void {
+    this.governor.reset();
+    adaptiveAt(0, this.adaptive);
   }
 
   private build(): QualityLevel {
@@ -83,7 +123,9 @@ export class QualityManager {
     const pick = flags.gfx ? { name: flags.gfx, f: GRAPHICS_PRESETS[flags.gfx] } : this.ov?.preset ? { name: this.ov.preset, f: GRAPHICS_PRESETS[this.ov.preset] } : { name: v.preset, f: v.gfx };
     // phones: no Epic, no ray-traced reflections
     const p = forPlatform(pick.name, pick.f, this.mobile);
-    return qualityLevel(p.name, p.features, false, up, this.pvp ? 0 : v.panini);
+    // PvP: the shared look for what decides how visible a player is
+    const f = this.pvp ? { ...p.features, ...PVP_LOOK } : p.features;
+    return qualityLevel(p.name, f, false, up, this.pvp ? 0 : v.panini);
   }
 
   /** A PvP match (3.1): no Panini (everyone sees the same projection). */
@@ -117,7 +159,9 @@ export class QualityManager {
     if (key === this.key) return;
     this.key = key;
     this._level = this.build();
+    this.resetGovernor();
     this.target?.applyQuality(this._level);
+    this.target?.applyAdaptive?.(this.adaptive, this._level);
     this.onChange?.(this._level);
   }
 
@@ -130,6 +174,7 @@ export class QualityManager {
   setTarget(t: QualityTarget | null): void {
     this.target = t;
     this.res.reset();
+    this.resetGovernor();
     this.apply();
   }
 
@@ -139,6 +184,7 @@ export class QualityManager {
     this.key = JSON.stringify(v.gfx) + v.preset + (this.taau ? v.renderScale : 1) + v.panini;
     this.applyScale();
     this.target?.applyQuality(this._level);
+    this.target?.applyAdaptive?.(this.adaptive, this._level);
     this.onChange?.(this._level);
   }
 
@@ -147,6 +193,7 @@ export class QualityManager {
     // (`?gfx=min`: DPR 1, as the phone-era tests ran)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
-    else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale)) * this.res.scale, Infinity);
+    // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
+    else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), Infinity);
   }
 }

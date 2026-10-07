@@ -293,6 +293,19 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
+- [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
+- [ ] Fresh install on the iPhone: a toast "Graphics: <preset> for this device" a few seconds after the menu shows;
+  reopening the app does not measure again. Detect again measures (toast) and keeps Auto.
+- [ ] Picking a preset by hand turns Auto off; picking Auto again goes back to the device's preset.
+- [ ] A match at Ultra on the phone for 10 minutes (`?debug=1`): the governor line stays at L0-L3 most of the time,
+  the frame pacing graph holds the budget; nothing visibly pops (resolution changes are soft).
+- [ ] Low Power Mode on the iPhone: a toast "Low Power Mode: the game runs at 30 fps"; the match holds 30.
+- [ ] Target frame rate 60 on the laptop: the governor holds 60 at a higher level of detail than at 240.
+- [ ] PvP on Low (phone) and Epic (laptop): the same lamps lit and the same shadows on the same spots (screenshots
+  side by side from the same position).
+- [ ] `node scripts/perf.mjs --preset=ultra --mobile --budget` and `--preset=low --mobile --budget` pass.
+
 ## 3.1 phase 1 - Preset ladder and fair PvP (PC + phone)
 - [ ] Settings > Graphics > Preset cycles Low, Medium, High, Ultra, Epic, Custom on PC; a phone shows no Epic and no
   Ray traced reflections option. Picking a preset sets the render scale (Low 67% .. Ultra 90% with TAAU, Epic 100%).
