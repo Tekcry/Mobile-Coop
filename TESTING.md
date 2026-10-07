@@ -304,7 +304,14 @@ Controls:
 - [ ] Target frame rate 60 on the laptop: the governor holds 60 at a higher level of detail than at 240.
 - [ ] PvP on Low (phone) and Epic (laptop): the same lamps lit and the same shadows on the same spots (screenshots
   side by side from the same position).
-- [ ] `node scripts/perf.mjs --preset=ultra --mobile --budget` and `--preset=low --mobile --budget` pass.
+- [ ] `node scripts/perf.mjs --preset=ultra --mobile --budget` and `--preset=low --mobile --budget` pass (draws;
+  the animation number is noisy on the VM - compare side by side with the previous build).
+- [ ] Shadows below Epic (proxy): walls, racks and crates cast the same shapes under the lamps and the moon as on
+  Epic (screenshots side by side); no shadow from a wall that is not there.
+- [ ] Low: guards in the yard have contact shadows, no moon shadows; Ultra: guards in the yard cast moon shadows,
+  indoors only lamp shadows.
+- [ ] Fog at Medium / High / Ultra looks like before (depth from the G-buffer); aiming with depth of field still
+  focuses on the target.
 
 ## 3.1 phase 1 - Preset ladder and fair PvP (PC + phone)
 - [ ] Settings > Graphics > Preset cycles Low, Medium, High, Ultra, Epic, Custom on PC; a phone shows no Epic and no

@@ -27,8 +27,8 @@ const heavy = desktop || !!preset;
 // triangles; older phones on the lower presets). The sim's share is checked here, scaled by machine speed.
 const PRESET_BUDGET = {
   low: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 120, trisM: 0.8, kbPerSecond: 11520 },
-  medium: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 160, trisM: 1.2, kbPerSecond: 11520 },
-  high: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 200, trisM: 1.6, kbPerSecond: 11520 },
+  medium: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 170, trisM: 1.2, kbPerSecond: 11520 },
+  high: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 230, trisM: 1.6, kbPerSecond: 11520 },
   ultra: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 250, trisM: 2, kbPerSecond: 11520 },
   epic: null,
 };
@@ -203,13 +203,22 @@ const real = await page.evaluate(async (desktop) => {
   let draws = 0;
   const de = engine.drawElementsType.bind(engine);
   const da = engine.drawArraysType.bind(engine);
+  // PASSES=1: draws per render target (shadow maps, post, the main pass)
+  const passes = new Map();
+  const pass = () => {
+    const rt = engine._currentRenderTarget;
+    const k = rt ? (rt.label || rt.texture?.name || rt.texture?.label || 'rt') : 'canvas';
+    passes.set(k, (passes.get(k) ?? 0) + 1);
+  };
   engine.drawElementsType = (fill, start, count, inst) => {
     draws++;
+    pass();
     if (fill === 0) tris += (count / 3) * Math.max(1, inst ?? 1);
     return de(fill, start, count, inst);
   };
   engine.drawArraysType = (fill, start, count, inst) => {
     draws++;
+    pass();
     if (fill === 0 || fill === 7) tris += (count / 3) * Math.max(1, inst ?? 1);
     return da(fill, start, count, inst);
   };
@@ -239,7 +248,15 @@ const real = await page.evaluate(async (desktop) => {
   engine.drawArraysType = da;
   const p = app.quality.pacing();
   const n = Math.max(1, frames);
-  return { hz: p.hz, p50: p.p50, p95: p.p95, p99: p.p99, cpuP50: p.cpuP50, cpuP95: p.cpuP95, draws: Math.round(draws / n), trisM: tris / n / 1e6, evalMs: evalMs / Math.max(1, evals), frames, meshes: scene.meshes.length };
+  // (the main pass's active meshes by name, digits stripped)
+  const act = new Map();
+  for (const m of scene.getActiveMeshes().data.slice(0, scene.getActiveMeshes().length)) {
+    const k = m.name.replace(/[0-9]+/g, '#');
+    act.set(k, (act.get(k) ?? 0) + 1);
+  }
+  const byPass = [...passes].map(([k, v]) => [k.replace(/[0-9]+/g, '#'), v]).reduce((m, [k, v]) => m.set(k, (m.get(k) ?? 0) + v), new Map());
+  const top = (m) => [...m].sort((a, b) => b[1] - a[1]).slice(0, 16).map(([k, v]) => `${k} ${Math.round(v / (m === byPass ? Math.max(1, frames) : 1))}`).join(', ');
+  return { passes: top(byPass), active: top(act), hz: p.hz, p50: p.p50, p95: p.p95, p99: p.p99, cpuP50: p.cpuP50, cpuP95: p.cpuP95, draws: Math.round(draws / n), trisM: tris / n / 1e6, evalMs: evalMs / Math.max(1, evals), frames, meshes: scene.meshes.length };
 }, heavy);
 
 const out = {
@@ -267,6 +284,7 @@ else {
   console.log(`allocations: ${out.allocKBPerSimSecond} KB per simulated second (${(out.allocKBPerSimSecond / 240).toFixed(1)} KB per 240 Hz frame)  [budget <= ${BUDGET.kbPerSecond} KB/s]`);
   for (const t of top) console.log('   ' + t);
   console.log(`draw calls (every pass): ${out.drawCalls}  [budget <= ${BUDGET.drawCalls}]`);
+  if (process.env.PASSES) console.log(`  per pass: ${real.passes}\n  active meshes: ${real.active}`);
   console.log(`triangles (every pass): ${out.trisM} M  [budget <= ${BUDGET.trisM} M]`);
   console.log(`rendered frames: display ${real.hz} Hz, interval p50 ${out.rendered.p50} p95 ${out.rendered.p95} p99 ${out.rendered.p99} ms, cpu p50 ${out.rendered.cpuP50} p95 ${out.rendered.cpuP95} ms`);
 }

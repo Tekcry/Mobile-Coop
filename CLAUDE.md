@@ -1066,6 +1066,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   workload against `REF_MS` (the VM the 2.3 budgets were set on), so a slower or busier VM does not fail an unchanged
   build. The render's JS is printed but not enforced (software GL stalls land in it); the laptop's benchmark line
   carries the real main thread p95 (`benchResult` cpu from `GameLoop.stats.frameCpuMs`).
+- 3.1 phone budgets (`perf.mjs --preset=<p> --mobile --budget`, `PASSES=1` prints draws per pass): draws Low 120 /
+  Medium 170 / High 230 / Ultra 250 (the iPhone 17 Pro Max target: main thread <= 4 ms of 8.33, <= 2 M triangles);
+  measured Low 103, Medium 156, High 218, Ultra 233. What keeps them there: `World` shadow proxy (below Epic the
+  voxelised pieces cast from one thin-instanced box + cylinder mesh on `PROXY_LAYER`, which no camera draws -
+  explicit shadow lists ignore layers; `setCasterMode` by `shadows === 'epic'`), `World.updateSunCasters` (4 Hz:
+  static + moving casters open to the sky, none under 0.3 m; Low `ShadowSpec.staticSun`: static only, blob shadows
+  on), `LightRig.fillCasters` skips casters under 0.3 m, `PostStack.depthSource` (the G-buffer's raw view z for fog /
+  TAAU when SSAO / SSR enable it; `depthRaw` uniform; DOF's depth renderer `enabled` only while aiming), non-player
+  `VoxelBody` without the head split.
 - `perf.mjs --budget` (no flag) is the phone / test-path regression check (`?gfx=min`: no post stack, no voxel
   characters, 20 cm voxels): sim p95 <= 3.5 ms (~1.9), animation <= 0.04 ms per character, <= 80 draws (~43),
   allocations <= 11.5 MB/s (~11).

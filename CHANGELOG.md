@@ -11,7 +11,13 @@
 - Frame-rate cap is now Target frame rate (Display refresh, 30, 60, 90, 120, ...): the detail adapts to it.
 - PvP: lamp count, lamp and moon shadows, bounce light, contact shadows (off), light shafts (off) and effects density
   are the same for everyone, whatever the preset - how dark or hidden a player looks never depends on the device.
-- `perf.mjs --preset=<p> [--mobile]`: a preset's CPU side against the phone budgets.
+- `perf.mjs --preset=<p> [--mobile]`: a preset's CPU side against the phone budgets (`PASSES=1`: draws per pass).
+- Phone tuning (draw calls on the phone platform, 10 guards, Warehouse): Ultra 531 -> 233, Low 227 -> 103. Below
+  Epic the level casts its shadows from a plain blockout stand-in (one or two draws per shadow map instead of dozens
+  of voxel chunks; shadows within half a voxel of before); the moon's cascades skip characters under the roof (it
+  cannot reach them) and small props; fog and TAAU read the G-buffer's depth when SSAO / SSR draw one (no second
+  depth pass; depth of field's own depth pass runs only while aiming); guards are one voxel mesh (the head split
+  stays for the player's camera fade); Low's moon shades only the level (characters get contact shadows).
 - Graphics presets are one ladder for every device: Low, Medium, High, Ultra, Epic (PC only) and Custom. Each preset
   also sets its render scale (Low 67%, Medium 75%, High 85%, Ultra 90% with the TAAU upscaler; Epic native). Phones
   never get Epic or ray-traced reflections (Epic shows as Ultra there). Settings from 3.0 keep their preset (with the

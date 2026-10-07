@@ -1253,7 +1253,7 @@ export class GameState implements AppState {
     const b = this.blobs;
     b.begin();
     // real shadows (sun cascades, lamp and flashlight maps) replace the contact blobs
-    if (this.app.quality.level.shadow.sun) {
+    if (this.app.quality.level.shadow.sun && !this.app.quality.level.shadow.staticSun) {
       b.end();
       return;
     }

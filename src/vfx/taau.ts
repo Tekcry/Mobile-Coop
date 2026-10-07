@@ -1,4 +1,10 @@
-import { Effect, Matrix, PassPostProcess, PostProcess, type Camera, type DepthRenderer, type RenderTargetWrapper, type Scene } from '../core/babylon';
+import { Effect, Matrix, PassPostProcess, PostProcess, type BaseTexture, type Camera, type RenderTargetWrapper, type Scene } from '../core/babylon';
+
+/** The scene depth (3.1): the G-buffer's raw view z, or the depth renderer's normalised one. */
+export interface DepthSource {
+  tex(): BaseTexture;
+  raw: boolean;
+}
 
 /**
  * TAAU (3.0, Display > Upscaler): the scene renders at `scale` of the display's resolution (this pass is first in the
@@ -23,6 +29,7 @@ uniform float maxZ;
 uniform vec2 jitter;
 uniform vec2 lowSize;
 uniform float reset;
+uniform float depthRaw;
 
 // Catmull-Rom in 5 bilinear taps
 vec3 sampleCR(vec2 uv) {
@@ -59,7 +66,7 @@ void main(void) {
   vec3 mx = max(cur, max(max(a, b), max(c, d)));
   // reprojection: this pixel's world point in last frame's view
   float dz = texture2D(depthSampler, vUV).r;
-  float viewZ = dz >= 0.9999 ? maxZ : dz * (minZ + maxZ) - minZ;
+  float viewZ = depthRaw > 0.5 ? (dz <= 0.0 ? maxZ : min(dz, maxZ)) : (dz >= 0.9999 ? maxZ : dz * (minZ + maxZ) - minZ);
   vec2 ndc = vUV * 2.0 - 1.0;
   vec3 vdir = vec3(ndc.x * tanY * aspect, ndc.y * tanY, 1.0);
   vec3 wp = camPos + normalize((invView * vec4(vdir, 0.0)).xyz) * viewZ * length(vdir);
@@ -102,11 +109,11 @@ export class Taau {
     private scene: Scene,
     private camera: Camera,
     private scale: number,
-    depth: DepthRenderer,
+    depth: DepthSource,
   ) {
     const engine = scene.getEngine();
     // first in the chain: its input (the scene) is `scale` of the canvas
-    const pp = new PostProcess('taau', 'taau', ['invView', 'prevViewProj', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'jitter', 'lowSize', 'reset'], ['historySampler', 'depthSampler'], scale, camera, undefined, engine, false, null, 2);
+    const pp = new PostProcess('taau', 'taau', ['invView', 'prevViewProj', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'jitter', 'lowSize', 'reset', 'depthRaw'], ['historySampler', 'depthSampler'], scale, camera, undefined, engine, false, null, 2);
     pp.onActivateObservable.add(() => {
       const w = engine.getRenderWidth();
       const h = engine.getRenderHeight();
@@ -131,7 +138,8 @@ export class Taau {
       const cam = this.camera;
       cam.getViewMatrix().invertToRef(this.invView);
       e._bindTexture('historySampler', (this.flip ? this.ping! : this.pong!).texture);
-      e.setTexture('depthSampler', depth.getDepthMap());
+      e.setTexture('depthSampler', depth.tex());
+      e.setFloat('depthRaw', depth.raw ? 1 : 0);
       e.setMatrix('invView', this.invView);
       e.setMatrix('prevViewProj', this.prevVP);
       const p = cam.globalPosition;

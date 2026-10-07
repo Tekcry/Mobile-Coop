@@ -30,6 +30,7 @@ export { TAARenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeli
 export { MotionBlurPostProcess } from '@babylonjs/core/PostProcesses/motionBlurPostProcess';
 export { ImageProcessingConfiguration } from '@babylonjs/core/Materials/imageProcessingConfiguration';
 export type { DepthRenderer } from '@babylonjs/core/Rendering/depthRenderer';
+export type { GeometryBufferRenderer } from '@babylonjs/core/Rendering/geometryBufferRenderer';
 export { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 export { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 export { Material } from '@babylonjs/core/Materials/material';

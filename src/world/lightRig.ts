@@ -206,6 +206,15 @@ export class LightRig {
     if (frozen) m.freeze();
   }
 
+  /** No longer a caster (3.1: the voxels hand over to the shadow proxy below Epic). */
+  removeCaster(m: AbstractMesh): void {
+    if (!this.casterSet.delete(m)) return;
+    const i = this.casters.indexOf(m);
+    if (i >= 0) this.casters.splice(i, 1);
+    this.pickT = 0;
+    this.version = -1;
+  }
+
   /** A mesh that casts shadows (level geometry, characters, props); deduplicated. */
   addCaster(m: AbstractMesh): void {
     if (this.casterSet.has(m)) return;
@@ -364,6 +373,8 @@ export class LightRig {
     const cs = this.casters;
     for (let i = 0; i < cs.length; i++) {
       const m = cs[i]!;
+      // (small things - pickups, switches, mags - are not worth a draw per shadow map)
+      if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
       const b = m.getBoundingInfo().boundingBox;
       const mn = b.minimumWorld;
       const mx = b.maximumWorld;

@@ -2,6 +2,10 @@ import {
   ReflectionProbe,
   CascadedShadowGenerator,
   Color3,
+  CreateBox,
+  CreateCylinder,
+  Matrix,
+  Quaternion,
   Color4,
   CreateSphere,
   DirectionalLight,
@@ -83,6 +87,9 @@ export function giLights(reg: LightRegistry): { lights: Float32Array; groups: nu
 export const VOXEL_LOD: Record<TierQuality, [number, number]> = { low: [8, 16], medium: [10, 20], high: [15, 30], ultra: [20, 40], epic: [30, 60] };
 
 /** Scene + lighting + level geometry + props for one map. */
+/** A layer no camera draws (cameras default to 0x0FFFFFFF); explicit shadow-map lists ignore layers. */
+const PROXY_LAYER = 0x10000000;
+
 export class World {
   readonly parts: PartLibrary;
   readonly props: PropSystem;
@@ -148,7 +155,8 @@ export class World {
     this.lightRig = new LightRig(scene, level.lights);
     // the level itself casts shadows (walls stop lamp light and the sun)
     for (const m of level.meshes) this.addStatic(m);
-    for (const v of this.voxelLayers) for (const m of v.meshes) this.addStatic(m);
+    for (const v of this.voxelLayers) for (const m of v.meshes) this.addStatic(m, true);
+    this.buildShadowProxy();
     this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
     // image-based light for the PBR surfaces: the level and sky seen from the middle, captured once
@@ -210,9 +218,112 @@ export class World {
    * under a roof only the roof itself matters, so indoor props and walls stay out (the sky bake says where).
    */
   readonly sunCasters: AbstractMesh[] = [];
+  private sunStatic: AbstractMesh[] = [];
+  /** Characters, weapons, props: in the moon's list only while the moon can reach them (3.1, 4 Hz). */
+  private sunMoving: AbstractMesh[] = [];
+  private sunTmp: AbstractMesh[] = [];
+  private sunT = 0;
+  /** Low: the moon shades only the level (`ShadowSpec.staticSun`). */
+  private staticSun = false;
+
+  /** The moon's list: the static casters + the moving ones under open sky (indoors the roof shades them anyway). */
+  private updateSunCasters(dt: number): void {
+    this.sunT -= dt;
+    if (this.sunT > 0) return;
+    this.sunT = 0.25;
+    const tmp = this.sunTmp;
+    tmp.length = 0;
+    for (let i = 0; i < this.sunStatic.length; i++) tmp.push(this.sunStatic[i]!);
+    const vx = this.voxels;
+    for (let i = 0; i < this.sunMoving.length && !this.staticSun; i++) {
+      const m = this.sunMoving[i]!;
+      // (small things - pickups, switches, mags - cast nothing worth a draw per cascade; lamps still take them)
+      if (m.getBoundingInfo().boundingSphere.radiusWorld < 0.3) continue;
+      if (vx?.sky && m.isEnabled()) {
+        const b = m.getBoundingInfo().boundingBox;
+        const x = (b.minimumWorld.x + b.maximumWorld.x) / 2;
+        const z = (b.minimumWorld.z + b.maximumWorld.z) / 2;
+        const top = b.maximumWorld.y + 0.3;
+        // (a 1.5 m margin round the roof's edge: a shadow falls a little way in)
+        if (vx.roofAt(x, z) > top && vx.skyAt(x, top, z) <= 0.05 && vx.roofAt(x + 1.5, z) > top && vx.roofAt(x - 1.5, z) > top && vx.roofAt(x, z + 1.5) > top && vx.roofAt(x, z - 1.5) > top) continue;
+      }
+      tmp.push(m);
+    }
+    const list = this.sunCasters;
+    let same = list.length === tmp.length;
+    for (let i = 0; same && i < tmp.length; i++) if (list[i] !== tmp[i]) same = false;
+    if (same) return;
+    list.length = 0;
+    for (let i = 0; i < tmp.length; i++) list.push(tmp[i]!);
+  }
+
+  /** The voxel meshes casting shadows (Epic; below it the blockout proxy stands in). */
+  private voxelCasters: AbstractMesh[] = [];
+  private voxelSun: AbstractMesh[] = [];
+  /** 3.1: the voxelised pieces as plain boxes / cylinders, one thin-instanced mesh each, on a layer no camera draws:
+   *  the static shadow casters below Epic (a draw or two per shadow map instead of dozens of chunk meshes; shadows
+   *  shift by at most half a voxel). */
+  private proxy: Mesh[] = [];
+  private casterMode: 'voxel' | 'proxy' = 'voxel';
+
+  private buildShadowProxy(): void {
+    const lv = this.level.voxels;
+    if (!lv) return;
+    const mat = new StandardMaterial('shadow-proxy', this.scene);
+    mat.disableLighting = true;
+    mat.freeze();
+    const q = new Quaternion();
+    const make = (name: string, base: Mesh, ms: Matrix[]): void => {
+      if (!ms.length) {
+        base.dispose();
+        return;
+      }
+      const buf = new Float32Array(ms.length * 16);
+      ms.forEach((m, i) => m.copyToArray(buf, i * 16));
+      base.thinInstanceSetBuffer('matrix', buf, 16, true);
+      base.thinInstanceRefreshBoundingInfo();
+      base.material = mat;
+      base.layerMask = PROXY_LAYER;
+      base.isPickable = false;
+      base.receiveShadows = false;
+      base.freezeWorldMatrix();
+      base.name = name;
+      this.proxy.push(base);
+    };
+    const boxes: Matrix[] = [];
+    this.level.boxes.forEach((p, i) => {
+      if (!lv.voxelBox[i]) return;
+      Quaternion.RotationYawPitchRollToRef(p.yaw, p.pitch, 0, q);
+      boxes.push(Matrix.Compose(new Vector3(p.s[0], p.s[1], p.s[2]), q, new Vector3(p.c[0], p.c[1], p.c[2])));
+    });
+    make('shadow-proxy-box', CreateBox('shadow-proxy-box', { size: 1 }, this.scene), boxes);
+    const cyls: Matrix[] = [];
+    this.level.cylinders.forEach((c, i) => {
+      if (!lv.voxelCyl[i]) return;
+      cyls.push(Matrix.Compose(new Vector3(c.r * 2, c.h, c.r * 2), Quaternion.Identity(), new Vector3(c.c[0], c.c[1], c.c[2])));
+    });
+    make('shadow-proxy-cyl', CreateCylinder('shadow-proxy-cyl', { diameter: 1, height: 1, tessellation: 12 }, this.scene), cyls);
+  }
+
+  /** Epic: the voxels cast; below it the proxy (`applyQuality`). */
+  private setCasterMode(mode: 'voxel' | 'proxy'): void {
+    if (mode === this.casterMode || !this.proxy.length) return;
+    this.casterMode = mode;
+    const off = mode === 'proxy' ? this.voxelCasters : this.proxy;
+    const on = mode === 'proxy' ? this.proxy : this.voxelCasters;
+    for (const m of off) {
+      this.lightRig.removeCaster(m);
+      const i = this.sunStatic.indexOf(m);
+      if (i >= 0) this.sunStatic.splice(i, 1);
+    }
+    for (const m of on) this.lightRig.addCaster(m);
+    for (const m of mode === 'proxy' ? this.proxy : this.voxelSun) this.sunStatic.push(m);
+    this.sunT = 0;
+  }
 
   /** Static level / voxel geometry: every lamp's list (filtered by reach), the moon's only where open to the sky. */
-  private addStatic(m: AbstractMesh): void {
+  private addStatic(m: AbstractMesh, voxel = false): void {
+    if (voxel) this.voxelCasters.push(m);
     this.lightRig.addCaster(m);
     const vx = this.voxels;
     if (vx?.sky) {
@@ -229,17 +340,21 @@ export class World {
       }
       if (!open) return;
     }
-    this.sunCasters.push(m);
+    if (voxel) this.voxelSun.push(m);
+    this.sunStatic.push(m);
   }
 
   /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). */
   addShadowCaster(m: AbstractMesh): void {
     this.lightRig.addCaster(m);
-    if (!this.sunCasters.includes(m)) {
-      this.sunCasters.push(m);
+    if (!this.sunMoving.includes(m)) {
+      this.sunMoving.push(m);
+      this.sunT = 0;
       m.onDisposeObservable.addOnce(() => {
-        const i = this.sunCasters.indexOf(m);
-        if (i >= 0) this.sunCasters.splice(i, 1);
+        const i = this.sunMoving.indexOf(m);
+        if (i >= 0) this.sunMoving.splice(i, 1);
+        const j = this.sunCasters.indexOf(m);
+        if (j >= 0) this.sunCasters.splice(j, 1);
       });
     }
     // (an instance takes its source mesh's setting)
@@ -269,6 +384,11 @@ export class World {
       this.voxelsFine?.setLodDistances(d1 / 2, d2 / 2);
     }
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal });
+    this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
+    if (this.staticSun !== !!q.shadow.staticSun) {
+      this.staticSun = !!q.shadow.staticSun;
+      this.sunT = 0;
+    }
     const k = q.minimal ? 1 : q.detailScale;
     this.parts.setLodScale(k);
     setAnimLodScale(k);
@@ -348,6 +468,7 @@ export class World {
 
   frame(focus: Vector3, dt = 0): void {
     this.updateGi();
+    this.updateSunCasters(dt);
     const cam = this.scene.activeCamera;
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);

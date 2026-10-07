@@ -463,7 +463,7 @@ export class CharacterRig {
     this.thighOuter = thigh;
     // voxels (3.0): the parts merged into one skinned voxel mesh (they stay, unseen, for what reads them)
     const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
-    if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY);
+    if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
     DEBUG_RIGS.add(this);
   }
 

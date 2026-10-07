@@ -10,6 +10,7 @@ import {
   TAARenderingPipeline,
   type Camera,
   type DepthRenderer,
+  type GeometryBufferRenderer,
   type Scene,
   type BaseTexture,
   Constants,
@@ -19,7 +20,7 @@ import {
 import type { QualityLevel } from '../core/quality';
 import type { LightRegistry } from '../world/lights';
 import { RtReflections, type RtSource } from './rtReflections';
-import { Taau } from './taau';
+import { Taau, type DepthSource } from './taau';
 import { PaniniPass } from './paniniPass';
 
 /** Lights the volumetric pass scatters (nearest the camera). */
@@ -43,6 +44,8 @@ uniform vec4 skyO;
 uniform vec3 skyD;
 uniform vec3 shaftCol;
 uniform sampler2D depthSampler;
+// 1: the depth is the G-buffer's raw view z (0 = nothing drawn); 0: the depth renderer's (z + minZ) / (minZ + maxZ)
+uniform float depthRaw;
 uniform mat4 invView;
 uniform vec3 camPos;
 uniform float tanY;
@@ -66,15 +69,14 @@ float hash(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.0
 
 void main(void) {
   float d = texture2D(depthSampler, vUV).r;
+  float viewZ = depthRaw > 0.5 ? (d <= 0.0 ? maxZ : min(d, maxZ)) : (d >= 0.9999 ? maxZ : d * (minZ + maxZ) - minZ);
   // heat haze: distant, low parts of the view shimmer
   vec2 suv = vUV;
   if (shimmer > 0.0) {
-    float far = smoothstep(0.04, 0.3, d);
+    float far = smoothstep(0.04, 0.3, viewZ / maxZ);
     suv += vec2(sin(vUV.y * 140.0 + time * 4.0), cos(vUV.x * 110.0 + time * 3.1)) * 0.0011 * shimmer * far * smoothstep(0.75, 0.35, vUV.y);
   }
   vec4 c = texture2D(textureSampler, suv);
-  float viewZ = d * (minZ + maxZ) - minZ;
-  if (d >= 0.9999) viewZ = maxZ;
   vec2 ndc = vUV * 2.0 - 1.0;
   vec3 vdir = vec3(ndc.x * tanY * aspect, ndc.y * tanY, 1.0);
   float dist = viewZ * length(vdir);
@@ -164,6 +166,17 @@ export class PostStack {
   private noSky: RawTexture3D | null = null;
   private vol: PostProcess | null = null;
   private depth: DepthRenderer | null = null;
+  private gbr: GeometryBufferRenderer | null = null;
+  private dofDepth: DepthRenderer | null = null;
+
+  /** The scene depth for fog / TAAU: the G-buffer's (raw view z) when there is one, else the depth renderer's. */
+  private depthSource(): DepthSource {
+    const g = this.gbr;
+    if (g) return { tex: () => g.getGBuffer().textures[g.getTextureIndex(0)]!, raw: true };
+    this.depth ??= this.scene.enableDepthRenderer(this.camera, false, true);
+    const d = this.depth;
+    return { tex: () => d.getDepthMap(), raw: false };
+  }
   private key = '';
   private readonly invView = new Matrix();
   private readonly lPos = new Float32Array(VOL_LIGHTS * 4);
@@ -210,10 +223,17 @@ export class PostStack {
     const scene = this.scene;
     const cams = [this.camera];
     // TAAU first: its input sets the scene's render size; it does the temporal anti-aliasing too
+    // (one depth for fog and TAAU: the G-buffer's when SSAO / SSR draw one anyway - no second geometry pass)
+    if (f.ao || f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
+      const gbr = scene.enableGeometryBufferRenderer();
+      if (gbr) {
+        gbr.enableDepth = true;
+        this.gbr = gbr;
+      }
+    }
     if (q.upscale < 1) {
-      this.depth = scene.enableDepthRenderer(this.camera, false, true);
       this.upscale = q.upscale;
-      this.taau = new Taau(scene, this.camera, q.upscale, this.depth);
+      this.taau = new Taau(scene, this.camera, q.upscale, this.depthSource());
     } else if (f.aa === 'taa') {
       const taa = new TAARenderingPipeline('taa', scene, cams);
       taa.samples = 8;
@@ -297,17 +317,19 @@ export class PostStack {
       ip.contrast = 1.06;
     }
     this.def = def;
+    // (Babylon's depth of field draws its own depth pass; with the G-buffer serving fog / TAAU it only runs while
+    // aiming - the one time the field is shallow)
+    this.dofDepth = this.gbr && f.dof ? scene.enableDepthRenderer(this.camera) : null;
     if (q.panini > 0) this.panini = new PaniniPass(this.camera, q.panini);
     this.onRebuilt?.();
   }
 
   private makeVolumetric(): void {
-    const scene = this.scene;
-    this.depth = scene.enableDepthRenderer(this.camera, false, true);
+    const depth = this.depthSource();
     const pp = new PostProcess(
       'volumetric',
       'volumetric',
-      ['invView', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'count', 'lPos', 'lDir', 'lCol', 'fogColor', 'fogDensity', 'fogFalloff', 'fogBase', 'scatter', 'time', 'shimmer', 'skyO', 'skyD', 'shaftCol'],
+      ['depthRaw', 'invView', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'count', 'lPos', 'lDir', 'lCol', 'fogColor', 'fogDensity', 'fogFalloff', 'fogBase', 'scatter', 'time', 'shimmer', 'skyO', 'skyD', 'shaftCol'],
       ['depthSampler', 'skyVis'],
       1,
       this.camera,
@@ -315,7 +337,8 @@ export class PostStack {
     pp.onApply = (e) => {
       const cam = this.camera;
       cam.getViewMatrix().invertToRef(this.invView);
-      e.setTexture('depthSampler', this.depth!.getDepthMap());
+      e.setTexture('depthSampler', depth.tex());
+      e.setFloat('depthRaw', depth.raw ? 1 : 0);
       e.setMatrix('invView', this.invView);
       const p = cam.globalPosition;
       e.setFloat3('camPos', p.x, p.y, p.z);
@@ -396,6 +419,7 @@ export class PostStack {
       const want = this.focusOn ? 2.8 : 32;
       dof.fStop += (want - dof.fStop) * Math.min(1, dt * 8);
       dof.focusDistance += (this.focus * 1000 - dof.focusDistance) * Math.min(1, dt * 10);
+      if (this.dofDepth) this.dofDepth.enabled = this.focusOn || dof.fStop < 24;
     }
   }
 
@@ -410,6 +434,8 @@ export class PostStack {
     this.motion?.dispose(this.camera);
     this.vol?.dispose(this.camera);
     if (this.depth) this.scene.disableDepthRenderer(this.camera);
+    this.gbr = null;
+    this.dofDepth = null;
     this.def = null;
     this.ssao = null;
     this.ssr = null;

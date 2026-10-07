@@ -113,6 +113,8 @@ export interface ShadowSpec {
   size: number;
   /** Contact-hardening soft shadows (PCSS) instead of PCF. */
   soft: boolean;
+  /** 3.1 Low: the moon shades only the level; characters and props get contact blobs. */
+  staticSun?: boolean;
 }
 
 export function shadowSpec(q: ShadowQuality): ShadowSpec {
@@ -120,7 +122,7 @@ export function shadowSpec(q: ShadowQuality): ShadowSpec {
     case 'off':
       return { sun: false, cascades: 0, sunSize: 0, casters: 0, size: 0, soft: false };
     case 'low':
-      return { sun: true, cascades: 1, sunSize: 1024, casters: 0, size: 0, soft: false };
+      return { sun: true, cascades: 1, sunSize: 1024, casters: 0, size: 0, soft: false, staticSun: true };
     case 'medium':
       return { sun: true, cascades: 2, sunSize: 1024, casters: 2, size: 512, soft: false };
     case 'high':

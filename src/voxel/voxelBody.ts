@@ -174,7 +174,7 @@ export class VoxelSink {
 
 export class VoxelBody {
   readonly skeleton: Skeleton;
-  /** [body, head] at full size, then the level-of-detail pair. */
+  /** [body, head] at full size, then the level-of-detail pair (one body and its LOD when the head is not split). */
   readonly meshes: Mesh[] = [];
   /** The nodes the parts hang from and their bones (same order). */
   readonly nodes: TransformNode[] = [];
@@ -194,6 +194,8 @@ export class VoxelBody {
     material: Material,
     name: string,
     opts: VoxelBodyOptions,
+    /** The head on its own mesh (the player: the camera fades it); everyone else is one mesh (3.1: a draw less per pass). */
+    splitHead = true,
   ) {
     // one flat bone per node a part hangs from, posed each frame from the node's transform relative to the root (so a
     // ragdoll re-parenting the joints onto physics nodes still drives it)
@@ -218,12 +220,12 @@ export class VoxelBody {
       for (let x: TransformNode | null = n; x && x !== root; x = x.parent as TransformNode | null) if (x === headNode) return true;
       return false;
     };
-    const build = (size: number, suffix: string): [Mesh, Mesh] => {
+    const build = (size: number, suffix: string): Mesh[] => {
       const out: Mesh[] = [];
-      for (const head of [false, true]) {
+      for (const head of splitHead ? [false, true] : [null]) {
         const sink = new VoxelSink();
         this.nodes.forEach((node, bi) => {
-          if (underHead(node) !== head) return;
+          if (head !== null && underHead(node) !== head) return;
           const list = onJoint.get(node)!;
           const w = node.getWorldMatrix().m;
           const q = jointQuads(
@@ -241,13 +243,13 @@ export class VoxelBody {
         this.baseColors.set(mesh, new Float32Array(sink.C));
         out.push(mesh);
       }
-      return [out[0]!, out[1]!];
+      return out;
     };
-    const [body, head] = build(opts.size, '');
-    const [lodBody, lodHead] = build(opts.lodSize, '-lod');
-    body.addLODLevel(opts.lodDistance, lodBody);
-    head.addLODLevel(opts.lodDistance, lodHead);
-    this.meshes.push(body, head, lodBody, lodHead);
+    const full = build(opts.size, '');
+    const lod = build(opts.lodSize, '-lod');
+    full.forEach((m, i) => m.addLODLevel(opts.lodDistance, lod[i]!));
+    this.meshes.push(...full, ...lod);
+    this.split = splitHead;
     // the smooth parts stay for what reads them, unseen
     for (const p of parts) p.isVisible = false;
     // (the bones read the nodes when the skeleton is prepared, after the parts - created first - updated them)
@@ -263,9 +265,13 @@ export class VoxelBody {
 
   /** The head (the camera hides it when it gets too close). */
   setHeadVisible(v: boolean): void {
+    if (!this.split) return;
     this.meshes[1]!.isVisible = v;
     this.meshes[3]!.isVisible = v;
   }
+
+  /** The head has its own meshes ([body, head, lod body, lod head]); else [body, lod body]. */
+  private split = true;
 
   /** Tint every vertex towards white (hit feedback), 0..1. */
   setFlash(k: number): void {
