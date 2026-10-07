@@ -321,6 +321,10 @@ export class App {
     this.quality.setTarget(null);
     this.debug.setScene(null);
     if (!prev.scene.isDisposed) prev.scene.dispose();
+    // (3.1.7: the engine's compiled-shader cache kept every old match alive - a plugin material's shader holds its
+    // material, so its scene and the whole GameState; the keys never repeat (plugin ids count up), so nothing is lost:
+    // with no scene alive, every cached shader is the last one's)
+    this.engine.releaseEffects();
   }
 
   setState(next: AppState): void {

@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.1.7 - Every match stayed in memory
+- The phone crash reports (High / Ultra benchmarks a minute in, and a crash 14 minutes into a session): every match
+  stayed in memory after it ended - about 80 MB each at Low, far more at Ultra. Babylon's engine-wide shader cache keyed
+  each match's material shaders by a plugin id that counts up, so none was ever reused, and each held its material,
+  its scene and the whole match. The cache is emptied whenever a scene is freed (before the next one loads), and going
+  back to the menu frees the match first too. Headless: back at the menu the heap returns to ~50 MB after every match
+  (it climbed 80 MB per match before).
+- Desktop Ultra (all grey but the lamps in every benchmark run) is not yet reproduced: see TESTING.md.
+
 ## 3.1.6 - Forced landscape
 - iPhone browsers cannot lock the orientation (the manifest's `landscape` and `screen.orientation.lock` only work on
   Android), so with rotation locked the game sat on a "rotate your device" screen. Now a touch device held upright

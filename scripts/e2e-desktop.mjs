@@ -135,7 +135,10 @@ try {
     await new Promise((r) => {
       const t = setInterval(() => {
         const c = app.current;
-        if (c?.benchmarkLines && !seen.includes(c)) seen.push(c);
+        if (c?.benchmarkLines && !seen.includes(c)) {
+          seen.push(c);
+          window.__gsProto ??= Object.getPrototypeOf(c);
+        }
         const tg = document.getElementById('bench-tag')?.textContent;
         if (tg) tags.add(tg.replace(/ · \d+ fps| · warming up| · loading/, ''));
         if (!partial) void app.feedback.all().then((l) => (partial = l.find((e) => /runs so far/.test(e.text))?.text.split(' - ')[0] ?? ''));
@@ -152,6 +155,16 @@ try {
   await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
   await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   assert(!(await G(() => !!window.__app.quality.ov)), 'the benchmark leaves no override behind');
+  // 3.1.7: no match outlives its scene (the shader cache held every one: the phone ran out of memory)
+  {
+    const leak = await page.context().newCDPSession(page);
+    await leak.send('HeapProfiler.collectGarbage');
+    const { result: proto } = await leak.send('Runtime.evaluate', { expression: 'window.__gsProto', objectGroup: 'leak' });
+    const { objects } = await leak.send('Runtime.queryObjects', { prototypeObjectId: proto.objectId, objectGroup: 'leak' });
+    const { result } = await leak.send('Runtime.callFunctionOn', { objectId: objects.objectId, functionDeclaration: 'function(){return this.length}', returnByValue: true, objectGroup: 'leak' });
+    await leak.send('Runtime.releaseObjectGroup', { objectGroup: 'leak' });
+    assert(result.value === 0, `no match is kept in memory after it ends (${result.value} left)`);
+  }
   assert(bm.tags.includes('Run 2/4 · without bloom') && bm.tags.includes('Run 4/4 · shadows rebuilt') && !bm.tagLeft, `the run tag names each run, gone at the end (${bm.tags.join(' | ')})`);
   assert(/^Benchmark \(\d of 4 runs so far\)$/.test(bm.partial), `the note is saved after every run (${bm.partial})`);
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));

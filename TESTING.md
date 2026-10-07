@@ -308,6 +308,10 @@ Controls:
 - 3.1.4 Medium: without ambient occlusion 70 / 42, textures Low 56 / 40, shadows Low 55, shafts / bloom / lamps 8
   within 2 fps; post effects rebuilt mid-match 49, then shadows rebuilt mid-match 15 (the mid-match slowdown is the
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
+- [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
+  the menu, play again): no crash, no slowdown building up.
+- [ ] 3.1.7 desktop Ultra was all grey (fog) except the lamps in every benchmark run (custom settings fine): at Ultra,
+  does a normal match (Play > Deploy) look right? With Settings > Graphics > Upscaler off?
 - [ ] 3.1.6 forced landscape (iPhone, rotation lock on, held upright): the game shows turned; hold the phone turned
   left and play a match - menus tap where they look, sticks / camera / fire go the right way, nothing hides under
   the Dynamic Island or the home bar; unlock rotation and turn the phone: the normal landscape takes over.

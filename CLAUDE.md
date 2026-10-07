@@ -1111,7 +1111,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   never in memory at once (the iPhone closed the tab). Crash log (`feedback/crashLog.ts`, `App.crashLog`): a
   heartbeat in localStorage (diagnostics, not a save: synchronous, so `pagehide` marks it clean before unload) every
   5 s and on `stage(...)` (menu / loading / in a match / benchmark run) with `feedbackContext`; still `alive` at the
-  next boot -> `crashNote` -> a "Crash report" feedback note + toast.
+  next boot -> `crashNote` -> a "Crash report" feedback note + toast. 3.1.7: `releaseState` empties the engine's
+  shader cache (`engine.releaseEffects()`: plugin materials' shaders held their scene, and so every old match;
+  their keys never repeat) and `goToMenu` releases too; `e2e-desktop` checks no GameState survives (CDP
+  `queryObjects` after a GC - release the object group, or the probe itself keeps them alive).
 - `App` isolates state updates: an exception in `fixedUpdate`/`frameUpdate` is logged (rate-limited) and toasted
   once; input polling and menus keep running. `GameState` ignores updates after `exit()` (quit can happen mid-tick).
 - Backgrounding (`visibilitychange`/`pagehide`): flush the save, suspend audio, pause single player (co-op opens

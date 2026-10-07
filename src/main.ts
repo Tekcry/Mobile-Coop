@@ -78,6 +78,8 @@ async function boot(): Promise<void> {
 
   const goToMenu = (): void => {
     app.screens.clear();
+    // (the match freed before the menu stage is built: its shaders are released with it)
+    app.releaseState();
     const ms = new MenuState(app.engine);
     app.setState(ms);
     showSavedOperator(app);
@@ -153,7 +155,8 @@ async function boot(): Promise<void> {
     const b = opts.benchmark;
     const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${app.quality.level.name})` : `${opts.map.id} / ${opts.mode}`;
     app.crashLog?.stage(`loading ${what}`);
-    // (the last match / the menu stage freed first: never two matches in memory)
+    // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
+    app.onAvatarStyle = null;
     app.releaseState();
     void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
       .then((st) => {
