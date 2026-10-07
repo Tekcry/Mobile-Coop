@@ -96,13 +96,18 @@ try {
   assert(actHidden, 'action button hidden with nothing to use');
   // cover by touch: tap the take-cover prompt on the wall (a real touch on the world prompt)
   await page.evaluate(() => { const g = window.__app.current; const p = g.player; g.cover.reset(); p.controller.teleport(new p.controller.pos.constructor(-3.7, 0, -6), -Math.PI / 2); p.cam.yaw = -Math.PI / 2; p.cam.pitch = -0.1; });
-  await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 5000 });
-  // the camera springs settle after the teleport (the prompt moves with the view until then)
-  await page.waitForTimeout(600);
-  let box = await (await page.$('.wp-cover.show .wp-body')).boundingBox();
-  await page.touchscreen.tap(box.x + box.width / 2, box.y + box.height / 2);
-  await page.waitForTimeout(900);
-  let cst = await page.evaluate(() => window.__app.current.cover.state);
+  let cst = 'none';
+  // (retried: the prompt can blink while the camera springs settle after the teleport, and moves with the view)
+  for (let i = 0; i < 5 && cst !== 'in'; i++) {
+    await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 5000 });
+    await page.waitForTimeout(600);
+    const el = await page.$('.wp-cover.show .wp-body');
+    const bx = el ? await el.boundingBox() : null;
+    if (!bx) continue;
+    await page.touchscreen.tap(bx.x + bx.width / 2, bx.y + bx.height / 2);
+    await page.waitForTimeout(900);
+    cst = await page.evaluate(() => window.__app.current.cover.state);
+  }
   assert(cst === 'in', `tapping the take-cover prompt on the surface takes cover (${cst})`);
   await page.waitForTimeout(300);
   const badge = await page.evaluate(() => !!document.querySelector('.wp-state.show'));

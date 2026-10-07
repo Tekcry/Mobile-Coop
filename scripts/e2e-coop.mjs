@@ -266,25 +266,37 @@ try {
   }, tdv);
   await wait(600);
   await moveClient(B, 6, 0.1, -7.1, 0);
-  // (the guard is held on its spot while the client's offer comes round: a calm patrol would walk it off)
+  // (the guard is held on its spot while the client's offer comes round: a calm patrol would walk it off; the host
+  // checks reach against the client's latest state, which can lag under load - a denied start is retried)
   let tdStarted = 'offer none';
-  for (let i = 0; i < 40 && tdStarted !== true; i++) {
-    await GA((id) => {
-      const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id);
-      if (v) {
-        v.pos.set(6, 0, -6);
-        v.yaw = 0;
-      }
-    }, tdv);
-    tdStarted = await GB((id) => {
-      const g = window.__app.current;
-      if (g.takedown.offer?.e.id === id) {
-        g.takedown.start(false);
-        return true;
-      }
-      return `offer ${g.takedown.offer?.e.id ?? 'none'}`;
-    }, tdv);
-    if (tdStarted !== true) await wait(150);
+  let knocked = false;
+  for (let attempt = 0; attempt < 6 && !knocked; attempt++) {
+    tdStarted = 'offer none';
+    for (let i = 0; i < 40 && tdStarted !== true; i++) {
+      await GA((id) => {
+        const g = window.__app.current;
+        for (const r of g.net.remotes.values()) r.allowTeleport(1);
+        const v = g.enemyMgr.enemies.find((e) => e.id === id);
+        if (v?.alive && !v.taken) {
+          v.pos.set(6, 0, -6);
+          v.yaw = 0;
+        }
+      }, tdv);
+      tdStarted = await GB((id) => {
+        const g = window.__app.current;
+        if (g.takedown.offer?.e.id === id && !g.takedown.active) {
+          g.takedown.start(false);
+          return true;
+        }
+        return `offer ${g.takedown.offer?.e.id ?? 'none'}`;
+      }, tdv);
+      if (tdStarted !== true) await wait(150);
+    }
+    for (let i = 0; i < 20 && !knocked; i++) {
+      await wait(400);
+      knocked = await GA((id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, tdv);
+      if (!knocked && (await GB(() => !window.__app.current.takedown.active))) break;
+    }
   }
   assert(tdStarted === true, `client takedown offered on the host's guard (${tdStarted})`);
   await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, tdv, 8000, 'host knocks the guard out');

@@ -534,7 +534,7 @@ export class GameState implements AppState {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
     const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: 0.05, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: true };
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel });
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     return g;

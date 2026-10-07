@@ -64,6 +64,8 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     null,
     { timeout: 60000 },
   );
+  // autostart: the match itself (3.0: the voxel world builds in workers before it starts)
+  if (/(^|&)autostart=/.test(params)) await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {});
   return { page, errors };
 }
 

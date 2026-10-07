@@ -1,4 +1,4 @@
-import { Color3, Constants, Mesh, PBRMaterial, RawTexture, RawTexture3D, Texture, VertexData, type Scene } from '../core/babylon';
+import { Color3, Constants, Mesh, PBRMaterial, RawTexture, RawTexture3D, StandardMaterial, Texture, VertexData, type Scene } from '../core/babylon';
 import type { SurfaceAtlas } from '../world/surfaceAtlas';
 import { BRICK, BRICK_VOXELS, Brickmap, EMPTY, UNIFORM_BASE } from './brickmap';
 import type { ChunkJob, ChunkResult } from './chunk';
@@ -38,7 +38,7 @@ const POOL_ROW = 64;
  */
 export class VoxelWorld {
   readonly meshes: Mesh[] = [];
-  readonly materials: PBRMaterial[] = [];
+  readonly materials: (PBRMaterial | StandardMaterial)[] = [];
   readonly plugins: VoxelPlugin[] = [];
   readonly brickmap: Brickmap;
   private chunks: Chunk[] = [];
@@ -162,15 +162,25 @@ export class VoxelWorld {
     this.stats.bytes = st.bytes;
     const tex = this.uploadTextures(scene);
     for (let l = 0; l < levels; l++) {
-      const mat = new PBRMaterial(`voxMat-${this.opts.name}-${l}`, scene);
-      mat.albedoColor = Color3.White();
-      mat.metallic = 0;
-      mat.roughness = 1;
-      // the game's lights are tuned to range falloff; PBR divides diffuse by pi (lights authored for standard)
-      mat.usePhysicalLightFalloff = false;
-      mat.directIntensity = Math.PI;
-      mat.environmentIntensity = 0.6;
-      mat.realTimeFiltering = true;
+      let mat: PBRMaterial | StandardMaterial;
+      if (this.opts.atlas) {
+        const pm = new PBRMaterial(`voxMat-${this.opts.name}-${l}`, scene);
+        pm.albedoColor = Color3.White();
+        pm.metallic = 0;
+        pm.roughness = 1;
+        // the game's lights are tuned to range falloff; PBR divides diffuse by pi (lights authored for standard)
+        pm.usePhysicalLightFalloff = false;
+        pm.directIntensity = Math.PI;
+        pm.environmentIntensity = 0.6;
+        pm.realTimeFiltering = true;
+        mat = pm;
+      } else {
+        // the cheap path (`?gfx=min`): standard shading, the palette colour per voxel only
+        const sm = new StandardMaterial(`voxMat-${this.opts.name}-${l}`, scene);
+        sm.diffuseColor = Color3.White();
+        sm.specularColor = Color3.Black();
+        mat = sm;
+      }
       const plugin = new VoxelPlugin(mat, tex, this.opts.atlas, 1 << l, this.opts.ao && l === 0, this.opts.micro && l < 2);
       this.plugins.push(plugin);
       this.materials.push(mat);

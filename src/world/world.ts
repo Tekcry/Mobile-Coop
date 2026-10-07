@@ -36,6 +36,8 @@ export const FLASHLIGHTS = 4;
 
 export interface WorldOptions {
   seed: number;
+  /** `?gfx=min` (tests): the 2.x standard materials (no PBR, no surface textures) - cheap under software GL. */
+  cheap?: boolean;
   /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
   detail?: TierQuality;
   /** 3.0 voxels (null / absent: the blockout's boxes as before). */
@@ -77,7 +79,7 @@ export class World {
     readonly map: MapDef,
     readonly level: BuiltLevel,
     readonly layout: MapLayout,
-    atlas: SurfaceAtlas,
+    atlas: SurfaceAtlas | null,
     /** The level's voxels (3.0; null: blockout boxes). */
     readonly voxels: VoxelWorld | null = null,
   ) {
@@ -89,8 +91,9 @@ export class World {
     scene.fogStart = th.fogStart;
     scene.fogEnd = th.fogEnd;
     this.hemi = new HemisphericLight('hemi', new Vector3(0.2, 1, 0.1), scene);
-    // (PBR: the hemisphere is not divided by pi, the materials' directIntensity = pi would triple it)
-    this.hemi.intensity = th.ambient / Math.PI;
+    // (PBR: the hemisphere is not divided by pi, the materials' directIntensity = pi would triple it; the cheap
+    // standard materials take it as authored)
+    this.hemi.intensity = atlas ? th.ambient / Math.PI : th.ambient;
     this.hemi.groundColor = Color3.FromHexString(th.ground).scale(0.6);
     this.sun = new DirectionalLight('sun', new Vector3(...th.sunDir).normalize(), scene);
     this.sun.intensity = th.sunIntensity;
@@ -142,9 +145,9 @@ export class World {
     const b = new LevelBuilder();
     const layout = map.build(b, opts.seed);
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
-    const atlas = new SurfaceAtlas(scene, 256, 4);
+    const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const vo = opts.voxel ?? null;
-    const level = b.build(scene, map.id, { atlas, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, art: map.art ?? null });
+    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, art: map.art ?? null });
     let voxels: VoxelWorld | null = null;
     if (vo && level.voxels) {
       const lv = level.voxels;

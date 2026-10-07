@@ -1,6 +1,20 @@
 import { MaterialPluginBase, type AbstractMesh, type BaseTexture, type Material, type MaterialDefines, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
 import { SURFACE_KINDS, SURFACE_PARAMS, type SurfaceAtlas } from '../world/surfaceAtlas';
 
+/** The voxel behind a pixel: brick indirection, then the pool (0 = air). */
+const VX_MAT_GLSL = `int vxMat(ivec3 v) {
+  ivec3 b = v >> 3;
+  ivec3 dims = ivec3(voxDims.xyz);
+  if (v.x < 0 || v.y < 0 || v.z < 0 || b.x >= dims.x || b.y >= dims.y || b.z >= dims.z) return 0;
+  vec4 ind = texelFetch(voxInd, b, 0);
+  int a = int(ind.a * 255.0 + 0.5);
+  if (a == 0) return 0;
+  if (a == 254) return int(ind.r * 255.0 + 0.5);
+  int slot = int(ind.r * 255.0 + 0.5) + int(ind.g * 255.0 + 0.5) * 256 + int(ind.b * 255.0 + 0.5) * 65536;
+  ivec3 sp = ivec3(slot - (slot / 64) * 64, (slot / 64) - (slot / 4096) * 64, slot / 4096) * 8 + (v & 7);
+  return int(texelFetch(voxPool, sp, 0).r * 255.0 + 0.5);
+}`;
+
 /** GLSL constants: per surface (metres per tile, metallic, bump, 0). */
 const PARAMS_GLSL = `const vec4 VX_P[16] = vec4[16](${SURFACE_KINDS.map((k) => {
   const p = SURFACE_PARAMS[k];
@@ -43,8 +57,12 @@ export class VoxelPlugin extends MaterialPluginBase {
     private micro: boolean,
   ) {
     super(material, 'Voxels', 180, { VOXELS: false, VOXEL_AO: false, VOXEL_MICRO: false });
+    this.pbr = material.getClassName() === 'PBRMaterial';
     this._enable(true);
   }
+
+  /** On a PBR material (else the cheap standard path: the palette colour per voxel only). */
+  private readonly pbr: boolean;
 
   /** Rain: upward faces darken and turn glossy (0..1; only where the sky reaches). */
   wet = 0;
@@ -107,6 +125,30 @@ export class VoxelPlugin extends MaterialPluginBase {
 
   override getCustomCode(shaderType: string): { [pointName: string]: string } | null {
     if (shaderType !== 'fragment') return null;
+    if (!this.pbr) {
+      // standard material (`?gfx=min`): gamma-space palette colour with the per-voxel tone, nothing else
+      return {
+        CUSTOM_FRAGMENT_DEFINITIONS: `
+#ifdef VOXELS
+uniform highp sampler3D voxInd;
+uniform highp sampler3D voxPool;
+uniform highp sampler2D voxPal;
+${VX_MAT_GLSL}
+#endif`,
+        CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `
+#ifdef VOXELS
+{
+  vec3 gn = normalize(vNormalW);
+  vec3 an = abs(gn);
+  ivec3 ax = an.x >= an.y && an.x >= an.z ? ivec3(int(sign(gn.x)), 0, 0) : (an.y >= an.z ? ivec3(0, int(sign(gn.y)), 0) : ivec3(0, 0, int(sign(gn.z))));
+  ivec3 v = ivec3(floor((vPositionW - voxOrigin) / voxInfo.x - vec3(ax) * 0.5));
+  int m = vxMat(v);
+  float hv = fract(sin(dot(vec3(v), vec3(12.9898, 78.233, 37.719))) * 43758.5453);
+  baseColor.rgb = texelFetch(voxPal, ivec2(m, 0), 0).rgb * (0.92 + 0.16 * hv);
+}
+#endif`,
+      };
+    }
     return {
       CUSTOM_FRAGMENT_DEFINITIONS: `
 #ifdef VOXELS
@@ -129,18 +171,7 @@ vec4 vxTap(sampler2D s, int k, vec2 uv) {
 float vxRough = 0.85;
 float vxMetal = 0.0;
 vec3 vxEmissive = vec3(0.0);
-int vxMat(ivec3 v) {
-  ivec3 b = v >> 3;
-  ivec3 dims = ivec3(voxDims.xyz);
-  if (v.x < 0 || v.y < 0 || v.z < 0 || b.x >= dims.x || b.y >= dims.y || b.z >= dims.z) return 0;
-  vec4 ind = texelFetch(voxInd, b, 0);
-  int a = int(ind.a * 255.0 + 0.5);
-  if (a == 0) return 0;
-  if (a == 254) return int(ind.r * 255.0 + 0.5);
-  int slot = int(ind.r * 255.0 + 0.5) + int(ind.g * 255.0 + 0.5) * 256 + int(ind.b * 255.0 + 0.5) * 65536;
-  ivec3 sp = ivec3(slot - (slot / 64) * 64, (slot / 64) - (slot / 4096) * 64, slot / 4096) * 8 + (v & 7);
-  return int(texelFetch(voxPool, sp, 0).r * 255.0 + 0.5);
-}
+${VX_MAT_GLSL}
 float vxSolid(ivec3 v) { return vxMat(v) != 0 ? 1.0 : 0.0; }
 #endif`,
       CUSTOM_FRAGMENT_UPDATE_ALPHA: `
