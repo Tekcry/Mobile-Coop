@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capAllows, forPlatform, GRAPHICS_PRESETS, MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, presetOf, qualityLevel, shadowSpec, VOXEL_TIER } from '../src/core/quality';
+import { capAllows, forPlatform, GRAPHICS_PRESETS, MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, presetOf, pvpFeatures, qualityLevel, shadowSpec, VOXEL_TIER } from '../src/core/quality';
 import { defaultSettings, sanitizeSettings, setAuto, setGfx, setPreset } from '../src/core/settings';
 
 describe('graphics settings (3.0)', () => {
@@ -97,6 +97,18 @@ describe('graphics settings (3.0)', () => {
     const d = sanitizeSettings({ video: { auto: true, device: { key: 'k', tier: 'ultra', source: 'calibrated' } } }).video.device;
     expect(d).toEqual({ key: 'k', tier: 'ultra', source: 'calibrated' });
     expect(sanitizeSettings({ video: { device: { key: 5, tier: 'mega', source: 'x' } } }).video.device).toEqual({ key: '', tier: null, source: 'none' });
+  });
+  it('PvP (3.1): what decides how visible a player is matches on every preset and platform', () => {
+    const keys = ['shadows', 'lights', 'ao', 'gi', 'volumetrics', 'effects'] as const;
+    const looks = PRESET_IDS.flatMap((p) => [false, true].map((m) => qualityLevel(p, pvpFeatures(forPlatform(p, GRAPHICS_PRESETS[p], m).features))));
+    for (const l of looks) {
+      for (const k of keys) expect(l.features[k], k).toEqual(looks[0]!.features[k]);
+      expect(l.realLights).toBe(looks[0]!.realLights);
+      expect(l.shadow).toEqual(looks[0]!.shadow);
+      expect(l.vfxDensity).toBe(looks[0]!.vfxDensity);
+    }
+    // (the rest stays the player's own)
+    expect(pvpFeatures(GRAPHICS_PRESETS.epic).textures).toBe('epic');
   });
   it('the frame limiter renders every other frame for 60 on a 120 Hz display', () => {
     expect(capAllows(8.3, 60, 8.33)).toBe(false);

@@ -178,12 +178,25 @@ try {
     const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: document.querySelector('.toast')?.textContent ?? '', ov: window.__app.quality.level.name }));
     assert(['low', 'medium', 'high', 'ultra'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: a hidden phone GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
     assert(/for this device/.test(cv.toast), `the result is shown (${cv.toast})`);
-    await frames(c.page, 3);
+    // (the settings save is debounced: wait until IndexedDB has the result)
+    await c.page.waitForFunction(() => new Promise((res) => {
+      const r = indexedDB.open('shoulder-strike');
+      r.onsuccess = () => {
+        try {
+          const q = r.result.transaction('kv').objectStore('kv').get('settings');
+          q.onsuccess = () => res(q.result?.video?.device?.source === 'calibrated');
+          q.onerror = () => res(false);
+        } catch {
+          res(false);
+        }
+      };
+      r.onerror = () => res(false);
+    }), null, { timeout: 30000, polling: 500 });
     await c.page.reload();
     await c.page.waitForFunction(() => window.__app?.current, null, { timeout: 60000 });
     await frames(c.page, 90);
     const again = await c.page.evaluate(() => ({ det: window.__app.detecting, v: window.__app.settings.get().video }));
-    assert(!again.det && again.v.device.source === 'calibrated' && again.v.preset === cv.v.device.tier, 'the same device is not measured again');
+    assert(!again.det && again.v.device.source === 'calibrated' && again.v.preset === cv.v.device.tier, `the same device is not measured again (${JSON.stringify({ det: again.det, device: again.v.device, preset: again.v.preset })})`);
     await browser.close();
   }
 

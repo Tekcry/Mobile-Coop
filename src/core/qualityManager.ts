@@ -1,6 +1,6 @@
 import type { Engine } from './babylon';
 import { applyRenderScale } from './engine';
-import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, PVP_LOOK, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
+import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, pvpFeatures, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
 import { adaptiveAt, FULL, Governor, type Adaptive } from './governor';
 import { flags } from './flags';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, type PacingSnapshot } from './pacing';
@@ -124,7 +124,7 @@ export class QualityManager {
     // phones: no Epic, no ray-traced reflections
     const p = forPlatform(pick.name, pick.f, this.mobile);
     // PvP: the shared look for what decides how visible a player is
-    const f = this.pvp ? { ...p.features, ...PVP_LOOK } : p.features;
+    const f = this.pvp ? pvpFeatures(p.features) : p.features;
     return qualityLevel(p.name, f, false, up, this.pvp ? 0 : v.panini);
   }
 

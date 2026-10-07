@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.1 phases 2-3 (unreleased) - Auto graphics, adaptive detail
+## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
   device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few
   seconds on the main menu (once per device; "Detect again" measures anew). Settings say what was found.
@@ -12,8 +12,6 @@
 - PvP: lamp count, lamp and moon shadows, bounce light, contact shadows (off), light shafts (off) and effects density
   are the same for everyone, whatever the preset - how dark or hidden a player looks never depends on the device.
 - `perf.mjs --preset=<p> [--mobile]`: a preset's CPU side against the phone budgets.
-
-## 3.1 phase 1 (unreleased) - one graphics ladder for PC and phones, fair PvP
 - Graphics presets are one ladder for every device: Low, Medium, High, Ultra, Epic (PC only) and Custom. Each preset
   also sets its render scale (Low 67%, Medium 75%, High 85%, Ultra 90% with the TAAU upscaler; Epic native). Phones
   never get Epic or ray-traced reflections (Epic shows as Ultra there). Settings from 3.0 keep their preset (with the

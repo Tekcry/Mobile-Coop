@@ -63,6 +63,10 @@ export const PRESET_IDS = ['low', 'medium', 'high', 'ultra', 'epic'] as const;
  * device - lamp count, lamp / moon shadows, bounce light, contact shadows, light shafts, smoke and particle density.
  * The rest of the preset (resolution, textures, reflections, depth of field, ...) stays the player's own.
  */
+/** A preset's features in PvP: the shared look over them. */
+export function pvpFeatures(f: GraphicsFeatures): GraphicsFeatures {
+  return { ...f, ...PVP_LOOK };
+}
 export const PVP_LOOK: Readonly<Pick<GraphicsFeatures, 'shadows' | 'lights' | 'ao' | 'gi' | 'volumetrics' | 'effects'>> = { shadows: 'medium', lights: 16, ao: false, gi: true, volumetrics: false, effects: 'high' };
 /** What phones list (Epic and ray-traced reflections are PC only). */
 export const MOBILE_PRESET_IDS = ['low', 'medium', 'high', 'ultra'] as const;

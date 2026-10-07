@@ -4,10 +4,11 @@ Silent But Deadly (renamed from Shoulder Strike in 2.2.0; internal ids keep the 
 IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id). Third-person over-the-shoulder shooter
 for PC and phones. Static web app (Vite + TypeScript + Babylon.js 9 + Havok), installable PWA, fully playable offline.
 Hosted on GitHub Pages. Target (3.0): a gaming laptop (i9 HX, RTX 4090 Laptop 16 GB, 32 GB; built-in 2560 x 1600
-240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer and settings (phones
-are slower; no mobile tiers). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
+240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer (phones
+with the 3.1 preset ladder; the iPhone 17 Pro Max targets 120 fps at Ultra). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
 test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) only changes the UI and
-input. A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
+input. 3.1: one preset ladder for every device (Low .. Ultra, Epic PC only), Auto graphics per device, a frame governor
+in matches, and crossplay fairness: graphics never change gameplay or how visible anyone is. A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
 Blacklist style.
 
 ## Commands
@@ -82,7 +83,8 @@ Blacklist style.
     Hunter (puppet alert levels, door sync, a client door use, a client takedown, kept / hidden bodies, pings both
     ways, a client execute, a client gas cloud on the host's guards, a dual takedown, a client reviving the host),
     Infiltration objectives on the client, Team Deathmatch (teams, opponents-only hit volumes, no friendly fire,
-    a validated elimination, respawn, results) and Free-for-all; host leaving, offline
+    a validated elimination, respawn, results; 3.1: FOV capped at 90 and 16:9-equivalent, no Panini) and
+    Free-for-all; host leaving, offline
   - `scripts/e2e-cosmetics.mjs` Loadout appearance by controller, live / locked previews on the operator, revert on exit, emotes, camo, in-game look
   - `scripts/e2e-clear.mjs` Warehouse + Clear mode: only "Enemies left N" (alive + pending), no room tags /
     counts / lives / score / blips, no per-room feedback, "DOWN", OPERATION COMPLETE stinger, results without a
@@ -95,7 +97,8 @@ Blacklist style.
     list, the HTML report download, photo mode on the menu stage
   - `scripts/e2e-desktop.mjs` desktop detection, menu scale, Mouse & Keyboard rebinding, the Graphics menu (presets,
     Custom, frame cap), the Interface switch, the benchmark (a short flight, saved as feedback; every preset in
-    turn), 16:10 / 21:9 / 32:9 windows (centred 16:9 menus, the HUD inset on 32:9, Hor+ up to the FOV cap), the Epic
+    turn; 3.1: Low .. Epic), Auto graphics (GPU name, `?detect=1&renderer=Apple%20GPU` calibration, no re-measure),
+    the frame governor stepping down (TAAU input), 16:10 / 21:9 / 32:9 windows (centred 16:9 menus, the HUD inset on 32:9, Hor+ up to the FOV cap), the Epic
     renderer booting in a match (`SHOTS=dir` saves the aspect screenshots)
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
@@ -106,7 +109,7 @@ Blacklist style.
   - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the Loadout operator (proportion/silhouette checks)
   - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
     reload|swap|grenade|cover|highcover|peek|vault> [frames] [interval] [side|front|back|ots]` contact sheet
-  - `node scripts/perf.mjs [--desktop] [--budget]` (`--desktop`: the PC path at `?gfx=epic`; else the `?gfx=min` test
+  - `node scripts/perf.mjs [--desktop] [--preset=<p> [--mobile]] [--budget]` (`--preset`: 3.1 phone budgets per preset; `--desktop`: the PC path at `?gfx=epic`; else the `?gfx=min` test
     path; `STEALTH=1`: ten unaware enemies perceiving) Warehouse, 10 enemies: main thread p95 (sim per 120 Hz frame +
     the render's JS), animation ms per character, allocations per second (top allocators), draw calls and triangles
     over every pass (`PROFILE=1` CPU profile)
