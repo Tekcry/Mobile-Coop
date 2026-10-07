@@ -1229,6 +1229,9 @@ export class CharacterRig {
       need = Math.max(need, hipY - footY - reachV);
     }
     need = Math.max(0, Math.min(0.4, need));
+    // (3.2.0) turned over on a pipe (legs up / inverted) "down" is not the floor: no drop for the feet's reach
+    const turned = Math.abs(this.input.tumble) > 0.3;
+    if (turned) need = 0;
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, 0.08);
     this.hips.position.set(pe.x, this.pelvisRest + pe.y + this.lift - this.pelvisDrop, pe.z);
     Quaternion.RotationYawPitchRollToRef(pe.yaw, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
@@ -1252,7 +1255,7 @@ export class CharacterRig {
     // anatomy: a knee never sinks into the floor (deep kneel, hiding curl): lift the pelvis and solve again
     const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
-    if (kneeY < floorY - 0.002) {
+    if (kneeY < floorY - 0.002 && !turned) {
       this.hips.position.y += floorY - kneeY;
       fresh(this.hips);
       fresh(this.spine);

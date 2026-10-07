@@ -350,3 +350,12 @@ describe('pstate movement state (3.2.0)', () => {
     expect(noAnchor && noAnchor.t === 'pstate' && noAnchor.s.mv).toBeUndefined();
   });
 });
+
+describe('PvP takedowns (3.2.0 phase 4)', () => {
+  it('ptd: only the drop, the ledge pull and the inverted choke, on a valid id', () => {
+    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'drop' })).toEqual({ t: 'ptd', target: 'peerB', kind: 'drop' });
+    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'inverted' })).not.toBeNull();
+    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'behind' })).toBeNull();
+    expect(parseMessage({ t: 'ptd', target: '../x', kind: 'drop' })).toBeNull();
+  });
+});

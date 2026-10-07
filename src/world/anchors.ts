@@ -15,7 +15,7 @@ export interface P3 {
   z: number;
 }
 
-export type AnchorKind = 'ladder' | 'pipeV' | 'pipeH' | 'ledge' | 'duct' | 'window' | 'door' | 'zipline' | 'split';
+export type AnchorKind = 'ladder' | 'pipeV' | 'pipeH' | 'ledge' | 'duct' | 'window' | 'door' | 'zipline' | 'split' | 'rappel' | 'fence';
 
 interface AnchorBase {
   /** Index in `TraversalAnchors.all` (stable for a built level; co-op sends it). */
@@ -145,7 +145,32 @@ export interface SplitAnchor extends AnchorBase {
   height: number;
 }
 
-export type Anchor = Ladder | PipeVertical | PipeHorizontal | Ledge | Duct | WindowAnchor | Door | Zipline | SplitAnchor;
+/**
+ * (3.2.0) A rappel point at a roof / mezzanine edge: `top` on the edge at the roof's floor height, `nx/nz` the
+ * wall's outward normal (where the rope hangs), `length` the drop to the floor below.
+ */
+export interface RappelPoint extends AnchorBase {
+  kind: 'rappel';
+  top: P3;
+  nx: number;
+  nz: number;
+  length: number;
+}
+
+/** (3.2.0) A chain-link fence: `a` -> `b` along its foot on the floor, `height` tall; `nx/nz` one side's normal. */
+export interface Fence extends AnchorBase {
+  kind: 'fence';
+  a: P3;
+  b: P3;
+  height: number;
+  tx: number;
+  tz: number;
+  nx: number;
+  nz: number;
+  len: number;
+}
+
+export type Anchor = Ladder | PipeVertical | PipeHorizontal | Ledge | Duct | WindowAnchor | Door | Zipline | SplitAnchor | RappelPoint | Fence;
 
 /** Box piece as the generator sees it (same shape as `CoverBox`). */
 export interface AnchorBox {
@@ -210,6 +235,8 @@ export class TraversalAnchors {
   readonly doors: Door[] = [];
   readonly ziplines: Zipline[] = [];
   readonly splits: SplitAnchor[] = [];
+  readonly rappels: RappelPoint[] = [];
+  readonly fences: Fence[] = [];
 
   /** Adds an anchor (its id is assigned here) and returns it. */
   add<T extends Anchor>(a: Omit<T, 'id'> & { id?: number }): T {
@@ -243,6 +270,12 @@ export class TraversalAnchors {
         break;
       case 'split':
         this.splits.push(x);
+        break;
+      case 'rappel':
+        this.rappels.push(x);
+        break;
+      case 'fence':
+        this.fences.push(x);
         break;
     }
     return x;
@@ -465,15 +498,24 @@ export function closestOn(a: Anchor, x: number, y: number, z: number): Closest {
       o.dist = hyp2(x - a.base.x, z - a.base.z);
       return o;
     }
+    case 'rappel': {
+      o.x = a.top.x;
+      o.z = a.top.z;
+      o.y = Math.max(a.top.y - a.length, Math.min(a.top.y, y));
+      o.s = a.top.y - o.y;
+      o.dist = hyp2(x - a.top.x, z - a.top.z);
+      return o;
+    }
     case 'pipeH':
     case 'zipline':
     case 'split':
+    case 'fence':
     case 'ledge': {
       const q = closestOnSegment(a.a.x, a.a.z, a.b.x, a.b.z, x, z);
       o.x = q.x;
       o.z = q.z;
       o.s = q.s;
-      o.y = a.kind === 'pipeH' ? a.hangHeight : a.kind === 'ledge' ? a.top : a.kind === 'split' ? a.a.y : a.a.y + (a.b.y - a.a.y) * (q.len > 0 ? q.s / q.len : 0);
+      o.y = a.kind === 'pipeH' ? a.hangHeight : a.kind === 'ledge' ? a.top : a.kind === 'split' || a.kind === 'fence' ? a.a.y : a.a.y + (a.b.y - a.a.y) * (q.len > 0 ? q.s / q.len : 0);
       o.dist = hyp2(x - q.x, z - q.z);
       return o;
     }
@@ -533,7 +575,10 @@ export function anchorLength(a: Anchor): number {
       return hyp2(a.b.x - a.a.x, a.b.z - a.a.z);
     case 'ledge':
     case 'split':
+    case 'fence':
       return a.len;
+    case 'rappel':
+      return a.length;
     case 'duct': {
       let l = 0;
       for (let i = 0; i + 1 < a.path.length; i++) l += hyp2(a.path[i + 1]!.x - a.path[i]!.x, a.path[i + 1]!.z - a.path[i]!.z);
@@ -702,8 +747,26 @@ export function reach(a: Anchor, x: number, y: number, z: number, dirX: number, 
     case 'split':
       // (offered by the attach controller's own probe: `player/splitJump.ts` `splitReach`)
       return null;
+    case 'rappel': {
+      // on the roof at the point, facing out over the edge
+      if (Math.abs(y - a.top.y) > 0.4 || q.dist > RAPPEL_REACH || dirX * a.nx + dirZ * a.nz < 0.3) return null;
+      // (not out past the edge already)
+      if ((x - a.top.x) * a.nx + (z - a.top.z) * a.nz > 0.2) return null;
+      return { anchor: a, entry: 'above', s: 0, dist: q.dist };
+    }
+    case 'fence': {
+      if (Math.abs(y - a.a.y) > 0.4 || q.dist > FENCE_REACH || q.s < 0.4 || q.s > a.len - 0.4) return null;
+      const side = (x - q.x) * a.nx + (z - q.z) * a.nz >= 0 ? 1 : -1;
+      // facing the fence from this side
+      if (-(dirX * a.nx + dirZ * a.nz) * side < 0.5) return null;
+      return { anchor: a, entry: 'side', s: q.s, dist: q.dist, face: side };
+    }
   }
 }
+
+/** (3.2.0) Reach to a rappel point / a fence from the floor (m; `config/movement.ts` RAPPEL.reach / FENCE.reach). */
+export const RAPPEL_REACH = 0.9;
+export const FENCE_REACH = 0.85;
 
 /** Best anchor in reach (smallest distance, ties to the one most in front). `kinds` filters. */
 export function nearestInReach(
@@ -728,7 +791,7 @@ export function nearestInReach(
     const r = reach(a, x, y, z, dirX, dirZ);
     if (!r || (accept && !accept(r))) continue;
     // a placed climber (ladder, drainpipe) or vent beats the lip beside it
-    const placed = a.kind === 'ladder' || a.kind === 'pipeV' || a.kind === 'duct' || a.kind === 'zipline';
+    const placed = a.kind === 'ladder' || a.kind === 'pipeV' || a.kind === 'duct' || a.kind === 'zipline' || a.kind === 'rappel' || a.kind === 'fence';
     const score = r.dist - (placed ? 0.6 : 0);
     if (score < bestScore) {
       bestScore = score;

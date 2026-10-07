@@ -86,6 +86,18 @@ for (const [map, mode] of MAPS) {
         const nz = Math.cos(w.yaw);
         for (const sd of [-1, 1]) tryIt(`window ${w.id} ${sd < 0 ? 'front' : 'back'}`, w, w.c.x + nx * 0.85 * sd, w.c.z + nz * 0.85 * sd, w.sillHeight - 0.3, Math.atan2(-nx * sd, -nz * sd), () => g.traversal.hintWindow?.id === w.id);
       }
+      // (3.2.0) split jump gaps: between the walls at the middle, facing along the corridor
+      for (const sg of L.splits) {
+        const s0 = sg.len / 2;
+        tryIt(`split ${sg.id}`, sg, sg.a.x + sg.tx * s0, sg.a.z + sg.tz * s0, sg.a.y + 1, Math.atan2(sg.tx, sg.tz), hintIs(sg.id));
+      }
+      // (3.2.0 phase 3) rappel points from the roof facing out, fences from their first side
+      for (const r of L.rappels) tryIt(`rappel ${r.id}`, r, r.top.x - r.nx * 0.4, r.top.z - r.nz * 0.4, r.top.y + 1, Math.atan2(r.nx, r.nz), hintIs(r.id));
+      for (const f of L.fences) {
+        const mx = (f.a.x + f.b.x) / 2;
+        const mz = (f.a.z + f.b.z) / 2;
+        tryIt(`fence ${f.id}`, f, mx + f.nx * 0.55, mz + f.nz * 0.55, f.a.y + 1, Math.atan2(-f.nx, -f.nz), hintIs(f.id));
+      }
       const lips = L.ledges.filter((l) => l.canHang).length;
       const climbable = L.ledges.filter((l) => l.canHang && l.canClimbUp).length;
       return { out, lips, climbable, placed: L.all.length - L.ledges.length };

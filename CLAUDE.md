@@ -66,7 +66,8 @@ Blacklist style.
     > 9 cm apart, feet > 6 cm apart (`--only=name --log`)
   - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
     exposure HUD, enemy grenades/flanker, footstep noise investigation, a wall muffles a noise
-  - `scripts/e2e-takedown.mjs` takedown kinds (ground rules, over low cover, above, below, window), tap / hold,
+  - `scripts/e2e-takedown.mjs` takedown kinds (ground rules, over low cover, above, below, window; 3.2.0: the grab -
+    walk, sidearm, human shield, knock out / kill / shove - and drop attacks from a pipe / split, the inverted choke), tap / hold,
     5 cm alignment, damage interrupt, Execute charge, marks through cover, no execute out of sight, execute; no takedown
     on a guard in combat who saw you, one alerted without seeing you still can be
   - `scripts/e2e-enemies.mjs` heavy (plates / back / face plate, lethal-only frontal takedown), enforcer (shield,
@@ -99,7 +100,15 @@ Blacklist style.
     Takedown / Mark / Execute buttons, HUD defaults (no health bar, ammo fades), the results
   - `scripts/e2e-netmove.mjs` (3.2.0) two pages `?net=local`, Free Roam on Proving: the client in low cover (+ over
     peek), high cover (+ edge peek), ladder (+ after a climb), drainpipe, pipe, ledge, duct (hands / feet / head within
-    10 cm on the host), zipline and a roll mirrored; TDM: a host shot at a client hanging off a lip hits the head
+    10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted, rappel +
+    rope, fence); team moves (phase 5: the client braces and boosts the host onto the 4.2 m lip, the host braces and
+    the client climbs the human ladder and grabs the lip, a request without a braced partner is denied); TDM: a host
+    shot at a client hanging off a lip hits the head
+  - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): split jump (offered only facing along, braced feet on
+    both walls, no travel, sidearm aim band + fire, B drop, Y up to the lips), wall jump (straight, too far, inside
+    corner), pipe legs up (0.5 m/s, feet up), inverted (camera upright, sidearm + spread x1.3), curl up, hands, damage
+    mid-change, the flip drop; rappel (hook on, rope speeds, kick out + sideways, sidearm, kick through a window,
+    unhook height), fence (bullets / sight pass, blocks the body, climb / shimmy speeds, rattle by gear, flip over)
   - `scripts/e2e-feedback.mjs` playtest notes: pause > Report feedback with the context, photo mode (frozen game,
     no HUD, free camera, take / retake / keep / cancel, two photos), IndexedDB after a reload, Settings > Feedback
     list, the HTML report download, photo mode on the menu stage
@@ -427,6 +436,53 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `MOVE_TOLERANCE` 1.15) / `attachedClamp` (`ATTACH_SLACK` 0.5) in `RemotePlayer.accept`; `RemotePlayer.followPose`
   and `Hitboxes.sync(feet, head, hips)` lay the capsules along hips -> head; host `Hist` keeps the posed head / hips
   and the mode, `judge` uses them.
+- 3.2.0 phase 2: `player/splitJump.ts` (pure): `findSplitGaps(coverSegments)` (high faces, normals opposed, 0.9-1.7 m,
+  both >= 2.6 m, same floor, overlap >= 0.8 m; `LevelBuilder.build` adds them last as `SplitAnchor`s, kind `split`,
+  `anchors.splits`), `splitReach` (between the walls facing within 40 deg of the axis), `wallJumpReach` (lip 2.7-3.8 m,
+  facing its wall within 1 m, or an inside corner: side-on within 1.4 m), `PipeHang` (hands -> legsUp -> inverted,
+  `PIPE` times / speeds / aim band), `SPLIT`, `WALL_JUMP`. `ATTACH.split` (axis `none`, sidearm), `attachPose(.., pipe)`
+  (`PIPE_HIPS`, `PIPE_TUMBLE`, `TUMBLE_PIVOT` / `TUMBLE_REST`: the rig tumbles about its body pivot, below the hips),
+  `AttachEntry 'wall'`. `AttachController`: `splitProbe` / `wallJumpProbe` after the regular anchors, the wall kick
+  path (`kickPt`), `pipe` (Y up / B down, `flipDrop`), `onHit` (GameState's damage hook), `sidearmAim`, camera presets
+  `split` / `pipeLegs` / `inverted`. `AttachGrips`: split plants / braces, `setPipe` + blended pipe targets, `aimFree`.
+  Sidearm attached: `Player.attachAim` (aim band clamp, ads allowed; inverted: mirrored spine aim + `RigPose.aimWorldYaw`
+  / `aimWorldPitch` so the gun aims in world space), `PlayerWeapons.setAttachedStow(stowed, draw)` (`sidearmIndex`: the
+  first pistol), `attachSpread`. `RigPose.tumble` (`PlayerPose.tumble`) -> graph; the rig skips the upright-only
+  pelvis drop / knee floor when turned over. Clips `SPLIT_BRACE`, `WALL_KICK`, `PIPE_LEGS_UP`, `PIPE_INVERTED`
+  (TraverseKind `split`, `wallKick`, `pipeLegs`, `pipeInv`). MoveState modes `split`, `wallJump`; pipe sub-state in
+  `ATTACH_SUB` bits 6-9 (`ph` = the change's progress), exit pose `flip`.
+- 3.2.0 phase 3: anchors `RappelPoint {top, nx, nz, length}` (`LevelBuilder.rappel`) and `Fence {a, b, height, t, n}`
+  (`LevelBuilder.fence`: visual posts / rail, a see-through chain-link `DynamicTexture` panel, its own static body in
+  `G.FENCE` - the player collides, bullets / sight / level probes do not; `navBuild` blocks it; never a level piece:
+  no cover, ledges or voxels). `ATTACH.rappel` (vertical; `s` = rope out) and `ATTACH.fence` (along; the climb height
+  is the controller's second axis `AttachController.u`, also the rope's sideways offset). `RAPPEL` / `FENCE` tables in
+  `config/movement.ts`. `AttachController.rappelStep` (speeds, `swingT` kick out + `latFrom/latTo`, `ropeWindow` ->
+  `onKickThrough` -> `TraversalController` window vault, unhook, top / bottom) and `fenceStep` (climb, shimmy,
+  `fenceMoving` -> GameState rattle noise above `FENCE.quietGear`, flip over exit); `attachPose(.., u)`. Ropes:
+  `world/ropes.ts` `Ropes` (thin-instanced, `World.ropes`; GameState `drawRope`, `RemoteAvatar` per remote). Clip
+  `RAPPEL_HANG` (TraverseKind `rappel`). MoveState modes `rappel`, `fence`, field `u`, exit pose `fenceFlip`.
+- 3.2.0 phase 4: `game/takedown.ts` kinds `drop` (from `hang` / `pipe` / `split` / `zipline` / `rappel`: 1.2-5 m below
+  within 1 m of the landing; `approach` = the fall time) and `inverted` (a guard within 0.9 m beneath); `below` is the
+  ledge pull. `GRAB` (gear 2, hold 0.42 m, spread x1.2, shove stagger 1 s, hesitate 1.5 s), `GRAB_KINDS` (`behind`).
+  `TakedownController`: attacker states from the attach kinds; a grab (`active.grab`: approach, `hold` - no override,
+  `speedCap` at gear 2, the hostage `holdAt` in front, `setSolid(false)`, `holdAsHostage` pose; a fresh press
+  (`pressedNow`) decides tap / hold -> `GRAB_STRIKE`; `shovePressed` -> `releaseTakedown(GRAB.shoveStagger)`),
+  `hostage`, `grabs` counters, `grabAllowed` (off in PvP). GameState: sidearm draw / `attachSpread` while holding,
+  `localRef.shield` (PlayerRef) -> `Enemy.tryFire` hesitates, aims at the head, rays include `G.ENEMY_HITBOX` and a hit
+  on the hostage is `HitInfo.shieldHit`. Net: MoveState mode `grab` (`tid`); `CoopHost` keeps a client's seized guard
+  at their offset and `ref.shield`. PvP: `net/pvpVictim.ts` `PvpVictim` (opponents as victims; only `drop` / `below` /
+  `inverted`), message `ptd` -> `CoopHost.onPvpTakedown` (`PTD_REACH` 2.5, `PTD_HEIGHT` 5.5).
+- 3.2.0 phase 5 (co-op team moves): `TEAM` table (`config/movement.ts`), `game/teamMoves.ts` (pure: `checkTeamRequest`
+  -> `TeamDenial`, `canBrace`, `boostPath`), `game/teamController.ts` `TeamController` (`GameState.team`; states none /
+  brace / boost / assist / ladderUp / top / bottom; `offer` = a braced mate within `partnerReach` + the boost target
+  from `findJumpTarget` over the toss apex). Y: tap at a braced mate = boost, held `TEAM.braceHold` = ladder, held with
+  a mate within `mateRange` and a wall behind (`wallBehind`, one ray) = brace; B ends brace / bottom / top. Y order in
+  `GameState`: takedown > team > traversal (CT moves included) > interact; cover / traversal skip while a team move
+  runs. NetAttachment `teamMates` / `teamRequest` / `teamEnd`; messages `tmove` (client -> host), `tstart` / `tdeny` /
+  `tend` (host -> all); `CoopHost.onTeamMove` checks both sides (`teamSide`: MoveState mode, team in PvP, 1 s rate)
+  and starts it on both (host included); `teamPairs` for the ladder's end. MoveState modes `brace`, `boost`, `stacked`
+  (`sub` 1 top / 2 bottom). `PlayerController.teleports`: a teleport drops a committed traversal move and resets the
+  fall's top (no landing where it lands).
 - All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
   crouched sneak 0.8 / crouch walk 1.8 / crouch run 2.6, standing walk 1.4 / jog 2.8, sprint 5.0 m/s (toggle or
   hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered at the low ready; aiming ends it via

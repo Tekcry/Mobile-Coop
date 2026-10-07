@@ -16,9 +16,13 @@ import { hyp2 } from '../core/mathx';
 import { TEAM_COLORS } from './pvp';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
+import { RAPPEL } from '../config/movement';
 import { attachGripWeight, COVER_SUB, emptyMovePose, footPoints, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
+
+/** Rope slots per remote (`Ropes` keys). */
+let ropeKeys = 0;
 
 /**
  * Another player's body, rendered from interpolated states: rig animation from speed / flags and (3.2.0) their
@@ -59,6 +63,8 @@ export class RemoteAvatar {
   /** The movement mode shown now (tests, host checks). */
   mode: MoveMode = 'ground';
   private pipeKey = 'hands>hands';
+  private readonly ropeKey = `remote-${++ropeKeys}`;
+  private roped = false;
   /** Seconds the remote has held still on its anchor (settling onto the owner's grips waits for it). */
   private stillT = 0;
   private carryW = { low: 1, high: 0, compressed: 0 };
@@ -169,7 +175,9 @@ export class RemoteAvatar {
       if (replayK >= 1) this.replay = null;
     }
     const attached = !!mv && isAttachedMode(mv.m) && !rp;
-    this.setWeapon(st.w, attached || mv?.m === 'takedown');
+    // attached both hands are busy (the gun stowed), except a sidearm aimed from a split / an inverted hang
+    const sidearmOut = !!mv && mv.r > 0.05 && (mv.m === 'split' || mv.m === 'rappel' || (mv.m === 'pipeH' && unpackAttachSub(mv.sub).pipe === 'inverted'));
+    this.setWeapon(st.w, (attached && !sidearmOut) || mv?.m === 'takedown');
     const moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     const inst = dt > 0 ? moved / dt : 0;
     // (3.2.0) the owner's own speed when it sends a move state (interpolation jitter is not a gait)
@@ -220,14 +228,20 @@ export class RemoteAvatar {
         }
         this.grips.pipeK = sub.pipeTo && sub.phase === 'on' ? mv!.ph : 1;
       }
-      this.grips.aimFree = a.kind === 'split' || (a.kind === 'pipeH' && sub.pipe === 'inverted' && !sub.pipeTo) ? this.aim : 0;
+      // (3.2.0 phase 3) a rope's sideways offset and kick-out swing, a fence's climb height
+      this.grips.u = mv!.u ?? 0;
+      this.grips.outOff = a.kind === 'rappel' && sub.phase === 'on' && mv!.ph > 0 ? Math.sin(Math.PI * mv!.ph) * RAPPEL.swingOut : 0;
+      this.grips.aimFree = a.kind === 'rappel' ||
+        a.kind === 'split' || (a.kind === 'pipeH' && sub.pipe === 'inverted' && !sub.pipeTo) ? this.aim : 0;
       const v = dt > 0 ? (sv - this.sPrev) / dt : 0;
       this.sPrev = sv;
       const vent = sub.phase === 'exit' && (sub.exit === 'ventDrop' || sub.exit === 'drop') ? { drop: 1, progress: mv!.ph, kinY: this.pos.y } : null;
       // at rest: settle onto the owner's planted grips (stepping is history dependent)
       this.stillT = Math.abs(v) < 0.01 ? this.stillT + dt : 0;
-      if (mv!.gp && this.stillT > 0.25 && !mv!.gp.some((g) => Number.isNaN(g))) this.grips.settleTo(mv!.gp);
-      this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph), this.rig, vent);
+      const follow = !!mv!.gp && this.stillT > 0.25 && !mv!.gp.some((g) => Number.isNaN(g));
+      if (follow) this.grips.settleTo(mv!.gp!);
+      // (following the owner's grips the remote makes no stepping decisions of its own)
+      this.grips.update(dt, a, sv, v, sub.face, attachGripWeight(sub.phase, mv!.ph), this.rig, vent, !follow);
     } else if (this.gripAnchor >= 0) {
       this.grips.release(this.rig);
       this.gripAnchor = -1;
@@ -282,6 +296,18 @@ export class RemoteAvatar {
       traverseT: mp.traverseT,
       melee: mp.melee,
     });
+    // (3.2.0 phase 3) on a rope: draw it from the anchor to the harness
+    const ra = mv?.m === 'rappel' ? this.world.level.anchors.all[mv.a] : null;
+    if (ra && ra.kind === 'rappel') {
+      const h = this.rig.hips;
+      h.computeWorldMatrix(true);
+      const hp = h.getAbsolutePosition();
+      this.world.ropes.set(this.ropeKey, ra.top.x - ra.nx * 0.25, ra.top.y + 0.55, ra.top.z - ra.nz * 0.25, hp.x, hp.y, hp.z);
+      this.roped = true;
+    } else if (this.roped) {
+      this.world.ropes.hide(this.ropeKey);
+      this.roped = false;
+    }
     // downed: lie on the side
     r.rotation.z = this.dead ? Math.PI / 2 : 0;
     if (this.dead) r.position.y += 0.22;

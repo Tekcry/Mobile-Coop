@@ -17,6 +17,8 @@ import {
   PhysicsShapeContainer,
   PhysicsShapeCylinder,
   Quaternion,
+  CreatePlane,
+  DynamicTexture,
   StandardMaterial,
   TransformNode,
   Vector3,
@@ -29,7 +31,7 @@ import { findSplitGaps } from '../player/splitJump';
 import { MOVEMENT } from '../config/movement';
 import { proportions } from '../player/proportions';
 import { hyp2 } from '../core/mathx';
-import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type SplitAnchor, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
+import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type Fence, type RappelPoint, type SplitAnchor, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
 import { LightRegistry, type LightInit } from './lights';
 import { levelVoxels, type LevelVoxels, type VoxelArt } from '../voxel/levelVoxels';
 
@@ -264,6 +266,94 @@ export class LevelBuilder {
     return this.anchors.add<Door>({ kind: 'door', hinge: { x: hx, y: hy, z: hz }, width, height: opts.height ?? 2.1, yaw, swing: opts.swing ?? 1, locked: opts.locked ?? false, breachable: opts.breachable ?? true });
   }
 
+  /**
+   * (3.2.0) A rappel point at a roof / mezzanine edge (x, z on the edge, `y` the roof's floor), the rope hanging out
+   * along `yaw` (the wall's outward normal) down `length` to the floor below. A small anchor plate shows it.
+   */
+  rappel(x: number, y: number, z: number, yaw: number, length: number, color = '#3a3d40'): RappelPoint {
+    const nx = Math.sin(yaw);
+    const nz = Math.cos(yaw);
+    this.box(x - nx * 0.25, y + 0.06, z - nz * 0.25, 0.3, 0.12, 0.3, color, yaw, 0, false);
+    this.cylinders.push({ c: [x - nx * 0.25, y + 0.35, z - nz * 0.25], r: 0.04, h: 0.5, color, collide: false });
+    return this.anchors.add<RappelPoint>({ kind: 'rappel', top: { x, y, z }, nx, nz, length });
+  }
+
+  /**
+   * (3.2.0) A chain-link fence from (ax, az) to (bx, bz) on floor `y`, `height` tall: posts and a top rail (visual),
+   * a see-through mesh panel, and a body that stops movement (never bullets or sight: not a level piece, so no cover,
+   * ledges or voxels).
+   */
+  fence(ax: number, az: number, bx: number, bz: number, height: number, y = 0, color = '#7b8288'): Fence {
+    const len = hyp2(bx - ax, bz - az);
+    const tx = (bx - ax) / len;
+    const tz = (bz - az) / len;
+    const posts = Math.max(1, Math.round(len / 2.5));
+    for (let i = 0; i <= posts; i++) {
+      const t = (i / posts) * len;
+      this.cylinders.push({ c: [ax + tx * t, y + height / 2, az + tz * t], r: 0.035, h: height, color, collide: false });
+    }
+    this.box((ax + bx) / 2, y + height - 0.02, (az + bz) / 2, 0.05, 0.05, len, color, Math.atan2(tx, tz), 0, false);
+    return this.anchors.add<Fence>({ kind: 'fence', a: { x: ax, y, z: az }, b: { x: bx, y, z: bz }, height, tx, tz, nx: tz, nz: -tx, len });
+  }
+
+  private buildFences(scene: Scene, root: TransformNode, name: string, meshes: Mesh[]): void {
+    const fc = new PhysicsShapeContainer(scene);
+    const tex = new DynamicTexture(`fenceTex-${name}`, { width: 128, height: 128 }, scene, true);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    ctx.clearRect(0, 0, 128, 128);
+    ctx.strokeStyle = '#b8c0c6';
+    ctx.lineWidth = 5;
+    // chain-link diamonds (two wires crossing, tiling)
+    for (let k = -128; k <= 256; k += 32) {
+      ctx.beginPath();
+      ctx.moveTo(k, 0);
+      ctx.lineTo(k + 128, 128);
+      ctx.moveTo(k + 128, 0);
+      ctx.lineTo(k, 128);
+      ctx.stroke();
+    }
+    tex.hasAlpha = true;
+    tex.update();
+    const mat = new StandardMaterial(`fenceMat-${name}`, scene);
+    mat.diffuseTexture = tex;
+    mat.useAlphaFromDiffuseTexture = true;
+    mat.transparencyMode = 1;
+    mat.backFaceCulling = false;
+    mat.specularColor = Color3.Black();
+    mat.freeze();
+    for (const f of this.anchors.fences) {
+      const yaw = Math.atan2(f.tx, f.tz);
+      const cx = (f.a.x + f.b.x) / 2;
+      const cz = (f.a.z + f.b.z) / 2;
+      const q = Quaternion.RotationYawPitchRoll(yaw, 0, 0);
+      const fs = new PhysicsShapeBox(Vector3.Zero(), Quaternion.Identity(), new Vector3(0.06, f.height, f.len), scene);
+      fs.filterMembershipMask = G.FENCE;
+      fs.filterCollideMask = 0xffffffff & ~(G.STATIC | G.FENCE);
+      fc.addChild(fs, new Vector3(cx, f.a.y + f.height / 2, cz), q);
+      const plane = CreatePlane(`fence-${f.id}`, { width: f.len, height: f.height, sideOrientation: 2 }, scene);
+      plane.parent = root;
+      plane.position.set(cx, f.a.y + f.height / 2, cz);
+      plane.rotation.y = yaw + Math.PI / 2;
+      plane.material = mat;
+      const uv = plane.getVerticesData('uv');
+      if (uv) {
+        for (let i = 0; i < uv.length; i += 2) {
+          uv[i] = uv[i]! * f.len * 4;
+          uv[i + 1] = uv[i + 1]! * f.height * 4;
+        }
+        plane.setVerticesData('uv', uv);
+      }
+      plane.freezeWorldMatrix();
+      meshes.push(plane);
+    }
+    fc.filterMembershipMask = G.FENCE;
+    fc.filterCollideMask = 0xffffffff & ~(G.STATIC | G.FENCE);
+    const fenceNode = new TransformNode(`fences-${name}`, scene);
+    fenceNode.parent = root;
+    const fb = new PhysicsBody(fenceNode, PhysicsMotionType.STATIC, false, scene);
+    fb.shape = fc;
+  }
+
   /** Manual ledge (in addition to the generated ones). */
   ledge(ax: number, az: number, bx: number, bz: number, top: number, opts: { drop?: number; canHang?: boolean; canClimbUp?: boolean } = {}): Ledge {
     return this.anchors.add<Ledge>(makeLedge(ax, az, bx, bz, top, opts));
@@ -425,6 +515,8 @@ export class LevelBuilder {
     container.material = { friction: 0.8, restitution: 0.05 };
     const body = new PhysicsBody(root, PhysicsMotionType.STATIC, false, scene);
     body.shape = container;
+    // (3.2.0) fences: their own body (stops movement; bullets, sight and the level probes pass) and mesh panels
+    if (this.anchors.fences.length) this.buildFences(scene, root, name, meshes);
 
     const coverSegments = buildCoverSegments(this.boxes, this.cylinders);
     // ledges from box tops; lips whose hang point would be outside the play area are dropped

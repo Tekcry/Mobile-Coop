@@ -356,6 +356,46 @@ try {
   await GB(() => { const g = window.__app.current; g.gadgets['detonate']('gas', new g.player.position.constructor(8, 0.3, -7)); });
   await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || !e.alive || e.gas > 0; }, gv, 6000, 'host guard breathes the client gas');
   assert(true, "a client's gas cloud reaches the host's guards");
+  // (3.2.0 phase 4) a client grab: the host holds its guard in front of the client (a shield there), then a tap
+  // knocks him out
+  const gg = await GB(() => [...window.__app.current.net.puppets.values()].find((p) => p.alive && !p.taken && p.def.kind !== 'dog')?.id ?? '');
+  if (gg) {
+    let grabbed = false;
+    for (let attempt = 0; attempt < 6 && !grabbed; attempt++) {
+      await GA((id) => {
+        const g = window.__app.current;
+        for (const r of g.net.remotes.values()) r.allowTeleport(2);
+        const v = g.enemyMgr.enemies.find((e) => e.id === id);
+        if (v?.alive && !v.taken) {
+          v['stagger'] = 99;
+          v.pos.set(6, 0, -6);
+          v.yaw = 0;
+        }
+      }, gg);
+      await moveClient(B, 6, 0.1, -7.1, 0);
+      for (let i = 0; i < 30 && !grabbed; i++) {
+        grabbed = await GB((id) => {
+          const g = window.__app.current;
+          if (g.takedown.offer?.e.id === id && !g.takedown.active) g.takedown.start();
+          return g.takedown.hostage?.id === id;
+        }, gg);
+        if (!grabbed) await wait(150);
+      }
+    }
+    assert(grabbed, 'client grabs a host guard from behind');
+    await until(A, (id) => { const g = window.__app.current; const r = [...g.net.remotes.values()][0]; return r.state?.mv?.m === 'grab' && r.ref.shield?.id === id; }, gg, 8000, 'host sees the grab');
+    const held = await GA((id) => {
+      const g = window.__app.current;
+      const r = [...g.net.remotes.values()][0];
+      const e = g.enemyMgr.enemies.find((x) => x.id === id);
+      const yaw = r.state.yaw;
+      return Math.hypot(e.pos.x - (r.feet.x + Math.sin(yaw) * 0.42), e.pos.z - (r.feet.z + Math.cos(yaw) * 0.42));
+    }, gg);
+    assert(held < 0.25, `the host holds its guard in front of the client (${held.toFixed(2)} m)`);
+    await GB(() => window.__app.input.state.tap('interact'));
+    await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, gg, 8000, 'host knocks the grabbed guard out');
+    assert(true, "a tap knocks the client's hostage out on the host");
+  }
   // dual takedown: two players finishing takedowns together
   await GA(([a, b]) => { const n = window.__app.current.net; n['takedownDone'](a); n['takedownDone'](b); }, [hostId0, clientId]);
   assert((await GA(() => window.__app.current.net.duals)) === 1, 'two takedowns together count as a dual takedown');

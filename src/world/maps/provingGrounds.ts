@@ -151,14 +151,36 @@ export const provingGrounds: MapDef = {
 
     // Chaos Theory course (3.2.0, north, driven by e2e-ct): a split corridor (two 4.3 m walls 1.3 m apart, along x;
     // their lips above to jump up to), a 3.3 m block to wall jump onto (south face; an inside corner with a 4.5 m
-    // wall on its west side for the corner kick) and a horizontal pipe at 2.5 m over a walkway (legs up, inverted)
+    // wall on its west side for the corner kick) and a horizontal pipe at 2.5 m over open ground north of the platform (legs up, inverted)
     b.box(10, 2.15, 24, 4, 4.3, 0.3, C.wallDark);
     b.box(10, 2.15, 25.6, 4, 4.3, 0.3, C.wallDark);
     b.block(17.5, 25.5, 3, 3.3, 3, C.concrete);
     b.box(15.85, 2.25, 22.75, 0.3, 4.5, 2.5, C.wallDark);
-    b.pillar(7.5, 28.5, 0.1, 2.6, C.metal);
-    b.pillar(14, 28.5, 0.1, 2.6, C.metal);
-    b.pipeH(7.5, 28.5, 14, 28.5, 2.5);
+    b.pillar(-3, 23, 0.1, 2.6, C.metal);
+    b.pillar(3.5, 23, 0.1, 2.6, C.metal);
+    b.pipeH(-3, 23, 3.5, 23, 2.5);
+
+    // rappel house (3.2.0 phase 3, north east): a hollow 5.5 m block (x 21.5..26.5, z 26.5..29.5) with a ladder up its
+    // west face, a rappel point on the roof's south edge, a glazed window under it (kick through from the rope) and a
+    // doorway east; a chain-link fence north west of the platform
+    const RH = 5.5;
+    b.wall(21.5, 26.5, 23.4, 26.5, RH, C.wall, 0.3);
+    b.wall(24.6, 26.5, 26.5, 26.5, RH, C.wall, 0.3);
+    b.box(24, 0.5, 26.5, 1.2, 1.0, 0.3, C.wall);
+    b.box(24, (2.2 + RH) / 2, 26.5, 1.2, RH - 2.2, 0.3, C.wall);
+    b.windowAt(24, 1.6, 26.5, 1.2, 1.2, 0, { sill: 1.0, open: false, breakable: true });
+    b.wall(21.5, 26.35, 21.5, 29.65, RH, C.wallDark, 0.3);
+    b.wall(26.5, 26.35, 26.5, 27.4, RH, C.wallDark, 0.3);
+    b.wall(26.5, 28.5, 26.5, 29.65, RH, C.wallDark, 0.3);
+    b.box(26.5, (2.2 + RH) / 2, 27.95, 0.3, RH - 2.2, 1.1, C.wallDark);
+    b.wall(21.5, 29.5, 26.5, 29.5, RH, C.wall, 0.3);
+    b.box(24, RH + 0.1, 28, 5.3, 0.2, 3.3, C.concreteDark);
+    b.ladder(21.3, 28, 0, RH + 0.2, Math.PI / 2);
+    b.rappel(24, RH + 0.2, 26.35, Math.PI, RH + 0.2);
+    b.fence(-12, 26, -6, 26, 2.6);
+    // co-op team moves (3.2.0 phase 5): a 4.2 m block north (south face z 27.5), its lip out of reach alone - a boost
+    // from a braced team-mate at its foot, or the human ladder
+    b.block(4, 28.5, 3, 4.2, 2, C.concrete);
 
     const props: MapLayout['props'] = [];
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);

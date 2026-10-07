@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { approachPoint, lethalFromHold, pickTakedown, TAKEDOWN, type TakedownInput } from '../src/game/takedown';
+import { approachPoint, GRAB, GRAB_KINDS, lethalFromHold, pickTakedown, TAKEDOWN, type TakedownInput } from '../src/game/takedown';
 import { EXECUTE, executeStep, MARK, MarkSet } from '../src/game/marks';
 
 const base = (o: Partial<TakedownInput> = {}): TakedownInput => ({ state: 'ground', ax: 0, ay: 0, az: 0, vx: 0, vy: 0, vz: 1.2, vyaw: 0, vCalm: true, los: true, ...o });
@@ -90,5 +90,42 @@ describe('mark & execute', () => {
     expect(executeStep(3, 0).index).toBe(0);
     expect(executeStep(3, EXECUTE.perTarget * 1.5).index).toBe(1);
     expect(executeStep(3, EXECUTE.perTarget * 3 + 0.01).index).toBe(-1);
+  });
+});
+
+describe('Chaos Theory takedowns (3.2.0 phase 4)', () => {
+  it('drop: from a hang, a pipe, a split, a zipline or a rope onto a guard 1.2-5 m below within 1 m of the landing', () => {
+    for (const state of ['hang', 'pipe', 'split', 'zipline', 'rappel'] as const) {
+      const p = pickTakedown(base({ state, ay: 3, vy: 0, vz: 0.6 }));
+      expect(p?.kind, state).toBe('drop');
+      // the fall takes the time to fall that far
+      expect(p!.approach).toBeCloseTo(Math.sqrt((2 * 3) / 9.81), 2);
+    }
+    expect(pickTakedown(base({ state: 'split', ay: 1.0, vy: 0, vz: 0.5 }))).toBeNull();
+    expect(pickTakedown(base({ state: 'split', ay: 5.5, vy: 0, vz: 0.5 }))).toBeNull();
+    expect(pickTakedown(base({ state: 'split', ay: 3, vy: 0, vz: 1.2 }))).toBeNull();
+    // the fall accelerates onto the aligned spot
+    const p = pickTakedown(base({ state: 'pipe', ay: 3, vy: 0, vz: 0.6 }))!;
+    const out = { x: 0, y: 0, z: 0 };
+    approachPoint(0, 3, 0, p, 0.5, out);
+    expect(out.y).toBeCloseTo(3 - 3 * 0.25, 5);
+  });
+  it('a hang still pulls a guard standing at the lip above (ledge pull)', () => {
+    expect(pickTakedown(base({ state: 'hang', ay: 0, vy: 1.8, vz: 0.5 }))?.kind).toBe('below');
+  });
+  it('inverted on a pipe: a guard right beneath within 0.9 m', () => {
+    const p = pickTakedown(base({ state: 'inverted', ay: 1.9, vy: 0, vz: 0.5 }));
+    expect(p?.kind).toBe('inverted');
+    expect(p!.approach).toBe(0);
+    expect(p!.victimTo!.y).toBeGreaterThan(0);
+    expect(pickTakedown(base({ state: 'inverted', ay: 1.9, vy: 0, vz: 1.1 }))).toBeNull();
+    expect(pickTakedown(base({ state: 'inverted', ay: 4, vy: 0, vz: 0.3 }))).toBeNull();
+  });
+  it('the grab replaces the instant takedown from behind; its rules', () => {
+    expect(GRAB_KINDS).toContain('behind');
+    expect(GRAB.maxGear).toBe(2);
+    expect(GRAB.spreadMul).toBeCloseTo(1.2);
+    expect(GRAB.shoveStagger).toBeCloseTo(1.0);
+    expect(GRAB.hesitate).toBeCloseTo(1.5);
   });
 });

@@ -11,7 +11,7 @@ import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen } from '../ui/screens/pauseScreen';
-import { DamageRegistry } from './damage';
+import { DamageRegistry, type Damageable } from './damage';
 import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
 import { Explosions } from '../weapons/explosions';
@@ -44,12 +44,15 @@ import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
 import { MOBILE_PRESET_IDS, PRESET_IDS, VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
-import { CT, MOVEMENT } from '../config/movement';
+import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
 import { PIPE, SPLIT } from '../player/splitJump';
+import { GRAB } from './takedown';
+import { TeamController, type TeamMate } from './teamController';
+import type { TeamKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
@@ -121,6 +124,12 @@ export interface NetAttachment {
   onEnd?(won: boolean, subtitle: string): void;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
+  /** (3.2.0 phase 5) Team-mates for team moves (co-op: everyone; TDM: the same side). */
+  teamMates?(): readonly TeamMate[];
+  /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
+  teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number): void;
+  /** (3.2.0 phase 5) End the human ladder (either player). */
+  teamEnd?(): void;
   /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
@@ -241,6 +250,8 @@ export class GameState implements AppState {
   /** Mark & Execute marks and charges; melee takedowns; the execute sequence. */
   readonly marks = new MarkSet();
   readonly takedown: TakedownController;
+  /** (3.2.0 phase 5) Co-op team moves (brace, boost, human ladder). */
+  readonly team: TeamController;
   readonly execute: ExecuteController;
   /** Suit and HQ effects for this session. */
   readonly suit: SuitStats;
@@ -355,6 +366,7 @@ export class GameState implements AppState {
     this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
+    this.team = new TeamController(this);
     this.execute = new ExecuteController(this);
     this.gadgets = new GadgetSystem(this);
     this.vision.sonarAllowed = this.difficultyDef.sonar;
@@ -932,7 +944,7 @@ export class GameState implements AppState {
     const carrying = this.stealth?.carrying ?? false;
     // a takedown or an execute running (from the last step): cover and traversal stand aside
     const busy = this.takedown.active !== null || this.execute.running !== null;
-    if (!this.traversal.active && !carrying && !busy) this.cover.fixedUpdate(dt, inp);
+    if (!this.traversal.active && !carrying && !busy && !this.team.active) this.cover.fixedUpdate(dt, inp);
     // cover shot away / destroyed under the player: stumble out of it
     if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
     // Y / E is contextual: an interactable in reach takes it, else it traverses
@@ -947,7 +959,10 @@ export class GameState implements AppState {
     ti.useHeldT = inp.heldTime('interact');
     ti.sprintHeld = inp.down('dash');
     const offer = this.takedown.offer !== null || this.execute.ready;
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none', this.cover.exitDir);
+    // (3.2.0 phase 5) team moves come after a takedown on offer, before traversal
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
+    if (this.team.active) this.traversal.hint = null;
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none' || this.team.active, this.cover.exitDir);
     // the Chaos Theory forward roll is heard close by
     if (this.traversal.forwardRolls !== this.rollSeen) {
       this.rollSeen = this.traversal.forwardRolls;
@@ -962,23 +977,36 @@ export class GameState implements AppState {
     if (sidearm) {
       const a = ac.m.anchor!;
       const inverted = a.kind === 'pipeH';
-      const yaw = inverted ? pl.controller.yaw + Math.PI : pl.controller.yaw;
-      pl.attachAim = inverted
-        ? { yaw, range: PIPE.aimYaw, pitchMin: PIPE.pitchMin, pitchMax: PIPE.pitchMax, inverted: true }
-        : { yaw, range: SPLIT.aimYaw, pitchMin: SPLIT.pitchMin, pitchMax: SPLIT.pitchMax, inverted: false };
+      if (a.kind === 'rappel') pl.attachAim = { yaw: Math.atan2(a.nx, a.nz), range: RAPPEL.aimYaw, pitchMin: RAPPEL.pitchMin, pitchMax: RAPPEL.pitchMax, inverted: false };
+      else {
+        const yaw = inverted ? pl.controller.yaw + Math.PI : pl.controller.yaw;
+        pl.attachAim = inverted
+          ? { yaw, range: PIPE.aimYaw, pitchMin: PIPE.pitchMin, pitchMax: PIPE.pitchMax, inverted: true }
+          : { yaw, range: SPLIT.aimYaw, pitchMin: SPLIT.pitchMin, pitchMax: SPLIT.pitchMax, inverted: false };
+      }
     } else pl.attachAim = null;
-    const draw = sidearm && (pl.ads || inp.down('ads') || inp.down('fire'));
-    this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null, draw);
-    this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : 1;
+    // (3.2.0 phase 4) holding a hostage: the sidearm one-handed over their shoulder (aim or fire draws it)
+    const grabHold = this.takedown.hostage !== null;
+    const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads') || inp.down('fire'));
+    // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
+    const teamHands = this.team.active && this.team.state !== 'top';
+    this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
+    this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : grabHold ? GRAB.spreadMul : 1;
+    this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
     this.player.cam.attach = this.traversal.cameraPreset;
     this.player.cam.attachYaw = this.player.controller.yaw;
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.stealth?.fixedUpdate();
     // Mark & Execute, then takedowns (Y / E: a takedown on offer, else execute when ready, else the rest)
     // (co-op clients: takedowns and Mark & Execute on the host's enemies, through their puppets)
-    if (!this.pvp) {
-      const execPressed = inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached);
-      const executing = this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
+    // (3.2.0 phase 4: PvP gets the drop, ledge pull and inverted takedowns on opponents - no grab, no Mark & Execute)
+    {
+      const execPressed = !this.pvp && !this.takedown.active && (inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached));
+      // (3.2.0) B shoves a held hostage away (and is not a crouch then)
+      this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
+      if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
+      this.takedown.grabAllowed = !this.pvp;
+      const executing = !this.pvp && this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
       if (!executing) this.takedown.fixedUpdate(dt, inp.pressed('interact') && !execPressed, inp.down('interact'));
     }
     this.suppression.update(dt);
@@ -1002,7 +1030,11 @@ export class GameState implements AppState {
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
       const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched', c.dashing && c.steps === 'free') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
       if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
-      this.noise = Math.max(steps, this.evNoise);
+      // (3.2.0) climbing a fence above a quiet gear rattles it
+      const ac2 = this.traversal.attachCtl;
+      const rattle = ac2.m.kind === 'fence' && ac2.fenceMoving && c.gear > FENCE.quietGear ? FENCE.rattle * this.suit.noise : 0;
+      if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle);
+      this.noise = Math.max(steps, rattle, this.evNoise);
     }
     this.updateLight(dt);
     this.updateVision(dt);
@@ -1686,12 +1718,25 @@ export class GameState implements AppState {
       w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
     } else if (!(stateText && seg)) w.set('vault', null, 0, 0);
     this.anchorPrompts();
+    // (3.2.0 phase 5) a braced team-mate in reach: on their shoulders
+    const tOff = this.team.offer;
+    if (tOff && !this.takedown.offer) {
+      const ok = this.project(tOff.mate.pos.x, tOff.mate.pos.y + 1.6, tOff.mate.pos.z);
+      w.set('vault', ok ? (tOff.boost ? 'Boost (hold: ladder)' : 'Human ladder (hold)') : null, this.scr.x, this.scr.y);
+    }
+    this.drawRope();
     // takedown: on the victim, above the head
     const off = this.takedown.active ? null : this.takedown.offer;
+    const host = this.takedown.hostage;
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      w.set('takedown', ok ? (off.lethalOnly ? 'Lethal takedown' : 'Takedown') : null, this.scr.x, this.scr.y);
+      const lbl = off.lethalOnly ? 'Lethal takedown' : off.plan.kind === 'behind' && !off.e.def.quadruped && !this.pvp ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
+    } else if (host && this.takedown.active?.grab?.strikeT === -1) {
+      // (3.2.0) holding a hostage: tap knocks out, hold kills
+      const ok = this.project(host.pos.x, host.pos.y + 1.95 * host.def.scale, host.pos.z);
+      w.set('takedown', ok ? 'Knock out (hold: kill)' : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
     const ctl = this.player.controller;
     // speed gear: pips by the tactical strip after a change; on touch the rocker shows it all the time
@@ -1728,15 +1773,19 @@ export class GameState implements AppState {
       const hy = (rig.reachL.y + rig.reachR.y) / 2;
       const hz = (rig.reachL.z + rig.reachR.z) / 2;
       // climb up: on the lip above the hands; (3.2.0) on a horizontal pipe: legs up / invert / curl up
-      const pipeY = a.kind === 'pipeH' && on && !ac.jump && !ac.pipe.busy ? (ac.pipe.mode === 'hands' ? ATTACH_LABEL.legsUp! : ac.pipe.mode === 'legsUp' ? ATTACH_LABEL.invert! : ATTACH_LABEL.curlUp!) : null;
+      let pipeY = a.kind === 'pipeH' && on && !ac.jump && !ac.pipe.busy ? (ac.pipe.mode === 'hands' ? ATTACH_LABEL.legsUp! : ac.pipe.mode === 'legsUp' ? ATTACH_LABEL.invert! : ATTACH_LABEL.curlUp!) : null;
+      // (3.2.0 phase 3) a rope: kick out / through the window beside it; a fence: flip over at the top
+      if (a.kind === 'rappel' && on) pipeY = ac.ropeWindow ? ATTACH_LABEL.kickThrough! : ac.swingT < 0 ? ATTACH_LABEL.kickOut! : null;
+      if (a.kind === 'fence' && on) pipeY = ac.fenceTop ? ATTACH_LABEL.flipOver! : null;
       if (on && ac.canClimb && !ac.jump && this.project(hx, hy + 0.12, hz)) w.set('vault', ATTACH_LABEL.climbUp!, this.scr.x, this.scr.y);
       else if (pipeY && a.kind === 'pipeH' && this.project(this.player.position.x, a.hangHeight + 0.15, this.player.position.z)) w.set('vault', pipeY, this.scr.x, this.scr.y);
+      else if (pipeY && (a.kind === 'rappel' || a.kind === 'fence') && this.project(this.player.position.x, this.player.position.y + 1.7, this.player.position.z)) w.set('vault', pipeY, this.scr.x, this.scr.y);
       else w.set('vault', null, 0, 0);
       const j = on ? ac.jump : null;
       if (j && this.project(j.grip.x, j.grip.y + 0.1, j.grip.z)) w.set('jumpTo', ATTACH_LABEL.jump!, this.scr.x, this.scr.y);
       else w.set('jumpTo', null, 0, 0);
       // drop (slide on a ladder): under the hands
-      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : a.kind === 'pipeH' && ac.pipe.busy ? null : a.kind === 'pipeH' && ac.pipe.mode === 'legsUp' ? 'Hands' : ATTACH_LABEL.drop!;
+      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : a.kind === 'rappel' ? (a.length - m.s <= RAPPEL.unhookHeight ? ATTACH_LABEL.unhook! : null) : a.kind === 'pipeH' && ac.pipe.busy ? null : a.kind === 'pipeH' && ac.pipe.mode === 'legsUp' ? 'Hands' : ATTACH_LABEL.drop!;
       const dropAt = a.kind === 'split' || (a.kind === 'pipeH' && ac.pipe.mode !== 'hands') ? this.player.position : null;
       if (on && lbl && (dropAt ? this.project(dropAt.x, dropAt.y + 0.3, dropAt.z) : this.project(hx, hy - 0.5, hz))) w.set('drop', lbl, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);
@@ -1778,6 +1827,12 @@ export class GameState implements AppState {
         // between the walls, where the feet will brace
         g.set(a.a.x + a.tx * h.s, a.a.y + 1.9, a.a.z + a.tz * h.s);
         break;
+      case 'rappel':
+        g.set(a.top.x - a.nx * 0.25, a.top.y + 0.7, a.top.z - a.nz * 0.25);
+        break;
+      case 'fence':
+        g.set(a.a.x + a.tx * h.s, feetY + 1.3, a.a.z + a.tz * h.s);
+        break;
       case 'ladder':
         if (h.entry === 'top') g.set(a.top.x, a.top.y + 0.3, a.top.z);
         else g.set(a.base.x, feetY + 1.1, a.base.z);
@@ -1800,6 +1855,20 @@ export class GameState implements AppState {
   }
 
   private promptPt = new Vector3();
+
+  /** (3.2.0) The local player's rappel rope: anchor to harness while on it. */
+  private drawRope(): void {
+    const ropes = this.world.ropes;
+    const m = this.traversal.attachCtl.m;
+    const a = m.anchor;
+    if (a && a.kind === 'rappel' && !(m.phase === 'exit' && m.progress > 0.6)) {
+      const h = this.player.rig.hips;
+      h.computeWorldMatrix(true);
+      const p = h.getAbsolutePosition();
+      ropes.set('local', a.top.x - a.nx * 0.25, a.top.y + 0.55, a.top.z - a.nz * 0.25, p.x, p.y, p.z);
+    } else ropes.hide('local');
+    ropes.flush();
+  }
 
   /** Touch held on a prompt: at a closed vent, holding it is holding the use button (unscrew) and a quick tap kicks
    *  (the press goes in at once; letting go releases the use button). */

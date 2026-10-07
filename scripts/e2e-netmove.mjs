@@ -1,6 +1,6 @@
 // 3.2.0 phase 1: networked movement state. Two pages over ?net=local, Free Roam on Proving Grounds: the client
 // takes low cover (and peeks over), high cover (and leans out at an edge), climbs a ladder and a drainpipe, hangs from a pipe and a lip, crawls a
-// duct, rides a zipline and rolls; the host's copy of the client is in the same mode with the hands, feet and head
+// duct, rides a zipline and rolls; team moves (phase 5: brace + boost, the human ladder, a denial); the host's copy of the client is in the same mode with the hands, feet and head
 // within 10 cm of the client's own pose. PvP (Team Deathmatch): a host shot at a client hanging off a lip hits
 // the posed head.
 import { launch, openPage, assert } from './e2e-lib.mjs';
@@ -201,6 +201,87 @@ try {
   await until(B, () => !window.__app.current.traversal.attached, null, 12000, 'zipline ends');
   await reset();
 
+  console.log('3.2.0 phase 2: split, wall jump, pipe legs up / inverted');
+  const tapB = async (b) => { await GB((b) => window.__pad.set(b, 1), b); await wait(250); await GB((b) => window.__pad.set(b, 0), b); await wait(300); };
+  /** Press until the client reacts (a real-time press can land on a slow frame). */
+  const pressUntil = async (b, fn) => {
+    for (let k = 0; k < 4; k++) {
+      await tapB(b);
+      if (await GB(fn)) return;
+    }
+  };
+  const attachedNow = () => window.__app.current.traversal.attached;
+  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(10, 0, 24.8), Math.PI / 2); g.player.cam.yaw = Math.PI / 2; });
+  await wait(600);
+  await until(B, () => window.__app.current.traversal.attachCtl.hint?.anchor.kind === 'split', null, 5000, 'split offered');
+  await pressUntil(3, attachedNow);
+  await until(B, () => window.__app.current.traversal.attach.kind === 'split' && window.__app.current.traversal.attach.phase === 'on', null, 6000, 'client in the split');
+  await compare('split', 'split');
+  // the sidearm aimed from it
+  await GB(() => window.__pad.set(6, 1));
+  await until(A, () => (window.__app.current.net.remotes.values().next().value.state.mv.r ?? 0) > 0.9, null, 6000, 'host sees the split aim');
+  await compare('aiming from the split', 'split', 0.1, ['wristR', 'headNode', 'ankleL', 'ankleR']);
+  await GB(() => window.__pad.set(6, 0));
+  await reset();
+  await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(17.5, 0, 23.3), 0); g.player.cam.yaw = 0; });
+  await wait(600);
+  await until(B, () => window.__app.current.traversal.attachCtl.hint?.entry === 'wall', null, 5000, 'wall jump offered');
+  await GA(() => { window.__seen = new Set(); const r = window.__app.current.net.remotes.values().next().value; const tick = () => { window.__seen.add(r.avatar.mode); if (window.__seen.size < 50) requestAnimationFrame(tick); }; tick(); });
+  await pressUntil(3, attachedNow);
+  await until(A, () => window.__seen.has('wallJump'), null, 6000, 'host sees the wall jump');
+  assert(true, 'wall jump mode mirrored');
+  await compare('hanging after the wall jump', 'ledge', 0.1, ['wristL', 'wristR', 'headNode']);
+  await reset();
+  await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(0.5, 0, 22.7), 0); g.player.cam.yaw = 0; });
+  await wait(600);
+  await until(B, () => window.__app.current.traversal.attachCtl.hint?.anchor.kind === 'pipeH', null, 5000, 'pipe offered');
+  await pressUntil(3, attachedNow);
+  await until(B, () => window.__app.current.traversal.attach.phase === 'on', null, 5000, 'on the pipe');
+  // (a real-time press can land on a busy frame: press again until the change starts)
+  const pipeUp = async (want) => {
+    for (let k = 0; k < 4; k++) {
+      await tapB(3);
+      if (await GB((w) => { const p = window.__app.current.traversal.attachCtl.pipe; return p.busy || p.mode === w; }, want)) return;
+    }
+  };
+  await pipeUp('legsUp');
+  await until(B, () => window.__app.current.traversal.attachCtl.pipe.mode === 'legsUp' && !window.__app.current.traversal.attachCtl.pipe.busy, null, 5000, 'legs up').catch(async (e) => {
+    console.log(await GB(() => { const g = window.__app.current; const ac = g.traversal.attachCtl; return JSON.stringify({ kind: ac.m.kind, phase: ac.m.phase, pipe: ac.pipe.mode, jump: ac.jump?.anchor.kind ?? null, offer: !!g.takedown.offer, exec: g.execute.ready, it: !!g.interactTarget }); }));
+    throw e;
+  });
+  await compare('pipe legs up', 'pipeH', 0.1, ['wristL', 'wristR', 'ankleL', 'ankleR', 'headNode']);
+  await pipeUp('inverted');
+  await until(B, () => window.__app.current.traversal.attachCtl.pipe.mode === 'inverted' && !window.__app.current.traversal.attachCtl.pipe.busy, null, 5000, 'inverted');
+  await compare('pipe inverted', 'pipeH', 0.1, ['ankleL', 'ankleR', 'headNode']);
+  const hb = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; const h = r.avatar.rig.headNode.getAbsolutePosition(); return { head: h.y, feet: r.feet.y }; });
+  const hipsY = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; r.avatar.rig.hips.computeWorldMatrix(true); return r.avatar.rig.hips.getAbsolutePosition().y; });
+  assert(hb.head < hipsY - 0.5, `the host poses the client upside down (head ${hb.head.toFixed(2)} m, hips ${hipsY.toFixed(2)} m)`);
+  await reset();
+
+  console.log('3.2.0 phase 3: rappel, fence');
+  await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(24, 5.72, 26.9), Math.PI); g.player.cam.yaw = Math.PI; });
+  await wait(600);
+  await until(B, () => window.__app.current.traversal.attachCtl.hint?.anchor.kind === 'rappel', null, 5000, 'rappel offered');
+  await pressUntil(3, attachedNow);
+  await until(B, () => window.__app.current.traversal.attach.phase === 'on', null, 6000, 'on the rope');
+  await GB(() => { window.__pad.axis(1, 1); });
+  await wait(800);
+  await GB(() => { window.__pad.axis(1, 0); window.__app.current.traversal.attachCtl.u = 0.6; });
+  await compare('rappel', 'rappel', 0.1, ['wristL', 'wristR', 'ankleL', 'ankleR', 'headNode']);
+  const rope = await GA(() => window.__app.current.world.ropes['keys'].filter((k) => k && k.startsWith('remote')).length);
+  assert(rope === 1, `the host draws the client's rope (${rope})`);
+  await reset();
+  await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(-9, 0.1, 25.3), 0); g.player.cam.yaw = 0; });
+  await wait(600);
+  await until(B, () => window.__app.current.traversal.attachCtl.hint?.anchor.kind === 'fence', null, 5000, 'fence offered');
+  await pressUntil(3, attachedNow);
+  await GB(() => { window.__pad.axis(1, -1); });
+  await wait(700);
+  await GB(() => { window.__pad.axis(1, 0); });
+  await compare('fence', 'fence', 0.1, ['wristL', 'wristR', 'ankleL', 'ankleR', 'headNode']);
+  await reset();
+
   console.log('committed moves: a forward roll');
   // sprint (gear 6) along open floor, tap crouch
   await GB(() => { const g = window.__app.current; g.player.controller.gears.gear = 6; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; window.__pad.axis(1, -1); });
@@ -221,6 +302,70 @@ try {
   await GB(() => window.__pad.axis(1, 0));
   await until(A, () => window.__seen.has('roll'), null, 6000, 'host sees the roll');
   assert(true, 'host replays the roll');
+  await reset();
+
+  console.log('team moves: brace + boost (host climbs), human ladder (client climbs), denial');
+  // the 4.2 m block north of Proving (south face z 27.5, x 2.5..5.5): the bottom braces with its back to it
+  const placeTeam = async (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); g.cover.reset(); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
+  const brace = async (P, label) => {
+    await P.evaluate(() => window.__pad.set(3, 1));
+    await until(P, () => window.__app.current.team.state === 'brace', null, 4000, `${label} braces`).catch(async (e) => { console.log(await P.evaluate(() => { const g = window.__app.current; return JSON.stringify({ mates: g.net.teamMates().map((m) => [m.id, m.pos.x, m.pos.z, m.mode]), pos: g.player.controller.pos, yaw: g.player.controller.yaw }); })); throw e; });
+    await P.evaluate(() => window.__pad.set(3, 0));
+  };
+  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await GB(() => { for (const a of window.__app.current.net.avatars?.values?.() ?? []) a.allowTeleport?.(3); });
+  await placeTeam(B, 4, 27.05, Math.PI);
+  const posB = () => GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify([c.pos.x.toFixed(2), c.pos.z.toFixed(2), g.traversal.kind, !!c.override, g.player.alive]); });
+  if (process.env.LOG) console.log('B after tp', await posB());
+  await placeTeam(A, 4, 26.2, 0);
+  if (process.env.LOG) console.log('B after A tp', await posB());
+  await wait(600);
+  if (process.env.LOG) console.log(await GB(() => { const c = window.__app.current.player.controller; return JSON.stringify({ pos: c.pos, yaw: c.yaw, sp: c.speed, axes: navigator.getGamepads()[0]?.axes }); }));
+  await brace(B, 'client');
+  await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'brace', null, 6000, 'host sees the client braced');
+  await until(A, () => !!window.__app.current.team.offer?.boost, null, 4000, 'host offered a boost').catch(async (e) => { console.log(await GA(() => JSON.stringify(window.__app.current.team.offer && { mate: window.__app.current.team.offer.mate.id }))); throw e; });
+  await GA(() => window.__pad.set(3, 1));
+  await wait(120);
+  await GA(() => window.__pad.set(3, 0));
+  await until(A, () => window.__app.current.team.count.boosts === 1, null, 4000, 'host boosted').catch(async (e) => { console.log(await GA(() => { const t = window.__app.current.team; return JSON.stringify({ c: t.count, why: t.lastDenied, st: t.state, offer: !!t.offer }); })); throw e; });
+  await until(B, () => window.__app.current.team.state === 'assist', null, 4000, 'client assists');
+  await until(A, () => window.__app.current.traversal.attach.phase === 'on' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 6000, 'host on the 4.2 m lip');
+  const lipY = await GA(() => window.__app.current.traversal.attach.anchor.top);
+  assert(Math.abs(lipY - 4.2) < 0.1, `the boost puts the host on the 4.2 m lip (${lipY})`);
+  await until(B, () => window.__app.current.team.state === 'none', null, 4000, 'client free after the boost');
+
+  // swap: the host braces, the client asks for the human ladder (Y held) and grabs the lip from the shoulders
+  await GA(() => { const g = window.__app.current; g.traversal.detach('drop'); });
+  await wait(800);
+  await placeTeam(A, 4, 27.05, Math.PI);
+  await placeTeam(B, 4, 26.2, 0);
+  await wait(600);
+  await brace(A, 'host');
+  await until(B, () => !!window.__app.current.team.offer, null, 6000, 'client offered the host');
+  await GB(() => window.__pad.set(3, 1));
+  await until(B, () => window.__app.current.team.state === 'ladderUp' || window.__app.current.team.state === 'top', null, 4000, 'client climbs onto the shoulders');
+  await GB(() => window.__pad.set(3, 0));
+  await until(A, () => window.__app.current.team.state === 'bottom', null, 4000, 'host is the bottom');
+  await until(B, () => window.__app.current.team.state === 'top', null, 4000, 'client on top');
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.avatar.mode === 'stacked' && r.avatar.pos.y > 1.2; }, null, 6000, 'host sees the client on its shoulders');
+  // free to aim up there; Y grabs the lip
+  await GB(() => { window.__app.current.player.cam.yaw = 0; window.__pad.set(3, 1); });
+  await wait(120);
+  await GB(() => window.__pad.set(3, 0));
+  await until(B, () => window.__app.current.traversal.attach.phase !== 'none' && window.__app.current.traversal.attach.anchor?.kind === 'ledge', null, 6000, 'client grabs the lip from the top');
+  await until(A, () => window.__app.current.team.state === 'none', null, 4000, 'host free once the client is off');
+  assert(true, 'human ladder: the client climbs the braced host, the host sees it stacked, Y grabs the lip from the top');
+
+  // denials: the host refuses a request without a braced partner
+  await GB(() => { const g = window.__app.current; g.traversal.detach('drop'); });
+  await wait(800);
+  const hostId = await GA(() => window.__coop.session.selfId);
+  const before = await GB(() => window.__app.current.team.count.denied);
+  await wait(1100);
+  await GB((id) => window.__app.current.net.teamRequest('boost', id, -1, 0, 0), hostId);
+  await until(B, (n) => window.__app.current.team.count.denied > n, before, 4000, 'request denied');
+  const why = await GB(() => window.__app.current.team.lastDenied);
+  assert(['notBraced', 'far', 'noTarget', 'busy'].includes(why), `a request without a braced partner is denied (${why})`);
   await reset();
 
   console.log('PvP: a client hanging off a lip is hit in the posed head');

@@ -32,10 +32,20 @@ export const MOVE_MODES = [
   // 3.2.0 phase 2
   'split',
   'wallJump',
+  // 3.2.0 phase 3
+  'rappel',
+  'fence',
+  // 3.2.0 phase 4: holding a guard (`tid`) in front as a hostage
+  'grab',
+  // 3.2.0 phase 5: team moves - braced for a team-mate, boosted up (committed), the human ladder (sub 1 top / 2 bottom,
+  // `tid` the partner)
+  'brace',
+  'boost',
+  'stacked',
 ] as const;
 export type MoveMode = (typeof MOVE_MODES)[number];
 
-export const ATTACHED_MODES: readonly MoveMode[] = ['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump'];
+export const ATTACHED_MODES: readonly MoveMode[] = ['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump', 'rappel', 'fence'];
 export const COMMITTED_MODES: readonly MoveMode[] = ['step', 'vault', 'mantle', 'drop', 'hop', 'roll', 'windowVault', 'landing'];
 
 export const isAttachedMode = (m: MoveMode): boolean => ATTACHED_MODES.includes(m);
@@ -75,6 +85,8 @@ export interface MoveState {
   /** Weapon raise 0..1 and the aim's twist from the body (rad): the upper body follows the aim when raised. */
   r: number;
   ay: number;
+  /** (3.2.0 phase 3) The attach controller's second axis: a rope's sideways offset, a fence's climb height (m). */
+  u?: number;
   /** Weapon ready position (0 low, 1 high, 2 compressed; `WeaponCarry`), so the lowered gun is carried alike. */
   rd?: number;
   /** Cover: the hiding curl 0..1 (`CharacterRig.curl`), so the remote hides (and is exposed) exactly as the owner. */
@@ -110,7 +122,7 @@ export const ATTACH_SUB = { phaseMask: 3, face: 4, exitShift: 3, pipeShift: 6, p
 export const ATTACH_PHASES = ['enter', 'on', 'exit'] as const;
 /** Exit poses (attach sub bits 3..5): the family itself, a climb up, a mantle off a ladder top, through a vent,
  *  (3.2.0) the flip out of an inverted hang. */
-export const EXIT_POSES = ['none', 'climbUp', 'mantle', 'ventDrop', 'drop', 'flip'] as const;
+export const EXIT_POSES = ['none', 'climbUp', 'mantle', 'ventDrop', 'drop', 'flip', 'fenceFlip'] as const;
 export type ExitPose = (typeof EXIT_POSES)[number];
 export const PIPE_MODES = ['hands', 'legsUp', 'inverted'] as const;
 export type PipeModeName = (typeof PIPE_MODES)[number];
@@ -172,6 +184,7 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096): MoveState |
   };
   if (isAttachedMode(m) && Array.isArray(o.gp) && o.gp.length === 4)
     out.gp = (o.gp as unknown[]).map((v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(-WORLD, Math.min(WORLD, v)) : NaN)) as [number, number, number, number];
+  if ((m === 'rappel' || m === 'fence') && typeof o.u === 'number') out.u = num(o.u, -10, 10, 0);
   if (typeof o.rd === 'number' && Number.isFinite(o.rd)) out.rd = Math.max(0, Math.min(2, Math.round(o.rd)));
   if (m === 'cover' && typeof o.cu === 'number') out.cu = num(o.cu, 0, 1, 0);
   if (m === 'cover' && typeof o.lf === 'number') out.lf = num(o.lf, -1, 1, 0);
@@ -201,6 +214,7 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096): MoveState |
 export function packMoveState(mv: MoveState): Record<string, unknown> {
   const o: Record<string, unknown> = { m: MOVE_MODES.indexOf(mv.m), a: mv.a, s: round(mv.s), sub: mv.sub, ph: round(mv.ph), tid: mv.tid, g: mv.g, r: round(mv.r), ay: round(mv.ay) };
   if (mv.rd !== undefined) o.rd = mv.rd;
+  if (mv.u !== undefined) o.u = round(mv.u);
   if (mv.cu !== undefined) o.cu = Math.round(mv.cu * 100) / 100;
   if (mv.lf !== undefined) o.lf = round(mv.lf);
   if (mv.gp) o.gp = mv.gp.map((v) => (Number.isNaN(v) ? null : round(v)));
@@ -295,6 +309,24 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
     case 'split':
       out.traverse = 'split';
       return out;
+    case 'rappel': {
+      const { phase, exit } = unpackAttachSub(mv.sub);
+      out.traverse = phase === 'exit' && exit === 'mantle' ? 'mantle' : 'rappel';
+      out.traverseT = phase === 'on' || out.traverse === 'mantle' ? mv.ph : 0;
+      if (phase !== 'on' && out.traverse === 'rappel') out.traverseT = 0;
+      return out;
+    }
+    case 'fence': {
+      const { phase, exit } = unpackAttachSub(mv.sub);
+      if (phase === 'exit' && exit === 'fenceFlip') {
+        out.traverse = 'vault';
+        out.traverseT = mv.ph;
+      } else {
+        out.traverse = 'climb';
+        out.traverseT = ((mv.u ?? 0) * 1.6 + mv.s * 1.2) % 1;
+      }
+      return out;
+    }
     case 'wallJump':
       out.traverse = 'wallKick';
       out.traverseT = mv.ph;
@@ -344,6 +376,17 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
       return out;
     case 'takedown':
       out.melee = mv.ph;
+      return out;
+    case 'brace':
+      out.traverse = 'brace';
+      return out;
+    case 'boost':
+      out.traverse = 'climbUp';
+      out.traverseT = mv.ph;
+      return out;
+    case 'stacked':
+      // the bottom braces, the top stands on the shoulders
+      if (mv.sub === 2) out.traverse = 'brace';
       return out;
     default:
       return out;

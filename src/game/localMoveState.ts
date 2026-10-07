@@ -31,7 +31,25 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   delete out.lf;
   delete out.fp;
   delete out.gp;
+  delete out.u;
+  // (3.2.0 phase 5) a team move: braced, boosted, the human ladder
+  const tm = g.team.mode;
+  if (tm) {
+    out.m = tm;
+    out.tid = g.team.partner;
+    out.sub = tm === 'stacked' ? (g.team.state === 'bottom' ? 2 : 1) : 0;
+    out.ph = g.player.coverPose.traverse === 'climbUp' ? g.player.coverPose.traverseT : 0;
+    delete out.c;
+    return out;
+  }
   const td = g.takedown.active;
+  if (td && g.takedown.hostage) {
+    // (3.2.0) holding a hostage: free movement (walk), the guard held in front
+    out.m = 'grab';
+    out.tid = td.e.id;
+    delete out.c;
+    return out;
+  }
   if (td) {
     out.m = 'takedown';
     out.tid = td.e.id;
@@ -47,9 +65,11 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     out.s = m.s;
     const pp = ac.pipe;
     const pipeOn = m.kind === 'pipeH';
-    const exit: ExitPose = m.phase === 'exit' && ac.isFlipping ? 'flip' : (m.phase === 'exit' && EXIT_OF[pose.traverse]) || 'none';
+    const exit: ExitPose = m.phase === 'exit' && ac.isFlipping ? 'flip' : m.phase === 'exit' && ac.isFenceFlip ? 'fenceFlip' : (m.phase === 'exit' && EXIT_OF[pose.traverse]) || 'none';
     out.sub = packAttachSub(m.phase, m.face, exit, pipeOn ? (pp.to ? pp.from : pp.mode) : 'hands', pipeOn ? pp.to : null);
-    out.ph = pipeOn && pp.to && m.phase === 'on' ? pp.progress : m.progress;
+    out.ph = pipeOn && pp.to && m.phase === 'on' ? pp.progress : m.kind === 'rappel' && m.phase === 'on' ? Math.max(0, ac.swingT) : m.progress;
+    // (3.2.0 phase 3) a rope's sideways offset / a fence's climb height
+    if (m.kind === 'rappel' || m.kind === 'fence') out.u = ac.u;
     // at rest with every contact planted: the grips (the remote's own stepping may have ended elsewhere)
     if (m.phase === 'on' && Math.abs(m.v) < 0.01) {
       const gp = tr.attachCtl.grips.planted((gpBuf ??= [0, 0, 0, 0]));

@@ -110,7 +110,7 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(out).toMatchObject({ traverse: 'none', melee: 0.7 });
     poseFromMoveState(emptyMoveState(), 0, out);
     expect(out).toMatchObject({ cover: 'none', traverse: 'none', melee: -1 });
-    for (const m of MOVE_MODES) expect(isAttachedMode(m)).toBe(['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump'].includes(m));
+    for (const m of MOVE_MODES) expect(isAttachedMode(m)).toBe(['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump', 'rappel', 'fence'].includes(m));
   });
 
   it('grip weight eases in on enter, holds on, eases out on exit', () => {

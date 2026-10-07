@@ -277,7 +277,14 @@ export class PlayerController {
     this.prevPos.copyFrom(this.pos);
     this.renderPos.copyFrom(this.pos);
     if (yaw !== undefined) this.yaw = this.prevYaw = this.renderYaw = yaw;
+    // a teleport is no fall: no landing (roll / heavy) where it lands
+    this.airTop = feet.y;
+    this.fallSpeed = 0;
+    this.teleports++;
   }
+
+  /** Teleports so far (a committed traversal move in flight is dropped by one). */
+  teleports = 0;
 
   private setHeight(h: number): void {
     if (h === this.height) return;

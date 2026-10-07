@@ -32,7 +32,7 @@ import {
   WALK_STRAFE_R,
 } from './clips/locomotion';
 import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, COVER_TURN, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
-import { CLIMB, CLIMB_UP, CRAWL, HANG, PIPE_INVERTED, PIPE_LEGS_UP, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
+import { CLIMB, CLIMB_UP, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 
 /** The kneel with the right knee up (the clip has the left knee up): in cover the raised knee is on the wall
@@ -44,7 +44,7 @@ export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'c
 export type LowerState = (typeof LOWER_STATES)[number];
 /** Committed moves (vault .. hop) and the attached pose family (hang, climb, crawl: keyed over the climb
  *  cadence, `traverseT`). */
-export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop' | 'roll' | 'hang' | 'climb' | 'crawl' | 'climbUp' | 'ventDrop' | 'windowVault' | 'split' | 'wallKick' | 'pipeLegs' | 'pipeInv';
+export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop' | 'roll' | 'hang' | 'climb' | 'crawl' | 'climbUp' | 'ventDrop' | 'windowVault' | 'split' | 'wallKick' | 'pipeLegs' | 'pipeInv' | 'rappel' | 'brace';
 
 export interface AnimInput {
   /** Horizontal ground speed (m/s) and local movement direction (x right, z forward). */
@@ -303,7 +303,7 @@ export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.15, yaw: 0.24, x: 0.05 };
  *  muzzle angled down past the knee, clear of the raised thigh and the curled chest. */
 export const COVER_READY_KNEEL = { x: 0.12, y: 0.1, pitch: -0.25, yaw: 0.15 };
 
-const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, crawl: CRAWL, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED };
+const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, crawl: CRAWL, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED, rappel: RAPPEL_HANG, brace: BRACE };
 
 /** Active-clip slots for the debug overlay timeline. */
 export interface ClipSlot {
@@ -598,7 +598,7 @@ export class AnimGraph {
       overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
       this.slot(i.traverse, 1, i.traverseT);
       // (3.2.0) a sidearm aimed one-handed from a split / hanging inverted: the weapon hand takes the grip
-      if ((i.traverse === 'split' || i.traverse === 'pipeInv') && i.raise > 0) src[CH.grip] = Math.min(1, i.raise * 1.5);
+      if ((i.traverse === 'split' || i.traverse === 'pipeInv' || i.traverse === 'rappel') && i.raise > 0) src[CH.grip] = Math.min(1, i.raise * 1.5);
     }
     if (i.slide >= 0) {
       overClip(src, SLIDE, clamp(i.slide, 0, 1), 1);
@@ -791,7 +791,7 @@ export class AnimGraph {
     }
     // attached (hang, climb, crawl) the body belongs to the anchor pose and the hands to the grips: a weapon
     // stowed for it goes to its slot without the swap's reach
-    const attachedPose = i.traverse === 'hang' || i.traverse === 'climb' || i.traverse === 'crawl' || i.traverse === 'climbUp' || i.traverse === 'ventDrop' || i.traverse === 'split' || i.traverse === 'wallKick' || i.traverse === 'pipeLegs' || i.traverse === 'pipeInv';
+    const attachedPose = i.traverse === 'hang' || i.traverse === 'climb' || i.traverse === 'crawl' || i.traverse === 'climbUp' || i.traverse === 'ventDrop' || i.traverse === 'split' || i.traverse === 'wallKick' || i.traverse === 'pipeLegs' || i.traverse === 'pipeInv' || i.traverse === 'rappel' || i.traverse === 'brace';
     if (i.swap >= 0 && !attachedPose) {
       overClip(src, swapClipFor(i.swapFrom, i.swapTo), i.swap, 1);
       this.slot('swap', 1, i.swap);

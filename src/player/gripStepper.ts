@@ -64,7 +64,7 @@ export class GripStepper {
   }
 
   /** Advance swings and start a new one if a planted limb trails too far. `vel` = body rate (sign = direction). */
-  update(dt: number, body: number, vel: number): void {
+  update(dt: number, body: number, vel: number, decide = true): void {
     const c = this.cfg;
     for (let k = 0; k < 2; k++) {
       const g = k === 0 ? this.L : this.R;
@@ -76,6 +76,8 @@ export class GripStepper {
         this.steps++;
       }
     }
+    // (`decide` false: only finish the swings under way - a remote following the owner's grips)
+    if (!decide) return;
     // one limb at a time, but the next may set off once the other is half way (a quick hand-over-hand)
     for (let k = 0; k < 2; k++) {
       const g = k === 0 ? this.L : this.R;

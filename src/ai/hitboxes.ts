@@ -93,6 +93,15 @@ export class Hitboxes {
     n.position.set(hipsPos.x - ux * this.hipY, hipsPos.y - uy * this.hipY, hipsPos.z - uz * this.hipY);
   }
 
+  /**
+   * (3.2.0) Solid to bodies (the player's capsule) or not: a hostage held right in front of the operator must not push
+   * them back. Bullets still hit it either way.
+   */
+  setSolid(on: boolean): void {
+    const cap = this.shapes[0]!;
+    cap.filterMembershipMask = on ? G.ENEMY | G.ENEMY_HITBOX : G.ENEMY_HITBOX;
+  }
+
   setEnabled(on: boolean): void {
     if (on === this.enabled) return;
     this.enabled = on;

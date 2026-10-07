@@ -60,7 +60,7 @@ export interface AttachFraming {
   blend: number;
 }
 
-export type AttachCamera = 'hang' | 'ladder' | 'pipe' | 'pipeH' | 'duct' | 'zipline' | 'split' | 'pipeLegs' | 'inverted';
+export type AttachCamera = 'hang' | 'ladder' | 'pipe' | 'pipeH' | 'duct' | 'zipline' | 'split' | 'pipeLegs' | 'inverted' | 'rappel' | 'fence';
 
 export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
   // hanging: pulled back and lower, showing the drop
@@ -75,9 +75,12 @@ export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
   // (3.2.0) split jump: up between the walls, looking down the corridor (the pivot from the feet on the walls)
   split: { boom: 2.0, shoulder: 0.4, pivot: 0.75, pitch: -0.35, cone: Math.PI, blend: 0.3 },
   // pipe, legs up: under the pipe, looking along it
-  pipeLegs: { boom: 2.4, shoulder: 0.45, pivot: 1.05, pitch: -0.1, cone: Math.PI, blend: 0.35 },
+  pipeLegs: { boom: 2.4, shoulder: 0.45, pivot: 0.55, pitch: -0.1, cone: Math.PI, blend: 0.35 },
   // pipe, inverted: the camera stays upright at the hanging head's height
-  inverted: { boom: 2.3, shoulder: 0.45, pivot: 0.35, pitch: 0, cone: Math.PI, blend: 0.35 },
+  inverted: { boom: 2.3, shoulder: 0.45, pivot: -0.3, pitch: 0, cone: Math.PI, blend: 0.35 },
+  // (3.2.0 phase 3) rappel: out from the wall, looking down the drop; fence: over the shoulder up the mesh
+  rappel: { boom: 2.8, shoulder: 0.5, pivot: 1.2, pitch: -0.3, cone: Math.PI, blend: 0.3 },
+  fence: { boom: 2.2, shoulder: 0.5, pivot: 1.4, pitch: 0.05, cone: 2.4, blend: 0.25 },
 };
 
 /** Blend a framing (in place) from the hip framing towards an attached preset by `w` 0..1. */

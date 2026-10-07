@@ -8,6 +8,9 @@ import { ductPoint, HANG, type Anchor, type Ledge } from '../world/anchors';
 import { attachPose, PIPE_HIPS, type AttachPose } from './attach';
 import { GripStepper, type GripLimb } from './gripStepper';
 import type { PipeMode } from './splitJump';
+import { RAPPEL } from '../config/movement';
+
+const RAPPEL_STANDOFF = RAPPEL.standoff;
 
 /** Hand / foot swing times (s). */
 export const HAND_SWING = 0.2;
@@ -52,6 +55,10 @@ export class AttachGrips {
   pipeK = 1;
   /** (3.2.0) Aiming a sidearm from a split / inverted: the right hand leaves its grip for the weapon. */
   aimFree = 0;
+  /** (3.2.0 phase 3) The second axis (rope: sideways along the wall; fence: the feet's climb height) and, on a rope,
+   *  how far the kick-out has swung the body off the wall (m). */
+  u = 0;
+  outOff = 0;
   private tA = { x: 0, y: 0, z: 0, w: 0 };
   private tB = { x: 0, y: 0, z: 0, w: 0 };
   private tC = { x: 0, y: 0, z: 0, w: 0 };
@@ -152,7 +159,7 @@ export class AttachGrips {
    * Per render frame: step the contacts to the body parameter `s` moving at `v` (along the anchor, signed) and write
    * the rig's world targets at blend weight `w`. `vent` while lowering through a ceiling vent.
    */
-  update(dt: number, a: Anchor, s: number, v: number, face: number, w: number, rig: GripRig, vent: VentExit | null = null): void {
+  update(dt: number, a: Anchor, s: number, v: number, face: number, w: number, rig: GripRig, vent: VentExit | null = null, decide = true): void {
     const body = this.body(a, s);
     if (a.kind === 'ladder' || a.kind === 'pipeV') {
       // quicker reaches the quicker the climb (a sprint up a ladder)
@@ -160,8 +167,8 @@ export class AttachGrips {
       this.hands.cfg.swingTime = Math.min(HAND_SWING, 0.18 * (0.9 / sp));
       this.feet.cfg.swingTime = Math.min(FOOT_SWING, 0.22 * (0.9 / sp));
     }
-    this.hands.update(dt, body, a.kind === 'duct' ? v * face : v);
-    if (a.kind === 'ladder' || a.kind === 'pipeV' || (a.kind === 'pipeH' && this.pipeTo === 'legsUp')) this.feet.update(dt, body, v);
+    this.hands.update(dt, body, a.kind === 'duct' ? v * face : v, decide);
+    if (a.kind === 'ladder' || a.kind === 'pipeV' || (a.kind === 'pipeH' && this.pipeTo === 'legsUp')) this.feet.update(dt, body, v, decide);
     this.apply(a, s, face, w, dt, rig, vent);
   }
 
@@ -205,14 +212,15 @@ export class AttachGrips {
     const f = this.feet.cfg;
     const len = hyp2(a.b.x - a.a.x, a.b.z - a.a.z);
     if (to === 'legsUp') {
-      // body along the pipe, legs towards +face: hands behind the head, feet crossed over it past the knees
-      h.offL = -face * 0.5 * k;
-      h.offR = -face * 0.68 * k;
+      // body along the pipe, head away from the facing (-face): hands past the head, the ankles crossed over the
+      // pipe past the knees (+face)
+      h.offL = -face * 0.82 * k;
+      h.offR = -face * 0.98 * k;
       h.slack = 0.12;
       h.swingTime = 0.2;
       h.lead = 1;
-      f.offL = face * 0.62 * k;
-      f.offR = face * 0.7 * k;
+      f.offL = face * 0.5 * k;
+      f.offR = face * 0.58 * k;
       f.slack = 0.14;
       f.swingTime = 0.22;
       f.lead = 1;
@@ -290,6 +298,70 @@ export class AttachGrips {
         R.w *= 1 - this.aimFree;
         fl.w = fr.w = w * (wf + (wt - wf) * k);
         this.plantFade = fl.w;
+        return;
+      }
+      case 'rappel': {
+        // feet on the wall (off it while swung out), one hand up the rope, the brake hand at the hip
+        const k = rig.height / 1.75;
+        const pr = attachPose(a, s, 1, rig.height, this.ap, 'hands', this.u);
+        const tx = -a.nz;
+        const tz = a.nx;
+        const out = this.outOff;
+        const fw = w * Math.max(0, 1 - out / 0.25) * (1 - this.aimFree);
+        fl.w = fr.w = fw;
+        this.plantFade = fw;
+        const wx = pr.x - a.nx * (RAPPEL_STANDOFF * k - 0.02);
+        const wz = pr.z - a.nz * (RAPPEL_STANDOFF * k - 0.02);
+        fl.x = wx - tx * 0.14;
+        fl.z = wz - tz * 0.14;
+        fl.y = pr.y + 0.32 * k;
+        fr.x = wx + tx * 0.14;
+        fr.z = wz + tz * 0.14;
+        fr.y = pr.y + 0.5 * k;
+        // the rope from the anchor to the harness
+        const hx = pr.x + a.nx * (out + 0.12);
+        const hy = pr.y + 0.95 * k;
+        const hz = pr.z + a.nz * (out + 0.12);
+        let dx = a.top.x - hx;
+        let dy = a.top.y + 0.1 - hy;
+        let dz = a.top.z - hz;
+        const dl = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1;
+        dx /= dl;
+        dy /= dl;
+        dz /= dl;
+        R.x = hx + dx * 0.42 * k;
+        R.y = hy + dy * 0.42 * k;
+        R.z = hz + dz * 0.42 * k;
+        L.x = hx + dx * 0.05 + tx * 0.12;
+        L.y = hy + dy * 0.05 - 0.05;
+        L.z = hz + dz * 0.05 + tz * 0.12;
+        R.w = w * (1 - this.aimFree);
+        return;
+      }
+      case 'fence': {
+        // toes and fingers in the mesh, the limbs trading as it climbs / shimmies (`u` the feet's height)
+        const k = rig.height / 1.75;
+        const cyc = ((this.u * 1.6 + s * 1.2) % 1) * Math.PI * 2;
+        const off = a.nx * face * 0.06;
+        const offz = a.nz * face * 0.06;
+        const bx = a.a.x + a.tx * s;
+        const bz = a.a.z + a.tz * s;
+        const by = a.a.y + this.u;
+        fl.w = fr.w = w;
+        this.plantFade = w;
+        fl.x = bx - a.tx * 0.13 + off;
+        fl.z = bz - a.tz * 0.13 + offz;
+        fl.y = by + 0.06 + Math.max(0, Math.sin(cyc)) * 0.15;
+        fr.x = bx + a.tx * 0.13 + off;
+        fr.z = bz + a.tz * 0.13 + offz;
+        fr.y = by + 0.06 + Math.max(0, -Math.sin(cyc)) * 0.15;
+        const hy = Math.min(a.a.y + a.height - 0.04, by + 1.85 * k);
+        L.x = bx - a.tx * 0.24 + off;
+        L.z = bz - a.tz * 0.24 + offz;
+        L.y = hy - Math.max(0, -Math.sin(cyc)) * 0.18;
+        R.x = bx + a.tx * 0.24 + off;
+        R.z = bz + a.tz * 0.24 + offz;
+        R.y = hy - Math.max(0, Math.sin(cyc)) * 0.18;
         return;
       }
       case 'split': {

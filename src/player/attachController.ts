@@ -17,7 +17,11 @@ import {
   type P3,
   type ReachResult,
   type TraversalAnchors,
+  type Fence,
+  type RappelPoint,
+  type WindowAnchor,
 } from '../world/anchors';
+import { FENCE, RAPPEL } from '../config/movement';
 import { AttachMachine, attachPose, axisInput, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, PIPE_TUMBLE, type AttachPose, type ExitReason } from './attach';
 import { AttachGrips, VENT_LOWER_K } from './attachGrips';
 import { PipeHang, SPLIT, splitReach, WALL_JUMP, wallJumpReach, type PipeMode } from './splitJump';
@@ -41,16 +45,16 @@ export interface AttachInput {
 }
 
 /** Anchors offered from the ground (the traverse button attaches). */
-const GROUND_KINDS = ['ladder', 'pipeV', 'pipeH', 'ledge', 'zipline', 'duct'] as const;
+const GROUND_KINDS = ['ladder', 'pipeV', 'pipeH', 'ledge', 'zipline', 'duct', 'rappel', 'fence'] as const;
 const LOWER_KINDS = ['ledge'] as const;
 /** Placed anchors that win over a step / vault / mantle the geometry offers at the same spot (a ladder or a duct
  *  is what the player is facing on purpose); lips and pipes give way to them. */
 export function anchorFirst(r: ReachResult | null): boolean {
   const k = r?.anchor.kind;
-  return k === 'ladder' || k === 'pipeV' || k === 'duct' || k === 'zipline';
+  return k === 'ladder' || k === 'pipeV' || k === 'duct' || k === 'zipline' || k === 'rappel' || k === 'fence';
 }
-const isAbove = (r: ReachResult): boolean => r.entry === 'above';
-const notAbove = (r: ReachResult): boolean => r.entry !== 'above';
+const isAbove = (r: ReachResult): boolean => r.entry === 'above' && r.anchor.kind === 'ledge';
+const notAbove = (r: ReachResult): boolean => r.entry !== 'above' || r.anchor.kind === 'rappel';
 /** Unscrewing a grate (s, after the hold delay) and the press length under which a press is a kick. */
 export const UNSCREW_TIME = 1.2;
 const KICK_TAP = 0.3;
@@ -83,6 +87,12 @@ export const ATTACH_LABEL: Record<string, string> = {
   legsUp: 'Legs up',
   invert: 'Invert',
   curlUp: 'Curl up',
+  rappel: 'Rappel',
+  fence: 'Climb',
+  kickOut: 'Kick out',
+  kickThrough: 'Kick through',
+  flipOver: 'Flip over',
+  unhook: 'Unhook',
 };
 
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
@@ -160,6 +170,12 @@ export class AttachController {
   }
 
   get camera(): AttachCamera | null {
+    // (3.2.0) a horizontal pipe's sub-states have their own framing (legs up, inverted: the camera stays upright)
+    if (this.m.kind === 'pipeH') {
+      const pm = this.pipeMode;
+      if (pm === 'legsUp') return 'pipeLegs';
+      if (pm === 'inverted' && !this.flipping) return 'inverted';
+    }
     return this.m.spec?.camera ?? null;
   }
 
@@ -264,6 +280,14 @@ export class AttachController {
       return this.attachTo(a, 0, 'side', 1, 0.55);
     }
     if (a.kind === 'split') return this.attachTo(a, r.s, 'below', r.face ?? 1, SPLIT.jumpTime, 0.25);
+    if (a.kind === 'fence') {
+      this.u = 0.15;
+      return this.attachTo(a, r.s, 'side', r.face ?? 1);
+    }
+    if (a.kind === 'rappel') {
+      this.u = 0;
+      return this.attachTo(a, RAPPEL.minOut, 'above', 1);
+    }
     if (r.entry === 'wall') {
       this.kickPt.x = this.kickHint.x;
       this.kickPt.y = this.kickHint.y;
@@ -300,10 +324,31 @@ export class AttachController {
     c.clearCrouchToggle();
     this.pipe.reset();
     this.flipping = false;
+    this.swingT = -1;
+    this.fenceFlip = false;
+    if (a.kind !== 'fence' && a.kind !== 'rappel') this.u = 0;
     this.grips.setPipe(a, this.m.s, this.m.face, 'hands', 'hands', this.player.rig.height);
     this.grips.setup(a, this.m.s, this.m.face, this.player.rig.height);
     return true;
   }
+
+  /**
+   * (3.2.0 phase 3) The second axis: on a rope the sideways offset along the wall (m), on a fence the climb height of
+   * the feet (m); its last step's value (render interpolation).
+   */
+  u = 0;
+  private uPrev = 0;
+  /** Rope: the kick out from the wall under way (0..1, < 0 none) and its sideways start / end. */
+  swingT = -1;
+  private latFrom = 0;
+  private latTo = 0;
+  /** A window beside the rope (traverse kicks through it), refreshed each step. */
+  ropeWindow: WindowAnchor | null = null;
+  /** Fence: flipping over the top (the exit); moved on it this step (the rattle). */
+  private fenceFlip = false;
+  fenceMoving = false;
+  /** Kicking through a window from the rope: the traversal controller plays the vault through it. */
+  onKickThrough: ((w: WindowAnchor, fromX: number, fromY: number, fromZ: number, toX: number, toY: number, toZ: number) => void) | null = null;
 
   /** (3.2.0) The horizontal pipe's sub-state (hands / legs up / inverted). */
   readonly pipe = new PipeHang();
@@ -340,11 +385,17 @@ export class AttachController {
     this.end.y = fy !== null && c.pos.y - fy < 2.6 ? fy : c.pos.y - 0.5;
     this.ventDrop = 0;
     this.flipping = true;
-    this.flipFall = fy !== null ? Math.max(0, c.pos.y + 1.4 - fy) : 0;
+    // (flipped upright the feet are where the root is: the fall is from there)
+    this.flipFall = fy !== null ? Math.max(0, c.pos.y - fy) : 0;
     void a;
     this.m.beginExit('drop', 0.42);
   }
   private flipFall = 0;
+
+  /** Flipping over the top of a fence (the exit under way). */
+  get isFenceFlip(): boolean {
+    return this.fenceFlip;
+  }
 
   /** Flipping out of an inverted hang (the exit under way). */
   get isFlipping(): boolean {
@@ -373,6 +424,18 @@ export class AttachController {
       this.end.x = a.top.x + Math.sin(a.facing) * 0.2;
       this.end.y = a.top.y;
       this.end.z = a.top.z + Math.cos(a.facing) * 0.2;
+    } else if (reason === 'top' && a.kind === 'rappel') {
+      // back up over the edge onto the roof
+      this.end.x = a.top.x - a.nx * 0.6;
+      this.end.y = a.top.y;
+      this.end.z = a.top.z - a.nz * 0.6;
+    } else if (reason === 'bottom' && (a.kind === 'rappel' || a.kind === 'fence')) {
+      // feet on the floor: step back off the wall / fence
+      this.end.y = a.kind === 'rappel' ? a.top.y - a.length : a.a.y;
+      const nx = a.kind === 'rappel' ? a.nx : a.nx * this.m.face;
+      const nz = a.kind === 'rappel' ? a.nz : a.nz * this.m.face;
+      this.end.x = c.pos.x + nx * 0.25;
+      this.end.z = c.pos.z + nz * 0.25;
     } else if (reason === 'climb' && a.kind === 'ledge') {
       const p = attachPose(a, this.m.s, 1, this.player.rig.height, this.ap);
       this.end.x = p.x - a.nx * (HANG.out + 0.45);
@@ -510,6 +573,15 @@ export class AttachController {
     const sp = m.spec!;
     const inp = this.input;
     this.sPrev = m.s;
+    this.uPrev = this.u;
+    if (a.kind === 'rappel') {
+      this.rappelStep(dt, a, jumpPressed);
+      return;
+    }
+    if (a.kind === 'fence') {
+      this.fenceStep(dt, a, jumpPressed);
+      return;
+    }
     let rate: number | undefined;
     let axis = axisInput(a, sp, inp.moveX, inp.moveY, inp.camYaw, m.s);
     if (a.kind === 'ladder' && inp.dropPressed) this.sliding = true;
@@ -570,6 +642,114 @@ export class AttachController {
     if (m.phase === 'exit' && m.progress >= 1) this.finish(null);
   }
 
+  /** The stick's push along a wall / fence tangent (tx, tz), camera relative (-1..1). */
+  private along(tx: number, tz: number): number {
+    const inp = this.input;
+    const cy = Math.cos(inp.camYaw);
+    const sy = Math.sin(inp.camYaw);
+    const wx = inp.moveX * cy + inp.moveY * sy;
+    const wz = -inp.moveX * sy + inp.moveY * cy;
+    return Math.max(-1, Math.min(1, wx * tx + wz * tz));
+  }
+
+  /** On a rope: up / down (sprint: a fast descent), kick out (sideways with the stick), unhook, kick through a window. */
+  private rappelStep(dt: number, a: RappelPoint, jumpPressed: boolean): void {
+    const m = this.m;
+    const inp = this.input;
+    const swinging = this.swingT >= 0;
+    // stick up climbs (less rope out), down descends
+    const ax = Math.abs(inp.moveY) > 0.25 ? -inp.moveY : 0;
+    const rate = ax > 0 ? (inp.sprintHeld ? RAPPEL.descendSprint : RAPPEL.descend) : RAPPEL.ascend;
+    const edge = m.update(dt, swinging || this.player.carry.raise > 0.3 ? 0 : ax, rate);
+    if (swinging) {
+      this.swingT = Math.min(1, this.swingT + dt / RAPPEL.swingTime);
+      this.u = this.latFrom + (this.latTo - this.latFrom) * smooth(this.swingT);
+      if (this.swingT >= 1) this.swingT = -1;
+    }
+    this.ropeWindow = m.phase === 'on' ? this.windowBeside(a) : null;
+    if (m.phase === 'on') {
+      const above = a.length - m.s;
+      if (inp.dropPressed && above <= RAPPEL.unhookHeight) this.detach('drop');
+      else if (jumpPressed && this.ropeWindow) this.kickThrough(a, this.ropeWindow);
+      else if (jumpPressed && !swinging) {
+        // kick out from the wall; the stick sideways carries the swing along it
+        this.swingT = 0;
+        this.latFrom = this.u;
+        this.latTo = Math.max(-RAPPEL.lateralMax, Math.min(RAPPEL.lateralMax, this.u + this.along(-a.nz, a.nx) * RAPPEL.lateralStep));
+      } else if (edge === 'max') this.detach('bottom');
+      else if (edge === 'min' && ax < 0) this.detach('top');
+      if (!m.active) return;
+    }
+    this.path();
+    if (m.phase === 'exit' && m.progress >= 1) this.finish(null);
+  }
+
+  /** A window in the rope's wall beside the body (its sill within reach of the feet). */
+  private windowBeside(a: RappelPoint): WindowAnchor | null {
+    const p = attachPose(a, this.m.s, 1, this.player.rig.height, this.ap, 'hands', this.u);
+    for (const w of this.anchors.windows) {
+      const wnx = Math.sin(w.yaw);
+      const wnz = Math.cos(w.yaw);
+      if (Math.abs(wnx * a.nx + wnz * a.nz) < 0.9) continue;
+      // in the wall's plane (the rope's wall), beside the body and at its height
+      const off = (p.x - w.c.x) * a.nx + (p.z - w.c.z) * a.nz;
+      if (off < 0 || off > 1.4) continue;
+      const lat = Math.abs((p.x - w.c.x) * -a.nz + (p.z - w.c.z) * a.nx);
+      if (lat > Math.max(RAPPEL.windowReach, w.w / 2)) continue;
+      if (Math.abs(w.sillHeight - (p.y + 0.6)) > 0.8) continue;
+      return w;
+    }
+    return null;
+  }
+
+  /** Off the rope and through the window (breaking it), landing on the floor inside. */
+  private kickThrough(a: RappelPoint, w: WindowAnchor): void {
+    const c = this.player.controller;
+    const fx = c.pos.x;
+    const fy = c.pos.y;
+    const fz = c.pos.z;
+    const tx = w.c.x - a.nx * 0.9;
+    const tz = w.c.z - a.nz * 0.9;
+    const land = this.floorAt(tx, tz, w.sillHeight + 0.3) ?? w.sillHeight - 1;
+    this.finish('jump');
+    this.onKickThrough?.(w, fx, fy, fz, tx, land, tz);
+  }
+
+  /** On a fence: climb with the stick up / down, shimmy along it, flip over the top, drop. */
+  private fenceStep(dt: number, a: Fence, jumpPressed: boolean): void {
+    const m = this.m;
+    const inp = this.input;
+    const k = this.player.rig.height / 1.75;
+    const uMax = Math.max(0, a.height - FENCE.handReach * k + 0.1);
+    const climb = Math.abs(inp.moveY) > 0.3 && Math.abs(inp.moveY) >= Math.abs(inp.moveX) ? Math.sign(inp.moveY) : 0;
+    const before = this.u;
+    if (m.phase === 'on') this.u = Math.max(0, Math.min(uMax, this.u + climb * FENCE.climb * dt));
+    const side = climb === 0 && Math.abs(inp.moveX) > 0.3 ? this.along(a.tx, a.tz) : 0;
+    m.update(dt, side, FENCE.shimmy);
+    this.fenceMoving = Math.abs(this.u - before) > 1e-4 || Math.abs(m.v) > 0.05;
+    if (m.phase === 'on') {
+      if (inp.dropPressed) this.detach('drop');
+      else if (jumpPressed && this.u >= uMax - 0.05) {
+        // over the top and down the far side
+        this.end.x = a.a.x + a.tx * m.s - a.nx * m.face * 0.7;
+        this.end.z = a.a.z + a.tz * m.s - a.nz * m.face * 0.7;
+        this.end.y = a.a.y;
+        this.fenceFlip = true;
+        m.beginExit('climb', FENCE.flipTime);
+      } else if (this.u <= 0 && climb < 0 && this.uPrev <= 0) this.detach('bottom');
+      if (!m.active) return;
+    }
+    this.path();
+    if (m.phase === 'exit' && m.progress >= 1) this.finish(null);
+  }
+
+  /** At the top of the fence (Y flips over). */
+  get fenceTop(): boolean {
+    const a = this.m.anchor;
+    if (!a || a.kind !== 'fence' || this.m.phase !== 'on') return false;
+    return this.u >= Math.max(0, a.height - FENCE.handReach * (this.player.rig.height / 1.75) + 0.1) - 0.05;
+  }
+
   /** Root path for this step: blend on (with a jump arc), along the anchor, blend off. */
   private path(): void {
     const m = this.m;
@@ -577,7 +757,13 @@ export class AttachController {
     const c = this.player.controller;
     const h = this.player.rig.height;
     const pp = this.pipe;
-    const p = attachPose(a, m.s, m.face, h, this.ap, a.kind === 'pipeH' ? (pp.to ? pp.from : pp.mode) : 'hands');
+    const p = attachPose(a, m.s, m.face, h, this.ap, a.kind === 'pipeH' ? (pp.to ? pp.from : pp.mode) : 'hands', this.u);
+    if (a.kind === 'rappel' && this.swingT >= 0) {
+      // kicked out: an arc out from the wall and back
+      const out = Math.sin(Math.PI * this.swingT) * RAPPEL.swingOut;
+      p.x += a.nx * out;
+      p.z += a.nz * out;
+    }
     let tumble = a.kind === 'pipeH' ? PIPE_TUMBLE[pp.mode] : 0;
     if (a.kind === 'pipeH' && pp.to) {
       // a pipe sub-state change: the root and facing move to the next state's, the body tumbles over with it
@@ -604,6 +790,14 @@ export class AttachController {
         this.kin.set(kp.x + (p.x - kp.x) * t, kp.y + (p.y - kp.y) * t + Math.sin(Math.PI * t) * 0.2, kp.z + (p.z - kp.z) * t);
       }
       yaw = this.fromYaw + angleTo(this.fromYaw, p.yaw) * smooth((k - 0.3) / 0.6);
+    } else if (m.phase === 'exit' && this.fenceFlip && a.kind === 'fence') {
+      // over the top: up until the feet clear it, then down the far side
+      const t = this.end;
+      const fwd = smooth((k - 0.25) / 0.6);
+      const top = a.a.y + a.height + 0.12;
+      const y = k < 0.45 ? p.y + (top - p.y) * smooth(k / 0.45) : top + (t.y - top) * smooth((k - 0.45) / 0.55);
+      this.kin.set(p.x + (t.x - p.x) * fwd, y, p.z + (t.z - p.z) * fwd);
+      yaw = p.yaw + Math.PI * smooth((k - 0.4) / 0.6);
     } else if (m.phase === 'exit' && this.flipping) {
       // inverted drop: the legs let go, the body flips over forward and lands on the feet
       const t = k * k;
@@ -645,6 +839,8 @@ export class AttachController {
       const oz = (a.kind === 'ledge' ? a.nz : this.climbNz) * out;
       this.kin.set(p.x + (t.x - p.x) * fwd + ox, p.y + (t.y - p.y) * up, p.z + (t.z - p.z) * fwd + oz);
     } else this.kin.set(p.x, p.y, p.z);
+    // on a rope with the sidearm raised the body turns round to the aim
+    if (a.kind === 'rappel' && m.phase === 'on' && this.player.carry.raise > 0.1) yaw = this.input.camYaw;
     c.override = { kinematic: this.kin, yaw, turnRate: 30, crouch: a.kind === 'duct' };
     // pose family and cadence (the climb clips follow the hand steps)
     const pose = this.player.coverPose;
@@ -657,6 +853,12 @@ export class AttachController {
           ? 'crawl'
           : a.kind === 'split'
             ? 'split'
+            : a.kind === 'rappel'
+              ? 'rappel'
+              : a.kind === 'fence'
+                ? m.phase === 'exit' && this.fenceFlip
+                  ? 'vault'
+                  : 'climb'
             : m.phase === 'enter' && m.entry === 'wall'
               ? 'wallKick'
               : a.kind === 'pipeH' && pm === 'legsUp'
@@ -664,9 +866,10 @@ export class AttachController {
                 : a.kind === 'pipeH' && pm === 'inverted' && !this.flipping
                   ? 'pipeInv'
                   : 'hang';
-    const climbOut = m.phase === 'exit' && (m.exitReason === 'climb' || m.exitReason === 'top');
+    const climbOut = m.phase === 'exit' && (m.exitReason === 'climb' || m.exitReason === 'top') && !this.fenceFlip;
     pose.traverse = climbOut ? (m.exitReason === 'climb' ? 'climbUp' : 'mantle') : this.ventDrop > 0 && m.phase === 'exit' ? (k < VENT_LOWER_K ? 'ventDrop' : 'drop') : fam;
-    pose.traverseT = climbOut ? k : this.ventDrop > 0 && m.phase === 'exit' ? Math.min(1, k / VENT_LOWER_K) : fam === 'wallKick' ? k : fam === 'hang' || fam === 'split' || fam === 'pipeLegs' || fam === 'pipeInv' ? 0 : this.cadence();
+    const fenceClimb = a.kind === 'fence' && fam === 'climb';
+    pose.traverseT = climbOut && !this.fenceFlip ? k : this.ventDrop > 0 && m.phase === 'exit' ? Math.min(1, k / VENT_LOWER_K) : fam === 'wallKick' || fam === 'vault' ? k : fenceClimb ? (this.u * 1.6 + m.s * 1.2) % 1 : fam === 'hang' || fam === 'split' || fam === 'pipeLegs' || fam === 'pipeInv' || fam === 'rappel' ? (fam === 'rappel' ? Math.max(0, this.swingT) : 0) : this.cadence();
   }
   private ap2: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 };
 
@@ -863,7 +1066,9 @@ export class AttachController {
       vent.kinY = this.kin.y;
     }
     this.grips.pipeK = this.pipe.progress;
-    const aimFrom = a.kind === 'split' || (a.kind === 'pipeH' && this.pipe.mode === 'inverted' && !this.pipe.busy);
+    this.grips.u = this.uPrev + (this.u - this.uPrev) * alpha;
+    this.grips.outOff = a.kind === 'rappel' && this.swingT >= 0 ? Math.sin(Math.PI * this.swingT) * RAPPEL.swingOut : 0;
+    const aimFrom = a.kind === 'split' || a.kind === 'rappel' || (a.kind === 'pipeH' && this.pipe.mode === 'inverted' && !this.pipe.busy);
     this.grips.aimFree = aimFrom ? this.player.carry.raise : 0;
     this.grips.update(dt, a, s, m.v, m.face, w, this.player.rig, vent);
   }
@@ -873,7 +1078,7 @@ export class AttachController {
     const m = this.m;
     const a = m.anchor;
     if (!a || m.phase !== 'on') return false;
-    return a.kind === 'split' || (a.kind === 'pipeH' && this.pipe.mode === 'inverted' && !this.pipe.busy);
+    return a.kind === 'split' || a.kind === 'rappel' || (a.kind === 'pipeH' && this.pipe.mode === 'inverted' && !this.pipe.busy);
   }
 
   private ventInfo = { drop: 0, progress: 0, kinY: 0 };

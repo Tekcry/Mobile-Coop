@@ -249,3 +249,132 @@ export const MOVEMENT_RANGES: Partial<Record<MovementKey, [number, number, numbe
   recentreDelay: [0.5, 4, 0.1],
   recentreRate: [0.3, 4, 0.1],
 };
+
+// --- 3.2.0 phase 2: split jump, wall jump, horizontal pipe sub-states (`player/splitJump.ts`)
+
+export const SPLIT = {
+  /** Faces this close to opposed (normal dot) count as the two sides of a gap. */
+  opposed: -0.95,
+  /** Gap between the faces (m). */
+  minWidth: 0.9,
+  maxWidth: 1.7,
+  /** Both walls at least this tall over the floor (m). */
+  minHeight: 2.6,
+  /** Shortest usable stretch of corridor (m) and the margin kept from its ends. */
+  minLen: 0.8,
+  endMargin: 0.3,
+  /** The two faces' bases within this of each other (m): the same floor. */
+  floorTol: 0.3,
+  /** The player faces within this of the corridor axis (rad, either way along it). */
+  facing: (40 * Math.PI) / 180,
+  /** Feet planted on the walls this high over the floor (m). */
+  feetHeight: 1.9,
+  /** The committed jump into the split (s). */
+  jumpTime: 0.45,
+  /** Aiming from the split: body yaw within this of the corridor axis, pitch band (rad). */
+  aimYaw: (100 * Math.PI) / 180,
+  pitchMin: (-85 * Math.PI) / 180,
+  pitchMax: (30 * Math.PI) / 180,
+} as const;
+
+export const WALL_JUMP = {
+  /** Lip height over the feet (m): above a standing grab (`REACH.grabMax` 2.7 in `world/anchors.ts`). */
+  minUp: 2.7,
+  maxUp: 3.8,
+  /** Facing a wall within this (m). */
+  wallReach: 1.0,
+  /** Facing the lip's wall: cos of the angle between the facing and into the wall. */
+  faceCos: 0.7,
+  /** Inside corner: facing the adjoining wall, the lip's face then side-on (|cos| under this). */
+  cornerCos: 0.4,
+  /** Lip within this (m, horizontal from the feet) for a corner kick. */
+  cornerReach: 1.4,
+  /** The committed run-up kick (s). */
+  time: 0.6,
+} as const;
+
+/** The horizontal pipe's sub-states and their timing. */
+export const PIPE = {
+  /** Shimmy speed with the legs crossed over the pipe (m/s). */
+  legsUpSpeed: 0.5,
+  /** Transitions (s). */
+  toLegsUp: 0.5,
+  toInverted: 0.55,
+  toHands: 0.45,
+  /** Inverted: aim band (rad) round the body facing, spread multiplier. */
+  aimYaw: (120 * Math.PI) / 180,
+  pitchMin: (-80 * Math.PI) / 180,
+  pitchMax: (30 * Math.PI) / 180,
+  spreadMul: 1.3,
+  /** Legs up: the feet ride this much higher than hanging by the hands (m). */
+  legsUpLift: 0.6,
+} as const;
+
+// --- 3.2.0 phase 3: rappel and fences (`player/attachController.ts`)
+
+export const RAPPEL = {
+  /** Rope speeds (m/s): up, down, down with sprint held. */
+  ascend: 1.0,
+  descend: 1.6,
+  descendSprint: 3.0,
+  /** Kick out from the wall: how far out the swing goes (m), how long it takes (s), how far sideways the stick takes
+   *  it per kick and in all (m). */
+  swingOut: 1.2,
+  swingTime: 1.0,
+  lateralStep: 0.75,
+  lateralMax: 1.5,
+  /** B unhooks only this close to the floor (m, feet height). */
+  unhookHeight: 2.0,
+  /** Feet off the wall face (m) and the rope out where the body is just over the edge (m). */
+  standoff: 0.5,
+  minOut: 1.0,
+  /** Hooking on and stepping over the edge (s); reach to the rappel point from the roof (m). */
+  hookTime: 0.8,
+  reach: 0.9,
+  /** Sidearm from the rope: yaw round the wall's outward normal, pitch band (rad). */
+  aimYaw: (110 * Math.PI) / 180,
+  pitchMin: (-80 * Math.PI) / 180,
+  pitchMax: (40 * Math.PI) / 180,
+  /** A window beside the rope is kicked through when it is this close sideways (m). */
+  windowReach: 0.9,
+} as const;
+
+export const FENCE = {
+  /** Climb up / down and shimmy (m/s). */
+  climb: 0.9,
+  shimmy: 0.6,
+  /** The committed flip over the top (s). */
+  flipTime: 0.9,
+  /** Rattle noise radius while moving on it above `quietGear` (m); quiet at gears 1-3. */
+  rattle: 4,
+  quietGear: 3,
+  /** Reach to grab it from the floor (m) and the body's standoff while on it (m). */
+  reach: 0.85,
+  standoff: 0.3,
+  /** The hands reach over the top this far above the feet (m at 1.75 m): the climb's top. */
+  handReach: 1.85,
+} as const;
+
+// --- 3.2.0 phase 5: co-op team moves (`game/teamMoves.ts`)
+
+export const TEAM = {
+  /** Hold Y this long (s) to brace; a team-mate within `mateRange` (m) and a wall within `wallBehind` (m) behind. */
+  braceHold: 0.4,
+  mateRange: 3,
+  wallBehind: 1.0,
+  /** The partner within this of the braced player's hands to start a move (m). */
+  partnerReach: 1.2,
+  /** Boost: the toss reaches a lip / pipe / split up to this high over the floor (m); the committed step-up and toss
+   *  (s). */
+  boostMax: 4.5,
+  boostTime: 0.9,
+  /** Human ladder: the top player's feet on the shoulders (m); a lip they can grab from there (m over the floor); the
+   *  climb up (s). */
+  ladderFeet: 1.45,
+  ladderGrab: 4.1,
+  ladderClimb: 0.8,
+  /** Top of the human ladder: the aim band (rad). */
+  ladderPitch: (60 * Math.PI) / 180,
+  /** Requests a player may make (host rate limit, per second). */
+  rate: 1,
+} as const;

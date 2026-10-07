@@ -225,3 +225,46 @@ describe('line-of-sight parity across presets (3.1)', () => {
     expect(shut, 'blocked sight lines tested').toBeGreaterThan(150);
   }, 240_000);
 });
+
+describe('fences and sight (3.2.0 phase 3)', () => {
+  it('a fence adds no solid piece (no cover, ledges, voxels or blocked sight): posts and rail are visual only', async () => {
+    const { LevelBuilder } = await import('../src/world/levelBuilder');
+    const b = new LevelBuilder();
+    const nb = b.boxes.length;
+    const nc = b.cylinders.length;
+    const f = b.fence(0, 0, 6, 0, 2.6);
+    expect(f.kind).toBe('fence');
+    expect(b.boxes.slice(nb).every((p) => !p.collide)).toBe(true);
+    expect(b.cylinders.slice(nc).every((c) => !c.collide)).toBe(true);
+    // sight at eye height through the mesh between two posts meets no piece at all
+    const a = { x: 1.4, y: 1.6, z: -3 };
+    const e = { x: 1.4, y: 1.6, z: 3 };
+    const hits = (minX: number, minY: number, minZ: number, maxX: number, maxY: number, maxZ: number): boolean => {
+      // segment vs box (slab test)
+      let t0 = 0;
+      let t1 = 1;
+      const d = [e.x - a.x, e.y - a.y, e.z - a.z];
+      const o = [a.x, a.y, a.z];
+      const lo = [minX, minY, minZ];
+      const hi = [maxX, maxY, maxZ];
+      for (let k = 0; k < 3; k++) {
+        if (Math.abs(d[k]!) < 1e-9) {
+          if (o[k]! < lo[k]! || o[k]! > hi[k]!) return false;
+          continue;
+        }
+        let ta = (lo[k]! - o[k]!) / d[k]!;
+        let tb = (hi[k]! - o[k]!) / d[k]!;
+        if (ta > tb) [ta, tb] = [tb, ta];
+        t0 = Math.max(t0, ta);
+        t1 = Math.min(t1, tb);
+        if (t0 > t1) return false;
+      }
+      return true;
+    };
+    for (const p of b.boxes.slice(nb)) {
+      const r = Math.max(p.s[0], p.s[2]) / 2;
+      expect(hits(p.c[0] - r, p.c[1] - p.s[1] / 2, p.c[2] - r, p.c[0] + r, p.c[1] + p.s[1] / 2, p.c[2] + r)).toBe(false);
+    }
+    for (const c of b.cylinders.slice(nc)) expect(hits(c.c[0] - c.r, c.c[1] - c.h / 2, c.c[2] - c.r, c.c[0] + c.r, c.c[1] + c.h / 2, c.c[2] + c.r)).toBe(false);
+  });
+});

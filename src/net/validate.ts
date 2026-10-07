@@ -179,6 +179,8 @@ export function attachedClamp(mv: MoveState | undefined, anchors: TraversalAncho
   const sub = unpackAttachSub(mv.sub);
   // blending on / off (or between a pipe's sub-states): the feet travel between the ground and the anchor
   if (sub.phase !== 'on' || sub.pipeTo) return null;
-  const p = attachPose(a, mv.s, sub.face, height, out, a.kind === 'pipeH' ? sub.pipe : 'hands');
+  // (a rope kicked out swings off the wall)
+  if (a.kind === 'rappel' && mv.ph > 0) return null;
+  const p = attachPose(a, mv.s, sub.face, height, out, a.kind === 'pipeH' ? sub.pipe : 'hands', mv.u ?? 0);
   return hyp3(feet.x - p.x, feet.y - p.y, feet.z - p.z) > ATTACH_SLACK ? p : null;
 }

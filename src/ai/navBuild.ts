@@ -27,6 +27,8 @@ export function buildNavGrid(scene: Scene, level: BuiltLevel, seed: Vector3): Na
     if (b.overhead) continue;
     blockers.push({ cx: b.c[0], cz: b.c[2], hx: b.s[0] / 2, hz: b.s[2] / 2, yaw: b.yaw, bottom: b.c[1] - b.s[1] / 2, top: b.c[1] + b.s[1] / 2 });
   }
+  // (3.2.0) fences stop guards on foot (they are not level pieces)
+  for (const f of level.anchors.fences) blockers.push({ cx: (f.a.x + f.b.x) / 2, cz: (f.a.z + f.b.z) / 2, hx: 0.05, hz: f.len / 2, yaw: Math.atan2(f.tx, f.tz), bottom: f.a.y, top: f.a.y + f.height });
   for (const c of level.cylinders) {
     if (!c.collide) continue;
     blockers.push({ cx: c.c[0], cz: c.c[2], hx: c.r, hz: c.r, yaw: 0, bottom: c.c[1] - c.h / 2, top: c.c[1] + c.h / 2, round: true });

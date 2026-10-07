@@ -5,11 +5,12 @@ Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-
 | Phase | Status | Commit |
 | --- | --- | --- |
 | 0 Speed gears, instant stop, roll | done (waiting for review) | 0bce184 |
-| 1 Networked movement state | done (waiting for review) | see log |
-| 2 Split jump, wall jump, pipe legs-up / inverted | in progress | |
-| 3 Rappel, fences | not started | |
-| 4 CT takedowns and grab | not started | |
-| 5 Co-op team moves | not started | |
+| 1 Networked movement state | done (waiting for review) | fa84b2b |
+| 2 Split jump, wall jump, pipe legs-up / inverted | done (waiting for review) | see log |
+| 3 Rappel, fences | done (waiting for review) | see log |
+| 4 CT takedowns and grab | done (waiting for review) | see log |
+| 5 Co-op team moves | done (waiting for review) | see log |
+| Warehouse CT routes | in progress | |
 
 ## Next step
 Michael (2026-10-07, before going to bed): proceed with all remaining phases and a Warehouse update for the new moves;
@@ -94,6 +95,55 @@ Tests run:
 Open issues:
 - `e2e-netmove` compares cover poses only for head and hands (feet in cover are pinned when still; while moving each
   rig's planner steps on its own).
+
+### Phases 2-5 (2026-10-07, overnight; one commit)
+Phase 2 files: `src/player/splitJump.ts` (pure: `findSplitGaps`, `splitReach`, `wallJumpReach`, `PipeHang`),
+`src/world/anchors.ts` (`SplitAnchor`, entry `wall`), `src/player/attach.ts` (`split`, pipe sub-poses, tumble pivot),
+`src/player/attachController.ts` (split / wall jump probes, pipe states, sidearm aim, `onHit`),
+`src/player/attachGrips.ts`, `src/anim/clips/traverse.ts` (`SPLIT_BRACE`, `WALL_KICK`, `PIPE_LEGS_UP`,
+`PIPE_INVERTED`), `src/anim/animGraph.ts`, `src/player/characterRig.ts` (`tumble`, world aim), `src/player/player.ts`
+(`attachAim`), `src/weapons/playerWeapons.ts` (`setAttachedStow`, `attachSpread`), `src/config/camera.ts` (presets),
+`src/world/levelBuilder.ts`, `src/world/maps/provingGrounds.ts` (CT course), `scripts/e2e-ct.mjs`,
+`tests/splitJump.test.ts`.
+Phase 3 files: anchors `RappelPoint` / `Fence`, `ATTACH.rappel` / `fence`, `AttachController.rappelStep` /
+`fenceStep`, `src/world/ropes.ts`, `src/physics/groups.ts` (`FENCE`), `src/ai/navBuild.ts`, `LevelBuilder.rappel` /
+`fence` (`buildFences`), `RAPPEL_HANG` / `BRACE` clips, `tests/rappelFence.test.ts`, `tests/losParity.test.ts`.
+Phase 4 files: `src/game/takedown.ts` (`drop`, `inverted`, `GRAB`), `src/game/takedownController.ts` (the grab),
+`src/ai/enemy.ts` (shield hesitation, head aim, hostage pose, stagger), `src/ai/hitboxes.ts`, `src/game/damage.ts`,
+`src/net/pvpVictim.ts` (new), `ptd` message, `src/game/training.ts`, `src/game/modes/trainingMode.ts`.
+Phase 5 files: `src/game/teamMoves.ts` (pure), `src/game/teamController.ts`, `TEAM` in `config/movement.ts`,
+`tmove` / `tstart` / `tdeny` / `tend`, `CoopHost.onTeamMove`, `CoopClient` handlers, MoveState `brace` / `boost` /
+`stacked`, `tests/teamMoves.test.ts`, `scripts/e2e-netmove.mjs` (team section).
+
+Decisions:
+- Split gaps come from the cover faces (two high faces facing each other 0.9-1.7 m apart), so any map gets them
+  without placing anchors; maps can still steer them by geometry.
+- Pipe inverted / legs up turn the rig about a pivot below the hips (`TUMBLE_PIVOT`); the upright-only pelvis drop and
+  knee-floor rules are skipped while tumbled (they pushed the hips the wrong way).
+- Fences are their own physics group (`G.FENCE`): only the player's capsule collides; bullets, sight and level probes
+  pass; they are not level pieces (no cover, ledges, voxels).
+- The grab replaces the instant takedown from behind only (dogs excepted); front / side / corner / over cover keep the
+  strike. A head shot from a guard kills the hostage (any guard dies to one head shot): he drops and the grab ends.
+- PvP takedowns: only drop / ledge pull / inverted on opponents (host-checked `ptd`); no grabs (no human shields of
+  players), Execute stays off.
+- Team moves: the host decides; a host's own request goes through the same check. The braced bottom sends mode
+  `brace`; the climber `boost` / `stacked`. No prompt for bracing itself (it needs a ray every frame); the boost / ladder
+  prompt shows over a braced mate in reach.
+- Teleports (respawn, insertion, tests) now cancel a committed traversal move and never count as a fall: a landing
+  roll after a teleport used to drag the player back along its path.
+- Training: the Mark guards are two spawns that see each other (the CT course walls off the old pair on Proving).
+
+Tests run:
+- `npm run lint` clean; `npm test` 56 files, 564 tests passed; `npm run build` ok.
+- Full e2e on the Phase 2+3 build: all 31 suites passed except takedown / training (their scripts already expected the
+  Phase 4 grab). On the Phase 4+5 build: e2e-takedown, e2e-training, e2e-coop, e2e-enemies, e2e-ct, e2e-anchors,
+  e2e-traverse, e2e-move, e2e-netmove passed (e2e-coop failed once at the infiltration objective sync, then passed).
+- Perf (Phase 2+3): within VM noise of the Phase 1 numbers (mobile Ultra draws 233-260 across runs).
+
+Open issues:
+- Bracing has no prompt; the human ladder by touch needs the prompt held (tap = boost).
+- The fence's chain-link is a flat textured panel (no voxels): it looks thin from the side.
+- Rappel / fence / team moves have no dedicated clips beyond `RAPPEL_HANG` / `BRACE` (the climb clips stand in).
 
 ## Preview
 `ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).

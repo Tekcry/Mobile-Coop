@@ -5,7 +5,8 @@ import type { CharacterRig } from '../player/characterRig';
 import type { DamageResult, HitInfo } from './damage';
 import { G } from '../physics/groups';
 import { hyp2 } from '../core/mathx';
-import { approachPoint, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
+import { approachPoint, GRAB, GRAB_KINDS, pickTakedown, TAKEDOWN, type AttackerState, type TakedownInput, type TakedownPlan } from './takedown';
+import { gearCap } from '../player/speedGears';
 import type { GameState } from './gameState';
 import { grabRule } from '../ai/archetypes';
 
@@ -14,6 +15,22 @@ const NOISE_CHOKE = 1.2;
 const NOISE_STRIKE = 3;
 /** Candidates within this (m) are checked (one line-of-sight ray per step, the nearest). */
 const SCAN = 5;
+
+/**
+ * (3.2.0) A grab from behind: approaching (`hold` false), then holding the guard in front (the operator moves at a
+ * walk, the sidearm comes out one-handed over the hostage's shoulder); a fresh press decides it (tap: knockout, held:
+ * lethal) and `strikeT` times the finishing move; shove lets them go staggering.
+ */
+interface GrabState {
+  hold: boolean;
+  /** The deciding press: seconds held (< 0: none yet). */
+  pressT: number;
+  /** The finishing strike under way (s; < 0: none). */
+  strikeT: number;
+}
+
+/** The grab's finishing strike / choke (s). */
+const GRAB_STRIKE = 0.5;
 
 /** What a takedown needs from its victim: an `Enemy`, or a co-op client's puppet of the host's enemy. */
 export interface TakedownVictim {
@@ -28,7 +45,13 @@ export interface TakedownVictim {
   taken: boolean;
   beginTakedown(choke: boolean): void;
   holdAt(x: number, y: number, z: number, yaw: number): void;
-  releaseTakedown(): void;
+  releaseTakedown(stagger?: number): void;
+  /** (3.2.0) Solid to the operator's body or not (a held hostage). */
+  setSolid?(on: boolean): void;
+  /** (3.2.0) Upright in the operator's hold (a human shield). */
+  holdAsHostage?(): void;
+  /** (3.2.0) Another player (PvP): only the drop, the ledge pull and the inverted choke, and never a grab. */
+  readonly pvp?: boolean;
   applyDamage(h: HitInfo): DamageResult;
   knockOut(h: HitInfo): void;
 }
@@ -45,7 +68,11 @@ export class TakedownController {
   /** On offer this step. */
   offer: { e: TakedownVictim; plan: TakedownPlan; lethalOnly: boolean } | null = null;
   /** Running; `decided` once tap / hold is known (released early = non-lethal, held through = lethal). */
-  active: { e: TakedownVictim; plan: TakedownPlan; lethal: boolean; decided: boolean; t: number; from: Vector3; vFrom: Vector3; hp: number } | null = null;
+  active: { e: TakedownVictim; plan: TakedownPlan; lethal: boolean; decided: boolean; t: number; from: Vector3; vFrom: Vector3; hp: number; grab: GrabState | null } | null = null;
+  /** (3.2.0) The shove control was pressed this step (set by GameState). */
+  shovePressed = false;
+  /** Grabs: held / knocked out / killed / shoved (stats, tests). */
+  grabs = { held: 0, ko: 0, killed: 0, shoved: 0, lost: 0 };
   /** The press that started it is still held (pad / keyboard, or the touch prompt). */
   holding = false;
   /** Counts (stats / tests). */
@@ -63,8 +90,14 @@ export class TakedownController {
     const g = this.g;
     const tr = g.traversal;
     if (tr.attached) {
-      const k = tr.attachCtl.m.kind;
-      if (k === 'ledge' || k === 'pipeH') return 'hang';
+      const ac = tr.attachCtl;
+      if (ac.m.phase !== 'on') return 'climb';
+      const k = ac.m.kind;
+      if (k === 'ledge') return 'hang';
+      // (3.2.0) a pipe (hands / legs up, or settled inverted), a split, a rope
+      if (k === 'pipeH') return ac.pipe.mode === 'inverted' && !ac.pipe.busy ? 'inverted' : 'pipe';
+      if (k === 'split') return 'split';
+      if (k === 'rappel') return 'rappel';
       if (k === 'zipline') return 'zipline';
       if (k === 'duct') return 'duct';
       return 'climb';
@@ -79,6 +112,8 @@ export class TakedownController {
     const g = this.g;
     if (this.active) {
       this.holding = held || this.touchHeld;
+      this.pressedNow = pressed || this.touchPressed;
+      this.touchPressed = false;
       this.run(dt);
       return true;
     }
@@ -98,11 +133,13 @@ export class TakedownController {
   touchHeld = false;
   touchPress(down: boolean): void {
     this.touchHeld = down;
+    if (down && this.active?.grab) this.touchPressed = true;
     if (down && !this.active) {
       this.holding = true;
       this.start();
     }
   }
+  private touchPressed = false;
 
   /** Start the offered takedown now; `lethal` forces the choice (else tap / hold decides). */
   start(lethal?: boolean): void {
@@ -112,13 +149,26 @@ export class TakedownController {
     if (o.lethalOnly) lethal = true;
     const g = this.g;
     const c = g.player.controller;
-    // leaving cover / the anchor for moves that carry the attacker; hanging pulls stay on the lip
-    if (o.plan.kind !== 'below' && o.plan.kind !== 'window') {
+    // leaving cover / the anchor for moves that carry the attacker; hanging pulls (and an inverted choke) stay put
+    if (o.plan.kind !== 'below' && o.plan.kind !== 'window' && o.plan.kind !== 'inverted') {
       if (g.traversal.attached) g.traversal.reset();
       if (g.cover.inCover) g.cover.reset();
     }
+    // (3.2.0) from behind on a guard on two legs: a grab, decided by a fresh press while holding them
+    const grab = GRAB_KINDS.includes(o.plan.kind) && !o.e.def.quadruped && !o.lethalOnly && this.grabAllowed && lethal === undefined;
     o.e.beginTakedown(lethal !== true);
-    this.active = { e: o.e, plan: o.plan, lethal: lethal === true, decided: lethal !== undefined, t: 0, from: c.pos.clone(), vFrom: o.e.pos.clone(), hp: g.target.health.hp + g.target.health.shield };
+    this.active = {
+      e: o.e,
+      plan: o.plan,
+      lethal: lethal === true,
+      decided: grab || lethal !== undefined,
+      t: 0,
+      from: c.pos.clone(),
+      vFrom: o.e.pos.clone(),
+      hp: g.target.health.hp + g.target.health.shield,
+      grab: grab ? { hold: false, pressT: -1, strikeT: -1 } : null,
+    };
+    if (grab) this.grabs.held++;
     this.offer = null;
     g.events.emit('takedown', { phase: 'start', lethal: lethal === true, kind: o.plan.kind });
   }
@@ -166,14 +216,99 @@ export class TakedownController {
     i.los = !h.hit || h.distance > Vector3.Distance(this.eye, this.head) - 0.2;
     const plan = pickTakedown(i);
     if (!plan) return null;
+    // (3.2.0) another player: only from a hang / pipe / split / rope above, the lip pull or upside down
+    if (best.pvp && plan.kind !== 'drop' && plan.kind !== 'below' && plan.kind !== 'inverted') return null;
     // archetypes: an enforcer's shield stops a grab from the front, a heavy only falls to a strike there
     const rule = grabRule(best.def.kind, plan.kind);
     return rule === 'no' ? null : { e: best, plan, lethalOnly: rule === 'lethal' };
   }
 
+  /** Grabs are allowed (not against other players: PvP turns them off). */
+  grabAllowed = true;
+
+  /** Holding a hostage now (the grab past its approach). */
+  get hostage(): TakedownVictim | null {
+    const a = this.active;
+    return a?.grab?.hold ? a.e : null;
+  }
+
+  /** The grab: approach, hold (moving slowly), a fresh press to finish it, a shove to let go. */
+  private runGrab(dt: number, gr: GrabState): void {
+    const g = this.g;
+    const a = this.active!;
+    const { e, plan } = a;
+    const c = g.player.controller;
+    a.t += dt / this.handsMul;
+    if (!g.player.alive || !e.alive) {
+      if (!e.alive) this.grabs.lost++;
+      this.abort();
+      return;
+    }
+    if (!gr.hold) {
+      // stepping in behind them (hurt on the way: it falls apart)
+      if (g.target.health.hp + g.target.health.shield < a.hp - 0.5) {
+        this.abort();
+        return;
+      }
+      approachPoint(a.from.x, a.from.y, a.from.z, plan, Math.min(1, a.t / Math.max(0.01, plan.approach)), this.pt);
+      this.kin.set(this.pt.x, this.pt.y, this.pt.z);
+      c.override = { kinematic: this.kin, yaw: plan.faceYaw, turnRate: 40 };
+      e.holdAt(a.vFrom.x, a.vFrom.y, a.vFrom.z, plan.faceYaw);
+      if (a.t >= plan.approach) {
+        gr.hold = true;
+        c.override = null;
+        e.setSolid?.(false);
+        e.holdAsHostage?.();
+      }
+      return;
+    }
+    // holding: a walk at most, no sprint; the hostage stays in front, facing the way the operator does
+    c.cancelSprint();
+    c.speedCap = gearCap(Math.min(c.gear, GRAB.maxGear), c.crouched);
+    const fx = Math.sin(c.yaw);
+    const fz = Math.cos(c.yaw);
+    e.holdAt(c.pos.x + fx * GRAB.hold, c.pos.y, c.pos.z + fz * GRAB.hold, c.yaw);
+    if (gr.strikeT >= 0) {
+      gr.strikeT += dt / this.handsMul;
+      g.player.coverPose.melee = a.lethal ? Math.min(1, gr.strikeT / GRAB_STRIKE) : -1;
+      if (gr.strikeT >= GRAB_STRIKE) {
+        c.speedCap = Infinity;
+        this.grabs[a.lethal ? 'killed' : 'ko']++;
+        this.finish();
+      }
+      return;
+    }
+    if (this.shovePressed) {
+      // let them go with a push: staggering, then alert
+      c.speedCap = Infinity;
+      e.holdAt(c.pos.x + fx * (GRAB.hold + 0.5), c.pos.y, c.pos.z + fz * (GRAB.hold + 0.5), c.yaw);
+      this.release();
+      e.releaseTakedown(GRAB.shoveStagger);
+      this.grabs.shoved++;
+      g.events.emit('takedown', { phase: 'abort', lethal: false, kind: 'grab' });
+      return;
+    }
+    // a fresh press: released before `lethalHold` knocks them out, held through kills
+    if (gr.pressT < 0 && this.pressedNow) gr.pressT = 0;
+    if (gr.pressT >= 0) {
+      gr.pressT += dt;
+      if (!this.holding || gr.pressT >= TAKEDOWN.lethalHold) {
+        a.lethal = gr.pressT >= TAKEDOWN.lethalHold;
+        if (a.lethal) e.beginTakedown(false);
+        gr.strikeT = 0;
+      }
+    }
+  }
+  /** The interact press this step (a grab's deciding press). */
+  private pressedNow = false;
+
   private run(dt: number): void {
     const g = this.g;
     const a = this.active!;
+    if (a.grab) {
+      this.runGrab(dt, a.grab);
+      return;
+    }
     const { e, plan } = a;
     const c = g.player.controller;
     a.t += dt / this.handsMul;
@@ -194,7 +329,7 @@ export class TakedownController {
     const total = plan.approach + plan.strike;
     const kAp = plan.approach > 0 ? Math.min(1, a.t / plan.approach) : 1;
     // attacker: along the path onto the aligned spot, facing the victim
-    if (plan.kind !== 'below' && plan.kind !== 'window') {
+    if (plan.kind !== 'below' && plan.kind !== 'window' && plan.kind !== 'inverted') {
       approachPoint(a.from.x, a.from.y, a.from.z, plan, kAp, this.pt);
       this.kin.set(this.pt.x, this.pt.y, this.pt.z);
       c.override = { kinematic: this.kin, yaw: plan.faceYaw, turnRate: 40 };
@@ -222,7 +357,9 @@ export class TakedownController {
     const vr = a.e.bodyRig;
     vr.neck.computeWorldMatrix(true);
     const n = vr.neck.getAbsolutePosition();
-    const w = a.lethal ? 0.5 : 1;
+    // (3.2.0) holding a hostage: the left hand on their shoulder, the right free for the sidearm (until the strike)
+    const holdOnly = !!a.grab && a.grab.strikeT < 0;
+    const w = holdOnly ? (this.g.player.carry.raise > 0.2 ? 0 : 0.6) : a.lethal ? 0.5 : 1;
     rig.reachR.x = n.x;
     rig.reachR.y = n.y - 0.05;
     rig.reachR.z = n.z;
@@ -232,12 +369,16 @@ export class TakedownController {
     rig.reachL.x = s.x;
     rig.reachL.y = s.y;
     rig.reachL.z = s.z;
-    rig.reachL.w = w * 0.9;
+    rig.reachL.w = holdOnly ? 1 : w * 0.9;
   }
 
   private release(): void {
     const g = this.g;
     g.player.controller.override = null;
+    if (this.active?.grab) {
+      g.player.controller.speedCap = Infinity;
+      this.active.e.setSolid?.(true);
+    }
     g.player.coverPose.melee = -1;
     const rig = g.player.rig;
     rig.reachL.w = rig.reachR.w = 0;
@@ -252,15 +393,16 @@ export class TakedownController {
     e.taken = false;
     e.bodyRig.emote = null;
     const dir = new Vector3(Math.sin(a.plan.faceYaw), 0, Math.cos(a.plan.faceYaw));
-    const hit = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1 };
+    const hit = { amount: 9999, point: e.pos.clone(), dir, part: 'body' as const, kind: 'melee' as const, attackerTeam: 'player' as const, attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 1, takedown: a.plan.kind };
     if (a.lethal) e.applyDamage(hit);
     else e.knockOut(hit);
     this.done[a.lethal ? 'lethal' : 'nonLethal']++;
-    this.done.byKind[a.plan.kind] = (this.done.byKind[a.plan.kind] ?? 0) + 1;
+    const kind = a.grab ? 'grab' : a.plan.kind;
+    this.done.byKind[kind] = (this.done.byKind[kind] ?? 0) + 1;
     g.marks.earn();
     const r = a.lethal ? NOISE_STRIKE : NOISE_CHOKE;
     g.enemyMgr?.hear(g.player.position, r);
-    g.events.emit('takedown', { phase: 'done', lethal: a.lethal, kind: a.plan.kind });
+    g.events.emit('takedown', { phase: 'done', lethal: a.lethal, kind });
   }
 
   /** Interrupted: the victim breaks free (staggered, alert). */

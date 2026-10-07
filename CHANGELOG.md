@@ -40,6 +40,62 @@ Phase 1 - networked movement state:
 - Host checks: a client's free movement is held to its speed gear's pace (+15%); a client claiming a ladder or lip
   stays within half a metre of it (clamped, never kicked).
 
+Phase 2 - split jump, wall jump, pipe legs up / inverted:
+- Split jump: between two tall walls 0.9-1.7 m apart, facing along them, Y ("Split jump") springs up into a split with
+  the feet braced on both walls 1.9 m up. Aim (LT) draws the sidearm one-handed (turn up to 100 deg either way, look
+  down steeply), RT fires; B drops; Y jumps up to a lip or pipe above.
+- Wall jump: facing a wall under a lip 2.7-3.8 m up (too high to grab standing), Y ("Wall jump") kicks off the wall up
+  to a hang on it; at an inside corner the kick goes off the adjoining wall to the lip beside it.
+- Horizontal pipes: hanging by the hands, Y ("Legs up") crosses the legs over the pipe - a slow shimmy along it with the
+  feet well up out of the way; Y again ("Invert") hangs upside down by the knees: no travel, the sidearm aims and fires
+  (spread x1.3) while the camera stays upright; Y curls back up, B goes back to the hands; inverted, B lets go and flips
+  over onto the feet. Changes take about half a second; getting hit during one drops back to the hands.
+- Co-op / PvP: other players see all of it (split braced and aiming, the wall kick, legs up, inverted), hit volumes
+  follow the pose.
+- Proving Grounds: a Chaos Theory course north of the platform (a split corridor with lips above, a wall-jump block
+  with an inside corner, a pipe over open ground).
+
+Phase 3 - rappel and fences:
+- Rappel: at a roof edge with a rappel point, Y ("Rappel") hooks on and steps over. Stick down descends (1.6 m/s, 3 m/s
+  with sprint held), up climbs (1 m/s; at the top back over the edge). Y kicks out from the wall and swings back,
+  sideways with the stick (up to 1.5 m either way). Aim (LT) turns round on the rope with the sidearm. Beside a window,
+  Y kicks through it (the glass breaks) into the room. B unhooks within 2 m of the floor; at the bottom it unhooks.
+- Fences (chain-link): Y ("Climb") grabs one; climb up / down 0.9 m/s, shimmy 0.6 m/s; at the top Y flips over and
+  down the far side; B drops. Climbing above gear 3 rattles it (heard 4 m away); gears 1-3 are quiet. Fences stop
+  bodies, never bullets or sight, and give no cover.
+- Co-op / PvP: other players see you on the rope (with the rope drawn) and on fences.
+- Proving Grounds: a 5.5 m rappel house north east (ladder up its west side, a rappel point over a glazed window, a
+  doorway east) and a fence north west of the platform.
+
+Phase 4 - Chaos Theory takedowns and the grab:
+- Drop attack: hanging from a lip or a pipe (by the hands or legs up), braced in a split, on a zipline or a rope, a
+  guard 1.2-5 m below within a metre of where you would land: "Drop attack" (tap knocks out, hold kills).
+- Hanging inverted on a pipe, a guard right beneath: choke him up (tap) or break his neck (hold); you stay hanging.
+- Hanging at a lip, a guard standing at it above is still pulled over (the ledge pull).
+- The grab replaces the instant takedown from behind (dogs excepted): Y ("Grab") takes the guard and holds him in front.
+  Holding him you walk (gear 2 at most), LT / RT aim and fire the pistol one-handed over his shoulder (spread x1.2);
+  Y again: tap knocks him out, hold kills; B shoves him away (he staggers a second, then raises the alarm). Guards who
+  see you hold their fire for 1.5 s, then aim at your head only - and their shots hit him first. If he dies, he drops.
+  An Execute charge is earned as with any takedown.
+- Co-op: a client's grab holds the host's guard in front of that player (a shield for them too).
+- PvP: the drop attack, the ledge pull and the inverted choke work on opponents (the host checks them); no grabs.
+- Training: the takedown step is now a grab and a second press.
+
+Phase 5 - co-op team moves:
+- Brace: with a team-mate within 3 m and a wall right behind you, hold Y - back to the wall, hands cupped. B stands up.
+- Boost: facing a braced team-mate (within 1.2 m), tap Y - a step into their hands and a toss up to a lip, pipe or
+  split above (up to 4.5 m) that you could not reach alone. The prompt shows only when there is one in reach.
+- Human ladder: facing a braced team-mate, hold Y - you climb onto their shoulders (feet 1.45 m up) and stand there
+  free to turn, aim and fire; Y grabs a lip up to 4.1 m over the floor, B hops down. The bottom holds still; B drops
+  the climber.
+- The host checks every request on both players' states (alive, team-mates - same side in Team Deathmatch - the
+  partner braced, the climber on the ground, within reach, the target in range; one request a second) and starts it
+  on both screens at once; refused requests do nothing.
+- Y order: takedown > team move > Chaos Theory move > traversal > interact.
+- A teleport (respawn, insertion) now drops any committed move in flight and is never counted as a fall (no landing
+  roll where it lands).
+- Proving Grounds: a 4.2 m block north (out of reach alone) for boosts and the human ladder.
+
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
   device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few

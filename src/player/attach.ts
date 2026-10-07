@@ -1,6 +1,7 @@
 import type { AttachCamera } from '../config/camera';
 import { anchorLength, ductPoint, hangPoint, HANG, type Anchor, type AttachEntry, type Duct, type Ledge, type P3 } from '../world/anchors';
 import { SPLIT, type PipeMode } from './splitJump';
+import { FENCE, RAPPEL } from '../config/movement';
 import { hyp2 } from '../core/mathx';
 /**
  * Attached locomotion (pure: no Babylon/DOM), unit-tested.
@@ -16,7 +17,7 @@ import { hyp2 } from '../core/mathx';
  * and a first-frame response, so pushing the stick moves the body on the very next step.
  */
 
-export type AttachKind = 'ladder' | 'pipeV' | 'pipeH' | 'ledge' | 'duct' | 'zipline' | 'split';
+export type AttachKind = 'ladder' | 'pipeV' | 'pipeH' | 'ledge' | 'duct' | 'zipline' | 'split' | 'rappel' | 'fence';
 export type AttachPhase = 'enter' | 'on' | 'exit';
 /** Why an attached state ended: stepped off the bottom / top, climbed up, dropped, jumped to another anchor,
  *  reached the end (duct / zipline), was hit, or the anchor went away. */
@@ -74,6 +75,10 @@ export const ATTACH: Record<AttachKind, AttachSpec> = {
   zipline: { axis: 'auto', speed: ZIP_SPEED, accel: ZIP_ACCEL, dead: 0, enter: 0.3, exit: 0.3, camera: 'zipline', allow: { ...NO, sidearm: true, takedown: true, traverse: false }, holster: true },
   // (3.2.0) the Chaos Theory split jump: braced between two walls, no travel; a sidearm from it
   split: { axis: 'none', speed: 0, accel: 1, dead: 1, enter: SPLIT.jumpTime, exit: 0.3, camera: 'split', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
+  // (3.2.0 phase 3) the rope: `s` is the rope paid out (down +); a sidearm from it
+  rappel: { axis: 'vertical', speed: RAPPEL.descend, accel: 14, dead: 0.25, enter: RAPPEL.hookTime, exit: 0.35, camera: 'rappel', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
+  // the fence: `s` along it (shimmy), the climb height is the controller's second axis
+  fence: { axis: 'along', speed: FENCE.shimmy, accel: 6, dead: 0.3, enter: 0.3, exit: 0.35, camera: 'fence', allow: { ...NO }, holster: true },
 };
 
 /** Which attached state an anchor puts the player in (null: not an attached anchor). */
@@ -86,6 +91,8 @@ export function attachKindOf(a: Anchor): AttachKind | null {
     case 'duct':
     case 'zipline':
     case 'split':
+    case 'rappel':
+    case 'fence':
       return a.kind;
     default:
       return null;
@@ -108,6 +115,11 @@ export function attachRange(a: Anchor, height = 1.75): { min: number; max: numbe
     case 'pipeH':
       // the hands stay clear of whatever holds the pipe up at its ends
       return { min: Math.min(0.45, len / 2), max: Math.max(Math.min(0.45, len / 2), len - 0.45) };
+    case 'rappel':
+      // from just over the edge down to the feet on the floor
+      return { min: Math.min(RAPPEL.minOut, len), max: len };
+    case 'fence':
+      return { min: Math.min(0.35, len / 2), max: Math.max(Math.min(0.35, len / 2), len - 0.35) };
     default:
       return { min: 0, max: len };
   }
@@ -156,8 +168,12 @@ export interface AttachPose {
   yaw: number;
 }
 
-/** Hip joint height over the feet at 1.75 m (the rig's tumble pivot; `proportions` y.hip). */
+/** Hip joint height over the feet at 1.75 m (`proportions` y.hip). */
 export const BODY_PIVOT = 0.915;
+/** The rig's tumble pivot over the feet and the hips' rest above it (m at 1.75 m; `CharacterRig` bodyPivot /
+ *  pelvisRest): turned over, the hips sit that far from the pivot. */
+export const TUMBLE_PIVOT = BODY_PIVOT * 0.62;
+export const TUMBLE_REST = BODY_PIVOT - TUMBLE_PIVOT;
 
 /** Ladder / pipe standoff from the climbing line to the body's root (m): a drainpipe hugs the wall, so the body
  *  keeps a little further off it (bent knees clear the face). */
@@ -171,8 +187,10 @@ export const PIPE_TUMBLE: Record<PipeMode, number> = { hands: 0, legsUp: -Math.P
 /** Root-motion path: feet and facing at parameter `s` along the anchor. `face` (+1 / -1) picks which way a
  *  body faces along a pipe / zipline / duct (set at entry). `pipe` (3.2.0): a horizontal pipe's sub-state (legs
  *  up: the body along the pipe, face up; inverted: hanging by the knees, the root turned round so that, tumbled
- *  over, the chest faces the same way). Writes into `out`. */
-export function attachPose(a: Anchor, s: number, face: number, height: number, out: AttachPose, pipe: PipeMode = 'hands'): AttachPose {
+ *  over, the chest faces the same way). `u` (3.2.0 phase 3): a second axis - on a rope the sideways offset along
+ *  the wall (m, + to the wall's right seen from outside), on a fence the climb height of the feet (m). Writes into
+ *  `out`. */
+export function attachPose(a: Anchor, s: number, face: number, height: number, out: AttachPose, pipe: PipeMode = 'hands', u = 0): AttachPose {
   const k = height / 1.75;
   switch (a.kind) {
     case 'ladder':
@@ -198,14 +216,36 @@ export function attachPose(a: Anchor, s: number, face: number, height: number, o
       // hanging side-on to the pipe: facing across it (moving along it is a sideways shimmy)
       out.yaw = Math.atan2(tz * face, -tx * face);
       if (pipe === 'legsUp') {
-        // along the pipe, lying face up under it (the tumble lays the body back about the hips): legs towards b
-        out.y = a.hangHeight - (PIPE_HIPS.legsUp + BODY_PIVOT) * k;
+        // along the pipe, lying face up under it: the tumble about the rig's pivot lays the body back with the head
+        // away from the facing and the hips a pelvis length behind the root; the root sits so the hips are at `s`
         out.yaw = Math.atan2(tx * face, tz * face);
+        out.x += tx * face * TUMBLE_REST * k;
+        out.z += tz * face * TUMBLE_REST * k;
+        out.y = a.hangHeight - (PIPE_HIPS.legsUp + TUMBLE_PIVOT) * k;
       } else if (pipe === 'inverted') {
-        // by the knees, head down: tumbled over, the chest faces back round to the hanging facing
-        out.y = a.hangHeight - (PIPE_HIPS.inverted + BODY_PIVOT) * k;
+        // by the knees, head down: tumbled over, the chest faces back round to the hanging facing (the hips hang a
+        // pelvis length under the pivot)
+        out.y = a.hangHeight - (PIPE_HIPS.inverted + TUMBLE_PIVOT - TUMBLE_REST) * k;
         out.yaw += Math.PI;
       }
+      return out;
+    }
+    case 'rappel': {
+      // facing the wall, the feet on it, `s` of rope out (the feet that far under the edge), `u` sideways
+      const tx = -a.nz;
+      const tz = a.nx;
+      out.x = a.top.x + a.nx * RAPPEL.standoff * k + tx * u;
+      out.z = a.top.z + a.nz * RAPPEL.standoff * k + tz * u;
+      out.y = a.top.y - s;
+      out.yaw = Math.atan2(-a.nx, -a.nz);
+      return out;
+    }
+    case 'fence': {
+      // facing the fence from side `face`, the feet `u` up it
+      out.x = a.a.x + a.tx * s + a.nx * face * FENCE.standoff * k;
+      out.z = a.a.z + a.tz * s + a.nz * face * FENCE.standoff * k;
+      out.y = a.a.y + u;
+      out.yaw = Math.atan2(-a.nx * face, -a.nz * face);
       return out;
     }
     case 'split': {

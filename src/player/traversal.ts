@@ -107,6 +107,24 @@ export class TraversalController {
       (x, z, y) => this.floor(x, z, y, 3),
       (ax, ay, az, bx, by, bz) => this.ray(this.a.set(ax, ay, az), this.b.set(bx, by, bz)) === null,
     );
+    // (3.2.0) off a rope through a window beside it: the window vault from there (the glass breaks)
+    this.attachCtl.onKickThrough = (w, fx, fy, fz, tx, ty, tz) => {
+      if (!w.open) this.breakables?.open(`glass:${w.id}`, 'break');
+      this.throughWindow = true;
+      this.ctRoll = false;
+      this.kind = 'vault';
+      this.t = 0;
+      this.speed0 = 2;
+      this.sprint0 = false;
+      this.dur = TRAVERSE_TIME.vault * 0.9;
+      this.from.set(fx, fy, fz);
+      this.to.set(tx, ty, tz);
+      this.top = Math.max(fy, w.sillHeight) + 0.05;
+      const l = hyp2(tx - fx, tz - fz) || 1;
+      this.dir.set((tx - fx) / l, 0, (tz - fz) / l);
+      this.hint = null;
+      this.moves = (this.moves + 1) & 255;
+    };
   }
 
   /** A standing body's worth of free space above (x, y, z) (and nothing solid at the feet). */
@@ -280,6 +298,18 @@ export class TraversalController {
       return true;
     }
     if (this.attachCtl.updateVent(dt)) return true;
+    // teleported mid-move (respawn, tests): the committed move is gone
+    if (c.teleports !== this.teleports) {
+      this.teleports = c.teleports;
+      this.landings = c.landings;
+      if (this.active) {
+        c.override = null;
+        this.kind = 'none';
+        this.ctRoll = false;
+        pose.traverse = 'none';
+        pose.traverseT = 0;
+      }
+    }
     if (this.active) {
       this.t += dt;
       const k = Math.min(1, this.t / this.dur);
@@ -455,6 +485,7 @@ export class TraversalController {
   private commitInfo = { kind: 'none' as Traversal | 'drop' | 'hop' | 'roll', window: false, from: new Vector3(), to: new Vector3(), top: 0, speed: 0, dur: 1, t: 0, n: 0 };
   /** Committed moves started (a counter the network state carries). */
   private moves = 0;
+  private teleports = 0;
 
   reset(): void {
     this.kind = 'none';

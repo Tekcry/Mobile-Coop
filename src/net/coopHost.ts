@@ -21,6 +21,14 @@ import { pickSpawn, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } 
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
+import { GRAB } from '../game/takedown';
+import { PvpVictim } from './pvpVictim';
+import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
+import type { TeamMate } from '../game/teamController';
+
+/** (3.2.0) A PvP takedown's end: the attacker within this of the victim (m, horizontal / vertical). */
+const PTD_REACH = 2.5;
+const PTD_HEIGHT = 5.5;
 import type { CharacterRig } from '../player/characterRig';
 
 const SNAP_HZ = 15;
@@ -100,7 +108,7 @@ export class CoopHost implements NetAttachment {
   /** Revive points on downed players (co-op). */
   private revives = new Map<string, Interactable>();
   /** Enemies seized by a client's takedown: enemy id -> client id and seconds held. */
-  private seized = new Map<string, { by: string; t: number }>();
+  private seized = new Map<string, { by: string; t: number; hostage?: boolean }>();
   /** Shot noise edges per client. */
   private firing = new Map<string, number>();
   /** PvP: the score; per player hit volumes the host's own shots resolve against; respawn timers. */
@@ -126,6 +134,8 @@ export class CoopHost implements NetAttachment {
     if (this.score) {
       this.score.add(s.selfId, s.players.get(s.selfId)?.team ?? 0);
       g.target.friendly = (h) => this.friendly(h, s.selfId);
+      // (3.2.0) the host's own takedowns on opponents (drop / ledge pull / inverted)
+      g.takedownVictims = () => this.pvpVictimList();
       // spread the players over the spawns from the start
       const at = this.spawnFor(s.selfId);
       g.player.controller.teleport(at, g.player.cam.yaw);
@@ -447,6 +457,12 @@ export class CoopHost implements NetAttachment {
       case 'td':
         this.onTakedown(r, msg);
         break;
+      case 'ptd':
+        this.onPvpTakedown(r.id, msg.target, msg.kind);
+        break;
+      case 'tmove':
+        this.onTeamMove(r.id, msg.kind, msg.partner, msg.target, msg.s, msg.gy);
+        break;
       case 'gadget': {
         // thrown from near the sender, one a second at most
         const last = this.gadgetAt.get(r.id) ?? -9;
@@ -514,6 +530,131 @@ export class CoopHost implements NetAttachment {
     else e.knockOut(hit);
     this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2);
     this.takedownDone(r.id);
+  }
+
+  // --- (3.2.0 phase 5) team moves ---
+
+  /** Team-mates of the host (co-op: every other player; TDM: the same side). */
+  /** (3.2.0 phase 5) The host's own team-move requests go through the same check as the clients'. */
+  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number): void {
+    this.onTeamMove(this.s.selfId, kind, partner, target, ss, gy);
+  }
+
+  teamEnd(): void {
+    this.onTeamMove(this.s.selfId, 'end', '', -1, 0, 0);
+  }
+
+  private mateOut: TeamMate[] = [];
+  teamMates(): readonly TeamMate[] {
+    const out = this.mateOut;
+    out.length = 0;
+    for (const r of this.remotes.values()) {
+      if (!r.alive || (this.score && this.score.hostile(this.s.selfId, r.id))) continue;
+      out.push({ id: r.id, pos: r.avatar.pos, yaw: r.avatar.yaw, mode: r.state?.mv?.m ?? 'ground' });
+    }
+    return out;
+  }
+
+  /** Pairs in a human ladder (each id -> the other). */
+  private teamPairs = new Map<string, string>();
+  private teamLast = new Map<string, number>();
+  private teamMv = emptyMoveState();
+
+  private teamSide(id: string): TeamSide | null {
+    const self = id === this.s.selfId;
+    const r = self ? null : this.remotes.get(id);
+    if (!self && !r) return null;
+    const p = self ? this.g.player.position : r!.feet;
+    const mode = self ? localMoveState(this.g, this.teamMv).m : (r!.state?.mv?.m ?? 'ground');
+    const team = this.score ? (this.s.players.get(id)?.team ?? 0) : 0;
+    return { id, x: p.x, y: p.y, z: p.z, mode, alive: self ? this.g.player.alive : r!.alive, team };
+  }
+
+  /** A team-move request (a client's `tmove`, or the host's own): checked on both players' states, then started. */
+  private onTeamMove(by: string, kind: 'boost' | 'ladder' | 'end', partner: string, target: number, ss: number, gy: number): void {
+    const self = this.s.selfId;
+    if (kind === 'end') {
+      const other = this.teamPairs.get(by);
+      if (!other) return;
+      this.teamPairs.delete(by);
+      this.teamPairs.delete(other);
+      this.s.send({ t: 'tend', a: by, b: other });
+      if (other === self) this.g.team.ended();
+      return;
+    }
+    const a = this.teamSide(by);
+    const b = this.teamSide(partner);
+    const deny = (reason: string): void => {
+      this.s.send({ t: 'tdeny', a: by, reason });
+      if (by === self) this.g.team.denied(reason);
+    };
+    if (!a || !b) return deny('far');
+    const anchor = target >= 0 ? this.g.world.level.anchors.get(target) : null;
+    const now = this.time;
+    const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99) });
+    this.teamLast.set(by, now);
+    if (why) return deny(why);
+    if (kind === 'ladder') {
+      this.teamPairs.set(by, partner);
+      this.teamPairs.set(partner, by);
+    }
+    const start = { kind, a: by, b: partner, target: anchor ? target : -1, s: ss, t0: now };
+    this.s.send({ t: 'tstart', ...start });
+    if (by === self || partner === self) this.g.team.begin(start, self);
+  }
+
+  /** (3.2.0) PvP: hostile players as takedown victims for the host's own takedowns. */
+  private pvpVictims = new Map<string, PvpVictim>();
+  private pvpVictimOut: PvpVictim[] = [];
+  private pvpVictimList(): readonly PvpVictim[] {
+    const out = this.pvpVictimOut;
+    out.length = 0;
+    const sc = this.score;
+    if (!sc) return out;
+    for (const r of this.remotes.values()) {
+      if (!sc.hostile(this.s.selfId, r.id)) continue;
+      let v = this.pvpVictims.get(r.id);
+      if (!v) this.pvpVictims.set(r.id, (v = new PvpVictim(r.id, r.avatar, (target, kind) => this.onPvpTakedown(this.s.selfId, target, kind))));
+      out.push(v.sync());
+    }
+    return out;
+  }
+
+  /**
+   * (3.2.0) A PvP takedown finished (a client's `ptd`, or the host's own): an opponent, both alive, the attacker within
+   * reach of the victim (a drop lands beside them; a lip pull / an inverted choke is right above / below) - then it
+   * is a kill.
+   */
+  private onPvpTakedown(by: string, target: string, kind: string): void {
+    const sc = this.score;
+    if (!sc || !sc.hostile(by, target) || (kind !== 'drop' && kind !== 'below' && kind !== 'inverted')) return;
+    const self = this.s.selfId;
+    const attacker = by === self ? null : this.remotes.get(by);
+    if (by !== self && (!attacker || !attacker.alive)) return;
+    if (by === self && !this.g.player.alive) return;
+    const victim = target === self ? null : this.remotes.get(target);
+    if (target !== self && (!victim || !victim.alive)) return;
+    if (target === self && !this.g.player.alive) return;
+    const af = attacker ? attacker.feet : this.g.player.position;
+    const vf = victim ? victim.feet : this.g.player.position;
+    if (hyp2(af.x - vf.x, af.z - vf.z) > PTD_REACH || Math.abs(af.y - vf.y) > PTD_HEIGHT) {
+      if (attacker) attacker.violations++;
+      return;
+    }
+    const hit: HitInfo = {
+      amount: 9999,
+      point: vf.clone(),
+      dir: new Vector3(vf.x - af.x, 0, vf.z - af.z).normalize(),
+      part: 'body',
+      kind: 'melee',
+      attackerTeam: 'player',
+      attackerId: by,
+      sourcePos: af.clone(),
+      impulse: 1,
+      takedown: kind,
+    };
+    const res = victim ? victim.applyDamage(hit) : this.g.target.applyDamage(hit);
+    if (res.dealt > 0) this.push({ e: 'hitConfirm', player: by, kind: res.killed ? 'kill' : 'hit' });
   }
 
   private release(eid: string): void {
@@ -789,9 +930,27 @@ export class CoopHost implements NetAttachment {
       if (at) it.pos.copyFrom(at);
       if (id === this.s.selfId ? this.g.player.alive : !r || r.alive) this.dropRevive(id);
     }
+    for (const r of this.remotes.values()) r.ref.shield = null;
     for (const [eid, s] of this.seized) {
       s.t += dt;
       const by = this.remotes.get(s.by);
+      // (3.2.0) a client holding the guard as a hostage: kept in front of them (and a shield) for as long as it lasts
+      const mv = by?.state?.mv;
+      if (by && by.alive && mv?.m === 'grab' && mv.tid === eid) {
+        const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
+        if (e && e.alive) {
+          s.t = 0;
+          const yaw = by.state!.yaw;
+          if (!s.hostage) {
+            s.hostage = true;
+            e.holdAsHostage();
+            e.setSolid(false);
+          }
+          e.holdAt(by.feet.x + Math.sin(yaw) * GRAB.hold, by.feet.y, by.feet.z + Math.cos(yaw) * GRAB.hold, yaw);
+          by.ref.shield = e;
+          continue;
+        }
+      }
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);

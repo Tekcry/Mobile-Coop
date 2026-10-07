@@ -333,6 +333,53 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
   their body in cover is only hittable where it shows.
 - [ ] Taking cover / grabbing a ladder shows on the other screen without a visible delay.
 
+## 3.2.0 phase 2 - Split jump, wall jump, pipe legs up / inverted (Proving Grounds, north of the platform)
+- [ ] Split corridor (two dark 4.3 m walls): stand between them facing along it - "Split jump"; facing a wall - no
+  prompt. Y: a quick spring into the split, feet on both walls, hands braced; the stick does nothing.
+- [ ] In the split: LT draws the pistol one-handed and aims; the view stops turning at about 100 deg from the corridor
+  and can look almost straight down; RT fires. Release LT: it is put away. B drops to the floor. Y jumps up to the
+  wall tops.
+- [ ] Wall jump block (3.3 m, grey): facing its south face - "Wall jump", Y kicks up the wall into a hang. Facing the
+  tall wall on its west side from the corner - Y kicks off it onto the block's lip. 2 m back: no prompt.
+- [ ] Pipe north of the platform: hang, Y "Legs up" (legs cross over the pipe, body along it face up), shimmy slowly
+  (about 0.5 m/s); Y "Invert": hanging by the knees, head down, the view upright; LT / RT aim and fire the pistol;
+  Y curls up again, B "Hands" back to hanging by the hands; inverted, B: flip over and land on the feet.
+- [ ] Co-op: the other player sees each of these poses (split braced and aiming, the kick, legs up, inverted).
+- [ ] No pistol in the loadout: the split and inverted hang still work, LT does nothing.
+
+## 3.2.0 phase 3 - Rappel and fences (Proving Grounds, north east / north west)
+- [ ] Rappel house: up the ladder on its west side, walk to the south edge facing out - "Rappel"; Y hooks on and steps
+  over facing the wall, the rope runs from the anchor to the harness.
+- [ ] Stick down: steady descent; with sprint held: fast; stick up: climbs, and at the top steps back onto the roof.
+- [ ] Y: kicks out and swings back to the wall; holding the stick sideways moves along the wall with each kick.
+- [ ] LT: turns round on the rope and aims the pistol out over the yard; RT fires.
+- [ ] Down beside the window: "Kick through" - smashes the glass and lands inside.
+- [ ] "Unhook" only shows within 2 m of the floor; B lets go. At the bottom the rope lets you go by itself.
+- [ ] Fence (north west of the platform): you cannot walk through it, but bullets and sight pass. Y "Climb", climb and
+  shimmy; gear 4+ makes noise (a guard near it hears), gear 3 and below are silent; at the top "Flip over".
+- [ ] Co-op: the other player sees the rope and the climbing pose; on a fence the same.
+
+## 3.2.0 phase 4 - Takedowns: drop attack, inverted, the grab / human shield (Warehouse Hunter + co-op + TDM)
+- [ ] Behind a calm guard: "Grab"; Y grabs him; walking is slow (gear 2) and he stays in front of you; LT draws the
+  pistol over his shoulder, RT fires; Y tap: knocked out, Y hold: killed; B: shoved away, staggering, then alert.
+- [ ] Holding a hostage in view of an alerted guard: no shots for about 1.5 s, then aimed shots - mostly into the
+  hostage; enough of them kill him and he drops.
+- [ ] Hanging under a pipe / at a lip / braced in a split / on the rope above a guard: "Drop attack" - you fall on him.
+- [ ] Inverted on a pipe right over a guard: "Takedown" - he is choked up, you stay hanging.
+- [ ] A dog from behind is still an instant takedown; a heavy from the front still only a lethal strike.
+- [ ] Co-op: the other player grabs a guard - you see him held in front of them; your shots at him do not hurt them.
+- [ ] TDM: drop on an opponent from a pipe or lip, or choke one from inverted: they are eliminated; no grab offered.
+
+## 3.2.0 phase 5 - Co-op team moves (two devices, co-op Free Roam on Proving Grounds, the 4.2 m block north)
+- [ ] Player 1 backs onto the block's south wall with player 2 near, holds Y: braced (back to the wall, hands cupped);
+  B stands up. Without a team-mate near, holding Y does nothing.
+- [ ] Player 2 faces the braced player 1: a "Boost (hold: ladder)" prompt over them; tap Y: a step into the hands, a toss, hanging from the
+  4.2 m lip on both screens. Player 1 is free again.
+- [ ] Player 2 braces, player 1 holds Y facing them: climbs onto the shoulders; free to turn, aim and fire there; Y
+  grabs the lip; B instead hops down. The bottom's B drops the top player.
+- [ ] TDM: a team-mate can boost you, an opponent cannot (nothing happens).
+- [ ] A takedown on offer still wins over the team move (Y takes the guard).
+
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
 - [ ] Fresh install on the iPhone: a toast "Graphics: <preset> for this device" a few seconds after the menu shows;

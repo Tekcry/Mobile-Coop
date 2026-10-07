@@ -6,65 +6,10 @@
  */
 import { hyp2 } from '../core/mathx';
 import type { CoverSegment } from '../cover/coverData';
-import { closestOnSegment, HANG, REACH, type Ledge, type P3 } from '../world/anchors';
+import { closestOnSegment, HANG, type Ledge, type P3 } from '../world/anchors';
+import { PIPE, SPLIT, WALL_JUMP } from '../config/movement';
 
-export const SPLIT = {
-  /** Faces this close to opposed (normal dot) count as the two sides of a gap. */
-  opposed: -0.95,
-  /** Gap between the faces (m). */
-  minWidth: 0.9,
-  maxWidth: 1.7,
-  /** Both walls at least this tall over the floor (m). */
-  minHeight: 2.6,
-  /** Shortest usable stretch of corridor (m) and the margin kept from its ends. */
-  minLen: 0.8,
-  endMargin: 0.3,
-  /** The two faces' bases within this of each other (m): the same floor. */
-  floorTol: 0.3,
-  /** The player faces within this of the corridor axis (rad, either way along it). */
-  facing: (40 * Math.PI) / 180,
-  /** Feet planted on the walls this high over the floor (m). */
-  feetHeight: 1.9,
-  /** The committed jump into the split (s). */
-  jumpTime: 0.45,
-  /** Aiming from the split: body yaw within this of the corridor axis, pitch band (rad). */
-  aimYaw: (100 * Math.PI) / 180,
-  pitchMin: (-85 * Math.PI) / 180,
-  pitchMax: (30 * Math.PI) / 180,
-} as const;
-
-export const WALL_JUMP = {
-  /** Lip height over the feet (m): above a standing grab (`REACH.grabMax`). */
-  minUp: REACH.grabMax,
-  maxUp: 3.8,
-  /** Facing a wall within this (m). */
-  wallReach: 1.0,
-  /** Facing the lip's wall: cos of the angle between the facing and into the wall. */
-  faceCos: 0.7,
-  /** Inside corner: facing the adjoining wall, the lip's face then side-on (|cos| under this). */
-  cornerCos: 0.4,
-  /** Lip within this (m, horizontal from the feet) for a corner kick. */
-  cornerReach: 1.4,
-  /** The committed run-up kick (s). */
-  time: 0.6,
-} as const;
-
-/** The horizontal pipe's sub-states and their timing. */
-export const PIPE = {
-  /** Shimmy speed with the legs crossed over the pipe (m/s). */
-  legsUpSpeed: 0.5,
-  /** Transitions (s). */
-  toLegsUp: 0.5,
-  toInverted: 0.55,
-  toHands: 0.45,
-  /** Inverted: aim band (rad) round the body facing, spread multiplier. */
-  aimYaw: (120 * Math.PI) / 180,
-  pitchMin: (-80 * Math.PI) / 180,
-  pitchMax: (30 * Math.PI) / 180,
-  spreadMul: 1.3,
-  /** Legs up: the feet ride this much higher than hanging by the hands (m). */
-  legsUpLift: 0.6,
-} as const;
+export { SPLIT, WALL_JUMP, PIPE } from '../config/movement';
 
 /** A split jump gap: the corridor's centre line on the floor (`a` -> `b`), its width and the walls' height. */
 export interface SplitGap {
