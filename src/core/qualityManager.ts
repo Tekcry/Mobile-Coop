@@ -167,10 +167,14 @@ export class QualityManager {
     this.onChange?.(this._level);
   }
 
-  /** Benchmark runs: a preset and / or render scale for now only (null: back to the settings). */
-  setOverride(o: { preset: FixedPreset | null; scale: number | null; gfx?: Partial<GraphicsFeatures> } | null): void {
+  /**
+   * Benchmark runs: a preset and / or render scale for now only (null: back to the settings). `apply` false only
+   * stores it: the next target (a run's own match, 3.1.4) builds with it.
+   */
+  setOverride(o: { preset: FixedPreset | null; scale: number | null; gfx?: Partial<GraphicsFeatures> } | null, apply = true): void {
     this.ov = o;
-    this.apply();
+    if (apply) this.apply();
+    else this._level = this.build();
   }
 
   setTarget(t: QualityTarget | null): void {

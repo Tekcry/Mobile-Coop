@@ -31,6 +31,23 @@ export interface BenchRun {
   sustained: boolean;
   /** 3.1.1 Feature costs: these features changed for this run only (over the player's settings). */
   gfx?: Partial<GraphicsFeatures>;
+  /**
+   * 3.1.4: every run loads its own match (a graphics change mid-match left the iPhone ~4x slower, so a run after a
+   * change measured that, not its settings) - except a `sameMatch` run, which goes on in the last run's match.
+   */
+  sameMatch?: boolean;
+  /** 3.1.4 diagnosis (Feature costs): rebuilt mid-match at the run's start, same settings - the post stack or the shadows. */
+  rebuild?: 'post' | 'shadows';
+}
+
+/** A benchmark in progress, carried from one run's match to the next. */
+export interface BenchSession {
+  kind: BenchKind;
+  runs: BenchRun[];
+  /** The run this match measures. */
+  idx: number;
+  /** The finished runs' lines. */
+  lines: string[];
 }
 
 /** Feature costs: one flight per run (shorter than the full benchmark: there are up to nine). */
@@ -70,7 +87,11 @@ export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: 
   if (kind === 'presets') return presets.map((p) => run(p[0]!.toUpperCase() + p.slice(1), p));
   if (kind === 'features') {
     const base = { ...run('current settings'), seconds: FEATURE_SECONDS };
-    return [base, ...(current ? featureRuns(current) : []).map((r) => ({ ...run(r.label), seconds: FEATURE_SECONDS, gfx: r.gfx }))];
+    // (then the settings again, rebuilt mid-match: the post stack, then in the same match the shadows - does a
+    // rebuild alone slow the device, and does new shadows put it right?)
+    const post: BenchRun = { ...base, label: 'current settings, post effects rebuilt mid-match', rebuild: 'post' };
+    const shadows: BenchRun = { ...base, label: 'then shadows rebuilt mid-match', rebuild: 'shadows', sameMatch: true };
+    return [base, ...(current ? featureRuns(current) : []).map((r) => ({ ...run(r.label), seconds: FEATURE_SECONDS, gfx: r.gfx })), post, shadows];
   }
   if (kind === 'sustained') return [{ ...run(`sustained ${Math.round(BENCH.sustained / 60)} min`), seconds: BENCH.sustained, sustained: true }];
   if (kind === 'resolutions') {

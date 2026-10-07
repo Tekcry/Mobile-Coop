@@ -56,7 +56,12 @@ describe('feature costs (3.1.1)', () => {
     const p = benchPlan('features', 2868, 1320, undefined, ultra);
     expect(p[0]).toMatchObject({ label: 'current settings', seconds: FEATURE_SECONDS });
     expect(p[0]!.gfx).toBeUndefined();
-    expect(p.length).toBe(1 + featureRuns(ultra).length);
+    expect(p.length).toBe(3 + featureRuns(ultra).length);
+    // (3.1.4: then the settings rebuilt mid-match - the post stack in a new match, the shadows in the same one)
+    expect(p.at(-2)).toMatchObject({ rebuild: 'post' });
+    expect(p.at(-2)!.gfx).toBeUndefined();
+    expect(p.at(-2)!.sameMatch).toBeUndefined();
+    expect(p.at(-1)).toMatchObject({ rebuild: 'shadows', sameMatch: true });
     expect(p.find((r) => r.label === 'without ambient occlusion')?.gfx).toEqual({ ao: false });
     expect(p.find((r) => r.label === 'shadows Low')?.gfx).toEqual({ shadows: 'low' });
     const low = featureRuns(GRAPHICS_PRESETS.low).map((r) => r.label);

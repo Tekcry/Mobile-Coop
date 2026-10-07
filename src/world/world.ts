@@ -368,7 +368,8 @@ export class World {
   surfaces: SurfaceAtlas | null = null;
 
   /** Graphics settings: the light pools, lamp / flashlight shadows, the sun's cascades, the surface textures. */
-  applyQuality(q: QualityLevel): void {
+  /** `rebuildShadows`: new shadow generators even with the same settings (3.1.4 benchmark diagnosis). */
+  applyQuality(q: QualityLevel, rebuildShadows = false): void {
     if (this.surfaces?.setSize(q.minimal ? 256 : TEXTURE_SIZE[q.features.textures], q.minimal ? 4 : TEXTURE_ANISO[q.features.textures])) {
       // (the level material is frozen: re-bind the new atlas)
       const m = this.level.meshes[0]?.material;
@@ -385,9 +386,10 @@ export class World {
       this.voxelsFine?.setLodDistances(d1 / 2, d2 / 2);
     }
     const shadowKey = JSON.stringify(q.shadow);
-    const shadowChanged = this.shadowKey !== '' && shadowKey !== this.shadowKey;
+    const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
     this.shadowKey = shadowKey;
-    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal });
+    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal }, rebuildShadows);
+    if (rebuildShadows) this.sunSpec = '';
     this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
     if (this.staticSun !== !!q.shadow.staticSun) {
       this.staticSun = !!q.shadow.staticSun;

@@ -20,7 +20,7 @@ import { FeedbackStore } from '../feedback/feedbackStore';
 import { keyLabels } from '../ui/prompts';
 import { bindLabel } from '../input/keyBindings';
 import { browserEnv, detectPlatform, platformOverride, uiScale, type PlatformInfo } from './platform';
-import type { BenchKind } from '../game/benchmark';
+import type { BenchKind, BenchSession } from '../game/benchmark';
 import { classifyGpu, hudInset, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
 import { MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
@@ -63,8 +63,8 @@ export class App {
   private time = 0;
   /** UI / input platform (desktop hides touch-only controls and settings). Never changes rendering. */
   platform: PlatformInfo = { platform: 'mobile', touch: true, reason: '' };
-  /** Settings > Graphics > Run benchmark (set by main). */
-  benchmark: ((kind?: BenchKind) => void) | null = null;
+  /** Settings > Graphics > Run benchmark (set by main); a session goes on to its next run in a new match. */
+  benchmark: ((kind?: BenchKind | BenchSession) => void) | null = null;
   /** Called when the platform flips (settings rebuild their tabs). */
   onPlatform: (() => void) | null = null;
 

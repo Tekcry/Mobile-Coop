@@ -123,6 +123,30 @@ try {
   assert(lines.length === 5 && ['low', 'medium', 'high', 'ultra', 'epic'].every((p, i) => new RegExp(p, 'i').test(lines[i])), `every preset runs in turn (${lines.join(' | ')})`);
   await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
   await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
+  // 3.1.4: every run loads its own match (its settings set before the load); a sameMatch run goes on in the last
+  // one; the diagnosis runs rebuild the post stack / the shadows mid-match
+  const bm = await G(async () => {
+    const app = window.__app;
+    const seen = [];
+    const run = (label, extra) => ({ label, preset: null, scale: null, seconds: 2, sustained: false, ...extra });
+    app.benchmark({ kind: 'features', runs: [run('current settings'), run('without bloom', { gfx: { bloom: false } }), run('post rebuilt', { rebuild: 'post' }), run('shadows rebuilt', { rebuild: 'shadows', sameMatch: true })], idx: 0, lines: [] });
+    await new Promise((r) => {
+      const t = setInterval(() => {
+        const c = app.current;
+        if (c?.benchmarkLines && !seen.includes(c)) seen.push(c);
+        if (/average \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? '')) {
+          clearInterval(t);
+          r();
+        }
+      }, 50);
+    });
+    const c = app.current;
+    return { matches: seen.length, lines: c.benchmarkLines.map((l) => l.split(':')[0]), builds: c.stack.builds, ov: !!app.quality.ov };
+  });
+  assert(bm.matches === 3 && bm.lines.length === 4 && /post rebuilt/.test(bm.lines[2]) && /shadows rebuilt/.test(bm.lines[3]) && bm.builds === 2, `one match per run, the rebuild runs in the last (${JSON.stringify(bm)})`);
+  await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
+  await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
+  assert(!(await G(() => !!window.__app.quality.ov)), 'the benchmark leaves no override behind');
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
   assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
   await browser.close();

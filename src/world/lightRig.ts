@@ -232,8 +232,8 @@ export class LightRig {
    * Clustered lighting holds up to `lights` unshadowed lights in one container; `shadow.casters` spot lights with
    * shadow maps take the flashlights and the nearest lamps.
    */
-  configure(cfg: LightRigConfig): void {
-    const same = cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
+  configure(cfg: LightRigConfig, force = false): void {
+    const same = !force && cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
     this.cfg = cfg;
     if (this.cones) this.cones.isVisible = !cfg.volumetric;
     if (!this.bulbs || (same && this.pool.length + this.shadowPool.length > 0)) return;

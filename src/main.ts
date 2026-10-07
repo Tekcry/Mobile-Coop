@@ -20,7 +20,8 @@ import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
-import { BENCH } from './game/benchmark';
+import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
+import { MOBILE_PRESET_IDS, PRESET_IDS } from './core/quality';
 import { feedbackTab } from './ui/screens/feedbackScreen';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
@@ -142,13 +143,25 @@ async function boot(): Promise<void> {
       .catch((e: unknown) => {
         console.error(e);
         app.toasts.show('Failed to load map', 'warn');
+        if (opts.benchmark) app.quality.setOverride(null, false);
         if (cbOverride) cbOverride.quit();
         else goToMenu();
       })
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
 
-  app.benchmark = (kind = 'current') => startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: kind });
+  // (3.1.4: every run in its own match, its settings set before the map loads - a change mid-match is not what a run
+  // measures)
+  app.benchmark = (kind = 'current') => {
+    const s: BenchSession =
+      typeof kind === 'string'
+        ? { kind, runs: benchPlan(kind, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features), idx: 0, lines: [] }
+        : kind;
+    const run = s.runs[s.idx];
+    if (!run) return;
+    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
+    startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
+  };
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
 

@@ -220,6 +220,11 @@ export class PostStack {
     private opts: PostStackOptions,
   ) {}
 
+  /** The next `apply` rebuilds even with the same settings (3.1.4 benchmark diagnosis). */
+  invalidate(): void {
+    this.key = '';
+  }
+
   apply(q: QualityLevel): void {
     const f = q.features;
     const key = JSON.stringify(f) + q.minimal + q.upscale + q.panini;

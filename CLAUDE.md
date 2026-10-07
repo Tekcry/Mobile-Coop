@@ -918,7 +918,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `GameState` flies the camera through the room centres (`pathAt`, Catmull-Rom), guards passive, one flight per run
   (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
   the settings, then one costly feature off / down per run, `FEATURE_SECONDS` 20; `BenchRun.gfx` ->
-  `QualityManager.setOverride({ gfx })`), `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
+  `QualityManager.setOverride({ gfx })`; 3.1.4: then two diagnosis runs, `rebuild` 'post' / 'shadows' mid-match;
+  3.1.4: every run in its own match - `app.benchmark(BenchSession)` calls `setOverride(o, false)` before `startGame`,
+  the session carries the plan and lines, `sameMatch` runs go on in the last match), `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
   4K, 7680 x 2160 within scale 2, `sustained` 10 min with per-minute averages), then a Dialog with a line per run
   (`benchmarkLines`: + frames over `BENCH.longMs` 50 and shaders compiled during the run, from the engine's
   `_compiledEffects`), saved as a performance feedback note. Every run sets an override, so the frame governor is

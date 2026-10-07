@@ -299,11 +299,15 @@ Controls:
 | 3.1.0 (2868 x 1320) | 60 avg / 35 1% low | 19 / 8 | 15 / 7 | 12 / 6 |
 | 3.1.1 (1912 x 880) | 76 / 48 | 47 / 15 | 41 / 12 | 21 / 8 |
 | 3.1.2 (Feature costs, current settings) | | 57 / 21 | | 22 / 12 |
-| 3.1.3 | | | | |
+| 3.1.3 (Feature costs, current settings) | | 53 / 18 | | 21 / 11 |
+| 3.1.4 | | | | |
 - 3.1.2 Feature costs: Medium shadows Low 62 fps, lamps 8 54; Ultra shadows Low 28, lamps 8 23. Every other run
   (8-20 fps) was the rebuild bug fixed in 3.1.3, not the feature's cost.
-- [ ] 3.1.3: Settings > Graphics > Preset Ultra, then Benchmark > Feature costs; again on Medium. Copy text and send
-  the lines: no run without a feature may come out slower than "current settings".
+- 3.1.3 Feature costs: the same pattern (Ultra shadows Low 25, lamps 8 22, post half 23; every other run 8-20 fps).
+- [ ] 3.1.4: Settings > Graphics > Preset Ultra, then Benchmark > Feature costs (each run loads the map: ~4 min);
+  again on Medium. Copy text and send the lines: no run without a feature may come out slower than "current
+  settings"; the last two lines ("post effects rebuilt mid-match", "then shadows rebuilt mid-match") are the
+  diagnosis of the mid-match slowdown.
 - [ ] Mid-match (pause > Settings > Graphics): turn Ambient occlusion off and on, then Bloom: the frame rate stays
   where it was (3.1.2 dropped ~4x until Shadows were changed).
 - [ ] Fog and light shafts look as before (Medium, Fog weather); no shimmer on the shafts when the camera moves.

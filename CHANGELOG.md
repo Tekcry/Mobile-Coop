@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.1.4 - Every benchmark run in its own match
+- iPhone Feature costs on 3.1.3: unchanged (Medium 53 fps with your settings, Ultra 21; the runs after the first
+  still 8-20 fps), so the 3.1.3 material refresh is not the cure. Headless Chromium shows nothing different after a
+  rebuild (same passes, draws, light tiles, no GL errors): what goes stale is particular to the iPhone's GPU.
+- Every benchmark run (Feature costs, Every preset, Resolutions) now loads its own match with its settings set before
+  the map loads - the way the first run, always the fast one, was built. A preset's Detail tier (voxel layers) now
+  takes effect too; before, every preset ran on the first match's.
+- Feature costs ends with two diagnosis runs at your settings: the post effects rebuilt mid-match, then (same match)
+  the shadows rebuilt mid-match. Their lines say whether a rebuild alone slows the phone and whether new shadows put
+  it right.
+
 ## 3.1.3 - Graphics changes in a match no longer slow every frame
 - iPhone Feature costs on 3.1.2 (1912 x 880): Medium 57 fps with your settings, Ultra 22. But every run that rebuilt
   the post effects without touching shadows (ambient occlusion, light shafts, reflections, bloom, depth of field,

@@ -42,7 +42,7 @@ import { playEmote } from '../cosmetics/emotes';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
-import { MOBILE_PRESET_IDS, PRESET_IDS, VOXEL_TIER, type QualityLevel } from '../core/quality';
+import { VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
@@ -56,7 +56,7 @@ import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
-import { BENCH, benchPlan, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type P3 as BenchPoint } from './benchmark';
+import { BENCH, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
@@ -101,8 +101,11 @@ export interface GameOptions {
   hq?: HqLevels;
   /** Gadget selected at the start (the loadout preset's). */
   gadget?: string;
-  /** Settings > Graphics > Benchmark: camera flights through the rooms (one per run), guards passive, then the results. */
-  benchmark?: BenchKind;
+  /**
+   * Settings > Graphics > Benchmark: camera flights through the rooms, guards passive, then the results. 3.1.4: one
+   * run per match (its settings set before the map loads); the session carries the plan and the lines so far.
+   */
+  benchmark?: BenchSession;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
 }
@@ -693,9 +696,9 @@ export class GameState implements AppState {
         const s0 = this.world.layout.playerSpawns[0]!.pos;
         pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
       }
-      const runs = benchPlan(this.opts.benchmark, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio), this.app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, this.app.quality.level.features);
-      this.bench = { pts, runs, idx: -1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [], buckets: [], bMs: 0, bN: 0, bT: 0, shaders: 0 };
-      this.nextBenchRun();
+      const s = this.opts.benchmark;
+      this.bench = { kind: s.kind, pts, runs: s.runs, idx: s.idx - 1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [...s.lines], buckets: [], bMs: 0, bN: 0, bT: 0, shaders: 0, rebuild: null, handoff: false };
+      this.nextBenchRun(true);
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
     }
@@ -703,7 +706,8 @@ export class GameState implements AppState {
 
   exit(): void {
     document.body.classList.remove('photo-mode');
-    if (this.bench) this.app.quality.setOverride(null);
+    // (a run handing on to the next run's match keeps that run's settings, set by `app.benchmark`)
+    if (this.bench && !this.bench.handoff) this.app.quality.setOverride(null);
     if (this.pvp) this.app.quality.setPvp(false);
     this.exited = true;
     // never leave the loop in slow motion
@@ -1087,6 +1091,7 @@ export class GameState implements AppState {
   /** Benchmark (opts.benchmark): flight points, the runs and the current one's time and frame intervals after the
    *  warm-up; finished runs' lines; the sustained run's per-bucket averages. */
   private bench: {
+    kind: BenchKind;
     pts: BenchPoint[];
     runs: BenchRun[];
     idx: number;
@@ -1103,6 +1108,10 @@ export class GameState implements AppState {
     bT: number;
     /** Shaders compiled before this run started. */
     shaders: number;
+    /** The run's mid-match rebuild, still to do (3.1.4 diagnosis). */
+    rebuild: BenchRun['rebuild'] | null;
+    /** Handed on to the next run's match. */
+    handoff: boolean;
   } | null = null;
   private readonly benchP: BenchPoint = { x: 0, y: 0, z: 0 };
   private readonly benchQ: BenchPoint = { x: 0, y: 0, z: 0 };
@@ -1114,7 +1123,7 @@ export class GameState implements AppState {
     return c ? Object.keys(c).length : 0;
   }
 
-  private nextBenchRun(): void {
+  private nextBenchRun(fresh = false): void {
     const b = this.bench;
     if (!b) return;
     b.idx++;
@@ -1124,8 +1133,16 @@ export class GameState implements AppState {
     b.last = 0;
     const run = b.runs[b.idx];
     if (run) {
-      // (always an override while measuring: it also holds the frame governor off, so a run measures its settings)
-      this.app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx });
+      if (!fresh && !run.sameMatch) {
+        // (3.1.4: the next run loads its own match with its settings; this one stops measuring)
+        b.done = true;
+        b.handoff = true;
+        this.app.benchmark?.({ kind: b.kind, runs: b.runs, idx: b.idx, lines: b.lines });
+        return;
+      }
+      // (the run's settings are the override `app.benchmark` set before the map loaded: it also holds the frame
+      // governor off, so a run measures its settings)
+      b.rebuild = run.rebuild ?? null;
       b.shaders = this.shaderCount();
       return;
     }
@@ -1186,6 +1203,16 @@ export class GameState implements AppState {
     }
     b.last = now;
     b.t += real;
+    // (diagnosis: the same settings rebuilt mid-match, early in the warm-up)
+    if (b.rebuild && b.t >= BENCH.warmup / 3) {
+      const k = b.rebuild;
+      b.rebuild = null;
+      const level = this.app.quality.level;
+      if (k === 'post') {
+        this.stack.invalidate();
+        this.applyQuality(level);
+      } else this.world.applyQuality(level, true);
+    }
     // guards keep patrolling but never fight; the operator takes no damage
     for (const e of this.enemyMgr?.enemies ?? []) e.passive = true;
     this.target.damageMul = 0;
