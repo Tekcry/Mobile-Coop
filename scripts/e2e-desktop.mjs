@@ -159,7 +159,8 @@ try {
   // 3.1.4 crash log: a page that dies while open leaves a note for the next start; a reload is a clean close
   await G(() => window.__app.crashLog.stage('crash test: run 2/9'));
   const cdp = await page.context().newCDPSession(page);
-  await cdp.send('Page.crash').catch(() => undefined);
+  // (the command never answers: the page is gone)
+  await Promise.race([cdp.send('Page.crash').catch(() => undefined), wait(2000)]);
   const p2 = await page.context().newPage();
   await p2.goto(url + '?gfx=min');
   await p2.waitForSelector('.main-menu');
