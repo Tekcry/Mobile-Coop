@@ -4,6 +4,7 @@ import {
   Color3,
   CreateBox,
   CreateCylinder,
+  Material,
   Matrix,
   Quaternion,
   Color4,
@@ -383,6 +384,9 @@ export class World {
       this.voxels?.setLodDistances(d1, d2);
       this.voxelsFine?.setLodDistances(d1 / 2, d2 / 2);
     }
+    const shadowKey = JSON.stringify(q.shadow);
+    const shadowChanged = this.shadowKey !== '' && shadowKey !== this.shadowKey;
+    this.shadowKey = shadowKey;
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal });
     this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
     if (this.staticSun !== !!q.shadow.staticSun) {
@@ -393,6 +397,29 @@ export class World {
     this.parts.setLodScale(k);
     setAnimLodScale(k);
     this.setSunShadows(q.shadow);
+    // (frozen materials keep the shader built for the old shadow maps - a stale light setup draws with unbound
+    // uniform buffers: let every one re-read its lights once, then freeze it again)
+    if (shadowChanged) this.relightMaterials();
+  }
+
+  private shadowKey = '';
+
+  private relightMaterials(): void {
+    const frozen: Material[] = [];
+    for (const m of this.scene.materials) {
+      if (m.isFrozen) {
+        m.unfreeze();
+        frozen.push(m);
+      }
+      m.markAsDirty(Material.LightDirtyFlag);
+    }
+    // (two frames: compiled and drawn with the new setup before freezing again)
+    let n = 0;
+    const obs = this.scene.onAfterRenderObservable.add(() => {
+      if (++n < 2) return;
+      this.scene.onAfterRenderObservable.remove(obs);
+      for (const m of frozen) m.freeze();
+    });
   }
 
   /** The frame governor's detail (3.1): run-time only, nothing recompiles. */

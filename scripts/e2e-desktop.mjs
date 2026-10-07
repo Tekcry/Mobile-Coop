@@ -346,7 +346,7 @@ try {
     return { pps: pps.map((p) => p.name), canvas: a.engine.getRenderWidth(), scene: taau?.inputTexture?.width ?? 0, level: a.quality.level.upscale, panini: a.quality.level.panini };
   });
   assert(p5.pps.includes('rtReflect') && p5.pps.includes('rtComposite') && !p5.pps.includes('ssr'), `Ray traced: the reflection passes replace screen space (${p5.pps.join(',')})`);
-  assert(p5.pps[0] === 'taau' && !p5.pps.includes('TAA'), 'TAAU leads the chain and replaces TAA');
+  assert(p5.pps[0] === 'volumetric' && p5.pps[1] === 'taau' && !p5.pps.includes('TAA'), `TAAU leads the chain after the low-resolution fog pass and replaces TAA (${p5.pps.slice(0, 3).join(',')})`);
   assert(p5.scene > 0 && Math.abs(p5.scene / p5.canvas - 0.67) < 0.02, `TAAU: the scene at 67% of the native canvas (${p5.scene} of ${p5.canvas})`);
   assert(p5.pps.includes('panini') && p5.pps.at(-1) === 'cinematic', `Panini on, the grade pass still last (${p5.panini})`);
   await u.page.screenshot({ path: process.env.SHOT_P5 ?? '/tmp/e2e-p5.png', timeout: 600000 });

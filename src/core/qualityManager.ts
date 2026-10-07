@@ -1,6 +1,6 @@
 import type { Engine } from './babylon';
 import { applyRenderScale } from './engine';
-import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, pvpFeatures, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
+import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, MOBILE_MAX_DPR, pvpFeatures, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
 import { adaptiveAt, FULL, Governor, type Adaptive } from './governor';
 import { flags } from './flags';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, type PacingSnapshot } from './pacing';
@@ -194,6 +194,6 @@ export class QualityManager {
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
     // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
-    else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), Infinity);
+    else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), this.mobile ? MOBILE_MAX_DPR : Infinity);
   }
 }

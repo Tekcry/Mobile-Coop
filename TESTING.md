@@ -293,6 +293,16 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 3.1.1 - Phone GPU (iPhone 17 Pro Max, Settings > Graphics > Benchmark, each preset)
+| Build | Low | Medium | High | Ultra |
+| --- | --- | --- | --- | --- |
+| 3.1.0 (2868 x 1320) | 60 avg / 35 1% low | 19 / 8 | 15 / 7 | 12 / 6 |
+| 3.1.1 | | | | |
+- [ ] Fog and light shafts look as before (Medium, Fog weather); no shimmer on the shafts when the camera moves.
+- [ ] Settings > Graphics > Shadows changed in a paused match: shadows switch, nothing goes black or flickers.
+- [ ] Safari: Settings > Apps > Safari > Advanced > Feature Flags > "Prefer Page Rendering Updates near 60fps" off,
+  then the benchmark again (the display rate line should read 120 Hz).
+
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
 - [ ] Fresh install on the iPhone: a toast "Graphics: <preset> for this device" a few seconds after the menu shows;

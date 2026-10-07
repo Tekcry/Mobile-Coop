@@ -1,4 +1,4 @@
-import { Effect, Matrix, PassPostProcess, PostProcess, type BaseTexture, type Camera, type RenderTargetWrapper, type Scene } from '../core/babylon';
+import { Effect, Matrix, PassPostProcess, PostProcess, type BaseTexture, type Camera, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
 
 /** The scene depth (3.1): the G-buffer's raw view z, or the depth renderer's normalised one. */
 export interface DepthSource {
@@ -114,11 +114,13 @@ export class Taau {
     const engine = scene.getEngine();
     // first in the chain: its input (the scene) is `scale` of the canvas
     const pp = new PostProcess('taau', 'taau', ['invView', 'prevViewProj', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'jitter', 'lowSize', 'reset', 'depthRaw'], ['historySampler', 'depthSampler'], scale, camera, undefined, engine, false, null, 2);
-    pp.onActivateObservable.add(() => {
+    // this frame's jitter, set before the camera renders anything (shadow maps, the G-buffer, the scene - and any
+    // pass ahead of this one in the chain, 3.1: the fog / light shafts at the low resolution)
+    this.jitterObs = scene.onBeforeCameraRenderObservable.add((cam) => {
+      if (cam !== this.camera) return;
       const w = engine.getRenderWidth();
       const h = engine.getRenderHeight();
-      if (!this.ping || this.ping.width !== w || this.ping.height !== h) this.makeTargets(w, h);
-      // this frame's jitter (in low-resolution pixels), on the projection
+      // (in low-resolution pixels, on the projection)
       this.n = (this.n % 16) + 1;
       const lw = Math.max(1, Math.floor(w * this.scale));
       const lh = Math.max(1, Math.floor(h * this.scale));
@@ -131,6 +133,11 @@ export class Taau {
       this.camera.getViewMatrix().multiplyToRef(this.proj, this.curVP);
       p.setRowFromFloats(2, this.jx, this.jy, p.m[10]!, p.m[11]!);
       this.scene.updateTransformMatrix(true);
+    });
+    pp.onActivateObservable.add(() => {
+      const w = engine.getRenderWidth();
+      const h = engine.getRenderHeight();
+      if (!this.ping || this.ping.width !== w || this.ping.height !== h) this.makeTargets(w, h);
       this.pass.inputTexture = this.flip ? this.ping! : this.pong!;
       this.flip ^= 1;
     });
@@ -181,7 +188,10 @@ export class Taau {
     this.reset = 1;
   }
 
+  private jitterObs: Observer<Camera> | null = null;
+
   dispose(): void {
+    this.scene.onBeforeCameraRenderObservable.remove(this.jitterObs);
     this.pp.dispose(this.camera);
     this.pass.dispose(this.camera);
     this.ping?.dispose();

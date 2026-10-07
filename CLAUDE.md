@@ -1077,6 +1077,12 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   on), `LightRig.fillCasters` skips casters under 0.3 m, `PostStack.depthSource` (the G-buffer's raw view z for fog /
   TAAU when SSAO / SSR enable it; `depthRaw` uniform; DOF's depth renderer `enabled` only while aiming), non-player
   `VoxelBody` without the head split.
+- 3.1.1 phone GPU (the iPhone benchmark was GPU-bound at Medium+): with TAAU the volumetric pass is first in the chain
+  at the TAAU ratio (`makeVolumetric(ratio)`; `PostStack.setAdaptive` moves its `_options` with TAAU's) and TAAU sets
+  its jitter in `scene.onBeforeCameraRenderObservable` (before shadow maps / G-buffer / any pass ahead of it); the
+  G-buffer is enabled at the TAAU ratio; volumetric `steps` uniform (Epic effects 16, else 8); `MOBILE_MAX_DPR` 2
+  (`QualityManager.applyScale` on mobile). `World.relightMaterials` when the shadow spec changes in a match (frozen
+  materials re-read their lights, refreeze after two frames).
 - `perf.mjs --budget` (no flag) is the test-path regression check (`?gfx=min`: no post stack, no voxel characters,
   20 cm voxels): sim p95 <= 2.5 ms, animation <= 0.04 ms per character, <= 55 draws, <= 0.2 M triangles, allocations
   <= 11.5 MB/s. Measured (3.1.0): sim p95 1.5 ms, 0.043 ms, 43 draws, 0.14 M triangles, 11.0 MB/s.

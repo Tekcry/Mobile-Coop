@@ -59,6 +59,12 @@ export const GRAPHICS_PRESETS: Record<FixedPreset, GraphicsFeatures> = {
 };
 export const PRESET_IDS = ['low', 'medium', 'high', 'ultra', 'epic'] as const;
 /**
+ * Phones (3.1): the canvas at no more than 2 device pixels per CSS pixel. A 3x phone screen (~460 ppi) shows no
+ * difference at arm's length, and every full-resolution pass (the TAAU resolve, bloom, SSAO, SSR, the grade) costs
+ * 2.25x less. PCs stay native.
+ */
+export const MOBILE_MAX_DPR = 2;
+/**
  * PvP (3.1, crossplay fairness): everything that changes how dark, lit or hidden a player looks is the same on every
  * device - lamp count, lamp / moon shadows, bounce light, contact shadows, light shafts, smoke and particle density.
  * The rest of the preset (resolution, textures, reflections, depth of field, ...) stays the player's own.

@@ -53,6 +53,7 @@ uniform float aspect;
 uniform float minZ;
 uniform float maxZ;
 uniform int count;
+uniform float steps;
 uniform vec4 lPos[${VOL_LIGHTS}];
 uniform vec4 lDir[${VOL_LIGHTS}];
 uniform vec4 lCol[${VOL_LIGHTS}];
@@ -97,9 +98,10 @@ void main(void) {
     float t0 = max(-b - h, 0.0);
     float t1 = min(-b + h, dist);
     if (t1 <= t0) continue;
-    float seg = (t1 - t0) / float(${VOL_STEPS});
+    float seg = (t1 - t0) / steps;
     vec3 sum = vec3(0.0);
     for (int k = 0; k < ${VOL_STEPS}; k++) {
+      if (float(k) >= steps) break;
       float t = t0 + (float(k) + 0.25 + j * 0.5) * seg;
       vec3 v = camPos + wdir * t - lp;
       float l = length(v);
@@ -189,13 +191,18 @@ export class PostStack {
   private volMax = VOL_LIGHTS;
   private volBase = VOL_LIGHTS;
   private volMul = 1;
+  /** March steps per light (Epic effects 16, else 8). */
+  private volSteps = 8;
   private upscale = 1;
 
   /** The frame governor (3.1): the TAAU input scale and the share of volumetric lights (uniforms / sizes only). */
   setAdaptive(scale: number, volLights: number): void {
     this.volMul = volLights;
     this.volMax = Math.round(this.volBase * volLights);
-    this.taau?.setScale(Math.max(0.4, this.upscale * scale));
+    const s = Math.max(0.4, this.upscale * scale);
+    this.taau?.setScale(s);
+    // (the fog pass ahead of TAAU sets the scene's size: it follows)
+    if (this.taau && this.vol) (this.vol as unknown as { _options: number })._options = s;
   }
   private t = 0;
   /** Depth-of-field focus (m) and whether it is wanted now (aiming, menu operator). */
@@ -225,14 +232,23 @@ export class PostStack {
     // TAAU first: its input sets the scene's render size; it does the temporal anti-aliasing too
     // (one depth for fog and TAAU: the G-buffer's when SSAO / SSR draw one anyway - no second geometry pass)
     if (f.ao || f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
-      const gbr = scene.enableGeometryBufferRenderer();
+      // (at the scene's resolution: with TAAU that is the upscaler's input, not the native canvas)
+      const gbr = scene.enableGeometryBufferRenderer(q.upscale < 1 ? q.upscale : 1);
       if (gbr) {
         gbr.enableDepth = true;
         this.gbr = gbr;
       }
     }
+    // the height fog decides what can be seen at a distance: drawn on every preset (crossplay fairness); the light
+    // shafts only with Volumetrics, over the nearest `volLights`
+    this.volBase = f.volumetrics ? Math.max(0, Math.min(VOL_LIGHTS, f.volLights)) : 0;
+    this.volMax = Math.round(this.volBase * this.volMul);
+    this.volSteps = f.effects === 'epic' ? 16 : 8;
     if (q.upscale < 1) {
       this.upscale = q.upscale;
+      // fog / light shafts ahead of TAAU, at the scene's resolution (3.1: a full-resolution march was the phones'
+      // biggest cost); TAAU resolves their dither with everything else
+      this.makeVolumetric(q.upscale);
       this.taau = new Taau(scene, this.camera, q.upscale, this.depthSource());
     } else if (f.aa === 'taa') {
       const taa = new TAARenderingPipeline('taa', scene, cams);
@@ -280,11 +296,7 @@ export class PostStack {
       mb.isObjectBased = false;
       this.motion = mb;
     }
-    // the height fog decides what can be seen at a distance: drawn on every preset (crossplay fairness); the light
-    // shafts only with Volumetrics, over the nearest `volLights`
-    this.volBase = f.volumetrics ? Math.max(0, Math.min(VOL_LIGHTS, f.volLights)) : 0;
-    this.volMax = Math.round(this.volBase * this.volMul);
-    this.makeVolumetric();
+    if (!this.vol) this.makeVolumetric(1);
     const def = new DefaultRenderingPipeline('pc', true, scene, cams);
     def.samples = f.aa === 'msaa' ? 4 : 1;
     def.fxaaEnabled = f.aa === 'fxaa';
@@ -324,14 +336,14 @@ export class PostStack {
     this.onRebuilt?.();
   }
 
-  private makeVolumetric(): void {
+  private makeVolumetric(ratio: number): void {
     const depth = this.depthSource();
     const pp = new PostProcess(
       'volumetric',
       'volumetric',
-      ['depthRaw', 'invView', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'count', 'lPos', 'lDir', 'lCol', 'fogColor', 'fogDensity', 'fogFalloff', 'fogBase', 'scatter', 'time', 'shimmer', 'skyO', 'skyD', 'shaftCol'],
+      ['depthRaw', 'steps', 'invView', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'count', 'lPos', 'lDir', 'lCol', 'fogColor', 'fogDensity', 'fogFalloff', 'fogBase', 'scatter', 'time', 'shimmer', 'skyO', 'skyD', 'shaftCol'],
       ['depthSampler', 'skyVis'],
-      1,
+      ratio,
       this.camera,
     );
     pp.onApply = (e) => {
@@ -347,6 +359,7 @@ export class PostStack {
       e.setFloat('minZ', cam.minZ);
       e.setFloat('maxZ', cam.maxZ);
       e.setInt('count', this.volCount);
+      e.setFloat('steps', this.volSteps);
       e.setFloatArray4('lPos', this.lPos);
       e.setFloatArray4('lDir', this.lDir);
       e.setFloatArray4('lCol', this.lCol);
@@ -434,6 +447,7 @@ export class PostStack {
     this.motion?.dispose(this.camera);
     this.vol?.dispose(this.camera);
     if (this.depth) this.scene.disableDepthRenderer(this.camera);
+    if (this.gbr) this.scene.disableGeometryBufferRenderer();
     this.gbr = null;
     this.dofDepth = null;
     this.def = null;

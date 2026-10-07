@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.1.1 - Phone GPU fixes from the first iPhone benchmark
+- iPhone 17 Pro Max benchmark on 3.1.0 (2868 x 1320): Low 60 fps (Safari's cap), Medium 19, High 15, Ultra 12 -
+  the GPU was the limit (the main thread waits on it). Fixes:
+  - The fog / light-shaft pass runs ahead of TAAU at the scene's resolution (it marched 6-8 lamps x 16 steps for
+    every native pixel); TAAU's jitter is now set as the camera starts rendering, so a pass ahead of it is resolved
+    with everything else. 8 steps per lamp below Epic.
+  - SSAO / SSR's geometry buffer renders at the scene's resolution with TAAU, not the native canvas.
+  - Phones render at most 2 device pixels per CSS pixel (the iPhone's 3x: 2.25x fewer pixels for every
+    full-resolution pass; no visible difference on a ~460 ppi screen). PCs stay native.
+- Changing Shadows (or a preset) in the middle of a match no longer leaves frozen materials on the old shadow setup
+  (WebGL "unbound uniform buffer" warnings every frame, undefined rendering on some GPUs).
+
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
   device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few
