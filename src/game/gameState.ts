@@ -56,6 +56,7 @@ import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
+import { benchTag } from '../ui/benchTag';
 import { BENCH, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
@@ -697,7 +698,7 @@ export class GameState implements AppState {
         pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
       }
       const s = this.opts.benchmark;
-      this.bench = { kind: s.kind, pts, runs: s.runs, idx: s.idx - 1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [...s.lines], buckets: [], bMs: 0, bN: 0, bT: 0, shaders: 0, rebuild: null, handoff: false };
+      this.bench = { kind: s.kind, note: s.note ?? `fb-bench-${Date.now().toString(36)}`, started: s.started ?? Date.now(), pts, runs: s.runs, idx: s.idx - 1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [...s.lines], buckets: [], bMs: 0, bN: 0, bT: 0, shaders: 0, rebuild: null, handoff: false, tagT: 0 };
       this.nextBenchRun(true);
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
@@ -707,7 +708,10 @@ export class GameState implements AppState {
   exit(): void {
     document.body.classList.remove('photo-mode');
     // (a run handing on to the next run's match keeps that run's settings, set by `app.benchmark`)
-    if (this.bench && !this.bench.handoff) this.app.quality.setOverride(null);
+    if (this.bench && !this.bench.handoff) {
+      this.app.quality.setOverride(null);
+      benchTag(null);
+    }
     if (this.pvp) this.app.quality.setPvp(false);
     this.exited = true;
     // never leave the loop in slow motion
@@ -1092,6 +1096,11 @@ export class GameState implements AppState {
    *  warm-up; finished runs' lines; the sustained run's per-bucket averages. */
   private bench: {
     kind: BenchKind;
+    /** The feedback note's id (updated after every run) and when the benchmark started. */
+    note: string;
+    started: number;
+    /** Seconds to the run tag's next refresh. */
+    tagT: number;
     pts: BenchPoint[];
     runs: BenchRun[];
     idx: number;
@@ -1134,28 +1143,31 @@ export class GameState implements AppState {
     const run = b.runs[b.idx];
     if (run) {
       if (!fresh && !run.sameMatch) {
-        // (3.1.4: the next run loads its own match with its settings; this one stops measuring)
+        // (3.1.4: the next run loads its own match with its settings; this one stops measuring - handed on after this
+        // frame, since loading frees this match's scene)
         b.done = true;
         b.handoff = true;
-        this.app.benchmark?.({ kind: b.kind, runs: b.runs, idx: b.idx, lines: b.lines });
+        const next = { kind: b.kind, runs: b.runs, idx: b.idx, lines: b.lines, note: b.note, started: b.started };
+        setTimeout(() => this.app.benchmark?.(next), 0);
         return;
       }
       // (the run's settings are the override `app.benchmark` set before the map loaded: it also holds the frame
       // governor off, so a run measures its settings)
       b.rebuild = run.rebuild ?? null;
       b.shaders = this.shaderCount();
+      b.tagT = 0;
+      this.app.crashLog?.stage(`benchmark run ${b.idx + 1}/${b.runs.length}: ${run.label} (${this.app.quality.level.name})`);
       return;
     }
     b.done = true;
+    benchTag(null);
     this.app.quality.setOverride(null);
     document.body.classList.remove('photo-mode');
     this.paused = true;
     const text = b.lines.join('\n');
-    // saved as a performance note at once (3.1.2: nothing to tap on a long report)
-    const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: __APP_VERSION__, graphics: b.runs.map((r) => r.label).join(', '), device: navigator.userAgent.slice(0, 160) });
-    e.category = 'performance';
-    e.text = `Benchmark - ${text}`;
-    void this.app.feedback.save(e).then(
+    // saved as a performance note at once (3.1.2: nothing to tap on a long report; 3.1.4: the same note, updated
+    // after every run)
+    void this.saveBenchNote().then(
       () => this.app.toasts.show('Benchmark saved to Settings > Feedback', 'ok'),
       () => this.app.toasts.show('The benchmark could not be saved', 'warn'),
     );
@@ -1177,6 +1189,18 @@ export class GameState implements AppState {
         { label: 'Done', primary: true, action: () => this.cb.quit() },
       ]),
     );
+  }
+
+  /** The benchmark's feedback note: the lines so far (3.1.4: after every run, so a crash keeps them). */
+  private saveBenchNote(): Promise<void> {
+    const b = this.bench;
+    if (!b) return Promise.resolve();
+    const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: `${__APP_VERSION__}${__PREVIEW__ ? ' preview' : ''}`, graphics: b.runs.map((r) => r.label).join(', '), device: navigator.userAgent.slice(0, 160) }, b.started);
+    e.id = b.note;
+    e.category = 'performance';
+    const n = b.lines.length;
+    e.text = n < b.runs.length ? `Benchmark (${n} of ${b.runs.length} runs so far) - ${b.lines.join('\n')}` : `Benchmark - ${b.lines.join('\n')}`;
+    return this.app.feedback.save(e);
   }
 
   private benchFrame(): void {
@@ -1203,6 +1227,16 @@ export class GameState implements AppState {
     }
     b.last = now;
     b.t += real;
+    // the run tag (3.1.4): which run this is and the frame rate now
+    b.tagT -= real;
+    if (b.tagT <= 0) {
+      b.tagT = 0.5;
+      const k = b.iv.length;
+      let ms = 0;
+      let m = 0;
+      for (let i = k - 1; i >= 0 && ms < 500; i--, m++) ms += b.iv[i]!;
+      benchTag(`Run ${b.idx + 1}/${b.runs.length} · ${run.label} · ${m > 0 && ms > 0 ? `${Math.round((1000 * m) / ms)} fps` : 'warming up'}`);
+    }
     // (diagnosis: the same settings rebuilt mid-match, early in the warm-up)
     if (b.rebuild && b.t >= BENCH.warmup / 3) {
       const k = b.rebuild;
@@ -1232,6 +1266,7 @@ export class GameState implements AppState {
         line += `; first minute ${b.buckets[0]!.toFixed(0)} fps, last ${b.buckets[b.buckets.length - 1]!.toFixed(0)} fps (${(d * 100).toFixed(1)}%${d < -0.1 ? ', throttling' : ''})`;
       }
       b.lines.push(line);
+      if (b.idx + 1 < b.runs.length) void this.saveBenchNote().catch(() => undefined);
       this.nextBenchRun();
     }
   }

@@ -48,6 +48,9 @@ export interface BenchSession {
   idx: number;
   /** The finished runs' lines. */
   lines: string[];
+  /** 3.1.4: the feedback note updated after every run (its id) and when the benchmark started. */
+  note?: string;
+  started?: number;
 }
 
 /** Feature costs: one flight per run (shorter than the full benchmark: there are up to nine). */

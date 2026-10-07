@@ -22,7 +22,9 @@ import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
 import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
 import { MOBILE_PRESET_IDS, PRESET_IDS } from './core/quality';
-import { feedbackTab } from './ui/screens/feedbackScreen';
+import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
+import { CrashLog } from './feedback/crashLog';
+import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
@@ -51,6 +53,13 @@ async function boot(): Promise<void> {
   await app.save.load();
   app.save.update((d) => void autoGrant(d));
   extraSettingsTabs.push(feedbackTab, dataTab);
+  // 3.1.4 crash log: the last session's heartbeat still "alive" = it died while open (a note), then a new heartbeat
+  const crashLog = new CrashLog(() => feedbackContext(app));
+  app.crashLog = crashLog;
+  void crashLog.recover((e) => app.feedback.save(e)).then((note) => {
+    if (note) app.toasts.show('The last session crashed: a report is in Settings > Feedback', 'warn');
+    crashLog.start();
+  });
   GameState.rewardHook = async (stats, opts) => {
     let report: SessionReport | null = null;
     app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
@@ -78,6 +87,7 @@ async function boot(): Promise<void> {
       }
     };
     app.music.start();
+    app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));
     app.screens.push(menu);
@@ -138,12 +148,23 @@ async function boot(): Promise<void> {
     app.screens.clear();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
+    const b = opts.benchmark;
+    const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${app.quality.level.name})` : `${opts.map.id} / ${opts.mode}`;
+    app.crashLog?.stage(`loading ${what}`);
+    // (the last match / the menu stage freed first: never two matches in memory)
+    app.releaseState();
     void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
-      .then((st) => app.setState(st))
+      .then((st) => {
+        app.setState(st);
+        app.crashLog?.stage(`in ${what}`);
+      })
       .catch((e: unknown) => {
         console.error(e);
         app.toasts.show('Failed to load map', 'warn');
-        if (opts.benchmark) app.quality.setOverride(null, false);
+        if (opts.benchmark) {
+          app.quality.setOverride(null, false);
+          benchTag(null);
+        }
         if (cbOverride) cbOverride.quit();
         else goToMenu();
       })
@@ -159,6 +180,9 @@ async function boot(): Promise<void> {
         : kind;
     const run = s.runs[s.idx];
     if (!run) return;
+    s.note ??= `fb-bench-${Date.now().toString(36)}`;
+    s.started ??= Date.now();
+    benchTag(`Run ${s.idx + 1}/${s.runs.length} · ${run.label} · loading`);
     app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
     startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
   };

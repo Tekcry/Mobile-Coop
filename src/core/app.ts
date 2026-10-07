@@ -21,6 +21,7 @@ import { keyLabels } from '../ui/prompts';
 import { bindLabel } from '../input/keyBindings';
 import { browserEnv, detectPlatform, platformOverride, uiScale, type PlatformInfo } from './platform';
 import type { BenchKind, BenchSession } from '../game/benchmark';
+import type { CrashLog } from '../feedback/crashLog';
 import { classifyGpu, hudInset, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
 import { MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
@@ -301,6 +302,24 @@ export class App {
 
   get current(): AppState | null {
     return this.state;
+  }
+
+  /** 3.1.4 crash log (set by main): the heartbeat and what the game is doing. */
+  crashLog: CrashLog | null = null;
+
+  /**
+   * Leave the current state and free its scene now (3.1.4: before a match loads, so two matches are never in memory
+   * at once - the iPhone closed the tab loading the next benchmark run on Ultra).
+   */
+  releaseState(): void {
+    const prev = this.state;
+    if (!prev) return;
+    prev.exit();
+    this.state = null;
+    this.loop.detach();
+    this.quality.setTarget(null);
+    this.debug.setScene(null);
+    if (!prev.scene.isDisposed) prev.scene.dispose();
   }
 
   setState(next: AppState): void {

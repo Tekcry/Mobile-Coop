@@ -300,11 +300,18 @@ Controls:
 | 3.1.1 (1912 x 880) | 76 / 48 | 47 / 15 | 41 / 12 | 21 / 8 |
 | 3.1.2 (Feature costs, current settings) | | 57 / 21 | | 22 / 12 |
 | 3.1.3 (Feature costs, current settings) | | 53 / 18 | | 21 / 11 |
-| 3.1.4 | | | | |
+| 3.1.4 (Feature costs, own match per run) | | 52 / 20 | | crashed |
+| 3.1.5 | | | | |
 - 3.1.2 Feature costs: Medium shadows Low 62 fps, lamps 8 54; Ultra shadows Low 28, lamps 8 23. Every other run
   (8-20 fps) was the rebuild bug fixed in 3.1.3, not the feature's cost.
 - 3.1.3 Feature costs: the same pattern (Ultra shadows Low 25, lamps 8 22, post half 23; every other run 8-20 fps).
-- [ ] 3.1.4: Settings > Graphics > Preset Ultra, then Benchmark > Feature costs (each run loads the map: ~4 min);
+- 3.1.4 Medium: without ambient occlusion 70 / 42, textures Low 56 / 40, shadows Low 55, shafts / bloom / lamps 8
+  within 2 fps; post effects rebuilt mid-match 49, then shadows rebuilt mid-match 15 (the mid-match slowdown is the
+  shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
+- [ ] 3.1.5: Feature costs on Ultra, High and Medium: no crash; the tag at the top names each run; Settings >
+  Feedback has the note after every run. If it still crashes: the next start shows a toast and a "Crash report" note
+  naming the run - send it with the benchmark note.
+- [ ] (was 3.1.4) Settings > Graphics > Preset Ultra, then Benchmark > Feature costs (each run loads the map: ~4 min);
   again on Medium. Copy text and send the lines: no run without a feature may come out slower than "current
   settings"; the last two lines ("post effects rebuilt mid-match", "then shadows rebuilt mid-match") are the
   diagnosis of the mid-match slowdown.

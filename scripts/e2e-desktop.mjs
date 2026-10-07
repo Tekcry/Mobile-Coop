@@ -128,12 +128,17 @@ try {
   const bm = await G(async () => {
     const app = window.__app;
     const seen = [];
+    const tags = new Set();
+    let partial = '';
     const run = (label, extra) => ({ label, preset: null, scale: null, seconds: 2, sustained: false, ...extra });
     app.benchmark({ kind: 'features', runs: [run('current settings'), run('without bloom', { gfx: { bloom: false } }), run('post rebuilt', { rebuild: 'post' }), run('shadows rebuilt', { rebuild: 'shadows', sameMatch: true })], idx: 0, lines: [] });
     await new Promise((r) => {
       const t = setInterval(() => {
         const c = app.current;
         if (c?.benchmarkLines && !seen.includes(c)) seen.push(c);
+        const tg = document.getElementById('bench-tag')?.textContent;
+        if (tg) tags.add(tg.replace(/ · \d+ fps| · warming up| · loading/, ''));
+        if (!partial) void app.feedback.all().then((l) => (partial = l.find((e) => /runs so far/.test(e.text))?.text.split(' - ')[0] ?? ''));
         if (/average \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? '')) {
           clearInterval(t);
           r();
@@ -141,14 +146,34 @@ try {
       }, 50);
     });
     const c = app.current;
-    return { matches: seen.length, lines: c.benchmarkLines.map((l) => l.split(':')[0]), builds: c.stack.builds, ov: !!app.quality.ov };
+    return { matches: seen.length, lines: c.benchmarkLines.map((l) => l.split(':')[0]), builds: c.stack.builds, ov: !!app.quality.ov, tags: [...tags], partial, tagLeft: !!document.getElementById('bench-tag') };
   });
   assert(bm.matches === 3 && bm.lines.length === 4 && /post rebuilt/.test(bm.lines[2]) && /shadows rebuilt/.test(bm.lines[3]) && bm.builds === 2, `one match per run, the rebuild runs in the last (${JSON.stringify(bm)})`);
   await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
   await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   assert(!(await G(() => !!window.__app.quality.ov)), 'the benchmark leaves no override behind');
+  assert(bm.tags.includes('Run 2/4 · without bloom') && bm.tags.includes('Run 4/4 · shadows rebuilt') && !bm.tagLeft, `the run tag names each run, gone at the end (${bm.tags.join(' | ')})`);
+  assert(/^Benchmark \(\d of 4 runs so far\)$/.test(bm.partial), `the note is saved after every run (${bm.partial})`);
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
   assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  // 3.1.4 crash log: a page that dies while open leaves a note for the next start; a reload is a clean close
+  await G(() => window.__app.crashLog.stage('crash test: run 2/9'));
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Page.crash').catch(() => undefined);
+  const p2 = await page.context().newPage();
+  await p2.goto(url + '?gfx=min');
+  await p2.waitForSelector('.main-menu');
+  const crashes = async () => p2.evaluate(async () => (await window.__app.feedback.all()).filter((e) => /^Crash report/.test(e.text)).map((e) => e.text));
+  let cr = [];
+  for (let i = 0; i < 40 && !cr.length; i++) {
+    cr = await crashes();
+    if (!cr.length) await wait(100);
+  }
+  assert(cr.length === 1 && /crash test: run 2\/9/.test(cr[0]), `a crash leaves a report naming what was running (${cr[0]?.slice(0, 160)})`);
+  await p2.reload();
+  await p2.waitForSelector('.main-menu');
+  await wait(800);
+  assert((await crashes()).length === 1, 'a reload is not reported as a crash');
   await browser.close();
 
   // aspects (16:10, 21:9, 32:9): menus a centred 16:9 layout, the HUD inset on 32:9, Hor+ up to the FOV cap

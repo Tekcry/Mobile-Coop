@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.1.5 - Benchmark crash safety, crash reports
+- iPhone Feature costs on 3.1.4 (Medium, 1912 x 880, every run in its own match - the first valid per-feature
+  numbers): your settings 52 fps (1% low 20); without ambient occlusion 70 (1% low 42); textures Low 56 (1% low 40);
+  shadows Low 55; light shafts, bloom and lamps 8 within 2 fps. A post-effects rebuild mid-match is fine (49); a
+  shadow rebuild mid-match drops it to 15 fps (main thread 29 ms) - the slowdown comes from rebuilding the shadows, not
+  the post effects (still to find: headless Chromium shows nothing different after it).
+- Ultra and High closed the tab during the benchmark: the next run's match was built while the last one was still in
+  memory (~0.5 GB of JS heap each at High in headless Chromium). A match now frees the last one (or the menu stage)
+  before it loads (`App.releaseState`), for every match start, not only the benchmark.
+- Crash reports: a heartbeat every 5 s and on every stage change (menu, loading, in a match, benchmark run n/N) with
+  the feedback context; hiding or closing the page marks it clean. If the page died while open, the next start saves
+  a "Crash report" note (Settings > Feedback) saying what was running, and shows a toast.
+- The benchmark's note is saved after every run ("Benchmark (3 of 9 runs so far) - ..."), so a crash keeps the runs
+  before it; the final save replaces it.
+- A run tag at the top of the screen during the benchmark and its loading screens: "Run 3/9 · without bloom · 52 fps".
+
 ## 3.1.4 - Every benchmark run in its own match
 - iPhone Feature costs on 3.1.3: unchanged (Medium 53 fps with your settings, Ultra 21; the runs after the first
   still 8-20 fps), so the 3.1.3 material refresh is not the cure. Headless Chromium shows nothing different after a

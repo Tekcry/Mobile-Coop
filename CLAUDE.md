@@ -920,7 +920,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   the settings, then one costly feature off / down per run, `FEATURE_SECONDS` 20; `BenchRun.gfx` ->
   `QualityManager.setOverride({ gfx })`; 3.1.4: then two diagnosis runs, `rebuild` 'post' / 'shadows' mid-match;
   3.1.4: every run in its own match - `app.benchmark(BenchSession)` calls `setOverride(o, false)` before `startGame`,
-  the session carries the plan and lines, `sameMatch` runs go on in the last match), `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
+  the session carries the plan and lines, `sameMatch` runs go on in the last match; 3.1.5: the note (`BenchSession.note`)
+  saved after every run, `ui/benchTag.ts` "Run n/N · label · fps" on screen), `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
   4K, 7680 x 2160 within scale 2, `sustained` 10 min with per-minute averages), then a Dialog with a line per run
   (`benchmarkLines`: + frames over `BENCH.longMs` 50 and shaders compiled during the run, from the engine's
   `_compiledEffects`), saved as a performance feedback note. Every run sets an override, so the frame governor is
@@ -1101,6 +1102,11 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Render scale: native DPR x `renderScale` (0.5-2), dynamic resolution (optional) within it; with TAAU the canvas stays native and the scene renders at the scale.
 
 ## Robustness rules
+- 3.1.5: `startGame` calls `App.releaseState()` (exit + free the scene) before `GameState.create`: two matches are
+  never in memory at once (the iPhone closed the tab). Crash log (`feedback/crashLog.ts`, `App.crashLog`): a
+  heartbeat in localStorage (diagnostics, not a save: synchronous, so `pagehide` marks it clean before unload) every
+  5 s and on `stage(...)` (menu / loading / in a match / benchmark run) with `feedbackContext`; still `alive` at the
+  next boot -> `crashNote` -> a "Crash report" feedback note + toast.
 - `App` isolates state updates: an exception in `fixedUpdate`/`frameUpdate` is logged (rate-limited) and toasted
   once; input polling and menus keep running. `GameState` ignores updates after `exit()` (quit can happen mid-tick).
 - Backgrounding (`visibilitychange`/`pagehide`): flush the save, suspend audio, pause single player (co-op opens
