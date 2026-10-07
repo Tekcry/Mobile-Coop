@@ -178,8 +178,9 @@ try {
     const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: document.querySelector('.toast')?.textContent ?? '', ov: window.__app.quality.level.name }));
     assert(['low', 'medium', 'high', 'ultra'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: a hidden phone GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
     assert(/for this device/.test(cv.toast), `the result is shown (${cv.toast})`);
-    // (the settings save is debounced: wait until IndexedDB has the result)
-    await c.page.waitForFunction(() => new Promise((res) => {
+    // (the settings save is debounced: wait until IndexedDB has the result; page.evaluate awaits the promise,
+    // waitForFunction would take the promise itself as truthy)
+    const saved = () => c.page.evaluate(() => new Promise((res) => {
       const r = indexedDB.open('shoulder-strike');
       r.onsuccess = () => {
         try {
@@ -191,7 +192,9 @@ try {
         }
       };
       r.onerror = () => res(false);
-    }), null, { timeout: 30000, polling: 500 });
+    }));
+    for (let i = 0; i < 60 && !(await saved()); i++) await new Promise((r) => setTimeout(r, 500));
+    assert(await saved(), 'the detection is saved');
     await c.page.reload();
     await c.page.waitForFunction(() => window.__app?.current, null, { timeout: 60000 });
     await frames(c.page, 90);
