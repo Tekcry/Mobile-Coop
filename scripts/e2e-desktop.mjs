@@ -127,7 +127,9 @@ try {
   // one; the diagnosis runs rebuild the post stack / the shadows mid-match
   const bm = await G(async () => {
     const app = window.__app;
-    const seen = [];
+    // (a WeakSet: the test must not keep the matches alive itself)
+    const seen = new WeakSet();
+    let matches = 0;
     const tags = new Set();
     let partial = '';
     const run = (label, extra) => ({ label, preset: null, scale: null, seconds: 2, sustained: false, ...extra });
@@ -135,8 +137,9 @@ try {
     await new Promise((r) => {
       const t = setInterval(() => {
         const c = app.current;
-        if (c?.benchmarkLines && !seen.includes(c)) {
-          seen.push(c);
+        if (c?.benchmarkLines && !seen.has(c)) {
+          seen.add(c);
+          matches++;
           window.__gsProto ??= Object.getPrototypeOf(c);
         }
         const tg = document.getElementById('bench-tag')?.textContent;
@@ -149,7 +152,7 @@ try {
       }, 50);
     });
     const c = app.current;
-    return { matches: seen.length, lines: c.benchmarkLines.map((l) => l.split(':')[0]), builds: c.stack.builds, ov: !!app.quality.ov, tags: [...tags], partial, tagLeft: !!document.getElementById('bench-tag') };
+    return { matches, lines: c.benchmarkLines.map((l) => l.split(':')[0]), builds: c.stack.builds, ov: !!app.quality.ov, tags: [...tags], partial, tagLeft: !!document.getElementById('bench-tag') };
   });
   assert(bm.matches === 3 && bm.lines.length === 4 && /post rebuilt/.test(bm.lines[2]) && /shadows rebuilt/.test(bm.lines[3]) && bm.builds === 2, `one match per run, the rebuild runs in the last (${JSON.stringify(bm)})`);
   await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
