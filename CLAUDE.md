@@ -68,7 +68,7 @@ Blacklist style.
     pauses away + noticed pulses, intel any order, plant, rescue + escort, sabotage, extraction, results rating and
     style bars) and failure (Ghost contract detection, three downs); routes per objective + 25 anchors per map
   - `scripts/e2e-gadgets.mjs` wheel (hold opens + slows time, stick picks, release selects, touch tap), arc preview,
-    gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure, sticky cam feed
+    gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure (muffled behind a wall), sticky cam feed
     (operator still, ping, gas, back), drone (flies, dart, battery), mine
   - `scripts/e2e-stealth-ai.mjs` night Warehouse: shadow vs light detection, the arc warns first, no sight through
     walls, noise -> suspicious -> investigating, squad radio after the spotter's radio window, the shout to guards

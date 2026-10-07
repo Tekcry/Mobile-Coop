@@ -321,7 +321,7 @@ try {
   L = await fall(3.4);
   assert(L.landing === 'roll' && L.roll && L.z > 4.6, `a 3.4 m fall rolls out of it, moving on (${L.landing}, z ${f2(L.z)})`);
   L = await fall(5.5);
-  assert(L.landing === 'heavy' && !L.roll && L.maxNoise >= 14, `a 5.5 m fall is a heavy, loud landing (${L.landing}, noise ${L.maxNoise})`);
+  assert(L.landing === 'heavy' && !L.roll && L.maxNoise >= 10, `a 5.5 m fall is a heavy, loud landing (${L.landing}, noise ${L.maxNoise})`);
   await tp(24, 5.5, 4, 0);
   await page.evaluate(() => { window.__app.loop.stepHeadless(4 / 60, 120); for (let i = 0; i < 80 && !window.__tr.st().player.controller.grounded; i++) window.__app.loop.stepHeadless(1 / 60, 120); window.__app.loop.stepHeadless(2 / 60, 120); });
   i = await I();

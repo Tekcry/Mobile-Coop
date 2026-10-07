@@ -209,16 +209,19 @@ try {
       const t = window.__t;
       const g = window.__app.current;
       t.tp(2, 0, -6, 0);
-      // (facing away from the operator: only the noise reaches him)
-      const e = t.spawn(9, 4, Math.PI / 2);
+      // (facing away from the operator: only the noise reaches them) one on this side of the wall it sticks to,
+      // one about as far again behind it (muffled)
+      const e = t.spawn(9, -6, Math.PI / 2);
+      const behind = t.spawn(9, 4, Math.PI / 2);
       t.step(0.3);
-      // thrown at the floor a few metres ahead
+      // thrown ahead: it sticks to the wall's near face
       g.weapons.onThrow('noise', new t.V(2, 1.5, -5.5), new t.V(0, 2, 5));
       t.step(2.5);
-      return { stuck: g.gadgets.noisers.length, pulses: g.gadgets.stats.pulses, level: e.level };
+      return { stuck: g.gadgets.noisers.length, pulses: g.gadgets.stats.pulses, level: e.level, behind: behind.level };
     });
     assert(r.stuck === 1 && r.pulses >= 1, `a noisemaker sticks and pulses (${r.pulses})`);
     assert(r.level === 'suspicious' || r.level === 'investigating', `a guard in earshot comes to check it (${r.level}), not to a fight`);
+    assert(r.behind === 'unaware', `a guard behind the wall hears it muffled, out of reach (${r.behind})`);
   });
 
   await scen('sticky cam', async () => {
