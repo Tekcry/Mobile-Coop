@@ -1060,12 +1060,14 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   12 GB at Epic (High 6, Ultra 9; brick pool <= 5 GB; render targets <= 2.5 GB at 4K, 3.5 GB at 7680 x 2160), tab <=
   6 GB, JS heap <= 1.5 GB, voxel cache <= 2 GB; Warehouse load <= 4 s cold, <= 1.5 s cached.
 - `perf.mjs --desktop --budget` (the PC path, `?gfx=epic`, 640 x 360): the sim's p95 (fixed steps, anim, camera)
-  <= 2 ms (the rest of the 3 ms is the render's submission), animation <= 0.04 ms per character, <= 600 draws and
-  <= 8 M triangles (counted by wrapping the engine's draw calls: every pass), allocations <= 11.5 MB/s. Measured
-  (3.0): sim p95 ~2.1 ms, 593 draws, 1.4 M triangles, 10.2 MB/s. CPU budgets scale by the machine: a fixed pure-JS
-  workload against `REF_MS` (the VM the 2.3 budgets were set on), so a slower or busier VM does not fail an unchanged
-  build. The render's JS is printed but not enforced (software GL stalls land in it); the laptop's benchmark line
-  carries the real main thread p95 (`benchResult` cpu from `GameLoop.stats.frameCpuMs`).
+  <= 2 ms (the rest of the 3 ms is the render's submission), animation <= 0.04 ms per character, allocations <= 11.5
+  MB/s; draws <= 520 and triangles <= 1.7 M as the regression check (counted by wrapping the engine's draw calls: every
+  pass; the laptop's GPU budget stays 600 / 8 M). Measured (3.1.0, idle VM): sim p95 2.05 ms at speed x1.19, animation
+  0.044 ms, 444 draws (moon cascades 172, lamp shadows 140, main 55, G-buffer 52), 1.34 M triangles, 9.9 MB/s. CPU
+  budgets scale by the machine: a fixed pure-JS workload against `REF_MS` (the VM the 2.3 budgets were set on), so a
+  slower or busier VM does not fail an unchanged build (a reading far off the usual ~4.2 ms means the VM was busy:
+  run again). The render's JS is printed but not enforced (software GL stalls land in it); the laptop's benchmark
+  line carries the real main thread p95 (`benchResult` cpu from `GameLoop.stats.frameCpuMs`).
 - 3.1 phone budgets (`perf.mjs --preset=<p> --mobile --budget`, `PASSES=1` prints draws per pass): draws Low 120 /
   Medium 170 / High 230 / Ultra 250 (the iPhone 17 Pro Max target: main thread <= 4 ms of 8.33, <= 2 M triangles);
   measured Low 103, Medium 156, High 218, Ultra 233. What keeps them there: `World` shadow proxy (below Epic the
@@ -1075,9 +1077,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   on), `LightRig.fillCasters` skips casters under 0.3 m, `PostStack.depthSource` (the G-buffer's raw view z for fog /
   TAAU when SSAO / SSR enable it; `depthRaw` uniform; DOF's depth renderer `enabled` only while aiming), non-player
   `VoxelBody` without the head split.
-- `perf.mjs --budget` (no flag) is the phone / test-path regression check (`?gfx=min`: no post stack, no voxel
-  characters, 20 cm voxels): sim p95 <= 3.5 ms (~1.9), animation <= 0.04 ms per character, <= 80 draws (~43),
-  allocations <= 11.5 MB/s (~11).
+- `perf.mjs --budget` (no flag) is the test-path regression check (`?gfx=min`: no post stack, no voxel characters,
+  20 cm voxels): sim p95 <= 2.5 ms, animation <= 0.04 ms per character, <= 55 draws, <= 0.2 M triangles, allocations
+  <= 11.5 MB/s. Measured (3.1.0): sim p95 1.5 ms, 0.043 ms, 43 draws, 0.14 M triangles, 11.0 MB/s.
 - Draw calls (3.0 fix): voxel chunks merge into super-chunks (`VoxelWorldOptions.group`: structure 2^3, props 4^3);
   each lamp's shadow map lists only the casters within its reach (`LightRig.fillCasters`, refilled per pick, the
   list replaced only when it changes); the moon's cascades list moving casters and the static meshes the moon can

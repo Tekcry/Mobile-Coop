@@ -39,10 +39,12 @@ const BUDGET = preset && PRESET_BUDGET[mobile && preset === 'epic' ? 'ultra' : p
   : desktop
   ? // 3.0 PC: the main thread <= 3 ms of a 240 Hz frame's 4.17 ms - here the sim's share (<= 2 ms, leaving 1 ms for
     // the render's submission, which only the laptop can time: its benchmark prints the main thread p95; on
-    // SwiftShader GL stalls land inside the render's JS); 600 draws / 8 M triangles over every pass incl. shadows
-    { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 600, trisM: 8, kbPerSecond: 11520 }
-  : // the phone-era / test-path check (gfx=min: no post stack, no voxel characters, 20 cm voxels)
-    { cpuP95Ms: 3.5, animPerCharMs: 0.04, drawCalls: 80, trisM: Infinity, kbPerSecond: 11520 };
+    // SwiftShader GL stalls land inside the render's JS). Draws / triangles: the regression check, measured 3.1.0
+    // + ~15-25% (444 draws, 1.34 M triangles over every pass incl. shadows; the laptop's GPU budget is 600 / 8 M)
+    { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 520, trisM: 1.7, kbPerSecond: 11520 }
+  : // the phone-era / test-path check (gfx=min: no post stack, no voxel characters, 20 cm voxels); measured 3.1.0:
+    // sim p95 1.5 ms, 43 draws, 0.14 M triangles
+    { cpuP95Ms: 2.5, animPerCharMs: 0.04, drawCalls: 55, trisM: 0.2, kbPerSecond: 11520 };
 
 // STEALTH=1: the ten are unaware (stealth rules, patrols / posts, full perception with exposure rays)
 const stealth = !!process.env.STEALTH;
