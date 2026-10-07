@@ -40,6 +40,8 @@ export class Ballistics {
   private eng: PhysicsEngine;
   /** Impact hook (audio). */
   onImpact: ((p: Vector3, onCharacter: boolean) => void) | null = null;
+  /** A shot struck the level (3.0: voxel chips); returns the struck voxel's colour for the debris, or null. */
+  onWorldHit: ((p: Vector3, n: Vector3) => string | null) | null = null;
 
   constructor(
     scene: Scene,
@@ -111,7 +113,9 @@ export class Ballistics {
     } else {
       this.vfx.sparks(h.point, h.normal, 3);
       this.vfx.dust(h.point, h.normal);
-      this.vfx.decal(h.point, h.normal);
+      const chip = this.onWorldHit?.(h.point, h.normal) ?? null;
+      if (chip) this.vfx.chips(h.point, h.normal, chip);
+      else this.vfx.decal(h.point, h.normal);
     }
   }
 

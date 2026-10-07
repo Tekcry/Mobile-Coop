@@ -174,11 +174,11 @@ try {
   assert(shaded.every(Boolean), `voxel chunks compile the full voxel shading (${shaded})`);
   const art = await e.page.evaluate(() => {
     const w = window.__app.current.world;
-    return { fine: w.voxelsFine && { size: w.voxelsFine.lv.size, chunks: w.voxelsFine.stats.chunks }, sky: !!w.voxels.skyTex, inside: w.voxels.skyAt(5, 1.2, 0), yard: w.voxels.skyAt(0, 1.2, -24), roofIn: w.voxels.roofAt(5, 0), roofYard: w.voxels.roofAt(0, -24), palette: w.voxels.lv.palette.length };
+    return { fine: w.voxelsFine && { size: w.voxelsFine.lv.size, chunks: w.voxelsFine.stats.chunks }, sky: !!w.voxels.skyTex, inside: w.voxels.skyAt(5, 1.2, 0), yard: w.voxels.skyAt(2, 1.2, -21.5), roofIn: w.voxels.roofAt(5, 0), roofYard: w.voxels.roofAt(2, -21.5), palette: w.voxels.lv.palette.length };
   });
   assert(art.fine && art.fine.size === 0.025 && art.fine.chunks > 5, `props on a 2.5 cm layer (${JSON.stringify(art.fine)})`);
   assert(art.sky && art.inside < 0.5 && art.yard > 0.8, `the sky is baked: dark under the roof, open in the yard (${art.inside.toFixed(2)} / ${art.yard.toFixed(2)})`);
-  assert(art.roofIn > 5 && art.roofYard < -1e8, `rain stops at the roof, falls in the yard (${art.roofIn})`);
+  assert(art.roofIn > 5 && art.roofYard < 1, `rain stops at the roof, falls to the ground in the yard (${art.roofIn} / ${art.roofYard})`);
   assert(art.palette > 40, `the art layer's materials (${art.palette} palette entries)`);
   // voxel characters (3.0 phase 3): one skinned voxel body per character, the smooth parts unseen
   const ch = await e.page.evaluate(async () => {
@@ -225,6 +225,36 @@ try {
   assert(ch.quads > 500, `the operator in 2 cm voxels (${ch.quads} quads)`);
   assert(ch.err < 1e-3 && ch.ragErr >= 0 && ch.ragErr < 1e-3, `bones follow the joints, ragdolls too (${ch.err.toExponential(1)}, ${ch.ragErr.toExponential(1)})`);
   assert(ch.lensChanged && ch.headHidden, 'lens glow and the camera head fade reach the voxels');
+  // voxel weapons and chips (3.0 phase 4)
+  const wp = await e.page.evaluate(() => {
+    const g = window.__app.current;
+    const models = g.weapons.slots.map((s) => s.model).filter(Boolean);
+    const casters = g.world.lightRig.casters;
+    // a shot into the wall in front: the struck voxel turns to the chip colour
+    const vx = g.world.voxels;
+    const P = g.player.position.constructor;
+    const o = g.player.position.add(new P(0, 1.2, 0));
+    const f = g.player.cam.forward;
+    const end = o.add(new P(f.x, 0, f.z).normalize().scale(30));
+    const h = g.ballistics.ray(o, end, 1);
+    let chipped = null;
+    if (h.hit) {
+      const color = g.ballistics.onWorldHit?.(h.point, h.normal) ?? null;
+      const lv = (g.world.voxelsFine && g.world.voxelsFine.brickmap.get(...[0, 1, 2].map((a) => Math.floor((h.point.asArray()[a] - h.normal.asArray()[a] * g.world.voxelsFine.lv.size * 0.5 - g.world.voxelsFine.lv.origin[a]) / g.world.voxelsFine.lv.size))) ? g.world.voxelsFine : vx);
+      const at = [0, 1, 2].map((a) => Math.floor((h.point.asArray()[a] - h.normal.asArray()[a] * lv.lv.size * 0.5 - lv.lv.origin[a]) / lv.lv.size));
+      chipped = { color, now: lv.brickmap.get(...at), chip: lv.lv.chip };
+    }
+    return {
+      n: models.length,
+      voxel: models.filter((m) => m.voxel).length,
+      hidden: models.every((m) => m.parts.every((p) => !p.isVisible)),
+      cast: models.every((m) => m.voxel.meshes.every((x) => casters.includes(x))),
+      quads: models.map((m) => m.voxel.meshes[0].getTotalIndices() / 6),
+      chipped,
+    };
+  });
+  assert(wp.n > 0 && wp.voxel === wp.n && wp.hidden && wp.cast, `the loadout's weapons are voxel models casting shadows (${wp.voxel} / ${wp.n}, ${wp.quads} quads)`);
+  assert(wp.chipped && wp.chipped.color && wp.chipped.now === wp.chipped.chip, `a shot chips the struck voxel (${JSON.stringify(wp.chipped)})`);
   assert(r.placed >= 8 && r.shadowed >= 1, `Epic: real lights placed (${r.placed}, ${r.shadowed} with shadows, clustered ${r.clustered})`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');

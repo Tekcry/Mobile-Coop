@@ -3,6 +3,8 @@ import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMat
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
 import { setVoxelBodies } from '../player/characterRig';
+import { setVoxelWeapons } from '../weapons/weaponModel';
+import { setVoxelProps } from '../voxel/voxelGroup';
 import { LOD_DISTANCE } from '../world/partLibrary';
 import type { WeatherChoice } from '../world/mapDef';
 import type { MapDef } from '../world/mapDef';
@@ -281,6 +283,8 @@ export class GameState implements AppState {
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
+    // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
+    if (world.voxels && world.voxels.lv.size <= 0.05) this.ballistics.onWorldHit = (p, n) => world.voxelsFine?.chip(p.x, p.y, p.z, n.x, n.y, n.z) ?? world.voxels?.chip(p.x, p.y, p.z, n.x, n.y, n.z) ?? null;
     this.explosions = new Explosions(this.registry, world.props, this.vfx, this.ballistics);
     this.grenades = new Grenades(this.scene, world.parts, this.explosions);
     const pvpMatch = opts.mode === 'tdm' || opts.mode === 'ffa';
@@ -550,6 +554,10 @@ export class GameState implements AppState {
     const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: 0.05, fineSize: 0.025, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: true };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
     setVoxelBodies(flags.voxels && !q.minimal ? { size: 0.02, lodSize: 0.04, lodDistance: LOD_DISTANCE * q.detailScale } : null);
+    // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
+    const vw = flags.voxels && !q.minimal ? { size: 0.01, fineSize: 0.005, lodSize: 0.02, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
+    setVoxelWeapons(vw);
+    setVoxelProps(vw);
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);

@@ -2,7 +2,7 @@ import { MaterialPluginBase, type AbstractMesh, type BaseTexture, type Material,
 import { SURFACE_KINDS, SURFACE_PARAMS, type SurfaceAtlas } from '../world/surfaceAtlas';
 
 /** The voxel behind a pixel: brick indirection, then the pool (0 = air). */
-const VX_MAT_GLSL = `int vxMat(ivec3 v) {
+export const VX_MAT_GLSL = `int vxMat(ivec3 v) {
   ivec3 b = v >> 3;
   ivec3 dims = ivec3(voxDims.xyz);
   if (v.x < 0 || v.y < 0 || v.z < 0 || b.x >= dims.x || b.y >= dims.y || b.z >= dims.z) return 0;
@@ -16,7 +16,7 @@ const VX_MAT_GLSL = `int vxMat(ivec3 v) {
 }`;
 
 /** GLSL constants: per surface (metres per tile, metallic, bump, 0). */
-const PARAMS_GLSL = `const vec4 VX_P[16] = vec4[16](${SURFACE_KINDS.map((k) => {
+export const PARAMS_GLSL = `const vec4 VX_P[16] = vec4[16](${SURFACE_KINDS.map((k) => {
   const p = SURFACE_PARAMS[k];
   return `vec4(${p.tile.toFixed(3)}, ${p.metal.toFixed(3)}, ${p.bump.toFixed(3)}, 0.0)`;
 }).join(', ')});`;

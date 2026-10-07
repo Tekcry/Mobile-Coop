@@ -24,6 +24,10 @@
   further away) - suit, carrier, pouches, pads and the tri-lens goggles - with a tone per voxel and fine seams up close,
   animated as before (ragdolls included); the lens glow, hit flash and the camera's head fade work on them. The stick
   avatar style stays as it was.
+- Voxel weapons and gadgets: every gun (in the hands, on the back, the hip and the thigh, in the Loadout preview) is
+  built from 1 cm voxels with 5 mm sights, pins and triggers; thrown grenades and the drone are voxels too.
+- Bullet chips: shots knock a voxel-sized pock out of walls, floors and props with a spray of debris in the struck
+  material's colour (cosmetic - cover and collision never change).
  21:9 and 32:9 (up to 7680 x 2160) - the view widens with the screen up to a widest field of
   view (default 120 deg, then the sides stop growing), menus stay a centred 16:9 layout, the HUD keeps to a centred
   16:9 on 32:9 (HUD width: auto / 16:9 / 21:9 / full); the frame-rate cap names the display's refresh (up to 240

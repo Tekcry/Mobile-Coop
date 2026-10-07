@@ -207,6 +207,18 @@ export class Vfx {
     }
   }
 
+  /** Voxel debris (3.0): a few cubes of the struck material knocked out of the surface. */
+  chips(pos: Vector3, normal: Vector3, hex: string): void {
+    const c = Color4.FromHexString(hex.slice(0, 7) + 'ff');
+    for (let i = 0; i < Math.max(1, Math.round(4 * this.density)); i++) {
+      const v = normal.scale(1 + Math.random() * 1.5);
+      v.x += (Math.random() - 0.5) * 1.6;
+      v.y += 0.6 + Math.random();
+      v.z += (Math.random() - 0.5) * 1.6;
+      this.emit(false, pos.add(normal.scale(0.02)), v, c, 0.45 + Math.random() * 0.25, 0.018 + Math.random() * 0.02, 0, 9.8);
+    }
+  }
+
   decal(pos: Vector3, normal: Vector3): void {
     const d = this.decals[(this.decalIdx = (this.decalIdx + 1) % this.decals.length)]!;
     d.position.copyFrom(pos).addInPlace(normal.scale(0.012));

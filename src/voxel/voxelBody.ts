@@ -16,7 +16,7 @@ export interface VoxelBodyOptions {
   lodDistance: number;
 }
 
-interface JointQuads {
+export interface JointQuads {
   /** Joint-space quads (positions, normals, indices) of every part on a joint, shared by characters of one look. */
   positions: Float32Array;
   normals: Float32Array;
@@ -38,7 +38,7 @@ function partLocal(part: AbstractMesh): Matrix {
 }
 
 /** Voxelise every part on one joint (joint space; `scale` = the joint's world scale, so the voxels are `size` cubes). */
-function jointQuads(parts: readonly AbstractMesh[], scale: number, size: number): JointQuads | null {
+export function jointQuads(parts: readonly AbstractMesh[], scale: number, size: number): JointQuads | null {
   const srcs = parts.map((p) => (p as InstancedMesh).sourceMesh as Mesh | undefined);
   const key = `${size}|${scale.toFixed(4)}|${parts.map((p, i) => `${srcs[i]?.name}:${Array.from(partLocal(p).m, (v) => v.toFixed(4)).join(',')}`).join(';')}`;
   if (CACHE.has(key)) return CACHE.get(key)!;
@@ -93,6 +93,85 @@ function jointQuads(parts: readonly AbstractMesh[], scale: number, size: number)
   return jq;
 }
 
+/** Collects voxel quads of part groups into one mesh's vertex data (colour, pattern, `color2`, `vox`, bone). */
+export class VoxelSink {
+  readonly P: number[] = [];
+  readonly N: number[] = [];
+  readonly I: number[] = [];
+  readonly C: number[] = [];
+  readonly PT: number[] = [];
+  readonly C2: number[] = [];
+  readonly MI: number[] = [];
+  readonly VX: number[] = [];
+  private verts = new Map<number, number[]>();
+  private v = new Vector3();
+  private nv = new Vector3();
+
+  /** Append `q` (in the space `m` maps to the mesh's); `list` maps its slots to indices into `parts`. */
+  add(q: JointQuads, list: readonly number[], parts: readonly AbstractMesh[], m: Matrix, bone: number, seed: number): void {
+    const nm = m.clone();
+    nm.setTranslationFromFloats(0, 0, 0);
+    const { v, nv } = this;
+    const base = this.P.length / 3;
+    for (let i = 0; i < q.positions.length; i += 3) {
+      const vi = i / 3;
+      const pi = list[q.slot[vi]!]!;
+      const inst = parts[pi] as InstancedMesh;
+      const col = inst.instancedBuffers?.color as Color4 | undefined;
+      const pat = inst.instancedBuffers?.pattern as { x: number; y: number; z: number; w: number } | undefined;
+      const c2 = inst.instancedBuffers?.color2 as Color4 | undefined;
+      Vector3.TransformCoordinatesFromFloatsToRef(q.positions[i]!, q.positions[i + 1]!, q.positions[i + 2]!, m, v);
+      Vector3.TransformNormalFromFloatsToRef(q.normals[i]!, q.normals[i + 1]!, q.normals[i + 2]!, nm, nv);
+      nv.normalize();
+      this.P.push(v.x, v.y, v.z);
+      this.N.push(nv.x, nv.y, nv.z);
+      this.C.push(col?.r ?? 1, col?.g ?? 1, col?.b ?? 1, 1);
+      this.PT.push(pat?.x ?? 0, pat?.y ?? 1, pat?.z ?? 0, pat?.w ?? 0);
+      this.C2.push(c2?.r ?? 0, c2?.g ?? 0, c2?.b ?? 0, 1);
+      this.MI.push(bone, 0, 0, 0);
+      this.VX.push(q.vox[i]! + seed * 131, q.vox[i + 1]!, q.vox[i + 2]! + seed * 71);
+      let vl = this.verts.get(pi);
+      if (!vl) this.verts.set(pi, (vl = []));
+      vl.push(base + vi);
+    }
+    for (let i = 0; i < q.indices.length; i++) this.I.push(base + q.indices[i]!);
+  }
+
+  /** Each part's vertices (lens glow, recolours). */
+  partVerts(): Map<number, Uint32Array> {
+    return new Map([...this.verts].map(([k, l]) => [k, Uint32Array.from(l)]));
+  }
+
+  /** The mesh (skinned rigidly when a skeleton is given), parented to `parent`. */
+  mesh(name: string, scene: Scene, material: Material, parent: TransformNode, skeleton: Skeleton | null): Mesh {
+    const mesh = new Mesh(name, scene);
+    if (this.P.length) {
+      const vd = new VertexData();
+      vd.positions = this.P;
+      vd.normals = this.N;
+      vd.indices = this.I;
+      vd.colors = this.C;
+      if (skeleton) {
+        vd.matricesIndices = this.MI;
+        vd.matricesWeights = this.MI.map((_, i) => (i % 4 === 0 ? 1 : 0));
+      }
+      vd.applyToMesh(mesh, true);
+      mesh.setVerticesData('pattern', this.PT, false, 4);
+      mesh.setVerticesData('color2', this.C2, false, 4);
+      mesh.setVerticesData('vox', this.VX, false, 3);
+    }
+    mesh.parent = parent;
+    if (skeleton) {
+      mesh.skeleton = skeleton;
+      mesh.numBoneInfluencers = 1;
+    }
+    mesh.material = material;
+    mesh.isPickable = false;
+    mesh.receiveShadows = true;
+    return mesh;
+  }
+}
+
 export class VoxelBody {
   readonly skeleton: Skeleton;
   /** [body, head] at full size, then the level-of-detail pair. */
@@ -142,18 +221,7 @@ export class VoxelBody {
     const build = (size: number, suffix: string): [Mesh, Mesh] => {
       const out: Mesh[] = [];
       for (const head of [false, true]) {
-        const P: number[] = [];
-        const N: number[] = [];
-        const I: number[] = [];
-        const C: number[] = [];
-        const PT: number[] = [];
-        const C2: number[] = [];
-        const MI: number[] = [];
-        const MW: number[] = [];
-        const VX: number[] = [];
-        const verts = new Map<number, number[]>();
-        const v = new Vector3();
-        const nv = new Vector3();
+        const sink = new VoxelSink();
         this.nodes.forEach((node, bi) => {
           if (underHead(node) !== head) return;
           const list = onJoint.get(node)!;
@@ -163,60 +231,14 @@ export class VoxelBody {
             Math.sqrt(w[0]! * w[0]! + w[1]! * w[1]! + w[2]! * w[2]!),
             size,
           );
-          if (!q) return;
-          const bind = this.bones[bi]!.getBindMatrix();
-          const nm = bind.clone();
-          nm.setTranslationFromFloats(0, 0, 0);
-          const base = P.length / 3;
-          for (let i = 0; i < q.positions.length; i += 3) {
-            const vi = i / 3;
-            const pi = list[q.slot[vi]!]!;
-            const inst = parts[pi] as InstancedMesh;
-            const col = inst.instancedBuffers?.color as Color4 | undefined;
-            const pat = inst.instancedBuffers?.pattern as { x: number; y: number; z: number; w: number } | undefined;
-            const c2 = inst.instancedBuffers?.color2 as Color4 | undefined;
-            Vector3.TransformCoordinatesFromFloatsToRef(q.positions[i]!, q.positions[i + 1]!, q.positions[i + 2]!, bind, v);
-            Vector3.TransformNormalFromFloatsToRef(q.normals[i]!, q.normals[i + 1]!, q.normals[i + 2]!, nm, nv);
-            nv.normalize();
-            P.push(v.x, v.y, v.z);
-            N.push(nv.x, nv.y, nv.z);
-            C.push(col?.r ?? 1, col?.g ?? 1, col?.b ?? 1, 1);
-            PT.push(pat?.x ?? 0, pat?.y ?? 1, pat?.z ?? 0, pat?.w ?? 0);
-            C2.push(c2?.r ?? 0, c2?.g ?? 0, c2?.b ?? 0, 1);
-            MI.push(bi, 0, 0, 0);
-            MW.push(1, 0, 0, 0);
-            // (a per-joint seed keeps neighbouring joints' tones apart)
-            VX.push(q.vox[i]! + bi * 131, q.vox[i + 1]!, q.vox[i + 2]! + bi * 71);
-            let vl = verts.get(pi);
-            if (!vl) verts.set(pi, (vl = []));
-            vl.push(base + vi);
-          }
-          for (let i = 0; i < q.indices.length; i++) I.push(base + q.indices[i]!);
+          // (a per-joint seed keeps neighbouring joints' tones apart)
+          if (q) sink.add(q, list, parts, this.bones[bi]!.getBindMatrix(), bi, bi);
         });
-        const mesh = new Mesh(`${name}-vox${head ? '-head' : ''}${suffix}`, scene);
-        if (P.length) {
-          const vd = new VertexData();
-          vd.positions = P;
-          vd.normals = N;
-          vd.indices = I;
-          vd.colors = C;
-          vd.matricesIndices = MI;
-          vd.matricesWeights = MW;
-          vd.applyToMesh(mesh, true);
-          mesh.setVerticesData('pattern', PT, false, 4);
-          mesh.setVerticesData('color2', C2, false, 4);
-          mesh.setVerticesData('vox', VX, false, 3);
-        }
-        mesh.parent = root;
-        mesh.skeleton = this.skeleton;
-        mesh.numBoneInfluencers = 1;
-        mesh.material = material;
-        mesh.isPickable = false;
-        mesh.receiveShadows = true;
+        const mesh = sink.mesh(`${name}-vox${head ? '-head' : ''}${suffix}`, scene, material, root, this.skeleton);
         // the skinned bounds move with the rig: never culled away by a stale box
         mesh.alwaysSelectAsActiveMesh = true;
-        this.partVerts.set(mesh, new Map([...verts].map(([k, l]) => [k, Uint32Array.from(l)])));
-        this.baseColors.set(mesh, new Float32Array(C));
+        this.partVerts.set(mesh, sink.partVerts());
+        this.baseColors.set(mesh, new Float32Array(sink.C));
         out.push(mesh);
       }
       return [out[0]!, out[1]!];

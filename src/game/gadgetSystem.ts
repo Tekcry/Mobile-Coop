@@ -1,4 +1,5 @@
 import { Color4, PhysicsRaycastResult, TransformNode, Vector3, type InstancedMesh, type PhysicsEngine } from '../core/babylon';
+import { voxeliseParts } from '../voxel/voxelGroup';
 import type { Enemy } from '../ai/enemy';
 import type { InputState } from '../input/inputState';
 import { G, MASK } from '../physics/groups';
@@ -330,6 +331,8 @@ export class GadgetSystem {
       ps.push(arm, r);
       rotors.push(r);
     }
+    // voxels (3.0): body, eye and arms (the rotors spin, so they stay parts)
+    voxeliseParts(g.scene, node, ps, 'drone');
     const yaw = g.player.cam.yaw;
     const s: DroneState = { x: p.x + Math.sin(yaw) * 0.6, y: p.y + 1.7, z: p.z + Math.cos(yaw) * 0.6, yaw, ox: p.x, oz: p.z, battery: DRONE.battery };
     node.position.set(s.x, s.y, s.z);

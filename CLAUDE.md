@@ -968,6 +968,16 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   joints). `rig.renderMeshes` (shadow casters), `rig.setHeadVisible` (camera fade), `setLensGlow` / `setFlash` reach
   the vertices (`setPartColor`). `PartLibrary.skinMaterial` (unfrozen twin of the part material + `VoxelBodyPlugin`,
   `mesh.metadata.skinMaterial` on the bases). Two draws per character (+ shadows).
+- Voxel weapons / gadgets (3.0 phase 4, `voxel/voxelGroup.ts`): `VoxelGroup` merges the parts under one node into one
+  rigid voxel mesh there (parts at `size`, parts thinner than `small` on a second grid at `fineSize`; a coarser LOD).
+  `setVoxelWeapons` (`WeaponModel.voxel`, `renderMeshes` for shadow casters; 1 cm, 5 mm small parts, 2 cm LOD) and
+  `setVoxelProps` + `voxeliseParts` (thrown grenades - the LED stays a part to blink - and the drone body, the rotors
+  stay parts to spin). `VoxelSink` (`voxelBody.ts`) is the shared vertex builder.
+- Chips (3.0 phase 4, cosmetic): `Ballistics.onWorldHit` (GameState, 5 cm voxels or finer) -> `VoxelWorld.chip`: the
+  voxel behind a world hit (the prop layer first) turns to `LevelVoxels.chip` (a dark pock, the palette's last
+  entry): one `texSubImage3D` texel, or for a uniform brick a new explicit slot from the GPU pool's spare capacity
+  (brick + indirection texel); geometry, collision and meshes never change. `Vfx.chips` throws cubes of the struck
+  colour (instead of the decal).
 - Weather (3.0, `MapTheme.weather`: Port rain, Dust Depot dust, Refinery haze): `vfx/weather.ts` `Weather`
   (thin-instanced streaks / motes in a box wrapped round the camera, updated in place, count x effects density),
   `SurfacePlugin.wet` (upward faces darker and glossy, more in cavities: SSR puddles), the volumetric pass's

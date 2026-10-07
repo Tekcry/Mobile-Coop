@@ -1,4 +1,5 @@
-import { Quaternion, TransformNode, Vector3, type AbstractMesh, type Scene } from '../core/babylon';
+import { Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { VoxelGroup, type VoxelGroupOptions } from '../voxel/voxelGroup';
 import type { CharacterRig } from '../player/characterRig';
 import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
@@ -25,6 +26,12 @@ const SLING_SPLAY = 0.12;
 const SLING_MARGIN = 0.12;
 /** The sling hangs this far (m) outside the thigh (the detailed body's hip and cargo pocket swing in a side-step). */
 const SLING_GAP = 0.035;
+
+/** 3.0 voxel weapons (null: the smooth parts render, e.g. `?gfx=min`). */
+let VOXEL_WEAPONS: VoxelGroupOptions | null = null;
+export function setVoxelWeapons(o: VoxelGroupOptions | null): void {
+  VOXEL_WEAPONS = o;
+}
 
 const ax = new Vector3();
 const ay = new Vector3();
@@ -76,6 +83,17 @@ export class WeaponModel {
     }
     this.muzzleLocal = new Vector3(...def.muzzle);
     this.ext = modelExtents(def);
+    // voxels (3.0): one rigid voxel mesh under the weapon's node (the parts stay, unseen)
+    const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
+    if (VOXEL_WEAPONS && skin) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
+  }
+
+  /** The voxel model (3.0; null: the smooth parts render). */
+  readonly voxel: VoxelGroup | null = null;
+
+  /** What renders (shadow casters). */
+  get renderMeshes(): AbstractMesh[] {
+    return this.voxel ? this.voxel.meshes : this.parts;
   }
 
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
@@ -214,6 +232,7 @@ export class WeaponModel {
 
   dispose(): void {
     if (this.rig) this.track(this.rig, false);
+    this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
     this.node.dispose();
   }

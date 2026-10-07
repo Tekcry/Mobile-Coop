@@ -63,7 +63,7 @@ export class RemoteAvatar {
     let m = this.models.get(id);
     if (!m) {
       m = new WeaponModel(this.world.scene, this.world.parts, WEAPONS[id], DEFAULT_WEAPON_COLORS, this.rig.weaponPivot);
-      for (const part of m.parts) this.world.addShadowCaster(part);
+      for (const part of m.renderMeshes) this.world.addShadowCaster(part);
       this.models.set(id, m);
     }
     return m;

@@ -284,7 +284,69 @@ export class VoxelWorld {
       sky = new RawTexture3D(new Uint8Array([255]), 1, 1, 1, Constants.TEXTUREFORMAT_R, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
       this.textures.push(sky);
     }
+    this.poolTex = pool;
+    this.indexTex = index;
+    this.poolCap = layers * POOL_ROW * POOL_ROW;
     return { index, pool, palette, origin: [...this.lv.origin], size: this.lv.size, bricks: [bm.bx, bm.by, bm.bz], sky, skyOrigin: so ? so.origin : [0, 0, 0], skyCell: so ? so.cell : 0, skyDims: so ? so.n : [1, 1, 1] };
+  }
+
+  private poolTex: RawTexture3D | null = null;
+  private indexTex: RawTexture3D | null = null;
+  /** Slots the GPU pool holds (the last layer's spare slots take bricks a chip makes explicit). */
+  private poolCap = 0;
+  private texel = new Uint8Array(4);
+  private brickBuf = new Uint8Array(BRICK_VOXELS);
+
+  /**
+   * A bullet chip (cosmetic, one voxel): the voxel just behind the hit point turns to the chip colour - one texel
+   * uploaded (a uniform brick becomes explicit while the GPU pool has spare slots). Geometry, collision and the
+   * meshes are untouched. Returns the struck voxel's colour (debris), or null when there is no voxel there.
+   */
+  chip(px: number, py: number, pz: number, nx: number, ny: number, nz: number): string | null {
+    const s = this.lv.size;
+    const o = this.lv.origin;
+    const x = Math.floor((px - nx * s * 0.5 - o[0]) / s);
+    const y = Math.floor((py - ny * s * 0.5 - o[1]) / s);
+    const z = Math.floor((pz - nz * s * 0.5 - o[2]) / s);
+    const bm = this.brickmap;
+    const m = bm.get(x, y, z);
+    if (!m) return null;
+    const color = this.lv.palette[m]?.color ?? null;
+    const chip = this.lv.chip;
+    const pool = this.poolTex;
+    if (chip === undefined || m === chip || !pool || !this.indexTex) return color;
+    const bi = bm.brickIndex(x >> 3, y >> 3, z >> 3);
+    let code = bm.index[bi]!;
+    if (code < 0) {
+      // a uniform brick: only while the GPU pool has a spare slot; then the whole brick and its indirection texel
+      if (bm.slots >= this.poolCap) return color;
+      code = bm.explicit(bi);
+      this.brickBuf.set(bm.pool.subarray(code * BRICK_VOXELS, (code + 1) * BRICK_VOXELS));
+      this.brickBuf[(x & 7) + ((y & 7) << 3) + ((z & 7) << 6)] = chip;
+      this.upload(pool, (code % POOL_ROW) * BRICK, (Math.floor(code / POOL_ROW) % POOL_ROW) * BRICK, Math.floor(code / (POOL_ROW * POOL_ROW)) * BRICK, BRICK, this.brickBuf, false);
+      this.texel[0] = code & 255;
+      this.texel[1] = (code >> 8) & 255;
+      this.texel[2] = (code >> 16) & 255;
+      this.texel[3] = 255;
+      this.upload(this.indexTex, x >> 3, y >> 3, z >> 3, 1, this.texel, true);
+    } else {
+      this.texel[0] = chip;
+      this.upload(pool, (code % POOL_ROW) * BRICK + (x & 7), (Math.floor(code / POOL_ROW) % POOL_ROW) * BRICK + (y & 7), Math.floor(code / (POOL_ROW * POOL_ROW)) * BRICK + (z & 7), 1, this.texel, false);
+    }
+    bm.pool[code * BRICK_VOXELS + (x & 7) + ((y & 7) << 3) + ((z & 7) << 6)] = chip;
+    return color;
+  }
+
+  /** texSubImage3D of an n^3 block (R8, or RGBA8 for the indirection). */
+  private upload(tex: RawTexture3D, x: number, y: number, z: number, n: number, data: Uint8Array, rgba: boolean): void {
+    const engine = tex.getScene()?.getEngine() as unknown as { _gl?: WebGL2RenderingContext; _bindTextureDirectly(t: number, tex: unknown, forUpdate?: boolean, force?: boolean): void } | undefined;
+    const gl = engine?._gl;
+    const it = tex.getInternalTexture();
+    if (!engine || !gl || !it) return;
+    engine._bindTextureDirectly(gl.TEXTURE_3D, it, true);
+    gl.pixelStorei(gl.UNPACK_ALIGNMENT, 1);
+    gl.texSubImage3D(gl.TEXTURE_3D, 0, x, y, z, n, n, n, rgba ? gl.RGBA : gl.RED, gl.UNSIGNED_BYTE, data);
+    engine._bindTextureDirectly(gl.TEXTURE_3D, null, true);
   }
 
   /** The top of the highest solid cell above (x, z) (m; -1e9: open sky). Rain stops there. */

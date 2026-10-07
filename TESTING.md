@@ -314,6 +314,11 @@ Voxel characters (Epic):
 - [ ] The operator (menu and in a match), guards, bodies and co-op players are voxel figures; joints never open gaps
       while running, climbing, in cover or as a ragdoll; goggles glow with night vision; the head disappears when the
       camera gets close; hits flash; Stick style (Settings) still shows the stick figures.
+Voxel weapons and chips (Epic):
+- [ ] Weapons in the hands, on the back / hip / thigh and in the Loadout preview are voxel models (sights, triggers
+      visible up close); camo shows on them; thrown grenades and the drone are voxels.
+- [ ] Shooting a wall, floor or crate leaves a dark one-voxel pock and throws debris in its colour; cover and
+      movement are unchanged.
 Displays (gaming laptop: RTX 4090 Laptop, 16 GB; built-in 2560 x 1600 240 Hz; external ultrawide):
 - [ ] The browser runs on the NVIDIA GPU (Settings > Graphics > GPU); switch it to the integrated GPU once: the
       notice appears once with the Windows steps.

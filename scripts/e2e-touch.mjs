@@ -99,13 +99,18 @@ try {
   let cst = 'none';
   // (retried: the prompt can blink while the camera springs settle after the teleport, and moves with the view)
   for (let i = 0; i < 5 && cst !== 'in'; i++) {
-    await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 15000 });
+    await page.waitForSelector('.wp-cover.show .wp-body', { timeout: 15000 }).catch(async (e) => {
+      const st = await page.evaluate(() => { const g = window.__app.current; const p = g.player.position; return { map: g.opts.map.id, pos: [p.x, p.y, p.z].map((v) => v.toFixed(2)), cover: g.cover.state, cand: !!g.cover.candidate, prompts: [...document.querySelectorAll('.hud-world > *')].map((x) => x.className).join('|') }; });
+      throw new Error(`${e.message.split('\n')[0]} ${JSON.stringify(st)}`);
+    });
     await page.waitForTimeout(600);
     const el = await page.$('.wp-cover.show .wp-body');
     const bx = el ? await el.boundingBox() : null;
     if (!bx) continue;
     await page.touchscreen.tap(bx.x + bx.width / 2, bx.y + bx.height / 2);
     await page.waitForTimeout(900);
+    // (under load the glide into cover can still be running: wait for it to land)
+    await page.waitForFunction(() => window.__app.current.cover.state !== 'enter', null, { timeout: 8000 }).catch(() => {});
     cst = await page.evaluate(() => window.__app.current.cover.state);
   }
   assert(cst === 'in', `tapping the take-cover prompt on the surface takes cover (${cst})`);
@@ -115,6 +120,8 @@ try {
   // leaving by touch: push the move stick away from the wall
   await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, -1));
   await page.waitForTimeout(700);
+  // (held until it lets go: under load the game clock runs behind the wall clock)
+  await page.waitForFunction(() => window.__app.current.cover.state === 'none', null, { timeout: 6000 }).catch(() => {});
   await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 0));
   cst = await page.evaluate(() => window.__app.current.cover.state);
   assert(cst === 'none', `pushing away from the wall leaves cover (${cst})`);

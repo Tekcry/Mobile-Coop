@@ -48,6 +48,8 @@ export interface LevelVoxels {
   origin: [number, number, number];
   dims: [number, number, number];
   size: number;
+  /** Palette index of a bullet chip (a dark pock; cosmetic, `VoxelWorld.chip`). */
+  chip?: number;
   /** The finer layer (props, furniture, machines, vehicles, thin pieces), when there is one. */
   fine?: LevelVoxels;
 }
@@ -180,10 +182,12 @@ export function levelVoxels(boxes: readonly BoxPiece[], cylinders: readonly CylP
   // the art layer's dressing and paint (fine ones on the fine layer)
   for (const x of art?.extra?.(palette, boxes, cylinders) ?? []) (fineSize && x.fine ? fine : shapes).push(x);
   const g = gridOf(shapes, size);
-  const out: LevelVoxels = { shapes, palette: palette.entries, voxelBox, voxelCyl, origin: g.origin, dims: g.dims, size };
+  // (last, so no other entry moves)
+  const chip = palette.get('#23211d', 0);
+  const out: LevelVoxels = { shapes, palette: palette.entries, voxelBox, voxelCyl, origin: g.origin, dims: g.dims, size, chip };
   if (fineSize && fine.length) {
     const gf = gridOf(fine, fineSize);
-    out.fine = { shapes: fine, palette: palette.entries, voxelBox, voxelCyl, origin: gf.origin, dims: gf.dims, size: fineSize };
+    out.fine = { shapes: fine, palette: palette.entries, voxelBox, voxelCyl, origin: gf.origin, dims: gf.dims, size: fineSize, chip };
   }
   return out;
 }

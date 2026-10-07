@@ -8,6 +8,7 @@ import {
   type Scene,
 } from '../core/babylon';
 import { G } from '../physics/groups';
+import { voxeliseParts } from '../voxel/voxelGroup';
 import type { PartLibrary } from '../world/partLibrary';
 import type { Explosions } from './explosions';
 import { GRENADE } from './weaponDefs';
@@ -49,6 +50,8 @@ export class Grenades {
     blink.parent = node;
     blink.scaling.setAll(0.05);
     blink.position.y = 0.08;
+    // voxels (3.0): the body (the LED blinks, so it stays a part)
+    voxeliseParts(this.scene, node, [mesh], 'grenade');
     const shape = new PhysicsShapeSphere(Vector3.Zero(), 0.08, this.scene);
     shape.filterMembershipMask = G.PROJECTILE;
     shape.filterCollideMask = G.STATIC | G.PROP;

@@ -19,7 +19,7 @@ export function buildEnemyRig(scene: Scene, world: World, def: EnemyDef, name: s
   let gun: WeaponModel | null = null;
   if (def.gun) {
     gun = new WeaponModel(scene, world.parts, WEAPONS[def.gun], ENEMY_GUN, rig.weaponPivot);
-    for (const m of gun.parts) world.addShadowCaster(m);
+    for (const m of gun.renderMeshes) world.addShadowCaster(m);
     gun.hold(rig);
   }
   return { rig, gun };
