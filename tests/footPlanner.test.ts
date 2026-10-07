@@ -4,7 +4,7 @@ import { emptyMotionInput, MotionDriver, stepLength } from '../src/anim/motion';
 import { CT, MOVEMENT } from '../src/config/movement';
 
 /** Drive a planner from a MotionDriver at a render rate; returns per-frame records. */
-function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>, t: number) => void, hz = 120, quickStop = 0) {
+function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>, t: number) => void, hz = 120, quickStop = 0, hold?: (t: number) => boolean) {
   const d = new MotionDriver(0);
   const p = new FootPlanner();
   const pi = emptyPlannerInput();
@@ -36,6 +36,7 @@ function simulate(seconds: number, set: (i: ReturnType<typeof emptyMotionInput>,
     pi.cycleTime = sp > 0.05 ? (2 * stepLength(sp)) / sp : 1;
     pi.liftH = 0.065;
     pi.quickStop = quickStop;
+    pi.hold = hold ? hold(t) : false;
     p.update(pi);
     if (p.L.landed) landings++;
     if (p.R.landed) landings++;
@@ -106,6 +107,45 @@ describe('foot planner: Chaos Theory instant stop (3.2.0)', () => {
       expect(maxPlantedSlide(frames)).toBeLessThan(0.01);
     }
     expect(swinging).toBeGreaterThan(0);
+  });
+});
+
+describe('foot planner: Chaos Theory stop hold (3.2.0)', () => {
+  it('a foot in the air sets straight down where it is; held, the feet stay in the stride (no settling step)', () => {
+    let tested = 0;
+    for (const release of [1.0, 1.04, 1.09, 1.13, 1.17, 1.21]) {
+      let releasedAt = -1;
+      const { frames } = simulate(
+        2.5,
+        (i, t) => {
+          i.ct = true;
+          i.faceTravel = true;
+          if (t < release) i.vz = MOVEMENT.jogSpeed;
+          else if (releasedAt < 0) releasedAt = t;
+        },
+        120,
+        CT.stopBlend,
+        (t) => t >= release,
+      );
+      const k0 = Math.round(releasedAt * 120);
+      const f0 = frames[k0]!;
+      const last = frames[frames.length - 1]!;
+      // the foot that was in the air lands within a centimetre of where it was (horizontally)
+      if (!f0.lc) {
+        tested++;
+        expect(Math.hypot(last.lx - f0.lx, last.lz - f0.lz)).toBeLessThan(0.01);
+      }
+      if (!f0.rc) {
+        tested++;
+        expect(Math.hypot(last.rx - f0.rx, last.rz - f0.rz)).toBeLessThan(0.01);
+      }
+      // one landing at most (the foot in the air), then nothing moves for over a second
+      expect(last.landed - f0.landed).toBeLessThanOrEqual(1);
+      const k1 = k0 + Math.ceil((CT.stopBlend + 0.05) * 120);
+      expect(last.lc && last.rc).toBe(true);
+      expect(Math.hypot(last.lx - frames[k1]!.lx, last.lz - frames[k1]!.lz) + Math.hypot(last.rx - frames[k1]!.rx, last.rz - frames[k1]!.rz)).toBeLessThan(1e-6);
+    }
+    expect(tested).toBeGreaterThan(0);
   });
 });
 

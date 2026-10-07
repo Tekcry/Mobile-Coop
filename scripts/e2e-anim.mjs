@@ -131,7 +131,8 @@ try {
   });
   const stoppedAt = stop.find(([, v]) => v < 0.02)?.[0] ?? 99;
   assert(stoppedAt <= 1 / 60 + 1e-6, `stop from a jog on the release step (${f2(stoppedAt)} s)`);
-  assert(within(stop.at(-1)[2], 0, 2), `the stride sets down, at most a settling step in place (${stop.at(-1)[2]})`);
+  // 3.2.0: the stop holds the stride it stopped in - only a foot that was in the air sets down
+  assert(within(stop.at(-1)[2], 0, 1), `the stride holds: no settling step (${stop.at(-1)[2]} plant${stop.at(-1)[2] === 1 ? ', the foot in the air' : 's'})`);
   const pivot = await G(() => {
     const t = window.__t;
     const c = window.__app.current.player.controller;

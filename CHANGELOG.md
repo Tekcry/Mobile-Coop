@@ -9,10 +9,12 @@ Phase 0 - speed gears, instant stop, roll:
   capped at the aim pace. The HUD shows SPD pips by the light meter for 1.5 s after a change; the touch rocker shows
   them all the time.
 - Footstep noise: crouched gears 1-4 and standing gears 1-2 are silent; faster gears are heard further.
-- Chaos Theory feel on free movement: letting go of the stick stops the operator dead on the next step (the pose
-  settles to idle in 0.12 s, the feet stay planted), starts reach full pace within 0.08 s, direction and gear changes
+- Chaos Theory feel on free movement: letting go of the stick stops the operator dead on the next step (the feet
+  stay planted), starts reach full pace within 0.08 s, direction and gear changes
   take effect at once, no planted pivots, the body turns at up to 720 deg/s. Cover, cover-to-cover, traversal and
   the guards move as before (the guards' tuning is now pinned by a test).
+- Stopping holds the exact stride you stopped in (a foot in the air sets straight down) until the next input - the
+  stick, aiming, a stance change, cover or a climb; crouched stops hold the crouched stride (no automatic kneel).
 - Forward roll: tap crouch while moving standing in gear 5-6 (or sprinting) - a committed 3 m roll in 0.7 s that
   comes up crouched; guards within 2 m hear it.
 - Controller: D-pad right is now the gadget (hold to aim, release to throw); D-pad left tapped pings (co-op), held

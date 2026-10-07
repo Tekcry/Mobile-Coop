@@ -87,12 +87,14 @@ export interface PlannerInput {
    * this instead of finishing the stride at idle pace (planted feet stay locked).
    */
   quickStop: number;
+  /** Chaos Theory stop hold (3.2.0): stopped feet stay where they are - no settling or idle steps until it ends. */
+  hold: boolean;
   /** Ground height under a point, or null (keeps the root height). */
   ground: ((x: number, z: number, yFrom: number) => number | null) | null;
 }
 
 export function emptyPlannerInput(): PlannerInput {
-  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, ground: null };
+  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, ground: null };
 }
 
 /** Idle stepping thresholds. */
@@ -156,9 +158,7 @@ export class FootPlanner {
       for (let k = 0; k < 2; k++) {
         const f = k === 0 ? this.L : this.R;
         if (f.contact || f.swing < 0) continue;
-        const s = Math.min(0.99, Math.max(0, f.swing));
-        f.stepDur = i.quickStop / (1 - s);
-        f.stepT = s * f.stepDur;
+        this.setDown(f, i);
       }
       this.quick = true;
     }
@@ -232,11 +232,14 @@ export class FootPlanner {
       }
       f.stepT += dt;
       const s = Math.min(1, f.stepT / f.stepDur);
-      this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
+      // (a quick stop's leftover swing lands where its stride was going: the stance it stopped in)
+      if (!this.quick) this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
       this.swingTo(f, i, s);
       if (s >= 1) this.land(f);
     }
     if (!this.L.contact || !this.R.contact) return;
+    // holding a stop: the feet stay in the stride
+    if (i.hold) return;
     // both planted: step the foot furthest from its ideal spot, if far enough
     let worst: FootState | null = null;
     let worstSide: -1 | 1 = -1;
@@ -346,6 +349,21 @@ export class FootPlanner {
       const g = i.ground ? i.ground(tx, tz, i.rootY + 0.6) : null;
       f.toY = g === null ? i.rootY : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
     }
+  }
+
+  /** Instant stop: a foot in the air sets straight down where it is, over `quickStop` (the stride it stopped in). */
+  private setDown(f: FootState, i: PlannerInput): void {
+    f.fromX = f.toX = f.x;
+    f.fromZ = f.toZ = f.z;
+    f.fromY = f.y;
+    f.fromYaw = f.toYaw = f.yaw;
+    const g = i.ground ? i.ground(f.x, f.z, i.rootY + 0.6) : null;
+    f.toY = g === null ? i.rootY : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
+    f.stepLift = 0;
+    f.stepT = 0;
+    f.stepDur = Math.max(1e-3, i.quickStop);
+    f.swing = 0;
+    f.swBase = -1;
   }
 
   /** Position along the swing at progress s. */

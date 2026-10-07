@@ -310,6 +310,7 @@ export class Player {
     rp.motion = m.state;
     rp.motionT = m.stateT;
     rp.quickStop = c.ct ? CT.stopBlend : 0;
+    rp.holdSpeed = c.stopHold ? c.holdSpeed : 0;
     const by = c.renderYaw;
     rp.accelFwd = m.ax * Math.sin(by) + m.az * Math.cos(by);
     rp.accelSide = m.ax * Math.cos(by) - m.az * Math.sin(by);

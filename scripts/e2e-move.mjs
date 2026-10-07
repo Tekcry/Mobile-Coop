@@ -150,6 +150,38 @@ try {
   }));
   assert(stop.before > 2.5 && stop.after < 0.05 && stop.motion === 0, `instant stop: ${stop.before.toFixed(2)} m/s -> ${stop.after.toFixed(3)} m/s on the release step (driver ${stop.motion})`);
   assert(stop.slide < 0.02, `stopping: planted feet stay planted (${(stop.slide * 100).toFixed(2)} cm)`);
+  // the stop holds the stride it stopped in until the next input: feet stay put, no kneel crouched; aiming lets go
+  const held = await page.evaluate(() => new Promise((res) => {
+    const st = window.__app.current;
+    const c = st.player.controller;
+    const pl = st.player.rig.planner;
+    const p0 = [pl.L.x, pl.L.z, pl.R.x, pl.R.z];
+    const orig = st.fixedUpdate.bind(st);
+    let t = 0;
+    st.fixedUpdate = (dt) => {
+      orig(dt);
+      t += dt;
+      if (t >= 1.2) {
+        st.fixedUpdate = orig;
+        res({ hold: c.stopHold, moved: Math.hypot(pl.L.x - p0[0], pl.L.z - p0[1]) + Math.hypot(pl.R.x - p0[2], pl.R.z - p0[3]) });
+      }
+    };
+  }));
+  await page.evaluate(() => window.__pad.set(6, 1));
+  await sim(0.3);
+  const aimHold = await page.evaluate(() => window.__app.current.player.controller.stopHold);
+  await page.evaluate(() => window.__pad.set(6, 0));
+  assert(held.hold && held.moved < 0.01 && !aimHold, `the stop holds its stride for 1.2 s (feet moved ${(held.moved * 100).toFixed(2)} cm); aiming lets go (${aimHold})`);
+  await settle(0.3);
+  await tp(-10, 0, -14, Math.PI / 2);
+  await press(page, BTN.B);
+  await page.evaluate(() => { window.__pad.axis(1, -1); });
+  await sim(0.6);
+  await page.evaluate(() => { window.__pad.axis(1, 0); });
+  await sim(1.0);
+  const ch = await page.evaluate(() => { const c = window.__app.current.player.controller; return { hold: c.stopHold, kneel: c.kneeling, crouched: c.crouched }; });
+  assert(ch.crouched && ch.hold && !ch.kneel, `a crouched stop holds the crouched stride (no kneel) (${JSON.stringify(ch)})`);
+  await press(page, BTN.B);
   await settle(0.3);
 
   // forward roll: crouch tapped standing at gear 5-6 while moving; ~3 m in 0.7 s, comes up crouched, a little noise

@@ -65,3 +65,10 @@ Saves there are separate (`shoulder-strike-ct`). Every push to `ct-movement` reb
 
 ## Spec change requests
 (problem, proposed change, waiting for Michael / approved / rejected)
+- Phase 0 stop pose (2026-10-07, approved by Michael): the spec had the pose blend from the frozen stride to idle over
+  `CT.stopBlend`; on the phone that read as the operator resetting to a crouched idle (feet pulled together, a
+  settling step). Now: the stop holds the exact stride it stopped in until the next input (stick, aim, stance change,
+  cover / traversal / takedown, leaving the ground); a foot in the air sets straight down where it is within
+  `CT.stopBlend`; crouched stops hold the crouched stride too (no automatic kneel). Applied as a Phase 0 fix.
+- Branches (2026-10-07, Michael): keep `ct-movement` separate from `dev` for now - do not merge `dev` in at the start
+  of a phase until he says so.

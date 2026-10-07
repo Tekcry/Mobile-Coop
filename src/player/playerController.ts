@@ -100,6 +100,14 @@ export class PlayerController {
   readonly gears = new GearState(flags.gear !== null ? clampGear(flags.gear) : undefined);
   /** Free movement uses the Chaos Theory feel (instant stop / start; `MotionInput.ct`) this step. */
   ct = false;
+  /**
+   * Chaos Theory stop hold: after an instant stop the body holds the stride it stopped in (`holdSpeed` = the pace it
+   * stopped from, `holdCrouch` = its stance) until the next input: the stick, aiming, a stance change, an override
+   * (cover, traversal, takedown) or leaving the ground. No kneel while it holds.
+   */
+  stopHold = false;
+  holdSpeed = 0;
+  private holdCrouch = false;
   /** Root motion: jerk-limited velocity, gait clock, starts/stops/stepped turns/pivots. */
   readonly motion: MotionDriver;
   /** Kept for callers: mirrors the driver's velocity; `reset` also resets the driver. */
@@ -262,6 +270,7 @@ export class PlayerController {
     this.cc.setVelocity(Vector3.Zero());
     this.vel.reset();
     this.motion.reset(yaw ?? this.yaw);
+    this.stopHold = false;
     this.syncFeet();
     this.prevPos.copyFrom(this.pos);
     this.renderPos.copyFrom(this.pos);
@@ -298,6 +307,7 @@ export class PlayerController {
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
+      this.stopHold = false;
       this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
       this.cc.setVelocity(Vector3.Zero());
       this.syncFeet();
@@ -402,7 +412,16 @@ export class PlayerController {
     // the character controller follows the driver's velocity within a step (Chaos Theory stops and starts land on
     // the step; the 2.x moves are jerk-limited well inside the usual cap anyway)
     this.cc.maxAcceleration = this.ct ? CT_MAX_ACCEL : 80;
+    const wasMoving = this.motion.state === 'move';
+    const spBefore = this.motion.speed;
     if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
+    // an instant stop holds the stride; the next input lets it go
+    if (this.ct && this.grounded && wasMoving && this.motion.state === 'idle' && spBefore > 0.3) {
+      this.stopHold = true;
+      this.holdSpeed = spBefore;
+      this.holdCrouch = this.crouched;
+    }
+    if (this.stopHold && (mag > 0.05 || !this.ct || !this.grounded || aiming || this.sprint.sprinting || this.crouched !== this.holdCrouch)) this.stopHold = false;
     this.vel.x = this.motion.vx;
     this.vel.z = this.motion.vz;
     const desired = this.tmp.set(this.motion.outX, 0, this.motion.outZ);
@@ -472,7 +491,7 @@ export class PlayerController {
     // kneel: crouched and still for a moment
     // (stick idle and barely moving: small standoff corrections in cover do not count as moving)
     this.stillT = this.crouched && mag < 0.1 && this.speed < 0.4 ? this.stillT + dt : 0;
-    this.kneeling = this.stillT > 0.25;
+    this.kneeling = this.stillT > 0.25 && !this.stopHold;
     this.updateStance(dt);
   }
 

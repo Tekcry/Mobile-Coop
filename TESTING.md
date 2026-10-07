@@ -304,8 +304,9 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
   (Default, Claw and Left-handed layouts; the layout editor moves and resizes it).
 - [ ] PC: the mouse wheel up / down and = / - step the gear (Settings > Mouse & Keyboard can rebind = / -); Q / X
   swap weapons (the wheel no longer does).
-- [ ] Release the stick at any gear: the operator stops dead (no slide, no extra step forward); the feet do not skate;
-  the body settles to idle within a blink (~0.12 s). Starting again is immediate. Reversing at speed: no planted
+- [ ] Release the stick at any gear: the operator stops dead (no slide, no extra step forward) and holds the exact
+  stride he stopped in - no pulling the feet together, no settling step, no kneel when crouched - until you move,
+  aim, change stance or take cover. A foot in the air sets straight down. Starting again is immediate. Reversing at speed: no planted
   pivot, straight off the other way. Turning sharply: the body snaps round (720 deg/s).
 - [ ] Crouch / stand while moving keeps the gear.
 - [ ] Gear 5 or 6 (or sprinting), moving standing: tap crouch (B / C / the crouch button) = a forward roll, ~3 m in

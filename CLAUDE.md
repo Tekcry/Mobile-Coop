@@ -27,7 +27,8 @@ Blacklist style.
   - `scripts/e2e-mouse.mjs` PC mouse capture: click captures (never fires), look, fire, wheel = speed gear (3.2.0),
     X swaps, = / -, Esc pauses, Resume re-captures
   - `scripts/e2e-move.mjs` (3.2.0, `gear=none`: spawn gear 3) every gear's speed both stances, stick scaling, gear kept
-    through stances, zero velocity on the release step, planted feet < 2 cm on a stop, forward roll (0.7 s, ~3 m,
+    through stances, zero velocity on the release step, planted feet < 2 cm on a stop, the stop holds its stride
+    (1.2 s, aiming lets go; crouched: no kneel), forward roll (0.7 s, ~3 m,
     crouched, 2 m noise) and none at gear 3, aim strafe/backstep, sprint toggle, aim ends a sprint, no free jump,
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-traverse.mjs` Proving Grounds course (north east): ladder bottom / top entry, climb rate, slide, step
@@ -45,7 +46,7 @@ Blacklist style.
   - `scripts/e2e-weapons-carry.mjs` Free Roam loadout: five slots, back guns within 10 deg of the spine in six
     gaits, no clipping (both avatar styles, with a backpack), hands within 2 cm of the grips, swap reach + timing
   - `scripts/e2e-anim.mjs` quality bars in the running game: first-frame response, 3.2.0 Chaos Theory: 95% speed
-    within 0.08 s, a stop on the release step, at most a settling step, no planted pivot, 720 deg/s turns, turn rates, lean into turns, stance and aim raise/lower times, weapon clip
+    within 0.08 s, a stop on the release step, the stride held (no settling step), no planted pivot, 720 deg/s turns, turn rates, lean into turns, stance and aim raise/lower times, weapon clip
     timings, foot locking (< 1 cm) in seven gaits, pose continuity, flinch, camera lag/blends/bob/drift/sprint
     FOV/stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity (each run from gait phase 0)
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
@@ -394,8 +395,12 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `NOISE_QUIET` (crouched <= 1.9, standing <= 1.45 m/s silent: crouched gears 1-4, standing 1-2). Chaos Theory feel
   (`MotionInput.ct`, set by `PlayerController` when no override drives the step; `CT` table + `CT_RANGES` in the
   Tune panel): stick released = zero velocity on that step (the controller's `maxAcceleration` is 600 then so Havok
-  follows in one step), gait clock frozen, `RigPose.quickStop` = `CT.stopBlend` 0.12 s (the graph's locomotion
-  weight blends out over it; `FootPlanner` sets a swing left from moving down within it, planted feet locked); starts
+  follows in one step), gait clock frozen, `RigPose.quickStop` = `CT.stopBlend` 0.12 s (`FootPlanner.setDown`: a foot
+  in the air sets straight down where it is within it, planted feet locked). Stop hold (approved spec change):
+  `PlayerController.stopHold` / `holdSpeed` from the stop until the next input (stick, aim, sprint, stance change,
+  an override, leaving the ground; teleport clears it; no kneel while held) -> `RigPose.holdSpeed`: the graph keeps
+  the locomotion pose at the frozen gait clock for that pace (`locoSpeed`; released, it blends out over `quickStop`),
+  the planner `hold` takes no settling / idle steps (`anim-sheet` `crouchstop` / `walkstop`); starts
   reach 95% within `CT.startTime` 0.08 s (`ctTau` = startTime / 4), direction / gear changes re-target at once, no
   pivots, travel turns at `CT.turnRate` 720 deg/s (sprint roll lean held to 0.05 rad so the bank stays <= 8 deg).
   Forward roll: crouch tapped standing at gear >= 5 (or sprinting) while moving >= 1.5 m/s

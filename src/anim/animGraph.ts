@@ -121,6 +121,11 @@ export interface AnimInput {
   motionT: number;
   /** Chaos Theory instant stop (3.2.0): the locomotion blends out to idle over this many seconds (0 = the usual). */
   quickStop: number;
+  /**
+   * Chaos Theory stop hold (3.2.0, m/s; 0 = none): stopped, the body holds the stride it stopped in - the locomotion
+   * pose at the frozen gait clock for this pace - until the next input (move, aim, stance, cover, traversal).
+   */
+  holdSpeed: number;
   /** Root acceleration in the body frame (m/s^2): forward, right. */
   accelFwd: number;
   accelSide: number;
@@ -178,6 +183,7 @@ export function defaultInput(): AnimInput {
     motion: '',
     motionT: 0,
     quickStop: 0,
+    holdSpeed: 0,
     accelFwd: 0,
     accelSide: 0,
     intent: 0,
@@ -323,6 +329,8 @@ export class AnimGraph {
   // timers and smoothed parameters
   private idleT = Math.random() * 4;
   private stillT = 0;
+  /** Pace the locomotion blend uses this frame (the speed, or the held stop's pace). */
+  private locoSpeed = 0;
   private kneelW = 0;
   private kneelClip: Clip = KNEEL;
   private startT = -1;
@@ -421,7 +429,7 @@ export class AnimGraph {
   }
 
   /** Locomotion blend space (speed x direction) for one posture into `out`. */
-  private locomotion(out: Pose, crouched: boolean, i: AnimInput, ph: number): void {
+  private locomotion(out: Pose, crouched: boolean, ph: number): void {
     out.set(NEUTRAL_POSE);
     // idle: a static ready stance; breathing and weight shifts after 2 s still
     const idle = crouched ? CROUCH_IDLE : IDLE;
@@ -433,7 +441,7 @@ export class AnimGraph {
     const bw = Math.max(0, -this.dirZ);
     const sw = Math.abs(this.dirX);
     const tot = fw + bw + sw || 1;
-    const s = Math.max(0, i.speed);
+    const s = Math.max(0, this.locoSpeed);
     this.moveAcc = 0;
     this.tmpMove.set(out);
     // forward: between the neighbouring speed nodes of the posture's set
@@ -486,7 +494,10 @@ export class AnimGraph {
     else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed, undefined, lateralShare(i)))) * dt) % 1;
     const ph = this.phase;
     // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
-    const moveTarget = smoothstep(i.speed / 0.22);
+    // (holding a Chaos Theory stop: the stride it stopped in stays, at the pace it stopped from)
+    const locoSpeed = i.holdSpeed > 0 ? i.holdSpeed : i.speed;
+    this.locoSpeed = locoSpeed;
+    const moveTarget = smoothstep(locoSpeed / 0.22);
     this.moveW = approach(this.moveW, moveTarget, i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
     if (dl > 0.1 && i.speed > 0.05) {
@@ -507,8 +518,8 @@ export class AnimGraph {
     // --- locomotion blend space, standing and crouched, then the posture blend
     const crouchK = clamp(i.crouch, 0, 1);
     const src = this.src;
-    if (crouchK < 0.999) this.locomotion(this.stand, false, i, ph);
-    if (crouchK > 0.001) this.locomotion(this.crouch, true, i, ph);
+    if (crouchK < 0.999) this.locomotion(this.stand, false, ph);
+    if (crouchK > 0.001) this.locomotion(this.crouch, true, ph);
     if (crouchK <= 0.001) src.set(this.stand);
     else if (crouchK >= 0.999) src.set(this.crouch);
     else lerpPose(src, this.stand, this.crouch, crouchK);
