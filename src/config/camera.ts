@@ -60,7 +60,7 @@ export interface AttachFraming {
   blend: number;
 }
 
-export type AttachCamera = 'hang' | 'ladder' | 'pipe' | 'pipeH' | 'duct' | 'zipline';
+export type AttachCamera = 'hang' | 'ladder' | 'pipe' | 'pipeH' | 'duct' | 'zipline' | 'split' | 'pipeLegs' | 'inverted';
 
 export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
   // hanging: pulled back and lower, showing the drop
@@ -72,6 +72,12 @@ export const ATTACH_FRAMING: Record<AttachCamera, AttachFraming> = {
   // duct: tight, low
   duct: { boom: 0.9, shoulder: 0.22, pivot: 0.55, pitch: -0.05, cone: 1.2, blend: 0.2 },
   zipline: { boom: 2.8, shoulder: 0.45, pivot: 1.2, pitch: -0.2, cone: Math.PI, blend: 0.25 },
+  // (3.2.0) split jump: up between the walls, looking down the corridor (the pivot from the feet on the walls)
+  split: { boom: 2.0, shoulder: 0.4, pivot: 0.75, pitch: -0.35, cone: Math.PI, blend: 0.3 },
+  // pipe, legs up: under the pipe, looking along it
+  pipeLegs: { boom: 2.4, shoulder: 0.45, pivot: 1.05, pitch: -0.1, cone: Math.PI, blend: 0.35 },
+  // pipe, inverted: the camera stays upright at the hanging head's height
+  inverted: { boom: 2.3, shoulder: 0.45, pivot: 0.35, pitch: 0, cone: Math.PI, blend: 0.35 },
 };
 
 /** Blend a framing (in place) from the hip framing towards an attached preset by `w` 0..1. */

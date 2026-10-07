@@ -8,7 +8,7 @@ import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
-import { isPvp, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine } from './protocol';
+import { isPvp, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine, wirePlayerState } from './protocol';
 import { ClockSync } from './interp';
 import { RemoteAvatar } from './remoteAvatar';
 import { EnemyPuppet } from './enemyPuppet';
@@ -17,6 +17,8 @@ import { pvpInfo, type PvpMode } from './pvp';
 import { clampEnd, coopSessionStats } from './validate';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
+import { localMoveState } from '../game/localMoveState';
+import { emptyMoveState, moveChanged } from '../player/moveState';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -400,14 +402,19 @@ export class CoopClient implements NetAttachment {
   fixedUpdate(dt: number): void {
     this.time += dt;
     this.sendT -= dt;
-    if (this.sendT > 0) return;
+    // the movement state: a new mode or sub-state (cover, a ladder, a vault) goes out at once, not on the next tick
+    const mv = localMoveState(this.g, this.mvNow);
+    const changed = moveChanged(this.mvSent, mv);
+    if (this.sendT > 0 && !changed) return;
     this.sendT = 1 / SEND_HZ;
+    Object.assign(this.mvSent, mv);
+    this.mvSent.c = mv.c ? { ...mv.c } : undefined;
     const g = this.g;
     const p = g.player;
     const c = p.controller;
     this.s.toHost({
       t: 'pstate',
-      s: {
+      s: wirePlayerState({
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,
@@ -419,9 +426,14 @@ export class CoopClient implements NetAttachment {
         w: g.weapons.current.def.id,
         hp: g.target.health.hp,
         sh: g.target.health.shield,
-      },
+        mv,
+      }),
     });
   }
+
+  /** The movement state this step and the last one sent (change detection). */
+  private mvNow = emptyMoveState();
+  private mvSent = emptyMoveState();
 
   frameUpdate(dt: number): void {
     const t = this.renderTime;

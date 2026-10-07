@@ -149,6 +149,17 @@ export const provingGrounds: MapDef = {
     b.block(21.6, -5, 1.2, 3.2, 2, C.concreteDark);
     b.ladder(20.95, -5, 0, 3.2, Math.PI / 2);
 
+    // Chaos Theory course (3.2.0, north, driven by e2e-ct): a split corridor (two 4.3 m walls 1.3 m apart, along x;
+    // their lips above to jump up to), a 3.3 m block to wall jump onto (south face; an inside corner with a 4.5 m
+    // wall on its west side for the corner kick) and a horizontal pipe at 2.5 m over a walkway (legs up, inverted)
+    b.box(10, 2.15, 24, 4, 4.3, 0.3, C.wallDark);
+    b.box(10, 2.15, 25.6, 4, 4.3, 0.3, C.wallDark);
+    b.block(17.5, 25.5, 3, 3.3, 3, C.concrete);
+    b.box(15.85, 2.25, 22.75, 0.3, 4.5, 2.5, C.wallDark);
+    b.pillar(7.5, 28.5, 0.1, 2.6, C.metal);
+    b.pillar(14, 28.5, 0.1, 2.6, C.metal);
+    b.pipeH(7.5, 28.5, 14, 28.5, 2.5);
+
     const props: MapLayout['props'] = [];
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
     props.push({ kind: 'crate', pos: v(-3, 3) }, { kind: 'crate', pos: v(-1.9, 3.1), yaw: 0.2 }, { kind: 'crate', pos: v(-2.45, 3.05, 1.02) });

@@ -97,6 +97,9 @@ Blacklist style.
     but Training, Infiltration lists the Warehouse missions only
   - `scripts/e2e-training.mjs` the training course by touch: hints per device, each step advancing, the
     Takedown / Mark / Execute buttons, HUD defaults (no health bar, ammo fades), the results
+  - `scripts/e2e-netmove.mjs` (3.2.0) two pages `?net=local`, Free Roam on Proving: the client in low cover (+ over
+    peek), high cover (+ edge peek), ladder (+ after a climb), drainpipe, pipe, ledge, duct (hands / feet / head within
+    10 cm on the host), zipline and a roll mirrored; TDM: a host shot at a client hanging off a lip hits the head
   - `scripts/e2e-feedback.mjs` playtest notes: pause > Report feedback with the context, photo mode (frozen game,
     no HUD, free camera, take / retake / keep / cancel, two photos), IndexedDB after a reload, Settings > Feedback
     list, the HTML report download, photo mode on the menu stage
@@ -411,6 +414,19 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   clip, `CT.rollTime` 0.7 s, `CT.rollLength` 3 m (shortened by a wall), comes up crouched (`setCrouchToggle`) at the
   gear's crouched pace; `forwardRolls` -> `GameState` noise `CT.rollNoise` 2 m. HUD: `Hud.setGear` (SPD pips in the
   tactical strip, `GEARS.pipsShow` 1.5 s after a change); touch rocker `speed` (`TOUCH_LAYOUT_VERSION` 4).
+- 3.2.0 phase 1 networked movement: `player/moveState.ts` (pure; in `player/` because single player builds it and
+  must never import `src/net`): `MoveState {m (MOVE_MODES index on the wire, later phases append), a anchor, s, sub
+  (u16: `COVER_SUB` incl. `leftHand` / `ATTACH_SUB` phase + face + exit pose), ph, tid, g gear, r raise, ay aim
+  twist, rd ready, cover: cu curl / lf lift / fp feet (body frame, still), attached: gp planted grips (still), c
+  MoveCommit}`, `sanitizeMoveState`, `packMoveState`, `poseFromMoveState` (pose families for player and remotes),
+  `moveChanged` (send at once). `game/localMoveState.ts` builds it from `GameState`. `player/attachGrips.ts`
+  `AttachGrips` (hand / foot `GripStepper`s and rig targets; `AttachController.grips` and `RemoteAvatar` share it;
+  `settleTo` onto the owner's planted grips) and `player/traversePath.ts` `traversePath` (committed move paths; the
+  remote replays a `MoveCommit`). `PlayerState.mv` (`wirePlayerState`), `PF.driven`; `RemoteAvatar` poses from it
+  (`rig.curlHold` / `liftHold` / `footPins` -> `FootPlanner` pins); `validate.ts` `moveSpeedCap` (gear pace x
+  `MOVE_TOLERANCE` 1.15) / `attachedClamp` (`ATTACH_SLACK` 0.5) in `RemotePlayer.accept`; `RemotePlayer.followPose`
+  and `Hitboxes.sync(feet, head, hips)` lay the capsules along hips -> head; host `Hist` keeps the posed head / hips
+  and the mode, `judge` uses them.
 - All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
   crouched sneak 0.8 / crouch walk 1.8 / crouch run 2.6, standing walk 1.4 / jog 2.8, sprint 5.0 m/s (toggle or
   hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered at the low ready; aiming ends it via

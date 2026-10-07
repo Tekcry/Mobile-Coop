@@ -12,13 +12,16 @@ import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { hqStats } from '../progression/suit';
 import type { NetSession } from './session';
-import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState } from './protocol';
+import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { checkBlast, checkShot, maxHitDamage } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { pickSpawn, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
 import { hyp2 } from '../core/mathx';
+import { localMoveState } from '../game/localMoveState';
+import { emptyMoveState, moveChanged } from '../player/moveState';
+import type { CharacterRig } from '../player/characterRig';
 
 const SNAP_HZ = 15;
 const HISTORY_HZ = 20;
@@ -45,6 +48,15 @@ interface Hist {
   y: number;
   z: number;
   c: number;
+  /** (3.2.0) The posed head and pelvis (players: hanging, crawling, peeking), NaN when not recorded. */
+  hx: number;
+  hy: number;
+  hz: number;
+  bx: number;
+  by: number;
+  bz: number;
+  /** (3.2.0) Movement mode at the time (players), '' for enemies. */
+  m: string;
 }
 
 type Tally = EndStats['players'][string];
@@ -411,7 +423,7 @@ export class CoopHost implements NetAttachment {
     if (!r) return;
     switch (msg.t) {
       case 'pstate':
-        r.accept({ ...msg.s, id: from }, this.time);
+        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
         break;
       case 'shot':
@@ -511,14 +523,16 @@ export class CoopHost implements NetAttachment {
   }
 
   /** Position of `h` at host time `t` (lag compensation). */
-  private rewindHist(h: Hist[] | undefined, t: number, out: Vector3): { crouch: number } | null {
+  private rewindHist(h: Hist[] | undefined, t: number, out: Vector3): { crouch: number; posed: boolean } | null {
     if (!h || !h.length) return null;
     const tt = Math.max(this.time - MAX_REWIND, Math.min(this.time, t));
     let a = h[0]!;
     let b = h[h.length - 1]!;
     if (tt >= b.t) {
       out.set(b.x, b.y, b.z);
-      return { crouch: b.c };
+      this.rwHead.set(b.hx, b.hy, b.hz);
+      this.rwBody.set(b.bx, b.by, b.bz);
+      return { crouch: b.c, posed: !Number.isNaN(b.hx) };
     }
     for (let i = h.length - 1; i > 0; i--) {
       if (h[i - 1]!.t <= tt) {
@@ -529,14 +543,21 @@ export class CoopHost implements NetAttachment {
     }
     const k = b.t > a.t ? Math.max(0, Math.min(1, (tt - a.t) / (b.t - a.t))) : 0;
     out.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k);
-    return { crouch: a.c + (b.c - a.c) * k };
+    this.rwHead.set(a.hx + (b.hx - a.hx) * k, a.hy + (b.hy - a.hy) * k, a.hz + (b.hz - a.hz) * k);
+    this.rwBody.set(a.bx + (b.bx - a.bx) * k, a.by + (b.by - a.by) * k, a.bz + (b.bz - a.bz) * k);
+    return { crouch: a.c + (b.c - a.c) * k, posed: !Number.isNaN(a.hx) && !Number.isNaN(b.hx) };
   }
 
+  /** The rewound posed head / pelvis (`rewindHist`, when `posed`). */
+  private rwHead = new Vector3();
+  private rwBody = new Vector3();
+
   /** Shared checks: geometry against the rewound target, line of sight, the damage cap. Returns the damage. */
-  private judge(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>, feet: Vector3, crouch: number, scale: number): number {
+  private judge(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>, feet: Vector3, crouch: number, scale: number, posed = false): number {
     const def = WEAPONS[m.w];
-    const body = this.tmpB.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 0.7 : 1.0) * scale, 0);
-    const head = this.tmpH.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 1.15 : 1.62) * scale, 0);
+    // (3.2.0) a player's posed head / pelvis when recorded (hanging off a lip, crawling, leaning out), else by stance
+    const body = posed ? this.tmpB.copyFrom(this.rwBody).addInPlaceFromFloats(0, 0.12, 0) : this.tmpB.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 0.7 : 1.0) * scale, 0);
+    const head = posed ? this.tmpH.copyFrom(this.rwHead) : this.tmpH.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 1.15 : 1.62) * scale, 0);
     const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale);
     if (!verdict.ok) {
       r.violations++;
@@ -587,7 +608,7 @@ export class CoopHost implements NetAttachment {
     const feet = new Vector3();
     const pose = this.rewindHist(self ? this.selfHist : victim!.history, m.rt, feet);
     if (!pose) feet.copyFrom(self ? this.g.player.position : victim!.feet);
-    const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, 1);
+    const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, 1, pose?.posed ?? false);
     if (dmg <= 0) return;
     const hit: HitInfo = {
       amount: dmg,
@@ -607,12 +628,17 @@ export class CoopHost implements NetAttachment {
 
   // --- outgoing ---
 
+  /** The host's own movement state (sent in every snapshot; a change sends a snapshot at once). */
+  private mvNow = emptyMoveState();
+  private mvSent = emptyMoveState();
+
   private selfState(): PlayerState {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
     const th = g.target.health;
     return {
+      mv: localMoveState(g, this.mvNow),
       id: this.s.selfId,
       x: p.position.x,
       y: p.position.y,
@@ -670,7 +696,7 @@ export class CoopHost implements NetAttachment {
       if (!e.alive || enemies.length >= MAX_ENEMIES) continue;
       enemies.push({ id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e) });
     }
-    const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players, enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
+    const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players: players.map(wirePlayerState), enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
     // items and doors when they change (and every few seconds for late joiners)
     const items = this.items();
     const doors = this.doors();
@@ -700,8 +726,19 @@ export class CoopHost implements NetAttachment {
   }
 
   private recordHistory(): void {
-    const push = (h: Hist[], x: number, y: number, z: number, c: number): void => {
-      h.push({ t: this.time, x, y, z, c });
+    const push = (h: Hist[], x: number, y: number, z: number, c: number, rig: CharacterRig | null = null, m = ''): void => {
+      const e: Hist = { t: this.time, x, y, z, c, hx: NaN, hy: NaN, hz: NaN, bx: NaN, by: NaN, bz: NaN, m };
+      if (rig) {
+        const hp = rig.headNode.getAbsolutePosition();
+        const bp = rig.hips.getAbsolutePosition();
+        e.hx = hp.x;
+        e.hy = hp.y;
+        e.hz = hp.z;
+        e.bx = bp.x;
+        e.by = bp.y;
+        e.bz = bp.z;
+      }
+      h.push(e);
       if (h.length > HISTORY_HZ * 1.2) h.shift();
     };
     for (const e of this.g.enemyMgr?.enemies ?? []) {
@@ -712,8 +749,8 @@ export class CoopHost implements NetAttachment {
     }
     if (this.score) {
       const p = this.g.player.position;
-      push(this.selfHist, p.x, p.y, p.z, this.g.player.controller.crouchBlend);
-      for (const r of this.remotes.values()) push(r.history, r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1 : 0);
+      push(this.selfHist, p.x, p.y, p.z, this.g.player.controller.crouchBlend, this.g.player.rig, this.mvNow.m);
+      for (const r of this.remotes.values()) push(r.history, r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1 : 0, r.avatar.rig, r.avatar.mode);
     }
   }
 
@@ -775,6 +812,13 @@ export class CoopHost implements NetAttachment {
       this.recordHistory();
     }
     this.snapT -= dt;
+    // the host's own mode / sub-state changed (cover, a ladder, a vault): snapshot now
+    const mv = localMoveState(this.g, this.mvNow);
+    if (moveChanged(this.mvSent, mv)) {
+      Object.assign(this.mvSent, mv);
+      this.mvSent.c = mv.c ? { ...mv.c } : undefined;
+      this.snapT = 0;
+    }
     if (this.snapT <= 0) {
       this.snapT = 1 / SNAP_HZ;
       this.tracerBudget = 10;
@@ -809,6 +853,12 @@ export class CoopHost implements NetAttachment {
     const now = performance.now() / 1000 - INTERP_DELAY;
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
+      if (r.alive) {
+        const rig = r.avatar.rig;
+        rig.hips.computeWorldMatrix(true);
+        rig.headNode.computeWorldMatrix(true);
+        r.followPose(rig.hips.getAbsolutePosition(), rig.headNode.getAbsolutePosition());
+      }
       const hb = this.pvpBoxes.get(r.id);
       if (!hb) continue;
       if (!r.alive) {
@@ -816,8 +866,10 @@ export class CoopHost implements NetAttachment {
         continue;
       }
       hb.setEnabled(true);
-      r.avatar.rig.headNode.computeWorldMatrix(true);
-      hb.sync(r.avatar.pos, r.avatar.rig.headNode.getAbsolutePosition());
+      const rig = r.avatar.rig;
+      rig.hips.computeWorldMatrix(true);
+      rig.headNode.computeWorldMatrix(true);
+      hb.sync(r.avatar.pos, rig.headNode.getAbsolutePosition(), rig.hips.getAbsolutePosition());
     }
   }
 

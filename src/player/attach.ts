@@ -1,5 +1,6 @@
 import type { AttachCamera } from '../config/camera';
 import { anchorLength, ductPoint, hangPoint, HANG, type Anchor, type AttachEntry, type Duct, type Ledge, type P3 } from '../world/anchors';
+import { SPLIT, type PipeMode } from './splitJump';
 import { hyp2 } from '../core/mathx';
 /**
  * Attached locomotion (pure: no Babylon/DOM), unit-tested.
@@ -15,7 +16,7 @@ import { hyp2 } from '../core/mathx';
  * and a first-frame response, so pushing the stick moves the body on the very next step.
  */
 
-export type AttachKind = 'ladder' | 'pipeV' | 'pipeH' | 'ledge' | 'duct' | 'zipline';
+export type AttachKind = 'ladder' | 'pipeV' | 'pipeH' | 'ledge' | 'duct' | 'zipline' | 'split';
 export type AttachPhase = 'enter' | 'on' | 'exit';
 /** Why an attached state ended: stepped off the bottom / top, climbed up, dropped, jumped to another anchor,
  *  reached the end (duct / zipline), was hit, or the anchor went away. */
@@ -34,7 +35,7 @@ export interface AttachAllow {
 export interface AttachSpec {
   /** How the stick maps onto the anchor: up/down the climb, along the anchor's tangent (camera relative),
    *  forward along a path, or no input (zipline). */
-  axis: 'vertical' | 'along' | 'path' | 'auto';
+  axis: 'vertical' | 'along' | 'path' | 'auto' | 'none';
   /** Top speed along the axis at full input (m/s) and its acceleration (m/s^2). */
   speed: number;
   accel: number;
@@ -71,6 +72,8 @@ export const ATTACH: Record<AttachKind, AttachSpec> = {
   ledge: { axis: 'along', speed: 1.2, accel: 8, dead: 0.25, enter: 0.3, exit: 0.4, camera: 'hang', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
   duct: { axis: 'path', speed: 0.9, accel: 6, dead: 0.2, enter: 0.45, exit: 0.45, camera: 'duct', allow: { ...NO, takedown: true, gadgets: true }, holster: true },
   zipline: { axis: 'auto', speed: ZIP_SPEED, accel: ZIP_ACCEL, dead: 0, enter: 0.3, exit: 0.3, camera: 'zipline', allow: { ...NO, sidearm: true, takedown: true, traverse: false }, holster: true },
+  // (3.2.0) the Chaos Theory split jump: braced between two walls, no travel; a sidearm from it
+  split: { axis: 'none', speed: 0, accel: 1, dead: 1, enter: SPLIT.jumpTime, exit: 0.3, camera: 'split', allow: { ...NO, sidearm: true, takedown: true }, holster: true },
 };
 
 /** Which attached state an anchor puts the player in (null: not an attached anchor). */
@@ -82,6 +85,7 @@ export function attachKindOf(a: Anchor): AttachKind | null {
     case 'ledge':
     case 'duct':
     case 'zipline':
+    case 'split':
       return a.kind;
     default:
       return null;
@@ -116,7 +120,7 @@ export function attachRange(a: Anchor, height = 1.75): { min: number; max: numbe
  * at `s`; 'auto' ignores it.
  */
 export function axisInput(a: Anchor, spec: AttachSpec, stickX: number, stickY: number, camYaw: number, s = 0): number {
-  if (spec.axis === 'auto') return 0;
+  if (spec.axis === 'auto' || spec.axis === 'none') return 0;
   const mag = hyp2(stickX, stickY);
   if (mag < spec.dead) return 0;
   if (spec.axis === 'vertical') return Math.max(-1, Math.min(1, stickY));
@@ -152,14 +156,23 @@ export interface AttachPose {
   yaw: number;
 }
 
+/** Hip joint height over the feet at 1.75 m (the rig's tumble pivot; `proportions` y.hip). */
+export const BODY_PIVOT = 0.915;
+
 /** Ladder / pipe standoff from the climbing line to the body's root (m): a drainpipe hugs the wall, so the body
  *  keeps a little further off it (bent knees clear the face). */
 export const CLIMB_STANDOFF = 0.32;
 export const PIPE_STANDOFF = 0.34;
 
+/** Hips under a horizontal pipe in its sub-states (m below the pipe axis) and the rig's tumble (rad). */
+export const PIPE_HIPS: Record<PipeMode, number> = { hands: 0, legsUp: 0.38, inverted: 0.42 };
+export const PIPE_TUMBLE: Record<PipeMode, number> = { hands: 0, legsUp: -Math.PI / 2, inverted: Math.PI };
+
 /** Root-motion path: feet and facing at parameter `s` along the anchor. `face` (+1 / -1) picks which way a
- *  body faces along a pipe / zipline / duct (set at entry). Writes into `out`. */
-export function attachPose(a: Anchor, s: number, face: number, height: number, out: AttachPose): AttachPose {
+ *  body faces along a pipe / zipline / duct (set at entry). `pipe` (3.2.0): a horizontal pipe's sub-state (legs
+ *  up: the body along the pipe, face up; inverted: hanging by the knees, the root turned round so that, tumbled
+ *  over, the chest faces the same way). Writes into `out`. */
+export function attachPose(a: Anchor, s: number, face: number, height: number, out: AttachPose, pipe: PipeMode = 'hands'): AttachPose {
   const k = height / 1.75;
   switch (a.kind) {
     case 'ladder':
@@ -184,6 +197,23 @@ export function attachPose(a: Anchor, s: number, face: number, height: number, o
       out.y = a.hangHeight - HANG.drop * k;
       // hanging side-on to the pipe: facing across it (moving along it is a sideways shimmy)
       out.yaw = Math.atan2(tz * face, -tx * face);
+      if (pipe === 'legsUp') {
+        // along the pipe, lying face up under it (the tumble lays the body back about the hips): legs towards b
+        out.y = a.hangHeight - (PIPE_HIPS.legsUp + BODY_PIVOT) * k;
+        out.yaw = Math.atan2(tx * face, tz * face);
+      } else if (pipe === 'inverted') {
+        // by the knees, head down: tumbled over, the chest faces back round to the hanging facing
+        out.y = a.hangHeight - (PIPE_HIPS.inverted + BODY_PIVOT) * k;
+        out.yaw += Math.PI;
+      }
+      return out;
+    }
+    case 'split': {
+      // braced between the walls: the feet line at `SPLIT.feetHeight` over the floor, facing along the corridor
+      out.x = a.a.x + a.tx * s;
+      out.z = a.a.z + a.tz * s;
+      out.y = a.a.y + SPLIT.feetHeight;
+      out.yaw = Math.atan2(a.tx * face, a.tz * face);
       return out;
     }
     case 'zipline': {
@@ -323,6 +353,8 @@ export class AttachMachine {
     if (sp.axis === 'auto') {
       // zipline: gravity along the cable, capped
       target = this.phase === 'exit' ? this.v : ZIP_SPEED;
+    } else if (sp.axis === 'none') {
+      target = 0;
     } else {
       // a slight hold while still settling onto the anchor (the hands find their grips first)
       const gate = this.phase === 'enter' ? Math.min(1, this.t / (this.enterDur * 0.5)) : this.phase === 'exit' ? 0 : 1;

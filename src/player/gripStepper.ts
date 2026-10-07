@@ -96,6 +96,23 @@ export class GripStepper {
     }
   }
 
+  /**
+   * (3.2.0) Step onto given grips (a co-op / PvP remote: the owner's planted contacts once it is still): a planted
+   * limb off its grip swings to it, one limb at a time. NaN leaves a limb alone.
+   */
+  settleTo(atL: number, atR: number): void {
+    if (this.L.swing >= 0 || this.R.swing >= 0) return;
+    for (let k = 0; k < 2; k++) {
+      const g = k === 0 ? this.L : this.R;
+      const to = k === 0 ? atL : atR;
+      if (Number.isNaN(to) || Math.abs(to - g.at) < 0.01) continue;
+      g.from = g.at;
+      g.at = to;
+      g.swing = 0;
+      return;
+    }
+  }
+
   /** Current parameter of a limb (eased along its swing) and its lift 0..1 (peaks mid-swing). */
   pos(g: GripLimb): number {
     if (g.swing < 0) return g.at;

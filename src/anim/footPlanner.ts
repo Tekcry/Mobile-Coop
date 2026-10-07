@@ -89,13 +89,24 @@ export interface PlannerInput {
   quickStop: number;
   /** Chaos Theory stop hold (3.2.0): stopped feet stay where they are - no settling or idle steps until it ends. */
   hold: boolean;
+  /**
+   * (3.2.0) Pinned feet (world x / z; NaN = free): a co-op / PvP remote's still feet step to where the owner's are
+   * planted (cover), instead of where its own history put them.
+   */
+  pinLX: number;
+  pinLZ: number;
+  pinRX: number;
+  pinRZ: number;
   /** Ground height under a point, or null (keeps the root height). */
   ground: ((x: number, z: number, yFrom: number) => number | null) | null;
 }
 
 export function emptyPlannerInput(): PlannerInput {
-  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, ground: null };
+  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, pinLX: NaN, pinLZ: NaN, pinRX: NaN, pinRZ: NaN, ground: null };
 }
+
+/** A pinned foot further than this (m) from its pin steps onto it. */
+export const PIN_TOL = 0.04;
 
 /** Idle stepping thresholds. */
 export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6 };
@@ -233,11 +244,28 @@ export class FootPlanner {
       f.stepT += dt;
       const s = Math.min(1, f.stepT / f.stepDur);
       // (a quick stop's leftover swing lands where its stride was going: the stance it stopped in)
-      if (!this.quick) this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
+      if (this.pinned(i, side)) this.aimPin(f, i, side);
+      else if (!this.quick) this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
       this.swingTo(f, i, s);
       if (s >= 1) this.land(f);
     }
     if (!this.L.contact || !this.R.contact) return;
+    // pinned (a remote's feet on the owner's): a planted foot off its pin steps onto it
+    if (this.pinned(i, -1) || this.pinned(i, 1)) {
+      for (const side of [-1, 1] as const) {
+        const f = side < 0 ? this.L : this.R;
+        if (!this.pinned(i, side) || !f.contact) continue;
+        const px = side < 0 ? i.pinLX : i.pinRX;
+        const pz = side < 0 ? i.pinLZ : i.pinRZ;
+        if (hyp2(f.x - px, f.z - pz) <= PIN_TOL) continue;
+        this.beginSwing(f, i, PLANNER.idleStepTime, PLANNER.idleLift);
+        f.probeT = 0;
+        this.aimPin(f, i, side);
+        // one foot at a time
+        return;
+      }
+      return;
+    }
     // holding a stop: the feet stay in the stride
     if (i.hold) return;
     // both planted: step the foot furthest from its ideal spot, if far enough
@@ -347,6 +375,23 @@ export class FootPlanner {
     if (f.probeT <= 0) {
       f.probeT = 0.08;
       const g = i.ground ? i.ground(tx, tz, i.rootY + 0.6) : null;
+      f.toY = g === null ? i.rootY : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
+    }
+  }
+
+  private pinned(i: PlannerInput, side: -1 | 1): boolean {
+    return side < 0 ? !Number.isNaN(i.pinLX) : !Number.isNaN(i.pinRX);
+  }
+
+  /** A swinging foot's landing target on its pin (ground probed as `aim`). */
+  private aimPin(f: FootState, i: PlannerInput, side: -1 | 1): void {
+    f.toX = side < 0 ? i.pinLX : i.pinRX;
+    f.toZ = side < 0 ? i.pinLZ : i.pinRZ;
+    f.toYaw = i.goalYaw;
+    f.probeT -= i.dt;
+    if (f.probeT <= 0) {
+      f.probeT = 0.08;
+      const g = i.ground ? i.ground(f.toX, f.toZ, i.rootY + 0.6) : null;
       f.toY = g === null ? i.rootY : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
     }
   }

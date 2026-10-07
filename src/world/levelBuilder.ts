@@ -25,10 +25,11 @@ import {
 import { G } from '../physics/groups';
 import { LevelMaterialPlugin } from './levelMaterialPlugin';
 import { buildCoverSegments, coverPointsFromSegments, coverStandoff, type CoverSegment } from '../cover/coverData';
+import { findSplitGaps } from '../player/splitJump';
 import { MOVEMENT } from '../config/movement';
 import { proportions } from '../player/proportions';
 import { hyp2 } from '../core/mathx';
-import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
+import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type SplitAnchor, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
 import { LightRegistry, type LightInit } from './lights';
 import { levelVoxels, type LevelVoxels, type VoxelArt } from '../voxel/levelVoxels';
 
@@ -437,6 +438,13 @@ export class LevelBuilder {
       if (mx < bd.minX || mx > bd.maxX || mz < bd.minZ || mz > bd.maxZ) l.canHang = l.canClimbUp = false;
     }
     for (const [x, z, r] of this.noLedgeAt) suppressLedgesNear(anchors, x, z, r);
+    // (3.2.0) split jump gaps between tall walls facing each other (after every other anchor: ids stay stable)
+    for (const g of findSplitGaps(coverSegments)) {
+      const mx = (g.a.x + g.b.x) / 2;
+      const mz = (g.a.z + g.b.z) / 2;
+      if (mx < bd.minX || mx > bd.maxX || mz < bd.minZ || mz > bd.maxZ) continue;
+      anchors.add<SplitAnchor>({ kind: 'split', ...g });
+    }
     const cover: CoverPoint[] = coverPointsFromSegments(coverSegments, COVER_STANDOFF).map((p) => ({
       pos: new Vector3(p.x, p.y, p.z),
       normal: new Vector3(p.nx, 0, p.nz),

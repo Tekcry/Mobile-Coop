@@ -338,3 +338,15 @@ describe('net session', () => {
     expect(full).toBe(true);
   });
 });
+
+describe('pstate movement state (3.2.0)', () => {
+  it('carries a sanitised move state; drops a bad one but keeps the message', () => {
+    const mv = { m: 5, a: 2, s: 1.5, sub: 5, ph: 1, tid: '', g: 4, r: 0, ay: 0 };
+    const m = parseMessage({ t: 'pstate', s: { ...ps, mv } });
+    expect(m && m.t === 'pstate' && m.s.mv).toMatchObject({ m: 'ledge', a: 2, s: 1.5 });
+    const bad = parseMessage({ t: 'pstate', s: { ...ps, mv: { m: 200 } } });
+    expect(bad && bad.t === 'pstate' && bad.s.mv).toBeUndefined();
+    const noAnchor = parseMessage({ t: 'pstate', s: { ...ps, mv: { m: 'ladder', a: -1 } } });
+    expect(noAnchor && noAnchor.t === 'pstate' && noAnchor.s.mv).toBeUndefined();
+  });
+});

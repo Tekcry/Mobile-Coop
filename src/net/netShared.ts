@@ -15,6 +15,8 @@ export function localFlags(g: GameState): number {
   if (c.sprinting) f |= PF.sprint;
   if (g.weapons.current.stats.noise <= 0.6) f |= PF.quiet;
   if (c.steps === 'silent') f |= PF.silent;
+  // (3.2.0) cover / traversal drive the step: the host's speed check allows their paces (glides, runs, vaults)
+  if (c.override) f |= PF.driven;
   return f;
 }
 

@@ -49,6 +49,7 @@ import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
+import { PIPE, SPLIT } from '../player/splitJump';
 import type { Ledge } from '../world/anchors';
 import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
@@ -406,6 +407,8 @@ export class GameState implements AppState {
       this.hud.damageFrom(bearing - this.player.cam.yaw);
       this.player.cam.shake(h.kind === 'explosion' ? 0.5 : 0.12);
       app.input.rumble(0.6, 0.3, 90);
+      // (3.2.0) a pipe transition (legs up / inverted) falls back to the hands
+      this.traversal.attachCtl.onHit();
     };
     this.target.onDeath = () => this.onPlayerDeath();
     this.player.onLand = (v) => {
@@ -952,7 +955,21 @@ export class GameState implements AppState {
       this.enemyMgr?.hear(this.player.position, CT.rollNoise);
     }
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
-    this.weapons.setStowed((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null);
+    // (3.2.0) braced in a split or hanging inverted: aiming (or firing) draws the sidearm one-handed
+    const ac = this.traversal.attachCtl;
+    const sidearm = ac.sidearmAim && this.weapons.sidearmIndex >= 0;
+    const pl = this.player;
+    if (sidearm) {
+      const a = ac.m.anchor!;
+      const inverted = a.kind === 'pipeH';
+      const yaw = inverted ? pl.controller.yaw + Math.PI : pl.controller.yaw;
+      pl.attachAim = inverted
+        ? { yaw, range: PIPE.aimYaw, pitchMin: PIPE.pitchMin, pitchMax: PIPE.pitchMax, inverted: true }
+        : { yaw, range: SPLIT.aimYaw, pitchMin: SPLIT.pitchMin, pitchMax: SPLIT.pitchMax, inverted: false };
+    } else pl.attachAim = null;
+    const draw = sidearm && (pl.ads || inp.down('ads') || inp.down('fire'));
+    this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null, draw);
+    this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : 1;
     this.player.cam.attach = this.traversal.cameraPreset;
     this.player.cam.attachYaw = this.player.controller.yaw;
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
@@ -1710,15 +1727,18 @@ export class GameState implements AppState {
       const hx = (rig.reachL.x + rig.reachR.x) / 2;
       const hy = (rig.reachL.y + rig.reachR.y) / 2;
       const hz = (rig.reachL.z + rig.reachR.z) / 2;
-      // climb up: on the lip above the hands
+      // climb up: on the lip above the hands; (3.2.0) on a horizontal pipe: legs up / invert / curl up
+      const pipeY = a.kind === 'pipeH' && on && !ac.jump && !ac.pipe.busy ? (ac.pipe.mode === 'hands' ? ATTACH_LABEL.legsUp! : ac.pipe.mode === 'legsUp' ? ATTACH_LABEL.invert! : ATTACH_LABEL.curlUp!) : null;
       if (on && ac.canClimb && !ac.jump && this.project(hx, hy + 0.12, hz)) w.set('vault', ATTACH_LABEL.climbUp!, this.scr.x, this.scr.y);
+      else if (pipeY && a.kind === 'pipeH' && this.project(this.player.position.x, a.hangHeight + 0.15, this.player.position.z)) w.set('vault', pipeY, this.scr.x, this.scr.y);
       else w.set('vault', null, 0, 0);
       const j = on ? ac.jump : null;
       if (j && this.project(j.grip.x, j.grip.y + 0.1, j.grip.z)) w.set('jumpTo', ATTACH_LABEL.jump!, this.scr.x, this.scr.y);
       else w.set('jumpTo', null, 0, 0);
       // drop (slide on a ladder): under the hands
-      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : ATTACH_LABEL.drop!;
-      if (on && lbl && this.project(hx, hy - 0.5, hz)) w.set('drop', lbl, this.scr.x, this.scr.y);
+      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : a.kind === 'pipeH' && ac.pipe.busy ? null : a.kind === 'pipeH' && ac.pipe.mode === 'legsUp' ? 'Hands' : ATTACH_LABEL.drop!;
+      const dropAt = a.kind === 'split' || (a.kind === 'pipeH' && ac.pipe.mode !== 'hands') ? this.player.position : null;
+      if (on && lbl && (dropAt ? this.project(dropAt.x, dropAt.y + 0.3, dropAt.z) : this.project(hx, hy - 0.5, hz))) w.set('drop', lbl, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);
       return;
     }
@@ -1749,8 +1769,14 @@ export class GameState implements AppState {
     const feetY = this.player.position.y;
     switch (a.kind) {
       case 'ledge':
-        // on the face just under the lip (the lip itself is at the top edge of the view up close)
-        g.set(a.a.x + a.tx * h.s + a.nx * 0.05, a.top - 0.35, a.a.z + a.tz * h.s + a.nz * 0.05);
+        // on the face just under the lip (the lip itself is at the top edge of the view up close); a wall jump: on
+        // the wall at head height (the lip is out of view)
+        if (h.entry === 'wall') g.set(a.a.x + a.tx * h.s + a.nx * 0.05, feetY + 1.6, a.a.z + a.tz * h.s + a.nz * 0.05);
+        else g.set(a.a.x + a.tx * h.s + a.nx * 0.05, a.top - 0.35, a.a.z + a.tz * h.s + a.nz * 0.05);
+        break;
+      case 'split':
+        // between the walls, where the feet will brace
+        g.set(a.a.x + a.tx * h.s, a.a.y + 1.9, a.a.z + a.tz * h.s);
         break;
       case 'ladder':
         if (h.entry === 'top') g.set(a.top.x, a.top.y + 0.3, a.top.z);

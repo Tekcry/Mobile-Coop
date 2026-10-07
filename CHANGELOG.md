@@ -27,6 +27,19 @@ Phase 0 - speed gears, instant stop, roll:
   saved layouts keep every placement.
 - Debug Tune panel: a Chaos Theory table (stop blend, start time, turn rate, roll time / length).
 
+Phase 1 - networked movement state:
+- Co-op and PvP: team-mates and opponents are shown doing exactly what they are doing - in high or low cover (hiding,
+  peeking over, leaning out at an edge, kneeling), climbing a ladder or drainpipe, hanging from a pipe or a lip,
+  crawling a duct, riding a zipline, vaulting, mantling, rolling and in a takedown - posed by the same code as the
+  player (hands and feet on the same rungs, within a few cm), instead of sliding upright between positions.
+- A committed move (vault, mantle, step, drop, hop, roll, window vault) is sent once at its start and replayed on
+  the other screens along the same path, so it never cuts corners through the obstacle.
+- A change of mode (taking cover, grabbing a ladder) is sent at once, not on the next 20 Hz tick.
+- Hit volumes on other players follow their pose (hanging, crawling, leaning): a shot at a hanging player's head is a
+  headshot. The host's lag compensation rewinds the posed head and body, not just the feet.
+- Host checks: a client's free movement is held to its speed gear's pace (+15%); a client claiming a ladder or lip
+  stays within half a metre of it (clamped, never kicked).
+
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
   device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few

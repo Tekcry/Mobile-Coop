@@ -3,6 +3,7 @@ import { G } from '../physics/groups';
 import { CT, MOVEMENT } from '../config/movement';
 import { pickTraversal, type Traversal } from './movement';
 import { gearCap } from './speedGears';
+import { traversePath, type PathKind } from './traversePath';
 import type { Player } from './player';
 import { hyp2 } from '../core/mathx';
 import type { AttachMachine, ExitReason } from './attach';
@@ -12,7 +13,6 @@ import type { Breakables } from '../world/breakables';
 import type { AttachCamera } from '../config/camera';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
-const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
 /** Durations (s) of each committed traversal from a standstill; quicker in stride (see `duration`). */
 export const TRAVERSE_TIME: Record<Exclude<Traversal, 'none'> | 'drop' | 'hop' | 'roll', number> = { step: 0.4, vault: 0.7, mantle: 1.0, drop: 0.35, hop: 0.5, roll: 0.62 };
@@ -374,6 +374,7 @@ export class TraversalController {
       this.to.copyFrom(this.hint.end);
       this.top = c.pos.y + Math.max(0, this.hint.height);
       this.hint = null;
+      this.moves = (this.moves + 1) & 255;
       return this.fixedUpdate(0, false, false);
     }
     return false;
@@ -426,60 +427,34 @@ export class TraversalController {
     this.to.set(c.pos.x + dx * len, c.pos.y, c.pos.z + dz * len);
     this.top = c.pos.y;
     c.landT = 0;
+    this.moves = (this.moves + 1) & 255;
     return true;
   }
 
-  /** Feet position along the committed path at progress k. */
+  /** Feet position along the committed path at progress k (`traversePath`, shared with co-op remotes). */
   private path(k: number): void {
-    const f = this.from;
-    const e = this.to;
-    let h: number;
-    let y: number;
-    switch (this.kind) {
-      case 'mantle': {
-        // hands on top, pull up (rise first), then step onto it
-        const up = smooth(k / 0.65);
-        h = smooth((k - 0.35) / 0.65);
-        y = f.y + (e.y + 0.04 - f.y) * up;
-        break;
-      }
-      case 'vault': {
-        // plant, swing the legs over the top, land; in stride the momentum carries straight through
-        const run = Math.min(1, Math.max(0, (this.speed0 - 1) / 2));
-        h = smooth(k) * (1 - run) + k * run;
-        const clear = this.top + 0.12;
-        const arc = Math.sin(Math.PI * Math.min(1, k * 1.15));
-        y = f.y + (e.y - f.y) * h + Math.max(0, clear - Math.max(f.y, e.y)) * arc;
-        break;
-      }
-      case 'roll': {
-        // momentum carries through, easing out as the body comes back up; the curled body rides up a little
-        // over its back (the tumble pivot is at the hips) so the shoulders roll over the floor, not through it
-        h = k * (2 - k);
-        y = f.y + (e.y - f.y) * h + 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, (k - 0.1) / 0.75)));
-        break;
-      }
-      case 'hop': {
-        // a low, quick leap: carried by momentum (near linear), a short arc
-        h = k;
-        y = f.y + (e.y - f.y) * smooth(k) + 0.45 * Math.sin(Math.PI * k);
-        break;
-      }
-      case 'drop': {
-        // step off the edge; gravity takes over after the release
-        h = smooth(k);
-        y = f.y - 0.05 * k;
-        break;
-      }
-      default: {
-        // step up: lift then forward
-        const up = smooth(k / 0.6);
-        h = smooth((k - 0.2) / 0.8);
-        y = f.y + (e.y + 0.03 - f.y) * up;
-      }
-    }
-    this.kin.set(f.x + (e.x - f.x) * h, y, f.z + (e.z - f.z) * h);
+    traversePath(this.kind === 'none' ? 'step' : (this.kind as PathKind), this.from, this.to, this.top, this.speed0, k, this.kin);
   }
+
+  /** The committed move under way (co-op: remotes replay it from its start): kind, path ends, top, speed, duration. */
+  get committed(): { kind: Traversal | 'drop' | 'hop' | 'roll'; window: boolean; from: Vector3; to: Vector3; top: number; speed: number; dur: number; t: number; n: number } | null {
+    if (this.kind === 'none') return null;
+    const c = this.commitInfo;
+    c.kind = this.kind;
+    c.window = this.throughWindow;
+    c.from = this.from;
+    c.to = this.to;
+    c.top = this.top;
+    c.speed = this.speed0;
+    c.dur = this.dur;
+    c.t = this.t;
+    c.n = this.moves;
+    return c;
+  }
+
+  private commitInfo = { kind: 'none' as Traversal | 'drop' | 'hop' | 'roll', window: false, from: new Vector3(), to: new Vector3(), top: 0, speed: 0, dur: 1, t: 0, n: 0 };
+  /** Committed moves started (a counter the network state carries). */
+  private moves = 0;
 
   reset(): void {
     this.kind = 'none';

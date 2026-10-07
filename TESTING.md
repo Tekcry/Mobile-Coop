@@ -322,6 +322,17 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
   free movement).
 - [ ] An existing touch layout keeps every control where it was after the update and gains the rocker.
 
+## 3.2.0 phase 1 - Networked movement state (two devices, co-op Free Roam on Proving Grounds, then Team Deathmatch)
+- [ ] Watch the other player take low cover: they kneel behind it at the same height you see on their screen, and
+  peek over it when they aim. High cover: standing side-on, leaning out at an edge with the gun on the open side.
+- [ ] Ladder, drainpipe, horizontal pipe, ledge hang and shimmy, duct crawl, zipline: hands and feet on the same rungs
+  / lip / pipe as on their own screen; no upright sliding. Climbing up and stopping: the same rung.
+- [ ] Vaults, mantles, drops, a forward roll, a window vault: played as a move, clean over the obstacle.
+- [ ] A takedown by the other player: the strike pose, weapon stowed.
+- [ ] Team Deathmatch: shoot an opponent hanging off a lip or leaning out of cover - head hits count as headshots;
+  their body in cover is only hittable where it shows.
+- [ ] Taking cover / grabbing a ladder shows on the other screen without a visible delay.
+
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
 - [ ] Fresh install on the iPhone: a toast "Graphics: <preset> for this device" a few seconds after the menu shows;

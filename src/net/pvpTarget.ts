@@ -47,9 +47,11 @@ export class PvpTarget implements Damageable {
       return;
     }
     this.boxes.setEnabled(true);
-    this.avatar.rig.headNode.computeWorldMatrix(true);
-    this.head.copyFrom(this.avatar.rig.headNode.getAbsolutePosition());
-    this.boxes.sync(this.avatar.pos, this.head);
+    const rig = this.avatar.rig;
+    rig.hips.computeWorldMatrix(true);
+    rig.headNode.computeWorldMatrix(true);
+    this.head.copyFrom(rig.headNode.getAbsolutePosition());
+    this.boxes.sync(this.avatar.pos, this.head, rig.hips.getAbsolutePosition());
   }
 
   dispose(): void {

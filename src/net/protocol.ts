@@ -7,6 +7,7 @@ import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
+import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 
 export const PROTOCOL_VERSION = 2;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
@@ -48,7 +49,7 @@ export interface PlayerInfo {
 /** Bit flags in player state. */
 /** Player flags; `silent`: footsteps make no noise this moment (cover glides / moves, climbing, vaults);
  *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them). */
-export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512 } as const;
+export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
 
 export interface PlayerState {
   id: string;
@@ -62,6 +63,14 @@ export interface PlayerState {
   w: WeaponId;
   hp: number;
   sh: number;
+  /** Movement state (3.2.0): cover, attached, committed moves, takedowns (`player/moveState.ts`). */
+  mv?: MoveState;
+}
+
+/** A player state for the wire (the move state packed: its mode as an index). */
+export function wirePlayerState(s: PlayerState): PlayerState {
+  if (!s.mv) return s;
+  return { ...s, mv: packMoveState(s.mv) as unknown as MoveState };
 }
 
 export interface EnemyState {
@@ -211,10 +220,11 @@ function playerState(v: unknown): PlayerState | null {
     yaw,
     pitch,
     speed: num(v.speed, 0, 20) ?? 0,
-    f: Math.floor(num(v.f, 0, 1023) ?? 0),
+    f: Math.floor(num(v.f, 0, 2047) ?? 0),
     w,
     hp: num(v.hp, 0, 100) ?? 100,
     sh: num(v.sh, 0, 50) ?? 0,
+    ...(v.mv !== undefined && sanitizeMoveState(v.mv) ? { mv: sanitizeMoveState(v.mv)! } : {}),
   };
 }
 

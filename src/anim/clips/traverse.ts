@@ -203,3 +203,109 @@ export const WINDOW_VAULT = makeClip({
     wpPitch: [0, 0, 0.2, -0.7, 0.8, -0.6, 1, 0],
   },
 });
+
+// --- 3.2.0 Chaos Theory: split jump, wall jump, pipe legs up / inverted
+
+/** Braced in a split between two walls (the rig plants the feet on the walls and the hands beside the chest): the
+ *  hips sink between the legs, back upright, head level, arms out to the walls. */
+export const SPLIT_BRACE = makeClip({
+  name: 'split',
+  duration: 1,
+  keys: {
+    grip: [0, 0, 1, 0],
+    offGrip: [0, 0, 1, 0],
+    pelY: [0, -0.46, 1, -0.46],
+    pelPitch: [0, 0.05, 1, 0.05],
+    spPitch: [0, -0.04, 1, -0.04],
+    hdPitch: [0, 0.05, 1, 0.05],
+    width: [0, 2.6, 1, 2.6],
+    fLY: [0, 0, 1, 0],
+    fRY: [0, 0, 1, 0],
+    hLX: [0, -0.62, 1, -0.62],
+    hRX: [0, 0.62, 1, 0.62],
+    hLY: [0, 1.0, 1, 1.0],
+    hRY: [0, 1.0, 1, 1.0],
+    hLZ: [0, 0.12, 1, 0.12],
+    hRZ: [0, 0.12, 1, 0.12],
+    wpPitch: [0, -0.9, 1, -0.9],
+  },
+});
+
+/** Wall jump (normalised over the run-up kick into the hang): a step in, the right foot kicks off the wall high,
+ *  the body rises with the arms reaching for the lip, the legs trail into the hang. */
+export const WALL_KICK = makeClip({
+  name: 'wallKick',
+  duration: 1,
+  keys: {
+    grip: [0, 0, 1, 0],
+    offGrip: [0, 0, 1, 0],
+    pelY: [0, -0.12, 0.25, -0.05, 0.5, 0, 1, 0],
+    pelPitch: [0, 0.15, 0.3, -0.1, 0.6, -0.08, 1, -0.06],
+    spPitch: [0, 0.2, 0.3, -0.1, 0.7, -0.1, 1, -0.1],
+    hdPitch: [0, -0.1, 0.4, -0.35, 1, -0.15],
+    fRY: [0, 0, 0.15, 0.25, 0.35, 0.55, 0.55, 0.2, 1, 0.02],
+    fRZ: [0, 0, 0.2, 0.25, 0.35, 0.35, 0.6, 0, 1, -0.08],
+    fLY: [0, 0.05, 0.3, 0.1, 0.6, 0.15, 1, 0.04],
+    fLZ: [0, -0.05, 0.4, -0.15, 1, -0.06],
+    hLX: [0, -0.25, 1, -0.22],
+    hRX: [0, 0.25, 1, 0.22],
+    hLY: [0, 1.0, 0.4, 1.6, 0.7, 2.05, 1, 2.05],
+    hRY: [0, 1.0, 0.35, 1.7, 0.65, 2.05, 1, 2.05],
+    hLZ: [0, 0.3, 0.5, 0.35, 1, 0.22],
+    hRZ: [0, 0.3, 0.5, 0.35, 1, 0.22],
+    width: [0, 0.8, 1, 0.6],
+    wpPitch: [0, -0.9, 1, -0.9],
+  },
+});
+
+/** Legs up on a horizontal pipe (body frame before the tumble lays it back): arms overhead to the pipe, hips
+ *  flexed so the legs come up and cross over it, head turned to look along the body. */
+export const PIPE_LEGS_UP = makeClip({
+  name: 'pipeLegs',
+  duration: 1,
+  keys: {
+    grip: [0, 0, 1, 0],
+    offGrip: [0, 0, 1, 0],
+    pelPitch: [0, -0.25, 1, -0.25],
+    spPitch: [0, 0.1, 1, 0.1],
+    hdPitch: [0, 0.45, 1, 0.45],
+    fLY: [0, 0.3, 1, 0.3],
+    fRY: [0, 0.32, 1, 0.32],
+    fLZ: [0, 0.45, 1, 0.45],
+    fRZ: [0, 0.47, 1, 0.47],
+    width: [0, 0.4, 1, 0.4],
+    hLX: [0, -0.1, 1, -0.1],
+    hRX: [0, 0.1, 1, 0.1],
+    hLY: [0, 1.9, 1, 1.9],
+    hRY: [0, 1.9, 1, 1.9],
+    hLZ: [0, 0.35, 1, 0.35],
+    hRZ: [0, 0.35, 1, 0.35],
+    wpPitch: [0, -0.9, 1, -0.9],
+  },
+});
+
+/** Hanging inverted by the knees (body frame before the tumble turns it over): knees bent hooking the pipe, back
+ *  long, arms hanging past the head (overhead in the body frame), head lifted to look ahead. */
+export const PIPE_INVERTED = makeClip({
+  name: 'pipeInv',
+  duration: 1,
+  keys: {
+    grip: [0, 0, 1, 0],
+    offGrip: [0, 0, 1, 0],
+    pelPitch: [0, 0.1, 1, 0.1],
+    spPitch: [0, -0.05, 1, -0.05],
+    hdPitch: [0, -0.35, 1, -0.35],
+    fLY: [0, 0.35, 1, 0.35],
+    fRY: [0, 0.35, 1, 0.35],
+    fLZ: [0, -0.32, 1, -0.32],
+    fRZ: [0, -0.32, 1, -0.32],
+    width: [0, 0.7, 1, 0.7],
+    hLX: [0, -0.22, 1, -0.22],
+    hRX: [0, 0.22, 1, 0.22],
+    hLY: [0, 2.0, 1, 2.0],
+    hRY: [0, 2.0, 1, 2.0],
+    hLZ: [0, 0.05, 1, 0.05],
+    hRZ: [0, 0.05, 1, 0.05],
+    wpPitch: [0, -0.9, 1, -0.9],
+  },
+});

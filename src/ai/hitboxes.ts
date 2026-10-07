@@ -3,6 +3,7 @@ import {
   PhysicsMotionType,
   PhysicsShapeCapsule,
   PhysicsShapeSphere,
+  Quaternion,
   TransformNode,
   Vector3,
   type Scene,
@@ -23,6 +24,8 @@ export class Hitboxes {
   readonly head: PhysicsBody;
   private shapes: (PhysicsShapeCapsule | PhysicsShapeSphere)[] = [];
   private enabled = true;
+  /** Hip joint height (m): where the posed pelvis sits along the body capsule (`sync` with hips). */
+  private hipY = 0.9;
   private dbg: DebugVolume[];
 
   constructor(
@@ -33,7 +36,9 @@ export class Hitboxes {
     build: Build = 'average',
   ) {
     // fitted to the shared rig's proportions (body type differences are within a few cm)
-    const hv = hitVolumes(proportions(build, STANDARD_HEIGHT * scale));
+    const pr = proportions(build, STANDARD_HEIGHT * scale);
+    const hv = hitVolumes(pr);
+    this.hipY = pr.y.hip;
     this.bodyNode = new TransformNode('hb-body', scene);
     this.headNode = new TransformNode('hb-head', scene);
     const cap = new PhysicsShapeCapsule(new Vector3(0, hv.bodyY0, 0), new Vector3(0, hv.bodyY1, 0), hv.bodyR, scene);
@@ -58,11 +63,34 @@ export class Hitboxes {
     for (const d of this.dbg) DEBUG_VOLUMES.add(d);
   }
 
-  /** Place at feet position; `headPos` from the rig's head node world position. */
-  sync(feet: Vector3, headPos: Vector3): void {
+  /**
+   * Place at feet position; `headPos` from the rig's head node world position. (3.2.0) With `hipsPos` (players: the
+   * posed pelvis) the body capsule runs along the hips -> head line instead of standing upright on the feet, so it
+   * follows a hanging, crawling or leaning body and never covers its head.
+   */
+  sync(feet: Vector3, headPos: Vector3, hipsPos: Vector3 | null = null): void {
     if (!this.enabled) return;
-    this.bodyNode.position.copyFrom(feet);
     this.headNode.position.copyFrom(headPos);
+    const n = this.bodyNode;
+    if (!hipsPos) {
+      n.position.copyFrom(feet);
+      if (n.rotationQuaternion) n.rotationQuaternion.set(0, 0, 0, 1);
+      return;
+    }
+    let ux = headPos.x - hipsPos.x;
+    let uy = headPos.y - hipsPos.y;
+    let uz = headPos.z - hipsPos.z;
+    const len = Math.sqrt(ux * ux + uy * uy + uz * uz) || 1;
+    ux /= len;
+    uy /= len;
+    uz /= len;
+    // rotation taking +Y onto u (half-way quaternion; u = -Y never happens for a live body)
+    const q = (n.rotationQuaternion ??= new Quaternion());
+    // (straight down: hanging inverted)
+    if (1 + uy < 1e-4) q.set(1, 0, 0, 0);
+    else q.set(uz, 0, -ux, 1 + uy).normalize();
+    // the pelvis sits at the hip joint height along the capsule's axis
+    n.position.set(hipsPos.x - ux * this.hipY, hipsPos.y - uy * this.hipY, hipsPos.z - uz * this.hipY);
   }
 
   setEnabled(on: boolean): void {

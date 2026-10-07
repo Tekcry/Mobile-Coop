@@ -15,7 +15,7 @@ export interface P3 {
   z: number;
 }
 
-export type AnchorKind = 'ladder' | 'pipeV' | 'pipeH' | 'ledge' | 'duct' | 'window' | 'door' | 'zipline';
+export type AnchorKind = 'ladder' | 'pipeV' | 'pipeH' | 'ledge' | 'duct' | 'window' | 'door' | 'zipline' | 'split';
 
 interface AnchorBase {
   /** Index in `TraversalAnchors.all` (stable for a built level; co-op sends it). */
@@ -127,7 +127,25 @@ export interface Zipline extends AnchorBase {
   b: P3;
 }
 
-export type Anchor = Ladder | PipeVertical | PipeHorizontal | Ledge | Duct | WindowAnchor | Door | Zipline;
+/**
+ * (3.2.0) A split jump gap: two tall walls facing each other a body's span apart (`player/splitJump.ts`
+ * `findSplitGaps`, generated at build time). `a` -> `b` is the corridor's centre line on the floor; `nx/nz` the
+ * first wall's normal (across the gap).
+ */
+export interface SplitAnchor extends AnchorBase {
+  kind: 'split';
+  a: P3;
+  b: P3;
+  tx: number;
+  tz: number;
+  nx: number;
+  nz: number;
+  len: number;
+  width: number;
+  height: number;
+}
+
+export type Anchor = Ladder | PipeVertical | PipeHorizontal | Ledge | Duct | WindowAnchor | Door | Zipline | SplitAnchor;
 
 /** Box piece as the generator sees it (same shape as `CoverBox`). */
 export interface AnchorBox {
@@ -191,6 +209,7 @@ export class TraversalAnchors {
   readonly windows: WindowAnchor[] = [];
   readonly doors: Door[] = [];
   readonly ziplines: Zipline[] = [];
+  readonly splits: SplitAnchor[] = [];
 
   /** Adds an anchor (its id is assigned here) and returns it. */
   add<T extends Anchor>(a: Omit<T, 'id'> & { id?: number }): T {
@@ -221,6 +240,9 @@ export class TraversalAnchors {
         break;
       case 'zipline':
         this.ziplines.push(x);
+        break;
+      case 'split':
+        this.splits.push(x);
         break;
     }
     return x;
@@ -445,12 +467,13 @@ export function closestOn(a: Anchor, x: number, y: number, z: number): Closest {
     }
     case 'pipeH':
     case 'zipline':
+    case 'split':
     case 'ledge': {
       const q = closestOnSegment(a.a.x, a.a.z, a.b.x, a.b.z, x, z);
       o.x = q.x;
       o.z = q.z;
       o.s = q.s;
-      o.y = a.kind === 'pipeH' ? a.hangHeight : a.kind === 'ledge' ? a.top : a.a.y + (a.b.y - a.a.y) * (q.len > 0 ? q.s / q.len : 0);
+      o.y = a.kind === 'pipeH' ? a.hangHeight : a.kind === 'ledge' ? a.top : a.kind === 'split' ? a.a.y : a.a.y + (a.b.y - a.a.y) * (q.len > 0 ? q.s / q.len : 0);
       o.dist = hyp2(x - q.x, z - q.z);
       return o;
     }
@@ -509,6 +532,7 @@ export function anchorLength(a: Anchor): number {
     case 'zipline':
       return hyp2(a.b.x - a.a.x, a.b.z - a.a.z);
     case 'ledge':
+    case 'split':
       return a.len;
     case 'duct': {
       let l = 0;
@@ -591,7 +615,7 @@ export function nearestRung(l: Ladder, y: number): number {
   return l.base.y + Math.max(1, Math.min(top, k)) * l.rung;
 }
 
-export type AttachEntry = 'bottom' | 'top' | 'below' | 'above' | 'side';
+export type AttachEntry = 'bottom' | 'top' | 'below' | 'above' | 'side' | 'wall';
 
 export interface ReachResult {
   anchor: Anchor;
@@ -601,6 +625,8 @@ export interface ReachResult {
   /** Parameter along the anchor where they attach (m). */
   s: number;
   dist: number;
+  /** (3.2.0) Which way the body faces along a split gap (+1 towards b). */
+  face?: 1 | -1;
 }
 
 /**
@@ -673,6 +699,9 @@ export function reach(a: Anchor, x: number, y: number, z: number, dirX: number, 
       if (q.dist > 1.3 || Math.abs(q.y - y) > 0.4) return null;
       return { anchor: a, entry: 'side', s: q.s, dist: q.dist };
     }
+    case 'split':
+      // (offered by the attach controller's own probe: `player/splitJump.ts` `splitReach`)
+      return null;
   }
 }
 

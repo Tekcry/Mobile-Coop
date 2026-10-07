@@ -5,14 +5,15 @@ Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-
 | Phase | Status | Commit |
 | --- | --- | --- |
 | 0 Speed gears, instant stop, roll | done (waiting for review) | 0bce184 |
-| 1 Networked movement state | not started | |
-| 2 Split jump, wall jump, pipe legs-up / inverted | not started | |
+| 1 Networked movement state | done (waiting for review) | see log |
+| 2 Split jump, wall jump, pipe legs-up / inverted | in progress | |
 | 3 Rappel, fences | not started | |
 | 4 CT takedowns and grab | not started | |
 | 5 Co-op team moves | not started | |
 
 ## Next step
-Phase 1 (networked movement state) is ready to start when Michael says so. Phase 0 can be tried on the /ct/ preview.
+Michael (2026-10-07, before going to bed): proceed with all remaining phases and a Warehouse update for the new moves;
+testing and investigation later. Phases run back to back; each is logged below.
 
 ## Phase log
 (per phase: files changed, decisions, tests run and results, open issues)
@@ -58,6 +59,41 @@ Open issues:
 - A slow crouch walk (~1 m/s, now the default crouched gear 3) lets the thigh pistol touch the right elbow pad (`e2e-weapons-carry` box test). The same happens on clean `dev` at that pace (checked), so it is not new; the suite runs at gear 4. Needs a carry / pose fix.
 - Co-op / PvP: gears, the instant stop and the roll are local (host and clients alike). Remotes still see position-interpolated movement (no roll pose), and the host does not hear a client's roll, until Phase 1's MoveState. The host's footstep noise for remotes uses the new quiet thresholds.
 - Gear speeds measure ~3% under the caps in the running game (Havok's controller, as 2.x's paces did).
+
+### Phase 1 - networked movement state (2026-10-07)
+Files changed:
+- `src/player/moveState.ts` (new, pure) - `MoveState`, `MOVE_MODES` (wire index), `COVER_SUB`, `ATTACH_SUB`, `sanitizeMoveState`, `packMoveState`, `poseFromMoveState`, `moveChanged`, `footOffsets` / `footPoints`.
+- `src/game/localMoveState.ts` (new) - the local player's state from `GameState` (host and client).
+- `src/player/attachGrips.ts` (new) - hand / foot steppers and rig targets moved out of `AttachController` (shared with remotes), `planted` / `settleTo`.
+- `src/player/traversePath.ts` (new) - committed move paths moved out of `TraversalController` (remotes replay them); `TraversalController.committed`, move counter.
+- `src/player/gripStepper.ts` - `settleTo`.
+- `src/anim/footPlanner.ts` - foot pins (`pinLX..`, `PIN_TOL`); `src/player/characterRig.ts` - `footPins`, `curlHold`, `liftHold`.
+- `src/net/protocol.ts` - `PlayerState.mv`, `wirePlayerState`, `PF.driven`; `src/net/netShared.ts` - the flag.
+- `src/net/coopClient.ts` / `coopHost.ts` - send `mv` (at once on a change); host history keeps the posed head / hips and the mode, `judge` uses them; `RemotePlayer.followPose` each frame.
+- `src/net/remoteAvatar.ts` - poses from `mv` (cover, attached grips, committed replay, takedown, carry, look glance, owner's speed).
+- `src/net/validate.ts` - `moveSpeedCap`, `attachedClamp`; `src/net/remotePlayer.ts` - uses them, capsule along hips -> head.
+- `src/ai/hitboxes.ts` - `sync(feet, head, hips)`; `src/net/pvpTarget.ts` - passes the hips.
+- Tests: `tests/moveState.test.ts` (new), `tests/net.test.ts`; e2e: `scripts/e2e-netmove.mjs` (new), in `run-e2e.mjs`.
+
+Decisions:
+- `MoveState` lives in `src/player/` (not `src/net/` as the spec says): single player builds it every step and the hard
+  rule forbids static imports of `src/net`.
+- Extra fields beyond the spec's list, all needed to hit the 10 cm bar: `r` / `ay` (raise, aim twist), `rd` (ready
+  position), cover `cu` / `lf` (the rig's hiding curl and lift: history dependent integrators), `fp` (feet when still
+  in cover: each rig's foot planner otherwise plants where its own path took it), attached `gp` (planted grips when
+  still), `COVER_SUB.leftHand` (the weapon hand at a left edge). `sub` is a u16.
+- The remote's gait speed is the owner's reported speed (interpolation jitter otherwise reads as walking).
+- Hit capsules (host `RemotePlayer`, PvP `Hitboxes`) lie along the posed hips -> head line, so a hanging / crawling /
+  leaning body is hit where it is drawn; a hanging player's body capsule no longer covers the head.
+
+Tests run:
+- `npm run lint` clean; `npm test` 54 files, 547 tests passed; `npm run build` ok.
+- All 30 e2e suites on the Phase 1 build: passed, except one `e2e-netmove` ladder check that hit a grip-settling race
+  (fixed: grips are sent / settled only fully planted); `e2e-netmove` then passed twice in a row.
+
+Open issues:
+- `e2e-netmove` compares cover poses only for head and hands (feet in cover are pinned when still; while moving each
+  rig's planner steps on its own).
 
 ## Preview
 `ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).
