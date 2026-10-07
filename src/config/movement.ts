@@ -258,8 +258,8 @@ export const SPLIT = {
   /** Gap between the faces (m). */
   minWidth: 0.9,
   maxWidth: 1.7,
-  /** Both walls at least this tall over the floor (m). */
-  minHeight: 2.6,
+  /** Both walls at least this tall over the floor (m): the feet line plus the body braced above it. */
+  minHeight: 3.6,
   /** Shortest usable stretch of corridor (m) and the margin kept from its ends. */
   minLen: 0.8,
   endMargin: 0.3,
@@ -267,8 +267,8 @@ export const SPLIT = {
   floorTol: 0.3,
   /** The player faces within this of the corridor axis (rad, either way along it). */
   facing: (40 * Math.PI) / 180,
-  /** Feet planted on the walls this high over the floor (m). */
-  feetHeight: 1.9,
+  /** Feet planted on the walls this high over the floor (m; the walls stand `minHeight` - well over the head). */
+  feetHeight: 2.5,
   /** The committed jump into the split (s). */
   jumpTime: 0.45,
   /** Aiming from the split: body yaw within this of the corridor axis, pitch band (rad). */
@@ -356,6 +356,27 @@ export const FENCE = {
 } as const;
 
 // --- 3.2.0 phase 5: co-op team moves (`game/teamMoves.ts`)
+
+/**
+ * (3.2.0) The manual jump (touch Jump button; Y / E with nothing else on offer): a hop straight up keeping the run's
+ * pace, the hands grabbing what passes within reach (lips, drainpipes, ladders, pipes); a second press in the air over a
+ * split gap braces in it.
+ */
+export const LEAP = {
+  /** Take-off speed (m/s, up): an apex ~0.8 m over the floor (the airborne controller falls at about twice g). */
+  vy: 5.6,
+  /** Horizontal pace carried into the jump (x the ground speed), capped (m/s). */
+  carry: 1.0,
+  maxSpeed: 5.0,
+  /** A second press within this (s) of the take-off is the double tap (split). */
+  doubleTap: 0.4,
+  /** Grabs wait this long after the take-off when a split gap is under the jump (room for the double tap) (s). */
+  splitWait: 0.22,
+  /** Pause between jumps (s). */
+  cooldown: 0.3,
+  /** A drainpipe / ladder this close (m, horizontal from the feet) is grabbed in the air. */
+  climbReach: 0.75,
+} as const;
 
 export const TEAM = {
   /** Hold Y this long (s) to brace; a team-mate within `mateRange` (m) and a wall within `wallBehind` (m) behind. */

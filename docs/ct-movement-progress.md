@@ -195,6 +195,36 @@ Open issues:
 - e2e-netmove "ladder after a climb" once read a 35 cm ankle error (the grip settle race from Phase 1); it passed on
   the next runs.
 
+### Playtest changes (2026-10-08, from Michael's phone test)
+Asked: a manual jump that grabs what is near (lips, drainpipes, pipes), split by a double tap of jump and higher; the
+mezzanine pipe hard to use; pipes faced along (also hanging down), not side-on; a touch action button for cover /
+vault / climb with the prompts kept as indicators.
+
+Files: `src/config/movement.ts` (`LEAP`, `SPLIT.feetHeight` 2.5 / `minHeight` 3.6), `src/player/traversal.ts` (`leap`,
+air grabs, double tap, `splitNow`), `src/player/attachController.ts` (`split` hint, `leapProbe`, `pipeFace`, `PIPE_TURN`,
+pipe in `anchorFirst`, split `gripCentre`), `src/player/attach.ts` / `attachGrips.ts` (pipe facing along, hands,
+inverted straddle), `src/player/playerController.ts` (`takeoffT`), `src/input/actions.ts` (`leap`),
+`src/input/touchControls.ts` (`jump` control, `TouchAction.press / down / up`), `src/core/settings.ts` (layout v5),
+`src/game/gameState.ts` (`promptAction`, split prompt, leap wiring), `src/styles.css` (prompts not tappable),
+`src/net/remoteAvatar.ts` (re-grip on a turn), `src/ui/screens/controlsScreen.ts`, `src/world/maps/warehouse.ts`
+(corridor split section 4 m, deck pipe from z 13.3), tests (`attach`, `splitJump`, `ui`), e2e (`ct`, `ct-warehouse`,
+`touch`, `cover`, `traverse`).
+
+Decisions:
+- Controller / keyboard have no spare button for a jump: Y / E jump when traversal has nothing on offer (a vault,
+  ladder or grab still wins). Touch gets its own Jump button, which always jumps (the hands grab in the air).
+- The split is no longer a single Y: one press jumps, a second within 0.4 s braces (with grabs held back 0.22 s so a
+  wall top in reach does not take the jump first). The touch action button at the split prompt jumps straight in.
+- Jump height ~0.8 m: grabs lips up to ~3.1 m. The airborne controller falls at about 2 g (gravity is applied twice;
+  the landing bands are tuned to it), so `LEAP.vy` is 5.6.
+- Pipes: hands one ahead of the other (a shuffle), facing the way the camera looks along the pipe at the grab; held
+  back 0.3 s turns round. Inverted keeps the along-the-pipe plane with the legs straddling it.
+- Action button priorities: with a cover face and an obstacle both prompted, the stick pushed (or moving) picks the
+  obstacle, still picks cover. In cover with nothing else: Leave cover.
+
+Tests: `npm test` 56 files, 567 passed; lint clean; e2e-ct, e2e-ct-warehouse, e2e-touch, e2e-cover, e2e-traverse
+passed on the new build; full suite run below.
+
 ## Preview
 `ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).
 Saves there are separate (`shoulder-strike-ct`). Every push to `ct-movement` rebuilds it after the Preview check.

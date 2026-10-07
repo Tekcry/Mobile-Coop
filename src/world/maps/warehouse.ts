@@ -383,10 +383,12 @@ export const warehouse: MapDef = {
     // the pump house: a 4.2 m block against the facade beside the workshop door
     b.block(20.2, -19.025, 3.2, 4.2, 1.75, WALL);
     b.box(19.0, 2.4, -19.92, 0.9, 1.1, 0.06, STEEL, 0, 0, false);
-    // the corridor's cabinet bank (3.2 m, against the north wall)
-    b.block(9, -9.15, 4, 3.2, 0.4, '#4b5560');
+    // the corridor's cabinet bank (4 m, against the north wall) facing a 4 m section of the south wall (a fire wall):
+    // the split braces 2.5 m up between them
+    b.block(9, -9.15, 4, 4.0, 0.4, '#4b5560');
+    b.block(9, -11, 5, 4.0, 0.34, WALL);
     // the deck pipe and its hangers from the roof
-    b.pipeH(17, 12.6, 17, -0.2, 4.4, PIPE);
+    b.pipeH(17, 13.3, 17, -0.2, 4.4, PIPE);
     for (const z of [10, 6, 2.6, 0.2]) b.box(17, 5.23, z, 0.05, 1.54, 0.05, PIPE, 0, 0, false);
     b.fence(14.5, -25.85, 14.5, -22.3, 2.6);
 

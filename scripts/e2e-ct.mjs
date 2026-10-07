@@ -57,6 +57,7 @@ await page.evaluate(() => {
         held: rig.heldWeapon ? true : false, cls: w.current.def.class, mag: w.current.mag, raise: st.player.carry.raise, ads: st.player.ads, stowed: w.isStowed,
         camYaw: st.player.cam.yaw, camPitch: st.player.cam.pitch, camRoll: st.player.cam.camera?.rotation?.z ?? 0,
         landing: c.lastLanding, fall: c.lastFall, landings: c.landings,
+        split: !!ac.split, leaps: st.traversal.leaps, face: ac.m.face,
         u: ac.u, swing: ac.swingT, window: ac.ropeWindow ? ac.ropeWindow.id : -1, noise: st.noise, gear: c.gear, tkind: st.traversal.kind,
       };
     },
@@ -84,22 +85,26 @@ try {
   await tp(10, 0, 24.8, Math.PI / 2);
   await run(0.4);
   let i = await I();
-  assert(i.hint === 'split:below' && i.prompt === 'Split jump', `split offered facing along the corridor (${i.hint}, "${i.prompt}")`);
+  assert(i.prompt === 'Split jump (double jump)' && i.split, `split shown facing along the corridor ("${i.prompt}")`);
   await tp(10, 0, 24.8, 0);
   await run(0.4);
   i = await I();
-  assert(i.hint !== 'split:below', `not offered facing a wall (${i.hint})`);
+  assert(!i.split, 'not offered facing a wall');
   await tp(10, 0, 24.8, Math.PI / 2);
   await run(0.4);
+  // (3.2.0) a double jump: the first Y jumps, the second in the air braces in the split
   await tap(BTN.Y);
-  await run(0.3);
   i = await I();
-  assert(i.attached && i.kind === 'split' && i.phase === 'enter', `Y jumps into the split (${i.kind} ${i.phase})`);
+  assert(!i.attached && !i.grounded && i.leaps > 0, `one Y: a jump (leaps ${i.leaps}, grounded ${i.grounded})`);
+  await tap(BTN.Y);
+  await run(0.2);
+  i = await I();
+  assert(i.attached && i.kind === 'split' && i.phase === 'enter', `a second Y in the air jumps into the split (${i.kind} ${i.phase})`);
   await run(0.4);
   i = await I();
-  assert(i.phase === 'on' && Math.abs(i.y - 1.9) < 0.05 && i.trav === 'split', `braced with the feet line 1.9 m up (y ${f2(i.y)}, ${i.trav})`);
+  assert(i.phase === 'on' && Math.abs(i.y - 2.5) < 0.05 && i.trav === 'split', `braced with the feet line 2.5 m up (y ${f2(i.y)}, ${i.trav})`);
   const walls = [24.15, 25.45];
-  const onWall = (p) => p[3] > 0.99 && Math.abs(p[1] - 1.9) < 0.05 && walls.some((w) => Math.abs(p[2] - w) < 0.08);
+  const onWall = (p) => p[3] > 0.99 && Math.abs(p[1] - 2.5) < 0.05 && walls.some((w) => Math.abs(p[2] - w) < 0.08);
   assert(onWall(i.plantL) && onWall(i.plantR) && Math.abs(i.plantL[2] - i.plantR[2]) > 1.1, `feet planted on the two walls (${i.plantL.map(f2)} / ${i.plantR.map(f2)})`);
   assert(i.stowed && !i.held, 'weapon stowed while braced');
   // stick does nothing (no travel)
@@ -136,6 +141,7 @@ try {
   await tp(10, 0, 24.8, Math.PI / 2);
   await run(0.4);
   await tap(BTN.Y);
+  await tap(BTN.Y);
   await run(0.9);
   i = await I();
   assert(i.kind === 'split' && i.jump === 'ledge', `a lip in reach above the split (${i.jump})`);
@@ -143,6 +149,47 @@ try {
   await run(1.0);
   i = await I();
   assert(i.attached && i.kind === 'ledge' && Math.abs(i.top - 4.3) < 0.05, `Y jumps up from the split to a lip (${i.kind}, top ${f2(i.top)})`);
+  await tap(BTN.B);
+  await run(1.5);
+
+  console.log('manual jump (3.2.0)');
+  // open floor: up and down again (the pace carried)
+  await tp(0, 0, 4, 0);
+  await run(0.4);
+  let ly = 0;
+  await page.evaluate(() => window.__app.input.state.tap('leap'));
+  for (let k = 0; k < 12; k++) {
+    await run(0.05);
+    ly = Math.max(ly, (await I()).y);
+  }
+  await run(0.8);
+  i = await I();
+  assert(ly > 0.6 && ly < 1.0 && i.grounded && !i.attached, `Jump: up ${f2(ly)} m and down again`);
+  // under the 2.5 m pipe: the hands take it
+  await tp(0.5, 0, 23, Math.PI / 2);
+  await run(0.4);
+  await page.evaluate(() => window.__app.input.state.tap('leap'));
+  await run(0.8);
+  i = await I();
+  assert(i.attached && i.kind === 'pipeH', `Jump under a pipe grabs it (${i.kind})`);
+  await tap(BTN.B);
+  await run(1.0);
+  // at the 2.3 m hang block (x 26..29, z 14.5..17.5): the lip
+  await tp(27.5, 0, 13.8, 0);
+  await run(0.4);
+  await page.evaluate(() => window.__app.input.state.tap('leap'));
+  await run(0.8);
+  i = await I();
+  assert(i.attached && i.kind === 'ledge' && Math.abs(i.top - 2.3) < 0.05, `Jump at a lip grabs it (${i.kind}, top ${f2(i.top)})`);
+  await tap(BTN.B);
+  await run(1.0);
+  // beside the tower's drainpipe (27.8, 9.42, on its south face): it is grabbed in the air
+  await tp(27.8, 0, 8.9, 0);
+  await run(0.4);
+  await page.evaluate(() => window.__app.input.state.tap('leap'));
+  await run(0.6);
+  i = await I();
+  assert(i.attached && i.kind === 'pipeV', `Jump at a drainpipe grabs it (${i.kind})`);
   await tap(BTN.B);
   await run(1.5);
 
@@ -188,6 +235,16 @@ try {
   await run(0.8);
   i = await I();
   assert(i.kind === 'pipeH' && i.pipe === 'hands' && i.prompt === 'Legs up', `hanging by the hands, Y offers legs up ("${i.prompt}")`);
+  // (3.2.0) facing along the pipe (+-x), not across it; held back against the facing it turns round
+  assert(Math.abs(Math.sin(i.yaw)) > 0.99, `hanging facing along the pipe (yaw ${f2(i.yaw)})`);
+  {
+    await page.evaluate(() => { window.__app.current.player.cam.yaw = 0; });
+    const face0 = i.face;
+    await run(0.5, -face0, 0);
+    i = await I();
+    assert(i.face === -face0 && Math.abs(Math.sin(i.yaw)) > 0.99 && i.attached, `held back along the pipe: turned round (face ${face0} -> ${i.face})`);
+    await run(0.4);
+  }
   const handsFeet = i.y;
   await tap(BTN.Y);
   await run(0.25);

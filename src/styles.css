@@ -1991,10 +1991,8 @@ body {
   bottom: auto;
   top: 14px;
 }
-/* by touch the prompt is the button: a bigger hit area, the icon instead of a glyph */
-.input-touch .wp.show {
-  pointer-events: auto;
-}
+/* by touch the prompt is an indicator with the icon instead of a glyph (3.2.0: the action button does it; touches
+   go through to the controls below) */
 .input-touch .wp-touch {
   display: flex;
 }

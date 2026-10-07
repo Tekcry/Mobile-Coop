@@ -380,6 +380,20 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
 - [ ] TDM: a team-mate can boost you, an opponent cannot (nothing happens).
 - [ ] A takedown on offer still wins over the team move (Y takes the guard).
 
+## 3.2.0 - Playtest changes: jump, action button, pipes facing along, higher split (phone + controller)
+- [ ] Touch: the Jump button (right of the action button) jumps on open floor; under a pipe / at a lip up to ~3 m / beside
+  a drainpipe or ladder the jump grabs it.
+- [ ] Controller: Y on open floor jumps; Y at a vault / ladder still does that instead.
+- [ ] Between the Proving corridor walls (or the Warehouse corridor cabinets): the prompt reads "Split jump (double
+  jump)"; two quick taps of Jump (or Y) brace in the split, feet about 2.5 m up; the touch action button there jumps
+  straight in.
+- [ ] Hanging from a horizontal pipe: the operator faces along the pipe, hands one ahead of the other; legs up and
+  upside down stay along it; holding the stick back turns round.
+- [ ] Mezzanine deck: standing under the pipe's start, the action button / Y grabs the pipe (no mantle over the railing).
+- [ ] Touch action button: label follows the prompts (Take cover, Vault, Climb, Grab, Rappel, Legs up, Leave cover, Use);
+  dimmed when nothing is on offer; tapping the prompts themselves does nothing.
+- [ ] At a low wall: standing still the button takes cover; pushing the stick at it, it vaults.
+
 ## 3.2.0 - Warehouse Chaos Theory routes (Free Roam, then Hunter at night)
 - [ ] West yard: the drainpipe on the facade climbs to the roof walkway; footsteps on the roof are louder.
 - [ ] On the roof over the dispatch window: "Rappel", down the rope, "Kick through" at the window, inside dispatch.

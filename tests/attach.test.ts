@@ -81,8 +81,8 @@ describe('attach poses', () => {
     attachPose(pipeH, 2, 1, 1.75, out);
     expect(out.y).toBeCloseTo(2.4 - HANG.drop);
     expect(out.z).toBeCloseTo(0);
-    // facing across the pipe (perpendicular to its +z axis)
-    expect(Math.abs(Math.cos(out.yaw))).toBeLessThan(1e-6);
+    // (3.2.0) facing along the pipe (its +z axis), never side-on like a lip
+    expect(Math.abs(Math.cos(out.yaw))).toBeCloseTo(1);
     attachPose(zip, 15, 1, 1.75, out);
     expect(out.y).toBeCloseTo(5 - HANG.drop, 1);
     // a taller body hangs lower

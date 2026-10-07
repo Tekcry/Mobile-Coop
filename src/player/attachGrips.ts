@@ -8,7 +8,7 @@ import { ductPoint, HANG, type Anchor, type Ledge } from '../world/anchors';
 import { attachPose, PIPE_HIPS, type AttachPose } from './attach';
 import { GripStepper, type GripLimb } from './gripStepper';
 import type { PipeMode } from './splitJump';
-import { RAPPEL } from '../config/movement';
+import { RAPPEL, SPLIT } from '../config/movement';
 
 const RAPPEL_STANDOFF = RAPPEL.standoff;
 
@@ -75,20 +75,30 @@ export class AttachGrips {
     const h = this.hands.cfg;
     const f = this.feet.cfg;
     switch (a.kind) {
-      case 'ledge':
       case 'pipeH': {
+        // facing along the pipe: the right hand leads, the left a hand's width behind (a shuffle along it)
+        const len = hyp2(a.b.x - a.a.x, a.b.z - a.a.z);
+        h.offL = -0.1 * k * face;
+        h.offR = 0.14 * k * face;
+        h.slack = 0.12;
+        h.swingTime = 0.15;
+        h.grid = 0;
+        h.min = 0.2;
+        h.max = len - 0.2;
+        h.lead = 1;
+        break;
+      }
+      case 'ledge': {
         // which way along the axis is the body's right (the right hand grips on that side)
         const p = attachPose(a, s, face, height, this.ap);
-        const tx = a.kind === 'ledge' ? a.tx : a.b.x - a.a.x;
-        const tz = a.kind === 'ledge' ? a.tz : a.b.z - a.a.z;
-        const sgn = tx * Math.cos(p.yaw) - tz * Math.sin(p.yaw) >= 0 ? 1 : -1;
+        const sgn = a.tx * Math.cos(p.yaw) - a.tz * Math.sin(p.yaw) >= 0 ? 1 : -1;
         h.offL = -0.22 * k * sgn;
         h.offR = 0.22 * k * sgn;
         h.slack = 0.12;
         h.swingTime = 0.13;
         h.grid = 0;
-        h.min = a.kind === 'ledge' ? 0.08 : 0.2;
-        h.max = (a.kind === 'ledge' ? a.len : hyp2(a.b.x - a.a.x, a.b.z - a.a.z)) - (a.kind === 'ledge' ? 0.08 : 0.2);
+        h.min = 0.08;
+        h.max = a.len - 0.08;
         h.lead = 1;
         break;
       }
@@ -374,7 +384,7 @@ export class AttachGrips {
         const half = a.width / 2 - 0.05;
         const cx = a.a.x + a.tx * s;
         const cz = a.a.z + a.tz * s;
-        const fy = a.a.y + 1.9 * (rig.height / 1.75);
+        const fy = a.a.y + SPLIT.feetHeight;
         fl.w = fr.w = w;
         this.plantFade = w;
         fl.x = cx - wx * sd * half + fx * 0.04;
@@ -470,14 +480,17 @@ export class AttachGrips {
     const ax = a.b.x - a.a.x;
     const az = a.b.z - a.a.z;
     const len = hyp2(ax, az) || 1;
+    // facing along the pipe: the body's right is (fz, -fx); each hand just its own side of the top of the pipe, lifted
+    // off it mid-swing
     for (let i = 0; i < 2; i++) {
       const g = i === 0 ? hL : hR;
       const t = i === 0 ? L : R;
+      const sd = i === 0 ? -1 : 1;
       const q = this.hands.pos(g);
       const lift = this.hands.lift(g);
-      t.x = a.a.x + (ax / len) * q - fx * lift * 0.05;
-      t.z = a.a.z + (az / len) * q - fz * lift * 0.05;
-      t.y = a.hangHeight + lift * 0.05;
+      t.x = a.a.x + (ax / len) * q + fz * 0.035 * sd;
+      t.z = a.a.z + (az / len) * q - fx * 0.035 * sd;
+      t.y = a.hangHeight + lift * 0.07;
     }
   }
 
@@ -524,20 +537,19 @@ export class AttachGrips {
       L.w = R.w = 1;
       return;
     }
-    // inverted: knees over the pipe, shins hooked behind it (the side the back of the legs faces: the chest faces
-    // across the pipe the hanging way, the feet tuck back the other way)
+    // inverted, along the pipe: the legs straddle it, knees either side, the shins crossed over the top and the ankles
+    // locked a little behind the knees (towards the back, -face along the pipe)
     const cx = a.a.x + tx * s;
     const cz = a.a.z + tz * s;
-    const back = 0.16 * k;
-    // the hanging facing (across the pipe) is the facing the body had by the hands
-    const hy = Math.atan2(tz * face, -tx * face);
-    const bx = -Math.sin(hy);
-    const bz = -Math.cos(hy);
-    FL.x = cx - tx * 0.12 + bx * back;
-    FL.z = cz - tz * 0.12 + bz * back;
-    FR.x = cx + tx * 0.12 + bx * back;
-    FR.z = cz + tz * 0.12 + bz * back;
-    FL.y = FR.y = y + 0.1;
+    const nx = -tz;
+    const nz = tx;
+    const back = 0.14 * k * face;
+    FL.x = cx - tx * back + nx * 0.05;
+    FL.z = cz - tz * back + nz * 0.05;
+    FR.x = cx - tx * (back + 0.06 * face) - nx * 0.05;
+    FR.z = cz - tz * (back + 0.06 * face) - nz * 0.05;
+    FL.y = y + 0.1;
+    FR.y = y + 0.08;
     // hands hang free (or reach for the weapon): their targets stay under the pipe, unweighted
     L.x = R.x = cx;
     L.z = R.z = cz;

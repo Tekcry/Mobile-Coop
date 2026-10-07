@@ -5,6 +5,8 @@ export const BUTTON_ACTIONS = [
   'ads',
   'reload',
   'jump',
+  /** (3.2.0) The manual jump (touch Jump button; Y / E jump when nothing else is offered). */
+  'leap',
   'crouch',
   'swapNext',
   'swapPrev',

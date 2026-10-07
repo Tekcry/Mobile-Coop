@@ -211,11 +211,12 @@ try {
   await tp(9, 0, -10.1, Math.PI / 2);
   await run(0.4);
   i = await I();
-  assert(i.hint === 'split:below' && i.prompt === 'Split jump', `split offered in the corridor (${i.hint}, "${i.prompt}")`);
+  assert(i.prompt === 'Split jump (double jump)', `split shown in the corridor ("${i.prompt}")`);
+  await tap(BTN.Y);
   await tap(BTN.Y);
   await run(1.0);
   i = await I();
-  assert(i.attached && i.kind === 'split' && i.phase === 'on', `braced in the split (y ${f2(i.y)})`);
+  assert(i.attached && i.kind === 'split' && i.phase === 'on' && Math.abs(i.y - 2.5) < 0.05, `double Y: braced in the split, 2.5 m up (y ${f2(i.y)})`);
   await guard(i.x + 0.3, -10.1, Math.PI / 2);
   await run(0.4);
   td = await page.evaluate(() => window.__app.current.takedown.offer?.plan.kind ?? null);

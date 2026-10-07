@@ -167,9 +167,9 @@ describe('pipe sub-states (3.2.0)', () => {
     const inv = { ...attachPose(pipe, 2, 1, 1.75, out, 'inverted') };
     // hips: by the hands 1.9 - 0.915 under the pipe; legs up close under it
     expect(legs.y + 0.915).toBeGreaterThan(hands.y + 0.915 + PIPE.legsUpLift);
-    // along the pipe vs across it
+    // every sub-state faces along the pipe (its +x axis)
     expect(Math.abs(Math.sin(legs.yaw))).toBeCloseTo(1);
-    expect(Math.abs(Math.cos(hands.yaw))).toBeCloseTo(1);
+    expect(Math.abs(Math.sin(hands.yaw))).toBeCloseTo(1);
     expect(Math.cos(inv.yaw - hands.yaw)).toBeCloseTo(-1);
     expect(PIPE_TUMBLE.inverted).toBeCloseTo(Math.PI);
   });

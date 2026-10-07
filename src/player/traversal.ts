@@ -1,6 +1,6 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
-import { CT, MOVEMENT } from '../config/movement';
+import { CT, LEAP, MOVEMENT } from '../config/movement';
 import { pickTraversal, type Traversal } from './movement';
 import { gearCap } from './speedGears';
 import { traversePath, type PathKind } from './traversePath';
@@ -76,6 +76,12 @@ export class TraversalController {
   private dir = new Vector3(0, 0, 1);
   private top = 0;
   private probeT = 0;
+  /** (3.2.0) The manual jump: seconds since the take-off (-1: not in one), the split gap under it, the pause before
+   *  the next one and a counter (tests). */
+  private leapT = -1;
+  private leapSplit: ReachResult | null = null;
+  private leapCool = 0;
+  leaps = 0;
   /** Attached locomotion (ladder, pipe, hang, duct, zipline). */
   readonly attachCtl: AttachController;
   /** The window the vault hint goes through (glazed: the vault breaks it), or null. */
@@ -289,7 +295,7 @@ export class TraversalController {
    * Fixed step. `jumpPressed` is the contextual action; `blocked` while another system (cover) owns
    * the controller. Returns true while a traversal drives the player.
    */
-  fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null): boolean {
+  fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null, leapPressed = false): boolean {
     const p = this.player;
     const c = p.controller;
     const pose = p.coverPose;
@@ -342,10 +348,29 @@ export class TraversalController {
       if (c.lastLanding === 'roll' && c.grounded && p.alive && !blocked && this.startRoll()) return this.fixedUpdate(0, false, false);
     }
     const ac = this.attachCtl;
+    this.leapCool = Math.max(0, this.leapCool - dt);
     // falling past a lip: traverse grabs it
     if (!c.grounded && p.alive && !blocked) {
       this.hint = null;
       ac.lower = null;
+      // (3.2.0) a manual jump: a second press over a split gap braces in it; the hands take what comes in reach
+      if (this.leapT >= 0) {
+        this.leapT += dt;
+        const sp = this.leapSplit;
+        if (sp && (jumpPressed || leapPressed) && this.leapT <= LEAP.doubleTap) {
+          this.leapT = -1;
+          this.leapSplit = null;
+          return ac.attachFrom(sp);
+        }
+        if (!sp || this.leapT >= LEAP.splitWait) {
+          const g = ac.fallProbe(c.pos) ?? ac.leapProbe(c.pos);
+          if (g) {
+            this.leapT = -1;
+            this.leapSplit = null;
+            return ac.attachFrom(g, 0.15);
+          }
+        }
+      }
       ac.hint = ac.fallProbe(c.pos);
       if (ac.hint && jumpPressed) return ac.attachFrom(ac.hint, 0.15);
       return false;
@@ -356,13 +381,18 @@ export class TraversalController {
       ac.lower = null;
       return false;
     }
+    // (landed from a manual jump)
+    if (this.leapT > 0.1) {
+      this.leapT = -1;
+      this.leapSplit = null;
+    }
     // Chaos Theory: crouch tapped standing at speed (gear 5-6 or sprinting) is a committed forward roll
     if (ac.input.dropPressed && this.canForwardRoll() && this.startRoll(true)) {
       c.swallowCrouch = true;
       return this.fixedUpdate(0, false, false);
     }
     this.probeT -= dt;
-    if (this.probeT <= 0 || jumpPressed) {
+    if (this.probeT <= 0 || jumpPressed || leapPressed) {
       this.probeT = 0.2;
       const d = dir ?? this.probeDir();
       this.hint = this.probe(c.pos, d.x, d.z);
@@ -373,6 +403,8 @@ export class TraversalController {
         this.hintAt.set(c.pos.x + d.x * f, c.pos.y, c.pos.z + d.z * f);
       }
     }
+    // (3.2.0) the Jump button: a jump whatever is offered (the hands grab what comes in reach)
+    if (leapPressed && this.leap()) return false;
     // anchors: a climb / grab when nothing closer is offered (a step, vault or mantle wins)
     const h = this.hint;
     const ah = ac.hint;
@@ -407,7 +439,38 @@ export class TraversalController {
       this.moves = (this.moves + 1) & 255;
       return this.fixedUpdate(0, false, false);
     }
+    // nothing on offer: traverse is a jump (a second press over a split gap braces in it)
+    if (jumpPressed) this.leap();
     return false;
+  }
+
+  /**
+   * (3.2.0) The manual jump from the ground: straight up at `LEAP.vy` keeping the run's pace (standing up from a
+   * crouch). In the air `fixedUpdate` grabs what comes within reach and takes a second press over a split gap.
+   */
+  leap(): boolean {
+    const p = this.player;
+    const c = p.controller;
+    if (this.leapCool > 0 || !c.grounded || c.override || this.kind !== 'none' || this.attachCtl.active || !p.alive) return false;
+    c.clearCrouchToggle();
+    const sp = hyp2(c.vel.x, c.vel.z);
+    const v = Math.min(LEAP.maxSpeed, sp * LEAP.carry);
+    const k = sp > 1e-3 ? v / sp : 0;
+    c.launch(c.vel.x * k, LEAP.vy, c.vel.z * k);
+    this.leapT = 0;
+    this.leapSplit = this.attachCtl.split;
+    this.leapCool = LEAP.cooldown;
+    this.leaps++;
+    this.hint = null;
+    this.attachCtl.hint = null;
+    return true;
+  }
+
+  /** (3.2.0) A jump straight into the split gap under the body (the touch action button's split; a double jump). */
+  splitNow(): boolean {
+    const sp = this.attachCtl.split;
+    if (!sp || this.kind !== 'none' || this.attachCtl.active || !this.player.controller.grounded) return false;
+    return this.attachCtl.attachFrom(sp);
   }
 
   /** A crouch tap now would roll: standing, free, moving at gear 5-6 (or sprinting) with the stick pushed. */
@@ -488,6 +551,8 @@ export class TraversalController {
   private teleports = 0;
 
   reset(): void {
+    this.leapT = -1;
+    this.leapSplit = null;
     this.kind = 'none';
     this.ctRoll = false;
     this.hint = null;

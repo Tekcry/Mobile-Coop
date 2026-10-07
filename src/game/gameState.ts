@@ -166,8 +166,10 @@ const ARC_MIN = 0.06;
 const SUPPRESSED_NOISE = 0.6;
 const IMPACT_NOISE = 4;
 
-/** Touch action button: only for interactables now (cover and traversal prompts sit on the surfaces). */
+/** Touch action button: an interactable in reach, else (3.2.0) what the world prompts show. */
 const ACT_USE: TouchAction = { action: 'interact', label: 'Use', icon: 'interact' };
+/** The action button's icon per world prompt. */
+const PROMPT_ICON: Partial<Record<WorldPromptId, string>> = { cover: 'cover', corner: 'cover', move: 'cover', vault: 'jump', jumpTo: 'jump', drop: 'crouch' };
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
 /** World prompts sit low on the surface they act on, at one height per surface (m above its base). */
 const PROMPT_Y = 0.55;
@@ -962,7 +964,7 @@ export class GameState implements AppState {
     // (3.2.0 phase 5) team moves come after a takedown on offer, before traversal
     const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
     if (this.team.active) this.traversal.hint = null;
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none' || this.team.active, this.cover.exitDir);
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none' || this.team.active, this.cover.exitDir, inp.pressed('leap') && !this.team.active && !carrying && !busy);
     // the Chaos Theory forward roll is heard close by
     if (this.traversal.forwardRolls !== this.rollSeen) {
       this.rollSeen = this.traversal.forwardRolls;
@@ -1750,13 +1752,53 @@ export class GameState implements AppState {
       w.set('move', ok ? (tg.kind === 'swat' ? 'SWAT turn' : 'Move to cover') : null, this.scr.x, this.scr.y);
     } else w.set('move', null, 0, 0);
     w.flush();
-    // the touch action button: only to use an interactable in reach
+    // the touch action button: a gadget feed's action, an interactable in reach, else what the world prompts show
+    // (they stay as the indicators of what is on offer and where)
     const it = this.interactTarget;
     if (it) ACT_USE.label = it.label.length > 14 ? 'Use' : it.label;
     const touchCtl = this.app.input.touch;
     const ga = this.gadgets.touchAction();
-    touchCtl.setAction(ga ?? (it ? ACT_USE : null));
-    touchCtl.setControlHidden('action', !ga && !it);
+    touchCtl.setAction(ga ?? (it ? ACT_USE : this.promptAction()));
+    touchCtl.setControlHidden('action', false);
+  }
+
+  /** One `TouchAction` per world prompt (the label is refreshed each frame). */
+  private promptActs = {} as Partial<Record<WorldPromptId, TouchAction>>;
+  private leaveAct: TouchAction = { action: 'cover', label: 'Leave cover', icon: 'cover' };
+
+  /**
+   * (3.2.0) What the touch action button does now: the world prompt on offer (as tapping it did). Out of cover with
+   * both a cover face and an obstacle prompted, moving (or the stick pushed) goes over / up it, standing still takes
+   * cover; in cover the
+   * corner swing, cover-to-cover, the vault, else leaving cover; attached: climb up / jump / the pipe's states, else
+   * drop.
+   */
+  private promptAction(): TouchAction | null {
+    const w = this.hud.world;
+    const inCover = this.cover.state !== 'none';
+    const ctl = this.player.controller;
+    const wish = ctl.wishDir;
+    // moving, or pushing the stick (against the obstacle it does not move)
+    const moving = ctl.speed > 1.0 || wish.x * wish.x + wish.z * wish.z > 0.09;
+    const order: readonly WorldPromptId[] = inCover
+      ? ['corner', 'move', 'vault']
+      : this.traversal.attached
+        ? ['vault', 'jumpTo', 'drop']
+        : moving
+          ? ['vault', 'cover', 'jumpTo', 'drop']
+          : ['cover', 'vault', 'jumpTo', 'drop'];
+    for (const id of order) {
+      const lbl = w.label(id);
+      if (!lbl) continue;
+      let a = this.promptActs[id];
+      if (!a) {
+        a = { action: id === 'cover' || id === 'corner' || id === 'move' ? 'cover' : 'jump', label: '', icon: PROMPT_ICON[id] ?? 'jump', press: () => this.onWorldPrompt(id), down: () => this.onWorldPromptHold(id, true), up: () => this.onWorldPromptHold(id, false) };
+        this.promptActs[id] = a;
+      }
+      a.label = lbl.length > 16 ? lbl.slice(0, 15) + '\u2026' : lbl;
+      return a;
+    }
+    return inCover ? this.leaveAct : null;
   }
 
   /** Anchor prompts: what traverse attaches to from the ground; climb up / jump / drop while attached. */
@@ -1812,6 +1854,16 @@ export class GameState implements AppState {
       if (this.project(a.a.x + a.tx * low.s, a.top + 0.45, a.a.z + a.tz * low.s)) w.set('drop', ATTACH_LABEL.ledgeAbove!, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);
     } else w.set('drop', null, 0, 0);
+    // (3.2.0) between two tall walls: a double jump braces in the split (the touch action button jumps straight in)
+    this.splitPrompt = false;
+    const sp = !h && !blocked && !t.hint ? ac.split : null;
+    if (sp && sp.anchor.kind === 'split') {
+      const sa = sp.anchor;
+      if (this.project(sa.a.x + sa.tx * sp.s, sa.a.y + 1.7, sa.a.z + sa.tz * sp.s)) {
+        w.set('vault', ATTACH_LABEL.splitDouble!, this.scr.x, this.scr.y);
+        this.splitPrompt = true;
+      }
+    }
     if (!h || blocked) return;
     const a = h.anchor;
     const g = this.promptPt;
@@ -1894,6 +1946,9 @@ export class GameState implements AppState {
   }
 
   /** A tap on a world prompt (touch): the same as the button it shows. */
+  /** (3.2.0) The 'vault' prompt shows the split gap (a double jump). */
+  private splitPrompt = false;
+
   private onWorldPrompt(id: WorldPromptId): void {
     if (this.paused || this.exited) return;
     const inp = this.app.input.state;
@@ -1901,6 +1956,8 @@ export class GameState implements AppState {
     else if (id === 'vault' || id === 'jumpTo') {
       // (a vent prompt pressed on touch-down already did it)
       if (this.ventByTouch && id === 'vault') this.ventByTouch = false;
+      // (3.2.0) the split prompt: straight into the split (by pad / keys it is a double jump)
+      else if (id === 'vault' && this.splitPrompt) this.traversal.splitNow();
       else inp.tap('jump');
     }
     else if (id === 'drop') {

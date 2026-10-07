@@ -213,8 +213,8 @@ export function attachPose(a: Anchor, s: number, face: number, height: number, o
       out.x = a.a.x + tx * s;
       out.z = a.a.z + tz * s;
       out.y = a.hangHeight - HANG.drop * k;
-      // hanging side-on to the pipe: facing across it (moving along it is a sideways shimmy)
-      out.yaw = Math.atan2(tz * face, -tx * face);
+      // hanging facing along the pipe (`face`: towards b or a), hand over hand - never side-on like a lip
+      out.yaw = Math.atan2(tx * face, tz * face);
       if (pipe === 'legsUp') {
         // along the pipe, lying face up under it: the tumble about the rig's pivot lays the body back with the head
         // away from the facing and the hips a pelvis length behind the root; the root sits so the hips are at `s`
@@ -223,8 +223,8 @@ export function attachPose(a: Anchor, s: number, face: number, height: number, o
         out.z += tz * face * TUMBLE_REST * k;
         out.y = a.hangHeight - (PIPE_HIPS.legsUp + TUMBLE_PIVOT) * k;
       } else if (pipe === 'inverted') {
-        // by the knees, head down: tumbled over, the chest faces back round to the hanging facing (the hips hang a
-        // pelvis length under the pivot)
+        // by the legs wrapped round it, head down, still along the pipe: tumbled over, the chest faces back round to
+        // the hanging facing (the hips hang a pelvis length under the pivot)
         out.y = a.hangHeight - (PIPE_HIPS.inverted + TUMBLE_PIVOT - TUMBLE_REST) * k;
         out.yaw += Math.PI;
       }

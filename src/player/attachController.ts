@@ -21,7 +21,7 @@ import {
   type RappelPoint,
   type WindowAnchor,
 } from '../world/anchors';
-import { FENCE, RAPPEL } from '../config/movement';
+import { FENCE, LEAP, RAPPEL } from '../config/movement';
 import { AttachMachine, attachPose, axisInput, LADDER_SLIDE, LADDER_SPRINT_RATE, PIPE_SLIDE, PIPE_SPRINT, PIPE_TUMBLE, type AttachPose, type ExitReason } from './attach';
 import { AttachGrips, VENT_LOWER_K } from './attachGrips';
 import { PipeHang, SPLIT, splitReach, WALL_JUMP, wallJumpReach, type PipeMode } from './splitJump';
@@ -51,7 +51,8 @@ const LOWER_KINDS = ['ledge'] as const;
  *  is what the player is facing on purpose); lips and pipes give way to them. */
 export function anchorFirst(r: ReachResult | null): boolean {
   const k = r?.anchor.kind;
-  return k === 'ladder' || k === 'pipeV' || k === 'duct' || k === 'zipline' || k === 'rappel' || k === 'fence';
+  // (3.2.0) a pipe overhead too: standing under it, Y takes it rather than a mantle over a railing beside it
+  return k === 'ladder' || k === 'pipeV' || k === 'duct' || k === 'zipline' || k === 'rappel' || k === 'fence' || (k === 'pipeH' && r?.entry === 'below');
 }
 const isAbove = (r: ReachResult): boolean => r.entry === 'above' && r.anchor.kind === 'ledge';
 const notAbove = (r: ReachResult): boolean => r.entry !== 'above' || r.anchor.kind === 'rappel';
@@ -83,6 +84,7 @@ export const ATTACH_LABEL: Record<string, string> = {
   jump: 'Jump',
   drop: 'Drop',
   split: 'Split jump',
+  splitDouble: 'Split jump (double jump)',
   wallJump: 'Wall jump',
   legsUp: 'Legs up',
   invert: 'Invert',
@@ -94,6 +96,14 @@ export const ATTACH_LABEL: Record<string, string> = {
   flipOver: 'Flip over',
   unhook: 'Unhook',
 };
+
+/** (3.2.0) Holding back against the facing on a pipe this long turns the body round on it (s). */
+export const PIPE_TURN = 0.3;
+
+/** Which way along a horizontal pipe a body faces (+1 towards b) for a camera heading. */
+export function pipeFace(a: { a: { x: number; z: number }; b: { x: number; z: number } }, camYaw: number): 1 | -1 {
+  return (a.b.x - a.a.x) * Math.sin(camYaw) + (a.b.z - a.a.z) * Math.cos(camYaw) >= 0 ? 1 : -1;
+}
 
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 const angleTo = (a: number, b: number): number => Math.atan2(Math.sin(b - a), Math.cos(b - a));
@@ -135,6 +145,8 @@ export class AttachController {
   private kin: Vector3;
   /** Body parameter last fixed step and this one (render interpolation of the grips). */
   private sPrev = 0;
+  /** (3.2.0) Seconds held back against the facing on a pipe (`PIPE_TURN`). */
+  private backT = 0;
   /** Hand / foot contacts on the anchor (shared with co-op remotes, `AttachGrips`). */
   readonly grips = new AttachGrips();
   private get hands() {
@@ -189,10 +201,35 @@ export class AttachController {
       const p = attachPose(low.anchor, low.s, 1, this.player.rig.height, this.ap);
       if (this.roomAt(p.x, p.y + 0.3, p.z)) this.lower = low;
     }
+    // (3.2.0) between two tall walls facing along them: a split jump - a double jump, kept apart from the traverse hint
+    this.split = this.splitProbe(feet, dx, dz);
     const r = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, GROUND_KINDS, notAbove);
     if (r) return r;
-    // (3.2.0) between two tall walls facing along them: a split jump; facing a wall under a high lip: a wall jump
-    return this.splitProbe(feet, dx, dz) ?? this.wallJumpProbe(feet, dx, dz);
+    // facing a wall under a high lip: a wall jump
+    return this.wallJumpProbe(feet, dx, dz);
+  }
+
+  /** (3.2.0) The split gap a double jump from here would brace in (refreshed with `probe`). */
+  split: ReachResult | null = null;
+
+  /**
+   * (3.2.0) In the air after a manual jump: a drainpipe or ladder within `LEAP.climbReach` of the feet, on the side
+   * it is climbed from, is grabbed where the body is (lips and pipes: `fallProbe`).
+   */
+  leapProbe(feet: Vector3): ReachResult | null {
+    const near = anchorsNear(this.anchors, feet.x, feet.y, feet.z, LEAP.climbReach, ['pipeV', 'ladder']);
+    for (const n of near) {
+      const a = n.anchor;
+      if (a.kind !== 'pipeV' && a.kind !== 'ladder') continue;
+      const yaw = a.kind === 'ladder' ? a.facing : a.side;
+      // in front of it (the wall is ahead along its facing)
+      if ((feet.x - a.base.x) * Math.sin(yaw) + (feet.z - a.base.z) * Math.cos(yaw) > 0.05) continue;
+      const up = feet.y - a.base.y;
+      const max = a.top.y - a.base.y - this.player.rig.height * (a.kind === 'ladder' ? 0.55 : 1.05);
+      if (up < 0.2 || up > max) continue;
+      return { anchor: a, entry: 'side', s: up, dist: n.dist };
+    }
+    return null;
   }
 
   private splitProbe(feet: Vector3, dx: number, dz: number): ReachResult | null {
@@ -296,12 +333,7 @@ export class AttachController {
     }
     let face = 1;
     if (a.kind === 'pipeH') {
-      // hang facing across the pipe on the side the camera looks along
-      const ax = a.b.x - a.a.x;
-      const az = a.b.z - a.a.z;
-      const cx = Math.sin(this.input.camYaw);
-      const cz = Math.cos(this.input.camYaw);
-      face = az * cx - ax * cz >= 0 ? 1 : -1;
+      face = pipeFace(a, this.input.camYaw);
     }
     const t = enterTime ?? (r.entry === 'above' ? LOWER_TIME : r.entry === 'top' && a.kind === 'ladder' ? LADDER_TOP_TIME : undefined);
     return this.attachTo(a, r.s, r.entry, face, t);
@@ -310,6 +342,8 @@ export class AttachController {
   /** Attach now (from the ground, a transfer, a jump or tests): blends from the current feet onto it. */
   attachTo(a: Anchor, s: number, entry: AttachEntry = 'side', face = 1, enterTime?: number, arc = 0): boolean {
     const c = this.player.controller;
+    // a horizontal pipe is hung facing along it, the way the camera looks
+    if (a.kind === 'pipeH') face = pipeFace(a, this.input.camYaw);
     if (!this.m.enter(a, s, entry, face, this.player.rig.height, c.speed, enterTime)) return false;
     this.from.x = c.pos.x;
     this.from.y = c.pos.y;
@@ -601,6 +635,15 @@ export class AttachController {
       this.pipe.update(dt);
       if (!this.pipe.busy && this.grips.pipeFrom !== this.grips.pipeTo) this.grips.setPipe(a, m.s, m.face, this.pipe.mode, this.pipe.mode, this.player.rig.height);
       if (this.pipe.mode !== 'hands' || this.pipe.busy) rate = this.pipe.speed(sp.speed);
+      // by the hands, held back against the facing: turn round on the pipe (the hands re-grip)
+      if (m.phase === 'on' && this.pipe.mode === 'hands' && !this.pipe.busy && axis * m.face < -0.4) {
+        this.backT += dt;
+        if (this.backT >= PIPE_TURN) {
+          this.backT = 0;
+          m.face = -m.face;
+          this.grips.setup(a, m.s, m.face, this.player.rig.height);
+        }
+      } else this.backT = 0;
     }
     // climbing: the stick's sideways push (for stepping off onto a lip beside the climb)
     const side = a.kind === 'ladder' || a.kind === 'pipeV' ? this.sidePush(a) : 0;
@@ -1039,7 +1082,8 @@ export class AttachController {
     const p = attachPose(a, this.m.s, this.m.face, this.player.rig.height, this.ap);
     o.x = p.x;
     o.z = p.z;
-    o.y = a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : p.y + 1.75;
+    // (a split: the braced hands on the walls, a little over the hips)
+    o.y = a.kind === 'ledge' ? a.top : a.kind === 'pipeH' ? a.hangHeight : a.kind === 'split' ? p.y + 1.05 * (this.player.rig.height / 1.75) : p.y + 1.75;
     return o;
   }
 

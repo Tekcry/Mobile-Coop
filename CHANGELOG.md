@@ -112,6 +112,23 @@ Warehouse - Chaos Theory routes (more ways in, more height):
 - Takedowns: the offer now tries the three nearest guards (a guard behind a wall no longer hides the one under you);
   a grab whose hostage is shot dead ends at once.
 
+Playtest changes (Michael, 2026-10-08):
+- Jump: a new touch Jump button; with a controller / keyboard, Y / E jumps when nothing else is on offer. A jump keeps
+  the run's pace (about 0.8 m up) and the hands grab what comes in reach on the way: a lip, a horizontal pipe, a
+  drainpipe or a ladder. A second press in the air between two tall walls braces in a split (a double jump); the split
+  prompt says so.
+- Split jump: the feet brace 2.5 m up (was 1.9 m); the walls need 3.6 m. Warehouse: the corridor's cabinet bank and the
+  wall facing it stand 4 m there.
+- Horizontal pipes: hanging by the hands faces along the pipe (hand over hand, not side-on like a lip), and so does
+  hanging upside down (the legs wrapped round it); hold the stick back against the facing to turn round on it.
+  Standing under a pipe, Y / the action button takes it before a mantle over anything beside it; the mezzanine deck
+  pipe now starts further back over the deck.
+- Touch action button: one button does what the world prompts show - take cover, vault, climb, grab, rappel, wall
+  jump, boost, cover-to-cover, corner, leave cover, use - dimmed when nothing is on offer. The prompts stay on the
+  surfaces as indicators (no longer tapped). With a cover face and an obstacle both prompted, moving (or the stick
+  pushed at it) goes over / up it, standing still takes cover. Touch layout v5 adds the Jump button beside it; saved
+  layouts keep every placement.
+
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
   device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few

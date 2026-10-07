@@ -52,6 +52,7 @@ export class RemoteAvatar {
   /** Movement state posing: the grips on the anchor in use, the pose families, a committed move replaying. */
   private grips = new AttachGrips();
   private gripAnchor = -1;
+  private gripFace = 1;
   private sPrev = 0;
   private mp = emptyMovePose();
   private replay: { t: number; c: MoveCommit; path: PathKind; pose: TraverseKind } | null = null;
@@ -211,10 +212,12 @@ export class RemoteAvatar {
       // the position along the anchor between the two states (the same anchor), else the newest
       const sv = from && to && from.a === to.a && isAttachedMode(from.m) && isAttachedMode(to.m) ? from.s + (to.s - from.s) * Math.max(0, Math.min(1, s.k)) : mv!.s;
       const sub = unpackAttachSub(mv!.sub);
-      if (this.gripAnchor !== mv!.a) {
+      // a new anchor, or (3.2.0) turned round on a pipe: re-grip
+      if (this.gripAnchor !== mv!.a || (a.kind === 'pipeH' && sub.face !== this.gripFace)) {
         this.grips.setPipe(a, sv, sub.face, 'hands', 'hands', this.rig.height);
         this.grips.setup(a, sv, sub.face, this.rig.height);
         this.gripAnchor = mv!.a;
+        this.gripFace = sub.face;
         this.sPrev = sv;
         this.pipeKey = 'hands>hands';
       }

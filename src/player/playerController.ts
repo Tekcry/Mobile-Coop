@@ -256,6 +256,8 @@ export class PlayerController {
 
   /** Leave the ground with a velocity (letting go of a zipline / a jump off an anchor): gravity takes over. */
   launch(vx: number, vy: number, vz: number): void {
+    // (3.2.0) leaving the floor upwards (a jump): the support check would hold the capsule down for its first steps
+    this.takeoffT = vy > 0.5 ? 0.15 : 0;
     this.cc.setVelocity(this.tmp.set(vx, vy, vz));
     this.airTop = this.pos.y;
     this.grounded = false;
@@ -282,6 +284,9 @@ export class PlayerController {
     this.fallSpeed = 0;
     this.teleports++;
   }
+
+  /** (3.2.0) Seconds left in a jump's take-off (`launch` upwards). */
+  private takeoffT = 0;
 
   /** Teleports so far (a committed traversal move in flight is dropped by one). */
   teleports = 0;
@@ -448,7 +453,9 @@ export class PlayerController {
     // Havok character controller step
     const support = (this.support = this.cc.checkSupport(dt, DOWN));
     const cur = this.cc.getVelocity();
-    const grounded = support.supportedState === CharacterSupportedState.SUPPORTED;
+    // (a jump's first steps never count as supported while it still rises)
+    this.takeoffT = Math.max(0, this.takeoffT - dt);
+    const grounded = support.supportedState === CharacterSupportedState.SUPPORTED && !(this.takeoffT > 0 && cur.y > 0.2);
     let out: Vector3;
     if (grounded) {
       out = this.cc.calculateMovement(dt, this.forwardVec(), support.averageSurfaceNormal, cur, support.averageSurfaceVelocity, desired, UP);

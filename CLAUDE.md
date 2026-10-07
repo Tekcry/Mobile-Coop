@@ -23,7 +23,8 @@ Blacklist style.
     D-pad up / down gears, D-pad left tap vs hold (wheel), View tap goggles / hold emote
   - `scripts/e2e-touch.mjs` touch-only: taps menus, floating move stick, rate-based camera stick, drag-look,
     fire button never moves the camera, control sizes, action button only for "use", take-cover prompt tap, no cover badge in cover, a push away leaves;
-    3.2.0 speed rocker (up / down halves, pips, HUD pips fade), a forward roll by touch
+    3.2.0 speed rocker (up / down halves, pips, HUD pips fade), a forward roll by touch, the jump button, the action
+    button dimmed when idle / taking cover at the prompt, prompts are indicators only
   - `scripts/e2e-mouse.mjs` PC mouse capture: click captures (never fires), look, fire, wheel = speed gear (3.2.0),
     X swaps, = / -, Esc pauses, Resume re-captures
   - `scripts/e2e-move.mjs` (3.2.0, `gear=none`: spawn gear 3) every gear's speed both stances, stick scaling, gear kept
@@ -34,7 +35,8 @@ Blacklist style.
   - `scripts/e2e-traverse.mjs` Proving Grounds course (north east): ladder bottom / top entry, climb rate, slide, step
     off; drainpipe to a lip, climb up; ledge grab, shimmy rate, jump across, outside corner, climb up, hold-B lower
     in, drop; horizontal pipe; landing bands (soft / roll / heavy + noise + recovery); grab while falling; zipline;
-    open / glazed windows; duct unscrew, crawl, vent drop + roll, kick (fresh page); keyboard E; touch prompts;
+    open / glazed windows; duct unscrew, crawl, vent drop + roll, kick (fresh page); keyboard E; touch: the action
+    button at the prompts (grab, held at a vent: unscrew), crouch lets go;
     planted hands / feet locked (< 1 cm), arms reach grips
   - `scripts/e2e-anchors.mjs` every placed anchor on every listed map (Proving, Warehouse) (ladders bottom / top, drainpipes, pipes, ziplines,
     ducts, windows both sides) is offered from its approach and engages; hangable lips per map
@@ -55,7 +57,7 @@ Blacklist style.
   - `scripts/e2e-cover.mjs` (A cover, B crouch, Y traverse) snap side-on, turn-and-swap, kneel, peek/blind
     fire/vault, B keeps cover, stand/crouch at high cover + crouched edge peek, lean in place, outside corners (corner prompt + A, never automatic) /
     inside corners, edge stop a step back, no cover badge, SWAT turn, cover-to-cover only when looking at it with the stick held towards it + slide + marker,
-    world prompts (low on the surface, tapped by touch), manual cover only (walking / sprinting into a wall never
+    world prompts (low on the surface; 3.2.0: the touch action button does what they show), manual cover only (walking / sprinting into a wall never
     snaps), crouched aim over low cover, keyboard Space; 3.2.0 cover strafe pace by gear
   - `scripts/e2e-clip.mjs` traversal: no body point (trunk, head, thighs, calves, upper arms; raycast from the hips)
     > 3 cm into the world while climbing, hanging, shimmying, climbing up, crawling, dropping through a vent,
@@ -108,9 +110,10 @@ Blacklist style.
     the drop checks): drainpipe -> roof, rappel -> kick through the dispatch window, skylight drop, the pump house
     boost target (out of reach alone) and the climb to the roof, press wall jump, corridor split + drop, deck pipe +
     drop, yard fence + the nav path round it
-  - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): split jump (offered only facing along, braced feet on
+  - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): the manual jump (up and down, grabs a pipe / lip /
+    drainpipe), split jump (shown only facing along; one Y jumps, a second in the air braces, feet 2.5 m up on
     both walls, no travel, sidearm aim band + fire, B drop, Y up to the lips), wall jump (straight, too far, inside
-    corner), pipe legs up (0.5 m/s, feet up), inverted (camera upright, sidearm + spread x1.3), curl up, hands, damage
+    corner), pipe facing along it + turning round, legs up (0.5 m/s, feet up), inverted (camera upright, sidearm + spread x1.3), curl up, hands, damage
     mid-change, the flip drop; rappel (hook on, rope speeds, kick out + sideways, sidearm, kick through a window,
     unhook height), fence (bullets / sight pass, blocks the body, climb / shimmy speeds, rattle by gear, flip over)
   - `scripts/e2e-feedback.mjs` playtest notes: pause > Report feedback with the context, photo mode (frozen game,
@@ -213,9 +216,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
   default); crouch toggle, sprint toggle; camera-only right stick (rate based: dead zone, response curve, 50 ms smoothing, acceleration when
   held at the rim; never fires); optional drag-look in the empty upper right; separate fire button (84 px; optional
-  left fire; optional fire drag-look); ADS; goggles (`vision`); a contextual action button only to use an interactable (`setAction(TouchAction)` from
-  `GameState`, hidden otherwise; acts on release). Cover, vault/climb/step/drop and cover-to-cover are the world
-  prompts (`ui/hud/worldPrompts.ts`), tapped directly. Secondary buttons >= 56 px. Layout: `settings.touch.layout` (`TOUCH_CONTROL_IDS`, per-control `x, y,
+  left fire; optional fire drag-look); ADS; goggles (`vision`); jump (3.2.0, `leap`); a contextual action button (`setAction(TouchAction)` from `GameState`:
+  use an interactable, else - 3.2.0 - whatever the world prompts show (`ui/hud/worldPrompts.ts`: cover, vault / climb /
+  grab / drop, cover-to-cover, corner), dimmed when idle; acts on release). The prompts are indicators only. Secondary buttons >= 56 px. Layout: `settings.touch.layout` (`TOUCH_CONTROL_IDS`, per-control `x, y,
   scale, alpha?`), presets `LAYOUT_PRESETS` (default / claw / lefty), `TOUCH_LAYOUT_VERSION` 3 (v1 layouts keep
   customised placements, the old fire stick and untouched controls take the new defaults; v2 -> v3 keeps every
   stored placement and adds the `takedown` button, shown only while a takedown is on offer, action `interact`; v3 -> v4
@@ -492,6 +495,20 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   and starts it on both (host included); `teamPairs` for the ladder's end. MoveState modes `brace`, `boost`, `stacked`
   (`sub` 1 top / 2 bottom). `PlayerController.teleports`: a teleport drops a committed traversal move and resets the
   fall's top (no landing where it lands).
+- 3.2.0 playtest changes: the manual jump (`LEAP` in `config/movement.ts`; action `leap`: touch `jump` button, layout v5;
+  Y / E jump when traversal has nothing on offer): `TraversalController.leap` (`PlayerController.launch` up at `LEAP.vy`
+  - the controller's take-off window `takeoffT` stops the support check pinning it down; the air branch falls at ~2 g),
+  in the air `fallProbe` / `AttachController.leapProbe` (drainpipes / ladders within `LEAP.climbReach`) grab at once
+  (after `LEAP.splitWait` when a split gap is under the jump); a second press within `LEAP.doubleTap` over the split
+  (`AttachController.split`, no longer a traverse hint; prompt `splitDouble`; `TraversalController.splitNow` for the
+  touch button) braces in it. `SPLIT.feetHeight` 2.5, `minHeight` 3.6 (`gripCentre` of a split = the braced hands).
+  Horizontal pipes face along the pipe in every sub-state (`attachPose` pipeH yaw along `face`; `pipeFace(a, camYaw)`
+  in `attachTo`; hands one ahead of the other, `pipeHands` either side of the top; inverted: legs straddle it, ankles
+  crossed over the top); held back against the facing for `PIPE_TURN` 0.3 s it turns round (`backT`); `anchorFirst`
+  includes a pipe overhead. Touch action button (`GameState.promptAction`): the world prompt on offer (order: in cover
+  corner / move / vault else leave cover; attached vault / jumpTo / drop; out of cover moving or stick pushed: vault,
+  cover, jumpTo, drop - still: cover first), `TouchAction.press` / `down` / `up` = the prompt's tap / hold handlers;
+  always shown, `tc-idle` when nothing is on offer; world prompts are indicators only (no pointer events).
 - All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
   crouched sneak 0.8 / crouch walk 1.8 / crouch run 2.6, standing walk 1.4 / jog 2.8, sprint 5.0 m/s (toggle or
   hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered at the low ready; aiming ends it via
@@ -684,7 +701,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   looks over it), no badge on the face in use (`state` only warns "Flanked"), `corner` on the edge while pushing
   against an outside corner (`CoverController.cornerSide`), `move` on the cover-to-cover target. One height per surface: `seg.y +
   min(PROMPT_Y 0.55, height / 2)`; `flush()` pushes overlapping prompts apart and keeps them on screen. Glyphs by
-  pad / keyboard, icons and tap-to-act by touch.
+  pad / keyboard, icons by touch (3.2.0: indicators; the touch action button acts on them).
 
 ## Stealth AI (2.0 phase 3a)
 - `ai/perception.ts` (pure, `PERCEPTION`): `sightRate` = rate x (1 - d / range)^1.5 x field (55 deg focus, 25 m;
