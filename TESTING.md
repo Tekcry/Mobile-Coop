@@ -380,6 +380,20 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
 - [ ] TDM: a team-mate can boost you, an opponent cannot (nothing happens).
 - [ ] A takedown on offer still wins over the team move (Y takes the guard).
 
+## 3.2.0 - Warehouse Chaos Theory routes (Free Roam, then Hunter at night)
+- [ ] West yard: the drainpipe on the facade climbs to the roof walkway; footsteps on the roof are louder.
+- [ ] On the roof over the dispatch window: "Rappel", down the rope, "Kick through" at the window, inside dispatch.
+- [ ] The roof's north edge over the workshop: hang there; with the patrol under you, "Drop attack".
+- [ ] Co-op: brace against the pump house (east lot, beside the workshop door); the other player boosts onto it, then
+  climbs from its top onto the roof. Alone, nothing reaches its top.
+- [ ] Service corridor, at the cabinet bank: "Split jump"; the corridor patrol walks under - "Drop attack".
+- [ ] Mezzanine deck: the pipe out over the factory floor; hands / legs up / inverted over the floor patrol.
+- [ ] The press (factory floor): "Wall jump" up onto it; from the top, a drop on the patrol passing it.
+- [ ] Yard fence (east end of the dark lane): climb it at gear 3 (quiet) / gear 4 (rattles), flip over into the east
+  lot; guards chasing go round by the facade.
+- [ ] Hunter on the Warehouse: every room still clears; Infiltration missions (Ledger, Courier, Blackout, Cold Storage)
+  still complete.
+
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
 - [ ] Fresh install on the iPhone: a toast "Graphics: <preset> for this device" a few seconds after the menu shows;

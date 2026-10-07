@@ -104,6 +104,10 @@ Blacklist style.
     rope, fence); team moves (phase 5: the client braces and boosts the host onto the 4.2 m lip, the host braces and
     the client climbs the human ladder and grabs the lip, a request without a braced partner is denied); TDM: a host
     shot at a client hanging off a lip hits the head
+  - `scripts/e2e-ct-warehouse.mjs` (3.2.0) the Warehouse CT routes (Hunter, guards frozen; one brought in for
+    the drop checks): drainpipe -> roof, rappel -> kick through the dispatch window, skylight drop, the pump house
+    boost target (out of reach alone) and the climb to the roof, press wall jump, corridor split + drop, deck pipe +
+    drop, yard fence + the nav path round it
   - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): split jump (offered only facing along, braced feet on
     both walls, no travel, sidearm aim band + fire, B drop, Y up to the lips), wall jump (straight, too far, inside
     corner), pipe legs up (0.5 m/s, feet up), inverted (camera upright, sidearm + spread x1.3), curl up, hands, damage
@@ -303,7 +307,12 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   (`sandbox`) places the training dummies only on Proving Grounds. `LevelBuilder.wallX/wallZ` build walls with door gaps.
 - Warehouse (`world/maps/warehouse.ts`): truck yard, loading dock, dispatch, workshop, a 2.2 m service corridor,
   racking aisles, factory floor, a mezzanine deck (stairs) and two offices; roofed (visual only: roof and lights
-  do not collide, so the nav sampler sees the floor) with skylight strips. Nine tagged rooms with squads. Proving
+  do not collide, so the nav sampler sees the floor) with skylight strips. Nine tagged rooms with squads (3.2.0: the
+  corridor has a patrol). 3.2.0 Chaos Theory routes: the south roof strip (x -22..21, top 6.275) is a solid walkway
+  (`overhead`, metal surface) reached by a drainpipe (west yard) or from the 4.2 m pump house (east lot; co-op boost /
+  human ladder), a rappel point over the dispatch window, a cabinet bank in the corridor (a 1.5 m split gap), a deck
+  pipe from the mezzanine (x 17, 4.4 m) over the floor patrol, the press at 3.3 m (wall jump), a yard fence (x 14.5)
+  closing the dark lane off from the east lot (`scripts/e2e-ct-warehouse.mjs`). Proving
   Grounds has a three-room mini set (north west) for tests.
 - `LevelBuilder.build` emits thin instances (boxes, cylinders) and one static body with a container shape.
   Use `visible=false` pieces for collision-only helpers (stairs collide as a ramp).
@@ -475,7 +484,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - 3.2.0 phase 5 (co-op team moves): `TEAM` table (`config/movement.ts`), `game/teamMoves.ts` (pure: `checkTeamRequest`
   -> `TeamDenial`, `canBrace`, `boostPath`), `game/teamController.ts` `TeamController` (`GameState.team`; states none /
   brace / boost / assist / ladderUp / top / bottom; `offer` = a braced mate within `partnerReach` + the boost target
-  from `findJumpTarget` over the toss apex). Y: tap at a braced mate = boost, held `TEAM.braceHold` = ladder, held with
+  from `findJumpTarget` 1.15 m under `boostMax`: lips 3.75-4.5 m, beyond a wall jump). Y: tap at a braced mate = boost, held `TEAM.braceHold` = ladder, held with
   a mate within `mateRange` and a wall behind (`wallBehind`, one ray) = brace; B ends brace / bottom / top. Y order in
   `GameState`: takedown > team > traversal (CT moves included) > interact; cover / traversal skip while a team move
   runs. NetAttachment `teamMates` / `teamRequest` / `teamEnd`; messages `tmove` (client -> host), `tstart` / `tdeny` /

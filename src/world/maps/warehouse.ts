@@ -71,7 +71,16 @@ const ROOMS: RoomDef[] = [
       { kind: 'enforcer', x: 11, z: -16.8, yaw: 0.6 },
     ],
   },
-  { id: 'corridor', name: 'Corridor', minX: -4, maxX: 24, minZ: -11, maxZ: -8.8 },
+  {
+    id: 'corridor',
+    name: 'Corridor',
+    minX: -4,
+    maxX: 24,
+    minZ: -11,
+    maxZ: -8.8,
+    // (3.2.0) a patrol through the service corridor: under the split jump at the cabinet bank
+    squad: [{ kind: 'grunt', x: 21, z: -9.9, yaw: -Math.PI / 2, route: [[21, -9.9], [1.5, -9.9]], wait: 4 }],
+  },
   {
     id: 'racking',
     name: 'Racking Aisles',
@@ -238,7 +247,8 @@ export const warehouse: MapDef = {
 
     // factory floor: columns, a press, low machines, a conveyor line, stairs to the mezzanine
     for (const [x, z] of [[2, -4], [10, -4], [18, -1], [2, 5], [10, 5]] as const) b.pillar(x, z, 0.35, 6, CONCRETE);
-    b.block(6, 1, 2.4, 2.6, 2.0, STEEL).box(6, 2.9, 1, 1.6, 0.6, 1.2, HAZARD, 0, 0, false);
+    // (3.2.0) the press stands 3.3 m: out of reach standing, a wall jump up to a perch over the floor
+    b.block(6, 1, 2.4, 3.3, 2.0, STEEL).box(5.25, 3.5, 1, 0.6, 0.4, 0.9, HAZARD, 0, 0, false);
     b.block(14, -2.5, 3.0, 1.2, 1.6, STEEL).block(14, 3.5, 3.0, 1.2, 1.6, STEEL);
     b.block(4, 8.6, 10, 1.0, 0.9, '#3d4247');
     b.block(-1.8, -6.6, 1.2, 1.1, 1.2, CRATE);
@@ -332,7 +342,11 @@ export const warehouse: MapDef = {
     b.ambientZone(-7.5, 12.5, -26, -23.8, 0.17, -1, 6);
 
     // roof with skylight strips and hanging lights (visual only: no collision, nav samples the floor)
-    for (let z = -18; z < 18; z += 6) b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);
+    // (the south strip over the facade is a solid walkway between x -22 and 21: built with the Chaos Theory routes)
+    for (let z = -18; z < 18; z += 6) {
+      if (z === -18) b.box(-23, 6.15, z + 2.4, 2, 0.25, 4.8, ROOF, 0, 0, false).box(22.5, 6.15, z + 2.4, 3, 0.25, 4.8, ROOF, 0, 0, false);
+      else b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);
+    }
     // lamps: only some are on (pools of light, dark aisles between); each room's lamps are one circuit
     for (let x = -18; x <= 18; x += 9) {
       for (let z = -15; z <= 15; z += 6) {
@@ -351,6 +365,30 @@ export const warehouse: MapDef = {
     b.surface('metal', 8, 24, 12, 18, 2.6);
     for (const x of [-20.5, -16.5, -12.5, -8.5]) b.surface('metal', x - 0.5, x + 0.5, -4.2, 16.6, 2.8);
     b.surface('carpet', -4, 8, 12.15, 18);
+
+    // Chaos Theory routes (3.2.0): the roof walkway over the south facade (moonlit, a metal deck: loud above gear 2),
+    // reached by a drainpipe in the west yard (solo) or the pump house in the east lot (co-op: a boost or the human
+    // ladder up its 4.2 m wall, then a climb); a rappel point over the glazed dispatch window (kick through), the
+    // skylight lip over the workshop patrol (drop attack); a cabinet bank narrowing the service corridor to 1.5 m
+    // (split jump over the corridor patrol, lips above); a pipe from the mezzanine deck out over the factory floor
+    // patrol (hands, legs up, inverted, drop attacks); the press (3.3 m, wall jump); a chain-link fence closing the
+    // dark yard lane off from the east lot (climb it in the dark, or walk round through the lit gap by the facade)
+    const RT = 6.275;
+    const roof0 = b.boxes.length;
+    b.box(-0.5, 6.15, -15.675, 43, 0.25, 4.95, ROOF);
+    b.mark(roof0, { overhead: true });
+    b.surface('metal', -22, 21, -18.15, -13.2, RT);
+    b.pipeV(-21.6, -18.23, 0, RT, 0, PIPE);
+    b.rappel(1.2, RT, -18.15, Math.PI, RT);
+    // the pump house: a 4.2 m block against the facade beside the workshop door
+    b.block(20.2, -19.025, 3.2, 4.2, 1.75, WALL);
+    b.box(19.0, 2.4, -19.92, 0.9, 1.1, 0.06, STEEL, 0, 0, false);
+    // the corridor's cabinet bank (3.2 m, against the north wall)
+    b.block(9, -9.15, 4, 3.2, 0.4, '#4b5560');
+    // the deck pipe and its hangers from the roof
+    b.pipeH(17, 12.6, 17, -0.2, 4.4, PIPE);
+    for (const z of [10, 6, 2.6, 0.2]) b.box(17, 5.23, z, 0.05, 1.54, 0.05, PIPE, 0, 0, false);
+    b.fence(14.5, -25.85, 14.5, -22.3, 2.6);
 
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
     const props: MapLayout['props'] = [

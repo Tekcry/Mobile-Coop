@@ -67,8 +67,19 @@ for (const [map, mode] of MAPS) {
       }
       for (const pv of L.pipesV) tryIt(`drainpipe ${pv.id}`, pv, pv.base.x - Math.sin(pv.side) * 0.55, pv.base.z - Math.cos(pv.side) * 0.55, pv.base.y + 1, pv.side, hintIs(pv.id));
       for (const ph of L.pipesH) {
-        const mx = (ph.a.x + ph.b.x) / 2;
-        const mz = (ph.a.z + ph.b.z) / 2;
+        // under the pipe where the floor puts it within reach (the middle, else nearer an end: a pipe out from a deck)
+        let mx = (ph.a.x + ph.b.x) / 2;
+        let mz = (ph.a.z + ph.b.z) / 2;
+        for (const t of [0.5, 0.1, 0.9, 0.02, 0.98]) {
+          const x = ph.a.x + (ph.b.x - ph.a.x) * t;
+          const z = ph.a.z + (ph.b.z - ph.a.z) * t;
+          const fy = floorAt(x, z, ph.hangHeight - 0.3);
+          if (fy !== null && ph.hangHeight - fy <= 2.6 && ph.hangHeight - fy >= 1.6) {
+            mx = x;
+            mz = z;
+            break;
+          }
+        }
         tryIt(`pipe ${ph.id}`, ph, mx, mz, ph.hangHeight - 0.3, Math.atan2(ph.b.x - ph.a.x, ph.b.z - ph.a.z) + Math.PI / 2, hintIs(ph.id));
       }
       for (const z of L.ziplines) {

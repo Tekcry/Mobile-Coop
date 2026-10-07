@@ -96,6 +96,19 @@ Phase 5 - co-op team moves:
   roll where it lands).
 - Proving Grounds: a 4.2 m block north (out of reach alone) for boosts and the human ladder.
 
+Warehouse - Chaos Theory routes (more ways in, more height):
+- A roof walkway over the south facade (6.3 m, moonlit, a loud metal deck): up a drainpipe in the west yard, or - with a
+  team-mate - a boost or the human ladder up the new pump house in the east lot and a climb from its top.
+- A rappel point on the roof edge over the glazed dispatch window: down the rope, kick through into dispatch.
+- The skylight edge over the workshop: hang from it and drop on the patrol below.
+- The service corridor narrows to 1.5 m at a cabinet bank: split jump over the new corridor patrol (or drop on him), the
+  cabinet and wall tops above.
+- A pipe from the mezzanine deck out over the factory floor at 4.4 m, above the floor patrol: legs up, inverted, drop.
+- The big press stands 3.3 m: a wall jump up to a perch over the floor.
+- A chain-link fence closes the dark yard lane off from the east lot: climb it in the dark (quietly at gears 1-3) or walk
+  round through the lit gap by the facade. Guards walk round.
+- One more guard: a corridor patrol (Hunter / Infiltration counts include him).
+
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
   device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few

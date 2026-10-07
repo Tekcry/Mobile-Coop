@@ -10,7 +10,7 @@ Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-
 | 3 Rappel, fences | done (waiting for review) | see log |
 | 4 CT takedowns and grab | done (waiting for review) | see log |
 | 5 Co-op team moves | done (waiting for review) | see log |
-| Warehouse CT routes | in progress | |
+| Warehouse CT routes | done (waiting for review) | see log |
 
 ## Next step
 Michael (2026-10-07, before going to bed): proceed with all remaining phases and a Warehouse update for the new moves;
@@ -144,6 +144,31 @@ Open issues:
 - Bracing has no prompt; the human ladder by touch needs the prompt held (tap = boost).
 - The fence's chain-link is a flat textured panel (no voxels): it looks thin from the side.
 - Rappel / fence / team moves have no dedicated clips beyond `RAPPEL_HANG` / `BRACE` (the climb clips stand in).
+
+### Warehouse - Chaos Theory routes (2026-10-07, overnight)
+Files: `src/world/maps/warehouse.ts` (roof walkway, drainpipe, pump house, rappel, cabinet bank, deck pipe, press 3.3 m,
+yard fence, corridor patrol), `src/game/teamController.ts` (boost search origin), `scripts/e2e-ct-warehouse.mjs`
+(new, in `run-e2e.mjs`), `scripts/e2e-anchors.mjs` (pipes approached where the floor puts them in reach),
+`scripts/e2e-netmove.mjs` (partner walks off mid-request), `tests/net.test.ts` (team messages).
+
+Routes (west to east, ground to roof):
+- Yard -> roof: drainpipe (solo, west yard) or the pump house (co-op boost / human ladder, east lot) and a climb.
+- Roof (6.3 m, moonlit, metal = loud): rappel over the dispatch window (kick through), hang off the skylight edge over
+  the workshop patrol (drop attack), walk the length of the building.
+- Ground floor: corridor split at the cabinet bank over the new corridor patrol; the press perch (wall jump); the
+  mezzanine deck pipe over the floor patrol; the rack tops (2.8 m: wall jump or the three ladders) over the aisles.
+- Yard: the fence splits the dark lane from the east lot (climb quietly or walk round through the lit gap).
+
+Decisions:
+- The roof is the only real height in a 6 m building, so it became the new layer: one solid strip (the south one) with
+  lips on every edge; the other strips stay visual. Its south lip is the rappel's edge; its north lip is the skylight.
+- The boost wall is a solid pump house (a canopy left the climber hanging in the air with nothing under the feet).
+- Boost targets are lips 3.75-4.5 m up (lower ones are a wall jump alone); the search origin was too low before (a
+  4.2 m lip sat on the 1.2 m jump limit, so the Proving test passed by a hair).
+- Spec deviations for the team messages: `tmove` / `tstart` / `tdeny` / `tend` (the name `team` is the lobby's side
+  change); a start plays at once on receipt (both sides within one network delay) rather than from `t0` by `ClockSync`;
+  the top of the human ladder is free to aim with no pitch clamp.
+- One more guard (corridor patrol): the split and the corridor needed someone to drop on.
 
 ## Preview
 `ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).

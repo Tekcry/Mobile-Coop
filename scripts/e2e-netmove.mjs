@@ -356,6 +356,24 @@ try {
   await until(A, () => window.__app.current.team.state === 'none', null, 4000, 'host free once the client is off');
   assert(true, 'human ladder: the client climbs the braced host, the host sees it stacked, Y grabs the lip from the top');
 
+  // denial: the client braces, the host is offered a boost, the client lets go and walks off before the host asks
+  await placeTeam(B, 4, 27.05, Math.PI);
+  await placeTeam(A, 4, 26.2, 0);
+  await wait(600);
+  await brace(B, 'client (again)');
+  await until(A, () => !!window.__app.current.team.offer?.boost, null, 6000, 'host offered a boost again');
+  const pending = await GA(() => { const o = window.__app.current.team.offer; return { id: o.mate.id, target: o.boost.anchor.id, s: o.boost.s, gy: o.boost.grip.y }; });
+  await GB(() => { window.__pad.set(1, 1); });
+  await wait(150);
+  await GB(() => { window.__pad.set(1, 0); window.__pad.axis(1, -1); });
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.state?.mv?.m === 'ground' && r.feet.z < 25.5; }, null, 6000, 'host sees the client walk off');
+  await GB(() => window.__pad.axis(1, 0));
+  const deniedBefore = await GA(() => window.__app.current.team.count.denied);
+  await GA((p) => window.__app.current.net.teamRequest('boost', p.id, p.target, p.s, p.gy), pending);
+  const moved = await GA(() => ({ n: window.__app.current.team.count.denied, why: window.__app.current.team.lastDenied, st: window.__app.current.team.state }));
+  assert(moved.n > deniedBefore && moved.st === 'none' && ['notBraced', 'far'].includes(moved.why), `the partner moved away mid-request: denied (${moved.why})`);
+  await wait(1100);
+
   // denials: the host refuses a request without a braced partner
   await GB(() => { const g = window.__app.current; g.traversal.detach('drop'); });
   await wait(800);

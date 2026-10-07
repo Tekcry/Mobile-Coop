@@ -187,7 +187,9 @@ export class TeamController {
     // the braced mate's back is to the wall: the toss goes over them towards it
     const dx = -Math.sin(m.yaw);
     const dz = -Math.cos(m.yaw);
-    const apex = { x: m.pos.x, y: floor + 0.75 + 2.2, z: m.pos.z };
+    // searched from 1.15 m under the highest boost (a jump takes lips up to 1.2 m above, and those at least 0.4 m
+    // above when pushing up): lips 3.75-4.5 m up, the ones out of a wall jump's reach
+    const apex = { x: m.pos.x, y: floor + TEAM.boostMax - 1.15, z: m.pos.z };
     const t = findJumpTarget(g.world.level.anchors, apex, -1, dx, dz, 1, 2.2, 0.2);
     if (!t || t.grip.y - floor > TEAM.boostMax || t.grip.y - floor < 2.4) return null;
     return t;
