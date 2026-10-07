@@ -215,7 +215,7 @@ export class MenuState implements AppState {
         }
       }
     }
-    this.stack.apply({ ...q, features: { ...q.features, volumetrics: false, ssr: false, motionBlur: false } });
+    this.stack.apply({ ...q, features: { ...q.features, volumetrics: false, reflections: 'off', motionBlur: false } });
   }
 
   /** What the preview shows (rebuilt only when it changes). */

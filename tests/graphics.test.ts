@@ -36,11 +36,11 @@ describe('graphics settings (3.0)', () => {
     expect(old.video.renderScale).toBe(0.7);
     const s = defaultSettings();
     setGfx(s, 'lights', 44);
-    setGfx(s, 'ssr', false);
+    setGfx(s, 'reflections', 'off');
     const back = sanitizeSettings(JSON.parse(JSON.stringify(s)));
     expect(back.video.preset).toBe('custom');
     expect(back.video.gfx.lights).toBe(44);
-    expect(back.video.gfx.ssr).toBe(false);
+    expect(back.video.gfx.reflections).toBe('off');
     expect(sanitizeSettings({ video: { renderScale: 9, fpsCap: 77, fovH: 200 } }).video).toMatchObject({ renderScale: 2, fpsCap: 0, fovH: 120 });
   });
   it('the frame limiter renders every other frame for 60 on a 120 Hz display', () => {

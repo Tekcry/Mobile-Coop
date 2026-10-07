@@ -872,7 +872,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   context is missing/suspended (before the first gesture). Game wiring lives in `audio/gameAudio.ts`.
 - Graphics (3.0, `core/quality.ts` pure): `GRAPHICS_PRESETS` High / Ultra / Epic fill `GraphicsFeatures` (shadows
   off / high / ultra / epic -> `shadowSpec`: sun cascades, lamp / flashlight casters 3 / 5 / 8 (WebGL's 16 texture
-  units), map size, PCSS; lights 8-48; ao, bloom, ssr, volumetrics, dof, motionBlur, lens, aa fxaa / msaa / taa,
+  units), map size, PCSS; lights 8-48; ao, bloom, reflections off / ssr / rt (+ `rtRes` half / full), volumetrics, dof, motionBlur, lens, aa fxaa / msaa / taa,
   textures / detail / effects tiers), `presetOf` (Custom), `qualityLevel` -> `QualityLevel`. Settings `video.preset`,
   `video.gfx`, `renderScale` 0.5-2 (native DPR, no cap), `dynamicRes` (off), `fpsCap` (`GameLoop.fpsCap`,
   `capAllows`), `fovH` 60-120; `setGfx` / `setPreset`. `app.quality` (QualityManager) applies the level to the state's
@@ -978,6 +978,30 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   entry): one `texSubImage3D` texel, or for a uniform brick a new explicit slot from the GPU pool's spare capacity
   (brick + indirection texel); geometry, collision and meshes never change. `Vfx.chips` throws cubes of the struck
   colour (instead of the decal).
+- GI (3.0 phase 6, `GraphicsFeatures.gi`, Epic; baked at load, so "next map"): `world.ts` `giLights(reg)` packs the
+  map's fixed lights (not flashlights; `GI_STRIDE`) with a slot per lamp circuit (`group`, <= `GI_SLOTS` 12, more share
+  the last); the sky bake job takes them (`skyBake.ts` `bakeGi`, pure: per air cell near a light, 12 rays to the
+  surfaces round it, each surface's direct light from that lamp - falloff, cone, facing, a visibility march - bounced
+  at a grey albedo, into the light's slot; RGBA / `GI_MAX`). `VoxelWorld.giTex` (the sky cells, slots stacked along
+  z; the fine layer reads the structure's), `VoxelPlugin` `VOXEL_GI` adds the slots x `giWeights` (World.updateGi on a
+  `LightRegistry.version` change: the lit share of each circuit - switches, shot-out lamps, EMP) to the voxel ambient.
+  Cached with the sky (`VOXEL_VERSION` 4, the key carries the lights' hash).
+- Reflections (3.0 phase 5, `GraphicsFeatures.reflections` off / ssr / rt; settings before had `ssr` on / off):
+  `vfx/rtReflections.ts` `RtReflections` (PostStack, Ray traced with a voxel world, `PostStackOptions.rt` = GameState's
+  `RtSource`: the structure layer's textures, its plugin's wet / fills, `rtCapsules`, the light registry): `rtScene`
+  (a copy) -> `rtReflect` (per pixel, or a checkerboard alternating per frame at `rtRes` half: the voxel the pixel
+  shows gives an axis normal, metal (`VX_P`), wetness / puddle -> roughness; glossy ones reflect: screen space first
+  (20 steps against the depth), then a brickmap DDA (empty bricks skipped, <= 320 steps, 30 m) and up to 16 character
+  capsules; hits shaded by palette colour, sky fill x baked visibility, 16 nearest lights, emissive) -> `rtComposite`
+  (a tent over the traced pixels added to the scene). The SSR pipeline is off while it runs.
+- TAAU (3.0 phase 5, Display > Upscaler, `video.upscaler` off / taau with a render scale < 1; `QualityLevel.upscale`):
+  the canvas stays native (`QualityManager.applyScale`), `vfx/taau.ts` `Taau` is first in the chain (its input sets
+  the scene's size), jitters the projection (Halton 2, 3 in low-res pixels; un-jittered view-projection kept for the
+  reprojection), resolves at full resolution (Catmull-Rom current, history reprojected through the depth and clamped
+  to the 4-neighbourhood, 1 : 9) into a ping-pong pair handed on by `taauPass`; replaces TAA.
+- Panini (3.0 phase 5, `video.panini` 0..1, `QualityLevel.panini`): `core/panini.ts` (pure: `paniniView`,
+  `paniniScale` fit to the width) and `vfx/paniniPass.ts` (after the default pipeline, before the grade). World
+  prompts and markers are projected rectilinear (they drift a little near the sides with a strong Panini).
 - Weather (3.0, `MapTheme.weather`: Port rain, Dust Depot dust, Refinery haze): `vfx/weather.ts` `Weather`
   (thin-instanced streaks / motes in a box wrapped round the camera, updated in place, count x effects density),
   `SurfacePlugin.wet` (upward faces darker and glossy, more in cavities: SSR puddles), the volumetric pass's

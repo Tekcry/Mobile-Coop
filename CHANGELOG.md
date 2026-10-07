@@ -1,6 +1,6 @@
 # Changelog
 
-## 3.0.0 - PC renderer, Warehouse focus, desktop interface, playtest feedback (in progress)
+## 3.0.0 - PC renderer, Warehouse focus, desktop interface, playtest feedback
 - Focus: the Warehouse is the one playable map and runs every mode - Hunter, Wave, Mission, Infiltration (four
   missions: Cold Storage, Ledger, Courier, Blackout - every objective type), Free Roam (new: the whole map, no
   guards, every weapon), co-op and PvP. Proving Grounds stays as a plain range for Free Roam and Training. Embassy,
@@ -26,6 +26,15 @@
   avatar style stays as it was.
 - Voxel weapons and gadgets: every gun (in the hands, on the back, the hip and the thigh, in the Loadout preview) is
   built from 1 cm voxels with 5 mm sights, pins and triggers; thrown grenades and the drone are voxels too.
+- Global illumination (Epic; Graphics > Global illumination): the lamps' light bounces off floors and walls into the
+  rooms around them, per circuit - switch a room's lights off, shoot a lamp out or set off an EMP and its bounce light
+  goes with it.
+- Ray-traced reflections (Settings > Graphics > Reflections: Off / Screen space / Ray traced): wet floors, puddles
+  and steel reflect the voxel world off screen too - walls, racks, lamps, the sky through the skylights - and the
+  characters; half rate (a checkerboard, default) or full.
+- TAAU upscaling (Settings > Graphics > Display > Upscaler): with a resolution scale under 100% the game renders
+  smaller and rebuilds a sharp full-resolution image over frames (e.g. 7680 x 2160 from 67%).
+- Panini projection (Display): keeps very wide fields of view from stretching at the sides (ultrawide screens).
 - Bullet chips: shots knock a voxel-sized pock out of walls, floors and props with a spray of debris in the struck
   material's colour (cosmetic - cover and collision never change).
  21:9 and 32:9 (up to 7680 x 2160) - the view widens with the screen up to a widest field of

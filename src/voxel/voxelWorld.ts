@@ -26,6 +26,8 @@ export interface VoxelWorldOptions {
   /** Bake the sky visibility (the structure layer); a finer layer reads another layer's (`skyFrom`). */
   bakeSky?: boolean;
   skyFrom?: VoxelWorld | null;
+  /** One-bounce GI per light group (Epic): the lights (`GI_STRIDE` each) and the group slots (with the sky bake). */
+  gi?: { lights: Float32Array; groups: number } | null;
 }
 
 interface Chunk {
@@ -54,6 +56,10 @@ export class VoxelWorld {
   /** The sky bake: visibility per cell and, per column, the top of the highest solid cell (rain stops there). */
   sky: { origin: [number, number, number]; cell: number; n: [number, number, number]; roof: Float32Array } | null = null;
   private skyVis: Uint8Array | null = null;
+  private giData: Uint8Array | null = null;
+  /** GI group slots (0: no GI). */
+  giGroups = 0;
+  giTex: RawTexture3D | null = null;
   private skyFrom: VoxelWorld | null = null;
   /** The sky visibility texture (null without a bake). */
   skyTex: RawTexture3D | null = null;
@@ -112,7 +118,7 @@ export class VoxelWorld {
       const pool = new WorkerPool();
       w.stats.workers = pool.size;
       try {
-        const skyJob = opts.bakeSky === false ? null : pool.sky({ kind: 'sky', id: -1, origin: [...lv.origin], cell: SKY_CELL, n: skyN, shapes: packed.slice() });
+        const skyJob = opts.bakeSky === false ? null : pool.sky({ kind: 'sky', id: -1, origin: [...lv.origin], cell: SKY_CELL, n: skyN, shapes: packed.slice(), lights: opts.gi?.lights.slice(), groups: opts.gi?.groups });
         results = await Promise.all(jobs.map((j) => pool.run(j)));
         sky = skyJob ? await skyJob : null;
       } finally {
@@ -123,6 +129,8 @@ export class VoxelWorld {
     if (sky) {
       w.sky = { origin: [...lv.origin], cell: SKY_CELL, n: skyN, roof: sky.roof };
       w.skyVis = sky.vis;
+      w.giData = sky.gi ?? null;
+      w.giGroups = sky.gi ? (opts.gi?.groups ?? 0) : 0;
     }
     w.skyFrom = opts.skyFrom ?? null;
     w.assemble(scene, results, levels, cx, cy, cz);
@@ -284,10 +292,28 @@ export class VoxelWorld {
       sky = new RawTexture3D(new Uint8Array([255]), 1, 1, 1, Constants.TEXTUREFORMAT_R, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
       this.textures.push(sky);
     }
+    // GI per light group: the slots stacked along z (the structure layer bakes it; a finer layer reads it)
+    let gi: RawTexture3D | null = null;
+    let giGroups = 0;
+    if (this.giData && this.sky && this.giGroups) {
+      const [sx, sy, sz] = this.sky.n;
+      gi = new RawTexture3D(this.giData, sx, sy, sz * this.giGroups, Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+      gi.wrapU = gi.wrapV = gi.wrapR = Texture.CLAMP_ADDRESSMODE;
+      this.textures.push(gi);
+      this.giTex = gi;
+      giGroups = this.giGroups;
+    } else if (this.skyFrom?.giTex) {
+      gi = this.skyFrom.giTex;
+      giGroups = this.skyFrom.giGroups;
+    }
+    if (!gi) {
+      gi = new RawTexture3D(new Uint8Array(4), 1, 1, 1, Constants.TEXTUREFORMAT_RGBA, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+      this.textures.push(gi);
+    }
     this.poolTex = pool;
     this.indexTex = index;
     this.poolCap = layers * POOL_ROW * POOL_ROW;
-    return { index, pool, palette, origin: [...this.lv.origin], size: this.lv.size, bricks: [bm.bx, bm.by, bm.bz], sky, skyOrigin: so ? so.origin : [0, 0, 0], skyCell: so ? so.cell : 0, skyDims: so ? so.n : [1, 1, 1] };
+    return { index, pool, palette, origin: [...this.lv.origin], size: this.lv.size, bricks: [bm.bx, bm.by, bm.bz], sky, skyOrigin: so ? so.origin : [0, 0, 0], skyCell: so ? so.cell : 0, skyDims: so ? so.n : [1, 1, 1], gi, giGroups };
   }
 
   private poolTex: RawTexture3D | null = null;

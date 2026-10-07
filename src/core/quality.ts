@@ -9,6 +9,10 @@ export type FixedPreset = Exclude<GraphicsPreset, 'custom'>;
 export type ShadowQuality = 'off' | 'high' | 'ultra' | 'epic';
 export type AaMode = 'fxaa' | 'msaa' | 'taa';
 export type TierQuality = 'high' | 'ultra' | 'epic';
+/** Reflections: none, screen space, or ray traced through the voxel world (hybrid: screen space first). */
+export type ReflectionMode = 'off' | 'ssr' | 'rt';
+/** Ray-traced reflections: every pixel, or half (a checkerboard alternating each frame). */
+export type RtRes = 'half' | 'full';
 
 /** The per-feature graphics settings a preset fills. */
 export interface GraphicsFeatures {
@@ -19,8 +23,11 @@ export interface GraphicsFeatures {
   /** Screen-space ambient occlusion. */
   ao: boolean;
   bloom: boolean;
-  /** Screen-space reflections on wet / polished floors. */
-  ssr: boolean;
+  /** Reflections on wet / polished floors, steel and puddles. */
+  reflections: ReflectionMode;
+  rtRes: RtRes;
+  /** One-bounce global illumination per lamp circuit (baked when the map loads). */
+  gi: boolean;
   /** Volumetric light shafts and height fog. */
   volumetrics: boolean;
   /** Depth of field: aiming and the menu operator. */
@@ -38,13 +45,13 @@ export interface GraphicsFeatures {
 }
 
 export const GRAPHICS_PRESETS: Record<FixedPreset, GraphicsFeatures> = {
-  high: { shadows: 'high', lights: 16, ao: true, bloom: true, ssr: false, volumetrics: false, dof: true, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' },
-  ultra: { shadows: 'ultra', lights: 24, ao: true, bloom: true, ssr: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'msaa', textures: 'ultra', detail: 'ultra', effects: 'ultra' },
-  epic: { shadows: 'epic', lights: 32, ao: true, bloom: true, ssr: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'taa', textures: 'epic', detail: 'epic', effects: 'epic' },
+  high: { shadows: 'high', lights: 16, ao: true, bloom: true, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, dof: true, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' },
+  ultra: { shadows: 'ultra', lights: 24, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: false, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'msaa', textures: 'ultra', detail: 'ultra', effects: 'ultra' },
+  epic: { shadows: 'epic', lights: 32, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'taa', textures: 'epic', detail: 'epic', effects: 'epic' },
 };
 export const PRESET_IDS = ['high', 'ultra', 'epic'] as const;
 /** Tests only (`?gfx=min`): every feature off, the fewest lights - headless software GL keeps its frame rate. */
-export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, ssr: false, volumetrics: false, dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };
+export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };
 export const FEATURE_KEYS = Object.keys(GRAPHICS_PRESETS.epic) as (keyof GraphicsFeatures)[];
 export const LIGHT_RANGE = { min: 8, max: 48 } as const;
 
@@ -104,11 +111,17 @@ export interface QualityLevel {
   detailScale: number;
   /** Tests (`?gfx=min`): no post stack at all, a few plain lights - the phone-era cost on software GL. */
   minimal: boolean;
+  /** TAAU: the scene renders at this fraction of the display's resolution and is resolved up to it (1: off). */
+  upscale: number;
+  /** Panini projection strength (0: off). */
+  panini: number;
 }
 
-export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false): QualityLevel {
+export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0): QualityLevel {
   return {
     minimal,
+    upscale: minimal ? 1 : Math.max(0.5, Math.min(1, upscale)),
+    panini: minimal ? 0 : Math.max(0, Math.min(1, panini)),
     name,
     features: f,
     shadow: shadowSpec(f.shadows),

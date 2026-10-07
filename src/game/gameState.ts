@@ -341,6 +341,8 @@ export class GameState implements AppState {
       // fog: moonlit shafts under the skylights and through the doors (the voxels' sky bake)
       sky: vx?.skyTex && vx.sky ? { tex: vx.skyTex, origin: vx.sky.origin, cell: vx.sky.cell, dims: vx.sky.n } : null,
       shafts: wx === 'fog' ? [sun.r * 0.03, sun.g * 0.03, sun.b * 0.035] : [0, 0, 0],
+      // ray-traced reflections (Settings > Graphics > Reflections): the structure layer's brickmap
+      rt: vx?.plugins[0] ? { tex: vx.plugins[0].tex, state: () => vx.plugins[0]!, capsules: this.rtCapsules, lights: world.level.lights.lights.length ? world.level.lights : null } : null,
     });
     this.weather = new Weather(this.scene, kind);
     if (vx) this.weather.occluder = (x, z) => vx.roofAt(x, z);
@@ -548,10 +550,19 @@ export class GameState implements AppState {
     });
   }
 
+  /** Characters for the ray-traced reflections: upright capsules (the player, then the living guards). */
+  private readonly rtCapsules = (a: Float32Array, b: Float32Array, max: number): number => {
+    const p = this.player.position;
+    let n = rtCapsule(a, b, 0, p.x, p.y, p.z, this.player.rig.headNode.getAbsolutePosition().y - p.y + 0.12);
+    const es = this.enemyMgr?.enemies;
+    if (es) for (let i = 0; i < es.length && n < max; i++) if (es[i]!.alive) n = rtCapsule(a, b, n, es[i]!.pos.x, es[i]!.pos.y, es[i]!.pos.z, es[i]!.def.height);
+    return n;
+  };
+
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
-    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: 0.05, fineSize: 0.025, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: true };
+    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: 0.05, fineSize: 0.025, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: true, gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
     setVoxelBodies(flags.voxels && !q.minimal ? { size: 0.02, lodSize: 0.04, lodDistance: LOD_DISTANCE * q.detailScale } : null);
     // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
@@ -1828,4 +1839,16 @@ export class GameState implements AppState {
     const p = this.player.controller.renderPos;
     this.minimap.draw(performance.now(), p.x, p.z, cam.yaw, blips);
   }
+}
+
+/** One upright capsule (feet at y, `h` tall) into the reflection pass's arrays at `n`; returns n + 1. */
+function rtCapsule(a: Float32Array, b: Float32Array, n: number, x: number, y: number, z: number, h: number): number {
+  a[n * 4] = x;
+  a[n * 4 + 1] = y + 0.25;
+  a[n * 4 + 2] = z;
+  a[n * 4 + 3] = 0.22;
+  b[n * 4] = x;
+  b[n * 4 + 1] = y + Math.max(0.5, h - 0.2);
+  b[n * 4 + 2] = z;
+  return n + 1;
 }

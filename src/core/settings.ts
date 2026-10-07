@@ -1,7 +1,7 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
-import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, presetOf, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ShadowQuality, type TierQuality } from './quality';
+import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, presetOf, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 import type { PlatformChoice } from './platform';
 
 export const TOUCH_CONTROL_IDS = [
@@ -97,6 +97,11 @@ export interface Settings {
     renderScale: number;
     /** Steps the render scale down when the GPU falls behind (off by default). */
     dynamicRes: boolean;
+    /** Upscaler: off (the render scale is the canvas size) or TAAU (the scene at the render scale, resolved over
+     *  frames to the display's full resolution). */
+    upscaler: 'off' | 'taau';
+    /** Panini projection strength 0..1 (0 = off): keeps wide fields of view from stretching at the sides. */
+    panini: number;
     /** Frame-rate cap (0 = the display's refresh rate). */
     fpsCap: number;
     /** Horizontal FOV (degrees) at a 16:9 reference; wider screens see more at the sides (Hor+). */
@@ -234,7 +239,7 @@ export function defaultSettings(): Settings {
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
-    video: { platform: 'auto', preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    video: { platform: 'auto', preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -246,6 +251,7 @@ const CURVES: readonly CurveKind[] = ['linear', 'classic', 'precise', 'aggressiv
 const SHADOWS: readonly ShadowQuality[] = ['off', 'high', 'ultra', 'epic'];
 const TIERS: readonly TierQuality[] = ['high', 'ultra', 'epic'];
 const AA: readonly AaMode[] = ['fxaa', 'msaa', 'taa'];
+const REFL: readonly ReflectionMode[] = ['off', 'ssr', 'rt'];
 
 /** Per-feature graphics from untrusted data (defaults: the preset given). */
 function sanitizeGfx(raw: Obj, base: GraphicsFeatures): GraphicsFeatures {
@@ -254,7 +260,10 @@ function sanitizeGfx(raw: Obj, base: GraphicsFeatures): GraphicsFeatures {
     lights: Math.round(num(raw.lights, base.lights, LIGHT_RANGE.min, LIGHT_RANGE.max)),
     ao: bool(raw.ao, base.ao),
     bloom: bool(raw.bloom, base.bloom),
-    ssr: bool(raw.ssr, base.ssr),
+    // (before 3.0 phase 5: a screen-space on / off)
+    reflections: pick(raw.reflections, REFL, raw.ssr === true ? 'ssr' : raw.ssr === false ? 'off' : base.reflections),
+    rtRes: pick(raw.rtRes, ['half', 'full'] as const, base.rtRes),
+    gi: bool(raw.gi, base.gi),
     volumetrics: bool(raw.volumetrics, base.volumetrics),
     dof: bool(raw.dof, base.dof),
     motionBlur: bool(raw.motionBlur, base.motionBlur),
@@ -371,6 +380,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       ...videoGfx(v),
       renderScale: num(v.renderScale, d.video.renderScale, 0.5, 2),
       dynamicRes: bool(v.dynamicRes, d.video.dynamicRes),
+      upscaler: pick(v.upscaler, ['off', 'taau'] as const, d.video.upscaler),
+      panini: num(v.panini, d.video.panini, 0, 1),
       fpsCap: pick(v.fpsCap, FPS_CAPS as readonly number[], d.video.fpsCap),
       fovH: num(v.fovH, d.video.fovH, 60, 120),
       maxFov: num(v.maxFov, d.video.maxFov, 90, 150),

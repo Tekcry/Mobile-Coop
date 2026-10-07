@@ -65,6 +65,7 @@ export type { LinesMesh } from '@babylonjs/core/Meshes/linesMesh';
 export { Observable, type Observer } from '@babylonjs/core/Misc/observable';
 export { PostProcess } from '@babylonjs/core/PostProcesses/postProcess';
 export { PassPostProcess } from '@babylonjs/core/PostProcesses/passPostProcess';
+export type { RenderTargetWrapper } from '@babylonjs/core/Engines/renderTargetWrapper';
 export { Effect } from '@babylonjs/core/Materials/effect';
 export { SceneInstrumentation } from '@babylonjs/core/Instrumentation/sceneInstrumentation';
 export { EngineInstrumentation } from '@babylonjs/core/Instrumentation/engineInstrumentation';

@@ -24,7 +24,7 @@ export interface VoxelArt {
 /** Voxels per chunk side at the finest level (coarser levels: the same world extent, fewer voxels). */
 export const CHUNK = 128;
 /** Voxel data format version (bump to invalidate caches). */
-export const VOXEL_VERSION = 3;
+export const VOXEL_VERSION = 4;
 
 export interface PaletteEntry {
   /** Authored colour (#rrggbb, sRGB). */

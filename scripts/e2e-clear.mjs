@@ -176,7 +176,8 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
   L = await left();
   hud = await G(() => window.__h.hud());
   const fin = await G(() => ({ ops: window.__ops, bars: window.__app.current.post.barsTarget, scale: window.__app.loop.timeScale }));
-  assert(L.n === 0, `every hostile down (${L.n} left)`);
+  const why = L.n === 0 ? '' : JSON.stringify(await G(() => { const g = window.__app.current; const m = g.mode; return { pending: m.pending?.length, current: m.current, alive: g.enemyMgr.alive, down: !g.player.alive, pos: [g.player.position.x, g.player.position.z].map((v) => v.toFixed(1)), holds: g.enemyMgr.enemies.filter((e) => e.alive).map((e) => e.hold?.id ?? '-') }; }));
+  assert(L.n === 0, `every hostile down (${L.n} left) ${why}`);
   assert(fin.ops === 1 && /OPERATION COMPLETE/.test(hud.banner), `completion: OPERATION COMPLETE banner + stinger (${hud.banner}, ${fin.ops})`);
   assert(lastKill !== null && lastKill < 1 && fin.bars === 1, `completion: slow beat (x${lastKill}) and letterbox`);
   await sim(3.5);

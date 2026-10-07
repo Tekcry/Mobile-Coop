@@ -79,15 +79,22 @@ export class QualityManager {
     const v = this.settings.get().video;
     // tests: `?gfx=` overrides for this page only
     if (flags.gfx === 'min') return qualityLevel('custom', MIN_FEATURES, true);
-    if (flags.gfx) return qualityLevel(flags.gfx, GRAPHICS_PRESETS[flags.gfx]);
-    if (this.ov?.preset) return qualityLevel(this.ov.preset, GRAPHICS_PRESETS[this.ov.preset]);
-    return qualityLevel(v.preset, v.gfx);
+    const up = this.taau ? (this.ov?.scale ?? v.renderScale) : 1;
+    if (flags.gfx) return qualityLevel(flags.gfx, GRAPHICS_PRESETS[flags.gfx], false, up, v.panini);
+    if (this.ov?.preset) return qualityLevel(this.ov.preset, GRAPHICS_PRESETS[this.ov.preset], false, up, v.panini);
+    return qualityLevel(v.preset, v.gfx, false, up, v.panini);
+  }
+
+  /** TAAU upscaling: on, with a render scale under 1 (the canvas stays at the display's resolution). */
+  private get taau(): boolean {
+    const v = this.settings.get().video;
+    return flags.gfx !== 'min' && v.upscaler === 'taau' && (this.ov?.scale ?? v.renderScale) < 0.999;
   }
 
   private configure(): void {
     const v = this.settings.get().video;
     this.loop.fpsCap = v.fpsCap;
-    const key = JSON.stringify(v.gfx) + v.preset;
+    const key = JSON.stringify(v.gfx) + v.preset + (this.taau ? v.renderScale : 1) + v.panini;
     if (!this.auto) this.res.reset();
     this.applyScale();
     if (key === this.key) return;
@@ -111,7 +118,8 @@ export class QualityManager {
 
   apply(): void {
     this._level = this.build();
-    this.key = JSON.stringify(this.settings.get().video.gfx) + this.settings.get().video.preset;
+    const v = this.settings.get().video;
+    this.key = JSON.stringify(v.gfx) + v.preset + (this.taau ? v.renderScale : 1) + v.panini;
     this.applyScale();
     this.target?.applyQuality(this._level);
     this.onChange?.(this._level);
@@ -121,6 +129,7 @@ export class QualityManager {
   private applyScale(): void {
     // (`?gfx=min`: DPR 1, as the phone-era tests ran)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
-    else applyRenderScale(this.engine, (this.ov?.scale ?? this.settings.get().video.renderScale) * this.res.scale, Infinity);
+    // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
+    else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale)) * this.res.scale, Infinity);
   }
 }

@@ -1,7 +1,7 @@
 import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
-import { FPS_CAPS, LIGHT_RANGE, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ShadowQuality, type TierQuality } from '../../core/quality';
+import { FPS_CAPS, LIGHT_RANGE, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
 import type { PlatformChoice } from '../../core/platform';
 import { BENCH } from '../../game/benchmark';
@@ -42,6 +42,19 @@ const TIER_OPTS: { value: TierQuality; label: string }[] = [
   { value: 'high', label: 'High' },
   { value: 'ultra', label: 'Ultra' },
   { value: 'epic', label: 'Epic' },
+];
+const REFL_OPTS: { value: ReflectionMode; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'ssr', label: 'Screen space' },
+  { value: 'rt', label: 'Ray traced' },
+];
+const RTRES_OPTS: { value: RtRes; label: string }[] = [
+  { value: 'half', label: 'Half rate' },
+  { value: 'full', label: 'Full' },
+];
+const UPSCALER_OPTS: { value: 'off' | 'taau'; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'taau', label: 'TAAU (temporal upscaling)' },
 ];
 const AA_OPTS: { value: AaMode; label: string }[] = [
   { value: 'fxaa', label: 'FXAA' },
@@ -258,7 +271,7 @@ export class SettingsScreen extends Screen {
       const f = feat(k);
       return choice(label, opts, f.get, f.set);
     };
-    const tg = (label: string, k: 'ao' | 'bloom' | 'ssr' | 'volumetrics' | 'dof' | 'motionBlur' | 'lens'): HTMLElement => {
+    const tg = (label: string, k: 'ao' | 'bloom' | 'gi' | 'volumetrics' | 'dof' | 'motionBlur' | 'lens'): HTMLElement => {
       const f = feat(k);
       return toggle(label, f.get, f.set);
     };
@@ -280,8 +293,10 @@ export class SettingsScreen extends Screen {
         ch('Detail and draw distance (map dressing: next map)', 'detail', TIER_OPTS),
         ch('Effects and weather', 'effects', TIER_OPTS),
         tg('Ambient occlusion', 'ao'),
+        tg('Global illumination (bounce light; next map)', 'gi'),
         tg('Bloom', 'bloom'),
-        tg('Reflections (screen space)', 'ssr'),
+        ch('Reflections', 'reflections', REFL_OPTS),
+        ch('Ray-traced reflections rate', 'rtRes', RTRES_OPTS),
         tg('Volumetric light and fog', 'volumetrics'),
         tg('Depth of field', 'dof'),
         tg('Motion blur', 'motionBlur'),
@@ -291,6 +306,8 @@ export class SettingsScreen extends Screen {
         'Display',
         slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
         toggle('Dynamic resolution', () => s().video.dynamicRes, (v) => upd((d) => void (d.video.dynamicRes = v))),
+        choice('Upscaler (with a resolution scale under 100%)', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))),
+        slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }),
         choice('Frame-rate cap', CAP_OPTS.map((o) => (o.value === 0 ? { value: 0, label: `Display refresh (${Math.round(app.quality.hz)} Hz)` } : o)), () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))),
         slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
         slider('Widest field of view (ultrawide)', { min: 90, max: 150, step: 5, get: () => s().video.maxFov, set: (v) => upd((d) => void (d.video.maxFov = v)), format: (v) => `${v}°` }),

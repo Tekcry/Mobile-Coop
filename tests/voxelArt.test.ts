@@ -86,3 +86,31 @@ describe('sky bake', () => {
     expect(skyDirections(16).every((d) => d[1] > 0)).toBe(true);
   });
 });
+
+describe('GI bake (one bounce per light group)', () => {
+  it('a lamp in a closed room lights its slot only; a wall between keeps the next room dark', async () => {
+    const { GI_STRIDE } = await import('../src/voxel/skyBake');
+    // two rooms 4 x 3 x 4 m side by side (x 0..4 and 4.25..8.25), floor, walls, roof; a lamp in the first
+    const box = (c: [number, number, number], s: [number, number, number]) => ({ kind: 'box' as const, c, s, yaw: 0, pitch: 0, mat: 1 });
+    const shapes = packShapes([
+      box([4.1, -0.25, 2], [9, 0.5, 5]),
+      box([4.1, 3.25, 2], [9, 0.5, 5]),
+      box([4.1, 1.5, -0.25], [9, 3.5, 0.5]),
+      box([4.1, 1.5, 4.25], [9, 3.5, 0.5]),
+      box([-0.25, 1.5, 2], [0.5, 3.5, 5]),
+      box([8.5, 1.5, 2], [0.5, 3.5, 5]),
+      box([4.125, 1.5, 2], [0.25, 3.5, 5]),
+    ]);
+    const lights = new Float32Array(GI_STRIDE);
+    lights.set([2, 2.6, 2, 5, 0, 0, 0, -2, 1, 1, 1, 1]);
+    const r = bakeSky({ kind: 'sky', id: 0, origin: [-1, -1, -1], cell: 0.5, n: [21, 10, 13], shapes, lights, groups: 2 });
+    const cells = 21 * 10 * 13;
+    const at = (slot: number, x: number, y: number, z: number): number => r.gi![((Math.floor((x + 1) * 2) + 21 * (Math.floor((y + 1) * 2) + 10 * Math.floor((z + 1) * 2))) + slot * cells) * 4]!;
+    expect(r.gi).toBeDefined();
+    // the lamp's room: bounce light in its slot (1), none in slot 0
+    expect(at(1, 1.25, 1.25, 1.25)).toBeGreaterThan(3);
+    expect(at(0, 1.25, 1.25, 1.25)).toBe(0);
+    // the other room (behind the wall): dark
+    expect(at(1, 6.25, 1.25, 2.25)).toBeLessThan(1);
+  });
+});

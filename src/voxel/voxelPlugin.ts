@@ -1,5 +1,6 @@
 import { MaterialPluginBase, type AbstractMesh, type BaseTexture, type Material, type MaterialDefines, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
 import { SURFACE_KINDS, SURFACE_PARAMS, type SurfaceAtlas } from '../world/surfaceAtlas';
+import { GI_MAX } from './skyBake';
 
 /** The voxel behind a pixel: brick indirection, then the pool (0 = air). */
 export const VX_MAT_GLSL = `int vxMat(ivec3 v) {
@@ -28,6 +29,9 @@ export interface VoxelTextures {
   pool: BaseTexture;
   /** Palette (RGBA8, 256 x 2): row 0 rgb = sRGB colour, a = surface kind + 16 x emissive level; row 1 r = puddle. */
   palette: BaseTexture;
+  /** GI per light group (RGBA, the sky bake's cells, slots stacked along z; a stand-in when none) and the slot count. */
+  gi: BaseTexture;
+  giGroups: number;
   /** Voxel (0,0,0) minimum corner, voxel size, brick grid size. */
   origin: [number, number, number];
   size: number;
@@ -50,13 +54,13 @@ export interface VoxelTextures {
 export class VoxelPlugin extends MaterialPluginBase {
   constructor(
     material: Material,
-    private tex: VoxelTextures,
+    readonly tex: VoxelTextures,
     private atlas: SurfaceAtlas | null,
     private search: number,
     private ao: boolean,
     private micro: boolean,
   ) {
-    super(material, 'Voxels', 180, { VOXELS: false, VOXEL_AO: false, VOXEL_MICRO: false });
+    super(material, 'Voxels', 180, { VOXELS: false, VOXEL_AO: false, VOXEL_MICRO: false, VOXEL_GI: false });
     this._enable(true);
   }
 
@@ -72,6 +76,10 @@ export class VoxelPlugin extends MaterialPluginBase {
    *  ground (below) colour x intensity. */
   skyFill: [number, number, number] = [0, 0, 0];
   groundFill: [number, number, number] = [0, 0, 0];
+  /** GI per light group slot: how much of each circuit is lit (0..1; lights out / shot out / EMP take it away). */
+  readonly giWeights = new Float32Array(12).fill(1);
+  /** GI strength (x the bake's GI_MAX). */
+  giScale = GI_MAX;
 
   override getClassName(): string {
     return 'VoxelPlugin';
@@ -85,10 +93,11 @@ export class VoxelPlugin extends MaterialPluginBase {
     defines.VOXELS = !!mesh;
     defines.VOXEL_AO = this.ao;
     defines.VOXEL_MICRO = this.micro && !!this.atlas;
+    defines.VOXEL_GI = this.pbr && this.tex.giGroups > 0;
   }
 
   override getSamplers(samplers: string[]): void {
-    samplers.push('voxInd', 'voxPool', 'voxPal', 'vxDetail', 'vxNormal', 'voxSky');
+    samplers.push('voxInd', 'voxPool', 'voxPal', 'vxDetail', 'vxNormal', 'voxSky', 'voxGi');
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string }[]; fragment?: string } {
@@ -101,8 +110,12 @@ export class VoxelPlugin extends MaterialPluginBase {
         { name: 'voxSkyD', size: 4, type: 'vec4' },
         { name: 'voxSkyFill', size: 4, type: 'vec4' },
         { name: 'voxGroundFill', size: 4, type: 'vec4' },
+        { name: 'voxGiInfo', size: 4, type: 'vec4' },
+        { name: 'voxGiW0', size: 4, type: 'vec4' },
+        { name: 'voxGiW1', size: 4, type: 'vec4' },
+        { name: 'voxGiW2', size: 4, type: 'vec4' },
       ],
-      fragment: '#ifdef VOXELS\nuniform vec3 voxOrigin;\nuniform vec4 voxInfo;\nuniform vec4 voxDims;\nuniform vec4 voxSkyO;\nuniform vec4 voxSkyD;\nuniform vec4 voxSkyFill;\nuniform vec4 voxGroundFill;\n#endif',
+      fragment: '#ifdef VOXELS\nuniform vec3 voxOrigin;\nuniform vec4 voxInfo;\nuniform vec4 voxDims;\nuniform vec4 voxSkyO;\nuniform vec4 voxSkyD;\nuniform vec4 voxSkyFill;\nuniform vec4 voxGroundFill;\nuniform vec4 voxGiInfo;\nuniform vec4 voxGiW0;\nuniform vec4 voxGiW1;\nuniform vec4 voxGiW2;\n#endif',
     };
   }
 
@@ -115,6 +128,12 @@ export class VoxelPlugin extends MaterialPluginBase {
     ubo.updateFloat4('voxSkyD', t.skyDims[0], t.skyDims[1], t.skyDims[2], 0);
     ubo.updateFloat4('voxSkyFill', this.skyFill[0], this.skyFill[1], this.skyFill[2], 0);
     ubo.updateFloat4('voxGroundFill', this.groundFill[0], this.groundFill[1], this.groundFill[2], 0);
+    const gw = this.giWeights;
+    ubo.updateFloat4('voxGiInfo', t.giGroups, this.giScale, 0, 0);
+    ubo.updateFloat4('voxGiW0', gw[0]!, gw[1]!, gw[2]!, gw[3]!);
+    ubo.updateFloat4('voxGiW1', gw[4]!, gw[5]!, gw[6]!, gw[7]!);
+    ubo.updateFloat4('voxGiW2', gw[8]!, gw[9]!, gw[10]!, gw[11]!);
+    ubo.setTexture('voxGi', t.gi);
     if (t.sky) ubo.setTexture('voxSky', t.sky);
     ubo.setTexture('voxInd', t.index);
     ubo.setTexture('voxPool', t.pool);
@@ -158,6 +177,7 @@ uniform highp sampler3D voxInd;
 uniform highp sampler3D voxPool;
 uniform highp sampler2D voxPal;
 uniform highp sampler3D voxSky;
+uniform highp sampler3D voxGi;
 float vxVis = 1.0;
 vec3 vxAmbient = vec3(0.0);
 #ifdef VOXEL_MICRO
@@ -251,6 +271,24 @@ float vxSolid(ivec3 v) { return vxMat(v) != 0 ? 1.0 : 0.0; }
   vxEmissive = base * emis * 4.0;
   // the hemisphere's fill, which the voxels take themselves: sky from above, ground from below, by how open it is
   vxAmbient = mix(voxGroundFill.rgb, voxSkyFill.rgb, normalW.y * 0.5 + 0.5) * (0.12 + 0.88 * vxVis) * surfaceAlbedo * shade;
+#ifdef VOXEL_GI
+  {
+    // one-bounce light per circuit (baked), weighted by how much of each circuit is on
+    vec3 gc = (vPositionW + gn * voxSkyO.w * 0.6 - voxSkyO.xyz) / voxSkyO.w;
+    float gG = voxGiInfo.x;
+    float gnz = voxSkyD.z;
+    vec2 gxy = gc.xy / voxSkyD.xy;
+    float gz = clamp(gc.z, 0.5, gnz - 0.5);
+    vec3 gsum = vec3(0.0);
+    for (int g = 0; g < 12; g++) {
+      if (float(g) >= gG) break;
+      float gw = g < 4 ? voxGiW0[g] : (g < 8 ? voxGiW1[g - 4] : voxGiW2[g - 8]);
+      if (gw <= 0.0) continue;
+      gsum += texture(voxGi, vec3(gxy, (float(g) * gnz + gz) / (gnz * gG))).rgb * gw;
+    }
+    vxAmbient += gsum * voxGiInfo.y * surfaceAlbedo * shade;
+  }
+#endif
 }
 #endif`,
       CUSTOM_FRAGMENT_UPDATE_METALLICROUGHNESS: `

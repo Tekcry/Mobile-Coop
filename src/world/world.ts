@@ -23,7 +23,8 @@ import { PropSystem } from './props';
 import { LightRig } from './lightRig';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
-import { makeCone } from './lights';
+import { makeCone, type LightRegistry } from './lights';
+import { GI_STRIDE } from '../voxel/skyBake';
 import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
 import { SurfaceAtlas } from './surfaceAtlas';
 import { setAnimLodScale } from '../player/characterRig';
@@ -54,6 +55,27 @@ export interface VoxelOptions {
   lodDist: [number, number];
   ao: boolean;
   micro: boolean;
+  /** One-bounce GI per light group (Epic). */
+  gi?: boolean;
+}
+
+/** GI group slots the voxel material weighs (lamp circuits; more circuits share the last). */
+export const GI_SLOTS = 12;
+
+/** The map's fixed lights packed for the GI bake, and each light's group slot (-1: not baked). */
+export function giLights(reg: LightRegistry): { lights: Float32Array; groups: number; slotOf: Int8Array } {
+  const ids: number[] = [];
+  const slotOf = new Int8Array(reg.lights.length).fill(-1);
+  const baked = reg.lights.filter((l) => l.kind !== 'flashlight');
+  for (const l of baked) if (!ids.includes(l.group)) ids.push(l.group);
+  ids.sort((a, b) => a - b);
+  const lights = new Float32Array(baked.length * GI_STRIDE);
+  baked.forEach((l, i) => {
+    const slot = Math.min(GI_SLOTS - 1, ids.indexOf(l.group));
+    slotOf[reg.lights.indexOf(l)] = slot;
+    lights.set([l.x, l.y, l.z, l.radius, l.cone?.dx ?? 0, l.cone?.dy ?? 0, l.cone?.dz ?? 0, l.cone ? l.cone.cosOuter : -2, l.color[0] * l.intensity, l.color[1] * l.intensity, l.color[2] * l.intensity, slot], i * GI_STRIDE);
+  });
+  return { lights, groups: Math.max(1, Math.min(GI_SLOTS, ids.length)), slotOf };
 }
 
 /** Level-of-detail distances (m) per Detail tier: Epic keeps 5 cm voxels to 30 m. */
@@ -165,11 +187,16 @@ export class World {
     if (vo && level.voxels) {
       const lv = level.voxels;
       const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
-      voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) });
+      // GI (Epic): the lamps' bounce light per circuit, baked with the sky
+      const gi = vo.gi && atlas && level.lights.lights.length ? giLights(level.lights) : null;
+      const giKey = gi ? `:gi${contentHash(gi.lights, '')}` : '';
+      voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) + giKey, gi });
       // the fine layer: half the size, levels of detail at half the distances, lit by the structure's sky bake
       if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels });
     }
-    return new World(scene, map, level, layout, atlas, voxels, fine);
+    const w = new World(scene, map, level, layout, atlas, voxels, fine);
+    if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
+    return w;
   }
 
   /** The voxel layers present (structure, fine). */
@@ -242,7 +269,35 @@ export class World {
   }
 
   /** Keep the sun's shadow frustum centred on the player. */
+  /** GI: each map light's group slot (null: no GI). */
+  giSlotOf: Int8Array | null = null;
+  private giVersion = -1;
+  private readonly giOn = new Float32Array(GI_SLOTS);
+  private readonly giAll = new Float32Array(GI_SLOTS);
+
+  /** GI: how much of each circuit is lit now (switches, shot-out lamps, EMP) - the voxels weigh their slots by it. */
+  private updateGi(): void {
+    const reg = this.level.lights;
+    const slots = this.giSlotOf;
+    if (!slots || reg.version === this.giVersion) return;
+    this.giVersion = reg.version;
+    this.giOn.fill(0);
+    this.giAll.fill(0);
+    for (let i = 0; i < slots.length; i++) {
+      const s = slots[i]!;
+      if (s < 0) continue;
+      const l = reg.lights[i]!;
+      this.giAll[s] = this.giAll[s]! + l.intensity;
+      if (l.on && !l.destroyed) this.giOn[s] = this.giOn[s]! + l.intensity;
+    }
+    for (const v of this.voxelLayers) {
+      for (const p of v.plugins) for (let s = 0; s < GI_SLOTS; s++) p.giWeights[s] = this.giAll[s]! > 0 ? this.giOn[s]! / this.giAll[s]! : 0;
+      v.refresh();
+    }
+  }
+
   frame(focus: Vector3, dt = 0): void {
+    this.updateGi();
     const cam = this.scene.activeCamera;
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);

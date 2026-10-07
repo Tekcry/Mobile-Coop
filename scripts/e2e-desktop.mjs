@@ -180,6 +180,24 @@ try {
   assert(art.sky && art.inside < 0.5 && art.yard > 0.8, `the sky is baked: dark under the roof, open in the yard (${art.inside.toFixed(2)} / ${art.yard.toFixed(2)})`);
   assert(art.roofIn > 5 && art.roofYard < 1, `rain stops at the roof, falls to the ground in the yard (${art.roofIn} / ${art.roofYard})`);
   assert(art.palette > 40, `the art layer's materials (${art.palette} palette entries)`);
+  // GI per lamp circuit (Epic): baked, in the shader, and a switched-off circuit takes its bounce light away
+  const gi = await e.page.evaluate(() => {
+    const w = window.__app.current.world;
+    const vx = w.voxels;
+    const src = vx.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
+    const reg = w.level.lights;
+    const l = reg.lights.find((x, i) => w.giSlotOf?.[i] >= 0 && x.group >= 0 && x.on);
+    const slot = l ? w.giSlotOf[reg.lights.indexOf(l)] : -1;
+    const before = vx.plugins[0].giWeights[slot];
+    if (l) reg.setGroup(l.group, false);
+    w.frame(window.__app.current.player.position, 0);
+    const after = vx.plugins[0].giWeights[slot];
+    if (l) reg.setGroup(l.group, true);
+    w.frame(window.__app.current.player.position, 0);
+    return { groups: vx.giGroups, shader: src.includes('gsum'), slot, before, after, back: vx.plugins[0].giWeights[slot] };
+  });
+  assert(gi.groups > 1 && gi.shader, `GI baked per lamp circuit and in the voxel shader (${gi.groups} circuits)`);
+  assert(gi.before === 1 && gi.after < 1 && gi.back === 1, `a switched-off circuit takes its bounce light away (${gi.before} -> ${gi.after} -> ${gi.back})`);
   // voxel characters (3.0 phase 3): one skinned voxel body per character, the smooth parts unseen
   const ch = await e.page.evaluate(async () => {
     const g = window.__app.current;
@@ -260,6 +278,29 @@ try {
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');
   const eerrs = e.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
   assert(eerrs.length === 0, `Epic renders without console errors${eerrs.length ? ': ' + eerrs.slice(0, 4).join(' | ') : ''}`);
+  await browser.close();
+
+  // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
+  const u = await launch({ url, params: 'autostart=warehouse&gfx=user', touch: false, viewport: { width: 640, height: 360 } });
+  browser = u.browser;
+  await u.page.waitForFunction(() => window.__app.current?.player, null, { timeout: 180000 });
+  await frames(u.page, 3);
+  await u.page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.gfx.rtRes = 'half'; d.video.upscaler = 'taau'; d.video.renderScale = 0.67; d.video.panini = 0.5; }));
+  await frames(u.page, 4);
+  const p5 = await u.page.evaluate(() => {
+    const a = window.__app;
+    const cam = a.current.player.cam.camera;
+    const pps = cam._postProcesses.filter(Boolean);
+    const taau = pps.find((p) => p.name === 'taau');
+    return { pps: pps.map((p) => p.name), canvas: a.engine.getRenderWidth(), scene: taau?.inputTexture?.width ?? 0, level: a.quality.level.upscale, panini: a.quality.level.panini };
+  });
+  assert(p5.pps.includes('rtReflect') && p5.pps.includes('rtComposite') && !p5.pps.includes('ssr'), `Ray traced: the reflection passes replace screen space (${p5.pps.join(',')})`);
+  assert(p5.pps[0] === 'taau' && !p5.pps.includes('TAA'), 'TAAU leads the chain and replaces TAA');
+  assert(p5.scene > 0 && Math.abs(p5.scene / p5.canvas - 0.67) < 0.02, `TAAU: the scene at 67% of the native canvas (${p5.scene} of ${p5.canvas})`);
+  assert(p5.pps.includes('panini') && p5.pps.at(-1) === 'cinematic', `Panini on, the grade pass still last (${p5.panini})`);
+  await u.page.screenshot({ path: process.env.SHOT_P5 ?? '/tmp/e2e-p5.png', timeout: 600000 });
+  const uerrs = u.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
+  assert(uerrs.length === 0, `ray traced + TAAU + Panini render without console errors${uerrs.length ? ': ' + uerrs.slice(0, 4).join(' | ') : ''}`);
   console.log('desktop e2e passed');
 } catch (err) {
   failed = true;

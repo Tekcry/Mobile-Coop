@@ -319,6 +319,15 @@ Voxel weapons and chips (Epic):
       visible up close); camo shows on them; thrown grenades and the drone are voxels.
 - [ ] Shooting a wall, floor or crate leaves a dark one-voxel pock and throws debris in its colour; cover and
       movement are unchanged.
+GI (Epic):
+- [ ] Rooms with lamps on have soft bounce light on the walls / ceiling beside the pools; a room switched off goes
+      fully dark (no glow left); a shot-out lamp and an EMP do the same for their share; Ultra / High have none.
+Reflections, TAAU, Panini (Epic, the laptop):
+- [ ] Reflections: Off / Screen space / Ray traced; Ray traced in the rain: puddles mirror walls, lamps and guards
+      even off screen; steel and wet floors gloss; half rate vs full: note the frame rate (debug overlay).
+- [ ] Upscaler TAAU at 67% on 7680 x 2160 (or the built-in screen): sharp, no ghosting on the operator when turning;
+      Off at 67% looks softer.
+- [ ] Panini 50% at FOV 120 on 32:9: sides less stretched; prompts near the edges still usable.
 Displays (gaming laptop: RTX 4090 Laptop, 16 GB; built-in 2560 x 1600 240 Hz; external ultrawide):
 - [ ] The browser runs on the NVIDIA GPU (Settings > Graphics > GPU); switch it to the integrated GPU once: the
       notice appears once with the Windows steps.
@@ -329,6 +338,21 @@ Displays (gaming laptop: RTX 4090 Laptop, 16 GB; built-in 2560 x 1600 240 Hz; ex
 - [ ] Photo mode on the ultrawide: the saved photo is full width (7680 px).
 - [ ] Benchmark: current settings, Every preset, Resolutions, Sustained (10 min, plugged in): note the lines (also
       saved as feedback) and report them back.
+Performance targets (RTX 4090 Laptop 16 GB, i9 HX, mains power; Settings > Graphics > Benchmark; fill in the measured
+average / 1% low and the GPU memory from the browser's task manager):
+
+| Output | Epic (SSR) | Epic + Ray traced | High | Measured |
+| --- | --- | --- | --- | --- |
+| 1920 x 1200 | 165 | 120 | 240 | |
+| 2560 x 1600 (built-in, 240 Hz) | 120 | 90 | 165 | |
+| 3440 x 1440 | 100 | 75 | - | |
+| 5120 x 1440 | 90 | 60 | - | |
+| 3840 x 2160 | 60 | 50 | - | |
+| 7680 x 2160 (TAAU 67%) | 60 | 45 | 120 | |
+
+Budgets: CPU main thread <= 3 ms per frame; <= 8 M triangles and <= 600 draw calls including shadows; GPU memory
+<= 12 GB at Epic (High 6, Ultra 9; brick pool <= 5 GB; render targets <= 2.5 GB at 4K, 3.5 GB at 7680 x 2160); tab
+<= 6 GB, JS heap <= 1.5 GB; the voxel cache in IndexedDB <= 2 GB; Warehouse load <= 4 s cold, <= 1.5 s cached.
 Desktop (mouse and keyboard, 1440p or 4K):
 - [ ] Menus fill the screen at a readable size (scaled from a 1280 x 720 layout); no Touch settings, no touch
       buttons in a match, no rotate overlay; hover highlights; Settings opens on Mouse & Keyboard.

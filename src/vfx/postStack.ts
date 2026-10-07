@@ -18,6 +18,9 @@ import {
 } from '../core/babylon';
 import type { QualityLevel } from '../core/quality';
 import type { LightRegistry } from '../world/lights';
+import { RtReflections, type RtSource } from './rtReflections';
+import { Taau } from './taau';
+import { PaniniPass } from './paniniPass';
 
 /** Lights the volumetric pass scatters (nearest the camera). */
 export const VOL_LIGHTS = 12;
@@ -140,6 +143,8 @@ export interface PostStackOptions {
   /** Sky visibility (the voxel bake) for the fog's light shafts, and the shafts' colour x strength (0: none). */
   sky?: { tex: BaseTexture; origin: [number, number, number]; cell: number; dims: [number, number, number] } | null;
   shafts?: [number, number, number];
+  /** Ray-traced reflections' source (the voxel world); null: Ray traced falls back to screen space. */
+  rt?: RtSource | null;
 }
 
 /**
@@ -151,6 +156,9 @@ export class PostStack {
   private def: DefaultRenderingPipeline | null = null;
   private ssao: SSAO2RenderingPipeline | null = null;
   private ssr: SSRRenderingPipeline | null = null;
+  private rtr: RtReflections | null = null;
+  private taau: Taau | null = null;
+  private panini: PaniniPass | null = null;
   private taa: TAARenderingPipeline | null = null;
   private motion: MotionBlurPostProcess | null = null;
   private noSky: RawTexture3D | null = null;
@@ -179,7 +187,7 @@ export class PostStack {
 
   apply(q: QualityLevel): void {
     const f = q.features;
-    const key = JSON.stringify(f) + q.minimal;
+    const key = JSON.stringify(f) + q.minimal + q.upscale + q.panini;
     if (key === this.key) return;
     this.key = key;
     this.disposeAll();
@@ -189,7 +197,11 @@ export class PostStack {
     }
     const scene = this.scene;
     const cams = [this.camera];
-    if (f.aa === 'taa') {
+    // TAAU first: its input sets the scene's render size; it does the temporal anti-aliasing too
+    if (q.upscale < 1) {
+      this.depth = scene.enableDepthRenderer(this.camera, false, true);
+      this.taau = new Taau(scene, this.camera, q.upscale, this.depth);
+    } else if (f.aa === 'taa') {
       const taa = new TAARenderingPipeline('taa', scene, cams);
       taa.samples = 8;
       taa.factor = 0.08;
@@ -206,7 +218,7 @@ export class PostStack {
       ssao.expensiveBlur = true;
       this.ssao = ssao;
     }
-    if (f.ssr) {
+    if (f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
       const ssr = new SSRRenderingPipeline('ssr', scene, cams, true);
       ssr.thickness = 0.4;
       ssr.selfCollisionNumSkip = 2;
@@ -221,6 +233,10 @@ export class PostStack {
       ssr.attenuateFacingCamera = true;
       ssr.attenuateScreenBorders = true;
       this.ssr = ssr;
+    }
+    if (f.reflections === 'rt' && this.opts.rt) {
+      this.depth = scene.enableDepthRenderer(this.camera, false, true);
+      this.rtr = new RtReflections(scene, this.camera, this.opts.rt, this.depth, f.rtRes === 'half');
     }
     if (f.motionBlur) {
       const mb = new MotionBlurPostProcess('motionBlur', scene, 1, this.camera);
@@ -262,6 +278,7 @@ export class PostStack {
       ip.contrast = 1.06;
     }
     this.def = def;
+    if (q.panini > 0) this.panini = new PaniniPass(this.camera, q.panini);
     this.onRebuilt?.();
   }
 
@@ -319,6 +336,7 @@ export class PostStack {
   /** Per render frame: the volumetric lights (nearest the camera) and the depth-of-field focus. */
   frame(dt: number): void {
     this.t += dt;
+    this.rtr?.frame();
     const reg = this.opts.lights;
     if (this.vol && reg) {
       const p = this.camera.globalPosition;
@@ -366,6 +384,9 @@ export class PostStack {
     this.def?.dispose();
     this.ssao?.dispose(false);
     this.ssr?.dispose(false);
+    this.rtr?.dispose();
+    this.taau?.dispose();
+    this.panini?.dispose();
     this.taa?.dispose();
     this.motion?.dispose(this.camera);
     this.vol?.dispose(this.camera);
@@ -373,6 +394,9 @@ export class PostStack {
     this.def = null;
     this.ssao = null;
     this.ssr = null;
+    this.rtr = null;
+    this.taau = null;
+    this.panini = null;
     this.taa = null;
     this.motion = null;
     this.vol = null;
