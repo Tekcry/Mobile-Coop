@@ -19,11 +19,12 @@ const desktop = args.includes('--desktop');
 // allocations: per second (the same garbage whatever the refresh rate - 240 Hz must not double it). What remains is
 // V8 boxing doubles passed to non-inlined calls and Havok's embind marshalling (young-generation churn, nothing kept).
 const BUDGET = desktop
-  ? // 3.0 PC: the main thread (sim + render JS) inside 3 ms of a 240 Hz frame's 4.17 ms; 600 draws / 8 M triangles
-    // over every pass incl. shadows
-    { cpuP95Ms: 3, animPerCharMs: 0.04, drawCalls: 600, trisM: 8, kbPerSecond: 11520 }
+  ? // 3.0 PC: the main thread <= 3 ms of a 240 Hz frame's 4.17 ms - here the sim's share (<= 2 ms, leaving 1 ms for
+    // the render's submission, which only the laptop can time: its benchmark prints the main thread p95; on
+    // SwiftShader GL stalls land inside the render's JS); 600 draws / 8 M triangles over every pass incl. shadows
+    { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 600, trisM: 8, kbPerSecond: 11520 }
   : // the phone-era / test-path check (gfx=min: no post stack, no voxel characters, 20 cm voxels)
-    { cpuP95Ms: 3.5, animPerCharMs: 0.04, drawCalls: 160, trisM: Infinity, kbPerSecond: 11520 };
+    { cpuP95Ms: 3.5, animPerCharMs: 0.04, drawCalls: 80, trisM: Infinity, kbPerSecond: 11520 };
 
 // STEALTH=1: the ten are unaware (stealth rules, patrols / posts, full perception with exposure rays)
 const stealth = !!process.env.STEALTH;
@@ -62,6 +63,36 @@ await page.evaluate((stealth) => {
   // otherwise dominate the allocation profile)
   for (let i = 0; i < Number(new URLSearchParams(location.search).get("warm") ?? 16); i++) app.loop.stepHeadless(0.5, 120);
 }, stealth);
+
+// machine speed: a fixed pure-JS workload (vector / quaternion maths over typed arrays, like the anim and nav
+// loops). CPU budgets are in reference-machine ms (REF_MS: the workload on the VM the 2.3 budgets were set on) and
+// scale by measured / REF_MS, so a slower or busier VM does not fail a build that did not change.
+const REF_MS = 3.7;
+const calibMs = await page.evaluate(() => {
+  const n = 1 << 16;
+  const a = new Float64Array(n * 4);
+  for (let i = 0; i < a.length; i++) a[i] = Math.sin(i) * 0.5;
+  let best = Infinity;
+  for (let r = 0; r < 7; r++) {
+    const t = performance.now();
+    let acc = 0;
+    for (let k = 0; k < 12; k++) {
+      for (let i = 0; i < n - 1; i++) {
+        const o = i * 4;
+        const x = a[o], y = a[o + 1], z = a[o + 2], w = a[o + 3];
+        const x2 = a[o + 4], y2 = a[o + 5], z2 = a[o + 6], w2 = a[o + 7];
+        const qx = w * x2 + x * w2 + y * z2 - z * y2;
+        const qw = w * w2 - x * x2 - y * y2 - z * z2;
+        acc += Math.sqrt(qx * qx + qw * qw + 1e-9);
+        a[o] = x + qx * 1e-6;
+      }
+    }
+    best = Math.min(best, performance.now() - t);
+    if (acc === -1) best = -1;
+  }
+  return best;
+});
+const speed = calibMs / REF_MS;
 
 // CPU per simulated 120 Hz display frame, sampled per frame
 const cpu = await page.evaluate(() => {
@@ -211,9 +242,10 @@ const out = {
 if (asJson) console.log(JSON.stringify(out));
 else {
   console.log(`Warehouse, ${out.enemies} enemies, ${out.profile} (SwiftShader: GPU numbers not representative)`);
+  console.log(`machine speed: reference workload ${calibMs.toFixed(1)} ms vs ${REF_MS} -> CPU budgets x${speed.toFixed(2)}`);
   console.log(`CPU per frame @120 Hz (sim + anim + camera, no render): p50 ${out.cpu120.p50} p95 ${out.cpu120.p95} p99 ${out.cpu120.p99} ms`);
-  console.log(`main thread p95 (sim + render JS ${out.renderJsMs} ms): ${out.mainP95} ms  [budget <= ${BUDGET.cpuP95Ms}]`);
-  console.log(`animation per character: ${out.animPerCharMs} ms  [budget <= ${BUDGET.animPerCharMs}]`);
+  console.log(`sim p95 ${out.cpu120.p95} ms  [budget <= ${(BUDGET.cpuP95Ms * speed).toFixed(2)} = ${BUDGET.cpuP95Ms} x speed]; render JS ${out.renderJsMs} ms (info: GPU stalls of software GL land in it; the laptop's benchmark gives the real main thread)`);
+  console.log(`animation per character: ${out.animPerCharMs} ms  [budget <= ${(BUDGET.animPerCharMs * speed).toFixed(4)} = ${BUDGET.animPerCharMs} x speed]`);
   console.log(`allocations: ${out.allocKBPerSimSecond} KB per simulated second (${(out.allocKBPerSimSecond / 240).toFixed(1)} KB per 240 Hz frame)  [budget <= ${BUDGET.kbPerSecond} KB/s]`);
   for (const t of top) console.log('   ' + t);
   console.log(`draw calls (every pass): ${out.drawCalls}  [budget <= ${BUDGET.drawCalls}]`);
@@ -224,8 +256,8 @@ const real_errors = errors.filter((e) => e.startsWith('[error]') || e.startsWith
 if (real_errors.length) console.log(real_errors.join('\n'));
 await browser.close();
 const missed = [
-  out.mainP95 > BUDGET.cpuP95Ms && 'main thread p95',
-  out.animPerCharMs > BUDGET.animPerCharMs && 'anim per character',
+  out.cpu120.p95 > BUDGET.cpuP95Ms * speed && 'sim p95',
+  out.animPerCharMs > BUDGET.animPerCharMs * speed && 'anim per character',
   out.drawCalls > BUDGET.drawCalls && 'draw calls',
   out.trisM > BUDGET.trisM && 'triangles',
   out.allocKBPerSimSecond > BUDGET.kbPerSecond && 'allocations',

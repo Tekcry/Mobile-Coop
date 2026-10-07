@@ -99,6 +99,8 @@ export class PartLibrary {
     // voxel characters (3.0): merged skinned meshes with per-vertex colour, pattern and voxel grid (not frozen)
     this.skinMaterial = make('partSkinMat');
     new VoxelBodyPlugin(this.skinMaterial);
+    // (frozen too: an unfrozen material re-checks its defines on every mesh, every frame - garbage and CPU)
+    this.skinMaterial.freeze();
     this.pbr = !!atlas;
     const prep = (mesh: Mesh): Mesh => {
       mesh.material = m;

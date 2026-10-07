@@ -26,6 +26,8 @@ export interface VoxelWorldOptions {
   /** Bake the sky visibility (the structure layer); a finer layer reads another layer's (`skyFrom`). */
   bakeSky?: boolean;
   skyFrom?: VoxelWorld | null;
+  /** Chunks per super-chunk side (one mesh per super-chunk and level; default 1). */
+  group?: number;
   /** One-bounce GI per light group (Epic): the lights (`GI_STRIDE` each) and the group slots (with the sky bake). */
   gi?: { lights: Float32Array; groups: number } | null;
 }
@@ -63,7 +65,7 @@ export class VoxelWorld {
   private skyFrom: VoxelWorld | null = null;
   /** The sky visibility texture (null without a bake). */
   skyTex: RawTexture3D | null = null;
-  stats = { chunks: 0, quads: 0, explicit: 0, uniform: 0, bytes: 0, ms: 0, cached: false, workers: 0 };
+  stats = { chunks: 0, supers: 0, quads: 0, explicit: 0, uniform: 0, bytes: 0, ms: 0, cached: false, workers: 0 };
 
   private constructor(
     readonly lv: LevelVoxels,
@@ -142,23 +144,34 @@ export class VoxelWorld {
     const lv = this.lv;
     const bm = this.brickmap;
     const per = CHUNK / BRICK;
-    // chunks (AABBs) and the brickmap from level 0
     const nChunks = cx * cy * cz;
     const ext = CHUNK * lv.size;
-    for (let i = 0; i < nChunks; i++) {
-      const x = i % cx;
-      const y = Math.floor(i / cx) % cy;
-      const z = Math.floor(i / (cx * cy));
-      const min: [number, number, number] = [lv.origin[0] + x * ext, lv.origin[1] + y * ext, lv.origin[2] + z * ext];
-      this.chunks.push({ min, max: [min[0] + ext, min[1] + ext, min[2] + ext], lods: [null, null, null], shown: -1 });
+    // chunks merge into super-chunks of g^3 (fewer meshes: every one is drawn again in each shadow map and geometry pass)
+    const g = Math.max(1, this.opts.group ?? 1);
+    const sx = Math.ceil(cx / g);
+    const sy = Math.ceil(cy / g);
+    const sz = Math.ceil(cz / g);
+    for (let i = 0; i < sx * sy * sz; i++) {
+      const x = i % sx;
+      const y = Math.floor(i / sx) % sy;
+      const z = Math.floor(i / (sx * sy));
+      const min: [number, number, number] = [lv.origin[0] + x * g * ext, lv.origin[1] + y * g * ext, lv.origin[2] + z * g * ext];
+      const max: [number, number, number] = [
+        lv.origin[0] + Math.min(cx, (x + 1) * g) * ext,
+        lv.origin[1] + Math.min(cy, (y + 1) * g) * ext,
+        lv.origin[2] + Math.min(cz, (z + 1) * g) * ext,
+      ];
+      this.chunks.push({ min, max, lods: [null, null, null], shown: -1 });
     }
+    // the brickmap from level 0; the meshes grouped per (super-chunk, level)
+    const groups = new Map<number, ChunkResult[]>();
     for (const r of results) {
       const l = Math.floor(r.id / nChunks);
       const ci = r.id - l * nChunks;
+      const x = ci % cx;
+      const y = Math.floor(ci / cx) % cy;
+      const z = Math.floor(ci / (cx * cy));
       if (r.codes && r.data) {
-        const x = ci % cx;
-        const y = Math.floor(ci / cx) % cy;
-        const z = Math.floor(ci / (cx * cy));
         for (let k = 0; k < r.codes.length; k++) {
           const code = r.codes[k]!;
           const bx = x * per + (k % per);
@@ -173,21 +186,52 @@ export class VoxelWorld {
       }
       if (!r.mesh.quads) continue;
       this.stats.quads += r.mesh.quads;
-      const m = new Mesh(`vox-${this.opts.name}-${l}-${ci}`, scene);
+      const si = Math.floor(x / g) + sx * (Math.floor(y / g) + sy * Math.floor(z / g));
+      const key = si * 4 + l;
+      let list = groups.get(key);
+      if (!list) groups.set(key, (list = []));
+      list.push(r);
+    }
+    for (const [key, list] of groups) {
+      const si = Math.floor(key / 4);
+      const l = key - si * 4;
+      let nv = 0;
+      let ni = 0;
+      for (const r of list) {
+        nv += r.mesh.positions.length;
+        ni += r.mesh.indices.length;
+      }
+      const positions = new Float32Array(nv);
+      const normals = new Float32Array(nv);
+      const indices = new Uint32Array(ni);
+      let vo = 0;
+      let io = 0;
+      for (const r of list) {
+        positions.set(r.mesh.positions, vo);
+        normals.set(r.mesh.normals, vo);
+        const base = vo / 3;
+        const src = r.mesh.indices;
+        for (let i = 0; i < src.length; i++) indices[io + i] = src[i]! + base;
+        vo += r.mesh.positions.length;
+        io += src.length;
+      }
+      const m = new Mesh(`vox-${this.opts.name}-${l}-${si}`, scene);
       const vd = new VertexData();
-      vd.positions = r.mesh.positions;
-      vd.normals = r.mesh.normals;
-      vd.indices = r.mesh.indices;
+      vd.positions = positions;
+      vd.normals = normals;
+      vd.indices = indices;
       vd.applyToMesh(m, false);
       m.isPickable = false;
       m.receiveShadows = true;
       m.freezeWorldMatrix();
       m.doNotSyncBoundingInfo = true;
       m.setEnabled(l === 0);
-      this.chunks[ci]!.lods[l] = m;
+      this.chunks[si]!.lods[l] = m;
       this.meshes.push(m);
     }
-    this.stats.chunks = this.chunks.filter((c) => c.lods.some(Boolean)).length;
+    // (chunks with faces, before merging; `supers` the meshes per level they became)
+    this.stats.chunks = new Set(results.filter((r) => r.mesh.quads).map((r) => r.id % nChunks)).size;
+    this.stats.supers = this.chunks.filter((c) => c.lods.some(Boolean)).length;
     const st = bm.stats();
     this.stats.explicit = st.explicit;
     this.stats.uniform = st.uniform;

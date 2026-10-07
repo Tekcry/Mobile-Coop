@@ -38,6 +38,8 @@ interface Slot {
   sg: ShadowGenerator | null;
   /** Registry light placed here (-1 = idle). */
   id: number;
+  /** Shadow pool: the casters within this light's reach (its shadow map's render list; refilled on each pick). */
+  list: AbstractMesh[];
 }
 
 /**
@@ -247,9 +249,10 @@ export class LightRig {
       sg.normalBias = 0.012;
       sg.darkness = 0;
       sg.transparencyShadow = false;
+      const list: AbstractMesh[] = [];
       const sm = sg.getShadowMap();
-      if (sm) sm.renderList = this.casters;
-      this.shadowPool.push({ light: l, sg, id: -1 });
+      if (sm) sm.renderList = list;
+      this.shadowPool.push({ light: l, sg, id: -1, list });
     }
     // clustered lighting when the GPU has it, else a short plain pool
     const probe = make('maplight-probe');
@@ -260,7 +263,7 @@ export class LightRig {
     for (let i = 0; i < n; i++) {
       const l = make(`maplight-${i}`);
       lights.push(l);
-      this.pool.push({ light: l, sg: null, id: -1 });
+      this.pool.push({ light: l, sg: null, id: -1, list: [] });
     }
     if (clustered && lights.length) this.cluster = new ClusteredLightContainer('maplights', lights, scene);
     for (const m of scene.materials) this.fitMaterial(m);
@@ -326,11 +329,42 @@ export class LightRig {
     this.place(s, l);
     if (s.sg) {
       s.light.shadowMaxZ = Math.max(4, l.reach ?? l.radius);
+      this.fillCasters(s, l);
       // (shadows stay enabled - toggling recompiles every material - an idle map just stops refreshing)
       const sm = s.sg.getShadowMap();
       if (sm) sm.refreshRate = 1;
     }
   }
+
+  /**
+   * Shadow maps draw every caster in their list (no culling): keep only what this light can reach - its sphere
+   * (+ a margin for moving characters) against each caster's world bounds. Allocation-free.
+   */
+  private fillCasters(s: Slot, l: LightDef): void {
+    // (built in a scratch array; the shadow map's list - an observed array - only changes when the set does)
+    const tmp = this.tmpList;
+    tmp.length = 0;
+    const r = (l.reach ?? l.radius) + 1.5;
+    const cs = this.casters;
+    for (let i = 0; i < cs.length; i++) {
+      const m = cs[i]!;
+      const b = m.getBoundingInfo().boundingBox;
+      const mn = b.minimumWorld;
+      const mx = b.maximumWorld;
+      const dx = Math.max(mn.x - l.x, 0, l.x - mx.x);
+      const dy = Math.max(mn.y - l.y, 0, l.y - mx.y);
+      const dz = Math.max(mn.z - l.z, 0, l.z - mx.z);
+      if (dx * dx + dy * dy + dz * dz <= r * r) tmp.push(m);
+    }
+    const list = s.list;
+    let same = list.length === tmp.length;
+    for (let i = 0; same && i < tmp.length; i++) same = list[i] === tmp[i];
+    if (same) return;
+    s.list = tmp.slice();
+    const sm = s.sg?.getShadowMap();
+    if (sm) sm.renderList = s.list;
+  }
+  private tmpList: AbstractMesh[] = [];
 
   private idle(s: Slot): void {
     s.id = -1;

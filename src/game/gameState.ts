@@ -678,7 +678,7 @@ export class GameState implements AppState {
         pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
       }
       const runs = benchPlan(this.opts.benchmark, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio));
-      this.bench = { pts, runs, idx: -1, t: 0, iv: [], last: 0, done: false, lines: [], buckets: [], bMs: 0, bN: 0, bT: 0 };
+      this.bench = { pts, runs, idx: -1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [], buckets: [], bMs: 0, bN: 0, bT: 0 };
       this.nextBenchRun();
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
@@ -1075,6 +1075,8 @@ export class GameState implements AppState {
     idx: number;
     t: number;
     iv: number[];
+    /** Main-thread CPU per frame (the loop's update + render submission). */
+    cpu: number[];
     last: number;
     done: boolean;
     lines: string[];
@@ -1093,6 +1095,7 @@ export class GameState implements AppState {
     b.idx++;
     b.t = 0;
     b.iv = [];
+    b.cpu = [];
     b.last = 0;
     const run = b.runs[b.idx];
     if (run) {
@@ -1129,6 +1132,7 @@ export class GameState implements AppState {
     if (b.last && b.t > BENCH.warmup) {
       const ms = now - b.last;
       b.iv.push(ms);
+      b.cpu.push(this.app.loop.stats.frameCpuMs);
       if (run.sustained) {
         b.bMs += ms;
         b.bN++;
@@ -1153,7 +1157,7 @@ export class GameState implements AppState {
     cam.position.set(p.x, p.y, p.z);
     cam.setTarget(this.dofTo.set(q.x, q.y - 0.25, q.z));
     if (b.t >= run.seconds) {
-      const r = benchResult(b.iv);
+      const r = benchResult(b.iv, b.cpu);
       const v = this.app.settings.get().video;
       const where = `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${this.app.engine.getRenderWidth()}x${this.app.engine.getRenderHeight()}`;
       let line = benchText(r, where);

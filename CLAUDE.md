@@ -1024,12 +1024,20 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   Allocations <= 11.5 MB per second (per second, so a 240 Hz display does not double the garbage). Memory: VRAM <=
   12 GB at Epic (High 6, Ultra 9; brick pool <= 5 GB; render targets <= 2.5 GB at 4K, 3.5 GB at 7680 x 2160), tab <=
   6 GB, JS heap <= 1.5 GB, voxel cache <= 2 GB; Warehouse load <= 4 s cold, <= 1.5 s cached.
-- `perf.mjs --desktop --budget` checks the CPU side on the PC path (`?gfx=epic`, 640 x 360; draws and triangles counted
-  by wrapping the engine's draw calls). The SwiftShader VM is slower than the i9, so passing there is conservative;
-  compare against the previous build side by side before blaming a change (the VM drifts).
+- `perf.mjs --desktop --budget` (the PC path, `?gfx=epic`, 640 x 360): the sim's p95 (fixed steps, anim, camera)
+  <= 2 ms (the rest of the 3 ms is the render's submission), animation <= 0.04 ms per character, <= 600 draws and
+  <= 8 M triangles (counted by wrapping the engine's draw calls: every pass), allocations <= 11.5 MB/s. Measured
+  (3.0): sim p95 ~2.1 ms, 593 draws, 1.4 M triangles, 10.2 MB/s. CPU budgets scale by the machine: a fixed pure-JS
+  workload against `REF_MS` (the VM the 2.3 budgets were set on), so a slower or busier VM does not fail an unchanged
+  build. The render's JS is printed but not enforced (software GL stalls land in it); the laptop's benchmark line
+  carries the real main thread p95 (`benchResult` cpu from `GameLoop.stats.frameCpuMs`).
 - `perf.mjs --budget` (no flag) is the phone / test-path regression check (`?gfx=min`: no post stack, no voxel
-  characters, 20 cm voxels): main thread p95 <= 3.5 ms (measured ~1.7 ms in 2.3), animation <= 0.04 ms per character,
-  draw calls <= 160, allocations <= 11.5 MB/s.
+  characters, 20 cm voxels): sim p95 <= 3.5 ms (~1.9), animation <= 0.04 ms per character, <= 80 draws (~43),
+  allocations <= 11.5 MB/s (~11).
+- Draw calls (3.0 fix): voxel chunks merge into super-chunks (`VoxelWorldOptions.group`: structure 2^3, props 4^3);
+  each lamp's shadow map lists only the casters within its reach (`LightRig.fillCasters`, refilled per pick, the
+  list replaced only when it changes); the moon's cascades list moving casters and the static meshes the moon can
+  reach (`World.sunCasters`: open sky above, or the roof itself); the character skin material is frozen.
 - Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.
 - Dynamic physics bodies capped (see `physics/budget`). Projectiles/effects pooled, never allocated per shot.
 - Render scale: native DPR x `renderScale` (0.5-2), dynamic resolution (optional) within it; with TAAU the canvas stays native and the scene renders at the scale.

@@ -146,8 +146,8 @@ export class World {
     }
     this.lightRig = new LightRig(scene, level.lights);
     // the level itself casts shadows (walls stop lamp light and the sun)
-    for (const m of level.meshes) this.lightRig.addCaster(m);
-    for (const v of this.voxelLayers) for (const m of v.meshes) this.lightRig.addCaster(m);
+    for (const m of level.meshes) this.addStatic(m);
+    for (const v of this.voxelLayers) for (const m of v.meshes) this.addStatic(m);
     this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
     // image-based light for the PBR surfaces: the level and sky seen from the middle, captured once
@@ -190,9 +190,9 @@ export class World {
       // GI (Epic): the lamps' bounce light per circuit, baked with the sky
       const gi = vo.gi && atlas && level.lights.lights.length ? giLights(level.lights) : null;
       const giKey = gi ? `:gi${contentHash(gi.lights, '')}` : '';
-      voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) + giKey, gi });
+      voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) + giKey, gi, group: 2 });
       // the fine layer: half the size, levels of detail at half the distances, lit by the structure's sky bake
-      if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels });
+      if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels, group: 4 });
     }
     const w = new World(scene, map, level, layout, atlas, voxels, fine);
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
@@ -204,9 +204,43 @@ export class World {
     return [this.voxels, this.voxelsFine].filter((v): v is VoxelWorld => !!v);
   }
 
+  /**
+   * The moon's cascades (every cascade draws its whole list): moving casters, and static ones the moon can reach -
+   * under a roof only the roof itself matters, so indoor props and walls stay out (the sky bake says where).
+   */
+  readonly sunCasters: AbstractMesh[] = [];
+
+  /** Static level / voxel geometry: every lamp's list (filtered by reach), the moon's only where open to the sky. */
+  private addStatic(m: AbstractMesh): void {
+    this.lightRig.addCaster(m);
+    const vx = this.voxels;
+    if (vx?.sky) {
+      m.computeWorldMatrix(true);
+      const b = m.getBoundingInfo().boundingBox;
+      const mn = b.minimumWorld;
+      const mx = b.maximumWorld;
+      let open = false;
+      // the top's corners and centre: open sky above, or nothing higher in that column (a roof is its own top)
+      for (let i = 0; i < 5 && !open; i++) {
+        const x = i === 4 ? (mn.x + mx.x) / 2 : i & 1 ? mx.x - 0.05 : mn.x + 0.05;
+        const z = i === 4 ? (mn.z + mx.z) / 2 : i & 2 ? mx.z - 0.05 : mn.z + 0.05;
+        if (vx.roofAt(x, z) <= mx.y + 0.3 || vx.skyAt(x, mx.y + 0.3, z) > 0.05) open = true;
+      }
+      if (!open) return;
+    }
+    this.sunCasters.push(m);
+  }
+
   /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). */
   addShadowCaster(m: AbstractMesh): void {
     this.lightRig.addCaster(m);
+    if (!this.sunCasters.includes(m)) {
+      this.sunCasters.push(m);
+      m.onDisposeObservable.addOnce(() => {
+        const i = this.sunCasters.indexOf(m);
+        if (i >= 0) this.sunCasters.splice(i, 1);
+      });
+    }
     // (an instance takes its source mesh's setting)
     const src = (m as AbstractMesh & { sourceMesh?: AbstractMesh }).sourceMesh ?? m;
     src.receiveShadows = true;
@@ -264,7 +298,7 @@ export class World {
     csm.darkness = 0.35;
     csm.depthClamp = true;
     const sm = csm.getShadowMap();
-    if (sm) sm.renderList = this.lightRig.casters;
+    if (sm) sm.renderList = this.sunCasters;
     this.shadow = csm;
   }
 

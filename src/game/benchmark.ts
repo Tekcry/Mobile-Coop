@@ -101,20 +101,24 @@ export interface BenchResult {
   low1Fps: number;
   p50Ms: number;
   p99Ms: number;
+  /** Main-thread CPU per frame (the loop's update + render submission), p95 ms; 0 when not measured. */
+  cpuP95Ms: number;
 }
 
-export function benchResult(intervalsMs: readonly number[]): BenchResult {
+export function benchResult(intervalsMs: readonly number[], cpuMs: readonly number[] = []): BenchResult {
   const n = intervalsMs.length;
-  if (!n) return { frames: 0, avgFps: 0, low1Fps: 0, p50Ms: 0, p99Ms: 0 };
+  if (!n) return { frames: 0, avgFps: 0, low1Fps: 0, p50Ms: 0, p99Ms: 0, cpuP95Ms: 0 };
   const sorted = [...intervalsMs].sort((a, b) => a - b);
   const total = sorted.reduce((s, v) => s + v, 0);
   const k = Math.max(1, Math.floor(n * 0.01));
   let worst = 0;
   for (let i = n - k; i < n; i++) worst += sorted[i]!;
   const pct = (p: number): number => sorted[Math.min(n - 1, Math.ceil(p * (n - 1)))]!;
-  return { frames: n, avgFps: (1000 * n) / total, low1Fps: (1000 * k) / worst, p50Ms: pct(0.5), p99Ms: pct(0.99) };
+  const cs = [...cpuMs].sort((a, b) => a - b);
+  const cpuP95Ms = cs.length ? cs[Math.min(cs.length - 1, Math.ceil(0.95 * (cs.length - 1)))]! : 0;
+  return { frames: n, avgFps: (1000 * n) / total, low1Fps: (1000 * k) / worst, p50Ms: pct(0.5), p99Ms: pct(0.99), cpuP95Ms };
 }
 
 export function benchText(r: BenchResult, where: string): string {
-  return `${where}: average ${r.avgFps.toFixed(0)} fps, 1% low ${r.low1Fps.toFixed(0)} fps (frame p50 ${r.p50Ms.toFixed(1)} ms, p99 ${r.p99Ms.toFixed(1)} ms, ${r.frames} frames)`;
+  return `${where}: average ${r.avgFps.toFixed(0)} fps, 1% low ${r.low1Fps.toFixed(0)} fps (frame p50 ${r.p50Ms.toFixed(1)} ms, p99 ${r.p99Ms.toFixed(1)} ms, ${r.frames} frames${r.cpuP95Ms ? `; main thread p95 ${r.cpuP95Ms.toFixed(2)} ms` : ''})`;
 }
