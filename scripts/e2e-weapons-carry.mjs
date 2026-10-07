@@ -227,13 +227,13 @@ try {
   await checkLoadout('Free Roam', 5);
   for (const lo of ['ak,dmr,lmg,vector,fiveseven', 'tavor,semiShotgun,crossbow,p90,pistolSd', 'breacher,pistol']) {
     console.log(`loadout ${lo}`);
-    await page.goto(`${url}?autostart=proving&loadout=${lo}`);
+    await page.goto(`${url}?autostart=proving&loadout=${lo}&gfx=min`);
     await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
     await page.waitForTimeout(800);
     await G(install);
     await checkLoadout(lo, lo.split(',').length);
   }
-  await page.goto(`${url}?autostart=proving`);
+  await page.goto(`${url}?autostart=proving&gfx=min`);
   await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
   await G(install);
 

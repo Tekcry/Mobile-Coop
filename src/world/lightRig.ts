@@ -1,8 +1,13 @@
-import { Color3, CreateBox, CreateCylinder, CreateSphere, Matrix, Quaternion, SpotLight, StandardMaterial, Vector3, VertexBuffer, type Mesh, type Scene } from '../core/babylon';
+import { ClusteredLightContainer, Color3, CreateBox, CreateCylinder, CreateSphere, Matrix, Quaternion, ShadowGenerator, SpotLight, StandardMaterial, Vector3, VertexBuffer, type AbstractMesh, type Material, type Mesh, type Scene } from '../core/babylon';
+import type { ShadowSpec } from '../core/quality';
 import { nearestLights, type LightDef, type LightRegistry } from './lights';
 
-/** Real lights the pool holds (quality decides how many are used, `QualityLevel.realLights`). */
-export const MAX_REAL_LIGHTS = 4;
+/** Most real lights the rig can hold (`QualityLevel.realLights`, Settings > Graphics). */
+export const MAX_REAL_LIGHTS = 48;
+/** Without clustered lighting (an old GPU) plain per-pixel lights cap at this. */
+const PLAIN_LIGHTS = 6;
+/** Lamps given a shadow map use this cone (a perspective shadow map cannot cover the 175 deg lamp cone). */
+const SHADOW_LAMP_CONE = Math.PI * 0.8;
 /** How often the nearest set is re-picked (s). */
 const PICK_INTERVAL = 0.25;
 /** Sun + hemisphere already light every material. */
@@ -16,6 +21,25 @@ const CONE_HALF = 0.5;
 const CONE_LEN = 3.6;
 const CONE_GLOW = 0.075;
 
+/** What the rig is asked to render (from the graphics settings). */
+export interface LightRigConfig {
+  /** Real lights (clustered; a plain-light fallback caps lower). */
+  lights: number;
+  shadow: ShadowSpec;
+  /** Volumetric lighting on: the additive cone meshes step aside. */
+  volumetric: boolean;
+  /** Tests (`?gfx=min`): a short plain pool, no clustering. */
+  minimal?: boolean;
+}
+
+/** One pool slot: a Babylon spot light and, for the shadow pool, its generator. */
+interface Slot {
+  light: SpotLight;
+  sg: ShadowGenerator | null;
+  /** Registry light placed here (-1 = idle). */
+  id: number;
+}
+
 /**
  * Renders the level's `LightRegistry`: every light gets an emissive bulb (one thin-instanced mesh, dark when
  * off or shot out), and the few nearest the camera get a real Babylon light from a fixed pool of spot
@@ -25,42 +49,39 @@ const CONE_GLOW = 0.075;
  * as volumes of light in the dark; it goes out with the light. A level without lights creates nothing.
  */
 export class LightRig {
-  private pool: SpotLight[] = [];
+  /** Unshadowed lights (inside the clustered container when the GPU has it). */
+  private pool: Slot[] = [];
+  /** Shadow-casting lights (flashlights first, then the nearest lamps). */
+  private shadowPool: Slot[] = [];
+  private cluster: ClusteredLightContainer | null = null;
+  /** Meshes that cast shadows (shared by every shadow map; static level + characters + props). */
+  readonly casters: AbstractMesh[] = [];
+  private casterSet = new Set<AbstractMesh>();
+  private cfg: LightRigConfig = { lights: 8, shadow: { sun: false, cascades: 0, sunSize: 0, casters: 0, size: 0, soft: false }, volumetric: false };
+  private matObs: { remove(): void } | null = null;
+  private readonly scene: Scene;
   private bulbs: Mesh | null = null;
   private fixtures: Mesh | null = null;
   private cones: Mesh | null = null;
   private coneColors: Float32Array | null = null;
   private bulbColors: Float32Array | null = null;
-  private ids = new Int32Array(MAX_REAL_LIGHTS);
-  private dist = new Float32Array(MAX_REAL_LIGHTS);
+  private ids = new Int32Array(MAX_REAL_LIGHTS + 16);
+  private dist = new Float32Array(MAX_REAL_LIGHTS + 16);
   private pickT = 0;
   private version = -1;
-  /** Real lights in use (from quality). */
-  active = MAX_REAL_LIGHTS;
-  /** Pool slots placed at the last pick. */
-  private used = 0;
+  /** Real lights in use (clustered + shadowed). */
+  get active(): number {
+    return this.pool.length + this.shadowPool.length;
+  }
   private bulbCount = 0;
 
   constructor(
     scene: Scene,
     readonly reg: LightRegistry,
   ) {
+    this.scene = scene;
     const n = reg.lights.length;
     if (n === 0) return;
-    for (let i = 0; i < MAX_REAL_LIGHTS; i++) {
-      const s = new SpotLight(`maplight-${i}`, new Vector3(0, -50, 0), new Vector3(0, -1, 0), LAMP_CONE, 1, scene);
-      s.intensity = 0;
-      s.specular = Color3.Black();
-      this.pool.push(s);
-    }
-    // every lit material takes the pool on top of the sun and sky
-    for (const m of scene.materials) {
-      if (!(m instanceof StandardMaterial) || m.disableLighting) continue;
-      const frozen = m.isFrozen;
-      if (frozen) m.unfreeze();
-      m.maxSimultaneousLights = BASE_LIGHTS + MAX_REAL_LIGHTS;
-      if (frozen) m.freeze();
-    }
     // bulbs
     const mesh = CreateSphere('lightBulbs', { diameter: 0.18, segments: 6 }, scene);
     const mat = new StandardMaterial('lightBulbMat', scene);
@@ -164,19 +185,99 @@ export class LightRig {
     this.cones = cone;
   }
 
+  /** Lights the materials must take: sky + sun, the cluster (or the plain pool) and the shadow pool. */
+  private get materialLights(): number {
+    return BASE_LIGHTS + (this.cluster ? 1 : this.pool.length) + this.shadowPool.length + 1;
+  }
+
+  private fitMaterial(m: Material): void {
+    if (!(m instanceof StandardMaterial) || m.disableLighting) return;
+    const want = this.materialLights;
+    if (m.maxSimultaneousLights >= want) return;
+    const frozen = m.isFrozen;
+    if (frozen) m.unfreeze();
+    m.maxSimultaneousLights = want;
+    if (frozen) m.freeze();
+  }
+
+  /** A mesh that casts shadows (level geometry, characters, props); deduplicated. */
+  addCaster(m: AbstractMesh): void {
+    if (this.casterSet.has(m)) return;
+    this.casterSet.add(m);
+    this.casters.push(m);
+    m.onDisposeObservable.addOnce(() => {
+      this.casterSet.delete(m);
+      const i = this.casters.indexOf(m);
+      if (i >= 0) this.casters.splice(i, 1);
+    });
+  }
+
+  /**
+   * Rebuild the pools for the graphics settings (Settings > Graphics; recompiles shaders, so only on a change).
+   * Clustered lighting holds up to `lights` unshadowed lights in one container; `shadow.casters` spot lights with
+   * shadow maps take the flashlights and the nearest lamps.
+   */
+  configure(cfg: LightRigConfig): void {
+    const same = cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
+    this.cfg = cfg;
+    if (this.cones) this.cones.isVisible = !cfg.volumetric;
+    if (!this.bulbs || (same && this.pool.length + this.shadowPool.length > 0)) return;
+    this.disposePools();
+    const scene = this.scene;
+    const make = (name: string): SpotLight => {
+      const s = new SpotLight(name, new Vector3(0, -50, 0), new Vector3(0, -1, 0), LAMP_CONE, 1, scene);
+      s.intensity = 0;
+      s.specular = Color3.Black();
+      return s;
+    };
+    for (let i = 0; i < cfg.shadow.casters; i++) {
+      const l = make(`maplight-shadow-${i}`);
+      l.shadowMinZ = 0.15;
+      l.shadowMaxZ = 30;
+      const sg = new ShadowGenerator(cfg.shadow.size, l);
+      if (cfg.shadow.soft) {
+        sg.useContactHardeningShadow = true;
+        sg.contactHardeningLightSizeUVRatio = 0.04;
+      } else {
+        sg.usePercentageCloserFiltering = true;
+      }
+      sg.filteringQuality = ShadowGenerator.QUALITY_HIGH;
+      sg.bias = 0.0006;
+      sg.normalBias = 0.012;
+      sg.darkness = 0;
+      sg.transparencyShadow = false;
+      const sm = sg.getShadowMap();
+      if (sm) sm.renderList = this.casters;
+      this.shadowPool.push({ light: l, sg, id: -1 });
+    }
+    // clustered lighting when the GPU has it, else a short plain pool
+    const probe = make('maplight-probe');
+    const clustered = !cfg.minimal && ClusteredLightContainer.IsLightSupported(probe);
+    probe.dispose();
+    const n = clustered ? cfg.lights : Math.min(cfg.lights, cfg.minimal ? 4 : PLAIN_LIGHTS);
+    const lights: SpotLight[] = [];
+    for (let i = 0; i < n; i++) {
+      const l = make(`maplight-${i}`);
+      lights.push(l);
+      this.pool.push({ light: l, sg: null, id: -1 });
+    }
+    if (clustered && lights.length) this.cluster = new ClusteredLightContainer('maplights', lights, scene);
+    for (const m of scene.materials) this.fitMaterial(m);
+    this.matObs?.remove();
+    const obs = scene.onNewMaterialAddedObservable.add((m) => this.fitMaterial(m));
+    this.matObs = { remove: () => scene.onNewMaterialAddedObservable.remove(obs) };
+    this.pickT = 0;
+  }
+
   /** Per render frame: re-pick the nearest lights to the camera a few times a second, and on any change. */
   update(dt: number, cx: number, cy: number, cz: number): void {
     if (!this.bulbs) return;
-    // the haze goes with the real lights (the lowest quality has none)
-    if (this.cones) this.cones.isVisible = this.active > 0;
     this.pickT -= dt;
     const changed = this.version !== this.reg.version;
     if (!changed && this.pickT > 0) {
       // moving lights follow every frame between picks
-      for (let i = 0; i < this.used; i++) {
-        const l = this.reg.lights[this.ids[i]!]!;
-        if (l.kind === 'flashlight') this.place(this.pool[i]!, l);
-      }
+      this.follow(this.pool);
+      this.follow(this.shadowPool);
       return;
     }
     this.pickT = PICK_INTERVAL;
@@ -184,30 +285,105 @@ export class LightRig {
       this.version = this.reg.version;
       this.paintBulbs();
     }
-    const n = nearestLights(this.reg, cx, cy, cz, this.ids, this.dist);
-    const use = Math.min(n, this.active);
-    this.used = use;
-    for (let i = 0; i < MAX_REAL_LIGHTS; i++) {
-      const s = this.pool[i]!;
-      if (i < use) this.place(s, this.reg.lights[this.ids[i]!]!);
-      else s.intensity = 0;
+    const total = this.pool.length + this.shadowPool.length;
+    const ids = this.ids;
+    const n = nearestLights(this.reg, cx, cy, cz, ids, this.dist);
+    const use = Math.min(n, total, ids.length);
+    // shadow maps first to flashlights (the drama), then the nearest lamps; everything else is clustered
+    let sh = 0;
+    const taken = this.dist; // (reused as a flag array: 1 = placed)
+    for (let i = 0; i < use; i++) taken[i] = 0;
+    for (let pass = 0; pass < 2 && sh < this.shadowPool.length; pass++) {
+      for (let i = 0; i < use && sh < this.shadowPool.length; i++) {
+        if (taken[i]) continue;
+        const l = this.reg.lights[ids[i]!]!;
+        if (pass === 0 && l.kind !== 'flashlight') continue;
+        this.put(this.shadowPool[sh++]!, l);
+        taken[i] = 1;
+      }
+    }
+    for (let i = sh; i < this.shadowPool.length; i++) this.idle(this.shadowPool[i]!);
+    let k = 0;
+    for (let i = 0; i < use && k < this.pool.length; i++) {
+      if (taken[i]) continue;
+      this.put(this.pool[k++]!, this.reg.lights[ids[i]!]!);
+    }
+    for (let i = k; i < this.pool.length; i++) this.idle(this.pool[i]!);
+  }
+
+  private follow(pool: Slot[]): void {
+    for (let i = 0; i < pool.length; i++) {
+      const s = pool[i]!;
+      if (s.id < 0) continue;
+      const l = this.reg.lights[s.id]!;
+      if (l.kind === 'flashlight') this.place(s, l);
     }
   }
 
-  private place(s: SpotLight, l: LightDef): void {
-    s.position.set(l.x, l.y, l.z);
-    s.range = l.reach ?? l.radius;
-    s.intensity = l.intensity * 1.6;
-    s.diffuse.set(l.color[0], l.color[1], l.color[2]);
-    if (l.cone) {
-      s.direction.set(l.cone.dx, l.cone.dy, l.cone.dz);
-      s.angle = Math.acos(l.cone.cosOuter) * 2;
-      s.exponent = 2;
-    } else {
-      s.direction.set(0, -1, 0);
-      s.angle = LAMP_CONE;
-      s.exponent = 1;
+  private put(s: Slot, l: LightDef): void {
+    s.id = l.id;
+    this.place(s, l);
+    if (s.sg) {
+      s.light.shadowMaxZ = Math.max(4, l.reach ?? l.radius);
+      // (shadows stay enabled - toggling recompiles every material - an idle map just stops refreshing)
+      const sm = s.sg.getShadowMap();
+      if (sm) sm.refreshRate = 1;
     }
+  }
+
+  private idle(s: Slot): void {
+    s.id = -1;
+    s.light.intensity = 0;
+    s.light.position.set(0, -50, 0);
+    const sm = s.sg?.getShadowMap();
+    if (sm) sm.refreshRate = 0;
+  }
+
+  private place(s: Slot, l: LightDef): void {
+    const sp = s.light;
+    sp.position.set(l.x, l.y, l.z);
+    sp.range = l.reach ?? l.radius;
+    sp.intensity = l.intensity * 1.6;
+    sp.diffuse.set(l.color[0], l.color[1], l.color[2]);
+    if (l.cone) {
+      sp.direction.set(l.cone.dx, l.cone.dy, l.cone.dz);
+      sp.angle = Math.acos(l.cone.cosOuter) * 2;
+      sp.exponent = 2;
+    } else {
+      sp.direction.set(0, -1, 0);
+      sp.angle = s.sg ? SHADOW_LAMP_CONE : LAMP_CONE;
+      sp.exponent = 1;
+    }
+  }
+
+  /** Lights placed now (tests / debug). */
+  get placed(): number {
+    let n = 0;
+    for (const s of this.pool) if (s.id >= 0) n++;
+    for (const s of this.shadowPool) if (s.id >= 0) n++;
+    return n;
+  }
+
+  get shadowed(): number {
+    let n = 0;
+    for (const s of this.shadowPool) if (s.id >= 0) n++;
+    return n;
+  }
+
+  get clustered(): boolean {
+    return this.cluster !== null;
+  }
+
+  private disposePools(): void {
+    for (const s of this.shadowPool) {
+      s.sg?.dispose();
+      s.light.dispose();
+    }
+    this.cluster?.dispose(false);
+    for (const s of this.pool) s.light.dispose();
+    this.cluster = null;
+    this.pool.length = 0;
+    this.shadowPool.length = 0;
   }
 
   private paintBulbs(): void {
@@ -235,13 +411,13 @@ export class LightRig {
   }
 
   dispose(): void {
-    for (const s of this.pool) s.dispose();
+    this.matObs?.remove();
+    this.disposePools();
     this.bulbs?.material?.dispose();
     this.bulbs?.dispose();
     this.fixtures?.dispose();
     this.cones?.material?.dispose();
     this.cones?.dispose();
-    this.pool.length = 0;
     this.bulbs = null;
   }
 }

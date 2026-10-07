@@ -41,6 +41,16 @@ export async function enterFullscreenLandscape(): Promise<void> {
   }
 }
 
+/** Desktop: fullscreen on / off (no orientation lock). Must be called from a user gesture. */
+export async function toggleFullscreen(): Promise<void> {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+  } catch {
+    /* not supported / denied */
+  }
+}
+
 /** Shows a "rotate your device" overlay while in portrait on touch devices. */
 export function setupRotateOverlay(): void {
   const el = document.getElementById('rotate-overlay');

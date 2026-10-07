@@ -9,6 +9,7 @@ import {
   type Mesh,
   Quaternion,
   Scene,
+  ShadowGenerator,
   SpotLight,
   StandardMaterial,
   Vector3,
@@ -27,6 +28,8 @@ import { WEAPONS, type WeaponId } from '../weapons/weaponDefs';
 import { withAttachments } from '../progression/attachments';
 import { camoById } from '../cosmetics/catalog';
 import { playEmote } from '../cosmetics/emotes';
+import type { QualityLevel } from '../core/quality';
+import { PostStack } from '../vfx/postStack';
 
 /** The diorama's lights: a warm key overhead in front of the operator, a cool rim behind, a lamp in the distance. */
 const LIGHTS: { pos: [number, number, number]; at: [number, number, number]; angle: number; intensity: number; color: [number, number, number]; cone: number }[] = [
@@ -82,7 +85,12 @@ export class MenuState implements AppState {
   private framing: MenuFraming = 'menu';
   private t2 = 0;
   private key: SpotLight | null = null;
+  private spots: SpotLight[] = [];
   private hemi: HemisphericLight;
+  private shadows: ShadowGenerator[] = [];
+  private shadowKey = '';
+  /** Bloom on the bulbs, depth of field on the operator, AO, tone mapping (Settings > Graphics). */
+  private stack: PostStack;
 
   constructor(engine: Engine) {
     const scene = new Scene(engine);
@@ -110,6 +118,7 @@ export class MenuState implements AppState {
       s.specular = new Color3(0.2, 0.2, 0.2);
       s.range = 16;
       if (i === 0) this.key = s;
+      this.spots.push(s);
       // the visible beam, ending a little above the floor
       const len = Math.max(1, (p.y - 0.3) / Math.max(0.3, -dir.y));
       const cone = lightCone(scene, `menuBeam${i}`, len, l.angle * 0.9, l.color, l.cone);
@@ -158,8 +167,49 @@ export class MenuState implements AppState {
     for (const m of scene.meshes) {
       m.isPickable = false;
       m.freezeWorldMatrix();
+      m.receiveShadows = !m.name.startsWith('menuBeam');
     }
     this.parts = new PartLibrary(scene);
+    // the operator's parts (built later) take the lamps' shadows too
+    scene.onNewMeshAddedObservable.add((m) => {
+      if (!m.name.startsWith('menuBeam')) m.receiveShadows = true;
+    });
+    this.stack = new PostStack(scene, this.camera, { fogColor: [0.02, 0.03, 0.04], fogDensity: 0, lights: null });
+  }
+
+  /** Graphics settings: the key and rim lamps cast shadows, and the post stack (no volumetrics: the beams are
+   *  their own cones here). */
+  applyQuality(q: QualityLevel): void {
+    const sh = q.shadow;
+    const key = sh.casters > 0 ? `${sh.size}:${sh.soft}` : 'off';
+    if (key !== this.shadowKey) {
+      this.shadowKey = key;
+      for (const g of this.shadows) g.dispose();
+      this.shadows.length = 0;
+      if (sh.casters > 0) {
+        for (const l of this.spots.slice(0, 2)) {
+          l.shadowMinZ = 0.5;
+          l.shadowMaxZ = 12;
+          const g = new ShadowGenerator(Math.max(1024, sh.size), l);
+          if (sh.soft) {
+            g.useContactHardeningShadow = true;
+            g.contactHardeningLightSizeUVRatio = 0.05;
+          } else g.usePercentageCloserFiltering = true;
+          g.filteringQuality = ShadowGenerator.QUALITY_HIGH;
+          g.bias = 0.0008;
+          g.normalBias = 0.01;
+          g.darkness = 0.1;
+          const sm = g.getShadowMap();
+          if (sm) {
+            // every mesh but the beams and the floor itself (null list = the whole scene)
+            sm.renderList = null;
+            sm.renderListPredicate = (m) => !m.name.startsWith('menuBeam') && m.name !== 'ground';
+          }
+          this.shadows.push(g);
+        }
+      }
+    }
+    this.stack.apply({ ...q, features: { ...q.features, volumetrics: false, ssr: false, motionBlur: false } });
   }
 
   /** What the preview shows (rebuilt only when it changes). */
@@ -201,11 +251,25 @@ export class MenuState implements AppState {
 
   private aimW = 0.05;
 
+  private photo = false;
+
+  photoCamera(): ArcRotateCamera {
+    return this.camera;
+  }
+
+  photoFreeze(on: boolean): void {
+    this.photo = on;
+  }
+
   enter(): void {}
-  exit(): void {}
+  exit(): void {
+    this.stack.dispose();
+    for (const g of this.shadows) g.dispose();
+  }
   fixedUpdate(): void {}
 
   frameUpdate(dt: number): void {
+    if (this.photo) return;
     this.t += dt;
     this.t2 += dt;
     // customising needs to see the colours: a brighter fill there, the dark stage elsewhere
@@ -241,5 +305,9 @@ export class MenuState implements AppState {
       this.rig.animate(dt, { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: this.aimW, kick: 0 });
     }
     for (const fn of this.frameHooks) fn(dt);
+    // a portrait lens on the operator: the stage behind falls soft
+    this.stack.focusOn = true;
+    this.stack.focus = cam.radius;
+    this.stack.frame(dt);
   }
 }

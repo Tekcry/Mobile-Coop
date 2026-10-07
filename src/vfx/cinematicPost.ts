@@ -148,6 +148,13 @@ export class CinematicPost {
     }
   }
 
+  /** Move the pass back to the end of the camera's chain (after the post stack is rebuilt). */
+  toEnd(): void {
+    if (!this.pp) return;
+    this.camera.detachPostProcess(this.pp);
+    this.camera.attachPostProcess(this.pp);
+  }
+
   update(dt: number): void {
     this.t += dt;
     const k = 1 - Math.exp(-dt / 0.25);

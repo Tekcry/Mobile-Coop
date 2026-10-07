@@ -1,6 +1,6 @@
 import { h } from '../dom';
 import { icon } from '../icons';
-import { promptHtml } from '../prompts';
+import { keyLabels, promptHtml } from '../prompts';
 
 /** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
 export type WorldPromptId = 'cover' | 'vault' | 'state' | 'move' | 'corner' | 'jumpTo' | 'drop' | 'takedown';
@@ -21,16 +21,23 @@ const CHAR_VW = 1.25;
 const PAD_VW = 4;
 const MIN_DY = 7;
 
-const GLYPH: Record<WorldPromptId, string> = {
-  cover: promptHtml('A', 'Space'),
-  move: promptHtml('A', 'Space'),
-  corner: promptHtml('A', 'Space'),
-  vault: promptHtml('Y', 'E'),
-  jumpTo: promptHtml('Y', 'E'),
-  drop: promptHtml('B', 'C'),
-  takedown: promptHtml('Y', 'E'),
-  state: '',
-};
+/** Pad glyph and the bound key per prompt (keys follow the player's bindings). */
+function glyph(id: WorldPromptId): string {
+  switch (id) {
+    case 'cover':
+    case 'move':
+    case 'corner':
+      return promptHtml('A', keyLabels.cover);
+    case 'vault':
+    case 'jumpTo':
+    case 'takedown':
+      return promptHtml('Y', keyLabels.traverse);
+    case 'drop':
+      return promptHtml('B', keyLabels.crouch);
+    case 'state':
+      return '';
+  }
+}
 const TOUCH_ICON: Record<WorldPromptId, string> = {
   cover: icon('cover', 18),
   move: icon('cover', 18),
@@ -104,7 +111,7 @@ export class WorldPrompts {
     if (key !== it.key) {
       it.key = key;
       it.el.innerHTML = label
-        ? `<i class="wp-mark"></i><span class="wp-body">${GLYPH[id]}<span class="wp-touch">${TOUCH_ICON[id]}</span><span class="wp-label">${label}</span></span>`
+        ? `<i class="wp-mark"></i><span class="wp-body">${glyph(id)}<span class="wp-touch">${TOUCH_ICON[id]}</span><span class="wp-label">${label}</span></span>`
         : '';
       it.el.classList.toggle('show', !!label);
     }

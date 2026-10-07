@@ -12,8 +12,8 @@ try {
   assert(await page.evaluate(() => document.body.classList.contains('input-touch')), 'starts in touch mode');
   await page.locator('.btn', { hasText: 'Settings' }).tap();
   await page.waitForSelector('.settings-screen');
-  await page.locator('.tab', { hasText: 'Video' }).tap();
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Video', 'tap switches tab');
+  await page.locator('.tab', { hasText: 'Graphics' }).tap();
+  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Graphics', 'tap switches tab');
   await page.locator('.settings-screen .screen-back').tap();
   await page.waitForSelector('.settings-screen', { state: 'detached' });
   assert(true, 'back button closes settings');

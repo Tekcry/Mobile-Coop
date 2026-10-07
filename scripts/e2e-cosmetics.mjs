@@ -80,7 +80,7 @@ try {
 
   // in game: avatar look + camo carried, emote on d-pad right
   await G(() => window.__app.screens.top);
-  await page.goto(url + '?autostart=proving');
+  await page.goto(url + '?autostart=proving&gfx=min');
   await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 60000 });
   await G(() => window.__pad.connect());
   await press(page, BTN.LS);

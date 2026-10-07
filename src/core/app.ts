@@ -16,6 +16,10 @@ import { AudioEngine } from '../audio/audioEngine';
 import { Sfx } from '../audio/sfx';
 import { Music } from '../audio/music';
 import { QualityManager, type QualityTarget } from './qualityManager';
+import { FeedbackStore } from '../feedback/feedbackStore';
+import { keyLabels } from '../ui/prompts';
+import { bindLabel } from '../input/keyBindings';
+import { browserEnv, detectPlatform, platformOverride, uiScale, type PlatformInfo } from './platform';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -47,8 +51,14 @@ export class App {
   readonly sfx = new Sfx(this.audio);
   readonly music = new Music(this.audio);
   readonly quality: QualityManager;
+  /** Playtest feedback notes (Settings > Feedback, pause menu). */
+  readonly feedback = new FeedbackStore();
   private state: AppState | null = null;
   private time = 0;
+  /** UI / input platform (desktop hides touch-only controls and settings). Never changes rendering. */
+  platform: PlatformInfo = { platform: 'mobile', touch: true, reason: '' };
+  /** Called when the platform flips (settings rebuild their tabs). */
+  onPlatform: (() => void) | null = null;
 
   constructor(readonly canvas: HTMLCanvasElement) {
     this.uiRoot = document.getElementById('ui-root')!;
@@ -61,10 +71,10 @@ export class App {
     this.screens = new ScreenManager(screensEl, this.nav);
     this.input = new InputManager(canvas, this.uiRoot, this.settings);
     this.toasts = new Toasts(this.uiRoot);
-    this.quality = new QualityManager(this.engine, this.settings);
-    this.debug.extra.set('quality', () => `${this.quality.level.name}${this.quality.auto ? ' (auto)' : ''}  res x${this.quality.res.scale.toFixed(2)}`);
+    this.quality = new QualityManager(this.engine, this.settings, this.loop);
+    this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
     this.debug.pacing = () => this.quality.pacing();
-    this.loop.onFrameEnd = (interval, cpu) => this.quality.frame(interval, cpu, this.current?.simulating ?? false);
+    this.loop.onFrameEnd = (interval, cpu, raf) => this.quality.frame(interval, cpu, this.current?.simulating ?? false, raf);
     uiHooks.blocked = (msg) => {
       this.toasts.show(msg, 'warn', 1800);
       this.sfx.denied();
@@ -90,15 +100,44 @@ export class App {
         this.onAvatarStyle?.();
       }
       if (s.video.showFps !== this.debug.isVisible) this.debug.toggle(s.video.showFps);
+      this.applyPlatform();
+      this.applyKeyLabels();
     });
+    this.applyPlatform();
+    this.applyKeyLabels();
     // Backgrounding (home button, app switch, screen lock): save now, silence audio, pause single player.
     document.addEventListener('visibilitychange', () => this.onVisibility(document.hidden));
     window.addEventListener('pagehide', () => void this.save.flush());
-    window.addEventListener('resize', () => this.engine.resize());
+    window.addEventListener('resize', () => {
+      this.engine.resize();
+      this.applyPlatform();
+    });
     window.addEventListener('orientationchange', () => setTimeout(() => this.engine.resize(), 200));
   }
 
   private audioWasRunning = false;
+
+  /** In-game key prompts follow the bindings. */
+  private applyKeyLabels(): void {
+    const k = this.settings.get().keys;
+    keyLabels.cover = bindLabel(k, 'cover');
+    keyLabels.traverse = bindLabel(k, 'traverse');
+    keyLabels.crouch = bindLabel(k, 'crouch');
+    keyLabels.reload = bindLabel(k, 'reload');
+  }
+
+  /** Detect the platform (setting, `?platform=`), set `body.platform-*` and the desktop UI scale (`--ui-scale`). */
+  applyPlatform(): void {
+    const before = this.platform.platform;
+    this.platform = detectPlatform(browserEnv(), platformOverride(location.search) ?? this.settings.get().video.platform);
+    const p = this.platform.platform;
+    const c = document.body.classList;
+    c.toggle('platform-desktop', p === 'desktop');
+    c.toggle('platform-mobile', p === 'mobile');
+    c.toggle('can-touch', this.platform.touch);
+    document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, window.innerWidth, window.innerHeight)));
+    if (p !== before) this.onPlatform?.();
+  }
 
   private onVisibility(hidden: boolean): void {
     const ctx = this.audio.ctx;

@@ -3,6 +3,7 @@ import { h } from '../dom';
 import { button, Dialog, section } from '../widgets';
 import type { TabDef } from '../widgets';
 import type { SettingsScreen } from './settingsScreen';
+import { shareOrDownload } from '../fileOut';
 
 /** Settings > Data: export/import the save file, reset progress, storage status. */
 export function dataTab(app: App, screen: SettingsScreen): TabDef {
@@ -68,25 +69,6 @@ export function dataTab(app: App, screen: SettingsScreen): TabDef {
 function exportSave(app: App): void {
   const text = app.save.exportText();
   const blob = new Blob([text], { type: 'application/json' });
-  const name = `silent-but-deadly-save-${new Date().toISOString().slice(0, 10)}.json`;
-  const file = typeof File !== 'undefined' ? new File([blob], name, { type: 'application/json' }) : null;
-  // Mobile: prefer the share sheet (Files / Drive); fall back to a download link.
-  const nav = navigator as Navigator & { canShare?: (d: unknown) => boolean };
-  if (file && nav.canShare?.({ files: [file] })) {
-    void nav.share({ files: [file], title: 'Silent But Deadly save' }).catch(() => download(blob, name));
-  } else {
-    download(blob, name);
-  }
+  shareOrDownload(blob, `silent-but-deadly-save-${new Date().toISOString().slice(0, 10)}.json`, 'Silent But Deadly save');
   app.toasts.show('Save exported', 'ok');
-}
-
-function download(blob: Blob, name: string): void {
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = name;
-  document.body.appendChild(a);
-  a.click();
-  a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

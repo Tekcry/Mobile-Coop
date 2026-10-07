@@ -2,14 +2,14 @@
 import { chromium, devices } from 'playwright-core';
 import { existsSync } from 'node:fs';
 
-export async function launch({ url = 'http://localhost:4173/', params = '', touch = true } = {}) {
+export async function launch({ url = 'http://localhost:4173/', params = '', touch = true, viewport = { width: 1280, height: 640 } } = {}) {
   const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium/chrome-linux/chrome'].find(existsSync);
   const browser = await chromium.launch({
     executablePath: exe,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
   });
   const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
-  const ctx = await browser.newContext({ ...(touch ? { ...dev } : { viewport: { width: 1280, height: 640 } }), acceptDownloads: true });
+  const ctx = await browser.newContext({ ...(touch ? { ...dev } : { viewport }), acceptDownloads: true });
   const { page, errors } = await openPage(ctx, url, params);
   return { browser, ctx, page, errors };
 }
@@ -55,7 +55,10 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     };
     navigator.getGamepads = () => [pad.connected ? pad : null, null, null, null];
   });
-  await page.goto(url + (url.includes('?') ? '&' : '?') + params);
+  // the PC renderer at Epic on headless software GL is too slow for real-time checks: tests run minimal graphics
+  // unless they ask for a preset (?gfx=epic in e2e-desktop)
+  const p = /(^|&)gfx=/.test(params) || /[?&]gfx=/.test(url) ? params : params ? `${params}&gfx=min` : 'gfx=min';
+  await page.goto(url + (url.includes('?') ? '&' : '?') + p);
   await page.waitForFunction(
     () => document.getElementById('boot')?.classList.contains('done') || /Failed/.test(document.getElementById('boot-status')?.textContent ?? ''),
     null,

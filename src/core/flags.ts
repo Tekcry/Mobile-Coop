@@ -17,6 +17,8 @@ export interface Flags {
   room: string | null;
   /** Coop transport: 'local' = BroadcastChannel between tabs (tests), default WebRTC. */
   net: 'local' | 'webrtc';
+  /** Graphics override for this page (tests; not saved): 'min' = everything off at DPR 1, or a preset. */
+  gfx: 'min' | 'high' | 'ultra' | 'epic' | null;
 }
 
 function readParams(): URLSearchParams {
@@ -41,4 +43,5 @@ export const flags: Flags = {
   difficulty: params.get('difficulty'),
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
+  gfx: (['min', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
 };

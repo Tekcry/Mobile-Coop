@@ -1,138 +1,128 @@
-/** Quality levels (index 0 = lowest). */
+/**
+ * Graphics settings (pure, unit-tested). 3.0: one renderer for every device, sized for a gaming PC - presets
+ * High / Ultra / Epic (default) fill the per-feature settings, changing any feature makes it Custom. Nothing
+ * drops quality by device; dynamic resolution is an optional toggle (off by default).
+ */
+export type GraphicsPreset = 'high' | 'ultra' | 'epic' | 'custom';
+export type ShadowQuality = 'off' | 'high' | 'ultra' | 'epic';
+export type AaMode = 'fxaa' | 'msaa' | 'taa';
+export type TierQuality = 'high' | 'ultra' | 'epic';
+
+/** The per-feature graphics settings a preset fills. */
+export interface GraphicsFeatures {
+  /** Shadow-casting lights and map resolution (off: none, high: sun + 3 lamps / flashlights at 1K, ultra: 5, epic: 8 at 2K + soft; WebGL's 16 texture units cap it). */
+  shadows: ShadowQuality;
+  /** Map lights rendered as real per-pixel lights (nearest first). */
+  lights: number;
+  /** Screen-space ambient occlusion. */
+  ao: boolean;
+  bloom: boolean;
+  /** Screen-space reflections on wet / polished floors. */
+  ssr: boolean;
+  /** Volumetric light shafts and height fog. */
+  volumetrics: boolean;
+  /** Depth of field: aiming and the menu operator. */
+  dof: boolean;
+  motionBlur: boolean;
+  /** Subtle chromatic aberration and lens dirt. */
+  lens: boolean;
+  aa: AaMode;
+  /** Procedural surface texture resolution (high 1K, ultra 2K, epic 4K). */
+  textures: TierQuality;
+  /** Mesh detail and draw distances: LOD and animation distances, map clutter. */
+  detail: TierQuality;
+  /** Particles, debris, weather. */
+  effects: TierQuality;
+}
+
+export const GRAPHICS_PRESETS: Record<Exclude<GraphicsPreset, 'custom'>, GraphicsFeatures> = {
+  high: { shadows: 'high', lights: 16, ao: true, bloom: true, ssr: false, volumetrics: false, dof: true, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' },
+  ultra: { shadows: 'ultra', lights: 24, ao: true, bloom: true, ssr: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'msaa', textures: 'ultra', detail: 'ultra', effects: 'ultra' },
+  epic: { shadows: 'epic', lights: 32, ao: true, bloom: true, ssr: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'taa', textures: 'epic', detail: 'epic', effects: 'epic' },
+};
+export const PRESET_IDS = ['high', 'ultra', 'epic'] as const;
+/** Tests only (`?gfx=min`): every feature off, the fewest lights - headless software GL keeps its frame rate. */
+export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, ssr: false, volumetrics: false, dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };
+export const FEATURE_KEYS = Object.keys(GRAPHICS_PRESETS.epic) as (keyof GraphicsFeatures)[];
+export const LIGHT_RANGE = { min: 8, max: 48 } as const;
+
+/** The preset these features equal, else 'custom'. */
+export function presetOf(f: GraphicsFeatures): GraphicsPreset {
+  for (const id of PRESET_IDS) {
+    const p = GRAPHICS_PRESETS[id];
+    if (FEATURE_KEYS.every((k) => p[k] === f[k])) return id;
+  }
+  return 'custom';
+}
+
+/** Shadow-casting budget per quality: lamps / flashlights with shadow maps, map size, filtering. */
+export interface ShadowSpec {
+  /** Sun / moon cascaded shadows (outdoor and roofless maps). */
+  sun: boolean;
+  cascades: number;
+  sunSize: number;
+  /** Lamps and flashlights casting shadows (nearest first). */
+  casters: number;
+  size: number;
+  /** Contact-hardening soft shadows (PCSS) instead of PCF. */
+  soft: boolean;
+}
+
+export function shadowSpec(q: ShadowQuality): ShadowSpec {
+  switch (q) {
+    case 'off':
+      return { sun: false, cascades: 0, sunSize: 0, casters: 0, size: 0, soft: false };
+    case 'high':
+      return { sun: true, cascades: 2, sunSize: 2048, casters: 3, size: 1024, soft: false };
+    case 'ultra':
+      return { sun: true, cascades: 3, sunSize: 2048, casters: 5, size: 1024, soft: false };
+    case 'epic':
+      return { sun: true, cascades: 4, sunSize: 4096, casters: 8, size: 2048, soft: true };
+  }
+}
+
+/** Texture size (px) per tier. */
+export const TEXTURE_SIZE: Record<TierQuality, number> = { high: 1024, ultra: 2048, epic: 4096 };
+/** Draw / animation distance multipliers and particle density per tier. */
+export const DETAIL_SCALE: Record<TierQuality, number> = { high: 2, ultra: 3, epic: 4 };
+export const EFFECT_DENSITY: Record<TierQuality, number> = { high: 1, ultra: 1.5, epic: 2 };
+
+/** The live level the game applies (`QualityTarget.applyQuality`). */
 export interface QualityLevel {
-  name: 'potato' | 'low' | 'medium' | 'high' | 'ultra';
-  renderScale: number;
-  dprCap: number;
-  shadows: boolean;
-  /** Shadow map refresh: 1 = every frame, 2 = every other frame. */
-  shadowRefresh: number;
+  name: GraphicsPreset;
+  features: GraphicsFeatures;
+  shadow: ShadowSpec;
+  /** Particle density (1 = the authored amount). */
   vfxDensity: number;
-  /** Map lights rendered as real (per-pixel) lights, nearest first; the rest are emissive fakes. */
+  /** Map lights rendered as real lights. */
   realLights: number;
+  /** LOD / animation distance multiplier. */
+  detailScale: number;
+  /** Tests (`?gfx=min`): no post stack at all, a few plain lights - the phone-era cost on software GL. */
+  minimal: boolean;
 }
 
-export const QUALITY_LEVELS: readonly QualityLevel[] = [
-  { name: 'potato', renderScale: 0.6, dprCap: 1, shadows: false, shadowRefresh: 2, vfxDensity: 0.4, realLights: 1 },
-  { name: 'low', renderScale: 0.75, dprCap: 1.25, shadows: false, shadowRefresh: 2, vfxDensity: 0.6, realLights: 2 },
-  { name: 'medium', renderScale: 0.9, dprCap: 1.5, shadows: true, shadowRefresh: 2, vfxDensity: 0.85, realLights: 3 },
-  { name: 'high', renderScale: 1, dprCap: 1.75, shadows: true, shadowRefresh: 1, vfxDensity: 1, realLights: 4 },
-  /** "Ultra 120": top phones on 120 Hz displays (native-ish resolution, everything on). */
-  { name: 'ultra', renderScale: 1, dprCap: 3, shadows: true, shadowRefresh: 1, vfxDensity: 1, realLights: 4 },
-];
-
-export const PRESET_INDEX = { low: 1, medium: 2, high: 3, ultra: 4 } as const;
-/** Highest level auto may pick: Ultra only on high-refresh displays. */
-export function autoMaxLevel(hz: number): number {
-  return hz >= 100 ? 4 : 3;
+export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false): QualityLevel {
+  return {
+    minimal,
+    name,
+    features: f,
+    shadow: shadowSpec(f.shadows),
+    vfxDensity: EFFECT_DENSITY[f.effects],
+    realLights: Math.round(Math.min(LIGHT_RANGE.max, Math.max(LIGHT_RANGE.min, f.lights))),
+    detailScale: DETAIL_SCALE[f.detail],
+  };
 }
 
-export interface AdaptiveTuning {
-  /** Frame time (ms) above which frames count as slow. ~50 fps. */
-  slowMs: number;
-  /** Average frame time (ms) under which there is headroom to upgrade. ~70+ fps capacity. */
-  fastMs: number;
-  /** Seconds of sustained slow frames before stepping down. */
-  downAfter: number;
-  /** Seconds of sustained headroom before stepping up. */
-  upAfter: number;
-  /** Ignore samples for this long after (re)starting (shader compiles, loading hitches). */
-  warmup: number;
-}
-
-export const DEFAULT_TUNING: AdaptiveTuning = { slowMs: 20, fastMs: 12.5, downAfter: 2, upAfter: 12, warmup: 3 };
-
-/** Thresholds scaled to the display's frame budget (60 Hz gives DEFAULT_TUNING). */
-export function tuningFor(hz: number): AdaptiveTuning {
-  const budget = 1000 / (hz > 0 ? hz : 60);
-  return { ...DEFAULT_TUNING, slowMs: budget * 1.2, fastMs: budget * 0.75 };
-}
+/** Frame-rate caps offered (0 = off: the display's refresh rate). */
+export const FPS_CAPS = [0, 30, 60, 90, 120, 144, 165, 240] as const;
 
 /**
- * Pure adaptive-quality controller. Feed it frame times; it returns a new level index when it
- * decides to step. Uses windowed averages and the share of slow frames so single hitches never
- * trigger a change, and alternates are prevented by cooldowns.
+ * Frame limiter (pure): given the time since the last rendered frame, should this display frame render?
+ * Allows half a display interval of slack so a 60 cap on a 120 Hz display renders every other frame.
  */
-export class AdaptiveController {
-  private t = 0;
-  private slowT = 0;
-  private fastT = 0;
-  private windowMs: number[] = [];
-  private windowLoad: number[] = [];
-  private cooldown = 0;
-
-  constructor(
-    public level: number,
-    public readonly min = 0,
-    public max = QUALITY_LEVELS.length - 1,
-    public tune: AdaptiveTuning = DEFAULT_TUNING,
-  ) {}
-
-  reset(): void {
-    this.t = 0;
-    this.slowT = 0;
-    this.fastT = 0;
-    this.windowMs.length = 0;
-    this.windowLoad.length = 0;
-  }
-
-  /**
-   * @param frameMs frame interval in ms, @param dt seconds since last sample, @param loadMs work time
-   * of the frame (CPU); with vsync the interval never drops under the budget, so headroom is judged on
-   * the work time when given.
-   */
-  push(frameMs: number, dt: number, loadMs = frameMs): number | null {
-    this.t += dt;
-    this.cooldown = Math.max(0, this.cooldown - dt);
-    if (this.t < this.tune.warmup) return null;
-    this.windowMs.push(frameMs);
-    this.windowLoad.push(loadMs);
-    if (this.windowMs.length > 60) {
-      this.windowMs.shift();
-      this.windowLoad.shift();
-    }
-    const n = this.windowMs.length;
-    if (n < 20) return null;
-    let sum = 0;
-    let load = 0;
-    let slow = 0;
-    for (let i = 0; i < n; i++) {
-      const v = this.windowMs[i]!;
-      sum += v;
-      load += this.windowLoad[i]!;
-      if (v > this.tune.slowMs) slow++;
-    }
-    const avg = sum / n;
-    const avgLoad = load / n;
-    const slowShare = slow / n;
-    if (avg > this.tune.slowMs || slowShare > 0.35) {
-      this.slowT += dt;
-      this.fastT = 0;
-    } else if (avgLoad < this.tune.fastMs && slowShare < 0.05) {
-      this.fastT += dt;
-      this.slowT = 0;
-    } else {
-      this.slowT = Math.max(0, this.slowT - dt);
-      this.fastT = Math.max(0, this.fastT - dt * 0.5);
-    }
-    if (this.cooldown > 0) return null;
-    if (this.slowT >= this.tune.downAfter && this.level > this.min) {
-      this.level--;
-      this.afterChange(3);
-      return this.level;
-    }
-    if (this.fastT >= this.tune.upAfter && this.level < this.max) {
-      this.level++;
-      this.afterChange(10);
-      return this.level;
-    }
-    return null;
-  }
-
-  private afterChange(cooldown: number): void {
-    this.slowT = 0;
-    this.fastT = 0;
-    this.windowMs.length = 0;
-    this.windowLoad.length = 0;
-    this.cooldown = cooldown;
-  }
+export function capAllows(sinceLastMs: number, cap: number, displayMs: number): boolean {
+  if (cap <= 0) return true;
+  const want = 1000 / cap;
+  return sinceLastMs >= want - Math.min(displayMs, want) * 0.5;
 }

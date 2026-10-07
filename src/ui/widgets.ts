@@ -57,6 +57,7 @@ export function toggle(label: string, get: () => boolean, set: (v: boolean) => v
     set(!get());
     render();
   });
+  el.addEventListener('widget-refresh', render);
   render();
   return el;
 }
@@ -103,6 +104,7 @@ export function slider(label: string, o: SliderOpts): HTMLElement {
   track.addEventListener('pointermove', (e) => {
     if (track.hasPointerCapture(e.pointerId)) fromPointer(e);
   });
+  el.addEventListener('widget-refresh', render);
   render();
   return el;
 }
@@ -138,8 +140,14 @@ export function choice<T>(label: string, options: ChoiceOption<T>[], get: () => 
   });
   el.addEventListener('click', () => step(1));
   el.addEventListener('nav-adjust', (e) => step((e as CustomEvent<NavAdjustDetail>).detail.delta));
+  el.addEventListener('widget-refresh', render);
   render();
   return el;
+}
+
+/** Re-read every widget's value under `root` (after a change that moves others: a graphics preset). */
+export function refreshWidgets(root: HTMLElement): void {
+  for (const el of root.querySelectorAll<HTMLElement>('.row')) el.dispatchEvent(new Event('widget-refresh'));
 }
 
 export interface TabDef {

@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.0.0 - PC renderer, desktop interface, playtest feedback (in progress)
+- One renderer for every device, built for a gaming PC (phones run the same, slower): Graphics presets High /
+  Ultra / Epic (default) with every feature adjustable (Custom): up to 48 real lights (clustered), lamps and every
+  guard flashlight casting shadows (soft on Epic), cascaded sun / moon shadows, ambient occlusion, screen-space
+  reflections, volumetric light and height fog, bloom, depth of field (aiming, the menu operator), motion blur,
+  lens effects, TAA / MSAA / FXAA, HDR tone mapping; native resolution with a 50-200% scale, optional dynamic
+  resolution, a frame-rate cap (30-240), FOV to 120. The menu stage gets shadows, bloom and depth of field.
+- Desktop interface (detected, or Settings > Graphics > Interface): menus scale to the window, no touch settings or
+  touch controls (a touchscreen laptop gets them back when touched), hover states, fullscreen on demand.
+- Mouse & Keyboard settings: sensitivity, aim sensitivity, invert, raw input, and every key rebindable (two per
+  action, extra mouse buttons too); prompts and the controls list follow the bindings.
+- Playtest feedback: Settings > Feedback and Pause > Report feedback write a note (type, text, the map / mode /
+  position / graphics it was written in) with photos from photo mode - the game freezes, the HUD hides, a free
+  camera flies to the problem; take, retake or keep, as many photos as needed. Notes stay on the device; Export
+  report makes one HTML file with every note and photo (share sheet on phones), or copy them as text.
+
 ## 2.3.0 - Quieter moves, smarter guards, the Blacklist loadout
 - Noise: sneaking, crouch walking and a slow walk are silent, and so is everything in and around cover, climbing,
   vaults and ladders; a jog carries about 3 m and a sprint 9 m (was 18 - the whole map no longer hears you); walls

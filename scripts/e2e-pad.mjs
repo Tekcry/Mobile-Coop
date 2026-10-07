@@ -48,7 +48,9 @@ try {
   await press(page, BTN.LB);
   await press(page, BTN.LB);
   assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Data', 'LB wraps tabs backwards');
-  // Accessibility: HUD size by d-pad, the Controls screen per input type
+  // Accessibility: HUD size by d-pad, the Controls screen per input type (past Feedback)
+  await press(page, BTN.LB);
+  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Feedback', 'the Feedback tab');
   await press(page, BTN.LB);
   assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Accessibility', 'Accessibility tab');
   assert(/Controls/.test(await focusedText(page)), `first focus on Controls ("${await focusedText(page)}")`);
@@ -111,6 +113,8 @@ try {
   assert(!(await q('.pause-screen')), 'B resumes');
   await press(page, BTN.START);
   await press(page, BTN.DOWN);
+  await press(page, BTN.DOWN);
+  assert(/Report feedback/.test(await focusedText(page)), 'focus Report feedback');
   await press(page, BTN.DOWN);
   assert(/Quit/.test(await focusedText(page)), 'focus Quit');
   await press(page, BTN.A);

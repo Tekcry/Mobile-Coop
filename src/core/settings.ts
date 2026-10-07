@@ -1,4 +1,7 @@
 import { clamp, type CurveKind } from '../input/stickMath';
+import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
+import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, presetOf, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ShadowQuality, type TierQuality } from './quality';
+import type { PlatformChoice } from './platform';
 
 export const TOUCH_CONTROL_IDS = [
   'move',
@@ -35,7 +38,6 @@ export interface ControlPlacement {
 }
 
 export type AimAssistLevel = 'off' | 'low' | 'standard' | 'high';
-export type QualityPreset = 'auto' | 'low' | 'medium' | 'high' | 'ultra';
 
 export interface Settings {
   touch: {
@@ -73,11 +75,29 @@ export interface Settings {
     aimAssist: AimAssistLevel;
     vibration: boolean;
   };
-  mouse: { sensitivity: number; invertY: boolean };
+  mouse: {
+    sensitivity: number;
+    invertY: boolean;
+    /** Look while aiming x this. */
+    adsMultiplier: number;
+    /** Raw mouse input (`unadjustedMovement` pointer lock: no OS acceleration) where supported. */
+    raw: boolean;
+  };
+  /** Keyboard / mouse bindings (`input/keyBindings.ts`). */
+  keys: KeyBinds;
   video: {
-    quality: QualityPreset;
+    /** UI and input platform (auto-detected; never changes rendering). */
+    platform: PlatformChoice;
+    /** Graphics preset; 'custom' once a feature is changed by hand. */
+    preset: GraphicsPreset;
+    /** The per-feature graphics settings (`core/quality.ts`). */
+    gfx: GraphicsFeatures;
+    /** Render resolution x native (above 1 supersamples). */
     renderScale: number;
-    shadows: boolean;
+    /** Steps the render scale down when the GPU falls behind (off by default). */
+    dynamicRes: boolean;
+    /** Frame-rate cap (0 = the display's refresh rate). */
+    fpsCap: number;
     /** Horizontal FOV (degrees) at a 16:9 reference; wider screens see more at the sides (Hor+). */
     fovH: number;
     showFps: boolean;
@@ -205,8 +225,9 @@ export function defaultSettings(): Settings {
       aimAssist: 'standard',
       vibration: true,
     },
-    mouse: { sensitivity: 1, invertY: false },
-    video: { quality: 'auto', renderScale: 1, shadows: true, fovH: 75, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
+    keys: defaultBinds(),
+    video: { platform: 'auto', preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, fpsCap: 0, fovH: 75, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -215,7 +236,28 @@ export function defaultSettings(): Settings {
 
 const AIM: readonly AimAssistLevel[] = ['off', 'low', 'standard', 'high'];
 const CURVES: readonly CurveKind[] = ['linear', 'classic', 'precise', 'aggressive'];
-const QUALITY: readonly QualityPreset[] = ['auto', 'low', 'medium', 'high', 'ultra'];
+const SHADOWS: readonly ShadowQuality[] = ['off', 'high', 'ultra', 'epic'];
+const TIERS: readonly TierQuality[] = ['high', 'ultra', 'epic'];
+const AA: readonly AaMode[] = ['fxaa', 'msaa', 'taa'];
+
+/** Per-feature graphics from untrusted data (defaults: the preset given). */
+function sanitizeGfx(raw: Obj, base: GraphicsFeatures): GraphicsFeatures {
+  return {
+    shadows: pick(raw.shadows, SHADOWS, base.shadows),
+    lights: Math.round(num(raw.lights, base.lights, LIGHT_RANGE.min, LIGHT_RANGE.max)),
+    ao: bool(raw.ao, base.ao),
+    bloom: bool(raw.bloom, base.bloom),
+    ssr: bool(raw.ssr, base.ssr),
+    volumetrics: bool(raw.volumetrics, base.volumetrics),
+    dof: bool(raw.dof, base.dof),
+    motionBlur: bool(raw.motionBlur, base.motionBlur),
+    lens: bool(raw.lens, base.lens),
+    aa: pick(raw.aa, AA, base.aa),
+    textures: pick(raw.textures, TIERS, base.textures),
+    detail: pick(raw.detail, TIERS, base.detail),
+    effects: pick(raw.effects, TIERS, base.effects),
+  };
+}
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -224,6 +266,32 @@ const num = (v: unknown, d: number, lo: number, hi: number): number =>
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
 const pick = <T>(v: unknown, allowed: readonly T[], d: T): T => (allowed.includes(v as T) ? (v as T) : d);
 const sub = (o: Obj, k: string): Obj => (isObj(o[k]) ? (o[k] as Obj) : {});
+
+/**
+ * Preset + features: a named preset fills its features; 'custom' keeps the stored ones (over Epic); settings from
+ * before 3.0 (the phone quality levels) start on Epic.
+ */
+function videoGfx(v: Obj): { preset: GraphicsPreset; gfx: GraphicsFeatures } {
+  const p = v.preset;
+  if (p === 'high' || p === 'ultra' || p === 'epic') return { preset: p, gfx: { ...GRAPHICS_PRESETS[p] } };
+  if (p === 'custom') {
+    const gfx = sanitizeGfx(sub(v, 'gfx'), GRAPHICS_PRESETS.epic);
+    return { preset: presetOf(gfx), gfx };
+  }
+  return { preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic } };
+}
+
+/** Set one graphics feature (the preset becomes Custom unless it now equals one). */
+export function setGfx<K extends keyof GraphicsFeatures>(s: Settings, k: K, v: GraphicsFeatures[K]): void {
+  s.video.gfx[k] = v;
+  s.video.preset = presetOf(s.video.gfx);
+}
+
+/** Apply a named preset. */
+export function setPreset(s: Settings, p: Exclude<GraphicsPreset, 'custom'>): void {
+  s.video.preset = p;
+  s.video.gfx = { ...GRAPHICS_PRESETS[p] };
+}
 
 /** Merge untrusted data (old saves, imports) over defaults, clamping every field. */
 export function sanitizeSettings(raw: unknown): Settings {
@@ -287,12 +355,17 @@ export function sanitizeSettings(raw: unknown): Settings {
     mouse: {
       sensitivity: num(m.sensitivity, d.mouse.sensitivity, 0.1, 5),
       invertY: bool(m.invertY, d.mouse.invertY),
+      adsMultiplier: num(m.adsMultiplier, d.mouse.adsMultiplier, 0.2, 1.5),
+      raw: bool(m.raw, d.mouse.raw),
     },
+    keys: sanitizeBinds(r.keys),
     video: {
-      quality: pick(v.quality, QUALITY, d.video.quality),
-      renderScale: num(v.renderScale, d.video.renderScale, 0.5, 1),
-      shadows: bool(v.shadows, d.video.shadows),
-      fovH: num(v.fovH, d.video.fovH, 60, 100),
+      platform: pick(v.platform, ['auto', 'desktop', 'mobile'] as const, d.video.platform),
+      ...videoGfx(v),
+      renderScale: num(v.renderScale, d.video.renderScale, 0.5, 2),
+      dynamicRes: bool(v.dynamicRes, d.video.dynamicRes),
+      fpsCap: pick(v.fpsCap, FPS_CAPS as readonly number[], d.video.fpsCap),
+      fovH: num(v.fovH, d.video.fovH, 60, 120),
       showFps: bool(v.showFps, d.video.showFps),
       vignette: bool(v.vignette, d.video.vignette),
       filmGrain: bool(v.filmGrain, d.video.filmGrain),

@@ -293,6 +293,26 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 3.0.0 - PC renderer, desktop interface, feedback (PC + phone)
+Desktop (mouse and keyboard, 1440p or 4K):
+- [ ] Menus fill the screen at a readable size (scaled from a 1280 x 720 layout); no Touch settings, no touch
+      buttons in a match, no rotate overlay; hover highlights; Settings opens on Mouse & Keyboard.
+- [ ] Mouse & Keyboard: sensitivity, aim sensitivity, invert, raw input; rebind a key (click, press), a key already
+      used moves over (toast), Backspace clears, Esc cancels; Mouse 4 / 5 can be bound; in-game prompts show the new
+      keys; Settings > Accessibility > Controls lists them.
+- [ ] Graphics: Epic by default; High / Ultra / Epic change the look live; changing any feature shows Custom;
+      resolution scale above 100% sharpens; the frame-rate cap holds (debug overlay); FOV to 120.
+- [ ] Note the FPS (Show FPS overlay) on Warehouse, Port and Refinery at Epic: report back average / worst.
+- [ ] Lamps light the rooms, the nearest lamps and every guard flashlight cast shadows (walls stop them), the
+      sun / moon casts soft shadows on outdoor maps, beams show in the haze, aiming blurs the background.
+- [ ] Touchscreen laptop: touching the screen brings the touch controls back; the mouse hides them.
+Phone:
+- [ ] The same Epic renderer boots and plays (slower is expected); Graphics > High is playable.
+Feedback (both):
+- [ ] Pause > Report feedback: type a note, Add photo: the game freezes, no HUD; fly the camera (WASD / sticks /
+      drag), take a photo, retake, keep; add a second; Save. Settings > Feedback lists it after a restart.
+- [ ] Export report: one HTML file with the list and every photo (share sheet on the phone); Copy as text.
+
 ## 2.3.0 - Guards, noise, loadout (phone + controller)
 - [ ] Crouch walking, a slow walk, moving in cover and climbing past a guard's back do not alert him; a sprint is heard
       only nearby, and less through a wall.

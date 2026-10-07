@@ -1,4 +1,5 @@
 import {
+  CascadedShadowGenerator,
   Color3,
   Color4,
   CreateSphere,
@@ -22,13 +23,12 @@ import { LightRig } from './lightRig';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { makeCone } from './lights';
+import type { QualityLevel, ShadowSpec } from '../core/quality';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
 
 export interface WorldOptions {
-  shadows: boolean;
-  shadowMapSize: number;
   seed: number;
 }
 
@@ -36,7 +36,9 @@ export interface WorldOptions {
 export class World {
   readonly parts: PartLibrary;
   readonly props: PropSystem;
-  shadow: ShadowGenerator | null = null;
+  /** The sun / moon's shadows: cascaded over the view (null while shadows are off). */
+  shadow: ShadowGenerator | CascadedShadowGenerator | null = null;
+  private sunSpec = '';
   readonly sun: DirectionalLight;
   readonly hemi: HemisphericLight;
   readonly sky: Mesh;
@@ -52,7 +54,6 @@ export class World {
     readonly map: MapDef,
     readonly level: BuiltLevel,
     readonly layout: MapLayout,
-    opts: WorldOptions,
   ) {
     const th = map.theme;
     scene.clearColor = Color4.FromHexString(th.horizon + 'ff');
@@ -69,25 +70,7 @@ export class World {
     this.sky = makeSky(scene, th.sky, th.horizon);
 
     this.parts = new PartLibrary(scene);
-    if (opts.shadows) {
-      const sg = new ShadowGenerator(opts.shadowMapSize, this.sun);
-      sg.usePercentageCloserFiltering = false;
-      sg.useBlurExponentialShadowMap = false;
-      sg.bias = 0.002;
-      sg.normalBias = 0.02;
-      sg.darkness = 0.35;
-      this.sun.shadowMinZ = 1;
-      this.sun.shadowMaxZ = 90;
-      this.sun.autoUpdateExtends = false;
-      this.sun.orthoLeft = -24;
-      this.sun.orthoRight = 24;
-      this.sun.orthoTop = 24;
-      this.sun.orthoBottom = -24;
-      this.shadow = sg;
-    }
-    this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
-    for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
-    // gameplay light level everywhere (moonlight / daylight); after the props so their materials take the pool
+    // gameplay light level everywhere (moonlight / daylight)
     level.lights.ambient = th.lightLevel ?? 0.75;
     // dark maps: a few flashlight slots enemies switch on to search (moving cone lights, off until used)
     const reg = level.lights;
@@ -97,6 +80,10 @@ export class World {
       }
     }
     this.lightRig = new LightRig(scene, level.lights);
+    // the level itself casts shadows (walls stop lamp light and the sun)
+    for (const m of level.meshes) this.lightRig.addCaster(m);
+    this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
+    for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
     this.breakables = new Breakables(scene, level.anchors);
     this.doors = new Doors(scene, level.anchors);
   }
@@ -110,30 +97,60 @@ export class World {
     const b = new LevelBuilder();
     const layout = map.build(b, opts.seed);
     const level = b.build(scene, map.id);
-    return new World(scene, map, level, layout, opts);
+    return new World(scene, map, level, layout);
   }
 
+  /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). */
   addShadowCaster(m: AbstractMesh): void {
-    this.shadow?.addShadowCaster(m, false);
+    this.lightRig.addCaster(m);
+    // (an instance takes its source mesh's setting)
+    const src = (m as AbstractMesh & { sourceMesh?: AbstractMesh }).sourceMesh ?? m;
+    src.receiveShadows = true;
   }
 
-  /** Live quality toggle: shadows on/off and shadow map refresh rate. */
-  setShadows(enabled: boolean, refreshRate: number): void {
-    this.sun.shadowEnabled = enabled && !!this.shadow;
-    const map = this.shadow?.getShadowMap();
-    if (map) map.refreshRate = refreshRate;
+  /** Graphics settings: the light pools, lamp / flashlight shadows and the sun's cascades. */
+  applyQuality(q: QualityLevel): void {
+    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal });
+    this.setSunShadows(q.shadow);
+  }
+
+  private setSunShadows(spec: ShadowSpec): void {
+    const key = spec.sun ? `${spec.cascades}:${spec.sunSize}:${spec.soft}` : 'off';
+    if (key === this.sunSpec) return;
+    this.sunSpec = key;
+    this.shadow?.dispose();
+    this.shadow = null;
+    if (!spec.sun) {
+      this.sun.shadowEnabled = false;
+      return;
+    }
+    this.sun.shadowEnabled = true;
+    const csm = new CascadedShadowGenerator(spec.sunSize, this.sun);
+    csm.numCascades = spec.cascades;
+    csm.lambda = 0.75;
+    csm.stabilizeCascades = true;
+    csm.shadowMaxZ = 90;
+    csm.cascadeBlendPercentage = 0.08;
+    csm.usePercentageCloserFiltering = true;
+    csm.filteringQuality = spec.soft ? ShadowGenerator.QUALITY_HIGH : ShadowGenerator.QUALITY_MEDIUM;
+    csm.bias = 0.002;
+    csm.normalBias = 0.02;
+    csm.darkness = 0.35;
+    csm.depthClamp = true;
+    const sm = csm.getShadowMap();
+    if (sm) sm.renderList = this.lightRig.casters;
+    this.shadow = csm;
   }
 
   /** Keep the sun's shadow frustum centred on the player. */
   frame(focus: Vector3, dt = 0): void {
     const cam = this.scene.activeCamera;
     if (cam) this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
-    if (this.shadow) {
-      this.sun.position.copyFrom(focus).subtractInPlace(this.sun.direction.scale(40));
-    }
+    this.sun.position.copyFrom(focus).subtractInPlace(this.sun.direction.scale(40));
   }
 
   dispose(): void {
+    this.shadow?.dispose();
     this.lightRig.dispose();
     this.breakables.dispose();
     this.doors.dispose();

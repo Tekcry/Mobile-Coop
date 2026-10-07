@@ -51,14 +51,14 @@ try {
   const status = await G(() => document.getElementById('boot-status')?.textContent ?? '');
   assert(!/Failed/.test(status), `boots offline (${status})`);
   assert(await G(() => !!document.querySelector('.main-menu')), 'main menu offline');
-  await page.goto(url + '?autostart=depot&mode=wave');
+  await page.goto(url + '?autostart=depot&mode=wave&gfx=min');
   await booted();
   await page.waitForFunction(() => window.__app?.current?.enemyMgr, null, { timeout: 60000 });
   await G(() => window.__app.loop.stepHeadless(8));
   const alive = await G(() => window.__app.current.enemyMgr.alive);
   assert(alive > 0, `wave match runs offline (${alive} enemies)`);
   // an Infiltration mission (the Embassy) offline: objectives, guards, the download runs at the terminal
-  await page.goto(url + '?autostart=embassy&mode=infiltration');
+  await page.goto(url + '?autostart=embassy&mode=infiltration&gfx=min');
   await booted();
   await page.waitForFunction(() => window.__app?.current?.mode?.id === 'infiltration', null, { timeout: 60000 });
   await G(() => window.__app.loop.stepHeadless(3));
@@ -78,7 +78,7 @@ try {
   });
 
   console.log('co-op offline state');
-  await page.goto(url);
+  await page.goto(url + '?gfx=min');
   await booted();
   await G(() => window.dispatchEvent(new Event('offline')));
   await page.click('.main-menu .btn:has-text("Co-op")');

@@ -19,6 +19,15 @@ export { PointLight } from '@babylonjs/core/Lights/pointLight';
 export { SpotLight } from '@babylonjs/core/Lights/spotLight';
 export type { Light } from '@babylonjs/core/Lights/light';
 export { ShadowGenerator } from '@babylonjs/core/Lights/Shadows/shadowGenerator';
+export { CascadedShadowGenerator } from '@babylonjs/core/Lights/Shadows/cascadedShadowGenerator';
+export { ClusteredLightContainer } from '@babylonjs/core/Lights/Clustered/clusteredLightContainer';
+export { DefaultRenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/defaultRenderingPipeline';
+export { SSAO2RenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssao2RenderingPipeline';
+export { SSRRenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/ssrRenderingPipeline';
+export { TAARenderingPipeline } from '@babylonjs/core/PostProcesses/RenderPipeline/Pipelines/taaRenderingPipeline';
+export { MotionBlurPostProcess } from '@babylonjs/core/PostProcesses/motionBlurPostProcess';
+export { ImageProcessingConfiguration } from '@babylonjs/core/Materials/imageProcessingConfiguration';
+export type { DepthRenderer } from '@babylonjs/core/Rendering/depthRenderer';
 export { StandardMaterial } from '@babylonjs/core/Materials/standardMaterial';
 export { ShaderMaterial } from '@babylonjs/core/Materials/shaderMaterial';
 export { Material } from '@babylonjs/core/Materials/material';
@@ -27,6 +36,11 @@ export type { MaterialDefines } from '@babylonjs/core/Materials/materialDefines'
 export { Texture } from '@babylonjs/core/Materials/Textures/texture';
 export { DynamicTexture } from '@babylonjs/core/Materials/Textures/dynamicTexture';
 export { RawTexture } from '@babylonjs/core/Materials/Textures/rawTexture';
+export { ProceduralTexture } from '@babylonjs/core/Materials/Textures/Procedurals/proceduralTexture';
+export { PBRMaterial } from '@babylonjs/core/Materials/PBR/pbrMaterial';
+export { ReflectionProbe } from '@babylonjs/core/Probes/reflectionProbe';
+export type { SubMesh } from '@babylonjs/core/Meshes/subMesh';
+export type { UniformBuffer } from '@babylonjs/core/Materials/uniformBuffer';
 export { Mesh } from '@babylonjs/core/Meshes/mesh';
 export { AbstractMesh } from '@babylonjs/core/Meshes/abstractMesh';
 export { InstancedMesh } from '@babylonjs/core/Meshes/instancedMesh';
@@ -80,6 +94,12 @@ import '@babylonjs/core/Rendering/boundingBoxRenderer';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import '@babylonjs/core/Shaders/postprocess.vertex';
+import '@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent';
+import '@babylonjs/core/Materials/Textures/Procedurals/proceduralTextureSceneComponent';
+import '@babylonjs/core/Rendering/depthRendererSceneComponent';
+import '@babylonjs/core/Rendering/geometryBufferRendererSceneComponent';
+import '@babylonjs/core/Rendering/prePassRendererSceneComponent';
+import '@babylonjs/core/PostProcesses/RenderPipeline/postProcessRenderPipelineManagerSceneComponent';
 
 // Babylon 9 stubs out methods whose side-effect module is missing. Warn loudly
 // so the smoke test catches any missing import above.

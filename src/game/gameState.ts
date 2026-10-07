@@ -1,5 +1,5 @@
 import type { App, AppState } from '../core/app';
-import { Color3, CreateTorus, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
+import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
 import { World } from '../world/world';
 import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
@@ -47,6 +47,7 @@ import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
+import { PostStack } from '../vfx/postStack';
 import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { Silhouettes } from '../vfx/silhouettes';
@@ -190,6 +191,8 @@ export class GameState implements AppState {
   private swayT = 0;
   /** Cinematic post pass (vignette, grain, letterbox). */
   readonly post: CinematicPost;
+  /** The PC post stack (AO, reflections, volumetrics, bloom, depth of field, tone mapping). */
+  readonly stack: PostStack;
   readonly blobs: BlobShadows;
   private postKey = '';
   private beatT = 0;
@@ -305,6 +308,15 @@ export class GameState implements AppState {
     this.blobs = new BlobShadows(this.scene);
     this.post = new CinematicPost(this.player.cam.camera);
     this.post.setGrade(world.map.theme.grade);
+    const fc = Color3.FromHexString(world.map.theme.horizon);
+    this.stack = new PostStack(this.scene, this.player.cam.camera, {
+      fogColor: [fc.r * 0.5, fc.g * 0.5, fc.b * 0.5],
+      // dark maps: a low haze the beams show in; daylight maps a thin one
+      fogDensity: (world.map.theme.lightLevel ?? 0.75) < 0.5 ? 0.012 : 0.006,
+      lights: world.level.lights.lights.length ? world.level.lights : null,
+    });
+    // (the grade / vignette / goggles pass stays after the stack)
+    this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
     this.execute = new ExecuteController(this);
@@ -505,22 +517,16 @@ export class GameState implements AppState {
   }
 
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
-    const v = app.settings.get().video;
-    // Shadow generator exists whenever the user allows shadows; quality levels toggle it live.
-    const world = await World.create(app.engine, opts.map, {
-      seed: opts.seed,
-      shadows: v.shadows,
-      shadowMapSize: v.quality === 'high' ? 2048 : 1024,
-    });
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     return g;
   }
 
-  applyQuality(level: QualityLevel, userShadows: boolean): void {
-    this.world.setShadows(level.shadows && userShadows, level.shadowRefresh);
+  applyQuality(level: QualityLevel): void {
+    this.world.applyQuality(level);
+    this.stack.apply(level);
     this.vfx.density = level.vfxDensity;
-    this.world.lightRig.active = level.realLights;
   }
 
   private pickedUp(k: 'ammo' | 'health', who: string): void {
@@ -607,6 +613,7 @@ export class GameState implements AppState {
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
+    this.stack.dispose();
     this.blobs.dispose();
     this.net?.dispose();
     this.net = null;
@@ -952,8 +959,42 @@ export class GameState implements AppState {
     look.y = look.y * this.assistScale + r.dPitch;
   }
 
+  /** Photo mode (feedback screenshots): the camera is flown by the photo screen, the world holds still. */
+  private photo = false;
+
+  photoCamera(): FreeCamera {
+    return this.player.cam.camera;
+  }
+
+  photoFreeze(on: boolean): void {
+    this.photo = on;
+  }
+
+  /** Where a feedback note was written (Settings > Feedback, the pause menu). */
+  feedbackContext(): Record<string, string> {
+    const p = this.player.position;
+    const o = this.opts;
+    const ctx: Record<string, string> = {
+      map: this.world.map.id,
+      mode: this.mode?.id ?? (this.net ? 'co-op' : 'free roam'),
+      position: `${p.x.toFixed(1)}, ${p.y.toFixed(1)}, ${p.z.toFixed(1)}`,
+      facing: `${Math.round((((this.player.cam.yaw * 180) / Math.PI) % 360 + 360) % 360)} deg`,
+    };
+    if (o.missionId) ctx.mission = o.missionId;
+    if (o.difficulty) ctx.difficulty = o.difficulty;
+    if (this.net) ctx.net = this.puppet ? 'co-op client' : 'co-op host';
+    if (this.enemyMgr) ctx.enemies = `${this.enemyMgr.enemies.filter((e) => e.alive).length} alive${this.enemyMgr.anyAlerted ? ', alerted' : ''}`;
+    return ctx;
+  }
+
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
+    if (this.photo) {
+      // frozen: only the lights follow the free camera
+      this.world.frame(this.player.position, 0);
+      this.stack.frame(0);
+      return;
+    }
     const look = this.app.input.state.consumeLook();
     // the wheel cursor / remote view takes the look
     const gadgetInput = this.gadgets.takesInput;
@@ -1003,6 +1044,11 @@ export class GameState implements AppState {
   private drawShadows(): void {
     const b = this.blobs;
     b.begin();
+    // real shadows (sun cascades, lamp and flashlight maps) replace the contact blobs
+    if (this.app.quality.level.shadow.sun) {
+      b.end();
+      return;
+    }
     const p = this.player.position;
     b.add(p.x, p.y, p.z, 0.42);
     for (const e of this.enemyMgr?.enemies ?? []) if (e.alive) b.add(e.pos.x, e.pos.y, e.pos.z, e.dog ? 0.42 : 0.4 * e.def.scale);
@@ -1234,7 +1280,20 @@ export class GameState implements AppState {
       if (this.letterboxT <= 0) this.post.letterbox(false);
     }
     this.post.update(real);
+    // depth of field: aiming focuses on what the sight is on
+    const st = this.stack;
+    st.focusOn = this.player.ads;
+    if (st.focusOn) {
+      const cam = this.player.cam.camera;
+      const o = cam.globalPosition;
+      const f = cam.getDirection(this.dofDir.set(0, 0, 1));
+      this.dofTo.set(o.x + f.x * 80, o.y + f.y * 80, o.z + f.z * 80);
+      st.focus = Math.max(1, this.ballistics.hitDistance(o, this.dofTo, G.STATIC | G.ENEMY));
+    }
+    st.frame(real);
   }
+  private readonly dofDir = new Vector3();
+  private readonly dofTo = new Vector3();
 
   /** Lost the cover being used (shot away / destroyed): a short stagger. */
   private stumble(): void {

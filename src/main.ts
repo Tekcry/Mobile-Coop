@@ -20,6 +20,7 @@ import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
+import { feedbackTab } from './ui/screens/feedbackScreen';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
@@ -47,7 +48,7 @@ async function boot(): Promise<void> {
   setBoot(0.25, 'Loading profile…');
   await app.save.load();
   app.save.update((d) => void autoGrant(d));
-  extraSettingsTabs.push(dataTab);
+  extraSettingsTabs.push(feedbackTab, dataTab);
   GameState.rewardHook = async (stats, opts) => {
     let report: SessionReport | null = null;
     app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
@@ -159,7 +160,8 @@ async function boot(): Promise<void> {
   app.start();
 
   // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.
-  if (!isStandalone()) {
+  // (desktop: fullscreen is the player's choice, Settings > Graphics)
+  if (!isStandalone() && app.platform.platform === 'mobile') {
     window.addEventListener('pointerup', () => void enterFullscreenLandscape(), { once: true });
   }
 

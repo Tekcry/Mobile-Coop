@@ -1,9 +1,11 @@
 # Silent But Deadly - architecture and conventions
 
 Silent But Deadly (renamed from Shoulder Strike in 2.2.0; internal ids keep the old name for compatibility:
-IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id). Mobile-only third-person over-the-shoulder shooter. Static web app (Vite + TypeScript + Babylon.js 9 + Havok),
-installable PWA, fully playable offline. Hosted on GitHub Pages. Target: top-end phones at 120 Hz (8.33 ms frames);
-a stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
+IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id). Third-person over-the-shoulder shooter
+for PC and phones. Static web app (Vite + TypeScript + Babylon.js 9 + Havok), installable PWA, fully playable offline.
+Hosted on GitHub Pages. Target (3.0): a gaming PC (RTX 4070 class, 1440p at 144 Hz+); every device runs the same
+renderer and settings (phones are slower; no mobile tiers). The platform (`core/platform.ts`) only changes the UI and
+input. A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
 Blacklist style.
 
 ## Commands
@@ -84,9 +86,14 @@ Blacklist style.
     rooms row; Wave keeps room tags; doorway checks; mini room set; Warehouse default for Wave / Mission / Clear
   - `scripts/e2e-training.mjs` the training course by touch: hints per device, each step advancing, the
     Takedown / Mark / Execute buttons, HUD defaults (no health bar, ammo fades), the results
+  - `scripts/e2e-feedback.mjs` playtest notes: pause > Report feedback with the context, photo mode (frozen game,
+    no HUD, free camera, take / retake / keep / cancel, two photos), IndexedDB after a reload, Settings > Feedback
+    list, the HTML report download, photo mode on the menu stage
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
-  Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast.
+  Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast. `e2e-lib` adds
+  `?gfx=min` (every graphics feature off, DPR 1; not saved) unless the params name a `gfx=` (a preset, or `user`
+  for the saved settings): the PC renderer at Epic on software GL takes seconds per frame.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
   - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the Loadout operator (proportion/silhouette checks)
   - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
@@ -154,9 +161,14 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   in reach takes it, else traversal), X tap `reload` / hold (`SWAP_HOLD` 0.35 s) `swapNext`, L3 `dash` (= sprint),
   R3 shoulder, RB/LB weapons (RB `mark` while aiming), D-pad up `grenade` (the gadget: hold aims the arc, release
   throws), D-pad down `gadgetWheel` (hold), right emote, left `ping` (co-op), View `vision` (goggles);
-  Y also takedown / execute (contextual); in menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise). Keyboard: Space cover, C / Ctrl crouch, Shift sprint, E traverse /
-  interact / takedown, R reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold), 1-8 pick
-  a gadget (`InputState.gadgetPick`), J / K / L emotes, Z ping; mouse look, LMB fire, RMB aim, wheel weapons. Gamepad look: 30 ms smoothing (acceleration inside the
+  Y also takedown / execute (contextual); in menus Y = `uiAlt` (`Screen.onAlt`, Loadout: customise). Keyboard (3.0:
+  rebindable, `input/keyBindings.ts` pure: `BINDS` defaults, two inputs per action incl. Mouse 3/4/5, `assignBind`
+  moves a key off its old action, `settings.keys`; `KeyboardMouseSource` rebuilds its map when the keys change,
+  `captureNext` for the rebinding UI; fixed: Esc / Enter / Backspace / arrows, Q / E menu tabs, 1-8 gadgets, LMB fire,
+  RMB aim, wheel weapons): Space cover, C / Ctrl crouch, Shift sprint, E traverse / interact / takedown, F use, R
+  reload, Q / X weapons, N goggles, T mark, Y execute, G gadget, Tab wheel (hold), J / K / L emotes, Z ping, V
+  shoulder, P pause; mouse look (raw input via `unadjustedMovement` where supported, `mouse.adsMultiplier`).
+  In-game key prompts read `ui/prompts.ts` `keyLabels` (set from the bindings). Gamepad look: 30 ms smoothing (acceleration inside the
   smoothing, so releasing never steps the rate).
 - Touch (`input/touchControls.ts`): pointer handlers only record state; `update(dt)` (per frame, from
   `InputManager.poll`) turns it into input. Floating move stick on the left half (flick-to-sprint optional, off by
@@ -206,6 +218,22 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   Focusing a row previews it (`resetDrafts` then `row.preview`: weapon in hand, attachments, camo, look, suit),
   locked items too; A equips / buys (then equips) / opens; B pops a page. Owned choices save at once. Touch: a tap
   on a row not focused previews it, a tap on the focused row (or the action bar) acts.
+- Platform (3.0, `core/platform.ts` pure: `detectPlatform` from touch points / fine pointer / viewport / user agent,
+  `video.platform` Auto / Desktop / Mobile, `?platform=`; `App.applyPlatform` sets `body.platform-desktop|mobile`,
+  `can-touch` and `--ui-scale`): desktop lays the menus out for 1280 x 720 and scales `.screens` (transform) and the
+  HUD panels (zoom) to the window (`uiScale`); hides the Touch settings tab (unless `touch`), the rotate overlay and
+  the auto fullscreen; Settings gets Mouse & Keyboard (first on desktop) and the Graphics tab (`graphicsTab`: preset,
+  every feature, display; `refreshWidgets` re-reads rows after a preset change). The touch layer still follows the
+  input mode (a touchscreen laptop gets it when touched).
+- Feedback (3.0, `feedback/feedback.ts` pure: `FeedbackEntry` category / text / context / photo Blobs, `sanitizeFeedback`,
+  `feedbackText`, `feedbackReportHtml`; `FeedbackStore` = IndexedDB `kv` 'feedback', `App.feedback`):
+  `ui/screens/feedbackScreen.ts` (`FeedbackFormScreen`, Settings > Feedback `feedbackTab`, Pause > Report feedback,
+  `exportFeedback` -> one HTML file via `ui/fileOut.ts` share / download). Context: the state's `feedbackContext()`
+  (GameState: map, mode, position, facing, enemies) + version, platform, graphics, frame times. Photo mode
+  (`ui/screens/photoMode.ts` `PhotoModeScreen` on a `PhotoHost`: `photoCamera()` / `photoFreeze(on)`; GameState flies
+  its own FreeCamera so the post stack stays on, the menu stage gets a stand-in camera): `body.photo-mode` hides the
+  HUD, touch layer and every other screen; free camera (move / look / up-down by keys, sticks, drags); a photo is the
+  next rendered frame copied off the canvas (no DOM in it), max 1920 px JPEG; keep / retake (Y) / cancel (B).
 - Theme (`styles.css` `:root`): dark green palette (`--accent` #38e08c, `--gold` credits), condensed font stack;
   main menu = stacked logo + `.menu-item` list; `TabView(tabs, { side: true })` = vertical icon nav (no bumper
   glyphs; LB / RB still cycle through `cycle`). 2.3 compact pass at the end of the file (32 px rows, 17 px titles,
@@ -822,19 +850,34 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## Audio and quality
 - `app.audio` (AudioEngine), `app.sfx` (Sfx voices), `app.music`. Every voice must early-out when the
   context is missing/suspended (before the first gesture). Game wiring lives in `audio/gameAudio.ts`.
-- `app.quality` (QualityManager) applies `QUALITY_LEVELS` (potato .. ultra; "Ultra 120" = DPR cap 3) to engine
-  scaling and to the current state if it implements `applyQuality(level, userShadows)` (GameState does). Every
-  frame (`GameLoop.onFrameEnd`: rAF interval + CPU work) feeds `RefreshDetector` (display Hz; Safari may cap rAF
-  at 60), `FrameStats` (p50/p95/p99, drops vs the 1000/Hz budget; debug overlay pacing lines + graph) and, while
-  simulating in auto, the `AdaptiveController` (thresholds relative to the budget, headroom judged on CPU work
-  since vsync hides it; Ultra only on >= 100 Hz) plus `ResolutionScaler` (GPU-bound frames step the render
-  scale 0.6-1.0 with dwell times and cooldowns).
+- Graphics (3.0, `core/quality.ts` pure): `GRAPHICS_PRESETS` High / Ultra / Epic fill `GraphicsFeatures` (shadows
+  off / high / ultra / epic -> `shadowSpec`: sun cascades, lamp / flashlight casters 3 / 5 / 8 (WebGL's 16 texture
+  units), map size, PCSS; lights 8-48; ao, bloom, ssr, volumetrics, dof, motionBlur, lens, aa fxaa / msaa / taa,
+  textures / detail / effects tiers), `presetOf` (Custom), `qualityLevel` -> `QualityLevel`. Settings `video.preset`,
+  `video.gfx`, `renderScale` 0.5-2 (native DPR, no cap), `dynamicRes` (off), `fpsCap` (`GameLoop.fpsCap`,
+  `capAllows`), `fovH` 60-120; `setGfx` / `setPreset`. `app.quality` (QualityManager) applies the level to the state's
+  `applyQuality(level)` (GameState: `World.applyQuality` + `PostStack.apply`; MenuState: lamp shadows + its stack),
+  feeds `RefreshDetector` (raw rAF intervals), `FrameStats` and, only with dynamic resolution, the
+  `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|high|ultra|epic` overrides for a page.
+- Renderer (3.0): `LightRig.configure` - unshadowed map lights in a `ClusteredLightContainer` (plain pool of 6
+  without float blending), a shadow pool of spot lights with `ShadowGenerator`s (flashlights first, then the
+  nearest lamps; lamps use a 144 deg cone there; idle maps stop refreshing, shadows never toggle - no recompiles),
+  one shared caster list (`addCaster`: level meshes, characters, props; `World.addShadowCaster` also sets the
+  receiver), materials fitted by `onNewMaterialAddedObservable`; additive cones hidden with volumetrics.
+  `World.applyQuality`: the sun / moon `CascadedShadowGenerator`. Blob shadows only with shadows off.
+  `vfx/postStack.ts` `PostStack` (rebuilt on a change): TAA, SSAO2, SSR, screen motion blur, the volumetric pass
+  (depth renderer; per light a ray / sphere stretch marched for cone in-scatter, closed-form height fog; 12 nearest
+  lights), then `DefaultRenderingPipeline` (HDR, MSAA samples, FXAA, bloom, DOF focused by `focus` / `focusOn`:
+  aiming = the aim ray's hit, chromatic aberration, sharpen with TAA, KHR PBR Neutral tone mapping);
+  `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last.
 - Hot paths must not allocate (no closures, iterators or temporary vectors in AI/nav/anim loops; `for` with an
   index over arrays; typed-array heaps). Use `hyp2`/`hyp3` (`core/mathx.ts`), never `Math.hypot` (V8 allocates
   its arguments).
 
-## Performance budget (iPhone 17 Pro Max class, 120 Hz)
-- 8.33 ms per frame, worst case <= 6.5 ms work; CPU <= 3.5 ms, GPU <= 4 ms. `perf.mjs --budget` checks the CPU
+## Performance budget (3.0: a gaming PC; the phone-era numbers below are the CPU side, still checked)
+- PC target: 1440p >= 144 Hz at Epic, 4K >= 60 Hz, RTX 4070 class; CPU <= 4 ms per frame. Phones run the same
+  settings slower (accepted). The CPU side below still applies (`perf.mjs` runs `?gfx=min`).
+- Phone-era: 8.33 ms per frame, worst case <= 6.5 ms work; CPU <= 3.5 ms, GPU <= 4 ms. `perf.mjs --budget` checks the CPU
   side: p95 CPU per 120 Hz frame <= 3.5 ms (measured ~1.7 ms on Warehouse with 10 enemies), animation <= 0.04 ms
   per character (~0.037 when last calibrated; the SwiftShader VM drifts, so compare against the previous
   build side by side before blaming a change), draw calls <= 80 (~17-30), allocations <= 96 KB per frame (~75: V8 boxing doubles at
@@ -842,7 +885,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   debug overlay pacing graph + `soak.mjs` / the 10-minute soak in TESTING.md.
 - Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.
 - Dynamic physics bodies capped (see `physics/budget`). Projectiles/effects pooled, never allocated per shot.
-- Render scale: DPR capped per level (1 .. 3), dynamic resolution within it.
+- Render scale: native DPR x `renderScale` (0.5-2), dynamic resolution (optional) within it.
 
 ## Robustness rules
 - `App` isolates state updates: an exception in `fixedUpdate`/`frameUpdate` is logged (rate-limited) and toasted

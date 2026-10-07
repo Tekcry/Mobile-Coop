@@ -1,13 +1,16 @@
 import type { App } from '../../core/app';
-import type { AimAssistLevel, QualityPreset, Settings } from '../../core/settings';
+import { setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
+import { FPS_CAPS, LIGHT_RANGE, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ShadowQuality, type TierQuality } from '../../core/quality';
+import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
+import type { PlatformChoice } from '../../core/platform';
 import type { CurveKind } from '../../input/stickMath';
 import { h } from '../dom';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
-import { button, choice, section, slider, TabView, toggle, type TabDef } from '../widgets';
+import { button, choice, refreshWidgets, section, slider, TabView, toggle, type TabDef } from '../widgets';
 import { LayoutEditorScreen } from './layoutEditor';
 import { ControlsScreen } from './controlsScreen';
-import { enterFullscreenLandscape } from '../../pwa/pwa';
+import { enterFullscreenLandscape, toggleFullscreen } from '../../pwa/pwa';
 
 const AIM_OPTS: { value: AimAssistLevel; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -21,13 +24,34 @@ const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'precise', label: 'Precise' },
   { value: 'aggressive', label: 'Aggressive' },
 ];
-const QUALITY_OPTS: { value: QualityPreset; label: string }[] = [
-  { value: 'auto', label: 'Auto (adaptive)' },
-  { value: 'low', label: 'Low' },
-  { value: 'medium', label: 'Medium' },
+const PRESET_OPTS: { value: GraphicsPreset; label: string }[] = [
   { value: 'high', label: 'High' },
-  { value: 'ultra', label: 'Ultra 120' },
+  { value: 'ultra', label: 'Ultra' },
+  { value: 'epic', label: 'Epic' },
+  { value: 'custom', label: 'Custom' },
 ];
+const SHADOW_OPTS: { value: ShadowQuality; label: string }[] = [
+  { value: 'off', label: 'Off' },
+  { value: 'high', label: 'High' },
+  { value: 'ultra', label: 'Ultra' },
+  { value: 'epic', label: 'Epic (soft)' },
+];
+const TIER_OPTS: { value: TierQuality; label: string }[] = [
+  { value: 'high', label: 'High' },
+  { value: 'ultra', label: 'Ultra' },
+  { value: 'epic', label: 'Epic' },
+];
+const AA_OPTS: { value: AaMode; label: string }[] = [
+  { value: 'fxaa', label: 'FXAA' },
+  { value: 'msaa', label: 'MSAA 4x' },
+  { value: 'taa', label: 'TAA' },
+];
+const PLATFORM_OPTS: { value: PlatformChoice; label: string }[] = [
+  { value: 'auto', label: 'Auto' },
+  { value: 'desktop', label: 'Desktop' },
+  { value: 'mobile', label: 'Mobile' },
+];
+const CAP_OPTS = FPS_CAPS.map((v) => ({ value: v as number, label: v === 0 ? 'Off (display)' : `${v} fps` }));
 
 const pct = (v: number): string => `${Math.round(v * 100)}%`;
 const mult = (v: number): string => `${v.toFixed(2)}x`;
@@ -51,6 +75,7 @@ export class SettingsScreen extends Screen {
         app.nav.refresh();
       }, { class: 'subtle' });
 
+    const desktop = app.platform.platform === 'desktop';
     const tabs: TabDef[] = [
       {
         id: 'touch',
@@ -83,6 +108,12 @@ export class SettingsScreen extends Screen {
             ),
             resetBtn('touch', 'touch'),
           ),
+      },
+      {
+        id: 'kbm',
+        label: 'Mouse & Keyboard',
+        icon: 'keyboard',
+        build: () => this.kbmTab(),
       },
       {
         id: 'pad',
@@ -127,23 +158,9 @@ export class SettingsScreen extends Screen {
       },
       {
         id: 'video',
-        label: 'Video',
+        label: 'Graphics',
         icon: 'monitor',
-        build: () =>
-          h(
-            'div',
-            { class: 'rows' },
-            choice('Quality', QUALITY_OPTS, () => s().video.quality, (v) => upd((d) => void (d.video.quality = v))),
-            slider('Render scale', { min: 0.5, max: 1, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
-            toggle('Shadows', () => s().video.shadows, (v) => upd((d) => void (d.video.shadows = v))),
-            slider('Field of view (horizontal, 16:9)', { min: 60, max: 100, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
-            toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
-            choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
-            toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))),
-            toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))),
-            button('Enter fullscreen', () => void enterFullscreenLandscape(), { class: 'subtle' }),
-            resetBtn('video', 'video'),
-          ),
+        build: () => this.graphicsTab(),
       },
       {
         id: 'audio',
@@ -175,11 +192,6 @@ export class SettingsScreen extends Screen {
             choice('Sprint', [{ value: false, label: 'Toggle' }, { value: true, label: 'Hold' }], () => s().gameplay.sprintHold, (v) => upd((d) => void (d.gameplay.sprintHold = v))),
             toggle('Camera recentres behind you while moving', () => s().gameplay.autoRecentre, (v) => upd((d) => void (d.gameplay.autoRecentre = v))),
             toggle('Slow-motion beat on the last enemy in a room', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))),
-            section(
-              'Mouse (desktop testing)',
-              slider('Mouse sensitivity', { min: 0.2, max: 4, step: 0.05, get: () => s().mouse.sensitivity, set: (v) => upd((d) => void (d.mouse.sensitivity = v)), format: mult }),
-              toggle('Invert Y (mouse)', () => s().mouse.invertY, (v) => upd((d) => void (d.mouse.invertY = v))),
-            ),
             resetBtn('gameplay', 'gameplay'),
           ),
       },
@@ -204,9 +216,167 @@ export class SettingsScreen extends Screen {
       },
     ];
     for (const extra of extraSettingsTabs) tabs.push(extra(app, this));
-    this.tabs = new TabView(tabs, { side: true });
+    // desktop: no touch settings (a touchscreen laptop keeps them); mobile: no mouse & keyboard page
+    const shown = tabs.filter((t) => (t.id === 'touch' ? !desktop || app.platform.touch : t.id === 'kbm' ? desktop : true));
+    if (desktop) {
+      // mouse & keyboard first on desktop
+      const i = shown.findIndex((t) => t.id === 'kbm');
+      if (i > 0) shown.unshift(...shown.splice(i, 1));
+    }
+    this.tabs = new TabView(shown, { side: true });
     this.tabs.onChange = () => app.nav.refresh();
     this.el.append(h('div', { class: 'screen-title', text: 'Settings' }), this.tabs.el);
+  }
+
+  /** Graphics: platform, preset and every feature, display options (3.0: one renderer, PC presets). */
+  private graphicsTab(): HTMLElement {
+    const app = this.app;
+    const st = app.settings;
+    const s = (): Settings => st.get();
+    const upd = st.update.bind(st);
+    const pct = (v: number): string => `${Math.round(v * 100)}%`;
+    let panel: HTMLElement | null = null;
+    const refresh = (): void => {
+      if (panel) refreshWidgets(panel);
+    };
+    const feat = <K extends keyof GraphicsFeatures>(k: K) => ({
+      get: (): GraphicsFeatures[K] => s().video.gfx[k],
+      set: (v: GraphicsFeatures[K]): void => {
+        upd((d) => setGfx(d, k, v));
+        refresh();
+      },
+    });
+    const ch = <K extends keyof GraphicsFeatures>(label: string, k: K, opts: { value: GraphicsFeatures[K]; label: string }[]): HTMLElement => {
+      const f = feat(k);
+      return choice(label, opts, f.get, f.set);
+    };
+    const tg = (label: string, k: 'ao' | 'bloom' | 'ssr' | 'volumetrics' | 'dof' | 'motionBlur' | 'lens'): HTMLElement => {
+      const f = feat(k);
+      return toggle(label, f.get, f.set);
+    };
+    const desktop = app.platform.platform === 'desktop';
+    panel = h(
+      'div',
+      { class: 'rows' },
+      section(
+        'Quality',
+        choice('Preset', PRESET_OPTS, () => s().video.preset, (v) => {
+          // (Custom is where hand changes land; picking it keeps the current features)
+          if (v !== 'custom') upd((d) => setPreset(d, v));
+          refresh();
+        }),
+        ch('Shadows', 'shadows', SHADOW_OPTS),
+        slider('Real-time lights', { min: LIGHT_RANGE.min, max: LIGHT_RANGE.max, step: 4, get: () => s().video.gfx.lights, set: (v) => feat('lights').set(v), format: (v) => `${v}` }),
+        ch('Anti-aliasing', 'aa', AA_OPTS),
+        ch('Textures', 'textures', TIER_OPTS),
+        ch('Detail and draw distance', 'detail', TIER_OPTS),
+        ch('Effects and weather', 'effects', TIER_OPTS),
+        tg('Ambient occlusion', 'ao'),
+        tg('Bloom', 'bloom'),
+        tg('Reflections (screen space)', 'ssr'),
+        tg('Volumetric light and fog', 'volumetrics'),
+        tg('Depth of field', 'dof'),
+        tg('Motion blur', 'motionBlur'),
+        tg('Lens effects (aberration, dirt)', 'lens'),
+      ),
+      section(
+        'Display',
+        slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
+        toggle('Dynamic resolution', () => s().video.dynamicRes, (v) => upd((d) => void (d.video.dynamicRes = v))),
+        choice('Frame-rate cap', CAP_OPTS, () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))),
+        slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
+        toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
+        toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))),
+        toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))),
+        choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
+        choice('Interface', PLATFORM_OPTS, () => s().video.platform, (v) => upd((d) => void (d.video.platform = v))),
+        button(desktop ? 'Fullscreen' : 'Enter fullscreen', () => void (desktop ? toggleFullscreen() : enterFullscreenLandscape()), { class: 'subtle' }),
+      ),
+      button('Reset to defaults', () => {
+        st.reset('video');
+        refresh();
+      }, { class: 'subtle' }),
+    );
+    return panel;
+  }
+
+  /** Mouse & keyboard (desktop): look, raw input and every key binding (click a key, press the new one). */
+  private kbmTab(): HTMLElement {
+    const app = this.app;
+    const st = app.settings;
+    const s = (): Settings => st.get();
+    const upd = st.update.bind(st);
+    const mult = (v: number): string => `${v.toFixed(2)}x`;
+    const keyBtns: { id: BindId; slot: 0 | 1; el: HTMLElement }[] = [];
+    const render = (): void => {
+      for (const k of keyBtns) {
+        const code = s().keys[k.id][k.slot];
+        k.el.textContent = code ? keyName(code) : '-';
+        k.el.classList.toggle('empty', !code);
+        k.el.classList.remove('listening');
+      }
+    };
+    const keyBtn = (id: BindId, slot: 0 | 1): HTMLElement => {
+      const el = h('button', { class: 'kb-key', focus: true });
+      (el as HTMLButtonElement).type = 'button';
+      el.dataset.bind = `${id}:${slot}`;
+      el.addEventListener('click', () => {
+        if (app.input.kbm.capturing) return;
+        render();
+        el.textContent = 'Press a key';
+        el.classList.add('listening');
+        app.input.kbm.captureNext((code) => {
+          if (code === '') upd((d) => clearBind(d.keys, id, slot));
+          else if (code !== null) {
+            if (!bindable(code)) {
+              app.toasts.show(`${keyName(code)} can't be bound`, 'warn', 1600);
+            } else {
+              let from: BindId | null = null;
+              upd((d) => void (from = assignBind(d.keys, id, slot, code)));
+              const f = BINDS.find((b) => b.id === from);
+              if (f) app.toasts.show(`${keyName(code)} moved from ${f.label}`, 'info', 1800);
+            }
+          }
+          render();
+        });
+      });
+      keyBtns.push({ id, slot, el });
+      return el;
+    };
+    const rows = BINDS.map((b) => h('div', { class: 'row kb-row' }, h('span', { class: 'row-label', text: b.label }), h('span', { class: 'kb-keys' }, keyBtn(b.id, 0), keyBtn(b.id, 1))));
+    render();
+    return h(
+      'div',
+      { class: 'rows' },
+      section(
+        'Mouse',
+        slider('Sensitivity', { min: 0.2, max: 4, step: 0.05, get: () => s().mouse.sensitivity, set: (v) => upd((d) => void (d.mouse.sensitivity = v)), format: mult }),
+        slider('Aim (ADS) sensitivity', { min: 0.2, max: 1.5, step: 0.05, get: () => s().mouse.adsMultiplier, set: (v) => upd((d) => void (d.mouse.adsMultiplier = v)), format: mult }),
+        toggle('Invert Y', () => s().mouse.invertY, (v) => upd((d) => void (d.mouse.invertY = v))),
+        toggle('Raw input (no pointer acceleration)', () => s().mouse.raw, (v) => upd((d) => void (d.mouse.raw = v))),
+      ),
+      section('Keys', h('div', { class: 'row-note', text: 'Click a key, then press the new key or mouse button. Esc cancels, Backspace clears. Left / right mouse: fire / aim; wheel: weapons; 1-8: gadgets.' }), ...rows),
+      button('Reset keys to defaults', () => {
+        st.reset('keys');
+        render();
+      }, { class: 'subtle' }),
+      button('Reset mouse to defaults', () => {
+        st.reset('mouse');
+        this.tabs.rebuild('kbm');
+        app.nav.refresh();
+      }, { class: 'subtle' }),
+    );
+  }
+
+  override onShow(): void {
+    // the interface choice (or a window resize) flipping the platform rebuilds the tabs
+    this.app.onPlatform = () => {
+      if (this.manager.top === this) this.manager.replace(new SettingsScreen(this.app));
+    };
+  }
+
+  override onHide(): void {
+    this.app.onPlatform = null;
   }
 
   override initialFocus(): HTMLElement | null {
