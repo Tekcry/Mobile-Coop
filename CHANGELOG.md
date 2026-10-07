@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.1.2 - Feature costs benchmark
+- iPhone 17 Pro Max on 3.1.1 (1912 x 880): Low 76 fps, Medium 47, High 41, Ultra 21 (3.1.0: 60 / 19 / 15 / 12) -
+  better, still short of the target, and the 1% lows (8-15 fps) show hitches.
+- Settings > Graphics > Benchmark > Feature costs: your settings, then one run per costly feature turned off or down
+  (ambient occlusion, light shafts, reflections, bloom, depth of field, shadows, lamps, post-effect resolution,
+  textures), 20 s each - the device's own GPU says what costs most.
+- Every benchmark line now counts hitches (frames over 50 ms) and the shaders compiled during the run.
+- Benchmark runs hold the frame governor off (it was adapting during "current settings" runs, so those measured a
+  moving target).
+
 ## 3.1.1 - Phone GPU fixes from the first iPhone benchmark
 - iPhone 17 Pro Max benchmark on 3.1.0 (2868 x 1320): Low 60 fps (Safari's cap), Medium 19, High 15, Ultra 12 -
   the GPU was the limit (the main thread waits on it). Fixes:

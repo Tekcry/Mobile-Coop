@@ -1,6 +1,6 @@
 import type { Engine } from './babylon';
 import { applyRenderScale } from './engine';
-import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, MOBILE_MAX_DPR, pvpFeatures, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
+import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, MOBILE_MAX_DPR, pvpFeatures, qualityLevel, type FixedPreset, type GraphicsFeatures, type QualityLevel } from './quality';
 import { adaptiveAt, FULL, Governor, type Adaptive } from './governor';
 import { flags } from './flags';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, type PacingSnapshot } from './pacing';
@@ -29,7 +29,7 @@ export class QualityManager {
   private _level: QualityLevel;
   onChange: ((l: QualityLevel) => void) | null = null;
   /** The benchmark's per-run preset / render scale (never saved; `?gfx=` pages keep their level). */
-  private ov: { preset: FixedPreset | null; scale: number | null } | null = null;
+  private ov: { preset: FixedPreset | null; scale: number | null; gfx?: Partial<GraphicsFeatures> } | null = null;
 
   constructor(
     private engine: Engine,
@@ -121,6 +121,8 @@ export class QualityManager {
     if (flags.gfx === 'min') return qualityLevel('custom', MIN_FEATURES, true);
     const up = this.taau ? (this.ov?.scale ?? v.renderScale) : 1;
     const pick = flags.gfx ? { name: flags.gfx, f: GRAPHICS_PRESETS[flags.gfx] } : this.ov?.preset ? { name: this.ov.preset, f: GRAPHICS_PRESETS[this.ov.preset] } : { name: v.preset, f: v.gfx };
+    // (Feature costs: one feature changed for a benchmark run)
+    if (!flags.gfx && this.ov?.gfx) pick.f = { ...pick.f, ...this.ov.gfx };
     // phones: no Epic, no ray-traced reflections
     const p = forPlatform(pick.name, pick.f, this.mobile);
     // PvP: the shared look for what decides how visible a player is
@@ -166,7 +168,7 @@ export class QualityManager {
   }
 
   /** Benchmark runs: a preset and / or render scale for now only (null: back to the settings). */
-  setOverride(o: { preset: FixedPreset | null; scale: number | null } | null): void {
+  setOverride(o: { preset: FixedPreset | null; scale: number | null; gfx?: Partial<GraphicsFeatures> } | null): void {
     this.ov = o;
     this.apply();
   }

@@ -690,8 +690,8 @@ export class GameState implements AppState {
         const s0 = this.world.layout.playerSpawns[0]!.pos;
         pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
       }
-      const runs = benchPlan(this.opts.benchmark, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio), this.app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS);
-      this.bench = { pts, runs, idx: -1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [], buckets: [], bMs: 0, bN: 0, bT: 0 };
+      const runs = benchPlan(this.opts.benchmark, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio), this.app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, this.app.quality.level.features);
+      this.bench = { pts, runs, idx: -1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [], buckets: [], bMs: 0, bN: 0, bT: 0, shaders: 0 };
       this.nextBenchRun();
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
@@ -1098,11 +1098,19 @@ export class GameState implements AppState {
     bMs: number;
     bN: number;
     bT: number;
+    /** Shaders compiled before this run started. */
+    shaders: number;
   } | null = null;
   private readonly benchP: BenchPoint = { x: 0, y: 0, z: 0 };
   private readonly benchQ: BenchPoint = { x: 0, y: 0, z: 0 };
 
   /** Start the next run (its preset / render scale for now only), or show the results. */
+  /** Shader programs compiled so far (a benchmark run's hitches: shaders compiled during it). */
+  private shaderCount(): number {
+    const c = (this.app.engine as unknown as { _compiledEffects?: Record<string, unknown> })._compiledEffects;
+    return c ? Object.keys(c).length : 0;
+  }
+
   private nextBenchRun(): void {
     const b = this.bench;
     if (!b) return;
@@ -1113,7 +1121,9 @@ export class GameState implements AppState {
     b.last = 0;
     const run = b.runs[b.idx];
     if (run) {
-      this.app.quality.setOverride(run.preset || run.scale ? { preset: run.preset, scale: run.scale } : null);
+      // (always an override while measuring: it also holds the frame governor off, so a run measures its settings)
+      this.app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx });
+      b.shaders = this.shaderCount();
       return;
     }
     b.done = true;
@@ -1174,7 +1184,7 @@ export class GameState implements AppState {
       const r = benchResult(b.iv, b.cpu);
       const v = this.app.settings.get().video;
       const where = `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${this.app.engine.getRenderWidth()}x${this.app.engine.getRenderHeight()}`;
-      let line = benchText(r, where);
+      let line = benchText(r, where, this.shaderCount() - b.shaders);
       if (run.sustained && b.buckets.length >= 2) {
         const d = sustainedDrift(b.buckets);
         line += `; first minute ${b.buckets[0]!.toFixed(0)} fps, last ${b.buckets[b.buckets.length - 1]!.toFixed(0)} fps (${(d * 100).toFixed(1)}%${d < -0.1 ? ', throttling' : ''})`;

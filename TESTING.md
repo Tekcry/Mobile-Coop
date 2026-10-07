@@ -297,7 +297,10 @@ Controls:
 | Build | Low | Medium | High | Ultra |
 | --- | --- | --- | --- | --- |
 | 3.1.0 (2868 x 1320) | 60 avg / 35 1% low | 19 / 8 | 15 / 7 | 12 / 6 |
-| 3.1.1 | | | | |
+| 3.1.1 (1912 x 880) | 76 / 48 | 47 / 15 | 41 / 12 | 21 / 8 |
+| 3.1.2 | | | | |
+- [ ] 3.1.2: Settings > Graphics > Preset Ultra, then Benchmark > Feature costs; again on Medium. Save each to
+  feedback and send the lines (each says the fps without one feature, the hitches and the shaders compiled).
 - [ ] Fog and light shafts look as before (Medium, Fog weather); no shimmer on the shafts when the camera moves.
 - [ ] Settings > Graphics > Shadows changed in a paused match: shadows switch, nothing goes black or flickers.
 - [ ] Display rate: Settings > Graphics > Target frame rate shows "Display refresh (N Hz)". Every iPhone browser

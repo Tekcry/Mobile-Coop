@@ -47,3 +47,26 @@ describe('benchmark plans', () => {
     expect(sustainedDrift([150])).toBe(0);
   });
 });
+
+describe('feature costs (3.1.1)', () => {
+  it('the player settings, then each costly feature off in turn; features already off are skipped', async () => {
+    const { GRAPHICS_PRESETS } = await import('../src/core/quality');
+    const { FEATURE_SECONDS, featureRuns } = await import('../src/game/benchmark');
+    const ultra = GRAPHICS_PRESETS.ultra;
+    const p = benchPlan('features', 2868, 1320, undefined, ultra);
+    expect(p[0]).toMatchObject({ label: 'current settings', seconds: FEATURE_SECONDS });
+    expect(p[0]!.gfx).toBeUndefined();
+    expect(p.length).toBe(1 + featureRuns(ultra).length);
+    expect(p.find((r) => r.label === 'without ambient occlusion')?.gfx).toEqual({ ao: false });
+    expect(p.find((r) => r.label === 'shadows Low')?.gfx).toEqual({ shadows: 'low' });
+    const low = featureRuns(GRAPHICS_PRESETS.low).map((r) => r.label);
+    expect(low).not.toContain('without ambient occlusion');
+    expect(low).not.toContain('shadows Low');
+  });
+  it('counts hitches (frames over 50 ms)', () => {
+    const r = benchResult([16, 16, 70, 16, 120, 16]);
+    expect(r.long).toBe(2);
+    expect(benchText(r, 'x')).toContain('2 frames over 50 ms');
+    expect(benchText(benchResult([16, 16]), 'x', 3)).toContain('3 shaders compiled');
+  });
+});

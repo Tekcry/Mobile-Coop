@@ -916,9 +916,13 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
   Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Clear match on the Warehouse with `opts.benchmark`;
   `GameState` flies the camera through the room centres (`pathAt`, Catmull-Rom), guards passive, one flight per run
-  (`current`, `presets` High / Ultra / Epic, `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
+  (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
+  the settings, then one costly feature off / down per run, `FEATURE_SECONDS` 20; `BenchRun.gfx` ->
+  `QualityManager.setOverride({ gfx })`), `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
   4K, 7680 x 2160 within scale 2, `sustained` 10 min with per-minute averages), then a Dialog with a line per run
-  (`benchmarkLines`), saved as a performance feedback note.
+  (`benchmarkLines`: + frames over `BENCH.longMs` 50 and shaders compiled during the run, from the engine's
+  `_compiledEffects`), saved as a performance feedback note. Every run sets an override, so the frame governor is
+  off while measuring.
 - Renderer (3.0): `LightRig.configure` - unshadowed map lights in a `ClusteredLightContainer` (plain pool of 6
   without float blending), a shadow pool of spot lights with `ShadowGenerator`s (flashlights first, then the
   nearest lamps; lamps use a 144 deg cone there; idle maps stop refreshing, shadows never toggle - no recompiles),
