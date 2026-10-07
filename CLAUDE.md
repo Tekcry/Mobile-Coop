@@ -372,6 +372,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   and shoulders, limbs never collide with their own torso, capped by `BUDGET.maxRagdolls`.
 
 ## Movement and camera (stealth operative)
+- Chaos Theory movement (3.2.0, in progress): spec `docs/ct-movement.md`, status `docs/ct-movement-progress.md`.
 - All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
   crouched sneak 0.8 / crouch walk 1.8 / crouch run 2.6, standing walk 1.4 / jog 2.8, sprint 5.0 m/s (toggle or
   hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered at the low ready; aiming ends it via
