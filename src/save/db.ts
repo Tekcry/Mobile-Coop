@@ -4,7 +4,9 @@
  */
 // the preview build (dev branch, same origin as the live game) keeps its own save, so it can never migrate or
 // overwrite the live one
-export const DB_NAME = typeof __PREVIEW__ !== 'undefined' && __PREVIEW__ ? 'shoulder-strike-preview' : 'shoulder-strike';
+// (a named preview slot, e.g. ct-movement under /ct/, keeps its own too: `shoulder-strike-ct`)
+const PREVIEW_ID = typeof __PREVIEW_ID__ !== 'undefined' ? __PREVIEW_ID__ : '';
+export const DB_NAME = PREVIEW_ID ? `shoulder-strike-${PREVIEW_ID}` : typeof __PREVIEW__ !== 'undefined' && __PREVIEW__ ? 'shoulder-strike-preview' : 'shoulder-strike';
 /** Bump when adding object stores; add the store in `upgrade`. */
 export const DB_VERSION = 1;
 export const STORES = ['kv', 'profile', 'backups'] as const;

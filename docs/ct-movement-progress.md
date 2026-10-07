@@ -12,7 +12,7 @@ Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-
 | 5 Co-op team moves | not started | |
 
 ## Next step
-Phase 1 (networked movement state) is ready to start when Michael says so.
+Phase 1 (networked movement state) is ready to start when Michael says so. Phase 0 can be tried on the /ct/ preview.
 
 ## Phase log
 (per phase: files changed, decisions, tests run and results, open issues)
@@ -58,6 +58,10 @@ Open issues:
 - A slow crouch walk (~1 m/s, now the default crouched gear 3) lets the thigh pistol touch the right elbow pad (`e2e-weapons-carry` box test). The same happens on clean `dev` at that pace (checked), so it is not new; the suite runs at gear 4. Needs a carry / pose fix.
 - Co-op / PvP: gears, the instant stop and the roll are local (host and clients alike). Remotes still see position-interpolated movement (no roll pose), and the host does not hear a client's roll, until Phase 1's MoveState. The host's footstep noise for remotes uses the new quiet thresholds.
 - Gear speeds measure ~3% under the caps in the running game (Havok's controller, as 2.x's paces did).
+
+## Preview
+`ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).
+Saves there are separate (`shoulder-strike-ct`). Every push to `ct-movement` rebuilds it after the Preview check.
 
 ## Spec change requests
 (problem, proposed change, waiting for Michael / approved / rejected)

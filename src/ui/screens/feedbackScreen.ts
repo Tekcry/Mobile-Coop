@@ -15,7 +15,7 @@ export function feedbackContext(app: App): Record<string, string> {
   const st = app.current as unknown as { feedbackContext?: () => Record<string, string> } | null;
   const ctx: Record<string, string> = typeof st?.feedbackContext === 'function' ? st.feedbackContext() : { screen: 'menu' };
   const v = app.settings.get().video;
-  ctx.version = `${__APP_VERSION__}${__PREVIEW__ ? ' preview' : ''}`;
+  ctx.version = `${__APP_VERSION__}${__PREVIEW__ ? ' preview' + (__PREVIEW_ID__ ? ' ' + __PREVIEW_ID__ : '') : ''}`;
   ctx.platform = `${app.platform.platform} (${app.input.mode})`;
   ctx.graphics = `${app.quality.level.name}, ${app.engine.getRenderWidth()}x${app.engine.getRenderHeight()}${v.fpsCap ? `, cap ${v.fpsCap}` : ''}`;
   const pace = app.quality.pacing();

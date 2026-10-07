@@ -126,6 +126,9 @@ Blacklist style.
   `shoulder-strike-preview`, the live worker's `navigateFallbackDenylist` skips `/preview/`). `preview.yml` checks
   `dev` pushes; `deploy.yml` (default branch, also on `workflow_run` of that check) builds both and deploys. Release
   = merge `dev` into `master`.
+- 3.2.0: a second preview slot, `ct-movement` at `/<repo>/ct/` (`VITE_PREVIEW_ID=ct`: `__PREVIEW_ID__`, label
+  "PREVIEW CT", IndexedDB `shoulder-strike-ct`; the live worker's denylist skips `/ct/` too). `preview.yml` also
+  checks `ct-movement` pushes; `deploy.yml` builds it when the branch exists.
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
