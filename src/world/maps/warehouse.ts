@@ -16,6 +16,12 @@ const HAZARD = '#e8b923';
 const DESK = '#8a6a4c';
 const ROOF = '#4a4f55';
 const LAMP_OFF = '#3b3b38';
+const SHRINK = '#c4c0b0'; // shrink-wrapped pallet loads
+const UPRIGHT = '#2d4f6e';
+const PIPE = '#6d7378';
+const BOARD = '#e2e2dc';
+const GLASS = '#1d2730';
+const TYRE = '#2a2d30';
 
 /** Lamp strips that are lit (x, z of the strip). */
 const LAMPS_ON = new Set([
@@ -140,7 +146,11 @@ export const warehouse: MapDef = {
     b.perimeter(-24, 24, -26, 18, 6, WALL_DARK);
     b.floor(0, 0, 48, 36, FLOOR, 0.02, 0.04);
     // south facade: two roller doors at the dock, a personnel door into the workshop
-    wallX(b, -18, -24, 24, [[-20, -17], [-12, -9], [10.9, 12.1], [17, 18.1]], WALL_DARK, 6);
+    wallX(b, -18, -24, 24, [[-20, -17], [-12, -9], [0.6, 1.8], [10.9, 12.1], [17, 18.1]], WALL_DARK, 6);
+    // dispatch window off the yard (glazed: breaking in is loud, but it skips the dock and its dog)
+    b.box(1.2, 0.45, -18, 1.2, 0.9, T, WALL_DARK);
+    b.box(1.2, 4.05, -18, 1.2, 3.9, T, WALL_DARK);
+    b.windowAt(1.2, 1.5, -18, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: true });
     // workshop window off the yard (open: vault through)
     b.box(11.5, 0.45, -18, 1.2, 0.9, T, WALL_DARK);
     b.box(11.5, 4.05, -18, 1.2, 3.9, T, WALL_DARK);
@@ -152,7 +162,11 @@ export const warehouse: MapDef = {
 
     // interior walls (doors 1.1 m, double doors 1.6 m)
     wallZ(b, -4, -18, 18, [[-15, -13.9], [-10.5, -9.3], [-8.2, -7.1], [-2, -0.9], [8, 9.1], [14, 15.1]]);
-    wallX(b, -6, -24, -4, [[-16, -13], [-8, -6.9]]);
+    wallX(b, -6, -24, -4, [[-23.8, -22.6], [-16, -13], [-8, -6.9]]);
+    // an open hatch in the dark west corner: racking <-> dock behind the pallet stacks
+    b.box(-23.2, 0.45, -6, 1.2, 0.9, T, WALL);
+    b.box(-23.2, 2.65, -6, 1.2, 1.1, T, WALL);
+    b.windowAt(-23.2, 1.5, -6, 1.2, 1.2, 0, { sill: 0.9, open: true });
     wallX(b, -11, -4, 24, [[0, 1.1], [3.6, 4.8], [14, 15.1]]);
     // dispatch -> corridor: a glazed window (shatters through)
     b.box(4.2, 0.45, -11, 1.2, 0.9, T, WALL);
@@ -170,15 +184,29 @@ export const warehouse: MapDef = {
     b.lowCover(-10, -13.2, 2.6, CONCRETE, Math.PI / 2, 1.05, 0.5);
     b.lowCover(-20, -14.6, 2.2, CONCRETE, 0, 1.05, 0.5);
     b.block(-18.5, -17.2, 3, 0.08, 1.2, STEEL).block(-10.5, -17.2, 3, 0.08, 1.2, STEEL);
+    // shrink-wrapped loads waiting to go out: tall stacks in the dark corners (shadowed alcoves off the beat)
+    b.block(-23.2, -12.6, 1.1, 2.1, 1.6, SHRINK).block(-6.4, -12.4, 1.2, 2.0, 1.2, SHRINK);
+    // dock leveller controls beside the roller doors
+    b.box(-16.75, 1.4, -17.77, 0.35, 0.45, 0.15, '#c33a2e', 0, 0, false).box(-8.75, 1.4, -17.77, 0.35, 0.45, 0.15, '#c33a2e', 0, 0, false);
 
     // dispatch: desks and a shelf
     b.block(-1, -15.2, 1.8, 0.95, 0.8, DESK).block(3.2, -13.4, 0.8, 0.95, 1.8, DESK);
     b.block(5.3, -17.1, 0.8, 2.0, 1.6, STEEL);
+    // filing cabinets, a copier by the door, a whiteboard
+    b.block(5.6, -12.9, 0.5, 1.3, 1.0, STEEL).block(-3.55, -12.3, 0.6, 1.0, 0.8, '#d0d0c8');
+    b.box(-1.0, 1.6, -11.18, 1.6, 0.9, 0.04, BOARD, 0, 0, false);
 
     // workshop: benches, a lathe, lockers
     b.block(10, -14.6, 2.4, 1.0, 0.9, DESK).block(16, -13.2, 0.9, 1.0, 2.4, DESK);
     b.block(21, -15.6, 1.4, 1.8, 1.4, STEEL);
     b.block(23.45, -13.8, 0.6, 2.0, 2.6, STEEL);
+    // a pillar drill, a tool chest, an engine on a stand (low cover off the guard's beat), a parts shelf
+    b.block(13.4, -17.2, 0.6, 1.7, 0.6, STEEL).block(19.9, -17.35, 1.4, 1.05, 0.7, '#b0302a');
+    b.block(18.6, -14.4, 1.2, 1.0, 0.9, '#5a4a3a').block(6.45, -12.4, 0.6, 2.0, 1.6, STEEL);
+    // gantry crane rail over the benches (visual)
+    b.box(15, 4.4, -14.5, 17, 0.3, 0.3, BEAM, 0, 0, false);
+    // service corridor: pipe runs along the ceiling line (visual)
+    b.box(10, 2.95, -10.75, 27.6, 0.14, 0.14, PIPE, 0, 0, false).box(10, 2.75, -10.78, 27.6, 0.08, 0.08, '#7a5a3a', 0, 0, false);
 
     // racking aisles: four double-sided racks with a cross aisle, orange beams, pallets on top
     for (const x of [-20.5, -16.5, -12.5, -8.5]) {
@@ -188,11 +216,20 @@ export const warehouse: MapDef = {
         b.block(x, cz, 1.0, 2.8, len, RACK);
         for (const y of [1.0, 2.0]) b.box(x, y, cz, 1.08, 0.1, len + 0.04, BEAM, 0, 0, false);
         b.box(x, 3.1, cz - len / 4, 0.9, 0.6, 1.1, CRATE, 0, 0, false).box(x, 3.05, cz + len / 4, 0.9, 0.5, 1.2, CRATE, 0, 0, false);
+        // bays: uprights between them and the bottom level's shrink-wrapped loads (visual)
+        const bays = Math.round(len / 2.7);
+        for (let k = 1; k < bays; k++) b.box(x, 1.4, z0 + (k * len) / bays, 1.1, 2.8, 0.09, UPRIGHT, 0, 0, false);
+        b.box(x, 0.52, cz, 1.04, 0.8, len - 0.2, z0 < 0 ? SHRINK : '#b59468', 0, 0, false);
       }
     }
     // ladders onto the racks: their tops are a route over the aisles (sprint-hop the cross aisle)
     b.ladder(-12.5, -4.25, 0, 2.8, 0, STEEL);
     b.ladder(-20.5, 16.65, 0, 2.8, Math.PI, STEEL);
+    // a third ladder by the dock door: up onto the east rack straight from the dock
+    b.ladder(-8.5, -4.25, 0, 2.8, 0, STEEL);
+    // pallets along the aisle walls: low and tall stacks make dark nooks to wait out a patrol
+    b.block(-23.35, -1.0, 1.1, 1.2, 1.3, CRATE).block(-23.35, 10.5, 1.1, 2.0, 1.3, SHRINK);
+    b.block(-4.8, 13.3, 1.2, 2.0, 1.2, SHRINK).block(-4.8, -4.0, 1.2, 1.1, 1.2, CRATE);
     b.block(-22.6, 5.2, 1.0, 1.1, 1.0, CRATE);
     b.block(-6.2, 5.0, 1.2, 1.0, 1.2, CRATE);
 
@@ -204,6 +241,16 @@ export const warehouse: MapDef = {
     b.block(-1.8, -6.6, 1.2, 1.1, 1.2, CRATE);
     b.block(20.5, -6.8, 1.2, 1.5, 2.2, HAZARD);
     b.stairs(21.2, 9, 2.4, 6, 2.6, 10, CONCRETE, 0);
+    // east wall control cabinets (tall cover, dark pockets between them), a parked forklift, parts bins
+    // along the corridor wall and a pallet load by the stairs: a covered line from the corridor door to the deck
+    b.block(23.55, -2.5, 0.8, 2.1, 1.8, '#4b5560').block(23.55, 3.2, 0.8, 2.1, 1.8, '#4b5560');
+    b.block(21.2, 0.4, 2.2, 1.4, 1.2, HAZARD).box(19.98, 1.15, 0.4, 0.15, 2.3, 1.0, STEEL);
+    b.box(21.4, 2.15, 0.4, 1.4, 0.08, 1.1, STEEL, 0, 0, false);
+    b.lowCover(16, -6.8, 2.0, STEEL, Math.PI / 2, 1.0, 0.6);
+    b.block(17.2, 10.2, 1.2, 1.1, 1.2, CRATE);
+    // overhead crane girder and hoist, a painted walkway line (visual)
+    b.box(10, 5.0, 2, 27.6, 0.4, 0.35, BEAM, 0, 0, false).box(16, 4.55, 2, 0.6, 0.5, 0.6, HAZARD, 0, 0, false);
+    b.box(10, 0.045, -7.9, 27.5, 0.01, 0.1, HAZARD, 0, 0, false);
 
     // mezzanine: a deck along the north wall with railings and crates; offices under the west end
     b.block(16, 15, 16, 2.6, 6, WALL_DARK);
@@ -243,11 +290,16 @@ export const warehouse: MapDef = {
       { pos: { x: 6.75, y: 3.3, z: 15 }, nx: 0, ny: -1, nz: 0, where: 'ceiling' },
     );
     b.block(11.5, 15.8, 1.2, 1.1, 1.2, CRATE, 2.6).block(17.5, 14.2, 1.2, 1.3, 1.2, CRATE, 2.6).block(18.7, 14.3, 1.0, 1.0, 1.0, CRATE, 2.6);
+    // a crate screening the sniper's post from the stairs, a steel shelf against the back wall
+    b.block(20.6, 16.9, 1.2, 1.2, 1.2, CRATE, 2.6).block(18.6, 17.55, 2.2, 1.8, 0.6, STEEL, 2.6);
 
     // offices: desks, filing cabinets
     b.block(-2.2, 15, 1.6, 0.95, 0.8, DESK).block(0.8, 13.6, 0.8, 0.95, 1.4, DESK);
     b.block(4.6, 15.6, 1.8, 0.95, 0.9, DESK);
     b.block(7.4, 17.2, 0.6, 1.8, 1.0, STEEL).block(-3.5, 17.3, 0.6, 1.8, 0.9, STEEL);
+    // the manager's bookshelf and safe, the office copier, a whiteboard
+    b.block(3.7, 17.6, 1.4, 1.9, 0.45, DESK).block(7.5, 12.6, 0.7, 1.0, 0.7, '#3b3f44').block(1.45, 17.45, 0.7, 1.0, 0.6, '#d0d0c8');
+    b.box(-3.0, 1.6, 12.17, 1.4, 0.9, 0.04, BOARD, 0, 0, false);
 
     // doors (swing into the room side): office, manager's office, dispatch <-> workshop, two off the corridor
     b.door(-1.5, 0, 12, 1.1, Math.PI / 2, { swing: -1 });
@@ -265,6 +317,16 @@ export const warehouse: MapDef = {
     b.block(9, -23, 6, 2.6, 2.4, '#3d6e8f');
     b.lowCover(-14, -21.5, 3, CONCRETE, Math.PI / 2, 1.0, 0.6);
     b.lowCover(16, -21.2, 2.6, CONCRETE, Math.PI / 2, 1.0, 0.6);
+    // the trailer's tractor unit (cab, windscreen, bumper)
+    b.block(1.4, -22.5, 2.4, 2.5, 2.3, '#8b2b2b').box(2.62, 1.85, -22.5, 0.04, 0.6, 2.0, GLASS, 0, 0, false).box(2.66, 0.45, -22.5, 0.12, 0.3, 2.3, TYRE, 0, 0, false);
+    // a gatehouse in the east lot with a lit window and a door lamp
+    b.block(22.9, -20.6, 2.2, 2.6, 2.0, WALL).box(22.8, 2.68, -20.6, 2.6, 0.12, 2.4, STEEL, 0, 0, false).box(21.78, 1.55, -20.6, 0.04, 0.6, 1.1, '#d9c27a', 0, 0, false);
+    b.light({ kind: 'lamp', x: 21.45, y: 2.45, z: -20.6, radius: 4, intensity: 0.7, color: [1, 0.85, 0.6], group: 20, fixture: { sx: 0.2, sy: 0.12, sz: 0.2, oy: 0.06 } });
+    // a pallet stack between the roller doors (first cover off the spawn), bollards at the door edges
+    b.block(-14.5, -19.0, 1.2, 1.1, 1.0, CRATE);
+    for (const x of [-20.35, -16.65, -12.35, -8.65]) b.pillar(x, -18.5, 0.13, 0.7, HAZARD);
+    // the lee of the trailer and the container is in deep shadow: a dark lane along the south fence
+    b.ambientZone(-7.5, 12.5, -26, -23.8, 0.17, -1, 6);
 
     // roof with skylight strips and hanging lights (visual only: no collision, nav samples the floor)
     for (let z = -18; z < 18; z += 6) b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);

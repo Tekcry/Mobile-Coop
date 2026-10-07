@@ -13,6 +13,10 @@ const GRAVEL = '#7d7a70';
 const STEEL = '#55606a';
 const WOOD = '#7a5a3e';
 const CAR = '#23272e';
+const GLASS = '#1b2530';
+const TYRE = '#141518';
+const SEAT = '#2a2d33';
+const BRONZE = '#5b5040';
 
 /** Main building: one tall storey under a walkable roof. */
 const H = 3.6;
@@ -116,6 +120,35 @@ function roofDuct(b: LevelBuilder, x: number, zVent: number, zEntry: number): vo
   );
 }
 
+/** A parked car along `yaw` (0 = along z): a waist-high body (low cover), the cabin, a dark skirt for the wheels. */
+function car(b: LevelBuilder, x: number, z: number, yaw: number, color: string, len = 4.4): void {
+  const sx = Math.sin(yaw) * -0.15;
+  const sz = Math.cos(yaw) * -0.15;
+  b.block(x, z, 1.9, 1.0, len, color, 0, yaw);
+  b.box(x + sx, 1.27, z + sz, 1.66, 0.54, len * 0.52, GLASS, yaw);
+  b.box(x, 0.2, z, 1.98, 0.36, len - 0.5, TYRE, yaw, 0, false);
+}
+
+/** A van (high cover) along `yaw`: the box body, a windscreen band at the front, the wheel skirt. */
+function van(b: LevelBuilder, x: number, z: number, yaw: number, color: string, len = 4.8): void {
+  const fx = Math.sin(yaw) * (len / 2 + 0.01);
+  const fz = Math.cos(yaw) * (len / 2 + 0.01);
+  b.block(x, z, 2.0, 1.85, len, color, 0, yaw);
+  b.box(x + fx, 1.4, z + fz, 1.8, 0.55, 0.04, GLASS, yaw, 0, false);
+  b.box(x, 0.2, z, 2.08, 0.36, len - 0.6, TYRE, yaw, 0, false);
+}
+
+/** A flag pole with its flag hanging off towards +x. */
+function flag(b: LevelBuilder, x: number, z: number, h: number, color: string, y = 0): void {
+  b.pillar(x, z, 0.05, h, '#c9c4b8', y);
+  b.box(x + 0.6, y + h - 0.5, z, 1.1, 0.7, 0.03, color, 0, 0, false);
+}
+
+/** A potted plant (a stone pot, a round shrub): low enough to see over, solid to walk into. */
+function plant(b: LevelBuilder, x: number, z: number, y = 0): void {
+  b.pillar(x, z, 0.32, 0.5, STONE, y).pillar(x, z, 0.42, 0.7, HEDGE, y + 0.5);
+}
+
 /**
  * The embassy (night): a walled compound - a front court with a fountain, a gatehouse and a gate tower, a west
  * garden, a service yard and garage, and the residence: lobby, security office, server room, reception, the
@@ -152,12 +185,16 @@ export const embassy: MapDef = {
 
     // ---------------- residence: exterior walls (doors / windows as gaps) ----------------
     b.floor(0, 9, 36, 18, '#77736a', 0.02, 0.04);
-    // south facade: double front door, the security office window
-    b.wallX(0, -18, 18, [[-7.6, -6.4], [-1.2, 1.2]], H, PLASTER, T);
+    // south facade: double front door, the security office window, a reception window (behind the planters)
+    b.wallX(0, -18, 18, [[-7.6, -6.4], [-1.2, 1.2], [9, 10.2]], H, PLASTER, T);
     b.box(-7, 0.45, 0, 1.2, 0.9, T, PLASTER).box(-7, 2.85, 0, 1.2, 1.5, T, PLASTER);
     b.windowAt(-7, 1.5, 0, 1.2, 1.2, 0, { sill: 0.9, breakable: true });
-    // north facade: an open archive window, the staff door
-    b.wallX(18, -18, 18, [[-1, 0.2], [11.4, 12.6]], H, PLASTER, T);
+    b.box(9.6, 0.45, 0, 1.2, 0.9, T, PLASTER).box(9.6, 2.85, 0, 1.2, 1.5, T, PLASTER);
+    b.windowAt(9.6, 1.5, 0, 1.2, 1.2, 0, { sill: 0.9, breakable: true });
+    // north facade (a dark service alley): a conference window, the staff back door, an open archive window
+    b.wallX(18, -18, 18, [[-14.6, -13.4], [-1, 0.2], [11.4, 12.6]], H, PLASTER, T);
+    b.box(-14, 0.45, 18, 1.2, 0.9, T, PLASTER).box(-14, 2.85, 18, 1.2, 1.5, T, PLASTER);
+    b.windowAt(-14, 1.5, 18, 1.2, 1.2, 0, { sill: 0.9, breakable: true });
     b.box(12, 0.45, 18, 1.2, 0.9, T, PLASTER).box(12, 2.85, 18, 1.2, 1.5, T, PLASTER);
     b.windowAt(12, 1.5, 18, 1.2, 1.2, 0, { sill: 0.9, open: true });
     // west facade: the server room window (glazed), a conference door
@@ -189,23 +226,42 @@ export const embassy: MapDef = {
     b.door(-12, 0, 12.5, 1.1, Math.PI / 2, { swing: 1 });
     b.door(10, 0, 12.5, 1.1, Math.PI / 2, { swing: 1 });
     b.door(18, 0, 14, 1.1, 0, { swing: -1 });
+    b.door(-1, 0, 18, 1.2, Math.PI / 2, { swing: 1 });
 
-    // lobby: a reception desk, benches, pillars
+    // lobby: a reception desk, benches, pillars; a baggage scanner, a waiting sofa
     b.block(0, 6.2, 3.2, 1.05, 0.8, WOOD);
     b.pillar(-3, 3, 0.3, H, STONE).pillar(3, 3, 0.3, H, STONE);
     b.lowCover(-3.5, 8.5, 1.8, WOOD, 0, 0.9, 0.5);
-    // security office: desks and a monitor wall
+    b.block(4.2, 1.8, 0.8, 1.05, 2.0, STEEL);
+    b.block(-4.4, 6.45, 0.8, 0.8, 1.6, '#3e4a5a');
+    // security office: desks and a monitor wall (screens), a gun locker
     b.block(-7, 7.8, 2.4, 0.95, 0.8, WOOD).block(-8.6, 2.5, 0.5, 1.9, 2.4, STEEL);
-    // server room: rack rows (high cover), a cooling unit; the terminal is the objective
+    b.box(-8.33, 1.3, 2.5, 0.04, 0.9, 2.0, '#2b4a5e', 0, 0, false);
+    b.block(-8.6, 5.6, 0.5, 1.85, 1.2, STEEL);
+    // server room: rack rows (high cover), a cooling unit, a UPS cabinet; the terminal is the objective
     for (const x of [-15.5, -12.5]) b.block(x, 6.2, 0.9, 2.2, 4.4, '#1f2a36');
     b.block(-10.2, 2.2, 1.2, 1.8, 1.4, STEEL);
+    b.block(-17.5, 9.2, 0.6, 1.8, 1.0, '#2a3440');
     // reception / ambassador: desks, a bookcase, a sofa
     b.block(8, 4.5, 2.4, 0.95, 0.9, WOOD).block(15.5, 6.5, 2.6, 0.95, 1.2, WOOD).block(17.5, 2, 0.6, 2.0, 2.6, WOOD);
     b.lowCover(13, 2.2, 2.2, '#5a3a3a', 0, 0.85, 0.8);
-    // conference: a long table; staff: a counter; archive: shelving rows
+    // reception: a waiting sofa, filing cabinets; ambassador: a coffee table, a sideboard
+    b.block(6.9, 0.6, 2.0, 0.8, 0.8, '#4a3a3a').block(5.45, 8.9, 0.5, 1.3, 1.0, STEEL);
+    b.block(14, 2.0, 0.6, 0.45, 1.0, WOOD).block(16.8, 9.45, 1.2, 1.0, 0.6, WOOD);
+    // corridor: a console table, a plant at the dead end
+    b.block(4.25, 10.35, 2.4, 0.85, 0.4, WOOD);
+    plant(b, 17.35, 11.25);
+    // conference: a long table, chairs (clear of the phone and the window), a credenza, a screen
     b.block(-12, 15.2, 6, 0.8, 1.6, WOOD);
-    b.block(0, 17.3, 6, 1.0, 0.8, '#6b6f73');
+    for (const [x, z] of [[-12.9, 16.45], [-11.1, 16.45], [-15.45, 15.2], [-8.55, 15.2]] as const) b.block(x, z, 0.48, 0.85, 0.48, SEAT);
+    b.block(-6.45, 15, 0.5, 0.85, 2.4, WOOD);
+    b.box(-17.83, 1.7, 13.6, 0.03, 1.1, 1.9, '#20262c', 0, 0, false);
+    // staff: a kitchenette on the west side (the back door stays clear), a fridge, a table, a vending machine
+    b.block(-3.3, 17.45, 3.4, 0.95, 0.7, '#6b6f73').block(-5.45, 17.45, 0.7, 1.85, 0.7, '#c8ccd0');
+    b.block(2.5, 15.2, 1.6, 0.75, 1.0, WOOD).block(5.4, 13.3, 0.8, 1.85, 0.7, '#7a2a2a');
+    // archive: shelving rows, filing cabinets by the door
     for (const x of [8.5, 11, 13.5, 16]) b.block(x, 15.8, 0.6, 2.2, 3, WOOD);
+    b.block(7.2, 13, 1.2, 1.3, 0.6, STEEL);
 
     // ---------------- roof (walkable; vents into the server room and the ambassador's office) ----------------
     const slab0 = b.boxes.length;
@@ -216,8 +272,15 @@ export const embassy: MapDef = {
     // AC units and a skylight housing (cover on the roof); a short parapet on the north side
     b.block(-4, 14, 2.2, 1.2, 1.6, '#6d7378', ROOF_TOP).block(6, 15, 1.6, 1.0, 1.6, '#6d7378', ROOF_TOP).block(0, 6, 3.0, 0.8, 3.0, '#3b4a5a', ROOF_TOP);
     b.box(-9, ROOF_TOP + 0.35, 18.0, 18, 0.7, 0.25, PLASTER);
-    // ways up: a ladder on the north facade, drainpipes at the front corners and the west side
+    // more roof clutter to move between: condensers, vent stacks, a satellite dish
+    b.block(-8, 9, 2.0, 1.2, 1.4, '#6d7378', ROOF_TOP).block(11.5, 12.5, 1.6, 1.0, 1.6, '#6d7378', ROOF_TOP);
+    b.pillar(-15, 15.5, 0.25, 1.0, STEEL, ROOF_TOP);
+    b.pillar(-14.5, 9.5, 0.15, 1.0, STEEL, ROOF_TOP);
+    b.box(-14.5, ROOF_TOP + 1.25, 9.5, 1.4, 0.08, 1.4, '#c8ccd0', 0, -0.6, false);
+    // ways up: a ladder on the north facade, a hidden one in the dark alley beside the garage, drainpipes at the
+    // front corners and the west side
     b.ladder(4, 18.3, 0, ROOF_TOP, Math.PI, STEEL);
+    b.ladder(18.3, 16.6, 0, ROOF_TOP, -Math.PI / 2, STEEL);
     b.pipeV(-16.8, -0.3, 0, ROOF_TOP, 0);
     b.pipeV(16.8, -0.3, 0, ROOF_TOP, 0);
     b.pipeV(-18.3, 13, 0, ROOF_TOP, Math.PI / 2);
@@ -234,7 +297,19 @@ export const embassy: MapDef = {
     b.pillar(0, -10, 1.8, 0.8, STONE).pillar(0, -10, 0.3, 2.2, STONE);
     b.lowCover(-8, -4.5, 5, HEDGE, Math.PI / 2, 1.1, 0.8).lowCover(8, -4.5, 5, HEDGE, Math.PI / 2, 1.1, 0.8);
     b.lowCover(-8, -15, 4, HEDGE, 0, 1.1, 0.8).lowCover(8, -15, 4, HEDGE, 0, 1.1, 0.8);
-    b.block(-15.5, -7, 2.0, 1.5, 4.4, CAR).block(-12.5, -7, 2.0, 1.5, 4.4, '#3a3f48');
+    // diplomatic cars in the west court
+    car(b, -15.5, -7, 0, CAR);
+    car(b, -12.5, -7, 0, '#3a3f48');
+    car(b, -16.5, -12.2, 0, '#8d9298');
+    // hedge planters 2 m off the facade: a crouched lane behind them to the security and reception windows
+    for (const x of [-15.2, -11.6, 11.4, 14.6]) b.lowCover(x, -2.2, 2.4, HEDGE, Math.PI / 2, 1.05, 0.8);
+    // flags by the front door, a bronze statue in the east court
+    flag(b, -4.6, -1.4, 6.5, '#24427a');
+    flag(b, -3.4, -1.4, 6.5, '#a8323a');
+    b.block(12.5, -5.5, 1.2, 1.0, 1.2, STONE).pillar(12.5, -5.5, 0.28, 1.5, BRONZE, 1.0);
+    // the gate security booth (a lamp over the drive)
+    b.block(5.3, -19.8, 1.6, 2.4, 1.6, STONE).mark(b.boxes.length - 1, { noLedge: true });
+    b.box(5.3, 2.47, -19.8, 2.0, 0.14, 2.0, ROOF, 0, 0, false);
     // gatehouse (a small room with a roof, a door and a glazed window)
     b.wallX(-20, -14, -9, [], 3, STONE, T);
     b.wallX(-15, -14, -9, [[-12, -10.9]], 3, STONE, T);
@@ -246,7 +321,7 @@ export const embassy: MapDef = {
     const gh0 = b.boxes.length;
     b.box(-11.5, 3.1, -17.5, 5.3, 0.2, 5.3, ROOF);
     b.mark(gh0, { overhead: true });
-    b.block(-12.5, -18.8, 1.6, 0.95, 0.8, WOOD);
+    b.block(-12.5, -18.8, 1.6, 0.95, 0.8, WOOD).block(-13.6, -19.5, 0.5, 1.85, 0.6, STEEL);
     // the gate tower: stairs up the north side, a railing
     b.block(14, -16, 3, 3.2, 3, STONE_DARK);
     b.stairs(14, -12.25, 1.6, 4.5, 3.2, 10, STONE, Math.PI);
@@ -262,11 +337,23 @@ export const embassy: MapDef = {
     b.block(-23.6, 8.5, 2.6, 2.4, 2.2, WOOD);
     b.box(-21, 0.03, -2, 1.2, 0.04, 1.2, STEEL, 0, 0, false);
     b.lowCover(-20, 18, 3, HEDGE, Math.PI / 2, 1.1, 0.8);
+    // shrubs off the patrol path, and a tall hedge screening the garden from the west court
+    for (const [x, z] of [[-24.8, -8.5], [-24.6, -1], [-24.9, 14.5], [-19.5, 8.6]] as const) b.pillar(x, z, 0.6, 1.1, HEDGE);
+    b.box(-19.2, 0.9, -10.5, 0.8, 1.8, 5, HEDGE);
+
+    // ---------------- north service alley (dark): a dumpster, condensers ----------------
+    b.block(-6, 21.3, 1.9, 1.15, 1.1, '#2f5a3c');
+    b.block(-9, 18.55, 1.0, 0.9, 0.7, '#8a9096').block(7.5, 18.55, 1.0, 0.9, 0.7, '#8a9096');
 
     // ---------------- service yard and garage ----------------
     b.block(22, 1.5, 2.3, 2.3, 5.2, '#d0d0cc');
     b.block(23, -6, 2.0, 1.6, 1.2, '#596048');
     b.block(24.2, -18.2, 1.9, 1.2, 1.1, '#2f5a3c');
+    // a delivery van, pallets and crates, a fuel tank
+    van(b, 19.7, -18.4, 0, '#d6d6d2');
+    b.block(24.8, -12.5, 1.2, 1.0, 1.2, WOOD);
+    b.block(19.4, -9.5, 1.1, 1.1, 1.1, WOOD);
+    b.pillar(25, -0.8, 0.8, 2.0, '#9aa0a6');
     b.wallX(8, 19.5, 25.5, [], 3, STONE, T);
     b.wallX(18, 19.5, 25.5, [], 3, STONE, T);
     b.wallZ(19.5, 8, 18, [[11, 13.6]], 3, STONE, T);
@@ -274,7 +361,10 @@ export const embassy: MapDef = {
     const gr0 = b.boxes.length;
     b.box(22.5, 3.1, 13, 6.3, 0.2, 10.3, ROOF);
     b.mark(gr0, { overhead: true });
-    b.block(22.5, 10.5, 2.0, 1.4, 3.6, CAR).block(24.2, 16, 1.2, 1.8, 1.6, STEEL);
+    car(b, 22.5, 10.5, 0, CAR, 4.2);
+    b.block(24.2, 16, 1.2, 1.8, 1.6, STEEL);
+    // a workbench
+    b.block(25, 11.2, 0.6, 0.95, 2.0, WOOD);
     b.pipeV(25.8, 9, 0, 3.2, -Math.PI / 2);
 
     // ---------------- lights (night: pools of light, dark gardens) ----------------
@@ -285,6 +375,8 @@ export const embassy: MapDef = {
     }
     b.light({ kind: 'spot', x: 14, y: 4.6, z: -17.2, radius: 10, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(-0.6, -0.8, -0.2, 0.55), group: COURT + 1, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
     b.light({ kind: 'lamp', x: -11.5, y: 2.8, z: -17.5, radius: 4.5, intensity: 0.9, color: [1, 0.9, 0.75], group: COURT + 2, fixture: { sx: 0.6, sy: 0.08, sz: 0.25, oy: 0.08 } });
+    // the gate booth's lamp over the drive
+    b.light({ kind: 'spot', x: 4.3, y: 2.3, z: -19.8, radius: 5, intensity: 0.75, color: [1, 0.92, 0.78], cone: makeCone(-0.5, -0.85, 0, 0.7), group: COURT + 3, fixture: { sx: 0.2, sy: 0.12, sz: 0.3, oy: 0.06 } });
     const lamp = (x: number, z: number, group: number, color: [number, number, number] = [1, 0.92, 0.78], r = 6): void => {
       b.light({ kind: 'lamp', x, y: H - 0.15, z, radius: r, intensity: 1, color, group, fixture: { sx: 0.9, sy: 0.08, sz: 0.25, oy: 0.08 } });
     };
@@ -299,6 +391,11 @@ export const embassy: MapDef = {
     b.ambientZone(-18, 18, 0, 18, 0.1, -1, ROOF_TOP - 0.1);
     b.ambientZone(-14, -9, -20, -15, 0.12, -1, 3);
     b.ambientZone(19.5, 25.5, 8, 18, 0.1, -1, 3);
+    // darker side paths: the north service alley, the gap between the residence and the garage, the garden's
+    // west strip under the trees
+    b.ambientZone(-18, 18, 18.2, 22, 0.08, -1, 3.6);
+    b.ambientZone(18.2, 19.4, 8, 18.2, 0.06, -1, 3.6);
+    b.ambientZone(-26, -23.6, -22, 22, 0.1, -1, 4);
     // surfaces: stone court drive, carpet in the offices, wood archive, a metal roof
     b.surface('concrete', -4, 4, -22, 0);
     b.surface('carpet', 5, 18, 0, 10);
@@ -343,7 +440,7 @@ export const embassy: MapDef = {
         { pos: v(-5.15, 7), yaw: -Math.PI / 2 },
         { pos: v(-13.85, -16.5), yaw: Math.PI / 2 },
       ],
-      hideSpots: [{ pos: v(-22, 8.5) }, { pos: v(24.2, -17) }, { pos: v(7.8, 16.2) }],
+      hideSpots: [{ pos: v(-22, 8.5) }, { pos: v(24.2, -17) }, { pos: v(7.8, 16.2) }, { pos: v(-6, 20.3) }],
       reinforce: [v(0, -20.5), v(-23.5, 20), v(23.5, -20)],
     };
   },

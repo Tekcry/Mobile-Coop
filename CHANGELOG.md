@@ -21,6 +21,12 @@
   (A equip / buy, Y customise, B back). Primary / secondary > weapon > attachments & upgrades > camo; suit parts,
   appearance, tag, HQ and challenges. Focusing anything shows it on the operator, locked items too.
 - Menus are more compact.
+- Maps: more detail on every map (vehicles, machinery, furniture, clutter, razor wire, hedges) with darker side
+  lanes and new ways through - Warehouse: a window into dispatch, a dock hatch, a third rack ladder; Dust Depot: north
+  windows, container ladders, a plaza watchtower; Embassy: a staff back door, reception and conference windows, a
+  hidden roof ladder; Mansion: a back balcony with a ladder, the kitchen and foyer back doors cleared; Port: a fire
+  escape into the customs office, a pilot ladder at the stern; Refinery: a ladder up the middle tank, a chiller
+  platform and window into the operations office.
 
 ## 2.2.0 - Silent But Deadly
 - The game is now called Silent But Deadly (title, install name, icon: green tri-lens goggles). Saves, exports and

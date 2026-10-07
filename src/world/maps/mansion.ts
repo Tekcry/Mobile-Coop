@@ -18,6 +18,10 @@ const WOOD = '#6e4f34';
 const STEEL = '#55606a';
 const WATER = '#1f4a63';
 const CAR = '#1d2127';
+const GLASS = '#1b2530';
+const TYRE = '#141518';
+const SEAT = '#3a2a24';
+const LINEN = '#d8d0c0';
 
 /** Ground storey walls, the upper floor's top, upper walls, the flat roof's top. */
 const H1 = 3.4;
@@ -75,6 +79,25 @@ const ROOMS: RoomDef[] = [
   { id: 'poolhouse', name: 'Pool House', minX: 19, maxX: 27, minZ: 2, maxZ: 10, squad: [{ kind: 'grunt', x: 21.5, z: 3.4, yaw: Math.PI / 2 }] },
   { id: 'pool', name: 'Pool', minX: 16.2, maxX: 30, minZ: -6.4, maxZ: 1.8, squad: [{ kind: 'droneOp', x: 28, z: -2, yaw: -Math.PI / 2 }] },
 ];
+
+/** A parked car along `yaw` (0 = along z): a waist-high body (low cover), the cabin, a dark skirt for the wheels. */
+function car(b: LevelBuilder, x: number, z: number, yaw: number, color: string, len = 4.4): void {
+  const sx = Math.sin(yaw) * -0.15;
+  const sz = Math.cos(yaw) * -0.15;
+  b.block(x, z, 1.9, 1.0, len, color, 0, yaw);
+  b.box(x + sx, 1.27, z + sz, 1.66, 0.54, len * 0.52, GLASS, yaw);
+  b.box(x, 0.2, z, 1.98, 0.36, len - 0.5, TYRE, yaw, 0, false);
+}
+
+/** A potted plant (a stone pot, a round shrub). */
+function plant(b: LevelBuilder, x: number, z: number, y = 0): void {
+  b.pillar(x, z, 0.32, 0.5, STONE, y).pillar(x, z, 0.42, 0.7, HEDGE, y + 0.5);
+}
+
+/** Tall furniture (bookcases, wardrobes) never offers a lip to hang from. */
+function tall(b: LevelBuilder, x: number, z: number, w: number, h: number, d: number, color: string, y = 0): void {
+  b.block(x, z, w, h, d, color, y).mark(b.boxes.length - 1, { noLedge: true });
+}
 
 /**
  * The mansion (night): a walled estate - a front garden with a fountain, a gatehouse booth, a garage, a pool and
@@ -144,17 +167,28 @@ export const mansion: MapDef = {
     b.door(9.5, 0, 5, 1.1, Math.PI / 2, { swing: 1 });
     // the grand staircase up the middle of the foyer
     b.stairs(0, 2.5, 2.4, 6, UP, 14, MARBLE, 0);
-    // foyer: pillars, a console table, benches either side of the stairs
+    // foyer: pillars, a console table (beside the back door, which stays clear), a plant, benches either side
+    // of the stairs
     b.pillar(-3.2, -3.2, 0.25, H1, MARBLE).pillar(3.2, -3.2, 0.25, H1, MARBLE);
     b.lowCover(-2.8, 3.5, 2.2, WOOD, 0, 0.9, 0.5).lowCover(2.8, 3.5, 2.2, WOOD, 0, 0.9, 0.5);
-    b.block(0, 12.8, 2.4, 0.95, 0.7, WOOD);
-    // dining: a long table, a sideboard; kitchen: an island and counters
+    b.block(1.5, 13.6, 1.2, 0.95, 0.5, WOOD);
+    plant(b, -1.7, 13.3);
+    // dining: a long table and chairs, a sideboard, a china cabinet; kitchen: an island, counters either side of
+    // the back door (a way in from the terrace), a fridge, a tall unit
     b.block(-10, 0.5, 6.5, 0.8, 1.6, WOOD).block(-15.4, -2.6, 0.6, 1.0, 2.0, WOOD);
-    b.block(-10, 9.5, 3.6, 0.95, 1.4, '#cfcac0').block(-10, 13.4, 9, 0.95, 0.7, '#cfcac0').block(-15.4, 9.5, 0.6, 2.1, 3.2, '#a9a49a');
-    // library: shelving rows (high cover) and a reading table; study: a desk, a safe, cabinets
+    for (const x of [-12, -10, -8]) b.block(x, -0.75, 0.48, 0.85, 0.48, SEAT).block(x, 1.75, 0.48, 0.85, 0.48, SEAT);
+    b.block(-14, 4.5, 1.6, 1.85, 0.6, PANEL);
+    b.block(-10, 9.5, 3.6, 0.95, 1.4, '#cfcac0').block(-15.4, 9.5, 0.6, 2.1, 3.2, '#a9a49a');
+    b.block(-13.75, 13.4, 1.5, 0.95, 0.7, '#cfcac0').block(-8.3, 13.4, 5.4, 0.95, 0.7, '#cfcac0').block(-5.05, 13.4, 0.9, 1.85, 0.7, '#d8dade');
+    // library: shelving rows (high cover), a reading table, a wall bookcase, an armchair, the fireplace; study: a
+    // desk, a safe, cabinets, a bookcase, a sofa
     for (const x of [7, 10, 13]) b.block(x, 1.6, 0.6, 2.3, 3.8, PANEL);
     b.block(7.5, -2.0, 1.6, 0.8, 1.0, WOOD);
+    tall(b, 4.45, -2.5, 0.6, 2.3, 2.0, PANEL);
+    b.block(14.8, -3.2, 0.8, 0.8, 0.8, '#5a3a3a').block(14.5, 4.6, 1.6, 1.2, 0.5, STONE_DARK);
     b.block(8, 11.6, 2.2, 0.95, 1.0, WOOD).block(15.3, 12.6, 0.8, 1.6, 1.4, STEEL).block(15.4, 6.5, 0.6, 1.9, 2.0, PANEL);
+    tall(b, 4.45, 6.6, 0.6, 2.3, 2.4, PANEL);
+    b.block(10, 7.6, 2.4, 0.8, 0.8, '#4a2e2a');
 
     // ================= upper floor =================
     // the floor slab round the stairwell (a hole over the stairs), the balcony over the front door
@@ -173,9 +207,16 @@ export const mansion: MapDef = {
     glassX(b, 10, -4, UP, H2, PLASTER);
     b.door(-1.2, UP, -4, 1.2, Math.PI / 2, { swing: -1 });
     b.door(1.2, UP, -4, 1.2, -Math.PI / 2, { swing: -1 });
-    wallXAt(b, 14, -16, 16, [[-10.6, -9.4], [9.4, 10.6]], UP, H2, PLASTER);
+    wallXAt(b, 14, -16, 16, [[-10.6, -9.4], [-0.6, 0.6], [9.4, 10.6]], UP, H2, PLASTER);
     glassX(b, -10, 14, UP, H2, PLASTER);
     glassX(b, 10, 14, UP, H2, PLASTER);
+    // a back balcony off the landing over the back door, a ladder up from the terrace (a way onto the upper
+    // floor that skips the stairs)
+    b.door(-0.6, UP, 14, 1.2, Math.PI / 2, { swing: 1 });
+    const bb0 = b.boxes.length;
+    b.box(0, UP - 0.1, 15.075, 6, 0.2, 1.85, STONE);
+    b.mark(bb0, { overhead: true });
+    b.box(-0.425, UP + 0.5, 15.93, 5.15, 1.0, 0.15, STONE).box(-2.93, UP + 0.5, 15.075, 0.15, 1.0, 1.85, STONE).box(2.93, UP + 0.5, 15.075, 0.15, 1.0, 1.85, STONE);
     wallZAt(b, -16, -4, 14, [[-0.6, 0.6]], UP, H2, PLASTER);
     glassZ(b, -16, 0, UP, H2, PLASTER);
     wallZAt(b, 16, -4, 14, [[-0.6, 0.6]], UP, H2, PLASTER);
@@ -198,6 +239,13 @@ export const mansion: MapDef = {
     b.block(8, 0.5, 0.7, 1.1, 0.7, MARBLE, UP).block(12, 0.5, 0.7, 1.1, 0.7, MARBLE, UP);
     b.box(10, UP + 1.2, 3.6, 4, 2.4, 0.3, PANEL);
     b.block(15.3, 9.5, 0.7, 2.3, 2.4, STEEL, UP).block(10, 12.4, 2.4, 0.95, 1.0, WOOD, UP).block(5, 13.3, 1.2, 2.0, 0.8, '#1f2a36', UP);
+    // master: a wardrobe, an armchair; guest: a wardrobe; gallery: display cases along the windows (low cover
+    // against the patrol); vault: filing cabinets
+    tall(b, -14, 4.5, 1.6, 1.85, 0.6, WOOD, UP);
+    b.block(-6.2, -3.0, 0.8, 0.8, 0.8, '#5a3d48', UP);
+    tall(b, -12.5, 13.5, 1.6, 1.85, 0.6, WOOD, UP);
+    b.block(7, -3.4, 1.4, 1.0, 0.6, '#9aa6ae', UP).block(13, -3.4, 1.4, 1.0, 0.6, '#9aa6ae', UP);
+    b.block(13.5, 13.4, 1.6, 1.3, 0.7, STEEL, UP);
 
     // ================= roof (walkable; a vent into the vault office) =================
     const r0 = b.boxes.length;
@@ -219,9 +267,15 @@ export const mansion: MapDef = {
     );
     // chimneys and skylight housings (cover on the roof)
     b.block(-12, 11, 1.2, 1.6, 1.2, STONE_DARK, ROOF_TOP).block(-6, -1, 2.6, 0.8, 2.6, '#3b4a5a', ROOF_TOP).block(12, 2, 1.2, 1.6, 1.2, STONE_DARK, ROOF_TOP);
+    // condensers, a vent stack and a satellite dish
+    b.block(-1, 11, 2.0, 1.2, 1.4, '#6d7378', ROOF_TOP).block(8, -1.5, 1.6, 1.0, 1.6, '#6d7378', ROOF_TOP);
+    b.pillar(10, 7, 0.25, 1.0, STEEL, ROOF_TOP).pillar(-14, -2.5, 0.15, 1.0, STEEL, ROOF_TOP);
+    b.box(-14, ROOF_TOP + 1.25, -2.5, 1.4, 0.08, 1.4, '#c8ccd0', 0, -0.6, false);
     // ways up: the balcony ladder, a garden ladder to the roof, drainpipes on the corners
     b.ladder(3, -6.75, 0, UP, 0, STEEL);
     b.ladder(6, 14.3, 0, ROOF_TOP, Math.PI, STEEL);
+    // (the back balcony's ladder, beside the garden ladder)
+    b.ladder(2.55, 16.15, 0, UP, Math.PI, STEEL);
     b.pipeV(-16.3, 13, 0, ROOF_TOP, Math.PI / 2);
     b.pipeV(16.3, -3, 0, ROOF_TOP, -Math.PI / 2);
     // zipline: roof -> pool house roof
@@ -250,7 +304,10 @@ export const mansion: MapDef = {
     }
     b.lowCover(-15, -14.5, 5, HEDGE, 0, 1.1, 0.8).lowCover(15, -14.5, 5, HEDGE, 0, 1.1, 0.8);
     for (const [x, z] of [[-5, -7.6], [5, -7.6], [-20, -20], [20, -20]] as const) b.pillar(x, z, 0.45, 1.0, STONE).pillar(x, z, 0.22, 1.2, STONE, 1.0);
-    b.block(-3.6, -20, 2.0, 1.5, 4.4, CAR).block(3.4, -16, 2.0, 1.5, 4.4, '#3a3f48');
+    car(b, -3.6, -20, 0, CAR);
+    car(b, 3.4, -16, 0, '#3a3f48');
+    // hedge planters off the facade: a crouched lane behind them past the front windows and the balcony ladder
+    for (const x of [-14, -7.4, 7.4, 13]) b.lowCover(x, -5.95, 2.4, HEDGE, Math.PI / 2, 1.05, 0.8);
     // trees on the lawns
     for (const [x, z] of [[-24, -16], [24, -16], [-24, 18], [-19, 22], [12, 22], [-12, 22], [25, 18]] as const) {
       b.pillar(x, z, 0.25, 2.6, '#4a3a2a');
@@ -264,12 +321,19 @@ export const mansion: MapDef = {
     const gr0 = b.boxes.length;
     b.box(-23, 3.1, -1, 8.3, 0.2, 10.3, ROOF);
     b.mark(gr0, { overhead: true });
-    b.block(-23.5, -2.5, 2.0, 1.5, 4.4, CAR).block(-26.2, 2.6, 1.2, 1.8, 2.0, STEEL);
+    car(b, -23.5, -2.5, 0, CAR);
+    b.block(-26.2, 2.6, 1.2, 1.8, 2.0, STEEL).block(-22.5, 3.45, 2.4, 0.95, 0.7, WOOD);
     b.ladder(-27.3, 0, 0, 3.2, Math.PI / 2, STEEL);
+    // west lawn: a garden shed, shrubs off the patrol path, a tall hedge screening the west windows (a dark lane
+    // along the facade)
+    tall(b, -27.6, 9, 2.4, 2.2, 2.0, WOOD);
+    b.pillar(-26, 14.5, 0.6, 1.1, HEDGE).pillar(-19, 8.5, 0.6, 1.1, HEDGE);
+    b.box(-18.3, 0.9, 5, 0.6, 1.8, 5, HEDGE);
     // pool and loungers, the pool house (east)
     b.floor(23, -2.2, 10, 6, WATER, 0.03, 0.04);
     b.lowCover(23, -5.8, 10, STONE, Math.PI / 2, 0.6, 0.5);
-    b.block(18.6, -2, 0.8, 0.5, 2.0, '#d8d0c0').block(18.6, 0.6, 0.8, 0.5, 2.0, '#d8d0c0');
+    b.block(18.6, -2, 0.8, 0.5, 2.0, LINEN).block(18.6, 0.6, 0.8, 0.5, 2.0, LINEN);
+    b.block(21.5, 1.25, 0.8, 0.5, 2.0, LINEN, 0, Math.PI / 2).block(24, 1.25, 0.8, 0.5, 2.0, LINEN, 0, Math.PI / 2);
     b.wallX(2, 19, 27, [], 3, PLASTER, T);
     b.wallX(10, 19, 27, [[22.4, 23.6]], 3, PLASTER, T);
     b.box(23, 0.45, 10, 1.2, 0.9, T, PLASTER).box(23, 2.35, 10, 1.2, 0.9, T, PLASTER);
@@ -284,7 +348,11 @@ export const mansion: MapDef = {
     // the back terrace: planters and a pergola
     b.lowCover(-9, 16, 4, HEDGE, Math.PI / 2, 0.9, 0.7).lowCover(9, 16, 4, HEDGE, Math.PI / 2, 0.9, 0.7);
     for (const x of [-4, 4]) b.pillar(x, 22, 0.2, 2.8, STONE);
+    b.box(0, 2.88, 22, 8.4, 0.16, 0.22, WOOD, 0, 0, false).box(-2, 2.98, 22, 0.12, 0.1, 2.6, WOOD, 0, 0, false).box(2, 2.98, 22, 0.12, 0.1, 2.6, WOOD, 0, 0, false);
     b.block(0, 24.6, 6, 1.0, 0.8, STONE_DARK);
+    // a garden table under the pergola; shrubs across the east lawn towards the far corner
+    b.pillar(0, 20.8, 0.6, 0.75, STONE);
+    for (const [x, z] of [[19.5, 14.5], [22.5, 19.5], [28.2, 15]] as const) b.pillar(x, z, 0.6, 1.1, HEDGE);
 
     // ================= lights =================
     const down = makeCone(0, -1, 0, 0.9);
@@ -314,6 +382,9 @@ export const mansion: MapDef = {
     b.ambientZone(4, 8, -25, -21, 0.12, -1, 3);
     b.ambientZone(-27, -19, -6, 4, 0.1, -1, 3);
     b.ambientZone(19, 27, 2, 10, 0.1, -1, 3);
+    // dark side paths down both flanks of the house
+    b.ambientZone(-19, -16.2, -4, 14, 0.08, -1, 3.4);
+    b.ambientZone(16.2, 19, 2, 14, 0.08, -1, 3.4);
     // surfaces: gravel drive and paths, marble foyer, wood and carpet rooms, a metal roof
     b.surface('concrete', -16, 16, -4, 14);
     b.surface('wood', -16, -4, -4, 14);

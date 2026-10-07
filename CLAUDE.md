@@ -673,6 +673,11 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   building with an outside stair, shelters / huts). One Infiltration mission each (`mansion-vault`,
   `port-manifest`, `refinery-flare`). Landings must overlap a stair top (else the nav sees the ramp's end cap: a
   seam); squads on raised floors set `SquadSlot.y`.
+- 2.3 detail pass: every map gained set dressing (mostly visual-only `box(..., false)` / overhead pieces; solid pieces
+  only where they are meant as cover) and darker side lanes (`ambientZone`) with extra routes (ladders, breakable
+  windows, doors). Dust Depot dressing uses its own random stream so the procedural layout per seed is unchanged.
+  `e2e-anchors` tests ladders in creation order: a ladder-bottom test right after a 2.5-3 m ladder-top one can start
+  in a landing roll, so new ladders go after the existing ones.
 
 ## Arsenal, suit, HQ, economy (2.0 phase 8)
 - 16 weapons (`WEAPON_IDS`; the 1.x five keep ids). Optional `WeaponDef.noise` (x the stat), `nonLethal` (crossbow;
