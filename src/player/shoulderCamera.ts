@@ -1,10 +1,11 @@
 import { Camera, FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { CAMERA, framing } from '../config/camera';
+import { ATTACH_FRAMING, attachFraming, CAMERA, framing, type AttachCamera, type AttachFraming } from '../config/camera';
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
+import { vfovFor } from '../core/display';
 
 /** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
 export function vfovFromH16x9(hDeg: number): number {
@@ -58,8 +59,16 @@ export class ShoulderCamera {
   /** FOV multiplier while fully ADS (weapon zoom). */
   adsZoom = 0.75;
   baseFovDeg = CAMERA.fov;
+  /** Ultrawide cap (deg): Hor+ up to this horizontal angle, then Vert- (`video.maxFov`). */
+  maxFovDeg = 120;
   /** State nudges set by the player each frame. */
   crouch = 0;
+  /** Attached traversal framing preset (null = none). */
+  attach: AttachCamera | null = null;
+  /** Body facing while attached: the orbit stays within the preset's cone around it. */
+  attachYaw = 0;
+  private attachPreset: AttachFraming | null = null;
+  private sAttach = new Spring(0);
   /** Pelvis lift of the low cover height control (m): the pivot rises with a crouched aim over cover. */
   lift = 0;
   /** Low cover top above the feet (m; 0 = none): the eye stays just above it, so hiding still sees over. */
@@ -109,7 +118,7 @@ export class ShoulderCamera {
     this.camera.minZ = 0.05;
     this.camera.maxZ = 220;
     // Hor+: the vertical FOV is fixed from the horizontal setting at 16:9, so tall framing (head to
-    // hips) holds on any aspect and ultra-wide phones simply see more at the sides
+    // hips) holds on any aspect and wider screens see more at the sides, up to `maxFovDeg` (then Vert-)
     this.camera.fovMode = Camera.FOVMODE_VERTICAL_FIXED;
     this.camera.inputs.clear();
     // the up vector follows the full rotation every frame; otherwise Babylon rebuilds it (pitch included)
@@ -137,8 +146,11 @@ export class ShoulderCamera {
     this.yaw += yaw * 0.32;
   }
 
+  /** Settings > Accessibility: camera shake strength (0 .. 1). */
+  shakeMul = 1;
+
   shake(amount: number): void {
-    this.trauma = Math.min(1, this.trauma + amount);
+    this.trauma = Math.min(1, this.trauma + amount * this.shakeMul);
   }
 
   /** A hard contact (slamming into cover): a sharp dip of the view and a short shake (strength 0..1). */
@@ -183,6 +195,17 @@ export class ShoulderCamera {
     this.trauma = Math.max(0, this.trauma - dt * 1.6);
 
     const fr = framing(this.ads, crouch, dashS);
+    // attached traversal (ladder, hang, duct...): its framing preset blends in and back out
+    if (this.attach) this.attachPreset = ATTACH_FRAMING[this.attach];
+    // attached: the free orbit stays within the state's cone around the body's facing (a soft edge)
+    if (this.attach && this.attachPreset && this.attachPreset.cone < Math.PI) {
+      const cone = this.attachPreset.cone;
+      let d = this.yaw - this.attachYaw;
+      d = Math.atan2(Math.sin(d), Math.cos(d));
+      if (Math.abs(d) > cone) this.yaw = this.attachYaw + Math.sign(d) * (cone + (Math.abs(d) - cone) * Math.exp(-dt / 0.06));
+    }
+    const attachW = this.sAttach.step(this.attach ? 1 : 0, 4 / Math.max(0.05, this.attachPreset?.blend ?? 0.25), dt);
+    if (this.attachPreset && attachW > 1e-3) attachFraming(fr, this.attachPreset, Math.min(1, attachW));
     const overEye = this.coverTop > 0 ? this.coverTop + COVER_EYE - T.height : 0;
     const pivotY = this.sPivot.step(Math.max(fr.pivot + Math.max(0, this.lift), overEye), 10, dt);
     // follow: feet height and position lag slightly; look ahead along the movement
@@ -263,7 +286,12 @@ export class ShoulderCamera {
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     const zoom = 1 + (this.adsZoom - 1) * this.ads;
-    this.camera.fov = vfovFromH16x9(this.baseFovDeg + dashS * 4) * zoom;
+    this.camera.fov = this.vfov(this.baseFovDeg + dashS * 4) * zoom;
+  }
+
+  /** The vertical FOV for a horizontal angle at 16:9 on this screen (Hor+, capped at `maxFovDeg`). */
+  vfov(hDeg: number): number {
+    return vfovFor(hDeg, this.scene.getEngine().getAspectRatio(this.camera), this.maxFovDeg);
   }
 
   /**
@@ -281,7 +309,7 @@ export class ShoulderCamera {
     }
     if (hideHead !== this.headHidden) {
       this.headHidden = hideHead;
-      for (const m of rig.parts) if (m.parent === rig.headNode) m.isVisible = !hideHead;
+      rig.setHeadVisible(!hideHead);
     }
   }
 

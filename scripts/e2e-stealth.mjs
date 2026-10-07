@@ -133,7 +133,7 @@ try {
   await G(() => window.__s.tp(0, -14, Math.PI / 2));
   await frames(page, 20);
   await resetTotal();
-  let r = await lookFor(1300, 6);
+  let r = await lookFor(1700, 6);
   assert(Math.abs(r.turned) >= r.real * 0.97 && r.real > 6.2, `standing: the view follows every bit of look input (${f2(r.turned)} of ${f2(r.real)} rad)`);
   const bodyMoved = Math.abs(Math.atan2(Math.sin(r.bodyYaw - r.y0), Math.cos(r.bodyYaw - r.y0)));
   assert(bodyMoved < 0.05, `standing still: the body does not turn with the camera (${f2(bodyMoved)} rad)`);

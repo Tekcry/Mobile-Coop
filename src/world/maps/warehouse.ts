@@ -2,6 +2,8 @@ import { Vector3 } from '../../core/babylon';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
+import { makeCone } from '../lights';
+import { warehouseArt } from './warehouseArt';
 
 const CONCRETE = '#8e9396';
 const FLOOR = '#6f7477';
@@ -13,8 +15,27 @@ const BEAM = '#e07b22';
 const CRATE = '#a8784a';
 const HAZARD = '#e8b923';
 const DESK = '#8a6a4c';
-const LIGHT = '#fff1c8';
 const ROOF = '#4a4f55';
+const LAMP_OFF = '#3b3b38';
+const SHRINK = '#c4c0b0'; // shrink-wrapped pallet loads
+const UPRIGHT = '#2d4f6e';
+const PIPE = '#6d7378';
+const BOARD = '#e2e2dc';
+const GLASS = '#1d2730';
+const TYRE = '#2a2d30';
+
+/** Lamp strips that are lit (x, z of the strip). */
+const LAMPS_ON = new Set([
+  '-18,-15', '-9,-9', '0,-15', '9,-15', '9,-9',
+  '-18,-3', '-9,3', '-18,15',
+  '0,-3', '18,-3', '9,3', '9,9', '18,15', '0,15',
+]);
+
+/** Circuit per room (light switches turn a room's lamps off). */
+function lampGroup(x: number, z: number): number {
+  const i = ROOMS.findIndex((r) => x >= r.minX && x <= r.maxX && z >= r.minZ && z <= r.maxZ);
+  return i < 0 ? 19 : i;
+}
 
 const H = 3.2; // interior wall height
 const T = 0.3; // interior wall thickness
@@ -31,11 +52,13 @@ const ROOMS: RoomDef[] = [
     minZ: -18,
     maxZ: -6,
     squad: [
-      { kind: 'grunt', x: -19, z: -10.5, yaw: Math.PI },
+      { kind: 'grunt', x: -19, z: -10.5, yaw: Math.PI, route: [[-19, -10.5], [-12.5, -8.6], [-16.5, -14.8]], wait: 3 },
+      // the handler's dog heels beside him
+      { kind: 'dog', x: -18, z: -11.3, yaw: Math.PI },
       { kind: 'grunt', x: -7.5, z: -15.5, yaw: -2.4 },
     ],
   },
-  { id: 'dispatch', name: 'Dispatch', minX: -4, maxX: 6, minZ: -18, maxZ: -11, squad: [{ kind: 'grunt', x: 2.5, z: -16.5, yaw: -1.2 }] },
+  { id: 'dispatch', name: 'Dispatch', minX: -4, maxX: 6, minZ: -18, maxZ: -11, squad: [{ kind: 'droneOp', x: 2.5, z: -16.5, yaw: -1.2 }] },
   {
     id: 'workshop',
     name: 'Workshop',
@@ -44,8 +67,8 @@ const ROOMS: RoomDef[] = [
     minZ: -18,
     maxZ: -11,
     squad: [
-      { kind: 'grunt', x: 20.5, z: -12.5, yaw: Math.PI },
-      { kind: 'runner', x: 11, z: -16.8, yaw: 0.6 },
+      { kind: 'grunt', x: 20.5, z: -12.5, yaw: Math.PI, route: [[20.5, -12.5], [13, -12.2], [8.5, -16.5]] },
+      { kind: 'enforcer', x: 11, z: -16.8, yaw: 0.6 },
     ],
   },
   { id: 'corridor', name: 'Corridor', minX: -4, maxX: 24, minZ: -11, maxZ: -8.8 },
@@ -58,7 +81,7 @@ const ROOMS: RoomDef[] = [
     maxZ: 18,
     squad: [
       { kind: 'grunt', x: -18.5, z: 1, yaw: Math.PI },
-      { kind: 'grunt', x: -10.5, z: 10, yaw: Math.PI },
+      { kind: 'grunt', x: -10.5, z: 10, yaw: Math.PI, route: [[-10.5, 14.5], [-10.5, -3.5]], wait: 2 },
       { kind: 'runner', x: -14.5, z: 15.5, yaw: Math.PI },
     ],
   },
@@ -70,7 +93,7 @@ const ROOMS: RoomDef[] = [
     minZ: -8.8,
     maxZ: 12,
     squad: [
-      { kind: 'grunt', x: 7.5, z: -1.5, yaw: Math.PI },
+      { kind: 'grunt', x: 7.5, z: -1.5, yaw: Math.PI, route: [[7.5, -1.5], [11.5, -6.2], [17, 1], [11.5, 7]] },
       { kind: 'grunt', x: 15.5, z: 6.5, yaw: -2.6 },
       { kind: 'heavy', x: 19.5, z: -4.5, yaw: -1.9 },
     ],
@@ -83,11 +106,12 @@ const ROOMS: RoomDef[] = [
     minZ: 12,
     maxZ: 18,
     squad: [
-      { kind: 'grunt', x: 13, z: 14.2, yaw: Math.PI },
-      { kind: 'grunt', x: 22.5, z: 16.5, yaw: Math.PI },
+      { kind: 'grunt', x: 13, z: 14.2, yaw: Math.PI, route: [[13, 14.2], [21.5, 13.1]], wait: 3 },
+      // overwatch on the deck
+      { kind: 'sniper', x: 22.5, z: 16.5, yaw: Math.PI },
     ],
   },
-  { id: 'office', name: 'Office', minX: -4, maxX: 2, minZ: 12, maxZ: 18, squad: [{ kind: 'grunt', x: -2.5, z: 16.8, yaw: Math.PI }] },
+  { id: 'office', name: 'Office', minX: -4, maxX: 2, minZ: 12, maxZ: 18, squad: [{ kind: 'officer', x: -2.5, z: 16.8, yaw: Math.PI }] },
   { id: 'manager', name: "Manager's Office", minX: 2, maxX: 8, minZ: 12, maxZ: 18, squad: [{ kind: 'heavy', x: 6.2, z: 13.4, yaw: -1.6 }] },
 ];
 
@@ -101,16 +125,23 @@ export const warehouse: MapDef = {
   id: 'warehouse',
   name: 'Warehouse',
   description: 'Close quarters: dock, racking aisles, offices, corridors and a factory floor.',
-  modes: ['clear', 'mission', 'wave'],
+  modes: ['clear', 'sandbox', 'wave', 'mission', 'infiltration', 'tdm', 'ffa'],
+  art: warehouseArt,
+  weathers: ['clear', 'rain', 'fog'],
   theme: {
-    sky: '#5d6f82',
-    horizon: '#a9b3ba',
+    sky: '#0b111b',
+    horizon: '#2b3440',
     ground: '#5f6364',
     fogStart: 30,
     fogEnd: 90,
     sunDir: [0.35, -1, 0.55],
-    sunIntensity: 0.55,
-    ambient: 0.62,
+    // night: moonlight in the yard, dark inside but for the lamps that are on
+    sunIntensity: 0.16,
+    ambient: 0.3,
+    lightLevel: 0.3,
+    faction: 'urban',
+    // night: cold blue-green, a little desaturated, punchy
+    grade: { tint: [0.92, 1.0, 1.08], saturation: 0.85, contrast: 1.08 },
   },
   build(b: LevelBuilder): MapLayout {
     // ground, yard and building floor
@@ -118,7 +149,15 @@ export const warehouse: MapDef = {
     b.perimeter(-24, 24, -26, 18, 6, WALL_DARK);
     b.floor(0, 0, 48, 36, FLOOR, 0.02, 0.04);
     // south facade: two roller doors at the dock, a personnel door into the workshop
-    wallX(b, -18, -24, 24, [[-20, -17], [-12, -9], [17, 18.1]], WALL_DARK, 6);
+    wallX(b, -18, -24, 24, [[-20, -17], [-12, -9], [0.6, 1.8], [10.9, 12.1], [17, 18.1]], WALL_DARK, 6);
+    // dispatch window off the yard (glazed: breaking in is loud, but it skips the dock and its dog)
+    b.box(1.2, 0.45, -18, 1.2, 0.9, T, WALL_DARK);
+    b.box(1.2, 4.05, -18, 1.2, 3.9, T, WALL_DARK);
+    b.windowAt(1.2, 1.5, -18, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: true });
+    // workshop window off the yard (open: vault through)
+    b.box(11.5, 0.45, -18, 1.2, 0.9, T, WALL_DARK);
+    b.box(11.5, 4.05, -18, 1.2, 3.9, T, WALL_DARK);
+    b.windowAt(11.5, 1.5, -18, 1.2, 1.2, 0, { sill: 0.9, open: true });
     b.box(-18.5, 5, -18, 3.2, 2, 0.32, WALL_DARK);
     b.box(-10.5, 5, -18, 3.2, 2, 0.32, WALL_DARK);
     b.box(17.55, 4.5, -18, 1.3, 3, 0.32, WALL_DARK);
@@ -126,8 +165,16 @@ export const warehouse: MapDef = {
 
     // interior walls (doors 1.1 m, double doors 1.6 m)
     wallZ(b, -4, -18, 18, [[-15, -13.9], [-10.5, -9.3], [-8.2, -7.1], [-2, -0.9], [8, 9.1], [14, 15.1]]);
-    wallX(b, -6, -24, -4, [[-16, -13], [-8, -6.9]]);
-    wallX(b, -11, -4, 24, [[0, 1.1], [14, 15.1]]);
+    wallX(b, -6, -24, -4, [[-23.8, -22.6], [-16, -13], [-8, -6.9]]);
+    // an open hatch in the dark west corner: racking <-> dock behind the pallet stacks
+    b.box(-23.2, 0.45, -6, 1.2, 0.9, T, WALL);
+    b.box(-23.2, 2.65, -6, 1.2, 1.1, T, WALL);
+    b.windowAt(-23.2, 1.5, -6, 1.2, 1.2, 0, { sill: 0.9, open: true });
+    wallX(b, -11, -4, 24, [[0, 1.1], [3.6, 4.8], [14, 15.1]]);
+    // dispatch -> corridor: a glazed window (shatters through)
+    b.box(4.2, 0.45, -11, 1.2, 0.9, T, WALL);
+    b.box(4.2, 2.65, -11, 1.2, 1.1, T, WALL);
+    b.windowAt(4.2, 1.5, -11, 1.2, 1.2, 0, { sill: 0.9, open: false, breakable: true });
     wallX(b, -8.8, -4, 24, [[2, 3.6], [18, 19.1]]);
     wallZ(b, 6, -18, -11, [[-16, -14.9]]);
     wallX(b, 12, -4, 8, [[-1.5, -0.4]]);
@@ -140,15 +187,29 @@ export const warehouse: MapDef = {
     b.lowCover(-10, -13.2, 2.6, CONCRETE, Math.PI / 2, 1.05, 0.5);
     b.lowCover(-20, -14.6, 2.2, CONCRETE, 0, 1.05, 0.5);
     b.block(-18.5, -17.2, 3, 0.08, 1.2, STEEL).block(-10.5, -17.2, 3, 0.08, 1.2, STEEL);
+    // shrink-wrapped loads waiting to go out: tall stacks in the dark corners (shadowed alcoves off the beat)
+    b.block(-23.2, -12.6, 1.1, 2.1, 1.6, SHRINK).block(-6.4, -12.4, 1.2, 2.0, 1.2, SHRINK);
+    // dock leveller controls beside the roller doors
+    b.box(-16.75, 1.4, -17.77, 0.35, 0.45, 0.15, '#c33a2e', 0, 0, false).box(-8.75, 1.4, -17.77, 0.35, 0.45, 0.15, '#c33a2e', 0, 0, false);
 
     // dispatch: desks and a shelf
     b.block(-1, -15.2, 1.8, 0.95, 0.8, DESK).block(3.2, -13.4, 0.8, 0.95, 1.8, DESK);
     b.block(5.3, -17.1, 0.8, 2.0, 1.6, STEEL);
+    // filing cabinets, a copier by the door, a whiteboard
+    b.block(5.6, -12.9, 0.5, 1.3, 1.0, STEEL).block(-3.55, -12.3, 0.6, 1.0, 0.8, '#d0d0c8');
+    b.box(-1.0, 1.6, -11.18, 1.6, 0.9, 0.04, BOARD, 0, 0, false);
 
     // workshop: benches, a lathe, lockers
     b.block(10, -14.6, 2.4, 1.0, 0.9, DESK).block(16, -13.2, 0.9, 1.0, 2.4, DESK);
     b.block(21, -15.6, 1.4, 1.8, 1.4, STEEL);
     b.block(23.45, -13.8, 0.6, 2.0, 2.6, STEEL);
+    // a pillar drill, a tool chest, an engine on a stand (low cover off the guard's beat), a parts shelf
+    b.block(13.4, -17.2, 0.6, 1.7, 0.6, STEEL).block(19.9, -17.35, 1.4, 1.05, 0.7, '#b0302a');
+    b.block(18.6, -14.4, 1.2, 1.0, 0.9, '#5a4a3a').block(6.45, -12.4, 0.6, 2.0, 1.6, STEEL);
+    // gantry crane rail over the benches (visual)
+    b.box(15, 4.4, -14.5, 17, 0.3, 0.3, BEAM, 0, 0, false);
+    // service corridor: pipe runs along the ceiling line (visual)
+    b.box(10, 2.95, -10.75, 27.6, 0.14, 0.14, PIPE, 0, 0, false).box(10, 2.75, -10.78, 27.6, 0.08, 0.08, '#7a5a3a', 0, 0, false);
 
     // racking aisles: four double-sided racks with a cross aisle, orange beams, pallets on top
     for (const x of [-20.5, -16.5, -12.5, -8.5]) {
@@ -158,8 +219,20 @@ export const warehouse: MapDef = {
         b.block(x, cz, 1.0, 2.8, len, RACK);
         for (const y of [1.0, 2.0]) b.box(x, y, cz, 1.08, 0.1, len + 0.04, BEAM, 0, 0, false);
         b.box(x, 3.1, cz - len / 4, 0.9, 0.6, 1.1, CRATE, 0, 0, false).box(x, 3.05, cz + len / 4, 0.9, 0.5, 1.2, CRATE, 0, 0, false);
+        // bays: uprights between them and the bottom level's shrink-wrapped loads (visual)
+        const bays = Math.round(len / 2.7);
+        for (let k = 1; k < bays; k++) b.box(x, 1.4, z0 + (k * len) / bays, 1.1, 2.8, 0.09, UPRIGHT, 0, 0, false);
+        b.box(x, 0.52, cz, 1.04, 0.8, len - 0.2, z0 < 0 ? SHRINK : '#b59468', 0, 0, false);
       }
     }
+    // ladders onto the racks: their tops are a route over the aisles (sprint-hop the cross aisle)
+    b.ladder(-12.5, -4.25, 0, 2.8, 0, STEEL);
+    b.ladder(-20.5, 16.65, 0, 2.8, Math.PI, STEEL);
+    // a third ladder by the dock door: up onto the east rack straight from the dock
+    b.ladder(-8.5, -4.25, 0, 2.8, 0, STEEL);
+    // pallets along the aisle walls: low and tall stacks make dark nooks to wait out a patrol
+    b.block(-23.35, -1.0, 1.1, 1.2, 1.3, CRATE).block(-23.35, 10.5, 1.1, 2.0, 1.3, SHRINK);
+    b.block(-4.8, 13.3, 1.2, 2.0, 1.2, SHRINK).block(-4.8, -4.0, 1.2, 1.1, 1.2, CRATE);
     b.block(-22.6, 5.2, 1.0, 1.1, 1.0, CRATE);
     b.block(-6.2, 5.0, 1.2, 1.0, 1.2, CRATE);
 
@@ -171,28 +244,113 @@ export const warehouse: MapDef = {
     b.block(-1.8, -6.6, 1.2, 1.1, 1.2, CRATE);
     b.block(20.5, -6.8, 1.2, 1.5, 2.2, HAZARD);
     b.stairs(21.2, 9, 2.4, 6, 2.6, 10, CONCRETE, 0);
+    // east wall control cabinets (tall cover, dark pockets between them), a parked forklift, parts bins
+    // along the corridor wall and a pallet load by the stairs: a covered line from the corridor door to the deck
+    b.block(23.55, -2.5, 0.8, 2.1, 1.8, '#4b5560').block(23.55, 3.2, 0.8, 2.1, 1.8, '#4b5560');
+    b.block(21.2, 0.4, 2.2, 1.4, 1.2, HAZARD).box(19.98, 1.15, 0.4, 0.15, 2.3, 1.0, STEEL);
+    b.box(21.4, 2.15, 0.4, 1.4, 0.08, 1.1, STEEL, 0, 0, false);
+    b.lowCover(16, -6.8, 2.0, STEEL, Math.PI / 2, 1.0, 0.6);
+    b.block(17.2, 10.2, 1.2, 1.1, 1.2, CRATE);
+    // overhead crane girder and hoist, a painted walkway line (visual)
+    b.box(10, 5.0, 2, 27.6, 0.4, 0.35, BEAM, 0, 0, false).box(16, 4.55, 2, 0.6, 0.5, 0.6, HAZARD, 0, 0, false);
+    b.box(10, 0.045, -7.9, 27.5, 0.01, 0.1, HAZARD, 0, 0, false);
 
     // mezzanine: a deck along the north wall with railings and crates; offices under the west end
     b.block(16, 15, 16, 2.6, 6, WALL_DARK);
-    b.box(14, 3.1, 12.1, 12, 1.0, 0.15, HAZARD);
+    // railing with gaps for a ladder (x 8.9) and the zipline (x 12)
+    b.box(10.45, 3.1, 12.1, 2.1, 1.0, 0.15, HAZARD);
+    b.box(16.25, 3.1, 12.1, 7.5, 1.0, 0.15, HAZARD);
     b.box(23.2, 3.1, 12.1, 1.6, 1.0, 0.15, HAZARD);
-    b.box(8.1, 3.1, 15, 0.15, 1.0, 6, HAZARD);
+    // west railing with a gap at the duct mouth (z 15)
+    b.box(8.1, 3.1, 13.2, 0.15, 1.0, 2.4, HAZARD);
+    b.box(8.1, 3.1, 16.8, 0.15, 1.0, 2.4, HAZARD);
+    b.ladder(8.9, 11.95, 0, 2.6, 0, STEEL);
+    // zipline from the deck down over the factory floor
+    b.pillar(12, 13.15, 0.06, 2.2, STEEL, 2.6);
+    b.zipline({ x: 12, y: 4.6, z: 12.9 }, { x: 12, y: 2.3, z: 1.2 });
+    // the manager's office gets a ceiling (3.2 - 3.4) with a vent; a duct over it from the deck
+    const slab0 = b.boxes.length;
+    const vx0 = 6.35;
+    const vx1 = 7.15;
+    const vz0 = 14.6;
+    const vz1 = 15.4;
+    b.box((2.15 + vx0) / 2, 3.3, 15, vx0 - 2.15, 0.2, 5.7, CONCRETE);
+    b.box((vx1 + 7.85) / 2, 3.3, 15, 7.85 - vx1, 0.2, 5.7, CONCRETE);
+    b.box((vx0 + vx1) / 2, 3.3, (12.15 + vz0) / 2, vx1 - vx0, 0.2, vz0 - 12.15, CONCRETE);
+    b.box((vx0 + vx1) / 2, 3.3, (vz1 + 17.85) / 2, vx1 - vx0, 0.2, 17.85 - vz1, CONCRETE);
+    b.box(8.12, 3.3, 15, 0.55, 0.2, 1.2, STEEL);
+    b.box(7.05, 3.95, 14.45, 2.7, 1.1, 0.1, STEEL);
+    b.box(7.05, 3.95, 15.55, 2.7, 1.1, 0.1, STEEL);
+    b.box(7.05, 4.55, 15, 2.7, 0.1, 1.2, STEEL);
+    b.box(5.7, 3.95, 15, 0.1, 1.1, 1.0, STEEL);
+    b.mark(slab0, { overhead: true, noLedge: true });
+    b.duct(
+      [
+        { x: 8.15, y: 3.4, z: 15 },
+        { x: 6.75, y: 3.4, z: 15 },
+      ],
+      { pos: { x: 8.4, y: 3.85, z: 15 }, nx: 1, ny: 0, nz: 0, where: 'wall' },
+      { pos: { x: 6.75, y: 3.3, z: 15 }, nx: 0, ny: -1, nz: 0, where: 'ceiling' },
+    );
     b.block(11.5, 15.8, 1.2, 1.1, 1.2, CRATE, 2.6).block(17.5, 14.2, 1.2, 1.3, 1.2, CRATE, 2.6).block(18.7, 14.3, 1.0, 1.0, 1.0, CRATE, 2.6);
+    // a crate screening the sniper's post from the stairs, a steel shelf against the back wall
+    b.block(20.6, 16.9, 1.2, 1.2, 1.2, CRATE, 2.6).block(18.6, 17.55, 2.2, 1.8, 0.6, STEEL, 2.6);
 
     // offices: desks, filing cabinets
     b.block(-2.2, 15, 1.6, 0.95, 0.8, DESK).block(0.8, 13.6, 0.8, 0.95, 1.4, DESK);
     b.block(4.6, 15.6, 1.8, 0.95, 0.9, DESK);
     b.block(7.4, 17.2, 0.6, 1.8, 1.0, STEEL).block(-3.5, 17.3, 0.6, 1.8, 0.9, STEEL);
+    // the manager's bookshelf and safe, the office copier, a whiteboard
+    b.block(3.7, 17.6, 1.4, 1.9, 0.45, DESK).block(7.5, 12.6, 0.7, 1.0, 0.7, '#3b3f44').block(1.45, 17.45, 0.7, 1.0, 0.6, '#d0d0c8');
+    b.box(-3.0, 1.6, 12.17, 1.4, 0.9, 0.04, BOARD, 0, 0, false);
+
+    // doors (swing into the room side): office, manager's office, dispatch <-> workshop, two off the corridor
+    b.door(-1.5, 0, 12, 1.1, Math.PI / 2, { swing: -1 });
+    b.door(2, 0, 15.5, 1.1, 0, { swing: 1 });
+    b.door(6, 0, -16, 1.1, 0, { swing: -1 });
+    b.door(18, 0, -8.8, 1.1, Math.PI / 2, { swing: 1 });
+    b.door(14, 0, -11, 1.1, Math.PI / 2, { swing: -1 });
+
+    // a dumpster in the yard and a big cabinet in the dispatch office (hide bodies in them)
+    b.block(-21.6, -21.8, 1.9, 1.2, 1.1, '#2f5a3c').box(-21.6, 1.25, -21.8, 1.95, 0.08, 1.15, '#244a30', 0, 0, false);
+    b.block(-3.3, -17.3, 1.2, 2.0, 0.7, STEEL);
 
     // yard: trailer, container, jersey barriers
     b.block(-3.5, -22.5, 7, 2.8, 2.5, '#d8d8d8').box(-3.5, 0.45, -22.5, 6.2, 0.9, 2.3, '#2a2d30', 0, 0, false);
     b.block(9, -23, 6, 2.6, 2.4, '#3d6e8f');
     b.lowCover(-14, -21.5, 3, CONCRETE, Math.PI / 2, 1.0, 0.6);
     b.lowCover(16, -21.2, 2.6, CONCRETE, Math.PI / 2, 1.0, 0.6);
+    // the trailer's tractor unit (cab, windscreen, bumper)
+    b.block(1.4, -22.5, 2.4, 2.5, 2.3, '#8b2b2b').box(2.62, 1.85, -22.5, 0.04, 0.6, 2.0, GLASS, 0, 0, false).box(2.66, 0.45, -22.5, 0.12, 0.3, 2.3, TYRE, 0, 0, false);
+    // a gatehouse in the east lot with a lit window and a door lamp
+    b.block(22.9, -20.6, 2.2, 2.6, 2.0, WALL).box(22.8, 2.68, -20.6, 2.6, 0.12, 2.4, STEEL, 0, 0, false).box(21.78, 1.55, -20.6, 0.04, 0.6, 1.1, '#d9c27a', 0, 0, false);
+    b.light({ kind: 'lamp', x: 21.45, y: 2.45, z: -20.6, radius: 4, intensity: 0.7, color: [1, 0.85, 0.6], group: 20, fixture: { sx: 0.2, sy: 0.12, sz: 0.2, oy: 0.06 } });
+    // a pallet stack between the roller doors (first cover off the spawn), bollards at the door edges
+    b.block(-14.5, -19.0, 1.2, 1.1, 1.0, CRATE);
+    for (const x of [-20.35, -16.65, -12.35, -8.65]) b.pillar(x, -18.5, 0.13, 0.7, HAZARD);
+    // the lee of the trailer and the container is in deep shadow: a dark lane along the south fence
+    b.ambientZone(-7.5, 12.5, -26, -23.8, 0.17, -1, 6);
 
     // roof with skylight strips and hanging lights (visual only: no collision, nav samples the floor)
     for (let z = -18; z < 18; z += 6) b.box(0, 6.15, z + 2.4, 48, 0.25, 4.8, ROOF, 0, 0, false);
-    for (let x = -18; x <= 18; x += 9) for (let z = -15; z <= 15; z += 6) b.box(x, 5.2, z, 0.25, 0.08, 2.6, LIGHT, 0, 0, false);
+    // lamps: only some are on (pools of light, dark aisles between); each room's lamps are one circuit
+    for (let x = -18; x <= 18; x += 9) {
+      for (let z = -15; z <= 15; z += 6) {
+        // a lit strip is the light's fixture (shoot anywhere along it; it goes dark), an unlit one is just a box
+        if (LAMPS_ON.has(`${x},${z}`)) b.light({ kind: 'lamp', x, y: 5.05, z, radius: 8, intensity: 1.0, color: [1, 0.92, 0.75], group: lampGroup(x, z), fixture: { sx: 0.25, sy: 0.08, sz: 2.6, oy: 0.15 } });
+        else b.box(x, 5.2, z, 0.25, 0.08, 2.6, LAMP_OFF, 0, 0, false);
+      }
+    }
+    // floodlights over the dock doors and the workshop door, the yard is moonlit; indoors is dark
+    b.light({ kind: 'spot', x: -18.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
+    b.light({ kind: 'spot', x: -10.5, y: 5.6, z: -18.6, radius: 7.5, intensity: 0.9, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.25, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
+    b.light({ kind: 'spot', x: 11.5, y: 4.6, z: -18.6, radius: 7, intensity: 0.8, color: [0.85, 0.9, 1], cone: makeCone(0, -1, -0.3, 0.7), group: 20, fixture: { sx: 0.45, sy: 0.22, sz: 0.3, oy: 0.12 } });
+    b.ambientZone(-24, 24, -18, 18, 0.12, -1, 6.2);
+    // surfaces: a gravel yard, a steel mezzanine deck and rack tops, carpeted offices
+    b.surface('gravel', -27, 27, -29, -18.2);
+    b.surface('metal', 8, 24, 12, 18, 2.6);
+    for (const x of [-20.5, -16.5, -12.5, -8.5]) b.surface('metal', x - 0.5, x + 0.5, -4.2, 16.6, 2.8);
+    b.surface('carpet', -4, 8, 12.15, 18);
 
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
     const props: MapLayout['props'] = [
@@ -229,6 +387,20 @@ export const warehouse: MapDef = {
         { pos: v(21, 14.5, 2.6), kind: 'health' },
       ],
       rooms: ROOMS,
+      switches: [
+        { pos: v(-4.15, -13), yaw: -Math.PI / 2, group: 0 },
+        { pos: v(-2.8, -11.15), yaw: Math.PI, group: 1 },
+        { pos: v(8, -11.15), yaw: Math.PI, group: 2 },
+        { pos: v(-4.15, 2), yaw: -Math.PI / 2, group: 4 },
+        { pos: v(-2, -8.65), yaw: 0, group: 5 },
+        { pos: v(1.85, 13), yaw: -Math.PI / 2, group: 7 },
+      ],
+      alarms: [
+        { pos: v(-4.15, -8.2), yaw: -Math.PI / 2 },
+        { pos: v(-3.85, 6), yaw: Math.PI / 2 },
+      ],
+      hideSpots: [{ pos: v(-21.6, -20.6) }, { pos: v(22.7, -13.8) }, { pos: v(-3.3, -16.5) }],
+      reinforce: [v(-14.5, -25.5), v(18, -24.5)],
     };
   },
 };

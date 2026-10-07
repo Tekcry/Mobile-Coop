@@ -68,7 +68,7 @@ describe('touch layout migration (v1 -> v2)', () => {
         },
       },
     });
-    expect(s.touch.layoutVersion).toBe(2);
+    expect(s.touch.layoutVersion).toBe(3);
     expect(s.touch.layout.move).toEqual(d.touch.layout.move);
     expect(s.touch.layout.fire).toEqual(d.touch.layout.fire);
     expect(s.touch.layout.reload).toEqual({ x: 0.5, y: 0.5, scale: 1 });
@@ -80,6 +80,18 @@ describe('touch layout migration (v1 -> v2)', () => {
   it('keeps v2 layouts and per-control opacity as stored', () => {
     const s = sanitizeSettings({ touch: { layoutVersion: 2, layout: { fire: { x: 0.3, y: 0.4, scale: 1, alpha: 0.5 } } } });
     expect(s.touch.layout.fire).toEqual({ x: 0.3, y: 0.4, scale: 1, alpha: 0.5 });
+  });
+  it('v2 -> v3 keeps every customised placement and adds the takedown button', () => {
+    const d = defaultSettings();
+    const s = sanitizeSettings({ touch: { layoutVersion: 2, layout: { mark: { x: 0.2, y: 0.2, scale: 1.2 }, look: { x: 0.8, y: 0.8, scale: 1 } } } });
+    expect(s.touch.layout.mark).toEqual({ x: 0.2, y: 0.2, scale: 1.2 });
+    expect(s.touch.layout.look).toEqual({ x: 0.8, y: 0.8, scale: 1 });
+    expect(s.touch.layout.takedown).toEqual(d.touch.layout.takedown);
+    expect(s.touch.layoutVersion).toBe(3);
+  });
+  it('accessibility settings are clamped', () => {
+    const s = sanitizeSettings({ access: { hudScale: 9, shake: -1, subtitles: 'no', holdToggle: true } });
+    expect(s.access).toMatchObject({ hudScale: 1.4, shake: 0, subtitles: true, holdToggle: true, healthBar: false });
   });
   it('presets cover every control and the left-handed one mirrors', async () => {
     const { LAYOUT_PRESETS, TOUCH_CONTROL_IDS } = await import('../src/core/settings');

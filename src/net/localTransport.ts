@@ -50,12 +50,13 @@ export function createLocalTransport(roomId: string): Transport {
       }
     }
   };
-  // presence heartbeat; peers silent for 4 s are considered gone
+  // presence heartbeat; peers silent for 15 s are considered gone (a page loading the Warehouse under software
+  // GL - the tests - can block its main thread for several seconds)
   const beat = setInterval(() => {
     post({ k: 'hi', from: selfId });
     const now = Date.now();
     for (const [id, last] of peers) {
-      if (now - last > 4000) {
+      if (now - last > 15000) {
         peers.delete(id);
         t.onPeerLeave?.(id);
       }

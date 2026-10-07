@@ -24,7 +24,7 @@ async function run(params, fn) {
 }
 
 console.log('wave survival');
-await run('autostart=depot&mode=wave', async ({ page, G, sim }) => {
+await run('autostart=warehouse&mode=wave', async ({ page, G, sim }) => {
   await G(() => { window.__app.current.target.damageMul = 0; });
   await sim(9);
   const alive = await G(() => window.__app.current.enemyMgr.alive);
@@ -32,10 +32,10 @@ await run('autostart=depot&mode=wave', async ({ page, G, sim }) => {
   // kill everything as it spawns until the wave clears
   let maxRag = 0;
   for (let i = 0; i < 40; i++) {
-    if (i > 0) maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr['ragdolls'].length));
+    if (i > 0) maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr.bodies.filter((b) => b.simulating).length));
     const done = await G((i) => { const g = window.__app.current; for (const e of [...g.enemyMgr.enemies]) if (e.alive) e.applyDamage({ amount: 9999, point: e.pos.clone(), dir: e.pos.clone().normalize(), part: i % 2 ? 'head' : 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: g.player.position.clone(), impulse: 5 }); return g.mode.wave >= 2; }, i);
     await sim(0.1);
-    maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr['ragdolls'].length));
+    maxRag = Math.max(maxRag, await G(() => window.__app.current.enemyMgr.bodies.filter((b) => b.simulating).length));
     if (done) break;
     await sim(1);
   }
@@ -53,7 +53,7 @@ await run('autostart=depot&mode=wave', async ({ page, G, sim }) => {
 });
 
 console.log('mission');
-await run('autostart=depot&mode=mission', async ({ page, G, sim }) => {
+await run('autostart=warehouse&mode=mission', async ({ page, G, sim }) => {
   await G(() => { window.__app.current.target.damageMul = 0; });
   await sim(0.5);
   const n = await G(() => window.__app.current.enemyMgr.alive);
@@ -102,8 +102,14 @@ await run('autostart=proving&mode=wave', async ({ G, sim }) => {
   await sim(4);
   const hp1 = await G(() => window.__app.current.target.health.hp + window.__app.current.target.health.shield);
   assert(hp1 < hp0, `runner closes in and deals melee damage (${hp0} -> ${hp1.toFixed(0)})`);
-  const heavy = await G(() => { const e = window.__app.current.enemyMgr.enemies.find((q) => q.def.kind === 'heavy'); const before = e.health.hp; e.applyDamage({ amount: 100, point: e.pos.clone(), dir: e.pos.clone(), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 0 }); return [before, e.health.hp]; });
-  assert(heavy[0] - heavy[1] === 75, `heavy armor reduces body damage (${heavy[0]} -> ${heavy[1]})`);
+  // plates in front, an exposed back (a round from in front travels against the facing)
+  const heavy = await G(() => {
+    const e = window.__app.current.enemyMgr.enemies.find((q) => q.def.kind === 'heavy');
+    const V = e.pos.constructor;
+    const hit = (s) => { const h0 = e.health.hp; e.applyDamage({ amount: 40, point: e.pos.clone(), dir: new V(Math.sin(e.yaw) * s, 0, Math.cos(e.yaw) * s), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', sourcePos: e.pos.clone(), impulse: 0 }); return h0 - e.health.hp; };
+    return [hit(-1), hit(1)];
+  });
+  assert(heavy[0] < 40 && heavy[1] > 40, `heavy armour: a frontal round is reduced, one in the back is not (${heavy[0]} / ${heavy[1]})`);
 });
 
 console.log(all.length ? 'console problems:\n' + all.join('\n') : 'no console errors');

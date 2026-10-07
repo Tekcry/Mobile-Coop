@@ -12,6 +12,7 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
+import { matchFov } from '../core/display';
 import { MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { TraverseKind } from '../anim/animGraph';
@@ -39,6 +40,8 @@ export interface PlayerPose {
   gunClear: boolean;
   /** Doorway check 0..1, or < 0. */
   check: number;
+  /** Takedown strike progress 0..1, or < 0. */
+  melee: number;
 }
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
@@ -56,6 +59,8 @@ export class Player {
   readonly carryIn = emptyCarryInput();
   private adsToggled = false;
   ads = false;
+  /** Aim regardless of input (Mark & Execute raises the weapon for its shots). */
+  forceAds = false;
   /** Set by weapons when firing (kept for callers; the carry's raise now drives the pose). */
   aimLockTimer = 0;
   kick = 0;
@@ -80,7 +85,7 @@ export class Player {
   sinceShot = 99;
   weaponWeight = 1;
   /** Pose driven by cover / corners / traversal. */
-  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1 };
+  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1, melee: -1 };
   /** Context flags for the ready position (set by the corner/cover systems each step). */
   context = { doorway: false, coverEdge: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -100,12 +105,12 @@ export class Player {
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 1.75, 'player');
-    for (const m of this.rig.parts) world.addShadowCaster(m);
+    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
     const s = getSettings();
     this.cam.shoulder = s.gameplay.defaultShoulder === 'left' ? -1 : 1;
-    this.cam.baseFovDeg = s.video.fovH;
+    this.applyFov();
     const eng = world.scene.getPhysicsEngine() as PhysicsEngine;
     this.rig.groundProbe = (x, z, yFrom) => {
       this.rr.reset();
@@ -130,6 +135,16 @@ export class Player {
   }
 
   /** Walls in front (muzzle would clip) and close on both sides (corridor): picks compressed/high ready. */
+  /** PvP (3.1): the field of view is capped and 16:9-equivalent for everyone (`matchFov`). */
+  pvp = false;
+
+  private applyFov(): void {
+    const v = this.getSettings().video;
+    const f = matchFov(v.fovH, v.maxFov, this.pvp);
+    this.cam.baseFovDeg = f.fovH;
+    this.cam.maxFovDeg = f.maxFov;
+  }
+
   private probeContext(): void {
     const c = this.controller;
     const yaw = this.cam.yaw;
@@ -156,6 +171,7 @@ export class Player {
     }
     // aiming while sprinting ends the sprint and raises the weapon
     if (this.ads && c.sprinting && this.coverPose.traverse === 'none') c.cancelSprint();
+    if (this.forceAds) this.ads = true;
     if (c.weaponBlocked || this.coverPose.traverse !== 'none') this.ads = false;
     if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
@@ -221,7 +237,7 @@ export class Player {
       } else as.inside = false;
     }
     this.cam.adsTarget = this.ads ? 1 : 0;
-    this.cam.baseFovDeg = this.getSettings().video.fovH;
+    this.applyFov();
     c.interpolate(alpha);
     this.cam.crouch = c.crouchBlend;
     this.cam.dash = c.dashing ? 1 : 0;
@@ -232,7 +248,7 @@ export class Player {
     this.cam.lift = this.rig.lift;
     this.cam.coverTop = this.coverPose.top;
     this.cam.update(dt, c.renderPos, c.crouchBlend);
-    this.world.frame(c.renderPos);
+    this.world.frame(c.renderPos, dt);
 
     const root = this.rig.root;
     root.position.copyFrom(c.renderPos);
@@ -286,6 +302,7 @@ export class Player {
     // the weapon comes up only once it clears: past an edge (cover controller) or over the top (the rig's rise)
     rp.peekClear = cp.gunClear && (cp.peekOver <= 0.5 || this.rig.overClear) ? 1 : 0;
     rp.check = cp.check;
+    rp.melee = cp.melee;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
     rp.phase = c.renderPhase;
     rp.motion = m.state;

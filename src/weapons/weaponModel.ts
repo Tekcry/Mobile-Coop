@@ -1,4 +1,5 @@
-import { Quaternion, TransformNode, Vector3, type AbstractMesh, type Scene } from '../core/babylon';
+import { Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { VoxelGroup, type VoxelGroupOptions } from '../voxel/voxelGroup';
 import type { CharacterRig } from '../player/characterRig';
 import type { PartLibrary, PartPattern } from '../world/partLibrary';
 import { modelExtents, type ModelExtents, type WeaponDef } from './weaponDefs';
@@ -17,10 +18,20 @@ const CARRY_GAP = 0.012;
 /** Back carry: muzzle-up guns side by side (thin side to the back), butts at this height on the chest. */
 const BACK_X = 0.07;
 const BACK_BUTT_Y = -0.4;
+/** A centre back gun keeps its bore at least this far (m) behind its top surface's rest plane (head clearance). */
+const CENTRE_CLEAR = 0.09;
 /** Sling: the hanging gun splays out from the leg (rad), more than the thigh swings out on a side-step. */
 const SLING_SPLAY = 0.12;
 /** Kept this much (rad) outside the thigh when the leg swings the gun out. */
 const SLING_MARGIN = 0.12;
+/** The sling hangs this far (m) outside the thigh (the detailed body's hip and cargo pocket swing in a side-step). */
+const SLING_GAP = 0.035;
+
+/** 3.0 voxel weapons (null: the smooth parts render, e.g. `?gfx=min`). */
+let VOXEL_WEAPONS: VoxelGroupOptions | null = null;
+export function setVoxelWeapons(o: VoxelGroupOptions | null): void {
+  VOXEL_WEAPONS = o;
+}
 
 const ax = new Vector3();
 const ay = new Vector3();
@@ -54,8 +65,35 @@ export class WeaponModel {
       // the off hand's reload point: the top of the magazine well
       if (p.role === 'mag') this.magLocal = new Vector3(p.pos[0], p.pos[1] + p.size[1] * 0.3, p.pos[2]);
     }
+    // finer detail on long guns: an ejection port on the right of the receiver and a top rail under the optic
+    const rec = def.model.find((p) => p.role === 'receiver');
+    if (rec && def.class !== 'pistol' && def.class !== 'crossbow') {
+      const [w, h, l] = rec.size;
+      const [x, y, z] = rec.pos;
+      const detail = (hex: string, sx: number, sy: number, sz: number, px: number, py: number, pz: number): void => {
+        const m = lib.instance('rbox', hex, `wpn-${def.id}-part`);
+        m.parent = this.node;
+        m.scaling.set(sx, sy, sz);
+        m.position.set(px, py, pz);
+        this.parts.push(m);
+      };
+      // (set into the receiver's faces, so the carried model's extents - and the slot clearances - stay the same)
+      detail('#0d0e10', 0.006, h * 0.32, l * 0.22, x + w / 2 - 0.0025, y + h * 0.12, z + l * 0.08);
+      if (def.class !== 'shotgun') detail(colors.grip, w * 0.55, 0.012, l * 0.62, x, y + h / 2 - 0.0055, z);
+    }
     this.muzzleLocal = new Vector3(...def.muzzle);
     this.ext = modelExtents(def);
+    // voxels (3.0): one rigid voxel mesh under the weapon's node (the parts stay, unseen)
+    const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
+    if (VOXEL_WEAPONS && skin) this.voxel = new VoxelGroup(scene, this.node, this.parts, skin, `wpn-${def.id}`, VOXEL_WEAPONS);
+  }
+
+  /** The voxel model (3.0; null: the smooth parts render). */
+  readonly voxel: VoxelGroup | null = null;
+
+  /** What renders (shadow casters). */
+  get renderMeshes(): AbstractMesh[] {
+    return this.voxel ? this.voxel.meshes : this.parts;
   }
 
   /** In the hands: parented to the rig's aim pocket, with the hands IK'd to its grips. */
@@ -114,7 +152,8 @@ export class WeaponModel {
       // the butt and the top surface rest at the slot point
       const sx = side * BACK_X;
       const sy = BACK_BUTT_Y;
-      const sz = -p.chest.d / 2 - rig.backGear - CARRY_GAP;
+      // the centre gun passes behind the head: one whose bore runs near its top (no optic above it) stands off more
+      const sz = -p.chest.d / 2 - rig.backGear - CARRY_GAP - (side === 0 ? Math.max(0, CENTRE_CLEAR - (e.y1 - this.def.muzzle[1])) : 0);
       n.position.set(sx - ay.x * e.y1 - az.x * e.z0, sy - ay.y * e.y1 - az.y * e.z0, sz - ay.z * e.y1 - az.z * e.z0);
     } else if (slot === 'sling') {
       n.parent = rig.hips;
@@ -146,7 +185,7 @@ export class WeaponModel {
     Quaternion.RotationQuaternionFromAxisToRef(ax, ay, az, n.rotationQuaternion!);
     // pivot: the inner face of the stock end, just outside the thigh at belt height
     const yc = (e.y0 + e.y1) / 2;
-    const px = -(rig.p.hipHalf + rig.thighOuter + CARRY_GAP);
+    const px = -(rig.p.hipHalf + rig.thighOuter + SLING_GAP);
     const py = -0.02;
     const pz = -0.02;
     n.position.set(px - ax.x * e.x1 - ay.x * yc - az.x * e.z0, py - ax.y * e.x1 - ay.y * yc - az.y * e.z0, pz - ax.z * e.x1 - ay.z * yc - az.z * e.z0);
@@ -193,6 +232,7 @@ export class WeaponModel {
 
   dispose(): void {
     if (this.rig) this.track(this.rig, false);
+    this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
     this.node.dispose();
   }

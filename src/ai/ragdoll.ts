@@ -16,8 +16,9 @@ import type { CharacterRig } from '../player/characterRig';
  * joined by ball-and-socket constraints at the hips and shoulders. Knees/elbows keep the pose
  * they died in. Rig joints are re-parented onto physics nodes (world transforms preserved), so the
  * smooth body parts simply ride along. Limbs never collide with their own torso; torsos collide
- * with the world, props and other ragdolls. After settling the bodies are removed and the corpse
- * sinks away. Count is capped by `BUDGET.maxRagdolls`.
+ * with the world, props and other ragdolls. After settling the physics bodies are removed; the corpse
+ * then sinks away, or with `keep` stays where it lies (a body that can be found and carried). The count of
+ * simulating ragdolls is capped by `BUDGET.maxRagdolls`.
  */
 export class Ragdoll {
   private nodes: TransformNode[] = [];
@@ -29,8 +30,11 @@ export class Ragdoll {
 
   constructor(
     private scene: Scene,
-    private rig: CharacterRig,
+    readonly rig: CharacterRig,
     impulse: Vector3,
+    readonly keep = false,
+    /** Seconds of simulation before it freezes. */
+    private settleTime = 3.5,
   ) {
     const p = rig.p;
     rig.heldWeapon = null;
@@ -87,15 +91,25 @@ export class Ragdoll {
     tb.applyImpulse(impulse, torsoN.position.add(new Vector3(0, 0.45, 0)));
   }
 
+  /** Physics done: the corpse lies still (no longer counts against the ragdoll budget). */
+  get settled(): boolean {
+    return this.frozen;
+  }
+
+  /** Pelvis world position. */
+  torso(out: Vector3): Vector3 {
+    return out.copyFrom(this.nodes[0]!.position);
+  }
+
   update(dt: number): void {
     this.t += dt;
-    if (!this.frozen && this.t > 3.5) {
+    if (!this.frozen && this.t > this.settleTime) {
       this.frozen = true;
       for (const b of this.bodies) b.dispose();
       for (const s of this.shapes) s.dispose();
       this.bodies.length = 0;
     }
-    if (this.frozen) {
+    if (this.frozen && !this.keep) {
       for (const n of this.nodes) n.position.y -= dt * 0.25;
       if (this.t > 5.5) this.dispose();
     }

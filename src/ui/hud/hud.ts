@@ -1,8 +1,13 @@
 import { h } from '../dom';
 import { icon } from '../icons';
-import { promptHtml } from '../prompts';
+import { keyLabels, promptHtml } from '../prompts';
 import type { Minimap } from './minimap';
 import { WorldPrompts } from './worldPrompts';
+import { AwarenessArcs } from './awareness';
+import { Markers } from './markers';
+import { GadgetWheel } from './gadgetWheel';
+import { PingView } from './pings';
+import { BarkView } from './barks';
 
 export interface HudFrame {
   hp: number;
@@ -13,6 +18,8 @@ export interface HudFrame {
   mag: number;
   magSize: number;
   reserve: number;
+  /** Selected gadget (icon) and how many are carried. */
+  gadget: string;
   grenades: number;
   reloadProgress: number;
   /** Crosshair gap in CSS pixels. */
@@ -36,7 +43,10 @@ export class Hud {
   private wName: HTMLElement;
   private wMag: HTMLElement;
   private wRes: HTMLElement;
+  /** Gadget wheel and the remote feed overlay. */
+  readonly gadgets: GadgetWheel;
   private gCount: HTMLElement;
+  private gIcon!: HTMLElement;
   private cross: HTMLElement;
   private hit: HTMLElement;
   private ring: SVGCircleElement;
@@ -45,6 +55,7 @@ export class Hud {
   private compassMarks: HTMLElement;
   private objective: HTMLElement;
   private modeInfo: HTMLElement;
+  private weaponEl!: HTMLElement;
   private roomEl: HTMLElement;
   private bannerEl: HTMLElement;
   private interactEl: HTMLElement;
@@ -57,6 +68,17 @@ export class Hud {
   private staminaBar: HTMLElement;
   private exposureEl: HTMLElement;
   private noiseEl: HTMLElement;
+  private lightEl: HTMLElement;
+  private visionEl: HTMLElement;
+  private lightFill: HTMLElement;
+  /** Enemy awareness arcs round the crosshair. */
+  readonly arcs = new AwarenessArcs();
+  /** Mark & Execute chevrons. */
+  readonly markers: Markers;
+  /** Enemy callouts over their heads. */
+  readonly barks: BarkView;
+  readonly pings: PingView;
+  private chargeEl: HTMLElement;
   private last: Partial<Record<string, string | number | boolean>> = {};
   private hitTimer: ReturnType<typeof setTimeout> | null = null;
   readonly minimapSlot: HTMLElement;
@@ -69,6 +91,10 @@ export class Hud {
     this.staminaBar = h('div', { class: 'bar stamina' }, this.staminaFill);
     this.exposureEl = h('div', { class: 'tac-exposure', html: '<b>EXPOSED</b><span><i></i><i></i><i></i><i></i><i></i></span>' });
     this.noiseEl = h('div', { class: 'tac-noise', html: `${icon('noise', 14)}<span><i></i><i></i><i></i></span>` });
+    this.lightFill = h('i');
+    this.lightEl = h('div', { class: 'tac-light', title: 'Light' }, h('b', { text: '◐' }), h('span', {}, this.lightFill));
+    this.visionEl = h('div', { class: 'tac-vision' });
+    this.chargeEl = h('div', { class: 'tac-charge', title: 'Execute charge' });
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
@@ -76,19 +102,20 @@ export class Hud {
       h('div', { class: 'bar health' }, this.hpFill),
       this.hpText,
       this.staminaBar,
-      h('div', { class: 'hud-tac' }, this.exposureEl, this.noiseEl),
+      h('div', { class: 'hud-tac' }, this.lightEl, this.chargeEl, this.visionEl, this.exposureEl, this.noiseEl),
     );
     this.wName = h('div', { class: 'w-name' });
     this.wMag = h('span', { class: 'w-mag' });
     this.wRes = h('span', { class: 'w-res' });
     this.gCount = h('span', { class: 'w-gren' });
-    const weapon = h(
+    this.gIcon = h('span', { class: 'w-gren-icon', html: icon('frag', 16) });
+    const weapon = (this.weaponEl = h(
       'div',
       { class: 'hud-weapon' },
       this.wName,
       h('div', { class: 'w-ammo' }, this.wMag, h('span', { class: 'w-sep', text: '/' }), this.wRes),
-      h('div', { class: 'w-extra', html: `<span class="w-gren-icon">${icon('grenade', 16)}</span>` }, this.gCount),
-    );
+      h('div', { class: 'w-extra' }, this.gIcon, this.gCount),
+    ));
     this.cross = h('div', { class: 'crosshair' }, h('i', { class: 'ch t' }), h('i', { class: 'ch b' }), h('i', { class: 'ch l' }), h('i', { class: 'ch r' }), h('i', { class: 'ch dot' }));
     this.hit = h('div', { class: 'hitmarker' }, h('i'), h('i'), h('i'), h('i'));
     const ns = 'http://www.w3.org/2000/svg';
@@ -132,17 +159,46 @@ export class Hud {
       h('div', { class: 'hud-top' }, compass, this.roomEl, this.objective, this.modeInfo),
       this.minimapSlot,
       weapon,
-      h('div', { class: 'hud-center' }, this.cross, this.hit, svg, this.dmgWrap),
+      h('div', { class: 'hud-center' }, this.arcs.canvas, this.cross, this.hit, svg, this.dmgWrap),
       this.bannerEl,
       this.interactEl,
       this.feed,
     );
     parent.appendChild(this.el);
+    this.markers = new Markers(this.el);
+    this.barks = new BarkView(this.el);
+    this.pings = new PingView(this.el);
     this.world = new WorldPrompts(parent);
+    this.gadgets = new GadgetWheel(parent);
   }
 
   setMinimap(m: Minimap): void {
     this.minimapSlot.replaceChildren(m.canvas);
+  }
+
+  /** Health shown as bars (else only the screen-edge vignette); ammo always on (else it fades when unchanged). */
+  private healthBar = false;
+  private ammoAlways = false;
+  private ammoT = 0;
+  private ammoKey = '';
+
+  /** Settings > Accessibility: HUD size, health bar, ammo, colour-safe arcs, subtitles. Cheap to call per frame. */
+  setAccess(a: { hudScale: number; healthBar: boolean; ammoAlways: boolean; colorSafe: boolean; subtitles: boolean }): void {
+    this.set('acc-scale', a.hudScale, () => {
+      this.el.style.setProperty('--hud-scale', String(a.hudScale));
+      this.world.el.style.setProperty('--hud-scale', String(a.hudScale));
+    });
+    this.set('acc-hbar', a.healthBar, () => {
+      this.healthBar = a.healthBar;
+      this.el.classList.toggle('no-hbar', !a.healthBar);
+      this.last.hp = -1;
+    });
+    this.set('acc-ammo', a.ammoAlways, () => {
+      this.ammoAlways = a.ammoAlways;
+      this.weaponEl.classList.remove('quiet');
+    });
+    this.arcs.colorSafe = a.colorSafe;
+    this.barks.subtitles = a.subtitles;
   }
 
   setVisible(v: boolean): void {
@@ -163,7 +219,8 @@ export class Hud {
       this.hpFill.style.width = `${hpPct * 100}%`;
       this.hpFill.classList.toggle('low', hpPct < 0.3);
       this.hpText.textContent = `${Math.ceil(f.hp)}`;
-      this.vignette.style.opacity = String(hpPct < 0.35 ? (0.35 - hpPct) * 2.2 : 0);
+      // the screen edge reddens with damage: the only health readout without the bars
+      this.vignette.style.opacity = String(this.healthBar ? (hpPct < 0.35 ? (0.35 - hpPct) * 2.2 : 0) : hpPct < 0.9 ? Math.min(0.95, Math.pow((0.9 - hpPct) / 0.9, 0.8) * 1.05) : 0);
     });
     this.set('sh', Math.round(shPct * 200), () => (this.shFill.style.width = `${shPct * 100}%`));
     this.set('wn', f.weapon, () => (this.wName.textContent = f.weapon));
@@ -173,10 +230,20 @@ export class Hud {
     });
     this.set('res', f.reserve, () => (this.wRes.textContent = Number.isFinite(f.reserve) ? String(f.reserve) : '∞'));
     this.set('gr', f.grenades, () => (this.gCount.textContent = `×${f.grenades}`));
+    this.set('gi', f.gadget, () => (this.gIcon.innerHTML = icon(f.gadget, 16)));
     const gap = Math.round(Math.min(60, 4 + f.spreadPx));
     this.set('gap', gap, () => this.cross.style.setProperty('--gap', `${gap}px`));
     this.set('ot', f.onTarget, () => this.cross.classList.toggle('on-target', f.onTarget));
     this.set('ads', f.ads, () => this.cross.classList.toggle('ads', f.ads));
+    // ammo / gadget readout: on any change, a reload or a low magazine; fades after 3 s otherwise
+    const now = performance.now();
+    const ak = `${f.weapon}|${f.mag}|${f.reserve}|${f.grenades}|${f.gadget}`;
+    if (ak !== this.ammoKey || f.reloadProgress > 0 || f.mag <= Math.max(1, Math.floor(f.magSize * 0.25))) {
+      this.ammoKey = ak;
+      this.ammoT = now;
+    }
+    const quiet = !this.ammoAlways && now - this.ammoT > 3000;
+    this.set('aq', quiet, () => this.weaponEl.classList.toggle('quiet', quiet));
     const rp = Math.round(f.reloadProgress * 50);
     this.set('rl', rp, () => {
       const c = 2 * Math.PI * 17;
@@ -240,10 +307,16 @@ export class Hud {
     this.set('mode', html, () => (this.modeInfo.innerHTML = html));
   }
 
-  setInteract(text: string | null): void {
+  /** The use prompt; `progress` 0..1 draws the hold ring round the button glyph (-1 = a tap). */
+  setInteract(text: string | null, progress = -1): void {
     this.set('int', text ?? '', () => {
-      this.interactEl.innerHTML = text ? `${promptHtml('Y')}<span>${text}</span>` : '';
+      this.interactEl.innerHTML = text ? `<i class="hold-ring"></i>${promptHtml('Y', keyLabels.traverse)}<span>${text}</span>` : '';
       this.interactEl.classList.toggle('show', !!text);
+    });
+    const p = Math.round(progress * 40);
+    this.set('intp', p, () => {
+      this.interactEl.classList.toggle('hold', progress >= 0);
+      this.interactEl.style.setProperty('--p', `${Math.max(0, progress) * 360}deg`);
     });
   }
 
@@ -269,6 +342,30 @@ export class Hud {
     this.set('supp', Math.round(suppression * 20), () => (this.suppressEl.style.opacity = String(Math.min(0.85, suppression * 0.9))));
   }
 
+  /** Light meter: how lit the body is (0 dark .. 1); `shadow` marks being hidden in it. */
+  setLight(level: number, shadow: boolean): void {
+    const v = Math.round(level * 20);
+    this.set('light', v, () => (this.lightFill.style.width = `${Math.max(6, level * 100)}%`));
+    this.set('lightS', shadow, () => this.lightEl.classList.toggle('shadow', shadow));
+  }
+
+  /** Execute charges (a pip per charge) and whether the marks can be executed now. */
+  setCharge(charges: number, ready: boolean): void {
+    this.set('charge', `${charges}|${ready}`, () => {
+      this.chargeEl.textContent = charges > 0 ? '◆'.repeat(charges) : '';
+      this.chargeEl.classList.toggle('ready', ready);
+    });
+  }
+
+  /** Goggles: the mode in use, or the sonar recharging (seconds left). */
+  setVision(mode: 'off' | 'night' | 'sonar', cooldown: number): void {
+    const text = mode === 'night' ? 'NV' : mode === 'sonar' ? 'SONAR' : cooldown > 0 ? `SONAR ${Math.ceil(cooldown)}` : '';
+    this.set('vision', text, () => {
+      this.visionEl.textContent = text;
+      this.visionEl.dataset.mode = mode === 'off' ? (cooldown > 0 ? 'cool' : 'off') : mode;
+    });
+  }
+
   /** Small right-side feed (kills, XP, pickups). */
   feedItem(text: string, kind = ''): void {
     const it = h('div', { class: `feed-item ${kind}`, text });
@@ -281,5 +378,6 @@ export class Hud {
   dispose(): void {
     this.el.remove();
     this.world.dispose();
+    this.gadgets.dispose();
   }
 }

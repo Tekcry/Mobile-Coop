@@ -1,5 +1,6 @@
-// Progression + save: armory by controller, buying, match rewards, IndexedDB persistence, export/import.
-import { launch, frames, press, BTN, focusedText, assert } from './e2e-lib.mjs';
+// Progression + save: the Loadout screen by controller (live preview, upgrades, buying in place, suit, HQ),
+// match rewards, IndexedDB persistence, export/import.
+import { launch, frames, press, BTN, focusedText, focusTo, assert } from './e2e-lib.mjs';
 import { readFileSync, writeFileSync } from 'node:fs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -13,38 +14,50 @@ try {
   const p0 = await G(() => window.__app.save.get().profile);
   assert(p0.credits === 500 && p0.xp === 0, 'fresh profile: 500 cr, level 1');
 
-  // Armory via controller
-  for (let i = 0; i < 6 && !/Armory/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
-  assert(/Armory/.test(await focusedText(page)), 'focus Armory');
+  // Loadout via controller (Blacklist lists): Primary -> the weapon list (focus previews), customise, buy an upgrade
+  const key = () => G(() => window.__app.nav.focused?.dataset.key ?? '');
+  const shown = () => G(() => JSON.parse(window.__app.current.shown));
+  const detail = () => G(() => document.querySelector('.lo-detail')?.textContent ?? '');
+  await focusTo(page, /Loadout/);
+  assert(/Loadout/.test(await focusedText(page)), 'focus Loadout');
   await press(page, BTN.A);
-  assert(await q('.armory-screen'), 'Armory opens');
-  assert(/AR-7/.test(await G(() => document.querySelector('.w-title')?.textContent)), 'starts on the rifle');
-  await press(page, BTN.RB);
-  assert(/V-12/.test(await G(() => document.querySelector('.w-title')?.textContent)), 'RB cycles to SMG');
-  assert(/Locked/.test(await focusedText(page)), `SMG is locked at level 1 ("${await focusedText(page)}")`);
-  await press(page, BTN.LB);
-  // buy a damage upgrade on the rifle with A
-  const seq = [];
-  for (let i = 0; i < 8 && !/Upgrade/.test(await focusedText(page)); i++) { seq.push(await focusedText(page)); await press(page, BTN.DOWN); }
-  console.log('    nav:', seq.join(' | '));
-  const before = await G(() => window.__app.save.get().weapons.rifle.upgrades);
-  assert(/Upgrade · \d+ cr/.test(await focusedText(page)), `focus an upgrade button ("${await focusedText(page)}")`);
+  assert(await q('.loadout-screen'), 'Loadout opens');
+  await press(page, BTN.DOWN);
+  assert((await key()) === 'primary' && /9MM SD/.test(await detail()), `Primary: the issued 9mm SD (${await key()})`);
+  assert((await shown())[1] === 'pistolSd', 'the operator holds it');
   await press(page, BTN.A);
-  const after = await G(() => window.__app.save.get().weapons.rifle.upgrades);
+  assert(/PRIMARY WEAPON/.test(await G(() => document.querySelector('.lo-title')?.textContent)), 'A opens the primary weapon list');
+  for (let i = 0; i < 6 && (await key()) !== 'w-smg'; i++) await press(page, BTN.DOWN);
+  assert((await key()) === 'w-smg' && (await shown())[1] === 'smg', 'focusing the MP5 puts it in the operator\'s hands');
+  assert(/Level 2/.test(await detail()) && /MP5/.test(await detail()), `the details show its stats and what it needs`);
+  for (let i = 0; i < 6 && (await key()) !== 'w-pistolSd'; i++) await press(page, BTN.UP);
+  await press(page, BTN.Y);
+  assert(/ATTACHMENTS & UPGRADES/.test(await G(() => document.querySelector('.lo-sub')?.textContent)), 'Y customises the weapon');
+  await focusTo(page, /Damage/, 20);
+  const before = await G(() => window.__app.save.get().weapons.pistolSd.upgrades);
+  assert((await key()) === 'up-damage', `focus the damage upgrade (${await key()})`);
+  await press(page, BTN.A);
+  const after = await G(() => window.__app.save.get().weapons.pistolSd.upgrades);
   const spent = 500 - (await G(() => window.__app.save.get().profile.credits));
   const total = (o) => o.damage + o.magazine + o.recoil + o.reload;
   assert(total(after) === total(before) + 1 && spent > 0, `A buys an upgrade (spent ${spent} cr)`);
-  assert((await G(() => document.querySelectorAll('.pips i.on').length)) === 1, 'upgrade pip lit');
+  assert(/UPGRADES \[1\//.test(await G(() => document.querySelector('.lo-list')?.textContent)), 'the upgrade count shows');
+  await press(page, BTN.B);
+  await press(page, BTN.B);
   await press(page, BTN.B);
 
-  // Store: level up via save, then buy the SMG
+  // buying in place: level up via save, then buy the SMG from the list with A (it is equipped)
   await G(() => window.__app.save.update((d) => { d.profile.xp = 600; d.profile.credits = 700; }));
-  for (let i = 0; i < 6 && !/Store/.test(await focusedText(page)); i++) await press(page, BTN.DOWN);
+  await focusTo(page, /Loadout/);
   await press(page, BTN.A);
-  assert(await q('.store-screen'), 'Store opens');
-  assert(/Buy · 600 cr/.test(await focusedText(page)), `first buyable item focused ("${await focusedText(page)}")`);
+  await press(page, BTN.DOWN);
   await press(page, BTN.A);
-  assert(await G(() => window.__app.save.get().unlocks.includes('weapon:smg')), 'buying unlocks the SMG');
+  for (let i = 0; i < 6 && (await key()) !== 'w-smg'; i++) await press(page, BTN.DOWN);
+  assert(/Buy MP5 Kurz · 600 cr/.test(await G(() => document.querySelector('.lo-acts')?.textContent)), 'the action bar offers the buy');
+  await press(page, BTN.A);
+  const sv = await G(() => window.__app.save.get());
+  assert(sv.unlocks.includes('weapon:smg') && sv.loadout.primary === 'smg', 'buying unlocks the SMG and equips it');
+  await press(page, BTN.B);
   await press(page, BTN.B);
 
   // Play a quick wave match, score kills, die -> rewards
@@ -80,6 +93,72 @@ try {
   const xp2 = await G(() => window.__app.save.get().profile.xp);
   const smg = await G(() => window.__app.save.get().unlocks.includes('weapon:smg'));
   assert(xp2 === xp1 && smg, 'profile survives a reload (IndexedDB)');
+
+  // HQ: buy a suit tier and an upgrade and a new weapon; they apply in the match and persist
+  await G(async () => {
+    window.__app.save.update((d) => {
+      d.profile.xp = 200000;
+      d.profile.credits = 20000;
+    });
+  });
+  await page.waitForTimeout(300);
+  await page.locator('.btn', { hasText: 'Loadout' }).first().tap();
+  await page.waitForSelector('.loadout-screen');
+  // a tap previews a row; the action bar (A) acts on it
+  const tapRow = async (k, act = true) => {
+    await page.locator(`[data-key="${k}"]`).tap();
+    await page.waitForTimeout(200);
+    // (a tap on the row already focused acts at once)
+    if (act && (await G((x) => window.__app.nav.focused?.dataset.key === x, k))) {
+      await page.locator('.lo-act').first().tap();
+      await page.waitForTimeout(200);
+    }
+  };
+  const tapAct = async (re) => {
+    await page.locator('.lo-act', { hasText: re }).first().tap();
+    await page.waitForTimeout(150);
+  };
+  await tapRow('suit');
+  await tapRow('piece-vest');
+  // the next vest tier previews on the operator, then buy it from the action bar
+  await tapRow('tier-1', false);
+  const vestPreview = await G(() => JSON.parse(window.__app.current.shown)[0].legs ?? '');
+  await tapAct(/Buy/);
+  await tapAct(/Back/);
+  await tapAct(/Back/);
+  await tapRow('hq');
+  await tapRow('hq-marks', false);
+  await tapAct(/Upgrade/);
+  const hq = await G(() => {
+    const s = window.__app.save.get();
+    return { vest: s.suit.worn.vest, marks: s.hq.marks, credits: s.profile.credits };
+  });
+  assert(hq.vest === 1 && hq.marks === 1 && hq.credits < 20000, `Loadout: suit tier and HQ upgrade bought (${JSON.stringify(hq)}, previewed torso ${vestPreview})`);
+  await G(() => window.__app.save.update((d) => {
+    d.unlocks.push('weapon:ak');
+    d.weapons.ak.attachments = ['suppressor'];
+    d.loadout.primary = 'ak';
+  }));
+  await G(() => window.__app.screens.pop());
+  await page.locator('.btn', { hasText: 'Play' }).first().tap();
+  await page.waitForSelector('.play-screen');
+  await page.locator('.btn', { hasText: 'Deploy' }).tap();
+  await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
+  await page.waitForTimeout(500);
+  const live = await G(() => {
+    const g = window.__app.current;
+    return { armor: g.target.armorMul, marks: g.marks.max, weapon: g.weapons.slots[0].def.id, sup: g.weapons.slots[0].def.model.some((p) => p.role === 'suppressor'), noise: g.weapons.slots[0].stats.noise };
+  });
+  assert(live.armor < 1 && live.marks === 4, `in the match: vest armour (${live.armor}) and an extra mark (${live.marks})`);
+  assert(live.weapon === 'ak' && live.sup && live.noise < 1, `the bought rifle with its suppressor, visible and quieter (${live.weapon}, noise ${live.noise})`);
+  await G(() => window.__app.save.flush());
+  await page.reload();
+  await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
+  const kept = await G(() => {
+    const s = window.__app.save.get();
+    return s.suit.owned.vest === 1 && s.hq.marks === 1 && s.loadout.primary === 'ak';
+  });
+  assert(kept, 'suit, HQ and loadout survive a reload');
 
   // export / import through Settings > Data
   await G(() => window.__app.screens.push(new (window.__app.screens.top.constructor)(window.__app)));

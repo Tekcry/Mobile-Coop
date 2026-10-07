@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { NavGrid, type NavBlocker } from '../src/ai/navGrid';
+import { NavGrid, type NavBlocker, type NavLinkInput, type NavSample } from '../src/ai/navGrid';
 
 function grid(blockers: NavBlocker[], heights?: (x: number, z: number) => number): NavGrid {
   return new NavGrid({
@@ -13,6 +13,77 @@ const pathLen = (p: [number, number][], from: [number, number]) => {
   for (const q of p) { l += Math.hypot(q[0] - prev[0], q[1] - prev[1]); prev = q; }
   return l;
 };
+
+/** A deck at 3 m over x 2..8 (the floor runs on under it); optionally a ramp up to it along z 6..8 from x -4. */
+function storeys(opts: { ramp?: boolean; links?: NavLinkInput[]; seed?: [number, number] } = {}): NavGrid {
+  return new NavGrid({
+    minX: -10, maxX: 10, minZ: -10, maxZ: 10, cell: 0.5,
+    sample: () => ({ h: 0, ok: true }),
+    sampleLayers: (x, z): NavSample[] => {
+      if (opts.ramp && z > 6 && z < 8 && x > -4 && x < 2) return [{ h: ((x + 4) / 6) * 3, ok: true }];
+      if (x > 2 && x < 8) return [{ h: 0, ok: true }, { h: 3, ok: true }];
+      return [{ h: 0, ok: true }];
+    },
+    blockers: [], links: opts.links, agentRadius: 0.3, stepHeight: 0.45, seed: opts.seed ?? [-9, -9],
+  });
+}
+
+describe('NavGrid storeys and links', () => {
+  it('a column holds a floor and the deck over it', () => {
+    const g = storeys({ ramp: true });
+    const lo = g.cellOf(5, 0, 0);
+    const hi = g.cellOf(5, 0, 3);
+    expect(lo).not.toBe(hi);
+    expect(g.height[lo]).toBe(0);
+    expect(g.height[hi]).toBe(3);
+    expect(g.isWalkable(lo) && g.isWalkable(hi)).toBe(true);
+    // no height: the lowest
+    expect(g.cellOf(5, 0)).toBe(lo);
+  });
+  it('the floor runs on under the deck; the deck is reached up the ramp', () => {
+    const g = storeys({ ramp: true });
+    expect(g.lineClear([0, 0], [5, 0], 0, 0)).toBe(true);
+    expect(g.lineClear([0, 0], [5, 0], 0, 3)).toBe(false);
+    const p = g.findPath([-6, 0], [5, 0], 6000, 0, 3)!;
+    expect(p).not.toBeNull();
+    expect(p.some((q) => q[1] > 5.5 && q[0] < 2.5)).toBe(true);
+    const under = g.findPath([-6, 0], [5, 0], 6000, 0, 0)!;
+    expect(under.length).toBe(1);
+  });
+  it('a ladder joins the storeys both ways; the path marks where it starts', () => {
+    const ladder: NavLinkInput = { kind: 'ladder', twoWay: true, pts: [1.2, 0, -5, 1.7, 0, -5, 1.7, 3, -5, 2.6, 3, -5] };
+    const g = storeys({ links: [ladder] });
+    expect(g.links.length).toBe(2);
+    const up = g.findPath([-6, -5], [6, 0], 6000, 0, 3)!;
+    const at = up.findIndex((q) => q.link);
+    expect(at).toBeGreaterThanOrEqual(0);
+    expect(up[at]![0]).toBeCloseTo(1.2);
+    expect(up[at]!.link!.kind).toBe('ladder');
+    const down = g.findPath([6, 0], [-6, -5], 6000, 3, 0)!;
+    expect(down.some((q) => q.link)).toBe(true);
+    // the flow field reaches the floor through the ladder and steers onto it
+    const f = g.flowField([[6, 0]], undefined, [3]);
+    expect(Number.isFinite(f[g.cellOf(-6, -5, 0)]!)).toBe(true);
+    const n = g.flowNext(f, 1.2, -5, 0)!;
+    expect(n.link?.kind).toBe('ladder');
+  });
+  it('drops go down only', () => {
+    const drop: NavLinkInput = { kind: 'drop', twoWay: false, pts: [7.5, 3, 0, 8.1, 3, 0, 8.6, 0, 0] };
+    const g = storeys({ links: [drop], seed: [5, 0] });
+    // seeded on the floor under the deck: the deck is pruned (nothing climbs to it)
+    expect(g.walk[g.cols + g.cellOf(5, 0)]).toBe(0);
+    // asked for the deck height: the (pruned) deck cell, not the floor under it
+    expect(g.isWalkable(g.cellOf(5, 0, 3))).toBe(false);
+    const deck = new NavGrid({
+      minX: -10, maxX: 10, minZ: -10, maxZ: 10, cell: 0.5,
+      sample: () => ({ h: 0, ok: true }),
+      sampleLayers: (x): NavSample[] => (x > 2 && x < 8 ? [{ h: 0, ok: true }, { h: 3, ok: true }] : [{ h: 0, ok: true }]),
+      layers: 2, blockers: [], links: [drop], agentRadius: 0.3, stepHeight: 0.45,
+    });
+    expect(deck.findPath([5, 0], [-6, 0], 6000, 3, 0)!.some((q) => q.link?.kind === 'drop')).toBe(true);
+    expect(deck.findPath([-6, 0], [5, 0], 6000, 0, 3)).toBeNull();
+  });
+});
 
 describe('NavGrid', () => {
   it('open ground: straight path after smoothing', () => {

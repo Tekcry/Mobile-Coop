@@ -1,15 +1,25 @@
-# Shoulder Strike
+# Silent But Deadly
 
-A mobile-first, third-person, over-the-shoulder shooter that runs in the browser and installs as an app.
-Single player is complete and fully offline; 2-4 player online co-op is optional.
+A mobile-first, third-person stealth shooter in the style of Splinter Cell: Blacklist that runs in the browser and
+installs as an app. Single player is complete and fully offline; online co-op (2-4) and PvP (up to 8) are optional.
 
-- **Modes:** Wave Survival, Mission (hack, steal, extract) and Free Roam on two procedural maps plus a test range.
-- **Combat:** pistol, SMG, assault rifle, shotgun, sniper and grenades, with upgrades, attachments and camos.
-  Grunts, runners and heavies take cover, flank and peek, and fall as ragdolls.
-- **Movement:** tactical speeds and a full cover system (snap, strafe, peek, blind fire, corner pivots, vaults).
-- **Progression:** XP, levels, credits, weapon mastery, unlocks and a modular avatar customiser with emotes and tags.
-- **Controls:** touch dual sticks (editable layout) or any standard controller (Xbox/PlayStation/MFi), with full
-  controller menu navigation; keyboard and mouse for desktop testing.
+- **Modes:** Hunter (clear every hostile, undetected if you can), Infiltration (seven missions: uploads, bugs,
+  rescues, sabotage, intel, extraction), Wave Survival, Mission, Training and Free Roam on the Warehouse (night),
+  the Embassy, the Mansion, the Port, the Refinery, Dust Depot and the Proving Grounds. Co-op runs every mode with
+  team pings, shared bodies, Mark & Execute and dual takedowns; PvP has Team Deathmatch (4v4) and Free-for-all.
+- **Stealth:** light and shadow, noise, alert states with a last known position (guards follow across storeys, up
+  stairs and ladders), bodies, switches and shootable
+  lamps, alarms, doors; night vision and sonar goggles; takedowns from every angle and Mark & Execute.
+- **Traversal:** ladders, drainpipes, ledges, pipes, ducts, windows, ziplines, vaults and climbs.
+- **Gadgets:** frag, sleeping gas, flashbang, EMP, noisemaker, sticky cam, tri-rotor drone, proximity mine.
+- **Enemies:** guards, runners, heavies, snipers, shield enforcers, dogs, drone operators and officers, in
+  urban, desert and maritime colours.
+- **Combat:** 16 weapons with visible attachments, upgrades and camos; cover with peeks, blind fire, corners and
+  cover-to-cover moves.
+- **Progression:** XP, credits, play-style cash (Ghost / Panther / Assault), the suit, HQ upgrades, challenges,
+  loadout presets, weapon mastery, outfits, emotes and tags - all in one Loadout screen with live previews.
+- **Controls:** touch (editable layout), any standard controller (Xbox / PlayStation / MFi) with full menu
+  navigation, keyboard and mouse; Settings > Accessibility lists every binding.
 - **Built with:** TypeScript, Vite, Babylon.js 9 and Havok physics (WASM bundled), WebAudio synthesis, no external
   art or audio, and IndexedDB saves with export/import.
 
@@ -77,7 +87,8 @@ Saves live in IndexedDB on each device and survive updates; the schema is versio
 
 Co-op is peer-to-peer over WebRTC (Trystero with public Nostr relays for signalling); there is no game server.
 One player hosts and shares the 5-character room code or link; the host simulates the match and validates
-everyone's hits. It needs an internet connection; when offline the Co-op screen says so and single player is
+everyone's hits, uses of objectives and takedowns. Co-op takes 2-4 players in any mode; Team Deathmatch and
+Free-for-all take up to 8. It needs an internet connection; when offline the Co-op screen says so and single player is
 unaffected. Some strict networks (symmetric NAT without TURN) can block peer connections.
 
 ## Licence

@@ -172,10 +172,25 @@ export function pickTraversal(p: TraversalProbe): Traversal {
  */
 export function noiseRadius(speed: number, crouched: boolean, sprinting: boolean, M = MOVEMENT): number {
   if (speed < 0.15) return 0;
-  if (sprinting) return 18;
-  if (crouched) {
-    if (speed <= M.sneakSpeed + 0.05) return 0.3 + speed * 0.6;
-    return speed <= M.crouchWalkSpeed + 0.05 ? 1 + (speed - M.sneakSpeed) * 1.5 : 2.5 + (speed - M.crouchWalkSpeed) * 3;
-  }
-  return speed <= M.walkSpeed + 0.05 ? 1.5 + speed * 1.8 : 4 + (speed - M.walkSpeed) * 3.6;
+  if (sprinting) return 9;
+  // sneaking, crouch walking and a slow walk are silent; a crouch run and a jog carry a few metres
+  if (crouched) return speed <= M.crouchWalkSpeed + 0.05 ? 0 : 1 + (speed - M.crouchWalkSpeed) * 1.5;
+  return speed <= M.walkSpeed + 0.05 ? 0 : 1.2 + (speed - M.walkSpeed) * 1.6;
+}
+
+/** Landing bands by fall height (m): under `roll` a soft landing, up to `heavy` a roll that keeps the momentum,
+ *  beyond it a heavy landing with a recovery. No fall damage (Blacklist), but every band is louder. */
+export const LANDING = { soft: 0.6, roll: 2.5, heavy: 4.5, heavyRecovery: 0.6 } as const;
+export type LandingKind = 'none' | 'soft' | 'roll' | 'heavy';
+
+export function landingKind(fall: number): LandingKind {
+  if (fall < LANDING.soft) return 'none';
+  if (fall < LANDING.roll) return 'soft';
+  if (fall <= LANDING.heavy) return 'roll';
+  return 'heavy';
+}
+
+/** Noise radius of a landing (m): a soft drop is quiet, a heavy landing carries. */
+export function landingNoise(kind: LandingKind): number {
+  return kind === 'heavy' ? 11 : kind === 'roll' ? 5 : kind === 'soft' ? 1.2 : 0;
 }

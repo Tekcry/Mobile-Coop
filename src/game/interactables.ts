@@ -3,7 +3,23 @@ import { TransformNode, type AbstractMesh, type InstancedMesh, type Scene } from
 import type { PartLibrary } from '../world/partLibrary';
 import { hyp2 } from '../core/mathx';
 
-export type InteractKind = 'terminal' | 'cache' | 'extract';
+/** Objectives (terminal, cache, extract), light switches, alarm panels, body hiding spots, bodies, doors. */
+export type InteractKind = 'terminal' | 'cache' | 'extract' | 'switch' | 'alarm' | 'hide' | 'body' | 'door' | 'vip' | 'intel' | 'charge' | 'revive';
+
+const KIND_COLOR: Record<InteractKind, string> = {
+  terminal: '#3fc1ff',
+  cache: '#ffd23f',
+  extract: '#4fdc7c',
+  switch: '#ffe08a',
+  alarm: '#ff3b30',
+  hide: '#2a2f36',
+  body: '#2a2f36',
+  door: '#2a2f36',
+  vip: '#2a2f36',
+  intel: '#ffd23f',
+  charge: '#ff6b5a',
+  revive: '#4fdc7c',
+};
 
 export interface Interactable {
   id: string;
@@ -18,9 +34,17 @@ export interface Interactable {
   node: TransformNode;
   parts: AbstractMesh[];
   light: InstancedMesh | null;
+  /** Reach from the feet (m; default 1.8). */
+  reach?: number;
+  /** Called when used (else the mode handles it). */
+  onUse?: (it: Interactable) => void;
 }
 
-/** Objective props: hackable terminals, intel cache, extraction beacon. Proximity + hold-to-use. */
+/**
+ * Things to use: objectives (hackable terminals, intel cache, extraction beacon), light switches and alarm
+ * panels on walls, spots to hide a body in (the container itself is level geometry) and the bodies
+ * themselves (no visuals: the body is the visual). Proximity + tap or hold to use.
+ */
 export class Interactables {
   readonly items: Interactable[] = [];
   private t = 0;
@@ -30,9 +54,10 @@ export class Interactables {
     private parts: PartLibrary,
   ) {}
 
-  add(id: string, kind: InteractKind, pos: Vector3, label: string, holdTime: number): Interactable {
+  add(id: string, kind: InteractKind, pos: Vector3, label: string, holdTime: number, yaw = 0): Interactable {
     const node = new TransformNode(`int-${id}`, this.scene);
     node.position.copyFrom(pos);
+    node.rotation.y = yaw;
     const ps: AbstractMesh[] = [];
     const add = (shape: 'box' | 'cyl', hex: string, sc: [number, number, number], p: [number, number, number]): InstancedMesh => {
       const m = this.parts.instance(shape, hex, 'int-part');
@@ -42,8 +67,25 @@ export class Interactables {
       ps.push(m);
       return m;
     };
-    let light: InstancedMesh;
-    if (kind === 'terminal') {
+    let light: InstancedMesh | null = null;
+    if (kind === 'switch') {
+      // a wall box (its back on the wall, facing +z in its own frame)
+      add('box', '#4a4f55', [0.14, 0.22, 0.05], [0, 1.3, 0.025]);
+      light = add('box', KIND_COLOR.switch, [0.05, 0.05, 0.02], [0, 1.34, 0.055]);
+    } else if (kind === 'alarm') {
+      add('box', '#6b1c18', [0.32, 0.42, 0.07], [0, 1.4, 0.035]);
+      add('box', '#d9d9d9', [0.14, 0.14, 0.02], [0, 1.36, 0.075]);
+      light = add('box', KIND_COLOR.alarm, [0.08, 0.05, 0.03], [0, 1.55, 0.08]);
+    } else if (kind === 'intel') {
+      // a document folder on whatever it sits on
+      add('box', '#c9b98a', [0.32, 0.04, 0.24], [0, 0.02, 0]);
+      light = add('box', KIND_COLOR.intel, [0.08, 0.03, 0.08], [0.1, 0.05, 0.06]);
+    } else if (kind === 'charge') {
+      add('box', '#3a3f45', [0.5, 0.9, 0.5], [0, 0.45, 0]);
+      light = add('box', KIND_COLOR.charge, [0.12, 0.08, 0.02], [0, 0.75, 0.26]);
+    } else if (kind === 'hide' || kind === 'body' || kind === 'door' || kind === 'vip' || kind === 'revive') {
+      // no visuals
+    } else if (kind === 'terminal') {
       add('box', '#3a4048', [0.7, 1.1, 0.45], [0, 0.55, 0]);
       add('box', '#1c1f24', [0.6, 0.4, 0.05], [0, 0.95, 0.24]);
       light = add('box', '#3fc1ff', [0.5, 0.3, 0.02], [0, 0.95, 0.27]);
@@ -62,22 +104,39 @@ export class Interactables {
 
   setEnabled(it: Interactable, on: boolean): void {
     it.enabled = on;
-    if (it.light) this.parts.setColor(it.light, on ? (it.kind === 'extract' ? '#4fdc7c' : it.kind === 'cache' ? '#ffd23f' : '#3fc1ff') : '#2a2f36');
+    if (it.light) this.parts.setColor(it.light, on ? KIND_COLOR[it.kind] : '#2a2f36');
   }
 
-  /** Nearest enabled interactable within reach of `feet`. */
-  nearest(feet: Vector3, reach = 1.8): Interactable | null {
+  /** Indicator colour (switch: lamps on / off). */
+  setIndicator(it: Interactable, hex: string): void {
+    if (it.light) this.parts.setColor(it.light, hex);
+  }
+
+  /**
+   * Nearest enabled interactable within reach of `feet` (each item's own reach when it has one); `only`
+   * restricts to one kind. Hiding spots are only offered through `only` (with a body on the shoulder).
+   */
+  nearest(feet: Vector3, reach = 1.8, only?: InteractKind): Interactable | null {
     let best: Interactable | null = null;
-    let bd = reach;
+    let bd = Infinity;
     for (const it of this.items) {
       if (!it.enabled || it.done || it.kind === 'extract') continue;
+      if (only ? it.kind !== only : it.kind === 'hide') continue;
       const d = hyp2(it.pos.x - feet.x, it.pos.z - feet.z);
-      if (d < bd && Math.abs(it.pos.y - feet.y) < 1.5) {
+      if (d < (it.reach ?? reach) && d < bd && Math.abs(it.pos.y - feet.y) < 1.5) {
         bd = d;
         best = it;
       }
     }
     return best;
+  }
+
+  remove(it: Interactable): void {
+    const k = this.items.indexOf(it);
+    if (k < 0) return;
+    this.items.splice(k, 1);
+    for (const p of it.parts) p.dispose();
+    it.node.dispose();
   }
 
   update(dt: number): void {

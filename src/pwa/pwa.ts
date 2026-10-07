@@ -41,6 +41,16 @@ export async function enterFullscreenLandscape(): Promise<void> {
   }
 }
 
+/** Desktop: fullscreen on / off (no orientation lock). Must be called from a user gesture. */
+export async function toggleFullscreen(): Promise<void> {
+  try {
+    if (document.fullscreenElement) await document.exitFullscreen();
+    else await document.documentElement.requestFullscreen({ navigationUI: 'hide' });
+  } catch {
+    /* not supported / denied */
+  }
+}
+
 /** Shows a "rotate your device" overlay while in portrait on touch devices. */
 export function setupRotateOverlay(): void {
   const el = document.getElementById('rotate-overlay');
@@ -61,9 +71,23 @@ export function suppressBrowserGestures(): void {
   document.addEventListener(
     'touchmove',
     (e) => {
-      if ((e.target as HTMLElement | null)?.closest('.scrollable')) return;
+      if (canScroll(e.target as HTMLElement | null)) return;
       e.preventDefault();
     },
     { passive: false },
   );
+}
+
+/** A touch drag may scroll when it starts inside a `.scrollable` element or any element that overflows and
+ *  scrolls (every menu list, tab body and grid), so long menus scroll by touch; anything else is the game's. */
+function canScroll(el: HTMLElement | null): boolean {
+  for (let n = el; n && n !== document.body; n = n.parentElement) {
+    if (n.classList.contains('scrollable')) return true;
+    if (n.classList.contains('touch-layer') || n.tagName === 'CANVAS') return false;
+    if (n.scrollHeight > n.clientHeight + 1 || n.scrollWidth > n.clientWidth + 1) {
+      const s = getComputedStyle(n);
+      if (s.overflowY === 'auto' || s.overflowY === 'scroll' || s.overflowX === 'auto' || s.overflowX === 'scroll') return true;
+    }
+  }
+  return false;
 }

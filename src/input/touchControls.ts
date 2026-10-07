@@ -24,10 +24,16 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   action: { id: 'action', action: null, size: 74, icon: 'interact', label: 'Use' },
   crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch (toggle)' },
   swap: { id: 'swap', action: 'swapNext', size: 56, icon: 'swap', label: 'Swap weapon' },
-  grenade: { id: 'grenade', action: 'grenade', size: 56, icon: 'grenade', label: 'Grenade' },
+  grenade: { id: 'grenade', action: 'grenade', size: 56, icon: 'grenade', label: 'Gadget (hold to aim, release to throw)' },
+  gadgets: { id: 'gadgets', action: 'gadgetWheel', size: 56, icon: 'wheel', label: 'Gadget wheel' },
   dash: { id: 'dash', action: 'dash', size: 56, icon: 'dash', label: 'Sprint (toggle)' },
   shoulder: { id: 'shoulder', action: 'shoulderSwap', size: 46, icon: 'shoulder', label: 'Swap shoulder' },
   pause: { id: 'pause', action: 'pause', size: 44, icon: 'pause', label: 'Pause' },
+  vision: { id: 'vision', action: 'vision', size: 56, icon: 'goggles', label: 'Goggles (night vision / sonar)' },
+  mark: { id: 'mark', action: 'mark', size: 56, icon: 'mark', label: 'Mark (while aiming)' },
+  execute: { id: 'execute', action: 'execute', size: 76, icon: 'execute', label: 'Execute (when ready)' },
+  takedown: { id: 'takedown', action: 'interact', size: 72, icon: 'interact', label: 'Takedown (when on offer: tap knocks out, hold is lethal)' },
+  ping: { id: 'ping', action: 'ping', size: 56, icon: 'mark', label: 'Ping (co-op)' },
 };
 
 /** What the contextual action button does right now. */

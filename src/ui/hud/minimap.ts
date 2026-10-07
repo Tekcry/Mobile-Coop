@@ -40,7 +40,7 @@ export class Minimap {
     g.fillStyle = 'rgba(30,38,48,0.85)';
     g.fillRect(0, 0, w, hgt);
     // draw boxes by height: tall = light, low = mid
-    const sorted = [...level.boxes].filter((p) => p.visible !== false && p.s[1] > 0.3 && p.c[1] + p.s[1] / 2 > 0.4).sort((a, b2) => a.c[1] + a.s[1] / 2 - (b2.c[1] + b2.s[1] / 2));
+    const sorted = [...level.boxes].filter((p) => p.visible !== false && !p.detail && p.s[1] > 0.3 && p.c[1] + p.s[1] / 2 > 0.4).sort((a, b2) => a.c[1] + a.s[1] / 2 - (b2.c[1] + b2.s[1] / 2));
     for (const p of sorted) {
       const top = p.c[1] + p.s[1] / 2;
       g.fillStyle = top > 2.2 ? 'rgba(200,210,220,0.85)' : top > 1 ? 'rgba(150,160,170,0.8)' : 'rgba(110,120,130,0.7)';

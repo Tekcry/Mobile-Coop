@@ -1,3 +1,4 @@
+import { emptyKinds } from '../src/ai/enemyDefs';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
 import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES } from '../src/net/protocol';
@@ -21,6 +22,14 @@ describe('net message validation', () => {
     expect(parseMessage({ t: 'pstate', s: { ...ps, x: Number.NaN } })).toBeNull();
     expect(parseMessage({ t: 'start', mode: 'battle-royale', map: 'depot', seed: 1, difficulty: 'normal' })).toBeNull();
   });
+  it('carries the weather choice (3.0), unknown values fall back to clear', () => {
+    const a = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', weather: 'rain' });
+    expect(a && a.t === 'start' && a.weather).toBe('rain');
+    const b = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', weather: 'blizzard' });
+    expect(b && b.t === 'start' && b.weather).toBe('clear');
+    const c = parseMessage({ t: 'lobby', players: [], mode: 'wave', map: 'warehouse', difficulty: 'normal', phase: 'lobby', weather: 'fog' });
+    expect(c && c.t === 'lobby' && c.weather).toBe('fog');
+  });
   it('clamps numbers to sane ranges', () => {
     const m = parseMessage({ t: 'pstate', s: { ...ps, x: 1e9, hp: 9999, speed: -4, pitch: 9 } });
     expect(m && m.t === 'pstate' && m.s).toMatchObject({ x: 400, hp: 100, speed: 0, pitch: 1.6 });
@@ -32,7 +41,7 @@ describe('net message validation', () => {
     expect(m.name).not.toMatch(/[<>]/);
     expect(m.name.length).toBeLessThanOrEqual(16);
     expect(m.tag.color).toBe('#ff8a1e');
-    expect(m.look.hair).toBe('buzz');
+    expect(m.look.hair).toBe(defaultLook().hair);
     expect(parseMessage({ t: 'pstate', s: { ...ps, id: '../../etc' } })).toBeNull();
   });
   it('loadout: known weapons only, no repeats, capped', () => {
@@ -59,12 +68,26 @@ describe('net message validation', () => {
     expect(m.stats.won).toBe(false);
     expect(m.stats.waves).toBe(200);
     expect(m.stats.score).toBe(0);
-    expect(m.stats.players.me).toEqual({ kills: 2000, headshots: 3, byKind: { grunt: 5, runner: 0, heavy: 0 }, weaponKills: { rifle: 4 } });
+    expect(m.stats.players.me).toEqual({ kills: 2000, headshots: 3, byKind: { ...emptyKinds(), grunt: 5, runner: 0, heavy: 0 }, weaponKills: { rifle: 4 } });
   });
   it('events validate per kind', () => {
     const m = parseMessage({ t: 'ev', events: [{ e: 'boom', x: 1, y: 0, z: 1, r: 99 }, { e: 'banner', title: '<script>', sub: 'ok' }, { e: 'nuke' }, { e: 'kill', enemy: 'e1', kind: 'heavy', by: 'p1', head: true }] });
     expect(m?.t === 'ev' && m.events.map((e) => e.e)).toEqual(['boom', 'banner', 'kill']);
     expect(m?.t === 'ev' && m.events[0]).toMatchObject({ r: 12 });
+  });
+  it('pings, gadgets, execute shots and kept bodies', () => {
+    expect(parseMessage({ t: 'ping', x: 1, y: 0, z: 2, target: 'e4' })).toEqual({ t: 'ping', x: 1, y: 0, z: 2, target: 'e4' });
+    expect(parseMessage({ t: 'ping', x: 1e9, y: 0, z: 2 })).toMatchObject({ x: 400, target: '' });
+    expect(parseMessage({ t: 'ping', x: 'a', y: 0, z: 2 })).toBeNull();
+    expect(parseMessage({ t: 'gadget', kind: 'gas', x: 1, y: 0, z: 2 })).toEqual({ t: 'gadget', kind: 'gas', x: 1, y: 0, z: 2 });
+    expect(parseMessage({ t: 'gadget', kind: 'frag', x: 1, y: 0, z: 2 })).toBeNull();
+    const ev = parseMessage({ t: 'ev', events: [{ e: 'ping', player: 'p1', x: 0, y: 0, z: 0 }, { e: 'gadget', player: 'p1', kind: 'emp', x: 0, y: 0, z: 0 }, { e: 'gadget', player: 'p1', kind: 'nuke', x: 0, y: 0, z: 0 }] });
+    expect(ev?.t === 'ev' && ev.events.map((e) => e.e)).toEqual(['ping', 'gadget']);
+    const shot = { t: 'shot', w: 'rifle', ox: 0, oy: 1, oz: 0, dx: 0, dy: 0, dz: 1, target: 'e3', part: 'head', rt: 10, dist: 12 };
+    expect(parseMessage({ ...shot, ex: true })).toMatchObject({ ex: true });
+    expect(parseMessage({ ...shot, ex: 'yes' })).toMatchObject({ ex: false });
+    const snap = parseMessage({ t: 'snap', time: 1, players: [], enemies: [], obj: '', info: '', pk: 0, bodies: ['e1', '../x', 7, 'e2'] });
+    expect(snap?.t === 'snap' && snap.bodies).toEqual(['e1', 'e2']);
   });
 });
 
@@ -193,7 +216,8 @@ describe('host validation', () => {
         subtitle: '',
         waves: 50,
         score: 1e7,
-        players: { me: { kills: 500, headshots: 900, byKind: { grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, smg: 400 } } },
+        players: { me: { kills: 500, headshots: 900, byKind: { ...emptyKinds(), grunt: 400, runner: 400, heavy: 400 }, weaponKills: { rifle: 400, smg: 400 } } },
+        winner: '',
       },
       60,
     );
@@ -204,15 +228,15 @@ describe('host validation', () => {
     expect(me.byKind.grunt + me.byKind.runner + me.byKind.heavy).toBeLessThanOrEqual(me.kills);
     expect((me.weaponKills.rifle ?? 0) + (me.weaponKills.smg ?? 0)).toBeLessThanOrEqual(me.kills);
     expect(end.score).toBeLessThan(1e7);
-    const honest = clampEnd({ won: false, subtitle: '', waves: 2, score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } } }, 120);
+    const honest = clampEnd({ won: false, subtitle: '', waves: 2, score: 1500, players: { me: { kills: 9, headshots: 2, byKind: { ...emptyKinds(), grunt: 9, runner: 0, heavy: 0 }, weaponKills: { rifle: 9 } } }, winner: '' }, 120);
     expect(honest.score).toBe(1500);
     expect(honest.players.me!.kills).toBe(9);
   });
   it('rewards use only this player’s line of the host report', () => {
-    const s = coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 3, score: 900, players: { a: { kills: 4, headshots: 1, byKind: { grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } } }, 'b');
+    const s = coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 3, score: 900, players: { a: { kills: 4, headshots: 1, byKind: { ...emptyKinds(), grunt: 4, runner: 0, heavy: 0 }, weaponKills: {} }, b: { kills: 7, headshots: 0, byKind: { ...emptyKinds(), grunt: 7, runner: 0, heavy: 0 }, weaponKills: {} } }, winner: '' }, 'b');
     expect(s.kills).toBe(7);
     expect(s.waves).toBe(3);
-    expect(coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 1, score: 0, players: {} }, 'zz').kills).toBe(0);
+    expect(coopSessionStats(emptyStats('wave', 'depot'), { won: false, subtitle: '', waves: 1, score: 0, players: {}, winner: '' }, 'zz').kills).toBe(0);
   });
   it('mode info round-trips through plain text', () => {
     const html = '<span>Wave <b>3</b></span><span>Hostiles <b>5</b></span><span>Score <b>1200</b></span>';
@@ -265,10 +289,10 @@ describe('net session', () => {
     expect(host.allReady).toBe(true);
     let started: unknown = null;
     cli.events.on('start', (s) => (started = s));
-    host.setSettings('sandbox', 'proving', 'hard');
+    host.setSettings('sandbox', 'proving', 'realistic');
     expect(cli.mode).toBe('sandbox');
     host.startMatch();
-    expect(started).toMatchObject({ mode: 'sandbox', map: 'proving', difficulty: 'hard' });
+    expect(started).toMatchObject({ mode: 'sandbox', map: 'proving', difficulty: 'realistic' });
   });
   it('late joiners get the running match; leavers are announced', () => {
     const h = hub();
@@ -278,7 +302,7 @@ describe('net session', () => {
     let got = false;
     late.events.on('start', () => (got = true));
     // the late client subscribed after construction: a re-hello (reconnect) triggers the start again
-    late.transport.send({ t: 'hello', v: 1, name: 'Late', tag: {}, look: {} });
+    late.transport.send({ t: 'hello', v: 2, name: 'Late', tag: {}, look: {} });
     expect(got).toBe(true);
     let left = '';
     host.events.on('peerLeft', (p) => (left = p.name));
@@ -309,7 +333,7 @@ describe('net session', () => {
     const fifth = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
     fifth.events.on('full', () => (full = true));
-    fifth.transport.send({ t: 'hello', v: 1, name: 'X', tag: {}, look: {} }, 'H');
+    fifth.transport.send({ t: 'hello', v: 2, name: 'X', tag: {}, look: {} }, 'H');
     expect(host.players.size).toBe(4);
     expect(full).toBe(true);
   });

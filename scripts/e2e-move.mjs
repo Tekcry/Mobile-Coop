@@ -141,9 +141,14 @@ try {
     await tp(x, y, z, yaw);
     await settle(0.5);
     const hint = await page.evaluate(() => window.__app.current.traversal.hint?.kind ?? 'none');
+    // sample the traversal kind every frame from the press on (a short drop can finish inside the press under load)
+    await page.evaluate(() => {
+      window.__kinds = new Set();
+      window.__kindsT = setInterval(() => window.__kinds.add(window.__app.current.traversal.kind), 4);
+    });
     await press(page, BTN.Y);
-    const kinds = new Set();
-    for (let i = 0; i < 14; i++) { await sim(0.1); kinds.add(await page.evaluate(() => window.__app.current.traversal.kind)); }
+    for (let i = 0; i < 14; i++) { await sim(0.1); await page.evaluate(() => window.__kinds.add(window.__app.current.traversal.kind)); }
+    const kinds = new Set(await page.evaluate(() => { clearInterval(window.__kindsT); return [...window.__kinds]; }));
     await settle(0.8);
     const q = await P();
     assert(hint === expectKind && kinds.has(expectKind) && check(q), `${label} (hint ${hint}, at ${q.x.toFixed(2)},${q.y.toFixed(2)},${q.z.toFixed(2)})`);

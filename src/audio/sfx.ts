@@ -1,3 +1,4 @@
+import type { Surface } from '../world/surfaces';
 import type { AudioEngine, Bus } from './audioEngine';
 
 /** Procedural sound effects. Each function schedules a short node graph and lets it free itself. */
@@ -142,9 +143,114 @@ export class Sfx {
     this.burst('sfx', 0.5 * gain, pan, 'bandpass', 500, 1.2, 0.18, 1800);
   }
 
-  footstep(gain: number, pan = 0): void {
+  /** A footstep on a surface: dull concrete, ringing metal / grate, gravel crunch, soft carpet, wood knock. */
+  footstep(gain: number, pan = 0, surface: Surface = 'concrete'): void {
     if (!this.a.allow('step', 0.18)) return;
-    this.burst('sfx', 0.08 * gain, pan, 'lowpass', 500 + Math.random() * 200, 1, 0.06);
+    const r = Math.random();
+    switch (surface) {
+      case 'metal':
+      case 'grate':
+        this.burst('sfx', 0.09 * gain, pan, 'bandpass', 1500 + r * 400, 3, 0.07);
+        this.tone('sfx', 0.03 * gain, pan, 'triangle', surface === 'metal' ? 620 + r * 60 : 900 + r * 80, 500, 0.12);
+        break;
+      case 'gravel':
+        this.burst('sfx', 0.1 * gain, pan, 'highpass', 1800 + r * 900, 0.7, 0.09);
+        break;
+      case 'carpet':
+        this.burst('sfx', 0.05 * gain, pan, 'lowpass', 320 + r * 80, 0.8, 0.05);
+        break;
+      case 'wood':
+        this.burst('sfx', 0.08 * gain, pan, 'bandpass', 380 + r * 90, 2, 0.08);
+        break;
+      default:
+        this.burst('sfx', 0.08 * gain, pan, 'lowpass', 500 + r * 200, 1, 0.06);
+    }
+  }
+
+  /** A bulb shot out / glass tinkle. */
+  glass(gain: number, pan = 0): void {
+    if (!this.a.allow('glass', 0.06)) return;
+    this.burst('sfx', 0.3 * gain, pan, 'highpass', 4200, 1.5, 0.22);
+    this.tone('sfx', 0.08 * gain, pan, 'sine', 3800, 3000, 0.12, 0.02);
+  }
+
+  /** A light switch / panel click. */
+  click(): void {
+    if (!this.a.allow('click', 0.08)) return;
+    this.burst('sfx', 0.22, 0, 'bandpass', 3200, 4, 0.025);
+  }
+
+  /** A door: a slow creak eased open, a bang when bashed, a latch click shutting. */
+  door(how: 'quiet' | 'bash' | 'enemy' | 'close', gain: number, pan: number): void {
+    if (!this.a.allow('door', 0.2)) return;
+    if (how === 'bash') {
+      this.burst('sfx', 0.6 * gain, pan, 'lowpass', 900, 0.8, 0.3, 140);
+      this.burst('sfx', 0.25 * gain, pan, 'bandpass', 2400, 2, 0.06);
+    } else if (how === 'close') {
+      this.burst('sfx', 0.25 * gain, pan, 'lowpass', 500, 1, 0.12, 160);
+      this.burst('sfx', 0.12 * gain, pan, 'bandpass', 3000, 5, 0.03);
+    } else {
+      // hinge creak: a scratchy rising saw
+      this.tone('sfx', 0.05 * gain, pan, 'sawtooth', how === 'enemy' ? 210 : 170, how === 'enemy' ? 300 : 250, how === 'enemy' ? 0.45 : 0.8, 0, 0.12);
+    }
+  }
+
+  /** Goggles down (whine up) / up (click). */
+  goggles(on: boolean): void {
+    if (!this.a.allow('goggles', 0.1)) return;
+    if (on) this.tone('ui', 0.06, 0, 'sine', 900, 4200, 0.35, 0, 0.05);
+    else this.burst('ui', 0.15, 0, 'bandpass', 2600, 4, 0.03);
+  }
+
+  /** Sonar pulse: a soft low ping with a falling tail. */
+  sonar(): void {
+    this.tone('ui', 0.12, 0, 'sine', 1300, 1250, 0.5, 0, 0.01);
+    this.tone('ui', 0.06, 0, 'sine', 650, 420, 0.9, 0.05, 0.05);
+  }
+
+  /** Gadgets: a flashbang crack, a gas hiss, an EMP zap, a noisemaker chirp, a feed static blip, a dart pop,
+   *  a beep (place / stick / select). */
+  gadget(kind: 'flash' | 'gas' | 'emp' | 'chirp' | 'feed' | 'dart' | 'beep', gain = 1): void {
+    if (!this.a.allow(`gadget-${kind}`, 0.06)) return;
+    switch (kind) {
+      case 'flash':
+        this.burst('sfx', 1.2 * gain, 0, 'highpass', 1800, 0.6, 0.6);
+        this.tone('sfx', 0.25 * gain, 0, 'sine', 3800, 3600, 2.2, 0.05, 0.05);
+        break;
+      case 'gas':
+        this.burst('sfx', 0.35 * gain, 0, 'highpass', 3000, 0.4, 1.6);
+        break;
+      case 'emp':
+        this.tone('sfx', 0.3 * gain, 0, 'square', 60, 1200, 0.45);
+        this.burst('sfx', 0.3 * gain, 0, 'bandpass', 5000, 3, 0.3);
+        break;
+      case 'chirp':
+        this.tone('sfx', 0.18 * gain, 0, 'square', 1800, 2400, 0.08);
+        this.tone('sfx', 0.18 * gain, 0, 'square', 1800, 2400, 0.08, 0.12);
+        break;
+      case 'feed':
+        this.burst('ui', 0.12 * gain, 0, 'bandpass', 2400, 0.6, 0.18);
+        break;
+      case 'dart':
+        this.burst('sfx', 0.2 * gain, 0, 'bandpass', 1400, 2, 0.06, 600);
+        break;
+      default:
+        this.tone('ui', 0.1 * gain, 0, 'sine', 1500, 1500, 0.06);
+    }
+  }
+
+  /** Enemy radio: a squelch and a two-tone chirp. */
+  radio(): void {
+    if (!this.a.allow('radio', 0.4)) return;
+    this.burst('sfx', 0.08, 0.2, 'bandpass', 2200, 1.2, 0.12);
+    this.tone('sfx', 0.05, 0.2, 'square', 1250, 1250, 0.05, 0.12);
+    this.tone('sfx', 0.05, 0.2, 'square', 950, 950, 0.05, 0.19);
+  }
+
+  /** A body thumps down. */
+  thud(gain = 1): void {
+    if (!this.a.allow('thud', 0.15)) return;
+    this.burst('sfx', 0.35 * gain, 0, 'lowpass', 260, 1, 0.18, 90);
   }
 
   windup(gain: number, pan: number): void {

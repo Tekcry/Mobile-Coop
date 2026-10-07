@@ -1,3 +1,4 @@
+import { defaultLook } from '../src/cosmetics/avatarLook';
 import 'fake-indexeddb/auto';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { migrate, detectVersion, SaveVersionError } from '../src/save/migrations';
@@ -34,7 +35,7 @@ describe('save migrations', () => {
     expect(s.weapons.rifle.upgrades).toEqual({ damage: 2, magazine: 1, recoil: 0, reload: 3 });
     // out-of-range upgrade clamped
     expect(s.weapons.smg.upgrades.damage).toBe(5);
-    expect(s.avatar.body).toBe('average');
+    expect(s.avatar.body).toBe(defaultLook().body);
     expect(s.emotes).toHaveLength(4);
   });
   it('v2 -> v3 adds cosmetics without losing data', () => {
@@ -69,6 +70,45 @@ describe('save migrations', () => {
     expect(s.weapons.rifle.kills).toBe(12);
   });
 
+  it('v4 -> v5 adds empty mission records; records are sanitised', () => {
+    const V4 = {
+      version: 4,
+      createdAt: 1,
+      updatedAt: 2,
+      profile: { name: 'Vet', xp: 900, credits: 120, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, stats: { matches: 3, wins: 0, kills: 40, headshots: 9, bestWave: 4, timePlayed: 900 } },
+      unlocks: ['weapon:rifle', 'weapon:pistol', 'camo:factory'],
+      weapons: { rifle: { upgrades: { damage: 1, magazine: 0, recoil: 0, reload: 0 }, kills: 12, attachments: [], camo: 'factory' } },
+      loadout: { primary: 'rifle', secondary: 'pistol' },
+      avatar: { body: 'broad', head: 'oval', hair: 'swept', torso: 'vest', legs: 'cargo', backpack: 'bedroll', helmet: 'headset', pattern: 'solid', colors: { skin: '#c68a5e' } },
+      emotes: ['wave', 'salute', '', ''],
+    };
+    const { data, from } = migrate(V4);
+    expect(from).toBe(4);
+    const s = sanitizeSave(data);
+    expect(s.missions).toEqual({});
+    expect(s.profile.xp).toBe(900);
+    const bad = sanitizeSave({ ...data, missions: { 'embassy-pouch': { rating: 9, score: -5, ghost: 10 }, 'BAD ID!': { rating: 1 } } });
+    expect(bad.missions['embassy-pouch']).toMatchObject({ rating: 3, score: 0, ghost: 10, plays: 0 });
+    expect(bad.missions['BAD ID!']).toBeUndefined();
+  });
+
+  it('every old version (v1 .. v5 literal saves) reaches the current one with the 2.0 kit', () => {
+    const base = { createdAt: 1, updatedAt: 2, profile: { name: 'Old', xp: 500, credits: 77, tag: { title: 'Rookie', color: '#ff8a1e', emblem: 'chevron' }, stats: { matches: 1, wins: 0, kills: 3, headshots: 1, bestWave: 1, timePlayed: 60 } }, unlocks: ['weapon:rifle', 'weapon:pistol'], weapons: { rifle: { upgrades: { damage: 1, magazine: 0, recoil: 0, reload: 0 }, kills: 2 } }, loadout: { primary: 'rifle', secondary: 'pistol' } };
+    const olds: Record<string, unknown>[] = [V1, { ...base, version: 2 }, { ...base, version: 3, emotes: ['wave', '', '', ''] }, { ...base, version: 4, emotes: ['wave', '', '', ''] }, { ...base, version: 5, emotes: ['wave', '', '', ''], missions: {} }];
+    for (const o of olds) {
+      const { data, from } = migrate(o);
+      expect(from).toBe(o.version);
+      const sv = sanitizeSave(data);
+      expect(sv.version).toBe(SAVE_VERSION);
+      expect(sv.profile.xp).toBeGreaterThan(0);
+      expect(sv.suit.owned).toBeDefined();
+      expect(sv.hq).toBeDefined();
+      expect(sv.presets).toHaveLength(3);
+      expect(sv.missions).toEqual({});
+      expect(sv.unlocks).toContain('weapon:rifle');
+    }
+  });
+
   it('current saves pass through untouched', () => {
     const d = defaultSave(123);
     d.profile.xp = 777;
@@ -91,9 +131,20 @@ describe('save migrations', () => {
     expect(s.profile.credits).toBe(0);
     expect(s.profile.xp).toBe(0);
     expect(s.profile.name).not.toMatch(/[<>]/);
-    // sniper not unlocked -> falls back
-    expect(s.loadout.primary).toBe('rifle');
-    expect(s.loadout.secondary).toBe('pistol');
+    // sniper not unlocked -> falls back to the issued kit
+    expect(s.loadout.primary).toBe('pistolSd');
+    expect(s.loadout.secondary).toBe('rifle');
+  });
+  it('v6 -> v7: the issued 552 + P45 becomes 9mm SD + 552; a chosen kit stays', () => {
+    const v6 = { ...defaultSave(5), version: 6, loadout: { primary: 'rifle', secondary: 'pistol' }, presets: [{ name: 'Ghost', primary: 'rifle', secondary: 'pistol', gadget: 'gas' }, { name: 'Panther', primary: 'rifle', secondary: 'pistol', gadget: 'flash' }, { name: 'Assault', primary: 'rifle', secondary: 'pistol', gadget: 'frag' }], unlocks: ['weapon:rifle', 'weapon:pistol'] };
+    const s = sanitizeSave(migrate(v6).data);
+    expect(s.version).toBe(7);
+    expect(s.unlocks).toContain('weapon:pistolSd');
+    expect(s.loadout).toEqual({ primary: 'pistolSd', secondary: 'rifle' });
+    expect(s.presets[0]!.primary).toBe('pistolSd');
+    expect(s.presets[2]!.primary).toBe('rifle');
+    const chosen = sanitizeSave(migrate({ ...v6, unlocks: ['weapon:rifle', 'weapon:pistol', 'weapon:smg'], loadout: { primary: 'smg', secondary: 'pistol' } }).data);
+    expect(chosen.loadout).toEqual({ primary: 'smg', secondary: 'pistol' });
   });
 });
 

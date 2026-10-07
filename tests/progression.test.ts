@@ -1,3 +1,4 @@
+import { emptyKinds } from '../src/ai/enemyDefs';
 import { describe, expect, it } from 'vitest';
 import { levelFromXp, masteryLevel, MAX_LEVEL, totalXpForLevel, xpToNext } from '../src/progression/levels';
 import { computeRewards } from '../src/progression/rewards';
@@ -34,7 +35,7 @@ describe('levels', () => {
 
 describe('rewards', () => {
   const s = emptyStats('wave', 'depot');
-  s.byKind = { grunt: 10, runner: 4, heavy: 1 };
+  s.byKind = { ...emptyKinds(), grunt: 10, runner: 4, heavy: 1 };
   s.kills = 15;
   s.headshots = 3;
   s.waves = 3;
@@ -60,13 +61,13 @@ describe('rewards', () => {
     expect(computeRewards(c, 'normal').lines).toEqual([]);
   });
   it('hard pays more than normal, easy less', () => {
-    expect(computeRewards(s, 'hard').xp).toBeGreaterThan(computeRewards(s, 'normal').xp);
-    expect(computeRewards(s, 'easy').xp).toBeLessThan(computeRewards(s, 'normal').xp);
+    expect(computeRewards(s, 'realistic').xp).toBeGreaterThan(computeRewards(s, 'normal').xp);
+    expect(computeRewards(s, 'rookie').xp).toBeLessThan(computeRewards(s, 'normal').xp);
   });
   it('sandbox pays nothing; nonsense input is clamped', () => {
     expect(computeRewards(emptyStats('sandbox', 'proving'), 'normal').xp).toBe(0);
     const bad = emptyStats('mission', 'depot');
-    bad.byKind = { grunt: -5, runner: Number.NaN, heavy: 1e9 };
+    bad.byKind = { ...emptyKinds(), grunt: -5, runner: Number.NaN, heavy: 1e9 };
     bad.objectives = 1e6;
     const r = computeRewards(bad, 'normal');
     expect(r.lines.find((l) => l.label === 'Kills')?.xp).toBe(500 * 260);
@@ -127,7 +128,7 @@ describe('profile operations', () => {
   it('applySession awards xp/credits, level-ups, mastery and lifetime stats', () => {
     const s = defaultSave();
     const st = emptyStats('wave', 'depot');
-    st.byKind = { grunt: 12, runner: 0, heavy: 0 };
+    st.byKind = { ...emptyKinds(), grunt: 12, runner: 0, heavy: 0 };
     st.kills = 12;
     st.waves = 2;
     st.weaponKills = { rifle: 12 };
@@ -162,8 +163,8 @@ describe('profile operations', () => {
     buyUnlock(s, 'att:grip');
     expect(setAttachment(s, 'rifle', 'grip', true)).toBe(true);
     const lo = loadoutEntries(s, 'wave');
-    expect(lo.map((e) => e.id)).toEqual(['rifle', 'pistol']);
-    expect(lo[0]!.mods!.recoil).toBeCloseTo(0.88);
+    expect(lo.map((e) => e.id)).toEqual(['pistolSd', 'rifle']);
+    expect(lo[1]!.mods!.recoil).toBeCloseTo(0.88);
     expect(buyUpgrade(s, 'smg', 'damage').ok).toBe(false); // smg locked
   });
   it('setLoadout swaps instead of duplicating', () => {

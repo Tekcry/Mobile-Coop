@@ -51,11 +51,11 @@ describe('gamepad mapping', () => {
     expect(f.buttons.pause).toBe(true);
     expect(f.buttons.fire).toBeUndefined();
   });
-  it('B is crouch in game and back in menus; Y traverse + interact; d-pad quick items', () => {
-    const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.LEFT]: 1 }), tuning);
+  it('B is crouch in game and back in menus; Y traverse + interact; d-pad gadget, wheel, ping and emote', () => {
+    const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.DOWN]: 1, [PAD.LEFT]: 1 }), tuning);
     expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact && f.buttons.jump).toBe(true);
     expect(f.buttons.cover).toBeUndefined();
-    expect(f.buttons.quick1 && f.buttons.quick4 && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
+    expect(f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.ping && !f.buttons.quick4 && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
   });
   it('triggers: RT fires, LT aims, respecting dead zone', () => {
     expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, ads: true });
@@ -135,5 +135,41 @@ describe('NavRepeater', () => {
     expect(r.update(true, 0.52)).toBe(true);
     expect(r.update(false, 0.6)).toBe(false);
     expect(r.update(true, 0.61)).toBe(true);
+  });
+});
+
+describe('holds and the drop alias', () => {
+  it('crouch also raises drop (same holders); releasing either source releases both', () => {
+    const s = new InputState();
+    s.set('pad', 'crouch', true);
+    expect(s.pressed('drop')).toBe(true);
+    expect(s.down('drop')).toBe(true);
+    s.set('pad', 'crouch', false);
+    expect(s.down('drop')).toBe(false);
+    expect(s.buttons.drop.released).toBe(true);
+  });
+
+  it('hold time and progress; interactHold goes down after the hold delay and up on release', () => {
+    const s = new InputState();
+    s.set('pad', 'interact', true);
+    s.tick(0.1);
+    expect(s.heldTime('interact')).toBeCloseTo(0.1);
+    expect(s.down('interactHold')).toBe(false);
+    s.tick(0.25);
+    expect(s.down('interactHold')).toBe(true);
+    expect(s.pressed('interactHold')).toBe(true);
+    expect(s.holdProgress('interact', 1, 0.3)).toBeCloseTo(0.05);
+    expect(s.holdProgress('interact', 0.01)).toBe(1);
+    s.set('pad', 'interact', false);
+    s.tick(0.016);
+    expect(s.down('interactHold')).toBe(false);
+    expect(s.heldTime('interact')).toBe(0);
+    // a quick tap never becomes a hold
+    s.consumeEdges();
+    s.set('pad', 'interact', true);
+    s.tick(0.1);
+    s.set('pad', 'interact', false);
+    s.tick(0.3);
+    expect(s.pressed('interactHold')).toBe(false);
   });
 });

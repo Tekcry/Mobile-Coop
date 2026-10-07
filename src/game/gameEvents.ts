@@ -9,7 +9,27 @@ export interface GameEvents {
   /** Clear mode: every hostile down (the only feedback the mode gives). */
   operationComplete: Record<string, never>;
   alarm: Record<string, never>;
+  /** A light was shot out / switched (stealth). */
+  lightOut: { x: number; y: number; z: number; shot: boolean };
+  lightSwitch: { on: boolean };
+  /** An enemy found a body. */
+  bodyFound: { x: number; z: number };
+  /** The player picked up / put down / hid a body. */
+  body: { action: 'pickup' | 'drop' | 'hide' };
+  /** A takedown started / finished / was broken off; Mark & Execute. */
+  takedown: { phase: 'start' | 'done' | 'abort'; lethal: boolean; kind: string };
+  mark: { on: boolean };
+  execute: { phase: 'start' | 'shot' | 'done' };
+  /** Goggles switched (audio) / a sonar pulse went out. */
+  vision: { mode: 'off' | 'night' | 'sonar' };
+  sonar: Record<string, never>;
+  /** A door opened / closed (audio). */
+  door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number };
+  /** Gadgets (audio): thrown, gone off, placed, stuck, a pulse / ping, a dart, a remote view opened / closed. */
+  gadget: { kind: string; phase: 'select' | 'throw' | 'detonate' | 'place' | 'stick' | 'pulse' | 'dart' | 'view' | 'exit' | 'destroyed' | 'trigger' };
   pickup: { kind: PickupKind };
+  /** An enemy callout (a radio line chirps). */
+  bark: { radio: boolean };
   emote: { id: string };
   /** Coop: a shot by a teammate or a host-simulated enemy (audio only). */
   remoteShot: { cls: string; x: number; y: number; z: number };

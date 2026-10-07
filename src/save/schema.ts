@@ -4,9 +4,10 @@ import { MAX_UPGRADE, type WeaponUpgrades } from '../weapons/weaponStats';
 import { MAX_LEVEL, totalXpForLevel } from '../progression/levels';
 import { sanitizeAttachments } from '../progression/attachments';
 import { STARTER_UNLOCKS } from '../progression/unlocks';
+import { CHALLENGES, defaultHq, defaultPresets, defaultSuit, HQ, HQ_IDS, PRESETS, SUIT, SUIT_PIECES, type HqLevels, type LoadoutPreset, type SuitLoadout } from '../progression/suit';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 4;
+export const SAVE_VERSION = 7;
 
 export interface WeaponProgress {
   upgrades: WeaponUpgrades;
@@ -22,6 +23,17 @@ export interface LifetimeStats {
   headshots: number;
   bestWave: number;
   timePlayed: number;
+}
+
+/** Best result per Infiltration mission (rating 0-3 stars, play-style points of that run). */
+export interface MissionRecord {
+  rating: number;
+  score: number;
+  ghost: number;
+  panther: number;
+  assault: number;
+  plays: number;
+  wins: number;
 }
 
 export interface PlayerTag {
@@ -47,6 +59,17 @@ export interface SaveData {
   avatar: AvatarLook;
   /** Equipped emotes (4 quick slots). */
   emotes: string[];
+  /** Infiltration records by mission id (v5). */
+  missions: Record<string, MissionRecord>;
+  /** Suit: highest tier owned and the tier worn per piece (v6). */
+  suit: { owned: SuitLoadout; worn: SuitLoadout };
+  /** HQ upgrade levels (v6). */
+  hq: HqLevels;
+  /** Challenge progress and the ones paid out (v6). */
+  challenges: { progress: Record<string, number>; done: string[] };
+  /** Three loadout presets and the one in use (v6). */
+  presets: LoadoutPreset[];
+  preset: number;
 }
 
 export function defaultWeaponProgress(): WeaponProgress {
@@ -69,9 +92,15 @@ export function defaultSave(now = Date.now()): SaveData {
     },
     unlocks: [...STARTER_UNLOCKS, 'emote:wave', 'emote:salute', 'tag:Rookie', 'camo:factory', 'pattern:solid'],
     weapons,
-    loadout: { primary: 'rifle', secondary: 'pistol' },
+    loadout: { primary: 'pistolSd', secondary: 'rifle' },
     avatar: defaultLook(),
     emotes: ['wave', 'salute', '', ''],
+    missions: {},
+    suit: { owned: defaultSuit(), worn: defaultSuit() },
+    hq: defaultHq(),
+    challenges: { progress: {}, done: [] },
+    presets: defaultPresets(),
+    preset: 0,
   };
 }
 
@@ -82,6 +111,7 @@ const int = (v: unknown, lo: number, hi: number, d: number): number =>
 const str = (v: unknown, max: number, d: string): string => (typeof v === 'string' ? v.slice(0, max) : d);
 const HEX = /^#[0-9a-f]{6}$/i;
 const isWeapon = (v: unknown): v is WeaponId => WEAPON_IDS.includes(v as WeaponId);
+const unlocksRaw = (raw: Obj): string[] => (Array.isArray(raw.unlocks) ? raw.unlocks.filter((x): x is string => typeof x === 'string') : []).concat(STARTER_UNLOCKS);
 
 /** Clamp/repair a current-version save (after migration). Never throws. */
 export function sanitizeSave(raw: unknown): SaveData {
@@ -111,10 +141,55 @@ export function sanitizeSave(raw: unknown): SaveData {
   const unlocks = Array.isArray(raw.unlocks) ? [...new Set(raw.unlocks.filter((x): x is string => typeof x === 'string' && x.length < 64))] : [];
   for (const s of d.unlocks) if (!unlocks.includes(s)) unlocks.push(s);
   const lo = isObj(raw.loadout) ? raw.loadout : {};
-  let primary: WeaponId = isWeapon(lo.primary) ? lo.primary : 'rifle';
-  let secondary: WeaponId = isWeapon(lo.secondary) ? lo.secondary : 'pistol';
-  if (!unlocks.includes(`weapon:${primary}`)) primary = 'rifle';
-  if (!unlocks.includes(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'pistol' ? 'rifle' : 'pistol';
+  let primary: WeaponId = isWeapon(lo.primary) ? lo.primary : 'pistolSd';
+  let secondary: WeaponId = isWeapon(lo.secondary) ? lo.secondary : 'rifle';
+  if (!unlocks.includes(`weapon:${primary}`)) primary = 'pistolSd';
+  if (!unlocks.includes(`weapon:${secondary}`) || secondary === primary) secondary = primary === 'rifle' ? 'pistolSd' : 'rifle';
+  const missions: Record<string, MissionRecord> = {};
+  if (isObj(raw.missions)) {
+    for (const [id, r] of Object.entries(raw.missions).slice(0, 64)) {
+      if (!/^[a-z0-9-]{1,48}$/.test(id) || !isObj(r)) continue;
+      missions[id] = {
+        rating: int(r.rating, 0, 3, 0),
+        score: int(r.score, 0, 1e9, 0),
+        ghost: int(r.ghost, 0, 1e9, 0),
+        panther: int(r.panther, 0, 1e9, 0),
+        assault: int(r.assault, 0, 1e9, 0),
+        plays: int(r.plays, 0, 1e9, 0),
+        wins: int(r.wins, 0, 1e9, 0),
+      };
+    }
+  }
+  // v6: suit, HQ, challenges, presets
+  const rs = isObj(raw.suit) ? raw.suit : {};
+  const owned = defaultSuit();
+  const worn = defaultSuit();
+  const ro = isObj(rs.owned) ? rs.owned : {};
+  const rw2 = isObj(rs.worn) ? rs.worn : {};
+  for (const k of SUIT_PIECES) {
+    owned[k] = int(ro[k], 0, SUIT[k].length - 1, 0);
+    worn[k] = Math.min(owned[k], int(rw2[k], 0, SUIT[k].length - 1, 0));
+  }
+  const hq = defaultHq();
+  const rh = isObj(raw.hq) ? raw.hq : {};
+  for (const k of HQ_IDS) hq[k] = int(rh[k], 0, HQ[k].prices.length, 0);
+  const rc = isObj(raw.challenges) ? raw.challenges : {};
+  const rp = isObj(rc.progress) ? rc.progress : {};
+  const progress: Record<string, number> = {};
+  for (const c of CHALLENGES) progress[c.id] = int(rp[c.id], 0, 1e6, 0);
+  const done = Array.isArray(rc.done) ? [...new Set(rc.done.filter((x): x is string => typeof x === 'string' && CHALLENGES.some((c) => c.id === x)))] : [];
+  const presets = defaultPresets();
+  if (Array.isArray(raw.presets)) {
+    raw.presets.slice(0, PRESETS).forEach((p, i) => {
+      if (!isObj(p)) return;
+      presets[i] = {
+        name: str(p.name, 16, presets[i]!.name).replace(/[<>]/g, '') || presets[i]!.name,
+        primary: isWeapon(p.primary) && unlocksRaw(raw).includes(`weapon:${p.primary}`) ? p.primary : presets[i]!.primary,
+        secondary: isWeapon(p.secondary) && unlocksRaw(raw).includes(`weapon:${p.secondary}`) ? p.secondary : presets[i]!.secondary,
+        gadget: str(p.gadget, 16, presets[i]!.gadget),
+      };
+    });
+  }
   const emotes = Array.isArray(raw.emotes) ? raw.emotes.slice(0, 4).map((e) => (typeof e === 'string' ? e.slice(0, 24) : '')) : d.emotes;
   while (emotes.length < 4) emotes.push('');
   return {
@@ -144,5 +219,11 @@ export function sanitizeSave(raw: unknown): SaveData {
     loadout: { primary, secondary },
     avatar: sanitizeLook(raw.avatar),
     emotes,
+    missions,
+    suit: { owned, worn },
+    hq,
+    challenges: { progress, done },
+    presets,
+    preset: int(raw.preset, 0, PRESETS - 1, 0),
   };
 }

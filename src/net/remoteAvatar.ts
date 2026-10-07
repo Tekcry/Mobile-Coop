@@ -1,4 +1,4 @@
-import { Vector3 } from '../core/babylon';
+import { Vector3, type InstancedMesh } from '../core/babylon';
 import { CharacterRig } from '../player/characterRig';
 import { avatarFactory } from '../cosmetics/avatarFactory';
 import { playEmote } from '../cosmetics/emotes';
@@ -13,6 +13,7 @@ import type { Ballistics } from '../weapons/ballistics';
 import { SnapshotBuffer } from './interp';
 import { PF, type PlayerInfo, type PlayerState } from './protocol';
 import { hyp2 } from '../core/mathx';
+import { TEAM_COLORS } from './pvp';
 
 /**
  * Another player's body, rendered from interpolated states: rig animation from speed/flags,
@@ -47,7 +48,7 @@ export class RemoteAvatar {
     readonly info: PlayerInfo,
   ) {
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.75, `remote-${info.id}`);
-    for (const m of this.rig.parts) world.addShadowCaster(m);
+    for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.pouches = new GrenadePouches(world.parts, this.rig);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
     this.rig.setEnabled(false);
@@ -62,7 +63,7 @@ export class RemoteAvatar {
     let m = this.models.get(id);
     if (!m) {
       m = new WeaponModel(this.world.scene, this.world.parts, WEAPONS[id], DEFAULT_WEAPON_COLORS, this.rig.weaponPivot);
-      for (const part of m.parts) this.world.addShadowCaster(part);
+      for (const part of m.renderMeshes) this.world.addShadowCaster(part);
       this.models.set(id, m);
     }
     return m;
@@ -88,6 +89,18 @@ export class RemoteAvatar {
 
   emote(id: string): void {
     playEmote(this.rig, id);
+  }
+
+  private marker: InstancedMesh | null = null;
+
+  /** Team-mate marker (team deathmatch): a small diamond over the head in the team's colour. */
+  markTeam(team: number): void {
+    if (this.marker) return;
+    const m = this.world.parts.instance('sphere', TEAM_COLORS[team === 1 ? 1 : 0], 'team-mark');
+    m.parent = this.rig.root;
+    m.scaling.set(0.09, 0.14, 0.09);
+    m.position.set(0, 2.08, 0);
+    this.marker = m;
   }
 
   /** Render-rate update at `renderTime` (in the buffer's clock). */
@@ -160,6 +173,8 @@ export class RemoteAvatar {
   }
 
   dispose(): void {
+    this.marker?.dispose();
+    this.marker = null;
     this.pouches.dispose();
     for (const m of this.models.values()) m.dispose();
     this.models.clear();

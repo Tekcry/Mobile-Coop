@@ -51,7 +51,8 @@ const BTN_THRESHOLD = 0.5;
 /**
  * Gameplay binding: digital button index -> action (a button may drive several). Triggers handled
  * separately. A cover / cover-to-cover, B crouch (stand / crouch at high cover), Y traverse + interact
- * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder.
+ * (contextual), X reload (the source turns a hold into a weapon swap), L3 sprint, R3 shoulder, View goggles,
+ * D-pad up the gadget (hold to aim), D-pad down the gadget wheel (hold), right an emote, left a co-op ping.
  */
 export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.A, 'cover'],
@@ -60,15 +61,16 @@ export const GAME_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.Y, 'jump'],
   [PAD.Y, 'interact'],
   [PAD.RB, 'swapNext'],
+  [PAD.RB, 'mark'],
   [PAD.LB, 'swapPrev'],
   [PAD.START, 'pause'],
-  [PAD.SELECT, 'pause'],
+  [PAD.SELECT, 'vision'],
   [PAD.LS, 'dash'],
   [PAD.RS, 'shoulderSwap'],
-  [PAD.UP, 'quick1'],
+  [PAD.UP, 'grenade'],
   [PAD.RIGHT, 'quick2'],
-  [PAD.DOWN, 'quick3'],
-  [PAD.LEFT, 'quick4'],
+  [PAD.DOWN, 'gadgetWheel'],
+  [PAD.LEFT, 'ping'],
 ];
 
 /** Menu binding. Directions from the d-pad; the left stick is merged in mapPad. */
@@ -78,6 +80,7 @@ export const UI_BINDINGS: ReadonlyArray<[number, ButtonAction]> = [
   [PAD.START, 'uiBack'],
   [PAD.LB, 'uiTabPrev'],
   [PAD.RB, 'uiTabNext'],
+  [PAD.Y, 'uiAlt'],
   [PAD.UP, 'uiUp'],
   [PAD.DOWN, 'uiDown'],
   [PAD.LEFT, 'uiLeft'],

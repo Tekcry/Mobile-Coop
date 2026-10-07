@@ -15,6 +15,14 @@ const KEYS: Record<PromptButton, string> = {
   START: 'Esc',
 };
 
+/** In-game keyboard labels from the player's bindings (set by the app; the defaults until then). */
+export const keyLabels = {
+  cover: 'Space',
+  traverse: 'E',
+  crouch: 'C',
+  reload: 'R',
+};
+
 /**
  * Renders a controller/keyboard prompt. All variants are emitted and CSS picks one by
  * body class (input-gamepad / input-kbm, pad-ps), so prompts update instantly on mode change.

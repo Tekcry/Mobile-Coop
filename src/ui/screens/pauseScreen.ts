@@ -4,6 +4,7 @@ import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button, Dialog } from '../widgets';
 import { SettingsScreen } from './settingsScreen';
+import { FeedbackFormScreen } from './feedbackScreen';
 
 export class PauseScreen extends Screen {
   override modal = true;
@@ -20,6 +21,7 @@ export class PauseScreen extends Screen {
       { class: 'menu-list', attrs: { 'data-wrap': '' } },
       button('Resume', () => this.resume(), { icon: 'play', autofocus: true, class: 'primary big' }),
       button('Settings', () => this.manager.push(new SettingsScreen(app)), { icon: 'gear', class: 'big' }),
+      button('Report feedback', () => this.manager.push(new FeedbackFormScreen(app, null)), { icon: 'note', class: 'big' }),
       button(
         'Quit to menu',
         () =>

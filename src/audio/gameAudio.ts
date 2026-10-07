@@ -61,6 +61,25 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
   const offs = [
     g.events.on('wave', () => sfx.horn()),
     g.events.on('alarm', () => sfx.horn()),
+    g.events.on('lightOut', ({ shot }) => (shot ? sfx.glass(1) : sfx.click())),
+    g.events.on('lightSwitch', () => sfx.click()),
+    g.events.on('vision', ({ mode }) => sfx.goggles(mode !== 'off')),
+    g.events.on('sonar', () => sfx.sonar()),
+    g.events.on('bark', ({ radio }) => radio && sfx.radio()),
+    g.events.on('gadget', ({ kind, phase }) => {
+      if (phase === 'throw') return; // (the throw itself sounds through onGrenade)
+      else if (phase === 'detonate') sfx.gadget(kind === 'flash' ? 'flash' : kind === 'emp' ? 'emp' : kind === 'drone' ? 'emp' : 'gas');
+      else if (phase === 'pulse') sfx.gadget('chirp', kind === 'noise' ? 1 : 0.6);
+      else if (phase === 'view' || phase === 'exit') sfx.gadget('feed');
+      else if (phase === 'dart') sfx.gadget('dart');
+      else if (phase === 'destroyed') sfx.explosion(0.25, 0);
+      else if (phase !== 'trigger') sfx.gadget('beep');
+    }),
+    g.events.on('door', ({ how, x, z }) => {
+      const s = a.spatial(x, 1, z, how === 'bash' ? 40 : 20);
+      if (s.gain > 0.03) sfx.door(how, s.gain, s.pan);
+    }),
+    g.events.on('body', ({ action }) => (action === 'pickup' ? sfx.thud(0.5) : sfx.thud(1))),
     g.events.on('waveCleared', () => sfx.objective()),
     g.events.on('objective', () => sfx.objective()),
     g.events.on('operationComplete', () => sfx.stinger(true)),
@@ -85,7 +104,7 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
       stepT -= dt;
       if (stepT <= 0) {
         stepT = c.sprinting ? 0.27 : c.crouched ? 0.5 : 0.36;
-        sfx.footstep(c.crouched ? 0.5 : 1);
+        sfx.footstep(c.crouched ? 0.5 : 1, 0, g.surface);
       }
     }
     let alive = em?.alive ?? 0;

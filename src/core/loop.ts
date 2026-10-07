@@ -1,4 +1,5 @@
 import type { Engine, Scene } from './babylon';
+import { capAllows } from './quality';
 
 export const FIXED_DT = 1 / 60;
 const MAX_STEPS_PER_FRAME = 4;
@@ -23,12 +24,17 @@ export class GameLoop {
   /** Last measured costs in ms (for debug overlay). */
   readonly stats = { simMs: 0, physicsMs: 0, steps: 0, frameCpuMs: 0 };
   /** After every real frame: rAF interval and the CPU work of the frame (sim + update + render submit), ms. */
-  onFrameEnd: ((intervalMs: number, cpuMs: number) => void) | null = null;
+  onFrameEnd: ((intervalMs: number, cpuMs: number, rafMs: number) => void) | null = null;
   paused = false;
   /** Simulation speed (slow motion < 1): scales the time fed to the accumulator and frame updates. */
   timeScale = 1;
   /** Tools/tests: real-time frames only render; the sim advances only through `stepHeadless`. */
   manual = false;
+  /** Frame-rate cap (0 = every display frame) and the display interval it is measured against (ms). */
+  fpsCap = 0;
+  displayMs = 1000 / 60;
+  private lastT = 0;
+  private lastRaf = 0;
 
   constructor(private engine: Engine) {}
 
@@ -84,13 +90,19 @@ export class GameLoop {
 
   private tick(): void {
     const t0 = performance.now();
-    this.frame();
+    const raf = this.lastRaf > 0 ? t0 - this.lastRaf : 0;
+    this.lastRaf = t0;
+    // frame limiter: skip display frames until the cap's interval has passed
+    if (this.fpsCap > 0 && this.lastT > 0 && !capAllows(t0 - this.lastT, this.fpsCap, this.displayMs)) return;
+    const interval = this.lastT > 0 ? Math.min(t0 - this.lastT, 250) : this.engine.getDeltaTime();
+    this.lastT = t0;
+    this.frame(interval);
     const cpu = performance.now() - t0;
     this.stats.frameCpuMs = cpu;
-    this.onFrameEnd?.(this.engine.getDeltaTime(), cpu);
+    this.onFrameEnd?.(interval, cpu, raf);
   }
 
-  private frame(): void {
+  private frame(intervalMs: number): void {
     const scene = this.scene;
     const hooks = this.hooks;
     if (!scene || !hooks) return;
@@ -98,7 +110,7 @@ export class GameLoop {
       scene.render();
       return;
     }
-    const dt = Math.min(this.engine.getDeltaTime() / 1000, 0.1) * this.timeScale;
+    const dt = Math.min(intervalMs / 1000, 0.1) * this.timeScale;
     hooks.beforeFrame?.(dt);
     if (!this.paused) {
       this.acc += dt;

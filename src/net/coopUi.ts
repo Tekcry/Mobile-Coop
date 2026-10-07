@@ -1,4 +1,5 @@
 import type { App } from '../core/app';
+import type { WeatherChoice } from '../world/mapDef';
 import type { GameOptions, SessionCallbacks } from '../game/gameState';
 import { flags } from '../core/flags';
 import { h } from '../ui/dom';
@@ -6,7 +7,10 @@ import { Screen } from '../ui/screen';
 import type { Hint } from '../ui/prompts';
 import { button, choice, Dialog } from '../ui/widgets';
 import { MAPS, getMap } from '../world/maps';
-import { CODE_ALPHABET, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { DIFFICULTIES, DIFFICULTY } from '../ai/archetypes';
+import { MISSIONS, missionById } from '../game/missions';
+import { capacity, CODE_ALPHABET, isPvp, makeRoomCode, normalizeRoomCode, type Difficulty, type NetMode, type PlayerInfo } from './protocol';
+import { TEAM_COLORS, TEAM_NAMES } from './pvp';
 import { NetSession, type LocalProfile, type StartInfo } from './session';
 import type { Transport } from './transport';
 import { createLocalTransport } from './localTransport';
@@ -59,7 +63,7 @@ class CoopController {
     this.offs.push(
       ev.on('start', (s) => this.start(s)),
       ev.on('hostLeft', () => this.fail('Host left', 'The host closed the room.')),
-      ev.on('full', () => this.fail('Room full', 'That room already has 4 players.')),
+      ev.on('full', () => this.fail('Room full', 'That room has no open slot for this mode (co-op takes 4, PvP 8).')),
       ev.on('lobby', () => {
         // host went back to the lobby while we were still in the match
         if (!session.isHost && this.inGame && session.phase === 'lobby') {
@@ -79,13 +83,16 @@ class CoopController {
     if (this.inGame || this.left) return;
     this.inGame = true;
     const session = this.session;
-    const map = getMap(s.map);
+    const mission = s.mode === 'infiltration' ? missionById(s.mission) : null;
+    const map = getMap(mission?.map ?? s.map);
     this.api.startGame(
       {
         map,
         mode: s.mode,
         seed: s.seed,
         difficulty: s.difficulty,
+        missionId: mission?.id,
+        weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
         net: {
           role: session.role,
           attach: (g) => (session.isHost ? new CoopHost(g, session) : new CoopClient(g, session)),
@@ -148,7 +155,8 @@ class CoopScreen extends Screen {
       return;
     }
     this.body.replaceChildren(
-      h('div', { class: 'row-note', text: '2-4 players. The host runs the match; others join with the room code.' }),
+      h('div', { class: 'row-note', text: 'Co-op for 2-4 (Wave, Hunter, Infiltration, Free Roam), PvP for up to 8 (Team Deathmatch 4v4, Free-for-all). The host runs the match; others join with the room code.' }),
+      h('div', { class: 'row-note', text: 'PvP is fair across PC and phones: base weapon damage, no suit or HQ bonuses, field of view at most 90 (16:9 width on wider screens), no Panini. Graphics settings never change what can be seen.' }),
       button('Host a room', () => void hostRoom(this.app, this.api), { icon: 'wifi', class: 'primary big', autofocus: true }),
       button('Join with code', () => this.app.screens.push(new JoinScreen(this.app, this.api)), { icon: 'user', class: 'big' }),
     );
@@ -241,13 +249,15 @@ class JoinScreen extends Screen {
 
 const MODE_OPTS: { value: NetMode; label: string }[] = [
   { value: 'wave', label: 'Wave Survival' },
+  { value: 'clear', label: 'Hunter' },
+  { value: 'infiltration', label: 'Infiltration' },
   { value: 'sandbox', label: 'Free Roam' },
+  { value: 'tdm', label: 'Team Deathmatch' },
+  { value: 'ffa', label: 'Free-for-all' },
 ];
-const DIFF_OPTS: { value: Difficulty; label: string }[] = [
-  { value: 'easy', label: 'Easy' },
-  { value: 'normal', label: 'Normal' },
-  { value: 'hard', label: 'Hard' },
-];
+const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
+const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
+const DIFF_OPTS: { value: Difficulty; label: string }[] = DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label }));
 
 class LobbyScreen extends Screen {
   private list: HTMLElement;
@@ -305,21 +315,24 @@ class LobbyScreen extends Screen {
 
   private renderPlayers(): void {
     const s = this.c.session;
-    const ps = [...s.players.values()].sort((a, b) => Number(b.host) - Number(a.host));
+    const teams = s.mode === 'tdm';
+    const ps = [...s.players.values()].sort((a, b) => (teams ? a.team - b.team : 0) || Number(b.host) - Number(a.host));
+    const cap = capacity(s.mode);
     this.list.replaceChildren(
       ...ps.map((p: PlayerInfo) =>
         h(
           'div',
           { class: `lobby-player${p.id === s.selfId ? ' me' : ''}` },
-          h('span', { class: 'lp-dot', style: { background: p.tag.color } }),
+          h('span', { class: 'lp-dot', style: { background: teams ? TEAM_COLORS[p.team === 1 ? 1 : 0] : p.tag.color } }),
           h('span', { class: 'lp-name', text: p.name }),
-          h('span', { class: 'lp-tag', text: p.tag.title }),
+          h('span', { class: 'lp-tag', text: teams ? TEAM_NAMES[p.team === 1 ? 1 : 0] : p.tag.title }),
           h('span', { class: `lp-state ${p.host ? 'host' : p.ready ? 'ready' : ''}`, text: p.host ? 'Host' : p.ready ? 'Ready' : 'Not ready' }),
         ),
       ),
-      ...Array.from({ length: Math.max(0, 4 - ps.length) }, () => h('div', { class: 'lobby-player empty', text: 'Open slot' })),
+      ...Array.from({ length: Math.max(0, cap - ps.length) }, () => h('div', { class: 'lobby-player empty', text: 'Open slot' })),
     );
     if (!s.hostId) this.status.textContent = 'Connecting to host…';
+    else if (s.overCapacity) this.status.textContent = `${MODE_OPTS.find((m) => m.value === s.mode)?.label} takes ${cap} players - pick a PvP mode or wait for someone to leave.`;
     else if (s.isHost) this.status.textContent = ps.length < 2 ? 'Share the code or link to invite players.' : s.allReady ? 'Everyone is ready.' : 'Waiting for players to ready up.';
     else this.status.textContent = s.phase === 'playing' ? 'Match in progress - joining…' : 'Waiting for the host to start.';
   }
@@ -327,27 +340,51 @@ class LobbyScreen extends Screen {
   private buildOpts(): void {
     const s = this.c.session;
     const maps = MAPS.filter((m) => m.modes.includes(s.mode));
+    const infil = s.mode === 'infiltration';
+    const pvp = isPvp(s.mode);
     if (!s.isHost) {
       const map = MAPS.find((m) => m.id === s.map);
+      const row = (k: string, v: string): HTMLElement => h('div', { class: 'row' }, h('span', { class: 'row-label', text: k }), h('span', { text: v }));
       this.opts.replaceChildren(
-        h('div', { class: 'row' }, h('span', { class: 'row-label', text: 'Mode' }), h('span', { text: MODE_OPTS.find((m) => m.value === s.mode)?.label ?? '' })),
-        h('div', { class: 'row' }, h('span', { class: 'row-label', text: 'Map' }), h('span', { text: map?.name ?? s.map })),
-        h('div', { class: 'row' }, h('span', { class: 'row-label', text: 'Difficulty' }), h('span', { text: DIFF_OPTS.find((d) => d.value === s.difficulty)?.label ?? '' })),
+        row('Mode', MODE_OPTS.find((m) => m.value === s.mode)?.label ?? ''),
+        infil ? row('Mission', missionById(s.mission)?.name ?? '') : row('Map', map?.name ?? s.map),
+        ...(pvp ? [] : [row('Difficulty', DIFF_OPTS.find((d) => d.value === s.difficulty)?.label ?? '')]),
+        ...(map?.weathers ? [row('Weather', WEATHER_LABEL[s.weather])] : []),
       );
       return;
     }
-    if (!maps.some((m) => m.id === s.map)) s.setSettings(s.mode, maps[0]!.id, s.difficulty);
-    const set = (mode: NetMode, map: string, d: Difficulty): void => {
-      s.setSettings(mode, map, d);
+    if (infil) {
+      const m = missionById(s.mission) ?? MISSIONS[0]!;
+      if (s.mission !== m.id || s.map !== m.map) s.setSettings(s.mode, m.map, s.difficulty, m.id);
+    } else if (!maps.some((m) => m.id === s.map)) s.setSettings(s.mode, maps[0]!.id, s.difficulty);
+    const set = (mode: NetMode, map: string, d: Difficulty, mission = s.mission): void => {
+      s.setSettings(mode, map, d, mission);
       const idx = Array.from(this.opts.children).indexOf(this.c.app.nav.focused as HTMLElement);
       this.buildOpts();
+      this.renderPlayers();
+      this.buildActions(true);
       const el = this.opts.children[Math.max(0, idx)] as HTMLElement | undefined;
       if (idx >= 0) this.c.app.nav.setRoot(this.el, el ?? null);
     };
     this.opts.replaceChildren(
-      choice('Mode', MODE_OPTS, () => s.mode, (v) => set(v, s.map, s.difficulty)),
-      choice('Map', maps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
-      choice('Difficulty', DIFF_OPTS, () => s.difficulty, (v) => set(s.mode, s.map, v)),
+      choice('Mode', MODE_OPTS, () => s.mode, (v) => set(v, s.map, s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '')),
+      infil
+        ? choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))
+        : choice('Map', maps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
+      ...(pvp ? [] : [choice('Difficulty', DIFF_OPTS, () => s.difficulty, (v) => set(s.mode, s.map, v))]),
+      ...(MAPS.find((m) => m.id === s.map)?.weathers
+        ? [
+            choice(
+              'Weather',
+              (MAPS.find((m) => m.id === s.map)!.weathers ?? []).map((w) => ({ value: w, label: WEATHER_LABEL[w] })),
+              () => s.weather,
+              (v) => {
+                s.setSettings(s.mode, s.map, s.difficulty, s.mission, v);
+                this.renderPlayers();
+              },
+            ),
+          ]
+        : []),
     );
   }
 
@@ -365,14 +402,19 @@ class LobbyScreen extends Screen {
         icon: 'play',
         class: 'primary big',
         autofocus: true,
-        blocked: !solo && !s.allReady ? 'Waiting for players to ready up' : undefined,
+        blocked: s.overCapacity ? `Too many players for this mode (${capacity(s.mode)})` : !solo && !s.allReady ? 'Waiting for players to ready up' : undefined,
       });
     } else {
       const me = s.players.get(s.selfId);
       main = button(me?.ready ? 'Not ready' : 'Ready', () => s.setReady(!me?.ready), { icon: 'play', class: me?.ready ? 'big' : 'primary big', autofocus: true });
       if (!s.hostId) (main as HTMLButtonElement).disabled = true;
     }
-    this.actions.replaceChildren(main, share, leave);
+    const extra: HTMLElement[] = [];
+    if (s.mode === 'tdm') {
+      const mine = s.players.get(s.selfId)?.team ?? 0;
+      extra.push(button(`Join ${TEAM_NAMES[1 - mine]}`, () => s.requestTeam(1 - mine), { icon: 'user' }));
+    }
+    this.actions.replaceChildren(main, ...extra, share, leave);
     if (focusedIdx >= 0) this.c.app.nav.setRoot(this.el, (this.actions.children[focusedIdx] as HTMLElement) ?? null);
   }
 
@@ -380,7 +422,7 @@ class LobbyScreen extends Screen {
     const link = shareLink(this.c.session.code);
     const nav = navigator as Navigator & { share?: (d: { title: string; url: string }) => Promise<void> };
     try {
-      if (nav.share) await nav.share({ title: 'Shoulder Strike co-op', url: link });
+      if (nav.share) await nav.share({ title: 'Silent But Deadly co-op', url: link });
       else {
         await navigator.clipboard.writeText(link);
         this.c.app.toasts.show('Invite link copied', 'ok');

@@ -2,14 +2,14 @@
 import { chromium, devices } from 'playwright-core';
 import { existsSync } from 'node:fs';
 
-export async function launch({ url = 'http://localhost:4173/', params = '', touch = true } = {}) {
+export async function launch({ url = 'http://localhost:4173/', params = '', touch = true, viewport = { width: 1280, height: 640 } } = {}) {
   const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium/chrome-linux/chrome'].find(existsSync);
   const browser = await chromium.launch({
     executablePath: exe,
     args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
   });
   const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
-  const ctx = await browser.newContext({ ...(touch ? { ...dev } : { viewport: { width: 1280, height: 640 } }), acceptDownloads: true });
+  const ctx = await browser.newContext({ ...(touch ? { ...dev } : { viewport }), acceptDownloads: true });
   const { page, errors } = await openPage(ctx, url, params);
   return { browser, ctx, page, errors };
 }
@@ -19,6 +19,8 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   const page = await ctx.newPage();
   const errors = [];
   page.on('console', (m) => {
+    // SwiftShader / ANGLE performance notes about its own command buffer are not the game's problems
+    if (/GL Driver Message \(OpenGL, Performance/.test(m.text())) return;
     if (m.type() === 'error' || m.type() === 'warning') errors.push(`[${m.type()}] ${m.text()}`);
     else if (process.env.VERBOSE) console.log(`[${m.type()}] ${m.text()}`);
   });
@@ -53,12 +55,17 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     };
     navigator.getGamepads = () => [pad.connected ? pad : null, null, null, null];
   });
-  await page.goto(url + (url.includes('?') ? '&' : '?') + params);
+  // the PC renderer at Epic on headless software GL is too slow for real-time checks: tests run minimal graphics
+  // unless they ask for a preset (?gfx=epic in e2e-desktop)
+  const p = /(^|&)gfx=/.test(params) || /[?&]gfx=/.test(url) ? params : params ? `${params}&gfx=min` : 'gfx=min';
+  await page.goto(url + (url.includes('?') ? '&' : '?') + p);
   await page.waitForFunction(
     () => document.getElementById('boot')?.classList.contains('done') || /Failed/.test(document.getElementById('boot-status')?.textContent ?? ''),
     null,
     { timeout: 60000 },
   );
+  // autostart: the match itself (3.0: the voxel world builds in workers before it starts)
+  if (/(^|&)autostart=/.test(params)) await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {});
   return { page, errors };
 }
 
@@ -88,6 +95,29 @@ export async function stick(page, axis, v) {
 
 export function focusedText(page) {
   return page.evaluate(() => document.querySelector('.focused')?.textContent?.trim() ?? '(none)');
+}
+
+/** Moves the pad focus to the visible `[data-focus]` element whose text matches `re` (grids: steps towards it). */
+export async function focusTo(page, re, max = 12) {
+  for (let i = 0; i < max; i++) {
+    const dir = await page.evaluate((src) => {
+      const r = new RegExp(src);
+      const cur = document.querySelector('.focused');
+      if (cur && r.test(cur.textContent ?? '')) return 'done';
+      const els = Array.from(document.querySelectorAll('[data-focus]')).filter((e) => e.offsetParent && r.test(e.textContent ?? ''));
+      const t = els[0];
+      if (!cur || !t) return 'down';
+      const a = cur.getBoundingClientRect();
+      const b = t.getBoundingClientRect();
+      const dy = b.top + b.height / 2 - (a.top + a.height / 2);
+      const dx = b.left + b.width / 2 - (a.left + a.width / 2);
+      if (Math.abs(dy) > Math.min(a.height, b.height) / 2) return dy > 0 ? 'down' : 'up';
+      return dx > 0 ? 'right' : 'left';
+    }, re.source);
+    if (dir === 'done') return true;
+    await press(page, BTN[dir.toUpperCase()]);
+  }
+  return re.test(await focusedText(page));
 }
 
 export function assert(cond, msg) {

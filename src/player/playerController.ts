@@ -8,7 +8,7 @@ import {
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
-import { SprintGate, EasedVelocity, targetSpeed, type Stance } from './movement';
+import { SprintGate, EasedVelocity, targetSpeed, landingKind, LANDING, type LandingKind, type Stance } from './movement';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 
@@ -103,6 +103,9 @@ export class PlayerController {
   /** Ignore this step's crouch press (consumed by the cover system). */
   swallowCrouch = false;
   speed = 0;
+  /** Footstep noise this step: 'free' by gait, 'silent' (climbing, vaults, cover glides and moves along cover),
+   *  'crouched' (a cover-to-cover run is a crouched run). */
+  steps: 'free' | 'silent' | 'crouched' = 'free';
   localMove = { x: 0, z: 0 };
   /** Seconds left in a controlled pivot (kept for the debug overlay; the driver owns pivots). */
   get pivotT(): number {
@@ -111,6 +114,15 @@ export class PlayerController {
   /** Landing recovery after a drop (s): slows to a creep. */
   landT = 0;
   private fallSpeed = 0;
+  /** Highest feet height of the current fall (m). */
+  private airTop = 0;
+  /** The last landing: fall height (m), its band, and a counter that moves on every landing. */
+  lastFall = 0;
+  lastLanding: LandingKind = 'none';
+  landings = 0;
+  /** Horizontal velocity at the moment of the last landing (m/s). */
+  landVX = 0;
+  landVZ = 0;
   private height: number = MOVEMENT.standHeight;
   private support: CharacterSurfaceInfo | null = null;
   private wish = new Vector3();
@@ -199,6 +211,24 @@ export class PlayerController {
     return this.height;
   }
 
+  /** A landing from a committed fall (a drop through a vent): the same bands, noise and roll as a real one. */
+  registerLanding(fall: number, vx: number, vz: number): void {
+    this.lastFall = fall;
+    this.lastLanding = landingKind(fall);
+    this.landVX = vx;
+    this.landVZ = vz;
+    if (this.lastLanding === 'heavy') this.landT = Math.max(this.landT, LANDING.heavyRecovery);
+    if (this.lastLanding !== 'none') this.landings++;
+  }
+
+  /** Leave the ground with a velocity (letting go of a zipline / a jump off an anchor): gravity takes over. */
+  launch(vx: number, vy: number, vz: number): void {
+    this.cc.setVelocity(this.tmp.set(vx, vy, vz));
+    this.airTop = this.pos.y;
+    this.grounded = false;
+    this.vel.reset(vx, vz);
+  }
+
   /** Wish direction (world XZ, length = stick magnitude) of the last step. */
   get wishDir(): Vector3 {
     return this.wish;
@@ -238,6 +268,7 @@ export class PlayerController {
     this.prevYaw = this.yaw;
     this.prevPhase = this.motion.phase;
     this.landT = Math.max(0, this.landT - dt);
+    this.steps = !ov ? 'free' : ov.run ? 'crouched' : 'silent';
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
@@ -366,8 +397,15 @@ export class PlayerController {
       // Small stick force keeps the capsule in contact (no hovering within contact tolerance).
       out.subtractInPlace(support.averageSurfaceNormal.scale(PlayerController.stickForce));
       if (!this.grounded) {
-        // controlled landing: recovery scales with the fall
+        // controlled landing: recovery scales with the fall; a long fall is a heavy landing (a roll is played
+        // by the traversal controller from `lastLanding`)
         if (this.fallSpeed > 3) this.landT = Math.min(0.7, 0.15 + (this.fallSpeed - 3) * 0.08);
+        this.lastFall = Math.max(0, this.airTop - this.pos.y);
+        this.lastLanding = landingKind(this.lastFall);
+        if (this.lastLanding === 'heavy') this.landT = Math.max(this.landT, LANDING.heavyRecovery);
+        this.landVX = cur.x;
+        this.landVZ = cur.z;
+        if (this.lastLanding !== 'none') this.landings++;
         this.vel.reset(cur.x * 0.3, cur.z * 0.3);
         this.fallSpeed = 0;
       }
@@ -378,6 +416,8 @@ export class PlayerController {
       out = new Vector3(cur.x + (tx - cur.x) * k, cur.y, cur.z + (tz - cur.z) * k).addInPlace(GRAVITY.scale(dt));
       this.vel.reset(out.x, out.z);
       this.fallSpeed = Math.max(this.fallSpeed, -out.y);
+      if (this.grounded) this.airTop = this.pos.y;
+      else this.airTop = Math.max(this.airTop, this.pos.y);
       this.grounded = false;
     }
     this.cc.setVelocity(out);

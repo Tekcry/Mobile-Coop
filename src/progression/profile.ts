@@ -8,6 +8,7 @@ import { levelFromXp, masteryLevel, type LevelInfo } from './levels';
 import { canUpgrade, type UpgradeTrack } from './upgrades';
 import { UNLOCKS, unlockById, unlockState, type UnlockContext, type UnlockItem } from './unlocks';
 import { combinedMods, sanitizeAttachments } from './attachments';
+import { canBuyHq, canBuySuit, CHALLENGES, challengeProgress, PRESETS, type HqId, type SuitPiece } from './suit';
 
 /** Pure operations on a SaveData (callers clone via SaveManager.update). */
 
@@ -50,6 +51,8 @@ export interface SessionReport {
   granted: UnlockItem[];
   /** Unlocks that became purchasable this session. */
   nowBuyable: UnlockItem[];
+  /** Challenges completed this session (paid). */
+  challenges: string[];
 }
 
 export const LEVEL_UP_CREDITS = 200;
@@ -77,7 +80,7 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     if (m1 > m0) masteryUps.push({ weapon: w, level: m1 });
   }
   // lifetime stats
-  if (stats.mode !== 'sandbox') {
+  if (stats.mode !== 'sandbox' && stats.mode !== 'training') {
     const st = s.profile.stats;
     st.matches++;
     if (stats.won) st.wins++;
@@ -86,10 +89,49 @@ export function applySession(s: SaveData, stats: SessionStats, difficulty: Diffi
     st.bestWave = Math.max(st.bestWave, stats.waves);
     st.timePlayed += Math.min(36000, stats.time);
   }
+  // Infiltration: the best run per mission
+  if (stats.missionId && /^[a-z0-9-]{1,48}$/.test(stats.missionId)) {
+    const r = (s.missions[stats.missionId] ??= { rating: 0, score: 0, ghost: 0, panther: 0, assault: 0, plays: 0, wins: 0 });
+    r.plays++;
+    if (stats.won) r.wins++;
+    const rating = Math.max(0, Math.min(3, Math.floor(stats.rating ?? 0)));
+    if (rating > r.rating || (rating === r.rating && stats.score > r.score)) {
+      r.rating = rating;
+      r.score = Math.min(1e9, Math.max(0, Math.floor(stats.score)));
+      r.ghost = Math.floor(stats.style.ghost);
+      r.panther = Math.floor(stats.style.panther);
+      r.assault = Math.floor(stats.style.assault);
+    }
+  }
+  // challenges: progress, paid once on completion
+  const challenges: string[] = [];
+  const add = challengeProgress({
+    takedownsByKind: stats.takedownsByKind ?? {},
+    knockouts: stats.knockouts,
+    headshots: stats.headshots,
+    executes: stats.executes ?? 0,
+    gadgetKos: stats.gadgetKos ?? 0,
+    mode: stats.mode,
+    won: stats.won,
+    detections: stats.detections,
+    alarms: stats.alarms ?? 0,
+  });
+  if (stats.mode !== 'sandbox' && stats.mode !== 'training') {
+    for (const c of CHALLENGES) {
+      if (s.challenges.done.includes(c.id)) continue;
+      s.challenges.progress[c.id] = Math.min(1e6, (s.challenges.progress[c.id] ?? 0) + (add[c.id] ?? 0));
+      if (s.challenges.progress[c.id]! >= c.goal) {
+        s.challenges.done.push(c.id);
+        s.profile.credits += c.credits;
+        s.profile.xp += c.xp;
+        challenges.push(c.id);
+      }
+    }
+  }
   const granted = autoGrant(s);
   const ctxAfter = unlockContext(s);
   const nowBuyable = UNLOCKS.filter((u) => unlockState(u, ctxAfter) === 'buyable' && !buyableBefore.has(u.id));
-  return { rewards, before, after, levelUps, levelUpCredits, masteryUps, granted, nowBuyable };
+  return { rewards, before, after, levelUps, levelUpCredits, masteryUps, granted, nowBuyable, challenges };
 }
 
 export type BuyResult = { ok: true; item: UnlockItem } | { ok: false; reason: string };
@@ -124,6 +166,53 @@ export function setAttachment(s: SaveData, w: WeaponId, attId: string, on: boole
   return true;
 }
 
+/** Buy the next tier of a suit piece (tiers are bought in order) and wear it. */
+export function buySuit(s: SaveData, piece: SuitPiece, tier: number): { ok: boolean; reason?: string } {
+  const c = canBuySuit(s.suit.owned, piece, tier, levelInfo(s).level, s.profile.credits);
+  if (!c.ok) return { ok: false, reason: c.reason };
+  s.profile.credits -= c.price;
+  s.suit.owned[piece] = tier;
+  s.suit.worn[piece] = tier;
+  return { ok: true };
+}
+
+/** Wear an owned tier (lighter armour is a choice too). */
+export function wearSuit(s: SaveData, piece: SuitPiece, tier: number): boolean {
+  if (tier < 0 || tier > s.suit.owned[piece]) return false;
+  s.suit.worn[piece] = tier;
+  return true;
+}
+
+export function buyHq(s: SaveData, id: HqId): { ok: boolean; reason?: string } {
+  const c = canBuyHq(s.hq, id, levelInfo(s).level, s.profile.credits);
+  if (!c.ok) return { ok: false, reason: c.reason };
+  s.profile.credits -= c.price;
+  s.hq[id]++;
+  return { ok: true };
+}
+
+/** Store the current loadout (and gadget) into preset `i`. */
+export function savePreset(s: SaveData, i: number, gadget?: string): boolean {
+  const p = s.presets[i];
+  if (!p || i >= PRESETS) return false;
+  p.primary = s.loadout.primary;
+  p.secondary = s.loadout.secondary;
+  if (gadget) p.gadget = gadget.slice(0, 16);
+  s.preset = i;
+  return true;
+}
+
+/** Use preset `i`: its weapons become the loadout (if still owned). */
+export function applyPreset(s: SaveData, i: number): boolean {
+  const p = s.presets[i];
+  if (!p) return false;
+  const ok = (w: string): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w) && owns(s, `weapon:${w}`);
+  if (ok(p.primary)) s.loadout.primary = p.primary;
+  if (ok(p.secondary) && p.secondary !== s.loadout.primary) s.loadout.secondary = p.secondary;
+  s.preset = i;
+  return true;
+}
+
 export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: WeaponId): boolean {
   if (!owns(s, `weapon:${w}`)) return false;
   const other = slot === 'primary' ? 'secondary' : 'primary';
@@ -139,6 +228,7 @@ export function loadoutEntries(s: SaveData, mode: SessionStats['mode'], skin?: (
     id,
     upgrades: s.weapons[id].upgrades,
     mods: combinedMods(s.weapons[id].attachments),
+    attachments: [...s.weapons[id].attachments],
     ...(skin?.(id, s.weapons[id].camo) ?? {}),
   }));
 }

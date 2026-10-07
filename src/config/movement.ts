@@ -103,6 +103,13 @@ export const ENEMY_MOTION = {
   pivotMinSpeed: 0.45,
 };
 
+/** Calm guards (not in combat) turn slowly: glances and looks at a sound are unhurried, not twitchy. */
+export const ENEMY_CALM_MOTION = {
+  ...ENEMY_MOTION,
+  turnAim: (60 * Math.PI) / 180,
+  turnAccel: 6,
+};
+
 export type MovementKey = keyof typeof MOVEMENT;
 
 /** Ranges for the debug tuning panel. */

@@ -68,6 +68,20 @@ export const MIGRATIONS: Record<number, Migration> = {
       : s.unlocks;
     return { ...s, version: 4, avatar: look, unlocks };
   },
+  // v4 -> v5: Infiltration mission records (none yet)
+  4: (s) => ({ ...s, version: 5, missions: isObj(s.missions) ? s.missions : {} }),
+  // v5 -> v6: suit, HQ upgrades, challenges, loadout presets (issued kit; the 1.x weapons keep their ids, now the
+  // P45 / MP5 / 552 / M870 / M700, so unlocks and upgrades carry over as they are)
+  5: (s) => ({ ...s, version: 6 }),
+  // v6 -> v7: the 9mm SD is issued and is the primary of the issued kit (a loadout or preset still on the old
+  // issue, 552 + P45, moves to 9mm SD + 552; chosen kit stays)
+  6: (s) => {
+    const issue = (p: unknown): boolean => isObj(p) && p.primary === 'rifle' && p.secondary === 'pistol';
+    const sd = (p: Raw): Raw => ({ ...p, primary: 'pistolSd', secondary: 'rifle' });
+    const loadout = issue(s.loadout) ? sd(s.loadout as Raw) : s.loadout;
+    const presets = Array.isArray(s.presets) ? s.presets.map((p, i) => (i < 2 && issue(p) ? sd(p as Raw) : p)) : s.presets;
+    return { ...s, version: 7, loadout, presets };
+  },
 };
 
 export class SaveVersionError extends Error {}
@@ -83,7 +97,7 @@ export function detectVersion(raw: unknown): number {
 /** Run every migration from the save's version up to SAVE_VERSION. Throws on future versions. */
 export function migrate(raw: unknown): { data: Raw; from: number; steps: number } {
   const from = detectVersion(raw);
-  if (from === 0) throw new SaveVersionError('Not a Shoulder Strike save');
+  if (from === 0) throw new SaveVersionError('Not a Silent But Deadly save');
   if (from > SAVE_VERSION) throw new SaveVersionError(`Save is from a newer version (v${from}); update the app first`);
   let cur = structuredClone(raw) as Raw;
   let steps = 0;

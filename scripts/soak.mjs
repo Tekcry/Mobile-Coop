@@ -9,7 +9,8 @@ import { launch } from './e2e-lib.mjs';
 const minutes = Number(process.argv[2] ?? 10);
 const url = process.argv[3] ?? 'http://localhost:4173/';
 const INTERVAL = Math.min(30, Math.max(10, (minutes * 60) / 10));
-const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=wave' });
+// MAP / MODE: any map and mode (default the Warehouse in Wave)
+const { browser, page, errors } = await launch({ url, params: `autostart=${process.env.MAP ?? 'warehouse'}&mode=${process.env.MODE ?? 'wave'}` });
 await page.evaluate(() => {
   const g = window.__app.current;
   g.target.damageMul = 0;

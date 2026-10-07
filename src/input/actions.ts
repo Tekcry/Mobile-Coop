@@ -9,12 +9,27 @@ export const BUTTON_ACTIONS = [
   'swapNext',
   'swapPrev',
   'interact',
+  /** Let go while attached (ladder, pipe, ledge, zipline): the crouch control (B / C / Ctrl / touch crouch)
+   *  raises it too, so it needs no binding of its own. */
+  'drop',
+  /** Hold-to-use (doors, downloads, hacking): down once `interact` has been held `INTERACT_HOLD` s. */
+  'interactHold',
   /** Take/leave cover (touch button, controller B-hold, keyboard C). */
   'cover',
   'pause',
+  /** The gadget button: held = aim the arc, released = throw (placed / flown gadgets go on the press). */
   'grenade',
+  /** Gadget wheel: held open (pad / keyboard), toggled (touch). */
+  'gadgetWheel',
   'shoulderSwap',
   'dash',
+  /** Goggles: cycle off -> night vision -> sonar. */
+  'vision',
+  /** Mark the enemy under the crosshair (aiming) / run Mark & Execute when ready. */
+  'mark',
+  'execute',
+  /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
+  'ping',
   'quick1',
   'quick2',
   'quick3',
@@ -28,6 +43,7 @@ export const BUTTON_ACTIONS = [
   'uiBack',
   'uiTabPrev',
   'uiTabNext',
+  'uiAlt',
 ] as const;
 
 export type ButtonAction = (typeof BUTTON_ACTIONS)[number];

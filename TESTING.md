@@ -293,6 +293,342 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
+- [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
+- [ ] Fresh install on the iPhone: a toast "Graphics: <preset> for this device" a few seconds after the menu shows;
+  reopening the app does not measure again. Detect again measures (toast) and keeps Auto.
+- [ ] Picking a preset by hand turns Auto off; picking Auto again goes back to the device's preset.
+- [ ] A match at Ultra on the phone for 10 minutes (`?debug=1`): the governor line stays at L0-L3 most of the time,
+  the frame pacing graph holds the budget; nothing visibly pops (resolution changes are soft).
+- [ ] Low Power Mode on the iPhone: a toast "Low Power Mode: the game runs at 30 fps"; the match holds 30.
+- [ ] Target frame rate 60 on the laptop: the governor holds 60 at a higher level of detail than at 240.
+- [ ] PvP on Low (phone) and Epic (laptop): the same lamps lit and the same shadows on the same spots (screenshots
+  side by side from the same position).
+- [ ] `node scripts/perf.mjs --preset=ultra --mobile --budget` and `--preset=low --mobile --budget` pass (draws;
+  the animation number is noisy on the VM - compare side by side with the previous build).
+- [ ] Shadows below Epic (proxy): walls, racks and crates cast the same shapes under the lamps and the moon as on
+  Epic (screenshots side by side); no shadow from a wall that is not there.
+- [ ] Low: guards in the yard have contact shadows, no moon shadows; Ultra: guards in the yard cast moon shadows,
+  indoors only lamp shadows.
+- [ ] Fog at Medium / High / Ultra looks like before (depth from the G-buffer); aiming with depth of field still
+  focuses on the target.
+
+## 3.1 phase 1 - Preset ladder and fair PvP (PC + phone)
+- [ ] Settings > Graphics > Preset cycles Low, Medium, High, Ultra, Epic, Custom on PC; a phone shows no Epic and no
+  Ray traced reflections option. Picking a preset sets the render scale (Low 67% .. Ultra 90% with TAAU, Epic 100%).
+- [ ] A 3.0 install keeps its preset after the update (named the same, the new values) or its Custom choices.
+- [ ] Each preset on the Warehouse at night: fog looks the same distance-wise on Low and Epic; Volumetric light off
+  removes only the light shafts.
+- [ ] Walk 40 m away from the service corridor and the offices: no wall, door or sign flickers see-through.
+- [ ] PvP on an ultrawide (or a 21:9 window) and a phone: the FOV slider at 120 still shows 90 in the match, and the
+  ultrawide sees no more of the sides than 16:9 (black-free, narrower vertically). Panini set to 0.5 is off in PvP
+  and back in other modes.
+- [ ] Settings > Graphics > Benchmark > Every preset: five lines on PC (Low .. Epic), four on a phone.
+
+## 3.0.0 - PC renderer, desktop interface, feedback (PC + phone)
+Warehouse focus:
+- [ ] Play lists every mode on the Warehouse (Training on Proving Grounds); Free Roam on the Warehouse has no guards
+      and every weapon; Infiltration shows four Warehouse missions only (Cold Storage, Ledger, Courier, Blackout) and
+      each can be finished; co-op and PvP lobbies offer the Warehouse.
+Voxels (Epic, the laptop):
+- [ ] Warehouse and Proving Grounds load as voxels (first load: note the time; second load quicker - cached); walls,
+      floors, racks and crates show voxel tones, soft occlusion in corners and lighter worn edges up close; far
+      rooms switch to coarser voxels without visible popping or cracks.
+- [ ] Cover, vaults, ladders, ledges and doors behave exactly as before (hands on the cover surface, feet on floors).
+- [ ] Shadows from lamps / flashlights / the moon fall on and from the voxels; reflections pick them up.
+Warehouse art and weather (Epic):
+- [ ] Walls read as block walls / cladding / concrete, floors as slabs with joints and stains, crates as planks,
+      racks as wrapped loads in bays; props crisper than walls (2.5 cm); no stray holes where you take cover.
+- [ ] Under the roof it is darker than the yard (but for the lamps); the skylight strips let a little in.
+- [ ] Rain: none inside except under the skylights; the yard and puddles go glossy; Fog: thick with light shafts
+      under the skylights; Clear unchanged. Co-op: the host's weather choice reaches the client.
+Voxel characters (Epic):
+- [ ] The operator (menu and in a match), guards, bodies and co-op players are voxel figures; joints never open gaps
+      while running, climbing, in cover or as a ragdoll; goggles glow with night vision; the head disappears when the
+      camera gets close; hits flash; Stick style (Settings) still shows the stick figures.
+Voxel weapons and chips (Epic):
+- [ ] Weapons in the hands, on the back / hip / thigh and in the Loadout preview are voxel models (sights, triggers
+      visible up close); camo shows on them; thrown grenades and the drone are voxels.
+- [ ] Shooting a wall, floor or crate leaves a dark one-voxel pock and throws debris in its colour; cover and
+      movement are unchanged.
+GI (Epic):
+- [ ] Rooms with lamps on have soft bounce light on the walls / ceiling beside the pools; a room switched off goes
+      fully dark (no glow left); a shot-out lamp and an EMP do the same for their share; Ultra / High have none.
+Reflections, TAAU, Panini (Epic, the laptop):
+- [ ] Reflections: Off / Screen space / Ray traced; Ray traced in the rain: puddles mirror walls, lamps and guards
+      even off screen; steel and wet floors gloss; half rate vs full: note the frame rate (debug overlay).
+- [ ] Upscaler TAAU at 67% on 7680 x 2160 (or the built-in screen): sharp, no ghosting on the operator when turning;
+      Off at 67% looks softer.
+- [ ] Panini 50% at FOV 120 on 32:9: sides less stretched; prompts near the edges still usable.
+Displays (gaming laptop: RTX 4090 Laptop, 16 GB; built-in 2560 x 1600 240 Hz; external ultrawide):
+- [ ] The browser runs on the NVIDIA GPU (Settings > Graphics > GPU); switch it to the integrated GPU once: the
+      notice appears once with the Windows steps.
+- [ ] 21:9 and 32:9 (7680 x 2160): menus a centred 16:9, the stage around them; in a match the view widens up to the
+      widest FOV, then stops (no fisheye); HUD width Auto keeps the HUD in a centred 16:9 on 32:9; 16:9 / 21:9 / Full
+      change it; world prompts, arcs and markers still sit on what they point at.
+- [ ] Frame-rate cap reads "Display refresh (240 Hz)" on the panel; 120 / 144 / 165 / 240 caps hold (debug overlay).
+- [ ] Photo mode on the ultrawide: the saved photo is full width (7680 px).
+- [ ] Benchmark: current settings, Every preset, Resolutions, Sustained (10 min, plugged in): note the lines (also
+      saved as feedback) and report them back.
+Performance targets (RTX 4090 Laptop 16 GB, i9 HX, mains power; Settings > Graphics > Benchmark; fill in the measured
+average / 1% low and the GPU memory from the browser's task manager):
+
+| Output | Epic (SSR) | Epic + Ray traced | High | Measured |
+| --- | --- | --- | --- | --- |
+| 1920 x 1200 | 165 | 120 | 240 | |
+| 2560 x 1600 (built-in, 240 Hz) | 120 | 90 | 165 | |
+| 3440 x 1440 | 100 | 75 | - | |
+| 5120 x 1440 | 90 | 60 | - | |
+| 3840 x 2160 | 60 | 50 | - | |
+| 7680 x 2160 (TAAU 67%) | 60 | 45 | 120 | |
+
+Budgets: CPU main thread <= 3 ms per frame; <= 8 M triangles and <= 600 draw calls including shadows; GPU memory
+<= 12 GB at Epic (High 6, Ultra 9; brick pool <= 5 GB; render targets <= 2.5 GB at 4K, 3.5 GB at 7680 x 2160); tab
+<= 6 GB, JS heap <= 1.5 GB; the voxel cache in IndexedDB <= 2 GB; Warehouse load <= 4 s cold, <= 1.5 s cached.
+Desktop (mouse and keyboard, 1440p or 4K):
+- [ ] Menus fill the screen at a readable size (scaled from a 1280 x 720 layout); no Touch settings, no touch
+      buttons in a match, no rotate overlay; hover highlights; Settings opens on Mouse & Keyboard.
+- [ ] Mouse & Keyboard: sensitivity, aim sensitivity, invert, raw input; rebind a key (click, press), a key already
+      used moves over (toast), Backspace clears, Esc cancels; Mouse 4 / 5 can be bound; in-game prompts show the new
+      keys; Settings > Accessibility > Controls lists them.
+- [ ] Graphics: Epic by default; High / Ultra / Epic change the look live; changing any feature shows Custom;
+      resolution scale above 100% sharpens; the frame-rate cap holds (debug overlay); FOV to 120.
+- [ ] Note the FPS (Show FPS overlay) on the Warehouse at Epic: report back average / worst.
+- [ ] Lamps light the rooms, the nearest lamps and every guard flashlight cast shadows (walls stop them), the
+      moon casts soft shadows in the yard, beams show in the haze, aiming blurs the background.
+- [ ] Touchscreen laptop: touching the screen brings the touch controls back; the mouse hides them.
+Phone:
+- [ ] The same Epic renderer boots and plays (slower is expected); Graphics > High is playable.
+Feedback (both):
+- [ ] Pause > Report feedback: type a note, Add photo: the game freezes, no HUD; fly the camera (WASD / sticks /
+      drag), take a photo, retake, keep; add a second; Save. Settings > Feedback lists it after a restart.
+- [ ] Export report: one HTML file with the list and every photo (share sheet on the phone); Copy as text.
+
+## 2.3.0 - Guards, noise, loadout (phone + controller)
+- [ ] Crouch walking, a slow walk, moving in cover and climbing past a guard's back do not alert him; a sprint is heard
+      only nearby, and less through a wall.
+- [ ] A guard who spots you: take him out within ~2 s and nobody else comes; leave him and the squad arrives.
+- [ ] After a fight guards search for a minute, then stay watchful (never back to "Must have been nothing" calm).
+- [ ] In a fight guards take cover and fight from it; out of sight they move up cover to cover.
+- [ ] Spotted, no takedown prompt on guards in combat; co-op: a hidden partner still gets takedowns.
+- [ ] Flashlights never light the room behind a wall.
+- [ ] New profile starts with the 9mm SD; a single headshot drops a guard (not a heavy).
+- [ ] Loadout: lists left, operator centre, stats right; focusing previews (locked too); A equips / buys, Y
+      customises, B steps back; by touch, tap to preview, tap again (or the action bar) to act.
+- [ ] Menus fit without scrolling where they used to (Play, Settings categories).
+
+## 2.2.0 - Silent But Deadly menus (phone + controller)
+- [ ] Installed icon and name read "Silent But Deadly"; an existing save (level, credits, unlocks) is still there.
+- [ ] Main menu: green theme, stacked logo, the menu list fits without scrolling; every screen uses the same style.
+- [ ] Loadout: each category on the left (touch and LB / RB); changing a weapon, attachment, camo, suit piece or
+      outfit part shows on the operator at once; a locked one previews with its requirement and buys in place;
+      leaving restores the saved look; drag / right stick turns the operator.
+- [ ] Settings side categories and Infiltration mission cards work by touch and controller.
+
+## 2.1.1 - Main menu (phone)
+- [ ] The main menu is dark with beams over the operator, who stands to the right of the buttons; Customise shows
+      the outfit colours clearly; menus stay smooth (no frame drops on the menu).
+
+## 2.1.0 - Co-op depth (two phones)
+- [ ] Hunter in co-op: knock a guard out; both phones show the body until one player hides it.
+- [ ] Ping (D-pad left / Z / touch Ping) on a guard and on a spot: the other phone shows it, following the guard.
+- [ ] Client: a takedown, then mark two guards and Execute: both drop on the host's screen too.
+- [ ] Client throws gas at a patrol: the host's guards fall asleep. Two takedowns at once: "DUAL TAKEDOWN".
+
+## 2.1.0 - New maps (phone)
+- [ ] Mansion, Port, Refinery: play each in Hunter and its Infiltration mission; every objective can be reached on
+      foot, from above and through a door / window / duct; guards upstairs come down the stairs when alerted.
+- [ ] Frame pacing on each (debug overlay): within the 120 Hz budget with the lights on. (VM: CPU p95 1.6-2.6 ms,
+      draw calls 33-61; allocations 91-109 KB per frame, the animation graph's boxing as on the Warehouse.)
+
+## 2.1.0 - Multi-level AI (phone)
+- [ ] Warehouse Wave: climb a rack ladder; runners climb after you, guards shoot from the floor; come down and
+      a guard on the rack climbs down. Embassy Hunter: get seen on a roof, drop out of sight - guards search up there.
+
+## 2.0.1 - Feedback fixes - phone
+- [ ] Main menu fits without scrolling in landscape; a long list (Settings tabs, HQ, Store) scrolls by dragging.
+- [ ] Back button (top left) works on the first tap on every screen, including HQ, Armory, Store and Settings.
+- [ ] Hunter on the Warehouse: walking past a guard at 4-5 m behind him does not make him suspicious; sneaking up
+      behind a guard gets the takedown prompt without him turning; posted guards rarely glance round.
+- [ ] Team Deathmatch: an upgraded rifle and a stock rifle take the same number of hits to eliminate.
+
+## 2.0.0 release candidate - automated results (SwiftShader VM; frame times there are not representative)
+- Soak, 10 minutes each (`scripts/soak.mjs`): Warehouse / Wave heap growth 4.6 MB, Embassy / Hunter 4.8 MB, Dust
+  Depot / Wave 5.8 MB; no leaks, adaptive quality settles.
+- Perf (`scripts/perf.mjs --budget`): Warehouse / Wave CPU p95 ~2.0 ms, draw calls 58, allocations ~86 KB per
+  120 Hz frame; stealth scenes (`STEALTH=1`): Warehouse CPU p95 1.1 ms, draw calls 35-40, allocations 110-165 KB
+  per frame (over the 96 KB line: boxed numbers in the animation graph's blend, a pre-existing cost); Embassy CPU
+  p95 1.0 ms, 38 draw calls, 65 KB per frame. Animation per character 0.032-0.047 ms (VM drift).
+- On a device: run the soak on the Warehouse at night and the Embassy with the debug overlay; pacing within the
+  120 Hz budget with the light cones on.
+
+## 2.0 phase 11 - HUD, touch v3, accessibility, training (1.23.0)
+- [ ] In a match: no health bars; take damage, the screen edge reddens. Ammo shows when firing / reloading and
+      fades after a few seconds. Hold to use a panel: the ring fills.
+- [ ] Touch: walk up behind a guard - the Takedown button appears; tap it (knock out) / hold it (lethal). Mark
+      shows while aiming, Execute when ready. An old customised layout keeps its placements.
+- [ ] Settings > Accessibility: Controls lists every binding for the device; HUD size changes the HUD; colour-safe
+      arcs are blue / orange; subtitles show guard lines at the bottom; "Tap to start" runs a download on a tap.
+- [ ] Play > Training: finish all ten steps with each input type (pad, touch, keyboard); hints match the device.
+
+## 2.0 phase 9 - Visual overhaul (1.22.0) - Warehouse, Dust Depot, Embassy
+- [ ] A fresh install shows the operator (suit, carrier, pads, balaclava, tri-lens); toggle night vision: the
+      lenses glow green. Settings > Video > Avatar style: Stick still works.
+- [ ] Warehouse at night: lamps throw faint cones; characters have a soft shadow underfoot; the image has a cold
+      grade. Shoot a lamp: its cone goes out.
+- [ ] Enemies read by silhouette at 20 m: cap (guard), helmet + plates (heavy), hood (sniper), shield, beret
+      (officer), headset (drone operator), dog. Dust Depot enemies wear desert colours, Embassy navy.
+- [ ] Frame pacing on a phone in the Warehouse (debug overlay) stays inside the budget with the cones on.
+
+## 2.0 phase 10 - Co-op 4 and PvP (1.21.0) - two to eight devices
+- [ ] Co-op > Host: Mode lists Wave, Hunter, Infiltration, Free Roam, Team Deathmatch, Free-for-all. Four phones
+      join a Hunter room; a fifth is told the room is full (switch to a PvP mode and it can join).
+- [ ] Hunter with two: the client sees calm guards, opens a door (the host sees it open), takes a guard down from
+      behind (tap: knocked out), and revives the host when he goes down (hold on the body).
+- [ ] Infiltration with two (Diplomatic Pouch): the client sees the objective, starts the download, both extract.
+- [ ] Team Deathmatch with 3+: teams split, "Join Red" moves you if there is room; team-mates have a marker;
+      shooting a team-mate does nothing; an elimination scores, the victim respawns away from enemies after 4 s.
+- [ ] Free-for-all: everyone can hit everyone; the HUD shows You / Lead and the clock; the end shows the winner.
+
+## 2.0 phase 8 - Arsenal, suit, HQ (1.20.0)
+- [ ] Store: the new weapons from level 2 (9mm SD) to 12 (M249). Armory: each shows its model; fit a suppressor /
+      scope / grip / extended mag: they appear on the gun in the armory and in the hands.
+- [ ] Shoot through a door with a rifle (a guard behind is hit); a pistol does not go through a wall.
+- [ ] The DMR / M700 scope sways gently; crouch and stand still to steady it.
+- [ ] Crossbow: a guard hit drops knocked out (non-lethal); with Lethal Bolts he dies.
+- [ ] HQ > Suit: buy the light vest, wear it (the operator gets a vest; footsteps a bit louder on the meter);
+      boots quiet them. HQ > Upgrades: radar shows nearby enemies on the minimap in Hunter.
+- [ ] Finish a Hunter run sneaking: Ghost / Panther cash lines in the rewards; HQ > Challenges progress.
+- [ ] HQ > Loadouts: save the current weapons to a preset, pick it on the Play screen; its gadget is selected.
+
+## 2.0 phase 7 - Hunter and Infiltration (1.19.0) - Warehouse, Embassy
+- [ ] Play > Hunter on the Warehouse: get spotted and let a guard reach an alarm panel - "Hostiles doubled", the
+      counter doubles and squads come in hunting. Results: Detected count and three play-style bars.
+- [ ] Play > Infiltration: the board lists four missions with stars; pick Diplomatic Pouch, Rooftop insertion.
+- [ ] Drop through the roof duct into the server room, start the upload, step out of range (the % stops), come
+      back; guards come to check the noise now and then. Take the three intel folders, leave by the back gate.
+- [ ] Asset Recovery: bug the conference phone (hold), free the kneeling asset (hold), walk him out the front gate
+      (he follows, crouches with you).
+- [ ] Blackout: plant the charge on the generator; get seen once - the contract fails.
+- [ ] Results: stars, bonuses kept; the board shows the best rating afterwards (and after a reload).
+- [ ] Embassy routes: roof by the north ladder / front drainpipes; zipline to the court; the east pipe to the
+      ambassador's window; both roof ducts.
+
+## 2.0 phase 6 - Enemy archetypes (1.18.0) - Warehouse, Clear
+- [ ] Dock: a dog trots beside the patrolling guard. Crouch behind a crate within a few metres: it growls and
+      comes for you even in the dark. A takedown from behind or sleeping gas puts it down.
+- [ ] Dispatch: a red-lit drone circles the drone operator. Stand under it: "Drone has him!". Shoot it down / EMP.
+- [ ] Workshop: the enforcer's shield sparks when shot from the front; he walks at you; flank and shoot his back.
+- [ ] Factory floor heavy: shots to his chest barely hurt, his back and face plate do; in front of him the prompt
+      reads "Lethal takedown".
+- [ ] Mezzanine sniper: a red laser and a glint when he aims at you; marking him then says "Can't mark through
+      the glint"; after a couple of shots he moves.
+- [ ] Office officer: alert him near the alarm panel - he runs it himself.
+- [ ] Take one guard of a squad out quietly and wait ~40 s: "Radio check." - "No answer..." - one comes to look.
+- [ ] Callouts float over heads (radio lines in blue with a chirp).
+- [ ] Play menu: Rookie / Normal / Realistic / Perfectionist. Perfectionist: no sonar on the goggles, no marks.
+
+## 2.0 phase 5 - Gadgets (1.17.0) - Warehouse, Clear
+- [ ] Hold D-pad down / Tab: the gadget wheel opens and time slows. Push the stick (or move the mouse) to a slot,
+      release: it is selected (HUD icon by the ammo). Touch: tap the wheel button, tap a slot.
+- [ ] Hold D-pad up / G / the gadget button: a dotted arc and a landing ring. Release: thrown along it.
+- [ ] Sleeping gas into a group: they drop (knocked out; a squadmate finding one wakes him).
+- [ ] Flashbang: guards facing it stagger blind for a few seconds, then fight. Look at it yourself: white-out.
+- [ ] EMP near lamps: they go out for ~8 s and come back; a guard investigates the darkness.
+- [ ] Noisemaker on a wall: it chirps; a guard walks over to check (not a fight).
+- [ ] Sticky cam: the view jumps to it (blue-grey feed). Fire pings (guards come), Y gasses (once), RB / T marks,
+      B returns. Your operator stands still meanwhile.
+- [ ] Drone: launches into its feed; fly where you look; RT darts a guard (knocked out); Y shock burst ends it; an
+      alerted guard shoots it down; it drops when the battery runs out (the feed shows seconds left).
+- [ ] Mine: placed at the feet, the light blinks then stays; a guard stepping near sets it off.
+- [ ] Touch: the action button reads Gas / Shock in a feed; the crouch button returns.
+
+## 2.0 phase 4 - Takedowns, Mark & Execute (1.16.0) - Warehouse, Clear
+- [ ] Sneak up behind a guard: "Takedown" over him. Tap Y / E / the prompt: a choke, he drops (knocked out). Hold: a strike (killed).
+- [ ] From the front works too; from the side only while he has not noticed you.
+- [ ] In low cover with a guard across it: the takedown vaults over. From the mezzanine edge onto a guard below: a drop takedown.
+- [ ] Hanging at the mezzanine lip with a guard standing over it: pull him down. At the workshop window with a guard outside: pull him through.
+- [ ] Get shot during a takedown: it breaks off and he is free and alert.
+- [ ] After a takedown a white diamond (charge) shows. Aim (LT / RMB / touch aim) and press RB / T / the Mark button on up to three guards: white chevrons; red once all are in sight and range.
+- [ ] Y / keyboard Y / the Execute button: a slowed sequence drops each marked guard; the charge is spent.
+- [ ] Touch: Mark appears only while aiming, Execute only when ready; the takedown prompt is tappable (long press = lethal).
+
+## 2.0 phase 3d - Night vision and sonar (1.15.0) - Warehouse, Clear
+- [ ] Press View (pad), N (keyboard) or the goggles button (touch): night vision; dark aisles become readable, lamps glare.
+- [ ] Press again: sonar; guards behind walls show as orange silhouettes for a moment every 6 s, with a ring and a ping.
+- [ ] After ~18 s sonar switches off and "SONAR n" counts down its recharge; pressing the button skips sonar until then.
+- [ ] Night vision on an iPhone at 120 Hz: no frame drops (the debug pacing graph stays under the line).
+
+## 2.0 phase 3c - Surfaces, doors, shot noise (1.14.0) - Warehouse, Clear
+- [ ] Walk across the yard (gravel), the mezzanine (metal) and the office (carpet): steps sound different; the noise meter is higher on metal, lower on carpet.
+- [ ] At a closed door: "Open door" eases it open with a creak; "Close door" shuts it. Guards behind a closed door cannot see you.
+- [ ] Sprint into a closed door: it bangs open and nearby guards react.
+- [ ] A patrolling guard opens a closed door on his beat.
+- [ ] With a suppressor fitted, a shot near an unaware guard makes him look round, not open fire; without one he goes to combat.
+
+## 2.0 phase 3b - Bodies, lights, alarms (1.13.0) - Warehouse, Clear
+- [ ] Drop a guard: the body stays. Walk up to it: "Pick up body"; carry it (slow, no weapon), put it down, pick it up again.
+- [ ] Carry a body to the yard dumpster or the dispatch cabinet: "Hide body"; it is gone.
+- [ ] Leave a body in a lamp pool in a guard's view: he finds it, searches round it, others nearby join.
+- [ ] Shoot a lamp bulb: it goes out with a tinkle; a guard comes to look with a flashlight (the beam lights you up).
+- [ ] Use a wall switch: the room's lamps go off; someone comes to look at the switch.
+- [ ] Get spotted near an alarm panel: a guard runs to it; stop him or ALARM sounds and three more come in from the yard.
+- [ ] Hold Y / E at an alarm panel first: "Alarm disabled"; it can no longer be raised.
+
+## 2.0 phase 3a - Perception and alert states (1.12.0) - Warehouse, Clear
+- [ ] It is night: the yard is moonlit, inside is dark with pools under the lit lamps. The light meter (top left) dims and turns blue in shadow.
+- [ ] Guards walk their routes or stand post and glance about. Crouch-walk behind one in the dark: no arc.
+- [ ] Walk into a lamp pool in front of a guard: a white arc fills round the crosshair before he spots you (turns red).
+- [ ] Make noise near a guard out of sight (sprint, drop from height): he turns, then comes to look.
+- [ ] Get spotted, then slip away: a pale ghost of you stays where you were seen; they converge on it and search, then give up after ~30 s.
+- [ ] Spotted guards radio the ones nearby (they join a moment later); far ones stay calm.
+- [ ] Wave on Warehouse still sends enemies straight at you.
+
+## 2.0 phase 2 feedback (1.11.0) - Proving Grounds, north east
+- [ ] Ladder: climbing up and down feels quick (3 rungs/s); holding sprint climbs faster; hands and feet step one at a time.
+- [ ] Walk up to a ladder next to a wall top: the ladder is offered, not the lip.
+- [ ] Drainpipe: the climb stops at the top; Y climbs up off it; pushing sideways swings onto the lip beside it.
+- [ ] Shimmy along a lip past the drainpipe: it swings onto the pipe; push sideways to carry on along the lip.
+- [ ] Ducts: crawling, the guns on the back never poke through the roof.
+- [ ] Moving fast along high cover: no sudden dip of the body or the gun into the floor.
+
+## 2.0 phase 2c - Routes on every map (1.10.0) - Warehouse, Dust Depot
+- [ ] Warehouse yard: vault in through the workshop window. Dispatch: Y at the glass shatters through to the corridor.
+- [ ] Racking: climb a rack ladder, walk the rack top, sprint and hop the cross aisle.
+- [ ] Factory floor: ladder up to the mezzanine (or grab its edge from below); zipline down from the deck.
+- [ ] Mezzanine west end: the vent into the duct; crawl over the manager's office and drop in through the hatch.
+- [ ] Dust Depot: a warehouse's south window; the crate by its east wall, grab the wall top, walk it, drop inside.
+- [ ] Container tops: grab, climb up, walk across. Nothing pokes through walls while climbing, hanging or crawling.
+- [ ] On a ladder / hanging, the camera cannot be spun all the way round (it stops softly).
+
+## 2.0 phase 2b - Landings, ziplines, windows, ducts (1.9.0) - Proving Grounds, east side
+- [ ] Walk off the tower (3.6 m): a roll that keeps you moving; off the 2.3 m blocks: a soft landing. Enemies in
+      Wave mode turn towards a heavy landing.
+- [ ] Drop off the tower beside its south wall and press Y as the lip passes: you catch it.
+- [ ] Zipline from the tower's south edge: speed builds, B lets go mid-way (you fly on), riding to the end you land
+      running.
+- [ ] Shed: Y at the open south window vaults in; Y at the glazed north window shatters it and vaults out (loud).
+- [ ] Ladder platform west of the shed: at the vent tap Y kicks it in (loud), or hold Y to unscrew (silent, the
+      prompt counts up); crawl through; at the end you drop into the shed and roll. Pull back at the start to leave.
+- [ ] The camera never pokes outside the duct; the stick-figure guns on the back stay inside the duct.
+
+## 2.0 phase 2a - Ledges, ladders, pipes (1.8.0) - Proving Grounds, north east corner
+- [ ] Ladder (tower, west side): Y climbs on; stick up climbs, hands and feet land on rungs (no sliding); B slides to
+      the bottom; climbing past the top steps onto the tower. From the tower top, Y at the ladder steps on facing it.
+- [ ] Drainpipe (tower, south side): climbs, takes the lip at the top, "Climb up" puts you on the tower.
+- [ ] Hang blocks: Y under the 2.3 m wall grabs it; shimmy both ways at a steady pace; push past the far end with
+      the stick towards the second block: "Jump" shows on it, Y jumps across; round the far corner; Y climbs up.
+- [ ] On top of a block at the edge: hold B (or tap "Hang") lowers into a hang; B drops.
+- [ ] Horizontal pipe: Y under it grabs, stick moves along it, B drops.
+- [ ] Touch: every prompt above is a button; the camera framing changes on the ladder / hang and returns after.
+- [ ] Holding crouch (hold mode) while walking up to an edge never lowers you over it.
+
+## 2.0 phase 1 - Foundations (1.7.0) - Proving Grounds, then Warehouse
+- [ ] Nothing looks or plays differently from 1.6.0: movement, cover, vaults, combat, camera, HUD.
+- [ ] Frame pacing graph (debug overlay) unchanged on Warehouse with 10 enemies.
+- [ ] B / C / touch crouch still crouches and toggles stance at high cover (it now also raises `drop`).
+- [ ] Holding Y / E on an objective terminal still fills its ring; a tap still vaults.
+
 ## Phase 10 - Release checklist
 
 ### Offline and install
@@ -325,13 +661,19 @@ Menus (every screen must be fully usable without touching the screen):
 Gameplay mapping:
 - [ ] LS move, RS look (sensitivity, curve, invert-Y and dead zones from Settings > Controller apply).
 - [ ] RT fire (analog threshold), LT aim (hold or toggle per setting); aim assist slows near targets on Standard/High, off when disabled.
-- [ ] RB / LB next / previous weapon; X reload; A contextual vault / climb / step / drop; B crouch (tap) / cover (hold); Y interact.
-- [ ] LS click dash (wind-up, cannot fire while dashing; in cover: to the marked cover); RS click shoulder swap.
-- [ ] D-pad up grenade; right/down/left quick emotes.
-- [ ] In cover: B leaves, A vaults low cover, LT peeks / leans, RT blind-fires, pushing past an outside corner pivots, into an inside corner turns, LS click moves to the marked cover / SWAT turn.
+- [ ] RB / LB next / previous weapon (RB marks while aiming); X reload (hold: next weapon); A take / leave cover and
+      cover-to-cover; B crouch; Y traverse / use / takedown (hold: lethal) / Execute when ready.
+- [ ] L3 sprint; R3 shoulder swap; View goggles (night vision / sonar).
+- [ ] D-pad up gadget (hold aims, release throws); D-pad down gadget wheel (hold); right / left emotes.
+- [ ] In cover: A leaves (or to the marked cover), Y vaults low cover, LT peeks / leans, RT blind-fires, A at an
+      outside edge swings round the corner, pushing into an inside corner turns.
 - [ ] Start pauses (single player) / opens the menu without pausing (co-op).
 - [ ] Haptics: firing, hits, explosions and damage rumble (if the controller supports it); off when Haptics is disabled.
 
 ### Final pass
+- [ ] 2.0: Play > Training to the end on a phone; a Hunter run on the Warehouse at night, ghosted; an
+      Infiltration mission per insertion; four phones in co-op Hunter; eight in Team Deathmatch (or as many as
+      available) through to the result; the 10-minute soak (`scripts/soak.mjs`, debug overlay) on the Warehouse
+      and the Embassy.
 - [ ] Full Wave run to wave 5+ and a Mission win on a mid-range phone: no hitches, frame time stable (debug overlay), no audio crackle.
 - [ ] Two phones co-op through a full wave, then Play again, then host leaves.

@@ -42,11 +42,13 @@ export interface FootState {
   stepDur: number;
   stepLift: number;
   probeT: number;
+  /** Swing progress when the gait clock's swing window began (an early toe-off already in the air), else -1. */
+  swBase: number;
   init: boolean;
 }
 
 function newFoot(): FootState {
-  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, landed: false, slide: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, init: false };
+  return { x: 0, y: 0, z: 0, yaw: 0, contact: true, swing: -1, pitch: 0, landed: false, slide: 0, fromX: 0, fromY: 0, fromZ: 0, fromYaw: 0, toX: 0, toY: 0, toZ: 0, toYaw: 0, stepT: 0, stepDur: 0.3, stepLift: 0.05, probeT: 0, swBase: -1, init: false };
 }
 
 export interface PlannerInput {
@@ -153,7 +155,11 @@ export class FootPlanner {
       const wantContact = sinceStrike < i.duty;
       if (!wantContact) {
         const s = (sinceStrike - i.duty) / (1 - i.duty);
-        if (f.contact || f.swing < 0) this.beginSwing(f, i, (1 - i.duty) * i.cycleTime, i.liftH);
+        const fresh = f.contact || f.swing < 0;
+        if (fresh) {
+          this.beginSwing(f, i, (1 - i.duty) * i.cycleTime, i.liftH);
+          f.swBase = 0;
+        } else if (f.swBase < 0) f.swBase = f.swing;
         // slow near starts and stops, but a step never hangs in the air for long
         f.stepDur = Math.min(0.6, (1 - i.duty) * i.cycleTime);
         // remaining time to land, then half a stance ahead so mid-stance is under the hip
@@ -174,10 +180,14 @@ export class FootPlanner {
           }
         }
         this.aim(f, i, side, rx, rz, i.yaw);
-        this.swingTo(f, i, s);
-        f.stepT = s * f.stepDur;
+        // an early toe-off already in the air goes on from its progress to land on the clock (restarting from
+        // the clock's 0 snaps the foot back to where it left the ground and the pelvis drops to reach it)
+        const sp = f.swBase + (1 - f.swBase) * s;
+        this.swingTo(f, i, sp);
+        f.stepT = sp * f.stepDur;
       } else if (!f.contact) {
         // a step still in the air when the clock says contact (e.g. an idle step as walking starts)
+        f.swBase = -1;
         if (f.swing >= 0.9) this.land(f);
         else this.swingTo(f, i, Math.min(1, f.swing + i.dt / f.stepDur));
       } else {
@@ -273,6 +283,7 @@ export class FootPlanner {
     f.stepT = 0;
     f.swing = 0;
     f.probeT = 0;
+    f.swBase = -1;
     void i;
   }
 

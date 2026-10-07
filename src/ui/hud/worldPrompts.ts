@@ -1,9 +1,9 @@
 import { h } from '../dom';
 import { icon } from '../icons';
-import { promptHtml } from '../prompts';
+import { keyLabels, promptHtml } from '../prompts';
 
 /** Prompts drawn on the world surface they act on (Splinter Cell: Blacklist style). */
-export type WorldPromptId = 'cover' | 'vault' | 'state' | 'move' | 'corner';
+export type WorldPromptId = 'cover' | 'vault' | 'state' | 'move' | 'corner' | 'jumpTo' | 'drop' | 'takedown';
 
 interface Item {
   el: HTMLElement;
@@ -15,24 +15,37 @@ interface Item {
   sy: number;
 }
 
-const PROMPT_IDS: readonly WorldPromptId[] = ['cover', 'vault', 'state', 'move', 'corner'];
+const PROMPT_IDS: readonly WorldPromptId[] = ['cover', 'vault', 'state', 'move', 'corner', 'jumpTo', 'drop', 'takedown'];
 /** Overlap estimate: label width per character, padding (glyph or icon), and the row height (vw / vh). */
 const CHAR_VW = 1.25;
 const PAD_VW = 4;
 const MIN_DY = 7;
 
-const GLYPH: Record<WorldPromptId, string> = {
-  cover: promptHtml('A', 'Space'),
-  move: promptHtml('A', 'Space'),
-  corner: promptHtml('A', 'Space'),
-  vault: promptHtml('Y', 'E'),
-  state: '',
-};
+/** Pad glyph and the bound key per prompt (keys follow the player's bindings). */
+function glyph(id: WorldPromptId): string {
+  switch (id) {
+    case 'cover':
+    case 'move':
+    case 'corner':
+      return promptHtml('A', keyLabels.cover);
+    case 'vault':
+    case 'jumpTo':
+    case 'takedown':
+      return promptHtml('Y', keyLabels.traverse);
+    case 'drop':
+      return promptHtml('B', keyLabels.crouch);
+    case 'state':
+      return '';
+  }
+}
 const TOUCH_ICON: Record<WorldPromptId, string> = {
   cover: icon('cover', 18),
   move: icon('cover', 18),
   corner: icon('cover', 18),
   vault: icon('jump', 18),
+  jumpTo: icon('jump', 18),
+  drop: icon('crouch', 18),
+  takedown: icon('interact', 18),
   state: icon('cover', 16),
 };
 
@@ -47,6 +60,9 @@ export class WorldPrompts {
   readonly el: HTMLElement;
   private items = {} as Record<WorldPromptId, Item>;
   onTap: ((id: WorldPromptId) => void) | null = null;
+  /** Touch down / up on a prompt (hold interactions: unscrewing a vent). */
+  onDown: ((id: WorldPromptId) => void) | null = null;
+  onUp: ((id: WorldPromptId) => void) | null = null;
 
   constructor(parent: HTMLElement) {
     this.el = h('div', { class: 'hud-world' });
@@ -57,16 +73,28 @@ export class WorldPrompts {
       el.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         e.preventDefault();
+        // the label may change while held (hold progress): keep the pointer on the prompt itself
+        try {
+          el.setPointerCapture(e.pointerId);
+        } catch {
+          /* synthetic events have no active pointer */
+        }
         el.classList.add('active');
+        if (el.classList.contains('show')) this.onDown?.(id);
       });
       el.addEventListener('pointerup', (e) => {
         e.stopPropagation();
+        this.onUp?.(id);
         if (!el.classList.contains('active')) return;
         el.classList.remove('active');
         if (el.classList.contains('show')) this.onTap?.(id);
       });
-      el.addEventListener('pointerleave', () => el.classList.remove('active'));
-      el.addEventListener('pointercancel', () => el.classList.remove('active'));
+      const cancel = (): void => {
+        if (el.classList.contains('active')) this.onUp?.(id);
+        el.classList.remove('active');
+      };
+      el.addEventListener('pointerleave', cancel);
+      el.addEventListener('pointercancel', cancel);
       this.el.appendChild(el);
       this.items[id] = { el, key: '', x: -1, y: -1, sx: -1, sy: -1 };
     }
@@ -83,7 +111,7 @@ export class WorldPrompts {
     if (key !== it.key) {
       it.key = key;
       it.el.innerHTML = label
-        ? `<i class="wp-mark"></i><span class="wp-body">${GLYPH[id]}<span class="wp-touch">${TOUCH_ICON[id]}</span><span class="wp-label">${label}</span></span>`
+        ? `<i class="wp-mark"></i><span class="wp-body">${glyph(id)}<span class="wp-touch">${TOUCH_ICON[id]}</span><span class="wp-label">${label}</span></span>`
         : '';
       it.el.classList.toggle('show', !!label);
     }

@@ -1,7 +1,7 @@
 // Builds nothing: serves the existing dist/ with `vite preview` and runs every e2e script.
 import { spawn } from 'node:child_process';
 
-const PORT = 4179;
+const PORT = Number(process.env.E2E_PORT ?? 4179);
 const url = `http://localhost:${PORT}/`;
 const server = spawn('npx', ['vite', 'preview', '--port', String(PORT), '--strictPort'], { stdio: 'ignore' });
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -13,7 +13,7 @@ for (let i = 0; i < 40; i++) {
   }
   await wait(250);
 }
-const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-progression', 'e2e-cosmetics', 'e2e-cover', 'e2e-clip', 'e2e-tactics', 'e2e-clear', 'e2e-coop', 'e2e-offline'];
+const suites = process.argv.slice(2).length ? process.argv.slice(2) : ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-progression', 'e2e-cosmetics', 'e2e-cover', 'e2e-clip', 'e2e-tactics', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-clear', 'e2e-training', 'e2e-coop', 'e2e-feedback', 'e2e-desktop', 'e2e-offline'];
 let failed = 0;
 for (const s of suites) {
   console.log(`\n=== ${s} ===`);

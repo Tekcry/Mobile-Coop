@@ -1,0 +1,660 @@
+[
+  {
+    "id": "warehouse-cold",
+    "name": "Cold Storage",
+    "map": "warehouse",
+    "brief": "Hack the manager's terminal, collect the shipping manifests and extract from the east lot.",
+    "insertions": [
+      {
+        "id": "yard",
+        "name": "Truck yard",
+        "x": -14.5,
+        "z": -24,
+        "yaw": 0
+      },
+      {
+        "id": "lot",
+        "name": "East lot",
+        "x": 18,
+        "z": -24.5,
+        "yaw": 0
+      },
+      {
+        "id": "window",
+        "name": "Workshop window",
+        "x": 11.5,
+        "z": -20.5,
+        "yaw": 0
+      }
+    ],
+    "objectives": [
+      {
+        "type": "plant",
+        "id": "hack",
+        "label": "Hack the manager's terminal",
+        "x": 5.2,
+        "z": 16.2,
+        "yaw": 0,
+        "time": 4
+      },
+      {
+        "type": "intel",
+        "id": "manifests",
+        "label": "Collect the manifests",
+        "items": [
+          [
+            -1,
+            0,
+            -14.2
+          ],
+          [
+            10,
+            0,
+            -13.6
+          ],
+          [
+            17.5,
+            2.6,
+            13.2
+          ]
+        ]
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Extract from the east lot",
+        "x": 18.5,
+        "z": -23.2,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "noAlarms": "bonus",
+      "noKills": "bonus"
+    }
+  },
+  {
+    "id": "warehouse-ledger",
+    "name": "Ledger",
+    "map": "warehouse",
+    "brief": "Pull the shipping ledger off the dispatch terminal, grab the three paper copies and leave through the east lot.",
+    "insertions": [
+      {
+        "id": "yard",
+        "name": "Truck yard",
+        "x": -14.5,
+        "z": -24,
+        "yaw": 0
+      },
+      {
+        "id": "lot",
+        "name": "East lot",
+        "x": 18,
+        "z": -24.5,
+        "yaw": 0
+      },
+      {
+        "id": "window",
+        "name": "Workshop window",
+        "x": 11.5,
+        "z": -20.5,
+        "yaw": 0
+      }
+    ],
+    "objectives": [
+      {
+        "type": "download",
+        "id": "ledger",
+        "label": "Download the ledger in dispatch",
+        "x": 3.2,
+        "z": -14.6,
+        "yaw": 1.57,
+        "time": 40
+      },
+      {
+        "type": "intel",
+        "id": "copies",
+        "label": "Collect the paper copies",
+        "items": [
+          [
+            10,
+            0,
+            -13.6
+          ],
+          [
+            -2.2,
+            0,
+            14.1
+          ],
+          [
+            -17,
+            0,
+            -9.5
+          ]
+        ]
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Extract from the east lot",
+        "x": 18.5,
+        "z": -23.2,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "noAlarms": "bonus",
+      "undetected": "bonus"
+    }
+  },
+  {
+    "id": "warehouse-courier",
+    "name": "Courier",
+    "map": "warehouse",
+    "brief": "Tag the forklift on the loading dock, free the courier held in the workshop and walk him out to the east lot.",
+    "insertions": [
+      {
+        "id": "yard",
+        "name": "Truck yard",
+        "x": -14.5,
+        "z": -24,
+        "yaw": 0
+      },
+      {
+        "id": "lot",
+        "name": "East lot",
+        "x": 18,
+        "z": -24.5,
+        "yaw": 0
+      },
+      {
+        "id": "window",
+        "name": "Workshop window",
+        "x": 11.5,
+        "z": -20.5,
+        "yaw": 0
+      }
+    ],
+    "objectives": [
+      {
+        "type": "plant",
+        "id": "tag",
+        "label": "Tag the forklift",
+        "x": -13.5,
+        "z": -12.4,
+        "yaw": -1.57,
+        "time": 3
+      },
+      {
+        "type": "rescue",
+        "id": "courier",
+        "label": "Free the courier",
+        "vip": [
+          8.6,
+          0,
+          -12.6
+        ],
+        "x": 8.6,
+        "z": -12.6,
+        "time": 1.5
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Get the courier to the east lot",
+        "x": 18.5,
+        "z": -23.2,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "noKills": "bonus",
+      "undetected": "bonus"
+    }
+  },
+  {
+    "id": "warehouse-blackout",
+    "name": "Blackout (Ghost contract)",
+    "map": "warehouse",
+    "brief": "Rig the control cabinet on the factory floor and get out unseen. Detection fails the contract.",
+    "insertions": [
+      {
+        "id": "yard",
+        "name": "Truck yard",
+        "x": -14.5,
+        "z": -24,
+        "yaw": 0
+      },
+      {
+        "id": "window",
+        "name": "Workshop window",
+        "x": 11.5,
+        "z": -20.5,
+        "yaw": 0
+      }
+    ],
+    "objectives": [
+      {
+        "type": "sabotage",
+        "id": "cabinet",
+        "label": "Rig the control cabinet",
+        "x": 22.7,
+        "z": -2.5,
+        "yaw": 1.57,
+        "time": 4
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Leave through the dispatch window",
+        "x": 1.2,
+        "z": -20.5,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "undetected": "fail",
+      "noAlarms": "bonus"
+    }
+  },
+  {
+    "id": "embassy-pouch",
+    "name": "Diplomatic Pouch",
+    "map": "embassy",
+    "brief": "Upload the embassy's server logs, gather three pieces of intel around the compound and slip out the back gate.",
+    "insertions": [
+      {
+        "id": "gate",
+        "name": "Front gate",
+        "x": 0,
+        "z": -20.2,
+        "yaw": 0
+      },
+      {
+        "id": "drain",
+        "name": "Storm drain (west garden)",
+        "x": -21,
+        "z": -3.2,
+        "yaw": 0.3
+      },
+      {
+        "id": "roof",
+        "name": "Rooftop (helicopter)",
+        "x": 8,
+        "y": 3.9,
+        "z": 9,
+        "yaw": 3.14
+      }
+    ],
+    "objectives": [
+      {
+        "type": "download",
+        "id": "logs",
+        "label": "Upload the server logs",
+        "x": -14,
+        "z": 2.4,
+        "yaw": 3.14,
+        "time": 40
+      },
+      {
+        "type": "intel",
+        "id": "intel",
+        "label": "Gather the intel",
+        "items": [
+          [
+            -12.5,
+            0,
+            -18.0
+          ],
+          [
+            13.5,
+            0,
+            13.6
+          ],
+          [
+            23.2,
+            0,
+            14.6
+          ]
+        ]
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Leave by the back gate",
+        "x": -23,
+        "z": 19,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "noAlarms": "bonus",
+      "undetected": "bonus"
+    }
+  },
+  {
+    "id": "embassy-asset",
+    "name": "Asset Recovery",
+    "map": "embassy",
+    "brief": "Bug the conference room, free the asset held in the ambassador's office and walk him out of the front gate.",
+    "insertions": [
+      {
+        "id": "gate",
+        "name": "Front gate",
+        "x": 0,
+        "z": -20.2,
+        "yaw": 0
+      },
+      {
+        "id": "drain",
+        "name": "Storm drain (west garden)",
+        "x": -21,
+        "z": -3.2,
+        "yaw": 0.3
+      },
+      {
+        "id": "roof",
+        "name": "Rooftop (helicopter)",
+        "x": 8,
+        "y": 3.9,
+        "z": 9,
+        "yaw": 3.14
+      }
+    ],
+    "objectives": [
+      {
+        "type": "plant",
+        "id": "bug",
+        "label": "Bug the conference phone",
+        "x": -12,
+        "z": 14.1,
+        "yaw": 0,
+        "time": 3
+      },
+      {
+        "type": "rescue",
+        "id": "asset",
+        "label": "Free the asset",
+        "vip": [
+          15.2,
+          0,
+          3.2
+        ],
+        "x": 15.2,
+        "z": 3.2,
+        "time": 1.5
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Get the asset out the front gate",
+        "x": 0,
+        "z": -19.5,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "noKills": "bonus",
+      "undetected": "bonus"
+    }
+  },
+  {
+    "id": "embassy-blackout",
+    "name": "Blackout (Ghost contract)",
+    "map": "embassy",
+    "brief": "Plant a charge on the generator in the service yard and get out unseen. Detection fails the contract.",
+    "insertions": [
+      {
+        "id": "drain",
+        "name": "Storm drain (west garden)",
+        "x": -21,
+        "z": -3.2,
+        "yaw": 0.3
+      },
+      {
+        "id": "roof",
+        "name": "Rooftop (helicopter)",
+        "x": 8,
+        "y": 3.9,
+        "z": 9,
+        "yaw": 3.14
+      }
+    ],
+    "objectives": [
+      {
+        "type": "sabotage",
+        "id": "charge",
+        "label": "Plant the charge on the generator",
+        "x": 21.6,
+        "z": -6,
+        "yaw": 1.57,
+        "time": 4
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Leave by the back gate",
+        "x": -23,
+        "z": 19,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "undetected": "fail",
+      "noAlarms": "bonus"
+    }
+  },
+  {
+    "id": "mansion-vault",
+    "name": "Private Collection",
+    "map": "mansion",
+    "brief": "Copy the vault office's ledger upstairs, lift the evidence from the master bedroom and the study safe, and leave over the north-east lawn.",
+    "insertions": [
+      {
+        "id": "gate",
+        "name": "Front gate",
+        "x": 0,
+        "z": -26.2,
+        "yaw": 0
+      },
+      {
+        "id": "lawn",
+        "name": "West lawn wall",
+        "x": -28,
+        "z": 20,
+        "yaw": 1.57
+      },
+      {
+        "id": "roof",
+        "name": "Rooftop (helicopter)",
+        "x": -6,
+        "y": 7.0,
+        "z": 6,
+        "yaw": 3.14
+      }
+    ],
+    "objectives": [
+      {
+        "type": "download",
+        "id": "ledger",
+        "label": "Copy the ledger (vault office)",
+        "x": 10,
+        "y": 3.6,
+        "z": 11.3,
+        "yaw": 0,
+        "time": 45
+      },
+      {
+        "type": "intel",
+        "id": "evidence",
+        "label": "Lift the evidence",
+        "items": [
+          [
+            -14.6,
+            3.6,
+            -2.4
+          ],
+          [
+            14.4,
+            0,
+            12.6
+          ]
+        ]
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Leave over the north-east lawn",
+        "x": 26,
+        "z": 23,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "noAlarms": "bonus",
+      "undetected": "bonus"
+    }
+  },
+  {
+    "id": "port-manifest",
+    "name": "Dead Reckoning",
+    "map": "port",
+    "brief": "Tag the arms shipment on the cargo ship's deck, copy the customs manifest from the mezzanine office and slip away by boat off the pier.",
+    "insertions": [
+      {
+        "id": "gate",
+        "name": "Terminal gate",
+        "x": 0,
+        "z": -28.4,
+        "yaw": 0
+      },
+      {
+        "id": "quay",
+        "name": "West quay (swim in)",
+        "x": -30,
+        "z": 21.5,
+        "yaw": 1.57
+      },
+      {
+        "id": "pier",
+        "name": "Pier",
+        "x": 30,
+        "z": 25.5,
+        "yaw": -1.57
+      }
+    ],
+    "objectives": [
+      {
+        "type": "plant",
+        "id": "tag",
+        "label": "Tag the shipment (cargo deck)",
+        "x": 1,
+        "y": 3.0,
+        "z": 25.9,
+        "yaw": 0,
+        "time": 3
+      },
+      {
+        "type": "download",
+        "id": "manifest",
+        "label": "Copy the customs manifest",
+        "x": 27.2,
+        "y": 3.2,
+        "z": -19.9,
+        "yaw": 3.14,
+        "time": 40
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Leave by boat off the pier",
+        "x": 31,
+        "z": 26,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "noKills": "bonus",
+      "undetected": "bonus"
+    }
+  },
+  {
+    "id": "refinery-flare",
+    "name": "Flashpoint",
+    "map": "refinery",
+    "brief": "Pull the shipping schedule from the operations office, take the logbooks from the pump house and the lockers, rig the cracking tower's valve and get out past the flare.",
+    "insertions": [
+      {
+        "id": "gate",
+        "name": "Main gate",
+        "x": -2.5,
+        "z": -28.5,
+        "yaw": 0
+      },
+      {
+        "id": "west",
+        "name": "West fence (tank farm)",
+        "x": -32.5,
+        "z": -26,
+        "yaw": 0.6
+      },
+      {
+        "id": "east",
+        "name": "East yard",
+        "x": 32,
+        "z": 18,
+        "yaw": -1.57
+      }
+    ],
+    "objectives": [
+      {
+        "type": "download",
+        "id": "schedule",
+        "label": "Pull the shipping schedule (operations office)",
+        "x": 23.5,
+        "y": 3.4,
+        "z": 5.6,
+        "yaw": 0,
+        "time": 40
+      },
+      {
+        "type": "intel",
+        "id": "logs",
+        "label": "Take the logbooks",
+        "items": [
+          [
+            -4.6,
+            0,
+            -17.4
+          ],
+          [
+            28.5,
+            0,
+            5.8
+          ]
+        ]
+      },
+      {
+        "type": "sabotage",
+        "id": "valve",
+        "label": "Rig the cracking tower valve",
+        "x": -4,
+        "z": 15.6,
+        "yaw": 0,
+        "time": 4
+      },
+      {
+        "type": "extract",
+        "id": "out",
+        "label": "Get out by the east yard",
+        "x": 25,
+        "z": 28,
+        "radius": 3
+      }
+    ],
+    "rules": {
+      "noAlarms": "bonus",
+      "noKills": "bonus"
+    }
+  }
+]

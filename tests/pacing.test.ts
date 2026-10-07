@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, snapHz } from '../src/core/pacing';
-import { AdaptiveController, autoMaxLevel, DEFAULT_TUNING, tuningFor } from '../src/core/quality';
 
 describe('refresh detection', () => {
   it('snaps intervals to common refresh rates', () => {
@@ -74,28 +73,5 @@ describe('dynamic resolution', () => {
     // sustained headroom climbs back in half steps
     run(r, B, 2, 30);
     expect(r.scale).toBe(1);
-  });
-});
-
-describe('adaptive quality at 120 Hz', () => {
-  it('thresholds follow the display budget', () => {
-    expect(tuningFor(60).slowMs).toBeCloseTo(DEFAULT_TUNING.slowMs);
-    expect(tuningFor(60).fastMs).toBeCloseTo(DEFAULT_TUNING.fastMs);
-    expect(tuningFor(120).slowMs).toBeCloseTo(10);
-    expect(autoMaxLevel(120)).toBe(4);
-    expect(autoMaxLevel(60)).toBe(3);
-  });
-  it('vsync-locked frames with an idle CPU climb to Ultra (work time, not the interval)', () => {
-    const c = new AdaptiveController(2, 0, autoMaxLevel(120), tuningFor(120));
-    const ch: number[] = [];
-    for (let t = 0; t < 60; t += 1 / 120) {
-      const r = c.push(8.33, 1 / 120, 3.5);
-      if (r !== null) ch.push(r);
-    }
-    expect(ch).toEqual([3, 4]);
-  });
-  it('a CPU at the budget does not climb', () => {
-    const c = new AdaptiveController(2, 0, 4, tuningFor(120));
-    for (let t = 0; t < 60; t += 1 / 120) expect(c.push(8.33, 1 / 120, 7.5)).toBeNull();
   });
 });

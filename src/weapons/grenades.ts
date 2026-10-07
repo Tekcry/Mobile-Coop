@@ -8,6 +8,7 @@ import {
   type Scene,
 } from '../core/babylon';
 import { G } from '../physics/groups';
+import { voxeliseParts } from '../voxel/voxelGroup';
 import type { PartLibrary } from '../world/partLibrary';
 import type { Explosions } from './explosions';
 import { GRENADE } from './weaponDefs';
@@ -22,11 +23,14 @@ interface Live {
   fuse: number;
   team: Team;
   owner: string;
+  kind: string;
 }
 
 /** Thrown physics grenades with a fuse. Capped at 6 live. */
 export class Grenades {
   private live: Live[] = [];
+  /** Non-frag kinds (gas, flash, EMP...) go off through this instead of exploding. */
+  onDetonate: ((kind: string, at: Vector3, team: Team, owner: string) => void) | null = null;
 
   constructor(
     private scene: Scene,
@@ -35,17 +39,19 @@ export class Grenades {
   ) {}
 
   /** `dir` is a unit direction (thrown at the standard speed), or with `isVelocity` the exact launch velocity. */
-  throw(from: Vector3, dir: Vector3, team: Team, owner: string, carryVel?: Vector3, isVelocity = false): void {
+  throw(from: Vector3, dir: Vector3, team: Team, owner: string, carryVel?: Vector3, isVelocity = false, kind = 'frag', color = '#3d4a2c', fuse: number = GRENADE.fuse): void {
     if (this.live.length >= 6) return;
     const node = new TransformNode('grenade', this.scene);
     node.position.copyFrom(from);
-    const mesh = this.parts.instance('sphere', '#3d4a2c', 'grenade');
+    const mesh = this.parts.instance('sphere', color, 'grenade');
     mesh.parent = node;
     mesh.scaling.setAll(0.16);
     const blink = this.parts.instance('box', '#ff3b2f', 'grenade-led');
     blink.parent = node;
     blink.scaling.setAll(0.05);
     blink.position.y = 0.08;
+    // voxels (3.0): the body (the LED blinks, so it stays a part)
+    voxeliseParts(this.scene, node, [mesh], 'grenade');
     const shape = new PhysicsShapeSphere(Vector3.Zero(), 0.08, this.scene);
     shape.filterMembershipMask = G.PROJECTILE;
     shape.filterCollideMask = G.STATIC | G.PROP;
@@ -57,7 +63,7 @@ export class Grenades {
     const v = isVelocity ? dir.clone() : dir.scale(GRENADE.throwSpeed).addInPlace(new Vector3(0, GRENADE.upBias, 0));
     if (carryVel) v.addInPlace(carryVel.scale(0.5));
     body.setLinearVelocity(v);
-    this.live.push({ node, body, shape, mesh, blink, fuse: GRENADE.fuse, team, owner });
+    this.live.push({ node, body, shape, mesh, blink, fuse, team, owner, kind });
   }
 
   update(dt: number): void {
@@ -66,7 +72,8 @@ export class Grenades {
       g.fuse -= dt;
       g.blink.isVisible = Math.floor(g.fuse * (g.fuse < 0.8 ? 12 : 4)) % 2 === 0;
       if (g.fuse > 0) continue;
-      this.explosions.explode(g.node.position.clone(), GRENADE.radius, GRENADE.damage, GRENADE.force, g.team, g.owner);
+      if (g.kind === 'frag' || !this.onDetonate) this.explosions.explode(g.node.position.clone(), GRENADE.radius, GRENADE.damage, GRENADE.force, g.team, g.owner);
+      else this.onDetonate(g.kind, g.node.position.clone(), g.team, g.owner);
       this.remove(g);
       this.live.splice(i, 1);
     }

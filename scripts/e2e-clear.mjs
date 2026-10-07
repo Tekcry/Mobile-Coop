@@ -176,7 +176,8 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
   L = await left();
   hud = await G(() => window.__h.hud());
   const fin = await G(() => ({ ops: window.__ops, bars: window.__app.current.post.barsTarget, scale: window.__app.loop.timeScale }));
-  assert(L.n === 0, `every hostile down (${L.n} left)`);
+  const why = L.n === 0 ? '' : JSON.stringify(await G(() => { const g = window.__app.current; const m = g.mode; return { pending: m.pending?.length, current: m.current, alive: g.enemyMgr.alive, down: !g.player.alive, pos: [g.player.position.x, g.player.position.z].map((v) => v.toFixed(1)), holds: g.enemyMgr.enemies.filter((e) => e.alive).map((e) => e.hold?.id ?? '-') }; }));
+  assert(L.n === 0, `every hostile down (${L.n} left) ${why}`);
   assert(fin.ops === 1 && /OPERATION COMPLETE/.test(hud.banner), `completion: OPERATION COMPLETE banner + stinger (${hud.banner}, ${fin.ops})`);
   assert(lastKill !== null && lastKill < 1 && fin.bars === 1, `completion: slow beat (x${lastKill}) and letterbox`);
   await sim(3.5);
@@ -230,18 +231,21 @@ await run('autostart=proving&mode=clear', async ({ G, sim }) => {
   assert((await G(() => window.__h.hud().room)) === '', 'no room tag in Clear mode on the mini set');
 });
 await run('', async ({ page, G }) => {
-  // play screen: Warehouse is the default for Wave, Mission and Clear
+  // play screen (3.0): Warehouse is the default for every mode but Training; only its missions are offered
   await page.locator('.btn', { hasText: 'Play' }).first().tap();
   await page.waitForSelector('.play-screen');
   const seen = [];
-  for (let i = 0; i < 4; i++) {
-    const t = await G(() => [...document.querySelectorAll('.play-screen .choice-val')].map((e) => e.textContent));
+  for (let i = 0; i < 6; i++) {
+    // Infiltration lists the missions as cards (their names stand in for the map)
+    const t = await G(() => [...document.querySelectorAll('.play-screen .choice-val')].slice(0, 1).map((e) => e.textContent).concat([...document.querySelectorAll('.play-screen .mission-card .mc-name')].map((e) => e.textContent).join(', ') || [...document.querySelectorAll('.play-screen .choice-val')][1]?.textContent));
     seen.push(t.join(' / '));
     await page.locator('.play-screen .row-choice').first().locator('.choice-arrow').last().tap();
   }
   const byMode = Object.fromEntries(seen.map((s) => s.split(' / ')));
-  assert(byMode['Wave Survival'] === 'Warehouse' && byMode['Mission'] === 'Warehouse' && byMode['Clear'] === 'Warehouse', `Warehouse default for Wave / Mission / Clear (${seen.join('; ')})`);
-  assert(byMode['Free Roam'] === 'Proving Grounds', 'Free Roam stays on Proving Grounds');
+  assert(byMode['Wave Survival'] === 'Warehouse' && byMode['Mission'] === 'Warehouse' && byMode['Hunter'] === 'Warehouse', `Warehouse default for Wave / Mission / Hunter (${seen.join('; ')})`);
+  assert(/Cold Storage.*Ledger.*Courier.*Blackout/.test(byMode['Infiltration'] ?? '') && !/Pouch|Vault|Manifest|Flare/.test(byMode['Infiltration'] ?? ''), `Infiltration lists the Warehouse missions only (${byMode['Infiltration']})`);
+  assert(byMode['Free Roam'] === 'Warehouse', `Free Roam defaults to Warehouse (${byMode['Free Roam']})`);
+  assert(byMode['Training'] === 'Proving Grounds', 'Training stays on Proving Grounds');
 });
 
 const real = all.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));

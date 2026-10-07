@@ -1,5 +1,631 @@
 # Changelog
 
+## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
+- Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
+  device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few
+  seconds on the main menu (once per device; "Detect again" measures anew). Settings say what was found.
+- Adaptive detail (on by default; replaces Dynamic resolution): in a match the game steps detail down when frames are
+  missed and back up when there is room - render resolution first, then shadow refresh, light shafts, distant voxel
+  detail, effects, lights, character detail. It never changes fog, cover, sight lines or anything gameplay reads.
+  A hot device that keeps slowing is noted (debug overlay, feedback notes); iOS Low Power Mode (30 fps) is shown once.
+- Frame-rate cap is now Target frame rate (Display refresh, 30, 60, 90, 120, ...): the detail adapts to it.
+- PvP: lamp count, lamp and moon shadows, bounce light, contact shadows (off), light shafts (off) and effects density
+  are the same for everyone, whatever the preset - how dark or hidden a player looks never depends on the device.
+- `perf.mjs --preset=<p> [--mobile]`: a preset's CPU side against the phone budgets (`PASSES=1`: draws per pass).
+- Phone tuning (draw calls on the phone platform, 10 guards, Warehouse): Ultra 531 -> 233, Low 227 -> 103. Below
+  Epic the level casts its shadows from a plain blockout stand-in (one or two draws per shadow map instead of dozens
+  of voxel chunks; shadows within half a voxel of before); the moon's cascades skip characters under the roof (it
+  cannot reach them) and small props; fog and TAAU read the G-buffer's depth when SSAO / SSR draw one (no second
+  depth pass; depth of field's own depth pass runs only while aiming); guards are one voxel mesh (the head split
+  stays for the player's camera fade); Low's moon shades only the level (characters get contact shadows).
+- Graphics presets are one ladder for every device: Low, Medium, High, Ultra, Epic (PC only) and Custom. Each preset
+  also sets its render scale (Low 67%, Medium 75%, High 85%, Ultra 90% with the TAAU upscaler; Epic native). Phones
+  never get Epic or ray-traced reflections (Epic shows as Ultra there). Settings from 3.0 keep their preset (with the
+  new values) or their Custom choices.
+- New graphics options: Volumetric lights (how many lamps scatter light in the air, 2-12) and Post effects
+  resolution (ambient occlusion and screen-space reflections at half or full resolution). Low and Medium keep props
+  in the 5 cm voxels (no 2.5 cm prop layer); Low has a lighter shadow set (sun only), Medium two lamp shadows.
+- Fog is drawn on every preset (Volumetric light now only adds the light shafts): what a player can see at a
+  distance does not depend on graphics settings.
+- Far-away voxels never turn see-through: thin walls and panels (doors, partitions, signs) used to drop out of the
+  coarsest level of detail now and then; every filled piece is at least one voxel thick there.
+- PvP (Team Deathmatch, Free-for-all) is fair between PC and phones: the field of view is capped at 90 and held at
+  its 16:9 width on wider screens (ultrawide and phones see no more of the sides), Panini is off. The lobby says so.
+- The benchmark's "every preset" runs Low to Epic (Low to Ultra on phones).
+
+## 3.0.0 - PC renderer, Warehouse focus, desktop interface, playtest feedback
+- Focus: the Warehouse is the one playable map and runs every mode - Hunter, Wave, Mission, Infiltration (four
+  missions: Cold Storage, Ledger, Courier, Blackout - every objective type), Free Roam (new: the whole map, no
+  guards, every weapon), co-op and PvP. Proving Grounds stays as a plain range for Free Roam and Training. Embassy,
+  Mansion, Port, Refinery and Dust Depot are parked (not offered; kept as they were in 2.3.0 to come back later);
+  their mission records and challenges stay in the save.
+- Voxels: the Warehouse and Proving Grounds are built from voxels - 5 cm at Epic near the camera, 10 / 20 cm further
+  out (levels of detail by distance, nearer on High / Ultra) - with a per-voxel colour and roughness variation,
+  ambient occlusion and worn edges between voxels and the procedural surface textures inside each face. Built on all
+  but four of the CPU's threads at load and cached on the device (the second load is quick). Gameplay is untouched:
+  collision, cover, ledges and the guards' navigation are the same as before.
+- Warehouse in voxels: concrete block walls with mortar lines, corrugated cladding over a concrete plinth with rust
+  streaks, cast concrete with chipped edges, saw-cut floor slabs with oil stains and yard puddles, painted steel with
+  worn edges and seams, plank crates, shrink-wrapped loads in the racking bays, hazard stripes, grime up the wall
+  bases, conduit and junction boxes, electrical boxes, vents and signs. Props, furniture, machines and vehicles at
+  2.5 cm. Inside under the roof is dark but for the lamps and what falls through the skylights and doorways (the map's
+  open sky is baked at load); cover, ledges and floors stay exactly where they were.
+- Weather on the Warehouse (Play screen and co-op lobby): Clear, Rain (no rain indoors - it falls through the
+  skylights; the yard and the open floor go wet and glossy, puddles turn to mirrors) or Fog (thick, with moonlit
+  shafts under the skylights and through the doors). Visual only.
+- Voxel characters: the operator, every guard, co-op players and the menu operator are built from 2 cm voxels (4 cm
+  further away) - suit, carrier, pouches, pads and the tri-lens goggles - with a tone per voxel and fine seams up close,
+  animated as before (ragdolls included); the lens glow, hit flash and the camera's head fade work on them. The stick
+  avatar style stays as it was.
+- Voxel weapons and gadgets: every gun (in the hands, on the back, the hip and the thigh, in the Loadout preview) is
+  built from 1 cm voxels with 5 mm sights, pins and triggers; thrown grenades and the drone are voxels too.
+- Global illumination (Epic; Graphics > Global illumination): the lamps' light bounces off floors and walls into the
+  rooms around them, per circuit - switch a room's lights off, shoot a lamp out or set off an EMP and its bounce light
+  goes with it.
+- Ray-traced reflections (Settings > Graphics > Reflections: Off / Screen space / Ray traced): wet floors, puddles
+  and steel reflect the voxel world off screen too - walls, racks, lamps, the sky through the skylights - and the
+  characters; half rate (a checkerboard, default) or full.
+- TAAU upscaling (Settings > Graphics > Display > Upscaler): with a resolution scale under 100% the game renders
+  smaller and rebuilds a sharp full-resolution image over frames (e.g. 7680 x 2160 from 67%).
+- Panini projection (Display): keeps very wide fields of view from stretching at the sides (ultrawide screens).
+- Bullet chips: shots knock a voxel-sized pock out of walls, floors and props with a spray of debris in the struck
+  material's colour (cosmetic - cover and collision never change).
+ 21:9 and 32:9 (up to 7680 x 2160) - the view widens with the screen up to a widest field of
+  view (default 120 deg, then the sides stop growing), menus stay a centred 16:9 layout, the HUD keeps to a centred
+  16:9 on 32:9 (HUD width: auto / 16:9 / 21:9 / full); the frame-rate cap names the display's refresh (up to 240
+  Hz); photos are saved at full output resolution.
+- Laptops: the game asks for the high-performance GPU and tells you once if the browser is on the integrated one
+  (and how to switch); Settings > Graphics shows the GPU in use.
+- Benchmark (Settings > Graphics): a camera flight through the Warehouse - the current settings, every preset, the
+  render pixel counts of 2560 x 1600, 4K and 7680 x 2160, or a 10-minute sustained run (first vs last minute, for a
+  laptop that slows once hot); average and 1% low per run, saved as a feedback note.
+- One renderer for every device, built for a gaming PC (phones run the same, slower): Graphics presets High /
+  Ultra / Epic (default) with every feature adjustable (Custom): up to 48 real lights (clustered), lamps and every
+  guard flashlight casting shadows (soft on Epic), cascaded sun / moon shadows, ambient occlusion, screen-space
+  reflections, volumetric light and height fog, bloom, depth of field (aiming, the menu operator), motion blur,
+  lens effects, TAA / MSAA / FXAA, HDR tone mapping; native resolution with a 50-200% scale, optional dynamic
+  resolution, a frame-rate cap (30-240), FOV to 120. The menu stage gets shadows, bloom and depth of field.
+- Materials: every level piece, character, weapon and prop is PBR with procedural surfaces drawn on the GPU at load
+  (sixteen tileable kinds - concrete, floors, asphalt, gravel, grass, plaster, wood planks, corrugated paint,
+  brushed steel, rust, tiles, carpet, brick, checker plate, rubber, fabric - with albedo detail, roughness, normals
+  and cavity), picked per piece by what it is (floors by what is underfoot, the rest by colour); image-based light
+  from a probe of each map.
+- Detail: a dressing pass on every map (Detail Ultra / Epic, visual only - nav, cover and ledges are unchanged):
+  skirting, conduit with junction boxes and switches, electrical boxes, vents, signs, floor stains, puddles and
+  debris; draw and animation distances x2-4; spent brass that stays on the floor, longer-lasting bullet holes.
+- Weather (engine): falling rain streaks with wet glossy floors that the reflections pick up, blown dust, heat
+  haze (the Warehouse gets its weather choice with the voxel art pass).
+- Desktop interface (detected, or Settings > Graphics > Interface): menus scale to the window, no touch settings or
+  touch controls (a touchscreen laptop gets them back when touched), hover states, fullscreen on demand.
+- Mouse & Keyboard settings: sensitivity, aim sensitivity, invert, raw input, and every key rebindable (two per
+  action, extra mouse buttons too); prompts and the controls list follow the bindings.
+- Playtest feedback: Settings > Feedback and Pause > Report feedback write a note (type, text, the map / mode /
+  position / graphics it was written in) with photos from photo mode - the game freezes, the HUD hides, a free
+  camera flies to the problem; take, retake or keep, as many photos as needed. Notes stay on the device; Export
+  report makes one HTML file with every note and photo (share sheet on phones), or copy them as text.
+
+## 2.3.0 - Quieter moves, smarter guards, the Blacklist loadout
+- Noise: sneaking, crouch walking and a slow walk are silent, and so is everything in and around cover, climbing,
+  vaults and ladders; a jog carries about 3 m and a sprint 9 m (was 18 - the whole map no longer hears you); walls
+  muffle a noise to under half its reach; soft landings are quieter.
+- Guards hold their posts longer, glance round less, take longer to go and look, and walk when they investigate or
+  search. In a fight they get behind cover first and fight from it; when they lose you they move up on where they
+  last saw you from cover to cover instead of running about. They stay in combat longer, search for a minute and
+  never relax again - they stay on edge for the rest of the operation.
+- Radio: a guard who spots you shouts to anyone right beside him and radios the rest after a couple of seconds -
+  take him out before that and nobody else hears of it (gunfire or a hit is called in at once).
+- Takedowns: a guard in combat who knows you are there cannot be taken by surprise. Each co-op player counts on their
+  own: if one is spotted, the others can still take guards down.
+- Flashlights stop at walls.
+- Weapons: the 9mm SD is issued from the start and is the default primary (the 552 as secondary); saves still on the
+  old issue kit move to it. One round to the head drops any guard but a heavy.
+- Loadout redesigned after Splinter Cell: Blacklist's gear screen: lists on the left (breadcrumb, title, what each
+  item costs or needs, a check on what is equipped), the operator in the middle, the details on the right (Power,
+  Accuracy, Range, Control with the change in green / red, magazine, silenced, upgrades), actions along the bottom
+  (A equip / buy, Y customise, B back). Primary / secondary > weapon > attachments & upgrades > camo; suit parts,
+  appearance, tag, HQ and challenges. Focusing anything shows it on the operator, locked items too.
+- Menus are more compact.
+- Maps: more detail on every map (vehicles, machinery, furniture, clutter, razor wire, hedges) with darker side
+  lanes and new ways through - Warehouse: a window into dispatch, a dock hatch, a third rack ladder; Dust Depot: north
+  windows, container ladders, a plaza watchtower; Embassy: a staff back door, reception and conference windows, a
+  hidden roof ladder; Mansion: a back balcony with a ladder, the kitchen and foyer back doors cleared; Port: a fire
+  escape into the customs office, a pilot ladder at the stern; Refinery: a ladder up the middle tank, a chiller
+  platform and window into the operations office.
+
+## 2.2.0 - Silent But Deadly
+- The game is now called Silent But Deadly (title, install name, icon: green tri-lens goggles). Saves, exports and
+  co-op rooms from Shoulder Strike carry over unchanged.
+- New menu look: dark green tactical theme, condensed type, the stacked logo and a lit menu list on the main menu
+  (Observe / Infiltrate / Complete), Settings with a side category list, Infiltration missions as picture cards.
+- One Loadout screen replaces Armory, HQ, Customise and Store: Weapons (loadout preset, gadget, equip, stats,
+  upgrades, attachments, camo), Gear (suit pieces), Appearance, Tag & Emotes, HQ (upgrades, challenges). Every change
+  shows on the operator at once - locked weapons, attachments, camos, suit pieces and outfit parts are previewed
+  too, with their requirement and a Buy button in place; leaving puts the saved look back. Drag or use the right
+  stick to turn the operator; the weapon page frames the gun.
+
+## 2.1.1 - Main menu at night
+- The menu backdrop is a dark stage: the operator stands on the pad under a warm overhead lamp, with a cool rim
+  light behind and a distant lamp in the yard; visible light beams, the tri-lens glowing, the lamp breathing a
+  little. The operator stands in the open right side of the screen (the menu has the left); Customise brings up a
+  brighter fill so colours read true.
+
+## 2.1.0 - Co-op depth, multi-level AI, three new maps
+- Co-op: bodies stay down on every screen (and vanish for everyone when hidden, carried or revived); team pings
+  (D-pad left / Z / the touch Ping button: marks the spot or the guard under the crosshair, in your colour, with
+  an edge arrow when off screen); clients use Mark & Execute (a takedown earns the charge, checked by the host);
+  clients' gas, flashbangs, EMPs and noisemakers act on the host's guards and show for everyone; two takedowns
+  within 1.5 s are a Dual Takedown.
+- Multi-level AI: the nav grid keeps every storey (a floor, the storey over it, a roof); guards use stairs,
+  climb ladders up and down (in a climbing pose) and drop off low ledges to reach you or the last place they saw
+  you - rack tops and roofs are no longer safe spots. Dogs wait at the foot of a ladder.
+- New maps, each in Hunter, Wave, Infiltration (a mission each), Team Deathmatch and Free-for-all:
+  - Mansion (night): a walled estate and a two-storey house - grand staircase, balcony, gallery, the vault office
+    upstairs (a roof duct drops into it), garage, pool house. Mission "Private Collection".
+  - Port (night): container stacks with ladders, a customs shed with a mezzanine office, a moored cargo ship (gangway,
+    deck, bridge with a lookout, bosun's store), the pier. Mission "Dead Reckoning".
+  - Refinery (dusk): tank tops joined by catwalks, a pipe-rack walkway, process units under a burning flare, a
+    two-storey control building, a loading bay. Mission "Flashpoint".
+
+## 2.0.1 - Feedback: menus, back buttons, calmer guards, fair PvP
+- Main menu: a compact two-column grid (Play across the top) that fits a landscape phone; every menu that
+  overflows scrolls by touch (drags inside any scrolling list are no longer swallowed as game gestures).
+- Back button: larger (54 px with a wider hit area), top left beside the title (the profile badge used to cover
+  it on several screens), acts on release so a thumb that drifts still counts, shows a pressed state.
+- Guards (more chances to stay unseen and take them down): they linger longer at patrol points (5.5 s) and glance
+  round rarely and slowly (every 10 s, narrower); calm guards turn at 60 deg/s instead of snapping round; distant
+  footsteps no longer make them suspicious (only nearer ones do, investigations only close in) and every
+  footstep is quieter (walk 2.8 m, crouch walk 2 m, sneak 0.5 m); they take longer before walking over to a sound;
+  sneaking or crouch-walking up behind a guard is no longer felt (walking still is, within 1.8 m); takedowns
+  reach 1.8 m and count as "behind" over a wider arc.
+- PvP (Team Deathmatch, Free-for-all): no damage bonuses - weapons at base damage (no damage upgrades or damage
+  mods; handling attachments stay), no suit armour or HQ perks; the host caps hits at base damage.
+
+## 2.0.0 - Shoulder Strike 2.0: the Blacklist overhaul (release candidate)
+The 1.7.0 - 1.23.0 phases together; details under each version below.
+- A stealth operative: light and shadow, noise, alert states with a last known position and searches, bodies to
+  find, carry and hide, switches and shootable lamps, alarms, doors, night vision and sonar (1.12 - 1.15).
+- Traversal: ladders, drainpipes, ledges with shimmy / corners / jumps, pipes, ducts with vents, windows,
+  ziplines, landings and rolls, on every map (1.8 - 1.11).
+- Takedowns from every angle (behind, front, over cover, from above, below, through windows) and Mark & Execute
+  (1.16); eight gadgets on a wheel (1.17).
+- Enemies: guards, runners, heavies, snipers, shield enforcers, dogs, drone operators, officers; barks and radio;
+  Rookie to Perfectionist (1.18).
+- Modes: Hunter (an alarm doubles the hostiles), Infiltration (four missions on the new Embassy and the
+  Warehouse), play styles Ghost / Panther / Assault (1.19); Training (1.23).
+- Arsenal of 16 with visible attachments, the suit, HQ upgrades, challenges, presets, play-style cash (1.20).
+- Co-op for 2-4 in every mode (objectives, doors, takedowns and revives synced) and PvP: Team Deathmatch 4v4 and
+  Free-for-all for 8 (1.21).
+- The operator look (tri-lens goggles), enemy silhouettes and faction colours, light cones, contact shadows,
+  per-map grades (1.22); the Blacklist-minimal HUD, touch layout v3, accessibility options and a controls screen
+  (1.23).
+- Saves: v6 (every older version migrates, a backup kept); settings move to the operator and touch layout v3 once.
+- Fixes in the release candidate: the hip-sling gun hangs 3.5 cm outside the thigh (the detailed body's hip and
+  cargo pocket swung into a P90 in a side-step); the weapon port and rail details sit flush in the receiver; the
+  operator's thigh panel only without cargo trousers.
+- Release checks: full e2e (27 suites) green; 10-minute soaks on the Warehouse, the Embassy and the Dust Depot;
+  perf on the heaviest scenes (see TESTING.md); offline: every precache entry, an Infiltration mission offline.
+- Known gaps (not in 2.0): the Port / Mansion / Refinery maps of the plan, multi-level AI navigation, co-op
+  bodies / Mark & Execute / non-frag gadgets by clients, pings and dual takedowns, a four-footed planner for the
+  dog (it trots procedurally).
+
+## 1.23.0 - 2.0 phase 11: Blacklist-minimal HUD, touch layout v3, accessibility, controls screen, training course
+- HUD: health is the screen-edge vignette (it reddens with damage; the bars are an option); the ammo and gadget
+  readout shows on any change, a reload or a low magazine and fades after 3 s (option: always); the use prompt
+  has a hold ring that fills while held; the compass objective marker and awareness arcs as before.
+- Touch layout v3 (`TOUCH_LAYOUT_VERSION` 3): a Takedown button that appears only while a takedown is on offer
+  (tap knocks out, hold is lethal), alongside Mark (while aiming) and Execute (when ready); v2 layouts keep every
+  placement, the new button takes its default spot.
+- Settings > Accessibility: Controls (every binding for controller, keyboard and mouse, touch), HUD size,
+  health bar, always-on ammo, colour-blind-safe awareness colours (blue filling, orange when alerted),
+  subtitles for barks and radio (on by default), held actions by tap (downloads, alarm panels, revives, plants
+  start on a tap and keep going), camera shake strength. Aim assist tiers stay per input (off / low / standard /
+  high); aim, crouch and sprint have hold / toggle as before.
+- Training (Play > Training, Proving Grounds): ten steps, one verb each - move, sneak, cover, vault, ladder,
+  goggles, a takedown on a passive guard, marking two more, Execute, a gadget - with a marker on the target and the
+  input for the device in use; the operator cannot be hurt; a step not done in 90 s is skipped; a small reward
+  on completion.
+- Tests: `tests/training.test.ts`, touch v3 migration and accessibility clamps in `tests/ui.test.ts`;
+  `scripts/e2e-training.mjs` plays the whole course by touch (the Takedown, Mark and Execute buttons, HUD
+  defaults); e2e-pad reaches Accessibility and the Controls screen by pad. e2e-lib ignores SwiftShader's own
+  performance notes; e2e-move samples traversal kinds every frame; e2e-coop retries a revive under load.
+
+## 1.22.0 - 2.0 phase 9: the operator, enemy silhouettes and factions, light cones, contact shadows, colour grade
+- The operator is the new default look: a fitted suit with a plate carrier, magazine pouches, shoulder straps,
+  belt with a radio pouch, elbow and knee pads, gloves, thigh panels, and a balaclava with the tri-lens goggle
+  (two lenses at the eyes, one above); the lenses glow green while night vision or sonar is on. Built on the
+  detailed body, which is now the default avatar style (settings from before move to it once; Settings > Video >
+  Avatar style keeps Stick). Customiser: "Operator suit" and "Tri-lens goggles" (starters), "Sniper hood" (level 7).
+  With the operator, suit tiers keep the suit (heavy armour adds leg plates) and the tri-lens.
+- Enemy silhouettes per archetype: the guard in a cap, the heavy in a visored helmet with plates and tanks, the
+  sniper in a hood, the enforcer with his shield, the officer in jacket and beret, the drone operator with a
+  headset, the dog as a dog. Faction colourways per map (`MapTheme.faction`, `ai/factions.ts`): urban
+  (Warehouse), desert (Dust Depot), maritime (Embassy).
+- Weapons: an ejection port on every long gun and a top rail under the optic.
+- Lighting: every fixed light casts a faint additive cone (one thin-instanced mesh, fading to the floor, out
+  with the light; hidden at the lowest quality); soft contact shadows under every character (`vfx/blobShadows`,
+  one draw call); a colour grade per map in the cinematic pass (`MapTheme.grade`: tint, saturation, contrast):
+  cold night at the Warehouse, warm dusk at the Depot, steel blue at the Embassy.
+- Tests: suit-look unit test for the operator; e2e-cosmetics, e2e-weapons-carry and e2e-clip with the operator
+  as the default style.
+
+## 1.21.0 - 2.0 phase 10: four-player co-op in every mode, PvP (Team Deathmatch 4v4, Free-for-all 8)
+- Co-op (2-4) now runs Wave, Hunter, Infiltration (any mission; the lobby picks it) and Free Roam. The host runs
+  the match; clients see the host's enemies with their alert state (the dog as a dog), use objectives, switches,
+  alarm panels and doors through mirrored interactables (`use`, reach checked by the host), see the host's doors
+  open and close (door states are synced; doorways no longer stand open for clients), take guards down (the
+  takedown seizes the host's enemy, `td`; tap = knock-out, hold = lethal) and are heard (footsteps by speed and
+  stance, shots by weapon; suppressed = suspicion only).
+- Downed in co-op: a team-mate holds the revive point on the body (2.5 s; HQ medic training makes it faster);
+  everyone down hands over to the mode (Hunter / Infiltration lives at the checkpoint, Wave ends). Infiltration
+  downloads and the extraction count any operator standing there; the rescued asset follows the nearest.
+- PvP: Team Deathmatch (4v4, first to 30) and Free-for-all (up to 8, first to 15), 8 minutes, on the Warehouse,
+  Dust Depot and Embassy. Teams balance on join; "Join Blue / Red" in the lobby. Client hits on players are
+  rewound to what the shooter saw and checked like enemy hits; the host's own shots resolve through hit volumes
+  on opponents; no friendly fire; respawn after 4 s at the spawn furthest from opponents, 2 s of protection.
+  HUD: team scores in team colours (or You / Lead) and the clock; kill feed "A > B"; team-mates carry a marker.
+  Results: eliminations, deaths, headshots; rewards pay eliminations and the result.
+- Lobby: capacity per mode (co-op 4, PvP 8; start is blocked with too many players), mission choice for
+  Infiltration, team colours. Protocol v2 (`team`, `use`, `td`; snapshot `items`, `doors`, `score`, `tl`, enemy
+  `al`; events `frag`, `tdDenied`; end `winner`).
+- Not synced yet (noted): bodies (clients see a ragdoll, not a body to carry), Mark & Execute by clients, gadgets
+  thrown by clients other than frags (the host re-detonates frags only), alarm panels held by clients finish on
+  the client's hold.
+- Tests: `tests/pvp.test.ts` (teams, scoring, spawns, HUD line, rewards, new messages and caps, 8-player lobby,
+  team switch, mission in the start); e2e-coop adds Hunter (calm puppets, door sync, a door used by the client, a
+  client takedown, the client reviving the host), Infiltration (mission map and objectives on the client) and a
+  third player for Team Deathmatch (teams, hit volumes only on opponents, no friendly fire, a validated
+  elimination, respawn, results on every page) and Free-for-all. e2e-combat selects the frag before the d-pad
+  throw (the preset may pick another gadget).
+
+## 1.20.0 - 2.0 phase 8: arsenal, attachments, suit, HQ, economy
+- Arsenal of 16 (`config/weapons.json`, procedural models by role at real sizes): pistols - P45 Compact (the old
+  P9), FN Five-7, 9mm SD (integral suppressor); SMGs - MP5 Kurz (the old V-12), Vector .45, P-90 (bullpup, top
+  magazine); rifles - 552 Commando (the old AR-7), AK-74, TAR-21 (bullpup); shotguns - M870 Pump (the old M4),
+  M1014 Semi, Breacher; marksman - M14 DMR (scoped), M700 Bolt (the old LR-50); the Silent Crossbow (sleep bolts
+  knock out; Lethal Bolts in its magazine slot kill; near silent); the M249 SAW (100-round box, bipod). The 1.x
+  weapons keep their ids, so unlocks, upgrades and kills carry over. New unlocks from level 2 to 12.
+- Attachments are visible (`withAttachments`, pure): red dot / 4x scope on top, suppressor or compensator on the
+  muzzle (the muzzle moves out), vertical grip / laser under the front, a longer or a taped double magazine, red
+  broadheads; carry placement and clip checks use the attached model.
+- Handling: a slow breathing sway through magnifying scopes (steadier crouched and still); a suppressor hides most
+  of the muzzle flash; rounds go through thin world geometry (doors, glazing, thin partitions: pistols 8 cm, SMGs
+  10, rifles 20, the LMG 25, DMR / bolt 32) with half the damage after; brass ejects (pooled) as before.
+- The suit (HQ > Suit): vest (no armour .. heavy: -45 % damage for +45 % footstep noise), gloves (swaps and
+  takedowns up to 22 % faster), boots (footstep noise down to 60 %), goggles (sonar range +25 / +50 %, faster
+  recharge), pouches (+1 / +2 of each gadget); tiers bought in order by level and credits, any owned tier worn;
+  the look follows (vest / plate carrier, headset goggles, a rig on the back, dark boots).
+- HQ upgrades: minimap radar (enemies within 15 / 25 m in Hunter and Infiltration), sonar amplifier (+20 % per
+  level), execute capacity (+1 mark), supply drops (gadgets restocked at checkpoints), field medic training
+  (co-op revives faster; used from phase 10).
+- Economy: Hunter and Infiltration pay Ghost / Panther / Assault cash and XP from the play-style points (x the
+  difficulty); challenges ("10 takedowns from above", "Knock out 25", "50 headshots", "Mark & Execute 15",
+  "3 missions undetected", "Hunter without an alarm", "20 gadget knock-outs") pay once on completion.
+- Loadout presets: three (Ghost / Panther / Assault to start) with weapons and the starting gadget; saved and
+  used in HQ > Loadouts, picked on the Play screen (Loadout row). Co-op partners see the loadout in the lobby
+  as before.
+- Save v6 (`suit`, `hq`, `challenges`, `presets`, `preset`; migration from v5 issues the basic kit).
+- Plan notes: the attachment slots stay optic / barrel (suppressor or muzzle device) / underbarrel / magazine; the
+  crossbow is a compact pistol-grip one (16 cm limbs) so it carries on the back with other long guns.
+- Tests: `tests/economy.test.ts` (arsenal, attachments model, suit, HQ, challenges, style cash, profile ops, save
+  v5 -> v6); carry dimensions for all 16; e2e-weapons-carry runs every weapon (three more loadouts, `?loadout=`);
+  e2e-progression buys a suit tier, an HQ upgrade and a suppressed AK and checks them in the match and after a
+  reload.
+
+## 1.19.0 - 2.0 phase 7: Hunter, Infiltration missions, the Embassy
+- Hunter: Clear is renamed Hunter in the Play menu (`?mode=hunter`; `?mode=clear` still works). Start undetected,
+  clear every hostile. If an enemy raises the alarm the hostiles double (Blacklist's rule): as many again come in
+  from the entry point furthest from you, hunting (alerted, not holding rooms). Results show "Detected" and the
+  Ghost / Panther / Assault bars.
+- Play styles (`game/playstyle.ts`, pure): knock-outs, non-lethal takedowns, unseen objectives and hidden bodies
+  score Ghost; unseen kills, lethal takedowns and Mark & Execute score Panther; anything done while detected,
+  alarms and explosions score Assault. Detection = an enemy going to combat on you (stealth rules).
+- Infiltration (`game/missions.ts` pure + `config/missions.json`, validated; `game/modes/infiltrationMode.ts`):
+  objective chains per map - download (start it at the terminal; it uploads while you stay within 9 m, pauses
+  when you leave, and every 10 s the traffic is noticed: a noise pulse guards come to check), plant / hack and
+  sabotage (holds; the charge goes off as you leave), rescue (free the asset - a hostage on his knees - who then
+  follows you, crouching with you, round walls by A*), intel (three items, any order) and extraction (a zone; with
+  the asset). Mission rules: no alarms / no kills / undetected as a bonus or a fail condition ("Ghost
+  contract"). 1-3 insertion points per mission. Extraction is a stinger (slow beat, letterbox, banner); results
+  show a 0-3 star rating and the bonuses kept. Four missions: Diplomatic Pouch, Asset Recovery and Blackout (Ghost
+  contract) on the Embassy, Cold Storage on the Warehouse.
+- Mission board: the Play menu's Infiltration mode lists the missions with their best rating, play-style split
+  and wins, the insertion choice and the difficulty. Saves keep the best run per mission (save v5: `missions`;
+  migration from v4).
+- The Embassy (night): a walled compound - front court (fountain, hedges, cars, gatehouse, a gate tower with a
+  sniper), west garden, service yard and garage - and a residence (lobby, security office, server room,
+  reception, the ambassador's office, corridor, conference room, staff room, archive) under a walkable roof:
+  roof ducts drop into the server room and the ambassador's office, drainpipes and a ladder go up, a pipe runs
+  along the east facade, ziplines run from the roof to the court and the garage roof, windows (glazed and open)
+  and doors. 25 placed anchors and ~100 hangable lips; light pools and dark gardens; switches, alarms, hide spots.
+  Hunter and Wave work there too.
+- Autostart: `?autostart=<map>&mode=infiltration&mission=<id>&insertion=<id>`. Perf: `MAP=embassy node scripts/perf.mjs`.
+- Plan gaps (kept for later, noted for the summary): Port, Mansion and Refinery are not built; multi-level nav
+  (enemies on roofs by ladder links) is not done - enemies stay on the ground / ramped decks; Dust Depot is not
+  rebuilt for verticality. The route check counts the ground plus anchors within 14 m above / through each site.
+- Tests: `tests/missions.test.ts` (validation, chain, download pauses, rules, rating, play styles); save v4 -> v5;
+  `e2e-missions` (Hunter doubling; download + intel + extract with results; plant + rescue (the asset follows) +
+  extract; sabotage + extract; Ghost contract fails on detection; three downs fail; routes and 25+ anchors per
+  mission map); e2e-anchors covers the Embassy; e2e-clear reads the Hunter / Infiltration menu entries.
+
+## 1.18.0 - 2.0 phase 6: enemy archetypes, squads, difficulty
+- Archetypes (`ai/archetypes.ts`, pure rules; `config/enemies.json`): Guard (the grunt renamed; rifle, flashlight at
+  night), Heavy (plates in front x0.45, the back x1.5, the face plate x2.2; from the front only a lethal takedown),
+  Sniper (laser while it aims, a scope glint when it points at you - it cannot be marked through the glint;
+  relocates to a new post 5-22 m away after 2 shots or 9 s), Enforcer (a shield stops rounds from within 70 deg of
+  the front; no frontal grab; walks into the fire at 1.1 m/s with a pistol - flank him), Dog (a procedural
+  quadruped on the shared brain: heels beside its handler, smells you within 6 m (4.2 m crouched) whatever the
+  light or walls, runs you down and bites; a takedown or gas puts it down), Drone operator (flies a recon drone
+  that orbits him at 3.4 m; its camera needs no light; what it sees goes to him - suspicion, then an alert and
+  the squad radio; shoot it down or EMP it; it falls when he goes down), Officer (squadmates within 12 m aim x1.25
+  better and react faster; runs the alarm himself first; calls the search).
+- Squads: Clear mode puts each room's squad on a roster; every ~40 s a calm member radios a check, and a silent
+  (downed) member is missed: the caller goes to look where he was. Warehouse squads now include a dog with the
+  dock guard, a drone operator in dispatch, an enforcer in the workshop, a sniper on the mezzanine and an officer
+  in the office. Waves add enforcers (wave 4+), dogs (5+), a sniper (6+), an officer (7+), a drone operator (8+).
+- Callouts (`ai/barks.ts`): short lines over the speaker's head ("Huh?", "Checking it out.", "Contact!", "Lost
+  him!", "Man down!", "Radio check.", "No answer...", "*growl*"...), per-speaker cooldowns (urgent lines cut in),
+  radio lines with a synthesized chirp; no voice audio.
+- Difficulty tiers: Rookie, Normal, Realistic, Perfectionist (perception, damage, accuracy, hit points, reaction
+  and rewards scale; Perfectionist has no Mark & Execute and no sonar). Old lobbies' easy / hard read as Rookie /
+  Realistic. `?difficulty=` for autostart.
+- Gadgets: keyboard 1-8 pick a gadget directly (the plan's "1-5 plus G"); emotes move to J / K / L.
+- Blacklist differences: the dog's body is procedural primitives on the humanoid brain (no dog ragdoll: it lies on
+  its side); the recon drone orbits its operator rather than flying patrol routes; co-op clients show the new
+  kinds from phase 10.
+- Tests: `tests/archetypes.test.ts` (armour by direction, grab rules, shield arc, sniper relocation and glint, dog
+  smell, radio check, voices, tiers, waves); `e2e-enemies` (each archetype's signature, officer buff and alarm,
+  radio check, callouts, Perfectionist); perf spawns ten mixed archetypes.
+
+## 1.17.0 - 2.0 phase 5: gadgets
+- Eight gadgets (`game/gadgets.ts`, pure; `game/gadgetSystem.ts`): frag, sleeping gas (a cloud for 6 s: 0.8 s in it
+  knocks a guard out), flashbang (guards facing it are blind for up to 4 s - staggering, hands to the face - then
+  alert; turned away, a 1.2 s daze; it whites the screen out if you look at it), EMP (lights within 9 m out for
+  8 s, close guards dazed, a guard investigates the dark), noisemaker (sticks where it lands, a lure pulse every
+  1.5 s for 6 s), sticky cam (sticks, its feed opens: look round, fire pings a lure, Y releases its gas once, mark
+  from it, X next cam, B back), tri-rotor drone (launches into its feed: fly where it looks, a stun dart, a shock
+  burst that knocks out round it and spends the drone; 40 s battery, 35 m range; calm guards that see it look over,
+  alerted ones shoot it down), proximity mine (placed at the feet, arms in 1.5 s, a guard within 1.6 m sets it
+  off). Starting carry: 2 frag, 2 gas, 2 flash, 1 EMP, 2 noise, 2 cams, 1 drone, 1 mine; ammo pickups add a frag.
+- The gadget wheel: hold D-pad down / Tab (time slows to x0.3 in single player), the stick or mouse picks a slot,
+  release selects. Touch: a wheel button (tap opens, tap a slot). The HUD shows the selected gadget and count.
+- The gadget button (D-pad up / G / touch gadget): held, a dotted arc to a landing ring; released, thrown.
+  Placed / flown gadgets go on the press; with the drone out (or every cam thrown) it re-opens the feed.
+- Remote feeds (cam / drone): a camera-feed look (`CinematicPost.setFeed`), a corner frame and the controls for the
+  input mode; the operator stands still (the rest of the step gets no input). Touch: fire, the action button
+  (Gas / Shock), Mark, crouch to return.
+- Input: action `gadgetWheel`; the pad's D-pad up is the gadget (was `quick1`), D-pad down the wheel (the down
+  emote is on the keyboard's 3 only now).
+- Blacklist differences: gadgets are not yet bought or upgraded (phase 8); the drone's shock is non-lethal; co-op
+  syncs no gadget effects yet (phase 10).
+- Tests: unit tests for the inventory, wheel, arc and drone flight; `e2e-gadgets` (wheel by pad and touch, arc,
+  gas, flash, EMP, noise, sticky cam, drone, mine); e2e-touch checks the wheel button size.
+
+## 1.16.1 - fixes
+- Foot planting: an early toe-off already in the air goes on from its progress and lands on the gait clock
+  (1.15.1 kept the larger of the two, so a sprinting foot arrived early, behind the body, and slid up to 2.6 cm
+  once planted). Sprint feet are locked again (< 1 cm) and the high-cover move clip case stays clean.
+- e2e-anchors marks the frozen enemies as taken: a guard beyond a window offered a window takedown (which wins
+  over the vault, as intended) instead of the traversal under test.
+
+## 1.16.0 - 2.0 phase 4: takedowns, Mark & Execute
+- Takedowns (`game/takedown.ts`, pure; `game/takedownController.ts`): a "Takedown" prompt over a guard in reach;
+  Y / E / tap the prompt. Tap = non-lethal (a choke, knocked out: wakes if found), hold = lethal (a strike); it
+  starts on the press and the hold decides (0.3 s). Kinds: on the ground from behind or the front at any
+  awareness, from the side only on a calm guard; round a corner from high cover; over low cover (the attacker
+  vaults it); from above (a drop off a ledge, deck, pipe, zipline or vent onto a guard 1.1-4.6 m below); from
+  below (hanging at a lip, a guard standing over it is pulled down); through a window (pulled through). The
+  attacker's feet follow an eased path onto a spot aligned to the victim (within 5 cm), the victim is seized
+  (brain off, a struggle pose, pulled where the kind says), the weapon is stowed, the hands go to the victim.
+  Taking damage breaks it off (the victim breaks free, alerted). Noise: a choke 1.2 m, a strike 3 m.
+- Mark & Execute (`game/marks.ts`, pure; `game/executeController.ts`): a melee takedown earns an Execute charge
+  (max 1). While aiming, RB / T / the touch Mark button toggles a mark on the guard under the crosshair (up to 3;
+  4 later with the upgrade): white chevrons over them, red when every mark is in weapon range and line of sight.
+  Then Y / keyboard Y / the touch Execute button: a slowed (x0.5, single player) letterboxed sequence turns to each
+  mark in order and drops it with a head shot (~0.14 s each). Marks persist through cover moves; nothing happens
+  out of sight. HUD: a charge pip on the tactical strip.
+- Input: actions `mark` (pad RB while aiming - swapping weapons needs the weapon lowered then -, keyboard T) and
+  `execute` (keyboard Y; pad Y when ready); touch Mark (shown while aiming) and Execute (shown when ready)
+  buttons. RB while aiming no longer swaps weapons.
+- Deferred to phase 5 (gadgets): the sleeping-gas grenade and gas cam; co-op dual takedowns and shared marks to
+  phase 10; the victim rig is not yet in the clip checks.
+- Tests: unit tests for takedown kinds / alignment / tap-hold and the mark set; `e2e-takedown` (ground kinds and
+  rules, tap / hold, 5 cm alignment, interrupt by damage, over low cover, from above, from below, through a
+  window, charge, marks through cover, no execute without sight, execute). e2e-anim steps the sim only
+  (`loop.manual`): real-time frames between its checks advanced it by a load-dependent amount.
+
+## 1.15.1 - stealth feedback
+- Lamps: a lit strip is the light's fixture: a shot anywhere along it puts it out (not only its middle), and the
+  whole strip goes dark (`LightDef.fixture`, a box hit test `rayBox`; the light rig draws fixtures as boxes). Yard
+  floodlights have housings too.
+- Awareness arcs only show for enemies that can see the player (line of sight to any body point) or are within
+  2.5 m; a guard who only hears footsteps through a wall no longer gives himself away. The meter is a little less
+  twitchy (base rate 2.2, weak-evidence leak 0.2 /s).
+
+## 1.15.0 - 2.0 phase 3d: night vision and sonar goggles
+- Goggles (`game/vision.ts`): one button cycles off -> night vision -> sonar -> off. Gamepad View (it used to
+  duplicate Start's pause), keyboard N, and a new touch button (56 px, beside reload; existing layouts get it at its
+  default spot beside reload).
+- Night vision: green phosphor in the one cinematic pass (the dark lifted, lamps blooming out, heavy grain, a
+  tube vignette), faded in over 0.25 s. Gameplay light is unchanged: being seen still depends on the light on you.
+- Sonar: a pulse every 6 s marks every enemy within 30 m as an orange silhouette drawn through walls (their pose at
+  the pulse, 2.5 s, fading), with a ring sweeping out and a soft ping. It runs 18 s, then recharges 12 s (shown
+  on the tactical strip; the cycle skips sonar meanwhile). Marks and the LKP ghost share `vfx/silhouettes.ts`
+  (thin-instanced figures, 2 draw calls per set).
+- Fix: clearing enemies (restarts, tests) also frees the alarm run, the flank and the flashlights; a disposed
+  enemy never counts as alive again.
+- Tests: unit tests for the goggle states; e2e-stealth-ai vision (night vision, sonar through a wall, fade, run
+  out, recharge); e2e-touch checks the goggles button size.
+
+## 1.14.0 - 2.0 phase 3c: surfaces, doors, shot noise
+- Floor surfaces (`world/surfaces.ts`): footsteps are louder on metal (x1.6), grates, gravel and wood, quieter on
+  carpet (x0.6), and sound different (ringing steel, gravel crunch, soft carpet). Warehouse: a gravel yard, a steel
+  mezzanine deck and rack tops, carpeted offices; Dust Depot is gravel throughout.
+- Doors (the `Door` anchors, finally in play): five on the Warehouse (offices, dispatch / workshop, off the
+  corridor). Closed doors block movement, sight and lamp light. Y / E / the action button opens one quietly (a 1 s
+  creak, heard within 2 m) or shuts it (never on someone in the doorway); sprinting into a closed door bashes it
+  open (loud). Enemies open doors they walk into. Doorways stay on the nav grid. (Co-op clients do not sync doors
+  yet: theirs stand open.)
+- Shots: a suppressed weapon (noise x0.6 or less, the suppressor attachment) only makes guards in earshot
+  suspicious of where it came from; a loud one still puts them in combat. Every shot also shows on the noise meter,
+  and a round landing within 4 m of a guard is heard.
+- An enemy running to an alarm panel stays in combat until he gets there.
+- Tests: unit tests for surfaces; e2e-stealth-ai surfaces (metal > concrete > carpet), suppressed vs loud shots,
+  impacts, doors (sight blocked, quiet open, sprint bash, a guard walking through). e2e-touch waits for the camera
+  to settle before tapping the cover prompt; e2e-modes counts ragdolls from the bodies.
+
+## 1.13.0 - 2.0 phase 3b: bodies, lights, flashlights, alarms
+- Bodies stay where they fall (the ragdoll settles and remains; a still body when no ragdoll can be spared; up to
+  12 kept). Enemies notice them by light, distance and field of view (`ai/bodies.ts`): a body in a lamp pool is
+  seen from far off, one left in shadow only by someone almost tripping over it. A found body sends the finder
+  searching round it and radios the squad (22 m) to search too; a knocked-out victim is woken by the finder (3 s
+  kneeling over it) and comes back searching (Clear counts it again). Knock-outs arrive with takedowns (phase 4).
+- Carry: "Pick up body" (Y / E / the action button) puts it over the shoulder (torso down the back, the hands on
+  its legs); carrying is slow (2.2 m/s, no sprint), the weapon stowed, no cover or traversal. "Drop body" puts it
+  down (a short ragdoll drop, a small thud); at a dumpster / cabinet "Hide body" removes it for good.
+- Lights: any hitscan shot through a bulb puts that light out (glass, 5 m noise). Wall switches turn a room's lamp
+  circuit on and off. A room going dark or a bulb shot out brings the nearest calm enemy to look (others nearby
+  turn to look). Enemies investigating or searching in the dark switch on a flashlight (four moving cone lights in
+  the light model, so being in the beam shows you; rendered by the real-light pool).
+- Alarms: two panels on the Warehouse. An alerted enemy within 30 m runs to the nearest working panel and works it
+  for 1.6 s: ALARM banner, horn, a reinforcement squad (2 grunts, a heavy) comes in at the yard entry furthest
+  from the player (Clear counts them). Hold interact at a panel (1.2 s) to disable it first.
+- Interactables: switches, alarm panels, hiding spots and bodies alongside the objectives, each with its own reach
+  and use (`onUse`); map layouts list `switches`, `alarms`, `hideSpots`, `reinforce`.
+- Tests: unit tests for body notice, alarm panels and shooting lights (`lightOnRay`); e2e-stealth-ai body found in
+  light / not in shadow, squad search, carry / drop / hide, shooting a light (investigation + flashlight), the
+  switch, alarm + reinforcements, a disabled panel, waking a knocked-out guard.
+
+## 1.12.0 - 2.0 phase 3a: perception, alert states, last known position
+- Perception (`ai/perception.ts`): a 55 deg / 25 m focused cone and slower peripheral vision (100 deg, 12 m); an
+  awareness meter fills by distance, the light on the body (squared: shadow hides far more), stance, motion
+  (still .. sprint) and how much of the body is in view (three line-of-sight samples). Weak evidence (a dim shape)
+  never builds up; out of sight the meter holds, then drains. Within 2.2 m a moving body is noticed in any light;
+  point blank in full light in the cone is instant, anything else takes at least ~0.3 s (the arc shows first).
+- Alert states (`ai/alertState.ts`): unaware (patrol route or post with glances) -> suspicious (stops and looks)
+  -> investigating (walks over and looks round) -> alert (the existing combat AI) -> searching (sweeps out from
+  the last known position on a widening ring, searchers fanned out) -> cooldown (45 s, still jumpy). One heard
+  noise is enough to go and look. Detection radios squadmates within 22 m (no relay); damage and gunfire go
+  straight to combat.
+- Last known position (stealth rules): enemies chase and search where they last saw (or heard the shots of) the
+  player, never where the player is; a pale ghost of the player in the last-seen pose marks it once they lose
+  sight; it clears when the search ends. Wave keeps enemies sent at the player (no stealth rules).
+- HUD: awareness arcs round the crosshair (white filling = noticing, red = detected and in sight); a light meter on
+  the tactical strip (blue in shadow).
+- Night Warehouse: moonlit yard (0.3), dark interior (0.12) with 14 of 30 lamp strips lit (pools, dark aisles
+  between; each room's lamps are one circuit for switches later), floodlights at the doors. Clear-mode squads walk
+  routes (dock, workshop, racking, factory floor, mezzanine) or stand post. `LightRegistry` ambient zones.
+- Blacklist rules where the plan was open: the focused cone is 55 deg in total; investigating after one sound;
+  radio range 22 m without relays; the search lasts 25 s.
+- Tests: unit tests for the detection maths, alert transitions, patrols / search points and ambient zones;
+  `e2e-stealth-ai` (shadow vs light, the arc warns first, no sight through walls, noise -> investigate, radio,
+  LKP + ghost + converge + search ends, patrols); `perf.mjs` with `STEALTH=1` (ten unaware enemies perceiving).
+
+## 1.11.0 - 2.0 phase 2 feedback: faster climbing, pipe tops, passing climbers
+- Ladders: 3 rungs/s (was 1.6), hold sprint for 5 rungs/s; hands and feet step quicker with the climb; an upright
+  pose (body close to the rungs, head up), one limb moving at a time.
+- Drainpipes: hold sprint to climb ~35% faster. At the top the climb stops and waits: Y ("Climb up") climbs
+  straight off the top onto the roof / wall top, or push sideways to swing onto a lip beside the pipe.
+- Ladders / drainpipes: pushing sideways at a lip beside the climb swings onto it (hang); shimmying along a lip past
+  a ladder or drainpipe crossing it swings onto the climb (then sideways again to carry on along the lip).
+- A ladder or drainpipe wins over the lip beside it when both are in reach (walking up to a ladder always offers it).
+- Crawlspaces are 1.1 m tall (Proving Grounds, Warehouse); the crawl keeps a flat back so the back guns clear the roof.
+- Prompts: the ledge "Grab" prompt sits on the face just under the lip; the pipe prompt under the pipe.
+- Fix: a trailing foot that toed off early (overstretched at > 2 m/s) no longer snaps back to where it left the
+  ground when the gait clock's swing window opens (the pelvis dropped up to 25 cm for a frame; seen moving along
+  high cover).
+- Deferred (feedback, Blacklist has it): the kicked vent cover falling / the unscrewed cover set down beside the entry.
+- Tests: e2e-traverse (ladder rate, sprint rate, pipe top waits / Climb up / sideways onto the lip, shimmy past a
+  pipe), unit test for the early toe-off.
+
+## 1.10.0 - 2.0 phase 2c: routes on every map, clean traversal poses
+- Warehouse: a window from the truck yard into the workshop; a glazed window between dispatch and the corridor;
+  ladders onto two racks (walk the rack tops, sprint-hop the cross aisle); a ladder up to the mezzanine; a zipline
+  from the mezzanine over the factory floor; a duct from the mezzanine over the manager's office (until now a dead
+  end) with a ceiling vent into it. Mezzanine and container edges (2.6 m) can now be grabbed from the floor.
+- Dust Depot: every warehouse gets an open window and a crate below its east wall (mantle it, grab the wall top,
+  walk along it, drop in); container tops and ruin walls are climbable.
+- Reach: lips up to 2.7 m over the feet can be grabbed; 0.4 m wall tops can be climbed onto and walked along.
+- Camera: while attached the orbit stays within the state's cone around the body's facing (soft edge).
+- No body or limb ever goes into the world while traversing (new e2e-clip checks): the weapon stows in ~0.14 s; the
+  ladder's bottom exit steps back off it; outside corners are swung round on a curve outside both faces; a jump
+  "up" only takes something above and every jump needs a clear flight line; a dedicated climb-up (feet walk up
+  the face, the knee comes over only above the lip, the body eases out from the wall); hang feet hang plumb; a
+  drainpipe keeps 0.34 m off the wall; horizontal pipes keep the hands off their posts; the vent drop lowers
+  through the hatch on the hands (the head stays in the duct) before letting go; ceiling hatches are 0.8 m; a
+  low dive through windows (1.2 m openings); the landing roll rides up over its back.
+- Nav: pieces marked `overhead` (ceiling slabs, ducts) are looked through by the nav sampler and never block.
+- Tests: e2e-anchors (every placed anchor on every map offered from its approach and engaged; hangable lips per map),
+  e2e-clip traversal scenarios (ladder climb / slide, drainpipe + lip, shimmy + corner, climb up, pipe, duct +
+  vent, window vault, zipline, landing roll: no body point into the world), e2e-traverse camera inside the duct.
+
+## 1.9.0 - 2.0 phase 2b: landings, ziplines, windows, ducts
+- Landings (no fall damage, Blacklist): under 2.5 m a soft landing; 2.5-4.5 m a roll that keeps the momentum
+  (the body turns over forward, then carries on at a run; skipped when a wall is too close); over 4.5 m a heavy
+  landing with a 0.6 s recovery. Each band is louder (3 / 8 / 14 m) and enemies hear it.
+- Falling past a lip (or a pipe): a "Grab" prompt shows while it passes the hands, Y grabs it.
+- Ziplines: Y under the high end; speed builds to 6 m/s; B lets go and the body flies on with the cable's speed;
+  at the end it carries off the cable and lands.
+- Windows: Y at an open window vaults through it; at a glazed one the vault shatters the glass on the way (15 m).
+  Glass and duct grates are separate breakable bodies (`world/breakables.ts`, two draw calls).
+- Ducts: at a vent, tap Y to kick the grate in (quick, 10 m noise) or hold Y to unscrew it (1.2 s, silent, progress on
+  the prompt); crawl through at ~0.9 m/s (tight camera, hands planted on the duct floor); out through a wall vent,
+  or drop through a ceiling vent into the room below (a committed fall, landing like any other: a roll from 2.5 m),
+  or back out of the entry.
+- Placed anchors (ladders, drainpipes, ducts, ziplines) win over a step / vault / mantle the geometry offers at the
+  same spot; lips and pipes give way to them. Lowering into a hang is its own hint (never in the way of a climb).
+- Ladder tops are offered only walking out towards the edge the ladder hangs off.
+- The noise meter holds one-off noises (glass, kicks, landings) for a moment.
+- Fixes: the stowed weapon's swap pose no longer bends the body while hanging / climbing / crawling.
+- Proving Grounds: a zipline off the tower; a shed (south east) with an open and a glazed window, a door, and a duct
+  on its ceiling reached by a ladder platform, with a ceiling vent into the shed.
+- Tests: e2e-traverse (landing bands + noise + recovery, grab while falling, zipline, both windows, unscrew / kick /
+  crawl / vent drop), unit tests for landing bands and the window / duct / ladder-top reach rules.
+
+## 1.8.0 - 2.0 phase 2a: ledges, ladders and pipes
+- Ladders: Y at the bottom climbs on (or at the top: turn round and step on); climb at 1.6 rungs/s with the hands and
+  feet stepping rung to rung; B slides to the bottom (pushing up stops it); step off at the top or the bottom.
+- Drainpipes: climb at ~0.9 m/s hand over hand; at the top it takes the lip above (then climb up).
+- Ledges: Y grabs a lip 1.6-2.45 m above the feet; at an edge, hold B (or tap the "Hang" prompt) to lower into a hang
+  (Y there still drops down). Shimmy at ~1.2 m/s hand over hand, round outside corners and onto neighbouring lips;
+  Y climbs up where there is room; B lets go. With the stick pointing at another lip / pipe / ladder within 2.5 m a
+  "Jump" marker shows on it and Y jumps across (pushing into the wall jumps up). At the end of a lip the stick
+  pointing at a jump target holds there instead of wrapping round the corner (Blacklist).
+- Horizontal pipes: Y grabs from below, hand over hand along it, B drops.
+- Contacts: planted hands and feet never slide (`GripStepper`: each grip stays locked until the limb trails too far,
+  then swings to the next grip, rungs snapped); the arms always reach their grips.
+- World prompts: Climb / Grab / Hang from the ground; Climb up, Jump (on the target) and Drop / Slide (B) while
+  attached; all tappable by touch. No take-cover prompt while attached.
+- Proving Grounds: a traversal course in the north east (tower with ladder and drainpipe, two hang blocks to jump
+  between, a horizontal pipe).
+- Tuning: hang point 1.9 m under the lip and 0.22 m out from the face; climbers stand 0.28 m off the rungs.
+- Tests: e2e-traverse (every verb above by pad, keyboard E and touch prompts; speeds; contacts < 1 cm), unit tests
+  for the grip stepper, ledge continuation and jump targets.
+
+## 1.7.0 - 2.0 "Blacklist" overhaul, phase 1: foundations (no visible change)
+- Traversal anchors (`world/anchors.ts`, pure): ladders, vertical / horizontal pipes, ledges, ducts, windows, doors and
+  ziplines as map data in the built level (`BuiltLevel.anchors`). Ledges are generated from box tops like cover faces
+  (lip >= 1.9 m off the floor, cut where another piece sits on or presses against it, linked round outside corners,
+  climb-up only where the top is >= 0.45 m deep), with manual additions / suppressions; `LevelBuilder.ladder / pipeV /
+  pipeH / zipline / duct / windowAt / door / ledge / noLedge`. Reach tests, hang points, lip grips, rung snapping.
+- Attached locomotion (`player/attach.ts`, pure): one state machine for ladder, pipe, hang, duct and zipline - stick
+  mapping along the anchor, root path, enter / on / exit blends, camera framing preset and allowed actions per state.
+  `TraversalController` runs it beside the committed moves (`attachTo`, `detach`): ladder climb at 1.6 rungs/s, slide
+  on held drop, step off the top or bottom; drop lets go; climb up from a ledge.
+- Rig: hands take world grips independent of the weapon (`reachL/R`), feet take world soles while attached
+  (`plantL/R`); new `hang`, `climb`, `crawl` poses. Attaching stows the weapon through the swap's holster half and
+  draws it again after.
+- Camera: framing presets per attached state (`ATTACH_FRAMING`), blended in and out.
+- Input: `drop` (raised by the crouch control on every device) and `interactHold` (interact held 0.3 s);
+  `InputState` tracks hold time and progress for hold rings.
+- Light model (`world/lights.ts`, pure): a registry of lights (radius, cone, intensity, on / off, shoot-out, switch
+  groups, EMP outages) and `lightLevelAt` / `bodyLightLevel`; the player is sampled at 10 Hz (occlusion rays only for
+  lights in range), enemies sample their target in their think tick. `LightRig` renders a capped pool of real lights
+  (by quality, nearest the camera) plus emissive bulbs; maps without lights create nothing. Map themes take a
+  gameplay `lightLevel` (default daylight 0.75).
+- Decisions (Blacklist-style): hanging, ladders and pipes holster the long gun; drop on a ladder slides, elsewhere it
+  lets go. Anchors live in the built level (`BuiltLevel`), not `MapLayout`, since ledges come from the geometry.
+- Tests: anchors, lights, attach machine, input holds (unit).
+
 ## 1.6.0 - Tactical stance, sights at the eye, smooth gait, cover jog and corner prompt
 - Aiming and firing bring the weapon up to eye level beside the head (stock high, elbows up), so shooting never
   reads as hip fire.

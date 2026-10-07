@@ -57,6 +57,7 @@ export function toggle(label: string, get: () => boolean, set: (v: boolean) => v
     set(!get());
     render();
   });
+  el.addEventListener('widget-refresh', render);
   render();
   return el;
 }
@@ -103,6 +104,7 @@ export function slider(label: string, o: SliderOpts): HTMLElement {
   track.addEventListener('pointermove', (e) => {
     if (track.hasPointerCapture(e.pointerId)) fromPointer(e);
   });
+  el.addEventListener('widget-refresh', render);
   render();
   return el;
 }
@@ -138,29 +140,50 @@ export function choice<T>(label: string, options: ChoiceOption<T>[], get: () => 
   });
   el.addEventListener('click', () => step(1));
   el.addEventListener('nav-adjust', (e) => step((e as CustomEvent<NavAdjustDetail>).detail.delta));
+  el.addEventListener('widget-refresh', render);
   render();
   return el;
+}
+
+/** Re-read every widget's value under `root` (after a change that moves others: a graphics preset). */
+export function refreshWidgets(root: HTMLElement): void {
+  for (const el of root.querySelectorAll<HTMLElement>('.row')) el.dispatchEvent(new Event('widget-refresh'));
 }
 
 export interface TabDef {
   id: string;
   label: string;
+  /** Icon for the side navigation. */
+  icon?: string;
   build: () => HTMLElement;
 }
 
-/** Tab strip + panels. Bumpers (LB/RB) cycle; tabs are also tappable/focusable. */
+/**
+ * Tab strip + panels. Bumpers (LB/RB) cycle; tabs are also tappable/focusable. `side`: a vertical category list
+ * (icon, label, a chevron on the active one) beside the panels; `strip` / `body` can be placed apart (a 3D stage
+ * between them).
+ */
 export class TabView {
   readonly el: HTMLElement;
+  readonly strip: HTMLElement;
+  readonly body: HTMLElement;
   private headers: HTMLElement[] = [];
   private panels: HTMLElement[] = [];
   private active = 0;
   onChange: ((i: number) => void) | null = null;
 
-  constructor(private tabs: TabDef[]) {
-    const strip = h('div', { class: 'tab-strip scrollable' });
-    const body = h('div', { class: 'tab-body scrollable' });
+  constructor(
+    private tabs: TabDef[],
+    opts: { side?: boolean } = {},
+  ) {
+    const strip = (this.strip = h('div', { class: `tab-strip scrollable${opts.side ? ' side-nav' : ''}` }));
+    const body = (this.body = h('div', { class: 'tab-body scrollable' }));
     tabs.forEach((t, i) => {
-      const hd = h('button', { class: 'tab', text: t.label, focus: true, onClick: () => this.select(i) });
+      const hd = h('button', { class: 'tab', focus: true, onClick: () => this.select(i) });
+      if (t.icon && opts.side) hd.insertAdjacentHTML('beforeend', `<span class="tab-icon">${icon(t.icon, 20)}</span>`);
+      hd.append(h('span', { class: 'tab-label', text: t.label }));
+      if (opts.side) hd.insertAdjacentHTML('beforeend', `<span class="tab-chev">${icon('chevron', 16)}</span>`);
+      hd.dataset.tab = t.id;
       this.headers.push(hd);
       strip.append(hd);
       const panel = h('div', { class: 'tab-panel' });
@@ -169,9 +192,11 @@ export class TabView {
       this.panels.push(panel);
       body.append(panel);
     });
-    strip.insertAdjacentHTML('afterbegin', '<span class="tab-bumper">LB</span>');
-    strip.insertAdjacentHTML('beforeend', '<span class="tab-bumper">RB</span>');
-    this.el = h('div', { class: 'tabview' }, strip, body);
+    if (!opts.side) {
+      strip.insertAdjacentHTML('afterbegin', '<span class="tab-bumper">LB</span>');
+      strip.insertAdjacentHTML('beforeend', '<span class="tab-bumper">RB</span>');
+    }
+    this.el = h('div', { class: `tabview${opts.side ? ' side' : ''}` }, strip, body);
     this.select(0);
   }
 

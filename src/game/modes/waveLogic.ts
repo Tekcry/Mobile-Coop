@@ -7,7 +7,13 @@ export function waveComposition(n: number, rng: () => number = Math.random): Ene
   const runnerShare = n >= 2 ? Math.min(0.45, 0.2 + n * 0.03) : 0;
   const out: EnemyKind[] = [];
   for (let i = 0; i < heavies; i++) out.push('heavy');
-  const rest = total - heavies;
+  // archetypes join in later waves: enforcers, dogs, a sniper, an officer, a drone operator
+  if (n >= 4) for (let i = 0; i < Math.min(2, 1 + Math.floor((n - 4) / 3)); i++) out.push('enforcer');
+  if (n >= 5) for (let i = 0; i < Math.min(2, 1 + Math.floor((n - 5) / 4)); i++) out.push('dog');
+  if (n >= 6) out.push('sniper');
+  if (n >= 7) out.push('officer');
+  if (n >= 8) out.push('droneOp');
+  const rest = total - out.length;
   const runners = Math.round(rest * runnerShare);
   for (let i = 0; i < runners; i++) out.push('runner');
   while (out.length < total) out.push('grunt');
@@ -19,9 +25,11 @@ export function waveComposition(n: number, rng: () => number = Math.random): Ene
   return out;
 }
 
+const KILL_BASE: Partial<Record<EnemyKind, number>> = { heavy: 300, runner: 120, enforcer: 260, sniper: 220, dog: 120, officer: 250, droneOp: 180 };
+
 /** Score for a kill. */
 export function killScore(kind: EnemyKind, headshot: boolean, wave: number): number {
-  const base = kind === 'heavy' ? 300 : kind === 'runner' ? 120 : 100;
+  const base = KILL_BASE[kind] ?? 100;
   return Math.round(base * (headshot ? 1.5 : 1) * (1 + (wave - 1) * 0.1));
 }
 

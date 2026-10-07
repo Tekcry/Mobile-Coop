@@ -117,20 +117,24 @@ describe('map room layouts', async () => {
           const c = rooms[j]!;
           const ox = Math.min(a.maxX, c.maxX) - Math.max(a.minX, c.minX);
           const oz = Math.min(a.maxZ, c.maxZ) - Math.max(a.minZ, c.minZ);
-          expect(ox > 0.01 && oz > 0.01, `${a.id} overlaps ${c.id}`).toBe(false);
+          // storeys: one over the other is not an overlap
+          const oy = Math.min(a.maxY ?? Infinity, c.maxY ?? Infinity) - Math.max(a.minY ?? -Infinity, c.minY ?? -Infinity);
+          expect(ox > 0.01 && oz > 0.01 && oy > 0.01, `${a.id} overlaps ${c.id}`).toBe(false);
         }
       for (const r of rooms)
         for (const s of r.squad ?? []) {
-          expect(inRoom(r, s.x, s.z), `${r.id} squad at ${s.x},${s.z}`).toBe(true);
-          const deck = map.id === 'warehouse' && r.id === 'mezz' ? 2.6 : 0;
+          expect(inRoom(r, s.x, s.z, 0, s.y ?? r.minY ?? 0), `${r.id} squad at ${s.x},${s.z}`).toBe(true);
+          // raised posts: the Warehouse mezzanine, the Embassy gate tower, upper storeys (`y`)
+          const deck = s.y ?? (map.id === 'warehouse' && r.id === 'mezz' ? 2.6 : map.id === 'embassy' && s.kind === 'sniper' ? 3.2 : 0);
           expect(blocked(b, s.x, s.z, deck, 0.3), `${r.id} squad at ${s.x},${s.z} inside geometry`).toBe(false);
         }
       for (const sp of layout.enemySpawns) expect(blocked(b, sp.x, sp.z, 0, 0.3), `spawn ${sp.x},${sp.z}`).toBe(false);
       for (const sp of layout.playerSpawns) expect(blocked(b, sp.pos.x, sp.pos.z, 0, 0.35), `player spawn ${sp.pos.x},${sp.pos.z}`).toBe(false);
     });
   }
-  it('Warehouse is the default map for Clear, Mission and Wave', () => {
-    for (const mode of ['clear', 'mission', 'wave'] as const) expect(MAPS.find((m) => m.modes.includes(mode))?.id).toBe('warehouse');
-    expect(MAPS.find((m) => m.modes.includes('sandbox'))?.id).toBe('proving');
+  it('Warehouse is the default map for every mode but Training (3.0: the only playable map)', () => {
+    for (const mode of ['clear', 'sandbox', 'mission', 'wave', 'infiltration', 'tdm', 'ffa'] as const) expect(MAPS.find((m) => m.modes.includes(mode))?.id).toBe('warehouse');
+    expect(MAPS.find((m) => m.modes.includes('training'))?.id).toBe('proving');
+    expect(MAPS.map((m) => m.id)).toEqual(['warehouse', 'proving']);
   });
 });

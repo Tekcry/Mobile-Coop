@@ -112,6 +112,7 @@ export class InputManager {
     const style = this.gamepad.style;
     this.gamepad.poll(now, dt);
     this.touch.update(dt);
+    this.state.tick(dt);
     if (style !== this.gamepad.style) this.applyModeClass();
   }
 

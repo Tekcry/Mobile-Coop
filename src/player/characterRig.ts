@@ -1,4 +1,5 @@
-import { Color4, Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Scene } from '../core/babylon';
+import { Color4, Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
+import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
@@ -102,17 +103,35 @@ export interface RigPose {
   restZ?: number;
 }
 
+/** A world point with a blend weight (rig hand / foot targets). */
+export interface WorldTarget {
+  x: number;
+  y: number;
+  z: number;
+  w: number;
+}
+
 export type JointName = 'pelvis' | 'spine' | 'chest' | 'neck' | 'head' | 'shoulderL' | 'shoulderR' | 'elbowL' | 'elbowR' | 'hipL' | 'hipR' | 'kneeL' | 'kneeR';
 /** Forward-kinematics override (Euler x, y, z) per joint, used by emotes. */
 export type FkPose = Partial<Record<JointName, readonly [number, number, number]>> & { pelvisLift?: number };
 
-/** Avatar render style: classic stick figure (default) or the detailed smooth body. */
+/** Tri-lens goggle lens colours (off / glowing). */
+const LENS_OFF = '#20331f';
+const LENS_ON = '#8dff5a';
+
+/** Avatar render style: classic stick figure or the detailed smooth body (the operator; default). */
 export type AvatarStyle = 'stick' | 'detailed';
-let DEFAULT_STYLE: AvatarStyle = 'stick';
+let DEFAULT_STYLE: AvatarStyle = 'detailed';
 /** Style for rigs built from now on (set from Settings > Video). */
 export function setAvatarStyle(s: AvatarStyle): void {
   DEFAULT_STYLE = s;
 }
+/** 3.0 voxel characters (null: the smooth parts render, e.g. `?gfx=min`): the 'detailed' style is voxelised. */
+let VOXEL_BODY: VoxelBodyOptions | null = null;
+export function setVoxelBodies(o: VoxelBodyOptions | null): void {
+  VOXEL_BODY = o;
+}
+
 export function avatarStyle(): AvatarStyle {
   return DEFAULT_STYLE;
 }
@@ -175,6 +194,11 @@ export const KNEE_FLOOR = 0.05;
 
 /** Beyond this distance (m) from the camera a rig animates at half rate. */
 export const ANIM_LOD_DISTANCE = 22;
+/** Live animation LOD distance (3.0: x the Detail setting's scale; `setAnimLodScale`). */
+let animLod = ANIM_LOD_DISTANCE;
+export function setAnimLodScale(k: number): void {
+  animLod = ANIM_LOD_DISTANCE * k;
+}
 
 const tmpA = new Vector3();
 const tmpF = new Vector3();
@@ -335,6 +359,17 @@ export class CharacterRig {
   private handBlend = 0;
   /** World point for the off hand on the cover surface (set by the cover system), or null. */
   coverHand: Vector3 | null = null;
+  /**
+   * World grips for the hands, independent of any weapon (rungs, pipe, ledge lip, a victim in a takedown):
+   * the palm point and a weight 0..1. Weighted over the weapon / clip target; the wrist sits behind the palm
+   * along the reach so the hand closes on the grip. Set by attached traversal; zero weight = unused.
+   */
+  readonly reachL: WorldTarget = { x: 0, y: 0, z: 0, w: 0 };
+  readonly reachR: WorldTarget = { x: 0, y: 0, z: 0, w: 0 };
+  /** World sole targets for the feet (rungs, wall pads) and a weight 0..1; used while the feet are off the
+   *  ground planner (airborne / traversing / attached). */
+  readonly plantL: WorldTarget = { x: 0, y: 0, z: 0, w: 0 };
+  readonly plantR: WorldTarget = { x: 0, y: 0, z: 0, w: 0 };
   /** Ground height under a world XZ (raycast) for foot IK, or null to skip. */
   groundProbe: ((x: number, z: number, yFrom: number) => number | null) | null = null;
   /** World-space foot placement (contacts, locking, swing arcs, idle stepping). */
@@ -426,7 +461,24 @@ export class CharacterRig {
     let thigh = p.thigh.r0;
     for (const m of this.parts) if (m.parent === this.hipR || m.parent === this.hipL) thigh = Math.max(thigh, Math.abs(m.position.x) + m.scaling.x / 2);
     this.thighOuter = thigh;
+    // voxels (3.0): the parts merged into one skinned voxel mesh (they stay, unseen, for what reads them)
+    const skin = ((this.parts[0] as InstancedMesh | undefined)?.sourceMesh?.metadata as { skinMaterial?: Material } | null | undefined)?.skinMaterial;
+    if (VOXEL_BODY && this.style === 'detailed' && skin) this.voxel = new VoxelBody(scene, this.root, this.parts, this.headNode, skin, name, VOXEL_BODY, name === 'player');
     DEBUG_RIGS.add(this);
+  }
+
+  /** The merged voxel body (3.0; null: the smooth parts render). */
+  voxel: VoxelBody | null = null;
+
+  /** What renders (shadow casters): the voxel body's meshes, else the parts. */
+  get renderMeshes(): AbstractMesh[] {
+    return this.voxel ? this.voxel.meshes : this.parts;
+  }
+
+  /** The camera hides the head when it gets too close. */
+  setHeadVisible(v: boolean): void {
+    if (this.voxel) this.voxel.setHeadVisible(v);
+    else for (const m of this.parts) if (m.parent === this.headNode) m.isVisible = v;
   }
 
   /** All joints, for the debug skeleton view. Pairs of (parent, child). */
@@ -536,7 +588,11 @@ export class CharacterRig {
       this.parts.push(m);
       return m;
     };
-    const longSleeves = look.torso === 'jacket' || look.torso === 'hoodie' || look.torso === 'armor';
+    const operator = look.torso === 'operator';
+    const longSleeves = look.torso === 'jacket' || look.torso === 'hoodie' || look.torso === 'armor' || operator;
+    // gloves (the operator's), else bare hands
+    const hand = operator ? '#16181c' : c.skin;
+    const handSlot = operator ? 'boots' : 'skin';
     const sleeve = longSleeves ? c.torso : c.skin;
     const sleeveSlot = longSleeves ? 'torso' : 'skin';
     const Y = p.y;
@@ -571,6 +627,20 @@ export class CharacterRig {
         break;
       case 'tee':
         break;
+      case 'operator': {
+        // plate carrier front / back over the fitted suit, a row of magazine pouches, shoulder straps, a collar
+        part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.78, 0.3, 0.055, 0, 0.09, front - 0.004);
+        part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.8, 0.32, 0.055, 0, 0.1, -front + 0.004);
+        for (let i = -1; i <= 1; i++) part('rbox', c.accent, 'accent', this.torso, 0.062, 0.085, 0.04, i * 0.07, -0.02, front + 0.035);
+        part('rbox', c.helmet, 'helmet', this.torso, 0.05, 0.06, 0.03, -0.075, 0.17, front + 0.03);
+        part('pill', c.accent, 'accent', this.torso, 0.05, 0.05, p.chest.d * 0.95, -p.shoulderHalf * 0.55, Y.shoulder - chestY - 0.02, 0);
+        part('pill', c.accent, 'accent', this.torso, 0.05, 0.05, p.chest.d * 0.95, p.shoulderHalf * 0.55, Y.shoulder - chestY - 0.02, 0);
+        part('torus', c.torso, 'torso', this.torso, 0.15, 0.24, 0.14, 0, Y.neck - chestY - 0.015, 0);
+        // belt with a radio and a utility pouch
+        part('torus', c.helmet, 'helmet', this.spine, p.waist.w * 1.06, 0.16, p.waist.d * 1.08, 0, -0.04, 0);
+        part('rbox', c.accent, 'accent', this.spine, 0.07, 0.08, 0.045, -p.waist.w * 0.36, -0.05, -p.waist.d * 0.4);
+        break;
+      }
     }
     if (look.torso === 'armor' || armor) {
       part('pill', c.accent, 'accent', this.torso, p.chest.w * 0.85, 0.32, 0.06, 0, 0.1, front - 0.005);
@@ -581,7 +651,9 @@ export class CharacterRig {
 
     // neck + head
     const H = p.head;
-    part('limbA', c.skin, 'skin', this.neck, p.neck.r * 2, p.neck.len + H.h * 0.35, p.neck.r * 2.1, 0, -0.04, -0.005, Math.PI - 0.1);
+    // (the balaclava covers the neck)
+    const masked = look.helmet === 'trilens';
+    part('limbA', masked ? c.torso : c.skin, masked ? 'torso' : 'skin', this.neck, p.neck.r * 2, p.neck.len + H.h * 0.35, p.neck.r * 2.1, 0, -0.04, -0.005, Math.PI - 0.1);
     const hs = look.head === 'oval' ? [0.94, 1.0, 1.0] : look.head === 'long' ? [0.95, 1.07, 0.98] : look.head === 'strong' ? [1.02, 1.0, 1.0] : [1, 1, 1];
     const jaw = look.head === 'strong' ? 0.92 : look.head === 'oval' ? 0.76 : 0.82;
     const hw = H.w * hs[0]!;
@@ -637,6 +709,29 @@ export class CharacterRig {
         part('sphere', c.accent, 'accent', this.headNode, 0.04, 0.075, 0.07, -hw * 0.54, 0, 0);
         part('sphere', c.accent, 'accent', this.headNode, 0.04, 0.075, 0.07, hw * 0.54, 0, 0);
         break;
+      case 'trilens': {
+        // balaclava over the head and face (eyes open), a strap, the tri-lens goggle on its mount: two lenses at
+        // the eyes, one above between them; they glow in a vision mode (`setLensGlow`)
+        part('sphere', c.torso, 'torso', this.headNode, hw * 1.05, hh * 0.9, hd * 1.04, 0, hh * 0.08, -0.004);
+        part('sphere', c.torso, 'torso', this.headNode, hw * jaw * 1.05, hh * 0.52, hd * 0.84, 0, -hh * 0.2, 0.012);
+        part('torus', c.helmet, 'helmet', this.headNode, hw * 1.08, hh * 0.18, hd * 1.08, 0, hh * 0.12, -0.004, -0.1);
+        const z = hd * 0.5 + 0.012;
+        part('rbox', c.helmet, 'helmet', this.headNode, 0.1, 0.05, 0.035, 0, 0.04, z);
+        const lens = (x: number, y: number): void => {
+          part('rcyl', c.helmet, 'helmet', this.headNode, 0.034, 0.042, 0.034, x, y, z + 0.022, Math.PI / 2);
+          this.lenses.push(part('rcyl', LENS_OFF, 'lens', this.headNode, 0.026, 0.006, 0.026, x, y, z + 0.044, Math.PI / 2) as InstancedMesh);
+        };
+        lens(-0.026, 0.022);
+        lens(0.026, 0.022);
+        lens(0, 0.058);
+        break;
+      }
+      case 'hood':
+        // a loose hood over a cap, drawn down at the back (the sniper)
+        part('dome', c.helmet, 'helmet', this.headNode, hw * 1.22, hh * 0.78, hd * 1.2, 0, hh * 0.1, -0.012, -0.1);
+        part('pill', c.helmet, 'helmet', this.headNode, hw * 1.12, hh * 0.7, 0.07, 0, -hh * 0.14, -hd * 0.46, 0.15);
+        part('pill', c.helmet, 'helmet', this.headNode, hw * 0.9, 0.022, 0.1, 0, hh * 0.2, hd * 0.55, -0.12);
+        break;
       case 'none':
         break;
     }
@@ -677,10 +772,12 @@ export class CharacterRig {
       }
       part('sphere', longSleeves ? c.torso : c.skin, longSleeves ? 'torso' : 'skin', el, ua.r1 * 2.1, ua.r1 * 2.1, ua.r1 * 2.1);
       part('limbA', longSleeves ? c.torso : c.skin, longSleeves ? 'torso' : 'skin', el, fa.r0 * 2, fa.len, fa.r0 * 2);
-      part('sphere', c.skin, 'skin', wr, fa.r1 * 2.2, fa.r1 * 2.2, fa.r1 * 2.2);
+      part('sphere', hand, handSlot, wr, fa.r1 * 2.2, fa.r1 * 2.2, fa.r1 * 2.2);
       // mitten: palm faces inwards (towards the body), fingers down
-      part('pill', c.skin, 'skin', wr, p.hand.t * 1.7, p.hand.len * 0.72, p.hand.w, 0, -p.hand.len * 0.4, 0.004);
-      part('capsule', c.skin, 'skin', wr, 0.03, 0.075, 0.03, -side * 0.006, -p.hand.len * 0.25, p.hand.w * 0.48, 0.5, 0, 0);
+      part('pill', hand, handSlot, wr, p.hand.t * 1.7, p.hand.len * 0.72, p.hand.w, 0, -p.hand.len * 0.4, 0.004);
+      part('capsule', hand, handSlot, wr, 0.03, 0.075, 0.03, -side * 0.006, -p.hand.len * 0.25, p.hand.w * 0.48, 0.5, 0, 0);
+      // operator: elbow pad
+      if (operator) part('dome', c.accent, 'accent', el, ua.r1 * 2.4, 0.05, ua.r1 * 2.4, 0, 0.0, -ua.r1 * 0.75, -Math.PI / 2);
     };
     arm(-1, this.shoulderL, this.elbowL, this.wristL);
     arm(1, this.shoulderR, this.elbowR, this.wristR);
@@ -699,7 +796,10 @@ export class CharacterRig {
       const lowerSlot = shorts ? 'skin' : 'legs';
       part('sphere', lower, lowerSlot, kn, th.r1 * 2.1, th.r1 * 2.2, th.r1 * 2.15);
       part('limbL', lower, lowerSlot, kn, cf.r0 * 2, cf.len, cf.r0 * 2);
-      if (look.legs === 'armored' || armor) part('dome', c.accent, 'accent', kn, 0.11, 0.07, 0.12, 0, 0.0, th.r1 * 0.9, Math.PI / 2);
+      if (look.legs === 'armored' || armor || operator) part('dome', c.accent, 'accent', kn, 0.11, 0.07, 0.12, 0, 0.0, th.r1 * 0.9, Math.PI / 2);
+      // operator: a thigh pocket panel on each leg (cargo trousers already carry one; the sling and holster sit
+      // just outside it)
+      if (operator && look.legs !== 'cargo') part('rbox', c.accent, 'accent', hp, 0.045, 0.14, 0.11, side * th.r0 * 0.95, -th.len * 0.45, 0.0);
       part('sphere', c.boots, 'boots', an, cf.r1 * 2.6, cf.r1 * 2.4, cf.r1 * 2.6, 0, 0.0, 0);
       // boot: rounded toe forward, sole at the ground (ankle sits at foot.h above it)
       part('pill', c.boots, 'boots', an, p.foot.w, p.foot.h, p.foot.len, 0, -p.y.ankle * 0.45, p.foot.len * 0.28);
@@ -710,6 +810,19 @@ export class CharacterRig {
 
   setEnabled(v: boolean): void {
     this.root.setEnabled(v);
+  }
+
+  /** Tri-lens goggle lenses (empty without the goggle). */
+  private readonly lenses: InstancedMesh[] = [];
+  private lensOn = false;
+
+  /** The tri-lens lenses glow green while a vision mode (night vision, sonar) is on. */
+  setLensGlow(on: boolean): void {
+    if (on === this.lensOn) return;
+    this.lensOn = on;
+    const c = Color4.FromHexString(`${on ? LENS_ON : LENS_OFF}ff`);
+    for (const m of this.lenses) m.instancedBuffers.color = c;
+    if (this.voxel) for (const m of this.lenses) this.voxel.setPartColor(this.parts.indexOf(m), c);
   }
 
   // ------------------------------------------------------------------------------------------
@@ -724,7 +837,7 @@ export class CharacterRig {
     if (cam) {
       const p = this.root.position;
       const c = cam.globalPosition;
-      const far = (p.x - c.x) ** 2 + (p.z - c.z) ** 2 > ANIM_LOD_DISTANCE * ANIM_LOD_DISTANCE;
+      const far = (p.x - c.x) ** 2 + (p.z - c.z) ** 2 > animLod * animLod;
       if (far && (this.lodSkip = !this.lodSkip)) {
         this.lodDt += dt;
         return;
@@ -1035,6 +1148,39 @@ export class CharacterRig {
       L.y = R.y = rp.y;
       L.yaw = R.yaw = yaw;
       L.pitch = R.pitch = 0;
+      // tumbling (landing roll): the feet turn over with the body about the hip pivot
+      if (Math.abs(t.tumble) > 1e-3) {
+        const tc = Math.cos(t.tumble);
+        const ts = Math.sin(t.tumble);
+        const py = rp.y + this.bodyPivot;
+        for (let k = 0; k < 2; k++) {
+          const f = k === 0 ? L : R;
+          const dx = f.x - rp.x;
+          const dz = f.z - rp.z;
+          const vf = dx * s + dz * c;
+          const vr = dx * c - dz * s;
+          const vy = f.y + p.y.ankle - py;
+          const vf2 = vy * ts + vf * tc;
+          const vy2 = vy * tc - vf * ts;
+          f.x = rp.x + vr * c + vf2 * s;
+          f.z = rp.z - vr * s + vf2 * c;
+          f.y = py + vy2 - p.y.ankle;
+          f.pitch = t.tumble;
+        }
+      }
+      // attached: soles onto rungs / wall pads
+      const pl = this.plantL;
+      const pr = this.plantR;
+      if (pl.w > 0) {
+        L.x += (pl.x - L.x) * pl.w;
+        L.y += (pl.y - L.y) * pl.w;
+        L.z += (pl.z - L.z) * pl.w;
+      }
+      if (pr.w > 0) {
+        R.x += (pr.x - R.x) * pr.w;
+        R.y += (pr.y - R.y) * pr.w;
+        R.z += (pr.z - R.z) * pr.w;
+      }
     }
     // pelvis drops so both feet stay reachable with soft knees (wide steps, lower ground, kneeling):
     // each foot measured from its own hip joint (pelvis offset and hip width), and a growing need is met
@@ -1247,6 +1393,15 @@ export class CharacterRig {
       }
     }
     if (coverW > 0 && this.coverHand && !isGrip) Vector3.LerpToRef(target, this.coverHand, coverW, target);
+    // world grip (rung, pipe, lip): the wrist sits behind the palm along the reach from the shoulder
+    const reach = side > 0 ? this.reachR : this.reachL;
+    if (reach.w > 0) {
+      tmpB.set(reach.x - S.x, reach.y - S.y, reach.z - S.z);
+      const len = tmpB.length();
+      const back = len > 1e-4 ? (p.hand.len * 0.45) / len : 0;
+      tmpB.set(reach.x - tmpB.x * back, reach.y - tmpB.y * back, reach.z - tmpB.z * back);
+      Vector3.LerpToRef(target, tmpB, Math.min(1, reach.w), target);
+    }
     // elbows down/out/back
     this.dirToWorld(side * 0.55, -1, -0.35, tmpPole);
     solveTwoBone(S, target, p.upperArm.len, p.forearm.len, tmpPole, tmpC, tmpD);
@@ -1260,7 +1415,7 @@ export class CharacterRig {
     boneRotation(tmpA, tmpE, tmpQ);
     this.setWorldRot(el, sh, tmpQ);
     // hand: follow the weapon when gripping, else continue the forearm
-    if (gripW > 0.5 && this.heldWeapon && !(coverW > 0.5 && !isGrip)) {
+    if (gripW > 0.5 && this.heldWeapon && !(coverW > 0.5 && !isGrip) && reach.w < 0.5) {
       // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side
       Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);
@@ -1355,6 +1510,10 @@ export class CharacterRig {
   setFlash(k: number): void {
     if (Math.abs(k - this.flashK) < 0.02 && !(k === 0 && this.flashK !== 0)) return;
     this.flashK = k;
+    if (this.voxel) {
+      this.voxel.setFlash(k);
+      return;
+    }
     const parts = this.parts as InstancedMesh[];
     if (!this.baseColors) this.baseColors = parts.map((m) => (m.instancedBuffers?.color as Color4 | undefined)?.clone() ?? new Color4(1, 1, 1, 1));
     parts.forEach((m, i) => {
@@ -1364,13 +1523,15 @@ export class CharacterRig {
     });
   }
 
-  private disposed = false;
+  /** Disposed (no longer animates or renders). */
+  disposed = false;
   private lodSkip = false;
   private lodDt = 0;
 
   dispose(): void {
     this.disposed = true;
     DEBUG_RIGS.delete(this);
+    this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
     this.root.dispose();
   }

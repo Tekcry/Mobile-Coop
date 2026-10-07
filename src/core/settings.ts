@@ -1,4 +1,8 @@
+import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
+import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
+import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
+import type { PlatformChoice } from './platform';
 
 export const TOUCH_CONTROL_IDS = [
   'move',
@@ -14,9 +18,15 @@ export const TOUCH_CONTROL_IDS = [
   'dash',
   'shoulder',
   'pause',
+  'vision',
+  'mark',
+  'execute',
+  'gadgets',
+  'takedown',
+  'ping',
 ] as const;
-/** Touch layout format version (2: camera stick, contextual action button). */
-export const TOUCH_LAYOUT_VERSION = 2;
+/** Touch layout format version (2: camera stick, contextual action button; 3: takedown button). */
+export const TOUCH_LAYOUT_VERSION = 3;
 export type TouchControlId = (typeof TOUCH_CONTROL_IDS)[number];
 
 /** Control centre in normalised screen space (0..1) and per-control scale. */
@@ -29,7 +39,6 @@ export interface ControlPlacement {
 }
 
 export type AimAssistLevel = 'off' | 'low' | 'standard' | 'high';
-export type QualityPreset = 'auto' | 'low' | 'medium' | 'high' | 'ultra';
 
 export interface Settings {
   touch: {
@@ -67,22 +76,76 @@ export interface Settings {
     aimAssist: AimAssistLevel;
     vibration: boolean;
   };
-  mouse: { sensitivity: number; invertY: boolean };
+  mouse: {
+    sensitivity: number;
+    invertY: boolean;
+    /** Look while aiming x this. */
+    adsMultiplier: number;
+    /** Raw mouse input (`unadjustedMovement` pointer lock: no OS acceleration) where supported. */
+    raw: boolean;
+  };
+  /** Keyboard / mouse bindings (`input/keyBindings.ts`). */
+  keys: KeyBinds;
   video: {
-    quality: QualityPreset;
+    /** UI and input platform (auto-detected; never changes rendering). */
+    platform: PlatformChoice;
+    /** Graphics preset; 'custom' once a feature is changed by hand. */
+    preset: GraphicsPreset;
+    /** 3.1 Auto: the preset follows the device (`device.tier`); picking a preset or changing a feature turns it off. */
+    auto: boolean;
+    /** 3.1: what the device detection found (`core/deviceTier.ts`); re-detected when `key` no longer matches. */
+    device: DeviceDetection;
+    /** The per-feature graphics settings (`core/quality.ts`). */
+    gfx: GraphicsFeatures;
+    /** Render resolution x native (above 1 supersamples). */
     renderScale: number;
-    shadows: boolean;
+    /** Steps the render scale down when the GPU falls behind (3.0; replaced by `adaptive`, used only with it off). */
+    dynamicRes: boolean;
+    /** 3.1 Adaptive detail: the frame governor holds the frame rate in a match (`core/governor.ts`). */
+    adaptive: boolean;
+    /** Upscaler: off (the render scale is the canvas size) or TAAU (the scene at the render scale, resolved over
+     *  frames to the display's full resolution). */
+    upscaler: 'off' | 'taau';
+    /** Panini projection strength 0..1 (0 = off): keeps wide fields of view from stretching at the sides. */
+    panini: number;
+    /** Frame-rate cap (0 = the display's refresh rate). */
+    fpsCap: number;
     /** Horizontal FOV (degrees) at a 16:9 reference; wider screens see more at the sides (Hor+). */
     fovH: number;
+    /** Ultrawide: the widest horizontal FOV (degrees) Hor+ may reach before it turns Vert- (90 .. 150). */
+    maxFov: number;
+    /** Where the HUD panels sit on a wide screen (auto: a centred 16:9 above 21:9). */
+    hudWidth: HudWidth;
+    /** The integrated-GPU notice has been shown (once). */
+    gpuNotice: boolean;
     showFps: boolean;
     /** Cinematic look: gentle vignette, film grain (one combined pass). */
     vignette: boolean;
     filmGrain: boolean;
-    /** Characters drawn as classic stick figures or the detailed smooth body. */
+    /** Characters drawn as the detailed smooth body (the 2.0 operator; default) or classic stick figures. */
     avatarStyle: 'stick' | 'detailed';
+    /** 2: the 2.0 default (detailed) has been applied once to settings saved before it. */
+    avatarStyleV: number;
   };
   audio: { master: number; sfx: number; music: number; ui: number };
   gameplay: { defaultShoulder: 'right' | 'left'; adsToggle: boolean; crouchToggle: boolean; coverDash: boolean; slowBeat: boolean; sprintHold: boolean; autoRecentre: boolean };
+  /** Accessibility and HUD. */
+  access: {
+    /** HUD size multiplier (0.8 .. 1.4). */
+    hudScale: number;
+    /** Health as bars (else only the screen-edge vignette, Blacklist style). */
+    healthBar: boolean;
+    /** Ammo and gadget count always shown (else on change / reload, then they fade). */
+    ammoAlways: boolean;
+    /** Colour-blind-safe awareness and alert colours (blue -> orange instead of white -> yellow -> red). */
+    colorSafe: boolean;
+    /** Enemy barks and radio as subtitles at the bottom. */
+    subtitles: boolean;
+    /** Held actions (downloads, alarm panels, revives, plants) start on a tap and keep going. */
+    holdToggle: boolean;
+    /** Camera shake strength (0 .. 1). */
+    shake: number;
+  };
 }
 
 /**
@@ -104,6 +167,12 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   dash: { x: 0.35, y: 0.88, scale: 1 },
   shoulder: { x: 0.68, y: 0.09, scale: 1 },
   pause: { x: 0.79, y: 0.09, scale: 1 },
+  vision: { x: 0.655, y: 0.27, scale: 1 },
+  mark: { x: 0.965, y: 0.3, scale: 1 },
+  execute: { x: 0.44, y: 0.42, scale: 1 },
+  gadgets: { x: 0.515, y: 0.62, scale: 1 },
+  takedown: { x: 0.6, y: 0.62, scale: 1 },
+  ping: { x: 0.57, y: 0.09, scale: 1 },
 };
 
 /** Claw: fire and aim move up to the top-right (index finger), the right thumb stays on the camera. */
@@ -115,6 +184,9 @@ export const CLAW_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   grenade: { x: 0.69, y: 0.48, scale: 1 },
   shoulder: { x: 0.5, y: 0.09, scale: 1 },
   pause: { x: 0.585, y: 0.09, scale: 1 },
+  vision: { x: 0.57, y: 0.33, scale: 1 },
+  mark: { x: 0.9, y: 0.36, scale: 1 },
+  gadgets: { x: 0.6, y: 0.62, scale: 1 },
 };
 
 /** Left-handed: everything mirrored. */
@@ -171,16 +243,45 @@ export function defaultSettings(): Settings {
       aimAssist: 'standard',
       vibration: true,
     },
-    mouse: { sensitivity: 1, invertY: false },
-    video: { quality: 'auto', renderScale: 1, shadows: true, fovH: 75, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'stick' },
+    mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
+    keys: defaultBinds(),
+    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
+    access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
   };
 }
 
 const AIM: readonly AimAssistLevel[] = ['off', 'low', 'standard', 'high'];
 const CURVES: readonly CurveKind[] = ['linear', 'classic', 'precise', 'aggressive'];
-const QUALITY: readonly QualityPreset[] = ['auto', 'low', 'medium', 'high', 'ultra'];
+const SHADOWS: readonly ShadowQuality[] = ['off', 'low', 'medium', 'high', 'ultra', 'epic'];
+const TIERS: readonly TierQuality[] = ['low', 'medium', 'high', 'ultra', 'epic'];
+const AA: readonly AaMode[] = ['fxaa', 'msaa', 'taa'];
+const REFL: readonly ReflectionMode[] = ['off', 'ssr', 'rt'];
+
+/** Per-feature graphics from untrusted data (defaults: the preset given). */
+function sanitizeGfx(raw: Obj, base: GraphicsFeatures): GraphicsFeatures {
+  return {
+    shadows: pick(raw.shadows, SHADOWS, base.shadows),
+    lights: Math.round(num(raw.lights, base.lights, LIGHT_RANGE.min, LIGHT_RANGE.max)),
+    ao: bool(raw.ao, base.ao),
+    bloom: bool(raw.bloom, base.bloom),
+    // (before 3.0 phase 5: a screen-space on / off)
+    reflections: pick(raw.reflections, REFL, raw.ssr === true ? 'ssr' : raw.ssr === false ? 'off' : base.reflections),
+    rtRes: pick(raw.rtRes, ['half', 'full'] as const, base.rtRes),
+    gi: bool(raw.gi, base.gi),
+    volumetrics: bool(raw.volumetrics, base.volumetrics),
+    volLights: Math.round(num(raw.volLights, base.volLights, 2, 12)),
+    postRes: pick(raw.postRes, ['half', 'full'] as const, base.postRes),
+    dof: bool(raw.dof, base.dof),
+    motionBlur: bool(raw.motionBlur, base.motionBlur),
+    lens: bool(raw.lens, base.lens),
+    aa: pick(raw.aa, AA, base.aa),
+    textures: pick(raw.textures, TIERS, base.textures),
+    detail: pick(raw.detail, TIERS, base.detail),
+    effects: pick(raw.effects, TIERS, base.effects),
+  };
+}
 
 type Obj = Record<string, unknown>;
 const isObj = (v: unknown): v is Obj => typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -189,6 +290,56 @@ const num = (v: unknown, d: number, lo: number, hi: number): number =>
 const bool = (v: unknown, d: boolean): boolean => (typeof v === 'boolean' ? v : d);
 const pick = <T>(v: unknown, allowed: readonly T[], d: T): T => (allowed.includes(v as T) ? (v as T) : d);
 const sub = (o: Obj, k: string): Obj => (isObj(o[k]) ? (o[k] as Obj) : {});
+
+/**
+ * Preset + features: a named preset fills its features (3.1: the shared ladder - a 3.0 High / Ultra / Epic keeps its
+ * name and takes the retuned values); 'custom' keeps the stored ones (over Epic, new features from Epic); settings
+ * from before 3.0 (the phone quality levels) start on Epic.
+ */
+function videoGfx(v: Obj): { preset: GraphicsPreset; gfx: GraphicsFeatures } {
+  const p = v.preset;
+  if ((PRESET_IDS as readonly unknown[]).includes(p)) return { preset: p as FixedPreset, gfx: { ...GRAPHICS_PRESETS[p as FixedPreset] } };
+  if (p === 'custom') {
+    const gfx = sanitizeGfx(sub(v, 'gfx'), GRAPHICS_PRESETS.epic);
+    return { preset: presetOf(gfx), gfx };
+  }
+  return { preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic } };
+}
+
+/** Set one graphics feature (the preset becomes Custom unless it now equals one; Auto turns off). */
+export function setGfx<K extends keyof GraphicsFeatures>(s: Settings, k: K, v: GraphicsFeatures[K]): void {
+  s.video.gfx[k] = v;
+  s.video.preset = presetOf(s.video.gfx);
+  s.video.auto = false;
+}
+
+export interface DeviceDetection {
+  key: string;
+  tier: FixedPreset | null;
+  /** gpu: from the GPU's name; calibrated: measured on the menu stage; none: not yet. */
+  source: 'gpu' | 'calibrated' | 'none';
+}
+
+function sanitizeDevice(raw: unknown): DeviceDetection {
+  const r = (raw && typeof raw === 'object' ? raw : {}) as Obj;
+  const tier = (PRESET_IDS as readonly unknown[]).includes(r.tier) ? (r.tier as FixedPreset) : null;
+  return { key: typeof r.key === 'string' ? r.key.slice(0, 160) : '', tier, source: tier ? pick(r.source, ['gpu', 'calibrated', 'none'] as const, 'none') : 'none' };
+}
+
+/** Auto on: the device's preset (High until it is known). */
+export function setAuto(s: Settings, tier: FixedPreset | null): void {
+  setPreset(s, tier ?? 'high');
+  s.video.auto = true;
+}
+
+/** Apply a named preset: its features and its render resolution (scale + TAAU; the frame governor works within). */
+export function setPreset(s: Settings, p: FixedPreset): void {
+  s.video.preset = p;
+  s.video.gfx = { ...GRAPHICS_PRESETS[p] };
+  s.video.renderScale = PRESET_DISPLAY[p].renderScale;
+  s.video.upscaler = PRESET_DISPLAY[p].upscaler;
+  s.video.auto = false;
+}
 
 /** Merge untrusted data (old saves, imports) over defaults, clamping every field. */
 export function sanitizeSettings(raw: unknown): Settings {
@@ -200,17 +351,20 @@ export function sanitizeSettings(raw: unknown): Settings {
   const v = sub(r, 'video');
   const a = sub(r, 'audio');
   const gp = sub(r, 'gameplay');
+  const ac = sub(r, 'access');
   const lay = sub(t, 'layout');
   const layout = {} as Record<TouchControlId, ControlPlacement>;
   // layouts from before the camera stick: keep customised placements of controls that still exist;
   // untouched (v1 default) ones and the new controls take the new defaults
-  const oldVersion = num(t.layoutVersion, 1, 1, 99) < TOUCH_LAYOUT_VERSION;
+  // (v2 -> v3 only adds controls: every stored placement is kept)
+  const fromV1 = num(t.layoutVersion, 1, 1, 99) < 2;
   for (const id of TOUCH_CONTROL_IDS) {
     const p = sub(lay, id);
     const dp = d.touch.layout[id];
     const v1 = V1_DEFAULT_LAYOUT[id];
     // v1 "fire" was the right aim-and-fire stick; its spot now belongs to the camera stick, so it resets
-    const untouched = oldVersion && (!v1 || id === 'fire' || (p.x === v1.x && p.y === v1.y && p.scale === v1.scale));
+    const isNew = !isObj(lay[id]);
+    const untouched = isNew || (fromV1 && (!v1 || id === 'fire' || (p.x === v1.x && p.y === v1.y && p.scale === v1.scale)));
     const place: ControlPlacement = untouched ? { ...dp } : { x: num(p.x, dp.x, 0, 1), y: num(p.y, dp.y, 0, 1), scale: num(p.scale, dp.scale, 0.5, 2) };
     if (!untouched && typeof p.alpha === 'number') place.alpha = num(p.alpha, 1, 0.2, 1.6);
     layout[id] = place;
@@ -249,16 +403,32 @@ export function sanitizeSettings(raw: unknown): Settings {
     mouse: {
       sensitivity: num(m.sensitivity, d.mouse.sensitivity, 0.1, 5),
       invertY: bool(m.invertY, d.mouse.invertY),
+      adsMultiplier: num(m.adsMultiplier, d.mouse.adsMultiplier, 0.2, 1.5),
+      raw: bool(m.raw, d.mouse.raw),
     },
+    keys: sanitizeBinds(r.keys),
     video: {
-      quality: pick(v.quality, QUALITY, d.video.quality),
-      renderScale: num(v.renderScale, d.video.renderScale, 0.5, 1),
-      shadows: bool(v.shadows, d.video.shadows),
-      fovH: num(v.fovH, d.video.fovH, 60, 100),
+      platform: pick(v.platform, ['auto', 'desktop', 'mobile'] as const, d.video.platform),
+      ...videoGfx(v),
+      // (3.0 settings: Auto when still on the 3.0 default, Epic; a preset picked by hand stays)
+      auto: bool(v.auto, v.preset === undefined || v.preset === 'epic'),
+      device: sanitizeDevice(v.device),
+      renderScale: num(v.renderScale, d.video.renderScale, 0.5, 2),
+      dynamicRes: bool(v.dynamicRes, d.video.dynamicRes),
+      adaptive: bool(v.adaptive, d.video.adaptive),
+      upscaler: pick(v.upscaler, ['off', 'taau'] as const, d.video.upscaler),
+      panini: num(v.panini, d.video.panini, 0, 1),
+      fpsCap: pick(v.fpsCap, FPS_CAPS as readonly number[], d.video.fpsCap),
+      fovH: num(v.fovH, d.video.fovH, 60, 120),
+      maxFov: num(v.maxFov, d.video.maxFov, 90, 150),
+      hudWidth: pick(v.hudWidth, HUD_WIDTHS, d.video.hudWidth),
+      gpuNotice: bool(v.gpuNotice, d.video.gpuNotice),
       showFps: bool(v.showFps, d.video.showFps),
       vignette: bool(v.vignette, d.video.vignette),
       filmGrain: bool(v.filmGrain, d.video.filmGrain),
-      avatarStyle: pick(v.avatarStyle, ['stick', 'detailed'] as const, d.video.avatarStyle),
+      // settings from before 2.0 move to the operator once (the stick style stays a choice)
+      avatarStyle: v.avatarStyleV === 2 ? pick(v.avatarStyle, ['stick', 'detailed'] as const, d.video.avatarStyle) : 'detailed',
+      avatarStyleV: 2,
     },
     audio: {
       master: num(a.master, d.audio.master, 0, 1),
@@ -274,6 +444,15 @@ export function sanitizeSettings(raw: unknown): Settings {
       slowBeat: bool(gp.slowBeat, d.gameplay.slowBeat),
       sprintHold: bool(gp.sprintHold, d.gameplay.sprintHold),
       autoRecentre: bool(gp.autoRecentre, d.gameplay.autoRecentre),
+    },
+    access: {
+      hudScale: num(ac.hudScale, d.access.hudScale, 0.8, 1.4),
+      healthBar: bool(ac.healthBar, d.access.healthBar),
+      ammoAlways: bool(ac.ammoAlways, d.access.ammoAlways),
+      colorSafe: bool(ac.colorSafe, d.access.colorSafe),
+      subtitles: bool(ac.subtitles, d.access.subtitles),
+      holdToggle: bool(ac.holdToggle, d.access.holdToggle),
+      shake: num(ac.shake, d.access.shake, 0, 1),
     },
   };
 }

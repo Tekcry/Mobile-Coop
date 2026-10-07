@@ -7,7 +7,7 @@ import { computeStats, damageAt, MAX_UPGRADE } from '../weapons/weaponStats';
 import { killScore, waveClearBonus } from '../game/modes/waveLogic';
 import type { EndStats } from './protocol';
 import type { SessionStats } from '../game/modes/gameMode';
-import { ENEMY_KINDS } from '../ai/enemyDefs';
+import { emptyKinds, ENEMY_KINDS } from '../ai/enemyDefs';
 import { hyp2, hyp3 } from '../core/mathx';
 
 export interface V3 {
@@ -43,8 +43,10 @@ export function shotLimiter(def: WeaponDef): RateLimiter {
 }
 
 /** Highest per-hit damage possible with full upgrades and no falloff. */
-export function maxHitDamage(def: WeaponDef, head: boolean): number {
-  const st = computeStats(def, { damage: MAX_UPGRADE, magazine: MAX_UPGRADE, recoil: MAX_UPGRADE, reload: MAX_UPGRADE });
+export function maxHitDamage(def: WeaponDef, head: boolean, upgraded = true): number {
+  // PvP plays every weapon at base damage, so its cap is the base
+  const u = upgraded ? MAX_UPGRADE : 0;
+  const st = computeStats(def, { damage: u, magazine: u, recoil: u, reload: u });
   return damageAt(def, st, 0, head) * 1.02;
 }
 
@@ -138,7 +140,7 @@ export function coopSessionStats(base: SessionStats, end: EndStats, selfId: stri
     score: end.score,
     kills: me?.kills ?? 0,
     headshots: me?.headshots ?? 0,
-    byKind: me ? { ...me.byKind } : { grunt: 0, runner: 0, heavy: 0 },
+    byKind: me ? { ...me.byKind } : emptyKinds(),
     weaponKills: me ? { ...me.weaponKills } : {},
   };
 }

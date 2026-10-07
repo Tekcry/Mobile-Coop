@@ -4,15 +4,23 @@ import { MOVEMENT } from '../config/movement';
 import { pickTraversal, type Traversal } from './movement';
 import type { Player } from './player';
 import { hyp2 } from '../core/mathx';
+import type { AttachMachine, ExitReason } from './attach';
+import { AttachController, anchorFirst, LOWER_HOLD, type AttachInput } from './attachController';
+import { nearestInReach, type Anchor, type AttachEntry, type ReachResult, type TraversalAnchors, type WindowAnchor } from '../world/anchors';
+import type { Breakables } from '../world/breakables';
+import type { AttachCamera } from '../config/camera';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
 const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
 /** Durations (s) of each committed traversal from a standstill; quicker in stride (see `duration`). */
-export const TRAVERSE_TIME: Record<Exclude<Traversal, 'none'> | 'drop' | 'hop', number> = { step: 0.4, vault: 0.7, mantle: 1.0, drop: 0.35, hop: 0.5 };
+export const TRAVERSE_TIME: Record<Exclude<Traversal, 'none'> | 'drop' | 'hop' | 'roll', number> = { step: 0.4, vault: 0.7, mantle: 1.0, drop: 0.35, hop: 0.5, roll: 0.62 };
 
 /** Fastest each move gets at speed (s). */
-const MIN_TIME: Record<keyof typeof TRAVERSE_TIME, number> = { step: 0.22, vault: 0.42, mantle: 0.75, drop: 0.25, hop: 0.38 };
+const MIN_TIME: Record<keyof typeof TRAVERSE_TIME, number> = { step: 0.22, vault: 0.42, mantle: 0.75, drop: 0.25, hop: 0.38, roll: 0.55 };
+/** Landing roll: furthest it travels (m) and the least room it needs to be worth playing (m). */
+const ROLL_LENGTH = 1.6;
+const ROLL_MIN = 0.6;
 
 /** Committed duration at an entry speed: in stride the move takes about as long as covering it. */
 export function traverseDuration(kind: keyof typeof TRAVERSE_TIME, speed: number, length: number): number {
@@ -39,7 +47,11 @@ export interface TraverseProbe {
  * probe also runs a few times a second so the HUD can show what jump would do.
  */
 export class TraversalController {
-  kind: Traversal | 'drop' | 'hop' = 'none';
+  kind: Traversal | 'drop' | 'hop' | 'roll' = 'none';
+  /** The committed vault goes through a window (a low dive). */
+  private throughWindow = false;
+  /** Landing counter last seen (a new landing in the roll band starts a roll). */
+  private landings = 0;
   t = 0;
   /** Committed duration of the current move, entry speed and whether a sprint carried into it. */
   private dur = 1;
@@ -59,16 +71,85 @@ export class TraversalController {
   private dir = new Vector3(0, 0, 1);
   private top = 0;
   private probeT = 0;
-
+  /** Attached locomotion (ladder, pipe, hang, duct, zipline). */
+  readonly attachCtl: AttachController;
+  /** The window the vault hint goes through (glazed: the vault breaks it), or null. */
+  hintWindow: WindowAnchor | null = null;
+  /** Window glass and duct grates (set by GameState). */
+  private _breakables: Breakables | null = null;
+  get breakables(): Breakables | null {
+    return this._breakables;
+  }
+  set breakables(b: Breakables | null) {
+    this._breakables = b;
+    this.attachCtl.breakables = b;
+  }
+  private anchors: TraversalAnchors;
+  /** Where the attach hint's grip is (prompt). */
+  readonly attachAt = new Vector3();
   constructor(
     scene: Scene,
     private player: Player,
+    anchors: TraversalAnchors,
   ) {
     this.eng = scene.getPhysicsEngine() as PhysicsEngine;
+    this.anchors = anchors;
+    this.attachCtl = new AttachController(
+      player,
+      anchors,
+      this.kin,
+      (x, y, z) => this.roomAt(x, y, z),
+      (x, z, y) => this.floor(x, z, y, 3),
+      (ax, ay, az, bx, by, bz) => this.ray(this.a.set(ax, ay, az), this.b.set(bx, by, bz)) === null,
+    );
+  }
+
+  /** A standing body's worth of free space above (x, y, z) (and nothing solid at the feet). */
+  private roomAt(x: number, y: number, z: number): boolean {
+    return this.ray(this.a.set(x, y + 0.05, z), this.b.set(x, y + MOVEMENT.standHeight, z)) === null;
+  }
+
+  get attach(): AttachMachine {
+    return this.attachCtl.m;
+  }
+
+  get input(): AttachInput {
+    return this.attachCtl.input;
   }
 
   get active(): boolean {
-    return this.kind !== 'none';
+    return this.kind !== 'none' || this.attachCtl.active;
+  }
+
+  /** Attached (ladder, pipe, hang, duct, zipline), including its enter / exit blends. */
+  get attached(): boolean {
+    return this.attachCtl.active;
+  }
+
+  /** Camera framing preset while attached (null otherwise). */
+  get cameraPreset(): AttachCamera | null {
+    return this.attachCtl.camera;
+  }
+
+  /** Anchor a traverse press would attach to from the ground (prompt). */
+  get attachHint(): ReachResult | null {
+    return this.attachCtl.hint;
+  }
+
+  /** Attach to an anchor now (tests, chains): blends from the current feet onto it. */
+  attachTo(a: Anchor, s: number, entry: AttachEntry = 'side', face = 1): boolean {
+    if (this.kind !== 'none') return false;
+    this.hint = null;
+    return this.attachCtl.attachTo(a, s, entry, face);
+  }
+
+  detach(reason: ExitReason): void {
+    this.attachCtl.detach(reason);
+  }
+
+  /** Render frame: hand / foot contacts while attached. */
+  frameUpdate(dt: number, alpha: number): void {
+    this.attachCtl.frameUpdate(dt, alpha);
   }
 
   private ray(from: Vector3, to: Vector3): number | null {
@@ -86,6 +167,9 @@ export class TraversalController {
 
   /** Look along `dir` from the feet and classify the obstacle (or ledge). */
   probe(feet: Vector3, dx: number, dz: number): TraverseProbe | null {
+    this.hintWindow = null;
+    const wp = this.windowProbe(feet, dx, dz);
+    if (wp) return wp;
     const reach = 1.3;
     let front = Infinity;
     for (const h of [0.25, 0.6, 1.0, 1.4]) {
@@ -147,6 +231,28 @@ export class TraversalController {
     return { kind, front, height, depth, end };
   }
 
+  /** Through a window (open, or glazed and breakable): a vault over the sill to the floor on the far side. */
+  private windowProbe(feet: Vector3, dx: number, dz: number): TraverseProbe | null {
+    const r = nearestInReach(this.anchors, feet.x, feet.y, feet.z, dx, dz, ['window']);
+    if (!r) return null;
+    const w = r.anchor as WindowAnchor;
+    if (!w.open && !w.breakable && !(this.breakables?.isOpen(`glass:${w.id}`) ?? true)) return null;
+    const nx = Math.sin(w.yaw);
+    const nz = Math.cos(w.yaw);
+    const side = (feet.x - w.c.x) * nx + (feet.z - w.c.z) * nz;
+    const through = side > 0 ? -1 : 1;
+    // land a stride beyond the frame on the far floor
+    const lat = r.s - w.w / 2;
+    const cx = w.c.x + nz * lat;
+    const cz = w.c.z - nx * lat;
+    const ex = cx + nx * through * 0.9;
+    const ez = cz + nz * through * 0.9;
+    const land = this.floor(ex, ez, w.sillHeight + 0.2, 2.5);
+    if (land === null || Math.abs(land - feet.y) > 0.6) return null;
+    this.hintWindow = w;
+    return { kind: 'vault', front: r.dist, height: w.sillHeight - feet.y, depth: 0.3, end: new Vector3(ex, land, ez) };
+  }
+
   /** Movement direction to probe along: the stick if pushed, else where the body faces. */
   private probeDir(): { x: number; z: number } {
     const c = this.player.controller;
@@ -164,11 +270,16 @@ export class TraversalController {
     const p = this.player;
     const c = p.controller;
     const pose = p.coverPose;
+    if (this.attachCtl.active) {
+      this.attachCtl.fixedUpdate(dt, jumpPressed);
+      return true;
+    }
+    if (this.attachCtl.updateVent(dt)) return true;
     if (this.active) {
       this.t += dt;
       const k = Math.min(1, this.t / this.dur);
       this.path(k);
-      pose.traverse = this.kind;
+      pose.traverse = this.throughWindow ? 'windowVault' : this.kind;
       pose.traverseT = k;
       c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' };
       if (k >= 1) {
@@ -181,13 +292,30 @@ export class TraversalController {
           if (this.sprint0) c.resumeSprint();
         }
         this.kind = 'none';
+        this.throughWindow = false;
         pose.traverse = 'none';
         pose.traverseT = 0;
       }
       return true;
     }
+    // a landing from 2.5-4.5 m: roll out of it, keeping the momentum
+    if (c.landings !== this.landings) {
+      this.landings = c.landings;
+      if (c.lastLanding === 'roll' && c.grounded && p.alive && !blocked && this.startRoll()) return this.fixedUpdate(0, false, false);
+    }
+    const ac = this.attachCtl;
+    // falling past a lip: traverse grabs it
+    if (!c.grounded && p.alive && !blocked) {
+      this.hint = null;
+      ac.lower = null;
+      ac.hint = ac.fallProbe(c.pos);
+      if (ac.hint && jumpPressed) return ac.attachFrom(ac.hint, 0.15);
+      return false;
+    }
     if (blocked || !p.alive || !c.grounded) {
       this.hint = null;
+      ac.hint = null;
+      ac.lower = null;
       return false;
     }
     this.probeT -= dt;
@@ -195,13 +323,35 @@ export class TraversalController {
       this.probeT = 0.2;
       const d = dir ?? this.probeDir();
       this.hint = this.probe(c.pos, d.x, d.z);
+      ac.hint = ac.probe(c.pos, d.x, d.z);
       if (this.hint) {
         this.dir.set(d.x, 0, d.z);
         const f = this.hint.kind === 'hop' || this.hint.kind === 'drop' ? 0.6 : this.hint.front;
         this.hintAt.set(c.pos.x + d.x * f, c.pos.y, c.pos.z + d.z * f);
       }
     }
+    // anchors: a climb / grab when nothing closer is offered (a step, vault or mantle wins)
+    const h = this.hint;
+    const ah = ac.hint;
+    const geo = h && h.kind !== 'drop' && !anchorFirst(ah);
+    // lowering into a hang is the drop control (held) or its prompt; traverse at the edge still drops down
+    // (a press made at the edge: crouch held for a while in hold mode never lowers you over it)
+    const low = ac.lower;
+    const lower = !!low && ((ac.input.dropHeldT >= LOWER_HOLD && ac.input.dropHeldT < LOWER_HOLD + 0.5) || ac.lowerRequest);
+    ac.lowerRequest = false;
+    if (lower && low && !geo) {
+      this.hint = null;
+      return ac.attachFrom(low);
+    }
+    if (ah && !geo && jumpPressed) {
+      this.hint = null;
+      return ac.attachFrom(ah);
+    }
     if (jumpPressed && this.hint) {
+      // a glazed window shatters as the vault goes through it (loud)
+      const w = this.hintWindow;
+      if (w && !w.open) this.breakables?.open(`glass:${w.id}`, 'break');
+      this.throughWindow = !!w;
       this.kind = this.hint.kind;
       this.t = 0;
       this.speed0 = c.speed;
@@ -214,6 +364,37 @@ export class TraversalController {
       return this.fixedUpdate(0, false, false);
     }
     return false;
+  }
+
+  /** Roll along the landing velocity (or the facing), as far as there is room. */
+  private startRoll(): boolean {
+    const c = this.player.controller;
+    let dx = c.landVX;
+    let dz = c.landVZ;
+    let sp = hyp2(dx, dz);
+    if (sp < 0.5) {
+      dx = Math.sin(c.yaw);
+      dz = Math.cos(c.yaw);
+      sp = 0;
+    } else {
+      dx /= sp;
+      dz /= sp;
+    }
+    const hit = this.ray(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (ROLL_LENGTH + 0.4), c.pos.y + 0.45, c.pos.z + dz * (ROLL_LENGTH + 0.4)));
+    const len = hit === null ? ROLL_LENGTH : Math.min(ROLL_LENGTH, hit - 0.4);
+    if (len < ROLL_MIN) return false;
+    this.kind = 'roll';
+    this.throughWindow = false;
+    this.t = 0;
+    this.speed0 = Math.max(sp, 2.5);
+    this.sprint0 = false;
+    this.dur = TRAVERSE_TIME.roll;
+    this.dir.set(dx, 0, dz);
+    this.from.copyFrom(c.pos);
+    this.to.set(c.pos.x + dx * len, c.pos.y, c.pos.z + dz * len);
+    this.top = c.pos.y;
+    c.landT = 0;
+    return true;
   }
 
   /** Feet position along the committed path at progress k. */
@@ -237,6 +418,13 @@ export class TraversalController {
         const clear = this.top + 0.12;
         const arc = Math.sin(Math.PI * Math.min(1, k * 1.15));
         y = f.y + (e.y - f.y) * h + Math.max(0, clear - Math.max(f.y, e.y)) * arc;
+        break;
+      }
+      case 'roll': {
+        // momentum carries through, easing out as the body comes back up; the curled body rides up a little
+        // over its back (the tumble pivot is at the hips) so the shoulders roll over the floor, not through it
+        h = k * (2 - k);
+        y = f.y + (e.y - f.y) * h + 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, (k - 0.1) / 0.75)));
         break;
       }
       case 'hop': {
@@ -264,5 +452,6 @@ export class TraversalController {
   reset(): void {
     this.kind = 'none';
     this.hint = null;
+    this.attachCtl.reset();
   }
 }

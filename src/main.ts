@@ -1,4 +1,8 @@
 import './styles.css';
+import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
+import { suitLook } from './progression/suit';
+import { parseDifficulty } from './ai/archetypes';
+import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
@@ -11,14 +15,15 @@ import { GameState, type GameOptions, type SessionCallbacks } from './game/gameS
 import { getMap } from './world/maps';
 import { requestPersistence } from './save/db';
 import { PlayScreen } from './ui/screens/playScreen';
-import { ArmoryScreen } from './ui/screens/armoryScreen';
-import { StoreScreen } from './ui/screens/storeScreen';
+import { LoadoutScreen } from './ui/screens/loadoutScreen';
+import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
+import { BENCH } from './game/benchmark';
+import { feedbackTab } from './ui/screens/feedbackScreen';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
-import { CustomizeScreen } from './ui/screens/customizeScreen';
 import { camoById } from './cosmetics/catalog';
 
 function setBoot(progress: number, status: string): void {
@@ -36,13 +41,15 @@ async function boot(): Promise<void> {
   const canvas = document.getElementById('game') as HTMLCanvasElement;
   const app = new App(canvas);
   (window as unknown as { __app: App }).__app = app;
+  // tests: the bundled mission definitions
+  (window as unknown as { __missions: typeof MISSIONS }).__missions = MISSIONS;
 
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();
   setBoot(0.25, 'Loading profile…');
   await app.save.load();
   app.save.update((d) => void autoGrant(d));
-  extraSettingsTabs.push(dataTab);
+  extraSettingsTabs.push(feedbackTab, dataTab);
   GameState.rewardHook = async (stats, opts) => {
     let report: SessionReport | null = null;
     app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
@@ -61,11 +68,13 @@ async function boot(): Promise<void> {
     app.screens.clear();
     const ms = new MenuState(app.engine);
     app.setState(ms);
-    const sv = app.save.get();
-    ms.setAvatar(sv.avatar, sv.loadout.primary, sv.weapons[sv.loadout.primary].camo);
+    showSavedOperator(app);
     app.onAvatarStyle = () => {
-      const v = app.save.get();
-      if (app.current === ms) ms.setAvatar(v.avatar, v.loadout.primary, v.weapons[v.loadout.primary].camo);
+      // (a new avatar style rebuilds the same request: clear what the preview remembers)
+      if (app.current === ms) {
+        ms.forget();
+        showSavedOperator(app);
+      }
     };
     app.music.start();
     const menu = new MainMenuScreen(app);
@@ -81,9 +90,7 @@ async function boot(): Promise<void> {
       order: 10,
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
-    (a) => ({ label: 'Armory', sub: 'Loadout · Upgrades', icon: 'gun', order: 20, action: () => a.screens.push(new ArmoryScreen(a)) }),
-    (a) => ({ label: 'Customise', sub: 'Avatar · Tag · Emotes', icon: 'user', order: 25, action: () => a.screens.push(new CustomizeScreen(a)) }),
-    (a) => ({ label: 'Store', sub: 'Unlocks', icon: 'trophy', order: 30, action: () => a.screens.push(new StoreScreen(a)) }),
+    (a) => ({ label: 'Loadout', sub: 'Weapons · Gear · Appearance · HQ', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 
@@ -116,7 +123,17 @@ async function boot(): Promise<void> {
       const c = camoById(camo);
       return c.pattern ? { colors: c.colors, pattern: c.pattern } : { colors: c.colors };
     };
-    const opts: GameOptions = { ...base, loadout: base.loadout ?? loadoutEntries(sv, base.mode, skin), look: base.look ?? sv.avatar, emotes: sv.emotes };
+    // single player: the suit worn (its look too), HQ upgrades and the preset's gadget
+    const coop = !!base.net;
+    const opts: GameOptions = {
+      ...base,
+      loadout: base.loadout ?? loadoutEntries(sv, base.mode, skin),
+      look: base.look ?? suitLook(sv.avatar, sv.suit.worn),
+      emotes: sv.emotes,
+      suit: base.suit ?? (coop ? undefined : sv.suit.worn),
+      hq: base.hq ?? (coop ? undefined : sv.hq),
+      gadget: base.gadget ?? sv.presets[sv.preset]?.gadget,
+    };
     app.screens.clear();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
@@ -131,7 +148,15 @@ async function boot(): Promise<void> {
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
 
-  if (flags.autostart) startGame({ map: getMap(flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1 });
+  app.benchmark = (kind = 'current') => startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: kind });
+  // tests: a shorter flight
+  (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
+
+  if (flags.autostart) {
+    // infiltration: the mission picks its map
+    const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
+    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+  }
   else goToMenu();
   if (flags.coop && flags.room && !flags.autostart) {
     const room = flags.room;
@@ -140,7 +165,8 @@ async function boot(): Promise<void> {
   app.start();
 
   // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.
-  if (!isStandalone()) {
+  // (desktop: fullscreen is the player's choice, Settings > Graphics)
+  if (!isStandalone() && app.platform.platform === 'mobile') {
     window.addEventListener('pointerup', () => void enterFullscreenLandscape(), { once: true });
   }
 
