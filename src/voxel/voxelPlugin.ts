@@ -57,12 +57,14 @@ export class VoxelPlugin extends MaterialPluginBase {
     private micro: boolean,
   ) {
     super(material, 'Voxels', 180, { VOXELS: false, VOXEL_AO: false, VOXEL_MICRO: false });
-    this.pbr = material.getClassName() === 'PBRMaterial';
     this._enable(true);
   }
 
-  /** On a PBR material (else the cheap standard path: the palette colour per voxel only). */
-  private readonly pbr: boolean;
+  /** On a PBR material (else the cheap standard path: the palette colour per voxel only). Read from the material,
+   *  not a field: the base constructor already collects the shader code, before a subclass field is set. */
+  private get pbr(): boolean {
+    return this._material.getClassName() === 'PBRMaterial';
+  }
 
   /** Rain: upward faces darken and turn glossy (0..1; only where the sky reaches). */
   wet = 0;
