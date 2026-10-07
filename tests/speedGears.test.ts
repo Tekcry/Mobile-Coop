@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { clampGear, gearCap, gearSpeed, GearState, stickCurve } from '../src/player/speedGears';
+import { clampGear, coverPace, gearCap, gearSpeed, GearState, StickRelease, stickCurve } from '../src/player/speedGears';
 import { noiseRadius, targetSpeed } from '../src/player/movement';
-import { GEARS, MOVEMENT, NOISE_QUIET } from '../src/config/movement';
+import { CT, GEARS, MOVEMENT, NOISE_QUIET } from '../src/config/movement';
 
 describe('speed gears (3.2.0)', () => {
   it('six gears with the spec caps, crouched and standing', () => {
@@ -72,5 +72,59 @@ describe('speed gears (3.2.0)', () => {
     expect(noiseRadius(5, false, true)).toBeGreaterThan(last);
     expect(NOISE_QUIET.crouch).toBeLessThan(GEARS.crouch[4]! * (1 - MOVEMENT.rootDip));
     expect(NOISE_QUIET.stand).toBeLessThan(GEARS.stand[2]! * (1 - MOVEMENT.rootDip));
+  });
+  it('cover strafe: the gear pace, capped along the wall (gear 3 ~ the 2.x cover pace)', () => {
+    expect(coverPace(1, false)).toBeCloseTo(0.8);
+    expect(coverPace(3, false)).toBeCloseTo(2.0);
+    expect(coverPace(6, false)).toBeCloseTo(GEARS.coverMax.stand);
+    expect(coverPace(1, true)).toBeCloseTo(0.5);
+    expect(coverPace(3, true)).toBeCloseTo(1.3);
+    expect(coverPace(6, true)).toBeCloseTo(GEARS.coverMax.crouch);
+    for (let g = 1; g < 6; g++) expect(coverPace(g + 1, false)).toBeGreaterThanOrEqual(coverPace(g, false));
+  });
+});
+
+describe('stick release (3.2.0)', () => {
+  const dt = 1 / 60;
+  it('a stick springing back keeps its deflection until it reaches the dead zone (a release from full pace)', () => {
+    const r = new StickRelease();
+    for (let k = 0; k < 10; k++) r.update(0, 1, dt);
+    const seen: number[] = [];
+    for (const y of [0.6, 0.25, 0.08, 0]) {
+      r.update(0, y, dt);
+      seen.push(r.y);
+    }
+    expect(seen.slice(0, 3)).toEqual([1, 1, 1]);
+    expect(seen[3]).toBe(0);
+  });
+  it('a deliberate slow-down follows the stick; a quick drop that settles lets go at once', () => {
+    const r = new StickRelease();
+    for (let k = 0; k < 10; k++) r.update(0, 1, dt);
+    // easing off over 0.3 s (under the release rate)
+    for (let k = 1; k <= 18; k++) {
+      const y = 1 - (0.5 * k) / 18;
+      r.update(0, y, dt);
+      expect(r.y).toBeCloseTo(y);
+    }
+    // a quick drop to 0.2 that stops there
+    r.update(0, 0.35, dt);
+    expect(r.y).toBeCloseTo(0.5);
+    r.update(0, 0.2, dt);
+    r.update(0, 0.2, dt);
+    expect(r.y).toBeCloseTo(0.2);
+    expect(r.latched).toBe(false);
+  });
+  it('a latch never outlasts the release window', () => {
+    const r = new StickRelease();
+    for (let k = 0; k < 10; k++) r.update(1, 0, dt);
+    let y = 1;
+    let latchedFor = 0;
+    for (let k = 0; k < 30; k++) {
+      y = Math.max(0.06, y - 0.08);
+      r.update(y, 0, dt);
+      if (r.latched) latchedFor += dt;
+    }
+    expect(latchedFor).toBeLessThanOrEqual(CT.releaseWindow + dt);
+    expect(r.x).toBeCloseTo(0.06);
   });
 });

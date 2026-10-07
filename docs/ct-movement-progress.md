@@ -70,5 +70,15 @@ Saves there are separate (`shoulder-strike-ct`). Every push to `ct-movement` reb
   settling step). Now: the stop holds the exact stride it stopped in until the next input (stick, aim, stance change,
   cover / traversal / takedown, leaving the ground); a foot in the air sets straight down where it is within
   `CT.stopBlend`; crouched stops hold the crouched stride too (no automatic kneel). Applied as a Phase 0 fix.
+- Phase 0 stop hold, second pass (2026-10-07, from Michael's phone test: "only sometimes worked"): the hold needed
+  more than 0.3 m/s at the stop (slow gears / crouched / a part-pushed stick never held), a sprint still active for
+  0.15 s after the release cancelled it, and a pad stick springing back slowed the operator through 0.6 / 0.25 / 0.08
+  before the stop. Now: any stop from > 0.02 m/s holds; the hold lets go only when the stick moves the operator again
+  (target > 0.05 m/s), aiming, a stance change, an override or leaving the ground; `StickRelease` keeps the stick's
+  deflection while it springs back (faster than `CT.releaseRate`, up to `CT.releaseWindow`), so the stop comes from the
+  full pace.
+- Cover strafe follows the speed gear (2026-10-07, approved by Michael; the spec said cover stays as it is):
+  `coverPace(gear, crouched)` = the gear's pace capped at `GEARS.coverMax` (standing 2.8, crouched 1.8 m/s; gear 3 is
+  about the 2.x pace 2.3 / 1.25). Cover-to-cover runs, glides and the edge stop are unchanged.
 - Branches (2026-10-07, Michael): keep `ct-movement` separate from `dev` for now - do not merge `dev` in at the start
   of a phase until he says so.

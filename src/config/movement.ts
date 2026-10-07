@@ -162,6 +162,9 @@ export const GEARS = {
   deadZone: 0.05,
   /** HUD gear pips stay this long after a change (s), then fade. */
   pipsShow: 1.5,
+  /** Cover strafe (3.2.0, approved change): the gear's pace, no faster than these along a wall (m/s). Gear 3 is about
+   *  the 2.x cover pace (2.3 / 1.25). */
+  coverMax: { stand: 2.8, crouch: 1.8 },
 } as const;
 
 /**
@@ -183,6 +186,15 @@ export const CT = {
   rollNoise: 2,
   /** Least moving speed (m/s) for the crouch tap to roll. */
   rollMinSpeed: 1.5,
+  /**
+   * Stick release: a stick dropping faster than `releaseRate` (magnitude per second) from at least `releaseFrom` keeps
+   * its last deflection for up to `releaseWindow` s; reaching the dead zone in that time is a release (an instant
+   * stop at full pace), settling higher is a deliberate slow-down. A pad stick springing back passes through small
+   * values for a frame or two, which would otherwise slow the operator before the stop.
+   */
+  releaseRate: 4,
+  releaseFrom: 0.2,
+  releaseWindow: 0.15,
 };
 
 /** Debug Tune panel ranges for the `CT` feel values. */

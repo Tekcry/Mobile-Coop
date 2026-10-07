@@ -9,7 +9,7 @@ import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
 import { SprintGate, EasedVelocity, targetSpeed, landingKind, LANDING, type LandingKind, type Stance } from './movement';
-import { GearState, clampGear } from './speedGears';
+import { GearState, StickRelease, clampGear } from './speedGears';
 import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
@@ -108,6 +108,8 @@ export class PlayerController {
   stopHold = false;
   holdSpeed = 0;
   private holdCrouch = false;
+  /** A stick springing back reads as a release from its full deflection (free movement only). */
+  private release = new StickRelease();
   /** Root motion: jerk-limited velocity, gait clock, starts/stops/stepped turns/pivots. */
   readonly motion: MotionDriver;
   /** Kept for callers: mirrors the driver's velocity; `reset` also resets the driver. */
@@ -327,6 +329,12 @@ export class PlayerController {
     const fz = Math.cos(camYaw);
     let mx = this.frozen ? 0 : input.moveX;
     let my = this.frozen ? 0 : input.moveY;
+    // free movement: a stick springing back is a release from where it was, not a slow-down on the way
+    if (!ov) {
+      this.release.update(mx, my, dt);
+      mx = this.release.x;
+      my = this.release.y;
+    } else this.release.reset();
     const mag = Math.min(1, hyp2(mx, my));
     if (mag < 0.05) mx = my = 0;
     this.wish.set(fz * mx + fx * my, 0, -fx * mx + fz * my);
@@ -415,13 +423,15 @@ export class PlayerController {
     const wasMoving = this.motion.state === 'move';
     const spBefore = this.motion.speed;
     if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
-    // an instant stop holds the stride; the next input lets it go
-    if (this.ct && this.grounded && wasMoving && this.motion.state === 'idle' && spBefore > 0.3) {
+    // an instant stop (any pace, any stance) holds the stride; the next input lets it go: a stick that moves the
+    // operator again, aiming, a stance change, an override or leaving the ground
+    if (this.ct && this.grounded && wasMoving && this.motion.state === 'idle' && spBefore > 0.02) {
       this.stopHold = true;
       this.holdSpeed = spBefore;
       this.holdCrouch = this.crouched;
     }
-    if (this.stopHold && (mag > 0.05 || !this.ct || !this.grounded || aiming || this.sprint.sprinting || this.crouched !== this.holdCrouch)) this.stopHold = false;
+    const moving = hyp2(tx, tz) > 0.05;
+    if (this.stopHold && (moving || !this.ct || !this.grounded || aiming || this.crouched !== this.holdCrouch)) this.stopHold = false;
     this.vel.x = this.motion.vx;
     this.vel.z = this.motion.vz;
     const desired = this.tmp.set(this.motion.outX, 0, this.motion.outZ);

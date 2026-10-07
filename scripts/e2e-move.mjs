@@ -181,7 +181,48 @@ try {
   await sim(1.0);
   const ch = await page.evaluate(() => { const c = window.__app.current.player.controller; return { hold: c.stopHold, kneel: c.kneeling, crouched: c.crouched }; });
   assert(ch.crouched && ch.hold && !ch.kneel, `a crouched stop holds the crouched stride (no kneel) (${JSON.stringify(ch)})`);
+  // ... from any pace: gear 1 crouched at half stick, and a stop out of a sprint
+  await setGear(1);
+  await page.evaluate(() => { window.__pad.axis(1, -0.5); });
+  await sim(0.6);
+  await page.evaluate(() => { window.__pad.axis(1, 0); });
+  await sim(0.5);
+  const slowHold = await page.evaluate(() => window.__app.current.player.controller.stopHold);
   await press(page, BTN.B);
+  await setGear(4);
+  await tp(-10, 0, -14, Math.PI / 2);
+  await settle(0.3);
+  await page.evaluate(() => { window.__pad.axis(1, -1); });
+  await sim(0.3);
+  await press(page, BTN.LS);
+  await sim(0.5);
+  await page.evaluate(() => { window.__pad.axis(1, 0); });
+  await sim(0.5);
+  const sprintHold = await page.evaluate(() => { const c = window.__app.current.player.controller; return { hold: c.stopHold, pace: c.holdSpeed }; });
+  assert(slowHold && sprintHold.hold && sprintHold.pace > 4, `the stop holds from a crouched creep (${slowHold}) and out of a sprint (${sprintHold.hold}, ${sprintHold.pace.toFixed(2)} m/s stride)`);
+  if ((await P()).crouched) await press(page, BTN.B);
+  // a pad stick springing back (through 0.6 / 0.25 / 0.08 over a few frames) is a release from the full pace
+  await tp(-10, 0, -14, Math.PI / 2);
+  await settle(0.3);
+  await page.evaluate(() => { window.__pad.axis(1, -1); });
+  await sim(0.8);
+  const spring = await page.evaluate(() => new Promise((res) => {
+    const st = window.__app.current;
+    const c = st.player.controller;
+    const orig = st.fixedUpdate.bind(st);
+    const seq = [-0.6, -0.25, -0.08, 0];
+    let k = 0;
+    let n = 0;
+    const pace0 = c.speed;
+    let minBefore = 99;
+    st.fixedUpdate = (dt) => {
+      if (k < seq.length) { window.__app.input.state.setMove('pad', 0, -seq[k]); window.__pad.axis(1, seq[k]); k++; }
+      orig(dt);
+      if (k < seq.length) minBefore = Math.min(minBefore, c.speed);
+      if (++n > 30) { st.fixedUpdate = orig; res({ pace0, minBefore, hold: c.stopHold, pace: c.holdSpeed }); }
+    };
+  }));
+  assert(spring.hold && spring.pace > spring.pace0 * 0.85 && spring.minBefore > spring.pace0 * 0.85, `a stick springing back holds the full stride (${spring.pace0.toFixed(2)} -> held at ${spring.pace.toFixed(2)} m/s, never slowed under ${spring.minBefore.toFixed(2)})`);
   await settle(0.3);
 
   // forward roll: crouch tapped standing at gear 5-6 while moving; ~3 m in 0.7 s, comes up crouched, a little noise

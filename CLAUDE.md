@@ -28,7 +28,7 @@ Blacklist style.
     X swaps, = / -, Esc pauses, Resume re-captures
   - `scripts/e2e-move.mjs` (3.2.0, `gear=none`: spawn gear 3) every gear's speed both stances, stick scaling, gear kept
     through stances, zero velocity on the release step, planted feet < 2 cm on a stop, the stop holds its stride
-    (1.2 s, aiming lets go; crouched: no kneel), forward roll (0.7 s, ~3 m,
+    (1.2 s, aiming lets go; crouched: no kneel; a creep and a sprint; a pad stick springing back), forward roll (0.7 s, ~3 m,
     crouched, 2 m noise) and none at gear 3, aim strafe/backstep, sprint toggle, aim ends a sprint, no free jump,
     kneel, contextual vault/climb/step/drop/hop, steps/slopes/stairs/tunnel/props on Proving Grounds
   - `scripts/e2e-traverse.mjs` Proving Grounds course (north east): ladder bottom / top entry, climb rate, slide, step
@@ -56,7 +56,7 @@ Blacklist style.
     fire/vault, B keeps cover, stand/crouch at high cover + crouched edge peek, lean in place, outside corners (corner prompt + A, never automatic) /
     inside corners, edge stop a step back, no cover badge, SWAT turn, cover-to-cover only when looking at it with the stick held towards it + slide + marker,
     world prompts (low on the surface, tapped by touch), manual cover only (walking / sprinting into a wall never
-    snaps), crouched aim over low cover, keyboard Space
+    snaps), crouched aim over low cover, keyboard Space; 3.2.0 cover strafe pace by gear
   - `scripts/e2e-clip.mjs` traversal: no body point (trunk, head, thighs, calves, upper arms; raycast from the hips)
     > 3 cm into the world while climbing, hanging, shimmying, climbing up, crawling, dropping through a vent,
     vaulting a window, on a zipline or rolling; plus the weapon clipping sweep: every frame of wall-side movement, high / low cover (idle,
@@ -397,8 +397,11 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   Tune panel): stick released = zero velocity on that step (the controller's `maxAcceleration` is 600 then so Havok
   follows in one step), gait clock frozen, `RigPose.quickStop` = `CT.stopBlend` 0.12 s (`FootPlanner.setDown`: a foot
   in the air sets straight down where it is within it, planted feet locked). Stop hold (approved spec change):
-  `PlayerController.stopHold` / `holdSpeed` from the stop until the next input (stick, aim, sprint, stance change,
-  an override, leaving the ground; teleport clears it; no kneel while held) -> `RigPose.holdSpeed`: the graph keeps
+  `PlayerController.stopHold` / `holdSpeed` from any stop (> 0.02 m/s) until the next input (a stick that moves the
+  operator again, aim, stance change, an override, leaving the ground; teleport clears it; no kneel while held);
+  `StickRelease` (`speedGears.ts`, pure; `CT.releaseRate` / `releaseFrom` / `releaseWindow`) keeps a springing-back
+  stick's deflection so the stop is from the full pace. Cover strafe = `coverPace(gear, crouched)` (`GEARS.coverMax`
+  2.8 / 1.8; `CoverController`) -> `RigPose.holdSpeed`: the graph keeps
   the locomotion pose at the frozen gait clock for that pace (`locoSpeed`; released, it blends out over `quickStop`),
   the planner `hold` takes no settling / idle steps (`anim-sheet` `crouchstop` / `walkstop`); starts
   reach 95% within `CT.startTime` 0.08 s (`ctTau` = startTime / 4), direction / gear changes re-target at once, no

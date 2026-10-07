@@ -14,7 +14,10 @@ Phase 0 - speed gears, instant stop, roll:
   take effect at once, no planted pivots, the body turns at up to 720 deg/s. Cover, cover-to-cover, traversal and
   the guards move as before (the guards' tuning is now pinned by a test).
 - Stopping holds the exact stride you stopped in (a foot in the air sets straight down) until the next input - the
-  stick, aiming, a stance change, cover or a climb; crouched stops hold the crouched stride (no automatic kneel).
+  stick, aiming, a stance change, cover or a climb - from any pace, crouched (no automatic kneel) or out of a sprint.
+  A controller stick springing back counts as letting go from the full pace (it no longer slows you on the way).
+- Cover: the speed gear sets the pace along the wall (gear 1 creeps, gear 6 hurries; no faster than 2.8 m/s standing,
+  1.8 crouched; gear 3 is about the old pace).
 - Forward roll: tap crouch while moving standing in gear 5-6 (or sprinting) - a committed 3 m roll in 0.7 s that
   comes up crouched; guards within 2 m hear it.
 - Controller: D-pad right is now the gadget (hold to aim, release to throw); D-pad left tapped pings (co-op), held

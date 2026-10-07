@@ -72,6 +72,36 @@ try {
   c = await P();
   assert(swapping && c.face === -faceRight, `reversing plays a turn-and-swap (face ${faceRight} -> ${c.face})`);
   assert(c.z < -4.6, `strafes back (z=${c.z.toFixed(2)})`);
+  // 3.2.0: the speed gear sets the pace along the wall (capped at a cover jog): gear 1 creeps, gear 6 hurries
+  const coverPeak = async (gear) => {
+    await tp(-3.7, -6, -Math.PI / 2);
+    await G((g) => window.__app.current.player.controller.gears.set(g), gear);
+    await sim(0.3);
+    await takeCover();
+    const r = await G(() => new Promise((res) => {
+      const st = window.__app.current;
+      const c = st.player.controller;
+      const orig = st.fixedUpdate.bind(st);
+      let t = 0;
+      let peak = 0;
+      window.__pad.axis(0, 1);
+      st.fixedUpdate = (dt) => {
+        orig(dt);
+        t += dt;
+        if (st.cover.state === 'in') peak = Math.max(peak, c.speed);
+        if (t >= 1.2) { st.fixedUpdate = orig; window.__pad.axis(0, 0); res({ peak, state: st.cover.state }); }
+      };
+    }));
+    await sim(0.3);
+    return r;
+  };
+  const slowC = await coverPeak(1);
+  const fastC = await coverPeak(6);
+  await G(() => window.__app.current.player.controller.gears.set(4));
+  assert(slowC.state === 'in' && fastC.state === 'in' && near(slowC.peak, 0.5, 0.12) && fastC.peak > 1.5 && fastC.peak < 1.95, `cover strafe by gear: gear 1 ${slowC.peak.toFixed(2)} m/s, gear 6 ${fastC.peak.toFixed(2)} m/s (crouched 0.5 / 1.8 cap)`);
+  await tp(-3.7, -6, -Math.PI / 2);
+  await sim(0.3);
+  await takeCover();
   // aim over the top
   await sim(0.5, { buttons: [BTN.LT] });
   await G(() => window.__pad.set(6, 1));

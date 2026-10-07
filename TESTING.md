@@ -306,7 +306,9 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
   swap weapons (the wheel no longer does).
 - [ ] Release the stick at any gear: the operator stops dead (no slide, no extra step forward) and holds the exact
   stride he stopped in - no pulling the feet together, no settling step, no kneel when crouched - until you move,
-  aim, change stance or take cover. A foot in the air sets straight down. Starting again is immediate. Reversing at speed: no planted
+  aim, change stance or take cover. A foot in the air sets straight down. Starting again is immediate. Try it at every
+  gear, crouched, out of a sprint, and letting a controller stick snap back: it should hold every time.
+- [ ] In cover, strafe along a long wall at gear 1, 3 and 6: a creep, about the old pace, a hurried shuffle. Reversing at speed: no planted
   pivot, straight off the other way. Turning sharply: the body snaps round (720 deg/s).
 - [ ] Crouch / stand while moving keeps the gear.
 - [ ] Gear 5 or 6 (or sprinting), moving standing: tap crouch (B / C / the crouch button) = a forward roll, ~3 m in
