@@ -257,7 +257,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `feedbackText`, `feedbackReportHtml`; `FeedbackStore` = IndexedDB `kv` 'feedback', `App.feedback`):
   `ui/screens/feedbackScreen.ts` (`FeedbackFormScreen`, Settings > Feedback `feedbackTab`, Pause > Report feedback,
   `exportFeedback` -> one HTML file via `ui/fileOut.ts` share / download). Context: the state's `feedbackContext()`
-  (GameState: map, mode, position, facing, enemies) + version, platform, graphics, frame times. Photo mode
+  (GameState: map, mode, position, facing, enemies) + version, platform, graphics, frame times; 3.1.7: `settings` /
+  `changed` from `settingsDigest` (core/settings.ts, pure: every video setting; the rest only where it differs from
+  the defaults), values up to `MAX_CONTEXT` 2000, `feedbackText` (Copy as text) puts the context under each line,
+  benchmark notes use the full `feedbackContext`. Photo mode
   (`ui/screens/photoMode.ts` `PhotoModeScreen` on a `PhotoHost`: `photoCamera()` / `photoFreeze(on)`; GameState flies
   its own FreeCamera so the post stack stays on, the menu stage gets a stand-in camera): `body.photo-mode` hides the
   HUD, touch layer and every other screen; free camera (move / look / up-down by keys, sticks, drags); a photo is the

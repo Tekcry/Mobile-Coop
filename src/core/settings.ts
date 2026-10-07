@@ -503,3 +503,42 @@ export class SettingsStore {
     for (const fn of this.listeners) fn(this.value);
   }
 }
+
+/** A value for a digest: numbers to 3 decimals, booleans on / off. */
+function digestValue(v: unknown): string {
+  if (typeof v === 'boolean') return v ? 'on' : 'off';
+  if (typeof v === 'number') return String(Math.round(v * 1000) / 1000);
+  return String(v);
+}
+
+/** `path=value` for every leaf of `o` (records under `whole`: one "custom" entry when they differ, else skipped). */
+function digestLeaves(o: unknown, d: unknown, path: string, out: string[], onlyChanged: boolean, whole: ReadonlySet<string>): void {
+  if (typeof o === 'object' && o !== null && !Array.isArray(o)) {
+    if (whole.has(path)) {
+      // (listed by the caller in full mode)
+      if (onlyChanged && JSON.stringify(o) !== JSON.stringify(d)) out.push(`${path}=custom`);
+      return;
+    }
+    const dd = typeof d === 'object' && d !== null ? (d as Record<string, unknown>) : {};
+    for (const [k, v] of Object.entries(o)) digestLeaves(v, dd[k], path ? `${path}.${k}` : k, out, onlyChanged, whole);
+    return;
+  }
+  if (onlyChanged && JSON.stringify(o) === JSON.stringify(d)) return;
+  out.push(`${path}=${digestValue(o)}`);
+}
+
+/**
+ * The settings as feedback context (3.1.7, pure): `video` - every graphics / display setting (the preset's features
+ * included); `changed` - everything else that differs from the defaults (touch layout / key bindings: "custom").
+ */
+export function settingsDigest(s: Settings): { video: string; changed: string } {
+  const d = defaultSettings();
+  const v: string[] = [];
+  digestLeaves(s.video, d.video, '', v, false, new Set(['device']));
+  v.push(`device=${s.video.device.tier ?? '-'} (${s.video.device.source})`);
+  const c: string[] = [];
+  const rest = { ...s, video: undefined } as Record<string, unknown>;
+  const restD = { ...d, video: undefined } as Record<string, unknown>;
+  digestLeaves(rest, restD, '', c, true, new Set(['touch.layout', 'keys']));
+  return { video: v.join(' '), changed: c.length ? c.join(' ') : 'defaults' };
+}

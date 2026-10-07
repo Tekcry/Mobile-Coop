@@ -7,6 +7,10 @@
   its scene and the whole match. The cache is emptied whenever a scene is freed (before the next one loads), and going
   back to the menu frees the match first too. Headless: back at the menu the heap returns to ~50 MB after every match
   (it climbed 80 MB per match before).
+- Feedback notes carry every setting: `settings` (every graphics / display setting, the preset's features included)
+  and `changed` (everything else that differs from the defaults; a moved touch layout or rebound keys as "custom").
+  Benchmark and crash notes carry the same full context. Settings > Feedback > Copy as text now puts each note's
+  context on the line under it (device, display, GPU, frames, settings), so a pasted report says what it ran on.
 - Desktop Ultra (all grey but the lamps in every benchmark run) is not yet reproduced: see TESTING.md.
 
 ## 3.1.6 - Forced landscape

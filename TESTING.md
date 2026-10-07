@@ -310,6 +310,8 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.1.7 Settings > Feedback > Copy as text: each note has a second line with its context (settings, device,
+  GPU, frames).
 - [ ] 3.1.7 desktop Ultra was all grey (fog) except the lamps in every benchmark run (custom settings fine): at Ultra,
   does a normal match (Play > Deploy) look right? With Settings > Graphics > Upscaler off?
 - [ ] 3.1.6 forced landscape (iPhone, rotation lock on, held upright): the game shows turned; hold the phone turned

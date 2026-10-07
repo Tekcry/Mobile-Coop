@@ -31,11 +31,34 @@ describe('feedback notes', () => {
     const b = { ...newEntry({}, 0), category: 'visual' as const, done: true, photos: [new Blob(['p'])] };
     expect(summaryLine(a, 0)).toBe('1. [Gameplay] Guards <too> fast second line (mansion / infiltration)');
     expect(summaryLine(b, 1)).toBe('2. [Visual] [done] (no text) [1 photo]');
-    expect(feedbackText([a, b]).split('\n').length).toBe(2);
+    // (3.1.7: a note's context follows its line; a note without context is one line)
+    expect(feedbackText([a, b]).split('\n')).toEqual([summaryLine(a, 0), '   map: mansion | mode: infiltration', summaryLine(b, 1)]);
     const html = feedbackReportHtml([a, b], [[], ['data:image/jpeg;base64,AAA']], 'Silent But Deadly', 0);
     expect(html).toContain('Guards &lt;too&gt; fast<br>second line');
     expect(html).toContain('<img src="data:image/jpeg;base64,AAA"');
     expect(html).toContain('playtest feedback (2)');
     expect(html).not.toContain('<too>');
+  });
+});
+
+describe('settings in feedback (3.1.7)', () => {
+  it('the digest lists every graphics setting and only the other settings that changed', async () => {
+    const { defaultSettings, settingsDigest } = await import('../src/core/settings');
+    const s = defaultSettings();
+    const d0 = settingsDigest(s);
+    expect(d0.changed).toBe('defaults');
+    expect(d0.video).toContain('gfx.shadows=');
+    expect(d0.video).toContain('renderScale=');
+    expect(d0.video).toContain('upscaler=');
+    s.gameplay.sprintHold = !s.gameplay.sprintHold;
+    s.touch.layout.fire = { ...s.touch.layout.fire, x: 0.5 };
+    const d1 = settingsDigest(s);
+    expect(d1.changed).toContain(`gameplay.sprintHold=${s.gameplay.sprintHold ? 'on' : 'off'}`);
+    expect(d1.changed).toContain('touch.layout=custom');
+    expect(d1.changed).not.toContain('touch.lookSensitivity');
+  });
+  it('long context values survive (the digest is ~1 KB)', () => {
+    const e = sanitizeFeedback([{ id: 'x', context: { settings: 'a'.repeat(1500) } }])[0]!;
+    expect(e.context.settings!.length).toBe(1500);
   });
 });

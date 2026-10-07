@@ -87,7 +87,7 @@ try {
   await frames(page, 3);
   // in a match: the rebound key acts, no touch controls
   await page.goto(url + '?autostart=proving&gfx=min');
-  await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 60000 });
+  await page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 60000 });
   await page.keyboard.down('KeyU');
   await frames(page, 2);
   const rel = await G(() => window.__app.input.state.buttons.reload.down);
@@ -210,7 +210,7 @@ try {
     assert(m.item >= (m.W - m.w) / 2 - 1, `${label}: the menu sits inside it (x ${m.item.toFixed(0)})`);
     if (process.env.SHOTS) await P.screenshot({ path: `${process.env.SHOTS}/desk-${label.replace(':', 'x')}-menu.png` });
     await P.goto(url + '?autostart=warehouse&mode=sandbox&gfx=min');
-    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 60000 });
+    await P.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 60000 });
     await GA(() => window.__app.settings.update((d) => { d.video.fovH = 100; d.video.maxFov = 120; }));
     await frames(P, 4);
     const v = await GA(() => {
@@ -279,7 +279,7 @@ try {
   // the Epic renderer in a match (small window: software GL)
   const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = e.browser;
-  await e.page.waitForFunction(() => window.__app.current?.player, null, { timeout: 180000 });
+  await e.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(e.page, 6);
   const r = await e.page.evaluate(() => {
     const g = window.__app.current;
@@ -407,7 +407,7 @@ try {
   // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
   const u = await launch({ url, params: 'autostart=warehouse&gfx=user&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = u.browser;
-  await u.page.waitForFunction(() => window.__app.current?.player, null, { timeout: 180000 });
+  await u.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(u.page, 3);
   await u.page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.gfx.rtRes = 'half'; d.video.upscaler = 'taau'; d.video.renderScale = 0.67; d.video.panini = 0.5; d.video.adaptive = false; }));
   await frames(u.page, 4);

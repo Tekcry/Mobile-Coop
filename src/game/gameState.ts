@@ -57,6 +57,7 @@ import { CinematicPost } from '../vfx/cinematicPost';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
+import { feedbackContext } from '../ui/screens/feedbackScreen';
 import { BENCH, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
@@ -1196,7 +1197,8 @@ export class GameState implements AppState {
   private saveBenchNote(): Promise<void> {
     const b = this.bench;
     if (!b) return Promise.resolve();
-    const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: `${__APP_VERSION__}${__PREVIEW__ ? ' preview' : ''}`, graphics: b.runs.map((r) => r.label).join(', '), device: navigator.userAgent.slice(0, 160) }, b.started);
+    // (3.1.7: the full context - device, display, every setting - with the runs)
+    const e = newEntry({ ...feedbackContext(this.app), map: this.world.map.id, mode: 'benchmark', runs: b.runs.map((r) => r.label).join(', ') }, b.started);
     e.id = b.note;
     e.category = 'performance';
     const n = b.lines.length;

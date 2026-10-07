@@ -1,4 +1,5 @@
 import { aspectLabel } from '../../core/display';
+import { settingsDigest } from '../../core/settings';
 import type { App } from '../../core/app';
 import { h } from '../dom';
 import { Screen } from '../screen';
@@ -28,6 +29,10 @@ export function feedbackContext(app: App): Record<string, string> {
   const g = app.quality.governor;
   ctx.adaptive = `${v.auto ? `auto (${v.device.source}: ${v.device.tier ?? '-'})` : 'manual'}, governor ${app.quality.adaptiveOn ? `level ${g.level}` : 'off'}${g.thermal ? ', thermal' : ''}${g.lowPower ? ', low power' : ''}`;
   ctx.device = navigator.userAgent.slice(0, 160);
+  // (3.1.7: every setting - the graphics in full, the rest where it differs from the defaults)
+  const dg = settingsDigest(app.settings.get());
+  ctx.settings = dg.video;
+  ctx.changed = dg.changed;
   return ctx;
 }
 
