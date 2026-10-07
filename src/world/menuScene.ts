@@ -30,6 +30,7 @@ import { camoById } from '../cosmetics/catalog';
 import { playEmote } from '../cosmetics/emotes';
 import type { QualityLevel } from '../core/quality';
 import { PostStack } from '../vfx/postStack';
+import { SurfaceAtlas } from './surfaceAtlas';
 
 /** The diorama's lights: a warm key overhead in front of the operator, a cool rim behind, a lamp in the distance. */
 const LIGHTS: { pos: [number, number, number]; at: [number, number, number]; angle: number; intensity: number; color: [number, number, number]; cone: number }[] = [
@@ -88,6 +89,7 @@ export class MenuState implements AppState {
   private spots: SpotLight[] = [];
   private hemi: HemisphericLight;
   private shadows: ShadowGenerator[] = [];
+  private atlas: SurfaceAtlas;
   private shadowKey = '';
   /** Bloom on the bulbs, depth of field on the operator, AO, tone mapping (Settings > Graphics). */
   private stack: PostStack;
@@ -169,7 +171,9 @@ export class MenuState implements AppState {
       m.freezeWorldMatrix();
       m.receiveShadows = !m.name.startsWith('menuBeam');
     }
-    this.parts = new PartLibrary(scene);
+    // the operator in PBR with the procedural surfaces (fabric, rubber, brushed steel)
+    this.atlas = new SurfaceAtlas(scene, 512, 8);
+    this.parts = new PartLibrary(scene, this.atlas);
     // the operator's parts (built later) take the lamps' shadows too
     scene.onNewMeshAddedObservable.add((m) => {
       if (!m.name.startsWith('menuBeam')) m.receiveShadows = true;
@@ -264,6 +268,7 @@ export class MenuState implements AppState {
   enter(): void {}
   exit(): void {
     this.stack.dispose();
+    this.atlas.dispose();
     for (const g of this.shadows) g.dispose();
   }
   fixedUpdate(): void {}

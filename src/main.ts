@@ -20,6 +20,7 @@ import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
+import { BENCH } from './game/benchmark';
 import { feedbackTab } from './ui/screens/feedbackScreen';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
@@ -146,6 +147,10 @@ async function boot(): Promise<void> {
       })
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
+
+  app.benchmark = () => startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: true });
+  // tests: a shorter flight
+  (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
 
   if (flags.autostart) {
     // infiltration: the mission picks its map

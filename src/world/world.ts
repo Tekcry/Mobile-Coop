@@ -1,4 +1,5 @@
 import {
+  ReflectionProbe,
   CascadedShadowGenerator,
   Color3,
   Color4,
@@ -23,13 +24,17 @@ import { LightRig } from './lightRig';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
 import { makeCone } from './lights';
-import type { QualityLevel, ShadowSpec } from '../core/quality';
+import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
+import { SurfaceAtlas } from './surfaceAtlas';
+import { setAnimLodScale } from '../player/characterRig';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
 
 export interface WorldOptions {
   seed: number;
+  /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
+  detail?: TierQuality;
 }
 
 /** Scene + lighting + level geometry + props for one map. */
@@ -54,7 +59,9 @@ export class World {
     readonly map: MapDef,
     readonly level: BuiltLevel,
     readonly layout: MapLayout,
+    atlas: SurfaceAtlas,
   ) {
+    this.surfaces = atlas;
     const th = map.theme;
     scene.clearColor = Color4.FromHexString(th.horizon + 'ff');
     scene.fogMode = Scene.FOGMODE_LINEAR;
@@ -62,14 +69,15 @@ export class World {
     scene.fogStart = th.fogStart;
     scene.fogEnd = th.fogEnd;
     this.hemi = new HemisphericLight('hemi', new Vector3(0.2, 1, 0.1), scene);
-    this.hemi.intensity = th.ambient;
+    // (PBR: the hemisphere is not divided by pi, the materials' directIntensity = pi would triple it)
+    this.hemi.intensity = th.ambient / Math.PI;
     this.hemi.groundColor = Color3.FromHexString(th.ground).scale(0.6);
     this.sun = new DirectionalLight('sun', new Vector3(...th.sunDir).normalize(), scene);
     this.sun.intensity = th.sunIntensity;
     this.sun.position = this.sun.direction.scale(-40);
     this.sky = makeSky(scene, th.sky, th.horizon);
 
-    this.parts = new PartLibrary(scene);
+    this.parts = new PartLibrary(scene, atlas);
     // gameplay light level everywhere (moonlight / daylight)
     level.lights.ambient = th.lightLevel ?? 0.75;
     // dark maps: a few flashlight slots enemies switch on to search (moving cone lights, off until used)
@@ -84,6 +92,21 @@ export class World {
     for (const m of level.meshes) this.lightRig.addCaster(m);
     this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
+    // image-based light for the PBR surfaces: the level and sky seen from the middle, captured once
+    const bd = level.bounds;
+    const probe = new ReflectionProbe('envProbe', 128, scene, true, true);
+    probe.position.set((bd.minX + bd.maxX) / 2, 2.2, (bd.minZ + bd.maxZ) / 2);
+    probe.refreshRate = 0;
+    for (const m of level.meshes) probe.renderList?.push(m);
+    probe.renderList?.push(this.sky);
+    // (assigned after the capture: a material sampling the cube while it renders into it is a feedback loop)
+    probe.cubeTexture.onAfterRenderObservable.addOnce(() => {
+      if (scene.isDisposed) return;
+      scene.environmentTexture = probe.cubeTexture;
+      // night maps: the captured room is mostly dark - keep its reflections faint
+      scene.environmentIntensity = (th.lightLevel ?? 0.75) < 0.5 ? 0.25 : 0.7;
+    });
+    this.probe = probe;
     this.breakables = new Breakables(scene, level.anchors);
     this.doors = new Doors(scene, level.anchors);
   }
@@ -96,8 +119,10 @@ export class World {
     await enablePhysics(scene);
     const b = new LevelBuilder();
     const layout = map.build(b, opts.seed);
-    const level = b.build(scene, map.id);
-    return new World(scene, map, level, layout);
+    // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
+    const atlas = new SurfaceAtlas(scene, 256, 4);
+    const level = b.build(scene, map.id, { atlas, floor: map.theme.floor ?? 'concrete', detail: opts.detail });
+    return new World(scene, map, level, layout, atlas);
   }
 
   /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). */
@@ -108,9 +133,25 @@ export class World {
     src.receiveShadows = true;
   }
 
-  /** Graphics settings: the light pools, lamp / flashlight shadows and the sun's cascades. */
+  private probe: ReflectionProbe | null = null;
+  /** The level's procedural surface textures. */
+  surfaces: SurfaceAtlas | null = null;
+
+  /** Graphics settings: the light pools, lamp / flashlight shadows, the sun's cascades, the surface textures. */
   applyQuality(q: QualityLevel): void {
+    if (this.surfaces?.setSize(q.minimal ? 256 : TEXTURE_SIZE[q.features.textures], q.minimal ? 4 : TEXTURE_ANISO[q.features.textures])) {
+      // (the level material is frozen: re-bind the new atlas)
+      const m = this.level.meshes[0]?.material;
+      if (m) {
+        m.unfreeze();
+        m.markAsDirty(1);
+        m.freeze();
+      }
+    }
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal });
+    const k = q.minimal ? 1 : q.detailScale;
+    this.parts.setLodScale(k);
+    setAnimLodScale(k);
     this.setSunShadows(q.shadow);
   }
 
@@ -151,6 +192,8 @@ export class World {
 
   dispose(): void {
     this.shadow?.dispose();
+    this.surfaces?.dispose();
+    this.probe?.dispose();
     this.lightRig.dispose();
     this.breakables.dispose();
     this.doors.dispose();

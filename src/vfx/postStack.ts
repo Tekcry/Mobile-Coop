@@ -18,7 +18,7 @@ import type { LightRegistry } from '../world/lights';
 /** Lights the volumetric pass scatters (nearest the camera). */
 export const VOL_LIGHTS = 12;
 /** Ray-march samples per light segment. */
-const VOL_STEPS = 10;
+const VOL_STEPS = 16;
 
 /**
  * Volumetric light and height fog: for each pixel the view ray (stopped by the scene depth) is intersected with
@@ -47,12 +47,20 @@ uniform float fogFalloff;
 uniform float fogBase;
 uniform float scatter;
 uniform float time;
+uniform float shimmer;
 
-float hash(vec2 p) { return fract(sin(dot(p, vec2(12.9898, 78.233)) + time) * 43758.5453); }
+// interleaved gradient noise (steady: TAA / the eye average it, no crawling grain)
+float hash(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
 
 void main(void) {
-  vec4 c = texture2D(textureSampler, vUV);
   float d = texture2D(depthSampler, vUV).r;
+  // heat haze: distant, low parts of the view shimmer
+  vec2 suv = vUV;
+  if (shimmer > 0.0) {
+    float far = smoothstep(0.04, 0.3, d);
+    suv += vec2(sin(vUV.y * 140.0 + time * 4.0), cos(vUV.x * 110.0 + time * 3.1)) * 0.0011 * shimmer * far * smoothstep(0.75, 0.35, vUV.y);
+  }
+  vec4 c = texture2D(textureSampler, suv);
   float viewZ = d * (minZ + maxZ) - minZ;
   if (d >= 0.9999) viewZ = maxZ;
   vec2 ndc = vUV * 2.0 - 1.0;
@@ -78,7 +86,7 @@ void main(void) {
     float seg = (t1 - t0) / float(${VOL_STEPS});
     vec3 sum = vec3(0.0);
     for (int k = 0; k < ${VOL_STEPS}; k++) {
-      float t = t0 + (float(k) + j) * seg;
+      float t = t0 + (float(k) + 0.25 + j * 0.5) * seg;
       vec3 v = camPos + wdir * t - lp;
       float l = length(v);
       float att = max(0.0, 1.0 - l / r);
@@ -105,6 +113,8 @@ export interface PostStackOptions {
   fogDensity: number;
   /** Lights scattered by the volumetric pass (null: fog only). */
   lights: LightRegistry | null;
+  /** Heat haze (refinery) 0..1. */
+  shimmer?: number;
 }
 
 /**
@@ -160,18 +170,18 @@ export class PostStack {
       this.taa = taa;
     }
     if (f.ao) {
-      const ssao = new SSAO2RenderingPipeline('ssao', scene, { ssaoRatio: 0.75, blurRatio: 1 }, cams, false);
-      ssao.radius = 1.4;
-      ssao.totalStrength = 1.1;
-      ssao.base = 0.08;
+      const ssao = new SSAO2RenderingPipeline('ssao', scene, { ssaoRatio: 0.75, blurRatio: 1 }, cams, true);
+      ssao.radius = 0.55;
+      ssao.totalStrength = 0.9;
+      ssao.base = 0.2;
       ssao.samples = 16;
-      ssao.maxZ = 60;
-      ssao.minZAspect = 0.4;
+      ssao.maxZ = 40;
+      ssao.minZAspect = 0.2;
       ssao.expensiveBlur = true;
       this.ssao = ssao;
     }
     if (f.ssr) {
-      const ssr = new SSRRenderingPipeline('ssr', scene, cams, false);
+      const ssr = new SSRRenderingPipeline('ssr', scene, cams, true);
       ssr.thickness = 0.4;
       ssr.selfCollisionNumSkip = 2;
       ssr.enableAutomaticThicknessComputation = false;
@@ -212,7 +222,7 @@ export class PostStack {
     }
     def.chromaticAberrationEnabled = f.lens;
     if (f.lens && def.chromaticAberration) {
-      def.chromaticAberration.aberrationAmount = 8;
+      def.chromaticAberration.aberrationAmount = 4;
       def.chromaticAberration.radialIntensity = 1.2;
     }
     def.sharpenEnabled = f.aa === 'taa';
@@ -235,7 +245,7 @@ export class PostStack {
     const pp = new PostProcess(
       'volumetric',
       'volumetric',
-      ['invView', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'count', 'lPos', 'lDir', 'lCol', 'fogColor', 'fogDensity', 'fogFalloff', 'fogBase', 'scatter', 'time'],
+      ['invView', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'count', 'lPos', 'lDir', 'lCol', 'fogColor', 'fogDensity', 'fogFalloff', 'fogBase', 'scatter', 'time', 'shimmer'],
       ['depthSampler'],
       1,
       this.camera,
@@ -260,8 +270,9 @@ export class PostStack {
       e.setFloat('fogDensity', this.opts.fogDensity);
       e.setFloat('fogFalloff', 0.55);
       e.setFloat('fogBase', 0);
-      e.setFloat('scatter', 0.07);
+      e.setFloat('scatter', 0.05);
       e.setFloat('time', this.t % 100);
+      e.setFloat('shimmer', this.opts.shimmer ?? 0);
     };
     this.vol = pp;
   }

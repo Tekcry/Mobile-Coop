@@ -57,6 +57,8 @@ export class App {
   private time = 0;
   /** UI / input platform (desktop hides touch-only controls and settings). Never changes rendering. */
   platform: PlatformInfo = { platform: 'mobile', touch: true, reason: '' };
+  /** Settings > Graphics > Run benchmark (set by main). */
+  benchmark: (() => void) | null = null;
   /** Called when the platform flips (settings rebuild their tabs). */
   onPlatform: (() => void) | null = null;
 

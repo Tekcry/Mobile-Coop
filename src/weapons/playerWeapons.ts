@@ -491,7 +491,7 @@ export class PlayerWeapons {
       }
     }
     // brass (not for the shotgun pump or sniper bolt mid-shot)
-    if (def.class !== 'shotgun') this.vfx.casing(this.muzzle.subtract(baseDir.scale(0.3)), new Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)));
+    if (def.class !== 'shotgun') this.vfx.casing(this.muzzle.subtract(baseDir.scale(0.3)), new Vector3(Math.cos(cam.yaw), 0, -Math.sin(cam.yaw)), this.player.position.y);
     // muzzle flash, recoil, bloom
     // a suppressor hides most of the flash
     this.vfx.muzzleFlash(this.muzzle, (def.pellets > 1 ? 0.3 : def.class === 'pistol' ? 0.16 : 0.22) * (s.stats.noise < 0.6 ? 0.35 : 1));

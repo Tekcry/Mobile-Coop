@@ -101,6 +101,7 @@ export const refinery: MapDef = {
   description: 'Dusk: tank tops, a pipe-rack walkway, process units under a flare and a two-storey control building.',
   modes: ['infiltration', 'clear', 'wave', 'tdm', 'ffa'],
   theme: {
+    weather: 'haze',
     sky: '#3a2a2e',
     horizon: '#b0704a',
     ground: '#8a7a5e',

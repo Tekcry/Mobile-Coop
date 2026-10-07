@@ -1,5 +1,11 @@
-import type { Surface, SurfaceArea } from './surfaces';
+import { surfaceAt, type Surface, type SurfaceArea } from './surfaces';
+import { SURFACE_ID, type SurfaceAtlas } from './surfaceAtlas';
+import { SurfacePlugin } from './surfacePlugin';
+import { pieceKind } from './surfaceKinds';
+import { detailPieces } from './detailPass';
+import type { TierQuality } from '../core/quality';
 import {
+  PBRMaterial,
   Color3,
   CreateBox,
   CreateCylinder,
@@ -42,6 +48,8 @@ export interface BoxPiece {
   /** Above head height over a walkable floor (ceiling slab, duct, catwalk): the nav grid samples the floor
    *  under it and does not treat it as a blocker. */
   overhead?: boolean;
+  /** Visual-only dressing from the detail pass (never collides; the minimap skips it). */
+  detail?: boolean;
 }
 
 export interface CylPiece {
@@ -79,6 +87,8 @@ export interface BuiltLevel {
   /** Marked floor surfaces (footstep loudness / sound); unmarked floor is the map theme's default. */
   surfaces: SurfaceArea[];
   bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** The level material's procedural-surface plugin (3.0; rain sets `wet`). */
+  surfacePlugin: SurfacePlugin | null;
   dispose(): void;
 }
 
@@ -289,13 +299,43 @@ export class LevelBuilder {
     return this;
   }
 
-  build(scene: Scene, name: string): BuiltLevel {
+  /**
+   * Build the level. With an `atlas` (3.0) the pieces are PBR with the procedural surfaces (a per-instance `surf`
+   * id: floors by what is underfoot, `floor` the map's default; the rest by colour); without, the flat shading.
+   */
+  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality } = {}): BuiltLevel {
     const root = new TransformNode(`level-${name}`, scene);
-    const mat = new StandardMaterial(`levelMat-${name}`, scene);
-    mat.diffuseColor = Color3.White();
-    mat.specularColor = Color3.Black();
-    new LevelMaterialPlugin(mat);
+    // visual-only dressing (3.0): never collides, so nav / cover / ledges are unchanged
+    if (opts.detail) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
+    let mat: StandardMaterial | PBRMaterial;
+    let surfacePlugin: SurfacePlugin | null = null;
+    if (opts.atlas) {
+      const pm = new PBRMaterial(`levelMat-${name}`, scene);
+      pm.albedoColor = Color3.White();
+      pm.metallic = 0;
+      pm.roughness = 1;
+      // the game's lights are tuned to range falloff
+      pm.usePhysicalLightFalloff = false;
+      // PBR divides diffuse by pi: the lights were authored for the standard material
+      pm.directIntensity = Math.PI;
+      pm.environmentIntensity = 0.6;
+      // the probe's cube is not prefiltered: blur it by roughness on the fly
+      pm.realTimeFiltering = true;
+      surfacePlugin = new SurfacePlugin(pm, opts.atlas, 'world');
+      mat = pm;
+    } else {
+      const sm = new StandardMaterial(`levelMat-${name}`, scene);
+      sm.diffuseColor = Color3.White();
+      sm.specularColor = Color3.Black();
+      new LevelMaterialPlugin(sm);
+      mat = sm;
+    }
     mat.freeze();
+    const floorDefault = opts.floor ?? 'concrete';
+    // PBR shades in linear space: the authored (sRGB) colours are converted
+    const lin = (c: [number, number, number]): [number, number, number] => (opts.atlas ? [c[0] ** 2.2, c[1] ** 2.2, c[2] ** 2.2] : c);
+    const kindOf = (hex: string, sx: number, sy: number, sz: number, cx: number, top: number, cz: number): number =>
+      SURFACE_ID[pieceKind(hex, sx, sy, sz, sy <= 0.35 ? surfaceAt(this.surfaces, cx, top, cz, floorDefault) : null)];
 
     const boxMesh = CreateBox(`lvl-box`, { size: 1 }, scene);
     const cylMesh = CreateCylinder(`lvl-cyl`, { diameter: 1, height: 1, tessellation: 12 }, scene);
@@ -315,6 +355,7 @@ export class LevelBuilder {
     const shown = this.boxes.filter((b) => b.visible !== false);
     const bm = new Float32Array(shown.length * 16);
     const bc = new Float32Array(shown.length * 4);
+    const bs = new Float32Array(shown.length);
     const mtx = new Matrix();
     let vi = 0;
     this.boxes.forEach((b, i) => {
@@ -322,10 +363,11 @@ export class LevelBuilder {
       if (b.visible !== false) {
         Matrix.ComposeToRef(new Vector3(b.s[0], b.s[1], b.s[2]), tmpQ, new Vector3(b.c[0], b.c[1], b.c[2]), mtx);
         mtx.copyToArray(bm, vi * 16);
-        const [r, g, bl] = hexToRgb(b.color);
+        const [r, g, bl] = lin(hexToRgb(b.color));
         // Subtle per-piece value jitter keeps large areas from looking flat.
         const j = 0.94 + (((i * 2654435761) % 1000) / 1000) * 0.1;
         bc.set([r * j, g * j, bl * j, 1], vi * 4);
+        bs[vi] = kindOf(b.color, b.s[0], b.s[1], b.s[2], b.c[0], b.c[1] + b.s[1] / 2, b.c[2]);
         vi++;
       }
       if (b.collide) {
@@ -335,15 +377,18 @@ export class LevelBuilder {
     });
     boxMesh.thinInstanceSetBuffer('matrix', bm, 16, true);
     boxMesh.thinInstanceSetBuffer('color', bc, 4, true);
+    if (opts.atlas) boxMesh.thinInstanceSetBuffer('surf', bs, 1, true);
 
     // Cylinders
     const cm = new Float32Array(Math.max(1, this.cylinders.length) * 16);
     const cc = new Float32Array(Math.max(1, this.cylinders.length) * 4);
+    const cs = new Float32Array(Math.max(1, this.cylinders.length));
     this.cylinders.forEach((c, i) => {
       Matrix.ComposeToRef(new Vector3(c.r * 2, c.h, c.r * 2), unitQ, new Vector3(c.c[0], c.c[1], c.c[2]), mtx);
       mtx.copyToArray(cm, i * 16);
-      const [r, g, b] = hexToRgb(c.color);
+      const [r, g, b] = lin(hexToRgb(c.color));
       cc.set([r, g, b, 1], i * 4);
+      cs[i] = kindOf(c.color, c.r * 2, c.h, c.r * 2, c.c[0], c.c[1] + c.h / 2, c.c[2]);
       if (c.collide) {
         const shape = new PhysicsShapeCylinder(new Vector3(0, -c.h / 2, 0), new Vector3(0, c.h / 2, 0), c.r, scene);
         container.addChild(shape, new Vector3(c.c[0], c.c[1], c.c[2]));
@@ -352,6 +397,7 @@ export class LevelBuilder {
     if (this.cylinders.length) {
       cylMesh.thinInstanceSetBuffer('matrix', cm, 16, true);
       cylMesh.thinInstanceSetBuffer('color', cc, 4, true);
+      if (opts.atlas) cylMesh.thinInstanceSetBuffer('surf', cs, 1, true);
     } else {
       cylMesh.isVisible = false;
     }
@@ -399,6 +445,7 @@ export class LevelBuilder {
       lights: this.lights,
       surfaces: this.surfaces,
       bounds: this.bounds,
+      surfacePlugin,
       dispose: () => {
         body.dispose();
         container.dispose();

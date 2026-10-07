@@ -88,14 +88,14 @@ void surf(int k, vec2 uv, out float h, out vec3 col, out float rough) {
   h = 0.5; col = vec3(0.5); rough = 0.8;
   if (k == 0) { // concrete wall: blotches, pores, stains
     float st = fbm(uv + 3.1, 2.0, 4);
-    h = 0.5 + (n - 0.5) * 0.3 - step(0.86, fine) * 0.25;
-    col = vec3(0.44 + n * 0.14 - smoothstep(0.55, 0.8, st) * 0.08);
+    h = 0.5 + (n - 0.5) * 0.18 - step(0.9, fine) * 0.12;
+    col = vec3(0.47 + (n - 0.5) * 0.1 - smoothstep(0.55, 0.8, st) * 0.05);
     rough = 0.82 + fine * 0.1;
   } else if (k == 1) { // concrete floor: smoother, polished wear, hairline cracks
-    float cr = smoothstep(0.03, 0.0, abs(fbm(uv + 7.3, 3.0, 4) - 0.5));
-    h = 0.5 + (n - 0.5) * 0.15 - cr * 0.3;
-    col = vec3(0.46 + n * 0.1 - cr * 0.12);
-    rough = mix(0.45, 0.8, fbm(uv + 1.7, 2.0, 3)) + fine * 0.05;
+    float cr = smoothstep(0.02, 0.0, abs(fbm(uv + 7.3, 3.0, 4) - 0.5));
+    h = 0.5 + (n - 0.5) * 0.1 - cr * 0.08;
+    col = vec3(0.47 + (n - 0.5) * 0.08 - cr * 0.06);
+    rough = mix(0.62, 0.88, fbm(uv + 1.7, 2.0, 3)) + fine * 0.04;
   } else if (k == 2) { // asphalt: grain and aggregate
     float g = pnoise(uv * 128.0, 128.0);
     h = 0.5 + (g - 0.5) * 0.4;
@@ -215,36 +215,50 @@ void main(void) {
   float hx; float hy; vec3 c2; float r2;
   surf(k, fract(uv + vec2(e, 0.0)), hx, c2, r2);
   surf(k, fract(uv + vec2(0.0, e)), hy, c2, r2);
-  vec3 nrm = normalize(vec3((h - hx) * 6.0, (h - hy) * 6.0, 1.0));
+  vec3 nrm = normalize(vec3((h - hx) * 2.5, (h - hy) * 2.5, 1.0));
   // cavity: lower than the local average reads darker (baked AO)
   float avg = (h + hx + hy) / 3.0;
   float ao = clamp(0.75 + h * 0.5 - (avg - h) * 2.0, 0.0, 1.0);
   gl_FragColor = vec4(nrm.xy * 0.5 + 0.5, h, ao);
 }`;
 
-/** The two atlases (created once per scene; the size follows the Textures setting). */
+/** The two atlases (one per scene; regenerated when the Textures setting changes the tile size). */
 export class SurfaceAtlas {
-  readonly detail: ProceduralTexture;
-  readonly normal: ProceduralTexture;
+  detail!: ProceduralTexture;
+  normal!: ProceduralTexture;
+  private tile = 0;
 
   constructor(
-    scene: Scene,
-    /** Pixels per tile (1024 / 2048 / 4096 -> atlas 4x). Capped by the GPU's max texture size. */
-    readonly tileSize: number,
+    private scene: Scene,
+    tileSize: number,
+    aniso = 8,
   ) {
-    const max = scene.getEngine().getCaps().maxTextureSize;
-    const size = Math.min(max, tileSize * 4);
-    const make = (name: string, shader: string): ProceduralTexture => {
-      const t = new ProceduralTexture(name, size, shader, scene, null, true, false);
-      t.refreshRate = 0; // drawn once
-      t.wrapU = Texture.WRAP_ADDRESSMODE;
-      t.wrapV = Texture.WRAP_ADDRESSMODE;
-      t.anisotropicFilteringLevel = 8;
-      return t;
-    };
-    this.detail = make('surfaceDetail', 'surfaceDetail');
-    this.normal = make('surfaceNormal', 'surfaceNormal');
-    this.normal.setFloat('texel', 1 / (size / 4));
+    this.setSize(tileSize, aniso);
+  }
+
+  /** Pixels per tile (the atlas is 4x, capped by the GPU) and anisotropic filtering; true when redrawn (frozen
+   *  materials using it must re-bind). */
+  setSize(tileSize: number, aniso: number): boolean {
+    const changed = tileSize !== this.tile;
+    if (changed) {
+      this.tile = tileSize;
+      this.detail?.dispose();
+      this.normal?.dispose();
+      const size = Math.min(this.scene.getEngine().getCaps().maxTextureSize, tileSize * 4);
+      const make = (name: string, shader: string): ProceduralTexture => {
+        const t = new ProceduralTexture(name, size, shader, this.scene, null, true, false);
+        t.refreshRate = 0; // drawn once
+        t.wrapU = Texture.WRAP_ADDRESSMODE;
+        t.wrapV = Texture.WRAP_ADDRESSMODE;
+        return t;
+      };
+      this.detail = make('surfaceDetail', 'surfaceDetail');
+      this.normal = make('surfaceNormal', 'surfaceNormal');
+      this.normal.setFloat('texel', 1 / (size / 4));
+    }
+    this.detail.anisotropicFilteringLevel = aniso;
+    this.normal.anisotropicFilteringLevel = aniso;
+    return changed;
   }
 
   dispose(): void {

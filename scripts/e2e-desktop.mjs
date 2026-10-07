@@ -84,6 +84,19 @@ try {
   assert(rel, 'the rebound key reloads in a match');
   const touchShown = await G(() => { const t = document.querySelector('.touch-layer'); return !!t && getComputedStyle(t).display !== 'none' && !t.hidden; });
   assert(!touchShown, 'no touch controls on desktop');
+  // the benchmark: a (shortened) flight, then the result, saved as feedback
+  await G(() => {
+    window.__bench.seconds = 5;
+    window.__bench.warmup = 1;
+    window.__app.benchmark();
+  });
+  await page.waitForFunction(() => /average \d+ fps, 1% low \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? ''), null, { timeout: 120000 });
+  const bt = await G(() => ({ text: document.querySelector('.dialog').textContent, hudHidden: document.body.classList.contains('photo-mode') }));
+  assert(!bt.hudHidden, `the benchmark reports (${bt.text.match(/Warehouse[^)]*\)/)?.[0]})`);
+  await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Save to feedback/.test(b.textContent)).click());
+  await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
+  const saved = await G(async () => (await window.__app.feedback.all()).find((e) => e.category === 'performance')?.text ?? '');
+  assert(/Benchmark - Warehouse/.test(saved), 'the result is saved as a performance note');
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
   assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
   await browser.close();

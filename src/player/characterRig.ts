@@ -187,6 +187,11 @@ export const KNEE_FLOOR = 0.05;
 
 /** Beyond this distance (m) from the camera a rig animates at half rate. */
 export const ANIM_LOD_DISTANCE = 22;
+/** Live animation LOD distance (3.0: x the Detail setting's scale; `setAnimLodScale`). */
+let animLod = ANIM_LOD_DISTANCE;
+export function setAnimLodScale(k: number): void {
+  animLod = ANIM_LOD_DISTANCE * k;
+}
 
 const tmpA = new Vector3();
 const tmpF = new Vector3();
@@ -807,7 +812,7 @@ export class CharacterRig {
     if (cam) {
       const p = this.root.position;
       const c = cam.globalPosition;
-      const far = (p.x - c.x) ** 2 + (p.z - c.z) ** 2 > ANIM_LOD_DISTANCE * ANIM_LOD_DISTANCE;
+      const far = (p.x - c.x) ** 2 + (p.z - c.z) ** 2 > animLod * animLod;
       if (far && (this.lodSkip = !this.lodSkip)) {
         this.lodDt += dt;
         return;

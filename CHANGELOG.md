@@ -7,6 +7,16 @@
   reflections, volumetric light and height fog, bloom, depth of field (aiming, the menu operator), motion blur,
   lens effects, TAA / MSAA / FXAA, HDR tone mapping; native resolution with a 50-200% scale, optional dynamic
   resolution, a frame-rate cap (30-240), FOV to 120. The menu stage gets shadows, bloom and depth of field.
+- Materials: every level piece, character, weapon and prop is PBR with procedural surfaces drawn on the GPU at load
+  (sixteen tileable kinds - concrete, floors, asphalt, gravel, grass, plaster, wood planks, corrugated paint,
+  brushed steel, rust, tiles, carpet, brick, checker plate, rubber, fabric - with albedo detail, roughness, normals
+  and cavity), picked per piece by what it is (floors by what is underfoot, the rest by colour); image-based light
+  from a probe of each map.
+- Detail: a dressing pass on every map (Detail Ultra / Epic, visual only - nav, cover and ledges are unchanged):
+  skirting, conduit with junction boxes and switches, electrical boxes, vents, signs, floor stains, puddles and
+  debris; draw and animation distances x2-4; spent brass that stays on the floor, longer-lasting bullet holes.
+- Weather: rain on the Port (falling streaks, wet glossy floors that the reflections pick up), blown dust on the
+  Dust Depot, heat haze on the Refinery.
 - Desktop interface (detected, or Settings > Graphics > Interface): menus scale to the window, no touch settings or
   touch controls (a touchscreen laptop gets them back when touched), hover states, fullscreen on demand.
 - Mouse & Keyboard settings: sensitivity, aim sensitivity, invert, raw input, and every key rebindable (two per

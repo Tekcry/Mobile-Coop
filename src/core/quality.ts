@@ -27,7 +27,7 @@ export interface GraphicsFeatures {
   /** Subtle chromatic aberration and lens dirt. */
   lens: boolean;
   aa: AaMode;
-  /** Procedural surface texture resolution (high 1K, ultra 2K, epic 4K). */
+  /** Procedural surface textures: pixels per tile (high 512, ultra / epic 1024; epic filters 16x anisotropic). */
   textures: TierQuality;
   /** Mesh detail and draw distances: LOD and animation distances, map clutter. */
   detail: TierQuality;
@@ -81,8 +81,10 @@ export function shadowSpec(q: ShadowQuality): ShadowSpec {
   }
 }
 
-/** Texture size (px) per tier. */
-export const TEXTURE_SIZE: Record<TierQuality, number> = { high: 1024, ultra: 2048, epic: 4096 };
+/** Surface texture pixels per tile (the atlas is 4 x 4 tiles: 1024 -> 4096 square, two atlases ~170 MB with mips;
+ *  larger would not fit a phone's WebGL memory) and anisotropic filtering per tier. */
+export const TEXTURE_SIZE: Record<TierQuality, number> = { high: 512, ultra: 1024, epic: 1024 };
+export const TEXTURE_ANISO: Record<TierQuality, number> = { high: 4, ultra: 8, epic: 16 };
 /** Draw / animation distance multipliers and particle density per tier. */
 export const DETAIL_SCALE: Record<TierQuality, number> = { high: 2, ultra: 3, epic: 4 };
 export const EFFECT_DENSITY: Record<TierQuality, number> = { high: 1, ultra: 1.5, epic: 2 };

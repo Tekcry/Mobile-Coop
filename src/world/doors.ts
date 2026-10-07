@@ -6,7 +6,7 @@ import {
   PhysicsMotionType,
   PhysicsShapeBox,
   Quaternion,
-  StandardMaterial,
+  PBRMaterial,
   TransformNode,
   Vector3,
   type Mesh,
@@ -75,9 +75,12 @@ export class Doors {
       const cz = a.hinge.z + Math.cos(a.yaw) * a.width * 0.5;
       this.list.push({ anchor: a, open: 0, target: 0, rate: 0, cx, cz, body: null, node: null, index: i });
     });
-    const mat = new StandardMaterial('doorMat', scene);
-    mat.diffuseColor = Color3.FromHexString('#6e5a43');
-    mat.specularColor = Color3.Black();
+    const mat = new PBRMaterial('doorMat', scene);
+    mat.albedoColor = Color3.FromHexString('#6e5a43').toLinearSpace();
+    mat.metallic = 0;
+    mat.roughness = 0.7;
+    mat.usePhysicalLightFalloff = false;
+    mat.directIntensity = Math.PI;
     mat.freeze();
     const mesh = CreateBox('doors', { size: 1 }, scene);
     mesh.material = mat;

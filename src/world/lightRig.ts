@@ -191,12 +191,13 @@ export class LightRig {
   }
 
   private fitMaterial(m: Material): void {
-    if (!(m instanceof StandardMaterial) || m.disableLighting) return;
+    const lit = m as Material & { maxSimultaneousLights?: number; disableLighting?: boolean };
+    if (typeof lit.maxSimultaneousLights !== 'number' || lit.disableLighting) return;
     const want = this.materialLights;
-    if (m.maxSimultaneousLights >= want) return;
+    if (lit.maxSimultaneousLights >= want) return;
     const frozen = m.isFrozen;
     if (frozen) m.unfreeze();
-    m.maxSimultaneousLights = want;
+    lit.maxSimultaneousLights = want;
     if (frozen) m.freeze();
   }
 

@@ -23,6 +23,15 @@ interface Particle {
   active: boolean;
 }
 
+/** Spent brass: flies, bounces once, then lies where it fell (recycled oldest first). */
+interface Brass {
+  m: InstancedMesh;
+  vel: Vector3;
+  spin: Vector3;
+  floor: number;
+  state: 0 | 1 | 2; // flying, bounced, resting
+}
+
 interface Tracer {
   m: InstancedMesh;
   life: number;
@@ -47,6 +56,8 @@ export class Vfx {
   private tracers: Tracer[] = [];
   private flashes: Tracer[] = [];
   private decals: InstancedMesh[] = [];
+  private brass: Brass[] = [];
+  private bIdx = 0;
   private decalIdx = 0;
   private pIdx = 0;
   private tIdx = 0;
@@ -101,7 +112,17 @@ export class Vfx {
       inst.isPickable = false;
       this.flashes.push({ m: inst, life: 0, max: 0.05, active: false, width: 0.2 });
     }
-    for (let i = 0; i < 48; i++) {
+    // spent brass that stays on the floor (3.0)
+    for (let i = 0; i < 160; i++) {
+      const inst = this.boxBase.createInstance('fx-brass');
+      inst.isVisible = false;
+      inst.isPickable = false;
+      inst.scaling.set(0.009, 0.009, 0.022);
+      inst.instancedBuffers.color = new Color4(0.78, 0.6, 0.24, 1);
+      this.brass.push({ m: inst, vel: new Vector3(), spin: new Vector3(), floor: 0, state: 2 });
+    }
+    // bullet holes stay a long while (3.0: a bigger pool)
+    for (let i = 0; i < 160; i++) {
       const inst = this.planeBase.createInstance('fx-decal');
       inst.isVisible = false;
       inst.isPickable = false;
@@ -218,12 +239,20 @@ export class Vfx {
   private tmpP = new Vector3();
   private tmpV = new Vector3();
 
-  /** Ejected brass: small tumbling box to the shooter's right. */
-  casing(pos: Vector3, right: Vector3): void {
+  /** Ejected brass to the shooter's right: tumbles, bounces once at `floorY` and stays there (oldest recycled;
+   *  how many stay follows the effects density). */
+  casing(pos: Vector3, right: Vector3, floorY = pos.y - 1.3): void {
     if (this.density < 0.6) return;
-    const v = right.scale(1.6 + Math.random() * 0.8);
-    v.y += 1.6 + Math.random() * 0.6;
-    this.emit(false, pos, v, new Color4(0.85, 0.66, 0.25, 1), 0.6, 0.025, 0, 12);
+    const keep = Math.min(this.brass.length, Math.round(48 * this.density));
+    this.bIdx = (this.bIdx + 1) % keep;
+    const b = this.brass[this.bIdx]!;
+    b.m.position.copyFrom(pos);
+    b.vel.copyFrom(right).scaleInPlace(1.6 + Math.random() * 0.8);
+    b.vel.y += 1.6 + Math.random() * 0.6;
+    b.spin.set((Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30, (Math.random() - 0.5) * 30);
+    b.floor = floorY + 0.006;
+    b.state = 0;
+    b.m.isVisible = true;
   }
 
   /** Ring of dust when landing or sliding. */
@@ -255,6 +284,27 @@ export class Vfx {
       const t = p.life / p.max;
       const s = Math.max(0.001, p.size + p.grow * t);
       p.m.scaling.setAll(s * (1 - t * 0.5));
+    }
+    for (const b of this.brass) {
+      if (b.state === 2) continue;
+      b.vel.y -= 12 * dt;
+      b.vel.scaleAndAddToRef(dt, b.m.position);
+      b.m.rotation.x += b.spin.x * dt;
+      b.m.rotation.y += b.spin.y * dt;
+      b.m.rotation.z += b.spin.z * dt;
+      if (b.m.position.y <= b.floor) {
+        b.m.position.y = b.floor;
+        if (b.state === 0 && b.vel.y < -1) {
+          // one bounce, then it rolls to a stop lying flat
+          b.vel.set(b.vel.x * 0.4, -b.vel.y * 0.3, b.vel.z * 0.4);
+          b.spin.scaleInPlace(0.4);
+          b.state = 1;
+        } else {
+          b.state = 2;
+          b.m.rotation.x = Math.PI / 2;
+          b.m.rotation.z = 0;
+        }
+      }
     }
     for (const t of this.tracers) {
       if (!t.active) continue;

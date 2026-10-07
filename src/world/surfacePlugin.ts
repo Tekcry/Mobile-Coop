@@ -1,4 +1,4 @@
-import { MaterialPluginBase, type AbstractMesh, type Effect, type Material, type MaterialDefines, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
+import { MaterialPluginBase, type AbstractMesh, type Material, type MaterialDefines, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
 import { SURFACE_KINDS, SURFACE_PARAMS, type SurfaceAtlas } from './surfaceAtlas';
 
 /** GLSL constants: per surface (metres per tile, metallic, bump, 0). */
@@ -23,6 +23,9 @@ export class SurfacePlugin extends MaterialPluginBase {
     this._enable(true);
   }
 
+  /** Rain: upward-facing surfaces darken and turn glossy (0..1; world space only). */
+  wet = 0;
+
   override getClassName(): string {
     return 'SurfacePlugin';
   }
@@ -45,16 +48,20 @@ export class SurfacePlugin extends MaterialPluginBase {
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string }[]; fragment?: string } {
-    return { ubo: [{ name: 'surfMix', size: 1, type: 'float' }], fragment: '#ifdef SURFACES\nuniform float surfMix;\n#endif' };
+    return {
+      ubo: [
+        { name: 'surfMix', size: 1, type: 'float' },
+        { name: 'surfWet', size: 1, type: 'float' },
+      ],
+      fragment: '#ifdef SURFACES\nuniform float surfMix;\nuniform float surfWet;\n#endif',
+    };
   }
 
   override bindForSubMesh(ubo: UniformBuffer, _scene: Scene, _engine: unknown, _subMesh: SubMesh): void {
     ubo.updateFloat('surfMix', 1);
-    const effect = (ubo as unknown as { _currentEffect?: Effect })._currentEffect;
-    if (effect) {
-      effect.setTexture('surfDetail', this.atlas.detail);
-      effect.setTexture('surfNormal', this.atlas.normal);
-    }
+    ubo.updateFloat('surfWet', this.wet);
+    ubo.setTexture('surfDetail', this.atlas.detail);
+    ubo.setTexture('surfNormal', this.atlas.normal);
   }
 
   override getCustomCode(shaderType: string): { [pointName: string]: string } | null {
@@ -136,7 +143,16 @@ vec4 sfTap(sampler2D s, int k, vec2 uv) {
   normalW = normalize(normalW + pert * sp.z * surfMix);
 #endif
   sfMetal = sp.y;
-  surfaceAlbedo *= mix(vec3(1.0), sfD.rgb * 2.0 * mix(1.0, sfAo, 0.7), surfMix);
+  surfaceAlbedo *= mix(vec3(1.0), (0.5 + (sfD.rgb - 0.5) * 0.5) * 2.0 * mix(1.0, sfAo, 0.35), surfMix);
+#ifndef SURF_OBJECT
+  // rain: what faces the sky darkens and goes glossy, more in the low spots (cavity) - puddles for the reflections
+  float swet = surfWet * smoothstep(0.55, 0.92, sn.y);
+  if (swet > 0.0) {
+    float pool = smoothstep(0.45, 0.25, sfAo) * 0.5 + 0.5;
+    surfaceAlbedo *= mix(1.0, 0.62, swet);
+    sfD.a = mix(sfD.a, 0.06, swet * pool);
+  }
+#endif
 }
 #endif`,
         CUSTOM_FRAGMENT_UPDATE_METALLICROUGHNESS: `

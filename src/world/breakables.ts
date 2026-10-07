@@ -6,7 +6,7 @@ import {
   PhysicsMotionType,
   PhysicsShapeBox,
   Quaternion,
-  StandardMaterial,
+  PBRMaterial,
   TransformNode,
   Vector3,
   type Mesh,
@@ -68,24 +68,30 @@ export class Breakables {
       d.grates.forEach((g, i) => grate(`grate:${d.id}:${i}`, g));
     }
     if (glass.length) {
-      const m = new StandardMaterial('glassMat', scene);
-      m.diffuseColor = new Color3(0.6, 0.78, 0.86);
-      m.specularColor = new Color3(0.6, 0.6, 0.6);
+      const m = new PBRMaterial('glassMat', scene);
+      m.albedoColor = new Color3(0.32, 0.55, 0.68);
+      m.metallic = 0;
+      m.roughness = 0.06;
+      m.usePhysicalLightFalloff = false;
+      m.directIntensity = Math.PI;
       m.alpha = 0.3;
       m.backFaceCulling = false;
       m.freeze();
       [this.glass, this.glassM] = this.build('glass', glass, m);
     }
     if (grates.length) {
-      const m = new StandardMaterial('grateMat', scene);
-      m.diffuseColor = new Color3(0.32, 0.35, 0.37);
-      m.specularColor = Color3.Black();
+      const m = new PBRMaterial('grateMat', scene);
+      m.albedoColor = new Color3(0.08, 0.1, 0.11);
+      m.metallic = 0.7;
+      m.roughness = 0.5;
+      m.usePhysicalLightFalloff = false;
+      m.directIntensity = Math.PI;
       m.freeze();
       [this.grates, this.grateM] = this.build('grate', grates, m);
     }
   }
 
-  private build(kind: 'glass' | 'grate', list: { key: string; c: Vector3; s: Vector3; yaw: number; pitch: number }[], mat: StandardMaterial): [Mesh, Float32Array] {
+  private build(kind: 'glass' | 'grate', list: { key: string; c: Vector3; s: Vector3; yaw: number; pitch: number }[], mat: PBRMaterial): [Mesh, Float32Array] {
     const scene = this.scene;
     const mesh = CreateBox(`${kind}Panels`, { size: 1 }, scene);
     mesh.material = mat;

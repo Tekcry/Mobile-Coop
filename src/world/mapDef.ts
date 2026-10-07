@@ -20,6 +20,8 @@ export interface MapTheme {
   floor?: Surface;
   /** Enemy faction colourway (default urban). */
   faction?: Faction;
+  /** Weather (3.0, visual only; `vfx/weather.ts`): rain + wet floors, blown dust, heat haze. */
+  weather?: 'rain' | 'dust' | 'haze';
   /** Colour grade (cinematic post): tint multiplier, saturation, contrast (defaults 1). */
   grade?: { tint?: [number, number, number]; saturation?: number; contrast?: number };
 }

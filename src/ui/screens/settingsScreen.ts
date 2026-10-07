@@ -3,6 +3,7 @@ import { setGfx, setPreset, type AimAssistLevel, type Settings } from '../../cor
 import { FPS_CAPS, LIGHT_RANGE, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
 import type { PlatformChoice } from '../../core/platform';
+import { BENCH } from '../../game/benchmark';
 import type { CurveKind } from '../../input/stickMath';
 import { h } from '../dom';
 import { Screen } from '../screen';
@@ -269,7 +270,7 @@ export class SettingsScreen extends Screen {
         slider('Real-time lights', { min: LIGHT_RANGE.min, max: LIGHT_RANGE.max, step: 4, get: () => s().video.gfx.lights, set: (v) => feat('lights').set(v), format: (v) => `${v}` }),
         ch('Anti-aliasing', 'aa', AA_OPTS),
         ch('Textures', 'textures', TIER_OPTS),
-        ch('Detail and draw distance', 'detail', TIER_OPTS),
+        ch('Detail and draw distance (map dressing: next map)', 'detail', TIER_OPTS),
         ch('Effects and weather', 'effects', TIER_OPTS),
         tg('Ambient occlusion', 'ao'),
         tg('Bloom', 'bloom'),
@@ -291,6 +292,11 @@ export class SettingsScreen extends Screen {
         choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
         choice('Interface', PLATFORM_OPTS, () => s().video.platform, (v) => upd((d) => void (d.video.platform = v))),
         button(desktop ? 'Fullscreen' : 'Enter fullscreen', () => void (desktop ? toggleFullscreen() : enterFullscreenLandscape()), { class: 'subtle' }),
+      ),
+      section(
+        'Benchmark',
+        h('div', { class: 'row-note', text: `A ${BENCH.seconds} s camera flight through the Warehouse at your settings: average and 1% low FPS (save the result as feedback).` }),
+        button('Run benchmark', () => app.benchmark?.(), { icon: 'monitor' }),
       ),
       button('Reset to defaults', () => {
         st.reset('video');

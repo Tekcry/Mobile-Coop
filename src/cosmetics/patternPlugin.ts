@@ -2,7 +2,7 @@ import { MaterialPluginBase, type Material, type MaterialDefines, type Scene, ty
 import { PATTERN_GLSL } from './patterns';
 
 /**
- * StandardMaterial plugin adding per-instance procedural patterns. Instances carry
+ * StandardMaterial / PBRMaterial plugin adding per-instance procedural patterns. Instances carry
  * `pattern` (x = id, y = scale in metres) and `color2` (secondary colour). Pattern space is the
  * part's local position scaled by its world scale, so stripes keep a constant size on any part.
  */
@@ -56,9 +56,14 @@ varying vec4 vColor2;
 varying vec3 vPatPos;
 ${PATTERN_GLSL}
 #endif`,
+        // StandardMaterial: the diffuse colour; PBR (3.0): the albedo (the secondary colour arrives in linear space)
         CUSTOM_FRAGMENT_UPDATE_DIFFUSE: `
 #ifdef PATTERNS
 baseColor.rgb = applyPattern(baseColor.rgb, vColor2.rgb, vPattern, vPatPos);
+#endif`,
+        CUSTOM_FRAGMENT_UPDATE_ALBEDO: `
+#ifdef PATTERNS
+surfaceAlbedo = applyPattern(surfaceAlbedo, vColor2.rgb, vPattern, vPatPos);
 #endif`,
       };
     }

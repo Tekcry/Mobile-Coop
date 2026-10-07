@@ -48,6 +48,10 @@ import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { PostStack } from '../vfx/postStack';
+import { Weather } from '../vfx/weather';
+import { BENCH, benchResult, benchText, pathAt, type P3 as BenchPoint } from './benchmark';
+import { Dialog } from '../ui/widgets';
+import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { Silhouettes } from '../vfx/silhouettes';
@@ -90,6 +94,8 @@ export interface GameOptions {
   hq?: HqLevels;
   /** Gadget selected at the start (the loadout preset's). */
   gadget?: string;
+  /** Settings > Graphics > Run benchmark: a camera flight through the rooms, guards passive, then the result. */
+  benchmark?: boolean;
 }
 
 /** What the coop layer plugs into a session. */
@@ -193,6 +199,8 @@ export class GameState implements AppState {
   readonly post: CinematicPost;
   /** The PC post stack (AO, reflections, volumetrics, bloom, depth of field, tone mapping). */
   readonly stack: PostStack;
+  /** Rain / dust / heat haze (visual only). */
+  readonly weather: Weather;
   readonly blobs: BlobShadows;
   private postKey = '';
   private beatT = 0;
@@ -312,9 +320,11 @@ export class GameState implements AppState {
     this.stack = new PostStack(this.scene, this.player.cam.camera, {
       fogColor: [fc.r * 0.5, fc.g * 0.5, fc.b * 0.5],
       // dark maps: a low haze the beams show in; daylight maps a thin one
-      fogDensity: (world.map.theme.lightLevel ?? 0.75) < 0.5 ? 0.012 : 0.006,
+      fogDensity: (world.map.theme.lightLevel ?? 0.75) < 0.5 ? 0.007 : 0.004,
       lights: world.level.lights.lights.length ? world.level.lights : null,
+      shimmer: world.map.theme.weather === 'haze' ? 1 : 0,
     });
+    this.weather = new Weather(this.scene, world.map.theme.weather ?? null);
     // (the grade / vignette / goggles pass stays after the stack)
     this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
@@ -517,7 +527,8 @@ export class GameState implements AppState {
   }
 
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed });
+    const q = app.quality.level;
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     return g;
@@ -527,6 +538,16 @@ export class GameState implements AppState {
     this.world.applyQuality(level);
     this.stack.apply(level);
     this.vfx.density = level.vfxDensity;
+    this.weather.setDensity(level.minimal ? 0 : level.vfxDensity);
+    const sp = this.world.level.surfacePlugin;
+    const wet = level.minimal ? 0 : this.weather.wetness;
+    if (sp && sp.wet !== wet) {
+      sp.wet = wet;
+      // (frozen material: let it re-bind its uniforms once)
+      const m = this.world.level.meshes[0]?.material;
+      m?.unfreeze();
+      this.scene.onAfterRenderObservable.addOnce(() => m?.freeze());
+    }
   }
 
   private pickedUp(k: 'ammo' | 'health', who: string): void {
@@ -606,14 +627,28 @@ export class GameState implements AppState {
     this.app.input.setGameplayActive(true);
     this.app.input.touch.setAction(null);
     this.mode?.start();
+    if (this.opts.benchmark) {
+      // the flight: every room's middle at camera height (the spawn when a map has no rooms)
+      const rooms = this.world.layout.rooms ?? [];
+      const pts: BenchPoint[] = rooms.map((r) => ({ x: (r.minX + r.maxX) / 2, y: (r.minY ?? 0) + BENCH.height, z: (r.minZ + r.maxZ) / 2 }));
+      if (pts.length < 2) {
+        const s0 = this.world.layout.playerSpawns[0]!.pos;
+        pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
+      }
+      this.bench = { pts, t: 0, iv: [], last: 0, done: false };
+      document.body.classList.add('photo-mode');
+      this.app.input.setGameplayActive(false);
+    }
   }
 
   exit(): void {
+    document.body.classList.remove('photo-mode');
     this.exited = true;
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
     this.stack.dispose();
+    this.weather.dispose();
     this.blobs.dispose();
     this.net?.dispose();
     this.net = null;
@@ -987,6 +1022,58 @@ export class GameState implements AppState {
     return ctx;
   }
 
+  /** Benchmark run (opts.benchmark): flight points, time, frame intervals after the warm-up. */
+  private bench: { pts: BenchPoint[]; t: number; iv: number[]; last: number; done: boolean } | null = null;
+  private readonly benchP: BenchPoint = { x: 0, y: 0, z: 0 };
+  private readonly benchQ: BenchPoint = { x: 0, y: 0, z: 0 };
+
+  private benchFrame(): void {
+    const b = this.bench;
+    if (!b || b.done) return;
+    const now = performance.now();
+    const real = b.last ? Math.min(0.25, (now - b.last) / 1000) : 0;
+    if (b.last && b.t > BENCH.warmup) b.iv.push(now - b.last);
+    b.last = now;
+    b.t += real;
+    // guards keep patrolling but never fight; the operator takes no damage
+    for (const e of this.enemyMgr?.enemies ?? []) e.passive = true;
+    this.target.damageMul = 0;
+    const u = b.t / BENCH.seconds;
+    const p = pathAt(b.pts, u, this.benchP);
+    const q = pathAt(b.pts, u + 0.015, this.benchQ);
+    const cam = this.player.cam.camera;
+    cam.position.set(p.x, p.y, p.z);
+    cam.setTarget(this.dofTo.set(q.x, q.y - 0.25, q.z));
+    if (b.t >= BENCH.seconds) {
+      b.done = true;
+      document.body.classList.remove('photo-mode');
+      const r = benchResult(b.iv);
+      const v = this.app.settings.get().video;
+      const where = `${this.world.map.name}, ${v.preset}, ${this.app.engine.getRenderWidth()}x${this.app.engine.getRenderHeight()}`;
+      const text = benchText(r, where);
+      this.paused = true;
+      this.app.screens.push(
+        new Dialog('Benchmark', text, [
+          {
+            label: 'Save to feedback',
+            action: () => {
+              const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: __APP_VERSION__, graphics: where, device: navigator.userAgent.slice(0, 160) });
+              e.category = 'performance';
+              e.text = `Benchmark - ${text}`;
+              void this.app.feedback.save(e).then(() => this.cb.quit());
+            },
+          },
+          { label: 'Done', primary: true, action: () => this.cb.quit() },
+        ]),
+      );
+    }
+  }
+
+  /** The benchmark's result once finished (tests). */
+  get benchmarkResult(): ReturnType<typeof benchResult> | null {
+    return this.bench?.done ? benchResult(this.bench.iv) : null;
+  }
+
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
     if (this.photo) {
@@ -1038,6 +1125,7 @@ export class GameState implements AppState {
     this.drawShadows();
     this.renderPings(dt);
     this.updateHud();
+    if (this.bench) this.benchFrame();
   }
 
   /** Contact shadows: the player, enemies, dummies, the net layer's characters. */
@@ -1291,6 +1379,8 @@ export class GameState implements AppState {
       st.focus = Math.max(1, this.ballistics.hitDistance(o, this.dofTo, G.STATIC | G.ENEMY));
     }
     st.frame(real);
+    const cp = this.player.cam.camera.globalPosition;
+    this.weather.frame(real, cp.x, cp.y, cp.z);
   }
   private readonly dofDir = new Vector3();
   private readonly dofTo = new Vector3();

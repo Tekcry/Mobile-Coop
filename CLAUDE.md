@@ -870,6 +870,29 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   lights), then `DefaultRenderingPipeline` (HDR, MSAA samples, FXAA, bloom, DOF focused by `focus` / `focusOn`:
   aiming = the aim ray's hit, chromatic aberration, sharpen with TAA, KHR PBR Neutral tone mapping);
   `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last.
+- Materials (3.0): `world/surfaceAtlas.ts` `SurfaceAtlas` - two GPU `ProceduralTexture` atlases (4 x 4 tiles, periodic
+  GLSL: `detail` rgb albedo variation + a roughness, `normal` rg normal + b height + a cavity) for `SURFACE_KINDS`
+  (`SURFACE_PARAMS`: metres per tile, metallic, bump); drawn once, `setSize` by the Textures tier (`TEXTURE_SIZE`
+  per tile, `TEXTURE_ANISO`; 256 for `?gfx=min`). `world/surfacePlugin.ts` `SurfacePlugin` (PBR plugin): triplanar
+  `textureGrad` taps in world space (level: per-instance `surf`) or object space (parts: `pattern.z`), albedo x
+  detail x cavity, `metallicRoughness`, a UDN normal blend (world space). `world/surfaceKinds.ts` (pure)
+  `pieceKind` / `floorKind` / `hsv`: floors by the footstep surface, else by colour; `partSurface` (weapons
+  brushed / polymer, characters fabric / rubber, props like the level). The level (`LevelBuilder.build(.., { atlas,
+  floor })`) and `PartLibrary(scene, atlas)` are `PBRMaterial`s: colours converted to linear, `usePhysicalLightFalloff
+  = false` and `directIntensity = PI` (PBR divides diffuse by pi; the lights were authored for the standard
+  material), `realTimeFiltering` on the `World` reflection probe (rendered once, then `scene.environmentTexture`;
+  assigned after the capture to avoid a feedback loop). The menu stage has its own atlas for the operator.
+- Detail (3.0): `world/detailPass.ts` (pure) `detailPieces(boxes, mapId, tier)` - skirting, conduit + junction
+  boxes + switches, wall boxes / vents / signs (ultra), floor stains / puddles / debris (epic); every piece
+  `collide: false`, `noLedge`, `detail` (the minimap skips it); `LevelBuilder.build(.., { detail })` from
+  `WorldOptions.detail` (the Detail tier when the map loads; none with `?gfx=min`); a test builds every map and checks
+  cover faces, ledges and the solid set are unchanged. `QualityLevel.detailScale` scales `PartLibrary.setLodScale`
+  and `setAnimLodScale` (characterRig). `Vfx`: spent brass (`Brass`: one bounce, then lies at the shooter's floor;
+  48 x effects density kept), 160 decals.
+- Weather (3.0, `MapTheme.weather`: Port rain, Dust Depot dust, Refinery haze): `vfx/weather.ts` `Weather`
+  (thin-instanced streaks / motes in a box wrapped round the camera, updated in place, count x effects density),
+  `SurfacePlugin.wet` (upward faces darker and glossy, more in cavities: SSR puddles), the volumetric pass's
+  `shimmer` (heat haze: distant, low pixels displaced).
 - Hot paths must not allocate (no closures, iterators or temporary vectors in AI/nav/anim loops; `for` with an
   index over arrays; typed-array heaps). Use `hyp2`/`hyp3` (`core/mathx.ts`), never `Math.hypot` (V8 allocates
   its arguments).
