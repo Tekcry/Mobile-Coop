@@ -3,8 +3,10 @@
 Silent But Deadly (renamed from Shoulder Strike in 2.2.0; internal ids keep the old name for compatibility:
 IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id). Third-person over-the-shoulder shooter
 for PC and phones. Static web app (Vite + TypeScript + Babylon.js 9 + Havok), installable PWA, fully playable offline.
-Hosted on GitHub Pages. Target (3.0): a gaming PC (RTX 4070 class, 1440p at 144 Hz+); every device runs the same
-renderer and settings (phones are slower; no mobile tiers). The platform (`core/platform.ts`) only changes the UI and
+Hosted on GitHub Pages. Target (3.0): a gaming laptop (i9 HX, RTX 4090 Laptop 16 GB, 32 GB; built-in 2560 x 1600
+240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer and settings (phones
+are slower; no mobile tiers). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
+test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) only changes the UI and
 input. A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
 Blacklist style.
 
@@ -28,7 +30,7 @@ Blacklist style.
     in, drop; horizontal pipe; landing bands (soft / roll / heavy + noise + recovery); grab while falling; zipline;
     open / glazed windows; duct unscrew, crawl, vent drop + roll, kick (fresh page); keyboard E; touch prompts;
     planted hands / feet locked (< 1 cm), arms reach grips
-  - `scripts/e2e-anchors.mjs` every placed anchor on every map (seven) (ladders bottom / top, drainpipes, pipes, ziplines,
+  - `scripts/e2e-anchors.mjs` every placed anchor on every listed map (Proving, Warehouse) (ladders bottom / top, drainpipes, pipes, ziplines,
     ducts, windows both sides) is offered from its approach and engages; hangable lips per map
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
     aiming, after a sprint / cover / lean, no residual offsets, level horizon after a shake) + headless cover bars: 3 m snap glide, hand
@@ -40,7 +42,7 @@ Blacklist style.
   - `scripts/e2e-anim.mjs` quality bars in the running game: first-frame response, 90% speed / stop times, one
     settling step, pivots, arcs, turn rates, lean into turns, stance and aim raise/lower times, weapon clip
     timings, foot locking (< 1 cm) in seven gaits, pose continuity, flinch, camera lag/blends/bob/drift/sprint
-    FOV/stick-look bounds, 60 vs 120 Hz parity
+    FOV/stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity (each run from gait phase 0)
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` Loadout by controller (live weapon preview, lock line, upgrade, buy in place), suit / HQ by touch, rewards, IndexedDB persistence, export/import
@@ -68,7 +70,8 @@ Blacklist style.
     chasing the player up a rack ladder and back down
   - `scripts/e2e-missions.mjs` Hunter alarm doubles the hostiles; Infiltration objective types to success (download
     pauses away + noticed pulses, intel any order, plant, rescue + escort, sabotage, extraction, results rating and
-    style bars) and failure (Ghost contract detection, three downs); routes per objective + 25 anchors per map
+    style bars) and failure (Ghost contract detection, three downs) on the Warehouse missions (Ledger, Courier,
+    Blackout, Cold Storage); routes per objective + 25 anchors
   - `scripts/e2e-gadgets.mjs` wheel (hold opens + slows time, stick picks, release selects, touch tap), arc preview,
     gas knock-out, flashbang blind -> alert + white-out, EMP lights out and back, noisemaker lure (muffled behind a wall), sticky cam feed
     (operator still, ping, gas, back), drone (flies, dart, battery), mine
@@ -83,12 +86,17 @@ Blacklist style.
   - `scripts/e2e-cosmetics.mjs` Loadout appearance by controller, live / locked previews on the operator, revert on exit, emotes, camo, in-game look
   - `scripts/e2e-clear.mjs` Warehouse + Clear mode: only "Enemies left N" (alive + pending), no room tags /
     counts / lives / score / blips, no per-room feedback, "DOWN", OPERATION COMPLETE stinger, results without a
-    rooms row; Wave keeps room tags; doorway checks; mini room set; Warehouse default for Wave / Mission / Clear
+    rooms row; Wave keeps room tags; doorway checks; mini room set; the Play screen: Warehouse default for every mode
+    but Training, Infiltration lists the Warehouse missions only
   - `scripts/e2e-training.mjs` the training course by touch: hints per device, each step advancing, the
     Takedown / Mark / Execute buttons, HUD defaults (no health bar, ammo fades), the results
   - `scripts/e2e-feedback.mjs` playtest notes: pause > Report feedback with the context, photo mode (frozen game,
     no HUD, free camera, take / retake / keep / cancel, two photos), IndexedDB after a reload, Settings > Feedback
     list, the HTML report download, photo mode on the menu stage
+  - `scripts/e2e-desktop.mjs` desktop detection, menu scale, Mouse & Keyboard rebinding, the Graphics menu (presets,
+    Custom, frame cap), the Interface switch, the benchmark (a short flight, saved as feedback; every preset in
+    turn), 16:10 / 21:9 / 32:9 windows (centred 16:9 menus, the HUD inset on 32:9, Hor+ up to the FOV cap), the Epic
+    renderer booting in a match (`SHOTS=dir` saves the aspect screenshots)
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast. `e2e-lib` adds
@@ -225,6 +233,16 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   the auto fullscreen; Settings gets Mouse & Keyboard (first on desktop) and the Graphics tab (`graphicsTab`: preset,
   every feature, display; `refreshWidgets` re-reads rows after a preset change). The touch layer still follows the
   input mode (a touchscreen laptop gets it when touched).
+- Displays (3.0, `core/display.ts` pure): ultrawide - `.screens` on desktop is a 16:9 layout scaled by height and
+  centred (`left: 50%`, `scale() translateX(-50%)`), the stage fills the sides; the gameplay camera is Hor+ from
+  `video.fovH` at 16:9 up to `video.maxFov` (default 120), then Vert- (`vfovFor`, `ShoulderCamera.vfov`, also the
+  gadget feeds); `video.hudWidth` auto / 16:9 / 21:9 / full -> `--hud-inset` (`hudInset`; auto = 16:9 above 2.6:1)
+  folded into the HUD's `--sal` / `--sar` (divided by the panels' zoom), so world prompts, arcs, markers and pings
+  stay full width. GPU: `App.gpu` from the unmasked renderer (`classifyGpu`: discrete / integrated / software); a
+  desktop on the integrated GPU gets one notice (`video.gpuNotice`; never under `navigator.webdriver`), Settings >
+  Graphics > GPU shows it, feedback context carries it with the output resolution, aspect and refresh. The engine
+  asks for `powerPreference: 'high-performance'`. Photo mode saves at full output resolution (<= 7680 px, JPEG
+  quality stepped down to stay under 8 MB).
 - Feedback (3.0, `feedback/feedback.ts` pure: `FeedbackEntry` category / text / context / photo Blobs, `sanitizeFeedback`,
   `feedbackText`, `feedbackReportHtml`; `FeedbackStore` = IndexedDB `kv` 'feedback', `App.feedback`):
   `ui/screens/feedbackScreen.ts` (`FeedbackFormScreen`, Settings > Feedback `feedbackTab`, Pause > Report feedback,
@@ -250,8 +268,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups, optional `rooms`). Register in
-  `world/maps/index.ts`; the first map listing a mode is its default (Warehouse for Clear, Mission and Wave,
-  Proving Grounds for Free Roam). `LevelBuilder.wallX/wallZ` build walls with door gaps.
+  `world/maps/index.ts` (`MAPS`: Warehouse, Proving Grounds; `listed.ts` `LISTED_MAP_IDS` is the pure list that
+  content filters on: `MISSIONS` = `ALL_MISSIONS` on listed maps); the first map listing a mode is its default
+  (Warehouse for every mode but Training; a mode change on the Play screen starts on its default map). Free Roam
+  (`sandbox`) places the training dummies only on Proving Grounds. `LevelBuilder.wallX/wallZ` build walls with door gaps.
 - Warehouse (`world/maps/warehouse.ts`): truck yard, loading dock, dispatch, workshop, a 2.2 m service corridor,
   racking aisles, factory floor, a mezzanine deck (stairs) and two offices; roofed (visual only: roof and lights
   do not collide, so the nav sampler sees the floor) with skylight strips. Nine tagged rooms with squads. Proving
@@ -858,7 +878,14 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `capAllows`), `fovH` 60-120; `setGfx` / `setPreset`. `app.quality` (QualityManager) applies the level to the state's
   `applyQuality(level)` (GameState: `World.applyQuality` + `PostStack.apply`; MenuState: lamp shadows + its stack),
   feeds `RefreshDetector` (raw rAF intervals), `FrameStats` and, only with dynamic resolution, the
-  `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|high|ultra|epic` overrides for a page.
+  `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|high|ultra|epic` overrides for a page;
+  `QualityManager.setOverride({ preset, scale })` is the benchmark's per-run override (never saved; ignored under `?gfx=`).
+- Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
+  Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Clear match on the Warehouse with `opts.benchmark`;
+  `GameState` flies the camera through the room centres (`pathAt`, Catmull-Rom), guards passive, one flight per run
+  (`current`, `presets` High / Ultra / Epic, `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
+  4K, 7680 x 2160 within scale 2, `sustained` 10 min with per-minute averages), then a Dialog with a line per run
+  (`benchmarkLines`), saved as a performance feedback note.
 - Renderer (3.0): `LightRig.configure` - unshadowed map lights in a `ClusteredLightContainer` (plain pool of 6
   without float blending), a shadow pool of spot lights with `ShadowGenerator`s (flashlights first, then the
   nearest lamps; lamps use a 144 deg cone there; idle maps stop refreshing, shadows never toggle - no recompiles),
@@ -898,8 +925,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   its arguments).
 
 ## Performance budget (3.0: a gaming PC; the phone-era numbers below are the CPU side, still checked)
-- PC target: 1440p >= 144 Hz at Epic, 4K >= 60 Hz, RTX 4070 class; CPU <= 4 ms per frame. Phones run the same
-  settings slower (accepted). The CPU side below still applies (`perf.mjs` runs `?gfx=min`).
+- PC target (the RTX 4090 Laptop, mains power, Epic, Warehouse, 10 guards; 1% low >= 70% of the average): 1920 x 1200
+  165 Hz (RT reflections 120), 2560 x 1600 120 Hz (RT 90), 3440 x 1440 100, 5120 x 1440 90, 4K 60 (RT 50), 7680 x
+  2160 60 with TAAU at 67% (High 120); main thread <= 3 ms; VRAM <= 12 GB at Epic. Phones run the same settings slower
+  (accepted). The CPU side below still applies (`perf.mjs` runs `?gfx=min`).
 - Phone-era: 8.33 ms per frame, worst case <= 6.5 ms work; CPU <= 3.5 ms, GPU <= 4 ms. `perf.mjs --budget` checks the CPU
   side: p95 CPU per 120 Hz frame <= 3.5 ms (measured ~1.7 ms on Warehouse with 10 enemies), animation <= 0.04 ms
   per character (~0.037 when last calibrated; the SwiftShader VM drifts, so compare against the previous

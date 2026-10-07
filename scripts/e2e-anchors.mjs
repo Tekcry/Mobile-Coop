@@ -1,4 +1,4 @@
-// Every placed traversal anchor on every map is usable: standing at its natural approach (ladder foot, under a pipe,
+// Every placed traversal anchor on every listed map is usable: standing at its natural approach (ladder foot, under a pipe,
 // at a vent, beside a window, at a zipline's high end) the traverse prompt offers it and Y engages it. Also counts
 // the hangable lips per map (generated ledges). `node scripts/e2e-anchors.mjs [url] [--only=map]`
 import { launch, assert } from './e2e-lib.mjs';
@@ -8,11 +8,6 @@ const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 const MAPS = [
   ['proving', 'sandbox'],
   ['warehouse', 'clear'],
-  ['embassy', 'clear'],
-  ['mansion', 'clear'],
-  ['port', 'clear'],
-  ['refinery', 'clear'],
-  ['depot', 'wave'],
 ];
 let failed = false;
 for (const [map, mode] of MAPS) {

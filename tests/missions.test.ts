@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DOWNLOAD, evaluateRules, MISSIONS, missionRating, ObjectiveChain, validateMissions, type MissionDef } from '../src/game/missions';
+import { ALL_MISSIONS, DOWNLOAD, evaluateRules, MISSIONS, missionRating, ObjectiveChain, validateMissions, type MissionDef } from '../src/game/missions';
 import { StyleTracker } from '../src/game/playstyle';
 import { MAPS } from '../src/world/maps';
 
@@ -21,6 +21,11 @@ describe('mission validation', () => {
       for (const o of m.objectives) types.add(o.type);
     }
     for (const t of ['download', 'plant', 'rescue', 'sabotage', 'intel', 'extract']) expect(types.has(t)).toBe(true);
+  });
+  it('offers only missions on listed maps (3.0: Warehouse); parked ones stay bundled', () => {
+    expect(MISSIONS.every((m) => m.map === 'warehouse')).toBe(true);
+    expect(ALL_MISSIONS.length).toBeGreaterThan(MISSIONS.length);
+    expect(ALL_MISSIONS.some((m) => m.map === 'embassy')).toBe(true);
   });
   it('rejects broken missions', () => {
     expect(() => validateMissions({})).toThrow();

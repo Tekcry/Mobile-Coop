@@ -20,6 +20,8 @@ import { FeedbackStore } from '../feedback/feedbackStore';
 import { keyLabels } from '../ui/prompts';
 import { bindLabel } from '../input/keyBindings';
 import { browserEnv, detectPlatform, platformOverride, uiScale, type PlatformInfo } from './platform';
+import type { BenchKind } from '../game/benchmark';
+import { classifyGpu, hudInset, type GpuKind } from './display';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -58,7 +60,7 @@ export class App {
   /** UI / input platform (desktop hides touch-only controls and settings). Never changes rendering. */
   platform: PlatformInfo = { platform: 'mobile', touch: true, reason: '' };
   /** Settings > Graphics > Run benchmark (set by main). */
-  benchmark: (() => void) | null = null;
+  benchmark: ((kind?: BenchKind) => void) | null = null;
   /** Called when the platform flips (settings rebuild their tabs). */
   onPlatform: (() => void) | null = null;
 
@@ -107,6 +109,7 @@ export class App {
     });
     this.applyPlatform();
     this.applyKeyLabels();
+    this.checkGpu();
     // Backgrounding (home button, app switch, screen lock): save now, silence audio, pause single player.
     document.addEventListener('visibilitychange', () => this.onVisibility(document.hidden));
     window.addEventListener('pagehide', () => void this.save.flush());
@@ -128,6 +131,27 @@ export class App {
     keyLabels.reload = bindLabel(k, 'reload');
   }
 
+  /** The GPU the browser renders with (the unmasked renderer string where allowed). */
+  gpu: { renderer: string; kind: GpuKind } = { renderer: '', kind: 'unknown' };
+
+  /**
+   * Laptops: a browser left on the integrated GPU runs the PC renderer at a fraction of the discrete GPU's speed.
+   * Tell the player once (desktop only; never under automation) how to switch it; Settings > Graphics repeats it.
+   */
+  private checkGpu(): void {
+    let renderer: string;
+    try {
+      renderer = this.engine.getGlInfo().renderer ?? '';
+    } catch {
+      renderer = '';
+    }
+    this.gpu = { renderer, kind: classifyGpu(renderer) };
+    const v = this.settings.get().video;
+    if (this.gpu.kind !== 'integrated' || v.gpuNotice || this.platform.platform !== 'desktop' || navigator.webdriver) return;
+    this.toasts.show('Running on the integrated GPU. For full speed set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.', 'warn', 12000);
+    this.settings.update((d) => void (d.video.gpuNotice = true));
+  }
+
   /** Detect the platform (setting, `?platform=`), set `body.platform-*` and the desktop UI scale (`--ui-scale`). */
   applyPlatform(): void {
     const before = this.platform.platform;
@@ -138,6 +162,7 @@ export class App {
     c.toggle('platform-mobile', p === 'mobile');
     c.toggle('can-touch', this.platform.touch);
     document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, window.innerWidth, window.innerHeight)));
+    document.documentElement.style.setProperty('--hud-inset', `${hudInset(window.innerWidth, window.innerHeight, this.settings.get().video.hudWidth)}px`);
     if (p !== before) this.onPlatform?.();
   }
 

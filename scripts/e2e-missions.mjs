@@ -98,7 +98,7 @@ await run('autostart=warehouse&mode=hunter', [
   ],
 ]);
 
-await run('autostart=embassy&mode=infiltration&mission=embassy-pouch&insertion=gate', [
+await run('autostart=warehouse&mode=infiltration&mission=warehouse-ledger&insertion=yard', [
   [
     'download + intel + extract',
     async (G, page) => {
@@ -120,8 +120,8 @@ await run('autostart=embassy&mode=infiltration&mission=embassy-pouch&insertion=g
         const started = m.downloading;
         t.step(15);
         const mid = m.chain.fraction;
-        // walk away: it pauses, nothing lost
-        t.tp(o.x + 25, 0, o.z - 10);
+        // walk away (the racking aisles): it pauses, nothing lost
+        t.tp(-14.5, 0, 2);
         t.step(5);
         const away = m.chain.fraction;
         t.tp(o.x + 1.0, 0, o.z);
@@ -156,7 +156,7 @@ await run('autostart=embassy&mode=infiltration&mission=embassy-pouch&insertion=g
   ],
 ]);
 
-await run('autostart=embassy&mode=infiltration&mission=embassy-asset&insertion=gate', [
+await run('autostart=warehouse&mode=infiltration&mission=warehouse-courier&insertion=lot', [
   [
     'plant + rescue + extract',
     async (G) => {
@@ -166,38 +166,37 @@ await run('autostart=embassy&mode=infiltration&mission=embassy-asset&insertion=g
         const m = g.mode;
         t.calm();
         const o = m.chain.current;
-        // (beside the phone, clear of the conference door)
-        t.tp(o.x - 1.2, 0, o.z - 0.3, Math.PI / 2);
+        // (beside the forklift, facing it)
+        t.tp(o.x + 0.8, 0, o.z, -Math.PI / 2);
         t.hold(o.time + 0.3);
         const planted = m.chain.current?.type;
         const v = m.vip;
-        t.tp(v.pos.x - 1.0, 0, v.pos.z, Math.PI / 2);
+        t.tp(v.pos.x + 1.0, 0, v.pos.z, -Math.PI / 2);
         t.hold(2);
         const free = v.free;
-        // walk out through the corridor and the lobby: he follows
+        // walk out past the benches to the workshop's yard door: he follows
         const vp0 = v.pos.clone();
-        t.walk(12.5, 3, 2);
-        t.walk(12.5, 11.2, 3);
-        t.walk(0, 11.2, 4);
-        t.walk(0, 3, 3);
-        t.step(5);
+        t.walk(12, -13, 2);
+        t.walk(14.5, -15.5, 2);
+        t.walk(17.55, -16.5, 2);
+        t.step(4);
         const moved = Math.hypot(v.pos.x - vp0.x, v.pos.z - vp0.z);
         const near = Math.hypot(v.pos.x - g.player.position.x, v.pos.z - g.player.position.z);
-        // out of the front door to the gate
-        t.walk(0, -6, 3);
-        t.walk(0, -19.5, 5);
+        // out of the door to the east lot
+        t.walk(17.55, -19.5, 2);
+        t.walk(18.5, -23.2, 3);
         t.step(4);
         return { planted, free, moved, near, state: m.chain.state, vipAt: [v.pos.x, v.pos.z] };
       });
-      assert(r.planted === 'rescue', 'the bug is planted (a hold)');
-      assert(r.free, 'the asset is freed (a hold)');
-      assert(r.moved > 8 && r.near < 4, `he follows the operator (${r.moved.toFixed(1)} m, ${r.near.toFixed(1)} m behind)`);
-      assert(r.state === 'done', `extraction with the asset completes it (asset at ${r.vipAt.map((n) => n.toFixed(1))})`);
+      assert(r.planted === 'rescue', 'the forklift is tagged (a hold)');
+      assert(r.free, 'the courier is freed (a hold)');
+      assert(r.moved > 6 && r.near < 4, `he follows the operator (${r.moved.toFixed(1)} m, ${r.near.toFixed(1)} m behind)`);
+      assert(r.state === 'done', `extraction with the courier completes it (courier at ${r.vipAt.map((n) => n.toFixed(1))})`);
     },
   ],
 ]);
 
-await run('autostart=embassy&mode=infiltration&mission=embassy-blackout&insertion=drain', [
+await run('autostart=warehouse&mode=infiltration&mission=warehouse-blackout&insertion=yard', [
   [
     'sabotage + extract',
     async (G) => {
@@ -221,7 +220,7 @@ await run('autostart=embassy&mode=infiltration&mission=embassy-blackout&insertio
   ],
 ]);
 
-await run('autostart=embassy&mode=infiltration&mission=embassy-blackout&insertion=drain', [
+await run('autostart=warehouse&mode=infiltration&mission=warehouse-blackout&insertion=yard', [
   [
     'ghost contract fails on detection',
     async (G, page) => {
@@ -262,7 +261,7 @@ await run('autostart=warehouse&mode=infiltration&mission=warehouse-cold', [
 ]);
 
 // routes: every mission objective has the ground plus two anchor routes (above / through) within reach
-for (const map of ['embassy', 'warehouse', 'mansion', 'port', 'refinery']) {
+for (const map of ['warehouse']) {
   await run(`autostart=${map}&mode=infiltration`, [
     [
       `${map} routes`,

@@ -110,6 +110,7 @@ export class Player {
     const s = getSettings();
     this.cam.shoulder = s.gameplay.defaultShoulder === 'left' ? -1 : 1;
     this.cam.baseFovDeg = s.video.fovH;
+    this.cam.maxFovDeg = s.video.maxFov;
     const eng = world.scene.getPhysicsEngine() as PhysicsEngine;
     this.rig.groundProbe = (x, z, yFrom) => {
       this.rr.reset();
@@ -227,6 +228,7 @@ export class Player {
     }
     this.cam.adsTarget = this.ads ? 1 : 0;
     this.cam.baseFovDeg = this.getSettings().video.fovH;
+    this.cam.maxFovDeg = this.getSettings().video.maxFov;
     c.interpolate(alpha);
     this.cam.crouch = c.crouchBlend;
     this.cam.dash = c.dashing ? 1 : 0;

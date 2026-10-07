@@ -1,6 +1,20 @@
 # Changelog
 
-## 3.0.0 - PC renderer, desktop interface, playtest feedback (in progress)
+## 3.0.0 - PC renderer, Warehouse focus, desktop interface, playtest feedback (in progress)
+- Focus: the Warehouse is the one playable map and runs every mode - Hunter, Wave, Mission, Infiltration (four
+  missions: Cold Storage, Ledger, Courier, Blackout - every objective type), Free Roam (new: the whole map, no
+  guards, every weapon), co-op and PvP. Proving Grounds stays as a plain range for Free Roam and Training. Embassy,
+  Mansion, Port, Refinery and Dust Depot are parked (not offered; kept as they were in 2.3.0 to come back later);
+  their mission records and challenges stay in the save.
+- Displays: ultrawide 21:9 and 32:9 (up to 7680 x 2160) - the view widens with the screen up to a widest field of
+  view (default 120 deg, then the sides stop growing), menus stay a centred 16:9 layout, the HUD keeps to a centred
+  16:9 on 32:9 (HUD width: auto / 16:9 / 21:9 / full); the frame-rate cap names the display's refresh (up to 240
+  Hz); photos are saved at full output resolution.
+- Laptops: the game asks for the high-performance GPU and tells you once if the browser is on the integrated one
+  (and how to switch); Settings > Graphics shows the GPU in use.
+- Benchmark (Settings > Graphics): a camera flight through the Warehouse - the current settings, every preset, the
+  render pixel counts of 2560 x 1600, 4K and 7680 x 2160, or a 10-minute sustained run (first vs last minute, for a
+  laptop that slows once hot); average and 1% low per run, saved as a feedback note.
 - One renderer for every device, built for a gaming PC (phones run the same, slower): Graphics presets High /
   Ultra / Epic (default) with every feature adjustable (Custom): up to 48 real lights (clustered), lamps and every
   guard flashlight casting shadows (soft on Epic), cascaded sun / moon shadows, ambient occlusion, screen-space
@@ -15,8 +29,8 @@
 - Detail: a dressing pass on every map (Detail Ultra / Epic, visual only - nav, cover and ledges are unchanged):
   skirting, conduit with junction boxes and switches, electrical boxes, vents, signs, floor stains, puddles and
   debris; draw and animation distances x2-4; spent brass that stays on the floor, longer-lasting bullet holes.
-- Weather: rain on the Port (falling streaks, wet glossy floors that the reflections pick up), blown dust on the
-  Dust Depot, heat haze on the Refinery.
+- Weather (engine): falling rain streaks with wet glossy floors that the reflections pick up, blown dust, heat
+  haze (the Warehouse gets its weather choice with the voxel art pass).
 - Desktop interface (detected, or Settings > Graphics > Interface): menus scale to the window, no touch settings or
   touch controls (a touchscreen laptop gets them back when touched), hover states, fullscreen on demand.
 - Mouse & Keyboard settings: sensitivity, aim sensitivity, invert, raw input, and every key rebindable (two per

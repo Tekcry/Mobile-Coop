@@ -1,3 +1,4 @@
+import { aspectLabel } from '../../core/display';
 import type { App } from '../../core/app';
 import { h } from '../dom';
 import { Screen } from '../screen';
@@ -19,6 +20,10 @@ export function feedbackContext(app: App): Record<string, string> {
   ctx.graphics = `${app.quality.level.name}, ${app.engine.getRenderWidth()}x${app.engine.getRenderHeight()}${v.fpsCap ? `, cap ${v.fpsCap}` : ''}`;
   const pace = app.quality.pacing();
   if (pace.p50 > 0) ctx.frames = `p50 ${pace.p50.toFixed(1)} ms, p99 ${pace.p99.toFixed(1)} ms @ ${app.quality.hz} Hz`;
+  const w = Math.round(window.innerWidth * devicePixelRatio);
+  const hgt = Math.round(window.innerHeight * devicePixelRatio);
+  ctx.display = `${w}x${hgt} (${aspectLabel(w, hgt)}) @ ${Math.round(app.quality.hz)} Hz, FOV ${v.fovH} (max ${v.maxFov}), HUD ${v.hudWidth}`;
+  ctx.gpu = `${app.gpu.renderer || 'unknown'} (${app.gpu.kind})`;
   ctx.device = navigator.userAgent.slice(0, 160);
   return ctx;
 }

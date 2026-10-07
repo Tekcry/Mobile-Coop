@@ -5,6 +5,7 @@
  * (no alarms / no kills / undetected as a bonus or a fail condition).
  */
 import raw from '../config/missions.json';
+import { isListedMap } from '../world/maps/listed';
 
 export type ObjectiveType = 'download' | 'plant' | 'rescue' | 'sabotage' | 'intel' | 'extract';
 export const OBJECTIVE_TYPES: readonly ObjectiveType[] = ['download', 'plant', 'rescue', 'sabotage', 'intel', 'extract'];
@@ -131,7 +132,10 @@ export function validateMissions(data: unknown): MissionDef[] {
   return out;
 }
 
-export const MISSIONS: MissionDef[] = validateMissions(raw);
+/** Every bundled mission (parked maps included: kept, not offered). */
+export const ALL_MISSIONS: MissionDef[] = validateMissions(raw);
+/** The missions offered: those on a listed map (3.0: Warehouse). */
+export const MISSIONS: MissionDef[] = ALL_MISSIONS.filter((m) => isListedMap(m.map));
 
 export function missionById(id: string): MissionDef | null {
   return MISSIONS.find((m) => m.id === id) ?? null;

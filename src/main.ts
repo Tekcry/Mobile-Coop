@@ -148,7 +148,7 @@ async function boot(): Promise<void> {
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
 
-  app.benchmark = () => startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: true });
+  app.benchmark = (kind = 'current') => startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: kind });
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
 

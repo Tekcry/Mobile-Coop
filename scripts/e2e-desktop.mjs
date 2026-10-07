@@ -1,7 +1,8 @@
 // Desktop (3.0): auto-detected on a mouse-and-keyboard 1080p window, menus scaled to it, no touch settings or
 // controls, Mouse & Keyboard first (rebinding: click, press; a key moves off its old action; Backspace clears; the
 // in-game action follows), the Graphics menu (presets, Custom, the frame cap), the interface switch, and the Epic
-// renderer booting in a match (clustered lights, shadow casters, the post stack) without console errors.
+// renderer booting in a match (clustered lights, shadow casters, the post stack) without console errors; 16:10,
+// 21:9 and 32:9 windows (centred menus, the HUD inset, Hor+ up to the FOV cap).
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -85,21 +86,71 @@ try {
   const touchShown = await G(() => { const t = document.querySelector('.touch-layer'); return !!t && getComputedStyle(t).display !== 'none' && !t.hidden; });
   assert(!touchShown, 'no touch controls on desktop');
   // the benchmark: a (shortened) flight, then the result, saved as feedback
+  // (software GL renders the Warehouse at ~1 fps: a 2 s flight is ~10 frames)
   await G(() => {
-    window.__bench.seconds = 5;
-    window.__bench.warmup = 1;
+    window.__bench.seconds = 2;
+    window.__bench.warmup = 0.5;
     window.__app.benchmark();
   });
-  await page.waitForFunction(() => /average \d+ fps, 1% low \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? ''), null, { timeout: 120000 });
+  await page.waitForFunction(() => /average \d+ fps, 1% low \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? ''), null, { timeout: 240000 });
   const bt = await G(() => ({ text: document.querySelector('.dialog').textContent, hudHidden: document.body.classList.contains('photo-mode') }));
   assert(!bt.hudHidden, `the benchmark reports (${bt.text.match(/Warehouse[^)]*\)/)?.[0]})`);
   await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Save to feedback/.test(b.textContent)).click());
   await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   const saved = await G(async () => (await window.__app.feedback.all()).find((e) => e.category === 'performance')?.text ?? '');
   assert(/Benchmark - Warehouse/.test(saved), 'the result is saved as a performance note');
+  // every preset: three flights, one line each
+  await G(() => window.__app.benchmark('presets'));
+  await page.waitForFunction(() => (document.querySelector('.dialog')?.textContent?.match(/average \d+ fps/g) ?? []).length === 3, null, { timeout: 300000 });
+  const lines = await G(() => window.__app.current.benchmarkLines.map((l) => l.split(':')[0]));
+  assert(lines.length === 3 && /high/.test(lines[0]) && /ultra/.test(lines[1]) && /epic/.test(lines[2]), `every preset runs in turn (${lines.join(' | ')})`);
+  await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
+  await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
   assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
   await browser.close();
+
+  // aspects (16:10, 21:9, 32:9): menus a centred 16:9 layout, the HUD inset on 32:9, Hor+ up to the FOV cap
+  for (const [w, hh, label] of [[1280, 800, '16:10'], [2520, 1080, '21:9'], [2560, 720, '32:9']]) {
+    const a = await launch({ url, params: '', touch: false, viewport: { width: w, height: hh } });
+    browser = a.browser;
+    const P = a.page;
+    const GA = (f, x) => P.evaluate(f, x);
+    await P.waitForSelector('.main-menu');
+    await frames(P, 3);
+    const m = await GA(() => {
+      const r = document.querySelector('.screens').getBoundingClientRect();
+      const it = document.querySelector('.main-menu .menu-item').getBoundingClientRect();
+      return { cx: r.left + r.width / 2, w: r.width, h: r.height, item: it.left, W: innerWidth, H: innerHeight };
+    });
+    assert(Math.abs(m.cx - m.W / 2) < 2 && m.w <= m.H * (16 / 9) + 2 && m.h >= m.H - 2, `${label}: menus a centred layout (${m.w.toFixed(0)} x ${m.h.toFixed(0)} in ${m.W} x ${m.H})`);
+    assert(m.item >= (m.W - m.w) / 2 - 1, `${label}: the menu sits inside it (x ${m.item.toFixed(0)})`);
+    if (process.env.SHOTS) await P.screenshot({ path: `${process.env.SHOTS}/desk-${label.replace(':', 'x')}-menu.png` });
+    await P.goto(url + '?autostart=warehouse&mode=sandbox&gfx=min');
+    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 60000 });
+    await GA(() => window.__app.settings.update((d) => { d.video.fovH = 100; d.video.maxFov = 120; }));
+    await frames(P, 4);
+    const v = await GA(() => {
+      const cam = window.__app.current.player.cam.camera;
+      const aspect = window.__app.engine.getAspectRatio(cam);
+      const hdeg = (2 * Math.atan(Math.tan(cam.fov / 2) * aspect) * 180) / Math.PI;
+      const vit = document.querySelector('.hud-vitals').getBoundingClientRect();
+      const mm = document.querySelector('.hud-minimap').getBoundingClientRect();
+      const inset = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--hud-inset'));
+      return { hdeg, aspect, vit: vit.left, mm: mm.right, inset, W: innerWidth };
+    });
+    if (label === '32:9') {
+      assert(Math.abs(v.hdeg - 120) < 1, `32:9: Hor+ stops at the widest FOV (${v.hdeg.toFixed(1)} deg)`);
+      assert(v.inset === 640 && v.vit >= 640 && v.mm <= v.W - 640 + 1, `32:9: HUD panels in a centred 16:9 (inset ${v.inset}, vitals x ${v.vit.toFixed(0)}, minimap right ${v.mm.toFixed(0)})`);
+    } else {
+      const want = (2 * Math.atan(Math.tan(Math.atan(Math.tan((100 * Math.PI) / 360) * (9 / 16))) * v.aspect) * 180) / Math.PI;
+      assert(Math.abs(v.hdeg - want) < 1 && v.inset === 0, `${label}: Hor+ (${v.hdeg.toFixed(1)} deg), HUD full width`);
+    }
+    if (process.env.SHOTS) await P.screenshot({ path: `${process.env.SHOTS}/desk-${label.replace(':', 'x')}-game.png` });
+    const ae = a.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
+    assert(ae.length === 0, `${label}: no console errors${ae.length ? ': ' + ae.slice(0, 3).join(' | ') : ''}`);
+    await browser.close();
+  }
 
   // the Epic renderer in a match (small window: software GL)
   const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic', touch: false, viewport: { width: 640, height: 360 } });

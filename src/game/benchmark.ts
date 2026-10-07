@@ -1,14 +1,66 @@
 /**
  * In-game benchmark (3.0, pure parts unit-tested): a fixed camera flight through a map's rooms while the AI
- * patrols, frame times recorded, then average and 1% low FPS. Settings > Graphics > Run benchmark.
+ * patrols, frame times recorded, then average and 1% low FPS. Settings > Graphics > Benchmark: the current
+ * settings, every preset, render pixel counts of the target displays, or a 10-minute sustained loop (laptops:
+ * does the frame rate hold once the machine is hot?).
  */
+import type { FixedPreset } from '../core/quality';
+
 export const BENCH = {
-  /** Seconds of flight (the first `warmup` not counted: shader compiles, shadow maps settling). */
+  /** Seconds of flight per run (the first `warmup` not counted: shader compiles, shadow maps settling). */
   seconds: 30,
   warmup: 3,
+  /** The sustained run (s) and its bucket (s): first vs last bucket. */
+  sustained: 600,
+  bucket: 60,
   /** Camera height over each room's floor (m). */
   height: 2.2,
 };
+
+export type BenchKind = 'current' | 'presets' | 'resolutions' | 'sustained';
+
+export interface BenchRun {
+  label: string;
+  /** A preset for this run only (null: the player's settings). */
+  preset: FixedPreset | null;
+  /** Render scale for this run only (null: the player's). */
+  scale: number | null;
+  seconds: number;
+  sustained: boolean;
+}
+
+/** Target displays measured by render pixel count (the window's aspect is kept). */
+export const BENCH_RESOLUTIONS = [
+  { label: '2560x1600', w: 2560, h: 1600 },
+  { label: '3840x2160 (4K)', w: 3840, h: 2160 },
+  { label: '7680x2160 (32:9)', w: 7680, h: 2160 },
+] as const;
+
+/**
+ * The runs for a benchmark kind. `outW` / `outH` = the output in device pixels at render scale 1: a resolution is
+ * included when it is within render scale 2 of it (a 1600p laptop reaches 7680 x 2160's pixel count at ~2.0).
+ */
+export function benchPlan(kind: BenchKind, outW: number, outH: number): BenchRun[] {
+  const run = (label: string, preset: FixedPreset | null = null, scale: number | null = null): BenchRun => ({ label, preset, scale, seconds: BENCH.seconds, sustained: false });
+  if (kind === 'presets') return (['high', 'ultra', 'epic'] as const).map((p) => run(p[0]!.toUpperCase() + p.slice(1), p));
+  if (kind === 'sustained') return [{ ...run(`sustained ${Math.round(BENCH.sustained / 60)} min`), seconds: BENCH.sustained, sustained: true }];
+  if (kind === 'resolutions') {
+    const out = [run(`${outW}x${outH} (output)`, null, 1)];
+    const px = Math.max(1, outW * outH);
+    for (const r of BENCH_RESOLUTIONS) {
+      const k = Math.sqrt((r.w * r.h) / px);
+      if (Math.abs(k - 1) > 0.03 && k <= 2.05) out.push(run(`${r.label} pixel count`, null, k));
+    }
+    return out;
+  }
+  return [run('current settings')];
+}
+
+/** Sustained drift: the last bucket's average against the first (-0.08 = 8% slower once hot). */
+export function sustainedDrift(bucketFps: readonly number[]): number {
+  if (bucketFps.length < 2 || !(bucketFps[0]! > 0)) return 0;
+  return bucketFps[bucketFps.length - 1]! / bucketFps[0]! - 1;
+}
 
 export interface P3 {
   x: number;

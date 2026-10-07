@@ -3213,14 +3213,25 @@ body {
 }
 
 /* ---------- 3.0 desktop: menus laid out for a 1280 x 720 window, scaled to fill (--ui-scale) ---------- */
+/* wider than 16:9 (21:9, 32:9): the menus stay a 16:9 layout scaled by height, centred; the stage fills the rest */
 .platform-desktop .screens {
   inset: auto;
-  left: 0;
+  left: 50%;
   top: 0;
-  width: calc(100% / var(--ui-scale, 1));
-  height: calc(100% / var(--ui-scale, 1));
-  transform: scale(var(--ui-scale, 1));
+  width: min(calc(100vw / var(--ui-scale, 1)), calc(100vh / var(--ui-scale, 1) * 16 / 9));
+  height: calc(100vh / var(--ui-scale, 1));
+  transform: scale(var(--ui-scale, 1)) translateX(-50%);
   transform-origin: 0 0;
+}
+/* HUD width (Settings > Graphics > Display): on a wide screen the panels keep in from the sides by --hud-inset
+   (screen px; divided by the panels' zoom). World prompts, arcs, markers, pings and the vignette stay full width. */
+.hud {
+  --hud-zoom: var(--hud-scale, 1);
+  --sal: calc(env(safe-area-inset-left, 0px) + var(--hud-inset, 0px) / var(--hud-zoom));
+  --sar: calc(env(safe-area-inset-right, 0px) + var(--hud-inset, 0px) / var(--hud-zoom));
+}
+.platform-desktop .hud {
+  --hud-zoom: calc(var(--hud-scale, 1) * var(--ui-scale, 1));
 }
 .platform-desktop .hud > .hud-vitals,
 .platform-desktop .hud > .hud-weapon,

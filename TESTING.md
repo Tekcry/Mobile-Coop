@@ -294,6 +294,20 @@ Controls:
 - [ ] Menus work with the mouse as before.
 
 ## 3.0.0 - PC renderer, desktop interface, feedback (PC + phone)
+Warehouse focus:
+- [ ] Play lists every mode on the Warehouse (Training on Proving Grounds); Free Roam on the Warehouse has no guards
+      and every weapon; Infiltration shows four Warehouse missions only (Cold Storage, Ledger, Courier, Blackout) and
+      each can be finished; co-op and PvP lobbies offer the Warehouse.
+Displays (gaming laptop: RTX 4090 Laptop, 16 GB; built-in 2560 x 1600 240 Hz; external ultrawide):
+- [ ] The browser runs on the NVIDIA GPU (Settings > Graphics > GPU); switch it to the integrated GPU once: the
+      notice appears once with the Windows steps.
+- [ ] 21:9 and 32:9 (7680 x 2160): menus a centred 16:9, the stage around them; in a match the view widens up to the
+      widest FOV, then stops (no fisheye); HUD width Auto keeps the HUD in a centred 16:9 on 32:9; 16:9 / 21:9 / Full
+      change it; world prompts, arcs and markers still sit on what they point at.
+- [ ] Frame-rate cap reads "Display refresh (240 Hz)" on the panel; 120 / 144 / 165 / 240 caps hold (debug overlay).
+- [ ] Photo mode on the ultrawide: the saved photo is full width (7680 px).
+- [ ] Benchmark: current settings, Every preset, Resolutions, Sustained (10 min, plugged in): note the lines (also
+      saved as feedback) and report them back.
 Desktop (mouse and keyboard, 1440p or 4K):
 - [ ] Menus fill the screen at a readable size (scaled from a 1280 x 720 layout); no Touch settings, no touch
       buttons in a match, no rotate overlay; hover highlights; Settings opens on Mouse & Keyboard.
@@ -302,9 +316,9 @@ Desktop (mouse and keyboard, 1440p or 4K):
       keys; Settings > Accessibility > Controls lists them.
 - [ ] Graphics: Epic by default; High / Ultra / Epic change the look live; changing any feature shows Custom;
       resolution scale above 100% sharpens; the frame-rate cap holds (debug overlay); FOV to 120.
-- [ ] Note the FPS (Show FPS overlay) on Warehouse, Port and Refinery at Epic: report back average / worst.
+- [ ] Note the FPS (Show FPS overlay) on the Warehouse at Epic: report back average / worst.
 - [ ] Lamps light the rooms, the nearest lamps and every guard flashlight cast shadows (walls stop them), the
-      sun / moon casts soft shadows on outdoor maps, beams show in the haze, aiming blurs the background.
+      moon casts soft shadows in the yard, beams show in the haze, aiming blurs the background.
 - [ ] Touchscreen laptop: touching the screen brings the touch controls back; the mouse hides them.
 Phone:
 - [ ] The same Epic renderer boots and plays (slower is expected); Graphics > High is playable.

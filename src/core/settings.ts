@@ -1,3 +1,4 @@
+import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, presetOf, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ShadowQuality, type TierQuality } from './quality';
@@ -100,6 +101,12 @@ export interface Settings {
     fpsCap: number;
     /** Horizontal FOV (degrees) at a 16:9 reference; wider screens see more at the sides (Hor+). */
     fovH: number;
+    /** Ultrawide: the widest horizontal FOV (degrees) Hor+ may reach before it turns Vert- (90 .. 150). */
+    maxFov: number;
+    /** Where the HUD panels sit on a wide screen (auto: a centred 16:9 above 21:9). */
+    hudWidth: HudWidth;
+    /** The integrated-GPU notice has been shown (once). */
+    gpuNotice: boolean;
     showFps: boolean;
     /** Cinematic look: gentle vignette, film grain (one combined pass). */
     vignette: boolean;
@@ -227,7 +234,7 @@ export function defaultSettings(): Settings {
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
-    video: { platform: 'auto', preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, fpsCap: 0, fovH: 75, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    video: { platform: 'auto', preset: 'epic', gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -366,6 +373,9 @@ export function sanitizeSettings(raw: unknown): Settings {
       dynamicRes: bool(v.dynamicRes, d.video.dynamicRes),
       fpsCap: pick(v.fpsCap, FPS_CAPS as readonly number[], d.video.fpsCap),
       fovH: num(v.fovH, d.video.fovH, 60, 120),
+      maxFov: num(v.maxFov, d.video.maxFov, 90, 150),
+      hudWidth: pick(v.hudWidth, HUD_WIDTHS, d.video.hudWidth),
+      gpuNotice: bool(v.gpuNotice, d.video.gpuNotice),
       showFps: bool(v.showFps, d.video.showFps),
       vignette: bool(v.vignette, d.video.vignette),
       filmGrain: bool(v.filmGrain, d.video.filmGrain),

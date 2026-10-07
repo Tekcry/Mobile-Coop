@@ -1,3 +1,4 @@
+import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
 import { FPS_CAPS, LIGHT_RANGE, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ShadowQuality, type TierQuality } from '../../core/quality';
@@ -51,6 +52,12 @@ const PLATFORM_OPTS: { value: PlatformChoice; label: string }[] = [
   { value: 'auto', label: 'Auto' },
   { value: 'desktop', label: 'Desktop' },
   { value: 'mobile', label: 'Mobile' },
+];
+const HUD_OPTS: { value: HudWidth; label: string }[] = [
+  { value: 'auto', label: 'Auto (16:9 on 32:9)' },
+  { value: '16:9', label: '16:9 centred' },
+  { value: '21:9', label: '21:9 centred' },
+  { value: 'full', label: 'Full width' },
 ];
 const CAP_OPTS = FPS_CAPS.map((v) => ({ value: v as number, label: v === 0 ? 'Off (display)' : `${v} fps` }));
 
@@ -284,8 +291,10 @@ export class SettingsScreen extends Screen {
         'Display',
         slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
         toggle('Dynamic resolution', () => s().video.dynamicRes, (v) => upd((d) => void (d.video.dynamicRes = v))),
-        choice('Frame-rate cap', CAP_OPTS, () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))),
+        choice('Frame-rate cap', CAP_OPTS.map((o) => (o.value === 0 ? { value: 0, label: `Display refresh (${Math.round(app.quality.hz)} Hz)` } : o)), () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))),
         slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
+        slider('Widest field of view (ultrawide)', { min: 90, max: 150, step: 5, get: () => s().video.maxFov, set: (v) => upd((d) => void (d.video.maxFov = v)), format: (v) => `${v}°` }),
+        choice('HUD width', HUD_OPTS, () => s().video.hudWidth, (v) => upd((d) => void (d.video.hudWidth = v))),
         toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
         toggle('Cinematic vignette', () => s().video.vignette, (v) => upd((d) => void (d.video.vignette = v))),
         toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))),
@@ -294,9 +303,24 @@ export class SettingsScreen extends Screen {
         button(desktop ? 'Fullscreen' : 'Enter fullscreen', () => void (desktop ? toggleFullscreen() : enterFullscreenLandscape()), { class: 'subtle' }),
       ),
       section(
+        'GPU',
+        h('div', {
+          class: 'row-note gpu-note',
+          text:
+            `${app.gpu.renderer || 'Unknown renderer'} (${app.gpu.kind})` +
+            (app.gpu.kind === 'integrated' ? '. This is the integrated GPU: set your browser to "High performance" in Windows Settings > System > Display > Graphics, then restart it.' : ''),
+        }),
+      ),
+      section(
         'Benchmark',
-        h('div', { class: 'row-note', text: `A ${BENCH.seconds} s camera flight through the Warehouse at your settings: average and 1% low FPS (save the result as feedback).` }),
-        button('Run benchmark', () => app.benchmark?.(), { icon: 'monitor' }),
+        h('div', {
+          class: 'row-note',
+          text: `A ${BENCH.seconds} s camera flight through the Warehouse: average and 1% low FPS per run (save the results as feedback). Every preset: High, Ultra, Epic. Resolutions: the render pixel counts of 2560x1600, 4K and 7680x2160 (where render scale 2 reaches them). Sustained: ${BENCH.sustained / 60} minutes, first vs last minute (a laptop throttling once hot).`,
+        }),
+        button('Run (current settings)', () => app.benchmark?.('current'), { icon: 'monitor' }),
+        button('Every preset', () => app.benchmark?.('presets'), { class: 'subtle' }),
+        button('Resolutions', () => app.benchmark?.('resolutions'), { class: 'subtle' }),
+        button(`Sustained (${BENCH.sustained / 60} min)`, () => app.benchmark?.('sustained'), { class: 'subtle' }),
       ),
       button('Reset to defaults', () => {
         st.reset('video');

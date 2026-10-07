@@ -1,6 +1,6 @@
 import type { Engine } from './babylon';
 import { applyRenderScale } from './engine';
-import { GRAPHICS_PRESETS, MIN_FEATURES, qualityLevel, type QualityLevel } from './quality';
+import { GRAPHICS_PRESETS, MIN_FEATURES, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
 import { flags } from './flags';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, type PacingSnapshot } from './pacing';
 import type { SettingsStore } from './settings';
@@ -25,6 +25,8 @@ export class QualityManager {
   private key = '';
   private _level: QualityLevel;
   onChange: ((l: QualityLevel) => void) | null = null;
+  /** The benchmark's per-run preset / render scale (never saved; `?gfx=` pages keep their level). */
+  private ov: { preset: FixedPreset | null; scale: number | null } | null = null;
 
   constructor(
     private engine: Engine,
@@ -78,6 +80,7 @@ export class QualityManager {
     // tests: `?gfx=` overrides for this page only
     if (flags.gfx === 'min') return qualityLevel('custom', MIN_FEATURES, true);
     if (flags.gfx) return qualityLevel(flags.gfx, GRAPHICS_PRESETS[flags.gfx]);
+    if (this.ov?.preset) return qualityLevel(this.ov.preset, GRAPHICS_PRESETS[this.ov.preset]);
     return qualityLevel(v.preset, v.gfx);
   }
 
@@ -92,6 +95,12 @@ export class QualityManager {
     this._level = this.build();
     this.target?.applyQuality(this._level);
     this.onChange?.(this._level);
+  }
+
+  /** Benchmark runs: a preset and / or render scale for now only (null: back to the settings). */
+  setOverride(o: { preset: FixedPreset | null; scale: number | null } | null): void {
+    this.ov = o;
+    this.apply();
   }
 
   setTarget(t: QualityTarget | null): void {
@@ -111,7 +120,7 @@ export class QualityManager {
   /** Render resolution: native (no DPR cap) x the render scale x dynamic resolution. */
   private applyScale(): void {
     // (`?gfx=min`: DPR 1, as the phone-era tests ran)
-    if (flags.gfx === 'min') applyRenderScale(this.engine, 1, 1);
-    else applyRenderScale(this.engine, this.settings.get().video.renderScale * this.res.scale, Infinity);
+    if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
+    else applyRenderScale(this.engine, (this.ov?.scale ?? this.settings.get().video.renderScale) * this.res.scale, Infinity);
   }
 }

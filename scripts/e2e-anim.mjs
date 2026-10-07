@@ -2,7 +2,7 @@
 // Grounds, headless stepping): responsiveness (visible within one frame, 90% speed times, stops, pivots,
 // travel and aim turn rates), stance and aim transitions, weapon clip timings, foot locking (< 1 cm) in
 // every gait, transition continuity, hit flinch, camera follow lag / framing blends / shoulder swap /
-// bob / drift / sprint FOV / bounded angular velocity and acceleration, and 60 vs 120 Hz parity.
+// bob / drift / sprint FOV / bounded angular velocity and acceleration, and 60 / 120 / 144 / 165 / 240 Hz parity.
 // (Cover choreography bars live in e2e-stealth.)
 import { launch, assert as hard } from './e2e-lib.mjs';
 
@@ -451,13 +451,17 @@ try {
   assert(within(cam.sprintFov, 2.5, 4.5), `sprint widens the FOV by ${f2(cam.sprintFov)} deg (+4)`);
   assert(cam.maxW > 2 && cam.maxW < 6.5 && cam.maxA < 250, `stick look: angular velocity / acceleration bounded (${f2(cam.maxW)} rad/s, ${f2(cam.maxA)} rad/s^2${process.env.SOFT ? ', ' + cam.maxAAt : ''})`);
 
-  // ---------------------------------------------------------------- 60 vs 120 Hz parity
-  console.log('60 vs 120 Hz parity');
+  // ---------------------------------------------------------------- refresh-rate parity (60 / 120 / 144 / 165 / 240 Hz)
+  console.log('refresh-rate parity');
   const parity = await G(() => {
     const t = window.__t;
     const g = window.__app.current;
     const p = g.player;
     const go = (hz) => {
+      t.tp(8, -14, -Math.PI / 2);
+      // every run from the same gait clock (else the lead foot is whatever the previous run left)
+      p.controller.motion.phase = 0;
+      p.controller['prevPhase'] = 0;
       t.tp(8, -14, -Math.PI / 2);
       t.run(1.0, { y: 1 }, null, hz);
       p.cam.yaw = -Math.PI / 2 + 0.6;
@@ -469,14 +473,17 @@ try {
       const L = p.rig.planner.L;
       const R = p.rig.planner.R;
       const cp = p.cam.camera.position;
-      return { x: c.pos.x, z: c.pos.z, yaw: c.yaw, lx: L.x, lz: L.z, rx: R.x, rz: R.z, cx: cp.x, cy: cp.y, cz: cp.z };
+      return { hz, x: c.pos.x, z: c.pos.z, yaw: c.yaw, lx: L.x, lz: L.z, rx: R.x, rz: R.z, cx: cp.x, cy: cp.y, cz: cp.z };
     };
-    return { a: go(60), b: go(120) };
+    return [60, 120, 144, 165, 240].map(go);
   });
-  const d = (k1, k2) => Math.hypot(parity.a[k1] - parity.b[k1], parity.a[k2] - parity.b[k2]);
-  assert(d('x', 'z') < 0.02 && Math.abs(parity.a.yaw - parity.b.yaw) < 0.02, `root motion matches at 60 and 120 Hz (${(d('x', 'z') * 100).toFixed(2)} cm, ${(Math.abs(parity.a.yaw - parity.b.yaw) * 57.3).toFixed(2)} deg)`);
-  assert(d('lx', 'lz') < 0.04 && d('rx', 'rz') < 0.04, `feet land in the same places (${(d('lx', 'lz') * 100).toFixed(1)} / ${(d('rx', 'rz') * 100).toFixed(1)} cm)`);
-  assert(d('cx', 'cz') < 0.03 && Math.abs(parity.a.cy - parity.b.cy) < 0.02, `camera matches (${(d('cx', 'cz') * 100).toFixed(1)} cm)`);
+  const a0 = parity[0];
+  for (const b of parity.slice(1)) {
+    const d = (k1, k2) => Math.hypot(a0[k1] - b[k1], a0[k2] - b[k2]);
+    assert(d('x', 'z') < 0.02 && Math.abs(a0.yaw - b.yaw) < 0.02, `${b.hz} Hz: root motion matches 60 Hz (${(d('x', 'z') * 100).toFixed(2)} cm, ${(Math.abs(a0.yaw - b.yaw) * 57.3).toFixed(2)} deg)`);
+    assert(d('lx', 'lz') < 0.04 && d('rx', 'rz') < 0.04, `${b.hz} Hz: feet land in the same places (${(d('lx', 'lz') * 100).toFixed(1)} / ${(d('rx', 'rz') * 100).toFixed(1)} cm)`);
+    assert(d('cx', 'cz') < 0.03 && Math.abs(a0.cy - b.cy) < 0.02, `${b.hz} Hz: camera matches (${(d('cx', 'cz') * 100).toFixed(1)} cm)`);
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

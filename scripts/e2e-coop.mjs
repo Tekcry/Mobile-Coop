@@ -64,8 +64,8 @@ try {
 
   console.log('host starts a wave match');
   await A.click('.lobby-actions .btn:has-text("Start match")');
-  await until(A, () => window.__app.current?.net && window.__app.current.enemyMgr, null, 30000, 'host match');
-  await until(B, () => window.__app.current?.net && window.__app.current.puppet, null, 30000, 'client match');
+  await until(A, () => window.__app.current?.net && window.__app.current.enemyMgr, null, 60000, 'host match');
+  await until(B, () => window.__app.current?.net && window.__app.current.puppet, null, 60000, 'client match');
   // host + client players invulnerable while we test hits
   await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
   await until(A, () => window.__app.current.net.remotes.values().next().value?.state, null, 10000, 'client states reach host');
@@ -118,13 +118,15 @@ try {
     for (const r of g.net.remotes.values()) r.allowTeleport(5);
     for (const e of g.enemyMgr.enemies) e['stagger'] = 99;
     const v = g.enemyMgr.enemies.find((e) => e.id === id);
-    if (v && g.world.map.id === 'warehouse') v.pos.set(6, 0, -6);
+    if (v && g.world.map.id === 'warehouse') v.pos.set(13, 0, -6.5);
   }, victim);
-  await wait(400);
+  // the client's copy follows over the next snapshots: stand beside it once it is there
+  await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !!p && Math.hypot(p.pos.x - 13, p.pos.z + 6.5) < 1.5; }, victim, 15000, 'puppet moved');
   await GB((id) => {
     const g = window.__app.current;
     const p = g.net.puppets.get(id);
-    g.player.controller.teleport(p.pos.add(new p.pos.constructor(0, 0.2, -2.2)), 0);
+    // north of it on the open factory floor (the corridor wall is just south)
+    g.player.controller.teleport(p.pos.add(new p.pos.constructor(0, 0.2, 2.2)), Math.PI);
   }, victim);
   await wait(500);
   let killed = false;
@@ -245,7 +247,12 @@ try {
     return { id: it.id, x: it.pos.x, y: it.pos.y, z: it.pos.z, idx: d.index };
   });
   await moveClient(B, di.x + 0.6, di.y + 0.1, di.z, 0);
-  await GB((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === id); it.onUse(it); }, di.id);
+  // (retried: the host checks reach against the client's latest state, which can lag under load)
+  for (let i = 0; i < 10 && !(await GA((k) => window.__app.current.world.doors.list[k].target === 1, di.idx)); i++) {
+    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
+    await GB((id) => { const it = window.__app.current.interactables.items.find((i) => i.id === id); it.onUse(it); }, di.id);
+    await wait(400);
+  }
   await until(A, (i) => window.__app.current.world.doors.list[i].target === 1, di.idx, 5000, 'host opens the door the client used');
   assert(true, 'client uses a door through the host (reach checked)');
   // takedown: a calm guard on open floor, the client right behind it
@@ -259,17 +266,26 @@ try {
   }, tdv);
   await wait(600);
   await moveClient(B, 6, 0.1, -7.1, 0);
-  const tdStarted = await GB(async (id) => {
-    const g = window.__app.current;
-    for (let i = 0; i < 60; i++) {
+  // (the guard is held on its spot while the client's offer comes round: a calm patrol would walk it off)
+  let tdStarted = 'offer none';
+  for (let i = 0; i < 40 && tdStarted !== true; i++) {
+    await GA((id) => {
+      const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id);
+      if (v) {
+        v.pos.set(6, 0, -6);
+        v.yaw = 0;
+      }
+    }, tdv);
+    tdStarted = await GB((id) => {
+      const g = window.__app.current;
       if (g.takedown.offer?.e.id === id) {
         g.takedown.start(false);
         return true;
       }
-      await new Promise((r) => setTimeout(r, 50));
-    }
-    return `offer ${g.takedown.offer?.e.id ?? 'none'}`;
-  }, tdv);
+      return `offer ${g.takedown.offer?.e.id ?? 'none'}`;
+    }, tdv);
+    if (tdStarted !== true) await wait(150);
+  }
   assert(tdStarted === true, `client takedown offered on the host's guard (${tdStarted})`);
   await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || (!e.alive && e.ko); }, tdv, 8000, 'host knocks the guard out');
   assert(true, 'client takedown knocks the host enemy out');
@@ -354,9 +370,9 @@ try {
   await toLobby();
 
   console.log('infiltration co-op: the mission and its objectives reach the client');
-  await startMode('infiltration', 'embassy', 'embassy-pouch');
+  await startMode('infiltration', 'warehouse', 'warehouse-ledger');
   const inf = await GB(() => ({ map: window.__app.current.world.map.id, mode: window.__app.current.opts.mode }));
-  assert(inf.map === 'embassy' && inf.mode === 'infiltration', `client on the mission's map (${JSON.stringify(inf)})`);
+  assert(inf.map === 'warehouse' && inf.mode === 'infiltration', `client on the mission's map (${JSON.stringify(inf)})`);
   await until(B, () => (window.__app.current.interactables?.items ?? []).some((i) => i.kind !== 'door' && i.kind !== 'revive'), null, 10000, 'objective items on the client');
   const obj = await GB(() => window.__app.current.hud['objective']?.textContent ?? '');
   assert(true, `client sees the mission's objectives (${obj})`);

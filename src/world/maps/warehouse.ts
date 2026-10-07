@@ -124,7 +124,7 @@ export const warehouse: MapDef = {
   id: 'warehouse',
   name: 'Warehouse',
   description: 'Close quarters: dock, racking aisles, offices, corridors and a factory floor.',
-  modes: ['clear', 'mission', 'wave', 'tdm', 'ffa'],
+  modes: ['clear', 'sandbox', 'wave', 'mission', 'infiltration', 'tdm', 'ffa'],
   theme: {
     sky: '#0b111b',
     horizon: '#2b3440',

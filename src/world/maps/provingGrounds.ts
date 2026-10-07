@@ -16,7 +16,7 @@ export const provingGrounds: MapDef = {
   id: 'proving',
   name: 'Proving Grounds',
   description: 'Training yard with ramps, stairs, cover and physics props.',
-  modes: ['sandbox', 'wave', 'clear', 'training'],
+  modes: ['sandbox', 'training'],
   theme: {
     sky: '#8fb8de',
     horizon: '#d5e6f2',

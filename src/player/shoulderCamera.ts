@@ -5,6 +5,7 @@ import { ATTACH_FRAMING, attachFraming, CAMERA, framing, type AttachCamera, type
 import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
+import { vfovFor } from '../core/display';
 
 /** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
 export function vfovFromH16x9(hDeg: number): number {
@@ -58,6 +59,8 @@ export class ShoulderCamera {
   /** FOV multiplier while fully ADS (weapon zoom). */
   adsZoom = 0.75;
   baseFovDeg = CAMERA.fov;
+  /** Ultrawide cap (deg): Hor+ up to this horizontal angle, then Vert- (`video.maxFov`). */
+  maxFovDeg = 120;
   /** State nudges set by the player each frame. */
   crouch = 0;
   /** Attached traversal framing preset (null = none). */
@@ -115,7 +118,7 @@ export class ShoulderCamera {
     this.camera.minZ = 0.05;
     this.camera.maxZ = 220;
     // Hor+: the vertical FOV is fixed from the horizontal setting at 16:9, so tall framing (head to
-    // hips) holds on any aspect and ultra-wide phones simply see more at the sides
+    // hips) holds on any aspect and wider screens see more at the sides, up to `maxFovDeg` (then Vert-)
     this.camera.fovMode = Camera.FOVMODE_VERTICAL_FIXED;
     this.camera.inputs.clear();
     // the up vector follows the full rotation every frame; otherwise Babylon rebuilds it (pitch included)
@@ -283,7 +286,12 @@ export class ShoulderCamera {
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     const zoom = 1 + (this.adsZoom - 1) * this.ads;
-    this.camera.fov = vfovFromH16x9(this.baseFovDeg + dashS * 4) * zoom;
+    this.camera.fov = this.vfov(this.baseFovDeg + dashS * 4) * zoom;
+  }
+
+  /** The vertical FOV for a horizontal angle at 16:9 on this screen (Hor+, capped at `maxFovDeg`). */
+  vfov(hDeg: number): number {
+    return vfovFor(hDeg, this.scene.getEngine().getAspectRatio(this.camera), this.maxFovDeg);
   }
 
   /**

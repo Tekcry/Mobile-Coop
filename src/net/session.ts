@@ -40,7 +40,7 @@ export class NetSession {
   readonly players = new Map<string, PlayerInfo>();
   hostId: string | null;
   mode: NetMode = 'wave';
-  map = 'depot';
+  map = 'warehouse';
   difficulty: Difficulty = 'normal';
   mission = '';
   phase: 'lobby' | 'playing' = 'lobby';

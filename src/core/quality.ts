@@ -4,6 +4,8 @@
  * drops quality by device; dynamic resolution is an optional toggle (off by default).
  */
 export type GraphicsPreset = 'high' | 'ultra' | 'epic' | 'custom';
+/** A named preset (not Custom). */
+export type FixedPreset = Exclude<GraphicsPreset, 'custom'>;
 export type ShadowQuality = 'off' | 'high' | 'ultra' | 'epic';
 export type AaMode = 'fxaa' | 'msaa' | 'taa';
 export type TierQuality = 'high' | 'ultra' | 'epic';
@@ -35,7 +37,7 @@ export interface GraphicsFeatures {
   effects: TierQuality;
 }
 
-export const GRAPHICS_PRESETS: Record<Exclude<GraphicsPreset, 'custom'>, GraphicsFeatures> = {
+export const GRAPHICS_PRESETS: Record<FixedPreset, GraphicsFeatures> = {
   high: { shadows: 'high', lights: 16, ao: true, bloom: true, ssr: false, volumetrics: false, dof: true, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' },
   ultra: { shadows: 'ultra', lights: 24, ao: true, bloom: true, ssr: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'msaa', textures: 'ultra', detail: 'ultra', effects: 'ultra' },
   epic: { shadows: 'epic', lights: 32, ao: true, bloom: true, ssr: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'taa', textures: 'epic', detail: 'epic', effects: 'epic' },

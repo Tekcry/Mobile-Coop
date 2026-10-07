@@ -16,7 +16,7 @@ const MODES: { id: ModeId; label: string; desc: string }[] = [
   { id: 'clear', label: 'Hunter', desc: 'Clear every hostile in the area, starting undetected. If they raise the alarm, their numbers double.' },
   { id: 'infiltration', label: 'Infiltration', desc: 'Objective missions: uploads, bugs, rescues, sabotage, intel and extraction. Choose your way in.' },
   { id: 'training', label: 'Training', desc: 'Learn each move, one at a time: cover, vaults, ladders, goggles, takedowns, Mark & Execute, gadgets.' },
-  { id: 'sandbox', label: 'Free Roam', desc: 'Practice range with every weapon and training targets.' },
+  { id: 'sandbox', label: 'Free Roam', desc: 'No guards: explore the map with every weapon (Proving Grounds adds training targets).' },
 ];
 
 const STARS = (n: number): string => '\u2605'.repeat(n) + '\u2606'.repeat(3 - n);
@@ -42,6 +42,14 @@ export class PlayScreen extends Screen {
     this.build();
   }
 
+  /** A mode change starts on that mode's default map (Warehouse; Training: Proving Grounds). */
+  private setMode(v: ModeId): void {
+    this.mode = v;
+    const maps = this.mapsForMode();
+    if (maps[0]) this.mapId = maps[0].id;
+    this.rebuild();
+  }
+
   private mapsForMode(): typeof MAPS {
     return MAPS.filter((m) => m.modes.includes(this.mode));
   }
@@ -60,8 +68,7 @@ export class PlayScreen extends Screen {
       MODES.map((m) => ({ value: m.id, label: m.label })),
       () => this.mode,
       (v) => {
-        this.mode = v;
-        this.rebuild();
+        this.setMode(v);
       },
     );
     const mapChoice = choice(
@@ -98,8 +105,7 @@ export class PlayScreen extends Screen {
       MODES.map((x) => ({ value: x.id, label: x.label })),
       () => this.mode,
       (v) => {
-        this.mode = v;
-        this.rebuild();
+        this.setMode(v);
       },
     );
     modeChoice.dataset.autofocus = '';

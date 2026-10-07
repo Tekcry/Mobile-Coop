@@ -22,8 +22,11 @@ export function isPhotoHost(s: unknown): s is PhotoHost {
 const SPEED = 3;
 const FAST = 3.5;
 const DRAG_LOOK = 0.005;
-/** Longest side of a saved photo (px). */
-const MAX_SIDE = 1920;
+/** Longest side of a saved photo (px): full output resolution up to a 7680 x 2160 ultrawide. */
+const MAX_SIDE = 7680;
+/** A photo stays under this (bytes): the JPEG quality steps down until it fits. */
+const MAX_BYTES = 8 * 1024 * 1024;
+const QUALITIES = [0.9, 0.8, 0.7, 0.6];
 
 /**
  * Photo mode: the game frozen (single player; co-op keeps running), every HUD and menu hidden, a free camera
@@ -228,15 +231,22 @@ export class PhotoModeScreen extends Screen {
       out.width = Math.round(src.width * k);
       out.height = Math.round(src.height * k);
       out.getContext('2d')?.drawImage(src, 0, 0, out.width, out.height);
-      out.toBlob(
-        (b) => {
-          if (!b) return;
-          this.shot = b;
-          this.showReview();
-        },
-        'image/jpeg',
-        0.88,
-      );
+      const encode = (i: number): void => {
+        out.toBlob(
+          (b) => {
+            if (!b) return;
+            if (b.size > MAX_BYTES && i + 1 < QUALITIES.length) {
+              encode(i + 1);
+              return;
+            }
+            this.shot = b;
+            this.showReview();
+          },
+          'image/jpeg',
+          QUALITIES[i],
+        );
+      };
+      encode(0);
     });
   }
 

@@ -3,7 +3,6 @@ import type { Enemy } from '../ai/enemy';
 import type { InputState } from '../input/inputState';
 import { G, MASK } from '../physics/groups';
 import { hyp2, hyp3 } from '../core/mathx';
-import { vfovFromH16x9 } from '../player/shoulderCamera';
 import { DRONE, droneStep, GADGET_IDS, GADGETS, wheelSlot, type DroneState, type GadgetId } from './gadgets';
 import type { HitInfo } from './damage';
 import type { GameState } from './gameState';
@@ -797,14 +796,14 @@ export class GadgetSystem {
         this.viewDir(c.yaw, c.pitch, this.dir);
         camera.position.copyFrom(this.dir).scaleInPlace(0.06).addInPlace(c.p);
         camera.rotation.set(-c.pitch, c.yaw, 0);
-        camera.fov = vfovFromH16x9(g.app.input.state.down('ads') ? 40 : 95);
+        camera.fov = g.player.cam.vfov(g.app.input.state.down('ads') ? 40 : 95);
       }
     } else if (this.remote === 'drone' && dr) {
       camera.position.set(dr.s.x, dr.s.y - 0.06, dr.s.z);
       this.viewDir(dr.s.yaw, dr.pitch, this.dir);
       camera.position.addInPlace(this.dir.scale(0.12));
       camera.rotation.set(-dr.pitch, dr.s.yaw, 0);
-      camera.fov = vfovFromH16x9(85);
+      camera.fov = g.player.cam.vfov(85);
     }
     this.drawArc();
   }

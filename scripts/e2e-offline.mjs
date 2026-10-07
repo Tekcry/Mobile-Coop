@@ -51,14 +51,14 @@ try {
   const status = await G(() => document.getElementById('boot-status')?.textContent ?? '');
   assert(!/Failed/.test(status), `boots offline (${status})`);
   assert(await G(() => !!document.querySelector('.main-menu')), 'main menu offline');
-  await page.goto(url + '?autostart=depot&mode=wave&gfx=min');
+  await page.goto(url + '?autostart=warehouse&mode=wave&gfx=min');
   await booted();
   await page.waitForFunction(() => window.__app?.current?.enemyMgr, null, { timeout: 60000 });
   await G(() => window.__app.loop.stepHeadless(8));
   const alive = await G(() => window.__app.current.enemyMgr.alive);
   assert(alive > 0, `wave match runs offline (${alive} enemies)`);
-  // an Infiltration mission (the Embassy) offline: objectives, guards, the download runs at the terminal
-  await page.goto(url + '?autostart=embassy&mode=infiltration&gfx=min');
+  // an Infiltration mission (Warehouse) offline: objectives, guards, the download runs at the terminal
+  await page.goto(url + '?autostart=warehouse&mode=infiltration&gfx=min');
   await booted();
   await page.waitForFunction(() => window.__app?.current?.mode?.id === 'infiltration', null, { timeout: 60000 });
   await G(() => window.__app.loop.stepHeadless(3));

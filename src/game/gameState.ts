@@ -49,7 +49,7 @@ import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
-import { BENCH, benchResult, benchText, pathAt, type P3 as BenchPoint } from './benchmark';
+import { BENCH, benchPlan, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
@@ -94,8 +94,8 @@ export interface GameOptions {
   hq?: HqLevels;
   /** Gadget selected at the start (the loadout preset's). */
   gadget?: string;
-  /** Settings > Graphics > Run benchmark: a camera flight through the rooms, guards passive, then the result. */
-  benchmark?: boolean;
+  /** Settings > Graphics > Benchmark: camera flights through the rooms (one per run), guards passive, then the results. */
+  benchmark?: BenchKind;
 }
 
 /** What the coop layer plugs into a session. */
@@ -477,11 +477,14 @@ export class GameState implements AppState {
       const d = (x: number, z: number, yaw: number, strafe = 0): void => {
         this.dummies.push(new TrainingDummy(this.scene, world, this.registry, new Vector3(x, 0, z), yaw, strafe));
       };
-      d(-4, 8, Math.PI, 0);
-      d(3, 10, Math.PI, 2.5);
-      d(0, 24, Math.PI, 4);
-      d(-14, 14, Math.PI * 0.75, 0);
-      this.hud.setObjective('Free roam - try every weapon');
+      // training targets on the range; Free Roam on a real map is the map alone (no guards)
+      if (opts.map.id === 'proving') {
+        d(-4, 8, Math.PI, 0);
+        d(3, 10, Math.PI, 2.5);
+        d(0, 24, Math.PI, 4);
+        d(-14, 14, Math.PI * 0.75, 0);
+      }
+      this.hud.setObjective(opts.map.id === 'proving' ? 'Free roam - try every weapon' : 'Free roam - explore with every weapon');
     }
 
     app.debug.controllerCapsules = () => [{ feet: this.player.position, height: this.player.controller.capsuleHeight, radius: MOVEMENT.radius }];
@@ -635,7 +638,9 @@ export class GameState implements AppState {
         const s0 = this.world.layout.playerSpawns[0]!.pos;
         pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
       }
-      this.bench = { pts, t: 0, iv: [], last: 0, done: false };
+      const runs = benchPlan(this.opts.benchmark, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio));
+      this.bench = { pts, runs, idx: -1, t: 0, iv: [], last: 0, done: false, lines: [], buckets: [], bMs: 0, bN: 0, bT: 0 };
+      this.nextBenchRun();
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
     }
@@ -643,6 +648,7 @@ export class GameState implements AppState {
 
   exit(): void {
     document.body.classList.remove('photo-mode');
+    if (this.bench) this.app.quality.setOverride(null);
     this.exited = true;
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
@@ -1022,17 +1028,80 @@ export class GameState implements AppState {
     return ctx;
   }
 
-  /** Benchmark run (opts.benchmark): flight points, time, frame intervals after the warm-up. */
-  private bench: { pts: BenchPoint[]; t: number; iv: number[]; last: number; done: boolean } | null = null;
+  /** Benchmark (opts.benchmark): flight points, the runs and the current one's time and frame intervals after the
+   *  warm-up; finished runs' lines; the sustained run's per-bucket averages. */
+  private bench: {
+    pts: BenchPoint[];
+    runs: BenchRun[];
+    idx: number;
+    t: number;
+    iv: number[];
+    last: number;
+    done: boolean;
+    lines: string[];
+    buckets: number[];
+    bMs: number;
+    bN: number;
+    bT: number;
+  } | null = null;
   private readonly benchP: BenchPoint = { x: 0, y: 0, z: 0 };
   private readonly benchQ: BenchPoint = { x: 0, y: 0, z: 0 };
 
+  /** Start the next run (its preset / render scale for now only), or show the results. */
+  private nextBenchRun(): void {
+    const b = this.bench;
+    if (!b) return;
+    b.idx++;
+    b.t = 0;
+    b.iv = [];
+    b.last = 0;
+    const run = b.runs[b.idx];
+    if (run) {
+      this.app.quality.setOverride(run.preset || run.scale ? { preset: run.preset, scale: run.scale } : null);
+      return;
+    }
+    b.done = true;
+    this.app.quality.setOverride(null);
+    document.body.classList.remove('photo-mode');
+    this.paused = true;
+    const text = b.lines.join('\n');
+    this.app.screens.push(
+      new Dialog('Benchmark', text, [
+        {
+          label: 'Save to feedback',
+          action: () => {
+            const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: __APP_VERSION__, graphics: b.runs.map((r) => r.label).join(', '), device: navigator.userAgent.slice(0, 160) });
+            e.category = 'performance';
+            e.text = `Benchmark - ${text}`;
+            void this.app.feedback.save(e).then(() => this.cb.quit());
+          },
+        },
+        { label: 'Done', primary: true, action: () => this.cb.quit() },
+      ]),
+    );
+  }
+
   private benchFrame(): void {
     const b = this.bench;
-    if (!b || b.done) return;
+    const run = b?.runs[b.idx];
+    if (!b || b.done || !run) return;
     const now = performance.now();
     const real = b.last ? Math.min(0.25, (now - b.last) / 1000) : 0;
-    if (b.last && b.t > BENCH.warmup) b.iv.push(now - b.last);
+    if (b.last && b.t > BENCH.warmup) {
+      const ms = now - b.last;
+      b.iv.push(ms);
+      if (run.sustained) {
+        b.bMs += ms;
+        b.bN++;
+        b.bT += real;
+        if (b.bT >= BENCH.bucket) {
+          b.buckets.push((1000 * b.bN) / b.bMs);
+          b.bMs = 0;
+          b.bN = 0;
+          b.bT = 0;
+        }
+      }
+    }
     b.last = now;
     b.t += real;
     // guards keep patrolling but never fight; the operator takes no damage
@@ -1044,34 +1113,28 @@ export class GameState implements AppState {
     const cam = this.player.cam.camera;
     cam.position.set(p.x, p.y, p.z);
     cam.setTarget(this.dofTo.set(q.x, q.y - 0.25, q.z));
-    if (b.t >= BENCH.seconds) {
-      b.done = true;
-      document.body.classList.remove('photo-mode');
+    if (b.t >= run.seconds) {
       const r = benchResult(b.iv);
       const v = this.app.settings.get().video;
-      const where = `${this.world.map.name}, ${v.preset}, ${this.app.engine.getRenderWidth()}x${this.app.engine.getRenderHeight()}`;
-      const text = benchText(r, where);
-      this.paused = true;
-      this.app.screens.push(
-        new Dialog('Benchmark', text, [
-          {
-            label: 'Save to feedback',
-            action: () => {
-              const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: __APP_VERSION__, graphics: where, device: navigator.userAgent.slice(0, 160) });
-              e.category = 'performance';
-              e.text = `Benchmark - ${text}`;
-              void this.app.feedback.save(e).then(() => this.cb.quit());
-            },
-          },
-          { label: 'Done', primary: true, action: () => this.cb.quit() },
-        ]),
-      );
+      const where = `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${this.app.engine.getRenderWidth()}x${this.app.engine.getRenderHeight()}`;
+      let line = benchText(r, where);
+      if (run.sustained && b.buckets.length >= 2) {
+        const d = sustainedDrift(b.buckets);
+        line += `; first minute ${b.buckets[0]!.toFixed(0)} fps, last ${b.buckets[b.buckets.length - 1]!.toFixed(0)} fps (${(d * 100).toFixed(1)}%${d < -0.1 ? ', throttling' : ''})`;
+      }
+      b.lines.push(line);
+      this.nextBenchRun();
     }
   }
 
   /** The benchmark's result once finished (tests). */
   get benchmarkResult(): ReturnType<typeof benchResult> | null {
     return this.bench?.done ? benchResult(this.bench.iv) : null;
+  }
+
+  /** The finished runs' result lines (tests). */
+  get benchmarkLines(): readonly string[] {
+    return this.bench?.lines ?? [];
   }
 
   frameUpdate(dt: number, alpha: number): void {

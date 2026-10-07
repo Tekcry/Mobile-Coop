@@ -24,7 +24,7 @@ async function run(params, fn) {
 }
 
 console.log('wave survival');
-await run('autostart=depot&mode=wave', async ({ page, G, sim }) => {
+await run('autostart=warehouse&mode=wave', async ({ page, G, sim }) => {
   await G(() => { window.__app.current.target.damageMul = 0; });
   await sim(9);
   const alive = await G(() => window.__app.current.enemyMgr.alive);
@@ -53,7 +53,7 @@ await run('autostart=depot&mode=wave', async ({ page, G, sim }) => {
 });
 
 console.log('mission');
-await run('autostart=depot&mode=mission', async ({ page, G, sim }) => {
+await run('autostart=warehouse&mode=mission', async ({ page, G, sim }) => {
   await G(() => { window.__app.current.target.damageMul = 0; });
   await sim(0.5);
   const n = await G(() => window.__app.current.enemyMgr.alive);
