@@ -12,6 +12,7 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
+import { matchFov } from '../core/display';
 import { MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { TraverseKind } from '../anim/animGraph';
@@ -109,8 +110,7 @@ export class Player {
     this.cam.yaw = spawn.yaw;
     const s = getSettings();
     this.cam.shoulder = s.gameplay.defaultShoulder === 'left' ? -1 : 1;
-    this.cam.baseFovDeg = s.video.fovH;
-    this.cam.maxFovDeg = s.video.maxFov;
+    this.applyFov();
     const eng = world.scene.getPhysicsEngine() as PhysicsEngine;
     this.rig.groundProbe = (x, z, yFrom) => {
       this.rr.reset();
@@ -135,6 +135,16 @@ export class Player {
   }
 
   /** Walls in front (muzzle would clip) and close on both sides (corridor): picks compressed/high ready. */
+  /** PvP (3.1): the field of view is capped and 16:9-equivalent for everyone (`matchFov`). */
+  pvp = false;
+
+  private applyFov(): void {
+    const v = this.getSettings().video;
+    const f = matchFov(v.fovH, v.maxFov, this.pvp);
+    this.cam.baseFovDeg = f.fovH;
+    this.cam.maxFovDeg = f.maxFov;
+  }
+
   private probeContext(): void {
     const c = this.controller;
     const yaw = this.cam.yaw;
@@ -227,8 +237,7 @@ export class Player {
       } else as.inside = false;
     }
     this.cam.adsTarget = this.ads ? 1 : 0;
-    this.cam.baseFovDeg = this.getSettings().video.fovH;
-    this.cam.maxFovDeg = this.getSettings().video.maxFov;
+    this.applyFov();
     c.interpolate(alpha);
     this.cam.crouch = c.crouchBlend;
     this.cam.dash = c.dashing ? 1 : 0;

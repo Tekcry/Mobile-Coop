@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.1 phase 1 (unreleased) - one graphics ladder for PC and phones, fair PvP
+- Graphics presets are one ladder for every device: Low, Medium, High, Ultra, Epic (PC only) and Custom. Each preset
+  also sets its render scale (Low 67%, Medium 75%, High 85%, Ultra 90% with the TAAU upscaler; Epic native). Phones
+  never get Epic or ray-traced reflections (Epic shows as Ultra there). Settings from 3.0 keep their preset (with the
+  new values) or their Custom choices.
+- New graphics options: Volumetric lights (how many lamps scatter light in the air, 2-12) and Post effects
+  resolution (ambient occlusion and screen-space reflections at half or full resolution). Low and Medium keep props
+  in the 5 cm voxels (no 2.5 cm prop layer); Low has a lighter shadow set (sun only), Medium two lamp shadows.
+- Fog is drawn on every preset (Volumetric light now only adds the light shafts): what a player can see at a
+  distance does not depend on graphics settings.
+- Far-away voxels never turn see-through: thin walls and panels (doors, partitions, signs) used to drop out of the
+  coarsest level of detail now and then; every filled piece is at least one voxel thick there.
+- PvP (Team Deathmatch, Free-for-all) is fair between PC and phones: the field of view is capped at 90 and held at
+  its 16:9 width on wider screens (ultrawide and phones see no more of the sides), Panini is off. The lobby says so.
+- The benchmark's "every preset" runs Low to Epic (Low to Ultra on phones).
+
 ## 3.0.0 - PC renderer, Warehouse focus, desktop interface, playtest feedback
 - Focus: the Warehouse is the one playable map and runs every mode - Hunter, Wave, Mission, Infiltration (four
   missions: Cold Storage, Ledger, Courier, Blackout - every objective type), Free Roam (new: the whole map, no

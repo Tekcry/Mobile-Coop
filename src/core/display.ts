@@ -21,6 +21,19 @@ export function vfovFor(hDeg16x9: number, aspect: number, maxHDeg: number): numb
   return 2 * Math.atan(Math.tan(max / 2) / a);
 }
 
+/** PvP (3.1, crossplay fairness): the widest horizontal FOV anyone gets (deg, at 16:9). */
+export const PVP_MAX_FOV = 90;
+
+/**
+ * The FOV settings a match uses. PvP: capped at `PVP_MAX_FOV` and 16:9-equivalent - the horizontal angle is held at
+ * the 16:9 value on wider screens (Vert-), so an ultrawide or a phone's 19.5:9 never sees more of the sides.
+ */
+export function matchFov(fovH: number, maxFov: number, pvp: boolean): { fovH: number; maxFov: number } {
+  if (!pvp) return { fovH, maxFov };
+  const h = Math.min(fovH, PVP_MAX_FOV);
+  return { fovH: h, maxFov: h };
+}
+
 /** The horizontal FOV (degrees) a vertical FOV gives on `aspect`. */
 export function hfovDeg(vRad: number, aspect: number): number {
   return (2 * Math.atan(Math.tan(vRad / 2) * aspect)) / RAD;

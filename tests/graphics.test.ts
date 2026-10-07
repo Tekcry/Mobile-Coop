@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capAllows, GRAPHICS_PRESETS, presetOf, qualityLevel, shadowSpec } from '../src/core/quality';
+import { capAllows, forPlatform, GRAPHICS_PRESETS, MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, presetOf, qualityLevel, shadowSpec, VOXEL_TIER } from '../src/core/quality';
 import { defaultSettings, sanitizeSettings, setGfx, setPreset } from '../src/core/settings';
 
 describe('graphics settings (3.0)', () => {
@@ -11,7 +11,7 @@ describe('graphics settings (3.0)', () => {
     expect(s.video.dynamicRes).toBe(false);
   });
   it('presets climb in cost', () => {
-    const l = (['high', 'ultra', 'epic'] as const).map((p) => qualityLevel(p, GRAPHICS_PRESETS[p]));
+    const l = PRESET_IDS.map((p) => qualityLevel(p, GRAPHICS_PRESETS[p]));
     for (let i = 1; i < l.length; i++) {
       expect(l[i]!.realLights).toBeGreaterThan(l[i - 1]!.realLights);
       expect(l[i]!.shadow.casters).toBeGreaterThan(l[i - 1]!.shadow.casters);
@@ -42,6 +42,42 @@ describe('graphics settings (3.0)', () => {
     expect(back.video.gfx.lights).toBe(44);
     expect(back.video.gfx.reflections).toBe('off');
     expect(sanitizeSettings({ video: { renderScale: 9, fpsCap: 77, fovH: 200 } }).video).toMatchObject({ renderScale: 2, fpsCap: 0, fovH: 120 });
+  });
+  it('3.1 ladder: one set of presets for every device, Epic and ray tracing only on PC', () => {
+    expect(MOBILE_PRESET_IDS).toEqual(['low', 'medium', 'high', 'ultra']);
+    expect(forPlatform('epic', GRAPHICS_PRESETS.epic, true)).toEqual({ name: 'ultra', features: GRAPHICS_PRESETS.ultra });
+    expect(forPlatform('epic', GRAPHICS_PRESETS.epic, false).name).toBe('epic');
+    const rt = forPlatform('custom', { ...GRAPHICS_PRESETS.ultra, reflections: 'rt' }, true);
+    expect(rt.features.reflections).toBe('ssr');
+    expect(forPlatform('custom', { ...GRAPHICS_PRESETS.ultra, reflections: 'rt' }, false).features.reflections).toBe('rt');
+    // render scale falls with the preset; Epic is native
+    for (let i = 1; i < PRESET_IDS.length; i++) expect(PRESET_DISPLAY[PRESET_IDS[i]!].renderScale).toBeGreaterThanOrEqual(PRESET_DISPLAY[PRESET_IDS[i - 1]!].renderScale);
+    expect(PRESET_DISPLAY.epic).toEqual({ renderScale: 1, upscaler: 'off' });
+    // the level's structure voxels are the same size on every preset (what hides a player looks the same)
+    for (const p of PRESET_IDS) expect(VOXEL_TIER[p].size).toBe(VOXEL_TIER.epic.size);
+    const s = defaultSettings();
+    setPreset(s, 'medium');
+    expect(s.video.gfx).toEqual(GRAPHICS_PRESETS.medium);
+    expect(s.video.renderScale).toBe(PRESET_DISPLAY.medium.renderScale);
+    expect(s.video.upscaler).toBe('taau');
+  });
+  it('3.0 settings migrate: a preset takes the 3.1 values, a Custom set keeps its choices and gains the new fields', () => {
+    const v30 = {
+      video: {
+        platform: 'auto', preset: 'high', renderScale: 1, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120,
+        gfx: { shadows: 'high', lights: 24, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'taa', textures: 'high', detail: 'high', effects: 'high' },
+      },
+    };
+    const a = sanitizeSettings(v30);
+    expect(a.video.preset).toBe('high');
+    expect(a.video.gfx).toEqual(GRAPHICS_PRESETS.high);
+    expect(a.video.renderScale).toBe(1);
+    const b = sanitizeSettings({ ...v30, video: { ...v30.video, preset: 'custom' } });
+    expect(b.video.preset).toBe('custom');
+    expect(b.video.gfx.lights).toBe(24);
+    expect(b.video.gfx.volLights).toBe(GRAPHICS_PRESETS.epic.volLights);
+    expect(b.video.gfx.postRes).toBe(GRAPHICS_PRESETS.epic.postRes);
+    expect(sanitizeSettings({ video: { preset: 'low' } }).video.gfx).toEqual(GRAPHICS_PRESETS.low);
   });
   it('the frame limiter renders every other frame for 60 on a 120 Hz display', () => {
     expect(capAllows(8.3, 60, 8.33)).toBe(false);

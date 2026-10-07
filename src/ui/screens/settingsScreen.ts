@@ -27,6 +27,8 @@ const CURVE_OPTS: { value: CurveKind; label: string }[] = [
   { value: 'aggressive', label: 'Aggressive' },
 ];
 const PRESET_OPTS: { value: GraphicsPreset; label: string }[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
   { value: 'ultra', label: 'Ultra' },
   { value: 'epic', label: 'Epic' },
@@ -34,11 +36,15 @@ const PRESET_OPTS: { value: GraphicsPreset; label: string }[] = [
 ];
 const SHADOW_OPTS: { value: ShadowQuality; label: string }[] = [
   { value: 'off', label: 'Off' },
+  { value: 'low', label: 'Low (moon)' },
+  { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
   { value: 'ultra', label: 'Ultra' },
   { value: 'epic', label: 'Epic (soft)' },
 ];
 const TIER_OPTS: { value: TierQuality; label: string }[] = [
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'High' },
   { value: 'ultra', label: 'Ultra' },
   { value: 'epic', label: 'Epic' },
@@ -281,7 +287,8 @@ export class SettingsScreen extends Screen {
       { class: 'rows' },
       section(
         'Quality',
-        choice('Preset', PRESET_OPTS, () => s().video.preset, (v) => {
+        // (phones: Low - Ultra; Epic and ray tracing are PC only)
+        choice('Preset', desktop ? PRESET_OPTS : PRESET_OPTS.filter((o) => o.value !== 'epic'), () => s().video.preset, (v) => {
           // (Custom is where hand changes land; picking it keeps the current features)
           if (v !== 'custom') upd((d) => setPreset(d, v));
           refresh();
@@ -295,9 +302,14 @@ export class SettingsScreen extends Screen {
         tg('Ambient occlusion', 'ao'),
         tg('Global illumination (bounce light; next map)', 'gi'),
         tg('Bloom', 'bloom'),
-        ch('Reflections', 'reflections', REFL_OPTS),
+        ch('Reflections', 'reflections', desktop ? REFL_OPTS : REFL_OPTS.filter((o) => o.value !== 'rt')),
         ch('Ray-traced reflections rate', 'rtRes', RTRES_OPTS),
-        tg('Volumetric light and fog', 'volumetrics'),
+        tg('Volumetric light (fog is always on)', 'volumetrics'),
+        slider('Volumetric lights', { min: 2, max: 12, step: 2, get: () => s().video.gfx.volLights, set: (v) => feat('volLights').set(v), format: (v) => `${v}` }),
+        ch('Post effects resolution', 'postRes', [
+          { value: 'half', label: 'Half' },
+          { value: 'full', label: 'Full' },
+        ]),
         tg('Depth of field', 'dof'),
         tg('Motion blur', 'motionBlur'),
         tg('Lens effects (aberration, dirt)', 'lens'),

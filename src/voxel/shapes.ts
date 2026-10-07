@@ -83,6 +83,24 @@ export function packShapes(shapes: readonly VoxelShape[]): Float32Array {
   return out;
 }
 
+/**
+ * Shapes for a coarse level of detail (3.1): by voxel centre, a filled shape thinner than a voxel may fall between
+ * the centres and vanish (a wall seen through at a distance). Every filled shape is made at least one voxel (and a
+ * hair) thick, so it always leaves a layer; a surface still lands within half a voxel of its own. Carves and paint
+ * keep their size. A copy; `packed` is untouched.
+ */
+export function coarseShapes(packed: Float32Array, size: number): Float32Array {
+  const out = packed.slice();
+  const h = size * 0.51;
+  for (let o = 0; o < out.length; o += SHAPE_STRIDE) {
+    if (out[o + 1] !== ShapeMode.Fill) continue;
+    out[o + 6] = Math.max(out[o + 6]!, h);
+    out[o + 7] = Math.max(out[o + 7]!, h);
+    if (out[o] === ShapeKind.Box) out[o + 8] = Math.max(out[o + 8]!, h);
+  }
+  return out;
+}
+
 /** World AABB of packed shape `i`: [minX, minY, minZ, maxX, maxY, maxZ]. */
 export function shapeBounds(sh: Float32Array, i: number, out: number[] = [0, 0, 0, 0, 0, 0]): number[] {
   const o = i * SHAPE_STRIDE;

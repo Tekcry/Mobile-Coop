@@ -156,6 +156,7 @@ class CoopScreen extends Screen {
     }
     this.body.replaceChildren(
       h('div', { class: 'row-note', text: 'Co-op for 2-4 (Wave, Hunter, Infiltration, Free Roam), PvP for up to 8 (Team Deathmatch 4v4, Free-for-all). The host runs the match; others join with the room code.' }),
+      h('div', { class: 'row-note', text: 'PvP is fair across PC and phones: base weapon damage, no suit or HQ bonuses, field of view at most 90 (16:9 width on wider screens), no Panini. Graphics settings never change what can be seen.' }),
       button('Host a room', () => void hostRoom(this.app, this.api), { icon: 'wifi', class: 'primary big', autofocus: true }),
       button('Join with code', () => this.app.screens.push(new JoinScreen(this.app, this.api)), { icon: 'user', class: 'big' }),
     );

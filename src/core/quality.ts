@@ -1,14 +1,17 @@
 /**
- * Graphics settings (pure, unit-tested). 3.0: one renderer for every device, sized for a gaming PC - presets
- * High / Ultra / Epic (default) fill the per-feature settings, changing any feature makes it Custom. Nothing
- * drops quality by device; dynamic resolution is an optional toggle (off by default).
+ * Graphics settings (pure, unit-tested). 3.1: one preset ladder for every device - Low / Medium / High / Ultra
+ * (Ultra holds 120 fps on the iPhone 17 Pro Max) and Epic (PC only) - filling the per-feature settings; changing any
+ * feature makes it Custom. Phones never get Epic or ray-traced reflections (`forPlatform`). Gameplay never depends on
+ * the preset (collision, cover, nav, perception and fog visibility are the same on every one).
  */
-export type GraphicsPreset = 'high' | 'ultra' | 'epic' | 'custom';
+export type GraphicsPreset = 'low' | 'medium' | 'high' | 'ultra' | 'epic' | 'custom';
 /** A named preset (not Custom). */
 export type FixedPreset = Exclude<GraphicsPreset, 'custom'>;
-export type ShadowQuality = 'off' | 'high' | 'ultra' | 'epic';
+export type ShadowQuality = 'off' | 'low' | 'medium' | 'high' | 'ultra' | 'epic';
 export type AaMode = 'fxaa' | 'msaa' | 'taa';
-export type TierQuality = 'high' | 'ultra' | 'epic';
+export type TierQuality = 'low' | 'medium' | 'high' | 'ultra' | 'epic';
+/** Post passes (SSAO, SSR) at half or full resolution. */
+export type PostRes = 'half' | 'full';
 /** Reflections: none, screen space, or ray traced through the voxel world (hybrid: screen space first). */
 export type ReflectionMode = 'off' | 'ssr' | 'rt';
 /** Ray-traced reflections: every pixel, or half (a checkerboard alternating each frame). */
@@ -28,8 +31,11 @@ export interface GraphicsFeatures {
   rtRes: RtRes;
   /** One-bounce global illumination per lamp circuit (baked when the map loads). */
   gi: boolean;
-  /** Volumetric light shafts and height fog. */
+  /** Volumetric light shafts (the height fog is drawn on every preset: it decides what you can see). */
   volumetrics: boolean;
+  /** Lights the volumetric pass scatters (nearest first; 2..12). */
+  volLights: number;
+  postRes: PostRes;
   /** Depth of field: aiming and the menu operator. */
   dof: boolean;
   motionBlur: boolean;
@@ -45,13 +51,35 @@ export interface GraphicsFeatures {
 }
 
 export const GRAPHICS_PRESETS: Record<FixedPreset, GraphicsFeatures> = {
-  high: { shadows: 'high', lights: 16, ao: true, bloom: true, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, dof: true, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' },
-  ultra: { shadows: 'ultra', lights: 24, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: false, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'msaa', textures: 'ultra', detail: 'ultra', effects: 'ultra' },
-  epic: { shadows: 'epic', lights: 32, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: true, volumetrics: true, dof: true, motionBlur: false, lens: true, aa: 'taa', textures: 'epic', detail: 'epic', effects: 'epic' },
+  low: { shadows: 'low', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'low', detail: 'low', effects: 'low' },
+  medium: { shadows: 'medium', lights: 12, ao: true, bloom: true, reflections: 'off', rtRes: 'half', gi: true, volumetrics: true, volLights: 6, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'medium', detail: 'medium', effects: 'medium' },
+  high: { shadows: 'high', lights: 16, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: true, volumetrics: true, volLights: 6, postRes: 'half', dof: true, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' },
+  ultra: { shadows: 'ultra', lights: 20, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: true, volumetrics: true, volLights: 8, postRes: 'full', dof: true, motionBlur: false, lens: false, aa: 'taa', textures: 'ultra', detail: 'ultra', effects: 'ultra' },
+  epic: { shadows: 'epic', lights: 32, ao: true, bloom: true, reflections: 'ssr', rtRes: 'half', gi: true, volumetrics: true, volLights: 12, postRes: 'full', dof: true, motionBlur: false, lens: true, aa: 'taa', textures: 'epic', detail: 'epic', effects: 'epic' },
 };
-export const PRESET_IDS = ['high', 'ultra', 'epic'] as const;
+export const PRESET_IDS = ['low', 'medium', 'high', 'ultra', 'epic'] as const;
+/** What phones list (Epic and ray-traced reflections are PC only). */
+export const MOBILE_PRESET_IDS = ['low', 'medium', 'high', 'ultra'] as const;
+/**
+ * A preset's render resolution: the scale and TAAU (the frame governor adapts within it). Epic renders native; the
+ * rest render smaller and resolve to full resolution over frames, so the picture stays sharp.
+ */
+export const PRESET_DISPLAY: Record<FixedPreset, { renderScale: number; upscaler: 'off' | 'taau' }> = {
+  low: { renderScale: 0.67, upscaler: 'taau' },
+  medium: { renderScale: 0.75, upscaler: 'taau' },
+  high: { renderScale: 0.85, upscaler: 'taau' },
+  ultra: { renderScale: 0.9, upscaler: 'taau' },
+  epic: { renderScale: 1, upscaler: 'off' },
+};
 /** Tests only (`?gfx=min`): every feature off, the fewest lights - headless software GL keeps its frame rate. */
-export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };
+export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };
+
+/** Phones: no Epic and no ray-traced reflections (PC only); the rest as chosen. */
+export function forPlatform(name: GraphicsPreset, f: GraphicsFeatures, mobile: boolean): { name: GraphicsPreset; features: GraphicsFeatures } {
+  if (!mobile) return { name, features: f };
+  if (name === 'epic') return { name: 'ultra', features: GRAPHICS_PRESETS.ultra };
+  return f.reflections === 'rt' ? { name, features: { ...f, reflections: 'ssr' } } : { name, features: f };
+}
 export const FEATURE_KEYS = Object.keys(GRAPHICS_PRESETS.epic) as (keyof GraphicsFeatures)[];
 export const LIGHT_RANGE = { min: 8, max: 48 } as const;
 
@@ -81,10 +109,14 @@ export function shadowSpec(q: ShadowQuality): ShadowSpec {
   switch (q) {
     case 'off':
       return { sun: false, cascades: 0, sunSize: 0, casters: 0, size: 0, soft: false };
+    case 'low':
+      return { sun: true, cascades: 1, sunSize: 1024, casters: 0, size: 0, soft: false };
+    case 'medium':
+      return { sun: true, cascades: 2, sunSize: 1024, casters: 2, size: 512, soft: false };
     case 'high':
       return { sun: true, cascades: 2, sunSize: 2048, casters: 3, size: 1024, soft: false };
     case 'ultra':
-      return { sun: true, cascades: 3, sunSize: 2048, casters: 5, size: 1024, soft: false };
+      return { sun: true, cascades: 3, sunSize: 2048, casters: 4, size: 1024, soft: false };
     case 'epic':
       return { sun: true, cascades: 4, sunSize: 4096, casters: 8, size: 2048, soft: true };
   }
@@ -92,11 +124,21 @@ export function shadowSpec(q: ShadowQuality): ShadowSpec {
 
 /** Surface texture pixels per tile (the atlas is 4 x 4 tiles: 1024 -> 4096 square, two atlases ~170 MB with mips;
  *  larger would not fit a phone's WebGL memory) and anisotropic filtering per tier. */
-export const TEXTURE_SIZE: Record<TierQuality, number> = { high: 512, ultra: 1024, epic: 1024 };
-export const TEXTURE_ANISO: Record<TierQuality, number> = { high: 4, ultra: 8, epic: 16 };
+export const TEXTURE_SIZE: Record<TierQuality, number> = { low: 256, medium: 512, high: 512, ultra: 1024, epic: 1024 };
+export const TEXTURE_ANISO: Record<TierQuality, number> = { low: 2, medium: 4, high: 4, ultra: 8, epic: 16 };
 /** Draw / animation distance multipliers and particle density per tier. */
-export const DETAIL_SCALE: Record<TierQuality, number> = { high: 2, ultra: 3, epic: 4 };
-export const EFFECT_DENSITY: Record<TierQuality, number> = { high: 1, ultra: 1.5, epic: 2 };
+export const DETAIL_SCALE: Record<TierQuality, number> = { low: 1, medium: 1.5, high: 2, ultra: 3, epic: 4 };
+export const EFFECT_DENSITY: Record<TierQuality, number> = { low: 0.4, medium: 0.7, high: 1, ultra: 1.5, epic: 2 };
+/** Voxel sizes per Detail tier (m): the structure, the prop layer (0: props on the structure layer), characters and
+ *  weapons (with their level of detail). Low halves the resolution; the levels of detail still double from there. */
+export const VOXEL_TIER: Record<TierQuality, { size: number; fine: number; character: number; weapon: number }> = {
+  // (one structure size on every preset: what hides a player must look the same for everyone)
+  low: { size: 0.05, fine: 0, character: 0.04, weapon: 0.02 },
+  medium: { size: 0.05, fine: 0, character: 0.02, weapon: 0.01 },
+  high: { size: 0.05, fine: 0.025, character: 0.02, weapon: 0.01 },
+  ultra: { size: 0.05, fine: 0.025, character: 0.02, weapon: 0.01 },
+  epic: { size: 0.05, fine: 0.025, character: 0.02, weapon: 0.01 },
+};
 
 /** The live level the game applies (`QualityTarget.applyQuality`). */
 export interface QualityLevel {

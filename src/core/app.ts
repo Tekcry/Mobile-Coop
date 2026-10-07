@@ -163,6 +163,7 @@ export class App {
     c.toggle('can-touch', this.platform.touch);
     document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, window.innerWidth, window.innerHeight)));
     document.documentElement.style.setProperty('--hud-inset', `${hudInset(window.innerWidth, window.innerHeight, this.settings.get().video.hudWidth)}px`);
+    this.quality?.setMobile(p === 'mobile');
     if (p !== before) this.onPlatform?.();
   }
 

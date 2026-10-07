@@ -18,7 +18,7 @@ export interface Flags {
   /** Coop transport: 'local' = BroadcastChannel between tabs (tests), default WebRTC. */
   net: 'local' | 'webrtc';
   /** Graphics override for this page (tests; not saved): 'min' = everything off at DPR 1, or a preset. */
-  gfx: 'min' | 'high' | 'ultra' | 'epic' | null;
+  gfx: 'min' | 'low' | 'medium' | 'high' | 'ultra' | 'epic' | null;
   /** 3.0 voxel world (`?voxels=0`: the blockout's boxes, for comparisons). */
   voxels: boolean;
   /** Autostart weather (clear | rain | fog). */
@@ -47,7 +47,7 @@ export const flags: Flags = {
   difficulty: params.get('difficulty'),
   room: params.get('room'),
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
-  gfx: (['min', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
+  gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
   voxels: params.get('voxels') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
 };

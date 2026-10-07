@@ -843,6 +843,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   5-shot window that kills outright. Dual takedowns: two players finishing within `DUAL_WINDOW` 1.5 s ->
   banner (relayed) + style.
 - PvP fairness: `pvpLoadout` (base damage), no suit / HQ in `tdm | ffa`, `maxHitDamage(def, head, false)` on the host.
+  3.1 crossplay: `core/display.ts` `matchFov` (`PVP_MAX_FOV` 90, `maxFov` = `fovH`: 16:9-equivalent, Vert- on wider
+  screens; `Player.pvp`), `QualityManager.setPvp` (Panini off); graphics never change gameplay or what can be seen (fog on
+  every preset, `tests/losParity.test.ts`).
 - PvP (`net/pvp.ts`, pure: `PvpScore`, `pickSpawn`, `balanceTeam`, `pvpInfo`): `GameState.pvp` (no AI / mode;
   pickups only); the host owns the score (`frag` events, `score` + `tl` in snapshots), respawns (`PVP.respawn`,
   protection), the end (`winner` in `end`). Damage rules: `PlayerTarget.friendly` / `RemotePlayer.friendly`
@@ -872,15 +875,20 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## Audio and quality
 - `app.audio` (AudioEngine), `app.sfx` (Sfx voices), `app.music`. Every voice must early-out when the
   context is missing/suspended (before the first gesture). Game wiring lives in `audio/gameAudio.ts`.
-- Graphics (3.0, `core/quality.ts` pure): `GRAPHICS_PRESETS` High / Ultra / Epic fill `GraphicsFeatures` (shadows
-  off / high / ultra / epic -> `shadowSpec`: sun cascades, lamp / flashlight casters 3 / 5 / 8 (WebGL's 16 texture
-  units), map size, PCSS; lights 8-48; ao, bloom, reflections off / ssr / rt (+ `rtRes` half / full), volumetrics, dof, motionBlur, lens, aa fxaa / msaa / taa,
+- Graphics (3.0, 3.1 ladder; `core/quality.ts` pure): `GRAPHICS_PRESETS` Low / Medium / High / Ultra / Epic (`PRESET_IDS`;
+  phones `MOBILE_PRESET_IDS` without Epic, `forPlatform` maps Epic -> Ultra and rt -> ssr on mobile, `QualityManager.setMobile`
+  from `App.applyPlatform`) fill `GraphicsFeatures` (shadows off / low / medium / high / ultra / epic -> `shadowSpec`: sun
+  cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 8 (WebGL's 16 texture units), map size, PCSS; lights 8-48; ao,
+  bloom, reflections off / ssr / rt (+ `rtRes` half / full), volumetrics (shafts only: the height fog is drawn on every
+  preset, fairness) + `volLights` 2-12, `postRes` half / full (SSAO ratio, SSR downsample), dof, motionBlur, lens, aa fxaa / msaa / taa,
   textures / detail / effects tiers), `presetOf` (Custom), `qualityLevel` -> `QualityLevel`. Settings `video.preset`,
   `video.gfx`, `renderScale` 0.5-2 (native DPR, no cap), `dynamicRes` (off), `fpsCap` (`GameLoop.fpsCap`,
-  `capAllows`), `fovH` 60-120; `setGfx` / `setPreset`. `app.quality` (QualityManager) applies the level to the state's
+  `capAllows`), `fovH` 60-120; `setGfx` / `setPreset` (also sets `renderScale` / `upscaler` from `PRESET_DISPLAY`:
+  Low 0.67 .. Ultra 0.9 TAAU, Epic native). `VOXEL_TIER` per Detail tier: structure 5 cm on every preset (fairness),
+  the 2.5 cm prop layer from High up, character / weapon voxel sizes; `VOXEL_LOD` distances per tier. `app.quality` (QualityManager) applies the level to the state's
   `applyQuality(level)` (GameState: `World.applyQuality` + `PostStack.apply`; MenuState: lamp shadows + its stack),
   feeds `RefreshDetector` (raw rAF intervals), `FrameStats` and, only with dynamic resolution, the
-  `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|high|ultra|epic` overrides for a page;
+  `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|low|medium|high|ultra|epic` overrides for a page;
   `QualityManager.setOverride({ preset, scale })` is the benchmark's per-run override (never saved; ignored under `?gfx=`).
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
   Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Clear match on the Warehouse with `opts.benchmark`;
@@ -935,6 +943,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   tier: Epic 30 / 60 m). `voxelCache.ts`: chunk results in IndexedDB `kv` (`voxel:<map>:<seed>:<size>:<levels>:v<VOXEL_VERSION>:<hash>`,
   newest 4 kept). `World.create(.., { voxel })` (GameState: 5 cm x 3 levels with AO / micro; `?gfx=min` 20 cm x 1, no
   AO / micro; `?voxels=0` the old boxes); chunk meshes are shadow casters and in the reflection probe.
+  Coarse levels rasterise `coarseShapes` (every filled shape >= one voxel thick, so thin walls never drop out at a
+  distance). `tests/losParity.test.ts` (3.1): sight lines through the Warehouse agree for every preset's layers and
+  levels (against Epic up close), except lines grazing a surface within the coarsest voxel's reach; a line through
+  every thin piece stays blocked at every level.
   `tests/voxelFit.test.ts`: parity (voxelising changes no cover face, ledge or solid) and fit (+-3 cm on every axis
   cover face, ledge lip and floor top against the plain blockout, art layer and fine layer included; round pillars:
   half a voxel's diagonal plus the curve's sag).

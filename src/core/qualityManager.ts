@@ -1,6 +1,6 @@
 import type { Engine } from './babylon';
 import { applyRenderScale } from './engine';
-import { GRAPHICS_PRESETS, MIN_FEATURES, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
+import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, qualityLevel, type FixedPreset, type QualityLevel } from './quality';
 import { flags } from './flags';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, type PacingSnapshot } from './pacing';
 import type { SettingsStore } from './settings';
@@ -80,9 +80,26 @@ export class QualityManager {
     // tests: `?gfx=` overrides for this page only
     if (flags.gfx === 'min') return qualityLevel('custom', MIN_FEATURES, true);
     const up = this.taau ? (this.ov?.scale ?? v.renderScale) : 1;
-    if (flags.gfx) return qualityLevel(flags.gfx, GRAPHICS_PRESETS[flags.gfx], false, up, v.panini);
-    if (this.ov?.preset) return qualityLevel(this.ov.preset, GRAPHICS_PRESETS[this.ov.preset], false, up, v.panini);
-    return qualityLevel(v.preset, v.gfx, false, up, v.panini);
+    const pick = flags.gfx ? { name: flags.gfx, f: GRAPHICS_PRESETS[flags.gfx] } : this.ov?.preset ? { name: this.ov.preset, f: GRAPHICS_PRESETS[this.ov.preset] } : { name: v.preset, f: v.gfx };
+    // phones: no Epic, no ray-traced reflections
+    const p = forPlatform(pick.name, pick.f, this.mobile);
+    return qualityLevel(p.name, p.features, false, up, this.pvp ? 0 : v.panini);
+  }
+
+  /** A PvP match (3.1): no Panini (everyone sees the same projection). */
+  private pvp = false;
+  setPvp(on: boolean): void {
+    if (on === this.pvp) return;
+    this.pvp = on;
+    this.apply();
+  }
+
+  /** The device is a phone / tablet (Epic and ray tracing are PC only). */
+  private mobile = false;
+  setMobile(m: boolean): void {
+    if (m === this.mobile) return;
+    this.mobile = m;
+    this.apply();
   }
 
   /** TAAU upscaling: on, with a render scale under 1 (the canvas stays at the display's resolution). */

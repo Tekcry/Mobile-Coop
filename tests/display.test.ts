@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aspectLabel, classifyGpu, hfovDeg, hudInset, vfovFor } from '../src/core/display';
+import { aspectLabel, classifyGpu, hfovDeg, hudInset, matchFov, PVP_MAX_FOV, vfovFor } from '../src/core/display';
 
 describe('ultrawide field of view', () => {
   it('is Hor+ from the 16:9 setting: same vertical angle, wider sides', () => {
@@ -47,5 +47,16 @@ describe('display labels and GPU check', () => {
     expect(classifyGpu('ANGLE (AMD, AMD Radeon RX 7900 XTX Direct3D11 vs_5_0 ps_5_0, D3D11)')).toBe('discrete');
     expect(classifyGpu('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)')).toBe('software');
     expect(classifyGpu('')).toBe('unknown');
+  });
+});
+
+describe('PvP field of view (3.1, crossplay fairness)', () => {
+  it('is capped and 16:9-equivalent: no screen sees more of the sides', () => {
+    expect(matchFov(110, 120, false)).toEqual({ fovH: 110, maxFov: 120 });
+    const f = matchFov(110, 120, true);
+    expect(f).toEqual({ fovH: PVP_MAX_FOV, maxFov: PVP_MAX_FOV });
+    const h169 = hfovDeg(vfovFor(f.fovH, 16 / 9, f.maxFov), 16 / 9);
+    for (const a of [19.5 / 9, 21 / 9, 32 / 9]) expect(hfovDeg(vfovFor(f.fovH, a, f.maxFov), a)).toBeCloseTo(h169, 6);
+    expect(matchFov(70, 120, true)).toEqual({ fovH: 70, maxFov: 70 });
   });
 });

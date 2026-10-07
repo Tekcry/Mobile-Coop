@@ -293,6 +293,18 @@ Controls:
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
 
+## 3.1 phase 1 - Preset ladder and fair PvP (PC + phone)
+- [ ] Settings > Graphics > Preset cycles Low, Medium, High, Ultra, Epic, Custom on PC; a phone shows no Epic and no
+  Ray traced reflections option. Picking a preset sets the render scale (Low 67% .. Ultra 90% with TAAU, Epic 100%).
+- [ ] A 3.0 install keeps its preset after the update (named the same, the new values) or its Custom choices.
+- [ ] Each preset on the Warehouse at night: fog looks the same distance-wise on Low and Epic; Volumetric light off
+  removes only the light shafts.
+- [ ] Walk 40 m away from the service corridor and the offices: no wall, door or sign flickers see-through.
+- [ ] PvP on an ultrawide (or a 21:9 window) and a phone: the FOV slider at 120 still shows 90 in the match, and the
+  ultrawide sees no more of the sides than 16:9 (black-free, narrower vertically). Panini set to 0.5 is off in PvP
+  and back in other modes.
+- [ ] Settings > Graphics > Benchmark > Every preset: five lines on PC (Low .. Epic), four on a phone.
+
 ## 3.0.0 - PC renderer, desktop interface, feedback (PC + phone)
 Warehouse focus:
 - [ ] Play lists every mode on the Warehouse (Training on Proving Grounds); Free Roam on the Warehouse has no guards

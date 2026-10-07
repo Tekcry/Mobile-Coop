@@ -1,7 +1,7 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
-import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, presetOf, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
+import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 import type { PlatformChoice } from './platform';
 
 export const TOUCH_CONTROL_IDS = [
@@ -248,8 +248,8 @@ export function defaultSettings(): Settings {
 
 const AIM: readonly AimAssistLevel[] = ['off', 'low', 'standard', 'high'];
 const CURVES: readonly CurveKind[] = ['linear', 'classic', 'precise', 'aggressive'];
-const SHADOWS: readonly ShadowQuality[] = ['off', 'high', 'ultra', 'epic'];
-const TIERS: readonly TierQuality[] = ['high', 'ultra', 'epic'];
+const SHADOWS: readonly ShadowQuality[] = ['off', 'low', 'medium', 'high', 'ultra', 'epic'];
+const TIERS: readonly TierQuality[] = ['low', 'medium', 'high', 'ultra', 'epic'];
 const AA: readonly AaMode[] = ['fxaa', 'msaa', 'taa'];
 const REFL: readonly ReflectionMode[] = ['off', 'ssr', 'rt'];
 
@@ -265,6 +265,8 @@ function sanitizeGfx(raw: Obj, base: GraphicsFeatures): GraphicsFeatures {
     rtRes: pick(raw.rtRes, ['half', 'full'] as const, base.rtRes),
     gi: bool(raw.gi, base.gi),
     volumetrics: bool(raw.volumetrics, base.volumetrics),
+    volLights: Math.round(num(raw.volLights, base.volLights, 2, 12)),
+    postRes: pick(raw.postRes, ['half', 'full'] as const, base.postRes),
     dof: bool(raw.dof, base.dof),
     motionBlur: bool(raw.motionBlur, base.motionBlur),
     lens: bool(raw.lens, base.lens),
@@ -284,12 +286,13 @@ const pick = <T>(v: unknown, allowed: readonly T[], d: T): T => (allowed.include
 const sub = (o: Obj, k: string): Obj => (isObj(o[k]) ? (o[k] as Obj) : {});
 
 /**
- * Preset + features: a named preset fills its features; 'custom' keeps the stored ones (over Epic); settings from
- * before 3.0 (the phone quality levels) start on Epic.
+ * Preset + features: a named preset fills its features (3.1: the shared ladder - a 3.0 High / Ultra / Epic keeps its
+ * name and takes the retuned values); 'custom' keeps the stored ones (over Epic, new features from Epic); settings
+ * from before 3.0 (the phone quality levels) start on Epic.
  */
 function videoGfx(v: Obj): { preset: GraphicsPreset; gfx: GraphicsFeatures } {
   const p = v.preset;
-  if (p === 'high' || p === 'ultra' || p === 'epic') return { preset: p, gfx: { ...GRAPHICS_PRESETS[p] } };
+  if ((PRESET_IDS as readonly unknown[]).includes(p)) return { preset: p as FixedPreset, gfx: { ...GRAPHICS_PRESETS[p as FixedPreset] } };
   if (p === 'custom') {
     const gfx = sanitizeGfx(sub(v, 'gfx'), GRAPHICS_PRESETS.epic);
     return { preset: presetOf(gfx), gfx };
@@ -303,10 +306,12 @@ export function setGfx<K extends keyof GraphicsFeatures>(s: Settings, k: K, v: G
   s.video.preset = presetOf(s.video.gfx);
 }
 
-/** Apply a named preset. */
-export function setPreset(s: Settings, p: Exclude<GraphicsPreset, 'custom'>): void {
+/** Apply a named preset: its features and its render resolution (scale + TAAU; the frame governor works within). */
+export function setPreset(s: Settings, p: FixedPreset): void {
   s.video.preset = p;
   s.video.gfx = { ...GRAPHICS_PRESETS[p] };
+  s.video.renderScale = PRESET_DISPLAY[p].renderScale;
+  s.video.upscaler = PRESET_DISPLAY[p].upscaler;
 }
 
 /** Merge untrusted data (old saves, imports) over defaults, clamping every field. */

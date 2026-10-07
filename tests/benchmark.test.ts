@@ -27,7 +27,8 @@ describe('benchmark', () => {
 describe('benchmark plans', () => {
   it('every preset, one run each', () => {
     const p = benchPlan('presets', 2560, 1600);
-    expect(p.map((r) => r.preset)).toEqual(['high', 'ultra', 'epic']);
+    expect(p.map((r) => r.preset)).toEqual(['low', 'medium', 'high', 'ultra', 'epic']);
+    expect(benchPlan('presets', 2560, 1600, ['low', 'medium', 'high', 'ultra']).map((r) => r.label)).toEqual(['Low', 'Medium', 'High', 'Ultra']);
     expect(p.every((r) => r.seconds === BENCH.seconds && !r.sustained)).toBe(true);
   });
   it('resolutions by pixel count within render scale 2', () => {

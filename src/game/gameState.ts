@@ -42,7 +42,7 @@ import { playEmote } from '../cosmetics/emotes';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
-import type { QualityLevel } from '../core/quality';
+import { MOBILE_PRESET_IDS, PRESET_IDS, VOXEL_TIER, type QualityLevel } from '../core/quality';
 import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
@@ -281,6 +281,9 @@ export class GameState implements AppState {
     this.pvp = opts.mode === 'tdm' || opts.mode === 'ffa';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
+    // PvP (3.1, crossplay fairness): the same field of view for everyone, no Panini
+    this.player.pvp = this.pvp;
+    app.quality.setPvp(this.pvp);
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
     // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
@@ -562,11 +565,12 @@ export class GameState implements AppState {
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
-    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: 0.05, fineSize: 0.025, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: true, gi: q.features.gi };
+    const vt = VOXEL_TIER[q.features.detail];
+    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
-    setVoxelBodies(flags.voxels && !q.minimal ? { size: 0.02, lodSize: 0.04, lodDistance: LOD_DISTANCE * q.detailScale } : null);
+    setVoxelBodies(flags.voxels && !q.minimal ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
     // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
-    const vw = flags.voxels && !q.minimal ? { size: 0.01, fineSize: 0.005, lodSize: 0.02, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
+    const vw = flags.voxels && !q.minimal ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
     setVoxelWeapons(vw);
     setVoxelProps(vw);
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal });
@@ -677,7 +681,7 @@ export class GameState implements AppState {
         const s0 = this.world.layout.playerSpawns[0]!.pos;
         pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
       }
-      const runs = benchPlan(this.opts.benchmark, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio));
+      const runs = benchPlan(this.opts.benchmark, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio), this.app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS);
       this.bench = { pts, runs, idx: -1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [], buckets: [], bMs: 0, bN: 0, bT: 0 };
       this.nextBenchRun();
       document.body.classList.add('photo-mode');
@@ -688,6 +692,7 @@ export class GameState implements AppState {
   exit(): void {
     document.body.classList.remove('photo-mode');
     if (this.bench) this.app.quality.setOverride(null);
+    if (this.pvp) this.app.quality.setPvp(false);
     this.exited = true;
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;

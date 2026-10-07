@@ -3,7 +3,7 @@ import type { SurfaceAtlas } from '../world/surfaceAtlas';
 import { BRICK, BRICK_VOXELS, Brickmap, EMPTY, UNIFORM_BASE } from './brickmap';
 import type { ChunkJob, ChunkResult } from './chunk';
 import { CHUNK, chunkCounts, type LevelVoxels } from './levelVoxels';
-import { packShapes, SHAPE_STRIDE, shapeBounds } from './shapes';
+import { coarseShapes, packShapes, SHAPE_STRIDE, shapeBounds } from './shapes';
 import { VoxelPlugin, type VoxelTextures } from './voxelPlugin';
 import { WorkerPool } from './workerPool';
 import { loadVoxelCache, saveVoxelCache } from './voxelCache';
@@ -94,6 +94,7 @@ export class VoxelWorld {
       const jobs: ChunkJob[] = [];
       for (let l = 0; l < levels; l++) {
         const size = lv.size * (1 << l);
+        const src = l ? coarseShapes(packed, size) : packed;
         const vn = CHUNK >> l;
         const ext = CHUNK * lv.size;
         for (let z = 0; z < cz; z++) {
@@ -111,7 +112,7 @@ export class VoxelWorld {
               }
               if (!pick.length) continue;
               const shapes = new Float32Array(pick.length * SHAPE_STRIDE);
-              pick.forEach((i, k) => shapes.set(packed.subarray(i * SHAPE_STRIDE, (i + 1) * SHAPE_STRIDE), k * SHAPE_STRIDE));
+              pick.forEach((i, k) => shapes.set(src.subarray(i * SHAPE_STRIDE, (i + 1) * SHAPE_STRIDE), k * SHAPE_STRIDE));
               jobs.push({ id: (l * cz + z) * cy * cx + y * cx + x, origin: [ox, oy, oz], size, n: [vn, vn, vn], shapes, bricks: l === 0 });
             }
           }

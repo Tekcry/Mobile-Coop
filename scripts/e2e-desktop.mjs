@@ -58,7 +58,10 @@ try {
   await frames(page, 3);
   // (this page runs ?gfx=min, so the level itself stays minimal; the settings and the menu follow the preset)
   let q = await G(() => ({ p: window.__app.settings.get().video.preset, g: window.__app.settings.get().video.gfx, sh: [...document.querySelectorAll('.tab-panel.active .row-choice')].find((r) => /Shadows/.test(r.textContent)).querySelector('.choice-val').textContent }));
-  assert(q.p === 'ultra' && q.g.shadows === 'ultra' && q.g.lights === 24 && q.g.aa === 'msaa' && q.sh === 'Ultra', `a preset sets every feature, the rows follow (${q.p}, shadows ${q.sh})`);
+  assert(q.p === 'ultra' && q.g.shadows === 'ultra' && q.g.lights === 20 && q.g.aa === 'taa' && q.g.volLights === 8 && q.sh === 'Ultra', `a preset sets every feature, the rows follow (${q.p}, shadows ${q.sh})`);
+  // (3.1: a preset also sets its render scale with TAAU; Epic is native)
+  const disp = await G(() => ({ s: window.__app.settings.get().video.renderScale, u: window.__app.settings.get().video.upscaler }));
+  assert(disp.s === 0.9 && disp.u === 'taau', `Ultra renders at 90% with TAAU (${JSON.stringify(disp)})`);
   await G(() => [...document.querySelectorAll('.tab-panel.active .row-toggle')].find((r) => /Bloom/.test(r.textContent)).click());
   await frames(page, 2);
   q = await G(() => ({ p: window.__app.settings.get().video.preset, shown: [...document.querySelectorAll('.tab-panel.active .row-choice')].find((r) => /Preset/.test(r.textContent)).querySelector('.choice-val').textContent }));
@@ -99,11 +102,11 @@ try {
   await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   const saved = await G(async () => (await window.__app.feedback.all()).find((e) => e.category === 'performance')?.text ?? '');
   assert(/Benchmark - Warehouse/.test(saved), 'the result is saved as a performance note');
-  // every preset: three flights, one line each
+  // every preset (3.1 ladder, desktop: Low .. Epic): five flights, one line each
   await G(() => window.__app.benchmark('presets'));
-  await page.waitForFunction(() => (document.querySelector('.dialog')?.textContent?.match(/average \d+ fps/g) ?? []).length === 3, null, { timeout: 300000 });
+  await page.waitForFunction(() => (document.querySelector('.dialog')?.textContent?.match(/average \d+ fps/g) ?? []).length === 5, null, { timeout: 480000 });
   const lines = await G(() => window.__app.current.benchmarkLines.map((l) => l.split(':')[0]));
-  assert(lines.length === 3 && /high/.test(lines[0]) && /ultra/.test(lines[1]) && /epic/.test(lines[2]), `every preset runs in turn (${lines.join(' | ')})`);
+  assert(lines.length === 5 && ['low', 'medium', 'high', 'ultra', 'epic'].every((p, i) => new RegExp(p, 'i').test(lines[i])), `every preset runs in turn (${lines.join(' | ')})`);
   await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
   await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));

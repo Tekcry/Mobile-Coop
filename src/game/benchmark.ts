@@ -4,7 +4,7 @@
  * settings, every preset, render pixel counts of the target displays, or a 10-minute sustained loop (laptops:
  * does the frame rate hold once the machine is hot?).
  */
-import type { FixedPreset } from '../core/quality';
+import { PRESET_IDS, type FixedPreset } from '../core/quality';
 
 export const BENCH = {
   /** Seconds of flight per run (the first `warmup` not counted: shader compiles, shadow maps settling). */
@@ -40,9 +40,9 @@ export const BENCH_RESOLUTIONS = [
  * The runs for a benchmark kind. `outW` / `outH` = the output in device pixels at render scale 1: a resolution is
  * included when it is within render scale 2 of it (a 1600p laptop reaches 7680 x 2160's pixel count at ~2.0).
  */
-export function benchPlan(kind: BenchKind, outW: number, outH: number): BenchRun[] {
+export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: readonly FixedPreset[] = PRESET_IDS): BenchRun[] {
   const run = (label: string, preset: FixedPreset | null = null, scale: number | null = null): BenchRun => ({ label, preset, scale, seconds: BENCH.seconds, sustained: false });
-  if (kind === 'presets') return (['high', 'ultra', 'epic'] as const).map((p) => run(p[0]!.toUpperCase() + p.slice(1), p));
+  if (kind === 'presets') return presets.map((p) => run(p[0]!.toUpperCase() + p.slice(1), p));
   if (kind === 'sustained') return [{ ...run(`sustained ${Math.round(BENCH.sustained / 60)} min`), seconds: BENCH.sustained, sustained: true }];
   if (kind === 'resolutions') {
     const out = [run(`${outW}x${outH} (output)`, null, 1)];

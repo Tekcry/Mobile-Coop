@@ -79,7 +79,7 @@ export function giLights(reg: LightRegistry): { lights: Float32Array; groups: nu
 }
 
 /** Level-of-detail distances (m) per Detail tier: Epic keeps 5 cm voxels to 30 m. */
-export const VOXEL_LOD: Record<TierQuality, [number, number]> = { high: [15, 30], ultra: [22, 45], epic: [30, 60] };
+export const VOXEL_LOD: Record<TierQuality, [number, number]> = { low: [8, 16], medium: [10, 20], high: [15, 30], ultra: [20, 40], epic: [30, 60] };
 
 /** Scene + lighting + level geometry + props for one map. */
 export class World {

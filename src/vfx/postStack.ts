@@ -172,6 +172,8 @@ export class PostStack {
   private ids = new Int32Array(VOL_LIGHTS);
   private dist = new Float32Array(VOL_LIGHTS);
   private volCount = 0;
+  /** Lights the volumetric pass may scatter (0: fog only). */
+  private volMax = VOL_LIGHTS;
   private t = 0;
   /** Depth-of-field focus (m) and whether it is wanted now (aiming, menu operator). */
   focus = 10;
@@ -208,7 +210,7 @@ export class PostStack {
       this.taa = taa;
     }
     if (f.ao) {
-      const ssao = new SSAO2RenderingPipeline('ssao', scene, { ssaoRatio: 0.75, blurRatio: 1 }, cams, true);
+      const ssao = new SSAO2RenderingPipeline('ssao', scene, { ssaoRatio: f.postRes === 'half' ? 0.5 : 0.75, blurRatio: f.postRes === 'half' ? 0.5 : 1 }, cams, true);
       ssao.radius = 0.55;
       ssao.totalStrength = 0.9;
       ssao.base = 0.2;
@@ -232,6 +234,8 @@ export class PostStack {
       ssr.maxSteps = 120;
       ssr.attenuateFacingCamera = true;
       ssr.attenuateScreenBorders = true;
+      // half: traced at half resolution
+      ssr.ssrDownsample = f.postRes === 'half' ? 1 : 0;
       this.ssr = ssr;
     }
     if (f.reflections === 'rt' && this.opts.rt) {
@@ -245,7 +249,10 @@ export class PostStack {
       mb.isObjectBased = false;
       this.motion = mb;
     }
-    if (f.volumetrics) this.makeVolumetric();
+    // the height fog decides what can be seen at a distance: drawn on every preset (crossplay fairness); the light
+    // shafts only with Volumetrics, over the nearest `volLights`
+    this.volMax = f.volumetrics ? Math.max(0, Math.min(VOL_LIGHTS, f.volLights)) : 0;
+    this.makeVolumetric();
     const def = new DefaultRenderingPipeline('pc', true, scene, cams);
     def.samples = f.aa === 'msaa' ? 4 : 1;
     def.fxaaEnabled = f.aa === 'fxaa';
@@ -340,7 +347,7 @@ export class PostStack {
     const reg = this.opts.lights;
     if (this.vol && reg) {
       const p = this.camera.globalPosition;
-      const n = nearest(reg, p.x, p.y, p.z, this.ids, this.dist);
+      const n = Math.min(this.volMax, nearest(reg, p.x, p.y, p.z, this.ids, this.dist));
       let k = 0;
       for (let i = 0; i < n; i++) {
         const l = reg.lights[this.ids[i]!]!;
