@@ -106,8 +106,10 @@ Blacklist style.
   - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the Loadout operator (proportion/silhouette checks)
   - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
     reload|swap|grenade|cover|highcover|peek|vault> [frames] [interval] [side|front|back|ots]` contact sheet
-  - `node scripts/perf.mjs [--budget]` (`STEALTH=1`: ten unaware enemies perceiving) Warehouse, 10 enemies: CPU per 120 Hz frame p50/p95/p99, animation ms per
-    character, allocations (per simulated second / per frame, top allocators), draw calls (`PROFILE=1` CPU profile)
+  - `node scripts/perf.mjs [--desktop] [--budget]` (`--desktop`: the PC path at `?gfx=epic`; else the `?gfx=min` test
+    path; `STEALTH=1`: ten unaware enemies perceiving) Warehouse, 10 enemies: main thread p95 (sim per 120 Hz frame +
+    the render's JS), animation ms per character, allocations per second (top allocators), draw calls and triangles
+    over every pass (`PROFILE=1` CPU profile)
   - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
@@ -1010,20 +1012,27 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   index over arrays; typed-array heaps). Use `hyp2`/`hyp3` (`core/mathx.ts`), never `Math.hypot` (V8 allocates
   its arguments).
 
-## Performance budget (3.0: a gaming PC; the phone-era numbers below are the CPU side, still checked)
-- PC target (the RTX 4090 Laptop, mains power, Epic, Warehouse, 10 guards; 1% low >= 70% of the average): 1920 x 1200
-  165 Hz (RT reflections 120), 2560 x 1600 120 Hz (RT 90), 3440 x 1440 100, 5120 x 1440 90, 4K 60 (RT 50), 7680 x
-  2160 60 with TAAU at 67% (High 120); main thread <= 3 ms; VRAM <= 12 GB at Epic. Phones run the same settings slower
-  (accepted). The CPU side below still applies (`perf.mjs` runs `?gfx=min`).
-- Phone-era: 8.33 ms per frame, worst case <= 6.5 ms work; CPU <= 3.5 ms, GPU <= 4 ms. `perf.mjs --budget` checks the CPU
-  side: p95 CPU per 120 Hz frame <= 3.5 ms (measured ~1.7 ms on Warehouse with 10 enemies), animation <= 0.04 ms
-  per character (~0.037 when last calibrated; the SwiftShader VM drifts, so compare against the previous
-  build side by side before blaming a change), draw calls <= 80 (~17-30), allocations <= 96 KB per frame (~75: V8 boxing doubles at
-  call boundaries and Havok embind marshalling; no retained objects). GPU time and thermals need a device:
-  debug overlay pacing graph + `soak.mjs` / the 10-minute soak in TESTING.md.
+## Performance budget (3.0: the gaming laptop; desktop first)
+- Frame-rate targets (the RTX 4090 Laptop, mains power, Epic, Warehouse, 10 guards; 1% low >= 70% of the average):
+  1920 x 1200 165 Hz (RT reflections 120), 2560 x 1600 120 Hz (RT 90), 3440 x 1440 100, 5120 x 1440 90, 4K 60 (RT 50),
+  7680 x 2160 60 with TAAU at 67% (High 120). Phones run the same settings slower (accepted).
+- GPU per frame = the target's frame time minus ~10% headroom: 165 Hz 5.5 ms, 120 Hz 7.5 ms, 100 Hz 9 ms, 90 Hz 10 ms,
+  60 Hz 15 ms. Only the laptop can measure it: Settings > Graphics > Benchmark (TESTING.md table).
+- CPU main thread <= 3 ms per frame (inside a 240 Hz frame's 4.17 ms): the sim (fixed steps, anim, camera) + the
+  render's JS (active mesh evaluation: LOD, culling, skeletons / voxel bones). Animation <= 0.04 ms per character with
+  voxel bodies. <= 600 draw calls and <= 8 M triangles per frame over every pass (shadow maps and post included).
+  Allocations <= 11.5 MB per second (per second, so a 240 Hz display does not double the garbage). Memory: VRAM <=
+  12 GB at Epic (High 6, Ultra 9; brick pool <= 5 GB; render targets <= 2.5 GB at 4K, 3.5 GB at 7680 x 2160), tab <=
+  6 GB, JS heap <= 1.5 GB, voxel cache <= 2 GB; Warehouse load <= 4 s cold, <= 1.5 s cached.
+- `perf.mjs --desktop --budget` checks the CPU side on the PC path (`?gfx=epic`, 640 x 360; draws and triangles counted
+  by wrapping the engine's draw calls). The SwiftShader VM is slower than the i9, so passing there is conservative;
+  compare against the previous build side by side before blaming a change (the VM drifts).
+- `perf.mjs --budget` (no flag) is the phone / test-path regression check (`?gfx=min`: no post stack, no voxel
+  characters, 20 cm voxels): main thread p95 <= 3.5 ms (measured ~1.7 ms in 2.3), animation <= 0.04 ms per character,
+  draw calls <= 160, allocations <= 11.5 MB/s.
 - Static level geometry uses thin instances, `freezeWorldMatrix()`, frozen materials.
 - Dynamic physics bodies capped (see `physics/budget`). Projectiles/effects pooled, never allocated per shot.
-- Render scale: native DPR x `renderScale` (0.5-2), dynamic resolution (optional) within it.
+- Render scale: native DPR x `renderScale` (0.5-2), dynamic resolution (optional) within it; with TAAU the canvas stays native and the scene renders at the scale.
 
 ## Robustness rules
 - `App` isolates state updates: an exception in `fixedUpdate`/`frameUpdate` is logged (rate-limited) and toasted

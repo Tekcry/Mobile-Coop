@@ -3,22 +3,38 @@
 //  - animation cost per character (rig evaluation, ms)
 //  - allocations per simulated second (sampling heap profiler, incl. collected objects) + top allocators
 //  - draw calls and real rendered frame pacing (SwiftShader: GPU timings are NOT representative)
-// Usage: node scripts/perf.mjs [url] [--json] [--budget] (--budget exits 1 when a CPU-side budget is missed)
+// Usage: node scripts/perf.mjs [url] [--json] [--budget] [--desktop]
+//   (--budget exits 1 when a CPU-side budget is missed)
+//   default: `?gfx=min` - the phone / test-path regression check (the 2.x numbers)
+//   --desktop: `?gfx=epic` - the PC path (voxel characters and weapons, shadows, the post stack): main-thread CPU =
+//   the sim + the render's JS (active mesh evaluation incl. skinning bones), draw calls and triangles over every pass
+//   (shadow maps and post included). GPU time needs the laptop (Settings > Graphics > Benchmark).
 import { launch, frames } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const asJson = args.includes('--json');
 const enforce = args.includes('--budget');
-// allocation budget: per display frame at 120 Hz. What remains is V8 boxing doubles passed to
-// non-inlined calls and Havok's embind marshalling (young-generation churn, no retained objects).
-const BUDGET = { cpuP95Ms: 3.5, animPerCharMs: 0.04, drawCalls: 80, kbPerFrame: 96 };
+const desktop = args.includes('--desktop');
+// allocations: per second (the same garbage whatever the refresh rate - 240 Hz must not double it). What remains is
+// V8 boxing doubles passed to non-inlined calls and Havok's embind marshalling (young-generation churn, nothing kept).
+const BUDGET = desktop
+  ? // 3.0 PC: the main thread (sim + render JS) inside 3 ms of a 240 Hz frame's 4.17 ms; 600 draws / 8 M triangles
+    // over every pass incl. shadows
+    { cpuP95Ms: 3, animPerCharMs: 0.04, drawCalls: 600, trisM: 8, kbPerSecond: 11520 }
+  : // the phone-era / test-path check (gfx=min: no post stack, no voxel characters, 20 cm voxels)
+    { cpuP95Ms: 3.5, animPerCharMs: 0.04, drawCalls: 160, trisM: Infinity, kbPerSecond: 11520 };
 
 // STEALTH=1: the ten are unaware (stealth rules, patrols / posts, full perception with exposure rays)
 const stealth = !!process.env.STEALTH;
 // MAP=embassy: the embassy court (the same ten enemies)
 const MAP = process.env.MAP ?? 'warehouse';
-const { browser, page, errors } = await launch({ url, params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${process.env.WARM ? '&warm=' + process.env.WARM : ''}` });
+const { browser, page, errors } = await launch({
+  url,
+  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}`,
+  ...(desktop ? { touch: false, viewport: { width: 640, height: 360 } } : {}),
+});
+if (desktop) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
 await frames(page, 10);
 await page.evaluate((stealth) => {
   const app = window.__app;
@@ -128,21 +144,64 @@ if (process.env.PROFILE) {
   for (const [k, v] of [...self.entries()].sort((a, b) => b[1] - a[1]).slice(0, Number(process.env.PROFILE) > 1 ? Number(process.env.PROFILE) : 25)) console.log(`   ${v.toFixed(1)} ms  ${(v / all * 100).toFixed(1)}%  ${k}`);
 }
 
-// real frames (render included) for draw calls and pacing
-const real = await page.evaluate(async () => {
+// real frames (render included): draw calls and triangles over every pass, the render's JS, pacing
+const real = await page.evaluate(async (desktop) => {
   const app = window.__app;
+  const scene = app.current.scene;
+  const engine = app.engine;
+  // every draw: triangles (indexed and plain, instanced counted per instance)
+  let tris = 0;
+  let draws = 0;
+  const de = engine.drawElementsType.bind(engine);
+  const da = engine.drawArraysType.bind(engine);
+  engine.drawElementsType = (fill, start, count, inst) => {
+    draws++;
+    if (fill === 0) tris += (count / 3) * Math.max(1, inst ?? 1);
+    return de(fill, start, count, inst);
+  };
+  engine.drawArraysType = (fill, start, count, inst) => {
+    draws++;
+    if (fill === 0 || fill === 7) tris += (count / 3) * Math.max(1, inst ?? 1);
+    return da(fill, start, count, inst);
+  };
+  // the render's JS: active mesh evaluation (LOD, culling, skeletons / voxel bones)
+  let evalMs = 0;
+  let evals = 0;
+  const t0 = new Map();
+  const o1 = scene.onBeforeActiveMeshesEvaluationObservable.add(() => t0.set('e', performance.now()));
+  const o2 = scene.onAfterActiveMeshesEvaluationObservable.add(() => {
+    evalMs += performance.now() - (t0.get('e') ?? performance.now());
+    evals++;
+  });
+  let frames = 0;
+  const o3 = scene.onAfterRenderObservable.add(() => frames++);
   app.quality.stats.clear();
-  await new Promise((res) => setTimeout(res, 2500));
+  // (software GL at Epic takes seconds per frame: a few frames are enough)
+  const want = desktop ? 3 : 0;
+  const t = performance.now();
+  await new Promise((res) => {
+    const tick = () => (frames >= want && performance.now() - t > 2500 ? res() : setTimeout(tick, 100));
+    tick();
+  });
+  scene.onBeforeActiveMeshesEvaluationObservable.remove(o1);
+  scene.onAfterActiveMeshesEvaluationObservable.remove(o2);
+  scene.onAfterRenderObservable.remove(o3);
+  engine.drawElementsType = de;
+  engine.drawArraysType = da;
   const p = app.quality.pacing();
-  const dbg = document.querySelector('.debug-overlay pre')?.textContent ?? '';
-  const draws = Number(/draws (\d+)/.exec(dbg)?.[1] ?? NaN);
-  return { hz: p.hz, p50: p.p50, p95: p.p95, p99: p.p99, cpuP50: p.cpuP50, cpuP95: p.cpuP95, draws, meshes: app.current.scene.meshes.length };
-});
+  const n = Math.max(1, frames);
+  return { hz: p.hz, p50: p.p50, p95: p.p95, p99: p.p99, cpuP50: p.cpuP50, cpuP95: p.cpuP95, draws: Math.round(draws / n), trisM: tris / n / 1e6, evalMs: evalMs / Math.max(1, evals), frames, meshes: scene.meshes.length };
+}, desktop);
 
 const out = {
   map: 'warehouse',
+  profile: desktop ? 'desktop (gfx=epic)' : 'test path (gfx=min)',
   enemies: cpu.alive,
   cpu120: { frames: cpu.frames, p50: +cpu.p50.toFixed(3), p95: +cpu.p95.toFixed(3), p99: +cpu.p99.toFixed(3) },
+  // the main thread per frame: the sim's p95 + the render's JS (mesh evaluation, bones)
+  mainP95: +(cpu.p95 + real.evalMs).toFixed(3),
+  renderJsMs: +real.evalMs.toFixed(3),
+  trisM: +real.trisM.toFixed(2),
   animPerCharMs: +cpu.animPerCharMs.toFixed(4),
   allocKBPerSimSecond: +(total / 1024 / SIM_S).toFixed(1),
   topAllocators: top,
@@ -151,22 +210,25 @@ const out = {
 };
 if (asJson) console.log(JSON.stringify(out));
 else {
-  console.log(`Warehouse, ${out.enemies} enemies (SwiftShader: GPU numbers not representative)`);
-  console.log(`CPU per frame @120 Hz (sim + anim + camera, no render): p50 ${out.cpu120.p50} p95 ${out.cpu120.p95} p99 ${out.cpu120.p99} ms  [budget p95 <= ${BUDGET.cpuP95Ms}]`);
+  console.log(`Warehouse, ${out.enemies} enemies, ${out.profile} (SwiftShader: GPU numbers not representative)`);
+  console.log(`CPU per frame @120 Hz (sim + anim + camera, no render): p50 ${out.cpu120.p50} p95 ${out.cpu120.p95} p99 ${out.cpu120.p99} ms`);
+  console.log(`main thread p95 (sim + render JS ${out.renderJsMs} ms): ${out.mainP95} ms  [budget <= ${BUDGET.cpuP95Ms}]`);
   console.log(`animation per character: ${out.animPerCharMs} ms  [budget <= ${BUDGET.animPerCharMs}]`);
-  console.log(`allocations: ${out.allocKBPerSimSecond} KB per simulated second = ${(out.allocKBPerSimSecond / 120).toFixed(1)} KB per 120 Hz frame  [budget <= ${BUDGET.kbPerFrame} KB/frame]`);
+  console.log(`allocations: ${out.allocKBPerSimSecond} KB per simulated second (${(out.allocKBPerSimSecond / 240).toFixed(1)} KB per 240 Hz frame)  [budget <= ${BUDGET.kbPerSecond} KB/s]`);
   for (const t of top) console.log('   ' + t);
-  console.log(`draw calls: ${out.drawCalls}  [budget <= ${BUDGET.drawCalls}]`);
+  console.log(`draw calls (every pass): ${out.drawCalls}  [budget <= ${BUDGET.drawCalls}]`);
+  console.log(`triangles (every pass): ${out.trisM} M  [budget <= ${BUDGET.trisM} M]`);
   console.log(`rendered frames: display ${real.hz} Hz, interval p50 ${out.rendered.p50} p95 ${out.rendered.p95} p99 ${out.rendered.p99} ms, cpu p50 ${out.rendered.cpuP50} p95 ${out.rendered.cpuP95} ms`);
 }
 const real_errors = errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
 if (real_errors.length) console.log(real_errors.join('\n'));
 await browser.close();
 const missed = [
-  out.cpu120.p95 > BUDGET.cpuP95Ms && 'cpu p95',
+  out.mainP95 > BUDGET.cpuP95Ms && 'main thread p95',
   out.animPerCharMs > BUDGET.animPerCharMs && 'anim per character',
   out.drawCalls > BUDGET.drawCalls && 'draw calls',
-  out.allocKBPerSimSecond / 120 > BUDGET.kbPerFrame && 'allocations',
+  out.trisM > BUDGET.trisM && 'triangles',
+  out.allocKBPerSimSecond > BUDGET.kbPerSecond && 'allocations',
 ].filter(Boolean);
 if (missed.length) console.log('over budget: ' + missed.join(', '));
 process.exit(enforce && (missed.length || real_errors.length) ? 1 : 0);
