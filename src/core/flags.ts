@@ -21,6 +21,8 @@ export interface Flags {
   gfx: 'min' | 'high' | 'ultra' | 'epic' | null;
   /** 3.0 voxel world (`?voxels=0`: the blockout's boxes, for comparisons). */
   voxels: boolean;
+  /** Autostart weather (clear | rain | fog). */
+  weather: 'clear' | 'rain' | 'fog' | null;
 }
 
 function readParams(): URLSearchParams {
@@ -47,4 +49,5 @@ export const flags: Flags = {
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
   gfx: (['min', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
   voxels: params.get('voxels') !== '0',
+  weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
 };

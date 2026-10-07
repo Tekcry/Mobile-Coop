@@ -47,6 +47,8 @@ export interface WorldOptions {
 export interface VoxelOptions {
   /** Finest voxel edge (m). */
   size: number;
+  /** The fine layer's edge (props, furniture, machines, vehicles; 0: none). */
+  fineSize: number;
   /** Levels of detail (1..3). */
   levels: number;
   lodDist: [number, number];
@@ -80,8 +82,9 @@ export class World {
     readonly level: BuiltLevel,
     readonly layout: MapLayout,
     atlas: SurfaceAtlas | null,
-    /** The level's voxels (3.0; null: blockout boxes). */
+    /** The level's voxels (3.0; null: blockout boxes): the structure layer, then the fine layer. */
     readonly voxels: VoxelWorld | null = null,
+    readonly voxelsFine: VoxelWorld | null = null,
   ) {
     this.surfaces = atlas;
     const th = map.theme;
@@ -99,6 +102,15 @@ export class World {
     this.sun.intensity = th.sunIntensity;
     this.sun.position = this.sun.direction.scale(-40);
     this.sky = makeSky(scene, th.sky, th.horizon);
+    for (const v of atlas ? this.voxelLayers : []) {
+      // the voxels take the hemisphere's fill themselves, scaled by how much sky each spot sees (dark under the roof;
+      // the cheap standard path keeps the hemisphere)
+      this.hemi.excludedMeshes.push(...v.meshes);
+      const k = this.hemi.intensity * Math.PI;
+      const sk = this.hemi.diffuse;
+      const gr = this.hemi.groundColor;
+      v.setFill([sk.r * k, sk.g * k, sk.b * k], [gr.r * k, gr.g * k, gr.b * k]);
+    }
 
     this.parts = new PartLibrary(scene, atlas);
     // gameplay light level everywhere (moonlight / daylight)
@@ -113,7 +125,7 @@ export class World {
     this.lightRig = new LightRig(scene, level.lights);
     // the level itself casts shadows (walls stop lamp light and the sun)
     for (const m of level.meshes) this.lightRig.addCaster(m);
-    for (const m of voxels?.meshes ?? []) this.lightRig.addCaster(m);
+    for (const v of this.voxelLayers) for (const m of v.meshes) this.lightRig.addCaster(m);
     this.props = new PropSystem(scene, this.parts, (m) => this.addShadowCaster(m));
     for (const p of layout.props) this.props.spawn(p.kind, p.pos, p.yaw ?? 0);
     // image-based light for the PBR surfaces: the level and sky seen from the middle, captured once
@@ -122,7 +134,7 @@ export class World {
     probe.position.set((bd.minX + bd.maxX) / 2, 2.2, (bd.minZ + bd.maxZ) / 2);
     probe.refreshRate = 0;
     for (const m of level.meshes) probe.renderList?.push(m);
-    for (const m of voxels?.meshes ?? []) probe.renderList?.push(m);
+    for (const v of this.voxelLayers) for (const m of v.meshes) probe.renderList?.push(m);
     probe.renderList?.push(this.sky);
     // (assigned after the capture: a material sampling the cube while it renders into it is a feedback loop)
     probe.cubeTexture.onAfterRenderObservable.addOnce(() => {
@@ -147,14 +159,22 @@ export class World {
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const vo = opts.voxel ?? null;
-    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, art: map.art ?? null });
+    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
     let voxels: VoxelWorld | null = null;
+    let fine: VoxelWorld | null = null;
     if (vo && level.voxels) {
       const lv = level.voxels;
-      const key = `voxel:${map.id}:${opts.seed}:${vo.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(lv.shapes), lv.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
-      voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key });
+      const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
+      voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) });
+      // the fine layer: half the size, levels of detail at half the distances, lit by the structure's sky bake
+      if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels });
     }
-    return new World(scene, map, level, layout, atlas, voxels);
+    return new World(scene, map, level, layout, atlas, voxels, fine);
+  }
+
+  /** The voxel layers present (structure, fine). */
+  get voxelLayers(): VoxelWorld[] {
+    return [this.voxels, this.voxelsFine].filter((v): v is VoxelWorld => !!v);
   }
 
   /** Characters, weapons and props cast shadows (one shared list for the sun and every lamp). */
@@ -179,9 +199,13 @@ export class World {
         m.markAsDirty(1);
         m.freeze();
       }
-      this.voxels?.refresh();
+      for (const v of this.voxelLayers) v.refresh();
     }
-    if (!q.minimal) this.voxels?.setLodDistances(...VOXEL_LOD[q.features.detail]);
+    if (!q.minimal) {
+      const [d1, d2] = VOXEL_LOD[q.features.detail];
+      this.voxels?.setLodDistances(d1, d2);
+      this.voxelsFine?.setLodDistances(d1 / 2, d2 / 2);
+    }
     this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal });
     const k = q.minimal ? 1 : q.detailScale;
     this.parts.setLodScale(k);
@@ -222,7 +246,7 @@ export class World {
     const cam = this.scene.activeCamera;
     if (cam) {
       this.lightRig.update(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
-      this.voxels?.frame(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
+      for (const v of this.voxelLayers) v.frame(dt, cam.globalPosition.x, cam.globalPosition.y, cam.globalPosition.z);
     }
     this.sun.position.copyFrom(focus).subtractInPlace(this.sun.direction.scale(40));
   }
@@ -236,6 +260,7 @@ export class World {
     this.doors.dispose();
     this.props.dispose();
     this.level.dispose();
+    this.voxelsFine?.dispose();
     this.voxels?.dispose();
     this.parts.dispose();
     this.scene.dispose();

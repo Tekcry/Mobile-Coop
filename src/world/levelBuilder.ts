@@ -306,12 +306,13 @@ export class LevelBuilder {
    * Build the level. With an `atlas` (3.0) the pieces are PBR with the procedural surfaces (a per-instance `surf`
    * id: floors by what is underfoot, `floor` the map's default; the rest by colour); without, the flat shading.
    */
-  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; voxelSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
+  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; voxelSize?: number; fineSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
     const root = new TransformNode(`level-${name}`, scene);
     // visual-only dressing (3.0): never collides, so nav / cover / ledges are unchanged
-    if (opts.detail) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
+    // (a map with a voxel art layer dresses itself in voxels: the box dressing is only for the plain path)
+    if (opts.detail && !(opts.voxelSize && opts.art)) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
     // voxels (3.0): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
-    const voxels = opts.voxelSize ? levelVoxels(this.boxes, this.cylinders, this.surfaces, opts.floor ?? 'concrete', opts.voxelSize, undefined, opts.art ?? null) : null;
+    const voxels = opts.voxelSize ? levelVoxels(this.boxes, this.cylinders, this.surfaces, opts.floor ?? 'concrete', opts.voxelSize, undefined, opts.art ?? null, opts.fineSize ?? 0) : null;
     let mat: StandardMaterial | PBRMaterial;
     let surfacePlugin: SurfacePlugin | null = null;
     if (opts.atlas) {

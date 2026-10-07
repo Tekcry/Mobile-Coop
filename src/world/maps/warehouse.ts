@@ -3,6 +3,7 @@ import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import { makeCone } from '../lights';
+import { warehouseArt } from './warehouseArt';
 
 const CONCRETE = '#8e9396';
 const FLOOR = '#6f7477';
@@ -125,6 +126,8 @@ export const warehouse: MapDef = {
   name: 'Warehouse',
   description: 'Close quarters: dock, racking aisles, offices, corridors and a factory floor.',
   modes: ['clear', 'sandbox', 'wave', 'mission', 'infiltration', 'tdm', 'ffa'],
+  art: warehouseArt,
+  weathers: ['clear', 'rain', 'fog'],
   theme: {
     sky: '#0b111b',
     horizon: '#2b3440',

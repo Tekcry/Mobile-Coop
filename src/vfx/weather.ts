@@ -24,6 +24,8 @@ export class Weather {
   private placed = false;
   /** Wind (m/s, x / z). */
   wind = { x: 1.6, z: 0.6 };
+  /** Roofs (3.0 voxels: the sky bake's height per column): rain below it is hidden (none: open sky). */
+  occluder: ((x: number, z: number) => number) | null = null;
 
   constructor(
     private scene: Scene,
@@ -103,7 +105,9 @@ export class Weather {
       this.pos[o + 1] = y;
       this.pos[o + 2] = z;
       this.p.set(x, y, z);
-      if (rain) this.s.set(0.012, 0.55, 0.012);
+      // under a roof: hidden (it falls on through skylights, doorways and the yard)
+      if (rain && this.occluder && y < this.occluder(x, z)) this.s.set(0, 0, 0);
+      else if (rain) this.s.set(0.012, 0.55, 0.012);
       else this.s.set(0.02 + ph * 0.02, 0.02 + ph * 0.02, 0.02 + ph * 0.02);
       Matrix.ComposeToRef(this.s, this.q, this.p, this.m);
       this.m.copyToArray(this.mtx, i * 16);

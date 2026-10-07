@@ -4,22 +4,28 @@
  */
 import { dbDelete, dbGet, dbKeys, dbPut } from '../save/db';
 import type { ChunkResult } from './chunk';
+import type { SkyResult } from './skyBake';
+
+export interface VoxelCacheEntry {
+  chunks: ChunkResult[];
+  sky: SkyResult | null;
+}
 
 const KEEP = 4;
 const INDEX = 'voxel-cache-index';
 
-export async function loadVoxelCache(key: string): Promise<ChunkResult[] | null> {
+export async function loadVoxelCache(key: string): Promise<VoxelCacheEntry | null> {
   try {
-    const r = await dbGet<ChunkResult[]>('kv', key);
-    return Array.isArray(r) && r.length ? r : null;
+    const r = await dbGet<VoxelCacheEntry>('kv', key);
+    return r && Array.isArray(r.chunks) && r.chunks.length ? r : null;
   } catch {
     return null;
   }
 }
 
-export async function saveVoxelCache(key: string, results: ChunkResult[]): Promise<void> {
+export async function saveVoxelCache(key: string, entry: VoxelCacheEntry): Promise<void> {
   try {
-    await dbPut('kv', key, results);
+    await dbPut('kv', key, entry);
     const idx = ((await dbGet<string[]>('kv', INDEX)) ?? []).filter((k) => k !== key);
     idx.unshift(key);
     for (const old of idx.slice(KEEP)) await dbDelete('kv', old);

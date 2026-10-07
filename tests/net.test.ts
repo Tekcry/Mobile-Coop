@@ -22,6 +22,14 @@ describe('net message validation', () => {
     expect(parseMessage({ t: 'pstate', s: { ...ps, x: Number.NaN } })).toBeNull();
     expect(parseMessage({ t: 'start', mode: 'battle-royale', map: 'depot', seed: 1, difficulty: 'normal' })).toBeNull();
   });
+  it('carries the weather choice (3.0), unknown values fall back to clear', () => {
+    const a = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', weather: 'rain' });
+    expect(a && a.t === 'start' && a.weather).toBe('rain');
+    const b = parseMessage({ t: 'start', mode: 'clear', map: 'warehouse', seed: 1, difficulty: 'normal', weather: 'blizzard' });
+    expect(b && b.t === 'start' && b.weather).toBe('clear');
+    const c = parseMessage({ t: 'lobby', players: [], mode: 'wave', map: 'warehouse', difficulty: 'normal', phase: 'lobby', weather: 'fog' });
+    expect(c && c.t === 'lobby' && c.weather).toBe('fog');
+  });
   it('clamps numbers to sane ranges', () => {
     const m = parseMessage({ t: 'pstate', s: { ...ps, x: 1e9, hp: 9999, speed: -4, pitch: 9 } });
     expect(m && m.t === 'pstate' && m.s).toMatchObject({ x: 400, hp: 100, speed: 0, pitch: 1.6 });

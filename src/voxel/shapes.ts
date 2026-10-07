@@ -36,6 +36,8 @@ export interface BoxShape {
   /** Material program (phase 2 art layer: brick courses, rust, grime...; 0 = plain) and its parameters. */
   prog?: number;
   params?: readonly number[];
+  /** Art dressing: on the fine layer. */
+  fine?: boolean;
 }
 
 export interface CylShape {
@@ -47,6 +49,7 @@ export interface CylShape {
   mode?: ShapeMode;
   prog?: number;
   params?: readonly number[];
+  fine?: boolean;
 }
 
 export type VoxelShape = BoxShape | CylShape;

@@ -2,6 +2,7 @@ import type { App, AppState } from '../core/app';
 import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
+import type { WeatherChoice } from '../world/mapDef';
 import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
@@ -97,6 +98,8 @@ export interface GameOptions {
   gadget?: string;
   /** Settings > Graphics > Benchmark: camera flights through the rooms (one per run), guards passive, then the results. */
   benchmark?: BenchKind;
+  /** 3.0 weather (visual only; the map's `weathers`). */
+  weather?: WeatherChoice;
 }
 
 /** What the coop layer plugs into a session. */
@@ -318,14 +321,23 @@ export class GameState implements AppState {
     this.post = new CinematicPost(this.player.cam.camera);
     this.post.setGrade(world.map.theme.grade);
     const fc = Color3.FromHexString(world.map.theme.horizon);
+    // weather (3.0, visual only): the map's theme, or the choice made on the Play screen / in the lobby
+    const wx = opts.weather && world.map.weathers?.includes(opts.weather) ? opts.weather : null;
+    const kind = wx === 'rain' ? 'rain' : wx ? null : (world.map.theme.weather ?? null);
+    const vx = world.voxels;
+    const sun = world.sun.diffuse;
     this.stack = new PostStack(this.scene, this.player.cam.camera, {
       fogColor: [fc.r * 0.5, fc.g * 0.5, fc.b * 0.5],
-      // dark maps: a low haze the beams show in; daylight maps a thin one
-      fogDensity: (world.map.theme.lightLevel ?? 0.75) < 0.5 ? 0.007 : 0.004,
+      // dark maps: a low haze the beams show in; daylight maps a thin one; fog weather thick, rain a little more
+      fogDensity: ((world.map.theme.lightLevel ?? 0.75) < 0.5 ? 0.007 : 0.004) * (wx === 'fog' ? 4 : wx === 'rain' ? 1.6 : 1),
       lights: world.level.lights.lights.length ? world.level.lights : null,
-      shimmer: world.map.theme.weather === 'haze' ? 1 : 0,
+      shimmer: kind === 'haze' ? 1 : 0,
+      // fog: moonlit shafts under the skylights and through the doors (the voxels' sky bake)
+      sky: vx?.skyTex && vx.sky ? { tex: vx.skyTex, origin: vx.sky.origin, cell: vx.sky.cell, dims: vx.sky.n } : null,
+      shafts: wx === 'fog' ? [sun.r * 0.03, sun.g * 0.03, sun.b * 0.035] : [0, 0, 0],
     });
-    this.weather = new Weather(this.scene, world.map.theme.weather ?? null);
+    this.weather = new Weather(this.scene, kind);
+    if (vx) this.weather.occluder = (x, z) => vx.roofAt(x, z);
     // (the grade / vignette / goggles pass stays after the stack)
     this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
@@ -533,7 +545,7 @@ export class GameState implements AppState {
   static async create(app: App, opts: GameOptions, cb: SessionCallbacks): Promise<GameState> {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
-    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: 0.05, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: true };
+    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: 0.05, fineSize: 0.025, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: true };
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
@@ -547,6 +559,7 @@ export class GameState implements AppState {
     this.weather.setDensity(level.minimal ? 0 : level.vfxDensity);
     const sp = this.world.level.surfacePlugin;
     const wet = level.minimal ? 0 : this.weather.wetness;
+    for (const v of this.world.voxelLayers) v.setWet(wet);
     if (sp && sp.wet !== wet) {
       sp.wet = wet;
       // (frozen material: let it re-bind its uniforms once)

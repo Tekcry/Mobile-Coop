@@ -45,7 +45,7 @@ function range(pal: Palette, hex: string, kind: keyof typeof SURFACE_ID, t: read
 const near = (a: string, b: string): boolean => a.toLowerCase() === b;
 
 /** The look per piece (by its colour and size: the Warehouse builder's palette). */
-function piece(p: BoxPiece | CylPiece, _i: number, kind: 'box' | 'cyl', pal: Palette): { mat?: number; prog: Prog; params: readonly number[] } | null {
+function piece(p: BoxPiece | CylPiece, _i: number, kind: 'box' | 'cyl', pal: Palette): { mat?: number; prog: Prog; params: readonly number[]; fine?: boolean } | null {
   const col = p.color.toLowerCase();
   const sx = kind === 'box' ? (p as BoxPiece).s[0] : (p as CylPiece).r * 2;
   const sy = kind === 'box' ? (p as BoxPiece).s[1] : (p as CylPiece).h;
@@ -71,10 +71,11 @@ function piece(p: BoxPiece | CylPiece, _i: number, kind: 'box' | 'cyl', pal: Pal
     return { mat: range(pal, C.yard, 'asphalt', [0.9, 0.96, 1.0, 1.05]), prog: Prog.Floor, params: [4, pal.get(shade(C.yard, 0.72), SURFACE_ID.asphalt), 6, pal.get(shade(C.yard, 0.8), SURFACE_ID.asphalt)] };
   }
   if (near(col, C.steel) || near(col, C.cabinet) || near(col, C.trailer) || near(col, C.dumpster) || near(col, '#3b3f44')) {
-    return { mat: range(pal, col, 'brushed', [0.9, 0.97, 1.0, 0.8]), prog: Prog.Steel, params: [4, pal.get('#8d949a', SURFACE_ID.brushed), near(col, C.trailer) ? 1.2 : 0, pal.get('#6b4a35', SURFACE_ID.rust)] };
+    // structural steel (the mezzanine walls are WALL_DARK; steel here is machines, shelves, plates, vehicles): fine
+    return { mat: range(pal, col, 'brushed', [0.9, 0.97, 1.0, 0.8]), prog: Prog.Steel, params: [4, pal.get('#8d949a', SURFACE_ID.brushed), near(col, C.trailer) ? 1.2 : 0, pal.get('#6b4a35', SURFACE_ID.rust)], fine: true };
   }
   if (near(col, C.container)) {
-    return { mat: range(pal, C.container, 'corrugated'), prog: Prog.Cladding, params: [4, 0, 0, pal.get('#7a4c30', SURFACE_ID.rust)] };
+    return { mat: range(pal, C.container, 'corrugated'), prog: Prog.Cladding, params: [4, 0, 0, pal.get('#7a4c30', SURFACE_ID.rust)], fine: true };
   }
   if (near(col, C.rack)) {
     // wrapped loads and brown cartons in the bays, a pallet under each (the last variant)
@@ -82,22 +83,24 @@ function piece(p: BoxPiece | CylPiece, _i: number, kind: 'box' | 'cyl', pal: Pal
     return { mat: loads, prog: Prog.Rack, params: [5, pal.get(C.upright, SURFACE_ID.brushed), 2.7, pal.get(C.beam, SURFACE_ID.brushed)] };
   }
   if (near(col, C.crate) || near(col, '#b59468')) {
-    return { mat: range(pal, col, 'wood'), prog: Prog.Planks, params: [4, pal.get(shade(col, 0.62), SURFACE_ID.wood), 0.15, pal.get(shade(col, 0.78), SURFACE_ID.wood)] };
+    return { mat: range(pal, col, 'wood'), prog: Prog.Planks, params: [4, pal.get(shade(col, 0.62), SURFACE_ID.wood), 0.15, pal.get(shade(col, 0.78), SURFACE_ID.wood)], fine: true };
   }
   if (near(col, C.desk)) {
-    return { mat: range(pal, C.desk, 'wood'), prog: Prog.Planks, params: [4, pal.get(shade(C.desk, 0.7), SURFACE_ID.wood), 0.3, 0] };
+    return { mat: range(pal, C.desk, 'wood'), prog: Prog.Planks, params: [4, pal.get(shade(C.desk, 0.7), SURFACE_ID.wood), 0.3, 0], fine: true };
   }
   if (near(col, C.shrink)) {
-    return { mat: range(pal, C.shrink, 'fabric', [0.92, 0.97, 1.0, 1.03]), prog: Prog.Wrap, params: [4, pal.get('#8a8a80', SURFACE_ID.rubber), 0, pal.get('#9a7a52', SURFACE_ID.wood)] };
+    return { mat: range(pal, C.shrink, 'fabric', [0.92, 0.97, 1.0, 1.03]), prog: Prog.Wrap, params: [4, pal.get('#8a8a80', SURFACE_ID.rubber), 0, pal.get('#9a7a52', SURFACE_ID.wood)], fine: true };
   }
   if (near(col, C.hazard)) {
     // posts, rails and edges: stripes; a big yellow body (the forklift) is painted steel
-    if (small <= 0.35 || sy <= 0.35) return { prog: Prog.Hazard, params: [0, pal.get('#1e1e1e', SURFACE_ID.brushed), 0.3, 0] };
-    return { mat: range(pal, C.hazard, 'brushed', [0.9, 0.97, 1.0, 0.75]), prog: Prog.Steel, params: [4, pal.get('#5f5f5a', SURFACE_ID.brushed), 0, pal.get('#6b4a35', SURFACE_ID.rust)] };
+    if (small <= 0.35 || sy <= 0.35) return { prog: Prog.Hazard, params: [0, pal.get('#1e1e1e', SURFACE_ID.brushed), 0.3, 0], fine: true };
+    return { mat: range(pal, C.hazard, 'brushed', [0.9, 0.97, 1.0, 0.75]), prog: Prog.Steel, params: [4, pal.get('#5f5f5a', SURFACE_ID.brushed), 0, pal.get('#6b4a35', SURFACE_ID.rust)], fine: true };
   }
   if (near(col, C.roof)) {
     return { mat: range(pal, C.roof, 'corrugated', [0.9, 0.97, 1.0, 0.82]), prog: Prog.Steel, params: [4, 0, 0.15, 0] };
   }
+  // everything else small enough to be a prop (vehicle parts, copiers, tool chests...): the fine layer
+  if (Math.max(sx, sy, sz) <= 3) return { prog: Prog.None, params: [], fine: true };
   return null;
 }
 
@@ -173,6 +176,9 @@ function extra(pal: Palette, boxes: readonly BoxPiece[]): VoxelShape[] {
   box([10, 0.02, -7.9], [27.5, 0.1, 0.1], line, ShapeMode.Paint);
   box([10, 0.02, -7.2], [27.5, 0.1, 0.1], line, ShapeMode.Paint);
   for (const x of [-6, -3, 0, 3, 6, 9, 12, 15]) box([x, -0.02, -25], [0.1, 0.1, 2.4], white, ShapeMode.Paint);
+  // puddles in the yard's low spots (dark; a mirror in the rain)
+  const puddle = pal.get('#2b3034', SURFACE_ID.asphalt, 0, true);
+  box([0, -0.02, -22], [54, 0.12, 8], puddle, ShapeMode.Paint, Prog.Rust, [puddle, 0.55, 0.22, 0]);
   // oil under the forklift, the press, the truck; scattered stains
   for (const [x, z, w, d] of [[-14.5, -11.4, 1.6, 2.2], [6, 1, 2.0, 1.4], [1.4, -22.5, 2.2, 1.8], [-3.5, -22.4, 2.0, 1.6], [21.2, 0.4, 1.4, 1.6]] as const) {
     box([x, 0.0, z], [w, 0.12, d], oil, ShapeMode.Paint, Prog.Rust, [oil, 1.6, 0.55, 0]);

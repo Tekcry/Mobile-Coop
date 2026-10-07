@@ -934,7 +934,26 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   newest 4 kept). `World.create(.., { voxel })` (GameState: 5 cm x 3 levels with AO / micro; `?gfx=min` 20 cm x 1, no
   AO / micro; `?voxels=0` the old boxes); chunk meshes are shadow casters and in the reflection probe.
   `tests/voxelFit.test.ts`: parity (voxelising changes no cover face, ledge or solid) and fit (+-3 cm on every axis
-  cover face, ledge lip and floor top; round pillars: half a voxel's diagonal plus the curve's sag).
+  cover face, ledge lip and floor top against the plain blockout, art layer and fine layer included; round pillars:
+  half a voxel's diagonal plus the curve's sag).
+- Voxel art (3.0 phase 2): `MapDef.art` (`VoxelArt`: `piece(p, i, kind, pal, mat)` -> `{ mat, prog, params, fine }`,
+  `extra(pal, boxes, cyls)` -> visual-only shapes) - `world/maps/warehouseArt.ts` picks by the builder's colours.
+  `voxel/programs.ts` (pure) material programs run per voxel inside `rasterise`: BlockWall (running bond, mortar),
+  Concrete (chipped arrises, form lines), Cladding (concrete plinth, ribs carved only above 4.4 m), Planks, Steel
+  (worn edges, seams, rust), Hazard, Floor (saw cuts, stains), Wrap, Rack, paint programs Grime / Rust (-1 = keep);
+  variants are consecutive palette entries (`Palette.range`). Rule: nothing carves or protrudes where gameplay reads a
+  surface (cover faces, lips, floors) - the fit test enforces it. `fine: true` pieces (props, furniture, machines,
+  vehicles; also pieces thinner than 1.5 coarse voxels) form a second `VoxelWorld` at `fineSize` (2.5 cm at Epic,
+  `World.voxelsFine`, LOD at half the distances). With an art layer the box detail pass is skipped.
+- Sky bake (`voxel/skyBake.ts`, pure, a worker job): conservative occupancy in 0.5 m cells, 16 cosine-weighted upward
+  rays per air cell -> visibility (R8 3D texture, linear) + the roof height per column. `VoxelPlugin` takes the
+  hemisphere's fill itself (`setFill`; the hemi light excludes voxel meshes) scaled by visibility, and scales
+  irradiance / reflections by it; the fine layer reads the structure layer's bake (`skyFrom`). `VoxelWorld.roofAt`,
+  `skyAt`. Palette row 1 r = puddle (mirror-like in the rain).
+- Weather choice (3.0, `MapDef.weathers`, `WeatherChoice` clear / rain / fog; Play screen + co-op lobby, `lobby` /
+  `start` messages carry `weather`): rain = `Weather('rain')` with `occluder` = `roofAt` (no rain under roofs; it falls
+  through the skylights), voxels wet only where the sky reaches (`setWet`), fog x1.6; fog = fog x4 and the volumetric
+  pass's light shafts (`PostStack` `sky` + `shafts`: the sky bake sampled along the first 30 m of each ray).
 - Weather (3.0, `MapTheme.weather`: Port rain, Dust Depot dust, Refinery haze): `vfx/weather.ts` `Weather`
   (thin-instanced streaks / motes in a box wrapped round the camera, updated in place, count x effects density),
   `SurfacePlugin.wet` (upward faces darker and glossy, more in cavities: SSR puddles), the volumetric pass's

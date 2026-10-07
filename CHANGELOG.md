@@ -11,7 +11,16 @@
   ambient occlusion and worn edges between voxels and the procedural surface textures inside each face. Built on all
   but four of the CPU's threads at load and cached on the device (the second load is quick). Gameplay is untouched:
   collision, cover, ledges and the guards' navigation are the same as before.
-- Displays: ultrawide 21:9 and 32:9 (up to 7680 x 2160) - the view widens with the screen up to a widest field of
+- Warehouse in voxels: concrete block walls with mortar lines, corrugated cladding over a concrete plinth with rust
+  streaks, cast concrete with chipped edges, saw-cut floor slabs with oil stains and yard puddles, painted steel with
+  worn edges and seams, plank crates, shrink-wrapped loads in the racking bays, hazard stripes, grime up the wall
+  bases, conduit and junction boxes, electrical boxes, vents and signs. Props, furniture, machines and vehicles at
+  2.5 cm. Inside under the roof is dark but for the lamps and what falls through the skylights and doorways (the map's
+  open sky is baked at load); cover, ledges and floors stay exactly where they were.
+- Weather on the Warehouse (Play screen and co-op lobby): Clear, Rain (no rain indoors - it falls through the
+  skylights; the yard and the open floor go wet and glossy, puddles turn to mirrors) or Fog (thick, with moonlit
+  shafts under the skylights and through the doors). Visual only.
+ 21:9 and 32:9 (up to 7680 x 2160) - the view widens with the screen up to a widest field of
   view (default 120 deg, then the sides stop growing), menus stay a centred 16:9 layout, the HUD keeps to a centred
   16:9 on 32:9 (HUD width: auto / 16:9 / 21:9 / full); the frame-rate cap names the display's refresh (up to 240
   Hz); photos are saved at full output resolution.

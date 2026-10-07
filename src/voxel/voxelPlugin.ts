@@ -26,7 +26,7 @@ export interface VoxelTextures {
   index: BaseTexture;
   /** Explicit bricks (R8): 64 x 64 slots per layer, 8 x 8 x 8 texels each. */
   pool: BaseTexture;
-  /** Palette (RGBA8, 256 x 1): rgb = sRGB colour, a = surface kind + 16 x emissive level. */
+  /** Palette (RGBA8, 256 x 2): row 0 rgb = sRGB colour, a = surface kind + 16 x emissive level; row 1 r = puddle. */
   palette: BaseTexture;
   /** Voxel (0,0,0) minimum corner, voxel size, brick grid size. */
   origin: [number, number, number];
@@ -109,7 +109,7 @@ export class VoxelPlugin extends MaterialPluginBase {
     ubo.updateFloat3('voxOrigin', t.origin[0], t.origin[1], t.origin[2]);
     ubo.updateFloat4('voxInfo', t.size, this.search, this.wet, 0);
     ubo.updateFloat4('voxDims', t.bricks[0], t.bricks[1], t.bricks[2], 0);
-    ubo.updateFloat4('voxSkyO', t.skyOrigin[0], t.skyOrigin[1], t.skyOrigin[2], t.sky ? t.skyCell : 0);
+    ubo.updateFloat4('voxSkyO', t.skyOrigin[0], t.skyOrigin[1], t.skyOrigin[2], t.skyCell);
     ubo.updateFloat4('voxSkyD', t.skyDims[0], t.skyDims[1], t.skyDims[2], 0);
     ubo.updateFloat4('voxSkyFill', this.skyFill[0], this.skyFill[1], this.skyFill[2], 0);
     ubo.updateFloat4('voxGroundFill', this.groundFill[0], this.groundFill[1], this.groundFill[2], 0);
@@ -240,10 +240,11 @@ float vxSolid(ivec3 v) { return vxMat(v) != 0 ? 1.0 : 0.0; }
 #endif
   // open sky: baked per 0.5 m cell, sampled a little off the face (indoors stays dark but under the skylights)
   if (voxSkyO.w > 0.0) vxVis = texture(voxSky, (vPositionW + gn * voxSkyO.w * 0.6 - voxSkyO.xyz) / (voxSkyO.w * voxSkyD.xyz)).r;
-  // rain: upward faces open to the sky darker and glossy
-  float wet = voxInfo.z * smoothstep(0.55, 0.92, gn.y) * smoothstep(0.35, 0.8, vxVis);
-  base *= mix(1.0, 0.62, wet);
-  vxRough = mix(vxRough, 0.08, wet * 0.85);
+  // rain: upward faces open to the sky darker and glossy; puddles (palette row 1) a mirror
+  float pud = texelFetch(voxPal, ivec2(m, 1), 0).r;
+  float wet = voxInfo.z * smoothstep(0.55, 0.92, gn.y) * smoothstep(0.35, 0.8, vxVis) * (1.0 + pud * 0.6);
+  base *= mix(1.0, 0.62, min(wet, 1.0));
+  vxRough = mix(vxRough, 0.04, min(wet * 0.85, 1.0));
   surfaceAlbedo = base * shade;
   vxEmissive = base * emis * 4.0;
   // the hemisphere's fill, which the voxels take themselves: sky from above, ground from below, by how open it is

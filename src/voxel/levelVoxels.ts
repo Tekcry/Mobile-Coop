@@ -17,14 +17,14 @@ import type { Prog } from './programs';
  * touches the blockout, so collision, cover, ledges and nav stay exactly the same (`tests/voxelFit.test.ts`).
  */
 export interface VoxelArt {
-  piece?(p: BoxPiece | CylPiece, index: number, kind: 'box' | 'cyl', pal: Palette, mat: number): { mat?: number; prog: Prog; params: readonly number[] } | null;
+  piece?(p: BoxPiece | CylPiece, index: number, kind: 'box' | 'cyl', pal: Palette, mat: number): { mat?: number; prog: Prog; params: readonly number[]; fine?: boolean } | null;
   extra?(pal: Palette, boxes: readonly BoxPiece[], cylinders: readonly CylPiece[]): VoxelShape[];
 }
 
 /** Voxels per chunk side at the finest level (coarser levels: the same world extent, fewer voxels). */
 export const CHUNK = 128;
 /** Voxel data format version (bump to invalidate caches). */
-export const VOXEL_VERSION = 1;
+export const VOXEL_VERSION = 2;
 
 export interface PaletteEntry {
   /** Authored colour (#rrggbb, sRGB). */
@@ -33,6 +33,8 @@ export interface PaletteEntry {
   kind: number;
   /** Self-lit (0..1): lamp fixtures and screens in the art layer. */
   emissive: number;
+  /** A low spot that holds water: mirror-like when it rains. */
+  puddle?: boolean;
 }
 
 export interface LevelVoxels {
@@ -46,6 +48,8 @@ export interface LevelVoxels {
   origin: [number, number, number];
   dims: [number, number, number];
   size: number;
+  /** The finer layer (props, furniture, machines, vehicles, thin pieces), when there is one. */
+  fine?: LevelVoxels;
 }
 
 /** A piece is voxelised when every side is at least this many voxels. */
@@ -56,13 +60,13 @@ export class Palette {
   private map = new Map<string, number>();
 
   /** The palette index for a colour / kind (up to 255 entries; past that the nearest colour of the kind). */
-  get(color: string, kind: number, emissive = 0): number {
-    const key = `${color.toLowerCase()}|${kind}|${emissive}`;
+  get(color: string, kind: number, emissive = 0, puddle = false): number {
+    const key = `${color.toLowerCase()}|${kind}|${emissive}|${puddle ? 1 : 0}`;
     const hit = this.map.get(key);
     if (hit !== undefined) return hit;
     if (this.entries.length >= 256) return this.nearest(color, kind);
     const i = this.entries.length;
-    this.entries.push({ color: color.toLowerCase(), kind, emissive });
+    this.entries.push({ color: color.toLowerCase(), kind, emissive, ...(puddle ? { puddle } : {}) });
     this.map.set(key, i);
     return i;
   }
@@ -99,59 +103,79 @@ export class Palette {
   }
 }
 
-/** Split the blockout into voxel shapes + mesh pieces, build the palette and the map's voxel grid at `size`. */
-export function levelVoxels(boxes: readonly BoxPiece[], cylinders: readonly CylPiece[], surfaces: readonly SurfaceArea[], floor: Surface, size: number, palette = new Palette(), art: VoxelArt | null = null): LevelVoxels {
-  const min = size * MIN_VOXELS;
-  const kindOf = (hex: string, sx: number, sy: number, sz: number, cx: number, top: number, cz: number): number =>
-    SURFACE_ID[pieceKind(hex, sx, sy, sz, sy <= 0.35 ? surfaceAt(surfaces, cx, top, cz, floor) : null)];
-  const shapes: VoxelShape[] = [];
+/** Shape bounds (min x, y, z, max x, y, z): rotated boxes by their circumscribed cube. */
+function boundsOf(x: VoxelShape): [number, number, number, number, number, number] {
+  if (x.kind === 'box') {
+    const r = Math.sqrt(x.s[0] * x.s[0] + x.s[1] * x.s[1] + x.s[2] * x.s[2]) / 2;
+    return [x.c[0] - r, x.c[1] - r, x.c[2] - r, x.c[0] + r, x.c[1] + r, x.c[2] + r];
+  }
+  return [x.c[0] - x.r, x.c[1] - x.h / 2, x.c[2] - x.r, x.c[0] + x.r, x.c[1] + x.h / 2, x.c[2] + x.r];
+}
+
+/** The grid round a shape list: whole chunks, voxel (0,0,0) on the brick grid of `size` (so coarser levels nest). */
+function gridOf(shapes: readonly VoxelShape[], size: number): { origin: [number, number, number]; dims: [number, number, number] } {
   const lo = [Infinity, Infinity, Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
-  const grow = (x0: number, y0: number, z0: number, x1: number, y1: number, z1: number): void => {
-    lo[0] = Math.min(lo[0]!, x0);
-    lo[1] = Math.min(lo[1]!, y0);
-    lo[2] = Math.min(lo[2]!, z0);
-    hi[0] = Math.max(hi[0]!, x1);
-    hi[1] = Math.max(hi[1]!, y1);
-    hi[2] = Math.max(hi[2]!, z1);
-  };
-  const voxelBox = boxes.map((b, i) => {
-    if (b.visible === false) return false;
-    if (Math.min(b.s[0], b.s[1], b.s[2]) < min) return false;
-    const mat = palette.get(b.color, kindOf(b.color, b.s[0], b.s[1], b.s[2], b.c[0], b.c[1] + b.s[1] / 2, b.c[2]));
-    const look = art?.piece?.(b, i, 'box', palette, mat) ?? null;
-    shapes.push({ kind: 'box', c: b.c, s: b.s, yaw: b.yaw, pitch: b.pitch, mat: look?.mat ?? mat, prog: look?.prog, params: look?.params });
-    // (a generous bound: the rotated box fits in its circumscribed cube)
-    const r = Math.sqrt(b.s[0] * b.s[0] + b.s[1] * b.s[1] + b.s[2] * b.s[2]) / 2;
-    grow(b.c[0] - r, b.c[1] - r, b.c[2] - r, b.c[0] + r, b.c[1] + r, b.c[2] + r);
-    return true;
-  });
-  const voxelCyl = cylinders.map((c, i) => {
-    if (Math.min(c.r * 2, c.h) < min) return false;
-    const mat = palette.get(c.color, kindOf(c.color, c.r * 2, c.h, c.r * 2, c.c[0], c.c[1] + c.h / 2, c.c[2]));
-    const look = art?.piece?.(c, i, 'cyl', palette, mat) ?? null;
-    shapes.push({ kind: 'cyl', c: c.c, r: c.r, h: c.h, mat: look?.mat ?? mat, prog: look?.prog, params: look?.params });
-    grow(c.c[0] - c.r, c.c[1] - c.h / 2, c.c[2] - c.r, c.c[0] + c.r, c.c[1] + c.h / 2, c.c[2] + c.r);
-    return true;
-  });
-  // the art layer's dressing and paint (inside the pieces' bounds or growing them)
-  for (const x of art?.extra?.(palette, boxes, cylinders) ?? []) {
-    shapes.push(x);
-    if (x.kind === 'box') {
-      const r = Math.sqrt(x.s[0] * x.s[0] + x.s[1] * x.s[1] + x.s[2] * x.s[2]) / 2;
-      grow(x.c[0] - r, x.c[1] - r, x.c[2] - r, x.c[0] + r, x.c[1] + r, x.c[2] + r);
-    } else grow(x.c[0] - x.r, x.c[1] - x.h / 2, x.c[2] - x.r, x.c[0] + x.r, x.c[1] + x.h / 2, x.c[2] + x.r);
+  for (const x of shapes) {
+    const b = boundsOf(x);
+    for (let a = 0; a < 3; a++) {
+      lo[a] = Math.min(lo[a]!, b[a]!);
+      hi[a] = Math.max(hi[a]!, b[a + 3]!);
+    }
   }
   if (!shapes.length) {
     lo[0] = lo[1] = lo[2] = 0;
     hi[0] = hi[1] = hi[2] = 1;
   }
-  // the grid: whole chunks, voxel (0,0,0) on the brick grid of `size` (so coarser levels nest)
   const chunk = CHUNK * size;
   const brick = BRICK * size;
   const origin: [number, number, number] = [Math.floor(lo[0]! / brick) * brick, Math.floor(lo[1]! / brick) * brick, Math.floor(lo[2]! / brick) * brick];
-  const dims: [number, number, number] = [0, 1, 2].map((a) => Math.max(1, Math.ceil((hi[a]! - origin[a]!) / chunk)) * CHUNK) as [number, number, number];
-  return { shapes, palette: palette.entries, voxelBox, voxelCyl, origin, dims, size };
+  const dims = [0, 1, 2].map((a) => Math.max(1, Math.ceil((hi[a]! - origin[a]!) / chunk)) * CHUNK) as [number, number, number];
+  return { origin, dims };
+}
+
+/**
+ * Split the blockout into voxel shapes + mesh pieces, build the palette and the map's voxel grid at `size`. With an
+ * art layer that marks pieces `fine` and a `fineSize`, those pieces (props, furniture, machines, vehicles) form a
+ * second, finer layer (`fine`, 2.5 cm at Epic) with the same palette.
+ */
+export function levelVoxels(boxes: readonly BoxPiece[], cylinders: readonly CylPiece[], surfaces: readonly SurfaceArea[], floor: Surface, size: number, palette = new Palette(), art: VoxelArt | null = null, fineSize = 0): LevelVoxels {
+  const min = size * MIN_VOXELS;
+  const fineMin = fineSize * MIN_VOXELS;
+  const kindOf = (hex: string, sx: number, sy: number, sz: number, cx: number, top: number, cz: number): number =>
+    SURFACE_ID[pieceKind(hex, sx, sy, sz, sy <= 0.35 ? surfaceAt(surfaces, cx, top, cz, floor) : null)];
+  const shapes: VoxelShape[] = [];
+  const fine: VoxelShape[] = [];
+  const voxelBox = boxes.map((b, i) => {
+    if (b.visible === false) return false;
+    const thin = Math.min(b.s[0], b.s[1], b.s[2]);
+    if (thin < (fineSize ? Math.min(min, fineMin) : min)) return false;
+    const mat = palette.get(b.color, kindOf(b.color, b.s[0], b.s[1], b.s[2], b.c[0], b.c[1] + b.s[1] / 2, b.c[2]));
+    const look = art?.piece?.(b, i, 'box', palette, mat) ?? null;
+    const toFine = !!fineSize && (!!look?.fine || thin < min);
+    if (toFine && thin < fineMin) return false;
+    (toFine ? fine : shapes).push({ kind: 'box', c: b.c, s: b.s, yaw: b.yaw, pitch: b.pitch, mat: look?.mat ?? mat, prog: look?.prog, params: look?.params });
+    return true;
+  });
+  const voxelCyl = cylinders.map((c, i) => {
+    const thin = Math.min(c.r * 2, c.h);
+    if (thin < (fineSize ? Math.min(min, fineMin) : min)) return false;
+    const mat = palette.get(c.color, kindOf(c.color, c.r * 2, c.h, c.r * 2, c.c[0], c.c[1] + c.h / 2, c.c[2]));
+    const look = art?.piece?.(c, i, 'cyl', palette, mat) ?? null;
+    const toFine = !!fineSize && (!!look?.fine || thin < min);
+    if (toFine && thin < fineMin) return false;
+    (toFine ? fine : shapes).push({ kind: 'cyl', c: c.c, r: c.r, h: c.h, mat: look?.mat ?? mat, prog: look?.prog, params: look?.params });
+    return true;
+  });
+  // the art layer's dressing and paint (fine ones on the fine layer)
+  for (const x of art?.extra?.(palette, boxes, cylinders) ?? []) (fineSize && x.fine ? fine : shapes).push(x);
+  const g = gridOf(shapes, size);
+  const out: LevelVoxels = { shapes, palette: palette.entries, voxelBox, voxelCyl, origin: g.origin, dims: g.dims, size };
+  if (fineSize && fine.length) {
+    const gf = gridOf(fine, fineSize);
+    out.fine = { shapes: fine, palette: palette.entries, voxelBox, voxelCyl, origin: gf.origin, dims: gf.dims, size: fineSize };
+  }
+  return out;
 }
 
 /** Chunk grid counts per axis for a level. */

@@ -5,6 +5,10 @@ import type { RoomDef } from './rooms';
 import type { Surface } from './surfaces';
 import type { VoxelArt } from '../voxel/levelVoxels';
 
+/** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
+export type WeatherChoice = 'clear' | 'rain' | 'fog';
+export const WEATHER_CHOICES: readonly WeatherChoice[] = ['clear', 'rain', 'fog'];
+
 export interface MapTheme {
   sky: string;
   horizon: string;
@@ -66,4 +70,6 @@ export interface MapDef {
   build(b: LevelBuilder, seed: number): MapLayout;
   /** 3.0: the voxel art layer (what the pieces' voxels look like, visual-only dressing); none = plain voxels. */
   art?: VoxelArt;
+  /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
+  weathers?: readonly WeatherChoice[];
 }

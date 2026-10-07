@@ -2,6 +2,7 @@ import type { App } from '../../core/app';
 import type { GameOptions, ModeId } from '../../game/gameState';
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from '../../ai/archetypes';
 import { MAPS } from '../../world/maps';
+import type { MapDef, WeatherChoice } from '../../world/mapDef';
 import { MISSIONS, missionById } from '../../game/missions';
 import { applyPreset } from '../../progression/profile';
 import { WEAPONS, type WeaponId } from '../../weapons/weaponDefs';
@@ -19,6 +20,8 @@ const MODES: { id: ModeId; label: string; desc: string }[] = [
   { id: 'sandbox', label: 'Free Roam', desc: 'No guards: explore the map with every weapon (Proving Grounds adds training targets).' },
 ];
 
+const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
+
 const STARS = (n: number): string => '\u2605'.repeat(n) + '\u2606'.repeat(3 - n);
 
 /** Mode -> map -> difficulty, then start. */
@@ -26,6 +29,7 @@ export class PlayScreen extends Screen {
   private mode: ModeId = 'wave';
   private mapId = MAPS[0]!.id;
   private difficulty: Difficulty = 'normal';
+  private weather: WeatherChoice = 'clear';
   private missionId = MISSIONS[0]!.id;
   private insertion = MISSIONS[0]!.insertions[0]!.id;
   private desc: HTMLElement;
@@ -88,11 +92,11 @@ export class PlayScreen extends Screen {
     );
     modeChoice.dataset.autofocus = '';
     if (this.mode === 'sandbox') diff.hidden = true;
-    const go = button('Deploy', () => this.start({ map, mode: this.mode, difficulty: this.difficulty, seed: Math.floor(Math.random() * 1e6) }), {
+    const go = button('Deploy', () => this.start({ map, mode: this.mode, difficulty: this.difficulty, seed: Math.floor(Math.random() * 1e6), weather: this.weatherFor(map) }), {
       icon: 'play',
       class: 'primary big',
     });
-    this.body.replaceChildren(modeChoice, mapChoice, diff, this.presetChoice(), this.desc, go);
+    this.body.replaceChildren(modeChoice, mapChoice, diff, ...this.weatherChoice(map), this.presetChoice(), this.desc, go);
   }
 
   /** Infiltration: the mission board (best rating and play-style split per mission), insertion, difficulty. */
@@ -145,11 +149,23 @@ export class PlayScreen extends Screen {
       .map((k) => `${k === 'noAlarms' ? 'No alarms' : k === 'noKills' ? 'No kills' : 'Undetected'} (${m.rules[k]})`);
     const best = rec ? `Best ${STARS(rec.rating)}  ·  Ghost ${rec.ghost} / Panther ${rec.panther} / Assault ${rec.assault}  ·  ${rec.wins}/${rec.plays} won` : 'Not played yet';
     this.desc.textContent = `Objectives: ${m.objectives.map((o) => o.label).join(', ')}${rules.length ? '  ·  Rules: ' + rules.join(', ') : ''}  ·  ${best}`;
-    const go = button('Deploy', () => this.start({ map, mode: 'infiltration', difficulty: this.difficulty, seed: 1, missionId: m.id, insertion: this.insertion }), {
+    const go = button('Deploy', () => this.start({ map, mode: 'infiltration', difficulty: this.difficulty, seed: 1, missionId: m.id, insertion: this.insertion, weather: this.weatherFor(map) }), {
       icon: 'play',
       class: 'primary big',
     });
-    this.body.replaceChildren(modeChoice, missionChoice, insChoice, diff, this.presetChoice(), this.desc, go);
+    this.body.replaceChildren(modeChoice, missionChoice, insChoice, diff, ...this.weatherChoice(map), this.presetChoice(), this.desc, go);
+  }
+
+  /** Weather (3.0, visual only) for maps that offer it. */
+  private weatherChoice(map: MapDef): HTMLElement[] {
+    const ws = map.weathers;
+    if (!ws?.length) return [];
+    if (!ws.includes(this.weather)) this.weather = ws[0]!;
+    return [choice('Weather', ws.map((w) => ({ value: w, label: WEATHER_LABEL[w] })), () => this.weather, (v) => (this.weather = v))];
+  }
+
+  private weatherFor(map: MapDef): WeatherChoice | undefined {
+    return map.weathers?.includes(this.weather) ? this.weather : undefined;
   }
 
   /** The loadout preset to deploy with (weapons and starting gadget; edited in HQ). */

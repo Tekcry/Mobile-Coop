@@ -155,7 +155,7 @@ async function boot(): Promise<void> {
   if (flags.autostart) {
     // infiltration: the mission picks its map
     const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
-    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
+    startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
   }
   else goToMenu();
   if (flags.coop && flags.room && !flags.autostart) {

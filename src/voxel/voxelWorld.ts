@@ -7,6 +7,10 @@ import { packShapes, SHAPE_STRIDE, shapeBounds } from './shapes';
 import { VoxelPlugin, type VoxelTextures } from './voxelPlugin';
 import { WorkerPool } from './workerPool';
 import { loadVoxelCache, saveVoxelCache } from './voxelCache';
+import type { SkyResult } from './skyBake';
+
+/** Sky visibility cells (m). */
+export const SKY_CELL = 0.5;
 
 export interface VoxelWorldOptions {
   name: string;
@@ -19,6 +23,9 @@ export interface VoxelWorldOptions {
   micro: boolean;
   /** IndexedDB cache key (null: no cache). */
   cacheKey: string | null;
+  /** Bake the sky visibility (the structure layer); a finer layer reads another layer's (`skyFrom`). */
+  bakeSky?: boolean;
+  skyFrom?: VoxelWorld | null;
 }
 
 interface Chunk {
@@ -44,6 +51,12 @@ export class VoxelWorld {
   private chunks: Chunk[] = [];
   private textures: (RawTexture | RawTexture3D)[] = [];
   private lodT = 0;
+  /** The sky bake: visibility per cell and, per column, the top of the highest solid cell (rain stops there). */
+  sky: { origin: [number, number, number]; cell: number; n: [number, number, number]; roof: Float32Array } | null = null;
+  private skyVis: Uint8Array | null = null;
+  private skyFrom: VoxelWorld | null = null;
+  /** The sky visibility texture (null without a bake). */
+  skyTex: RawTexture3D | null = null;
   stats = { chunks: 0, quads: 0, explicit: 0, uniform: 0, bytes: 0, ms: 0, cached: false, workers: 0 };
 
   private constructor(
@@ -59,8 +72,12 @@ export class VoxelWorld {
     const w = new VoxelWorld(lv, opts);
     const [cx, cy, cz] = chunkCounts(lv);
     const levels = Math.max(1, Math.min(3, opts.levels));
-    let results = opts.cacheKey ? await loadVoxelCache(opts.cacheKey) : null;
+    const cached = opts.cacheKey ? await loadVoxelCache(opts.cacheKey) : null;
+    let results = cached?.chunks ?? null;
+    let sky: SkyResult | null = cached?.sky ?? null;
     w.stats.cached = !!results;
+    // the sky bake's grid: the map's voxel bounds in 0.5 m cells
+    const skyN: [number, number, number] = [0, 1, 2].map((a) => Math.ceil((lv.dims[a]! * lv.size) / SKY_CELL)) as [number, number, number];
     if (!results) {
       const packed = packShapes(lv.shapes);
       const n = packed.length / SHAPE_STRIDE;
@@ -95,12 +112,19 @@ export class VoxelWorld {
       const pool = new WorkerPool();
       w.stats.workers = pool.size;
       try {
+        const skyJob = opts.bakeSky === false ? null : pool.sky({ kind: 'sky', id: -1, origin: [...lv.origin], cell: SKY_CELL, n: skyN, shapes: packed.slice() });
         results = await Promise.all(jobs.map((j) => pool.run(j)));
+        sky = skyJob ? await skyJob : null;
       } finally {
         pool.dispose();
       }
-      if (opts.cacheKey) void saveVoxelCache(opts.cacheKey, results);
+      if (opts.cacheKey) void saveVoxelCache(opts.cacheKey, { chunks: results, sky });
     }
+    if (sky) {
+      w.sky = { origin: [...lv.origin], cell: SKY_CELL, n: skyN, roof: sky.roof };
+      w.skyVis = sky.vis;
+    }
+    w.skyFrom = opts.skyFrom ?? null;
     w.assemble(scene, results, levels, cx, cy, cz);
     w.stats.ms = performance.now() - t0;
     return w;
@@ -225,24 +249,73 @@ export class VoxelWorld {
       }
     }
     const pool = new RawTexture3D(poolData, W, W, layers * BRICK, Constants.TEXTUREFORMAT_R, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
-    const pal = new Uint8Array(256 * 4);
+    // row 0: colour + kind / emissive; row 1: r = puddle
+    const pal = new Uint8Array(256 * 4 * 2);
     this.lv.palette.forEach((e, i) => {
       const n = parseInt(e.color.slice(1, 7), 16);
       pal[i * 4] = (n >> 16) & 255;
       pal[i * 4 + 1] = (n >> 8) & 255;
       pal[i * 4 + 2] = n & 255;
       pal[i * 4 + 3] = (e.kind & 15) + 16 * Math.round(Math.max(0, Math.min(1, e.emissive)) * 15);
+      pal[1024 + i * 4] = e.puddle ? 255 : 0;
     });
-    const palette = new RawTexture(pal, 256, 1, Constants.TEXTUREFORMAT_RGBA, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+    const palette = new RawTexture(pal, 256, 2, Constants.TEXTUREFORMAT_RGBA, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
     for (const t of [index, pool, palette]) {
       t.wrapU = t.wrapV = Texture.CLAMP_ADDRESSMODE;
       this.textures.push(t);
     }
     this.stats.bytes = ind.byteLength + poolData.byteLength + pal.byteLength;
-    // (no sky bake: a 1 x 1 x 1 stand-in, so the material's 3D sampler never shares a unit with a 2D texture)
-    const none = new RawTexture3D(new Uint8Array([255]), 1, 1, 1, Constants.TEXTUREFORMAT_R, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
-    this.textures.push(none);
-    return { index, pool, palette, origin: [...this.lv.origin], size: this.lv.size, bricks: [bm.bx, bm.by, bm.bz], sky: none, skyOrigin: [0, 0, 0], skyCell: 0, skyDims: [1, 1, 1] };
+    let sky: RawTexture3D | null = null;
+    if (this.sky && this.skyVis) {
+      const [sx, sy, sz] = this.sky.n;
+      sky = new RawTexture3D(this.skyVis, sx, sy, sz, Constants.TEXTUREFORMAT_R, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+      sky.wrapU = sky.wrapV = sky.wrapR = Texture.CLAMP_ADDRESSMODE;
+      this.textures.push(sky);
+      this.skyTex = sky;
+    }
+    let so = sky ? this.sky : null;
+    // a finer layer lights itself from the structure layer's bake
+    if (!sky && this.skyFrom?.skyTex && this.skyFrom.sky) {
+      sky = this.skyFrom.skyTex;
+      so = this.skyFrom.sky;
+    }
+    if (!sky) {
+      // (no sky bake: a 1 x 1 x 1 stand-in, so the material's 3D sampler never shares a unit with a 2D texture)
+      sky = new RawTexture3D(new Uint8Array([255]), 1, 1, 1, Constants.TEXTUREFORMAT_R, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+      this.textures.push(sky);
+    }
+    return { index, pool, palette, origin: [...this.lv.origin], size: this.lv.size, bricks: [bm.bx, bm.by, bm.bz], sky, skyOrigin: so ? so.origin : [0, 0, 0], skyCell: so ? so.cell : 0, skyDims: so ? so.n : [1, 1, 1] };
+  }
+
+  /** The top of the highest solid cell above (x, z) (m; -1e9: open sky). Rain stops there. */
+  roofAt(x: number, z: number): number {
+    const s = this.sky;
+    if (!s) return -1e9;
+    const cx = Math.floor((x - s.origin[0]) / s.cell);
+    const cz = Math.floor((z - s.origin[2]) / s.cell);
+    if (cx < 0 || cz < 0 || cx >= s.n[0] || cz >= s.n[2]) return -1e9;
+    return s.roof[cx + s.n[0] * cz]!;
+  }
+
+  /** Sky visibility at a point (0..1; 1 without a bake). */
+  skyAt(x: number, y: number, z: number): number {
+    const s = this.sky;
+    const v = this.skyVis;
+    if (!s || !v) return 1;
+    const cx = Math.floor((x - s.origin[0]) / s.cell);
+    const cy = Math.floor((y - s.origin[1]) / s.cell);
+    const cz = Math.floor((z - s.origin[2]) / s.cell);
+    if (cx < 0 || cy < 0 || cz < 0 || cx >= s.n[0] || cy >= s.n[1] || cz >= s.n[2]) return 1;
+    return v[cx + s.n[0] * (cy + s.n[1] * cz)]! / 255;
+  }
+
+  /** The fill light (the hemisphere's sky and ground colour x intensity) the voxels apply by sky visibility. */
+  setFill(sky: [number, number, number], ground: [number, number, number]): void {
+    for (const p of this.plugins) {
+      p.skyFill = sky;
+      p.groundFill = ground;
+    }
+    this.refresh();
   }
 
   /** Level of detail per chunk by camera distance (a few times a second). */
@@ -274,11 +347,7 @@ export class VoxelWorld {
   /** Rain on the voxels (0..1). */
   setWet(w: number): void {
     for (const p of this.plugins) p.wet = w;
-    for (const m of this.materials) {
-      m.unfreeze();
-      m.markAsDirty(1);
-      m.freeze();
-    }
+    this.refresh();
   }
 
   /** Re-bind after the surface atlas changes size. */

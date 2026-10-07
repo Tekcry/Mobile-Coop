@@ -12,7 +12,7 @@ export const enum Prog {
   BlockWall = 1,
   /** Cast concrete: chipped edges, form lines, cloudy tone. p: [variants, chip %, line spacing, line entry] */
   Concrete = 2,
-  /** Corrugated cladding over a concrete plinth: ribs (grooves carved above 2 m), rust streaks. p: [variants, plinth h, plinth entry, rust entry] */
+  /** Corrugated cladding over a concrete plinth: ribs (grooves carved above 4.4 m), rust streaks. p: [variants, plinth h, plinth entry, rust entry] */
   Cladding = 3,
   /** Planks: boards along the long side, gaps, battens on the edges. p: [variants, gap entry, board width, batten entry] */
   Planks = 4,
@@ -120,15 +120,15 @@ export function runProgram(
     }
     case Prog.Cladding: {
       const bottom = ly + hy;
-      if (bottom < (p1 || 1.2)) {
+      if (p1 > 0 && p2 && bottom < p1) {
         const near = (dx < 1 ? 1 : 0) + (dy < 1 ? 1 : 0) + (dz < 1 ? 1 : 0);
         if (near >= 2 && hash3(vx, vy, vz) < 0.15) return 0;
         return p2 | 0;
       }
-      // ribs: every third voxel along the wall is a groove on both faces - carved above 2 m, below it (where cover
-      // is taken against the wall) only a darker line, so the face stays within 3 cm of the blockout
+      // ribs: every third voxel along the wall is a groove on both faces - carved above 4.4 m (over a mezzanine's
+      // cover heights too), below it only a darker line, so cover faces stay within 3 cm of the blockout
       const thin = alongX ? dz : dx;
-      if (thin < 1 && ((alongX ? vx : vz) % 3 + 3) % 3 === 0) return bottom > 2 ? 0 : base + k - 1;
+      if (thin < 1 && ((alongX ? vx : vz) % 3 + 3) % 3 === 0) return bottom > 4.4 ? 0 : base + k - 1;
       // rust streaks: narrow vertical runs, longer near the top and the bottom of the sheets
       const streak = noise3(u * 3.1, wy * 0.35, (alongX ? wz : wx) * 3.1);
       if (p3 && streak > 0.74) return p3 | 0;

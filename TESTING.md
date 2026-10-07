@@ -304,6 +304,12 @@ Voxels (Epic, the laptop):
       rooms switch to coarser voxels without visible popping or cracks.
 - [ ] Cover, vaults, ladders, ledges and doors behave exactly as before (hands on the cover surface, feet on floors).
 - [ ] Shadows from lamps / flashlights / the moon fall on and from the voxels; reflections pick them up.
+Warehouse art and weather (Epic):
+- [ ] Walls read as block walls / cladding / concrete, floors as slabs with joints and stains, crates as planks,
+      racks as wrapped loads in bays; props crisper than walls (2.5 cm); no stray holes where you take cover.
+- [ ] Under the roof it is darker than the yard (but for the lamps); the skylight strips let a little in.
+- [ ] Rain: none inside except under the skylights; the yard and puddles go glossy; Fog: thick with light shafts
+      under the skylights; Clear unchanged. Co-op: the host's weather choice reaches the client.
 Displays (gaming laptop: RTX 4090 Laptop, 16 GB; built-in 2560 x 1600 240 Hz; external ultrawide):
 - [ ] The browser runs on the NVIDIA GPU (Settings > Graphics > GPU); switch it to the integrated GPU once: the
       notice appears once with the Windows steps.

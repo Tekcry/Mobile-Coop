@@ -1,4 +1,5 @@
 import { EventBus } from '../core/events';
+import type { WeatherChoice } from '../world/mapDef';
 import type { AvatarLook } from '../cosmetics/avatarLook';
 import { capacity, isPvp, parseMessage, PROTOCOL_VERSION, type Difficulty, type Msg, type NetMode, type PlayerInfo } from './protocol';
 import { balanceTeam, canJoinTeam } from './pvp';
@@ -19,6 +20,7 @@ export interface StartInfo {
   difficulty: Difficulty;
   /** Infiltration: the mission ('' otherwise). */
   mission: string;
+  weather: WeatherChoice;
 }
 
 export interface SessionEvents {
@@ -43,6 +45,7 @@ export class NetSession {
   map = 'warehouse';
   difficulty: Difficulty = 'normal';
   mission = '';
+  weather: WeatherChoice = 'clear';
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -140,6 +143,7 @@ export class NetSession {
       this.map = msg.map;
       this.difficulty = msg.difficulty;
       this.mission = msg.mission;
+      this.weather = msg.weather;
       this.phase = msg.phase;
       this.events.emit('lobby', { players: [...this.players.values()] });
       return;
@@ -153,7 +157,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather };
       this.events.emit('start', this.start);
       return;
     }
@@ -181,7 +185,7 @@ export class NetSession {
   broadcastLobby(): void {
     if (!this.isHost) return;
     const players = [...this.players.values()];
-    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission });
+    this.send({ t: 'lobby', players, mode: this.mode, map: this.map, difficulty: this.difficulty, phase: this.phase, mission: this.mission, weather: this.weather });
     this.events.emit('lobby', { players });
   }
 
@@ -192,7 +196,7 @@ export class NetSession {
     else this.toHost({ t: 'ready', ready });
   }
 
-  setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission): void {
+  setSettings(mode: NetMode, map: string, difficulty: Difficulty, mission = this.mission, weather = this.weather): void {
     if (!this.isHost) return;
     // switching into team deathmatch: even the sides out
     if (isPvp(mode) && mode !== this.mode) {
@@ -203,6 +207,7 @@ export class NetSession {
     this.map = map;
     this.difficulty = difficulty;
     this.mission = mode === 'infiltration' ? mission : '';
+    this.weather = weather;
     this.broadcastLobby();
   }
 
@@ -235,7 +240,7 @@ export class NetSession {
     if (!this.isHost) return null;
     this.phase = 'playing';
     if (this.overCapacity) return null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission };
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather };
     this.send({ t: 'start', ...this.start, time: 0 });
     this.broadcastLobby();
     this.events.emit('start', this.start);

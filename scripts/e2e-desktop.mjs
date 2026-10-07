@@ -165,6 +165,14 @@ try {
   });
   assert(r.vox && r.vox.size === 0.05 && r.vox.levels === 3 && r.vox.chunks > 20 && r.vox.quads > 1000, `Epic: the Warehouse in 5 cm voxels, three levels of detail (${JSON.stringify(r.vox)})`);
   assert(r.vox.casters === r.vox.meshes, 'every voxel chunk casts shadows');
+  const art = await e.page.evaluate(() => {
+    const w = window.__app.current.world;
+    return { fine: w.voxelsFine && { size: w.voxelsFine.lv.size, chunks: w.voxelsFine.stats.chunks }, sky: !!w.voxels.skyTex, inside: w.voxels.skyAt(5, 1.2, 0), yard: w.voxels.skyAt(0, 1.2, -24), roofIn: w.voxels.roofAt(5, 0), roofYard: w.voxels.roofAt(0, -24), palette: w.voxels.lv.palette.length };
+  });
+  assert(art.fine && art.fine.size === 0.025 && art.fine.chunks > 5, `props on a 2.5 cm layer (${JSON.stringify(art.fine)})`);
+  assert(art.sky && art.inside < 0.5 && art.yard > 0.8, `the sky is baked: dark under the roof, open in the yard (${art.inside.toFixed(2)} / ${art.yard.toFixed(2)})`);
+  assert(art.roofIn > 5 && art.roofYard < -1e8, `rain stops at the roof, falls in the yard (${art.roofIn})`);
+  assert(art.palette > 40, `the art layer's materials (${art.palette} palette entries)`);
   assert(r.placed >= 8 && r.shadowed >= 1, `Epic: real lights placed (${r.placed}, ${r.shadowed} with shadows, clustered ${r.clustered})`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');

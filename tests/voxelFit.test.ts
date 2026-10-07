@@ -15,7 +15,7 @@ const TOL = 0.03;
 const TOL_DIAGONAL = 0.036;
 
 describe('voxel fit and parity (3.0)', () => {
-  it('Warehouse and Proving Grounds at 5 cm', async () => {
+  it('Warehouse and Proving Grounds at 5 cm (props at 2.5 cm)', async () => {
     const { LevelBuilder } = await import('../src/world/levelBuilder');
     const { MAPS } = await import('../src/world/maps');
     for (const map of MAPS) {
@@ -25,7 +25,8 @@ describe('voxel fit and parity (3.0)', () => {
       const coverBefore = JSON.stringify(buildCoverSegments(b.boxes, b.cylinders));
       const ledgesBefore = JSON.stringify(generateLedges(b.boxes).ledges.map((l) => [l.a, l.b, l.top, l.canHang]));
       const size = 0.05;
-      const lv = levelVoxels(b.boxes, b.cylinders, b.surfaces, 'concrete', size);
+      // (with the map's art layer: programs and dressing must keep the fit too)
+      const lv = levelVoxels(b.boxes, b.cylinders, b.surfaces, 'concrete', size, undefined, map.art ?? null, 0.025);
       // parity: nothing gameplay reads has changed
       expect(JSON.stringify([b.boxes, b.cylinders]), map.id).toBe(snapshot);
       expect(JSON.stringify(buildCoverSegments(b.boxes, b.cylinders)), map.id).toBe(coverBefore);
@@ -34,32 +35,43 @@ describe('voxel fit and parity (3.0)', () => {
       expect(lv.palette.length).toBeLessThanOrEqual(256);
 
       const packed = packShapes(lv.shapes);
-      const n = packed.length / SHAPE_STRIDE;
-      const bb = Array.from({ length: n }, (_, i) => shapeBounds(packed, i));
-      const near = (x: number, y: number, z: number, r: number): number[] => {
-        const out: number[] = [];
-        for (let i = 0; i < n; i++) {
-          const q = bb[i]!;
-          if (x >= q[0]! - r && x <= q[3]! + r && y >= q[1]! - r && y <= q[4]! + r && z >= q[2]! - r && z <= q[5]! + r) out.push(i);
-        }
-        return out;
+      // the blockout itself: the same pieces, plain (no programs, no dressing)
+      const plain = packShapes(levelVoxels(b.boxes, b.cylinders, b.surfaces, 'concrete', size).shapes);
+      const index = (sh: Float32Array): ((x: number, y: number, z: number, r: number) => number[]) => {
+        const n = sh.length / SHAPE_STRIDE;
+        const bb = Array.from({ length: n }, (_, i) => shapeBounds(sh, i));
+        return (x, y, z, r) => {
+          const out: number[] = [];
+          for (let i = 0; i < n; i++) {
+            const q = bb[i]!;
+            if (x >= q[0]! - r && x <= q[3]! + r && y >= q[1]! - r && y <= q[4]! + r && z >= q[2]! - r && z <= q[5]! + r) out.push(i);
+          }
+          return out;
+        };
       };
+      const near = index(packed);
+      const nearPlain = index(plain);
+      // the fine layer (props at 2.5 cm), when the art layer makes one
+      const fine = lv.fine ?? null;
+      const packedFine = fine ? packShapes(fine.shapes) : null;
+      const nearFine = packedFine ? index(packedFine) : null;
       const g = new Uint8Array(1);
-      /** The voxel containing a point (on the map's grid). */
-      const voxelSolid = (x: number, y: number, z: number): boolean => {
-        const o = lv.origin;
-        const cx = o[0] + Math.floor((x - o[0]) / size) * size;
-        const cy = o[1] + Math.floor((y - o[1]) / size) * size;
-        const cz = o[2] + Math.floor((z - o[2]) / size) * size;
+      /** The voxel containing a point (on a layer's grid). */
+      const layerSolid = (sh: Float32Array, o: readonly number[], sz: number, nr: (x: number, y: number, z: number, r: number) => number[], x: number, y: number, z: number): boolean => {
+        const cx = o[0]! + Math.floor((x - o[0]!) / sz) * sz;
+        const cy = o[1]! + Math.floor((y - o[1]!) / sz) * sz;
+        const cz = o[2]! + Math.floor((z - o[2]!) / sz) * sz;
         g[0] = 0;
-        rasterise(packed, g, [cx, cy, cz], size, 1, 1, 1, near(x, y, z, size));
+        rasterise(sh, g, [cx, cy, cz], sz, 1, 1, 1, nr(x, y, z, sz));
         return g[0] !== 0;
       };
+      const voxelSolid = (x: number, y: number, z: number): boolean =>
+        layerSolid(packed, lv.origin, size, near, x, y, z) || (!!fine && layerSolid(packedFine!, fine.origin, fine.size, nearFine!, x, y, z));
       /** The blockout itself at a point (a grid of one tiny voxel centred on it). */
       const tiny = 1e-4;
       const blockSolid = (x: number, y: number, z: number): boolean => {
         g[0] = 0;
-        rasterise(packed, g, [x - tiny / 2, y - tiny / 2, z - tiny / 2], tiny, 1, 1, 1, near(x, y, z, tiny));
+        rasterise(plain, g, [x - tiny / 2, y - tiny / 2, z - tiny / 2], tiny, 1, 1, 1, nearPlain(x, y, z, tiny));
         return g[0] !== 0;
       };
       let checks = 0;

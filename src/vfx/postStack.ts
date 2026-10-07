@@ -11,6 +11,10 @@ import {
   type Camera,
   type DepthRenderer,
   type Scene,
+  type BaseTexture,
+  Constants,
+  RawTexture3D,
+  Texture,
 } from '../core/babylon';
 import type { QualityLevel } from '../core/quality';
 import type { LightRegistry } from '../world/lights';
@@ -28,8 +32,13 @@ const VOL_STEPS = 16;
  */
 Effect.ShadersStore['volumetricFragmentShader'] = `
 precision highp float;
+precision highp sampler3D;
 varying vec2 vUV;
 uniform sampler2D textureSampler;
+uniform sampler3D skyVis;
+uniform vec4 skyO;
+uniform vec3 skyD;
+uniform vec3 shaftCol;
 uniform sampler2D depthSampler;
 uniform mat4 invView;
 uniform vec3 camPos;
@@ -97,6 +106,19 @@ void main(void) {
     }
     acc += sum * seg * lCol[i].rgb;
   }
+  // light shafts (fog weather): fog lit by the sky / moon where the sky reaches it (under the skylights, through
+  // doorways), sampled from the baked sky visibility along the first 30 m of the ray
+  if (skyO.w > 0.0 && dot(shaftCol, shaftCol) > 0.0) {
+    float tm = min(dist, 30.0);
+    float sseg = tm / 16.0;
+    float sh = 0.0;
+    for (int k = 0; k < 16; k++) {
+      vec3 p = camPos + wdir * ((float(k) + j) * sseg);
+      float v = texture(skyVis, (p - skyO.xyz) / (skyO.w * skyD)).r;
+      sh += v * v * exp(-fogFalloff * max(p.y - fogBase, 0.0));
+    }
+    acc += shaftCol * sh * sseg;
+  }
   // height fog: optical depth of exp(-falloff * (y - base)) along the ray, closed form
   float y0 = camPos.y - fogBase;
   float dy = wdir.y;
@@ -113,8 +135,11 @@ export interface PostStackOptions {
   fogDensity: number;
   /** Lights scattered by the volumetric pass (null: fog only). */
   lights: LightRegistry | null;
-  /** Heat haze (refinery) 0..1. */
+  /** Heat haze 0..1. */
   shimmer?: number;
+  /** Sky visibility (the voxel bake) for the fog's light shafts, and the shafts' colour x strength (0: none). */
+  sky?: { tex: BaseTexture; origin: [number, number, number]; cell: number; dims: [number, number, number] } | null;
+  shafts?: [number, number, number];
 }
 
 /**
@@ -128,6 +153,7 @@ export class PostStack {
   private ssr: SSRRenderingPipeline | null = null;
   private taa: TAARenderingPipeline | null = null;
   private motion: MotionBlurPostProcess | null = null;
+  private noSky: RawTexture3D | null = null;
   private vol: PostProcess | null = null;
   private depth: DepthRenderer | null = null;
   private key = '';
@@ -245,8 +271,8 @@ export class PostStack {
     const pp = new PostProcess(
       'volumetric',
       'volumetric',
-      ['invView', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'count', 'lPos', 'lDir', 'lCol', 'fogColor', 'fogDensity', 'fogFalloff', 'fogBase', 'scatter', 'time', 'shimmer'],
-      ['depthSampler'],
+      ['invView', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'count', 'lPos', 'lDir', 'lCol', 'fogColor', 'fogDensity', 'fogFalloff', 'fogBase', 'scatter', 'time', 'shimmer', 'skyO', 'skyD', 'shaftCol'],
+      ['depthSampler', 'skyVis'],
       1,
       this.camera,
     );
@@ -273,6 +299,19 @@ export class PostStack {
       e.setFloat('scatter', 0.05);
       e.setFloat('time', this.t % 100);
       e.setFloat('shimmer', this.opts.shimmer ?? 0);
+      const sky = this.opts.sky;
+      if (sky) {
+        e.setTexture('skyVis', sky.tex);
+        e.setFloat4('skyO', sky.origin[0], sky.origin[1], sky.origin[2], sky.cell);
+        e.setFloat3('skyD', sky.dims[0], sky.dims[1], sky.dims[2]);
+      } else {
+        // (a stand-in: the 3D sampler must never share a unit with a 2D texture)
+        this.noSky ??= new RawTexture3D(new Uint8Array([0]), 1, 1, 1, Constants.TEXTUREFORMAT_R, this.scene, false, false, Texture.NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+        e.setTexture('skyVis', this.noSky);
+        e.setFloat4('skyO', 0, 0, 0, 0);
+      }
+      const sc = this.opts.shafts ?? [0, 0, 0];
+      e.setFloat3('shaftCol', sc[0], sc[1], sc[2]);
     };
     this.vol = pp;
   }
@@ -342,6 +381,8 @@ export class PostStack {
 
   dispose(): void {
     this.disposeAll();
+    this.noSky?.dispose();
+    this.noSky = null;
     this.key = '';
   }
 }

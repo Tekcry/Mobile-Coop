@@ -2,6 +2,7 @@
  * Coop wire protocol. Everything from a peer is untrusted: `parseMessage` validates shape, clamps
  * numbers, caps strings/arrays and drops anything unknown. Pure (no DOM/Babylon) and unit-tested.
  */
+import { WEATHER_CHOICES, type WeatherChoice } from '../world/mapDef';
 import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
@@ -134,11 +135,11 @@ export interface EndStats {
 
 export type Msg =
   | { t: 'hello'; v: number; name: string; tag: PlayerInfo['tag']; look: AvatarLook; loadout: WeaponId[] }
-  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string }
+  | { t: 'lobby'; players: PlayerInfo[]; mode: NetMode; map: string; difficulty: Difficulty; phase: 'lobby' | 'playing'; mission: string; weather: WeatherChoice }
   | { t: 'ready'; ready: boolean }
   /** Ask the host for a TDM side. */
   | { t: 'team'; team: number }
-  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string }
+  | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice }
   | { t: 'pstate'; s: PlayerState }
   | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number; ex: boolean }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
@@ -407,7 +408,7 @@ export function parseMessage(raw: unknown): Msg | null {
       const phase = oneOf(raw.phase, ['lobby', 'playing'] as const);
       const map = id(raw.map);
       if (!mode || !difficulty || !phase || !map) return null;
-      return { t: 'lobby', players, mode, map, difficulty, phase, mission: mission(raw.mission) };
+      return { t: 'lobby', players, mode, map, difficulty, phase, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear' };
     }
     case 'ready': {
       const r = bool(raw.ready);
@@ -444,7 +445,7 @@ export function parseMessage(raw: unknown): Msg | null {
       const map = id(raw.map);
       const seed = num(raw.seed, 0, 2 ** 31);
       if (!mode || !difficulty || !map || seed === null) return null;
-      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission) };
+      return { t: 'start', mode, map, difficulty, seed: Math.floor(seed), time: num(raw.time, 0, 1e7) ?? 0, mission: mission(raw.mission), weather: oneOf(raw.weather, WEATHER_CHOICES) ?? 'clear' };
     }
     case 'pstate': {
       const s = playerState(raw.s);
