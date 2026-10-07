@@ -1,4 +1,5 @@
 import { Vector3 } from '../../core/babylon';
+import { hyp2 } from '../../core/mathx';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
@@ -99,6 +100,18 @@ function container(b: LevelBuilder, x: number, z: number, yaw: number, y: number
   b.block(x, z, CL, CH, CW, BOX[k % BOX.length]!, y, yaw);
 }
 
+/** A taut line (mooring line, stay) from a to b: visual only. */
+function rope(b: LevelBuilder, ax: number, ay: number, az: number, bx: number, by: number, bz: number, color = '#c8b88a', t = 0.05): void {
+  const len = hyp2(bx - ax, bz - az);
+  b.box((ax + bx) / 2, (ay + by) / 2, (az + bz) / 2, t, t, hyp2(len, ay - by), color, Math.atan2(bx - ax, bz - az), Math.atan2(ay - by, len), false);
+}
+
+/** A beam rising from (ax, ay) to (bx, by) along X at z (visual only: booms, jibs). */
+function beamX(b: LevelBuilder, ax: number, ay: number, bx: number, by: number, z: number, w: number, color: string): void {
+  const run = bx - ax;
+  b.box((ax + bx) / 2, (ay + by) / 2, z, w, w, hyp2(run, by - ay), color, run >= 0 ? Math.PI / 2 : -Math.PI / 2, -Math.atan2(by - ay, Math.abs(run)), false);
+}
+
 /**
  * The port (night): a container terminal - a gate, stacks of containers (ladders onto the tall ones), a loading
  * yard, the customs shed with an office on a mezzanine, the quayside under a gantry crane and a moored cargo
@@ -147,6 +160,16 @@ export const port: MapDef = {
     b.box(7, 2.9, -26.25, 4.3, 0.2, 3.8, STEEL);
     b.mark(gb0, { overhead: true });
     b.block(7.6, -27.4, 1.4, 0.95, 0.6, '#6b6f73');
+    // a jersey barrier lane west of the barrier; razor wire along the fence tops (visual)
+    b.lowCover(-5.6, -28, 2.4, '#9a958a', 0, 0.85, 0.6);
+    b.box(0, 3.15, -30.5, 66, 0.3, 0.3, '#2b2d30', 0, 0, false);
+    b.box(-32.5, 3.15, 0, 0.3, 0.3, 60, '#2b2d30', 0, 0, false).box(32.5, 3.15, 0, 0.3, 0.3, 60, '#2b2d30', 0, 0, false);
+    // a box truck parked along the south fence, waiting for the gate: high cover from the gate to the stacks
+    b.block(-17.5, -26.6, 7.6, 1.25, 2.3, '#2b2d30');
+    container(b, -17.8, -26.6, 0, 1.25, 3);
+    b.block(-12.4, -26.6, 2.2, 2.9, 2.5, '#8a2f2a').block(-10.7, -26.6, 1.1, 1.5, 2.3, '#8a2f2a');
+    b.box(-11.28, 2.25, -26.6, 0.04, 0.7, 2.0, '#1d2630', 0, 0, false).box(-13.35, 3.3, -25.3, 0.12, 1.4, 0.12, '#55606a', 0, 0, false);
+    for (const x of [-19.8, -15.2, -12.2]) b.box(x, 0.5, -26.6, 1.1, 1.0, 2.55, '#151618', 0, 0, false);
 
     // ================= container stacks (west) =================
     container(b, -27, -20, 0, 0, 0);
@@ -170,6 +193,10 @@ export const port: MapDef = {
     // zipline: the stack by the quay -> the quayside by the crane
     b.pillar(-17, -3.6, 0.06, 2.2, STEEL, CH * 2);
     b.zipline({ x: -17, y: CH * 2 + 2.0, z: -3.4 }, { x: -15, y: 2.3, z: 12 });
+    // cable reels and pallets against the stacks (low cover off the patrol lanes)
+    b.block(-18.5, -18.2, 1.6, 1.1, 1.1, CRATE).block(-11.5, -13.75, 1.2, 1.0, 1.0, '#5a5f66').block(-24.5, -5.8, 2.0, 1.0, 0.9, CRATE);
+    // lashing on the tall stacks' open ends (visual)
+    for (const [x, z] of [[-30.1, -20], [-10.9, -20], [-22.9, 6]] as const) for (const p of [-0.42, 0.42]) b.box(x, CH, z, 0.04, 2.9, 0.04, STEEL, 0, p, false);
 
     // ================= loading yard (east) =================
     container(b, -4, -16, 0, 0, 1);
@@ -181,6 +208,14 @@ export const port: MapDef = {
     // a forklift, pallets of crates
     b.block(-6.5, -20.5, 1.2, 2.0, 2.4, YELLOW).block(10.8, -3.2, 1.2, 1.0, 1.2, CRATE).block(12.2, -3.2, 1.2, 1.4, 1.2, CRATE);
     b.lowCover(-2, -21.5, 3, CRATE, Math.PI / 2, 1.0, 1.0);
+    // the forklift's mast and forks; a pallet stack by the gate lane
+    b.box(-6.5, 1.6, -21.8, 1.0, 3.2, 0.15, '#2b2d30', 0, 0, false).box(-6.5, 0.12, -22.5, 0.9, 0.06, 1.2, '#2b2d30', 0, 0, false);
+    b.block(3, -21.3, 1.4, 1.0, 1.2, CRATE).block(3, -21.3, 1.4, 0.14, 1.2, '#6a5a44', 1.0);
+    // a reach stacker parked at the yard's edge: chassis, cab and counterweight (cover), the boom and spreader overhead
+    b.block(-1, -2, 6.2, 1.6, 2.6, YELLOW).block(0.4, -2.7, 1.6, 1.7, 1.3, '#2b2d30', 1.6).block(-3.5, -2, 1.1, 0.9, 2.6, '#2b2d30', 1.6);
+    b.box(-1, 0.55, -2, 5.0, 1.1, 2.8, '#151618', 0, 0, false);
+    beamX(b, -2.4, 2.9, 3.4, 5.6, -1.6, 0.5, YELLOW);
+    b.box(3.6, 5.3, -2, 0.4, 0.3, 6.0, YELLOW, 0, 0, false);
 
     // ================= customs shed (south east) =================
     b.floor(22, -17, 16, 14, '#6e7176', 0.02, 0.04);
@@ -190,7 +225,10 @@ export const port: MapDef = {
     b.wallX(-10, 14, 30, [[18, 22]], SHED_H, SHED, 0.3);
     b.box(20, (3 + SHED_H) / 2, -10, 4, SHED_H - 3, 0.3, SHED);
     b.wallZ(14, -24, -10, [[-18, -16.9]], SHED_H, SHED, 0.3);
-    b.wallZ(30, -24, -10, [], SHED_H, SHED, 0.3);
+    b.wallZ(30, -24, -10, [[-23.1, -21.9]], SHED_H, SHED, 0.3);
+    // the office's east window over the side alley (the fire escape outside)
+    b.box(30, MEZZ / 2, -22.5, 0.3, MEZZ, 1.2, SHED);
+    windowZ(b, 30, -22.5, MEZZ, SHED_H - MEZZ, SHED, { breakable: true });
     b.door(14, 0, -18, 1.1, 0, { swing: 1 });
     // the mezzanine: a steel deck along the east wall, stairs up its west side to a landing
     b.box(26.925, MEZZ - 0.1, -17, 5.85, 0.2, 13.7, STEEL);
@@ -209,6 +247,17 @@ export const port: MapDef = {
     // the shed floor: pallet racks, crates, a scanner arch
     b.block(17, -21.8, 4, 2.2, 1.2, STEEL).block(17, -16, 1.2, 1.4, 2.4, CRATE);
     b.block(27, -12.6, 1.6, 1.2, 1.6, CRATE);
+    // under the mezzanine (dark): shelving along the east wall, a pallet of sacks; the rolled-up shutter
+    b.block(29.35, -20, 0.8, 2.2, 2.6, STEEL).block(26.5, -17, 1.2, 1.0, 1.2, '#b8ab8a');
+    b.box(20, 3.25, -9.8, 4.2, 0.45, 0.45, '#5a5f66', 0, 0, false);
+    // the fire escape: a landing outside the office's east window, a ladder up from the side alley (a way into
+    // the customs office without crossing the shed floor)
+    const fe0 = b.boxes.length;
+    b.box(31.05, MEZZ - 0.1, -22.5, 1.8, 0.2, 2.6, STEEL);
+    b.mark(fe0, { overhead: true });
+    b.box(31.92, MEZZ + 0.5, -22.3, 0.06, 1.0, 2.2, YELLOW, 0, 0, false).box(31.05, MEZZ + 0.5, -21.22, 1.8, 1.0, 0.06, YELLOW, 0, 0, false);
+    for (const z of [-21.4, -23.6]) b.pillar(31.8, z, 0.08, MEZZ - 0.2, STEEL);
+    b.ladder(31.05, -23.95, 0, MEZZ, 0, STEEL);
     // roof (walkable), a drainpipe up the west wall
     const sr0 = b.boxes.length;
     b.box(22, SHED_H + 0.1, -17, 16.3, 0.2, 14.3, STEEL);
@@ -229,6 +278,20 @@ export const port: MapDef = {
     b.ladder(-26, 6 - CW / 2 - 0.15, 0, CH * 2, 0, STEEL);
     b.lowCover(-6, 16, 3, CRATE, Math.PI / 2, 1.1, 1.2).lowCover(6, 18, 2.4, CRATE, 0, 1.1, 1.2).lowCover(18, 18.5, 4, '#5a5f66', Math.PI / 2, 1.2, 1.0);
     b.block(-20, 18, 1.2, 1.3, 1.2, CRATE).block(-18.6, 18.2, 1.0, 1.0, 1.0, CRATE);
+    // a straddle carrier over the waiting box: four legs (cover), the frame and cab overhead
+    for (const [x, z] of [[6.4, 4.1], [11.6, 4.1], [6.4, 7.9], [11.6, 7.9]] as const) b.block(x, z, 0.5, 7.2, 0.7, YELLOW);
+    for (const z of [4.1, 7.9]) b.box(9, 7.5, z, 5.7, 0.6, 0.6, YELLOW, 0, 0, false);
+    for (const x of [6.4, 11.6]) b.box(x, 7.95, 6, 0.6, 0.4, 4.4, YELLOW, 0, 0, false);
+    b.box(11.6, 6.6, 6, 1.3, 1.3, 1.3, '#2b2d30', 0, 0, false);
+    // pallet stacks and a bundled cargo net beside the quay patrol (low cover)
+    b.block(-20, 7.4, 2.4, 1.0, 1.1, CRATE).block(-1, 12.8, 1.6, 0.9, 1.4, '#4a5a3a');
+    // bollards along the berth, mooring lines up to the ship, fenders and the boot-topping on the hull (visual)
+    for (const x of [-21, 9]) b.pillar(x, 23.4, 0.25, 0.7, '#2b2d30');
+    rope(b, -25.8, 3.7, 24.3, -30, 0.65, 23.4);
+    rope(b, 2, 3.6, 24.25, 9, 0.65, 23.4);
+    rope(b, 12.6, 3.6, 24.25, 18, 0.65, 23.4);
+    for (const x of [-14, -9, 0, 6, 12]) b.box(x, 1.3, 23.92, 0.9, 1.4, 0.16, '#151618', 0, 0, false);
+    b.box(-6, 0.55, 23.96, 40, 1.1, 0.06, '#6a2a24', 0, 0, false);
 
     // ================= the cargo ship =================
     b.block(-6, 27, 40, DECK_Y, 6, HULL);
@@ -237,12 +300,22 @@ export const port: MapDef = {
     b.ramp(-4, 21, 1.6, 6, DECK_Y, STEEL, 0);
     const rail = -Math.atan2(DECK_Y, 6);
     b.box(-4.85, 2.4, 21, 0.06, 0.06, 6.7, STEEL, 0, rail, false).box(-3.15, 2.4, 21, 0.06, 0.06, 6.7, STEEL, 0, rail, false);
-    b.box(-12.45, DECK_Y + 0.45, 24.1, 15.1, 0.9, 0.15, RUST).box(5.5, DECK_Y + 0.45, 24.1, 17, 0.9, 0.15, RUST);
+    b.box(-19.1, DECK_Y + 0.45, 24.1, 1.8, 0.9, 0.15, RUST).box(-10.95, DECK_Y + 0.45, 24.1, 12.1, 0.9, 0.15, RUST).box(5.5, DECK_Y + 0.45, 24.1, 17, 0.9, 0.15, RUST);
+    // the pilot ladder at the stern, in the funnel's shadow: a second way aboard away from the gangway
+    b.ladder(-17.6, 23.85, 0, DECK_Y, 0, STEEL);
     b.box(-3, DECK_Y + 0.45, 29.9, 34, 0.9, 0.15, RUST);
     // hatches (low cover), deck containers
     b.block(-15, 27, 5, 0.9, 3.4, '#3d4a3a', DECK_Y).block(-8, 27, 5, 0.9, 3.4, '#3d4a3a', DECK_Y);
     container(b, 1, 27.6, 0, DECK_Y, 2);
     container(b, 8, 26.6, 0, DECK_Y, 5);
+    // lashing rods on the deck boxes' open ends, ribs on the hatch covers (visual)
+    for (const [x, z] of [[-2.1, 27.6], [11.1, 26.6]] as const) for (const p of [-0.45, 0.45]) b.box(x, DECK_Y + 1.3, z, 0.04, 2.7, 0.04, STEEL, 0, p, false);
+    for (const x of [-15, -8]) b.box(x, DECK_Y + 0.92, 27, 5.02, 0.06, 0.12, '#2f3a2c', 0, 0, false);
+    // a deck crane between the hatch and the boxes: pedestal (cover), the jib over the hold
+    b.pillar(-3.8, 28.3, 0.45, 2.4, '#c9a227', DECK_Y);
+    b.box(-3.8, DECK_Y + 2.7, 28.3, 1.2, 0.6, 1.2, '#c9a227', 0, 0, false);
+    beamX(b, -3.6, DECK_Y + 2.9, -10.5, DECK_Y + 5.6, 28.3, 0.4, '#c9a227');
+    rope(b, -10.4, DECK_Y + 5.5, 28.3, -10.4, DECK_Y + 2.2, 28.31, '#2b2d30', 0.03);
     // the funnel, then the bridge at the stern: a deckhouse with a door and windows; a ladder to its roof (lookout)
     b.pillar(-18, 27.6, 0.9, 4, '#8a2f2a', DECK_Y);
     wallXAt(b, 24.3, -26, -20, [[-23.6, -22.4]], DECK_Y, BRIDGE_H, '#d8d4c8');
@@ -256,6 +329,10 @@ export const port: MapDef = {
     b.box(-23, DECK_Y + BRIDGE_H + 0.75, 24.2, 6.3, 0.9, 0.12, RUST).box(-25.95, DECK_Y + BRIDGE_H + 0.75, 27, 0.12, 0.9, 5.7, RUST);
     b.block(-23, 28.8, 3.6, 1.1, 0.8, '#3a3f48', DECK_Y).block(-25, 26.6, 0.8, 1.0, 0.8, '#3a3f48', DECK_Y);
     b.ladder(-19.7, 29.1, DECK_Y, DECK_Y + BRIDGE_H + 0.2, -Math.PI / 2, STEEL);
+    // a lifeboat slung outboard on davits, the radar mast on the bridge roof (visual)
+    b.box(-23, DECK_Y + 1.6, 30.45, 4.0, 0.9, 1.4, '#c8642a', 0, 0, false).box(-23, DECK_Y + 2.2, 30.45, 3.4, 0.35, 1.2, '#d8d4c8', 0, 0, false);
+    for (const x of [-24.7, -21.3]) b.box(x, DECK_Y + 2.2, 30.1, 0.12, 1.6, 0.12, STEEL, 0, 0, false);
+    b.box(-22, DECK_Y + BRIDGE_H + 1.6, 28.8, 0.12, 3.0, 0.12, STEEL, 0, 0, false).box(-22, DECK_Y + BRIDGE_H + 2.6, 28.8, 1.8, 0.1, 0.25, '#2b2d30', 0, 0, false);
     // the bosun's store at the bow (a door off the deck)
     wallXAt(b, 27.9, 11.6, 14, [], DECK_Y, 2.4, '#d8d4c8');
     wallZAt(b, 11.6, 27.9, 29.85, [[28.2, 29.2]], DECK_Y, 2.4, '#d8d4c8');
@@ -279,6 +356,9 @@ export const port: MapDef = {
     b.box(27, 2.7, 28.7, 4.3, 0.2, 2.5, STEEL);
     b.mark(hh0, { overhead: true });
     b.block(28.5, 25.4, 2.4, 1.0, 1.4, '#3d4a5a').block(19, 28.6, 1.2, 1.2, 1.2, CRATE);
+    // a pallet stack off the bow ladder, fuel drums by the hut
+    b.block(19.8, 25.3, 1.2, 1.0, 1.2, CRATE);
+    for (const [x, z] of [[24.45, 28.95], [24.45, 28.3], [23.8, 28.62]] as const) b.pillar(x, z, 0.3, 0.9, '#2a5a8a');
 
     // ================= lights =================
     const down = makeCone(0, -1, 0, 0.75);
@@ -298,9 +378,17 @@ export const port: MapDef = {
     b.ambientZone(14, 30, -24, -10, 0.1, -1, SHED_H);
     b.ambientZone(5, 9, -28, -24.5, 0.12, -1, 3);
     b.ambientZone(-26, -20, 24.3, 29.7, 0.1, DECK_Y - 0.5, DECK_Y + BRIDGE_H);
+    // darker side paths: the truck's lee along the south fence, the west fence lane behind the stacks, the
+    // fire-escape alley, the berth under the stern (pilot ladder), the strip behind the deck boxes
+    b.ambientZone(-32, -8, -30, -24.5, 0.1, -1, 4);
+    b.ambientZone(-32, -30, -24.5, 0, 0.1, -1, 3);
+    b.ambientZone(30.15, 32, -24.5, -10, 0.08, -1, MEZZ + 2.5);
+    b.ambientZone(-32, -16, 20.5, 24, 0.1, -1, 3);
+    b.ambientZone(-2.1, 4.1, 28.8, 29.85, 0.08, DECK_Y - 0.5, DECK_Y + 2.5);
     // surfaces: concrete quay, steel deck / mezzanine / roofs, a wooden pier
     b.surface('metal', -26, 14, 24, 30, DECK_Y);
     b.surface('metal', 24, 30, -24, -10, MEZZ);
+    b.surface('metal', 30, 32, -24, -21, MEZZ);
     b.surface('metal', 14, 30, -24, -10, SHED_H + 0.2);
     b.surface('wood', 14, 32, 24, 30);
     b.surface('metal', -32, 32, -30, 30, CH);

@@ -1,9 +1,10 @@
 import { Vector3 } from '../../core/babylon';
+import { hyp2 } from '../../core/mathx';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import { makeCone } from '../lights';
-import { glassX, glassZ, wallXAt, wallZAt, windowX, windowZ } from './storey';
+import { glassX, wallXAt, wallZAt, windowX, windowZ } from './storey';
 
 const SAND = '#8a7a5e';
 const PAD = '#6e6a62';
@@ -33,6 +34,12 @@ const CONTROL = 2;
 const OFFICE = 3;
 const LOCKERS = 4;
 const PUMPS = 5;
+
+/** A beam rising from (ax, ay) to (bx, by) along X at z (visual only: loading arms). */
+function beamX(b: LevelBuilder, ax: number, ay: number, bx: number, by: number, z: number, w: number, color: string): void {
+  const run = bx - ax;
+  b.box((ax + bx) / 2, (ay + by) / 2, z, w, w, hyp2(run, by - ay), color, run >= 0 ? Math.PI / 2 : -Math.PI / 2, -Math.atan2(by - ay, Math.abs(run)), false);
+}
 
 const ROOMS: RoomDef[] = [
   { id: 'gate', name: 'Gate', minX: -10, maxX: 10, minZ: -30, maxZ: -22, squad: [{ kind: 'grunt', x: -2.5, z: -23.4, yaw: Math.PI }, { kind: 'dog', x: 2, z: -23.4, yaw: Math.PI }] },
@@ -128,6 +135,10 @@ export const refinery: MapDef = {
     b.mark(gb0, { overhead: true });
     b.block(7.2, -29, 1.4, 0.95, 0.6, '#6b6f73');
     b.box(-1.5, 0.55, -24, 7, 0.12, 0.12, YELLOW, 0, 0, false);
+    // a jersey barrier west of the gate lane; razor wire along the fence tops (visual)
+    b.lowCover(-7.5, -28, 2.4, '#b8b0a0', 0, 0.85, 0.6);
+    b.box(0, 3.15, -30.5, 70, 0.3, 0.3, '#3a342c', 0, 0, false).box(0, 3.15, 30.5, 70, 0.3, 0.3, '#3a342c', 0, 0, false);
+    b.box(-34.5, 3.15, 0, 0.3, 0.3, 60, '#3a342c', 0, 0, false).box(34.5, 3.15, 0, 0.3, 0.3, 60, '#3a342c', 0, 0, false);
 
     // ================= tank farm (west) =================
     for (const z of [-18, 0, 18]) b.pillar(-26, z, TANK_R, TANK_H, TANK);
@@ -145,6 +156,19 @@ export const refinery: MapDef = {
     // zipline: the north tank's top -> the process units
     b.pillar(-23.2, 18, 0.06, 2.2, STEEL, TANK_H);
     b.zipline({ x: -23, y: TANK_H + 2.0, z: 18 }, { x: -9.5, y: 2.3, z: 18 });
+    // a ladder up the middle tank's west side from the shadowed fence lane: the cache (and the sniper's back)
+    // without passing the tank farm patrol
+    b.ladder(-26 - TANK_R - 0.15, 0, 0, TANK_H, Math.PI / 2, STEEL);
+    // product lines from the middle tank to the pipe rack stairs, on a T support (overhead)
+    for (const z of [-1.6, 1.6]) {
+      b.box(-16.2, 3.8, z, 11.6, 0.3, 0.3, PIPE, 0, 0, false);
+      b.pillar(-18.5, z, 0.12, 3.6, STEEL);
+    }
+    b.box(-18.5, 3.6, 0, 0.2, 0.2, 3.6, STEEL, 0, 0, false);
+    // valve wheels on the manifolds, a drum rack in the fence lane (visual wheels; drums are cover)
+    for (const z of [5, -5]) b.box(-30.25, 1.0, z, 0.06, 0.5, 0.5, YELLOW, 0, 0, false);
+    for (const z of [-11.2, -10.55]) b.pillar(-32.4, z, 0.3, 0.9, '#2a5a8a');
+    b.pillar(-31.8, -10.9, 0.3, 0.9, RED);
 
     // ================= pipe rack (a walkway on top) =================
     b.box(2, RACK - 0.1, 0, 24, 0.2, 1.6, STEEL);
@@ -157,9 +181,19 @@ export const refinery: MapDef = {
     b.stairs(-14, 0, 1.4, 8, RACK, 18, STEEL, Math.PI / 2);
     b.ladder(14.15, 0, 0, RACK, -Math.PI / 2, STEEL);
     b.block(6, -6.5, 2.4, 1.8, 1.2, STEEL).block(-6, 6, 1.6, 1.5, 1.6, RED);
+    // pump skids beside the rack (low cover along the outer lanes), valve handwheels on the knee-high runs
+    b.block(-2, -5.2, 1.8, 0.9, 1.0, '#4f6a5a').block(9, 5.2, 1.8, 0.9, 1.0, '#4f6a5a');
+    for (const x of [-4, 6]) for (const z of [-2.6, 2.6]) b.box(x, 0.95, z, 0.5, 0.06, 0.5, RED, 0, 0, false);
+    // a cable tray along the rack's north side (visual)
+    b.box(2, 3.95, 0.6, 24, 0.08, 0.4, '#6d7378', 0, 0, false);
 
     // ================= process units (north) =================
     b.pillar(-4, 18, 1.6, 16, '#9aa0a6').pillar(-4, 18, 2.0, 1.2, STEEL);
+    // the tower's platforms and a feed line over to the heat exchanger (visual, overhead)
+    for (const y of [6, 11]) b.box(-4, y, 18, 4.2, 0.12, 4.2, STEEL, 0, 0, false);
+    // a shell-and-tube heat exchanger on saddles (cover), its feed line to the tower
+    b.block(3.5, 18.5, 4, 1.6, 1.4, '#8a9096');
+    b.box(0.2, 1.3, 18.5, 2.6, 0.25, 0.25, PIPE, 0, 0, false);
     b.block(-8, 12.5, 6, 1.8, 1.4, STEEL).block(2, 13, 1.4, 2.4, 4, '#9aa0a6').block(-1, 25, 3, 1.4, 2, RED);
     // the unit platform: a raised steel deck with stairs, railed
     b.block(7, 26, 10, UNIT, 4, '#4f565c');
@@ -179,6 +213,11 @@ export const refinery: MapDef = {
     b.block(-10.2, 22.8, 1.0, 1.6, 0.8, '#3a3f48');
     // the flare stack, burning
     b.pillar(13, 11, 0.45, 18, '#6a6e73');
+    // guy wires on the flare stack (visual)
+    for (const [dx, dz] of [[2.6, 0], [-1.3, 2.25], [-1.3, -2.25]] as const) {
+      const len = hyp2(dx, dz);
+      b.box(13 + dx / 2, 9, 11 + dz / 2, 0.03, 0.03, hyp2(len, 18), '#2b2d30', Math.atan2(dx, dz), Math.atan2(18, len), false);
+    }
 
     // ================= pump house yard (south west) =================
     b.wallX(-20, -11, -3, [], 3, BLOCKW, T);
@@ -193,6 +232,11 @@ export const refinery: MapDef = {
     b.block(-8.5, -18.5, 2.4, 1.3, 1.4, RED).block(-4.6, -18.6, 1.4, 1.3, 1.6, RED);
     for (const x of [2, 6]) b.block(x, -18, 1.6, 1.2, 1.6, STEEL);
     b.lowCover(-1, -10, 8, PIPE, Math.PI / 2, 0.9, 0.5);
+    // motors on the pump skids, an MCC cabinet, a gas cylinder cage, drums and a skip in the pump house's lee
+    for (const x of [2, 6]) b.box(x, 1.5, -18, 0.6, 0.6, 1.0, '#3d4a5a', 0, 0, false);
+    b.block(8.6, -19.6, 0.7, 1.9, 1.6, '#6b6f73').block(9, -14, 0.8, 1.6, 1.6, '#4a5a3a');
+    for (const [x, z] of [[-1.5, -20.6], [-0.85, -20.75], [-1.2, -21.25]] as const) b.pillar(x, z, 0.3, 0.9, '#2a5a8a');
+    b.block(-13.5, -21.5, 1.9, 1.2, 1.1, '#2f5a3c').box(-13.5, 1.25, -21.5, 1.95, 0.08, 1.15, '#244a30', 0, 0, false);
 
     // ================= control building (east) =================
     b.floor(26, 1, 12, 14, '#8c877c', 0.02, 0.04);
@@ -213,6 +257,12 @@ export const refinery: MapDef = {
     b.box(28, CUP - 0.1, -6.925, 2, 0.2, 1.55, STEEL);
     b.box(24.5, CUP / 2 + 0.5, -7.65, 7, 0.06, 0.06, YELLOW, 0, -Math.atan2(CUP, 6), false);
     b.box(28.95, CUP + 0.5, -6.925, 0.06, 1.0, 1.55, YELLOW);
+    // a chiller housing against the west wall, its roof a platform outside the operations office's west window,
+    // a ladder up it from the rack side (into the office without the outside stair)
+    b.block(19, 4, 1.7, CUP, 2.4, '#8a9096');
+    b.box(18.18, CUP + 0.5, 3.9, 0.06, 1.0, 2.2, YELLOW, 0, 0, false).box(19, CUP + 0.5, 2.82, 1.7, 1.0, 0.06, YELLOW, 0, 0, false);
+    b.box(18.7, CUP + 0.45, 3.4, 0.9, 0.9, 0.7, '#9aa0a6', 0, 0, false);
+    b.ladder(19, 5.35, 0, CUP, Math.PI, STEEL);
     // upper: the operations office (west) and the server room (east)
     wallXAt(b, -6, 20, 32, [[22.4, 23.6], [27.4, 28.5]], CUP, C2, BLOCKW);
     glassX(b, 23, -6, CUP, C2, BLOCKW);
@@ -220,7 +270,7 @@ export const refinery: MapDef = {
     wallXAt(b, 8, 20, 32, [[25.4, 26.6]], CUP, C2, BLOCKW);
     glassX(b, 26, 8, CUP, C2, BLOCKW);
     wallZAt(b, 20, -6, 8, [[3.4, 4.6]], CUP, C2, BLOCKW);
-    glassZ(b, 20, 4, CUP, C2, BLOCKW);
+    windowZ(b, 20, 4, CUP, C2, BLOCKW, { breakable: true });
     wallZAt(b, 32, -6, 8, [], CUP, C2, BLOCKW);
     wallZAt(b, 26, -6, 8, [[0, 1.1]], CUP, C2, BLOCKW);
     b.door(26, CUP, 0, 1.1, 0, { swing: -1 });
@@ -243,6 +293,15 @@ export const refinery: MapDef = {
     b.stairs(29, -25.25, 1.4, 4.5, 3.0, 10, STEEL, 0);
     b.block(32.5, -14, 1.2, 1.1, 1.2, CRATE).block(31.6, -27.6, 2.4, 2.2, 1.2, STEEL);
     b.lowCover(19, -13.5, 6, PAD, Math.PI / 2, 1.0, 0.5);
+    // the tankers' cabs, the gantry's loading arms (visual), drums by the gate hut, a skip by the fence
+    for (const x of [16, 22]) {
+      b.block(x, -25.5, 2.4, 2.7, 2.0, '#8a3a2a');
+      b.box(x, 2.0, -26.52, 2.0, 0.7, 0.04, '#1d2630', 0, 0, false);
+    }
+    beamX(b, 27.5, 3.6, 23.6, 2.9, -21.5, 0.2, '#6d7378');
+    beamX(b, 27.5, 3.6, 30.8, 3.2, -18.8, 0.2, '#6d7378');
+    for (const [x, z] of [[11.8, -27.6], [12.45, -27.9], [12.2, -27.0]] as const) b.pillar(x, z, 0.3, 0.9, RED);
+    b.block(32.9, -19.5, 1.1, 1.2, 1.9, '#2f5a3c');
 
     // ================= east yard =================
     b.block(22, 16, 1.4, 2.2, 6, PIPE).block(30, 21, 2.4, 2.4, 2.4, CRATE).block(19, 26, 1.2, 1.2, 1.2, CRATE);
@@ -257,6 +316,11 @@ export const refinery: MapDef = {
     b.box(31, 2.9, 26.5, 4.3, 0.2, 4.3, STEEL);
     b.mark(fh0, { overhead: true });
     b.pillar(30, 14, 1.5, 3, TANK);
+    // a pickup parked along the north fence (cover on the way to the extraction), cable reels, a gas cylinder rack
+    b.block(19, 29, 5.0, 1.05, 1.9, '#d8d4c8').block(17.9, 29, 1.9, 0.85, 1.8, '#d8d4c8', 1.05);
+    b.box(16.85, 1.45, 29, 0.04, 0.6, 1.6, '#1d2630', 0, 0, false);
+    for (const x of [17.4, 20.6]) b.box(x, 0.38, 29, 0.8, 0.76, 2.0, '#151618', 0, 0, false);
+    b.block(27, 10, 1.6, 1.0, 1.0, '#6a5a44').block(24.5, 23, 1.6, 1.4, 0.6, '#4a5a3a');
 
     // ================= lights =================
     const down = makeCone(0, -1, 0, 0.75);
@@ -277,6 +341,12 @@ export const refinery: MapDef = {
     b.ambientZone(20, 32, -6, 8, 0.15, -1, CROOF - 0.1);
     b.ambientZone(-11, -3, -20, -15, 0.15, -1, 3);
     b.ambientZone(4.5, 8.5, -29.5, -26, 0.18, -1, 3);
+    // darker side paths: the fence lane behind the tanks, the pump house's lee, the condenser platform, the
+    // strip behind the control building
+    b.ambientZone(-34, -30.2, -30, 30, 0.2, -1, 3);
+    b.ambientZone(-15, -3, -22, -20.15, 0.22, -1, 3);
+    b.ambientZone(17.5, 19.85, 1.5, 6.5, 0.18, -1, CUP + 2.6);
+    b.ambientZone(32.15, 34, -6, 8, 0.2, -1, CROOF);
     // surfaces: steel walkways and tank tops, concrete pads
     b.surface('concrete', -10, 16, -8, 8);
     b.surface('concrete', 10, 34, -30, -12);
@@ -285,6 +355,7 @@ export const refinery: MapDef = {
     b.surface('grate', 2, 12, 24, 28, UNIT);
     b.surface('concrete', 20, 32, -6, 8);
     b.surface('carpet', 20, 26, -6, 8, CUP);
+    b.surface('metal', 18, 20, 2.8, 5.2, CUP);
     b.surface('metal', 20, 32, -6, 8, CROOF);
 
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
