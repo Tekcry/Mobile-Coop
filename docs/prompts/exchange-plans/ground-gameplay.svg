@@ -10,8 +10,8 @@
 <marker id="rarr" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#c0392b"/></marker>
 </defs>
 <rect width="792" height="862" fill="#f7f5f0"/>
-<text x="26" y="22" font-size="17" font-weight="bold" fill="#222">Kestrel Exchange - Ground floor (y 0.0) and site</text>
-<text x="26" y="40" font-size="10.5" fill="#444">Architectural plan (Phase 1, Phase 2 refinements), docs/prompts/exchange-design.md. Storey 4.5 m (4.2 clear); MDF hall and power room double height (8.7 clear).</text>
+<text x="26" y="22" font-size="17" font-weight="bold" fill="#222">Kestrel Exchange - Ground floor gameplay (y 0.0): spaces 2, 3, 4 and the yard</text>
+<text x="26" y="40" font-size="10.5" fill="#444">Phase 2 gameplay overlay, docs/prompts/exchange-design.md part 2. Player routes dashed (4 colours + co-op), guard routes solid with stops (wait s, facing arrow).</text>
 <rect x="26" y="52" width="740.0" height="50.0" fill="#e2e2e0" stroke="none" stroke-width="0" />
 <rect x="26" y="102" width="100.0" height="610.0" fill="#e2e2e0" stroke="none" stroke-width="0" />
 <text x="446" y="75.5" font-size="10" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" font-weight="bold" fill="#777" letter-spacing="3">KESTREL STREET</text>
@@ -692,24 +692,121 @@
 <line x1="38" y1="102" x2="761" y2="102" stroke="#8fb1c4" stroke-width="0.6" stroke-dasharray="6 4"/>
 <circle cx="32" cy="102" r="7" fill="#fff" stroke="#8fb1c4" stroke-width="0.8"/>
 <text x="32" y="105" font-size="8" text-anchor="middle" fill="#4a6f84">G</text>
-<path d="M144 233 L142 124 L290 124 L290 274" fill="none" stroke="#c0392b" stroke-width="2.2" stroke-dasharray="7 4" stroke-linejoin="round" marker-end="url(#rarr)" opacity="0.9"/>
-<circle cx="172" cy="268" r="8.5" fill="#c0392b" stroke="#fff" stroke-width="1.2"/>
-<text x="172" y="271.6" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff">1</text>
-<circle cx="241" cy="116" r="8.5" fill="#c0392b" stroke="#fff" stroke-width="1.2"/>
-<text x="241" y="119.6" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff">2</text>
-<path d="M290 288 L290 297 L261 297 L241 314 L241 357 L241 384 L300 384 L399 384 L412 367 L412 348 L446 312 L466 287" fill="none" stroke="#c0392b" stroke-width="2.2" stroke-dasharray="7 4" stroke-linejoin="round" marker-end="url(#rarr)" opacity="0.9"/>
-<circle cx="206" cy="312" r="8.5" fill="#c0392b" stroke="#fff" stroke-width="1.2"/>
-<text x="206" y="315.6" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff">3</text>
-<circle cx="450" cy="294" r="8.5" fill="#c0392b" stroke="#fff" stroke-width="1.2"/>
-<text x="450" y="297.6" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff">4</text>
-<path d="M366 468 L366 522 L506 542 L607.5 557 L636 557" fill="none" stroke="#c0392b" stroke-width="2.2" stroke-dasharray="7 4" stroke-linejoin="round" marker-end="url(#rarr)" opacity="0.9"/>
-<circle cx="346" cy="492" r="8.5" fill="#c0392b" stroke="#fff" stroke-width="1.2"/>
-<text x="346" y="495.6" font-size="10" font-weight="bold" text-anchor="middle" fill="#fff">8</text>
-<text x="638" y="577.5" font-size="7" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#c0392b" font-weight="bold">extract</text>
-<text x="415" y="488.8" font-size="6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#c0392b">rope from the roof</text>
-<text x="415" y="495.4" font-size="6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#c0392b">(hoist opening)</text>
-<text x="492" y="323.9" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#c0392b">up to 1F: main stair, drainpipe +</text>
-<text x="492" y="330.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#c0392b">string course, air shaft</text>
+<rect x="130.5" y="106.5" width="174.0" height="29.5" fill="#93c5fd" stroke="none" stroke-width="0" fill-opacity="0.28"/>
+<rect x="130.5" y="198" width="22.5" height="18.0" fill="#93c5fd" stroke="none" stroke-width="0" fill-opacity="0.28"/>
+<rect x="130.5" y="168" width="22.5" height="18.0" fill="#93c5fd" stroke="none" stroke-width="0" fill-opacity="0.28"/>
+<rect x="130.5" y="138" width="22.5" height="18.0" fill="#93c5fd" stroke="none" stroke-width="0" fill-opacity="0.28"/>
+<circle cx="248" cy="263" r="28" fill="#fde68a" fill-opacity="0.32" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3 2"/>
+<circle cx="248" cy="263" r="2.6" fill="#f59e0b" stroke="#92400e" stroke-width="0.6"/>
+<rect x="279.5" y="271.5" width="9" height="9" fill="#fef3c7" stroke="#b45309" stroke-width="0.8"/>
+<text x="284" y="278.6" font-size="7" font-weight="bold" text-anchor="middle" fill="#b45309">S</text>
+<rect x="249" y="142" width="18.5" height="90.0" fill="url(#splitp)" stroke="#0f766e" stroke-width="0.8" />
+<rect x="160" y="245.5" width="126.0" height="6.0" fill="url(#loudp)" stroke="#dc2626" stroke-width="0.5" fill-opacity="0.9"/>
+<rect x="280" y="251.5" width="6.0" height="29.0" fill="url(#loudp)" stroke="#dc2626" stroke-width="0.5" fill-opacity="0.9"/>
+<path d="M258.2 239 L258.2 126 L276 129 L290 152 L290 234 L258.2 239" fill="none" stroke="#1f2937" stroke-width="1.5" stroke-linejoin="round" opacity="0.75"/>
+<line x1="258.2" y1="239" x2="258.2" y2="225" stroke="#1f2937" stroke-width="1.4" marker-end="url(#arr)"/>
+<circle cx="258.2" cy="239" r="4.2" fill="#fff" stroke="#1f2937" stroke-width="1.4"/>
+<text x="216.2" y="244.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937" font-weight="bold" text-anchor="start">G1 C1 clock 4s</text>
+<line x1="258.2" y1="126" x2="269.1" y2="134.8" stroke="#1f2937" stroke-width="1.4" marker-end="url(#arr)"/>
+<circle cx="258.2" cy="126" r="4.2" fill="#fff" stroke="#1f2937" stroke-width="1.4"/>
+<text x="218.2" y="118.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937" font-weight="bold" text-anchor="start">G1 C2 4s</text>
+<line x1="290" y1="152" x2="290" y2="166" stroke="#1f2937" stroke-width="1.4" marker-end="url(#arr)"/>
+<circle cx="290" cy="152" r="4.2" fill="#fff" stroke="#1f2937" stroke-width="1.4"/>
+<text x="295" y="166.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937" font-weight="bold" text-anchor="start">G1 C3 4s</text>
+<text x="295" y="172.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937" font-weight="bold" text-anchor="start">(isolation)</text>
+<text x="213" y="151.8" font-size="5.2" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937">G1 loop ~41 s</text>
+<g><ellipse cx="142" cy="228" rx="7" ry="4.5" fill="#fff" stroke="#111" stroke-width="1.2"/><circle cx="142" cy="228" r="2.2" fill="#111"/></g>
+<text x="158" y="223.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" font-weight="bold">V2</text>
+<polygon points="276.0,256.8 277.5,260.9 281.9,261.1 278.5,263.8 279.6,268.0 276.0,265.6 272.4,268.0 273.5,263.8 270.1,261.1 274.5,260.9" fill="#facc15" stroke="#854d0e" stroke-width="0.9"/>
+<text x="276" y="278.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#854d0e" font-weight="bold">frame records</text>
+<rect x="161.5" y="271.5" width="9" height="9" fill="#e0f2fe" stroke="#0369a1" stroke-width="0.8"/>
+<text x="166" y="278.6" font-size="7" font-weight="bold" text-anchor="middle" fill="#0369a1">H</text>
+<path d="M258.2 187 L263.2 192 L258.2 197 L253.2 192 Z" fill="#7f1d1d" stroke="#fff" stroke-width="0.8"/>
+<path d="M242 162 L247 167 L242 172 L237 167 Z" fill="#7f1d1d" stroke="#fff" stroke-width="0.8"/>
+<path d="M142 222 L142 123 L201 123 L201 237 L270 236 L276 254 L291 278" fill="none" stroke="#1d4ed8" stroke-width="2.1" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-shadow)" opacity="0.92"/>
+<path d="M147 206 L156 198 L156 139 L246 139 L246 192" fill="none" stroke="#ea580c" stroke-width="2.1" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-high)" opacity="0.92"/>
+<text x="136" y="168.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#ea580c" font-weight="bold">ladder L1, frame tops</text>
+<path d="M150 236 L226 236 L283 253 L291 278" fill="none" stroke="#dc2626" stroke-width="2.1" stroke-dasharray="9 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-loud)" opacity="0.92"/>
+<path d="M163 248.5 L221 248.5 L283 248.5 L283 278 L285 291" fill="none" stroke="#7c3aed" stroke-width="2.1" stroke-dasharray="2.5 2.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-secret)" opacity="0.92"/>
+<text x="224" y="258.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#7c3aed" font-weight="bold">cable trench (crawl)</text>
+<circle cx="256" cy="412" r="65" fill="#fde68a" fill-opacity="0.32" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3 2"/>
+<circle cx="256" cy="412" r="2.6" fill="#f59e0b" stroke="#92400e" stroke-width="0.6"/>
+<rect x="295.5" y="371.5" width="9" height="9" fill="#fef3c7" stroke="#b45309" stroke-width="0.8"/>
+<text x="300" y="378.6" font-size="7" font-weight="bold" text-anchor="middle" fill="#b45309">S</text>
+<rect x="156" y="369" width="140.0" height="6.0" fill="url(#loudp)" stroke="#dc2626" stroke-width="0.5" fill-opacity="0.9"/>
+<rect x="213" y="375" width="6.0" height="72.0" fill="url(#loudp)" stroke="#dc2626" stroke-width="0.5" fill-opacity="0.9"/>
+<g><ellipse cx="156" cy="374" rx="7" ry="4.5" fill="#fff" stroke="#111" stroke-width="1.2"/><circle cx="156" cy="374" r="2.2" fill="#111"/></g>
+<text x="170" y="371.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" font-weight="bold">V3</text>
+<polygon points="299.0,423.8 300.5,427.9 304.9,428.1 301.5,430.8 302.6,435.0 299.0,432.6 295.4,435.0 296.5,430.8 293.1,428.1 297.5,427.9" fill="#facc15" stroke="#854d0e" stroke-width="0.9"/>
+<text x="299" y="417.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#854d0e" font-weight="bold">auto-start</text>
+<rect x="132.5" y="307.5" width="9" height="9" fill="#e0f2fe" stroke="#0369a1" stroke-width="0.8"/>
+<text x="137" y="314.6" font-size="7" font-weight="bold" text-anchor="middle" fill="#0369a1">H</text>
+<path d="M281 298 L171 316 L171 348 L151 378 L151 438 L294 438 L294 386 L304 384" fill="none" stroke="#1d4ed8" stroke-width="2.1" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-shadow)" opacity="0.92"/>
+<text x="236" y="434.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1d4ed8" font-weight="bold">shadow: dark generator side</text>
+<path d="M172 350 L176 372 L292 372 L302 384" fill="none" stroke="#dc2626" stroke-width="2.1" stroke-dasharray="9 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-loud)" opacity="0.92"/>
+<text x="236" y="384.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#dc2626" font-weight="bold">loud: along the chequer plate</text>
+<path d="M241 434 L241 451 L297 451 L300 370" fill="none" stroke="#ea580c" stroke-width="2.1" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-high)" opacity="0.92"/>
+<text x="273" y="470.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#ea580c" font-weight="bold">cubicles, heating main</text>
+<path d="M206 326 L206 312" fill="none" stroke="#7c3aed" stroke-width="2.1" stroke-dasharray="2.5 2.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-secret)" opacity="0.92"/>
+<text x="221" y="292.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#7c3aed" font-weight="bold">extract duct (to the fan room)</text>
+<circle cx="206" cy="374" r="6" fill="#15803d" stroke="#fff" stroke-width="1"/>
+<text x="206" y="376.6" font-size="6.5" font-weight="bold" text-anchor="middle" fill="#fff">C2</text>
+<path d="M300 361 L305 366 L300 371 L295 366 Z" fill="#7f1d1d" stroke="#fff" stroke-width="0.8"/>
+<rect x="426" y="222" width="120.0" height="120.0" fill="#93c5fd" stroke="none" stroke-width="0" fill-opacity="0.28"/>
+<circle cx="471" cy="336" r="60" fill="#fde68a" fill-opacity="0.32" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3 2"/>
+<circle cx="471" cy="336" r="2.6" fill="#f59e0b" stroke="#92400e" stroke-width="0.6"/>
+<rect x="398.5" y="374.5" width="9" height="9" fill="#fef3c7" stroke="#b45309" stroke-width="0.8"/>
+<text x="403" y="381.6" font-size="7" font-weight="bold" text-anchor="middle" fill="#b45309">S</text>
+<g><ellipse cx="411" cy="368" rx="7" ry="4.5" fill="#fff" stroke="#111" stroke-width="1.2"/><circle cx="411" cy="368" r="2.2" fill="#111"/></g>
+<text x="399" y="375.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" font-weight="bold">V4</text>
+<polygon points="433.0,223.8 434.5,227.9 438.9,228.1 435.5,230.8 436.6,235.0 433.0,232.6 429.4,235.0 430.5,230.8 427.1,228.1 431.5,227.9" fill="#facc15" stroke="#854d0e" stroke-width="0.9"/>
+<text x="459" y="244.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#854d0e" font-weight="bold">tap the trunk cable</text>
+<rect x="546" y="323.5" width="60.0" height="18.5" fill="url(#splitp)" stroke="#0f766e" stroke-width="0.8" />
+<path d="M418 368 L462 348 L471 348 L440 368 L436 382" fill="none" stroke="#dc2626" stroke-width="2.1" stroke-dasharray="9 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-loud)" opacity="0.92"/>
+<text x="502" y="360.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#dc2626" font-weight="bold">loud: court door, main stair</text>
+<path d="M412 362 L412 232 L432 232 L436 312 L450 336 L471 345" fill="none" stroke="#1d4ed8" stroke-width="2.1" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-shadow)" opacity="0.92"/>
+<text x="448" y="302.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1d4ed8" font-weight="bold">shadow</text>
+<path d="M414 228 L429 224" fill="none" stroke="#ea580c" stroke-width="2.1" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-high)" opacity="0.92"/>
+<text x="399" y="218.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#ea580c" font-weight="bold">NW drainpipe</text>
+<path d="M414 226 L486 230 L538 234 L538 316 L556 332 L581 332" fill="none" stroke="#7c3aed" stroke-width="2.1" stroke-dasharray="2.5 2.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-secret)" opacity="0.92"/>
+<text x="486" y="242.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#7c3aed" font-weight="bold">secret: round the court, into the air shaft</text>
+<circle cx="442" cy="266" r="6" fill="#15803d" stroke="#fff" stroke-width="1"/>
+<text x="442" y="268.6" font-size="6.5" font-weight="bold" text-anchor="middle" fill="#fff">C1</text>
+<circle cx="246" cy="492" r="90" fill="#fde68a" fill-opacity="0.32" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3 2"/>
+<circle cx="246" cy="492" r="2.6" fill="#f59e0b" stroke="#92400e" stroke-width="0.6"/>
+<rect x="128.5" y="505.5" width="9" height="9" fill="#fef3c7" stroke="#b45309" stroke-width="0.8"/>
+<text x="133" y="512.6" font-size="7" font-weight="bold" text-anchor="middle" fill="#b45309">S</text>
+<circle cx="636" cy="542" r="40" fill="#fde68a" fill-opacity="0.32" stroke="#d97706" stroke-width="0.8" stroke-dasharray="3 2"/>
+<circle cx="636" cy="542" r="2.6" fill="#f59e0b" stroke="#92400e" stroke-width="0.6"/>
+<path d="M372 476 L260 536" fill="none" stroke="#1f2937" stroke-width="1.5" stroke-linejoin="round" opacity="0.75"/>
+<line x1="372" y1="476" x2="359.7" y2="482.6" stroke="#1f2937" stroke-width="1.4" marker-end="url(#arr)"/>
+<circle cx="372" cy="476" r="4.2" fill="#fff" stroke="#1f2937" stroke-width="1.4"/>
+<text x="382" y="468.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937" font-weight="bold" text-anchor="start">G8 Y1 5s (isolation)</text>
+<line x1="260" y1="536" x2="272.3" y2="529.4" stroke="#1f2937" stroke-width="1.4" marker-end="url(#arr)"/>
+<circle cx="260" cy="536" r="4.2" fill="#fff" stroke="#1f2937" stroke-width="1.4"/>
+<text x="250" y="553.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937" font-weight="bold" text-anchor="start">G8 Y2 5s</text>
+<path d="M260 526 L380 561" fill="none" stroke="#1f2937" stroke-width="1.5" stroke-linejoin="round" opacity="0.75"/>
+<line x1="260" y1="526" x2="273.4" y2="529.9" stroke="#1f2937" stroke-width="1.4" marker-end="url(#arr)"/>
+<circle cx="260" cy="526" r="4.2" fill="#fff" stroke="#1f2937" stroke-width="1.4"/>
+<text x="196" y="515.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937" font-weight="bold" text-anchor="start">G9 5s</text>
+<line x1="380" y1="561" x2="366.6" y2="557.1" stroke="#1f2937" stroke-width="1.4" marker-end="url(#arr)"/>
+<circle cx="380" cy="561" r="4.2" fill="#fff" stroke="#1f2937" stroke-width="1.4"/>
+<text x="390" y="578.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937" font-weight="bold" text-anchor="start">G9 far stack 5s (isolation)</text>
+<text x="326" y="511.0" font-size="5" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937">loaders G8 + G9: same 36 s cycle,</text>
+<text x="326" y="516.5" font-size="5" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1f2937">together at the van rear</text>
+<polygon points="636.0,550.8 637.5,554.9 641.9,555.1 638.5,557.8 639.6,562.0 636.0,559.6 632.4,562.0 633.5,557.8 630.1,555.1 634.5,554.9" fill="#facc15" stroke="#854d0e" stroke-width="0.9"/>
+<text x="636" y="582.9" font-size="5.4" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#854d0e" font-weight="bold">EXTRACT (r 2)</text>
+<rect x="152.5" y="473.5" width="9" height="9" fill="#e0f2fe" stroke="#0369a1" stroke-width="0.8"/>
+<text x="157" y="480.6" font-size="7" font-weight="bold" text-anchor="middle" fill="#0369a1">H</text>
+<path d="M369 465 L374 470 L369 475 L364 470 Z" fill="#7f1d1d" stroke="#fff" stroke-width="0.8"/>
+<path d="M374 470 L426 472 L590 474 L590 556 L632 557" fill="none" stroke="#1d4ed8" stroke-width="2.1" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-shadow)" opacity="0.92"/>
+<text x="486" y="464.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#1d4ed8" font-weight="bold">shadow: rope, then the dark east edge</text>
+<path d="M486 470 L486 522 L602 557" fill="none" stroke="#dc2626" stroke-width="2.1" stroke-dasharray="9 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-loud)" opacity="0.92"/>
+<text x="512" y="516.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#dc2626" font-weight="bold">loud: rear drainpipe</text>
+<path d="M246 470 L226 518 L306 552 L466 602 L602 559" fill="none" stroke="#ea580c" stroke-width="2.1" stroke-dasharray="6 3" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-high)" opacity="0.92"/>
+<text x="356" y="600.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#ea580c" font-weight="bold">high: west drainpipe, takedowns</text>
+<path d="M650 356 L642 402 L640 548" fill="none" stroke="#7c3aed" stroke-width="2.1" stroke-dasharray="2.5 2.5" stroke-linejoin="round" stroke-linecap="round" marker-end="url(#m-secret)" opacity="0.92"/>
+<text x="658" y="444.0" font-size="5.6" text-anchor="middle" fill="#222" stroke="#fbf9f4" stroke-width="2.4" stroke-linejoin="round" paint-order="stroke" fill="#7c3aed" font-weight="bold">secret: lane</text>
 <rect x="26" y="726" width="25" height="5" fill="#222" stroke="#222" stroke-width="0.6"/>
 <rect x="51" y="726" width="25" height="5" fill="#fff" stroke="#222" stroke-width="0.6"/>
 <rect x="76" y="726" width="25" height="5" fill="#222" stroke="#222" stroke-width="0.6"/>
@@ -720,30 +817,29 @@
 <text x="126" y="741" font-size="7.5" text-anchor="middle">10</text>
 <text x="226" y="741" font-size="7.5" text-anchor="middle">20</text>
 <text x="241" y="731" font-size="7.5">m  (1 m = 10 px, grid 6 m)</text>
-<line x1="26" y1="758" x2="48" y2="758" stroke="#1d1d1d" stroke-width="4.5"/>
-<text x="56" y="761" font-size="8.5" fill="#333">External wall 0.45 / internal 0.23-0.3</text>
-<rect x="279" y="755.5" width="5" height="5" fill="#111"/>
-<text x="301" y="761" font-size="8.5" fill="#333">Column 0.5 square on the 6 m grid</text>
-<line x1="516" y1="762" x2="516" y2="752" stroke="#222" stroke-width="1.1"/><path d="M516 752 A10 10 0 0 1 526 762" fill="none" stroke="#666" stroke-dasharray="2 1.5" stroke-width="0.6"/>
-<text x="546" y="761" font-size="8.5" fill="#333">Door 1.0 x 2.1 (swing dashed), double 1.8</text>
-<line x1="26" y1="777" x2="48" y2="777" stroke="#222" stroke-width="1.6" stroke-dasharray="3 2"/>
-<text x="56" y="780" font-size="8.5" fill="#333">Roller shutter / sealed or locked opening</text>
-<rect x="271" y="774.7" width="22" height="4.6" fill="#eef5fb" stroke="#2f78b7" stroke-width="0.7"/>
-<text x="301" y="780" font-size="8.5" fill="#333">Window, fixed steel frame (wired glass)</text>
-<rect x="516" y="774.7" width="22" height="4.6" fill="#eef5fb" stroke="#2f78b7" stroke-width="0.7"/>
-<line x1="516" y1="779.3" x2="528" y2="787" stroke="#2f78b7" stroke-width="1.2"/>
-<text x="546" y="780" font-size="8.5" fill="#333">Window, opening casement</text>
-<rect x="26" y="791" width="22" height="10" fill="#fff" stroke="#222" stroke-width="0.8"/><line x1="29" y1="796" x2="45" y2="796" stroke="#222" marker-end="url(#arr)"/>
-<text x="56" y="799" font-size="8.5" fill="#333">Stair flight (arrow = up)</text>
-<line x1="271" y1="796" x2="293" y2="796" stroke="#c0392b" stroke-width="2.2" stroke-dasharray="7 4"/>
-<text x="301" y="799" font-size="8.5" fill="#333">Route order, spaces 1-8 (no gameplay yet)</text>
-<rect x="516" y="791" width="22" height="10" fill="#dbe6ec" stroke="#999" stroke-width="0.6"/>
-<text x="546" y="799" font-size="8.5" fill="#333">Open to the sky (light well, air shaft)</text>
-<rect x="26" y="810" width="22" height="10" fill="url(#chequer)" stroke="#999" stroke-width="0.6"/>
-<text x="56" y="818" font-size="8.5" fill="#333">Chequer plate over cable trenches (loud)</text>
-<circle cx="282" cy="815" r="3.2" fill="#3c4146"/>
-<text x="301" y="818" font-size="8.5" fill="#333">Cast-iron drainpipe (climbable, every one)</text>
-<rect x="516" y="810" width="22" height="10" fill="#e9e2d6" stroke="#7b6f60" stroke-width="0.7"/>
-<text x="546" y="818" font-size="8.5" fill="#333">Fixed equipment (frames, generators, stands)</text>
+<line x1="26" y1="758" x2="48" y2="758" stroke="#1d4ed8" stroke-width="2.2" stroke-dasharray="6 3"/>
+<text x="56" y="761" font-size="8.5" fill="#333">Shadow route (patience, timing)</text>
+<line x1="271" y1="758" x2="293" y2="758" stroke="#ea580c" stroke-width="2.2" stroke-dasharray="6 3"/>
+<text x="301" y="761" font-size="8.5" fill="#333">High route (movement skill)</text>
+<line x1="516" y1="758" x2="538" y2="758" stroke="#dc2626" stroke-width="2.2" stroke-dasharray="9 3"/>
+<text x="546" y="761" font-size="8.5" fill="#333">Loud route (force, fastest)</text>
+<line x1="26" y1="777" x2="48" y2="777" stroke="#7c3aed" stroke-width="2.2" stroke-dasharray="2.5 2.5"/>
+<text x="56" y="780" font-size="8.5" fill="#333">Secret route (exploring)</text>
+<line x1="271" y1="777" x2="293" y2="777" stroke="#15803d" stroke-width="2.2" stroke-dasharray="1 2.5"/>
+<text x="301" y="780" font-size="8.5" fill="#333">Co-op route (boost) C1-C3</text>
+<line x1="516" y1="777" x2="532" y2="777" stroke="#1f2937" stroke-width="1.5"/><circle cx="534" cy="777" r="4" fill="#fff" stroke="#1f2937" stroke-width="1.4"/>
+<text x="546" y="780" font-size="8.5" fill="#333">Guard route, stop (wait s), facing</text>
+<path d="M30 796 L48 790 L48 802 Z" fill="#94a3b8" fill-opacity="0.35" stroke="#64748b" stroke-width="0.6"/><path d="M34 796 L28 793 L28 799 Z" fill="#1f2937"/>
+<text x="56" y="799" font-size="8.5" fill="#333">Static post and focus cone</text>
+<circle cx="282" cy="796" r="7" fill="#fde68a" fill-opacity="0.5" stroke="#d97706" stroke-dasharray="3 2"/>
+<text x="301" y="799" font-size="8.5" fill="#333">Lit pool (lamp radius), circuit</text>
+<rect x="516" y="791" width="22" height="10" fill="#93c5fd" fill-opacity="0.4"/>
+<text x="546" y="799" font-size="8.5" fill="#333">Moonlit (ambient 0.28-0.3)</text>
+<rect x="26" y="810" width="22" height="10" fill="url(#loudp)" stroke="#dc2626" stroke-width="0.5"/>
+<text x="56" y="818" font-size="8.5" fill="#333">Loud floor (metal / grating)</text>
+<rect x="271" y="810" width="22" height="10" fill="url(#splitp)" stroke="#0f766e" stroke-width="0.8"/>
+<text x="301" y="818" font-size="8.5" fill="#333">Split jump gap (planned)</text>
+<ellipse cx="521" cy="815" rx="5" ry="3.4" fill="#fff" stroke="#111"/><circle cx="521" cy="815" r="1.6" fill="#111"/><circle cx="533" cy="815" r="4" fill="#facc15" stroke="#854d0e"/>
+<text x="546" y="818" font-size="8.5" fill="#333">Vantage / objective / H hide / S switch / TD takedown</text>
 <g><circle cx="744" cy="78" r="15" fill="#fff" stroke="#333" stroke-width="0.8"/><path d="M744 65L750 86L744 81L738 86z" fill="#222"/><text x="744" y="60" font-size="10" font-weight="bold" text-anchor="middle">N</text></g>
 </svg>

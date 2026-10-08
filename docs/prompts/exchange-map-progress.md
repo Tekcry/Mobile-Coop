@@ -7,16 +7,17 @@ Branch: `feature/exchange-map` (from `ct-movement`) | Last updated: 2026-10-08
 | --- | --- | --- |
 | Handover (standard, template, spec) | done | f45cbb2 |
 | 0 Setup and investigation | done | b7cfbe7 |
-| 1 Architectural design | done (waiting for Michael's review) | see log |
-| 2 Gameplay design | not started | |
+| 1 Architectural design | done, approved by Michael 2026-10-08 | 7a0811f |
+| 2 Gameplay design | done (waiting for Michael's approval) | see log |
 | 3 Build: ground floor | not started | |
 | 4 Build: first floor, roof, yard, co-op lips | not started | |
 | 5 Guards and mission | not started | |
 | 6 Dressing, readability, verification | not started | |
 
 ## Next step
-Michael: review the building (`docs/prompts/exchange-design.md`, plans in `docs/prompts/exchange-plans/`), in particular
-deviations D1-D9 in its section 7, then say go for Phase 2 (gameplay design, docs only).
+Michael: review the gameplay design (`docs/prompts/exchange-design.md` Part 2, the `*-gameplay.svg` overlays), in
+particular decisions D10-D27 (section 13) and the self-critique (section 18). Your approval makes the design doc and
+plans the build contract; then say go for Phase 3 (build the ground floor).
 
 ## Michael's phone notes
 (none yet; Phase 6 reads this first)
@@ -212,6 +213,46 @@ the last run is the handover's).
 Open items:
 - Michael's review of the building and D1-D9.
 
+### Phase 2 - gameplay design (2026-10-08)
+Michael approved Phase 1 (the building, D1-D9) with "Go" on 2026-10-08.
+
+Files:
+- `docs/prompts/exchange-design.md`: Part 1 status updated, and its text and plans brought in line with the Phase 2
+  refinements (string course, SW drainpipe, fire escape balcony, tank room, locked colonnade door). Part 2 (new):
+  - section 9, the engine facts the design rests on (sight and noise tables computed from the real functions);
+  - section 10, eight space sheets, with the routes as walkthroughs in the player's words;
+  - section 11, nine guard sheets with points, waits, facings, cycles, gaps, isolation, overlap, lures and search;
+  - section 12, the beat chart; section 13, decisions D10-D27; section 14, the coverage table;
+  - section 15, the tool / problem matrix; section 16, the metrics check, with the co-op lips table for
+    `EXCHANGE_COOP_LIPS`;
+  - section 17, the standard's sections 3-7 checked per space; section 18, the self-critique;
+  - section 19, the playtest checklist.
+- `docs/prompts/exchange-plans/*.svg`: the four plans redrawn with the refinements, and four new gameplay overlays
+  (`basement-gameplay.svg`, `ground-gameplay.svg`, `first-gameplay.svg`, `roof-gameplay.svg`). Each was checked by
+  rendering it in Chromium.
+
+Engine findings (they shaped the design; none changes code):
+- A paused guard faces his next leg (`patrol.ts:75-78`): a stop cannot face a chosen direction; only a post has its own
+  facing. Proposed as a Future item (per-stop facing).
+- A heard footstep sets the meter to `noiseSuspicion` (`enemy.ts:498-511`): suspicious only within 0.44 of the
+  radius, investigating within 0.09. Loud floors must sit within about 2.4 m of a guard's stop to bring him.
+- Inverted takedowns reach a guard whose feet are at most 2.8 m under the inverted root, which hangs 0.64 m under the
+  pipe (`attach.ts:228`, `takedown.ts`). So a pipe must be at most 3.44 m over the guard's floor, and the spec's 4.3-4.5 m
+  runway carries drops but not inverted takedowns (D16).
+- Darkness (ambient <= 0.12) hides a player from any guard beyond the 1.8 m close range; moonlight (0.29) hides a
+  crouched player at any range (`perception.ts`, tables in the design doc section 9).
+- Fixed panes are static bodies, so they block guards' sight; vantages behind glass are safe.
+
+Decisions: D10-D27 in the design doc's section 13. The ones that differ from the spec's wording are D10 (G1 stays in the
+MDF hall), D11 (the records at the test desk's dark end), D12 (frame-top lips kept), D16 (inverted on lower pipes),
+D17 (G6 a post), D18 (G9's isolation at a pallet stack) and D26 (G1's clock stop 4 s, not 5).
+
+Checks run: none needed for docs only. `npm run check` was not re-run in this phase (no code, config or test changed).
+
+Open items:
+- Michael's approval of Part 2 and the overlays.
+- Self-critique item 1 (space 8's secret route is the safest exit): an option for Michael is in the doc.
+
 ## Spec change requests
 (problem, proposed change, waiting / approved / rejected)
 1. Space 4 secret route (2026-10-08): the engine cannot climb a split (no jump out of a split). Options: (a) the air
@@ -224,3 +265,5 @@ Open items:
 
 ## Future recommendations
 (written at the end of Phase 6)
+- Noted in Phase 2: a per-stop facing (and per-stop wait) on `SquadSlot` routes, so a guard can stop and look out of a
+  window or over a rail.
