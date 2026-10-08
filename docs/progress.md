@@ -6,7 +6,7 @@ every phase step.
 ## Status
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
-| 0 | Foundation | in progress | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
+| 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
 | 1 | Light parity | not started | 3.6.0 | (to be written by Opus) |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
@@ -29,7 +29,7 @@ every phase step.
 - Kestrel Exchange is a paper design only: map phases 0-2 done, Phase 2 awaiting Michael's approval; no map code; build
   phases held until roadmap Phase 3b and the alignment pass (bible Section 10, Phase 7).
 - The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
-- Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) goes behind `?legacy=1` in Phase 0 Step 4.
+- Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) is behind `?legacy=1` (3.5.0, `core/legacy.ts`). The title is Night Shift. `CLAUDE.md` is a lean core (9.6 KB) with the detail in `docs/systems/`.
 
 ## Phase 0 log
 
@@ -106,15 +106,71 @@ every phase step.
 - Next: STOP for Michael (handover): test `/ct/`, promote `ct-movement`, then "continue with Step 2" (Step 2 is
   written; Steps 3-5 remain).
 
+#### Step 3 report (docs restructure) - 2026-10-08
+- Done: `CLAUDE.md` rewritten as a lean core (identity, every session, commands, branches, hard rules + the new ones, definition of done, module map, doc index);
+  the old text moved verbatim into 19 `docs/systems/*.md` files; pre-3.0 `CHANGELOG.md` / `TESTING.md` archived; `README.md` points to `CLAUDE.md` and `docs/systems/`.
+- Files: `CLAUDE.md`, `docs/systems/*.md` (ai, audio, combat, conventions, coop, cover, deploy, gadgets, graphics-quality, input-and-loop, lighting, modes-and-progression,
+  movement, performance, saves, takedowns, testing-tools, ui, world-and-characters), `docs/archive/CHANGELOG-pre-3.0.md`, `docs/archive/TESTING-pre-3.0.md`.
+- Sizes (KB, before -> after): `CLAUDE.md` 142.7 -> 9.6 (limit 12); `CHANGELOG.md` 137.9 -> 45.2; `TESTING.md` 84.4 -> 32.0.
+- Proof: a throwaway script checked every non-empty non-heading line of the merged `CLAUDE.md` (f017423, 1307 lines) appears in the new `CLAUDE.md` or a
+  `docs/systems` file: 0 missing, none dropped. The same check on the archived `CHANGELOG.md` and `TESTING.md`: 0 missing.
+- Decisions: sections not listed in the spec: "Level design" -> `world-and-characters.md`; "Module layout" (full table), the old introduction paragraph and the
+  "Hot paths must not allocate" bullet -> `conventions.md` (CLAUDE.md keeps a shorter module map and a hot-path hard rule); "Debug overlay" -> `testing-tools.md`.
+  "Progression and saves" -> `saves.md` whole. `TESTING.md` keeps the 3.2.0-ct sections, 3.1.x, 3.0.0 and the release checklist ("Phase 10").
+
+#### Step 4 report (`?legacy=1` and the title) - 2026-10-08
+- Done: `flags.legacy`; `core/legacy.ts` + `tests/legacy.test.ts` (8 tests); Play screen (Infiltration default, Training, Free Roam), co-op lobby (Infiltration, Free Roam; a new
+  room starts on Infiltration), Loadout screen (weapons, attachments, gadget, presets; every weapon and attachment selectable), results (no rewards panel, no style
+  bars, rating kept), profile badge (name and tag), kill feed (no "+XP"), main-menu subtitles; the title Night Shift (page, boot screen, menu, manifest, share and file
+  names, README); `REQUIRED` / `LEGACY` suite lists, `npm run e2e:legacy`, `e2e-lib` `LEGACY=1`; new suite `e2e-park`.
+- Suite classification: LEGACY = `e2e-progression` (Loadout economy, suit / HQ, rewards; its save export / import checks moved into `e2e-park`), `e2e-cosmetics`, `e2e-clear` (Hunter).
+  REQUIRED = every other suite, `e2e-park` new. Changed: `e2e-coop` (pages open with `legacy=1`), `e2e-missions` (no style bars; 3 with `LEGACY=1`).
+- Decisions:
+  - Selecting a weapon the profile does not own would have been reset by the save sanitiser on the next load. `sanitizeSave(raw, openLoadout)` and `SaveManager.openLoadout`
+    keep it while the campaign is open (no `SAVE_VERSION` change; default sanitising unchanged, so the existing sanitiser test still holds).
+  - Profile badge keeps the name, tag and emblem (the tag is the co-op identity); level, XP bar and credits are hidden.
+  - The Training description still mentions Mark & Execute (Training is rewritten in Phase 3).
+  - The data export file is now `night-shift-save-<date>.json`; the feedback report file name (`sbd-feedback-...`) is unchanged (an e2e asserts it; internal).
+- Open: `src/save/migrations.ts` still says "Not a Silent But Deadly save" in an error message (the spec says leave it).
+
+#### Step 5 report (version and final verification) - 2026-10-08
+- Done: `package.json` 3.5.0; `CHANGELOG.md` 3.5.0 entry; `TESTING.md` "3.5.0 manual check"; per-step reports above; systems notes (`modes-and-progression.md`, `testing-tools.md`, `ui.md`).
+- Tests:
+  - `npm run check`: lint clean, 61 files / 598 tests pass, build OK.
+  - `npm run e2e` (31 required suites, 1342 checks): 30 passed on the first run; `e2e-mouse` failed its `=` / `-` gear check (a fixed 150 ms wait on a page at a few frames a second). After polling
+    up to 2 s for the step (same assertion) it passes 3 of 3. `e2e-park`, `e2e-missions` and `e2e-coop` pass after their edits.
+  - `npm run e2e:legacy` (`e2e-progression`, `e2e-cosmetics`, `e2e-clear`): all pass.
+- Measurements (cloud VM, noisy; scaled budgets):
+
+  | Path | sim p95 ms | animation ms / char | allocations MB/s | draws | triangles M |
+  | --- | --- | --- | --- | --- | --- |
+  | Test path, Step 1 baseline (ct before / master) | 2.95-3.45 / 2.55-2.75 | 0.055-0.074 / 0.057-0.060 | 12.4-13.3 / 10.5-11.1 | 43 | 0.14 |
+  | Test path, 3.5.0 (two runs) | 2.85, 2.3 | 0.054, 0.063 | 11.2, 11.0 | 40-42 | 0.14 |
+  | Phone path (`--preset=ultra --mobile`), Step 1 (master / merged) | 3.6-6.8 / 3.7-6.35 | 0.054-0.081 / 0.059-0.069 | 10.3-12.0 / 10.6-12.8 | 138-153 / 144-159 | 0.48 |
+  | Phone path, 3.5.0 | 3.1 | 0.051 | 11.6 | 159 | 0.49 |
+
+  The test path passes every budget on its second run (the first misses animation by a hair, as `master` does). The phone path's sim p95 (3.1 against 2.65) and allocations
+  (11.56 against 11.52) are over by the same VM noise seen on `master`; draws and triangles are inside the budget. No regression from Phase 0.
+- Phone check (the light renderer under phone emulation) and the benchmark flight were checked in Step 1; nothing in the renderer changed since.
+
 ### Decisions
-(collected from the step reports above)
+- Michael re-issued "follow the handover" with the Night Shift bundle (bible v1.7, story) before promoting Step 1; Step 1 stood as written and Steps 2-5 ran after
+  Michael merged `ct-movement` into `master` (PR #2, identical trees). `dev` was not merged yet.
+- Phase 3b is its own phase and version (3.9.0), so Phases 4-7 are 3.10.0-3.13.0.
+- `vite.config.ts`: kept `VITE_PREVIEW_ID` (the `/ct/` save and label) on top of `master`'s file.
+- The merge was pushed after `npm run check` and before the full e2e run (the stop hook asks for pushes); two test-timing fixes followed (`e2e-traverse`, `e2e-netmove`),
+  then `e2e-mouse`. Step 4 was pushed as work in progress (42bf428) before its e2e suites were updated.
+- e2e timing flakes (software GL runs the pages at a few frames a second) are fixed by waiting for the condition, never by loosening a threshold.
 
 ### Measurements
-(collected from the step reports above)
+See the Step 1 and Step 5 reports.
 
 ### Open issues
-- Allocations on the test path sit near or over 11.5 MB/s on CT builds (12.4-13.3 MB/s before the merge).
-- CPU readings on the cloud VM swing by up to 2x run to run; single `perf.mjs` readings may miss scaled budgets.
+- Allocations on the test path sit near the 11.5 MB/s budget on CT builds (12.4-13.3 MB/s before the merge, 11.0-11.2 now).
+- CPU readings on the cloud VM swing by up to 2x run to run; single `perf.mjs` readings may miss scaled budgets (the same on `master`).
+- `e2e-park` covers the legacy-off lobby and Loadout; the legacy-off results screen (no rewards panel) is covered only through `e2e-missions` (no style bars).
+- `src/save/migrations.ts` error text still names Silent But Deadly (left alone on purpose).
+- `docs/story.md` Section 9 and bible Section 11 list the still-open decisions for Michael.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
