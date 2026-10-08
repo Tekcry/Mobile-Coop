@@ -5,7 +5,8 @@
  * the fog's light shafts fall where it is high. Occupancy is conservative (a cell touched by any shape is solid,
  * so thin roof sheets still block the sky).
  */
-import { SHAPE_STRIDE, shapeBounds } from './shapes';
+import { occupancyShapes } from './lampBake';
+import { rasterise, SHAPE_STRIDE, shapeBounds } from './shapes';
 
 export interface SkyJob {
   kind: 'sky';
@@ -269,4 +270,109 @@ export function bakeGi(job: SkyJob, occ: Uint8Array, rays = 12, reach = 6): Uint
     out[i * 4 + 3] = 255;
   }
   return out;
+}
+
+/** Moon visibility cell (m): one directional ray per cell. One size on every device. */
+export const MOON_CELL = 0.5;
+/** The moon's occupancy resolution (m): finer than the visibility cells, so a thin pole or rail still casts its shadow. */
+export const MOON_OCC = 0.25;
+
+export interface MoonJob {
+  kind: 'moon';
+  id: number;
+  /** Grid origin (a whole metre) and cell counts at `MOON_CELL`. */
+  origin: [number, number, number];
+  n: [number, number, number];
+  /** Packed canonical shapes (`lightShapes.ts`). */
+  shapes: Float32Array;
+  /** Unit vector from the ground towards the moon (minus the light's travel direction). */
+  dir: [number, number, number];
+}
+
+export interface MoonResult {
+  kind: 'moon';
+  id: number;
+  /** n[0] * n[1] * n[2] bytes, x fastest: 255 = the moon reaches the cell, 0 = a shape is in the way. */
+  vis: Uint8Array;
+}
+
+/**
+ * The moon's baked visibility (3.6, pure; runs in a worker): per `MOON_CELL` cell one ray from its centre towards the
+ * moon through conservative occupancy (every shape grown by half an occupancy cell). A ray that leaves the grid is
+ * clear (the shapes all lie inside it). Solid cells take their brightest air neighbour, so a lookup just inside a lit
+ * face stays lit. Everything outside the grid is open sky (the reader's rule).
+ */
+export function bakeMoon(job: MoonJob): MoonResult {
+  const [nx, ny, nz] = job.n;
+  const o = job.origin;
+  const c = MOON_CELL;
+  const k = Math.round(c / MOON_OCC);
+  const ox = nx * k;
+  const oy = ny * k;
+  const oz = nz * k;
+  const oc = c / k;
+  const occ = new Uint8Array(ox * oy * oz);
+  rasterise(occupancyShapes(job.shapes, oc * 0.5), occ, o, oc, ox, oy, oz);
+  const [dx, dy, dz] = job.dir;
+  // the highest solid cell: a ray above it and not descending is clear
+  let top = -1;
+  for (let i = 0; i < occ.length; i++) if (occ[i]) top = Math.max(top, Math.floor(i / ox) % oy);
+  const vis = new Uint8Array(nx * ny * nz);
+  const solid = new Uint8Array(nx * ny * nz);
+  const step = oc * 0.5;
+  const inv = 1 / oc;
+  const maxT = Math.sqrt((nx * c) ** 2 + (ny * c) ** 2 + (nz * c) ** 2);
+  for (let z = 0; z < nz; z++) {
+    for (let y = 0; y < ny; y++) {
+      for (let x = 0; x < nx; x++) {
+        const ci = x + nx * (y + ny * z);
+        const px = (x + 0.5) * c;
+        const py = (y + 0.5) * c;
+        const pz = (z + 0.5) * c;
+        if (occ[Math.floor(px * inv) + ox * (Math.floor(py * inv) + oy * Math.floor(pz * inv))]) {
+          solid[ci] = 1;
+          continue;
+        }
+        let lit = true;
+        let lastX = -1;
+        let lastY = -1;
+        let lastZ = -1;
+        for (let t = oc; t < maxT; t += step) {
+          const qy = (py + dy * t) * inv;
+          // (above the highest solid cell and not descending: nothing more to hit)
+          if (qy >= oy || (dy >= 0 && qy >= top + 1)) break;
+          const qx = Math.floor((px + dx * t) * inv);
+          const qyi = Math.floor(qy);
+          const qz = Math.floor((pz + dz * t) * inv);
+          if (qx < 0 || qz < 0 || qx >= ox || qz >= oz || qyi < 0) break;
+          if (qx === lastX && qyi === lastY && qz === lastZ) continue;
+          lastX = qx;
+          lastY = qyi;
+          lastZ = qz;
+          if (occ[qx + ox * (qyi + oy * qz)]) {
+            lit = false;
+            break;
+          }
+        }
+        vis[ci] = lit ? 255 : 0;
+      }
+    }
+  }
+  for (let z = 0; z < nz; z++) {
+    for (let y = 0; y < ny; y++) {
+      for (let x = 0; x < nx; x++) {
+        const i = x + nx * (y + ny * z);
+        if (!solid[i]) continue;
+        let v = 0;
+        if (x > 0 && !solid[i - 1]) v = Math.max(v, vis[i - 1]!);
+        if (x < nx - 1 && !solid[i + 1]) v = Math.max(v, vis[i + 1]!);
+        if (y > 0 && !solid[i - nx]) v = Math.max(v, vis[i - nx]!);
+        if (y < ny - 1 && !solid[i + nx]) v = Math.max(v, vis[i + nx]!);
+        if (z > 0 && !solid[i - nx * ny]) v = Math.max(v, vis[i - nx * ny]!);
+        if (z < nz - 1 && !solid[i + nx * ny]) v = Math.max(v, vis[i + nx * ny]!);
+        vis[i] = v;
+      }
+    }
+  }
+  return { kind: 'moon', id: job.id, vis };
 }

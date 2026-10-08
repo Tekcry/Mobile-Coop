@@ -4,10 +4,10 @@
  */
 import { buildChunk, type ChunkJob, type ChunkResult } from './chunk';
 import { bakeLamps, type LampJob, type LampResult } from './lampBake';
-import { bakeSky, type SkyJob, type SkyResult } from './skyBake';
+import { bakeMoon, bakeSky, type MoonJob, type MoonResult, type SkyJob, type SkyResult } from './skyBake';
 
-type Job = ChunkJob | SkyJob | LampJob;
-type Result = ChunkResult | SkyResult | LampResult;
+type Job = ChunkJob | SkyJob | LampJob | MoonJob;
+type Result = ChunkResult | SkyResult | LampResult | MoonResult;
 
 export function workerCount(): number {
   const hc = typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4;
@@ -63,6 +63,15 @@ export class WorkerPool {
   /** A lamp visibility bake (3.2; split across the workers by the caller). */
   lamps(job: LampJob): Promise<LampResult> {
     if (this.inline) return Promise.resolve(bakeLamps(job));
+    return new Promise((resolve, reject) => {
+      this.queue.push({ job, resolve: resolve as (r: Result) => void, reject });
+      this.pump();
+    });
+  }
+
+  /** The moon visibility bake (3.6; one job). */
+  moon(job: MoonJob): Promise<MoonResult> {
+    if (this.inline) return Promise.resolve(bakeMoon(job));
     return new Promise((resolve, reject) => {
       this.queue.push({ job, resolve: resolve as (r: Result) => void, reject });
       this.pump();

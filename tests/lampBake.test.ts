@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import { bakeLamps, BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_STRIDE, lampGrid, packLampAtlas, type LampJob, type LampResult } from '../src/voxel/lampBake';
 import { packShapes, ShapeMode, type VoxelShape } from '../src/voxel/shapes';
+import { canonicalLightSet, canonicalLightShapes } from '../src/voxel/lightShapes';
+import { detailPieces } from '../src/world/detailPass';
+import { LevelBuilder, type BoxPiece, type CylPiece } from '../src/world/levelBuilder';
+import { MAPS } from '../src/world/maps';
 
 const box = (c: [number, number, number], s: [number, number, number], mode?: ShapeMode): VoxelShape => ({ kind: 'box', c, s, yaw: 0, pitch: 0, mat: 1, mode });
 /** A downward lamp at (x, y, z), radius r, fixture sx x sz. */
@@ -110,5 +114,45 @@ describe('GI circuits mixed into one texture (3.2)', () => {
     expect(out[4]).toBe(228);
     mixGiSlots(data, 2, [0, 0.5], out);
     expect([...out.subarray(0, 3)]).toEqual([25, 25, 25]);
+  });
+});
+
+describe('canonical light shapes (3.6)', () => {
+  const b = (c: [number, number, number], s: [number, number, number], extra: Partial<BoxPiece> = {}): BoxPiece => ({ c, s, yaw: 0, pitch: 0, color: '#888888', collide: true, visible: true, ...extra });
+
+  it('keeps visible pieces at least 5 cm thick; drops invisible and thinner ones', () => {
+    const boxes = [b([0, 1, 0], [4, 2, 0.2]), b([0, 1, 5], [4, 2, 0.04]), b([0, 1, 9], [4, 2, 0.3], { visible: false }), b([3, 0.5, 3], [1, 1, 1], { collide: false })];
+    const cyls: CylPiece[] = [
+      { c: [1, 1, 1], r: 0.3, h: 2, color: '#888888', collide: true },
+      { c: [2, 1, 1], r: 0.02, h: 2, color: '#888888', collide: true },
+    ];
+    const s = canonicalLightShapes(boxes, cyls, 'unit');
+    expect(s.filter((x) => x.kind === 'box').length).toBe(2);
+    expect(s.filter((x) => x.kind === 'cyl').length).toBe(1);
+  });
+
+  it('is the same whatever dressing the renderer added, and with it', () => {
+    const wall = b([0, 1.5, 0], [8, 3, 0.2]);
+    const base = canonicalLightShapes([wall], [], 'unit');
+    for (const tier of ['low', 'medium', 'ultra', 'epic'] as const) {
+      const dressed = [wall, ...detailPieces([wall], 'unit', tier)];
+      expect(JSON.stringify(canonicalLightShapes(dressed, [], 'unit')), tier).toBe(JSON.stringify(base));
+    }
+    // (the Medium dressing is part of it: wall dressing that is thick enough)
+    expect(base.length).toBeGreaterThan(1);
+  });
+
+  it('every shipped map gives one set, bounded, with the tier of the dressing not mattering', () => {
+    for (const map of MAPS) {
+      const lb = new LevelBuilder();
+      map.build(lb, 1);
+      const a = canonicalLightSet(lb.boxes, lb.cylinders, map.id);
+      const dressed = [...lb.boxes, ...detailPieces(lb.boxes, map.id, 'epic')];
+      const c = canonicalLightSet(dressed, lb.cylinders, map.id);
+      expect(c.hash, map.id).toBe(a.hash);
+      expect(a.lo.every((v, k) => v < a.hi[k]!), map.id).toBe(true);
+      // whole metres, so every grid lines up
+      expect([...a.lo, ...a.hi].every((v) => Number.isInteger(v)), map.id).toBe(true);
+    }
   });
 });

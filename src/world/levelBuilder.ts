@@ -35,6 +35,7 @@ import { hyp2 } from '../core/mathx';
 import { generateLedges, makeLedge, suppressLedgesNear, TraversalAnchors, type Fence, type RappelPoint, type SplitAnchor, type Door, type Duct, type Grate, type Ladder, type Ledge, type P3, type PipeHorizontal, type PipeVertical, type WindowAnchor, type Zipline } from './anchors';
 import { LightRegistry, type LightInit } from './lights';
 import { levelVoxels, type LevelVoxels, type VoxelArt } from '../voxel/levelVoxels';
+import { canonicalLightSet } from '../voxel/lightShapes';
 
 /** Gap between a body in cover and the surface (shared by the player and AI). */
 export const COVER_STANDOFF = coverStandoff(MOVEMENT.radius, proportions('broad').bodyDepthHalf);
@@ -96,6 +97,8 @@ export interface BuiltLevel {
   surfacePlugin: SurfacePlugin | null;
   /** 3.0 voxels: the pieces rendered as voxels (their shapes, palette and grid); they are left out of `meshes`. */
   voxels: LevelVoxels | null;
+  /** 3.6: the canonical light-bake shapes (packed), their bounds and hash - the same on every device and tier. */
+  light: { shapes: Float32Array; lo: [number, number, number]; hi: [number, number, number]; hash: string };
   dispose(): void;
 }
 
@@ -559,6 +562,7 @@ export class LevelBuilder {
       bounds: this.bounds,
       surfacePlugin,
       voxels,
+      light: canonicalLightSet(this.boxes, this.cylinders, name),
       dispose: () => {
         body.dispose();
         container.dispose();

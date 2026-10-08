@@ -39,8 +39,8 @@ import { VoxelWorld } from '../voxel/voxelWorld';
 import { VOXEL_VERSION } from '../voxel/levelVoxels';
 import { packShapes } from '../voxel/shapes';
 import { flags } from '../core/flags';
-import { BakedLamps, bakedLights } from './bakedLamps';
-import { bakeLevelLamps, LAMP_VERSION } from '../voxel/lampJobs';
+import { BakedLamps } from './bakedLamps';
+import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
@@ -129,6 +129,8 @@ export class World {
     /** The level's voxels (3.0; null: blockout boxes): the structure layer, then the fine layer. */
     readonly voxels: VoxelWorld | null = null,
     readonly voxelsFine: VoxelWorld | null = null,
+    /** 3.6: the canonical light bake (lamp and moon visibility, ambient grid). */
+    readonly lightBake: LightBake | null = null,
   ) {
     this.surfaces = atlas;
     const th = map.theme;
@@ -207,7 +209,6 @@ export class World {
     const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
     let voxels: VoxelWorld | null = null;
     let fine: VoxelWorld | null = null;
-    let lamps: { baked: ReturnType<typeof bakedLights>; r: Awaited<ReturnType<typeof bakeLevelLamps>>; lo: [number, number, number]; hi: [number, number, number]; ms: number } | null = null;
     if (vo && level.voxels) {
       const lv = level.voxels;
       const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
@@ -217,31 +218,28 @@ export class World {
       voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) + giKey, gi, group: 2 });
       // the fine layer: half the size, levels of detail at half the distances, lit by the structure's sky bake
       if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels, group: 4 });
-      // 3.2 baked lamps: every fixed light's visibility through every rendered layer (not on the cheap test path)
-      const baked = !opts.cheap && flags.baked && level.lights.lights.length ? bakedLights(level.lights) : null;
-      if (baked && baked.ids.length) {
-        const a = packShapes(lv.shapes);
-        const b = lv.fine ? packShapes(lv.fine.shapes) : new Float32Array(0);
-        const shapes = new Float32Array(a.length + b.length);
-        shapes.set(a);
-        shapes.set(b, a.length);
-        const lo: [number, number, number] = [lv.origin[0], lv.origin[1], lv.origin[2]];
-        const hi: [number, number, number] = [lv.origin[0] + lv.dims[0] * lv.size, lv.origin[1] + lv.dims[1] * lv.size, lv.origin[2] + lv.dims[2] * lv.size];
-        const lampKey = `lamps:${map.id}:${opts.seed}:v${LAMP_VERSION}:${contentHash(shapes, '')}:${contentHash(baked.lights, '')}`;
-        const t0 = performance.now();
-        lamps = { baked, r: await bakeLevelLamps(shapes, baked.lights, lo, hi, lampKey), lo, hi, ms: performance.now() - t0 };
-      }
     }
-    const w = new World(scene, map, level, layout, atlas, voxels, fine);
-    if (lamps) {
+    // 3.6 the canonical light bake: the same on every device, preset and tier (the shapes come from the level's own
+    // pieces, never from what a renderer draws); gameplay's light field and every renderer read it
+    level.lights.ambient = map.theme.lightLevel ?? 0.75;
+    const bake = await bakeLevelLight({ mapId: map.id, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir });
+    const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
+    // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off)
+    if (bake.lamps && vo && level.voxels && !opts.cheap && flags.baked) {
       // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
-      w.lamps = new BakedLamps(scene, level.lights, lamps.baked, lamps.r, lamps.lo, lamps.hi, opts.lampVolume ? { floorY: 0 } : null);
-      w.lamps.bakeMs = lamps.ms;
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume ? { floorY: 0 } : null);
+      w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
     }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
     return w;
+  }
+
+  /** What the canonical light bake is made of (tests compare it across renderers; computed on demand). */
+  lightInfo(): { shapes: string; lampKey: string | null; moonKey: string | null; hash: string; ms: number; lights: number; lampBytes: number; moonCells: number } {
+    const b = this.lightBake;
+    return { shapes: this.level.light.hash, lampKey: b?.lampKey ?? null, moonKey: b?.moonKey ?? null, hash: b ? lightBakeHash(b) : '', ms: b?.ms ?? 0, lights: b?.lamps?.baked.ids.length ?? 0, lampBytes: b?.lamps?.r.vis.length ?? 0, moonCells: b?.moon?.vis.length ?? 0 };
   }
 
   /** The voxel layers present (structure, fine). */

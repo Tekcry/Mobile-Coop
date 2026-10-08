@@ -3,6 +3,9 @@ import { dropCpuCopy } from '../voxel/voxelWorld';
 import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid, packLampAtlas, type LampResult } from '../voxel/lampBake';
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
+import { bakedLights } from './lightBake';
+
+export { bakedLights };
 
 /** Omni lamps light everything below them through this cone (rad; as `LightRig`'s lamps did). */
 const LAMP_CONE = Math.PI * 0.97;
@@ -14,19 +17,6 @@ const LAMP_TEXELS = 6;
 /** Character capsules (two texels each) and how many one lamp tests. */
 export const MAX_CAPSULES = 16;
 const CAPS_PER_LAMP = 4;
-
-/** Pure: the lights that are baked (every fixed one; flashlights move) packed for the bake (`LAMP_STRIDE`). */
-export function bakedLights(reg: LightRegistry): { lights: Float32Array; ids: number[] } {
-  const ids: number[] = [];
-  for (const l of reg.lights) if (l.kind !== 'flashlight') ids.push(l.id);
-  const lights = new Float32Array(ids.length * LAMP_STRIDE);
-  ids.forEach((id, i) => {
-    const l = reg.lights[id]!;
-    const f = l.fixture;
-    lights.set([l.x, l.y, l.z, l.reach ?? l.radius, l.cone?.dx ?? 0, l.cone?.dy ?? -1, l.cone?.dz ?? 0, l.cone ? l.cone.cosOuter : -2, f?.sx ?? 0, f?.sz ?? 0], i * LAMP_STRIDE);
-  });
-  return { lights, ids };
-}
 
 /**
  * Baked lamps (3.2): every fixed light shaded through its baked visibility (`voxel/lampBake.ts`) by `LampPlugin` on
