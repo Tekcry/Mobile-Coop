@@ -5,15 +5,14 @@ Spec: docs/prompts/exchange-map.md | Branch: feature/exchange-map (from ct-movem
 | Phase | Status | Commit |
 | --- | --- | --- |
 | 0 Setup and investigation | done (waiting for Michael's go-ahead) | see log |
-| 1 Paper plan | not started | |
+| 1 Paper plan | done (waiting for Michael's approval of the plan) | see log |
 | 2 Blockout S0-S3 | not started | |
 | 3 Blockout S4-S7 and co-op lips | not started | |
 | 4 Guards and mission | not started | |
 | 5 Readability and verification | not started | |
 
 ## Next step
-Michael: read the Phase 0 report below and say go for Phase 1 (paper plan). Decisions 1-6 under "Phase 0 findings" are
-recommendations the plan will assume unless you say otherwise.
+Michael: read `docs/prompts/exchange-map-plan.md` and approve it (or list changes). Phase 2 builds exactly that plan.
 
 ## Michael's phone notes
 (none yet; Phase 5 reads this first)
@@ -189,11 +188,33 @@ None required for Phase 0 and none run: no code, config or test file changed (do
 
 ## Spec change requests
 (problem, proposed change, waiting for Michael / approved / rejected)
-- Perimeter height (2026-10-08): the spec says 6.5 m. Problem: finding 2 (wall-jump / mantle out of the map from the
-  catwalk, balcony, galleries and the 6.0 m walkway; a boost from the plinth). Proposed: perimeter 8.0 m with
-  `noLedge`, still no collision on roofs. Waiting for Michael.
-- Fixed glass in S2 (2026-10-08): the spec says `glassX` high in the north wall. Problem: finding 5 (opaque). Proposed:
-  a glazed `windowAt` with its sill out of reach from the floor. Waiting for Michael.
+- Michael (2026-10-08) approved all three Phase 0 recommendations: perimeter 8.0 m with `noLedge`, a glazed `windowAt` instead of `glassX` for
+  S2's view, `noLedge` on interior walls except intended lips.
+- Perimeter height 6.5 -> 8.0 m with `noLedge` (finding 2): approved.
+- S2 view through a glazed `windowAt` (finding 5): approved.
+- Interior walls `noLedge` (finding 1): approved.
+
+### Phase 1 - paper plan (2026-10-08)
+File: `docs/prompts/exchange-map-plan.md` (no code). It holds, per section, every piece with its call, place and purpose, the anchors, lights with
+circuit groups, ambient zones, surfaces, doors, windows, hide spots, switches, objective sites, guards (slot, route, wait, estimated cycle), the
+entry vantage and the dark pockets; the mission and co-op lip drafts; the band audit; the self-checks; the no-skip check; the risk list.
+
+Decisions (deviations from the spec text, all inside the spec's rules):
+- Guards: one `wait` per guard (3.5-4.5 s) replaces the per-point waits (finding 4); facing comes from the next route point.
+- Catwalks are 1.0 m wide against a wall (the wall-jump kick ray is 1.3 m); the S6 galleries sit on solid podiums for the same reason
+  (so there is no space under the galleries); the S6 east gallery bridges the S5 doors.
+- Boiler B is 3.5 m (not 3.6: stays under `SPLIT.minHeight`). The S4 cornice is two free-standing 0.8 m piers (a boost needs a wall face behind
+  the braced mate; a detached cornice has none). Their 1.8 m gap has a 0.8 overlap, under `SPLIT.minLen`, so no accidental split (fragile; tested).
+- No cable bundle on the S2 pipe: nothing reads obstacles on a pipe shimmy (the attached body is kinematic).
+- S4 rope window is glazed (loud, fast); the quiet alternative is the open window on the ground (both work with the rope, but one rope can only
+  be beside one of them without ambiguity).
+- The S2 high window sits at x -7.0 and the clock hangs at (-7.0, 6.4, -3.7) over the south gallery, so the glazed window actually frames it.
+- S5: the dark side door opens on office S1 (a stair-room door would let a player skip S5's corridor); the S5 stair room is entered from the corridor only.
+- S6 ladder is 3.6 m (the spec table says 2.4-3.4): to confirm in Phase 3, fallback stair only.
+- Layout adjustments within 2 m: S5 corridor at z 9.2..11.6 (centre 10.4, not 13); the S7 hall south wall at z 9.3 (hall z 9.45..19.85).
+
+Checks run: none (docs only).
+Open: the plan's numbers marked (e2e) and the risk list (section 14) are confirmed in Phases 2-4.
 
 ## Future recommendations
 (written at the end of Phase 5)
