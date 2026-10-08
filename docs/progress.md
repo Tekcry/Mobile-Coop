@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | in progress (Step 2 done, awaiting review) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | in progress (Step 2 reviewed; Step 3) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -322,11 +322,14 @@ See the Step 1 and Step 5 reports.
   - Light formula: linear falloff to the lamp's reach; a lamp without a cone lights only below itself, by the
     cosine from straight down; a spot by the squared cosine inside its outer angle, nothing outside it.
   - Bands: dark below 0.25, lit above 0.53.
-  - The moon: open sky at the theme's `lightLevel`; in the baked moon shadow less the moon's share (Warehouse:
-    0.3 -> 0.196, dark). A wall or building shades a strip on its far side from the moon.
+  - The moon (the sun on day maps): open sky at the theme's `lightLevel`; in its baked shadow less its share
+    (`lightLevel x sun / (sky + sun)`; Warehouse 0.3 -> 0.196, dark; Proving Grounds 0.75 -> 0.339, mid). A wall or
+    building shades a strip on its far side from the moon.
   - Light blockers: blockout pieces >= 5 cm and the Medium dressing (voxel art never); closed door leaves.
   - Ambient zones resolve to 1 m cells: author zone edges on whole metres.
   - Guards light torches where the static level at the head is below 0.35 (lamps count), and keep them to 0.45.
+  - Daylight maps too (review): Proving Grounds' sun share is 0.411 (sun 0.85, sky 0.7), so ground in the sun's
+    shadow reads 0.339 (mid) instead of 0.75 (lit), as the desktop draws it. Nowhere on it is dark.
   - Map decisions that relied on the old facts (bible 7): `docs/prompts/exchange-design.md` Section 9 (the detection
     table by light band; darkness from ambient 0.08-0.12) and Space 2's moonlight, authored as ambient zones at 0.28
     under the windows - the old dark / mid edge, now mid (0.25 / 0.53), and with the baked moon the windows' light
@@ -340,6 +343,26 @@ See the Step 1 and Step 5 reports.
     until then the screen and the field can differ in the moon's shadow and on the phone.
   - Section 12 and the Exchange re-check are recorded above for Step 9 and map Phase 2b.
 - Next: STOP for the Opus review. Then Step 3 (desktop renders the same field).
+
+#### Step 2 review (Opus, bible Appendix C) - 2026-10-09
+- Approved. Spec followed; gameplay reads only the bake, the registry and door state; pure modules tested (brute-force
+  sum, doors, dynamic lights, allocation bound); the four named suites pass; co-op: only the host samples remotes.
+- Findings and decisions (Michael took the recommendations, 2026-10-09):
+  - A. Flashlight range: the rig draws a flashlight with `range = reach ?? radius` (`lightRig.ts`), `reach` cut at the
+    first wall at 15 Hz, while the field uses `radius` with its ray: e.g. a target at 3 m, a wall at 4 m: 0.25 on
+    screen, 0.77 for gameplay. Pre-existing; **fixed in Step 3** (desktop draws flashlights with the full radius, their
+    shadow maps stop the beam); phone flashlights in Step 4.
+  - B. Proving Grounds' sun shadows (0.339, mid, where it was 0.75) were not in the report: **accepted**, the same
+    rule as the Warehouse; added above and to the Section 12 facts.
+  - C. `LightField.lampInto` writes `lampTerm` out by hand (boxing): both now point at each other; the brute-force
+    test compares them.
+  - D. The new thresholds also shape `visibilityFromLight`: sight speed at mid light moves both ways (at (-0.5, 0) the
+    light factor 0.99 -> 0.81; at a level of 0.4, 0.49 -> 0.69). Detection in `e2e-stealth-ai` unchanged (0.78-0.80 s).
+    Noted.
+  - E. `lightRig.ts` keeps its own `LAMP_CONE` (0.97 pi) and `SHADOW_LAMP_CONE` (0.8 pi): the phone's plain lights
+    only; Step 4 removes them.
+- Process: two test-fix commits were pushed before their re-runs (said so in the messages); verified afterwards.
+- Next: Step 3.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)

@@ -32,6 +32,7 @@ export function lampCone(cosA: number, cosCut: number, exp: number): number {
 /**
  * Falloff x cone of a light at the origin towards offset (vx, vy, vz) (point - light), reach `r`, cone axis
  * (dx, dy, dz) (unit), cut and exponent. No intensity, visibility or N.L. Allocation-free.
+ * (`LightField.lampInto` writes this out by hand - a returned double would be boxed there; change both together.)
  */
 export function lampTerm(vx: number, vy: number, vz: number, r: number, dx: number, dy: number, dz: number, cosCut: number, exp: number): number {
   if (vx > r || vx < -r || vy > r || vy < -r || vz > r || vz < -r) return 0;

@@ -192,7 +192,8 @@ export class LightField {
     const lx = P[o]!;
     const ly = P[o + 1]!;
     const lz = P[o + 2]!;
-    // falloff x cone (`lampTerm`, written out: this path must not box a returned double)
+    // falloff x cone: `lampMath.lampTerm` written out (this path must not box a returned double; change both together -
+    // the brute-force test in `tests/lightField.test.ts` compares them)
     const vx = x - lx;
     const vy = y - ly;
     const vz = z - lz;
