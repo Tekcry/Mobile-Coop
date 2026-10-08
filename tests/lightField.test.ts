@@ -322,3 +322,25 @@ describe('light field (3.6)', async () => {
     expect(trilinear(g, 0, 0, 0, 0, 2, 2, 2, 1, 9, 0.5, 0.5)).toBe(1);
   });
 });
+
+describe('per-lamp door lists (3.6, shared by the shaders and the field)', async () => {
+  const { lampDoorLists, DOORS_PER_LAMP } = await import('../src/world/lightField');
+  const { LAMP_STRIDE } = await import('../src/voxel/lampBake');
+  const door = (x: number, z: number, yaw = 0): { anchor: { hinge: { x: number; y: number; z: number }; yaw: number; width: number; height: number }; open: number } => ({ anchor: { hinge: { x, y: 0, z }, yaw, width: 1, height: 2.1 }, open: 0 });
+  const lamp = (x: number, y: number, z: number, r: number): number[] => [x, y, z, r, 0, -1, 0, -2, 0, 0];
+
+  it('lists the doors within reach, nearest first, up to the cap; none is -1', () => {
+    const L = new Float32Array([...lamp(0, 3, 0, 5), ...lamp(30, 3, 0, 4)]);
+    const doors = [door(4, 0), door(1, 0), door(2, 1), door(-2, -1), door(0, 3), door(50, 50)];
+    const out = lampDoorLists(L, doors);
+    expect(out.length).toBe(2 * DOORS_PER_LAMP);
+    // lamp 0: five doors within reach (leaf middles at (4, 0.5), (1, 0.5), (2, 1.5), (-2, -0.5), (0, 3.5)), the four nearest kept
+    const first = [...out.subarray(0, DOORS_PER_LAMP)];
+    expect(first).not.toContain(5);
+    expect(first.length).toBe(4);
+    expect(first[0]).toBe(1);
+    // lamp 1: nothing near
+    expect([...out.subarray(DOORS_PER_LAMP)]).toEqual([-1, -1, -1, -1]);
+    expect(L.length / LAMP_STRIDE).toBe(2);
+  });
+});
