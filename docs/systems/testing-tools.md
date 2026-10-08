@@ -44,6 +44,10 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     FOV/stick-look bounds, 60 / 120 / 144 / 165 / 240 Hz parity (each run from gait phase 0)
   - `scripts/e2e-lightbake.mjs` (3.6) the Warehouse under `?gfx=min`, the phone look, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
     same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`)
+  - `scripts/e2e-phonelamps.mjs` (3.6) the phone light look (`platform=mobile`, no `?gfx=`): the lamps from the light volume
+    on the standard materials, the ambient grid fill, the baked moon, two plain lights for flashlights, the readable-darkness
+    floor; a probe behind a wall from a lamp reads dark in the volume (`BakedLamps.volumeAt`) and in the field, one in view
+    reads lit; Warehouse and Proving Grounds boot without console errors
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` Loadout by controller (live weapon preview, lock line, upgrade, buy in place), suit / HQ by touch, rewards, IndexedDB persistence, export/import
@@ -127,7 +131,7 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the Loadout operator (proportion/silhouette checks)
   - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
     reload|swap|grenade|cover|highcover|peek|vault> [frames] [interval] [side|front|back|ots]` contact sheet
-  - `node scripts/perf.mjs [--desktop] [--preset=<p> [--mobile]] [--budget]` (`--preset`: 3.1 phone budgets per preset; `--desktop`: the PC path at `?gfx=epic`; else the `?gfx=min` test
+  - `node scripts/perf.mjs [--desktop | --phone] [--preset=<p> [--mobile]] [--budget]` (`--phone` (3.6): the real phone light look, its own budget; `--preset`: 3.1 phone budgets per preset; `--desktop`: the PC path at `?gfx=epic`; else the `?gfx=min` test
     path; `STEALTH=1`: ten unaware enemies perceiving) Warehouse, 10 enemies: main thread p95 (sim per 120 Hz frame +
     the render's JS), animation ms per character, allocations per second (top allocators), draw calls and triangles
     over every pass (`PROFILE=1` CPU profile)
