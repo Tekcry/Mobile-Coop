@@ -1,30 +1,33 @@
 /**
- * Forced landscape (3.1.6). iOS browsers cannot lock the orientation, so a touch device held upright gets the page
- * turned 90 degrees clockwise (`body.rotated`, styles.css) instead of a "rotate your device" screen: hold the phone
- * turned left. Layout, the canvas and the DOM work in the turned (landscape) space; pointer positions and bounding
- * boxes arrive in screen space - `vx` / `vy` / `viewRect` map them in.
+ * Forced landscape (3.1.6; 3.2.4: either way round). iOS browsers cannot lock the orientation, so a touch device held
+ * upright gets the page turned 90 degrees (`body.rotated`, styles.css): the game is landscape whatever the phone's
+ * orientation or rotation lock. 3.2.4: it turns the way of the landscape grip last held (clockwise after landscape
+ * 90 - the default - anticlockwise after landscape -90 / 270, `body.rotated.ccw`), so turning the phone upright leaves
+ * the game where it was on the glass. Layout, the canvas and the DOM work in the turned (landscape) space; pointer
+ * positions and bounding boxes arrive in screen space - `vx` / `vy` / `viewRect` map them in.
  */
-let rotated = false;
+/** 0: not turned; 90: turned clockwise; -90: anticlockwise. */
+let turn: 0 | 90 | -90 = 0;
 
 /** The page is turned (a touch device held upright). */
 export function isRotated(): boolean {
-  return rotated;
+  return turn !== 0;
 }
 
 /** A pointer's x / y in the page's (landscape) space. */
 export function vx(e: { clientX: number; clientY: number }): number {
-  return rotated ? e.clientY : e.clientX;
+  return turn === 90 ? e.clientY : turn === -90 ? window.innerHeight - e.clientY : e.clientX;
 }
 export function vy(e: { clientX: number; clientY: number }): number {
-  return rotated ? window.innerWidth - e.clientX : e.clientY;
+  return turn === 90 ? window.innerWidth - e.clientX : turn === -90 ? e.clientX : e.clientY;
 }
 
 /** The page's width / height as laid out (the window's, swapped while turned). */
 export function viewWidth(): number {
-  return rotated ? window.innerHeight : window.innerWidth;
+  return turn ? window.innerHeight : window.innerWidth;
 }
 export function viewHeight(): number {
-  return rotated ? window.innerWidth : window.innerHeight;
+  return turn ? window.innerWidth : window.innerHeight;
 }
 
 export interface ViewRect {
@@ -39,9 +42,9 @@ export interface ViewRect {
 /** An element's box in the page's space (getBoundingClientRect is the screen's). */
 export function viewRect(el: Element): ViewRect {
   const r = el.getBoundingClientRect();
-  if (!rotated) return { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom };
-  const left = r.top;
-  const top = window.innerWidth - r.right;
+  if (!turn) return { left: r.left, top: r.top, width: r.width, height: r.height, right: r.right, bottom: r.bottom };
+  const left = turn === 90 ? r.top : window.innerHeight - r.bottom;
+  const top = turn === 90 ? window.innerWidth - r.right : r.left;
   return { left, top, width: r.height, height: r.width, right: left + r.height, bottom: top + r.width };
 }
 
@@ -50,20 +53,39 @@ export function wantsRotation(portrait: boolean, coarse: boolean): boolean {
   return portrait && coarse;
 }
 
+/** Pure (3.2.4): the turn for a portrait touch window, from the last landscape angle (90, 270 / -90; else 90). */
+export function turnFor(portrait: boolean, coarse: boolean, lastLandscape: number): 0 | 90 | -90 {
+  if (!wantsRotation(portrait, coarse)) return 0;
+  return lastLandscape === 270 || lastLandscape === -90 ? -90 : 90;
+}
+
+/** The screen's rotation angle (0, 90, 180, 270 / -90), where the browser says. */
+function screenAngle(): number {
+  const so = (screen as Screen & { orientation?: { angle?: number } }).orientation;
+  if (so && typeof so.angle === 'number') return so.angle;
+  const wo = (window as Window & { orientation?: number }).orientation;
+  return typeof wo === 'number' ? wo : 0;
+}
+
 /**
  * Turn the page while a touch device is held upright; `onChange` after each change (resize the engine, re-measure).
  * Called before anything else listens to `resize`, so the page is turned before they measure.
  */
 export function setupForcedLandscape(onChange: () => void): void {
   const coarse = window.matchMedia('(pointer: coarse)');
+  let last = 90;
   const apply = (): void => {
-    const on = wantsRotation(window.innerHeight > window.innerWidth, coarse.matches);
+    const portrait = window.innerHeight > window.innerWidth;
+    const a = screenAngle();
+    if (!portrait && (a === 90 || a === 270 || a === -90)) last = a;
+    const t = turnFor(portrait, coarse.matches, last);
     const s = document.documentElement.style;
     s.setProperty('--scr-w', `${window.innerWidth}px`);
     s.setProperty('--scr-h', `${window.innerHeight}px`);
-    if (on === rotated) return;
-    rotated = on;
-    document.body.classList.toggle('rotated', on);
+    if (t === turn) return;
+    turn = t;
+    document.body.classList.toggle('rotated', t !== 0);
+    document.body.classList.toggle('ccw', t === -90);
     onChange();
   };
   window.addEventListener('resize', apply);

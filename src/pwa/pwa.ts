@@ -41,6 +41,17 @@ export async function enterFullscreenLandscape(): Promise<void> {
   }
 }
 
+/** Lock the screen to landscape where the browser allows it (Android in fullscreen or installed; iOS has no lock -
+ *  the page turns itself instead, `core/viewRotation.ts`). */
+export async function lockLandscape(): Promise<void> {
+  try {
+    const o = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+    await o.lock?.('landscape');
+  } catch {
+    /* not supported */
+  }
+}
+
 /** Desktop: fullscreen on / off (no orientation lock). Must be called from a user gesture. */
 export async function toggleFullscreen(): Promise<void> {
   try {

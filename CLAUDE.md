@@ -212,7 +212,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Training (`game/training.ts` pure steps, `modes/trainingMode.ts`, Proving Grounds, `?mode=training`): passive
   guards (`Enemy.passive`), invulnerable operator, a step skipped after 90 s.
 - Forced landscape (3.1.6, `core/viewRotation.ts`): a coarse pointer in a portrait window turns the page
-  (`body.rotated`: `translateX(--scr-w) rotate(90deg)`, `--vw` / `--vh` swapped - styles use `calc(N * var(--vw))`,
+  (3.2.4: `turnFor` - clockwise after the landscape angle 90 (default), anticlockwise `body.rotated.ccw`
+  `translateY(--scr-h) rotate(-90deg)` after 270 / -90, from `screen.orientation.angle` / `window.orientation`; phones
+  call `lockLandscape` on the first tap where the browser allows a lock) (`body.rotated`: `translateX(--scr-w) rotate(90deg)`, `--vw` / `--vh` swapped - styles use `calc(N * var(--vw))`,
   never raw `vw` / `vh` - and the safe areas remapped). Pointer positions and boxes arrive in screen space: read them
   through `vx(e)` / `vy(e)` / `viewRect(el)` / `viewWidth()` / `viewHeight()`, never `clientX` / `innerWidth`.
   `e2e-lib` `launch({ touchViewport })` emulates the phone upright.

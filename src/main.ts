@@ -6,7 +6,7 @@ import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
-import { setupServiceWorker, suppressBrowserGestures, enterFullscreenLandscape, isStandalone } from './pwa/pwa';
+import { setupServiceWorker, suppressBrowserGestures, enterFullscreenLandscape, isStandalone, lockLandscape } from './pwa/pwa';
 import { flags } from './core/flags';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
@@ -211,8 +211,9 @@ async function boot(): Promise<void> {
 
   // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.
   // (desktop: fullscreen is the player's choice, Settings > Graphics)
-  if (!isStandalone() && app.platform.platform === 'mobile') {
-    window.addEventListener('pointerup', () => void enterFullscreenLandscape(), { once: true });
+  // (3.2.4: an installed app locks too - it needs no fullscreen)
+  if (app.platform.platform === 'mobile') {
+    window.addEventListener('pointerup', () => void (isStandalone() ? lockLandscape() : enterFullscreenLandscape()), { once: true });
   }
 
   setBoot(1, 'Ready');

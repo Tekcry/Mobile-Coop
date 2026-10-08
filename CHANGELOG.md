@@ -1,5 +1,12 @@
 # Changelog
 
+## 3.2.4 - Landscape only, either grip
+- Phones are always landscape, whatever the orientation or rotation lock: held upright, the page turns - now the way
+  of the landscape grip last held (clockwise after one, anticlockwise after the other), so turning the phone upright
+  leaves the game where it was on the glass. Where the browser allows a lock (Android in fullscreen or installed), the
+  screen is locked to landscape on the first tap; an installed app locks too. (iPhone browsers have no lock: the page
+  turns itself.)
+
 ## 3.2.3 - Low's floors, the benchmark flight, turning the phone
 - Low drew floors and crate tops as flat haze ("no floor"): the surface atlas made while the map loads came out empty,
   and every preset but Low replaced it when its size changed - Low's size (256) never did. It is always drawn anew
