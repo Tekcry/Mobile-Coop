@@ -110,6 +110,19 @@ try {
   assert(lob.mode === 'infiltration', `a new room starts on Infiltration (${lob.mode})`);
   assert(JSON.stringify([...lob.seen].sort()) === JSON.stringify(['Free Roam', 'Infiltration']), `the lobby lists Infiltration and Free Roam (${lob.seen})`);
 
+  // saves are untouched by parking: the export keeps its internal magic and an exported file imports (what e2e-progression
+  // checked, now that it is a legacy suite), the campaign's loadout choice included
+  const ex = await G(() => window.__app.save.exportText());
+  assert(/shoulder-strike-save/.test(ex), 'the save export keeps its internal magic');
+  const imp = await G(async (t) => {
+    const o = JSON.parse(t);
+    o.data.profile.name = 'Imported';
+    await window.__app.save.importText(JSON.stringify(o));
+    const s = window.__app.save.get();
+    return { name: s.profile.name, primary: s.loadout.primary };
+  }, ex);
+  assert(imp.name === 'Imported' && imp.primary === 'sniper', `importing an exported file restores it (${JSON.stringify(imp)})`);
+
   console.log('legacy on (?legacy=1)');
   const L = (await openPage(ctx, url, 'legacy=1')).page;
   const GL = (f, a) => L.evaluate(f, a);
