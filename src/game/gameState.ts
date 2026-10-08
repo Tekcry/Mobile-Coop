@@ -59,7 +59,7 @@ import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
 import { feedbackContext } from '../ui/screens/feedbackScreen';
-import { BENCH, benchClear, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type P3 as BenchPoint } from './benchmark';
+import { BENCH, benchFlight, benchResult, benchText, flightAt, FLIGHT, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type Flight, type FlightNav, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
@@ -700,17 +700,19 @@ export class GameState implements AppState {
     this.app.input.touch.setAction(null);
     this.mode?.start();
     if (this.opts.benchmark) {
-      // the flight: every room's middle at camera height (the spawn when a map has no rooms)
+      // the flight (3.2.5): the rooms joined by the guards' walking routes - through the doorways, never through a wall,
+      // at a steady eye height (the doors open and their leaves hidden: an open leaf stands out into the corridor)
+      this.world.doors.openAll();
+      this.world.doors.setVisible(false);
       const rooms = this.world.layout.rooms ?? [];
-      const keys: BenchPoint[] = rooms.map((r) => ({ x: (r.minX + r.maxX) / 2, y: (r.minY ?? 0) + BENCH.height, z: (r.minZ + r.maxZ) / 2 }));
-      if (keys.length < 2) {
+      const keys: BenchPoint[] = rooms.map((r) => ({ x: (r.minX + r.maxX) / 2, y: r.minY ?? 0, z: (r.minZ + r.maxZ) / 2 }));
+      if (!keys.length) {
         const s0 = this.world.layout.playerSpawns[0]!.pos;
-        keys.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
+        keys.push({ x: s0.x, y: s0.y, z: s0.z });
       }
-      // (3.2.3: never inside the level - the Mezzanine room's middle put the camera in the block under its deck: the
-      // phone's frame rate fell through the floor there. The curve sampled densely, each point at least
-      // `BENCH.clearance` over the solid surface below it, under the roof)
-      const pts = benchClear(keys, (x, z) => this.floorTop(x, z));
+      const t0 = performance.now();
+      const pts = benchFlight(keys, this.flightNav(keys[0]!.y));
+      console.info(`benchmark flight: ${pts.length.toFixed(0)} m through ${keys.length} rooms (${(performance.now() - t0).toFixed(0)} ms)`);
       const s = this.opts.benchmark;
       this.bench = { kind: s.kind, note: s.note ?? `fb-bench-${Date.now().toString(36)}`, started: s.started ?? Date.now(), pts, runs: s.runs, idx: s.idx - 1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [...s.lines], buckets: [], bMs: 0, bN: 0, bT: 0, shaders: 0, rebuild: null, handoff: false, tagT: 0 };
       this.nextBenchRun(true);
@@ -916,13 +918,58 @@ export class GameState implements AppState {
   private lightRay = new PhysicsRaycastResult();
   private readonly floorFrom = new Vector3();
   private readonly floorTo = new Vector3();
-  /** The top of the solid level under (x, z) from below the roof (the roof is visual only), or -inf. */
-  private floorTop(x: number, z: number): number {
-    this.floorFrom.set(x, BENCH.ceiling, z);
-    this.floorTo.set(x, -2, z);
+  /** Free height over the floor point (x, y, z) up to `max`: one ray up against the static level. */
+  private headroom(x: number, y: number, z: number, max: number): number {
+    this.floorFrom.set(x, y + 0.3, z);
+    this.floorTo.set(x, y + max, z);
     this.lightRay.reset();
     (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.floorFrom, this.floorTo, this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
-    return this.lightRay.hasHit ? this.lightRay.hitPointWorld.y : -Infinity;
+    return this.lightRay.hasHit ? this.lightRay.hitPointWorld.y - y : max;
+  }
+  /** The benchmark flight's view of the level: the nav grid (walking only) and the headroom ray. Without a grid, a
+   *  flat floor at `y`. */
+  private flightNav(y0: number): FlightNav {
+    const nav = this.nav;
+    const headroom = (x: number, y: number, z: number, max: number): number => this.headroom(x, y, z, max);
+    const see = (x: number, y: number, z: number, yaw: number): number => {
+      this.floorFrom.set(x, y, z);
+      this.floorTo.set(x + Math.sin(yaw) * 8, y, z + Math.cos(yaw) * 8);
+      this.lightRay.reset();
+      (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.floorFrom, this.floorTo, this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
+      return this.lightRay.hasHit ? Vector3.Distance(this.floorFrom, this.lightRay.hitPointWorld) : 8;
+    };
+    if (!nav) {
+      return { snap: (x, _y, z) => ({ x, y: y0, z }), path: (_a, b) => [b], floor: () => y0, clear: () => true, headroom, see };
+    }
+    return {
+      snap: (x, y, z) => {
+        const c = nav.nearestWalkable(x, z, 12, y);
+        if (c < 0) return null;
+        const [cx, cz] = nav.center(c);
+        return { x: cx, y: nav.height[c]!, z: cz };
+      },
+      path: (a, b) => {
+        nav.walkOnly = true;
+        try {
+          const w = nav.findPath([a.x, a.z], [b.x, b.z], 200000, a.y, b.y);
+          if (!w) return null;
+          let fy = a.y;
+          return w.map((p, i) => {
+            fy = i === w.length - 1 ? b.y : nav.heightAt(p[0], p[1], fy);
+            return { x: p[0], y: fy, z: p[1] };
+          });
+        } finally {
+          nav.walkOnly = false;
+        }
+      },
+      floor: (x, z, y) => {
+        const c = nav.cellOf(x, z, y);
+        return nav.isWalkable(c) ? nav.height[c]! : Number.NaN;
+      },
+      clear: (a, b) => nav.lineClear([a.x, a.z], [b.x, b.z], a.y, b.y),
+      headroom,
+      see,
+    };
   }
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
@@ -1124,7 +1171,7 @@ export class GameState implements AppState {
     started: number;
     /** Seconds to the run tag's next refresh. */
     tagT: number;
-    pts: BenchPoint[];
+    pts: Flight;
     runs: BenchRun[];
     idx: number;
     t: number;
@@ -1145,8 +1192,7 @@ export class GameState implements AppState {
     /** Handed on to the next run's match. */
     handoff: boolean;
   } | null = null;
-  private readonly benchP: BenchPoint = { x: 0, y: 0, z: 0 };
-  private readonly benchQ: BenchPoint = { x: 0, y: 0, z: 0 };
+  private readonly benchP = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 };
 
   /** Start the next run (its preset / render scale for now only), or show the results. */
   /** Shader programs compiled so far (a benchmark run's hitches: shaders compiled during it). */
@@ -1282,12 +1328,12 @@ export class GameState implements AppState {
     // guards keep patrolling but never fight; the operator takes no damage
     for (const e of this.enemyMgr?.enemies ?? []) e.passive = true;
     this.target.damageMul = 0;
-    const u = b.t / BENCH.seconds;
-    const p = pathAt(b.pts, u, this.benchP);
-    const q = pathAt(b.pts, u + 0.015, this.benchQ);
+    // (the same pace on every run: runs see the same views)
+    const p = flightAt(b.pts, b.t * FLIGHT.speed, this.benchP);
     const cam = this.player.cam.camera;
     cam.position.set(p.x, p.y, p.z);
-    cam.setTarget(this.dofTo.set(q.x, q.y - 0.25, q.z));
+    const cp = Math.cos(p.pitch);
+    cam.setTarget(this.dofTo.set(p.x + Math.sin(p.yaw) * cp, p.y + Math.sin(p.pitch), p.z + Math.cos(p.yaw) * cp));
     if (b.t >= run.seconds) {
       const r = benchResult(b.iv, b.cpu);
       const v = this.app.settings.get().video;

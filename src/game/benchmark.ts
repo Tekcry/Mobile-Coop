@@ -1,4 +1,5 @@
 import { desktopResolutions, resolutionScale } from '../core/display';
+import { hyp2 } from '../core/mathx';
 /**
  * In-game benchmark (3.0, pure parts unit-tested): a fixed camera flight through a map's rooms while the AI
  * patrols, frame times recorded, then average and 1% low FPS. Settings > Graphics > Benchmark: the current
@@ -14,11 +15,6 @@ export const BENCH = {
   /** The sustained run (s) and its bucket (s): first vs last bucket. */
   sustained: 600,
   bucket: 60,
-  /** Camera height over each room's floor (m). */
-  height: 2.2,
-  /** 3.2.3: the flight stays this far over whatever solid is below it (m), and under this height (the roof). */
-  clearance: 1.6,
-  ceiling: 5.6,
   /** A frame longer than this is a hitch (counted per run). */
   longMs: 50,
 };
@@ -141,21 +137,416 @@ export function pathAt(pts: readonly P3[], t: number, out: P3 = { x: 0, y: 0, z:
   return out;
 }
 
+/** 3.2.5 The flight: a steady walk-height glide along the guards' walking routes (doorways, corridors, stairs). */
+export const FLIGHT = {
+  /** Metres per second along the route (the same pace on every run, so runs see the same views). */
+  speed: 2.8,
+  /** Spacing of the route's samples (m). */
+  step: 0.25,
+  /** Eye height over the floor (m), and the gap kept under anything overhead (a lintel, a deck). */
+  eye: 1.9,
+  overhead: 0.35,
+  minEye: 1.25,
+  /** Walls are kept this far off where the space allows (m). */
+  wall: 1.3,
+  /** Smoothing moves no point further than this from the walking route (m). */
+  drift: 1,
+  /** The view looks this far ahead along the route (m), a little down; with less than `view` of open floor that way
+   *  it turns towards the open side. */
+  look: 4.5,
+  view: 3,
+  pitch: -0.08,
+  /** A visit that turns back more than this (rad) circles the room's middle instead of reversing on the spot. */
+  reverse: 1.9,
+};
+
+/** What the flight reads off the level (GameState: the nav grid, one ray up for the headroom). */
+export interface FlightNav {
+  /** The walkable point nearest (x, z) on the storey nearest y: [x, floor y, z], or null. */
+  snap(x: number, y: number, z: number): P3 | null;
+  /** Walking waypoints from a to b after a (no ladders or drops; y = the floor), or null. */
+  path(a: P3, b: P3): P3[] | null;
+  /** The floor at (x, z) on the storey nearest y; NaN where it is not walkable. */
+  floor(x: number, z: number, y: number): number;
+  /** A straight walkable line from a to b (on a's storey, ending on b's). */
+  clear(a: P3, b: P3): boolean;
+  /** Free height over the floor point (x, y, z), up to `max`. */
+  headroom(x: number, y: number, z: number, max: number): number;
+  /** How far the view from the eye (x, y, z) along yaw runs before it meets the level (m; the nav's open floor when
+   *  left out). */
+  see?(x: number, y: number, z: number, yaw: number): number;
+}
+
+/** The route: per sample x, y (the eye), z, yaw, pitch; a closed loop of `n` samples `FLIGHT.step` apart. */
+export interface Flight {
+  pts: Float32Array;
+  n: number;
+  length: number;
+}
+
+export const FLIGHT_STRIDE = 5;
+
 /**
- * Pure (3.2.3): the flight through the key points sampled `per` points a segment, each lifted to `BENCH.clearance` over
- * the solid top below it (`floorTop`; -inf: nothing) and kept under `BENCH.ceiling` - the camera never flies inside a
- * deck or a block.
+ * Pure (3.2.5): the benchmark flight through `keys` (room middles; y = a floor height on the wanted storey). The rooms
+ * are put in a short tour (nearest neighbour, then 2-opt on walking distance), joined by the guards' walking routes
+ * (through doorways, round corners, up stairs - never ladders or drops), a room visited at a dead end circled instead
+ * of reversed, the line relaxed off the walls and rounded where it stays walkable, resampled evenly; the eye held at
+ * `FLIGHT.eye` over the floor (lowered under anything overhead) and smoothed along the route, and the view a smoothed
+ * look ahead. Every sample-to-sample line is walkable.
  */
-export function benchClear(keys: readonly P3[], floorTop: (x: number, z: number) => number, per = 12): P3[] {
-  const n = Math.max(1, keys.length);
-  const out: P3[] = [];
-  const q: P3 = { x: 0, y: 0, z: 0 };
-  for (let i = 0; i < n * per; i++) {
-    pathAt(keys, i / (n * per), q);
-    const top = floorTop(q.x, q.z);
-    const y = Math.min(BENCH.ceiling, Math.max(q.y, top + BENCH.clearance));
-    out.push({ x: q.x, y, z: q.z });
+export function benchFlight(keys: readonly P3[], nav: FlightNav): Flight {
+  const ks: P3[] = [];
+  for (const k of keys) {
+    const p = nav.snap(k.x, k.y, k.z);
+    if (p && !ks.some((q) => Math.abs(q.x - p.x) + Math.abs(q.z - p.z) < 0.5 && Math.abs(q.y - p.y) < 1)) ks.push(p);
   }
+  // walking legs between every pair (symmetric: walking only)
+  const n0 = ks.length;
+  const legs: (P3[] | null)[] = new Array(n0 * n0).fill(null);
+  const dist = new Float64Array(n0 * n0).fill(Infinity);
+  for (let i = 0; i < n0; i++) {
+    dist[i * n0 + i] = 0;
+    for (let j = i + 1; j < n0; j++) {
+      const w = nav.path(ks[i]!, ks[j]!);
+      if (!w || !w.length) continue;
+      // (the leg ends on the key itself: a dead-end visit is found by it)
+      const full = [ks[i]!, ...w.slice(0, -1), ks[j]!];
+      let d = 0;
+      for (let k = 1; k < full.length; k++) d += hyp2(full[k]!.x - full[k - 1]!.x, full[k]!.z - full[k - 1]!.z);
+      legs[i * n0 + j] = full;
+      legs[j * n0 + i] = [...full].reverse();
+      dist[i * n0 + j] = dist[j * n0 + i] = d;
+    }
+  }
+  // the rooms reachable from the first, in a short loop
+  const reach: number[] = [];
+  for (let i = 0; i < n0; i++) if (dist[i]! < Infinity) reach.push(i);
+  const tour = shortTour(reach, (a, b) => dist[a * n0 + b]!);
+  if (tour.length < 2) {
+    // one place: a circle round it
+    const c = ks[0] ?? { x: 0, y: 0, z: 0 };
+    const ring = orbit(c, { x: 1, y: 0, z: 0 }, nav) ?? [c, { x: c.x + 1, y: c.y, z: c.z }];
+    return finish(ring, nav);
+  }
+  // the loop's corner points, with dead-end visits circled
+  const line: P3[] = [];
+  for (let t = 0; t < tour.length; t++) {
+    const leg = legs[tour[t]! * n0 + tour[(t + 1) % tour.length]!]!;
+    for (let k = 0; k < leg.length - 1; k++) line.push(leg[k]!);
+  }
+  const loop = circleReversals(line, ks, tour, nav);
+  return finish(loop, nav);
+}
+
+/** Nearest-neighbour tour from the first, improved by 2-opt (a closed loop). */
+function shortTour(ids: readonly number[], d: (a: number, b: number) => number): number[] {
+  if (ids.length < 3) return [...ids];
+  const left = ids.slice(1);
+  const t = [ids[0]!];
+  while (left.length) {
+    const cur = t[t.length - 1]!;
+    let bi = 0;
+    for (let i = 1; i < left.length; i++) if (d(cur, left[i]!) < d(cur, left[bi]!)) bi = i;
+    t.push(left.splice(bi, 1)[0]!);
+  }
+  const n = t.length;
+  for (let pass = 0, better = true; better && pass < 50; pass++) {
+    better = false;
+    for (let i = 0; i < n - 1; i++) {
+      for (let j = i + 2; j < n; j++) {
+        if (i === 0 && j === n - 1) continue;
+        const a = t[i]!;
+        const b = t[i + 1]!;
+        const c = t[j]!;
+        const e = t[(j + 1) % n]!;
+        if (d(a, c) + d(b, e) < d(a, b) + d(c, e) - 1e-6) {
+          t.splice(i + 1, j - i, ...t.slice(i + 1, j + 1).reverse());
+          better = true;
+        }
+      }
+    }
+  }
+  return t;
+}
+
+/** A circle round c (radius 3.5 .. 1.5 m, the largest that is walkable all round), starting and ending on the side `from`
+ *  points to, or null. */
+function orbit(c: P3, from: P3, nav: FlightNav): P3[] | null {
+  const a0 = Math.atan2(from.z, from.x);
+  for (const r of [3.5, 3, 2.5, 2, 1.5]) {
+    const pts: P3[] = [];
+    let ok = true;
+    for (let k = 0; k <= 16 && ok; k++) {
+      const a = a0 + (k / 16) * Math.PI * 2;
+      const x = c.x + Math.cos(a) * r;
+      const z = c.z + Math.sin(a) * r;
+      const y = nav.floor(x, z, c.y);
+      if (y !== y || Math.abs(y - c.y) > 0.6) ok = false;
+      else {
+        const p = { x, y, z };
+        if (pts.length && !nav.clear(pts[pts.length - 1]!, p)) ok = false;
+        pts.push(p);
+      }
+    }
+    if (ok && nav.clear(c, pts[0]!)) return pts;
+  }
+  return null;
+}
+
+/** Where the loop reaches a room's middle and turns back (a dead end), the middle becomes a circle round it. */
+function circleReversals(line: P3[], ks: readonly P3[], tour: readonly number[], nav: FlightNav): P3[] {
+  const out: P3[] = [];
+  const n = line.length;
+  for (let i = 0; i < n; i++) {
+    const p = line[i]!;
+    const isKey = tour.some((t) => ks[t] === p);
+    if (isKey) {
+      const a = line[(i - 1 + n) % n]!;
+      const b = line[(i + 1) % n]!;
+      const turn = Math.abs(wrapAngle(Math.atan2(b.z - p.z, b.x - p.x) - Math.atan2(p.z - a.z, p.x - a.x)));
+      if (turn > FLIGHT.reverse) {
+        const ring = orbit(p, { x: a.x - p.x, y: 0, z: a.z - p.z }, nav);
+        if (ring && nav.clear(a, ring[0]!) && nav.clear(ring[ring.length - 1]!, b)) {
+          out.push(...ring);
+          continue;
+        }
+      }
+    }
+    out.push(p);
+  }
+  return out;
+}
+
+function wrapAngle(a: number): number {
+  return a - Math.PI * 2 * Math.round(a / (Math.PI * 2));
+}
+
+/** Even samples along a closed polyline (floors carried along the line). */
+function resample(line: readonly P3[], nav: FlightNav): P3[] {
+  const out: P3[] = [];
+  const n = line.length;
+  let carry = 0;
+  let fy = line[0]!.y;
+  for (let i = 0; i < n; i++) {
+    const a = line[i]!;
+    const b = line[(i + 1) % n]!;
+    const len = hyp2(b.x - a.x, b.z - a.z);
+    let s = carry;
+    for (; s < len; s += FLIGHT.step) {
+      const u = s / len;
+      const x = a.x + (b.x - a.x) * u;
+      const z = a.z + (b.z - a.z) * u;
+      const y = nav.floor(x, z, fy);
+      if (y === y && Math.abs(y - fy) < 0.6) fy = y;
+      out.push({ x, y: fy, z });
+    }
+    carry = s - len;
+  }
+  return out;
+}
+
+const RING = 12;
+const RING_C = Array.from({ length: RING }, (_, k) => Math.cos((k / RING) * Math.PI * 2));
+const RING_S = Array.from({ length: RING }, (_, k) => Math.sin((k / RING) * Math.PI * 2));
+
+/** Relax the line off the walls and round it where it stays walkable, resample, then heights and views. */
+function finish(line0: P3[], nav: FlightNav): Flight {
+  let pts = resample(line0, nav);
+  // (walkable within a stair's rise of the point: stairs are not walls)
+  const open = (x: number, z: number, y: number, r: number): boolean => {
+    const f = nav.floor(x, z, y);
+    return f === f && Math.abs(f - y) < 0.35 + 0.7 * r;
+  };
+  // Taubin smoothing (a step to the neighbours' average, then a slightly bigger one back: corners round off without
+  // the loop shrinking - a plain average would pull the circles and the room visits in), plus a push off the walls
+  // within FLIGHT.wall; a move is kept only if the point stays walkable, within FLIGHT.drift of where it started and
+  // the lines to both neighbours stay walkable
+  {
+    const K = 4;
+    const n = pts.length;
+    const ox = pts.map((p) => p.x);
+    const oz = pts.map((p) => p.z);
+    for (let it = 0; it < 60; it++) {
+      const gain = it % 2 ? -0.53 : 0.5;
+      for (let i = 0; i < n; i++) {
+        const p = pts[i]!;
+        let ax = 0;
+        let az = 0;
+        for (let k = -K; k <= K; k++) {
+          if (!k) continue;
+          const q = pts[(i + k + n) % n]!;
+          ax += q.x;
+          az += q.z;
+        }
+        let dx = (ax / (2 * K) - p.x) * gain;
+        let dz = (az / (2 * K) - p.z) * gain;
+        let px = 0;
+        let pz = 0;
+        for (let k = 0; k < RING; k++) {
+          for (let r = 0.5; r <= FLIGHT.wall + 1e-6; r += 0.4) {
+            if (!open(p.x + RING_C[k]! * r, p.z + RING_S[k]! * r, p.y, r)) {
+              const w = (FLIGHT.wall + 0.2 - r) / FLIGHT.wall;
+              px -= RING_C[k]! * w;
+              pz -= RING_S[k]! * w;
+              break;
+            }
+          }
+        }
+        const pm = hyp2(px, pz);
+        if (pm > 0) {
+          const g = Math.min(0.06, pm * 0.02) / pm;
+          dx += px * g;
+          dz += pz * g;
+        }
+        const dm = hyp2(dx, dz);
+        if (dm < 1e-4) continue;
+        if (dm > 0.15) {
+          dx *= 0.15 / dm;
+          dz *= 0.15 / dm;
+        }
+        const c = { x: p.x + dx, y: p.y, z: p.z + dz };
+        if (hyp2(c.x - ox[i]!, c.z - oz[i]!) > FLIGHT.drift) continue;
+        const f = nav.floor(c.x, c.z, p.y);
+        if (f !== f || Math.abs(f - p.y) > 0.6) continue;
+        c.y = f;
+        if (nav.clear(pts[(i - 1 + n) % n]!, c) && nav.clear(c, pts[(i + 1) % n]!)) pts[i] = c;
+      }
+    }
+  }
+  pts = resample(pts, nav);
+  const n = pts.length;
+  // the eye: over the floor (smoothed along the route), lowered ahead of anything overhead
+  const floorY = new Float64Array(n);
+  const eye = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!;
+    floorY[i] = p.y;
+    eye[i] = Math.max(FLIGHT.minEye, Math.min(FLIGHT.eye, nav.headroom(p.x, p.y, p.z, FLIGHT.eye + FLIGHT.overhead) - FLIGHT.overhead));
+  }
+  const W = Math.round(2 / FLIGHT.step);
+  const fy = boxBlur(boxBlur(floorY, W), W);
+  // (a min over both blurs' reach first, so the average never rises over any sample's limit)
+  const ey = boxBlur(boxBlur(minFilter(eye, 2 * W), W), W);
+  const ys = new Float64Array(n);
+  for (let i = 0; i < n; i++) ys[i] = fy[i]! + Math.min(ey[i]!, eye[i]!);
+  // the view: towards a point ahead - turned towards open space where that looks into a wall close by (a tight turn
+  // in a small room) - unwrapped, then smoothed
+  const L = Math.round(FLIGHT.look / FLIGHT.step);
+  const see = (i: number, a: number): number => (nav.see ? nav.see(pts[i]!.x, ys[i]!, pts[i]!.z, a) : viewRun(pts[i]!, a, nav));
+  /** The yaw within +-range of a with the longest view (less 2 m a radian turned away). */
+  const openYaw = (i: number, a: number, range: number): number => {
+    let best = -Infinity;
+    let ba = a;
+    for (let k = -6; k <= 6; k++) {
+      const c = a + (k / 6) * range;
+      const score = see(i, c) - 2 * Math.abs(c - a);
+      if (score > best) {
+        best = score;
+        ba = c;
+      }
+    }
+    return ba;
+  };
+  const yaw = new Float64Array(n);
+  const pitch = new Float64Array(n);
+  let prev = 0;
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!;
+    const q = pts[(i + L) % n]!;
+    let a = Math.atan2(q.x - p.x, q.z - p.z);
+    if (see(i, a) < FLIGHT.view) a = openYaw(i, a, Math.PI / 4);
+    if (i) a = prev + wrapAngle(a - prev);
+    yaw[i] = prev = a;
+    pitch[i] = FLIGHT.pitch + Math.atan2(ys[(i + L) % n]! - ys[i]!, FLIGHT.look);
+  }
+  // (the loop's seam: the unwrapped yaw ends a whole number of turns from where it started)
+  const turns = Math.round((yaw[n - 1]! - yaw[0]!) / (Math.PI * 2));
+  const seam = turns * Math.PI * 2;
+  const blurYaw = (): Float64Array => boxBlur(boxBlur(boxBlur(yaw, W, seam), W, seam), W, seam);
+  let ys2 = blurYaw();
+  // (smoothing can still turn the view into a wall at a corner: there the raw yaw round it is bent towards the open
+  // side, and smoothed again)
+  for (let pass = 0; pass < 4; pass++) {
+    let bent = 0;
+    for (let i = 0; i < n; i++) {
+      const v = ys2[i]!;
+      if (see(i, v) >= FLIGHT.view * 0.6) continue;
+      const d = openYaw(i, v, Math.PI / 3) - v;
+      if (Math.abs(d) < 1e-3) continue;
+      bent++;
+      for (let k = -W; k <= W; k++) {
+        const j = i + k;
+        const m = Math.floor(j / n);
+        yaw[j - m * n] = yaw[j - m * n]! + d * 0.5 * (1 - Math.abs(k) / (W + 1));
+      }
+    }
+    if (!bent) break;
+    ys2 = blurYaw();
+  }
+  const ps = boxBlur(boxBlur(pitch, W), W);
+  const out = new Float32Array(n * FLIGHT_STRIDE);
+  for (let i = 0; i < n; i++) {
+    const p = pts[i]!;
+    out.set([p.x, ys[i]!, p.z, ys2[i]!, ps[i]!], i * FLIGHT_STRIDE);
+  }
+  return { pts: out, n, length: n * FLIGHT.step };
+}
+
+/** How far the floor runs open from p along yaw a (m, up to 2 x FLIGHT.view): what the view sees before a wall. */
+function viewRun(p: P3, a: number, nav: FlightNav): number {
+  const sx = Math.sin(a);
+  const sz = Math.cos(a);
+  let y = p.y;
+  const max = FLIGHT.view * 2;
+  for (let d = 0.5; d <= max; d += 0.5) {
+    const f = nav.floor(p.x + sx * d, p.z + sz * d, y);
+    if (f !== f || Math.abs(f - y) > 0.6) return d - 0.5;
+    y = f;
+  }
+  return max;
+}
+
+/** Moving average over +-w on a closed loop (`seam`: what a value gains going once round, e.g. turns of yaw). */
+function boxBlur(v: Float64Array, w: number, seam = 0): Float64Array {
+  const n = v.length;
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let s = 0;
+    for (let k = -w; k <= w; k++) {
+      const j = i + k;
+      const m = Math.floor(j / n);
+      s += v[j - m * n]! + m * seam;
+    }
+    out[i] = s / (2 * w + 1);
+  }
+  return out;
+}
+
+function minFilter(v: Float64Array, w: number): Float64Array {
+  const n = v.length;
+  const out = new Float64Array(n);
+  for (let i = 0; i < n; i++) {
+    let m = Infinity;
+    for (let k = -w; k <= w; k++) m = Math.min(m, v[(((i + k) % n) + n) % n]!);
+    out[i] = m;
+  }
+  return out;
+}
+
+/** The camera at `dist` metres along the flight (looping): position + yaw / pitch, interpolated between samples. */
+export function flightAt(f: Flight, dist: number, out: { x: number; y: number; z: number; yaw: number; pitch: number }): typeof out {
+  if (!f.n) return out;
+  const s = (((dist / FLIGHT.step) % f.n) + f.n) % f.n;
+  const i = Math.floor(s);
+  const u = s - i;
+  const a = i * FLIGHT_STRIDE;
+  const b = ((i + 1) % f.n) * FLIGHT_STRIDE;
+  const P = f.pts;
+  out.x = P[a]! + (P[b]! - P[a]!) * u;
+  out.y = P[a + 1]! + (P[b + 1]! - P[a + 1]!) * u;
+  out.z = P[a + 2]! + (P[b + 2]! - P[a + 2]!) * u;
+  out.yaw = P[a + 3]! + wrapAngle(P[b + 3]! - P[a + 3]!) * u;
+  out.pitch = P[a + 4]! + (P[b + 4]! - P[a + 4]!) * u;
   return out;
 }
 

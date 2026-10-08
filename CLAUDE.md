@@ -950,9 +950,13 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   Debug line `governor L<n>`; feedback context `adaptive`. `perf.mjs --preset=<p> [--mobile]` (phone budgets per preset).
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
   Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Clear match on the Warehouse with `opts.benchmark`;
-  `GameState` flies the camera through the room centres (`pathAt`, Catmull-Rom), guards passive, one flight per run
-  (3.2.3: `benchClear` samples the room-centre curve densely, each point `BENCH.clearance` over the solid below it
-  (`GameState.floorTop`, a ray from `BENCH.ceiling`) - never inside the level) (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
+  `GameState` flies the camera along `benchFlight` (3.2.5, pure, `FLIGHT`: the room middles in a short tour (nearest
+  neighbour + 2-opt on walking distance), joined by nav A* routes with `NavGrid.walkOnly` (doorways, stairs; no ladders
+  / drops), a dead-end visit circled (`orbit`) instead of reversed, Taubin-smoothed and pushed off walls within
+  `FLIGHT.drift` while every sample-to-sample line stays walkable, the eye `FLIGHT.eye` 1.9 m over the smoothed floor
+  (lowered under anything overhead: `GameState.headroom` ray), the view a smoothed look ahead bent towards open space
+  where it meets a wall (`FlightNav.see`, sight rays); `flightAt(dist)` at `FLIGHT.speed` 2.8 m/s, so every run sees
+  the same views; doors open, leaves hidden (`Doors.setVisible`)), guards passive, one flight per run (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
   the settings, then one costly feature off / down per run, `FEATURE_SECONDS` 20; `BenchRun.gfx` ->
   `QualityManager.setOverride({ gfx })`; 3.1.4: then two diagnosis runs, `rebuild` 'post' / 'shadows' mid-match; 3.2: a 'render scale 75%' run second
   (`benchPlan(.., scale)`: GPU bound or not), 'anti-aliasing FXAA' and 'detail Medium' runs;

@@ -77,22 +77,73 @@ describe('feature costs (3.1.1)', () => {
   });
 });
 
-describe('the flight stays out of the level (3.2.3)', () => {
-  it('lifts every point over the solid below it and keeps it under the roof', async () => {
-    const { benchClear, BENCH } = await import('../src/game/benchmark');
-    const keys = [
-      { x: 0, y: BENCH.height, z: 0 },
-      { x: 10, y: BENCH.height, z: 0 },
-      { x: 10, y: BENCH.height, z: 10 },
+describe('the flight follows the walking routes (3.2.5)', () => {
+  it('goes through the doorways, never through a wall, circles a dead end, holds its height and turns smoothly', async () => {
+    const { NavGrid } = await import('../src/ai/navGrid');
+    const { benchFlight, flightAt, FLIGHT, FLIGHT_STRIDE } = await import('../src/game/benchmark');
+    const wall = (cx: number, cz: number, hx: number, hz: number) => ({ cx, cz, hx, hz, yaw: 0, bottom: 0, top: 3 });
+    // hall A (x 0..12) | wall at x 12, door z 9..10.6 | hall B (x 12..30, z 6..20); office C (x 20..30, z 0..6) off B
+    // through a door at x 24..25.6; a beam 1.8 m up across hall A at x 5..6
+    const blockers = [
+      wall(12, 4.5, 0.1, 4.5),
+      wall(12, 15.3, 0.1, 4.7),
+      wall(17, 6, 5, 0.1),
+      wall(22, 6, 2, 0.1),
+      wall(27.8, 6, 2.2, 0.1),
     ];
-    // a 2.6 m block (the deck under the mezzanine) over x 4..8; a tall rack near x 10, z 5
-    const top = (x: number, z: number): number => (x > 4 && x < 8 && Math.abs(z) < 1 ? 2.6 : x > 9 && Math.abs(z - 5) < 1 ? 5 : 0);
-    const pts = benchClear(keys, top);
-    expect(pts.length).toBe(36);
-    for (const p of pts) {
-      expect(p.y).toBeGreaterThanOrEqual(Math.min(BENCH.ceiling, top(p.x, p.z) + BENCH.clearance) - 1e-9);
-      expect(p.y).toBeLessThanOrEqual(BENCH.ceiling);
+    const nav = new NavGrid({ minX: 0, maxX: 30, minZ: 0, maxZ: 20, cell: 0.5, sample: () => ({ h: 0, ok: true }), blockers, agentRadius: 0.32, stepHeight: 0.4 });
+    const fn = {
+      snap: (x: number, y: number, z: number) => {
+        const c = nav.nearestWalkable(x, z, 12, y);
+        const [cx, cz] = nav.center(c);
+        return { x: cx, y: 0, z: cz };
+      },
+      path: (a: { x: number; z: number }, b: { x: number; z: number }) => nav.findPath([a.x, a.z], [b.x, b.z], 100000)?.map((p) => ({ x: p[0], y: 0, z: p[1] })) ?? null,
+      floor: (x: number, z: number) => (nav.isWalkable(nav.cellOf(x, z)) ? 0 : Number.NaN),
+      clear: (a: { x: number; z: number }, b: { x: number; z: number }) => nav.lineClear([a.x, a.z], [b.x, b.z]),
+      headroom: (x: number, _y: number, _z: number, max: number) => (x > 5 && x < 6 ? 1.8 : max),
+    };
+    const rooms = [
+      { x: 6, y: 0, z: 10 },
+      { x: 21, y: 0, z: 13 },
+      { x: 25, y: 0, z: 3 },
+    ];
+    const f = benchFlight(rooms, fn);
+    expect(f.n).toBeGreaterThan(100);
+    const P = f.pts;
+    const at = (i: number) => ({ x: P[(i % f.n) * FLIGHT_STRIDE]!, y: P[(i % f.n) * FLIGHT_STRIDE + 1]!, z: P[(i % f.n) * FLIGHT_STRIDE + 2]!, yaw: P[(i % f.n) * FLIGHT_STRIDE + 3]! });
+    let crossA = false;
+    let crossC = false;
+    for (let i = 0; i < f.n; i++) {
+      const a = at(i);
+      const b = at(i + 1);
+      // never through a wall: every step is a walkable line, the samples evenly spaced
+      expect(nav.lineClear([a.x, a.z], [b.x, b.z])).toBe(true);
+      expect(Math.hypot(b.x - a.x, b.z - a.z)).toBeLessThan(FLIGHT.step * 1.6);
+      // no jumps: height and heading change smoothly
+      expect(Math.abs(b.y - a.y)).toBeLessThan(0.03);
+      // (turns under 100 deg/s at the flight's pace)
+      expect((Math.abs(Math.atan2(Math.sin(b.yaw - a.yaw), Math.cos(b.yaw - a.yaw))) / FLIGHT.step) * FLIGHT.speed).toBeLessThan(1.75);
+      expect(a.y).toBeGreaterThanOrEqual(FLIGHT.minEye - 1e-6);
+      expect(a.y).toBeLessThanOrEqual(FLIGHT.eye + 1e-6);
+      if (a.x > 5 && a.x < 6) expect(a.y).toBeLessThanOrEqual(1.8 - FLIGHT.overhead + 1e-6);
+      if ((a.x - 12) * (b.x - 12) <= 0) {
+        crossA = true;
+        expect(a.z).toBeGreaterThan(9);
+        expect(a.z).toBeLessThan(10.6);
+      }
+      if (a.x > 20 && (a.z - 6) * (b.z - 6) <= 0) {
+        crossC = true;
+        expect(a.x).toBeGreaterThan(24);
+        expect(a.x).toBeLessThan(25.6);
+      }
     }
-    expect(pts.some((p) => p.x > 4 && p.x < 8 && p.y >= 2.6 + BENCH.clearance - 1e-9)).toBe(true);
+    expect(crossA && crossC).toBe(true);
+    // every room is visited; the dead-end office is circled, not reversed on the spot
+    for (const r of rooms) expect(Array.from({ length: f.n }, (_, i) => Math.hypot(at(i).x - r.x, at(i).z - r.z)).some((d) => d < 3)).toBe(true);
+    // looping: the camera at the route's length is where it started
+    const s = flightAt(f, 0, { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
+    const e = flightAt(f, f.length, { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 });
+    expect(Math.hypot(s.x - e.x, s.z - e.z)).toBeLessThan(1e-3);
   });
 });

@@ -156,6 +156,8 @@ export class NavGrid {
   readonly surf: Uint8Array;
   readonly step: number;
   readonly links: NavLink[] = [];
+  /** Steps only: ladders and drops are left out of searches while set (the benchmark flight, 3.2.5). */
+  walkOnly = false;
   /** First link out of / into a cell (-1 = none), chained through `linkNext` / `rlinkNext`. */
   private linkHead: Int32Array;
   private rlinkHead: Int32Array;
@@ -440,6 +442,7 @@ export class NavGrid {
       this.nbLink[n] = -1;
       n++;
     }
+    if (this.walkOnly) return n;
     for (let l = this.linkHead[i]!; l >= 0 && n < NB_MAX; l = this.linkNext[l]!) {
       const lk = this.links[l]!;
       if (!this.walk[lk.b]) continue;

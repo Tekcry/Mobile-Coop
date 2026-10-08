@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.2.5 - A walking benchmark flight
+- The benchmark flight cut straight from room middle to room middle - through walls - and was then lifted over
+  whatever was below it, so it bobbed up and down over crates and racks. It now follows the guards' walking routes:
+  the rooms in a short loop, through the doorways and down the corridors, up the mezzanine stairs (never a ladder),
+  rounded off and kept clear of the walls, at a steady 1.9 m eye height (lower only under a beam or a deck), at a
+  walking pace (2.8 m/s), the view looking ahead along the route and turning gently (under 100 deg/s); a dead-end room
+  is circled rather than reversed on the spot, and the view turns towards the open side at tight corners. The doors
+  stand open with their leaves hidden during the benchmark, so nothing stands out into a corridor. Warehouse: a 180 m
+  loop through the nine rooms, no step crossing the level, nothing within 0.3 m of the camera.
+- A run now covers part of the loop (30 s at a walk) - the same part on every run, so runs compare; results are not
+  comparable with earlier versions' benchmarks (different views).
+
 ## 3.2.4 - Landscape only, either grip
 - Phones are always landscape, whatever the orientation or rotation lock: held upright, the page turns - now the way
   of the landscape grip last held (clockwise after one, anticlockwise after the other), so turning the phone upright
