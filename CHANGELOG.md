@@ -138,6 +138,8 @@ Playtest changes, second round (Michael, 2026-10-08):
   character now settles onto it.
 - Fix: a respawn / insertion puts the feet straight into a stance where you appear (they used to walk over from where
   you were), and a foot stepping back past the other bows round it instead of brushing through it.
+- Split jump: jumping out of it is back (Michael, 2026-10-08). Braced, Jump (or Y) jumps up to a lip, pipe or ladder
+  over the split ahead of you; drop, a drop attack and the pistol stay as before.
 
 - Docs: level design standard (`docs/level-design.md`), map spec template (`docs/templates/map-spec.md`) and the
   Kestrel Exchange spec (`docs/prompts/exchange-map.md`).

@@ -112,8 +112,8 @@ Blacklist style.
     drop, yard fence + the nav path round it
   - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): the manual jump (up and down, grabs a pipe / lip /
     drainpipe), split jump (shown only facing along; one Y jumps, a second in the air braces facing the way it
-    jumped, feet 2.5 m up on both walls, legs within 15 deg of level, no travel, sidearm aim band + fire, B drop, no jump
-    out; falls of 0.75-2.5 m rest within 3 cm of the floor), wall jump (straight, too far, inside
+    jumped, feet 2.5 m up on both walls, legs within 15 deg of level, no travel, sidearm aim band + fire, B drop, Y up to
+    a lip over it; falls of 0.75-2.5 m rest within 3 cm of the floor), wall jump (straight, too far, inside
     corner), pipe facing along it + turning round, legs up (0.5 m/s, feet up), inverted (camera upright, sidearm + spread x1.3), curl up, hands, damage
     mid-change, the flip drop; rappel (hook on, rope speeds, kick out + sideways, sidearm, kick through a window,
     unhook height), fence (bullets / sight pass, blocks the body, climb / shimmy speeds, rattle by gear, flip over)
@@ -516,8 +516,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   (after `LEAP.splitWait` when a split gap is under the jump); a second press within `LEAP.doubleTap` over the split
   (`AttachController.split`, no longer a traverse hint; prompt `splitDouble`; `TraversalController.splitNow` for the
   touch button) braces in it. `SPLIT.feetHeight` 2.5, `rootDrop` 0.37 (the root under the feet line: legs
-  near level), `minHeight` 3.6 (`gripCentre` of a split = the braced hands); `findJump` returns null in a split (drop,
-  drop attack or sidearm only); the double tap sets the split's `face` from the jump's travel (else the body's yaw).
+  near level), `minHeight` 3.6 (`gripCentre` of a split = the braced hands); `findJump` from a split jumps up to a lip / pipe /
+  ladder ahead over it (Y, reach from the feet line + 1.05 m; re-enabled 2026-10-08), else drop, drop attack or sidearm; the double tap sets the split's `face` from the jump's travel (else the body's yaw).
   Horizontal pipes face along the pipe in every sub-state (`attachPose` pipeH yaw along `face`; `pipeFace(a, camYaw)`
   in `attachTo`; hands one ahead of the other, `pipeHands` either side of the top; inverted: legs straddle it, ankles
   crossed over the top); held back against the facing for `PIPE_TURN` 0.3 s it turns round (`backT`); `anchorFirst`

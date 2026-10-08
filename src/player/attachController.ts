@@ -1034,8 +1034,18 @@ export class AttachController {
   private findJump(a: Anchor): JumpTarget | null {
     const inp = this.input;
     const mag = hyp2(inp.moveX, inp.moveY);
-    // (3.2.0) a split is left only by dropping (or a drop attack): no jumps out of it
-    if (a.kind === 'split') return null;
+    if (a.kind === 'split') {
+      // straight up out of the split to whatever is over it, ahead of the body (reach measured as from standing on
+      // the feet line: the legs push off the walls)
+      const g = this.gripCentre(a);
+      const k = this.player.rig.height / 1.75;
+      const ry = g.y;
+      g.y = a.a.y + SPLIT.feetHeight + 1.05 * k;
+      const yaw = this.player.controller.yaw;
+      const t = findJumpTarget(this.anchors, g, a.id, Math.sin(yaw), Math.cos(yaw), 1, 2.5, 0.6, 0, 0, this.jumpClear);
+      g.y = ry;
+      return t;
+    }
     if (mag < 0.5 || a.kind === 'zipline' || a.kind === 'duct') return null;
     if (a.kind === 'pipeH' && this.pipe.mode !== 'hands') return null;
     const cy = Math.cos(inp.camYaw);

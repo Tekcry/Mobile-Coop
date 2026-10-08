@@ -389,8 +389,9 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
   straight in.
 - [ ] Split pose: the legs almost horizontal out to both walls, hands braced on the walls. Jump in facing east, it
   faces east; facing west, it faces west.
-- [ ] In the split: no Jump / Climb prompt; Y and Jump do nothing. Only Drop (B), a drop attack on a guard under you,
-  and the pistol (LT / RT).
+- [ ] In the split under a lip (the Proving corridor's 4.3 m wall tops): the Jump prompt shows; Y or Jump jumps up and
+  hangs from the lip ahead. With nothing over it, no prompt and Y does nothing. Drop (B), a drop attack on a guard
+  under you and the pistol (LT / RT) still work.
 - [ ] Hanging from a horizontal pipe: the operator faces along the pipe, hands one ahead of the other; legs up and
   upside down stay along it; holding the stick back turns round.
 - [ ] Mezzanine deck: standing under the pipe's start, the action button / Y grabs the pipe (no mantle over the railing).

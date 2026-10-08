@@ -143,9 +143,12 @@ No mismatch. Two nuances: the nav's 3 layers come from `navBuild` passing `sampl
 
 #### Findings for Phases 1-2 (the spec's route meets these)
 1. **Air-shaft split (space 4, secret route)**: "up the air shaft by split jumps to a first-floor window" needs a move the
-   game does not have. A split is left only by dropping (`attachController.ts:1037-1038`: no jump out of it). A split
-   shaft can hold the player above a guard; it cannot be climbed. Phase 1-2 needs another real element for that secret
-   route, or the shaft becomes a hiding perch. Spec change request below.
+   game did not have: a split was left only by dropping. Resolved 2026-10-08 (Michael re-enabled jumping out of a
+   split): braced, Y jumps up to a lip / pipe / ladder over the split ahead of the body, reach from the feet line
+   (2.5 m) + 1.05 m, so a lip up to ~4.75 m over the shaft floor. There is still no split-to-split jump (jump targets
+   are lips, pipes and ladders). So the shaft route is: split in the shaft (faces >= 3.6 m, 1.2-1.95 m apart) -> Y to
+   the first-floor window's sill lip (<= 4.75 m over the shaft floor, a hangable lip) -> climb up through the window.
+   A higher window needs a ledge or pipe step between.
 2. **Cable-trench duct (space 2, secret route)**: entering through a floor grate works; leaving must be by a wall grate,
    or a drop through a ceiling grate into a lower room. The trench can end at a wall vent (for example in the battery
    room lobby's wall).
@@ -168,7 +171,7 @@ No mismatch. Two nuances: the nav's 3 layers come from `navBuild` passing `sampl
 - `npm run check` once, on the handover commit: exit 0, `Tests 567 passed (567)`. Phase 0 changes only this log.
 
 #### Open items
-- Spec change request 1 (air shaft) waits for Michael.
+- None (spec change request 1 resolved by the engine change).
 
 ## Spec change requests
 (problem, proposed change, waiting / approved / rejected)
@@ -176,6 +179,9 @@ No mismatch. Two nuances: the nav's 3 layers come from `navBuild` passing `sampl
    shaft keeps a split as a hiding perch over a guard path, and the secret route up uses a real element the engine can
    climb (a shaft ladder for the air-shaft's cleaning access, or the shaft's cast-iron soil pipe as a drainpipe);
    (b) drop the air shaft secret. Waiting for Michael.
+   Resolved 2026-10-08: Michael re-enabled jumping out of a split (an engine change in
+   `src/player/attachController.ts` `findJump`, logged in `docs/ct-movement-progress.md`). The spec's route stands:
+   split in the shaft, Y up to the window's sill lip, climb in. No spec text changes.
 
 ## Future recommendations
 (written at the end of Phase 6)
