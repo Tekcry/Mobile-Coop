@@ -2,6 +2,20 @@
 Spec: `docs/prompts/exchange-map.md` | Standard: `docs/level-design.md` | Template: `docs/templates/map-spec.md`
 Branch: `feature/exchange-map` (from `ct-movement`) | Last updated: 2026-10-08
 
+## Paused (2026-10-08)
+- Phase 2 is done (87fc0a7) and was awaiting Michael's approval. That approval is deferred.
+- The map is paused for roadmap Phases 0-3 (`docs/design-bible.md` Section 10). No map code is built until roadmap
+  Phase 3 is done.
+- Next map step: `docs/prompts/exchange-alignment.md` (map Phase 2b, documents only), when Michael says "start the
+  Exchange alignment pass". Then map Phase 3.
+- Open items carried over:
+  - Space 8 secret route: the depository roof and lane are uncovered by guards, so it is the safest exit
+    (`exchange-design.md` Section 18 item 1). Option for Michael: G7's post at the roof's SE corner covering the lane
+    and fire escape (then the pair are less covered).
+  - Sloped battery-room extract duct (2.3 m rise over about 5 m, 25 deg): the crawl pose stays level, so the body may
+    clip (Section 18 item 5). Fallback if Phase 3's clip test fails: a fixed service ladder in a riser cupboard from the
+    battery room to the fan room.
+
 ## Status
 | Phase | Status | Commit |
 | --- | --- | --- |
