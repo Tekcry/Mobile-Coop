@@ -2,6 +2,8 @@
 // Lobby (host, join by typed code, ready-up by controller), match start, snapshot replication,
 // host-validated client hits + kill credit, downed/revive, results with rewards, back to lobby,
 // host leaving, malformed messages, and the offline state.
+// 3.5: the lobby walk-through hosts Wave / Hunter / TDM / FFA rooms, which are parked behind ?legacy=1, so these pages open
+// with it (the legacy-off lobby, Infiltration and Free Roam only, is checked by e2e-park).
 import { launch, openPage, frames, press, BTN, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -18,7 +20,7 @@ async function until(page, fn, arg, timeout = 15000, what = 'condition') {
   }
 }
 
-const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local' });
+const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local&legacy=1' });
 let B = null;
 let C = null;
 let eB = [];
@@ -35,7 +37,7 @@ try {
   assert(link?.includes(code), 'lobby shows the code');
 
   console.log('client joins by typing the code');
-  const opened = await openPage(ctx, url, 'net=local');
+  const opened = await openPage(ctx, url, 'net=local&legacy=1');
   B = opened.page;
   eB = opened.errors;
   const GB = (f, a) => B.evaluate(f, a);
@@ -432,7 +434,7 @@ try {
   await toLobby();
 
   console.log('pvp: team deathmatch and free-for-all with three');
-  const opened3 = await openPage(ctx, url, 'net=local');
+  const opened3 = await openPage(ctx, url, 'net=local&legacy=1');
   C = opened3.page;
   eC = opened3.errors;
   await C.click('.main-menu .btn:has-text("Co-op")');
