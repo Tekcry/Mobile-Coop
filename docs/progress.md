@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | in progress (Step 1 done, awaiting review) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | in progress (Step 1 reviewed; Step 2) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -195,26 +195,37 @@ See the Step 1 and Step 5 reports.
   - The ambient grid is built after `reg.ambient` is set; `World.create` now sets it before the bake (the constructor still sets it, same value).
   - Desktop drawing of baked lamps still needs voxels and `!cheap` (as before); only the bake data moved to every device.
 - Dropped objects (STOP rule: larger than 0.3 m in two dimensions):
-  - Warehouse art-layer extras (voxel-only dressing, not in the canonical set): 31 fill shapes, of which 6 exceed 0.3 m in two dimensions: wall plates 0.1 x 0.55 x 0.4 m at (-4.33, 1.6, 0.1), (-4.33, 1.6, 10.1), (-3.67, 1.6, 16.1), (6.33, 1.6, -13.9), (5.67, 1.6, -13.9), (2.33, 1.6, 13.0). They are 10 cm deep and flush to walls; with the half-cell growth they shaded at most 10 cm of wall. **Needs Michael's / Opus's call** (spec: STOP-and-report).
-  - Thinner than 5 cm (visible boxes): Warehouse 54, Proving Grounds 50. Five Warehouse ones are large and flat: a 48 x 0.04 x 36 m floor overlay at y 0, two 1.6 / 1.4 x 0.9 x 0.04 m window panes (-1, 1.6, -11.18) and (-3, 1.6, 12.17), and two 0.04 x 0.6 m panes at (2.62, 1.85, -22.5) and (21.78, 1.55, -22.9). The old bake counted them as blockers (fine layer, grown 10 cm), so a lamp or the moon no longer stops at a window pane. Judged correct for glass; the floors are separate 0.4 m slabs. **Flagged for the review.**
+  - Warehouse art-layer extras (voxel-only dressing, not in the canonical set): 31 fill shapes, of which 6 exceed 0.3 m in two dimensions: wall plates 0.1 x 0.55 x 0.4 m at (-4.33, 1.6, 0.1), (-4.33, 1.6, 10.1), (-3.67, 1.6, 16.1), (6.33, 1.6, -13.9), (5.67, 1.6, -13.9), (2.33, 1.6, 13.0). They are 10 cm deep and flush to walls; with the half-cell growth they shaded at most 10 cm of wall. **Decided (Michael, 2026-10-09, on the review's recommendation): left out.** Adding them would make the bake depend on what the voxel renderer draws.
+  - Thinner than 5 cm (visible boxes): Warehouse 54, Proving Grounds 50. Five Warehouse ones are larger than 0.3 m in two dimensions; all checked in review: the 48 x 0.04 x 36 m floor overlay at y 0 (a 0.4 m floor slab lies under it), two whiteboards (`BOARD`, 1.6 / 1.4 x 0.9 x 0.04 m at (-1, 1.6, -11.18) and (-3, 1.6, 12.17)), the van's windscreen (`GLASS`, 0.04 x 0.6 x 2 m at (2.62, 1.85, -22.5)) and the guard hut's panel (0.04 x 0.6 x 1.1 m at (21.78, 1.55, -22.9)). Every one lies flush on a solid face, so leaving it out changes nothing visible. (The first draft of this report called them window panes; wrong.) Proving Grounds' one is its floor overlay (slab under it).
   - Fine-layer props and the art layer's paint: not in the bake before either (paint never blocks); fine props came from the same blockout boxes, so the canonical set covers them.
 - Tests:
   - `npm run lint`: clean.
   - `npx vitest run`: 62 files, 609 tests pass (new: ambient grid 3, moon bake 4, bake hash 1, canonical shapes 3).
   - `npm run build`: OK.
   - `node scripts/e2e-lightbake.mjs` (Warehouse under `?gfx=min`, the phone look, `?gfx=low`, `?gfx=epic`): all 4 boot with 0 console errors; shapes `gdv5dj`, lamp key, moon key and data hash `16foi8b` identical in all four.
-  - Not run yet: the full `npm run e2e` (end of phase, Step 9) and the other suites; only `e2e-lightbake` and the four boots above.
+  - `npm run check` (after the report was first committed): passed.
+  - Full `npm run e2e`: run after the review (below).
 - Measurements:
   - Bake (Warehouse, 18 lamps, 4.1 MB of lamp visibility, 232,960 moon cells): node single thread, lamps 3.5 s, moon 0.06 s; headless Chromium with workers (fresh profile, no cache): 2.4 s (`?gfx=min`), 2.6 s (phone emulation), 2.6 s (`?gfx=low`), 2.4 s (`?gfx=epic`).
   - Every Warehouse boot on the test path now pays about 2.4 s it did not before (no cache in a fresh e2e profile). Proving Grounds has no lights: no bake.
   - iPhone cold bake: not measured (Michael, end of Step 4). If over 4 s, the proposal is a build-time bake (`npm run bake`, compressed per map, keyed by content hash). Not built.
   - Perf budgets: not run in this step (no per-frame code changed).
-- Contact sheets (Epic, headless software GL, same six views old / new; old left, new right): `docs/prompts/phase-1-sheets/step1-{corridor,hall,west,yard,south,rack}.jpg`. Old = `a78293f`, new = this step. All six look the same: lamp pools, window and doorway light, the yard spot and the rack bays match. Differences are the animated operator and guard poses, and a few small dark specks on the wall in `south` (new) that I did not trace; they look like per-run effect noise, not light. Not a blocker; worth a look in the review.
+- Contact sheets (Epic, headless software GL, same six views old / new; old left, new right): `docs/prompts/phase-1-sheets/step1-{corridor,hall,west,yard,south,rack}.jpg`. Old = `a78293f`, new = this step. All six look the same: lamp pools, window and doorway light, the yard spot and the rack bays match. Differences are the animated operator and guard poses, and a few small dark specks on the wall in `south` (new), not traced (probably bullet chips from guards firing during the capture; not light).
 - Open issues:
-  - The two flags above (6 wall plates, window panes and thin overlays).
+  - Engine facts for `docs/level-design.md` Section 12 (written in Step 9): only blockout pieces at least 5 cm thick and the Medium dressing block light (voxel art never does); ambient zones resolve to 1 m cells (Step 2 decides the cell size).
+  - The moon is baked only on maps with fixed lights (Proving Grounds has none): Step 2's `LightField` takes a null moon.
   - Bake time on the iPhone unknown. The bake cache is per browser profile, so first load pays the full cost.
   - Phone look is still six unshadowed lights until Step 4.
 - Next: STOP for the Opus review. Then Step 2 (one light function for all gameplay).
+
+#### Step 1 review (Opus, bible Appendix C) - 2026-10-09
+- Approved. Spec followed, nothing extra; gameplay reads no graphics state; pure modules tested; no per-frame code; no save change.
+- Fixed in the report: the thin pieces are whiteboards, a windscreen and a hut panel (not window panes), all flush on solid faces; the floor slab under the overlay verified.
+- Decisions (Michael took the review's recommendations, 2026-10-09):
+  - The six Warehouse wall plates stay out of the canonical set.
+  - The ambient grid's zone edges: settled in Step 2's behaviour check. The Warehouse zone `x -7.5..12.5, z -26..-23.8, y ..6` reads as `x -8..13, z -26..-24` at 1 m cells (a 0.2 m strip at z -24..-23.8 reads 0.3 instead of 0.17). Either 0.5 m cells or accept and record in Section 12.
+- Owed before Step 2: the full `npm run e2e` (every boot now bakes).
+- Process: Step 1 was first pushed to a session branch (`claude/new-session-cw8fow`; the remote copy could not be deleted from the session, Michael removes it); the contact sheets were first cut to 3 views without asking, then redone in full (12); the report was committed before `npm run check` finished (it passed).
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
