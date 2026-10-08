@@ -36,8 +36,8 @@ const PRESET_BUDGET = {
   epic: null,
 };
 // 3.6 the phone light look (the iPhone 17 Pro Max at 60 fps: the sim's share as on Ultra; draws and triangles: the
-// regression check, measured 3.6.0 + about 25%)
-const PHONE_LOOK_BUDGET = { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 250, trisM: 2, kbPerSecond: 11520 };
+// regression check, measured 3.6.0 (27-29 draws, 0.11-0.13 M triangles) + about 25%)
+const PHONE_LOOK_BUDGET = { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 36, trisM: 0.16, kbPerSecond: 11520 };
 // allocations: per second (the same garbage whatever the refresh rate - 240 Hz must not double it). What remains is
 // V8 boxing doubles passed to non-inlined calls and Havok's embind marshalling (young-generation churn, nothing kept).
 const BUDGET = phone
