@@ -4,6 +4,14 @@
 
 **Type:** documents only. No game code changes in this pass.
 
+**Decided by Michael, 2026-10-08:**
+
+- **Map Phase 2 is approved, and all decisions D10-D27 are final.**
+  - This pass does not reopen them.
+  - If a later roadmap phase changed a number a decision relies on (expected: D16 takedown reach, D21 footstep distance, D26 patrol waits), list the conflict and a proposed fix for Michael.
+- **Space 8's secret route** gets a security camera covering the lane and the depository fire escape (bible 5.7 sensors). The player must jam it, disrupt it or time its sweep. G7 stays on the loaders.
+- **Guards can face a set direction at a stop** (per-stop facing, roadmap Phase 6). Where a decision worked around the old limit (D17, the self-critique's item 2), say whether the workaround should stay.
+
 ---
 
 ## Why this pass exists
@@ -57,6 +65,7 @@ Map Phase 2 approval (D10-D27, the Space 8 secret route) is decided by Michael t
    - Place wall medkits (bible 5.13).
 7. **Co-op plan for 2-4 players:**
    - Keep C1-C3.
+   - Add the Space 8 lane camera to the yard's plan.
    - Mark where the new team moves (split-jump boost, back-to-back, pull-up, rappel anchor) could add routes.
    - Propose `coopExtras` (extra cameras or lasers at 3+ players) per space.
    - Guard count never changes with player count.

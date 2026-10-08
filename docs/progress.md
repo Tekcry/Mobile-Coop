@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | not started | 3.6.0 | (to be written by Opus) |
+| 1 | Light parity | not started | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -26,8 +26,9 @@ every phase step.
   Roadmap Phase 1 replaces them with one source of truth.
 - CT movement is complete (`docs/ct-movement-progress.md`): speed gears, instant stop, roll, split / wall jump, pipes,
   rappel, fences, CT takedowns and the grab, co-op team moves, the Warehouse CT routes.
-- Kestrel Exchange is a paper design only: map phases 0-2 done, Phase 2 awaiting Michael's approval; no map code; build
+- Kestrel Exchange is a paper design only: map phases 0-2 done, Phase 2 approved 2026-10-08; no map code; build
   phases held until roadmap Phase 3b and the alignment pass (bible Section 10, Phase 7).
+- Decisions of 2026-10-08 recorded: bible v1.8, story v1.2 (see the bible's Section 11).
 - The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
 - Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) is behind `?legacy=1` (3.5.0, `core/legacy.ts`). The title is Night Shift. `CLAUDE.md` is a lean core (9.6 KB) with the detail in `docs/systems/`.
 

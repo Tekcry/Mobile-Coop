@@ -1,6 +1,6 @@
 # Night Shift - Design Bible
 
-Version 1.7 - 2026-10-08 (1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.8 - 2026-10-08 (1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -279,7 +279,12 @@ The Phase column refers to Section 10.
 - **L9 - Guards notice light changes in their view** (existing `lightsOut`). A fuse box trip sends a guard to the box. Investigating guards in darkness take torches (existing).
 - **L10 - Co-op.** Light state (on / off / destroyed / disrupted) is host-authoritative and synced. Clients re-mix the volume locally.
 - **L11 - Characters and bodies do not occlude gameplay light.** This is deliberate: simple and symmetrical.
-- **L12 - Doors.** How open and closed doors affect the bake is decided in Phase 1 and recorded in `docs/systems/lighting.md`.
+- **L12 - Doors (decided by Michael, 2026-10-08):** closed doors block light, on screen and in gameplay.
+  - Door leaves are left out of the bake and applied at runtime: gameplay rays against closed doors, and the lamp volume's remix includes closed doors near each lamp.
+  - Opening or closing a door updates the lighting like a switch.
+- **L14 - The moon is baked (decided by Michael, 2026-10-08).**
+  - Its visibility is baked like a lamp's, so outdoor moon shadows match the meter on every device.
+  - Real-time moon shadow maps remain only for moving characters on desktop.
 - **L13 - Cost.** No per-frame per-lamp loops on phones. Re-mixing on a light change stays a one-off of a few milliseconds (existing remix).
 
 ### 5.2 Sound (P2)
@@ -491,6 +496,7 @@ The Phase column refers to Section 10.
   - laser trip beams
   - optional turrets
 - **No randomness that defeats planning.** Patrol cycles are fixed per map (level design rule 6).
+- **Per-stop facing (Phase 6):** a guard's patrol stop can set the direction he faces while waiting (`SquadSlot`). Today a stopped guard always faces his next leg, which forces layout compromises (Exchange self-critique, item 2).
 - **Awareness arcs** stay for readability (decided 2026-10-08):
   - on by default at Rookie and Normal
   - off by default at Realistic and Perfectionist
@@ -611,7 +617,10 @@ It is validated by a schema with a unit test (extend `validateMissions`).
   - `docs/prompts/exchange-plans/` (floor plans and gameplay overlays)
   - `docs/prompts/exchange-map.md` (spec)
   - `docs/prompts/exchange-map-progress.md` (log)
-- Map phases 0-2 (paper) are done. Phase 2 is awaiting Michael's approval.
+- Map phases 0-2 (paper) are done.
+- **Phase 2 approved by Michael on 2026-10-08, all decisions (D10-D27) final.**
+  - If a later roadmap phase changes a number a decision relies on, the alignment pass flags it for Michael rather than changing it silently.
+- **Space 8's secret route** (over the neighbour's roof) gets a security camera covering the lane and the fire escape (Phase 6 sensors). The player must jam it, disrupt it or time its sweep. The sniper keeps covering the loaders.
 - The map's build phases (3-6) are held until roadmap Phase 3b is done and the design has passed the alignment pass in `docs/prompts/exchange-alignment.md` (Section 10, Phase 7).
 
 ### 5.9 Co-op (P6)
@@ -1305,7 +1314,7 @@ The standard's existing content stays. This bible adds the following:
 | 3b | Movement, camera and animation lock | The dev bot partner (C20) early. Then the full animation audit (5.12.4): inventory, audit harness, review, fixes in seven batches, Michael's sign-off per batch. Then the CT pulled-back camera and collision solver; drag; quick 180; momentum carry; spring layer; dedicated clips (rappel, fence, brace, back-to-wall, drag); guard body language; pose viewer; known fixes (thigh pistol vs elbow at slow crouch, brace prompt, human ladder by touch, thin fence); a phone feel pass with Michael; then the metrics freeze (Section 5.3). |
 | 4 | Mission framework | Shared campaign progress with spoiler warnings and the per-player mission record (5.8). Section 5.8: triggers / actions, objective tiers, rules and alarm levels, checkpoints with Continue and Restart from checkpoint, text radio with solo / team variants and speaker colours (story Section 7), briefing, field terminal, stealth rating; Warehouse missions ported as test content. |
 | 5 | Co-op 2-4 | Connection test and network stats (C19); the bot partner extended; the first playtest night (C20). Section 5.9: per-player detection, `coopExtras`, new team moves and their clips, distinct operators (5.14) and team-mate outlines; Sync, clutch saves, dragging downed partners, medkit on a team-mate, typed pings with quick lines, team results and highlights (C12-C18); 4-player e2e, host-leave resume. |
-| 6 | CT verbs for the slice | Civilians (5.7); lockpick, hack minigame, optic cable, interrogation, knife, cameras, lasers, camera jammer, sticky shocker, ring airfoil, light disruptor; curated campaign kit and loadout kits. |
+| 6 | CT verbs for the slice | Civilians (5.7); per-stop guard facing (5.7); lockpick, hack minigame, optic cable, interrogation, knife, cameras, lasers, camera jammer, sticky shocker, ring airfoil, light disruptor; curated campaign kit and loadout kits. |
 | 7 | Vertical slice | Kestrel Exchange as Mission 1 "Dead Line". First the alignment pass in `docs/prompts/exchange-alignment.md` (map Phase 2b) on `exchange-design.md`: replace cover-to-cover and Mark & Execute in Spaces 5-7, re-check engine facts changed by Phases 1-3b (including the frozen movement metrics), add the light, sound, checkpoint and co-op plans. Then the map's own build phases 3-6 (ground floor; first floor, roof and yard; guards and mission; dressing and verification), then the Dead Line radio script (story Section 8), checkpoints and rating. Finally a playtest pass on iPhone, desktop and 2-player co-op. |
 
 **After the slice:**
@@ -1319,18 +1328,22 @@ The standard's existing content stays. This bible adds the following:
 
 ## 11. Open decisions (Michael)
 
-**Decided on 2026-10-08** (no longer open): story, setting and tone; title; the traitor finale (5.15); input parity; personal project; shared co-op progress; the operator team; awareness arcs; quicksave; civilians; health numbers; the run / sprint braking stop.
+**Decided on 2026-10-08** (no longer open):
+
+- story, setting and tone; title; the traitor finale (5.15)
+- input parity; personal project; shared co-op progress
+- the operator team and their real names; the Client (Alistair Crane)
+- awareness arcs; quicksave; civilians; health numbers; the run / sprint braking stop
+- Kestrel Exchange Phase 2 (all final); the Space 8 lane camera
+- doors block light; the baked moon
 
 **Still open:**
 
-1. Kestrel Exchange Phase 2 approval: decisions D10-D27 in `exchange-design.md` Section 13, and the self-critique in Section 18.
-   - Space 8 secret route: the neighbour's roof is uncovered by guards. Moving the sniper to cover the lane makes it harder, but he then covers the loaders less.
-2. Door handling in the light bake (Phase 1 proposes, Michael approves).
-3. Whether the LKP becomes per player in co-op (Phase 5 proposes).
-4. Story items in `docs/story.md` Section 9: the Client's identity, the operators' real names, the epilogue lines, Mission 6's location.
-5. Confrontation tuning numbers (5.15), settled in the prototype.
-6. Audio source: code-synthesised or CC0 files (decided by the Phase 2 A/B test).
-7. A relay (TURN) server for co-op (decided after real sessions with friends, C19).
+1. Whether the LKP becomes per player in co-op (Phase 5 proposes).
+2. Story items in `docs/story.md` Section 9: the epilogue lines, the betrayal and last lines, Mission 6's location.
+3. Confrontation tuning numbers (5.15), settled in the prototype.
+4. Audio source: code-synthesised or CC0 files (decided by the Phase 2 A/B test).
+5. A relay (TURN) server for co-op (decided after real sessions with friends, C19).
 
 ---
 

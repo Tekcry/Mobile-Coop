@@ -22,16 +22,14 @@ Branch: `feature/exchange-map` (from `ct-movement`) | Last updated: 2026-10-08
 | Handover (standard, template, spec) | done | f45cbb2 |
 | 0 Setup and investigation | done | b7cfbe7 |
 | 1 Architectural design | done, approved by Michael 2026-10-08 | 7a0811f |
-| 2 Gameplay design | done (waiting for Michael's approval) | see log |
+| 2 Gameplay design | done, approved by Michael 2026-10-08 | see log |
 | 3 Build: ground floor | not started | |
 | 4 Build: first floor, roof, yard, co-op lips | not started | |
 | 5 Guards and mission | not started | |
 | 6 Dressing, readability, verification | not started | |
 
 ## Next step
-Michael: review the gameplay design (`docs/prompts/exchange-design.md` Part 2, the `*-gameplay.svg` overlays), in
-particular decisions D10-D27 (section 13) and the self-critique (section 18). Your approval makes the design doc and
-plans the build contract; then say go for Phase 3 (build the ground floor).
+The alignment pass (`docs/prompts/exchange-alignment.md`) after roadmap Phase 3b. Then Phase 3 (build the ground floor).
 
 ## Michael's phone notes
 (none yet; Phase 6 reads this first)
@@ -266,6 +264,10 @@ Checks run: none needed for docs only. `npm run check` was not re-run in this ph
 Open items:
 - Michael's approval of Part 2 and the overlays.
 - Self-critique item 1 (space 8's secret route is the safest exit): an option for Michael is in the doc.
+
+### Phase 2 approved (2026-10-08)
+Phase 2 approved 2026-10-08 (all D10-D27 final). Space 8 secret route: a lane security camera (bible 5.7, Phase 6).
+Next: the alignment pass (`docs/prompts/exchange-alignment.md`) after roadmap Phase 3b.
 
 ## Spec change requests
 (problem, proposed change, waiting / approved / rejected)

@@ -2,8 +2,8 @@
 
 Spec: `docs/prompts/exchange-map.md` | Standard: `docs/level-design.md` | Log: `docs/prompts/exchange-map-progress.md`
 
-Status: **Part 1 (the building) approved by Michael on 2026-10-08. Part 2 (gameplay design, Phase 2) is waiting for
-Michael's approval.** Once approved, both parts are the build contract. Phase 2 refined a few building details (Part 2,
+Status: **Part 1 and Part 2 approved by Michael on 2026-10-08; all decisions final.** Both parts are the build
+contract. Phase 2 refined a few building details (Part 2,
 section 13 "Decisions"); the text and plans below already show them.
 
 Plans (1 m = 10 px, 6 m grid, north up; the dashed red line is the route order, spaces 1-8, and nothing else from

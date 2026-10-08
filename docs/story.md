@@ -1,6 +1,6 @@
 # Night Shift - Story and world
 
-Version 1.1 - 2026-10-08. Approved by Michael. (1.1: the traitor finale.)
+Version 1.2 - 2026-10-08. Approved by Michael. (1.2: the Client is Alistair Crane; the operators' real names. 1.1: the traitor finale.)
 
 - This document is the authority on story, setting, characters and in-game text.
 - `docs/design-bible.md` wins on anything that affects gameplay.
@@ -89,6 +89,7 @@ Every mission is at night. Rain is common. Moonlight and street light matter (P1
 
 - It has no police powers and no public budget line.
 - When something cannot be done officially, it calls Night Shift.
+- **Its director is Alistair Crane,** Peg's boss: polished, patient, trusted by ministers. He is the Client (Section 5).
 
 **Night Shift** is four operators and a handler.
 
@@ -152,7 +153,14 @@ Looks and personality only. Every operator has identical stats and hitboxes (bib
   - Moth: "I look up in the rain."
   - Sexton: "Nobody sensible."
 
-**Real names:** the operators' real names are kept for dossiers found later (Section 9).
+**Real names** (decided 2026-10-08). The team uses callsigns. Real names appear only in dossiers found as intel.
+
+| Callsign | Real name | Why the callsign |
+| --- | --- | --- |
+| Wren | Imogen Hale | Small, quick, hard to spot. Given by her old unit. |
+| Moth | Danny Mensah | Drawn to light. The team's running joke. |
+| Tally | Priya Tallis | From her surname, and she counts everything. |
+| Sexton | Graham Mallory | Ex-police who "digs things up". Gravedigger humour. |
 
 ### Dossier secrets: every operator could be the traitor
 
@@ -188,10 +196,30 @@ The traitor is whichever operator another player chose, picked at random when Mi
 - Most staff are honest. The guards in their buildings are contracted security who believe they are protecting a business.
 - A few senior people are in on it. They installed the compromised failover hardware.
 
-**The Client.**
+**The Client: Alistair Crane, director of the Continuity Office** (decided 2026-10-08).
 
-- Selling "a city switched off on demand" to buyers who want that capability. Hollowmere is the showroom.
-- Not seen until late in the campaign. Identity is open (Section 9).
+**Motive:**
+
+- He sells "a city switched off on demand" to buyers who want that capability. Hollowmere is the showroom.
+- He also uses the disaster to prove the city needs his Office, to win more power and budget.
+
+**Why it fits:**
+
+- The Office holds a dossier on every operator, so Crane knows each one's secret (Section 4). That is how he turns the traitor.
+- He knows where Peg will be. That is how she is taken (Mission 6).
+- He hears every briefing. That is how SUNDOWN can start early (Mission 7).
+
+**How the reveals land:**
+
+1. Missions 1-5: Crane appears only in passing, as Peg's calm, supportive boss in a briefing or two.
+2. **Mission 6:** while rescuing Peg, intel proves Crane authorised her transfer. The Client has a face, and it is their own side.
+3. **Mission 7:** Crane, exposed, starts SUNDOWN early.
+4. **Mission 8:** the team learns the last secret: Crane's inside man (or two) is one of them.
+
+**In the endings:**
+
+- **Lights On:** Peg delivers the evidence and Crane is arrested.
+- **Sundown:** Crane's sale goes ahead.
 
 **What SUNDOWN is:**
 
@@ -213,8 +241,8 @@ Each mission gets a story beat, a gameplay showcase and a co-op highlight. The v
 | 3 | **High Water** | The Barrier | The barrier is on the compromised failover. In a blackout the city floods. | Water noise masks you; pumping machinery; rain | Sync takedowns on a gantry patrol |
 | 4 | **Glass House** | Meridian Quay | Inside Halcyon's tower: names, contracts, Pell's double game. | Lit offices: light is the enemy; making darkness | Split floors: one in the server core, one in the executive floor |
 | 5 | **Night Train** | The Cutting | Intercept the last hardware convoy by rail. Pell sells the team out; the Client learns who Peg is. | Tunnels, moving train sections, torches in the dark | Boost and rappel routes over and under the train |
-| 6 | **Lantern Out** | A private clinic in the old town | Peg has been taken. Rescue her. | **No radio.** Objectives come only from intel found in the level. | Coordination by pings alone: the purest co-op mission |
-| 7 | **Substation Zero** | Ashgrove substation | SUNDOWN starts early, mid-mission. | **The blackout:** lights fail across the map in real time; guards switch to torches and night vision; the main mechanic flips. | Holding a dark map against torches; clutch saves |
+| 6 | **Lantern Out** | A private clinic in the old town | Peg has been taken. Rescue her. Intel proves Crane, the Office's own director, is the Client. | **No radio.** Objectives come only from intel found in the level. | Coordination by pings alone: the purest co-op mission |
+| 7 | **Substation Zero** | Ashgrove substation | Exposed, Crane starts SUNDOWN early, mid-mission. | **The blackout:** lights fail across the map in real time; guards switch to torches and night vision; the main mechanic flips. | Holding a dark map against torches; clutch saves |
 | 8 | **Sundown** | Ashgrove grid control | Act 1: restore the grid together. **The betrayal:** a team-mate disarms the protagonist and kills the lights. Act 2: the Confrontation. | **The hunt (bible 5.15):** unarmed protagonists against traitors with a loud pistol; restoring breakers turns on lights that expose them. | 1v1, 1v2 or 2v2: the team against itself |
 
 **The leaks in Missions 5-7 are the traitor's doing** (written ambiguously until the reveal):
@@ -295,7 +323,7 @@ LANTERN: Then we've nine nights. Come home.
 
 ## 9. Open story items
 
-1. **The Client's identity and motive behind the sale.** Decide before Mission 4 is written.
-2. **The operators' real names and one dossier secret each** (found as intel across the campaign).
-3. **The epilogue lines for both endings,** and each operator's betrayal and last lines.
-4. **Mission 6's location detail** and how Peg is held.
+Decided on 2026-10-08: the Client (Crane) and the operators' real names.
+
+1. **The epilogue lines for both endings,** and each operator's betrayal and last lines.
+2. **Mission 6's location detail** and how Peg is held.
