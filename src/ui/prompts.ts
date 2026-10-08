@@ -21,6 +21,9 @@ export const keyLabels = {
   traverse: 'E',
   crouch: 'C',
   reload: 'R',
+  /** 3.2.0 speed gear (the wheel also steps it). */
+  speedUp: '=',
+  speedDown: '-',
 };
 
 /**

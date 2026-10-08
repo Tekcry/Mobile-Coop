@@ -6,6 +6,7 @@ import type { GameMode } from './gameMode';
 import type { Blip } from '../../ui/hud/minimap';
 import { emptyTrainingStatus, TRAINING_STEPS, TrainingCourse, type TrainingStatus } from '../training';
 import { hyp2 } from '../../core/mathx';
+import { G } from '../../physics/groups';
 
 /** A step not done in this long is skipped (a stuck player is never trapped). */
 const STEP_SKIP = 90;
@@ -24,6 +25,8 @@ export class TrainingMode implements GameMode {
   private target: Vector3 | null = null;
   private targets: Partial<Record<string, Vector3>> = {};
   private guards: Enemy[] = [];
+  /** Where the takedown guard spawned (the Mark guards spawn next to it). */
+  private tdAt: Vector3 | null = null;
   private offs: (() => void)[] = [];
   private ended = false;
 
@@ -71,11 +74,11 @@ export class TrainingMode implements GameMode {
     this.enter();
   }
 
-  /** Spawn a passive guard near `near`, facing away from the operator. */
-  private guard(near: Vector3, i: number): Enemy | null {
+  /** Spawn a passive guard near `near` (the `i`-th nearest spawn, or a given spot), facing away from the operator. */
+  private guard(near: Vector3, i: number, spot?: Vector3): Enemy | null {
     const g = this.g;
     const spawns = [...g.world.layout.enemySpawns].sort((a, b) => hyp2(a.x - near.x, a.z - near.z) - hyp2(b.x - near.x, b.z - near.z));
-    const at = spawns[i] ?? near;
+    const at = spot ?? spawns[i] ?? near;
     const p = g.player.position;
     const yaw = Math.atan2(at.x - p.x, at.z - p.z);
     const e = g.enemyMgr?.spawn('grunt', at.clone(), false, yaw) ?? null;
@@ -109,11 +112,16 @@ export class TrainingMode implements GameMode {
       case 'takedown': {
         const e = this.guard(p, 0);
         this.target = e ? e.pos : null;
+        if (e) this.tdAt = e.pos.clone();
         break;
       }
       case 'mark': {
-        const a = this.guard(p, 1);
-        this.guard(p, 2);
+        // the next spawns from the takedown guard's (where the operator ends up depends on the takedown: a grab)
+        // two spawns with a clear line between them (both executable from one spot)
+        const near = this.tdAt ?? p;
+        const pair = this.markPair(near);
+        const a = this.guard(near, 1, pair?.[0]);
+        this.guard(near, 2, pair?.[1]);
         this.target = a ? a.pos : null;
         break;
       }
@@ -121,6 +129,25 @@ export class TrainingMode implements GameMode {
         this.target = null;
     }
     this.updateHud();
+  }
+
+  /** The nearest two spawns to `near` (past the takedown guard's own) that see each other at chest height. */
+  private markPair(near: Vector3): [Vector3, Vector3] | null {
+    const g = this.g;
+    const spawns = [...g.world.layout.enemySpawns].sort((a, b) => hyp2(a.x - near.x, a.z - near.z) - hyp2(b.x - near.x, b.z - near.z)).slice(1, 12);
+    const a = new Vector3();
+    const b = new Vector3();
+    for (let i = 0; i < spawns.length; i++) {
+      for (let j = i + 1; j < spawns.length; j++) {
+        const p = spawns[i]!;
+        const q = spawns[j]!;
+        if (hyp2(p.x - q.x, p.z - q.z) > 30) continue;
+        a.set(p.x, p.y + 1.4, p.z);
+        b.set(q.x, q.y + 1.4, q.z);
+        if (!g.ballistics.ray(a, b, G.STATIC).hit) return [p, q];
+      }
+    }
+    return null;
   }
 
   private updateHud(): void {

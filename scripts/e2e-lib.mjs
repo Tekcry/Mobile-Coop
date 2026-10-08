@@ -59,7 +59,10 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   // the PC renderer at Epic on headless software GL is too slow for real-time checks: tests run minimal graphics
   // unless they ask for a preset (?gfx=epic in e2e-desktop)
   const p = /(^|&)gfx=/.test(params) || /[?&]gfx=/.test(url) ? params : params ? `${params}&gfx=min` : 'gfx=min';
-  await page.goto(url + (url.includes('?') ? '&' : '?') + p);
+  // 3.2.0 speed gears: the operator spawns in gear 3 (2.0 m/s standing); suites written for the 2.x full-stick jog
+  // (2.8 m/s) start in gear 4, which is that pace, unless they name a gear (`gear=none` keeps the real default)
+  const q = /(^|&)gear=/.test(p) || /[?&]gear=/.test(url) ? p : `${p}&gear=4`;
+  await page.goto(url + (url.includes('?') ? '&' : '?') + q);
   await page.waitForFunction(
     () => document.getElementById('boot')?.classList.contains('done') || /Failed/.test(document.getElementById('boot-status')?.textContent ?? ''),
     null,

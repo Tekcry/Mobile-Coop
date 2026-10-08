@@ -1,14 +1,18 @@
 import {
   CharacterSupportedState,
   PhysicsCharacterController,
+  PhysicsRaycastResult,
   Vector3,
   type CharacterSurfaceInfo,
+  type PhysicsEngine,
   type Scene,
 } from '../core/babylon';
 import { GRAVITY } from '../physics/havok';
 import { G, MASK } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
 import { SprintGate, EasedVelocity, targetSpeed, landingKind, LANDING, type LandingKind, type Stance } from './movement';
+import { GearState, StickRelease, clampGear } from './speedGears';
+import { flags } from '../core/flags';
 import { easeInOut, emptyMotionInput, MotionDriver } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
 
@@ -49,6 +53,9 @@ export interface PlayerInput {
   aiming: boolean;
   /** Reloading / swapping: moving slows (`reloadMult`). */
   reloading: boolean;
+  /** Speed gear up / down pressed this step (3.2.0). */
+  gearUp?: boolean;
+  gearDown?: boolean;
 }
 
 /** Motion caps for cover-driven moves: snappier so the standoff controller stays stable; a jog along the wall
@@ -58,8 +65,19 @@ const COVER_MOTION = { ...MOVEMENT, accelMax: 6, decelMax: 7, jerkMax: 60, velGa
 /** Cover snap glide: the path is already eased (cover controller), the driver just follows it. */
 const GLIDE_MOTION = { ...MOVEMENT, accelMax: 40, decelMax: 40, jerkMax: 2000, velGain: 40, brakeGain: 40, startShift: 0, rootDip: 0.01, pivotMinSpeed: 99 };
 
+/** Character controller acceleration cap (m/s^2) on Chaos Theory free movement: a full stop from a sprint in one
+ *  60 Hz step (the usual 80 m/s^2 takes two or three). */
+const CT_MAX_ACCEL = 600;
 const UP = new Vector3(0, 1, 0);
 const DOWN = new Vector3(0, -1, 0);
+
+/** Settling onto the floor. Havok counts a surface as support up to `keepDistance` + `keepContactTolerance` (0.14 m)
+ *  under the capsule and its solver never closes that gap, so a capsule that stops 4-14 cm up (the last step of a
+ *  fall, stepping off a curb) would stay there. `rest`: the capsule's resting gap on flat floor (m); `tol`: a gap
+ *  this much over the rest (for the slope under it) settles; `reach`: the deepest gap settled; `rim`: the four edge
+ *  rays' offset (x radius) - the capsule only comes down as far as the highest floor under it (a step's edge). */
+const SETTLE = { rest: 0.02, tol: 0.025, reach: 0.2, rim: 0.7 } as const;
+const RIM_SAG = MOVEMENT.radius - Math.sqrt(MOVEMENT.radius * MOVEMENT.radius * (1 - SETTLE.rim * SETTLE.rim));
 
 /**
  * Stealth-operative Havok character controller. Movement is camera-relative; not aiming, the body faces
@@ -87,6 +105,21 @@ export class PlayerController {
   kneeling = false;
   private stillT = 0;
   readonly sprint = new SprintGate();
+  /** Chaos Theory speed gears (3.2.0): kept through stance changes, back to the spawn gear on respawn. Tests can
+   *  start on another gear with `?gear=N`. */
+  readonly gears = new GearState(flags.gear !== null ? clampGear(flags.gear) : undefined);
+  /** Free movement uses the Chaos Theory feel (instant stop / start; `MotionInput.ct`) this step. */
+  ct = false;
+  /**
+   * Chaos Theory stop hold: after an instant stop the body holds the stride it stopped in (`holdSpeed` = the pace it
+   * stopped from, `holdCrouch` = its stance) until the next input: the stick, aiming, a stance change, an override
+   * (cover, traversal, takedown) or leaving the ground. No kneel while it holds.
+   */
+  stopHold = false;
+  holdSpeed = 0;
+  private holdCrouch = false;
+  /** A stick springing back reads as a release from its full deflection (free movement only). */
+  private release = new StickRelease();
   /** Root motion: jerk-limited velocity, gait clock, starts/stops/stepped turns/pivots. */
   readonly motion: MotionDriver;
   /** Kept for callers: mirrors the driver's velocity; `reset` also resets the driver. */
@@ -125,6 +158,11 @@ export class PlayerController {
   landVZ = 0;
   private height: number = MOVEMENT.standHeight;
   private support: CharacterSurfaceInfo | null = null;
+  private readonly settleRay = new PhysicsRaycastResult();
+  private readonly settleFrom = new Vector3();
+  private readonly settleTo = new Vector3();
+  /** Steps that settled the capsule onto the floor (tests). */
+  settles = 0;
   private wish = new Vector3();
   private motionIn = emptyMotionInput();
   private tmp = new Vector3();
@@ -206,6 +244,16 @@ export class PlayerController {
     this.crouchToggled = false;
   }
 
+  /** End a committed move crouched (the Chaos Theory forward roll): the crouch toggle is set. */
+  setCrouchToggle(): void {
+    this.crouchToggled = true;
+  }
+
+  /** Current speed gear (1..6). */
+  get gear(): number {
+    return this.gears.gear;
+  }
+
   /** Current capsule height (crouch-aware). */
   get capsuleHeight(): number {
     return this.height;
@@ -223,6 +271,8 @@ export class PlayerController {
 
   /** Leave the ground with a velocity (letting go of a zipline / a jump off an anchor): gravity takes over. */
   launch(vx: number, vy: number, vz: number): void {
+    // (3.2.0) leaving the floor upwards (a jump): the support check would hold the capsule down for its first steps
+    this.takeoffT = vy > 0.5 ? 0.15 : 0;
     this.cc.setVelocity(this.tmp.set(vx, vy, vz));
     this.airTop = this.pos.y;
     this.grounded = false;
@@ -239,17 +289,63 @@ export class PlayerController {
     this.cc.setVelocity(Vector3.Zero());
     this.vel.reset();
     this.motion.reset(yaw ?? this.yaw);
+    // a fresh stance: the gait clock restarts with the feet (the player resets the foot planner on a teleport)
+    this.motion.phase = 0;
+    this.stopHold = false;
     this.syncFeet();
     this.prevPos.copyFrom(this.pos);
     this.renderPos.copyFrom(this.pos);
     if (yaw !== undefined) this.yaw = this.prevYaw = this.renderYaw = yaw;
+    // a teleport is no fall: no landing (roll / heavy) where it lands
+    this.airTop = feet.y;
+    this.fallSpeed = 0;
+    this.teleports++;
   }
+
+  /** (3.2.0) Seconds left in a jump's take-off (`launch` upwards). */
+  private takeoffT = 0;
+
+  /** Teleports so far (a committed traversal move in flight is dropped by one). */
+  teleports = 0;
 
   private setHeight(h: number): void {
     if (h === this.height) return;
     this.cc.setShapeOptions({ capsuleHeight: h, capsuleRadius: MOVEMENT.radius }, true);
     this.height = h;
     this.applyFilters();
+  }
+
+  /** How far the capsule hangs over the floor beyond its rest gap (0 when it rests, when the floor under its centre
+   *  is out of reach or too steep). Four rays round the rim cap it: resting on a step's edge, it never sinks in. */
+  private settleGap(): number {
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
+    if (!eng) return 0;
+    const c = this.cc.getPosition();
+    const feet = c.y - this.height / 2;
+    const hit = this.floorUnder(eng, c.x, c.y, c.z, feet);
+    if (hit === null) return 0;
+    const ny = this.settleRay.hitNormalWorld.y;
+    if (ny < this.cc.maxSlopeCosine) return 0;
+    // the sphere's lowest point stands off a slope by r (1 / cos - 1) over the point under its centre
+    let gap = feet - hit - SETTLE.rest - MOVEMENT.radius * (1 / ny - 1);
+    if (gap <= SETTLE.tol) return 0;
+    const d = MOVEMENT.radius * SETTLE.rim;
+    for (let k = 0; k < 4; k++) {
+      const ox = k === 0 ? d : k === 1 ? -d : 0;
+      const oz = k === 2 ? d : k === 3 ? -d : 0;
+      const h = this.floorUnder(eng, c.x + ox, c.y, c.z + oz, feet);
+      // the sphere's surface over a rim ray is `RIM_SAG` higher than its lowest point
+      if (h !== null) gap = Math.min(gap, feet + RIM_SAG - h - SETTLE.rest);
+    }
+    return gap > SETTLE.tol ? gap : 0;
+  }
+
+  /** Height of the floor under (x, z) within `SETTLE.reach` of the feet, else null. */
+  private floorUnder(eng: PhysicsEngine, x: number, y: number, z: number, feet: number): number | null {
+    this.settleFrom.set(x, y, z);
+    this.settleTo.set(x, feet - SETTLE.reach, z);
+    eng.raycastToRef(this.settleFrom, this.settleTo, this.settleRay, { membership: G.PLAYER, collideWith: MASK.PLAYER_COLLIDE });
+    return this.settleRay.hasHit ? this.settleRay.hitPointWorld.y : null;
   }
 
   private hasHeadroom(): boolean {
@@ -269,9 +365,13 @@ export class PlayerController {
     this.prevPhase = this.motion.phase;
     this.landT = Math.max(0, this.landT - dt);
     this.steps = !ov ? 'free' : ov.run ? 'crouched' : 'silent';
+    // speed gears step by one per press (kept through stances, cover and traversal)
+    if (input.gearUp) this.gears.step(1);
+    if (input.gearDown) this.gears.step(-1);
 
     // committed kinematic move (vault, mantle, corner swing): exact path, no collision
     if (ov?.kinematic) {
+      this.stopHold = false;
       this.cc.setPosition(ov.kinematic.add(new Vector3(0, this.height / 2 + 0.02, 0)));
       this.cc.setVelocity(Vector3.Zero());
       this.syncFeet();
@@ -291,6 +391,12 @@ export class PlayerController {
     const fz = Math.cos(camYaw);
     let mx = this.frozen ? 0 : input.moveX;
     let my = this.frozen ? 0 : input.moveY;
+    // free movement: a stick springing back is a release from where it was, not a slow-down on the way
+    if (!ov) {
+      this.release.update(mx, my, dt);
+      mx = this.release.x;
+      my = this.release.y;
+    } else this.release.reset();
     const mag = Math.min(1, hyp2(mx, my));
     if (mag < 0.05) mx = my = 0;
     this.wish.set(fz * mx + fx * my, 0, -fx * mx + fz * my);
@@ -346,7 +452,8 @@ export class PlayerController {
           : this.crouched
             ? 'crouch'
             : 'stand';
-    let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz) * this.speedMul * this.stanceMul);
+    // free movement: the speed gear's cap x the stick (cover moves keep their own paces)
+    let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz, T, ov ? undefined : this.gears.gear) * this.speedMul * this.stanceMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
@@ -370,7 +477,23 @@ export class PlayerController {
     // override's yaw (cover) or the aim
     mi.faceTravel = !aiming && !ov?.velocity && ov?.yaw === undefined;
     mi.yaw = ov?.yaw ?? camYaw;
+    // Chaos Theory feel on free movement only: cover glides / moves and cover-to-cover runs keep their tuning
+    this.ct = mi.ct = !ov;
+    // the character controller follows the driver's velocity within a step (Chaos Theory stops and starts land on
+    // the step; the 2.x moves are jerk-limited well inside the usual cap anyway)
+    this.cc.maxAcceleration = this.ct ? CT_MAX_ACCEL : 80;
+    const wasMoving = this.motion.state === 'move';
+    const spBefore = this.motion.speed;
     if (this.grounded) this.motion.step(dt, mi, ov?.velocity && !ov.run ? (ov.glide ? GLIDE_MOTION : COVER_MOTION) : T);
+    // an instant stop (any pace, any stance) holds the stride; the next input lets it go: a stick that moves the
+    // operator again, aiming, a stance change, an override or leaving the ground
+    if (this.ct && this.grounded && wasMoving && this.motion.state === 'idle' && spBefore > 0.02) {
+      this.stopHold = true;
+      this.holdSpeed = spBefore;
+      this.holdCrouch = this.crouched;
+    }
+    const moving = hyp2(tx, tz) > 0.05;
+    if (this.stopHold && (moving || !this.ct || !this.grounded || aiming || this.crouched !== this.holdCrouch)) this.stopHold = false;
     this.vel.x = this.motion.vx;
     this.vel.z = this.motion.vz;
     const desired = this.tmp.set(this.motion.outX, 0, this.motion.outZ);
@@ -380,7 +503,9 @@ export class PlayerController {
     // Havok character controller step
     const support = (this.support = this.cc.checkSupport(dt, DOWN));
     const cur = this.cc.getVelocity();
-    const grounded = support.supportedState === CharacterSupportedState.SUPPORTED;
+    // (a jump's first steps never count as supported while it still rises)
+    this.takeoffT = Math.max(0, this.takeoffT - dt);
+    const grounded = support.supportedState === CharacterSupportedState.SUPPORTED && !(this.takeoffT > 0 && cur.y > 0.2);
     let out: Vector3;
     if (grounded) {
       out = this.cc.calculateMovement(dt, this.forwardVec(), support.averageSurfaceNormal, cur, support.averageSurfaceVelocity, desired, UP);
@@ -396,6 +521,14 @@ export class PlayerController {
       out.addInPlace(support.averageSurfaceVelocity);
       // Small stick force keeps the capsule in contact (no hovering within contact tolerance).
       out.subtractInPlace(support.averageSurfaceNormal.scale(PlayerController.stickForce));
+      // a capsule held up within the support range (after a fall, off a curb) comes down onto the floor
+      const gap = this.settleGap();
+      if (gap > 0) {
+        const c = this.cc.getPosition();
+        this.settleFrom.set(c.x, c.y - gap, c.z);
+        this.cc.setPosition(this.settleFrom);
+        this.settles++;
+      }
       if (!this.grounded) {
         // controlled landing: recovery scales with the fall; a long fall is a heavy landing (a roll is played
         // by the traversal controller from `lastLanding`)
@@ -440,7 +573,7 @@ export class PlayerController {
     // kneel: crouched and still for a moment
     // (stick idle and barely moving: small standoff corrections in cover do not count as moving)
     this.stillT = this.crouched && mag < 0.1 && this.speed < 0.4 ? this.stillT + dt : 0;
-    this.kneeling = this.stillT > 0.25;
+    this.kneeling = this.stillT > 0.25 && !this.stopHold;
     this.updateStance(dt);
   }
 

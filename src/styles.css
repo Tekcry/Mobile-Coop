@@ -1976,10 +1976,8 @@ body {
   bottom: auto;
   top: 14px;
 }
-/* by touch the prompt is the button: a bigger hit area, the icon instead of a glyph */
-.input-touch .wp.show {
-  pointer-events: auto;
-}
+/* by touch the prompt is an indicator with the icon instead of a glyph (3.2.0: the action button does it; touches
+   go through to the controls below) */
 .input-touch .wp-touch {
   display: flex;
 }
@@ -3429,6 +3427,76 @@ body.photo-mode .screens > .screen:not(.photo-screen) {
 }
 .photo-review .photo-btn {
   background: rgba(0, 0, 0, 0.8);
+}
+
+/* ---------- 3.2.0 Chaos Theory speed gears ---------- */
+/* HUD pips by the tactical strip: shown after a gear change, then fade */
+.tac-gear {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+.tac-gear.show {
+  opacity: 1;
+  transition: opacity 0.1s;
+}
+.tac-gear span {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+.tac-gear i {
+  width: 5px;
+  height: 8px;
+  border-radius: 1px;
+  background: rgba(255, 255, 255, 0.18);
+}
+.tac-gear i.on {
+  background: var(--accent);
+}
+/* touch speed rocker: a tall pill, up half / six pips / down half */
+.tc-speed {
+  border-radius: 999px;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 4px 0;
+  box-sizing: border-box;
+}
+.tc-speed.active {
+  background: rgba(20, 26, 36, 0.55);
+  transform: translate(-50%, -50%);
+}
+.tc-sp-up,
+.tc-sp-down {
+  flex: 1;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tc-speed.active .tc-sp-up:active,
+.tc-speed.active .tc-sp-down:active {
+  color: var(--accent);
+}
+.tc-sp-pips {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+}
+.tc-sp-pips i {
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.25);
+}
+.tc-sp-pips i.on {
+  background: var(--accent);
+}
+.le-handle.tc-speed {
+  border-radius: 999px;
 }
 
 /* 3.1.4 benchmark run tag: over the flight (photo mode) and the loading screen */

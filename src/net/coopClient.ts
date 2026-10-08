@@ -8,15 +8,20 @@ import { BODY } from '../ai/bodies';
 import type { HitInfo } from '../game/damage';
 import { Interactables, type Interactable } from '../game/interactables';
 import type { NetSession } from './session';
-import { isPvp, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine } from './protocol';
+import { isPvp, PF, type EndStats, type Msg, type NetEvent, type NetItem, type PlayerState, type ScoreLine, wirePlayerState } from './protocol';
 import { ClockSync } from './interp';
 import { RemoteAvatar } from './remoteAvatar';
 import { EnemyPuppet } from './enemyPuppet';
 import { PvpTarget } from './pvpTarget';
+import { PvpVictim } from './pvpVictim';
+import type { TeamMate } from '../game/teamController';
+import type { TeamKind } from '../game/teamMoves';
 import { pvpInfo, type PvpMode } from './pvp';
 import { clampEnd, coopSessionStats } from './validate';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
+import { localMoveState } from '../game/localMoveState';
+import { emptyMoveState, moveChanged } from '../player/moveState';
 
 const SEND_HZ = 20;
 const INTERP_DELAY = 0.12;
@@ -65,7 +70,7 @@ export class CoopClient implements NetAttachment {
     g.gadgets.onLocal = (kind, at) => {
       if (kind === 'gas' || kind === 'flash' || kind === 'emp' || kind === 'noise') s.toHost({ t: 'gadget', kind, x: at.x, y: at.y, z: at.z });
     };
-    g.takedownVictims = () => this.puppetList;
+    g.takedownVictims = () => (this.pvp ? this.pvpVictimList() : this.puppetList);
     if (!this.pvp && g.opts.mode !== 'sandbox') {
       this.ints = new Interactables(g.scene, g.world.parts);
       (g as { interactables: Interactables | null }).interactables = this.ints;
@@ -89,7 +94,37 @@ export class CoopClient implements NetAttachment {
       case 'end':
         this.onEndMsg(msg.stats);
         break;
+      // (3.2.0 phase 5) team moves the host started / refused / ended for this player
+      case 'tstart':
+        if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.begin(msg, this.s.selfId);
+        break;
+      case 'tdeny':
+        if (msg.a === this.s.selfId) this.g.team.denied(msg.reason);
+        break;
+      case 'tend':
+        if (msg.a === this.s.selfId || msg.b === this.s.selfId) this.g.team.ended();
+        break;
     }
+  }
+
+  /** (3.2.0 phase 5) Team-mates for team moves (co-op: every other player; TDM: the same side). */
+  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number): void {
+    this.s.toHost({ t: 'tmove', kind, partner, target, s: ss, gy });
+  }
+
+  teamEnd(): void {
+    this.s.toHost({ t: 'tmove', kind: 'end', partner: '', target: -1, s: 0, gy: 0 });
+  }
+
+  private mateOut: TeamMate[] = [];
+  teamMates(): readonly TeamMate[] {
+    const out = this.mateOut;
+    out.length = 0;
+    for (const [id, a] of this.avatars) {
+      if (a.dead || this.hostile(id)) continue;
+      out.push({ id, pos: a.pos, yaw: a.yaw, mode: a.mode });
+    }
+    return out;
   }
 
   /** Opponent in this match? (PvP: free-for-all everyone, team deathmatch the other side) */
@@ -118,7 +153,24 @@ export class CoopClient implements NetAttachment {
     return a;
   }
 
+  /** (3.2.0) PvP: opponents as takedown victims (the end is a kill the host checks). */
+  private pvpVictims = new Map<string, PvpVictim>();
+  private pvpVictimOut: PvpVictim[] = [];
+  private pvpVictimList(): readonly PvpVictim[] {
+    const out = this.pvpVictimOut;
+    out.length = 0;
+    for (const id of this.targets.keys()) {
+      const a = this.avatars.get(id);
+      if (!a) continue;
+      let v = this.pvpVictims.get(id);
+      if (!v) this.pvpVictims.set(id, (v = new PvpVictim(id, a, (target, kind) => this.s.toHost({ t: 'ptd', target, kind: kind as 'drop' | 'below' | 'inverted' }))));
+      out.push(v.sync());
+    }
+    return out;
+  }
+
   private dropAvatar(id: string): void {
+    this.pvpVictims.delete(id);
     this.avatars.get(id)?.dispose();
     this.avatars.delete(id);
     this.targets.get(id)?.dispose();
@@ -400,14 +452,19 @@ export class CoopClient implements NetAttachment {
   fixedUpdate(dt: number): void {
     this.time += dt;
     this.sendT -= dt;
-    if (this.sendT > 0) return;
+    // the movement state: a new mode or sub-state (cover, a ladder, a vault) goes out at once, not on the next tick
+    const mv = localMoveState(this.g, this.mvNow);
+    const changed = moveChanged(this.mvSent, mv);
+    if (this.sendT > 0 && !changed) return;
     this.sendT = 1 / SEND_HZ;
+    Object.assign(this.mvSent, mv);
+    this.mvSent.c = mv.c ? { ...mv.c } : undefined;
     const g = this.g;
     const p = g.player;
     const c = p.controller;
     this.s.toHost({
       t: 'pstate',
-      s: {
+      s: wirePlayerState({
         id: this.s.selfId,
         x: p.position.x,
         y: p.position.y,
@@ -419,9 +476,14 @@ export class CoopClient implements NetAttachment {
         w: g.weapons.current.def.id,
         hp: g.target.health.hp,
         sh: g.target.health.shield,
-      },
+        mv,
+      }),
     });
   }
+
+  /** The movement state this step and the last one sent (change detection). */
+  private mvNow = emptyMoveState();
+  private mvSent = emptyMoveState();
 
   frameUpdate(dt: number): void {
     const t = this.renderTime;

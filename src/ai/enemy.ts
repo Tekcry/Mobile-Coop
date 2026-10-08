@@ -15,6 +15,7 @@ import { coverPose, nearestEdge, type CoverSegment } from '../cover/coverData';
 import { coverQuality, flanks, type CoverSpot } from '../game/tactics';
 import { DIFFICULTY, type Difficulty, type EnemyDef } from './enemyDefs';
 import { G, MASK } from '../physics/groups';
+import { GRAB } from '../game/takedown';
 import { spreadDir } from '../weapons/ballistics';
 import { sampleSpread } from '../weapons/weaponStats';
 import { wrapAngle } from '../player/playerController';
@@ -54,6 +55,9 @@ export interface PlayerRef {
   /** Seen by a guard in combat this alert: those guards know this player is there (no takedowns on them). Cleared
    *  when no guard is in combat any more. Each player separately (co-op). */
   spotted?: boolean;
+  /** (3.2.0) A hostage held in front as a human shield: guards hold fire a moment, then aim at the head only, and
+   *  their shots hit the hostage first. */
+  shield?: Damageable | null;
 }
 
 export interface AiContext {
@@ -346,20 +350,39 @@ export class Enemy implements Damageable {
     this.rig.emoteTime = 0;
   }
 
+  /** (3.2.0) Held as a hostage: upright against the operator's chest, head back, hands up at the arm round the neck. */
+  holdAsHostage(): void {
+    this.rig.emote = (_r, t) => {
+      const k = Math.min(1, t * 5);
+      const w = Math.sin(t * 11) * 0.06 * k;
+      return { neck: [-0.3 * k, w, 0], chest: [-0.08 * k, 0, 0], shoulderL: [-1.5 * k, 0, -0.35 * k + w], shoulderR: [-1.5 * k, 0, 0.35 * k - w], elbowL: [0, 0, -1.9 * k], elbowR: [0, 0, 1.9 * k] };
+    };
+    this.rig.emoteTime = 0;
+  }
+
+  /** (3.2.0) Held as a hostage: not solid to the operator's body (bullets still hit). */
+  setSolid(on: boolean): void {
+    this.hitboxes.setSolid(on);
+  }
+
   /** Place the seized body (fixed step). */
   holdAt(x: number, y: number, z: number, yaw: number): void {
     this.pos.set(x, y, z);
     this.yaw = yaw;
   }
 
-  /** Let go (an interrupted takedown): staggered, and very much aware now. */
-  releaseTakedown(): void {
+  /** Let go (an interrupted takedown): staggered (`stagger` s; a shove: longer), and very much aware now. */
+  releaseTakedown(stagger = 0.6): void {
     if (!this.taken) return;
     this.taken = false;
+    this.hitboxes.setSolid(true);
     this.rig.emote = null;
-    this.stagger = 0.6;
+    this.stagger = stagger;
     this.alert();
   }
+
+  /** (3.2.0) Seconds this guard has seen its target holding a hostage (the hesitation before aimed fire). */
+  private shieldT = 0;
 
   /** The target was in line of sight (any body sample) at the last think. */
   get inSight(): boolean {
@@ -609,7 +632,7 @@ export class Enemy implements Damageable {
   }
 
   applyDamage(h: HitInfo): DamageResult {
-    if (!this.alive || h.attackerTeam === 'enemy') return { dealt: 0, killed: false };
+    if (!this.alive || (h.attackerTeam === 'enemy' && !h.shieldHit)) return { dealt: 0, killed: false };
     // a sleep bolt: down at once, knocked out
     if (h.nonLethal) {
       const hp = this.health.hp;
@@ -1394,6 +1417,11 @@ export class Enemy implements Damageable {
       this.windup = 0;
       return;
     }
+    // (3.2.0) a human shield in sight: hold fire a moment, then only aimed shots (at the exposed head)
+    if (t.shield) {
+      this.shieldT += dt;
+      if (this.shieldT < GRAB.hesitate || mode !== 'aim') return;
+    } else this.shieldT = 0;
     if (this.burstLeft <= 0) {
       this.pauseT -= dt;
       if (this.pauseT > 0) return;
@@ -1422,7 +1450,7 @@ export class Enemy implements Damageable {
     origin.z += Math.cos(this.yaw) * 0.45 - Math.sin(this.yaw) * 0.18;
     // blind fire comes over / around the cover; suppressive and blind fire go at the last known spot
     if (mode === 'blind') origin.y = Math.max(origin.y, this.pos.y + 1.25);
-    const aim = mode === 'aim' ? (this.losHead && t.target.headPoint ? t.target.headPoint(new Vector3()) : t.target.aimPoint(new Vector3())) : this.lastKnown.clone();
+    const aim = mode === 'aim' ? ((this.losHead || t.shield) && t.target.headPoint ? t.target.headPoint(new Vector3()) : t.target.aimPoint(new Vector3())) : this.lastKnown.clone();
     const dir = aim.subtract(origin).normalize();
     // accuracy: settles in over the first second of sight, worse against moving/rolling targets
     const settle = Math.min(1, 0.45 + (this.losT * 0.55) / DIFFICULTY[this.ctx.difficulty].reaction);
@@ -1433,7 +1461,8 @@ export class Enemy implements Damageable {
     const off = sampleSpread(spread, Math.random(), Math.random());
     spreadDir(dir, off.x, off.y, dir);
     const end = origin.add(dir.scale(w.range));
-    const h = this.ctx.ballistics.ray(origin, end, MASK.ENEMY_SHOT);
+    // (3.2.0) shooting at a player holding a hostage: the hostage's hit volumes are in the way
+    const h = this.ctx.ballistics.ray(origin, end, t.shield ? MASK.ENEMY_SHOT | G.ENEMY_HITBOX : MASK.ENEMY_SHOT);
     this.ctx.vfx.tracer(origin, h.point, w.tracer, 0.02);
     this.ctx.vfx.muzzleFlash(origin, this.def.kind === 'heavy' ? 0.3 : 0.2);
     this.kick = 1;
@@ -1441,7 +1470,9 @@ export class Enemy implements Damageable {
     for (const p of this.ctx.players()) p.suppress?.(origin, h.point, h.target === p.target);
     if (!h.hit) return;
     this.ctx.ballistics.impactFx(h, dir);
-    if (h.target && h.target.team === 'player') {
+    if (h.target && h.target === t.shield) {
+      h.target.applyDamage({ amount: w.damage * d.damage, point: h.point, dir, part: h.part ?? 'body', kind: 'bullet', attackerTeam: 'enemy', attackerId: this.id, sourcePos: origin, impulse: 1, shieldHit: true });
+    } else if (h.target && h.target.team === 'player') {
       h.target.applyDamage({
         amount: w.damage * d.damage,
         point: h.point,

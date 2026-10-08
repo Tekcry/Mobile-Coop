@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { applyAxisDeadzone, applyCurve, applyRadialDeadzone } from '../src/input/stickMath';
-import { detectPadStyle, mapPad, PAD, type PadTuning } from '../src/input/gamepadMapping';
+import { detectPadStyle, mapPad, PAD, TapHold, type PadTuning } from '../src/input/gamepadMapping';
+import { WHEEL_HOLD } from '../src/input/inputState';
 import { InputState } from '../src/input/inputState';
 import { NavRepeater } from '../src/input/navRepeat';
 
@@ -51,11 +52,27 @@ describe('gamepad mapping', () => {
     expect(f.buttons.pause).toBe(true);
     expect(f.buttons.fire).toBeUndefined();
   });
-  it('B is crouch in game and back in menus; Y traverse + interact; d-pad gadget, wheel, ping and emote', () => {
-    const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.DOWN]: 1, [PAD.LEFT]: 1 }), tuning);
+  it('B is crouch in game and back in menus; Y traverse + interact; d-pad speed gears, gadget and wheel (3.2.0)', () => {
+    const f = mapPad(snap({ [PAD.B]: 1, [PAD.Y]: 1, [PAD.UP]: 1, [PAD.DOWN]: 1, [PAD.LEFT]: 1, [PAD.RIGHT]: 1 }), tuning);
     expect(f.buttons.crouch && f.buttons.uiBack && f.buttons.interact && f.buttons.jump).toBe(true);
     expect(f.buttons.cover).toBeUndefined();
-    expect(f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.ping && !f.buttons.quick4 && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
+    expect(f.buttons.speedUp && f.buttons.speedDown && f.buttons.grenade && f.buttons.gadgetWheel && f.buttons.uiUp && f.buttons.uiLeft).toBe(true);
+    // ping (D-pad left tap) and the emote (View hold) come from the source's tap / hold, not the raw mapping
+    expect(f.buttons.ping || f.buttons.quick2 || f.buttons.quick4).toBeFalsy();
+    expect(mapPad(snap({ [PAD.SELECT]: 1 }), tuning).buttons.vision).toBe(true);
+  });
+  it('tap / hold: a release before the hold time is a tap, a hold fires once per press', () => {
+    const t = new TapHold(0.15);
+    expect(t.update(true, 0)).toBeNull();
+    expect(t.update(true, 0.1)).toBeNull();
+    expect(t.update(false, 0.12)).toBe('tap');
+    expect(t.update(false, 0.2)).toBeNull();
+    expect(t.update(true, 1)).toBeNull();
+    expect(t.update(true, 1.2)).toBe('hold');
+    expect(t.update(true, 1.5)).toBeNull();
+    expect(t.update(false, 1.6)).toBeNull();
+    // the wheel hold is the D-pad left's tap window; the View hold is the swap hold
+    expect(WHEEL_HOLD).toBeCloseTo(0.15);
   });
   it('triggers: RT fires, LT aims, respecting dead zone', () => {
     expect(mapPad(snap({ [PAD.RT]: 0.9, [PAD.LT]: 0.9 }), tuning).buttons).toMatchObject({ fire: true, ads: true });

@@ -35,6 +35,9 @@ export interface RigPose {
   /** Momentary kick from firing 0..1. */
   kick: number;
   aimYaw?: number;
+  /** (3.2.0) A raised weapon's world aim (yaw, pitch + up), not tumbled with the body: aiming hanging inverted. */
+  aimWorldYaw?: number;
+  aimWorldPitch?: number;
   /** Head-only glance towards where the camera looks (rad, yaw right-positive / pitch up), lowered: the
    *  gun, arms and spine stay put while the view orbits. */
   lookYaw?: number;
@@ -78,6 +81,8 @@ export interface RigPose {
   traverse?: TraverseKind;
   traverseT?: number;
   melee?: number;
+  /** (3.2.0) Whole-body tumble about the hips (rad): hanging legs up / inverted on a pipe. */
+  tumble?: number;
   /** Doorway check sweep 0..1, or < 0. */
   check?: number;
   /** Reload is the empty one (charging handle). */
@@ -92,6 +97,10 @@ export interface RigPose {
   phase?: number;
   motion?: MotionState;
   motionT?: number;
+  /** Chaos Theory instant stop (3.2.0): blend to idle over this (s), a swing left from moving lands within it. */
+  quickStop?: number;
+  /** Chaos Theory stop hold (3.2.0): the pace the held stride stopped from (0 / absent = none). */
+  holdSpeed?: number;
   accelFwd?: number;
   accelSide?: number;
   velX?: number;
@@ -337,6 +346,13 @@ export class CharacterRig {
   lift = 0;
   /** Hiding curl 0..1 (back over the knees, head tucked). */
   curl = 0;
+  /** (3.2.0) World aim of a raised weapon (`RigPose.aimWorldYaw`), null when body-relative. */
+  private aimWorldYaw: number | null = null;
+  private aimWorldPitch = 0;
+  /** (3.2.0) A curl set from outside (a co-op / PvP remote: the owner's own curl), else null (measured here). */
+  curlHold: number | null = null;
+  /** (3.2.0) A low-cover lift set from outside (a remote: the owner's), else null (height control here). */
+  liftHold: number | null = null;
   /** Head-only glance (see `RigPose.lookYaw`). */
   private lookYaw = 0;
   private lookPitch = 0;
@@ -374,6 +390,8 @@ export class CharacterRig {
   groundProbe: ((x: number, z: number, yFrom: number) => number | null) | null = null;
   /** World-space foot placement (contacts, locking, swing arcs, idle stepping). */
   readonly planner = new FootPlanner();
+  /** (3.2.0) Pinned feet (world x / z, left then right; NaN = free): a remote's feet on the owner's (`FootPlanner`). */
+  readonly footPins = [NaN, NaN, NaN, NaN];
   private pin = emptyPlannerInput();
   private prevRootX = 0;
   private prevRootZ = 0;
@@ -856,6 +874,8 @@ export class CharacterRig {
     i.raise = s.aim;
     i.kick = s.kick;
     i.aimYaw = s.aimYaw ?? 0;
+    this.aimWorldYaw = s.aimWorldYaw ?? null;
+    this.aimWorldPitch = s.aimWorldPitch ?? 0;
     this.lookYaw = s.lookYaw ?? 0;
     this.lookPitch = s.lookPitch ?? 0;
     const cr = s.carry;
@@ -884,10 +904,13 @@ export class CharacterRig {
     i.traverse = s.traverse ?? 'none';
     i.traverseT = s.traverseT ?? 0;
     i.melee = s.melee ?? -1;
+    i.tumble = s.tumble ?? 0;
     i.check = s.check ?? -1;
     i.phase = s.phase ?? -1;
     i.motion = s.motion ?? '';
     i.motionT = s.motionT ?? 0;
+    i.quickStop = s.quickStop ?? 0;
+    i.holdSpeed = s.holdSpeed ?? 0;
     i.accelFwd = s.accelFwd ?? 0;
     i.accelSide = s.accelSide ?? 0;
     i.intent = s.intent ?? 0;
@@ -958,6 +981,12 @@ export class CharacterRig {
     pin.restX = s.restX ?? 0;
     pin.restZ = s.restZ ?? 0;
     pin.reach = (this.p.thigh.len + this.p.calf.len) * 0.62;
+    pin.quickStop = s.quickStop ?? 0;
+    pin.hold = (s.holdSpeed ?? 0) > 0;
+    pin.pinLX = this.footPins[0]!;
+    pin.pinLZ = this.footPins[1]!;
+    pin.pinRX = this.footPins[2]!;
+    pin.pinRZ = this.footPins[3]!;
     const free = !i.grounded || i.traverse !== 'none';
     pin.ground = free ? null : this.groundProbe;
     // airborne / traversing: the planner restarts from the clip pose when the feet are back down
@@ -1004,7 +1033,7 @@ export class CharacterRig {
       // curl the back (and sink a little) until the head is under the top; very low cover can leave the
       // head showing rather than fold the legs into the floor
       const err = top - (this.coverTop - HIDE_MARGIN);
-      curl = Math.max(0, Math.min(1, this.curl + err / (CURL_DROP + HIDE_DROP)));
+      curl = this.curlHold ?? Math.max(0, Math.min(1, this.curl + err / (CURL_DROP + HIDE_DROP)));
       want = -HIDE_DROP * curl;
       tau = 0.1;
     } else if (this.coverMode === 'over') {
@@ -1015,7 +1044,7 @@ export class CharacterRig {
       tau = 0.07;
       this.overClear = eye >= this.coverTop + OVER_EYE - 0.04;
     }
-    want = Math.max(-HIDE_DROP, Math.min(LIFT_RISE, want));
+    want = Math.max(-HIDE_DROP, Math.min(LIFT_RISE, this.liftHold ?? want));
     this.lift += (want - this.lift) * (1 - Math.exp(-dt / tau));
     this.curl += (curl - this.curl) * (1 - Math.exp(-dt / 0.1));
   }
@@ -1200,6 +1229,9 @@ export class CharacterRig {
       need = Math.max(need, hipY - footY - reachV);
     }
     need = Math.max(0, Math.min(0.4, need));
+    // (3.2.0) turned over on a pipe (legs up / inverted) "down" is not the floor: no drop for the feet's reach
+    const turned = Math.abs(this.input.tumble) > 0.3;
+    if (turned) need = 0;
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, 0.08);
     this.hips.position.set(pe.x, this.pelvisRest + pe.y + this.lift - this.pelvisDrop, pe.z);
     Quaternion.RotationYawPitchRollToRef(pe.yaw, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
@@ -1223,7 +1255,7 @@ export class CharacterRig {
     // anatomy: a knee never sinks into the floor (deep kneel, hiding curl): lift the pelvis and solve again
     const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
-    if (kneeY < floorY - 0.002) {
+    if (kneeY < floorY - 0.002 && !turned) {
       this.hips.position.y += floorY - kneeY;
       fresh(this.hips);
       fresh(this.spine);
@@ -1279,6 +1311,11 @@ export class CharacterRig {
     const aimPitch = this.input.aimPitch * (0.35 + 0.65 * t.aimW);
     Quaternion.RotationYawPitchRollToRef(aimYaw + w.yaw * mirror, -aimPitch + w.pitch, w.roll * mirror, tmpQ);
     if (Math.abs(t.tumble) > 1e-3) tmpQ.multiplyToRef(this.body.rotationQuaternion!, tmpQ);
+    // (3.2.0) upside down the raised weapon aims in world space
+    if (this.aimWorldYaw !== null && t.aimW > 0) {
+      Quaternion.RotationYawPitchRollToRef(this.aimWorldYaw, -this.aimWorldPitch, 0, tmpQ3);
+      Quaternion.SlerpToRef(tmpQ, tmpQ3, t.aimW, tmpQ);
+    }
     // the weapon has mass: its world orientation follows the target through a short, mass-scaled lag
     if (!this.aimQ) this.aimQ = tmpQ.clone();
     else Quaternion.SlerpToRef(this.aimQ, tmpQ, 1 - Math.exp(-dt / (0.035 * Math.max(0.6, this.input.weight))), this.aimQ);

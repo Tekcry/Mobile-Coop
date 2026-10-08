@@ -31,6 +31,8 @@ export interface Flags {
   detect: boolean;
   /** Tests: the GPU name detection sees (`?renderer=Apple%20GPU`). */
   renderer: string | null;
+  /** Tests: the speed gear at spawn and respawn (`?gear=1..6`; else the default, 3). */
+  gear: number | null;
 }
 
 function readParams(): URLSearchParams {
@@ -62,4 +64,5 @@ export const flags: Flags = {
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
   detect: params.get('detect') === '1',
   renderer: params.get('renderer')?.slice(0, 96) ?? null,
+  gear: /^[1-6]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
 };

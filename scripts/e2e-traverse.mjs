@@ -458,7 +458,7 @@ try {
   assert(i.attached && i.kind === 'ladder', 'keyboard E climbs onto the ladder');
   await runOff(8, 0, -1);
 
-  // --- touch: tapping the world prompt grabs the ledge
+  // --- touch: the prompt shows the grab, the action button does it (3.2.0)
   // a touch player: no pad (the layer switches to touch)
   await page.evaluate(() => { window.__pad.disconnect(); });
   await tp(25.45, 0, 16, Math.PI / 2);
@@ -478,26 +478,38 @@ try {
     return false;
   };
   const attachedNow = () => page.evaluate(() => window.__tr.st().traversal.attachCtl.active);
-  assert(await tapPrompt('.wp-vault.show .wp-body', attachedNow), 'touch: tapping the grab prompt grabs the ledge');
+  await page.touchscreen.tap(640, 60);
+  await frames(page, 4);
+  assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'touch: the grab prompt shows on the ledge');
+  // (a cover face there too: the stick pushed at the wall picks the grab, standing still would take cover)
+  await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 1));
+  await frames(page, 4);
+  assert(await tapPrompt('.tc-action', attachedNow), 'touch: the action button grabs the ledge (stick pushed at it)');
+  await page.evaluate(() => window.__app.input.state.setMove('touch-test', 0, 0));
   i = await I();
   assert(i.kind === 'ledge', 'touch: hanging from the ledge');
-  assert(await tapPrompt('.wp-drop.show .wp-body', async () => !(await attachedNow())), 'touch: tapping the drop prompt lets go');
+  assert(await tapPrompt('.tc-crouch', async () => !(await attachedNow())), 'touch: the crouch button lets go');
   i = await I();
-  assert(!i.attached, 'touch: tapping drop lets go');
+  assert(!i.attached, 'touch: crouch lets go');
 
   // --- a grate kicked in: quick and loud (fresh match, so the grate is closed again)
   await page.reload();
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
+  // (3.2.2: the match exists only once its shaders are compiled on the loading screen)
+  await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 });
   await frames(page, 5);
   await setup();
   await page.evaluate(() => window.__pad.connect());
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);
-  // touch: holding the vent prompt unscrews (progress shows), letting go early stops it
-  await page.evaluate(() => { window.__app.loop.manual = false; });
+  // touch: holding the action button at the vent prompt unscrews (progress shows), letting go early stops it
+  await page.evaluate(() => { window.__app.loop.manual = false; window.__pad.disconnect(); });
   await frames(page, 6);
-  const vb = await page.evaluate(() => { const r = document.querySelector('.wp-vault.show .wp-body')?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; });
-  assert(!!vb, 'touch: the vent prompt is on screen');
+  assert(await page.evaluate(() => !!document.querySelector('.wp-vault.show')), 'touch: the vent prompt is on screen');
+  // (a touch anywhere switches to the touch layer)
+  await page.touchscreen.tap(640, 60);
+  await frames(page, 4);
+  const vb = await page.evaluate(() => { const r = document.querySelector('.tc-action')?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; });
   await touch(page, 'touchStart', [{ x: vb.x, y: vb.y, id: 7 }]);
   let held = -1;
   for (let k = 0; k < 40 && held < 0.2; k++) {
@@ -507,7 +519,7 @@ try {
   await touch(page, 'touchEnd', []);
   await frames(page, 4);
   const after = await page.evaluate(() => ({ vent: window.__tr.st().traversal.attachCtl.vent, open: window.__tr.st().world.breakables.isOpen(`grate:${window.__tr.st().world.level.anchors.ducts[0].id}:entry`) }));
-  assert(held > 0.15 && !after.vent && !after.open, `touch: holding the vent prompt unscrews (${f2(held)}), letting go early stops it`);
+  assert(held > 0.15 && !after.vent && !after.open, `touch: holding the action button at a vent unscrews (${f2(held)}), letting go early stops it`);
   await page.evaluate(() => { window.__app.loop.manual = true; window.__pad.connect(); });
   await tp(21.75, 3.2, -5, Math.PI / 2);
   await run(0.4);

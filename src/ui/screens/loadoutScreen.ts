@@ -464,7 +464,7 @@ export class LoadoutScreen extends Screen {
           { key: 'gadget', label: 'Gadget', value: GADGETS[gadget]?.name ?? '', go: true, detail: () => this.gadgetDetail(gadget), act: { label: 'Change gadget', run: () => this.open(this.gadgetsPage()) } },
           { key: 'suit', group: 'OPERATOR', label: 'Suit', value: SUIT[ 'vest'][s.suit.worn.vest]!.name, go: true, detail: () => this.suitDetail(s.suit.worn), act: { label: 'Open suit', run: () => this.open(this.suitPage()) } },
           { key: 'look', label: 'Appearance', go: true, detail: () => this.panel('APPEARANCE', this.note('Build, head, hair, outfit, headgear, backpack, pattern and colours. Locked parts preview on the operator.')), act: { label: 'Open appearance', run: () => this.open(this.lookPage()) } },
-          { key: 'tag', label: 'Tag & emotes', value: s.profile.name, go: true, detail: () => this.panel('TAG & EMOTES', this.note('Callsign, title, emblem and colour; emote slots for the d-pad.')), act: { label: 'Open tag & emotes', run: () => this.open(this.tagPage()) } },
+          { key: 'tag', label: 'Tag & emotes', value: s.profile.name, go: true, detail: () => this.panel('TAG & EMOTES', this.note('Callsign, title, emblem and colour; emote slots (View held, J / K / L).')), act: { label: 'Open tag & emotes', run: () => this.open(this.tagPage()) } },
           { key: 'hq', group: 'SBD-NET', label: 'HQ upgrades', value: `${hqLv}/${hqMax}`, go: true, detail: () => this.panel('HQ', this.note('Radar, sonar, Execute capacity, supply drops and field medic training.')), act: { label: 'Open HQ', run: () => this.open(this.hqPage()) } },
           { key: 'challenges', label: 'Challenges', value: `${s.challenges.done.length}/${CHALLENGES.length}`, go: true, detail: () => this.panel('CHALLENGES', this.note('Finish them in any mode for credits and XP.')), act: { label: 'Open challenges', run: () => this.open(this.challengesPage()) } },
         ];
@@ -938,7 +938,8 @@ export class LoadoutScreen extends Screen {
     // emotes: four slots; picking one plays it on the operator
     const owned = EMOTES.filter((e) => owns(s, `emote:${e.id}`));
     const opts = [{ value: '', label: 'Empty' }, ...owned.map((e) => ({ value: e.id, label: e.name }))];
-    const slots = ['D-pad right', 'D-pad down', 'D-pad left', 'Menu only'];
+    // (3.2.0: the d-pad is the speed gear, gadget and wheel; slot 1 is View held, every slot has a key)
+    const slots = ['View hold · J', 'K', 'L', 'Menu only'];
     const emoteRows = slots.map((label, i) => {
       const c = choice(`${i + 1} · ${label}`, opts, () => this.s().emotes[i] ?? '', (v) => {
         this.save((d) => void (d.emotes[i] = v));

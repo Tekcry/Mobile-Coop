@@ -132,6 +132,150 @@
 - Bounce light: the lamp circuits are mixed into one texture whenever a circuit changes (switch, shot, EMP), so a
   pixel takes one GI sample instead of one per circuit (9 in the Warehouse).
 
+## 3.2.0-ct - Chaos Theory movement (ct-movement branch)
+Phase 0 - speed gears, instant stop, roll:
+- Speed gears: six paces, stepped one at a time (controller D-pad up / down, mouse wheel or = / - on PC, the new speed
+  rocker on touch). Crouched 0.5 / 0.9 / 1.3 / 1.8 / 2.3 / 2.8 m/s, standing 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0 m/s;
+  the stick scales the gear's pace, a keyboard or a stick at its rim gives the full pace. Every spawn and respawn
+  starts in gear 3; crouching and standing keep the gear. Sprint is gear 6 standing while it lasts; aiming is still
+  capped at the aim pace. The HUD shows SPD pips by the light meter for 1.5 s after a change; the touch rocker shows
+  them all the time.
+- Footstep noise: crouched gears 1-4 and standing gears 1-2 are silent; faster gears are heard further.
+- Chaos Theory feel on free movement: letting go of the stick stops the operator dead on the next step (the feet
+  stay planted), starts reach full pace within 0.08 s, direction and gear changes
+  take effect at once, no planted pivots, the body turns at up to 720 deg/s. Cover, cover-to-cover, traversal and
+  the guards move as before (the guards' tuning is now pinned by a test).
+- Stopping holds the exact stride you stopped in (a foot in the air sets straight down) until the next input - the
+  stick, aiming, a stance change, cover or a climb - from any pace, crouched (no automatic kneel) or out of a sprint.
+  A controller stick springing back counts as letting go from the full pace (it no longer slows you on the way).
+- Cover: the speed gear sets the pace along the wall (gear 1 creeps, gear 6 hurries; no faster than 2.8 m/s standing,
+  1.8 crouched; gear 3 is about the old pace).
+- Forward roll: tap crouch while moving standing in gear 5-6 (or sprinting) - a committed 3 m roll in 0.7 s that
+  comes up crouched; guards within 2 m hear it.
+- Controller: D-pad right is now the gadget (hold to aim, release to throw); D-pad left tapped pings (co-op), held
+  opens the gadget wheel; View tapped is goggles, held plays emote 1. PC: the mouse wheel changes the speed gear
+  (weapons stay on Q / X); new bindable keys Speed up (=) / Speed down (-).
+- Touch layout v4: the speed rocker (right of the move stick's zone) is added to every preset and the layout editor;
+  saved layouts keep every placement.
+- Debug Tune panel: a Chaos Theory table (stop blend, start time, turn rate, roll time / length).
+
+Phase 1 - networked movement state:
+- Co-op and PvP: team-mates and opponents are shown doing exactly what they are doing - in high or low cover (hiding,
+  peeking over, leaning out at an edge, kneeling), climbing a ladder or drainpipe, hanging from a pipe or a lip,
+  crawling a duct, riding a zipline, vaulting, mantling, rolling and in a takedown - posed by the same code as the
+  player (hands and feet on the same rungs, within a few cm), instead of sliding upright between positions.
+- A committed move (vault, mantle, step, drop, hop, roll, window vault) is sent once at its start and replayed on
+  the other screens along the same path, so it never cuts corners through the obstacle.
+- A change of mode (taking cover, grabbing a ladder) is sent at once, not on the next 20 Hz tick.
+- Hit volumes on other players follow their pose (hanging, crawling, leaning): a shot at a hanging player's head is a
+  headshot. The host's lag compensation rewinds the posed head and body, not just the feet.
+- Host checks: a client's free movement is held to its speed gear's pace (+15%); a client claiming a ladder or lip
+  stays within half a metre of it (clamped, never kicked).
+
+Phase 2 - split jump, wall jump, pipe legs up / inverted:
+- Split jump: between two tall walls 1.2-1.95 m apart, facing along them, a double jump braces in a split with the
+  legs straight out to both walls 2.5 m up. Aim (LT) draws the sidearm one-handed (turn up to 100 deg either way, look
+  down steeply), RT fires; B drops (or a drop attack). Nothing else leaves it.
+- Wall jump: facing a wall under a lip 2.7-3.8 m up (too high to grab standing), Y ("Wall jump") kicks off the wall up
+  to a hang on it; at an inside corner the kick goes off the adjoining wall to the lip beside it.
+- Horizontal pipes: hanging by the hands, Y ("Legs up") crosses the legs over the pipe - a slow shimmy along it with the
+  feet well up out of the way; Y again ("Invert") hangs upside down by the knees: no travel, the sidearm aims and fires
+  (spread x1.3) while the camera stays upright; Y curls back up, B goes back to the hands; inverted, B lets go and flips
+  over onto the feet. Changes take about half a second; getting hit during one drops back to the hands.
+- Co-op / PvP: other players see all of it (split braced and aiming, the wall kick, legs up, inverted), hit volumes
+  follow the pose.
+- Proving Grounds: a Chaos Theory course north of the platform (a split corridor with lips above, a wall-jump block
+  with an inside corner, a pipe over open ground).
+
+Phase 3 - rappel and fences:
+- Rappel: at a roof edge with a rappel point, Y ("Rappel") hooks on and steps over. Stick down descends (1.6 m/s, 3 m/s
+  with sprint held), up climbs (1 m/s; at the top back over the edge). Y kicks out from the wall and swings back,
+  sideways with the stick (up to 1.5 m either way). Aim (LT) turns round on the rope with the sidearm. Beside a window,
+  Y kicks through it (the glass breaks) into the room. B unhooks within 2 m of the floor; at the bottom it unhooks.
+- Fences (chain-link): Y ("Climb") grabs one; climb up / down 0.9 m/s, shimmy 0.6 m/s; at the top Y flips over and
+  down the far side; B drops. Climbing above gear 3 rattles it (heard 4 m away); gears 1-3 are quiet. Fences stop
+  bodies, never bullets or sight, and give no cover.
+- Co-op / PvP: other players see you on the rope (with the rope drawn) and on fences.
+- Proving Grounds: a 5.5 m rappel house north east (ladder up its west side, a rappel point over a glazed window, a
+  doorway east) and a fence north west of the platform.
+
+Phase 4 - Chaos Theory takedowns and the grab:
+- Drop attack: hanging from a lip or a pipe (by the hands or legs up), braced in a split, on a zipline or a rope, a
+  guard 1.2-5 m below within a metre of where you would land: "Drop attack" (tap knocks out, hold kills).
+- Hanging inverted on a pipe, a guard right beneath: choke him up (tap) or break his neck (hold); you stay hanging.
+- Hanging at a lip, a guard standing at it above is still pulled over (the ledge pull).
+- The grab replaces the instant takedown from behind (dogs excepted): Y ("Grab") takes the guard and holds him in front.
+  Holding him you walk (gear 2 at most), LT / RT aim and fire the pistol one-handed over his shoulder (spread x1.2);
+  Y again: tap knocks him out, hold kills; B shoves him away (he staggers a second, then raises the alarm). Guards who
+  see you hold their fire for 1.5 s, then aim at your head only - and their shots hit him first. If he dies, he drops.
+  An Execute charge is earned as with any takedown.
+- Co-op: a client's grab holds the host's guard in front of that player (a shield for them too).
+- PvP: the drop attack, the ledge pull and the inverted choke work on opponents (the host checks them); no grabs.
+- Training: the takedown step is now a grab and a second press.
+
+Phase 5 - co-op team moves:
+- Brace: with a team-mate within 3 m and a wall right behind you, hold Y - back to the wall, hands cupped. B stands up.
+- Boost: facing a braced team-mate (within 1.2 m), tap Y - a step into their hands and a toss up to a lip, pipe or
+  split above (up to 4.5 m) that you could not reach alone. The prompt shows only when there is one in reach.
+- Human ladder: facing a braced team-mate, hold Y - you climb onto their shoulders (feet 1.45 m up) and stand there
+  free to turn, aim and fire; Y grabs a lip up to 4.1 m over the floor, B hops down. The bottom holds still; B drops
+  the climber.
+- The host checks every request on both players' states (alive, team-mates - same side in Team Deathmatch - the
+  partner braced, the climber on the ground, within reach, the target in range; one request a second) and starts it
+  on both screens at once; refused requests do nothing.
+- Y order: takedown > team move > Chaos Theory move > traversal > interact.
+- A teleport (respawn, insertion) now drops any committed move in flight and is never counted as a fall (no landing
+  roll where it lands).
+- Proving Grounds: a 4.2 m block north (out of reach alone) for boosts and the human ladder.
+
+Warehouse - Chaos Theory routes (more ways in, more height):
+- A roof walkway over the south facade (6.3 m, moonlit, a loud metal deck): up a drainpipe in the west yard, or - with a
+  team-mate - a boost or the human ladder up the new pump house in the east lot and a climb from its top.
+- A rappel point on the roof edge over the glazed dispatch window: down the rope, kick through into dispatch.
+- The skylight edge over the workshop: hang from it and drop on the patrol below.
+- The service corridor's walls stand 4 m along a 5 m stretch (1.86 m apart, no cabinets): split jump over the new
+  corridor patrol and drop on him.
+- A pipe from the mezzanine deck out over the factory floor at 4.4 m, above the floor patrol: legs up, inverted, drop.
+- The big press stands 3.3 m: a wall jump up to a perch over the floor.
+- A chain-link fence closes the dark yard lane off from the east lot: climb it in the dark (quietly at gears 1-3) or walk
+  round through the lit gap by the facade. Guards walk round.
+- One more guard: a corridor patrol (Hunter / Infiltration counts include him).
+- The gatehouse in the east lot moved south, clear of the pump house.
+- Takedowns: the offer now tries the three nearest guards (a guard behind a wall no longer hides the one under you);
+  a grab whose hostage is shot dead ends at once.
+
+Playtest changes (Michael, 2026-10-08):
+- Jump: a new touch Jump button; with a controller / keyboard, Y / E jumps when nothing else is on offer. A jump keeps
+  the run's pace (about 0.8 m up) and the hands grab what comes in reach on the way: a lip, a horizontal pipe, a
+  drainpipe or a ladder. A second press in the air between two tall walls braces in a split (a double jump); the split
+  prompt says so.
+- Split jump: the feet brace 2.5 m up (was 1.9 m); the walls need 3.6 m.
+- Horizontal pipes: hanging by the hands faces along the pipe (hand over hand, not side-on like a lip), and so does
+  hanging upside down (the legs wrapped round it); hold the stick back against the facing to turn round on it.
+  Standing under a pipe, Y / the action button takes it before a mantle over anything beside it; the mezzanine deck
+  pipe now starts further back over the deck.
+- Touch action button: one button does what the world prompts show - take cover, vault, climb, grab, rappel, wall
+  jump, boost, cover-to-cover, corner, leave cover, use - dimmed when nothing is on offer. The prompts stay on the
+  surfaces as indicators (no longer tapped). With a cover face and an obstacle both prompted, moving (or the stick
+  pushed at it) goes over / up it, standing still takes cover. Touch layout v5 adds the Jump button beside it; saved
+  layouts keep every placement.
+
+Playtest changes, second round (Michael, 2026-10-08):
+- Split jump: the legs go almost straight out to the walls (the body sits lower, hips just over the feet), so the
+  hallway can be wider: 1.2-1.95 m between the walls (was 0.9-1.7). It faces down the hallway the way you jumped, so
+  either way works. No jumping out of it: drop (B), a drop attack on a guard under you, or aim and shoot the pistol.
+- Warehouse: the corridor cabinet bank is gone; the corridor's own two walls stand 4 m along a 5 m stretch, 1.86 m
+  apart. Proving Grounds: the split corridor is 1.8 m wide.
+- Fix: after a fall (or stepping off a curb) the operator could come to rest floating 4-14 cm over the floor. The
+  character now settles onto it.
+- Fix: a respawn / insertion puts the feet straight into a stance where you appear (they used to walk over from where
+  you were), and a foot stepping back past the other bows round it instead of brushing through it.
+- Split jump: jumping out of it is back (Michael, 2026-10-08). Braced, Jump (or Y) jumps up to a lip, pipe or ladder
+  over the split ahead of you; drop, a drop attack and the pistol stay as before.
+
+- Docs: level design standard (`docs/level-design.md`), map spec template (`docs/templates/map-spec.md`) and the
+  Kestrel Exchange spec (`docs/prompts/exchange-map.md`).
+
 ## 3.1.9 - Epic's half-fog, the phone's display rate, no locks, lighter phone passes
 - Desktop Epic sometimes drew the bottom half of the screen as flat fog: ray-traced reflections and depth of field
   share one depth pass, and depth of field paused it whenever nothing was in focus - the reflections (and the fog

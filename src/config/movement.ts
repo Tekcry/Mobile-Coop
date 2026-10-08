@@ -82,10 +82,27 @@ export const MOVEMENT = {
 
 /**
  * Enemy root motion: guards keep the slower, weighted 1.2.0-era tuning (weight shift, stepped turns),
- * at their own speeds from `config/enemies.json`.
+ * at their own speeds from `config/enemies.json`. 3.2.0: a standalone literal (the values `...MOVEMENT` resolved
+ * to before the Chaos Theory movement), so player tuning never reaches the enemies (`tests/motion.test.ts` pins it).
  */
-export const ENEMY_MOTION = {
-  ...MOVEMENT,
+export const ENEMY_MOTION: typeof MOVEMENT = {
+  sneakSpeed: 0.8,
+  crouchWalkSpeed: 1.8,
+  crouchRunSpeed: 2.6,
+  walkSpeed: 1.4,
+  jogSpeed: 2.8,
+  sprintSpeed: 5.0,
+  adsSpeed: 1.4,
+  adsCrouchSpeed: 1.0,
+  coverSpeed: 2.3,
+  coverCrouchSpeed: 1.25,
+  coverRunSpeed: 3.6,
+  reloadMult: 0.75,
+  sneakBand: 0.4,
+  crouchWalkBand: 0.85,
+  walkBand: 0.5,
+  strafeMult: 0.9,
+  backMult: 0.75,
   accelMax: 1.5,
   decelMax: 2.0,
   jerkMax: 9,
@@ -96,18 +113,107 @@ export const ENEMY_MOTION = {
   stepLen0: 0.27,
   stepLenK: 0.22,
   rootDip: 0.05,
+  turnTravelSlow: (540 * Math.PI) / 180,
+  turnTravelFast: (300 * Math.PI) / 180,
   turnAim: (110 * Math.PI) / 180,
   turnAccel: 12,
   turnSprint: 1.2,
+  turnMoving: 2.4,
+  turnChunk: 0.785,
+  turnChunkTime: 0.3,
+  turnThreshold: 0.45,
+  twistMax: 1.3,
   pivotTime: 0.6,
   pivotMinSpeed: 0.45,
+  crouchTime: 0.25,
+  kneelTime: 0.3,
+  standTime: 0.28,
+  airControl: 0.05,
+  standHeight: 1.75,
+  crouchHeight: 1.15,
+  radius: 0.3,
+  maxStep: 0.42,
+  camFollow: 16,
+  camShoulder: 15.5,
+  camAds: 19,
+  recentreDelay: 1.5,
+  recentreRate: 1.6,
 };
 
-/** Calm guards (not in combat) turn slowly: glances and looks at a sound are unhurried, not twitchy. */
-export const ENEMY_CALM_MOTION = {
+/** Calm guards (not in combat) turn slowly: glances and looks at a sound are unhurried, not twitchy. Standalone too. */
+export const ENEMY_CALM_MOTION: typeof MOVEMENT = {
   ...ENEMY_MOTION,
   turnAim: (60 * Math.PI) / 180,
   turnAccel: 6,
+};
+
+/**
+ * Chaos Theory speed gears (3.2.0, player only; `player/speedGears.ts`): six gears stepped with `speedUp` /
+ * `speedDown`, kept through stance changes, `spawn` at spawn and respawn. Target speed = the gear's cap x the stick
+ * curve (0 inside `deadZone`, linear to 1 at the rim). The sprint is gear 6 standing while it lasts.
+ */
+export const GEARS = {
+  count: 6,
+  spawn: 3,
+  /** Gear caps (m/s), gear 1..6. */
+  crouch: [0.5, 0.9, 1.3, 1.8, 2.3, 2.8],
+  stand: [0.8, 1.3, 2.0, 2.8, 3.8, 5.0],
+  /** Stick magnitude below which the operator stands still. */
+  deadZone: 0.05,
+  /** HUD gear pips stay this long after a change (s), then fade. */
+  pipsShow: 1.5,
+  /** Cover strafe (3.2.0, approved change): the gear's pace, no faster than these along a wall (m/s). Gear 3 is about
+   *  the 2.x cover pace (2.3 / 1.25). */
+  coverMax: { stand: 2.8, crouch: 1.8 },
+} as const;
+
+/**
+ * Chaos Theory locomotion feel (3.2.0, player free movement only; `MotionInput.ct`): instant stops, near-instant
+ * starts, no planted pivots, quick travel turns, the committed forward roll.
+ */
+export const CT = {
+  /** Release the stick: velocity is zero by the next fixed step; the pose blends to idle over this (s). */
+  stopBlend: 0.12,
+  /** 95% of the target speed within this (s) from a standstill, after a direction or gear change too. */
+  startTime: 0.08,
+  /** Travel-facing turn rate (rad/s, 720 deg/s) and its angular acceleration (rad/s^2). */
+  turnRate: (720 * Math.PI) / 180,
+  turnAccel: 240,
+  /** Forward roll: crouch tapped standing at gear >= `rollGear` while moving: duration (s), length (m), noise (m). */
+  rollGear: 5,
+  rollTime: 0.7,
+  rollLength: 3.0,
+  rollNoise: 2,
+  /** Least moving speed (m/s) for the crouch tap to roll. */
+  rollMinSpeed: 1.5,
+  /**
+   * Stick release: a stick dropping faster than `releaseRate` (magnitude per second) from at least `releaseFrom` keeps
+   * its last deflection for up to `releaseWindow` s; reaching the dead zone in that time is a release (an instant
+   * stop at full pace), settling higher is a deliberate slow-down. A pad stick springing back passes through small
+   * values for a frame or two, which would otherwise slow the operator before the stop.
+   */
+  releaseRate: 4,
+  releaseFrom: 0.2,
+  releaseWindow: 0.15,
+};
+
+/** Debug Tune panel ranges for the `CT` feel values. */
+export const CT_RANGES: Partial<Record<keyof typeof CT, [number, number, number]>> = {
+  stopBlend: [0.03, 0.4, 0.01],
+  startTime: [0.02, 0.3, 0.01],
+  turnRate: [4, 20, 0.1],
+  turnAccel: [40, 600, 10],
+  rollTime: [0.4, 1.2, 0.02],
+  rollLength: [1.5, 4.5, 0.05],
+};
+
+/**
+ * Footstep noise (`noiseRadius`, 3.2.0): the fastest pace that is still silent. Crouched gears 1-4 (<= 1.8 m/s) and
+ * standing gears 1-2 (<= 1.3 m/s) are silent, with room for the stride's speed swell (`rootDip`).
+ */
+export const NOISE_QUIET = {
+  crouch: 1.9,
+  stand: 1.45,
 };
 
 export type MovementKey = keyof typeof MOVEMENT;
@@ -143,3 +249,156 @@ export const MOVEMENT_RANGES: Partial<Record<MovementKey, [number, number, numbe
   recentreDelay: [0.5, 4, 0.1],
   recentreRate: [0.3, 4, 0.1],
 };
+
+// --- 3.2.0 phase 2: split jump, wall jump, horizontal pipe sub-states (`player/splitJump.ts`)
+
+export const SPLIT = {
+  /** Faces this close to opposed (normal dot) count as the two sides of a gap. */
+  opposed: -0.95,
+  /** Gap between the faces (m): the legs reach straight out to both walls (a hallway, not a slot). */
+  minWidth: 1.2,
+  maxWidth: 1.95,
+  /** Both walls at least this tall over the floor (m): the feet line plus the body braced above it. */
+  minHeight: 3.6,
+  /** Shortest usable stretch of corridor (m) and the margin kept from its ends. */
+  minLen: 0.8,
+  endMargin: 0.3,
+  /** The two faces' bases within this of each other (m): the same floor. */
+  floorTol: 0.3,
+  /** The player faces within this of the corridor axis (rad, either way along it). */
+  facing: (40 * Math.PI) / 180,
+  /** Feet planted on the walls this high over the floor (m; the walls stand `minHeight` - well over the head). */
+  feetHeight: 2.5,
+  /** The body's root this far under the feet line (m at 1.75 m): with the split pose's pelvis drop the hips sit just
+   *  over the feet, the legs almost horizontal out to the walls. */
+  rootDrop: 0.37,
+  /** The committed jump into the split (s). */
+  jumpTime: 0.45,
+  /** Aiming from the split: body yaw within this of the corridor axis, pitch band (rad). */
+  aimYaw: (100 * Math.PI) / 180,
+  pitchMin: (-85 * Math.PI) / 180,
+  pitchMax: (30 * Math.PI) / 180,
+} as const;
+
+export const WALL_JUMP = {
+  /** Lip height over the feet (m): above a standing grab (`REACH.grabMax` 2.7 in `world/anchors.ts`). */
+  minUp: 2.7,
+  maxUp: 3.8,
+  /** Facing a wall within this (m). */
+  wallReach: 1.0,
+  /** Facing the lip's wall: cos of the angle between the facing and into the wall. */
+  faceCos: 0.7,
+  /** Inside corner: facing the adjoining wall, the lip's face then side-on (|cos| under this). */
+  cornerCos: 0.4,
+  /** Lip within this (m, horizontal from the feet) for a corner kick. */
+  cornerReach: 1.4,
+  /** The committed run-up kick (s). */
+  time: 0.6,
+} as const;
+
+/** The horizontal pipe's sub-states and their timing. */
+export const PIPE = {
+  /** Shimmy speed with the legs crossed over the pipe (m/s). */
+  legsUpSpeed: 0.5,
+  /** Transitions (s). */
+  toLegsUp: 0.5,
+  toInverted: 0.55,
+  toHands: 0.45,
+  /** Inverted: aim band (rad) round the body facing, spread multiplier. */
+  aimYaw: (120 * Math.PI) / 180,
+  pitchMin: (-80 * Math.PI) / 180,
+  pitchMax: (30 * Math.PI) / 180,
+  spreadMul: 1.3,
+  /** Legs up: the feet ride this much higher than hanging by the hands (m). */
+  legsUpLift: 0.6,
+} as const;
+
+// --- 3.2.0 phase 3: rappel and fences (`player/attachController.ts`)
+
+export const RAPPEL = {
+  /** Rope speeds (m/s): up, down, down with sprint held. */
+  ascend: 1.0,
+  descend: 1.6,
+  descendSprint: 3.0,
+  /** Kick out from the wall: how far out the swing goes (m), how long it takes (s), how far sideways the stick takes
+   *  it per kick and in all (m). */
+  swingOut: 1.2,
+  swingTime: 1.0,
+  lateralStep: 0.75,
+  lateralMax: 1.5,
+  /** B unhooks only this close to the floor (m, feet height). */
+  unhookHeight: 2.0,
+  /** Feet off the wall face (m) and the rope out where the body is just over the edge (m). */
+  standoff: 0.5,
+  minOut: 1.0,
+  /** Hooking on and stepping over the edge (s); reach to the rappel point from the roof (m). */
+  hookTime: 0.8,
+  reach: 0.9,
+  /** Sidearm from the rope: yaw round the wall's outward normal, pitch band (rad). */
+  aimYaw: (110 * Math.PI) / 180,
+  pitchMin: (-80 * Math.PI) / 180,
+  pitchMax: (40 * Math.PI) / 180,
+  /** A window beside the rope is kicked through when it is this close sideways (m). */
+  windowReach: 0.9,
+} as const;
+
+export const FENCE = {
+  /** Climb up / down and shimmy (m/s). */
+  climb: 0.9,
+  shimmy: 0.6,
+  /** The committed flip over the top (s). */
+  flipTime: 0.9,
+  /** Rattle noise radius while moving on it above `quietGear` (m); quiet at gears 1-3. */
+  rattle: 4,
+  quietGear: 3,
+  /** Reach to grab it from the floor (m) and the body's standoff while on it (m). */
+  reach: 0.85,
+  standoff: 0.3,
+  /** The hands reach over the top this far above the feet (m at 1.75 m): the climb's top. */
+  handReach: 1.85,
+} as const;
+
+// --- 3.2.0 phase 5: co-op team moves (`game/teamMoves.ts`)
+
+/**
+ * (3.2.0) The manual jump (touch Jump button; Y / E with nothing else on offer): a hop straight up keeping the run's
+ * pace, the hands grabbing what passes within reach (lips, drainpipes, ladders, pipes); a second press in the air over a
+ * split gap braces in it.
+ */
+export const LEAP = {
+  /** Take-off speed (m/s, up): an apex ~0.8 m over the floor (the airborne controller falls at about twice g). */
+  vy: 5.6,
+  /** Horizontal pace carried into the jump (x the ground speed), capped (m/s). */
+  carry: 1.0,
+  maxSpeed: 5.0,
+  /** A second press within this (s) of the take-off is the double tap (split). */
+  doubleTap: 0.4,
+  /** Grabs wait this long after the take-off when a split gap is under the jump (room for the double tap) (s). */
+  splitWait: 0.22,
+  /** Pause between jumps (s). */
+  cooldown: 0.3,
+  /** A drainpipe / ladder this close (m, horizontal from the feet) is grabbed in the air. */
+  climbReach: 0.75,
+} as const;
+
+export const TEAM = {
+  /** Hold Y this long (s) to brace; a team-mate within `mateRange` (m) and a wall within `wallBehind` (m) behind. */
+  braceHold: 0.4,
+  mateRange: 3,
+  wallBehind: 1.0,
+  /** The partner within this of the braced player's hands to start a move (m). */
+  partnerReach: 1.2,
+  /** Boost: the toss reaches a lip / pipe / split up to this high over the floor (m); the committed step-up and toss
+   *  (s). */
+  boostMax: 4.5,
+  boostTime: 0.9,
+  /** Human ladder: the top player's feet on the shoulders (m); a lip they can grab from there (m over the floor); the
+   *  climb up (s). */
+  ladderFeet: 1.45,
+  ladderGrab: 4.1,
+  ladderClimb: 0.8,
+  /** Top of the human ladder: the aim band (rad). */
+  ladderPitch: (60 * Math.PI) / 180,
+  /** Requests a player may make (host rate limit, per second). */
+  rate: 1,
+} as const;

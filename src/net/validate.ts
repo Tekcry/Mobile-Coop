@@ -9,6 +9,10 @@ import type { EndStats } from './protocol';
 import type { SessionStats } from '../game/modes/gameMode';
 import { emptyKinds, ENEMY_KINDS } from '../ai/enemyDefs';
 import { hyp2, hyp3 } from '../core/mathx';
+import { gearCap } from '../player/speedGears';
+import { isAttachedMode, unpackAttachSub, type MoveState } from '../player/moveState';
+import { attachPose, type AttachPose } from '../player/attach';
+import type { TraversalAnchors } from '../world/anchors';
 
 export interface V3 {
   x: number;
@@ -143,4 +147,40 @@ export function coopSessionStats(base: SessionStats, end: EndStats, selfId: stri
     byKind: me ? { ...me.byKind } : emptyKinds(),
     weaponKills: me ? { ...me.weaponKills } : {},
   };
+}
+
+/** Speed tolerance over a gear's pace (3.2.0 phase 1). */
+export const MOVE_TOLERANCE = 1.15;
+/** Anything else a client claims (falls, cover glides, zipline, committed moves) (m/s). */
+export const MAX_FREE_SPEED = 11;
+
+/**
+ * The fastest horizontal pace a client's state allows (m/s): free movement on the ground within its speed gear's
+ * pace (the sprint's 5 m/s while sprinting) + `MOVE_TOLERANCE`; everything driven by cover / traversal or in the air
+ * keeps the general cap.
+ */
+export function moveSpeedCap(mv: MoveState | undefined, crouched: boolean, sprint: boolean, driven: boolean, grounded: boolean): number {
+  if (!mv || mv.m !== 'ground' || driven || !grounded) return MAX_FREE_SPEED;
+  const pace = sprint ? Math.max(5, gearCap(mv.g, false)) : gearCap(mv.g, crouched);
+  return pace * MOVE_TOLERANCE;
+}
+
+/** Furthest an attached client may be from where its anchor puts it (m). */
+export const ATTACH_SLACK = 0.5;
+
+/**
+ * An attached client's feet against its anchor at `s`: null when within `ATTACH_SLACK` (or not settled on it), else
+ * the point to clamp to (the anchor's pose, so a remote can never float off the ladder / lip it claims).
+ */
+export function attachedClamp(mv: MoveState | undefined, anchors: TraversalAnchors, feet: V3, height = 1.75, out: AttachPose = { x: 0, y: 0, z: 0, yaw: 0 }): AttachPose | null {
+  if (!mv || !isAttachedMode(mv.m)) return null;
+  const a = anchors.all[mv.a];
+  if (!a) return null;
+  const sub = unpackAttachSub(mv.sub);
+  // blending on / off (or between a pipe's sub-states): the feet travel between the ground and the anchor
+  if (sub.phase !== 'on' || sub.pipeTo) return null;
+  // (a rope kicked out swings off the wall)
+  if (a.kind === 'rappel' && mv.ph > 0) return null;
+  const p = attachPose(a, mv.s, sub.face, height, out, a.kind === 'pipeH' ? sub.pipe : 'hands', mv.u ?? 0);
+  return hyp3(feet.x - p.x, feet.y - p.y, feet.z - p.z) > ATTACH_SLACK ? p : null;
 }

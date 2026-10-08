@@ -338,3 +338,42 @@ describe('net session', () => {
     expect(full).toBe(true);
   });
 });
+
+describe('pstate movement state (3.2.0)', () => {
+  it('carries a sanitised move state; drops a bad one but keeps the message', () => {
+    const mv = { m: 5, a: 2, s: 1.5, sub: 5, ph: 1, tid: '', g: 4, r: 0, ay: 0 };
+    const m = parseMessage({ t: 'pstate', s: { ...ps, mv } });
+    expect(m && m.t === 'pstate' && m.s.mv).toMatchObject({ m: 'ledge', a: 2, s: 1.5 });
+    const bad = parseMessage({ t: 'pstate', s: { ...ps, mv: { m: 200 } } });
+    expect(bad && bad.t === 'pstate' && bad.s.mv).toBeUndefined();
+    const noAnchor = parseMessage({ t: 'pstate', s: { ...ps, mv: { m: 'ladder', a: -1 } } });
+    expect(noAnchor && noAnchor.t === 'pstate' && noAnchor.s.mv).toBeUndefined();
+  });
+});
+
+describe('PvP takedowns (3.2.0 phase 4)', () => {
+  it('ptd: only the drop, the ledge pull and the inverted choke, on a valid id', () => {
+    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'drop' })).toEqual({ t: 'ptd', target: 'peerB', kind: 'drop' });
+    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'inverted' })).not.toBeNull();
+    expect(parseMessage({ t: 'ptd', target: 'peerB', kind: 'behind' })).toBeNull();
+    expect(parseMessage({ t: 'ptd', target: '../x', kind: 'drop' })).toBeNull();
+  });
+});
+
+describe('team moves (3.2.0 phase 5)', () => {
+  it('tmove: boost / ladder / end, a valid partner id, clamped numbers', () => {
+    expect(parseMessage({ t: 'tmove', kind: 'boost', partner: 'peerB', target: 12, s: 1.5, gy: 4.2 })).toEqual({ t: 'tmove', kind: 'boost', partner: 'peerB', target: 12, s: 1.5, gy: 4.2 });
+    expect(parseMessage({ t: 'tmove', kind: 'end', partner: '', target: -1, s: 0, gy: 0 })).not.toBeNull();
+    expect(parseMessage({ t: 'tmove', kind: 'fly', partner: 'peerB' })).toBeNull();
+    expect(parseMessage({ t: 'tmove', kind: 'boost', partner: '../x' })).toBeNull();
+    const big = parseMessage({ t: 'tmove', kind: 'ladder', partner: 'peerB', target: 1e9, s: 1e9, gy: 1e9 });
+    expect(big && big.t === 'tmove' && big.target <= 1e5 && Math.abs(big.s) <= 500 && big.gy <= 200).toBe(true);
+  });
+  it('tstart / tdeny / tend need valid player ids', () => {
+    expect(parseMessage({ t: 'tstart', kind: 'ladder', a: 'peerA', b: 'peerB', target: -1, s: 0, t0: 3 })).toEqual({ t: 'tstart', kind: 'ladder', a: 'peerA', b: 'peerB', target: -1, s: 0, t0: 3 });
+    expect(parseMessage({ t: 'tstart', kind: 'boost', a: 'peerA' })).toBeNull();
+    expect(parseMessage({ t: 'tdeny', a: 'peerA', reason: 'notBraced' })).toEqual({ t: 'tdeny', a: 'peerA', reason: 'notBraced' });
+    expect(parseMessage({ t: 'tend', a: 'peerA', b: 'peerB' })).toEqual({ t: 'tend', a: 'peerA', b: 'peerB' });
+    expect(parseMessage({ t: 'tend', a: 'peerA' })).toBeNull();
+  });
+});

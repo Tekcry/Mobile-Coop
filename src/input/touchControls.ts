@@ -22,7 +22,7 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   fireLeft: { id: 'fireLeft', action: 'fire', size: 72, icon: 'fire', label: 'Fire (left)' },
   ads: { id: 'ads', action: 'ads', size: 68, icon: 'ads', label: 'Aim' },
   reload: { id: 'reload', action: 'reload', size: 58, icon: 'reload', label: 'Reload' },
-  action: { id: 'action', action: null, size: 74, icon: 'interact', label: 'Use' },
+  action: { id: 'action', action: null, size: 74, icon: 'interact', label: 'Action (cover, vault, climb, use: what the prompts show)' },
   crouch: { id: 'crouch', action: 'crouch', size: 58, icon: 'crouch', label: 'Crouch (toggle)' },
   swap: { id: 'swap', action: 'swapNext', size: 56, icon: 'swap', label: 'Swap weapon' },
   grenade: { id: 'grenade', action: 'grenade', size: 56, icon: 'grenade', label: 'Gadget (hold to aim, release to throw)' },
@@ -35,13 +35,37 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   execute: { id: 'execute', action: 'execute', size: 76, icon: 'execute', label: 'Execute (when ready)' },
   takedown: { id: 'takedown', action: 'interact', size: 72, icon: 'interact', label: 'Takedown (when on offer: tap knocks out, hold is lethal)' },
   ping: { id: 'ping', action: 'ping', size: 56, icon: 'mark', label: 'Ping (co-op)' },
+  speed: { id: 'speed', action: null, size: 56, icon: 'dash', label: 'Speed (gear up / down)' },
+  jump: { id: 'jump', action: 'leap', size: 72, icon: 'jump', label: 'Jump (grabs what is in reach; double tap between two walls: split)' },
 };
 
-/** What the contextual action button does right now. */
+/** The speed rocker is a tall pill (up half, the six gear pips, down half); every other control is round. */
+export const ROCKER_TALL = 1.9;
+
+/** Box (px) of a control drawn at `size`. */
+export function controlBox(id: TouchControlId, size: number): { w: number; h: number } {
+  return { w: size, h: id === 'speed' ? size * ROCKER_TALL : size };
+}
+
+/** Inner markup of a control (layout editor handles too). */
+export function controlHtml(id: TouchControlId): string {
+  if (id === 'speed') {
+    let pips = '';
+    for (let g = 6; g >= 1; g--) pips += `<i data-g="${g}"></i>`;
+    return `<div class="tc-sp-up">${icon('jump', 18)}</div><div class="tc-sp-pips">${pips}</div><div class="tc-sp-down">${icon('crouch', 18)}</div>`;
+  }
+  return icon(TOUCH_DEFS[id].icon, 26);
+}
+
+/** What the contextual action button does right now: tap an action, or run `press` (on release; `down` / `up` for
+ *  held interactions). */
 export interface TouchAction {
   action: 'cover' | 'jump' | 'interact';
   label: string;
   icon: string;
+  press?: () => void;
+  down?: () => void;
+  up?: () => void;
 }
 
 const LOOK_RAD_PER_PX = 0.0062;
@@ -52,14 +76,14 @@ type PointerRole =
   | { kind: 'move'; ox: number; oy: number; x: number; y: number }
   | { kind: 'look'; ox: number; oy: number; x: number; y: number }
   | { kind: 'drag'; lx: number; ly: number }
-  | { kind: 'button'; id: TouchControlId; lx: number; ly: number; ox: number; oy: number; action?: ButtonAction };
+  | { kind: 'button'; id: TouchControlId; lx: number; ly: number; ox: number; oy: number; action?: ButtonAction; ctx?: TouchAction | null };
 
 /**
  * On-screen controls. Left: a floating move stick (anywhere in the left 40%). Right: a floating
  * camera-only stick (rate-based look with its own curve, dead zone, smoothing and acceleration; it
- * never fires or aims), a separate fire button that never moves the view, aim, and a contextual
- * action button shown only to use an interactable (cover, vault and cover-to-cover are the world
- * prompts on the surfaces, `WorldPrompts`, tapped directly). Pointer handlers only record positions and press edges; the visuals and the look
+ * never fires or aims), a separate fire button that never moves the view, aim, a jump button (3.2.0) and the
+ * contextual action button: whatever the world prompts on the surfaces show (`WorldPrompts`: cover, vault, climb,
+ * grab, cover-to-cover, use), dimmed when nothing is on offer. Pointer handlers only record positions and press edges; the visuals and the look
  * are applied once per frame in `update`, so handlers never touch layout.
  */
 export class TouchControls {
@@ -97,12 +121,11 @@ export class TouchControls {
     this.layer.className = 'touch-layer';
     this.layer.hidden = true;
     for (const id of TOUCH_CONTROL_IDS) {
-      const def = TOUCH_DEFS[id];
       const el = document.createElement('div');
       const stick = id === 'move' || id === 'look';
       el.className = `tc tc-${id}` + (stick ? ' tc-stick' : ' tc-btn');
       el.dataset.control = id;
-      el.innerHTML = stick ? `<div class="tc-knob"></div>${id === 'look' ? icon('look', 20) : ''}` : icon(def.icon, 26);
+      el.innerHTML = stick ? `<div class="tc-knob"></div>${id === 'look' ? icon('look', 20) : ''}` : controlHtml(id);
       this.layer.appendChild(el);
       this.elements.set(id, el);
     }
@@ -164,6 +187,17 @@ export class TouchControls {
     return this.context;
   }
 
+  private shownGear = 0;
+
+  /** The speed rocker's pips: gears up to the current one lit. */
+  setGear(gear: number): void {
+    if (gear === this.shownGear) return;
+    this.shownGear = gear;
+    const pips = this.elements.get('speed')?.querySelectorAll<HTMLElement>('.tc-sp-pips i');
+    pips?.forEach((p) => p.classList.toggle('on', Number(p.dataset.g) <= gear));
+    this.elements.get('speed')?.setAttribute('data-gear', String(gear));
+  }
+
   setPressedVisual(id: TouchControlId, on: boolean): void {
     this.elements.get(id)?.classList.toggle('active', on);
   }
@@ -174,9 +208,9 @@ export class TouchControls {
     for (const id of TOUCH_CONTROL_IDS) {
       const el = this.elements.get(id)!;
       const p = t.layout[id];
-      const size = TOUCH_DEFS[id].size * p.scale * t.scale;
-      el.style.width = `${size}px`;
-      el.style.height = `${size}px`;
+      const box = controlBox(id, TOUCH_DEFS[id].size * p.scale * t.scale);
+      el.style.width = `${box.w}px`;
+      el.style.height = `${box.h}px`;
       el.style.setProperty('--tc-alpha', String(p.alpha ?? 1));
       el.style.left = `calc(var(--sal) + (100% - var(--sal) - var(--sar)) * ${p.x})`;
       el.style.top = `calc(var(--sat) + (100% - var(--sat) - var(--sab)) * ${p.y})`;
@@ -221,9 +255,12 @@ export class TouchControls {
     if (target && !target.classList.contains('tc-hidden')) {
       const id = target.dataset.control as TouchControlId;
       const def = TOUCH_DEFS[id];
-      const role: PointerRole = { kind: 'button', id, lx: vx(e), ly: vy(e), ox: vx(e), oy: vy(e) };
+      const role: PointerRole = { kind: 'button', id, lx: vx(e), ly: vy(e), ox: vx(e), oy: vy(e), ctx: id === 'action' ? this.context : null };
       this.pointers.set(e.pointerId, role);
-      // the action button (use) acts on release
+      // the action button: a held interaction starts on the press (unscrewing a vent), the rest act on release
+      if (id === 'action') this.context?.down?.();
+      // the speed rocker: the half pressed steps the gear (a tap each)
+      if (id === 'speed') this.state.tap((e.target as HTMLElement).closest('.tc-sp-down') ? 'speedDown' : 'speedUp');
       if (def.action) this.state.set(`touch-${id}`, def.action, true);
       target.classList.add('active');
       this.haptic(8);
@@ -288,7 +325,11 @@ export class TouchControls {
     } else if (role.kind === 'button') {
       const def = TOUCH_DEFS[role.id];
       if (role.id === 'action') {
-        if (this.context) this.state.tap(this.context.action);
+        // what was on offer at the press (the label may change while it is held)
+        const c = role.ctx ?? null;
+        c?.up?.();
+        if (c?.press) c.press();
+        else if (c) this.state.tap(c.action);
       } else if (def.action) this.state.set(`touch-${role.id}`, def.action, false);
       this.elements.get(role.id)?.classList.remove('active');
     }

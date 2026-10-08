@@ -116,6 +116,8 @@ export class PlayerWeapons {
   handsMul = 1;
   /** Extra spread factor (blind fire from cover). */
   spreadMul = 1;
+  /** (3.2.0) Spread multiplier for a sidearm fired attached (hanging inverted). */
+  attachSpread = 1;
   /** Last hitscan shot (debugging / tests). */
   lastShot: { origin: Vector3; aim: Vector3; hit: Vector3; target: string } | null = null;
   events: CombatEvents = {};
@@ -218,6 +220,46 @@ export class PlayerWeapons {
     return this.stowed;
   }
 
+  /** (3.2.0) The loadout's sidearm (a pistol), or -1: the one gun that comes out one-handed while attached. */
+  get sidearmIndex(): number {
+    for (let i = 0; i < this.slots.length; i++) if (this.slots[i]!.def.class === 'pistol') return i;
+    return -1;
+  }
+
+  /** The slot to go back to once the sidearm is put away again. */
+  private beforeSidearm = -1;
+
+  /**
+   * (3.2.0) Attached and both hands busy (`stowed`), except the sidearm drawn one-handed to aim (a split, an inverted
+   * hang): `draw` takes it from its holster; letting go puts it back and the main weapon is the one drawn next.
+   */
+  setAttachedStow(stowed: boolean, draw: boolean): void {
+    const si = this.sidearmIndex;
+    if (stowed && draw && si >= 0) {
+      if (this.index !== si) {
+        if (this.beforeSidearm < 0) this.beforeSidearm = this.index;
+        this.index = si;
+        // stowed now (hands empty): the draw below takes the new choice from its slot
+        if (!this.stowed) this.setStowed(true);
+      }
+      this.setStowed(false);
+      return;
+    }
+    if (this.beforeSidearm >= 0 && stowed) {
+      // put the sidearm away (its holster), then hold the stow with the main gun chosen again
+      this.setStowed(true);
+      this.index = this.beforeSidearm;
+      this.beforeSidearm = -1;
+      this.player.swapTo = this.reach(this.index);
+      return;
+    }
+    if (!stowed && this.beforeSidearm >= 0) {
+      this.index = this.beforeSidearm;
+      this.beforeSidearm = -1;
+    }
+    this.setStowed(stowed);
+  }
+
   /** Throwing a grenade (wind-up to recovery): no firing, aiming or reloading. */
   get throwing(): boolean {
     return this.grenadeT >= 0;
@@ -268,7 +310,7 @@ export class PlayerWeapons {
   currentSpread(): number {
     const s = this.current;
     const moving = Math.min(1, this.player.controller.speed / 5);
-    return spreadDeg(s.def, s.stats, this.player.cam.ads, moving, this.bloom) * this.spreadMul;
+    return spreadDeg(s.def, s.stats, this.player.cam.ads, moving, this.bloom) * this.spreadMul * this.attachSpread;
   }
 
   addAmmo(fraction: number): void {

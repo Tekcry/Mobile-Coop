@@ -1,7 +1,7 @@
 // Animation contact sheet: runs a scenario on Proving Grounds and captures frames from a side camera
 // that follows the player, then lays them out in a grid (for reviewing blends and timing).
 //   node scripts/anim-sheet.mjs out.png <scenario> [frames=12] [interval=0.1] [view=side|front|back|ots]
-// Scenarios: aim, walk, jog, sneak, crouchrun, sprint, start, stop, turn, crouch, cover, peek, reload, swap, grenade, vault, dash, strafe
+// Scenarios: aim, walk, jog, sneak, crouchrun, sprint, start, stop, crouchstop, walkstop, turn, crouch, cover, peek, reload, swap, grenade, vault, dash, strafe
 import { launch } from './e2e-lib.mjs';
 
 const [out = 'sheet.png', scenario = 'walk', framesArg = '12', intervalArg = '0.1', view = 'side'] = process.argv.slice(2);
@@ -18,6 +18,9 @@ const SCENARIOS = {
   sprint: { pos: [-14, -14], yaw: Math.PI / 2, pre: 1.2, warm: { y: 1 }, input: () => ({ y: 1 }), at0: "a.input.state.tap('dash');" },
   start: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 1 }) },
   stop: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 1 }, input: () => ({ y: 0 }) },
+  // 3.2.0: the Chaos Theory stop holds the stride (crouched, and from a slow walk)
+  crouchstop: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.5, warm: { y: 1 }, input: () => ({ y: 0 }), at0: "a.input.state.tap('crouch');" },
+  walkstop: { pos: [0, -14], yaw: Math.PI / 2, pre: 2.3, warm: { y: 0.5 }, input: () => ({ y: 0 }) },
   strafe: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.8, warm: { x: 1 }, input: () => ({ x: 1 }) },
   back: { pos: [0, -14], yaw: Math.PI / 2, pre: 1.8, warm: { y: -1 }, input: () => ({ y: -1 }) },
   turn: { pos: [0, -14], yaw: Math.PI / 2, pre: 0.6, input: () => ({ y: 0 }), at: { 0: 'g.player.cam.yaw = Math.PI;' } },

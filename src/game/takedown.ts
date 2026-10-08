@@ -7,10 +7,10 @@
  */
 import { hyp2 } from '../core/mathx';
 
-export type TakedownKind = 'behind' | 'front' | 'side' | 'overCover' | 'corner' | 'above' | 'below' | 'window';
+export type TakedownKind = 'behind' | 'front' | 'side' | 'overCover' | 'corner' | 'above' | 'below' | 'window' | 'drop' | 'inverted';
 
-/** Where the attacker is. */
-export type AttackerState = 'ground' | 'lowCover' | 'highCover' | 'hang' | 'climb' | 'zipline' | 'duct' | 'window';
+/** Where the attacker is. (3.2.0 phase 4: `split`, `pipe` (a horizontal pipe, hands / legs up), `inverted`, `rappel`.) */
+export type AttackerState = 'ground' | 'lowCover' | 'highCover' | 'hang' | 'climb' | 'zipline' | 'duct' | 'window' | 'split' | 'pipe' | 'inverted' | 'rappel';
 
 export const TAKEDOWN = {
   /** Ground reach (feet to feet, m) and height tolerance. */
@@ -37,7 +37,33 @@ export const TAKEDOWN = {
   /** Behind / front cones (rad from the victim's facing). */
   behindCone: Math.PI * 0.56,
   frontCone: Math.PI / 3,
+  /** (3.2.0) Drop attack from an anchor (hang, pipe, split, zipline, rope): the victim this far below (m) and within
+   *  `dropReach` of the landing point (under the attacker's feet). */
+  dropMin: 1.2,
+  dropMax: 5,
+  dropReach: 1.0,
+  /** Hanging inverted: a guard right beneath (horizontal reach, m; the victim's feet this far below the attacker's
+   *  root, m). */
+  invertedReach: 0.9,
+  invertedMin: 0.6,
+  invertedMax: 2.8,
 } as const;
+
+/** (3.2.0) The grab from behind and the human shield. */
+export const GRAB = {
+  /** Gears allowed while holding someone (the faster ones are capped to this). */
+  maxGear: 2,
+  /** The hostage held this far in front (m) and the sidearm's spread while holding (x). */
+  hold: 0.42,
+  spreadMul: 1.2,
+  /** A shove: the guard staggers this long, then is alert. */
+  shoveStagger: 1.0,
+  /** Guards who see the operator with a hostage hold their fire this long, then aim at the exposed head only. */
+  hesitate: 1.5,
+} as const;
+
+/** Kinds that start a grab (held, then knocked out / killed / shoved / let go) instead of a strike. */
+export const GRAB_KINDS: readonly TakedownKind[] = ['behind'];
 
 export interface TakedownInput {
   state: AttackerState;
@@ -132,7 +158,28 @@ export function pickTakedown(i: TakedownInput): TakedownPlan | null {
       p.arc = 0.6;
       return p;
     }
+    case 'split':
+    case 'pipe':
+    case 'rappel':
+      return drop(i, dx, dz, dy, face, ux, uz);
+    case 'inverted': {
+      // a guard right beneath the hanging head: choke them up (neck snap held)
+      if (d > T.invertedReach || -dy < T.invertedMin || -dy > T.invertedMax) return null;
+      return {
+        kind: 'inverted',
+        alignX: i.ax,
+        alignY: i.ay,
+        alignZ: i.az,
+        faceYaw: face,
+        approach: 0,
+        arc: 0,
+        strike: T.strike + 0.2,
+        victimTo: { x: i.ax, y: i.vy + 0.12, z: i.az },
+      };
+    }
     case 'hang': {
+      // (3.2.0) a guard below: drop on them
+      if (dy < 0) return drop(i, dx, dz, dy, face, ux, uz);
       // a guard standing at the lip above the hands: pull them over and down
       if (dy < 0.8 || dy > 2.6 || d > T.belowReach) return null;
       return {
@@ -147,10 +194,15 @@ export function pickTakedown(i: TakedownInput): TakedownPlan | null {
         victimTo: { x: i.ax + ux * 0.3, y: i.ay - 0.2, z: i.az + uz * 0.3 },
       };
     }
+    case 'zipline': {
+      const p = drop(i, dx, dz, dy, face, ux, uz);
+      if (p) return p;
+      if (-dy >= T.aboveMin * 0.6 && -dy <= T.aboveMax && d <= T.aboveReach * 1.3) return above(i, face, ux, uz);
+      return null;
+    }
     case 'climb':
-    case 'zipline':
     case 'duct':
-      if (-dy >= T.aboveMin * 0.6 && -dy <= T.aboveMax && d <= T.aboveReach * (i.state === 'zipline' ? 1.3 : 1)) return above(i, face, ux, uz);
+      if (-dy >= T.aboveMin * 0.6 && -dy <= T.aboveMax && d <= T.aboveReach) return above(i, face, ux, uz);
       return null;
     case 'window': {
       if (Math.abs(dy) > 0.6 || d > T.windowReach) return null;
@@ -175,6 +227,26 @@ export function pickTakedown(i: TakedownInput): TakedownPlan | null {
   return null;
 }
 
+/**
+ * (3.2.0) Drop attack from an anchor: a guard 1.2-5 m below, within a metre of where the feet would land (straight
+ * down from the attacker). The attacker falls onto them (accelerating, timed by the height).
+ */
+function drop(i: TakedownInput, dx: number, dz: number, dy: number, face: number, ux: number, uz: number): TakedownPlan | null {
+  const T = TAKEDOWN;
+  if (-dy < T.dropMin || -dy > T.dropMax || hyp2(dx, dz) > T.dropReach) return null;
+  return {
+    kind: 'drop',
+    alignX: i.vx - ux * T.standoff * 0.6,
+    alignY: i.vy,
+    alignZ: i.vz - uz * T.standoff * 0.6,
+    faceYaw: face,
+    approach: Math.max(0.3, Math.sqrt((2 * -dy) / 9.81)),
+    arc: 0,
+    strike: T.strike * 0.8,
+    victimTo: null,
+  };
+}
+
 function above(i: TakedownInput, face: number, ux: number, uz: number): TakedownPlan {
   const T = TAKEDOWN;
   return {
@@ -197,7 +269,7 @@ export function approachPoint(fromX: number, fromY: number, fromZ: number, p: Ta
   out.x = fromX + (p.alignX - fromX) * s;
   out.z = fromZ + (p.alignZ - fromZ) * s;
   // a drop falls (accelerating), a vault lifts over
-  const fall = p.kind === 'above' ? e * e : s;
+  const fall = p.kind === 'above' || p.kind === 'drop' ? e * e : s;
   out.y = fromY + (p.alignY - fromY) * fall + p.arc * Math.sin(Math.PI * e);
 }
 

@@ -1,6 +1,7 @@
 // Animation / camera quality bars for the stealth operative, measured in the running game (Proving
-// Grounds, headless stepping): responsiveness (visible within one frame, 90% speed times, stops, pivots,
-// travel and aim turn rates), stance and aim transitions, weapon clip timings, foot locking (< 1 cm) in
+// Grounds, headless stepping): responsiveness (3.2.0 Chaos Theory: visible within one frame, 95% speed within
+// 0.08 s, a stop on the release step with a 0.12 s pose blend, no planted pivots, 720 deg/s travel turns, aim
+// turn rate), stance and aim transitions, weapon clip timings, foot locking (< 1 cm) in
 // every gait, transition continuity, hit flinch, camera follow lag / framing blends / shoulder swap /
 // bob / drift / sprint FOV / bounded angular velocity and acceleration, and 60 / 120 / 144 / 165 / 240 Hz parity.
 // (Cover choreography bars live in e2e-stealth.)
@@ -89,22 +90,26 @@ try {
     return { poseD, speed1: r[0] };
   });
   assert(first.poseD > 0.002 && first.speed1 > 0, `visible on the first frame after input (pose ${first.poseD.toFixed(4)}), root moving on the first step (${first.speed1.toFixed(3)} m/s)`);
-  const reach = async (inp, target, setup) =>
-    G(([inp, target, setup]) => {
+  // 3.2.0: the root (motion driver) reaches 95% of the gear's pace within 0.08 s (in 60 Hz steps)
+  const reach = async (inp, target, gear) =>
+    G(([inp, target, gear]) => {
       const t = window.__t;
       const a = window.__app;
       const c = a.current.player.controller;
+      c.gears.set(gear);
       t.tp(8, -14, -Math.PI / 2);
-      if (setup) new Function('a', setup)(a);
-      const r = t.run(1.2, inp, (s) => [s, c.speed]);
-      return r.find(([, v]) => v >= target * 0.9)?.[0] ?? 99;
-    }, [inp, target, setup ?? null]);
-  const walkT = await reach({ y: 0.5 }, 1.4);
-  const jogT = await reach({ y: 1 }, 2.8);
-  const sprintT = await reach({ y: 1, taps: { 1: 'dash' } }, 5.0);
-  assert(within(walkT, 0.15, 0.35), `walk: 90% speed in ${f2(walkT)} s (0.2-0.35)`);
-  assert(within(jogT, 0.2, 0.35), `jog: 90% speed in ${f2(jogT)} s (0.2-0.35)`);
-  assert(sprintT <= 0.45, `sprint: 90% speed in ${f2(sprintT)} s (<= 0.45)`);
+      const r = t.run(0.6, inp, (s) => [s, c.motion.speed]);
+      c.gears.set(4);
+      // (of the pace it settles at: the weapon's handling scales the gear's cap a little)
+      const end = r.at(-1)[1];
+      return end > target * 0.9 ? (r.find(([, v]) => v >= end * 0.95)?.[0] ?? 99) : 98;
+    }, [inp, target, gear]);
+  const walkT = await reach({ y: 1 }, 1.3, 2);
+  const jogT = await reach({ y: 1 }, 2.8, 4);
+  const sprintT = await reach({ y: 1, taps: { 1: 'dash' } }, 5.0, 4);
+  assert(walkT <= 0.08, `gear 2: 95% speed in ${f2(walkT)} s (<= 0.08)`);
+  assert(jogT <= 0.08, `gear 4: 95% speed in ${f2(jogT)} s (<= 0.08)`);
+  assert(sprintT <= 0.08 + 1 / 60, `sprint: 95% speed in ${f2(sprintT)} s (<= 0.08 from the press)`);
   const stop = await G(() => {
     const t = window.__t;
     const p = window.__app.current.player;
@@ -125,8 +130,9 @@ try {
     });
   });
   const stoppedAt = stop.find(([, v]) => v < 0.02)?.[0] ?? 99;
-  assert(within(stoppedAt, 0.2, 0.36), `stop from a jog in ${f2(stoppedAt)} s (0.2-0.35)`);
-  assert(within(stop.at(-1)[2], 1, 2), `one or two settling steps (${stop.at(-1)[2]})`);
+  assert(stoppedAt <= 1 / 60 + 1e-6, `stop from a jog on the release step (${f2(stoppedAt)} s)`);
+  // 3.2.0: the stop holds the stride it stopped in - only a foot that was in the air sets down
+  assert(within(stop.at(-1)[2], 0, 1), `the stride holds: no settling step (${stop.at(-1)[2]} plant${stop.at(-1)[2] === 1 ? ', the foot in the air' : 's'})`);
   const pivot = await G(() => {
     const t = window.__t;
     const c = window.__app.current.player.controller;
@@ -139,8 +145,8 @@ try {
     });
     return { pt, end: r.at(-1), yaw: c.yaw };
   });
-  // (instantaneous speed: the step pulse dips each footfall ~8% under the 2.8 m/s jog)
-  assert(within(pivot.pt, 0.24, 0.36) && pivot.end > 2.4, `reversing at a jog: ${f2(pivot.pt)} s planted pivot, then off the other way (${f2(pivot.end)} m/s)`);
+  // (instantaneous speed: the step pulse dips each footfall under the 2.8 m/s pace)
+  assert(pivot.pt === 0 && pivot.end > 2.4, `reversing at a jog: no planted pivot (${f2(pivot.pt)} s), straight off the other way (${f2(pivot.end)} m/s)`);
   const turns = await G(() => {
     const t = window.__t;
     const c = window.__app.current.player.controller;
@@ -163,7 +169,9 @@ try {
         max = Math.max(max, Math.abs(d) * 60);
         minSpeed = Math.min(minSpeed, c.speed);
         const u = hips.getDirection(up);
-        const tilt = (Math.asin(Math.max(-1, Math.min(1, u.x * Math.cos(c.yaw) - u.z * Math.sin(c.yaw)))) * 180) / Math.PI;
+        // (in the rendered body's frame: at 720 deg/s the sim's yaw runs a step ahead of the posed hips)
+        const ry = c.renderYaw;
+        const tilt = (Math.asin(Math.max(-1, Math.min(1, u.x * Math.cos(ry) - u.z * Math.sin(ry)))) * 180) / Math.PI;
         bankMax = Math.max(bankMax, Math.abs(tilt));
         bankIn = Math.min(bankIn, tilt);
         return 0;
@@ -187,9 +195,10 @@ try {
     });
     return { jog, sprint, aim: (aimMax * 180) / Math.PI };
   });
-  assert(turns.jog.max <= 545 && turns.jog.max > 250 && turns.jog.minSpeed > 2.2, `90 deg direction change at a jog arcs round (${turns.jog.max.toFixed(0)} deg/s, speed stays above ${f2(turns.jog.minSpeed)} m/s)`);
+  // 3.2.0: the direction re-targets at once (the velocity cuts across, ~70% of the pace at the corner)
+  assert(turns.jog.max <= 725 && turns.jog.max > 600 && turns.jog.minSpeed > 1.8, `90 deg direction change at a jog: turns at up to 720 deg/s (${turns.jog.max.toFixed(0)} deg/s, speed stays above ${f2(turns.jog.minSpeed)} m/s)`);
   assert(turns.jog.bankIn < -1.5 && turns.jog.bankMax <= 8 && turns.sprint.bankMax <= 8, `leans into turns, <= 8 deg (jog ${f2(-turns.jog.bankIn)} deg in, max ${f2(turns.jog.bankMax)}; sprint max ${f2(turns.sprint.bankMax)})`);
-  assert(turns.sprint.max <= 305, `sprinting turns no faster than 300 deg/s (${turns.sprint.max.toFixed(0)})`);
+  assert(turns.sprint.max <= 725, `sprinting turns no faster than 720 deg/s (${turns.sprint.max.toFixed(0)})`);
   assert(turns.aim <= 365 && turns.aim > 200, `aiming: the body follows the aim at <= 360 deg/s (${turns.aim.toFixed(0)})`);
 
   // ---------------------------------------------------------------- stance and aim

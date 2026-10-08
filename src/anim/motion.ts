@@ -17,7 +17,7 @@
  *
  * Everything is in seconds: identical results at any step size within reason.
  */
-import { MOVEMENT } from '../config/movement';
+import { CT, MOVEMENT } from '../config/movement';
 import { hyp2 } from '../core/mathx';
 
 export type MotionState = 'idle' | 'start' | 'move' | 'stop' | 'turn' | 'pivot';
@@ -34,10 +34,21 @@ export interface MotionInput {
   sprinting: boolean;
   /** Face the travel direction (ignores `yaw` unless aiming); still = hold the facing. */
   faceTravel: boolean;
+  /**
+   * Chaos Theory feel (3.2.0, the player's free movement only; enemies never set it): releasing the stick stops
+   * dead on the step, starts reach 95% of the target within `CT.startTime`, direction and speed changes re-target
+   * at once, no planted pivots, travel turns at `CT.turnRate`.
+   */
+  ct: boolean;
 }
 
 export function emptyMotionInput(): MotionInput {
-  return { vx: 0, vz: 0, yaw: 0, aiming: false, sprinting: false, faceTravel: false };
+  return { vx: 0, vz: 0, yaw: 0, aiming: false, sprinting: false, faceTravel: false, ct: false };
+}
+
+/** Chaos Theory start: the velocity error decays with this time constant (95% inside `CT.startTime`). */
+export function ctTau(): number {
+  return CT.startTime / 4;
 }
 
 export type MotionTuning = typeof MOVEMENT;
@@ -143,6 +154,11 @@ export class MotionDriver {
   step(dt: number, i: MotionInput, M: MotionTuning = MOVEMENT): void {
     if (dt <= 0) return;
     this.stateT += dt;
+    if (i.ct) {
+      this.stepCt(dt, i);
+      this.finish(dt, i, M);
+      return;
+    }
     const want = hyp2(i.vx, i.vz);
     const speed = this.speed;
     let tx = i.vx;
@@ -256,7 +272,35 @@ export class MotionDriver {
       this.vx = this.vz = 0;
       this.ax = this.az = 0;
     }
+    this.finish(dt, i, M);
+  }
 
+  /**
+   * Chaos Theory velocity (3.2.0): no stop / start / pivot states. Stick released: zero velocity on this step (the
+   * gait clock freezes; the pose blends to idle in the animation). Pushed: the velocity closes on the target with
+   * time constant `ctTau` (95% within `CT.startTime`), re-targeting at once on a direction or speed change.
+   */
+  private stepCt(dt: number, i: MotionInput): void {
+    const want = hyp2(i.vx, i.vz);
+    if (want <= 0.05) {
+      this.vx = this.vz = this.ax = this.az = 0;
+      this.heading = Number.NaN;
+      if (this.state !== 'idle' && this.state !== 'turn') this.go('idle');
+      return;
+    }
+    if (this.state !== 'move') this.go('move');
+    const k = 1 - Math.exp(-dt / ctTau());
+    const nvx = this.vx + (i.vx - this.vx) * k;
+    const nvz = this.vz + (i.vz - this.vz) * k;
+    this.ax = (nvx - this.vx) / dt;
+    this.az = (nvz - this.vz) / dt;
+    this.vx = nvx;
+    this.vz = nvz;
+    this.heading = Math.atan2(i.vx, i.vz);
+  }
+
+  /** Gait clock, stride modulation and facing (after the velocity). */
+  private finish(dt: number, i: MotionInput, M: MotionTuning): void {
     // --- gait clock and stride modulation
     const sp = this.speed;
     if (sp > 0.02) {
@@ -306,9 +350,9 @@ export class MotionDriver {
         this.yawRate = 0;
         return;
       }
-      let rate = travelRate(sp, i.sprinting, M);
+      let rate = i.ct ? CT.turnRate : travelRate(sp, i.sprinting, M);
       if (this.state === 'pivot') rate = Math.max(rate, Math.PI / M.pivotTime);
-      this.turnToward(wrapPi(target - this.yaw), rate, M.turnAccel, dt);
+      this.turnToward(wrapPi(target - this.yaw), rate, i.ct ? CT.turnAccel : M.turnAccel, dt);
       return;
     }
     const still = sp < 0.15 && (this.state === 'idle' || this.state === 'start');

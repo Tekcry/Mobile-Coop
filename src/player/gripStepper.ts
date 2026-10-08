@@ -64,7 +64,7 @@ export class GripStepper {
   }
 
   /** Advance swings and start a new one if a planted limb trails too far. `vel` = body rate (sign = direction). */
-  update(dt: number, body: number, vel: number): void {
+  update(dt: number, body: number, vel: number, decide = true): void {
     const c = this.cfg;
     for (let k = 0; k < 2; k++) {
       const g = k === 0 ? this.L : this.R;
@@ -76,6 +76,8 @@ export class GripStepper {
         this.steps++;
       }
     }
+    // (`decide` false: only finish the swings under way - a remote following the owner's grips)
+    if (!decide) return;
     // one limb at a time, but the next may set off once the other is half way (a quick hand-over-hand)
     for (let k = 0; k < 2; k++) {
       const g = k === 0 ? this.L : this.R;
@@ -89,6 +91,23 @@ export class GripStepper {
       const dir = Math.abs(vel) > 1e-3 ? Math.sign(vel) : Math.sign(e);
       const to = snap(body + off + dir * c.slack * c.lead, c);
       if (Math.abs(to - g.at) < 1e-6) continue;
+      g.from = g.at;
+      g.at = to;
+      g.swing = 0;
+      return;
+    }
+  }
+
+  /**
+   * (3.2.0) Step onto given grips (a co-op / PvP remote: the owner's planted contacts once it is still): a planted
+   * limb off its grip swings to it, one limb at a time. NaN leaves a limb alone.
+   */
+  settleTo(atL: number, atR: number): void {
+    if (this.L.swing >= 0 || this.R.swing >= 0) return;
+    for (let k = 0; k < 2; k++) {
+      const g = k === 0 ? this.L : this.R;
+      const to = k === 0 ? atL : atR;
+      if (Number.isNaN(to) || Math.abs(to - g.at) < 0.01) continue;
       g.from = g.at;
       g.at = to;
       g.swing = 0;

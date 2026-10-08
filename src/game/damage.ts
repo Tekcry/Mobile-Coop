@@ -5,6 +5,10 @@ export type Team = 'player' | 'enemy' | 'neutral';
 export type HitPart = 'head' | 'body';
 
 export interface HitInfo {
+  /** (3.2.0) A guard's shot that struck a hostage held as a human shield (enemy fire that does hurt an enemy). */
+  shieldHit?: boolean;
+  /** (3.2.0) The takedown kind behind a melee hit (PvP: the host checks it). */
+  takedown?: string;
   amount: number;
   point: Vector3;
   dir: Vector3;

@@ -1,7 +1,9 @@
 import { PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
-import { MOVEMENT } from '../config/movement';
+import { CT, LEAP, MOVEMENT } from '../config/movement';
 import { pickTraversal, type Traversal } from './movement';
+import { gearCap } from './speedGears';
+import { traversePath, type PathKind } from './traversePath';
 import type { Player } from './player';
 import { hyp2 } from '../core/mathx';
 import type { AttachMachine, ExitReason } from './attach';
@@ -11,7 +13,6 @@ import type { Breakables } from '../world/breakables';
 import type { AttachCamera } from '../config/camera';
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
-const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 * t));
 
 /** Durations (s) of each committed traversal from a standstill; quicker in stride (see `duration`). */
 export const TRAVERSE_TIME: Record<Exclude<Traversal, 'none'> | 'drop' | 'hop' | 'roll', number> = { step: 0.4, vault: 0.7, mantle: 1.0, drop: 0.35, hop: 0.5, roll: 0.62 };
@@ -50,6 +51,10 @@ export class TraversalController {
   kind: Traversal | 'drop' | 'hop' | 'roll' = 'none';
   /** The committed vault goes through a window (a low dive). */
   private throughWindow = false;
+  /** The roll is the Chaos Theory forward roll (a crouch tap at speed; ends crouched), not a landing roll. */
+  private ctRoll = false;
+  /** Chaos Theory forward rolls started (GameState makes their noise). */
+  forwardRolls = 0;
   /** Landing counter last seen (a new landing in the roll band starts a roll). */
   private landings = 0;
   t = 0;
@@ -71,6 +76,12 @@ export class TraversalController {
   private dir = new Vector3(0, 0, 1);
   private top = 0;
   private probeT = 0;
+  /** (3.2.0) The manual jump: seconds since the take-off (-1: not in one), the split gap under it, the pause before
+   *  the next one and a counter (tests). */
+  private leapT = -1;
+  private leapSplit: ReachResult | null = null;
+  private leapCool = 0;
+  leaps = 0;
   /** Attached locomotion (ladder, pipe, hang, duct, zipline). */
   readonly attachCtl: AttachController;
   /** The window the vault hint goes through (glazed: the vault breaks it), or null. */
@@ -102,6 +113,24 @@ export class TraversalController {
       (x, z, y) => this.floor(x, z, y, 3),
       (ax, ay, az, bx, by, bz) => this.ray(this.a.set(ax, ay, az), this.b.set(bx, by, bz)) === null,
     );
+    // (3.2.0) off a rope through a window beside it: the window vault from there (the glass breaks)
+    this.attachCtl.onKickThrough = (w, fx, fy, fz, tx, ty, tz) => {
+      if (!w.open) this.breakables?.open(`glass:${w.id}`, 'break');
+      this.throughWindow = true;
+      this.ctRoll = false;
+      this.kind = 'vault';
+      this.t = 0;
+      this.speed0 = 2;
+      this.sprint0 = false;
+      this.dur = TRAVERSE_TIME.vault * 0.9;
+      this.from.set(fx, fy, fz);
+      this.to.set(tx, ty, tz);
+      this.top = Math.max(fy, w.sillHeight) + 0.05;
+      const l = hyp2(tx - fx, tz - fz) || 1;
+      this.dir.set((tx - fx) / l, 0, (tz - fz) / l);
+      this.hint = null;
+      this.moves = (this.moves + 1) & 255;
+    };
   }
 
   /** A standing body's worth of free space above (x, y, z) (and nothing solid at the feet). */
@@ -266,7 +295,7 @@ export class TraversalController {
    * Fixed step. `jumpPressed` is the contextual action; `blocked` while another system (cover) owns
    * the controller. Returns true while a traversal drives the player.
    */
-  fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null): boolean {
+  fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null, leapPressed = false): boolean {
     const p = this.player;
     const c = p.controller;
     const pose = p.coverPose;
@@ -275,13 +304,25 @@ export class TraversalController {
       return true;
     }
     if (this.attachCtl.updateVent(dt)) return true;
+    // teleported mid-move (respawn, tests): the committed move is gone
+    if (c.teleports !== this.teleports) {
+      this.teleports = c.teleports;
+      this.landings = c.landings;
+      if (this.active) {
+        c.override = null;
+        this.kind = 'none';
+        this.ctRoll = false;
+        pose.traverse = 'none';
+        pose.traverseT = 0;
+      }
+    }
     if (this.active) {
       this.t += dt;
       const k = Math.min(1, this.t / this.dur);
       this.path(k);
       pose.traverse = this.throughWindow ? 'windowVault' : this.kind;
       pose.traverseT = k;
-      c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' };
+      c.override = { kinematic: this.kin, yaw: Math.atan2(this.dir.x, this.dir.z), crouch: this.kind === 'vault' || this.ctRoll };
       if (k >= 1) {
         const inStride = this.speed0 >= 1;
         // a standing climb settles; in stride the move lands straight into the gait it came from
@@ -291,8 +332,11 @@ export class TraversalController {
           c.motion.carry(this.dir.x * this.speed0, this.dir.z * this.speed0);
           if (this.sprint0) c.resumeSprint();
         }
+        // the forward roll comes up crouched
+        if (this.ctRoll) c.setCrouchToggle();
         this.kind = 'none';
         this.throughWindow = false;
+        this.ctRoll = false;
         pose.traverse = 'none';
         pose.traverseT = 0;
       }
@@ -304,10 +348,37 @@ export class TraversalController {
       if (c.lastLanding === 'roll' && c.grounded && p.alive && !blocked && this.startRoll()) return this.fixedUpdate(0, false, false);
     }
     const ac = this.attachCtl;
+    this.leapCool = Math.max(0, this.leapCool - dt);
     // falling past a lip: traverse grabs it
     if (!c.grounded && p.alive && !blocked) {
       this.hint = null;
       ac.lower = null;
+      // (3.2.0) a manual jump: a second press over a split gap braces in it; the hands take what comes in reach
+      if (this.leapT >= 0) {
+        this.leapT += dt;
+        const sp = this.leapSplit;
+        if (sp && (jumpPressed || leapPressed) && this.leapT <= LEAP.doubleTap) {
+          this.leapT = -1;
+          this.leapSplit = null;
+          // facing along the hallway the way the jump was going (else the way the body faces)
+          if (sp.anchor.kind === 'split') {
+            const v = c.vel;
+            const moving = v.x * v.x + v.z * v.z > 0.25;
+            const dx = moving ? v.x : Math.sin(c.yaw);
+            const dz = moving ? v.z : Math.cos(c.yaw);
+            sp.face = dx * sp.anchor.tx + dz * sp.anchor.tz >= 0 ? 1 : -1;
+          }
+          return ac.attachFrom(sp);
+        }
+        if (!sp || this.leapT >= LEAP.splitWait) {
+          const g = ac.fallProbe(c.pos) ?? ac.leapProbe(c.pos);
+          if (g) {
+            this.leapT = -1;
+            this.leapSplit = null;
+            return ac.attachFrom(g, 0.15);
+          }
+        }
+      }
       ac.hint = ac.fallProbe(c.pos);
       if (ac.hint && jumpPressed) return ac.attachFrom(ac.hint, 0.15);
       return false;
@@ -318,8 +389,18 @@ export class TraversalController {
       ac.lower = null;
       return false;
     }
+    // (landed from a manual jump)
+    if (this.leapT > 0.1) {
+      this.leapT = -1;
+      this.leapSplit = null;
+    }
+    // Chaos Theory: crouch tapped standing at speed (gear 5-6 or sprinting) is a committed forward roll
+    if (ac.input.dropPressed && this.canForwardRoll() && this.startRoll(true)) {
+      c.swallowCrouch = true;
+      return this.fixedUpdate(0, false, false);
+    }
     this.probeT -= dt;
-    if (this.probeT <= 0 || jumpPressed) {
+    if (this.probeT <= 0 || jumpPressed || leapPressed) {
       this.probeT = 0.2;
       const d = dir ?? this.probeDir();
       this.hint = this.probe(c.pos, d.x, d.z);
@@ -330,6 +411,8 @@ export class TraversalController {
         this.hintAt.set(c.pos.x + d.x * f, c.pos.y, c.pos.z + d.z * f);
       }
     }
+    // (3.2.0) the Jump button: a jump whatever is offered (the hands grab what comes in reach)
+    if (leapPressed && this.leap()) return false;
     // anchors: a climb / grab when nothing closer is offered (a step, vault or mantle wins)
     const h = this.hint;
     const ah = ac.hint;
@@ -361,16 +444,60 @@ export class TraversalController {
       this.to.copyFrom(this.hint.end);
       this.top = c.pos.y + Math.max(0, this.hint.height);
       this.hint = null;
+      this.moves = (this.moves + 1) & 255;
       return this.fixedUpdate(0, false, false);
     }
+    // nothing on offer: traverse is a jump (a second press over a split gap braces in it)
+    if (jumpPressed) this.leap();
     return false;
   }
 
-  /** Roll along the landing velocity (or the facing), as far as there is room. */
-  private startRoll(): boolean {
+  /**
+   * (3.2.0) The manual jump from the ground: straight up at `LEAP.vy` keeping the run's pace (standing up from a
+   * crouch). In the air `fixedUpdate` grabs what comes within reach and takes a second press over a split gap.
+   */
+  leap(): boolean {
+    const p = this.player;
+    const c = p.controller;
+    if (this.leapCool > 0 || !c.grounded || c.override || this.kind !== 'none' || this.attachCtl.active || !p.alive) return false;
+    c.clearCrouchToggle();
+    const sp = hyp2(c.vel.x, c.vel.z);
+    const v = Math.min(LEAP.maxSpeed, sp * LEAP.carry);
+    const k = sp > 1e-3 ? v / sp : 0;
+    c.launch(c.vel.x * k, LEAP.vy, c.vel.z * k);
+    this.leapT = 0;
+    this.leapSplit = this.attachCtl.split;
+    this.leapCool = LEAP.cooldown;
+    this.leaps++;
+    this.hint = null;
+    this.attachCtl.hint = null;
+    return true;
+  }
+
+  /** (3.2.0) A jump straight into the split gap under the body (the touch action button's split; a double jump). */
+  splitNow(): boolean {
+    const sp = this.attachCtl.split;
+    if (!sp || this.kind !== 'none' || this.attachCtl.active || !this.player.controller.grounded) return false;
+    return this.attachCtl.attachFrom(sp);
+  }
+
+  /** A crouch tap now would roll: standing, free, moving at gear 5-6 (or sprinting) with the stick pushed. */
+  private canForwardRoll(): boolean {
     const c = this.player.controller;
-    let dx = c.landVX;
-    let dz = c.landVZ;
+    if (c.crouched || c.override || !c.grounded || this.player.ads) return false;
+    if (c.gear < CT.rollGear && !c.sprinting) return false;
+    const w = c.wishDir;
+    return c.speed >= CT.rollMinSpeed && hyp2(w.x, w.z) > 0.3;
+  }
+
+  /**
+   * Roll along the landing velocity (or the facing), as far as there is room. `forward`: the Chaos Theory forward
+   * roll along the travel direction (`CT.rollLength` in `CT.rollTime`, comes up crouched).
+   */
+  private startRoll(forward = false): boolean {
+    const c = this.player.controller;
+    let dx = forward ? c.motion.vx : c.landVX;
+    let dz = forward ? c.motion.vz : c.landVZ;
     let sp = hyp2(dx, dz);
     if (sp < 0.5) {
       dx = Math.sin(c.yaw);
@@ -380,77 +507,62 @@ export class TraversalController {
       dx /= sp;
       dz /= sp;
     }
-    const hit = this.ray(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (ROLL_LENGTH + 0.4), c.pos.y + 0.45, c.pos.z + dz * (ROLL_LENGTH + 0.4)));
-    const len = hit === null ? ROLL_LENGTH : Math.min(ROLL_LENGTH, hit - 0.4);
+    const full = forward ? CT.rollLength : ROLL_LENGTH;
+    const hit = this.ray(this.a.set(c.pos.x, c.pos.y + 0.45, c.pos.z), this.b.set(c.pos.x + dx * (full + 0.4), c.pos.y + 0.45, c.pos.z + dz * (full + 0.4)));
+    const len = hit === null ? full : Math.min(full, hit - 0.4);
     if (len < ROLL_MIN) return false;
     this.kind = 'roll';
     this.throughWindow = false;
+    this.ctRoll = forward;
     this.t = 0;
-    this.speed0 = Math.max(sp, 2.5);
+    // the forward roll comes out at the crouched pace of the gear it went in at
+    this.speed0 = forward ? Math.min(sp, gearCap(c.gear, true)) : Math.max(sp, 2.5);
     this.sprint0 = false;
-    this.dur = TRAVERSE_TIME.roll;
+    this.dur = forward ? CT.rollTime : TRAVERSE_TIME.roll;
+    if (forward) {
+      this.forwardRolls++;
+      c.cancelSprint();
+    }
     this.dir.set(dx, 0, dz);
     this.from.copyFrom(c.pos);
     this.to.set(c.pos.x + dx * len, c.pos.y, c.pos.z + dz * len);
     this.top = c.pos.y;
     c.landT = 0;
+    this.moves = (this.moves + 1) & 255;
     return true;
   }
 
-  /** Feet position along the committed path at progress k. */
+  /** Feet position along the committed path at progress k (`traversePath`, shared with co-op remotes). */
   private path(k: number): void {
-    const f = this.from;
-    const e = this.to;
-    let h: number;
-    let y: number;
-    switch (this.kind) {
-      case 'mantle': {
-        // hands on top, pull up (rise first), then step onto it
-        const up = smooth(k / 0.65);
-        h = smooth((k - 0.35) / 0.65);
-        y = f.y + (e.y + 0.04 - f.y) * up;
-        break;
-      }
-      case 'vault': {
-        // plant, swing the legs over the top, land; in stride the momentum carries straight through
-        const run = Math.min(1, Math.max(0, (this.speed0 - 1) / 2));
-        h = smooth(k) * (1 - run) + k * run;
-        const clear = this.top + 0.12;
-        const arc = Math.sin(Math.PI * Math.min(1, k * 1.15));
-        y = f.y + (e.y - f.y) * h + Math.max(0, clear - Math.max(f.y, e.y)) * arc;
-        break;
-      }
-      case 'roll': {
-        // momentum carries through, easing out as the body comes back up; the curled body rides up a little
-        // over its back (the tumble pivot is at the hips) so the shoulders roll over the floor, not through it
-        h = k * (2 - k);
-        y = f.y + (e.y - f.y) * h + 0.16 * Math.sin(Math.PI * Math.min(1, Math.max(0, (k - 0.1) / 0.75)));
-        break;
-      }
-      case 'hop': {
-        // a low, quick leap: carried by momentum (near linear), a short arc
-        h = k;
-        y = f.y + (e.y - f.y) * smooth(k) + 0.45 * Math.sin(Math.PI * k);
-        break;
-      }
-      case 'drop': {
-        // step off the edge; gravity takes over after the release
-        h = smooth(k);
-        y = f.y - 0.05 * k;
-        break;
-      }
-      default: {
-        // step up: lift then forward
-        const up = smooth(k / 0.6);
-        h = smooth((k - 0.2) / 0.8);
-        y = f.y + (e.y + 0.03 - f.y) * up;
-      }
-    }
-    this.kin.set(f.x + (e.x - f.x) * h, y, f.z + (e.z - f.z) * h);
+    traversePath(this.kind === 'none' ? 'step' : (this.kind as PathKind), this.from, this.to, this.top, this.speed0, k, this.kin);
   }
 
+  /** The committed move under way (co-op: remotes replay it from its start): kind, path ends, top, speed, duration. */
+  get committed(): { kind: Traversal | 'drop' | 'hop' | 'roll'; window: boolean; from: Vector3; to: Vector3; top: number; speed: number; dur: number; t: number; n: number } | null {
+    if (this.kind === 'none') return null;
+    const c = this.commitInfo;
+    c.kind = this.kind;
+    c.window = this.throughWindow;
+    c.from = this.from;
+    c.to = this.to;
+    c.top = this.top;
+    c.speed = this.speed0;
+    c.dur = this.dur;
+    c.t = this.t;
+    c.n = this.moves;
+    return c;
+  }
+
+  private commitInfo = { kind: 'none' as Traversal | 'drop' | 'hop' | 'roll', window: false, from: new Vector3(), to: new Vector3(), top: 0, speed: 0, dur: 1, t: 0, n: 0 };
+  /** Committed moves started (a counter the network state carries). */
+  private moves = 0;
+  private teleports = 0;
+
   reset(): void {
+    this.leapT = -1;
+    this.leapSplit = null;
     this.kind = 'none';
+    this.ctRoll = false;
     this.hint = null;
     this.attachCtl.reset();
   }

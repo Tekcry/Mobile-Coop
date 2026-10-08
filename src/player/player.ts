@@ -12,7 +12,7 @@ import { avatarFactory } from '../cosmetics/avatarFactory';
 import { WeaponCarry, emptyCarryInput } from '../weapons/weaponCarry';
 import { wrapPi } from '../anim/motion';
 import { hyp2 } from '../core/mathx';
-import { MOVEMENT } from '../config/movement';
+import { CT, MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { TraverseKind } from '../anim/animGraph';
 
@@ -41,6 +41,8 @@ export interface PlayerPose {
   check: number;
   /** Takedown strike progress 0..1, or < 0. */
   melee: number;
+  /** (3.2.0) Whole-body tumble about the hips (rad; pipe legs up / inverted), 0 = upright. */
+  tumble: number;
 }
 
 const Q = { membership: G.PLAYER, collideWith: G.STATIC };
@@ -71,6 +73,11 @@ export class Player {
   swapT = -1;
   /** Cover sets the angles a peek / blind fire may aim at (null = free). */
   aimLimit: AimLimit | null = null;
+  /**
+   * (3.2.0) Aiming a sidearm while attached (split, hanging inverted): the aim's centre (world yaw), its yaw half
+   * range and pitch band (rad, + up), and whether the body hangs upside down. Null: no aiming while traversing.
+   */
+  attachAim: { yaw: number; range: number; pitchMin: number; pitchMax: number; inverted: boolean } | null = null;
   /** The aim against the current cover limit (`inside` = within it, read by the cover controller). */
   readonly aimState: AimState = { yaw: 0, pitch: 0, inside: false };
   /** The weapon is not out past the cover yet (peek / rise / blind raise still moving): no shots. */
@@ -84,7 +91,7 @@ export class Player {
   sinceShot = 99;
   weaponWeight = 1;
   /** Pose driven by cover / corners / traversal. */
-  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1, melee: -1 };
+  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1, melee: -1, tumble: 0 };
   /** Context flags for the ready position (set by the corner/cover systems each step). */
   context = { doorway: false, coverEdge: false };
   /** Called when landing from a fall (speed in m/s). */
@@ -167,7 +174,7 @@ export class Player {
     // aiming while sprinting ends the sprint and raises the weapon
     if (this.ads && c.sprinting && this.coverPose.traverse === 'none') c.cancelSprint();
     if (this.forceAds) this.ads = true;
-    if (c.weaponBlocked || this.coverPose.traverse !== 'none') this.ads = false;
+    if (c.weaponBlocked || (this.coverPose.traverse !== 'none' && !this.attachAim)) this.ads = false;
     if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
 
@@ -186,7 +193,7 @@ export class Player {
     ci.dashing = c.weaponBlocked;
     // reloading, swapping and throwing all keep the weapon tucked in and down
     ci.reloading = this.reload >= 0 || this.swapT >= 0 || this.grenadeT >= 0;
-    ci.traversing = this.coverPose.traverse !== 'none';
+    ci.traversing = this.coverPose.traverse !== 'none' && !this.attachAim;
     ci.coverRaise = this.coverPose.lean !== 0 || this.coverPose.peekOver > 0.5 || this.coverPose.blind;
     ci.weight = this.weaponWeight;
     this.carry.update(dt, ci);
@@ -203,6 +210,8 @@ export class Player {
       ads: this.ads,
       aiming: this.aiming || inp.down('fire'),
       reloading: this.reload >= 0,
+      gearUp: inp.pressed('speedUp'),
+      gearDown: inp.pressed('speedDown'),
     };
     if (!this.alive) pi.moveX = pi.moveY = 0;
     c.fixedUpdate(dt, pi, this.cam.yaw);
@@ -213,6 +222,9 @@ export class Player {
   }
 
   /** Render-rate update: look, camera, animation. */
+  /** Controller teleports seen (each resets the feet). */
+  private teleportsSeen = 0;
+
   frameUpdate(dt: number, alpha: number, look: { x: number; y: number }, move?: { x: number; y: number }): void {
     const c = this.controller;
     if (this.alive && dt > 0) {
@@ -230,6 +242,13 @@ export class Player {
         this.cam.yaw = as.yaw;
         this.cam.pitch = as.pitch;
       } else as.inside = false;
+      // (3.2.0) a sidearm from a split / an inverted hang: the aim stays within the band the body can turn to
+      const at = this.attachAim;
+      if (at && this.carry.raise > 0.05) {
+        const d = wrapPi(this.cam.yaw - at.yaw);
+        if (Math.abs(d) > at.range) this.cam.yaw = at.yaw + Math.sign(d) * at.range;
+        this.cam.pitch = Math.max(at.pitchMin, Math.min(at.pitchMax, this.cam.pitch));
+      }
     }
     this.cam.adsTarget = this.ads ? 1 : 0;
     this.applyFov();
@@ -267,6 +286,15 @@ export class Player {
     rp.kneel = c.kneeling;
     rp.aimPitch = this.cam.pitch * raise;
     rp.aimYaw = aimYaw;
+    // hanging upside down: the spine turns the mirrored way and the raised weapon points along the view in world
+    // space (not tumbled over with the body)
+    const inv = this.attachAim?.inverted === true;
+    if (inv) {
+      rp.aimYaw = -wrapPi(rel + Math.PI) * raise;
+      rp.aimPitch = -this.cam.pitch * raise;
+    }
+    rp.aimWorldYaw = inv ? this.cam.yaw : undefined;
+    rp.aimWorldPitch = inv ? this.cam.pitch : undefined;
     rp.lookYaw = Math.max(-1.1, Math.min(1.1, rel)) * 0.5 * (1 - raise);
     rp.lookPitch = Math.max(-0.6, Math.min(0.6, this.cam.pitch)) * 0.5 * (1 - raise);
     rp.aim = this.carry.raise;
@@ -298,10 +326,13 @@ export class Player {
     rp.peekClear = cp.gunClear && (cp.peekOver <= 0.5 || this.rig.overClear) ? 1 : 0;
     rp.check = cp.check;
     rp.melee = cp.melee;
+    rp.tumble = cp.tumble;
     // motion driver: gait clock (interpolated), state, acceleration in the body frame, velocity
     rp.phase = c.renderPhase;
     rp.motion = m.state;
     rp.motionT = m.stateT;
+    rp.quickStop = c.ct ? CT.stopBlend : 0;
+    rp.holdSpeed = c.stopHold ? c.holdSpeed : 0;
     const by = c.renderYaw;
     rp.accelFwd = m.ax * Math.sin(by) + m.az * Math.cos(by);
     rp.accelSide = m.ax * Math.cos(by) - m.az * Math.sin(by);
@@ -323,6 +354,12 @@ export class Player {
     const stopD = sp > 0.01 ? (sp * sp) / (2 * MOVEMENT.decelMax) + sp * (MOVEMENT.decelMax / MOVEMENT.jerkMax) * 0.5 : 0;
     rp.restX = c.renderPos.x + (sp > 0.01 ? (m.vx / sp) * stopD : 0);
     rp.restZ = c.renderPos.z + (sp > 0.01 ? (m.vz / sp) * stopD : 0);
+    // a teleport (respawn, insertion) puts the feet straight into a stance at the new spot (the rig only notices
+    // jumps over 2 m between frames)
+    if (c.teleports !== this.teleportsSeen) {
+      this.teleportsSeen = c.teleports;
+      this.rig.planner.L.init = this.rig.planner.R.init = false;
+    }
     this.rig.animate(dt, rp);
     // from cover, no shot until the weapon is actually out: leaned past the edge, risen over the top, or
     // raised above it for blind fire (else the round would go into the cover)

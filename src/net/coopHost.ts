@@ -12,13 +12,24 @@ import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
 import { hqStats } from '../progression/suit';
 import type { NetSession } from './session';
-import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState } from './protocol';
+import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { checkBlast, checkShot, maxHitDamage } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { pickSpawn, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
 import { hyp2 } from '../core/mathx';
+import { localMoveState } from '../game/localMoveState';
+import { emptyMoveState, moveChanged } from '../player/moveState';
+import { GRAB } from '../game/takedown';
+import { PvpVictim } from './pvpVictim';
+import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
+import type { TeamMate } from '../game/teamController';
+
+/** (3.2.0) A PvP takedown's end: the attacker within this of the victim (m, horizontal / vertical). */
+const PTD_REACH = 2.5;
+const PTD_HEIGHT = 5.5;
+import type { CharacterRig } from '../player/characterRig';
 
 const SNAP_HZ = 15;
 const HISTORY_HZ = 20;
@@ -45,6 +56,15 @@ interface Hist {
   y: number;
   z: number;
   c: number;
+  /** (3.2.0) The posed head and pelvis (players: hanging, crawling, peeking), NaN when not recorded. */
+  hx: number;
+  hy: number;
+  hz: number;
+  bx: number;
+  by: number;
+  bz: number;
+  /** (3.2.0) Movement mode at the time (players), '' for enemies. */
+  m: string;
 }
 
 type Tally = EndStats['players'][string];
@@ -88,7 +108,7 @@ export class CoopHost implements NetAttachment {
   /** Revive points on downed players (co-op). */
   private revives = new Map<string, Interactable>();
   /** Enemies seized by a client's takedown: enemy id -> client id and seconds held. */
-  private seized = new Map<string, { by: string; t: number }>();
+  private seized = new Map<string, { by: string; t: number; hostage?: boolean }>();
   /** Shot noise edges per client. */
   private firing = new Map<string, number>();
   /** PvP: the score; per player hit volumes the host's own shots resolve against; respawn timers. */
@@ -114,6 +134,8 @@ export class CoopHost implements NetAttachment {
     if (this.score) {
       this.score.add(s.selfId, s.players.get(s.selfId)?.team ?? 0);
       g.target.friendly = (h) => this.friendly(h, s.selfId);
+      // (3.2.0) the host's own takedowns on opponents (drop / ledge pull / inverted)
+      g.takedownVictims = () => this.pvpVictimList();
       // spread the players over the spawns from the start
       const at = this.spawnFor(s.selfId);
       g.player.controller.teleport(at, g.player.cam.yaw);
@@ -411,7 +433,7 @@ export class CoopHost implements NetAttachment {
     if (!r) return;
     switch (msg.t) {
       case 'pstate':
-        r.accept({ ...msg.s, id: from }, this.time);
+        r.accept({ ...msg.s, id: from }, this.time, this.g.world.level.anchors);
         r.avatar.buf.push(performance.now() / 1000, r.state!);
         break;
       case 'shot':
@@ -434,6 +456,12 @@ export class CoopHost implements NetAttachment {
         break;
       case 'td':
         this.onTakedown(r, msg);
+        break;
+      case 'ptd':
+        this.onPvpTakedown(r.id, msg.target, msg.kind);
+        break;
+      case 'tmove':
+        this.onTeamMove(r.id, msg.kind, msg.partner, msg.target, msg.s, msg.gy);
         break;
       case 'gadget': {
         // thrown from near the sender, one a second at most
@@ -504,6 +532,131 @@ export class CoopHost implements NetAttachment {
     this.takedownDone(r.id);
   }
 
+  // --- (3.2.0 phase 5) team moves ---
+
+  /** Team-mates of the host (co-op: every other player; TDM: the same side). */
+  /** (3.2.0 phase 5) The host's own team-move requests go through the same check as the clients'. */
+  teamRequest(kind: TeamKind, partner: string, target: number, ss: number, gy: number): void {
+    this.onTeamMove(this.s.selfId, kind, partner, target, ss, gy);
+  }
+
+  teamEnd(): void {
+    this.onTeamMove(this.s.selfId, 'end', '', -1, 0, 0);
+  }
+
+  private mateOut: TeamMate[] = [];
+  teamMates(): readonly TeamMate[] {
+    const out = this.mateOut;
+    out.length = 0;
+    for (const r of this.remotes.values()) {
+      if (!r.alive || (this.score && this.score.hostile(this.s.selfId, r.id))) continue;
+      out.push({ id: r.id, pos: r.avatar.pos, yaw: r.avatar.yaw, mode: r.state?.mv?.m ?? 'ground' });
+    }
+    return out;
+  }
+
+  /** Pairs in a human ladder (each id -> the other). */
+  private teamPairs = new Map<string, string>();
+  private teamLast = new Map<string, number>();
+  private teamMv = emptyMoveState();
+
+  private teamSide(id: string): TeamSide | null {
+    const self = id === this.s.selfId;
+    const r = self ? null : this.remotes.get(id);
+    if (!self && !r) return null;
+    const p = self ? this.g.player.position : r!.feet;
+    const mode = self ? localMoveState(this.g, this.teamMv).m : (r!.state?.mv?.m ?? 'ground');
+    const team = this.score ? (this.s.players.get(id)?.team ?? 0) : 0;
+    return { id, x: p.x, y: p.y, z: p.z, mode, alive: self ? this.g.player.alive : r!.alive, team };
+  }
+
+  /** A team-move request (a client's `tmove`, or the host's own): checked on both players' states, then started. */
+  private onTeamMove(by: string, kind: 'boost' | 'ladder' | 'end', partner: string, target: number, ss: number, gy: number): void {
+    const self = this.s.selfId;
+    if (kind === 'end') {
+      const other = this.teamPairs.get(by);
+      if (!other) return;
+      this.teamPairs.delete(by);
+      this.teamPairs.delete(other);
+      this.s.send({ t: 'tend', a: by, b: other });
+      if (other === self) this.g.team.ended();
+      return;
+    }
+    const a = this.teamSide(by);
+    const b = this.teamSide(partner);
+    const deny = (reason: string): void => {
+      this.s.send({ t: 'tdeny', a: by, reason });
+      if (by === self) this.g.team.denied(reason);
+    };
+    if (!a || !b) return deny('far');
+    const anchor = target >= 0 ? this.g.world.level.anchors.get(target) : null;
+    const now = this.time;
+    const why = checkTeamRequest({ kind, a, b, target: anchor ? target : -1, targetUp: gy - b.y, sinceLast: now - (this.teamLast.get(by) ?? -99) });
+    this.teamLast.set(by, now);
+    if (why) return deny(why);
+    if (kind === 'ladder') {
+      this.teamPairs.set(by, partner);
+      this.teamPairs.set(partner, by);
+    }
+    const start = { kind, a: by, b: partner, target: anchor ? target : -1, s: ss, t0: now };
+    this.s.send({ t: 'tstart', ...start });
+    if (by === self || partner === self) this.g.team.begin(start, self);
+  }
+
+  /** (3.2.0) PvP: hostile players as takedown victims for the host's own takedowns. */
+  private pvpVictims = new Map<string, PvpVictim>();
+  private pvpVictimOut: PvpVictim[] = [];
+  private pvpVictimList(): readonly PvpVictim[] {
+    const out = this.pvpVictimOut;
+    out.length = 0;
+    const sc = this.score;
+    if (!sc) return out;
+    for (const r of this.remotes.values()) {
+      if (!sc.hostile(this.s.selfId, r.id)) continue;
+      let v = this.pvpVictims.get(r.id);
+      if (!v) this.pvpVictims.set(r.id, (v = new PvpVictim(r.id, r.avatar, (target, kind) => this.onPvpTakedown(this.s.selfId, target, kind))));
+      out.push(v.sync());
+    }
+    return out;
+  }
+
+  /**
+   * (3.2.0) A PvP takedown finished (a client's `ptd`, or the host's own): an opponent, both alive, the attacker within
+   * reach of the victim (a drop lands beside them; a lip pull / an inverted choke is right above / below) - then it
+   * is a kill.
+   */
+  private onPvpTakedown(by: string, target: string, kind: string): void {
+    const sc = this.score;
+    if (!sc || !sc.hostile(by, target) || (kind !== 'drop' && kind !== 'below' && kind !== 'inverted')) return;
+    const self = this.s.selfId;
+    const attacker = by === self ? null : this.remotes.get(by);
+    if (by !== self && (!attacker || !attacker.alive)) return;
+    if (by === self && !this.g.player.alive) return;
+    const victim = target === self ? null : this.remotes.get(target);
+    if (target !== self && (!victim || !victim.alive)) return;
+    if (target === self && !this.g.player.alive) return;
+    const af = attacker ? attacker.feet : this.g.player.position;
+    const vf = victim ? victim.feet : this.g.player.position;
+    if (hyp2(af.x - vf.x, af.z - vf.z) > PTD_REACH || Math.abs(af.y - vf.y) > PTD_HEIGHT) {
+      if (attacker) attacker.violations++;
+      return;
+    }
+    const hit: HitInfo = {
+      amount: 9999,
+      point: vf.clone(),
+      dir: new Vector3(vf.x - af.x, 0, vf.z - af.z).normalize(),
+      part: 'body',
+      kind: 'melee',
+      attackerTeam: 'player',
+      attackerId: by,
+      sourcePos: af.clone(),
+      impulse: 1,
+      takedown: kind,
+    };
+    const res = victim ? victim.applyDamage(hit) : this.g.target.applyDamage(hit);
+    if (res.dealt > 0) this.push({ e: 'hitConfirm', player: by, kind: res.killed ? 'kill' : 'hit' });
+  }
+
   private release(eid: string): void {
     this.seized.delete(eid);
     const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
@@ -511,14 +664,16 @@ export class CoopHost implements NetAttachment {
   }
 
   /** Position of `h` at host time `t` (lag compensation). */
-  private rewindHist(h: Hist[] | undefined, t: number, out: Vector3): { crouch: number } | null {
+  private rewindHist(h: Hist[] | undefined, t: number, out: Vector3): { crouch: number; posed: boolean } | null {
     if (!h || !h.length) return null;
     const tt = Math.max(this.time - MAX_REWIND, Math.min(this.time, t));
     let a = h[0]!;
     let b = h[h.length - 1]!;
     if (tt >= b.t) {
       out.set(b.x, b.y, b.z);
-      return { crouch: b.c };
+      this.rwHead.set(b.hx, b.hy, b.hz);
+      this.rwBody.set(b.bx, b.by, b.bz);
+      return { crouch: b.c, posed: !Number.isNaN(b.hx) };
     }
     for (let i = h.length - 1; i > 0; i--) {
       if (h[i - 1]!.t <= tt) {
@@ -529,14 +684,21 @@ export class CoopHost implements NetAttachment {
     }
     const k = b.t > a.t ? Math.max(0, Math.min(1, (tt - a.t) / (b.t - a.t))) : 0;
     out.set(a.x + (b.x - a.x) * k, a.y + (b.y - a.y) * k, a.z + (b.z - a.z) * k);
-    return { crouch: a.c + (b.c - a.c) * k };
+    this.rwHead.set(a.hx + (b.hx - a.hx) * k, a.hy + (b.hy - a.hy) * k, a.hz + (b.hz - a.hz) * k);
+    this.rwBody.set(a.bx + (b.bx - a.bx) * k, a.by + (b.by - a.by) * k, a.bz + (b.bz - a.bz) * k);
+    return { crouch: a.c + (b.c - a.c) * k, posed: !Number.isNaN(a.hx) && !Number.isNaN(b.hx) };
   }
 
+  /** The rewound posed head / pelvis (`rewindHist`, when `posed`). */
+  private rwHead = new Vector3();
+  private rwBody = new Vector3();
+
   /** Shared checks: geometry against the rewound target, line of sight, the damage cap. Returns the damage. */
-  private judge(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>, feet: Vector3, crouch: number, scale: number): number {
+  private judge(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>, feet: Vector3, crouch: number, scale: number, posed = false): number {
     const def = WEAPONS[m.w];
-    const body = this.tmpB.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 0.7 : 1.0) * scale, 0);
-    const head = this.tmpH.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 1.15 : 1.62) * scale, 0);
+    // (3.2.0) a player's posed head / pelvis when recorded (hanging off a lip, crawling, leaning out), else by stance
+    const body = posed ? this.tmpB.copyFrom(this.rwBody).addInPlaceFromFloats(0, 0.12, 0) : this.tmpB.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 0.7 : 1.0) * scale, 0);
+    const head = posed ? this.tmpH.copyFrom(this.rwHead) : this.tmpH.copyFrom(feet).addInPlaceFromFloats(0, (crouch > 0.5 ? 1.15 : 1.62) * scale, 0);
     const verdict = checkShot({ origin: { x: m.ox, y: m.oy, z: m.oz }, dir: { x: m.dx, y: m.dy, z: m.dz }, part: m.part }, r.feet, body, head, def.range, 1.1 * scale);
     if (!verdict.ok) {
       r.violations++;
@@ -587,7 +749,7 @@ export class CoopHost implements NetAttachment {
     const feet = new Vector3();
     const pose = this.rewindHist(self ? this.selfHist : victim!.history, m.rt, feet);
     if (!pose) feet.copyFrom(self ? this.g.player.position : victim!.feet);
-    const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, 1);
+    const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, 1, pose?.posed ?? false);
     if (dmg <= 0) return;
     const hit: HitInfo = {
       amount: dmg,
@@ -607,12 +769,17 @@ export class CoopHost implements NetAttachment {
 
   // --- outgoing ---
 
+  /** The host's own movement state (sent in every snapshot; a change sends a snapshot at once). */
+  private mvNow = emptyMoveState();
+  private mvSent = emptyMoveState();
+
   private selfState(): PlayerState {
     const g = this.g;
     const p = g.player;
     const c = p.controller;
     const th = g.target.health;
     return {
+      mv: localMoveState(g, this.mvNow),
       id: this.s.selfId,
       x: p.position.x,
       y: p.position.y,
@@ -670,7 +837,7 @@ export class CoopHost implements NetAttachment {
       if (!e.alive || enemies.length >= MAX_ENEMIES) continue;
       enemies.push({ id: e.id, k: e.def.kind, x: e.pos.x, y: e.pos.y, z: e.pos.z, yaw: e.yaw, st: e.crouchBlend > 0.5 ? 2 : e.aiming ? 1 : 0, hp: e.health.fraction, al: alertCode(e) });
     }
-    const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players, enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
+    const snap: Extract<Msg, { t: 'snap' }> = { t: 'snap', time: this.time, players: players.map(wirePlayerState), enemies, obj: this.obj, info: this.info, pk: this.g.pickups?.mask ?? 0 };
     // items and doors when they change (and every few seconds for late joiners)
     const items = this.items();
     const doors = this.doors();
@@ -700,8 +867,19 @@ export class CoopHost implements NetAttachment {
   }
 
   private recordHistory(): void {
-    const push = (h: Hist[], x: number, y: number, z: number, c: number): void => {
-      h.push({ t: this.time, x, y, z, c });
+    const push = (h: Hist[], x: number, y: number, z: number, c: number, rig: CharacterRig | null = null, m = ''): void => {
+      const e: Hist = { t: this.time, x, y, z, c, hx: NaN, hy: NaN, hz: NaN, bx: NaN, by: NaN, bz: NaN, m };
+      if (rig) {
+        const hp = rig.headNode.getAbsolutePosition();
+        const bp = rig.hips.getAbsolutePosition();
+        e.hx = hp.x;
+        e.hy = hp.y;
+        e.hz = hp.z;
+        e.bx = bp.x;
+        e.by = bp.y;
+        e.bz = bp.z;
+      }
+      h.push(e);
       if (h.length > HISTORY_HZ * 1.2) h.shift();
     };
     for (const e of this.g.enemyMgr?.enemies ?? []) {
@@ -712,8 +890,8 @@ export class CoopHost implements NetAttachment {
     }
     if (this.score) {
       const p = this.g.player.position;
-      push(this.selfHist, p.x, p.y, p.z, this.g.player.controller.crouchBlend);
-      for (const r of this.remotes.values()) push(r.history, r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1 : 0);
+      push(this.selfHist, p.x, p.y, p.z, this.g.player.controller.crouchBlend, this.g.player.rig, this.mvNow.m);
+      for (const r of this.remotes.values()) push(r.history, r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1 : 0, r.avatar.rig, r.avatar.mode);
     }
   }
 
@@ -752,9 +930,27 @@ export class CoopHost implements NetAttachment {
       if (at) it.pos.copyFrom(at);
       if (id === this.s.selfId ? this.g.player.alive : !r || r.alive) this.dropRevive(id);
     }
+    for (const r of this.remotes.values()) r.ref.shield = null;
     for (const [eid, s] of this.seized) {
       s.t += dt;
       const by = this.remotes.get(s.by);
+      // (3.2.0) a client holding the guard as a hostage: kept in front of them (and a shield) for as long as it lasts
+      const mv = by?.state?.mv;
+      if (by && by.alive && mv?.m === 'grab' && mv.tid === eid) {
+        const e = this.g.enemyMgr?.enemies.find((x) => x.id === eid);
+        if (e && e.alive) {
+          s.t = 0;
+          const yaw = by.state!.yaw;
+          if (!s.hostage) {
+            s.hostage = true;
+            e.holdAsHostage();
+            e.setSolid(false);
+          }
+          e.holdAt(by.feet.x + Math.sin(yaw) * GRAB.hold, by.feet.y, by.feet.z + Math.cos(yaw) * GRAB.hold, yaw);
+          by.ref.shield = e;
+          continue;
+        }
+      }
       if (s.t > TD_MAX || !by || !by.alive) this.release(eid);
     }
     this.remoteNoise(dt);
@@ -775,6 +971,13 @@ export class CoopHost implements NetAttachment {
       this.recordHistory();
     }
     this.snapT -= dt;
+    // the host's own mode / sub-state changed (cover, a ladder, a vault): snapshot now
+    const mv = localMoveState(this.g, this.mvNow);
+    if (moveChanged(this.mvSent, mv)) {
+      Object.assign(this.mvSent, mv);
+      this.mvSent.c = mv.c ? { ...mv.c } : undefined;
+      this.snapT = 0;
+    }
     if (this.snapT <= 0) {
       this.snapT = 1 / SNAP_HZ;
       this.tracerBudget = 10;
@@ -809,6 +1012,12 @@ export class CoopHost implements NetAttachment {
     const now = performance.now() / 1000 - INTERP_DELAY;
     for (const r of this.remotes.values()) {
       r.avatar.update(dt, now);
+      if (r.alive) {
+        const rig = r.avatar.rig;
+        rig.hips.computeWorldMatrix(true);
+        rig.headNode.computeWorldMatrix(true);
+        r.followPose(rig.hips.getAbsolutePosition(), rig.headNode.getAbsolutePosition());
+      }
       const hb = this.pvpBoxes.get(r.id);
       if (!hb) continue;
       if (!r.alive) {
@@ -816,8 +1025,10 @@ export class CoopHost implements NetAttachment {
         continue;
       }
       hb.setEnabled(true);
-      r.avatar.rig.headNode.computeWorldMatrix(true);
-      hb.sync(r.avatar.pos, r.avatar.rig.headNode.getAbsolutePosition());
+      const rig = r.avatar.rig;
+      rig.hips.computeWorldMatrix(true);
+      rig.headNode.computeWorldMatrix(true);
+      hb.sync(r.avatar.pos, rig.headNode.getAbsolutePosition(), rig.hips.getAbsolutePosition());
     }
   }
 

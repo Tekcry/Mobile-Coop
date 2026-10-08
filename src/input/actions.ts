@@ -5,6 +5,8 @@ export const BUTTON_ACTIONS = [
   'ads',
   'reload',
   'jump',
+  /** (3.2.0) The manual jump (touch Jump button; Y / E jump when nothing else is offered). */
+  'leap',
   'crouch',
   'swapNext',
   'swapPrev',
@@ -30,6 +32,9 @@ export const BUTTON_ACTIONS = [
   'execute',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',
+  /** Chaos Theory speed gears (3.2.0): one gear up / down. */
+  'speedUp',
+  'speedDown',
   'quick1',
   'quick2',
   'quick3',

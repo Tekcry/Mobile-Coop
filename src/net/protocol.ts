@@ -7,6 +7,7 @@ import { sanitizeLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { WEAPON_IDS, type WeaponId } from '../weapons/weaponDefs';
 import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
+import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 
 export const PROTOCOL_VERSION = 2;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
@@ -48,7 +49,7 @@ export interface PlayerInfo {
 /** Bit flags in player state. */
 /** Player flags; `silent`: footsteps make no noise this moment (cover glides / moves, climbing, vaults);
  *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them). */
-export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512 } as const;
+export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
 
 export interface PlayerState {
   id: string;
@@ -62,6 +63,14 @@ export interface PlayerState {
   w: WeaponId;
   hp: number;
   sh: number;
+  /** Movement state (3.2.0): cover, attached, committed moves, takedowns (`player/moveState.ts`). */
+  mv?: MoveState;
+}
+
+/** A player state for the wire (the move state packed: its mode as an index). */
+export function wirePlayerState(s: PlayerState): PlayerState {
+  if (!s.mv) return s;
+  return { ...s, mv: packMoveState(s.mv) as unknown as MoveState };
 }
 
 export interface EnemyState {
@@ -148,6 +157,17 @@ export type Msg =
   | { t: 'use'; id: string }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
   | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean }
+  /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
+   *  grip at `gy`), or ends the human ladder. */
+  | { t: 'tmove'; kind: 'boost' | 'ladder' | 'end'; partner: string; target: number; s: number; gy: number }
+  /** The host started a team move: `a` climbs, `b` is braced. */
+  | { t: 'tstart'; kind: 'boost' | 'ladder'; a: string; b: string; target: number; s: number; t0: number }
+  /** The host refused `a`'s request. */
+  | { t: 'tdeny'; a: string; reason: string }
+  /** The human ladder of `a` (top) and `b` (bottom) ended. */
+  | { t: 'tend'; a: string; b: string }
+  /** (3.2.0) PvP: a client's takedown on another player finished (the host checks it, then it is a kill). */
+  | { t: 'ptd'; target: string; kind: 'drop' | 'below' | 'inverted' }
   /** Client ping (the host relays it to everyone). */
   | { t: 'ping'; x: number; y: number; z: number; target: string }
   /** Client gadget effect (the host applies it to its guards and tells everyone). */
@@ -211,10 +231,11 @@ function playerState(v: unknown): PlayerState | null {
     yaw,
     pitch,
     speed: num(v.speed, 0, 20) ?? 0,
-    f: Math.floor(num(v.f, 0, 1023) ?? 0),
+    f: Math.floor(num(v.f, 0, 2047) ?? 0),
     w,
     hp: num(v.hp, 0, 100) ?? 100,
     sh: num(v.sh, 0, 50) ?? 0,
+    ...(v.mv !== undefined && sanitizeMoveState(v.mv) ? { mv: sanitizeMoveState(v.mv)! } : {}),
   };
 }
 
@@ -433,6 +454,33 @@ export function parseMessage(raw: unknown): Msg | null {
       const z = num(raw.z, -WORLD, WORLD);
       if (x === null || y === null || z === null) return null;
       return { t: 'ping', x, y, z, target: id(raw.target) ?? '' };
+    }
+    case 'tmove': {
+      const kind = oneOf(raw.kind, ['boost', 'ladder', 'end'] as const);
+      const partner = raw.partner === '' ? '' : id(raw.partner);
+      if (!kind || partner === null) return null;
+      return { t: 'tmove', kind, partner, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, gy: num(raw.gy, -100, 200) ?? 0 };
+    }
+    case 'tstart': {
+      const kind = oneOf(raw.kind, ['boost', 'ladder'] as const);
+      const a = id(raw.a);
+      const b = id(raw.b);
+      if (!kind || !a || !b) return null;
+      return { t: 'tstart', kind, a, b, target: Math.floor(num(raw.target, -1, 1e5) ?? -1), s: num(raw.s, -500, 500) ?? 0, t0: num(raw.t0, 0, 1e7) ?? 0 };
+    }
+    case 'tdeny': {
+      const a = id(raw.a);
+      return a ? { t: 'tdeny', a, reason: str(raw.reason, 20) ?? '' } : null;
+    }
+    case 'tend': {
+      const a = id(raw.a);
+      const b = id(raw.b);
+      return a && b ? { t: 'tend', a, b } : null;
+    }
+    case 'ptd': {
+      const target = id(raw.target);
+      const kind = oneOf(raw.kind, ['drop', 'below', 'inverted'] as const);
+      return target && kind ? { t: 'ptd', target, kind } : null;
     }
     case 'td': {
       const target = id(raw.target);

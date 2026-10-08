@@ -93,11 +93,55 @@ try {
     Object.fromEntries([...document.querySelectorAll('.touch-layer .tc')].filter((e) => !e.hidden && !e.classList.contains('tc-hidden')).map((e) => [e.className.match(/tc-(\w+)/g).find((c) => c !== 'tc-btn' && c !== 'tc-stick')?.slice(3), e.getBoundingClientRect().width])),
   );
   assert(sizes.fire >= 76, `fire button ${sizes.fire}px`);
-  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'gadgets', 'dash', 'ads', 'vision']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
-  // the action button is only for "use": hidden with nothing in reach
-  const actHidden = await page.evaluate(() => document.querySelector('.tc-action').classList.contains('tc-hidden'));
-  assert(actHidden, 'action button hidden with nothing to use');
-  // cover by touch: tap the take-cover prompt on the wall (a real touch on the world prompt)
+  for (const id of ['reload', 'crouch', 'swap', 'grenade', 'gadgets', 'dash', 'ads', 'vision', 'speed']) assert(sizes[id] >= 56, `${id} ${sizes[id]}px >= 56`);
+  // 3.2.0 speed rocker: the up half steps the gear up, the down half down; its pips always show the gear, the HUD
+  // pips show after a change
+  const gearNow = () => page.evaluate(() => ({ gear: window.__app.current.player.controller.gear, pips: document.querySelectorAll('.tc-speed .tc-sp-pips i.on').length, hud: document.querySelector('.tac-gear')?.classList.contains('show') ?? false }));
+  const tapIn = async (sel) => {
+    const b = await page.locator(sel).boundingBox();
+    await page.touchscreen.tap(b.x + b.width / 2, b.y + b.height / 2);
+    await frames(page, 4);
+  };
+  const g0 = await gearNow();
+  assert(g0.pips === g0.gear, `rocker pips show the gear (${g0.pips} lit, gear ${g0.gear})`);
+  await tapIn('.tc-speed .tc-sp-up');
+  const g1 = await gearNow();
+  await tapIn('.tc-speed .tc-sp-down');
+  await tapIn('.tc-speed .tc-sp-down');
+  const g2 = await gearNow();
+  assert(g1.gear === g0.gear + 1 && g1.pips === g1.gear && g1.hud && g2.gear === g0.gear - 1 && g2.pips === g2.gear, `rocker: up ${g0.gear} -> ${g1.gear}, down -> ${g2.gear}; HUD pips shown after a change (${g1.hud})`);
+  await page.waitForTimeout(2200);
+  assert(!(await gearNow()).hud, 'HUD gear pips fade after 1.5 s');
+  // forward roll by touch: top gear on the rocker, push the stick, tap crouch
+  for (let i = 0; i < 4; i++) await tapIn('.tc-speed .tc-sp-up');
+  await page.evaluate(() => { const g = window.__app.current; const p = g.player; p.controller.teleport(new p.controller.pos.constructor(-10, 0, -14), Math.PI / 2); p.cam.yaw = Math.PI / 2; });
+  await frames(page, 4);
+  const rolls0 = await page.evaluate(() => window.__app.current.traversal.forwardRolls);
+  const endR = await drag(page, { x: vp.width * 0.18, y: vp.height * 0.7 }, { x: vp.width * 0.18, y: vp.height * 0.7 - 70 });
+  await page.waitForFunction(() => window.__app.current.player.controller.speed > 3, null, { timeout: 8000 }).catch(() => {});
+  const cr = await page.locator('.tc-crouch').boundingBox();
+  await touch(page, 'touchStart', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 70, id: 0 }, { x: cr.x + cr.width / 2, y: cr.y + cr.height / 2, id: 7 }]);
+  await frames(page, 2);
+  await touch(page, 'touchEnd', [{ x: vp.width * 0.18, y: vp.height * 0.7 - 70, id: 0 }]);
+  await page.waitForFunction((r) => window.__app.current.traversal.forwardRolls > r, rolls0, { timeout: 6000 }).catch(() => {});
+  await endR();
+  const rolled = await page.evaluate(() => window.__app.current.traversal.forwardRolls);
+  assert(rolled === rolls0 + 1, `touch: crouch at gear 6 while moving rolls (${rolled - rolls0})`);
+  await page.waitForFunction(() => window.__app.current.traversal.kind === 'none', null, { timeout: 6000 }).catch(() => {});
+  await page.evaluate(() => { const c = window.__app.current.player.controller; c.gears.set(4); });
+  await frames(page, 4);
+  if (await page.evaluate(() => window.__app.current.player.controller.crouched)) await tapIn('.tc-crouch');
+  // (3.2.0) the action button is always there, dimmed with nothing on offer
+  const actIdle = await page.evaluate(() => { const b = document.querySelector('.tc-action'); return !b.classList.contains('tc-hidden') && b.classList.contains('tc-idle'); });
+  assert(actIdle, 'action button shown, dimmed with nothing on offer');
+  // the jump button: a jump
+  const leaps0 = await page.evaluate(() => window.__app.current.traversal.leaps);
+  await tapIn('.tc-jump');
+  await page.waitForFunction((n) => window.__app.current.traversal.leaps > n, leaps0, { timeout: 5000 }).catch(() => {});
+  const leaps1 = await page.evaluate(() => window.__app.current.traversal.leaps);
+  assert(leaps1 === leaps0 + 1, `touch: the jump button jumps (${leaps1 - leaps0})`);
+  await page.waitForFunction(() => window.__app.current.player.controller.grounded, null, { timeout: 5000 }).catch(() => {});
+  // cover by touch: the take-cover prompt on the wall is the indicator, the action button takes it
   await page.evaluate(() => { const g = window.__app.current; const p = g.player; g.cover.reset(); p.controller.teleport(new p.controller.pos.constructor(-3.7, 0, -6), -Math.PI / 2); p.cam.yaw = -Math.PI / 2; p.cam.pitch = -0.1; });
   let cst = 'none';
   // (retried: the prompt can blink while the camera springs settle after the teleport, and moves with the view)
@@ -107,16 +151,18 @@ try {
       throw new Error(`${e.message.split('\n')[0]} ${JSON.stringify(st)}`);
     });
     await page.waitForTimeout(600);
-    const el = await page.$('.wp-cover.show .wp-body');
-    const bx = el ? await el.boundingBox() : null;
-    if (!bx) continue;
-    await page.touchscreen.tap(bx.x + bx.width / 2, bx.y + bx.height / 2);
+    const lbl = await page.evaluate(() => document.querySelector('.tc-action .tc-label')?.textContent ?? '');
+    if (i === 0) assert(/cover/i.test(lbl), `the action button reads the prompt ("${lbl}")`);
+    await tapIn('.tc-action');
     await page.waitForTimeout(900);
     // (under load the glide into cover can still be running: wait for it to land)
     await page.waitForFunction(() => window.__app.current.cover.state !== 'enter', null, { timeout: 8000 }).catch(() => {});
     cst = await page.evaluate(() => window.__app.current.cover.state);
   }
-  assert(cst === 'in', `tapping the take-cover prompt on the surface takes cover (${cst})`);
+  assert(cst === 'in', `the action button takes cover at the prompted wall (${cst})`);
+  // the prompts are indicators: a touch on one never reaches the game (no pointer events)
+  const pe = await page.evaluate(() => getComputedStyle(document.querySelector('.wp-cover') ?? document.querySelector('.wp')).pointerEvents);
+  assert(pe === 'none', `world prompts are indicators only (pointer-events ${pe})`);
   await page.waitForTimeout(300);
   const badge = await page.evaluate(() => !!document.querySelector('.wp-state.show'));
   assert(!badge, 'no cover badge or button on the wall in use');

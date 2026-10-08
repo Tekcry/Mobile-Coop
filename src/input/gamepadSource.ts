@@ -1,6 +1,6 @@
 import type { ButtonAction } from './actions';
-import { detectPadStyle, mapPad, type PadStyle } from './gamepadMapping';
-import type { InputState } from './inputState';
+import { detectPadStyle, mapPad, TapHold, type PadStyle } from './gamepadMapping';
+import { WHEEL_HOLD, type InputState } from './inputState';
 import { NavRepeater } from './navRepeat';
 import type { Settings } from '../core/settings';
 
@@ -27,7 +27,10 @@ export interface PadEvents {
  */
 export class GamepadSource {
   private known = new Map<number, string>();
-  private xDownAt = -1;
+  /** X: tap reload / hold swap; D-pad left: tap ping / hold the gadget wheel; View: tap goggles / hold an emote. */
+  private xBtn = new TapHold(SWAP_HOLD);
+  private leftBtn = new TapHold(WHEEL_HOLD);
+  private viewBtn = new TapHold(SWAP_HOLD);
   private activeIndex = -1;
   private repeaters = new Map<ButtonAction, NavRepeater>(NAV_DIRS.map((d) => [d, new NavRepeater()]));
   private lastTimestamps = new Map<number, number>();
@@ -114,7 +117,7 @@ export class GamepadSource {
 
     for (const a of [
       'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause',
-      'shoulderSwap', 'dash', 'vision', 'mark', 'grenade', 'gadgetWheel', 'quick2', 'quick4',
+      'shoulderSwap', 'dash', 'mark', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt',
     ] as const) {
       this.state.set(SRC, a, frame.buttons[a] === true);
@@ -123,16 +126,15 @@ export class GamepadSource {
       if (this.repeaters.get(d)!.update(frame.buttons[d] === true, now)) this.state.tap(d);
     }
     // X: tap = reload (on release), hold = swap to the next weapon (once per hold)
-    const x = frame.buttons.reload === true;
-    if (x && this.xDownAt < 0) this.xDownAt = now;
-    if (x && this.xDownAt >= 0 && now - this.xDownAt >= SWAP_HOLD) {
-      this.state.tap('swapNext');
-      this.xDownAt = Number.POSITIVE_INFINITY;
-    }
-    if (!x) {
-      if (this.xDownAt >= 0 && Number.isFinite(this.xDownAt)) this.state.tap('reload');
-      this.xDownAt = -1;
-    }
+    const x = this.xBtn.update(frame.buttons.reload === true, now);
+    if (x === 'hold') this.state.tap('swapNext');
+    else if (x === 'tap') this.state.tap('reload');
+    // D-pad left: held, the gadget wheel opens after WHEEL_HOLD (gadget system); let go sooner, a co-op ping
+    if (this.leftBtn.update(frame.buttons.gadgetWheel === true, now) === 'tap') this.state.tap('ping');
+    // View: tap = goggles (on release), hold = the first emote
+    const view = this.viewBtn.update(frame.buttons.vision === true, now);
+    if (view === 'tap') this.state.tap('vision');
+    else if (view === 'hold') this.state.tap('quick2');
     this.state.setMove(SRC, frame.move.x, frame.move.y);
     const ads = this.adsActive ? s.adsMultiplier : 1;
     const k = 1 - Math.exp(-dt / LOOK_SMOOTH);

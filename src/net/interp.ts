@@ -17,6 +17,10 @@ export function lerpAngle(a: number, b: number, t: number): number {
 export interface Sampled<T> extends Pose {
   /** The newest state at or before the sample time (discrete fields come from here). */
   state: T;
+  /** The states either side of the sample and the blend between them (extra continuous fields). */
+  from: T;
+  to: T;
+  k: number;
 }
 
 /**
@@ -54,7 +58,7 @@ export class SnapshotBuffer<T extends Pose> {
   sample(t: number): Sampled<T> | null {
     const n = this.buf.length;
     if (!n) return null;
-    const o = (this.out ??= { x: 0, y: 0, z: 0, yaw: 0, state: this.buf[0]!.s });
+    const o = (this.out ??= { x: 0, y: 0, z: 0, yaw: 0, state: this.buf[0]!.s, from: this.buf[0]!.s, to: this.buf[0]!.s, k: 0 });
     const first = this.buf[0]!;
     if (n === 1 || t <= first.t) {
       return set(o, first.s, first.s, 0);
@@ -81,6 +85,9 @@ function set<T extends Pose>(o: Sampled<T>, a: T, b: T, k: number): Sampled<T> {
   o.z = a.z + (b.z - a.z) * k;
   o.yaw = lerpAngle(a.yaw, b.yaw, k);
   o.state = k >= 1 ? b : a;
+  o.from = a;
+  o.to = b;
+  o.k = k;
   return o;
 }
 

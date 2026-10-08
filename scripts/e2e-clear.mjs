@@ -152,8 +152,8 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
   await G(() => (window.__app.current.target.damageMul = 0));
 
   // clear the rest: visit each room, put its squad down; later squads spawn as the cap frees up
-  const order = ['dispatch', 'workshop', 'floor', 'racking', 'office', 'manager', 'mezz'];
-  const at = { dispatch: [-2, -12.2], workshop: [8, -12.5], floor: [0, 0], racking: [-6.5, 0], office: [0.5, 16.8], manager: [3.2, 13.2], mezz: [10, 16] };
+  const order = ['dispatch', 'workshop', 'corridor', 'floor', 'racking', 'office', 'manager', 'mezz', '-'];
+  const at = { dispatch: [-2, -12.2], workshop: [8, -12.5], corridor: [2, -9.9], floor: [0, 0], racking: [-6.5, 0], office: [0.5, 16.8], manager: [3.2, 13.2], mezz: [10, 16], '-': [0, 0] };
   let lastKill = null;
   for (let pass = 0; pass < 4; pass++) {
     for (const id of order) {
@@ -162,7 +162,8 @@ await run('autostart=warehouse&mode=clear', async ({ page, G, sim }) => {
       await sim(0.6);
       lastKill = await G((id) => {
         let scale = null;
-        for (const e of window.__app.current.enemyMgr.enemies.filter((e) => e.alive && e.hold?.id === id)) {
+        // ('-': anyone holding no room - reinforcements after an alarm)
+        for (const e of window.__app.current.enemyMgr.enemies.filter((e) => e.alive && (e.hold?.id ?? '-') === id)) {
           window.__h.kill(e);
           scale = window.__app.loop.timeScale;
         }

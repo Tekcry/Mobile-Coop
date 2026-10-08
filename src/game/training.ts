@@ -19,11 +19,11 @@ export const TRAINING_STEPS: readonly TrainingStep[] = [
   { id: 'cover', text: 'Take cover behind the low crate', hint: { pad: 'A near the crate', kbm: 'Space near the crate', touch: 'Tap "Take cover"' } },
   { id: 'vault', text: 'Vault over it', hint: { pad: 'Y in cover', kbm: 'E in cover', touch: 'Tap "Vault"' } },
   { id: 'ladder', text: 'Climb the ladder', hint: { pad: 'Y at the ladder', kbm: 'E at the ladder', touch: 'Tap "Climb"' } },
-  { id: 'goggles', text: 'Switch your goggles on', hint: { pad: 'View button', kbm: 'N', touch: 'Goggles button' } },
-  { id: 'takedown', text: 'Take the guard down from behind', hint: { pad: 'Y: tap knocks out, hold kills', kbm: 'E: tap / hold', touch: 'Takedown button' } },
+  { id: 'goggles', text: 'Switch your goggles on', hint: { pad: 'Tap the View button', kbm: 'N', touch: 'Goggles button' } },
+  { id: 'takedown', text: 'Grab the guard from behind, then take him down', hint: { pad: 'Y grabs; Y again: tap knocks out, hold kills', kbm: 'E grabs; E again: tap / hold', touch: 'Takedown button: grab, then again' } },
   { id: 'mark', text: 'Aim and mark both guards', hint: { pad: 'LT + RB', kbm: 'Right button + T', touch: 'Aim, then Mark' } },
   { id: 'execute', text: 'Execute', hint: { pad: 'Y when the marks turn red', kbm: 'Y', touch: 'Execute button' } },
-  { id: 'gadget', text: 'Throw a gadget', hint: { pad: 'Hold D-pad up, release', kbm: 'Hold G, release', touch: 'Hold the gadget button, release' } },
+  { id: 'gadget', text: 'Throw a gadget', hint: { pad: 'Hold D-pad right, release', kbm: 'Hold G, release', touch: 'Hold the gadget button, release' } },
 ];
 
 /** What the game reports each step. */

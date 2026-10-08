@@ -28,6 +28,7 @@ import { PropSystem } from './props';
 import { LightRig } from './lightRig';
 import { Breakables } from './breakables';
 import { Doors } from './doors';
+import { Ropes } from './ropes';
 import { makeCone, type LightRegistry } from './lights';
 import { GI_STRIDE } from '../voxel/skyBake';
 import { TEXTURE_ANISO, TEXTURE_SIZE, type QualityLevel, type ShadowSpec, type TierQuality } from '../core/quality';
@@ -113,6 +114,11 @@ export class World {
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
   readonly doors: Doors;
+  private _ropes: Ropes | null = null;
+  /** (3.2.0) Rappel ropes (the local player's and remotes'), created on first use. */
+  get ropes(): Ropes {
+    return (this._ropes ??= new Ropes(this.scene));
+  }
 
   private constructor(
     readonly scene: Scene,

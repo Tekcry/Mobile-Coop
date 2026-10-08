@@ -72,6 +72,36 @@ try {
   c = await P();
   assert(swapping && c.face === -faceRight, `reversing plays a turn-and-swap (face ${faceRight} -> ${c.face})`);
   assert(c.z < -4.6, `strafes back (z=${c.z.toFixed(2)})`);
+  // 3.2.0: the speed gear sets the pace along the wall (capped at a cover jog): gear 1 creeps, gear 6 hurries
+  const coverPeak = async (gear) => {
+    await tp(-3.7, -6, -Math.PI / 2);
+    await G((g) => window.__app.current.player.controller.gears.set(g), gear);
+    await sim(0.3);
+    await takeCover();
+    const r = await G(() => new Promise((res) => {
+      const st = window.__app.current;
+      const c = st.player.controller;
+      const orig = st.fixedUpdate.bind(st);
+      let t = 0;
+      let peak = 0;
+      window.__pad.axis(0, 1);
+      st.fixedUpdate = (dt) => {
+        orig(dt);
+        t += dt;
+        if (st.cover.state === 'in') peak = Math.max(peak, c.speed);
+        if (t >= 1.2) { st.fixedUpdate = orig; window.__pad.axis(0, 0); res({ peak, state: st.cover.state }); }
+      };
+    }));
+    await sim(0.3);
+    return r;
+  };
+  const slowC = await coverPeak(1);
+  const fastC = await coverPeak(6);
+  await G(() => window.__app.current.player.controller.gears.set(4));
+  assert(slowC.state === 'in' && fastC.state === 'in' && near(slowC.peak, 0.5, 0.12) && fastC.peak > 1.5 && fastC.peak < 1.95, `cover strafe by gear: gear 1 ${slowC.peak.toFixed(2)} m/s, gear 6 ${fastC.peak.toFixed(2)} m/s (crouched 0.5 / 1.8 cap)`);
+  await tp(-3.7, -6, -Math.PI / 2);
+  await sim(0.3);
+  await takeCover();
   // aim over the top
   await sim(0.5, { buttons: [BTN.LT] });
   await G(() => window.__pad.set(6, 1));
@@ -250,21 +280,24 @@ try {
   c = await P();
   assert(dashed && slid && c.state === 'in' && c.nz > 0.9 && c.low, `A runs to the marked cover and slides in (${JSON.stringify({ dashed, slid, state: c.state, nz: c.nz })})`);
 
-  console.log('prompt taps (touch)');
-  const tapPrompt = (id) => G((id) => { const e = document.querySelector(`.wp-${id}.show`); if (!e) return false; e.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })); e.dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); return true; }, id);
-  assert(!(await tapPrompt('state')), 'no cover badge on the wall in use (nothing to tap)');
+  console.log('touch action button (the prompts are the indicators)');
+  // (3.2.0) the touch action button does what the shown prompt says: returns its label ('' = nothing on offer)
+  const tapAction = () => G(() => { const c = window.__app.input.touch.actionContext; if (!c) return ''; c.down?.(); c.up?.(); if (c.press) c.press(); else window.__app.input.state.tap(c.action); return c.label; });
+  assert(!(await G(() => !!document.querySelector('.wp-state.show'))), 'no cover badge on the wall in use');
   await G(() => window.__app.current.cover.reset());
   await tp(-3.7, -6, -Math.PI / 2);
   await sim(0.3);
   await frames(page, 3);
-  assert(await tapPrompt('cover'), 'take cover prompt is tappable');
+  const lc = await tapAction();
+  assert(/cover/i.test(lc), `standing at the wall, the action button takes cover ("${lc}")`);
   await sim(0.9);
-  assert((await P()).state === 'in', 'tapping the take cover prompt takes cover');
+  assert((await P()).state === 'in', 'the action button takes cover');
   await frames(page, 3);
-  assert(await tapPrompt('vault'), 'vault prompt is tappable in low cover');
+  const lv = await tapAction();
+  assert(/vault/i.test(lv), `in low cover the action button vaults ("${lv}")`);
   await sim(1.2);
   c = await P();
-  assert(c.state === 'none' && c.x < -5.3, `tapping vault vaults the low cover (x=${c.x.toFixed(2)})`);
+  assert(c.state === 'none' && c.x < -5.3, `the action button vaults the low cover (x=${c.x.toFixed(2)})`);
 
   console.log('manual cover only + touch button');
   // walking and sprinting straight into a wall never snaps to it
@@ -282,7 +315,7 @@ try {
   await sim(0.3);
   await takeCover();
   const btn = await G(() => { const t = window.__app.input.touch; const c = t.actionContext; return { ctx: c ? `${c.action}:${c.label}` : 'none', hidden: t.elements.get('action').classList.contains('tc-hidden') }; });
-  assert(btn.ctx === 'none' && btn.hidden, `touch action button hidden with nothing to use (cover / vault are world prompts) (${JSON.stringify(btn)})`);
+  assert(btn.ctx === 'jump:Vault' && !btn.hidden, `(3.2.0) in low cover the touch action button is the prompted vault (${JSON.stringify(btn)})`);
   // keyboard Space toggles out
   await page.keyboard.press('Space');
   await sim(0.3);

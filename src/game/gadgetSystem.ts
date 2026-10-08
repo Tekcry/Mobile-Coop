@@ -9,7 +9,8 @@ import type { HitInfo } from './damage';
 import type { GameState } from './gameState';
 
 /** Hold the gadget wheel button this long (s) to open the wheel (pad / keyboard). */
-export const WHEEL_HOLD = 0.15;
+import { WHEEL_HOLD } from '../input/inputState';
+export { WHEEL_HOLD };
 /** Time scale while the wheel is open (single player). */
 export const WHEEL_SLOW = 0.3;
 /** Seconds of sleeping gas that knock an enemy out. */

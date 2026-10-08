@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { emptyMotionInput, MotionDriver, rootModulation, stepLength, wrapPi, type MotionTuning } from '../src/anim/motion';
-import { ENEMY_MOTION, MOVEMENT } from '../src/config/movement';
+import { CT, ENEMY_CALM_MOTION, ENEMY_MOTION, MOVEMENT } from '../src/config/movement';
 
 const run = (
   d: MotionDriver,
@@ -276,5 +276,151 @@ describe('frame-rate independence', () => {
     const b = traj(120);
     // positions after ~9 m including a 90 degree arc: within 5 cm; speeds and facing within 0.03
     for (let k = 0; k < a.length; k++) expect(Math.abs(a[k]! - b[k]!)).toBeLessThan(0.05);
+  });
+});
+
+describe('motion driver: Chaos Theory feel (3.2.0, player)', () => {
+  const ct = (i: ReturnType<typeof emptyMotionInput>): void => {
+    i.faceTravel = true;
+    i.ct = true;
+  };
+  for (const hz of [60, 90, 120]) {
+    it(`${hz} Hz: 95% of the target within CT.startTime; zero velocity on the step after release`, () => {
+      const d = new MotionDriver();
+      let reached = -1;
+      let firstMove = -1;
+      run(d, 0.5, (i) => {
+        ct(i);
+        i.vz = 2.8;
+      }, hz, (t) => {
+        if (firstMove < 0 && d.speed > 0.001) firstMove = t;
+        if (reached < 0 && d.speed >= 2.8 * 0.95) reached = t;
+      });
+      expect(firstMove).toBeLessThanOrEqual(1 / hz + 1e-9);
+      expect(reached).toBeGreaterThan(0);
+      expect(reached).toBeLessThanOrEqual(CT.startTime + 1e-9);
+      // release: stopped on that very step, gait clock frozen, no stop / pivot state
+      const phase = d.phase;
+      run(d, 1 / hz, ct, hz);
+      expect(d.speed).toBe(0);
+      expect(d.outX === 0 && d.outZ === 0).toBe(true);
+      expect(d.state).toBe('idle');
+      run(d, 0.3, ct, hz);
+      expect(d.phase).toBe(phase);
+      expect(d.speed).toBe(0);
+    });
+  }
+  it('60 / 90 / 120 Hz give the same trajectory (start, gear change, turn, stop)', () => {
+    const traj = (hz: number): number[] => {
+      const d = new MotionDriver();
+      let x = 0;
+      let z = 0;
+      const acc = (): void => {
+        x += d.outX / hz;
+        z += d.outZ / hz;
+      };
+      run(d, 0.8, (i) => {
+        ct(i);
+        i.vz = 2.0;
+      }, hz, acc);
+      run(d, 0.5, (i) => {
+        ct(i);
+        i.vz = 3.8;
+      }, hz, acc);
+      run(d, 0.6, (i) => {
+        ct(i);
+        i.vx = 3.8;
+      }, hz, acc);
+      const yaw = d.yaw;
+      run(d, 0.3, ct, hz, acc);
+      return [x, z, yaw, d.speed];
+    };
+    const a = traj(60);
+    for (const hz of [90, 120]) {
+      const b = traj(hz);
+      for (let k = 0; k < a.length; k++) expect(Math.abs(a[k]! - b[k]!)).toBeLessThan(0.03);
+    }
+  });
+  it('a gear change mid-move re-targets within CT.startTime; a reversal is not a planted pivot', () => {
+    const d = new MotionDriver();
+    run(d, 0.5, (i) => {
+      ct(i);
+      i.vz = 2.0;
+    }, 60);
+    let reached = -1;
+    run(d, 0.3, (i) => {
+      ct(i);
+      i.vz = 3.8;
+    }, 60, (t) => {
+      if (reached < 0 && d.speed >= 2.0 + (3.8 - 2.0) * 0.95) reached = t;
+    });
+    expect(reached).toBeGreaterThan(0);
+    expect(reached).toBeLessThanOrEqual(CT.startTime + 1e-9);
+    // reverse at speed: no pivot state, heading back the other way at once
+    let pivot = false;
+    let back = -1;
+    run(d, 0.4, (i) => {
+      ct(i);
+      i.vz = -3.8;
+    }, 60, (t) => {
+      pivot ||= d.state === 'pivot';
+      if (back < 0 && d.vz <= -3.8 * 0.95) back = t;
+    });
+    expect(pivot).toBe(false);
+    expect(back).toBeLessThanOrEqual(0.12);
+  });
+  it('travel turns at up to CT.turnRate (720 deg/s), faster than the 2.x travel rate', () => {
+    const d = new MotionDriver();
+    run(d, 0.5, (i) => {
+      ct(i);
+      i.vz = 2.8;
+    }, 120);
+    let maxRate = 0;
+    run(d, 0.6, (i) => {
+      ct(i);
+      i.vx = 2.8;
+    }, 120, () => (maxRate = Math.max(maxRate, Math.abs(d.yawRate))));
+    expect(maxRate).toBeLessThanOrEqual(CT.turnRate + 1e-6);
+    expect(maxRate).toBeGreaterThan(MOVEMENT.turnTravelSlow * 1.05);
+    expect(Math.abs(wrapPi(d.yaw - Math.PI / 2))).toBeLessThan(0.01);
+  });
+  it('without the flag (enemies, cover moves) the driver keeps its 2.x behaviour', () => {
+    const d = new MotionDriver();
+    run(d, 1, (i) => {
+      travel(i);
+      i.vz = MOVEMENT.jogSpeed;
+    }, 60);
+    run(d, 1 / 60, travel, 60);
+    expect(d.speed).toBeGreaterThan(1);
+    expect(d.state).toBe('stop');
+  });
+});
+
+describe('enemy tuning is pinned (3.2.0: standalone literals)', () => {
+  // the values ENEMY_MOTION / ENEMY_CALM_MOTION resolved to on 3.1.0 (`...MOVEMENT` + overrides)
+  const PINNED = {
+    sneakSpeed: 0.8, crouchWalkSpeed: 1.8, crouchRunSpeed: 2.6, walkSpeed: 1.4, jogSpeed: 2.8, sprintSpeed: 5, adsSpeed: 1.4,
+    adsCrouchSpeed: 1, coverSpeed: 2.3, coverCrouchSpeed: 1.25, coverRunSpeed: 3.6, reloadMult: 0.75, sneakBand: 0.4,
+    crouchWalkBand: 0.85, walkBand: 0.5, strafeMult: 0.9, backMult: 0.75, accelMax: 1.5, decelMax: 2, jerkMax: 9,
+    sprintAccel: 4.5, velGain: 6, brakeGain: 6, startShift: 0.3, stepLen0: 0.27, stepLenK: 0.22, rootDip: 0.05,
+    turnTravelSlow: 9.42477796076938, turnTravelFast: 5.235987755982989, turnAim: 1.9198621771937625, turnAccel: 12,
+    turnSprint: 1.2, turnMoving: 2.4, turnChunk: 0.785, turnChunkTime: 0.3, turnThreshold: 0.45, twistMax: 1.3,
+    pivotTime: 0.6, pivotMinSpeed: 0.45, crouchTime: 0.25, kneelTime: 0.3, standTime: 0.28, airControl: 0.05,
+    standHeight: 1.75, crouchHeight: 1.15, radius: 0.3, maxStep: 0.42, camFollow: 16, camShoulder: 15.5, camAds: 19,
+    recentreDelay: 1.5, recentreRate: 1.6,
+  };
+  it('ENEMY_MOTION and ENEMY_CALM_MOTION hold the 3.1.0 values', () => {
+    expect(Object.keys(ENEMY_MOTION).sort()).toEqual(Object.keys(PINNED).sort());
+    for (const [k, v] of Object.entries(PINNED)) expect(ENEMY_MOTION[k as keyof typeof ENEMY_MOTION]).toBeCloseTo(v, 12);
+    for (const [k, v] of Object.entries({ ...PINNED, turnAim: 1.0471975511965976, turnAccel: 6 })) expect(ENEMY_CALM_MOTION[k as keyof typeof ENEMY_CALM_MOTION]).toBeCloseTo(v, 12);
+  });
+  it('changing the player tuning never reaches the enemies', () => {
+    const keep = { ...MOVEMENT };
+    try {
+      for (const k of Object.keys(MOVEMENT) as (keyof typeof MOVEMENT)[]) (MOVEMENT as Record<string, number>)[k] = keep[k] * 2 + 1;
+      for (const [k, v] of Object.entries(PINNED)) expect(ENEMY_MOTION[k as keyof typeof ENEMY_MOTION]).toBeCloseTo(v, 12);
+    } finally {
+      Object.assign(MOVEMENT, keep);
+    }
   });
 });

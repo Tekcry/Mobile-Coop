@@ -82,16 +82,34 @@ export interface PlannerInput {
   restZ: number;
   /** Max leg reach from under the hip before a planted foot must step (m). */
   reach: number;
+  /**
+   * Chaos Theory instant stop (3.2.0, s; 0 = off): when moving stops, a foot still in its gait swing sets down within
+   * this instead of finishing the stride at idle pace (planted feet stay locked).
+   */
+  quickStop: number;
+  /** Chaos Theory stop hold (3.2.0): stopped feet stay where they are - no settling or idle steps until it ends. */
+  hold: boolean;
+  /**
+   * (3.2.0) Pinned feet (world x / z; NaN = free): a co-op / PvP remote's still feet step to where the owner's are
+   * planted (cover), instead of where its own history put them.
+   */
+  pinLX: number;
+  pinLZ: number;
+  pinRX: number;
+  pinRZ: number;
   /** Ground height under a point, or null (keeps the root height). */
   ground: ((x: number, z: number, yFrom: number) => number | null) | null;
 }
 
 export function emptyPlannerInput(): PlannerInput {
-  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, ground: null };
+  return { dt: 0, rootX: 0, rootY: 0, rootZ: 0, yaw: 0, goalYaw: 0, velX: 0, velZ: 0, moving: false, phase: 0, duty: 0.62, cycleTime: 1.1, liftH: 0.06, lX: -0.11, lZ: 0.03, rX: 0.11, rZ: -0.02, rest: false, restX: 0, restZ: 0, reach: 0.55, quickStop: 0, hold: false, pinLX: NaN, pinLZ: NaN, pinRX: NaN, pinRZ: NaN, ground: null };
 }
 
+/** A pinned foot further than this (m) from its pin steps onto it. */
+export const PIN_TOL = 0.04;
+
 /** Idle stepping thresholds. */
-export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6 };
+export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6, swingGap: 0.1, swingNear: 0.18 };
 
 const TAU = Math.PI * 2;
 const wrap = (a: number): number => {
@@ -103,6 +121,10 @@ const smooth = (t: number): number => (t <= 0 ? 0 : t >= 1 ? 1 : t * t * (3 - 2 
 export class FootPlanner {
   readonly L = newFoot();
   readonly R = newFoot();
+  /** Moving on the last update (a quick stop acts on the change to still). */
+  private wasMoving = false;
+  /** A quick stop's swings are still setting down. */
+  private quick = false;
 
   /** Reset both feet to their ideal stance (teleport, spawn). */
   reset(i: PlannerInput): void {
@@ -142,8 +164,19 @@ export class FootPlanner {
   update(i: PlannerInput): void {
     if (!this.L.init) this.reset(i);
     this.L.landed = this.R.landed = false;
+    if (!i.moving && this.wasMoving && i.quickStop > 0) {
+      // instant stop: a swing left over from moving sets down within `quickStop` where it was aiming
+      for (let k = 0; k < 2; k++) {
+        const f = k === 0 ? this.L : this.R;
+        if (f.contact || f.swing < 0) continue;
+        this.setDown(f, i);
+      }
+      this.quick = true;
+    }
+    this.wasMoving = i.moving;
     if (i.moving) this.updateMoving(i);
     else this.updateIdle(i);
+    if (this.L.contact && this.R.contact) this.quick = false;
   }
 
   // --- moving: contacts from the gait clock -------------------------------------------------
@@ -202,18 +235,39 @@ export class FootPlanner {
     for (const side of [-1, 1] as const) {
       const f = side < 0 ? this.L : this.R;
       if (f.contact) continue;
-      // finish the step; a gait swing left over from moving (slow near a stop) finishes at idle pace
-      if (f.stepDur > PLANNER.idleStepTime * 1.2) {
+      // finish the step; a gait swing left over from moving (slow near a stop) finishes at idle pace (a quick stop
+      // sets it down sooner, already timed above)
+      if (!this.quick && f.stepDur > PLANNER.idleStepTime * 1.2) {
         f.stepDur = PLANNER.idleStepTime;
         f.stepT = Math.max(0, f.swing) * f.stepDur;
       }
       f.stepT += dt;
       const s = Math.min(1, f.stepT / f.stepDur);
-      this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
+      // (a quick stop's leftover swing lands where its stride was going: the stance it stopped in)
+      if (this.pinned(i, side)) this.aimPin(f, i, side);
+      else if (!this.quick) this.aim(f, i, side, i.rootX, i.rootZ, i.goalYaw);
       this.swingTo(f, i, s);
       if (s >= 1) this.land(f);
     }
     if (!this.L.contact || !this.R.contact) return;
+    // pinned (a remote's feet on the owner's): a planted foot off its pin steps onto it
+    if (this.pinned(i, -1) || this.pinned(i, 1)) {
+      for (const side of [-1, 1] as const) {
+        const f = side < 0 ? this.L : this.R;
+        if (!this.pinned(i, side) || !f.contact) continue;
+        const px = side < 0 ? i.pinLX : i.pinRX;
+        const pz = side < 0 ? i.pinLZ : i.pinRZ;
+        if (hyp2(f.x - px, f.z - pz) <= PIN_TOL) continue;
+        this.beginSwing(f, i, PLANNER.idleStepTime, PLANNER.idleLift);
+        f.probeT = 0;
+        this.aimPin(f, i, side);
+        // one foot at a time
+        return;
+      }
+      return;
+    }
+    // holding a stop: the feet stay in the stride
+    if (i.hold) return;
     // both planted: step the foot furthest from its ideal spot, if far enough
     let worst: FootState | null = null;
     let worstSide: -1 | 1 = -1;
@@ -325,6 +379,38 @@ export class FootPlanner {
     }
   }
 
+  private pinned(i: PlannerInput, side: -1 | 1): boolean {
+    return side < 0 ? !Number.isNaN(i.pinLX) : !Number.isNaN(i.pinRX);
+  }
+
+  /** A swinging foot's landing target on its pin (ground probed as `aim`). */
+  private aimPin(f: FootState, i: PlannerInput, side: -1 | 1): void {
+    f.toX = side < 0 ? i.pinLX : i.pinRX;
+    f.toZ = side < 0 ? i.pinLZ : i.pinRZ;
+    f.toYaw = i.goalYaw;
+    f.probeT -= i.dt;
+    if (f.probeT <= 0) {
+      f.probeT = 0.08;
+      const g = i.ground ? i.ground(f.toX, f.toZ, i.rootY + 0.6) : null;
+      f.toY = g === null ? i.rootY : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
+    }
+  }
+
+  /** Instant stop: a foot in the air sets straight down where it is, over `quickStop` (the stride it stopped in). */
+  private setDown(f: FootState, i: PlannerInput): void {
+    f.fromX = f.toX = f.x;
+    f.fromZ = f.toZ = f.z;
+    f.fromY = f.y;
+    f.fromYaw = f.toYaw = f.yaw;
+    const g = i.ground ? i.ground(f.x, f.z, i.rootY + 0.6) : null;
+    f.toY = g === null ? i.rootY : Math.max(i.rootY - 0.4, Math.min(i.rootY + 0.45, g));
+    f.stepLift = 0;
+    f.stepT = 0;
+    f.stepDur = Math.max(1e-3, i.quickStop);
+    f.swing = 0;
+    f.swBase = -1;
+  }
+
   /** Position along the swing at progress s. */
   private swingTo(f: FootState, i: PlannerInput, s: number): void {
     f.swing = s;
@@ -334,10 +420,27 @@ export class FootPlanner {
     // lift peaks early (heel comes up first), sets down gently
     const arc = Math.sin(Math.PI * Math.min(1, s * 1.08)) * (1 - 0.25 * s);
     f.y = f.fromY + (f.toY - f.fromY) * h + f.stepLift * Math.max(0, arc);
+    // passing the planted foot (a side-step back across, a reversal) the swing bows out sideways to `swingGap` from
+    // it, so the feet never brush; the ends of the swing stay where they are
+    const o = f === this.L ? this.R : this.L;
+    if (o.contact) {
+      const c = Math.cos(i.yaw);
+      const sn = Math.sin(i.yaw);
+      const along = (f.x - o.x) * sn + (f.z - o.z) * c;
+      if (along < PLANNER.swingNear && along > -PLANNER.swingNear) {
+        const latF = this.lateral(i, f.x, f.z);
+        const latO = this.lateral(i, o.x, o.z);
+        const bad = f === this.L ? latF - (latO - PLANNER.swingGap) : latO + PLANNER.swingGap - latF;
+        if (bad > 0) {
+          const shift = (f === this.L ? -bad : bad) * Math.sin(Math.PI * s);
+          f.x += shift * c;
+          f.z -= shift * sn;
+        }
+      }
+    }
     f.yaw = f.fromYaw + wrap(f.toYaw - f.fromYaw) * h;
     // toe-off then heel strike: toe down early, toe up just before landing
     f.pitch = s < 0.3 ? 0.45 * (1 - s / 0.3) : s > 0.72 ? -0.22 * smooth((s - 0.72) / 0.2) * (1 - smooth((s - 0.92) / 0.08)) : 0;
-    void i;
   }
 
   private land(f: FootState): void {

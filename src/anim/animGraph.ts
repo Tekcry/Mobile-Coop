@@ -32,7 +32,7 @@ import {
   WALK_STRAFE_R,
 } from './clips/locomotion';
 import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, COVER_TURN, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
-import { CLIMB, CLIMB_UP, CRAWL, HANG, ROLL, rollTumble, VENT_DROP, WINDOW_VAULT } from './clips/traverse';
+import { CLIMB, CLIMB_UP, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 
 /** The kneel with the right knee up (the clip has the left knee up): in cover the raised knee is on the wall
@@ -44,7 +44,7 @@ export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'c
 export type LowerState = (typeof LOWER_STATES)[number];
 /** Committed moves (vault .. hop) and the attached pose family (hang, climb, crawl: keyed over the climb
  *  cadence, `traverseT`). */
-export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop' | 'roll' | 'hang' | 'climb' | 'crawl' | 'climbUp' | 'ventDrop' | 'windowVault';
+export type TraverseKind = 'none' | 'vault' | 'mantle' | 'step' | 'drop' | 'hop' | 'roll' | 'hang' | 'climb' | 'crawl' | 'climbUp' | 'ventDrop' | 'windowVault' | 'split' | 'wallKick' | 'pipeLegs' | 'pipeInv' | 'rappel' | 'brace';
 
 export interface AnimInput {
   /** Horizontal ground speed (m/s) and local movement direction (x right, z forward). */
@@ -112,6 +112,8 @@ export interface AnimInput {
   traverseT: number;
   /** Melee swing 0..1, or < 0. */
   melee: number;
+  /** (3.2.0) Whole-body tumble about the hips (rad) set by the caller (pipe legs up / inverted). */
+  tumble: number;
   /** Doorway check sweep 0..1, or < 0. */
   check: number;
   /** Gait clock from the motion driver (0..1), or < 0 to integrate from speed. */
@@ -119,6 +121,13 @@ export interface AnimInput {
   /** Motion driver state and time in it ('' when there is no driver: enemies, remotes). */
   motion: MotionState | '';
   motionT: number;
+  /** Chaos Theory instant stop (3.2.0): the locomotion blends out to idle over this many seconds (0 = the usual). */
+  quickStop: number;
+  /**
+   * Chaos Theory stop hold (3.2.0, m/s; 0 = none): stopped, the body holds the stride it stopped in - the locomotion
+   * pose at the frozen gait clock for this pace - until the next input (move, aim, stance, cover, traversal).
+   */
+  holdSpeed: number;
   /** Root acceleration in the body frame (m/s^2): forward, right. */
   accelFwd: number;
   accelSide: number;
@@ -171,10 +180,13 @@ export function defaultInput(): AnimInput {
     traverse: 'none',
     traverseT: 0,
     melee: -1,
+    tumble: 0,
     check: -1,
     phase: -1,
     motion: '',
     motionT: 0,
+    quickStop: 0,
+    holdSpeed: 0,
     accelFwd: 0,
     accelSide: 0,
     intent: 0,
@@ -291,7 +303,7 @@ export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.15, yaw: 0.24, x: 0.05 };
  *  muzzle angled down past the knee, clear of the raised thigh and the curled chest. */
 export const COVER_READY_KNEEL = { x: 0.12, y: 0.1, pitch: -0.25, yaw: 0.15 };
 
-const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, crawl: CRAWL, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT };
+const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, crawl: CRAWL, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED, rappel: RAPPEL_HANG, brace: BRACE };
 
 /** Active-clip slots for the debug overlay timeline. */
 export interface ClipSlot {
@@ -320,6 +332,8 @@ export class AnimGraph {
   // timers and smoothed parameters
   private idleT = Math.random() * 4;
   private stillT = 0;
+  /** Pace the locomotion blend uses this frame (the speed, or the held stop's pace). */
+  private locoSpeed = 0;
   private kneelW = 0;
   private kneelClip: Clip = KNEEL;
   private startT = -1;
@@ -418,7 +432,7 @@ export class AnimGraph {
   }
 
   /** Locomotion blend space (speed x direction) for one posture into `out`. */
-  private locomotion(out: Pose, crouched: boolean, i: AnimInput, ph: number): void {
+  private locomotion(out: Pose, crouched: boolean, ph: number): void {
     out.set(NEUTRAL_POSE);
     // idle: a static ready stance; breathing and weight shifts after 2 s still
     const idle = crouched ? CROUCH_IDLE : IDLE;
@@ -430,7 +444,7 @@ export class AnimGraph {
     const bw = Math.max(0, -this.dirZ);
     const sw = Math.abs(this.dirX);
     const tot = fw + bw + sw || 1;
-    const s = Math.max(0, i.speed);
+    const s = Math.max(0, this.locoSpeed);
     this.moveAcc = 0;
     this.tmpMove.set(out);
     // forward: between the neighbouring speed nodes of the posture's set
@@ -482,7 +496,12 @@ export class AnimGraph {
     if (i.phase >= 0) this.phase = i.phase;
     else if (i.speed > 0.02 && i.grounded) this.phase = (this.phase + (i.speed / (2 * stepLength(i.speed, undefined, lateralShare(i)))) * dt) % 1;
     const ph = this.phase;
-    this.moveW = approach(this.moveW, smoothstep(i.speed / 0.22), 0.08, dt);
+    // (a Chaos Theory stop blends the frozen stride out to idle over `quickStop`: 95% within it)
+    // (holding a Chaos Theory stop: the stride it stopped in stays, at the pace it stopped from)
+    const locoSpeed = i.holdSpeed > 0 ? i.holdSpeed : i.speed;
+    this.locoSpeed = locoSpeed;
+    const moveTarget = smoothstep(locoSpeed / 0.22);
+    this.moveW = approach(this.moveW, moveTarget, i.quickStop > 0 && moveTarget < this.moveW ? i.quickStop / 3 : 0.08, dt);
     const dl = hyp2(i.localX, i.localZ);
     if (dl > 0.1 && i.speed > 0.05) {
       this.dirX = approach(this.dirX, i.localX / dl, 0.18, dt);
@@ -502,8 +521,8 @@ export class AnimGraph {
     // --- locomotion blend space, standing and crouched, then the posture blend
     const crouchK = clamp(i.crouch, 0, 1);
     const src = this.src;
-    if (crouchK < 0.999) this.locomotion(this.stand, false, i, ph);
-    if (crouchK > 0.001) this.locomotion(this.crouch, true, i, ph);
+    if (crouchK < 0.999) this.locomotion(this.stand, false, ph);
+    if (crouchK > 0.001) this.locomotion(this.crouch, true, ph);
     if (crouchK <= 0.001) src.set(this.stand);
     else if (crouchK >= 0.999) src.set(this.crouch);
     else lerpPose(src, this.stand, this.crouch, crouchK);
@@ -578,6 +597,8 @@ export class AnimGraph {
       // cycles (climb, crawl) wrap the cadence clock; committed moves clamp their progress
       overClip(src, tc, tc.loop ? i.traverseT - Math.floor(i.traverseT) : clamp(i.traverseT, 0, 1), 1);
       this.slot(i.traverse, 1, i.traverseT);
+      // (3.2.0) a sidearm aimed one-handed from a split / hanging inverted: the weapon hand takes the grip
+      if ((i.traverse === 'split' || i.traverse === 'pipeInv' || i.traverse === 'rappel') && i.raise > 0) src[CH.grip] = Math.min(1, i.raise * 1.5);
     }
     if (i.slide >= 0) {
       overClip(src, SLIDE, clamp(i.slide, 0, 1), 1);
@@ -601,7 +622,10 @@ export class AnimGraph {
     // anticipation: a first-order (not spring) response so it moves on the first frame
     this.intentLean += (clamp(i.intent, -1, 1) * 0.1 - this.intentLean) * (1 - Math.exp(-dt / 0.05));
     const lean = this.accelLean.step(clamp(i.accelFwd * 0.025, -0.14, 0.14), 14, dt) + this.intentLean;
-    const roll = this.accelRoll.step(clamp(-i.accelSide * 0.025, -0.08, 0.08), 12, dt);
+    // (a Chaos Theory sprint turns at 720 deg/s: its roll is held a little lower so the sprint's hunch and the turn
+    // still bank within 8 deg)
+    const rollMax = i.quickStop > 0 ? 0.08 - 0.03 * this.dashS : 0.08;
+    const roll = this.accelRoll.step(clamp(-i.accelSide * 0.025, -rollMax, rollMax), 12, dt);
     src[CH.pelPitch] = src[CH.pelPitch]! + lean;
     src[CH.spPitch] = src[CH.spPitch]! - lean * 0.45;
     src[CH.pelRoll] = src[CH.pelRoll]! + roll;
@@ -713,7 +737,7 @@ export class AnimGraph {
     this.out.weld = sight;
     this.out.aimW = raiseW;
     // landing roll: the whole body turns over forward about the hips
-    this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : 0;
+    this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : i.tumble;
     // crouched / kneeling the muzzle points out past the knees rather than down into them
     // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
     // turning round at low cover the tucked muzzle comes up towards level (pointing down it would reach the
@@ -767,7 +791,7 @@ export class AnimGraph {
     }
     // attached (hang, climb, crawl) the body belongs to the anchor pose and the hands to the grips: a weapon
     // stowed for it goes to its slot without the swap's reach
-    const attachedPose = i.traverse === 'hang' || i.traverse === 'climb' || i.traverse === 'crawl' || i.traverse === 'climbUp' || i.traverse === 'ventDrop';
+    const attachedPose = i.traverse === 'hang' || i.traverse === 'climb' || i.traverse === 'crawl' || i.traverse === 'climbUp' || i.traverse === 'ventDrop' || i.traverse === 'split' || i.traverse === 'wallKick' || i.traverse === 'pipeLegs' || i.traverse === 'pipeInv' || i.traverse === 'rappel' || i.traverse === 'brace';
     if (i.swap >= 0 && !attachedPose) {
       overClip(src, swapClipFor(i.swapFrom, i.swapTo), i.swap, 1);
       this.slot('swap', 1, i.swap);

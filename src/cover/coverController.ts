@@ -8,6 +8,7 @@ import { COVER_STANDOFF } from '../world/levelBuilder';
 import { awayAmount, clampAlong, coverPose, EDGE_MARGIN, findSnap, locate, nearestEdge, projectOnTangent, type CoverSegment } from './coverData';
 import { CORNER_TIME, CoverStateMachine, emptyCoverInput, VAULT_TIME, type CoverStateName } from './coverState';
 import { hyp2 } from '../core/mathx';
+import { coverPace } from '../player/speedGears';
 import { edgeLimit, overLimit, wallLimit, wrapAngle, type AimLimit } from './coverAim';
 import { OVER_CLEAR } from '../player/characterRig';
 
@@ -716,7 +717,8 @@ export class CoverController {
       const outward = Math.cos(c.yaw - Math.atan2(seg.nx, seg.nz));
       if (this.swapT >= 0 && this.swapT < SWAP_TIME * 0.5 && outward > -0.5) yaw = Math.atan2(seg.nx, seg.nz);
       crouch = this.low || this.highCrouch;
-      speedAlong = along * (crouch ? MOVEMENT.coverCrouchSpeed : MOVEMENT.coverSpeed) * (this.swapT >= 0 ? 0.25 : 1);
+      // (3.2.0: the speed gear sets the pace along the wall, capped at a cover jog - `coverPace`)
+      speedAlong = along * coverPace(c.gear, crouch) * (this.swapT >= 0 ? 0.25 : 1);
       // brake early enough that the eased stop lands on the edge, not past it
       const cur = c.vel.x * seg.tx + c.vel.z * seg.tz;
       const stopDist = (cur * cur) / (2 * 4) + Math.abs(cur) * 0.1;

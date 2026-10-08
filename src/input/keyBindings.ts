@@ -1,7 +1,7 @@
 /**
  * Keyboard / mouse bindings (pure, unit-tested). Every gameplay action has up to two inputs: a keyboard `code`
  * (`KeyboardEvent.code`) or an extra mouse button (`Mouse1` middle, `Mouse3` back, `Mouse4` forward). The left /
- * right mouse buttons (fire / aim), the wheel (weapons), 1-8 (gadgets) and the menu keys (Esc, Enter, Backspace,
+ * right mouse buttons (fire / aim), the wheel (speed gear up / down, 3.2.0), 1-8 (gadgets) and the menu keys (Esc, Enter, Backspace,
  * arrows, Q / E tabs) are fixed.
  */
 import type { ButtonAction } from './actions';
@@ -14,6 +14,8 @@ export type BindId =
   | 'cover'
   | 'crouch'
   | 'sprint'
+  | 'speedUp'
+  | 'speedDown'
   | 'traverse'
   | 'use'
   | 'reload'
@@ -47,6 +49,8 @@ export const BINDS: readonly BindDef[] = [
   { id: 'cover', label: 'Cover / cover-to-cover', actions: ['cover'], defaults: ['Space'] },
   { id: 'crouch', label: 'Crouch', actions: ['crouch'], defaults: ['KeyC', 'ControlLeft'] },
   { id: 'sprint', label: 'Sprint', actions: ['dash'], defaults: ['ShiftLeft'] },
+  { id: 'speedUp', label: 'Speed up (gear)', actions: ['speedUp'], defaults: ['Equal'] },
+  { id: 'speedDown', label: 'Speed down (gear)', actions: ['speedDown'], defaults: ['Minus'] },
   { id: 'traverse', label: 'Traverse / use / takedown', actions: ['jump', 'interact'], defaults: ['KeyE'] },
   { id: 'use', label: 'Use', actions: ['interact'], defaults: ['KeyF'] },
   { id: 'reload', label: 'Reload', actions: ['reload'], defaults: ['KeyR'] },

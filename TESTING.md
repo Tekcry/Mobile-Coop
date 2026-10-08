@@ -289,9 +289,132 @@ Controls:
 
 ## PC mouse (1.3.2) - Chrome, Edge, Firefox, Safari on a desktop
 - [ ] Start Free Roam with a mouse click: the cursor disappears and moving the mouse looks around straight away (if the browser refuses, "Click to capture the mouse" shows and one click on the game captures it without firing).
-- [ ] Left button fires, right button aims, the wheel swaps weapons, WASD / Space / C / Shift / E / R work.
+- [ ] Left button fires, right button aims, the wheel steps the speed gear (3.2.0; Q / X swap weapons), WASD / Space / C / Shift / E / R work.
 - [ ] Esc frees the cursor and opens the pause menu; Resume captures it again; alt-tab away and back shows the pause menu.
 - [ ] Menus work with the mouse as before.
+
+## 3.2.0 phase 0 - Chaos Theory locomotion: speed gears, instant stop, roll (phone + controller + PC)
+Proving Grounds (Free Roam), open ground south west of the spawn:
+- [ ] Spawn: the operator is in gear 3 (a brisk walk, 2.0 m/s); the HUD shows the SPD pips by the light meter for a
+  moment after each change, then they fade. On the phone the rocker's pips always show the gear.
+- [ ] Controller: D-pad up / down step one gear each press (1..6, no wrap). Full stick in each gear, standing and
+  crouched: six clearly different paces (crouched 0.5 .. 2.8, standing 0.8 .. 5.0 m/s); half stick is about half.
+- [ ] Phone: tap the rocker's top half / bottom half: one gear each tap, the pips follow; the move stick at its rim
+  gives the gear's pace. The rocker sits right of the move stick's zone and does not get in the thumb's way
+  (Default, Claw and Left-handed layouts; the layout editor moves and resizes it).
+- [ ] PC: the mouse wheel up / down and = / - step the gear (Settings > Mouse & Keyboard can rebind = / -); Q / X
+  swap weapons (the wheel no longer does).
+- [ ] Release the stick at any gear: the operator stops dead (no slide, no extra step forward) and holds the exact
+  stride he stopped in - no pulling the feet together, no settling step, no kneel when crouched - until you move,
+  aim, change stance or take cover. A foot in the air sets straight down. Starting again is immediate. Try it at every
+  gear, crouched, out of a sprint, and letting a controller stick snap back: it should hold every time.
+- [ ] In cover, strafe along a long wall at gear 1, 3 and 6: a creep, about the old pace, a hurried shuffle. Reversing at speed: no planted
+  pivot, straight off the other way. Turning sharply: the body snaps round (720 deg/s).
+- [ ] Crouch / stand while moving keeps the gear.
+- [ ] Gear 5 or 6 (or sprinting), moving standing: tap crouch (B / C / the crouch button) = a forward roll, ~3 m in
+  0.7 s, coming up crouched; a guard 2 m away hears it, one 4 m away does not. Gear 1-4: crouch just crouches.
+- [ ] Noise (debug overlay noise meter / guards): crouched gears 1-4 and standing gears 1-2 make no footstep noise;
+  standing gear 3 and up do.
+- [ ] Controller remap: D-pad right = gadget (hold aims, release throws); D-pad left tap = co-op ping, held = the
+  gadget wheel; View tap = goggles, View held = emote 1. Settings > Accessibility > Controls lists it.
+- [ ] Guards walk, turn and run exactly as in 3.1 (their tuning is pinned).
+- [ ] Cover moves, cover-to-cover runs, ladders, ledges and vaults feel as in 3.1 (the Chaos Theory feel applies only to
+  free movement).
+- [ ] An existing touch layout keeps every control where it was after the update and gains the rocker.
+
+## 3.2.0 phase 1 - Networked movement state (two devices, co-op Free Roam on Proving Grounds, then Team Deathmatch)
+- [ ] Watch the other player take low cover: they kneel behind it at the same height you see on their screen, and
+  peek over it when they aim. High cover: standing side-on, leaning out at an edge with the gun on the open side.
+- [ ] Ladder, drainpipe, horizontal pipe, ledge hang and shimmy, duct crawl, zipline: hands and feet on the same rungs
+  / lip / pipe as on their own screen; no upright sliding. Climbing up and stopping: the same rung.
+- [ ] Vaults, mantles, drops, a forward roll, a window vault: played as a move, clean over the obstacle.
+- [ ] A takedown by the other player: the strike pose, weapon stowed.
+- [ ] Team Deathmatch: shoot an opponent hanging off a lip or leaning out of cover - head hits count as headshots;
+  their body in cover is only hittable where it shows.
+- [ ] Taking cover / grabbing a ladder shows on the other screen without a visible delay.
+
+## 3.2.0 phase 2 - Split jump, wall jump, pipe legs up / inverted (Proving Grounds, north of the platform)
+- [ ] Split corridor (two dark 4.3 m walls): stand between them facing along it - "Split jump"; facing a wall - no
+  prompt. Y: a quick spring into the split, feet on both walls, hands braced; the stick does nothing.
+- [ ] In the split: LT draws the pistol one-handed and aims; the view stops turning at about 100 deg from the corridor
+  and can look almost straight down; RT fires. Release LT: it is put away. B drops to the floor. Y jumps up to the
+  wall tops.
+- [ ] Wall jump block (3.3 m, grey): facing its south face - "Wall jump", Y kicks up the wall into a hang. Facing the
+  tall wall on its west side from the corner - Y kicks off it onto the block's lip. 2 m back: no prompt.
+- [ ] Pipe north of the platform: hang, Y "Legs up" (legs cross over the pipe, body along it face up), shimmy slowly
+  (about 0.5 m/s); Y "Invert": hanging by the knees, head down, the view upright; LT / RT aim and fire the pistol;
+  Y curls up again, B "Hands" back to hanging by the hands; inverted, B: flip over and land on the feet.
+- [ ] Co-op: the other player sees each of these poses (split braced and aiming, the kick, legs up, inverted).
+- [ ] No pistol in the loadout: the split and inverted hang still work, LT does nothing.
+
+## 3.2.0 phase 3 - Rappel and fences (Proving Grounds, north east / north west)
+- [ ] Rappel house: up the ladder on its west side, walk to the south edge facing out - "Rappel"; Y hooks on and steps
+  over facing the wall, the rope runs from the anchor to the harness.
+- [ ] Stick down: steady descent; with sprint held: fast; stick up: climbs, and at the top steps back onto the roof.
+- [ ] Y: kicks out and swings back to the wall; holding the stick sideways moves along the wall with each kick.
+- [ ] LT: turns round on the rope and aims the pistol out over the yard; RT fires.
+- [ ] Down beside the window: "Kick through" - smashes the glass and lands inside.
+- [ ] "Unhook" only shows within 2 m of the floor; B lets go. At the bottom the rope lets you go by itself.
+- [ ] Fence (north west of the platform): you cannot walk through it, but bullets and sight pass. Y "Climb", climb and
+  shimmy; gear 4+ makes noise (a guard near it hears), gear 3 and below are silent; at the top "Flip over".
+- [ ] Co-op: the other player sees the rope and the climbing pose; on a fence the same.
+
+## 3.2.0 phase 4 - Takedowns: drop attack, inverted, the grab / human shield (Warehouse Hunter + co-op + TDM)
+- [ ] Behind a calm guard: "Grab"; Y grabs him; walking is slow (gear 2) and he stays in front of you; LT draws the
+  pistol over his shoulder, RT fires; Y tap: knocked out, Y hold: killed; B: shoved away, staggering, then alert.
+- [ ] Holding a hostage in view of an alerted guard: no shots for about 1.5 s, then aimed shots - mostly into the
+  hostage; enough of them kill him and he drops.
+- [ ] Hanging under a pipe / at a lip / braced in a split / on the rope above a guard: "Drop attack" - you fall on him.
+- [ ] Inverted on a pipe right over a guard: "Takedown" - he is choked up, you stay hanging.
+- [ ] A dog from behind is still an instant takedown; a heavy from the front still only a lethal strike.
+- [ ] Co-op: the other player grabs a guard - you see him held in front of them; your shots at him do not hurt them.
+- [ ] TDM: drop on an opponent from a pipe or lip, or choke one from inverted: they are eliminated; no grab offered.
+
+## 3.2.0 phase 5 - Co-op team moves (two devices, co-op Free Roam on Proving Grounds, the 4.2 m block north)
+- [ ] Player 1 backs onto the block's south wall with player 2 near, holds Y: braced (back to the wall, hands cupped);
+  B stands up. Without a team-mate near, holding Y does nothing.
+- [ ] Player 2 faces the braced player 1: a "Boost (hold: ladder)" prompt over them; tap Y: a step into the hands, a toss, hanging from the
+  4.2 m lip on both screens. Player 1 is free again.
+- [ ] Player 2 braces, player 1 holds Y facing them: climbs onto the shoulders; free to turn, aim and fire there; Y
+  grabs the lip; B instead hops down. The bottom's B drops the top player.
+- [ ] TDM: a team-mate can boost you, an opponent cannot (nothing happens).
+- [ ] A takedown on offer still wins over the team move (Y takes the guard).
+
+## 3.2.0 - Playtest changes: jump, action button, pipes facing along, higher split (phone + controller)
+- [ ] Touch: the Jump button (right of the action button) jumps on open floor; under a pipe / at a lip up to ~3 m / beside
+  a drainpipe or ladder the jump grabs it.
+- [ ] Controller: Y on open floor jumps; Y at a vault / ladder still does that instead.
+- [ ] Between the Proving corridor walls (or the Warehouse corridor's tall walls): the prompt reads "Split jump (double
+  jump)"; two quick taps of Jump (or Y) brace in the split, feet about 2.5 m up; the touch action button there jumps
+  straight in.
+- [ ] Split pose: the legs almost horizontal out to both walls, hands braced on the walls. Jump in facing east, it
+  faces east; facing west, it faces west.
+- [ ] In the split under a lip (the Proving corridor's 4.3 m wall tops): the Jump prompt shows; Y or Jump jumps up and
+  hangs from the lip ahead. With nothing over it, no prompt and Y does nothing. Drop (B), a drop attack on a guard
+  under you and the pistol (LT / RT) still work.
+- [ ] Hanging from a horizontal pipe: the operator faces along the pipe, hands one ahead of the other; legs up and
+  upside down stay along it; holding the stick back turns round.
+- [ ] Mezzanine deck: standing under the pipe's start, the action button / Y grabs the pipe (no mantle over the railing).
+- [ ] Touch action button: label follows the prompts (Take cover, Vault, Climb, Grab, Rappel, Legs up, Leave cover, Use);
+  dimmed when nothing is on offer; tapping the prompts themselves does nothing.
+- [ ] At a low wall: standing still the button takes cover; pushing the stick at it, it vaults.
+- [ ] Drop from a split, a lip or a box, and walk off a curb: the feet land on the floor (no floating a hand's width
+  above it).
+
+## 3.2.0 - Warehouse Chaos Theory routes (Free Roam, then Hunter at night)
+- [ ] West yard: the drainpipe on the facade climbs to the roof walkway; footsteps on the roof are louder.
+- [ ] On the roof over the dispatch window: "Rappel", down the rope, "Kick through" at the window, inside dispatch.
+- [ ] The roof's north edge over the workshop: hang there; with the patrol under you, "Drop attack".
+- [ ] Co-op: brace against the pump house (east lot, beside the workshop door); the other player boosts onto it, then
+  climbs from its top onto the roof. Alone, nothing reaches its top.
+- [ ] Service corridor, where its two walls stand 4 m (no cabinets): "Split jump"; the corridor patrol walks under -
+  "Drop attack".
+- [ ] Mezzanine deck: the pipe out over the factory floor; hands / legs up / inverted over the floor patrol.
+- [ ] The press (factory floor): "Wall jump" up onto it; from the top, a drop on the patrol passing it.
+- [ ] Yard fence (east end of the dark lane): climb it at gear 3 (quiet) / gear 4 (rattles), flip over into the east
+  lot; guards chasing go round by the facade.
+- [ ] Hunter on the Warehouse: every room still clears; Infiltration missions (Ledger, Courier, Blackout, Cold Storage)
+  still complete.
 
 ## 3.1.1 - Phone GPU (iPhone 17 Pro Max, Settings > Graphics > Benchmark, each preset)
 | Build | Low | Medium | High | Ultra |
@@ -743,8 +866,9 @@ Gameplay mapping:
 - [ ] RT fire (analog threshold), LT aim (hold or toggle per setting); aim assist slows near targets on Standard/High, off when disabled.
 - [ ] RB / LB next / previous weapon (RB marks while aiming); X reload (hold: next weapon); A take / leave cover and
       cover-to-cover; B crouch; Y traverse / use / takedown (hold: lethal) / Execute when ready.
-- [ ] L3 sprint; R3 shoulder swap; View goggles (night vision / sonar).
-- [ ] D-pad up gadget (hold aims, release throws); D-pad down gadget wheel (hold); right / left emotes.
+- [ ] L3 sprint; R3 shoulder swap; View tap goggles (night vision / sonar), View held emote.
+- [ ] D-pad up / down speed gear; D-pad right gadget (hold aims, release throws); D-pad left tap ping (co-op), held
+      gadget wheel.
 - [ ] In cover: A leaves (or to the marked cover), Y vaults low cover, LT peeks / leans, RT blind-fires, A at an
       outside edge swings round the corner, pushing into an inside corner turns.
 - [ ] Start pauses (single player) / opens the menu without pausing (co-op).

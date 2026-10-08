@@ -53,7 +53,7 @@ try {
   // tag & emotes: assign emote slot 1
   await focusTo(page, /Tag & emotes/);
   await press(page, BTN.A);
-  await focusTo(page, /1 · D-pad right/, 24);
+  await focusTo(page, /1 · View hold/, 24);
   await press(page, BTN.RIGHT);
   const em = await G(() => window.__app.save.get().emotes[0]);
   assert(!!em, `emote slot 1 set (${em})`);
@@ -78,7 +78,7 @@ try {
   assert((await G(() => window.__app.save.get().weapons.rifle.camo)) === 'woodland', 'A equips it');
   for (let i = 0; i < 4; i++) await press(page, BTN.B);
 
-  // in game: avatar look + camo carried, emote on d-pad right
+  // in game: avatar look + camo carried, emote 1 on View held (3.2.0; the d-pad is the speed gear, gadget and wheel)
   await G(() => window.__app.screens.top);
   await page.goto(url + '?autostart=proving&gfx=min');
   await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 60000 });
@@ -86,8 +86,12 @@ try {
   await press(page, BTN.LS);
   const look = await G(() => ({ skin: window.__app.current.opts.look.colors.skin, camo: window.__app.current.opts.loadout.find((e) => e.id === 'rifle')?.pattern?.name }));
   assert(look.skin === skin1 && look.camo === 'camo', `match uses saved avatar + weapon camo (${JSON.stringify(look)})`);
-  await press(page, BTN.RIGHT);
-  assert(await G(() => !!window.__app.current.player.rig.emote), 'd-pad right plays emote slot 1 in game');
+  await G(() => window.__pad.set(8, 1));
+  // (the hold is read from the polls: on a slow software-GL frame it lands late)
+  await page.waitForFunction(() => !!window.__app.current.player.rig.emote, null, { timeout: 6000 }).catch(() => {});
+  const emoted = await G(() => !!window.__app.current.player.rig.emote);
+  await G(() => window.__pad.set(8, 0));
+  assert(emoted, 'View held plays emote slot 1 in game');
 } catch (e) {
   failed = true;
   console.error(String(e));

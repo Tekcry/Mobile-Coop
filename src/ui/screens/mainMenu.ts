@@ -32,7 +32,7 @@ export class MainMenuScreen extends Screen {
         h('div', { class: 'game-title', html: '<span class="t1">SILENT</span><span class="t2">BUT</span><span class="t3">DEADLY</span>' }),
         this.list,
         h('div', { class: 'tagline', text: 'Observe  /  Infiltrate  /  Complete' }),
-        h('div', { class: 'version', text: `v${__APP_VERSION__}${__PREVIEW__ ? ' PREVIEW' : ''}` }),
+        h('div', { class: 'version', text: `v${__APP_VERSION__}${__PREVIEW__ ? ' PREVIEW' + (__PREVIEW_ID__ ? ' ' + __PREVIEW_ID__.toUpperCase() : '') : ''}` }),
       ),
       this.badge,
     );

@@ -12,7 +12,7 @@ import type { MapDef } from '../world/mapDef';
 import { Player } from '../player/player';
 import { defaultLook, type AvatarLook } from '../cosmetics/avatarLook';
 import { PauseScreen } from '../ui/screens/pauseScreen';
-import { DamageRegistry } from './damage';
+import { DamageRegistry, type Damageable } from './damage';
 import { Vfx } from '../vfx/vfx';
 import { Ballistics } from '../weapons/ballistics';
 import { Explosions } from '../weapons/explosions';
@@ -45,11 +45,15 @@ import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
 import { levelLabel, VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
-import { MOVEMENT } from '../config/movement';
+import { CT, FENCE, MOVEMENT, RAPPEL } from '../config/movement';
 import { CoverController } from '../cover/coverController';
 import type { CoverSegment } from '../cover/coverData';
 import { TraversalController } from '../player/traversal';
 import { anchorFirst, ATTACH_LABEL } from '../player/attachController';
+import { PIPE, SPLIT } from '../player/splitJump';
+import { GRAB } from './takedown';
+import { TeamController, type TeamMate } from './teamController';
+import type { TeamKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
 import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
@@ -128,6 +132,12 @@ export interface NetAttachment {
   onEnd?(won: boolean, subtitle: string): void;
   /** Host: revive every downed player (wave cleared). */
   reviveAll?(): void;
+  /** (3.2.0 phase 5) Team-mates for team moves (co-op: everyone; TDM: the same side). */
+  teamMates?(): readonly TeamMate[];
+  /** (3.2.0 phase 5) Ask the host for a team move with a braced `partner` (boost: onto anchor `target` at `s`). */
+  teamRequest?(kind: TeamKind, partner: string, target: number, s: number, gripY: number): void;
+  /** (3.2.0 phase 5) End the human ladder (either player). */
+  teamEnd?(): void;
   /** Co-op: the local player pinged (x, y, z), on an enemy (`target`) or a spot (''). */
   ping?(x: number, y: number, z: number, target: string): void;
   /** Contact shadows for the characters the net layer draws (remote players, puppets). */
@@ -164,8 +174,10 @@ const ARC_MIN = 0.06;
 const SUPPRESSED_NOISE = 0.6;
 const IMPACT_NOISE = 4;
 
-/** Touch action button: only for interactables now (cover and traversal prompts sit on the surfaces). */
+/** Touch action button: an interactable in reach, else (3.2.0) what the world prompts show. */
 const ACT_USE: TouchAction = { action: 'interact', label: 'Use', icon: 'interact' };
+/** The action button's icon per world prompt. */
+const PROMPT_ICON: Partial<Record<WorldPromptId, string>> = { cover: 'cover', corner: 'cover', move: 'cover', vault: 'jump', jumpTo: 'jump', drop: 'crouch' };
 const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault', mantle: 'Climb', drop: 'Drop down', hop: 'Jump', none: '' };
 /** World prompts sit low on the surface they act on, at one height per surface (m above its base). */
 const PROMPT_Y = 0.55;
@@ -255,6 +267,8 @@ export class GameState implements AppState {
   /** Mark & Execute marks and charges; melee takedowns; the execute sequence. */
   readonly marks = new MarkSet();
   readonly takedown: TakedownController;
+  /** (3.2.0 phase 5) Co-op team moves (brace, boost, human ladder). */
+  readonly team: TeamController;
   readonly execute: ExecuteController;
   /** Suit and HQ effects for this session. */
   readonly suit: SuitStats;
@@ -368,6 +382,7 @@ export class GameState implements AppState {
     this.stack.onRebuilt = () => this.post.toEnd();
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
+    this.team = new TeamController(this);
     this.execute = new ExecuteController(this);
     this.gadgets = new GadgetSystem(this);
     this.vision.sonarAllowed = this.difficultyDef.sonar;
@@ -420,6 +435,8 @@ export class GameState implements AppState {
       this.hud.damageFrom(bearing - this.player.cam.yaw);
       this.player.cam.shake(h.kind === 'explosion' ? 0.5 : 0.12);
       app.input.rumble(0.6, 0.3, 90);
+      // (3.2.0) a pipe transition (legs up / inverted) falls back to the hands
+      this.traversal.attachCtl.onHit();
     };
     this.target.onDeath = () => this.onPlayerDeath();
     this.player.onLand = (v) => {
@@ -886,6 +903,9 @@ export class GameState implements AppState {
   }
 
   private landSeen = 0;
+  /** Forward rolls already made noise for; alive last step (a respawn resets the speed gear). */
+  private rollSeen = 0;
+  private aliveWas = true;
   /** Loudest one-off noise (glass, kicks, landings) and how long it still shows on the noise meter (s). */
   private evNoise = 0;
   private evNoiseT = 0;
@@ -999,9 +1019,12 @@ export class GameState implements AppState {
       return;
     }
     this.time += dt;
+    // back from down / dead (respawn, revive, co-op): the speed gear starts over
+    if (this.player.alive && !this.aliveWas) this.player.controller.gears.reset();
+    this.aliveWas = this.player.alive;
     // the gadget wheel / a remote view (sticky cam, drone) takes the input: the operator gets none
     const inp = this.gadgets.fixedUpdate(dt, real) ? this.blankInp : real;
-    // quick emotes on the d-pad (right, down, left)
+    // quick emotes (View held on a pad, J / K / L)
     if (inp.pressed('ping') && this.net && !this.pvp && this.player.alive) this.sendPing();
     const quick = (['quick2', 'quick3', 'quick4'] as const).findIndex((q) => inp.pressed(q));
     if (quick >= 0) this.emote(this.opts.emotes?.[quick] ?? '');
@@ -1011,7 +1034,7 @@ export class GameState implements AppState {
     const carrying = this.stealth?.carrying ?? false;
     // a takedown or an execute running (from the last step): cover and traversal stand aside
     const busy = this.takedown.active !== null || this.execute.running !== null;
-    if (!this.traversal.active && !carrying && !busy) this.cover.fixedUpdate(dt, inp);
+    if (!this.traversal.active && !carrying && !busy && !this.team.active) this.cover.fixedUpdate(dt, inp);
     // cover shot away / destroyed under the player: stumble out of it
     if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
     // Y / E is contextual: an interactable in reach takes it, else it traverses
@@ -1026,18 +1049,54 @@ export class GameState implements AppState {
     ti.useHeldT = inp.heldTime('interact');
     ti.sprintHeld = inp.down('dash');
     const offer = this.takedown.offer !== null || this.execute.ready;
-    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none', this.cover.exitDir);
+    // (3.2.0 phase 5) team moves come after a takedown on offer, before traversal
+    const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
+    if (this.team.active) this.traversal.hint = null;
+    this.traversal.fixedUpdate(dt, inp.pressed('jump') && !teamTook && !this.team.active && !this.interactTarget && !carrying && !offer && !busy, this.cover.state !== 'none' || this.team.active, this.cover.exitDir, inp.pressed('leap') && !this.team.active && !carrying && !busy);
+    // the Chaos Theory forward roll is heard close by
+    if (this.traversal.forwardRolls !== this.rollSeen) {
+      this.rollSeen = this.traversal.forwardRolls;
+      this.eventNoise(CT.rollNoise);
+      this.enemyMgr?.hear(this.player.position, CT.rollNoise);
+    }
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
-    this.weapons.setStowed((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null);
+    // (3.2.0) braced in a split or hanging inverted: aiming (or firing) draws the sidearm one-handed
+    const ac = this.traversal.attachCtl;
+    const sidearm = ac.sidearmAim && this.weapons.sidearmIndex >= 0;
+    const pl = this.player;
+    if (sidearm) {
+      const a = ac.m.anchor!;
+      const inverted = a.kind === 'pipeH';
+      if (a.kind === 'rappel') pl.attachAim = { yaw: Math.atan2(a.nx, a.nz), range: RAPPEL.aimYaw, pitchMin: RAPPEL.pitchMin, pitchMax: RAPPEL.pitchMax, inverted: false };
+      else {
+        const yaw = inverted ? pl.controller.yaw + Math.PI : pl.controller.yaw;
+        pl.attachAim = inverted
+          ? { yaw, range: PIPE.aimYaw, pitchMin: PIPE.pitchMin, pitchMax: PIPE.pitchMax, inverted: true }
+          : { yaw, range: SPLIT.aimYaw, pitchMin: SPLIT.pitchMin, pitchMax: SPLIT.pitchMax, inverted: false };
+      }
+    } else pl.attachAim = null;
+    // (3.2.0 phase 4) holding a hostage: the sidearm one-handed over their shoulder (aim or fire draws it)
+    const grabHold = this.takedown.hostage !== null;
+    const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads') || inp.down('fire'));
+    // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
+    const teamHands = this.team.active && this.team.state !== 'top';
+    this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
+    this.weapons.attachSpread = sidearm ? (pl.attachAim?.inverted ? PIPE.spreadMul : 1) : grabHold ? GRAB.spreadMul : 1;
+    this.localRef.shield = grabHold ? (this.takedown.hostage as unknown as Damageable) : null;
     this.player.cam.attach = this.traversal.cameraPreset;
     this.player.cam.attachYaw = this.player.controller.yaw;
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.stealth?.fixedUpdate();
     // Mark & Execute, then takedowns (Y / E: a takedown on offer, else execute when ready, else the rest)
     // (co-op clients: takedowns and Mark & Execute on the host's enemies, through their puppets)
-    if (!this.pvp) {
-      const execPressed = inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached);
-      const executing = this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
+    // (3.2.0 phase 4: PvP gets the drop, ledge pull and inverted takedowns on opponents - no grab, no Mark & Execute)
+    {
+      const execPressed = !this.pvp && !this.takedown.active && (inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached));
+      // (3.2.0) B shoves a held hostage away (and is not a crouch then)
+      this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
+      if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
+      this.takedown.grabAllowed = !this.pvp;
+      const executing = !this.pvp && this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
       if (!executing) this.takedown.fixedUpdate(dt, inp.pressed('interact') && !execPressed, inp.down('interact'));
     }
     this.suppression.update(dt);
@@ -1061,7 +1120,11 @@ export class GameState implements AppState {
       this.surface = surfaceAt(this.world.level.surfaces, pp.x, pp.y, pp.z, this.world.map.theme.floor ?? 'concrete');
       const steps = this.player.alive && c.grounded && c.steps !== 'silent' ? noiseRadius(c.speed, c.crouched || c.steps === 'crouched', c.dashing && c.steps === 'free') * SURFACE_NOISE[this.surface] * this.suit.noise : 0;
       if (steps > 0) this.enemyMgr?.hear(this.player.position, steps);
-      this.noise = Math.max(steps, this.evNoise);
+      // (3.2.0) climbing a fence above a quiet gear rattles it
+      const ac2 = this.traversal.attachCtl;
+      const rattle = ac2.m.kind === 'fence' && ac2.fenceMoving && c.gear > FENCE.quietGear ? FENCE.rattle * this.suit.noise : 0;
+      if (rattle > 0) this.enemyMgr?.hear(this.player.position, rattle);
+      this.noise = Math.max(steps, rattle, this.evNoise);
     }
     this.updateLight(dt);
     this.updateVision(dt);
@@ -1908,14 +1971,30 @@ export class GameState implements AppState {
       w.set('vault', ok ? tl : null, this.scr.x, this.scr.y);
     } else if (!(stateText && seg)) w.set('vault', null, 0, 0);
     this.anchorPrompts();
+    // (3.2.0 phase 5) a braced team-mate in reach: on their shoulders
+    const tOff = this.team.offer;
+    if (tOff && !this.takedown.offer) {
+      const ok = this.project(tOff.mate.pos.x, tOff.mate.pos.y + 1.6, tOff.mate.pos.z);
+      w.set('vault', ok ? (tOff.boost ? 'Boost (hold: ladder)' : 'Human ladder (hold)') : null, this.scr.x, this.scr.y);
+    }
+    this.drawRope();
     // takedown: on the victim, above the head
     const off = this.takedown.active ? null : this.takedown.offer;
+    const host = this.takedown.hostage;
     if (off) {
       const e = off.e;
       const ok = this.project(e.pos.x, e.pos.y + 1.95 * e.def.scale, e.pos.z);
-      w.set('takedown', ok ? (off.lethalOnly ? 'Lethal takedown' : 'Takedown') : null, this.scr.x, this.scr.y);
+      const lbl = off.lethalOnly ? 'Lethal takedown' : off.plan.kind === 'behind' && !off.e.def.quadruped && !this.pvp ? 'Grab' : off.plan.kind === 'drop' ? 'Drop attack' : 'Takedown';
+      w.set('takedown', ok ? lbl : null, this.scr.x, this.scr.y);
+    } else if (host && this.takedown.active?.grab?.strikeT === -1) {
+      // (3.2.0) holding a hostage: tap knocks out, hold kills
+      const ok = this.project(host.pos.x, host.pos.y + 1.95 * host.def.scale, host.pos.z);
+      w.set('takedown', ok ? 'Knock out (hold: kill)' : null, this.scr.x, this.scr.y);
     } else w.set('takedown', null, 0, 0);
     const ctl = this.player.controller;
+    // speed gear: pips by the tactical strip after a change; on touch the rocker shows it all the time
+    this.hud.setGear(ctl.gear, ctl.gears.changes);
+    this.app.input.touch.setGear(ctl.gear);
     this.hud.setTactical(ctl.sprint.stamina, this.expEyes.length ? this.exposure : -1, this.noise <= 0 ? 0 : this.noise < 3 ? 1 : this.noise < 8 ? 2 : 3, this.suppression.value);
     // cover-to-cover marker on the target face
     const tg = st === 'in' ? c.target : null;
@@ -1924,13 +2003,53 @@ export class GameState implements AppState {
       w.set('move', ok ? (tg.kind === 'swat' ? 'SWAT turn' : 'Move to cover') : null, this.scr.x, this.scr.y);
     } else w.set('move', null, 0, 0);
     w.flush();
-    // the touch action button: only to use an interactable in reach
+    // the touch action button: a gadget feed's action, an interactable in reach, else what the world prompts show
+    // (they stay as the indicators of what is on offer and where)
     const it = this.interactTarget;
     if (it) ACT_USE.label = it.label.length > 14 ? 'Use' : it.label;
     const touchCtl = this.app.input.touch;
     const ga = this.gadgets.touchAction();
-    touchCtl.setAction(ga ?? (it ? ACT_USE : null));
-    touchCtl.setControlHidden('action', !ga && !it);
+    touchCtl.setAction(ga ?? (it ? ACT_USE : this.promptAction()));
+    touchCtl.setControlHidden('action', false);
+  }
+
+  /** One `TouchAction` per world prompt (the label is refreshed each frame). */
+  private promptActs = {} as Partial<Record<WorldPromptId, TouchAction>>;
+  private leaveAct: TouchAction = { action: 'cover', label: 'Leave cover', icon: 'cover' };
+
+  /**
+   * (3.2.0) What the touch action button does now: the world prompt on offer (as tapping it did). Out of cover with
+   * both a cover face and an obstacle prompted, moving (or the stick pushed) goes over / up it, standing still takes
+   * cover; in cover the
+   * corner swing, cover-to-cover, the vault, else leaving cover; attached: climb up / jump / the pipe's states, else
+   * drop.
+   */
+  private promptAction(): TouchAction | null {
+    const w = this.hud.world;
+    const inCover = this.cover.state !== 'none';
+    const ctl = this.player.controller;
+    const wish = ctl.wishDir;
+    // moving, or pushing the stick (against the obstacle it does not move)
+    const moving = ctl.speed > 1.0 || wish.x * wish.x + wish.z * wish.z > 0.09;
+    const order: readonly WorldPromptId[] = inCover
+      ? ['corner', 'move', 'vault']
+      : this.traversal.attached
+        ? ['vault', 'jumpTo', 'drop']
+        : moving
+          ? ['vault', 'cover', 'jumpTo', 'drop']
+          : ['cover', 'vault', 'jumpTo', 'drop'];
+    for (const id of order) {
+      const lbl = w.label(id);
+      if (!lbl) continue;
+      let a = this.promptActs[id];
+      if (!a) {
+        a = { action: id === 'cover' || id === 'corner' || id === 'move' ? 'cover' : 'jump', label: '', icon: PROMPT_ICON[id] ?? 'jump', press: () => this.onWorldPrompt(id), down: () => this.onWorldPromptHold(id, true), up: () => this.onWorldPromptHold(id, false) };
+        this.promptActs[id] = a;
+      }
+      a.label = lbl.length > 16 ? lbl.slice(0, 15) + '\u2026' : lbl;
+      return a;
+    }
+    return inCover ? this.leaveAct : null;
   }
 
   /** Anchor prompts: what traverse attaches to from the ground; climb up / jump / drop while attached. */
@@ -1946,15 +2065,22 @@ export class GameState implements AppState {
       const hx = (rig.reachL.x + rig.reachR.x) / 2;
       const hy = (rig.reachL.y + rig.reachR.y) / 2;
       const hz = (rig.reachL.z + rig.reachR.z) / 2;
-      // climb up: on the lip above the hands
+      // climb up: on the lip above the hands; (3.2.0) on a horizontal pipe: legs up / invert / curl up
+      let pipeY = a.kind === 'pipeH' && on && !ac.jump && !ac.pipe.busy ? (ac.pipe.mode === 'hands' ? ATTACH_LABEL.legsUp! : ac.pipe.mode === 'legsUp' ? ATTACH_LABEL.invert! : ATTACH_LABEL.curlUp!) : null;
+      // (3.2.0 phase 3) a rope: kick out / through the window beside it; a fence: flip over at the top
+      if (a.kind === 'rappel' && on) pipeY = ac.ropeWindow ? ATTACH_LABEL.kickThrough! : ac.swingT < 0 ? ATTACH_LABEL.kickOut! : null;
+      if (a.kind === 'fence' && on) pipeY = ac.fenceTop ? ATTACH_LABEL.flipOver! : null;
       if (on && ac.canClimb && !ac.jump && this.project(hx, hy + 0.12, hz)) w.set('vault', ATTACH_LABEL.climbUp!, this.scr.x, this.scr.y);
+      else if (pipeY && a.kind === 'pipeH' && this.project(this.player.position.x, a.hangHeight + 0.15, this.player.position.z)) w.set('vault', pipeY, this.scr.x, this.scr.y);
+      else if (pipeY && (a.kind === 'rappel' || a.kind === 'fence') && this.project(this.player.position.x, this.player.position.y + 1.7, this.player.position.z)) w.set('vault', pipeY, this.scr.x, this.scr.y);
       else w.set('vault', null, 0, 0);
       const j = on ? ac.jump : null;
       if (j && this.project(j.grip.x, j.grip.y + 0.1, j.grip.z)) w.set('jumpTo', ATTACH_LABEL.jump!, this.scr.x, this.scr.y);
       else w.set('jumpTo', null, 0, 0);
       // drop (slide on a ladder): under the hands
-      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : ATTACH_LABEL.drop!;
-      if (on && lbl && this.project(hx, hy - 0.5, hz)) w.set('drop', lbl, this.scr.x, this.scr.y);
+      const lbl = a.kind === 'ladder' ? 'Slide' : a.kind === 'zipline' || a.kind === 'duct' ? null : a.kind === 'rappel' ? (a.length - m.s <= RAPPEL.unhookHeight ? ATTACH_LABEL.unhook! : null) : a.kind === 'pipeH' && ac.pipe.busy ? null : a.kind === 'pipeH' && ac.pipe.mode === 'legsUp' ? 'Hands' : ATTACH_LABEL.drop!;
+      const dropAt = a.kind === 'split' || (a.kind === 'pipeH' && ac.pipe.mode !== 'hands') ? this.player.position : null;
+      if (on && lbl && (dropAt ? this.project(dropAt.x, dropAt.y + 0.3, dropAt.z) : this.project(hx, hy - 0.5, hz))) w.set('drop', lbl, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);
       return;
     }
@@ -1979,14 +2105,36 @@ export class GameState implements AppState {
       if (this.project(a.a.x + a.tx * low.s, a.top + 0.45, a.a.z + a.tz * low.s)) w.set('drop', ATTACH_LABEL.ledgeAbove!, this.scr.x, this.scr.y);
       else w.set('drop', null, 0, 0);
     } else w.set('drop', null, 0, 0);
+    // (3.2.0) between two tall walls: a double jump braces in the split (the touch action button jumps straight in)
+    this.splitPrompt = false;
+    const sp = !h && !blocked && !t.hint ? ac.split : null;
+    if (sp && sp.anchor.kind === 'split') {
+      const sa = sp.anchor;
+      if (this.project(sa.a.x + sa.tx * sp.s, sa.a.y + 1.7, sa.a.z + sa.tz * sp.s)) {
+        w.set('vault', ATTACH_LABEL.splitDouble!, this.scr.x, this.scr.y);
+        this.splitPrompt = true;
+      }
+    }
     if (!h || blocked) return;
     const a = h.anchor;
     const g = this.promptPt;
     const feetY = this.player.position.y;
     switch (a.kind) {
       case 'ledge':
-        // on the face just under the lip (the lip itself is at the top edge of the view up close)
-        g.set(a.a.x + a.tx * h.s + a.nx * 0.05, a.top - 0.35, a.a.z + a.tz * h.s + a.nz * 0.05);
+        // on the face just under the lip (the lip itself is at the top edge of the view up close); a wall jump: on
+        // the wall at head height (the lip is out of view)
+        if (h.entry === 'wall') g.set(a.a.x + a.tx * h.s + a.nx * 0.05, feetY + 1.6, a.a.z + a.tz * h.s + a.nz * 0.05);
+        else g.set(a.a.x + a.tx * h.s + a.nx * 0.05, a.top - 0.35, a.a.z + a.tz * h.s + a.nz * 0.05);
+        break;
+      case 'split':
+        // between the walls, where the feet will brace
+        g.set(a.a.x + a.tx * h.s, a.a.y + 1.9, a.a.z + a.tz * h.s);
+        break;
+      case 'rappel':
+        g.set(a.top.x - a.nx * 0.25, a.top.y + 0.7, a.top.z - a.nz * 0.25);
+        break;
+      case 'fence':
+        g.set(a.a.x + a.tx * h.s, feetY + 1.3, a.a.z + a.tz * h.s);
         break;
       case 'ladder':
         if (h.entry === 'top') g.set(a.top.x, a.top.y + 0.3, a.top.z);
@@ -2010,6 +2158,20 @@ export class GameState implements AppState {
   }
 
   private promptPt = new Vector3();
+
+  /** (3.2.0) The local player's rappel rope: anchor to harness while on it. */
+  private drawRope(): void {
+    const ropes = this.world.ropes;
+    const m = this.traversal.attachCtl.m;
+    const a = m.anchor;
+    if (a && a.kind === 'rappel' && !(m.phase === 'exit' && m.progress > 0.6)) {
+      const h = this.player.rig.hips;
+      h.computeWorldMatrix(true);
+      const p = h.getAbsolutePosition();
+      ropes.set('local', a.top.x - a.nx * 0.25, a.top.y + 0.55, a.top.z - a.nz * 0.25, p.x, p.y, p.z);
+    } else ropes.hide('local');
+    ropes.flush();
+  }
 
   /** Touch held on a prompt: at a closed vent, holding it is holding the use button (unscrew) and a quick tap kicks
    *  (the press goes in at once; letting go releases the use button). */
@@ -2035,6 +2197,9 @@ export class GameState implements AppState {
   }
 
   /** A tap on a world prompt (touch): the same as the button it shows. */
+  /** (3.2.0) The 'vault' prompt shows the split gap (a double jump). */
+  private splitPrompt = false;
+
   private onWorldPrompt(id: WorldPromptId): void {
     if (this.paused || this.exited) return;
     const inp = this.app.input.state;
@@ -2042,6 +2207,8 @@ export class GameState implements AppState {
     else if (id === 'vault' || id === 'jumpTo') {
       // (a vent prompt pressed on touch-down already did it)
       if (this.ventByTouch && id === 'vault') this.ventByTouch = false;
+      // (3.2.0) the split prompt: straight into the split (by pad / keys it is a double jump)
+      else if (id === 'vault' && this.splitPrompt) this.traversal.splitNow();
       else inp.tap('jump');
     }
     else if (id === 'drop') {

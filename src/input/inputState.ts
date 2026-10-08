@@ -5,6 +5,9 @@ import { hyp2 } from '../core/mathx';
 const ALIAS: Partial<Record<ButtonAction, ButtonAction>> = { crouch: 'drop' };
 /** Seconds `interact` must be held before `interactHold` goes down (a tap stays a tap). */
 export const INTERACT_HOLD = 0.3;
+/** Seconds the gadget wheel button must be held before the wheel opens (pad / keyboard; a shorter D-pad left is a
+ *  ping, 3.2.0). */
+export const WHEEL_HOLD = 0.15;
 
 /**
  * Aggregated action state. Each source sets its own contribution per action;

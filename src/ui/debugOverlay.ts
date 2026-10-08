@@ -1,5 +1,5 @@
 import { Color4, CreateLineSystem, SceneInstrumentation, Vector3, type Engine, type LinesMesh, type Scene } from '../core/babylon';
-import { MOVEMENT, MOVEMENT_RANGES } from '../config/movement';
+import { CT, CT_RANGES, MOVEMENT, MOVEMENT_RANGES } from '../config/movement';
 import { CAMERA } from '../config/camera';
 import { CARRY } from '../weapons/weaponCarry';
 import { DEBUG_RIGS, DEBUG_VOLUMES } from './debugVolumes';
@@ -126,6 +126,7 @@ export class DebugOverlay {
       }
     };
     table('Movement', MOVEMENT as unknown as Record<string, number>, MOVEMENT_RANGES);
+    table('Chaos Theory', CT as unknown as Record<string, number>, CT_RANGES);
     table('Camera', CAMERA as unknown as Record<string, number>, {
       boomHip: [0.6, 3.5, 0.05],
       boomAds: [0.4, 1.5, 0.05],

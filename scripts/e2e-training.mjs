@@ -111,6 +111,9 @@ try {
   await page.waitForFunction(() => { const b = document.querySelector('.tc-takedown'); return b && !b.hidden && getComputedStyle(b).display !== 'none'; }, null, { timeout: 8000 });
   assert(hiddenBefore, 'the takedown button is hidden with nothing on offer');
   await page.locator('.tc-takedown').tap();
+  // (3.2.0: from behind the first tap grabs him; the second takes him down)
+  await page.waitForFunction(() => window.__app.current.takedown.hostage !== null, null, { timeout: 8000 });
+  await page.locator('.tc-takedown').tap();
   await page.waitForFunction(() => window.__app.current.mode.course.step?.id !== 'takedown', null, { timeout: 15000 });
   assert((await step()) === 'mark', 'the touch takedown button takes the guard down; on to Mark');
 
@@ -151,7 +154,10 @@ try {
     return { shown: out, marks: g.mode.status.marks, ids: g.marks.ids.length, charges: g.marks.charges };
   });
   assert(marked.marks >= 2 && (await step()) === 'execute', `both guards marked (${JSON.stringify(marked)}, step ${await step()})`);
-  await page.waitForFunction(() => { const b = document.querySelector('.tc-execute'); return b && !b.hidden && getComputedStyle(b).display !== 'none'; }, null, { timeout: 8000 });
+  await page.waitForFunction(() => { const b = document.querySelector('.tc-execute'); return b && !b.hidden && getComputedStyle(b).display !== 'none'; }, null, { timeout: 8000 }).catch(async (e) => {
+    console.log(await G(() => { const g = window.__app.current; const x = g.execute; return JSON.stringify({ ready: x.ready, running: x.running, td: !!g.takedown.active, host: !!g.takedown.hostage, ch: g.marks.charges, ids: g.marks.ids, w: g.weapons.current?.def?.id, stowed: g.weapons.stowed, range: g.weapons.current.def.range, tg: g.marks.ids.map((id) => { const e = g.enemyMgr.enemies.find((q) => q.id === id); const p = g.player.position; return e && { pos: [e.pos.x.toFixed(1), e.pos.z.toFixed(1)], st: e.state, al: e.alert?.level, alive: e.alive, taken: e.taken, d: Math.hypot(e.pos.x - p.x, e.pos.z - p.z).toFixed(1), clear: x['clear'](e) }; }) }); }));
+    throw e;
+  });
   await page.locator('.tc-execute').tap();
   await page.waitForFunction(() => window.__app.current.mode.course.step?.id === 'gadget', null, { timeout: 20000 });
   assert(true, 'the Execute button runs it; on to the gadget');
