@@ -592,12 +592,14 @@ export class LampPlugin extends MaterialPluginBase {
     private lamps: BakedLamps,
   ) {
     super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false });
-    this.std = material.getClassName() === 'StandardMaterial';
     this._enable(true);
   }
 
-  /** On a standard material (the phone light look): the light goes into `diffuseBase`. */
-  private readonly std: boolean;
+  /** On a standard material (the phone light look): the light goes into `diffuseBase`. (Read from the material, not a
+   *  field: Babylon collects the injection points inside the base constructor, before a field could be set.) */
+  private get std(): boolean {
+    return this._material.getClassName() === 'StandardMaterial';
+  }
 
   override getClassName(): string {
     return 'LampPlugin';

@@ -34,6 +34,11 @@ try {
       moon: !!L?.moonTex,
       levelMat: level?.getClassName(),
       plugin: !!plugin,
+      // (the compiled level shader really adds the volume and the fill - a plugin attached but not injected draws black)
+      injected: (() => {
+        const src = w.level.meshes[0]?.subMeshes?.[0]?.effect?.fragmentSourceCode ?? '';
+        return /diffuseBase \+= nsVolume/.test(src) && /diffuseBase \+= nsGrid/.test(src);
+      })(),
       hemi: w.hemi.intensity,
       pool: rig['pool'].length + rig['shadowPool'].length,
       floor: g.post.darkFloor,
@@ -41,7 +46,7 @@ try {
     };
   });
   assert(r.lite && r.lamps && r.volume, `phone light look: the lamps from the light volume (${JSON.stringify(r)})`);
-  assert(r.levelMat === 'StandardMaterial' && r.plugin, 'the volume is on the standard level material');
+  assert(r.levelMat === 'StandardMaterial' && r.plugin && r.injected, `the volume and the fill are in the standard level material's shader (${r.injected})`);
   assert(r.fill && r.moon && r.hemi === 0, 'the ambient grid is the fill (hemisphere off) and the moon is baked');
   assert(r.pool <= 2, `at most two plain lights, for the flashlights (${r.pool})`);
   assert(r.floor > 0, `readable darkness: the grade lifts black (${r.floor})`);
