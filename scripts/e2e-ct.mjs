@@ -146,7 +146,7 @@ try {
   await tap(BTN.B);
   await run(1.2);
   i = await I();
-  assert(!i.attached && i.grounded && Math.abs(i.y) < 0.15 && i.landings > land0, `B drops out to the floor (y ${f2(i.y)}, landing ${i.landing} ${f2(i.fall)} m)`);
+  assert(!i.attached && i.grounded && Math.abs(i.y - 0.02) < 0.03 && i.landings > land0, `B drops out to the floor (y ${f2(i.y)}, landing ${i.landing} ${f2(i.fall)} m)`);
   // (3.2.0) jumping the other way faces the other way; Y braced does nothing (no jumps out of a split)
   await tp(10, 0, 25.05, -Math.PI / 2);
   await run(0.4);
@@ -161,6 +161,20 @@ try {
   assert(i.attached && i.kind === 'split' && i.phase === 'on', `Y braced: still in the split (${i.kind} ${i.phase})`);
   await tap(BTN.B);
   await run(1.5);
+
+  // (3.2.0) a fall comes to rest on the floor (Havok's support range once held the capsule up to 14 cm over it)
+  for (const crouch of [true, false]) {
+    for (const h of [0.75, 1.0, 1.6, 2.13, 2.5]) {
+      await page.evaluate((c) => { const pc = window.__app.current.player.controller; if (c) pc.setCrouchToggle(); else pc.clearCrouchToggle(); }, crouch);
+      await tp(0, h, 4, 0);
+      await run(1.2);
+      i = await I();
+      const cr = await page.evaluate(() => window.__app.current.player.controller.crouched);
+      assert(cr === crouch && i.grounded && Math.abs(i.y - 0.02) < 0.03, `a ${h} m fall (${crouch ? 'crouched' : 'standing'}) rests on the floor (y ${f2(i.y)})`);
+    }
+  }
+  await tp(0, 0, 4, 0);
+  await run(0.4);
 
   console.log('manual jump (3.2.0)');
   // open floor: up and down again (the pace carried)

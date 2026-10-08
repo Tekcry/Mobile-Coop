@@ -109,7 +109,7 @@ export function emptyPlannerInput(): PlannerInput {
 export const PIN_TOL = 0.04;
 
 /** Idle stepping thresholds. */
-export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6 };
+export const PLANNER = { idleErr: 0.075, idleStagger: 0.16, idleYawErr: 0.38, idleStepTime: 0.34, idleLift: 0.05, minGap: 0.13, maxStep: 2.6, swingGap: 0.1, swingNear: 0.18 };
 
 const TAU = Math.PI * 2;
 const wrap = (a: number): number => {
@@ -420,10 +420,27 @@ export class FootPlanner {
     // lift peaks early (heel comes up first), sets down gently
     const arc = Math.sin(Math.PI * Math.min(1, s * 1.08)) * (1 - 0.25 * s);
     f.y = f.fromY + (f.toY - f.fromY) * h + f.stepLift * Math.max(0, arc);
+    // passing the planted foot (a side-step back across, a reversal) the swing bows out sideways to `swingGap` from
+    // it, so the feet never brush; the ends of the swing stay where they are
+    const o = f === this.L ? this.R : this.L;
+    if (o.contact) {
+      const c = Math.cos(i.yaw);
+      const sn = Math.sin(i.yaw);
+      const along = (f.x - o.x) * sn + (f.z - o.z) * c;
+      if (along < PLANNER.swingNear && along > -PLANNER.swingNear) {
+        const latF = this.lateral(i, f.x, f.z);
+        const latO = this.lateral(i, o.x, o.z);
+        const bad = f === this.L ? latF - (latO - PLANNER.swingGap) : latO + PLANNER.swingGap - latF;
+        if (bad > 0) {
+          const shift = (f === this.L ? -bad : bad) * Math.sin(Math.PI * s);
+          f.x += shift * c;
+          f.z -= shift * sn;
+        }
+      }
+    }
     f.yaw = f.fromYaw + wrap(f.toYaw - f.fromYaw) * h;
     // toe-off then heel strike: toe down early, toe up just before landing
     f.pitch = s < 0.3 ? 0.45 * (1 - s / 0.3) : s > 0.72 ? -0.22 * smooth((s - 0.72) / 0.2) * (1 - smooth((s - 0.92) / 0.08)) : 0;
-    void i;
   }
 
   private land(f: FootState): void {

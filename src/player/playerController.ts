@@ -1,8 +1,10 @@
 import {
   CharacterSupportedState,
   PhysicsCharacterController,
+  PhysicsRaycastResult,
   Vector3,
   type CharacterSurfaceInfo,
+  type PhysicsEngine,
   type Scene,
 } from '../core/babylon';
 import { GRAVITY } from '../physics/havok';
@@ -68,6 +70,14 @@ const GLIDE_MOTION = { ...MOVEMENT, accelMax: 40, decelMax: 40, jerkMax: 2000, v
 const CT_MAX_ACCEL = 600;
 const UP = new Vector3(0, 1, 0);
 const DOWN = new Vector3(0, -1, 0);
+
+/** Settling onto the floor. Havok counts a surface as support up to `keepDistance` + `keepContactTolerance` (0.14 m)
+ *  under the capsule and its solver never closes that gap, so a capsule that stops 4-14 cm up (the last step of a
+ *  fall, stepping off a curb) would stay there. `rest`: the capsule's resting gap on flat floor (m); `tol`: a gap
+ *  this much over the rest (for the slope under it) settles; `reach`: the deepest gap settled; `rim`: the four edge
+ *  rays' offset (x radius) - the capsule only comes down as far as the highest floor under it (a step's edge). */
+const SETTLE = { rest: 0.02, tol: 0.025, reach: 0.2, rim: 0.7 } as const;
+const RIM_SAG = MOVEMENT.radius - Math.sqrt(MOVEMENT.radius * MOVEMENT.radius * (1 - SETTLE.rim * SETTLE.rim));
 
 /**
  * Stealth-operative Havok character controller. Movement is camera-relative; not aiming, the body faces
@@ -148,6 +158,11 @@ export class PlayerController {
   landVZ = 0;
   private height: number = MOVEMENT.standHeight;
   private support: CharacterSurfaceInfo | null = null;
+  private readonly settleRay = new PhysicsRaycastResult();
+  private readonly settleFrom = new Vector3();
+  private readonly settleTo = new Vector3();
+  /** Steps that settled the capsule onto the floor (tests). */
+  settles = 0;
   private wish = new Vector3();
   private motionIn = emptyMotionInput();
   private tmp = new Vector3();
@@ -274,6 +289,8 @@ export class PlayerController {
     this.cc.setVelocity(Vector3.Zero());
     this.vel.reset();
     this.motion.reset(yaw ?? this.yaw);
+    // a fresh stance: the gait clock restarts with the feet (the player resets the foot planner on a teleport)
+    this.motion.phase = 0;
     this.stopHold = false;
     this.syncFeet();
     this.prevPos.copyFrom(this.pos);
@@ -296,6 +313,39 @@ export class PlayerController {
     this.cc.setShapeOptions({ capsuleHeight: h, capsuleRadius: MOVEMENT.radius }, true);
     this.height = h;
     this.applyFilters();
+  }
+
+  /** How far the capsule hangs over the floor beyond its rest gap (0 when it rests, when the floor under its centre
+   *  is out of reach or too steep). Four rays round the rim cap it: resting on a step's edge, it never sinks in. */
+  private settleGap(): number {
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
+    if (!eng) return 0;
+    const c = this.cc.getPosition();
+    const feet = c.y - this.height / 2;
+    const hit = this.floorUnder(eng, c.x, c.y, c.z, feet);
+    if (hit === null) return 0;
+    const ny = this.settleRay.hitNormalWorld.y;
+    if (ny < this.cc.maxSlopeCosine) return 0;
+    // the sphere's lowest point stands off a slope by r (1 / cos - 1) over the point under its centre
+    let gap = feet - hit - SETTLE.rest - MOVEMENT.radius * (1 / ny - 1);
+    if (gap <= SETTLE.tol) return 0;
+    const d = MOVEMENT.radius * SETTLE.rim;
+    for (let k = 0; k < 4; k++) {
+      const ox = k === 0 ? d : k === 1 ? -d : 0;
+      const oz = k === 2 ? d : k === 3 ? -d : 0;
+      const h = this.floorUnder(eng, c.x + ox, c.y, c.z + oz, feet);
+      // the sphere's surface over a rim ray is `RIM_SAG` higher than its lowest point
+      if (h !== null) gap = Math.min(gap, feet + RIM_SAG - h - SETTLE.rest);
+    }
+    return gap > SETTLE.tol ? gap : 0;
+  }
+
+  /** Height of the floor under (x, z) within `SETTLE.reach` of the feet, else null. */
+  private floorUnder(eng: PhysicsEngine, x: number, y: number, z: number, feet: number): number | null {
+    this.settleFrom.set(x, y, z);
+    this.settleTo.set(x, feet - SETTLE.reach, z);
+    eng.raycastToRef(this.settleFrom, this.settleTo, this.settleRay, { membership: G.PLAYER, collideWith: MASK.PLAYER_COLLIDE });
+    return this.settleRay.hasHit ? this.settleRay.hitPointWorld.y : null;
   }
 
   private hasHeadroom(): boolean {
@@ -471,6 +521,14 @@ export class PlayerController {
       out.addInPlace(support.averageSurfaceVelocity);
       // Small stick force keeps the capsule in contact (no hovering within contact tolerance).
       out.subtractInPlace(support.averageSurfaceNormal.scale(PlayerController.stickForce));
+      // a capsule held up within the support range (after a fall, off a curb) comes down onto the floor
+      const gap = this.settleGap();
+      if (gap > 0) {
+        const c = this.cc.getPosition();
+        this.settleFrom.set(c.x, c.y - gap, c.z);
+        this.cc.setPosition(this.settleFrom);
+        this.settles++;
+      }
       if (!this.grounded) {
         // controlled landing: recovery scales with the fall; a long fall is a heavy landing (a roll is played
         // by the traversal controller from `lastLanding`)

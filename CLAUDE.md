@@ -113,7 +113,7 @@ Blacklist style.
   - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): the manual jump (up and down, grabs a pipe / lip /
     drainpipe), split jump (shown only facing along; one Y jumps, a second in the air braces facing the way it
     jumped, feet 2.5 m up on both walls, legs within 15 deg of level, no travel, sidearm aim band + fire, B drop, no jump
-    out), wall jump (straight, too far, inside
+    out; falls of 0.75-2.5 m rest within 3 cm of the floor), wall jump (straight, too far, inside
     corner), pipe facing along it + turning round, legs up (0.5 m/s, feet up), inverted (camera upright, sidearm + spread x1.3), curl up, hands, damage
     mid-change, the flip drop; rappel (hook on, rope speeds, kick out + sideways, sidearm, kick through a window,
     unhook height), fence (bullets / sight pass, blocks the body, climb / shimmy speeds, rattle by gear, flip over)
@@ -381,7 +381,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   camera footstep kick.
 - `FootPlanner` (world space): contacts from the gait clock while moving (landing spot = where the hip will be
   mid-stance; distance-matched to the stop point), locked while planted (< 1 cm), swing arcs with toe-off and
-  heel pitch, no crossing, error-driven idle steps (turning on the spot plants steps). Side-steps are 60% length
+  heel pitch, no crossing (a swing passing the planted foot bows out to `PLANNER.swingGap`; a controller teleport
+  resets the planner and the gait clock), error-driven idle steps (turning on the spot plants steps). Side-steps are 60% length
   (`stepLength(..., lateral)`). Two-bone IK puts feet on it and hands on the weapon's `grip`/`foregrip`/magazine
   well (wrists offset behind / under the palm points in weapon space, `WRIST_TRIGGER` / `WRIST_SUPPORT`, so the
   elbows bend) or the cover surface; the pelvis drops so both feet stay reachable (each leg measured from its own hip
@@ -605,6 +606,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   render frame (`TraversalController.frameUpdate`, interpolated body parameter); the climb clip phase follows
   the hand swings. Prompts (`GameState.anchorPrompts`): 'vault' (Climb / Grab / Climb up), 'jumpTo', 'drop'
   (Drop / Slide / Hang).
+- Floor settle (3.2.0): Havok holds a supported capsule anywhere within 0.14 m of the floor (`keepDistance` +
+  `keepContactTolerance`); `PlayerController.settleGap` (a ray under the centre, four round the rim) sets it down onto
+  the floor on a grounded step when it hangs more than `SETTLE.tol` over its rest gap (`settles`).
 - 2b: landings (`player/movement.ts` `LANDING` / `landingKind` / `landingNoise`; `PlayerController` tracks the fall's
   top, `lastLanding`, `landings`, `landVX/Z`, `registerLanding` for committed falls, `launch(v)` to fly off an
   anchor): a roll is a committed traversal (`kind 'roll'`, `ROLL` clip + `rollTumble` -> graph `tumble`; the rig

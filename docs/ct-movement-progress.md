@@ -241,8 +241,19 @@ Decisions:
 - Feet stay at 2.5 m; the body drops 0.37 m (at 1.75 m) so the hips sit ~8 cm over the feet line. At 1.86 m the legs
   reach the walls nearly straight; the arms reach just under the shoulders.
 - Facing: the jump's horizontal velocity along the corridor axis (> 0.5 m/s), else the body's yaw.
-- Found while testing (not changed here): after a fall the crouched capsule can rest 4-12 cm over the floor (also on
-  open ground, any drop height). The e2e drop check allows 15 cm.
+- Found while testing, then fixed: after a fall the capsule could rest 4-14 cm over the floor (open ground, any drop
+  height, crouched or standing). Havok counts a floor as support up to `keepDistance` + `keepContactTolerance`
+  (0.14 m) under the capsule and its solver never closes that gap (`integrate` also drops the velocity into a
+  supporting surface, so the stick force did nothing). `PlayerController.settleGap` (one ray under the centre, four
+  round the rim so a step's edge stops it) moves the capsule down onto the floor on a grounded step when it hangs
+  more than `SETTLE.tol` over its rest gap (`settles` counts them). e2e-ct: falls of 0.75-2.5 m crouched and standing
+  rest within 3 cm of the rest height; the split drop check is back to that too.
+- The settle shifted e2e-clip's knee gap at the high-cover peek (10.1 -> 7.0 cm): the poses there depended on what
+  earlier scenarios left behind (the 0.9 m teleports between them never reset the feet or the gait clock). Now
+  `PlayerController.teleport` restarts the gait clock and `Player` resets the foot planner on a teleport (respawns,
+  insertion, co-op), so each scenario starts from a stance; with that, crouched high cover showed a swing brushing the
+  planted foot (5.1 cm), fixed in `FootPlanner.swingTo` (`PLANNER.swingGap` 0.1 sideways within `swingNear` 0.18 m
+  along). e2e-clip: every scenario now gives the same margins alone or in sequence.
 
 ## Preview
 `ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).

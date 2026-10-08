@@ -134,6 +134,10 @@ Playtest changes, second round (Michael, 2026-10-08):
   either way works. No jumping out of it: drop (B), a drop attack on a guard under you, or aim and shoot the pistol.
 - Warehouse: the corridor cabinet bank is gone; the corridor's own two walls stand 4 m along a 5 m stretch, 1.86 m
   apart. Proving Grounds: the split corridor is 1.8 m wide.
+- Fix: after a fall (or stepping off a curb) the operator could come to rest floating 4-14 cm over the floor. The
+  character now settles onto it.
+- Fix: a respawn / insertion puts the feet straight into a stance where you appear (they used to walk over from where
+  you were), and a foot stepping back past the other bows round it instead of brushing through it.
 
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the

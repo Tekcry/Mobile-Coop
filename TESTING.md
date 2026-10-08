@@ -397,6 +397,8 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
 - [ ] Touch action button: label follows the prompts (Take cover, Vault, Climb, Grab, Rappel, Legs up, Leave cover, Use);
   dimmed when nothing is on offer; tapping the prompts themselves does nothing.
 - [ ] At a low wall: standing still the button takes cover; pushing the stick at it, it vaults.
+- [ ] Drop from a split, a lip or a box, and walk off a curb: the feet land on the floor (no floating a hand's width
+  above it).
 
 ## 3.2.0 - Warehouse Chaos Theory routes (Free Roam, then Hunter at night)
 - [ ] West yard: the drainpipe on the facade climbs to the roof walkway; footsteps on the roof are louder.

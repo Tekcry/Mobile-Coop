@@ -227,6 +227,9 @@ export class Player {
   }
 
   /** Render-rate update: look, camera, animation. */
+  /** Controller teleports seen (each resets the feet). */
+  private teleportsSeen = 0;
+
   frameUpdate(dt: number, alpha: number, look: { x: number; y: number }, move?: { x: number; y: number }): void {
     const c = this.controller;
     if (this.alive && dt > 0) {
@@ -356,6 +359,12 @@ export class Player {
     const stopD = sp > 0.01 ? (sp * sp) / (2 * MOVEMENT.decelMax) + sp * (MOVEMENT.decelMax / MOVEMENT.jerkMax) * 0.5 : 0;
     rp.restX = c.renderPos.x + (sp > 0.01 ? (m.vx / sp) * stopD : 0);
     rp.restZ = c.renderPos.z + (sp > 0.01 ? (m.vz / sp) * stopD : 0);
+    // a teleport (respawn, insertion) puts the feet straight into a stance at the new spot (the rig only notices
+    // jumps over 2 m between frames)
+    if (c.teleports !== this.teleportsSeen) {
+      this.teleportsSeen = c.teleports;
+      this.rig.planner.L.init = this.rig.planner.R.init = false;
+    }
     this.rig.animate(dt, rp);
     // from cover, no shot until the weapon is actually out: leaned past the edge, risen over the top, or
     // raised above it for blind fire (else the round would go into the cover)
