@@ -73,6 +73,8 @@ export const PHONE_FPS = 60;
  * preset. Lighting, shadows, bounce light and light shafts stay.
  */
 export const MOBILE_OFF: Readonly<Partial<GraphicsFeatures>> = { ao: false, reflections: 'off', dof: false, motionBlur: false, lens: false };
+/** Phones (3.2.2): surface textures at most High (512 a tile: Ultra's 1024 doubled the atlases' memory for a 6" screen). */
+const mobileTextures = (t: TierQuality): TierQuality => (t === 'ultra' || t === 'epic' ? 'high' : t);
 /** What phones list (Epic and ray-traced reflections are PC only). */
 export const MOBILE_PRESET_IDS = ['low', 'medium', 'high', 'ultra'] as const;
 /**
@@ -96,7 +98,8 @@ export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: f
 /** Phones: no Epic (Ultra instead) and none of `MOBILE_OFF`; the rest as chosen. */
 export function forPlatform(name: GraphicsPreset, f: GraphicsFeatures, mobile: boolean): { name: GraphicsPreset; features: GraphicsFeatures } {
   if (!mobile) return { name, features: f };
-  return name === 'epic' ? { name: 'ultra', features: { ...GRAPHICS_PRESETS.ultra, ...MOBILE_OFF } } : { name, features: { ...f, ...MOBILE_OFF } };
+  const g = name === 'epic' ? GRAPHICS_PRESETS.ultra : f;
+  return { name: name === 'epic' ? 'ultra' : name, features: { ...g, ...MOBILE_OFF, textures: mobileTextures(g.textures) } };
 }
 export const FEATURE_KEYS = Object.keys(GRAPHICS_PRESETS.epic) as (keyof GraphicsFeatures)[];
 export const LIGHT_RANGE = { min: 8, max: 48 } as const;
@@ -151,6 +154,14 @@ export function shadowSpec(q: ShadowQuality): ShadowSpec {
   }
 }
 
+/**
+ * Phones (3.2.2): the moon's maps at most 1024 (Ultra's 3 x 2048 cascades took 72 MB with their depth buffers) and one
+ * flashlight shadow (every shadowed light is sampled by every pixel, lit or idle).
+ */
+export function mobileShadow(s: ShadowSpec): ShadowSpec {
+  return { ...s, sunSize: Math.min(s.sunSize, 1024), size: Math.min(s.size, 1024), casters: Math.min(s.casters, 1) };
+}
+
 /** Surface texture pixels per tile (the atlas is 4 x 4 tiles: 1024 -> 4096 square, two atlases ~170 MB with mips;
  *  larger would not fit a phone's WebGL memory) and anisotropic filtering per tier. */
 export const TEXTURE_SIZE: Record<TierQuality, number> = { low: 256, medium: 512, high: 512, ultra: 1024, epic: 1024 };
@@ -198,7 +209,7 @@ export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal 
     panini: minimal ? 0 : Math.max(0, Math.min(1, panini)),
     name,
     features: f,
-    shadow: shadowSpec(f.shadows),
+    shadow: mobile ? mobileShadow(shadowSpec(f.shadows)) : shadowSpec(f.shadows),
     vfxDensity: EFFECT_DENSITY[f.effects],
     realLights: Math.round(Math.min(LIGHT_RANGE.max, Math.max(LIGHT_RANGE.min, f.lights))),
     detailScale: DETAIL_SCALE[f.detail],

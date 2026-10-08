@@ -57,7 +57,7 @@ describe('graphics settings (3.0)', () => {
   });
   it('3.1 ladder: one set of presets for every device, Epic and ray tracing only on PC', () => {
     expect(MOBILE_PRESET_IDS).toEqual(['low', 'medium', 'high', 'ultra']);
-    expect(forPlatform('epic', GRAPHICS_PRESETS.epic, true)).toEqual({ name: 'ultra', features: { ...GRAPHICS_PRESETS.ultra, ...MOBILE_OFF } });
+    expect(forPlatform('epic', GRAPHICS_PRESETS.epic, true)).toEqual({ name: 'ultra', features: { ...GRAPHICS_PRESETS.ultra, ...MOBILE_OFF, textures: 'high' } });
     expect(forPlatform('epic', GRAPHICS_PRESETS.epic, false).name).toBe('epic');
     const rt = forPlatform('custom', { ...GRAPHICS_PRESETS.ultra, reflections: 'rt' }, true);
     expect(rt.features.reflections).toBe('off');
@@ -66,6 +66,11 @@ describe('graphics settings (3.0)', () => {
       const f = forPlatform(p, GRAPHICS_PRESETS[p], true).features;
       expect([f.ao, f.reflections, f.dof, f.motionBlur, f.lens]).toEqual([false, 'off', false, false, false]);
       expect([f.shadows, f.lights, f.gi, f.volumetrics]).toEqual([GRAPHICS_PRESETS[p].shadows, GRAPHICS_PRESETS[p].lights, GRAPHICS_PRESETS[p].gi, GRAPHICS_PRESETS[p].volumetrics]);
+      // (3.2.2: textures at most High; the moon's maps at most 1024 and one flashlight shadow)
+      expect(['low', 'medium', 'high']).toContain(f.textures);
+      const q = qualityLevel(p, f, false, 1, 0, true);
+      expect(q.shadow.sunSize).toBeLessThanOrEqual(1024);
+      expect(q.shadow.casters).toBeLessThanOrEqual(1);
     }
     expect(forPlatform('custom', { ...GRAPHICS_PRESETS.ultra, reflections: 'rt' }, false).features.reflections).toBe('rt');
     // render scale falls with the preset; Epic is native

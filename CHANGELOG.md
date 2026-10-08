@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.2.2 - Phone memory and per-pixel cost
+- The iPhone (3.2.0 benchmark) is GPU bound - frame time follows the pixel count (Medium 33 fps native, 54 at 75%;
+  the "main thread" figure falls with resolution: it is waiting on the GPU) - and Ultra ran out of memory on its
+  second or third run. Per match: GPU textures 251 -> 159 MB and JS heap ~400 -> 289 MB (headless, phone Ultra):
+  - the voxel brick pools and the lamp bake no longer keep a CPU copy of their textures (kept only to rebuild after a
+    lost WebGL context; 64 MB per voxel layer);
+  - phones: the moon's shadow maps at most 1024 (Ultra's 2048 cascades took 72 MB), surface textures at most High.
+- Phones: one flashlight shadow (every shadowed light is sampled by every pixel), no on-the-fly reflection filtering
+  (several cube taps per pixel; the probe's mips / spherical harmonics instead), voxel corner shading from 4
+  neighbours instead of 12; FXAA no longer runs behind TAAU (every device).
+- Shaders compile on the loading screen (every material ready before the match starts; the benchmark counted 37-57
+  compiles inside each run).
+- Phone benchmark: each run frees the last match and pauses 2.5 s before the next loads ("freeing memory").
+- The mid-match shadow rebuild did not reproduce headless (same draws and render time after it): most likely memory
+  pressure on the phone; this release frees a lot of it.
+
 ## 3.2.1 - Desktop resolutions are the monitor's own
 - Settings > Graphics > Resolution (desktop) lists the monitor's standard resolutions instead of percentages of the
   window: a 7680 x 2160 monitor offers 7680 x 2160 (native), 5120 x 1440 and 3840 x 1080 (same shape, down to half

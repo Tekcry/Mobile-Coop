@@ -171,6 +171,11 @@ const PROMPT_Y = 0.55;
 /** Along the face from the player in cover: the badge ahead, the vault prompt behind (m). */
 const PROMPT_ALONG = 0.55;
 
+/** Longest the loading screen waits for every material to compile (3.2.2). */
+const WARMUP_MAX_MS = 6000;
+/** Phones: the pause between benchmark runs, with the last match freed (3.2.2). */
+const MOBILE_RUN_GAP_MS = 2500;
+
 export class GameState implements AppState {
   readonly scene: Scene;
   readonly player: Player;
@@ -583,6 +588,9 @@ export class GameState implements AppState {
     const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
+    // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
+    // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
+    await Promise.race([g.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
     return g;
   }
 
@@ -1149,7 +1157,15 @@ export class GameState implements AppState {
         b.done = true;
         b.handoff = true;
         const next = { kind: b.kind, runs: b.runs, idx: b.idx, lines: b.lines, note: b.note, started: b.started };
-        setTimeout(() => this.app.benchmark?.(next), 0);
+        // (3.2.2 phones: this match freed first, then a pause - iOS returns GPU memory late, and the next match loading
+        // over the last one's closed the tab on Ultra)
+        if (this.app.platform.platform === 'mobile') {
+          setTimeout(() => {
+            this.app.releaseState();
+            benchTag(`Run ${next.idx + 1}/${next.runs.length} · freeing memory`);
+            setTimeout(() => this.app.benchmark?.(next), MOBILE_RUN_GAP_MS);
+          }, 0);
+        } else setTimeout(() => this.app.benchmark?.(next), 0);
         return;
       }
       // (the run's settings are the override `app.benchmark` set before the map loaded: it also holds the frame

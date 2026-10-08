@@ -1,4 +1,5 @@
 import { Constants, MaterialPluginBase, RawTexture, RawTexture3D, Texture, type AbstractMesh, type Material, type MaterialDefines, type Scene, type SubMesh, type UniformBuffer } from '../core/babylon';
+import { dropCpuCopy } from '../voxel/voxelWorld';
 import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid, packLampAtlas, type LampResult } from '../voxel/lampBake';
 import type { LightRegistry } from './lights';
 
@@ -72,6 +73,7 @@ export class BakedLamps {
     const [ax, ay, az] = atlas.dims;
     this.vis = new RawTexture3D(fillLampAtlas(r, atlas), ax, ay, az, Constants.TEXTUREFORMAT_R, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
     this.vis.wrapU = this.vis.wrapV = this.vis.wrapR = Texture.CLAMP_ADDRESSMODE;
+    dropCpuCopy(this.vis);
     const grid = lampGrid(baked.lights, lo, hi);
     this.gridInfo = { lox: lo[0]!, loz: lo[2]!, cols: grid.cols, rows: grid.rows };
     const n = baked.ids.length;

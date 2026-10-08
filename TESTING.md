@@ -310,6 +310,8 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.2.2 iPhone: Benchmark > Every preset and Feature costs at Ultra finish without a crash report; the tag shows
+  "freeing memory" between runs; send the lines (3.2.0: Medium 33, High 29, Ultra 20 fps native).
 - [ ] 3.2.1 desktop (7680 x 2160 monitor): Settings > Graphics > Resolution lists 7680 x 2160 (native), 5120 x 1440,
   3840 x 1080; in fullscreen a benchmark line says 5120x1440 after picking it; in a window it says "5120x1440 (window
   ...)". Benchmark > Resolutions runs the three.

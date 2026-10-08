@@ -60,8 +60,9 @@ export class VoxelPlugin extends MaterialPluginBase {
     private search: number,
     private ao: boolean,
     private micro: boolean,
+    private aoLite = false,
   ) {
-    super(material, 'Voxels', 180, { VOXELS: false, VOXEL_AO: false, VOXEL_MICRO: false, VOXEL_GI: false });
+    super(material, 'Voxels', 180, { VOXELS: false, VOXEL_AO: false, VOXEL_AO_LITE: false, VOXEL_MICRO: false, VOXEL_GI: false });
     this._enable(true);
   }
 
@@ -91,6 +92,7 @@ export class VoxelPlugin extends MaterialPluginBase {
   override prepareDefines(defines: MaterialDefines, _scene: Scene, mesh: AbstractMesh): void {
     defines.VOXELS = !!mesh;
     defines.VOXEL_AO = this.ao;
+    defines.VOXEL_AO_LITE = this.ao && this.aoLite;
     defines.VOXEL_MICRO = this.micro && !!this.atlas;
     defines.VOXEL_GI = this.pbr && this.tex.giGroups > 0;
   }
@@ -223,10 +225,13 @@ float vxSolid(ivec3 v) { return vxMat(v) != 0 ? 1.0 : 0.0; }
     ivec3 e = v + ax;
     // ambient occlusion: solid voxels beside the air in front of the face (sides, then corners)
     float s1n = vxSolid(e - t1), s1p = vxSolid(e + t1), s2n = vxSolid(e - t2), s2p = vxSolid(e + t2);
-    float c00 = vxSolid(e - t1 - t2), c10 = vxSolid(e + t1 - t2), c01 = vxSolid(e - t1 + t2), c11 = vxSolid(e + t1 + t2);
     float occ = s1n * (1.0 - f1) + s1p * f1 + s2n * (1.0 - f2) + s2p * f2;
+#ifndef VOXEL_AO_LITE
+    float c00 = vxSolid(e - t1 - t2), c10 = vxSolid(e + t1 - t2), c01 = vxSolid(e - t1 + t2), c11 = vxSolid(e + t1 + t2);
     occ += 0.5 * (c00 * (1.0 - f1) * (1.0 - f2) + c10 * f1 * (1.0 - f2) + c01 * (1.0 - f1) * f2 + c11 * f1 * f2);
+#endif
     shade *= 1.0 - 0.22 * occ;
+#ifndef VOXEL_AO_LITE
     // convex edges: the voxel's neighbour in the plane is air - a worn, lighter rim near that side
     float r = 0.0;
     r += (1.0 - vxSolid(v - t1)) * smoothstep(0.78, 1.0, 1.0 - f1);
@@ -235,6 +240,7 @@ float vxSolid(ivec3 v) { return vxMat(v) != 0 ? 1.0 : 0.0; }
     r += (1.0 - vxSolid(v + t2)) * smoothstep(0.78, 1.0, f2);
     shade *= 1.0 + 0.12 * min(r, 1.0);
     vxRough = mix(vxRough, vxRough * 0.8, min(r, 1.0));
+#endif
   }
 #endif
 #ifdef VOXEL_MICRO

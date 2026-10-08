@@ -328,7 +328,8 @@ export class PostStack {
     if (!this.vol) this.makeVolumetric(1);
     const def = new DefaultRenderingPipeline('pc', true, scene, cams);
     def.samples = f.aa === 'msaa' ? 4 : 1;
-    def.fxaaEnabled = f.aa === 'fxaa';
+    // (3.2.2: not behind TAAU - it anti-aliases already; FXAA was one more full-resolution pass)
+    def.fxaaEnabled = f.aa === 'fxaa' && q.upscale >= 1;
     def.bloomEnabled = f.bloom;
     if (f.bloom) {
       def.bloomThreshold = 0.75;

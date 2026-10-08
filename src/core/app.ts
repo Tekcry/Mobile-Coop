@@ -26,6 +26,7 @@ import { classifyGpu, hudInset, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
 import { MOBILE_PRESET_IDS, PHONE_FPS, PRESET_IDS, presetDisplay, type FixedPreset } from './quality';
 import { setAuto, setPreset } from './settings';
+import { renderOpts } from '../world/renderOpts';
 import { flags } from './flags';
 import { viewHeight, viewWidth } from './viewRotation';
 
@@ -266,6 +267,9 @@ export class App {
     document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, viewWidth(), viewHeight())));
     document.documentElement.style.setProperty('--hud-inset', `${hudInset(viewWidth(), viewHeight(), this.settings.get().video.hudWidth)}px`);
     this.quality?.setMobile(p === 'mobile');
+    // (3.2.2: what materials made from now on use - phones skip the on-the-fly reflection filter and half the voxel AO)
+    renderOpts.iblFilter = p !== 'mobile';
+    renderOpts.aoLite = p === 'mobile';
     if (p !== before) {
       this.onPlatform?.();
       if (this.settingsLoaded) this.detectGraphics();

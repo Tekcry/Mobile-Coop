@@ -1128,7 +1128,12 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `video.phoneOutput` (3.1.9, Settings > Graphics > Output resolution: native (default) or a DPR cap 2 / 1.5;
   `PHONE_OUTPUTS`, `QualityManager.applyScale` on mobile); `presetDisplay(p, mobile)` (phone Ultra native, no TAAU);
   `App.phoneDefaults` once per phone (`video.phoneSetup`; skipped under automation without `?detect=1`): Target frame
-  rate `PHONE_FPS` 60 and the preset's resolution again. `World.refreshMaterials` when the shadow spec changes or the post stack rebuilds in a match (3.1.3; `PostStack.builds`; frozen
+  rate `PHONE_FPS` 60 and the preset's resolution again. 3.2.2 phones: `mobileShadow` (moon maps <= 1024, one
+  flashlight shadow), textures <= High (`forPlatform`), `world/renderOpts.ts` (set by `App.applyPlatform`, read when
+  materials are made: `iblFilter` off - PBR `realTimeFiltering` - and `aoLite`: `VOXEL_AO_LITE`, side neighbours only),
+  FXAA off behind TAAU (all devices), `dropCpuCopy` (voxel pools, lamp atlas: no `_bufferView` kept), shaders
+  compiled on the loading screen (`GameState.create` awaits `scene.whenReadyAsync`, <= `WARMUP_MAX_MS`), benchmark
+  runs on phones release the match and wait `MOBILE_RUN_GAP_MS` 2.5 s. `World.refreshMaterials` when the shadow spec changes or the post stack rebuilds in a match (3.1.3; `PostStack.builds`; frozen
   materials re-read their lights, refreeze after two frames).
 - `perf.mjs --budget` (no flag) is the test-path regression check (`?gfx=min`: no post stack, no voxel characters,
   20 cm voxels): sim p95 <= 2.5 ms, animation <= 0.04 ms per character, <= 55 draws, <= 0.2 M triangles, allocations

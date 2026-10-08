@@ -1,3 +1,4 @@
+import { renderOpts } from '../world/renderOpts';
 import { Color3, Constants, Mesh, PBRMaterial, RawTexture, RawTexture3D, StandardMaterial, Texture, VertexData, type Scene } from '../core/babylon';
 import type { SurfaceAtlas } from '../world/surfaceAtlas';
 import { BRICK, BRICK_VOXELS, Brickmap, EMPTY, UNIFORM_BASE } from './brickmap';
@@ -249,7 +250,7 @@ export class VoxelWorld {
         pm.usePhysicalLightFalloff = false;
         pm.directIntensity = Math.PI;
         pm.environmentIntensity = 0.6;
-        pm.realTimeFiltering = true;
+        pm.realTimeFiltering = renderOpts.iblFilter;
         mat = pm;
       } else {
         // the cheap path (`?gfx=min`): standard shading, the palette colour per voxel only
@@ -258,7 +259,7 @@ export class VoxelWorld {
         sm.specularColor = Color3.Black();
         mat = sm;
       }
-      const plugin = new VoxelPlugin(mat, tex, this.opts.atlas, 1 << l, this.opts.ao && l === 0, this.opts.micro && l < 2);
+      const plugin = new VoxelPlugin(mat, tex, this.opts.atlas, 1 << l, this.opts.ao && l === 0, this.opts.micro && l < 2, renderOpts.aoLite);
       this.plugins.push(plugin);
       this.materials.push(mat);
       mat.freeze();
@@ -302,6 +303,9 @@ export class VoxelWorld {
       }
     }
     const pool = new RawTexture3D(poolData, W, W, layers * BRICK, Constants.TEXTUREFORMAT_R, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+    // (3.2.2: no CPU copy of the pool - 64 MB per layer at 5 cm, kept only to rebuild after a lost context; chips
+    // write the texture directly)
+    dropCpuCopy(pool);
     // row 0: colour + kind / emissive; row 1: r = puddle
     const pal = new Uint8Array(256 * 4 * 2);
     this.lv.palette.forEach((e, i) => {
@@ -533,4 +537,13 @@ export function mixGiSlots(data: Uint8Array, groups: number, weights: ArrayLike<
     out[i + 2] = Math.min(255, Math.round(b * 0.5));
     out[i + 3] = 255;
   }
+}
+
+/**
+ * Let a static texture's upload buffer go (3.2.2): Babylon keeps it to re-create the texture after a lost WebGL
+ * context; the big voxel / lamp textures would double their memory for that (the phone ran out of memory).
+ */
+export function dropCpuCopy(t: { getInternalTexture(): unknown } | null): void {
+  const it = t?.getInternalTexture() as { _bufferView?: unknown } | null | undefined;
+  if (it) it._bufferView = null;
 }
