@@ -393,6 +393,10 @@ try {
         if (!grabbed) await wait(150);
       }
     }
+    if (!grabbed) {
+      console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ found: !!e, alive: e?.alive, taken: e?.taken, ko: e?.ko, level: e?.level, gas: e?.gas, stagger: e?.['stagger'], pos: e && [e.pos.x, e.pos.z], yaw: e?.yaw, client: [r.feet.x, r.feet.z], mv: r.state?.mv?.m }); }, gg));
+      console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); const o = g.takedown.offer; return JSON.stringify({ puppet: p && { pos: [p.pos.x, p.pos.z], yaw: p.yaw, alive: p.alive, taken: p.taken, level: p.level }, me: [g.player.position.x, g.player.position.z], yaw: g.player.cam.yaw, offer: o ? { id: o.e.id, kind: o.plan?.kind } : null, active: g.takedown.active, hostage: g.takedown.hostage?.id ?? null, alive: g.player.alive, move: g.player.controller.motion.state }); }, gg));
+    }
     assert(grabbed, 'client grabs a host guard from behind');
     await until(A, (id) => { const g = window.__app.current; const r = [...g.net.remotes.values()][0]; return r.state?.mv?.m === 'grab' && r.ref.shield?.id === id; }, gg, 8000, 'host sees the grab');
     const held = await GA((id) => {

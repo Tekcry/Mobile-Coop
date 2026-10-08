@@ -227,6 +227,81 @@ See the Step 1 and Step 5 reports.
 - Owed before Step 2: the full `npm run e2e` (every boot now bakes).
 - Process: Step 1 was first pushed to a session branch (`claude/new-session-cw8fow`; the remote copy could not be deleted from the session, Michael removes it); the contact sheets were first cut to 3 views without asking, then redone in full (12); the report was committed before `npm run check` finished (it passed).
 
+#### Step 2 report (one light function for all gameplay) - 2026-10-09
+- Done:
+  - `world/lampMath.ts` (pure): the one formula, taken from what the screen has drawn since 3.2 - linear range falloff
+    x cosine cone (lamps without a cone: the hemisphere below, exponent 1; spots: squared, cut at the outer angle).
+    The exact path and the volume mix in `bakedLamps.ts` use `LAMP_MATH_GLSL` and its constants; `LAMP_CONE`,
+    `LIGHT_GAIN` and the exponents moved there. `lights.ts`'s old smooth falloff / cone (`falloff`, `coneFactor`)
+    and `lightLevelAt` / `bodyLightLevel` are gone; `contribution` calls `lampMath`.
+  - `world/lightField.ts` (pure) `LightField`, `World.lightField`: `levelAt` (ambient grid + moon x moon visibility +
+    the lamps listed for the 2 m column, as the shaders list them, x intensity x formula x trilinear baked
+    visibility, closed doors cutting a lamp), `dynamicAt` (flashlights, with the caller's ray), `totalAt`,
+    `bodyLevel`. Allocation-free.
+  - Every gameplay light query goes through it: `GameState.updateLight` (meter, 10 Hz) and, on the host, every
+    remote player's `PlayerRef.light`; `Enemy.perceive` (`ref.light`, else `totalAt`); body light in
+    `EnemyManager`; `Enemy.torchWanted` (static level, with hysteresis). `grep` finds no other caller.
+  - The moon: `lampMath.moonLight(theme)` = `lightLevel x sun / (ambient + sun)`; the open sky's ambient gives that
+    much up to it (zones unchanged), and the bake now always runs the moon (60 ms; Proving Grounds included).
+- Files changed: `src/world/lampMath.ts` (new), `src/world/lightField.ts` (new), `src/world/lights.ts`,
+  `src/world/bakedLamps.ts`, `src/world/lightBake.ts`, `src/world/world.ts`, `src/game/gameState.ts`,
+  `src/ai/enemy.ts`, `src/ai/enemyManager.ts`, `tests/lightField.test.ts`, `tests/lights.test.ts`,
+  `tests/perception.test.ts`, `scripts/e2e-stealth-ai.mjs`, `scripts/e2e-coop.mjs`, `docs/systems/lighting.md`,
+  `docs/systems/ai.md`.
+- Decisions:
+  - Which formula: the shaders' (what players see) over gameplay's smooth one; desktop is unchanged and gameplay
+    moves. Rendering keeps colour, `LIGHT_GAIN` and N.L on top.
+  - Re-tuning (spec: "lamp intensities or the `LIGHT` thresholds, one place"): `LIGHT.shadow` 0.28 -> 0.25,
+    `LIGHT.lit` 0.6 -> 0.53 - the pair that keeps the most Warehouse floor (0.5 m grid, standing and crouched,
+    moon-shadowed open ground left out) in its 3.5 band: 90.5% against 85.6% with the old pair. The rest differ
+    because the formula's shape changed (linear falloff reaches further, the lamp cosine dims off-axis).
+  - The moon's share comes from the theme (no map edit): Warehouse 0.104 of its 0.3. The yard in the open stays
+    0.3; in the moon's shadow (the perimeter wall's, 2-3 m deep) it is 0.196, dark - as the desktop draws it.
+  - Ambient cells stay 1 m (review decision, settled here): the Warehouse's zone edges off the metre grid move
+    6.0 m2 of floor (0.28%) at y 1.
+  - Torch rule: the spec says the full level. Static level (the guard's own torch is not counted) < `TORCH_DARK`
+    0.35 to switch on, kept on to `TORCH_KEEP` 0.45 so a walk through a pool's edge does not flick it.
+  - Doors in gameplay: one segment-leaf test per contributing lamp against the closed leaves (`DOOR_SHUT` 0.05
+    open), pure, from `Doors.list`; dynamic lights get the same test plus their ray.
+  - Remote players: the host samples them with `bodyLevel` (crouched 0.65 of 1.75 m) and the static-geometry ray
+    for flashlights, as the local player.
+  - Allocation: V8 boxes a double returned from a call it does not inline (16 B); the field's private steps write
+    a scratch number field instead, so a query leaves only its own returned number. The unit test bounds bytes per
+    query (`levelAt` 32, `bodyLevel` 97 measured; a control with one 3-vector per query 256).
+- Behaviour check (Warehouse, old formula with the old ray occlusion stood in by baked visibility; each side read
+  with its own thresholds):
+
+  | e2e position | old | new |
+  | --- | --- | --- |
+  | shadow aisle (-15.2, 6.2), crouched | 0.120 dark | 0.122 dark |
+  | in front (-14.5, 17.5), crouched | 0.120 dark | 0.194 dark |
+  | lamp pool (-0.5, -3) | 0.787 lit | 0.687 lit |
+  | (-0.5, 0) | 0.577 mid | 0.442 mid |
+  | (0, -5), (-2, -15) | 0.695 lit | 0.559 lit |
+  | (-0.95, 9.8) | 0.268 dark | 0.238 dark |
+  | yard (-22, -24), (-21, -24) | 0.300 mid | 0.196 dark (moon shadow) |
+  | (-21.6, -20.2) | 0.376 mid | 0.472 mid |
+
+  - Floor (8,633 points, standing): 3,813 dark stay dark, 1,921 mid stay mid; the moon shadows in the yard turn
+    mid to dark; lamp pools' edges move by the falloff's shape.
+  - e2e changes from behaviour (no threshold loosened):
+    - `e2e-stealth-ai` lights: the investigating guard walks to the second lamp shot out (9, -9) through the pool
+      of the lamp at (9, 3) (0.44-0.51 at his head), so his torch stays off until he leaves it (traced). The check
+      waits up to 15 s and asserts the torch came on where the field reads dark (0.34).
+- Engine facts for `docs/level-design.md` Section 12 (written in Step 9):
+  - Light formula: linear falloff to the lamp's reach; a lamp without a cone lights only below itself, by the
+    cosine from straight down; a spot by the squared cosine inside its outer angle, nothing outside it.
+  - Bands: dark below 0.25, lit above 0.53.
+  - The moon: open sky at the theme's `lightLevel`; in the baked moon shadow less the moon's share (Warehouse:
+    0.3 -> 0.196, dark). A wall or building shades a strip on its far side from the moon.
+  - Light blockers: blockout pieces >= 5 cm and the Medium dressing (voxel art never); closed door leaves.
+  - Ambient zones resolve to 1 m cells: author zone edges on whole metres.
+  - Guards light torches where the static level at the head is below 0.35 (lamps count), and keep them to 0.45.
+  - Map decisions that relied on the old facts (bible 7): `docs/prompts/exchange-design.md` Section 9 (the detection
+    table by light band; darkness from ambient 0.08-0.12) and Space 2's moonlight, authored as ambient zones at 0.28
+    under the windows - the old dark / mid edge, now mid (0.25 / 0.53), and with the baked moon the windows' light
+    comes from the moon itself rather than a zone. Re-check in the alignment pass (map Phase 2b).
+
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
 - CT movement: `docs/ct-movement.md` (spec), `docs/ct-movement-progress.md` (status)
