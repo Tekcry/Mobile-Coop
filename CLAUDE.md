@@ -915,7 +915,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   preset, fairness) + `volLights` 2-12, `postRes` half / full (SSAO ratio, SSR downsample), dof, motionBlur, lens, aa fxaa / msaa / taa,
   textures / detail / effects tiers), `presetOf` (Custom), `qualityLevel` -> `QualityLevel`. Settings `video.preset`,
   `video.gfx`, `renderScale` 0.5-2 (native DPR, no cap; desktop: Settings > Graphics > Resolution, `ui/screens/
-  resolutionPicker.ts` - `RES_SCALES` as real sizes, applied on a pick, `KeepResolution` reverts after `RES_CONFIRM_S`
+  resolutionPicker.ts` - 3.2.1: the monitor's standard resolutions (`core/display.ts` `desktopResolutions(monW, monH)`
+  from `STANDARD_RESOLUTIONS` of its aspect down to half its height; `resolutionScale` = lines / monitor height;
+  `video.resolution` names the pick; `shownResolution` in benchmark lines / feedback adds the window's real size;
+  Benchmark > Resolutions runs them, `benchOutput` = the monitor on desktop), applied on a pick, `KeepResolution` reverts after `RES_CONFIRM_S`
   15 s unless kept), `dynamicRes` (retired in 3.1.7: `QualityManager.auto` is false), `fpsCap` (`GameLoop.fpsCap`,
   `capAllows`), `fovH` 60-120; `setGfx` / `setPreset` (also sets `renderScale` / `upscaler` from `PRESET_DISPLAY`:
   Low 0.67 .. Ultra 0.9 TAAU, Epic native). `VOXEL_TIER` per Detail tier: structure 5 cm on every preset (fairness),
@@ -952,8 +955,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   (`benchPlan(.., scale)`: GPU bound or not), 'anti-aliasing FXAA' and 'detail Medium' runs;
   3.1.4: every run in its own match - `app.benchmark(BenchSession)` calls `setOverride(o, false)` before `startGame`,
   the session carries the plan and lines, `sameMatch` runs go on in the last match; 3.1.5: the note (`BenchSession.note`)
-  saved after every run, `ui/benchTag.ts` "Run n/N · label · fps" on screen), `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
-  4K, 7680 x 2160 within scale 2, `sustained` 10 min with per-minute averages), then a Dialog with a line per run
+  saved after every run, `ui/benchTag.ts` "Run n/N · label · fps" on screen), `resolutions` = the monitor's resolutions (3.2.1), `sustained` 10 min with per-minute averages), then a Dialog with a line per run
   (`benchmarkLines`: + frames over `BENCH.longMs` 50 and shaders compiled during the run, from the engine's
   `_compiledEffects`), saved as a performance feedback note. Every run sets an override, so the frame governor is
   off while measuring.

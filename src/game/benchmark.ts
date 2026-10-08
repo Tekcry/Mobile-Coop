@@ -1,3 +1,4 @@
+import { desktopResolutions, resolutionScale } from '../core/display';
 /**
  * In-game benchmark (3.0, pure parts unit-tested): a fixed camera flight through a map's rooms while the AI
  * patrols, frame times recorded, then average and 1% low FPS. Settings > Graphics > Benchmark: the current
@@ -76,16 +77,10 @@ export function featureRuns(f: GraphicsFeatures): { label: string; gfx: Partial<
   return out;
 }
 
-/** Target displays measured by render pixel count (the window's aspect is kept). */
-export const BENCH_RESOLUTIONS = [
-  { label: '2560x1600', w: 2560, h: 1600 },
-  { label: '3840x2160 (4K)', w: 3840, h: 2160 },
-  { label: '7680x2160 (32:9)', w: 7680, h: 2160 },
-] as const;
-
 /**
- * The runs for a benchmark kind. `outW` / `outH` = the output in device pixels at render scale 1: a resolution is
- * included when it is within render scale 2 of it (a 1600p laptop reaches 7680 x 2160's pixel count at ~2.0).
+ * The runs for a benchmark kind. `outW` / `outH` = the output in device pixels at render scale 1 (3.2.1: the monitor
+ * on desktop): Resolutions runs the monitor's own resolutions (`desktopResolutions`: a 7680 x 2160 monitor runs 7680 x
+ * 2160, 5120 x 1440, 3840 x 1080).
  */
 export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: readonly FixedPreset[] = PRESET_IDS, current: GraphicsFeatures | null = null, scale = 1): BenchRun[] {
   const run = (label: string, preset: FixedPreset | null = null, scale: number | null = null): BenchRun => ({ label, preset, scale, seconds: BENCH.seconds, sustained: false });
@@ -101,15 +96,7 @@ export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: 
     return [base, res, ...(current ? featureRuns(current) : []).map((r) => ({ ...run(r.label), seconds: FEATURE_SECONDS, gfx: r.gfx })), post, shadows];
   }
   if (kind === 'sustained') return [{ ...run(`sustained ${Math.round(BENCH.sustained / 60)} min`), seconds: BENCH.sustained, sustained: true }];
-  if (kind === 'resolutions') {
-    const out = [run(`${outW}x${outH} (output)`, null, 1)];
-    const px = Math.max(1, outW * outH);
-    for (const r of BENCH_RESOLUTIONS) {
-      const k = Math.sqrt((r.w * r.h) / px);
-      if (Math.abs(k - 1) > 0.03 && k <= 2.05) out.push(run(`${r.label} pixel count`, null, k));
-    }
-    return out;
-  }
+  if (kind === 'resolutions') return desktopResolutions(outW, outH).map((r) => run(`${r.w}x${r.h}`, null, resolutionScale(r.h, outH)));
   return [run('current settings')];
 }
 

@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.2.1 - Desktop resolutions are the monitor's own
+- Settings > Graphics > Resolution (desktop) lists the monitor's standard resolutions instead of percentages of the
+  window: a 7680 x 2160 monitor offers 7680 x 2160 (native), 5120 x 1440 and 3840 x 1080 (same shape, down to half
+  its height; 16:9, 16:10, 21:9 and 32:9 tables; an unusual shape gets its native size at 75 / 67 / 50%). Fullscreen
+  draws exactly that; a window draws the same share of itself.
+- Benchmark lines and feedback notes name the chosen resolution, with the real size when a window differs
+  ("5120x1440 (window 1707x1005)"); the display line adds the monitor. Benchmark > Resolutions runs each of the
+  monitor's resolutions.
+
 ## 3.2.0 - Baked lamps: every lamp lights and shadows correctly
 - Every fixed light in the map (lamp strips, floods) is baked when the map loads: how much of each lamp's fixture
   every 20 cm of its reach can see through the level - walls, racks, crates, shelves, doorways. Every material shades

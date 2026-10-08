@@ -178,10 +178,13 @@ async function boot(): Promise<void> {
 
   // (3.1.4: every run in its own match, its settings set before the map loads - a change mid-match is not what a run
   // measures)
+  // (3.2.1: Resolutions measures the monitor's resolutions on desktop, the screen on a phone)
+  const benchOutput = (a: App): [number, number] =>
+    a.platform.platform === 'desktop' ? [Math.round(screen.width * devicePixelRatio), Math.round(screen.height * devicePixelRatio)] : [Math.round(viewWidth() * devicePixelRatio), Math.round(viewHeight() * devicePixelRatio)];
   app.benchmark = (kind = 'current') => {
     const s: BenchSession =
       typeof kind === 'string'
-        ? { kind, runs: benchPlan(kind, Math.round(viewWidth() * devicePixelRatio), Math.round(viewHeight() * devicePixelRatio), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features, app.settings.get().video.renderScale), idx: 0, lines: [] }
+        ? { kind, runs: benchPlan(kind, ...benchOutput(app), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features, app.settings.get().video.renderScale), idx: 0, lines: [] }
         : kind;
     const run = s.runs[s.idx];
     if (!run) return;

@@ -2,6 +2,7 @@ import type { App, AppState } from '../core/app';
 import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
+import { shownResolution } from '../core/display';
 import { setVoxelBodies } from '../player/characterRig';
 import { setVoxelWeapons } from '../weapons/weaponModel';
 import { setVoxelProps } from '../voxel/voxelGroup';
@@ -1260,7 +1261,12 @@ export class GameState implements AppState {
     if (b.t >= run.seconds) {
       const r = benchResult(b.iv, b.cpu);
       const v = this.app.settings.get().video;
-      const where = `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${this.app.engine.getRenderWidth()}x${this.app.engine.getRenderHeight()}`;
+      // (3.2.1 desktop: the chosen resolution's name - and the real size when a window differs; a run with its own
+      // scale shows the real size)
+      const rw = this.app.engine.getRenderWidth();
+      const rh = this.app.engine.getRenderHeight();
+      const size = run.scale == null && this.app.platform.platform === 'desktop' ? shownResolution(v.resolution, rw, rh) : `${rw}x${rh}`;
+      const where = `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${size}`;
       let line = benchText(r, where, this.shaderCount() - b.shaders);
       if (run.sustained && b.buckets.length >= 2) {
         const d = sustainedDrift(b.buckets);

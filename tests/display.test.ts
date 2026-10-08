@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aspectLabel, classifyGpu, hfovDeg, hudInset, vfovFor } from '../src/core/display';
+import { aspectLabel, classifyGpu, desktopResolutions, hfovDeg, hudInset, resolutionScale, shownResolution, vfovFor } from '../src/core/display';
 
 describe('ultrawide field of view', () => {
   it('is Hor+ from the 16:9 setting: same vertical angle, wider sides', () => {
@@ -47,5 +47,22 @@ describe('display labels and GPU check', () => {
     expect(classifyGpu('ANGLE (AMD, AMD Radeon RX 7900 XTX Direct3D11 vs_5_0 ps_5_0, D3D11)')).toBe('discrete');
     expect(classifyGpu('ANGLE (Google, Vulkan 1.3.0 (SwiftShader Device (Subzero) (0x0000C0DE)), SwiftShader driver)')).toBe('software');
     expect(classifyGpu('')).toBe('unknown');
+  });
+});
+
+describe('desktop resolutions (3.2.1)', () => {
+  it('the monitor\'s native one, then the standard ones of its shape down to half its height', () => {
+    const ids = (w: number, h: number) => desktopResolutions(w, h).map((r) => `${r.w}x${r.h}`);
+    expect(ids(7680, 2160)).toEqual(['7680x2160', '5120x1440', '3840x1080']);
+    expect(ids(3840, 2160)).toEqual(['3840x2160', '3200x1800', '2560x1440', '1920x1080']);
+    expect(ids(3440, 1440)).toEqual(['3440x1440', '2560x1080']);
+    // (an unusual shape: its native size stepped down)
+    expect(ids(2000, 1000)).toEqual(['2000x1000', '1500x750', '1340x670', '1000x500']);
+    expect(resolutionScale(1440, 2160)).toBeCloseTo(2 / 3, 6);
+  });
+  it('shows the chosen name, and the real size when a window differs', () => {
+    expect(shownResolution('5120x1440', 5120, 1440)).toBe('5120x1440');
+    expect(shownResolution('5120x1440', 1707, 1005)).toBe('5120x1440 (window 1707x1005)');
+    expect(shownResolution('', 2560, 1508)).toBe('2560x1508');
   });
 });

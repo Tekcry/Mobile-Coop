@@ -73,6 +73,43 @@ export function classifyGpu(renderer: string): GpuKind {
 
 /** Desktop Resolution choices (3.1.7): render scales of the native output, low to high (above 1 supersamples). */
 export const RES_SCALES = [0.5, 0.67, 0.75, 0.83, 0.9, 1, 1.25, 1.5, 2] as const;
+
+/** Standard desktop resolutions (3.2.1): 32:9, 21:9, 16:10, 16:9. */
+export const STANDARD_RESOLUTIONS: readonly (readonly [number, number])[] = [
+  [7680, 2160], [5120, 1440], [3840, 1080],
+  [5120, 2160], [3440, 1440], [2560, 1080],
+  [3840, 2400], [2560, 1600], [1920, 1200], [1680, 1050], [1440, 900], [1280, 800],
+  [3840, 2160], [3200, 1800], [2560, 1440], [1920, 1080], [1600, 900], [1366, 768], [1280, 720],
+];
+
+/**
+ * Pure (3.2.1): the resolutions a monitor offers - its native one first, then the standard ones of its shape (within
+ * 3% of its aspect) and at least half its height, largest first; a monitor of an unusual shape gets its native size at
+ * 75%, 67% and 50%. (A 7680 x 2160 monitor: 7680 x 2160, 5120 x 1440, 3840 x 1080.)
+ */
+export function desktopResolutions(monW: number, monH: number): { w: number; h: number }[] {
+  const out: { w: number; h: number }[] = [{ w: monW, h: monH }];
+  const a = monW / Math.max(1, monH);
+  for (const [w, h] of STANDARD_RESOLUTIONS) {
+    if (h >= monH || h < monH * 0.5 - 0.5 || Math.abs(w / h / a - 1) > 0.03) continue;
+    if (!out.some((r) => r.w === w && r.h === h)) out.push({ w, h });
+  }
+  if (out.length === 1) for (const k of [0.75, 0.67, 0.5]) out.push({ w: Math.round((monW * k) / 2) * 2, h: Math.round((monH * k) / 2) * 2 });
+  return out.sort((p, q) => q.h - p.h);
+}
+
+/** Pure: the render scale that draws `h` lines on a monitor `monH` high (fullscreen; a window gets the same share). */
+export function resolutionScale(h: number, monH: number): number {
+  return Math.max(0.5, Math.min(2, h / Math.max(1, monH)));
+}
+
+/** Pure: how a render size is shown (desktop): the chosen resolution, and the real size when a window differs. */
+export function shownResolution(setting: string, renderW: number, renderH: number): string {
+  const real = `${renderW}x${renderH}`;
+  if (!setting) return real;
+  const [w, h] = setting.split('x').map(Number);
+  return Math.abs(w! - renderW) <= 2 && Math.abs(h! - renderH) <= 2 ? setting : `${setting} (window ${real})`;
+}
 /** Seconds a new resolution waits for Keep before it reverts. */
 export const RES_CONFIRM_S = 15;
 

@@ -1,5 +1,5 @@
 import type { App } from '../../core/app';
-import { RES_CONFIRM_S, RES_SCALES, resolutionLabel } from '../../core/display';
+import { desktopResolutions, RES_CONFIRM_S, resolutionLabel, resolutionScale } from '../../core/display';
 import { viewHeight, viewWidth } from '../../core/viewRotation';
 import { h } from '../dom';
 import type { Hint } from '../prompts';
@@ -18,16 +18,27 @@ export function phoneOutputLabel(cap: number): string {
   return cap > 0 ? `${size} (${cap}x)` : `Native (${size})`;
 }
 
-/** The current render resolution, as the Resolution row shows it. */
+/** The monitor's native resolution in device pixels (the fullscreen output). */
+export function monitorSize(): { w: number; h: number } {
+  return { w: Math.round(screen.width * devicePixelRatio), h: Math.round(screen.height * devicePixelRatio) };
+}
+
+/** "7680 x 2160" for a resolution string ("7680x2160"). */
+const spaced = (r: string): string => r.replace('x', ' x ');
+
+/** The current render resolution, as the Resolution row shows it: the chosen one, else the scale on the window. */
 export function currentResolution(app: App): string {
+  const v = app.settings.get().video;
+  if (v.resolution) return spaced(v.resolution);
   const n = nativeSize();
-  return resolutionLabel(n.w, n.h, app.settings.get().video.renderScale);
+  return resolutionLabel(n.w, n.h, v.renderScale);
 }
 
 /**
- * Desktop Resolution (3.1.7): a list of render resolutions from the native output; picking one applies it, then asks
- * to keep it - no answer within `RES_CONFIRM_S` seconds (or Revert / Back) puts the old one back. Picking one also
- * turns the old dynamic resolution off (it lowered the resolution unasked).
+ * Desktop Resolution (3.1.7; 3.2.1: the monitor's standard resolutions - a 7680 x 2160 monitor lists 7680 x 2160,
+ * 5120 x 1440, 3840 x 1080): picking one applies it (the render scale that draws that many lines fullscreen; a window
+ * gets the same share), then asks to keep it - no answer within `RES_CONFIRM_S` seconds (or Revert / Back) puts the old
+ * one back. Picking one also turns the old dynamic resolution off (it lowered the resolution unasked).
  */
 export class ResolutionPicker extends Screen {
   override modal = true;
@@ -38,23 +49,27 @@ export class ResolutionPicker extends Screen {
     private onDone: () => void,
   ) {
     super('dialog-screen');
-    const n = nativeSize();
-    const now = app.settings.get().video.renderScale;
+    const m = monitorSize();
+    const v = app.settings.get().video;
+    const now = v.resolution || (Math.abs(v.renderScale - 1) < 1e-3 ? `${m.w}x${m.h}` : '');
     const list = h('div', { class: 'res-list rows' });
-    for (const s of RES_SCALES) {
-      const cur = Math.abs(s - now) < 1e-3;
-      list.append(button(resolutionLabel(n.w, n.h, s), () => this.pick(s), { class: cur ? 'primary' : '', autofocus: cur }));
-    }
+    desktopResolutions(m.w, m.h).forEach((r, i) => {
+      const id = `${r.w}x${r.h}`;
+      const cur = id === now;
+      list.append(button(`${r.w} x ${r.h}${i === 0 ? ' (native)' : ''}`, () => this.pick(id, resolutionScale(r.h, m.h)), { class: cur ? 'primary' : '', autofocus: cur }));
+    });
     this.el.append(h('div', { class: 'dialog res-dialog' }, h('div', { class: 'dialog-title', text: 'Resolution' }), list));
   }
 
-  private pick(scale: number): void {
+  private pick(id: string, scale: number): void {
     const app = this.app;
     this.manager.pop();
-    const prev = app.settings.get().video.renderScale;
-    if (Math.abs(scale - prev) < 1e-3) return;
+    const v = app.settings.get().video;
+    const prev = { scale: v.renderScale, res: v.resolution };
+    if (id === v.resolution && Math.abs(scale - prev.scale) < 1e-3) return;
     app.settings.update((d) => {
       d.video.renderScale = scale;
+      d.video.resolution = id;
       d.video.dynamicRes = false;
     });
     this.onDone();
@@ -83,7 +98,7 @@ export class KeepResolution extends Dialog {
 
   constructor(
     private app: App,
-    private prev: number,
+    private prev: { scale: number; res: string },
     private onDone: () => void,
   ) {
     super('Keep this resolution?', '', [
@@ -95,13 +110,16 @@ export class KeepResolution extends Dialog {
   }
 
   private tick(): void {
-    if (this.msg) this.msg.textContent = `Reverting to ${currentResolutionAt(this.prev)} in ${this.left} s.`;
+    if (this.msg) this.msg.textContent = `Reverting to ${this.prev.res ? spaced(this.prev.res) : currentResolutionAt(this.prev.scale)} in ${this.left} s.`;
   }
 
   private revert(): void {
     if (this.done) return;
     this.done = true;
-    this.app.settings.update((d) => void (d.video.renderScale = this.prev));
+    this.app.settings.update((d) => {
+      d.video.renderScale = this.prev.scale;
+      d.video.resolution = this.prev.res;
+    });
     this.onDone();
   }
 

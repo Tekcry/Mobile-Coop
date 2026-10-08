@@ -31,14 +31,11 @@ describe('benchmark plans', () => {
     expect(benchPlan('presets', 2560, 1600, ['low', 'medium', 'high', 'ultra']).map((r) => r.label)).toEqual(['Low', 'Medium', 'High', 'Ultra']);
     expect(p.every((r) => r.seconds === BENCH.seconds && !r.sustained)).toBe(true);
   });
-  it('resolutions by pixel count within render scale 2', () => {
-    const p = benchPlan('resolutions', 2560, 1600);
-    expect(p[0]!.scale).toBe(1);
-    // 1600p is the output itself; 4K and 7680 x 2160 are reachable (scale ~1.42 and ~2.01)
-    expect(p.map((r) => r.label)).toEqual(['2560x1600 (output)', '3840x2160 (4K) pixel count', '7680x2160 (32:9) pixel count']);
-    expect(p[1]!.scale).toBeCloseTo(Math.sqrt((3840 * 2160) / (2560 * 1600)), 6);
-    // a small window cannot reach 7680 x 2160 within scale 2
-    expect(benchPlan('resolutions', 1280, 720).some((r) => /7680/.test(r.label))).toBe(false);
+  it('resolutions: the monitor\'s own (3.2.1)', () => {
+    const p = benchPlan('resolutions', 7680, 2160);
+    expect(p.map((r) => r.label)).toEqual(['7680x2160', '5120x1440', '3840x1080']);
+    expect(p.map((r) => r.scale)).toEqual([1, 1440 / 2160, 0.5]);
+    expect(benchPlan('resolutions', 2560, 1600).map((r) => r.label)).toEqual(['2560x1600', '1920x1200', '1680x1050', '1440x900', '1280x800']);
   });
   it('the sustained run and its drift', () => {
     const [r] = benchPlan('sustained', 1920, 1080);

@@ -379,7 +379,7 @@ export class SettingsScreen extends Screen {
         'Benchmark',
         h('div', {
           class: 'row-note',
-          text: `A ${BENCH.seconds} s camera flight through the Warehouse: average and 1% low FPS per run (save the results as feedback). Every preset: Low to Epic (Low to Ultra on phones). Feature costs: your settings, then each costly feature off in turn (what to cut on this device). Resolutions: the render pixel counts of 2560x1600, 4K and 7680x2160 (where render scale 2 reaches them). Sustained: ${BENCH.sustained / 60} minutes, first vs last minute (a laptop throttling once hot).`,
+          text: `A ${BENCH.seconds} s camera flight through the Warehouse: average and 1% low FPS per run (save the results as feedback). Every preset: Low to Epic (Low to Ultra on phones). Feature costs: your settings, then each costly feature off in turn (what to cut on this device). Resolutions: each of this monitor's resolutions (in fullscreen; a window renders the same share of itself). Sustained: ${BENCH.sustained / 60} minutes, first vs last minute (a laptop throttling once hot).`,
         }),
         button('Run (current settings)', () => app.benchmark?.('current'), { icon: 'monitor' }),
         button('Every preset', () => app.benchmark?.('presets'), { class: 'subtle' }),

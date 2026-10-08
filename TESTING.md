@@ -310,6 +310,9 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.2.1 desktop (7680 x 2160 monitor): Settings > Graphics > Resolution lists 7680 x 2160 (native), 5120 x 1440,
+  3840 x 1080; in fullscreen a benchmark line says 5120x1440 after picking it; in a window it says "5120x1440 (window
+  ...)". Benchmark > Resolutions runs the three.
 - [ ] 3.2 baked lamps (phone and laptop): lamp pools look as before; racks, crates and walls cast shadows under every
   lamp (not just the nearest few); no light through walls or closed racks; a guard / the operator casts a soft
   shadow under each lamp; shooting a lamp or a switch darkens its area at once; an EMP darkens and restores. First

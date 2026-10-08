@@ -99,6 +99,8 @@ export interface Settings {
     gfx: GraphicsFeatures;
     /** Render resolution x native (above 1 supersamples). */
     renderScale: number;
+    /** Desktop (3.2.1): the chosen resolution, "7680x2160" ('' = the native output / a scale set by hand). */
+    resolution: string;
     /** Phones: the output's most device pixels per CSS pixel (0: native; `PHONE_OUTPUTS`). */
     phoneOutput: number;
     /** Phones: the 3.1.9 defaults (60 fps target, Ultra native) were applied once (`App.phoneDefaults`). */
@@ -249,7 +251,7 @@ export function defaultSettings(): Settings {
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
-    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -341,6 +343,7 @@ export function setPreset(s: Settings, p: FixedPreset, mobile = false): void {
   const disp = presetDisplay(p, mobile);
   s.video.preset = p;
   s.video.gfx = { ...GRAPHICS_PRESETS[p] };
+  if (Math.abs(s.video.renderScale - disp.renderScale) > 1e-3) s.video.resolution = '';
   s.video.renderScale = disp.renderScale;
   s.video.upscaler = disp.upscaler;
   s.video.auto = false;
@@ -419,6 +422,7 @@ export function sanitizeSettings(raw: unknown): Settings {
       auto: bool(v.auto, v.preset === undefined || v.preset === 'epic'),
       device: sanitizeDevice(v.device),
       renderScale: num(v.renderScale, d.video.renderScale, 0.5, 2),
+      resolution: typeof v.resolution === 'string' && /^\d{3,5}x\d{3,5}$/.test(v.resolution) ? v.resolution : '',
       phoneOutput: pick(v.phoneOutput, PHONE_OUTPUTS as readonly number[], d.video.phoneOutput),
       phoneSetup: bool(v.phoneSetup, false),
       dynamicRes: bool(v.dynamicRes, d.video.dynamicRes),

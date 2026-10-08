@@ -84,7 +84,7 @@ try {
   assert(mob.cls && mob.tabs.includes('touch') && !mob.tabs.includes('kbm'), `Interface: Mobile (${mob.tabs.join(',')})`);
   await G(() => window.__app.settings.update((d) => { d.video.platform = 'auto'; }));
   await frames(page, 4);
-  // 3.1.7 Resolution (desktop): real resolutions; a pick applies at once, Keep keeps it, no answer reverts in 15 s
+  // 3.1.7 Resolution (desktop): the monitor's resolutions (3.2.1); a pick applies at once, Keep keeps it, no answer reverts in 15 s
   {
     const openRes = () => G(() => [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).click());
     const pickRes = (re) => G((src) => [...document.querySelectorAll('.res-dialog .btn')].find((b) => new RegExp(src).test(b.textContent)).click(), re);
@@ -92,24 +92,32 @@ try {
     await G(() => window.__app.settings.update((d) => { d.video.dynamicRes = true; }));
     await openRes();
     await page.waitForSelector('.res-dialog');
+    // (3.2.1: the monitor's standard resolutions - a 1920 x 1080 screen: 1920 x 1080 (native), 1600 x 900, 1366 x 768,
+    // 1280 x 720)
     const opts = await G(() => [...document.querySelectorAll('.res-dialog .btn')].map((b) => b.textContent));
-    assert(opts.length === 9 && opts.some((o) => /\(native\)/.test(o)) && opts.some((o) => /\(50%\)/.test(o)), `Resolution lists real sizes (${opts.join(' | ')})`);
-    await pickRes('\\(75%\\)');
+    const mon = await G(() => `${Math.round(screen.width * devicePixelRatio)} x ${Math.round(screen.height * devicePixelRatio)}`);
+    assert(opts.length >= 3 && opts[0] === `${mon} (native)` && opts.every((o) => /^\d+ x \d+( \(native\))?$/.test(o)), `Resolution lists the monitor's resolutions (${opts.join(' | ')})`);
+    const second = opts[1];
+    const last = opts.at(-1);
+    const hOf = (o) => Number(o.split(' x ')[1]);
+    const monH = Number(mon.split(' x ')[1]);
+    await pickRes(`^${second}$`);
     await page.waitForFunction(() => /Keep this resolution/.test(document.querySelector('.dialog-title')?.textContent ?? ''));
-    const applied = await G(() => ({ s: window.__app.settings.get().video.renderScale, dyn: window.__app.settings.get().video.dynamicRes, msg: document.querySelector('.dialog-msg').textContent }));
-    assert(applied.s === 0.75 && !applied.dyn && /Reverting to .* in 15 s/.test(applied.msg), `a pick applies at once and asks to keep it (${JSON.stringify(applied)})`);
+    const applied = await G(() => ({ s: window.__app.settings.get().video.renderScale, r: window.__app.settings.get().video.resolution, dyn: window.__app.settings.get().video.dynamicRes, msg: document.querySelector('.dialog-msg').textContent }));
+    assert(Math.abs(applied.s - hOf(second) / monH) < 1e-6 && applied.r === second.replace(' x ', 'x') && !applied.dyn && /Reverting to .* in 15 s/.test(applied.msg), `a pick applies at once and asks to keep it (${JSON.stringify(applied)})`);
     await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Keep/.test(b.textContent)).click());
     await page.waitForTimeout(1500);
-    const kept = await G(() => ({ s: window.__app.settings.get().video.renderScale, row: [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).textContent }));
-    assert(kept.s === 0.75 && /\(75%\)/.test(kept.row), `Keep keeps it, the row shows it (${kept.row})`);
+    const kept = await G(() => ({ r: window.__app.settings.get().video.resolution, row: [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).textContent }));
+    assert(kept.r === second.replace(' x ', 'x') && kept.row.includes(second), `Keep keeps it, the row shows it (${kept.row})`);
     await openRes();
     await page.waitForSelector('.res-dialog');
-    await pickRes('\\(50%\\)');
+    await pickRes(`^${last}$`);
     await page.waitForFunction(() => /Keep this resolution/.test(document.querySelector('.dialog-title')?.textContent ?? ''));
-    assert((await G(() => window.__app.settings.get().video.renderScale)) === 0.5, 'the second pick applies');
+    assert((await G(() => window.__app.settings.get().video.resolution)) === last.replace(' x ', 'x'), 'the second pick applies');
     await page.waitForFunction(() => !document.querySelector('.dialog-title'), null, { timeout: 25000 });
-    const back = await G(() => window.__app.settings.get().video.renderScale);
-    assert(back === 0.75, `no answer for 15 s puts the last resolution back (${back})`);
+    const back = await G(() => window.__app.settings.get().video.resolution);
+    assert(back === second.replace(' x ', 'x'), `no answer for 15 s puts the last resolution back (${back})`);
+    await G(() => window.__app.settings.update((d) => { d.video.resolution = ''; }));
     await G((v) => window.__app.settings.update((d) => { d.video.renderScale = v; }), scale0);
   }
   await page.keyboard.press('Escape');
