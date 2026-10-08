@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | in progress (Step 2 reviewed; Step 3) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | in progress (Step 3) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -369,6 +369,34 @@ See the Step 1 and Step 5 reports.
     only; Step 4 removes them.
 - Process: two test-fix commits were pushed before their re-runs (said so in the messages); verified afterwards.
 - Next: Step 3.
+
+#### Step 3 report (desktop renders the same field) - 2026-10-09
+- Done:
+  - The exact path and the volume mix already use `lampMath` (Step 2). New: the baked moon - `BakedLamps` binds the
+    moon's visibility (R8 3D, linear) and multiplies the sun light by it (`#define CUSTOM_LIGHT{X}_COLOR`, injected by
+    regex on the one directional light, `DIRLIGHT{X}`), half a moon cell off the surface; only with the texture bound
+    (`LAMP_MOON`).
+  - Closed doors on screen: per lamp up to `DOORS_PER_LAMP` (4) door ids in its data (`LAMP_TEXELS` 7), door texels
+    (hinge, width, yaw, height, shut) after the capsules, `nsDoorBlocks` in the exact path and in the volume mix,
+    tested from the visibility's lookup point. The list comes from `lampDoorLists` (pure), which `LightField` now uses
+    too, so gameplay and the screen test the same doors. A door opening or closing re-mixes its lamps' regions on
+    the volume.
+  - Moon cascades: with the baked moon (`World.useBakedMoon`) the static casters leave the moon's list - only moving
+    casters (characters, props) - and at Low (`ShadowSpec.staticSun`, the level only) there are no cascades at all.
+  - Flashlights (review finding A): a shadowed pool light draws its whole radius (its shadow map stops it at the
+    wall); unshadowed ones keep `reach`. Door leaves cast into the rig's shadow maps. `lightRig.ts` takes
+    `LAMP_CONE` and `LIGHT_GAIN` from `lampMath`.
+  - The ambient grid as the desktop fill was built behind `?fill=grid` and shown to Michael; not taken (below).
+- Files changed: `src/world/bakedLamps.ts`, `src/world/lightField.ts`, `src/world/world.ts`, `src/world/lightRig.ts`,
+  `src/world/doors.ts`, `tests/lightField.test.ts`, `docs/prompts/phase-1-sheets/step3-*.jpg`.
+- Decisions:
+  - **Desktop fill (Michael, 2026-10-09): the sky bake stays.** The ambient grid as fill (exact parity, `LIGHT_GAIN /
+    LAMP_LEVEL_GAIN` = 1.33 per level) lifts every interior to an even dim grey: the corridor walls, the rack pillar
+    and the loading bay lose their night contrast (contact sheets, third panel). Indoors, gameplay's 0.12-0.17 is
+    dark and so is the screen, so the band agrees; the screen is darker than the field there, the safe side.
+  - The moon is applied to the sun light rather than drawn by the plugin: Babylon's light keeps its N.L, colour and
+    the moving casters' cascade shadow; the bake adds only the static occlusion.
+  - Per-light injection relies on the sun being the only directional light in a match scene.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
