@@ -359,9 +359,16 @@ try {
   await until(A, (id) => { const e = window.__app.current.enemyMgr.enemies.find((x) => x.id === id); return !e || !e.alive || e.gas > 0; }, gv, 6000, 'host guard breathes the client gas');
   assert(true, "a client's gas cloud reaches the host's guards");
   // (3.2.0 phase 4) a client grab: the host holds its guard in front of the client (a shield there), then a tap
-  // knocks him out. (3.6: first the gas cloud above clears on both sides - the grab spot is inside its 3.6 m, and a
-  // guard breathing it is knocked out in 0.8 s, racing the grab at software-GL frame rates)
-  for (const P of [A, B]) await until(P, () => window.__app.current.gadgets.clouds.length === 0, null, 30000, 'the gas cloud clears');
+  // knocks him out. (3.6: the gas cloud above is cleared first on both sides - the grab spot is inside its 3.6 m, a
+  // guard breathing it is knocked out in 0.8 s, racing the grab; the cloud lasts 6 s of sim time, far longer than
+  // that in wall time at software-GL frame rates)
+  for (const P of [A, B]) {
+    await P.evaluate(() => {
+      const g = window.__app.current;
+      g.gadgets.clouds.length = 0;
+      for (const e of g.enemyMgr?.enemies ?? []) e.gas = 0;
+    });
+  }
   const gg = await GB(() => [...window.__app.current.net.puppets.values()].find((p) => p.alive && !p.taken && p.def.kind !== 'dog')?.id ?? '');
   if (gg) {
     let grabbed = false;
