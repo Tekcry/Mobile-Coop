@@ -17,8 +17,8 @@ every phase step.
 | 7 | Vertical slice (Kestrel Exchange, "Dead Line") | not started | 3.13.0 | `docs/prompts/exchange-alignment.md` first, then the map's phases 3-6 |
 
 ## Current state
-- `master`, `dev` and `ct-movement` are integrated at 3.4.0 + CT movement: `master` (3.4.0) is merged into
-  `ct-movement`; Michael promotes `ct-movement` to `dev` and `master`.
+- `ct-movement` is at 3.5.0: `master` 3.4.0 plus CT movement plus Phase 0. `master` already carries the Step 1 integration (Michael merged PR #2); `dev` and
+  `master` get 3.5.0 when Michael merges `ct-movement` again.
 - Phones draw the phone look: the 3.4 light renderer (plain blockout, nearest six lamps as plain lights, no shadow
   maps, no post stack). Desktop renders lamps from the baked visibility atlas (`voxel/lampBake.ts`, `world/bakedLamps.ts`).
 - Three separate light calculations can disagree (bible 5.1): desktop baked lamps, the phone's six unshadowed lights
