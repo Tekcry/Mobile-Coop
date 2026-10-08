@@ -371,6 +371,16 @@ try {
   }
   // (3.6: the guard is chosen on the host - the client's puppets can still show one the host has just removed, the
   // gassed guard knocked out a moment ago - then the client waits for its puppet)
+  // (diagnosis: every host kill / knock-out from here on, dumped if the grab fails)
+  await GA(() => {
+    const em = window.__app.current.enemyMgr;
+    const prev = em.onKilled;
+    window.__kills = [];
+    em.onKilled = (e, h) => {
+      window.__kills.push({ id: e.id, ko: !!e.ko, kind: h.kind, part: h.part, by: h.attackerId, team: h.attackerTeam, t: window.__app.current.net?.time });
+      prev?.(e, h);
+    };
+  });
   const gg = await GA(() => window.__app.current.enemyMgr.enemies.find((e) => e.alive && !e.taken && !e.dog && e.def.kind !== 'dog')?.id ?? '');
   if (gg) await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !!p && p.alive; }, gg, 15000, 'the client has the chosen guard');
   if (gg) {
@@ -402,6 +412,7 @@ try {
     }
     if (!grabbed) {
       console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ found: !!e, alive: e?.alive, taken: e?.taken, ko: e?.ko, level: e?.level, gas: e?.gas, stagger: e?.['stagger'], pos: e && [e.pos.x, e.pos.z], yaw: e?.yaw, client: [r.feet.x, r.feet.z], mv: r.state?.mv?.m }); }, gg));
+      console.log('    host kills since the pick:', gg, await GA(() => JSON.stringify(window.__kills)));
       console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); const o = g.takedown.offer; return JSON.stringify({ puppet: p && { pos: [p.pos.x, p.pos.z], yaw: p.yaw, alive: p.alive, taken: p.taken, level: p.level }, me: [g.player.position.x, g.player.position.z], yaw: g.player.cam.yaw, offer: o ? { id: o.e.id, kind: o.plan?.kind } : null, active: g.takedown.active, hostage: g.takedown.hostage?.id ?? null, alive: g.player.alive, move: g.player.controller.motion.state }); }, gg));
     }
     assert(grabbed, 'client grabs a host guard from behind');
