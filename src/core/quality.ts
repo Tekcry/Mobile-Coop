@@ -92,6 +92,34 @@ export const PRESET_DISPLAY: Record<FixedPreset, { renderScale: number; upscaler
 export function presetDisplay(p: FixedPreset, mobile: boolean): { renderScale: number; upscaler: 'off' | 'taau' } {
   return mobile && p === 'ultra' ? { renderScale: 1, upscaler: 'off' } : PRESET_DISPLAY[p];
 }
+/**
+ * 3.3 phones: one fixed look - no presets, no graphics settings. Built for 60 fps on the iPhone 17 Pro Max at 75 - 100%
+ * of the native resolution (TAAU to native): the moon's shadows in one cascade and one flashlight shadow, bounce
+ * light, the height fog; no ambient occlusion, reflections, bloom, light shafts, depth of field, motion blur or lens
+ * effects; the fine prop layer off. With `PHONE_CUTS` (the lamps pre-mixed into a light volume, plain voxel
+ * surfaces).
+ */
+export const PHONE_FEATURES: GraphicsFeatures = { shadows: 'medium', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: true, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'medium', detail: 'medium', effects: 'medium' };
+/** Phones' shadows: the moon in one 1024 cascade, one flashlight at 512. */
+export const PHONE_SHADOW: ShadowSpec = { sun: true, cascades: 1, sunSize: 1024, casters: 1, size: 512, soft: false };
+/** Phone render cuts made when the map loads (the Phone check puts each back for a run). */
+export interface PhoneCuts {
+  /** The lamps mixed into one light volume (two taps a pixel) instead of a loop over up to eight lamps. */
+  lampVolume: boolean;
+  /** Voxel surfaces without ambient occlusion, worn edges or the surface texture taps. */
+  plainVoxels: boolean;
+}
+export const PHONE_CUTS: Readonly<PhoneCuts> = { lampVolume: true, plainVoxels: true };
+export const NO_CUTS: Readonly<PhoneCuts> = { lampVolume: false, plainVoxels: false };
+/**
+ * Phones' render resolution (x native, TAAU to native): the frame governor's ladder from the top down - never under
+ * 75% (`PHONE_FLOOR`); still missing 60 there, the game holds a steady 30 (`PHONE_FPS_FALLBACK`). A match starts at
+ * the floor and steps up when there is room.
+ */
+export const PHONE_SCALES = [1, 0.92, 0.84, 0.75] as const;
+export const PHONE_FLOOR = 0.75;
+export const PHONE_FPS_FALLBACK = 30;
+
 /** Tests only (`?gfx=min`): every feature off, the fewest lights - headless software GL keeps its frame rate. */
 export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };
 
@@ -199,21 +227,30 @@ export interface QualityLevel {
   panini: number;
   /** A phone: cheaper bloom (3.1.9). */
   mobile: boolean;
+  /** 3.3: the fixed phone look (`PHONE_FEATURES`; its name is not a preset). */
+  phone: boolean;
 }
 
-export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0, mobile = false): QualityLevel {
+export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0, mobile = false, phone = false): QualityLevel {
   return {
     minimal,
     mobile,
+    phone: phone && !minimal,
     upscale: minimal ? 1 : Math.max(0.5, Math.min(1, upscale)),
     panini: minimal ? 0 : Math.max(0, Math.min(1, panini)),
     name,
     features: f,
-    shadow: mobile ? mobileShadow(shadowSpec(f.shadows)) : shadowSpec(f.shadows),
+    // (the phone look's own shadows unless a Phone check run changes them)
+    shadow: phone && f.shadows === PHONE_FEATURES.shadows ? PHONE_SHADOW : mobile ? mobileShadow(shadowSpec(f.shadows)) : shadowSpec(f.shadows),
     vfxDensity: EFFECT_DENSITY[f.effects],
     realLights: Math.round(Math.min(LIGHT_RANGE.max, Math.max(LIGHT_RANGE.min, f.lights))),
     detailScale: DETAIL_SCALE[f.detail],
   };
+}
+
+/** The level's name for logs: the preset, or "phone" (3.3). */
+export function levelLabel(q: QualityLevel): string {
+  return q.phone ? 'phone' : q.name;
 }
 
 /** Frame-rate caps offered (0 = off: the display's refresh rate). */

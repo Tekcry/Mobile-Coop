@@ -280,13 +280,14 @@ try {
     const v = await d.page.evaluate(() => window.__app.settings.get().video);
     assert(v.auto && v.device.source === 'gpu' && v.device.tier === 'low' && v.preset === 'low', `Auto: a software renderer starts on Low by its name (${JSON.stringify(v.device)}, ${v.preset})`);
     await browser.close();
-    const c = await launch({ url, params: 'detect=1&platform=mobile&renderer=Apple%20GPU', touch: true, viewport: { width: 915, height: 412 } });
+    // (3.3: phones have one fixed look - the measuring is a desktop GPU the tables do not know)
+    const c = await launch({ url, params: 'detect=1&platform=desktop&renderer=Mystery%20GPU%2042', touch: false, viewport: { width: 960, height: 540 } });
     browser = c.browser;
     await c.page.waitForFunction(() => window.__app?.detecting, null, { timeout: 60000 });
     const during = await c.page.evaluate(() => window.__app.quality.level.name);
     await c.page.waitForFunction(() => window.__app.settings.get().video.device.source === 'calibrated', null, { timeout: 60000 });
     const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: document.querySelector('.toast')?.textContent ?? '', ov: window.__app.quality.level.name }));
-    assert(['low', 'medium', 'high', 'ultra'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: a hidden phone GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
+    assert(['low', 'medium', 'high', 'ultra', 'epic'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: an unknown GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
     assert(/for this device/.test(cv.toast), `the result is shown (${cv.toast})`);
     // (the settings save is debounced: wait until IndexedDB has the result; page.evaluate awaits the promise,
     // waitForFunction would take the promise itself as truthy)
@@ -310,6 +311,47 @@ try {
     await frames(c.page, 90);
     const again = await c.page.evaluate(() => ({ det: window.__app.detecting, v: window.__app.settings.get().video }));
     assert(!again.det && again.v.device.source === 'calibrated' && again.v.preset === cv.v.device.tier, `the same device is not measured again (${JSON.stringify({ det: again.det, device: again.v.device, preset: again.v.preset })})`);
+    await browser.close();
+  }
+
+  // 3.3 the phone look: no detection, one fixed look in a match - 75% through TAAU, 60 fps (30 at the governor's
+  // last level), the lamps as one light volume, plain voxels, no bloom
+  {
+    const p = await launch({ url, params: 'detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user&autostart=warehouse&mode=clear', touch: false, viewport: { width: 640, height: 360 } });
+    browser = p.browser;
+    await p.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 240000 });
+    await frames(p.page, 6);
+    const ph = await p.page.evaluate(() => {
+      const a = window.__app;
+      const g = a.current;
+      const q = a.quality.level;
+      const pps = g.player.cam.camera._postProcesses.filter(Boolean).map((x) => x.name);
+      const src = g.world.voxels?.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
+      return { det: a.detecting, source: a.settings.get().video.device.source, phone: q.phone, up: q.upscale, cap: a.loop.fpsCap, gov: a.quality.governor.level, vol: !!g.world.lamps?.volume, pps, src: src.length, ao: src.includes('float occ'), micro: src.includes('vxTap('), volShader: src.includes('lampVolA') && !src.includes('lampCapsule(lp, t0.xyz'), bloom: q.features.bloom, cascades: q.shadow.cascades, ctx: g.feedbackContext().spikes };
+    });
+    assert(!ph.det && ph.source === 'none', `phone: nothing detected or measured (${ph.source})`);
+    assert(ph.phone && ph.up === 0.75 && [60, 30].includes(ph.cap), `phone: the fixed look at 75% (TAAU), capped at ${ph.cap} (governor level ${ph.gov})`);
+    assert(ph.pps.includes('taau') && !ph.bloom && ph.cascades === 1, `phone: TAAU, no bloom, one moon cascade (${ph.pps.join(',')})`);
+    assert(ph.vol && ph.volShader, 'phone: the lamps mixed into one light volume (two taps, no per-lamp loop in the shader)');
+    assert(ph.src > 0 && !ph.ao && !ph.micro, 'phone: plain voxel surfaces (no AO, no surface taps)');
+    assert(/spikes|no spikes/.test(ph.ctx), `phone: the spike log (${ph.ctx})`);
+    // a switch re-mixes the volume on the GPU, at once
+    const mix = await p.page.evaluate(() => {
+      const g = window.__app.current;
+      const reg = g.world.level.lights;
+      const L = g.world.lamps;
+      const n0 = L.volume.mixes;
+      const grp = reg.lights.find((l) => l.group != null && l.kind !== 'flashlight').group;
+      reg.setGroup(grp, false);
+      L.frame();
+      const n1 = L.volume.mixes;
+      reg.setGroup(grp, true);
+      L.frame();
+      return { n0, n1, n2: L.volume.mixes };
+    });
+    assert(mix.n1 === mix.n0 + 1 && mix.n2 === mix.n1 + 1, `phone: a light switch re-mixes the volume (${JSON.stringify(mix)})`);
+    const pe = p.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
+    assert(pe.length === 0, `phone: no console errors${pe.length ? ': ' + pe.slice(0, 3).join(' | ') : ''}`);
     await browser.close();
   }
 

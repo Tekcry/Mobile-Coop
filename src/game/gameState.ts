@@ -43,7 +43,7 @@ import { playEmote } from '../cosmetics/emotes';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
-import { VOXEL_TIER, type QualityLevel } from '../core/quality';
+import { levelLabel, VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
@@ -58,6 +58,7 @@ import { CinematicPost } from '../vfx/cinematicPost';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
+import { SPIKE_EVENT, SpikeLog } from '../core/spikes';
 import { feedbackContext } from '../ui/screens/feedbackScreen';
 import { BENCH, benchFlight, benchResult, benchText, flightAt, FLIGHT, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type Flight, type FlightNav, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
@@ -578,14 +579,16 @@ export class GameState implements AppState {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
     const vt = VOXEL_TIER[q.features.detail];
-    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
+    // (3.3 phones: plain voxel surfaces - no AO, worn edges or surface taps - and the lamps as one light volume)
+    const cuts = app.quality.phoneCuts;
+    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: !cuts.plainVoxels, micro: !cuts.plainVoxels && q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
     setVoxelBodies(flags.voxels && !q.minimal ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
     // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
     const vw = flags.voxels && !q.minimal ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
     setVoxelWeapons(vw);
     setVoxelProps(vw);
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal });
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal, lampVolume: cuts.lampVolume });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
@@ -1159,7 +1162,40 @@ export class GameState implements AppState {
     if (o.difficulty) ctx.difficulty = o.difficulty;
     if (this.net) ctx.net = this.puppet ? 'co-op client' : 'co-op host';
     if (this.enemyMgr) ctx.enemies = `${this.enemyMgr.enemies.filter((e) => e.alive).length} alive${this.enemyMgr.anyAlerted ? ', alerted' : ''}`;
+    ctx.spikes = this.spikes.summary();
     return ctx;
+  }
+
+  /** 3.3: long frames this match (or this benchmark run) and what was happening around each. */
+  readonly spikes = new SpikeLog();
+  private spikeLast = 0;
+  private spikeShaders = 0;
+  private spikeLod = 0;
+  private spikeLamps = 0;
+  private spikeGov = 0;
+
+  /** Per render frame: the interval since the last one, tagged with this frame's events. */
+  private trackSpikes(): void {
+    const now = performance.now();
+    const last = this.spikeLast;
+    this.spikeLast = now;
+    let ev = 0;
+    const sh = this.shaderCount();
+    if (sh !== this.spikeShaders) ev |= SPIKE_EVENT.shaders;
+    this.spikeShaders = sh;
+    let lod = 0;
+    for (const v of this.world.voxelLayers) lod += v.lodSwaps;
+    if (lod !== this.spikeLod) ev |= SPIKE_EVENT.lod;
+    this.spikeLod = lod;
+    const lm = this.world.lamps?.remixes ?? 0;
+    if (lm !== this.spikeLamps) ev |= SPIKE_EVENT.lamps;
+    this.spikeLamps = lm;
+    const gv = this.app.quality.governor.level;
+    if (gv !== this.spikeGov) ev |= SPIKE_EVENT.governor;
+    this.spikeGov = gv;
+    if (!last) return;
+    const q = this.app.quality;
+    this.spikes.frame(now - last, q.budgetMs, this.app.loop.stats.frameCpuMs, ev);
   }
 
   /** Benchmark (opts.benchmark): flight points, the runs and the current one's time and frame intervals after the
@@ -1233,7 +1269,7 @@ export class GameState implements AppState {
       b.rebuild = run.rebuild ?? null;
       b.shaders = this.shaderCount();
       b.tagT = 0;
-      this.app.crashLog?.stage(`benchmark run ${b.idx + 1}/${b.runs.length}: ${run.label} (${this.app.quality.level.name})`);
+      this.app.crashLog?.stage(`benchmark run ${b.idx + 1}/${b.runs.length}: ${run.label} (${levelLabel(this.app.quality.level)})`);
       return;
     }
     b.done = true;
@@ -1289,6 +1325,8 @@ export class GameState implements AppState {
     const real = b.last ? Math.min(0.25, (now - b.last) / 1000) : 0;
     if (b.last && b.t > BENCH.warmup) {
       const ms = now - b.last;
+      // (the run's spikes: from the end of the warm-up)
+      if (!b.iv.length) this.spikes.reset();
       b.iv.push(ms);
       b.cpu.push(this.app.loop.stats.frameCpuMs);
       if (run.sustained) {
@@ -1342,8 +1380,12 @@ export class GameState implements AppState {
       const rw = this.app.engine.getRenderWidth();
       const rh = this.app.engine.getRenderHeight();
       const size = run.scale == null && this.app.platform.platform === 'desktop' ? shownResolution(v.resolution, rw, rh) : `${rw}x${rh}`;
-      const where = `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${size}`;
+      // (3.3 phones: the fixed look - the scene's own size behind TAAU)
+      const ql = this.app.quality.level;
+      const where = ql.phone ? `${this.world.map.name}, phone, ${run.label}, ${size} (scene ${Math.round(rw * ql.upscale)}x${Math.round(rh * ql.upscale)})` : `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${size}`;
       let line = benchText(r, where, this.shaderCount() - b.shaders);
+      // (3.3: what the long frames were)
+      line += `; ${this.spikes.summary()}`;
       if (run.sustained && b.buckets.length >= 2) {
         const d = sustainedDrift(b.buckets);
         line += `; first minute ${b.buckets[0]!.toFixed(0)} fps, last ${b.buckets[b.buckets.length - 1]!.toFixed(0)} fps (${(d * 100).toFixed(1)}%${d < -0.1 ? ', throttling' : ''})`;
@@ -1366,6 +1408,7 @@ export class GameState implements AppState {
 
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
+    this.trackSpikes();
     if (this.photo) {
       // frozen: only the lights follow the free camera
       this.world.frame(this.player.position, 0);

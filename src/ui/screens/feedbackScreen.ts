@@ -21,7 +21,9 @@ export function feedbackContext(app: App): Record<string, string> {
   ctx.platform = `${app.platform.platform} (${app.input.mode})`;
   const desk = app.platform.platform === 'desktop';
   const rs = desk ? shownResolution(v.resolution, app.engine.getRenderWidth(), app.engine.getRenderHeight()) : `${app.engine.getRenderWidth()}x${app.engine.getRenderHeight()}`;
-  ctx.graphics = `${app.quality.level.name}, ${rs}${v.fpsCap ? `, cap ${v.fpsCap}` : ''}`;
+  const q = app.quality;
+  // (3.3 phones: the fixed look, the governor's render scale and the cap in force)
+  ctx.graphics = q.level.phone ? `phone, ${rs}, scene x${(q.level.upscale * q.detail.scale).toFixed(2)}, cap ${app.loop.fpsCap || 'off'}${q.phoneCuts.lampVolume ? '' : ', exact lamps'}${q.phoneCuts.plainVoxels ? '' : ', voxel detail'}` : `${q.level.name}, ${rs}${v.fpsCap ? `, cap ${v.fpsCap}` : ''}`;
   const pace = app.quality.pacing();
   if (pace.p50 > 0) ctx.frames = `p50 ${pace.p50.toFixed(1)} ms, p99 ${pace.p99.toFixed(1)} ms @ ${app.quality.hz} Hz`;
   const w = Math.round(viewWidth() * devicePixelRatio);
@@ -31,7 +33,7 @@ export function feedbackContext(app: App): Record<string, string> {
   ctx.display = `${w}x${hgt} (${aspectLabel(w, hgt)})${mon} @ ${Math.round(app.quality.hz)} Hz, FOV ${v.fovH} (max ${v.maxFov}), HUD ${v.hudWidth}`;
   ctx.gpu = `${app.gpu.renderer || 'unknown'} (${app.gpu.kind})`;
   const g = app.quality.governor;
-  ctx.adaptive = `${v.auto ? `auto (${v.device.source}: ${v.device.tier ?? '-'})` : 'manual'}, governor ${app.quality.adaptiveOn ? `level ${g.level}` : 'off'}${g.thermal ? ', thermal' : ''}${g.lowPower ? ', low power' : ''}`;
+  ctx.adaptive = `${q.level.phone ? 'phone' : v.auto ? `auto (${v.device.source}: ${v.device.tier ?? '-'})` : 'manual'}, governor ${app.quality.adaptiveOn ? `level ${g.level}` : 'off'}${g.thermal ? ', thermal' : ''}${g.lowPower ? ', low power' : ''}`;
   ctx.device = navigator.userAgent.slice(0, 160);
   // (3.1.7: every setting - the graphics in full, the rest where it differs from the defaults)
   const dg = settingsDigest(app.settings.get());

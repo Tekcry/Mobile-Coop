@@ -310,6 +310,10 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.3.0 iPhone: Settings shows Display (no graphics options); a match holds 60 (FPS overlay) at 75% or more;
+  Settings > Display > Phone check runs eight flights and saves one note - send it.
+- [ ] 3.3.0 iPhone: lamps look as before (switch a circuit off and on, shoot a lamp, EMP: the light goes and comes
+  back at once); characters still cast soft shadows under lamps.
 - [ ] 3.2.5 Benchmark: the flight walks through doorways and corridors, up the mezzanine stairs, never through a wall,
   no bobbing up and down, gentle turns, a dead-end room circled.
 - [ ] 3.2.4 iPhone (rotation lock off): hold landscape one way, turn upright - the game stays put on the glass; the other

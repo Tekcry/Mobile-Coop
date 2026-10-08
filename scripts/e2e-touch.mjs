@@ -12,8 +12,11 @@ try {
   assert(await page.evaluate(() => document.body.classList.contains('input-touch')), 'starts in touch mode');
   await page.locator('.btn', { hasText: 'Settings' }).tap();
   await page.waitForSelector('.settings-screen');
-  await page.locator('.tab', { hasText: 'Graphics' }).tap();
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Graphics', 'tap switches tab');
+  await page.locator('.tab', { hasText: 'Display' }).tap();
+  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Display', 'tap switches tab');
+  // 3.3 phones: one fixed look - no graphics options, the Phone check
+  const disp = await page.evaluate(() => document.querySelector('.settings-screen .tab-panel[data-tab="video"]')?.textContent ?? '');
+  assert(!/Preset|Shadows|Resolution scale|Upscaler|Target frame rate/.test(disp) && /Run the Phone check/.test(disp) && /Field of view/.test(disp), 'phone Display tab: no graphics options, field of view and the Phone check');
   await page.locator('.settings-screen .screen-back').tap();
   await page.waitForSelector('.settings-screen', { state: 'detached' });
   assert(true, 'back button closes settings');

@@ -64,8 +64,21 @@ export function adaptiveAt(level: number, out: Adaptive = { ...FULL }): Adaptive
 
 export const MAX_LEVEL = 10;
 
+/**
+ * 3.3 phones: the ladder is the render resolution only - `scales` (x native, from the top) relative to the match's
+ * `base`, then one more level that holds 30 fps (`capped`). Everything else stays as built.
+ */
+export function phoneAdaptiveAt(level: number, scales: readonly number[], base: number, out: Adaptive = { ...FULL }): Adaptive {
+  Object.assign(out, FULL);
+  const l = Math.max(0, Math.min(scales.length - 1, Math.round(level)));
+  out.scale = scales[l]! / base;
+  return out;
+}
+
 export class Governor {
   level = 0;
+  /** The top level (the cheapest): 10, or a phone's ladder length (3.3). */
+  max = MAX_LEVEL;
   /** Frames are slowing at a steady level (a hot device). */
   thermal = false;
   /** The display rate fell to ~30 Hz on a phone (iOS Low Power Mode). */
@@ -85,9 +98,9 @@ export class Governor {
   private failed = 0;
   private readonly tmp = new Float32Array(256);
 
-  /** Reset (a new match, a new preset): back to the preset's full detail. */
-  reset(): void {
-    this.level = 0;
+  /** Reset (a new match, a new preset): back to the preset's full detail (or `start`: a phone starts at its floor). */
+  reset(start = 0): void {
+    this.level = Math.max(0, Math.min(this.max, start));
     this.n = 0;
     this.head = 0;
     this.sinceChange = 0;
@@ -142,7 +155,7 @@ export class Governor {
       }
       return false;
     }
-    if (miss && this.sinceChange > GOVERNOR.cooldown && this.level < MAX_LEVEL) return this.set(this.level + 1);
+    if (miss && this.sinceChange > GOVERNOR.cooldown && this.level < this.max) return this.set(this.level + 1);
     if (!miss && this.level > 0 && this.sinceChange > this.wait) {
       this.probing = true;
       this.probeT = 0;
@@ -152,7 +165,7 @@ export class Governor {
   }
 
   private set(l: number): boolean {
-    const v = Math.max(0, Math.min(MAX_LEVEL, l));
+    const v = Math.max(0, Math.min(this.max, l));
     if (v === this.level) return false;
     this.level = v;
     this.sinceChange = 0;

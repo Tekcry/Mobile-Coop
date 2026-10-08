@@ -4,10 +4,10 @@ Silent But Deadly (renamed from Shoulder Strike in 2.2.0; internal ids keep the 
 IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id). Third-person over-the-shoulder shooter
 for PC and phones. Static web app (Vite + TypeScript + Babylon.js 9 + Havok), installable PWA, fully playable offline.
 Hosted on GitHub Pages. Target (3.0): a gaming laptop (i9 HX, RTX 4090 Laptop 16 GB, 32 GB; built-in 2560 x 1600
-240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer (phones
-with the 3.1 preset ladder; the iPhone 17 Pro Max targets 60 fps at Ultra, native 2868 x 1320 - 3.1.9). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
-test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) only changes the UI and
-input. 3.1: one preset ladder for every device (Low .. Ultra, Epic PC only), Auto graphics per device, a frame governor
+240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer (3.3: phones get
+one fixed phone look, no graphics settings - the iPhone 17 Pro Max targets 60 fps at 75 - 100% of native 2868 x 1320). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
+test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) changes the UI and
+input, and (3.3) phones take the phone look. 3.1: one preset ladder for PCs (Low .. Epic), Auto graphics per PC, a frame governor
 in matches; graphics never change gameplay (3.1.9: the PvP look / FOV locks are gone - each player's own settings). A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
 Blacklist style.
 
@@ -530,6 +530,31 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`): the flashlights. GLSL names must not clash with
   Babylon's macros (`E` is one).
 
+## Phone look (3.3)
+- `core/quality.ts`: `PHONE_FEATURES` (no AO / reflections / bloom / shafts / DOF / motion blur / lens; GI, textures /
+  detail / effects Medium), `PHONE_SHADOW` (moon 1 cascade 1024, one flashlight 512), `PhoneCuts` / `PHONE_CUTS`
+  (`lampVolume`, `plainVoxels`), `PHONE_SCALES` 1 / 0.92 / 0.84 / 0.75 (`PHONE_FLOOR`), `PHONE_FPS_FALLBACK` 30,
+  `QualityLevel.phone`, `levelLabel`. `QualityManager.phone` (mobile and not `?gfx=`): `build` ignores presets / settings
+  (`ov.gfx` for a Phone check run), TAAU at the base scale, the canvas native; `resetGovernor` sets `Governor.max` 4 and
+  starts at 3 (75%); `applyAdaptive` -> `phoneAdaptiveAt` (resolution only, relative to the base; `PostStack.setAdaptive`
+  caps the TAAU scale at 1) and `capNow` (60, 30 at level 4, uncapped in a benchmark run); `phoneCuts` (+ `ov.cuts`,
+  `?lampvol=0`). `App.detectGraphics` skips phones. Settings > Display (`phoneDisplayTab`): FOV, FPS overlay, avatar
+  style, interface, fullscreen, Phone check. GameState reads `phoneCuts` when the map loads: voxel `ao` / `micro` off,
+  `WorldOptions.lampVolume`.
+- Lamp light volume (`voxel/lampVolume.ts` pure grid / regions; `BakedLamps` volume mode, class `LampVolume`): two RGBA8
+  3D render targets over the lamp boxes at `LAMP_CELL` (A rgb = sqrt(light / `LAMP_VOL_MAX`), B = light-weighted mean
+  direction + how one-way it is), drawn slice by slice (`EffectRenderer`, `bindFramebuffer(.., layer)`, viewport = the
+  region) by `MIX_GLSL` from the exact path's data texture + visibility atlas (the 2 m column's lamps: falloff, cone,
+  visibility; no N.L) at load and over the union of changed lamps' regions on a registry change (`remixes`; a mix
+  waiting on its shader retries). `LampPlugin` `LAMP_VOLUME`: two taps, N.L against the direction (wrapped by how
+  spread the light is), capsule shadows from `VOL_CAPS` 4 nearest characters along it (`lampCaps` uniform array).
+- Spike log (`core/spikes.ts` pure `SpikeLog`): frames over `SPIKE.over` x the budget tagged shaders / lamps / lod /
+  governor (event bits from the frame and the one before) else cpu / gpu; `GameState.trackSpikes` per render frame
+  (`VoxelWorld.lodSwaps`, `BakedLamps.remixes`, the engine's compiled effects, the governor level); benchmark lines end
+  with the run's summary, `feedbackContext().spikes`.
+- Phone check (`benchPlan('phone')` = `phoneCheckRuns`): eight `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
+  voxel detail, bloom, shafts, High shadows put back, GI out (`BenchRun.cuts` -> `QualityOverride.cuts`).
+
 ## Corners and doorways
 - `cover/corners.ts` (pure): `findDoorways` (0.7-1.8 m gaps between collinear high faces), `outsideCorners`,
   `sliceSteer` (ease out to a ~1 m standoff approaching a corner), `doorSide`, `pickLean`.
@@ -964,7 +989,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   the session carries the plan and lines, `sameMatch` runs go on in the last match; 3.1.5: the note (`BenchSession.note`)
   saved after every run, `ui/benchTag.ts` "Run n/N · label · fps" on screen), `resolutions` = the monitor's resolutions (3.2.1), `sustained` 10 min with per-minute averages), then a Dialog with a line per run
   (`benchmarkLines`: + frames over `BENCH.longMs` 50 and shaders compiled during the run, from the engine's
-  `_compiledEffects`), saved as a performance feedback note. Every run sets an override, so the frame governor is
+  `_compiledEffects`; 3.3: the run's spike log; phones: `phone` - the Phone check), saved as a performance feedback note. Every run sets an override, so the frame governor is
   off while measuring.
 - Renderer (3.0): `LightRig.configure` - unshadowed map lights in a `ClusteredLightContainer` (plain pool of 6
   without float blending), a shadow pool of spot lights with `ShadowGenerator`s (flashlights first, then the

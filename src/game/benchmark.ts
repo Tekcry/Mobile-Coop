@@ -6,7 +6,7 @@ import { hyp2 } from '../core/mathx';
  * settings, every preset, render pixel counts of the target displays, or a 10-minute sustained loop (laptops:
  * does the frame rate hold once the machine is hot?).
  */
-import { PRESET_IDS, type FixedPreset, type GraphicsFeatures } from '../core/quality';
+import { PHONE_FLOOR, PRESET_IDS, type FixedPreset, type GraphicsFeatures, type PhoneCuts } from '../core/quality';
 
 export const BENCH = {
   /** Seconds of flight per run (the first `warmup` not counted: shader compiles, shadow maps settling). */
@@ -19,7 +19,7 @@ export const BENCH = {
   longMs: 50,
 };
 
-export type BenchKind = 'current' | 'presets' | 'resolutions' | 'sustained' | 'features';
+export type BenchKind = 'current' | 'presets' | 'resolutions' | 'sustained' | 'features' | 'phone';
 
 export interface BenchRun {
   label: string;
@@ -38,6 +38,8 @@ export interface BenchRun {
   sameMatch?: boolean;
   /** 3.1.4 diagnosis (Feature costs): rebuilt mid-match at the run's start, same settings - the post stack or the shadows. */
   rebuild?: 'post' | 'shadows';
+  /** 3.3 Phone check: a phone cut put back for this run. */
+  cuts?: Partial<PhoneCuts>;
 }
 
 /** A benchmark in progress, carried from one run's match to the next. */
@@ -77,6 +79,24 @@ export function featureRuns(f: GraphicsFeatures): { label: string; gfx: Partial<
 }
 
 /**
+ * 3.3 Phone check: the phone look at its 75% floor, then at native, then with each cut put back or one more feature
+ * in turn - the runs that come in at 60 fps (1% low too) say what the phone can keep. Uncapped (the headroom shows).
+ */
+export function phoneCheckRuns(): BenchRun[] {
+  const run = (label: string, extra: Partial<BenchRun> = {}): BenchRun => ({ label, preset: null, scale: PHONE_FLOOR, seconds: FEATURE_SECONDS, sustained: false, ...extra });
+  return [
+    run('phone look, 75%'),
+    run('phone look, 100%', { scale: 1 }),
+    run('+ exact lamps (per-lamp loop)', { cuts: { lampVolume: false } }),
+    run('+ voxel detail (AO, worn edges, surface texture)', { cuts: { plainVoxels: false } }),
+    run('+ bloom', { gfx: { bloom: true } }),
+    run('+ light shafts', { gfx: { volumetrics: true, volLights: 6 } }),
+    run('+ shadows High (2 moon cascades)', { gfx: { shadows: 'high' } }),
+    run('- bounce light', { gfx: { gi: false } }),
+  ];
+}
+
+/**
  * The runs for a benchmark kind. `outW` / `outH` = the output in device pixels at render scale 1 (3.2.1: the monitor
  * on desktop): Resolutions runs the monitor's own resolutions (`desktopResolutions`: a 7680 x 2160 monitor runs 7680 x
  * 2160, 5120 x 1440, 3840 x 1080).
@@ -94,6 +114,7 @@ export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: 
     const res: BenchRun = { ...run('render scale 75%', null, Math.max(0.5, scale * 0.75)), seconds: FEATURE_SECONDS };
     return [base, res, ...(current ? featureRuns(current) : []).map((r) => ({ ...run(r.label), seconds: FEATURE_SECONDS, gfx: r.gfx })), post, shadows];
   }
+  if (kind === 'phone') return phoneCheckRuns();
   if (kind === 'sustained') return [{ ...run(`sustained ${Math.round(BENCH.sustained / 60)} min`), seconds: BENCH.sustained, sustained: true }];
   if (kind === 'resolutions') return desktopResolutions(outW, outH).map((r) => run(`${r.w}x${r.h}`, null, resolutionScale(r.h, outH)));
   return [run('current settings')];

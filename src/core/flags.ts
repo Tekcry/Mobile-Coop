@@ -23,6 +23,8 @@ export interface Flags {
   voxels: boolean;
   /** 3.2 baked lamps (`?baked=0`: real lights and shadow maps, for comparisons). */
   baked: boolean;
+  /** 3.3 phones: `?lampvol=0` the exact per-lamp loop instead of the light volume (comparisons). */
+  lampVolume: boolean;
   /** Autostart weather (clear | rain | fog). */
   weather: 'clear' | 'rain' | 'fog' | null;
   /** 3.1: Auto graphics detection also under automation (`?detect=1`; tests otherwise keep their settings). */
@@ -56,6 +58,7 @@ export const flags: Flags = {
   gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
   voxels: params.get('voxels') !== '0',
   baked: params.get('baked') !== '0',
+  lampVolume: params.get('lampvol') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
   detect: params.get('detect') === '1',
   renderer: params.get('renderer')?.slice(0, 96) ?? null,

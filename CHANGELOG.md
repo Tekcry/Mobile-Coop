@@ -1,5 +1,28 @@
 # Changelog
 
+## 3.3.0 - One phone look
+- Phones have no graphics settings any more: one fixed look built for 60 fps on the iPhone 17 Pro Max. Settings >
+  Display keeps the field of view, the FPS overlay, the avatar style, the interface switch and fullscreen.
+- Resolution 75 - 100% of the screen, sharpened to full resolution (TAAU), chosen in the match by the frame governor:
+  a match starts at 75% and steps up while there is room; it never goes under 75%. A phone that still misses 60 there
+  holds a steady 30 instead of wobbling, and tries 60 again later.
+- What the phone look keeps: every lamp's light and shadows (walls, racks, doorways) and the characters' shadows under
+  them, bounce light, the moon's shadows (one cascade), one flashlight shadow, the height fog. What it drops: ambient
+  occlusion, reflections, bloom, light shafts, depth of field, lens effects, the 2.5 cm prop layer, and on the voxel
+  walls the AO, worn edges and fine surface texture.
+- The lamps cost two texture reads a pixel instead of a loop over up to eight lamps: they are mixed into one light
+  volume (the bake's own 0.2 m cells: light and the direction it comes from) on the GPU - at load, and again over
+  the cells of any lamp that switches, is shot out or goes down to an EMP (2 - 4 ms once, not every frame). Next to the
+  per-lamp version it looks the same (TESTING.md has the comparison).
+- Spike log: every frame over 1.5x the budget is tagged with what happened around it - shaders compiled, voxel
+  levels of detail swapped, lamps re-mixed, the governor stepping, else the main thread or the GPU. Each benchmark
+  run's line ends with it; feedback notes from a match carry it.
+- Settings > Display > Phone check: eight 20 s flights - the phone look at 75% and at 100%, then the per-lamp loop,
+  the voxel detail, bloom, light shafts and High shadows put back one at a time, and bounce light taken out. Runs are
+  uncapped so the headroom shows. Send the note: it says what the phone can keep at 60.
+- Measured before this (iPhone 17 Pro Max, 3.2.2): Medium at 75% 33 fps, at 56% 54 fps - the cost is the shading of
+  every pixel, not the passes after it.
+
 ## 3.2.5 - A walking benchmark flight
 - The benchmark flight cut straight from room middle to room middle - through walls - and was then lifted over
   whatever was below it, so it bobbed up and down over crates and racks. It now follows the guards' walking routes:

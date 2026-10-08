@@ -219,7 +219,8 @@ export class PostStack {
   setAdaptive(scale: number, volLights: number): void {
     this.volMul = volLights;
     this.volMax = Math.round(this.volBase * volLights);
-    const s = Math.max(0.4, this.upscale * scale);
+    // (3.3 phones step up from their base to native: never past 1)
+    const s = Math.min(1, Math.max(0.4, this.upscale * scale));
     this.taau?.setScale(s);
     // (the fog pass ahead of TAAU sets the scene's size: it follows)
     if (this.taau && this.vol) (this.vol as unknown as { _options: number })._options = s;

@@ -24,7 +24,7 @@ import type { BenchKind, BenchSession } from '../game/benchmark';
 import type { CrashLog } from '../feedback/crashLog';
 import { classifyGpu, hudInset, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
-import { MOBILE_PRESET_IDS, PHONE_FPS, PRESET_IDS, presetDisplay, type FixedPreset } from './quality';
+import { levelLabel, MOBILE_PRESET_IDS, PHONE_FPS, PRESET_IDS, presetDisplay, type FixedPreset } from './quality';
 import { setAuto, setPreset } from './settings';
 import { renderOpts } from '../world/renderOpts';
 import { flags } from './flags';
@@ -86,7 +86,7 @@ export class App {
     this.input = new InputManager(canvas, this.uiRoot, this.settings);
     this.toasts = new Toasts(this.uiRoot);
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
-    this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
+    this.debug.extra.set('quality', () => `${levelLabel(this.quality.level)}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
     this.debug.pacing = () => this.quality.pacing();
     this.debug.extra.set('governor', () => {
       const g = this.quality.governor;
@@ -196,8 +196,10 @@ export class App {
    */
   detectGraphics(force = false): void {
     const v = this.settings.get().video;
+    // (3.3 phones: one fixed look - nothing to detect)
+    if (this.platform.platform === 'mobile') return;
     if ((!v.auto && !force) || (navigator.webdriver && !flags.detect)) return;
-    const mobile = this.platform.platform === 'mobile';
+    const mobile = false;
     const key = deviceKey(this.gpu.renderer, this.platform.platform, screen.width, screen.height, devicePixelRatio);
     if (!force && v.device.key === key && v.device.tier) {
       if (v.preset !== v.device.tier) this.settings.update((d) => setAuto(d, d.video.device.tier, mobile));
@@ -320,6 +322,7 @@ export class App {
    */
   private phoneDefaults(): void {
     const v = this.settings.get().video;
+    // (3.3: phones ignore the graphics settings - the fixed phone look; kept for an "Interface: Desktop" switch)
     if (this.platform.platform !== 'mobile' || v.phoneSetup || (navigator.webdriver && !flags.detect)) return;
     this.settings.update((d) => {
       if (d.video.fpsCap === 0) d.video.fpsCap = PHONE_FPS;

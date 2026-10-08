@@ -56,6 +56,8 @@ export class VoxelWorld {
   private chunks: Chunk[] = [];
   private textures: (RawTexture | RawTexture3D)[] = [];
   private lodT = 0;
+  /** Level-of-detail swaps so far (3.3 spike log). */
+  lodSwaps = 0;
   /** The sky bake: visibility per cell and, per column, the top of the highest solid cell (rain stops there). */
   sky: { origin: [number, number, number]; cell: number; n: [number, number, number]; roof: Float32Array } | null = null;
   private skyVis: Uint8Array | null = null;
@@ -475,6 +477,7 @@ export class VoxelWorld {
       while (want > 0 && !c.lods[want]) want--;
       if (want === c.shown) continue;
       c.shown = want;
+      this.lodSwaps++;
       c.lods.forEach((m, l) => m?.setEnabled(l === want));
     }
   }

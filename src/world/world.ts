@@ -48,6 +48,8 @@ export interface WorldOptions {
   seed: number;
   /** `?gfx=min` (tests): the 2.x standard materials (no PBR, no surface textures) - cheap under software GL. */
   cheap?: boolean;
+  /** 3.3 phones: the baked lamps mixed into one light volume (`BakedLamps` volume mode). */
+  lampVolume?: boolean;
   /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
   detail?: TierQuality;
   /** 3.0 voxels (null / absent: the blockout's boxes as before). */
@@ -226,7 +228,8 @@ export class World {
     }
     const w = new World(scene, map, level, layout, atlas, voxels, fine);
     if (lamps) {
-      w.lamps = new BakedLamps(scene, level.lights, lamps.baked, lamps.r, lamps.lo, lamps.hi);
+      // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
+      w.lamps = new BakedLamps(scene, level.lights, lamps.baked, lamps.r, lamps.lo, lamps.hi, opts.lampVolume ? { floorY: 0 } : null);
       w.lamps.bakeMs = lamps.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);

@@ -21,7 +21,7 @@ import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
 import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
-import { MOBILE_PRESET_IDS, PRESET_IDS } from './core/quality';
+import { levelLabel, MOBILE_PRESET_IDS, PRESET_IDS } from './core/quality';
 import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
 import { CrashLog } from './feedback/crashLog';
 import { benchTag } from './ui/benchTag';
@@ -153,7 +153,7 @@ async function boot(): Promise<void> {
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
     const b = opts.benchmark;
-    const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${app.quality.level.name})` : `${opts.map.id} / ${opts.mode}`;
+    const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${levelLabel(app.quality.level)})` : `${opts.map.id} / ${opts.mode}`;
     app.crashLog?.stage(`loading ${what}`);
     // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
     app.onAvatarStyle = null;
@@ -191,7 +191,7 @@ async function boot(): Promise<void> {
     s.note ??= `fb-bench-${Date.now().toString(36)}`;
     s.started ??= Date.now();
     benchTag(`Run ${s.idx + 1}/${s.runs.length} · ${run.label} · loading`);
-    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx }, false);
+    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx, cuts: run.cuts }, false);
     startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
   };
   // tests: a shorter flight
