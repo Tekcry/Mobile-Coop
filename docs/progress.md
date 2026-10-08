@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | in progress (Step 1 reviewed; Step 2) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | in progress (Step 2 done, awaiting review) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -288,6 +288,36 @@ See the Step 1 and Step 5 reports.
     - `e2e-stealth-ai` lights: the investigating guard walks to the second lamp shot out (9, -9) through the pool
       of the lamp at (9, 3) (0.44-0.51 at his head), so his torch stays off until he leaves it (traced). The check
       waits up to 15 s and asserts the torch came on where the field reads dark (0.34).
+  - e2e fixes for flakes that predate Phase 1 (`e2e-coop` "client grabs a host guard from behind": 1 in 3 on `a78293f` and
+    on Step 1 alike; failure dumps added to find the causes):
+    - the guard was picked from the client's puppets, which can still list one the host has just removed: picked on
+      the host now, the client waits for its puppet;
+    - the checks before (an execute, a gas cloud) can leave guards in combat having spotted the client, and such a
+      guard cannot be taken by surprise (by design): the host's guards are calmed first;
+    - the gas cloud is cleared first (the grab spot is inside it).
+    - One failure on the earlier version lost the chosen guard on the host mid-check, cause not traced; a kill log
+      stays in the suite and dumps on failure. 5 of 5 runs pass after the fixes.
+- Tests:
+  - `npm run lint`: clean. `npx vitest run`: 63 files, 617 tests (new: `lampMath` known values, `levelAt` against an
+    independent brute-force sum at 500 random points, state changes, doors, dynamic lights, allocation bound, trilinear).
+  - Step 1's full `npm run e2e` (before Step 2, after the review): 31 suites, 1342 checks; 30 passed, `e2e-coop`
+    failed on the grab (pre-existing, above).
+  - Step 2 build: `e2e-stealth-ai` (full suite, after its torch fix), `e2e-stealth`, `e2e-tactics`, `e2e-missions`,
+    `e2e-desktop` (the GLSL built from `lampMath` compiles on the Epic exact path and the phone voxel look's volume;
+    no console errors), `e2e-lightbake`: all pass. `e2e-coop`: 5 of 5 after its fixes.
+  - The full `npm run e2e` on Step 2: not run (phase end, Step 9).
+- Measurements (perf test path `--budget`, cloud VM; interleaved with `a78293f` on the same VM):
+
+  | Build | sim p95 ms | anim ms / char | alloc MB/s | draws | tris M | budgets |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | `a78293f` (two runs) | 3.4, 2.0 | 0.0703, 0.0462 | 10.83, 11.09 | 43 | 0.14 | sim + anim over, then all pass |
+  | Step 2 (four runs) | 2.65, 2.95, 3.05, 2.9 | 0.0541, 0.0527, 0.0675, 0.0569 | 11.26, 11.32, 11.54, 11.18 | 43 | 0.14 | anim over by a hair twice, alloc over by 0.2% once, then all pass |
+
+  - The animation misses happen on `a78293f` too (worse), as Phase 0 reported; Step 2 touches no animation code.
+  - Allocations lean 0.3 MB/s higher on Step 2. A top-80 allocation profile of each build shows no light-field
+    function at all (no `levelAt`, `bodyLevel`, `updateLight`); the top-80 sums differ by 2.5% (8.66 / 8.88 MB/s),
+    the shuffle of sites near the cut-off. Read as noise; still near the budget as in Phase 0.
+  - The player meter now casts rays only for flashlights (before: one per lamp in range, 10 Hz, two samples).
 - Engine facts for `docs/level-design.md` Section 12 (written in Step 9):
   - Light formula: linear falloff to the lamp's reach; a lamp without a cone lights only below itself, by the
     cosine from straight down; a spot by the squared cosine inside its outer angle, nothing outside it.
@@ -301,6 +331,15 @@ See the Step 1 and Step 5 reports.
     table by light band; darkness from ambient 0.08-0.12) and Space 2's moonlight, authored as ambient zones at 0.28
     under the windows - the old dark / mid edge, now mid (0.25 / 0.53), and with the baked moon the windows' light
     comes from the moon itself rather than a zone. Re-check in the alignment pass (map Phase 2b).
+
+- Open issues:
+  - Allocations on the test path sit near the 11.5 MB/s budget (Phase 0's open issue; 11.2-11.5 here).
+  - `e2e-coop`'s grab: one failure mode (the guard lost on the host mid-check) not traced; the kill log reports it if
+    it comes back.
+  - The light field's moon and lamps are not yet drawn on the phone (Step 4) or for the moon on desktop (Step 3), so
+    until then the screen and the field can differ in the moon's shadow and on the phone.
+  - Section 12 and the Exchange re-check are recorded above for Step 9 and map Phase 2b.
+- Next: STOP for the Opus review. Then Step 3 (desktop renders the same field).
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
