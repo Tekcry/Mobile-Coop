@@ -1,3 +1,4 @@
+import { renderOpts } from './renderOpts';
 import { surfaceAt, type Surface, type SurfaceArea } from './surfaces';
 import { SURFACE_ID, type SurfaceAtlas } from './surfaceAtlas';
 import { SurfacePlugin } from './surfacePlugin';
@@ -417,7 +418,7 @@ export class LevelBuilder {
       pm.directIntensity = Math.PI;
       pm.environmentIntensity = 0.6;
       // the probe's cube is not prefiltered: blur it by roughness on the fly
-      pm.realTimeFiltering = true;
+      pm.realTimeFiltering = renderOpts.iblFilter;
       surfacePlugin = new SurfacePlugin(pm, opts.atlas, 'world');
       mat = pm;
     } else {

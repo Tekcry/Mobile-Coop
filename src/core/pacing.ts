@@ -28,19 +28,21 @@ function pick(s: Float32Array, n: number, p: number): number {
   return s[Math.min(n - 1, Math.floor(p * n))]!;
 }
 
-/** Median of the first `n` values of `src`, using `scratch` (no allocation). */
-function median(src: Float32Array, n: number, scratch: Float32Array): number {
+/** The q-quantile (0..1) of the first `n` values of `src`, using `scratch` (no allocation). */
+function quantile(src: Float32Array, n: number, scratch: Float32Array, q: number): number {
   if (n <= 0) return 0;
   const s = scratch.subarray(0, n);
   s.set(src.subarray(0, n));
   s.sort();
-  return n % 2 ? s[(n - 1) >> 1]! : (s[n / 2 - 1]! + s[n / 2]!) / 2;
+  return s[Math.min(n - 1, Math.max(0, Math.floor((n - 1) * q)))]!;
 }
 
 /**
- * Refresh-rate detector: medians rAF intervals (skipping the first, hitchy frames). Re-detects when
- * the display rate changes (low-power mode, ProMotion throttling): a new median that disagrees for a
- * full window replaces the old value.
+ * Refresh-rate detector: the fast end (25th percentile) of the rAF intervals, skipping the first, hitchy frames - a
+ * GPU-bound frame takes whole refresh periods, so slow frames say the frame rate, not the display's (3.1.9: the phone
+ * read 16 / 24 / 48 Hz on a 120 Hz screen in heavy matches, and the frame governor then thought every frame was on
+ * time). A lower rate is only taken where frames are cheap (`allowDrop`: the menu) - a real cap (low-power mode, a
+ * browser at 60) shows there; a higher one is taken anywhere.
  */
 export class RefreshDetector {
   private buf: Float32Array;
@@ -63,7 +65,7 @@ export class RefreshDetector {
   }
 
   /** Feed one rAF interval (ms). Returns true when the detected rate changed. */
-  push(intervalMs: number): boolean {
+  push(intervalMs: number, allowDrop = true): boolean {
     if (this.skip > 0) {
       this.skip--;
       return false;
@@ -73,8 +75,8 @@ export class RefreshDetector {
     this.buf[this.n++] = intervalMs;
     if (this.n < this.window) return false;
     this.n = 0;
-    const hz = snapHz(median(this.buf, this.window, this.scratch));
-    if (hz === this.hz) return false;
+    const hz = snapHz(quantile(this.buf, this.window, this.scratch, 0.25));
+    if (hz === this.hz || (hz < this.hz && !allowDrop)) return false;
     this.hz = hz;
     return true;
   }

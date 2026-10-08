@@ -4,6 +4,8 @@
  * wide viewport. Desktop hides touch-only controls and settings (a touchscreen laptop still gets the touch layer
  * the moment it is touched, and keeps the Touch settings).
  */
+import { viewHeight, viewWidth } from './viewRotation';
+
 export type Platform = 'mobile' | 'desktop';
 export type PlatformChoice = 'auto' | Platform;
 
@@ -51,8 +53,8 @@ export function browserEnv(): PlatformEnv {
     maxTouchPoints: navigator.maxTouchPoints ?? 0,
     finePointer: mq('(pointer: fine)') && mq('(hover: hover)'),
     anyCoarse: mq('(any-pointer: coarse)'),
-    width: window.innerWidth,
-    height: window.innerHeight,
+    width: viewWidth(),
+    height: viewHeight(),
     userAgent: navigator.userAgent,
   };
 }

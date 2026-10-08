@@ -416,6 +416,86 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
 - [ ] Hunter on the Warehouse: every room still clears; Infiltration missions (Ledger, Courier, Blackout, Cold Storage)
   still complete.
 
+## 3.1.1 - Phone GPU (iPhone 17 Pro Max, Settings > Graphics > Benchmark, each preset)
+| Build | Low | Medium | High | Ultra |
+| --- | --- | --- | --- | --- |
+| 3.1.0 (2868 x 1320) | 60 avg / 35 1% low | 19 / 8 | 15 / 7 | 12 / 6 |
+| 3.1.1 (1912 x 880) | 76 / 48 | 47 / 15 | 41 / 12 | 21 / 8 |
+| 3.1.2 (Feature costs, current settings) | | 57 / 21 | | 22 / 12 |
+| 3.1.3 (Feature costs, current settings) | | 53 / 18 | | 21 / 11 |
+| 3.1.4 (Feature costs, own match per run) | | 52 / 20 | | crashed |
+| 3.1.5 | | | | |
+- 3.1.2 Feature costs: Medium shadows Low 62 fps, lamps 8 54; Ultra shadows Low 28, lamps 8 23. Every other run
+  (8-20 fps) was the rebuild bug fixed in 3.1.3, not the feature's cost.
+- 3.1.3 Feature costs: the same pattern (Ultra shadows Low 25, lamps 8 22, post half 23; every other run 8-20 fps).
+- 3.1.4 Medium: without ambient occlusion 70 / 42, textures Low 56 / 40, shadows Low 55, shafts / bloom / lamps 8
+  within 2 fps; post effects rebuilt mid-match 49, then shadows rebuilt mid-match 15 (the mid-match slowdown is the
+  shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
+- [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
+  the menu, play again): no crash, no slowdown building up.
+- [ ] 3.4.0 iPhone: a match looks like 2.x (plain level, smooth characters, lamp pools of light, no shadow maps) and
+  holds 60 on the FPS overlay for 10 minutes of play; the phone stays warm, not hot. Phone check (~8 min): send the
+  note - the hold's first vs last minute, and the 3.3 voxel look run against the light look.
+- [ ] 3.4.0 iPhone: Loadout shows the smooth operator; co-op with a PC: both see the same cover and darkness.
+- [ ] 3.3.2 iPhone (start cool, out of the case, not charging): Phone check - 30 s cool-downs between runs, the
+  last run 3 min held at 60 (first vs last minute).
+- [ ] 3.3.1 iPhone: run the Phone check again; each line ends with fps per 2.5 s of the route; the last run (the
+  first again) shows how much the phone slowed as it warmed.
+- [ ] 3.3.0 iPhone: Settings shows Display (no graphics options); a match holds 60 (FPS overlay) at 75% or more;
+  Settings > Display > Phone check runs eight flights and saves one note - send it.
+- [ ] 3.3.0 iPhone: lamps look as before (switch a circuit off and on, shoot a lamp, EMP: the light goes and comes
+  back at once); characters still cast soft shadows under lamps.
+- [ ] 3.2.5 Benchmark: the flight walks through doorways and corridors, up the mezzanine stairs, never through a wall,
+  no bobbing up and down, gentle turns, a dead-end room circled.
+- [ ] 3.2.4 iPhone (rotation lock off): hold landscape one way, turn upright - the game stays put on the glass; the other
+  landscape way, turn upright - the same. With rotation lock on, upright: the game is landscape. Taps and sticks act
+  where they look in every case.
+- [ ] 3.2.3: Benchmark > Every preset - Low has floors; no run flies through the mezzanine. Turning the phone mid-run
+  does not close the tab.
+- [ ] 3.2.2 iPhone: Benchmark > Every preset and Feature costs at Ultra finish without a crash report; the tag shows
+  "freeing memory" between runs; send the lines (3.2.0: Medium 33, High 29, Ultra 20 fps native).
+- [ ] 3.2.1 desktop (7680 x 2160 monitor): Settings > Graphics > Resolution lists 7680 x 2160 (native), 5120 x 1440,
+  3840 x 1080; in fullscreen a benchmark line says 5120x1440 after picking it; in a window it says "5120x1440 (window
+  ...)". Benchmark > Resolutions runs the three.
+- [ ] 3.2 baked lamps (phone and laptop): lamp pools look as before; racks, crates and walls cast shadows under every
+  lamp (not just the nearest few); no light through walls or closed racks; a guard / the operator casts a soft
+  shadow under each lamp; shooting a lamp or a switch darkens its area at once; an EMP darkens and restores. First
+  load of the Warehouse: note the load time (the bake), then again (cached).
+- [ ] 3.2 Benchmark > Every preset on the iPhone (Ultra is native 2868x1320 now): send the lines.
+- [ ] 3.1.9 desktop Epic (RT reflections on): no bottom-half fog in a match or the benchmark, aiming and not aiming.
+- [ ] 3.1.9 phone: Settings > Graphics has no Ambient occlusion / Reflections / Depth of field / Lens / Panini rows and
+  an Output resolution choice (Native 2868x1320, the default / 1912x880 / 1434x660); Target frame rate shows 60;
+  Ultra shows Resolution scale 100%, Upscaler off. Benchmark > Every preset: send the lines (3.1.8 at 1912x880: Medium
+  54, High 36, Ultra 21 fps; the target is Ultra 60 native, after the 3.2 lighting work).
+- [ ] 3.1.9 PvP: a wide FOV on one player and a narrow one on another both stay as set in Team Deathmatch.
+- [ ] 3.1.9 phone: feedback notes from a heavy match say the display's real rate (120 Hz on the iPhone 17 Pro Max), and
+  the benchmark's debug line shows the governor stepping down (`governor L<n>`) when frames miss.
+- [ ] 3.1.8 desktop: Epic (and Shadows Epic in Custom) shows the level, no fog-only view; the picture is sharp with
+  Adaptive detail off (no hidden resolution drop). Settings > Graphics > Resolution: pick one - it applies at once,
+  Keep keeps it, waiting 15 s puts the last one back.
+- [ ] 3.1.7 Settings > Feedback > Copy as text: each note has a second line with its context (settings, device,
+  GPU, frames).
+- [ ] 3.1.7 desktop Ultra was all grey (fog) except the lamps in every benchmark run (custom settings fine): at Ultra,
+  does a normal match (Play > Deploy) look right? With Settings > Graphics > Upscaler off?
+- [ ] 3.1.6 forced landscape (iPhone, rotation lock on, held upright): the game shows turned; hold the phone turned
+  left and play a match - menus tap where they look, sticks / camera / fire go the right way, nothing hides under
+  the Dynamic Island or the home bar; unlock rotation and turn the phone: the normal landscape takes over.
+- [ ] 3.1.5: Feature costs on Ultra, High and Medium: no crash; the tag at the top names each run; Settings >
+  Feedback has the note after every run. If it still crashes: the next start shows a toast and a "Crash report" note
+  naming the run - send it with the benchmark note.
+- [ ] (was 3.1.4) Settings > Graphics > Preset Ultra, then Benchmark > Feature costs (each run loads the map: ~4 min);
+  again on Medium. Copy text and send the lines: no run without a feature may come out slower than "current
+  settings"; the last two lines ("post effects rebuilt mid-match", "then shadows rebuilt mid-match") are the
+  diagnosis of the mid-match slowdown.
+- [ ] Mid-match (pause > Settings > Graphics): turn Ambient occlusion off and on, then Bloom: the frame rate stays
+  where it was (3.1.2 dropped ~4x until Shadows were changed).
+- [ ] Fog and light shafts look as before (Medium, Fog weather); no shimmer on the shafts when the camera moves.
+- [ ] Settings > Graphics > Shadows changed in a paused match: shadows switch, nothing goes black or flickers.
+- [ ] Display rate: Settings > Graphics > Target frame rate shows "Display refresh (N Hz)". Every iPhone browser
+  (Chrome too) runs on WebKit; if it reads 60, turn off Settings > Apps > Safari > Advanced > Feature Flags >
+  "Prefer Page Rendering Updates near 60fps", close the browser fully, check again; then try Safari and the Home
+  Screen app. Still 60 everywhere: the phone target is a steady 60 at Ultra (the governor aims at the display rate).
+
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
 - [ ] Fresh install on the iPhone: a toast "Graphics: <preset> for this device" a few seconds after the menu shows;

@@ -1,10 +1,21 @@
-import { Effect, Matrix, PassPostProcess, PostProcess, type BaseTexture, type Camera, type RenderTargetWrapper, type Scene } from '../core/babylon';
+import { Effect, Matrix, PassPostProcess, PostProcess, type Camera, type Observer, type RenderTargetWrapper, type Scene } from '../core/babylon';
 
-/** The scene depth (3.1): the G-buffer's raw view z, or the depth renderer's normalised one. */
+/** The scene depth: the G-buffer's raw view z (`depthRaw` 1), the depth renderer's normalised one (0), or (3.2) the
+ *  scene pass's own depth buffer (2: hardware depth, no second geometry pass). `bind` sets it on an effect. */
 export interface DepthSource {
-  tex(): BaseTexture;
-  raw: boolean;
+  bind(e: Effect, name: string): void;
+  mode: number;
 }
+
+/** GLSL: view z from the depth sample `d` by `depthRaw` (0 normalised, 1 raw view z, 2 hardware depth). */
+export const VIEW_Z_GLSL = `float sceneViewZ(float d) {
+  if (depthRaw > 1.5) {
+    if (d >= 0.99999) return maxZ;
+    float ndc = d * 2.0 - 1.0;
+    return min(2.0 * minZ * maxZ / ((maxZ + minZ) - ndc * (maxZ - minZ)), maxZ);
+  }
+  return depthRaw > 0.5 ? (d <= 0.0 ? maxZ : min(d, maxZ)) : (d >= 0.9999 ? maxZ : d * (minZ + maxZ) - minZ);
+}`;
 
 /**
  * TAAU (3.0, Display > Upscaler): the scene renders at `scale` of the display's resolution (this pass is first in the
@@ -30,6 +41,7 @@ uniform vec2 jitter;
 uniform vec2 lowSize;
 uniform float reset;
 uniform float depthRaw;
+${VIEW_Z_GLSL}
 
 // Catmull-Rom in 5 bilinear taps
 vec3 sampleCR(vec2 uv) {
@@ -65,8 +77,7 @@ void main(void) {
   vec3 mn = min(cur, min(min(a, b), min(c, d)));
   vec3 mx = max(cur, max(max(a, b), max(c, d)));
   // reprojection: this pixel's world point in last frame's view
-  float dz = texture2D(depthSampler, vUV).r;
-  float viewZ = depthRaw > 0.5 ? (dz <= 0.0 ? maxZ : min(dz, maxZ)) : (dz >= 0.9999 ? maxZ : dz * (minZ + maxZ) - minZ);
+  float viewZ = sceneViewZ(texture2D(depthSampler, vUV).r);
   vec2 ndc = vUV * 2.0 - 1.0;
   vec3 vdir = vec3(ndc.x * tanY * aspect, ndc.y * tanY, 1.0);
   vec3 wp = camPos + normalize((invView * vec4(vdir, 0.0)).xyz) * viewZ * length(vdir);
@@ -114,11 +125,13 @@ export class Taau {
     const engine = scene.getEngine();
     // first in the chain: its input (the scene) is `scale` of the canvas
     const pp = new PostProcess('taau', 'taau', ['invView', 'prevViewProj', 'camPos', 'tanY', 'aspect', 'minZ', 'maxZ', 'jitter', 'lowSize', 'reset', 'depthRaw'], ['historySampler', 'depthSampler'], scale, camera, undefined, engine, false, null, 2);
-    pp.onActivateObservable.add(() => {
+    // this frame's jitter, set before the camera renders anything (shadow maps, the G-buffer, the scene - and any
+    // pass ahead of this one in the chain, 3.1: the fog / light shafts at the low resolution)
+    this.jitterObs = scene.onBeforeCameraRenderObservable.add((cam) => {
+      if (cam !== this.camera) return;
       const w = engine.getRenderWidth();
       const h = engine.getRenderHeight();
-      if (!this.ping || this.ping.width !== w || this.ping.height !== h) this.makeTargets(w, h);
-      // this frame's jitter (in low-resolution pixels), on the projection
+      // (in low-resolution pixels, on the projection)
       this.n = (this.n % 16) + 1;
       const lw = Math.max(1, Math.floor(w * this.scale));
       const lh = Math.max(1, Math.floor(h * this.scale));
@@ -131,6 +144,11 @@ export class Taau {
       this.camera.getViewMatrix().multiplyToRef(this.proj, this.curVP);
       p.setRowFromFloats(2, this.jx, this.jy, p.m[10]!, p.m[11]!);
       this.scene.updateTransformMatrix(true);
+    });
+    pp.onActivateObservable.add(() => {
+      const w = engine.getRenderWidth();
+      const h = engine.getRenderHeight();
+      if (!this.ping || this.ping.width !== w || this.ping.height !== h) this.makeTargets(w, h);
       this.pass.inputTexture = this.flip ? this.ping! : this.pong!;
       this.flip ^= 1;
     });
@@ -138,8 +156,8 @@ export class Taau {
       const cam = this.camera;
       cam.getViewMatrix().invertToRef(this.invView);
       e._bindTexture('historySampler', (this.flip ? this.ping! : this.pong!).texture);
-      e.setTexture('depthSampler', depth.tex());
-      e.setFloat('depthRaw', depth.raw ? 1 : 0);
+      depth.bind(e, 'depthSampler');
+      e.setFloat('depthRaw', depth.mode);
       e.setMatrix('invView', this.invView);
       e.setMatrix('prevViewProj', this.prevVP);
       const p = cam.globalPosition;
@@ -181,7 +199,10 @@ export class Taau {
     this.reset = 1;
   }
 
+  private jitterObs: Observer<Camera> | null = null;
+
   dispose(): void {
+    this.scene.onBeforeCameraRenderObservable.remove(this.jitterObs);
     this.pp.dispose(this.camera);
     this.pass.dispose(this.camera);
     this.ping?.dispose();

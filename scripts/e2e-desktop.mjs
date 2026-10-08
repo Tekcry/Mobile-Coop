@@ -83,11 +83,48 @@ try {
   const mob = await G(() => ({ cls: document.body.classList.contains('platform-mobile'), tabs: [...document.querySelectorAll('.settings-screen .tab')].map((t) => t.dataset.tab) }));
   assert(mob.cls && mob.tabs.includes('touch') && !mob.tabs.includes('kbm'), `Interface: Mobile (${mob.tabs.join(',')})`);
   await G(() => window.__app.settings.update((d) => { d.video.platform = 'auto'; }));
+  await frames(page, 4);
+  // 3.1.7 Resolution (desktop): the monitor's resolutions (3.2.1); a pick applies at once, Keep keeps it, no answer reverts in 15 s
+  {
+    const openRes = () => G(() => [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).click());
+    const pickRes = (re) => G((src) => [...document.querySelectorAll('.res-dialog .btn')].find((b) => new RegExp(src).test(b.textContent)).click(), re);
+    const scale0 = await G(() => window.__app.settings.get().video.renderScale);
+    await G(() => window.__app.settings.update((d) => { d.video.dynamicRes = true; }));
+    await openRes();
+    await page.waitForSelector('.res-dialog');
+    // (3.2.1: the monitor's standard resolutions - a 1920 x 1080 screen: 1920 x 1080 (native), 1600 x 900, 1366 x 768,
+    // 1280 x 720)
+    const opts = await G(() => [...document.querySelectorAll('.res-dialog .btn')].map((b) => b.textContent));
+    const mon = await G(() => `${Math.round(screen.width * devicePixelRatio)} x ${Math.round(screen.height * devicePixelRatio)}`);
+    assert(opts.length >= 3 && opts[0] === `${mon} (native)` && opts.every((o) => /^\d+ x \d+( \(native\))?$/.test(o)), `Resolution lists the monitor's resolutions (${opts.join(' | ')})`);
+    const second = opts[1];
+    const last = opts.at(-1);
+    const hOf = (o) => Number(o.split(' x ')[1]);
+    const monH = Number(mon.split(' x ')[1]);
+    await pickRes(`^${second}$`);
+    await page.waitForFunction(() => /Keep this resolution/.test(document.querySelector('.dialog-title')?.textContent ?? ''));
+    const applied = await G(() => ({ s: window.__app.settings.get().video.renderScale, r: window.__app.settings.get().video.resolution, dyn: window.__app.settings.get().video.dynamicRes, msg: document.querySelector('.dialog-msg').textContent }));
+    assert(Math.abs(applied.s - hOf(second) / monH) < 1e-6 && applied.r === second.replace(' x ', 'x') && !applied.dyn && /Reverting to .* in 15 s/.test(applied.msg), `a pick applies at once and asks to keep it (${JSON.stringify(applied)})`);
+    await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Keep/.test(b.textContent)).click());
+    await page.waitForTimeout(1500);
+    const kept = await G(() => ({ r: window.__app.settings.get().video.resolution, row: [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).textContent }));
+    assert(kept.r === second.replace(' x ', 'x') && kept.row.includes(second), `Keep keeps it, the row shows it (${kept.row})`);
+    await openRes();
+    await page.waitForSelector('.res-dialog');
+    await pickRes(`^${last}$`);
+    await page.waitForFunction(() => /Keep this resolution/.test(document.querySelector('.dialog-title')?.textContent ?? ''));
+    assert((await G(() => window.__app.settings.get().video.resolution)) === last.replace(' x ', 'x'), 'the second pick applies');
+    await page.waitForFunction(() => !document.querySelector('.dialog-title'), null, { timeout: 25000 });
+    const back = await G(() => window.__app.settings.get().video.resolution);
+    assert(back === second.replace(' x ', 'x'), `no answer for 15 s puts the last resolution back (${back})`);
+    await G(() => window.__app.settings.update((d) => { d.video.resolution = ''; }));
+    await G((v) => window.__app.settings.update((d) => { d.video.renderScale = v; }), scale0);
+  }
   await page.keyboard.press('Escape');
   await frames(page, 3);
   // in a match: the rebound key acts, no touch controls
   await page.goto(url + '?autostart=proving&gfx=min');
-  await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 60000 });
+  await page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 60000 });
   await page.keyboard.down('KeyU');
   await frames(page, 2);
   const rel = await G(() => window.__app.input.state.buttons.reload.down);
@@ -105,10 +142,17 @@ try {
   await page.waitForFunction(() => /average \d+ fps, 1% low \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? ''), null, { timeout: 240000 });
   const bt = await G(() => ({ text: document.querySelector('.dialog').textContent, hudHidden: document.body.classList.contains('photo-mode') }));
   assert(!bt.hudHidden, `the benchmark reports (${bt.text.match(/Warehouse[^)]*\)/)?.[0]})`);
-  await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Save to feedback/.test(b.textContent)).click());
-  await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
+  // (3.1.2: saved on its own as it finishes; the report scrolls inside the dialog and has Copy text)
   const saved = await G(async () => (await window.__app.feedback.all()).find((e) => e.category === 'performance')?.text ?? '');
-  assert(/Benchmark - Warehouse/.test(saved), 'the result is saved as a performance note');
+  assert(/Benchmark - Warehouse/.test(saved), 'the result is saved as a performance note without a tap');
+  const dlg = await G(() => {
+    const m = document.querySelector('.dialog-msg');
+    const cs = getComputedStyle(m);
+    return { scroll: cs.overflowY, copy: [...document.querySelectorAll('.dialog .btn')].some((b) => /Copy text/.test(b.textContent)) };
+  });
+  assert(dlg.scroll === 'auto' && dlg.copy, `the report scrolls and offers Copy text (${JSON.stringify(dlg)})`);
+  await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
+  await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
   // every preset (3.1 ladder, desktop: Low .. Epic): five flights, one line each
   await G(() => window.__app.benchmark('presets'));
   await page.waitForFunction(() => (document.querySelector('.dialog')?.textContent?.match(/average \d+ fps/g) ?? []).length === 5, null, { timeout: 480000 });
@@ -116,8 +160,74 @@ try {
   assert(lines.length === 5 && ['low', 'medium', 'high', 'ultra', 'epic'].every((p, i) => new RegExp(p, 'i').test(lines[i])), `every preset runs in turn (${lines.join(' | ')})`);
   await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
   await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
+  // 3.1.4: every run loads its own match (its settings set before the load); a sameMatch run goes on in the last
+  // one; the diagnosis runs rebuild the post stack / the shadows mid-match
+  const bm = await G(async () => {
+    const app = window.__app;
+    // (a WeakSet: the test must not keep the matches alive itself)
+    const seen = new WeakSet();
+    let matches = 0;
+    const tags = new Set();
+    let partial = '';
+    const run = (label, extra) => ({ label, preset: null, scale: null, seconds: 2, sustained: false, ...extra });
+    app.benchmark({ kind: 'features', runs: [run('current settings'), run('without bloom', { gfx: { bloom: false } }), run('post rebuilt', { rebuild: 'post' }), run('shadows rebuilt', { rebuild: 'shadows', sameMatch: true })], idx: 0, lines: [] });
+    await new Promise((r) => {
+      const t = setInterval(() => {
+        const c = app.current;
+        if (c?.benchmarkLines && !seen.has(c)) {
+          seen.add(c);
+          matches++;
+          window.__gsProto ??= Object.getPrototypeOf(c);
+        }
+        const tg = document.getElementById('bench-tag')?.textContent;
+        if (tg) tags.add(tg.replace(/ · \d+ fps| · warming up| · loading/, ''));
+        if (!partial) void app.feedback.all().then((l) => (partial = l.find((e) => /runs so far/.test(e.text))?.text.split(' - ')[0] ?? ''));
+        if (/average \d+ fps/.test(document.querySelector('.dialog')?.textContent ?? '')) {
+          clearInterval(t);
+          r();
+        }
+      }, 50);
+    });
+    const c = app.current;
+    return { matches, lines: c.benchmarkLines.map((l) => l.split(':')[0]), builds: c.stack.builds, ov: !!app.quality.ov, tags: [...tags], partial, tagLeft: !!document.getElementById('bench-tag') };
+  });
+  assert(bm.matches === 3 && bm.lines.length === 4 && /post rebuilt/.test(bm.lines[2]) && /shadows rebuilt/.test(bm.lines[3]) && bm.builds === 2, `one match per run, the rebuild runs in the last (${JSON.stringify(bm)})`);
+  await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Done/.test(b.textContent)).click());
+  await page.waitForFunction(() => !!document.querySelector('.main-menu'), null, { timeout: 30000 });
+  assert(!(await G(() => !!window.__app.quality.ov)), 'the benchmark leaves no override behind');
+  // 3.1.7: no match outlives its scene (the shader cache held every one: the phone ran out of memory)
+  {
+    const leak = await page.context().newCDPSession(page);
+    await leak.send('HeapProfiler.collectGarbage');
+    const { result: proto } = await leak.send('Runtime.evaluate', { expression: 'window.__gsProto', objectGroup: 'leak' });
+    const { objects } = await leak.send('Runtime.queryObjects', { prototypeObjectId: proto.objectId, objectGroup: 'leak' });
+    const { result } = await leak.send('Runtime.callFunctionOn', { objectId: objects.objectId, functionDeclaration: 'function(){return this.length}', returnByValue: true, objectGroup: 'leak' });
+    await leak.send('Runtime.releaseObjectGroup', { objectGroup: 'leak' });
+    assert(result.value === 0, `no match is kept in memory after it ends (${result.value} left)`);
+  }
+  assert(bm.tags.includes('Run 2/4 · without bloom') && bm.tags.includes('Run 4/4 · shadows rebuilt') && !bm.tagLeft, `the run tag names each run, gone at the end (${bm.tags.join(' | ')})`);
+  assert(/^Benchmark \(\d of 4 runs so far\)$/.test(bm.partial), `the note is saved after every run (${bm.partial})`);
   const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
   assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  // 3.1.4 crash log: a page that dies while open leaves a note for the next start; a reload is a clean close
+  await G(() => window.__app.crashLog.stage('crash test: run 2/9'));
+  const cdp = await page.context().newCDPSession(page);
+  // (the command never answers: the page is gone)
+  await Promise.race([cdp.send('Page.crash').catch(() => undefined), wait(2000)]);
+  const p2 = await page.context().newPage();
+  await p2.goto(url + '?gfx=min');
+  await p2.waitForSelector('.main-menu');
+  const crashes = async () => p2.evaluate(async () => (await window.__app.feedback.all()).filter((e) => /^Crash report/.test(e.text)).map((e) => e.text));
+  let cr = [];
+  for (let i = 0; i < 40 && !cr.length; i++) {
+    cr = await crashes();
+    if (!cr.length) await wait(100);
+  }
+  assert(cr.length === 1 && /crash test: run 2\/9/.test(cr[0]), `a crash leaves a report naming what was running (${cr[0]?.slice(0, 160)})`);
+  await p2.reload();
+  await p2.waitForSelector('.main-menu');
+  await wait(800);
+  assert((await crashes()).length === 1, 'a reload is not reported as a crash');
   await browser.close();
 
   // aspects (16:10, 21:9, 32:9): menus a centred 16:9 layout, the HUD inset on 32:9, Hor+ up to the FOV cap
@@ -137,7 +247,7 @@ try {
     assert(m.item >= (m.W - m.w) / 2 - 1, `${label}: the menu sits inside it (x ${m.item.toFixed(0)})`);
     if (process.env.SHOTS) await P.screenshot({ path: `${process.env.SHOTS}/desk-${label.replace(':', 'x')}-menu.png` });
     await P.goto(url + '?autostart=warehouse&mode=sandbox&gfx=min');
-    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 60000 });
+    await P.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 60000 });
     await GA(() => window.__app.settings.update((d) => { d.video.fovH = 100; d.video.maxFov = 120; }));
     await frames(P, 4);
     const v = await GA(() => {
@@ -170,13 +280,14 @@ try {
     const v = await d.page.evaluate(() => window.__app.settings.get().video);
     assert(v.auto && v.device.source === 'gpu' && v.device.tier === 'low' && v.preset === 'low', `Auto: a software renderer starts on Low by its name (${JSON.stringify(v.device)}, ${v.preset})`);
     await browser.close();
-    const c = await launch({ url, params: 'detect=1&platform=mobile&renderer=Apple%20GPU', touch: true, viewport: { width: 915, height: 412 } });
+    // (3.3: phones have one fixed look - the measuring is a desktop GPU the tables do not know)
+    const c = await launch({ url, params: 'detect=1&platform=desktop&renderer=Mystery%20GPU%2042', touch: false, viewport: { width: 960, height: 540 } });
     browser = c.browser;
     await c.page.waitForFunction(() => window.__app?.detecting, null, { timeout: 60000 });
     const during = await c.page.evaluate(() => window.__app.quality.level.name);
     await c.page.waitForFunction(() => window.__app.settings.get().video.device.source === 'calibrated', null, { timeout: 60000 });
     const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: document.querySelector('.toast')?.textContent ?? '', ov: window.__app.quality.level.name }));
-    assert(['low', 'medium', 'high', 'ultra'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: a hidden phone GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
+    assert(['low', 'medium', 'high', 'ultra', 'epic'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: an unknown GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
     assert(/for this device/.test(cv.toast), `the result is shown (${cv.toast})`);
     // (the settings save is debounced: wait until IndexedDB has the result; page.evaluate awaits the promise,
     // waitForFunction would take the promise itself as truthy)
@@ -203,10 +314,87 @@ try {
     await browser.close();
   }
 
+  // 3.4 the phone look: no detection, one fixed look in a match - the light renderer (the blockout's boxes in
+  // standard materials, smooth characters, no post stack, no shadow maps), native, 60 fps (30 at the governor's last
+  // level); then the 3.3 voxel look (the Phone check's comparison run): 75% through TAAU, the lamps as one light
+  // volume, plain voxels, no bloom
+  {
+    const p = await launch({ url, params: 'detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user&autostart=warehouse&mode=clear', touch: false, viewport: { width: 640, height: 360 } });
+    browser = p.browser;
+    await p.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 240000 });
+    await frames(p.page, 6);
+    const lt = await p.page.evaluate(() => {
+      const a = window.__app;
+      const g = a.current;
+      const q = a.quality.level;
+      const e = a.engine;
+      return { det: a.detecting, source: a.settings.get().video.device.source, phone: q.phone, lite: q.lite, up: q.upscale, cap: a.loop.fpsCap, gov: a.quality.governor.level, pps: g.player.cam.camera._postProcesses.filter(Boolean).map((x) => x.name), voxels: !!g.world.voxels, lamps: !!g.world.lamps, mat: g.world.level.meshes[0]?.material?.getClassName(), body: !!g.player.rig.voxel, sun: q.shadow.sun, casters: q.shadow.casters, scale: e.getRenderWidth() / Math.round(e.getRenderingCanvas().clientWidth * devicePixelRatio) };
+    });
+    assert(!lt.det && lt.source === 'none', `phone: nothing detected or measured (${lt.source})`);
+    assert(lt.phone && lt.lite && lt.up === 1 && [60, 30].includes(lt.cap), `phone: the light look, native, capped at ${lt.cap} (governor level ${lt.gov})`);
+    // (a match starts native; software GL is slow, so the governor may already have stepped: the canvas follows it)
+    assert(Math.abs(lt.scale - [1, 0.92, 0.84, 0.75][Math.min(3, lt.gov)]) < 0.02, `phone: the canvas at the governor's step (x${lt.scale.toFixed(2)}, level ${lt.gov})`);
+    assert(!lt.voxels && !lt.lamps && lt.mat === 'StandardMaterial' && !lt.body, `phone: the blockout in standard materials, smooth characters (${JSON.stringify(lt)})`);
+    assert(!lt.sun && lt.casters === 0 && !lt.pps.some((n) => /taau|ssao|bloom|default|volum/i.test(n)), `phone: no shadow maps, no post stack (${lt.pps.join(',')})`);
+    // the governor steps the canvas: 100 -> 92 -> 84 -> 75%, then 30 fps
+    const steps = await p.page.evaluate(() => {
+      const a = window.__app;
+      const e = a.engine;
+      const out = [];
+      for (let i = 0; i < 4; i++) {
+        let n = 0;
+        while (!a.quality.governor.frame(60, 16.7) && n++ < 400);
+        a.quality['applyAdaptive']();
+        out.push({ l: a.quality.governor.level, s: +(e.getRenderWidth() / Math.round(e.getRenderingCanvas().clientWidth * devicePixelRatio)).toFixed(2), cap: a.loop.fpsCap });
+      }
+      return out;
+    });
+    const last = steps[steps.length - 1];
+    assert(steps.every((x) => x.s >= 0.74) && last.l === 4 && last.cap === 30 && steps[2].s < 0.8, `phone: the governor steps the resolution to 75%, then 30 fps (${JSON.stringify(steps)})`);
+    // the 3.3 voxel look, as the Phone check's comparison run starts it
+    await p.page.evaluate(() => {
+      window.__bench.seconds = 60;
+      window.__app.benchmark({ kind: 'phone', runs: [{ label: 'voxel look', preset: null, scale: 0.75, seconds: 60, sustained: false, look: 'voxel' }], idx: 0, lines: [] });
+    });
+    await p.page.waitForFunction(() => !!window.__app.current?.player && window.__app.current.opts?.benchmark && !window.__app.quality.level.lite, null, { timeout: 240000 });
+    await frames(p.page, 6);
+    const ph = await p.page.evaluate(() => {
+      const a = window.__app;
+      const g = a.current;
+      const q = a.quality.level;
+      const pps = g.player.cam.camera._postProcesses.filter(Boolean).map((x) => x.name);
+      const src = g.world.voxels?.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
+      return { det: a.detecting, source: a.settings.get().video.device.source, phone: q.phone, up: q.upscale, cap: a.loop.fpsCap, gov: a.quality.governor.level, vol: !!g.world.lamps?.volume, pps, src: src.length, ao: src.includes('float occ'), micro: src.includes('vxTap('), volShader: src.includes('lampVolA') && !src.includes('lampCapsule(lp, t0.xyz'), bloom: q.features.bloom, cascades: q.shadow.cascades, ctx: g.feedbackContext().spikes };
+    });
+    assert(ph.phone && ph.up === 0.75, `phone voxel look: 75% (TAAU) (governor level ${ph.gov})`);
+    assert(ph.pps.includes('taau') && !ph.bloom && ph.cascades === 1, `phone voxel look: TAAU, no bloom, one moon cascade (${ph.pps.join(',')})`);
+    assert(ph.vol && ph.volShader, 'phone voxel look: the lamps mixed into one light volume (two taps, no per-lamp loop in the shader)');
+    assert(ph.src > 0 && !ph.ao && !ph.micro, 'phone voxel look: plain voxel surfaces (no AO, no surface taps)');
+    assert(/spikes|no spikes/.test(ph.ctx), `phone: the spike log (${ph.ctx})`);
+    // a switch re-mixes the volume on the GPU, at once
+    const mix = await p.page.evaluate(() => {
+      const g = window.__app.current;
+      const reg = g.world.level.lights;
+      const L = g.world.lamps;
+      const n0 = L.volume.mixes;
+      const grp = reg.lights.find((l) => l.group != null && l.kind !== 'flashlight').group;
+      reg.setGroup(grp, false);
+      L.frame();
+      const n1 = L.volume.mixes;
+      reg.setGroup(grp, true);
+      L.frame();
+      return { n0, n1, n2: L.volume.mixes };
+    });
+    assert(mix.n1 === mix.n0 + 1 && mix.n2 === mix.n1 + 1, `phone voxel look: a light switch re-mixes the volume (${JSON.stringify(mix)})`);
+    const pe = p.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
+    assert(pe.length === 0, `phone: no console errors${pe.length ? ': ' + pe.slice(0, 3).join(' | ') : ''}`);
+    await browser.close();
+  }
+
   // the Epic renderer in a match (small window: software GL)
   const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = e.browser;
-  await e.page.waitForFunction(() => window.__app.current?.player, null, { timeout: 180000 });
+  await e.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(e.page, 6);
   const r = await e.page.evaluate(() => {
     const g = window.__app.current;
@@ -231,24 +419,25 @@ try {
   assert(art.sky && art.inside < 0.5 && art.yard > 0.8, `the sky is baked: dark under the roof, open in the yard (${art.inside.toFixed(2)} / ${art.yard.toFixed(2)})`);
   assert(art.roofIn > 5 && art.roofYard < 1, `rain stops at the roof, falls to the ground in the yard (${art.roofIn} / ${art.roofYard})`);
   assert(art.palette > 40, `the art layer's materials (${art.palette} palette entries)`);
-  // GI per lamp circuit (Epic): baked, in the shader, and a switched-off circuit takes its bounce light away
+  // GI per lamp circuit (Epic): baked, in the shader (3.2: the circuits mixed into one texture), and a switched-off
+  // circuit takes its bounce light away (the mix's sum drops, and comes back)
   const gi = await e.page.evaluate(() => {
     const w = window.__app.current.world;
     const vx = w.voxels;
     const src = vx.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
     const reg = w.level.lights;
     const l = reg.lights.find((x, i) => w.giSlotOf?.[i] >= 0 && x.group >= 0 && x.on);
-    const slot = l ? w.giSlotOf[reg.lights.indexOf(l)] : -1;
-    const before = vx.plugins[0].giWeights[slot];
+    const sum = () => vx.giMix.reduce((a, v, i) => (i % 4 === 3 ? a : a + v), 0);
+    const before = sum();
     if (l) reg.setGroup(l.group, false);
     w.frame(window.__app.current.player.position, 0);
-    const after = vx.plugins[0].giWeights[slot];
+    const after = sum();
     if (l) reg.setGroup(l.group, true);
     w.frame(window.__app.current.player.position, 0);
-    return { groups: vx.giGroups, shader: src.includes('gsum'), slot, before, after, back: vx.plugins[0].giWeights[slot] };
+    return { groups: vx.giGroups, shader: src.includes('voxGi'), before, after, back: sum() };
   });
   assert(gi.groups > 1 && gi.shader, `GI baked per lamp circuit and in the voxel shader (${gi.groups} circuits)`);
-  assert(gi.before === 1 && gi.after < 1 && gi.back === 1, `a switched-off circuit takes its bounce light away (${gi.before} -> ${gi.after} -> ${gi.back})`);
+  assert(gi.before > 0 && gi.after < gi.before && gi.back === gi.before, `a switched-off circuit takes its bounce light away (${gi.before} -> ${gi.after} -> ${gi.back})`);
   // voxel characters (3.0 phase 3): one skinned voxel body per character, the smooth parts unseen
   const ch = await e.page.evaluate(async () => {
     const g = window.__app.current;
@@ -324,7 +513,44 @@ try {
   });
   assert(wp.n > 0 && wp.voxel === wp.n && wp.hidden && wp.cast, `the loadout's weapons are voxel models casting shadows (${wp.voxel} / ${wp.n}, ${wp.quads} quads)`);
   assert(wp.chipped && wp.chipped.color && wp.chipped.now === wp.chipped.chip, `a shot chips the struck voxel (${JSON.stringify(wp.chipped)})`);
-  assert(r.placed >= 8 && r.shadowed >= 1, `Epic: real lights placed (${r.placed}, ${r.shadowed} with shadows, clustered ${r.clustered})`);
+  // 3.2 baked lamps: every fixed light baked and drawn by the lamp plugin; the rig's pools only take flashlights;
+  // a shot-out lamp goes dark at once
+  const lb = await e.page.evaluate(async () => {
+    const g = window.__app.current;
+    const w = g.world;
+    const L = w.lamps;
+    const reg = w.level.lights;
+    if (!L) return null;
+    const fixed = reg.lights.filter((l) => l.kind !== 'flashlight').length;
+    const rigIds = [...w.lightRig.pool, ...w.lightRig.shadowPool].map((s) => s.id).filter((id) => id >= 0);
+    const i = L.order.findIndex((id) => reg.lights[id].destructible && reg.lights[id].on);
+    const off = (L.lampBase + i * 6 + 1) * 4;
+    const lit = () => L.buf[off] + L.buf[off + 1] + L.buf[off + 2];
+    const before = lit();
+    reg.destroy(L.order[i]);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const pbr = g.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
+    return { n: L.ids.size, fixed, leak: rigIds.filter((id) => L.ids.has(id)).length, pool: w.lightRig.pool.length, shadows: w.lightRig.shadowPool.length, before, after: lit(), ms: Math.round(L.bakeMs), dims: L.atlasDims, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length };
+  });
+  assert(lb && lb.n > 0 && lb.n === lb.fixed && lb.leak === 0 && lb.pool <= 4 && lb.shadows <= 2, `Epic: every fixed light baked, the rig holds only flashlights (${JSON.stringify(lb)})`);
+  assert(lb && lb.pbr > 0 && lb.plugged === lb.pbr, `the lamp plugin is on every PBR material (${lb?.plugged} / ${lb?.pbr})`);
+  assert(lb && lb.before > 0 && lb.after === 0, `a shot-out lamp goes dark in the baked lighting (${lb?.before} -> ${lb?.after}); bake ${lb?.ms} ms`);
+  // 3.1.7: every material fits WebGL's guaranteed 16 textures per shader (software GL allows 32; on the laptop's
+  // D3D11 an Epic level shader with 8 soft lamp shadows failed: the level drew black under the fog)
+  const tex = await e.page.evaluate(() => {
+    const scene = window.__app.current.scene;
+    let max = 0;
+    let who = '';
+    for (const m of scene.meshes) for (const sm of m.subMeshes ?? []) {
+      const n = sm.effect?._samplerList?.length ?? 0;
+      if (n > max) {
+        max = n;
+        who = sm.getMaterial?.()?.name ?? '?';
+      }
+    }
+    return { max, who };
+  });
+  assert(tex.max > 0 && tex.max <= 16, `Epic: every material shader within 16 textures (${tex.max}, ${tex.who})`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');
   const eerrs = e.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
@@ -334,7 +560,7 @@ try {
   // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
   const u = await launch({ url, params: 'autostart=warehouse&gfx=user&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = u.browser;
-  await u.page.waitForFunction(() => window.__app.current?.player, null, { timeout: 180000 });
+  await u.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 180000 });
   await frames(u.page, 3);
   await u.page.evaluate(() => window.__app.settings.update((d) => { d.video.preset = 'custom'; d.video.gfx.reflections = 'rt'; d.video.gfx.rtRes = 'half'; d.video.upscaler = 'taau'; d.video.renderScale = 0.67; d.video.panini = 0.5; d.video.adaptive = false; }));
   await frames(u.page, 4);
@@ -346,7 +572,7 @@ try {
     return { pps: pps.map((p) => p.name), canvas: a.engine.getRenderWidth(), scene: taau?.inputTexture?.width ?? 0, level: a.quality.level.upscale, panini: a.quality.level.panini };
   });
   assert(p5.pps.includes('rtReflect') && p5.pps.includes('rtComposite') && !p5.pps.includes('ssr'), `Ray traced: the reflection passes replace screen space (${p5.pps.join(',')})`);
-  assert(p5.pps[0] === 'taau' && !p5.pps.includes('TAA'), 'TAAU leads the chain and replaces TAA');
+  assert(p5.pps[0] === 'volumetric' && p5.pps[1] === 'taau' && !p5.pps.includes('TAA'), `TAAU leads the chain after the low-resolution fog pass and replaces TAA (${p5.pps.slice(0, 3).join(',')})`);
   assert(p5.scene > 0 && Math.abs(p5.scene / p5.canvas - 0.67) < 0.02, `TAAU: the scene at 67% of the native canvas (${p5.scene} of ${p5.canvas})`);
   assert(p5.pps.includes('panini') && p5.pps.at(-1) === 'cinematic', `Panini on, the grade pass still last (${p5.panini})`);
   await u.page.screenshot({ path: process.env.SHOT_P5 ?? '/tmp/e2e-p5.png', timeout: 600000 });
@@ -360,6 +586,30 @@ try {
     return { level: a.quality.governor.level, scene: taau?.inputTexture?.width ?? 0, canvas: a.engine.getRenderWidth(), detail: a.quality.detail, line: a.debug.extra.get('governor')?.() ?? '' };
   });
   assert(gv.scene / gv.canvas < 0.6 && gv.detail.scale < 1 && /governor L\d/.test(gv.line), `the governor steps down when frames are missed (level ${gv.level}: TAAU input ${gv.scene} of ${gv.canvas})`);
+  // 3.1.3: the post stack rebuilt mid-match (Feature costs runs): the frozen materials re-read their setup, then freeze
+  // again; fog / TAAU get a live depth pass even where depth of field had paused the camera's one
+  const rb = await u.page.evaluate(async () => {
+    const a = window.__app;
+    const scene = a.current.scene;
+    const wait = (n) => new Promise((r) => { let k = 0; const o = scene.onAfterRenderObservable.add(() => { if (++k >= n) { scene.onAfterRenderObservable.remove(o); r(); } }); });
+    const frozen = () => scene.materials.filter((m) => m.isFrozen).length;
+    a.quality.setOverride({ preset: 'high', scale: null });
+    await wait(3);
+    const before = frozen();
+    const builds = a.current.stack.builds;
+    a.quality.setOverride({ preset: 'high', scale: null, gfx: { ao: false, reflections: 'off' } });
+    const thawed = frozen();
+    const dr = Object.values(scene._depthRenderer ?? {})[0];
+    let depthFrames = 0;
+    const o = dr?.getDepthMap().onAfterRenderObservable.add(() => depthFrames++);
+    await wait(4);
+    if (o) dr.getDepthMap().onAfterRenderObservable.remove(o);
+    const after = frozen();
+    a.quality.setOverride(null);
+    return { rebuilt: a.current.stack.builds > builds, before, thawed, after, depthFrames, enabled: dr?.enabled ?? null };
+  });
+  assert(rb.rebuilt && rb.before > 0 && rb.thawed < rb.before && rb.after >= rb.before, `a rebuilt post stack refreshes the frozen materials, then freezes them again (${JSON.stringify(rb)})`);
+  assert(rb.enabled === true && rb.depthFrames >= 3, `without the G-buffer the fog / TAAU depth pass renders every frame (${JSON.stringify(rb)})`);
   const uerrs = u.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
   assert(uerrs.length === 0, `ray traced + TAAU + Panini render without console errors${uerrs.length ? ': ' + uerrs.slice(0, 4).join(' | ') : ''}`);
   console.log('desktop e2e passed');

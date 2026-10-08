@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { aspectLabel, classifyGpu, hfovDeg, hudInset, matchFov, PVP_MAX_FOV, vfovFor } from '../src/core/display';
+import { aspectLabel, classifyGpu, desktopResolutions, hfovDeg, hudInset, resolutionScale, shownResolution, vfovFor } from '../src/core/display';
 
 describe('ultrawide field of view', () => {
   it('is Hor+ from the 16:9 setting: same vertical angle, wider sides', () => {
@@ -50,13 +50,19 @@ describe('display labels and GPU check', () => {
   });
 });
 
-describe('PvP field of view (3.1, crossplay fairness)', () => {
-  it('is capped and 16:9-equivalent: no screen sees more of the sides', () => {
-    expect(matchFov(110, 120, false)).toEqual({ fovH: 110, maxFov: 120 });
-    const f = matchFov(110, 120, true);
-    expect(f).toEqual({ fovH: PVP_MAX_FOV, maxFov: PVP_MAX_FOV });
-    const h169 = hfovDeg(vfovFor(f.fovH, 16 / 9, f.maxFov), 16 / 9);
-    for (const a of [19.5 / 9, 21 / 9, 32 / 9]) expect(hfovDeg(vfovFor(f.fovH, a, f.maxFov), a)).toBeCloseTo(h169, 6);
-    expect(matchFov(70, 120, true)).toEqual({ fovH: 70, maxFov: 70 });
+describe('desktop resolutions (3.2.1)', () => {
+  it('the monitor\'s native one, then the standard ones of its shape down to half its height', () => {
+    const ids = (w: number, h: number) => desktopResolutions(w, h).map((r) => `${r.w}x${r.h}`);
+    expect(ids(7680, 2160)).toEqual(['7680x2160', '5120x1440', '3840x1080']);
+    expect(ids(3840, 2160)).toEqual(['3840x2160', '3200x1800', '2560x1440', '1920x1080']);
+    expect(ids(3440, 1440)).toEqual(['3440x1440', '2560x1080']);
+    // (an unusual shape: its native size stepped down)
+    expect(ids(2000, 1000)).toEqual(['2000x1000', '1500x750', '1340x670', '1000x500']);
+    expect(resolutionScale(1440, 2160)).toBeCloseTo(2 / 3, 6);
+  });
+  it('shows the chosen name, and the real size when a window differs', () => {
+    expect(shownResolution('5120x1440', 5120, 1440)).toBe('5120x1440');
+    expect(shownResolution('5120x1440', 1707, 1005)).toBe('5120x1440 (window 1707x1005)');
+    expect(shownResolution('', 2560, 1508)).toBe('2560x1508');
   });
 });

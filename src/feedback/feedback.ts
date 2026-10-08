@@ -46,7 +46,7 @@ export function sanitizeFeedback(raw: unknown): FeedbackEntry[] {
   for (const r of raw) {
     if (!isObj(r) || typeof r.id !== 'string') continue;
     const ctx: Record<string, string> = {};
-    if (isObj(r.context)) for (const [k, v] of Object.entries(r.context)) if (typeof v === 'string' || typeof v === 'number') ctx[k.slice(0, 40)] = String(v).slice(0, 200);
+    if (isObj(r.context)) for (const [k, v] of Object.entries(r.context)) if (typeof v === 'string' || typeof v === 'number') ctx[k.slice(0, 40)] = String(v).slice(0, MAX_CONTEXT);
     out.push({
       id: r.id.slice(0, 60),
       created: typeof r.created === 'number' ? r.created : 0,
@@ -68,8 +68,17 @@ export function summaryLine(e: FeedbackEntry, i: number): string {
   return `${i + 1}. [${CATEGORY_LABEL[e.category]}]${e.done ? ' [done]' : ''} ${text}${where ? ` (${where})` : ''}${e.photos.length ? ` [${e.photos.length} photo${e.photos.length > 1 ? 's' : ''}]` : ''}`;
 }
 
+/** The longest context value kept (3.1.7: the full settings digest fits). */
+export const MAX_CONTEXT = 2000;
+
+/** The list as plain text (Copy as text): each note's line, then its context (3.1.7: settings, device, frames). */
 export function feedbackText(list: readonly FeedbackEntry[]): string {
-  return list.map(summaryLine).join('\n');
+  return list
+    .map((e, i) => {
+      const ctx = Object.entries(e.context).map(([k, v]) => `${k}: ${v}`).join(' | ');
+      return ctx ? `${summaryLine(e, i)}\n   ${ctx}` : summaryLine(e, i);
+    })
+    .join('\n');
 }
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!);

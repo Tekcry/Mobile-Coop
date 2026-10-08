@@ -440,12 +440,12 @@ try {
   await C.keyboard.type(code.toLowerCase());
   await C.keyboard.press('Enter');
   await until(A, () => window.__coop.session.players.size === 3, null, 15000, 'third player joins');
-  // (3.1 crossplay: the host on a wide FOV, a client on a narrow one)
-  await GA(() => window.__app.settings.update((d) => { d.video.fovH = 115; d.video.maxFov = 150; d.video.panini = 0.6; }));
+  // (3.1.9: no PvP caps - the host on a wide FOV, a client on a narrow one, each keeps their own)
+  await GA(() => window.__app.settings.update((d) => { d.video.fovH = 115; d.video.maxFov = 150; }));
   await C.evaluate(() => window.__app.settings.update((d) => { d.video.fovH = 70; }));
   await startMode('tdm', 'warehouse');
-  const fovs = await Promise.all([A, C].map((P) => P.evaluate(() => ({ h: window.__app.current.player.cam.baseFovDeg, max: window.__app.current.player.cam.maxFovDeg, panini: window.__app.quality.level.panini }))));
-  assert(fovs[0].h === 90 && fovs[0].max === 90 && fovs[0].panini === 0 && fovs[1].h === 70 && fovs[1].max === 70, `PvP: FOV capped at 90 and 16:9-equivalent, no Panini (${JSON.stringify(fovs)})`);
+  const fovs = await Promise.all([A, C].map((P) => P.evaluate(() => ({ h: window.__app.current.player.cam.baseFovDeg, max: window.__app.current.player.cam.maxFovDeg }))));
+  assert(fovs[0].h === 115 && fovs[0].max === 150 && fovs[1].h === 70 && fovs[1].max === 120, `PvP: each player's own FOV, no cap (${JSON.stringify(fovs)})`);
   const ids = await Promise.all(pages().map((P) => P.evaluate(() => window.__coop.session.selfId)));
   const teams = await GA((ids) => ids.map((id) => window.__coop.session.players.get(id).team), ids);
   assert(teams[0] === teams[2] && teams[0] !== teams[1], `teams split 2v1 (${teams})`);

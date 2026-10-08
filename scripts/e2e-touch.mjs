@@ -12,8 +12,11 @@ try {
   assert(await page.evaluate(() => document.body.classList.contains('input-touch')), 'starts in touch mode');
   await page.locator('.btn', { hasText: 'Settings' }).tap();
   await page.waitForSelector('.settings-screen');
-  await page.locator('.tab', { hasText: 'Graphics' }).tap();
-  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Graphics', 'tap switches tab');
+  await page.locator('.tab', { hasText: 'Display' }).tap();
+  assert((await page.evaluate(() => document.querySelector('.tab.active')?.textContent)) === 'Display', 'tap switches tab');
+  // 3.3 phones: one fixed look - no graphics options, the Phone check
+  const disp = await page.evaluate(() => document.querySelector('.settings-screen .tab-panel[data-tab="video"]')?.textContent ?? '');
+  assert(!/Preset|Shadows|Resolution scale|Upscaler|Target frame rate/.test(disp) && /Run the Phone check/.test(disp) && /Field of view/.test(disp), 'phone Display tab: no graphics options, field of view and the Phone check');
   await page.locator('.settings-screen .screen-back').tap();
   await page.waitForSelector('.settings-screen', { state: 'detached' });
   assert(true, 'back button closes settings');
@@ -179,6 +182,68 @@ try {
   await page.locator('.dialog .btn', { hasText: 'Quit' }).tap();
   await page.waitForSelector('.main-menu', { timeout: 10000 });
   assert(true, 'quit by touch');
+  // 3.1.6 forced landscape: a phone held upright (rotation locked) gets the page turned, not a "rotate" screen; taps
+  // and sticks act in the turned space (hold the phone turned left: the screen's top is the game's left)
+  const pt = await launch({ url, touchViewport: { width: 390, height: 844 } });
+  try {
+    const P = pt.page;
+    await P.waitForSelector('.main-menu');
+    await frames(P, 3);
+    const lay = await P.evaluate(() => ({ rotated: document.body.classList.contains('rotated'), w: window.__app.engine.getRenderWidth(), h: window.__app.engine.getRenderHeight(), overlay: !!document.getElementById('rotate-overlay') }));
+    assert(lay.rotated && lay.w > lay.h && !lay.overlay, `upright: the page turns, the game renders landscape (${lay.w}x${lay.h})`);
+    await P.locator('.btn', { hasText: 'Play' }).first().tap();
+    await P.waitForSelector('.play-screen');
+    await P.locator('.play-screen .row-choice').first().locator('.choice-arrow').first().tap();
+    assert(/Free Roam/.test(await P.evaluate(() => document.querySelector('.play-screen .choice-val')?.textContent ?? '')), 'upright: taps land on the turned menu');
+    await P.locator('.btn', { hasText: 'Deploy' }).tap();
+    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
+    await frames(P, 5);
+    // the move stick at the game's lower left = the screen's upper left; the game's "up" is the screen's right
+    const sx = 390 - 0.7 * 390;
+    const sy = 0.18 * 844;
+    const endP = await drag(P, { x: sx, y: sy }, { x: sx + 60, y: sy });
+    await frames(P, 2);
+    const mv = await P.evaluate(() => ({ x: window.__app.input.state.move.x, y: window.__app.input.state.move.y }));
+    await endP();
+    assert(mv.y > 0.5 && Math.abs(mv.x) < 0.3, `upright: the stick pushed to the game's top moves forward (${mv.x.toFixed(2)}, ${mv.y.toFixed(2)})`);
+    const errs = pt.errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+    assert(errs.length === 0, `upright: no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  } finally {
+    await pt.browser.close();
+  }
+  // 3.2.4: held in the other landscape grip (screen angle 270), then turned upright: the page turns the other way
+  // (the game stays where it was on the glass); taps and the stick still act in the game's space
+  const pc = await launch({ url, touchViewport: { width: 844, height: 390 } });
+  try {
+    const P = pc.page;
+    await P.waitForSelector('.main-menu');
+    const angle = (a) => P.evaluate((v) => { Object.defineProperty(screen, 'orientation', { configurable: true, get: () => ({ angle: v, type: v === 270 ? 'landscape-secondary' : 'portrait-primary', lock: async () => {}, addEventListener() {} }) }); window.dispatchEvent(new Event('resize')); }, a);
+    await angle(270);
+    await frames(P, 2);
+    await P.setViewportSize({ width: 390, height: 844 });
+    await angle(0);
+    await P.waitForTimeout(400);
+    await frames(P, 3);
+    const lay = await P.evaluate(() => ({ rotated: document.body.classList.contains('rotated'), ccw: document.body.classList.contains('ccw'), w: window.__app.engine.getRenderWidth(), h: window.__app.engine.getRenderHeight() }));
+    assert(lay.rotated && lay.ccw && lay.w > lay.h, `upright after the other grip: the page turns anticlockwise, landscape (${JSON.stringify(lay)})`);
+    await P.locator('.btn', { hasText: 'Play' }).first().tap();
+    await P.waitForSelector('.play-screen');
+    await P.locator('.btn', { hasText: 'Deploy' }).tap();
+    await P.waitForFunction(() => window.__app.current?.player, null, { timeout: 30000 });
+    await frames(P, 5);
+    // the game's lower left = the screen's lower right; the game's "up" is the screen's left
+    const sx = 0.7 * 390;
+    const sy = 844 - 0.18 * 844;
+    const endP = await drag(P, { x: sx, y: sy }, { x: sx - 60, y: sy });
+    await frames(P, 2);
+    const mv = await P.evaluate(() => ({ x: window.__app.input.state.move.x, y: window.__app.input.state.move.y }));
+    await endP();
+    assert(mv.y > 0.5 && Math.abs(mv.x) < 0.3, `anticlockwise: the stick pushed to the game's top moves forward (${mv.x.toFixed(2)}, ${mv.y.toFixed(2)})`);
+    const errs = pc.errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+    assert(errs.length === 0, `anticlockwise: no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
+  } finally {
+    await pc.browser.close();
+  }
 } catch (e) {
   failed = true;
   console.error(String(e));

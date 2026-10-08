@@ -19,6 +19,7 @@ import { promptHtml } from '../prompts';
 import { icon } from '../icons';
 import { button, choice } from '../widgets';
 import { showSavedOperator } from './operator';
+import { vx } from '../../core/viewRotation';
 
 /** Weapon order in the lists. */
 export const WEAPON_ORDER: WeaponId[] = ['pistolSd', 'pistol', 'fiveseven', 'smg', 'vector', 'p90', 'rifle', 'ak', 'tavor', 'dmr', 'sniper', 'crossbow', 'shotgun', 'semiShotgun', 'breacher', 'lmg'];
@@ -132,14 +133,14 @@ export class LoadoutScreen extends Screen {
     // the operator in the middle: drag (or the right stick) turns them
     const stage = h('div', { class: 'lo-stage' });
     stage.addEventListener('pointerdown', (e) => {
-      this.dragX = e.clientX;
+      this.dragX = vx(e);
       stage.setPointerCapture(e.pointerId);
     });
     stage.addEventListener('pointermove', (e) => {
       const m = this.menu();
       if (this.dragX === null || !m) return;
-      m.previewYaw -= (e.clientX - this.dragX) * 0.012;
-      this.dragX = e.clientX;
+      m.previewYaw -= (vx(e) - this.dragX) * 0.012;
+      this.dragX = vx(e);
     });
     const end = (): void => void (this.dragX = null);
     stage.addEventListener('pointerup', end);

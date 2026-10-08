@@ -4,6 +4,7 @@ import {
   Color3,
   CreateBox,
   CreateCylinder,
+  Material,
   Matrix,
   Quaternion,
   Color4,
@@ -37,6 +38,9 @@ import { setAnimLodScale } from '../player/characterRig';
 import { VoxelWorld } from '../voxel/voxelWorld';
 import { VOXEL_VERSION } from '../voxel/levelVoxels';
 import { packShapes } from '../voxel/shapes';
+import { flags } from '../core/flags';
+import { BakedLamps, bakedLights } from './bakedLamps';
+import { bakeLevelLamps, LAMP_VERSION } from '../voxel/lampJobs';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
@@ -45,6 +49,8 @@ export interface WorldOptions {
   seed: number;
   /** `?gfx=min` (tests): the 2.x standard materials (no PBR, no surface textures) - cheap under software GL. */
   cheap?: boolean;
+  /** 3.3 phones: the baked lamps mixed into one light volume (`BakedLamps` volume mode). */
+  lampVolume?: boolean;
   /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
   detail?: TierQuality;
   /** 3.0 voxels (null / absent: the blockout's boxes as before). */
@@ -102,6 +108,8 @@ export class World {
   readonly sky: Mesh;
   /** Map lights (bulbs + the capped real-light pool); idle on maps without lights. */
   readonly lightRig: LightRig;
+  /** 3.2: the fixed lights, baked (null: real lights - the `?gfx=min` path, maps without voxels). */
+  lamps: BakedLamps | null = null;
   /** Window glass and duct grates (separate bodies that open). */
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
@@ -199,6 +207,7 @@ export class World {
     const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
     let voxels: VoxelWorld | null = null;
     let fine: VoxelWorld | null = null;
+    let lamps: { baked: ReturnType<typeof bakedLights>; r: Awaited<ReturnType<typeof bakeLevelLamps>>; lo: [number, number, number]; hi: [number, number, number]; ms: number } | null = null;
     if (vo && level.voxels) {
       const lv = level.voxels;
       const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
@@ -208,8 +217,29 @@ export class World {
       voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) + giKey, gi, group: 2 });
       // the fine layer: half the size, levels of detail at half the distances, lit by the structure's sky bake
       if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels, group: 4 });
+      // 3.2 baked lamps: every fixed light's visibility through every rendered layer (not on the cheap test path)
+      const baked = !opts.cheap && flags.baked && level.lights.lights.length ? bakedLights(level.lights) : null;
+      if (baked && baked.ids.length) {
+        const a = packShapes(lv.shapes);
+        const b = lv.fine ? packShapes(lv.fine.shapes) : new Float32Array(0);
+        const shapes = new Float32Array(a.length + b.length);
+        shapes.set(a);
+        shapes.set(b, a.length);
+        const lo: [number, number, number] = [lv.origin[0], lv.origin[1], lv.origin[2]];
+        const hi: [number, number, number] = [lv.origin[0] + lv.dims[0] * lv.size, lv.origin[1] + lv.dims[1] * lv.size, lv.origin[2] + lv.dims[2] * lv.size];
+        const lampKey = `lamps:${map.id}:${opts.seed}:v${LAMP_VERSION}:${contentHash(shapes, '')}:${contentHash(baked.lights, '')}`;
+        const t0 = performance.now();
+        lamps = { baked, r: await bakeLevelLamps(shapes, baked.lights, lo, hi, lampKey), lo, hi, ms: performance.now() - t0 };
+      }
     }
     const w = new World(scene, map, level, layout, atlas, voxels, fine);
+    if (lamps) {
+      // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
+      w.lamps = new BakedLamps(scene, level.lights, lamps.baked, lamps.r, lamps.lo, lamps.hi, opts.lampVolume ? { floorY: 0 } : null);
+      w.lamps.bakeMs = lamps.ms;
+      w.lamps.attachAll();
+      w.lightRig.setBaked(w.lamps.ids);
+    }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
     return w;
   }
@@ -373,8 +403,13 @@ export class World {
   surfaces: SurfaceAtlas | null = null;
 
   /** Graphics settings: the light pools, lamp / flashlight shadows, the sun's cascades, the surface textures. */
-  applyQuality(q: QualityLevel): void {
-    if (this.surfaces?.setSize(q.minimal ? 256 : TEXTURE_SIZE[q.features.textures], q.minimal ? 4 : TEXTURE_ANISO[q.features.textures])) {
+  /** `rebuildShadows`: new shadow generators even with the same settings (3.1.4 benchmark diagnosis). */
+  applyQuality(q: QualityLevel, rebuildShadows = false): void {
+    // (3.2.3: always drawn anew on the first apply - the atlas made while the map loads came out empty, and at Low the
+    // size never changed, so the floors and crate tops drew as flat haze)
+    const first = !this.atlasDrawn;
+    this.atlasDrawn = true;
+    if (this.surfaces?.setSize(q.minimal ? 256 : TEXTURE_SIZE[q.features.textures], q.minimal ? 4 : TEXTURE_ANISO[q.features.textures], first)) {
       // (the level material is frozen: re-bind the new atlas)
       const m = this.level.meshes[0]?.material;
       if (m) {
@@ -389,7 +424,11 @@ export class World {
       this.voxels?.setLodDistances(d1, d2);
       this.voxelsFine?.setLodDistances(d1 / 2, d2 / 2);
     }
-    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal });
+    const shadowKey = JSON.stringify(q.shadow);
+    const shadowChanged = rebuildShadows || (this.shadowKey !== '' && shadowKey !== this.shadowKey);
+    this.shadowKey = shadowKey;
+    this.lightRig.configure({ lights: q.realLights, shadow: q.shadow, volumetric: q.features.volumetrics, minimal: q.minimal, plain: q.lite }, rebuildShadows);
+    if (rebuildShadows) this.sunSpec = '';
     this.setCasterMode(q.features.shadows === 'epic' ? 'voxel' : 'proxy');
     if (this.staticSun !== !!q.shadow.staticSun) {
       this.staticSun = !!q.shadow.staticSun;
@@ -399,6 +438,35 @@ export class World {
     this.parts.setLodScale(k);
     setAnimLodScale(k);
     this.setSunShadows(q.shadow);
+    // (frozen materials keep the shader built for the old shadow maps - a stale light setup draws with unbound
+    // uniform buffers: let every one re-read its lights once, then freeze it again)
+    if (shadowChanged) this.refreshMaterials();
+  }
+
+  private shadowKey = '';
+  private atlasDrawn = false;
+
+  /**
+   * Frozen materials re-read their whole setup (lights, shadow maps, the post stack's image processing) for two frames,
+   * then freeze again: after a shadow change or a post stack rebuild in a match (3.1.3: on the iPhone a rebuilt stack
+   * left every frame ~4x slower until this ran).
+   */
+  refreshMaterials(): void {
+    const frozen: Material[] = [];
+    for (const m of this.scene.materials) {
+      if (m.isFrozen) {
+        m.unfreeze();
+        frozen.push(m);
+      }
+      m.markAsDirty(Material.AllDirtyFlag);
+    }
+    // (two frames: compiled and drawn with the new setup before freezing again)
+    let n = 0;
+    const obs = this.scene.onAfterRenderObservable.add(() => {
+      if (++n < 2) return;
+      this.scene.onAfterRenderObservable.remove(obs);
+      for (const m of frozen) m.freeze();
+    });
   }
 
   /** The frame governor's detail (3.1): run-time only, nothing recompiles. */
@@ -450,6 +518,7 @@ export class World {
   private giVersion = -1;
   private readonly giOn = new Float32Array(GI_SLOTS);
   private readonly giAll = new Float32Array(GI_SLOTS);
+  private readonly giW = new Float32Array(GI_SLOTS);
 
   /** GI: how much of each circuit is lit now (switches, shot-out lamps, EMP) - the voxels weigh their slots by it. */
   private updateGi(): void {
@@ -466,14 +535,14 @@ export class World {
       this.giAll[s] = this.giAll[s]! + l.intensity;
       if (l.on && !l.destroyed) this.giOn[s] = this.giOn[s]! + l.intensity;
     }
-    for (const v of this.voxelLayers) {
-      for (const p of v.plugins) for (let s = 0; s < GI_SLOTS; s++) p.giWeights[s] = this.giAll[s]! > 0 ? this.giOn[s]! / this.giAll[s]! : 0;
-      v.refresh();
-    }
+    // (3.2: the structure layer mixes its circuits into the one texture both layers read)
+    for (let s = 0; s < GI_SLOTS; s++) this.giW[s] = this.giAll[s]! > 0 ? this.giOn[s]! / this.giAll[s]! : 0;
+    this.voxels?.mixGi(this.giW);
   }
 
   frame(focus: Vector3, dt = 0): void {
     this.updateGi();
+    this.lamps?.frame();
     this.updateSunCasters(dt);
     const cam = this.scene.activeCamera;
     if (cam) {
@@ -488,6 +557,7 @@ export class World {
     this.surfaces?.dispose();
     this.probe?.dispose();
     this.lightRig.dispose();
+    this.lamps?.dispose();
     this.breakables.dispose();
     this.doors.dispose();
     this.props.dispose();

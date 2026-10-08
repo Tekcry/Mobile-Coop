@@ -3,6 +3,7 @@ import type { InputState } from './inputState';
 import { TOUCH_CONTROL_IDS, type Settings, type TouchControlId } from '../core/settings';
 import { icon } from '../ui/icons';
 import { hyp2 } from '../core/mathx';
+import { viewRect, vx, vy } from '../core/viewRotation';
 
 interface ControlDef {
   id: TouchControlId;
@@ -146,7 +147,7 @@ export class TouchControls {
   }
 
   private measure(): void {
-    const r = this.layer.getBoundingClientRect();
+    const r = viewRect(this.layer);
     this.w = r.width;
     this.h = r.height;
     this.left = r.left;
@@ -248,13 +249,13 @@ export class TouchControls {
     } catch {
       /* synthetic pointers */
     }
-    const x = e.clientX - this.left;
-    const y = e.clientY - this.top;
+    const x = vx(e) - this.left;
+    const y = vy(e) - this.top;
     const target = (e.target as HTMLElement).closest<HTMLElement>('.tc-btn');
     if (target && !target.classList.contains('tc-hidden')) {
       const id = target.dataset.control as TouchControlId;
       const def = TOUCH_DEFS[id];
-      const role: PointerRole = { kind: 'button', id, lx: e.clientX, ly: e.clientY, ox: e.clientX, oy: e.clientY, ctx: id === 'action' ? this.context : null };
+      const role: PointerRole = { kind: 'button', id, lx: vx(e), ly: vy(e), ox: vx(e), oy: vy(e), ctx: id === 'action' ? this.context : null };
       this.pointers.set(e.pointerId, role);
       // the action button: a held interaction starts on the press (unscrewing a vent), the rest act on release
       if (id === 'action') this.context?.down?.();
@@ -281,7 +282,7 @@ export class TouchControls {
       return;
     }
     // optional drag-to-look in the empty upper right
-    if (t.dragLook && x > this.w * 0.5 && y < this.h * 0.62) this.pointers.set(e.pointerId, { kind: 'drag', lx: e.clientX, ly: e.clientY });
+    if (t.dragLook && x > this.w * 0.5 && y < this.h * 0.62) this.pointers.set(e.pointerId, { kind: 'drag', lx: vx(e), ly: vy(e) });
   }
 
   private lookDelta(dx: number, dy: number): void {
@@ -295,14 +296,14 @@ export class TouchControls {
     if (!role) return;
     if (role.kind === 'move' || role.kind === 'look') {
       // positions only; the frame update turns them into input and visuals
-      role.x = e.clientX - this.left;
-      role.y = e.clientY - this.top;
+      role.x = vx(e) - this.left;
+      role.y = vy(e) - this.top;
       this.dirty = true;
     } else if (role.kind === 'drag' || (role.kind === 'button' && (role.id === 'fire' || role.id === 'fireLeft') && this.getSettings().touch.fireDragLook)) {
       // coalesced moves sum to the same delta; read the latest position
-      this.lookDelta(e.clientX - role.lx, e.clientY - role.ly);
-      role.lx = e.clientX;
-      role.ly = e.clientY;
+      this.lookDelta(vx(e) - role.lx, vy(e) - role.ly);
+      role.lx = vx(e);
+      role.ly = vy(e);
     }
   }
 
