@@ -6,8 +6,8 @@ Branch: `feature/exchange-map` (from `ct-movement`) | Last updated: 2026-10-08
 | Phase | Status | Commit |
 | --- | --- | --- |
 | Handover (standard, template, spec) | done | f45cbb2 |
-| 0 Setup and investigation | done (waiting for Michael's go-ahead) | see log |
-| 1 Architectural design | not started | |
+| 0 Setup and investigation | done | b7cfbe7 |
+| 1 Architectural design | done (waiting for Michael's review) | see log |
 | 2 Gameplay design | not started | |
 | 3 Build: ground floor | not started | |
 | 4 Build: first floor, roof, yard, co-op lips | not started | |
@@ -15,7 +15,8 @@ Branch: `feature/exchange-map` (from `ct-movement`) | Last updated: 2026-10-08
 | 6 Dressing, readability, verification | not started | |
 
 ## Next step
-Michael: read the Phase 0 report below and say go for Phase 1 (building brief and floor plans, docs only).
+Michael: review the building (`docs/prompts/exchange-design.md`, plans in `docs/prompts/exchange-plans/`), in particular
+deviations D1-D9 in its section 7, then say go for Phase 2 (gameplay design, docs only).
 
 ## Michael's phone notes
 (none yet; Phase 6 reads this first)
@@ -172,6 +173,44 @@ No mismatch. Two nuances: the nav's 3 layers come from `navBuild` passing `sampl
 
 #### Open items
 - None (spec change request 1 resolved by the engine change).
+
+### Phase 1 - architectural design (2026-10-08)
+Files:
+- `docs/prompts/exchange-design.md` (new): building brief, site, construction, every room by storey (1934 purpose, size,
+  tonight), vertical circulation, services, the route order over the building, the checks (circulation, proportions,
+  three surfaces per column, no accidental splits, window rhythm, gating, "why is it here"), deviations D1-D9,
+  items left for Phase 2.
+- `docs/prompts/exchange-plans/basement.svg`, `ground.svg`, `first.svg`, `roof.svg` (new): 1 m = 10 px, 6 m grid with
+  bubbles (1-9, A-G), north up, rooms, doors with swing arcs, fixed / opening windows, stairs with up arrows,
+  columns, light well and air shaft, string course, drainpipes, key dimensions, the route 1-8 as a dashed line.
+  Plain SVG (no scripts, fonts or external references), 792 x 862, checked by rendering each in Chromium.
+- The plans were drawn by a throwaway generator kept out of the repo (the spec allows only `scripts/plan-svg.mjs`,
+  which is Phase 3's built-level renderer).
+
+Reading (rule 3): the spec, this log, `docs/level-design.md` and `docs/templates/map-spec.md` re-read at the start of the
+phase. Engine facts re-checked for the design: `navBuild.ts` keeps every surface with 1.7 m headroom and `navGrid.ts`
+keeps the lowest three (a box standing on a floor replaces that floor in its column); `storey.ts` helpers make 1.2 m
+windows (Phase 3 can call `windowAt` directly for the spec's 1.6-2.0 m windows).
+
+Decisions (each is in the design doc's section 7 for review; none changes a space's order, guard job or room list
+from the spec):
+- D1 the cable chamber is a basement under the MDF hall (-3.3), stair 20 risers.
+- D2 a raised roof (10.5) over the server hall, so the cable runways can be at +4.4 with rack tops under them.
+- D3 one MDF aisle at 1.85 (the split), the others 2.25-3.1, so no other aisle is a split.
+- D4 a corner site (Kestrel Street N, Mill Street W, Harker & Sons E, yard S, Cooper's Lane by the yard).
+- D5 the battery extract duct ends in a fan room over the battery room, opening onto the back of the gallery.
+- D6 the fire escape serves the first floor only (no roof).
+- D7 every street, lane and yard window is fixed; only five court / shaft casements open.
+- D8 a fourth plan, `basement.svg`.
+- D9 the server hall on the north-east street front with the goods lift and its side-drive motor room south of it.
+- Corridors are 2.1 m clear everywhere (inside the spec's 1.8-2.4) because every full-height wall is >= 4.2 m: 1.8-1.95
+  would make split gaps.
+
+Checks run: none needed for docs only. `npm run check` was not re-run in this phase (no code, config or test changed;
+the last run is the handover's).
+
+Open items:
+- Michael's review of the building and D1-D9.
 
 ## Spec change requests
 (problem, proposed change, waiting / approved / rejected)
