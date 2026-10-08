@@ -50,8 +50,8 @@ URL flags: `?debug=1` (FPS/perf overlay, also F3 or a three-finger tap), `?autos
 
 The end-to-end suites use `playwright-core` with a preinstalled Chromium (`/opt/pw-browsers`); edit
 `scripts/e2e-lib.mjs` to point at your Chromium if it lives elsewhere. Architecture, conventions and module
-layout are in [CLAUDE.md](CLAUDE.md), the manual device checklist in [TESTING.md](TESTING.md), and the history in
-[CHANGELOG.md](CHANGELOG.md).
+layout are in [CLAUDE.md](CLAUDE.md) and [docs/systems/](docs/systems/), the manual device checklist in
+[TESTING.md](TESTING.md), and the history in [CHANGELOG.md](CHANGELOG.md).
 
 ## Deploy to GitHub Pages
 

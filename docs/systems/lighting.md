@@ -1,0 +1,80 @@
+# Light model, baked lamps and the phone look
+> Status: Phase 1 replaces the three light calculations with one source of truth (bible 5.1).
+Purpose: the gameplay light registry, desktop baked lamps, the phone light renderer and the lamp light volume.
+Design authority: docs/design-bible.md (Section 5.1)
+
+## Light model (2.0 phase 1)
+- `world/lights.ts` (pure): `LightRegistry` (lights with radius, optional cone, intensity, on / destroyed, switch
+  `group`, `electric` for EMP `disrupt`, `version` bumped on change; `ambient` from `MapTheme.lightLevel`, default
+  0.75 daylight). `lightLevelAt` = ambient + sum of `intensity * falloff * cone`, clamped, optional `Occluder`
+  (only called for lights in range); `bodyLightLevel` = brighter of chest / head; `visibilityFromLight` (0.25 in
+  darkness .. 1); `nearestLights` (allocation-free, for rendering).
+- `GameState.updateLight` samples the player at `LIGHT.playerHz` (10 Hz) with static-geometry occlusion rays
+  (`lightLevel`, `localRef.light`); `Enemy.perceive` stores `targetLight` each think (the ref's sample or the
+  registry at the aim point).
+- `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of
+  `MAX_REAL_LIGHTS` spot lights (lamps = wide downward cone) given to the nearest lights at 4 Hz; quality sets how
+  many are lit (`QualityLevel.realLights`). Pool lights are never enabled / disabled (no recompiles); materials
+  get `maxSimultaneousLights` for the pool. Maps without lights create nothing.
+
+## Baked lamps (3.2)
+- `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight,
+  `LAMP_STRIDE`: position, reach, cone, fixture sx / sz) a box over its reach (downward lamps stop a cell above
+  themselves) of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points (one per 0.5 m along its longer
+  side, <= 6; ends + middle first) each air cell sees through conservative occupancy (`occupancyShapes`: fills grown,
+  carves shrunk by half a cell, paints dropped; every rendered layer's shapes); solid cells take their brightest air
+  neighbour. `packLampAtlas` / `fillLampAtlas` (tiles along x in rows along z), `lampGrid` (2 m columns, <= 8 lights
+  each, nearest first). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool` (`lamps` jobs)
+  and caches (`lamps:` keys, `LAMP_VERSION`).
+- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built when voxels are on and not `cheap`, `?baked=0` off): an R8
+  3D atlas + one RGBA32F data texture (the grid; per lamp 6 texels: position + reach, colour x intensity x 1.6 x on,
+  direction + cos, box origin + ny, tile + nx / nz, capsule ids; `MAX_CAPSULES` 16 character capsules from
+  `GameState.rtCapsules`, 4 per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via
+  `attachAll`): per pixel the lamps in its 2 m column - range falloff, cone (lamps: `LAMP_CONE` exponent 1; spots:
+  exponent 2), N.L - as Babylon's lights gave them, x the atlas (trilinear, a cell off the geometric normal) x
+  `lampCapsule` soft shadows, added to `finalDiffuse`. `LightRig.setBaked(ids)`: the pools skip baked lights and hold
+  <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`): the flashlights. GLSL names must not clash with
+  Babylon's macros (`E` is one).
+
+## Phone look (3.3; 3.4 the light renderer)
+- 3.4 direction: desktop first; phones get the 2.x renderer so they hold 60 cool or warm. `PHONE_FEATURES` (shadows off
+  - blob shadows, 6 plain lights, every post feature off) + `QualityLevel.lite` (phone and `QualityManager.phoneLook`
+  'lite', the default): GameState creates the world `cheap` (standard materials, no surface atlas) with no voxels (the
+  blockout's boxes + the Medium box dressing), smooth characters / weapons (no `setVoxelBodies` / `setVoxelWeapons`),
+  no baked lamps (the rig's plain pool, `LightRigConfig.plain`: no clustering); `PostStack.apply` builds nothing (the
+  grade pass `CinematicPost` stays); the menu stage's operator is smooth too (`MenuState.lite`). No TAAU: the canvas
+  itself scales - a match starts native (`phoneStart` from the base scale), the governor steps 100 / 92 / 84 / 75%,
+  then 30 fps. Gameplay reads the blockout on every device, so the phone look changes nothing anyone can see or hide
+  behind. Keep that rule: never make gameplay depend on what the voxel renderer draws.
+- The 3.3 voxel look below stays for the Phone check's comparison run (`QualityOverride.look` / `BenchRun.look`
+  'voxel': `PHONE_VOXEL_FEATURES`, TAAU from 75%, the cuts); `levelLabel` "phone voxel".
+- `core/quality.ts`: `PHONE_VOXEL_FEATURES` (no AO / reflections / bloom / shafts / DOF / motion blur / lens; GI, textures /
+  detail / effects Medium), `PHONE_SHADOW` (moon 1 cascade 1024, one flashlight 512), `PhoneCuts` / `PHONE_CUTS`
+  (`lampVolume`, `plainVoxels`), `PHONE_SCALES` 1 / 0.92 / 0.84 / 0.75 (`PHONE_FLOOR`), `PHONE_FPS_FALLBACK` 30,
+  `QualityLevel.phone`, `levelLabel`. `QualityManager.phone` (mobile and not `?gfx=`): `build` ignores presets / settings
+  (`ov.gfx` for a Phone check run), TAAU at the base scale, the canvas native; `resetGovernor` sets `Governor.max` 4 and
+  starts at 3 (75%); `applyAdaptive` -> `phoneAdaptiveAt` (resolution only, relative to the base; `PostStack.setAdaptive`
+  caps the TAAU scale at 1) and `capNow` (60, 30 at level 4, uncapped in a benchmark run); `phoneCuts` (+ `ov.cuts`,
+  `?lampvol=0`). `App.detectGraphics` skips phones. Settings > Display (`phoneDisplayTab`): FOV, FPS overlay, avatar
+  style, interface, fullscreen, Phone check. GameState reads `phoneCuts` when the map loads: voxel `ao` / `micro` off,
+  `WorldOptions.lampVolume`.
+- Lamp light volume (`voxel/lampVolume.ts` pure grid / regions; `BakedLamps` volume mode, class `LampVolume`): two RGBA8
+  3D render targets over the lamp boxes at `LAMP_CELL` (A rgb = sqrt(light / `LAMP_VOL_MAX`), B = light-weighted mean
+  direction + how one-way it is), drawn slice by slice (`EffectRenderer`, `bindFramebuffer(.., layer)`, viewport = the
+  region) by `MIX_GLSL` from the exact path's data texture + visibility atlas (the 2 m column's lamps: falloff, cone,
+  visibility; no N.L) at load and over the union of changed lamps' regions on a registry change (`remixes`; a mix
+  waiting on its shader retries). `LampPlugin` `LAMP_VOLUME`: two taps, N.L against the direction (wrapped by how
+  spread the light is), capsule shadows from `VOL_CAPS` 4 nearest characters along it (`lampCaps` uniform array).
+- Spike log (`core/spikes.ts` pure `SpikeLog`): frames over `SPIKE.over` x the budget or the typical frame (3.3.1:
+  `typicalMs`, an exponential average) tagged shaders / lamps / lod /
+  governor (event bits from the frame and the one before) else cpu / gpu; `GameState.trackSpikes` per render frame
+  (`VoxelWorld.lodSwaps`, `BakedLamps.remixes`, the engine's compiled effects, the governor level); benchmark lines end
+  with the run's summary, `feedbackContext().spikes`.
+- Phone check 3.4 (`benchPlan('phone')` = `phoneCheckRuns`): the light look 100%, 75%, + the moon shadow (`shadows`
+  'low'), the 3.3 voxel look at 75%, 100% again (heat), then the 3 min hold at 60 (100%); 30 s cool-downs. Before 3.4:
+  nine `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
+  voxel detail, bloom, shafts, High shadows put back, GI out, then 75% again (heat check) (`BenchRun.cuts` ->
+  `QualityOverride.cuts`), then 3.3.2: `PHONE_HOLD_SECONDS` 180 held at 60 (`BenchRun.cap` -> `QualityOverride.cap`,
+  sustained: per-minute averages); `PHONE_COOL_S` 30 s cool-down between runs (GameState hand-off, nothing drawn) -
+  a hot iPhone throttles its GPU about 5x. 3.3.1: every non-sustained run line ends with `sectionText` - fps per `SECTION_SECONDS` 2.5 s
+  of the route (a 20 s run ends at the long view down the corridor at the first guards: ~100 meshes against ~30).
