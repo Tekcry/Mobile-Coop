@@ -1,4 +1,4 @@
-# Silent But Deadly - progress
+# Night Shift - progress
 
 The single place that says where the project stands. Design authority: `docs/design-bible.md`. Updated at the end of
 every phase step.
@@ -10,10 +10,11 @@ every phase step.
 | 1 | Light parity | not started | 3.6.0 | (to be written by Opus) |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
-| 4 | Mission framework | not started | 3.9.0 | (to be written) |
-| 5 | Co-op 2-4 | not started | 3.10.0 | (to be written) |
-| 6 | CT verbs for the slice | not started | 3.11.0 | (to be written) |
-| 7 | Vertical slice (Kestrel Exchange, "Dead Line") | not started | 3.12.0 | `docs/prompts/exchange-alignment.md` first, then the map's phases 3-6 |
+| 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
+| 4 | Mission framework | not started | 3.10.0 | (to be written) |
+| 5 | Co-op 2-4 | not started | 3.11.0 | (to be written) |
+| 6 | CT verbs for the slice | not started | 3.12.0 | (to be written) |
+| 7 | Vertical slice (Kestrel Exchange, "Dead Line") | not started | 3.13.0 | `docs/prompts/exchange-alignment.md` first, then the map's phases 3-6 |
 
 ## Current state
 - `master`, `dev` and `ct-movement` are integrated at 3.4.0 + CT movement: `master` (3.4.0) is merged into
@@ -26,7 +27,8 @@ every phase step.
 - CT movement is complete (`docs/ct-movement-progress.md`): speed gears, instant stop, roll, split / wall jump, pipes,
   rappel, fences, CT takedowns and the grab, co-op team moves, the Warehouse CT routes.
 - Kestrel Exchange is a paper design only: map phases 0-2 done, Phase 2 awaiting Michael's approval; no map code; build
-  phases held until roadmap Phase 3 and the alignment pass (bible Section 10, Phase 7).
+  phases held until roadmap Phase 3b and the alignment pass (bible Section 10, Phase 7).
+- The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
 - Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) goes behind `?legacy=1` in Phase 0 Step 4.
 
 ## Phase 0 log
@@ -88,11 +90,21 @@ every phase step.
 #### Step 2 report (design bible and progress file) - 2026-10-08
 - Done: `docs/design-bible.md` installed (committed in handover Step 0b, 5be33e4; unedited); this file.
 - Files changed: `docs/progress.md`.
-- Decisions: Michael re-issued "follow the handover" before promoting Step 1 to `dev` / `master` -> Steps 2-5 run
-  on `ct-movement` now -> `dev` / `master` receive Phase 0 in one merge. Versions per phase follow bible 9 (one
-  minor per phase from 3.5.0).
+- Decisions: Michael re-issued "follow the handover" before promoting Step 1 to `dev` / `master` -> this file was
+  written then. Versions per phase follow bible 9 (one minor per phase from 3.5.0); Phase 3b is counted as a phase
+  of its own (3.9.0), so Phases 4-7 are 3.10.0-3.13.0.
 - Tests: docs only.
 - Next: Step 3 (lean `CLAUDE.md`, `docs/systems/`, archived history).
+
+#### Night Shift bundle (2026-10-08)
+- Done: Michael replaced the handover bundle (bible v1.7, `docs/story.md`, Phase 0 spec with the title rename,
+  handover and alignment spec now naming Phase 3b).
+  - Step 0a again: the pause note on `feature/exchange-map` says Phases 0-3b (c197e36).
+  - Step 0b again: the five files installed byte for byte (a6f7b7f).
+  - Step 1b again: c197e36 merged into `ct-movement` (docs only).
+  - Step 1 is otherwise unchanged in the new spec: the integration above stands. This file updated to bible v1.7 (Phase 3b row, story link).
+- Next: STOP for Michael (handover): test `/ct/`, promote `ct-movement`, then "continue with Step 2" (Step 2 is
+  written; Steps 3-5 remain).
 
 ### Decisions
 (collected from the step reports above)
@@ -105,6 +117,7 @@ every phase step.
 - CPU readings on the cloud VM swing by up to 2x run to run; single `perf.mjs` readings may miss scaled budgets.
 
 ## Links
+- Story: `docs/story.md` (story, setting, characters, in-game text)
 - CT movement: `docs/ct-movement.md` (spec), `docs/ct-movement-progress.md` (status)
 - Level design: `docs/level-design.md` (the standard), `docs/templates/map-spec.md` (map spec template)
 - Kestrel Exchange: `docs/prompts/exchange-map.md` (spec), `docs/prompts/exchange-design.md` (design),
