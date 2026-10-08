@@ -495,6 +495,8 @@ try {
   // --- a grate kicked in: quick and loud (fresh match, so the grate is closed again)
   await page.reload();
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
+  // (3.2.2: the match exists only once its shaders are compiled on the loading screen)
+  await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 });
   await frames(page, 5);
   await setup();
   await page.evaluate(() => window.__pad.connect());
