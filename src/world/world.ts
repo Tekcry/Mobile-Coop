@@ -37,6 +37,9 @@ import { setAnimLodScale } from '../player/characterRig';
 import { VoxelWorld } from '../voxel/voxelWorld';
 import { VOXEL_VERSION } from '../voxel/levelVoxels';
 import { packShapes } from '../voxel/shapes';
+import { flags } from '../core/flags';
+import { BakedLamps, bakedLights } from './bakedLamps';
+import { bakeLevelLamps, LAMP_VERSION } from '../voxel/lampJobs';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
@@ -102,6 +105,8 @@ export class World {
   readonly sky: Mesh;
   /** Map lights (bulbs + the capped real-light pool); idle on maps without lights. */
   readonly lightRig: LightRig;
+  /** 3.2: the fixed lights, baked (null: real lights - the `?gfx=min` path, maps without voxels). */
+  lamps: BakedLamps | null = null;
   /** Window glass and duct grates (separate bodies that open). */
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
@@ -194,6 +199,7 @@ export class World {
     const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
     let voxels: VoxelWorld | null = null;
     let fine: VoxelWorld | null = null;
+    let lamps: { baked: ReturnType<typeof bakedLights>; r: Awaited<ReturnType<typeof bakeLevelLamps>>; lo: [number, number, number]; hi: [number, number, number]; ms: number } | null = null;
     if (vo && level.voxels) {
       const lv = level.voxels;
       const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
@@ -203,8 +209,28 @@ export class World {
       voxels = await VoxelWorld.build(scene, lv, { name: map.id, atlas, levels: vo.levels, lodDist: vo.lodDist, ao: vo.ao, micro: vo.micro, cacheKey: key(lv) + giKey, gi, group: 2 });
       // the fine layer: half the size, levels of detail at half the distances, lit by the structure's sky bake
       if (lv.fine) fine = await VoxelWorld.build(scene, lv.fine, { name: `${map.id}-fine`, atlas, levels: vo.levels, lodDist: [vo.lodDist[0] / 2, vo.lodDist[1] / 2], ao: vo.ao, micro: vo.micro, cacheKey: key(lv.fine), bakeSky: false, skyFrom: voxels, group: 4 });
+      // 3.2 baked lamps: every fixed light's visibility through every rendered layer (not on the cheap test path)
+      const baked = !opts.cheap && flags.baked && level.lights.lights.length ? bakedLights(level.lights) : null;
+      if (baked && baked.ids.length) {
+        const a = packShapes(lv.shapes);
+        const b = lv.fine ? packShapes(lv.fine.shapes) : new Float32Array(0);
+        const shapes = new Float32Array(a.length + b.length);
+        shapes.set(a);
+        shapes.set(b, a.length);
+        const lo: [number, number, number] = [lv.origin[0], lv.origin[1], lv.origin[2]];
+        const hi: [number, number, number] = [lv.origin[0] + lv.dims[0] * lv.size, lv.origin[1] + lv.dims[1] * lv.size, lv.origin[2] + lv.dims[2] * lv.size];
+        const lampKey = `lamps:${map.id}:${opts.seed}:v${LAMP_VERSION}:${contentHash(shapes, '')}:${contentHash(baked.lights, '')}`;
+        const t0 = performance.now();
+        lamps = { baked, r: await bakeLevelLamps(shapes, baked.lights, lo, hi, lampKey), lo, hi, ms: performance.now() - t0 };
+      }
     }
     const w = new World(scene, map, level, layout, atlas, voxels, fine);
+    if (lamps) {
+      w.lamps = new BakedLamps(scene, level.lights, lamps.baked, lamps.r, lamps.lo, lamps.hi);
+      w.lamps.bakeMs = lamps.ms;
+      w.lamps.attachAll();
+      w.lightRig.setBaked(w.lamps.ids);
+    }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
     return w;
   }
@@ -502,6 +528,7 @@ export class World {
 
   frame(focus: Vector3, dt = 0): void {
     this.updateGi();
+    this.lamps?.frame();
     this.updateSunCasters(dt);
     const cam = this.scene.activeCamera;
     if (cam) {
@@ -516,6 +543,7 @@ export class World {
     this.surfaces?.dispose();
     this.probe?.dispose();
     this.lightRig.dispose();
+    this.lamps?.dispose();
     this.breakables.dispose();
     this.doors.dispose();
     this.props.dispose();

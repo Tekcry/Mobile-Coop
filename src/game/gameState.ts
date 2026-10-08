@@ -351,6 +351,8 @@ export class GameState implements AppState {
       // ray-traced reflections (Settings > Graphics > Reflections): the structure layer's brickmap
       rt: vx?.plugins[0] ? { tex: vx.plugins[0].tex, state: () => vx.plugins[0]!, capsules: this.rtCapsules, lights: world.level.lights.lights.length ? world.level.lights : null } : null,
     });
+    // 3.2 baked lamps: the characters' soft shadows from every lamp
+    if (world.lamps) world.lamps.capsules = this.rtCapsules;
     this.weather = new Weather(this.scene, kind);
     if (vx) this.weather.occluder = (x, z) => vx.roofAt(x, z);
     // (the grade / vignette / goggles pass stays after the stack)

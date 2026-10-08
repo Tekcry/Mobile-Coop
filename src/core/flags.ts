@@ -21,6 +21,8 @@ export interface Flags {
   gfx: 'min' | 'low' | 'medium' | 'high' | 'ultra' | 'epic' | null;
   /** 3.0 voxel world (`?voxels=0`: the blockout's boxes, for comparisons). */
   voxels: boolean;
+  /** 3.2 baked lamps (`?baked=0`: real lights and shadow maps, for comparisons). */
+  baked: boolean;
   /** Autostart weather (clear | rain | fog). */
   weather: 'clear' | 'rain' | 'fog' | null;
   /** 3.1: Auto graphics detection also under automation (`?detect=1`; tests otherwise keep their settings). */
@@ -53,6 +55,7 @@ export const flags: Flags = {
   net: params.get('net') === 'local' ? 'local' : 'webrtc',
   gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
   voxels: params.get('voxels') !== '0',
+  baked: params.get('baked') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
   detect: params.get('detect') === '1',
   renderer: params.get('renderer')?.slice(0, 96) ?? null,

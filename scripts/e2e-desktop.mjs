@@ -426,7 +426,28 @@ try {
   });
   assert(wp.n > 0 && wp.voxel === wp.n && wp.hidden && wp.cast, `the loadout's weapons are voxel models casting shadows (${wp.voxel} / ${wp.n}, ${wp.quads} quads)`);
   assert(wp.chipped && wp.chipped.color && wp.chipped.now === wp.chipped.chip, `a shot chips the struck voxel (${JSON.stringify(wp.chipped)})`);
-  assert(r.placed >= 8 && r.shadowed >= 1, `Epic: real lights placed (${r.placed}, ${r.shadowed} with shadows, clustered ${r.clustered})`);
+  // 3.2 baked lamps: every fixed light baked and drawn by the lamp plugin; the rig's pools only take flashlights;
+  // a shot-out lamp goes dark at once
+  const lb = await e.page.evaluate(async () => {
+    const g = window.__app.current;
+    const w = g.world;
+    const L = w.lamps;
+    const reg = w.level.lights;
+    if (!L) return null;
+    const fixed = reg.lights.filter((l) => l.kind !== 'flashlight').length;
+    const rigIds = [...w.lightRig.pool, ...w.lightRig.shadowPool].map((s) => s.id).filter((id) => id >= 0);
+    const i = L.order.findIndex((id) => reg.lights[id].destructible && reg.lights[id].on);
+    const off = (L.lampBase + i * 6 + 1) * 4;
+    const lit = () => L.buf[off] + L.buf[off + 1] + L.buf[off + 2];
+    const before = lit();
+    reg.destroy(L.order[i]);
+    await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+    const pbr = g.scene.materials.filter((m) => m.getClassName() === 'PBRMaterial');
+    return { n: L.ids.size, fixed, leak: rigIds.filter((id) => L.ids.has(id)).length, pool: w.lightRig.pool.length, shadows: w.lightRig.shadowPool.length, before, after: lit(), ms: Math.round(L.bakeMs), dims: L.atlasDims, pbr: pbr.length, plugged: pbr.filter((m) => !!m.pluginManager?.getPlugin('BakedLamps')).length };
+  });
+  assert(lb && lb.n > 0 && lb.n === lb.fixed && lb.leak === 0 && lb.pool <= 4 && lb.shadows <= 2, `Epic: every fixed light baked, the rig holds only flashlights (${JSON.stringify(lb)})`);
+  assert(lb && lb.pbr > 0 && lb.plugged === lb.pbr, `the lamp plugin is on every PBR material (${lb?.plugged} / ${lb?.pbr})`);
+  assert(lb && lb.before > 0 && lb.after === 0, `a shot-out lamp goes dark in the baked lighting (${lb?.before} -> ${lb?.after}); bake ${lb?.ms} ms`);
   // 3.1.7: every material fits WebGL's guaranteed 16 textures per shader (software GL allows 32; on the laptop's
   // D3D11 an Epic level shader with 8 soft lamp shadows failed: the level drew black under the fog)
   const tex = await e.page.evaluate(() => {

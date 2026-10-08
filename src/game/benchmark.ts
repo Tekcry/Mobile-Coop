@@ -68,7 +68,6 @@ export function featureRuns(f: GraphicsFeatures): { label: string; gfx: Partial<
   if (f.bloom) out.push({ label: 'without bloom', gfx: { bloom: false } });
   if (f.dof) out.push({ label: 'without depth of field', gfx: { dof: false } });
   if (f.shadows !== 'off' && f.shadows !== 'low') out.push({ label: 'shadows Low', gfx: { shadows: 'low' } });
-  if (f.lights > 8) out.push({ label: 'real-time lights 8', gfx: { lights: 8 } });
   if (f.postRes === 'full') out.push({ label: 'post effects at half resolution', gfx: { postRes: 'half' } });
   if (f.textures !== 'low') out.push({ label: 'textures Low', gfx: { textures: 'low' } });
   return out;

@@ -1,5 +1,21 @@
 # Changelog
 
+## 3.2.0 - Baked lamps: every lamp lights and shadows correctly
+- Every fixed light in the map (lamp strips, floods) is baked when the map loads: how much of each lamp's fixture
+  every 20 cm of its reach can see through the level - walls, racks, crates, shelves, doorways. Every material shades
+  each lamp by it, so all of them cast correct shadows (before, only the nearest 2-4 did; the rest shone through
+  walls and racks while the guards' light model said you were in shadow). Strip lamps are area lights: soft along
+  the strip, sharper across it. Characters get soft shadows from every lamp (a capsule each).
+- Switches, shot-out lamps and EMP still change a lamp at once (its intensity; nothing re-bakes).
+- Cheaper on every device: lamps are no longer real lights or shadow maps (the Ultra phone path: lamp shadow-map
+  draws 45 -> 10, render JS 6.5 -> 5.2 ms on software GL); only flashlights stay real lights (up to 4, two with
+  shadows). Settings > Graphics: Real-time lights is gone; Shadows is the moon and the flashlights.
+- The bake runs in the voxel workers on first load (about 2 s headless) and is cached (IndexedDB `lamps:` keys, the
+  newest two). `?baked=0` renders the old way, for comparisons.
+- No second draw of the scene for depth: without ambient occlusion / reflections (every phone preset, desktop Low /
+  Medium) the fog, light shafts and TAAU read the scene pass's own depth buffer (a depth texture on the first post
+  process's target) instead of a separate depth pass. Phone Ultra: 223 -> 159 draw calls (baked lamps included).
+
 ## 3.1.9 - Epic's half-fog, the phone's display rate, no locks, lighter phone passes
 - Desktop Epic sometimes drew the bottom half of the screen as flat fog: ray-traced reflections and depth of field
   share one depth pass, and depth of field paused it whenever nothing was in focus - the reflections (and the fog

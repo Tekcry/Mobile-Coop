@@ -98,7 +98,7 @@ Blacklist style.
   - `scripts/e2e-desktop.mjs` desktop detection, menu scale, Mouse & Keyboard rebinding, the Graphics menu (presets,
     Custom, frame cap), the Interface switch, the benchmark (a short flight, saved as feedback; every preset in
     turn; 3.1: Low .. Epic), Auto graphics (GPU name, `?detect=1&renderer=Apple%20GPU` calibration, no re-measure),
-    the frame governor stepping down (TAAU input), 16:10 / 21:9 / 32:9 windows (centred 16:9 menus, the HUD inset on 32:9, Hor+ up to the FOV cap), the Epic
+    the frame governor stepping down (TAAU input), baked lamps (every fixed light baked, the rig holds only flashlights, a shot lamp goes dark), 16:10 / 21:9 / 32:9 windows (centred 16:9 menus, the HUD inset on 32:9, Hor+ up to the FOV cap), the Epic
     renderer booting in a match (`SHOTS=dir` saves the aspect screenshots)
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
@@ -508,6 +508,25 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `MAX_REAL_LIGHTS` spot lights (lamps = wide downward cone) given to the nearest lights at 4 Hz; quality sets how
   many are lit (`QualityLevel.realLights`). Pool lights are never enabled / disabled (no recompiles); materials
   get `maxSimultaneousLights` for the pool. Maps without lights create nothing.
+
+## Baked lamps (3.2)
+- `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight,
+  `LAMP_STRIDE`: position, reach, cone, fixture sx / sz) a box over its reach (downward lamps stop a cell above
+  themselves) of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points (one per 0.5 m along its longer
+  side, <= 6; ends + middle first) each air cell sees through conservative occupancy (`occupancyShapes`: fills grown,
+  carves shrunk by half a cell, paints dropped; every rendered layer's shapes); solid cells take their brightest air
+  neighbour. `packLampAtlas` / `fillLampAtlas` (tiles along x in rows along z), `lampGrid` (2 m columns, <= 8 lights
+  each, nearest first). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool` (`lamps` jobs)
+  and caches (`lamps:` keys, `LAMP_VERSION`).
+- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built when voxels are on and not `cheap`, `?baked=0` off): an R8
+  3D atlas + one RGBA32F data texture (the grid; per lamp 6 texels: position + reach, colour x intensity x 1.6 x on,
+  direction + cos, box origin + ny, tile + nx / nz, capsule ids; `MAX_CAPSULES` 16 character capsules from
+  `GameState.rtCapsules`, 4 per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via
+  `attachAll`): per pixel the lamps in its 2 m column - range falloff, cone (lamps: `LAMP_CONE` exponent 1; spots:
+  exponent 2), N.L - as Babylon's lights gave them, x the atlas (trilinear, a cell off the geometric normal) x
+  `lampCapsule` soft shadows, added to `finalDiffuse`. `LightRig.setBaked(ids)`: the pools skip baked lights and hold
+  <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`): the flashlights. GLSL names must not clash with
+  Babylon's macros (`E` is one).
 
 ## Corners and doorways
 - `cover/corners.ts` (pure): `findDoorways` (0.7-1.8 m gaps between collinear high faces), `outsideCorners`,
@@ -1068,7 +1087,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## Performance budget (3.0: the gaming laptop; desktop first)
 - Frame-rate targets (the RTX 4090 Laptop, mains power, Epic, Warehouse, 10 guards; 1% low >= 70% of the average):
   1920 x 1200 165 Hz (RT reflections 120), 2560 x 1600 120 Hz (RT 90), 3440 x 1440 100, 5120 x 1440 90, 4K 60 (RT 50),
-  7680 x 2160 60 with TAAU at 67% (High 120). Phones run the same settings slower (accepted).
+  7680 x 2160 60 with TAAU at 67% (High 120). Phones run the same settings slower (accepted); 3.1.9: the iPhone 17 Pro Max target is 60 fps at Ultra, native.
 - GPU per frame = the target's frame time minus ~10% headroom: 165 Hz 5.5 ms, 120 Hz 7.5 ms, 100 Hz 9 ms, 90 Hz 10 ms,
   60 Hz 15 ms. Only the laptop can measure it: Settings > Graphics > Benchmark (TESTING.md table).
 - CPU main thread <= 3 ms per frame (inside a 240 Hz frame's 4.17 ms): the sim (fixed steps, anim, camera) + the
@@ -1093,7 +1112,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   explicit shadow lists ignore layers; `setCasterMode` by `shadows === 'epic'`), `World.updateSunCasters` (4 Hz:
   static + moving casters open to the sky, none under 0.3 m; Low `ShadowSpec.staticSun`: static only, blob shadows
   on), `LightRig.fillCasters` skips casters under 0.3 m, `PostStack.depthSource` (the G-buffer's raw view z for fog /
-  TAAU when SSAO / SSR enable it; `depthRaw` uniform; DOF's depth renderer `enabled` only while aiming, unless RT
+  TAAU when SSAO / SSR enable it; else (3.2) the scene pass's hardware depth - `bindSceneDepth` gives the first post
+  process's input target a depth texture, `VIEW_Z_GLSL` linearises it; the depth renderer only with MSAA; `depthRaw`
+  uniform 0 / 1 / 2; DOF's depth renderer `enabled` only while aiming, unless RT
   reflections share it - 3.1.9), non-player
   `VoxelBody` without the head split.
 - 3.1.1 phone GPU (the iPhone benchmark was GPU-bound at Medium+): with TAAU the volumetric pass is first in the chain

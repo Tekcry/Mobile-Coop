@@ -1,7 +1,7 @@
 import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
-import { FPS_CAPS, LIGHT_RANGE, PHONE_OUTPUTS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
+import { FPS_CAPS, PHONE_OUTPUTS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
 import type { PlatformChoice } from '../../core/platform';
 import { BENCH } from '../../game/benchmark';
@@ -317,8 +317,8 @@ export class SettingsScreen extends Screen {
           app.detectGraphics(true);
           refresh();
         }, { class: 'subtle' }),
-        ch('Shadows', 'shadows', SHADOW_OPTS),
-        slider('Real-time lights', { min: LIGHT_RANGE.min, max: LIGHT_RANGE.max, step: 4, get: () => s().video.gfx.lights, set: (v) => feat('lights').set(v), format: (v) => `${v}` }),
+        // (3.2: every lamp is baked - lit and shadowed on every preset; Shadows is the moon and the flashlights)
+        ch('Shadows (moon, flashlights)', 'shadows', SHADOW_OPTS),
         ch('Anti-aliasing', 'aa', AA_OPTS),
         ch('Textures', 'textures', TIER_OPTS),
         ch('Detail and draw distance (map dressing: next map)', 'detail', TIER_OPTS),

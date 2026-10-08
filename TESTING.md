@@ -310,6 +310,11 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.2 baked lamps (phone and laptop): lamp pools look as before; racks, crates and walls cast shadows under every
+  lamp (not just the nearest few); no light through walls or closed racks; a guard / the operator casts a soft
+  shadow under each lamp; shooting a lamp or a switch darkens its area at once; an EMP darkens and restores. First
+  load of the Warehouse: note the load time (the bake), then again (cached).
+- [ ] 3.2 Benchmark > Every preset on the iPhone (Ultra is native 2868x1320 now): send the lines.
 - [ ] 3.1.9 desktop Epic (RT reflections on): no bottom-half fog in a match or the benchmark, aiming and not aiming.
 - [ ] 3.1.9 phone: Settings > Graphics has no Ambient occlusion / Reflections / Depth of field / Lens / Panini rows and
   an Output resolution choice (Native 2868x1320, the default / 1912x880 / 1434x660); Target frame rate shows 60;

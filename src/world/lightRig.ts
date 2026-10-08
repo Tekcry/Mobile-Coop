@@ -10,6 +10,9 @@ const PLAIN_LIGHTS = 6;
 const SHADOW_LAMP_CONE = Math.PI * 0.8;
 /** How often the nearest set is re-picked (s). */
 const PICK_INTERVAL = 0.25;
+/** With baked lamps (3.2): the moving lights the pools hold, and how many cast shadows. */
+const BAKED_POOL = 4;
+const BAKED_SHADOWS = 2;
 /** Sun + hemisphere already light every material. */
 const BASE_LIGHTS = 2;
 /** Omni lamps render as a spot pointing down with this cone (rad): everything below the lamp is lit, and one
@@ -74,6 +77,13 @@ export class LightRig {
   /** 3.1 frame governor: the share of the light pool lit, shadow maps re-rendered every N frames. */
   private litScale = 1;
   private shadowEvery = 1;
+  /** 3.2: lights drawn by `BakedLamps` (every fixed one): the pools only take the rest (flashlights). */
+  private baked: Set<number> | null = null;
+  setBaked(ids: Set<number>): void {
+    this.baked = ids;
+    this.pickT = 0;
+  }
+
   /** Real lights in use (clustered + shadowed). */
   get active(): number {
     return this.pool.length + this.shadowPool.length;
@@ -233,6 +243,8 @@ export class LightRig {
    * shadow maps take the flashlights and the nearest lamps.
    */
   configure(cfg: LightRigConfig, force = false): void {
+    // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
+    if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
     const same = !force && cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
     this.cfg = cfg;
     if (this.cones) this.cones.isVisible = !cfg.volumetric;
@@ -300,7 +312,8 @@ export class LightRig {
     const total = this.pool.length + this.shadowPool.length;
     const ids = this.ids;
     const n = nearestLights(this.reg, cx, cy, cz, ids, this.dist);
-    const use = Math.min(n, total, ids.length);
+    // (baked lamps fill the nearest list but are skipped: look through all of it for the flashlights)
+    const use = Math.min(n, this.baked ? ids.length : total, ids.length);
     // shadow maps first to flashlights (the drama), then the nearest lamps; everything else is clustered
     let sh = 0;
     const taken = this.dist; // (reused as a flag array: 1 = placed)
@@ -310,6 +323,7 @@ export class LightRig {
         if (taken[i]) continue;
         const l = this.reg.lights[ids[i]!]!;
         if (pass === 0 && l.kind !== 'flashlight') continue;
+        if (this.baked?.has(l.id)) continue;
         this.put(this.shadowPool[sh++]!, l);
         taken[i] = 1;
       }
@@ -318,7 +332,7 @@ export class LightRig {
     let k = 0;
     const lit = Math.max(1, Math.ceil(this.pool.length * this.litScale));
     for (let i = 0; i < use && k < lit; i++) {
-      if (taken[i]) continue;
+      if (taken[i] || this.baked?.has(ids[i]!)) continue;
       this.put(this.pool[k++]!, this.reg.lights[ids[i]!]!);
     }
     for (let i = k; i < this.pool.length; i++) this.idle(this.pool[i]!);

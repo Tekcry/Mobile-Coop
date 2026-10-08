@@ -20,7 +20,7 @@ import {
 import type { QualityLevel } from '../core/quality';
 import type { LightRegistry } from '../world/lights';
 import { RtReflections, type RtSource } from './rtReflections';
-import { Taau, type DepthSource } from './taau';
+import { Taau, VIEW_Z_GLSL, type DepthSource } from './taau';
 import { PaniniPass } from './paniniPass';
 
 /** Lights the volumetric pass scatters (nearest the camera). */
@@ -44,7 +44,8 @@ uniform vec4 skyO;
 uniform vec3 skyD;
 uniform vec3 shaftCol;
 uniform sampler2D depthSampler;
-// 1: the depth is the G-buffer's raw view z (0 = nothing drawn); 0: the depth renderer's (z + minZ) / (minZ + maxZ)
+// 1: the depth is the G-buffer's raw view z (0 = nothing drawn); 0: the depth renderer's (z + minZ) / (minZ + maxZ);
+// 2: the scene pass's hardware depth (3.2)
 uniform float depthRaw;
 uniform mat4 invView;
 uniform vec3 camPos;
@@ -57,6 +58,7 @@ uniform float steps;
 uniform vec4 lPos[${VOL_LIGHTS}];
 uniform vec4 lDir[${VOL_LIGHTS}];
 uniform vec4 lCol[${VOL_LIGHTS}];
+${VIEW_Z_GLSL}
 uniform vec3 fogColor;
 uniform float fogDensity;
 uniform float fogFalloff;
@@ -69,8 +71,7 @@ uniform float shimmer;
 float hash(vec2 p) { return fract(52.9829189 * fract(dot(p, vec2(0.06711056, 0.00583715)))); }
 
 void main(void) {
-  float d = texture2D(depthSampler, vUV).r;
-  float viewZ = depthRaw > 0.5 ? (d <= 0.0 ? maxZ : min(d, maxZ)) : (d >= 0.9999 ? maxZ : d * (minZ + maxZ) - minZ);
+  float viewZ = sceneViewZ(texture2D(depthSampler, vUV).r);
   // heat haze: distant, low parts of the view shimmer
   vec2 suv = vUV;
   if (shimmer > 0.0) {
@@ -174,11 +175,29 @@ export class PostStack {
   /** The scene depth for fog / TAAU: the G-buffer's (raw view z) when there is one, else the depth renderer's. */
   private depthSource(): DepthSource {
     const g = this.gbr;
-    if (g) return { tex: () => g.getGBuffer().textures[g.getTextureIndex(0)]!, raw: true };
+    if (g) return { bind: (e, n) => e.setTexture(n, g.getGBuffer().textures[g.getTextureIndex(0)]!), mode: 1 };
+    // 3.2: the scene pass's own depth buffer as a texture (the first post process's input) - no second geometry pass
+    // (the phones' biggest saving: a whole extra draw of the scene); MSAA keeps the depth renderer
+    if (!this.msaa) return { bind: (e, n) => this.bindSceneDepth(e, n), mode: 2 };
     this.depth ??= this.scene.enableDepthRenderer(this.camera, false, true);
     const d = this.depth;
     d.enabled = true;
-    return { tex: () => d.getDepthMap(), raw: false };
+    return { bind: (e, n) => e.setTexture(n, d.getDepthMap()), mode: 0 };
+  }
+
+  /** MSAA on (a multisampled scene target has no single-sample depth to read). */
+  private msaa = false;
+
+  /** Bind the scene pass's depth: the first post process's input target, given a depth texture once (and again
+   *  whenever the target is recreated - a resize). */
+  private bindSceneDepth(e: Effect, name: string): void {
+    const pps = this.camera._postProcesses;
+    let first: PostProcess | null = null;
+    for (let i = 0; i < pps.length && !first; i++) first = pps[i] ?? null;
+    const rt = first?.inputTexture;
+    if (rt && !rt.depthStencilTexture) rt.createDepthStencilTexture(0, false, false, 1);
+    const t = rt?.depthStencilTexture;
+    if (t) e._bindTexture(name, t);
   }
   private key = '';
   private readonly invView = new Matrix();
@@ -238,6 +257,7 @@ export class PostStack {
     }
     const scene = this.scene;
     const cams = [this.camera];
+    this.msaa = f.aa === 'msaa';
     // TAAU first: its input sets the scene's render size; it does the temporal anti-aliasing too
     // (one depth for fog and TAAU: the G-buffer's when SSAO / SSR draw one anyway - no second geometry pass)
     if (f.ao || f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
@@ -359,8 +379,8 @@ export class PostStack {
     pp.onApply = (e) => {
       const cam = this.camera;
       cam.getViewMatrix().invertToRef(this.invView);
-      e.setTexture('depthSampler', depth.tex());
-      e.setFloat('depthRaw', depth.raw ? 1 : 0);
+      depth.bind(e, 'depthSampler');
+      e.setFloat('depthRaw', depth.mode);
       e.setMatrix('invView', this.invView);
       const p = cam.globalPosition;
       e.setFloat3('camPos', p.x, p.y, p.z);
