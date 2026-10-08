@@ -1,7 +1,7 @@
 import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
-import { FPS_CAPS, LIGHT_RANGE, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
+import { FPS_CAPS, LIGHT_RANGE, PHONE_OUTPUTS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
 import type { PlatformChoice } from '../../core/platform';
 import { BENCH } from '../../game/benchmark';
@@ -13,7 +13,7 @@ import { button, choice, refreshWidgets, section, slider, TabView, toggle, type 
 import { LayoutEditorScreen } from './layoutEditor';
 import { ControlsScreen } from './controlsScreen';
 import { enterFullscreenLandscape, toggleFullscreen } from '../../pwa/pwa';
-import { currentResolution, ResolutionPicker } from './resolutionPicker';
+import { currentResolution, phoneOutputLabel, ResolutionPicker } from './resolutionPicker';
 
 const AIM_OPTS: { value: AimAssistLevel; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -291,7 +291,7 @@ export class SettingsScreen extends Screen {
       const f = feat(k);
       return choice(label, opts, f.get, f.set);
     };
-    const tg = (label: string, k: 'ao' | 'bloom' | 'gi' | 'volumetrics' | 'dof' | 'motionBlur' | 'lens'): HTMLElement => {
+    const tg = (label: string, k: 'ao' | 'bloom' | 'gi' | 'volumetrics' | 'dof' | 'lens'): HTMLElement => {
       const f = feat(k);
       return toggle(label, f.get, f.set);
     };
@@ -305,15 +305,15 @@ export class SettingsScreen extends Screen {
         choice('Preset', desktop ? PRESET_OPTS : PRESET_OPTS.filter((o) => o.value !== 'epic'), () => (s().video.auto ? 'auto' : s().video.preset), (v) => {
           // (Custom is where hand changes land; picking it keeps the current features)
           if (v === 'auto') {
-            upd((d) => setAuto(d, d.video.device.tier));
+            upd((d) => setAuto(d, d.video.device.tier, !desktop));
             app.detectGraphics();
-          } else if (v !== 'custom') upd((d) => setPreset(d, v));
+          } else if (v !== 'custom') upd((d) => setPreset(d, v, !desktop));
           else upd((d) => void (d.video.auto = false));
           refresh();
         }),
         autoNote,
         button('Detect again', () => {
-          upd((d) => setAuto(d, d.video.device.tier));
+          upd((d) => setAuto(d, d.video.device.tier, !desktop));
           app.detectGraphics(true);
           refresh();
         }, { class: 'subtle' }),
@@ -323,28 +323,38 @@ export class SettingsScreen extends Screen {
         ch('Textures', 'textures', TIER_OPTS),
         ch('Detail and draw distance (map dressing: next map)', 'detail', TIER_OPTS),
         ch('Effects and weather', 'effects', TIER_OPTS),
-        tg('Ambient occlusion', 'ao'),
+        // (3.1.9 phones: ambient occlusion, reflections, depth of field and lens effects are off - `MOBILE_OFF` - and
+        // the post / shaft fine print is the preset's; motion blur is gone: no preset used it)
+        ...(desktop ? [tg('Ambient occlusion', 'ao')] : []),
         tg('Global illumination (bounce light; next map)', 'gi'),
         tg('Bloom', 'bloom'),
-        ch('Reflections', 'reflections', desktop ? REFL_OPTS : REFL_OPTS.filter((o) => o.value !== 'rt')),
-        ch('Ray-traced reflections rate', 'rtRes', RTRES_OPTS),
+        ...(desktop ? [ch('Reflections', 'reflections', REFL_OPTS), ch('Ray-traced reflections rate', 'rtRes', RTRES_OPTS)] : []),
         tg('Volumetric light (fog is always on)', 'volumetrics'),
-        slider('Volumetric lights', { min: 2, max: 12, step: 2, get: () => s().video.gfx.volLights, set: (v) => feat('volLights').set(v), format: (v) => `${v}` }),
-        ch('Post effects resolution', 'postRes', [
-          { value: 'half', label: 'Half' },
-          { value: 'full', label: 'Full' },
-        ]),
-        tg('Depth of field', 'dof'),
-        tg('Motion blur', 'motionBlur'),
-        tg('Lens effects (aberration, dirt)', 'lens'),
+        ...(desktop
+          ? [
+              slider('Volumetric lights', { min: 2, max: 12, step: 2, get: () => s().video.gfx.volLights, set: (v) => feat('volLights').set(v), format: (v) => `${v}` }),
+              ch('Post effects resolution', 'postRes', [
+                { value: 'half', label: 'Half' },
+                { value: 'full', label: 'Full' },
+              ]),
+              tg('Depth of field', 'dof'),
+              tg('Lens effects (aberration, dirt)', 'lens'),
+            ]
+          : []),
       ),
       section(
         'Display',
         // (3.1.7 desktop: a list of real resolutions, applied on a pick and kept only when confirmed; phones the scale)
-        desktop ? resolutionRow(app) : slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
+        ...(desktop
+          ? [resolutionRow(app)]
+          : [
+              // (3.1.9: the output is a choice - native, or fewer pixels per CSS pixel for the frame rate)
+              choice('Output resolution', PHONE_OUTPUTS.map((o) => ({ value: o, label: phoneOutputLabel(o) })), () => s().video.phoneOutput, (v) => upd((d) => void (d.video.phoneOutput = v))),
+              slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
+            ]),
         toggle('Adaptive detail (holds the frame rate in a match)', () => s().video.adaptive, (v) => upd((d) => void (d.video.adaptive = v))),
         choice('Upscaler (with a resolution scale under 100%)', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))),
-        slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }),
+        ...(desktop ? [slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) })] : []),
         choice('Target frame rate', CAP_OPTS.map((o) => (o.value === 0 ? { value: 0, label: `Display refresh (${Math.round(app.quality.hz)} Hz)` } : o)), () => s().video.fpsCap, (v) => upd((d) => void (d.video.fpsCap = v))),
         slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
         slider('Widest field of view (ultrawide)', { min: 90, max: 150, step: 5, get: () => s().video.maxFov, set: (v) => upd((d) => void (d.video.maxFov = v)), format: (v) => `${v}°` }),

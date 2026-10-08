@@ -5,10 +5,10 @@ IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
 for PC and phones. Static web app (Vite + TypeScript + Babylon.js 9 + Havok), installable PWA, fully playable offline.
 Hosted on GitHub Pages. Target (3.0): a gaming laptop (i9 HX, RTX 4090 Laptop 16 GB, 32 GB; built-in 2560 x 1600
 240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer (phones
-with the 3.1 preset ladder; the iPhone 17 Pro Max targets 120 fps at Ultra). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
+with the 3.1 preset ladder; the iPhone 17 Pro Max targets 60 fps at Ultra, native 2868 x 1320 - 3.1.9). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
 test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) only changes the UI and
 input. 3.1: one preset ladder for every device (Low .. Ultra, Epic PC only), Auto graphics per device, a frame governor
-in matches, and crossplay fairness: graphics never change gameplay or how visible anyone is. A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
+in matches; graphics never change gameplay (3.1.9: the PvP look / FOV locks are gone - each player's own settings). A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
 Blacklist style.
 
 ## Commands
@@ -83,7 +83,7 @@ Blacklist style.
     Hunter (puppet alert levels, door sync, a client door use, a client takedown, kept / hidden bodies, pings both
     ways, a client execute, a client gas cloud on the host's guards, a dual takedown, a client reviving the host),
     Infiltration objectives on the client, Team Deathmatch (teams, opponents-only hit volumes, no friendly fire,
-    a validated elimination, respawn, results; 3.1: FOV capped at 90 and 16:9-equivalent, no Panini) and
+    a validated elimination, respawn, results; 3.1.9: each player's own FOV, no cap) and
     Free-for-all; host leaving, offline
   - `scripts/e2e-cosmetics.mjs` Loadout appearance by controller, live / locked previews on the operator, revert on exit, emotes, camo, in-game look
   - `scripts/e2e-clear.mjs` Warehouse + Clear mode: only "Enemies left N" (alive + pending), no room tags /
@@ -854,11 +854,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   5-shot window that kills outright. Dual takedowns: two players finishing within `DUAL_WINDOW` 1.5 s ->
   banner (relayed) + style.
 - PvP fairness: `pvpLoadout` (base damage), no suit / HQ in `tdm | ffa`, `maxHitDamage(def, head, false)` on the host.
-  3.1 crossplay: `PVP_LOOK` (`core/quality.ts`; `QualityManager.build` in PvP: lights 16, shadows medium, gi on, ao /
-  volumetrics off, effects high - how visible a player is never depends on the device; the governor keeps lights,
-  shadow refresh and effects at full there), `core/display.ts` `matchFov` (`PVP_MAX_FOV` 90, `maxFov` = `fovH`: 16:9-equivalent, Vert- on wider
-  screens; `Player.pvp`), `QualityManager.setPvp` (Panini off); graphics never change gameplay or what can be seen (fog on
-  every preset, `tests/losParity.test.ts`).
+  3.1.9: no graphics / FOV locks in PvP (the 3.1 shared look, FOV cap and Panini-off were removed: each player's own
+  settings); graphics still never change gameplay (fog on every preset, `tests/losParity.test.ts`).
 - PvP (`net/pvp.ts`, pure: `PvpScore`, `pickSpawn`, `balanceTeam`, `pvpInfo`): `GameState.pvp` (no AI / mode;
   pickups only); the host owns the score (`frag` events, `score` + `tl` in snapshots), respawns (`PVP.respawn`,
   protection), the end (`winner` in `end`). Damage rules: `PlayerTarget.friendly` / `RemotePlayer.friendly`
@@ -889,7 +886,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - `app.audio` (AudioEngine), `app.sfx` (Sfx voices), `app.music`. Every voice must early-out when the
   context is missing/suspended (before the first gesture). Game wiring lives in `audio/gameAudio.ts`.
 - Graphics (3.0, 3.1 ladder; `core/quality.ts` pure): `GRAPHICS_PRESETS` Low / Medium / High / Ultra / Epic (`PRESET_IDS`;
-  phones `MOBILE_PRESET_IDS` without Epic, `forPlatform` maps Epic -> Ultra and rt -> ssr on mobile, `QualityManager.setMobile`
+  phones `MOBILE_PRESET_IDS` without Epic, `forPlatform` maps Epic -> Ultra on mobile and applies `MOBILE_OFF` (3.1.9: no AO, reflections, DOF, motion blur, lens; Panini 0, bloom kernel 32 at quarter size via `QualityLevel.mobile`), `QualityManager.setMobile`
   from `App.applyPlatform`) fill `GraphicsFeatures` (shadows off / low / medium / high / ultra / epic -> `shadowSpec`: sun
   cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 4 (3.1.7 `MAX_SHADOW_CASTERS`: WebGL guarantees 16 textures per
   shader and the voxel level material uses 11 without lamp shadows; lamps are PCF, one texture each - 8 soft ones broke
@@ -905,7 +902,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   Low 0.67 .. Ultra 0.9 TAAU, Epic native). `VOXEL_TIER` per Detail tier: structure 5 cm on every preset (fairness),
   the 2.5 cm prop layer from High up, character / weapon voxel sizes; `VOXEL_LOD` distances per tier. `app.quality` (QualityManager) applies the level to the state's
   `applyQuality(level)` (GameState: `World.applyQuality` + `PostStack.apply`; MenuState: lamp shadows + its stack),
-  feeds `RefreshDetector` (raw rAF intervals), `FrameStats` and, only with dynamic resolution, the
+  feeds `RefreshDetector` (raw rAF intervals; 3.1.9: the 25th percentile, and in a match it only rises - GPU-bound
+  frames last whole refresh periods), `FrameStats` and, only with dynamic resolution, the
   `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|low|medium|high|ultra|epic` overrides for a page;
   `QualityManager.setOverride({ preset, scale })` is the benchmark's per-run override (never saved; ignored under `?gfx=`).
 - Auto graphics (3.1, `core/deviceTier.ts` pure): `tierFromRenderer(renderer, mobile)` (desktop / phone GPU tables,
@@ -1095,13 +1093,17 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   explicit shadow lists ignore layers; `setCasterMode` by `shadows === 'epic'`), `World.updateSunCasters` (4 Hz:
   static + moving casters open to the sky, none under 0.3 m; Low `ShadowSpec.staticSun`: static only, blob shadows
   on), `LightRig.fillCasters` skips casters under 0.3 m, `PostStack.depthSource` (the G-buffer's raw view z for fog /
-  TAAU when SSAO / SSR enable it; `depthRaw` uniform; DOF's depth renderer `enabled` only while aiming), non-player
+  TAAU when SSAO / SSR enable it; `depthRaw` uniform; DOF's depth renderer `enabled` only while aiming, unless RT
+  reflections share it - 3.1.9), non-player
   `VoxelBody` without the head split.
 - 3.1.1 phone GPU (the iPhone benchmark was GPU-bound at Medium+): with TAAU the volumetric pass is first in the chain
   at the TAAU ratio (`makeVolumetric(ratio)`; `PostStack.setAdaptive` moves its `_options` with TAAU's) and TAAU sets
   its jitter in `scene.onBeforeCameraRenderObservable` (before shadow maps / G-buffer / any pass ahead of it); the
-  G-buffer is enabled at the TAAU ratio; volumetric `steps` uniform (Epic effects 16, else 8); `MOBILE_MAX_DPR` 2
-  (`QualityManager.applyScale` on mobile). `World.refreshMaterials` when the shadow spec changes or the post stack rebuilds in a match (3.1.3; `PostStack.builds`; frozen
+  G-buffer is enabled at the TAAU ratio; volumetric `steps` uniform (Epic effects 16, else 8); phones' output
+  `video.phoneOutput` (3.1.9, Settings > Graphics > Output resolution: native (default) or a DPR cap 2 / 1.5;
+  `PHONE_OUTPUTS`, `QualityManager.applyScale` on mobile); `presetDisplay(p, mobile)` (phone Ultra native, no TAAU);
+  `App.phoneDefaults` once per phone (`video.phoneSetup`; skipped under automation without `?detect=1`): Target frame
+  rate `PHONE_FPS` 60 and the preset's resolution again. `World.refreshMaterials` when the shadow spec changes or the post stack rebuilds in a match (3.1.3; `PostStack.builds`; frozen
   materials re-read their lights, refreeze after two frames).
 - `perf.mjs --budget` (no flag) is the test-path regression check (`?gfx=min`: no post stack, no voxel characters,
   20 cm voxels): sim p95 <= 2.5 ms, animation <= 0.04 ms per character, <= 55 draws, <= 0.2 M triangles, allocations

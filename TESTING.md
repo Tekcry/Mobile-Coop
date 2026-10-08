@@ -310,6 +310,14 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.1.9 desktop Epic (RT reflections on): no bottom-half fog in a match or the benchmark, aiming and not aiming.
+- [ ] 3.1.9 phone: Settings > Graphics has no Ambient occlusion / Reflections / Depth of field / Lens / Panini rows and
+  an Output resolution choice (Native 2868x1320, the default / 1912x880 / 1434x660); Target frame rate shows 60;
+  Ultra shows Resolution scale 100%, Upscaler off. Benchmark > Every preset: send the lines (3.1.8 at 1912x880: Medium
+  54, High 36, Ultra 21 fps; the target is Ultra 60 native, after the 3.2 lighting work).
+- [ ] 3.1.9 PvP: a wide FOV on one player and a narrow one on another both stay as set in Team Deathmatch.
+- [ ] 3.1.9 phone: feedback notes from a heavy match say the display's real rate (120 Hz on the iPhone 17 Pro Max), and
+  the benchmark's debug line shows the governor stepping down (`governor L<n>`) when frames miss.
 - [ ] 3.1.8 desktop: Epic (and Shadows Epic in Custom) shows the level, no fog-only view; the picture is sharp with
   Adaptive detail off (no hidden resolution drop). Settings > Graphics > Resolution: pick one - it applies at once,
   Keep keeps it, waiting 15 s puts the last one back.

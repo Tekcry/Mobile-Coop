@@ -1,7 +1,7 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
-import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PRESET_DISPLAY, PRESET_IDS, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
+import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PHONE_OUTPUT_DEFAULT, PHONE_OUTPUTS, PRESET_IDS, presetDisplay, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 import type { PlatformChoice } from './platform';
 
 export const TOUCH_CONTROL_IDS = [
@@ -99,6 +99,10 @@ export interface Settings {
     gfx: GraphicsFeatures;
     /** Render resolution x native (above 1 supersamples). */
     renderScale: number;
+    /** Phones: the output's most device pixels per CSS pixel (0: native; `PHONE_OUTPUTS`). */
+    phoneOutput: number;
+    /** Phones: the 3.1.9 defaults (60 fps target, Ultra native) were applied once (`App.phoneDefaults`). */
+    phoneSetup: boolean;
     /** Steps the render scale down when the GPU falls behind (3.0; replaced by `adaptive`, used only with it off). */
     dynamicRes: boolean;
     /** 3.1 Adaptive detail: the frame governor holds the frame rate in a match (`core/governor.ts`). */
@@ -245,7 +249,7 @@ export function defaultSettings(): Settings {
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
-    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -327,17 +331,18 @@ function sanitizeDevice(raw: unknown): DeviceDetection {
 }
 
 /** Auto on: the device's preset (High until it is known). */
-export function setAuto(s: Settings, tier: FixedPreset | null): void {
-  setPreset(s, tier ?? 'high');
+export function setAuto(s: Settings, tier: FixedPreset | null, mobile = false): void {
+  setPreset(s, tier ?? 'high', mobile);
   s.video.auto = true;
 }
 
 /** Apply a named preset: its features and its render resolution (scale + TAAU; the frame governor works within). */
-export function setPreset(s: Settings, p: FixedPreset): void {
+export function setPreset(s: Settings, p: FixedPreset, mobile = false): void {
+  const disp = presetDisplay(p, mobile);
   s.video.preset = p;
   s.video.gfx = { ...GRAPHICS_PRESETS[p] };
-  s.video.renderScale = PRESET_DISPLAY[p].renderScale;
-  s.video.upscaler = PRESET_DISPLAY[p].upscaler;
+  s.video.renderScale = disp.renderScale;
+  s.video.upscaler = disp.upscaler;
   s.video.auto = false;
 }
 
@@ -414,6 +419,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       auto: bool(v.auto, v.preset === undefined || v.preset === 'epic'),
       device: sanitizeDevice(v.device),
       renderScale: num(v.renderScale, d.video.renderScale, 0.5, 2),
+      phoneOutput: pick(v.phoneOutput, PHONE_OUTPUTS as readonly number[], d.video.phoneOutput),
+      phoneSetup: bool(v.phoneSetup, false),
       dynamicRes: bool(v.dynamicRes, d.video.dynamicRes),
       adaptive: bool(v.adaptive, d.video.adaptive),
       upscaler: pick(v.upscaler, ['off', 'taau'] as const, d.video.upscaler),

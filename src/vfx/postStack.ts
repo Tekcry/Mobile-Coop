@@ -227,7 +227,7 @@ export class PostStack {
 
   apply(q: QualityLevel): void {
     const f = q.features;
-    const key = JSON.stringify(f) + q.minimal + q.upscale + q.panini;
+    const key = JSON.stringify(f) + q.minimal + q.upscale + q.panini + q.mobile;
     if (key === this.key) return;
     this.key = key;
     this.builds++;
@@ -313,8 +313,9 @@ export class PostStack {
     if (f.bloom) {
       def.bloomThreshold = 0.75;
       def.bloomWeight = 0.35;
-      def.bloomKernel = 64;
-      def.bloomScale = 0.5;
+      // (3.1.9 phones: a smaller kernel at quarter size - the lamps still glow)
+      def.bloomKernel = q.mobile ? 32 : 64;
+      def.bloomScale = q.mobile ? 0.25 : 0.5;
     }
     def.depthOfFieldEnabled = f.dof;
     if (f.dof && def.depthOfField) {
@@ -441,7 +442,9 @@ export class PostStack {
       const want = this.focusOn ? 2.8 : 32;
       dof.fStop += (want - dof.fStop) * Math.min(1, dt * 8);
       dof.focusDistance += (this.focus * 1000 - dof.focusDistance) * Math.min(1, dt * 10);
-      if (this.dofDepth) this.dofDepth.enabled = this.focusOn || dof.fStop < 24;
+      // (3.1.9: only when nothing else reads that depth - ray-traced reflections share it: paused, they traced a stale
+      // depth and the floors reflected fog, the lower half of the view grey on Epic)
+      if (this.dofDepth && this.dofDepth !== this.depth) this.dofDepth.enabled = this.focusOn || dof.fStop < 24;
     }
   }
 

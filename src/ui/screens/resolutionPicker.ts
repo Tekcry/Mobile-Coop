@@ -11,6 +11,13 @@ export function nativeSize(): { w: number; h: number } {
   return { w: Math.round(viewWidth() * devicePixelRatio), h: Math.round(viewHeight() * devicePixelRatio) };
 }
 
+/** A phone's Output resolution choice (`video.phoneOutput`: 0 native, else the most device pixels per CSS pixel). */
+export function phoneOutputLabel(cap: number): string {
+  const d = cap > 0 ? Math.min(devicePixelRatio, cap) : devicePixelRatio;
+  const size = `${Math.round(viewWidth() * d)}x${Math.round(viewHeight() * d)}`;
+  return cap > 0 ? `${size} (${cap}x)` : `Native (${size})`;
+}
+
 /** The current render resolution, as the Resolution row shows it. */
 export function currentResolution(app: App): string {
   const n = nativeSize();

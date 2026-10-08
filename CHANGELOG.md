@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.1.9 - Epic's half-fog, the phone's display rate, no locks, lighter phone passes
+- Desktop Epic sometimes drew the bottom half of the screen as flat fog: ray-traced reflections and depth of field
+  share one depth pass, and depth of field paused it whenever nothing was in focus - the reflections (and the fog
+  where they composite) then read a stale depth. Depth of field only pauses that pass when nothing else reads it.
+- The phone read its 120 Hz screen as 16 / 24 / 48 Hz in heavy matches (the detector took the median frame time, and a
+  GPU-bound frame lasts whole refresh periods), so the frame governor saw every slow frame as on time and never
+  stepped down. The detector now reads the fast end of the frames, and in a match it can only raise the rate (a real
+  cap - low-power mode, a browser at 60 - shows on the menu).
+- Phones toward 120 fps: ambient occlusion (the costliest pass measured: Medium 54 -> 74 fps without it; the voxels
+  darken corners themselves), screen-space reflections, depth of field, motion blur, lens effects and Panini are off
+  on phones whatever the preset; bloom is cheaper. Lighting, shadows, bounce light and light shafts stay. Settings
+  hides those rows on phones; motion blur is gone everywhere (no preset used it).
+- The phone target is now 60 fps at Ultra, native resolution: no resolution lock - phones choose the output in
+  Settings > Graphics > Output resolution: Native (the default; 2868 x 1320 on the iPhone 17 Pro Max), 2x (1912 x
+  880, as before) or 1.5x. Ultra on a phone renders native (no upscaling); a phone's Target frame rate starts at 60
+  (once; "Display refresh" is still there) so the frame governor holds 60.
+- No PvP locks: the shared PvP graphics look, the 90 deg / 16:9 field of view cap and Panini-off in PvP are gone;
+  everyone plays on their own settings.
+
 ## 3.1.8 - Epic shadows fixed, a Resolution list, no hidden resolution drops
 - Desktop "all fog but the lamps" was Epic shadows: 8 soft lamp shadows took the level's and characters' shaders past
   the 16 textures a shader may use on the laptop (Chrome on D3D11; headless software GL allows 32, so tests passed);

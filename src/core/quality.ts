@@ -1,7 +1,7 @@
 /**
  * Graphics settings (pure, unit-tested). 3.1: one preset ladder for every device - Low / Medium / High / Ultra
- * (Ultra holds 120 fps on the iPhone 17 Pro Max) and Epic (PC only) - filling the per-feature settings; changing any
- * feature makes it Custom. Phones never get Epic or ray-traced reflections (`forPlatform`). Gameplay never depends on
+ * (the iPhone 17 Pro Max target: 60 fps at Ultra, native) and Epic (PC only) - filling the per-feature settings; changing any
+ * feature makes it Custom. Phones never get Epic or the passes in `MOBILE_OFF` (`forPlatform`). Gameplay never depends on
  * the preset (collision, cover, nav, perception and fog visibility are the same on every one).
  */
 export type GraphicsPreset = 'low' | 'medium' | 'high' | 'ultra' | 'epic' | 'custom';
@@ -59,21 +59,20 @@ export const GRAPHICS_PRESETS: Record<FixedPreset, GraphicsFeatures> = {
 };
 export const PRESET_IDS = ['low', 'medium', 'high', 'ultra', 'epic'] as const;
 /**
- * Phones (3.1): the canvas at no more than 2 device pixels per CSS pixel. A 3x phone screen (~460 ppi) shows no
- * difference at arm's length, and every full-resolution pass (the TAAU resolve, bloom, SSAO, SSR, the grade) costs
- * 2.25x less. PCs stay native.
+ * Phones' output resolution (3.1.9, Settings > Graphics > Output resolution): native (0, the default - the phone
+ * target is 60 fps at Ultra, native) or at most 2 / 1.5 device pixels per CSS pixel (2 on a 3x phone is 2.25x fewer
+ * pixels; every full-resolution pass costs with it).
  */
-export const MOBILE_MAX_DPR = 2;
+export const PHONE_OUTPUTS = [0, 2, 1.5] as const;
+export const PHONE_OUTPUT_DEFAULT = 0;
+/** Phones' frame-rate target (3.1.9): Target frame rate starts at 60 there (the governor holds it). */
+export const PHONE_FPS = 60;
 /**
- * PvP (3.1, crossplay fairness): everything that changes how dark, lit or hidden a player looks is the same on every
- * device - lamp count, lamp / moon shadows, bounce light, contact shadows, light shafts, smoke and particle density.
- * The rest of the preset (resolution, textures, reflections, depth of field, ...) stays the player's own.
+ * Phones (3.1.9, for 120 fps): the passes that cost the most for the least - ambient occlusion (the voxels darken
+ * corners themselves), screen-space reflections, depth of field, motion blur and lens effects - are off whatever the
+ * preset. Lighting, shadows, bounce light and light shafts stay.
  */
-/** A preset's features in PvP: the shared look over them. */
-export function pvpFeatures(f: GraphicsFeatures): GraphicsFeatures {
-  return { ...f, ...PVP_LOOK };
-}
-export const PVP_LOOK: Readonly<Pick<GraphicsFeatures, 'shadows' | 'lights' | 'ao' | 'gi' | 'volumetrics' | 'effects'>> = { shadows: 'medium', lights: 16, ao: false, gi: true, volumetrics: false, effects: 'high' };
+export const MOBILE_OFF: Readonly<Partial<GraphicsFeatures>> = { ao: false, reflections: 'off', dof: false, motionBlur: false, lens: false };
 /** What phones list (Epic and ray-traced reflections are PC only). */
 export const MOBILE_PRESET_IDS = ['low', 'medium', 'high', 'ultra'] as const;
 /**
@@ -87,14 +86,17 @@ export const PRESET_DISPLAY: Record<FixedPreset, { renderScale: number; upscaler
   ultra: { renderScale: 0.9, upscaler: 'taau' },
   epic: { renderScale: 1, upscaler: 'off' },
 };
+/** Phones (3.1.9): Ultra renders native (no upscaling); the rest as on PC. */
+export function presetDisplay(p: FixedPreset, mobile: boolean): { renderScale: number; upscaler: 'off' | 'taau' } {
+  return mobile && p === 'ultra' ? { renderScale: 1, upscaler: 'off' } : PRESET_DISPLAY[p];
+}
 /** Tests only (`?gfx=min`): every feature off, the fewest lights - headless software GL keeps its frame rate. */
 export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };
 
-/** Phones: no Epic and no ray-traced reflections (PC only); the rest as chosen. */
+/** Phones: no Epic (Ultra instead) and none of `MOBILE_OFF`; the rest as chosen. */
 export function forPlatform(name: GraphicsPreset, f: GraphicsFeatures, mobile: boolean): { name: GraphicsPreset; features: GraphicsFeatures } {
   if (!mobile) return { name, features: f };
-  if (name === 'epic') return { name: 'ultra', features: GRAPHICS_PRESETS.ultra };
-  return f.reflections === 'rt' ? { name, features: { ...f, reflections: 'ssr' } } : { name, features: f };
+  return name === 'epic' ? { name: 'ultra', features: { ...GRAPHICS_PRESETS.ultra, ...MOBILE_OFF } } : { name, features: { ...f, ...MOBILE_OFF } };
 }
 export const FEATURE_KEYS = Object.keys(GRAPHICS_PRESETS.epic) as (keyof GraphicsFeatures)[];
 export const LIGHT_RANGE = { min: 8, max: 48 } as const;
@@ -184,11 +186,14 @@ export interface QualityLevel {
   upscale: number;
   /** Panini projection strength (0: off). */
   panini: number;
+  /** A phone: cheaper bloom (3.1.9). */
+  mobile: boolean;
 }
 
-export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0): QualityLevel {
+export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0, mobile = false): QualityLevel {
   return {
     minimal,
+    mobile,
     upscale: minimal ? 1 : Math.max(0.5, Math.min(1, upscale)),
     panini: minimal ? 0 : Math.max(0, Math.min(1, panini)),
     name,

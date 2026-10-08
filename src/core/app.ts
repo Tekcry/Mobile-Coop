@@ -24,8 +24,8 @@ import type { BenchKind, BenchSession } from '../game/benchmark';
 import type { CrashLog } from '../feedback/crashLog';
 import { classifyGpu, hudInset, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
-import { MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
-import { setAuto } from './settings';
+import { MOBILE_PRESET_IDS, PHONE_FPS, PRESET_IDS, presetDisplay, type FixedPreset } from './quality';
+import { setAuto, setPreset } from './settings';
 import { flags } from './flags';
 import { viewHeight, viewWidth } from './viewRotation';
 
@@ -189,14 +189,14 @@ export class App {
     const mobile = this.platform.platform === 'mobile';
     const key = deviceKey(this.gpu.renderer, this.platform.platform, screen.width, screen.height, devicePixelRatio);
     if (!force && v.device.key === key && v.device.tier) {
-      if (v.preset !== v.device.tier) this.settings.update((d) => setAuto(d, d.video.device.tier));
+      if (v.preset !== v.device.tier) this.settings.update((d) => setAuto(d, d.video.device.tier, mobile));
       return;
     }
     const guess = tierFromRenderer(flags.renderer ?? this.gpu.renderer, mobile);
     if (guess.confident && !force) {
       this.settings.update((d) => {
         d.video.device = { key, tier: guess.tier, source: 'gpu' };
-        setAuto(d, guess.tier);
+        setAuto(d, guess.tier, mobile);
       });
       this.onDetected?.();
       return;
@@ -238,7 +238,7 @@ export class App {
     this.quality.setOverride(null);
     this.settings.update((d) => {
       d.video.device = { key, tier, source: 'calibrated' };
-      if (d.video.auto) setAuto(d, tier);
+      if (d.video.auto) setAuto(d, tier, this.platform.platform === 'mobile');
     });
     this.toasts.show(`Graphics: ${tier[0]!.toUpperCase()}${tier.slice(1)} for this device (Settings > Graphics)`, 'ok', 4000);
     this.onDetected?.();
@@ -246,7 +246,7 @@ export class App {
 
   private calibApply(): void {
     const p = this.calib!.preset;
-    this.quality.setOverride({ preset: p, scale: Math.min(2, PRESET_DISPLAY[p].renderScale * CALIBRATION.load) });
+    this.quality.setOverride({ preset: p, scale: Math.min(2, presetDisplay(p, this.platform.platform === 'mobile').renderScale * CALIBRATION.load) });
   }
 
   /** A calibration is waiting or running. */
@@ -296,7 +296,26 @@ export class App {
     this.audio.setVolumes(this.settings.get().audio);
     this.settingsLoaded = true;
     this.applyPlatform();
+    this.phoneDefaults();
     this.detectGraphics();
+  }
+
+  /**
+   * Phones, once (3.1.9; the target is 60 fps at Ultra, native): Target frame rate 60 when it was the display's, and
+   * the named preset's resolution again (Ultra native). Tests keep their settings (`?detect=1` runs it).
+   */
+  private phoneDefaults(): void {
+    const v = this.settings.get().video;
+    if (this.platform.platform !== 'mobile' || v.phoneSetup || (navigator.webdriver && !flags.detect)) return;
+    this.settings.update((d) => {
+      if (d.video.fpsCap === 0) d.video.fpsCap = PHONE_FPS;
+      if (d.video.preset !== 'custom') {
+        const auto = d.video.auto;
+        setPreset(d, d.video.preset, true);
+        d.video.auto = auto;
+      }
+      d.video.phoneSetup = true;
+    });
   }
 
   private settingsLoaded = false;

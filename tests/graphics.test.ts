@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capAllows, forPlatform, GRAPHICS_PRESETS, MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, presetOf, pvpFeatures, qualityLevel, MAX_SHADOW_CASTERS, shadowSpec, VOXEL_TIER } from '../src/core/quality';
+import { capAllows, forPlatform, GRAPHICS_PRESETS, MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, MOBILE_OFF, PHONE_OUTPUTS, presetOf, qualityLevel, MAX_SHADOW_CASTERS, shadowSpec, VOXEL_TIER } from '../src/core/quality';
 import { defaultSettings, sanitizeSettings, setAuto, setGfx, setPreset } from '../src/core/settings';
 
 describe('graphics settings (3.0)', () => {
@@ -44,13 +44,29 @@ describe('graphics settings (3.0)', () => {
     expect(back.video.gfx.lights).toBe(44);
     expect(back.video.gfx.reflections).toBe('off');
     expect(sanitizeSettings({ video: { renderScale: 9, fpsCap: 77, fovH: 200 } }).video).toMatchObject({ renderScale: 2, fpsCap: 0, fovH: 120 });
+    // (3.1.9: a phone's output - native (0) or a cap; anything else the default)
+    expect(PHONE_OUTPUTS).toContain(0);
+    expect(sanitizeSettings({ video: { phoneOutput: 0 } }).video.phoneOutput).toBe(0);
+    expect(sanitizeSettings({ video: { phoneOutput: 7 } }).video.phoneOutput).toBe(0);
+    // (3.1.9 phones: Ultra native, no upscaling; PC as before)
+    const ph = defaultSettings();
+    setPreset(ph, 'ultra', true);
+    expect([ph.video.renderScale, ph.video.upscaler]).toEqual([1, 'off']);
+    setPreset(ph, 'ultra');
+    expect(ph.video.renderScale).toBe(PRESET_DISPLAY.ultra.renderScale);
   });
   it('3.1 ladder: one set of presets for every device, Epic and ray tracing only on PC', () => {
     expect(MOBILE_PRESET_IDS).toEqual(['low', 'medium', 'high', 'ultra']);
-    expect(forPlatform('epic', GRAPHICS_PRESETS.epic, true)).toEqual({ name: 'ultra', features: GRAPHICS_PRESETS.ultra });
+    expect(forPlatform('epic', GRAPHICS_PRESETS.epic, true)).toEqual({ name: 'ultra', features: { ...GRAPHICS_PRESETS.ultra, ...MOBILE_OFF } });
     expect(forPlatform('epic', GRAPHICS_PRESETS.epic, false).name).toBe('epic');
     const rt = forPlatform('custom', { ...GRAPHICS_PRESETS.ultra, reflections: 'rt' }, true);
-    expect(rt.features.reflections).toBe('ssr');
+    expect(rt.features.reflections).toBe('off');
+    // (3.1.9 phones: the costliest passes are off on every preset; lighting and shadows are the preset's)
+    for (const p of MOBILE_PRESET_IDS) {
+      const f = forPlatform(p, GRAPHICS_PRESETS[p], true).features;
+      expect([f.ao, f.reflections, f.dof, f.motionBlur, f.lens]).toEqual([false, 'off', false, false, false]);
+      expect([f.shadows, f.lights, f.gi, f.volumetrics]).toEqual([GRAPHICS_PRESETS[p].shadows, GRAPHICS_PRESETS[p].lights, GRAPHICS_PRESETS[p].gi, GRAPHICS_PRESETS[p].volumetrics]);
+    }
     expect(forPlatform('custom', { ...GRAPHICS_PRESETS.ultra, reflections: 'rt' }, false).features.reflections).toBe('rt');
     // render scale falls with the preset; Epic is native
     for (let i = 1; i < PRESET_IDS.length; i++) expect(PRESET_DISPLAY[PRESET_IDS[i]!].renderScale).toBeGreaterThanOrEqual(PRESET_DISPLAY[PRESET_IDS[i - 1]!].renderScale);
@@ -99,18 +115,6 @@ describe('graphics settings (3.0)', () => {
     const d = sanitizeSettings({ video: { auto: true, device: { key: 'k', tier: 'ultra', source: 'calibrated' } } }).video.device;
     expect(d).toEqual({ key: 'k', tier: 'ultra', source: 'calibrated' });
     expect(sanitizeSettings({ video: { device: { key: 5, tier: 'mega', source: 'x' } } }).video.device).toEqual({ key: '', tier: null, source: 'none' });
-  });
-  it('PvP (3.1): what decides how visible a player is matches on every preset and platform', () => {
-    const keys = ['shadows', 'lights', 'ao', 'gi', 'volumetrics', 'effects'] as const;
-    const looks = PRESET_IDS.flatMap((p) => [false, true].map((m) => qualityLevel(p, pvpFeatures(forPlatform(p, GRAPHICS_PRESETS[p], m).features))));
-    for (const l of looks) {
-      for (const k of keys) expect(l.features[k], k).toEqual(looks[0]!.features[k]);
-      expect(l.realLights).toBe(looks[0]!.realLights);
-      expect(l.shadow).toEqual(looks[0]!.shadow);
-      expect(l.vfxDensity).toBe(looks[0]!.vfxDensity);
-    }
-    // (the rest stays the player's own)
-    expect(pvpFeatures(GRAPHICS_PRESETS.epic).textures).toBe('epic');
   });
   it('the frame limiter renders every other frame for 60 on a 120 Hz display', () => {
     expect(capAllows(8.3, 60, 8.33)).toBe(false);

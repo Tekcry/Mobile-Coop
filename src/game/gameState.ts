@@ -288,9 +288,6 @@ export class GameState implements AppState {
     this.pvp = opts.mode === 'tdm' || opts.mode === 'ffa';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
-    // PvP (3.1, crossplay fairness): the same field of view for everyone, no Panini
-    this.player.pvp = this.pvp;
-    app.quality.setPvp(this.pvp);
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
     // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
@@ -714,7 +711,6 @@ export class GameState implements AppState {
       this.app.quality.setOverride(null);
       benchTag(null);
     }
-    if (this.pvp) this.app.quality.setPvp(false);
     this.exited = true;
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;

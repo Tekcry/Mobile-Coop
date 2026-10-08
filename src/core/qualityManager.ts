@@ -1,6 +1,6 @@
 import type { Engine } from './babylon';
 import { applyRenderScale } from './engine';
-import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, MOBILE_MAX_DPR, pvpFeatures, qualityLevel, type FixedPreset, type GraphicsFeatures, type QualityLevel } from './quality';
+import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, qualityLevel, type FixedPreset, type GraphicsFeatures, type QualityLevel } from './quality';
 import { adaptiveAt, FULL, Governor, type Adaptive } from './governor';
 import { flags } from './flags';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, type PacingSnapshot } from './pacing';
@@ -71,7 +71,8 @@ export class QualityManager {
 
   /** Every rendered frame (menus included); dynamic resolution only while simulating. */
   frame(intervalMs: number, cpuMs: number, simulating: boolean, rafMs = intervalMs): void {
-    if (this.refresh.push(rafMs)) this.loop.displayMs = 1000 / this.hz;
+    // (in a match the frames may be GPU-bound: the detected rate only rises there; the menu can lower it)
+    if (this.refresh.push(rafMs, !simulating)) this.loop.displayMs = 1000 / this.hz;
     if (simulating !== this.simulating) {
       this.simulating = simulating;
       this.stats.clear();
@@ -103,12 +104,6 @@ export class QualityManager {
 
   private applyAdaptive(): void {
     adaptiveAt(this.adaptiveOn ? this.governor.level : 0, this.adaptive);
-    if (this.pvp) {
-      // (PvP: lighting, shadows and effects stay the shared look)
-      this.adaptive.shadowEvery = 1;
-      this.adaptive.lights = 1;
-      this.adaptive.effects = 1;
-    }
     this.applyScale();
     this.target?.applyAdaptive?.(this.adaptive, this._level);
   }
@@ -126,19 +121,9 @@ export class QualityManager {
     const pick = flags.gfx ? { name: flags.gfx, f: GRAPHICS_PRESETS[flags.gfx] } : this.ov?.preset ? { name: this.ov.preset, f: GRAPHICS_PRESETS[this.ov.preset] } : { name: v.preset, f: v.gfx };
     // (Feature costs: one feature changed for a benchmark run)
     if (!flags.gfx && this.ov?.gfx) pick.f = { ...pick.f, ...this.ov.gfx };
-    // phones: no Epic, no ray-traced reflections
+    // phones: no Epic, none of the passes in `MOBILE_OFF`, no Panini (a phone's field of view is never that wide)
     const p = forPlatform(pick.name, pick.f, this.mobile);
-    // PvP: the shared look for what decides how visible a player is
-    const f = this.pvp ? pvpFeatures(p.features) : p.features;
-    return qualityLevel(p.name, f, false, up, this.pvp ? 0 : v.panini);
-  }
-
-  /** A PvP match (3.1): no Panini (everyone sees the same projection). */
-  private pvp = false;
-  setPvp(on: boolean): void {
-    if (on === this.pvp) return;
-    this.pvp = on;
-    this.apply();
+    return qualityLevel(p.name, p.features, false, up, this.mobile ? 0 : v.panini, this.mobile);
   }
 
   /** The device is a phone / tablet (Epic and ray tracing are PC only). */
@@ -197,12 +182,12 @@ export class QualityManager {
     this.onChange?.(this._level);
   }
 
-  /** Render resolution: native (no DPR cap) x the render scale x dynamic resolution. */
+  /** Render resolution: native (phones: up to `video.phoneOutput`) x the render scale x dynamic resolution. */
   private applyScale(): void {
     // (`?gfx=min`: DPR 1, as the phone-era tests ran)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
     // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
-    else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), this.mobile ? MOBILE_MAX_DPR : Infinity);
+    else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), this.mobile ? this.settings.get().video.phoneOutput || Infinity : Infinity);
   }
 }
