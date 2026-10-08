@@ -4,7 +4,8 @@ import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid,
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
+import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
 
 export { bakedLights };
@@ -15,12 +16,20 @@ const LAMP_TEXELS = 7;
 /** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). */
 const DOOR_TEXELS = 2;
 
+/** Rendering: a gameplay light level shows as this much light on screen (a lamp's `LIGHT_GAIN` over its gameplay
+ *  `LAMP_LEVEL_GAIN`), so the phone's ambient-grid fill and the lamps keep one scale. */
+export const LEVEL_TO_RENDER = LIGHT_GAIN / LAMP_LEVEL_GAIN;
+
 /** What the canonical bake adds to the baked lamps (3.6). */
 export interface BakeExtras {
   /** The baked moon: the sun light is multiplied by it (static moon shadows). */
   moon?: MoonGrid | null;
   /** Doors (`Doors.list`): a closed leaf stops the lamps listed for it. */
   doors?: readonly FieldDoor[];
+  /** The phone light look: the ambient grid as the fill (gameplay's own; no sky bake there), with its colour. */
+  fill?: { grid: AmbientGrid; color: [number, number, number] } | null;
+  /** The phone light look: the plugin goes on the lit standard materials (else on the PBR ones). */
+  standard?: boolean;
 }
 /** Character capsules (two texels each) and how many one lamp tests. */
 export const MAX_CAPSULES = 16;
@@ -49,6 +58,10 @@ export class BakedLamps {
   /** 3.6: the baked moon (R8, linear). */
   readonly moonTex: RawTexture3D | null = null;
   readonly moon: MoonGrid | null;
+  readonly fillTex: RawTexture3D | null = null;
+  readonly fill: BakeExtras['fill'];
+  /** The plugin goes on standard materials (the phone light look). */
+  private readonly standard: boolean;
   private readonly doors: readonly FieldDoor[];
   private readonly doorShut: Uint8Array;
   /** Per lamp its door indices (`lampDoorLists`). */
@@ -87,6 +100,8 @@ export class BakedLamps {
   ) {
     this.order = baked.ids;
     this.moon = extra.moon ?? null;
+    this.fill = extra.fill ?? null;
+    this.standard = !!extra.standard;
     this.doors = extra.doors ?? [];
     this.doorShut = new Uint8Array(this.doors.length).fill(2);
     this.lampDoors = lampDoorLists(baked.lights, this.doors);
@@ -144,6 +159,7 @@ export class BakedLamps {
       return t;
     };
     if (this.moon) this.moonTex = mk3(this.moon.vis, this.moon.n[0], this.moon.n[1], this.moon.n[2]);
+    if (this.fill) this.fillTex = mk3(this.fill.grid.data, this.fill.grid.n[0], this.fill.grid.n[1], this.fill.grid.n[2]);
 
     this.data = new RawTexture(buf, w, h, Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT);
     if (volume) this.volume = new LampVolume(scene, this, lampVolumeGrid(r.boxes, volume.floorY));
@@ -158,7 +174,11 @@ export class BakedLamps {
   }
 
   attach(m: Material): void {
-    if (this.plugins.has(m) || m.getClassName() !== 'PBRMaterial') return;
+    if (this.plugins.has(m)) return;
+    // (the phone light look: the lit standard materials - level, characters, weapons, props; not the sky, bulbs or
+    // effects, which draw unlit)
+    const cls = m.getClassName();
+    if (this.standard ? cls !== 'StandardMaterial' || (m as Material & { disableLighting?: boolean }).disableLighting : cls !== 'PBRMaterial') return;
     this.plugins.add(m);
     const frozen = m.isFrozen;
     if (frozen) m.unfreeze();
@@ -223,6 +243,11 @@ export class BakedLamps {
       dirty = true;
     }
     if (dirty) this.data.update(this.buf);
+  }
+
+  /** Tests (3.6): the volume's cell at a world point (`LampVolume.readCell`), or null without a volume. */
+  volumeAt(x: number, y: number, z: number): { a: number[]; b: number[] } | null {
+    return this.volume ? this.volume.readCell(x, y, z) : null;
   }
 
   /**
@@ -294,6 +319,7 @@ export class BakedLamps {
     this.vis.dispose();
     this.data.dispose();
     this.moonTex?.dispose();
+    this.fillTex?.dispose();
     this.volume?.dispose();
   }
 }
@@ -472,6 +498,28 @@ class LampVolume {
     this.mixes++;
   }
 
+  /**
+   * Tests (3.6, parity probes): the cell containing a world point read back from the GPU - light (A: rgb =
+   * sqrt(light / `LAMP_VOL_MAX`)) and direction (B) - or null outside the volume or while a mix waits.
+   */
+  readCell(x: number, y: number, z: number): { a: number[]; b: number[] } | null {
+    const g = this.grid;
+    const i = Math.floor((x - g.o[0]) / g.cell);
+    const j = Math.floor((y - g.o[1]) / g.cell);
+    const k = Math.floor((z - g.o[2]) / g.cell);
+    if (i < 0 || j < 0 || k < 0 || i >= g.dims[0] || j >= g.dims[1] || k >= g.dims[2] || this.pending) return null;
+    const engine = this.renderer.engine as unknown as { _gl: WebGL2RenderingContext; bindFramebuffer(rt: RenderTargetWrapper, face?: number, w?: number, h?: number, force?: boolean, lod?: number, layer?: number): void; unBindFramebuffer(rt: RenderTargetWrapper, disableGen?: boolean): void };
+    const gl = engine._gl;
+    const read = (rt: RenderTargetWrapper): number[] => {
+      const px = new Uint8Array(4);
+      engine.bindFramebuffer(rt, 0, undefined, undefined, true, 0, k);
+      gl.readPixels(i, j, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      engine.unBindFramebuffer(rt, true);
+      return [px[0]!, px[1]!, px[2]!, px[3]!];
+    };
+    return { a: read(this.rtA), b: read(this.rtB) };
+  }
+
   /** Run a mix that was waiting for its shader. */
   retry(): void {
     if (!this.pending || !this.wrapper.effect.isReady()) return;
@@ -496,6 +544,9 @@ uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
 #ifdef LAMP_MOON
 uniform highp sampler3D lampMoon;
+#endif
+#ifdef LAMP_FILL
+uniform highp sampler3D lampAmb;
 #endif
 vec4 lampTexel(int k) {
   int w = int(lampInfo.x);
@@ -540,9 +591,13 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false });
+    this.std = material.getClassName() === 'StandardMaterial';
     this._enable(true);
   }
+
+  /** On a standard material (the phone light look): the light goes into `diffuseBase`. */
+  private readonly std: boolean;
 
   override getClassName(): string {
     return 'LampPlugin';
@@ -557,10 +612,11 @@ export class LampPlugin extends MaterialPluginBase {
     defines.LAMP_VOLUME = !!mesh && !!this.lamps.volume;
     // (only a texture that exists: an unbound sampler3D falls on a 2D texture's unit, a draw error)
     defines.LAMP_MOON = !!mesh && !!this.lamps.moonTex;
+    defines.LAMP_FILL = !!mesh && !!this.lamps.fillTex;
   }
 
   override getSamplers(samplers: string[]): void {
-    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon');
+    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb');
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string; arraySize?: number }[]; fragment?: string } {
@@ -575,17 +631,27 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampMore', size: 4, type: 'vec4' },
         { name: 'lampMoonO', size: 4, type: 'vec4' },
         { name: 'lampMoonN', size: 4, type: 'vec4' },
+        { name: 'lampAmbO', size: 4, type: 'vec4' },
+        { name: 'lampAmbN', size: 4, type: 'vec4' },
+        { name: 'lampFillC', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\n#endif`,
     };
   }
 
   override bindForSubMesh(ubo: UniformBuffer, _scene: Scene, _engine: unknown, _subMesh: SubMesh): void {
     const l = this.lamps;
     const v = l.volume;
-    // (3.6) the baked moon, on both paths
+    // (3.6) the baked moon, on both paths; the ambient-grid fill on the phone light look
     const m = l.moon;
-    ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, 0, 0);
+    const f = l.fill;
+    ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, f && l.fillTex ? 1 : 0, LEVEL_TO_RENDER);
+    if (f && l.fillTex) {
+      ubo.updateFloat4('lampAmbO', f.grid.origin[0], f.grid.origin[1], f.grid.origin[2], AMBIENT_CELL);
+      ubo.updateFloat4('lampAmbN', f.grid.n[0], f.grid.n[1], f.grid.n[2], 0);
+      ubo.updateFloat4('lampFillC', f.color[0], f.color[1], f.color[2], 0);
+      ubo.setTexture('lampAmb', l.fillTex);
+    }
     if (m && l.moonTex) {
       ubo.updateFloat4('lampMoonO', m.origin[0], m.origin[1], m.origin[2], m.cell);
       ubo.updateFloat4('lampMoonN', m.n[0], m.n[1], m.n[2], 0);
@@ -610,13 +676,36 @@ export class LampPlugin extends MaterialPluginBase {
 
   override getCustomCode(shaderType: string): { [pointName: string]: string } | null {
     if (shaderType !== 'fragment') return null;
-    return {
+    const code: { [pointName: string]: string } = {
       CUSTOM_FRAGMENT_DEFINITIONS: `
 #ifdef BAKED_LAMPS
 ${LAMP_GLSL}
 #ifdef LAMP_VOLUME
 uniform highp sampler3D lampVolA;
 uniform highp sampler3D lampVolB;
+// 3.3 phones: the lamps pre-mixed - their light and the direction it comes from, two taps (gn: the geometric normal,
+// n: the shading normal)
+vec3 nsVolume(vec3 lp, vec3 gn, vec3 n) {
+  vec3 q = (lp + gn * lampVolO.w - lampVolO.xyz) / (lampVolO.w * lampVolD.xyz);
+  if (any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0)))) return vec3(0.0);
+  vec4 la = texture(lampVolA, q);
+  if (la.r + la.g + la.b <= 0.002) return vec3(0.0);
+  vec4 lb = texture(lampVolB, q);
+  vec3 ld = lb.rgb * 2.0 - 1.0;
+  float dl = length(ld);
+  ld = dl > 1e-3 ? ld / dl : vec3(0.0, 1.0, 0.0);
+  float nd = dot(n, ld);
+  // one lamp: N.L; light from every side: wrapped
+  float k = mix(0.5 + 0.5 * nd, max(nd, 0.0), lb.a);
+  // the nearest characters shade it, along the light's direction
+  vec3 lpos = lp + ld * 3.0;
+  for (int c = 0; c < ${VOL_CAPS}; c++) {
+    vec4 ca4 = lampCaps[c * 2];
+    if (ca4.w <= 0.0) break;
+    k *= mix(1.0, lampCapsule(lp, lpos, ca4.xyz, lampCaps[c * 2 + 1].xyz, ca4.w), lb.a);
+  }
+  return la.rgb * la.rgb * lampVolD.w * k;
+}
 #endif
 #endif`,
       // 3.6: the baked moon - the sun light (the one directional light) x the moon's visibility a little off the
@@ -638,31 +727,7 @@ diffuse$1.rgb *= nsMoon;
       CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION: `
 #ifdef BAKED_LAMPS
 #ifdef LAMP_VOLUME
-{
-  // 3.3 phones: the lamps pre-mixed - their light and the direction it comes from, two taps
-  vec3 lp = vPositionW;
-  vec3 q = (lp + normalize(vNormalW) * lampVolO.w - lampVolO.xyz) / (lampVolO.w * lampVolD.xyz);
-  if (all(greaterThanEqual(q, vec3(0.0))) && all(lessThanEqual(q, vec3(1.0)))) {
-    vec4 la = texture(lampVolA, q);
-    if (la.r + la.g + la.b > 0.002) {
-      vec4 lb = texture(lampVolB, q);
-      vec3 ld = lb.rgb * 2.0 - 1.0;
-      float dl = length(ld);
-      ld = dl > 1e-3 ? ld / dl : vec3(0.0, 1.0, 0.0);
-      float nd = dot(normalW, ld);
-      // one lamp: N.L; light from every side: wrapped
-      float k = mix(0.5 + 0.5 * nd, max(nd, 0.0), lb.a);
-      // the nearest characters shade it, along the light's direction
-      vec3 lpos = lp + ld * 3.0;
-      for (int c = 0; c < ${VOL_CAPS}; c++) {
-        vec4 ca4 = lampCaps[c * 2];
-        if (ca4.w <= 0.0) break;
-        k *= mix(1.0, lampCapsule(lp, lpos, ca4.xyz, lampCaps[c * 2 + 1].xyz, ca4.w), lb.a);
-      }
-      finalDiffuse += la.rgb * la.rgb * lampVolD.w * k * surfaceAlbedo.rgb;
-    }
-  }
-}
+finalDiffuse += nsVolume(vPositionW, normalize(vNormalW), normalW) * surfaceAlbedo.rgb;
 #else
 {
   vec3 lp = vPositionW;
@@ -725,5 +790,19 @@ diffuse$1.rgb *= nsMoon;
 #endif
 #endif`,
     };
+    if (!this.std) return code;
+    // the phone light look's standard materials: the volume and the ambient-grid fill join the lights' diffuse sum
+    // (the material's colour and albedo multiply it after)
+    delete code['CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION'];
+    code['!vec3 emissiveColor=vEmissiveColor;'] = `#ifdef BAKED_LAMPS
+#ifdef LAMP_FILL
+diffuseBase += nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN) * lampMore.w * lampFillC.rgb;
+#endif
+#ifdef LAMP_VOLUME
+diffuseBase += nsVolume(vPositionW, normalize(vNormalW), normalW);
+#endif
+#endif
+vec3 emissiveColor=vEmissiveColor;`;
+    return code;
   }
 }

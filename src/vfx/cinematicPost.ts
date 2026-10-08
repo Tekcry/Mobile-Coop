@@ -1,11 +1,7 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
 
-/**
- * One combined full-screen pass for the cinematic look: the map's colour grade, gentle vignette, optional film grain, a
- * letterbox for stinger moments (mission start, room cleared) and the night-vision goggles (green
- * phosphor: the dark lifted, bright lights blooming out, heavy grain, a tube vignette). Kept to a single
- * cheap pass so it fits the 120 fps budget; disabled entirely when every effect is off.
- */
+export { PHONE_DARK_FLOOR } from '../core/quality';
+
 Effect.ShadersStore['cinematicFragmentShader'] = `
 precision mediump float;
 varying vec2 vUV;
@@ -21,6 +17,7 @@ uniform float feed;
 uniform vec3 tint;
 uniform float sat;
 uniform float contrast;
+uniform float darkFloor;
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
   // the map's colour grade: tint, saturation, contrast round mid grey
@@ -28,6 +25,8 @@ void main(void) {
   float gl = dot(gr, vec3(0.299, 0.587, 0.114));
   gr = mix(vec3(gl), gr, sat);
   c.rgb = max((gr - 0.5) * contrast + 0.5, 0.0);
+  // (3.6) readable darkness: black lifted to the floor, white kept
+  if (darkFloor > 0.0) c.rgb = darkFloor + min(c.rgb, 1.0) * (1.0 - darkFloor);
   vec2 d = vUV - 0.5;
   d.x *= aspect;
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
@@ -72,8 +71,22 @@ export class CinematicPost {
   private tint: [number, number, number] = [1, 1, 1];
   private sat = 1;
   private contrast = 1;
+  /** Black lifted to this (3.6; `PHONE_DARK_FLOOR` on the phone look, 0 elsewhere). */
+  private floor = 0;
 
   constructor(private camera: Camera) {}
+
+  /** The readable-darkness floor (0 = none). */
+  setDarkFloor(k: number): void {
+    if (k === this.floor) return;
+    this.floor = k;
+    this.sync();
+  }
+
+  /** The floor in use (tests). */
+  get darkFloor(): number {
+    return this.floor;
+  }
 
   /** Apply settings; creates or removes the pass as needed. */
   configure(vignette: boolean, grain: boolean): void {
@@ -91,7 +104,7 @@ export class CinematicPost {
   }
 
   private get graded(): boolean {
-    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1;
+    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1 || this.floor > 0;
   }
 
   /** Night-vision goggles blend (0 off .. 1). */
@@ -123,7 +136,7 @@ export class CinematicPost {
   private sync(force = false): void {
     const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast'], null, 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor'], null, 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -136,6 +149,7 @@ export class CinematicPost {
         e.setFloat3('tint', this.tint[0], this.tint[1], this.tint[2]);
         e.setFloat('sat', this.sat);
         e.setFloat('contrast', this.contrast);
+        e.setFloat('darkFloor', this.floor);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

@@ -53,6 +53,9 @@ export interface WorldOptions {
   cheap?: boolean;
   /** 3.3 phones: the baked lamps mixed into one light volume (`BakedLamps` volume mode). */
   lampVolume?: boolean;
+  /** 3.6 the phone light look: the lamps from the light volume on the standard materials, the ambient grid as the
+   *  fill and the baked moon - the same field gameplay reads - instead of six plain lights. */
+  phoneLamps?: boolean;
   /** Detail tier for the visual-only dressing pass (none for `?gfx=min`). */
   detail?: TierQuality;
   /** 3.0 voxels (null / absent: the blockout's boxes as before). */
@@ -232,11 +235,16 @@ export class World {
     level.lights.ambient = map.theme.lightLevel ?? 0.75;
     const bake = await bakeLevelLight({ mapId: map.id, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
     const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
-    // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off)
-    if (bake.lamps && vo && level.voxels && !opts.cheap && flags.baked) {
+    // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off); 3.6: and on
+    // the phone light look (standard materials, the volume)
+    const phone = !!opts.phoneLamps;
+    if (bake.lamps && flags.baked && (phone || (vo && level.voxels && !opts.cheap))) {
       // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
-      // 3.6: the baked moon and closed doors (the fill stays the sky bake's: Michael, 2026-10-09)
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume ? { floorY: 0 } : null, { moon: bake.moon, doors: w.doors.list });
+      // 3.6: the baked moon and closed doors (desktop's fill stays the sky bake's: Michael, 2026-10-09); the phone
+      // has no sky bake: its fill is the ambient grid, at the lamps' scale
+      const fill = phone ? { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] } : null;
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume || phone ? { floorY: 0 } : null, { moon: bake.moon, doors: w.doors.list, fill, standard: phone });
+      if (phone) w.hemi.intensity = 0;
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);

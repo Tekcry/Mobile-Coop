@@ -40,7 +40,7 @@ try {
     assert(i.lampKey === ref.lampKey && i.moonKey === ref.moonKey, `${name}: the lamp and moon bake keys are the same`);
     assert(i.hash === ref.hash, `${name}: the visibility data hash is the same (${i.hash})`);
   }
-  assert(infos.find(([n]) => n === 'phone look')[1].lite && !infos.find(([n]) => n === 'phone look')[1].lamps, 'the phone look baked without drawing the volume yet (Step 4)');
+  assert(infos.find(([n]) => n === 'phone look')[1].lite && infos.find(([n]) => n === 'phone look')[1].lamps, 'the phone look draws the bake (the lamp volume, 3.6 Step 4)');
 } catch (e) {
   failed = true;
   console.error(String(e));

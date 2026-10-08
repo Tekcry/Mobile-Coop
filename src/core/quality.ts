@@ -94,8 +94,9 @@ export function presetDisplay(p: FixedPreset, mobile: boolean): { renderScale: n
 }
 /**
  * 3.4 phones: one fixed look, the 2.x renderer - the level's plain blockout (no voxels) in standard materials, smooth
- * characters and weapons, a short pool of plain lamp lights, contact blob shadows, the scene fog and the grade pass
- * only (no post stack). Native resolution, the governor stepping down to 75% (`PHONE_SCALES`). Gameplay reads the
+ * characters and weapons, contact blob shadows, the scene fog and the grade pass only (no post stack). 3.6: the lamps
+ * from the baked light volume, the ambient grid and the baked moon (`World` `phoneLamps`); two plain pool lights for
+ * the flashlights (`LightRig`, `BAKED_PLAIN_POOL`). Native resolution, the governor stepping down to 75% (`PHONE_SCALES`). Gameplay reads the
  * blockout on every device, so nothing a phone player sees or hides behind differs.
  */
 export const PHONE_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 6, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'low', detail: 'medium', effects: 'medium' };
@@ -127,6 +128,25 @@ export const NO_CUTS: Readonly<PhoneCuts> = { lampVolume: false, plainVoxels: fa
 export const PHONE_SCALES = [1, 0.92, 0.84, 0.75] as const;
 export const PHONE_FLOOR = 0.75;
 export const PHONE_FPS_FALLBACK = 30;
+
+/**
+ * 3.6 readable darkness (bible L7): the phone grade lifts black to this (display value, 0..1) and keeps white, so the
+ * darkest playable corner is never pure black at default brightness (`darkFloor`, mirrored in the shader).
+ */
+export const PHONE_DARK_FLOOR = 0.045;
+
+/** The grade's floor (pure; the shader does the same per channel): black -> `floor`, white stays white. */
+export function darkFloor(c: number, floor: number): number {
+  return floor + c * (1 - floor);
+}
+
+/**
+ * One combined full-screen pass for the cinematic look: the map's colour grade, gentle vignette, optional film grain, a
+ * letterbox for stinger moments (mission start, room cleared) and the night-vision goggles (green
+ * phosphor: the dark lifted, bright lights blooming out, heavy grain, a tube vignette). Kept to a single
+ * cheap pass so it fits the 120 fps budget; disabled entirely when every effect is off.
+ */
+
 
 /** Tests only (`?gfx=min`): every feature off, the fewest lights - headless software GL keeps its frame rate. */
 export const MIN_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'high', detail: 'high', effects: 'high' };

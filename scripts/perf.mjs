@@ -3,7 +3,7 @@
 //  - animation cost per character (rig evaluation, ms)
 //  - allocations per simulated second (sampling heap profiler, incl. collected objects) + top allocators
 //  - draw calls and real rendered frame pacing (SwiftShader: GPU timings are NOT representative)
-// Usage: [EXTRA=baked=0] node scripts/perf.mjs [url] [--json] [--budget] [--desktop] [--preset=low|medium|high|ultra|epic [--mobile]]
+// Usage: [EXTRA=baked=0] node scripts/perf.mjs [url] [--json] [--budget] [--desktop | --phone] [--preset=low|medium|high|ultra|epic [--mobile]]
 //   (--budget exits 1 when a CPU-side budget is missed)
 //   default: `?gfx=min` - the phone / test-path regression check (the 2.x numbers)
 //   --desktop: `?gfx=epic` - the PC path (voxel characters and weapons, shadows, the post stack): main-thread CPU =
@@ -11,6 +11,8 @@
 //   (shadow maps and post included). GPU time needs the laptop (Settings > Graphics > Benchmark).
 //   --preset=<p> (3.1): that preset (`?gfx=<p>`, the governor off), its budget from the phone table below;
 //   --mobile with it runs the phone platform (no Epic, no ray tracing).
+//   --phone (3.6): the real phone light look (mobile platform, no `?gfx=`: the standard materials, the lamp volume,
+//   the ambient grid, the governor) - what a phone draws; `?gfx=` turns that look off, so the other modes miss it.
 import { launch, frames } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
@@ -20,9 +22,10 @@ const enforce = args.includes('--budget');
 const preset = args.find((a) => a.startsWith('--preset='))?.slice(9) ?? null;
 if (preset && !['low', 'medium', 'high', 'ultra', 'epic'].includes(preset)) throw new Error(`unknown preset ${preset}`);
 const mobile = args.includes('--mobile');
-const desktop = args.includes('--desktop') || (!!preset && !mobile);
+const phone = args.includes('--phone');
+const desktop = !phone && (args.includes('--desktop') || (!!preset && !mobile));
 // (the full renderer: slow to load on software GL)
-const heavy = desktop || !!preset;
+const heavy = desktop || !!preset || phone;
 // 3.1 phone budgets per preset (the iPhone 17 Pro Max at Ultra: main thread <= 4 ms of 8.33, <= 250 draws, <= 2 M
 // triangles; older phones on the lower presets). The sim's share is checked here, scaled by machine speed.
 const PRESET_BUDGET = {
@@ -32,9 +35,14 @@ const PRESET_BUDGET = {
   ultra: { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 250, trisM: 2, kbPerSecond: 11520 },
   epic: null,
 };
+// 3.6 the phone light look (the iPhone 17 Pro Max at 60 fps: the sim's share as on Ultra; draws and triangles: the
+// regression check, measured 3.6.0 + about 25%)
+const PHONE_LOOK_BUDGET = { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: PHONE_DRAWS, trisM: PHONE_TRIS_M, kbPerSecond: 11520 };
 // allocations: per second (the same garbage whatever the refresh rate - 240 Hz must not double it). What remains is
 // V8 boxing doubles passed to non-inlined calls and Havok's embind marshalling (young-generation churn, nothing kept).
-const BUDGET = preset && PRESET_BUDGET[mobile && preset === 'epic' ? 'ultra' : preset]
+const BUDGET = phone
+  ? PHONE_LOOK_BUDGET
+  : preset && PRESET_BUDGET[mobile && preset === 'epic' ? 'ultra' : preset]
   ? PRESET_BUDGET[mobile && preset === 'epic' ? 'ultra' : preset]
   : desktop
   ? // 3.0 PC: the main thread <= 3 ms of a 240 Hz frame's 4.17 ms - here the sim's share (<= 2 ms, leaving 1 ms for
@@ -52,8 +60,8 @@ const stealth = !!process.env.STEALTH;
 const MAP = process.env.MAP ?? 'warehouse';
 const { browser, page, errors } = await launch({
   url,
-  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${preset ? `&gfx=${preset}&platform=${mobile ? 'mobile' : 'desktop'}` : desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
-  ...(desktop ? { touch: false, viewport: { width: 640, height: 360 } } : {}),
+  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${phone ? '&detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user' : preset ? `&gfx=${preset}&platform=${mobile ? 'mobile' : 'desktop'}` : desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
+  ...(desktop || phone ? { touch: false, viewport: { width: 640, height: 360 } } : {}),
 });
 if (heavy) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
 await frames(page, 10);

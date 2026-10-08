@@ -14,6 +14,8 @@ const PICK_INTERVAL = 0.25;
 /** With baked lamps (3.2): the moving lights the pools hold, and how many cast shadows. */
 const BAKED_POOL = 4;
 const BAKED_SHADOWS = 2;
+/** 3.6 the phone light look with baked lamps: plain pool lights for the flashlights only. */
+const BAKED_PLAIN_POOL = 2;
 /** Sun + hemisphere already light every material. */
 const BASE_LIGHTS = 2;
 /** Omni lamps render as a spot pointing down with this cone (rad): everything below the lamp is lit, and one
@@ -248,7 +250,7 @@ export class LightRig {
    */
   configure(cfg: LightRigConfig, force = false): void {
     // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
-    if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
+    if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, cfg.plain ? BAKED_PLAIN_POOL : BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
     const same = !force && cfg.minimal === this.cfg.minimal && cfg.plain === this.cfg.plain && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
     this.cfg = cfg;
     if (this.cones) this.cones.isVisible = !cfg.volumetric;

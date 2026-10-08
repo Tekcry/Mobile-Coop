@@ -334,7 +334,7 @@ try {
     assert(lt.phone && lt.lite && lt.up === 1 && [60, 30].includes(lt.cap), `phone: the light look, native, capped at ${lt.cap} (governor level ${lt.gov})`);
     // (a match starts native; software GL is slow, so the governor may already have stepped: the canvas follows it)
     assert(Math.abs(lt.scale - [1, 0.92, 0.84, 0.75][Math.min(3, lt.gov)]) < 0.02, `phone: the canvas at the governor's step (x${lt.scale.toFixed(2)}, level ${lt.gov})`);
-    assert(!lt.voxels && !lt.lamps && lt.mat === 'StandardMaterial' && !lt.body, `phone: the blockout in standard materials, smooth characters (${JSON.stringify(lt)})`);
+    assert(!lt.voxels && lt.lamps && lt.mat === 'StandardMaterial' && !lt.body, `phone: the blockout in standard materials, smooth characters, the lamps from the baked volume (3.6) (${JSON.stringify(lt)})`);
     assert(!lt.sun && lt.casters === 0 && !lt.pps.some((n) => /taau|ssao|bloom|default|volum/i.test(n)), `phone: no shadow maps, no post stack (${lt.pps.join(',')})`);
     // the governor steps the canvas: 100 -> 92 -> 84 -> 75%, then 30 fps
     const steps = await p.page.evaluate(() => {

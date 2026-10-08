@@ -123,12 +123,13 @@ describe('per-section frame rate (3.3.1)', () => {
 });
 
 describe('Phone check (3.3, 3.4)', () => {
-  it('runs the light look native and at 75%, the moon shadow, the 3.3 voxel look, the first again, then a hold', () => {
+  it('runs the light look with the lamp volume native and at 75%, a flashlight shadow, the 3.3 voxel look, the first again, then a hold', () => {
     const runs = phoneCheckRuns();
     expect(benchPlan('phone', 2868, 1320)).toEqual(runs);
     expect(runs[0]!.scale).toBe(1);
     expect(runs[1]!.scale).toBe(PHONE_FLOOR);
-    expect(runs.some((r) => r.gfx?.shadows === 'low')).toBe(true);
+    expect(runs.some((r) => r.gfx?.shadows === 'medium')).toBe(true);
+    expect(runs.filter((r) => /lamp volume/.test(r.label)).length).toBe(4);
     const voxel = runs.filter((r) => r.look === 'voxel');
     expect(voxel.length).toBe(1);
     expect(voxel[0]!.scale).toBe(PHONE_FLOOR);
@@ -145,5 +146,17 @@ describe('Phone check (3.3, 3.4)', () => {
     const again = runs[runs.length - 2]!;
     expect(again.scale).toBe(runs[0]!.scale);
     expect(again.cuts ?? again.gfx ?? again.look).toBeUndefined();
+  });
+});
+
+describe('readable darkness (3.6, bible L7)', () => {
+  it('the phone grade lifts black to the floor and keeps white; it never darkens', async () => {
+    const { darkFloor, PHONE_DARK_FLOOR } = await import('../src/core/quality');
+    expect(PHONE_DARK_FLOOR).toBeGreaterThan(0.02);
+    expect(PHONE_DARK_FLOOR).toBeLessThan(0.08);
+    expect(darkFloor(0, PHONE_DARK_FLOOR)).toBeCloseTo(PHONE_DARK_FLOOR, 9);
+    expect(darkFloor(1, PHONE_DARK_FLOOR)).toBeCloseTo(1, 9);
+    for (let c = 0; c <= 1; c += 0.05) expect(darkFloor(c, PHONE_DARK_FLOOR)).toBeGreaterThanOrEqual(c - 1e-9);
+    expect(darkFloor(0.3, 0)).toBe(0.3);
   });
 });

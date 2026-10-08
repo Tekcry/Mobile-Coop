@@ -59,7 +59,7 @@ import type { Ledge } from '../world/anchors';
 import { LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
-import { CinematicPost } from '../vfx/cinematicPost';
+import { CinematicPost, PHONE_DARK_FLOOR } from '../vfx/cinematicPost';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
@@ -610,7 +610,7 @@ export class GameState implements AppState {
     const vw = flags.voxels && !plain ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
     setVoxelWeapons(vw);
     setVoxelProps(vw);
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain, lampVolume: cuts.lampVolume });
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain, lampVolume: cuts.lampVolume, phoneLamps: q.lite });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
@@ -620,6 +620,8 @@ export class GameState implements AppState {
   }
 
   applyQuality(level: QualityLevel): void {
+    // (3.6) readable darkness on the phone light look (bible L7)
+    this.post.setDarkFloor(level.lite ? PHONE_DARK_FLOOR : 0);
     const builds = this.stack.builds;
     this.world.applyQuality(level);
     this.stack.apply(level);

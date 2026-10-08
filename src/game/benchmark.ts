@@ -93,16 +93,18 @@ export function featureRuns(f: GraphicsFeatures): { label: string; gfx: Partial<
 export function phoneCheckRuns(): BenchRun[] {
   const run = (label: string, extra: Partial<BenchRun> = {}): BenchRun => ({ label, preset: null, scale: 1, seconds: FEATURE_SECONDS, sustained: false, ...extra });
   return [
-    run('phone look, 100%'),
-    run('phone look, 75%', { scale: PHONE_FLOOR }),
-    // (3.4: is the moon's shadow affordable - moonlight stopped by the roof)
-    run('+ moon shadow (1 cascade)', { gfx: { shadows: 'low' } }),
+    // (3.6: the light look draws the lamps from the baked light volume, the ambient grid and the baked moon)
+    run('light look + lamp volume, 100%'),
+    run('light look + lamp volume, 75%', { scale: PHONE_FLOOR }),
+    // (3.6: is a shadow map affordable - the nearest flashlight at 512, the moon's cascade on moving characters; the
+    // level's moon shadows are baked)
+    run('+ flashlight shadow (512), moon on characters', { gfx: { shadows: 'medium' } }),
     // (3.4: the comparison - the 3.3 voxel phone look, TAAU from 75%)
     run('3.3 voxel look, 75%', { look: 'voxel', scale: PHONE_FLOOR }),
     // (3.3.1: the first run again - a phone heating up through the check slows every later run; this says by how much)
-    run('phone look, 100% again (heat check)'),
+    run('light look + lamp volume, 100% again (heat check)'),
     // (3.3.2: what a match does - capped at 60 for 3 minutes, once warm: does 60 hold?)
-    { ...run('phone look held at 60, 3 min'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60 },
+    { ...run('light look + lamp volume held at 60, 3 min'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60 },
   ];
 }
 
