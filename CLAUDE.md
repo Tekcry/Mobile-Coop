@@ -5,7 +5,7 @@ IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id).
 for PC and phones. Static web app (Vite + TypeScript + Babylon.js 9 + Havok), installable PWA, fully playable offline.
 Hosted on GitHub Pages. Target (3.0): a gaming laptop (i9 HX, RTX 4090 Laptop 16 GB, 32 GB; built-in 2560 x 1600
 240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer (3.3: phones get
-one fixed phone look, no graphics settings - the iPhone 17 Pro Max targets 60 fps at 75 - 100% of native 2868 x 1320). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
+one fixed phone look, no graphics settings; 3.4: the light 2.x renderer on phones - the iPhone 17 Pro Max targets 60 fps at 75 - 100% of native 2868 x 1320). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
 test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) changes the UI and
 input, and (3.3) phones take the phone look. 3.1: one preset ladder for PCs (Low .. Epic), Auto graphics per PC, a frame governor
 in matches; graphics never change gameplay (3.1.9: the PvP look / FOV locks are gone - each player's own settings). A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
@@ -530,8 +530,19 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`): the flashlights. GLSL names must not clash with
   Babylon's macros (`E` is one).
 
-## Phone look (3.3)
-- `core/quality.ts`: `PHONE_FEATURES` (no AO / reflections / bloom / shafts / DOF / motion blur / lens; GI, textures /
+## Phone look (3.3; 3.4 the light renderer)
+- 3.4 direction: desktop first; phones get the 2.x renderer so they hold 60 cool or warm. `PHONE_FEATURES` (shadows off
+  - blob shadows, 6 plain lights, every post feature off) + `QualityLevel.lite` (phone and `QualityManager.phoneLook`
+  'lite', the default): GameState creates the world `cheap` (standard materials, no surface atlas) with no voxels (the
+  blockout's boxes + the Medium box dressing), smooth characters / weapons (no `setVoxelBodies` / `setVoxelWeapons`),
+  no baked lamps (the rig's plain pool, `LightRigConfig.plain`: no clustering); `PostStack.apply` builds nothing (the
+  grade pass `CinematicPost` stays); the menu stage's operator is smooth too (`MenuState.lite`). No TAAU: the canvas
+  itself scales - a match starts native (`phoneStart` from the base scale), the governor steps 100 / 92 / 84 / 75%,
+  then 30 fps. Gameplay reads the blockout on every device, so the phone look changes nothing anyone can see or hide
+  behind. Keep that rule: never make gameplay depend on what the voxel renderer draws.
+- The 3.3 voxel look below stays for the Phone check's comparison run (`QualityOverride.look` / `BenchRun.look`
+  'voxel': `PHONE_VOXEL_FEATURES`, TAAU from 75%, the cuts); `levelLabel` "phone voxel".
+- `core/quality.ts`: `PHONE_VOXEL_FEATURES` (no AO / reflections / bloom / shafts / DOF / motion blur / lens; GI, textures /
   detail / effects Medium), `PHONE_SHADOW` (moon 1 cascade 1024, one flashlight 512), `PhoneCuts` / `PHONE_CUTS`
   (`lampVolume`, `plainVoxels`), `PHONE_SCALES` 1 / 0.92 / 0.84 / 0.75 (`PHONE_FLOOR`), `PHONE_FPS_FALLBACK` 30,
   `QualityLevel.phone`, `levelLabel`. `QualityManager.phone` (mobile and not `?gfx=`): `build` ignores presets / settings
@@ -553,7 +564,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   governor (event bits from the frame and the one before) else cpu / gpu; `GameState.trackSpikes` per render frame
   (`VoxelWorld.lodSwaps`, `BakedLamps.remixes`, the engine's compiled effects, the governor level); benchmark lines end
   with the run's summary, `feedbackContext().spikes`.
-- Phone check (`benchPlan('phone')` = `phoneCheckRuns`): nine `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
+- Phone check 3.4 (`benchPlan('phone')` = `phoneCheckRuns`): the light look 100%, 75%, + the moon shadow (`shadows`
+  'low'), the 3.3 voxel look at 75%, 100% again (heat), then the 3 min hold at 60 (100%); 30 s cool-downs. Before 3.4:
+  nine `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
   voxel detail, bloom, shafts, High shadows put back, GI out, then 75% again (heat check) (`BenchRun.cuts` ->
   `QualityOverride.cuts`), then 3.3.2: `PHONE_HOLD_SECONDS` 180 held at 60 (`BenchRun.cap` -> `QualityOverride.cap`,
   sustained: per-minute averages); `PHONE_COOL_S` 30 s cool-down between runs (GameState hand-off, nothing drawn) -

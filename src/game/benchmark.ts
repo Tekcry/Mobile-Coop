@@ -6,7 +6,7 @@ import { hyp2 } from '../core/mathx';
  * settings, every preset, render pixel counts of the target displays, or a 10-minute sustained loop (laptops:
  * does the frame rate hold once the machine is hot?).
  */
-import { PHONE_FLOOR, PRESET_IDS, type FixedPreset, type GraphicsFeatures, type PhoneCuts } from '../core/quality';
+import { PHONE_FLOOR, PRESET_IDS, type FixedPreset, type GraphicsFeatures, type PhoneCuts, type PhoneLook } from '../core/quality';
 
 export const BENCH = {
   /** Seconds of flight per run (the first `warmup` not counted: shader compiles, shadow maps settling). */
@@ -42,6 +42,8 @@ export interface BenchRun {
   cuts?: Partial<PhoneCuts>;
   /** 3.3.2: a frame cap for this run (phone runs are otherwise uncapped, to show the headroom). */
   cap?: number;
+  /** 3.4 Phone check: the 3.3 voxel look for a comparison run (default the light look). */
+  look?: PhoneLook;
 }
 
 /** A benchmark in progress, carried from one run's match to the next. */
@@ -84,22 +86,21 @@ export function featureRuns(f: GraphicsFeatures): { label: string; gfx: Partial<
 }
 
 /**
- * 3.3 Phone check: the phone look at its 75% floor, then at native, then with each cut put back or one more feature
- * in turn - the runs that come in at 60 fps (1% low too) say what the phone can keep. Uncapped (the headroom shows).
+ * Phone check (3.3; 3.4: the light look): the phone look native, at its 75% floor, with the moon's shadow, then the
+ * 3.3 voxel look for comparison, the first run again (heat) and a 3 minute hold at 60. Uncapped but the hold (the
+ * headroom shows).
  */
 export function phoneCheckRuns(): BenchRun[] {
-  const run = (label: string, extra: Partial<BenchRun> = {}): BenchRun => ({ label, preset: null, scale: PHONE_FLOOR, seconds: FEATURE_SECONDS, sustained: false, ...extra });
+  const run = (label: string, extra: Partial<BenchRun> = {}): BenchRun => ({ label, preset: null, scale: 1, seconds: FEATURE_SECONDS, sustained: false, ...extra });
   return [
-    run('phone look, 75%'),
-    run('phone look, 100%', { scale: 1 }),
-    run('+ exact lamps (per-lamp loop)', { cuts: { lampVolume: false } }),
-    run('+ voxel detail (AO, worn edges, surface texture)', { cuts: { plainVoxels: false } }),
-    run('+ bloom', { gfx: { bloom: true } }),
-    run('+ light shafts', { gfx: { volumetrics: true, volLights: 6 } }),
-    run('+ shadows High (2 moon cascades)', { gfx: { shadows: 'high' } }),
-    run('- bounce light', { gfx: { gi: false } }),
+    run('phone look, 100%'),
+    run('phone look, 75%', { scale: PHONE_FLOOR }),
+    // (3.4: is the moon's shadow affordable - moonlight stopped by the roof)
+    run('+ moon shadow (1 cascade)', { gfx: { shadows: 'low' } }),
+    // (3.4: the comparison - the 3.3 voxel phone look, TAAU from 75%)
+    run('3.3 voxel look, 75%', { look: 'voxel', scale: PHONE_FLOOR }),
     // (3.3.1: the first run again - a phone heating up through the check slows every later run; this says by how much)
-    run('phone look, 75% again (heat check)'),
+    run('phone look, 100% again (heat check)'),
     // (3.3.2: what a match does - capped at 60 for 3 minutes, once warm: does 60 hold?)
     { ...run('phone look held at 60, 3 min'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60 },
   ];

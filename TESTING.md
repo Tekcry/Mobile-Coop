@@ -310,6 +310,10 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.4.0 iPhone: a match looks like 2.x (plain level, smooth characters, lamp pools of light, no shadow maps) and
+  holds 60 on the FPS overlay for 10 minutes of play; the phone stays warm, not hot. Phone check (~8 min): send the
+  note - the hold's first vs last minute, and the 3.3 voxel look run against the light look.
+- [ ] 3.4.0 iPhone: Loadout shows the smooth operator; co-op with a PC: both see the same cover and darkness.
 - [ ] 3.3.2 iPhone (start cool, out of the case, not charging): Phone check - 30 s cool-downs between runs, the
   last run 3 min held at 60 (first vs last minute).
 - [ ] 3.3.1 iPhone: run the Phone check again; each line ends with fps per 2.5 s of the route; the last run (the

@@ -583,14 +583,16 @@ export class GameState implements AppState {
     const vt = VOXEL_TIER[q.features.detail];
     // (3.3 phones: plain voxel surfaces - no AO, worn edges or surface taps - and the lamps as one light volume)
     const cuts = app.quality.phoneCuts;
-    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: !cuts.plainVoxels, micro: !cuts.plainVoxels && q.features.textures !== 'low', gi: q.features.gi };
+    // (3.4 phones' light look: the 2.x renderer - the blockout's boxes in standard materials, smooth characters)
+    const plain = q.minimal || q.lite;
+    const voxel = !flags.voxels || q.lite ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: !cuts.plainVoxels, micro: !cuts.plainVoxels && q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
-    setVoxelBodies(flags.voxels && !q.minimal ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
+    setVoxelBodies(flags.voxels && !plain ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
     // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
-    const vw = flags.voxels && !q.minimal ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
+    const vw = flags.voxels && !plain ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
     setVoxelWeapons(vw);
     setVoxelProps(vw);
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal, lampVolume: cuts.lampVolume });
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain, lampVolume: cuts.lampVolume });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
     // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders

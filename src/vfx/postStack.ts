@@ -247,12 +247,13 @@ export class PostStack {
 
   apply(q: QualityLevel): void {
     const f = q.features;
-    const key = JSON.stringify(f) + q.minimal + q.upscale + q.panini + q.mobile;
+    const key = JSON.stringify(f) + q.minimal + q.lite + q.upscale + q.panini + q.mobile;
     if (key === this.key) return;
     this.key = key;
     this.builds++;
     this.disposeAll();
-    if (q.minimal) {
+    // (tests, and 3.4 the phone's light look: no post stack - the grade pass only)
+    if (q.minimal || q.lite) {
       this.onRebuilt?.();
       return;
     }

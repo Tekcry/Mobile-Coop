@@ -281,7 +281,7 @@ export class SettingsScreen extends Screen {
       ),
       section(
         'Phone check',
-        h('div', { class: 'row-note', text: 'About 12 minutes, best started with the phone cool: nine 20 s flights through the Warehouse with a 30 s cool-down after each (the phone look at 75% and 100%, each cut put back, the first again), then 3 minutes held at 60 fps (does 60 hold once warm?). Saved as feedback - send it.' }),
+        h('div', { class: 'row-note', text: 'About 8 minutes, best started with the phone cool: five 20 s flights through the Warehouse with a 30 s cool-down after each (the phone look at 100% and 75%, with the moon shadow, the old voxel look, the first again), then 3 minutes held at 60 fps (does 60 hold once warm?). Saved as feedback - send it.' }),
         button('Run the Phone check', () => app.benchmark?.('phone'), { icon: 'monitor' }),
       ),
     );

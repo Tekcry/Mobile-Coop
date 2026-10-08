@@ -314,12 +314,49 @@ try {
     await browser.close();
   }
 
-  // 3.3 the phone look: no detection, one fixed look in a match - 75% through TAAU, 60 fps (30 at the governor's
-  // last level), the lamps as one light volume, plain voxels, no bloom
+  // 3.4 the phone look: no detection, one fixed look in a match - the light renderer (the blockout's boxes in
+  // standard materials, smooth characters, no post stack, no shadow maps), native, 60 fps (30 at the governor's last
+  // level); then the 3.3 voxel look (the Phone check's comparison run): 75% through TAAU, the lamps as one light
+  // volume, plain voxels, no bloom
   {
     const p = await launch({ url, params: 'detect=1&platform=mobile&renderer=Apple%20GPU&gfx=user&autostart=warehouse&mode=clear', touch: false, viewport: { width: 640, height: 360 } });
     browser = p.browser;
     await p.page.waitForFunction(() => !!window.__app.current?.player, null, { timeout: 240000 });
+    await frames(p.page, 6);
+    const lt = await p.page.evaluate(() => {
+      const a = window.__app;
+      const g = a.current;
+      const q = a.quality.level;
+      const e = a.engine;
+      return { det: a.detecting, source: a.settings.get().video.device.source, phone: q.phone, lite: q.lite, up: q.upscale, cap: a.loop.fpsCap, gov: a.quality.governor.level, pps: g.player.cam.camera._postProcesses.filter(Boolean).map((x) => x.name), voxels: !!g.world.voxels, lamps: !!g.world.lamps, mat: g.world.level.meshes[0]?.material?.getClassName(), body: !!g.player.rig.voxel, sun: q.shadow.sun, casters: q.shadow.casters, scale: e.getRenderWidth() / Math.round(e.getRenderingCanvas().clientWidth * devicePixelRatio) };
+    });
+    assert(!lt.det && lt.source === 'none', `phone: nothing detected or measured (${lt.source})`);
+    assert(lt.phone && lt.lite && lt.up === 1 && [60, 30].includes(lt.cap), `phone: the light look, native, capped at ${lt.cap} (governor level ${lt.gov})`);
+    // (a match starts native; software GL is slow, so the governor may already have stepped: the canvas follows it)
+    assert(Math.abs(lt.scale - [1, 0.92, 0.84, 0.75][Math.min(3, lt.gov)]) < 0.02, `phone: the canvas at the governor's step (x${lt.scale.toFixed(2)}, level ${lt.gov})`);
+    assert(!lt.voxels && !lt.lamps && lt.mat === 'StandardMaterial' && !lt.body, `phone: the blockout in standard materials, smooth characters (${JSON.stringify(lt)})`);
+    assert(!lt.sun && lt.casters === 0 && !lt.pps.some((n) => /taau|ssao|bloom|default|volum/i.test(n)), `phone: no shadow maps, no post stack (${lt.pps.join(',')})`);
+    // the governor steps the canvas: 100 -> 92 -> 84 -> 75%, then 30 fps
+    const steps = await p.page.evaluate(() => {
+      const a = window.__app;
+      const e = a.engine;
+      const out = [];
+      for (let i = 0; i < 4; i++) {
+        let n = 0;
+        while (!a.quality.governor.frame(60, 16.7) && n++ < 400);
+        a.quality['applyAdaptive']();
+        out.push({ l: a.quality.governor.level, s: +(e.getRenderWidth() / Math.round(e.getRenderingCanvas().clientWidth * devicePixelRatio)).toFixed(2), cap: a.loop.fpsCap });
+      }
+      return out;
+    });
+    const last = steps[steps.length - 1];
+    assert(steps.every((x) => x.s >= 0.74) && last.l === 4 && last.cap === 30 && steps[2].s < 0.8, `phone: the governor steps the resolution to 75%, then 30 fps (${JSON.stringify(steps)})`);
+    // the 3.3 voxel look, as the Phone check's comparison run starts it
+    await p.page.evaluate(() => {
+      window.__bench.seconds = 60;
+      window.__app.benchmark({ kind: 'phone', runs: [{ label: 'voxel look', preset: null, scale: 0.75, seconds: 60, sustained: false, look: 'voxel' }], idx: 0, lines: [] });
+    });
+    await p.page.waitForFunction(() => !!window.__app.current?.player && window.__app.current.opts?.benchmark && !window.__app.quality.level.lite, null, { timeout: 240000 });
     await frames(p.page, 6);
     const ph = await p.page.evaluate(() => {
       const a = window.__app;
@@ -329,11 +366,10 @@ try {
       const src = g.world.voxels?.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
       return { det: a.detecting, source: a.settings.get().video.device.source, phone: q.phone, up: q.upscale, cap: a.loop.fpsCap, gov: a.quality.governor.level, vol: !!g.world.lamps?.volume, pps, src: src.length, ao: src.includes('float occ'), micro: src.includes('vxTap('), volShader: src.includes('lampVolA') && !src.includes('lampCapsule(lp, t0.xyz'), bloom: q.features.bloom, cascades: q.shadow.cascades, ctx: g.feedbackContext().spikes };
     });
-    assert(!ph.det && ph.source === 'none', `phone: nothing detected or measured (${ph.source})`);
-    assert(ph.phone && ph.up === 0.75 && [60, 30].includes(ph.cap), `phone: the fixed look at 75% (TAAU), capped at ${ph.cap} (governor level ${ph.gov})`);
-    assert(ph.pps.includes('taau') && !ph.bloom && ph.cascades === 1, `phone: TAAU, no bloom, one moon cascade (${ph.pps.join(',')})`);
-    assert(ph.vol && ph.volShader, 'phone: the lamps mixed into one light volume (two taps, no per-lamp loop in the shader)');
-    assert(ph.src > 0 && !ph.ao && !ph.micro, 'phone: plain voxel surfaces (no AO, no surface taps)');
+    assert(ph.phone && ph.up === 0.75, `phone voxel look: 75% (TAAU) (governor level ${ph.gov})`);
+    assert(ph.pps.includes('taau') && !ph.bloom && ph.cascades === 1, `phone voxel look: TAAU, no bloom, one moon cascade (${ph.pps.join(',')})`);
+    assert(ph.vol && ph.volShader, 'phone voxel look: the lamps mixed into one light volume (two taps, no per-lamp loop in the shader)');
+    assert(ph.src > 0 && !ph.ao && !ph.micro, 'phone voxel look: plain voxel surfaces (no AO, no surface taps)');
     assert(/spikes|no spikes/.test(ph.ctx), `phone: the spike log (${ph.ctx})`);
     // a switch re-mixes the volume on the GPU, at once
     const mix = await p.page.evaluate(() => {
@@ -349,7 +385,7 @@ try {
       L.frame();
       return { n0, n1, n2: L.volume.mixes };
     });
-    assert(mix.n1 === mix.n0 + 1 && mix.n2 === mix.n1 + 1, `phone: a light switch re-mixes the volume (${JSON.stringify(mix)})`);
+    assert(mix.n1 === mix.n0 + 1 && mix.n2 === mix.n1 + 1, `phone voxel look: a light switch re-mixes the volume (${JSON.stringify(mix)})`);
     const pe = p.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
     assert(pe.length === 0, `phone: no console errors${pe.length ? ': ' + pe.slice(0, 3).join(' | ') : ''}`);
     await browser.close();

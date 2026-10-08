@@ -93,13 +93,21 @@ export function presetDisplay(p: FixedPreset, mobile: boolean): { renderScale: n
   return mobile && p === 'ultra' ? { renderScale: 1, upscaler: 'off' } : PRESET_DISPLAY[p];
 }
 /**
- * 3.3 phones: one fixed look - no presets, no graphics settings. Built for 60 fps on the iPhone 17 Pro Max at 75 - 100%
- * of the native resolution (TAAU to native): the moon's shadows in one cascade and one flashlight shadow, bounce
- * light, the height fog; no ambient occlusion, reflections, bloom, light shafts, depth of field, motion blur or lens
- * effects; the fine prop layer off. With `PHONE_CUTS` (the lamps pre-mixed into a light volume, plain voxel
- * surfaces).
+ * 3.4 phones: one fixed look, the 2.x renderer - the level's plain blockout (no voxels) in standard materials, smooth
+ * characters and weapons, a short pool of plain lamp lights, contact blob shadows, the scene fog and the grade pass
+ * only (no post stack). Native resolution, the governor stepping down to 75% (`PHONE_SCALES`). Gameplay reads the
+ * blockout on every device, so nothing a phone player sees or hides behind differs.
  */
-export const PHONE_FEATURES: GraphicsFeatures = { shadows: 'medium', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: true, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'medium', detail: 'medium', effects: 'medium' };
+export const PHONE_FEATURES: GraphicsFeatures = { shadows: 'off', lights: 6, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: false, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'low', detail: 'medium', effects: 'medium' };
+/**
+ * The 3.3 phone look (voxels, TAAU from 75%), kept for the Phone check's comparison run: the moon's shadows in one
+ * cascade and one flashlight shadow, bounce light, the height fog; no ambient occlusion, reflections, bloom, light
+ * shafts, depth of field, motion blur or lens effects; the fine prop layer off. With `PHONE_CUTS` (the lamps pre-mixed
+ * into a light volume, plain voxel surfaces).
+ */
+export const PHONE_VOXEL_FEATURES: GraphicsFeatures = { shadows: 'medium', lights: 8, ao: false, bloom: false, reflections: 'off', rtRes: 'half', gi: true, volumetrics: false, volLights: 2, postRes: 'half', dof: false, motionBlur: false, lens: false, aa: 'fxaa', textures: 'medium', detail: 'medium', effects: 'medium' };
+/** The phone looks (3.4): `lite` (the game's), `voxel` (3.3, the Phone check's comparison). */
+export type PhoneLook = 'lite' | 'voxel';
 /** Phones' shadows: the moon in one 1024 cascade, one flashlight at 512. */
 export const PHONE_SHADOW: ShadowSpec = { sun: true, cascades: 1, sunSize: 1024, casters: 1, size: 512, soft: false };
 /** Phone render cuts made when the map loads (the Phone check puts each back for a run). */
@@ -112,9 +120,9 @@ export interface PhoneCuts {
 export const PHONE_CUTS: Readonly<PhoneCuts> = { lampVolume: true, plainVoxels: true };
 export const NO_CUTS: Readonly<PhoneCuts> = { lampVolume: false, plainVoxels: false };
 /**
- * Phones' render resolution (x native, TAAU to native): the frame governor's ladder from the top down - never under
- * 75% (`PHONE_FLOOR`); still missing 60 there, the game holds a steady 30 (`PHONE_FPS_FALLBACK`). A match starts at
- * the floor and steps up when there is room.
+ * Phones' render resolution (x native): the frame governor's ladder from the top down - never under 75%
+ * (`PHONE_FLOOR`); still missing 60 there, the game holds a steady 30 (`PHONE_FPS_FALLBACK`). 3.4: a match starts
+ * native (the voxel look: at the floor, TAAU to native).
  */
 export const PHONE_SCALES = [1, 0.92, 0.84, 0.75] as const;
 export const PHONE_FLOOR = 0.75;
@@ -229,28 +237,31 @@ export interface QualityLevel {
   mobile: boolean;
   /** 3.3: the fixed phone look (`PHONE_FEATURES`; its name is not a preset). */
   phone: boolean;
+  /** 3.4: the phone's light renderer (the 2.x path: blockout boxes, standard materials, no post stack). */
+  lite: boolean;
 }
 
-export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0, mobile = false, phone = false): QualityLevel {
+export function qualityLevel(name: GraphicsPreset, f: GraphicsFeatures, minimal = false, upscale = 1, panini = 0, mobile = false, phone = false, lite = false): QualityLevel {
   return {
     minimal,
     mobile,
     phone: phone && !minimal,
+    lite: phone && lite && !minimal,
     upscale: minimal ? 1 : Math.max(0.5, Math.min(1, upscale)),
     panini: minimal ? 0 : Math.max(0, Math.min(1, panini)),
     name,
     features: f,
     // (the phone look's own shadows unless a Phone check run changes them)
-    shadow: phone && f.shadows === PHONE_FEATURES.shadows ? PHONE_SHADOW : mobile ? mobileShadow(shadowSpec(f.shadows)) : shadowSpec(f.shadows),
+    shadow: phone && !lite && f.shadows === PHONE_VOXEL_FEATURES.shadows ? PHONE_SHADOW : mobile ? mobileShadow(shadowSpec(f.shadows)) : shadowSpec(f.shadows),
     vfxDensity: EFFECT_DENSITY[f.effects],
     realLights: Math.round(Math.min(LIGHT_RANGE.max, Math.max(LIGHT_RANGE.min, f.lights))),
     detailScale: DETAIL_SCALE[f.detail],
   };
 }
 
-/** The level's name for logs: the preset, or "phone" (3.3). */
+/** The level's name for logs: the preset, or "phone" (3.3; "phone voxel" for the 3.3 look). */
 export function levelLabel(q: QualityLevel): string {
-  return q.phone ? 'phone' : q.name;
+  return q.phone ? (q.lite ? 'phone' : 'phone voxel') : q.name;
 }
 
 /** Frame-rate caps offered (0 = off: the display's refresh rate). */

@@ -1,5 +1,6 @@
 import { aspectLabel, shownResolution } from '../../core/display';
 import { settingsDigest } from '../../core/settings';
+import { levelLabel } from '../../core/quality';
 import type { App } from '../../core/app';
 import { h } from '../dom';
 import { Screen } from '../screen';
@@ -23,7 +24,7 @@ export function feedbackContext(app: App): Record<string, string> {
   const rs = desk ? shownResolution(v.resolution, app.engine.getRenderWidth(), app.engine.getRenderHeight()) : `${app.engine.getRenderWidth()}x${app.engine.getRenderHeight()}`;
   const q = app.quality;
   // (3.3 phones: the fixed look, the governor's render scale and the cap in force)
-  ctx.graphics = q.level.phone ? `phone, ${rs}, scene x${(q.level.upscale * q.detail.scale).toFixed(2)}, cap ${app.loop.fpsCap || 'off'}${q.phoneCuts.lampVolume ? '' : ', exact lamps'}${q.phoneCuts.plainVoxels ? '' : ', voxel detail'}` : `${q.level.name}, ${rs}${v.fpsCap ? `, cap ${v.fpsCap}` : ''}`;
+  ctx.graphics = q.level.phone ? `${levelLabel(q.level)}, ${rs}, scene x${(q.level.upscale * q.detail.scale).toFixed(2)}, cap ${app.loop.fpsCap || 'off'}${q.level.lite || q.phoneCuts.lampVolume ? '' : ', exact lamps'}${q.level.lite || q.phoneCuts.plainVoxels ? '' : ', voxel detail'}` : `${q.level.name}, ${rs}${v.fpsCap ? `, cap ${v.fpsCap}` : ''}`;
   const pace = app.quality.pacing();
   if (pace.p50 > 0) ctx.frames = `p50 ${pace.p50.toFixed(1)} ms, p99 ${pace.p99.toFixed(1)} ms @ ${app.quality.hz} Hz`;
   const w = Math.round(viewWidth() * devicePixelRatio);

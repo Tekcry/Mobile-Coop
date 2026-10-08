@@ -1,6 +1,6 @@
 import type { Engine } from './babylon';
 import { applyRenderScale } from './engine';
-import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, NO_CUTS, PHONE_CUTS, PHONE_FEATURES, PHONE_FLOOR, PHONE_FPS, PHONE_FPS_FALLBACK, PHONE_SCALES, qualityLevel, type FixedPreset, type GraphicsFeatures, type PhoneCuts, type QualityLevel } from './quality';
+import { forPlatform, GRAPHICS_PRESETS, MIN_FEATURES, NO_CUTS, PHONE_CUTS, PHONE_FEATURES, PHONE_FLOOR, PHONE_FPS, PHONE_FPS_FALLBACK, PHONE_SCALES, PHONE_VOXEL_FEATURES, qualityLevel, type FixedPreset, type GraphicsFeatures, type PhoneCuts, type PhoneLook, type QualityLevel } from './quality';
 import { adaptiveAt, FULL, Governor, phoneAdaptiveAt, type Adaptive } from './governor';
 import { flags } from './flags';
 import { emptySnapshot, FrameStats, RefreshDetector, ResolutionScaler, type PacingSnapshot } from './pacing';
@@ -16,6 +16,8 @@ export interface QualityOverride {
   cuts?: Partial<PhoneCuts>;
   /** 3.3.2: a frame cap for the run (phone runs: 0 = uncapped). */
   cap?: number;
+  /** 3.4 Phone check: the look for the run (default the light look). */
+  look?: PhoneLook;
 }
 
 /** Something that can take quality changes live (the game state, the menu stage). */
@@ -81,9 +83,14 @@ export class QualityManager {
     return this.mobile && !flags.gfx;
   }
 
-  /** The phone cuts made when a map loads (none off phones; a Phone check run may put one back). */
+  /** 3.4: the phone's look - the light renderer, or the 3.3 voxel look for a Phone check run. */
+  get phoneLook(): PhoneLook {
+    return this.ov?.look ?? 'lite';
+  }
+
+  /** The phone cuts made when a map loads (none off phones or in the light look; a Phone check run may put one back). */
   get phoneCuts(): PhoneCuts {
-    if (!this.phone) return NO_CUTS;
+    if (!this.phone || this.phoneLook === 'lite') return NO_CUTS;
     const c = { ...PHONE_CUTS, ...(this.ov?.cuts ?? {}) };
     if (!flags.lampVolume) c.lampVolume = false;
     return c;
@@ -138,7 +145,7 @@ export class QualityManager {
   private applyAdaptive(): void {
     if (this.phone) {
       // (phones: the resolution ladder from the match's base, then 30 fps at the floor)
-      phoneAdaptiveAt(this.adaptiveOn ? this.governor.level : PHONE_SCALES.length - 1, PHONE_SCALES, this.phoneScale, this.adaptive);
+      phoneAdaptiveAt(this.adaptiveOn ? this.governor.level : this.phoneStart, PHONE_SCALES, this.phoneScale, this.adaptive);
       this.loop.fpsCap = this.capNow();
     } else adaptiveAt(this.adaptiveOn ? this.governor.level : 0, this.adaptive);
     this.applyScale();
@@ -146,26 +153,38 @@ export class QualityManager {
   }
 
   private resetGovernor(): void {
-    // (phones: four resolution steps and the 30 fps level; a match starts at the 75% floor and steps up with room)
+    // (phones: four resolution steps and the 30 fps level; a match starts at its base - 3.4 native, the voxel look the
+    // 75% floor - and steps down / up with the frame rate)
     this.governor.max = this.phone ? PHONE_SCALES.length : 10;
-    this.governor.reset(this.phone ? PHONE_SCALES.length - 1 : 0);
+    this.governor.reset(this.phone ? this.phoneStart : 0);
     if (this.phone) {
-      phoneAdaptiveAt(PHONE_SCALES.length - 1, PHONE_SCALES, this.phoneScale, this.adaptive);
+      phoneAdaptiveAt(this.phoneStart, PHONE_SCALES, this.phoneScale, this.adaptive);
       this.loop.fpsCap = this.capNow();
     } else adaptiveAt(0, this.adaptive);
   }
 
-  /** Phones' base render scale: the floor (TAAU to native), or a Phone check run's. */
+  /** Phones' base render scale: native (the voxel look: the floor, TAAU to native), or a Phone check run's. */
   private get phoneScale(): number {
-    return this.ov?.scale ?? PHONE_FLOOR;
+    return this.ov?.scale ?? (this.phoneLook === 'lite' ? 1 : PHONE_FLOOR);
+  }
+
+  /** The governor's level a phone match starts at: the step of the ladder at the base scale. */
+  private get phoneStart(): number {
+    const s = this.phoneScale;
+    let l = 0;
+    while (l < PHONE_SCALES.length - 1 && PHONE_SCALES[l]! > s + 1e-6) l++;
+    return l;
   }
 
   private build(): QualityLevel {
     const v = this.settings.get().video;
     // tests: `?gfx=` overrides for this page only
     if (flags.gfx === 'min') return qualityLevel('custom', MIN_FEATURES, true);
-    // 3.3 phones: the fixed look (a Phone check run may change a feature), no preset
-    if (this.phone) return qualityLevel('custom', { ...PHONE_FEATURES, ...(this.ov?.gfx ?? {}) }, false, this.taau ? this.phoneScale : 1, 0, true, true);
+    // 3.3 phones: the fixed look (a Phone check run may change a feature or take the 3.3 voxel look), no preset
+    if (this.phone) {
+      const lite = this.phoneLook === 'lite';
+      return qualityLevel('custom', { ...(lite ? PHONE_FEATURES : PHONE_VOXEL_FEATURES), ...(this.ov?.gfx ?? {}) }, false, this.taau ? this.phoneScale : 1, 0, true, true, lite);
+    }
     const up = this.taau ? (this.ov?.scale ?? v.renderScale) : 1;
     const pick = flags.gfx ? { name: flags.gfx, f: GRAPHICS_PRESETS[flags.gfx] } : this.ov?.preset ? { name: this.ov.preset, f: GRAPHICS_PRESETS[this.ov.preset] } : { name: v.preset, f: v.gfx };
     // (Feature costs: one feature changed for a benchmark run)
@@ -185,16 +204,17 @@ export class QualityManager {
     this.apply();
   }
 
-  /** TAAU upscaling: on, with a render scale under 1 (the canvas stays at the display's resolution); always on phones. */
+  /** TAAU upscaling: on, with a render scale under 1 (the canvas stays at the display's resolution); phones only in
+   *  the voxel look (the light look has no post stack: the canvas itself scales). */
   private get taau(): boolean {
     const v = this.settings.get().video;
-    if (this.phone) return this.phoneScale < 0.999;
+    if (this.phone) return this.phoneLook === 'voxel' && this.phoneScale < 0.999;
     return flags.gfx !== 'min' && v.upscaler === 'taau' && (this.ov?.scale ?? v.renderScale) < 0.999;
   }
 
   private keyOf(): string {
     const v = this.settings.get().video;
-    return this.phone ? 'phone' : JSON.stringify(v.gfx) + v.preset + (this.taau ? v.renderScale : 1) + v.panini;
+    return this.phone ? `phone:${this.phoneLook}` : JSON.stringify(v.gfx) + v.preset + (this.taau ? v.renderScale : 1) + v.panini;
   }
 
   private configure(): void {
@@ -247,8 +267,9 @@ export class QualityManager {
   private applyScale(): void {
     // (`?gfx=min`: DPR 1, as the phone-era tests ran)
     if (flags.gfx === 'min') applyRenderScale(this.engine, this.ov?.scale ?? 1, 1);
-    // (phones: the canvas native; the scene at the governor's step of it through TAAU - `applyAdaptive`)
-    else if (this.phone) applyRenderScale(this.engine, this.taau ? 1 : this.phoneScale, Infinity);
+    // (phones: the voxel look - the canvas native, the scene at the governor's step of it through TAAU; the light look
+    // - the canvas at the governor's step, `adaptive.scale` being relative to the base)
+    else if (this.phone) applyRenderScale(this.engine, this.taau ? 1 : this.phoneScale * (this.adaptiveOn ? this.adaptive.scale : 1), Infinity);
     // TAAU: the canvas at native resolution (x dynamic resolution); the post stack renders the scene smaller
     // (the governor's scale: on the canvas without TAAU, on the TAAU input with it - `applyAdaptive`)
     else applyRenderScale(this.engine, (this.taau ? 1 : (this.ov?.scale ?? this.settings.get().video.renderScale) * (this.adaptiveOn ? this.adaptive.scale : 1)) * (this.adaptiveOn ? 1 : this.res.scale), this.mobile ? this.settings.get().video.phoneOutput || Infinity : Infinity);

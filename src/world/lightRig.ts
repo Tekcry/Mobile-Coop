@@ -33,6 +33,8 @@ export interface LightRigConfig {
   volumetric: boolean;
   /** Tests (`?gfx=min`): a short plain pool, no clustering. */
   minimal?: boolean;
+  /** 3.4 phones' light look: plain per-pixel lights (no clustering: a few lights, no light texture per pixel). */
+  plain?: boolean;
 }
 
 /** One pool slot: a Babylon spot light and, for the shadow pool, its generator. */
@@ -245,7 +247,7 @@ export class LightRig {
   configure(cfg: LightRigConfig, force = false): void {
     // (baked lamps: the pools only hold the moving lights - flashlights - and at most two of them cast shadows)
     if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
-    const same = !force && cfg.minimal === this.cfg.minimal && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
+    const same = !force && cfg.minimal === this.cfg.minimal && cfg.plain === this.cfg.plain && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
     this.cfg = cfg;
     if (this.cones) this.cones.isVisible = !cfg.volumetric;
     if (!this.bulbs || (same && this.pool.length + this.shadowPool.length > 0)) return;
@@ -276,7 +278,7 @@ export class LightRig {
     }
     // clustered lighting when the GPU has it, else a short plain pool
     const probe = make('maplight-probe');
-    const clustered = !cfg.minimal && ClusteredLightContainer.IsLightSupported(probe);
+    const clustered = !cfg.minimal && !cfg.plain && ClusteredLightContainer.IsLightSupported(probe);
     probe.dispose();
     const n = clustered ? cfg.lights : Math.min(cfg.lights, cfg.minimal ? 4 : PLAIN_LIGHTS);
     const lights: SpotLight[] = [];

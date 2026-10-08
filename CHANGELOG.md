@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.4.0 - Light phone renderer
+- Direction: desktop first. Phones no longer chase the PC renderer: on the iPhone the voxel look reached ~65 fps cool
+  and fell to 18-30 once warm, whatever was cut. Before 3.0 phones ran smoothly because they drew the plain level in
+  simple materials with no post effects - that is what they draw again.
+- The phone look: the Warehouse's plain blockout (no voxels) in simple materials, smooth characters and weapons, the
+  nearest six lamps as plain lights, contact shadows under characters, the scene fog, the vignette / goggles pass and
+  nothing else (no shadow maps, no TAAU, no post effects). Native resolution; the frame governor steps down to 75%,
+  then holds 30 fps, as before. The Loadout operator on a phone is the smooth one too.
+- Gameplay is unchanged: collision, cover, navigation, enemy sight and the light meter always read the plain level, so
+  a phone player sees and hides behind the same things as a PC player (co-op and PvP across devices stay fair).
+- The Phone check (about 8 minutes): the phone look at 100% and 75%, with the moon's shadow, the 3.3 voxel look for
+  comparison, the first run again (heat), then 3 minutes held at 60.
+
 ## 3.3.2 - Phone check without the heat
 - The iPhone dropped from ~100 fps to ~20 during the Phone check and came back after a few seconds on the home
   screen: heat, not a leak - textures, shaders and memory stay flat across six benchmark matches and return to the
