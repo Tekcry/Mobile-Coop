@@ -139,6 +139,9 @@ Playtest changes, second round (Michael, 2026-10-08):
 - Fix: a respawn / insertion puts the feet straight into a stance where you appear (they used to walk over from where
   you were), and a foot stepping back past the other bows round it instead of brushing through it.
 
+- Docs: level design standard (`docs/level-design.md`), map spec template (`docs/templates/map-spec.md`) and the
+  Kestrel Exchange spec (`docs/prompts/exchange-map.md`).
+
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the
   device from its GPU's name, or - when the browser hides it, as every iPhone does - measures the device for a few

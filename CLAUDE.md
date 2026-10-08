@@ -160,6 +160,9 @@ Blacklist style.
 - Coop code lives in `src/net` and is only reached through a dynamic `import()` behind `flags.coop`.
   Single player must never import from `src/net` statically.
 - Strict TS (`noUncheckedIndexedAccess`, `verbatimModuleSyntax`: use `import type`).
+- Every new map follows `docs/level-design.md` (the level design standard) and its spec starts from
+  `docs/templates/map-spec.md`. A map spec may tighten the standard, never loosen it without Michael's written
+  approval. The standard and the template change only with Michael's approval.
 
 ## Module layout (`src/`)
 | Module | Responsibility |
@@ -301,6 +304,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
 - No `backdrop-filter` over the canvas (expensive on phones). `.screens` container is pointer-events: none;
   children opt in.
+
+## Level design
+- `docs/level-design.md`: the standard every map follows - architecture first ("why is it here?"), a linear spine of
+  encounter spaces, a dark vantage and three routes plus a secret per guarded space, loops not dead ends, guards with
+  jobs, isolation moments and overlapping coverage, light from fixtures, sound from materials, teach / test / twist
+  pacing, co-op layered on a complete solo level, engine constraints, required design deliverables (section 13),
+  phases (section 14) and acceptance tests (section 15).
+- `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
+- Map specs and their progress logs live in `docs/prompts/<map-id>.md` and `docs/prompts/<map-id>-progress.md`.
 
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
