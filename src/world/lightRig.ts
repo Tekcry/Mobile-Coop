@@ -250,12 +250,8 @@ export class LightRig {
       l.shadowMinZ = 0.15;
       l.shadowMaxZ = 30;
       const sg = new ShadowGenerator(cfg.shadow.size, l);
-      if (cfg.shadow.soft) {
-        sg.useContactHardeningShadow = true;
-        sg.contactHardeningLightSizeUVRatio = 0.04;
-      } else {
-        sg.usePercentageCloserFiltering = true;
-      }
+      // (PCF on every preset: contact hardening takes a second texture per light, past WebGL's 16 per shader)
+      sg.usePercentageCloserFiltering = true;
       sg.filteringQuality = ShadowGenerator.QUALITY_HIGH;
       sg.bias = 0.0006;
       sg.normalBias = 0.012;

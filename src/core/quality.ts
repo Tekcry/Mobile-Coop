@@ -123,6 +123,13 @@ export interface ShadowSpec {
   staticSun?: boolean;
 }
 
+/**
+ * Lamp / flashlight shadow maps a material can take (3.1.7): WebGL guarantees 16 textures per shader and the largest
+ * material (the voxel level) already uses 11 without lamp shadows - one each (PCF) fits 4 (headless software GL allows
+ * 32, so only real GPUs failed). `e2e-desktop` checks every material against 16.
+ */
+export const MAX_SHADOW_CASTERS = 4;
+
 export function shadowSpec(q: ShadowQuality): ShadowSpec {
   switch (q) {
     case 'off':
@@ -136,7 +143,9 @@ export function shadowSpec(q: ShadowQuality): ShadowSpec {
     case 'ultra':
       return { sun: true, cascades: 3, sunSize: 2048, casters: 4, size: 1024, soft: false };
     case 'epic':
-      return { sun: true, cascades: 4, sunSize: 4096, casters: 8, size: 2048, soft: true };
+      // (3.1.7: 4 lamp casters, as Ultra - 8 soft ones took the level's shaders past WebGL's 16 textures: on the
+      // laptop the level drew black under fog; Epic keeps the bigger maps and the moon's 4 high-quality cascades)
+      return { sun: true, cascades: 4, sunSize: 4096, casters: MAX_SHADOW_CASTERS, size: 2048, soft: true };
   }
 }
 

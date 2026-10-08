@@ -83,3 +83,19 @@ export function classifyGpu(renderer: string): GpuKind {
   if (/intel|uhd|iris|hd graphics|radeon\(tm\) graphics|radeon graphics|vega \d+ graphics|apple|mali|adreno|powervr/.test(r)) return 'integrated';
   return 'unknown';
 }
+
+/** Desktop Resolution choices (3.1.7): render scales of the native output, low to high (above 1 supersamples). */
+export const RES_SCALES = [0.5, 0.67, 0.75, 0.83, 0.9, 1, 1.25, 1.5, 2] as const;
+/** Seconds a new resolution waits for Keep before it reverts. */
+export const RES_CONFIRM_S = 15;
+
+/** The render resolution a scale gives on a native output (even pixel counts, as the engine rounds). */
+export function renderSize(nativeW: number, nativeH: number, scale: number): { w: number; h: number } {
+  return { w: Math.max(2, Math.round(nativeW * scale)), h: Math.max(2, Math.round(nativeH * scale)) };
+}
+
+/** "2304 x 1356 (90%)" / "2560 x 1507 (native)". */
+export function resolutionLabel(nativeW: number, nativeH: number, scale: number): string {
+  const r = renderSize(nativeW, nativeH, scale);
+  return `${r.w} x ${r.h} (${Math.abs(scale - 1) < 1e-3 ? 'native' : `${Math.round(scale * 100)}%`})`;
+}

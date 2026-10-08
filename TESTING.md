@@ -310,6 +310,9 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.1.8 desktop: Epic (and Shadows Epic in Custom) shows the level, no fog-only view; the picture is sharp with
+  Adaptive detail off (no hidden resolution drop). Settings > Graphics > Resolution: pick one - it applies at once,
+  Keep keeps it, waiting 15 s puts the last one back.
 - [ ] 3.1.7 Settings > Feedback > Copy as text: each note has a second line with its context (settings, device,
   GPU, frames).
 - [ ] 3.1.7 desktop Ultra was all grey (fog) except the lamps in every benchmark run (custom settings fine): at Ultra,

@@ -3464,3 +3464,16 @@ body.rotated {
   --sar: env(safe-area-inset-bottom, 0px);
   --sab: env(safe-area-inset-left, 0px);
 }
+
+/* 3.1.7 desktop Resolution list */
+.res-dialog .res-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: calc(70 * var(--vh));
+  overflow-y: auto;
+  margin-top: 10px;
+}
+.res-dialog .res-list .btn {
+  justify-content: flex-start;
+}

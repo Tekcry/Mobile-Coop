@@ -891,11 +891,16 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Graphics (3.0, 3.1 ladder; `core/quality.ts` pure): `GRAPHICS_PRESETS` Low / Medium / High / Ultra / Epic (`PRESET_IDS`;
   phones `MOBILE_PRESET_IDS` without Epic, `forPlatform` maps Epic -> Ultra and rt -> ssr on mobile, `QualityManager.setMobile`
   from `App.applyPlatform`) fill `GraphicsFeatures` (shadows off / low / medium / high / ultra / epic -> `shadowSpec`: sun
-  cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 8 (WebGL's 16 texture units), map size, PCSS; lights 8-48; ao,
+  cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 4 (3.1.7 `MAX_SHADOW_CASTERS`: WebGL guarantees 16 textures per
+  shader and the voxel level material uses 11 without lamp shadows; lamps are PCF, one texture each - 8 soft ones broke
+  the level on D3D11, while headless software GL allows 32; `e2e-desktop` checks every material at Epic <= 16), map
+  size, sun filtering quality; lights 8-48; ao,
   bloom, reflections off / ssr / rt (+ `rtRes` half / full), volumetrics (shafts only: the height fog is drawn on every
   preset, fairness) + `volLights` 2-12, `postRes` half / full (SSAO ratio, SSR downsample), dof, motionBlur, lens, aa fxaa / msaa / taa,
   textures / detail / effects tiers), `presetOf` (Custom), `qualityLevel` -> `QualityLevel`. Settings `video.preset`,
-  `video.gfx`, `renderScale` 0.5-2 (native DPR, no cap), `dynamicRes` (off), `fpsCap` (`GameLoop.fpsCap`,
+  `video.gfx`, `renderScale` 0.5-2 (native DPR, no cap; desktop: Settings > Graphics > Resolution, `ui/screens/
+  resolutionPicker.ts` - `RES_SCALES` as real sizes, applied on a pick, `KeepResolution` reverts after `RES_CONFIRM_S`
+  15 s unless kept), `dynamicRes` (retired in 3.1.7: `QualityManager.auto` is false), `fpsCap` (`GameLoop.fpsCap`,
   `capAllows`), `fovH` 60-120; `setGfx` / `setPreset` (also sets `renderScale` / `upscaler` from `PRESET_DISPLAY`:
   Low 0.67 .. Ultra 0.9 TAAU, Epic native). `VOXEL_TIER` per Detail tier: structure 5 cm on every preset (fairness),
   the 2.5 cm prop layer from High up, character / weapon voxel sizes; `VOXEL_LOD` distances per tier. `app.quality` (QualityManager) applies the level to the state's

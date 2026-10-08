@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { capAllows, forPlatform, GRAPHICS_PRESETS, MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, presetOf, pvpFeatures, qualityLevel, shadowSpec, VOXEL_TIER } from '../src/core/quality';
+import { capAllows, forPlatform, GRAPHICS_PRESETS, MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, presetOf, pvpFeatures, qualityLevel, MAX_SHADOW_CASTERS, shadowSpec, VOXEL_TIER } from '../src/core/quality';
 import { defaultSettings, sanitizeSettings, setAuto, setGfx, setPreset } from '../src/core/settings';
 
 describe('graphics settings (3.0)', () => {
@@ -14,7 +14,9 @@ describe('graphics settings (3.0)', () => {
     const l = PRESET_IDS.map((p) => qualityLevel(p, GRAPHICS_PRESETS[p]));
     for (let i = 1; i < l.length; i++) {
       expect(l[i]!.realLights).toBeGreaterThan(l[i - 1]!.realLights);
-      expect(l[i]!.shadow.casters).toBeGreaterThan(l[i - 1]!.shadow.casters);
+      expect(l[i]!.shadow.casters).toBeGreaterThanOrEqual(l[i - 1]!.shadow.casters);
+      // (3.1.7: never past the 16 textures a shader may use)
+      expect(l[i]!.shadow.casters).toBeLessThanOrEqual(MAX_SHADOW_CASTERS);
       expect(l[i]!.detailScale).toBeGreaterThan(l[i - 1]!.detailScale);
     }
     expect(shadowSpec('off').casters).toBe(0);

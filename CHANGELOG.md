@@ -1,5 +1,17 @@
 # Changelog
 
+## 3.1.8 - Epic shadows fixed, a Resolution list, no hidden resolution drops
+- Desktop "all fog but the lamps" was Epic shadows: 8 soft lamp shadows took the level's and characters' shaders past
+  the 16 textures a shader may use on the laptop (Chrome on D3D11; headless software GL allows 32, so tests passed);
+  those shaders failed and the level drew black under the fog. Every preset now stays within 16: lamp / flashlight
+  shadows are PCF (one texture each) and at most 4 (`MAX_SHADOW_CASTERS`); Epic keeps 2048 maps and the moon's 4
+  high-quality cascades. The desktop e2e checks every material shader at Epic against 16.
+- The blurry desktop: with Adaptive detail off, the old dynamic resolution (still on in older settings) lowered the
+  render resolution whenever a frame missed 120 Hz. Retired: only Adaptive detail may change it in a match.
+- Settings > Graphics > Resolution (desktop): a list of real render resolutions from the native output (50% .. 200%);
+  a pick applies at once and asks "Keep this resolution?" - no answer within 15 s (or Revert / Back) puts the last one
+  back. Phones keep the Resolution scale slider.
+
 ## 3.1.7 - Every match stayed in memory
 - The phone crash reports (High / Ultra benchmarks a minute in, and a crash 14 minutes into a session): every match
   stayed in memory after it ended - about 80 MB each at Low, far more at Ultra. Babylon's engine-wide shader cache keyed

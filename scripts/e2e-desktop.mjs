@@ -83,6 +83,35 @@ try {
   const mob = await G(() => ({ cls: document.body.classList.contains('platform-mobile'), tabs: [...document.querySelectorAll('.settings-screen .tab')].map((t) => t.dataset.tab) }));
   assert(mob.cls && mob.tabs.includes('touch') && !mob.tabs.includes('kbm'), `Interface: Mobile (${mob.tabs.join(',')})`);
   await G(() => window.__app.settings.update((d) => { d.video.platform = 'auto'; }));
+  await frames(page, 4);
+  // 3.1.7 Resolution (desktop): real resolutions; a pick applies at once, Keep keeps it, no answer reverts in 15 s
+  {
+    const openRes = () => G(() => [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).click());
+    const pickRes = (re) => G((src) => [...document.querySelectorAll('.res-dialog .btn')].find((b) => new RegExp(src).test(b.textContent)).click(), re);
+    const scale0 = await G(() => window.__app.settings.get().video.renderScale);
+    await G(() => window.__app.settings.update((d) => { d.video.dynamicRes = true; }));
+    await openRes();
+    await page.waitForSelector('.res-dialog');
+    const opts = await G(() => [...document.querySelectorAll('.res-dialog .btn')].map((b) => b.textContent));
+    assert(opts.length === 9 && opts.some((o) => /\(native\)/.test(o)) && opts.some((o) => /\(50%\)/.test(o)), `Resolution lists real sizes (${opts.join(' | ')})`);
+    await pickRes('\\(75%\\)');
+    await page.waitForFunction(() => /Keep this resolution/.test(document.querySelector('.dialog-title')?.textContent ?? ''));
+    const applied = await G(() => ({ s: window.__app.settings.get().video.renderScale, dyn: window.__app.settings.get().video.dynamicRes, msg: document.querySelector('.dialog-msg').textContent }));
+    assert(applied.s === 0.75 && !applied.dyn && /Reverting to .* in 15 s/.test(applied.msg), `a pick applies at once and asks to keep it (${JSON.stringify(applied)})`);
+    await G(() => [...document.querySelectorAll('.dialog .btn')].find((b) => /Keep/.test(b.textContent)).click());
+    await page.waitForTimeout(1500);
+    const kept = await G(() => ({ s: window.__app.settings.get().video.renderScale, row: [...document.querySelectorAll('.settings-screen .btn')].find((b) => /^Resolution:/.test(b.textContent)).textContent }));
+    assert(kept.s === 0.75 && /\(75%\)/.test(kept.row), `Keep keeps it, the row shows it (${kept.row})`);
+    await openRes();
+    await page.waitForSelector('.res-dialog');
+    await pickRes('\\(50%\\)');
+    await page.waitForFunction(() => /Keep this resolution/.test(document.querySelector('.dialog-title')?.textContent ?? ''));
+    assert((await G(() => window.__app.settings.get().video.renderScale)) === 0.5, 'the second pick applies');
+    await page.waitForFunction(() => !document.querySelector('.dialog-title'), null, { timeout: 25000 });
+    const back = await G(() => window.__app.settings.get().video.renderScale);
+    assert(back === 0.75, `no answer for 15 s puts the last resolution back (${back})`);
+    await G((v) => window.__app.settings.update((d) => { d.video.renderScale = v; }), scale0);
+  }
   await page.keyboard.press('Escape');
   await frames(page, 3);
   // in a match: the rebound key acts, no touch controls
@@ -398,6 +427,22 @@ try {
   assert(wp.n > 0 && wp.voxel === wp.n && wp.hidden && wp.cast, `the loadout's weapons are voxel models casting shadows (${wp.voxel} / ${wp.n}, ${wp.quads} quads)`);
   assert(wp.chipped && wp.chipped.color && wp.chipped.now === wp.chipped.chip, `a shot chips the struck voxel (${JSON.stringify(wp.chipped)})`);
   assert(r.placed >= 8 && r.shadowed >= 1, `Epic: real lights placed (${r.placed}, ${r.shadowed} with shadows, clustered ${r.clustered})`);
+  // 3.1.7: every material fits WebGL's guaranteed 16 textures per shader (software GL allows 32; on the laptop's
+  // D3D11 an Epic level shader with 8 soft lamp shadows failed: the level drew black under the fog)
+  const tex = await e.page.evaluate(() => {
+    const scene = window.__app.current.scene;
+    let max = 0;
+    let who = '';
+    for (const m of scene.meshes) for (const sm of m.subMeshes ?? []) {
+      const n = sm.effect?._samplerList?.length ?? 0;
+      if (n > max) {
+        max = n;
+        who = sm.getMaterial?.()?.name ?? '?';
+      }
+    }
+    return { max, who };
+  });
+  assert(tex.max > 0 && tex.max <= 16, `Epic: every material shader within 16 textures (${tex.max}, ${tex.who})`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');
   const eerrs = e.errors.filter((x) => !/GPU stall|GL Driver/.test(x));

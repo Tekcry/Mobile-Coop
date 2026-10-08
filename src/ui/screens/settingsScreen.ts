@@ -13,6 +13,7 @@ import { button, choice, refreshWidgets, section, slider, TabView, toggle, type 
 import { LayoutEditorScreen } from './layoutEditor';
 import { ControlsScreen } from './controlsScreen';
 import { enterFullscreenLandscape, toggleFullscreen } from '../../pwa/pwa';
+import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
 const AIM_OPTS: { value: AimAssistLevel; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -339,7 +340,8 @@ export class SettingsScreen extends Screen {
       ),
       section(
         'Display',
-        slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
+        // (3.1.7 desktop: a list of real resolutions, applied on a pick and kept only when confirmed; phones the scale)
+        desktop ? resolutionRow(app) : slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
         toggle('Adaptive detail (holds the frame rate in a match)', () => s().video.adaptive, (v) => upd((d) => void (d.video.adaptive = v))),
         choice('Upscaler (with a resolution scale under 100%)', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))),
         slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }),
@@ -479,4 +481,15 @@ export class SettingsScreen extends Screen {
       { btn: 'B', label: 'Back' },
     ];
   }
+}
+
+/** Desktop: the Resolution row - the current render resolution; a tap opens the list (`ResolutionPicker`). */
+function resolutionRow(app: App): HTMLElement {
+  const b = button(`Resolution: ${currentResolution(app)}`, () => {
+    app.screens.push(new ResolutionPicker(app, () => {
+      const l = b.querySelector('.btn-label');
+      if (l) l.textContent = `Resolution: ${currentResolution(app)}`;
+    }));
+  }, { class: 'subtle res-row' });
+  return b;
 }

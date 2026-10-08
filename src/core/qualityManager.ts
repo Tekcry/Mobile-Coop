@@ -45,9 +45,12 @@ export class QualityManager {
     return this._level;
   }
 
-  /** Dynamic resolution on. */
+  /**
+   * Dynamic resolution (3.0) - retired in 3.1.7: with Adaptive detail off it lowered the render resolution unasked (a
+   * blurry desktop at 120 Hz). The frame governor (Adaptive detail) is the one thing that may change it in a match.
+   */
   get auto(): boolean {
-    return this.settings.get().video.dynamicRes;
+    return false;
   }
 
   /** Detected display refresh rate (60 until known). */
