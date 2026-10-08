@@ -41,9 +41,9 @@ Phase 1 - networked movement state:
   stays within half a metre of it (clamped, never kicked).
 
 Phase 2 - split jump, wall jump, pipe legs up / inverted:
-- Split jump: between two tall walls 0.9-1.7 m apart, facing along them, Y ("Split jump") springs up into a split with
-  the feet braced on both walls 1.9 m up. Aim (LT) draws the sidearm one-handed (turn up to 100 deg either way, look
-  down steeply), RT fires; B drops; Y jumps up to a lip or pipe above.
+- Split jump: between two tall walls 1.2-1.95 m apart, facing along them, a double jump braces in a split with the
+  legs straight out to both walls 2.5 m up. Aim (LT) draws the sidearm one-handed (turn up to 100 deg either way, look
+  down steeply), RT fires; B drops (or a drop attack). Nothing else leaves it.
 - Wall jump: facing a wall under a lip 2.7-3.8 m up (too high to grab standing), Y ("Wall jump") kicks off the wall up
   to a hang on it; at an inside corner the kick goes off the adjoining wall to the lip beside it.
 - Horizontal pipes: hanging by the hands, Y ("Legs up") crosses the legs over the pipe - a slow shimmy along it with the
@@ -101,8 +101,8 @@ Warehouse - Chaos Theory routes (more ways in, more height):
   team-mate - a boost or the human ladder up the new pump house in the east lot and a climb from its top.
 - A rappel point on the roof edge over the glazed dispatch window: down the rope, kick through into dispatch.
 - The skylight edge over the workshop: hang from it and drop on the patrol below.
-- The service corridor narrows to 1.5 m at a cabinet bank: split jump over the new corridor patrol (or drop on him), the
-  cabinet and wall tops above.
+- The service corridor's walls stand 4 m along a 5 m stretch (1.86 m apart, no cabinets): split jump over the new
+  corridor patrol and drop on him.
 - A pipe from the mezzanine deck out over the factory floor at 4.4 m, above the floor patrol: legs up, inverted, drop.
 - The big press stands 3.3 m: a wall jump up to a perch over the floor.
 - A chain-link fence closes the dark yard lane off from the east lot: climb it in the dark (quietly at gears 1-3) or walk
@@ -117,8 +117,7 @@ Playtest changes (Michael, 2026-10-08):
   the run's pace (about 0.8 m up) and the hands grab what comes in reach on the way: a lip, a horizontal pipe, a
   drainpipe or a ladder. A second press in the air between two tall walls braces in a split (a double jump); the split
   prompt says so.
-- Split jump: the feet brace 2.5 m up (was 1.9 m); the walls need 3.6 m. Warehouse: the corridor's cabinet bank and the
-  wall facing it stand 4 m there.
+- Split jump: the feet brace 2.5 m up (was 1.9 m); the walls need 3.6 m.
 - Horizontal pipes: hanging by the hands faces along the pipe (hand over hand, not side-on like a lip), and so does
   hanging upside down (the legs wrapped round it); hold the stick back against the facing to turn round on it.
   Standing under a pipe, Y / the action button takes it before a mantle over anything beside it; the mezzanine deck
@@ -128,6 +127,13 @@ Playtest changes (Michael, 2026-10-08):
   surfaces as indicators (no longer tapped). With a cover face and an obstacle both prompted, moving (or the stick
   pushed at it) goes over / up it, standing still takes cover. Touch layout v5 adds the Jump button beside it; saved
   layouts keep every placement.
+
+Playtest changes, second round (Michael, 2026-10-08):
+- Split jump: the legs go almost straight out to the walls (the body sits lower, hips just over the feet), so the
+  hallway can be wider: 1.2-1.95 m between the walls (was 0.9-1.7). It faces down the hallway the way you jumped, so
+  either way works. No jumping out of it: drop (B), a drop attack on a guard under you, or aim and shoot the pistol.
+- Warehouse: the corridor cabinet bank is gone; the corridor's own two walls stand 4 m along a 5 m stretch, 1.86 m
+  apart. Proving Grounds: the split corridor is 1.8 m wide.
 
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the

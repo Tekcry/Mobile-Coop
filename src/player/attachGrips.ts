@@ -393,7 +393,8 @@ export class AttachGrips {
         fr.x = cx + wx * sd * half - fx * 0.04;
         fr.z = cz + wz * sd * half - fz * 0.04;
         fr.y = fy;
-        const hy = fy + 1.02 * (rig.height / 1.75);
+        // (pressed against the walls a little under the shoulders)
+        const hy = fy + 0.5 * (rig.height / 1.75);
         L.x = cx - wx * sd * (half + 0.02) + fx * 0.12;
         L.z = cz - wz * sd * (half + 0.02) + fz * 0.12;
         L.y = hy;

@@ -206,9 +206,9 @@ try {
 
   console.log('service corridor: split jump over the patrol');
   const splits = await page.evaluate(() => window.__app.current.world.level.anchors.splits.map((g) => [+g.a.x.toFixed(1), +g.a.z.toFixed(1)]));
-  assert(splits.length === 1 && Math.abs(splits[0][1] + 10.1) < 0.2, `one split gap on the Warehouse, in the corridor (${JSON.stringify(splits)})`);
-  // the cabinet bank (x 7..11, face z -9.35) and the corridor's south wall (face z -10.85)
-  await tp(9, 0, -10.1, Math.PI / 2);
+  assert(splits.length === 1 && Math.abs(splits[0][1] + 9.9) < 0.2, `one split gap on the Warehouse, in the corridor (${JSON.stringify(splits)})`);
+  // the corridor's 4 m fire walls (x 6.5..11.5, faces z -10.83 / -8.97: 1.86 m apart, no cabinets)
+  await tp(9, 0, -9.9, Math.PI / 2);
   await run(0.4);
   i = await I();
   assert(i.prompt === 'Split jump (double jump)', `split shown in the corridor ("${i.prompt}")`);
@@ -216,8 +216,8 @@ try {
   await tap(BTN.Y);
   await run(1.0);
   i = await I();
-  assert(i.attached && i.kind === 'split' && i.phase === 'on' && Math.abs(i.y - 2.5) < 0.05, `double Y: braced in the split, 2.5 m up (y ${f2(i.y)})`);
-  await guard(i.x + 0.3, -10.1, Math.PI / 2);
+  assert(i.attached && i.kind === 'split' && i.phase === 'on' && Math.abs(i.y - 2.13) < 0.05, `double Y: braced in the split, the feet 2.5 m up (root y ${f2(i.y)})`);
+  await guard(i.x + 0.3, -9.9, Math.PI / 2);
   await run(0.4);
   td = await page.evaluate(() => window.__app.current.takedown.offer?.plan.kind ?? null);
   assert(td === 'drop', `the patrol under the split: a drop attack (${td})`);

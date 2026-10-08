@@ -111,8 +111,9 @@ Blacklist style.
     boost target (out of reach alone) and the climb to the roof, press wall jump, corridor split + drop, deck pipe +
     drop, yard fence + the nav path round it
   - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): the manual jump (up and down, grabs a pipe / lip /
-    drainpipe), split jump (shown only facing along; one Y jumps, a second in the air braces, feet 2.5 m up on
-    both walls, no travel, sidearm aim band + fire, B drop, Y up to the lips), wall jump (straight, too far, inside
+    drainpipe), split jump (shown only facing along; one Y jumps, a second in the air braces facing the way it
+    jumped, feet 2.5 m up on both walls, legs within 15 deg of level, no travel, sidearm aim band + fire, B drop, no jump
+    out), wall jump (straight, too far, inside
     corner), pipe facing along it + turning round, legs up (0.5 m/s, feet up), inverted (camera upright, sidearm + spread x1.3), curl up, hands, damage
     mid-change, the flip drop; rappel (hook on, rope speeds, kick out + sideways, sidearm, kick through a window,
     unhook height), fence (bullets / sight pass, blocks the body, climb / shimmy speeds, rattle by gear, flip over)
@@ -313,7 +314,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   do not collide, so the nav sampler sees the floor) with skylight strips. Nine tagged rooms with squads (3.2.0: the
   corridor has a patrol). 3.2.0 Chaos Theory routes: the south roof strip (x -22..21, top 6.275) is a solid walkway
   (`overhead`, metal surface) reached by a drainpipe (west yard) or from the 4.2 m pump house (east lot; co-op boost /
-  human ladder), a rappel point over the dispatch window, a cabinet bank in the corridor (a 1.5 m split gap), a deck
+  human ladder), a rappel point over the dispatch window, the corridor's walls at 4 m over x 6.5..11.5 (a 1.86 m split gap), a deck
   pipe from the mezzanine (x 17, 4.4 m) over the floor patrol, the press at 3.3 m (wall jump), a yard fence (x 14.5)
   closing the dark lane off from the east lot (`scripts/e2e-ct-warehouse.mjs`). Proving
   Grounds has a three-room mini set (north west) for tests.
@@ -448,7 +449,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `MOVE_TOLERANCE` 1.15) / `attachedClamp` (`ATTACH_SLACK` 0.5) in `RemotePlayer.accept`; `RemotePlayer.followPose`
   and `Hitboxes.sync(feet, head, hips)` lay the capsules along hips -> head; host `Hist` keeps the posed head / hips
   and the mode, `judge` uses them.
-- 3.2.0 phase 2: `player/splitJump.ts` (pure): `findSplitGaps(coverSegments)` (high faces, normals opposed, 0.9-1.7 m,
+- 3.2.0 phase 2: `player/splitJump.ts` (pure): `findSplitGaps(coverSegments)` (high faces, normals opposed, 1.2-1.95 m,
   both >= 2.6 m, same floor, overlap >= 0.8 m; `LevelBuilder.build` adds them last as `SplitAnchor`s, kind `split`,
   `anchors.splits`), `splitReach` (between the walls facing within 40 deg of the axis), `wallJumpReach` (lip 2.7-3.8 m,
   facing its wall within 1 m, or an inside corner: side-on within 1.4 m), `PipeHang` (hands -> legsUp -> inverted,
@@ -501,7 +502,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   in the air `fallProbe` / `AttachController.leapProbe` (drainpipes / ladders within `LEAP.climbReach`) grab at once
   (after `LEAP.splitWait` when a split gap is under the jump); a second press within `LEAP.doubleTap` over the split
   (`AttachController.split`, no longer a traverse hint; prompt `splitDouble`; `TraversalController.splitNow` for the
-  touch button) braces in it. `SPLIT.feetHeight` 2.5, `minHeight` 3.6 (`gripCentre` of a split = the braced hands).
+  touch button) braces in it. `SPLIT.feetHeight` 2.5, `rootDrop` 0.37 (the root under the feet line: legs
+  near level), `minHeight` 3.6 (`gripCentre` of a split = the braced hands); `findJump` returns null in a split (drop,
+  drop attack or sidearm only); the double tap sets the split's `face` from the jump's travel (else the body's yaw).
   Horizontal pipes face along the pipe in every sub-state (`attachPose` pipeH yaw along `face`; `pipeFace(a, camYaw)`
   in `attachTo`; hands one ahead of the other, `pipeHands` either side of the top; inverted: legs straddle it, ankles
   crossed over the top); held back against the facing for `PIPE_TURN` 0.3 s it turns round (`backT`); `anchorFirst`

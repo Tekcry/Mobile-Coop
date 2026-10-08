@@ -249,10 +249,11 @@ export function attachPose(a: Anchor, s: number, face: number, height: number, o
       return out;
     }
     case 'split': {
-      // braced between the walls: the feet line at `SPLIT.feetHeight` over the floor, facing along the corridor
+      // braced between the walls: the feet line at `SPLIT.feetHeight` over the floor, the hips just over it (the legs
+      // straight out to the walls), facing along the corridor
       out.x = a.a.x + a.tx * s;
       out.z = a.a.z + a.tz * s;
-      out.y = a.a.y + SPLIT.feetHeight;
+      out.y = a.a.y + SPLIT.feetHeight - SPLIT.rootDrop * k;
       out.yaw = Math.atan2(a.tx * face, a.tz * face);
       return out;
     }

@@ -360,6 +360,14 @@ export class TraversalController {
         if (sp && (jumpPressed || leapPressed) && this.leapT <= LEAP.doubleTap) {
           this.leapT = -1;
           this.leapSplit = null;
+          // facing along the hallway the way the jump was going (else the way the body faces)
+          if (sp.anchor.kind === 'split') {
+            const v = c.vel;
+            const moving = v.x * v.x + v.z * v.z > 0.25;
+            const dx = moving ? v.x : Math.sin(c.yaw);
+            const dz = moving ? v.z : Math.cos(c.yaw);
+            sp.face = dx * sp.anchor.tx + dz * sp.anchor.tz >= 0 ? 1 : -1;
+          }
           return ac.attachFrom(sp);
         }
         if (!sp || this.leapT >= LEAP.splitWait) {

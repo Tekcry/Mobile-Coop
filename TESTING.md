@@ -384,9 +384,13 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
 - [ ] Touch: the Jump button (right of the action button) jumps on open floor; under a pipe / at a lip up to ~3 m / beside
   a drainpipe or ladder the jump grabs it.
 - [ ] Controller: Y on open floor jumps; Y at a vault / ladder still does that instead.
-- [ ] Between the Proving corridor walls (or the Warehouse corridor cabinets): the prompt reads "Split jump (double
+- [ ] Between the Proving corridor walls (or the Warehouse corridor's tall walls): the prompt reads "Split jump (double
   jump)"; two quick taps of Jump (or Y) brace in the split, feet about 2.5 m up; the touch action button there jumps
   straight in.
+- [ ] Split pose: the legs almost horizontal out to both walls, hands braced on the walls. Jump in facing east, it
+  faces east; facing west, it faces west.
+- [ ] In the split: no Jump / Climb prompt; Y and Jump do nothing. Only Drop (B), a drop attack on a guard under you,
+  and the pistol (LT / RT).
 - [ ] Hanging from a horizontal pipe: the operator faces along the pipe, hands one ahead of the other; legs up and
   upside down stay along it; holding the stick back turns round.
 - [ ] Mezzanine deck: standing under the pipe's start, the action button / Y grabs the pipe (no mantle over the railing).
@@ -400,7 +404,8 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
 - [ ] The roof's north edge over the workshop: hang there; with the patrol under you, "Drop attack".
 - [ ] Co-op: brace against the pump house (east lot, beside the workshop door); the other player boosts onto it, then
   climbs from its top onto the roof. Alone, nothing reaches its top.
-- [ ] Service corridor, at the cabinet bank: "Split jump"; the corridor patrol walks under - "Drop attack".
+- [ ] Service corridor, where its two walls stand 4 m (no cabinets): "Split jump"; the corridor patrol walks under -
+  "Drop attack".
 - [ ] Mezzanine deck: the pipe out over the factory floor; hands / legs up / inverted over the floor patrol.
 - [ ] The press (factory floor): "Wall jump" up onto it; from the top, a drop on the patrol passing it.
 - [ ] Yard fence (east end of the dark lane): climb it at gear 3 (quiet) / gear 4 (rattles), flip over into the east

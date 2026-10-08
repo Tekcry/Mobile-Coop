@@ -255,9 +255,9 @@ export const MOVEMENT_RANGES: Partial<Record<MovementKey, [number, number, numbe
 export const SPLIT = {
   /** Faces this close to opposed (normal dot) count as the two sides of a gap. */
   opposed: -0.95,
-  /** Gap between the faces (m). */
-  minWidth: 0.9,
-  maxWidth: 1.7,
+  /** Gap between the faces (m): the legs reach straight out to both walls (a hallway, not a slot). */
+  minWidth: 1.2,
+  maxWidth: 1.95,
   /** Both walls at least this tall over the floor (m): the feet line plus the body braced above it. */
   minHeight: 3.6,
   /** Shortest usable stretch of corridor (m) and the margin kept from its ends. */
@@ -269,6 +269,9 @@ export const SPLIT = {
   facing: (40 * Math.PI) / 180,
   /** Feet planted on the walls this high over the floor (m; the walls stand `minHeight` - well over the head). */
   feetHeight: 2.5,
+  /** The body's root this far under the feet line (m at 1.75 m): with the split pose's pelvis drop the hips sit just
+   *  over the feet, the legs almost horizontal out to the walls. */
+  rootDrop: 0.37,
   /** The committed jump into the split (s). */
   jumpTime: 0.45,
   /** Aiming from the split: body yaw within this of the corridor axis, pitch band (rad). */

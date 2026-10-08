@@ -9,20 +9,20 @@ const wall = (cx: number, cz: number, len: number, h: number, yaw = 0, thick = 0
 const corridor = (gap: number, h = 4.3, h2 = h, len = 4): CoverBox[] => [wall(0, 0, len, h), wall(0, gap + 0.3, len, h2)];
 
 describe('split jump gaps (3.2.0)', () => {
-  it('two tall walls 0.9-1.7 m apart facing each other make one gap along the corridor', () => {
-    const gaps = findSplitGaps(buildCoverSegments(corridor(1.3)));
+  it('two tall walls 1.2-1.95 m apart facing each other make one gap along the corridor', () => {
+    const gaps = findSplitGaps(buildCoverSegments(corridor(1.8)));
     expect(gaps.length).toBe(1);
     const g = gaps[0]!;
-    expect(g.width).toBeCloseTo(1.3);
+    expect(g.width).toBeCloseTo(1.8);
     expect(Math.abs(g.tx)).toBeCloseTo(1);
-    expect(g.a.z).toBeCloseTo(0.15 + 0.65);
+    expect(g.a.z).toBeCloseTo(0.15 + 0.9);
     expect(g.len).toBeCloseTo(4 - 2 * SPLIT.endMargin);
     expect(g.height).toBeCloseTo(4.3);
   });
 
   it('too narrow, too wide, too short, a short wall or angled walls make none', () => {
-    expect(findSplitGaps(buildCoverSegments(corridor(0.8)))).toHaveLength(0);
-    expect(findSplitGaps(buildCoverSegments(corridor(1.8)))).toHaveLength(0);
+    expect(findSplitGaps(buildCoverSegments(corridor(1.1)))).toHaveLength(0);
+    expect(findSplitGaps(buildCoverSegments(corridor(2.0)))).toHaveLength(0);
     expect(findSplitGaps(buildCoverSegments(corridor(1.3, 4.3, 2.4)))).toHaveLength(0);
     expect(findSplitGaps(buildCoverSegments(corridor(1.3, 4.3, 4.3, 1.2)))).toHaveLength(0);
     // the second wall turned 20 degrees
@@ -63,7 +63,8 @@ describe('split jump gaps (3.2.0)', () => {
     expect(ATTACH.split.enter).toBeCloseTo(SPLIT.jumpTime);
     expect(axisInput(a, ATTACH.split, 0, 1, 0)).toBe(0);
     const p = attachPose(a, 1, -1, 1.75, { x: 0, y: 0, z: 0, yaw: 0 });
-    expect(p.y).toBeCloseTo(SPLIT.feetHeight);
+    // the hips just over the feet line (the legs straight out to the walls)
+    expect(p.y).toBeCloseTo(SPLIT.feetHeight - SPLIT.rootDrop);
     expect(Math.cos(p.yaw - Math.atan2(-g.tx, -g.tz))).toBeCloseTo(1);
   });
 });

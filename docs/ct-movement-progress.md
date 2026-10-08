@@ -116,7 +116,7 @@ Phase 5 files: `src/game/teamMoves.ts` (pure), `src/game/teamController.ts`, `TE
 `stacked`, `tests/teamMoves.test.ts`, `scripts/e2e-netmove.mjs` (team section).
 
 Decisions:
-- Split gaps come from the cover faces (two high faces facing each other 0.9-1.7 m apart), so any map gets them
+- Split gaps come from the cover faces (two high faces facing each other 1.2-1.95 m apart; 0.9-1.7 before the second playtest round), so any map gets them
   without placing anchors; maps can still steer them by geometry.
 - Pipe inverted / legs up turn the rig about a pivot below the hips (`TUMBLE_PIVOT`); the upright-only pelvis drop and
   knee-floor rules are skipped while tumbled (they pushed the hips the wrong way).
@@ -224,6 +224,25 @@ Decisions:
 
 Tests: `npm test` 56 files, 567 passed; lint clean. Full e2e (32 suites) on the new build: all passed but e2e-anchors
 and e2e-netmove, whose split checks still used a single Y; updated to the double jump, both pass.
+
+### Playtest changes, second round (2026-10-08)
+Asked: legs almost horizontal in the split so hallways can be wider; the Warehouse corridor with no cabinet, only the
+two walls the right width apart; no jumping out of a split (drop, drop attack, pistol only); the split faces down the
+hallway the way the jump went.
+
+Files: `src/config/movement.ts` (`SPLIT.minWidth` 1.2 / `maxWidth` 1.95, `rootDrop` 0.37), `src/player/attach.ts`
+(split root lowered), `src/player/attachGrips.ts` (hands on the walls just under the shoulders),
+`src/player/attachController.ts` (`findJump` null in a split, `gripCentre`), `src/player/traversal.ts` (face from the
+jump's travel), `src/world/maps/warehouse.ts` (cabinet bank + fire wall replaced by both corridor walls at 4 m over
+x 6.5..11.5), `src/world/maps/provingGrounds.ts` (split corridor 1.8 m), tests (`splitJump`), e2e (`ct`,
+`ct-warehouse`).
+
+Decisions:
+- Feet stay at 2.5 m; the body drops 0.37 m (at 1.75 m) so the hips sit ~8 cm over the feet line. At 1.86 m the legs
+  reach the walls nearly straight; the arms reach just under the shoulders.
+- Facing: the jump's horizontal velocity along the corridor axis (> 0.5 m/s), else the body's yaw.
+- Found while testing (not changed here): after a fall the crouched capsule can rest 4-12 cm over the floor (also on
+  open ground, any drop height). The e2e drop check allows 15 cm.
 
 ## Preview
 `ct-movement` builds to its own site at `/<repo>/ct/` (approved by Michael 2026-10-07; `dev` keeps `/preview/`).

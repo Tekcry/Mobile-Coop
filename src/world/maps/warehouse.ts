@@ -78,7 +78,7 @@ const ROOMS: RoomDef[] = [
     maxX: 24,
     minZ: -11,
     maxZ: -8.8,
-    // (3.2.0) a patrol through the service corridor: under the split jump at the cabinet bank
+    // (3.2.0) a patrol through the service corridor: under the split jump between the 4 m fire walls
     squad: [{ kind: 'grunt', x: 21, z: -9.9, yaw: -Math.PI / 2, route: [[21, -9.9], [1.5, -9.9]], wait: 4 }],
   },
   {
@@ -369,8 +369,8 @@ export const warehouse: MapDef = {
     // Chaos Theory routes (3.2.0): the roof walkway over the south facade (moonlit, a metal deck: loud above gear 2),
     // reached by a drainpipe in the west yard (solo) or the pump house in the east lot (co-op: a boost or the human
     // ladder up its 4.2 m wall, then a climb); a rappel point over the glazed dispatch window (kick through), the
-    // skylight lip over the workshop patrol (drop attack); a cabinet bank narrowing the service corridor to 1.5 m
-    // (split jump over the corridor patrol, lips above); a pipe from the mezzanine deck out over the factory floor
+    // skylight lip over the workshop patrol (drop attack); 4 m fire walls along the service corridor
+    // (split jump over the corridor patrol); a pipe from the mezzanine deck out over the factory floor
     // patrol (hands, legs up, inverted, drop attacks); the press (3.3 m, wall jump); a chain-link fence closing the
     // dark yard lane off from the east lot (climb it in the dark, or walk round through the lit gap by the facade)
     const RT = 6.275;
@@ -383,10 +383,10 @@ export const warehouse: MapDef = {
     // the pump house: a 4.2 m block against the facade beside the workshop door
     b.block(20.2, -19.025, 3.2, 4.2, 1.75, WALL);
     b.box(19.0, 2.4, -19.92, 0.9, 1.1, 0.06, STEEL, 0, 0, false);
-    // the corridor's cabinet bank (4 m, against the north wall) facing a 4 m section of the south wall (a fire wall):
-    // the split braces 2.5 m up between them
-    b.block(9, -9.15, 4, 4.0, 0.4, '#4b5560');
+    // a 5 m stretch of the corridor's two walls stands 4 m (fire walls), 1.86 m apart: the split braces 2.5 m up
+    // between them, the legs straight out
     b.block(9, -11, 5, 4.0, 0.34, WALL);
+    b.block(9, -8.8, 5, 4.0, 0.34, WALL);
     // the deck pipe and its hangers from the roof
     b.pipeH(17, 13.3, 17, -0.2, 4.4, PIPE);
     for (const z of [10, 6, 2.6, 0.2]) b.box(17, 5.23, z, 0.05, 1.54, 0.05, PIPE, 0, 0, false);

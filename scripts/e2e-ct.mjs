@@ -81,16 +81,16 @@ try {
   await run(0.5);
 
   console.log('split jump');
-  // corridor along x between walls at z 24 / 25.6 (faces 24.15 / 25.45), x 8..12
-  await tp(10, 0, 24.8, Math.PI / 2);
+  // corridor along x between walls at z 24 / 26.1 (faces 24.15 / 25.95), x 8..12
+  await tp(10, 0, 25.05, Math.PI / 2);
   await run(0.4);
   let i = await I();
   assert(i.prompt === 'Split jump (double jump)' && i.split, `split shown facing along the corridor ("${i.prompt}")`);
-  await tp(10, 0, 24.8, 0);
+  await tp(10, 0, 25.05, 0);
   await run(0.4);
   i = await I();
   assert(!i.split, 'not offered facing a wall');
-  await tp(10, 0, 24.8, Math.PI / 2);
+  await tp(10, 0, 25.05, Math.PI / 2);
   await run(0.4);
   // (3.2.0) a double jump: the first Y jumps, the second in the air braces in the split
   await tap(BTN.Y);
@@ -102,10 +102,20 @@ try {
   assert(i.attached && i.kind === 'split' && i.phase === 'enter', `a second Y in the air jumps into the split (${i.kind} ${i.phase})`);
   await run(0.4);
   i = await I();
-  assert(i.phase === 'on' && Math.abs(i.y - 2.5) < 0.05 && i.trav === 'split', `braced with the feet line 2.5 m up (y ${f2(i.y)}, ${i.trav})`);
-  const walls = [24.15, 25.45];
+  assert(i.phase === 'on' && i.trav === 'split' && Math.abs(Math.sin(i.yaw) - 1) < 0.02, `braced facing along the way it jumped (${i.trav}, yaw ${f2(i.yaw)})`);
+  const walls = [24.15, 25.95];
   const onWall = (p) => p[3] > 0.99 && Math.abs(p[1] - 2.5) < 0.05 && walls.some((w) => Math.abs(p[2] - w) < 0.08);
-  assert(onWall(i.plantL) && onWall(i.plantR) && Math.abs(i.plantL[2] - i.plantR[2]) > 1.1, `feet planted on the two walls (${i.plantL.map(f2)} / ${i.plantR.map(f2)})`);
+  assert(onWall(i.plantL) && onWall(i.plantR) && Math.abs(i.plantL[2] - i.plantR[2]) > 1.6, `feet planted on the two walls 2.5 m up (${i.plantL.map(f2)} / ${i.plantR.map(f2)})`);
+  // (3.2.0) the legs almost horizontal: the hips just over the feet line, each leg out to its wall within 15 deg of level
+  const legs = await page.evaluate(() => {
+    const rig = window.__app.current.player.rig;
+    const p = (n) => { n.computeWorldMatrix(); const v = n.getAbsolutePosition(); return [v.x, v.y, v.z]; };
+    return { hipL: p(rig.hipL), hipR: p(rig.hipR), ankL: p(rig.ankleL), ankR: p(rig.ankleR) };
+  });
+  const slope = (h, f) => (Math.atan2(Math.abs(h[1] - f[1]), Math.hypot(h[0] - f[0], h[2] - f[2])) * 180) / Math.PI;
+  const sl = Math.max(slope(legs.hipL, legs.ankL), slope(legs.hipR, legs.ankR));
+  assert(sl < 15 && legs.hipL[1] > 2.45 && legs.hipL[1] < 2.8, `legs almost horizontal (hip-ankle ${f2(sl)} deg, hips ${f2(legs.hipL[1])} m)`);
+  assert(i.jump === null, `no jump offered from the split (${i.jump})`);
   assert(i.stowed && !i.held, 'weapon stowed while braced');
   // stick does nothing (no travel)
   const x0 = i.x;
@@ -136,19 +146,19 @@ try {
   await tap(BTN.B);
   await run(1.2);
   i = await I();
-  assert(!i.attached && i.grounded && Math.abs(i.y) < 0.1 && i.landings > land0, `B drops out to the floor (y ${f2(i.y)}, landing ${i.landing} ${f2(i.fall)} m)`);
-  // Y from the split up to the lips over it
-  await tp(10, 0, 24.8, Math.PI / 2);
+  assert(!i.attached && i.grounded && Math.abs(i.y) < 0.15 && i.landings > land0, `B drops out to the floor (y ${f2(i.y)}, landing ${i.landing} ${f2(i.fall)} m)`);
+  // (3.2.0) jumping the other way faces the other way; Y braced does nothing (no jumps out of a split)
+  await tp(10, 0, 25.05, -Math.PI / 2);
   await run(0.4);
   await tap(BTN.Y);
   await tap(BTN.Y);
   await run(0.9);
   i = await I();
-  assert(i.kind === 'split' && i.jump === 'ledge', `a lip in reach above the split (${i.jump})`);
+  assert(i.attached && i.kind === 'split' && Math.abs(Math.sin(i.yaw) + 1) < 0.02, `jumped facing west: braced facing west (yaw ${f2(i.yaw)})`);
   await tap(BTN.Y);
   await run(1.0);
   i = await I();
-  assert(i.attached && i.kind === 'ledge' && Math.abs(i.top - 4.3) < 0.05, `Y jumps up from the split to a lip (${i.kind}, top ${f2(i.top)})`);
+  assert(i.attached && i.kind === 'split' && i.phase === 'on', `Y braced: still in the split (${i.kind} ${i.phase})`);
   await tap(BTN.B);
   await run(1.5);
 
