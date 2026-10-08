@@ -948,7 +948,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `GameState` flies the camera through the room centres (`pathAt`, Catmull-Rom), guards passive, one flight per run
   (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
   the settings, then one costly feature off / down per run, `FEATURE_SECONDS` 20; `BenchRun.gfx` ->
-  `QualityManager.setOverride({ gfx })`; 3.1.4: then two diagnosis runs, `rebuild` 'post' / 'shadows' mid-match;
+  `QualityManager.setOverride({ gfx })`; 3.1.4: then two diagnosis runs, `rebuild` 'post' / 'shadows' mid-match; 3.2: a 'render scale 75%' run second
+  (`benchPlan(.., scale)`: GPU bound or not), 'anti-aliasing FXAA' and 'detail Medium' runs;
   3.1.4: every run in its own match - `app.benchmark(BenchSession)` calls `setOverride(o, false)` before `startGame`,
   the session carries the plan and lines, `sameMatch` runs go on in the last match; 3.1.5: the note (`BenchSession.note`)
   saved after every run, `ui/benchTag.ts` "Run n/N · label · fps" on screen), `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
@@ -1056,9 +1057,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   map's fixed lights (not flashlights; `GI_STRIDE`) with a slot per lamp circuit (`group`, <= `GI_SLOTS` 12, more share
   the last); the sky bake job takes them (`skyBake.ts` `bakeGi`, pure: per air cell near a light, 12 rays to the
   surfaces round it, each surface's direct light from that lamp - falloff, cone, facing, a visibility march - bounced
-  at a grey albedo, into the light's slot; RGBA / `GI_MAX`). `VoxelWorld.giTex` (the sky cells, slots stacked along
-  z; the fine layer reads the structure's), `VoxelPlugin` `VOXEL_GI` adds the slots x `giWeights` (World.updateGi on a
-  `LightRegistry.version` change: the lit share of each circuit - switches, shot-out lamps, EMP) to the voxel ambient.
+  at a grey albedo, into the light's slot; RGBA / `GI_MAX`). `VoxelWorld.giData` (the sky cells, slots stacked along
+  z); 3.2: `mixGiSlots` / `VoxelWorld.mixGi` sum the slots x the lit share of each circuit (World.updateGi on a
+  `LightRegistry.version` change: switches, shot-out lamps, EMP) at half scale into one `giTex` (the fine layer reads
+  the structure's), and `VoxelPlugin` `VOXEL_GI` takes one tap of it (x 2 `giScale`) into the voxel ambient.
   Cached with the sky (`VOXEL_VERSION` 4, the key carries the lights' hash).
 - Reflections (3.0 phase 5, `GraphicsFeatures.reflections` off / ssr / rt; settings before had `ssr` on / off):
   `vfx/rtReflections.ts` `RtReflections` (PostStack, Ray traced with a voxel world, `PostStackOptions.rt` = GameState's

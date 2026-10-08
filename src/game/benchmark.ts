@@ -70,6 +70,9 @@ export function featureRuns(f: GraphicsFeatures): { label: string; gfx: Partial<
   if (f.shadows !== 'off' && f.shadows !== 'low') out.push({ label: 'shadows Low', gfx: { shadows: 'low' } });
   if (f.postRes === 'full') out.push({ label: 'post effects at half resolution', gfx: { postRes: 'half' } });
   if (f.textures !== 'low') out.push({ label: 'textures Low', gfx: { textures: 'low' } });
+  // (3.2: TAA's full-screen resolve, and the fine prop layer - Detail High and up - on the phone)
+  if (f.aa === 'taa') out.push({ label: 'anti-aliasing FXAA', gfx: { aa: 'fxaa' } });
+  if (f.detail === 'high' || f.detail === 'ultra' || f.detail === 'epic') out.push({ label: 'detail Medium', gfx: { detail: 'medium' } });
   return out;
 }
 
@@ -84,7 +87,7 @@ export const BENCH_RESOLUTIONS = [
  * The runs for a benchmark kind. `outW` / `outH` = the output in device pixels at render scale 1: a resolution is
  * included when it is within render scale 2 of it (a 1600p laptop reaches 7680 x 2160's pixel count at ~2.0).
  */
-export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: readonly FixedPreset[] = PRESET_IDS, current: GraphicsFeatures | null = null): BenchRun[] {
+export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: readonly FixedPreset[] = PRESET_IDS, current: GraphicsFeatures | null = null, scale = 1): BenchRun[] {
   const run = (label: string, preset: FixedPreset | null = null, scale: number | null = null): BenchRun => ({ label, preset, scale, seconds: BENCH.seconds, sustained: false });
   if (kind === 'presets') return presets.map((p) => run(p[0]!.toUpperCase() + p.slice(1), p));
   if (kind === 'features') {
@@ -93,7 +96,9 @@ export function benchPlan(kind: BenchKind, outW: number, outH: number, presets: 
     // rebuild alone slow the device, and does new shadows put it right?)
     const post: BenchRun = { ...base, label: 'current settings, post effects rebuilt mid-match', rebuild: 'post' };
     const shadows: BenchRun = { ...base, label: 'then shadows rebuilt mid-match', rebuild: 'shadows', sameMatch: true };
-    return [base, ...(current ? featureRuns(current) : []).map((r) => ({ ...run(r.label), seconds: FEATURE_SECONDS, gfx: r.gfx })), post, shadows];
+    // (3.2: the settings at 75% of the render resolution - frames that speed up say the GPU is the limit)
+    const res: BenchRun = { ...run('render scale 75%', null, Math.max(0.5, scale * 0.75)), seconds: FEATURE_SECONDS };
+    return [base, res, ...(current ? featureRuns(current) : []).map((r) => ({ ...run(r.label), seconds: FEATURE_SECONDS, gfx: r.gfx })), post, shadows];
   }
   if (kind === 'sustained') return [{ ...run(`sustained ${Math.round(BENCH.sustained / 60)} min`), seconds: BENCH.sustained, sustained: true }];
   if (kind === 'resolutions') {

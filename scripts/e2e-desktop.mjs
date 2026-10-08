@@ -333,24 +333,25 @@ try {
   assert(art.sky && art.inside < 0.5 && art.yard > 0.8, `the sky is baked: dark under the roof, open in the yard (${art.inside.toFixed(2)} / ${art.yard.toFixed(2)})`);
   assert(art.roofIn > 5 && art.roofYard < 1, `rain stops at the roof, falls to the ground in the yard (${art.roofIn} / ${art.roofYard})`);
   assert(art.palette > 40, `the art layer's materials (${art.palette} palette entries)`);
-  // GI per lamp circuit (Epic): baked, in the shader, and a switched-off circuit takes its bounce light away
+  // GI per lamp circuit (Epic): baked, in the shader (3.2: the circuits mixed into one texture), and a switched-off
+  // circuit takes its bounce light away (the mix's sum drops, and comes back)
   const gi = await e.page.evaluate(() => {
     const w = window.__app.current.world;
     const vx = w.voxels;
     const src = vx.meshes.find((m) => m.isEnabled() && m.subMeshes?.[0]?.effect)?.subMeshes[0].effect.fragmentSourceCode ?? '';
     const reg = w.level.lights;
     const l = reg.lights.find((x, i) => w.giSlotOf?.[i] >= 0 && x.group >= 0 && x.on);
-    const slot = l ? w.giSlotOf[reg.lights.indexOf(l)] : -1;
-    const before = vx.plugins[0].giWeights[slot];
+    const sum = () => vx.giMix.reduce((a, v, i) => (i % 4 === 3 ? a : a + v), 0);
+    const before = sum();
     if (l) reg.setGroup(l.group, false);
     w.frame(window.__app.current.player.position, 0);
-    const after = vx.plugins[0].giWeights[slot];
+    const after = sum();
     if (l) reg.setGroup(l.group, true);
     w.frame(window.__app.current.player.position, 0);
-    return { groups: vx.giGroups, shader: src.includes('gsum'), slot, before, after, back: vx.plugins[0].giWeights[slot] };
+    return { groups: vx.giGroups, shader: src.includes('voxGi'), before, after, back: sum() };
   });
   assert(gi.groups > 1 && gi.shader, `GI baked per lamp circuit and in the voxel shader (${gi.groups} circuits)`);
-  assert(gi.before === 1 && gi.after < 1 && gi.back === 1, `a switched-off circuit takes its bounce light away (${gi.before} -> ${gi.after} -> ${gi.back})`);
+  assert(gi.before > 0 && gi.after < gi.before && gi.back === gi.before, `a switched-off circuit takes its bounce light away (${gi.before} -> ${gi.after} -> ${gi.back})`);
   // voxel characters (3.0 phase 3): one skinned voxel body per character, the smooth parts unseen
   const ch = await e.page.evaluate(async () => {
     const g = window.__app.current;

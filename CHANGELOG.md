@@ -15,6 +15,10 @@
 - No second draw of the scene for depth: without ambient occlusion / reflections (every phone preset, desktop Low /
   Medium) the fog, light shafts and TAAU read the scene pass's own depth buffer (a depth texture on the first post
   process's target) instead of a separate depth pass. Phone Ultra: 223 -> 159 draw calls (baked lamps included).
+- Benchmark > Feature costs adds: the settings at 75% render scale (faster = the GPU is the limit), anti-aliasing FXAA
+  instead of TAA, and Detail Medium (no fine prop layer).
+- Bounce light: the lamp circuits are mixed into one texture whenever a circuit changes (switch, shot, EMP), so a
+  pixel takes one GI sample instead of one per circuit (9 in the Warehouse).
 
 ## 3.1.9 - Epic's half-fog, the phone's display rate, no locks, lighter phone passes
 - Desktop Epic sometimes drew the bottom half of the screen as flat fog: ray-traced reflections and depth of field

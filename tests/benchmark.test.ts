@@ -56,7 +56,11 @@ describe('feature costs (3.1.1)', () => {
     const p = benchPlan('features', 2868, 1320, undefined, ultra);
     expect(p[0]).toMatchObject({ label: 'current settings', seconds: FEATURE_SECONDS });
     expect(p[0]!.gfx).toBeUndefined();
-    expect(p.length).toBe(3 + featureRuns(ultra).length);
+    expect(p.length).toBe(4 + featureRuns(ultra).length);
+    // (3.2: then the same at 75% of the render resolution: GPU bound or not)
+    expect(p[1]).toMatchObject({ label: 'render scale 75%', scale: 0.75 });
+    expect(p.find((r) => r.label === 'anti-aliasing FXAA')?.gfx).toEqual({ aa: 'fxaa' });
+    expect(p.find((r) => r.label === 'detail Medium')?.gfx).toEqual({ detail: 'medium' });
     // (3.1.4: then the settings rebuilt mid-match - the post stack in a new match, the shadows in the same one)
     expect(p.at(-2)).toMatchObject({ rebuild: 'post' });
     expect(p.at(-2)!.gfx).toBeUndefined();

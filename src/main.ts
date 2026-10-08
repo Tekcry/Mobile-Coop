@@ -181,7 +181,7 @@ async function boot(): Promise<void> {
   app.benchmark = (kind = 'current') => {
     const s: BenchSession =
       typeof kind === 'string'
-        ? { kind, runs: benchPlan(kind, Math.round(viewWidth() * devicePixelRatio), Math.round(viewHeight() * devicePixelRatio), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features), idx: 0, lines: [] }
+        ? { kind, runs: benchPlan(kind, Math.round(viewWidth() * devicePixelRatio), Math.round(viewHeight() * devicePixelRatio), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features, app.settings.get().video.renderScale), idx: 0, lines: [] }
         : kind;
     const run = s.runs[s.idx];
     if (!run) return;

@@ -504,6 +504,7 @@ export class World {
   private giVersion = -1;
   private readonly giOn = new Float32Array(GI_SLOTS);
   private readonly giAll = new Float32Array(GI_SLOTS);
+  private readonly giW = new Float32Array(GI_SLOTS);
 
   /** GI: how much of each circuit is lit now (switches, shot-out lamps, EMP) - the voxels weigh their slots by it. */
   private updateGi(): void {
@@ -520,10 +521,9 @@ export class World {
       this.giAll[s] = this.giAll[s]! + l.intensity;
       if (l.on && !l.destroyed) this.giOn[s] = this.giOn[s]! + l.intensity;
     }
-    for (const v of this.voxelLayers) {
-      for (const p of v.plugins) for (let s = 0; s < GI_SLOTS; s++) p.giWeights[s] = this.giAll[s]! > 0 ? this.giOn[s]! / this.giAll[s]! : 0;
-      v.refresh();
-    }
+    // (3.2: the structure layer mixes its circuits into the one texture both layers read)
+    for (let s = 0; s < GI_SLOTS; s++) this.giW[s] = this.giAll[s]! > 0 ? this.giOn[s]! / this.giAll[s]! : 0;
+    this.voxels?.mixGi(this.giW);
   }
 
   frame(focus: Vector3, dt = 0): void {

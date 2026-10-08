@@ -98,3 +98,17 @@ describe('baked lamp visibility (3.2)', () => {
     expect(L.length / LAMP_STRIDE).toBe(3);
   });
 });
+
+describe('GI circuits mixed into one texture (3.2)', () => {
+  it('weights each circuit and sums at half scale', async () => {
+    const { mixGiSlots } = await import('../src/voxel/voxelWorld');
+    // two cells, two circuits
+    const data = new Uint8Array([100, 50, 0, 255, 200, 0, 0, 255, /* slot 1 */ 100, 100, 100, 255, 255, 255, 255, 255]);
+    const out = new Uint8Array(8);
+    mixGiSlots(data, 2, [1, 1], out);
+    expect([...out.subarray(0, 4)]).toEqual([100, 75, 50, 255]);
+    expect(out[4]).toBe(228);
+    mixGiSlots(data, 2, [0, 0.5], out);
+    expect([...out.subarray(0, 3)]).toEqual([25, 25, 25]);
+  });
+});
