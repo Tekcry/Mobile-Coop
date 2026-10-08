@@ -1,6 +1,6 @@
 # Kestrel Exchange - map Phase 2b: alignment with the design bible
 
-**Status:** waiting. Do not start until Michael says "start the Exchange alignment pass". That will be after roadmap Phase 3 (pure CT conversion) is done on `ct-movement`.
+**Status:** waiting. Do not start until Michael says "start the Exchange alignment pass". That will be after roadmap Phase 3b (movement, camera and animation lock) is done on `ct-movement`.
 
 **Type:** documents only. No game code changes in this pass.
 
@@ -29,7 +29,8 @@ Map Phase 2 approval (D10-D27, the Space 8 secret route) is decided by Michael t
 2. Read:
    - `CLAUDE.md`
    - `docs/progress.md`
-   - bible Sections 1-3, 5.1, 5.2, 5.3, 5.8, 5.9 and 7
+   - bible Sections 1-3, 5.1, 5.2, 5.3, 5.7, 5.8, 5.9, 5.13 and 7
+   - `docs/story.md` Sections 2, 4, 6 (Mission 1) and 8
    - `docs/level-design.md` Sections 5, 11 and 12
    - `docs/prompts/exchange-design.md`
    - `docs/prompts/exchange-map-progress.md`
@@ -51,15 +52,20 @@ Map Phase 2 approval (D10-D27, the Space 8 secret route) is decided by Michael t
 3. **Light plan per space:** every lamp, its circuit or fuse group, the dark pockets, and which route each light change opens. Bible rule L8: at least two ways to change the light in every lit space.
 4. **Sound plan per space:** ambient noise zones (power room and server hall machinery, the street, rain on the roof) and loud or quiet floors.
 5. **Checkpoint plan:** one checkpoint before each space, in the dark. Confirm the existing placements against bible 5.8.
-6. **Co-op plan for 2-4 players:**
+6. **Civilians and medkits:**
+   - G1 (the contracted watchman) becomes a civilian (bible 5.7).
+   - Place wall medkits (bible 5.13).
+7. **Co-op plan for 2-4 players:**
    - Keep C1-C3.
    - Mark where the new team moves (split-jump boost, back-to-back, pull-up, rappel anchor) could add routes.
    - Propose `coopExtras` (extra cameras or lasers at 3+ players) per space.
    - Guard count never changes with player count.
-7. **Mission data for the shared framework (bible 5.8):**
+   - Per space, add at least one more co-op moment: light control as teamwork, a Sync opportunity (bible C12), or a split-and-converge pair of objectives.
+8. **Mission data for the shared framework (bible 5.8):**
    - objectives as primary, secondary or opportunity
    - rules (alarm limit, no kills)
    - radio lines as text
-   - The handler callsign `OVERWATCH` is a placeholder until Michael picks a story.
-8. **Update the progress log.** Add a "Phase 2b" entry to `docs/prompts/exchange-map-progress.md`.
-9. **Report and stop.** Write a short report (bible Appendix B), then STOP for Michael's approval before map Phase 3.
+   - Write in the story's voice (`docs/story.md`): LANTERN, solo and team variants, and the sample opening in story Section 8.
+   - Rewrite the briefing to match the story.
+9. **Update the progress log.** Add a "Phase 2b" entry to `docs/prompts/exchange-map-progress.md`.
+10. **Report and stop.** Write a short report (bible Appendix B), then STOP for Michael's approval before map Phase 3.

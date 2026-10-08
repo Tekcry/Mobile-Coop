@@ -25,7 +25,7 @@ Prepare the repository for the Chaos Theory campaign build described in `docs/de
    - Then STOP so Michael can test and promote `ct-movement` to `dev` and `master`.
 2. **Install** the design bible as the authority on design.
 3. **Shrink** `CLAUDE.md` from ~125 KB to a lean core. Every Claude Code session loads it, so its size is pure token cost. Move the detail into `docs/systems/` without losing any information.
-4. **Hide** parked content (Wave, Hunter, old Mission, PvP, the economy and cosmetics) behind `?legacy=1`.
+4. **Hide** parked content, and rename the player-facing title to Night Shift, (Wave, Hunter, old Mission, PvP, the economy and cosmetics) behind `?legacy=1`.
 5. **Start** `docs/progress.md` as the single place that says where the project stands.
 
 **This phase changes no gameplay and no feel.** The only player-visible change is that parked modes and screens are hidden unless `?legacy=1` is in the URL.
@@ -187,7 +187,7 @@ Run `git merge origin/master`. Use a normal merge: no squash, no rebase.
 
 ## Step 2 - Install the design bible and progress file
 
-**Read first:** `docs/design-bible.md`, in full, once. It was committed in the handover's Step 0. Do not edit it in this phase.
+**Read first:** `docs/design-bible.md`, in full, once, and `docs/story.md` Sections 1-4. Both were committed in the handover's Step 0. Do not edit them in this phase.
 
 ### Create `docs/progress.md`
 
@@ -202,11 +202,12 @@ Run `git merge origin/master`. Use a normal merge: no squash, no rebase.
    - Kestrel Exchange:
      - a paper design only (map phases 0-2 done; Phase 2 awaiting Michael's approval);
      - no map code;
-     - build phases held until roadmap Phase 3 and an alignment pass (bible Section 10, Phase 7).
+     - build phases held until roadmap Phase 3b and an alignment pass (bible Section 10, Phase 7).
    - Parked content behind `?legacy=1` (after Step 4).
 3. **Phase 0 log:** Step 1's report (copy it in), later step reports, Decisions, Measurements, Open issues.
 4. **Links:**
    - `docs/ct-movement.md`, `docs/ct-movement-progress.md`
+   - `docs/story.md`
    - `docs/level-design.md`, `docs/templates/map-spec.md`
    - `docs/prompts/exchange-map.md`, `exchange-design.md`, `exchange-map-progress.md`, `exchange-plans/`
 
@@ -270,7 +271,8 @@ Use this order and these contents.
 
 **1. Identity (6 lines or fewer):**
 
-- Silent But Deadly is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
+- Night Shift (renamed from Silent But Deadly) is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
+- Story, setting and in-game text: `docs/story.md`.
 - It has a solo campaign that is also playable in 2-4 player co-op.
 - Light and shadow is the core.
 - It is a PWA on GitHub Pages: iPhone 17 Pro Max at 60 fps and desktop.
@@ -311,7 +313,7 @@ Use this order and these contents.
 **8. Doc index:** a table with columns File, Covers, Read when. List:
 
 - every `docs/systems/*.md`
-- `docs/design-bible.md`, `docs/progress.md`
+- `docs/design-bible.md`, `docs/story.md`, `docs/progress.md`
 - `docs/level-design.md`, `docs/templates/map-spec.md`
 - `docs/ct-movement.md`
 - `docs/prompts/` (phase specs and map documents)
@@ -422,7 +424,24 @@ Everything is exactly as before this step.
 
 **Report** the final classification of every suite.
 
-**Commit:** `Phase 0: park legacy modes and economy behind ?legacy=1`. Push.
+### 4f. Rename the player-facing title to "Night Shift"
+
+Michael renamed the game on 2026-10-08. Change only what players see:
+
+- `index.html` `<title>`.
+- The PWA manifest `name` / `short_name` in `vite.config.ts`. Keep the preview slots' suffixes, e.g. `Night Shift (Preview CT)`, short name `NS CT`.
+- The main menu title.
+- Any other UI string that shows the game's name. Grep `Silent But Deadly` in `src/`, `index.html` and `vite.config.ts`.
+- `README.md` heading and first line.
+
+**Do NOT change:**
+
+- IndexedDB names, the save export magic, the co-op app id
+- anything in `src/save/migrations.ts` that identifies old saves
+
+Tests that assert the visible title are updated. The procedural icons (`scripts/gen-icons.mjs`) are left alone unless they draw the name.
+
+**Commit:** `Phase 0: park legacy modes and economy behind ?legacy=1; title Night Shift`. Push.
 
 ---
 
@@ -437,11 +456,13 @@ Everything is exactly as before this step.
   - the docs restructure (with sizes)
   - the `?legacy=1` flag and what it hides
   - the e2e split
+  - the title rename to Night Shift and `docs/story.md`
 
 ### 5b. `TESTING.md` - add "3.5.0 manual check" for Michael
 
 **On the iPhone, at the `/ct/` preview:**
 
+- [ ] The app and menu are titled Night Shift. The installed home-screen app may keep its old name until it is re-added.
 - [ ] The Play menu shows only Infiltration, Training and Free Roam.
 - [ ] Free Roam on the Warehouse and the Proving Grounds loads and runs smoothly.
 - [ ] The CT moves work by touch: split jump (including jumping out of it), wall jump, rappel, pipes, the speed rocker.
