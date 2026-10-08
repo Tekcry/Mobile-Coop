@@ -3,7 +3,11 @@
  * game keep the rest). Without Worker support (tests in node) jobs run inline.
  */
 import { buildChunk, type ChunkJob, type ChunkResult } from './chunk';
+import { bakeLamps, type LampJob, type LampResult } from './lampBake';
 import { bakeSky, type SkyJob, type SkyResult } from './skyBake';
+
+type Job = ChunkJob | SkyJob | LampJob;
+type Result = ChunkResult | SkyResult | LampResult;
 
 export function workerCount(): number {
   const hc = typeof navigator !== 'undefined' && navigator.hardwareConcurrency ? navigator.hardwareConcurrency : 4;
@@ -11,8 +15,8 @@ export function workerCount(): number {
 }
 
 interface Pending {
-  job: ChunkJob | SkyJob;
-  resolve: (r: ChunkResult | SkyResult) => void;
+  job: Job;
+  resolve: (r: Result) => void;
   reject: (e: unknown) => void;
 }
 
@@ -28,7 +32,7 @@ export class WorkerPool {
     if (this.inline) return;
     for (let i = 0; i < n; i++) {
       const w = new Worker(new URL('./voxelWorker.ts', import.meta.url), { type: 'module' });
-      w.onmessage = (e: MessageEvent<ChunkResult | SkyResult>) => this.done(w, e.data, null);
+      w.onmessage = (e: MessageEvent<Result>) => this.done(w, e.data, null);
       w.onerror = (e) => this.done(w, null, e);
       this.all.push(w);
       this.idle.push(w);
@@ -42,7 +46,7 @@ export class WorkerPool {
   run(job: ChunkJob): Promise<ChunkResult> {
     if (this.inline) return Promise.resolve(buildChunk(job));
     return new Promise((resolve, reject) => {
-      this.queue.push({ job, resolve: resolve as (r: ChunkResult | SkyResult) => void, reject });
+      this.queue.push({ job, resolve: resolve as (r: Result) => void, reject });
       this.pump();
     });
   }
@@ -51,7 +55,16 @@ export class WorkerPool {
   sky(job: SkyJob): Promise<SkyResult> {
     if (this.inline) return Promise.resolve(bakeSky(job));
     return new Promise((resolve, reject) => {
-      this.queue.unshift({ job, resolve: resolve as (r: ChunkResult | SkyResult) => void, reject });
+      this.queue.unshift({ job, resolve: resolve as (r: Result) => void, reject });
+      this.pump();
+    });
+  }
+
+  /** A lamp visibility bake (3.2; split across the workers by the caller). */
+  lamps(job: LampJob): Promise<LampResult> {
+    if (this.inline) return Promise.resolve(bakeLamps(job));
+    return new Promise((resolve, reject) => {
+      this.queue.push({ job, resolve: resolve as (r: Result) => void, reject });
       this.pump();
     });
   }
@@ -65,7 +78,7 @@ export class WorkerPool {
     }
   }
 
-  private done(w: Worker, r: ChunkResult | SkyResult | null, err: unknown): void {
+  private done(w: Worker, r: Result | null, err: unknown): void {
     const p = this.busy.get(w);
     this.busy.delete(w);
     this.idle.push(w);

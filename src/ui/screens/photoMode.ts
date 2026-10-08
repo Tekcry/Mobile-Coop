@@ -4,6 +4,7 @@ import { h } from '../dom';
 import { Screen } from '../screen';
 import { promptHtml, type Hint } from '../prompts';
 import { hyp2 } from '../../core/mathx';
+import { viewWidth, vx, vy } from '../../core/viewRotation';
 
 /** A state that can hand its camera to photo mode and hold still meanwhile (the game, the menu stage). */
 export interface PhotoHost {
@@ -193,8 +194,8 @@ export class PhotoModeScreen extends Screen {
     if (this.phase !== 'live') return;
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     // touch: the left half moves, the right half looks; a mouse always looks
-    const move = e.pointerType === 'touch' && e.clientX < window.innerWidth / 2;
-    this.drag = { id: e.pointerId, x: e.clientX, y: e.clientY, move, sx: e.clientX, sy: e.clientY };
+    const move = e.pointerType === 'touch' && vx(e) < viewWidth() / 2;
+    this.drag = { id: e.pointerId, x: vx(e), y: vy(e), move, sx: vx(e), sy: vy(e) };
   }
 
   private onMove(e: PointerEvent): void {
@@ -202,14 +203,14 @@ export class PhotoModeScreen extends Screen {
     if (!d || d.id !== e.pointerId) return;
     if (d.move) {
       const r = 70;
-      this.touchMove.x = Math.max(-1, Math.min(1, (e.clientX - d.sx) / r));
-      this.touchMove.y = Math.max(-1, Math.min(1, -(e.clientY - d.sy) / r));
+      this.touchMove.x = Math.max(-1, Math.min(1, (vx(e) - d.sx) / r));
+      this.touchMove.y = Math.max(-1, Math.min(1, -(vy(e) - d.sy) / r));
       return;
     }
-    this.yaw += (e.clientX - d.x) * DRAG_LOOK;
-    this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - (e.clientY - d.y) * DRAG_LOOK));
-    d.x = e.clientX;
-    d.y = e.clientY;
+    this.yaw += (vx(e) - d.x) * DRAG_LOOK;
+    this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch - (vy(e) - d.y) * DRAG_LOOK));
+    d.x = vx(e);
+    d.y = vy(e);
   }
 
   private onUp(e: PointerEvent): void {

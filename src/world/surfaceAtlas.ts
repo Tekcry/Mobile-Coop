@@ -238,8 +238,8 @@ export class SurfaceAtlas {
 
   /** Pixels per tile (the atlas is 4x, capped by the GPU) and anisotropic filtering; true when redrawn (frozen
    *  materials using it must re-bind). */
-  setSize(tileSize: number, aniso: number): boolean {
-    const changed = tileSize !== this.tile;
+  setSize(tileSize: number, aniso: number, force = false): boolean {
+    const changed = force || tileSize !== this.tile;
     if (changed) {
       this.tile = tileSize;
       this.detail?.dispose();

@@ -2,6 +2,7 @@ import type { App, AppState } from '../core/app';
 import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
+import { shownResolution } from '../core/display';
 import { setVoxelBodies } from '../player/characterRig';
 import { setVoxelWeapons } from '../weapons/weaponModel';
 import { setVoxelProps } from '../voxel/voxelGroup';
@@ -42,7 +43,7 @@ import { playEmote } from '../cosmetics/emotes';
 import { EventBus } from '../core/events';
 import type { GameEvents } from './gameEvents';
 import { attachGameAudio } from '../audio/gameAudio';
-import { MOBILE_PRESET_IDS, PRESET_IDS, VOXEL_TIER, type QualityLevel } from '../core/quality';
+import { levelLabel, VOXEL_TIER, type QualityLevel } from '../core/quality';
 import type { Adaptive } from '../core/governor';
 import { MOVEMENT } from '../config/movement';
 import { CoverController } from '../cover/coverController';
@@ -56,7 +57,10 @@ import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
-import { BENCH, benchPlan, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type P3 as BenchPoint } from './benchmark';
+import { benchTag } from '../ui/benchTag';
+import { SPIKE_EVENT, SpikeLog } from '../core/spikes';
+import { feedbackContext } from '../ui/screens/feedbackScreen';
+import { BENCH, benchFlight, benchResult, benchText, flightAt, FLIGHT, SECTION_SECONDS, sectionText, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type Flight, type FlightNav, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
@@ -79,6 +83,7 @@ import { StyleTracker } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, type GadgetId } from './gadgets';
 import { InputState } from '../input/inputState';
+import { viewHeight } from '../core/viewRotation';
 
 export type { ModeId };
 
@@ -101,8 +106,11 @@ export interface GameOptions {
   hq?: HqLevels;
   /** Gadget selected at the start (the loadout preset's). */
   gadget?: string;
-  /** Settings > Graphics > Benchmark: camera flights through the rooms (one per run), guards passive, then the results. */
-  benchmark?: BenchKind;
+  /**
+   * Settings > Graphics > Benchmark: camera flights through the rooms, guards passive, then the results. 3.1.4: one
+   * run per match (its settings set before the map loads); the session carries the plan and the lines so far.
+   */
+  benchmark?: BenchSession;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
 }
@@ -163,6 +171,13 @@ const TRAVERSE_LABEL: Record<string, string> = { step: 'Step up', vault: 'Vault'
 const PROMPT_Y = 0.55;
 /** Along the face from the player in cover: the badge ahead, the vault prompt behind (m). */
 const PROMPT_ALONG = 0.55;
+
+/** Longest the loading screen waits for every material to compile (3.2.2). */
+const WARMUP_MAX_MS = 6000;
+/** Phones: the pause between benchmark runs, with the last match freed (3.2.2); the Phone check's cool-down
+ *  (3.3.2: a hot phone throttles its GPU hard - a run after a run measured the heat, not its settings). */
+const MOBILE_RUN_GAP_MS = 2500;
+const PHONE_COOL_S = 30;
 
 export class GameState implements AppState {
   readonly scene: Scene;
@@ -282,9 +297,6 @@ export class GameState implements AppState {
     this.pvp = opts.mode === 'tdm' || opts.mode === 'ffa';
     const spawn = world.layout.playerSpawns[0]!;
     this.player = new Player(world, opts.look ?? defaultLook(), spawn, () => app.settings.get());
-    // PvP (3.1, crossplay fairness): the same field of view for everyone, no Panini
-    this.player.pvp = this.pvp;
-    app.quality.setPvp(this.pvp);
     this.vfx = new Vfx(this.scene);
     this.ballistics = new Ballistics(this.scene, this.registry, world.props, this.vfx);
     // voxel chips (3.0, cosmetic): the struck voxel darkens (the prop layer first), debris in its colour
@@ -348,6 +360,8 @@ export class GameState implements AppState {
       // ray-traced reflections (Settings > Graphics > Reflections): the structure layer's brickmap
       rt: vx?.plugins[0] ? { tex: vx.plugins[0].tex, state: () => vx.plugins[0]!, capsules: this.rtCapsules, lights: world.level.lights.lights.length ? world.level.lights : null } : null,
     });
+    // 3.2 baked lamps: the characters' soft shadows from every lamp
+    if (world.lamps) world.lamps.capsules = this.rtCapsules;
     this.weather = new Weather(this.scene, kind);
     if (vx) this.weather.occluder = (x, z) => vx.roofAt(x, z);
     // (the grade / vignette / goggles pass stays after the stack)
@@ -567,22 +581,32 @@ export class GameState implements AppState {
     const q = app.quality.level;
     // voxels (3.0): 5 cm with three levels of detail; `?gfx=min` (tests) 20 cm, one level, no AO / micro detail
     const vt = VOXEL_TIER[q.features.detail];
-    const voxel = !flags.voxels ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: true, micro: q.features.textures !== 'low', gi: q.features.gi };
+    // (3.3 phones: plain voxel surfaces - no AO, worn edges or surface taps - and the lamps as one light volume)
+    const cuts = app.quality.phoneCuts;
+    // (3.4 phones' light look: the 2.x renderer - the blockout's boxes in standard materials, smooth characters)
+    const plain = q.minimal || q.lite;
+    const voxel = !flags.voxels || q.lite ? null : q.minimal ? { size: 0.2, fineSize: 0, levels: 1, lodDist: [999, 999] as [number, number], ao: false, micro: false } : { size: vt.size, fineSize: vt.fine, levels: 3, lodDist: VOXEL_LOD[q.features.detail], ao: !cuts.plainVoxels, micro: !cuts.plainVoxels && q.features.textures !== 'low', gi: q.features.gi };
     // voxel characters (3.0): 2 cm, 4 cm past the part LOD distance; `?gfx=min`: the smooth parts
-    setVoxelBodies(flags.voxels && !q.minimal ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
+    setVoxelBodies(flags.voxels && !plain ? { size: vt.character, lodSize: vt.character * 2, lodDistance: LOD_DISTANCE * q.detailScale } : null);
     // weapons and gadgets: 1 cm, small parts (sights, pins, trigger) 5 mm
-    const vw = flags.voxels && !q.minimal ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
+    const vw = flags.voxels && !plain ? { size: vt.weapon, fineSize: vt.weapon / 2, lodSize: vt.weapon * 2, lodDistance: LOD_DISTANCE * q.detailScale, small: 0.03 } : null;
     setVoxelWeapons(vw);
     setVoxelProps(vw);
-    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: q.minimal });
+    const world = await World.create(app.engine, opts.map, { seed: opts.seed, detail: q.minimal ? undefined : q.features.detail, voxel, cheap: plain, lampVolume: cuts.lampVolume });
     const g = new GameState(app, world, opts, cb);
     if (opts.net) g.net = opts.net.attach(g);
+    // 3.2.2: every material compiled on the loading screen, not mid-match (the benchmark counted 37-57 shaders
+    // compiled in each run: hitches); capped so a material that never reports ready cannot hold the load
+    await Promise.race([g.scene.whenReadyAsync(), new Promise((r) => setTimeout(r, WARMUP_MAX_MS))]);
     return g;
   }
 
   applyQuality(level: QualityLevel): void {
+    const builds = this.stack.builds;
     this.world.applyQuality(level);
     this.stack.apply(level);
+    // (a post stack rebuilt mid-match: the frozen materials re-read their setup, as after a shadow change)
+    if (builds > 0 && this.stack.builds !== builds) this.world.refreshMaterials();
     this.vfx.density = level.vfxDensity;
     this.weather.setDensity(level.minimal ? 0 : level.vfxDensity);
     const sp = this.world.level.surfacePlugin;
@@ -683,16 +707,22 @@ export class GameState implements AppState {
     this.app.input.touch.setAction(null);
     this.mode?.start();
     if (this.opts.benchmark) {
-      // the flight: every room's middle at camera height (the spawn when a map has no rooms)
+      // the flight (3.2.5): the rooms joined by the guards' walking routes - through the doorways, never through a wall,
+      // at a steady eye height (the doors open and their leaves hidden: an open leaf stands out into the corridor)
+      this.world.doors.openAll();
+      this.world.doors.setVisible(false);
       const rooms = this.world.layout.rooms ?? [];
-      const pts: BenchPoint[] = rooms.map((r) => ({ x: (r.minX + r.maxX) / 2, y: (r.minY ?? 0) + BENCH.height, z: (r.minZ + r.maxZ) / 2 }));
-      if (pts.length < 2) {
+      const keys: BenchPoint[] = rooms.map((r) => ({ x: (r.minX + r.maxX) / 2, y: r.minY ?? 0, z: (r.minZ + r.maxZ) / 2 }));
+      if (!keys.length) {
         const s0 = this.world.layout.playerSpawns[0]!.pos;
-        pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
+        keys.push({ x: s0.x, y: s0.y, z: s0.z });
       }
-      const runs = benchPlan(this.opts.benchmark, Math.round(window.innerWidth * devicePixelRatio), Math.round(window.innerHeight * devicePixelRatio), this.app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS);
-      this.bench = { pts, runs, idx: -1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [], buckets: [], bMs: 0, bN: 0, bT: 0 };
-      this.nextBenchRun();
+      const t0 = performance.now();
+      const pts = benchFlight(keys, this.flightNav(keys[0]!.y));
+      console.info(`benchmark flight: ${pts.length.toFixed(0)} m through ${keys.length} rooms (${(performance.now() - t0).toFixed(0)} ms)`);
+      const s = this.opts.benchmark;
+      this.bench = { kind: s.kind, note: s.note ?? `fb-bench-${Date.now().toString(36)}`, started: s.started ?? Date.now(), pts, runs: s.runs, idx: s.idx - 1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [...s.lines], buckets: [], bMs: 0, bN: 0, bT: 0, sections: [], sMs: 0, sN: 0, sT: 0, shaders: 0, rebuild: null, handoff: false, tagT: 0 };
+      this.nextBenchRun(true);
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
     }
@@ -700,8 +730,11 @@ export class GameState implements AppState {
 
   exit(): void {
     document.body.classList.remove('photo-mode');
-    if (this.bench) this.app.quality.setOverride(null);
-    if (this.pvp) this.app.quality.setPvp(false);
+    // (a run handing on to the next run's match keeps that run's settings, set by `app.benchmark`)
+    if (this.bench && !this.bench.handoff) {
+      this.app.quality.setOverride(null);
+      benchTag(null);
+    }
     this.exited = true;
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
@@ -890,6 +923,61 @@ export class GameState implements AppState {
   private lightFrom = new Vector3();
   private lightTo = new Vector3();
   private lightRay = new PhysicsRaycastResult();
+  private readonly floorFrom = new Vector3();
+  private readonly floorTo = new Vector3();
+  /** Free height over the floor point (x, y, z) up to `max`: one ray up against the static level. */
+  private headroom(x: number, y: number, z: number, max: number): number {
+    this.floorFrom.set(x, y + 0.3, z);
+    this.floorTo.set(x, y + max, z);
+    this.lightRay.reset();
+    (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.floorFrom, this.floorTo, this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
+    return this.lightRay.hasHit ? this.lightRay.hitPointWorld.y - y : max;
+  }
+  /** The benchmark flight's view of the level: the nav grid (walking only) and the headroom ray. Without a grid, a
+   *  flat floor at `y`. */
+  private flightNav(y0: number): FlightNav {
+    const nav = this.nav;
+    const headroom = (x: number, y: number, z: number, max: number): number => this.headroom(x, y, z, max);
+    const see = (x: number, y: number, z: number, yaw: number): number => {
+      this.floorFrom.set(x, y, z);
+      this.floorTo.set(x + Math.sin(yaw) * 8, y, z + Math.cos(yaw) * 8);
+      this.lightRay.reset();
+      (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.floorFrom, this.floorTo, this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
+      return this.lightRay.hasHit ? Vector3.Distance(this.floorFrom, this.lightRay.hitPointWorld) : 8;
+    };
+    if (!nav) {
+      return { snap: (x, _y, z) => ({ x, y: y0, z }), path: (_a, b) => [b], floor: () => y0, clear: () => true, headroom, see };
+    }
+    return {
+      snap: (x, y, z) => {
+        const c = nav.nearestWalkable(x, z, 12, y);
+        if (c < 0) return null;
+        const [cx, cz] = nav.center(c);
+        return { x: cx, y: nav.height[c]!, z: cz };
+      },
+      path: (a, b) => {
+        nav.walkOnly = true;
+        try {
+          const w = nav.findPath([a.x, a.z], [b.x, b.z], 200000, a.y, b.y);
+          if (!w) return null;
+          let fy = a.y;
+          return w.map((p, i) => {
+            fy = i === w.length - 1 ? b.y : nav.heightAt(p[0], p[1], fy);
+            return { x: p[0], y: fy, z: p[1] };
+          });
+        } finally {
+          nav.walkOnly = false;
+        }
+      },
+      floor: (x, z, y) => {
+        const c = nav.cellOf(x, z, y);
+        return nav.isWalkable(c) ? nav.height[c]! : Number.NaN;
+      },
+      clear: (a, b) => nav.lineClear([a.x, a.z], [b.x, b.z], a.y, b.y),
+      headroom,
+      see,
+    };
+  }
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);
@@ -1078,13 +1166,52 @@ export class GameState implements AppState {
     if (o.difficulty) ctx.difficulty = o.difficulty;
     if (this.net) ctx.net = this.puppet ? 'co-op client' : 'co-op host';
     if (this.enemyMgr) ctx.enemies = `${this.enemyMgr.enemies.filter((e) => e.alive).length} alive${this.enemyMgr.anyAlerted ? ', alerted' : ''}`;
+    ctx.spikes = this.spikes.summary();
     return ctx;
+  }
+
+  /** 3.3: long frames this match (or this benchmark run) and what was happening around each. */
+  readonly spikes = new SpikeLog();
+  private spikeLast = 0;
+  private spikeShaders = 0;
+  private spikeLod = 0;
+  private spikeLamps = 0;
+  private spikeGov = 0;
+
+  /** Per render frame: the interval since the last one, tagged with this frame's events. */
+  private trackSpikes(): void {
+    const now = performance.now();
+    const last = this.spikeLast;
+    this.spikeLast = now;
+    let ev = 0;
+    const sh = this.shaderCount();
+    if (sh !== this.spikeShaders) ev |= SPIKE_EVENT.shaders;
+    this.spikeShaders = sh;
+    let lod = 0;
+    for (const v of this.world.voxelLayers) lod += v.lodSwaps;
+    if (lod !== this.spikeLod) ev |= SPIKE_EVENT.lod;
+    this.spikeLod = lod;
+    const lm = this.world.lamps?.remixes ?? 0;
+    if (lm !== this.spikeLamps) ev |= SPIKE_EVENT.lamps;
+    this.spikeLamps = lm;
+    const gv = this.app.quality.governor.level;
+    if (gv !== this.spikeGov) ev |= SPIKE_EVENT.governor;
+    this.spikeGov = gv;
+    if (!last) return;
+    const q = this.app.quality;
+    this.spikes.frame(now - last, q.budgetMs, this.app.loop.stats.frameCpuMs, ev);
   }
 
   /** Benchmark (opts.benchmark): flight points, the runs and the current one's time and frame intervals after the
    *  warm-up; finished runs' lines; the sustained run's per-bucket averages. */
   private bench: {
-    pts: BenchPoint[];
+    kind: BenchKind;
+    /** The feedback note's id (updated after every run) and when the benchmark started. */
+    note: string;
+    started: number;
+    /** Seconds to the run tag's next refresh. */
+    tagT: number;
+    pts: Flight;
     runs: BenchRun[];
     idx: number;
     t: number;
@@ -1098,43 +1225,122 @@ export class GameState implements AppState {
     bMs: number;
     bN: number;
     bT: number;
+    /** 3.3.1: fps per `SECTION_SECONDS` of the flight, and the section being summed. */
+    sections: number[];
+    sMs: number;
+    sN: number;
+    sT: number;
+    /** Shaders compiled before this run started. */
+    shaders: number;
+    /** The run's mid-match rebuild, still to do (3.1.4 diagnosis). */
+    rebuild: BenchRun['rebuild'] | null;
+    /** Handed on to the next run's match. */
+    handoff: boolean;
   } | null = null;
-  private readonly benchP: BenchPoint = { x: 0, y: 0, z: 0 };
-  private readonly benchQ: BenchPoint = { x: 0, y: 0, z: 0 };
+  private readonly benchP = { x: 0, y: 0, z: 0, yaw: 0, pitch: 0 };
 
   /** Start the next run (its preset / render scale for now only), or show the results. */
-  private nextBenchRun(): void {
+  /** Shader programs compiled so far (a benchmark run's hitches: shaders compiled during it). */
+  private shaderCount(): number {
+    const c = (this.app.engine as unknown as { _compiledEffects?: Record<string, unknown> })._compiledEffects;
+    return c ? Object.keys(c).length : 0;
+  }
+
+  private nextBenchRun(fresh = false): void {
     const b = this.bench;
     if (!b) return;
     b.idx++;
     b.t = 0;
     b.iv = [];
     b.cpu = [];
+    b.sections = [];
+    b.sMs = b.sN = b.sT = 0;
     b.last = 0;
     const run = b.runs[b.idx];
     if (run) {
-      this.app.quality.setOverride(run.preset || run.scale ? { preset: run.preset, scale: run.scale } : null);
+      if (!fresh && !run.sameMatch) {
+        // (3.1.4: the next run loads its own match with its settings; this one stops measuring - handed on after this
+        // frame, since loading frees this match's scene)
+        b.done = true;
+        b.handoff = true;
+        const next = { kind: b.kind, runs: b.runs, idx: b.idx, lines: b.lines, note: b.note, started: b.started };
+        // (3.2.2 phones: this match freed first, then a pause - iOS returns GPU memory late, and the next match loading
+        // over the last one's closed the tab on Ultra)
+        if (this.app.platform.platform === 'mobile') {
+          setTimeout(() => {
+            this.app.releaseState();
+            if (next.kind !== 'phone') {
+              benchTag(`Run ${next.idx + 1}/${next.runs.length} · freeing memory`);
+              setTimeout(() => this.app.benchmark?.(next), MOBILE_RUN_GAP_MS);
+              return;
+            }
+            // (the Phone check: nothing drawn while the chip cools, a countdown on the tag)
+            let left = PHONE_COOL_S;
+            const tick = (): void => {
+              if (left <= 0) {
+                this.app.benchmark?.(next);
+                return;
+              }
+              benchTag(`Run ${next.idx + 1}/${next.runs.length} · cooling down ${left} s`);
+              left--;
+              setTimeout(tick, 1000);
+            };
+            tick();
+          }, 0);
+        } else setTimeout(() => this.app.benchmark?.(next), 0);
+        return;
+      }
+      // (the run's settings are the override `app.benchmark` set before the map loaded: it also holds the frame
+      // governor off, so a run measures its settings)
+      b.rebuild = run.rebuild ?? null;
+      b.shaders = this.shaderCount();
+      b.tagT = 0;
+      this.app.crashLog?.stage(`benchmark run ${b.idx + 1}/${b.runs.length}: ${run.label} (${levelLabel(this.app.quality.level)})`);
       return;
     }
     b.done = true;
+    benchTag(null);
     this.app.quality.setOverride(null);
     document.body.classList.remove('photo-mode');
     this.paused = true;
     const text = b.lines.join('\n');
+    // saved as a performance note at once (3.1.2: nothing to tap on a long report; 3.1.4: the same note, updated
+    // after every run)
+    void this.saveBenchNote().then(
+      () => this.app.toasts.show('Benchmark saved to Settings > Feedback', 'ok'),
+      () => this.app.toasts.show('The benchmark could not be saved', 'warn'),
+    );
     this.app.screens.push(
-      new Dialog('Benchmark', text, [
+      new Dialog('Benchmark (saved to Settings > Feedback)', text, [
         {
-          label: 'Save to feedback',
+          label: 'Copy text',
+          // (inside the tap: the clipboard needs the gesture)
           action: () => {
-            const e = newEntry({ map: this.world.map.id, mode: 'benchmark', version: __APP_VERSION__, graphics: b.runs.map((r) => r.label).join(', '), device: navigator.userAgent.slice(0, 160) });
-            e.category = 'performance';
-            e.text = `Benchmark - ${text}`;
-            void this.app.feedback.save(e).then(() => this.cb.quit());
+            const done = (ok: boolean): void => {
+              this.app.toasts.show(ok ? 'Copied: paste it anywhere' : 'Copy is not allowed here: Settings > Feedback > Copy as text', ok ? 'ok' : 'warn');
+              this.cb.quit();
+            };
+            const cb = navigator.clipboard;
+            if (cb) cb.writeText(`Benchmark - ${text}`).then(() => done(true), () => done(false));
+            else done(false);
           },
         },
         { label: 'Done', primary: true, action: () => this.cb.quit() },
       ]),
     );
+  }
+
+  /** The benchmark's feedback note: the lines so far (3.1.4: after every run, so a crash keeps them). */
+  private saveBenchNote(): Promise<void> {
+    const b = this.bench;
+    if (!b) return Promise.resolve();
+    // (3.1.7: the full context - device, display, every setting - with the runs)
+    const e = newEntry({ ...feedbackContext(this.app), map: this.world.map.id, mode: 'benchmark', runs: b.runs.map((r) => r.label).join(', ') }, b.started);
+    e.id = b.note;
+    e.category = 'performance';
+    const n = b.lines.length;
+    e.text = n < b.runs.length ? `Benchmark (${n} of ${b.runs.length} runs so far) - ${b.lines.join('\n')}` : `Benchmark - ${b.lines.join('\n')}`;
+    return this.app.feedback.save(e);
   }
 
   private benchFrame(): void {
@@ -1145,8 +1351,20 @@ export class GameState implements AppState {
     const real = b.last ? Math.min(0.25, (now - b.last) / 1000) : 0;
     if (b.last && b.t > BENCH.warmup) {
       const ms = now - b.last;
+      // (the run's spikes: from the end of the warm-up)
+      if (!b.iv.length) this.spikes.reset();
       b.iv.push(ms);
       b.cpu.push(this.app.loop.stats.frameCpuMs);
+      // (3.3.1: the frame rate per section of the route)
+      if (!run.sustained) {
+        b.sMs += ms;
+        b.sN++;
+        b.sT += real;
+        if (b.sT >= SECTION_SECONDS) {
+          b.sections.push((1000 * b.sN) / b.sMs);
+          b.sMs = b.sN = b.sT = 0;
+        }
+      }
       if (run.sustained) {
         b.bMs += ms;
         b.bN++;
@@ -1161,25 +1379,57 @@ export class GameState implements AppState {
     }
     b.last = now;
     b.t += real;
+    // the run tag (3.1.4): which run this is and the frame rate now
+    b.tagT -= real;
+    if (b.tagT <= 0) {
+      b.tagT = 0.5;
+      const k = b.iv.length;
+      let ms = 0;
+      let m = 0;
+      for (let i = k - 1; i >= 0 && ms < 500; i--, m++) ms += b.iv[i]!;
+      benchTag(`Run ${b.idx + 1}/${b.runs.length} · ${run.label} · ${m > 0 && ms > 0 ? `${Math.round((1000 * m) / ms)} fps` : 'warming up'}`);
+    }
+    // (diagnosis: the same settings rebuilt mid-match, early in the warm-up)
+    if (b.rebuild && b.t >= BENCH.warmup / 3) {
+      const k = b.rebuild;
+      b.rebuild = null;
+      const level = this.app.quality.level;
+      if (k === 'post') {
+        this.stack.invalidate();
+        this.applyQuality(level);
+      } else this.world.applyQuality(level, true);
+    }
     // guards keep patrolling but never fight; the operator takes no damage
     for (const e of this.enemyMgr?.enemies ?? []) e.passive = true;
     this.target.damageMul = 0;
-    const u = b.t / BENCH.seconds;
-    const p = pathAt(b.pts, u, this.benchP);
-    const q = pathAt(b.pts, u + 0.015, this.benchQ);
+    // (the same pace on every run: runs see the same views)
+    const p = flightAt(b.pts, b.t * FLIGHT.speed, this.benchP);
     const cam = this.player.cam.camera;
     cam.position.set(p.x, p.y, p.z);
-    cam.setTarget(this.dofTo.set(q.x, q.y - 0.25, q.z));
+    const cp = Math.cos(p.pitch);
+    cam.setTarget(this.dofTo.set(p.x + Math.sin(p.yaw) * cp, p.y + Math.sin(p.pitch), p.z + Math.cos(p.yaw) * cp));
     if (b.t >= run.seconds) {
       const r = benchResult(b.iv, b.cpu);
       const v = this.app.settings.get().video;
-      const where = `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${this.app.engine.getRenderWidth()}x${this.app.engine.getRenderHeight()}`;
-      let line = benchText(r, where);
+      // (3.2.1 desktop: the chosen resolution's name - and the real size when a window differs; a run with its own
+      // scale shows the real size)
+      const rw = this.app.engine.getRenderWidth();
+      const rh = this.app.engine.getRenderHeight();
+      const size = run.scale == null && this.app.platform.platform === 'desktop' ? shownResolution(v.resolution, rw, rh) : `${rw}x${rh}`;
+      // (3.3 phones: the fixed look - the scene's own size behind TAAU)
+      const ql = this.app.quality.level;
+      const where = ql.phone ? `${this.world.map.name}, phone, ${run.label}, ${size} (scene ${Math.round(rw * ql.upscale)}x${Math.round(rh * ql.upscale)})` : `${this.world.map.name}, ${run.preset ?? v.preset}, ${run.label}, ${size}`;
+      let line = benchText(r, where, this.shaderCount() - b.shaders);
+      // (3.3: what the long frames were)
+      line += `; ${this.spikes.summary()}`;
+      if (b.sN) b.sections.push((1000 * b.sN) / b.sMs);
+      if (b.sections.length) line += `; ${sectionText(b.sections)}`;
       if (run.sustained && b.buckets.length >= 2) {
         const d = sustainedDrift(b.buckets);
         line += `; first minute ${b.buckets[0]!.toFixed(0)} fps, last ${b.buckets[b.buckets.length - 1]!.toFixed(0)} fps (${(d * 100).toFixed(1)}%${d < -0.1 ? ', throttling' : ''})`;
       }
       b.lines.push(line);
+      if (b.idx + 1 < b.runs.length) void this.saveBenchNote().catch(() => undefined);
       this.nextBenchRun();
     }
   }
@@ -1196,6 +1446,7 @@ export class GameState implements AppState {
 
   frameUpdate(dt: number, alpha: number): void {
     if (this.exited) return;
+    this.trackSpikes();
     if (this.photo) {
       // frozen: only the lights follow the free camera
       this.world.frame(this.player.position, 0);
@@ -1812,7 +2063,7 @@ export class GameState implements AppState {
     this.onTarget = !!(hit.target && hit.target.alive && hit.target.team === 'enemy');
     // vertical FOV is fixed (Hor+): scale the spread by the half-height of the view
     const vfov = cam.camera.fov;
-    const spreadPx = (Math.tan((this.weapons.currentSpread() * Math.PI) / 180) / Math.tan(vfov / 2)) * (window.innerHeight / 2);
+    const spreadPx = (Math.tan((this.weapons.currentSpread() * Math.PI) / 180) / Math.tan(vfov / 2)) * (viewHeight() / 2);
     const th = this.target.health;
     const f: HudFrame = {
       hp: th.hp,

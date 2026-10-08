@@ -1,7 +1,7 @@
 import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
 import { setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
-import { FPS_CAPS, LIGHT_RANGE, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
+import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
 import type { PlatformChoice } from '../../core/platform';
 import { BENCH } from '../../game/benchmark';
@@ -13,6 +13,7 @@ import { button, choice, refreshWidgets, section, slider, TabView, toggle, type 
 import { LayoutEditorScreen } from './layoutEditor';
 import { ControlsScreen } from './controlsScreen';
 import { enterFullscreenLandscape, toggleFullscreen } from '../../pwa/pwa';
+import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
 const AIM_OPTS: { value: AimAssistLevel; label: string }[] = [
   { value: 'off', label: 'Off' },
@@ -186,7 +187,8 @@ export class SettingsScreen extends Screen {
       },
       {
         id: 'video',
-        label: 'Graphics',
+        // (3.3 phones: no graphics options - a Display page)
+        label: app.platform.platform === 'desktop' ? 'Graphics' : 'Display',
         icon: 'monitor',
         build: () => this.graphicsTab(),
       },
@@ -256,9 +258,39 @@ export class SettingsScreen extends Screen {
     this.el.append(h('div', { class: 'screen-title', text: 'Settings' }), this.tabs.el);
   }
 
+  /**
+   * 3.3 phones: one fixed look, so no graphics options - the field of view, the FPS overlay, the avatar style, the
+   * interface and the Phone check (the benchmark that says what the phone holds at 60).
+   */
+  private phoneDisplayTab(): HTMLElement {
+    const app = this.app;
+    const st = app.settings;
+    const s = (): Settings => st.get();
+    const upd = st.update.bind(st);
+    return h(
+      'div',
+      { class: 'rows' },
+      section(
+        'Display',
+        h('div', { class: 'row-note', text: 'Graphics are set for this phone: 60 fps, 75 - 100% of the screen resolution (sharpened to full resolution), adapting in a match.' }),
+        slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
+        toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
+        choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
+        choice('Interface', PLATFORM_OPTS, () => s().video.platform, (v) => upd((d) => void (d.video.platform = v))),
+        button('Enter fullscreen', () => void enterFullscreenLandscape(), { class: 'subtle' }),
+      ),
+      section(
+        'Phone check',
+        h('div', { class: 'row-note', text: 'About 8 minutes, best started with the phone cool: five 20 s flights through the Warehouse with a 30 s cool-down after each (the phone look at 100% and 75%, with the moon shadow, the old voxel look, the first again), then 3 minutes held at 60 fps (does 60 hold once warm?). Saved as feedback - send it.' }),
+        button('Run the Phone check', () => app.benchmark?.('phone'), { icon: 'monitor' }),
+      ),
+    );
+  }
+
   /** Graphics: platform, preset and every feature, display options (3.0: one renderer, PC presets). */
   private graphicsTab(): HTMLElement {
     const app = this.app;
+    if (app.platform.platform !== 'desktop') return this.phoneDisplayTab();
     const st = app.settings;
     const s = (): Settings => st.get();
     const upd = st.update.bind(st);
@@ -290,7 +322,7 @@ export class SettingsScreen extends Screen {
       const f = feat(k);
       return choice(label, opts, f.get, f.set);
     };
-    const tg = (label: string, k: 'ao' | 'bloom' | 'gi' | 'volumetrics' | 'dof' | 'motionBlur' | 'lens'): HTMLElement => {
+    const tg = (label: string, k: 'ao' | 'bloom' | 'gi' | 'volumetrics' | 'dof' | 'lens'): HTMLElement => {
       const f = feat(k);
       return toggle(label, f.get, f.set);
     };
@@ -300,32 +332,32 @@ export class SettingsScreen extends Screen {
       { class: 'rows' },
       section(
         'Quality',
-        // (phones: Low - Ultra; Epic and ray tracing are PC only)
-        choice('Preset', desktop ? PRESET_OPTS : PRESET_OPTS.filter((o) => o.value !== 'epic'), () => (s().video.auto ? 'auto' : s().video.preset), (v) => {
+        choice('Preset', PRESET_OPTS, () => (s().video.auto ? 'auto' : s().video.preset), (v) => {
           // (Custom is where hand changes land; picking it keeps the current features)
           if (v === 'auto') {
-            upd((d) => setAuto(d, d.video.device.tier));
+            upd((d) => setAuto(d, d.video.device.tier, !desktop));
             app.detectGraphics();
-          } else if (v !== 'custom') upd((d) => setPreset(d, v));
+          } else if (v !== 'custom') upd((d) => setPreset(d, v, !desktop));
           else upd((d) => void (d.video.auto = false));
           refresh();
         }),
         autoNote,
         button('Detect again', () => {
-          upd((d) => setAuto(d, d.video.device.tier));
+          upd((d) => setAuto(d, d.video.device.tier, !desktop));
           app.detectGraphics(true);
           refresh();
         }, { class: 'subtle' }),
-        ch('Shadows', 'shadows', SHADOW_OPTS),
-        slider('Real-time lights', { min: LIGHT_RANGE.min, max: LIGHT_RANGE.max, step: 4, get: () => s().video.gfx.lights, set: (v) => feat('lights').set(v), format: (v) => `${v}` }),
+        // (3.2: every lamp is baked - lit and shadowed on every preset; Shadows is the moon and the flashlights)
+        ch('Shadows (moon, flashlights)', 'shadows', SHADOW_OPTS),
         ch('Anti-aliasing', 'aa', AA_OPTS),
         ch('Textures', 'textures', TIER_OPTS),
         ch('Detail and draw distance (map dressing: next map)', 'detail', TIER_OPTS),
         ch('Effects and weather', 'effects', TIER_OPTS),
+        // (motion blur is gone: no preset used it)
         tg('Ambient occlusion', 'ao'),
         tg('Global illumination (bounce light; next map)', 'gi'),
         tg('Bloom', 'bloom'),
-        ch('Reflections', 'reflections', desktop ? REFL_OPTS : REFL_OPTS.filter((o) => o.value !== 'rt')),
+        ch('Reflections', 'reflections', REFL_OPTS),
         ch('Ray-traced reflections rate', 'rtRes', RTRES_OPTS),
         tg('Volumetric light (fog is always on)', 'volumetrics'),
         slider('Volumetric lights', { min: 2, max: 12, step: 2, get: () => s().video.gfx.volLights, set: (v) => feat('volLights').set(v), format: (v) => `${v}` }),
@@ -334,12 +366,12 @@ export class SettingsScreen extends Screen {
           { value: 'full', label: 'Full' },
         ]),
         tg('Depth of field', 'dof'),
-        tg('Motion blur', 'motionBlur'),
         tg('Lens effects (aberration, dirt)', 'lens'),
       ),
       section(
         'Display',
-        slider('Resolution scale', { min: 0.5, max: 2, step: 0.05, get: () => s().video.renderScale, set: (v) => upd((d) => void (d.video.renderScale = v)), format: pct }),
+        // (3.1.7: a list of real resolutions, applied on a pick and kept only when confirmed)
+        resolutionRow(app),
         toggle('Adaptive detail (holds the frame rate in a match)', () => s().video.adaptive, (v) => upd((d) => void (d.video.adaptive = v))),
         choice('Upscaler (with a resolution scale under 100%)', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))),
         slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }),
@@ -352,7 +384,7 @@ export class SettingsScreen extends Screen {
         toggle('Film grain', () => s().video.filmGrain, (v) => upd((d) => void (d.video.filmGrain = v))),
         choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
         choice('Interface', PLATFORM_OPTS, () => s().video.platform, (v) => upd((d) => void (d.video.platform = v))),
-        button(desktop ? 'Fullscreen' : 'Enter fullscreen', () => void (desktop ? toggleFullscreen() : enterFullscreenLandscape()), { class: 'subtle' }),
+        button('Fullscreen', () => void toggleFullscreen(), { class: 'subtle' }),
       ),
       section(
         'GPU',
@@ -367,11 +399,12 @@ export class SettingsScreen extends Screen {
         'Benchmark',
         h('div', {
           class: 'row-note',
-          text: `A ${BENCH.seconds} s camera flight through the Warehouse: average and 1% low FPS per run (save the results as feedback). Every preset: Low to Epic (Low to Ultra on phones). Resolutions: the render pixel counts of 2560x1600, 4K and 7680x2160 (where render scale 2 reaches them). Sustained: ${BENCH.sustained / 60} minutes, first vs last minute (a laptop throttling once hot).`,
+          text: `A ${BENCH.seconds} s camera flight through the Warehouse: average and 1% low FPS per run (save the results as feedback). Every preset: Low to Epic. Feature costs: your settings, then each costly feature off in turn (what to cut on this device). Resolutions: each of this monitor's resolutions (in fullscreen; a window renders the same share of itself). Sustained: ${BENCH.sustained / 60} minutes, first vs last minute (a laptop throttling once hot).`,
         }),
         button('Run (current settings)', () => app.benchmark?.('current'), { icon: 'monitor' }),
         button('Every preset', () => app.benchmark?.('presets'), { class: 'subtle' }),
         button('Resolutions', () => app.benchmark?.('resolutions'), { class: 'subtle' }),
+        button('Feature costs', () => app.benchmark?.('features'), { class: 'subtle' }),
         button(`Sustained (${BENCH.sustained / 60} min)`, () => app.benchmark?.('sustained'), { class: 'subtle' }),
       ),
       button('Reset to defaults', () => {
@@ -478,4 +511,15 @@ export class SettingsScreen extends Screen {
       { btn: 'B', label: 'Back' },
     ];
   }
+}
+
+/** Desktop: the Resolution row - the current render resolution; a tap opens the list (`ResolutionPicker`). */
+function resolutionRow(app: App): HTMLElement {
+  const b = button(`Resolution: ${currentResolution(app)}`, () => {
+    app.screens.push(new ResolutionPicker(app, () => {
+      const l = b.querySelector('.btn-label');
+      if (l) l.textContent = `Resolution: ${currentResolution(app)}`;
+    }));
+  }, { class: 'subtle res-row' });
+  return b;
 }

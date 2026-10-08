@@ -20,12 +20,15 @@ import { FeedbackStore } from '../feedback/feedbackStore';
 import { keyLabels } from '../ui/prompts';
 import { bindLabel } from '../input/keyBindings';
 import { browserEnv, detectPlatform, platformOverride, uiScale, type PlatformInfo } from './platform';
-import type { BenchKind } from '../game/benchmark';
+import type { BenchKind, BenchSession } from '../game/benchmark';
+import type { CrashLog } from '../feedback/crashLog';
 import { classifyGpu, hudInset, type GpuKind } from './display';
 import { Calibration, CALIBRATION, deviceKey, tierFromRenderer } from './deviceTier';
-import { MOBILE_PRESET_IDS, PRESET_DISPLAY, PRESET_IDS, type FixedPreset } from './quality';
-import { setAuto } from './settings';
+import { levelLabel, MOBILE_PRESET_IDS, PHONE_FPS, PRESET_IDS, presetDisplay, type FixedPreset } from './quality';
+import { setAuto, setPreset } from './settings';
+import { renderOpts } from '../world/renderOpts';
 import { flags } from './flags';
+import { viewHeight, viewWidth } from './viewRotation';
 
 /** A top-level app state owns a Babylon scene (menu, game). */
 export interface AppState {
@@ -39,6 +42,9 @@ export interface AppState {
 }
 
 /** Service container shared by every state and screen. */
+/** Resizes wait this long for the size to settle (ms). */
+const RESIZE_SETTLE_MS = 250;
+
 export class App {
   /** Rebuild previews when the avatar style changes (set by the menu). */
   onAvatarStyle: (() => void) | null = null;
@@ -63,8 +69,8 @@ export class App {
   private time = 0;
   /** UI / input platform (desktop hides touch-only controls and settings). Never changes rendering. */
   platform: PlatformInfo = { platform: 'mobile', touch: true, reason: '' };
-  /** Settings > Graphics > Run benchmark (set by main). */
-  benchmark: ((kind?: BenchKind) => void) | null = null;
+  /** Settings > Graphics > Run benchmark (set by main); a session goes on to its next run in a new match. */
+  benchmark: ((kind?: BenchKind | BenchSession) => void) | null = null;
   /** Called when the platform flips (settings rebuild their tabs). */
   onPlatform: (() => void) | null = null;
 
@@ -80,7 +86,7 @@ export class App {
     this.input = new InputManager(canvas, this.uiRoot, this.settings);
     this.toasts = new Toasts(this.uiRoot);
     this.quality = new QualityManager(this.engine, this.settings, this.loop);
-    this.debug.extra.set('quality', () => `${this.quality.level.name}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
+    this.debug.extra.set('quality', () => `${levelLabel(this.quality.level)}  ${this.engine.getRenderWidth()}x${this.engine.getRenderHeight()}${this.quality.auto ? `  dynamic x${this.quality.res.scale.toFixed(2)}` : ''}`);
     this.debug.pacing = () => this.quality.pacing();
     this.debug.extra.set('governor', () => {
       const g = this.quality.governor;
@@ -129,11 +135,18 @@ export class App {
     // Backgrounding (home button, app switch, screen lock): save now, silence audio, pause single player.
     document.addEventListener('visibilitychange', () => this.onVisibility(document.hidden));
     window.addEventListener('pagehide', () => void this.save.flush());
-    window.addEventListener('resize', () => {
-      this.engine.resize();
-      this.applyPlatform();
-    });
-    window.addEventListener('orientationchange', () => setTimeout(() => this.engine.resize(), 200));
+    // (3.2.3: once the size settles - turning the phone fires several resizes with in-between sizes, and each one
+    // re-made every full-resolution target: at Ultra the memory spike closed the tab)
+    let resizeT = 0;
+    const settle = (): void => {
+      window.clearTimeout(resizeT);
+      resizeT = window.setTimeout(() => {
+        this.engine.resize();
+        this.applyPlatform();
+      }, RESIZE_SETTLE_MS);
+    };
+    window.addEventListener('resize', settle);
+    window.addEventListener('orientationchange', settle);
   }
 
   private audioWasRunning = false;
@@ -183,18 +196,20 @@ export class App {
    */
   detectGraphics(force = false): void {
     const v = this.settings.get().video;
+    // (3.3 phones: one fixed look - nothing to detect)
+    if (this.platform.platform === 'mobile') return;
     if ((!v.auto && !force) || (navigator.webdriver && !flags.detect)) return;
-    const mobile = this.platform.platform === 'mobile';
+    const mobile = false;
     const key = deviceKey(this.gpu.renderer, this.platform.platform, screen.width, screen.height, devicePixelRatio);
     if (!force && v.device.key === key && v.device.tier) {
-      if (v.preset !== v.device.tier) this.settings.update((d) => setAuto(d, d.video.device.tier));
+      if (v.preset !== v.device.tier) this.settings.update((d) => setAuto(d, d.video.device.tier, mobile));
       return;
     }
     const guess = tierFromRenderer(flags.renderer ?? this.gpu.renderer, mobile);
     if (guess.confident && !force) {
       this.settings.update((d) => {
         d.video.device = { key, tier: guess.tier, source: 'gpu' };
-        setAuto(d, guess.tier);
+        setAuto(d, guess.tier, mobile);
       });
       this.onDetected?.();
       return;
@@ -236,7 +251,7 @@ export class App {
     this.quality.setOverride(null);
     this.settings.update((d) => {
       d.video.device = { key, tier, source: 'calibrated' };
-      if (d.video.auto) setAuto(d, tier);
+      if (d.video.auto) setAuto(d, tier, this.platform.platform === 'mobile');
     });
     this.toasts.show(`Graphics: ${tier[0]!.toUpperCase()}${tier.slice(1)} for this device (Settings > Graphics)`, 'ok', 4000);
     this.onDetected?.();
@@ -244,7 +259,7 @@ export class App {
 
   private calibApply(): void {
     const p = this.calib!.preset;
-    this.quality.setOverride({ preset: p, scale: Math.min(2, PRESET_DISPLAY[p].renderScale * CALIBRATION.load) });
+    this.quality.setOverride({ preset: p, scale: Math.min(2, presetDisplay(p, this.platform.platform === 'mobile').renderScale * CALIBRATION.load) });
   }
 
   /** A calibration is waiting or running. */
@@ -261,9 +276,12 @@ export class App {
     c.toggle('platform-desktop', p === 'desktop');
     c.toggle('platform-mobile', p === 'mobile');
     c.toggle('can-touch', this.platform.touch);
-    document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, window.innerWidth, window.innerHeight)));
-    document.documentElement.style.setProperty('--hud-inset', `${hudInset(window.innerWidth, window.innerHeight, this.settings.get().video.hudWidth)}px`);
+    document.documentElement.style.setProperty('--ui-scale', String(uiScale(p, viewWidth(), viewHeight())));
+    document.documentElement.style.setProperty('--hud-inset', `${hudInset(viewWidth(), viewHeight(), this.settings.get().video.hudWidth)}px`);
     this.quality?.setMobile(p === 'mobile');
+    // (3.2.2: what materials made from now on use - phones skip the on-the-fly reflection filter and half the voxel AO)
+    renderOpts.iblFilter = p !== 'mobile';
+    renderOpts.aoLite = p === 'mobile';
     if (p !== before) {
       this.onPlatform?.();
       if (this.settingsLoaded) this.detectGraphics();
@@ -294,13 +312,55 @@ export class App {
     this.audio.setVolumes(this.settings.get().audio);
     this.settingsLoaded = true;
     this.applyPlatform();
+    this.phoneDefaults();
     this.detectGraphics();
+  }
+
+  /**
+   * Phones, once (3.1.9; the target is 60 fps at Ultra, native): Target frame rate 60 when it was the display's, and
+   * the named preset's resolution again (Ultra native). Tests keep their settings (`?detect=1` runs it).
+   */
+  private phoneDefaults(): void {
+    const v = this.settings.get().video;
+    // (3.3: phones ignore the graphics settings - the fixed phone look; kept for an "Interface: Desktop" switch)
+    if (this.platform.platform !== 'mobile' || v.phoneSetup || (navigator.webdriver && !flags.detect)) return;
+    this.settings.update((d) => {
+      if (d.video.fpsCap === 0) d.video.fpsCap = PHONE_FPS;
+      if (d.video.preset !== 'custom') {
+        const auto = d.video.auto;
+        setPreset(d, d.video.preset, true);
+        d.video.auto = auto;
+      }
+      d.video.phoneSetup = true;
+    });
   }
 
   private settingsLoaded = false;
 
   get current(): AppState | null {
     return this.state;
+  }
+
+  /** 3.1.4 crash log (set by main): the heartbeat and what the game is doing. */
+  crashLog: CrashLog | null = null;
+
+  /**
+   * Leave the current state and free its scene now (3.1.4: before a match loads, so two matches are never in memory
+   * at once - the iPhone closed the tab loading the next benchmark run on Ultra).
+   */
+  releaseState(): void {
+    const prev = this.state;
+    if (!prev) return;
+    prev.exit();
+    this.state = null;
+    this.loop.detach();
+    this.quality.setTarget(null);
+    this.debug.setScene(null);
+    if (!prev.scene.isDisposed) prev.scene.dispose();
+    // (3.1.7: the engine's compiled-shader cache kept every old match alive - a plugin material's shader holds its
+    // material, so its scene and the whole GameState; the keys never repeat (plugin ids count up), so nothing is lost:
+    // with no scene alive, every cached shader is the last one's)
+    this.engine.releaseEffects();
   }
 
   setState(next: AppState): void {

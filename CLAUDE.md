@@ -4,11 +4,11 @@ Silent But Deadly (renamed from Shoulder Strike in 2.2.0; internal ids keep the 
 IndexedDB `shoulder-strike`, export magic `shoulder-strike-save`, co-op app id). Third-person over-the-shoulder shooter
 for PC and phones. Static web app (Vite + TypeScript + Babylon.js 9 + Havok), installable PWA, fully playable offline.
 Hosted on GitHub Pages. Target (3.0): a gaming laptop (i9 HX, RTX 4090 Laptop 16 GB, 32 GB; built-in 2560 x 1600
-240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer (phones
-with the 3.1 preset ladder; the iPhone 17 Pro Max targets 120 fps at Ultra). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
-test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) only changes the UI and
-input. 3.1: one preset ladder for every device (Low .. Ultra, Epic PC only), Auto graphics per device, a frame governor
-in matches, and crossplay fairness: graphics never change gameplay or how visible anyone is. A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
+240 Hz, external monitors up to 7680 x 2160 32:9 at 120 Hz); every device runs the same renderer (3.3: phones get
+one fixed phone look, no graphics settings; 3.4: the light 2.x renderer on phones - the iPhone 17 Pro Max targets 60 fps at 75 - 100% of native 2868 x 1320). 3.0 scope: the Warehouse is the one playable map (every mode), Proving Grounds a plain
+test range; the other maps are parked (`world/maps/parked.ts`, not imported, kept as in 2.3.0, no work on them). The platform (`core/platform.ts`) changes the UI and
+input, and (3.3) phones take the phone look. 3.1: one preset ladder for PCs (Low .. Epic), Auto graphics per PC, a frame governor
+in matches; graphics never change gameplay (3.1.9: the PvP look / FOV locks are gone - each player's own settings). A stealth operative that moves fluidly and responsively (still weighted) and fights from cover, Splinter Cell:
 Blacklist style.
 
 ## Commands
@@ -83,7 +83,7 @@ Blacklist style.
     Hunter (puppet alert levels, door sync, a client door use, a client takedown, kept / hidden bodies, pings both
     ways, a client execute, a client gas cloud on the host's guards, a dual takedown, a client reviving the host),
     Infiltration objectives on the client, Team Deathmatch (teams, opponents-only hit volumes, no friendly fire,
-    a validated elimination, respawn, results; 3.1: FOV capped at 90 and 16:9-equivalent, no Panini) and
+    a validated elimination, respawn, results; 3.1.9: each player's own FOV, no cap) and
     Free-for-all; host leaving, offline
   - `scripts/e2e-cosmetics.mjs` Loadout appearance by controller, live / locked previews on the operator, revert on exit, emotes, camo, in-game look
   - `scripts/e2e-clear.mjs` Warehouse + Clear mode: only "Enemies left N" (alive + pending), no room tags /
@@ -98,7 +98,7 @@ Blacklist style.
   - `scripts/e2e-desktop.mjs` desktop detection, menu scale, Mouse & Keyboard rebinding, the Graphics menu (presets,
     Custom, frame cap), the Interface switch, the benchmark (a short flight, saved as feedback; every preset in
     turn; 3.1: Low .. Epic), Auto graphics (GPU name, `?detect=1&renderer=Apple%20GPU` calibration, no re-measure),
-    the frame governor stepping down (TAAU input), 16:10 / 21:9 / 32:9 windows (centred 16:9 menus, the HUD inset on 32:9, Hor+ up to the FOV cap), the Epic
+    the frame governor stepping down (TAAU input), baked lamps (every fixed light baked, the rig holds only flashlights, a shot lamp goes dark), 16:10 / 21:9 / 32:9 windows (centred 16:9 menus, the HUD inset on 32:9, Hor+ up to the FOV cap), the Epic
     renderer booting in a match (`SHOTS=dir` saves the aspect screenshots)
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
@@ -211,6 +211,13 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   input type (`CONTROLS`; keep it in step with the mappings).
 - Training (`game/training.ts` pure steps, `modes/trainingMode.ts`, Proving Grounds, `?mode=training`): passive
   guards (`Enemy.passive`), invulnerable operator, a step skipped after 90 s.
+- Forced landscape (3.1.6, `core/viewRotation.ts`): a coarse pointer in a portrait window turns the page
+  (3.2.4: `turnFor` - clockwise after the landscape angle 90 (default), anticlockwise `body.rotated.ccw`
+  `translateY(--scr-h) rotate(-90deg)` after 270 / -90, from `screen.orientation.angle` / `window.orientation`; phones
+  call `lockLandscape` on the first tap where the browser allows a lock) (`body.rotated`: `translateX(--scr-w) rotate(90deg)`, `--vw` / `--vh` swapped - styles use `calc(N * var(--vw))`,
+  never raw `vw` / `vh` - and the safe areas remapped). Pointer positions and boxes arrive in screen space: read them
+  through `vx(e)` / `vy(e)` / `viewRect(el)` / `viewWidth()` / `viewHeight()`, never `clientX` / `innerWidth`.
+  `e2e-lib` `launch({ touchViewport })` emulates the phone upright.
 - Touch scrolling: `pwa.suppressBrowserGestures` lets a drag through when it starts inside `.scrollable` or any
   element that overflows with `overflow: auto / scroll` (`canScroll`); everything else is the game's. The back
   button (`Screen.attachChrome`) sits top left (screens get `.with-back` padding) and acts on pointer up.
@@ -234,7 +241,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Platform (3.0, `core/platform.ts` pure: `detectPlatform` from touch points / fine pointer / viewport / user agent,
   `video.platform` Auto / Desktop / Mobile, `?platform=`; `App.applyPlatform` sets `body.platform-desktop|mobile`,
   `can-touch` and `--ui-scale`): desktop lays the menus out for 1280 x 720 and scales `.screens` (transform) and the
-  HUD panels (zoom) to the window (`uiScale`); hides the Touch settings tab (unless `touch`), the rotate overlay and
+  HUD panels (zoom) to the window (`uiScale`); hides the Touch settings tab (unless `touch`), the forced landscape and
   the auto fullscreen; Settings gets Mouse & Keyboard (first on desktop) and the Graphics tab (`graphicsTab`: preset,
   every feature, display; `refreshWidgets` re-reads rows after a preset change). The touch layer still follows the
   input mode (a touchscreen laptop gets it when touched).
@@ -252,7 +259,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `feedbackText`, `feedbackReportHtml`; `FeedbackStore` = IndexedDB `kv` 'feedback', `App.feedback`):
   `ui/screens/feedbackScreen.ts` (`FeedbackFormScreen`, Settings > Feedback `feedbackTab`, Pause > Report feedback,
   `exportFeedback` -> one HTML file via `ui/fileOut.ts` share / download). Context: the state's `feedbackContext()`
-  (GameState: map, mode, position, facing, enemies) + version, platform, graphics, frame times. Photo mode
+  (GameState: map, mode, position, facing, enemies) + version, platform, graphics, frame times; 3.1.7: `settings` /
+  `changed` from `settingsDigest` (core/settings.ts, pure: every video setting; the rest only where it differs from
+  the defaults), values up to `MAX_CONTEXT` 2000, `feedbackText` (Copy as text) puts the context under each line,
+  benchmark notes use the full `feedbackContext`. Photo mode
   (`ui/screens/photoMode.ts` `PhotoModeScreen` on a `PhotoHost`: `photoCamera()` / `photoFreeze(on)`; GameState flies
   its own FreeCamera so the post stack stays on, the menu stage gets a stand-in camera): `body.photo-mode` hides the
   HUD, touch layer and every other screen; free camera (move / look / up-down by keys, sticks, drags); a photo is the
@@ -500,6 +510,68 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `MAX_REAL_LIGHTS` spot lights (lamps = wide downward cone) given to the nearest lights at 4 Hz; quality sets how
   many are lit (`QualityLevel.realLights`). Pool lights are never enabled / disabled (no recompiles); materials
   get `maxSimultaneousLights` for the pool. Maps without lights create nothing.
+
+## Baked lamps (3.2)
+- `voxel/lampBake.ts` (pure, in the voxel workers): per fixed light (`bakedLights(reg)`: every kind but flashlight,
+  `LAMP_STRIDE`: position, reach, cone, fixture sx / sz) a box over its reach (downward lamps stop a cell above
+  themselves) of `LAMP_CELL` 0.2 m cells: the share of the fixture's sample points (one per 0.5 m along its longer
+  side, <= 6; ends + middle first) each air cell sees through conservative occupancy (`occupancyShapes`: fills grown,
+  carves shrunk by half a cell, paints dropped; every rendered layer's shapes); solid cells take their brightest air
+  neighbour. `packLampAtlas` / `fillLampAtlas` (tiles along x in rows along z), `lampGrid` (2 m columns, <= 8 lights
+  each, nearest first). `voxel/lampJobs.ts` `bakeLevelLamps` splits the lights across the `WorkerPool` (`lamps` jobs)
+  and caches (`lamps:` keys, `LAMP_VERSION`).
+- `world/bakedLamps.ts` `BakedLamps` (`World.lamps`; built when voxels are on and not `cheap`, `?baked=0` off): an R8
+  3D atlas + one RGBA32F data texture (the grid; per lamp 6 texels: position + reach, colour x intensity x 1.6 x on,
+  direction + cos, box origin + ny, tile + nx / nz, capsule ids; `MAX_CAPSULES` 16 character capsules from
+  `GameState.rtCapsules`, 4 per lamp, re-written each frame). `LampPlugin` (priority 250, on every `PBRMaterial` via
+  `attachAll`): per pixel the lamps in its 2 m column - range falloff, cone (lamps: `LAMP_CONE` exponent 1; spots:
+  exponent 2), N.L - as Babylon's lights gave them, x the atlas (trilinear, a cell off the geometric normal) x
+  `lampCapsule` soft shadows, added to `finalDiffuse`. `LightRig.setBaked(ids)`: the pools skip baked lights and hold
+  <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`): the flashlights. GLSL names must not clash with
+  Babylon's macros (`E` is one).
+
+## Phone look (3.3; 3.4 the light renderer)
+- 3.4 direction: desktop first; phones get the 2.x renderer so they hold 60 cool or warm. `PHONE_FEATURES` (shadows off
+  - blob shadows, 6 plain lights, every post feature off) + `QualityLevel.lite` (phone and `QualityManager.phoneLook`
+  'lite', the default): GameState creates the world `cheap` (standard materials, no surface atlas) with no voxels (the
+  blockout's boxes + the Medium box dressing), smooth characters / weapons (no `setVoxelBodies` / `setVoxelWeapons`),
+  no baked lamps (the rig's plain pool, `LightRigConfig.plain`: no clustering); `PostStack.apply` builds nothing (the
+  grade pass `CinematicPost` stays); the menu stage's operator is smooth too (`MenuState.lite`). No TAAU: the canvas
+  itself scales - a match starts native (`phoneStart` from the base scale), the governor steps 100 / 92 / 84 / 75%,
+  then 30 fps. Gameplay reads the blockout on every device, so the phone look changes nothing anyone can see or hide
+  behind. Keep that rule: never make gameplay depend on what the voxel renderer draws.
+- The 3.3 voxel look below stays for the Phone check's comparison run (`QualityOverride.look` / `BenchRun.look`
+  'voxel': `PHONE_VOXEL_FEATURES`, TAAU from 75%, the cuts); `levelLabel` "phone voxel".
+- `core/quality.ts`: `PHONE_VOXEL_FEATURES` (no AO / reflections / bloom / shafts / DOF / motion blur / lens; GI, textures /
+  detail / effects Medium), `PHONE_SHADOW` (moon 1 cascade 1024, one flashlight 512), `PhoneCuts` / `PHONE_CUTS`
+  (`lampVolume`, `plainVoxels`), `PHONE_SCALES` 1 / 0.92 / 0.84 / 0.75 (`PHONE_FLOOR`), `PHONE_FPS_FALLBACK` 30,
+  `QualityLevel.phone`, `levelLabel`. `QualityManager.phone` (mobile and not `?gfx=`): `build` ignores presets / settings
+  (`ov.gfx` for a Phone check run), TAAU at the base scale, the canvas native; `resetGovernor` sets `Governor.max` 4 and
+  starts at 3 (75%); `applyAdaptive` -> `phoneAdaptiveAt` (resolution only, relative to the base; `PostStack.setAdaptive`
+  caps the TAAU scale at 1) and `capNow` (60, 30 at level 4, uncapped in a benchmark run); `phoneCuts` (+ `ov.cuts`,
+  `?lampvol=0`). `App.detectGraphics` skips phones. Settings > Display (`phoneDisplayTab`): FOV, FPS overlay, avatar
+  style, interface, fullscreen, Phone check. GameState reads `phoneCuts` when the map loads: voxel `ao` / `micro` off,
+  `WorldOptions.lampVolume`.
+- Lamp light volume (`voxel/lampVolume.ts` pure grid / regions; `BakedLamps` volume mode, class `LampVolume`): two RGBA8
+  3D render targets over the lamp boxes at `LAMP_CELL` (A rgb = sqrt(light / `LAMP_VOL_MAX`), B = light-weighted mean
+  direction + how one-way it is), drawn slice by slice (`EffectRenderer`, `bindFramebuffer(.., layer)`, viewport = the
+  region) by `MIX_GLSL` from the exact path's data texture + visibility atlas (the 2 m column's lamps: falloff, cone,
+  visibility; no N.L) at load and over the union of changed lamps' regions on a registry change (`remixes`; a mix
+  waiting on its shader retries). `LampPlugin` `LAMP_VOLUME`: two taps, N.L against the direction (wrapped by how
+  spread the light is), capsule shadows from `VOL_CAPS` 4 nearest characters along it (`lampCaps` uniform array).
+- Spike log (`core/spikes.ts` pure `SpikeLog`): frames over `SPIKE.over` x the budget or the typical frame (3.3.1:
+  `typicalMs`, an exponential average) tagged shaders / lamps / lod /
+  governor (event bits from the frame and the one before) else cpu / gpu; `GameState.trackSpikes` per render frame
+  (`VoxelWorld.lodSwaps`, `BakedLamps.remixes`, the engine's compiled effects, the governor level); benchmark lines end
+  with the run's summary, `feedbackContext().spikes`.
+- Phone check 3.4 (`benchPlan('phone')` = `phoneCheckRuns`): the light look 100%, 75%, + the moon shadow (`shadows`
+  'low'), the 3.3 voxel look at 75%, 100% again (heat), then the 3 min hold at 60 (100%); 30 s cool-downs. Before 3.4:
+  nine `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
+  voxel detail, bloom, shafts, High shadows put back, GI out, then 75% again (heat check) (`BenchRun.cuts` ->
+  `QualityOverride.cuts`), then 3.3.2: `PHONE_HOLD_SECONDS` 180 held at 60 (`BenchRun.cap` -> `QualityOverride.cap`,
+  sustained: per-minute averages); `PHONE_COOL_S` 30 s cool-down between runs (GameState hand-off, nothing drawn) -
+  a hot iPhone throttles its GPU about 5x. 3.3.1: every non-sustained run line ends with `sectionText` - fps per `SECTION_SECONDS` 2.5 s
+  of the route (a 20 s run ends at the long view down the corridor at the first guards: ~100 meshes against ~30).
 
 ## Corners and doorways
 - `cover/corners.ts` (pure): `findDoorways` (0.7-1.8 m gaps between collinear high faces), `outsideCorners`,
@@ -846,11 +918,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   5-shot window that kills outright. Dual takedowns: two players finishing within `DUAL_WINDOW` 1.5 s ->
   banner (relayed) + style.
 - PvP fairness: `pvpLoadout` (base damage), no suit / HQ in `tdm | ffa`, `maxHitDamage(def, head, false)` on the host.
-  3.1 crossplay: `PVP_LOOK` (`core/quality.ts`; `QualityManager.build` in PvP: lights 16, shadows medium, gi on, ao /
-  volumetrics off, effects high - how visible a player is never depends on the device; the governor keeps lights,
-  shadow refresh and effects at full there), `core/display.ts` `matchFov` (`PVP_MAX_FOV` 90, `maxFov` = `fovH`: 16:9-equivalent, Vert- on wider
-  screens; `Player.pvp`), `QualityManager.setPvp` (Panini off); graphics never change gameplay or what can be seen (fog on
-  every preset, `tests/losParity.test.ts`).
+  3.1.9: no graphics / FOV locks in PvP (the 3.1 shared look, FOV cap and Panini-off were removed: each player's own
+  settings); graphics still never change gameplay (fog on every preset, `tests/losParity.test.ts`).
 - PvP (`net/pvp.ts`, pure: `PvpScore`, `pickSpawn`, `balanceTeam`, `pvpInfo`): `GameState.pvp` (no AI / mode;
   pickups only); the host owns the score (`frag` events, `score` + `tl` in snapshots), respawns (`PVP.respawn`,
   protection), the end (`winner` in `end`). Damage rules: `PlayerTarget.friendly` / `RemotePlayer.friendly`
@@ -881,18 +950,27 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - `app.audio` (AudioEngine), `app.sfx` (Sfx voices), `app.music`. Every voice must early-out when the
   context is missing/suspended (before the first gesture). Game wiring lives in `audio/gameAudio.ts`.
 - Graphics (3.0, 3.1 ladder; `core/quality.ts` pure): `GRAPHICS_PRESETS` Low / Medium / High / Ultra / Epic (`PRESET_IDS`;
-  phones `MOBILE_PRESET_IDS` without Epic, `forPlatform` maps Epic -> Ultra and rt -> ssr on mobile, `QualityManager.setMobile`
+  phones `MOBILE_PRESET_IDS` without Epic, `forPlatform` maps Epic -> Ultra on mobile and applies `MOBILE_OFF` (3.1.9: no AO, reflections, DOF, motion blur, lens; Panini 0, bloom kernel 32 at quarter size via `QualityLevel.mobile`), `QualityManager.setMobile`
   from `App.applyPlatform`) fill `GraphicsFeatures` (shadows off / low / medium / high / ultra / epic -> `shadowSpec`: sun
-  cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 8 (WebGL's 16 texture units), map size, PCSS; lights 8-48; ao,
+  cascades, lamp / flashlight casters 0 / 2 / 3 / 4 / 4 (3.1.7 `MAX_SHADOW_CASTERS`: WebGL guarantees 16 textures per
+  shader and the voxel level material uses 11 without lamp shadows; lamps are PCF, one texture each - 8 soft ones broke
+  the level on D3D11, while headless software GL allows 32; `e2e-desktop` checks every material at Epic <= 16), map
+  size, sun filtering quality; lights 8-48; ao,
   bloom, reflections off / ssr / rt (+ `rtRes` half / full), volumetrics (shafts only: the height fog is drawn on every
   preset, fairness) + `volLights` 2-12, `postRes` half / full (SSAO ratio, SSR downsample), dof, motionBlur, lens, aa fxaa / msaa / taa,
   textures / detail / effects tiers), `presetOf` (Custom), `qualityLevel` -> `QualityLevel`. Settings `video.preset`,
-  `video.gfx`, `renderScale` 0.5-2 (native DPR, no cap), `dynamicRes` (off), `fpsCap` (`GameLoop.fpsCap`,
+  `video.gfx`, `renderScale` 0.5-2 (native DPR, no cap; desktop: Settings > Graphics > Resolution, `ui/screens/
+  resolutionPicker.ts` - 3.2.1: the monitor's standard resolutions (`core/display.ts` `desktopResolutions(monW, monH)`
+  from `STANDARD_RESOLUTIONS` of its aspect down to half its height; `resolutionScale` = lines / monitor height;
+  `video.resolution` names the pick; `shownResolution` in benchmark lines / feedback adds the window's real size;
+  Benchmark > Resolutions runs them, `benchOutput` = the monitor on desktop), applied on a pick, `KeepResolution` reverts after `RES_CONFIRM_S`
+  15 s unless kept), `dynamicRes` (retired in 3.1.7: `QualityManager.auto` is false), `fpsCap` (`GameLoop.fpsCap`,
   `capAllows`), `fovH` 60-120; `setGfx` / `setPreset` (also sets `renderScale` / `upscaler` from `PRESET_DISPLAY`:
   Low 0.67 .. Ultra 0.9 TAAU, Epic native). `VOXEL_TIER` per Detail tier: structure 5 cm on every preset (fairness),
   the 2.5 cm prop layer from High up, character / weapon voxel sizes; `VOXEL_LOD` distances per tier. `app.quality` (QualityManager) applies the level to the state's
   `applyQuality(level)` (GameState: `World.applyQuality` + `PostStack.apply`; MenuState: lamp shadows + its stack),
-  feeds `RefreshDetector` (raw rAF intervals), `FrameStats` and, only with dynamic resolution, the
+  feeds `RefreshDetector` (raw rAF intervals; 3.1.9: the 25th percentile, and in a match it only rises - GPU-bound
+  frames last whole refresh periods), `FrameStats` and, only with dynamic resolution, the
   `ResolutionScaler` (0.5-1.0 against the cap or display budget). `?gfx=min|low|medium|high|ultra|epic` overrides for a page;
   `QualityManager.setOverride({ preset, scale })` is the benchmark's per-run override (never saved; ignored under `?gfx=`).
 - Auto graphics (3.1, `core/deviceTier.ts` pure): `tierFromRenderer(renderer, mobile)` (desktop / phone GPU tables,
@@ -915,10 +993,22 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   Debug line `governor L<n>`; feedback context `adaptive`. `perf.mjs --preset=<p> [--mobile]` (phone budgets per preset).
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
   Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Clear match on the Warehouse with `opts.benchmark`;
-  `GameState` flies the camera through the room centres (`pathAt`, Catmull-Rom), guards passive, one flight per run
-  (`current`, `presets` High / Ultra / Epic, `resolutions` = render scales reaching the pixel counts of 2560 x 1600,
-  4K, 7680 x 2160 within scale 2, `sustained` 10 min with per-minute averages), then a Dialog with a line per run
-  (`benchmarkLines`), saved as a performance feedback note.
+  `GameState` flies the camera along `benchFlight` (3.2.5, pure, `FLIGHT`: the room middles in a short tour (nearest
+  neighbour + 2-opt on walking distance), joined by nav A* routes with `NavGrid.walkOnly` (doorways, stairs; no ladders
+  / drops), a dead-end visit circled (`orbit`) instead of reversed, Taubin-smoothed and pushed off walls within
+  `FLIGHT.drift` while every sample-to-sample line stays walkable, the eye `FLIGHT.eye` 1.9 m over the smoothed floor
+  (lowered under anything overhead: `GameState.headroom` ray), the view a smoothed look ahead bent towards open space
+  where it meets a wall (`FlightNav.see`, sight rays); `flightAt(dist)` at `FLIGHT.speed` 2.8 m/s, so every run sees
+  the same views; doors open, leaves hidden (`Doors.setVisible`)), guards passive, one flight per run (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
+  the settings, then one costly feature off / down per run, `FEATURE_SECONDS` 20; `BenchRun.gfx` ->
+  `QualityManager.setOverride({ gfx })`; 3.1.4: then two diagnosis runs, `rebuild` 'post' / 'shadows' mid-match; 3.2: a 'render scale 75%' run second
+  (`benchPlan(.., scale)`: GPU bound or not), 'anti-aliasing FXAA' and 'detail Medium' runs;
+  3.1.4: every run in its own match - `app.benchmark(BenchSession)` calls `setOverride(o, false)` before `startGame`,
+  the session carries the plan and lines, `sameMatch` runs go on in the last match; 3.1.5: the note (`BenchSession.note`)
+  saved after every run, `ui/benchTag.ts` "Run n/N · label · fps" on screen), `resolutions` = the monitor's resolutions (3.2.1), `sustained` 10 min with per-minute averages), then a Dialog with a line per run
+  (`benchmarkLines`: + frames over `BENCH.longMs` 50 and shaders compiled during the run, from the engine's
+  `_compiledEffects`; 3.3: the run's spike log; phones: `phone` - the Phone check), saved as a performance feedback note. Every run sets an override, so the frame governor is
+  off while measuring.
 - Renderer (3.0): `LightRig.configure` - unshadowed map lights in a `ClusteredLightContainer` (plain pool of 6
   without float blending), a shadow pool of spot lights with `ShadowGenerator`s (flashlights first, then the
   nearest lamps; lamps use a 144 deg cone there; idle maps stop refreshing, shadows never toggle - no recompiles),
@@ -933,7 +1023,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Materials (3.0): `world/surfaceAtlas.ts` `SurfaceAtlas` - two GPU `ProceduralTexture` atlases (4 x 4 tiles, periodic
   GLSL: `detail` rgb albedo variation + a roughness, `normal` rg normal + b height + a cavity) for `SURFACE_KINDS`
   (`SURFACE_PARAMS`: metres per tile, metallic, bump); drawn once, `setSize` by the Textures tier (`TEXTURE_SIZE`
-  per tile, `TEXTURE_ANISO`; 256 for `?gfx=min`). `world/surfacePlugin.ts` `SurfacePlugin` (PBR plugin): triplanar
+  per tile, `TEXTURE_ANISO`; 256 for `?gfx=min`; 3.2.3: always re-made on `World.applyQuality`'s first call - the one
+  made while the map loads draws empty). `world/surfacePlugin.ts` `SurfacePlugin` (PBR plugin): triplanar
   `textureGrad` taps in world space (level: per-instance `surf`) or object space (parts: `pattern.z`), albedo x
   detail x cavity, `metallicRoughness`, a UDN normal blend (world space). `world/surfaceKinds.ts` (pure)
   `pieceKind` / `floorKind` / `hsv`: floors by the footstep surface, else by colour; `partSurface` (weapons
@@ -1019,9 +1110,10 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   map's fixed lights (not flashlights; `GI_STRIDE`) with a slot per lamp circuit (`group`, <= `GI_SLOTS` 12, more share
   the last); the sky bake job takes them (`skyBake.ts` `bakeGi`, pure: per air cell near a light, 12 rays to the
   surfaces round it, each surface's direct light from that lamp - falloff, cone, facing, a visibility march - bounced
-  at a grey albedo, into the light's slot; RGBA / `GI_MAX`). `VoxelWorld.giTex` (the sky cells, slots stacked along
-  z; the fine layer reads the structure's), `VoxelPlugin` `VOXEL_GI` adds the slots x `giWeights` (World.updateGi on a
-  `LightRegistry.version` change: the lit share of each circuit - switches, shot-out lamps, EMP) to the voxel ambient.
+  at a grey albedo, into the light's slot; RGBA / `GI_MAX`). `VoxelWorld.giData` (the sky cells, slots stacked along
+  z); 3.2: `mixGiSlots` / `VoxelWorld.mixGi` sum the slots x the lit share of each circuit (World.updateGi on a
+  `LightRegistry.version` change: switches, shot-out lamps, EMP) at half scale into one `giTex` (the fine layer reads
+  the structure's), and `VoxelPlugin` `VOXEL_GI` takes one tap of it (x 2 `giScale`) into the voxel ambient.
   Cached with the sky (`VOXEL_VERSION` 4, the key carries the lights' hash).
 - Reflections (3.0 phase 5, `GraphicsFeatures.reflections` off / ssr / rt; settings before had `ssr` on / off):
   `vfx/rtReflections.ts` `RtReflections` (PostStack, Ray traced with a voxel world, `PostStackOptions.rt` = GameState's
@@ -1050,7 +1142,7 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 ## Performance budget (3.0: the gaming laptop; desktop first)
 - Frame-rate targets (the RTX 4090 Laptop, mains power, Epic, Warehouse, 10 guards; 1% low >= 70% of the average):
   1920 x 1200 165 Hz (RT reflections 120), 2560 x 1600 120 Hz (RT 90), 3440 x 1440 100, 5120 x 1440 90, 4K 60 (RT 50),
-  7680 x 2160 60 with TAAU at 67% (High 120). Phones run the same settings slower (accepted).
+  7680 x 2160 60 with TAAU at 67% (High 120). Phones run the same settings slower (accepted); 3.1.9: the iPhone 17 Pro Max target is 60 fps at Ultra, native.
 - GPU per frame = the target's frame time minus ~10% headroom: 165 Hz 5.5 ms, 120 Hz 7.5 ms, 100 Hz 9 ms, 90 Hz 10 ms,
   60 Hz 15 ms. Only the laptop can measure it: Settings > Graphics > Benchmark (TESTING.md table).
 - CPU main thread <= 3 ms per frame (inside a 240 Hz frame's 4.17 ms): the sim (fixed steps, anim, camera) + the
@@ -1075,8 +1167,25 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   explicit shadow lists ignore layers; `setCasterMode` by `shadows === 'epic'`), `World.updateSunCasters` (4 Hz:
   static + moving casters open to the sky, none under 0.3 m; Low `ShadowSpec.staticSun`: static only, blob shadows
   on), `LightRig.fillCasters` skips casters under 0.3 m, `PostStack.depthSource` (the G-buffer's raw view z for fog /
-  TAAU when SSAO / SSR enable it; `depthRaw` uniform; DOF's depth renderer `enabled` only while aiming), non-player
+  TAAU when SSAO / SSR enable it; else (3.2) the scene pass's hardware depth - `bindSceneDepth` gives the first post
+  process's input target a depth texture, `VIEW_Z_GLSL` linearises it; the depth renderer only with MSAA; `depthRaw`
+  uniform 0 / 1 / 2; DOF's depth renderer `enabled` only while aiming, unless RT
+  reflections share it - 3.1.9), non-player
   `VoxelBody` without the head split.
+- 3.1.1 phone GPU (the iPhone benchmark was GPU-bound at Medium+): with TAAU the volumetric pass is first in the chain
+  at the TAAU ratio (`makeVolumetric(ratio)`; `PostStack.setAdaptive` moves its `_options` with TAAU's) and TAAU sets
+  its jitter in `scene.onBeforeCameraRenderObservable` (before shadow maps / G-buffer / any pass ahead of it); the
+  G-buffer is enabled at the TAAU ratio; volumetric `steps` uniform (Epic effects 16, else 8); phones' output
+  `video.phoneOutput` (3.1.9, Settings > Graphics > Output resolution: native (default) or a DPR cap 2 / 1.5;
+  `PHONE_OUTPUTS`, `QualityManager.applyScale` on mobile); `presetDisplay(p, mobile)` (phone Ultra native, no TAAU);
+  `App.phoneDefaults` once per phone (`video.phoneSetup`; skipped under automation without `?detect=1`): Target frame
+  rate `PHONE_FPS` 60 and the preset's resolution again. 3.2.2 phones: `mobileShadow` (moon maps <= 1024, one
+  flashlight shadow), textures <= High (`forPlatform`), `world/renderOpts.ts` (set by `App.applyPlatform`, read when
+  materials are made: `iblFilter` off - PBR `realTimeFiltering` - and `aoLite`: `VOXEL_AO_LITE`, side neighbours only),
+  FXAA off behind TAAU (all devices), `dropCpuCopy` (voxel pools, lamp atlas: no `_bufferView` kept), shaders
+  compiled on the loading screen (`GameState.create` awaits `scene.whenReadyAsync`, <= `WARMUP_MAX_MS`), benchmark
+  runs on phones release the match and wait `MOBILE_RUN_GAP_MS` 2.5 s. `World.refreshMaterials` when the shadow spec changes or the post stack rebuilds in a match (3.1.3; `PostStack.builds`; frozen
+  materials re-read their lights, refreeze after two frames).
 - `perf.mjs --budget` (no flag) is the test-path regression check (`?gfx=min`: no post stack, no voxel characters,
   20 cm voxels): sim p95 <= 2.5 ms, animation <= 0.04 ms per character, <= 55 draws, <= 0.2 M triangles, allocations
   <= 11.5 MB/s. Measured (3.1.0): sim p95 1.5 ms, 0.043 ms, 43 draws, 0.14 M triangles, 11.0 MB/s.
@@ -1089,8 +1198,18 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Render scale: native DPR x `renderScale` (0.5-2), dynamic resolution (optional) within it; with TAAU the canvas stays native and the scene renders at the scale.
 
 ## Robustness rules
+- 3.1.5: `startGame` calls `App.releaseState()` (exit + free the scene) before `GameState.create`: two matches are
+  never in memory at once (the iPhone closed the tab). Crash log (`feedback/crashLog.ts`, `App.crashLog`): a
+  heartbeat in localStorage (diagnostics, not a save: synchronous, so `pagehide` marks it clean before unload) every
+  5 s and on `stage(...)` (menu / loading / in a match / benchmark run) with `feedbackContext`; still `alive` at the
+  next boot -> `crashNote` -> a "Crash report" feedback note + toast. 3.1.7: `releaseState` empties the engine's
+  shader cache (`engine.releaseEffects()`: plugin materials' shaders held their scene, and so every old match;
+  their keys never repeat) and `goToMenu` releases too; `e2e-desktop` checks no GameState survives (CDP
+  `queryObjects` after a GC - release the object group, or the probe itself keeps them alive).
 - `App` isolates state updates: an exception in `fixedUpdate`/`frameUpdate` is logged (rate-limited) and toasted
   once; input polling and menus keep running. `GameState` ignores updates after `exit()` (quit can happen mid-tick).
+- 3.2.3: `App` resizes the engine only once a resize settles (`RESIZE_SETTLE_MS` 250): a phone turning fires several
+  in-between sizes, each re-making every full-resolution target.
 - Backgrounding (`visibilitychange`/`pagehide`): flush the save, suspend audio, pause single player (co-op opens
   the menu without pausing).
 - `SaveManager.readOnly`: if the stored profile cannot be read (newer version, corrupt), play continues on an

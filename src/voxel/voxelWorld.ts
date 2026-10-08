@@ -1,3 +1,4 @@
+import { renderOpts } from '../world/renderOpts';
 import { Color3, Constants, Mesh, PBRMaterial, RawTexture, RawTexture3D, StandardMaterial, Texture, VertexData, type Scene } from '../core/babylon';
 import type { SurfaceAtlas } from '../world/surfaceAtlas';
 import { BRICK, BRICK_VOXELS, Brickmap, EMPTY, UNIFORM_BASE } from './brickmap';
@@ -55,6 +56,8 @@ export class VoxelWorld {
   private chunks: Chunk[] = [];
   private textures: (RawTexture | RawTexture3D)[] = [];
   private lodT = 0;
+  /** Level-of-detail swaps so far (3.3 spike log). */
+  lodSwaps = 0;
   /** The sky bake: visibility per cell and, per column, the top of the highest solid cell (rain stops there). */
   sky: { origin: [number, number, number]; cell: number; n: [number, number, number]; roof: Float32Array } | null = null;
   private skyVis: Uint8Array | null = null;
@@ -249,7 +252,7 @@ export class VoxelWorld {
         pm.usePhysicalLightFalloff = false;
         pm.directIntensity = Math.PI;
         pm.environmentIntensity = 0.6;
-        pm.realTimeFiltering = true;
+        pm.realTimeFiltering = renderOpts.iblFilter;
         mat = pm;
       } else {
         // the cheap path (`?gfx=min`): standard shading, the palette colour per voxel only
@@ -258,7 +261,7 @@ export class VoxelWorld {
         sm.specularColor = Color3.Black();
         mat = sm;
       }
-      const plugin = new VoxelPlugin(mat, tex, this.opts.atlas, 1 << l, this.opts.ao && l === 0, this.opts.micro && l < 2);
+      const plugin = new VoxelPlugin(mat, tex, this.opts.atlas, 1 << l, this.opts.ao && l === 0, this.opts.micro && l < 2, renderOpts.aoLite);
       this.plugins.push(plugin);
       this.materials.push(mat);
       mat.freeze();
@@ -302,6 +305,9 @@ export class VoxelWorld {
       }
     }
     const pool = new RawTexture3D(poolData, W, W, layers * BRICK, Constants.TEXTUREFORMAT_R, scene, false, false, nearest, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+    // (3.2.2: no CPU copy of the pool - 64 MB per layer at 5 cm, kept only to rebuild after a lost context; chips
+    // write the texture directly)
+    dropCpuCopy(pool);
     // row 0: colour + kind / emissive; row 1: r = puddle
     const pal = new Uint8Array(256 * 4 * 2);
     this.lv.palette.forEach((e, i) => {
@@ -342,7 +348,10 @@ export class VoxelWorld {
     let giGroups = 0;
     if (this.giData && this.sky && this.giGroups) {
       const [sx, sy, sz] = this.sky.n;
-      gi = new RawTexture3D(this.giData, sx, sy, sz * this.giGroups, Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
+      // (3.2: one texture, the circuits mixed by how much of each is lit - `mixGi`; one tap per pixel, not one per circuit)
+      this.giMix = new Uint8Array(sx * sy * sz * 4);
+      mixGiSlots(this.giData, this.giGroups, new Float32Array(this.giGroups).fill(1), this.giMix);
+      gi = new RawTexture3D(this.giMix, sx, sy, sz, Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.BILINEAR_SAMPLINGMODE, Constants.TEXTURETYPE_UNSIGNED_BYTE);
       gi.wrapU = gi.wrapV = gi.wrapR = Texture.CLAMP_ADDRESSMODE;
       this.textures.push(gi);
       this.giTex = gi;
@@ -468,6 +477,7 @@ export class VoxelWorld {
       while (want > 0 && !c.lods[want]) want--;
       if (want === c.shown) continue;
       c.shown = want;
+      this.lodSwaps++;
       c.lods.forEach((m, l) => m?.setEnabled(l === want));
     }
   }
@@ -481,6 +491,14 @@ export class VoxelWorld {
   setWet(w: number): void {
     for (const p of this.plugins) p.wet = w;
     this.refresh();
+  }
+
+  /** The circuits' GI mixed into one texture (3.2): `weights` per slot (how much of each circuit is lit). */
+  private giMix: Uint8Array | null = null;
+  mixGi(weights: ArrayLike<number>): void {
+    if (!this.giData || !this.giMix || !this.giTex) return;
+    mixGiSlots(this.giData, this.giGroups, weights, this.giMix);
+    this.giTex.update(this.giMix);
   }
 
   /** Re-bind after the surface atlas changes size. */
@@ -497,4 +515,38 @@ export class VoxelWorld {
     for (const m of this.materials) m.dispose();
     for (const t of this.textures) t.dispose();
   }
+}
+
+/**
+ * Pure (3.2): the GI slots (stacked along z, `groups` of them) weighted and summed into one RGBA block, at half scale
+ * (`GI_MIX` in the shader: overlapping circuits add up without clipping).
+ */
+export function mixGiSlots(data: Uint8Array, groups: number, weights: ArrayLike<number>, out: Uint8Array): void {
+  const n = out.length;
+  for (let i = 0; i < n; i += 4) {
+    let r = 0;
+    let g = 0;
+    let b = 0;
+    for (let s = 0; s < groups; s++) {
+      const w = weights[s] ?? 0;
+      if (w <= 0) continue;
+      const o = s * n + i;
+      r += data[o]! * w;
+      g += data[o + 1]! * w;
+      b += data[o + 2]! * w;
+    }
+    out[i] = Math.min(255, Math.round(r * 0.5));
+    out[i + 1] = Math.min(255, Math.round(g * 0.5));
+    out[i + 2] = Math.min(255, Math.round(b * 0.5));
+    out[i + 3] = 255;
+  }
+}
+
+/**
+ * Let a static texture's upload buffer go (3.2.2): Babylon keeps it to re-create the texture after a lost WebGL
+ * context; the big voxel / lamp textures would double their memory for that (the phone ran out of memory).
+ */
+export function dropCpuCopy(t: { getInternalTexture(): unknown } | null): void {
+  const it = t?.getInternalTexture() as { _bufferView?: unknown } | null | undefined;
+  if (it) it._bufferView = null;
 }

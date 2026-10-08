@@ -24,6 +24,18 @@ describe('refresh detection', () => {
     for (let i = 0; i < 90; i++) d.push(8.33);
     expect(d.hz).toBe(120);
   });
+  it('slow, GPU-bound frames in a match never lower the rate (3.1.9: 16 Hz read on a 120 Hz phone)', () => {
+    const d = new RefreshDetector();
+    for (let i = 0; i < 110; i++) d.push(8.33);
+    expect(d.hz).toBe(120);
+    // (a match at 15-20 fps: whole multiples of the refresh period)
+    for (let i = 0; i < 270; i++) d.push(i % 3 ? 66.7 : 58.3, false);
+    expect(d.hz).toBe(120);
+    // (a third of the frames fast among slow ones still read the display's rate)
+    const e = new RefreshDetector();
+    for (let i = 0; i < 110; i++) e.push(i % 3 === 0 ? 8.33 : 25);
+    expect(e.hz).toBe(120);
+  });
 });
 
 describe('frame stats', () => {

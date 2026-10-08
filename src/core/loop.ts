@@ -112,6 +112,8 @@ export class GameLoop {
     }
     const dt = Math.min(intervalMs / 1000, 0.1) * this.timeScale;
     hooks.beforeFrame?.(dt);
+    // (a state change inside the frame - a menu confirm starting a match frees the old scene at once - ends it)
+    if (this.hooks !== hooks) return;
     if (!this.paused) {
       this.acc += dt;
       let steps = 0;
@@ -121,6 +123,7 @@ export class GameLoop {
       while (this.acc >= FIXED_DT && steps < MAX_STEPS_PER_FRAME) {
         const t0 = performance.now();
         hooks.fixedUpdate(FIXED_DT);
+        if (this.hooks !== hooks) return;
         const t1 = performance.now();
         if (physics) {
           scene.onBeforePhysicsObservable.notifyObservers(scene);
@@ -138,6 +141,7 @@ export class GameLoop {
       this.stats.steps = steps;
     }
     hooks.frameUpdate(this.paused ? 0 : dt, this.acc / FIXED_DT);
+    if (this.hooks !== hooks || scene.isDisposed) return;
     scene.render();
   }
 }

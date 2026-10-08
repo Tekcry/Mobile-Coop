@@ -176,6 +176,11 @@ export class Doors {
     this.mesh?.thinInstanceRefreshBoundingInfo(false);
   }
 
+  /** Leaves shown or hidden (the benchmark flight: open doorways, no leaf standing out into a corridor). */
+  setVisible(on: boolean): void {
+    if (this.mesh) this.mesh.isVisible = on;
+  }
+
   /** Nearest door within `r` of (x, z). */
   nearest(x: number, z: number, r: number): DoorState | null {
     let best: DoorState | null = null;

@@ -6,7 +6,7 @@ import { MISSIONS, missionById } from './game/missions';
 import './cosmetics/catalog';
 import { App } from './core/app';
 import { loadHavok } from './physics/havok';
-import { setupServiceWorker, setupRotateOverlay, suppressBrowserGestures, enterFullscreenLandscape, isStandalone } from './pwa/pwa';
+import { setupServiceWorker, suppressBrowserGestures, enterFullscreenLandscape, isStandalone, lockLandscape } from './pwa/pwa';
 import { flags } from './core/flags';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
@@ -20,11 +20,15 @@ import { showSavedOperator } from './ui/screens/operator';
 import { profileBadge } from './ui/screens/profileBadge';
 import { rewardsPanel } from './ui/screens/rewardsPanel';
 import { dataTab } from './ui/screens/dataTab';
-import { BENCH } from './game/benchmark';
-import { feedbackTab } from './ui/screens/feedbackScreen';
+import { BENCH, benchPlan, type BenchSession } from './game/benchmark';
+import { levelLabel, MOBILE_PRESET_IDS, PRESET_IDS } from './core/quality';
+import { feedbackContext, feedbackTab } from './ui/screens/feedbackScreen';
+import { CrashLog } from './feedback/crashLog';
+import { benchTag } from './ui/benchTag';
 import { extraSettingsTabs } from './ui/screens/settingsScreen';
 import { applySession, autoGrant, loadoutEntries, type SessionReport } from './progression/profile';
 import { camoById } from './cosmetics/catalog';
+import { setupForcedLandscape, viewHeight, viewWidth } from './core/viewRotation';
 
 function setBoot(progress: number, status: string): void {
   const bar = document.getElementById('boot-progress');
@@ -35,7 +39,8 @@ function setBoot(progress: number, status: string): void {
 
 async function boot(): Promise<void> {
   suppressBrowserGestures();
-  setupRotateOverlay();
+  // (3.1.6: a phone held upright gets the page turned to landscape; listeners measuring on resize see it turned)
+  setupForcedLandscape(() => window.dispatchEvent(new Event('resize')));
   setupServiceWorker(() => app.toasts.show('Ready to play offline', 'ok'));
 
   const canvas = document.getElementById('game') as HTMLCanvasElement;
@@ -50,6 +55,13 @@ async function boot(): Promise<void> {
   await app.save.load();
   app.save.update((d) => void autoGrant(d));
   extraSettingsTabs.push(feedbackTab, dataTab);
+  // 3.1.4 crash log: the last session's heartbeat still "alive" = it died while open (a note), then a new heartbeat
+  const crashLog = new CrashLog(() => feedbackContext(app));
+  app.crashLog = crashLog;
+  void crashLog.recover((e) => app.feedback.save(e)).then((note) => {
+    if (note) app.toasts.show('The last session crashed: a report is in Settings > Feedback', 'warn');
+    crashLog.start();
+  });
   GameState.rewardHook = async (stats, opts) => {
     let report: SessionReport | null = null;
     app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
@@ -66,6 +78,8 @@ async function boot(): Promise<void> {
 
   const goToMenu = (): void => {
     app.screens.clear();
+    // (the match freed before the menu stage is built: its shaders are released with it)
+    app.releaseState();
     const ms = new MenuState(app.engine);
     app.setState(ms);
     showSavedOperator(app);
@@ -77,6 +91,7 @@ async function boot(): Promise<void> {
       }
     };
     app.music.start();
+    app.crashLog?.stage('menu');
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));
     app.screens.push(menu);
@@ -137,18 +152,48 @@ async function boot(): Promise<void> {
     app.screens.clear();
     setBoot(0.5, 'Loading map…');
     document.getElementById('boot')?.classList.remove('done');
+    const b = opts.benchmark;
+    const what = b ? `benchmark run ${b.idx + 1}/${b.runs.length}: ${b.runs[b.idx]?.label ?? ''} (${levelLabel(app.quality.level)})` : `${opts.map.id} / ${opts.mode}`;
+    app.crashLog?.stage(`loading ${what}`);
+    // (the last match / the menu stage freed first: never two matches in memory; nothing may hold the menu)
+    app.onAvatarStyle = null;
+    app.releaseState();
     void GameState.create(app, opts, cbOverride ?? { quit: goToMenu, restart: () => startGame({ ...base, seed: base.seed + 1 }) })
-      .then((st) => app.setState(st))
+      .then((st) => {
+        app.setState(st);
+        app.crashLog?.stage(`in ${what}`);
+      })
       .catch((e: unknown) => {
         console.error(e);
         app.toasts.show('Failed to load map', 'warn');
+        if (opts.benchmark) {
+          app.quality.setOverride(null, false);
+          benchTag(null);
+        }
         if (cbOverride) cbOverride.quit();
         else goToMenu();
       })
       .finally(() => document.getElementById('boot')?.classList.add('done'));
   };
 
-  app.benchmark = (kind = 'current') => startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: kind });
+  // (3.1.4: every run in its own match, its settings set before the map loads - a change mid-match is not what a run
+  // measures)
+  // (3.2.1: Resolutions measures the monitor's resolutions on desktop, the screen on a phone)
+  const benchOutput = (a: App): [number, number] =>
+    a.platform.platform === 'desktop' ? [Math.round(screen.width * devicePixelRatio), Math.round(screen.height * devicePixelRatio)] : [Math.round(viewWidth() * devicePixelRatio), Math.round(viewHeight() * devicePixelRatio)];
+  app.benchmark = (kind = 'current') => {
+    const s: BenchSession =
+      typeof kind === 'string'
+        ? { kind, runs: benchPlan(kind, ...benchOutput(app), app.platform.platform === 'mobile' ? MOBILE_PRESET_IDS : PRESET_IDS, app.quality.level.features, app.settings.get().video.renderScale), idx: 0, lines: [] }
+        : kind;
+    const run = s.runs[s.idx];
+    if (!run) return;
+    s.note ??= `fb-bench-${Date.now().toString(36)}`;
+    s.started ??= Date.now();
+    benchTag(`Run ${s.idx + 1}/${s.runs.length} · ${run.label} · loading`);
+    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx, cuts: run.cuts, cap: run.cap, look: run.look }, false);
+    startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
+  };
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
 
@@ -166,8 +211,9 @@ async function boot(): Promise<void> {
 
   // Fullscreen + landscape lock need a user gesture (Android). iOS uses standalone PWA mode instead.
   // (desktop: fullscreen is the player's choice, Settings > Graphics)
-  if (!isStandalone() && app.platform.platform === 'mobile') {
-    window.addEventListener('pointerup', () => void enterFullscreenLandscape(), { once: true });
+  // (3.2.4: an installed app locks too - it needs no fullscreen)
+  if (app.platform.platform === 'mobile') {
+    window.addEventListener('pointerup', () => void (isStandalone() ? lockLandscape() : enterFullscreenLandscape()), { once: true });
   }
 
   setBoot(1, 'Ready');

@@ -3,7 +3,7 @@
 //  - animation cost per character (rig evaluation, ms)
 //  - allocations per simulated second (sampling heap profiler, incl. collected objects) + top allocators
 //  - draw calls and real rendered frame pacing (SwiftShader: GPU timings are NOT representative)
-// Usage: node scripts/perf.mjs [url] [--json] [--budget] [--desktop] [--preset=low|medium|high|ultra|epic [--mobile]]
+// Usage: [EXTRA=baked=0] node scripts/perf.mjs [url] [--json] [--budget] [--desktop] [--preset=low|medium|high|ultra|epic [--mobile]]
 //   (--budget exits 1 when a CPU-side budget is missed)
 //   default: `?gfx=min` - the phone / test-path regression check (the 2.x numbers)
 //   --desktop: `?gfx=epic` - the PC path (voxel characters and weapons, shadows, the post stack): main-thread CPU =
@@ -52,7 +52,7 @@ const stealth = !!process.env.STEALTH;
 const MAP = process.env.MAP ?? 'warehouse';
 const { browser, page, errors } = await launch({
   url,
-  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${preset ? `&gfx=${preset}&platform=${mobile ? 'mobile' : 'desktop'}` : desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}`,
+  params: `autostart=${MAP}&mode=${stealth ? 'clear' : 'wave'}&debug=1${preset ? `&gfx=${preset}&platform=${mobile ? 'mobile' : 'desktop'}` : desktop ? '&gfx=epic&platform=desktop' : ''}${process.env.WARM ? '&warm=' + process.env.WARM : ''}${process.env.EXTRA ? '&' + process.env.EXTRA : ''}`,
   ...(desktop ? { touch: false, viewport: { width: 640, height: 360 } } : {}),
 });
 if (heavy) await page.waitForFunction(() => window.__app.current?.player, null, { timeout: 300000 });
