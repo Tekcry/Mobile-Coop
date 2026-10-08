@@ -139,3 +139,13 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   p50/p95/p99 + drops, CPU per frame, quality + resolution scale, player, carry, cover, combat, anim (layer
   weights, active clip timeline, `!limit` = joint-rate limiter hits). The bar graph is frame pacing against the
   budget line; `addTrace` graphs values per frame (weapon bob, speed, acceleration, camera angular velocity).
+
+## 3.5 e2e suite lists
+- `scripts/run-e2e.mjs`: `REQUIRED` (what `npm run e2e` runs) and `LEGACY` (`npm run e2e:legacy`: `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, run with
+  `LEGACY=1`; report only). `e2e-lib` `openPage` appends `legacy=1` to the params when `LEGACY=1` (or a suite names `legacy=1`); suites can be named on the command
+  line (`node scripts/run-e2e.mjs e2e-missions`; add `--legacy` for `LEGACY=1`).
+- `scripts/e2e-park.mjs` (3.5): the legacy-off menus (title Night Shift, badge without level / credits, Play lists Infiltration / Training / Free Roam, Loadout root
+  rows, every weapon selectable with nothing unlocked or bought, the choice kept across a reload, attachments only, a new co-op room on Infiltration listing
+  Infiltration / Free Roam, save export / import) and the legacy-on menus.
+- Mixed suites stay required: `e2e-coop` opens its pages with `legacy=1` (its lobby walk-through hosts Wave / Hunter / TDM / FFA rooms); `e2e-missions` expects no
+  Ghost / Panther / Assault bars (3 with `LEGACY=1`).

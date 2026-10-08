@@ -79,3 +79,7 @@ Design authority: docs/design-bible.md (Section 5.10)
 - Menus register entries via `MainMenuScreen.entries` and settings tabs via `extraSettingsTabs`.
 - No `backdrop-filter` over the canvas (expensive on phones). `.screens` container is pointer-events: none;
   children opt in.
+
+## 3.5 title
+- The game's name is Night Shift (main menu `NIGHT` / `SHIFT`, boot screen, page and app titles, install manifest "Night Shift" / "Night Shift (Preview CT)", short name
+  "NS CT"). The internal ids keep the old names: IndexedDB `shoulder-strike`, the save export magic `shoulder-strike-save`, the co-op app id.

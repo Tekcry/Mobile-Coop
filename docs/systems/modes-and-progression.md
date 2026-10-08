@@ -59,3 +59,18 @@ Design authority: docs/design-bible.md (Sections 5.6, 5.8 and 6)
   `color2`; ids in `cosmetics/patterns.ts`, GLSL there too. `PartLibrary.instance(..., pattern)` sets them.
 - `avatarFactory` puts the look's pattern on torso/legs slots; `WeaponModel` puts the camo pattern on
   `body` parts. Emotes are pose overrides (`cosmetics/emotes.ts`) run via `CharacterRig.emote`.
+
+## 3.5 parked content (`?legacy=1`)
+- `flags.legacy` (`?legacy=1`, URL only, never saved) and `core/legacy.ts` (pure, `tests/legacy.test.ts`): `PARKED_MODES` (Wave `wave`,
+  Mission `mission`, Hunter `clear`, Team Deathmatch `tdm`, Free-for-all `ffa`), `visibleModes(all, legacy)`, `defaultMode(legacy)` (Infiltration, or Wave with
+  legacy), `campaignUnlocked(legacy)` (true when legacy is off), `showEconomy(legacy)`.
+- Legacy off (default): the Play screen offers Infiltration (default), Training and Free Roam; the co-op lobby Infiltration and Free Roam (a new room starts on
+  Infiltration; `lobbyModes` keeps an already-set parked mode listed); the Loadout screen weapons, attachments, gadget and presets only (`rootPage` drops suit /
+  appearance / tag / HQ / challenges, `customizePage` has no upgrade or camo rows, the top bar says NIGHT SHIFT without level, credits or ticker); the results screen
+  has no rewards panel (`main.ts` `GameState.rewardHook` still records progression) and no Ghost / Panther / Assault bars (the mission rating stays); the profile
+  badge shows the name and tag only; the kill feed has no "+XP".
+- The campaign opens weapons and attachments without buying them: `profile.ts` `campaignOpens` / `ownsOrOpen`, `setLoadout` / `setAttachment` / `applyPreset` take
+  a `campaign` argument (the Loadout screen passes `campaignUnlocked`), `unlockRow` shows them owned. Nothing is written to `unlocks` or credits.
+  `SaveManager.openLoadout` (set from `main.ts` before `load`) makes `sanitizeSave(raw, openLoadout)` keep any known weapon as the loadout / a preset's weapon, so the
+  choice survives a reload (no `SAVE_VERSION` change; the default sanitising, used by the tests and `?legacy=1`, still resets an unowned weapon).
+- `?autostart=...&mode=...` starts any mode whatever the flag. Training, snap cover, Mark & Execute, sonar and the drone are unchanged until roadmap Phase 3.
