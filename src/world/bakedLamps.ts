@@ -230,8 +230,9 @@ export class BakedLamps {
    * door are re-mixed over their regions (a door is a light change, bible L12).
    */
   private writeDoors(): boolean {
+    // (per frame: nothing allocated unless a door changed)
     let changed = false;
-    const regions: number[][] = [];
+    let regions: number[][] | null = null;
     for (let k = 0; k < this.doors.length; k++) {
       const shut = this.doors[k]!.open <= DOOR_SHUT ? 1 : 0;
       if (this.doorShut[k] === shut) continue;
@@ -241,11 +242,11 @@ export class BakedLamps {
       changed = true;
       if (this.volume && !first) {
         for (let i = 0; i < this.order.length; i++) {
-          for (let j = 0; j < DOORS_PER_LAMP; j++) if (this.lampDoors[i * DOORS_PER_LAMP + j] === k) regions.push(lampVolumeRegion(this.boxes, i, this.volume.grid));
+          for (let j = 0; j < DOORS_PER_LAMP; j++) if (this.lampDoors[i * DOORS_PER_LAMP + j] === k) (regions ??= []).push(lampVolumeRegion(this.boxes, i, this.volume.grid));
         }
       }
     }
-    const region = unionRegion(regions);
+    const region = regions ? unionRegion(regions) : null;
     if (region && this.volume) {
       this.data.update(this.buf);
       this.volume.mix(region);
