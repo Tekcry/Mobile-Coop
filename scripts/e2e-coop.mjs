@@ -379,6 +379,10 @@ try {
       await GA((id) => {
         const g = window.__app.current;
         for (const r of g.net.remotes.values()) r.allowTeleport(2);
+        // (3.6: the checks above - an execute, a gas cloud - can leave guards in combat having spotted the client, and a
+        // guard in combat who knows an operator is there cannot be taken by surprise (by design): calm the host first)
+        for (const e of g.enemyMgr.enemies) e.aware.set('unaware');
+        for (const r of g.net.remotes.values()) r.ref.spotted = false;
         const v = g.enemyMgr.enemies.find((e) => e.id === id);
         if (v?.alive && !v.taken) {
           v['stagger'] = 99;
