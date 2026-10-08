@@ -53,6 +53,17 @@ async function compare(label, mode, tol = 0.1, joints = JOINTS) {
   }
   if (!settled) console.log('  (client never settled)', await GB(() => JSON.stringify({ sp: window.__app.current.player.controller.speed, cover: window.__app.current.cover.state, axes: navigator.getGamepads()[0]?.axes, ov: !!window.__app.current.player.controller.override })));
   await wait(800);
+  // attached: the host's copy settled onto the owner's planted grips too (one limb at a time after 0.25 s still; the
+  // host page is in the background, its frames throttled, so two foot swings after a climb can take seconds)
+  await A.waitForFunction(() => {
+    const r = window.__app.current.net.remotes.values().next().value;
+    const gp = r?.state.mv?.gp;
+    if (!gp) return true;
+    const g = r.avatar.grips;
+    const ls = [g.hands.L, g.hands.R, g.feet.L, g.feet.R];
+    return ls.every((l, i) => l.swing < 0 && (gp[i] === null || Number.isNaN(gp[i]) || Math.abs(l.at - gp[i]) < 0.01));
+  }, null, { timeout: 8000, polling: 100 }).catch(() => {});
+  await wait(300);
   const [loc, rem] = [await localJoints(), await remoteJoints()];
   const errs = Object.fromEntries(joints.map((n) => [n, +err(loc[n], rem.j[n]).toFixed(3)]));
   const worst = Math.max(...Object.values(errs));
@@ -385,7 +396,9 @@ try {
   await until(A, () => !!window.__app.current.team.offer?.boost, null, 6000, 'host offered a boost again');
   const pending = await GA(() => { const o = window.__app.current.team.offer; return { id: o.mate.id, target: o.boost.anchor.id, s: o.boost.s, gy: o.boost.grip.y }; });
   await GB(() => { window.__pad.set(1, 1); });
-  await wait(150);
+  // (held until the brace ends: software GL runs these pages at a few frames a second, a 150 ms press can fall
+  // between two polls)
+  await until(B, () => window.__app.current.team.state === 'none', null, 4000, 'client lets go of the brace');
   await GB(() => { window.__pad.set(1, 0); window.__pad.axis(1, -1); });
   await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return r?.state?.mv?.m === 'ground' && r.feet.z < 25.5; }, null, 6000, 'host sees the client walk off');
   await GB(() => window.__pad.axis(1, 0));
