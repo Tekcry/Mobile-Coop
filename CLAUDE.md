@@ -555,7 +555,9 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   with the run's summary, `feedbackContext().spikes`.
 - Phone check (`benchPlan('phone')` = `phoneCheckRuns`): nine `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
   voxel detail, bloom, shafts, High shadows put back, GI out, then 75% again (heat check) (`BenchRun.cuts` ->
-  `QualityOverride.cuts`). 3.3.1: every non-sustained run line ends with `sectionText` - fps per `SECTION_SECONDS` 2.5 s
+  `QualityOverride.cuts`), then 3.3.2: `PHONE_HOLD_SECONDS` 180 held at 60 (`BenchRun.cap` -> `QualityOverride.cap`,
+  sustained: per-minute averages); `PHONE_COOL_S` 30 s cool-down between runs (GameState hand-off, nothing drawn) -
+  a hot iPhone throttles its GPU about 5x. 3.3.1: every non-sustained run line ends with `sectionText` - fps per `SECTION_SECONDS` 2.5 s
   of the route (a 20 s run ends at the long view down the corridor at the first guards: ~100 meshes against ~30).
 
 ## Corners and doorways

@@ -40,6 +40,8 @@ export interface BenchRun {
   rebuild?: 'post' | 'shadows';
   /** 3.3 Phone check: a phone cut put back for this run. */
   cuts?: Partial<PhoneCuts>;
+  /** 3.3.2: a frame cap for this run (phone runs are otherwise uncapped, to show the headroom). */
+  cap?: number;
 }
 
 /** A benchmark in progress, carried from one run's match to the next. */
@@ -54,6 +56,9 @@ export interface BenchSession {
   note?: string;
   started?: number;
 }
+
+/** 3.3.2 Phone check: the capped run's length (s; per-minute averages). */
+export const PHONE_HOLD_SECONDS = 180;
 
 /** Feature costs: one flight per run (shorter than the full benchmark: there are up to nine). */
 export const FEATURE_SECONDS = 20;
@@ -95,6 +100,8 @@ export function phoneCheckRuns(): BenchRun[] {
     run('- bounce light', { gfx: { gi: false } }),
     // (3.3.1: the first run again - a phone heating up through the check slows every later run; this says by how much)
     run('phone look, 75% again (heat check)'),
+    // (3.3.2: what a match does - capped at 60 for 3 minutes, once warm: does 60 hold?)
+    { ...run('phone look held at 60, 3 min'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60 },
   ];
 }
 

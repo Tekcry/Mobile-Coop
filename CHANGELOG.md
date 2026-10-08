@@ -1,5 +1,14 @@
 # Changelog
 
+## 3.3.2 - Phone check without the heat
+- The iPhone dropped from ~100 fps to ~20 during the Phone check and came back after a few seconds on the home
+  screen: heat, not a leak - textures, shaders and memory stay flat across six benchmark matches and return to the
+  menu's level after (checked headless). Uncapped runs keep the GPU flat out; a hot iPhone slows its GPU hard, and a
+  few seconds idle cool the chip (not the case) enough for it to run fast again until it heats up.
+- The Phone check now cools down for 30 s between runs (nothing drawn, a countdown on the run tag), so a run measures
+  its settings rather than the runs before it, and ends with 3 minutes at the match's 60 fps cap: per-minute
+  averages say whether 60 holds once the phone is warm. About 12 minutes; start with the phone cool.
+
 ## 3.3.1 - Reading the Phone check
 - The first Phone check (iPhone 17 Pro Max): the phone look at 75% averaged 69 fps (median frame 14 ms), at 100% 42;
   the per-lamp loop 61, the voxel detail 52. The frame rate fell at the end of every run: not the next run loading (it

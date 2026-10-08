@@ -191,7 +191,7 @@ async function boot(): Promise<void> {
     s.note ??= `fb-bench-${Date.now().toString(36)}`;
     s.started ??= Date.now();
     benchTag(`Run ${s.idx + 1}/${s.runs.length} · ${run.label} · loading`);
-    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx, cuts: run.cuts }, false);
+    app.quality.setOverride({ preset: run.preset, scale: run.scale, gfx: run.gfx, cuts: run.cuts, cap: run.cap }, false);
     startGame({ map: getMap('warehouse'), mode: 'clear', seed: 1, benchmark: s });
   };
   // tests: a shorter flight

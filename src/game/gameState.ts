@@ -174,8 +174,10 @@ const PROMPT_ALONG = 0.55;
 
 /** Longest the loading screen waits for every material to compile (3.2.2). */
 const WARMUP_MAX_MS = 6000;
-/** Phones: the pause between benchmark runs, with the last match freed (3.2.2). */
+/** Phones: the pause between benchmark runs, with the last match freed (3.2.2); the Phone check's cool-down
+ *  (3.3.2: a hot phone throttles its GPU hard - a run after a run measured the heat, not its settings). */
 const MOBILE_RUN_GAP_MS = 2500;
+const PHONE_COOL_S = 30;
 
 export class GameState implements AppState {
   readonly scene: Scene;
@@ -1265,8 +1267,23 @@ export class GameState implements AppState {
         if (this.app.platform.platform === 'mobile') {
           setTimeout(() => {
             this.app.releaseState();
-            benchTag(`Run ${next.idx + 1}/${next.runs.length} · freeing memory`);
-            setTimeout(() => this.app.benchmark?.(next), MOBILE_RUN_GAP_MS);
+            if (next.kind !== 'phone') {
+              benchTag(`Run ${next.idx + 1}/${next.runs.length} · freeing memory`);
+              setTimeout(() => this.app.benchmark?.(next), MOBILE_RUN_GAP_MS);
+              return;
+            }
+            // (the Phone check: nothing drawn while the chip cools, a countdown on the tag)
+            let left = PHONE_COOL_S;
+            const tick = (): void => {
+              if (left <= 0) {
+                this.app.benchmark?.(next);
+                return;
+              }
+              benchTag(`Run ${next.idx + 1}/${next.runs.length} · cooling down ${left} s`);
+              left--;
+              setTimeout(tick, 1000);
+            };
+            tick();
           }, 0);
         } else setTimeout(() => this.app.benchmark?.(next), 0);
         return;

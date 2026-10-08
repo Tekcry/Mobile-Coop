@@ -14,6 +14,8 @@ export interface QualityOverride {
   gfx?: Partial<GraphicsFeatures>;
   /** 3.3 Phone check: a phone cut put back. */
   cuts?: Partial<PhoneCuts>;
+  /** 3.3.2: a frame cap for the run (phone runs: 0 = uncapped). */
+  cap?: number;
 }
 
 /** Something that can take quality changes live (the game state, the menu stage). */
@@ -91,7 +93,7 @@ export class QualityManager {
    *  measures the headroom); else the setting. */
   private capNow(): number {
     if (!this.phone) return this.settings.get().video.fpsCap;
-    if (this.ov) return 0;
+    if (this.ov) return this.ov.cap ?? 0;
     return this.governor.level > PHONE_SCALES.length - 1 ? PHONE_FPS_FALLBACK : PHONE_FPS;
   }
 

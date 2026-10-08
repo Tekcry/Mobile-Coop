@@ -116,10 +116,16 @@ describe('Phone check (3.3)', () => {
     expect(runs[1]!.scale).toBe(1);
     expect(runs.some((r) => r.cuts?.lampVolume === false)).toBe(true);
     expect(runs.some((r) => r.cuts?.plainVoxels === false)).toBe(true);
-    expect(runs.every((r) => r.preset === null && r.seconds === runs[0]!.seconds)).toBe(true);
+    const hold = runs[runs.length - 1]!;
+    expect(hold.cap).toBe(60);
+    expect(hold.sustained).toBe(true);
+    const short = runs.slice(0, -1);
+    expect(runs.every((r) => r.preset === null)).toBe(true);
+    expect(short.every((r) => r.seconds === runs[0]!.seconds && r.cap === undefined)).toBe(true);
     expect(new Set(runs.map((r) => r.label)).size).toBe(runs.length);
-    // (3.3.1: the first run again last - the heat check)
-    expect(runs[runs.length - 1]!.scale).toBe(runs[0]!.scale);
-    expect(runs[runs.length - 1]!.cuts ?? runs[runs.length - 1]!.gfx).toBeUndefined();
+    // (3.3.1: the first run again - the heat check - before the capped hold)
+    const again = runs[runs.length - 2]!;
+    expect(again.scale).toBe(runs[0]!.scale);
+    expect(again.cuts ?? again.gfx).toBeUndefined();
   });
 });
