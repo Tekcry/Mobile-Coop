@@ -445,11 +445,12 @@ try {
       // it looks for ALERT.hearLook (2.4 s), then walks over
       t.step(2.8);
       const lv = e.level;
-      // (3.6: the torch comes on where it is dark at his head - the light field, lamps included - so he lights it
-      // once he walks out of the next lamp's pool towards the shot one)
+      // (3.6: the torch comes on where it is dark at his head - the light field, lamps included - not where the ambient
+      // alone is. He walks to the second lamp shot out, at (9, -9), through the pool of the lamp at (9, 3) (0.44-0.51
+      // at his head: no torch) and lights it once he leaves the light, a few metres on at an investigating walk)
       let torch = 0;
       let torchLevel = -1;
-      for (let k = 0; k < 30 && !torch; k++) {
+      for (let k = 0; k < 150 && !torch; k++) {
         t.step(0.1);
         torch = em.torchesOn;
         if (torch) torchLevel = g.world.lightField.levelAt(e.pos.x, e.pos.y + 1.4, e.pos.z);
