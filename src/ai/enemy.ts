@@ -1,5 +1,4 @@
 import { Vector3, type Scene } from '../core/babylon';
-import { lightLevelAt } from '../world/lights';
 import type { CharacterRig } from '../player/characterRig';
 import type { WeaponModel } from '../weapons/weaponModel';
 import { buildEnemyRig } from './enemyRig';
@@ -30,13 +29,18 @@ import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
 import { BODY, bodyNoticed } from './bodies';
 import type { Body } from './body';
 import { ALARM, alarmStandPoint, type AlarmPanel } from './alarm';
-import type { LightDef, LightRegistry } from '../world/lights';
+import type { LightDef } from '../world/lights';
+import type { LightField } from '../world/lightField';
 import { ARCHETYPE, glint, heavyMult, shieldBlocks, smellRate, sniperRelocate } from './archetypes';
 import { BarkVoice, RADIO_BARKS, type BarkEvent } from './barks';
 import { DogModel } from './dogModel';
 import type { InstancedMesh } from '../core/babylon';
 
 export type EnemyState = 'idle' | 'chase' | 'attack' | 'seekCover' | 'inCover' | 'melee' | 'dead';
+
+/** A guard looking for something switches his torch on below this static light level; keeps it on below `TORCH_KEEP`. */
+export const TORCH_DARK = 0.35;
+export const TORCH_KEEP = 0.45;
 
 /** What enemies can target (local or remote players). */
 export interface PlayerRef {
@@ -558,11 +562,13 @@ export class Enemy implements Damageable {
     return this.alarm !== null;
   }
 
-  /** Looking for something in the dark (investigating, searching, or hunting unseen): a flashlight on. */
-  torchWanted(reg: LightRegistry): boolean {
+  /** Looking for something in the dark (investigating, searching, or hunting unseen): a flashlight on. Dark is the
+   *  field's static level where he stands (3.6: lamps count, not just the ambient); one already on stays on up to
+   *  `TORCH_KEEP`, so walking through a lamp's pool does not flick it. */
+  torchWanted(field: LightField, holding = false): boolean {
     const lvl = this.aware.level;
     const looking = lvl === 'investigating' || lvl === 'searching' || (lvl === 'alert' && !this.los);
-    return looking && reg.ambientAt(this.pos.x, this.pos.y + 1.4, this.pos.z) < 0.35;
+    return looking && field.levelAt(this.pos.x, this.pos.y + 1.4, this.pos.z) < (holding ? TORCH_KEEP : TORCH_DARK);
   }
 
   /** The flashlight follows the head: at eye height ahead of the face, pointing where it looks (a bit down). */
@@ -827,9 +833,8 @@ export class Enemy implements Damageable {
     }
     const samples = best.target.headPoint ? 3 : 2;
     if (this.los) this.lastSeenT = 0;
-    // light on the target (perception reads it): the owner's sample, else the registry at the aim point
-    const lights = this.ctx.world.level.lights;
-    this.targetLight = best.light ?? lightLevelAt(lights, this.tmp.x, this.tmp.y, this.tmp.z);
+    // light on the target (perception reads it): the owner's sample, else the light field at the aim point
+    this.targetLight = best.light ?? this.ctx.world.lightField.totalAt(this.tmp.x, this.tmp.y, this.tmp.z);
     // awareness: sight fill rate from distance, field of view, light, stance, motion and exposure
     const si = this.sight;
     si.dist = bd;

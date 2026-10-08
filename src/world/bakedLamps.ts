@@ -4,13 +4,10 @@ import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid,
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights } from './lightBake';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
 
 export { bakedLights };
 
-/** Omni lamps light everything below them through this cone (rad; as `LightRig`'s lamps did). */
-const LAMP_CONE = Math.PI * 0.97;
-/** Map lights were Babylon lights at this x their gameplay intensity. */
-const LIGHT_GAIN = 1.6;
 /** Texels per lamp in the data texture: position + range, colour + exponent, direction + cos, box origin + ny,
  *  atlas tile + nx / nz, character capsule ids. */
 const LAMP_TEXELS = 6;
@@ -92,7 +89,7 @@ export class BakedLamps {
     // the grid: ids + 1 as floats (row-major in texel order)
     for (let i = 0; i < grid.data.length; i++) buf[i] = grid.data[i]!;
     // the lamps' fixed texels
-    const cosLamp = Math.cos(LAMP_CONE / 2);
+    const cosLamp = LAMP_CONE_COS;
     for (let i = 0; i < n; i++) {
       const o = (this.lampBase + i * LAMP_TEXELS) * 4;
       const L = baked.lights;
@@ -100,7 +97,7 @@ export class BakedLamps {
       buf.set([L[li]!, L[li + 1]!, L[li + 2]!, L[li + 3]!], o);
       const cone = L[li + 7]! > -1.5;
       // t1 (colour) is written by `update`; its w: the spot exponent
-      buf[o + 7] = cone ? 2 : 1;
+      buf[o + 7] = cone ? SPOT_EXP : LAMP_EXP;
       buf.set([L[li + 4]!, L[li + 5]!, L[li + 6]!, cone ? L[li + 7]! : cosLamp], o + 8);
       const b = i * BOX_STRIDE;
       buf.set([r.boxes[b]!, r.boxes[b + 1]!, r.boxes[b + 2]!, r.boxes[b + 4]!], o + 12);
@@ -240,6 +237,7 @@ uniform vec4 volO;
 uniform float slice;
 uniform float outB;
 uniform float volMax;
+${LAMP_MATH_GLSL}
 vec4 lampTexel(int k) {
   int w = int(lampInfo.x);
   return texelFetch(lampData, ivec2(k - (k / w) * w, k / w), 0);
@@ -268,7 +266,7 @@ void main(void) {
       vec4 t2 = lampTexel(lb + 2);
       float ca = dot(-L, t2.xyz);
       if (ca < t2.w) continue;
-      float k = (1.0 - d / t0.w) * pow(max(ca, 1e-4), t1.w);
+      float k = nsLampFalloff(d, t0.w) * nsLampCone(ca, t2.w, t1.w);
       vec4 t3 = lampTexel(lb + 3);
       vec4 t4 = lampTexel(lb + 4);
       vec3 q = clamp((p - t3.xyz) / lampAtlas.w, vec3(0.5), vec3(t4.z, t3.w, t4.w) - 0.5);
@@ -387,7 +385,7 @@ class LampVolume {
 }
 
 /** The lamp loop (GLSL), shared by every material the plugin is on. */
-const LAMP_GLSL = `
+const LAMP_GLSL = `${LAMP_MATH_GLSL}
 uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
 vec4 lampTexel(int k) {
@@ -546,7 +544,7 @@ uniform highp sampler3D lampVolB;
       vec4 t2 = lampTexel(lb + 2);
       float ca = dot(-L, t2.xyz);
       if (ca < t2.w) continue;
-      float k = ndl * (1.0 - d / t0.w) * pow(max(ca, 1e-4), t1.w);
+      float k = ndl * nsLampFalloff(d, t0.w) * nsLampCone(ca, t2.w, t1.w);
       vec4 t3 = lampTexel(lb + 3);
       vec4 t4 = lampTexel(lb + 4);
       vec3 q = clamp((lp + lgn * lampAtlas.w - t3.xyz) / lampAtlas.w, vec3(0.5), vec3(t4.z, t3.w, t4.w) - 0.5);

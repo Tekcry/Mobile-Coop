@@ -41,8 +41,8 @@ Design authority: docs/design-bible.md (Section 5.7)
   while seen, shown at the LKP while hunted unseen (`GameState.updateStealthHud`).
 - Light fixtures: `LightDef.fixture` (box size + offset) is the shot target (`rayBox`) and is drawn by the light rig
   as a box that goes dark with the light (Warehouse lamp strips, flood housings).
-- Light: `LightRegistry.zones` / `ambientAt` (`LevelBuilder.ambientZone`); Warehouse is a night map (yard 0.3,
-  interior 0.12, `LAMPS_ON`, lamp `group` per room).
+- Light: perception reads `World.lightField` (3.6, `docs/systems/lighting.md`); zones from `LevelBuilder.ambientZone`;
+  Warehouse is a night map (yard 0.3 in the open, 0.2 in the moon's shadow, interior 0.12, `LAMPS_ON`, lamp `group` per room).
 - Bodies (3b): `Enemy.die` / `knockOut` hand the rig to `EnemyManager.addBody` -> `ai/body.ts` `Body` (a `Ragdoll`
   with `keep` that stays settled, or laid flat when `canRagdoll` is out of budget; `BODY.max` kept). Enemies not in
   combat look for bodies each think (`bodyNoticed`: field x `lightFactor(body.light)` x distance, close range
@@ -54,7 +54,8 @@ Design authority: docs/design-bible.md (Section 5.7)
 - Lights (3b): `PlayerWeapons.onRay` -> `StealthSystems.shotRay` -> `lightOnRay` (pure) + `LightRegistry.destroy`;
   `MapLayout.switches` toggle a `group`; both call `EnemyManager.lightsOut` (nearest calm enemy investigates, others
   `notice`). Flashlights: `World` adds `FLASHLIGHTS` (4) `kind 'flashlight'` lights on dark maps; the manager gives
-  them to enemies with `torchWanted` (investigating / searching / hunting unseen where `ambientAt` < 0.35) and
+  them to enemies with `torchWanted` (investigating / searching / hunting unseen where the light field's static level
+  is < `TORCH_DARK` 0.35, kept on to `TORCH_KEEP` 0.45; 3.6) and
   `placeTorch` moves them each step; `LightRig` re-places pooled flashlights every frame (no bulb). The beam stops at
   geometry: `EnemyManager.beamReach` (centre + four edge rays, round robin, 15 Hz per torch) sets `LightDef.reach`,
   the pool light's `range`.

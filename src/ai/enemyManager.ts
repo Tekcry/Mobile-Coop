@@ -12,7 +12,7 @@ import type { Grenades } from '../weapons/grenades';
 import { GRAVITY } from '../physics/havok';
 import { Body } from './body';
 import { BODY } from './bodies';
-import { lightLevelAt, type LightDef } from '../world/lights';
+import type { LightDef } from '../world/lights';
 import { nearestPanel, type AlarmPanel } from './alarm';
 import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, DIFFICULTY } from './archetypes';
@@ -305,17 +305,18 @@ export class EnemyManager {
     const ts = this.torches;
     if (!ts.length) return;
     const reg = this.world.level.lights;
+    const field = this.world.lightField;
     // release
     for (let i = 0; i < ts.length; i++) {
       const o = this.torchOwner[i];
-      if (o && !(o.alive && o.torchWanted(reg))) {
+      if (o && !(o.alive && o.torchWanted(field, true))) {
         this.torchOwner[i] = null;
         reg.setOn(ts[i]!.id, false);
       }
     }
     // acquire
     for (const e of this.enemies) {
-      if (!e.alive || this.torchOwner.includes(e) || !e.torchWanted(reg)) continue;
+      if (!e.alive || this.torchOwner.includes(e) || !e.torchWanted(field)) continue;
       const k = this.torchOwner.indexOf(null);
       if (k < 0) break;
       this.torchOwner[k] = e;
@@ -582,13 +583,13 @@ export class EnemyManager {
       for (let i = 0; i < ps.length; i++) ps[i]!.spotted = false;
     }
     // bodies: settle, and sample the light on them now and then (how findable they are)
-    const lights = this.world.level.lights;
+    const field = this.world.lightField;
     for (const b of this.bodies) {
       b.update(dt);
       b.lightT -= dt;
       if (b.lightT <= 0 && b.present) {
         b.lightT = 1;
-        b.light = lightLevelAt(lights, b.pos.x, b.pos.y + 0.2, b.pos.z);
+        b.light = field.totalAt(b.pos.x, b.pos.y + 0.2, b.pos.z);
       }
     }
     // drop dead entries (a dog keeps its own body: kept to draw and dispose)

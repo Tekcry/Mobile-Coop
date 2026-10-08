@@ -1,16 +1,11 @@
 import { hyp3 } from '../core/mathx';
+import { LAMP_CONE_COS, LAMP_EXP, lampTerm, SPOT_EXP } from './lampMath';
 /**
  * Light model (pure: no Babylon/DOM), unit-tested.
  *
- * One CPU-side registry of every light in a level: positions, radius, optional cone, intensity, on/off and
- * whether it can be shot out. Gameplay samples it (`lightLevelAt`: how lit a point is, 0 dark .. 1 fully
- * lit) for the player's light meter and the enemies' perception; the renderer (`world/lightRig.ts`) shows a
- * capped set of the nearest lights as real Babylon lights and the rest as emissive fakes.
- *
- * Level = ambient + sum of each light's contribution, clamped to 1. A contribution is the intensity times a
- * smooth range falloff ((1 - (d/r)^2)^2, zero at the radius) times a cone factor (smoothstep between the
- * outer and inner cone cosines). Occlusion is optional: the caller passes a test (a raycast) that only runs
- * for lights that would contribute.
+ * One CPU-side registry of every light in a level: positions, radius, optional cone, intensity, on/off, switch group,
+ * EMP outages, whether it can be shot out, and the ambient zones. It holds state only; how lit a point is comes from
+ * `LightField` (3.6: the canonical bake + `lampMath.ts`), the one light function gameplay and the renderers share.
  */
 
 export type LightKind = 'lamp' | 'spot' | 'flashlight' | 'window' | 'fire';
@@ -65,45 +60,20 @@ export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z'>> & { x: n
 
 /** Gameplay thresholds for the light meter and perception. */
 export const LIGHT = {
-  /** Below this a body counts as in shadow (meter dark, perception much slower). */
-  shadow: 0.28,
-  /** Above this a body counts as lit. */
-  lit: 0.6,
+  /** Below this a body counts as in shadow (meter dark, perception much slower). 3.6: 0.28 -> 0.25 with the shared
+   *  lamp formula (`lampMath`; the threshold pair that keeps the most Warehouse floor in its 3.5 band). */
+  shadow: 0.25,
+  /** Above this a body counts as lit (3.6: 0.6 -> 0.53, as above). */
+  lit: 0.53,
   /** Player sampling rate (Hz). */
   playerHz: 10,
 } as const;
 
-/** Smooth range falloff: 1 at the light, 0 at (and beyond) the radius. */
-export function falloff(d: number, radius: number): number {
-  if (radius <= 0 || d >= radius) return 0;
-  const k = d / radius;
-  const f = 1 - k * k;
-  return f * f;
-}
-
-/** Cone factor of a light towards a point at offset (vx, vy, vz) of length `d`. */
-export function coneFactor(cone: LightCone | null, vx: number, vy: number, vz: number, d: number): number {
-  if (!cone) return 1;
-  if (d < 1e-6) return 1;
-  const c = (vx * cone.dx + vy * cone.dy + vz * cone.dz) / d;
-  if (c <= cone.cosOuter) return 0;
-  if (c >= cone.cosInner) return 1;
-  const t = (c - cone.cosOuter) / (cone.cosInner - cone.cosOuter);
-  return t * t * (3 - 2 * t);
-}
-
-/** One light's contribution at a point (ignores occlusion). */
+/** One light's contribution at a point (intensity x the lamp formula, `lampMath.ts`; ignores visibility). */
 export function contribution(l: LightDef, x: number, y: number, z: number): number {
   if (!l.on || l.destroyed) return 0;
-  const vx = x - l.x;
-  const vy = y - l.y;
-  const vz = z - l.z;
-  // cheap reject before the square root
-  if (Math.abs(vx) > l.radius || Math.abs(vy) > l.radius || Math.abs(vz) > l.radius) return 0;
-  const d = hyp3(vx, vy, vz);
-  const f = falloff(d, l.radius);
-  if (f <= 0) return 0;
-  return l.intensity * f * coneFactor(l.cone, vx, vy, vz, d);
+  const c = l.cone;
+  return l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
 }
 
 /** Make a cone from a direction and half-angles (rad). */
@@ -168,7 +138,13 @@ export class LightRegistry {
 
   /** Ambient level at a point: the smallest zone containing it, else the global ambient. */
   ambientAt(x: number, y: number, z: number): number {
-    let v = this.ambient;
+    const v = this.zoneAt(x, y, z);
+    return v === v ? v : this.ambient;
+  }
+
+  /** The smallest zone's ambient at a point, NaN outside every zone. */
+  zoneAt(x: number, y: number, z: number): number {
+    let v = Number.NaN;
     let best = Infinity;
     const zs = this.zones;
     for (let i = 0; i < zs.length; i++) {
@@ -254,32 +230,6 @@ export class LightRegistry {
     for (const l of this.lights) if (l.on && !l.destroyed) n++;
     return n;
   }
-}
-
-/** How lit a point is: ambient plus every light's contribution (optionally occluded), clamped 0..1. */
-export function lightLevelAt(reg: LightRegistry, x: number, y: number, z: number, occluded?: Occluder): number {
-  let v = reg.zones.length ? reg.ambientAt(x, y, z) : reg.ambient;
-  const ls = reg.lights;
-  for (let i = 0; i < ls.length; i++) {
-    const l = ls[i]!;
-    const c = contribution(l, x, y, z);
-    if (c <= 0.01) continue;
-    if (occluded && occluded(l, x, y, z)) continue;
-    v += c;
-    if (v >= 1) return 1;
-  }
-  return v < 0 ? 0 : v;
-}
-
-/**
- * How lit a standing or crouched body is: the brighter of the chest and head samples, so a head poking out
- * of a shadow into a lamp's pool shows. `height` is the head height above the feet (crouch lowers it).
- */
-export function bodyLightLevel(reg: LightRegistry, x: number, feetY: number, z: number, height: number, occluded?: Occluder): number {
-  const chest = lightLevelAt(reg, x, feetY + height * 0.6, z, occluded);
-  if (chest >= 1) return 1;
-  const head = lightLevelAt(reg, x, feetY + height * 0.95, z, occluded);
-  return chest > head ? chest : head;
 }
 
 /** Visibility factor for perception from a light level: shadow keeps a body hard to see, never invisible

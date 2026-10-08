@@ -41,11 +41,14 @@ export interface LightBake {
   hi: [number, number, number];
   /** Cache key of the lamp bake; null when the map has no fixed lights. */
   lampKey: string | null;
-  moonKey: string | null;
+  moonKey: string;
   /** The fixed lights as baked (`bakedLights`) and their visibility boxes; null without lights. */
   lamps: { baked: ReturnType<typeof bakedLights>; r: LampResult } | null;
-  moon: MoonGrid | null;
+  moon: MoonGrid;
+  /** The sky fill without the moon's share (zones as authored, the open sky's level less `moonLight`). */
   ambient: AmbientGrid;
+  /** Gameplay level the moon adds where it reaches (`lampMath.moonLight`). */
+  moonLight: number;
   /** Load time of the lamp and moon bakes together (ms; a cache hit reads in a few). */
   ms: number;
 }
@@ -60,6 +63,8 @@ export interface LightBakeInput {
   reg: LightRegistry;
   /** The theme's light travel direction (the moon shines along it). */
   sunDir: readonly [number, number, number];
+  /** The moon's gameplay level (`lampMath.moonLight`); the global ambient gives up this much to it. */
+  moonLight: number;
 }
 
 function hashFloats(a: Float32Array): string {
@@ -69,22 +74,22 @@ function hashFloats(a: Float32Array): string {
 /** Bake everything the light field reads. Needs `reg.ambient` set (the zones are read as they are). */
 export async function bakeLevelLight(inp: LightBakeInput): Promise<LightBake> {
   const t0 = performance.now();
-  const baked = inp.reg.lights.length ? bakedLights(inp.reg) : null;
-  const ambient = buildAmbientGrid(inp.reg, inp.lo, inp.hi);
+  const reg = inp.reg;
+  const baked = reg.lights.length ? bakedLights(reg) : null;
+  // (zones are rooms as authored; the open sky's level splits into the fill and the moon, which the bake shades)
+  const sky = Math.max(0, reg.ambient - inp.moonLight);
+  const ambient = buildAmbientGrid({ ambientAt: (x, y, z) => { const v = reg.zoneAt(x, y, z); return v === v ? v : sky; } }, inp.lo, inp.hi);
+  const l = Math.sqrt(inp.sunDir[0] ** 2 + inp.sunDir[1] ** 2 + inp.sunDir[2] ** 2) || 1;
+  const dir: [number, number, number] = [-inp.sunDir[0] / l, -inp.sunDir[1] / l, -inp.sunDir[2] / l];
+  const moonKey = `moon:${inp.mapId}:${inp.seed}:v${MOON_VERSION}:c${CANON_VERSION}:${inp.shapesHash}:${dir.map((v) => v.toFixed(4)).join(',')}`;
   let lampKey: string | null = null;
-  let moonKey: string | null = null;
   let lamps: LightBake['lamps'] = null;
-  let moon: MoonGrid | null = null;
-  if (baked && baked.ids.length) {
-    lampKey = `lamps:${inp.mapId}:${inp.seed}:v${LAMP_VERSION}:c${CANON_VERSION}:${inp.shapesHash}:${hashFloats(baked.lights)}`;
-    const l = Math.sqrt(inp.sunDir[0] ** 2 + inp.sunDir[1] ** 2 + inp.sunDir[2] ** 2) || 1;
-    const dir: [number, number, number] = [-inp.sunDir[0] / l, -inp.sunDir[1] / l, -inp.sunDir[2] / l];
-    moonKey = `moon:${inp.mapId}:${inp.seed}:v${MOON_VERSION}:c${CANON_VERSION}:${inp.shapesHash}:${dir.map((v) => v.toFixed(4)).join(',')}`;
-    const [r, m] = await Promise.all([bakeLevelLamps(inp.shapes, baked.lights, inp.lo, inp.hi, lampKey), bakeLevelMoon(inp.shapes, inp.lo, inp.hi, dir, moonKey)]);
-    lamps = { baked, r };
-    moon = { origin: [inp.lo[0], inp.lo[1], inp.lo[2]], n: [Math.max(1, Math.ceil((inp.hi[0] - inp.lo[0]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[1] - inp.lo[1]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[2] - inp.lo[2]) / MOON_CELL))], cell: MOON_CELL, vis: m.vis, dir };
-  }
-  return { lo: inp.lo, hi: inp.hi, lampKey, moonKey, lamps, moon, ambient, ms: performance.now() - t0 };
+  const hasLamps = !!baked && baked.ids.length > 0;
+  if (hasLamps) lampKey = `lamps:${inp.mapId}:${inp.seed}:v${LAMP_VERSION}:c${CANON_VERSION}:${inp.shapesHash}:${hashFloats(baked.lights)}`;
+  const [r, m] = await Promise.all([hasLamps ? bakeLevelLamps(inp.shapes, baked.lights, inp.lo, inp.hi, lampKey) : Promise.resolve(null), bakeLevelMoon(inp.shapes, inp.lo, inp.hi, dir, moonKey)]);
+  if (r && baked) lamps = { baked, r };
+  const moon: MoonGrid = { origin: [inp.lo[0], inp.lo[1], inp.lo[2]], n: [Math.max(1, Math.ceil((inp.hi[0] - inp.lo[0]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[1] - inp.lo[1]) / MOON_CELL)), Math.max(1, Math.ceil((inp.hi[2] - inp.lo[2]) / MOON_CELL))], cell: MOON_CELL, vis: m.vis, dir };
+  return { lo: inp.lo, hi: inp.hi, lampKey, moonKey, lamps, moon, ambient, moonLight: inp.moonLight, ms: performance.now() - t0 };
 }
 
 /** A content hash of everything baked (the parity checks compare it across renderers; base 36). */
@@ -94,7 +99,8 @@ export function lightBakeHash(b: LightBake): string {
     h = fnv(new Uint8Array(b.lamps.r.boxes.buffer, b.lamps.r.boxes.byteOffset, b.lamps.r.boxes.byteLength), h);
     h = fnv(b.lamps.r.vis, h);
   }
-  if (b.moon) h = fnv(b.moon.vis, h);
+  h = fnv(b.moon.vis, h);
   h = fnv(b.ambient.data, h);
+  h = fnv(new Uint8Array(new Float32Array([b.moonLight]).buffer), h);
   return h.toString(36);
 }

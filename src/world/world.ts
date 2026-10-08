@@ -41,6 +41,8 @@ import { packShapes } from '../voxel/shapes';
 import { flags } from '../core/flags';
 import { BakedLamps } from './bakedLamps';
 import { bakeLevelLight, lightBakeHash, type LightBake } from './lightBake';
+import { LightField } from './lightField';
+import { moonLight } from './lampMath';
 
 /** Flashlight slots on dark maps (enemies searching / investigating in the dark). */
 export const FLASHLIGHTS = 4;
@@ -110,6 +112,8 @@ export class World {
   readonly lightRig: LightRig;
   /** 3.2: the fixed lights, baked (null: real lights - the `?gfx=min` path, maps without voxels). */
   lamps: BakedLamps | null = null;
+  /** 3.6: gameplay light (`LightField`): the canonical bake + the registry's state + closed doors. */
+  readonly lightField: LightField;
   /** Window glass and duct grates (separate bodies that open). */
   readonly breakables: Breakables;
   /** Hinged doors (collision while closed, armed once the nav grid is built). */
@@ -193,6 +197,8 @@ export class World {
     this.probe = probe;
     this.breakables = new Breakables(scene, level.anchors);
     this.doors = new Doors(scene, level.anchors);
+    // 3.6: the one light function every gameplay light query goes through (closed doors cut lamps)
+    this.lightField = new LightField(lightBake, level.lights, this.doors.list);
   }
 
   static async create(engine: Engine, map: MapDef, opts: WorldOptions): Promise<World> {
@@ -222,7 +228,7 @@ export class World {
     // 3.6 the canonical light bake: the same on every device, preset and tier (the shapes come from the level's own
     // pieces, never from what a renderer draws); gameplay's light field and every renderer read it
     level.lights.ambient = map.theme.lightLevel ?? 0.75;
-    const bake = await bakeLevelLight({ mapId: map.id, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir });
+    const bake = await bakeLevelLight({ mapId: map.id, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
     const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
     // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off)
     if (bake.lamps && vo && level.voxels && !opts.cheap && flags.baked) {

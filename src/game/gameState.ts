@@ -56,7 +56,7 @@ import { GRAB } from './takedown';
 import { TeamController, type TeamMate } from './teamController';
 import type { TeamKind } from './teamMoves';
 import type { Ledge } from '../world/anchors';
-import { bodyLightLevel, LIGHT, type LightDef } from '../world/lights';
+import { LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost } from '../vfx/cinematicPost';
@@ -928,17 +928,26 @@ export class GameState implements AppState {
     this.enemyMgr?.hear(this.player.position, r);
   }
 
-  /** Player light level at `LIGHT.playerHz`; lights blocked by level geometry do not count. */
+  /**
+   * Player light level at `LIGHT.playerHz` from the light field (3.6: the baked lamps, moon and ambient; flashlights
+   * with a ray against the level). The host samples every player the same way: guards read `ref.light` (bible L5).
+   */
   private updateLight(dt: number): void {
     const reg = this.world.level.lights;
     reg.update(dt);
     this.lightT -= dt;
     if (this.lightT > 0) return;
     this.lightT = 1 / LIGHT.playerHz;
+    const f = this.world.lightField;
     const p = this.player.position;
     const h = 1.75 * (1 - 0.35 * this.player.controller.crouchBlend);
-    this.lightLevel = reg.lights.length ? bodyLightLevel(reg, p.x, p.y, p.z, h, this.lightOccluder) : reg.ambientAt(p.x, p.y + h * 0.6, p.z);
+    this.lightLevel = f.bodyLevel(p.x, p.y, p.z, h, this.lightOccluder);
     this.localRef.light = this.lightLevel;
+    const rs = this.remotePlayers();
+    for (let i = 0; i < rs.length; i++) {
+      const r = rs[i]!;
+      r.light = f.bodyLevel(r.feet.x, r.feet.y, r.feet.z, r.crouched ? 1.75 * 0.65 : 1.75, this.lightOccluder);
+    }
   }
 
   private lightFrom = new Vector3();

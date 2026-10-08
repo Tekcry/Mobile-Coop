@@ -3,15 +3,28 @@
 Purpose: the gameplay light registry, desktop baked lamps, the phone light renderer and the lamp light volume.
 Design authority: docs/design-bible.md (Section 5.1)
 
-## Light model (2.0 phase 1)
-- `world/lights.ts` (pure): `LightRegistry` (lights with radius, optional cone, intensity, on / destroyed, switch
-  `group`, `electric` for EMP `disrupt`, `version` bumped on change; `ambient` from `MapTheme.lightLevel`, default
-  0.75 daylight). `lightLevelAt` = ambient + sum of `intensity * falloff * cone`, clamped, optional `Occluder`
-  (only called for lights in range); `bodyLightLevel` = brighter of chest / head; `visibilityFromLight` (0.25 in
-  darkness .. 1); `nearestLights` (allocation-free, for rendering).
-- `GameState.updateLight` samples the player at `LIGHT.playerHz` (10 Hz) with static-geometry occlusion rays
-  (`lightLevel`, `localRef.light`); `Enemy.perceive` stores `targetLight` each think (the ref's sample or the
-  registry at the aim point).
+## Light model (3.6: one light function; Phase 1 Steps 1-2)
+- The canonical bake (`world/lightBake.ts` `bakeLevelLight`, every device): lamp visibility (`voxel/lampBake.ts`),
+  moon visibility (`voxel/skyBake.ts` `bakeMoon`, 0.5 m cells, one ray each) and the 1 m ambient grid
+  (`world/ambientGrid.ts`), all from the canonical shapes (`voxel/lightShapes.ts`: visible blockout pieces >= 5 cm
+  plus the Medium dressing). Keys hold only the map, seed, shapes, lights and the moon's direction.
+- `world/lampMath.ts` (pure): the one formula - linear range falloff x cosine cone (lamps without a cone: the
+  hemisphere below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from
+  `LAMP_MATH_GLSL` and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` is rendering only).
+  `moonLight(theme)`: the moon's gameplay share of `lightLevel` (sun / (ambient + sun)); the open sky's ambient
+  gives that much up to it, zones keep theirs.
+- `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility +
+  the lamps listed for the 2 m column (as the shaders list them) x intensity x formula x trilinear baked visibility,
+  closed doors (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights
+  (flashlights) with the caller's ray; `totalAt`; `bodyLevel` = brighter of chest / head. Allocation-free (private
+  steps write a scratch field; a unit test bounds the bytes per query). Without a bake: registry ambient, every
+  light dynamic.
+- Gameplay reads only the field: `GameState.updateLight` (10 Hz, the local player and, on the host, every remote
+  player's `PlayerRef.light`), `Enemy.perceive` (`ref.light`, else `totalAt` at the aim point), body light
+  (`EnemyManager`, 1 Hz), `Enemy.torchWanted` (static level < `TORCH_DARK` 0.35, kept to `TORCH_KEEP` 0.45).
+- `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`,
+  `ambientAt` / `zoneAt`, `version`); `contribution` calls `lampMath`; `LIGHT` thresholds 0.25 / 0.53 (3.6);
+  `visibilityFromLight`; `nearestLights`; `lightOnRay`.
 - `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of
   `MAX_REAL_LIGHTS` spot lights (lamps = wide downward cone) given to the nearest lights at 4 Hz; quality sets how
   many are lit (`QualityLevel.realLights`). Pool lights are never enabled / disabled (no recompiles); materials
