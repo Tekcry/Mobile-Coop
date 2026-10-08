@@ -60,7 +60,7 @@ import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
 import { SPIKE_EVENT, SpikeLog } from '../core/spikes';
 import { feedbackContext } from '../ui/screens/feedbackScreen';
-import { BENCH, benchFlight, benchResult, benchText, flightAt, FLIGHT, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type Flight, type FlightNav, type P3 as BenchPoint } from './benchmark';
+import { BENCH, benchFlight, benchResult, benchText, flightAt, FLIGHT, SECTION_SECONDS, sectionText, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type Flight, type FlightNav, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
@@ -717,7 +717,7 @@ export class GameState implements AppState {
       const pts = benchFlight(keys, this.flightNav(keys[0]!.y));
       console.info(`benchmark flight: ${pts.length.toFixed(0)} m through ${keys.length} rooms (${(performance.now() - t0).toFixed(0)} ms)`);
       const s = this.opts.benchmark;
-      this.bench = { kind: s.kind, note: s.note ?? `fb-bench-${Date.now().toString(36)}`, started: s.started ?? Date.now(), pts, runs: s.runs, idx: s.idx - 1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [...s.lines], buckets: [], bMs: 0, bN: 0, bT: 0, shaders: 0, rebuild: null, handoff: false, tagT: 0 };
+      this.bench = { kind: s.kind, note: s.note ?? `fb-bench-${Date.now().toString(36)}`, started: s.started ?? Date.now(), pts, runs: s.runs, idx: s.idx - 1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [...s.lines], buckets: [], bMs: 0, bN: 0, bT: 0, sections: [], sMs: 0, sN: 0, sT: 0, shaders: 0, rebuild: null, handoff: false, tagT: 0 };
       this.nextBenchRun(true);
       document.body.classList.add('photo-mode');
       this.app.input.setGameplayActive(false);
@@ -1221,6 +1221,11 @@ export class GameState implements AppState {
     bMs: number;
     bN: number;
     bT: number;
+    /** 3.3.1: fps per `SECTION_SECONDS` of the flight, and the section being summed. */
+    sections: number[];
+    sMs: number;
+    sN: number;
+    sT: number;
     /** Shaders compiled before this run started. */
     shaders: number;
     /** The run's mid-match rebuild, still to do (3.1.4 diagnosis). */
@@ -1244,6 +1249,8 @@ export class GameState implements AppState {
     b.t = 0;
     b.iv = [];
     b.cpu = [];
+    b.sections = [];
+    b.sMs = b.sN = b.sT = 0;
     b.last = 0;
     const run = b.runs[b.idx];
     if (run) {
@@ -1329,6 +1336,16 @@ export class GameState implements AppState {
       if (!b.iv.length) this.spikes.reset();
       b.iv.push(ms);
       b.cpu.push(this.app.loop.stats.frameCpuMs);
+      // (3.3.1: the frame rate per section of the route)
+      if (!run.sustained) {
+        b.sMs += ms;
+        b.sN++;
+        b.sT += real;
+        if (b.sT >= SECTION_SECONDS) {
+          b.sections.push((1000 * b.sN) / b.sMs);
+          b.sMs = b.sN = b.sT = 0;
+        }
+      }
       if (run.sustained) {
         b.bMs += ms;
         b.bN++;
@@ -1386,6 +1403,8 @@ export class GameState implements AppState {
       let line = benchText(r, where, this.shaderCount() - b.shaders);
       // (3.3: what the long frames were)
       line += `; ${this.spikes.summary()}`;
+      if (b.sN) b.sections.push((1000 * b.sN) / b.sMs);
+      if (b.sections.length) line += `; ${sectionText(b.sections)}`;
       if (run.sustained && b.buckets.length >= 2) {
         const d = sustainedDrift(b.buckets);
         line += `; first minute ${b.buckets[0]!.toFixed(0)} fps, last ${b.buckets[b.buckets.length - 1]!.toFixed(0)} fps (${(d * 100).toFixed(1)}%${d < -0.1 ? ', throttling' : ''})`;

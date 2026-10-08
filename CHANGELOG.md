@@ -1,5 +1,18 @@
 # Changelog
 
+## 3.3.1 - Reading the Phone check
+- The first Phone check (iPhone 17 Pro Max): the phone look at 75% averaged 69 fps (median frame 14 ms), at 100% 42;
+  the per-lamp loop 61, the voxel detail 52. The frame rate fell at the end of every run: not the next run loading (it
+  loads only after the run's result is taken) but the route - 20 s at a walk ends where the camera leaves the
+  dead-end office and looks down the corridor into the hall at the first guards (rifles, pouches, a dog, a recon
+  drone, barrels, pickups: ~100 meshes on screen against ~30 before).
+- Each run's line now ends with its frame rate per 2.5 s of the route (`by 2.5 s (7 m): ...`), so a slow stretch shows
+  where it is.
+- The spike log counted nearly every frame of an uncapped run as a spike (14 ms frames against a 120 Hz screen's
+  8.3 ms): a spike is now 1.5x the budget or the typical frame, whichever is longer.
+- The Phone check runs the phone look at 75% again last: the later runs were all ~56 fps whatever they changed
+  (taking bounce light out included), which looks like the phone heating up; the repeat says by how much.
+
 ## 3.3.0 - One phone look
 - Phones have no graphics settings any more: one fixed look built for 60 fps on the iPhone 17 Pro Max. Settings >
   Display keeps the field of view, the FPS overlay, the avatar style, the interface switch and fullscreen.

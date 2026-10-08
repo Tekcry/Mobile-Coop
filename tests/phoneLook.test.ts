@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FULL, Governor, phoneAdaptiveAt } from '../src/core/governor';
 import { levelLabel, PHONE_CUTS, PHONE_FEATURES, PHONE_FLOOR, PHONE_SCALES, PHONE_SHADOW, qualityLevel } from '../src/core/quality';
 import { SPIKE_EVENT, SpikeLog } from '../src/core/spikes';
-import { benchPlan, phoneCheckRuns } from '../src/game/benchmark';
+import { benchPlan, phoneCheckRuns, sectionText } from '../src/game/benchmark';
 import { BOX_STRIDE, LAMP_CELL } from '../src/voxel/lampBake';
 import { lampVolumeGrid, lampVolumeRegion, unionRegion } from '../src/voxel/lampVolume';
 
@@ -94,6 +94,17 @@ describe('spike log (3.3)', () => {
     expect(s.summary()).toContain('gpu 1');
     s.reset();
     expect(s.summary()).toBe('no spikes in 0 frames');
+    // (3.3.1) uncapped on a 120 Hz screen: steady 14 ms frames against an 8.3 ms budget are not spikes; a 40 ms one is
+    for (let i = 0; i < 60; i++) expect(s.frame(14, 8.3, 3, 0)).toBeNull();
+    expect(s.frame(40, 8.3, 3, 0)).toBe('gpu');
+    expect(s.typicalMs).toBeLessThan(16);
+  });
+});
+
+describe('per-section frame rate (3.3.1)', () => {
+  it('prints each section of the route', () => {
+    expect(sectionText([70.2, 68.6, 41.4])).toBe('by 2.5 s (7 m): 70 69 41');
+    expect(sectionText([])).toBe('');
   });
 });
 
@@ -107,5 +118,8 @@ describe('Phone check (3.3)', () => {
     expect(runs.some((r) => r.cuts?.plainVoxels === false)).toBe(true);
     expect(runs.every((r) => r.preset === null && r.seconds === runs[0]!.seconds)).toBe(true);
     expect(new Set(runs.map((r) => r.label)).size).toBe(runs.length);
+    // (3.3.1: the first run again last - the heat check)
+    expect(runs[runs.length - 1]!.scale).toBe(runs[0]!.scale);
+    expect(runs[runs.length - 1]!.cuts ?? runs[runs.length - 1]!.gfx).toBeUndefined();
   });
 });

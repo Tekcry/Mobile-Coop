@@ -93,6 +93,8 @@ export function phoneCheckRuns(): BenchRun[] {
     run('+ light shafts', { gfx: { volumetrics: true, volLights: 6 } }),
     run('+ shadows High (2 moon cascades)', { gfx: { shadows: 'high' } }),
     run('- bounce light', { gfx: { gi: false } }),
+    // (3.3.1: the first run again - a phone heating up through the check slows every later run; this says by how much)
+    run('phone look, 75% again (heat check)'),
   ];
 }
 
@@ -598,6 +600,14 @@ export function benchResult(intervalsMs: readonly number[], cpuMs: readonly numb
   let long = 0;
   for (let i = 0; i < n; i++) if (intervalsMs[i]! > BENCH.longMs) long++;
   return { frames: n, avgFps: (1000 * n) / total, low1Fps: (1000 * k) / worst, p50Ms: pct(0.5), p99Ms: pct(0.99), cpuP95Ms, long };
+}
+
+/** Seconds of flight per section in a run's line (3.3.1: where along the route the frame rate drops). */
+export const SECTION_SECONDS = 2.5;
+
+/** "by 2.5 s (7 m): 70 68 ... 41" - the average fps of each section of the flight after the warm-up. */
+export function sectionText(fps: readonly number[]): string {
+  return fps.length ? `by ${SECTION_SECONDS} s (${Math.round(SECTION_SECONDS * FLIGHT.speed)} m): ${fps.map((f) => Math.round(f)).join(' ')}` : '';
 }
 
 export function benchText(r: BenchResult, where: string, shaders = -1): string {

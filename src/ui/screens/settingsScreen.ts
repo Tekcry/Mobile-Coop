@@ -281,7 +281,7 @@ export class SettingsScreen extends Screen {
       ),
       section(
         'Phone check',
-        h('div', { class: 'row-note', text: 'Eight 20 s flights through the Warehouse: the phone look at 75% and at 100%, then with each cut put back. Saved as feedback - send it so the phone look can be set from it.' }),
+        h('div', { class: 'row-note', text: 'Nine 20 s flights through the Warehouse: the phone look at 75% and at 100%, then with each cut put back, then the first again (has the phone slowed as it warmed?). Saved as feedback - send it so the phone look can be set from it.' }),
         button('Run the Phone check', () => app.benchmark?.('phone'), { icon: 'monitor' }),
       ),
     );

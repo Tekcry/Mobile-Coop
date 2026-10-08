@@ -548,12 +548,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   visibility; no N.L) at load and over the union of changed lamps' regions on a registry change (`remixes`; a mix
   waiting on its shader retries). `LampPlugin` `LAMP_VOLUME`: two taps, N.L against the direction (wrapped by how
   spread the light is), capsule shadows from `VOL_CAPS` 4 nearest characters along it (`lampCaps` uniform array).
-- Spike log (`core/spikes.ts` pure `SpikeLog`): frames over `SPIKE.over` x the budget tagged shaders / lamps / lod /
+- Spike log (`core/spikes.ts` pure `SpikeLog`): frames over `SPIKE.over` x the budget or the typical frame (3.3.1:
+  `typicalMs`, an exponential average) tagged shaders / lamps / lod /
   governor (event bits from the frame and the one before) else cpu / gpu; `GameState.trackSpikes` per render frame
   (`VoxelWorld.lodSwaps`, `BakedLamps.remixes`, the engine's compiled effects, the governor level); benchmark lines end
   with the run's summary, `feedbackContext().spikes`.
-- Phone check (`benchPlan('phone')` = `phoneCheckRuns`): eight `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
-  voxel detail, bloom, shafts, High shadows put back, GI out (`BenchRun.cuts` -> `QualityOverride.cuts`).
+- Phone check (`benchPlan('phone')` = `phoneCheckRuns`): nine `FEATURE_SECONDS` runs - 75%, 100%, then the exact lamps,
+  voxel detail, bloom, shafts, High shadows put back, GI out, then 75% again (heat check) (`BenchRun.cuts` ->
+  `QualityOverride.cuts`). 3.3.1: every non-sustained run line ends with `sectionText` - fps per `SECTION_SECONDS` 2.5 s
+  of the route (a 20 s run ends at the long view down the corridor at the first guards: ~100 meshes against ~30).
 
 ## Corners and doorways
 - `cover/corners.ts` (pure): `findDoorways` (0.7-1.8 m gaps between collinear high faces), `outsideCorners`,

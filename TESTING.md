@@ -310,6 +310,8 @@ Controls:
   shadow rebuild). Ultra closed the tab on run 2, High a few runs in (two matches in memory while loading).
 - [ ] 3.1.7: Feature costs on the phone at High and Ultra: no crash report; play several matches in a row (quit to
   the menu, play again): no crash, no slowdown building up.
+- [ ] 3.3.1 iPhone: run the Phone check again; each line ends with fps per 2.5 s of the route; the last run (the
+  first again) shows how much the phone slowed as it warmed.
 - [ ] 3.3.0 iPhone: Settings shows Display (no graphics options); a match holds 60 (FPS overlay) at 75% or more;
   Settings > Display > Phone check runs eight flights and saves one note - send it.
 - [ ] 3.3.0 iPhone: lamps look as before (switch a circuit off and on, shoot a lamp, EMP: the light goes and comes
