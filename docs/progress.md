@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | not started | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | in progress (Step 1 done, awaiting review) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -172,6 +172,47 @@ See the Step 1 and Step 5 reports.
 - `e2e-park` covers the legacy-off lobby and Loadout; the legacy-off results screen (no rewards panel) is covered only through `e2e-missions` (no style bars).
 - `src/save/migrations.ts` error text still names Silent But Deadly (left alone on purpose).
 - `docs/story.md` Section 9 and bible Section 11 list the still-open decisions for Michael.
+
+## Phase 1 log
+
+#### Step 1 report (a canonical bake on every device) - 2026-10-08
+- Done:
+  - Canonical shapes: `voxel/lightShapes.ts` builds them from the level's own boxes and cylinders (visible, at least 5 cm thick) plus the Medium box dressing, whatever the renderer, preset or tier. `BuiltLevel.light` holds them packed with bounds (whole metres) and a hash.
+  - Bake everywhere: `world/lightBake.ts` `bakeLevelLight` runs the lamp bake, the moon bake and the ambient grid in `World.create` on every device (phone look, `?gfx=min`, `?voxels=0`, every preset) when the map has lights. `bakedLights` moved there (re-exported from `bakedLamps.ts`).
+  - Moon: `bakeMoon` in `voxel/skyBake.ts` (0.5 m cells, one ray per cell through 0.25 m conservative occupancy, solid cells take their brightest air neighbour). Worker job `moon`, cached (`moon:` keys, `bakeLevelMoon`).
+  - Ambient grid: `world/ambientGrid.ts`, 1 m cells, one byte each, from `LightRegistry.zones`; nearest-cell lookup.
+  - The keys (`lampKey`, `moonKey`) hold only the map, seed, canonical shapes hash, lights and the moon direction. `World.lightInfo()` exposes them and a content hash for tests.
+  - Renderers unchanged: the desktop voxel path draws `BakedLamps` from the canonical bake; the phone look bakes but still draws its six plain lights (Step 4).
+  - Doors: leaves are `Door` anchors, not level boxes, so they are already outside the shapes (Decision 7). Nothing to change.
+- Files changed: `src/voxel/lightShapes.ts` (new), `src/voxel/skyBake.ts`, `src/voxel/lampJobs.ts`, `src/voxel/workerPool.ts`, `src/voxel/voxelWorker.ts`, `src/world/lightBake.ts` (new), `src/world/ambientGrid.ts` (new), `src/world/world.ts`, `src/world/levelBuilder.ts`, `src/world/bakedLamps.ts`, `tests/lampBake.test.ts`, `tests/lightField.test.ts` (new), `scripts/e2e-lightbake.mjs` (new), `scripts/run-e2e.mjs`, `docs/systems/testing-tools.md`, `docs/prompts/phase-1-sheets/` (contact sheets).
+- Decisions:
+  - Thickness floor 5 cm (`CANON_MIN_THICK`): the bake grows every shape by half a cell (10 cm) anyway, so thinner pieces (skirting, decals, wire) only add noise. 5 cm is the finest structure voxel size.
+  - Dressing tier: Medium (the phone look's). `detailPieces` gives dressing at every tier but High, so the canonical set drops the pieces `build()` added for the tier and regenerates them at Medium.
+  - Moon occupancy is 0.25 m, finer than its 0.5 m cells, so a thin pole or rail still shades the cells whose ray passes it. A one-ray cell cannot shade a pole narrower than its offset from the cell centre; Step 2's trilinear read softens it.
+  - The moon bake runs on its own single-worker pool next to the lamp pool, so the two bakes overlap.
+  - The ambient grid is built after `reg.ambient` is set; `World.create` now sets it before the bake (the constructor still sets it, same value).
+  - Desktop drawing of baked lamps still needs voxels and `!cheap` (as before); only the bake data moved to every device.
+- Dropped objects (STOP rule: larger than 0.3 m in two dimensions):
+  - Warehouse art-layer extras (voxel-only dressing, not in the canonical set): 31 fill shapes, of which 6 exceed 0.3 m in two dimensions: wall plates 0.1 x 0.55 x 0.4 m at (-4.33, 1.6, 0.1), (-4.33, 1.6, 10.1), (-3.67, 1.6, 16.1), (6.33, 1.6, -13.9), (5.67, 1.6, -13.9), (2.33, 1.6, 13.0). They are 10 cm deep and flush to walls; with the half-cell growth they shaded at most 10 cm of wall. **Needs Michael's / Opus's call** (spec: STOP-and-report).
+  - Thinner than 5 cm (visible boxes): Warehouse 54, Proving Grounds 50. Five Warehouse ones are large and flat: a 48 x 0.04 x 36 m floor overlay at y 0, two 1.6 / 1.4 x 0.9 x 0.04 m window panes (-1, 1.6, -11.18) and (-3, 1.6, 12.17), and two 0.04 x 0.6 m panes at (2.62, 1.85, -22.5) and (21.78, 1.55, -22.9). The old bake counted them as blockers (fine layer, grown 10 cm), so a lamp or the moon no longer stops at a window pane. Judged correct for glass; the floors are separate 0.4 m slabs. **Flagged for the review.**
+  - Fine-layer props and the art layer's paint: not in the bake before either (paint never blocks); fine props came from the same blockout boxes, so the canonical set covers them.
+- Tests:
+  - `npm run lint`: clean.
+  - `npx vitest run`: 62 files, 609 tests pass (new: ambient grid 3, moon bake 4, bake hash 1, canonical shapes 3).
+  - `npm run build`: OK.
+  - `node scripts/e2e-lightbake.mjs` (Warehouse under `?gfx=min`, the phone look, `?gfx=low`, `?gfx=epic`): all 4 boot with 0 console errors; shapes `gdv5dj`, lamp key, moon key and data hash `16foi8b` identical in all four.
+  - Not run yet: the full `npm run e2e` (end of phase, Step 9) and the other suites; only `e2e-lightbake` and the four boots above.
+- Measurements:
+  - Bake (Warehouse, 18 lamps, 4.1 MB of lamp visibility, 232,960 moon cells): node single thread, lamps 3.5 s, moon 0.06 s; headless Chromium with workers (fresh profile, no cache): 2.4 s (`?gfx=min`), 2.6 s (phone emulation), 2.6 s (`?gfx=low`), 2.4 s (`?gfx=epic`).
+  - Every Warehouse boot on the test path now pays about 2.4 s it did not before (no cache in a fresh e2e profile). Proving Grounds has no lights: no bake.
+  - iPhone cold bake: not measured (Michael, end of Step 4). If over 4 s, the proposal is a build-time bake (`npm run bake`, compressed per map, keyed by content hash). Not built.
+  - Perf budgets: not run in this step (no per-frame code changed).
+- Contact sheets (Epic, headless software GL, same six views old / new; old left, new right): `docs/prompts/phase-1-sheets/step1-{corridor,hall,west,yard,south,rack}.jpg`. Old = `a78293f`, new = this step. All six look the same: lamp pools, window and doorway light, the yard spot and the rack bays match. Differences are the animated operator and guard poses, and a few small dark specks on the wall in `south` (new) that I did not trace; they look like per-run effect noise, not light. Not a blocker; worth a look in the review.
+- Open issues:
+  - The two flags above (6 wall plates, window panes and thin overlays).
+  - Bake time on the iPhone unknown. The bake cache is per browser profile, so first load pays the full cost.
+  - Phone look is still six unshadowed lights until Step 4.
+- Next: STOP for the Opus review. Then Step 2 (one light function for all gameplay).
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
