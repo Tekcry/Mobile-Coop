@@ -503,8 +503,12 @@ class LampVolume {
 const LAMP_GLSL = `${LAMP_MATH_GLSL}
 uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
+#ifdef LAMP_MOON
 uniform highp sampler3D lampMoon;
+#endif
+#ifdef LAMP_FILL
 uniform highp sampler3D lampAmb;
+#endif
 vec4 lampTexel(int k) {
   int w = int(lampInfo.x);
   return texelFetch(lampData, ivec2(k - (k / w) * w, k / w), 0);
@@ -548,7 +552,7 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false });
     this._enable(true);
   }
 
@@ -563,6 +567,9 @@ export class LampPlugin extends MaterialPluginBase {
   override prepareDefines(defines: MaterialDefines, _scene: Scene, mesh: AbstractMesh): void {
     defines.BAKED_LAMPS = !!mesh;
     defines.LAMP_VOLUME = !!mesh && !!this.lamps.volume;
+    // (only the textures that exist: an unbound sampler3D falls on a 2D texture's unit, a draw error)
+    defines.LAMP_MOON = !!mesh && !!this.lamps.moonTex;
+    defines.LAMP_FILL = !!mesh && !!this.lamps.fillTex;
   }
 
   override getSamplers(samplers: string[]): void {
@@ -639,7 +646,11 @@ uniform highp sampler3D lampVolB;
       // surface; its cascades hold only moving casters (\`World\`)
       CUSTOM_FRAGMENT_BEFORE_LIGHTS: `
 #ifdef BAKED_LAMPS
-float nsMoon = lampMore.y > 0.5 ? nsGrid(lampMoon, vPositionW + normalize(vNormalW) * lampMoonO.w * 0.5, lampMoonO, lampMoonN) : 1.0;
+#ifdef LAMP_MOON
+float nsMoon = nsGrid(lampMoon, vPositionW + normalize(vNormalW) * lampMoonO.w * 0.5, lampMoonO, lampMoonN);
+#else
+float nsMoon = 1.0;
+#endif
 #endif`,
       '!#define CUSTOM_LIGHT(\\d+)_COLOR': `#ifdef BAKED_LAMPS
 #ifdef DIRLIGHT$1
@@ -650,7 +661,9 @@ diffuse$1.rgb *= nsMoon;
       CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION: `
 #ifdef BAKED_LAMPS
 // 3.6 (\`?fill=grid\`): the ambient grid as the fill, at the lamps' scale
-if (lampMore.z > 0.5) finalDiffuse += nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN) * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb;
+#ifdef LAMP_FILL
+finalDiffuse += nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN) * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb;
+#endif
 #ifdef LAMP_VOLUME
 {
   // 3.3 phones: the lamps pre-mixed - their light and the direction it comes from, two taps
