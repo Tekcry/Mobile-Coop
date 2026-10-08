@@ -16,6 +16,9 @@ export const BENCH = {
   bucket: 60,
   /** Camera height over each room's floor (m). */
   height: 2.2,
+  /** 3.2.3: the flight stays this far over whatever solid is below it (m), and under this height (the roof). */
+  clearance: 1.6,
+  ceiling: 5.6,
   /** A frame longer than this is a hitch (counted per run). */
   longMs: 50,
 };
@@ -135,6 +138,24 @@ export function pathAt(pts: readonly P3[], t: number, out: P3 = { x: 0, y: 0, z:
   out.x = cr(p0.x, p1.x, p2.x, p3.x);
   out.y = cr(p0.y, p1.y, p2.y, p3.y);
   out.z = cr(p0.z, p1.z, p2.z, p3.z);
+  return out;
+}
+
+/**
+ * Pure (3.2.3): the flight through the key points sampled `per` points a segment, each lifted to `BENCH.clearance` over
+ * the solid top below it (`floorTop`; -inf: nothing) and kept under `BENCH.ceiling` - the camera never flies inside a
+ * deck or a block.
+ */
+export function benchClear(keys: readonly P3[], floorTop: (x: number, z: number) => number, per = 12): P3[] {
+  const n = Math.max(1, keys.length);
+  const out: P3[] = [];
+  const q: P3 = { x: 0, y: 0, z: 0 };
+  for (let i = 0; i < n * per; i++) {
+    pathAt(keys, i / (n * per), q);
+    const top = floorTop(q.x, q.z);
+    const y = Math.min(BENCH.ceiling, Math.max(q.y, top + BENCH.clearance));
+    out.push({ x: q.x, y, z: q.z });
+  }
   return out;
 }
 

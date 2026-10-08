@@ -59,7 +59,7 @@ import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
 import { feedbackContext } from '../ui/screens/feedbackScreen';
-import { BENCH, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type P3 as BenchPoint } from './benchmark';
+import { BENCH, benchClear, benchResult, benchText, pathAt, sustainedDrift, type BenchKind, type BenchRun, type BenchSession, type P3 as BenchPoint } from './benchmark';
 import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
@@ -702,11 +702,15 @@ export class GameState implements AppState {
     if (this.opts.benchmark) {
       // the flight: every room's middle at camera height (the spawn when a map has no rooms)
       const rooms = this.world.layout.rooms ?? [];
-      const pts: BenchPoint[] = rooms.map((r) => ({ x: (r.minX + r.maxX) / 2, y: (r.minY ?? 0) + BENCH.height, z: (r.minZ + r.maxZ) / 2 }));
-      if (pts.length < 2) {
+      const keys: BenchPoint[] = rooms.map((r) => ({ x: (r.minX + r.maxX) / 2, y: (r.minY ?? 0) + BENCH.height, z: (r.minZ + r.maxZ) / 2 }));
+      if (keys.length < 2) {
         const s0 = this.world.layout.playerSpawns[0]!.pos;
-        pts.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
+        keys.push({ x: s0.x, y: s0.y + BENCH.height, z: s0.z }, { x: s0.x + 10, y: s0.y + BENCH.height, z: s0.z + 10 });
       }
+      // (3.2.3: never inside the level - the Mezzanine room's middle put the camera in the block under its deck: the
+      // phone's frame rate fell through the floor there. The curve sampled densely, each point at least
+      // `BENCH.clearance` over the solid surface below it, under the roof)
+      const pts = benchClear(keys, (x, z) => this.floorTop(x, z));
       const s = this.opts.benchmark;
       this.bench = { kind: s.kind, note: s.note ?? `fb-bench-${Date.now().toString(36)}`, started: s.started ?? Date.now(), pts, runs: s.runs, idx: s.idx - 1, t: 0, iv: [], cpu: [], last: 0, done: false, lines: [...s.lines], buckets: [], bMs: 0, bN: 0, bT: 0, shaders: 0, rebuild: null, handoff: false, tagT: 0 };
       this.nextBenchRun(true);
@@ -910,6 +914,16 @@ export class GameState implements AppState {
   private lightFrom = new Vector3();
   private lightTo = new Vector3();
   private lightRay = new PhysicsRaycastResult();
+  private readonly floorFrom = new Vector3();
+  private readonly floorTo = new Vector3();
+  /** The top of the solid level under (x, z) from below the roof (the roof is visual only), or -inf. */
+  private floorTop(x: number, z: number): number {
+    this.floorFrom.set(x, BENCH.ceiling, z);
+    this.floorTo.set(x, -2, z);
+    this.lightRay.reset();
+    (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.floorFrom, this.floorTo, this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
+    return this.lightRay.hasHit ? this.lightRay.hitPointWorld.y : -Infinity;
+  }
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);

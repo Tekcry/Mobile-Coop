@@ -949,7 +949,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Benchmark (3.0, `game/benchmark.ts` pure: `BENCH`, `benchPlan(kind, w, h)`, `benchResult`, `sustainedDrift`):
   Settings > Graphics > Benchmark -> `app.benchmark(kind)` -> a Clear match on the Warehouse with `opts.benchmark`;
   `GameState` flies the camera through the room centres (`pathAt`, Catmull-Rom), guards passive, one flight per run
-  (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
+  (3.2.3: `benchClear` samples the room-centre curve densely, each point `BENCH.clearance` over the solid below it
+  (`GameState.floorTop`, a ray from `BENCH.ceiling`) - never inside the level) (`current`, `presets` (3.1: Low .. Epic, phones Low .. Ultra), `features` (3.1.2: `featureRuns(current features)`:
   the settings, then one costly feature off / down per run, `FEATURE_SECONDS` 20; `BenchRun.gfx` ->
   `QualityManager.setOverride({ gfx })`; 3.1.4: then two diagnosis runs, `rebuild` 'post' / 'shadows' mid-match; 3.2: a 'render scale 75%' run second
   (`benchPlan(.., scale)`: GPU bound or not), 'anti-aliasing FXAA' and 'detail Medium' runs;
@@ -973,7 +974,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - Materials (3.0): `world/surfaceAtlas.ts` `SurfaceAtlas` - two GPU `ProceduralTexture` atlases (4 x 4 tiles, periodic
   GLSL: `detail` rgb albedo variation + a roughness, `normal` rg normal + b height + a cavity) for `SURFACE_KINDS`
   (`SURFACE_PARAMS`: metres per tile, metallic, bump); drawn once, `setSize` by the Textures tier (`TEXTURE_SIZE`
-  per tile, `TEXTURE_ANISO`; 256 for `?gfx=min`). `world/surfacePlugin.ts` `SurfacePlugin` (PBR plugin): triplanar
+  per tile, `TEXTURE_ANISO`; 256 for `?gfx=min`; 3.2.3: always re-made on `World.applyQuality`'s first call - the one
+  made while the map loads draws empty). `world/surfacePlugin.ts` `SurfacePlugin` (PBR plugin): triplanar
   `textureGrad` taps in world space (level: per-instance `surf`) or object space (parts: `pattern.z`), albedo x
   detail x cavity, `metallicRoughness`, a UDN normal blend (world space). `world/surfaceKinds.ts` (pure)
   `pieceKind` / `floorKind` / `hsv`: floors by the footstep surface, else by colour; `partSurface` (weapons
@@ -1157,6 +1159,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   `queryObjects` after a GC - release the object group, or the probe itself keeps them alive).
 - `App` isolates state updates: an exception in `fixedUpdate`/`frameUpdate` is logged (rate-limited) and toasted
   once; input polling and menus keep running. `GameState` ignores updates after `exit()` (quit can happen mid-tick).
+- 3.2.3: `App` resizes the engine only once a resize settles (`RESIZE_SETTLE_MS` 250): a phone turning fires several
+  in-between sizes, each re-making every full-resolution target.
 - Backgrounding (`visibilitychange`/`pagehide`): flush the save, suspend audio, pause single player (co-op opens
   the menu without pausing).
 - `SaveManager.readOnly`: if the stored profile cannot be read (newer version, corrupt), play continues on an

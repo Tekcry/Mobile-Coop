@@ -1,5 +1,15 @@
 # Changelog
 
+## 3.2.3 - Low's floors, the benchmark flight, turning the phone
+- Low drew floors and crate tops as flat haze ("no floor"): the surface atlas made while the map loads came out empty,
+  and every preset but Low replaced it when its size changed - Low's size (256) never did. It is always drawn anew
+  on the first graphics apply.
+- The benchmark flight went through the solid block under the mezzanine deck (the Mezzanine room's middle at 2.2 m)
+  and the frame rate fell through the floor there: the flight is sampled densely and every point kept 1.6 m over
+  whatever solid is below it, under the roof.
+- Turning the phone mid-match fired several resizes with in-between sizes, each re-making every full-resolution
+  target; at Ultra the memory spike closed the tab. The engine now resizes once the size has settled (250 ms).
+
 ## 3.2.2 - Phone memory and per-pixel cost
 - The iPhone (3.2.0 benchmark) is GPU bound - frame time follows the pixel count (Medium 33 fps native, 54 at 75%;
   the "main thread" figure falls with resolution: it is waiting on the GPU) - and Ultra ran out of memory on its

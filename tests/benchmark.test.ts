@@ -76,3 +76,23 @@ describe('feature costs (3.1.1)', () => {
     expect(benchText(benchResult([16, 16]), 'x', 3)).toContain('3 shaders compiled');
   });
 });
+
+describe('the flight stays out of the level (3.2.3)', () => {
+  it('lifts every point over the solid below it and keeps it under the roof', async () => {
+    const { benchClear, BENCH } = await import('../src/game/benchmark');
+    const keys = [
+      { x: 0, y: BENCH.height, z: 0 },
+      { x: 10, y: BENCH.height, z: 0 },
+      { x: 10, y: BENCH.height, z: 10 },
+    ];
+    // a 2.6 m block (the deck under the mezzanine) over x 4..8; a tall rack near x 10, z 5
+    const top = (x: number, z: number): number => (x > 4 && x < 8 && Math.abs(z) < 1 ? 2.6 : x > 9 && Math.abs(z - 5) < 1 ? 5 : 0);
+    const pts = benchClear(keys, top);
+    expect(pts.length).toBe(36);
+    for (const p of pts) {
+      expect(p.y).toBeGreaterThanOrEqual(Math.min(BENCH.ceiling, top(p.x, p.z) + BENCH.clearance) - 1e-9);
+      expect(p.y).toBeLessThanOrEqual(BENCH.ceiling);
+    }
+    expect(pts.some((p) => p.x > 4 && p.x < 8 && p.y >= 2.6 + BENCH.clearance - 1e-9)).toBe(true);
+  });
+});

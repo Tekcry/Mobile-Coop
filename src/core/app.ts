@@ -42,6 +42,9 @@ export interface AppState {
 }
 
 /** Service container shared by every state and screen. */
+/** Resizes wait this long for the size to settle (ms). */
+const RESIZE_SETTLE_MS = 250;
+
 export class App {
   /** Rebuild previews when the avatar style changes (set by the menu). */
   onAvatarStyle: (() => void) | null = null;
@@ -132,11 +135,18 @@ export class App {
     // Backgrounding (home button, app switch, screen lock): save now, silence audio, pause single player.
     document.addEventListener('visibilitychange', () => this.onVisibility(document.hidden));
     window.addEventListener('pagehide', () => void this.save.flush());
-    window.addEventListener('resize', () => {
-      this.engine.resize();
-      this.applyPlatform();
-    });
-    window.addEventListener('orientationchange', () => setTimeout(() => this.engine.resize(), 200));
+    // (3.2.3: once the size settles - turning the phone fires several resizes with in-between sizes, and each one
+    // re-made every full-resolution target: at Ultra the memory spike closed the tab)
+    let resizeT = 0;
+    const settle = (): void => {
+      window.clearTimeout(resizeT);
+      resizeT = window.setTimeout(() => {
+        this.engine.resize();
+        this.applyPlatform();
+      }, RESIZE_SETTLE_MS);
+    };
+    window.addEventListener('resize', settle);
+    window.addEventListener('orientationchange', settle);
   }
 
   private audioWasRunning = false;

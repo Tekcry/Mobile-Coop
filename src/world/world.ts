@@ -396,7 +396,11 @@ export class World {
   /** Graphics settings: the light pools, lamp / flashlight shadows, the sun's cascades, the surface textures. */
   /** `rebuildShadows`: new shadow generators even with the same settings (3.1.4 benchmark diagnosis). */
   applyQuality(q: QualityLevel, rebuildShadows = false): void {
-    if (this.surfaces?.setSize(q.minimal ? 256 : TEXTURE_SIZE[q.features.textures], q.minimal ? 4 : TEXTURE_ANISO[q.features.textures])) {
+    // (3.2.3: always drawn anew on the first apply - the atlas made while the map loads came out empty, and at Low the
+    // size never changed, so the floors and crate tops drew as flat haze)
+    const first = !this.atlasDrawn;
+    this.atlasDrawn = true;
+    if (this.surfaces?.setSize(q.minimal ? 256 : TEXTURE_SIZE[q.features.textures], q.minimal ? 4 : TEXTURE_ANISO[q.features.textures], first)) {
       // (the level material is frozen: re-bind the new atlas)
       const m = this.level.meshes[0]?.material;
       if (m) {
@@ -431,6 +435,7 @@ export class World {
   }
 
   private shadowKey = '';
+  private atlasDrawn = false;
 
   /**
    * Frozen materials re-read their whole setup (lights, shadow maps, the post stack's image processing) for two frames,
