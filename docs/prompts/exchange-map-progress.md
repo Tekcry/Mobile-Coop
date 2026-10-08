@@ -4,8 +4,8 @@ Branch: `feature/exchange-map` (from `ct-movement`) | Last updated: 2026-10-08
 
 ## Paused (2026-10-08)
 - Phase 2 is done (87fc0a7) and was awaiting Michael's approval. That approval is deferred.
-- The map is paused for roadmap Phases 0-3 (`docs/design-bible.md` Section 10). No map code is built until roadmap
-  Phase 3 is done.
+- The map is paused for roadmap Phases 0-3b (`docs/design-bible.md` Section 10). No map code is built until roadmap
+  Phase 3b is done (movement metrics frozen; the map's geometry is sized to them).
 - Next map step: `docs/prompts/exchange-alignment.md` (map Phase 2b, documents only), when Michael says "start the
   Exchange alignment pass". Then map Phase 3.
 - Open items carried over:
