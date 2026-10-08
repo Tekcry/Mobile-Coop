@@ -28,6 +28,14 @@ export function owns(s: SaveData, id: string): boolean {
   return s.unlocks.includes(id);
 }
 
+/** 3.5: what the campaign opens without buying (weapons and attachments; `core/legacy.ts` `campaignUnlocked`). Nothing is written to the save. */
+export const campaignOpens = (id: string): boolean => id.startsWith('weapon:') || id.startsWith('att:');
+
+/** `owns`, or opened by the campaign. */
+export function ownsOrOpen(s: SaveData, id: string, campaign: boolean): boolean {
+  return s.unlocks.includes(id) || (campaign && campaignOpens(id));
+}
+
 /** Grant every unlock whose requirements are met and price is 0. Returns what was granted. */
 export function autoGrant(s: SaveData): UnlockItem[] {
   const ctx = unlockContext(s);
@@ -158,8 +166,8 @@ export function buyUpgrade(s: SaveData, w: WeaponId, track: UpgradeTrack): { ok:
   return { ok: true };
 }
 
-export function setAttachment(s: SaveData, w: WeaponId, attId: string, on: boolean): boolean {
-  if (on && !owns(s, `att:${attId}`)) return false;
+export function setAttachment(s: SaveData, w: WeaponId, attId: string, on: boolean, campaign = false): boolean {
+  if (on && !ownsOrOpen(s, `att:${attId}`, campaign)) return false;
   const cur = s.weapons[w].attachments.filter((a) => a !== attId);
   const next = on ? [attId, ...cur] : cur;
   s.weapons[w].attachments = sanitizeAttachments(w, next);
@@ -203,18 +211,18 @@ export function savePreset(s: SaveData, i: number, gadget?: string): boolean {
 }
 
 /** Use preset `i`: its weapons become the loadout (if still owned). */
-export function applyPreset(s: SaveData, i: number): boolean {
+export function applyPreset(s: SaveData, i: number, campaign = false): boolean {
   const p = s.presets[i];
   if (!p) return false;
-  const ok = (w: string): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w) && owns(s, `weapon:${w}`);
+  const ok = (w: string): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w) && ownsOrOpen(s, `weapon:${w}`, campaign);
   if (ok(p.primary)) s.loadout.primary = p.primary;
   if (ok(p.secondary) && p.secondary !== s.loadout.primary) s.loadout.secondary = p.secondary;
   s.preset = i;
   return true;
 }
 
-export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: WeaponId): boolean {
-  if (!owns(s, `weapon:${w}`)) return false;
+export function setLoadout(s: SaveData, slot: 'primary' | 'secondary', w: WeaponId, campaign = false): boolean {
+  if (!ownsOrOpen(s, `weapon:${w}`, campaign)) return false;
   const other = slot === 'primary' ? 'secondary' : 'primary';
   if (s.loadout[other] === w) s.loadout[other] = s.loadout[slot];
   s.loadout[slot] = w;

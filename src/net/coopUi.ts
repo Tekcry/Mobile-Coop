@@ -2,6 +2,7 @@ import type { App } from '../core/app';
 import type { WeatherChoice } from '../world/mapDef';
 import type { GameOptions, SessionCallbacks } from '../game/gameState';
 import { flags } from '../core/flags';
+import { isParkedMode, visibleModes } from '../core/legacy';
 import { h } from '../ui/dom';
 import { Screen } from '../ui/screen';
 import type { Hint } from '../ui/prompts';
@@ -255,6 +256,12 @@ const MODE_OPTS: { value: NetMode; label: string }[] = [
   { value: 'tdm', label: 'Team Deathmatch' },
   { value: 'ffa', label: 'Free-for-all' },
 ];
+/** 3.5: Infiltration and Free Roam; Wave, Hunter, Team Deathmatch and Free-for-all only with `?legacy=1` (the mode already set stays listed). */
+function lobbyModes(current: NetMode): typeof MODE_OPTS {
+  const shown = visibleModes(MODE_OPTS, flags.legacy);
+  const cur = MODE_OPTS.find((m) => m.value === current);
+  return cur && !shown.includes(cur) ? [...shown, cur] : shown;
+}
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
 const MISSION_OPTS = MISSIONS.map((m) => ({ value: m.id, label: m.name }));
 const DIFF_OPTS: { value: Difficulty; label: string }[] = DIFFICULTIES.map((d) => ({ value: d, label: DIFFICULTY[d].label }));
@@ -367,7 +374,7 @@ class LobbyScreen extends Screen {
       if (idx >= 0) this.c.app.nav.setRoot(this.el, el ?? null);
     };
     this.opts.replaceChildren(
-      choice('Mode', MODE_OPTS, () => s.mode, (v) => set(v, s.map, s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '')),
+      choice('Mode', lobbyModes(s.mode), () => s.mode, (v) => set(v, s.map, s.difficulty, v === 'infiltration' ? (s.mission || MISSIONS[0]!.id) : '')),
       infil
         ? choice('Mission', MISSION_OPTS, () => s.mission, (v) => set(s.mode, missionById(v)?.map ?? s.map, s.difficulty, v))
         : choice('Map', maps.map((m) => ({ value: m.id, label: m.name })), () => s.map, (v) => set(s.mode, v, s.difficulty)),
@@ -422,7 +429,7 @@ class LobbyScreen extends Screen {
     const link = shareLink(this.c.session.code);
     const nav = navigator as Navigator & { share?: (d: { title: string; url: string }) => Promise<void> };
     try {
-      if (nav.share) await nav.share({ title: 'Silent But Deadly co-op', url: link });
+      if (nav.share) await nav.share({ title: 'Night Shift co-op', url: link });
       else {
         await navigator.clipboard.writeText(link);
         this.c.app.toasts.show('Invite link copied', 'ok');
@@ -483,6 +490,11 @@ async function connect(app: App, api: CoopApi, code: string, role: 'host' | 'cli
   }
   if (app.screens.top === wait) app.screens.pop();
   const session = new NetSession(transport, role, code, api.profile());
+  // (3.5: a new room starts on Infiltration, not the parked Wave Survival)
+  if (role === 'host' && !flags.legacy && isParkedMode(session.mode)) {
+    const m = MISSIONS[0]!;
+    session.setSettings('infiltration', m.map, session.difficulty, m.id);
+  }
   const c = new CoopController(app, api, session);
   current = c;
   (window as unknown as { __coop?: CoopController }).__coop = c;

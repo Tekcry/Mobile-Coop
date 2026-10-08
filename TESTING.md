@@ -5,6 +5,22 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## 3.5.0 manual check - Night Shift foundation (iPhone at the /ct/ preview, desktop, two devices)
+On the iPhone, at the `/ct/` preview:
+- [ ] The app and menu are titled Night Shift. The installed home-screen app may keep its old name until it is re-added.
+- [ ] The Play menu shows only Infiltration, Training and Free Roam (Infiltration first).
+- [ ] Free Roam on the Warehouse and the Proving Grounds loads and runs smoothly.
+- [ ] The CT moves work by touch: split jump (including jumping out of it), wall jump, rappel, pipes, the speed rocker.
+- [ ] Settings > Display > Phone check. Run it and send the feedback note.
+- [ ] The Loadout screen shows weapons, attachments, gadget and presets only; everything is selectable (try the sniper), and the choice is still there after closing and reopening the app.
+- [ ] No level, XP or credits on the menu, in the Loadout screen, or on the results screen (the mission rating stays).
+
+On desktop:
+- [ ] Same menu checks.
+- [ ] `?legacy=1` brings back Wave, Hunter, Mission, PvP and the Loadout economy.
+
+Co-op (two devices): Infiltration on the Warehouse; Free Roam on the Warehouse with boost and human ladder where it offers them. The lobby lists Infiltration and Free Roam (more with `?legacy=1`).
+
 ## 3.2.0 phase 0 - Chaos Theory locomotion: speed gears, instant stop, roll (phone + controller + PC)
 Proving Grounds (Free Roam), open ground south west of the spawn:
 - [ ] Spawn: the operator is in gear 3 (a brisk walk, 2.0 m/s); the HUD shows the SPD pips by the light meter for a

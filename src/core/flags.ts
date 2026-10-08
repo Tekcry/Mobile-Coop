@@ -33,6 +33,8 @@ export interface Flags {
   renderer: string | null;
   /** Tests: the speed gear at spawn and respawn (`?gear=1..6`; else the default, 3). */
   gear: number | null;
+  /** 3.5 (`?legacy=1`, URL only, never saved): the parked Blacklist-era modes and the economy are shown (`core/legacy.ts`). */
+  legacy: boolean;
 }
 
 function readParams(): URLSearchParams {
@@ -65,4 +67,5 @@ export const flags: Flags = {
   detect: params.get('detect') === '1',
   renderer: params.get('renderer')?.slice(0, 96) ?? null,
   gear: /^[1-6]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
+  legacy: params.get('legacy') === '1',
 };

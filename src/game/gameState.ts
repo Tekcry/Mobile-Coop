@@ -2,6 +2,7 @@ import type { App, AppState } from '../core/app';
 import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
+import { showEconomy } from '../core/legacy';
 import { shownResolution } from '../core/display';
 import { setVoxelBodies } from '../player/characterRig';
 import { setVoxelWeapons } from '../weapons/weaponModel';
@@ -469,7 +470,7 @@ export class GameState implements AppState {
           this.stats.byKind[e.def.kind]++;
           if (h.part === 'head') this.stats.headshots++;
         }
-        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}  +${e.def.xp} XP`, 'kill');
+        if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}${showEconomy(flags.legacy) ? `  +${e.def.xp} XP` : ''}`, 'kill');
         if (h.attackerId === 'local' || h.attackerId === '') {
           const ev = h.kind === 'melee' ? (e.ko ? 'takedownNonLethal' : 'takedownLethal') : this.execute.running ? 'execute' : e.ko ? 'knockout' : 'kill';
           this.style.record(ev, this.detected);

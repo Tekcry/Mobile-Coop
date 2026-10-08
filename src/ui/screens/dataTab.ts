@@ -69,6 +69,6 @@ export function dataTab(app: App, screen: SettingsScreen): TabDef {
 function exportSave(app: App): void {
   const text = app.save.exportText();
   const blob = new Blob([text], { type: 'application/json' });
-  shareOrDownload(blob, `silent-but-deadly-save-${new Date().toISOString().slice(0, 10)}.json`, 'Silent But Deadly save');
+  shareOrDownload(blob, `night-shift-save-${new Date().toISOString().slice(0, 10)}.json`, 'Night Shift save');
   app.toasts.show('Save exported', 'ok');
 }

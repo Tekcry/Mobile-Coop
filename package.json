@@ -12,6 +12,7 @@
     "test": "vitest run",
     "icons": "node scripts/gen-icons.mjs",
     "e2e": "node scripts/run-e2e.mjs",
+    "e2e:legacy": "node scripts/run-e2e.mjs --legacy",
     "check": "npm run lint && npm test && npm run build"
   },
   "devDependencies": {

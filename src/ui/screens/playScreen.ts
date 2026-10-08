@@ -1,4 +1,6 @@
 import type { App } from '../../core/app';
+import { flags } from '../../core/flags';
+import { defaultMode, visibleModes } from '../../core/legacy';
 import type { GameOptions, ModeId } from '../../game/gameState';
 import { DIFFICULTIES, DIFFICULTY, type Difficulty } from '../../ai/archetypes';
 import { MAPS } from '../../world/maps';
@@ -20,13 +22,16 @@ const MODES: { id: ModeId; label: string; desc: string }[] = [
   { id: 'sandbox', label: 'Free Roam', desc: 'No guards: explore the map with every weapon (Proving Grounds adds training targets).' },
 ];
 
+/** 3.5: Infiltration, Training and Free Roam; Wave, Mission and Hunter only with `?legacy=1`. */
+const shownModes = (): typeof MODES => visibleModes(MODES, flags.legacy);
+
 const WEATHER_LABEL: Record<WeatherChoice, string> = { clear: 'Clear', rain: 'Rain', fog: 'Fog' };
 
 const STARS = (n: number): string => '\u2605'.repeat(n) + '\u2606'.repeat(3 - n);
 
 /** Mode -> map -> difficulty, then start. */
 export class PlayScreen extends Screen {
-  private mode: ModeId = 'wave';
+  private mode: ModeId = defaultMode(flags.legacy);
   private mapId = MAPS[0]!.id;
   private difficulty: Difficulty = 'normal';
   private weather: WeatherChoice = 'clear';
@@ -69,7 +74,7 @@ export class PlayScreen extends Screen {
     this.desc.textContent = `${MODES.find((m) => m.id === this.mode)!.desc}  ·  ${map.description}`;
     const modeChoice = choice(
       'Mode',
-      MODES.map((m) => ({ value: m.id, label: m.label })),
+      shownModes().map((m) => ({ value: m.id, label: m.label })),
       () => this.mode,
       (v) => {
         this.setMode(v);
@@ -106,7 +111,7 @@ export class PlayScreen extends Screen {
     const rec = this.app.save.get().missions[m.id];
     const modeChoice = choice(
       'Mode',
-      MODES.map((x) => ({ value: x.id, label: x.label })),
+      shownModes().map((x) => ({ value: x.id, label: x.label })),
       () => this.mode,
       (v) => {
         this.setMode(v);
@@ -147,7 +152,8 @@ export class PlayScreen extends Screen {
     const rules = (['noAlarms', 'noKills', 'undetected'] as const)
       .filter((k) => m.rules[k] !== 'off')
       .map((k) => `${k === 'noAlarms' ? 'No alarms' : k === 'noKills' ? 'No kills' : 'Undetected'} (${m.rules[k]})`);
-    const best = rec ? `Best ${STARS(rec.rating)}  ·  Ghost ${rec.ghost} / Panther ${rec.panther} / Assault ${rec.assault}  ·  ${rec.wins}/${rec.plays} won` : 'Not played yet';
+    // (3.5: the Ghost / Panther / Assault split is a parked Blacklist-era rating)
+    const best = rec ? `Best ${STARS(rec.rating)}${flags.legacy ? `  ·  Ghost ${rec.ghost} / Panther ${rec.panther} / Assault ${rec.assault}` : ''}  ·  ${rec.wins}/${rec.plays} won` : 'Not played yet';
     this.desc.textContent = `Objectives: ${m.objectives.map((o) => o.label).join(', ')}${rules.length ? '  ·  Rules: ' + rules.join(', ') : ''}  ·  ${best}`;
     const go = button('Deploy', () => this.start({ map, mode: 'infiltration', difficulty: this.difficulty, seed: 1, missionId: m.id, insertion: this.insertion, weather: this.weatherFor(map) }), {
       icon: 'play',

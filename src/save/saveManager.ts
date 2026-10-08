@@ -14,13 +14,13 @@ export interface ExportFile {
 }
 
 /** Parse + migrate + sanitise any raw save object. Throws SaveVersionError for unusable input. */
-export function loadRaw(raw: unknown): { save: SaveData; migratedFrom: number } {
+export function loadRaw(raw: unknown, openLoadout = false): { save: SaveData; migratedFrom: number } {
   const { data, from } = migrate(raw);
-  return { save: sanitizeSave(data), migratedFrom: from };
+  return { save: sanitizeSave(data, openLoadout), migratedFrom: from };
 }
 
 /** Parse an exported save file's text (or a bare save object). */
-export function parseExport(text: string): SaveData {
+export function parseExport(text: string, openLoadout = false): SaveData {
   let obj: unknown;
   try {
     obj = JSON.parse(text);
@@ -28,7 +28,7 @@ export function parseExport(text: string): SaveData {
     throw new SaveVersionError('File is not valid JSON');
   }
   if (typeof obj === 'object' && obj !== null && (obj as ExportFile).magic === EXPORT_MAGIC) obj = (obj as ExportFile).data;
-  return loadRaw(obj).save;
+  return loadRaw(obj, openLoadout).save;
 }
 
 export function serializeExport(save: SaveData, now = Date.now()): string {
@@ -51,6 +51,8 @@ export class SaveManager {
    * in-memory profile but nothing is written, so the stored data is never overwritten.
    */
   readOnly = false;
+  /** 3.5: the campaign lets any weapon be chosen (`core/legacy.ts` `campaignUnlocked`); set before `load`. */
+  openLoadout = false;
 
   get(): SaveData {
     return this.data;
@@ -68,7 +70,7 @@ export class SaveManager {
         await this.flush();
         return;
       }
-      const { save, migratedFrom } = loadRaw(raw);
+      const { save, migratedFrom } = loadRaw(raw, this.openLoadout);
       if (migratedFrom !== SAVE_VERSION) {
         await this.backup(raw, `pre-migration-v${migratedFrom}`);
       }
@@ -89,7 +91,7 @@ export class SaveManager {
     const draft = structuredClone(this.data);
     fn(draft);
     draft.updatedAt = Date.now();
-    this.data = sanitizeSave(draft);
+    this.data = sanitizeSave(draft, this.openLoadout);
     this.notify();
     if (this.timer) clearTimeout(this.timer);
     this.timer = setTimeout(() => void this.flush(), 200);
@@ -134,7 +136,7 @@ export class SaveManager {
   }
 
   async importText(text: string): Promise<void> {
-    const save = parseExport(text);
+    const save = parseExport(text, this.openLoadout);
     await this.unlock();
     await this.backup(this.data, 'pre-import');
     this.data = save;

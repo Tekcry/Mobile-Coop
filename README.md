@@ -1,6 +1,6 @@
-# Silent But Deadly
+# Night Shift
 
-A mobile-first, third-person stealth shooter in the style of Splinter Cell: Blacklist that runs in the browser and
+An original third-person stealth game in the spirit of Splinter Cell: Chaos Theory (renamed from Silent But Deadly) that runs in the browser and
 installs as an app. Single player is complete and fully offline; online co-op (2-4) and PvP (up to 8) are optional.
 
 - **Modes:** Hunter (clear every hostile, undetected if you can), Infiltration (seven missions: uploads, bugs,

@@ -227,9 +227,9 @@ export async function exportFeedback(app: App): Promise<void> {
   }
   app.toasts.show('Preparing the report…', 'info', 1200);
   const urls = await Promise.all(list.map((e) => Promise.all(e.photos.map(blobToDataUrl))));
-  const html = feedbackReportHtml(list, urls, 'Silent But Deadly');
+  const html = feedbackReportHtml(list, urls, 'Night Shift');
   const day = new Date().toISOString().slice(0, 10);
-  shareOrDownload(new Blob([html], { type: 'text/html' }), `sbd-feedback-${day}.html`, 'Silent But Deadly feedback');
+  shareOrDownload(new Blob([html], { type: 'text/html' }), `sbd-feedback-${day}.html`, 'Night Shift feedback');
 }
 
 /** Settings > Feedback: new note, the list (open one to edit / add photos), export, copy as text, delete all. */

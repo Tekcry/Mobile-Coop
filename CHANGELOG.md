@@ -1,5 +1,31 @@
 # Changelog
 
+## 3.5.0 - Chaos Theory foundation
+- Direction: the game is now **Night Shift**, an original stealth game in the spirit of Splinter Cell: Chaos Theory
+  (`docs/design-bible.md` v1.7, story in `docs/story.md`). This release changes no gameplay and no feel.
+- Integration: `ct-movement` now carries `master` 3.4.0 (the light phone renderer, baked lamps, the Phone check) with the
+  Chaos Theory movement (3.2.0-ct) and the Warehouse CT routes. The Kestrel Exchange is a paper design only (map phases
+  0-2, `docs/prompts/exchange-design.md`; paused until roadmap Phase 3b); the old Exchange blockout is gone. The split
+  jump can be jumped out of again.
+- Design bible: `docs/design-bible.md` is the authority on design (vision, pillars, systems, out-of-scope list, process,
+  roadmap Phases 0-7 with 3b); `docs/progress.md` says where the project stands.
+- Docs: `CLAUDE.md` 142.7 KB -> 9.6 KB, a lean core with a doc index; everything else moved word for word into
+  `docs/systems/*.md` (19 files, read on demand; a script checked that no line was lost). `CHANGELOG.md` 137.9 -> 45.2 KB
+  and `TESTING.md` 84.4 -> 32.0 KB keep 3.0.0 onwards; older entries are in `docs/archive/`.
+- `?legacy=1`: Wave Survival, Mission, Hunter, Team Deathmatch and Free-for-all, credits / XP / level, the Loadout suit,
+  appearance, tag and emotes, HQ, challenges, weapon upgrades and camos, and the Ghost / Panther / Assault bars are hidden
+  unless the URL has `?legacy=1` (never saved). Without it: the Play screen offers Infiltration (the default), Training and
+  Free Roam; the co-op lobby Infiltration and Free Roam; the Loadout screen weapons, attachments, gadget and presets, with
+  every weapon and attachment selectable (nothing is bought, unlocked or saved as owned: the save keeps your choice).
+  Nothing is deleted, progression still records, saves are unchanged (no `SAVE_VERSION` change), and
+  `?autostart=...&mode=...` starts any mode.
+- Title: the game's name is Night Shift on the menu, the loading screen, the page and app titles and the install
+  manifest ("Night Shift (Preview CT)" on `/ct/`). The internal ids keep the old names (IndexedDB `shoulder-strike`, the
+  save export magic, the co-op app id).
+- Tests: `npm run e2e` runs the required suites; `npm run e2e:legacy` runs `e2e-progression`, `e2e-cosmetics` and
+  `e2e-clear` (parked content, report only). New: `e2e-park` (the legacy-off and legacy-on menus), `tests/legacy.test.ts`.
+  `e2e-traverse` and `e2e-netmove` wait for the match / the host's copy to settle on slow machines.
+
 ## 3.4.0 - Light phone renderer
 - Direction: desktop first. Phones no longer chase the PC renderer: on the iPhone the voxel look reached ~65 fps cool
   and fell to 18-30 once warm, whatever was cut. Before 3.0 phones ran smoothly because they drew the plain level in

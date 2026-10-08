@@ -41,8 +41,8 @@ export default defineConfig({
       registerType: 'autoUpdate',
       injectRegister: null,
       manifest: {
-        name: preview ? `Silent But Deadly (Preview${previewId ? ' ' + previewId.toUpperCase() : ''})` : 'Silent But Deadly',
-        short_name: preview ? `SBD ${previewId ? previewId.toUpperCase() : 'Preview'}` : 'Silent But Deadly',
+        name: preview ? `Night Shift (Preview${previewId ? ' ' + previewId.toUpperCase() : ''})` : 'Night Shift',
+        short_name: preview ? `NS ${previewId ? previewId.toUpperCase() : 'Preview'}` : 'Night Shift',
         description: 'Mobile third-person stealth shooter. Plays offline.',
         theme_color: '#070b0c',
         background_color: '#070b0c',

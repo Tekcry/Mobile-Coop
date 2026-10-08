@@ -1,9 +1,11 @@
 import type { App } from '../../core/app';
+import { flags } from '../../core/flags';
+import { campaignUnlocked, showEconomy } from '../../core/legacy';
 import type { SaveData } from '../../save/schema';
 import { MenuState, type MenuFraming } from '../../world/menuScene';
 import { WEAPONS, type WeaponDef, type WeaponId } from '../../weapons/weaponDefs';
 import { computeStats, MAX_UPGRADE, type EffectiveStats } from '../../weapons/weaponStats';
-import { applyPreset, buyHq, buySuit, buyUnlock, buyUpgrade, levelInfo, owns, savePreset, setAttachment, setLoadout, unlockContext, wearSuit, weaponMastery } from '../../progression/profile';
+import { campaignOpens, ownsOrOpen, applyPreset, buyHq, buySuit, buyUnlock, buyUpgrade, levelInfo, owns, savePreset, setAttachment, setLoadout, unlockContext, wearSuit, weaponMastery } from '../../progression/profile';
 import { canUpgrade, TRACKS, TRACK_LABEL, type UpgradeTrack } from '../../progression/upgrades';
 import { attachmentsFor, combinedMods, type AttachmentDef, type AttachmentSlot } from '../../progression/attachments';
 import { describeReq, unlockById, unlockState } from '../../progression/unlocks';
@@ -118,6 +120,10 @@ export class LoadoutScreen extends Screen {
   private look: AvatarLook;
   private suit: SuitLoadout;
 
+  /** 3.5: the campaign opens every weapon and attachment (nothing is bought or saved); the economy and cosmetics only with `?legacy=1`. */
+  private readonly campaign = campaignUnlocked(flags.legacy);
+  private readonly eco = showEconomy(flags.legacy);
+
   constructor(private app: App) {
     super('loadout-screen');
     const s = this.s();
@@ -148,7 +154,7 @@ export class LoadoutScreen extends Screen {
     this.listEl.addEventListener('nav-focus', (e) => this.onFocus(e.target as HTMLElement));
     this.listEl.addEventListener('nav-confirm', () => void (this.viaNav = true), { capture: true });
     this.el.append(
-      h('div', { class: 'lo-top' }, h('div', { class: 'net-brand', text: 'SBD-NET' }), this.tickerEl, this.walletEl),
+      h('div', { class: 'lo-top' }, h('div', { class: 'net-brand', text: this.eco ? 'SBD-NET' : 'NIGHT SHIFT' }), this.tickerEl, this.walletEl),
       h('div', { class: 'lo-main' }, h('div', { class: 'lo-left' }, this.headEl, this.listEl), stage, this.detailEl),
       this.actsEl,
     );
@@ -175,6 +181,7 @@ export class LoadoutScreen extends Screen {
 
   /** Level, credits and the challenge ticker (the next one to finish). */
   private renderTop(): void {
+    if (!this.eco) return;
     const s = this.s();
     this.walletEl.innerHTML = `<span>LV ${levelInfo(s).level}</span><b class="credits">${s.profile.credits} cr</b>`;
     const next = CHALLENGES.find((c) => !s.challenges.done.includes(c.id));
@@ -341,7 +348,7 @@ export class LoadoutScreen extends Screen {
   /** How an unlockable stands: owned, buyable now (its price), or locked (what it needs). */
   private unlockRow(id: string): { mark: Mark; value: string; act?: Action; need: string } {
     const item = unlockById(id);
-    if (!item) return { mark: 'owned', value: '', need: '' };
+    if (!item || (this.campaign && campaignOpens(id))) return { mark: 'owned', value: '', need: '' };
     const s = this.s();
     const st = unlockState(item, unlockContext(s));
     if (st === 'owned') return { mark: 'owned', value: '', need: '' };
@@ -457,7 +464,7 @@ export class LoadoutScreen extends Screen {
           act: { label: `Change ${slot}`, run: () => this.open(this.weaponsPage(slot)) },
           alt: { label: 'Customize', run: () => this.open(this.customizePage(s.loadout[slot])) },
         });
-        return [
+        const rows: Row[] = [
           { key: 'preset', group: 'KIT', label: 'Loadout', value: preset?.name ?? '', go: true, detail: () => this.presetDetail(s.preset), act: { label: 'Change loadout', run: () => this.open(this.presetsPage()) } },
           wRow('primary'),
           wRow('secondary'),
@@ -468,6 +475,8 @@ export class LoadoutScreen extends Screen {
           { key: 'hq', group: 'SBD-NET', label: 'HQ upgrades', value: `${hqLv}/${hqMax}`, go: true, detail: () => this.panel('HQ', this.note('Radar, sonar, Execute capacity, supply drops and field medic training.')), act: { label: 'Open HQ', run: () => this.open(this.hqPage()) } },
           { key: 'challenges', label: 'Challenges', value: `${s.challenges.done.length}/${CHALLENGES.length}`, go: true, detail: () => this.panel('CHALLENGES', this.note('Finish them in any mode for credits and XP.')), act: { label: 'Open challenges', run: () => this.open(this.challengesPage()) } },
         ];
+        // (3.5: weapons, attachments, gadget and presets; the suit, appearance, tag, HQ and challenges only with `?legacy=1`)
+        return this.eco ? rows : rows.filter((r) => !['suit', 'look', 'tag', 'hq', 'challenges'].includes(r.key));
       },
     };
   }
@@ -495,7 +504,7 @@ export class LoadoutScreen extends Screen {
           preview: () => void (this.weapon = (WEAPONS[p.primary as WeaponId] ? p.primary : s.loadout.primary) as WeaponId),
           detail: () => this.presetDetail(i),
           act: s.preset === i ? undefined : { label: `Use ${p.name}`, run: () => {
-            this.save((d) => applyPreset(d, i));
+            this.save((d) => applyPreset(d, i, this.campaign));
             this.refresh();
           } },
         }));
@@ -521,7 +530,7 @@ export class LoadoutScreen extends Screen {
           const other = s.loadout[slot === 'primary' ? 'secondary' : 'primary'] === w;
           const equip: Action = { label: `Equip ${def.name}`, run: () => {
             this.save((d) => {
-              setLoadout(d, slot, w);
+              setLoadout(d, slot, w, this.campaign);
               savePreset(d, d.preset);
             });
             this.refresh();
@@ -539,7 +548,7 @@ export class LoadoutScreen extends Screen {
               return d;
             },
             act: owned ? (equipped ? { label: 'Customize', run: () => this.open(this.customizePage(w)) } : equip) : u.act && u.mark === 'buyable' ? { ...u.act, run: () => this.buy(`weapon:${w}`, (d) => {
-              setLoadout(d, slot, w);
+              setLoadout(d, slot, w, this.campaign);
               savePreset(d, d.preset);
             }) } : u.act,
             alt: owned ? { label: 'Customize', run: () => this.open(this.customizePage(w)) } : undefined,
@@ -555,11 +564,11 @@ export class LoadoutScreen extends Screen {
       id: `w:${w}`,
       crumb: def.name.toUpperCase(),
       title: def.name.toUpperCase(),
-      sub: 'EQUIP ATTACHMENTS & UPGRADES',
+      sub: this.eco ? 'EQUIP ATTACHMENTS & UPGRADES' : 'EQUIP ATTACHMENTS',
       framing: 'weapon',
       rows: () => {
         const s = this.s();
-        const ownsW = owns(s, `weapon:${w}`);
+        const ownsW = ownsOrOpen(s, `weapon:${w}`, this.campaign);
         const rows: Row[] = [];
         const saved = s.weapons[w].attachments;
         for (const sl of SLOTS) {
@@ -568,6 +577,7 @@ export class LoadoutScreen extends Screen {
           const on = opts.filter((a) => saved.includes(a.id)).length;
           opts.forEach((a, i) => rows.push(this.attachmentRow(w, a, opts, i === 0 ? `${sl.label.toUpperCase()} [${on}/1]` : undefined, ownsW)));
         }
+        if (!this.eco) return rows;
         const lvl = levelInfo(s).level;
         TRACKS.forEach((t, i) => rows.push(this.upgradeRow(w, t, lvl, ownsW, i === 0 ? `UPGRADES [${this.upgradeCount(w)}/${TRACKS.length * MAX_UPGRADE}]` : undefined)));
         const camo = CAMOS.find((c) => c.id === s.weapons[w].camo);
@@ -585,8 +595,8 @@ export class LoadoutScreen extends Screen {
     const others = slotOpts.map((o) => o.id);
     const withIt = (): string[] => [a.id, ...saved.filter((id) => !others.includes(id))];
     const set = (d: SaveData, v: boolean): void => {
-      for (const id of others) setAttachment(d, w, id, false);
-      if (v) setAttachment(d, w, a.id, true);
+      for (const id of others) setAttachment(d, w, id, false, this.campaign);
+      if (v) setAttachment(d, w, a.id, true, this.campaign);
     };
     const act: Action | undefined = !ownsW
       ? { label: 'Unlock the weapon first', run: () => undefined, blocked: 'Unlock the weapon first' }

@@ -8,6 +8,7 @@ import { App } from './core/app';
 import { loadHavok } from './physics/havok';
 import { setupServiceWorker, suppressBrowserGestures, enterFullscreenLandscape, isStandalone, lockLandscape } from './pwa/pwa';
 import { flags } from './core/flags';
+import { campaignUnlocked, showEconomy } from './core/legacy';
 import { MenuState } from './world/menuScene';
 import { MainMenuScreen } from './ui/screens/mainMenu';
 import { SettingsScreen } from './ui/screens/settingsScreen';
@@ -52,6 +53,7 @@ async function boot(): Promise<void> {
   setBoot(0.15, 'Loading settings…');
   await app.loadSettings();
   setBoot(0.25, 'Loading profile…');
+  app.save.openLoadout = campaignUnlocked(flags.legacy);
   await app.save.load();
   app.save.update((d) => void autoGrant(d));
   extraSettingsTabs.push(feedbackTab, dataTab);
@@ -67,7 +69,8 @@ async function boot(): Promise<void> {
     app.save.update((d) => void (report = applySession(d, stats, opts.difficulty ?? 'normal')));
     await app.save.flush();
     if (report && (report as SessionReport).levelUps > 0) setTimeout(() => app.sfx.levelUp(), 600);
-    return report ? rewardsPanel(report) : null;
+    // (3.5: progression still records; the credits / XP panel is shown only with `?legacy=1`)
+    return report && showEconomy(flags.legacy) ? rewardsPanel(report) : null;
   };
   if (flags.debug) app.debug.toggle(true);
   void requestPersistence();
@@ -100,12 +103,12 @@ async function boot(): Promise<void> {
   MainMenuScreen.entries.push(
     (a) => ({
       label: 'Play',
-      sub: 'Waves · Mission · Free roam',
+      sub: flags.legacy ? 'Waves · Mission · Free roam' : 'Infiltration · Training · Free roam',
       icon: 'play',
       order: 10,
       action: () => a.screens.push(new PlayScreen(a, (o) => startGame(o))),
     }),
-    (a) => ({ label: 'Loadout', sub: 'Weapons · Gear · Appearance · HQ', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
+    (a) => ({ label: 'Loadout', sub: flags.legacy ? 'Weapons · Gear · Appearance · HQ' : 'Weapons · Attachments · Gadget', icon: 'gun', order: 20, action: () => a.screens.push(new LoadoutScreen(a)) }),
     (a) => ({ label: 'Settings', icon: 'gear', order: 80, action: () => a.screens.push(new SettingsScreen(a)) }),
   );
 

@@ -1,4 +1,6 @@
 import type { App } from '../../core/app';
+import { flags } from '../../core/flags';
+import { showEconomy } from '../../core/legacy';
 import type { SessionStats } from '../../game/modes/gameMode';
 import { h } from '../dom';
 import { Screen } from '../screen';
@@ -36,11 +38,11 @@ export class ResultsScreen extends Screen {
       row('Time', fmtTime(stats.time)),
       stats.mode === 'clear' || stats.mode === 'infiltration' ? row('Detected', stats.detections) : null,
     );
-    // play style (stealth modes): Ghost / Panther / Assault bars
+    // play style (stealth modes): Ghost / Panther / Assault bars (3.5: parked, with `?legacy=1` only)
     const st = stats.style;
     const tot = st.ghost + st.panther + st.assault;
     const styleEl =
-      (stats.mode === 'clear' || stats.mode === 'infiltration') && tot > 0
+      showEconomy(flags.legacy) && (stats.mode === 'clear' || stats.mode === 'infiltration') && tot > 0
         ? h(
             'div',
             { class: 'style-bars' },
