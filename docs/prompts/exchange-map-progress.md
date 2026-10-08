@@ -6,13 +6,13 @@ Spec: docs/prompts/exchange-map.md | Branch: feature/exchange-map (from ct-movem
 | --- | --- | --- |
 | 0 Setup and investigation | done (waiting for Michael's go-ahead) | see log |
 | 1 Paper plan | done (waiting for Michael's approval of the plan) | see log |
-| 2 Blockout S0-S3 | not started | |
+| 2 Blockout S0-S3 | done (waiting for Michael's go-ahead) | see log |
 | 3 Blockout S4-S7 and co-op lips | not started | |
 | 4 Guards and mission | not started | |
 | 5 Readability and verification | not started | |
 
 ## Next step
-Michael: read `docs/prompts/exchange-map-plan.md` and approve it (or list changes). Phase 2 builds exactly that plan.
+Michael: Phase 2 (S0-S3 blockout) is done; test it on the phone (TESTING.md, `3.2.x - Kestrel Exchange, phase 2`) and say go for Phase 3 (S4-S7, co-op lips).
 
 ## Michael's phone notes
 (none yet; Phase 5 reads this first)
@@ -215,6 +215,47 @@ Decisions (deviations from the spec text, all inside the spec's rules):
 
 Checks run: none (docs only).
 Open: the plan's numbers marked (e2e) and the risk list (section 14) are confirmed in Phases 2-4.
+
+### Phase 2 - blockout S0-S3 (2026-10-08)
+Files changed:
+- `src/world/maps/exchange.ts` (new) - the shell (perimeter 8 m, floors, structural walls with the doorways between sections, roofs, zones,
+  surfaces, the nine rooms, spawn, switches / hide spots / pickups / objectives for S0-S3), S0-S3 complete, S4-S7 sealed shells.
+- `src/world/maps/index.ts`, `listed.ts` - `exchange` appended to `MAPS` and `LISTED_MAP_IDS`.
+- `tests/exchangeMap.test.ts` (new) - rooms, exactly one split gap (S2), no lip above 4.65 m, lips in the 3.75-4.5 band only on boiler A,
+  planned lip heights, anchors inside the footprint. `tests/rooms.test.ts` - the map-id list now ends `exchange`.
+- `scripts/e2e-exchange.mjs` (new, in `run-e2e.mjs`), `scripts/e2e-anchors.mjs` (`['exchange','sandbox']`; a window whose sill is more
+  than a vault over the floor on a side is reported view-only for that side).
+- Docs: `CLAUDE.md` (map entry, e2e list), `CHANGELOG.md` (`3.2.x - Kestrel Exchange`), `TESTING.md`, this log.
+
+Decisions (deviations from the plan, with reasons):
+- Structural walls are 8.0 m everywhere (the plan said 6.5): one height, same as the perimeter; the S6 roof closes at 8.15 and the other
+  roofs at 6.7 (visual only). Nothing climbs to any of them (all `noLedge`).
+- Catwalk lips have a 2.0 m conduit trunking under them (0.15 thick: west strip with a gap for the S2 door, and under the north strip's
+  south edge). The plan relied on the wall being within 1.3 m of the lip; that left a 0.25 m window to stand in for a wall jump. A 1.0 m
+  conduit was a mantle target and won over the wall jump; at 2.0 m (above the 1.8 m mantle) the kick wall is there from anywhere and the
+  wall jump is what the lip offers.
+- The pump plinth is 2.6 m as planned, but a 2.6 m fall measures 2.48 m (the capsule rests 12 cm under the surface), which is the soft band.
+  A 1.4 x 1.0 m motor housing on top (top 2.9, flush with the north face) gives the 2.8 m roll-band fall; the side drop stays soft.
+- S0's vent grates sit on the face of a 0.6 m thick S0 / S1 wall; the duct has no casing piece (it would sit inside the wall).
+- The S2 high window is `windowAt` sill 3.8 on x -7.0 as planned. It has no vault from either side by design; the anchors test reports it view-only.
+- Free Roam has no switches, doors or enemies (they come with the stealth systems), so the door / switch / guard checks wait for Phase 4;
+  the light meter is checked with `LightRegistry.setGroup` here.
+- S5's office lamps that start off (groups 11-13): `StealthSystems` starts every switch "on", so the first press of such a switch would do
+  nothing. Phase 3 either starts those lamps on or accepts the dead first press: to decide there.
+
+Tests run:
+- `npm run check` (final run, exit 0): lint clean, `npm test` 57 files / 573 tests passed, typecheck + build ok.
+- `node scripts/e2e-exchange.mjs`: all checks ok (spawn; S0 light / noise / roll / plinth / valve / duct unscrew; S1 shelf, hopper, window; S2
+  split, pipe states, wall jump + perch + window; S3 ladder, wall jump, drainpipe, boiler A, fence rattle, grate noise, stairs, doorway;
+  the kick on a fresh page; touch action button at the split, pipe, fence and wall jump).
+- `node scripts/e2e-anchors.mjs` (all three maps): ok; exchange 18 placed anchors, 45 hangable lips.
+- `MAP=exchange node scripts/perf.mjs --budget`: sim p95 0.5 ms, 25 draws (<= 55), 0.04 M triangles, 4.1 MB/s (<= 11.2). `--preset=low
+  --mobile --budget`: 76 draws (<= 120), 0.04 M triangles; `--preset=ultra --mobile --budget`: 128 draws (<= 250), 0.08 M triangles. Both exit 0.
+  (0 guards in these runs: Phase 4 re-measures with `STEALTH=1`.)
+
+Open issues:
+- Nothing from S4-S7 is built (phase 3). The catwalk doorway at 3.3 m opens on the empty S4 (a drop).
+- The S5 office-lamp switch question above.
 
 ## Future recommendations
 (written at the end of Phase 5)

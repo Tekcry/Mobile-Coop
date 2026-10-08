@@ -415,6 +415,28 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
 - [ ] Hunter on the Warehouse: every room still clears; Infiltration missions (Ledger, Courier, Blackout, Cold Storage)
   still complete.
 
+## 3.2.x - Kestrel Exchange, phase 2: S0-S3 (Free Roam on the Kestrel Exchange; phone + controller)
+Play > Free Roam > Kestrel Exchange. You start in S0 (the culvert, pitch dark). Rooms S4-S7 are empty shells for now.
+- [ ] S0: the walkway lamp is the only light and its switch is the box on the west wall (light meter drops to dark when
+      you leave the pool). The 1.2 m channel along the east side is long enough for a forward roll (gear 5 or 6 standing,
+      tap crouch while moving). Crossing the grate strip is silent at gears 1-2 and heard above that.
+- [ ] S0 plinth: grab its lip from the floor, shimmy, climb up (Y), hold B at the edge to lower into a hang. Walking off
+      the side is a soft landing; walking off the small housing on top is a roll-band fall. The 1.3 m valve housing is a mantle.
+- [ ] S0 duct: at the vent on the east wall a tap kicks the cover in (loud), holding Y unscrews it (silent, a ring fills);
+      crawl through to S1's south-west pocket.
+- [ ] S1: the shelf tops are standing grabs; the chute hopper on the north wall needs the jump button; the open window
+      beside the exit door vaults into S2. Tables are cover.
+- [ ] S2: facing along the lane between the two tall banks shows "Split jump (double jump)"; jump twice. From the cabinet
+      top the pipe is a grab: Y legs up, Y inverted. The relay bank on the east wall is a wall jump; Y climbs up on the perch; the perch window
+      leads onto S3's catwalk. The high window in the north wall is glazed: you can see through it, you cannot climb it.
+- [ ] S3: ladder in the south-west corner; the catwalk edge is a wall jump from the floor; the drainpipe on boiler B's west
+      face then Y at the top; boiler A is a step up from the catwalk; the cage fence rattles above gear 3; the grate catwalk
+      is louder than the floor; the stairs at the lit east end; the west catwalk runs through the doorway at 3.3 m.
+- [ ] Touch: at the split prompt, the cabinet pipe, the cage fence and (stick pushed at the wall) the relay bank the action
+      button does the move.
+- [ ] Phone at Low: lit pools and dark corners read at a glance; the grate strip and the wood sorting-room floor look different
+      from concrete.
+
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).
 - [ ] Fresh install on the iPhone: a toast "Graphics: <preset> for this device" a few seconds after the menu shows;
