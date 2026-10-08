@@ -23,6 +23,9 @@ export interface Flags {
   voxels: boolean;
   /** 3.2 baked lamps (`?baked=0`: real lights and shadow maps, for comparisons). */
   baked: boolean;
+  /** 3.6 Phase 1 Step 3, under evaluation: `?fill=grid` - desktop fill from the ambient grid (gameplay's) instead of
+   *  the sky bake. */
+  fillGrid: boolean;
   /** 3.3 phones: `?lampvol=0` the exact per-lamp loop instead of the light volume (comparisons). */
   lampVolume: boolean;
   /** Autostart weather (clear | rain | fog). */
@@ -62,6 +65,7 @@ export const flags: Flags = {
   gfx: (['min', 'low', 'medium', 'high', 'ultra', 'epic'] as const).find((g) => g === params.get('gfx')) ?? null,
   voxels: params.get('voxels') !== '0',
   baked: params.get('baked') !== '0',
+  fillGrid: params.get('fill') === 'grid',
   lampVolume: params.get('lampvol') !== '0',
   weather: (['clear', 'rain', 'fog'] as const).find((w) => w === params.get('weather')) ?? null,
   detect: params.get('detect') === '1',

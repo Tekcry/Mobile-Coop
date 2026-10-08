@@ -197,6 +197,8 @@ export class World {
     this.probe = probe;
     this.breakables = new Breakables(scene, level.anchors);
     this.doors = new Doors(scene, level.anchors);
+    // (3.6: flashlights draw their whole radius and their shadow maps stop them - at closed doors too)
+    if (this.doors.leafMesh) this.lightRig.addCaster(this.doors.leafMesh);
     // 3.6: the one light function every gameplay light query goes through (closed doors cut lamps)
     this.lightField = new LightField(lightBake, level.lights, this.doors.list);
   }
@@ -233,10 +235,13 @@ export class World {
     // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off)
     if (bake.lamps && vo && level.voxels && !opts.cheap && flags.baked) {
       // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume ? { floorY: 0 } : null);
+      // 3.6: the baked moon, closed doors, and (`?fill=grid`, under evaluation) the ambient grid as the fill
+      const fill = flags.fillGrid ? { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] } : null;
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume ? { floorY: 0 } : null, { moon: bake.moon, doors: w.doors.list, fill });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
+      w.useBakedMoon(!!fill);
     }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
     return w;
@@ -295,6 +300,24 @@ export class World {
     if (same) return;
     list.length = 0;
     for (let i = 0; i < tmp.length; i++) list.push(tmp[i]!);
+  }
+
+  /** 3.6: static moon shadows come from the bake (`BakedLamps` multiplies the sun by the moon's visibility): the
+   *  cascades draw moving casters only, and none at all where they drew only the level (`ShadowSpec.staticSun`). */
+  private bakedMoon = false;
+
+  /** Switch to the baked moon (desktop with baked lamps); `gridFill`: the ambient grid replaces the sky fill. */
+  private useBakedMoon(gridFill: boolean): void {
+    this.bakedMoon = true;
+    this.sunStatic.length = 0;
+    this.voxelSun.length = 0;
+    this.sunT = 0;
+    this.sunSpec = '';
+    if (gridFill) {
+      // (the fill comes from the plugin; the hemisphere and the voxels' sky fill step aside)
+      this.hemi.intensity = 0;
+      for (const v of this.voxelLayers) v.setFill([0, 0, 0], [0, 0, 0]);
+    }
   }
 
   /** The voxel meshes casting shadows (Epic; below it the blockout proxy stands in). */
@@ -357,7 +380,7 @@ export class World {
       if (i >= 0) this.sunStatic.splice(i, 1);
     }
     for (const m of on) this.lightRig.addCaster(m);
-    for (const m of mode === 'proxy' ? this.proxy : this.voxelSun) this.sunStatic.push(m);
+    if (!this.bakedMoon) for (const m of mode === 'proxy' ? this.proxy : this.voxelSun) this.sunStatic.push(m);
     this.sunT = 0;
   }
 
@@ -489,12 +512,14 @@ export class World {
   }
 
   private setSunShadows(spec: ShadowSpec): void {
-    const key = spec.sun ? `${spec.cascades}:${spec.sunSize}:${spec.soft}` : 'off';
+    // (3.6: with the baked moon, a level-only moon - Low - has nothing left to draw)
+    const on = spec.sun && !(this.bakedMoon && spec.staticSun);
+    const key = on ? `${spec.cascades}:${spec.sunSize}:${spec.soft}` : 'off';
     if (key === this.sunSpec) return;
     this.sunSpec = key;
     this.shadow?.dispose();
     this.shadow = null;
-    if (!spec.sun) {
+    if (!on) {
       this.sun.shadowEnabled = false;
       return;
     }

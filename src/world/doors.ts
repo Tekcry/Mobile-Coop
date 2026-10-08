@@ -56,6 +56,10 @@ export interface DoorState {
 export class Doors {
   readonly list: DoorState[] = [];
   private mesh: Mesh | null = null;
+  /** The leaves' mesh (one thin-instanced box; null without doors): a shadow caster for the flashlights (3.6). */
+  get leafMesh(): Mesh | null {
+    return this.mesh;
+  }
   private buf: Float32Array | null = null;
   private armed = false;
   private m = new Matrix();

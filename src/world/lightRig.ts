@@ -1,4 +1,5 @@
 import { ClusteredLightContainer, Color3, CreateBox, CreateCylinder, CreateSphere, Matrix, Quaternion, ShadowGenerator, SpotLight, StandardMaterial, Vector3, VertexBuffer, type AbstractMesh, type Material, type Mesh, type Scene } from '../core/babylon';
+import { LAMP_CONE as LAMP_CONE_MATH, LIGHT_GAIN } from './lampMath';
 import type { ShadowSpec } from '../core/quality';
 import { nearestLights, type LightDef, type LightRegistry } from './lights';
 
@@ -17,7 +18,8 @@ const BAKED_SHADOWS = 2;
 const BASE_LIGHTS = 2;
 /** Omni lamps render as a spot pointing down with this cone (rad): everything below the lamp is lit, and one
  *  light type keeps the per-pixel light loop short. */
-const LAMP_CONE = Math.PI * 0.97;
+/** (= `lampMath.LAMP_CONE`.) */
+const LAMP_CONE = LAMP_CONE_MATH;
 /** Visible light cones (cheap additive meshes): a lamp's shade half-angle (rad), the longest cone (m) and how
  *  bright the haze is. */
 const CONE_HALF = 0.5;
@@ -416,8 +418,10 @@ export class LightRig {
   private place(s: Slot, l: LightDef): void {
     const sp = s.light;
     sp.position.set(l.x, l.y, l.z);
-    sp.range = l.reach ?? l.radius;
-    sp.intensity = l.intensity * 1.6;
+    // (3.6: a shadowed light draws its whole radius - its shadow map stops it at the wall, and the falloff stays the
+    // light field's; an unshadowed one still ends at the first wall, `reach`)
+    sp.range = s.sg ? l.radius : (l.reach ?? l.radius);
+    sp.intensity = l.intensity * LIGHT_GAIN;
     sp.diffuse.set(l.color[0], l.color[1], l.color[2]);
     if (l.cone) {
       sp.direction.set(l.cone.dx, l.cone.dy, l.cone.dz);

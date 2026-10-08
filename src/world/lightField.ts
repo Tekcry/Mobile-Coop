@@ -25,6 +25,36 @@ export interface FieldDoor {
 
 /** A door this far open or less stops light (its collision body is there until it starts to swing). */
 export const DOOR_SHUT = 0.05;
+/** Doors a baked lamp tests (the GPU's lamp data holds this many per lamp; the field tests the same list). */
+export const DOORS_PER_LAMP = 4;
+
+/**
+ * Per baked lamp (`LAMP_STRIDE` lights), the doors whose leaf can come between it and what it lights - the leaf's
+ * middle within the lamp's reach plus the leaf's width - nearest first, up to `DOORS_PER_LAMP` (-1: none). The
+ * shaders and the field read this one list.
+ */
+export function lampDoorLists(lights: Float32Array, doors: readonly FieldDoor[]): Int16Array {
+  const n = lights.length / LAMP_STRIDE;
+  const out = new Int16Array(n * DOORS_PER_LAMP).fill(-1);
+  const near: { k: number; d: number }[] = [];
+  for (let i = 0; i < n; i++) {
+    const o = i * LAMP_STRIDE;
+    near.length = 0;
+    for (let k = 0; k < doors.length; k++) {
+      const a = doors[k]!.anchor;
+      const cx = a.hinge.x + Math.sin(a.yaw) * a.width * 0.5;
+      const cz = a.hinge.z + Math.cos(a.yaw) * a.width * 0.5;
+      const dx = cx - lights[o]!;
+      const dy = a.hinge.y + a.height * 0.5 - lights[o + 1]!;
+      const dz = cz - lights[o + 2]!;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+      if (d < lights[o + 3]! + a.width) near.push({ k, d });
+    }
+    near.sort((p, q) => p.d - q.d);
+    for (let j = 0; j < Math.min(DOORS_PER_LAMP, near.length); j++) out[i * DOORS_PER_LAMP + j] = near[j]!.k;
+  }
+  return out;
+}
 
 /** Per baked lamp, unpacked: x, y, z, reach, axis dx, dy, dz, cos cut, exponent, vis offset, box ox, oy, oz, nx, ny, nz. */
 const LS = 16;
@@ -38,6 +68,8 @@ export class LightField {
   private readonly grid: { data: Uint8Array; cols: number; rows: number } | null;
   private readonly gx: number;
   private readonly gz: number;
+  /** `lampDoorLists` for the baked lamps. */
+  private readonly lampDoors: Int16Array;
 
   constructor(
     readonly bake: LightBake | null,
@@ -74,6 +106,7 @@ export class LightField {
       at += B[bi + 3]! * B[bi + 4]! * B[bi + 5]!;
     }
     this.grid = lamps && bake ? lampGrid(lamps.baked.lights, bake.lo, bake.hi) : null;
+    this.lampDoors = lamps ? lampDoorLists(lamps.baked.lights, doors) : new Int16Array(0);
     this.gx = bake?.lo[0] ?? 0;
     this.gz = bake?.lo[2] ?? 0;
   }
@@ -214,7 +247,12 @@ export class LightField {
     const vis = this.res;
     this.res = 0;
     if (vis <= 0) return;
-    if (this.doors.length && this.doorBlocks(lx, ly, lz, x, y, z)) return;
+    // (the lamp's own door list, as the shaders test it)
+    for (let j = 0; j < DOORS_PER_LAMP; j++) {
+      const k = this.lampDoors[i * DOORS_PER_LAMP + j]!;
+      if (k < 0) break;
+      if (this.doorBlocksOne(k, lx, ly, lz, x, y, z)) return;
+    }
     this.res = LAMP_LEVEL_GAIN * l.intensity * t * vis;
   }
 
@@ -288,27 +326,27 @@ export class LightField {
 
   /** A closed door leaf between (ax, ay, az) and (bx, by, bz)? */
   doorBlocks(ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
-    const ds = this.doors;
-    for (let i = 0; i < ds.length; i++) {
-      const d = ds[i]!;
-      if (d.open > DOOR_SHUT) continue;
-      const a = d.anchor;
-      const ux = Math.sin(a.yaw);
-      const uz = Math.cos(a.yaw);
-      // the leaf's plane: through the hinge, along u; its normal is (uz, -ux)
-      const sa = (ax - a.hinge.x) * uz - (az - a.hinge.z) * ux;
-      const sb = (bx - a.hinge.x) * uz - (bz - a.hinge.z) * ux;
-      if ((sa > 0 && sb > 0) || (sa < 0 && sb < 0) || sa === sb) continue;
-      const t = sa / (sa - sb);
-      const px = ax + (bx - ax) * t - a.hinge.x;
-      const py = ay + (by - ay) * t;
-      const pz = az + (bz - az) * t - a.hinge.z;
-      const s = px * ux + pz * uz;
-      if (s < 0 || s > a.width) continue;
-      if (py < a.hinge.y || py > a.hinge.y + a.height) continue;
-      return true;
-    }
+    for (let i = 0; i < this.doors.length; i++) if (this.doorBlocksOne(i, ax, ay, az, bx, by, bz)) return true;
     return false;
+  }
+
+  /** Door `i`'s leaf, if closed, between the two points (the same test as `nsDoorBlocks` in the shaders). */
+  private doorBlocksOne(i: number, ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean {
+    const d = this.doors[i]!;
+    if (d.open > DOOR_SHUT) return false;
+    const a = d.anchor;
+    const ux = Math.sin(a.yaw);
+    const uz = Math.cos(a.yaw);
+    // the leaf's plane: through the hinge, along u; its normal is (uz, -ux)
+    const sa = (ax - a.hinge.x) * uz - (az - a.hinge.z) * ux;
+    const sb = (bx - a.hinge.x) * uz - (bz - a.hinge.z) * ux;
+    if ((sa > 0 && sb > 0) || (sa < 0 && sb < 0) || sa === sb) return false;
+    const t = sa / (sa - sb);
+    const px = ax + (bx - ax) * t - a.hinge.x;
+    const py = ay + (by - ay) * t;
+    const pz = az + (bz - az) * t - a.hinge.z;
+    const s = px * ux + pz * uz;
+    return s >= 0 && s <= a.width && py >= a.hinge.y && py <= a.hinge.y + a.height;
   }
 }
 
