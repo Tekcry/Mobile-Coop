@@ -251,10 +251,12 @@ See the Step 1 and Step 5 reports.
 - Decisions:
   - Which formula: the shaders' (what players see) over gameplay's smooth one; desktop is unchanged and gameplay
     moves. Rendering keeps colour, `LIGHT_GAIN` and N.L on top.
-  - Re-tuning (spec: "lamp intensities or the `LIGHT` thresholds, one place"): `LIGHT.shadow` 0.28 -> 0.25,
-    `LIGHT.lit` 0.6 -> 0.53 - the pair that keeps the most Warehouse floor (0.5 m grid, standing and crouched,
-    moon-shadowed open ground left out) in its 3.5 band: 90.5% against 85.6% with the old pair. The rest differ
-    because the formula's shape changed (linear falloff reaches further, the lamp cosine dims off-axis).
+  - Re-tuning (spec: "lamp intensities or the `LIGHT` thresholds, one place"): `lampMath.LAMP_LEVEL_GAIN` 1.2 on
+    gameplay lamp light; `LIGHT` stays 0.28 / 0.6 (bible L6). It keeps the most Warehouse floor (0.5 m grid,
+    standing and crouched, moon-shadowed open ground left out) in its 3.5 band: 91.1% against 85.6% at gain 1. The
+    rest differ because the formula's shape changed (linear falloff reaches further, the lamp cosine dims
+    off-axis). The screen is unchanged. (First pushed as thresholds 0.25 / 0.53, 90.5%: against L6, amended after
+    the review.)
   - The moon's share comes from the theme (no map edit): Warehouse 0.104 of its 0.3. The yard in the open stays
     0.3; in the moon's shadow (the perimeter wall's, 2-3 m deep) it is 0.196, dark - as the desktop draws it.
   - Ambient cells stay 1 m (review decision, settled here): the Warehouse's zone edges off the metre grid move
@@ -274,16 +276,17 @@ See the Step 1 and Step 5 reports.
   | e2e position | old | new |
   | --- | --- | --- |
   | shadow aisle (-15.2, 6.2), crouched | 0.120 dark | 0.122 dark |
-  | in front (-14.5, 17.5), crouched | 0.120 dark | 0.194 dark |
-  | lamp pool (-0.5, -3) | 0.787 lit | 0.687 lit |
-  | (-0.5, 0) | 0.577 mid | 0.442 mid |
-  | (0, -5), (-2, -15) | 0.695 lit | 0.559 lit |
-  | (-0.95, 9.8) | 0.268 dark | 0.238 dark |
+  | in front (-14.5, 17.5), crouched | 0.120 dark | 0.209 dark |
+  | lamp pool (-0.5, -3) | 0.787 lit | 0.801 lit |
+  | (-0.5, 0) | 0.577 mid | 0.506 mid |
+  | (0, -5), (-2, -15) | 0.695 lit | 0.647 lit |
+  | (-0.95, 9.8) | 0.268 dark | 0.261 dark |
   | yard (-22, -24), (-21, -24) | 0.300 mid | 0.196 dark (moon shadow) |
-  | (-21.6, -20.2) | 0.376 mid | 0.472 mid |
+  | (-21.6, -20.2) | 0.376 mid | 0.507 mid |
 
-  - Floor (8,633 points, standing): 3,813 dark stay dark, 1,921 mid stay mid; the moon shadows in the yard turn
-    mid to dark; lamp pools' edges move by the falloff's shape.
+  - Floor (8,633 points, standing, gain 1.2): 3,966 dark stay dark, 2,266 mid and 870 lit stay; 854 mid -> dark
+    (most of them the moon's shadows in the yard), 522 lit -> mid and 132 dark -> mid at the pools' edges (the
+    falloff's shape).
   - e2e changes from behaviour (no threshold loosened):
     - `e2e-stealth-ai` lights: the investigating guard walks to the second lamp shot out (9, -9) through the pool
       of the lamp at (9, 3) (0.44-0.51 at his head), so his torch stays off until he leaves it (traced). The check
@@ -321,7 +324,8 @@ See the Step 1 and Step 5 reports.
 - Engine facts for `docs/level-design.md` Section 12 (written in Step 9):
   - Light formula: linear falloff to the lamp's reach; a lamp without a cone lights only below itself, by the
     cosine from straight down; a spot by the squared cosine inside its outer angle, nothing outside it.
-  - Bands: dark below 0.25, lit above 0.53.
+  - Bands unchanged (dark below 0.28, lit above 0.6); a lamp's gameplay light is 1.2 x intensity x formula x
+    visibility.
   - The moon (the sun on day maps): open sky at the theme's `lightLevel`; in its baked shadow less its share
     (`lightLevel x sun / (sky + sun)`; Warehouse 0.3 -> 0.196, dark; Proving Grounds 0.75 -> 0.339, mid). A wall or
     building shades a strip on its far side from the moon.
@@ -332,8 +336,8 @@ See the Step 1 and Step 5 reports.
     shadow reads 0.339 (mid) instead of 0.75 (lit), as the desktop draws it. Nowhere on it is dark.
   - Map decisions that relied on the old facts (bible 7): `docs/prompts/exchange-design.md` Section 9 (the detection
     table by light band; darkness from ambient 0.08-0.12) and Space 2's moonlight, authored as ambient zones at 0.28
-    under the windows - the old dark / mid edge, now mid (0.25 / 0.53), and with the baked moon the windows' light
-    comes from the moon itself rather than a zone. Re-check in the alignment pass (map Phase 2b).
+    under the windows - exactly the dark / mid edge, and with the baked moon the windows' light comes from the moon
+    itself rather than a zone; lamp pools reach differently (the formula). Re-check in the alignment pass (map Phase 2b).
 
 - Open issues:
   - Allocations on the test path sit near the 11.5 MB/s budget (Phase 0's open issue; 11.2-11.5 here).
@@ -356,9 +360,11 @@ See the Step 1 and Step 5 reports.
     rule as the Warehouse; added above and to the Section 12 facts.
   - C. `LightField.lampInto` writes `lampTerm` out by hand (boxing): both now point at each other; the brute-force
     test compares them.
-  - D. The new thresholds also shape `visibilityFromLight`: sight speed at mid light moves both ways (at (-0.5, 0) the
-    light factor 0.99 -> 0.81; at a level of 0.4, 0.49 -> 0.69). Detection in `e2e-stealth-ai` unchanged (0.78-0.80 s).
-    Noted.
+  - D. The thresholds also shape `visibilityFromLight`; the band check does not measure sight speed. Moot after the
+    amendment below (thresholds unchanged).
+  - F. (Found at the start of Step 3) the threshold change contradicted bible L6 ("the existing thresholds 0.28 /
+    0.6"); the review missed it. **Decision (Michael, 2026-10-09): `LAMP_LEVEL_GAIN` 1.2, thresholds back to 0.28 /
+    0.6** (91.1% of floor in band). Report, Section 12 facts and docs amended.
   - E. `lightRig.ts` keeps its own `LAMP_CONE` (0.97 pi) and `SHADOW_LAMP_CONE` (0.8 pi): the phone's plain lights
     only; Step 4 removes them.
 - Process: two test-fix commits were pushed before their re-runs (said so in the messages); verified afterwards.

@@ -5,13 +5,14 @@
  * destroyed, EMP), with the formula the renderers use (`lampMath.ts`):
  *
  *   level = ambient grid + moon x moon visibility + sum over the lamps listed for the point's 2 m column (as the
- *           shaders list them) of intensity x falloff x cone x baked visibility, with closed doors cutting lamps
+ *           shaders list them) of `LAMP_LEVEL_GAIN` x intensity x falloff x cone x baked visibility, with closed
+ *           doors cutting lamps
  *
  * Visibility is read trilinearly between cell centres and clamped to each box, as the GPU samples the atlas. Lights
  * that are not baked (flashlights) come from `dynamicAt` with the caller's ray test. Everything is allocation-free.
  */
 import { AMBIENT_CELL } from './ambientGrid';
-import { LAMP_CONE_COS, LAMP_EXP, lampTerm, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampTerm, SPOT_EXP } from './lampMath';
 import type { LightBake } from './lightBake';
 import type { LightRegistry, Occluder } from './lights';
 import { BOX_STRIDE, LAMP_CELL, LAMP_GRID, LAMP_GRID_SLOTS, LAMP_STRIDE, lampGrid } from '../voxel/lampBake';
@@ -214,7 +215,7 @@ export class LightField {
     this.res = 0;
     if (vis <= 0) return;
     if (this.doors.length && this.doorBlocks(lx, ly, lz, x, y, z)) return;
-    this.res = l.intensity * t * vis;
+    this.res = LAMP_LEVEL_GAIN * l.intensity * t * vis;
   }
 
   private visInto(i: number, x: number, y: number, z: number): void {
@@ -272,7 +273,7 @@ export class LightField {
       if (i < this.isBaked.length && this.isBaked[i]) continue;
       if (!l.on || l.destroyed || l.intensity <= 0) continue;
       const c = l.cone;
-      const t = l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
+      const t = LAMP_LEVEL_GAIN * l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
       if (t <= 0.01) continue;
       if (occluded && occluded(l, x, y, z)) continue;
       if (this.doors.length && this.doorBlocks(l.x, l.y, l.z, x, y, z)) continue;

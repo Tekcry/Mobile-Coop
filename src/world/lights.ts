@@ -1,5 +1,5 @@
 import { hyp3 } from '../core/mathx';
-import { LAMP_CONE_COS, LAMP_EXP, lampTerm, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, lampTerm, SPOT_EXP } from './lampMath';
 /**
  * Light model (pure: no Babylon/DOM), unit-tested.
  *
@@ -60,20 +60,20 @@ export type LightInit = Partial<Omit<LightDef, 'id' | 'x' | 'y' | 'z'>> & { x: n
 
 /** Gameplay thresholds for the light meter and perception. */
 export const LIGHT = {
-  /** Below this a body counts as in shadow (meter dark, perception much slower). 3.6: 0.28 -> 0.25 with the shared
-   *  lamp formula (`lampMath`; the threshold pair that keeps the most Warehouse floor in its 3.5 band). */
-  shadow: 0.25,
-  /** Above this a body counts as lit (3.6: 0.6 -> 0.53, as above). */
-  lit: 0.53,
+  /** Below this a body counts as in shadow (meter dark, perception much slower). Fixed by the bible (L6). */
+  shadow: 0.28,
+  /** Above this a body counts as lit. */
+  lit: 0.6,
   /** Player sampling rate (Hz). */
   playerHz: 10,
 } as const;
 
-/** One light's contribution at a point (intensity x the lamp formula, `lampMath.ts`; ignores visibility). */
+/** One light's gameplay contribution at a point (gain x intensity x the lamp formula, `lampMath.ts`; ignores
+ *  visibility). */
 export function contribution(l: LightDef, x: number, y: number, z: number): number {
   if (!l.on || l.destroyed) return 0;
   const c = l.cone;
-  return l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
+  return LAMP_LEVEL_GAIN * l.intensity * lampTerm(x - l.x, y - l.y, z - l.z, l.radius, c ? c.dx : 0, c ? c.dy : -1, c ? c.dz : 0, c ? c.cosOuter : LAMP_CONE_COS, c ? SPOT_EXP : LAMP_EXP);
 }
 
 /** Make a cone from a direction and half-angles (rad). */

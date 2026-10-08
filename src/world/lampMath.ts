@@ -16,6 +16,12 @@ export const LAMP_EXP = 1;
 export const SPOT_EXP = 2;
 /** Rendering only: map lights were Babylon lights at this x their gameplay intensity. */
 export const LIGHT_GAIN = 1.6;
+/**
+ * Gameplay only: a lamp adds this x intensity x formula x visibility to the light level (3.6). With the shaders'
+ * formula the bible's thresholds (`LIGHT` 0.28 / 0.6, L6) keep the most Warehouse floor in its 3.5 band at 1.2
+ * (91.1%, against 85.6% at 1). The screen is unchanged; a level maps to `LIGHT_GAIN / LAMP_LEVEL_GAIN` on screen.
+ */
+export const LAMP_LEVEL_GAIN = 1.2;
 
 /** Range falloff: 1 at the light, 0 at (and beyond) `r`. */
 export function lampFalloff(d: number, r: number): number {

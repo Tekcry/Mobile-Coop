@@ -188,7 +188,7 @@ describe('light field (3.6)', async () => {
       const cut = l.cone ? l.cone.cosOuter : Math.cos((Math.PI * 0.97) / 2);
       if (cosA < cut) return;
       const cone = Math.pow(Math.max(cosA, 1e-4), l.cone ? 2 : 1);
-      v += l.intensity * (1 - d / l.radius) * cone * at(b.lamps!.r.vis, start, [B[0]!, B[1]!, B[2]!], [B[3]!, B[4]!, B[5]!], LAMP_CELL);
+      v += 1.2 * l.intensity * (1 - d / l.radius) * cone * at(b.lamps!.r.vis, start, [B[0]!, B[1]!, B[2]!], [B[3]!, B[4]!, B[5]!], LAMP_CELL);
     });
     return Math.min(1, Math.max(0, v));
   }

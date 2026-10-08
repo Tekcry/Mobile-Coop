@@ -10,11 +10,12 @@ Design authority: docs/design-bible.md (Section 5.1)
   plus the Medium dressing). Keys hold only the map, seed, shapes, lights and the moon's direction.
 - `world/lampMath.ts` (pure): the one formula - linear range falloff x cosine cone (lamps without a cone: the
   hemisphere below them, exponent 1; spots: squared, cut at the outer angle). `bakedLamps.ts` builds its GLSL from
-  `LAMP_MATH_GLSL` and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` is rendering only).
+  `LAMP_MATH_GLSL` and the same constants (`LAMP_CONE_COS`, `LAMP_EXP`, `SPOT_EXP`; `LIGHT_GAIN` 1.6 is rendering
+  only, `LAMP_LEVEL_GAIN` 1.2 gameplay only).
   `moonLight(theme)`: the moon's gameplay share of `lightLevel` (sun / (ambient + sun)); the open sky's ambient
   gives that much up to it, zones keep theirs.
 - `world/lightField.ts` (pure) `LightField` (`World.lightField`): `levelAt` = ambient grid + moon x moon visibility +
-  the lamps listed for the 2 m column (as the shaders list them) x intensity x formula x trilinear baked visibility,
+  the lamps listed for the 2 m column (as the shaders list them) x `LAMP_LEVEL_GAIN` x intensity x formula x trilinear baked visibility,
   closed doors (`Doors.list`, `DOOR_SHUT`) cutting a lamp by one segment-leaf test; `dynamicAt` = non-baked lights
   (flashlights) with the caller's ray; `totalAt`; `bodyLevel` = brighter of chest / head. Allocation-free (private
   steps write a scratch field; a unit test bounds the bytes per query). Without a bake: registry ambient, every
@@ -23,7 +24,7 @@ Design authority: docs/design-bible.md (Section 5.1)
   player's `PlayerRef.light`), `Enemy.perceive` (`ref.light`, else `totalAt` at the aim point), body light
   (`EnemyManager`, 1 Hz), `Enemy.torchWanted` (static level < `TORCH_DARK` 0.35, kept to `TORCH_KEEP` 0.45).
 - `world/lights.ts` (pure): `LightRegistry` holds state only (lights, on / destroyed, groups, EMP, `zones`,
-  `ambientAt` / `zoneAt`, `version`); `contribution` calls `lampMath`; `LIGHT` thresholds 0.25 / 0.53 (3.6);
+  `ambientAt` / `zoneAt`, `version`); `contribution` calls `lampMath` (x `LAMP_LEVEL_GAIN` 1.2, gameplay only); `LIGHT` thresholds 0.28 / 0.6 (bible L6);
   `visibilityFromLight`; `nearestLights`; `lightOnRay`.
 - `world/lightRig.ts`: emissive bulbs (one thin-instanced mesh) for every light, and a fixed pool of
   `MAX_REAL_LIGHTS` spot lights (lamps = wide downward cone) given to the nearest lights at 4 Hz; quality sets how
