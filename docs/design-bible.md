@@ -1,6 +1,6 @@
 # Night Shift - Design Bible
 
-Version 1.8 - 2026-10-08 (1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.9 - 2026-10-09 (1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -1142,6 +1142,59 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
   - thrown objects (Phase 6)
 - **After the campaign:** a standalone **Confrontation** mode (roles chosen or swapped, any arena) becomes the on-brand replacement for the parked PvP modes.
 
+### 5.16 Desktop visual target
+
+**Goal (Michael, 2026-10-09):** the desktop version surpasses Splinter Cell: Chaos Theory visually.
+
+- The phone keeps "one palette, two fidelities" (Section 8).
+- Visual work never changes gameplay (hard rule).
+
+**Where to win:** lighting and atmosphere, where modern real-time rendering beats 2005 by far. CT's strengths were hand-made characters and textures, which are hard to match from code.
+
+**CC0 textures (decided by Michael, 2026-10-09):**
+
+- Free CC0 texture files are allowed for desktop surface detail: brick, concrete, rust, tiles, fabric and gear.
+- **Rules:**
+  - Bundled with the game, never fetched from third parties at runtime.
+  - Downloaded only by desktop builds and presets that use them. Phones never download them.
+  - Cached for offline play after the first desktop load.
+  - A size budget is set in Phase 6b (proposal: 60 MB of compressed textures for the whole campaign).
+  - Every file's source and licence goes in `docs/art-credits.md`.
+- Geometry, characters and animation stay code-built (5.12).
+
+**Pillars of the look:**
+
+1. **Lighting:**
+   - soft shadows shaped by the lamp fixture (the baked lamps)
+   - one-bounce light
+   - visible light cones in fog and rain
+   - flickering and failing lamps
+   - flashlight beams in haze
+2. **Atmosphere:**
+   - rain with wet surfaces, puddle reflections and drips
+   - steam, dust in light shafts, layered fog
+3. **Hollowmere's identity:** orange sodium lamps against blue moonlight, rain-wet stone and metal, deep but readable blacks.
+4. **The operators:**
+   - detailed code-built silhouettes: fabric folds, straps, pouches, harnesses, kit detail
+   - CC0 fabric and gear textures
+   - the goggle glow as the signature light
+5. **Vision modes as a showpiece:** night, thermal and electro, each with its own grain, bloom and noise character.
+6. **Camera finish:** filmic tone mapping and grading per district, subtle grain, restrained lens effects.
+
+**The art direction doc** (`docs/art-direction.md`, written before Phase 6b; can be drafted in chat at any time):
+
+- the palette and lighting key per district
+- the material list
+- the character detail sheet
+- the rules for what may differ on phone
+
+**Beauty shots:**
+
+- A fixed set of camera positions per map (`scripts/beauty-shots.mjs`), captured at Epic after every phase from Phase 6b on, so progress is visible and regressions are caught.
+- Michael compares them privately against Chaos Theory screenshots. Those never go in the repo.
+
+**Budget:** desktop targets stay as in `docs/systems/performance.md` (the gaming-laptop target at Epic). High must still run well on mid-range desktop GPUs.
+
 ## 6. Out of scope
 
 **Removed in Phase 3** (code deleted, tests and docs updated):
@@ -1165,7 +1218,8 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
 **Never:**
 
 - Splinter Cell IP of any kind.
-- Recorded or synthesised voice. External audio or art files (existing hard rule).
+- Recorded or synthesised voice.
+- External art files, except CC0 textures for desktop detail (5.16). External audio files, unless the Phase 2 A/B test changes that rule (S7).
 - Random patrols that defeat planning.
 - Forced timers in stealth sections.
 - World waypoints.
@@ -1233,7 +1287,7 @@ The standard's existing content stays. This bible adds the following:
 - **Release intent (Michael, 2026-10-08):** a personal project.
   - No store builds and no paid infrastructure unless it is cheap.
   - The originality rules stay anyway: no Splinter Cell IP, no real gun brands.
-- **Art direction default: one palette, two fidelities.**
+- **Art direction: one palette, two fidelities.** Desktop aims to surpass Chaos Theory visually (5.16).
   - Each map's design document defines its palette and lighting key: lamp colours, moon, the colours of dark and lit areas.
   - The phone look uses the same palette and light colours with simpler materials; desktop adds detail, never a different mood.
   - Readability is judged on the phone look first.
@@ -1315,6 +1369,7 @@ The standard's existing content stays. This bible adds the following:
 | 4 | Mission framework | Shared campaign progress with spoiler warnings and the per-player mission record (5.8). Section 5.8: triggers / actions, objective tiers, rules and alarm levels, checkpoints with Continue and Restart from checkpoint, text radio with solo / team variants and speaker colours (story Section 7), briefing, field terminal, stealth rating; Warehouse missions ported as test content. |
 | 5 | Co-op 2-4 | Connection test and network stats (C19); the bot partner extended; the first playtest night (C20). Section 5.9: per-player detection, `coopExtras`, new team moves and their clips, distinct operators (5.14) and team-mate outlines; Sync, clutch saves, dragging downed partners, medkit on a team-mate, typed pings with quick lines, team results and highlights (C12-C18); 4-player e2e, host-leave resume. |
 | 6 | CT verbs for the slice | Civilians (5.7); per-stop guard facing (5.7); lockpick, hack minigame, optic cable, interrogation, knife, cameras, lasers, camera jammer, sticky shocker, ring airfoil, light disruptor; curated campaign kit and loadout kits. |
+| 6b | Visual target | Section 5.16: the CC0 texture pipeline (desktop-only download, offline cache, size budget, credits); the material library; operator detail; rain and wetness; light cones, haze, flicker; vision mode beauty pass; district grading; beauty shot script and baseline. Works from `docs/art-direction.md`. |
 | 7 | Vertical slice | Kestrel Exchange as Mission 1 "Dead Line". First the alignment pass in `docs/prompts/exchange-alignment.md` (map Phase 2b) on `exchange-design.md`: replace cover-to-cover and Mark & Execute in Spaces 5-7, re-check engine facts changed by Phases 1-3b (including the frozen movement metrics), add the light, sound, checkpoint and co-op plans. Then the map's own build phases 3-6 (ground floor; first floor, roof and yard; guards and mission; dressing and verification), then the Dead Line radio script (story Section 8), checkpoints and rating. Finally a playtest pass on iPhone, desktop and 2-player co-op. |
 
 **After the slice:**
@@ -1328,7 +1383,9 @@ The standard's existing content stays. This bible adds the following:
 
 ## 11. Open decisions (Michael)
 
-**Decided on 2026-10-08** (no longer open):
+**Decided on 2026-10-08 and 2026-10-09** (no longer open):
+
+- the desktop visual target; CC0 textures for desktop detail; Phase 6b
 
 - story, setting and tone; title; the traitor finale (5.15)
 - input parity; personal project; shared co-op progress

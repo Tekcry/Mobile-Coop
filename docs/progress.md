@@ -14,7 +14,8 @@ every phase step.
 | 4 | Mission framework | not started | 3.10.0 | (to be written) |
 | 5 | Co-op 2-4 | not started | 3.11.0 | (to be written) |
 | 6 | CT verbs for the slice | not started | 3.12.0 | (to be written) |
-| 7 | Vertical slice (Kestrel Exchange, "Dead Line") | not started | 3.13.0 | `docs/prompts/exchange-alignment.md` first, then the map's phases 3-6 |
+| 6b | Visual target | not started | 3.13.0 | (to be written) |
+| 7 | Vertical slice (Kestrel Exchange, "Dead Line") | not started | 3.14.0 | `docs/prompts/exchange-alignment.md` first, then the map's phases 3-6 |
 
 ## Current state
 - `ct-movement` is at 3.5.0: `master` 3.4.0 plus CT movement plus Phase 0. `master` already carries the Step 1 integration (Michael merged PR #2); `dev` and
@@ -29,6 +30,7 @@ every phase step.
 - Kestrel Exchange is a paper design only: map phases 0-2 done, Phase 2 approved 2026-10-08; no map code; build
   phases held until roadmap Phase 3b and the alignment pass (bible Section 10, Phase 7).
 - Decisions of 2026-10-08 recorded: bible v1.8, story v1.2 (see the bible's Section 11).
+- Bible 1.9: desktop visual target and CC0 textures (5.16), Phase 6b.
 - The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
 - Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) is behind `?legacy=1` (3.5.0, `core/legacy.ts`). The title is Night Shift. `CLAUDE.md` is a lean core (9.6 KB) with the detail in `docs/systems/`.
 

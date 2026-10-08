@@ -34,7 +34,7 @@
 
 ## Hard rules
 - No runtime CDN or network dependency. All assets are bundled; Havok WASM is imported with `?url`.
-- No external art/audio. Visuals are procedural/primitive; audio is WebAudio synthesis.
+- No external art or audio, except CC0 textures for desktop detail (bible 5.16). Audio is WebAudio synthesis unless the Phase 2 A/B test changes it (bible S7).
 - Import Babylon only through `src/core/babylon.ts`. Babylon 9 is tree-shaken and stubs methods whose
   side-effect module is missing (it warns: "requires a side-effect import"). Add the side-effect import there.
 - Important data goes to IndexedDB (`src/save`). `localStorage` is never used for saves.
