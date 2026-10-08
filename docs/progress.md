@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | in progress (Step 3) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | in progress (Step 3 done; Step 4) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -397,6 +397,35 @@ See the Step 1 and Step 5 reports.
   - The moon is applied to the sun light rather than drawn by the plugin: Babylon's light keeps its N.L, colour and
     the moving casters' cascade shadow; the bake adds only the static occlusion.
   - Per-light injection relies on the sun being the only directional light in a match scene.
+- Tests:
+  - `npm run lint`: clean. `npx vitest run`: 62 files, 617 tests (new: `lampDoorLists`).
+  - Browser check (Epic Warehouse, both fills): the moon's multiply is in all 12 lit materials' shaders, the moon's
+    cascades hold 46 moving meshes (props, characters) and no level pieces; no console errors (a first run showed
+    "two textures of different types use the same sampler location": a sampler declared without its texture; fixed
+    by declaring each only with its texture, re-checked).
+  - Step 3 build: `e2e-desktop`, `e2e-lightbake`, `e2e-stealth-ai` (light pool 0.80, aisle 0.12, detection in the
+    light 0.82 s; the torch check passes with the lamp gain), `e2e-stealth`, `e2e-tactics`, `e2e-missions`,
+    `e2e-coop`: all pass.
+  - `writeDoors` was changed after that build (it built an empty list every frame; now only when a door changes).
+- Measurements (`perf.mjs --desktop --budget`, interleaved with `a78293f`):
+
+  | Build | sim p95 ms | anim ms / char | alloc MB/s | draws | tris M |
+  | --- | --- | --- | --- | --- | --- |
+  | `a78293f` (two runs) | 4.15, 3.15 | 0.0488, 0.0512 | 11.17, 10.85 | 363, 358 | 1.04, 1.01 |
+  | Step 3 (two runs) | 3.45, 2.85 | 0.0541, 0.0473 | 11.79, 10.95 | 215, 225 | 0.64, 0.67 |
+
+  - Draw calls fall 40% and triangles 37% (static casters out of the moon's cascades), as the spec expected.
+  - sim p95 misses its budget on both builds (`a78293f` more); animation once on each. The first Step 3 run's
+    allocations (11.79, over 11.52) come from one `update` site at 957 KB/s against about 260 in the other three
+    runs: a one-off; the second run is 10.95.
+- Contact sheets (`docs/prompts/phase-1-sheets/step3-{epic,high}-<view>.jpg`; panels: before / Step 3 / grid fill;
+  Epic before = Step 1's, High before = `a78293f`): Step 3 looks the same as before in all six views at Epic and
+  High; the yard's moon shadows now come from the bake and read the same. The grid fill (not taken) lifts every
+  interior.
+- Open issues:
+  - Phones still draw six plain lights (Step 4); the phone check, the volume and the readable-darkness floor come next.
+  - CPU budgets on the cloud VM miss on both builds (noise, as in Phase 0).
+- Next: Step 4 (phones render the field), then STOP for Michael's iPhone check.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
