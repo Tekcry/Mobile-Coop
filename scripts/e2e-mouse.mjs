@@ -63,12 +63,19 @@ try {
   assert(s.weapon !== s0.weapon, `X swaps weapons (${s0.weapon} -> ${s.weapon})`);
   // = / - step the gear too
   const g0 = s.gear;
+  // (the page runs at a few frames a second on software GL: poll up to 2 s for the step instead of a fixed 150 ms)
+  const gearIs = async (want) => {
+    let g = (await st()).gear;
+    for (let i = 0; i < 40 && g !== want; i++) {
+      await page.waitForTimeout(50);
+      g = (await st()).gear;
+    }
+    return g;
+  };
   await page.keyboard.press('Equal');
-  await page.waitForTimeout(150);
-  const g1 = (await st()).gear;
+  const g1 = await gearIs(Math.min(6, g0 + 1));
   await page.keyboard.press('Minus');
-  await page.waitForTimeout(150);
-  const g2 = (await st()).gear;
+  const g2 = await gearIs(g0);
   assert(g1 === Math.min(6, g0 + 1) && g2 === g0, `= / - step the gear (${g0} -> ${g1} -> ${g2})`);
   await page.evaluate(() => document.exitPointerLock());
   await page.waitForTimeout(300);
