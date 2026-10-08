@@ -369,7 +369,10 @@ try {
       for (const e of g.enemyMgr?.enemies ?? []) e.gas = 0;
     });
   }
-  const gg = await GB(() => [...window.__app.current.net.puppets.values()].find((p) => p.alive && !p.taken && p.def.kind !== 'dog')?.id ?? '');
+  // (3.6: the guard is chosen on the host - the client's puppets can still show one the host has just removed, the
+  // gassed guard knocked out a moment ago - then the client waits for its puppet)
+  const gg = await GA(() => window.__app.current.enemyMgr.enemies.find((e) => e.alive && !e.taken && !e.dog && e.def.kind !== 'dog')?.id ?? '');
+  if (gg) await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !!p && p.alive; }, gg, 15000, 'the client has the chosen guard');
   if (gg) {
     let grabbed = false;
     for (let attempt = 0; attempt < 6 && !grabbed; attempt++) {
