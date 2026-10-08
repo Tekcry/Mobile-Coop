@@ -8,7 +8,6 @@ const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
 const MAPS = [
   ['proving', 'sandbox'],
   ['warehouse', 'clear'],
-  ['exchange', 'sandbox'],
 ];
 let failed = false;
 for (const [map, mode] of MAPS) {
@@ -101,17 +100,7 @@ for (const [map, mode] of MAPS) {
       for (const w of L.windows) {
         const nx = Math.sin(w.yaw);
         const nz = Math.cos(w.yaw);
-        for (const sd of [-1, 1]) {
-          const wx = w.c.x + nx * 0.85 * sd;
-          const wz = w.c.z + nz * 0.85 * sd;
-          // (a view window: its sill is more than a vault over the floor on this side - glazed so the player sees through it)
-          const wf = floorAt(wx, wz, w.sillHeight - 0.3);
-          if (wf !== null && w.sillHeight - wf > 1.3) {
-            out.push({ name: `window ${w.id} ${sd < 0 ? 'front' : 'back'} (view only, sill ${(w.sillHeight - wf).toFixed(1)} m over the floor)`, ok: true, why: 'not a vault' });
-            continue;
-          }
-          tryIt(`window ${w.id} ${sd < 0 ? 'front' : 'back'}`, w, wx, wz, w.sillHeight - 0.3, Math.atan2(-nx * sd, -nz * sd), () => g.traversal.hintWindow?.id === w.id);
-        }
+        for (const sd of [-1, 1]) tryIt(`window ${w.id} ${sd < 0 ? 'front' : 'back'}`, w, w.c.x + nx * 0.85 * sd, w.c.z + nz * 0.85 * sd, w.sillHeight - 0.3, Math.atan2(-nx * sd, -nz * sd), () => g.traversal.hintWindow?.id === w.id);
       }
       // (3.2.0) split jump gaps: between the walls at the middle, facing along the corridor
       for (const sg of L.splits) {

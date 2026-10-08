@@ -110,9 +110,6 @@ Blacklist style.
     the drop checks): drainpipe -> roof, rappel -> kick through the dispatch window, skylight drop, the pump house
     boost target (out of reach alone) and the climb to the roof, press wall jump, corridor split + drop, deck pipe +
     drop, yard fence + the nav path round it
-  - `scripts/e2e-exchange.mjs` (3.2.x, Kestrel Exchange; Free Roam in phase 2) S0-S3 set pieces by pad, the action button by
-    touch: light / noise meters, roll, plinth (grab, climb, lower, soft / roll falls), duct kick vs unscrew, shelf tops, hopper
-    jump grab, window, split, pipe, wall jump + perch + window, ladder, catwalk wall jump, drainpipe, cage fence, grate noise
   - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): the manual jump (up and down, grabs a pipe / lip /
     drainpipe), split jump (shown only facing along; one Y jumps, a second in the air braces facing the way it
     jumped, feet 2.5 m up on both walls, legs within 15 deg of level, no travel, sidearm aim band + fire, B drop, no jump
@@ -321,13 +318,6 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   pipe from the mezzanine (x 17, 4.4 m) over the floor patrol, the press at 3.3 m (wall jump), a yard fence (x 14.5)
   closing the dark lane off from the east lot (`scripts/e2e-ct-warehouse.mjs`). Proving
   Grounds has a three-room mini set (north west) for tests.
-- Kestrel Exchange (3.2.x, `world/maps/exchange.ts`; plan `docs/prompts/exchange-map-plan.md`, log
-  `docs/prompts/exchange-map-progress.md`, rules `docs/level-design.md`): a linear, indoor, night stealth map for the Chaos
-  Theory movement, footprint x -32..32, z -20..20, eight sections S0 culvert .. S7 freight lift in a U (west to east along the
-  south row, north through the light well, west along the north row). Listed (`LISTED_MAP_IDS`), modes infiltration / clear /
-  sandbox, appended after Proving Grounds in `MAPS`. Every wall (perimeter 8 m, structural walls, headers) is `noLedge` (lips come
-  only from named pieces: shelves, plinth, cabinets, catwalks, boilers, podiums, piers, galleries); catwalk lips have a 2 m conduit
-  trunking under them so the wall-jump kick has a wall at any stance. S0-S3 are built (phase 2); S4-S7 are sealed shells.
 - `LevelBuilder.build` emits thin instances (boxes, cylinders) and one static body with a container shape.
   Use `visible=false` pieces for collision-only helpers (stairs collide as a ramp).
 - Characters use `CharacterRig` (see "Characters" below) with a `PartFactory`; `PartLibrary` instances share unit meshes and one
