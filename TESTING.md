@@ -389,8 +389,9 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
   straight in.
 - [ ] Split pose: the legs almost horizontal out to both walls, hands braced on the walls. Jump in facing east, it
   faces east; facing west, it faces west.
-- [ ] In the split: no Jump / Climb prompt; Y and Jump do nothing. Only Drop (B), a drop attack on a guard under you,
-  and the pistol (LT / RT).
+- [ ] In the split under a lip (the Proving corridor's 4.3 m wall tops): the Jump prompt shows; Y or Jump jumps up and
+  hangs from the lip ahead. With nothing over it, no prompt and Y does nothing. Drop (B), a drop attack on a guard
+  under you and the pistol (LT / RT) still work.
 - [ ] Hanging from a horizontal pipe: the operator faces along the pipe, hands one ahead of the other; legs up and
   upside down stay along it; holding the stick back turns round.
 - [ ] Mezzanine deck: standing under the pipe's start, the action button / Y grabs the pipe (no mantle over the railing).
@@ -414,28 +415,6 @@ Proving Grounds (Free Roam), open ground south west of the spawn:
   lot; guards chasing go round by the facade.
 - [ ] Hunter on the Warehouse: every room still clears; Infiltration missions (Ledger, Courier, Blackout, Cold Storage)
   still complete.
-
-## 3.2.x - Kestrel Exchange, phase 2: S0-S3 (Free Roam on the Kestrel Exchange; phone + controller)
-Play > Free Roam > Kestrel Exchange. You start in S0 (the culvert, pitch dark). Rooms S4-S7 are empty shells for now.
-- [ ] S0: the walkway lamp is the only light and its switch is the box on the west wall (light meter drops to dark when
-      you leave the pool). The 1.2 m channel along the east side is long enough for a forward roll (gear 5 or 6 standing,
-      tap crouch while moving). Crossing the grate strip is silent at gears 1-2 and heard above that.
-- [ ] S0 plinth: grab its lip from the floor, shimmy, climb up (Y), hold B at the edge to lower into a hang. Walking off
-      the side is a soft landing; walking off the small housing on top is a roll-band fall. The 1.3 m valve housing is a mantle.
-- [ ] S0 duct: at the vent on the east wall a tap kicks the cover in (loud), holding Y unscrews it (silent, a ring fills);
-      crawl through to S1's south-west pocket.
-- [ ] S1: the shelf tops are standing grabs; the chute hopper on the north wall needs the jump button; the open window
-      beside the exit door vaults into S2. Tables are cover.
-- [ ] S2: facing along the lane between the two tall banks shows "Split jump (double jump)"; jump twice. From the cabinet
-      top the pipe is a grab: Y legs up, Y inverted. The relay bank on the east wall is a wall jump; Y climbs up on the perch; the perch window
-      leads onto S3's catwalk. The high window in the north wall is glazed: you can see through it, you cannot climb it.
-- [ ] S3: ladder in the south-west corner; the catwalk edge is a wall jump from the floor; the drainpipe on boiler B's west
-      face then Y at the top; boiler A is a step up from the catwalk; the cage fence rattles above gear 3; the grate catwalk
-      is louder than the floor; the stairs at the lit east end; the west catwalk runs through the doorway at 3.3 m.
-- [ ] Touch: at the split prompt, the cabinet pipe, the cage fence and (stick pushed at the wall) the relay bank the action
-      button does the move.
-- [ ] Phone at Low: lit pools and dark corners read at a glance; the grate strip and the wood sorting-room floor look different
-      from concrete.
 
 ## 3.1 phases 2-3 - Auto graphics and adaptive detail (PC + phone)
 - [ ] Fresh install on the laptop: Settings > Graphics shows Auto with "this device: Epic (from the GPU)" (RTX 4090).

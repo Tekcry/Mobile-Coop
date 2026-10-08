@@ -1,14 +1,5 @@
 # Changelog
 
-## 3.2.x - Kestrel Exchange
-Phase 2 - blockout S0-S3 (Free Roam):
-- New map, Kestrel Exchange: a linear night-time stealth level (a 1930s telephone exchange turned black-market hub), built only
-  from the Chaos Theory systems. Listed for Infiltration, Hunter and Free Roam (the Warehouse stays every mode's default);
-  this phase builds the shell and S0-S3: the culvert (light and noise meters, roll, plinth, valve housing, the vent you kick or
-  unscrew), the sorting room (shelf tops, hopper, window), the switchboard hall (split lane, pipe, wall-jump perch and window)
-  and the boiler room (catwalk, ladder, drainpipe, boilers, stairs, cage fence). S4-S7 are sealed shells; no guards yet.
-- New `scripts/e2e-exchange.mjs`; `e2e-anchors` covers the map (windows whose sill is out of reach on both sides count as view-only).
-
 ## 3.2.0 - Chaos Theory movement
 Phase 0 - speed gears, instant stop, roll:
 - Speed gears: six paces, stepped one at a time (controller D-pad up / down, mouse wheel or = / - on PC, the new speed
@@ -147,6 +138,11 @@ Playtest changes, second round (Michael, 2026-10-08):
   character now settles onto it.
 - Fix: a respawn / insertion puts the feet straight into a stance where you appear (they used to walk over from where
   you were), and a foot stepping back past the other bows round it instead of brushing through it.
+- Split jump: jumping out of it is back (Michael, 2026-10-08). Braced, Jump (or Y) jumps up to a lip, pipe or ladder
+  over the split ahead of you; drop, a drop attack and the pistol stay as before.
+
+- Docs: level design standard (`docs/level-design.md`), map spec template (`docs/templates/map-spec.md`) and the
+  Kestrel Exchange spec (`docs/prompts/exchange-map.md`).
 
 ## 3.1.0 - One graphics ladder for PC and phones, Auto graphics, adaptive detail, fair crossplay
 - Graphics > Preset: Auto (the default; 3.0 installs still on Epic move to it). The game picks the preset for the

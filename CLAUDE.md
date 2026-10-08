@@ -110,13 +110,10 @@ Blacklist style.
     the drop checks): drainpipe -> roof, rappel -> kick through the dispatch window, skylight drop, the pump house
     boost target (out of reach alone) and the climb to the roof, press wall jump, corridor split + drop, deck pipe +
     drop, yard fence + the nav path round it
-  - `scripts/e2e-exchange.mjs` (3.2.x, Kestrel Exchange; Free Roam in phase 2) S0-S3 set pieces by pad, the action button by
-    touch: light / noise meters, roll, plinth (grab, climb, lower, soft / roll falls), duct kick vs unscrew, shelf tops, hopper
-    jump grab, window, split, pipe, wall jump + perch + window, ladder, catwalk wall jump, drainpipe, cage fence, grate noise
   - `scripts/e2e-ct.mjs` (3.2.0) the Proving CT course (north): the manual jump (up and down, grabs a pipe / lip /
     drainpipe), split jump (shown only facing along; one Y jumps, a second in the air braces facing the way it
-    jumped, feet 2.5 m up on both walls, legs within 15 deg of level, no travel, sidearm aim band + fire, B drop, no jump
-    out; falls of 0.75-2.5 m rest within 3 cm of the floor), wall jump (straight, too far, inside
+    jumped, feet 2.5 m up on both walls, legs within 15 deg of level, no travel, sidearm aim band + fire, B drop, Y up to
+    a lip over it; falls of 0.75-2.5 m rest within 3 cm of the floor), wall jump (straight, too far, inside
     corner), pipe facing along it + turning round, legs up (0.5 m/s, feet up), inverted (camera upright, sidearm + spread x1.3), curl up, hands, damage
     mid-change, the flip drop; rappel (hook on, rope speeds, kick out + sideways, sidearm, kick through a window,
     unhook height), fence (bullets / sight pass, blocks the body, climb / shimmy speeds, rattle by gear, flip over)
@@ -163,6 +160,9 @@ Blacklist style.
 - Coop code lives in `src/net` and is only reached through a dynamic `import()` behind `flags.coop`.
   Single player must never import from `src/net` statically.
 - Strict TS (`noUncheckedIndexedAccess`, `verbatimModuleSyntax`: use `import type`).
+- Every new map follows `docs/level-design.md` (the level design standard) and its spec starts from
+  `docs/templates/map-spec.md`. A map spec may tighten the standard, never loosen it without Michael's written
+  approval. The standard and the template change only with Michael's approval.
 
 ## Module layout (`src/`)
 | Module | Responsibility |
@@ -305,6 +305,15 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
 - No `backdrop-filter` over the canvas (expensive on phones). `.screens` container is pointer-events: none;
   children opt in.
 
+## Level design
+- `docs/level-design.md`: the standard every map follows - architecture first ("why is it here?"), a linear spine of
+  encounter spaces, a dark vantage and three routes plus a secret per guarded space, loops not dead ends, guards with
+  jobs, isolation moments and overlapping coverage, light from fixtures, sound from materials, teach / test / twist
+  pacing, co-op layered on a complete solo level, engine constraints, required design deliverables (section 13),
+  phases (section 14) and acceptance tests (section 15).
+- `docs/templates/map-spec.md`: the template for a new map's spec (fill it, then run its phases).
+- Map specs and their progress logs live in `docs/prompts/<map-id>.md` and `docs/prompts/<map-id>-progress.md`.
+
 ## World and player
 - Maps (`world/maps/*.ts`) are `MapDef`s: a `build(builder, seed)` that places modular pieces through
   `LevelBuilder` and returns a `MapLayout` (spawns, props, objectives, pickups, optional `rooms`). Register in
@@ -321,13 +330,6 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   pipe from the mezzanine (x 17, 4.4 m) over the floor patrol, the press at 3.3 m (wall jump), a yard fence (x 14.5)
   closing the dark lane off from the east lot (`scripts/e2e-ct-warehouse.mjs`). Proving
   Grounds has a three-room mini set (north west) for tests.
-- Kestrel Exchange (3.2.x, `world/maps/exchange.ts`; plan `docs/prompts/exchange-map-plan.md`, log
-  `docs/prompts/exchange-map-progress.md`, rules `docs/level-design.md`): a linear, indoor, night stealth map for the Chaos
-  Theory movement, footprint x -32..32, z -20..20, eight sections S0 culvert .. S7 freight lift in a U (west to east along the
-  south row, north through the light well, west along the north row). Listed (`LISTED_MAP_IDS`), modes infiltration / clear /
-  sandbox, appended after Proving Grounds in `MAPS`. Every wall (perimeter 8 m, structural walls, headers) is `noLedge` (lips come
-  only from named pieces: shelves, plinth, cabinets, catwalks, boilers, podiums, piers, galleries); catwalk lips have a 2 m conduit
-  trunking under them so the wall-jump kick has a wall at any stance. S0-S3 are built (phase 2); S4-S7 are sealed shells.
 - `LevelBuilder.build` emits thin instances (boxes, cylinders) and one static body with a container shape.
   Use `visible=false` pieces for collision-only helpers (stairs collide as a ramp).
 - Characters use `CharacterRig` (see "Characters" below) with a `PartFactory`; `PartLibrary` instances share unit meshes and one
@@ -514,8 +516,8 @@ After the steps: `frameUpdate(dt, alpha)` then `scene.render()`.
   (after `LEAP.splitWait` when a split gap is under the jump); a second press within `LEAP.doubleTap` over the split
   (`AttachController.split`, no longer a traverse hint; prompt `splitDouble`; `TraversalController.splitNow` for the
   touch button) braces in it. `SPLIT.feetHeight` 2.5, `rootDrop` 0.37 (the root under the feet line: legs
-  near level), `minHeight` 3.6 (`gripCentre` of a split = the braced hands); `findJump` returns null in a split (drop,
-  drop attack or sidearm only); the double tap sets the split's `face` from the jump's travel (else the body's yaw).
+  near level), `minHeight` 3.6 (`gripCentre` of a split = the braced hands); `findJump` from a split jumps up to a lip / pipe /
+  ladder ahead over it (Y, reach from the feet line + 1.05 m; re-enabled 2026-10-08), else drop, drop attack or sidearm; the double tap sets the split's `face` from the jump's travel (else the body's yaw).
   Horizontal pipes face along the pipe in every sub-state (`attachPose` pipeH yaw along `face`; `pipeFace(a, camYaw)`
   in `attachTo`; hands one ahead of the other, `pipeHands` either side of the top; inverted: legs straddle it, ankles
   crossed over the top); held back against the facing for `PIPE_TURN` 0.3 s it turns round (`backT`); `anchorFirst`

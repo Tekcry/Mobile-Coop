@@ -276,5 +276,9 @@ Saves there are separate (`shoulder-strike-ct`). Every push to `ct-movement` reb
 - Cover strafe follows the speed gear (2026-10-07, approved by Michael; the spec said cover stays as it is):
   `coverPace(gear, crouched)` = the gear's pace capped at `GEARS.coverMax` (standing 2.8, crouched 1.8 m/s; gear 3 is
   about the 2.x pace 2.3 / 1.25). Cover-to-cover runs, glides and the edge stop are unchanged.
+- Jumping out of a split re-enabled (2026-10-08, Michael; reverses the second playtest round's "no jumping out"): as
+  the Phase 2 spec had it, Y braced jumps up to a lip / pipe / ladder over the split ahead of the body
+  (`findJumpTarget`, up). The reach is measured from the feet line + 1.05 m (the hands sit lower since `rootDrop`), so
+  lips up to ~4.75 m over the floor are in reach. e2e-ct checks the jump to the 4.3 m lip again.
 - Branches (2026-10-07, Michael): keep `ct-movement` separate from `dev` for now - do not merge `dev` in at the start
   of a phase until he says so.

@@ -115,7 +115,7 @@ try {
   const slope = (h, f) => (Math.atan2(Math.abs(h[1] - f[1]), Math.hypot(h[0] - f[0], h[2] - f[2])) * 180) / Math.PI;
   const sl = Math.max(slope(legs.hipL, legs.ankL), slope(legs.hipR, legs.ankR));
   assert(sl < 15 && legs.hipL[1] > 2.45 && legs.hipL[1] < 2.8, `legs almost horizontal (hip-ankle ${f2(sl)} deg, hips ${f2(legs.hipL[1])} m)`);
-  assert(i.jump === null, `no jump offered from the split (${i.jump})`);
+  assert(i.jump === 'ledge', `a lip in reach above the split (${i.jump})`);
   assert(i.stowed && !i.held, 'weapon stowed while braced');
   // stick does nothing (no travel)
   const x0 = i.x;
@@ -147,7 +147,7 @@ try {
   await run(1.2);
   i = await I();
   assert(!i.attached && i.grounded && Math.abs(i.y - 0.02) < 0.03 && i.landings > land0, `B drops out to the floor (y ${f2(i.y)}, landing ${i.landing} ${f2(i.fall)} m)`);
-  // (3.2.0) jumping the other way faces the other way; Y braced does nothing (no jumps out of a split)
+  // (3.2.0) jumping the other way faces the other way; Y braced jumps up to a lip over the split
   await tp(10, 0, 25.05, -Math.PI / 2);
   await run(0.4);
   await tap(BTN.Y);
@@ -158,7 +158,7 @@ try {
   await tap(BTN.Y);
   await run(1.0);
   i = await I();
-  assert(i.attached && i.kind === 'split' && i.phase === 'on', `Y braced: still in the split (${i.kind} ${i.phase})`);
+  assert(i.attached && i.kind === 'ledge' && Math.abs(i.top - 4.3) < 0.05, `Y jumps up from the split to a lip (${i.kind}, top ${f2(i.top)})`);
   await tap(BTN.B);
   await run(1.5);
 
