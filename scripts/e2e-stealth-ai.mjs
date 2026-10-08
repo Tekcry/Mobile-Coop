@@ -445,8 +445,15 @@ try {
       // it looks for ALERT.hearLook (2.4 s), then walks over
       t.step(2.8);
       const lv = e.level;
-      t.step(0.3);
-      const torch = em.torchesOn;
+      // (3.6: the torch comes on where it is dark at his head - the light field, lamps included - so he lights it
+      // once he walks out of the next lamp's pool towards the shot one)
+      let torch = 0;
+      let torchLevel = -1;
+      for (let k = 0; k < 30 && !torch; k++) {
+        t.step(0.1);
+        torch = em.torchesOn;
+        if (torch) torchLevel = g.world.lightField.levelAt(e.pos.x, e.pos.y + 1.4, e.pos.z);
+      }
       // switch: the floor circuit off at its wall switch
       t.reset();
       t.light(0);
@@ -462,12 +469,12 @@ try {
       t.step(2.8);
       const lv2 = e2.level;
       t.light(null);
-      return { before, out, end, lv, torch, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
+      return { before, out, end, lv, torch, torchLevel, swOffer, on0, on1, lv2, shot: g.stealth.lightsShot };
     });
     assert(r.out, 'a shot through a bulb puts the light out');
     assert(r.end, 'a shot at the end of a lamp strip puts it out too');
     assert(r.lv === 'investigating', `the nearest guard comes to look (${r.lv})`);
-    assert(r.torch >= 1, `with a flashlight in the dark (${r.torch} on)`);
+    assert(r.torch >= 1 && r.torchLevel < 0.35, `with a flashlight in the dark (${r.torch} on, light at his head ${r.torchLevel.toFixed(2)})`);
     assert(r.swOffer === 'Lights off', `a wall switch offers lights off (${r.swOffer})`);
     assert(r.on1 < r.on0, `switching turns the room's circuit off (${r.on0} -> ${r.on1})`);
     assert(r.lv2 === 'investigating', `the room going dark is investigated (${r.lv2})`);
