@@ -4,9 +4,8 @@ import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid,
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
-import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 
 export { bakedLights };
 
@@ -15,9 +14,6 @@ export { bakedLights };
 const LAMP_TEXELS = 7;
 /** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). */
 const DOOR_TEXELS = 2;
-/** Rendering: a gameplay light level shows as this much light on screen (a lamp's `LIGHT_GAIN` over its gameplay
- *  `LAMP_LEVEL_GAIN`), so the ambient grid fill and the lamps keep one scale. */
-export const LEVEL_TO_RENDER = LIGHT_GAIN / LAMP_LEVEL_GAIN;
 
 /** What the canonical bake adds to the baked lamps (3.6). */
 export interface BakeExtras {
@@ -25,8 +21,6 @@ export interface BakeExtras {
   moon?: MoonGrid | null;
   /** Doors (`Doors.list`): a closed leaf stops the lamps listed for it. */
   doors?: readonly FieldDoor[];
-  /** The ambient grid as the fill light (`?fill=grid`, under evaluation), with its colour. */
-  fill?: { grid: AmbientGrid; color: [number, number, number] } | null;
 }
 /** Character capsules (two texels each) and how many one lamp tests. */
 export const MAX_CAPSULES = 16;
@@ -52,11 +46,9 @@ export class BakedLamps {
   readonly lampBase: number;
   readonly capBase: number;
   readonly doorBase: number;
-  /** 3.6: the baked moon (R8, linear) and the ambient fill grid (R8, linear; `?fill=grid`). */
+  /** 3.6: the baked moon (R8, linear). */
   readonly moonTex: RawTexture3D | null = null;
   readonly moon: MoonGrid | null;
-  readonly fillTex: RawTexture3D | null = null;
-  readonly fill: BakeExtras['fill'];
   private readonly doors: readonly FieldDoor[];
   private readonly doorShut: Uint8Array;
   /** Per lamp its door indices (`lampDoorLists`). */
@@ -95,7 +87,6 @@ export class BakedLamps {
   ) {
     this.order = baked.ids;
     this.moon = extra.moon ?? null;
-    this.fill = extra.fill ?? null;
     this.doors = extra.doors ?? [];
     this.doorShut = new Uint8Array(this.doors.length).fill(2);
     this.lampDoors = lampDoorLists(baked.lights, this.doors);
@@ -153,7 +144,7 @@ export class BakedLamps {
       return t;
     };
     if (this.moon) this.moonTex = mk3(this.moon.vis, this.moon.n[0], this.moon.n[1], this.moon.n[2]);
-    if (this.fill) this.fillTex = mk3(this.fill.grid.data, this.fill.grid.n[0], this.fill.grid.n[1], this.fill.grid.n[2]);
+
     this.data = new RawTexture(buf, w, h, Constants.TEXTUREFORMAT_RGBA, scene, false, false, Texture.NEAREST_SAMPLINGMODE, Constants.TEXTURETYPE_FLOAT);
     if (volume) this.volume = new LampVolume(scene, this, lampVolumeGrid(r.boxes, volume.floorY));
     this.update();
@@ -302,7 +293,6 @@ export class BakedLamps {
     this.vis.dispose();
     this.data.dispose();
     this.moonTex?.dispose();
-    this.fillTex?.dispose();
     this.volume?.dispose();
   }
 }
@@ -472,7 +462,7 @@ class LampVolume {
         e.setFloat('slice', k);
         e.setFloat('outB', pass);
         e.setFloat('volMax', LAMP_VOL_MAX);
-        e.setFloat4('lampMore', l.doorBase, 0, 0, LEVEL_TO_RENDER);
+        e.setFloat4('lampMore', l.doorBase, 0, 0, 0);
         r.draw();
         engine.unBindFramebuffer(rt, true);
       }
@@ -505,9 +495,6 @@ uniform highp sampler3D lampVis;
 uniform highp sampler2D lampData;
 #ifdef LAMP_MOON
 uniform highp sampler3D lampMoon;
-#endif
-#ifdef LAMP_FILL
-uniform highp sampler3D lampAmb;
 #endif
 vec4 lampTexel(int k) {
   int w = int(lampInfo.x);
@@ -552,7 +539,7 @@ export class LampPlugin extends MaterialPluginBase {
     material: Material,
     private lamps: BakedLamps,
   ) {
-    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false, LAMP_FILL: false });
+    super(material, 'BakedLamps', 250, { BAKED_LAMPS: false, LAMP_VOLUME: false, LAMP_MOON: false });
     this._enable(true);
   }
 
@@ -567,13 +554,12 @@ export class LampPlugin extends MaterialPluginBase {
   override prepareDefines(defines: MaterialDefines, _scene: Scene, mesh: AbstractMesh): void {
     defines.BAKED_LAMPS = !!mesh;
     defines.LAMP_VOLUME = !!mesh && !!this.lamps.volume;
-    // (only the textures that exist: an unbound sampler3D falls on a 2D texture's unit, a draw error)
+    // (only a texture that exists: an unbound sampler3D falls on a 2D texture's unit, a draw error)
     defines.LAMP_MOON = !!mesh && !!this.lamps.moonTex;
-    defines.LAMP_FILL = !!mesh && !!this.lamps.fillTex;
   }
 
   override getSamplers(samplers: string[]): void {
-    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon', 'lampAmb');
+    samplers.push('lampVis', 'lampData', 'lampVolA', 'lampVolB', 'lampMoon');
   }
 
   override getUniforms(): { ubo?: { name: string; size: number; type: string; arraySize?: number }[]; fragment?: string } {
@@ -588,31 +574,21 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampMore', size: 4, type: 'vec4' },
         { name: 'lampMoonO', size: 4, type: 'vec4' },
         { name: 'lampMoonN', size: 4, type: 'vec4' },
-        { name: 'lampAmbO', size: 4, type: 'vec4' },
-        { name: 'lampAmbN', size: 4, type: 'vec4' },
-        { name: 'lampFillC', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\n#endif`,
     };
   }
 
   override bindForSubMesh(ubo: UniformBuffer, _scene: Scene, _engine: unknown, _subMesh: SubMesh): void {
     const l = this.lamps;
     const v = l.volume;
-    // (3.6) the baked moon and the ambient fill grid, on both paths
+    // (3.6) the baked moon, on both paths
     const m = l.moon;
-    const f = l.fill;
-    ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, f && l.fillTex ? 1 : 0, LEVEL_TO_RENDER);
+    ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, 0, 0);
     if (m && l.moonTex) {
       ubo.updateFloat4('lampMoonO', m.origin[0], m.origin[1], m.origin[2], m.cell);
       ubo.updateFloat4('lampMoonN', m.n[0], m.n[1], m.n[2], 0);
       ubo.setTexture('lampMoon', l.moonTex);
-    }
-    if (f && l.fillTex) {
-      ubo.updateFloat4('lampAmbO', f.grid.origin[0], f.grid.origin[1], f.grid.origin[2], AMBIENT_CELL);
-      ubo.updateFloat4('lampAmbN', f.grid.n[0], f.grid.n[1], f.grid.n[2], 0);
-      ubo.updateFloat4('lampFillC', f.color[0], f.color[1], f.color[2], 0);
-      ubo.setTexture('lampAmb', l.fillTex);
     }
     if (v) {
       const g = v.grid;
@@ -660,10 +636,6 @@ diffuse$1.rgb *= nsMoon;
 #define CUSTOM_LIGHT$1_COLOR`,
       CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION: `
 #ifdef BAKED_LAMPS
-// 3.6 (\`?fill=grid\`): the ambient grid as the fill, at the lamps' scale
-#ifdef LAMP_FILL
-finalDiffuse += nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN) * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb;
-#endif
 #ifdef LAMP_VOLUME
 {
   // 3.3 phones: the lamps pre-mixed - their light and the direction it comes from, two taps

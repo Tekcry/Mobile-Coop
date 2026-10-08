@@ -235,13 +235,12 @@ export class World {
     // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off)
     if (bake.lamps && vo && level.voxels && !opts.cheap && flags.baked) {
       // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
-      // 3.6: the baked moon, closed doors, and (`?fill=grid`, under evaluation) the ambient grid as the fill
-      const fill = flags.fillGrid ? { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] } : null;
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume ? { floorY: 0 } : null, { moon: bake.moon, doors: w.doors.list, fill });
+      // 3.6: the baked moon and closed doors (the fill stays the sky bake's: Michael, 2026-10-09)
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume ? { floorY: 0 } : null, { moon: bake.moon, doors: w.doors.list });
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
       w.lightRig.setBaked(w.lamps.ids);
-      w.useBakedMoon(!!fill);
+      w.useBakedMoon();
     }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
     return w;
@@ -306,18 +305,13 @@ export class World {
    *  cascades draw moving casters only, and none at all where they drew only the level (`ShadowSpec.staticSun`). */
   private bakedMoon = false;
 
-  /** Switch to the baked moon (desktop with baked lamps); `gridFill`: the ambient grid replaces the sky fill. */
-  private useBakedMoon(gridFill: boolean): void {
+  /** Switch to the baked moon (desktop with baked lamps). */
+  private useBakedMoon(): void {
     this.bakedMoon = true;
     this.sunStatic.length = 0;
     this.voxelSun.length = 0;
     this.sunT = 0;
     this.sunSpec = '';
-    if (gridFill) {
-      // (the fill comes from the plugin; the hemisphere and the voxels' sky fill step aside)
-      this.hemi.intensity = 0;
-      for (const v of this.voxelLayers) v.setFill([0, 0, 0], [0, 0, 0]);
-    }
   }
 
   /** The voxel meshes casting shadows (Epic; below it the blockout proxy stands in). */
