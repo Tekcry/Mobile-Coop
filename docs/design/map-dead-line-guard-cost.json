@@ -1,0 +1,113 @@
+{
+ "map": "warehouse",
+ "when": "2026-10-09T20:31:57.562Z",
+ "gpu": true,
+ "repeats": 3,
+ "results": [
+  {
+   "guards": 0,
+   "alive": 0,
+   "simP50": 0.1,
+   "simP95": 0.2,
+   "renderJs": 0.803,
+   "mainP95": 0.993,
+   "runs": [
+    2.086,
+    0.993,
+    0.953
+   ]
+  },
+  {
+   "guards": 4,
+   "alive": 4,
+   "simP50": 0.2,
+   "simP95": 0.3,
+   "renderJs": 1.253,
+   "mainP95": 1.503,
+   "runs": [
+    1.501,
+    1.696,
+    1.503
+   ]
+  },
+  {
+   "guards": 8,
+   "alive": 8,
+   "simP50": 0.25,
+   "simP95": 0.4,
+   "renderJs": 1.69,
+   "mainP95": 2.09,
+   "runs": [
+    2.09,
+    2.196,
+    1.968
+   ]
+  },
+  {
+   "guards": 10,
+   "alive": 10,
+   "simP50": 0.3,
+   "simP95": 0.4,
+   "renderJs": 2,
+   "mainP95": 2.384,
+   "runs": [
+    2.41,
+    2.384,
+    2.35
+   ]
+  },
+  {
+   "guards": 12,
+   "alive": 12,
+   "simP50": 0.35,
+   "simP95": 0.45,
+   "renderJs": 2.167,
+   "mainP95": 2.617,
+   "runs": [
+    2.59,
+    2.734,
+    2.617
+   ]
+  },
+  {
+   "guards": 13,
+   "alive": 13,
+   "simP50": 0.35,
+   "simP95": 0.45,
+   "renderJs": 2.456,
+   "mainP95": 2.906,
+   "runs": [
+    3.052,
+    2.565,
+    2.906
+   ]
+  },
+  {
+   "guards": 14,
+   "alive": 14,
+   "simP50": 0.4,
+   "simP95": 0.5,
+   "renderJs": 2.467,
+   "mainP95": 2.967,
+   "runs": [
+    2.823,
+    3.039,
+    2.967
+   ]
+  },
+  {
+   "guards": 16,
+   "alive": 16,
+   "simP50": 0.45,
+   "simP95": 0.55,
+   "renderJs": 2.922,
+   "mainP95": 3.472,
+   "runs": [
+    3.291,
+    3.472,
+    3.518
+   ]
+  }
+ ],
+ "pageErrors": []
+}

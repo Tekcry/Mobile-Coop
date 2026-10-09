@@ -1,0 +1,483 @@
+{
+ "sprint": {
+  "name": "sprint bot",
+  "routeS": 181,
+  "chapter4StartS": 60,
+  "spotted": [
+   {
+    "g": "G3",
+    "t": 15,
+    "ch": 2,
+    "at": [
+     "G",
+     -13.5,
+     -11.5
+    ]
+   },
+   {
+    "g": "G8",
+    "t": 52.75,
+    "ch": 3,
+    "at": [
+     "B",
+     28.6,
+     -2.7
+    ]
+   },
+   {
+    "g": "G9",
+    "t": 63.75,
+    "ch": 4,
+    "at": [
+     "G",
+     58.6,
+     -2.8
+    ]
+   },
+   {
+    "g": "G10",
+    "t": 69.75,
+    "ch": 4,
+    "at": [
+     "G",
+     45.9,
+     -7.8
+    ]
+   },
+   {
+    "g": "G13",
+    "t": 101.75,
+    "ch": 5,
+    "at": [
+     "U",
+     16.6,
+     -13.7
+    ]
+   },
+   {
+    "g": "G9",
+    "t": 142.25,
+    "ch": 6,
+    "at": [
+     "G",
+     59,
+     -1.9
+    ]
+   },
+   {
+    "g": "G14",
+    "t": 147.25,
+    "ch": 6,
+    "at": [
+     "G",
+     34.6,
+     0.8
+    ]
+   },
+   {
+    "g": "G12",
+    "t": 153.75,
+    "ch": 7,
+    "at": [
+     "G",
+     6,
+     -1.7
+    ]
+   }
+  ],
+  "heard": [
+   {
+    "g": "G2",
+    "t": 1,
+    "ch": 1,
+    "d": 5,
+    "muffled": true,
+    "radius": 11.7
+   },
+   {
+    "g": "G1",
+    "t": 8.25,
+    "ch": 1,
+    "d": 11.6,
+    "muffled": false,
+    "radius": 11.7
+   },
+   {
+    "g": "G1",
+    "t": 13.75,
+    "ch": 2,
+    "d": 11.2,
+    "muffled": false,
+    "radius": 11.7
+   },
+   {
+    "g": "G3",
+    "t": 14,
+    "ch": 2,
+    "d": 4.3,
+    "muffled": false,
+    "radius": 11.7
+   },
+   {
+    "g": "G4",
+    "t": 17,
+    "ch": 2,
+    "d": 11.4,
+    "muffled": false,
+    "radius": 11.7
+   },
+   {
+    "g": "G5",
+    "t": 17.25,
+    "ch": 2,
+    "d": 10.3,
+    "muffled": false,
+    "radius": 11.7
+   },
+   {
+    "g": "G7",
+    "t": 45.25,
+    "ch": 3,
+    "d": 8.9,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G12",
+    "t": 48.5,
+    "ch": 3,
+    "d": 3.6,
+    "muffled": true,
+    "radius": 9
+   },
+   {
+    "g": "G8",
+    "t": 50.5,
+    "ch": 3,
+    "d": 7.9,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G14",
+    "t": 52.75,
+    "ch": 3,
+    "d": 4,
+    "muffled": true,
+    "radius": 9
+   },
+   {
+    "g": "G9",
+    "t": 61.5,
+    "ch": 4,
+    "d": 8,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G10",
+    "t": 66.25,
+    "ch": 4,
+    "d": 8.1,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G13",
+    "t": 97.5,
+    "ch": 5,
+    "d": 12,
+    "muffled": false,
+    "radius": 12.6
+   },
+   {
+    "g": "G12",
+    "t": 109.25,
+    "ch": 5,
+    "d": 3.8,
+    "muffled": true,
+    "radius": 9
+   },
+   {
+    "g": "G11",
+    "t": 118.25,
+    "ch": 6,
+    "d": 1.8,
+    "muffled": false,
+    "radius": 5.4
+   },
+   {
+    "g": "G9",
+    "t": 141.5,
+    "ch": 6,
+    "d": 7.8,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G14",
+    "t": 146.75,
+    "ch": 6,
+    "d": 7,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G12",
+    "t": 149.75,
+    "ch": 7,
+    "d": 8.9,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G7",
+    "t": 154,
+    "ch": 7,
+    "d": 4,
+    "muffled": true,
+    "radius": 9
+   },
+   {
+    "g": "G12",
+    "t": 155,
+    "ch": 7,
+    "d": 4.3,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G12",
+    "t": 160.75,
+    "ch": 7,
+    "d": 6.5,
+    "muffled": false,
+    "radius": 9
+   },
+   {
+    "g": "G7",
+    "t": 161,
+    "ch": 7,
+    "d": 4,
+    "muffled": true,
+    "radius": 9
+   },
+   {
+    "g": "G12",
+    "t": 166,
+    "ch": 8,
+    "d": 6.7,
+    "muffled": false,
+    "radius": 9
+   }
+  ],
+  "suspiciousCount": 10,
+  "events": 31,
+  "eventsBeforeCh4": 12,
+  "alarmAtS": 15,
+  "alarmChapter": 2,
+  "pass": true,
+  "byChapter": {
+   "1": {
+    "spotted": 0,
+    "heard": 2
+   },
+   "2": {
+    "spotted": 1,
+    "heard": 4
+   },
+   "3": {
+    "spotted": 1,
+    "heard": 4
+   },
+   "4": {
+    "spotted": 2,
+    "heard": 2
+   },
+   "5": {
+    "spotted": 1,
+    "heard": 2
+   },
+   "6": {
+    "spotted": 2,
+    "heard": 3
+   },
+   "7": {
+    "spotted": 1,
+    "heard": 5
+   },
+   "8": {
+    "spotted": 0,
+    "heard": 1
+   }
+  }
+ },
+ "timetable": {
+  "name": "timetable bot",
+  "route": "M",
+  "routeCrawlS": 411.4,
+  "finishedAtS": 512.5,
+  "finishedMin": 8.54,
+  "waitedS": 86,
+  "waitShare": 0.168,
+  "longestWaitS": 13.5,
+  "waits": [
+   {
+    "startT": 7.3,
+    "at": [
+     "G",
+     -44.9,
+     -21.8
+    ],
+    "s": 11,
+    "ch": 1
+   },
+   {
+    "startT": 35,
+    "at": [
+     "G",
+     -16.4,
+     -17.5
+    ],
+    "s": 6,
+    "ch": 1
+   },
+   {
+    "startT": 52.3,
+    "at": [
+     "G",
+     -12.8,
+     -12.2
+    ],
+    "s": 6,
+    "ch": 2
+   },
+   {
+    "startT": 144.5,
+    "at": [
+     "B",
+     8.6,
+     -3
+    ],
+    "s": 13.5,
+    "ch": 3
+   },
+   {
+    "startT": 165,
+    "at": [
+     "B",
+     20.3,
+     -2.3
+    ],
+    "s": 3.5,
+    "ch": 3
+   },
+   {
+    "startT": 206.3,
+    "at": [
+     "G",
+     51.2,
+     -7.8
+    ],
+    "s": 1,
+    "ch": 4
+   },
+   {
+    "startT": 273.3,
+    "at": [
+     "U",
+     36.1,
+     -14.8
+    ],
+    "s": 13,
+    "ch": 5
+   },
+   {
+    "startT": 294.3,
+    "at": [
+     "U",
+     22.1,
+     -15.3
+    ],
+    "s": 6.5,
+    "ch": 5
+   },
+   {
+    "startT": 304.3,
+    "at": [
+     "U",
+     16.8,
+     -13.9
+    ],
+    "s": 3.5,
+    "ch": 5
+   },
+   {
+    "startT": 397.5,
+    "at": [
+     "G",
+     49.2,
+     -2.5
+    ],
+    "s": 5,
+    "ch": 6
+   },
+   {
+    "startT": 428.5,
+    "at": [
+     "G",
+     6.2,
+     1.1
+    ],
+    "s": 9.5,
+    "ch": 7
+   },
+   {
+    "startT": 441.5,
+    "at": [
+     "G",
+     5.8,
+     -4.9
+    ],
+    "s": 7.5,
+    "ch": 7
+   }
+  ],
+  "waitByChapter": {
+   "1": 17,
+   "2": 6,
+   "3": 17,
+   "4": 1,
+   "5": 23,
+   "6": 5,
+   "7": 17
+  },
+  "chapterTimesS": {
+   "1": 51,
+   "2": 50.1,
+   "3": 74.8,
+   "4": 66.3,
+   "5": 89.3,
+   "6": 74.2,
+   "7": 54.3,
+   "8": 37.3
+  },
+  "reached": true,
+  "maxMeter": 0.288,
+  "suspiciousEvents": [],
+  "unsafeMoments": 0,
+  "unsafe": [],
+  "hops": 99,
+  "alarms": 0,
+  "passParts": {
+   "reached": true,
+   "noAlarm": true,
+   "belowSuspicious": true,
+   "waitShareOk": true,
+   "longestWaitOk": true,
+   "timeIn8to9": true
+  },
+  "pass": true
+ },
+ "drop": []
+}
