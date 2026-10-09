@@ -31,6 +31,7 @@ export class SketchPlayer {
   private srcs: AudioBufferSourceNode[] = [];
   private buffers = new Map<string, AudioBuffer>();
   private current: StemGains = [1, 0, 0];
+  private rate = 1;
   stats: PlayerStats = { decodeMs: 0, pcmBytes: 0, fileBytes: 0 };
 
   constructor(
@@ -81,6 +82,7 @@ export class SketchPlayer {
       s.loop = true;
       s.loopStart = start;
       s.loopEnd = end;
+      s.playbackRate.value = this.rate;
       s.connect(g);
       s.start(when, start);
       this.gains.push(g);
@@ -101,6 +103,13 @@ export class SketchPlayer {
       p.setTargetAtTime(to[i]!, t, Math.max(0.01, dur / 3));
     }
     this.current = to;
+  }
+
+  /** Varispeed: tempo and pitch move together (1 = as rendered). Applies to the stems playing now and to later plays. */
+  setRate(r: number): void {
+    this.rate = r;
+    const t = this.ctx.currentTime;
+    for (const s of this.srcs) s.playbackRate.setTargetAtTime(r, t, 0.05);
   }
 
   get gainsNow(): StemGains {

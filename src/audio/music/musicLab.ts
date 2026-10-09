@@ -58,6 +58,7 @@ export class MusicLabScreen extends Screen {
   private demo = -1;
   private demoLeft = 0;
   private since = 0;
+  private tempo = 1;
 
   constructor(private app: App) {
     super('music-lab');
@@ -88,11 +89,12 @@ export class MusicLabScreen extends Screen {
     this.el.append(
       h('div', { class: 'screen-title', text: 'Music lab: V3 sketches' }),
       this.status,
-      section('Sketch picker', ...picker, h('div', { class: 'row-note', text: 'Each sketch is a 60 s loop made only from recorded CC0 sounds, in three stacked stems. Play one, then move the threat: the stems crossfade live (up fast, down slowly). Pick one, or tell Claude what to change. Does any remind you of a known track? Say so and it gets rewritten.' })),
+      section('Sketch picker', ...picker, h('div', { class: 'row-note', text: 'Each sketch is a 60 s loop made only from recorded CC0 sounds, in three stacked stems. Play one, then move the threat (the Tempo slider speeds the loop up or down live, and the pitch moves with it): the stems crossfade live (up fast, down slowly). Pick one, or tell Claude what to change. Does any remind you of a known track? Say so and it gets rewritten.' })),
       section(
         'Threat',
         stateRow,
         slider('Threat', { min: 0, max: 1, step: 0.05, get: () => this.threat, set: (v) => this.setThreat(v), format: (v) => `${Math.round(v * 100)}%` }),
+        slider('Tempo', { min: 0.7, max: 1.4, step: 0.01, get: () => this.tempo, set: (v) => this.setTempo(v), format: (v) => `${Math.round(v * 100)}%${this.current ? ' (' + Math.round(this.current.bpm * v) + ' BPM)' : ''}` }),
         h('div', { class: 'lab-row' }, button('Play the ladder', () => this.startDemo(), { sub: 'Calm, caution, alert, evasion, back to calm (75 s)' })),
       ),
       section('Hear one stem', soloRow, h('div', { class: 'row-note', text: 'Solo plays one stem alone (for judging it); any threat button returns to the stack.' })),
@@ -106,6 +108,7 @@ export class MusicLabScreen extends Screen {
     void ctx.resume();
     // straight to the output, not through the game's music bus and compressor: the lab hears the stems as rendered
     this.player = new SketchPlayer(ctx, ctx.destination);
+    this.player.setRate(this.tempo);
     return this.player;
   }
 
@@ -133,6 +136,11 @@ export class MusicLabScreen extends Screen {
     this.player?.setGains(this.target);
     this.markState(s);
     this.el.querySelector('.row-slider')?.dispatchEvent(new Event('widget-refresh'));
+  }
+
+  private setTempo(v: number): void {
+    this.tempo = v;
+    this.player?.setRate(v);
   }
 
   private setThreat(v: number): void {
