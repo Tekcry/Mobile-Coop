@@ -1,15 +1,19 @@
 # Night Shift - music progress
 
-Spec: `docs/prompts/music-spec.md`. Direction: `docs/audio/music-direction.md`. Branch: `feature/music`.
+Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `docs/audio/music-direction-v2.md`
+(replaces `music-direction.md`). Brief: `C:\NightShift\bundles\music-direction-v2.md`. Branch: `feature/music`.
 
 ## Status
 | Stage | Name | Model | Status |
 | --- | --- | --- | --- |
-| M0 | Direction | Opus | done; waiting for Michael's approval |
-| M1 | Engine and music lab | Sonnet | done; waiting for Michael's listening approval |
-| M2 | States, transitions and adapter | Sonnet | not started |
-| M3 | Composition and themes | Opus | not started |
-| M4 | Polish and budget | Sonnet | not started |
+| M0 | Direction v0.1 | Opus | done; replaced by V0 |
+| M1 | Engine and music lab | Sonnet | done; Michael listened and did not like calm and combat. Engine and found-sound library kept |
+| M2-M4 | (old plan) | - | cancelled; replaced by V1-V4 |
+| V0 | Direction v2 (MGS structure + CT texture) | Opus | done; waiting for Michael's approval |
+| V1 | Three candidate motifs, motif picker, WAVs | Opus | not started |
+| V2 | Engine upgrade: instruments, mix glue, five phases, adapter | Sonnet | not started |
+| V3 | Composition: phases, stingers, themes, map colours | Opus | not started |
+| V4 | Polish, budget, docs | Sonnet | not started |
 
 ## Ear-test log (originality, direction Section 12)
 | Date | Cue | Heard as | Action |
@@ -111,3 +115,36 @@ Spec: `docs/prompts/music-spec.md`. Direction: `docs/audio/music-direction.md`. 
   - On iOS the first tap unlocks audio, then the library renders (about a second) before the first sound; the lab shows progress.
 - Next: Michael listens in the lab on the PC and the iPhone, approves or sends changes. Then M2 (Sonnet): the four states, transitions,
   stingers, adapter, Confrontation stub. STOP.
+
+---
+
+## Stage V0 report (direction v2)
+- Done: `docs/audio/music-direction-v2.md` - the MGS + Chaos Theory blend, five phases (Infiltration, Caution, Alert,
+  Evasion, back down), tempos and keys, instruments with synthesis (synth-brass, strings, bells and mallets, sub and
+  distorted mid bass, big synth drums, risers and a Shepard loop, the M1 found-sound kit), the stinger language, motif
+  rules and where each form appears, the technique map (T1-T10), character, space and mix glue, mix rules, menu /
+  briefing / results and map colours, originality rules, engine notes for V2.
+- Done: `music-direction.md` marked as replaced; this file's status table moved to the V plan.
+- Files changed: `docs/audio/music-direction-v2.md` (new), `docs/audio/music-direction.md`, `docs/audio/music-progress.md`.
+  Merged `origin/ct-movement` (clean).
+- Decisions (for Michael to veto):
+  - Key centre stays D minor (the M1 engine and found sounds are tuned there).
+  - Tempos: Caution 72 BPM (heartbeat, lub-dub kick); Alert and Evasion share 168 BPM so the hook can drop out and
+    return on any bar; menu 80.
+  - `cooldown` maps to Infiltration (guards stay in cooldown forever after combat, so it cannot hold Caution); coming
+    down from Evasion always passes through Caution and its 20-40 s decay.
+  - Alert = `alert` with a sighting or shots in the last 4 s; `alert` with 6 s of no sighting, or `searching`, = Evasion.
+  - Alert stinger is deliberately low and wide (reverse swell into timpani, kick, brass cluster D-Eb-Ab, metal press,
+    sub drop, then one silent beat), unlike a short high stab. Full stinger at most once per 20 s; a shorter Re-alert
+    otherwise.
+  - Body-found stinger now has a sound (dark hit); it still fires only from a Phase 4 hook.
+  - Sidechain ducking is scheduled gain automation at known kick times (Web Audio has no sidechain input).
+  - Library budget raised from 60 s to 100 s mono, rendered in two batches (first batch under 1.5 s on the iPhone).
+  - "PS1 sampler" era colour: render-time 22.05 kHz / 12-bit copies of brass, strings and bells; lab switch, off by default.
+- Tests: none (documents only).
+- Measurements: none (documents only).
+- Open issues:
+  - Soundfont decision (direction Section 13) - asked in chat.
+  - The M0 motif (D F E Bb A) may be one of the three V1 candidates if it still fits the new rules.
+- Next: Michael reviews the direction. On approval, V1 (Opus): three candidate motifs, each on a bell, as the Alert
+  brass hook over a simple beat and as the menu's opening 8 bars; a "Motif picker" in the lab; a 60 s WAV of each. STOP.
