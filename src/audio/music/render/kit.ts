@@ -43,13 +43,13 @@ export class Grid {
  * Play a pattern string: one char per sixteenth. 'X' accent, 'x' hit, 'g' ghost, '.' rest. `hit` builds each hit;
  * the timing is humanised by up to `loose` seconds either way (off-grid on purpose).
  */
-export function pattern(c: Stereo, g: Grid, bar: number, pat: string, src: Src | ((rng: Rng) => Src), base: Omit<Hit, 't'>, rng: Rng, loose = 0.006): void {
+export function pattern(c: Stereo, g: Grid, bar: number, pat: string, src: Src | ((rng: Rng, i: number) => Src), base: Omit<Hit, 't'>, rng: Rng, loose = 0.006, jit = 0.12): void {
   for (let i = 0; i < pat.length; i++) {
     const ch = pat[i];
     if (ch === '.' || ch === undefined) continue;
     const vel = ch === 'X' ? 1 : ch === 'x' ? 0.7 : 0.28;
-    const s = typeof src === 'function' ? src(rng) : src;
-    place(c, s, { ...base, t: g.at(bar, i) + (rng.next() * 2 - 1) * loose, gain: (base.gain ?? 1) * vel * rng.jitter(0.12) });
+    const s = typeof src === 'function' ? src(rng, i) : src;
+    place(c, s, { ...base, t: g.at(bar, i) + (rng.next() * 2 - 1) * loose, gain: (base.gain ?? 1) * vel * rng.jitter(jit) });
   }
 }
 
@@ -75,10 +75,10 @@ export function performBreak(g: Grid, kit: { kick: Src[]; snare: Src[]; ghost: S
   const two = new Grid(g.bpm, 2, g.swing);
   const c = stereo(secs(two.loop));
   for (let bar = 0; bar < 2; bar++) {
-    pattern(c, two, bar, p.kick[bar]!, (r) => r.pick(kit.kick), { pan: 0, gain: 1, lp: 7000 }, rng, 0.004);
-    pattern(c, two, bar, p.snare[bar]!, (r) => r.pick(kit.snare), { pan: 0.05, gain: 0.8 }, rng, 0.007);
-    pattern(c, two, bar, p.ghost[bar]!, (r) => r.pick(kit.ghost), { pan: 0.1, gain: 0.45 }, rng, 0.012);
-    pattern(c, two, bar, p.hat[bar]!, (r) => r.pick(kit.hat), { pan: -0.25, gain: 0.32, hp: 400, dur: 0.12 }, rng, 0.009);
+    pattern(c, two, bar, p.kick[bar]!, (_r, i) => kit.kick[i === 0 ? 0 : 1 % kit.kick.length]!, { pan: 0, gain: 1, lp: 7000 }, rng, 0.002, 0.03);
+    pattern(c, two, bar, p.snare[bar]!, (_r, i) => kit.snare[i < 14 ? 0 : 1 % kit.snare.length]!, { pan: 0.05, gain: 0.8 }, rng, 0.003, 0.03);
+    pattern(c, two, bar, p.ghost[bar]!, (_r, i) => kit.ghost[i % kit.ghost.length]!, { pan: 0.1, gain: 0.45 }, rng, 0.004, 0.05);
+    pattern(c, two, bar, p.hat[bar]!, (_r, i) => kit.hat[(i % 4 === 0 ? 0 : i % 2 === 0 ? 1 : 2) % kit.hat.length]!, { pan: -0.25, gain: 0.32, hp: 400, dur: 0.12 }, rng, 0.003, 0.05);
   }
   if (kit.openHat) place(c, kit.openHat, { t: two.at(1, 14), pan: -0.3, gain: 0.22, hp: 500, dur: 0.4 });
   const room = reverbWet(c, { rt60: 0.7, damp: 6000, size: 0.6, predelay: 0.004 });

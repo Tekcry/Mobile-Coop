@@ -24,9 +24,9 @@
     }
    },
    "stack": {
-    "calm": -31.3,
-    "caution": -25.3,
-    "alert": -19.3,
+    "calm": -30.7,
+    "caution": -24.7,
+    "alert": -18.7,
     "peak": -3.1
    }
   },
@@ -52,9 +52,9 @@
     }
    },
    "stack": {
-    "calm": -30.9,
-    "caution": -24.9,
-    "alert": -18.9,
+    "calm": -30.8,
+    "caution": -24.8,
+    "alert": -18.8,
     "peak": -3.1
    }
   },
@@ -80,9 +80,9 @@
     }
    },
    "stack": {
-    "calm": -31.6,
-    "caution": -25.6,
-    "alert": -19.6,
+    "calm": -31.5,
+    "caution": -25.5,
+    "alert": -19.5,
     "peak": -3.1
    }
   }

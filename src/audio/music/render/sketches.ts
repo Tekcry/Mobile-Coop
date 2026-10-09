@@ -125,6 +125,9 @@ function tension(g: Grid, bank: Bank, rng: Rng, o: { pedal: boolean; bars: numbe
   return out;
 }
 
+/** A beat-repeat: the first half of the groove played twice. Used at fixed places, never at random. */
+const REPEAT: number[] = [0, 1, 2, 3, 4, 5, 6, 7, 0, 1, 2, 3, 4, 5, 6, 7];
+
 // ---------------------------------------------------------------------------------------------------------- A Drift
 
 function sketchA(bank: Bank, seed: number): Record<StemId, Stereo> {
@@ -218,19 +221,14 @@ function sketchA(bank: Bank, seed: number): Record<StemId, Stereo> {
     hat: [bank('hatC1'), bank('hatC2'), bank('hatC3')],
     openHat: bank('hatLoose'),
   }, {
-    kick: ['X.....x...x.....', 'X..x......x..x..'],
-    snare: ['........X.......', '........X.....g.'],
-    ghost: ['..g...g.....g..g', '.g....g...g.g...'],
-    hat: ['x.xgx.xgx.xgx.xg', 'x.xgx.xgx.xgxgxg'],
+    kick: ['X..x..x...X..x..', 'X..x..x...X..x.x'],
+    snare: ['........X.......', '........X...xXxX'],
+    ghost: ['..g...g.....g..g', '.g.g..g...g.....'],
+    hat: ['x.xgx.xgx.xgx.xg', 'x.xgx.xgxgxgxgxg'],
   }, rng.fork('breakA'), 1.8);
   const drums = L();
-  const variants: (Chop | number)[][] = [
-    straight(0),
-    straight(1),
-    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 0, 1, { s: 8, gain: 0.6 }, 15],
-    [16, 17, 18, 3, 4, 5, 22, 23, 8, 9, 10, 11, 28, 29, { s: 24, rev: true, len: 2 }, -1],
-  ];
-  for (let bar = 0; bar < g.bars; bar++) chopBar(drums, g, bar, brk, bar % 4 === 3 ? variants[bar % 8 === 7 ? 3 : 2]! : variants[bar % 2]!);
+  // a fixed plan: the groove for three bars, a fill bar to close each four, a beat-repeat on bar 6 of each eight
+  for (let bar = 0; bar < g.bars; bar++) chopBar(drums, g, bar, brk, bar % 4 === 3 ? straight(1) : bar % 8 === 6 ? REPEAT : straight(0));
   stutter(drums, g.at(7, 12), g.beat / 4, 3, 0.8);
   stutter(drums, g.at(15, 14), g.beat / 8, 3, 0.85);
   dropOut(drums, g.at(19, 8), g.beat * 2);
@@ -249,7 +247,7 @@ function sketchA(bank: Bank, seed: number): Record<StemId, Stereo> {
   lay(alert, grit, -7);
   const metal = L();
   const kitMetal = ['metal1', 'metal2', 'metal4', 'metal7', 'metal11', 'brake1'].map(bank);
-  for (let bar = 0; bar < g.bars; bar++) for (const i of [5, 13]) if (rng.chance(0.45)) place(metal, rng.pick(kitMetal), { t: g.at(bar, i) + rng.range(0, 0.02), pan: rng.range(-0.8, 0.8), semis: rng.range(-8, 0), hp: 400, lp: 6500, gain: rng.range(0.6, 1), dur: 0.5 });
+  for (let bar = 0; bar < g.bars; bar++) for (const i of bar % 2 ? [5, 13] : [13]) place(metal, kitMetal[(bar + i) % kitMetal.length]!, { t: g.at(bar, i), pan: i === 5 ? -0.5 : 0.5, semis: -4, hp: 400, lp: 6500, gain: i === 13 ? 0.9 : 0.6, dur: 0.5 });
   lay(alert, verb(metal, 0.5, { rt60: 2, damp: 4000, size: 1.4, hp: 300 }), -11);
   lay(alert, tension(g, bank, rng.fork('tensionA'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16], step: 1 }), -3);
 
@@ -271,24 +269,21 @@ function sketchB(bank: Bank, seed: number): Record<StemId, Stereo> {
     hat: [bank('hatC1'), bank('hatC2'), bank('hatC3'), bank('hatClose')],
     openHat: bank('hatOpen'),
   }, {
-    kick: ['X.x.......X..x..', 'X.x...x...x.....'],
-    snare: ['....X.......X...', '....X.......X..g'],
-    ghost: ['.g.....g.g....g.', '..g..g.g.g...g..'],
+    kick: ['X.x.....x.X..x..', 'X.x...x.x.X.x.x.'],
+    snare: ['....X.......X...', '....X.......X.xX'],
+    ghost: ['.g.....g.g....g.', '.g..g..g.g..g...'],
     hat: ['xgxgxgxgxgxgxgxg', 'xgxgxgxgxgxgxgXg'],
   }, rng.fork('breakB'), 2.6);
 
-  // the chop plan: 24 bars; edits on bars 3 and 5 of each eight, a pitched fill on bar 7
+  // the chop plan: 24 bars in three eights; the groove, a fill bar closing each four, a beat-repeat on bar 6
   const s0 = straight(0);
   const s1 = straight(1);
   const half: (Chop | number)[] = [0, 1, 2, 3, -1, -1, 6, 7, 4, 5, -1, 3, -1, -1, 14, 15];
-  const edit1: (Chop | number)[] = [0, 1, 2, 3, 4, 5, 6, 7, 26, 27, 10, 11, 4, { s: 4, gain: 0.7 }, { s: 4, gain: 0.5 }, 15];
-  const edit2: (Chop | number)[] = [16, 17, 2, 3, 20, 21, 22, { s: 23, semis: -3 }, 0, 1, 26, 27, 12, 13, { s: 28, rev: true, len: 2 }, -1];
-  const fill: (Chop | number)[] = [0, 1, 4, 5, 4, 5, 12, 12, { s: 12, semis: 2 }, { s: 12, semis: 4 }, { s: 12, semis: 6 }, { s: 28, gain: 0.8 }, { s: 28, semis: -5 }, { s: 28, semis: -10 }, -1, -1];
   const full = L();
   const halfT = L();
   for (let bar = 0; bar < g.bars; bar++) {
     const k = bar % 8;
-    chopBar(full, g, bar, brk, k === 7 ? fill : k === 3 ? edit1 : k === 5 ? edit2 : bar % 2 ? s1 : s0);
+    chopBar(full, g, bar, brk, k % 4 === 3 ? s1 : k === 6 ? REPEAT : s0);
     chopBar(halfT, g, bar, brk, k === 7 ? half.map((x, i) => (i > 11 ? -1 : x)) : half);
   }
   stutter(full, g.at(7, 14), g.beat / 8, 3, 0.8);
@@ -359,7 +354,7 @@ function sketchB(bank: Bank, seed: number): Record<StemId, Stereo> {
   lay(alert, grit, -9);
   const metal = L();
   const m = ['metal5', 'metal8', 'metal10', 'anvil', 'brake2'].map(bank);
-  for (let bar = 0; bar < g.bars; bar++) for (const i of [7, 15]) if (rng.chance(0.4)) place(metal, rng.pick(m), { t: g.at(bar, i), pan: rng.range(-0.9, 0.9), semis: rng.range(-7, 2), hp: 500, gain: rng.range(0.6, 1), dur: 0.4 });
+  for (let bar = 0; bar < g.bars; bar++) for (const i of bar % 2 ? [7, 15] : [15]) place(metal, m[(bar + i) % m.length]!, { t: g.at(bar, i), pan: i === 7 ? -0.6 : 0.6, semis: -3, hp: 500, gain: i === 15 ? 0.9 : 0.6, dur: 0.4 });
   lay(alert, verb(metal, 0.6, { rt60: 1.6, damp: 5000, size: 1.2, hp: 400 }), -12);
   lay(alert, tension(g, bank, rng.fork('tensionB'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16, 20] }), -4);
   verb(alert, 0.12, { rt60: 1.2, damp: 5000, size: 1, hp: 250 });
@@ -442,29 +437,26 @@ function sketchC(bank: Bank, seed: number): Record<StemId, Stereo> {
     ghost: [bank('snareStick'), bank('snareClick'), bank('cajonHi')],
     hat: [bank('hatClose'), bank('hatC3'), bank('woodClick')],
   }, {
-    kick: ['X..x......x.....', 'X.....x..x..x...'],
-    snare: ['........X.......', '........X..g....'],
+    kick: ['X..x......x.....', 'X..x..x...x..x.x'],
+    snare: ['........X.......', '........X..xxXXX'],
     ghost: ['...g.g......g.g.', '.g...g.g....g..g'],
     hat: ['x.x.x.x.x.x.x.x.', 'x.x.xgx.x.x.xgx.'],
   }, rng.fork('breakC'), 4);
   const drums = L();
   const s0 = straight(0);
   const s1 = straight(1);
-  const crush: (Chop | number)[] = [0, 1, 2, 3, 0, 1, 2, 3, 8, 9, 26, 27, { s: 8, semis: -4 }, { s: 8, semis: -8 }, 30, 31];
-  const back: (Chop | number)[] = [16, 17, 18, 19, 20, 21, { s: 22, rev: true, len: 2 }, -1, 24, 25, 10, 11, 12, 13, 14, 15];
   for (let bar = 0; bar < g.bars; bar++) {
     if (bar === 20) {
       chopBar(drums, g, bar, brk, [0, 1, 2, 3, 4, 5, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1]);
       continue;
     }
-    const k = bar % 4;
-    chopBar(drums, g, bar, brk, k === 3 ? crush : k === 1 ? back : bar % 2 ? s1 : s0);
+    chopBar(drums, g, bar, brk, bar % 4 === 3 ? (bar === 11 || bar === 15 ? REPEAT : s1) : s0);
   }
   stutter(drums, g.at(7, 12), g.beat / 4, 3, 0.85, -1);
   stutter(drums, g.at(15, 14), g.beat / 8, 4, 0.8);
   // metal layered on the half-time snare
   const plates = ['metal2', 'metal4', 'metal14', 'anvil'].map(bank);
-  for (let bar = 0; bar < 20; bar++) place(drums, rng.pick(plates), { t: g.at(bar, 8) + 0.004, pan: rng.range(-0.3, 0.3), semis: -9, hp: 250, lp: 6000, gain: 0.45, dur: 0.6 });
+  for (let bar = 0; bar < 20; bar++) place(drums, plates[bar % plates.length]!, { t: g.at(bar, 8) + 0.004, pan: 0, semis: -9, hp: 250, lp: 6000, gain: 0.45, dur: 0.6 });
   const crushed = L();
   addInto(crushed, drums, 1);
   // a coarse quantise: the gritty, sampled-down top

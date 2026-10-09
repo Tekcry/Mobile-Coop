@@ -338,3 +338,10 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 - A caution: kick on every beat (soft), shaker on nearly every sixteenth off-beat, the riser rolls and an eighth-note
   distorted pizzicato pulse underneath (`tension(..., only: true)`), a louder tremolo swell.
 - A alert: the pulse doubles to sixteenths. B and C unchanged.
+
+## S1.3 - tighter beats (Michael: style ok, beats not exciting and a bit random)
+- Drums are now deliberate: each voice uses fixed samples (one kick for the downbeat and one for the rest, one backbeat
+  snare, ghosts and hats by position), timing and velocity jitter cut to a few ms and a few percent, and the chop plan is
+  fixed: three bars of groove, a written fill bar closing each four (a snare build and extra kicks), a beat-repeat on bar 6
+  of each eight, glitch edits only on fill bars. The metal accents are on fixed beats. A's alert kick is syncopated
+  (1, a of 1, & of 2, & of 3, a of 4). Break patterns rewritten in all three sketches.
