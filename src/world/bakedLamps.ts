@@ -719,6 +719,8 @@ float nsFillL = nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmb
 float nsFillL = 0.0;
 #endif
 float nsS = nsFillL + lampDark.y * nsMoon + max(${lamps}.r, max(${lamps}.g, ${lamps}.b)) / lampMore.w;
+// (a degenerate normal must not light a surface: a NaN level counts as none)
+if (!(nsS >= 0.0)) nsS = 0.0;
 float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
     const code: { [pointName: string]: string } = {
       CUSTOM_FRAGMENT_DEFINITIONS: `

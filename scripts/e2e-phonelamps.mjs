@@ -34,10 +34,11 @@ try {
       moon: !!L?.moonTex,
       levelMat: level?.getClassName(),
       plugin: !!plugin,
-      // (the compiled level shader really adds the volume and the fill - a plugin attached but not injected draws black)
+      // (the compiled level shader really adds the volume and the fill, through the darkness curve (Step 4b) - a plugin
+      // attached but not injected draws black)
       injected: (() => {
         const src = w.level.meshes[0]?.subMeshes?.[0]?.effect?.fragmentSourceCode ?? '';
-        return /diffuseBase \+= nsVolume/.test(src) && /diffuseBase \+= nsGrid/.test(src);
+        return /nsStat \+= nsVolume\(vPositionW/.test(src) && /nsStat \+= nsFillL \* lampMore\.w/.test(src) && /diffuseBase = max\(nsStat, vec3\(0\.0\)\) \* nsR \+ nsDyn/.test(src);
       })(),
       hemi: w.hemi.intensity,
       pool: rig['pool'].length + rig['shadowPool'].length,
@@ -49,7 +50,7 @@ try {
   assert(r.levelMat === 'StandardMaterial' && r.plugin && r.injected, `the volume and the fill are in the standard level material's shader (${r.injected})`);
   assert(r.fill && r.moon && r.hemi === 0, 'the ambient grid is the fill (hemisphere off) and the moon is baked');
   assert(r.pool <= 2, `at most two plain lights, for the flashlights (${r.pool})`);
-  assert(r.floor > 0, `readable darkness: the grade lifts black (${r.floor})`);
+  assert(r.floor > 0 && r.floor <= 0.01, `the phone black floor (OLED smear, not enough to see by): ${r.floor}`);
   assert(r.mixes >= 1, `the volume was mixed (${r.mixes})`);
   // probes: per lamp, a point it would light by the formula but a wall hides (the field's lamp part ~0), and one in
   // full view; the GPU volume's cell agrees
