@@ -319,20 +319,20 @@ Total 364.7 s (6.1 min; target 5.5 to 6.5). Chapter 6 on M is the hall return (6
 
 | Id | Type | Level | Speed m/s | Phase s | Loop s | Travel m | Dwell s | Role and post | Why here | Tells | Reaction |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| G1 | grunt | G | 0.9 | 9 | 40.0 | 29.4 | 6.3 | Yard patroller; Yard line z -22, x -10 to 4 | The contractor named the coke yard gate and the generator door as the two ways in from the yard. One man walks the line between them. | boots on wet gravel, audible 6 s before he turns at CG / his torch beam sweeps the container wall 3 s before he turns back | C1 off: walks to the nearest dead pole and searches 12 s; a found body: runs to AP3 |
+| G1 | grunt | G | 0.9 | 7 | 40.0 | 29.4 | 6.3 | Yard patroller; Yard line z -22, x -10 to 4 | The contractor named the coke yard gate and the generator door as the two ways in from the yard. One man walks the line between them. | boots on wet gravel, audible 6 s before he turns at CG / his torch beam sweeps the container wall 3 s before he turns back | C1 off: walks to the nearest dead pole and searches 12 s; a found body: runs to AP3 |
 | G2 | grunt | G | 0.9 | 34 | 40.0 | 0.0 | 38.5 | Gate sentry (stationary, narrow cone); Gatehouse east face (-47, -27.5) | The lane gate is the only door the contractor cannot see from the roof. A man sits at it. | his radio crackles 3 s before each turn / the gatehouse window lights when he stands up to turn | C1 off: stands and turns to SW1 for 8 s, then radios; AP3 if he finds a body |
-| G3 | grunt | G | 0.9 | 11 | 40.0 | 24.1 | 11.7 | Coke yard patroller; Coke yard triangle: bunker, chute, boiler door | Coke is the only thing in the yard worth stealing, so the contractor walks the bunker. | coal crunches under his boots 4 s before he comes round the bunker / his shadow falls across the CY2 pool 2 s before he arrives | C2 off: walks to SW2 at the gate then to the dead lamp, 12 s |
-| G4 | grunt | G | 0.9 | 4 | 40.0 | 0.0 | 38.5 | Boiler house pair, west seat; Boiler house table, west side (-29, -5.5) | The boiler is the only warm room; the contractor's two coke men eat their supper in it and talk. The talk is the timer. | the thermos lid clinks 2 s before he stands / his shadow moves on the window glass BHW1 | C2 off: both look out of BH1 for 6 s |
-| G5 | grunt | G | 0.9 | 32 | 40.0 | 0.0 | 38.5 | Boiler house pair, east seat; Boiler house table, east side (-23.5, -4.5) | As G4. He sits so he can see the door; he stands every 40 s to check it. | his chair scrapes 2 s before he stands / the BH1 door handle rattles | C2 off: as G4 |
-| G6 | sniper | R | 0.85 | 1 | 30.0 | 13.0 | 13.7 | Roof sniper (30 s loop on the south parapet); Roof south parapet x -5 to 1, z -15.2 | A previous break-in came over the roof and the yard. One rifle covers both. | the scope glints in the sodium light 2 s before each turn / boot scrape on the roof gravel 3 s before each turn | C1 or C2 off: holds on the dark area 10 s; C11 off: turns to the ladder head |
-| G7 | grunt | B | 0.9 | 32 | 40.0 | 14.1 | 23.3 | Plant patroller; Battery hall west end to the rectifier room west end | The batteries are the plant's whole value. He walks between the bank and the rectifiers. | the BC2 door-less gap echoes his boots 4 s before he comes through / his keys jingle 3 s before he turns at the rectifiers | C3 off: walks to the dead lamp, 12 s; C2T off: goes to the tunnel end, 10 s |
-| G8 | grunt | B | 0.9 | 16 | 40.0 | 0.0 | 38.5 | Breaker panel watcher (stationary); Rectifier room (25, -0.5), by BP | BP feeds the hall. A man stands at it so that nobody throws the switch. | a cough 3 s before he turns / his torch clicks on the panel door | C3 off: holds post and faces the panel 8 s; BP held: radios the hall pair (they walk to the hall board) |
-| G9 | grunt | G | 0.9 | 9 | 40.0 | 25.4 | 10.8 | Hall pair, lane A; Hall lane A x 43 to 55 | The hall is the asset (the relay racks). After a theft the contractor ordered that nobody patrols the hall alone: a pair. | radio crackle and two voices 4 s before they turn / the rack lamps flicker as they pass the HRK1 gap | C4/C5 off: both walk to the hall board in the stair hall, 15 s; a body: G9 runs to AP2 |
-| G10 | grunt | G | 0.9 | 13 | 40.0 | 25.4 | 10.8 | Hall pair, lane B; Hall lane B x 43 to 57 | As G9. He walks the opposite lane so that the pair cross at the connectors. | his boots on the steel kick plate 3 s before he reaches a connector / his shadow crosses the HB1 pool | as G9 |
-| G11 | officer | U | 0.85 | 15 | 40.0 | 14.6 | 21.9 | Officer: Control room and the north corridor; Control room CP, then the north corridor | The broker's one fear is a warning light on CP. The officer checks it. | his shoes squeak on the Control room floor 3 s before CN opens / CN's door closer sighs | C6 off: walks to SW6 then along the dead corridor 15 s; C7 off: goes to AP1 and radios |
-| G13 | grunt | U | 0.9 | 10 | 40.0 | 29.0 | 6.8 | Upper corridor patroller (overlaps the officer); South corridor x 15 to 29, z -12.3 | The south corridor joins the stair landing to the Control room; a second man covers the door CS so that the officer is never alone. | steel-toe taps on the corridor boards 3 s before a turn / his radio squelch | C6 off: walks to the dead lamps, 12 s |
-| G12 | heavy | G | 0.75 | 12 | 40.0 | 13.0 | 21.6 | Cage heavy (loops the middle lane); Cage middle lane x 9 to 15 | The cage is the whole point of the contract. The heavy never leaves the core switch. | his armour clinks 3 s before he turns / the cage floor hums under his steps | C9 off: turns to the dead lamp and holds 10 s; never leaves the cage; cannot be taken down alone |
-| G14 | grunt | G | 0.9 | 15 | 40.0 | 0.0 | 38.5 | Vestibule sentry (stationary); Vestibule (30, -1) | The cage front door and the breaker pair are the only ways in. He watches both. | the door closer of CH sighs / his lighter clicks 3 s before he turns | C8/C9 off: goes to SW8 and looks around 10 s, then returns |
+| G3 | grunt | G | 0.9 | 5 | 40.0 | 24.1 | 11.7 | Coke yard patroller; Coke yard triangle: bunker, chute, boiler door | Coke is the only thing in the yard worth stealing, so the contractor walks the bunker. | coal crunches under his boots 4 s before he comes round the bunker / his shadow falls across the CY2 pool 2 s before he arrives | C2 off: walks to SW2 at the gate then to the dead lamp, 12 s |
+| G4 | grunt | G | 0.9 | 0 | 40.0 | 0.0 | 38.5 | Boiler house pair, west seat; Boiler house table, west side (-29, -5.5) | The boiler is the only warm room; the contractor's two coke men eat their supper in it and talk. The talk is the timer. | the thermos lid clinks 2 s before he stands / his shadow moves on the window glass BHW1 | C2 off: both look out of BH1 for 6 s |
+| G5 | grunt | G | 0.9 | 28 | 40.0 | 0.0 | 38.5 | Boiler house pair, east seat; Boiler house table, east side (-23.5, -4.5) | As G4. He sits so he can see the door; he stands every 40 s to check it. | his chair scrapes 2 s before he stands / the BH1 door handle rattles | C2 off: as G4 |
+| G6 | sniper | R | 0.85 | 4 | 30.0 | 13.0 | 13.7 | Roof sniper (30 s loop on the south parapet); Roof south parapet x -5 to 1, z -15.2 | A previous break-in came over the roof and the yard. One rifle covers both. | the scope glints in the sodium light 2 s before each turn / boot scrape on the roof gravel 3 s before each turn | C1 or C2 off: holds on the dark area 10 s; C11 off: turns to the ladder head |
+| G7 | grunt | B | 0.9 | 23 | 40.0 | 14.1 | 23.3 | Plant patroller; Battery hall west end to the rectifier room west end | The batteries are the plant's whole value. He walks between the bank and the rectifiers. | the BC2 door-less gap echoes his boots 4 s before he comes through / his keys jingle 3 s before he turns at the rectifiers | C3 off: walks to the dead lamp, 12 s; C2T off: goes to the tunnel end, 10 s |
+| G8 | grunt | B | 0.9 | 15 | 40.0 | 0.0 | 38.5 | Breaker panel watcher (stationary); Rectifier room (25, -0.5), by BP | BP feeds the hall. A man stands at it so that nobody throws the switch. | a cough 3 s before he turns / his torch clicks on the panel door | C3 off: holds post and faces the panel 8 s; BP held: radios the hall pair (they walk to the hall board) |
+| G9 | grunt | G | 0.9 | 2 | 40.0 | 25.4 | 10.8 | Hall pair, lane A; Hall lane A x 43 to 55 | The hall is the asset (the relay racks). After a theft the contractor ordered that nobody patrols the hall alone: a pair. | radio crackle and two voices 4 s before they turn / the rack lamps flicker as they pass the HRK1 gap | C4/C5 off: both walk to the hall board in the stair hall, 15 s; a body: G9 runs to AP2 |
+| G10 | grunt | G | 0.9 | 35 | 40.0 | 25.4 | 10.8 | Hall pair, lane B; Hall lane B x 43 to 57 | As G9. He walks the opposite lane so that the pair cross at the connectors. | his boots on the steel kick plate 3 s before he reaches a connector / his shadow crosses the HB1 pool | as G9 |
+| G11 | officer | U | 0.85 | 3 | 40.0 | 14.6 | 21.9 | Officer: Control room and the north corridor; Control room CP, then the north corridor | The broker's one fear is a warning light on CP. The officer checks it. | his shoes squeak on the Control room floor 3 s before CN opens / CN's door closer sighs | C6 off: walks to SW6 then along the dead corridor 15 s; C7 off: goes to AP1 and radios |
+| G13 | grunt | U | 0.9 | 33 | 40.0 | 29.0 | 6.8 | Upper corridor patroller (overlaps the officer); South corridor x 15 to 29, z -12.3 | The south corridor joins the stair landing to the Control room; a second man covers the door CS so that the officer is never alone. | steel-toe taps on the corridor boards 3 s before a turn / his radio squelch | C6 off: walks to the dead lamps, 12 s |
+| G12 | heavy | G | 0.75 | 4 | 40.0 | 13.0 | 21.6 | Cage heavy (loops the middle lane); Cage middle lane x 9 to 15 | The cage is the whole point of the contract. The heavy never leaves the core switch. | his armour clinks 3 s before he turns / the cage floor hums under his steps | C9 off: turns to the dead lamp and holds 10 s; never leaves the cage; cannot be taken down alone |
+| G14 | grunt | G | 0.9 | 25 | 40.0 | 15.7 | 21.0 | Vestibule sentry (steps inside the cage door CH once a loop); Vestibule (30, -1) | The cage front door and the breaker pair are the only ways in. He watches both. | the door closer of CH sighs / his lighter clicks 3 s before he turns | C8/C9 off: goes to SW8 and looks around 10 s, then returns |
 | R1 | grunt | G | 0.9 | 0 | on alarm |  |  | Reinforcement 1: arrives at Gv on an alarm; Gv (36, -27) | Called by AP1, AP2 or AP3; arrives 30 s after the alarm. |  | sweeps the east yard |
 | R2 | grunt | G | 0.9 | 0 | on alarm |  |  | Reinforcement 2: arrives at Gv on an alarm; Gv (38, -27) | As R1. |  | as R1 |
 
@@ -348,32 +348,32 @@ Total 364.7 s (6.1 min; target 5.5 to 6.5). Chapter 6 on M is the hall return (6
 | G3 | 0 | (-18.0, -12.5) | 3.9 | [1, 0] | checks the gate side of the bunker apron |
 | G3 | 1 | (-12.0, -11.0) | 3.9 | [-1, 0.2] | looks down the chute grating CK |
 | G3 | 2 | (-19.0, -6.0) | 3.93 | [-1, 0] | checks the boiler house wall |
-| G4 | 0 | (-29.0, -5.5) | 30.5 | [1, 0] | talking, facing G5 |
-| G4 | 1 | (-29.0, -5.5) | 4 | [0.55, -0.85] | looks out of the south window BHW1 |
+| G4 | 0 | (-29.0, -5.5) | 28.5 | [1, 0] | talking, facing G5 |
+| G4 | 1 | (-29.0, -5.5) | 6 | [0.55, -0.85] | looks out of the south window BHW1 |
 | G4 | 2 | (-29.0, -5.5) | 4 | [1, 0] | talking, facing G5 |
-| G5 | 0 | (-23.5, -4.5) | 10 | [-1, 0] | talking, facing G4 |
-| G5 | 1 | (-23.5, -4.5) | 15 | [0.9, -0.4] | looks out of the east door BH1 |
-| G5 | 2 | (-23.5, -4.5) | 13.5 | [-1, 0] | talking, facing G4 |
+| G5 | 0 | (-23.5, -4.5) | 8 | [-1, 0] | talking, facing G4 |
+| G5 | 1 | (-23.5, -4.5) | 9.5 | [0.9, -0.4] | looks out of the east door BH1 |
+| G5 | 2 | (-23.5, -4.5) | 21 | [-1, 0] | talking, facing G4 |
 | G6 | 0 | (-5.0, -15.2) | 4 | [-0.5, -0.85] | west end, facing the coke yard and the gate CG |
 | G6 | 1 | (1.0, -15.2) | 9.68 | [0.45, -0.9] | east end, facing the yard centre |
 | G7 | 0 | (9.0, -7.0) | 19.3 | [-1, 0] | battery bank check |
 | G7 | 1 | (9.0, -1.0) | 4.04 | [-1, 0] | rectifier cabinets |
-| G8 | 0 | (25.0, -0.5) | 9 | [-1, 0] | down the rectifier room |
+| G8 | 0 | (25.0, -0.5) | 16 | [-1, 0] | down the rectifier room |
 | G8 | 1 | (25.0, -0.5) | 4 | [1, 0] | towards the stair foot and the V foot |
-| G8 | 2 | (25.0, -0.5) | 25.5 | [-1, 0] | down the rectifier room |
-| G9 | 0 | (43.0, -0.5) | 4 | [-1, 0] | faces the stair B arrival |
-| G9 | 1 | (55.0, -0.5) | 6.76 | [1, 0] | checks the east connector |
+| G8 | 2 | (25.0, -0.5) | 18.5 | [-1, 0] | down the rectifier room |
+| G9 | 0 | (43.0, -0.5) | 6.8 | [-1, 0] | faces the stair B arrival |
+| G9 | 1 | (55.0, -0.5) | 3.96 | [1, 0] | checks the east connector |
 | G10 | 0 | (56.0, -7.5) | 4 | [1, 0] | east connector, looks along lane A |
 | G10 | 1 | (44.0, -7.5) | 6.76 | [-1, 0] | west connector, looks into lane C |
-| G11 | 0 | (30.0, 0.0) | 13.9 | [0, 1] | checks CP and the panel board |
-| G11 | 1 | (29.0, 6.5) | 7.96 | [-1, 0] | looks west along the north corridor |
+| G11 | 0 | (30.0, 0.0) | 17.9 | [0, 1] | checks CP and the panel board |
+| G11 | 1 | (29.0, 6.5) | 3.96 | [-1, 0] | looks west along the north corridor |
 | G13 | 0 | (15.0, -12.3) | 3.4 | [-0.54, 0.84] | looks into the Test room through TS (O1 is in view) |
 | G13 | 1 | (29.0, -12.3) | 3.36 | [-1, 0] | looks west along the corridor at the CS door |
-| G12 | 0 | (9.0, -2.8) | 10 | [1, 0] | west end of the middle lane, watches O2 through the cage window |
-| G12 | 1 | (15.0, -2.8) | 11.64 | [-1, 0] | east turn, faces the cage window CMESH |
-| G14 | 0 | (30.0, -1.0) | 11 | [0, -1] | towards BK2 and the south wall |
-| G14 | 1 | (30.0, -1.0) | 4 | [-1, 0.3] | at CH and the cage door |
-| G14 | 2 | (30.0, -1.0) | 23.5 | [1, 0] | at VH and the hall |
+| G12 | 0 | (9.0, -2.8) | 4 | [1, 0] | west end of the middle lane, watches O2 through the cage window |
+| G12 | 1 | (15.0, -2.8) | 17.64 | [-1, 0] | east turn, faces the cage window CMESH |
+| G14 | 0 | (30.0, -1.0) | 5 | [0, -1] | towards BK2 and the south wall |
+| G14 | 1 | (23.5, 2.0) | 12 | [-1, 0] | steps inside CH and looks down the cage entry lane |
+| G14 | 2 | (30.0, -1.0) | 4.02 | [1, 0] | at VH and the hall |
 
 ## Routes
 

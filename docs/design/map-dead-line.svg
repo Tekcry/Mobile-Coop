@@ -509,10 +509,12 @@
 <line x1="648" y1="674.4" x2="628.2" y2="674.4" stroke="#4e342e" stroke-width="1.2"/>
 <circle cx="648" cy="674.4" r="3.2" fill="#4e342e" stroke="#fff" stroke-width="0.8"/>
 <text x="604" y="670.4" font-size="9" font-weight="bold" fill="#4e342e">G12</text>
+<polyline points="768.0,660.0 766.0,662.0 714.0,638.0 716.0,636.0" fill="none" stroke="#6a1b9a" stroke-width="1.4" stroke-opacity="0.8"/>
+<polyline points="716.0,636.0 714.0,638.0 766.0,662.0 768.0,660.0" fill="none" stroke="#6a1b9a" stroke-width="1.4" stroke-opacity="0.8"/>
 <line x1="768" y1="660" x2="768" y2="679.8" stroke="#6a1b9a" stroke-width="1.2"/>
 <circle cx="768" cy="660" r="3.2" fill="#6a1b9a" stroke="#fff" stroke-width="0.8"/>
-<line x1="768" y1="660" x2="748.2" y2="654.06" stroke="#6a1b9a" stroke-width="1.2"/>
-<circle cx="768" cy="660" r="3.2" fill="#6a1b9a" stroke="#fff" stroke-width="0.8"/>
+<line x1="716" y1="636" x2="696.2" y2="636" stroke="#6a1b9a" stroke-width="1.2"/>
+<circle cx="716" cy="636" r="3.2" fill="#6a1b9a" stroke="#fff" stroke-width="0.8"/>
 <line x1="768" y1="660" x2="787.8" y2="660" stroke="#6a1b9a" stroke-width="1.2"/>
 <circle cx="768" cy="660" r="3.2" fill="#6a1b9a" stroke="#fff" stroke-width="0.8"/>
 <text x="772" y="656" font-size="9" font-weight="bold" fill="#6a1b9a">G14</text>
