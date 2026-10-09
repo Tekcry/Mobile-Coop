@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b done; waiting for Michael's look check | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b: Phone check passes; night vision fails the look check; fix pass waits for Michael's go | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -609,6 +609,25 @@ See the Step 1 and Step 5 reports.
   - A ghost copy of the operator's voxel body (its level-of-detail mesh) beside the operator in the Epic yard view: dark
     in Step 4, pale in Step 4b. Pre-existing; not traced (suggested as a separate task).
   - The Warehouse cold-load time (carried).
+- Phone check on Michael's iPhone 17 Pro Max (`/ct/`, 2026-10-09 02:23; 2868x1320):
+
+  | Run | avg fps | 1% low | p50 / p99 ms | main p95 ms | spikes (worst) |
+  | --- | --- | --- | --- | --- | --- |
+  | light look + lamp volume, 100% | 114 | 86 | 9.0 / 11.0 | 3.0 | 2 (16 ms) |
+  | light look + lamp volume, 75% | 115 | 79 | 9.0 / 12.0 | 3.0 | 2 (19 ms) |
+  | light look + night vision, 100% | 113 | 71 | 9.0 / 11.0 | 3.0 | 4 (48 ms; gpu 2) |
+  | + flashlight shadow (512), moon on characters | 106 | 61 | 9.0 / 11.0 | 3.0 | 5 (52 ms; gpu 3) |
+  | 3.3 voxel look, 75% | 72 | 29 | 14.0 / 18.0 | 4.0 | 5 (99 ms) |
+  | light look, 100% again (heat check) | 113 | 85 | 9.0 / 11.0 | 3.0 | 2 (15 ms) |
+  | held at 60, 3 min (night vision in minute 2) | 58 | 43 | 17.0 / 21.0 | 5.0 | 2 (27 ms; gpu 2) |
+
+  - Gate: passes at the line. The hold averages 58 fps (58 needed); first minute 58, last 57, so the middle (night
+    vision) minute is about 59. No minute under 55. Step 4's hold was 59.
+  - Night vision costs about 1 fps uncapped (113 against 114); its 1% low falls from 86 to 71.
+  - No heat loss (114 then 113).
+- Look check (Michael, desktop and iPhone, 2026-10-09): night vision fails. Lamps do not glare or flare in it, and the
+  image is a flat saturated green. Target look and the rest of the feedback: `docs/backlog.md` items 10 - 14. The fix
+  pass waits for Michael's go.
 - Next: **STOP** for Michael's look check on the iPhone (`/ct/`) and desktop:
   - [ ] Indoors at night, standing in shadow, you can hardly see your operator: just the goggle glow.
   - [ ] Night vision is now needed to read a dark room. It flares when you look at a lamp.

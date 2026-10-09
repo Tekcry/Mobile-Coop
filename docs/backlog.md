@@ -19,11 +19,12 @@ Format: `N. Item - destination - status`.
 11. **"SONAR" label in the top-left HUD (desktop screenshot 3).** Sonar is a removed Blacklist system (bible 6); thermal replaces it (bible 6, roadmap row 3). Michael, 2026-10-09: "thermal instead of sonar". Remove the sonar mode and label. Destination: Step 4b fix pass (label); the sonar system removal is Phase 3.
 12. **Benchmark at 7680x2067 (RTX 4090 Laptop, v3.5.0, 2026-10-09, `sbd-feedback-2026-10-09.html`).** Low 120 fps (1% low 79), Medium 77 (19), High 64 (29), Ultra 48 (14), Epic 45 (10, worst spike 227 ms, main thread p95 6.8 ms). Data for item 7. Destination: graphics fix batch after Phase 1.
 13. **Thermal vision.** Michael, 2026-10-09: replicate the reference look. Target: cold background in deep blue to purple; heat as a false-colour ramp (blue, green, yellow, orange to red at the hottest, the torso); soft, blurred edges, no fine texture; a tube vignette like night vision. Already decided in the bible (5.x vision modes, roadmap row 3). Optical look only, no reference UI art. Destination: Phase 3 unless Michael moves it.
+14. **iPhone session ended at the menu (crash report, 2026-10-09 02:55, 2042 s in).** The phone was set to platform=desktop with the Epic preset (gfx.reflections=ssr, gfx.lights=32, volumetrics, GI), not the phone look. Likely out of memory or killed by Safari. Check memory with desktop Epic on the iPhone; consider blocking or warning on platform=desktop + Epic on phones. Destination: graphics fix batch after Phase 1.
 
 ## Pending input
 
 - Night vision and thermal reference images received 2026-10-09 (items 10, 13).
-- Phone note received 2026-10-09 (item 10). The attached log was the desktop export again (no phone data); a fresh phone log is still missing. No fix work starts until Michael says go.
+- Phone note received 2026-10-09 (item 10). Phone log received 2026-10-09 (Phone check passes at the line; results in `docs/progress.md`, Step 4b). No fix work starts until Michael says go.
 
 ## Done
 
