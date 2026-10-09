@@ -39,10 +39,10 @@ FIRST PLAYABLE = in this milestone. PARKED = no work until after the playtest (M
 
 ### Later phases
 - Phase 2 Sound (zones, sound meter, mix): PARKED. Existing footstep and noise model stays as is.
-- Phase 3 Pure CT conversion: only back-to-wall, holster/aim with no hip fire and the elbow strike (S3) are FIRST PLAYABLE. Removal of snap cover, Mark & Execute, sonar code: PARKED. Thermal vision: PARKED. Night vision realism ideas (backlog 16): PARKED.
+- Phase 3 Pure CT conversion: only back-to-wall, holster/aim with no hip fire and the elbow strike (S3a; S3b back-to-wall is cuttable) are FIRST PLAYABLE. Removal of snap cover, Mark & Execute, sonar code: PARKED. Thermal vision: PARKED. Night vision realism ideas (backlog 16): PARKED.
 - Phase 3b movement / camera / animation lock and the animation audit: PARKED.
 - Phase 4 Mission framework (checkpoints, radio, briefing, alarm levels, stealth rating): PARKED, except a minimal objective, extraction, win/fail/restart and results (S6).
-- Phase 5 Co-op 2-4: FIRST PLAYABLE as S7a, S7b, S8, S9 (only the parts listed there). Lobby polish, co-op extras (`coopExtras`), team moves beyond what exists: PARKED.
+- Phase 5 Co-op 2-4: FIRST PLAYABLE as S7a, S7a2, S7b, S8 (only the parts listed there); sync takedown is S9, after the first playtest. Lobby polish, co-op extras (`coopExtras`), team moves beyond what exists: PARKED.
 - Phase 6 CT verbs for the slice (new verbs): PARKED. Existing CT movement stays; the greybox does not require split jumps, rappel or secret routes.
 - Phase 6b visual target: PARKED. Phase 7 vertical slice, map phases 4-6 (dressing, readability, civilians, medkits, radio): PARKED.
 - Exchange alignment pass (`exchange-alignment.md`): PARKED except what S1 needs (light plan, 4 spawns).
@@ -51,7 +51,7 @@ FIRST PLAYABLE = in this milestone. PARKED = no work until after the playtest (M
 ### Backlog (`docs/backlog.md`)
 - 1 Free Roam lights / switches / alarms: FIRST PLAYABLE, but on the Exchange mission (S2), not Free Roam.
 - 2 Perf overlay minimal bar: PARKED.
-- 4 Holster / no hip fire / elbow: FIRST PLAYABLE (S3).
+- 4 Holster / no hip fire / elbow: FIRST PLAYABLE (S3a); back-to-wall S3b is cuttable.
 - 5 Ghost copy of operator (Epic): PARKED.
 - 6 Voice test: PARKED. 7 Epic perf targets: PARKED. 8 voxMat texture units: PARKED. 9 Skin shader warning: PARKED.
 - 12 Benchmark data: PARKED. 13 Thermal: PARKED. 14 iPhone crash on desktop+Epic: PARKED (friends on phones use the default phone look; tell them not to switch to Epic).
@@ -62,10 +62,10 @@ FIRST PLAYABLE = in this milestone. PARKED = no work until after the playtest (M
 
 ## 2. Dependency notes (changes from the order Michael gave)
 
-- **S1 is split into S1a, S1b, S1c** and **S7 into S7a, S7b**: one Sonnet session each, no step touches more than about 12 files.
-- Order otherwise unchanged. The map must exist first (S1), guards need lights (S2) and the player verbs (S3, S4) to be tested properly in S5.
+- **S1 is split into S1a, S1b, S1c**, **S3 into S3a, S3b** and **S7 into S7a, S7a2, S7b**: one Sonnet session each, no step touches more than about 12 files.
+- Order otherwise unchanged. The map must exist first (S1), guards need lights (S2) and the player verbs (S3a, S4; S3b if it survives) to be tested properly in S5.
 - S2 and S4 are mostly "make the existing system work on the Exchange and under the first-playable rules": switches, shot lamps, carry, hide spots and takedowns already exist (`stealthSystems.ts`, `takedown*.ts`), so they are small.
-- Single-player and the Exchange work end to end before any co-op step (S6 before S7a). Co-op is never a prerequisite for a solo step.
+- Single-player and the Exchange work end to end before any co-op step (S6 before S7a). S9 (sync takedown) moves after S10 and the first playtest. Co-op is never a prerequisite for a solo step.
 - The existing `?autostart=exchange&mode=infiltration` boot path is the test entry for every step. Co-op tests use `?net=local` (BroadcastChannel between tabs, `src/net/localTransport.ts`) with `scripts/e2e-coop.mjs` as the pattern.
 
 ---
@@ -75,6 +75,7 @@ FIRST PLAYABLE = in this milestone. PARKED = no work until after the playtest (M
 Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "Hand check" is what Michael does on his PC (`npm run dev`, open `/?autostart=exchange&mode=infiltration`; co-op: add `&net=local` in several tabs once S7a exists).
 
 ### S1a - Exchange greybox: shell, ground floor, tunnel (Sonnet)
+**First, before anything else:** confirm `docs/prompts/exchange-design.md`, `docs/prompts/exchange-map.md` and every `docs/prompts/exchange-plans/*.svg` (`basement`, `ground`, `first`, `roof` and the four `-gameplay` versions) exist. If any is missing, STOP and tell Michael.
 **Goal.** The ground floor and cable tunnel of the Kestrel Exchange as walkable blocks, listed as a map.
 **Read.** `docs/prompts/exchange-design.md` Sections 2 (Basement, Ground floor) and 10 Spaces 1-4; `docs/prompts/exchange-plans/ground.svg`; `docs/prompts/exchange-map.md` "Construction rules" and "Target numbers"; `src/world/mapDef.ts`; `src/world/maps/warehouse.ts` (build pattern); `src/world/maps/index.ts`, `listed.ts`; `src/world/levelBuilder.ts` (grep the `box`, `room`, `door`, `light` methods); `src/world/rooms.ts`.
 **Files.** New `src/world/maps/exchange.ts` (`EXCHANGE_MAP`, build split into `buildGround`, later `buildFirst`, `buildRoof`); `src/world/maps/index.ts`, `listed.ts`; a unit test `tests/exchangeMap.test.ts`.
@@ -128,22 +129,32 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 **Smoke.** `e2e-fp-lights.mjs`: switch off a circuit, read `levelAt` at a point before and after; shoot a lamp, same check; guard alert state changes.
 **Hand check.** In the MDF hall switch a circuit off, shoot a lamp, then watch whether the guard comes and where you can wait in the dark.
 
-### S3 - Back-to-wall, holster and aim, elbow (Sonnet)
-**Goal.** The player verbs of the first-playable: back-to-wall, weapon holstered unless aiming (no hip fire), elbow strike on the fire button.
-**Read.** `docs/ct-movement.md` and `docs/systems/movement.md` only for "wall"; `src/cover/coverController.ts`, `coverState.ts`, `cornerController.ts`; `src/weapons/` (grep `aim`, `holster`, `ads`); `src/input/` action map (grep `fire`, `cover`); bible 1.11 line only (changelog at the top of `docs/design-bible.md`); `src/game/takedown.ts` (an elbow reuses its melee hit).
-**Files.** `src/cover/*`, `src/weapons/*`, `src/input/*`, `src/game/gameState.ts` (hooks), `src/player/playerController.ts`, `scripts/e2e-fp-verbs.mjs`.
+### S3a - Holster, no hip fire, elbow (Sonnet)
+**Goal.** Weapon holstered unless aiming (no hip fire) and an elbow strike on the fire button.
+**Read.** `src/weapons/` (grep `aim`, `holster`, `ads`); `src/input/` action map (grep `fire`); bible 1.11 line only (the version note at the top of `docs/design-bible.md`); `src/game/takedown.ts` (an elbow reuses its melee hit).
+**Files.** `src/weapons/*`, `src/input/*`, `src/game/gameState.ts` (hooks), `src/player/playerController.ts`, `scripts/e2e-fp-verbs.mjs`.
 **Do.**
-- Back-to-wall: adapt the cover controller. Near a wall (back within 0.4 m) and holding the existing cover button, the player presses back to the wall, moves along it slowly and quietly, and is hidden from guards facing away by the existing cover rules (reuse the visibility reduction). No snap to cover nodes, no cover-to-cover. Release to leave. Keep it simple: a wall-hug state plus a peek (camera offset) at corners; if peek is large, ship hug without peek and list it as cut.
 - Holster: the weapon is holstered unless aim is held; no hip fire (fire does nothing unless aiming). Aim raises the weapon in under 0.3 s.
 - Elbow: when not aiming, the fire button throws an elbow (melee hit, short range, 1 s cooldown). Behind a guard it stuns or knocks out (reuse the takedown knock-out result) so it works as a quick close takedown; from the front it makes noise and alerts.
 - Touch: the controls must offer these (fire = elbow when not aiming); keep the touch layout otherwise.
 **Acceptance.**
 1. Unaimed fire does not spawn a projectile; aimed fire does.
 2. Elbow behind an unaware guard within 1.2 m knocks him out; from the front he alerts.
-3. Back-to-wall engages against a wall, speed is below walking speed, a guard whose view cone points away does not see the player at 3 m in shadow.
-4. `npm run check`, `e2e:quick` pass; existing `e2e-cover` and `e2e-weapons-carry` suites updated only where the new rules change the expectation (note each change).
-**Smoke.** `e2e-fp-verbs.mjs`: the three checks above in the Exchange or the Proving Grounds.
-**Hand check.** Aim and fire, try fire without aim, elbow a guard from behind and from the front, hug a wall near a guard.
+3. `npm run check`, `e2e:quick` pass; existing `e2e-weapons-carry` and `e2e-combat` suites updated only where the new rules change the expectation (note each change).
+**Smoke.** `e2e-fp-verbs.mjs`: the two checks above in the Exchange or the Proving Grounds.
+**Hand check.** Aim and fire, try fire without aim, elbow a guard from behind and from the front.
+
+### S3b - Back-to-wall (Sonnet; CUTTABLE)
+**Goal.** Back-to-wall as a hide-and-sidle verb.
+**Cut rule.** If S3b fails its acceptance twice, do NOT escalate: revert its code, park it (add "S3b back-to-wall PARKED, failed twice" with the error to `docs/progress.md`), and carry on to S4 without it. No later step depends on it.
+**Read.** `docs/ct-movement.md` and `docs/systems/movement.md` only for "wall"; `src/cover/coverController.ts`, `coverState.ts`, `cornerController.ts`; `src/input/` action map (grep `cover`).
+**Files.** `src/cover/*`, `src/input/*`, `src/player/playerController.ts`, `scripts/e2e-fp-verbs.mjs` (extend).
+**Do.** Adapt the cover controller. Near a wall (back within 0.4 m) and holding the existing cover button, the player presses back to the wall, moves along it slowly and quietly, and is hidden from guards facing away by the existing cover rules (reuse the visibility reduction). No snap to cover nodes, no cover-to-cover. Release to leave. Keep it simple: a wall-hug state plus a peek (camera offset) at corners; if peek is large, ship hug without peek and list it as cut.
+**Acceptance.**
+1. Back-to-wall engages against a wall; speed is below walking speed; a guard whose view cone points away does not see the player at 3 m in shadow.
+2. `npm run check`, `e2e:quick` pass; `e2e-cover` updated only where the new rules change the expectation (note each change).
+**Smoke.** Extend `e2e-fp-verbs.mjs` with check 1.
+**Hand check.** Hug a wall near a guard in the dark, then in the light.
 
 ### S4 - Takedowns and body drag (Sonnet)
 **Goal.** Takedown (grab / knock-out) and dragging a body into the dark or a hide spot work on the Exchange.
@@ -186,18 +197,30 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 **Smoke.** `e2e-fp-mission.mjs`: the three flows above.
 **Hand check.** Play the whole mission solo, win once, die once, press Restart each time. Time how long a run takes (target: 8-15 minutes).
 
-### S7a - Co-op sync of the mission, lights, guards and results (Sonnet)
-**Goal.** 2-4 players (via `?net=local` tabs and WebRTC) play the same mission: the host simulates; lights, switches, shot lamps, guards, bodies, the objective, extraction, results and restart agree on every client.
+### S7a - Co-op sync of lights, switches, lamp shots, guards and bodies (Sonnet)
+**Goal.** 2-4 players (via `?net=local` tabs and WebRTC) share the same world state: the host simulates; lights, switches, shot lamps, guards and bodies agree on every client.
 **Read.** `docs/systems/coop.md`; `src/net/protocol.ts` (messages, `NetItem`, snapshot, `doorsSig` pattern), `src/net/coopHost.ts` (snapshot loop, `ITEMS_EVERY`), `coopClient.ts`, `src/net/enemyPuppet.ts`; `src/game/stealthSystems.ts` (what already syncs); `scripts/e2e-coop.mjs` (test pattern); `phase-1-light-parity.md` Step 6 (the light-state design to follow).
-**Files.** `src/net/protocol.ts`, `src/net/coopHost.ts`, `src/net/coopClient.ts`, `src/game/stealthSystems.ts`, `src/game/modes/infiltrationMode.ts`, `scripts/e2e-fp-coop.mjs`.
+**Files.** `src/net/protocol.ts`, `src/net/coopHost.ts`, `src/net/coopClient.ts`, `src/game/stealthSystems.ts`, `scripts/e2e-fp-coop.mjs`.
 **Do.**
 - Light state (Phase 1 Step 6): per light on / destroyed, per group on / off, sent when its signature changes and every `ITEMS_EVERY`. Client switch and lamp-shot requests are validated and applied by the host, then broadcast; clients remix their field.
-- Objective chain, plant progress, extraction hold and the end state (complete / failed, with the results data) come from the host. Restart: the host's restart rebuilds the match and tells clients to reload their world (reuse the lobby start path).
-- Client takedown / elbow requests on guards already exist for co-op takedowns; confirm they work for the new elbow (S3) and drag (S4) (carried body ownership on the host).
-- Failure rule for co-op: the run fails when all players are downed or dead at the same time (S7b adds downed). Until then any death of all players fails.
-**Acceptance.** With 2 `?net=local` tabs: a client switch off syncs to the host and back; a client lamp shot syncs; a host takedown shows on the client; both see the objective progress and COMPLETE together; restart gives both a fresh match; a tab that joins late gets current light and guard state.
+- Guards and bodies: alert states, positions, knocked-out guards and dragged / hidden bodies come from the host; clients see them match.
+- Client takedown / elbow requests on guards already exist for co-op takedowns; confirm they work for the new elbow (S3a) and drag (S4) (carried body ownership on the host).
+**Acceptance.** With 2 `?net=local` tabs: a client switch off syncs to the host and back; a client lamp shot syncs and light levels at 3 sample points match on both; a host takedown shows on the client; a client drags a body and the host sees it hidden.
 **Smoke.** `e2e-fp-coop.mjs` (2 tabs): the checks above in one scripted run, on `exchange`.
-**Hand check.** Two browser tabs (`&net=local`): shoot a lamp in one, watch the other; finish the mission together.
+**Hand check.** Two browser tabs (`&net=local`): shoot a lamp in one, watch the other; take down a guard in one, find the body in the other.
+
+### S7a2 - Co-op sync of objective, extraction, results, restart, late join (Sonnet)
+**Goal.** The mission loop (S6) works for 2-4 players: objective, extraction, end state, results and restart agree on every client; a late joiner gets the current state.
+**Read.** The S7a changes (`git diff` of S7a), `src/net/protocol.ts`, `src/net/coopHost.ts` (snapshot, start path), `coopClient.ts`, `src/game/modes/infiltrationMode.ts`, the results screen, `scripts/e2e-fp-coop.mjs`.
+**Files.** `src/net/protocol.ts`, `src/net/coopHost.ts`, `src/net/coopClient.ts`, `src/game/modes/infiltrationMode.ts`, results screen, `scripts/e2e-fp-coop.mjs` (extend).
+**Do.**
+- Objective chain, plant progress, extraction hold and the end state (complete / failed, with the results data) come from the host and show on every client.
+- Restart: the host's restart rebuilds the match and tells clients to reload their world (reuse the lobby start path).
+- Late join: a tab joining mid-run gets current light, guard, body and objective state and spawns at the nearest spawn point.
+- Failure rule for co-op: the run fails when all players are dead at the same time (S7b adds downed).
+**Acceptance.** With 2 `?net=local` tabs: both see the plant progress and COMPLETE together; both see FAILED when both die; restart gives both a fresh match with 9 guards and the objective reset; a third tab joining mid-run matches the host's light and guard state within 5 s.
+**Smoke.** Extend `e2e-fp-coop.mjs`: complete, fail, restart, late join in one run.
+**Hand check.** Two tabs: finish the mission together, press Restart, join a third tab mid-run.
 
 ### S7b - 4 players, downed/revive, pings, team results (Sonnet)
 **Goal.** 4 players start together at 4 spawns, can be downed and revived, can ping, and get a simple team result.
@@ -208,13 +231,13 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 - Downed: at 0 health a co-op player is downed (crawl or stay down for 30 s; a mate holds interact within 1.5 m for 3 s to revive at 40% health). If nobody revives within 30 s they are dead for the rest of the run (no checkpoints in this milestone). All dead or downed at once = fail. Use the existing `revive` interactable and message; adapt rather than rebuild.
 - Pings: one button places a ping at the aim point, or on a guard; all players see it for 6 s with the pinger's name colour (existing message). Make sure the button exists on touch.
 - Team results: after the mission, a list of players with guards knocked out, revives, times downed, alarms; a team total and COMPLETE or FAILED.
-**Acceptance.** 4 tabs: all four spawn at distinct spawns; one is downed, a mate revives; a ping shows in all tabs; the results list 4 names; restart brings all four back. 1-player and 2-player runs unchanged (S6 and S7a smokes pass).
+**Acceptance.** 4 tabs: all four spawn at distinct spawns; one is downed, a mate revives; a ping shows in all tabs; the results list 4 names; restart brings all four back. 1-player and 2-player runs unchanged (S6, S7a and S7a2 smokes pass).
 **Smoke.** `e2e-fp-coop4.mjs`: 4 `?net=local` tabs, the checks above (use `e2e-coop.mjs` for page-launch code).
 **Hand check.** Four tabs on your PC (each at low graphics: `&gfx=low` if available). Down one player, revive, ping, finish.
 
 ### S8 - OPUS: co-op netcode review of S7 (OPUS)
-**Goal.** Find and fix correctness problems in the S7a / S7b netcode before friends play.
-**Read.** The diffs of S7a and S7b (`git diff <S6 commit>..HEAD -- src/net src/game`), `docs/systems/coop.md`, `src/net/*`.
+**Goal.** Find and fix correctness problems in the S7a / S7a2 / S7b netcode before friends play. Runs before S10.
+**Read.** The diffs of S7a, S7a2 and S7b (`git diff <S6 commit>..HEAD -- src/net src/game`), `docs/systems/coop.md`, `src/net/*`.
 **Check.**
 - Authority: every client request (switch, lamp shot, takedown, drag, revive, ping, plant, extract) is validated by the host (range, state, rate) in `validate.ts` / `parseMessage`; a client cannot change another player's state or the objective.
 - Desync: light, guard, body, door, objective and downed state each have a signature compare and periodic re-send; the clients converge after 5 s of packet loss (simulate loss in the local transport).
@@ -227,8 +250,19 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 **Smoke.** One added check in `e2e-fp-coop.mjs`: drop 20% of messages in the local transport for 5 s, assert convergence.
 **Hand check.** None (Michael's S10 test covers it).
 
-### S9 - Sync takedown (Sonnet)
-**Goal.** Up to 4 players each mark a guard; a shared countdown starts; at zero every marked guard is taken down at once (the co-op engagement system, bible C12 in spirit: simple version).
+### S10 - Full e2e, Michael's 4-tab test, then the friends playtest (Sonnet runs the first part; Michael the rest)
+**Goal.** Everything green, then humans.
+**Sonnet does (one session).**
+1. `npm run build`, then `npm run check` and `npm run e2e` with a 600 s timeout per command, in the background; read the logs only after the task ends. Fix real failures in new code; KNOWN FLAKY suites may fail without blocking. If a failure is in code outside the first-playable files, report it and stop on that item (do not fix unrelated systems).
+2. Version labels: nothing. `CHANGELOG.md` "3.6.x first playable" one entry summarising S1-S8 (S3b if kept); `TESTING.md` "First Playable manual check" (Michael's list below, 10 lines at most).
+3. Make sure `/ct/` builds (Michael tests the preview at `/ct/`; deploy is Michael's) and that `README` or `TESTING.md` has the join instructions (Section 4).
+4. Report in the Appendix B format, then STOP.
+**Michael's 4-tab test (PC, `?net=local`, one tab per player).** Run: host plus 3 tabs; complete the mission together; down and revive one; ping; switch off a circuit and shoot a lamp from different tabs; restart. Write what broke in `docs/backlog.md` (one line each, tagged BLOCKER if it stops the playtest). Blockers go back to Sonnet as small fix sessions (one session per blocker, same rules, two failures means Opus).
+**Then** the friends playtest (Section 4).
+**Smoke / hand check.** The S10 pass itself is the full suite; Michael's test is the hand check.
+
+### S9 (after the first playtest) - Sync takedown (Sonnet)
+**Goal.** Not part of the first playtest; built after Michael has the playtest answers. Up to 4 players each mark a guard; a shared countdown starts; at zero every marked guard is taken down at once (the co-op engagement system, bible C12 in spirit: simple version).
 **Read.** `src/game/teamMoves.ts`, `teamController.ts` (the existing dual takedown); `src/net/coopHost.ts` (`checkTeamRequest`, the dual takedown path); `src/ai/enemy.ts` (knock-out result); `src/ui/hud/hud.ts` (add a marker and a countdown, reuse `pings.ts` styles); input action map.
 **Files.** `src/game/teamMoves.ts`, `src/net/protocol.ts`, `src/net/coopHost.ts`, `src/net/coopClient.ts`, `src/ui/hud/*`, `src/input/*`, `scripts/e2e-fp-sync.mjs`.
 **Do.**
@@ -240,17 +274,6 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 **Acceptance.** Host-side logic is a Babylon-free module with unit tests (mark, count, cancel, execute, lost line of sight). With 2 `?net=local` tabs: both mark a different guard, start, both go down within one snapshot of each other; a guard alerted during the countdown stays up.
 **Smoke.** `e2e-fp-sync.mjs`: 2 tabs, the success path and the alerted-guard path.
 **Hand check.** Two or three tabs in the server hall: mark G5 and G6, start the countdown, watch both go down.
-
-### S10 - Full e2e, Michael's 4-tab test, then the friends playtest (Sonnet runs the first part; Michael the rest)
-**Goal.** Everything green, then humans.
-**Sonnet does (one session).**
-1. `npm run build`, then `npm run check` and `npm run e2e` with a 600 s timeout per command, in the background; read the logs only after the task ends. Fix real failures in new code; KNOWN FLAKY suites may fail without blocking. If a failure is in code outside the first-playable files, report it and stop on that item (do not fix unrelated systems).
-2. Version labels: nothing. `CHANGELOG.md` "3.6.x first playable" one entry summarising S1-S9; `TESTING.md` "First Playable manual check" (Michael's list below, 10 lines at most).
-3. Make sure `/ct/` builds (Michael tests the preview at `/ct/`; deploy is Michael's) and that `README` or `TESTING.md` has the join instructions (Section 4).
-4. Report in the Appendix B format, then STOP.
-**Michael's 4-tab test (PC, `?net=local`, one tab per player).** Run: host plus 3 tabs; complete the mission together; down and revive one; ping; sync takedown; switch off a circuit and shoot a lamp from different tabs; restart. Write what broke in `docs/backlog.md` (one line each, tagged BLOCKER if it stops the playtest). Blockers go back to Sonnet as small fix sessions (one session per blocker, same rules, two failures means Opus).
-**Then** the friends playtest (Section 4).
-**Smoke / hand check.** The S10 pass itself is the full suite; Michael's test is the hand check.
 
 ---
 
