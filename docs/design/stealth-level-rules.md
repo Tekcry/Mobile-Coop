@@ -39,7 +39,7 @@
 
 ## F. Learning, pacing, co-op, realism
 
-21. **Learning is the reward.** Shortcuts that open when found, intel on guard schedules, alternate exits; a second run is faster. *Why:* Hitman's mastery and Dishonored's hidden paths. *Check:* at least three discoveries, each saving 30 s or more on a second run.
+21. **Learning is the reward.** Shortcuts that open when found, intel on guard schedules, alternate exits; a second run is faster. *Why:* Hitman's mastery and Dishonored's hidden paths. *Check:* at least three discoveries; at least two of them save 15 s or more over the best main route for a player who knows the level; the third is a deliberate safe, slow route.
 22. **Pacing:** easy opening, rising pressure, climax at the objective, calm exit; recovery after being spotted is possible. *Why:* a run has an arc. *Check:* the first 90 s have no armed guard with a line of sight to the player, and a hide spot exists within 10 m of every alarm trigger.
 23. **Co-op helps, never gates.** Every teamwork gain has a slower, noisier or riskier solo version; no simultaneous actions required; four players fit without queueing at one door. *Why:* the guard count never changes with player count, so the map must work for 1 and for 4. *Check:* each co-op row in the plan has a solo row; each choke point is 2.0 m wide or has two paths.
 24. **Landmarks first, for the phone.** Each space has one colour or shape landmark and the objective has a lit sign. *Why:* a small screen and touch controls forgive less. *Check:* a screenshot from each space names the space in 2 s; no required precision under 0.5 m.

@@ -223,7 +223,7 @@ function bfs(g, starts, opts = {}) {
   }
   return seen;
 }
-const reachKey = (g, lv, x, z) => {
+const _reachKey = (g, lv, x, z) => {
   const c = g.nearestWalk(lv, x, z, 1.0);
   return c ? `${lv}|${c[0]}|${c[1]}` : null;
 };
@@ -797,9 +797,9 @@ R.runsOk = R.runs.filter((r) => r.kind === 'time-saver').every((r) => r.saveBest
 // ---------- tables ----------
 const row = (a) => '| ' + a.join(' | ') + ' |';
 const tbl = (head, rows) => [row(head), row(head.map(() => '---')), ...rows.map(row)].join('\n');
-const rectStr = (r) => `x ${r[0]}..${r[2]}, z ${r[1]}..${r[3]}`;
+const _rectStr = (r) => `x ${r[0]}..${r[2]}, z ${r[1]}..${r[3]}`;
 const sz = (r) => `${f1(r[2] - r[0])} x ${f1(r[3] - r[1])}`;
-const lvName = (l) => D.meta.levels.find((q) => q.id === l).name;
+const _lvName = (l) => D.meta.levels.find((q) => q.id === l).name;
 
 const T = {};
 T.spaces = tbl(['Id', 'Space', 'Level', 'Kind', 'x range', 'z range', 'Size m', 'Ceiling', 'Landmark'],
@@ -1138,7 +1138,7 @@ const minDoorGap = Math.min(...R.routes.map((r) => r.minDoorGap));
 const darkMiss = R.dark.filter((d) => !d.best);
 const bodyOk = D.guards.map((g) => {
   const lv = guardLevel(g);
-  const pathD = (h) => { let m = 1e9; const n = g.wps.length; for (let i = 0; i < n; i++) { const a = g.wps[i]; const b = g.wps[(i + 1) % n]; const x0 = Math.max(a.x, b.x); for (let k = 0; k <= 20; k++) { const px = a.x + ((b.x - a.x) * k) / 20; const pz = a.z + ((b.z - a.z) * k) / 20; m = Math.min(m, distPtRect(px, pz, h.rect)); } } return m; };
+  const pathD = (h) => { let m = 1e9; const n = g.wps.length; for (let i = 0; i < n; i++) { const a = g.wps[i]; const b = g.wps[(i + 1) % n]; for (let k = 0; k <= 20; k++) { const px = a.x + ((b.x - a.x) * k) / 20; const pz = a.z + ((b.z - a.z) * k) / 20; m = Math.min(m, distPtRect(px, pz, h.rect)); } } return m; };
   const near = D.hides.filter((h) => h.body && h.level === lv).map((h) => ({ id: h.id, d: pathD(h) })).sort((a, b) => a.d - b.d);
   const near2 = near[0];
   return { g: g.id, best: near[0] || near2 };

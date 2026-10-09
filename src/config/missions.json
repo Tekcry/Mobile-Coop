@@ -685,5 +685,86 @@
     ],
     "rules": {},
     "squads": "spawns"
+  },
+  {
+    "id": "trunk-annex",
+    "name": "Dead Line",
+    "map": "trunk-annex",
+    "brief": "Kestrel Trunk Annex, night. Pull the circuit record for LC-4471 from the Test room, clip the tap onto the card in the core switch cage, then leave by the van at the vehicle gate or back out the lane gate.",
+    "insertions": [
+      {
+        "id": "s1",
+        "name": "Pocket, west wall (ladder RL)",
+        "x": -17.5,
+        "z": -12.5,
+        "yaw": 0
+      },
+      {
+        "id": "s2",
+        "name": "Pocket, centre (personnel door)",
+        "x": -16,
+        "z": -12.5,
+        "yaw": 0
+      },
+      {
+        "id": "s3",
+        "name": "Pocket, east (south wall run)",
+        "x": -14.5,
+        "z": -12.5,
+        "yaw": 0
+      },
+      {
+        "id": "s4",
+        "name": "Pocket mouth (watch the sentry)",
+        "x": -16.5,
+        "z": -11,
+        "yaw": 0
+      }
+    ],
+    "objectives": [
+      {
+        "type": "plant",
+        "id": "o1",
+        "label": "Pull the circuit record",
+        "x": -16.5,
+        "y": 3.3,
+        "z": -3,
+        "yaw": 0,
+        "time": 3
+      },
+      {
+        "type": "plant",
+        "id": "o2",
+        "label": "Plant the tap",
+        "x": 12.5,
+        "y": 0,
+        "z": 12.5,
+        "yaw": 0,
+        "time": 4
+      },
+      {
+        "type": "extract",
+        "id": "e1",
+        "label": "Leave by the van or the lane gate",
+        "x": 10.5,
+        "y": 0,
+        "z": -12.5,
+        "radius": 2,
+        "alt": [
+          [
+            -15.5,
+            0,
+            -13,
+            2
+          ]
+        ]
+      }
+    ],
+    "rules": {
+      "noAlarms": "bonus",
+      "noKills": "bonus",
+      "undetected": "bonus"
+    },
+    "squads": "rooms"
   }
 ]

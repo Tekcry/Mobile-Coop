@@ -22,8 +22,8 @@ describe('mission validation', () => {
     }
     for (const t of ['download', 'plant', 'rescue', 'sabotage', 'intel', 'extract']) expect(types.has(t)).toBe(true);
   });
-  it('offers only missions on listed maps (Warehouse, and the First Playable Exchange greybox); parked ones stay bundled', () => {
-    expect(MISSIONS.every((m) => m.map === 'warehouse' || m.map === 'exchange')).toBe(true);
+  it('offers only missions on listed maps (Warehouse, and the First Playable greyboxes); parked ones stay bundled', () => {
+    expect(MISSIONS.every((m) => m.map === 'warehouse' || m.map === 'exchange' || m.map === 'trunk-annex')).toBe(true);
     expect(ALL_MISSIONS.length).toBeGreaterThan(MISSIONS.length);
     expect(ALL_MISSIONS.some((m) => m.map === 'embassy')).toBe(true);
   });

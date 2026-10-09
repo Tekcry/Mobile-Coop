@@ -163,7 +163,8 @@ export class NavGrid {
   private rlinkHead: Int32Array;
   private linkNext: number[] = [];
   private rlinkNext: number[] = [];
-  private gScore: Float32Array;
+  /** Path costs (Float64: with Float32 a re-reached cell whose stored cost rounded up counted as an improvement, and a long search looped and found no path). */
+  private gScore: Float64Array;
   /** Shared priority queue for path and flow queries (not re-entrant). */
   private heap = new Heap();
   private came: Int32Array;
@@ -184,7 +185,7 @@ export class NavGrid {
     this.height = new Float32Array(n);
     this.walk = new Uint8Array(n);
     this.surf = new Uint8Array(n);
-    this.gScore = new Float32Array(n);
+    this.gScore = new Float64Array(n);
     this.came = new Int32Array(n);
     this.cameLink = new Int32Array(n);
     this.stamp = new Uint32Array(n);

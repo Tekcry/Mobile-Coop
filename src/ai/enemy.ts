@@ -716,6 +716,7 @@ export class Enemy implements Damageable {
   /** Fixed-step brain + movement. */
   update(dt: number): void {
     if (!this.alive) return;
+    this.walker.tick(dt);
     this.stateT += dt;
     this.prevPos.copyFrom(this.pos);
     this.prevYaw = this.yaw;
@@ -985,7 +986,7 @@ export class Enemy implements Damageable {
         const ly = this.walker.lookYaw;
         // (walls in the way: along an A* path; the walker's own arrival radius decides when it is there)
         const wp = g ? (this.goTo(g, dt, 0.05) ?? g) : null;
-        return { point: wp, speed: def.walkSpeed * PATROL_PACE, face: g || Number.isNaN(ly) ? null : ly };
+        return { point: wp, speed: def.walkSpeed * (this.walker.route?.loop ? 1 : PATROL_PACE), face: g || Number.isNaN(ly) ? null : ly };
       }
       case 'suspicious': {
         // stop and look at what caught the eye / ear
