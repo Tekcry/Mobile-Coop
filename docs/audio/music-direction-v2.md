@@ -21,8 +21,8 @@ but gains clear phases, a melody that sticks and much richer sound design.
 **Every phase has a clear identity and a memorable figure (MGS), and is built from Hollowmere's industrial sounds and
 modern electronic production (CT).**
 
-Generated in code (WebAudio synthesis), as before. A permissively licensed soundfont is an open decision for Michael
-(Section 13); until he decides, no samples.
+Generated in code (WebAudio synthesis), except a small bundled CC0 instrument sample set for the synth-orchestral
+layer, which Michael allowed on 2026-10-09 (Section 13).
 
 ---
 
@@ -443,11 +443,28 @@ Transpose up to +-2 semitones.
 
 ---
 
-## 13. Open decision for Michael
+## 13. Soundfont (Michael, 2026-10-09: allowed)
 
-**Soundfont:** a free, permissively licensed (CC0 or similar) instrument sample set would make the brass, strings and
-timpani far more convincing than pure synthesis. It would need an exception to the CLAUDE.md "no external audio" rule
-(bible S7). Until Michael decides, everything stays generated in code.
+**Michael allowed a CC0 instrument sample set** for the synth-orchestral layer (brass, strings, timpani; bells and
+mallets if they sound better than synthesis). This is a written exception to the CLAUDE.md "no external audio" rule and
+bible S7, for this music only; CLAUDE.md and the bible are updated when Michael merges (this branch does not edit the
+bible).
+
+Rules for the samples:
+
+- **Licence:** CC0 or public domain only, recorded in `docs/audio/music-sources.md` (name, source URL, licence, date,
+  what was taken). No "free for non-commercial" sets, no attribution-required sets unless Michael approves each.
+- **Bundled, never fetched:** samples ship in the build (Vite asset import); no runtime network.
+- **Small:** at most **4 MB** of compressed audio in total (Opus or AAC in an MP4 container, decoded at load), a few
+  roots per instrument, pitched with `playbackRate` within +-7 semitones.
+- **Neutral sources only:** single-note orchestral or synth-brass multisamples, never a sample taken from a game,
+  soundtrack or record.
+- **Processed into our sound:** the same saturation, filters, chorus, reverbs and "PS1 sampler" path as the synthesised
+  voices (Section 9), so samples and found sounds sit in one world.
+- **Fallback:** the synthesised voice of Section 4 stays as the fallback and the A/B in the lab, so Michael can compare
+  sample and synthesis per instrument.
+- **Phone budget unchanged:** decode time counts toward Batch 1's 1.5 s; 24 voices; 0.5 ms per frame.
+- Found-sound percussion, bass, risers and textures stay generated in code.
 
 ---
 

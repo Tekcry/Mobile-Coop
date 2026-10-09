@@ -144,7 +144,9 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 - Tests: none (documents only).
 - Measurements: none (documents only).
 - Open issues:
-  - Soundfont decision (direction Section 13) - asked in chat.
+  - Soundfont: Michael allowed a CC0 sample set (2026-10-09) for brass, strings and timpani; rules in direction Section 13
+    (licence log in `music-sources.md`, at most 4 MB bundled, synthesis kept as fallback and A/B). CLAUDE.md and bible S7
+    need the exception written in when Michael merges.
   - The M0 motif (D F E Bb A) may be one of the three V1 candidates if it still fits the new rules.
 - Next: Michael reviews the direction. On approval, V1 (Opus): three candidate motifs, each on a bell, as the Alert
   brass hook over a simple beat and as the menu's opening 8 bars; a "Motif picker" in the lab; a 60 s WAV of each. STOP.
