@@ -17,7 +17,7 @@ async function run(label, opts) {
     await page.waitForSelector('.music-lab', { timeout: 30000 });
     await frames(page, 3);
     const first = await G(page, () => document.querySelector('.music-lab .btn .btn-label')?.textContent);
-    assert(first === 'Play motif', `the motif button comes first (${first})`);
+    assert(first === 'Play A', `the motif picker comes first (${first})`);
     const fit = await G(page, () => {
       const el = document.querySelector('.music-lab');
       return { sw: el.scrollWidth, cw: el.clientWidth };
@@ -25,7 +25,7 @@ async function run(label, opts) {
     assert(fit.sw <= fit.cw + 1, `the lab fits the width without a sideways scroll (${fit.sw} <= ${fit.cw})`);
 
     // the first tap is the audio unlock; the library renders in chunks, then the motif plays
-    await click(page, '.music-lab .btn', '^Play motif$');
+    await click(page, '.music-lab .btn', '^Play A$');
     await page.waitForFunction(() => window.__app.music.ready, null, { timeout: 60000 });
     const ms = await G(page, () => window.__app.music.renderMs);
     console.log(`  library render: ${Math.round(ms)} ms (software GL host; the phone budget is measured on the device)`);
@@ -34,7 +34,20 @@ async function run(label, opts) {
     assert(running === 'running', `the audio context is running (${running})`);
     await wait(1500);
     let st = await G(page, () => window.__app.music.stats());
-    assert(st.played > 0, `the motif plays (${st.played} sounds started)`);
+    assert(st.played > 0, `candidate A plays (${st.played} sounds started)`);
+    for (const take of ['B bell', 'C hook', 'A menu']) {
+      const p0 = (await G(page, () => window.__app.music.stats())).played;
+      await click(page, '.music-lab .btn', `^${take}$`);
+      await wait(2500);
+      const p1 = (await G(page, () => window.__app.music.stats())).played;
+      assert(p1 > p0, `${take} plays (${p1 - p0} sounds)`);
+    }
+    for (const id of ['A', 'B', 'C']) {
+      const r = await G(page, (k) => window.__app.music.renderExport(k, 60, []).then((x) => ({ peak: x.peakDb, rms: x.rmsDb, voices: x.peakVoices })), `cand${id}`);
+      console.log(`  candidate ${id}  peak ${r.peak.toFixed(1)} dBFS  RMS ${r.rms.toFixed(1)} dBFS  voices ${r.voices}`);
+      assert(r.peak <= -6 && r.peak > -40, `candidate ${id} 60 s render: peak at or below -6 dBFS and not silent`);
+      assert(r.voices <= 24, `candidate ${id} voices under the cap (${r.voices})`);
+    }
 
     // calm, then combat
     await click(page, '.music-lab .btn', '^Calm');

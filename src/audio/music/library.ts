@@ -23,6 +23,7 @@ import {
   whiteNoise,
   type IrSpec,
 } from './dsp';
+import { ORCHESTRA_RECIPES } from './orchestra';
 import { Rng } from './rng';
 
 const TAU = Math.PI * 2;
@@ -596,6 +597,8 @@ const RECIPES: Record<string, Recipe> = {
   air,
   rainbed,
   static: lineStatic,
+  // the synth-orchestral voices (direction v2 Section 4)
+  ...ORCHESTRA_RECIPES,
 };
 
 export const SOUND_IDS: string[] = Object.keys(RECIPES);
@@ -682,7 +685,7 @@ export async function renderLibraryAsync(seed: number, rate = LIB_RATE, onProgre
 
 const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 
-/** Total mono seconds in a library (the budget is 60 s). */
+/** Total mono seconds in a library (the budget is 100 s, direction v2 4.8). */
 export function librarySeconds(lib: Library): number {
   let n = 0;
   for (const s of lib.sounds.values()) n += s.data.length;

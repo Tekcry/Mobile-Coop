@@ -219,8 +219,8 @@ textures (`drone air static rainbed`). These play the chopped break, the texture
 1. **4-7 notes**, within a ninth, over **2 bars** of 4/4.
 2. **Rhythm first:** a rhythm that is recognisable on unpitched metal alone (the Evasion shadow and the Alert answer
    depend on it). At least one syncopation (a note off the beat that is held across it).
-3. **One tension interval** (a tritone or a minor second) that can be resolved by changing **one** note (the success
-   form) and broken by removing the last note (the failure form).
+3. **One tension interval** (a tritone or a minor second) that can be resolved by changing **one or two** notes so it
+   lands on D (the success form) and broken by removing the last note (the failure form).
 4. **Works at 72 and 168 BPM** and in the bass as well as on top.
 5. **Starts and ends on chord tones of D minor** (D, F or A), so it sits over the D pedal of every phase.
 6. **Singable:** Michael can hum it after one hearing.

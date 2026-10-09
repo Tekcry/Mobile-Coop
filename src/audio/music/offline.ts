@@ -2,13 +2,14 @@
  * Offline render for the lab's "Export 60 s WAV": the same conductor and engine as the live score, run on an
  * `OfflineAudioContext`, so what Michael hears in the file is what the game plays.
  */
+import { candidate, playAllTakes, type CandidateId } from './candidates';
 import { Conductor, type MusicState, type Stem } from './conductor';
 import { MusicEngine } from './engine';
 import type { Library } from './library';
 import { STATE_LEVEL_DB } from './mix';
 import { levels } from './wav';
 
-export type ExportKind = MusicState | 'motif';
+export type ExportKind = MusicState | 'motif' | `cand${CandidateId}`;
 
 export interface OfflineOptions {
   kind: ExportKind;
@@ -36,12 +37,15 @@ export async function renderOffline(lib: Library, o: OfflineOptions): Promise<Of
   for (const s of o.muted ?? []) engine.setStemMuted(s, true);
   const cond = new Conductor(o.seed, lib, (e) => engine.handle(e));
   cond.setBpmNudge(o.bpmNudge ?? 0);
-  if (o.kind === 'motif') {
+  if (o.kind.startsWith('cand')) {
+    engine.setLevelDb(-8, 0, 0.001);
+    playAllTakes((e) => engine.handle(e), candidate(o.kind.slice(4) as CandidateId), 0.1);
+  } else if (o.kind === 'motif') {
     engine.setLevelDb(-6, 0, 0.001);
     cond.playMotif(0.1, 'all');
   } else {
-    engine.setLevelDb(STATE_LEVEL_DB[o.kind], 0, 0.001);
-    cond.setState(o.kind, 0.05);
+    engine.setLevelDb(STATE_LEVEL_DB[o.kind as MusicState], 0, 0.001);
+    cond.setState(o.kind as MusicState, 0.05);
     cond.advance(0, o.seconds);
   }
   const buf = await ctx.startRendering();

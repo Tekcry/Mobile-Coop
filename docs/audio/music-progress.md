@@ -9,8 +9,8 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 | M0 | Direction v0.1 | Opus | done; replaced by V0 |
 | M1 | Engine and music lab | Sonnet | done; Michael listened and did not like calm and combat. Engine and found-sound library kept |
 | M2-M4 | (old plan) | - | cancelled; replaced by V1-V4 |
-| V0 | Direction v2 (MGS structure + CT texture) | Opus | done; waiting for Michael's approval |
-| V1 | Three candidate motifs, motif picker, WAVs | Opus | not started |
+| V0 | Direction v2 (MGS structure + CT texture) | Opus | done; approved by Michael 2026-10-09 |
+| V1 | Three candidate motifs, motif picker, WAVs | Opus | done; waiting for Michael to pick a motif |
 | V2 | Engine upgrade: instruments, mix glue, five phases, adapter | Sonnet | not started |
 | V3 | Composition: phases, stingers, themes, map colours | Opus | not started |
 | V4 | Polish, budget, docs | Sonnet | not started |
@@ -150,3 +150,51 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   - The M0 motif (D F E Bb A) may be one of the three V1 candidates if it still fits the new rules.
 - Next: Michael reviews the direction. On approval, V1 (Opus): three candidate motifs, each on a bell, as the Alert
   brass hook over a simple beat and as the menu's opening 8 bars; a "Motif picker" in the lab; a 60 s WAV of each. STOP.
+
+---
+
+## Stage V1 report (the motif first)
+- Done:
+  - `src/audio/music/candidates.ts`: three candidate motifs (direction v2 5.1), each with a resolved and a broken form, and
+    the three takes the picker plays: **bell** (72 BPM: statement then resolved on the FM bell over a low drone, hall and dub
+    delay), **hook** (168 BPM: one bar of beat and distorted bass ostinato, the hook on synth-brass, answered by pipe and plate
+    hits in its rhythm, the hook twice more with a snare build, a final hit) and **menu** (80 BPM: brass swell over strings,
+    sub and timpani on Dm | Bb | Gm | A Dm, vibes answer, strings doubling an octave down, resolved form home).
+  - `src/audio/music/orchestra.ts`: the first synth-orchestral voices from direction v2 Section 4: `brass` (hook), `brassSwell`,
+    `strings` (seamless loop, seven drifting saws), `bellFM`, `vibes`, `timp`, `kickBig`, `snareGated`, `midbass`. All rooted on
+    D, merged into the library.
+  - Lab: a **Motif picker** section comes first: per candidate, Play (all three takes, about 57 s), Bell, Hook, Menu and a
+    60 s WAV. Picker events go through a queue fed by the lookahead, so Stop and the state buttons end a take cleanly. The
+    old M0 ear-test buttons are gone (candidate A is that motif).
+- The candidates (pitches from D4; written for this project from the rules):
+
+  | Id | Name | Notes | Character | Resolved |
+  | --- | --- | --- | --- | --- |
+  | A | Lights Out | D F E Bb A | The M0 motif, F now held across the beat (rule 2). Falls a tritone. | D F E C D |
+  | B | Searchlight | D D A Ab F E D | Two pick-ups, a leap to A slipping to the tritone, a falling line home. Most hook-like. | Ab -> G |
+  | C | Undertow | D Eb D A C Bb A | A semitone rub on D, a drop to low A and a sigh back to it. Dark, ostinato-friendly. | Eb -> E, ends on D |
+
+- Files: `src/audio/music/{candidates,orchestra}.ts` (new), `library.ts`, `music.ts`, `musicLab.ts`, `offline.ts`,
+  `tests/music.test.ts`, `scripts/e2e-music.mjs`, `docs/systems/testing-tools.md`, `docs/audio/music-direction-v2.md`
+  (rule 3: resolved by one or two notes), this file.
+- Decisions:
+  - Samples (Michael allowed CC0): not in V1. The candidates are judged on melody; V2 brings the sample set and the
+    sample-versus-synthesis A/B, so V1 did not download anything.
+  - The takes are fixed arrangements (no seed), so A, B and C are compared on equal terms.
+  - Library budget test raised to 100 s (direction v2 4.8).
+- Tests:
+  - `tests/music.test.ts` (+5): every candidate meets the rules (4-7 notes, within a ninth, starts and ends on D, F or A, a
+    minor second or tritone, a held off-beat note, resolved form same rhythm and lands on D, broken form), takes are
+    deterministic and use only library sounds within +-7 semitones of each root (vibes up an octave), all three takes fit 60 s,
+    voice cap never reached by any take, brass and bell roots, strings loop joins cleanly. `npm test` 652 pass.
+  - `scripts/e2e-music.mjs` passes on phone emulation and desktop: picker first, each take plays, every 60 s candidate render
+    peaks at or below -6 dBFS (about -6.7 dBFS peak, -13.8 dBFS RMS) with at most 16 voices; the M1 checks still pass.
+  - `npm run lint` clean, `npm run build` ok.
+- Measurements: the nine new voices render in about 140 ms in node; whole library 0.87 s in headless Chromium on the PC.
+  **iPhone render time: pending Michael's run** (budget 1.5 s).
+- Open issues:
+  - **Listening is the test.** Pitches were checked by measurement only (brass 292.7 Hz for D4, strings 146.8 Hz, midbass
+    73.3 Hz).
+  - Ear test (direction v2 Section 12): for each candidate, does it remind Michael of a known theme? Log it in the table above.
+  - The takes are sketches of the motif in context, not the V3 composition.
+- Next: Michael picks A, B or C (or asks for more). Then V2 (Sonnet): engine upgrade on the chosen motif. STOP.

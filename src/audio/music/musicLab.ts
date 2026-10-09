@@ -1,6 +1,6 @@
 /**
  * The music lab: a debug screen for Michael's ears (`?musiclab=1`, or Settings > Audio > Music lab with `?debug=1`).
- * The motif button comes first. It drives the same `Music` object the game uses, and exports a 60 s WAV rendered
+ * The motif picker comes first. It drives the same `Music` object the game uses, and exports a 60 s WAV rendered
  * offline so the score can be heard on a phone or in headphones away from the PC.
  */
 import type { App } from '../../core/app';
@@ -9,7 +9,7 @@ import { shareOrDownload } from '../../ui/fileOut';
 import { Screen } from '../../ui/screen';
 import { button, section } from '../../ui/widgets';
 import { STEMS, type MusicState, type Stem } from './conductor';
-import type { MotifForm } from './music';
+import { CANDIDATES, type Take } from './candidates';
 import type { ExportKind } from './offline';
 import { encodeWav } from './wav';
 
@@ -35,8 +35,25 @@ export class MusicLabScreen extends Screen {
       m.start();
       void m.whenReady().then(fn);
     };
-    const motifBtn = (label: string, form: MotifForm, primary = false): HTMLButtonElement =>
-      button(label, () => go(() => void m.playMotif(form)), { class: primary ? 'primary' : '', autofocus: primary });
+    // the motif picker (V1): each candidate on a bell, as the Alert hook and as the menu opening
+    const picker: HTMLElement[] = [];
+    for (const c of CANDIDATES) {
+      const first = c.id === CANDIDATES[0]!.id;
+      const take = (label: string, t: Take | 'all', primary = false): HTMLButtonElement =>
+        button(label, () => go(() => void m.playCandidate(c.id, t)), { class: primary ? 'primary' : '', autofocus: primary && first });
+      picker.push(
+        h('div', { class: 'row-note', text: `${c.id} - ${c.name}: ${c.notes}. ${c.about}` }),
+        h(
+          'div',
+          { class: 'lab-row' },
+          take(`Play ${c.id}`, 'all', true),
+          take(`${c.id} bell`, 'bell'),
+          take(`${c.id} hook`, 'hook'),
+          take(`${c.id} menu`, 'menu'),
+          button(`${c.id} 60 s WAV`, () => go(() => void this.export(`cand${c.id}`)), { class: 'subtle' }),
+        ),
+      );
+    }
 
     const stateRow = h('div', { class: 'lab-row' });
     for (const s of STATE_BUTTONS) {
@@ -84,19 +101,7 @@ export class MusicLabScreen extends Screen {
     this.el.append(
       h('div', { class: 'screen-title', text: 'Music lab' }),
       this.status,
-      section(
-        'Motif (ear test)',
-        h(
-          'div',
-          { class: 'lab-row' },
-          motifBtn('Play motif', 'all', true),
-          motifBtn('Bell', 'bell'),
-          motifBtn('Bass', 'bass'),
-          motifBtn('Pipe', 'pipe'),
-          motifBtn('Resolved form', 'resolved'),
-        ),
-        h('div', { class: 'row-note', text: 'Five notes: D F E Bb A. Does it remind you of any known theme? Tell Claude and it gets rewritten.' }),
-      ),
+      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'Play runs bell (72 BPM), hook (168) and menu (80) back to back. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
       section('State', stateRow),
       section('Seed and tempo', seedRow, nudgeRow),
       section('Mute stems', stemRow),

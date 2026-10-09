@@ -6,7 +6,8 @@
  * Before the first user gesture nothing runs (iOS audio unlock): `start()` waits for the audio engine's context.
  */
 import type { AudioEngine } from '../audioEngine';
-import { Conductor, type MusicState, type Stem } from './conductor';
+import { candidate, playAllTakes, playTake, type CandidateId, type Take } from './candidates';
+import { Conductor, type MusicEvent, type MusicState, type Stem } from './conductor';
 import { MusicEngine, type EngineStats } from './engine';
 import { LIB_RATE, renderLibraryAsync, type Library } from './library';
 import { DEFAULT_PATTERN_SEED, LIBRARY_SEED, LOOKAHEAD, LOOKAHEAD_HIDDEN, STATE_LEVEL_DB, TICK_MS } from './mix';
@@ -29,6 +30,8 @@ export class Music {
   /** Render progress 0..1. */
   progress = 0;
   private waiters: (() => void)[] = [];
+  /** Motif-picker events waiting for the lookahead (sorted by time), so Stop can drop what has not been sent yet. */
+  private queue: MusicEvent[] = [];
 
   constructor(private a: AudioEngine) {
     if (typeof document !== 'undefined') {
@@ -86,7 +89,11 @@ export class Music {
     const ctx = this.a.ctx;
     const c = this.conductor;
     if (!ctx || !c || ctx.state !== 'running') return;
-    c.advance(ctx.currentTime, ctx.currentTime + (this.hidden ? LOOKAHEAD_HIDDEN : LOOKAHEAD));
+    const horizon = ctx.currentTime + (this.hidden ? LOOKAHEAD_HIDDEN : LOOKAHEAD);
+    c.advance(ctx.currentTime, horizon);
+    let n = 0;
+    while (n < this.queue.length && this.queue[n]!.t < horizon) this.engine?.handle(this.queue[n++]!);
+    if (n) this.queue.splice(0, n);
   }
 
   private apply(s: MusicState): void {
@@ -98,6 +105,12 @@ export class Music {
   }
 
   setState(s: MusicState): void {
+    // a motif-picker take still playing ends here (its layer stops were in the queue)
+    if (this.queue.length) {
+      this.queue.length = 0;
+      this.engine?.stopAll(0.3);
+      this.conductor?.reset();
+    }
     this.wanted = s;
     this.apply(s);
   }
@@ -105,11 +118,32 @@ export class Music {
   stop(): void {
     if (this.timer) clearInterval(this.timer);
     this.timer = null;
+    this.queue.length = 0;
     this.engine?.stopAll(0.3);
     this.conductor?.reset();
   }
 
   // ------------------------------------------------------------ lab
+
+  /**
+   * Motif picker (V1): play one take of a candidate, or all three back to back. The score stops first so the motif is
+   * heard alone. Returns the seconds it will take.
+   */
+  playCandidate(id: CandidateId, take: Take | 'all' = 'all'): number {
+    const ctx = this.a.ctx;
+    if (!ctx || !this.conductor || !this.engine) return 0;
+    this.queue.length = 0;
+    this.engine.stopAll(0.2);
+    this.conductor.reset();
+    this.engine.setLevelDb(-8);
+    const t = ctx.currentTime + 0.25;
+    const out: MusicEvent[] = [];
+    const sink = (e: MusicEvent): number => out.push(e);
+    const end = take === 'all' ? playAllTakes(sink, candidate(id), t) : playTake(sink, candidate(id), take, t);
+    this.queue = out.sort((a, b) => a.t - b.t);
+    this.tick();
+    return end - t;
+  }
 
   /** Play the motif (the lab's first button). Returns the seconds it will take. */
   playMotif(form: MotifForm = 'all'): number {

@@ -129,7 +129,7 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     renderer booting in a match (`SHOTS=dir` saves the aspect screenshots)
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
-  - `scripts/e2e-music.mjs` (music project) the music lab on phone emulation and desktop (`?musiclab=1`): motif button first, library
+  - `scripts/e2e-music.mjs` (music project) the music lab on phone emulation and desktop (`?musiclab=1`): motif picker first (each candidate and take plays; each 60 s candidate render stays at or below -6 dBFS and under the voice cap), library
     renders, calm and combat play at 168 BPM, voices under the cap of 24, offline renders at the right length with peaks at or below
     -6 dBFS and calm / combat RMS near -30 / -16 dBFS, the 60 s WAV export, no console errors. Needs no GPU
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast. `e2e-lib` adds
