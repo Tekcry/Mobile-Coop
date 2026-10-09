@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b fix pass round 3 done (goggles flip, real-tube halo and auto-gain); waiting for Michael's look check and the item 15 decision | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b fix pass round 4 done (Chaos Theory-style bloom, goggles flip, auto-gain); waiting for Michael's look check and the item 15 decision | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -734,6 +734,38 @@ See the Step 1 and Step 5 reports.
   - [ ] Lamps in night vision: a halo round the whole fitting, the same size near and far; up close the room goes dark
         round the lamp (the auto-gain).
   - [ ] Desktop: no smear moving in night vision; no light shafts on the phone.
+  - [ ] Decide item 15 (strip lamps as line sources, Step 4c) and item 16 (night vision proposals).
+
+#### Step 4b fix pass, round 4 - 2026-10-09
+- Michael: the lights in night vision look weird (round 3's thin fixed halo); base it on Chaos Theory's night vision art
+  style and replicate it (the optical look only; no UI art or other IP).
+- Done:
+  - **Bloom** (`vfx/nightBloom.ts`): while the goggles are on, the scene's bright parts are masked (near-white, a soft
+    knee), downsampled to a quarter and blurred (3 x a separable 9-tap Gaussian) between the scene's render and the post
+    passes; `CinematicPost` adds the glow to the drive. Lamps, lit windows and blown-out walls glow, a strip along its
+    length, nothing through a wall. Found on the way: the desktop scene target is 8-bit linear (it stops at 1), so a
+    threshold over 1 never fired and a "keep the excess" bright pass gave a white lamp almost nothing; the bright pass is
+    a mask, applied per tap before averaging (a thin strip would otherwise average away with the ceiling).
+  - **Auto-gain** (`vfx/nightAutoGain.ts`, from round 3's glare code): the analytic halo is gone; the nearest lamps in
+    view still turn the gain down, eased, but highlights keep their drive (`gainKeep` 0.75): a lamp stays white while
+    the room round it sinks.
+  - Tests: `tests/nightVision.test.ts` (the bright mask: dark never glows, monotone, smooth, full at white);
+    `e2e-darkness` checks the bloom runs every frame with night vision on, on both looks.
+- Tests (this PC, `E2E_GPU=1`): vitest 64 files, 636 tests; lint clean. Pass: `e2e-darkness` (night vision 38.2% /
+  32.9% at 0.12, 98.3% / 98.2% at 0.70; bloom and moving checks), `e2e-stealth-ai`, `e2e-phonelamps`, `e2e-desktop`,
+  `smoke`, `e2e-touch`. `perf.mjs --phone --budget` passes (main thread 2.73 ms, 30 draws; night vision off - the
+  bloom's GPU cost only runs with it on, and the iPhone's Phone check measures that).
+- Cost while night vision is on: one quarter-resolution bright pass (4 taps) and 6 quarter-resolution blur passes (5
+  taps each), about 5% of the full-screen pixel work of one pass; one texture read more in the tube.
+- Contact sheets: `docs/prompts/phase-1-sheets/step4b-fix-*.jpg` (round 4).
+- Tunables (`BLOOM` in `vfx/nightVision.ts`): `strength` 1.4 (more = bigger, brighter glow), `threshold` (lower = more
+  of the scene glows), `spread` / `passes` (width).
+- Next: **STOP** for Michael's look check:
+  - [ ] Lamps and lit areas in night vision glow softly, like the reference; strips along their length; nothing through
+        walls.
+  - [ ] Up close the lamp stays white and the room round it darkens (the auto-gain).
+  - [ ] The goggles flip with no fade; no smear moving on desktop.
+  - [ ] Phone check with the night vision run (the bloom's iPhone cost). Send the note.
   - [ ] Decide item 15 (strip lamps as line sources, Step 4c) and item 16 (night vision proposals).
 
 ## Links

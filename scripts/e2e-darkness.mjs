@@ -187,6 +187,7 @@ for (const look of LOOKS) {
       g.photoFreeze(false);
       document.body.classList.remove('photo-mode');
       g.vision.set('night');
+      const runs0 = g.nightBloom.runs;
       const cam = g.player.cam;
       let moved = 0, n = 0;
       await new Promise((res) => setTimeout(res, 400));
@@ -204,9 +205,11 @@ for (const look of LOOKS) {
         });
       });
       g.scene.onAfterRenderObservable.remove(obs);
+      const bloom = { runs: g.nightBloom.runs - runs0, glow: !!g.nightBloom.glow, scale: g.nightBloom.glowScale };
       g.vision.set('off');
-      return { moved, n, night: g.vision.night };
+      return { moved, n, night: g.vision.night, bloom };
     });
+    assert(mv.bloom.runs >= mv.n - 2 && mv.bloom.glow && mv.bloom.scale > 0, `${look.name}: night vision's bloom runs every frame (${JSON.stringify(mv.bloom)})`);
     assert(mv.night > 0.5 && mv.moved >= mv.n - 1, `${look.name}: turning in night vision, every frame reads as moving (${JSON.stringify(mv)})`);
     const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc/i.test(e));
     assert(bad.length === 0, `${look.name}: no console errors${bad.length ? ': ' + bad.slice(0, 3).join(' | ') : ''}`);

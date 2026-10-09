@@ -1,6 +1,7 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
+import type { NightBloom } from './nightBloom';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
-import { GLARE, NV_GLSL, NV_TONE } from './nightVision';
+import { NV_GLSL, NV_TONE } from './nightVision';
 
 export { PHONE_DARK_FLOOR } from '../core/quality';
 
@@ -21,7 +22,8 @@ uniform float sat;
 uniform float contrast;
 uniform float darkFloor;
 uniform float bright;
-uniform vec4 glare[${GLARE.max * 2}];
+uniform sampler2D glowSampler;
+uniform float glowScale;
 uniform float veil;
 uniform float flip;
 ${NV_GLSL}
@@ -41,23 +43,10 @@ void main(void) {
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
   if (nv > 0.0) {
     // (Step 4b) the gain is in the lighting (\`LampPlugin\`, \`VISION_GAIN\`). (Step 4b fix) the tube
-    // (\`nightVision.ts\`): the lamps' glare joins the drive, the phosphor is a pale grey-green that clips to white,
-    // intensifier grain is strongest in the dark, and the eyepiece darkens the edge
+    // (\`nightVision.ts\`): the bloom of the bright parts (\`NightBloom\`) joins the drive, the phosphor is a pale
+    // grey-green that clips to white, intensifier grain is strongest in the dark, and the eyepiece darkens the edge
     float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
-    float g = 0.0;
-    for (int i = 0; i < ${GLARE.max}; i++) {
-      vec4 a = glare[i * 2];
-      vec4 s = glare[i * 2 + 1];
-      if (s.y > 0.0) {
-        // distance to the fitting's glowing length (a strip is a segment, a bulb a point)
-        vec2 pa = (vUV - a.xy) * vec2(aspect, 1.0);
-        vec2 ba = (a.zw - a.xy) * vec2(aspect, 1.0);
-        vec2 o = pa - ba * clamp(dot(pa, ba) / max(dot(ba, ba), 0.0001), 0.0, 1.0);
-        float r2 = dot(o, o) / (s.x * s.x);
-        // the halo: a near-uniform disc of a fixed angle round the light's image, soft at its edge, a faint scatter beyond
-        g += s.y * (${GLARE.disc.toFixed(2)} * (1.0 - smoothstep(0.3, 1.0, r2)) + ${GLARE.scatter.toFixed(2)} / (1.0 + r2 * 0.6));
-      }
-    }
+    float g = dot(texture2D(glowSampler, vUV).rgb, vec3(0.2126, 0.7152, 0.0722)) * glowScale;
     float drive = nvDrive(l, veil) + g;
     vec3 p = nvColor(drive, veil);
     highp vec2 gc = floor(vUV * vec2(aspect, 1.0) * 900.0) + time * vec2(37.0, 17.0);
@@ -98,8 +87,8 @@ export class CinematicPost {
   barsTarget = 0;
   /** Night-vision blend 0..1. */
   private nv = 0;
-  /** Night vision's lamp glare (`NightGlare`: per source the ends u, v, u, v, then radius and strength) and its sum. */
-  private glare: Float32Array = new Float32Array(GLARE.max * 8);
+  /** Night vision's bloom (`NightBloom`) and auto-gain (`NightAutoGain.veil`). */
+  private bloom: NightBloom | null = null;
   private veil = 0;
   /** The goggles' flip: the housing's centre in screen height (-9 = none). */
   private flip = -9;
@@ -170,9 +159,13 @@ export class CinematicPost {
     this.sync();
   }
 
-  /** Night vision's lamp glare (Step 4b fix; `NightGlare`): the sources, read each frame by reference. */
-  setGlare(data: Float32Array, veil: number): void {
-    this.glare = data;
+  /** Night vision's bloom (Step 4b fix round 4): its glow is read each frame. */
+  setBloom(bloom: NightBloom | null): void {
+    this.bloom = bloom;
+  }
+
+  /** Night vision's auto-gain (`NightAutoGain.veil`). */
+  setAutoGain(veil: number): void {
     this.veil = veil;
   }
 
@@ -206,7 +199,7 @@ export class CinematicPost {
   private sync(force = false): void {
     const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright', 'glare', 'veil', 'flip'], null, 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright', 'glowScale', 'veil', 'flip'], ['glowSampler'], 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -221,7 +214,11 @@ export class CinematicPost {
         e.setFloat('contrast', this.contrast);
         e.setFloat('darkFloor', this.floor);
         e.setFloat('bright', this.bright);
-        e.setFloatArray4('glare', this.glare);
+        // the glow (always bound: an unbound sampler could read the target being drawn); the scene stands in before the
+        // first bloom, unread then (night vision off)
+        const glow = this.bloom?.glow;
+        e._bindTexture('glowSampler', glow ? glow.texture : pp.inputTexture.texture);
+        e.setFloat('glowScale', glow ? this.bloom!.glowScale : 0);
         e.setFloat('veil', this.veil);
         e.setFloat('flip', this.flip);
       };

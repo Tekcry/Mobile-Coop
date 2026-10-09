@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GLARE, NV_GLSL, NV_TONE, abcWeight, easeGlare, easeVeil, glareBrightness, glareEnds, glareRadius, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
+import { BLOOM, BRIGHT_GLSL, GLARE, NV_GLSL, NV_TONE, abcWeight, brightShare, easeGlare, easeVeil, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
 import { VISION_TARGETS } from '../src/world/darkCurve';
 
 const lamp = (x: number, z: number, o: Partial<GlareLamp> = {}): GlareLamp => ({ x, y: 3, z, kind: 'lamp', on: true, destroyed: false, intensity: 1, fixture: null, ...o });
@@ -37,7 +37,7 @@ describe('night vision tube (Step 4b fix)', () => {
   });
 });
 
-describe('night vision glare sources', () => {
+describe('night vision auto-gain (the lamps in view)', () => {
   const out = new Int16Array(GLARE.max);
   const score = new Float32Array(GLARE.max);
   it('only fixed lamps that are on, in front and in range; nearest first', () => {
@@ -62,21 +62,7 @@ describe('night vision glare sources', () => {
     expect(n).toBe(GLARE.max);
     for (let i = 0; i < n; i++) expect(out[i]).toBe(19 - i);
   });
-  it('a strip glares along its diffuser, a bulb or compact fitting at one point', () => {
-    const e = new Float32Array(6);
-    glareEnds(lamp(2, 5, { fixture: { sx: 1.2, sz: 0.25, oy: 0.1 } }), e);
-    expect(e[0]).toBeCloseTo(2 - 0.6 * GLARE.inset, 5);
-    expect(e[3]).toBeCloseTo(2 + 0.6 * GLARE.inset, 5);
-    expect(e[2]).toBe(5);
-    expect(e[1]).toBeCloseTo(3.1, 5);
-    glareEnds(lamp(2, 5, { fixture: { sx: 0.25, sz: 1.5, oy: 0 } }), e);
-    expect(e[0]).toBe(e[3]);
-    expect(e[5]! - e[2]!).toBeCloseTo(1.5 * GLARE.inset, 5);
-    glareEnds(lamp(2, 5, { fixture: { sx: 0.35, sz: 0.35, oy: 0 } }), e);
-    expect(e[0]).toBe(e[3]);
-    expect(e[2]).toBe(e[5]);
-  });
-  it('fades in and out over the fade time; the radius is clamped', () => {
+  it('a lamp fades in and out over the fade time', () => {
     let w = 0;
     w = easeGlare(w, 1, GLARE.fade / 2);
     expect(w).toBeCloseTo(0.5, 5);
@@ -84,21 +70,9 @@ describe('night vision glare sources', () => {
     expect(w).toBe(1);
     expect(easeGlare(1, 0, GLARE.fade * 2)).toBe(0);
   });
-  it('the halo is a fixed angle on the screen, whatever the distance (round 3)', () => {
-    // a 38 deg vertical field (the phone at 75 deg horizontal, 2.17:1): the halo is a few percent of the height, not half
-    const m5 = 1 / Math.tan((38 * Math.PI) / 360);
-    const r = glareRadius(m5);
-    expect(r).toBeGreaterThan(0.02);
-    expect(r).toBeLessThan(0.06);
-    // a narrower field (zoom) shows the same angle larger
-    expect(glareRadius(m5 * 2)).toBeCloseTo(r * 2, 6);
-  });
-  it('a near lamp is bright and turns the gain down; a far one dims, never to nothing', () => {
-    expect(glareBrightness(3, 1)).toBe(1);
-    expect(glareBrightness(GLARE.refDist, 1)).toBe(1);
-    expect(glareBrightness(GLARE.refDist * 1.5, 1)).toBeLessThan(1);
-    expect(glareBrightness(GLARE.range, 1)).toBe(GLARE.farDim);
+  it('a near lamp turns the gain down more than a far one', () => {
     expect(abcWeight(2, 1)).toBeGreaterThan(abcWeight(20, 1));
+    expect(abcWeight(2, 1)).toBeLessThanOrEqual(1);
   });
   it('the auto-gain turns down over its attack and recovers over its release', () => {
     let v = 0;
@@ -107,5 +81,30 @@ describe('night vision glare sources', () => {
     const up = easeVeil(0, 1, 0.1);
     const down = 1 - easeVeil(1, 0, 0.1);
     expect(up).toBeGreaterThan(down);
+  });
+});
+
+describe('night vision bloom (round 4)', () => {
+  it('nothing dark glows; past the threshold the glow grows towards the whole pixel', () => {
+    for (const look of [BLOOM.phone, BLOOM.desktop]) {
+      expect(brightShare(0, look.threshold, look.knee)).toBe(0);
+      expect(brightShare(look.threshold - look.knee - 0.01, look.threshold, look.knee)).toBe(0);
+      let last = 0;
+      for (let l = look.threshold - look.knee; l < look.threshold * 4; l += 0.05) {
+        const g = brightShare(l, look.threshold, look.knee) * l;
+        expect(g).toBeGreaterThanOrEqual(last - 1e-9);
+        last = g;
+      }
+      expect(brightShare(1, look.threshold, look.knee)).toBe(1);
+    }
+  });
+  it('the knee is smooth: no jump at the threshold', () => {
+    const { threshold: t, knee: k } = BLOOM.phone;
+    const below = brightShare(t + k - 1e-4, t, k) * (t + k - 1e-4);
+    const above = brightShare(t + k + 1e-4, t, k) * (t + k + 1e-4);
+    expect(Math.abs(above - below)).toBeLessThan(1e-3);
+  });
+  it('the GLSL mirror carries the same knee formula', () => {
+    expect(BRIGHT_GLSL).toContain('smoothstep(threshold - knee, threshold + knee, l)');
   });
 });

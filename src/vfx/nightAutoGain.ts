@@ -1,37 +1,30 @@
 import { Vector3, type Camera, type Observer, type Scene } from '../core/babylon';
-import { GLARE, abcWeight, easeGlare, easeVeil, glareBrightness, glareEnds, glareRadius, glareY, pickGlare, type GlareLamp } from './nightVision';
+import { GLARE, abcWeight, easeGlare, easeVeil, glareY, pickGlare, type GlareLamp } from './nightVision';
 
 /**
- * Night vision's lamp glare (Phase 1 Step 4b fix; rendering only): while the goggles are on, the nearest lamps in view
- * with a clear line from the camera, as screen-space sources for `CinematicPost`. A lamp glares along its whole fitting
- * (a strip is a segment, a bulb a point) with a halo of a fixed angle. `data` holds two vec4 per source: the segment's
- * ends (u, v, u, v), then radius (screen heights) and strength; `veil` is the tube's auto-gain, eased (near lamps in
- * view turn it down). Allocation-free.
+ * Night vision's auto-gain (Phase 1 Step 4b fix; rendering only): while the goggles are on, the nearest lamps in view
+ * with a clear line from the camera turn the tube's gain down, eased (`veil`: the image divides by 1 + veil x
+ * `NV_TONE.gainDrop`). Allocation-free.
  *
  * It runs from the scene's before-camera-render event, after the camera has updated: reading the camera's matrices
  * earlier in the frame would mark its view as current, Babylon would then see a moving camera as still, and TAA would
  * keep blending stale history (the smear Michael saw moving in night vision on desktop, 2026-10-09).
  */
-export class NightGlare {
-  /** Two vec4 per source (`GLARE.max`). */
-  readonly data = new Float32Array(GLARE.max * 8);
-  /** The tube's auto-gain (0 none; it divides the image by 1 + veil x `NV_TONE.gainDrop`), eased. */
+export class NightAutoGain {
+  /** The tube's auto-gain (0 none), eased. */
   veil = 0;
   private readonly idx = new Int16Array(GLARE.max);
   private readonly score = new Float32Array(GLARE.max);
-  /** Per lamp: the eased glare weight, and this frame's target. */
+  /** Per lamp: the eased weight, and this frame's target. */
   private readonly weight: Float32Array;
   private readonly target: Float32Array;
-  private readonly ends = new Float32Array(6);
-  private readonly p = new Vector3();
-  private readonly q = new Vector3();
   private readonly fwd = new Vector3();
   private static readonly AXIS_Z = new Vector3(0, 0, 1);
   /** The night-vision blend and the frame time, set by the game each render frame. */
   private k = 0;
   private dt = 0;
   private obs: Observer<Camera> | null;
-  /** Called after each update (the post pass reads `data` and `veil`). */
+  /** Called after each update (the post pass reads `veil`). */
   onUpdate: (() => void) | null = null;
 
   constructor(
@@ -47,18 +40,16 @@ export class NightGlare {
     });
   }
 
-  /** `k`: the night-vision blend 0..1 (0 clears the glare); `dt`: the frame time (the fades). */
+  /** `k`: night vision on (0..1; 0 clears the gain); `dt`: the frame time (the easing). */
   set(k: number, dt: number): void {
     this.k = k;
     this.dt += dt;
   }
 
   private update(camera: Camera): void {
-    const d = this.data;
     const k = this.k;
     const dt = this.dt;
     this.dt = 0;
-    d.fill(0);
     if (k <= 0) {
       this.veil = 0;
       this.weight.fill(0);
@@ -66,7 +57,7 @@ export class NightGlare {
       return;
     }
     const c = camera.globalPosition;
-    camera.getDirectionToRef(NightGlare.AXIS_Z, this.fwd);
+    camera.getDirectionToRef(NightAutoGain.AXIS_Z, this.fwd);
     const f = this.fwd;
     const n = pickGlare(this.lamps, c.x, c.y, c.z, f.x, f.y, f.z, this.idx, this.score);
     const t = this.target;
@@ -82,30 +73,13 @@ export class NightGlare {
     }
     const w = this.weight;
     for (let i = 0; i < w.length; i++) w[i] = easeGlare(w[i]!, t[i]!, dt);
-    const m = camera.getTransformationMatrix();
-    // the halo: a fixed angle on the screen, whatever the distance
-    const r = glareRadius(camera.getProjectionMatrix().m[5]!);
-    const e = this.ends;
     let abc = 0;
-    let o = 0;
     for (let i = 0; i < n; i++) {
       const li = this.idx[i]!;
       const wt = w[li]!;
       if (wt <= 0) continue;
       const l = this.lamps[li]!;
-      glareEnds(l, e);
-      this.p.set(e[0]!, e[1]!, e[2]!);
-      Vector3.TransformCoordinatesToRef(this.p, m, this.q);
-      d[o] = this.q.x * 0.5 + 0.5;
-      d[o + 1] = this.q.y * 0.5 + 0.5;
-      this.p.set(e[3]!, e[4]!, e[5]!);
-      Vector3.TransformCoordinatesToRef(this.p, m, this.q);
-      d[o + 2] = this.q.x * 0.5 + 0.5;
-      d[o + 3] = this.q.y * 0.5 + 0.5;
       const dist = Math.sqrt((l.x - c.x) ** 2 + (glareY(l) - c.y) ** 2 + (l.z - c.z) ** 2);
-      d[o + 4] = r;
-      d[o + 5] = wt * k * glareBrightness(dist, l.intensity);
-      o += 8;
       // a near lamp in view turns the tube's gain down more than a far one
       abc += wt * k * abcWeight(dist, l.intensity);
     }

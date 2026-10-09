@@ -77,22 +77,28 @@ Design authority: docs/design-bible.md (Section 5.1)
 - The tube (Step 4b fix, `vfx/nightVision.ts`, pure; mirrored in GLSL as `NV_GLSL`): `CinematicPost` maps the image's
   luma through `nvDrive` (contrast `gamma` 1.7) and `nvColor` (a pale grey-green phosphor that clips to white from drive
   0.65, never quite black), adds intensifier grain (strongest in the dark) and darkens the edge (an eyepiece ellipse, x
-  scaled by the aspect up to 1.8). Lamps glare: `vfx/nightGlare.ts` picks up to `GLARE.max` (8) fixed lamps in view
-  (on, not shot out, within 45 m), keeps those with a clear line from the camera (a Havok ray against static geometry,
-  stopped 0.35 m short), projects them and hands the post pass each one's glowing length (a strip fitting 0.5 m or longer
-  is a segment along its long side, 90% of it; a bulb or compact fitting a point), the halo's radius and its strength;
-  each fades over 0.12 s. Round 3 (real tubes, `docs/research/night-vision-and-lamps.md`): the halo is a fixed angle,
-  `GLARE.haloDeg` 1.5 deg radius round the light's image (measured on Gen III tubes: about 1.8 deg across, the same at
-  any distance), so it never grows as you walk up to a lamp; its profile is a near-uniform disc (`disc` 0.8) softening at
-  its edge, with a faint scatter beyond (`scatter` 0.22). Brightness: full within `refDist` 10 m, then the inverse
-  square, floored at `farDim` 0.35. The blinding is the auto-gain: near lamps in view (`abcWeight`) turn the tube's gain
-  down (`veil`, eased: `abcAttack` 0.25 s down, `abcRelease` 0.6 s back; the image divides by 1 + veil x `gainDrop`
-  0.6), so close to a lamp the room sinks into the dark. `LightRig.setVisionBoost` raises the fixtures (x2.5) with the
-  goggles. Rendering only; the glare's rays read collision, gameplay reads none of it.
+  scaled by the aspect up to 1.8).
+- The bloom (round 4, Michael: like Chaos Theory's night vision): `vfx/nightBloom.ts` runs while the goggles are on,
+  from `PostProcessManager.onBeforeRenderObservable` (the scene has rendered into the first post process's input;
+  no pass has drawn yet). A bright pass at `BLOOM.scale` 0.25 (4 bilinear taps, each masked by `brightShare`: a
+  smoothstep from `threshold - knee` to `threshold + knee`, so a whole near-white pixel glows; both looks' scene
+  targets are 8-bit and stop at 1, so there is no excess over a threshold to keep), then `passes` 3 x a horizontal and
+  a vertical 9-tap Gaussian (5 bilinear taps, `spread` 1.3). `CinematicPost` adds the glow's luma x `strength` to the
+  drive. Thresholds: phone 0.88 (gamma-space), desktop 0.85 (linear, before TAA and tone mapping). Targets are half
+  float where the GPU renders them, else 8-bit divided by `range` 4. The effects compile at load. What glows is what is
+  bright on screen: lamps, lit windows, blown-out walls; nothing glows through a wall, and a strip glows along its
+  length. (Rounds 1 - 3 drew an analytic glare per lamp: sized by distance it blinded half the screen; as a real tube's
+  fixed 1.8 deg halo it looked like a thin ring.)
+- The auto-gain: `vfx/nightAutoGain.ts` picks up to `GLARE.max` (8) fixed lamps in view (on, not shot out, within 45
+  m), keeps those with a clear line from the camera (a Havok ray against static geometry, stopped 0.35 m short), each
+  fading in or out over 0.12 s; near lamps (`abcWeight`) turn the tube's gain down (`veil`, eased: `abcAttack` 0.25 s
+  down, `abcRelease` 0.6 s back; the image divides by 1 + veil x `gainDrop` 0.6, except highlights from `gainKeep`
+  0.75 up, so a lamp stays white while the room round it sinks). `LightRig.setVisionBoost` raises the fixtures (x2.5)
+  with the goggles. Rendering only; the rays read collision, gameplay reads none of it.
 - No fade (round 3, Michael): `VisionState` flips the goggles over `VISION.flip` 0.2 s and switches night vision at the
   middle; `CinematicPost` draws the housing as a dark band with a curved soft edge sweeping down (on) or up (off)
   across the view (`flipCentre`), covering it fully at the switch.
-- `NightGlare` runs from `scene.onBeforeCameraRenderObservable`, after the camera's update. Reading the camera's
+- `NightAutoGain` runs from `scene.onBeforeCameraRenderObservable`, after the camera's update. Reading the camera's
   matrices earlier in the frame (the first version did, from `renderVision`) marks its view as current; Babylon then
   sees a moving camera as still (`Camera.hasMoved` false at the render), and TAA (`disableOnCameraMove`) kept blending
   stale history: the smear moving in night vision on desktop. `e2e-darkness` checks a turning camera reads as moving

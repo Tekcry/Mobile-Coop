@@ -81,9 +81,11 @@ that have been on, sunlit walls).
 
 - Night vision is a gain inside the lighting, so it reveals real detail in dim areas and blows out in lit ones.
 - The tube: a pale grey-green phosphor, grain strongest in the dark, a dark eyepiece edge.
-- **Glare (round 3):** each lamp in view (and not behind a wall) has a halo of a fixed angle round its whole fitting,
-  the same size at any distance. Near lamps in view turn the tube's gain down after a short delay, so the room sinks
-  into the dark round a bright lamp: turn the lights off or shoot them.
+- **Glow (round 4, Michael: replicate Chaos Theory's night vision style):** the image's bright parts bloom - lamps,
+  lit windows and blown-out walls spill a soft glow, a strip along its length, nothing through a wall. A real tube's
+  halo (a thin fixed-angle ring, round 3) was accurate but looked odd; the game follows the reference's art style. Near
+  lamps in view still turn the tube's gain down after a short delay (lamps stay white), so the room sinks into the dark
+  round a bright lamp: turn the lights off or shoot them.
 - **No fade:** the goggles flip down or up across the view in 0.2 s and the image switches under them.
 - The additive light cones are gone (a beam is not seen in clean air). Desktop's volumetric haze stays.
 - **Lamp light on surfaces still comes from the fitting's centre point.** Visibility (shadows) is already sampled

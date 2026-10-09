@@ -53,7 +53,8 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     0.8 m in front, the HUD hidden; the screenshot's centre read as Rec. 709 luma - phone light look and Epic, night
     vision off and on. `LOOK=phone|epic` runs one look; `REPORT=1` prints without asserting; `DARK_OFF=1` (with
     `REPORT=1`) shows the look before Step 4b (no curve, the old phone floor); and (Step 4b fix) turning the camera with
-    night vision on reads as moving every frame (`Camera.hasMoved`: TAA must not blend stale history)
+    night vision on reads as moving every frame (`Camera.hasMoved`: TAA must not blend stale history), and night
+    vision's bloom (`NightBloom`) runs every frame with a glow
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` Loadout by controller (live weapon preview, lock line, upgrade, buy in place), suit / HQ by touch, rewards, IndexedDB persistence, export/import

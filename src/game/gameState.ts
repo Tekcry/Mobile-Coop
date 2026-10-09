@@ -60,7 +60,8 @@ import { LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost, PHONE_DARK_FLOOR } from '../vfx/cinematicPost';
-import { NightGlare } from '../vfx/nightGlare';
+import { NightAutoGain } from '../vfx/nightAutoGain';
+import { NightBloom } from '../vfx/nightBloom';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
@@ -359,8 +360,13 @@ export class GameState implements AppState {
     this.blobs = new BlobShadows(this.scene);
     this.post = new CinematicPost(this.player.cam.camera);
     this.post.setGrade(world.map.theme.grade);
-    this.nightGlare = new NightGlare(this.scene, world.level.lights.lights, this.glareBlocked);
-    this.nightGlare.onUpdate = () => this.post.setGlare(this.nightGlare.data, this.nightGlare.veil);
+    // night vision's auto-gain (the lamps in view) and bloom (the scene's bright parts; the phone look's gamma-space image
+    // or desktop's linear HDR)
+    this.nightGain = new NightAutoGain(this.scene, world.level.lights.lights, this.glareBlocked);
+    this.nightGain.onUpdate = () => this.post.setAutoGain(this.nightGain.veil);
+    this.nightBloom = new NightBloom(this.scene, this.player.cam.camera);
+    this.nightBloom.setLook(world.lamps?.standardLook ?? false);
+    this.post.setBloom(this.nightBloom);
     const fc = Color3.FromHexString(world.map.theme.horizon);
     // weather (3.0, visual only): the map's theme, or the choice made on the Play screen / in the lobby
     const wx = opts.weather && world.map.weathers?.includes(opts.weather) ? opts.weather : null;
@@ -765,7 +771,8 @@ export class GameState implements AppState {
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
-    this.nightGlare.dispose();
+    this.nightGain.dispose();
+    this.nightBloom.dispose();
     this.stack.dispose();
     this.weather.dispose();
     this.blobs.dispose();
@@ -1017,8 +1024,10 @@ export class GameState implements AppState {
       see,
     };
   }
-  /** Night vision's lamp glare (Step 4b fix; rendering only). */
-  private nightGlare: NightGlare;
+  /** Night vision's auto-gain: the lamps in view (Step 4b fix; rendering only). */
+  private nightGain: NightAutoGain;
+  /** Night vision's bloom (Step 4b fix round 4; rendering only). */
+  private nightBloom: NightBloom;
   /** Static geometry on a segment (the glare's camera-to-lamp test; allocation-free). */
   private readonly glareBlocked = (ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean => {
     this.lightRay.reset();
@@ -1552,7 +1561,8 @@ export class GameState implements AppState {
       this.world.frame(this.player.position, 0);
       this.stack.frame(0);
       // night vision's glare follows the free camera
-      this.nightGlare.set(this.vision.night, dt);
+      this.nightGain.set(this.vision.night, dt);
+      this.nightBloom.k = this.vision.night;
       return;
     }
     const look = this.app.input.state.consumeLook();
@@ -1650,7 +1660,8 @@ export class GameState implements AppState {
     // (Step 4b fix round 3) no fade: the goggles flip across the view and night vision switches under them
     this.post.setFlip(v.flipCentre);
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
-    this.nightGlare.set(v.night, dt);
+    this.nightGain.set(v.night, dt);
+    this.nightBloom.k = v.night;
     this.world.lightRig.setVisionBoost(v.night);
     // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it)
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
