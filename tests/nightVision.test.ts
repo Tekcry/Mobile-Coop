@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GLARE, NV_GLSL, NV_TONE, easeGlare, glareEnds, glareRadius, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
+import { GLARE, NV_GLSL, NV_TONE, abcWeight, easeGlare, easeVeil, glareBrightness, glareEnds, glareRadius, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
 import { VISION_TARGETS } from '../src/world/darkCurve';
 
 const lamp = (x: number, z: number, o: Partial<GlareLamp> = {}): GlareLamp => ({ x, y: 3, z, kind: 'lamp', on: true, destroyed: false, intensity: 1, fixture: null, ...o });
@@ -83,7 +83,29 @@ describe('night vision glare sources', () => {
     w = easeGlare(w, 1, GLARE.fade);
     expect(w).toBe(1);
     expect(easeGlare(1, 0, GLARE.fade * 2)).toBe(0);
-    expect(glareRadius(0)).toBe(GLARE.minR);
-    expect(glareRadius(5)).toBe(GLARE.maxR);
+  });
+  it('the halo is a fixed angle on the screen, whatever the distance (round 3)', () => {
+    // a 38 deg vertical field (the phone at 75 deg horizontal, 2.17:1): the halo is a few percent of the height, not half
+    const m5 = 1 / Math.tan((38 * Math.PI) / 360);
+    const r = glareRadius(m5);
+    expect(r).toBeGreaterThan(0.02);
+    expect(r).toBeLessThan(0.06);
+    // a narrower field (zoom) shows the same angle larger
+    expect(glareRadius(m5 * 2)).toBeCloseTo(r * 2, 6);
+  });
+  it('a near lamp is bright and turns the gain down; a far one dims, never to nothing', () => {
+    expect(glareBrightness(3, 1)).toBe(1);
+    expect(glareBrightness(GLARE.refDist, 1)).toBe(1);
+    expect(glareBrightness(GLARE.refDist * 1.5, 1)).toBeLessThan(1);
+    expect(glareBrightness(GLARE.range, 1)).toBe(GLARE.farDim);
+    expect(abcWeight(2, 1)).toBeGreaterThan(abcWeight(20, 1));
+  });
+  it('the auto-gain turns down over its attack and recovers over its release', () => {
+    let v = 0;
+    v = easeVeil(v, 1, GLARE.abcAttack);
+    expect(v).toBeCloseTo(1 - Math.exp(-1), 5);
+    const up = easeVeil(0, 1, 0.1);
+    const down = 1 - easeVeil(1, 0, 0.1);
+    expect(up).toBeGreaterThan(down);
   });
 });

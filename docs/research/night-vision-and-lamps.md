@@ -18,6 +18,29 @@ They see light, not heat.
 - **Infrared:** IR lasers, IR illuminators and IR beacons are visible through them and invisible to the naked eye.
 - **Moving in the dark:** walking, climbing and navigating without a light that would give you away.
 
+### What a light looks like through them (glare and halo)
+- **The halo is made inside the tube**, by the gap between the photocathode and the microchannel plate, so it is the same
+  size anywhere on the screen and at any distance: a lab study of Gen III goggles measured a constant 1 deg 48' (about
+  1.8 degrees across) for sources at every distance tested, and found halos do not follow perspective. Vendors grade
+  tubes by halo size on the screen (under 1.0 mm excellent, under 1.5 mm good).
+- **So at a distance** a lamp is a small bright disc (a "ball of light"); **up close** the lamp's own image is large
+  and bright, ringed by the same thin halo. The halo does not swell to fill the view as you approach.
+- **The halo is a near-uniform disc** round the light, much larger than the tube's blur for faint detail, and brighter
+  for brighter lights; a faint glow beyond it.
+- **Automatic brightness control (ABC):** with a bright light in view the tube lowers its gain to protect itself; the
+  image can brighten first, then after a short delay dims to a steady level, and the dark parts of the scene sink. This,
+  not a giant halo, is what blinds you near lamps. Bright-source protection and auto-gating (rapidly switching the
+  photocathode) stop sudden intense light from whiting the user out completely.
+- Sources: [Allison et al., Psychophysics of Night Vision Device Halo](https://percept.eecs.yorku.ca/papers/Allison-%20Psychophysics%20of%20Night%20Vision%20Device%20Halo.pdf),
+  [Effects of image intensifier halo on perceived layout](https://researchwith.njit.edu/en/publications/effects-of-image-intensifier-halo-on-perceived-layout/),
+  [Steele Industries, image intensifier specifications](https://steeleindustries.com/image-intensifier-specifications/),
+  [Optics Trade, automatic brightness control](https://blog.optics-trade.eu/automatic-brightness-control/),
+  [Armasight, night vision glossary](https://armasight.com/blog/night-vision-glossary-and-abbreviations/).
+
+### Putting them on
+- Helmet goggles flip down in front of the eyes on a mount; the tube image is there as soon as they are down (a modern
+  tube powers up almost at once). There is no fade: the housing passes the eyes, then the image is there.
+
 ### Where they perform poorly
 - **Bright light in view:** every light source blooms into a halo (the tube's glare), and the tube's automatic gain
   control turns the whole image down to protect itself, so the dark parts of the scene vanish. Looking at a lamp, a
@@ -58,9 +81,10 @@ that have been on, sunlit walls).
 
 - Night vision is a gain inside the lighting, so it reveals real detail in dim areas and blows out in lit ones.
 - The tube: a pale grey-green phosphor, grain strongest in the dark, a dark eyepiece edge.
-- **Glare:** each lamp in view (and not behind a wall) glares along its whole fitting; the glare grows as you get closer.
-  The glare in view also turns the tube's gain down and veils the image, so looking at lamps in night vision washes
-  the dark parts out: turn the lights off or shoot them.
+- **Glare (round 3):** each lamp in view (and not behind a wall) has a halo of a fixed angle round its whole fitting,
+  the same size at any distance. Near lamps in view turn the tube's gain down after a short delay, so the room sinks
+  into the dark round a bright lamp: turn the lights off or shoot them.
+- **No fade:** the goggles flip down or up across the view in 0.2 s and the image switches under them.
 - The additive light cones are gone (a beam is not seen in clean air). Desktop's volumetric haze stays.
 - **Lamp light on surfaces still comes from the fitting's centre point.** Visibility (shadows) is already sampled
   along strips (`voxel/lampBake.ts`), but the falloff is from the centre (`world/lampMath.ts`). Fixing it changes

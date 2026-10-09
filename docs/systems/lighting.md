@@ -80,11 +80,18 @@ Design authority: docs/design-bible.md (Section 5.1)
   scaled by the aspect up to 1.8). Lamps glare: `vfx/nightGlare.ts` picks up to `GLARE.max` (8) fixed lamps in view
   (on, not shot out, within 45 m), keeps those with a clear line from the camera (a Havok ray against static geometry,
   stopped 0.35 m short), projects them and hands the post pass each one's glowing length (a strip fitting 0.5 m or longer
-  is a segment along its long side, 90% of it; a bulb or compact fitting a point), radius (the glare's 3.2 m projected,
-  0.06 - 0.7 screen heights) and strength; each fades over 0.12 s. The glare joins the drive (a blinding core, a halo
-  and a long tail, by distance to the segment); the sum (`veil`) turns the tube's gain down (auto-gain, `gainDrop` 0.6)
-  and veils the whole image (scatter), so a lamp in view washes the dark parts out. `LightRig.setVisionBoost` raises the
-  fixtures (x2.5) with the goggles. Rendering only; the glare's rays read collision, gameplay reads none of it.
+  is a segment along its long side, 90% of it; a bulb or compact fitting a point), the halo's radius and its strength;
+  each fades over 0.12 s. Round 3 (real tubes, `docs/research/night-vision-and-lamps.md`): the halo is a fixed angle,
+  `GLARE.haloDeg` 1.5 deg radius round the light's image (measured on Gen III tubes: about 1.8 deg across, the same at
+  any distance), so it never grows as you walk up to a lamp; its profile is a near-uniform disc (`disc` 0.8) softening at
+  its edge, with a faint scatter beyond (`scatter` 0.22). Brightness: full within `refDist` 10 m, then the inverse
+  square, floored at `farDim` 0.35. The blinding is the auto-gain: near lamps in view (`abcWeight`) turn the tube's gain
+  down (`veil`, eased: `abcAttack` 0.25 s down, `abcRelease` 0.6 s back; the image divides by 1 + veil x `gainDrop`
+  0.6), so close to a lamp the room sinks into the dark. `LightRig.setVisionBoost` raises the fixtures (x2.5) with the
+  goggles. Rendering only; the glare's rays read collision, gameplay reads none of it.
+- No fade (round 3, Michael): `VisionState` flips the goggles over `VISION.flip` 0.2 s and switches night vision at the
+  middle; `CinematicPost` draws the housing as a dark band with a curved soft edge sweeping down (on) or up (off)
+  across the view (`flipCentre`), covering it fully at the switch.
 - `NightGlare` runs from `scene.onBeforeCameraRenderObservable`, after the camera's update. Reading the camera's
   matrices earlier in the frame (the first version did, from `renderVision`) marks its view as current; Babylon then
   sees a moving camera as still (`Camera.hasMoved` false at the render), and TAA (`disableOnCameraMove`) kept blending

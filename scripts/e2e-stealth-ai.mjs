@@ -720,7 +720,7 @@ try {
     });
     assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `the goggles button: night vision (${JSON.stringify(r.night)})`);
     assert(r.off.mode === 'off' && r.off.marks === 0 && r.off.hud === '', `again: off, no sonar (${JSON.stringify(r.off)})`);
-    assert(r.nvOff < 0.01, `night vision fades out (${r.nvOff})`);
+    assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));

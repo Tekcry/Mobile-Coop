@@ -3,7 +3,7 @@
  *
  * Michael (2026-10-09): the first night vision was a flat saturated green and lamps did not shine in it. The target
  * is an image intensifier tube: a pale grey-green phosphor, murky but readable shadows, highlights that clip towards
- * white, and lamps that flare into a wide soft glare. The gain itself stays in the lighting (`VISION_GAIN`,
+ * white, and lamps that glare. The gain itself stays in the lighting (`VISION_GAIN`,
  * `darkCurve.ts`); this module is the tube: the phosphor ramp (mirrored in GLSL from the same constants, the
  * `LAMP_MATH_GLSL` pattern) and the choice of lamps that glare.
  *
@@ -11,7 +11,14 @@
  * full-screen blur would cost more than the Phone check allows. Each frame the nearest lamps in view (fixed lights,
  * on, not shot out) are tested for a clear line from the camera, projected, and handed to the post pass as up to
  * `GLARE.max` screen-space sources.
- */
+ *
+ * (Round 3, Michael 2026-10-09: the glare blinded half the screen.) Real tubes (research:
+ * `docs/research/night-vision-and-lamps.md`): a light's halo is made inside the tube (the gap between photocathode and
+ * microchannel plate), so it is the same size anywhere on the screen and at any distance, about 1.8 degrees, a near-uniform
+ * disc round the light's own image; it does not grow as you walk up to a lamp (the lamp's own image does). What does
+ * blind you is the automatic brightness control: with a bright light in view the tube turns its gain down after a short
+ * delay, and the dark parts of the scene sink. So the halo is a fixed angle round the fitting's glowing length, and the
+ * blinding is the auto-gain, eased with an attack and a release.
 
 /** The phosphor: input luma (after the lighting's night-vision gain) to the tube's output colour. */
 export const NV_TONE = {
@@ -25,10 +32,10 @@ export const NV_TONE = {
   white: [0.96, 1.0, 0.92] as const,
   /** Drive where highlights start to clip towards white. */
   whiteFrom: 0.65,
-  /** Auto-gain: the glare in view pulls the rest of the image down by 1 / (1 + veil x this). */
+  /** Auto-gain: the bright light in view pulls the rest of the image down by 1 / (1 + veil x this). */
   gainDrop: 0.6,
   /** The light a bright source scatters over the whole tube (x veil). */
-  veilLift: 0.07,
+  veilLift: 0.02,
   /** Grain (intensifier noise): amplitude in the dark, and how much of it is left at full drive. */
   grain: 0.075,
   grainLit: 0.35,
@@ -40,15 +47,19 @@ export const GLARE = {
   max: 8,
   /** Farthest lamp that glares (m). */
   range: 45,
-  /** The glare's size round a lamp (m), projected to the screen for its radius. */
-  size: 3.2,
-  /** The glare's profile round the fitting: a blinding core, a halo and a long tail (shader weights). */
-  core: 1.4,
-  halo: 0.6,
-  tail: 0.2,
-  /** Glare radius limits, in screen heights. */
-  minR: 0.06,
-  maxR: 0.7,
+  /** The halo's angular radius round the light's image (deg): the same at any distance (measured: about 1.8 deg
+   *  across on Gen III tubes; a little larger here so it reads on a phone). */
+  haloDeg: 1.5,
+  /** The halo's profile (shader weights): a near-uniform disc that softens at its edge, and a faint scatter beyond. */
+  disc: 0.8,
+  scatter: 0.22,
+  /** A lamp at this distance (m) or nearer is at full brightness in the tube; farther, its halo dims with the square of
+   *  the distance, down to `farDim`. */
+  refDist: 10,
+  farDim: 0.35,
+  /** The auto-gain's response (s): it turns down this fast with a bright light in view, and recovers this fast. */
+  abcAttack: 0.25,
+  abcRelease: 0.6,
   /** A lamp fades in and out of glare over this (s) as it comes into or leaves view. */
   fade: 0.12,
   /** Cosine of the widest angle off the view axis a lamp can be (and still glare into the frame). */
@@ -185,5 +196,22 @@ export function easeGlare(w: number, target: number, dt: number): number {
   return w + Math.max(-k, Math.min(k, target - w));
 }
 
-/** A lamp's glare radius in screen heights from its projected size (screen heights), clamped. */
-export const glareRadius = (projected: number): number => Math.min(GLARE.maxR, Math.max(GLARE.minR, projected));
+/** The halo's radius in screen heights for a camera whose projection's [1][1] is `m5` (1 / tan(vertical fov / 2)). */
+export const glareRadius = (m5: number): number => (Math.tan((GLARE.haloDeg * Math.PI) / 180) * m5) / 2;
+
+/** A lamp's brightness in the tube at distance `d`: full within `GLARE.refDist`, then the inverse square, floored. */
+export function glareBrightness(d: number, intensity: number): number {
+  const k = d <= GLARE.refDist ? 1 : (GLARE.refDist * GLARE.refDist) / (d * d);
+  return Math.min(1, intensity) * Math.max(GLARE.farDim, k);
+}
+
+/** How much a lamp at distance `d` turns the tube's gain down (the auto-gain's input): a near lamp more than a far one. */
+export function abcWeight(d: number, intensity: number): number {
+  return Math.min(1, intensity) * Math.min(1, (GLARE.refDist * 0.5) / Math.max(1, d));
+}
+
+/** The auto-gain's veil eased towards its target: `abcAttack` rising, `abcRelease` falling. */
+export function easeVeil(v: number, target: number, dt: number): number {
+  const tau = target > v ? GLARE.abcAttack : GLARE.abcRelease;
+  return v + (target - v) * (1 - Math.exp(-dt / tau));
+}

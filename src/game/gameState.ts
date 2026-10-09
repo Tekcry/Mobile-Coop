@@ -1647,6 +1647,8 @@ export class GameState implements AppState {
   private renderVision(dt: number): void {
     const v = this.vision;
     this.post.setNightVision(v.night);
+    // (Step 4b fix round 3) no fade: the goggles flip across the view and night vision switches under them
+    this.post.setFlip(v.flipCentre);
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
     this.nightGlare.set(v.night, dt);
     this.world.lightRig.setVisionBoost(v.night);

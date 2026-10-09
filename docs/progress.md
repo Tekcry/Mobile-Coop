@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b fix pass round 2 done (smear fixed, blinding glare, no shafts); waiting for Michael's look check and the item 15 decision | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b fix pass round 3 done (goggles flip, real-tube halo and auto-gain); waiting for Michael's look check and the item 15 decision | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -708,6 +708,33 @@ See the Step 1 and Step 5 reports.
   - [ ] Looking at a lamp in night vision is blinding: a strip glares along its length and the rest of the view washes
         out.
   - [ ] Decide item 15 (strip lamps as line sources, Step 4c) and the night vision proposals (item 16).
+
+#### Step 4b fix pass, round 3 - 2026-10-09
+- Michael (desktop and iPhone): night vision fading in and out is weird - a quick goggles-on / off overlay, no fade;
+  the glare is too much (half the screen); research what it really looks like close up and at a distance.
+- Research (`docs/research/night-vision-and-lamps.md`, with sources): a tube's halo is made inside the tube, a fixed
+  angle (about 1.8 deg across on Gen III) at any distance and anywhere on the screen; a near-uniform disc round the
+  light's image. Close up the lamp's own image is large, ringed by the same halo. What blinds is the automatic
+  brightness control: the gain drops after a short delay and the dark scene sinks.
+- Done:
+  - **No fade:** `VisionState` flips the goggles over 0.2 s (`VISION.flip`, replacing `nightFade`) and switches at the
+    middle; `CinematicPost` draws the housing sweeping down (on) or up (off) across the view, covering it at the switch.
+  - **Glare:** a fixed-angle halo (1.5 deg radius) round the fitting's glowing length (`glareRadius` from the
+    projection, not the lamp's size), a near-uniform disc with a soft edge and faint scatter; brightness full within
+    10 m, inverse square beyond. The blinding is the auto-gain, eased (0.25 s down, 0.6 s back), driven by near lamps.
+  - Tests: `tests/vision.test.ts` (the flip: switches at the middle, sweeps down on and up off),
+    `tests/nightVision.test.ts` (the halo's fixed angle, brightness by distance, the auto-gain's easing).
+- Tests (this PC, `E2E_GPU=1`): vitest 64 files, 635 tests; lint clean. Pass: `e2e-stealth-ai`, `e2e-phonelamps`,
+  `e2e-desktop`, `smoke`, `e2e-darkness` (night vision 38.1% / 33.2% at 0.12, 98.3% / 98.2% at 0.70; moving check).
+  `e2e-darkness` failed once of four runs (its reason was filtered out of the log); the next three passed. Not rerun:
+  perf (no sim or per-frame CPU change since round 2; the glare's per-frame work is unchanged).
+- Contact sheets: `docs/prompts/phase-1-sheets/step4b-fix-*.jpg` (round 3; `near` = 2.2 m from a strip lamp).
+- Next: **STOP** for Michael's look check:
+  - [ ] Pressing the goggles button: a quick flip across the view, no fade, on desktop and phone.
+  - [ ] Lamps in night vision: a halo round the whole fitting, the same size near and far; up close the room goes dark
+        round the lamp (the auto-gain).
+  - [ ] Desktop: no smear moving in night vision; no light shafts on the phone.
+  - [ ] Decide item 15 (strip lamps as line sources, Step 4c) and item 16 (night vision proposals).
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)

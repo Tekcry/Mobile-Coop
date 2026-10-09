@@ -14,13 +14,25 @@ describe('vision modes', () => {
     expect(v.cycle()).toBe('sonar');
     expect(v.cycle()).toBe('off');
   });
-  it('night vision fades in and out', () => {
+  it('night vision does not fade: the goggles flip and it switches at the middle (Step 4b fix round 3)', () => {
     const v = new VisionState();
+    expect(Number.isNaN(v.flipCentre)).toBe(true);
     v.cycle();
-    run(v, VISION.nightFade + 0.05);
-    expect(v.night).toBeCloseTo(1, 5);
+    run(v, VISION.flip * 0.4);
+    expect(v.night).toBe(0);
+    // flipping down: the housing comes from above the screen
+    expect(v.flipCentre).toBeGreaterThan(0.5);
+    run(v, VISION.flip * 0.2);
+    expect(v.night).toBe(1);
+    run(v, VISION.flip);
+    expect(v.night).toBe(1);
+    expect(Number.isNaN(v.flipCentre)).toBe(true);
     v.set('off');
-    run(v, VISION.nightFade + 0.05);
+    run(v, VISION.flip * 0.4);
+    expect(v.night).toBe(1);
+    // flipping up: from below
+    expect(v.flipCentre).toBeLessThan(0.5);
+    run(v, VISION.flip);
     expect(v.night).toBe(0);
   });
   it('sonar pulses at once and every period; marks show then fade', () => {

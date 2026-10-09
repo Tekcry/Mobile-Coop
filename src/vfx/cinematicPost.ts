@@ -23,6 +23,7 @@ uniform float darkFloor;
 uniform float bright;
 uniform vec4 glare[${GLARE.max * 2}];
 uniform float veil;
+uniform float flip;
 ${NV_GLSL}
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
@@ -53,7 +54,8 @@ void main(void) {
         vec2 ba = (a.zw - a.xy) * vec2(aspect, 1.0);
         vec2 o = pa - ba * clamp(dot(pa, ba) / max(dot(ba, ba), 0.0001), 0.0, 1.0);
         float r2 = dot(o, o) / (s.x * s.x);
-        g += s.y * (${GLARE.core.toFixed(2)} * exp(-r2 * 8.0) + ${GLARE.halo.toFixed(2)} * exp(-r2 * 1.0) + ${GLARE.tail.toFixed(2)} / (1.0 + r2 * 1.5));
+        // the halo: a near-uniform disc of a fixed angle round the light's image, soft at its edge, a faint scatter beyond
+        g += s.y * (${GLARE.disc.toFixed(2)} * (1.0 - smoothstep(0.3, 1.0, r2)) + ${GLARE.scatter.toFixed(2)} / (1.0 + r2 * 0.6));
       }
     }
     float drive = nvDrive(l, veil) + g;
@@ -72,6 +74,12 @@ void main(void) {
     c.rgb = mix(c.rgb, f, feed);
   }
   c.rgb = mix(c.rgb, vec3(1.0), flash);
+  if (flip > -5.0) {
+    // (Step 4b fix round 3) the goggles flipping down / up: their housing passes the eyes as a dark band with a curved,
+    // soft edge (\`VisionState.flipCentre\`); night vision switches while it covers the view
+    float fx = vUV.x - 0.5;
+    c.rgb *= smoothstep(0.58, 0.7, abs(vUV.y + fx * fx * 0.35 - flip));
+  }
   float v = smoothstep(0.95, 0.3, length(d));
   c.rgb *= mix(1.0, v, vignette);
   c.rgb += (n - 0.5) * grain;
@@ -93,6 +101,8 @@ export class CinematicPost {
   /** Night vision's lamp glare (`NightGlare`: per source the ends u, v, u, v, then radius and strength) and its sum. */
   private glare: Float32Array = new Float32Array(GLARE.max * 8);
   private veil = 0;
+  /** The goggles' flip: the housing's centre in screen height (-9 = none). */
+  private flip = -9;
   /** Flashbang white-out 0..1 (decays in `update`). */
   private flash = 0;
   /** Remote camera feed look (sticky cam, drone) 0..1. */
@@ -166,6 +176,14 @@ export class CinematicPost {
     this.veil = veil;
   }
 
+  /** The goggles flipping (Step 4b fix round 3): the housing's centre in screen height, NaN when no flip runs. */
+  setFlip(centre: number): void {
+    const f = Number.isNaN(centre) ? -9 : centre;
+    if (f === this.flip) return;
+    this.flip = f;
+    this.sync();
+  }
+
   /** White-out (a flashbang in view); fades over ~2 s. */
   whiteOut(k: number): void {
     this.flash = Math.max(this.flash, Math.min(1, k));
@@ -186,9 +204,9 @@ export class CinematicPost {
   }
 
   private sync(force = false): void {
-    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || force;
+    const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || this.flip > -5 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright', 'glare', 'veil'], null, 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright', 'glare', 'veil', 'flip'], null, 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -205,6 +223,7 @@ export class CinematicPost {
         e.setFloat('bright', this.bright);
         e.setFloatArray4('glare', this.glare);
         e.setFloat('veil', this.veil);
+        e.setFloat('flip', this.flip);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the
