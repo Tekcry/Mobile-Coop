@@ -70,17 +70,19 @@ function verb(dry: Stereo, wet: number, o: ReverbOpts): Stereo {
  * tritone), an accelerating tick and timpani roll into every fourth bar line, a relentless distorted pulse, a two-note
  * tritone alarm in metal, and electrical crackle. Rhythm and cluster, no tune.
  */
-function tension(g: Grid, bank: Bank, rng: Rng, o: { pedal: boolean; bars: number; riserBars: number[] }): Stereo {
+function tension(g: Grid, bank: Bank, rng: Rng, o: { pedal: boolean; bars: number; riserBars: number[]; step?: number; only?: boolean }): Stereo {
   const out = stereo(secs(g.loop));
   const L = (): Stereo => stereo(secs(g.loop));
   // cluster: D, Eb and Ab together on the bowed-tremolo cello, an octave up for the shriek
   const cl = L();
+  const full = !o.only;
   const tr = bank('celloTremD2');
   for (const [semis, gain] of [[-12, 1], [-11, 0.8], [-6, 0.7], [0, 0.5], [1, 0.4], [6, 0.35]] as [number, number][]) {
+    if (!full) break;
     granular(cl, tr, { t: 0, dur: g.loop, from: 0.8, to: 5.5, grain: 0.3, density: 16, semis, cents: 14, jitter: 0.25, spread: 1, gain }, rng);
   }
   filterStereo(cl, 'highpass', 90, 0.7);
-  addInto(out, filterStereo(cl, 'lowpass', 3600, 0.7), dbToGain(-5));
+  if (full) addInto(out, filterStereo(cl, 'lowpass', 3600, 0.7), dbToGain(-5));
   // risers: reversed bowed cymbal, then ticks and a timpani roll that accelerate into the bar line
   const rs = L();
   const bow = bank('cymbBow3');
@@ -103,7 +105,8 @@ function tension(g: Grid, bank: Bank, rng: Rng, o: { pedal: boolean; bars: numbe
   if (o.pedal) {
     const pd = L();
     const pz = bank('bassPizzD2');
-    for (let bar = 0; bar < o.bars; bar++) for (let e = 0; e < 8; e++) place(pd, pz, { t: g.at(bar, e * 2), pan: 0, semis: semisTo(pz, bar % 4 === 3 && e > 5 ? N.Eb2 : N.D2), drive: 8, lp: 2200, hp: 50, gain: e % 2 ? 0.45 : 0.8, dur: g.beat * 0.35 });
+    const st = o.step ?? 2;
+    for (let bar = 0; bar < o.bars; bar++) for (let e = 0; e < 16 / st; e++) place(pd, pz, { t: g.at(bar, e * st), pan: 0, semis: semisTo(pz, bar % 4 === 3 && e * st > 11 ? N.Eb2 : N.D2), drive: 8, lp: 2200, hp: 50, gain: e % (4 / st) ? 0.4 : 0.85, dur: g.beat * 0.18 * st });
     addInto(out, pd, dbToGain(-5));
   }
   // alarm: two metal notes a tritone apart, on the off-beats, the second a little quieter
@@ -113,12 +116,12 @@ function tension(g: Grid, bank: Bank, rng: Rng, o: { pedal: boolean; bars: numbe
     place(al, m, { t: g.at(bar, 4), pan: -0.3, semis: -5, hp: 500, lp: 6000, drive: 2, gain: 0.8, dur: 0.35 });
     place(al, m, { t: g.at(bar, 12), pan: 0.3, semis: 1, hp: 500, lp: 6000, drive: 2, gain: 0.65, dur: 0.35 });
   }
-  addInto(out, verb(al, 0.4, { rt60: 1.4, damp: 5000, size: 1, hp: 400 }), dbToGain(-12));
+  if (full) addInto(out, verb(al, 0.4, { rt60: 1.4, damp: 5000, size: 1, hp: 400 }), dbToGain(-12));
   // crackle
   const zp = L();
   const zaps = ['zap1', 'zap5', 'zap9', 'zap12'].map(bank);
   for (let bar = 0; bar < o.bars; bar++) for (let i = 0; i < 16; i++) if (i % 2 && rng.chance(0.13)) place(zp, rng.pick(zaps), { t: g.at(bar, i), pan: rng.range(-0.9, 0.9), semis: rng.range(-7, 0), hp: 1500, gain: rng.range(0.4, 0.8), dur: 0.25 });
-  addInto(out, zp, dbToGain(-14));
+  if (full) addInto(out, zp, dbToGain(-14));
   return out;
 }
 
@@ -196,13 +199,15 @@ function sketchA(bank: Bank, seed: number): Record<StemId, Stereo> {
   for (let bar = 0; bar < g.bars; bar++) {
     place(pulse, kick, { t: g.at(bar, 0) + rng.range(-0.004, 0.004), pan: 0, lp: 2400, gain: 1 });
     if (bar % 4 === 3) place(pulse, kick, { t: g.at(bar, 10), pan: 0, lp: 2000, gain: 0.45 });
+    for (const i of [4, 12]) place(pulse, kick, { t: g.at(bar, i), pan: 0, lp: 1800, gain: 0.5 });
     place(pulse, rim, { t: g.at(bar, 8) + rng.range(0, 0.012), pan: 0.15, lp: 5000, gain: 0.55 });
-    for (const i of [3, 7, 11, 15]) if (rng.chance(0.55)) place(pulse, rng.pick(shaker), { t: g.at(bar, i) + rng.range(-0.01, 0.01), pan: rng.range(-0.5, 0.2), hp: 2500, gain: 0.3 * rng.jitter(0.4) });
+    for (let i = 1; i < 16; i += 2) if (rng.chance(0.85)) place(pulse, rng.pick(shaker), { t: g.at(bar, i) + rng.range(-0.01, 0.01), pan: rng.range(-0.5, 0.2), hp: 2500, gain: 0.36 * rng.jitter(0.4) });
   }
   lay(caution, verb(pulse, 0.5, { rt60: 3.5, damp: 3500, size: 2, predelay: 0.03, hp: 200 }), -3);
   const trem = L();
   granular(trem, bank('celloTremD2'), { t: g.b(8, 0), dur: g.bar * 8, from: 0.8, to: 5.5, grain: 0.35, density: 14, semis: -12, jitter: 0.2, spread: 0.8, edge: g.bar * 3 }, rng);
-  lay(caution, filterStereo(trem, 'lowpass', 1400, 0.7), -9);
+  lay(caution, filterStereo(trem, 'lowpass', 1400, 0.7), -7);
+  lay(caution, tension(g, bank, rng.fork('cautionA'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16], only: true }), -6);
 
   // alert: a brushed, chopped break, sub under the kicks, distorted bowed bass, metal in the gaps
   const alert = L();
@@ -246,7 +251,7 @@ function sketchA(bank: Bank, seed: number): Record<StemId, Stereo> {
   const kitMetal = ['metal1', 'metal2', 'metal4', 'metal7', 'metal11', 'brake1'].map(bank);
   for (let bar = 0; bar < g.bars; bar++) for (const i of [5, 13]) if (rng.chance(0.45)) place(metal, rng.pick(kitMetal), { t: g.at(bar, i) + rng.range(0, 0.02), pan: rng.range(-0.8, 0.8), semis: rng.range(-8, 0), hp: 400, lp: 6500, gain: rng.range(0.6, 1), dur: 0.5 });
   lay(alert, verb(metal, 0.5, { rt60: 2, damp: 4000, size: 1.4, hp: 300 }), -11);
-  lay(alert, tension(g, bank, rng.fork('tensionA'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16] }), -4);
+  lay(alert, tension(g, bank, rng.fork('tensionA'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16], step: 1 }), -3);
 
   return { calm: finish(calm, 1.3, 9500, 2), caution: finish(caution, 1.4, 9000, 2), alert: finish(alert, 2.4, 10500, 2) };
 }

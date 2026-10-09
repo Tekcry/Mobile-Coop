@@ -333,3 +333,8 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   distorted pizzicato root on every eighth (A and B), a two-note tritone metal alarm on the off-beats, and electrical
   crackle from CC0 zap samples. Tape drive on the alert stems raised (A 2.4, B 2.6, C 3.0). Calm and caution are unchanged.
 - Next: Michael listens again. STOP.
+
+## S1.2 - Drift urgency (Michael: Drift is good, needs more urgency in caution and alert)
+- A caution: kick on every beat (soft), shaker on nearly every sixteenth off-beat, the riser rolls and an eighth-note
+  distorted pizzicato pulse underneath (`tension(..., only: true)`), a louder tremolo swell.
+- A alert: the pulse doubles to sixteenths. B and C unchanged.
