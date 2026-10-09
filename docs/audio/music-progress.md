@@ -245,3 +245,12 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   RMS -18.4 dBFS, 16 voices).
 - Next: Michael listens to B noir again. On approval, V1 closes and V2 (Sonnet) builds the engine around Dead Drop and the
   noir mood. STOP.
+
+### Side task: adaptive score reference (2026-10-09)
+- Michael asked for a standalone architecture and code framework (140 BPM, stealth / alert / combat, vertical mixing,
+  horizontal re-sequencing, `updateAlertLevel`). Written as `docs/audio/reference/adaptive-score-reference.ts` (Web Audio,
+  TypeScript). **Not wired into the game**; the agreed direction (five phases, 84 / 168 BPM, subtle noir) is unchanged.
+- Checked: strict typecheck and lint clean; run live in headless Chromium: all stems exactly on the integer grid (329,136
+  frames per 4-bar loop at 48 kHz), transitions on beat / bar / phrase boundaries as designed, scheduled 120-570 ms ahead;
+  under a main-thread stall (game booting on the same page) one boundary was missed and re-planned to the next bar instead
+  of starting out of phase.
