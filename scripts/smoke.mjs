@@ -1,7 +1,7 @@
 // Headless mobile-emulated smoke test against a built `dist/` served by `vite preview`.
 // Usage: node scripts/smoke.mjs [url] [--shot=out.png] [--wait=ms] [--eval=js]
 import { chromium, devices } from 'playwright-core';
-import { launchOptions } from './e2e-lib.mjs';
+import { launchOptions, fakePointerLock } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -13,6 +13,7 @@ const evalJs = opt('eval', '');
 const browser = await chromium.launch(launchOptions());
 const pixel = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
 const ctx = await browser.newContext({ ...pixel });
+await ctx.addInitScript(fakePointerLock);
 const page = await ctx.newPage();
 const errors = [];
 page.on('console', (m) => {

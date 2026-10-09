@@ -136,7 +136,11 @@ try {
 }
 // longest first: the pool ends together instead of waiting on one slow suite started last
 const queue = jobs > 1 ? [...all].sort((a, b) => (known[b] ?? 0) - (known[a] ?? 0)) : [...all];
-const env = legacyRun ? { ...process.env, LEGACY: '1' } : process.env;
+if (process.env.E2E_HEADED === '1') {
+  console.error('E2E ERROR: E2E_HEADED=1 is set. The runner never opens headed browsers (they grab the real cursor). Unset it; debug headed with a single suite run directly.');
+  process.exit(1);
+}
+const env = { ...process.env, E2E_RUNNER: '1', ...(legacyRun ? { LEGACY: '1' } : {}) };
 const results = [];
 const t00 = Date.now();
 

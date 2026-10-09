@@ -24,14 +24,19 @@ export function browserArgs() {
  * parked off-screen and fakes it too. */
 export const HEADED = process.env.E2E_HEADED === '1';
 export function launchOptions() {
+  // the runner sets E2E_RUNNER=1: a headed window there steals focus and the cursor, so it is an error, never a fallback
+  if (HEADED && process.env.E2E_RUNNER === '1') {
+    console.error('E2E ERROR: a suite tried to launch a HEADED browser (E2E_HEADED=1) under the runner. Headed is for single-suite debugging only: unset E2E_HEADED.');
+    process.exit(1);
+  }
   const args = browserArgs();
   const exe = browserExe();
   if (HEADED) return { headless: false, ...(exe ? { executablePath: exe } : {}), args: [...args, '--window-position=-32000,-32000', '--window-size=1280,720', '--no-startup-window-focus'] };
   return { headless: true, ...(exe ? { executablePath: exe } : GPU ? { channel: 'chromium' } : {}), args };
 }
 
-/** Headed and GPU runs: a page-side pointer lock that never touches the real cursor. */
-function fakePointerLock() {
+/** Every run, every page (the cursor grab came back when only headed / GPU runs had it): a page-side pointer lock that never touches the real cursor. */
+export function fakePointerLock() {
   let locked = null;
   Object.defineProperty(Document.prototype, 'pointerLockElement', { get: () => locked, configurable: true });
   Element.prototype.requestPointerLock = function () {
@@ -78,6 +83,8 @@ export async function launch({ url = 'http://localhost:4173/', params = '', touc
   const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
   // (`touchViewport`: the phone held another way, e.g. upright)
   const ctx = await browser.newContext({ ...(touch ? { ...dev, ...(touchViewport ? { viewport: touchViewport, screen: touchViewport } : {}) } : { viewport }), acceptDownloads: true });
+  // context level: covers every page of the context, including ones a suite opens itself (ctx.newPage())
+  await ctx.addInitScript(fakePointerLock);
   const { page, errors } = await openPage(ctx, url, params);
   return { browser, ctx, page, errors };
 }
@@ -99,7 +106,7 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     else if (process.env.VERBOSE) console.log(`[${m.type()}] ${m.text()}`);
   });
   page.on("pageerror", (e) => errors.push(`[pageerror] ${e.message}${process.env.STACK ? "\n" + e.stack : ""}`));
-  if (HEADED || GPU) await page.addInitScript(fakePointerLock);
+  await page.addInitScript(fakePointerLock);
   // Windows Chromium offers the OS share sheet (navigator.canShare true): the exports must take the download path in every run, never open a sheet on the PC
   await page.addInitScript(() => {
     Navigator.prototype.canShare = () => false;
