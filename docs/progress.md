@@ -34,6 +34,14 @@ every phase step.
 - The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
 - Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) is behind `?legacy=1` (3.5.0, `core/legacy.ts`). The title is Night Shift. `CLAUDE.md` is a lean core (9.6 KB) with the detail in `docs/systems/`.
 
+### Noted fixes (not scheduled; Michael: "don't do it yet")
+- **Ghost copy of the operator (Epic).** A second copy of the operator's voxel body - its level-of-detail mesh
+  `player-vox-lod` (`src/voxel/voxelBody.ts`, `build(opts.lodSize, '-lod')` + `addLODLevel`) - can draw beside the real
+  one. Seen in `docs/prompts/phase-1-sheets/step4b-epic-yard.jpg` (left of the operator): dark in Step 4, pale in Step
+  4b. Suspects: both the full and the LOD meshes set `alwaysSelectAsActiveMesh` (the LOD mesh may draw on its own as
+  well as through the LOD switch), its pose lagging, and the hit-flash tint (`VoxelBody.setFlash`) left on it. Found
+  2026-10-09 (Phase 1 Step 4b); pre-existing.
+
 ## Phase 0 log
 
 #### Step 1 report (integrate) - 2026-10-08
