@@ -157,9 +157,10 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   main 2.6 ms; `--phone` 0.8 / 2.5 ms, 30 draws; `--desktop` (Epic) sim p95 2.2-2.3 ms, animation 0.055-0.067 ms per character, main 4.1-4.4 ms,
   ~205 draws, 0.6 M triangles, frame p99 ~30 ms (spikes). Epic misses the design targets (sim 2 ms, animation 0.04 ms, main 3 ms): the
   profile is a regression check at today's numbers.
-- Known GPU-only finding: the D3D11 driver allows 16 texture units; `partSkinMat` (the voxel characters' skin material) asks for 61 at
-  Epic and its effects stay not ready (`e2e-desktop` "every material shader within 16 textures" fails; `perf.mjs --desktop` prints a
-  "GPU-only note" for the 14 shader compiles Babylon logs).
+- GPU-only: D3D11 compiles the Epic voxel characters' `partSkinMat` shader slowly (several seconds after spawn). An uncompiled
+  effect's `_samplerList` holds every candidate (61); it is trimmed to the real list once compiled (11 for `partSkinMat`, 15 for
+  the level `voxMat`, limit 16; the phone look peaks at 5, it draws no skin material). `e2e-desktop` therefore waits for the
+  effects of every drawn mesh before counting ("every material shader within 16 textures"). Not a texture-unit overflow.
 
 ## Debug overlay
 - F3 / 3-finger tap. Buttons: Skeleton (bones, controller capsules, hit volumes and foot contacts as lines:
