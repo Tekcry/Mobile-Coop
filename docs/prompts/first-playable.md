@@ -104,6 +104,7 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 **Goal.** The map is a mission: lit pools and dark, 9 guards on patrols, 4 spawns, one objective, one extraction.
 **Read.** `exchange-design.md` Section 11 (guard sheets) and Section 10 per-space lamp notes; `exchange-map.md` "Mission and modes" and "Co-op routes" (ignore lips); `src/game/missions.ts` and the `Insertion` / `MissionDef` shapes; `src/game/modes/infiltrationMode.ts` (objective kinds `plant`, extraction); `src/world/lights.ts` (lamp API as used in `warehouse.ts`); `src/ai/patrol.ts`, `src/world/rooms.ts` (`SquadSlot`).
 **Files.** `src/world/maps/exchange.ts`; `src/game/missions.ts` (new mission `exchange-playtest`); `tests/exchangeMap.test.ts`; `scripts/e2e-fp-map.mjs`.
+**Note.** An Exchange infiltration mission entry already exists from the S1a fix; extend it, do not create a second one.
 **Do.**
 - Lights: warm sodium lamps 0.9-1.0 intensity, radius 6-8 m, point-like (no long strip fittings). Dark `ambientZone` 0.08-0.12 per storey. At least two lamp circuits (switch groups) per lit space, one wall `switches` entry by a door per circuit. Every guard sits near a lit pool with a dark flank so a player has a shadow route.
 - Guards: the 9 from the design (G1-G9), `squads: 'rooms'`, each a loop of 2-4 waypoints; set each stop's facing as the design says. G4 is an officer, G7 a sniper, G6 a heavy; if an archetype needs code you lack, use `grunt`. Do not add a tenth.

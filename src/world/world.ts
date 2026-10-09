@@ -208,7 +208,10 @@ export class World {
     this.lightField = new LightField(lightBake, level.lights, this.doors.list);
   }
 
-  static async create(engine: Engine, map: MapDef, opts: WorldOptions): Promise<World> {
+  static async create(engine: Engine, mapIn: MapDef, opts: WorldOptions): Promise<World> {
+    // `?fullbright=1` (hand checks): the same map under a day theme, with its own bake and voxel cache keys. Nothing changes without it.
+    const map: MapDef = flags.fullbright ? { ...mapIn, theme: { ...mapIn.theme, lightLevel: 0.95, ambient: 0.9, sunIntensity: 0.5 } } : mapIn;
+    const bakeId = flags.fullbright ? `${map.id}:fullbright` : map.id;
     const scene = new Scene(engine);
     scene.skipPointerMovePicking = true;
     scene.autoClear = true;
@@ -224,7 +227,7 @@ export class World {
     let fine: VoxelWorld | null = null;
     if (vo && level.voxels) {
       const lv = level.voxels;
-      const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
+      const key = (l: typeof lv): string => `voxel:${map.id}:${opts.seed}:${l.size}:${vo.levels}:v${VOXEL_VERSION}${flags.fullbright ? ":fb" : ""}:${contentHash(packShapes(l.shapes), l.palette.map((p) => `${p.color}${p.kind}${p.emissive}`).join())}`;
       // GI (Epic): the lamps' bounce light per circuit, baked with the sky
       const gi = vo.gi && atlas && level.lights.lights.length ? giLights(level.lights) : null;
       const giKey = gi ? `:gi${contentHash(gi.lights, '')}` : '';
@@ -235,7 +238,7 @@ export class World {
     // 3.6 the canonical light bake: the same on every device, preset and tier (the shapes come from the level's own
     // pieces, never from what a renderer draws); gameplay's light field and every renderer read it
     level.lights.ambient = map.theme.lightLevel ?? 0.75;
-    const bake = await bakeLevelLight({ mapId: map.id, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
+    const bake = await bakeLevelLight({ mapId: bakeId, seed: opts.seed, shapes: level.light.shapes, shapesHash: level.light.hash, lo: level.light.lo, hi: level.light.hi, reg: level.lights, sunDir: map.theme.sunDir, moonLight: moonLight(map.theme) });
     const w = new World(scene, map, level, layout, atlas, voxels, fine, bake);
     // 3.2 baked lamps: drawn from the bake on the voxel path (not the cheap test path; `?baked=0` off); 3.6: and on
     // the phone light look (standard materials, the volume)

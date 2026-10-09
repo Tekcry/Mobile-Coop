@@ -35,6 +35,8 @@ export interface Flags {
   gear: number | null;
   /** 3.5 (`?legacy=1`, URL only, never saved): the parked Blacklist-era modes and the economy are shown (`core/legacy.ts`). */
   legacy: boolean;
+  /** Dev / hand checks (`?fullbright=1`): the map is lit like day (theme light level, hemisphere, sun, gameplay light). Nothing changes without it. */
+  fullbright: boolean;
 }
 
 function readParams(): URLSearchParams {
@@ -68,4 +70,5 @@ export const flags: Flags = {
   renderer: params.get('renderer')?.slice(0, 96) ?? null,
   gear: /^[1-6]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
+  fullbright: params.get('fullbright') === '1',
 };

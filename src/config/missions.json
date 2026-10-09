@@ -304,7 +304,7 @@
           [
             -12.5,
             0,
-            -18.0
+            -18
           ],
           [
             13.5,
@@ -468,7 +468,7 @@
         "id": "roof",
         "name": "Rooftop (helicopter)",
         "x": -6,
-        "y": 7.0,
+        "y": 7,
         "z": 6,
         "yaw": 3.14
       }
@@ -549,7 +549,7 @@
         "id": "tag",
         "label": "Tag the shipment (cargo deck)",
         "x": 1,
-        "y": 3.0,
+        "y": 3,
         "z": 25.9,
         "yaw": 0,
         "time": 3
@@ -656,5 +656,34 @@
       "noAlarms": "bonus",
       "noKills": "bonus"
     }
+  },
+  {
+    "id": "exchange-greybox",
+    "name": "Kestrel Exchange (greybox)",
+    "map": "exchange",
+    "brief": "First Playable greybox: come up from the cable chamber and reach the light well.",
+    "insertions": [
+      {
+        "id": "manhole",
+        "name": "Mill Street manhole",
+        "x": -31,
+        "y": -3.3,
+        "z": 8.5,
+        "yaw": 1.5708
+      }
+    ],
+    "objectives": [
+      {
+        "type": "extract",
+        "id": "well",
+        "label": "Reach the light well",
+        "x": 12,
+        "y": 0,
+        "z": 3,
+        "radius": 3
+      }
+    ],
+    "rules": {},
+    "squads": "spawns"
   }
 ]

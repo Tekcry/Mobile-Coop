@@ -31,6 +31,40 @@ try {
   failed = true;
 }
 await browser.close();
+
+// Infiltration (the First Playable's mode): the mission loads the Exchange, not another map.
+{
+  const run = await launch({ url, params: 'autostart=exchange&mode=infiltration' });
+  try {
+    await run.page.waitForFunction(() => window.__app.current?.world, null, { timeout: 90000 });
+    await frames(run.page, 30);
+    const d0 = await run.page.evaluate(() => ({ map: window.__app.current.world.map.id, mode: window.__app.current.opts.mode }));
+    assert(d0.map === 'exchange' && d0.mode === 'infiltration', `infiltration autostart loads the Exchange (${d0.map} / ${d0.mode})`);
+  } catch (e) {
+    console.error(e);
+    failed = true;
+  }
+  await run.browser.close();
+}
+
+// fullbright=1 lights the map; without the flag nothing changes
+for (const [params, bright] of [['', false], ['&fullbright=1', true]]) {
+  const run = await launch({ url, params: 'autostart=exchange&mode=infiltration' + params });
+  try {
+    await run.page.waitForFunction(() => window.__app.current?.world, null, { timeout: 90000 });
+    await frames(run.page, 20);
+    const lv = await run.page.evaluate(() => {
+      const g = window.__app.current;
+      return { ambient: g.world.level.lights.ambient, light: g.lightLevel, theme: g.world.map.theme.lightLevel };
+    });
+    assert(bright ? lv.ambient > 0.9 && lv.theme > 0.9 : lv.ambient === 0.1 && lv.theme === 0.1, `fullbright ${bright ? 'lights' : 'is off: leaves'} the map (${JSON.stringify(lv)})`);
+  } catch (e) {
+    console.error(e);
+    failed = true;
+  }
+  await run.browser.close();
+}
+
 if (failed) {
   console.error('FAILED');
   process.exit(1);
