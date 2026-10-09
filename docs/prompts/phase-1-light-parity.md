@@ -206,6 +206,8 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
 
 ### Step 4 - Phones render the field (STOP for Michael's iPhone check)
 
+Then Step 4b (`phase-1-step-4b-darkness.md`) before Step 5.
+
 **Read:**
 
 - `src/core/quality.ts` (`PHONE_FEATURES`, `QualityLevel.lite`, `PhoneCuts`)
@@ -259,6 +261,7 @@ Make light and shadow tell one truth on every device (bible P1, Section 5.1, rul
    - Its band (dark / mid / lit by the `LIGHT` thresholds) must equal the CPU field's band.
    - Points within 0.04 of a threshold are skipped.
    - 100% agreement is the target. Report any failures with screenshots.
+   - The bands use the display brightness targets of bible L5 (Step 4b).
 3. **State changes.** Switch a group off, shoot a lamp, EMP an area, close a door. After each remix, checks 1 and 2 pass again on the affected points.
 4. **The meter guarantee (L6).** With the player's meter reading dark, no guard's sight rate exceeds the dark-rate bound at any distance or stance. `perception.ts` has no named bound: it is `sightRate` with `light = LIGHT.shadow` and the same distance, angle, stance, motion and exposure (the light term is `lightFactor`; the close-range rule ignores light by design).
 

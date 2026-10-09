@@ -1,6 +1,6 @@
 # Night Shift - Design Bible
 
-Version 1.9 - 2026-10-09 (1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.10 - 2026-10-09 (1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -263,14 +263,30 @@ The Phase column refers to Section 10.
   - The phone version must pass the Phone check 3-minute hold at 60 fps.
 - **L4 - Real-time shadows only for what the bake cannot know:** flashlights, moving lights and characters (capsule / contact shadows near the camera). Static lamps never need a shadow map.
 - **L5 - Parity test.** A test samples a grid of points per map and compares the gameplay level against the rendered band (dark / mid / lit) on the phone light look and on Epic. Any mismatch fails.
+  - **Rendered bands have display brightness targets** (2026-10-09). Measured on a matte 50% grey surface facing the light, after tone mapping and grade:
+
+    | Gameplay level | Band | Display brightness |
+    | --- | --- | --- |
+    | 0.12 | dark | 4% or less |
+    | 0.27 | dark | 9% or less |
+    | 0.40 | mid | 12-35% |
+    | 0.70 | lit | 45% or more |
+
+  - Desktop and phone share the targets.
 - **L6 - The meter.**
   - Continuous 0-1, updated at 10 Hz or more, with the existing thresholds (`LIGHT.shadow` 0.28, `LIGHT.lit` 0.6).
   - The HUD shows a continuous bar with the threshold marks.
   - It samples chest and head; crouching lowers the samples.
   - If the meter reads dark, no guard can detect the player faster than the dark rate allows.
-- **L7 - Readable darkness.**
-  - Dark areas are never pure black on a phone at default brightness. Walls, exits and the player's own silhouette stay readable without night vision.
-  - Night vision shows detail and guards; it is never required just to find the way.
+- **L7 - Darkness is dark (Michael, 2026-10-09; replaces "readable darkness").** As in Chaos Theory: if a guard cannot see you, you can hardly see yourself.
+  - **The dark band renders near-black** (L5 targets). A darkness curve applied in the lighting, before tone mapping, makes it so on every device.
+  - **Finding your way in the dark:**
+    - **Night vision:** a gain inside the lighting that reveals real detail in the dark and blows out in light, so the player toggles it.
+    - **The goggle glow:** the operator's emissive lenses, visual only, never seen by guards (5.14).
+    - the light meter and the sound meter
+    - faint light from moon, windows and lamp pools where it really reaches
+  - **A phone black floor of 0.008** only stops OLED smear; it is not enough to see by.
+  - **A brightness calibration screen** ("barely visible" symbol) sets a small, clamped exposure offset per device. Render only; locked in the Confrontation.
 - **L8 - Controllable light.** Every lit space offers at least two ways to change the light:
   - switch
   - breakable lamp
@@ -425,7 +441,7 @@ The Phase column refers to Section 10.
 
 ### 5.5 Gadgets and vision
 
-- **Vision modes** cycle: off, night, thermal, electro.
+- **Vision modes** cycle: off, night, thermal, electro. Night vision is a gain in the lighting (L7), so it reveals real detail and blows out near lamps.
   - Thermal and electro are post passes on `CinematicPost` (or the phone grade pass).
   - The phone cost must pass the Phone check.
   - Vision modes never change detection.
@@ -962,6 +978,7 @@ Each batch:
   - Each is identifiable at 20 m in the dark by silhouette and goggle colour.
   - Original goggle design: not the series' three-lens look.
 - **Fairness:** identical skeleton, capsule, speeds, hit volumes and light sample heights. Visible build differences stay within a few percent.
+- **The goggle glow arrives early** (Phase 1 Step 4b, green for every operator until Phase 5): emissive lenses, visual only, never a light, never seen by guards. It is how a player finds their operator in darkness (L7).
 - **Choosing:** solo, the player picks one. In co-op each player picks a different one; the host resolves duplicates.
 - **Cosmetics:** they replace appearance editing in the campaign. Cosmetics stay parked.
 - **The four operators** (story Section 4):

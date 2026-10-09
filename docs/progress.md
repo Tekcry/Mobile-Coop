@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | in progress (Step 4 done; waiting for Michael's iPhone check) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b (darkness) next | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -510,6 +510,16 @@ See the Step 1 and Step 5 reports.
 - Next: **STOP.** Michael runs Settings > Display > Phone check on the `/ct/` preview (iPhone 17 Pro Max) and sends
   the note. Gate: the 3-minute hold averages 58 fps or more, no minute under 55. Also: the Warehouse's cold-load time
   (the bake), and the flashlight-shadow run's numbers.
+
+#### After Step 4 (Michael, 2026-10-09)
+- Gate: Step 4's iPhone gate passed (hold 59 fps).
+- Feedback: shadows are not dark enough; night vision is not needed; it is not believable that guards cannot see you
+  in the dark. Bible 1.10 (darkness is dark: L5 display targets, L7 rewritten, night vision as a lighting gain, goggle
+  glow) and the Step 4b amendment (`docs/prompts/phase-1-step-4b-darkness.md`) answer it; Step 4b runs before Step 5.
+- Open items:
+  - Flashlight shadows on the phone: off. Opus recommended keeping them off (the 1% low 86 -> 53 fps, more GPU
+    spikes); Michael confirmed off (2026-10-09).
+  - The Warehouse cold-load time (the bake) is not yet reported; carried.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
