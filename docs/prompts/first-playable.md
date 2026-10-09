@@ -256,7 +256,7 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 1. `npm run build`, then `npm run check` and `npm run e2e` with a 600 s timeout per command, in the background; read the logs only after the task ends. Fix real failures in new code; KNOWN FLAKY suites may fail without blocking. If a failure is in code outside the first-playable files, report it and stop on that item (do not fix unrelated systems).
 2. Version labels: nothing. `CHANGELOG.md` "3.6.x first playable" one entry summarising S1-S8 (S3b if kept); `TESTING.md` "First Playable manual check" (Michael's list below, 10 lines at most).
 3. Make sure `/ct/` builds (Michael tests the preview at `/ct/`; deploy is Michael's) and that `README` or `TESTING.md` has the join instructions (Section 4).
-4. Report in the Appendix B format, then STOP.
+4. Report in the 6-line format from Section 0 rule 7, then STOP.
 **Michael's 4-tab test (PC, `?net=local`, one tab per player).** Run: host plus 3 tabs; complete the mission together; down and revive one; ping; switch off a circuit and shoot a lamp from different tabs; restart. Write what broke in `docs/backlog.md` (one line each, tagged BLOCKER if it stops the playtest). Blockers go back to Sonnet as small fix sessions (one session per blocker, same rules, two failures means Opus).
 **Then** the friends playtest (Section 4).
 **Smoke / hand check.** The S10 pass itself is the full suite; Michael's test is the hand check.

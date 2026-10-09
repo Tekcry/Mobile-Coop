@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| FP | **First Playable (comes first)** | not started: S1a-S10, 4-player Exchange greybox, then a friends playtest | 3.6.x | `docs/prompts/first-playable.md` |
+| FP | **First Playable (comes first)** | S1a done; S1b-S10 not started: 4-player Exchange greybox, then a friends playtest | 3.6.x | `docs/prompts/first-playable.md` |
 | 1 | Light parity | Step 4b done and approved (darkness, night vision); paused for First Playable; Step 4c (strip lamps) and Steps 5-9 PARKED until after the playtest (co-op light sync moves into FP S7a) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
@@ -191,6 +191,17 @@ See the Step 1 and Step 5 reports.
 - `e2e-park` covers the legacy-off lobby and Loadout; the legacy-off results screen (no rewards panel) is covered only through `e2e-missions` (no style bars).
 - `src/save/migrations.ts` error text still names Silent But Deadly (left alone on purpose).
 - `docs/story.md` Section 9 and bible Section 11 list the still-open decisions for Michael.
+
+## First Playable log
+- **S1a (done):** the Kestrel Exchange is a listed map (`src/world/maps/exchange.ts`, modes infiltration + sandbox): cable tunnel and chamber (basement -3.3), the ground floor shell, the basement stair, the main stair to a first-floor landing (+4.5). Rooms `cable`, `mdf`, `power`, `well`. `tests/exchangeMap.test.ts` (reachability from the spawn over the nav grid incl. y 4.5, 2.4 m column gap, 3 surfaces per column, door sizes), `scripts/e2e-fp-map.mjs` (in `REQUIRED`, covers `src/world/`).
+
+### First Playable decisions
+- S1a: the plan's coordinates are x = (px - 366) / 10, z = (282 - py) / 10 on `exchange-plans/ground.svg`. `exchange-map.md` has no "Construction rules" heading; read "Applying the standard to this map" and "Target numbers" instead.
+- S1a: `cable` covers the tunnel and the chamber as one room (the spawn is the manhole foot, 3.3 m below the street); `power` covers the battery room and the power room (one `RoomDef` each for the four spaces).
+- S1a: doors are 1.0 x 2.1 with centres on multiples of 0.5, and the world bounds sit on a 0.25 offset (-33.75..26.25, -19.75..20.25): a 1.0 m door only passes the nav grid (cell 0.5, radius 0.32) when a cell centre is on its axis. Later steps keep both.
+- S1a: skipped as the spec says (MDF frame tops and ladders, trenches, ducts, drainpipes, string courses, secret routes); also the switchgear gallery and its steel stair (+4.5, S1b), lights, the manhole ladder, the exterior doors (the skin is solid), all props.
+- S1a: the stair core is the main stair (13 x 0.173 / 0.26, landing +2.25) up to a 5.7 x 1.8 landing at +4.5 against the court wall, railed on its open edges; S1b continues from it. The basement stair is 10 x 0.165 / 0.28, 1.25 wide, landing -1.65, with the fire door at ground.
+- Known: `e2e-touch` fails on the unchanged `ct-movement` head as well (a Chromium "Ignored attempt to cancel a touchmove event" console error in the anticlockwise step); not caused by S1a, not in the known-flaky list.
 
 ## Phase 1 log
 
