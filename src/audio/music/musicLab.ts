@@ -48,6 +48,7 @@ export class MusicLabScreen extends Screen {
           'div',
           { class: 'lab-row' },
           take(`Play ${c.id}`, 'all', true),
+          take(`${c.id} spy`, 'spy'),
           take(`${c.id} sneak`, 'sneak'),
           take(`${c.id} break`, 'break'),
           take(`${c.id} noir`, 'noir'),
@@ -105,7 +106,7 @@ export class MusicLabScreen extends Screen {
     this.el.append(
       h('div', { class: 'screen-title', text: 'Music lab' }),
       this.status,
-      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'D to H are variations on A (the tritone over D). Play runs sneak (84 BPM downtempo), break (168 breakbeat) and noir (70, the menu opening) back to back. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
+      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'D to H are variations on A (the tritone over D). Spy (96 BPM) is cool spy-lounge jazz with an N64 sampler grain. Play runs spy then noir (70, the menu opening); sneak (84 downtempo) and break (168 breakbeat) have their own buttons. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
       section('Tempo', nudgeRow, this.tempoNote),
       section(
         'State',
@@ -167,7 +168,7 @@ export class MusicLabScreen extends Screen {
     const k = m.getTempo();
     this.nudgeLabel.textContent = `${Math.round(k * 100)}%`;
     const b = (bpm: number): number => Math.round(bpm * k);
-    this.tempoNote.textContent = `noir ${b(70)} BPM, sneak ${b(84)}, break and Combat ${b(168)}. The pitch does not change. Takes use the new tempo from their next Play.`;
+    this.tempoNote.textContent = `spy ${b(96)} BPM, noir ${b(70)}, sneak ${b(84)}, break and Combat ${b(168)}. The pitch does not change. Takes use the new tempo from their next Play.`;
   }
 
   override update(dt: number): void {

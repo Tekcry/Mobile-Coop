@@ -24,6 +24,11 @@ fanfares, no hummable tune.
 | Chaos Theory | Dark noir-electronic music: dusty, swung downtempo beats and chopped breakbeat / drum-and-bass under action; double bass and low, muted horns; orchestral strings cut into short stabs and pitched down as if sampled from old records; reversed swells; industrial found-sound percussion (metal, glass, machines); crackle and tape grain; long low drones; near-silence while undetected. Melody is a short, low, dark **figure** that lives in the bass and the horns, not a tune on top. |
 | MGS (structure only) | Clear phases tied to detection that the player reads by ear. An instant alert stinger. A wary middle phase and a hunting phase before calm returns. |
 
+**v2.2 (Michael, 2026-10-09): "better reflect the GoldenEye N64 pause menu theme".** A new colour sits beside the
+noir one: cool spy-lounge jazz (brushes and a skipping ride, walking upright bass, soft vibes comping, a muted horn on
+the figure, the minor chord with a major seventh), with an N64-style sampler grain (24 kHz, 12-bit, 7 kHz low-pass) on
+the band. Feel and technique only: no melody, bass line or vamp from that theme or from any spy-film theme.
+
 Generated in code (WebAudio synthesis), except a small bundled CC0 instrument sample set for the orchestral and band
 layer, which Michael allowed on 2026-10-09 (Section 13).
 

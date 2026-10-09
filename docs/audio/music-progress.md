@@ -283,3 +283,19 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 - Tests: unit test for tempo scaling (time scales, pitch does not); `npm test` 653 pass; lint and build clean;
   `scripts/e2e-music.mjs` passes (tempo +1 % gives Combat 170 BPM and noir 71; reset).
 - Next: Michael listens to D-H noir (with the tempo control). STOP.
+
+### V1 round 5: the spy take (GoldenEye N64 pause-menu feel)
+- Michael (2026-10-09): "can you update to better reflect goldeneye n64 pause menu theme?"
+- Done:
+  - Direction v2.2 note (Section 1): a spy-lounge colour beside noir, feel only (no melody or vamp from that theme or any
+    spy-film theme).
+  - New voices: `vibes` (soft lounge vibraphone, gentle strike, 4.5 Hz tremolo, 3 kHz low-pass) and N64 sampler copies
+    `hornN64`, `uprightN64`, `vibesN64` (24 kHz sample-and-hold, 12-bit, 7 kHz low-pass, light saturation).
+  - New take **spy** (96 BPM, swing 64 %) for every figure: brushes and a skipping ride, a walking upright bass, vibes
+    comping on Dm(maj7) | Dm(maj7) | Bbmaj7 | A7(b9) | Dm(maj7) | Dm6 | Em7(b5) | A7(b9), the figure on the muted horn,
+    echoed on vibes, resolved at the end. "Play" now runs spy then noir; sneak and break keep their own buttons.
+  - The tempo control and its note include spy.
+- Tests: `npm test` 653 pass; lint and build clean; `scripts/e2e-music.mjs` passes (spy plays; 60 s renders peak -8 to
+  -9.5 dBFS, RMS -21 dBFS, 16 voices). One run under heavy PC load counted 5 late events; the rerun had 0 on both
+  devices.
+- Next: Michael listens to the spy takes. STOP.

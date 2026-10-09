@@ -312,9 +312,51 @@ function midbass(c: Ctx): Sound {
   return snd(normalize(out), D2);
 }
 
+// ---------------------------------------------------------------- lounge vibraphone and the N64 sampler colour
+
+/**
+ * Soft lounge vibraphone: a modal bar (1 : 4 : 10), struck gently (no bright click), with a slow 4.5 Hz motor tremolo
+ * and a 3 kHz low-pass. Quiet comping chords for the spy take. Root D4.
+ */
+function vibes(c: Ctx): Sound {
+  const rate = c.rate;
+  const out = new Float32Array(len(2.4, rate));
+  addMode(out, rate, D4, 1, 0.9, 0, c.rng.range(0, TAU));
+  addMode(out, rate, D4 * 4, 0.12, 0.2, 0, c.rng.range(0, TAU));
+  addMode(out, rate, D4 * 10, 0.02, 0.05, 0, c.rng.range(0, TAU));
+  for (let i = 0; i < out.length; i++) {
+    const t = i / rate;
+    out[i]! *= Math.min(1, t / 0.004) * (1 - 0.25 * (0.5 + 0.5 * Math.sin(TAU * 4.5 * t)));
+  }
+  biquad(out, 'lowpass', 3000, 0.7, rate);
+  fadeEdges(out, 0, Math.round(rate * 0.2));
+  return snd(normalize(out, 0.75), D4);
+}
+
+/**
+ * The N64 sampler colour: as if the instrument were a small sample in a cartridge. Sample-and-hold to 24 kHz, 12-bit
+ * quantise, a 7 kHz low-pass and a touch of saturation. Applied to copies, so the clean voices stay.
+ */
+function cartridge(s: Sound, rate: number): Sound {
+  const d = s.data.slice();
+  const levels = 2048;
+  for (let i = 0; i < d.length; i += 2) {
+    const q = Math.round(d[i]! * levels) / levels;
+    d[i] = q;
+    if (i + 1 < d.length) d[i + 1] = q;
+  }
+  biquad(d, 'lowpass', 7000, 0.7, rate);
+  softClip(d, 1.2);
+  return snd(normalize(d, 0.8), s.root, s.loop);
+}
+
 export const ORCHESTRA_RECIPES: Record<string, (c: Ctx) => Sound> = {
   horn,
   upright,
+  vibes,
+  hornN64: (c) => cartridge(horn(c), c.rate),
+  uprightN64: (c) => cartridge(upright(c), c.rate),
+  vibesN64: (c) => cartridge(vibes(c), c.rate),
   stab: (c) => snd(stabData(c, 0.6, 0.15), D3),
   swell: (c) => snd(reversed(stabData(c, 1.6, 0.45)), D3),
   darkbell,

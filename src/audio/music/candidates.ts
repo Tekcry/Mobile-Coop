@@ -1,6 +1,7 @@
 /**
  * Stage V1 (round 2): three candidate figures (direction v2 Section 5) and the three takes the motif picker plays for
  * each, in the noir-electronic language of the score:
+ * - **spy** (96 BPM): cool spy-lounge jazz with an N64-style sampler grain: brushes, walking bass, vibes, muted horn.
  * - **sneak** (84 BPM): a dusty, swung downtempo beat; the figure on upright bass, then on a muted horn.
  * - **break** (168 BPM): a chopped breakbeat; the figure on the reese bass, answered by chopped string stabs.
  * - **noir** (70 BPM, the menu's opening 8 bars): rain, low strings, the figure on bass, horn and stabs, a reversed swell.
@@ -15,9 +16,11 @@ import type { MotifNote } from './motif';
 import { PRIO } from './voices';
 
 export type CandidateId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
-export type Take = 'sneak' | 'break' | 'noir';
-export const TAKES: readonly Take[] = ['sneak', 'break', 'noir'];
-export const TAKE_BPM: Record<Take, number> = { sneak: 84, break: 168, noir: 70 };
+export type Take = 'spy' | 'sneak' | 'break' | 'noir';
+export const TAKES: readonly Take[] = ['spy', 'sneak', 'break', 'noir'];
+/** What the Play button runs back to back (fits the 60 s WAV); the others have their own buttons. */
+export const PLAY_ALL: readonly Take[] = ['spy', 'noir'];
+export const TAKE_BPM: Record<Take, number> = { spy: 96, sneak: 84, break: 168, noir: 70 };
 
 export interface Candidate {
   id: CandidateId;
@@ -118,6 +121,8 @@ export function broken(notes: readonly MotifNote[]): MotifNote[] {
 type Emit = (e: Omit<PlayEvent, 'k'>) => void;
 
 const LAYERS = ['pad', 'bed', 'crackle', 'm0', 'm1', 'm2', 'msub'];
+/** Lounge swing: the off-beat eighth lands at 64 % of the beat (close to a triplet). */
+const LOUNGE_SWING = 0.64;
 /** The reese is rendered at 73.5 Hz; this puts it on D2. */
 const REESE_D = D2 / 73.5;
 /** Downtempo swing: the off-beat eighth lands at 57 % of the beat. */
@@ -131,6 +136,7 @@ function emitter(sink: Sink): Emit {
 export function takeLength(take: Take, tempo = 1): number {
   const bar = (60 / (TAKE_BPM[take] * tempo)) * 4;
   if (take === 'sneak') return 5 * bar + 2;
+  if (take === 'spy') return 8 * bar + 2;
   if (take === 'break') return 9 * bar + 2;
   return 8 * bar + 2;
 }
@@ -139,7 +145,8 @@ export function takeLength(take: Take, tempo = 1): number {
 export function playTake(sink: Sink, c: Candidate, take: Take, t: number, tempo = 1): number {
   const emit = emitter(sink);
   const bpm = TAKE_BPM[take] * tempo;
-  if (take === 'sneak') sneakTake(emit, c, t, bpm);
+  if (take === 'spy') spyTake(emit, c, t, bpm);
+  else if (take === 'sneak') sneakTake(emit, c, t, bpm);
   else if (take === 'break') breakTake(emit, c, t, bpm);
   else noirTake(emit, c, t, bpm);
   const end = t + takeLength(take, tempo);
@@ -147,10 +154,10 @@ export function playTake(sink: Sink, c: Candidate, take: Take, t: number, tempo 
   return end;
 }
 
-/** All three takes back to back (the 60 s WAV and the "Play" button). Returns the end time. */
+/** The `PLAY_ALL` takes back to back (the 60 s WAV and the "Play" button). Returns the end time. */
 export function playAllTakes(sink: Sink, c: Candidate, t: number, tempo = 1): number {
   let at = t;
-  for (const take of TAKES) at = playTake(sink, c, take, at, tempo) - 0.6;
+  for (const take of PLAY_ALL) at = playTake(sink, c, take, at, tempo) - 0.6;
   return at + 0.6;
 }
 
@@ -184,6 +191,79 @@ function figure(emit: Emit, notes: readonly MotifNote[], at: number, e8: number,
       ...(o.held ? { dur: n.len * e8 * 0.95, fadeOut: 0.35 } : {}),
     });
   }
+}
+
+/** Spy-lounge bars: vibes voicing (semitones from D4) and a walking bass in quarters (semitones from D2). */
+const SPY_BARS: { v: readonly number[]; walk: readonly [number, number, number, number] }[] = [
+  { v: [-1, 3, 7], walk: [0, 3, 7, 3] }, // Dm(maj7): the spy chord
+  { v: [-1, 3, 7], walk: [0, -1, -2, -3] }, // Dm(maj7), the bass sinking by semitones
+  { v: [-4, 0, 3, 7], walk: [-4, 0, 3, 0] }, // Bbmaj7
+  { v: [-7, -4, -1, 2], walk: [-5, -1, 2, 1] }, // A7(b9), Eb leading home
+  { v: [-1, 3, 7], walk: [0, 3, 7, 5] }, // Dm(maj7)
+  { v: [-3, 0, 3, 7], walk: [0, -1, -3, -5] }, // Dm6
+  { v: [-7, -4, 0, 2], walk: [2, -2, -4, -2] }, // Em7(b5)
+  { v: [-7, -4, -1, 2], walk: [-5, -1, 2, 1] }, // A7(b9)
+];
+
+/** Lounge swing on 16th steps: the off-beat eighth is pushed late. */
+function lounge(bt: number, s: number, s16: number): number {
+  return bt + s * s16 + (s % 4 === 2 ? (LOUNGE_SWING - 0.5) * 4 * s16 : 0);
+}
+
+/**
+ * Spy, 96 BPM: cool spy-lounge jazz in the feel of a late-90s console pause menu, with an N64-style sampler grain on
+ * the band. Brushes and a skipping ride, a walking upright bass, soft vibes comping on Dm(maj7) | Dm(maj7) | Bbmaj7 |
+ * A7(b9) | Dm(maj7) | Dm6 | Em7(b5) | A7(b9). The figure on a muted horn (bars 1-2), echoed on vibes (3-4), again on
+ * the horn (5-6), resolved (7-8). Written for this project; no melody or vamp from any existing theme.
+ */
+function spyTake(emit: Emit, c: Candidate, t: number, bpm: number): void {
+  const s16 = 60 / bpm / 4;
+  const e8 = s16 * 2;
+  const bar = s16 * 16;
+  emit({ id: 'static', t, stem: 'TEX', gain: 0.1, rate: 1, pan: 0, prio: PRIO.bed, layer: 'crackle', fadeIn: 1 });
+  for (let b = 0; b < 8; b++) {
+    const bt = t + b * bar;
+    const ch = SPY_BARS[b]!;
+    // brushes: a swish on 2 and 4, a soft kick on 1, a skipping ride (ding, ding-a ding, ding-a)
+    for (const s of [4, 12]) emit({ id: 'brushSwish', t: lounge(bt, s, s16), stem: 'PULSE', gain: 0.22, rate: 1, pan: s === 4 ? -0.2 : 0.2, prio: PRIO.drum, reverb: 'room', send: 0.3 });
+    emit({ id: 'kickRound', t: bt, stem: 'PULSE', gain: 0.25, rate: 1, pan: 0, prio: PRIO.drum });
+    for (const s of [0, 4, 6, 8, 12, 14]) {
+      emit({ id: 'hatC', t: lounge(bt, s, s16), stem: 'PULSE', gain: s % 4 === 2 ? 0.06 : 0.09, rate: 0.7, pan: 0.3, prio: PRIO.drum, reverb: 'room', send: 0.2 });
+    }
+    if (b === 3 || b === 7) emit({ id: 'rim', t: lounge(bt, 14, s16), stem: 'PULSE', gain: 0.12, rate: 0.9, pan: -0.2, prio: PRIO.drum });
+    // the walking bass, one note per beat
+    for (let q = 0; q < 4; q++) {
+      emit({ id: 'uprightN64', t: bt + q * 4 * s16, stem: 'BASS', gain: q === 0 ? 0.6 : 0.5, rate: semis(ch.walk[q]!), pan: 0, prio: PRIO.bass, dur: 4 * s16 * 0.95, fadeOut: 0.06, reverb: 'room', send: 0.15 });
+    }
+    // vibes comping: the chord on the swung "and" of 2, and a lighter one on 4 in odd bars
+    const comp = (s: number, g: number): void => {
+      for (const v of ch.v) {
+        emit({ id: 'vibesN64', t: lounge(bt, s, s16), stem: 'HARM', gain: g, rate: semis(v), pan: v * 0.04, prio: PRIO.harm, dur: 1.1, fadeOut: 0.3, reverb: 'hall', send: 0.4 });
+      }
+    };
+    comp(6, 0.16);
+    if (b % 2 === 1) comp(12, 0.1);
+  }
+  const swingFig = (notes: readonly MotifNote[], at: number, id: string, gain: number, held: boolean, send: number): void => {
+    for (const n of notes) {
+      emit({
+        id,
+        t: at + n.step * e8 + (n.step % 2 === 1 ? (LOUNGE_SWING - 0.5) * 2 * e8 : 0),
+        stem: 'MOTIF',
+        gain,
+        rate: semis(n.semis),
+        pan: 0,
+        prio: PRIO.motif,
+        reverb: 'hall',
+        send,
+        ...(held ? { dur: n.len * e8 * 0.95, fadeOut: 0.3 } : {}),
+      });
+    }
+  };
+  swingFig(c.statement, t, 'hornN64', 0.45, true, 0.45);
+  swingFig(c.statement, t + 2 * bar, 'vibesN64', 0.32, false, 0.5);
+  swingFig(c.statement, t + 4 * bar, 'hornN64', 0.45, true, 0.45);
+  swingFig(c.resolved, t + 6 * bar, 'hornN64', 0.45, true, 0.5);
 }
 
 /**
@@ -325,4 +405,4 @@ function noirTake(emit: Emit, c: Candidate, t: number, bpm: number): void {
 }
 
 /** Every sound id the takes use (for tests). */
-export const TAKE_SOUNDS = ['static', 'strings', 'kickRound', 'snare', 'ghost', 'hatC', 'relay0', 'upright', 'darkbell', 'horn', 'kickTight', 'click1', 'reese', 'stab', 'plate', 'boom', 'rainbed', 'sub', 'rim', 'swell'];
+export const TAKE_SOUNDS = ['brushSwish', 'uprightN64', 'vibesN64', 'hornN64', 'static', 'strings', 'kickRound', 'snare', 'ghost', 'hatC', 'relay0', 'upright', 'darkbell', 'horn', 'kickTight', 'click1', 'reese', 'stab', 'plate', 'boom', 'rainbed', 'sub', 'rim', 'swell'];
