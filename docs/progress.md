@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| FP | **First Playable (comes first)** | S1a, S1b done; S1c-S10 not started: 4-player Exchange greybox, then a friends playtest | 3.6.x | `docs/prompts/first-playable.md` |
+| FP | **First Playable (comes first)** | S1a, S1b done (S1a-S1b layout replaced by Exchange v2); R1 done, R2, R3, S1c-v2 and S2-S10 not started: 4-player Exchange greybox, then a friends playtest | 3.6.x | `docs/prompts/first-playable.md` |
 | 1 | Light parity | Step 4b done and approved (darkness, night vision); paused for First Playable; Step 4c (strip lamps) and Steps 5-9 PARKED until after the playtest (co-op light sync moves into FP S7a) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
@@ -196,6 +196,7 @@ See the Step 1 and Step 5 reports.
 - **S1a (done):** the Kestrel Exchange is a listed map (`src/world/maps/exchange.ts`, modes infiltration + sandbox): cable tunnel and chamber (basement -3.3), the ground floor shell, the basement stair, the main stair to a first-floor landing (+4.5). Rooms `cable`, `mdf`, `power`, `well`. `tests/exchangeMap.test.ts` (reachability from the spawn over the nav grid incl. y 4.5, 2.4 m column gap, 3 surfaces per column, door sizes), `scripts/e2e-fp-map.mjs` (in `REQUIRED`, covers `src/world/`).
 
 - **S1b (done):** first floor (+4.5), roof (+9.0, raised roof +10.5 over the server hall) and the rear goods yard are built in `exchange.ts` (`buildFirst`, `buildRoof`, `buildYard`). Rooms `switchroom`, `offices`, `servers`, `roof`, `yard` (nine in all). Routes up: main stair, a steel stair from the power room to the switchgear gallery (door to the supervisor's office), a motor-room stair to the roof; the roof reaches the yard by a steel stair at x 16.5. `tests/exchangeMap.test.ts` covers all room centres, the cage, the three hall lanes, the yard and lane gates, and two separate ground-to-first routes. `e2e-fp-map` checks all nine rooms and a floor in the server hall, yard and roof. GPU / visual: pending PC run.
+- **R1 (done):** Exchange v2 basement and ground floor rebuilt in `exchange.ts` to `exchange-layout-v2.md` (the S1a/S1b first floor, roof and old stairs are removed; R2 rebuilds them). Rooms: basement `cable`, `rectifier`, `battery`, `genroom`, `boiler`, `riserbase`; ground `mdf`, `test`, `transmission`, `foyer`, `security`, `canteen`, `meeting`, `cleaners`, `goodsin`, `workshop`, `well`; `yard`. Links: C ladder, B / V / R stairs (basement to ground), plant ramp, coke stair. `tests/exchangeMap.test.ts` rewritten (room centres, routes A1-A3 hop by hop, 2.4 m gap, doors), `e2e-fp-map` updated. GPU / visual: pending PC run.
 
 ### First Playable decisions
 - S1a: the plan's coordinates are x = (px - 366) / 10, z = (282 - py) / 10 on `exchange-plans/ground.svg`. `exchange-map.md` has no "Construction rules" heading; read "Applying the standard to this map" and "Target numbers" instead.
@@ -209,6 +210,11 @@ See the Step 1 and Step 5 reports.
 - S1b: the roof reaches the yard by a steel stair (52 steps, x 16.5) over the rear parapet; the shaft bridge is 1.0 wide with rails. No ground-floor door opens onto the yard (the plan's rear doors are sealed or locked), so the yard is reached from the roof; the yard's west gate is locked, the east side gate is open.
 - S1b: skipped: the fire escape balcony and its casement route, the hoist opening and rappel, drainpipes, roof lights, the lantern, walkways to the tank room, runways, the goods lift, windows and the glazed screen (walls are solid), the depository roof, lights. The tank room is a hollow room with one tank. The server hall's two double doors are two 1.0 doors side by side (door size test).
 - S1b: nav searches over a stair and a roof need about 10^6 expansions (the heuristic ignores storeys); the tests use 3,000,000. Real AI paths across storeys use links and flow fields.
+- R1: V (steep 0.75 slope, 1.2 m clear) rises +z from z -16.6 to ground at z -12.2; B (0.165 / 0.28) rises -z from z -11 to ground at z -16.6; R (steep) rises +z from z 0.5 to ground at z 4.9; each ground door sits at the stair top and each basement door on a flat foot (a 1 m door only passes a stair within 0.45 m of the floor). R2 must fit the upper runs over these (thin collision ramps, 1.7 m headroom): ground-to-first for B and V, M, R.
+- R1: C is a ladder (the 2.2 x 2.1 m shaft is too small for a stair); the top lands on the ground slab at z 1.15, rails on the hole's other sides.
+- R1: one door added that the spec does not list: ring west side to the court (x 6, z 0..1), so the light well is reachable and the unit test can reach `well`.
+- R1: the plant ramp (x 3.2..4.8, 11.2 m, genroom door x 3.5) and the coke stair (x 14.8..16.2, boiler door x 15) cut the yard slab; yard pallets moved to x 8..10. The yard walls, lane and van are unchanged from S1b.
+- R1: basement furniture is 1.4 m or higher (under the 1.7 m headroom rule it does not count as a walkable surface against the ceiling slab).
 
 ## Phase 1 log
 

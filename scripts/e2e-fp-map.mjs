@@ -1,6 +1,4 @@
-// First Playable S1a, S1b: the Kestrel Exchange boots (`?autostart=exchange&mode=sandbox`) with all nine rooms (cable, mdf, power,
-// well, switchroom, offices, servers, roof, yard), the operator in the cable room with a floor under it, a floor under the
-// operator in the server hall and in the yard, and no console errors. Extended in S1c.
+// First Playable R1: the Kestrel Exchange v2 boots (`?autostart=exchange&mode=sandbox`) with its basement, ground and yard rooms, the operator in the cable room with a floor under it, a floor under the operator in the MDF hall, foyer, light well, riser base and yard, and no console errors. Extended in S1c-v2.
 import { launch, frames, assert } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -22,11 +20,11 @@ try {
   });
   // getMap() falls back to Proving Grounds for an unknown id, and a dev server on another checkout has no Exchange: fail loudly
   assert(info.map === 'exchange', `autostart=exchange loads the Exchange, not ${info.map}`);
-  for (const id of ['cable', 'mdf', 'power', 'well', 'switchroom', 'offices', 'servers', 'roof', 'yard']) assert(info.ids.includes(id), `room ${id} is listed (${info.ids.join(',')})`);
+  for (const id of ['cable', 'rectifier', 'battery', 'genroom', 'boiler', 'riserbase', 'mdf', 'test', 'transmission', 'foyer', 'security', 'canteen', 'meeting', 'cleaners', 'goodsin', 'workshop', 'well', 'yard']) assert(info.ids.includes(id), `room ${id} is listed (${info.ids.join(',')})`);
   assert(info.room === 'cable', `the operator stands in the cable room (${info.room})`);
   assert(info.grounded && Math.abs(info.y - -3.3) < 0.2, `a floor under the operator (y ${info.y.toFixed(2)}, grounded ${info.grounded})`);
   // teleport to the server hall (first floor) and the yard: a floor under the operator and the right room
-  for (const [id, x, y, z] of [['servers', 14, 4.6, 7], ['yard', -5, 0.1, -27], ['roof', 0, 9.1, 0]]) {
+  for (const [id, x, y, z] of [['mdf', -16, 0.1, 9], ['foyer', 1, 0.1, 12], ['well', 12, 0.1, 3], ['riserbase', 22, -3.2, -5], ['yard', -5, 0.1, -27]]) {
     await page.evaluate(([px, py, pz]) => {
       const c = window.__app.current.player.controller;
       c.teleport(new c.pos.constructor(px, py, pz), 0);

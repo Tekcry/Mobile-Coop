@@ -4,40 +4,40 @@ import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 
 /**
- * The Kestrel Exchange (First Playable S1a, S1b): the cable tunnel, cable chamber, ground floor, first floor, roof and
- * rear goods yard as walkable blocks, to the plans in `docs/prompts/exchange-plans` (ground.svg, first.svg, roof.svg:
- * 10 px = 1 m, x = (px - 366) / 10, z = (282 - py) / 10) and `docs/prompts/exchange-design.md`. Greybox: boxes only, no art,
- * no lights, no guards (lights, guards and the objective are S1c).
- * Storeys: basement -3.3, ground 0, first floor 4.5, roof 9.0. Door centres sit on multiples of 0.5 and the world
- * bounds on a quarter-metre offset so every 1.0 m door lines up with a nav cell (cell 0.5, agent radius 0.32).
+ * The Kestrel Exchange, layout v2 (First Playable R1): the basement, the ground floor, the yard and the vertical links
+ * between them, to `docs/prompts/exchange-layout-v2.md`. Greybox: boxes only. The first floor and the roof come in R2,
+ * ducts and grilles in R3, lights, guards and the objective chain in S1c-v2.
+ * Footprint 48 x 36 m (x -24..24, z -18..18), north is +z. Storeys: basement -3.3, ground 0, first floor 4.5, roof 9.0.
+ * Door centres sit on multiples of 0.5 and the world bounds on a quarter-metre offset so every 1.0 m door lines up with a
+ * nav cell (cell 0.5, agent radius 0.32).
  */
 export const EXCHANGE_Y = { basement: -3.3, ground: 0, first: 4.5, roof: 9.0 } as const;
 
 const WALL = '#a9a496';
 const WALL_DARK = '#7d786d';
 const FLOOR = '#6f7477';
-const STONE = '#8a8d8c';
 const STEEL = '#55606a';
 const FRAME = '#4d5560';
 const STAIR = '#9a948a';
 const CRATE = '#a8784a';
 const DESK = '#8a6a4c';
+const GREEN = '#5b6f56';
 
 const T = 0.3; // interior wall thickness
 const TX = 0.45; // exterior wall thickness
 const H1 = 4.5; // ground-floor wall height under the first floor
-const HD = 8.7; // double-height rooms (MDF hall, power room)
 const HX = 9.0; // exterior and court walls to the roof
-const HF = 4.2; // first-floor wall height (4.5 storey, 0.3 slab above)
-const HH = 5.7; // server hall wall height (raised roof)
-const RAISED = 10.5; // top of the raised roof over the server hall
+const BH = 3.3; // basement wall height (floor to the ground slab top)
 const DOOR_H = 2.1;
 const DOOR_W = 1.0;
 const BASE = EXCHANGE_Y.basement;
+const RAIL = 1.0;
 
 type GapKind = 'door' | 'locked' | 'open';
 /** A gap in a wall line: where it starts, what fills it, how wide (sorted by start along the line). */
 type Gap = readonly [at: number, kind?: GapKind, width?: number];
+/** A rectangle on the plan: x0, x1, z0, z1. */
+type Rect = readonly [x0: number, x1: number, z0: number, z1: number];
 
 /** Wall along X at `z` from x0 to x1 with gaps, standing on `y0`; each gap gets a lintel above the door height and a door anchor. */
 function lineX(b: LevelBuilder, z: number, x0: number, x1: number, h: number, gaps: readonly Gap[] = [], t = T, color = WALL, y0 = 0): void {
@@ -72,302 +72,233 @@ function slab(b: LevelBuilder, x0: number, x1: number, z0: number, z1: number, t
   b.floor((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, color, top, thick);
 }
 
+/** A slab over the rectangle with rectangular holes cut out of it (tiled along the hole edges). */
+function slabCut(b: LevelBuilder, x0: number, x1: number, z0: number, z1: number, thick: number, top: number, holes: readonly Rect[]): void {
+  const xs = new Set<number>([x0, x1]);
+  const zs = new Set<number>([z0, z1]);
+  for (const [a, c, d, e] of holes) {
+    for (const x of [a, c]) if (x > x0 && x < x1) xs.add(x);
+    for (const z of [d, e]) if (z > z0 && z < z1) zs.add(z);
+  }
+  const X = [...xs].sort((p, q) => p - q);
+  const Z = [...zs].sort((p, q) => p - q);
+  for (let i = 0; i + 1 < X.length; i++) {
+    for (let j = 0; j + 1 < Z.length; j++) {
+      const mx = (X[i]! + X[i + 1]!) / 2;
+      const mz = (Z[j]! + Z[j + 1]!) / 2;
+      if (holes.some((h) => mx > h[0] && mx < h[1] && mz > h[2] && mz < h[3])) continue;
+      slab(b, X[i]!, X[i + 1]!, Z[j]!, Z[j + 1]!, thick, top);
+    }
+  }
+}
+
 /** Solid block over [x0, x1] x [z0, z1] from y0 to y1. */
 function solid(b: LevelBuilder, x0: number, x1: number, z0: number, z1: number, y0: number, y1: number, color: string): void {
   b.box((x0 + x1) / 2, (y0 + y1) / 2, (z0 + z1) / 2, x1 - x0, y1 - y0, z1 - z0, color);
 }
 
+/** A block standing on the basement floor. */
+function inBase(b: LevelBuilder, x0: number, x1: number, z0: number, z1: number, h: number, color: string): void {
+  solid(b, x0, x1, z0, z1, BASE, BASE + h, color);
+}
+
 const ROOMS: RoomDef[] = [
-  // the tunnel from the manhole and the chamber under the MDF hall (basement: feet at -3.3)
-  { id: 'cable', name: 'Cable Tunnel and Chamber', minX: -31.75, maxX: -13.85, minZ: 0, maxZ: 12.15, minY: -3.6, maxY: -0.2 },
-  { id: 'mdf', name: 'MDF Hall', minX: -24, maxX: -6, minZ: 0, maxZ: 18, minY: 0, maxY: HD },
-  // the battery room (z -6..0) and the power room (z -18..-6) read as one space
-  { id: 'power', name: 'Battery and Power Rooms', minX: -24, maxX: -6, minZ: -18, maxZ: 0, minY: 0, maxY: HD },
+  // basement (feet at -3.3); the cable room takes in the spawn tunnel
+  { id: 'cable', name: 'Cable Tunnel and Chamber', minX: -31.75, maxX: -6, minZ: 0, maxZ: 18, minY: -3.6, maxY: -0.2 },
+  { id: 'rectifier', name: 'Rectifier Room', minX: -24, maxX: -6, minZ: -6, maxZ: 0, minY: -3.6, maxY: -0.2 },
+  { id: 'battery', name: 'Battery Hall', minX: -24, maxX: -6, minZ: -18, maxZ: -6, minY: -3.6, maxY: -0.2 },
+  { id: 'genroom', name: 'Generator Room', minX: 2.5, maxX: 12, minZ: -18, maxZ: -8.5, minY: -3.6, maxY: -0.2 },
+  { id: 'boiler', name: 'Boiler House', minX: 12, maxX: 24, minZ: -18, maxZ: -8.5, minY: -3.6, maxY: -0.2 },
+  { id: 'riserbase', name: 'Riser Base', minX: 20.5, maxX: 24, minZ: -8.5, maxZ: 8.5, minY: -3.6, maxY: -0.2 },
+  // ground floor (feet at 0)
+  { id: 'mdf', name: 'MDF Hall', minX: -24, maxX: -6, minZ: 0, maxZ: 18, minY: 0, maxY: 4.3 },
+  { id: 'test', name: 'Test Room', minX: -24, maxX: -6, minZ: -6, maxZ: 0, minY: 0, maxY: 4.3 },
+  { id: 'transmission', name: 'Transmission Room', minX: -24, maxX: -6, minZ: -18, maxZ: -6, minY: 0, maxY: 4.3 },
+  { id: 'foyer', name: 'Foyer', minX: -3.5, maxX: 6, minZ: 8.5, maxZ: 18, minY: 0, maxY: 4.3 },
+  { id: 'security', name: 'Security Office', minX: 6, maxX: 12, minZ: 8.5, maxZ: 18, minY: 0, maxY: 4.3 },
+  { id: 'canteen', name: 'Canteen', minX: 12, maxX: 24, minZ: 8.5, maxZ: 18, minY: 0, maxY: 4.3 },
+  { id: 'meeting', name: 'Meeting Room', minX: -3.5, maxX: 3.5, minZ: 1.25, maxZ: 8.5, minY: 0, maxY: 4.3 },
+  { id: 'cleaners', name: "Cleaners' Store", minX: -3.5, maxX: 3.5, minZ: -8.5, maxZ: -1.25, minY: 0, maxY: 4.3 },
+  { id: 'goodsin', name: 'Goods-In Bay', minX: 2.5, maxX: 12, minZ: -18, maxZ: -8.5, minY: 0, maxY: 4.3 },
+  { id: 'workshop', name: 'Workshop', minX: 18, maxX: 24, minZ: -18, maxZ: -8.5, minY: 0, maxY: 4.3 },
   { id: 'well', name: 'Light Well', minX: 6, maxX: 18, minZ: -6, maxZ: 6, minY: 0, maxY: 8.9 },
-  // first floor (feet at 4.5), roof (9.0, raised roof 10.5) and the yard behind the building (the lane east of it is part of the yard)
-  { id: 'switchroom', name: "Operators' Switchroom", minX: 0, maxX: 6, minZ: -6, maxZ: 6, minY: 4.3, maxY: 8.9 },
-  { id: 'offices', name: 'Offices', minX: -6, maxX: 6, minZ: 6, maxZ: 18, minY: 4.3, maxY: 8.9 },
-  { id: 'servers', name: 'Server Hall', minX: 9.6, maxX: 24, minZ: 6, maxZ: 18, minY: 4.3, maxY: 8.9 },
-  { id: 'roof', name: 'Roof', minX: -24, maxX: 24, minZ: -18, maxZ: 18, minY: 8.9, maxY: 14 },
+  // the rear goods yard and the lane east of it
   { id: 'yard', name: 'Rear Goods Yard', minX: -24, maxX: 30, minZ: -36.3, maxZ: -18, minY: -0.5, maxY: 9.5 },
 ];
 
-/** Cable tunnel (Mill Street manhole to the chamber) and the cable chamber under the MDF hall. */
-function buildBasement(b: LevelBuilder): void {
-  const Y0 = BASE;
-  // floors (the chamber is 9.55 x 11.85, the tunnel 1.8 wide)
-  slab(b, -23.7, -13.85, 0, 12.15, 0.3, Y0, FLOOR);
-  slab(b, -31.75, -23.7, 7.6, 9.4, 0.3, Y0, FLOOR);
-  // chamber walls (3.0 high, ceiling is the ground slab at -0.3), the tunnel mouth in the west wall
-  b.wall(-23.7, 0, -23.7, 7.6, 3, WALL_DARK, T, Y0);
-  b.wall(-23.7, 9.4, -23.7, 12.15, 3, WALL_DARK, T, Y0);
-  b.wall(-23.7, 7.6, -23.7, 9.4, 0.8, WALL_DARK, T, -1.1);
-  b.wall(-13.85, 0, -13.85, 12.15, 3, WALL_DARK, T, Y0);
-  b.wall(-23.7, 0, -13.85, 0, 3, WALL_DARK, T, Y0);
-  b.wall(-23.7, 12.15, -13.85, 12.15, 3, WALL_DARK, T, Y0);
-  // tunnel walls (2.2 high) and the end wall under the manhole
-  b.wall(-31.75, 7.45, -23.7, 7.45, 2.2, WALL_DARK, T, Y0);
-  b.wall(-31.75, 9.55, -23.7, 9.55, 2.2, WALL_DARK, T, Y0);
-  b.wall(-31.75, 7.6, -31.75, 9.4, 2.2, WALL_DARK, T, Y0);
-  // cable drums in a row across the chamber (1.5 high: mantle over, or round the east end past the sump cover)
-  for (const x of [-22.7, -21.1, -19.5, -17.9, -16.3]) solid(b, x - 0.8, x + 0.8, 6, 7.6, Y0, Y0 + 1.5, '#6b4a2f');
-  b.surface('metal', -15.0, -14.2, 6.0, 7.6, Y0);
+/** Where the storeys are cut open (ground slab holes) and the plant ramp and coke stair come down from the yard. */
+const HOLE_C: Rect = [-23.7, -21.5, 1.35, 3.3];
+const HOLE_V: Rect = [-7.5, -6, -18, -12.2];
+const HOLE_B: Rect = [-3.35, -1.95, -16.6, -11];
+const HOLE_R: Rect = [21.5, 23, 0.5, 4.9];
+const HOLE_RAMP: Rect = [3, 5, -29.4, -18.225];
+const HOLE_COKE: Rect = [14.65, 16.35, -22.7, -18.225];
 
-  // the basement stair (two flights of 10 x 0.165 / 0.28, 1.25 wide, half landing at -1.65) in the SW corner:
-  // flight A rises from the chamber (north end, z 4.5) to the landing, flight B returns to the fire door at ground
-  const s0 = b.boxes.length;
-  b.stairs(-21.675, 3.1, 1.25, 2.8, 1.65, 10, STAIR, Math.PI, Y0);
-  b.stairs(-22.925, 3.1, 1.25, 2.8, 1.65, 10, STAIR, 0, -1.65);
-  solid(b, -23.55, -22.3, 1.7, 4.5, Y0, -1.65, STAIR);
-  solid(b, -23.55, -21.05, 0.2, 1.7, Y0, -1.65, STAIR);
-  // a divider between the flights, up to the rail height over flight B
-  solid(b, -22.375, -22.225, 1.7, 4.5, Y0, 0.9, WALL_DARK);
-  b.mark(s0, { noLedge: true });
-  // the stair room: east wall from the chamber floor to the first floor, the fire door in the north wall
-  b.wall(-20.9, 0.2, -20.9, 4.5, H1 - Y0, WALL, T, Y0);
-}
-
-/** The ground slab in tiles: thin over the chamber, thick over the tunnel, open at the manhole and the stair. */
+/** The slabs: basement floors, the ground slab with its holes, the yard, the lane and the strips round the building. */
 function buildSlabs(b: LevelBuilder): void {
-  slab(b, -34, -23.7, -20, 7.3, 1.0);
-  slab(b, -34, -23.7, 9.7, 20, 1.0);
-  // over the tunnel (2.2 high: ceiling at -1.1), the manhole shaft (1.2 x 1.2) open at its west end
+  // basement floors: cable chamber, rectifier and battery hall with the spine, the stair B foot / generator / boiler row,
+  // the service tunnel, the riser base and the spawn tunnel
+  slab(b, -24, -3.5, -18, 18, 0.3, BASE);
+  slab(b, -3.5, 24, -18, -8.5, 0.3, BASE);
+  slab(b, -3.5, 20.5, -1.25, 1.25, 0.3, BASE);
+  slab(b, 20.5, 24, -8.5, 8.5, 0.3, BASE);
+  slab(b, -31.75, -24, 7.6, 9.4, 0.3, BASE);
+  // the ground slab (the basement ceiling where there is a basement)
+  slabCut(b, -24, 24, -18, 18, 0.3, 0, [HOLE_C, HOLE_V, HOLE_B, HOLE_R]);
+  // west of the building: the Mill Street tunnel (ceiling at -1.1) with the manhole shaft open at its west end
+  slab(b, -34, -24, -18, 7.3, 1.0);
+  slab(b, -34, -24, 9.7, 20, 1.0);
   slab(b, -34, -31.6, 7.3, 9.7, 1.1);
   slab(b, -31.6, -30.4, 7.3, 7.9, 1.1);
   slab(b, -31.6, -30.4, 9.1, 9.7, 1.1);
-  slab(b, -30.4, -23.7, 7.3, 9.7, 1.1);
-  slab(b, -23.7, -13.85, -20, 0, 1.0);
-  slab(b, -23.7, -13.85, 12.15, 20, 1.0);
-  // over the chamber (3.0 high: ceiling at -0.3), open over the stair room
-  slab(b, -20.9, -13.85, 0, 12.15, 0.3);
-  slab(b, -23.7, -20.9, 4.5, 12.15, 0.3);
-  slab(b, -13.85, 26, -20, 20, 1.0);
-  // the rear goods yard, Mill Street below it and the lane east of the yard (S1b)
-  slab(b, -34, 31, -37, -20, 1.0);
-  slab(b, 26, 31, -20, -6, 1.0);
+  slab(b, -30.4, -24, 7.3, 9.7, 1.1);
+  // north strip (the street), the rear goods yard with the plant ramp and the coke stair cut in, the lane east of the yard
+  slab(b, -24, 31, 18, 20.5, 1.0);
+  slabCut(b, -34, 31, -37, -18, 1.0, 0, [HOLE_RAMP, HOLE_COKE]);
+  slab(b, 24, 31, -18, -6, 1.0);
+  slab(b, 24, 26, -6, 20, 1.0);
 }
 
-/** MDF hall, battery and power rooms, the stair room and the fire door. */
-function buildWest(b: LevelBuilder): void {
-  // exterior west wall, MDF hall north, battery and power room south run in `buildShell`
-  // hall south wall (battery lobby door), battery / power wall (door to the power room), power room east wall
-  lineX(b, 0, -24, -6, HD, [[-8]]);
-  // (both stop at the first floor here; `buildFirst` continues them with the gallery doors)
-  lineX(b, -6, -24, -6, H1, [[-20]]);
-  lineZ(b, -6, -18, 18, H1, [[-10.5], [14.5]]);
-  // battery lobby (2.7 x 2.7, two doors): the second door opens into the battery room
-  lineZ(b, -9, -3, 0, H1, [[-2]]);
-  lineX(b, -3, -9, -6, H1);
-  // the fire door at the head of the basement stair (the stair room's north wall)
-  lineX(b, 4.5, -23.8, -20.9, H1, [[-23.5]]);
+/** The basement (-3.3): cable chamber, rectifier, battery hall, spine, stair B foot, generator and boiler rooms, service tunnel, riser base. */
+function buildBasement(b: LevelBuilder): void {
+  const Y0 = BASE;
+  // exterior skin: west (the tunnel mouth is the door at z 8..9), south (plant ramp door x 3.5, coke stair door x 15), north, east
+  lineZ(b, -24, -18, 18, BH, [[8]], TX, WALL_DARK, Y0);
+  lineX(b, -18, -24, 24, BH, [[3.5], [15]], TX, WALL_DARK, Y0);
+  lineX(b, 18, -24, -3.5, BH, [], TX, WALL_DARK, Y0);
+  lineZ(b, 24, -18, 8.5, BH, [], TX, WALL_DARK, Y0);
+  lineX(b, 8.5, 20.5, 24, BH, [], TX, WALL_DARK, Y0);
+  // the spawn tunnel (2.2 high) under the street: walls, the end wall under the manhole
+  b.wall(-31.75, 7.45, -24, 7.45, 2.2, WALL_DARK, T, Y0);
+  b.wall(-31.75, 9.55, -24, 9.55, 2.2, WALL_DARK, T, Y0);
+  b.wall(-31.75, 7.6, -31.75, 9.4, 2.2, WALL_DARK, T, Y0);
+  // spine walls: west (to the cable chamber twice, the rectifier and the battery hall), east (stair B foot, service tunnel)
+  lineZ(b, -6, -18, 18, BH, [[-8], [-4], [5], [12]], T, WALL, Y0);
+  lineZ(b, -3.5, -18, 18, BH, [[-11], [-0.5]], T, WALL, Y0);
+  // chamber south wall (door to the rectifier), rectifier south wall (door to the battery hall)
+  lineX(b, 0, -24, -6, BH, [[-14]], T, WALL, Y0);
+  lineX(b, -6, -24, -6, BH, [[-14]], T, WALL, Y0);
+  // stair B foot, generator room, boiler house: north walls, the stair B foot / generator / boiler walls
+  lineX(b, -8.5, -3.5, 24, BH, [], T, WALL, Y0);
+  lineZ(b, 2.5, -18, -8.5, BH, [[-13]], T, WALL, Y0);
+  lineZ(b, 12, -18, -8.5, BH, [[-14]], T, WALL, Y0);
+  // service tunnel (2.0 wide) under the court to the riser base
+  lineX(b, -1.25, -3.5, 20.5, BH, [], T, WALL, Y0);
+  lineX(b, 1.25, -3.5, 20.5, BH, [], T, WALL, Y0);
+  lineZ(b, 20.5, -8.5, 8.5, BH, [[-0.5]], T, WALL, Y0);
 
-  // MDF hall: five frame rows 4.0 high (0.6 x 9.6), aisles 2.4 wide and the 1.85 jumper aisle at x -11.7..-9.85;
-  // cross aisles at z 14.6..18 (north) and z 0.2..5.0 (south, the test desk)
-  for (const x of [-21, -18, -15, -12, -9.55]) b.box(x, 2, 9.8, 0.6, 4, 9.6, FRAME);
-  solid(b, -12.6, -8.6, 1.4, 2.4, 0, 0.9, DESK);
+  // C cable shaft: the pit in the chamber's south-west corner, a ladder up to the MDF hall
+  lineX(b, 1.2, -23.7, -21.5, BH, [], T, WALL_DARK, Y0);
+  b.ladder(-22.6, 1.6, Y0, EXCHANGE_Y.ground, Math.PI, STEEL);
+  // V battery extract (1.5 m shaft, x -7.5..-6): west wall with the battery door, closed at its north end; steep stair up to ground
+  lineZ(b, -7.5, -18, -10, BH, [[-17.5]], T, WALL, Y0);
+  lineX(b, -10, -7.5, -6, BH, [], T, WALL, Y0);
+  const sv = b.boxes.length;
+  b.stairs(-6.75, -14.4, 1.2, 4.4, 3.3, 18, STAIR, 0, Y0);
+  b.mark(sv, { noLedge: true });
+  // B back stair (rise 0.165, run 0.28): foot at the north end of the core, along the west wall, up to ground at z -16.6
+  const sb = b.boxes.length;
+  b.stairs(-2.65, -13.8, 1.3, 5.6, 3.3, 20, STAIR, Math.PI, Y0);
+  b.mark(sb, { noLedge: true });
+  // R services riser: steep run from the riser base up to ground
+  const sr = b.boxes.length;
+  b.stairs(22.25, 2.7, 1.4, 4.4, 3.3, 18, STAIR, 0, Y0);
+  b.mark(sr, { noLedge: true });
 
-  // battery room: glass cells on 1.0 stands (bays, so the aisle and the south door stay open)
-  solid(b, -22.6, -10.2, -2.1, -1.1, 0, 1, '#4a5b52');
-  solid(b, -22.6, -21, -4.9, -3.9, 0, 1, '#4a5b52');
-  solid(b, -18, -7, -4.9, -3.9, 0, 1, '#4a5b52');
-
-  // power room: two standby generators and the rectifier / switchgear cubicles (3.4 high) along the south wall
-  solid(b, -20.5, -15.5, -14.5, -11.5, 0, 2.4, '#5b6f56');
-  solid(b, -13.5, -8.5, -14.5, -11.5, 0, 2.4, '#5b6f56');
-  solid(b, -21, -6.15, -17.55, -16.5, 0, 3.4, STEEL);
+  // cable chamber: three rows of cable racks (1.5 high) as cover
+  for (const z of [4.5, 9, 14]) inBase(b, -20, -9, z - 0.3, z + 0.3, 1.5, '#6b4a2f');
+  // rectifier cabinets and the battery hall's rack rows (1.6 high)
+  inBase(b, -22, -17, -3.5, -2.5, 2, GREEN);
+  inBase(b, -10, -7.5, -3.5, -2.5, 2, GREEN);
+  for (const z of [-9.5, -13.5]) inBase(b, -22, -11, z - 0.4, z + 0.4, 1.6, '#4a5b52');
+  // generator room and boiler house machinery
+  inBase(b, 5, 9, -15, -12, 2.2, GREEN);
+  inBase(b, 14, 20, -15.5, -11.5, 2.5, STEEL);
 }
 
-/** The east side: power corridor, colonnade and light well, stair hall, rooms around the court. */
-function buildEast(b: LevelBuilder): void {
-  // power corridor (2.1 clear) from the power room to the colonnade, door to the goods entrance
-  lineX(b, -9, -6, 3.3, H1);
-  lineX(b, -11.4, -6, 6, H1, [[-0.5]]);
-  // colonnade (west wall with doors to the mess and WCs, the corridor door at its south end)
-  lineZ(b, 3.3, -11.4, 6, H1, [[-10.5], [-5], [2.5]]);
-  // staff WCs and engineers' mess off the colonnade, entrance hall's south wall
-  lineX(b, 0, -6, 3.3, H1);
-  lineX(b, 6, -6, 3.3, H1);
-  // colonnade arcade: columns on the court side
-  for (const z of [-3, 0, 3]) b.pillar(5.78, z, 0.25, H1, '#8d8a80');
-  // stair hall (6..12 x -15..-6.2) with the court door, the WCs south of it, locked doors to the colonnade / workshop
-  lineZ(b, 6, -18, -6.2, H1, [[-8, 'locked']]);
-  lineZ(b, 12, -18, -6.2, H1, [[-8]]);
-  lineX(b, -15, 6, 12, H1, [[10]]);
-  // light well (court 12 x 12, open sky): walls to the roof, the stair door south, the test-room door east
-  lineX(b, -6.2, 6, 24, HX, [[10]], 0.4);
+/** The ground floor (0): MDF hall, test and transmission rooms, spine, foyer, security, canteen, meeting room, cleaners, ring, goods-in, M hall, workshop, court, riser strip. */
+function buildGround(b: LevelBuilder): void {
+  const R0 = 0;
+  // exterior skin to the roof: the street door (locked), the yard fire doors
+  lineZ(b, -24, -18, 18, HX, [], TX, WALL_DARK);
+  lineZ(b, 24, -18, 18, HX, [], TX, WALL_DARK);
+  lineX(b, 18, -24, 24, HX, [[0, 'locked']], TX, WALL_DARK);
+  lineX(b, -18, -24, 24, HX, [[-16], [-5.5], [9], [20]], TX, WALL_DARK);
+
+  // the spine (x -6..-3.5): west wall to the MDF hall (two), test room, transmission room; east wall to stair B, cleaners, cross corridor, meeting room, foyer
+  lineZ(b, -6, -18, 18, H1, [[-8], [-4], [3], [13]]);
+  lineZ(b, -3.5, -18, 18, H1, [[-17], [-5], [-0.5], [5], [12]]);
+  // the west block: MDF hall | test room | transmission room
+  lineX(b, 0, -24, -6, H1, [[-14]]);
+  lineX(b, -6, -24, -6, H1, [[-14]]);
+  // V shaft (x -7.5..-6): its west wall has the one door, to the transmission room
+  lineZ(b, -7.5, -18, -10, H1, [[-12.5]]);
+  lineX(b, -10, -7.5, -6, H1);
+  // cross corridor (x -3.5..3.5, z -1.25..1.25), the ring's west wall, the meeting room and cleaners
+  lineX(b, 1.25, -3.5, 3.5, H1, [[-1]]);
+  lineX(b, -1.25, -3.5, 3.5, H1, [[-1]]);
+  lineZ(b, 3.5, -8.5, 8.5, H1, [[-0.5]]);
+  // the ring's outer walls: north (foyer, security, canteen), south (stair B core, goods-in, M hall, workshop), east (riser strip)
+  lineX(b, 8.5, -3.5, 24, H1, [[-2], [4], [8], [14]]);
+  lineX(b, -8.5, -3.5, 24, H1, [[5], [13], [19]]);
+  lineZ(b, 20.5, -8.5, 8.5, H1, [[5]]);
+  // the court (x 6..18, z -6..6, open to the sky): walls to the roof, one door from the ring's west side
+  lineZ(b, 6, -6, 6, HX, [[0]], 0.4);
+  lineZ(b, 18, -6, 6, HX, [], 0.4);
   lineX(b, 6, 6, 18, HX, [], 0.4);
-  lineZ(b, 18, -3.93, 6, HX, [[1]], 0.4);
-  // the air shaft (1.85 x 6.0) off the court's SE corner, closed at the depository's party wall
-  lineX(b, -3.93, 18, 24, HX, [], 0.4);
-  // test room, goods hall, call office, watch lodge, entrance hall
-  lineX(b, 6, 18, 24, H1, [[19]]);
-  lineZ(b, 6, 6, 18, H1, [[8.5], [14.5]]);
-  lineX(b, 12, 6, 12, H1, [[8.5]]);
-  lineZ(b, 12, 6, 18, H1, [[9]]);
-  // the goods lift (out of service) in the goods hall
-  solid(b, 21.6, 23.5, 6.5, 8.4, 0, H1, '#6b7078');
-  // the dry fountain (0.6 high) in the court
-  solid(b, 10.8, 13.2, -1.2, 1.2, 0, 0.6, STONE);
-  // engineers' workshop bench
-  solid(b, 15, 21, -15.5, -14.5, 0, 0.9, DESK);
-  solid(b, 5, 5.9, -10.9, -9.6, 0, 1.2, CRATE);
+  lineX(b, -6, 6, 18, HX, [], 0.4);
+  // north rooms: foyer | security | canteen
+  lineZ(b, 6, 8.5, 18, H1, [[13]]);
+  lineZ(b, 12, 8.5, 18, H1);
+  // south rooms: stair B core | goods-in | M hall | workshop
+  lineZ(b, 2.5, -18, -8.5, H1, [[-10]]);
+  lineZ(b, 12, -18, -8.5, H1, [[-14]]);
+  lineZ(b, 18, -18, -8.5, H1);
+
+  // C cable shaft top: rails on the open sides of the hole (the ladder comes up on its south edge)
+  solid(b, HOLE_C[1] - 0.05, HOLE_C[1] + 0.05, HOLE_C[2], HOLE_C[3], R0, R0 + RAIL, STEEL);
+  solid(b, HOLE_C[0], HOLE_C[1], HOLE_C[3], HOLE_C[3] + 0.1, R0, R0 + RAIL, STEEL);
+  // B stair top: rails on the hole's east side and across its north end
+  solid(b, HOLE_B[1] - 0.05, HOLE_B[1] + 0.05, HOLE_B[2], HOLE_B[3], R0, R0 + RAIL, STEEL);
+  solid(b, HOLE_B[0], HOLE_B[1], HOLE_B[3] - 0.05, HOLE_B[3] + 0.05, R0, R0 + RAIL, STEEL);
+  // R riser: rails on both sides of the hole and across its south end
+  solid(b, HOLE_R[0] - 0.05, HOLE_R[0] + 0.05, HOLE_R[2], HOLE_R[3], R0, R0 + RAIL, STEEL);
+  solid(b, HOLE_R[1] - 0.05, HOLE_R[1] + 0.05, HOLE_R[2], HOLE_R[3], R0, R0 + RAIL, STEEL);
+  solid(b, HOLE_R[0], HOLE_R[1], HOLE_R[2] - 0.05, HOLE_R[2] + 0.05, R0, R0 + RAIL, STEEL);
+
+  // MDF hall: two long frame rows (1.2 x 4.0 high) leave three lanes; the line-record cabinet and desk in the test room
+  for (const z of [6, 12]) solid(b, -21, -9, z - 0.6, z + 0.6, R0, 4, FRAME);
+  solid(b, -22, -20.4, -5.8, -4.2, R0, 1.8, STEEL);
+  solid(b, -14, -10, -2, -1, R0, 0.9, DESK);
+  // transmission room: two rack rows, leaving the V door and the test-room door clear
+  for (const z of [-9.4, -14.2]) solid(b, -22, -12, z - 0.4, z + 0.4, R0, 2.2, FRAME);
+  // foyer reception desk, security desks, canteen tables and lockers, meeting table, cleaners' shelves, goods-in crates, workshop bench
+  solid(b, 1.5, 4.5, 14, 14.8, R0, 1.1, DESK);
+  solid(b, 7.5, 11, 15.5, 16.5, R0, 0.9, DESK);
+  solid(b, 14, 21, 12, 13, R0, 0.9, DESK);
+  solid(b, 14, 23.5, 17.0, 17.6, R0, 2, STEEL);
+  solid(b, -2, 2, 4, 5.5, R0, 0.9, DESK);
+  solid(b, -3.2, -2.5, -7.5, -3, R0, 1.8, STEEL);
+  for (const [x, z] of [[5, -14], [6.4, -14], [9, -16]] as const) solid(b, x - 0.6, x + 0.6, z - 0.6, z + 0.6, R0, 1.1, CRATE);
+  solid(b, 19, 23, -16.5, -15.5, R0, 0.9, DESK);
 }
 
-/** The main stair, ground to the first floor (two flights of 13 x 0.173, landing at +2.25) in the stair hall. */
-function buildMainStair(b: LevelBuilder): void {
-  const s0 = b.boxes.length;
-  b.stairs(6.9, -9.88, 1.4, 3.36, 2.25, 13, STAIR, Math.PI, 0);
-  solid(b, 6.2, 9.0, -13.2, -11.56, 0, 2.25, STAIR);
-  b.stairs(8.3, -9.88, 1.4, 3.36, 2.25, 13, STAIR, 0, 2.25);
-  b.mark(s0, { noLedge: true });
-  // the first-floor landing (5.7 x 1.8) with a rail round the stair well
-  slab(b, 6.15, 11.85, -8.2, -6.4, 0.3, EXCHANGE_Y.first);
-  b.box(6.875, EXCHANGE_Y.first + 0.5, -8.15, 1.45, 1, 0.1, STEEL);
-  b.box(10.425, EXCHANGE_Y.first + 0.5, -8.15, 2.85, 1, 0.1, STEEL);
+/** The plant ramp and the coke stair, cut into the yard: retaining walls to rail height, the way down into the basement. */
+function buildYardCuts(b: LevelBuilder): void {
+  const Y0 = BASE;
+  // plant ramp: a shallow ramp (x 3.2..4.8) from the yard down to the generator room door
+  lineZ(b, HOLE_RAMP[0], HOLE_RAMP[2], HOLE_RAMP[3], BH + RAIL, [], T, WALL_DARK, Y0);
+  lineZ(b, HOLE_RAMP[1], HOLE_RAMP[2], HOLE_RAMP[3], BH + RAIL, [], T, WALL_DARK, Y0);
+  b.ramp(4, (HOLE_RAMP[2] + HOLE_RAMP[3] + 0.025) / 2, 1.6, 11.2, 3.3, STAIR, Math.PI, Y0);
+  // coke chute: a steep stair (x 14.8..16.2) from the yard down to the boiler house door
+  lineZ(b, HOLE_COKE[0], HOLE_COKE[2], HOLE_COKE[3], BH + RAIL, [], T, WALL_DARK, Y0);
+  lineZ(b, HOLE_COKE[1], HOLE_COKE[2], HOLE_COKE[3], BH + RAIL, [], T, WALL_DARK, Y0);
+  const sc = b.boxes.length;
+  b.stairs(15.5, -20.5, 1.4, 4.4, 3.3, 17, STAIR, Math.PI, Y0);
+  b.mark(sc, { noLedge: true });
 }
 
-/** A rack, cage or desk block standing on the first floor. */
-function onFirst(b: LevelBuilder, x0: number, x1: number, z0: number, z1: number, h: number, color: string): void {
-  solid(b, x0, x1, z0, z1, EXCHANGE_Y.first, EXCHANGE_Y.first + h, color);
-}
-
-/** The first floor (+4.5): slabs, rooms, stairs to the gallery and the roof, the server hall with its cage. */
-function buildFirst(b: LevelBuilder): void {
-  const F = EXCHANGE_Y.first;
-  // floors: gallery and fan room, cloak block / switchroom block, offices, WCs, cloakroom and washroom, server hall, spares and motor room
-  slab(b, -24, -6, -8.4, 0, 0.3, F);
-  slab(b, -6, 6, -18, 6, 0.3, F);
-  slab(b, -6, 9.6, 6, 18, 0.3, F);
-  slab(b, 6, 12, -18, -15, 0.3, F);
-  slab(b, 12, 24, -18, -6.2, 0.3, F);
-  slab(b, 9.6, 24, 6, 18, 0.3, F);
-  slab(b, 18, 24, -3.9, 6, 0.3, F);
-
-  // the gallery and the fan room: the first-floor part of the power room wall and of the east wall of the double-height halls
-  lineX(b, -6, -24, -6, HF, [[-15]], T, WALL, F);
-  lineZ(b, -6, -18, 18, HF, [[-8]], T, WALL, F);
-  // the gallery rail on the void side, and the steel stair up from the power room (26 x 0.173 / 0.28, 1.2 wide) at its west end
-  b.box(-14.25, F + 0.5, -8.35, 16.1, 1, 0.1, STEEL);
-  const s0 = b.boxes.length;
-  b.stairs(-23, -12.04, 1.2, 7.28, F, 26, STEEL, 0, 0);
-  b.mark(s0, { noLedge: true });
-
-  // cloak block: supervisor's office, rest room, cloak lobby, first aid, WCs, cloakroom, washroom
-  lineX(b, -6, -6, 6, HF, [[-4.5], [4]], T, WALL, F);
-  lineX(b, -12, -6, 6, HF, [[-3.5], [2.5]], T, WALL, F);
-  lineX(b, -12, 12, 24, HF, [[17.5]], T, WALL, F);
-  lineX(b, -15, 6, 12, HF, [], T, WALL, F);
-  lineZ(b, 0, -18, 6, HF, [[-9.5], [-5]], T, WALL, F);
-  lineZ(b, 12, -18, -6.2, HF, [[-17], [-7.5]], T, WALL, F);
-  // tea room / instruction room, the switchroom, the stem door and the court wall (x 6) to the offices
-  lineX(b, 0, -6, 0, HF, [[-3.5]], T, WALL, F);
-  lineX(b, 6, -6, 6, HF, [[4.5]], T, WALL, F);
-  lineZ(b, 6, -18, 18, HF, [[-7.5], [11.5]], 0.4, WALL, F);
-  // offices: clerks', post room and the stem, the T corridor, manager's and records
-  lineZ(b, 0, 6, 10.8, HF, [[8]], T, WALL, F);
-  lineZ(b, 3.6, 6, 10.8, HF, [[8]], T, WALL, F);
-  lineX(b, 10.8, -6, 3.6, HF, [[-3.5], [1.5]], T, WALL, F);
-  lineX(b, 13.2, -6, 6, HF, [[-3.5], [2.5]], T, WALL, F);
-  lineZ(b, 0, 13.2, 18, HF, [[15]], T, WALL, F);
-  // server hall: west wall (two double doors and the north door), south wall to the motor room (door at x 19.5)
-  lineZ(b, 9.6, 6, 17.775, HH, [[11], [12], [16.5]], T, WALL, F);
-  lineX(b, 6, 18, 24, HH, [[19]], T, WALL, F);
-  // spares store and lift motor room
-  lineX(b, 0, 18, 24, HF, [[20.5]], T, WALL, F);
-
-  // furniture: the switchboard suite (low cover), office desks, the post room cupboard and the records cabinets
-  onFirst(b, 2.2, 3.6, -3, 1.5, 1.1, DESK);
-  onFirst(b, -5.2, -3.4, 7, 7.8, 0.9, DESK);
-  onFirst(b, -5.2, -3.4, 9, 9.8, 0.9, DESK);
-  onFirst(b, -4.5, -2.7, 16.2, 17, 0.9, DESK);
-  onFirst(b, 2.5, 3.3, 6.2, 7, 1.8, DESK);
-  onFirst(b, 1, 5, 17.3, 17.7, 1.4, STEEL);
-
-  // server hall: stripped racks (3.2 high) in a ring with gaps, the cage (2.4) with a west gate, the core switch in its NE corner
-  const rack = (x0: number, x1: number, z0: number, z1: number, c: string): void => onFirst(b, x0, x1, z0, z1, 3.2, c);
-  rack(11.8, 15, 15.6, 16.3, FRAME);
-  rack(16.6, 21.7, 15.6, 16.3, STEEL);
-  rack(11.8, 16.4, 8, 8.7, FRAME);
-  rack(18, 21.7, 8, 8.7, STEEL);
-  rack(11.8, 12.5, 8.7, 11, FRAME);
-  rack(11.8, 12.5, 13, 15.6, FRAME);
-  rack(21, 21.7, 8.7, 10.4, STEEL);
-  rack(21, 21.7, 12.4, 15.6, STEEL);
-  lineZ(b, 14.8, 10, 13.9, 2.4, [[11]], 0.1, STEEL, F);
-  lineZ(b, 19.2, 10, 13.9, 2.4, [], 0.1, STEEL, F);
-  lineX(b, 10, 14.8, 19.2, 2.4, [], 0.1, STEEL, F);
-  lineX(b, 13.9, 14.8, 19.2, 2.4, [], 0.1, STEEL, F);
-  onFirst(b, 18.2, 19, 12.9, 13.5, 1.6, '#3b4a5a');
-
-  // the stair from the motor room up to the roof (two flights of 13 x 0.173 / 0.26, landing +6.75, the roof hole above it)
-  const s1 = b.boxes.length;
-  b.stairs(19.5, 3.12, 1.2, 3.36, 2.25, 13, STEEL, Math.PI, F);
-  solid(b, 18.9, 22.1, 0.4, 1.44, F, F + 2.25, STAIR);
-  b.stairs(20.8, 3.12, 1.2, 3.36, 2.25, 13, STEEL, 0, F + 2.25);
-  b.mark(s1, { noLedge: true });
-}
-
-/** The roof (+9.0, raised roof +10.5 over the server hall): slabs, parapets, the hatch stair opening, the tank room, the shaft bridge, the stair to the yard. */
-function buildRoof(b: LevelBuilder): void {
-  const R = EXCHANGE_Y.roof;
-  // main roof (the light well stays open to the sky); the court wall tops sit flush with it
-  slab(b, -24, 6.2, -18, 18, 0.3, R);
-  slab(b, 6, 24, -18, -6.2, 0.3, R);
-  slab(b, 6, 9.6, 6.2, 18, 0.3, R);
-  // spares and motor room roof round the stair opening (x 18.9..22.1, z 0.4..4.8)
-  slab(b, 18, 18.9, -3.9, 6, 0.3, R);
-  slab(b, 22.1, 24, -3.9, 6, 0.3, R);
-  slab(b, 18.9, 22.1, -3.9, 0.4, 0.3, R);
-  slab(b, 18.9, 22.1, 4.8, 6, 0.3, R);
-  // the raised roof over the apparatus range, a 1.5 m step above the main roof, and the step's walls
-  slab(b, 9.6, 24, 6, 18, 0.3, RAISED);
-  solid(b, 23.775, 24.225, 6, 18, R, 10.2, WALL_DARK);
-  solid(b, 9.6, 24, 17.775, 18.225, R, 10.2, WALL_DARK);
-  solid(b, 9.6, 18, 6, 6.4, R, 10.2, WALL_DARK);
-  solid(b, 23.85, 24.15, 6, 18, RAISED, RAISED + 0.6, STONE);
-  solid(b, 9.6, 24, 17.85, 18.15, RAISED, RAISED + 0.6, STONE);
-
-  // 1.0 m parapets: the rear (open where the steel stair leaves the roof, x 15.9..17.1), west, north and east edges
-  solid(b, -24, 15.9, -18.15, -17.85, R, R + 1, STONE);
-  solid(b, 17.1, 24, -18.15, -17.85, R, R + 1, STONE);
-  solid(b, -24.15, -23.85, -18, 18, R, R + 1, STONE);
-  solid(b, -24, 9.6, 17.85, 18.15, R, R + 1, STONE);
-  solid(b, 23.85, 24.15, -18, 6, R, R + 1, STONE);
-  // round the light well and the air shaft (the bridge crosses the shaft at x 21..22)
-  solid(b, 5.9, 6.2, -6, 6.2, R, R + 1, STONE);
-  solid(b, 6, 9.6, 6, 6.4, R, R + 1, STONE);
-  solid(b, 6, 20.9, -6.4, -6, R, R + 1, STONE);
-  solid(b, 22.1, 24, -6.4, -6, R, R + 1, STONE);
-  solid(b, 17.8, 18.2, -3.93, 6, R, R + 1, STONE);
-  solid(b, 18, 20.9, -4.13, -3.73, R, R + 1, STONE);
-  solid(b, 22.1, 24, -4.13, -3.73, R, R + 1, STONE);
-  slab(b, 21, 22, -6.4, -3.7, 0.3, R);
-  solid(b, 20.95, 21.05, -6.2, -3.9, R, R + 1, STEEL);
-  solid(b, 21.95, 22.05, -6.2, -3.9, R, R + 1, STEEL);
-  // rails round the stair opening (open on the north side where the second flight arrives, x 20.2..21.4)
-  solid(b, 18.75, 18.85, 0.4, 4.8, R, R + 1, STEEL);
-  solid(b, 22.15, 22.25, 0.4, 4.8, R, R + 1, STEEL);
-  solid(b, 18.9, 22.1, 0.25, 0.35, R, R + 1, STEEL);
-  solid(b, 18.9, 20.1, 4.85, 4.95, R, R + 1, STEEL);
-  solid(b, 21.4, 22.1, 4.85, 4.95, R, R + 1, STEEL);
-
-  // tank room over the power room's south half (9 x 5.2, 3.0 high to +12.0), door on its east side, one tank inside
-  const s0 = b.boxes.length;
-  lineX(b, -16.15, -20.5, -11.5, 2.7, [], T, WALL, R);
-  lineX(b, -10.95, -20.5, -11.5, 2.7, [], T, WALL, R);
-  lineZ(b, -20.5, -16.15, -10.95, 2.7, [], T, WALL, R);
-  lineZ(b, -11.5, -16.15, -10.95, 2.7, [[-14]], T, WALL, R);
-  slab(b, -20.65, -11.35, -16.3, -10.8, 0.3, R + 3);
-  solid(b, -19.5, -14.5, -15.5, -12, R, R + 2, '#7a8078');
-  b.mark(s0, { noLedge: true });
-
-  // the steel stair from the roof down to the yard (52 x 0.173 / 0.28, 1.2 wide) over the rear wall at x 16.5
-  const s1 = b.boxes.length;
-  b.stairs(16.5, -25.48, 1.2, 14.56, R, 52, STEEL, 0, 0);
-  b.mark(s1, { noLedge: true });
-}
-
-/** The rear goods yard (48 x 18, walls 3.0), the lane east of it, the van, the coke bunker and the pallet stacks. */
+/** The rear goods yard (48 x 18, walls 3.0), the lane east of it, the van, the coke bunker, a bin and the pallet stacks. */
 function buildYard(b: LevelBuilder): void {
   lineX(b, -36.3, -24, 24, 3, [], T, WALL_DARK);
   lineZ(b, -24, -36.3, -18, 3, [[-27, 'locked']], T, WALL_DARK);
@@ -378,13 +309,13 @@ function buildYard(b: LevelBuilder): void {
   solid(b, -14.8, -9.2, -25.6, -23.4, 0, 2.2, '#3f4a55');
   solid(b, -22, -19, -21.3, -19.1, 0, 1.8, '#4a4540');
   solid(b, -21.4, -20.4, -23, -22.2, 0, 1.1, STEEL);
-  for (const [x, z] of [[2.5, -20.5], [4, -20.5], [2, -29], [3.5, -29]] as const) solid(b, x - 0.6, x + 0.6, z - 0.6, z + 0.6, 0, 1.1, CRATE);
+  for (const [x, z] of [[8, -21], [9.5, -21], [8.5, -30], [10, -30]] as const) solid(b, x - 0.6, x + 0.6, z - 0.6, z + 0.6, 0, 1.1, CRATE);
 }
 
 export const exchange: MapDef = {
   id: 'exchange',
   name: 'Kestrel Exchange',
-  description: 'A 1934 telephone exchange at night: cable tunnel, MDF hall, battery and power rooms, the light well, the first floor, the roof and the rear yard.',
+  description: 'A 1934 telephone exchange at night: cable tunnel, MDF hall, battery and generator rooms, the light well, the ground floor and the rear yard.',
   modes: ['infiltration', 'sandbox'],
   theme: {
     sky: '#0b111b',
@@ -404,16 +335,8 @@ export const exchange: MapDef = {
     b.perimeter(-33.75, 30.25, -36.75, 20.25, HX, WALL_DARK);
     buildSlabs(b);
     buildBasement(b);
-    // exterior skin to the roof (the plan's outer wall lines)
-    lineZ(b, -24, -18, 18, HX, [], TX, WALL_DARK);
-    lineZ(b, 24, -18, 18, HX, [], TX, WALL_DARK);
-    lineX(b, 18, -24, 24, HX, [], TX, WALL_DARK);
-    lineX(b, -18, -24, 24, HX, [], TX, WALL_DARK);
-    buildWest(b);
-    buildEast(b);
-    buildMainStair(b);
-    buildFirst(b);
-    buildRoof(b);
+    buildGround(b);
+    buildYardCuts(b);
     buildYard(b);
 
     const v = (x: number, z: number, y = 0): Vector3 => new Vector3(x, y, z);
