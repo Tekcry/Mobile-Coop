@@ -8,7 +8,7 @@ Format: `N. Item - destination - status`.
 
 1. **Free Roam: shoot out lights, use switches and alarms.** Must work in Free Roam for testing. Destination: Phase 1 Step 6.
 2. **FPS / perf overlay is too big.** Make it a minimal bar along the top edge, critical numbers only. Destination: Phase 1 Step 7.
-3. **Desktop looks blurry with screen space reflections on or off.** Check upscaling and temporal settings first. Destination: graphics fix batch after Phase 1.
+3. **Desktop looks blurry with screen space reflections on or off.** Check upscaling and temporal settings first. Note (2026-10-09, Step 4b fix round 5): at Epic the whole frame is soft at Michael's Loading Dock spot with night vision off, before and after the round 5 change (`docs/prompts/phase-1-sheets/step4b-fix-epic-dark-*.png`); depth of field is on at Epic - check its focus first. Destination: graphics fix batch after Phase 1.
 4. **Weapon holstered unless aiming, no hip fire, elbow strike on the fire button.** Decided, bible 1.11 - holstered unless aiming, no hip fire, elbow strike on the fire button. Built in Phase 3.
 5. **Ghost copy of the operator on Epic** (noted in `docs/progress.md`). Destination: graphics fix batch after Phase 1.
 6. **Voice test after Phase 4.** Generate the Dead Line opening three ways: the browser's built-in speech, a free open-source voice model run on this PC, a paid AI voice service. Michael picks by ear. Until then the radio stays text-only. Write all radio lines short and voice-ready. Original voices only: never clone or imitate a real actor. Destination: after Phase 4.
@@ -25,6 +25,8 @@ Format: `N. Item - destination - status`.
 17. **Light shafts not seen; lamps blinding in night vision; desktop smear moving in night vision** (Michael, 2026-10-09). **Built 2026-10-09 (Step 4b fix round 2)**: the cone meshes are gone, the glare is larger and washes the view out, and the smear (the glare read the camera before the render, so TAA saw a moving camera as still) is fixed with an e2e check. Waiting for Michael's look check.
 18. **Night vision fades in and out; glare blinds half the screen** (Michael, 2026-10-09). **Built 2026-10-09 (Step 4b fix round 3)**: the goggles flip across the view in 0.2 s with no fade; the halo is a fixed angle like a real tube (about 1.8 deg, the same near and far) and the blinding comes from the auto-gain darkening the room near a lamp. Waiting for Michael's look check.
 19. **Lights in night vision look weird; replicate Chaos Theory's night vision art style** (Michael, 2026-10-09). **Built 2026-10-09 (Step 4b fix round 4)**: a bloom of the image's bright parts replaces the per-lamp halo; the auto-gain keeps lamps white. Waiting for Michael's look check and a Phone check (the bloom's iPhone cost).
+
+20. **Desktop darkness patchy, contrast strange, not real darkness** (Michael, 2026-10-09, Loading Dock, Epic, night vision off). Cause: the desktop passes ahead of tone mapping (TAA, SSAO, SSR, ray-traced reflections, fog, motion blur) held linear light in 8 bits; after Step 4b's darkness curve the dark band had a few steps left, drawn as contour bands and blocky speckle. **Built 2026-10-09 (Step 4b fix round 5)**: half float on desktop. Waiting for Michael's look check. Michael: phone night vision looks good; desktop night vision "working" (round 4).
 
 ## Pending input
 

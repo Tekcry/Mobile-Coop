@@ -187,6 +187,13 @@ export class PostStack {
 
   /** MSAA on (a multisampled scene target has no single-sample depth to read). */
   private msaa = false;
+  /**
+   * The texture type of the passes ahead of tone mapping (Step 4b fix round 5): half float on desktop. They hold linear
+   * light; in 8 bits the darkness curve's dark band had only a few steps left (linear 1/255 shows as about 5% on screen),
+   * which drew contour bands and blocky speckle in the dark (Michael's desktop feedback, 2026-10-09). Phones keep 8 bits
+   * (bandwidth; the phone light look has no post stack).
+   */
+  private hdr: number = Constants.TEXTURETYPE_UNSIGNED_BYTE;
 
   /** Bind the scene pass's depth: the first post process's input target, given a depth texture once (and again
    *  whenever the target is recreated - a resize). */
@@ -260,6 +267,7 @@ export class PostStack {
     const scene = this.scene;
     const cams = [this.camera];
     this.msaa = f.aa === 'msaa';
+    this.hdr = !q.mobile && scene.getEngine().getCaps().textureHalfFloatRender ? Constants.TEXTURETYPE_HALF_FLOAT : Constants.TEXTURETYPE_UNSIGNED_BYTE;
     // TAAU first: its input sets the scene's render size; it does the temporal anti-aliasing too
     // (one depth for fog and TAAU: the G-buffer's when SSAO / SSR draw one anyway - no second geometry pass)
     if (f.ao || f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
@@ -280,15 +288,15 @@ export class PostStack {
       // fog / light shafts ahead of TAAU, at the scene's resolution (3.1: a full-resolution march was the phones'
       // biggest cost); TAAU resolves their dither with everything else
       this.makeVolumetric(q.upscale);
-      this.taau = new Taau(scene, this.camera, q.upscale, this.depthSource());
+      this.taau = new Taau(scene, this.camera, q.upscale, this.depthSource(), this.hdr);
     } else if (f.aa === 'taa') {
-      const taa = new TAARenderingPipeline('taa', scene, cams);
+      const taa = new TAARenderingPipeline('taa', scene, cams, this.hdr);
       taa.samples = 8;
       taa.factor = 0.08;
       this.taa = taa;
     }
     if (f.ao) {
-      const ssao = new SSAO2RenderingPipeline('ssao', scene, { ssaoRatio: f.postRes === 'half' ? 0.5 : 0.75, blurRatio: f.postRes === 'half' ? 0.5 : 1 }, cams, true);
+      const ssao = new SSAO2RenderingPipeline('ssao', scene, { ssaoRatio: f.postRes === 'half' ? 0.5 : 0.75, blurRatio: f.postRes === 'half' ? 0.5 : 1 }, cams, true, this.hdr);
       ssao.radius = 0.55;
       ssao.totalStrength = 0.9;
       ssao.base = 0.2;
@@ -299,7 +307,7 @@ export class PostStack {
       this.ssao = ssao;
     }
     if (f.reflections === 'ssr' || (f.reflections === 'rt' && !this.opts.rt)) {
-      const ssr = new SSRRenderingPipeline('ssr', scene, cams, true);
+      const ssr = new SSRRenderingPipeline('ssr', scene, cams, true, this.hdr);
       ssr.thickness = 0.4;
       ssr.selfCollisionNumSkip = 2;
       ssr.enableAutomaticThicknessComputation = false;
@@ -318,10 +326,10 @@ export class PostStack {
     }
     if (f.reflections === 'rt' && this.opts.rt) {
       this.depth = scene.enableDepthRenderer(this.camera, false, true);
-      this.rtr = new RtReflections(scene, this.camera, this.opts.rt, this.depth, f.rtRes === 'half');
+      this.rtr = new RtReflections(scene, this.camera, this.opts.rt, this.depth, f.rtRes === 'half', this.hdr);
     }
     if (f.motionBlur) {
-      const mb = new MotionBlurPostProcess('motionBlur', scene, 1, this.camera);
+      const mb = new MotionBlurPostProcess('motionBlur', scene, 1, this.camera, undefined, undefined, false, this.hdr);
       mb.motionStrength = 0.6;
       mb.motionBlurSamples = 16;
       mb.isObjectBased = false;
@@ -378,6 +386,11 @@ export class PostStack {
       ['depthSampler', 'skyVis'],
       ratio,
       this.camera,
+      undefined,
+      undefined,
+      false,
+      null,
+      this.hdr,
     );
     pp.onApply = (e) => {
       const cam = this.camera;

@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b fix pass round 4 done (Chaos Theory-style bloom, goggles flip, auto-gain); waiting for Michael's look check and the item 15 decision | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b fix pass round 5 done (desktop dark band in half float; phone approved); waiting for Michael's desktop look check and the item 15 decision | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -767,6 +767,23 @@ See the Step 1 and Step 5 reports.
   - [ ] The goggles flip with no fade; no smear moving on desktop.
   - [ ] Phone check with the night vision run (the bloom's iPhone cost). Send the note.
   - [ ] Decide item 15 (strip lamps as line sources, Step 4c) and item 16 (night vision proposals).
+
+#### Step 4b fix pass, round 5 - 2026-10-09
+- Michael: phone looks good; desktop night vision working. Desktop with night vision off: "darkness is patchy and not
+  clean, contrast looks strange and unrealistic, not actual darkness" (Loading Dock, Epic, `sbd-feedback-2026-10-09 2`).
+- Cause: the desktop passes ahead of tone mapping held linear light in 8-bit targets (`TAARenderingPipeline`,
+  `SSAO2RenderingPipeline` and `SSRRenderingPipeline` default to unsigned byte; the volumetric pass, the ray-traced
+  reflection passes and `taauPass` too). Linear 1/255 shows as about 5% on screen, so after Step 4b's darkness curve
+  the dark band had a few steps left: contour bands ("marbled" surfaces) and blocky speckle. Only Babylon's default
+  pipeline (tone mapping onwards) was half float.
+- Done: `PostStack.hdr` - half float on desktop (where the GPU renders it) for all of them; phones keep 8 bits.
+- Before / after at Michael's spot: `docs/prompts/phase-1-sheets/step4b-fix-epic-dark-before.png` / `-after.png` - the
+  bands and speckle are gone. The whole frame is still soft in both (backlog item 3: depth of field is on at Epic).
+- Tests (this PC, `E2E_GPU=1`): pass `e2e-darkness` (Epic now 0.3% at 0.12, 5.8% at 0.27, 32.3% at 0.40, 49.2% at
+  0.70 - all within the targets; night vision 33.1% / 98.2%), `e2e-desktop`, `e2e-phonelamps`, `e2e-lightbake`, `smoke`.
+  `perf.mjs --desktop --budget` passes (main thread 4.55 ms, frame p95 8.7 ms, 195 draws).
+- Next: **STOP** for Michael's desktop look check: darkness clean and smooth (no bands or speckle); then the open
+  decisions (items 15, 16).
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)

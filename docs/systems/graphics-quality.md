@@ -73,7 +73,10 @@ Design authority: docs/design-bible.md (Section 8)
   (depth renderer; per light a ray / sphere stretch marched for cone in-scatter, closed-form height fog; 12 nearest
   lights), then `DefaultRenderingPipeline` (HDR, MSAA samples, FXAA, bloom, DOF focused by `focus` / `focusOn`:
   aiming = the aim ray's hit, chromatic aberration, sharpen with TAA, KHR PBR Neutral tone mapping);
-  `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last.
+  `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last. The passes ahead of tone mapping (TAA, SSAO2,
+  SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half float on desktop
+  (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark band drew contour bands and blocky
+  speckle. Phones (`q.mobile`) keep 8 bits.
 - Materials (3.0): `world/surfaceAtlas.ts` `SurfaceAtlas` - two GPU `ProceduralTexture` atlases (4 x 4 tiles, periodic
   GLSL: `detail` rgb albedo variation + a roughness, `normal` rg normal + b height + a cavity) for `SURFACE_KINDS`
   (`SURFACE_PARAMS`: metres per tile, metallic, bump); drawn once, `setSize` by the Textures tier (`TEXTURE_SIZE`

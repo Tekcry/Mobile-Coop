@@ -264,8 +264,10 @@ export class RtReflections {
     private src: RtSource,
     depth: DepthRenderer,
     half: boolean,
+    /** The texture type ahead of tone mapping (half float on desktop: `PostStack.hdr`). */
+    textureType: number,
   ) {
-    this.copy = new PassPostProcess('rtScene', 1, camera);
+    this.copy = new PassPostProcess('rtScene', 1, camera, undefined, undefined, false, textureType);
     const rt = new PostProcess(
       'rtReflect',
       'rtReflect',
@@ -273,6 +275,11 @@ export class RtReflections {
       ['depthSampler', 'voxInd', 'voxPool', 'voxPal', 'voxSky'],
       1,
       camera,
+      undefined,
+      undefined,
+      false,
+      null,
+      textureType,
     );
     rt.onApply = (e) => {
       const cam = this.camera;
@@ -310,7 +317,7 @@ export class RtReflections {
       e.setFloatArray4('capB', this.capB);
     };
     this.rt = rt;
-    const comp = new PostProcess('rtComposite', 'rtComposite', ['texel'], ['sceneSampler'], 1, camera);
+    const comp = new PostProcess('rtComposite', 'rtComposite', ['texel'], ['sceneSampler'], 1, camera, undefined, undefined, false, null, textureType);
     comp.onApply = (e) => {
       e.setTextureFromPostProcessOutput('sceneSampler', this.copy);
       e.setFloat2('texel', 1 / Math.max(1, rt.width), 1 / Math.max(1, rt.height));
