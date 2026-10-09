@@ -489,6 +489,24 @@ See the Step 1 and Step 5 reports.
   - Proving Grounds has no lamps, so the phone keeps its plain path there (no `BakedLamps`): no grid fill or baked
     moon on screen; the field has both. Step 5's parity test on Proving needs a lamp-less `BakedLamps` (moon, fill).
   - The dark disc in the `rack` view.
+- Phone check on Michael's iPhone 17 Pro Max (`/ct/`, 2026-10-09; 2868x1320):
+
+  | Run | avg fps | 1% low | p50 / p99 ms | main p95 ms | spikes (worst) |
+  | --- | --- | --- | --- | --- | --- |
+  | light look + lamp volume, 100% | 117 | 86 | 9.0 / 10.0 | 3.0 | 2 (18 ms) |
+  | light look + lamp volume, 75% | 117 | 71 | 8.0 / 11.0 | 3.0 | 2 (47 ms) |
+  | + flashlight shadow (512), moon on characters | 110 | 53 | 9.0 / 11.0 | 3.0 | 7 (51 ms; gpu 5) |
+  | 3.3 voxel look, 75% | 71 | 22 | 14.0 / 21.0 | 4.0 | 7 (125 ms) |
+  | light look, 100% again (heat check) | 116 | 84 | 9.0 / 11.0 | 3.0 | 3 (19 ms) |
+  | held at 60, 3 min | 59 | 43 | 17.0 / 21.0 | 5.0 | none |
+
+  - Gate: the hold averages 59 fps (58 needed); first and last minute 59 (-0.1%). The note prints only the first
+    and last minute; with a 59 average the middle minute is at least 56.5 (above 55).
+  - The volume runs at 117 fps uncapped at native resolution: about 8.5 ms a frame, half the 60 fps budget. No heat
+    loss (117 then 116).
+  - Flashlight shadow + moon on characters: about 0.5 ms more a frame (110 fps), but the 1% low falls from 86 to 53
+    and the GPU spikes rise from 1 to 5. p99 stays 11 ms, inside 16.7.
+  - Not yet reported: the Warehouse cold-load time.
 - Next: **STOP.** Michael runs Settings > Display > Phone check on the `/ct/` preview (iPhone 17 Pro Max) and sends
   the note. Gate: the 3-minute hold averages 58 fps or more, no minute under 55. Also: the Warehouse's cold-load time
   (the bake), and the flashlight-shadow run's numbers.
