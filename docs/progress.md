@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b (darkness) next | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b done; waiting for Michael's look check | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -520,6 +520,93 @@ See the Step 1 and Step 5 reports.
   - Flashlight shadows on the phone: off. Opus recommended keeping them off (the 1% low 86 -> 53 fps, more GPU
     spikes); Michael confirmed off (2026-10-09).
   - The Warehouse cold-load time (the bake) is not yet reported; carried.
+
+#### Step 4b report (darkness is dark; bible 1.10, `phase-1-step-4b-darkness.md`) - 2026-10-09
+- Done:
+  - The darkness curve (`world/darkCurve.ts`, pure): a pixel's summed static level (fill + baked moon + baked lamps, as
+    `LightField` sums them) to the level it renders with, `s x g x w(g s)`, `w` a logistic weight from `floor` (dark) to
+    `top` (above lit). Applied per pixel in the lighting by `LampPlugin`, before tone mapping; flashlights and other
+    moving lights are told apart as the lights are summed and added after it. Display targets (bible L5) in one table
+    (`DARK_TARGETS`, `VISION_TARGETS`). Rendering only; gameplay reads none of it.
+  - Night vision: a gain in the lighting (`VISION_GAIN` 8, eased with the goggles); the tube maps the image to green
+    nearly as it is and blows lamp light out towards white.
+  - The phone black floor 0.045 -> 0.008 (OLED smear only). Desktop stays 0.
+  - The goggle glow: the tri-lens lenses and a rear battery-pack LED, emissive instances of one unlit sphere; always
+    on, brighter in a vision mode; hidden with the head; visual only.
+  - Brightness calibration: Settings > Display > Brightness (phone and desktop) and once on the first launch after
+    this update (skippable, never under automation): a tri-lens symbol on black, "barely visible"; an exposure
+    multiplier in the grade, 0.75 - 1.3; `GameState.brightnessLocked` for the Confrontation.
+  - Phone check: "light look + night vision, 100%", night vision in the hold's second minute, and the hold prints every
+    minute (the gate's "no minute under 55" was not readable before).
+  - Tests: `tests/darkCurve.test.ts` (new), `e2e-darkness` (new, REQUIRED); `e2e-phonelamps` checks the curve's
+    injection and the floor.
+- Files changed: `src/world/darkCurve.ts` (new), `src/world/bakedLamps.ts`, `src/world/world.ts`,
+  `src/vfx/cinematicPost.ts`, `src/core/quality.ts`, `src/core/settings.ts`, `src/game/gameState.ts`,
+  `src/game/benchmark.ts`, `src/player/goggleGlow.ts` (new), `src/player/characterRig.ts`,
+  `src/ui/screens/brightnessScreen.ts` (new), `src/ui/screens/settingsScreen.ts`, `src/main.ts`, `src/styles.css`,
+  `tests/darkCurve.test.ts` (new), `tests/phoneLook.test.ts`, `scripts/e2e-darkness.mjs` (new),
+  `scripts/e2e-phonelamps.mjs`, `scripts/run-e2e.mjs`, `docs/systems/lighting.md`, `docs/systems/testing-tools.md`,
+  `docs/prompts/phase-1-sheets/step4b-*.jpg`.
+- Decisions:
+  - "Display luminance" = Rec. 709 luma of the output pixel (the spec's own example counts after the sRGB curve). The
+    probe is a display 50% grey card: diffuse 0.5 on the phone's gamma-space standard material, albedo 0.5^2.2 on PBR.
+  - One curve, two parameter sets (`DARK_PHONE`, `DARK_DESKTOP`): the phone shades in gamma space; the desktop in
+    linear space, then the neutral tone map's toe crushes low light and the sRGB encode lifts it - one set cannot meet
+    the same targets on both. Each is tuned on real pixels.
+  - `top` above 1: both looks read under the lit target before this step (phone 44.4%, Epic 36.9% at 0.70). The phone
+    gets x1.12 above lit, the desktop x1.55: desktop lamp pools are brighter than in Step 3/4. Michael's look check
+    decides; the alternative is to lower the lit target.
+  - Desktop floor 0.3 (the weight left in the dark band): lower and the dark band is pure black (0%) after the tone
+    map's toe; 0.3 gives 0.7% at 0.12 and 6.7% at 0.27.
+  - Desktop's non-voxel surfaces (characters, props, weapons) take the ambient grid as their fill in place of the
+    hemisphere: the hemisphere lit them as if under open sky indoors - an operator in a dark room read as lit on
+    desktop. The voxels keep the sky bake's fill (Michael, 2026-10-09).
+  - Phone night vision: the standard material clamps the light before the surface colour, so a lit wall stopped at its
+    colour and never blew out; the light over twice full is added to the colour while night vision is on.
+  - The goggle glow gets a rear battery-pack LED: the third-person camera is behind the operator, where the front lenses
+    are hidden by the head. Real goggle mounts carry the battery pack at the back. One more draw on the phone (30).
+  - Brightness 0.75 - 1.3: at 1.3 the dark band's top (Epic 6.7% at 0.27) stays under 9%.
+- Mistakes found on the way:
+  - Materials made after the level loaded never got the lamp plugin (the scene's new-material event fires inside
+    Babylon's base constructor, too early): anything spawned later drew without baked lamps (and now without the
+    curve). Fixed: `BakedLamps.frame` attaches new materials when the scene's material count changes.
+- Tests:
+  - `npx vitest run`: 63 files, 623 tests. `npm run lint`: clean.
+  - `e2e-darkness` (display luminance of the grey card; before = the Step 4 look, `DARK_OFF=1`):
+
+    | Level (light) | Phone before | Phone after | Phone NV | Epic before | Epic after | Epic NV | Target |
+    | --- | --- | --- | --- | --- | --- | --- | --- |
+    | 0.122 (fill) | 9.0% | 0.8% | 38.1% | 8.1% | 0.7% | 33.7% | <= 4%; NV 25-45% |
+    | 0.270 (lamp) | 19.0% | 4.3% | | 19.4% | 6.7% | | <= 9% |
+    | 0.400 (lamp) | 27.6% | 24.8% | | 28.3% | 32.6% | | 12-35% |
+    | 0.697 (lamp) | 44.4% | 47.5% | 100% | 36.9% | 49.0% | 100% | >= 45%; NV clipped |
+
+  - Gameplay unchanged: `e2e-stealth-ai`, `e2e-stealth`, `e2e-tactics`, `e2e-missions` pass untouched. Also pass:
+    `e2e-phonelamps`, `e2e-lightbake`, `e2e-desktop`.
+  - Not run: the full `npm run e2e` (Step 9).
+- Measurements (the cloud VM):
+  - `perf.mjs --phone --budget`: passes twice - sim p95 1.8 / 2.05 ms, animation 0.0424 / 0.0419 ms, allocations
+    10977 / 11021 KB/s, 30 draw calls (29 in Step 4: the goggle glow), 0.10 - 0.11 M triangles.
+  - `perf.mjs --desktop --budget`: over the sim p95 budget on this VM for both builds, interleaved: Step 4 2.8 / 7.2 ms,
+    Step 4b 2.75 / 3.65 ms (animation, unchanged code, moved with it: VM load). Allocations 10499 / 10799 (Step 4) and
+    11130 / 10993 KB/s (4b), under budget; draws 221 - 247, under 520.
+  - The fog: the height fog in a dark room falls inside the desktop tone map's toe (the 0.12 card reads 0.7% with
+    every post effect on); lamp scatter stays a short cone under each shade; the moon's shafts read the sky bake.
+- Contact sheets (`docs/prompts/phase-1-sheets/step4b-<look>-<view>.jpg`; left Step 4, right Step 4b; top night vision
+  off, bottom on): interiors fall to near black but for lamp pools and moonlit ground; the operator in shadow shows as
+  the goggle glow; night vision reads the dark rooms and flares in lamp light.
+- Open issues:
+  - Proving Grounds has no lamps, so no `BakedLamps`, so no darkness curve there (both looks), as for Step 4's fill and
+    moon. Step 5 needs a lamp-less `BakedLamps` (moon, fill, curve) anyway.
+  - A ghost copy of the operator's voxel body (its level-of-detail mesh) beside the operator in the Epic yard view: dark
+    in Step 4, pale in Step 4b. Pre-existing; not traced (suggested as a separate task).
+  - The Warehouse cold-load time (carried).
+- Next: **STOP** for Michael's look check on the iPhone (`/ct/`) and desktop:
+  - [ ] Indoors at night, standing in shadow, you can hardly see your operator: just the goggle glow.
+  - [ ] Night vision is now needed to read a dark room. It flares when you look at a lamp.
+  - [ ] Lamp pools and moonlit ground still read clearly (desktop pools are brighter: `top` x1.55).
+  - [ ] Brightness calibration: set it once and it feels right.
+  - [ ] Phone check including the night vision run (and night vision in the hold's second minute). Send the note.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
