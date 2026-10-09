@@ -19,7 +19,8 @@ try {
       x: c.pos.x, y: c.pos.y, z: c.pos.z, grounded: c.grounded,
     };
   });
-  assert(info.map === 'exchange', `the Exchange is the loaded map (${info.map})`);
+  // getMap() falls back to Proving Grounds for an unknown id, and a dev server on another checkout has no Exchange: fail loudly
+  assert(info.map === 'exchange', `autostart=exchange loads the Exchange, not ${info.map}`);
   for (const id of ['cable', 'mdf', 'power', 'well']) assert(info.ids.includes(id), `room ${id} is listed (${info.ids.join(',')})`);
   assert(info.room === 'cable', `the operator stands in the cable room (${info.room})`);
   assert(info.grounded && Math.abs(info.y - -3.3) < 0.2, `a floor under the operator (y ${info.y.toFixed(2)}, grounded ${info.grounded})`);
