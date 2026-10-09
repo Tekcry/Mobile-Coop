@@ -205,7 +205,7 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 **Files.** `src/net/coopHost.ts`, `src/net/coopClient.ts`, `src/net/coopUi.ts`, `src/game/gameState.ts`, `src/game/modes/infiltrationMode.ts`, `src/ui/hud/pings.ts`, results screen, `scripts/e2e-fp-coop4.mjs`.
 **Do.**
 - 4 players: each joins at `playerSpawns[i]` (S1c). Lobby accepts up to 4 for the Exchange and starts with 1-4; the mission works with any number.
-- Downed: at 0 health a co-op player is downed (crawl or stay down for 30 s; a mate holds interact within 1.5 m for 3 s to revive at 40% health). If nobody revives within 30 s they are dead until the next checkpoint... there are no checkpoints: dead stays dead to the end of the run. All dead or downed at once = fail. Use the existing `revive` interactable and message; adapt rather than rebuild.
+- Downed: at 0 health a co-op player is downed (crawl or stay down for 30 s; a mate holds interact within 1.5 m for 3 s to revive at 40% health). If nobody revives within 30 s they are dead for the rest of the run (no checkpoints in this milestone). All dead or downed at once = fail. Use the existing `revive` interactable and message; adapt rather than rebuild.
 - Pings: one button places a ping at the aim point, or on a guard; all players see it for 6 s with the pinger's name colour (existing message). Make sure the button exists on touch.
 - Team results: after the mission, a list of players with guards knocked out, revives, times downed, alarms; a team total and COMPLETE or FAILED.
 **Acceptance.** 4 tabs: all four spawn at distinct spawns; one is downed, a mate revives; a ping shows in all tabs; the results list 4 names; restart brings all four back. 1-player and 2-player runs unchanged (S6 and S7a smokes pass).

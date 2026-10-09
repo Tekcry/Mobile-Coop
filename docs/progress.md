@@ -7,7 +7,8 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b done and approved (darkness, night vision); Step 4c (strip lamps) next: spec to write | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| FP | **First Playable (comes first)** | not started: S1a-S10, 4-player Exchange greybox, then a friends playtest | 3.6.x | `docs/prompts/first-playable.md` |
+| 1 | Light parity | Step 4b done and approved (darkness, night vision); paused for First Playable; Step 4c (strip lamps) and Steps 5-9 PARKED until after the playtest (co-op light sync moves into FP S7a) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -18,6 +19,7 @@ every phase step.
 | 7 | Vertical slice (Kestrel Exchange, "Dead Line") | not started | 3.14.0 | `docs/prompts/exchange-alignment.md` first, then the map's phases 3-6 |
 
 ## Current state
+- **Roadmap change (2026-10-09, Michael):** the First Playable milestone (`docs/prompts/first-playable.md`) runs before Phase 1 Step 4c and every later phase. After the friends playtest Michael re-triages the PARKED list and the roadmap resumes. Phases 2-7 are unchanged but wait.
 - `ct-movement` is at 3.5.0: `master` 3.4.0 plus CT movement plus Phase 0. `master` already carries the Step 1 integration (Michael merged PR #2); `dev` and
   `master` get 3.5.0 when Michael merges `ct-movement` again.
 - Phones draw the phone look: the 3.4 light renderer (plain blockout, nearest six lamps as plain lights, no shadow
