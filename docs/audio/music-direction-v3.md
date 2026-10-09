@@ -159,9 +159,9 @@ Three contrasting 60 s loops, D centre, each with calm, caution and alert stems,
 
 | | Name | Tempo | Calm | Caution adds | Alert adds |
 | --- | --- | --- | --- | --- | --- |
-| **A** | Drift (sparse, ambient) | 80, 20 bars | Granular bowed-bass drone, sub, a cello bed leaning to Eb and A, motor hum, dust; far metal, reversed cymbal and piano in an 8 s reverb | Plucked bass (few notes) through a dub delay; muted kick on 1, rim on 3, shaker grains; cello tremolo swell | A brushed, chopped break; sub hits; distorted bowed bass; metal in the gaps |
-| **B** | Breakline (breakbeat-led) | 96, 24 bars | Cello drone, sub, the half-time break muffled behind a wall, reversed piano, dust | The half-time break band-limited; a chopped, driven pizzicato rhythm with a dub delay | The full chopped break (edits, stutters, a pitched fill, reverse, tape-stop); sub on the kicks; gritty bowed bass; metal stabs |
-| **C** | Foundry (heavy, industrial) | 84, 21 bars | Motor drone, chain grind, a struck plate frozen into a pad (with a tritone ghost), sub hum, gong and cymbal scrapes in a 9 s reverb | Big drum on 1, anvil or brake drum on 3; creaks; a tritone tremolo (Ab, then D); reversed bowed cymbal | A crushed, layered break with metal on the snare; a distorted bass riff (root, minor second, flat seventh); sub; timpani and gong; chain swells; a reversed gong into the loop top |
+| **A** | Drift (sparse, ambient) | 80, 20 bars | Granular bowed-bass drone, sub, a cello bed leaning to Eb and A, motor hum, dust; far metal, reversed cymbal and piano in an 8 s reverb | Plucked bass (few notes) through a dub delay; muted kick on 1, rim on 3, shaker grains; cello tremolo swell | A brushed, chopped break; sub hits; distorted bowed bass; metal in the gaps; plus the shared tension layer (below) |
+| **B** | Breakline (breakbeat-led) | 96, 24 bars | Cello drone, sub, the half-time break muffled behind a wall, reversed piano, dust | The half-time break band-limited; a chopped, driven pizzicato rhythm with a dub delay | The full chopped break (edits, stutters, a pitched fill, reverse, tape-stop); sub on the kicks; gritty bowed bass; metal stabs; plus the shared tension layer (below) |
+| **C** | Foundry (heavy, industrial) | 84, 21 bars | Motor drone, chain grind, a struck plate frozen into a pad (with a tritone ghost), sub hum, gong and cymbal scrapes in a 9 s reverb | Big drum on 1, anvil or brake drum on 3; creaks; a tritone tremolo (Ab, then D); reversed bowed cymbal | A crushed, layered break with metal on the snare; a distorted bass riff (root, minor second, flat seventh); sub; timpani and gong; chain swells; a reversed gong into the loop top; plus the shared tension layer (below) |
 
 Lab controls: Play A / B / C; Calm, Caution, Alert, Evasion; a Threat slider (live crossfade); "Play the ladder"
 (calm, caution, alert, evasion, caution, calm over 75 s); Solo one stem. The lab plays straight to the output, not
@@ -169,3 +169,7 @@ through the game's music bus and compressor.
 
 **Michael decides:** which sketch (or which parts of which) leads the score; what to change. Then: the Alert stinger
 (with the motif as a sound), a menu track, and game integration (the v2 Section 7 adapter driving `stemMix`).
+
+**Alert tension layer (all three sketches).** A tremolo-string cluster (D, Eb, Ab), a reversed bowed-cymbal swell with
+accelerating ticks and a timpani roll into every fourth bar line, a distorted pizzicato root on every eighth (A, B), a
+tritone metal alarm on the off-beats and electrical crackle (CC0 zaps). Harsher tape drive. Rhythm and cluster, no tune.

@@ -326,3 +326,10 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   threat; note the load time on the status line, any crackle at the loop point (every 60 s), and whether the bass reads
   on the speaker.
 - Next: Michael listens and picks. STOP.
+
+## S1.1 - alert tension (Michael: "too tame for when you are caught and under fire")
+- All three alert stems gain a shared tension layer (`tension()` in `render/sketches.ts`): a dissonant tremolo-string cluster
+  (D, Eb, Ab), a reversed bowed-cymbal swell with accelerating ticks and a timpani roll into every fourth bar line, a
+  distorted pizzicato root on every eighth (A and B), a two-note tritone metal alarm on the off-beats, and electrical
+  crackle from CC0 zap samples. Tape drive on the alert stems raised (A 2.4, B 2.6, C 3.0). Calm and caution are unchanged.
+- Next: Michael listens again. STOP.

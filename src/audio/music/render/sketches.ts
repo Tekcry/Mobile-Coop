@@ -10,7 +10,7 @@
  * Written for this project; no track, riff, beat or sample from any game or record is reproduced.
  */
 import { Rng } from '../rng';
-import { addInto, circular, filterStereo, granular, place, semisTo, stereo, secs, type Src, type Stereo } from './canvas';
+import { addInto, circular, dbToGain, filterStereo, granular, place, semisTo, stereo, secs, type Src, type Stereo } from './canvas';
 import { chopBar, Grid, lay, performBreak, straight, type Chop } from './kit';
 import { delayWet, dropOut, dust, monoLows, reverbWet, reverseRegion, stutter, tape, tapeStop, type ReverbOpts } from './fx';
 
@@ -63,6 +63,63 @@ function finish(s: Stereo, tapeDrive: number, lp: number, wowCycles: number): St
 function verb(dry: Stereo, wet: number, o: ReverbOpts): Stereo {
   addInto(dry, reverbWet(dry, o), wet);
   return dry;
+}
+
+/**
+ * The alert stem's tension layer, shared by all three sketches: a dissonant tremolo-string cluster (root, minor second,
+ * tritone), an accelerating tick and timpani roll into every fourth bar line, a relentless distorted pulse, a two-note
+ * tritone alarm in metal, and electrical crackle. Rhythm and cluster, no tune.
+ */
+function tension(g: Grid, bank: Bank, rng: Rng, o: { pedal: boolean; bars: number; riserBars: number[] }): Stereo {
+  const out = stereo(secs(g.loop));
+  const L = (): Stereo => stereo(secs(g.loop));
+  // cluster: D, Eb and Ab together on the bowed-tremolo cello, an octave up for the shriek
+  const cl = L();
+  const tr = bank('celloTremD2');
+  for (const [semis, gain] of [[-12, 1], [-11, 0.8], [-6, 0.7], [0, 0.5], [1, 0.4], [6, 0.35]] as [number, number][]) {
+    granular(cl, tr, { t: 0, dur: g.loop, from: 0.8, to: 5.5, grain: 0.3, density: 16, semis, cents: 14, jitter: 0.25, spread: 1, gain }, rng);
+  }
+  filterStereo(cl, 'highpass', 90, 0.7);
+  addInto(out, filterStereo(cl, 'lowpass', 3600, 0.7), dbToGain(-5));
+  // risers: reversed bowed cymbal, then ticks and a timpani roll that accelerate into the bar line
+  const rs = L();
+  const bow = bank('cymbBow3');
+  const tick = [bank('woodClick'), bank('hatClose'), bank('snareClick')];
+  const timp = bank('timpD');
+  for (const bar of o.riserBars) {
+    const T = g.b(bar, 0);
+    place(rs, bow, { t: T - g.bar * 2, dur: g.bar * 2, reverse: true, semis: -3, lp: 5000, fadeIn: g.bar * 1.5, gain: 0.9 });
+    const gaps = [...Array<number>(4).fill(g.beat / 2), ...Array<number>(4).fill(g.beat / 4), ...Array<number>(8).fill(g.beat / 8)];
+    let t = T;
+    for (let i = gaps.length - 1; i >= 0; i--) {
+      t -= gaps[i]!;
+      const k = i / gaps.length;
+      place(rs, tick[i % 3]!, { t, pan: rng.range(-0.5, 0.5), semis: k * 7, hp: 1200, gain: 0.35 + 0.65 * k, dur: 0.15 });
+      if (i % 2 === 0) place(rs, timp, { t, pan: 0, semis: semisTo(timp, N.D2) + k * 3, lp: 1500, gain: 0.45 + 0.55 * k, dur: 0.5 });
+    }
+  }
+  addInto(out, verb(rs, 0.25, { rt60: 1.8, damp: 4500, size: 1.2, hp: 250 }), dbToGain(-6));
+  // pulse: a distorted pizzicato root on every eighth, the engine under the break
+  if (o.pedal) {
+    const pd = L();
+    const pz = bank('bassPizzD2');
+    for (let bar = 0; bar < o.bars; bar++) for (let e = 0; e < 8; e++) place(pd, pz, { t: g.at(bar, e * 2), pan: 0, semis: semisTo(pz, bar % 4 === 3 && e > 5 ? N.Eb2 : N.D2), drive: 8, lp: 2200, hp: 50, gain: e % 2 ? 0.45 : 0.8, dur: g.beat * 0.35 });
+    addInto(out, pd, dbToGain(-5));
+  }
+  // alarm: two metal notes a tritone apart, on the off-beats, the second a little quieter
+  const al = L();
+  const m = bank('metal3');
+  for (let bar = 0; bar < o.bars; bar++) {
+    place(al, m, { t: g.at(bar, 4), pan: -0.3, semis: -5, hp: 500, lp: 6000, drive: 2, gain: 0.8, dur: 0.35 });
+    place(al, m, { t: g.at(bar, 12), pan: 0.3, semis: 1, hp: 500, lp: 6000, drive: 2, gain: 0.65, dur: 0.35 });
+  }
+  addInto(out, verb(al, 0.4, { rt60: 1.4, damp: 5000, size: 1, hp: 400 }), dbToGain(-12));
+  // crackle
+  const zp = L();
+  const zaps = ['zap1', 'zap5', 'zap9', 'zap12'].map(bank);
+  for (let bar = 0; bar < o.bars; bar++) for (let i = 0; i < 16; i++) if (i % 2 && rng.chance(0.13)) place(zp, rng.pick(zaps), { t: g.at(bar, i), pan: rng.range(-0.9, 0.9), semis: rng.range(-7, 0), hp: 1500, gain: rng.range(0.4, 0.8), dur: 0.25 });
+  addInto(out, zp, dbToGain(-14));
+  return out;
 }
 
 // ---------------------------------------------------------------------------------------------------------- A Drift
@@ -189,8 +246,9 @@ function sketchA(bank: Bank, seed: number): Record<StemId, Stereo> {
   const kitMetal = ['metal1', 'metal2', 'metal4', 'metal7', 'metal11', 'brake1'].map(bank);
   for (let bar = 0; bar < g.bars; bar++) for (const i of [5, 13]) if (rng.chance(0.45)) place(metal, rng.pick(kitMetal), { t: g.at(bar, i) + rng.range(0, 0.02), pan: rng.range(-0.8, 0.8), semis: rng.range(-8, 0), hp: 400, lp: 6500, gain: rng.range(0.6, 1), dur: 0.5 });
   lay(alert, verb(metal, 0.5, { rt60: 2, damp: 4000, size: 1.4, hp: 300 }), -11);
+  lay(alert, tension(g, bank, rng.fork('tensionA'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16] }), -4);
 
-  return { calm: finish(calm, 1.3, 9500, 2), caution: finish(caution, 1.4, 9000, 2), alert: finish(alert, 1.6, 10500, 2) };
+  return { calm: finish(calm, 1.3, 9500, 2), caution: finish(caution, 1.4, 9000, 2), alert: finish(alert, 2.4, 10500, 2) };
 }
 
 // ---------------------------------------------------------------------------------------------------------- B Breakline
@@ -298,9 +356,10 @@ function sketchB(bank: Bank, seed: number): Record<StemId, Stereo> {
   const m = ['metal5', 'metal8', 'metal10', 'anvil', 'brake2'].map(bank);
   for (let bar = 0; bar < g.bars; bar++) for (const i of [7, 15]) if (rng.chance(0.4)) place(metal, rng.pick(m), { t: g.at(bar, i), pan: rng.range(-0.9, 0.9), semis: rng.range(-7, 2), hp: 500, gain: rng.range(0.6, 1), dur: 0.4 });
   lay(alert, verb(metal, 0.6, { rt60: 1.6, damp: 5000, size: 1.2, hp: 400 }), -12);
+  lay(alert, tension(g, bank, rng.fork('tensionB'), { pedal: true, bars: g.bars, riserBars: [4, 8, 12, 16, 20] }), -4);
   verb(alert, 0.12, { rt60: 1.2, damp: 5000, size: 1, hp: 250 });
 
-  return { calm: finish(calm, 1.3, 9000, 3), caution: finish(caution, 1.6, 9500, 3), alert: finish(alert, 1.9, 11000, 3) };
+  return { calm: finish(calm, 1.3, 9000, 3), caution: finish(caution, 1.6, 9500, 3), alert: finish(alert, 2.6, 11000, 3) };
 }
 
 // ---------------------------------------------------------------------------------------------------------- C Foundry
@@ -430,8 +489,9 @@ function sketchC(bank: Bank, seed: number): Record<StemId, Stereo> {
   place(grind, bank('chainGrind'), { t: g.at(7, 8), semis: -5, lp: 3500, hp: 200, pan: -0.4 });
   place(grind, bank('chainGrind'), { t: g.at(15, 8), semis: -8, lp: 3500, hp: 200, pan: 0.4, reverse: true });
   lay(alert, verb(grind, 0.5, { rt60: 2.5, damp: 3000, size: 2, hp: 200 }), -10);
+  lay(alert, tension(g, bank, rng.fork('tensionC'), { pedal: false, bars: 20, riserBars: [4, 8, 12, 16, 20] }), -4);
 
-  return { calm: finish(calm, 1.4, 8500, 3), caution: finish(caution, 1.8, 9000, 3), alert: finish(alert, 2.4, 10000, 3) };
+  return { calm: finish(calm, 1.4, 8500, 3), caution: finish(caution, 1.8, 9000, 3), alert: finish(alert, 3, 10000, 3) };
 }
 
 const BUILDERS: Record<SketchId, (bank: Bank, seed: number) => Record<StemId, Stereo>> = { A: sketchA, B: sketchB, C: sketchC };

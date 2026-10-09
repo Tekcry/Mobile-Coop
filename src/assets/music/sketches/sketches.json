@@ -24,10 +24,10 @@
     }
    },
    "stack": {
-    "calm": -32.1,
-    "caution": -26.1,
-    "alert": -20.1,
-    "peak": -3.1
+    "calm": -30,
+    "caution": -24,
+    "alert": -18,
+    "peak": -3.6
    }
   },
   {
@@ -44,7 +44,7 @@
     },
     "caution": {
      "file": "B-caution.mp3",
-     "bytes": 975407
+     "bytes": 977327
     },
     "alert": {
      "file": "B-alert.mp3",
@@ -52,9 +52,9 @@
     }
    },
    "stack": {
-    "calm": -32.2,
-    "caution": -26.2,
-    "alert": -20.2,
+    "calm": -30.9,
+    "caution": -24.9,
+    "alert": -18.9,
     "peak": -3.1
    }
   },
@@ -68,7 +68,7 @@
    "stems": {
     "calm": {
      "file": "C-calm.mp3",
-     "bytes": 975407
+     "bytes": 977327
     },
     "caution": {
      "file": "C-caution.mp3",
@@ -80,9 +80,9 @@
     }
    },
    "stack": {
-    "calm": -32.4,
-    "caution": -26.4,
-    "alert": -20.4,
+    "calm": -31.6,
+    "caution": -25.6,
+    "alert": -19.6,
     "peak": -3.1
    }
   }
