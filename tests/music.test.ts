@@ -333,7 +333,7 @@ describe('motif candidates (V1)', () => {
   const pc = (s: number): number => ((s % 12) + 12) % 12;
 
   it('follow the motif rules of direction v2 5.1', () => {
-    expect(CANDIDATES.map((c) => c.id)).toEqual(['A', 'B', 'C']);
+    expect(CANDIDATES.map((c) => c.id)).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H']);
     for (const c of CANDIDATES) {
       const s = c.statement;
       const p = s.map((n) => n.semis);
@@ -366,7 +366,7 @@ describe('motif candidates (V1)', () => {
       expect(b[b.length - 1]!.step + b[b.length - 1]!.len, c.id).toBe(16);
     }
     // every candidate is different
-    expect(new Set(CANDIDATES.map((c) => c.notes)).size).toBe(3);
+    expect(new Set(CANDIDATES.map((c) => c.notes)).size).toBe(CANDIDATES.length);
   });
 
   it('every take is deterministic, uses only library sounds and stays inside the instruments\' pitch range', () => {
@@ -383,9 +383,9 @@ describe('motif candidates (V1)', () => {
         if (e.k !== 'play') continue;
         expect(ids.has(e.id), e.id).toBe(true);
         // +-7 semitones around the root
-        const max = Math.pow(2, 7.01 / 12);
+        const max = Math.pow(2, 7.05 / 12);
         expect(e.rate, `${c.id} ${e.id}`).toBeLessThanOrEqual(max);
-        expect(e.rate, `${c.id} ${e.id}`).toBeGreaterThanOrEqual(Math.pow(2, -7.01 / 12));
+        expect(e.rate, `${c.id} ${e.id}`).toBeGreaterThanOrEqual(Math.pow(2, -7.05 / 12)); // the reese is tuned 2 cents down onto D
       }
     }
   });

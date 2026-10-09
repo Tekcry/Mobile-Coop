@@ -14,7 +14,7 @@ import { D2, semis } from './library';
 import type { MotifNote } from './motif';
 import { PRIO } from './voices';
 
-export type CandidateId = 'A' | 'B' | 'C';
+export type CandidateId = 'A' | 'B' | 'C' | 'D' | 'E' | 'F' | 'G' | 'H';
 export type Take = 'sneak' | 'break' | 'noir';
 export const TAKES: readonly Take[] = ['sneak', 'break', 'noir'];
 export const TAKE_BPM: Record<Take, number> = { sneak: 84, break: 168, noir: 70 };
@@ -57,6 +57,47 @@ export const CANDIDATES: readonly Candidate[] = [
     about: 'A slow chromatic fall from A through the tritone to D. Sparse; the space between notes does the work.',
     statement: [m(0, 7, 3), m(3, 6, 3), m(6, 5, 3), m(9, 3, 1), m(12, 0, 4)],
     resolved: [m(0, 7, 3), m(3, 7, 3), m(6, 5, 3), m(9, 3, 1), m(12, 0, 4)],
+  },
+  // round 3 (Michael likes the tritone in A): five figures built around it
+  {
+    id: 'D',
+    name: 'Wire Drop',
+    notes: 'D D F Ab G F',
+    about: "B's low swung pick-ups, then A's climb to the tritone and slide down to F. A and B blended.",
+    statement: [m(0, 0, 1), m(2, 0, 1), m(3, 3, 2), m(5, 6, 3), m(10, 5, 1), m(11, 3, 5)],
+    resolved: [m(0, 0, 1), m(2, 0, 1), m(3, 3, 2), m(5, 7, 3), m(10, 5, 1), m(11, 0, 5)],
+  },
+  {
+    id: 'E',
+    name: 'Lights Out',
+    notes: 'D Ab G A',
+    about: 'Four notes: a fall of a tritone straight away, a sigh down to G, and up to an open A. The most spacious.',
+    statement: [m(0, 0, 3), m(3, -6, 3), m(6, -7, 2), m(8, -5, 8)],
+    resolved: [m(0, 0, 3), m(3, -4, 3), m(6, -7, 2), m(8, 0, 8)],
+  },
+  {
+    id: 'F',
+    name: 'Crossed Line',
+    notes: 'A Eb D F Eb D',
+    about: 'Opens on the tritone itself (A down to Eb), then circles D through the flat second. Uneasy from the first note.',
+    statement: [m(0, 7, 2), m(3, 1, 3), m(6, 0, 2), m(9, 3, 1), m(10, 1, 2), m(12, 0, 4)],
+    resolved: [m(0, 7, 2), m(3, 2, 3), m(6, 0, 2), m(9, 3, 1), m(10, 2, 2), m(12, 0, 4)],
+  },
+  {
+    id: 'G',
+    name: 'Two Shadows',
+    notes: 'D Ab F B A D',
+    about: 'Two tritones in a row: up D to Ab, then down F to B, settling on A and home. The most restless.',
+    statement: [m(0, 0, 1), m(1, 6, 3), m(4, 3, 2), m(6, -3, 2), m(8, -5, 4), m(12, 0, 4)],
+    resolved: [m(0, 0, 1), m(1, 7, 3), m(4, 3, 2), m(6, -4, 2), m(8, -5, 4), m(12, 0, 4)],
+  },
+  {
+    id: 'H',
+    name: 'Pacing',
+    notes: 'F Ab G Ab D',
+    about: 'Paces back and forth on the tritone (Ab, G, Ab) before dropping home to D. Hypnotic, ostinato-like.',
+    statement: [m(0, 3, 2), m(2, 6, 1), m(3, 5, 3), m(6, 6, 2), m(8, 0, 8)],
+    resolved: [m(0, 3, 2), m(2, 7, 1), m(3, 5, 3), m(6, 7, 2), m(8, 0, 8)],
   },
 ];
 

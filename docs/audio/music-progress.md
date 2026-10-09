@@ -245,3 +245,19 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   RMS -18.4 dBFS, 16 voices).
 - Next: Michael listens to B noir again. On approval, V1 closes and V2 (Sonnet) builds the engine around Dead Drop and the
   noir mood. STOP.
+
+### V1 round 3: tritone figures
+- Michael (2026-10-09): really likes the tritone in A noir; not sold on any figure yet; wants to see various options.
+- Done: five new figures built around the tritone, in the picker next to A, B and C (same three takes; noir is the one to
+  judge):
+
+  | Id | Name | Notes | Character |
+  | --- | --- | --- | --- |
+  | D | Wire Drop | D D F Ab G F | B's low swung pick-ups, then A's climb to the tritone and slide to F (A and B blended). |
+  | E | Lights Out | D Ab G A | Falls a tritone at once, sighs to G, opens on A. Most spacious. |
+  | F | Crossed Line | A Eb D F Eb D | Opens on the tritone itself (A down to Eb), then circles D through the flat second. |
+  | G | Two Shadows | D Ab F B A D | Two tritones in a row (up D-Ab, down F-B), then home. Most restless. |
+  | H | Pacing | F Ab G Ab D | Paces on the tritone (Ab G Ab) then drops home. Hypnotic, ostinato-like. |
+
+- Tests: every figure meets the rules (unit tests); `npm test` and lint pass.
+- Next: Michael picks a figure (or a blend). STOP.

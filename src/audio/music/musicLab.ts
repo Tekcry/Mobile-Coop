@@ -101,7 +101,7 @@ export class MusicLabScreen extends Screen {
     this.el.append(
       h('div', { class: 'screen-title', text: 'Music lab' }),
       this.status,
-      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'Play runs sneak (84 BPM downtempo), break (168 breakbeat) and noir (70, the menu opening) back to back. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
+      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'D to H are new figures built around the tritone. Play runs sneak (84 BPM downtempo), break (168 breakbeat) and noir (70, the menu opening) back to back. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
       section('State', stateRow),
       section('Seed and tempo', seedRow, nudgeRow),
       section('Mute stems', stemRow),
