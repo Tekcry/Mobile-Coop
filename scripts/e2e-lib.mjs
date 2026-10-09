@@ -18,8 +18,10 @@ export function browserArgs() {
   return ['--use-gl=angle', `--use-angle=${angle}`, '--enable-gpu-rasterization', ...base];
 }
 
-/** Always headless: no window on the desktop and no real pointer lock. GPU runs use Chromium's new headless mode
- * (full chrome, ANGLE D3D11). E2E_HEADED=1 (debugging only) opens a window parked off-screen and fakes pointer lock. */
+/** Always headless: no window on the desktop. GPU runs use Chromium's new headless mode
+ * (full chrome, ANGLE D3D11) - its hidden window still takes a real pointer lock, which grabbed the PC's cursor and threw it
+ * to the top left mid-run (Michael, 2026-10-09): GPU runs fake pointer lock. E2E_HEADED=1 (debugging only) opens a window
+ * parked off-screen and fakes it too. */
 export const HEADED = process.env.E2E_HEADED === '1';
 export function launchOptions() {
   const args = browserArgs();
@@ -28,7 +30,7 @@ export function launchOptions() {
   return { headless: true, ...(exe ? { executablePath: exe } : GPU ? { channel: 'chromium' } : {}), args };
 }
 
-/** Headed runs only: a page-side pointer lock that never touches the real cursor. */
+/** Headed and GPU runs: a page-side pointer lock that never touches the real cursor. */
 function fakePointerLock() {
   let locked = null;
   Object.defineProperty(Document.prototype, 'pointerLockElement', { get: () => locked, configurable: true });
@@ -63,7 +65,7 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     else if (process.env.VERBOSE) console.log(`[${m.type()}] ${m.text()}`);
   });
   page.on("pageerror", (e) => errors.push(`[pageerror] ${e.message}${process.env.STACK ? "\n" + e.stack : ""}`));
-  if (HEADED) await page.addInitScript(fakePointerLock);
+  if (HEADED || GPU) await page.addInitScript(fakePointerLock);
   // Windows Chromium offers the OS share sheet (navigator.canShare true): the exports must take the download path in every run, never open a sheet on the PC
   await page.addInitScript(() => {
     Navigator.prototype.canShare = () => false;

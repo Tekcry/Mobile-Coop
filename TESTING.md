@@ -5,6 +5,15 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## 3.6.0 (Phase 1) - Desktop sharpness, backlog 3 (PC; phone for the look only)
+- [ ] Desktop, Epic, Reflections Screen space, in a match, not aiming: the whole frame is sharp (crate edges, far
+      shelving, the operator's outline); the same with Reflections Off.
+- [ ] Switch Reflections to Ray traced: the sharpness does not change (only the reflections do).
+- [ ] Repeat at Ultra and High.
+- [ ] Aim: the background softens behind what the sight is on, with no full-frame blur flash as aiming starts; release:
+      sharp again.
+- [ ] Phone (`/ct/`): the phone look is unchanged (no depth of field there).
+
 ## 3.5.0 manual check - Night Shift foundation (iPhone at the /ct/ preview, desktop, two devices)
 On the iPhone, at the `/ct/` preview:
 - [ ] The app and menu are titled Night Shift. The installed home-screen app may keep its old name until it is re-added.

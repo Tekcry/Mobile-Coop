@@ -147,8 +147,8 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
 
 ## GPU runs (Michael's PC only)
 - `E2E_GPU=1 npm run e2e` (or any script: `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches Chromium with the hardware GPU
-  (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader. Always headless (no window, no real pointer lock);
-  `E2E_HEADED=1` (debugging) opens a window parked off-screen with a faked pointer lock. Browser: `E2E_BROWSER`, the cloud's
+  (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader. Always headless (no window) with a faked pointer lock (the hidden window's real one grabbed the PC's cursor);
+  `E2E_HEADED=1` (debugging) opens a window parked off-screen (faked pointer lock too). Browser: `E2E_BROWSER`, the cloud's
   preinstalled Chromium, else playwright-core's own (`npx playwright-core install chromium`). `navigator.canShare` is stubbed off in
   every run so exports take the download path (Windows would open the OS share sheet). `run-e2e.mjs` serves on 127.0.0.1 on Windows
   (`E2E_HOST` overrides; `localhost` can resolve to a blocked `::1` behind a VPN adapter) and prints each suite's time.

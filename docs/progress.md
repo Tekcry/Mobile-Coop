@@ -791,6 +791,37 @@ See the Step 1 and Step 5 reports.
   written: it changes the one lamp formula, gameplay light, the bake, the phone volume and an engine fact). The night
   vision realism ideas (backlog 16) go to **Phase 3 with thermal**; which ones is open.
 
+#### Desktop blur fix (backlog 3) - 2026-10-09
+- Michael: fix the desktop blur before anything else. The whole frame is soft with ray-traced reflections off (screen
+  space on or off) and sharp with them on.
+- Comparing the chain with RT off and on: render size, TAA / TAAU, sharpen and upscaling are the same; only the
+  reflection passes and depth of field's depth differ. Sharpness (mean |Laplacian| of luma, Warehouse, 1600 x 900,
+  `E2E_GPU=1`), before: High 1.10 off / 1.26 SSR / 6.76 RT; Ultra 1.61 / 1.60 / 15.65; Epic 1.56 / 1.57 / 7.98.
+- Cause: depth of field. `PostStack.frame` paused its depth renderer while not aiming (3.1.9), on the idea that f/32
+  is sharp. The circle of confusion still ran on the paused depth, which read as "at the lens", so the whole frame got
+  near-full blur on High / Ultra / Epic (Medium / Low have no depth of field). Ray tracing makes its own depth renderer
+  first, depth of field shares it, and the shared one never pauses, so the depth was real and the frame sharp.
+- Done: `vfx/dofAperture.ts` (pure, `tests/dofAperture.test.ts`). Not aiming is fully sharp at any depth (f/1e7, a
+  CoC of ~0), so the depth may still pause. The aperture eases in 1 / f-stop and opens only once the depth renders
+  again; it is still sharp on the frame the depth restarts. No pass is added or removed. The phone look is unchanged
+  (phones have no depth of field).
+- After: High 6.76 off / 6.76 SSR / 6.79 RT (second pass; the first reading after a preset switch is low, warm-up);
+  Ultra 15.65 / 15.71 / 15.77; Epic 7.94 / 8.01 / 8.07. 1:1 crops (edges, far shelving, HUD text), before / after x RT
+  off / on: `docs/prompts/phase-1-sheets/blur-fix-{high,ultra,epic}.png`.
+- Tests: `npm run check` passes (65 files, 639 tests). `E2E_GPU=1 npm run e2e`: 32 of 33 suites pass.
+  `e2e-desktop` timed out at the 3.1 governor step-down wait (line 611, before the new checks; it relies on missed
+  frames, a timing matter on the GPU under load). It passed 3 of 3 runs on its own, new checks included.
+- e2e: `e2e-desktop` checks that with RT off and not aiming the field is fully sharp with its depth paused, that it
+  never opens without a live depth while aiming, and that it is sharp again afterwards.
+- Test harness: GPU runs now fake pointer lock (`e2e-lib`). The new-headless window took a real pointer lock and
+  threw Michael's cursor to the top left mid-run.
+- Perf: noisy. Michael was remoted in through Moonlight / Sunshine (screen capture and encode on the same GPU), and
+  another session ran its own e2e at the same time. `perf.mjs --phone --budget` and `perf.mjs --budget` pass.
+  `perf.mjs --desktop --budget` went over on sim p95 / allocations / frame pacing in some runs. The unchanged
+  `PostStack` went over the same way in an A/B (allocations 11.29 - 11.66 MB/s, sim p95 2.7 - 3.4 ms), and the fix
+  changes no sim or per-frame allocation. One fixed run was within budget apart from allocations (main thread 4.26
+  ms, frame p95 8.8 ms, 207 draws). Re-run `perf.mjs --desktop --budget` at the desk without streaming.
+
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
 - CT movement: `docs/ct-movement.md` (spec), `docs/ct-movement-progress.md` (status)

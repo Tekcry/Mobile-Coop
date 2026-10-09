@@ -20,6 +20,7 @@ import {
 import type { QualityLevel } from '../core/quality';
 import type { LightRegistry } from '../world/lights';
 import { RtReflections, type RtSource } from './rtReflections';
+import { depthWanted, fStopFor, stepAperture } from './dofAperture';
 import { Taau, VIEW_Z_GLSL, type DepthSource } from './taau';
 import { PaniniPass } from './paniniPass';
 
@@ -233,6 +234,8 @@ export class PostStack {
     if (this.taau && this.vol) (this.vol as unknown as { _options: number })._options = s;
   }
   private t = 0;
+  /** Depth of field's aperture (1 / f-stop; 0 sharp), `dofAperture.ts`. */
+  private aperture = 0;
   /** Depth-of-field focus (m) and whether it is wanted now (aiming, menu operator). */
   focus = 10;
   focusOn = false;
@@ -350,7 +353,8 @@ export class PostStack {
     }
     def.depthOfFieldEnabled = f.dof;
     if (f.dof && def.depthOfField) {
-      def.depthOfField.fStop = 32;
+      this.aperture = 0;
+      def.depthOfField.fStop = fStopFor(0);
       def.depthOfField.focalLength = 50;
       def.depthOfField.focusDistance = 10000;
     }
@@ -474,13 +478,16 @@ export class PostStack {
     }
     const dof = this.def?.depthOfFieldEnabled ? this.def.depthOfField : null;
     if (dof) {
-      // aiming: a shallow field on what the sight is on; otherwise everything sharp
-      const want = this.focusOn ? 2.8 : 32;
-      dof.fStop += (want - dof.fStop) * Math.min(1, dt * 8);
+      // aiming: a shallow field on what the sight is on; otherwise everything sharp - a zero circle of confusion
+      // whatever the depth reads (3.6: the old f/32 blurred the whole frame off the paused depth when ray tracing was
+      // off, `dofAperture.ts`)
+      // (3.1.9: the depth pauses only when nothing else reads it - ray-traced reflections share it: paused, they
+      // traced a stale depth and the floors reflected fog, the lower half of the view grey on Epic)
+      const own = this.dofDepth && this.dofDepth !== this.depth ? this.dofDepth : null;
+      this.aperture = stepAperture(this.aperture, this.focusOn, !own || own.enabled, dt);
+      if (own) own.enabled = depthWanted(this.aperture, this.focusOn);
+      dof.fStop = fStopFor(this.aperture);
       dof.focusDistance += (this.focus * 1000 - dof.focusDistance) * Math.min(1, dt * 10);
-      // (3.1.9: only when nothing else reads that depth - ray-traced reflections share it: paused, they traced a stale
-      // depth and the floors reflected fog, the lower half of the view grey on Epic)
-      if (this.dofDepth && this.dofDepth !== this.depth) this.dofDepth.enabled = this.focusOn || dof.fStop < 24;
     }
   }
 

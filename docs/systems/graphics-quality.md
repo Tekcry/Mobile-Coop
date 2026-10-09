@@ -72,7 +72,9 @@ Design authority: docs/design-bible.md (Section 8)
   `vfx/postStack.ts` `PostStack` (rebuilt on a change): TAA, SSAO2, SSR, screen motion blur, the volumetric pass
   (depth renderer; per light a ray / sphere stretch marched for cone in-scatter, closed-form height fog; 12 nearest
   lights), then `DefaultRenderingPipeline` (HDR, MSAA samples, FXAA, bloom, DOF focused by `focus` / `focusOn`:
-  aiming = the aim ray's hit, chromatic aberration, sharpen with TAA, KHR PBR Neutral tone mapping);
+  aiming = the aim ray's hit; not aiming = fully sharp, f/1e7, so its depth pass may pause - `vfx/dofAperture.ts`
+  eases the aperture and opens it only while that depth renders (3.6: the old idle f/32 read the paused depth as
+  "at the lens" and blurred the whole frame on High / Ultra / Epic with ray tracing off), chromatic aberration, sharpen with TAA, KHR PBR Neutral tone mapping);
   `CinematicPost.toEnd()` keeps the grade / vignette / goggles pass last. The passes ahead of tone mapping (TAA, SSAO2,
   SSR, ray-traced reflections, motion blur, the volumetric pass, `taauPass`) hold linear light in half float on desktop
   (`PostStack.hdr`, Phase 1 Step 4b fix round 5): in 8 bits the darkness curve's dark band drew contour bands and blocky

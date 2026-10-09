@@ -640,6 +640,42 @@ try {
   });
   assert(rb.rebuilt && rb.before > 0 && rb.thawed < rb.before && rb.after >= rb.before, `a rebuilt post stack refreshes the frozen materials, then freezes them again (${JSON.stringify(rb)})`);
   assert(rb.enabled === true && rb.depthFrames >= 3, `without the G-buffer the fog / TAAU depth pass renders every frame (${JSON.stringify(rb)})`);
+  // 3.6 desktop blur: with ray tracing off, depth of field's depth pass pauses when not aiming; the field must then be
+  // fully sharp (it blurred the whole frame off the paused depth), and only open while that depth renders
+  const df = await u.page.evaluate(async () => {
+    const a = window.__app;
+    const g = a.current;
+    const scene = g.scene;
+    const wait = (n) => new Promise((r) => { let k = 0; const o = scene.onAfterRenderObservable.add(() => { if (++k >= n) { scene.onAfterRenderObservable.remove(o); r(); } }); });
+    a.quality.setOverride({ preset: 'high', scale: null, gfx: { reflections: 'off' } });
+    await wait(4);
+    const s = g.stack;
+    const dof = () => s.def.depthOfField;
+    const own = s.dofDepth && s.dofDepth !== s.depth ? s.dofDepth : null;
+    const idle = { fStop: dof().fStop, depth: own?.enabled ?? null };
+    // every frame while aiming and after: never a shallow field without a live depth
+    let bad = 0, aimed = 1e9, frames = 0;
+    const o = scene.onBeforeRenderObservable.add(() => {
+      frames++;
+      const f = dof().fStop;
+      aimed = Math.min(aimed, f);
+      if (f < 1e6 && own && !own.enabled) bad++;
+    });
+    g.player.forceAds = true;
+    const t0 = performance.now();
+    while (dof().fStop > 4 && performance.now() - t0 < 120000) await wait(1);
+    g.player.forceAds = false;
+    const t1 = performance.now();
+    while (dof().fStop < 1e6 && performance.now() - t1 < 120000) await wait(1);
+    await wait(2);
+    scene.onBeforeRenderObservable.remove(o);
+    const back = { fStop: dof().fStop, depth: own?.enabled ?? null };
+    a.quality.setOverride(null);
+    return { own: !!own, idle, aimed, bad, frames, back };
+  });
+  assert(df.own && df.idle.fStop >= 1e6 && df.idle.depth === false, `RT off, not aiming: depth of field fully sharp with its depth paused (${JSON.stringify(df)})`);
+  assert(df.aimed < 4 && df.bad === 0, `aiming opens the field only while its depth renders (${JSON.stringify(df)})`);
+  assert(df.back.fStop >= 1e6 && df.back.depth === false, `after aiming: sharp again, depth paused (${JSON.stringify(df)})`);
   const uerrs = u.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
   assert(uerrs.length === 0, `ray traced + TAAU + Panini render without console errors${uerrs.length ? ': ' + uerrs.slice(0, 4).join(' | ') : ''}`);
   console.log('desktop e2e passed');
