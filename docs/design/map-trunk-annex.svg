@@ -38,34 +38,20 @@
 <line x1="36" y1="104" x2="756" y2="104" stroke="#d6d6d6" stroke-width="1"/>
 <line x1="36" y1="64" x2="756" y2="64" stroke="#efefef" stroke-width="0.6"/>
 <rect x="36" y="484" width="720" height="140" fill="#dfe9d6" stroke="#555" stroke-width="2.5"/>
-<text x="396" y="542" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Loading yard</text>
-<text x="396" y="562" font-size="10" fill="#888" text-anchor="middle">36.0 x 7.0 m</text>
 <rect x="36" y="294" width="240" height="190" fill="#fafafa" stroke="#555" stroke-width="2.5"/>
-<text x="156" y="377" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Goods-in bay</text>
-<text x="156" y="397" font-size="10" fill="#888" text-anchor="middle">12.0 x 9.5 m</text>
 <rect x="36" y="64" width="240" height="230" fill="#fafafa" stroke="#555" stroke-width="2.5"/>
-<text x="156" y="167" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Break room</text>
-<text x="156" y="187" font-size="10" fill="#888" text-anchor="middle">12.0 x 11.5 m</text>
 <rect x="276" y="64" width="240" height="420" fill="#fafafa" stroke="#555" stroke-width="2.5"/>
-<text x="396" y="262" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Switch hall</text>
-<text x="396" y="282" font-size="10" fill="#888" text-anchor="middle">12.0 x 21.0 m</text>
 <rect x="516" y="264" width="240" height="220" fill="#fafafa" stroke="#555" stroke-width="2.5"/>
-<text x="636" y="362" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Generator room</text>
-<text x="636" y="382" font-size="10" fill="#888" text-anchor="middle">12.0 x 11.0 m</text>
 <rect x="656" y="394" width="100" height="90" fill="#fff" stroke="#555" stroke-width="2.5"/>
 <rect x="656" y="394" width="100" height="90" fill="#d9f0dc" stroke="#555" stroke-width="2.5"/>
-<text x="706" y="427" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Fire stair (ground)</text>
-<text x="706" y="447" font-size="10" fill="#888" text-anchor="middle">5.0 x 4.5 m</text>
 <rect x="516" y="64" width="240" height="200" fill="#fafafa" stroke="#555" stroke-width="2.5"/>
-<text x="636" y="152" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Core switch cage</text>
-<text x="636" y="172" font-size="10" fill="#888" text-anchor="middle">12.0 x 10.0 m</text>
 <rect x="156" y="574" width="40" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="336" y="554" width="90" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="476" y="554" width="60" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="656" y="554" width="80" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="76" y="384" width="80" height="60" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="36" y="344" width="30" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
-<rect x="46" y="314" width="20" height="20" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
+<rect x="66" y="454" width="20" height="20" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="276" y="434" width="160" height="50" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="346" y="274" width="40" height="90" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="346" y="114" width="40" height="100" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
@@ -95,8 +81,8 @@
 <text x="56" y="418" font-size="9" fill="#1d6b30" text-anchor="middle">hG1</text>
 <rect x="246" y="454" width="30" height="30" fill="#3aa655" fill-opacity="0.28" stroke="#2a8a40" stroke-dasharray="4 2"/>
 <text x="261" y="473" font-size="9" fill="#1d6b30" text-anchor="middle">hG3</text>
-<rect x="36" y="294" width="60" height="50" fill="#3aa655" fill-opacity="0.28" stroke="#2a8a40" stroke-dasharray="4 2"/>
-<text x="66" y="323" font-size="9" fill="#1d6b30" text-anchor="middle">hG2</text>
+<rect x="36" y="444" width="50" height="40" fill="#3aa655" fill-opacity="0.28" stroke="#2a8a40" stroke-dasharray="4 2"/>
+<text x="61" y="468" font-size="9" fill="#1d6b30" text-anchor="middle">hG2</text>
 <rect x="436" y="434" width="80" height="50" fill="#3aa655" fill-opacity="0.28" stroke="#2a8a40" stroke-dasharray="4 2"/>
 <text x="476" y="463" font-size="9" fill="#1d6b30" text-anchor="middle">hH1</text>
 <rect x="276" y="134" width="30" height="60" fill="#3aa655" fill-opacity="0.28" stroke="#2a8a40" stroke-dasharray="4 2"/>
@@ -155,23 +141,24 @@
 <text x="715" y="446" font-size="10" fill="#5b21b6" font-weight="700">FS</text>
 <rect x="60" y="488" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
 <text x="75" y="486" font-size="10" fill="#5b21b6" font-weight="700">RL</text>
-<rect x="80" y="318" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
-<text x="95" y="316" font-size="10" fill="#5b21b6" font-weight="700">R1</text>
+<rect x="93.99999999999999" y="458" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
+<text x="108.99999999999999" y="456" font-size="10" fill="#5b21b6" font-weight="700">R1</text>
 <rect x="720" y="88" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
 <text x="735" y="86" font-size="10" fill="#5b21b6" font-weight="700">ES</text>
-<rect x="210" y="368" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
-<text x="225" y="366" font-size="10" fill="#5b21b6" font-weight="700">D1</text>
-<rect x="540" y="238" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
-<text x="555" y="236" font-size="10" fill="#5b21b6" font-weight="700">D1</text>
-<polyline points="216,374 546,374 546,244" fill="none" stroke="#7c3aed" stroke-width="3" stroke-dasharray="2 5"/>
+<rect x="126" y="466" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
+<text x="141" y="464" font-size="10" fill="#5b21b6" font-weight="700">D1</text>
+<rect x="720" y="208" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
+<text x="735" y="206" font-size="10" fill="#5b21b6" font-weight="700">D1</text>
+<polyline points="132,472 556,472 726,214" fill="none" stroke="#7c3aed" stroke-width="3" stroke-dasharray="2 5"/>
 <polyline points="86,594 136,574 136,524 226,514 226,454 266,334 306,394 456,404 456,459" fill="none" stroke="#1f77b4" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="56,594 136,574 136,524 66,514 66,494" fill="none" stroke="#2ca02c" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
-<polyline points="86,594 136,574 136,524 226,514 226,454 186,434 186,344 86,324" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<polyline points="86,594 136,574 136,524 226,514 226,488" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<polyline points="226,488 226,464 99.99999999999999,464" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="456,459 456,384 456,244 476,194 516,194 556,224 636,234 636,114 646,94" fill="none" stroke="#1f77b4" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
-<polyline points="86,324 196,344 226,454 226,504 216,594 316,609 386,609 506,609 546,609 556,564 586,524 606,504 606,464 546,454 546,354 636,354 696,284 696,264 726,234 726,114 716,94 646,94" fill="none" stroke="#2ca02c" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<polyline points="99.99999999999999,464 226,464 226,504 216,594 316,609 386,609 506,609 546,609 556,564 586,524 606,504 606,464 546,454 546,354 636,354 696,284 696,264 726,234 726,114 716,94 646,94" fill="none" stroke="#2ca02c" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="726,94 646,94" fill="none" stroke="#9467bd" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
-<polyline points="86,324 196,344 216,374" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
-<polyline points="546,244 676,244 726,214 726,114 716,94 646,94" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<polyline points="99.99999999999999,464 132,472" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<polyline points="726,214 726,114 716,94 646,94" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="646,94 716,94 726,114 726,234 696,264 696,284 636,354 546,354 546,454 606,464 606,524 606,594" fill="none" stroke="#ff7f0e" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="646,94 716,94 726,114 726,214 676,244 556,224 516,194 476,194 456,244 456,384 306,394 266,334 226,454 226,514 136,524 136,574 86,604" fill="none" stroke="#8c564b" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="246,514 516,544 246,514" fill="none" stroke="#d9534f" stroke-width="3.5" stroke-opacity="0.9"/>
@@ -280,6 +267,21 @@
 <text x="86" y="608" font-size="11" fill="#14532d" text-anchor="middle" font-weight="700">E2</text>
 <text x="646" y="102" font-size="24" fill="#d4a017" stroke="#7a5b00" stroke-width="0.8" text-anchor="middle">&#9733;</text>
 <text x="646" y="82" font-size="12" fill="#7a5b00" text-anchor="middle" font-weight="700">O2</text>
+<text x="750" y="504.7" font-size="14" fill="#444" font-weight="700" text-anchor="end" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Loading yard</text>
+<text x="750" y="517.3" font-size="10" fill="#777" font-weight="400" text-anchor="end" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">36.0 x 7.0 m</text>
+<text x="42.000000000000014" y="314.7" font-size="14" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Goods-in bay</text>
+<text x="42.000000000000014" y="327.3" font-size="10" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">12.0 x 9.5 m</text>
+<text x="42.000000000000014" y="269.90000000000003" font-size="14" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Break room</text>
+<text x="42.000000000000014" y="282.50000000000006" font-size="10" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">12.0 x 11.5 m</text>
+<text x="282" y="84.70000000000002" font-size="14" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Switch hall</text>
+<text x="282" y="97.30000000000001" font-size="10" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">12.0 x 21.0 m</text>
+<text x="522" y="284.7" font-size="14" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Generator room</text>
+<text x="522" y="297.3" font-size="10" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">12.0 x 11.0 m</text>
+<text x="662" y="414.3181818181818" font-size="13.636363636363635" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Fire stair</text>
+<text x="662" y="430.6818181818182" font-size="13.636363636363635" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">(ground)</text>
+<text x="662" y="442.8454545454546" font-size="9.636363636363635" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">5.0 x 4.5 m</text>
+<text x="522" y="239.9" font-size="14" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Core cage</text>
+<text x="522" y="252.5" font-size="10" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">12.0 x 10.0 m</text>
 <text x="796" y="54" font-size="16" font-weight="700" fill="#333">Upper (y 3.3) </text>
 <rect x="796" y="64" width="720" height="560" fill="#fff" stroke="#999"/>
 <line x1="796" y1="64" x2="796" y2="624" stroke="#d6d6d6" stroke-width="1"/>
@@ -317,19 +319,13 @@
 <line x1="796" y1="104" x2="1516" y2="104" stroke="#d6d6d6" stroke-width="1"/>
 <line x1="796" y1="64" x2="1516" y2="64" stroke="#efefef" stroke-width="0.6"/>
 <rect x="796" y="294" width="240" height="190" fill="#fafafa" stroke="#555" stroke-width="2.5"/>
-<text x="916" y="377" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Test room</text>
-<text x="916" y="397" font-size="10" fill="#888" text-anchor="middle">12.0 x 9.5 m</text>
 <rect x="796" y="64" width="240" height="230" fill="#fafafa" stroke="#555" stroke-width="2.5"/>
-<text x="916" y="167" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Control room</text>
-<text x="916" y="187" font-size="10" fill="#888" text-anchor="middle">12.0 x 11.5 m</text>
 <rect x="1016" y="194" width="20" height="30" fill="#fff" stroke="#555" stroke-width="2.5"/>
 <rect x="1036" y="64" width="70" height="340" fill="#fbf3d9" stroke="#555" stroke-width="2.5"/>
-<text x="1071" y="222" font-size="11" fill="#666" text-anchor="middle" font-weight="600">Gallery</text>
-<text x="1071" y="242" font-size="10" fill="#888" text-anchor="middle">3.5 x 17.0 m</text>
 <rect x="876" y="404" width="60" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="796" y="384" width="20" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="876" y="314" width="60" height="30" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
-<rect x="806" y="314" width="20" height="20" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
+<rect x="826" y="454" width="20" height="20" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="876" y="224" width="70" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="796" y="64" width="60" height="40" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="1046" y="64" width="20" height="20" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
@@ -352,17 +348,17 @@
 <text x="1022" y="137" font-size="9" fill="#0891b2" text-anchor="middle" font-weight="700">W1</text>
 <rect x="1010" y="453" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
 <text x="1025" y="451" font-size="10" fill="#5b21b6" font-weight="700">S1</text>
-<rect x="840" y="318" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
-<text x="855" y="316" font-size="10" fill="#5b21b6" font-weight="700">R1</text>
+<rect x="854" y="458" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
+<text x="869" y="456" font-size="10" fill="#5b21b6" font-weight="700">R1</text>
 <rect x="1050" y="98" width="12" height="12" fill="#7c3aed" fill-opacity="0.85" stroke="#fff"/>
 <text x="1065" y="96" font-size="10" fill="#5b21b6" font-weight="700">GL</text>
 <polyline points="1016,459 956,374 836,374 826,404" fill="none" stroke="#1f77b4" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="1056,104 1056,204 1066,294 1066,344 1006,344 956,354 836,374 826,404" fill="none" stroke="#2ca02c" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
-<polyline points="846,324 836,374 826,404" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<polyline points="860,464 856,436 826,404" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="826,404 836,374 956,374 1016,459" fill="none" stroke="#1f77b4" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
-<polyline points="826,404 846,324" fill="none" stroke="#2ca02c" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<polyline points="826,404 856,436 860,464" fill="none" stroke="#2ca02c" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="826,404 836,374 956,354 1006,344 1066,344 1066,294 1056,204 1056,104" fill="none" stroke="#9467bd" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
-<polyline points="826,404 846,324" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
+<polyline points="826,404 856,436 860,464" fill="none" stroke="#d62728" stroke-width="2" stroke-opacity="0.55" stroke-linejoin="round"/>
 <polyline points="916,194 1016,244 1066,244 1066,344 1066,244 1016,244 916,194" fill="none" stroke="#8e5bd8" stroke-width="3.5" stroke-opacity="0.9"/>
 <line x1="916" y1="194" x2="948" y2="194" stroke="#8e5bd8" stroke-width="2.5"/>
 <circle cx="916" cy="194" r="8" fill="#8e5bd8" stroke="#fff" stroke-width="1.5"/>
@@ -396,6 +392,12 @@
 <text x="810" y="188" font-size="8" fill="#991b1b" font-weight="700">AP1</text>
 <text x="826" y="412" font-size="24" fill="#d4a017" stroke="#7a5b00" stroke-width="0.8" text-anchor="middle">&#9733;</text>
 <text x="826" y="392" font-size="12" fill="#7a5b00" text-anchor="middle" font-weight="700">O1</text>
+<text x="1030" y="314.7" font-size="14" fill="#444" font-weight="700" text-anchor="end" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Test room</text>
+<text x="1030" y="327.3" font-size="10" fill="#777" font-weight="400" text-anchor="end" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">12.0 x 9.5 m</text>
+<text x="1030" y="84.70000000000002" font-size="14" fill="#444" font-weight="700" text-anchor="end" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Control room</text>
+<text x="1030" y="97.30000000000001" font-size="10" fill="#777" font-weight="400" text-anchor="end" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">12.0 x 11.5 m</text>
+<text x="1042" y="382.75" font-size="11" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Gallery</text>
+<text x="1042" y="392.79999999999995" font-size="8" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">3.5 x 17.0 m</text>
 <text x="1556" y="54" font-size="16" font-weight="700" fill="#333">Roof (y 6.6) </text>
 <rect x="1556" y="64" width="720" height="560" fill="#fff" stroke="#999"/>
 <line x1="1556" y1="64" x2="1556" y2="624" stroke="#d6d6d6" stroke-width="1"/>
@@ -433,12 +435,8 @@
 <line x1="1556" y1="104" x2="2276" y2="104" stroke="#d6d6d6" stroke-width="1"/>
 <line x1="1556" y1="64" x2="2276" y2="64" stroke="#efefef" stroke-width="0.6"/>
 <rect x="1556" y="64" width="720" height="420" fill="#e6e2da" stroke="#555" stroke-width="2.5"/>
-<text x="1916" y="262" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Roof deck</text>
-<text x="1916" y="282" font-size="10" fill="#888" text-anchor="middle">36.0 x 21.0 m</text>
 <rect x="2176" y="394" width="100" height="90" fill="#fff" stroke="#555" stroke-width="2.5"/>
 <rect x="2176" y="394" width="100" height="90" fill="#d9f0dc" stroke="#555" stroke-width="2.5"/>
-<text x="2226" y="427" font-size="15" fill="#666" text-anchor="middle" font-weight="600">Fire stair head house</text>
-<text x="2226" y="447" font-size="10" fill="#888" text-anchor="middle">5.0 x 4.5 m</text>
 <rect x="1636" y="244" width="80" height="80" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="1756" y="144" width="80" height="80" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
 <rect x="1916" y="184" width="80" height="80" fill="#b8b2a7" stroke="#6a655c" stroke-width="1"/>
@@ -483,6 +481,10 @@
 <text x="1676" y="352" font-size="8" fill="#fff" text-anchor="middle" font-weight="700">V3</text>
 <circle cx="2226" cy="384" r="5" fill="#ffd54a" stroke="#a37400"/>
 <text x="2233" y="387" font-size="8" fill="#7a5a00">RF1</text>
+<text x="1562" y="84.70000000000002" font-size="14" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Roof deck</text>
+<text x="1562" y="97.30000000000001" font-size="10" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">36.0 x 21.0 m</text>
+<text x="2182" y="463.19999999999993" font-size="8" fill="#444" font-weight="700" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">Fire stair head house</text>
+<text x="2182" y="472.7999999999999" font-size="8" fill="#777" font-weight="400" text-anchor="start" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">5.0 x 4.5 m</text>
 <text x="36" y="646" font-size="13" font-weight="700" fill="#333">Legend</text>
 <rect x="36" y="657" width="12" height="12" fill="#c2410c"/><text x="54" y="667" font-size="11" fill="#333">door (1.2 single, 2.0 double, gate 3.0)</text>
 <rect x="396" y="657" width="12" height="12" fill="#2563eb"/><text x="414" y="667" font-size="11" fill="#333">wide opening, no door</text>
@@ -503,7 +505,7 @@
 <circle cx="484" cy="754" r="7" fill="#c98a22"/><text x="498" y="758" font-size="11" fill="#333">G3 grunt 40.0 s</text>
 <circle cx="704" cy="754" r="7" fill="#8e5bd8"/><text x="718" y="758" font-size="11" fill="#333">G4 officer 40.0 s</text>
 <circle cx="924" cy="754" r="7" fill="#2e7d32"/><text x="938" y="758" font-size="11" fill="#333">G5 heavy 40.0 s</text>
-<circle cx="1144" cy="754" r="7" fill="#111111"/><text x="1158" y="758" font-size="11" fill="#333">G6 sniper 30.0 s</text>
+<circle cx="1144" cy="754" r="7" fill="#111111"/><text x="1158" y="758" font-size="11" fill="#333">G6 sniper 40.0 s</text>
 <text x="36" y="780" font-size="13" font-weight="700" fill="#333">Routes (thin lines):</text>
 <line x1="176" y1="776" x2="206" y2="776" stroke="#1f77b4" stroke-width="3"/><text x="212" y="780" font-size="11" fill="#333">O1-A</text>
 <line x1="306" y1="776" x2="336" y2="776" stroke="#2ca02c" stroke-width="3"/><text x="342" y="780" font-size="11" fill="#333">O1-B</text>

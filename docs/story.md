@@ -307,8 +307,8 @@ Each mission gets a story beat, a gameplay showcase and a co-op highlight. The v
 
 ```
 LANTERN: Evening, Night Shift. Kestrel Exchange, 1934. I did my apprenticeship in one just like it.
-LANTERN (solo): In through the cable tunnel. Mind your head - they built for shorter men.
-LANTERN (team): Cable tunnel, all of you. Mind your heads - they built for shorter men.
+LANTERN (solo): In through the lane gate. Keep to the wall - the yard lamps are on.
+LANTERN (team): Lane gate, all of you. Keep to the wall - the yard lamps are on.
 MOTH (if not present): I'm on the depository roof across the lane. Van's being loaded in the yard.
 SEXTON: Rain's on our side tonight. Nobody looks up in the rain.
 MOTH: I look up in the rain.

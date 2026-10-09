@@ -27,7 +27,7 @@ Coordinates: metres on a 0.5 m grid, x east, z north, origin at the centre of th
 | Alarm panels | AP1 control room, AP2 cage room, AP3 yard gate | A guard who has seen a person or a body runs to the nearest working panel within 30 m and holds it for 1.6 s (engine value). Three reinforcement grunts then arrive. |
 | Perimeter lights | Circuit C1 (yard and roof security lights) | Sodium lamps, switchable, shootable. |
 | Locked doors | Roller door RD and street door ND (sealed), vehicle gate Gv (chained), arrival gate Gp (padlock swapped by the team) | Sealed doors are walls for everyone. |
-| Round checkpoints | The master clock | Every round is timed to the exchange's master clock. This is why all ground loops are 40 s and the sniper's is 30 s: the clock chimes (a tell) and each guard hits a checkpoint on it. Fixed, so learnable. |
+| Round checkpoints | The master clock | Every round is timed to the exchange's master clock. This is why every loop is 40 s, the sniper's included (his three facings are 12, 10 and 16.5 s plus 0.5 s per turn): the clock chimes (a tell) and each guard hits a checkpoint on it. Fixed, so learnable, and every window below repeats every 40 s. |
 
 **What an alarm does.** If AP1 or AP2 is rung, 3 reinforcement grunts enter by the north street door ND into the break room and sweep south through the hall. The yard stays quiet. If AP3 is rung they come through the vehicle gate Gv, which closes the van exit (E1). The player cannot disable a panel (not in the verb list); the player denies it by taking the runner down first or by being out of the 30 m range. The guard count on the map stays 6 for any number of players.
 
@@ -41,7 +41,7 @@ Coordinates: metres on a 0.5 m grid, x east, z north, origin at the centre of th
 
 ## c) Arrival and exfiltration
 
-**Arrival.** The team's van drops them in Cooper's Lane south of the yard. Lantern's contact swapped the padlock on the pedestrian gate Gp the day before. The team steps into a drum-screened pocket at the yard's west end that is out of every guard's sight. Why this way: the lane is empty at night, the pocket is dark, and the gate is the contractor's own approved door (no cutting, no noise). *Story note:* the sample radio line in `story.md` section 8 says "in through the cable tunnel"; on this map the 1.3 m trench D1 is the cable tunnel and the way in is the lane gate. Michael to confirm.
+**Arrival.** The team's van drops them in Cooper's Lane south of the yard. Lantern's contact swapped the padlock on the pedestrian gate Gp the day before. The team steps into a drum-screened pocket at the yard's west end that is out of every guard's sight. Why this way: the lane is empty at night, the pocket is dark, and the gate is the contractor's own approved door (no cutting, no noise). *Story note (decided by Michael):* the team arrives by the lane gate Gp, and the radio lines in `story.md` section 8 now say so. The 1.3 m trench D1 stays on the map as the discoverable "cable tunnel" bypass (reward X2); no radio line sends the team into it.
 
 **Exits compared:**
 
@@ -57,19 +57,19 @@ Coordinates: metres on a 0.5 m grid, x east, z north, origin at the centre of th
 - **Alarm at AP1 or AP2:** reinforcements come from the north (ND). The yard is quiet. E1 is still open but the hall is hunted: take the generator room (EX-1).
 - **Alarm at AP3:** reinforcements at Gv. E1 is closed: go back by E2 through the hall and Goods-in (EX-2).
 - **Bodies:** a found body sends the finder to the nearest panel (above). A hidden body (body spots in the hide table) does not.
-- **Lights:** with C1 off the sniper cannot see the yard past 8 m, so the van run has 3 windows instead of 1 per 120 s; G1 spends 12 s searching at pole lamp Y2.
+- **Lights:** with C1 off the sniper cannot see the yard past 8 m, so the van run window widens from 9.5 s to 18.6 s per 40 s; G1 spends 12 s searching at pole lamp Y2.
 - **Route taken:** a player who came in by the roof can leave by the roof side and the fire stair into the yard east (FD1) without touching the hall.
 
 ## d) The gameplay loop
 
-Watch the guards from a dark place, learn that their rounds repeat on the master clock, choose between a bold lit route, a quiet long one and a hidden one, act on a window or put a light out to make one, adapt when something changes, and run it again faster using what you found. First-time run: about 9 to 11 minutes (two to three loop-watches of 40 s each, three or four waits at chokes, two routes of about 30 to 45 s of walking). A known route: about 3 to 4 minutes (O1-C 18 s, O2-D 44 s or O2-A 27 s, EX-1 19 s plus short waits).
+Watch the guards from a dark place, learn that their rounds repeat on the master clock, choose between a bold lit route, a quiet long one and a hidden one, act on a window or put a light out to make one, adapt when something changes, and run it again faster using what you found. First-time run: about 9 to 11 minutes (two to three loop-watches of 40 s each, three or four waits at chokes, two routes of about 30 to 45 s of walking). A known route: about 2 to 3 minutes (cable run X2: O1-C 13.3 s and O2-D 23.8 s, EX-1 18.7 s, plus short waits; the table in section m has every route).
 
 **Beat sheet**
 
 | Beat | Time (first run) | The player sees | Decides | Learns |
 | --- | --- | --- | --- | --- |
 | 1 Arrive | 0:00 to 0:30 | Pocket, sodium pool Y1 on the wall, the sentry G1 pacing to the personnel door and back, the sniper's silhouette on the roof | Which spawn exit: ladder, door or south wall | Pools are danger, dark is safe; G1 pauses 4 s at the door and 4.8 s at the gate |
-| 2 Observe | 0:30 to 2:30 | From V1 the sentry; from the roof AHU cover V3 the sniper; from the hall alcove V2 the pair; from the gallery V4 the heavy and the officer | Which route (stair, roof, riser) and when | The master clock: 40 s ground loops, 30 s sniper; the pair's break-room gap; the heavy's back-turned time |
+| 2 Observe | 0:30 to 2:30 | From V1 the sentry; from the roof AHU cover V3 the sniper; from the hall alcove V2 the pair; from the gallery V4 the heavy and the officer | Which route (stair, roof, riser) and when | The master clock: every loop is 40 s; the pair's break-room gap; the heavy's back-turned time |
 | 3 Plan | 2:30 to 3:00 | The three O1 routes and their pools | Switch a circuit, shoot a lamp, or time it | Each switch has a cost (guard reaction in the circuit table) |
 | 4 First move | 3:00 to 4:30 | Personnel door, then Goods-in with the riser ladder in the corner | PD window (K1) or the roof ladder | The door only matters at certain seconds |
 | 5 Circuit record (O1) | 4:30 to 6:00 | Test room, cabinet in the dark with a lit sign, lit bench in the middle | Cross the lit bench or hug the wall; 3 s hold | The officer checks the door every 40 s; the record names LC-4471 |
@@ -175,10 +175,10 @@ Grid: 0.5 m. Rects are `x0..x1`, `z0..z1`. Space "Gallery" is open to the hall (
 | S1 | stairs-open | G 3, -5.75 | U -7, -5.75 | 3.3 | 9.5 | 2.4 wide, 20 risers 0.165 x 0.285 (slope 0.58), mid landing 2.0, along the hall's south wall, foot at the east end |
 | FS | stairs-fire | G 15.5, -5.5 | R 15.5, -4 | 6.6 | 20 | enclosed 1.3 m flights, 40 risers, doors FD1 and FD3 |
 | RL | ladder | G -16.5, -7.5 | R -16.5, -6 | 6.6 | 6.6 | exterior ladder on the south facade, 0.5 wide |
-| R1 | ladder | G -15.5, 1 | U -15.5, 1 | 3.3 | 3.3 | cable riser, 1.0 x 1.0 shaft at x -17.5..-16.5, ladder reached from the east |
+| R1 | ladder | G -14.8, -6 | U -14.8, -6 | 3.3 | 3.3 | cable riser, 1.0 x 1.0 shaft at x -16.5..-15.5, z -6.5..-5.5 in the Goods-in south-west corner, ladder reached from the east |
 | GL | ladder | U -5, 12 | R -5, 12 | 3.3 | 3.3 | gallery to roof hatch, shaft 1.0 x 1.0 at x -5.5..-4.5, z 13..14 in the north-west corner of the gallery |
 | ES | ladder | R 16.5, 12.5 | G 16.5, 12.5 | 6.6 | 7 | exhaust shaft: roof stack to the cage east aisle, 1.0 x 1.0, 6.6 m ladder |
-| D1 | crawl | G -9, -1.5 | G 7.5, 5 | - | 23 | cable trench under the hall and the generator room, 0.9 wide x 1.3 high, grille T1 in the Goods-in bay, hatch T2 in the cage room |
+| D1 | crawl | G -13.2, -6.4 | G 16.5, 6.5 | - | 36.6 | cable trench (the 'cable tunnel') under the Goods-in bay, the hall and the generator room, 0.9 wide x 1.3 high, grille T1 beside the riser foot, hatch T2 at the south end of the cage east aisle |
 
 **Corridors and lanes (width = short side; all at least 3.0 m)**
 
@@ -221,12 +221,12 @@ One row per door, stair, vent, shaft, window, light circuit, alarm panel, contro
 | S1 | stair | Open stair S1 (2.4 m wide) | The engineers' main stair up to the test and control floor. | The main O1 route; a landmark; a lit, exposed climb. | Stuck in the hall. | The foot lobby hH1 is a dark pocket. |
 | FS | stair | Fire stair FS (1.3 m) | The fire code requires a protected stair. | A quiet 20 s route to the roof for the team. | Dead time on a stair. | It is optional: RL is the alternative. |
 | RL | ladder | Exterior ladder RL (0.5 m) | Roof access for riggers. | The first move from S1. | A ladder is slow and noisy. | It is out of the sniper's range (28 m). |
-| R1 | shaft | Riser ladder R1 (1.0 x 1.0 shaft) | Cable riser from the Goods-in to the Test room. | A discoverable shortcut; skips the hall. | Could make O1 trivial. | Hidden behind the drums; the ladder is slow. |
+| R1 | shaft | Riser ladder R1 (1.0 x 1.0 shaft) | Cable riser from the Goods-in to the Test room. | A discoverable time-saver (about 16 s faster than the stair route); skips the hall and the pair. | Could make O1 trivial. | Hidden behind the pallets in the south-west corner; a jog inside the Goods-in is audible at PD, and a ladder is slow and cannot be fought on. |
 | GL | shaft | Gallery-roof ladder GL (1.0 x 1.0 shaft) | Plant access from the gallery. | Links the roof with the gallery. | Lands in the officer's gallery. | The north end is 5 m from the recess. |
-| ES | shaft | Exhaust shaft ES (1.0 x 1.0 shaft) | The cage's air exhaust stack. | The skilled drop-in: 4 m from O2, behind the racks. | Free if easy to reach. | Roof under the sniper; a 7 s helpless ladder. |
-| D1 | vent | Cable trench D1 (0.9 x 1.3, player only) | Under-floor cable duct from the Goods-in to the cage. | A silent bypass of the hall and the door. | A free skip. | 23 m at 0.9 m/s is 26 s; grille T1 is in view from WO1; noise on entry; the hatch is lit. |
-| T1 | vent | Grille T1 (Goods-in) | Cable trench cover. | The entry the player must discover. | Noise. | Entry rattles at a radius of 4 m. |
-| T2 | vent | Hatch T2 (cage room) | The trench's service hatch. | Opens beside the cage door. | Next to the heavy's west aisle. | K2 lights it: the player pays to emerge. |
+| ES | shaft | Exhaust shaft ES (1.0 x 1.0 shaft) | The cage's air exhaust stack. | The safe, slow drop-in: 4 m from O2, behind the racks. | Free if easy to reach. | Slowest route; roof under the sniper's sweep; a 7 s helpless ladder that must fit the 23 s window. |
+| D1 | vent | Cable trench D1 (0.9 x 1.3, player only) | Under-floor cable duct from the Goods-in to the cage: the 'cable tunnel'. | A bypass of the hall, the door and every hall wait; a time-saver when run noisily. | A free skip. | 37 m: 13 s at the noisy crouch gear 6 (noise about 2 m, muffled), 20 s at the silent gear 4; grille rattle 4 m on entry; the hatch opens 4.6 m from the heavy's apron post. |
+| T1 | vent | Grille T1 (Goods-in) | Cable trench cover. | The entry the player must discover, beside the riser foot. | Noise. | Entry rattles at a radius of 4 m. |
+| T2 | vent | Hatch T2 (cage room) | The trench's service hatch. | Opens at the dark south end of the cage east aisle. | 4.6 m from the heavy's apron post and on the edge of the K1 pool. | The player pays to emerge: choke K4 gives the window. |
 | C1 | circuit | Yard and roof lights C1 (5 lamps) | Perimeter security lighting. | Switching it off gives the yard to the player. | Free yard. | Sentry and sniper investigate. |
 | C2 | circuit | Ground west C2 (3 lamps) | Goods-in and break-room lighting. | Darkens the way in and the riser. | Trivial. | The pair investigate. |
 | C3 | circuit | Switch hall C3 (4 lamps) | The hall lights. | Makes the hall crossing possible. | Switch is on the far wall. | Pair and officer converge. |
@@ -279,7 +279,7 @@ All loops are literal and deterministic. Dwell time includes a 0.5 s turn per wa
 | G3 | grunt | 0.9 | 25.2 | 40.0 | 10.5 |
 | G4 | officer | 0.85 | 26.2 | 40.0 | 20 |
 | G5 | heavy | 0.75 | 20.7 | 40.0 | 3 |
-| G6 | sniper | 0.85 | 0.0 | 30.0 | 28.5 |
+| G6 | sniper | 0.85 | 0.0 | 40.0 | 12 |
 
 #### G1 grunt - Yard sentry (solo)
 
@@ -368,7 +368,7 @@ Lights out: C5 off: stops and scans 8 s, then resumes. Body found: does not leav
 
 #### G6 sniper - Roof overwatch (stationary)
 
-Start: waypoint 0 at (11.5, -6.5); phase 28.5 s; speed 0.85 m/s; loop 30.0 s over 0.0 m of path.
+Start: waypoint 0 at (11.5, -6.5); phase 12 s; speed 0.85 m/s; loop 40.0 s over 0.0 m of path.
 
 Why here: The only way a vehicle or a roof team can reach the building is the lane and the roof. A previous break-in came over the roof.
 
@@ -376,25 +376,25 @@ Why here: The only way a vehicle or a roof team can reach the building is the la
 | --- | --- | --- | --- | --- | --- |
 | 0 | 11.5, -6.5 | 12.0 | 0.6,-0.8 | lane and vehicle gate | 0.0 |
 | 1 | 11.5, -6.5 | 10.0 | -0.8,-0.6 | yard and the personnel door | 12.5 |
-| 2 | 11.5, -6.5 | 6.5 | 0,1 | roof deck north | 23.0 |
+| 2 | 11.5, -6.5 | 16.5 | 0,1 | roof deck north | 23.0 |
 
 Tells: the scope glints in the sodium light 2 s before each turn; boot scrape on the roof gravel 3 s before each turn.
 
 Lights out: C1 off: stays on the yard facing 10 s then sweeps. Body found: does not leave the roof; reports by radio, AP not used.
 
-**Safe windows created** (over the 120 s cycle that every loop divides into). Windows are the seconds in which none of the listed guards can see the choke. "Lights out" re-computes with sentry-and-sniper far views removed (a dark body is only seen inside 8 m; engine assumption).
+**Safe windows created** (over the 40 s master-clock cycle: every loop is 40 s, so a cycle is one loop). Windows are the seconds in which none of the listed guards can see the choke. "Lights out" re-computes with sentry-and-sniper far views removed (a dark body is only seen inside 8 m; engine assumption).
 
-| Choke | Where | Need s | Seen by | Safe windows in the 120 s cycle, lit (start-end, length) | Windows >= need | Worst wait s | Lights out: windows, worst wait s |
+| Choke | Where | Need s | Seen by | Safe windows in the 40 s master-clock cycle, lit (start-end, length) | Windows >= need | Worst wait s | Lights out: windows, worst wait s |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| K1 Personnel door PD | G -8.5, -7 | 3 | G1 G6 | 6.5-11.0 (4.5 s); 21.5-24.9 (3.4 s); 51.5-64.9 (13.4 s); 86.5-101.0 (14.5 s) | 4 | 29.5 | 3, 24.5 |
-| K2 Hall south crossing | G -4, -3 | 3 | G2 G3 | 4.2-26.8 (22.7 s); 44.2-66.8 (22.7 s); 84.2-106.8 (22.7 s) | 3 | 20.2 | 3, 20.2 |
-| K3 Gallery south (recess to Test door) | U -4.5, 4 | 3 | G4 | 12.9-30.8 (17.9 s); 52.9-70.8 (17.9 s); 92.9-110.8 (17.9 s) | 3 | 24.9 | 3, 24.9 |
-| K4 Cage door CH and apron | G 8, 6 | 3 | G5 | 13.8-33.6 (19.8 s); 53.7-73.6 (19.8 s); 93.7-113.5 (19.8 s) | 3 | 23.0 | 3, 23.0 |
-| K5 Console approach (O2 hold 4 s) | G 12.5, 12.5 | 4 | G5 | 113.5-3.0 (9.5 s); 6.9-14.3 (7.4 s); 33.6-43.0 (9.4 s); 46.9-54.2 (7.4 s); 73.6-82.9 (9.4 s); 86.8-94.2 (7.4 s) | 6 | 23.3 | 6, 23.3 |
-| K9 Centre aisle run (route O2-A) | G 12, 9 | 5 | G5 | 7.9-20.3 (12.4 s); 47.9-60.2 (12.4 s); 87.8-100.2 (12.4 s) | 3 | 32.7 | 3, 32.7 |
-| K6 Yard east crossing to GD and Gv | G 8, -9 | 3 | G1 G6 | 111.5-118.5 (7.0 s) | 1 | 115.8 | 3, 24.4 |
-| K7 Roof east, stack to ES | R 14, 12 | 3 | G6 | 118.5-21.5 (23.0 s); 28.5-51.5 (23.0 s); 58.5-81.5 (23.0 s); 88.5-111.5 (23.0 s) | 4 | 9.8 | 4, 9.8 |
-| K8 Test room lit crossing | U -9.5, -1.5 | 3 | G4 | 84.6-0.1 (35.5 s); 4.6-40.1 (35.5 s); 44.6-80.1 (35.5 s) | 3 | 7.4 | 3, 7.4 |
+| K1 Personnel door PD | G -8.5, -7 | 3 | G1 G6 | 6.5-24.5 (18.0 s) | 1 | 24.8 | 1, 24.5 |
+| K2 Hall south crossing | G -4, -3 | 3 | G2 G3 | 4.2-26.8 (22.7 s) | 1 | 20.2 | 1, 20.2 |
+| K3 Gallery south (recess to Test door) | U -4.5, 4 | 3 | G4 | 12.9-30.8 (17.9 s) | 1 | 24.9 | 1, 24.9 |
+| K4 Cage door CH and apron | G 8, 6 | 3 | G5 | 13.8-33.6 (19.8 s) | 1 | 23.0 | 1, 23.0 |
+| K5 Console approach (O2 hold 4 s) | G 12.5, 12.5 | 4 | G5 | 33.6-3.0 (9.4 s); 6.9-14.3 (7.4 s) | 2 | 23.1 | 2, 23.1 |
+| K9 Centre aisle run (route O2-A) | G 12, 9 | 5 | G5 | 7.9-20.3 (12.4 s) | 1 | 32.4 | 1, 32.4 |
+| K6 Yard east crossing to GD and Gv | G 8, -9 | 3 | G1 G6 | 35.0-4.5 (9.5 s) | 1 | 33.3 | 1, 24.1 |
+| K7 Roof east, stack to ES | R 14, 12 | 3 | G6 | 12.0-35.0 (23.0 s) | 1 | 19.8 | 1, 19.8 |
+| K8 Test room lit crossing | U -9.5, -1.5 | 3 | G4 | 4.6-0.1 (35.5 s) | 1 | 7.3 | 1, 7.3 |
 
 Guard to window: G1 opens K1 and K6; G2 and G3 open K2 (the pair gap); G4 opens K3 and K8; G5 opens K4, K5 and K9; G6 opens K1, K6 and K7.
 
@@ -449,7 +449,7 @@ Which lamps can be shot: every lamp is shootable; shooting one is heard (shot no
 | hY6 | G | 14.5,-8.5 - 16.5,-7 | 2.0 x 1.5 x 2.0 | S | porch walls at the fire door |  | - |
 | hG1 | G | -18,-5 - -16,-2 | 3.0 x 2.0 x 1.6 | N | pallets east, wall west | yes | - |
 | hG3 | G | -7.5,-7 - -6,-5.5 | 1.5 x 1.5 x 1.8 | N | crate bay: east wall, south wall beside PD, a crate on the west |  | - |
-| hG2 | G | -18,0 - -15,2.5 | 3.0 x 2.5 x 1.8 | E | drum rack south, walls north and west, riser shaft R1 inside |  | - |
+| hG2 | G | -18,-7 - -15.5,-5 | 2.5 x 2.0 x 1.8 | E | walls south and west, riser shaft R1 on the east edge, pallets hG1 to the north |  | - |
 | hH1 | G | 2,-7 - 6,-4.5 | 4.0 x 2.5 x 2.0 | N | stair block west, walls south and east |  | G2 G3 |
 | hH2 | G | -6,7.5 - -4.5,10.5 | 3.0 x 1.5 x 2.0 | E | cabinet bay in the west wall, under the gallery |  | - |
 | hH3 | G | 2,12 - 4,14 | 2.0 x 2.0 x 2.0 | W | racks east, north wall |  | - |
@@ -479,39 +479,61 @@ Which lamps can be shot: every lamp is shootable; shooting one is heard (shot no
 
 ## m) Routes
 
-Three routes per objective (A, B, C; O2 also has a trench variant D). They share at most 30 percent of their length (the first 6 m and the last 6 m are excluded, since every route starts at a spawn and ends on the objective). Times: walk at 2.0 m/s, stairs 1.6, ladders 1.0, crawl 0.9; waits are the worst case for a player who does not know the windows.
+Three routes per objective (A, B, C; O2 also has a trench variant D). They share at most 30 percent of their length (the first 6 m and the last 6 m are excluded, since every route starts at a spawn and ends on the objective). Paces are the scale sheet's gears: stand gear 3 = 2.0 m/s is the main pace; stairs 1.6 and ladders 1.0 are fixed by the code; the discovery routes may use a faster gear where the noise cannot reach a guard (stand gear 4 jog 2.8 m/s, noise about 3.4 m; crouch gear 6 crawl 2.8 m/s, noise about 2 m, muffled through a floor) and the quiet pace (stand gear 3, crouch gear 4 = 1.8 m/s, silent) is the worst case. **Best case** = zero waits at the fast pace. **Worst case** = the quiet pace plus every worst-case choke wait (a player who does not know the windows).
 
 **O1**
 
-| Route | Kind | Hops | Chokes | Walk m | Time s | Worst waits s | Risk | Teaches |
+| Route | Kind | Hops (m/s where not the default) | Chokes | Walk m | Best case s (zero waits) | Worst case s (quiet pace + worst waits) | Risk | Teaches |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| O1-A Stair route | main | walk > stairs S1 > walk | K1 K2 K8 | 45.7 | 29 | 57 | medium-high: lit crossing in view of the pair | The hall is the pair's room. Read the junction, cross while they sit in the break room. |
-| O1-B Roof and gallery | slow-safe | walk > ladder RL > walk > ladder GL > walk | K3 K8 | 65.0 | 42 | 32 | medium: the officer's gallery round | Quiet, long, and the officer owns the gallery. Shadow and the recess carry you. |
-| O1-C Riser ladder (hidden) | hidden | walk > ladder R1 > walk | K1 | 28.7 | 18 | 30 | low once found | A way up that skips the hall. Found by looking in the Goods-in corner. |
+| O1-A Stair route | main | walk > stairs S1 > walk | K1 K2 K8 | 45.7 | 28.8 | 81 | medium-high: lit crossing in view of the pair | The hall is the pair's room. Read the junction, cross while they sit in the break room. |
+| O1-B Roof and gallery | slow-safe | walk > ladder RL > walk > ladder GL > walk | K3 K8 | 65.0 | 42.4 | 75 | medium: the officer's gallery round | Quiet, long, and the officer owns the gallery. Shadow and the recess carry you. |
+| O1-C Riser ladder (hidden) | hidden | walk > walk @2.8 > ladder R1 > walk | K1 | 22.1 | 13.3 | 39 | low-medium once found: noise at PD (jog inside) and a ladder you cannot fight on | A way up that skips the hall, the stair and the pair. Found by looking in the Goods-in south-west corner. |
 
 **O2**
 
-| Route | Kind | Hops | Chokes | Walk m | Time s | Worst waits s | Risk | Teaches |
+| Route | Kind | Hops (m/s where not the default) | Chokes | Walk m | Best case s (zero waits) | Worst case s (quiet pace + worst waits) | Risk | Teaches |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| O2-A Hall and cage door | main | walk > stairs S1 > walk | K2 K4 K9 K5 | 41.9 | 27 | 99 | high: apron and aisle are the heavy's beat | Fast and bold: through the heavy's door, up his own aisle in the dark between the racks. |
-| O2-B Yard and generator room | slow-safe | walk > ladder R1 > walk | K1 K6 K5 | 78.1 | 42 | 169 | medium: yard crossing under the sniper | Use the south wall shadow, time the yard hop, then take the dark east aisle. |
-| O2-C Roof and exhaust shaft | skilled | walk > ladder GL > walk > ladder ES > walk | K3 K7 K5 | 52.2 | 36 | 58 | medium-high: roof under the sniper, helpless on the shaft | Drop in behind the racks. Costs a ladder you cannot fight on and a roof the sniper watches. |
-| O2-D Trench variant (bypasses CH and hall) | hidden | walk > ladder R1 > walk > crawl D1 > walk | K4 K5 | 30.5 | 44 | 46 | medium: grille seen from the wide opening, noise on entry, apron on exit | A silent 23 m crawl under the hall. The hatch opens on the lit apron. |
+| O2-A Hall and cage door | main | walk > stairs S1 > walk | K2 K4 K9 K5 | 41.9 | 26.9 | 126 | high: apron and aisle are the heavy's beat | Fast and bold: through the heavy's door, up his own aisle in the dark between the racks. |
+| O2-B Yard and generator room | slow-safe | walk > ladder R1 > walk | K1 K6 K5 | 72.1 | 39.4 | 120 | medium: yard crossing under the sniper | Use the south wall shadow, time the yard hop, then take the dark east aisle. |
+| O2-C Roof and exhaust shaft | skilled | walk > ladder GL > walk > ladder ES > walk | K3 K7 K5 | 52.2 | 36.4 | 104 | low-medium: the roof east passage has a 23 s sniper window every 40 s and the 7 s ladder fits inside it | Drop in behind the racks. No door, no pair, no heavy's apron; costs two ladders and a roof the sniper sweeps. |
+| O2-D Trench variant (bypasses CH and hall) | hidden | walk > ladder R1 > walk > crawl D1 @2.8 > walk | K4 K5 | 14.9 | 23.8 | 77 | medium: grille rattle (4 m) on entry, crawl noise if you run it, the heavy's apron on exit | A 37 m crawl under the Goods-in, the hall and the generator room to the dark east aisle. It skips the hall, CH and the pair; the hatch opens 4.6 m from the heavy's apron post. |
 
 **Exit**
 
-| Route | Kind | Hops | Chokes | Walk m | Time s | Worst waits s | Risk | Teaches |
+| Route | Kind | Hops (m/s where not the default) | Chokes | Walk m | Best case s (zero waits) | Worst case s (quiet pace + worst waits) | Risk | Teaches |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| EX-1 Generator room to the van (primary) | main | walk | K6 | 37.4 | 19 | 116 | medium at the yard hop | A calm walk with one test: the last 6 m of open yard under both the sentry and the sniper. |
-| EX-2 Hall, Goods-in and the arrival gate (alternate) | slow-safe | walk | K4 K2 K1 | 63.2 | 32 | 73 | medium: the hall again | Back the way you came: the quiet exit when the east yard is hot. |
+| EX-1 Generator room to the van (primary) | main | walk | K6 | 37.4 | 18.7 | 52 | medium at the yard hop | A calm walk with one test: the last 6 m of open yard under both the sentry and the sniper. |
+| EX-2 Hall, Goods-in and the arrival gate (alternate) | slow-safe | walk | K4 K2 K1 | 63.2 | 31.6 | 100 | medium: the hall again | Back the way you came: the quiet exit when the east yard is hot. |
+
+**Legs used by the discovery decision (walking time per leg, best and worst case)**
+
+| Leg | Kind | Pace per hop (m/s) | Walk m | Best case s (fast pace, zero waits) | Quiet-pace s | Worst waits s (chokes) | Worst case s (quiet pace + worst waits) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| O1-A Stair route | main | walk 2, stairs S1 1.6, walk 2 | 45.7 | 28.8 | 28.8 | 52 (K1 K2 K8) | 81.1 |
+| O1-C Riser ladder (hidden) | hidden | walk 2, walk 2.8 (quiet 2), ladder R1 1, walk 2 | 22.1 | 13.3 | 14.4 | 25 (K1) | 39.1 |
+| O1-B Roof and gallery | slow-safe | walk 2, ladder RL 1, walk 2, ladder GL 1, walk 2 | 65.0 | 42.4 | 42.4 | 32 (K3 K8) | 74.7 |
+| O2-A Hall and cage door | main | walk 2, stairs S1 1.6, walk 2 | 41.9 | 26.9 | 26.9 | 99 (K2 K4 K9 K5) | 125.6 |
+| O2-D Trench variant (bypasses CH and hall) | hidden | walk 2, ladder R1 1, walk 2, crawl D1 2.8 (quiet 1.8), walk 2 | 14.9 | 23.8 | 31.1 | 46 (K4 K5) | 77.2 |
+| O2-C Roof and exhaust shaft | skilled | walk 2, ladder GL 1, walk 2, ladder ES 1, walk 2 | 52.2 | 36.4 | 36.4 | 68 (K3 K7 K5) | 104.2 |
+
+**Whole runs: spawn to O1 to O2.** A discovery saves time over the whole run, because O2 cannot be done before O1. The main run is O1-A then O2-A. The 15 s rule is on the best-case walk of the main run.
+
+| Run (spawn to O1 to O2) | Legs | Best case s | Faster than main, best case s | Worst case s | Faster than main, worst case s | At least 15 s faster (best case) | What it costs (noise or risk) |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| M Main run | O1-A + O2-A | 55.7 | - | 206.6 | - | baseline | baseline: the pair at the hall, the stair, the heavy's door |
+| X1 Riser run | O1-C + O2-A | 40.2 | 15.5 | 164.7 | 41.9 | PASS | a jog inside the Goods-in (noise 3.4 m, about 1.5 m through the wall at PD) and a ladder you cannot fight on |
+| X2 Cable run (riser and trench) | O1-C + O2-D | 37.1 | 18.6 | 116.3 | 90.3 | PASS | as X1, then grille rattle (4 m), crawl-run noise (2 m, muffled) or a silent 20 s crawl, then a hatch 4.6 m from the heavy's apron post |
+| X3 Roof and exhaust run | O1-B + O2-C | 78.8 | -23.1 | 178.8 | 27.8 | not a time-saver: the safe, slow route | two ladders, the sniper roof window (23 s per 40 s), the slowest route; no door, pair or apron |
+
+Why the comparison is on the run and not on the O2 leg alone: the straight line from O1 to O2 is 33 m, so no route can beat the 27 s main O2 leg by 15 s. The riser removes the stair detour on the O1 leg (spawn to O1: 13.3 s against 28.8 s); the trench is entered at the riser foot and also beats the main O2 leg by 3.1 s while removing every hall wait. X3 is the safe, slow route by design.
 
 ## n) Exploration rewards
 
-| Reward | Where | What it unlocks | How the player learns it | Saves on a second run |
+| Reward | Where | What it unlocks | How the player learns it | Run: best case s / faster than main (best) / faster (worst) |
 | --- | --- | --- | --- | --- |
-| X1 The riser ladder R1 | Goods-in north-west corner, behind the pallets (-15.5, 1.0) | A way into the Test room that skips the hall, the stair and the pair. O1 in about 20 s. | A ladder foot shows in the Goods-in corner from the wide opening; a pinned cable chart in the break room names 'RISER 1'. | 39 s (O1-A 86 s vs O1-C 47 s; walk plus worst-case waits; walk alone 11 s) |
-| X2 The cable trench D1 | Grille T1 in the Goods-in bay (-9.0, -1.5) | A silent 23 m crawl under the hall and the generator room to the cage room. Skips the hall, CH and the pair. | The grille is visible from the wide opening; a cable-pit label and a draught that moves the dust. Cost: 26 s crawl, noise on entry. | 36 s (O2-A 126 s vs O2-D 90 s; walk plus worst-case waits; walk alone -17 s) |
-| X3 The exhaust shaft ES | Roof stack at (16.5, 13.5) | A drop into the cage's dark east aisle behind the racks, 4 m from O2. | The stack is visible from the AHU cover on the roof, and the cage's east aisle shows a hatch grille when seen from the apron. | 32 s (O2-A 126 s vs O2-C 94 s; walk plus worst-case waits; walk alone -10 s) |
+| X1 The riser ladder R1 | Goods-in south-west corner, behind the pallet stack (ladder foot at -14.8, -6.0) | A way into the Test room that skips the hall, the stair and the pair. O1 about 13 s after the spawn, against about 29 s by the stair. Cost: a jog inside the Goods-in (noise 3.4 m) and a 3.3 s ladder. | A ladder foot shows in the south-west corner when you step inside PD; a pinned cable chart in the break room names 'RISER 1'. | X1: 40.2 s / 15.5 s / 41.9 s |
+| X2 The cable trench D1 | Grille T1 beside the riser foot (-13.2, -6.4) | The 'cable tunnel': a 37 m crawl under the Goods-in, the hall and the generator room to the cage east aisle. Skips the hall, CH and the pair. Reached from O1 by the riser, it is about 3 s faster than the walk to O2 and removes every hall wait. Cost: grille rattle (4 m), crawl-run noise (2 m, muffled) or a silent 20 s crawl. | The grille sits beside the riser foot; a cable-pit label and a draught that moves the dust. | X2: 37.1 s / 18.6 s / 90.3 s |
+| X3 The exhaust shaft ES | Roof stack at (16.5, 13.5) | The safe, slow way: a drop into the cage's dark east aisle behind the racks, 4 m from O2. No door, no pair, no heavy's apron; two ladders and a roof walk make it the slowest route. | The stack is visible from the AHU cover on the roof, and the cage's east aisle shows a hatch grille when seen from the apron. | X3: 78.8 s / -23.1 s / 27.8 s |
 
 ## o) Co-op and solo
 
@@ -523,9 +545,9 @@ Three routes per objective (A, B, C; O2 also has a trench variant D). They share
 | CO4 | One player takes down G2, another drags and hides the body at hGe1 | Takedown, drag it 8 m yourself, 10 s slower | Hides faster |
 | CO5 | Two players at the break-room double door DD: one pings the pair's timing, one slips past | Wait for the pair to be inside (6 s) | A fixed 6 s safe slot |
 | CO6 | A partner down in the cage room east aisle (hCa1) is revived by another coming down ES | Not needed: no revive in solo | A rescue route that is out of the heavy's view |
-| CO7 | Four players enter by four different routes at once (RL, PD, south wall, trench) and meet in the east aisle | One route per run | No queue at any door: the ladder, the wide opening and the yard are separate |
+| CO7 | Four players enter by four different routes at once (RL, PD, south wall, riser and trench) and meet in the east aisle | One route per run | No queue at any door: the ladder, the wide opening and the yard are separate |
 
-**Four players spread:** P1 takes the riser R1 to O1. P2 goes up RL and over the roof to the exhaust shaft ES. P3 takes the trench D1 from Goods-in. P4 runs the south wall to the generator door and the east aisle. All four meet in the cage east aisle, 4 m from O2. No door is a queue: the ladders, the 3.0 m wide opening and the yard are separate. Any player can do O2 once any player did O1.
+**Four players spread:** P1 takes the riser R1 to O1. P2 goes up RL and over the roof to the exhaust shaft ES. P3 takes the riser and the trench D1 from the Goods-in south-west corner. P4 runs the south wall to the generator door and the east aisle. All four meet in the cage east aisle, 4 m from O2. No door is a queue: the ladders, the 3.0 m wide opening and the yard are separate. Any player can do O2 once any player did O1.
 
 ## p) Build plan (three Sonnet steps)
 
@@ -540,7 +562,7 @@ Common: the map data is `docs/design/map-trunk-annex.json`. Copy it to `src/worl
 1. Unit test: for every opening of type door1, door2, wide or gate, the cells on both sides are connected on the 0.5 m nav grid, **and** a 1.2 m door at an odd centre (for example x = 12.3) is reachable from both sides.
 2. Unit test: every space centre, both objectives, both exits and all four spawns are reachable from spawn 2 (D1 excluded; ES, GL, R1, RL, S1, FS included).
 3. Unit test: every corridor and lane in the JSON `corridors` list is at least 3.0 m wide on the nav grid (short side), and no walkable cell is closer than 0.32 m to a wall.
-4. Unit test: every guard waypoint is a walkable cell, every leg between waypoints is walkable on the grid, and the computed loop period is 40 s (30 s for G6) within 0.3 s.
+4. Unit test: every guard waypoint is a walkable cell, every leg between waypoints is walkable on the grid, and the computed loop period is 40 s for every guard, G6 included, within 0.3 s.
 5. Unit test: no door within 1.5 m of a wall corner and 3.0 m between door centres on one wall (the generated door-spacing table).
 6. `?autostart=trunk-annex&mode=sandbox&fullbright=1` boots with 0 console errors, 6 guards spawn and move.
 7. `npm run check` and `e2e:quick` pass (known-flaky suites excepted).
@@ -562,15 +584,15 @@ Common: the map data is `docs/design/map-trunk-annex.json`. Copy it to `src/worl
 **Smoke.** Extend `e2e-fp-trunk` with step 5.
 **Hand check.** Play solo from the pocket to the van once. Are the pools readable? Is there a dark way past each guard? Where do you wait?
 
-### T3 - Trunk Annex: trench duct D1, rewards, and the 120 s window test (Sonnet)
+### T3 - Trunk Annex: trench duct D1, rewards, and the 40 s window test (Sonnet)
 **Goal.** The player-only trench D1, the discoverable shortcuts, and a test that the guard windows match the design.
 **Read.** `map-trunk-annex.md` sections g (rows T1, T2, D1), m, n; `map-trunk-annex.json` (links D1, chokes); the crouch clearance in `src/player`.
 **Files.** `src/world/maps/trunkAnnex.ts`, `tests/trunkAnnexMap.test.ts`, `scripts/e2e-fp-trunk.mjs`, `docs/progress.md`, `CHANGELOG.md`, `TESTING.md`.
 **Do.** Measure crouch clearance first (clear height = crouch height + 0.15 m, minimum 1.2 m). Build the trench from grille T1 to hatch T2 along the polyline in the JSON, the grille and hatch as door-like interactables, the entry noise radius 4 m, and keep guards out of it (nav headroom 1.7 m already excludes them; assert it). Add the pinned break-room rota and cable chart decals.
 **Acceptance.**
-1. Unit test: guards cannot path into the trench; a player with the doors into the cage blocked can reach O2 through D1; D1 is 23 m on the polyline.
+1. Unit test: guards cannot path into the trench; a player with the doors into the cage blocked can reach O2 through D1; D1 is 36.6 m on the polyline (grille T1 at -13.2, -6.4 to hatch T2 at 16.5, 6.5).
 2. Unit test: for chokes K1 to K9 the safe windows computed from the loop sims equal the JSON-generated table within 0.5 s.
 3. A crouched player fits the trench.
 4. `npm run check` and `e2e:quick` pass; full `npm run e2e` before merge.
 **Smoke.** Extend `e2e-fp-trunk` with the trench crawl.
-**Hand check.** Enter T1, crawl, emerge at T2 next to the heavy's aisle. Is 26 s the right cost?
+**Hand check.** Enter T1, crawl, emerge at T2 next to the heavy's aisle. Is 13 s noisy or 20 s silent the right cost?

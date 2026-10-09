@@ -378,7 +378,7 @@ function waitStats(wins, need) {
     const t = k / 4;
     let best = 1e9;
     for (const [a, b] of usable) {
-      for (const sh of [-CYC, 0, CYC]) {
+      for (const sh of [-CYC, 0, CYC, 2 * CYC]) {
         const a2 = a + sh;
         const b2 = b + sh;
         if (t <= b2) best = Math.min(best, Math.max(0, a2 - t));
@@ -462,7 +462,8 @@ for (const gd of D.guards) {
   const sp = D.spawns[1];
   const st = g.nearestWalk('G', sp.x, sp.z);
   const v1 = bfs(g, [['G', ...st]], { crawl: false });
-  const c = g.nearestWalk('G', 7.5, 5);
+  const d1 = D.links.find((q) => q.id === 'D1');
+  const c = g.nearestWalk('G', d1.b[1], d1.b[2]);
   R.noCrawlReach = v1.has(`G|${c[0]}|${c[1]}`);
 }
 
@@ -534,9 +535,11 @@ function sampleRoute(rt) {
   }
   return pts;
 }
+// t = best case (zero waits, fastest pace the route uses); tSlow = the quiet pace (hop.slow, default = the same pace)
 function routeLength(rt) {
   let walk = 0;
   let t = 0;
+  let tSlow = 0;
   let maxStraight = 0;
   const sp = D.meta.speeds;
   for (const h of rt.hops) {
@@ -548,13 +551,17 @@ function routeLength(rt) {
         maxStraight = Math.max(maxStraight, s);
       }
       walk += L;
-      t += L / sp.walk;
+      const v = h.speed || sp.walk;
+      t += L / v;
+      tSlow += L / (h.slow || v);
     } else {
       const lk = D.links.find((q) => q.id === h.link);
-      t += lk.travel / sp[h.m === 'crawl' ? 'crawl' : h.m === 'stairs' ? 'stairs' : 'ladder'];
+      const v = h.speed || sp[h.m === 'crawl' ? 'crawl' : h.m === 'stairs' ? 'stairs' : 'ladder'];
+      t += lk.travel / v;
+      tSlow += lk.travel / (h.slow || v);
     }
   }
-  return { walk, t, maxStraight };
+  return { walk, t, tSlow, maxStraight };
 }
 R.routes = [];
 for (const rt of D.routes) {
@@ -690,29 +697,10 @@ R.chokes = D.chokes.map((c) => {
   const ws = wins.filter(([a, b]) => b - a >= 3);
   const st = waitStats(wins, c.need);
   const stD = waitStats(winsDark, c.need);
-  return { ...c, exp, wins, winsDark, worstDark: stD.worst, meanDark: stD.mean, nDark: winsDark.filter(([a, b]) => b - a >= 3).length, usable: ws, best: ws.length ? Math.max(...ws.map(([a, b]) => b - a)) : 0, worst: st.worst, mean: st.mean, nWin: wins.filter(([a, b]) => b - a >= c.need).length };
+  const wd = winsDark.filter(([a, b]) => b - a >= c.need);
+  return { ...c, bestDark: wd.length ? Math.max(...wd.map(([a, b]) => b - a)) : 0, exp, wins, winsDark, worstDark: stD.worst, meanDark: stD.mean, nDark: winsDark.filter(([a, b]) => b - a >= 3).length, usable: ws, best: ws.length ? Math.max(...ws.map(([a, b]) => b - a)) : 0, worst: st.worst, mean: st.mean, nWin: wins.filter(([a, b]) => b - a >= c.need).length };
 });
 
-if (process.argv.includes("--search")) {
-  const g1 = D.guards.find((q) => q.id === "G1");
-  const g6 = D.guards.find((q) => q.id === "G6");
-  const k1 = D.chokes.find((c) => c.id === "K1");
-  const k6 = D.chokes.find((c) => c.id === "K6");
-  const out = [];
-  for (let p1 = 0; p1 < 40; p1 += 0.5) for (let p6 = 0; p6 < 30; p6 += 0.5) {
-    g1.phase = p1; g6.phase = p6;
-    const w1 = windowsOf(exposure(k1)).filter(([a, b]) => b - a >= 3);
-    const w6 = windowsOf(exposure(k6)).filter(([a, b]) => b - a >= 3);
-    const w6d = windowsOf(exposure(k6, true)).filter(([a, b]) => b - a >= 3);
-    const first = w1.length ? Math.min(...w1.map(([a]) => (((a % 120) + 120) % 120))) : 999;
-    out.push({ p1, p6, n1: w1.length, best1: w1.length ? Math.max(...w1.map(([a, b]) => b - a)) : 0, n6: w6.length, best6: w6.length ? Math.max(...w6.map(([a, b]) => b - a)) : 0, n6d: w6d.length, first });
-  }
-  const hist = {}; out.forEach((o) => { const k = `n6=${o.n6} n6d=${o.n6d} n1=${o.n1}`; hist[k] = (hist[k] || 0) + 1; }); console.log(JSON.stringify(hist)); const cand = out.filter((o) => o.n6 <= 2 && o.n6d >= 2).sort((a, b) => (b.n1 - a.n1) || (b.best6 - a.best6));
-  console.log("search candidates", cand.length, JSON.stringify(cand.slice(0, 12)));
-  const c2 = out.filter((o) => o.n6 === 1 && o.n1 >= 3).sort((a, b) => b.best6 - a.best6);
-  console.log("n6==1 and n1>=3:", c2.length, JSON.stringify(c2.slice(0, 12)));
-  process.exit(0);
-}
 // 8. spawns: distances, door clearance, first screen, guard sight
 R.spawns = D.spawns.map((s, i) => {
   const dmin = Math.min(...D.spawns.filter((_, j) => j !== i).map((o) => hyp(o.x - s.x, o.z - s.z)));
@@ -793,8 +781,18 @@ R.routeTimes = D.routes.map((rt) => {
     worst += c.worst;
     mean += c.mean;
   }
-  return { id: rt.id, walkM: rr.walk, t: rr.t, worst, mean, total: rr.t + worst, totalMean: rr.t + mean };
+  return { id: rt.id, walkM: rr.walk, t: rr.t, tSlow: rr.tSlow, worst, mean, total: rr.tSlow + worst, totalMean: rr.tSlow + mean };
 });
+// runs: spawn -> O1 -> O2, summed over legs (best = zero waits at the fast pace; worst = quiet pace plus every worst wait)
+R.runs = D.runs.map((r) => {
+  const legs = r.legs.map((id) => R.routeTimes.find((q) => q.id === id));
+  return { id: r.id, name: r.name, kind: r.kind, reward: r.reward, legs: r.legs, best: legs.reduce((a, l) => a + l.t, 0), worst: legs.reduce((a, l) => a + l.total, 0), walkM: legs.reduce((a, l) => a + l.walkM, 0) };
+});
+{
+  const m = R.runs.find((r) => r.id === 'M');
+  for (const r of R.runs) { r.saveBest = m.best - r.best; r.saveWorst = m.worst - r.worst; }
+}
+R.runsOk = R.runs.filter((r) => r.kind === 'time-saver').every((r) => r.saveBest >= D.mustSave);
 
 // ---------- tables ----------
 const row = (a) => '| ' + a.join(' | ') + ' |';
@@ -836,24 +834,47 @@ T.guards = D.guards.map((g) => {
 }).join('\n\n');
 T.loops = tbl(['Guard', 'Archetype', 'Speed m/s', 'Path m', 'Loop s', 'Phase s'], D.guards.map((g) => [g.id, g.arch, g.speed, f1(TL[g.id].dist), f1(TL[g.id].period), g.phase]));
 const fmtWins = (w) => w.map(([a, b]) => `${f1(((a % CYC) + CYC) % CYC)}-${f1((((b) % CYC) + CYC) % CYC || CYC)} (${f1(b - a)} s)`).join('; ');
-T.chokes = tbl(['Choke', 'Where', 'Need s', 'Seen by', 'Safe windows in the 120 s cycle, lit (start-end, length)', 'Windows >= need', 'Worst wait s', 'Lights out: windows, worst wait s'],
+T.chokes = tbl(['Choke', 'Where', 'Need s', 'Seen by', `Safe windows in the ${CYC} s master-clock cycle, lit (start-end, length)`, 'Windows >= need', 'Worst wait s', 'Lights out: windows, worst wait s'],
   R.chokes.map((c) => [c.id + ' ' + c.name, `${c.level} ${c.x}, ${c.z}`, c.need, c.seen.map((s) => s.g).join(' '), fmtWins(c.wins.filter(([a, b]) => b - a >= 3)) || 'none', c.nWin, f1(c.worst), `${c.nDark}, ${f1(c.worstDark)}`]));
 T.routes = ['O1', 'O2', 'EX'].map((obj) => {
   const rs = D.routes.filter((r) => r.obj === obj);
-  return `**${obj === 'EX' ? 'Exit' : obj}**\n\n` + tbl(['Route', 'Kind', 'Hops', 'Chokes', 'Walk m', 'Time s', 'Worst waits s', 'Risk', 'Teaches'],
+  return `**${obj === 'EX' ? 'Exit' : obj}**\n\n` + tbl(['Route', 'Kind', 'Hops (m/s where not the default)', 'Chokes', 'Walk m', 'Best case s (zero waits)', 'Worst case s (quiet pace + worst waits)', 'Risk', 'Teaches'],
     rs.map((rt) => {
       const rr = R.routes.find((q) => q.id === rt.id);
       const rtm = R.routeTimes.find((q) => q.id === rt.id);
-      const hops = rt.hops.map((h) => (h.m === 'walk' ? 'walk' : `${h.m} ${h.link}`)).join(' > ');
-      return [`${rt.id} ${rt.name}`, rt.kind, hops, rt.chokes.join(' '), f1(rr.walk), Math.round(rr.t), Math.round(rtm.worst), rt.risk, rt.teaches];
+      const hops = rt.hops.map((h) => (h.m === 'walk' ? 'walk' : `${h.m} ${h.link}`) + (h.speed ? ` @${h.speed}` : '')).join(' > ');
+      return [`${rt.id} ${rt.name}`, rt.kind, hops, rt.chokes.join(' '), f1(rr.walk), f1(rtm.t), Math.round(rtm.total), rt.risk, rt.teaches];
     }));
 }).join('\n\n');
-T.rewards = tbl(['Reward', 'Where', 'What it unlocks', 'How the player learns it', 'Saves on a second run'],
+const RT = (id) => R.routeTimes.find((q) => q.id === id);
+const hopPace = (rt) => rt.hops.map((h) => {
+  const sp = D.meta.speeds;
+  const v = h.speed || (h.m === 'walk' ? sp.walk : h.m === 'crawl' ? sp.crawl : h.m === 'stairs' ? sp.stairs : sp.ladder);
+  const slow = h.slow || v;
+  const q = slow !== v ? ` (quiet ${slow})` : '';
+  return h.m === 'walk' ? `walk ${v}${q}` : `${h.m} ${h.link} ${v}${q}`;
+}).join(', ');
+T.legs = tbl(['Leg', 'Kind', 'Pace per hop (m/s)', 'Walk m', 'Best case s (fast pace, zero waits)', 'Quiet-pace s', 'Worst waits s (chokes)', 'Worst case s (quiet pace + worst waits)'],
+  ['O1-A', 'O1-C', 'O1-B', 'O2-A', 'O2-D', 'O2-C'].map((id) => {
+    const rt = D.routes.find((q) => q.id === id);
+    const x = RT(id);
+    return [`${id} ${rt.name}`, rt.kind, hopPace(rt), f1(x.walkM), f1(x.t), f1(x.tSlow), `${Math.round(x.worst)} (${rt.chokes.join(' ')})`, f1(x.total)];
+  }));
+const RUNCOST = {
+  M: 'baseline: the pair at the hall, the stair, the heavy\'s door',
+  X1: 'a jog inside the Goods-in (noise 3.4 m, about 1.5 m through the wall at PD) and a ladder you cannot fight on',
+  X2: 'as X1, then grille rattle (4 m), crawl-run noise (2 m, muffled) or a silent 20 s crawl, then a hatch 4.6 m from the heavy\'s apron post',
+  X3: 'two ladders, the sniper roof window (23 s per 40 s), the slowest route; no door, pair or apron'
+};
+T.runTable = tbl(['Run (spawn to O1 to O2)', 'Legs', 'Best case s', 'Faster than main, best case s', 'Worst case s', 'Faster than main, worst case s', `At least ${D.mustSave} s faster (best case)`, 'What it costs (noise or risk)'],
+  R.runs.map((r) => {
+    const verdict = r.kind === 'main' ? 'baseline' : r.kind === 'time-saver' ? (r.saveBest >= D.mustSave ? 'PASS' : 'FAIL') : 'not a time-saver: the safe, slow route';
+    return [`${r.id} ${r.name}`, r.legs.join(' + '), f1(r.best), r.kind === 'main' ? '-' : f1(r.saveBest), f1(r.worst), r.kind === 'main' ? '-' : f1(r.saveWorst), verdict, RUNCOST[r.id]];
+  }));
+T.rewards = tbl(['Reward', 'Where', 'What it unlocks', 'How the player learns it', 'Run: best case s / faster than main (best) / faster (worst)'],
   D.rewards.map((r) => {
-    const sv = { X1: ['O1-A', 'O1-C'], X2: ['O2-A', 'O2-D'], X3: ['O2-A', 'O2-C'] }[r.id];
-    const a = R.routeTimes.find((q) => q.id === sv[0]);
-    const b = R.routeTimes.find((q) => q.id === sv[1]);
-    return [`${r.id} ${r.name}`, r.where, r.unlocks, r.learn, `${Math.round(a.total - b.total)} s (${sv[0]} ${Math.round(a.total)} s vs ${sv[1]} ${Math.round(b.total)} s; walk plus worst-case waits; walk alone ${Math.round(a.t - b.t)} s)`];
+    const run = R.runs.find((q) => q.reward === r.id);
+    return [`${r.id} ${r.name}`, r.where, r.unlocks, r.learn, `${run.id}: ${f1(run.best)} s / ${f1(run.saveBest)} s / ${f1(run.saveWorst)} s`];
   }));
 T.coop = tbl(['Id', 'Co-op opportunity', 'Solo alternative', 'Gain'], D.coop.map((c) => [c.id, c.co, c.solo, c.gain]));
 T.assets = tbl(['Id', 'Kind', 'What it is', 'Why it exists (story)', 'How it helps the game', 'How it could hurt', 'Mitigation'],
@@ -893,6 +914,75 @@ const RCOL = { 'O1-A': '#1f77b4', 'O1-B': '#2ca02c', 'O1-C': '#d62728', 'O2-A': 
 const LVI = { G: 0, U: 1, R: 2 };
 let svg = '';
 const add = (s) => { svg += s + '\n'; };
+// Room names: one block per room in its quietest corner, drawn after everything else with a halo, so no route line,
+// guard loop, lamp circle or marker is ever painted over a name. The corner is the one with the fewest map items under it.
+function inkPoints(lv) {
+  const pts = [];
+  const rectPts = (r, step = 0.5) => { for (let x = r[0]; x <= r[2] + 1e-6; x += step) for (let z = r[1]; z <= r[3] + 1e-6; z += step) pts.push([x, z]); };
+  const linePts = (a, b, step = 0.25) => { const n = Math.max(1, Math.ceil(hyp(b[0] - a[0], b[1] - a[1]) / step)); for (let k = 0; k <= n; k++) pts.push([a[0] + ((b[0] - a[0]) * k) / n, a[1] + ((b[1] - a[1]) * k) / n]); };
+  const polyPts = (p) => { for (let i = 0; i + 1 < p.length; i++) linePts(p[i], p[i + 1]); };
+  const disc = (x, z, r) => { for (let a = -r; a <= r + 1e-6; a += 0.25) for (let b = -r; b <= r + 1e-6; b += 0.25) if (hyp(a, b) <= r) pts.push([x + a, z + b]); };
+  for (const sp of D.spaces.filter((q) => q.level === lv.id)) for (const c of sp.carve || []) rectPts(c);
+  for (const b of D.blocks.filter((q) => q.level === lv.id)) rectPts(b.rect);
+  for (const h of D.hides.filter((q) => q.level === lv.id)) rectPts(h.rect);
+  for (const o of D.openings.filter((q) => q.level === lv.id)) linePts(o.axis === 'z' ? [o.c - o.w / 2, o.at] : [o.at, o.c - o.w / 2], o.axis === 'z' ? [o.c + o.w / 2, o.at] : [o.at, o.c + o.w / 2]);
+  for (const l of D.links) { for (const e of [l.a, l.b]) if (e[0] === lv.id) disc(e[1], e[2], 0.6); if (l.poly && l.a[0] === lv.id) polyPts(l.poly); }
+  for (const rt of D.routes) for (const h of rt.hops) { if (h.m !== 'walk') continue; const p = h.pts.filter((q) => q[0] === lv.id).map((q) => [q[1], q[2]]); if (p.length > 1) polyPts(p); }
+  for (const g of D.guards.filter((q) => guardLevel(q) === lv.id)) {
+    if (g.id !== 'G6') polyPts([...g.wps, g.wps[0]].map((w) => [w.x, w.z]));
+    for (const w of g.wps) { disc(w.x, w.z, 0.55); linePts([w.x, w.z], [w.x + w.face[0] * 1.6, w.z + w.face[1] * 1.6]); }
+  }
+  for (const v of D.vantage.filter((q) => q.level === lv.id)) disc(v.x, v.z, 0.55);
+  for (const L of D.lamps.filter((q) => q.level === lv.id)) disc(L.x, L.z, 0.5);
+  for (const c of D.circuits.filter((q) => q.switch.level === lv.id)) disc(c.switch.x, c.switch.z, 0.5);
+  for (const p of D.panels.filter((q) => q.level === lv.id)) disc(p.x, p.z, 0.5);
+  for (const r of D.reinforce.filter((q) => q.level === lv.id)) disc(r.x, r.z, 0.7);
+  for (const o of D.objectives.filter((q) => q.level === lv.id)) disc(o.x, o.z, 0.8);
+  if (lv.id === 'G') { for (const sp of D.spawns) disc(sp.x, sp.z, 0.55); for (const e of D.extraction) disc(e.x, e.z, 0.9); }
+  return pts;
+}
+function roomLabels(lv, pi) {
+  const ink = inkPoints(lv);
+  const placed = [];
+  for (const sp of D.spaces.filter((q) => q.level === lv.id)) {
+    const [x0, z0, x1, z1] = sp.rect;
+    const wM = x1 - x0;
+    const lbl = sp.label || sp.name;
+    const nameLines = lbl.includes(' (') ? [lbl.split(' (')[0], '(' + lbl.split(' (')[1]] : [lbl];
+    const longest = Math.max(...nameLines.map((t) => t.length));
+    const fs0 = Math.max(8, Math.min(sp.kind === 'corridor' ? 11 : 14, ((wM * S - 10) / (longest * 0.66))));
+    const lines = [...nameLines.map((t) => ({ t, fs: fs0, fill: '#444', fw: 700 })), { t: sz(sp.rect) + ' m', fs: Math.max(8, fs0 - 4), fill: '#777', fw: 400 }];
+    const boxW = Math.max(...lines.map((l) => l.t.length * l.fs * 0.66)) / S + 0.3;
+    const boxH = lines.reduce((a, l) => a + l.fs * 1.2, 0) / S + 0.2;
+    const inset = 0.3;
+    const cands = [
+      { id: 'TL', bx: x0 + inset, bz: z1 - inset - boxH, anchor: 'start' },
+      { id: 'TR', bx: x1 - inset - boxW, bz: z1 - inset - boxH, anchor: 'end' },
+      { id: 'BL', bx: x0 + inset, bz: z0 + inset, anchor: 'start' },
+      { id: 'BR', bx: x1 - inset - boxW, bz: z0 + inset, anchor: 'end' }
+    ];
+    for (const c of cands) {
+      let hit = 0;
+      for (const p of ink) if (p[0] >= c.bx - 0.35 && p[0] <= c.bx + boxW + 0.35 && p[1] >= c.bz - 0.35 && p[1] <= c.bz + boxH + 0.35) hit++;
+      for (const q of placed) if (c.bx < q.bx + q.w && c.bx + boxW > q.bx && c.bz < q.bz + q.h && c.bz + boxH > q.bz) hit += 400;
+      // a label that sticks out of a room that is narrower than it is also loses
+      if (boxW > wM || boxH > z1 - z0) hit += 1000;
+      c.hit = hit;
+    }
+    const best = cands.reduce((a, c) => (c.hit < a.hit ? c : a));
+    placed.push({ bx: best.bx, bz: best.bz, w: boxW, h: boxH });
+    best.room = sp.id;
+    labelLog.push(`${lv.id} ${sp.id}: ${best.id} (${best.hit} items under)`);
+    let yy = py(best.bz + boxH) + 0;
+    const xx = best.anchor === 'start' ? px(pi, best.bx) : px(pi, best.bx + boxW);
+    for (const l of lines) {
+      yy += l.fs * 1.05;
+      add(`<text x="${xx}" y="${yy}" font-size="${l.fs}" fill="${l.fill}" font-weight="${l.fw}" text-anchor="${best.anchor}" stroke="#fff" stroke-width="3.2" stroke-linejoin="round" paint-order="stroke fill">${esc(l.t)}</text>`);
+      yy += l.fs * 0.15;
+    }
+  }
+}
+const labelLog = [];
 add(`<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="Segoe UI, Arial, sans-serif">`);
 add(`<rect width="${W}" height="${H}" fill="#f4f1ea"/>`);
 add(`<text x="${M}" y="30" font-size="22" font-weight="700" fill="#222">${esc(D.meta.title)} - ${esc(D.meta.mission)} (generated from map-trunk-annex.json; 1 grid line = 1 m, north is up)</text>`);
@@ -907,8 +997,6 @@ for (const lv of D.meta.levels) {
   for (const sp of D.spaces.filter((s) => s.level === lv.id)) {
     const fill = sp.kind === 'outdoor' ? '#dfe9d6' : sp.id === 'roof' ? '#e6e2da' : sp.kind === 'corridor' ? '#fbf3d9' : sp.kind === 'stair' ? '#d9f0dc' : '#fafafa';
     add(`<rect x="${px(pi, sp.rect[0])}" y="${py(sp.rect[3])}" width="${(sp.rect[2] - sp.rect[0]) * S}" height="${(sp.rect[3] - sp.rect[1]) * S}" fill="${fill}" stroke="#555" stroke-width="2.5"/>`);
-    add(`<text x="${px(pi, (sp.rect[0] + sp.rect[2]) / 2)}" y="${py((sp.rect[1] + sp.rect[3]) / 2 + 0.6)}" font-size="${sp.kind === 'corridor' ? 11 : 15}" fill="#666" text-anchor="middle" font-weight="600">${esc(sp.name)}</text>`);
-    add(`<text x="${px(pi, (sp.rect[0] + sp.rect[2]) / 2)}" y="${py((sp.rect[1] + sp.rect[3]) / 2 - 0.4)}" font-size="10" fill="#888" text-anchor="middle">${sz(sp.rect)} m</text>`);
     for (const c of sp.carve || []) add(`<rect x="${px(pi, c[0])}" y="${py(c[3])}" width="${(c[2] - c[0]) * S}" height="${(c[3] - c[1]) * S}" fill="#fff" stroke="#555" stroke-width="2.5"/>`);
   }
   for (const b of D.blocks.filter((q) => q.level === lv.id)) {
@@ -1000,6 +1088,7 @@ for (const lv of D.meta.levels) {
     add(`<text x="${px(pi, o.x)}" y="${py(o.z) + 8}" font-size="24" fill="#d4a017" stroke="#7a5b00" stroke-width="0.8" text-anchor="middle">&#9733;</text>`);
     add(`<text x="${px(pi, o.x)}" y="${py(o.z) - 12}" font-size="12" fill="#7a5b00" text-anchor="middle" font-weight="700">${o.id}</text>`);
   }
+  roomLabels(lv, pi);
 }
 // legend
 const ly = 64 + PH + 22;
@@ -1063,11 +1152,12 @@ const V = {
     ['4', 'Loops 25 - 45 s', periodsOk ? 'PASS' : 'FAIL', R.loops.map((l) => `${l.id} ${f1(l.period)} s`).join(', ')],
     ['5', 'Deterministic', 'PASS', 'Every waypoint, dwell, facing and phase is a literal in the guard sheets; no random field. G3 trails G2 by 2.5 s (phase 10.5 vs 8).'],
     ['6', 'Two tells per guard, at least 2 s before a hide-spot view', 'PASS', D.guards.map((g) => `${g.id}: ${g.tells.length} (${g.tells.map((t) => t.split(',')[0]).join(' / ')})`).join('; ') + '. Tells are audio and light and start from 2 to 6 s ahead (see sheets).'],
-    ['7', 'A safe window of 3 s or more per hop', R.chokes.every((c) => c.nWin >= 1) ? 'PASS' : 'FAIL', R.chokes.map((c) => `${c.id}: ${c.nWin} window(s) >= ${c.need} s, longest ${f1(c.best)} s`).join('; ')],
-    ['8', 'One crossing timing puzzle', chk('K6').nWin <= 2 && chk('K6').nWin >= 1 ? 'PASS' : 'FAIL', `K6 (yard east crossing): G1 (40 s loop) and G6 (30 s loop) combine on a 120 s cycle; usable windows (>= 3 s): ${chk('K6').nWin} per cycle: ${fmtWins(chk('K6').wins.filter(([a, b]) => b - a >= 3))}.`],
-    ['9', 'One stationary watcher, narrow view, dark flank', 'PASS', `G6 never moves (waypoints share (11.5, -6.5)); three facings of 55 deg focus; blind strip within 5 m of the south wall (sniper 0.5 m behind a 1.0 m parapet at 8.2 m eye height: parapet clears from 5 m out); dark flank = the facade foot at GD (10.5, -7) and the roof behind AH4 (8..12, 8..11)`],
+    ['7', 'A safe window of 3 s or more per hop', R.chokes.every((c) => c.nWin >= 1) ? 'PASS' : 'FAIL', `Per ${CYC} s master-clock cycle (every loop is 40 s, so one cycle is one loop): ` + R.chokes.map((c) => `${c.id}: ${c.nWin} window(s) >= ${c.need} s, longest ${f1(c.best)} s, worst wait ${f1(c.worst)} s`).join('; ')],
+    ['7b', 'Van exit: worst wait at most one 40 s loop with the yard lights on; lights off widens the window or adds a second', chk('K6').nWin >= 1 && chk('K6').worst <= CYC && chk('K6').nDark >= chk('K6').nWin && chk('K6').bestDark > chk('K6').best ? 'PASS' : 'FAIL', `K6 (yard crossing to GD and Gv, the last hop of EX-1) lit: ${chk('K6').nWin} window per ${CYC} s cycle: ${fmtWins(chk('K6').wins.filter(([a, b]) => b - a >= 3))}; worst wait ${f1(chk('K6').worst)} s (limit ${CYC} s). C1 off or Y3 shot (sniper out of view): window ${f1(chk('K6').bestDark)} s, worst wait ${f1(chk('K6').worstDark)} s. Before this pass: one 7.0 s window per 120 s, worst wait 115.8 s.`],
+    ['8', 'One crossing timing puzzle', chk('K6').nWin === 1 ? 'PASS' : 'FAIL', `K6 (yard east crossing): G1 and G6 are both on the 40 s master clock (G6 phase ${D.guards.find((q) => q.id === 'G6').phase} s against G1 phase 0). The crossing is open only when G1 is on his return leg or at the door AND the sniper is on his roof-north facing: ${chk('K6').nWin} usable window per cycle, ${fmtWins(chk('K6').wins.filter(([a, b]) => b - a >= 3))}. Lit, that is ${f1(chk('K6').best)} s of 40; with C1 off the sniper drops out and it is ${f1(chk('K6').bestDark)} s.`],
+    ['9', 'One stationary watcher, narrow view, dark flank', 'PASS', `G6 never moves (waypoints share (11.5, -6.5)); three facings of 55 deg focus (lane 12 s, yard 10 s, roof north 16.5 s, plus 0.5 s per turn = 40 s); blind strip within 5 m of the south wall (sniper 0.5 m behind a 1.0 m parapet at 8.2 m eye height: parapet clears from 5 m out); dark flank = the facade foot at GD (10.5, -7) and the roof behind AH4 (8..12, 8..11)`],
     ['10', 'Pauses of 3 s or more at visible spots', D.guards.every((g) => dwellMax(g) >= 3) ? 'PASS' : 'FAIL', D.guards.map((g) => `${g.id} max dwell ${f1(dwellMax(g))} s at ${g.wps.find((w) => w.d === dwellMax(g)).what}`).join('; ')],
-    ['11', '4 or more switchable lamps; a route needs one dark; reactions listed (11, 14)', 'PASS', `${lampsN} lamps, 6 circuits with a switch and a listed guard reaction with a duration; ${D.lamps.filter((l) => l.shoot).length} shootable. The yard exit hop K6 is practically only possible after C1 goes dark: lit it has ${chk('K6').nWin} safe window of ${f1(chk('K6').best)} s per 120 s (worst wait ${Math.round(chk('K6').worst)} s); with C1 off or Y3 shot the sniper drops out and it has ${chk('K6').nDark} windows (worst wait ${Math.round(chk('K6').worstDark)} s). Lights-out reactions are in the circuit table.`],
+    ['11', '4 or more switchable lamps; a route needs one dark; reactions listed (11, 14)', 'PASS', `${lampsN} lamps, 6 circuits with a switch and a listed guard reaction with a duration; ${D.lamps.filter((l) => l.shoot).length} shootable. The yard exit hop K6 is still easier after one dark: lit it has ${chk('K6').nWin} window of ${f1(chk('K6').best)} s per ${CYC} s (worst wait ${f1(chk('K6').worst)} s); with C1 off or Y3 shot the sniper drops out and the window is ${f1(chk('K6').bestDark)} s (worst wait ${f1(chk('K6').worstDark)} s). Lights-out reactions are in the circuit table.`],
     ['12', 'Dark cell within 6 m of every waypoint', darkMiss.length ? 'FAIL' : 'PASS', darkMiss.length ? 'Missing: ' + darkMiss.map((d) => `${d.g}.${d.wp}`).join(', ') : 'All ' + R.dark.length + ' waypoints have a 1.5 x 1.5 m dark walkable block within 6 m (nearest: ' + R.dark.slice(0, 6).map((d) => `${d.g}.${d.wp} at (${d.best.x}, ${d.best.z}) ${f1(d.best.d)} m`).join('; ') + ', ...)'],
     ['13', 'Objectives in shadow; approach crosses light', R.objLight.every((o) => !o.lit) && R.approachLit.filter((a) => a.id.startsWith('O1') || a.id.startsWith('O2')).every((a) => a.litSamples > 0) ? 'PASS' : 'FAIL', R.objLight.map((o) => `${o.id}: dark, nearest lamp ${o.nearest.id} at ${f1(o.nearest.d)} m (radius ${o.nearest.r})`).join('; ') + '. Routes crossing pools: ' + R.approachLit.filter((a) => a.id.startsWith('O')).map((a) => `${a.id} ${a.pools.join('+')}`).join('; ')],
     ['14', 'Lights off has a cost', 'PASS', 'Each circuit row lists a guard, an action and 8 to 15 s of search (circuit table).'],
@@ -1077,7 +1167,7 @@ const V = {
     ['18', '8 doors on the main route at most, 12 in total, 5 m between doors', R.doorsTotal <= 12 && Math.max(...R.routes.map((r) => r.doors.length)) <= 8 && minDoorGap >= 5 ? 'PASS' : 'FAIL', `${R.doorsTotal} doors (${R.doorCount.door1} single, ${R.doorCount.door2} double, ${R.doorCount.gate} gate); most doors on any route: ${Math.max(...R.routes.map((r) => r.doors.length))}; shortest gap between two doors on a route: ${minDoorGap > 1e8 ? 'n/a' : f1(minDoorGap) + ' m'}.`],
     ['19', 'Every door justified', 'PASS', 'Each door has a purpose in the door table and a row in the asset audit.'],
     ['20', 'Three routes per objective, bypass at each choke', R.overlapMax <= 0.3 ? 'PASS' : 'FAIL', `O1: A, B, C; O2: A, B, C (plus D variant). Largest share of one route overlapped by another: ${Math.round(R.overlapMax * 100)} % (limit 30 %). Bypasses: PD by RL; WO1/hall by R1; CH by GCd, T2 and ES; K6 by the south wall hides.`],
-    ['21', 'Three discoveries that each save 30 s or more', ['X1', 'X2', 'X3'].every((x, i) => { const sv = [['O1-A', 'O1-C'], ['O2-A', 'O2-D'], ['O2-A', 'O2-C']][i]; const a = R.routeTimes.find((q) => q.id === sv[0]); const b = R.routeTimes.find((q) => q.id === sv[1]); return a.total - b.total >= 30; }) ? 'PASS' : 'REVIEW', D.rewards.map((r, i) => { const sv = [['O1-A', 'O1-C'], ['O2-A', 'O2-D'], ['O2-A', 'O2-C']][i]; const a = R.routeTimes.find((q) => q.id === sv[0]); const b = R.routeTimes.find((q) => q.id === sv[1]); return `${r.id}: ${Math.round(a.total - b.total)} s`; }).join('; ') + ' (walk time plus worst-case waits, reward route vs the main route)'],
+    ['21', `Three discoveries (Michael, decision 2): two true time-savers at least ${D.mustSave} s faster than the best-case main run; the third is the safe slow route`, R.runsOk && R.runs.find((q) => q.id === 'X3').saveBest < 0 && R.runs.find((q) => q.id === 'X3').saveWorst > 0 ? 'PASS' : 'FAIL', R.runs.filter((q) => q.kind !== 'main').map((r) => `${r.id} ${r.name}: best ${f1(r.best)} s against ${f1(R.runs[0].best)} s (${r.saveBest >= 0 ? 'faster by ' : 'slower by '}${f1(Math.abs(r.saveBest))} s), worst case ${f1(r.worst)} s against ${f1(R.runs[0].worst)} s (${r.saveWorst >= 0 ? 'faster by ' : 'slower by '}${f1(Math.abs(r.saveWorst))} s)`).join('; ') + '. Best case = zero waits at the fast pace; worst case = the quiet pace plus every worst-case wait. Full table in the route section of the map document. The old rule text asked for 30 s on each of three; this decision replaces it for this map.'],
     ['22', 'Easy first 90 s; hide spot within 10 m of every alarm trigger', R.spawns.every((s) => s.seenBy.length === 0) ? 'PASS' : 'FAIL', `No guard sees any spawn in 0-90 s. Alarm panels: ` + D.panels.map((p) => { const d = Math.min(...D.hides.filter((h) => h.level === p.level).map((h) => distPtRect(p.x, p.z, h.rect))); return `${p.id} ${f1(d)} m to a hide`; }).join(', ')],
     ['23', 'Co-op helps, never gates', 'PASS', `${D.coop.length} co-op rows, each with a solo alternative (co-op table); no action needs two players at once; widest choke 2.0 m (doors DD, DG, CH) or two paths (WO1 3.0 m, yard)`],
     ['24', 'Landmarks and 0.5 m tolerance', 'PASS', 'Each main space has a landmark in the space table; the objectives have lit signs; no hold needs precision: holds are 3 and 4 s with a 1.0 m radius.'],
@@ -1093,11 +1183,20 @@ const stamp = {
   counts: `${R.doorsTotal} doors, ${lampsN} lamps, ${D.guards.length} guards`,
   fail: R.errors.length ? R.errors.map((e) => `- ${e}`).join('\n') : 'none'
 };
-fill('map-trunk-annex.md.tpl', 'map-trunk-annex.md', { ...stamp });
-fill('map-trunk-annex-validation.md.tpl', 'map-trunk-annex-validation.md', { ...stamp, ...V });
+const rtm = (id) => R.routeTimes.find((q) => q.id === id);
+const runOf = (id) => R.runs.find((q) => q.id === id);
+const d1 = D.links.find((q) => q.id === 'D1');
+const N = {
+  k6lit: f1(chk('K6').best), k6dark: f1(chk('K6').bestDark), k6wait: f1(chk('K6').worst), k6dwait: f1(chk('K6').worstDark), k1win: f1(chk('K1').best),
+  o1c: f1(rtm('O1-C').t), o1a: f1(rtm('O1-A').t), o2d: f1(rtm('O2-D').t), ex1: f1(rtm('EX-1').t), o2save: f1(rtm('O2-A').t - rtm('O2-D').t), x2save: f1(runOf('X2').saveBest),
+  crawlfast: f1(d1.travel / 2.8), crawlslow: f1(d1.travel / 1.8), x2best: f1(runOf('X2').best), mbest: f1(runOf('M').best)
+};
+fill('map-trunk-annex.md.tpl', 'map-trunk-annex.md', { ...stamp, ...N });
+fill('map-trunk-annex-validation.md.tpl', 'map-trunk-annex-validation.md', { ...stamp, ...V, ...N });
 fs.writeFileSync(path.join(process.env.TEMP || '.', 'annex-results.json'), JSON.stringify({ ...R, routes: R.routes.map((r) => ({ ...r, pts: undefined })) }, null, 1));
 
 // ---------- console report ----------
+console.log('Labels:', labelLog.join(' | '));
 console.log('Grid reach:', R.reach.map((r) => `off ${r.off}: ${r.allOk ? 'all ok' : 'FAIL'} (${r.cells} cells)`).join(' | '));
 console.log('Door passes failing:', R.doorPass.filter((d) => !d.ok).map((d) => `${d.id}@${d.off}`).join(' ') || 'none');
 console.log('Guard loops:', R.loops.map((l) => `${l.id} ${f1(l.period)}s ${f1(l.dist)}m`).join(' | '));
