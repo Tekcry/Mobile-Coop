@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { GLARE, NV_GLSL, NV_TONE, easeGlare, glareRadius, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
+import { GLARE, NV_GLSL, NV_TONE, easeGlare, glareEnds, glareRadius, luma709, nvColor, nvDrive, pickGlare, type GlareLamp } from '../src/vfx/nightVision';
 import { VISION_TARGETS } from '../src/world/darkCurve';
 
 const lamp = (x: number, z: number, o: Partial<GlareLamp> = {}): GlareLamp => ({ x, y: 3, z, kind: 'lamp', on: true, destroyed: false, intensity: 1, fixture: null, ...o });
@@ -61,6 +61,20 @@ describe('night vision glare sources', () => {
     const n = pickGlare(lamps, 0, 1.6, 0, 0, 0, 1, out, score);
     expect(n).toBe(GLARE.max);
     for (let i = 0; i < n; i++) expect(out[i]).toBe(19 - i);
+  });
+  it('a strip glares along its diffuser, a bulb or compact fitting at one point', () => {
+    const e = new Float32Array(6);
+    glareEnds(lamp(2, 5, { fixture: { sx: 1.2, sz: 0.25, oy: 0.1 } }), e);
+    expect(e[0]).toBeCloseTo(2 - 0.6 * GLARE.inset, 5);
+    expect(e[3]).toBeCloseTo(2 + 0.6 * GLARE.inset, 5);
+    expect(e[2]).toBe(5);
+    expect(e[1]).toBeCloseTo(3.1, 5);
+    glareEnds(lamp(2, 5, { fixture: { sx: 0.25, sz: 1.5, oy: 0 } }), e);
+    expect(e[0]).toBe(e[3]);
+    expect(e[5]! - e[2]!).toBeCloseTo(1.5 * GLARE.inset, 5);
+    glareEnds(lamp(2, 5, { fixture: { sx: 0.35, sz: 0.35, oy: 0 } }), e);
+    expect(e[0]).toBe(e[3]);
+    expect(e[2]).toBe(e[5]);
   });
   it('fades in and out over the fade time; the radius is clamped', () => {
     let w = 0;

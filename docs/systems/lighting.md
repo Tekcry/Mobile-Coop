@@ -79,11 +79,21 @@ Design authority: docs/design-bible.md (Section 5.1)
   0.65, never quite black), adds intensifier grain (strongest in the dark) and darkens the edge (an eyepiece ellipse, x
   scaled by the aspect up to 1.8). Lamps glare: `vfx/nightGlare.ts` picks up to `GLARE.max` (8) fixed lamps in view
   (on, not shot out, within 45 m), keeps those with a clear line from the camera (a Havok ray against static geometry,
-  stopped 0.35 m short), projects them and hands the post pass u, v, radius (the glare's 2.5 m projected, 0.06 - 0.7
-  screen heights) and strength; each fades over 0.12 s. The glare joins the drive (a core, a halo and a wide tail); the
-  sum (`veil`) lowers the tube's gain a little (auto-gain) and lifts the whole image (scatter). `LightRig.setVisionBoost`
-  raises the fixtures (x2.5) and the cones' haze (x4) with the goggles. Rendering only; the glare's rays read collision,
-  gameplay reads none of it. Glare follows the free camera in photo mode.
+  stopped 0.35 m short), projects them and hands the post pass each one's glowing length (a strip fitting 0.5 m or longer
+  is a segment along its long side, 90% of it; a bulb or compact fitting a point), radius (the glare's 3.2 m projected,
+  0.06 - 0.7 screen heights) and strength; each fades over 0.12 s. The glare joins the drive (a blinding core, a halo
+  and a long tail, by distance to the segment); the sum (`veil`) turns the tube's gain down (auto-gain, `gainDrop` 0.6)
+  and veils the whole image (scatter), so a lamp in view washes the dark parts out. `LightRig.setVisionBoost` raises the
+  fixtures (x2.5) with the goggles. Rendering only; the glare's rays read collision, gameplay reads none of it.
+- `NightGlare` runs from `scene.onBeforeCameraRenderObservable`, after the camera's update. Reading the camera's
+  matrices earlier in the frame (the first version did, from `renderVision`) marks its view as current; Babylon then
+  sees a moving camera as still (`Camera.hasMoved` false at the render), and TAA (`disableOnCameraMove`) kept blending
+  stale history: the smear moving in night vision on desktop. `e2e-darkness` checks a turning camera reads as moving
+  with night vision on. Any new per-frame code must not call `getViewMatrix` / `getTransformationMatrix` /
+  `getDirection*` / `getWorldMatrix` on the active camera before the scene renders.
+- No light cones (Step 4b fix, Michael 2026-10-09): the rig's additive cone meshes are gone; a beam is not seen in clean
+  air, only the light where it lands. Desktop's volumetric haze (post stack) stays. Research and proposals:
+  `docs/research/night-vision-and-lamps.md`.
 - The phone's black floor is `PHONE_DARK_FLOOR` 0.008 (OLED smear). Brightness calibration (`BrightnessScreen`,
   Settings > Display; once after the update): an exposure multiplier in the grade, `BRIGHTNESS_MIN` .. `MAX`,
   `GameState.brightnessLocked` for the Confrontation.

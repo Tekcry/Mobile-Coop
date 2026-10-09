@@ -21,7 +21,7 @@ uniform float sat;
 uniform float contrast;
 uniform float darkFloor;
 uniform float bright;
-uniform vec4 glare[${GLARE.max}];
+uniform vec4 glare[${GLARE.max * 2}];
 uniform float veil;
 ${NV_GLSL}
 void main(void) {
@@ -45,11 +45,15 @@ void main(void) {
     float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
     float g = 0.0;
     for (int i = 0; i < ${GLARE.max}; i++) {
-      vec4 s = glare[i];
-      if (s.w > 0.0) {
-        vec2 o = (vUV - s.xy) * vec2(aspect, 1.0);
-        float r2 = dot(o, o) / (s.z * s.z);
-        g += s.w * (exp(-r2 * 10.0) + 0.45 * exp(-r2 * 1.2) + 0.12 / (1.0 + r2 * 2.0));
+      vec4 a = glare[i * 2];
+      vec4 s = glare[i * 2 + 1];
+      if (s.y > 0.0) {
+        // distance to the fitting's glowing length (a strip is a segment, a bulb a point)
+        vec2 pa = (vUV - a.xy) * vec2(aspect, 1.0);
+        vec2 ba = (a.zw - a.xy) * vec2(aspect, 1.0);
+        vec2 o = pa - ba * clamp(dot(pa, ba) / max(dot(ba, ba), 0.0001), 0.0, 1.0);
+        float r2 = dot(o, o) / (s.x * s.x);
+        g += s.y * (${GLARE.core.toFixed(2)} * exp(-r2 * 8.0) + ${GLARE.halo.toFixed(2)} * exp(-r2 * 1.0) + ${GLARE.tail.toFixed(2)} / (1.0 + r2 * 1.5));
       }
     }
     float drive = nvDrive(l, veil) + g;
@@ -86,8 +90,8 @@ export class CinematicPost {
   barsTarget = 0;
   /** Night-vision blend 0..1. */
   private nv = 0;
-  /** Night vision's lamp glare (`NightGlare`: u, v, radius, strength per source) and its sum. */
-  private glare: Float32Array = new Float32Array(GLARE.max * 4);
+  /** Night vision's lamp glare (`NightGlare`: per source the ends u, v, u, v, then radius and strength) and its sum. */
+  private glare: Float32Array = new Float32Array(GLARE.max * 8);
   private veil = 0;
   /** Flashbang white-out 0..1 (decays in `update`). */
   private flash = 0;

@@ -1,4 +1,4 @@
-import { ClusteredLightContainer, Color3, CreateBox, CreateCylinder, CreateSphere, Matrix, Quaternion, ShadowGenerator, SpotLight, StandardMaterial, Vector3, VertexBuffer, type AbstractMesh, type Material, type Mesh, type Scene } from '../core/babylon';
+import { ClusteredLightContainer, Color3, CreateBox, CreateSphere, Matrix, Quaternion, ShadowGenerator, SpotLight, StandardMaterial, Vector3, type AbstractMesh, type Material, type Mesh, type Scene } from '../core/babylon';
 import { LAMP_CONE as LAMP_CONE_MATH, LIGHT_GAIN } from './lampMath';
 import type { ShadowSpec } from '../core/quality';
 import { nearestLights, type LightDef, type LightRegistry } from './lights';
@@ -22,22 +22,17 @@ const BASE_LIGHTS = 2;
  *  light type keeps the per-pixel light loop short. */
 /** (= `lampMath.LAMP_CONE`.) */
 const LAMP_CONE = LAMP_CONE_MATH;
-/** Visible light cones (cheap additive meshes): a lamp's shade half-angle (rad), the longest cone (m) and how
- *  bright the haze is. */
-const CONE_HALF = 0.5;
-const CONE_LEN = 3.6;
-const CONE_GLOW = 0.075;
-/** (Step 4b fix) night vision's gain on the fixtures and the cones' haze at full goggles (rendering only): a lamp is the
- *  brightest thing in the tube and its beam reads as a shaft. */
+/** (Step 4b fix) night vision's gain on the fixtures at full goggles (rendering only): a lamp is the brightest thing in
+ *  the tube. (The additive light cones are gone, Michael 2026-10-09: in clean indoor air a lamp's beam is not seen, only
+ *  the light where it lands; desktop's volumetric haze stays.) */
 const NV_BULB = 2.5;
-const NV_CONE = 4;
 
 /** What the rig is asked to render (from the graphics settings). */
 export interface LightRigConfig {
   /** Real lights (clustered; a plain-light fallback caps lower). */
   lights: number;
   shadow: ShadowSpec;
-  /** Volumetric lighting on: the additive cone meshes step aside. */
+  /** Volumetric lighting on (the post stack's haze; the rig itself no longer draws light cones). */
   volumetric: boolean;
   /** Tests (`?gfx=min`): a short plain pool, no clustering. */
   minimal?: boolean;
@@ -60,8 +55,8 @@ interface Slot {
  * off or shot out), and the few nearest the camera get a real Babylon light from a fixed pool of spot
  * lights (lamps as a wide downward cone). The pool's lights are created once and never enabled / disabled
  * (that would change shader defines and recompile mid-match): unused ones sit at zero intensity. Every fixed
- * light also gets a faint additive cone (one thin-instanced mesh, vertex alpha fading to the floor) so lamps read
- * as volumes of light in the dark; it goes out with the light. A level without lights creates nothing.
+ * light used to get a faint additive cone mesh as well; Step 4b's fix took it out (a beam is not seen in clean air)
+ * A level without lights creates nothing.
  */
 export class LightRig {
   /** Unshadowed lights (inside the clustered container when the GPU has it). */
@@ -77,8 +72,6 @@ export class LightRig {
   private readonly scene: Scene;
   private bulbs: Mesh | null = null;
   private fixtures: Mesh | null = null;
-  private cones: Mesh | null = null;
-  private coneColors: Float32Array | null = null;
   private bulbColors: Float32Array | null = null;
   private ids = new Int32Array(MAX_REAL_LIGHTS + 16);
   private dist = new Float32Array(MAX_REAL_LIGHTS + 16);
@@ -153,61 +146,6 @@ export class LightRig {
     mesh.thinInstanceRefreshBoundingInfo(false);
     mesh.freezeWorldMatrix();
     this.bulbs = mesh;
-    this.buildCones(scene);
-  }
-
-  /** One cone per fixed light: from the light along its direction (lamps straight down), fading out. */
-  private buildCones(scene: Scene): void {
-    const n = this.reg.lights.length;
-    const cone = CreateCylinder('lightCones', { height: 1, diameterTop: 0.3, diameterBottom: 2, tessellation: 18, cap: 0 }, scene);
-    // apex at the origin, opening along -Y; alpha from 1 at the light to 0 at the far end
-    cone.bakeTransformIntoVertices(Matrix.Translation(0, -0.5, 0));
-    const pos = cone.getVerticesData(VertexBuffer.PositionKind)!;
-    const cols = new Float32Array((pos.length / 3) * 4);
-    for (let i = 0; i < pos.length / 3; i++) {
-      const a = Math.pow(Math.max(0, 1 + pos[i * 3 + 1]!), 1.6);
-      cols.set([1, 1, 1, a], i * 4);
-    }
-    cone.setVerticesData(VertexBuffer.ColorKind, cols);
-    cone.hasVertexAlpha = true;
-    const mat = new StandardMaterial('lightConeMat', scene);
-    mat.disableLighting = true;
-    mat.diffuseColor = Color3.Black();
-    mat.specularColor = Color3.Black();
-    mat.emissiveColor = Color3.White();
-    mat.alphaMode = 1; // ALPHA_ADD
-    mat.disableDepthWrite = true;
-    mat.backFaceCulling = false;
-    mat.freeze();
-    cone.material = mat;
-    cone.isPickable = false;
-    const mtx = new Float32Array(n * 16);
-    const m = new Matrix();
-    const q = new Quaternion();
-    const down = new Vector3(0, -1, 0);
-    const dir = new Vector3();
-    for (let i = 0; i < n; i++) {
-      const l = this.reg.lights[i]!;
-      if (l.kind === 'flashlight') {
-        Matrix.ScalingToRef(0, 0, 0, m);
-        m.copyToArray(mtx, i * 16);
-        continue;
-      }
-      const half = l.cone ? Math.min(0.7, Math.acos(l.cone.cosOuter)) : CONE_HALF;
-      if (l.cone) dir.set(l.cone.dx, l.cone.dy, l.cone.dz).normalize();
-      else dir.copyFrom(down);
-      const len = Math.max(0.8, Math.min(CONE_LEN, l.radius * 0.6, dir.y < -0.5 ? l.y - 0.05 : CONE_LEN));
-      const r = len * Math.tan(half);
-      Quaternion.FromUnitVectorsToRef(down, dir, q);
-      Matrix.ComposeToRef(new Vector3(r, len, r), q, new Vector3(l.x, l.y, l.z), m);
-      m.copyToArray(mtx, i * 16);
-    }
-    this.coneColors = new Float32Array(n * 4);
-    cone.thinInstanceSetBuffer('matrix', mtx, 16, true);
-    cone.thinInstanceSetBuffer('color', this.coneColors, 4, false);
-    cone.thinInstanceRefreshBoundingInfo(false);
-    cone.freezeWorldMatrix();
-    this.cones = cone;
   }
 
   /** Lights the materials must take: sky + sun, the cluster (or the plain pool) and the shadow pool. */
@@ -257,7 +195,6 @@ export class LightRig {
     if (this.baked) cfg = { ...cfg, lights: Math.min(cfg.lights, cfg.plain ? BAKED_PLAIN_POOL : BAKED_POOL), shadow: { ...cfg.shadow, casters: Math.min(cfg.shadow.casters, BAKED_SHADOWS) } };
     const same = !force && cfg.minimal === this.cfg.minimal && cfg.plain === this.cfg.plain && cfg.lights === this.cfg.lights && cfg.shadow.casters === this.cfg.shadow.casters && cfg.shadow.size === this.cfg.shadow.size && cfg.shadow.soft === this.cfg.shadow.soft;
     this.cfg = cfg;
-    if (this.cones) this.cones.isVisible = !cfg.volumetric;
     if (!this.bulbs || (same && this.pool.length + this.shadowPool.length > 0)) return;
     this.disposePools();
     const scene = this.scene;
@@ -470,7 +407,7 @@ export class LightRig {
     this.shadowPool.length = 0;
   }
 
-  /** Night vision's blend 0..1 (Step 4b fix): the fixtures and cones brighten with the goggles' gain. */
+  /** Night vision's blend 0..1 (Step 4b fix): the fixtures brighten with the goggles' gain. */
   private vision = 0;
   setVisionBoost(k: number): void {
     if (Math.abs(k - this.vision) < 0.01 && !(k === 0 && this.vision !== 0) && !(k === 1 && this.vision !== 1)) return;
@@ -482,7 +419,6 @@ export class LightRig {
     const c = this.bulbColors;
     if (!c || !this.bulbs) return;
     const bulbNv = 1 + (NV_BULB - 1) * this.vision;
-    const coneNv = 1 + (NV_CONE - 1) * this.vision;
     for (let i = 0; i < this.bulbCount; i++) {
       const l = this.reg.lights[i]!;
       const k = l.on && !l.destroyed ? bulbNv : 0.08;
@@ -490,16 +426,7 @@ export class LightRig {
       c[i * 4 + 1] = l.color[1] * k;
       c[i * 4 + 2] = l.color[2] * k;
       c[i * 4 + 3] = 1;
-      const cc = this.coneColors;
-      if (cc) {
-        const g = l.on && !l.destroyed && l.kind !== 'flashlight' ? CONE_GLOW * Math.min(1.5, l.intensity) * coneNv : 0;
-        cc[i * 4] = l.color[0] * g;
-        cc[i * 4 + 1] = l.color[1] * g;
-        cc[i * 4 + 2] = l.color[2] * g;
-        cc[i * 4 + 3] = 1;
-      }
     }
-    this.cones?.thinInstanceBufferUpdated('color');
     this.bulbs.thinInstanceBufferUpdated('color');
     this.fixtures?.thinInstanceBufferUpdated('color');
   }
@@ -510,8 +437,6 @@ export class LightRig {
     this.bulbs?.material?.dispose();
     this.bulbs?.dispose();
     this.fixtures?.dispose();
-    this.cones?.material?.dispose();
-    this.cones?.dispose();
     this.bulbs = null;
   }
 }

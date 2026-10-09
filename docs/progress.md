@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b fix pass done (night vision look, sonar off); waiting for Michael's look check | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b fix pass round 2 done (smear fixed, blinding glare, no shafts); waiting for Michael's look check and the item 15 decision | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -677,6 +677,37 @@ See the Step 1 and Step 5 reports.
   - [ ] Still true from Step 4b: shadow hides your operator (just the goggle glow); lamp pools and moonlit ground read;
         brightness calibration feels right.
   - [ ] Phone check, including the night vision run and the hold (58 fps or more, no minute under 55). Send the note.
+
+#### Step 4b fix pass, round 2 - 2026-10-09
+- Michael (desktop and iPhone): desktop smears moving in night vision; the phone is fine, but light shafts should not be
+  seen (natural light fading out); lamps should be far more blinding in night vision (turn them off or shoot them);
+  a strip lamp's light should come from the whole fitting, not its middle; research real night vision and lamp output.
+- Done:
+  - **The smear (a bug of round 1):** `NightGlare` read the camera's matrices from `renderVision`, before the render;
+    Babylon then saw a moving camera as still and TAA kept blending stale history. Measured on this PC (Epic, turning):
+    night vision on, 0 of 118 frames read as moving before, 120 of 120 after (off: all, both). The glare now runs from
+    `scene.onBeforeCameraRenderObservable`; `e2e-darkness` checks it on both looks.
+  - **Blinding glare:** a lamp glares along its whole fitting (a strip is a segment, a bulb a point), larger (3.2 m
+    projected) and stronger (core 1.4, halo 0.6, tail 0.2), and the glare in view turns the tube's gain down
+    (`gainDrop` 0.2 -> 0.6) and veils the image: near a lamp the dark parts wash out.
+  - **No light shafts:** the rig's additive cone meshes are gone (a beam is not seen in clean air; the light where it
+    lands stays). Desktop's volumetric haze stays.
+  - Research: `docs/research/night-vision-and-lamps.md` (where goggles excel and fail; how linear fittings light).
+- Not done (Michael decides, `docs/backlog.md` item 15): lamp light on surfaces still falls off from the fitting's
+  centre (`lampMath`); a line-source formula changes gameplay light, the bake, the phone volume and an engine fact.
+- Tests (this PC, `E2E_GPU=1`): vitest 64 files, 632 tests; lint and build clean. Pass: `e2e-darkness` (night vision
+  38.2% / 33.3% at level 0.12, 98.2% / 98.4% at 0.70; the moving-camera check), `e2e-phonelamps`, `e2e-lightbake`,
+  `e2e-stealth-ai`, `e2e-stealth`, `e2e-tactics`, `e2e-missions`, `e2e-desktop`, `smoke`, `e2e-touch`.
+  `perf.mjs --phone --budget` passes on the last of four runs (the others over by noise on sim p95 or allocations; the
+  machine's reference workload varied 2.3 - 4.8 ms between runs; none of the new code is among the top allocators).
+  `--desktop --budget` over on the loaded runs (sim p95 2.9 - 3.5 ms; sim code unchanged); rerun on an idle PC.
+- Contact sheets: `docs/prompts/phase-1-sheets/step4b-fix-*.jpg` replaced with round 2.
+- Next: **STOP** for Michael's look check (same list as round 1, plus):
+  - [ ] Desktop: moving and turning in night vision is sharp (no smear).
+  - [ ] No light shafts on the phone; light fades naturally from each lamp.
+  - [ ] Looking at a lamp in night vision is blinding: a strip glares along its length and the rest of the view washes
+        out.
+  - [ ] Decide item 15 (strip lamps as line sources, Step 4c) and the night vision proposals (item 16).
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)

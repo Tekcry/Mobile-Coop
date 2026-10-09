@@ -180,6 +180,34 @@ for (const look of LOOKS) {
         if (v && on) assert(on.luma >= v.min - 1e-3 && on.luma <= v.max + 1e-3, `${look.name} night vision: level ${p.level.toFixed(2)} shows ${(on.luma * 100).toFixed(1)}% (target ${v.min * 100}-${v.max * 100}%)`);
       }
     }
+    // (Step 4b fix) a moving camera reads as moving with night vision on: the glare must not read the camera's matrices
+    // before the render, or TAA blends stale history (the smear Michael saw on desktop)
+    const mv = await page.evaluate(async () => {
+      const g = window.__app.current;
+      g.photoFreeze(false);
+      document.body.classList.remove('photo-mode');
+      g.vision.set('night');
+      const cam = g.player.cam;
+      let moved = 0, n = 0;
+      await new Promise((res) => setTimeout(res, 400));
+      const obs = g.scene.onAfterRenderObservable.add(() => {
+        n++;
+        if (g.scene.activeCamera?.hasMoved) moved++;
+        cam.yaw += 0.02;
+      });
+      await new Promise((res) => {
+        const o = g.scene.onAfterRenderObservable.add(() => {
+          if (n >= 20) {
+            g.scene.onAfterRenderObservable.remove(o);
+            res();
+          }
+        });
+      });
+      g.scene.onAfterRenderObservable.remove(obs);
+      g.vision.set('off');
+      return { moved, n, night: g.vision.night };
+    });
+    assert(mv.night > 0.5 && mv.moved >= mv.n - 1, `${look.name}: turning in night vision, every frame reads as moving (${JSON.stringify(mv)})`);
     const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc/i.test(e));
     assert(bad.length === 0, `${look.name}: no console errors${bad.length ? ': ' + bad.slice(0, 3).join(' | ') : ''}`);
     await browser.close();

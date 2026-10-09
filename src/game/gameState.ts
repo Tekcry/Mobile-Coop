@@ -359,8 +359,8 @@ export class GameState implements AppState {
     this.blobs = new BlobShadows(this.scene);
     this.post = new CinematicPost(this.player.cam.camera);
     this.post.setGrade(world.map.theme.grade);
-    this.nightGlare = new NightGlare(world.level.lights.lights, this.glareBlocked);
-    this.post.setGlare(this.nightGlare.data, 0);
+    this.nightGlare = new NightGlare(this.scene, world.level.lights.lights, this.glareBlocked);
+    this.nightGlare.onUpdate = () => this.post.setGlare(this.nightGlare.data, this.nightGlare.veil);
     const fc = Color3.FromHexString(world.map.theme.horizon);
     // weather (3.0, visual only): the map's theme, or the choice made on the Play screen / in the lobby
     const wx = opts.weather && world.map.weathers?.includes(opts.weather) ? opts.weather : null;
@@ -765,6 +765,7 @@ export class GameState implements AppState {
     // never leave the loop in slow motion
     this.app.loop.timeScale = 1;
     this.post.dispose();
+    this.nightGlare.dispose();
     this.stack.dispose();
     this.weather.dispose();
     this.blobs.dispose();
@@ -1551,8 +1552,7 @@ export class GameState implements AppState {
       this.world.frame(this.player.position, 0);
       this.stack.frame(0);
       // night vision's glare follows the free camera
-      this.nightGlare.update(this.scene.activeCamera ?? this.player.cam.camera, this.vision.night, 1);
-      this.post.setGlare(this.nightGlare.data, this.nightGlare.veil);
+      this.nightGlare.set(this.vision.night, dt);
       return;
     }
     const look = this.app.input.state.consumeLook();
@@ -1648,8 +1648,7 @@ export class GameState implements AppState {
     const v = this.vision;
     this.post.setNightVision(v.night);
     // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
-    this.nightGlare.update(this.scene.activeCamera ?? this.player.cam.camera, v.night, dt);
-    this.post.setGlare(this.nightGlare.data, this.nightGlare.veil);
+    this.nightGlare.set(v.night, dt);
     this.world.lightRig.setVisionBoost(v.night);
     // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it)
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;

@@ -26,9 +26,9 @@ export const NV_TONE = {
   /** Drive where highlights start to clip towards white. */
   whiteFrom: 0.65,
   /** Auto-gain: the glare in view pulls the rest of the image down by 1 / (1 + veil x this). */
-  gainDrop: 0.2,
+  gainDrop: 0.6,
   /** The light a bright source scatters over the whole tube (x veil). */
-  veilLift: 0.035,
+  veilLift: 0.07,
   /** Grain (intensifier noise): amplitude in the dark, and how much of it is left at full drive. */
   grain: 0.075,
   grainLit: 0.35,
@@ -41,7 +41,11 @@ export const GLARE = {
   /** Farthest lamp that glares (m). */
   range: 45,
   /** The glare's size round a lamp (m), projected to the screen for its radius. */
-  size: 2.5,
+  size: 3.2,
+  /** The glare's profile round the fitting: a blinding core, a halo and a long tail (shader weights). */
+  core: 1.4,
+  halo: 0.6,
+  tail: 0.2,
   /** Glare radius limits, in screen heights. */
   minR: 0.06,
   maxR: 0.7,
@@ -51,6 +55,10 @@ export const GLARE = {
   cosView: 0.35,
   /** Stop the line-of-sight test this short of the lamp (m): the fixture and its ceiling never count. */
   clearance: 0.35,
+  /** A fitting this long or longer (m) glares along its length (a strip); shorter is a point. */
+  strip: 0.5,
+  /** The glowing share of a strip's length (the diffuser, not the end caps). */
+  inset: 0.9,
 } as const;
 
 const smooth = (a: number, b: number, x: number): number => {
@@ -101,11 +109,31 @@ export interface GlareLamp {
   on: boolean;
   destroyed: boolean;
   intensity: number;
-  fixture: { oy: number } | null;
+  fixture: { oy: number; sx: number; sz: number } | null;
 }
 
 /** Where a lamp glares from: its fixture's centre, or its bulb. */
 export const glareY = (l: GlareLamp): number => l.y + (l.fixture ? l.fixture.oy : 0);
+
+/** A lamp's glowing length: a strip fitting (its long side over `GLARE.strip`) glares along its diffuser, inset from the
+ *  ends; a bulb or a compact fitting is a point. Writes the two ends (x, y, z, x, y, z) into `out`. */
+export function glareEnds(l: GlareLamp, out: Float32Array): Float32Array {
+  const f = l.fixture;
+  const y = glareY(l);
+  let hx = 0;
+  let hz = 0;
+  if (f && Math.max(f.sx, f.sz) >= GLARE.strip) {
+    if (f.sx >= f.sz) hx = (f.sx / 2) * GLARE.inset;
+    else hz = (f.sz / 2) * GLARE.inset;
+  }
+  out[0] = l.x - hx;
+  out[1] = y;
+  out[2] = l.z - hz;
+  out[3] = l.x + hx;
+  out[4] = y;
+  out[5] = l.z + hz;
+  return out;
+}
 
 /**
  * The lamps that may glare this frame, best first: fixed lights that are on, within `GLARE.range` and in front of the
