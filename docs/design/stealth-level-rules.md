@@ -35,7 +35,7 @@
 
 18. **At most 8 doors on main routes, 12 in total; none are door-after-door.** Single doors 1.2 m, wide openings and double doors on main routes. *Why:* play was only opening doors. *Check:* count; at least 5 m of open floor between doors along any route.
 19. **A door exists only where it matters:** locked, keyed, vent, fire stair, or a body-hide room. *Why:* a door with no choice is friction. *Check:* each door has a listed purpose in the asset audit.
-20. **At least three different routes per objective:** fast and risky, slow and safe, skilled or hidden. *Why:* choice is the game. *Check:* within a chapter, the alternatives differ for at least 50 percent of their length between that chapter's entry and exit choke points (a method variant at one spot, such as a different hold at the same place, is not a separate route); every choke point has a bypass; no dead end without a reward. (Revised 2026-10-10, Michael.)
+20. **At least three different routes per objective:** fast and risky, slow and safe, skilled or hidden. *Why:* choice is the game. *Check:* every chapter has at least one alternative that differs from the main route for at least 50 percent of its length between that chapter's entry and exit choke points (an alternative spanning several chapters is measured over all of them); shorter variants are allowed if each bypasses at least one guard sightline or lit area; every choke point has a bypass; no dead end without a reward. (Revised 2026-10-10, Michael.)
 
 ## F. Learning, pacing, co-op, realism
 
@@ -63,7 +63,7 @@
 - [ ] Cover every 8 m, no straight over 12 m, niches 1.2 x 1.0 x 1.2 (15, 16)
 - [ ] Body spots off patrol loops (17)
 - [ ] 8 doors on the main route at most, 12 total, 5 m between doors, each justified (18, 19)
-- [ ] Three routes per objective, 50% different between a chapter's chokes, bypass at each choke, rewards in dead ends (20)
+- [ ] Each chapter has a 50% different alternative between its chokes; shorter variants bypass a sightline or lit area; bypass at each choke, rewards in dead ends (20)
 - [ ] Three discoveries that save 30 s or more (21)
 - [ ] A guard visible from the start, no detection at spawn within 90 s, recovery possible (22)
 - [ ] Each co-op action has a solo alternative; no mandatory simultaneous action (23)

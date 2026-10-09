@@ -195,18 +195,18 @@ export function writeDocs(R, P) {
   const why = {
     1: 'see below if listed', 8: '', 13: 'O1 stays lit (Michael); the shootable lamp TO1 over it can be put out from cover (rule 13 revised).',
     18: `The 12-door total was written for a 36 x 28 m map; this one has eight chapters. I kept the main route to ${R.doors.onM.length} doors (limit 8) by making every non-lock a wide opening, and the 5 m gap passes; the total is ${R.doors.total}.`,
-    20: 'Measured strictly from each chapter\'s entry choke to its exit choke, S-LEDGE (the window ledge, chapter 5) and O2-C (the breaker pair, chapters 6 and 7) are detours off the main route, not separate routes: most of their through-chapter path is main route. Passing needs a chapter-5 route that leaves at the S1 head and a chapter-6 route that leaves at the Gallery, which is new geometry (not done in this revision).',
+    20: 'Chapters 2 to 7 have no alternative at 50%: the chute, V shaft, ledge, roof lane and breaker routes leave and rejoin the main route inside long shared stretches. Each needs a new route; none is built until Michael decides.',
     22: 'See the evidence.',
-    L1: 'Waiting on Michael: the doc\'s light map (35% lit in chapter 2, 10% on the roof) cannot satisfy half of every chapter lit and in a sightline.',
+    L1: 'See the evidence.',
     L5: 'See the evidence.',
     L6: 'Deferred by Michael.',
     A1: 'Relaxed by Michael; the sprint bot still fails the route.',
     A3: 'See the evidence.',
-    A4: 'Only chapters 1, 2 and 5 have two guards seeing the same middle sample of the route; chapters 3, 4, 6, 7, 8 have one guard at a time. Closing it needs a second guard per chapter (over the cap) or the crossing stations made wider.'
+    A4: 'A4 measures whether any point in the middle half of each chapter\'s main route is seen by two or more guards; chapters 3, 6, 7 and 8 have one guard covering each space alone. Not changed (Michael).'
   };
   v.push(tbl(['Check', 'Result', 'Why'], fails.map((r) => [r.id, 'FAIL', why[r.id] || r.evidence.slice(0, 300)])));
   v.push('\n## 10. Questions for Michael\n');
-  v.push('1. **L1 (waiting).** Half of every chapter lit and in a sightline conflicts with the mission doc\'s light map (35% lit in chapter 2, 10% on the roof) and with dark objectives (rule 13).\n2. **Rule 20 (strict reading).** S-LEDGE and O2-C share most of their chapter with the main route; new routes that leave at the chapter entry are needed to pass, or the rule counts only the free part of a chapter.\n');
+  v.push('1. **Rule 20.** Chapters 2 to 7 have no alternative that differs by 50% between their choke points (best per chapter in the rule 20 evidence). Each needs a new route; none is built until Michael decides.\n');
   fs.writeFileSync(P('map-dead-line-validation.md'), v.join('\n') + '\n');
   console.log('docs written');
 }

@@ -447,26 +447,31 @@ export function analyse() {
   // alternative leaves, the alternative, M from where it rejoins to the chapter exit. A walked sample is shared when the base
   // route passes within 1.5 m on the same level in the same chapters; a link is shared when the base route uses the same link.
   const linkLen = (s) => { if (s.path && s.path.length > 1) { let l = 0; for (let i = 1; i < s.path.length; i++) l += hyp(s.path[i][0] - s.path[i - 1][0], s.path[i][1] - s.path[i - 1][1]); return Math.max(l, 1); } return Math.max((s.t1 - s.t0) * (s.speed || 1), 1); };
-  const through = (id, baseId) => {
-    const r20 = ctx.routes[id], b20 = ctx.routes[baseId];
+  // An alternative spans the chapters from where it leaves M to where it rejoins M (an exit that ends elsewhere spans only
+  // the chapter it leaves in). Shorter variants are allowed if the stretch of M they skip has a lit or sighted sample.
+  const Mall = Ms;
+  const MlinkSet = new Set(M.segs.filter((s) => s.link).map((s) => s.link));
+  const nearM = (lv, x, z) => { let q = null, d = 1e9; for (const p of Mall) { if (p.lv !== lv) continue; const e = hyp(p.x - x, p.z - z); if (e < d) { d = e; q = p; } } return d <= 3 ? q : null; };
+  const through = (id) => {
+    const r20 = ctx.routes[id];
     const smp = routeSamples(ctx, id);
-    const chs = new Set(r20.segs.map((s) => s.chapter));
-    const base = routeSamples(ctx, baseId).filter((p) => baseId !== 'M' || chs.has(p.chapter));
-    const baseLinks = new Set(b20.segs.filter((s) => s.link).map((s) => s.link));
-    const near = (lv, x, z) => { let q = null, d = 1e9; for (const p of base) { if (p.lv !== lv) continue; const e = hyp(p.x - x, p.z - z); if (e < d) { d = e; q = p; } } return d <= 3 ? q : null; };
     const a = r20.segs[0], b = r20.segs[r20.segs.length - 1];
-    const qa = near(a.lv, a.a[0], a.a[1]), qb = near(b.lv, b.b[0], b.b[1]);
-    const pre = qa ? qa.s - base[0].s : 0, post = qb ? base[base.length - 1].s - qb.s : 0;
+    const qa = nearM(a.lv, a.a[0], a.a[1]), qb = nearM(b.lv, b.b[0], b.b[1]);
+    if (!qa) return null;
+    const c0 = qa.chapter, c1 = qb ? qb.chapter : qa.chapter;
+    const span = Mall.filter((p) => p.chapter >= Math.min(c0, c1) && p.chapter <= Math.max(c0, c1));
+    const pre = qa.s - span[0].s, post = qb ? span[span.length - 1].s - qb.s : 0;
     let len = 0, dif = 0;
-    for (const p of smp) { len += 0.5; if (!base.some((q) => q.lv === p.lv && hyp(q.x - p.x, q.z - p.z) < 1.5)) dif += 0.5; }
-    for (const s of r20.segs) if (s.link) { const l = linkLen(s); len += l; if (!baseLinks.has(s.link)) dif += l; }
-    return { pre, len, post, dif, differ: dif / (pre + len + post) };
+    for (const p of smp) { len += 0.5; if (!span.some((q) => q.lv === p.lv && hyp(q.x - p.x, q.z - p.z) < 1.5)) dif += 0.5; }
+    for (const s of r20.segs) if (s.link) { const l = linkLen(s); len += l; if (!MlinkSet.has(s.link)) dif += l; }
+    const skipped = Mall.filter((q) => q.s > qa.s && (!qb || q.s < qb.s) && !smp.some((p) => p.lv === q.lv && hyp(p.x - q.x, p.z - q.z) < 1.5));
+    const bypass = skipped.some((q) => q.lit || q.by.length);
+    return { id, c0: Math.min(c0, c1), c1: Math.max(c0, c1), pre, len, post, dif, differ: dif / (pre + len + post), bypass };
   };
-  const ROUTES20 = { O1: ['O1-B', 'S-LEDGE'], O2: ['R6A', 'O2-C'], exit: ['EX-2', 'EX-3'] };
-  const diff20 = Object.entries(ROUTES20).flatMap(([obj, ids]) => ids.filter((id) => ctx.routes[id] && !ctx.routes[id].error).map((id) => ({ obj, id, ...through(id, obj === 'exit' ? 'EX-1' : 'M') })));
-  const short20 = ['S-CULVERT', 'S-CHUTE', 'S-V', 'S-RISER'].filter((id) => ctx.routes[id] && !ctx.routes[id].error).map((id) => ({ id, ...through(id, 'M') }));
-  R.diff20 = { diff20, short20 };
-  row('stealth', 20, 'Three routes per objective; within a chapter, alternatives differ for 50% or more of their length between the chapter\'s entry and exit choke points (revised)', diff20.every((d) => d.differ >= 0.5), `Each alternative's path through its chapters (main route to where it leaves + the alternative + main route from where it rejoins), against the main route M (exits against EX-1): ${diff20.map((d) => `${d.obj} ${d.id}: ${f1(d.pre)} m shared lead-in + ${f1(d.len)} m + ${f1(d.post)} m shared tail, differs ${Math.round(d.differ * 100)}%${d.differ >= 0.5 ? '' : ' FAIL'}`).join('; ')}. Shortcuts (rule 21, not counted here): ${short20.map((d) => `${d.id} ${Math.round(d.differ * 100)}%`).join(', ')}.`);
+  const alts20 = D.routes.filter((r) => r.id !== 'M' && r.id !== 'EX-1' && ctx.routes[r.id] && !ctx.routes[r.id].error).map((r) => through(r.id)).filter(Boolean);
+  const perCh20 = chapters.map((c) => { const cand = alts20.filter((x) => x.c0 <= c.id && x.c1 >= c.id).sort((a, b) => b.differ - a.differ); return { id: c.id, best: cand[0] || null, variants: cand.slice(1) }; });
+  R.diff20 = { alts20, perCh20 };
+  row('stealth', 20, 'Every chapter has an alternative that differs for 50% or more between its entry and exit choke points; shorter variants each bypass a guard sightline or a lit area (revised)', perCh20.every((c) => c.best && c.best.differ >= 0.5) && alts20.every((x) => x.differ >= 0.5 || x.bypass), `Best alternative per chapter (its path from the chapter entry to the exit: main route to where it leaves + the alternative + main route from where it rejoins; an alternative that spans several chapters is measured over all of them): ${perCh20.map((c) => c.best ? `ch${c.id} ${c.best.id} ${Math.round(c.best.differ * 100)}%${c.best.c0 !== c.best.c1 ? ` (spans ch${c.best.c0}-${c.best.c1})` : ''}${c.best.differ >= 0.5 ? '' : ' FAIL'}` : `ch${c.id} none FAIL`).join('; ')}. Variants (bypass = the main-route stretch it skips is lit or in a guard sightline): ${alts20.map((x) => `${x.id} ch${x.c0}${x.c1 !== x.c0 ? '-' + x.c1 : ''} ${Math.round(x.differ * 100)}%, bypass ${x.bypass ? 'yes' : 'NO'}`).join('; ')}. Chapters without an alternative at 50% need a new route (not built: Michael decides first).`);
 
   // discoveries
   const xCh = (() => { const a = tM('G', -10, -14.5), b = tM('B', 3, -13); const c = rt('S-CHUTE').total; return { m: b - a, chute: c }; })();
@@ -575,8 +580,16 @@ export function analyse() {
   // L1: lit AND sighted at least 50% per chapter (literal), plus the light map targets
   const target = { 1: 60, 2: 35, 3: 50, 4: 60, 5: 55, 6: 60, 7: 65, 8: 50 };
   R.lightTarget = target;
-  const l1 = R.lightByChapter.map((c) => ({ id: c.id, ls: c.litSighted, lit: c.lit }));
-  row('light', 'L1', 'At least half of every chapter\'s route is lit and inside a guard\'s sightline', 'WAITING', 'Waiting on Michael. Conflict: the mission doc\'s light map (35% lit in chapter 2, 10% on the roof) and rule 13 (dark objectives) cannot hold with half of every chapter lit and sighted. Measured: ' +  l1.map((c) => `ch${c.id} lit and sighted ${Math.round(c.ls * 100)}% (lit ${Math.round(c.lit * 100)}%)`).join('; ') + '.');
+  // L1 (revised, Michael): each chapter has at least one lit area inside a guard's sightline that the main route must cross
+  // or deal with. Measured as the longest run of main-route samples that are lit and seen by a guard; 2 m or more counts.
+  const l1 = chapters.map((c) => {
+    const ss = Ms.filter((p) => p.chapter === c.id);
+    let run = 0, best = 0, at = null, by = [];
+    for (const p of ss) { if (p.lit && p.by.length) { run += 0.5; if (run > best) { best = run; at = p; by = p.by; } } else run = 0; }
+    return { id: c.id, best, at, by };
+  });
+  R.l1 = l1;
+  row('light', 'L1', 'Each chapter has at least one lit area, within a guard\'s sightline, that the main route must cross or deal with (revised)', l1.every((c) => c.best >= 2), l1.map((c) => `ch${c.id}: ${f1(c.best)} m lit and sighted${c.at ? ` ending at ${lvpt(c.at)} (${c.by.join('/')})` : ''}`).join('; ') + '. The light map targets stay as in the mission doc (section 3 table).');
   const darkAll = Object.entries(R.cover).filter(([k]) => k !== 'EX-3' && k !== 'R6A').map(([k, c]) => [k, c.darkMax]);
   row('light', 'L2', 'Dark pockets or hide spots every 8 m or less; no dark stretch over 12 m (except the roof)', gapMax <= 8 + 1e-6 && Math.max(...darkAll.map((d) => d[1])) <= 12 + 1e-6, `Cover gap ${f1(gapMax)} m (see rule 15); longest dark stretch off the roof ${f1(Math.max(...darkAll.map((d) => d[1])))} m (${darkAll.map((d) => d[0] + ' ' + f1(d[1])).join(', ')}); on the roof lane ${f1(R.cover.R6A.darkMax)} m (allowed).`);
   // L3
@@ -662,7 +675,7 @@ export function analyse() {
     return { id: c.id, n: mid.length, two: two.length, at: two[0] || null, by: two[0]?.by || [] };
   });
   R.a4 = a4;
-  row('anti', 'A4', 'Sightlines overlap in the middle of each chapter (two guards see the same route point)', a4.every((c) => c.two > 0), a4.map((c) => `ch${c.id}: ${c.two} of ${c.n} middle samples seen by two or more guards${c.at ? ' (' + c.by.join('+') + ' at ' + lvpt(c.at) + ')' : ''}`).join('; '));
+  row('anti', 'A4', 'Sightlines overlap in the middle of each chapter (two guards see the same route point)', a4.every((c) => c.two > 0), 'What it measures: whether any point in the middle half of each chapter\'s main route can be seen by two or more guards; it fails where one guard covers a space alone (no change made, Michael). ' + a4.map((c) => `ch${c.id}: ${c.two} of ${c.n} middle samples seen by two or more guards${c.at ? ' (' + c.by.join('+') + ' at ' + lvpt(c.at) + ')' : ''}`).join('; '));
 
   // ------------------------------------------------------------------ the bots
   R.sprint = sprintBot(ctx);
