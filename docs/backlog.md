@@ -15,10 +15,13 @@ Format: `N. Item - destination - status`.
 7. **Epic misses its design targets on the RTX 4090 laptop.** Main thread about 4.3 ms against 3 ms, frame spikes. Destination: graphics fix batch after Phase 1.
 8. **Epic's level material (voxMat) uses 15 of 16 texture units.** Any new texture breaks it. Plan texture atlases before Phase 6b's CC0 textures. Destination: before Phase 6b.
 9. **Skin shader D3D warning X4576 (dynamically indexed array).** Makes it recompile slowly, a likely hitch when guards first appear. Destination: graphics fix batch after Phase 1.
+10. **Night vision needs work: make it realistic and believable, and lamps do not shine in it.** Desktop Step 4b look check, 2026-10-09: in night vision the lamps and light shafts do not flare or glow; the image reads as flat green with white-blown walls. Destination: Step 4b fix pass (held until Michael's phone note and screenshots arrive).
+11. **"SONAR" label in the top-left HUD (desktop screenshot 3).** Sonar is a removed Blacklist system (bible 6). Check what the label is and remove it if it is the old system. Destination: Step 4b fix pass.
+12. **Benchmark at 7680x2067 (RTX 4090 Laptop, v3.5.0, 2026-10-09, `sbd-feedback-2026-10-09.html`).** Low 120 fps (1% low 79), Medium 77 (19), High 64 (29), Ultra 48 (14), Epic 45 (10, worst spike 227 ms, main thread p95 6.8 ms). Data for item 7. Destination: graphics fix batch after Phase 1.
 
 ## Pending input
 
-- Step 4b desktop look check and phone check note: Michael pastes them, with screenshots of the issues found. No next steps until then.
+- Step 4b phone screenshots and log: Michael sends them next. Desktop look check received 2026-10-09 (items 10 to 12). No next steps until the phone note arrives.
 
 ## Done
 
