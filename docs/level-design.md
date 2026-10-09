@@ -125,8 +125,9 @@ A level is a linear spine of encounter spaces joined by connectors.
 
 ## 12. Engine constraints (re-confirm per map)
 - Nav: at most 3 walkable surfaces per column (`src/ai/navGrid.ts`); stairs and ramps join storeys by height.
-- Guards: Infiltration and Hunter spawn up to `SQUAD_CAP` 9 nearest first; `MAX_ALIVE` 10. A map that wants every guard
-  present on a ghost run has 9 or fewer.
+- Guards: Infiltration and Hunter spawn up to `SQUAD_CAP` 9 nearest first; `MAX_ALIVE` 12
+  (raised from 10 for Dead Line, 2026-10-10). A map that wants every guard present on a ghost run has 9 or fewer.
+  Map decisions that relied on 10: none (Exchange and Trunk Annex stay within 9).
 - Split gaps are found automatically from any two facing faces >= 3.6 m tall and 1.2-1.95 m apart: no accidental ones.
 - Box tops >= 1.9 m become hangable lips automatically: remove unwanted ones with `noLedge` / `mark`.
 - `ambientZone` covers y -1..8 by default: set `minY` / `maxY` per storey.

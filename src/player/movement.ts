@@ -3,6 +3,7 @@
  * aiming, eased velocity, the sprint, contextual traversal and footstep noise). Unit-tested.
  */
 import { MOVEMENT, NOISE_QUIET } from '../config/movement';
+import { LANDING_NOISE_RADIUS } from '../config/noise';
 import { springStep } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
 import { gearCap, stickCurve } from './speedGears';
@@ -212,5 +213,5 @@ export function landingKind(fall: number): LandingKind {
 
 /** Noise radius of a landing (m): a soft drop is quiet, a heavy landing carries. */
 export function landingNoise(kind: LandingKind): number {
-  return kind === 'heavy' ? 11 : kind === 'roll' ? 5 : kind === 'soft' ? 1.2 : 0;
+  return LANDING_NOISE_RADIUS[kind];
 }

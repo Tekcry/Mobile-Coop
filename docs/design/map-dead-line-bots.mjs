@@ -13,7 +13,7 @@ import { makeCtx, buildRoute, routePos, guardPosAt, sightOf, stepMeter, hears } 
 import { coverFlags } from './map-dead-line-checks.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const FLOORMUL = { concrete: 1, metal: 1.6, grate: 1.4, wood: 1.15, gravel: 1.3, carpet: 0.6 };
+import { SURFACE_NOISE as FLOORMUL, HOLD_NOISE_RADIUS, landingKind, landingNoise } from './map-dead-line-engine.mjs';
 const floorMul = (ctx, lv, x, z) => FLOORMUL[ctx.W.spaceAt(lv, x, z)?.floor || 'concrete'] ?? 1;
 
 function playerState(ctx, segs, tau, mode, pace) {
@@ -26,6 +26,16 @@ function playerState(ctx, segs, tau, mode, pace) {
   const crouched = pace === 'crawl' || s.mode === 'crawl' || s.mode === 'ledge' || s.mode === 'beam';
   const sprinting = pace === 'sprint' && !s.link && !s.hold;
   return { lv: p.lv, x: p.x, z: p.z, speed, crouched, sprinting, hidden, seg: s };
+}
+
+// noise radius the player makes at route time tau: footsteps (noiseRadius x surface), a hold (HOLD_NOISE_RADIUS), a landing at the
+// end of a drop link (landingNoise of its band). All from the engine.
+function noiseOf(ctx, pl, tau) {
+  const s = pl.seg;
+  if (s.hold) return HOLD_NOISE_RADIUS;
+  if (s.link && s.mode === 'drop' && tau >= s.t1 - 0.5) { const L = ctx.D.links.find((l) => l.id === s.link); const fall = Math.abs(ctx.W.Y[L.a[0]] - ctx.W.Y[L.b[0]]); return landingNoise(landingKind(fall)); }
+  if (s.link) return 0;
+  return noiseRadius(pl.speed, pl.crouched, pl.sprinting) * floorMul(ctx, pl.lv, pl.x, pl.z);
 }
 
 // ------------------------------------------------------------------------------------------------ sprint bot
@@ -46,8 +56,9 @@ export function sprintBot(ctx) {
     const pl = playerState(ctx, rt.segs, T, 'sprint', 'sprint');
     if (pl.hidden) continue;
     const light = ctx.light(pl.lv, pl.x, pl.z);
-    const radius = noiseRadius(pl.speed, pl.crouched, pl.sprinting) * floorMul(ctx, pl.lv, pl.x, pl.z);
+    const radius = noiseOf(ctx, pl, T);
     for (const g of ctx.guards) {
+      if (!ctx.isActive(g, pl.seg.chapter)) continue;
       const gp = guardPosAt(ctx, g, T);
       const sg = sightOf(ctx, g, gp, pl, light);
       const prev = meters[g.id];
@@ -59,8 +70,9 @@ export function sprintBot(ctx) {
         lastSpot[g.id] = T;
         if (alarmT === null) { alarmT = T; alarmCh = pl.seg.chapter; }
       }
-      meters[g.id] = m;
       const h = hears(ctx, g, gp, pl, radius);
+      if (h.s > m.m) m = { m: h.s, since: m.since };
+      meters[g.id] = m;
       if (h.heard && T - (lastHeard[g.id] ?? -99) > 5) { heard.push({ g: g.id, t: +T.toFixed(2), ch: pl.seg.chapter, d: +h.d.toFixed(1), muffled: !!h.muffled, radius: +radius.toFixed(1) }); lastHeard[g.id] = T; }
     }
   }
@@ -119,12 +131,16 @@ export function timetableBot(ctx, opts = {}) {
       if (waiting || km >= nMove) pl.speed = 0;
       if (!pl.hidden) {
         const light = ctx.light(pl.lv, pl.x, pl.z);
+        const radius = waiting ? 0 : noiseOf(ctx, pl, tau);
         for (let g = 0; g < ctx.guards.length; g++) {
           const G = ctx.guards[g];
+          if (!ctx.isActive(G, pl.seg.chapter)) { m[g] = stepMeter(m[g], 0, dt); continue; }
           const gp = guardPosAt(ctx, G, T);
           const sg = sightOf(ctx, G, gp, pl, light);
           m[g] = stepMeter(m[g], sg.rate, dt);
           if (sg.instant) m[g] = { m: 1, since: 0 };
+          const h = hears(ctx, G, gp, pl, radius);
+          if (h.s > m[g].m) m[g] = { m: h.s, since: m[g].since };
           if (m[g].m > peak) { peak = m[g].m; peakG = G.id; }
         }
       } else m = m.map((x) => stepMeter(x, 0, dt));
@@ -186,7 +202,7 @@ export function timetableBot(ctx, opts = {}) {
     waitByChapter: waitByCh, chapterTimesS: Object.fromEntries(Object.entries(chapterTimes).map(([c, v]) => [c, +v.toFixed(1)])),
     reached: idx >= samples.length - 1, maxMeter: +maxMeter.toFixed(3), suspiciousEvents, unsafeMoments: unsafe.length, unsafe, hops: hopLog.length, alarms: suspiciousEvents.filter((e) => e.peak >= 1).length
   };
-  res.passParts = { reached: res.reached, noAlarm: res.alarms === 0, belowSuspicious: res.maxMeter < SUSP, waitShareOk: res.waitShare <= 0.35, longestWaitOk: res.longestWaitS <= 40, timeIn8to9: res.finishedMin >= 8 && res.finishedMin <= 9 };
+  res.passParts = { reached: res.reached, noAlarm: res.alarms === 0, belowSuspicious: res.maxMeter < SUSP, waitShareOk: res.waitShare >= 0.3 && res.waitShare <= 0.4, longestWaitOk: res.longestWaitS <= 40, timeAbout12: res.finishedMin >= 11.5 && res.finishedMin <= 12.5 };
   res.pass = Object.values(res.passParts).every(Boolean);
   return res;
 }

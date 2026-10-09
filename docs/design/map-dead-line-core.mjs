@@ -6,65 +6,14 @@ export const AGENT = 0.32;
 export const hyp = (a, b) => Math.sqrt(a * a + b * b);
 export const f1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
 
-// ---- engine constants copied from the code (see the validation doc for sources)
-export const PERCEPTION = { focusHalf: (55 / 2) * (Math.PI / 180), focusRange: 25, periphHalf: 100 * (Math.PI / 180), periphRange: 12, periphMul: 0.35, edgeBlend: 0.18, rate: 2.2, distPow: 1.5, closeRange: 1.8, closeRate: 1.5, instantRange: 1.6, maxRate: 3.2, hold: 1.2, decay: 0.18, leak: 0.2, suspicious: 0.3, investigate: 0.6, crouchMul: 0.55, stillMul: 0.55, sneakMul: 0.75, walkMul: 1, jogMul: 1.35, sprintMul: 1.9, exposureMin: 0.2 };
-export const LIGHT = { shadow: 0.28, lit: 0.6 };
-export const LAMP_GAIN = 1.2;
-const LAMP_CUT = Math.cos((Math.PI * 0.97) / 2);
+// ---- engine values and formulas: imported from src/ (map-dead-line-engine.mjs bundles the pure game modules)
+import { PERCEPTION, LIGHT, visibilityFromLight, lightFactor, motionFactor, fieldFactor as fieldFactorE, sightRate, noiseRadius, MUFFLE, lampTerm, LAMP_LEVEL_GAIN, LAMP_CONE_COS, LAMP_EXP } from './map-dead-line-engine.mjs';
+export { PERCEPTION, LIGHT, visibilityFromLight, lightFactor, motionFactor, sightRate, noiseRadius, MUFFLE };
+/** Engine fieldFactor writes the range into an out array; this returns [multiplier, range]. */
+const fieldOut = [0];
+export function fieldFactor(angle) { const m = fieldFactorE(angle, fieldOut); return [m, fieldOut[0]]; }
+/** Design assumption (not an engine value): ambient light where the map sets none. The Annex map sets lightLevel 0.1. */
 export const AMBIENT = { default: 0.1, basement: 0.06 };
-const smooth = (t) => t * t * (3 - 2 * t);
-export function visibilityFromLight(level) {
-  const t = Math.max(0, Math.min(1, (level - LIGHT.shadow * 0.5) / (LIGHT.lit - LIGHT.shadow * 0.5)));
-  return 0.25 + 0.75 * t * t * (3 - 2 * t);
-}
-export const lightFactor = (l) => { const v = visibilityFromLight(l); return v * v; };
-export function motionFactor(speed) {
-  const P = PERCEPTION;
-  if (speed < 0.15) return P.stillMul;
-  if (speed < 0.9) return P.sneakMul;
-  if (speed < 1.4) return P.sneakMul + (P.walkMul - P.sneakMul) * ((speed - 0.9) / 0.5);
-  if (speed < 2.0) return P.walkMul;
-  if (speed < 3.6) return P.walkMul + (P.jogMul - P.walkMul) * ((speed - 2.0) / 1.6);
-  return P.jogMul + (P.sprintMul - P.jogMul) * Math.min(1, (speed - 3.6) / 1.4);
-}
-export function fieldFactor(angle) {
-  const P = PERCEPTION;
-  const a = Math.abs(angle);
-  if (a <= P.focusHalf) return [1, P.focusRange];
-  if (a <= P.focusHalf + P.edgeBlend) {
-    const t = smooth((a - P.focusHalf) / P.edgeBlend);
-    return [1 + (P.periphMul - 1) * t, P.focusRange + (P.periphRange - P.focusRange) * t];
-  }
-  if (a <= P.periphHalf) return [P.periphMul, P.periphRange];
-  return [0, 0];
-}
-export function sightRate(i) {
-  const P = PERCEPTION;
-  if (i.exposure <= 0) return 0;
-  const stance = i.crouched ? P.crouchMul : 1;
-  const motion = motionFactor(i.speed);
-  let rate = 0;
-  const [field, range] = fieldFactor(i.angle);
-  if (field > 0 && i.dist < range) {
-    const df = Math.pow(1 - i.dist / range, P.distPow);
-    const exp = P.exposureMin + (1 - P.exposureMin) * Math.min(1, i.exposure);
-    rate = P.rate * df * field * lightFactor(i.light) * stance * motion * exp;
-  }
-  if (i.dist < P.closeRange && i.speed > 0.15) {
-    const k = 1 - i.dist / P.closeRange;
-    const behind = field > 0 ? 1 : motion > 0.8 ? 0.4 : 0;
-    rate += P.closeRate * k * behind * Math.min(1, motion) * stance;
-  }
-  return rate > P.maxRate ? P.maxRate : rate;
-}
-// footstep noise radius (m): player/movement.ts noiseRadius with crouchWalkSpeed 1.8, walkSpeed 1.4, NOISE_QUIET crouch 1.9 stand 1.45
-export function noiseRadius(speed, crouched, sprinting) {
-  if (speed < 0.15) return 0;
-  if (sprinting) return 9;
-  if (crouched) return speed <= 1.9 ? 0 : 1 + (speed - 1.8) * 1.5;
-  return speed <= 1.45 ? 0 : 1.2 + (speed - 1.4) * 1.6;
-}
-export const MUFFLE = 0.45;
 
 export function loadWorld(D) {
   const W = { D };
@@ -95,7 +44,7 @@ export function loadWorld(D) {
   const seg = (axis, at, a, b) => (axis === 'z' ? { x0: a, z0: at, x1: b, z1: at } : { x0: at, z0: a, x1: at, z1: b });
   W.moveWalls = Object.fromEntries(W.levels.map((l) => [l, []]));
   W.losWalls = [];
-  const railLow = new Set(['rail']);
+  const _railLow = new Set(['rail']);
   for (const s of gridded) {
     for (const e of edgesOf(s.rect)) {
       for (const [a, b] of cut(e, s.level, MOVECUT)) W.moveWalls[s.level].push(seg(e.axis, e.at, a, b));
@@ -106,7 +55,7 @@ export function loadWorld(D) {
         // a rail cut leaves a low wall (1.0 m) for sight
         W.losWalls.push({ ...seg(e.axis, e.at, a, b), y0, y1: tall ? 3.3 : y0 + s.wallH });
       }
-      for (const [a, b] of cut(e, s.level, new Set(['rail']))) { /* rail ranges are removed from the cut above; add the low wall */ }
+      for (const [_a, _b] of cut(e, s.level, new Set(['rail']))) { /* rail ranges are removed from the cut above; add the low wall */ }
       // railed ranges: low wall
       const railRanges = D.openings.filter((o) => o.level === s.level && o.axis === e.axis && Math.abs(o.at - e.at) < 1e-6 && o.type === 'rail').map((o) => [Math.max(e.a, o.c - o.w / 2), Math.min(e.b, o.c + o.w / 2)]).filter(([p, q]) => q > p + 1e-6);
       for (const [a, b] of railRanges) W.losWalls.push({ ...seg(e.axis, e.at, a, b), y0, y1: y0 + 1.0 });
@@ -115,6 +64,16 @@ export function loadWorld(D) {
   }
   // sealed doors and closed doors block sight: they are walls in the sight list (door ranges are cut only for wide/open/window/mesh/rail above)
   W.blocks = Object.fromEntries(W.levels.map((l) => [l, D.blocks.filter((b) => b.level === l)]));
+  // camera colliders: every wall a body hits (glass and sealed doors included); doors and gates count as open while the
+  // player passes them; a rail is a 1.0 m wall
+  W.camWalls = [];
+  const CAMCUT = new Set(['door1', 'door2', 'gate', 'wide', 'open', 'rail']);
+  for (const s of gridded) for (const e of edgesOf(s.rect)) {
+    const y0 = W.Y[s.level];
+    for (const [a, b] of cut(e, s.level, CAMCUT)) W.camWalls.push({ ...seg(e.axis, e.at, a, b), y0, y1: y0 + s.wallH, lv: s.level });
+    const railRanges = D.openings.filter((o) => o.level === s.level && o.axis === e.axis && Math.abs(o.at - e.at) < 1e-6 && o.type === 'rail').map((o) => [Math.max(e.a, o.c - o.w / 2), Math.min(e.b, o.c + o.w / 2)]).filter(([p, q]) => q > p + 1e-6);
+    for (const [a, b] of railRanges) W.camWalls.push({ ...seg(e.axis, e.at, a, b), y0, y1: y0 + 1.0, lv: s.level });
+  }
   // slabs: planes where a ray cannot pass
   W.slabs = [];
   for (const s of D.spaces) if (s.level === 'U' && s.kind !== 'ledge') W.slabs.push({ rect: s.rect, y: 3.3 });
@@ -184,6 +143,15 @@ export function loadWorld(D) {
   };
   W.grid = W.makeGrid(0);
   W.grid25 = W.makeGrid(0.25);
+  // clearance (m from the cell centre to the nearest blocked cell, plus the agent radius): player routes keep the camera free
+  W.clr = {};
+  for (const lv of W.levels) {
+    const N = W.NX * W.NZ, c = new Float32Array(N).fill(1e9), q = [];
+    for (let i = 0; i < W.NX; i++) for (let j = 0; j < W.NZ; j++) if (!W.grid.W[lv][i * W.NZ + j]) { c[i * W.NZ + j] = 0; q.push(i * W.NZ + j); }
+    for (let h = 0; h < q.length; h++) { const u = q[h]; const i = Math.floor(u / W.NZ), j = u % W.NZ; for (const [di, dj, d] of [[1,0,0.5],[-1,0,0.5],[0,1,0.5],[0,-1,0.5],[1,1,0.707],[1,-1,0.707],[-1,1,0.707],[-1,-1,0.707]]) { const i2 = i + di, j2 = j + dj; if (i2 < 0 || j2 < 0 || i2 >= W.NX || j2 >= W.NZ) continue; const v = i2 * W.NZ + j2; if (c[u] + d < c[v] - 1e-9) { c[v] = c[u] + d; q.push(v); } } }
+    W.clr[lv] = c;
+  }
+  W.clearAt = (lv, x, z) => { const [i, j] = W.grid.cellOf(x, z); if (i < 0 || j < 0 || i >= W.NX || j >= W.NZ) return 0; return W.clr[lv][i * W.NZ + j]; };
 
   // space lookup
   W.spaceAt = (lv, x, z) => {
@@ -195,7 +163,7 @@ export function loadWorld(D) {
   };
 
   // ---- graph for shortest paths (nodes: lv, i, j) with links
-  const NL = W.levels.length;
+  const _NL = W.levels.length;
   const lvIdx = Object.fromEntries(W.levels.map((l, k) => [l, k]));
   W.lvIdx = lvIdx;
   const N = W.NX * W.NZ;
@@ -218,7 +186,8 @@ export function loadWorld(D) {
   const dirs = [[1, 0, 0.5], [-1, 0, 0.5], [0, 1, 0.5], [0, -1, 0.5], [1, 1, 0.7071], [1, -1, 0.7071], [-1, 1, 0.7071], [-1, -1, 0.7071]];
   // shortest path: A* over time at the walk pace; returns { nodes, cost, links }
   W.findPath = (from, to, opts = {}) => {
-    const { avoidLinks = null, onlyLinks = null, pace = 2.0 } = opts;
+    const { avoidLinks = null, onlyLinks = null, pace = 2.0, camera = false } = opts;
+    const CAMC = 1.0; // a player route pays for passing closer than this to a wall (the camera needs about 0.8 m on its side)
     const [lva, xa, za] = from;
     const [lvb, xb, zb] = to;
     const sa = g.nearest(lva, xa, za, 1.4);
@@ -253,7 +222,7 @@ export function loadWorld(D) {
         if (!g.walk(lvl, i2, j2)) continue;
         if (di && dj && !(g.walk(lvl, i2, j) && g.walk(lvl, i, j2))) continue;
         const v = nodeId(lvl, i2, j2);
-        const nd = du + c / pace;
+        const nd = du + (c / pace) * (camera ? 1 + 3 * Math.max(0, CAMC - W.clr[lvl][i2 * W.NZ + j2]) / CAMC : 1);
         if (nd < (dist.get(v) ?? 1e18)) { dist.set(v, nd); prev.set(v, [u, null]); push(nd + hOf(v), v); }
       }
       for (const e of W.linkEdges.get(u) || []) {
@@ -274,6 +243,14 @@ export function loadWorld(D) {
       return { lv, x: g.cx(Math.floor(r / W.NZ)), z: g.cz(r % W.NZ), via: s.via };
     });
   };
+  // a pulled string may not pass closer to the walls than the path it replaces (camera-safe routes)
+  W.clearOk = (lv, run, a, b) => {
+    let need = 1e9; for (let k = a; k <= b; k++) need = Math.min(need, W.clearAt(lv, run[k][0], run[k][1]));
+    need = Math.min(need, 1.0);
+    const p = run[a], q = run[b]; const n = Math.max(1, Math.ceil(hyp(q[0] - p[0], q[1] - p[1]) / 0.25));
+    for (let k = 0; k <= n; k++) if (W.clearAt(lv, p[0] + ((q[0] - p[0]) * k) / n, p[1] + ((q[1] - p[1]) * k) / n) < need - 1e-6) return false;
+    return true;
+  };
   // straight-line walkability on a level
   W.straightOk = (lv, p, q) => {
     const n = Math.max(1, Math.ceil(hyp(q[0] - p[0], q[1] - p[1]) / 0.25));
@@ -288,7 +265,7 @@ export function loadWorld(D) {
     return true;
   };
   // path -> polyline segments [{lv, pts:[[x,z]...] , link}]; smooth runs of same level
-  W.pathToLegs = (nodes) => {
+  W.pathToLegs = (nodes, camera = false) => {
     const legs = [];
     let run = [];
     const flush = (lv) => {
@@ -298,7 +275,7 @@ export function loadWorld(D) {
       let a = 0;
       while (a < run.length - 1) {
         let b = run.length - 1;
-        while (b > a + 1 && !W.straightOk(lv, run[a], run[b])) b--;
+        while (b > a + 1 && !(W.straightOk(lv, run[a], run[b]) && (!camera || W.clearOk(lv, run, a, b)))) b--;
         out.push(run[b]);
         a = b;
       }
@@ -316,6 +293,27 @@ export function loadWorld(D) {
     return legs;
   };
 
+  // ---- camera rays (shoulderCamera.ts: pivot -> shoulder point, then the boom back along the view): true when clear
+  W.camRay = (lv, ax, az, bx, bz, y) => {
+    const minx = Math.min(ax, bx), maxx = Math.max(ax, bx), minz = Math.min(az, bz), maxz = Math.max(az, bz);
+    for (const w of W.camWalls) {
+      if (w.lv !== lv) continue;
+      if (Math.max(w.x0, w.x1) < minx - 1e-6 || Math.min(w.x0, w.x1) > maxx + 1e-6 || Math.max(w.z0, w.z1) < minz - 1e-6 || Math.min(w.z0, w.z1) > maxz + 1e-6) continue;
+      if (segSeg(ax, az, bx, bz, w) !== null && y >= w.y0 - 1e-6 && y <= w.y1 + 1e-6) return false;
+    }
+    for (const b of W.blocks[lv]) { const r = b.rect; if (r[2] < minx || r[0] > maxx || r[3] < minz || r[1] > maxz) continue; if (clipSeg(ax, az, bx, bz, r) && y < W.Y[lv] + b.h) return false; }
+    return true;
+  };
+  W.cameraClear = (lv, x, z, fx, fz, C, crouch) => {
+    const fl = Math.hypot(fx, fz) || 1; fx /= fl; fz /= fl;
+    const rx = fz, rz = -fx; // right of the view direction
+    const y = W.Y[lv] + (crouch ? C.pivotCrouch : C.pivotStand) + C.height;
+    const sx = x + rx * C.shoulderHip, sz = z + rz * C.shoulderHip;
+    if (!W.camRay(lv, x, z, sx, sz, y)) return { ok: false, part: 'shoulder' };
+    const dx = sx - fx * C.boomHip, dz = sz - fz * C.boomHip;
+    if (!W.camRay(lv, sx, sz, dx, dz, y)) return { ok: false, part: 'boom' };
+    return { ok: true };
+  };
   // ---- 3D line of sight. A, B: { l, x, z, h } (h above own floor)
   const segSeg = (ax, az, bx, bz, s) => {
     const rx = bx - ax, rz = bz - az, qx = s.x1 - s.x0, qz = s.z1 - s.z0;
@@ -371,16 +369,12 @@ export function loadWorld(D) {
     for (const l of W.lampsOn(state)) {
       const lvls = [l.level, ...(l.also || [])];
       if (!lvls.includes(lv)) continue;
-      const dx = x - l.x, dz = z - l.z;
-      const dh = (W.Y[l.level] + l.h) - (W.Y[lv] + h);
-      const d = Math.sqrt(dx * dx + dz * dz + dh * dh);
-      if (d >= l.r) continue;
-      const cosA = dh / Math.max(d, 1e-4);
-      if (cosA < LAMP_CUT) continue;
-      const term = (1 - d / l.r) * Math.max(cosA, 1e-4);
-      if (term * LAMP_GAIN * (l.i ?? 1) < 0.01) continue;
+      const vx = x - l.x, vz = z - l.z;
+      const vy = (W.Y[lv] + h) - (W.Y[l.level] + l.h);
+      const term = lampTerm(vx, vy, vz, l.r, 0, -1, 0, LAMP_CONE_COS, LAMP_EXP);
+      if (term * LAMP_LEVEL_GAIN * (l.i ?? 1) < 0.01) continue;
       if (!W.los({ l: l.level, x: l.x, z: l.z, h: l.h }, { l: lv, x, z, h })) continue;
-      L += LAMP_GAIN * (l.i ?? 1) * term;
+      L += LAMP_LEVEL_GAIN * (l.i ?? 1) * term;
     }
     return Math.min(1, L);
   };

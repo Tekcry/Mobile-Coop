@@ -1,5 +1,4 @@
 // Dead Line: the plan as an SVG, one panel per level (Basement, Ground, Upper, Roof), drawn from map-dead-line.json and the context.
-import { hyp, guardAt } from './map-dead-line-core.mjs';
 
 const S = 8; // px per metre
 const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -66,7 +65,7 @@ export function buildSvg(R) {
     }
     // links: stairs, ladders, drops, beam, crawls
     for (const l of D.links) {
-      for (const [e, o] of [[l.a, l.b], [l.b, l.a]]) {
+      for (const [e, _o] of [[l.a, l.b], [l.b, l.a]]) {
         if (e[0] !== lv) continue;
         const col = l.kind.startsWith('stairs') ? '#a05a00' : l.kind === 'ladder' ? '#7a3db0' : l.kind === 'drop' ? '#c0392b' : '#2e7d32';
         add(`<g><rect x="${ox(e[1]) - 4}" y="${oy(pi, e[2]) - 4}" width="8" height="8" fill="${col}" fill-opacity="0.9" stroke="#fff" stroke-width="0.8"/><text x="${ox(e[1]) + 5}" y="${oy(pi, e[2]) - 5}" font-size="8" fill="${col}" font-weight="bold">${esc(l.id)}</text></g>`);
@@ -99,7 +98,7 @@ export function buildSvg(R) {
       const tl = ctx.TL[g.id];
       const col = GCOL[g.id] || '#000';
       for (const seg of tl.segs) if (seg.kind === 'move') add(`<polyline points="${seg.poly.map((p) => `${ox(p[0]).toFixed(1)},${oy(pi, p[1]).toFixed(1)}`).join(' ')}" fill="none" stroke="${col}" stroke-width="1.4" stroke-opacity="0.8"/>`);
-      g.wps.forEach((w, k) => {
+      g.wps.forEach((w, _k) => {
         const len = 22 * (g.arch === 'sniper' ? 1 : 0.9);
         add(`<line x1="${ox(w.x)}" y1="${oy(pi, w.z)}" x2="${ox(w.x) + w.face[0] * len}" y2="${oy(pi, w.z) - w.face[1] * len}" stroke="${col}" stroke-width="1.2"/>`);
         add(`<circle cx="${ox(w.x)}" cy="${oy(pi, w.z)}" r="3.2" fill="${col}" stroke="#fff" stroke-width="0.8"/>`);

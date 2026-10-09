@@ -1,11 +1,12 @@
 // Dead Line: the checks (light, sightlines, windows, cover, doors, anti-sprint, co-op). Pure functions over a context from map-dead-line-sim.mjs.
-import { hyp, LIGHT, PERCEPTION, noiseRadius, MUFFLE, f1 } from './map-dead-line-core.mjs';
-import { buildRoute, routePos, guardPosAt, sightOf, stepMeter, hears } from './map-dead-line-sim.mjs';
+import { hyp, LIGHT, PERCEPTION } from './map-dead-line-core.mjs';
+import { guardPosAt, sightOf, stepMeter } from './map-dead-line-sim.mjs';
 
-export const FLOORMUL = { concrete: 1, metal: 1.6, grate: 1.4, wood: 1.15, gravel: 1.3, carpet: 0.6 };
+import { SURFACE_NOISE } from './map-dead-line-engine.mjs';
+export const FLOORMUL = SURFACE_NOISE;
 export const floorMul = (ctx, lv, x, z) => FLOORMUL[ctx.W.spaceAt(lv, x, z)?.floor || 'concrete'] ?? 1;
 const rectDist = (r, x, z) => hyp(Math.max(r[0] - x, 0, x - r[2]), Math.max(r[1] - z, 0, z - r[3]));
-const rr = (n, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
+const _rr = (n, d = 1) => Math.round(n * 10 ** d) / 10 ** d;
 
 // samples along a route every `step` metres (not links): { s, t, lv, x, z, chapter, mode }
 export function routeSamples(ctx, routeId, step = 0.5) {
@@ -81,7 +82,7 @@ export function coverFlags(ctx, samples) {
 }
 // longest distance to the next cover, longest uncovered straight, longest dark run
 export function coverStats(samples, step = 0.5) {
-  let gapMax = 0, gapAt = null, run = 0, startI = 0;
+  let gapMax = 0, gapAt = null, _run = 0, _startI = 0;
   let lastCover = -1;
   for (let i = 0; i < samples.length; i++) {
     if (samples[i].cover) { const gap = (i - lastCover) * step; if (lastCover >= 0 && gap > gapMax) { gapMax = gap; gapAt = [samples[lastCover], samples[i]]; } lastCover = i; }

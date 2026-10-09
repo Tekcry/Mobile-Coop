@@ -18,11 +18,11 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { ARCHETYPE, DIFFICULTY } from './archetypes';
 import { ALERT } from './alertState';
 import { ReconDrone } from './reconDrone';
+import { MUFFLE } from '../config/noise';
 
-export const MAX_ALIVE = 10;
-
-/** Share of a noise's reach heard through a wall. */
-export const MUFFLE = 0.45;
+// Live guard cap. 12 = the Dead Line co-op peak of 10 chapter-active guards (furthest-behind and furthest-ahead
+// player, each with their next chapter) plus the two alarm reinforcements; about 2.6 ms main thread (D1 guard cost).
+export const MAX_ALIVE = 12;
 
 /** Owns enemies, the shared chase flow field, cover reservations, bodies (ragdolls), alarms and flashlights. */
 export class EnemyManager {

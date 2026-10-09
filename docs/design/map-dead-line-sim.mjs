@@ -1,5 +1,7 @@
 // Dead Line map: timed routes, the context (world + guards + light cache) and the perception model for the bots and the checks.
-import { loadWorld, guardTimeline, guardAt, hyp, PERCEPTION, LIGHT, MUFFLE, fieldFactor, sightRate } from './map-dead-line-core.mjs';
+import { loadWorld, guardTimeline, guardAt, hyp, PERCEPTION, MUFFLE, fieldFactor, sightRate } from './map-dead-line-core.mjs';
+import { stepMeter as engineStepMeter, seenAt, instantDetect, noiseSuspicion } from './map-dead-line-engine.mjs';
+export { noiseSuspicion };
 
 // ---------------------------------------------------------------------------------------------------------------------
 // routes: key points -> timed segments. Pace per key point m: walk (2.0) | jog (2.8 where no guard path is within 3.44 m)
@@ -27,14 +29,14 @@ export function buildRoute(W, route, opts = {}) {
       const dA = hyp(q.x - L.a[1], q.z - L.a[2]) + (q.lv === L.a[0] ? 0 : 99);
       const dB = hyp(q.x - L.b[1], q.z - L.b[2]) + (q.lv === L.b[0] ? 0 : 99);
       const [near, far] = dA <= dB ? [L.a, L.b] : [L.b, L.a];
-      const n1 = W.findPath([q.lv, q.x, q.z], near);
-      const n2 = W.findPath(far, [p.lv, p.x, p.z]);
+      const n1 = W.findPath([q.lv, q.x, q.z], near, { camera: true });
+      const n2 = W.findPath(far, [p.lv, p.x, p.z], { camera: true });
       if (!n1 || !n2) return { error: `no path via ${p.via} ${route.id}` };
-      legs = [...W.pathToLegs(n1), { lv: near[0], pts: [[near[1], near[2]]], link: L }, ...W.pathToLegs(n2)];
+      legs = [...W.pathToLegs(n1, true), { lv: near[0], pts: [[near[1], near[2]]], link: L }, ...W.pathToLegs(n2, true)];
     } else {
-      const nodes = W.findPath([q.lv, q.x, q.z], [p.lv, p.x, p.z]);
+      const nodes = W.findPath([q.lv, q.x, q.z], [p.lv, p.x, p.z], { camera: true });
       if (!nodes) return { error: `no path ${route.id} ${k - 1}->${k} (${q.lv} ${q.x},${q.z} -> ${p.lv} ${p.x},${p.z})` };
-      legs = W.pathToLegs(nodes);
+      legs = W.pathToLegs(nodes, true);
     }
     for (const leg of legs) {
       if (leg.link) {
@@ -114,6 +116,10 @@ export function makeCtx(D, opts = {}) {
   const routes = {};
   for (const r of D.routes) routes[r.id] = buildRoute(W, r, { guardPts });
   const ctx = { D, W, TL, guardPts, routes, guards: active, lightCache: new Map(), state: { off: new Set(), shot: new Set() } };
+  // guard activation by chapter (Michael, D1 revision): a guard is active while its chapter list meets the current or the next
+  // chapter of the furthest-behind or the furthest-ahead player. One player: chapters c and c + 1.
+  ctx.activeSet = (chs) => { const want = new Set(); for (const c of chs) { want.add(c); want.add(c + 1); } return new Set(active.filter((g) => (g.ch || []).some((c) => want.has(c))).map((g) => g.id)); };
+  ctx.isActive = (g, ch) => (g.ch || []).some((c) => c === ch || c === ch + 1);
   ctx.light = (lv, x, z) => {
     const k = `${lv}|${Math.round(x * 2)}|${Math.round(z * 2)}`;
     let v = ctx.lightCache.get(k);
@@ -145,23 +151,23 @@ export function sightOf(ctx, g, gp, pl, light) {
   const exposure = hits / 3;
   if (!exposure) return { rate: 0, dist, seen: false, exposure: 0, angle: ang };
   const rate = sightRate({ dist, angle: ang, light, crouched: pl.crouched, speed: pl.speed, exposure, sensitivity: 1 });
-  const instant = exposure > 0.3 && dist < PERCEPTION.instantRange && light >= LIGHT.lit && Math.abs(ang) <= PERCEPTION.focusHalf;
-  return { rate, dist, seen: rate > PERCEPTION.leak, exposure, angle: ang, instant };
+  const instant = instantDetect({ dist, angle: ang, light, crouched: pl.crouched, speed: pl.speed, exposure, sensitivity: 1 });
+  return { rate, dist, seen: seenAt(rate), exposure, angle: ang, instant };
 }
-// awareness meter step: rises by what the rate exceeds the leak, holds `hold` s after the last sighting, then drains
+// awareness meter step: the engine's stepMeter (ai/perception.ts), with sinceSeen kept as Enemy does (seenAt resets it)
 export function stepMeter(m, rate, dt) {
-  const P = PERCEPTION;
-  if (rate > P.leak) return { m: Math.min(1, m.m + (rate - P.leak) * dt), since: 0 };
-  const s = m.since + dt;
-  return { m: s > P.hold ? Math.max(0, m.m - P.decay * dt) : m.m, since: s };
+  const since = seenAt(rate) ? 0 : m.since + dt;
+  return { m: engineStepMeter(m.m, rate, dt, since), since };
 }
 // does a noise of radius r (m) from the player reach the guard? a wall between (or another floor) muffles it to 0.45
 export function hears(ctx, g, gp, pl, radius) {
-  if (radius <= 0) return { heard: false, d: 99 };
+  if (radius <= 0) return { heard: false, d: 99, s: 0 };
   const W = ctx.W;
   const d = Math.sqrt((pl.x - gp.x) ** 2 + (pl.z - gp.z) ** 2 + (W.Y[pl.lv] - W.Y[g.level]) ** 2);
-  if (d > radius) return { heard: false, d };
+  if (d > radius) return { heard: false, d, s: 0 };
   const clear = pl.lv === g.level && W.los({ l: pl.lv, x: pl.x, z: pl.z, h: 1.6 }, { l: g.level, x: gp.x, z: gp.z, h: 1.6 });
   const r = clear ? radius : radius * MUFFLE;
-  return { heard: d <= r, d, muffled: !clear };
+  const d2 = hyp(pl.x - gp.x, pl.z - gp.z);
+  // Enemy.hear: the meter rises to noiseSuspicion(2D distance, the reach after muffling)
+  return { heard: d <= r, d, muffled: !clear, s: d <= r ? noiseSuspicion(d2, r) : 0 };
 }

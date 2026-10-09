@@ -2,10 +2,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { hyp, LIGHT, PERCEPTION, noiseRadius, MUFFLE, guardAt } from './map-dead-line-core.mjs';
-import { makeCtx, buildRoute, routePos, guardPosAt, sightOf, stepMeter, hears } from './map-dead-line-sim.mjs';
-import { routeSamples, sightedBy, withState, lightShares, coverFlags, coverStats, findHops, simHop, hopWindows, floorMul, FLOORMUL } from './map-dead-line-checks.mjs';
+import { hyp, LIGHT, PERCEPTION, noiseRadius, guardAt } from './map-dead-line-core.mjs';
+import { makeCtx, routePos, guardPosAt, sightOf, stepMeter, hears } from './map-dead-line-sim.mjs';
+import { routeSamples, sightedBy, withState, lightShares, coverFlags, coverStats, findHops, hopWindows, floorMul } from './map-dead-line-checks.mjs';
 import { sprintBot, timetableBot } from './map-dead-line-bots.mjs';
+import { CAMERA, HOLD_NOISE_RADIUS, MAX_ALIVE } from './map-dead-line-engine.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const f1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
@@ -19,9 +20,10 @@ export function analyse() {
   const ctx = makeCtx(D);
   const W = ctx.W;
   const R = { D, ctx, rows: {} };
-  const row = (group, id, rule, ok, evidence, extra = {}) => { (R.rows[group] ||= []).push({ id, rule, result: ok ? PASS : FAIL, evidence, ...extra }); };
+  // ok: true / false, or a status string (WAITING, RELAXED, DEFERRED) for rules Michael has ruled on
+  const row = (group, id, rule, ok, evidence, extra = {}) => { (R.rows[group] ||= []).push({ id, rule, result: typeof ok === 'string' ? ok : ok ? PASS : FAIL, evidence, ...extra }); };
   const chapters = D.meta.chapters;
-  const ch = (id) => chapters.find((c) => c.id === id);
+  const _ch = (id) => chapters.find((c) => c.id === id);
 
   // ------------------------------------------------------------------ route M: chapters, times, samples
   const M = ctx.routes.M;
@@ -55,7 +57,7 @@ export function analyse() {
 
   // ------------------------------------------------------------------ data integrity
   const dup = (arr, k = 'id') => { const seen = new Set(); const d = []; for (const e of arr) { if (seen.has(e[k])) d.push(e[k]); seen.add(e[k]); } return d; };
-  const dups = ['spaces', 'blocks', 'openings', 'links', 'lamps', 'circuits', 'hides', 'vantage', 'spawns', 'objectives', 'guards', 'routes', 'encounters', 'toys', 'locks'].map((k) => [k, dup(D[k])]).filter(([, d]) => d.length);
+  const _dups = ['spaces', 'blocks', 'openings', 'links', 'lamps', 'circuits', 'hides', 'vantage', 'spawns', 'objectives', 'guards', 'routes', 'encounters', 'toys', 'locks'].map((k) => [k, dup(D[k])]).filter(([, d]) => d.length);
   const unwalk = [];
   const chk = (kind, e, lv, x, z, rad = 0.6) => { if (!W.grid.nearest(lv, x, z, rad)) unwalk.push(`${kind} ${e.id} ${lv} (${f1(x)}, ${f1(z)})`); };
   for (const s of D.spawns) chk('spawn', s, 'G', s.x, s.z);
@@ -65,7 +67,7 @@ export function analyse() {
   for (const g of D.guards) if (!g.reinforcement) g.wps.forEach((w, k) => chk('guard wp', { id: g.id + '.' + k }, g.level, w.x, w.z));
   for (const h of D.hides) chk('hide', h, h.level, (h.rect[0] + h.rect[2]) / 2, (h.rect[1] + h.rect[3]) / 2, 1.0);
   const lampOut = D.lamps.filter((l) => !W.spaceAt(l.level, l.x, l.z)).map((l) => l.id);
-  const unreach = [];
+  const _unreach = [];
   // door passes at two grid offsets
   const doorLike = D.openings.filter((o) => ['door1', 'door2', 'wide', 'gate', 'open'].includes(o.type));
   const passOk = (g, o) => {
@@ -161,10 +163,10 @@ export function analyse() {
   R.lockCut = D.locks.map((L) => {
     const e = edges.find((x) => x.id === L.id);
     if (!e) return { id: L.id, cut: [] };
-    const saveUnl = new Set(unlocked);
+    const _saveUnl = new Set(unlocked);
     const seen = new Set([startSpace]);
     let ch2 = true;
-    while (ch2) { ch2 = false; for (const x of edges) { const closed = x.id === L.id; const bAB = closed || (x.lock && x.lock.until === 'ALARM60'); const bBA = closed && x.lock?.from === 'both' || (x.lock && x.lock.until === 'ALARM60'); const lockedAB = closed && (x.lock?.from === 'a' || x.lock?.from === 'both'); const lockedBA = closed && x.lock?.from === 'both'; if (x.lock?.until === 'ALARM60') continue; if (seen.has(x.a) && !lockedAB && !seen.has(x.b)) { seen.add(x.b); ch2 = true; } if (!x.oneway && seen.has(x.b) && !lockedBA && !seen.has(x.a)) { seen.add(x.a); ch2 = true; } } }
+    while (ch2) { ch2 = false; for (const x of edges) { const closed = x.id === L.id; const _bAB = closed || (x.lock && x.lock.until === 'ALARM60'); const _bBA = closed && x.lock?.from === 'both' || (x.lock && x.lock.until === 'ALARM60'); const lockedAB = closed && (x.lock?.from === 'a' || x.lock?.from === 'both'); const lockedBA = closed && x.lock?.from === 'both'; if (x.lock?.until === 'ALARM60') continue; if (seen.has(x.a) && !lockedAB && !seen.has(x.b)) { seen.add(x.b); ch2 = true; } if (!x.oneway && seen.has(x.b) && !lockedBA && !seen.has(x.a)) { seen.add(x.a); ch2 = true; } } }
     return { id: L.id, cut: D.spaces.filter((s) => !['duct', 'ledge', 'void'].includes(s.kind) && !seen.has(s.id)).map((s) => s.id) };
   });
   // fence clearance: nearest block (h >= 1.0) to a 3.7 m fence or exterior wall on the outdoor side
@@ -200,7 +202,7 @@ export function analyse() {
     for (const v of vs) {
       const light = ctx.light(v.level, v.x, v.z);
       const dist = minDistToPath(g.id, v.x, v.z);
-      let seenN = 0, n = 0, maxRate = 0, maxR2 = 0;
+      let seenN = 0, n = 0, maxRate = 0, _maxR2 = 0;
       for (let t = 0; t < ctx.TL[g.id].period; t += 0.5) {
         const gp = guardAt(g, ctx.TL[g.id], t);
         n++;
@@ -263,7 +265,7 @@ export function analyse() {
   const hopRows = R.hops.filter((h) => h.len >= 6);
   const badHop = hopRows.filter((h) => h.w.longest < 3);
   row('stealth', 7, 'A safe window of 3 s or more per hop (6 m or longer, cover to cover) at gear 3 stand', badHop.length === 0, `${hopRows.length} exposed hops on route M (cover = hide spot within 3 m or a dark pocket); shortest window ${f1(Math.min(...hopRows.map((h) => h.w.longest)))} s, ${hopRows.filter((h) => h.w.longest >= 10).length} hops have 10 s or more. Worst: ${hopRows.slice().sort((a, b) => a.w.longest - b.w.longest).slice(0, 4).map((h) => `${lvpt(h.a)}->${pt(h.b)} ch${h.chapter} ${f1(h.w.longest)} s (${Object.keys(h.w.blockers).join('/') || 'none'})`).join('; ')}.`);
-  const cross = R.hops.filter((h) => Object.keys(h.w.blockers).length >= 2 && h.w.runs === 1 && h.w.longest >= 3);
+  const _cross = R.hops.filter((h) => Object.keys(h.w.blockers).length >= 2 && h.w.runs === 1 && h.w.longest >= 3);
   // two-guard crossing at the hall east connector: probe directly
   const probe = (lv, x, z, ids, crouched = true) => {
     const safe = [];
@@ -299,9 +301,9 @@ export function analyse() {
   R.crossings = crossings;
   const bestX = crossings.sort((a, b) => b.window - a.window)[0];
   row('stealth', 8, 'Crossing routes make a timing puzzle', crossings.length > 0, crossings.length ? `${crossings.length} route samples on M where two guards each block 4 s or more of the 40 s cycle and the safe gap exists once: the best is ch${bestX.ch} ${bestX.lv} (${f1(bestX.x)}, ${f1(bestX.z)}) with ${bestX.g.join(' and ')} blocking and a single ${f1(bestX.window)} s window (E3.2, the west connector of the plant); the others: ${crossings.slice(0, 6).map((c) => 'ch' + c.ch + ' (' + f1(c.x) + ', ' + f1(c.z) + ') ' + f1(c.window) + ' s').join('; ')}. The hall pair G9 and G10 add a second one at E4.2 (the lane A to B connector) in the dimmed state.` : 'no sample on M has two guards and a single gap', { crossings });
-  const pe = probe('G', 65, -5, ['G9', 'G10']);
-  const pe9 = probe('G', 65, -5, ['G9']);
-  const pe10 = probe('G', 65, -5, ['G10']);
+  const _pe = probe('G', 65, -5, ['G9', 'G10']);
+  const _pe9 = probe('G', 65, -5, ['G9']);
+  const _pe10 = probe('G', 65, -5, ['G10']);
   // ------------------------------------------------------------------ rule 9: stationary watchers
   const stat = R.guards.filter((g) => g.stationary);
   const statRows = stat.map((g) => {
@@ -358,10 +360,20 @@ export function analyse() {
   const objs = D.objectives.filter((o) => ['O1', 'O2'].includes(o.id)).map((o) => {
     const light = ctx.light(o.level, o.x, o.z);
     const lampNear = D.lamps.filter((l) => l.level === o.level).map((l) => ({ id: l.id, d: hyp(l.x - o.x, l.z - o.z), r: l.r })).sort((a, b) => a.d - b.d)[0];
-    return { id: o.id, light, lampNear, at: `${o.level} (${f1(o.x)}, ${f1(o.z)})` };
+    // the lamps that light it, and whether the player can put each out: its switch within 10 m walk, or shootable from a hide within 15 m
+    const lighting = D.lamps.filter((l) => l.level === o.level && hyp(l.x - o.x, l.z - o.z) < l.r && W.los({ l: l.level, x: l.x, z: l.z, h: l.h }, { l: o.level, x: o.x, z: o.z, h: 1.0 }));
+    const reach = lighting.map((l) => {
+      const c = D.circuits.find((q) => q.id === l.circuit);
+      const swD = c && c.switch && c.switch.level === o.level ? hyp(c.switch.x - o.x, c.switch.z - o.z) : null;
+      const shotFrom = l.shoot === false ? null : D.hides.filter((h) => h.level === l.level || (h.level === 'U' && l.level === 'U')).map((h) => { const hx = (h.rect[0] + h.rect[2]) / 2, hz = (h.rect[1] + h.rect[3]) / 2; return { id: h.id, d: hyp(hx - l.x, hz - l.z), los: W.los({ l: h.level, x: hx, z: hz, h: 1.05 }, { l: l.level, x: l.x, z: l.z, h: l.h }) }; }).filter((h) => h.los && h.d <= 15).sort((a, b) => a.d - b.d)[0] || null;
+      return { id: l.id, circuit: l.circuit, sw: swD !== null && swD <= 10 ? c.switch.id + ' ' + f1(swD) + ' m' : null, shot: shotFrom ? shotFrom.id + ' ' + f1(shotFrom.d) + ' m' : null };
+    });
+    const putOut = reach.filter((r) => r.sw || r.shot);
+    const darkAfter = W.lightAt(o.level, o.x, o.z, 1.0, { off: new Set(putOut.filter((r) => r.sw).map((r) => r.circuit)), shot: new Set(putOut.filter((r) => !r.sw).map((r) => r.id)) });
+    return { id: o.id, light, lampNear, at: `${o.level} (${f1(o.x)}, ${f1(o.z)})`, reach, darkAfter, ok: light < LIGHT.shadow || darkAfter < LIGHT.shadow };
   });
   const crossLit = (c0, c1) => Ms.filter((p) => p.chapter >= c0 && p.chapter <= c1 && p.lit).length;
-  row('stealth', 13, 'Objective sites in shadow; the approach crosses light', objs.every((o) => o.light < LIGHT.shadow) && crossLit(5, 5) > 0 && crossLit(7, 7) > 0, objs.map((o) => `${o.id} at ${o.at}: light ${o.light.toFixed(2)} (${o.light < LIGHT.shadow ? 'in shadow' : 'LIT'}; nearest lamp ${o.lampNear.id} ${f1(o.lampNear.d)} m, radius ${o.lampNear.r})`).join('; ') + `. The approach to O1 is lit for ${f1(crossLit(5, 5) * 0.5)} m of chapter 5, to O2 for ${f1(crossLit(7, 7) * 0.5)} m of chapter 7.` + (objs.some((o) => o.light >= LIGHT.shadow) ? ' The mission doc puts P1 under an emergency lamp that cannot be switched (L3, E5.2), which conflicts with this rule for O1.' : ''));
+  row('stealth', 13, 'Objective sites in shadow, or a switch or shootable lamp in reach makes them dark; the approach crosses light (revised)', objs.every((o) => o.ok) && crossLit(5, 5) > 0 && crossLit(7, 7) > 0, objs.map((o) => `${o.id} at ${o.at}: light ${o.light.toFixed(2)} (${o.light < LIGHT.shadow ? 'in shadow' : 'lit'}${o.reach.length ? '; lit by ' + o.reach.map((r) => `${r.id} (${r.circuit}${r.sw ? ', switch ' + r.sw : ''}${r.shot ? ', shoot from ' + r.shot : ''}${!r.sw && !r.shot ? ', out of reach' : ''})`).join(', ') : ''}${o.light >= LIGHT.shadow ? `; light once put out ${o.darkAfter.toFixed(2)}` : ''})`).join('; ') + `. The approach to O1 is lit for ${f1(crossLit(5, 5) * 0.5)} m of chapter 5, to O2 for ${f1(crossLit(7, 7) * 0.5)} m of chapter 7.`);
   row('stealth', 14, 'Lights off has a cost', D.circuits.every((c) => c.reaction?.what && c.reaction.durationS) && sensible, D.circuits.map((c) => `${c.id}: ${c.reaction.guards} ${c.reaction.durationS} s`).join('; '));
 
   // ------------------------------------------------------------------ rules 15 to 17: cover
@@ -413,15 +425,15 @@ export function analyse() {
     return n / a.length;
   };
   // free segments: O1 from the stair foot B (chapter 3 end) on; O2 from the vestibule on
-  const o1A = R.cover.M.samples.filter((p) => p.chapter >= 3 && p.chapter <= 5);
-  const sOf = (rid, ch0) => (R.cover[rid].samples.find((p) => p.chapter >= ch0) || { s: 0 }).s;
+  const _o1A = R.cover.M.samples.filter((p) => p.chapter >= 3 && p.chapter <= 5);
+  const _sOf = (rid, ch0) => (R.cover[rid].samples.find((p) => p.chapter >= ch0) || { s: 0 }).s;
   const shareFree = (A, others, c0) => {
     const a = R.cover[A].samples.filter((p) => p.chapter >= c0);
     let n = 0;
     for (const p of a) if (others.some((B) => R.cover[B].samples.some((q) => q.lv === p.lv && hyp(q.x - p.x, q.z - p.z) < 1.5))) n++;
     return n / (a.length || 1);
   };
-  const o1Routes = { A: 'M', B: 'O1-B', C: 'S-LEDGE' };
+  const _o1Routes = { A: 'M', B: 'O1-B', C: 'S-LEDGE' };
   const o1share = {
     AB: (() => { const a = R.cover.M.samples.filter((p) => p.chapter === 3 || p.chapter === 4); return a.filter((p) => R.cover['O1-B'].samples.some((q) => q.lv === p.lv && hyp(q.x - p.x, q.z - p.z) < 1.5)).length / a.length; })(),
     ledgeVsM: share('S-LEDGE', ['M']),
@@ -430,13 +442,37 @@ export function analyse() {
   const o2share = { AB: shareFree('R6A', ['M'], 6), AC: (() => { const a = R.cover['O2-C'].samples; return a.filter((p) => o2A.some((q) => q.lv === p.lv && hyp(q.x - p.x, q.z - p.z) < 1.5)).length / a.length; })() };
   R.routeShare = { o1: o1share, o2: o2share };
   const rt = (id) => ctx.routes[id];
-  row('stealth', 20, 'Three routes per objective, sharing no more than 30%', false, `O1: A (route M), B (O1-B: V shaft, catwalk, Gallery, ${f1(rt('O1-B').total)} s from the tunnel end) and C (S-LEDGE: the window ledge, ${f1(rt('S-LEDGE').total)} s from CSW); B shares ${Math.round(o1share.AB * 100)}% of its chapter 3 to 4 path with M, C shares ${Math.round(o1share.ledgeVsM * 100)}% with M. O2: A (6B hall return and CP, ${f1(M.byChapter[6].t + M.byChapter[7].t)} s from CP), B (R6A roof lane and ES, ${f1(rt('R6A').total)} s), C (O2-C breakers, ${f1(rt('O2-C').total)} s); the roof lane shares ${Math.round(o2share.AB * 100)}% with M and the breaker route ${Math.round(o2share.AC * 100)}%. Chapters 1 to 4 are a forced linear spine (gates CG, H, SB, S1, mission doc section 4), so any two routes share them: the 30% limit cannot hold from the spawn. It holds only on the free parts, and not for O2-C (it differs from M only at the vestibule). FAIL (conflicts with the mission doc's linear spine).`);
+  // rule 20 (revised): within a chapter, an alternative differs from the main route for at least 50% of its length between the
+  // chapter's entry and exit choke points. The alternative's through-chapter path is: M from the chapter entry to where the
+  // alternative leaves, the alternative, M from where it rejoins to the chapter exit. A walked sample is shared when the base
+  // route passes within 1.5 m on the same level in the same chapters; a link is shared when the base route uses the same link.
+  const linkLen = (s) => { if (s.path && s.path.length > 1) { let l = 0; for (let i = 1; i < s.path.length; i++) l += hyp(s.path[i][0] - s.path[i - 1][0], s.path[i][1] - s.path[i - 1][1]); return Math.max(l, 1); } return Math.max((s.t1 - s.t0) * (s.speed || 1), 1); };
+  const through = (id, baseId) => {
+    const r20 = ctx.routes[id], b20 = ctx.routes[baseId];
+    const smp = routeSamples(ctx, id);
+    const chs = new Set(r20.segs.map((s) => s.chapter));
+    const base = routeSamples(ctx, baseId).filter((p) => baseId !== 'M' || chs.has(p.chapter));
+    const baseLinks = new Set(b20.segs.filter((s) => s.link).map((s) => s.link));
+    const near = (lv, x, z) => { let q = null, d = 1e9; for (const p of base) { if (p.lv !== lv) continue; const e = hyp(p.x - x, p.z - z); if (e < d) { d = e; q = p; } } return d <= 3 ? q : null; };
+    const a = r20.segs[0], b = r20.segs[r20.segs.length - 1];
+    const qa = near(a.lv, a.a[0], a.a[1]), qb = near(b.lv, b.b[0], b.b[1]);
+    const pre = qa ? qa.s - base[0].s : 0, post = qb ? base[base.length - 1].s - qb.s : 0;
+    let len = 0, dif = 0;
+    for (const p of smp) { len += 0.5; if (!base.some((q) => q.lv === p.lv && hyp(q.x - p.x, q.z - p.z) < 1.5)) dif += 0.5; }
+    for (const s of r20.segs) if (s.link) { const l = linkLen(s); len += l; if (!baseLinks.has(s.link)) dif += l; }
+    return { pre, len, post, dif, differ: dif / (pre + len + post) };
+  };
+  const ROUTES20 = { O1: ['O1-B', 'S-LEDGE'], O2: ['R6A', 'O2-C'], exit: ['EX-2', 'EX-3'] };
+  const diff20 = Object.entries(ROUTES20).flatMap(([obj, ids]) => ids.filter((id) => ctx.routes[id] && !ctx.routes[id].error).map((id) => ({ obj, id, ...through(id, obj === 'exit' ? 'EX-1' : 'M') })));
+  const short20 = ['S-CULVERT', 'S-CHUTE', 'S-V', 'S-RISER'].filter((id) => ctx.routes[id] && !ctx.routes[id].error).map((id) => ({ id, ...through(id, 'M') }));
+  R.diff20 = { diff20, short20 };
+  row('stealth', 20, 'Three routes per objective; within a chapter, alternatives differ for 50% or more of their length between the chapter\'s entry and exit choke points (revised)', diff20.every((d) => d.differ >= 0.5), `Each alternative's path through its chapters (main route to where it leaves + the alternative + main route from where it rejoins), against the main route M (exits against EX-1): ${diff20.map((d) => `${d.obj} ${d.id}: ${f1(d.pre)} m shared lead-in + ${f1(d.len)} m + ${f1(d.post)} m shared tail, differs ${Math.round(d.differ * 100)}%${d.differ >= 0.5 ? '' : ' FAIL'}`).join('; ')}. Shortcuts (rule 21, not counted here): ${short20.map((d) => `${d.id} ${Math.round(d.differ * 100)}%`).join(', ')}.`);
 
   // discoveries
   const xCh = (() => { const a = tM('G', -10, -14.5), b = tM('B', 3, -13); const c = rt('S-CHUTE').total; return { m: b - a, chute: c }; })();
   const walkS1 = (() => { const nodes = W.findPath(['U', 71.5, -3.8], ['U', 67, 6.5]); const legs = W.pathToLegs(nodes); let len = 0; for (const l of legs) if (!l.link) for (let i = 1; i < l.pts.length; i++) len += hyp(l.pts[i][0] - l.pts[i - 1][0], l.pts[i][1] - l.pts[i - 1][1]); return len / 2.0; })();
   const xV = (() => { const a = tM('B', 3, -13); const b = tM('U', 71.5, -3.8); const m = b - a + walkS1; const v = rt('S-V').total; return { m, v }; })();
-  const ledge = { corridor: (() => { const a = tM('U', 36, -14.5); const b = tM('U', 14, -9.5); return b - a; })(), ledgeT: (() => { const r = rt('S-LEDGE'); let t = 0; for (const s of r.segs) { if (s.t1 < 0) continue; } const idx = r.segs.findIndex((s) => s.link === 'LEDGE'); return r.segs.slice(0, idx + 3).reduce((a, s) => a + (s.t1 - s.t0), 0); })() };
+  const ledge = { corridor: (() => { const a = tM('U', 36, -14.5); const b = tM('U', 14, -9.5); return b - a; })(), ledgeT: (() => { const r = rt('S-LEDGE'); let _t = 0; for (const s of r.segs) { if (s.t1 < 0) continue; } const idx = r.segs.findIndex((s) => s.link === 'LEDGE'); return r.segs.slice(0, idx + 3).reduce((a, s) => a + (s.t1 - s.t0), 0); })() };
   const e1 = rt('EX-1').total, e2 = rt('EX-2').total, e3 = rt('EX-3').total;
   R.disc = { xCh, xV, ledge, e1, e2, e3, rise: rt('S-RISER').total };
   row('stealth', 21, 'Three discoveries: two save 15 s or more over the main route, the third is a deliberate safe slow route', xCh.m - xCh.chute >= 15 && xV.m - xV.v >= 15, `X1 coke chute: ${f1(xCh.chute)} s against ${f1(xCh.m)} s by hatch and tunnel (saves ${f1(xCh.m - xCh.chute)} s); X2 V shaft and catwalk to the Gallery east: ${f1(xV.v)} s against ${f1(xV.m)} s by the stair B, the hall lanes and S1 (saves ${f1(xV.m - xV.v)} s); X3 the window ledge round the lit corridor: ${f1(ledge.ledgeT)} s against ${f1(ledge.corridor)} s by the corridor (slower, dark, seen only by the yard guards). Also known after one pass: trench and riser R1 (${f1(rt('S-RISER').total)} s from the cage end to the Test room), roof ladder RL, PD, GD, FD1 from inside, E2 by the trench (${f1(e2)} s against ${f1(e1)} s for E1).`);
@@ -457,7 +493,19 @@ export function analyse() {
   }
   const apDist = D.panels.map((a) => ({ id: a.id, d: Math.min(...D.hides.filter((h) => h.level === a.level).map((h) => rectDist(h.rect, a.x, a.z))) }));
   R.first90 = first90[0];
-  row('stealth', 22, 'Easy first 90 s; a hide spot within 10 m of every alarm trigger', first90[0].los.length === 0 && apDist.every((a) => a.d <= 10), `Along M in the first 90 s guards with a line of sight to the player: ${first90[0].los.join(', ') || 'none'}; walking at gear 3 the highest awareness meter is ${first90[0].maxMeter.toFixed(2)}. Chapter 1 puts G2, G1 and G6 on the route by design (E1.2, E1.3). Alarm panels to the nearest hide: ${apDist.map((a) => `${a.id} ${f1(a.d)} m`).join(', ')}.`);
+  // revised rule 22: a guard visible from the start vantage, and no guard detects a player standing still at spawn within 90 s
+  const r22 = D.spawns.map((sp) => {
+    const pl = { lv: 'G', x: sp.x, z: sp.z, crouched: false, speed: 0 };
+    const light = ctx.light('G', sp.x, sp.z);
+    const act = ctx.activeSet([1]);
+    const mm = ctx.guards.map(() => ({ m: 0, since: 0 }));
+    let peak = 0;
+    for (let T = 0; T < 90; T += 0.1) ctx.guards.forEach((g, k) => { if (!act.has(g.id)) return; const sg = sightOf(ctx, g, guardPosAt(ctx, g, T), pl, light); mm[k] = stepMeter(mm[k], sg.rate, 0.1); if (mm[k].m > peak) peak = mm[k].m; });
+    const sees = (r2.find((x) => x.s === sp.id) || { sees: [] }).sees;
+    return { id: sp.id, sees, peak, ok: sees.length >= 1 && peak < 1 };
+  });
+  R.r22 = r22;
+  row('stealth', 22, 'A guard visible from the start vantage; no detection of a player standing at spawn within 90 s; a hide spot within 10 m of every alarm trigger (revised)', r22.every((x) => x.ok) && apDist.every((a) => a.d <= 10), `${r22.map((x) => `${x.id}: sees ${x.sees.join('/') || 'no guard'}, highest meter standing still for 90 s ${x.peak.toFixed(2)}`).join('; ')}. Alarm panels to the nearest hide: ${apDist.map((a) => `${a.id} ${f1(a.d)} m`).join(', ')}.`);
 
   // ------------------------------------------------------------------ rule 23: co-op helps never gates
   const solo = D.coop.every((c) => c.solo && c.co);
@@ -483,6 +531,28 @@ export function analyse() {
   R.exitHop = { exHop, exBase, exOff };
   row('stealth', 26, 'Two exits that change with play', exOff.longest > exBase.longest + 3 && D.extraction.length >= 2, `E1 the van at Gv (${f1(D.extraction[0].x)}, ${f1(D.extraction[0].z)}) and E2 the lane gate Gp (${f1(D.extraction[1].x)}, ${f1(D.extraction[1].z)}). Gv is locked 60 s on an alarm (lock ALARM60) and R1 and R2 arrive there, so E2 by the trench, Goods-in and PD (${f1(e2)} s) or the roof and RL (${f1(e3)} s) takes over; the whole yard east run in one go (${lvpt(exHop.a)} -> ${pt(exHop.b)}, ${f1(exHop.len)} m, no cover on the way) has a clear start window of ${f1(exBase.longest)} s with C10 on and ${f1(exOff.longest)} s with C10 off (SW10 at GD); a body found in the yard sends G1 to AP3 (circuits sheet).`);
 
+  // ------------------------------------------------------------------ rule 27: the camera boom never collides along a route
+  // samples every 1 m along each walked leg, standing and crouched, facing along the leg; within 1.5 m of a link end the attach camera preset frames it
+  const cam = [];
+  let camN = 0;
+  for (const r of D.routes) {
+    const rtc = ctx.routes[r.id];
+    if (!rtc || rtc.error) continue;
+    const ends = rtc.segs.filter((q) => q.link).flatMap((q) => { const L = D.links.find((l) => l.id === q.link); return L ? [L.a, L.b] : []; });
+    for (const sg of rtc.segs) {
+      if (sg.link || sg.hold) continue;
+      const fx = sg.b[0] - sg.a[0], fz = sg.b[1] - sg.a[1], len = hyp(fx, fz);
+      if (len < 1e-6) continue;
+      for (let d = 0; d <= len; d += 1) {
+        const x = sg.a[0] + (fx * d) / len, z = sg.a[1] + (fz * d) / len;
+        if (ends.some((e) => e[0] === sg.lv && hyp(e[1] - x, e[2] - z) < 1.5)) continue;
+        for (const crouch of [false, true]) { camN++; const c = W.cameraClear(sg.lv, x, z, fx, fz, CAMERA, crouch); if (!c.ok) cam.push(`${r.id} ${sg.lv} (${f1(x)}, ${f1(z)}) ${crouch ? 'crouched' : 'standing'} ${c.part}`); }
+      }
+    }
+  }
+  R.cam = { n: camN, hits: cam };
+  row('stealth', 27, 'The camera boom never collides along any route, standing and crouched (new)', cam.length === 0, `${camN} camera tests (every 1 m on ${D.routes.length} routes, standing and crouched; shoulder ${CAMERA.shoulderHip} m right, boom ${CAMERA.boomHip} m, from config/camera.ts; walls, door frames, glass, rails and props): ${cam.length} collisions${cam.length ? ': ' + cam.slice(0, 8).join('; ') : ''}.`);
+
   // ------------------------------------------------------------------ scale sheet
   const corr = D.spaces.filter((s) => ['corr', 'tunnel', 'catwalk'].includes(s.kind)).map((s) => ({ id: s.id, w: Math.min(s.rect[2] - s.rect[0], s.rect[3] - s.rect[1]) }));
   const corrMin = Math.min(...corr.map((c) => c.w));
@@ -490,7 +560,7 @@ export function analyse() {
   for (const lv of W.levels) for (const axis of ['x', 'z']) {
     const byAt = {};
     for (const o of doorList.filter((d) => d.level === lv && d.axis === axis)) (byAt[o.at] ||= []).push(o);
-    for (const [at, os] of Object.entries(byAt)) { os.sort((a, b) => a.c - b.c); for (let i = 1; i < os.length; i++) spacing.push({ a: os[i - 1].id, b: os[i].id, d: os[i].c - os[i - 1].c }); }
+    for (const [_at, os] of Object.entries(byAt)) { os.sort((a, b) => a.c - b.c); for (let i = 1; i < os.length; i++) spacing.push({ a: os[i - 1].id, b: os[i].id, d: os[i].c - os[i - 1].c }); }
   }
   const tightDoors = spacing.filter((s) => s.d < 3.0);
   const cornerDoors = [];
@@ -506,7 +576,7 @@ export function analyse() {
   const target = { 1: 60, 2: 35, 3: 50, 4: 60, 5: 55, 6: 60, 7: 65, 8: 50 };
   R.lightTarget = target;
   const l1 = R.lightByChapter.map((c) => ({ id: c.id, ls: c.litSighted, lit: c.lit }));
-  row('light', 'L1', 'At least half of every chapter\'s route is lit and inside a guard\'s sightline', l1.every((c) => c.ls >= 0.5), l1.map((c) => `ch${c.id} lit and sighted ${Math.round(c.ls * 100)}% (lit ${Math.round(c.lit * 100)}%)`).join('; ') + '. The mission doc\'s own light map targets (about 35% lit in chapter 2, 10% on the roof) cannot satisfy this literal rule, so it is reported as it stands.');
+  row('light', 'L1', 'At least half of every chapter\'s route is lit and inside a guard\'s sightline', 'WAITING', 'Waiting on Michael. Conflict: the mission doc\'s light map (35% lit in chapter 2, 10% on the roof) and rule 13 (dark objectives) cannot hold with half of every chapter lit and sighted. Measured: ' +  l1.map((c) => `ch${c.id} lit and sighted ${Math.round(c.ls * 100)}% (lit ${Math.round(c.lit * 100)}%)`).join('; ') + '.');
   const darkAll = Object.entries(R.cover).filter(([k]) => k !== 'EX-3' && k !== 'R6A').map(([k, c]) => [k, c.darkMax]);
   row('light', 'L2', 'Dark pockets or hide spots every 8 m or less; no dark stretch over 12 m (except the roof)', gapMax <= 8 + 1e-6 && Math.max(...darkAll.map((d) => d[1])) <= 12 + 1e-6, `Cover gap ${f1(gapMax)} m (see rule 15); longest dark stretch off the roof ${f1(Math.max(...darkAll.map((d) => d[1])))} m (${darkAll.map((d) => d[0] + ' ' + f1(d[1])).join(', ')}); on the roof lane ${f1(R.cover.R6A.darkMax)} m (allowed).`);
   // L3
@@ -524,10 +594,10 @@ export function analyse() {
   row('light', 'L4', 'Light actions have consequences (10 to 20 s guard reaction; two light actions make the chapter heightened)', D.circuits.every((c) => c.reaction.durationS >= 8 && c.reaction.durationS <= 20), `All ${D.circuits.length} circuits list a guard, an action and 8 to 15 s of search (circuit table); a shot lamp sends the nearest guard to it for 8 s. The heightened state (two light actions in one chapter: each guard adds a waypoint at the dark spot for 60 s) is a runtime rule stated in the mission doc, not a plan property: it needs M2 (flagged, not testable here).`);
   // L5
   const colMax = (() => { const cols = {}; for (const l of D.lamps) { const k = `${l.level}|${Math.floor(l.x / 2)}|${Math.floor(l.z / 2)}`; cols[k] = (cols[k] || 0) + 1; } return Math.max(...Object.values(cols)); })();
-  const perCh = chapters.map((c) => { const set = new Set(); for (const p of Ms.filter((q) => q.chapter === c.id)) for (const l of D.lamps) if (l.level === p.lv && hyp(l.x - p.x, l.z - p.z) < l.r * 0.7) set.add(l.circuit); return { id: c.id, n: set.size, c: [...set] }; });
+  const perCh = chapters.map((c) => { const set = new Set(); for (const p of Ms.filter((q) => q.chapter === c.id)) for (const l of D.lamps) if (l.level === p.lv && hyp(l.x - p.x, l.z - p.z) < l.r * 0.7) set.add(l.circuit); return { id: c.id, n: set.size, c: [...set], sw: [...set].filter((x) => x !== 'E').length }; });
   R.perCh = perCh;
-  row('light', 'L5', 'Lamps are a limited resource: 3 to 4 circuits per chapter, about 40 lamps; the desktop limit', D.lamps.length <= 48 && perCh.every((c) => c.n >= 3 && c.n <= 4) && colMax <= 8, `${D.lamps.length} lamps (${D.lamps.filter((l) => l.circuit === 'E').length} emergency, ${D.lamps.filter((l) => l.circuit !== 'E').length} switchable) in ${D.circuits.length} switchable circuits plus the emergency group; circuits that light each chapter's route: ${perCh.map((c) => `ch${c.id} ${c.n} (${c.c.join(',')})`).join('; ')}. Engine limits (light.md and src): ${48} dynamic real lights at a time (MAX_REAL_LIGHTS in world/lightRig.ts), baked lamps up to 8 per 2 m column; this map's densest 2 m column has ${colMax}. The count is over the 'about 40' target.`);
-  row('light', 'L6', 'Night vision\'s glow shows you to a guard within a short range', false, 'The engine has no such rule: night vision changes rendering only (game/vision.ts, vfx night auto-gain) and perception reads light, stance and speed only (ai/perception.ts). Nothing in the plan can show it. Assumption for the build: glow radius 6 m, guard sight rate x2 inside it (NEW-small). FAIL until built.');
+  row('light', 'L5', 'Lamps are a limited resource: about 40 lamps (36 to 44), at least one switchable circuit per chapter, the desktop limit (revised)', D.lamps.length >= 36 && D.lamps.length <= 44 && perCh.every((c) => c.sw >= 1) && colMax <= 8, `${D.lamps.length} lamps (${D.lamps.filter((l) => l.circuit === 'E').length} emergency, ${D.lamps.filter((l) => l.circuit !== 'E').length} switchable) in ${D.circuits.length} switchable circuits plus the emergency group; circuits that light each chapter's route: ${perCh.map((c) => `ch${c.id} ${c.n} (${c.c.join(',')})`).join('; ')}. Engine limits (light.md and src): ${48} dynamic real lights at a time (MAX_REAL_LIGHTS in world/lightRig.ts), baked lamps up to 8 per 2 m column; this map's densest 2 m column has ${colMax}. Lamps that created no choice were cut (Michael, D1 revision).`);
+  row('light', 'L6', 'Night vision\'s glow shows you to a guard within a short range', 'DEFERRED', 'The engine has no such rule: night vision changes rendering only (game/vision.ts, vfx night auto-gain) and perception reads light, stance and speed only (ai/perception.ts). Nothing in the plan can show it. Deferred by Michael (D1 revision).');
 
   // ------------------------------------------------------------------ anti-sprint
   // A1: noise reach per 8 m segment of M, per gear
@@ -557,7 +627,7 @@ export function analyse() {
     return { g: g.n, share: reach / segs8.length, n: segs8.length, miss: miss.slice(0, 3) };
   });
   R.a1 = a1;
-  row('anti', 'A1', 'At run and sprint gears the noise radius reaches a guard on 80% or more of the route\'s 8 m segments', a1[1].share >= 0.8 && a1[2].share >= 0.8, a1.map((g) => `${g.g}: ${Math.round(g.share * 100)}% of ${g.n} segments`).join('; ') + `. A guard counts if he comes within the noise radius (x surface: grate 1.4, gravel 1.3, carpet 0.6; x 0.45 through a wall or floor) at some moment of his 40 s loop. Gear 6 is the sprint (9 m); gear 5 (5.0 m) is the 'run'.`);
+  row('anti', 'A1', 'At run and sprint gears the noise radius reaches a guard on 80% or more of the route\'s 8 m segments', a1[1].share >= 0.8 && a1[2].share >= 0.8 ? true : 'RELAXED', a1.map((g) => `${g.g}: ${Math.round(g.share * 100)}% of ${g.n} segments`).join('; ') + `. A guard counts if he comes within the noise radius (x surface: grate 1.4, gravel 1.3, carpet 0.6; x 0.45 through a wall or floor) at some moment of his 40 s loop. Gear 6 is the sprint (9 m); gear 5 (5.0 m) is the 'run'.${a1[1].share >= 0.8 && a1[2].share >= 0.8 ? '' : ' Relaxed by Michael (D1 revision): the sprint bot still fails the route, which is what A1 protects.'}`);
   // A2
   const runs = [];
   { let s0 = null; for (let i = 0; i < Ms.length; i++) { const p = Ms[i]; if (p.lit && p.by.length) { if (s0 === null) s0 = i; } else if (s0 !== null) { runs.push([s0, i - 1]); s0 = null; } } if (s0 !== null) runs.push([s0, Ms.length - 1]); }
@@ -577,12 +647,12 @@ export function analyse() {
   const holds = D.objectives.map((o) => o).concat(D.routes.flatMap((r) => r.pts.filter((p) => p.hold && !['O1 P1', 'CP P2', 'O2 P3', 'hatch H', 'CG cut'].includes(p.label)).map((p) => ({ id: r.id + ':' + (p.label || 'hold'), level: p.lv, x: p.x, z: p.z, hold: p.hold }))));
   const holdRows = holds.map((o) => {
     const by = sightedBy(ctx, { lv: o.level, x: o.x, z: o.z });
-    const near = ctx.guards.filter((g) => g.level === o.level && Math.min(...gpath[g.id].map((p) => hyp(p[0] - o.x, p[1] - o.z))) < 4).map((g) => g.id);
+    const near = ctx.guards.filter((g) => g.level === o.level && Math.min(...gpath[g.id].map((p) => hyp(p[0] - o.x, p[1] - o.z))) < HOLD_NOISE_RADIUS).map((g) => g.id);
     return { id: o.id, hold: o.hold, by, near, ok: o.hold >= 3 && o.hold <= 5 && (by.length || near.length) };
   });
   const seen = new Set(); const holdU = holdRows.filter((h) => { const k = h.id; if (seen.has(k)) return false; seen.add(k); return true; });
   R.a3 = holdU;
-  row('anti', 'A3', 'Every interaction is a hold of 3 to 5 s, inside a guard\'s hearing (4 m, the door noise radius is 2 to 10 m) or sight', holdU.every((h) => h.ok), holdU.map((h) => `${h.id} ${h.hold} s, seen by ${h.by.join('/') || '-'}, guard path within 4 m: ${h.near.join('/') || '-'}${h.ok ? '' : ' FAIL'}`).join('; '));
+  row('anti', 'A3', `Every interaction is a hold of 3 to 5 s, inside a guard's hearing (HOLD_NOISE_RADIUS ${HOLD_NOISE_RADIUS} m, config/noise.ts) or sight`, holdU.every((h) => h.ok), holdU.map((h) => `${h.id} ${h.hold} s, seen by ${h.by.join('/') || '-'}, guard path within 4 m: ${h.near.join('/') || '-'}${h.ok ? '' : ' FAIL'}`).join('; '));
   // A4
   const a4 = chapters.map((c) => {
     const ss = Ms.filter((p) => p.chapter === c.id);
@@ -597,7 +667,7 @@ export function analyse() {
   // ------------------------------------------------------------------ the bots
   R.sprint = sprintBot(ctx);
   R.timetable = timetableBot(ctx);
-  row('anti', 'A5', 'Forced waiting at most 35% of a known-route run, no single wait over 40 s', R.timetable.waitShare <= 0.35 && R.timetable.longestWaitS <= 40, `Timetable bot: ${f1(R.timetable.waitedS)} s waiting of ${f1(R.timetable.finishedAtS)} s (${(R.timetable.waitShare * 100).toFixed(1)}%), longest single wait ${f1(R.timetable.longestWaitS)} s (${R.timetable.waits.slice().sort((a, b) => b.s - a.s)[0] ? R.timetable.waits.slice().sort((a, b) => b.s - a.s)[0].at.join(' ') : '-'}).`);
+  row('anti', 'A5', 'Forced waiting 30-40% of a known-route run (Michael, D1 revision: about 12 min), no single wait over 40 s', R.timetable.waitShare >= 0.3 && R.timetable.waitShare <= 0.4 && R.timetable.longestWaitS <= 40, `Timetable bot: ${f1(R.timetable.waitedS)} s waiting of ${f1(R.timetable.finishedAtS)} s (${(R.timetable.waitShare * 100).toFixed(1)}%), longest single wait ${f1(R.timetable.longestWaitS)} s (${R.timetable.waits.slice().sort((a, b) => b.s - a.s)[0] ? R.timetable.waits.slice().sort((a, b) => b.s - a.s)[0].at.join(' ') : '-'}).`);
   // 12 guard variant (G13 and G14 cut)
   const ctx12 = makeCtx(D, { drop: ['G13', 'G14'] });
   R.sprint12 = sprintBot(ctx12);
@@ -611,6 +681,14 @@ export function analyse() {
   const slope = pts.reduce((a, r) => a + (r.mainP95 - base) / r.guards, 0) / pts.length;
   R.costFit = { base, slope, at3: (3.0 - base) / slope };
   // peak in play per chapter
+  // guard activation by chapter (Michael, D1 revision): solo = chapters c and c + 1; co-op = the furthest-behind and the furthest-ahead player
+  const actSolo = chapters.map((c) => ({ id: c.id, n: ctx.activeSet([c.id]).size, g: [...ctx.activeSet([c.id])] }));
+  let actCo = { n: 0 };
+  for (const b of chapters) for (const a of chapters) if (a.id >= b.id) { const set = ctx.activeSet([b.id, a.id]); if (set.size > actCo.n) actCo = { n: set.size, b: b.id, a: a.id, g: [...set] }; }
+  const msAt = (n) => base + slope * n;
+  R.active = { solo: actSolo, soloPeak: Math.max(...actSolo.map((x) => x.n)), co: actCo, reinf: D.guards.filter((g) => g.reinforcement).length, maxAlive: MAX_ALIVE, msAt };
+  R.active.cap = R.active.co.n + R.active.reinf;
+  row('stealth', 'cap', 'Live guard cap covers the activation peak (MAX_ALIVE in ai/enemyManager.ts)', MAX_ALIVE >= R.active.cap, `Solo peak ${R.active.soloPeak} (${actSolo.map((x) => 'ch' + x.id + ' ' + x.n).join(', ')}); co-op worst case ${actCo.n} (furthest behind ch${actCo.b}, ahead ch${actCo.a}: ${actCo.g.join(', ')}) plus ${R.active.reinf} reinforcements = ${R.active.cap}; MAX_ALIVE ${MAX_ALIVE}. Main thread p95 from the guard cost fit: ${msAt(R.active.soloPeak).toFixed(2)} ms solo peak, ${msAt(R.active.cap).toFixed(2)} ms at the cap (measured 12 guards: ${(gc.results.find((r) => r.guards === 12) || {}).mainP95} ms).`);
   R.inPlay = chapters.map((c) => {
     const ss = Ms.filter((p) => p.chapter === c.id);
     const set = new Set();
