@@ -782,8 +782,10 @@ See the Step 1 and Step 5 reports.
 - Tests (this PC, `E2E_GPU=1`): pass `e2e-darkness` (Epic now 0.3% at 0.12, 5.8% at 0.27, 32.3% at 0.40, 49.2% at
   0.70 - all within the targets; night vision 33.1% / 98.2%), `e2e-desktop`, `e2e-phonelamps`, `e2e-lightbake`, `smoke`.
   `perf.mjs --desktop --budget` passes (main thread 4.55 ms, frame p95 8.7 ms, 195 draws).
-- Next: **STOP** for Michael's desktop look check: darkness clean and smooth (no bands or speckle); then the open
-  decisions (items 15, 16).
+- Next: **STOP** for Michael's desktop look check: darkness clean and smooth (no bands or speckle).
+- Decisions (Michael, 2026-10-09): strip lamps as line sources become **Step 4c, before Step 5** (backlog 15; spec to be
+  written: it changes the one lamp formula, gameplay light, the bake, the phone volume and an engine fact). The night
+  vision realism ideas (backlog 16) go to **Phase 3 with thermal**; which ones is open.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
