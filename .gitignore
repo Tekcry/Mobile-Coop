@@ -8,3 +8,6 @@ dev-dist
 coverage
 test-results
 playwright-report
+
+# music render: downloaded CC0 source samples and intermediate WAVs (scripts/music)
+.music-cache

@@ -299,3 +299,30 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   -9.5 dBFS, RMS -21 dBFS, 16 voices). One run under heavy PC load counted 5 late events; the rerun had 0 on both
   devices.
 - Next: Michael listens to the spy takes. STOP.
+
+### S1 (direction v3): offline stems and the sketch picker
+- Michael (2026-10-09): does not like where the music is going; target the feel of the Chaos Theory score; V2 too
+  melody-first and too clean. Pause V2; texture and rhythm first; recorded CC0 material; chopped breaks; stems rendered
+  offline and crossfaded by threat; three sketches in a picker.
+- Done:
+  - Tag `music-v2-archive` (pushed) at the V2 head; the V2-only code deleted in its own commit (motif system, candidates,
+    orchestra, library, conductor, engine, scheduler, voices, offline export, mix). Kept: rng, dsp, wav, lab entry
+    points, `Music` facade (now a paused no-op), `e2e-music`.
+  - `docs/audio/music-direction-v3.md`; `docs/audio/samples.md` (107 CC0 files from VSCO 2 CE and VCSL, pinned commits).
+  - `scripts/music/`: `samples.json`, `fetch-samples.mjs` (`npm run music:fetch`), `render.mjs` (`npm run music:render`),
+    `encode-mp3.ps1` (Windows Media Foundation MP3, no ffmpeg).
+  - `src/audio/music/render/` (pure, node): WAV reader, circular canvas, varispeed hits, granular stretch, FDN reverb,
+    dub delay, tape, glitch edits, dust from recorded grains, break performance and chopping, loudness-based layering,
+    the three sketches. `src/audio/music/stemMix.ts` (threat to gains), `sketchPlayer.ts` (decode at 32 kHz, three
+    synced looping stems, crossfades), `musicLab.ts` (the sketch picker).
+  - Stems: `src/assets/music/sketches/` (9 MP3s, 8.79 MB, plus `sketches.json`).
+- Measured (PC, headless Chromium): 0.96 MB per stem-minute; load 0.2-0.35 s per sketch; 47 MB decoded per sketch;
+  60 s of three-stem playback renders offline in about 0.1 s (V2 combat: 13.9 s, plus 1.07 s main-thread library render).
+  Loop seams: at most 0.06 of the largest nearby sample step. **iPhone: pending Michael's run.**
+- Tests: `tests/musicRender.test.ts` (17: WAV reader, canvas wrap, varispeed, granular and effect seams, glitch edits,
+  grid, break chopping, loudness gating, stem mix); `scripts/e2e-music.mjs` rewritten (picker on phone and desktop, each
+  sketch loads three stems, state buttons and ladder, seams, playback cost, no console errors).
+- Phone check (Michael): open the lab on the iPhone, play A, B and C with the speaker and with headphones, move the
+  threat; note the load time on the status line, any crackle at the loop point (every 60 s), and whether the bass reads
+  on the speaker.
+- Next: Michael listens and picks. STOP.

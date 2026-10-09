@@ -13,7 +13,9 @@
     "icons": "node scripts/gen-icons.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:legacy": "node scripts/run-e2e.mjs --legacy",
-    "check": "npm run lint && npm test && npm run build"
+    "check": "npm run lint && npm test && npm run build",
+    "music:fetch": "node scripts/music/fetch-samples.mjs",
+    "music:render": "node scripts/music/render.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

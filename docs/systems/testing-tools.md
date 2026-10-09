@@ -129,7 +129,9 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     renderer booting in a match (`SHOTS=dir` saves the aspect screenshots)
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
-  - `scripts/e2e-music.mjs` (music project) the music lab (`?musiclab=1`) on phone emulation and desktop: boots with no console errors. Needs no GPU
+  - `scripts/e2e-music.mjs` (music project) the V3 sketch picker (`?musiclab=1`) on phone emulation and desktop: the picker
+    comes first, each sketch loads its three MP3 stems, Calm / Alert / Evasion and the ladder move the stem gains, every decoded
+    loop joins without a seam, the playback cost (60 s of three stems rendered offline), no console errors. Needs no GPU
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast. `e2e-lib` adds
   `?gfx=min` (every graphics feature off, DPR 1; not saved) unless the params name a `gfx=` (a preset, or `user`
   for the saved settings): the PC renderer at Epic on software GL takes seconds per frame.

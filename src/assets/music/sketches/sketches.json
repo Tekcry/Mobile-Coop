@@ -1,0 +1,90 @@
+{
+ "pad": 0.5,
+ "kbps": 128,
+ "sketches": [
+  {
+   "id": "A",
+   "name": "Drift",
+   "bpm": 80,
+   "bars": 20,
+   "loop": 60,
+   "about": "Sparse and ambient. Bowed-bass drone, sub, motor hum and dust, far-off metal in a long reverb. Caution adds plucked bass through a dub delay and a soft half-time pulse. Alert adds a brushed, chopped break and distorted bowed bass.",
+   "stems": {
+    "calm": {
+     "file": "A-calm.mp3",
+     "bytes": 977327
+    },
+    "caution": {
+     "file": "A-caution.mp3",
+     "bytes": 977327
+    },
+    "alert": {
+     "file": "A-alert.mp3",
+     "bytes": 977327
+    }
+   },
+   "stack": {
+    "calm": -32.1,
+    "caution": -26.1,
+    "alert": -20.1,
+    "peak": -3.1
+   }
+  },
+  {
+   "id": "B",
+   "name": "Breakline",
+   "bpm": 96,
+   "bars": 24,
+   "loop": 60,
+   "about": "Breakbeat-led. The break is always there: muffled behind a wall at calm, half-time and filtered at caution, fully chopped with stutters and a tape-stop at alert, over sub and gritty bowed bass.",
+   "stems": {
+    "calm": {
+     "file": "B-calm.mp3",
+     "bytes": 977327
+    },
+    "caution": {
+     "file": "B-caution.mp3",
+     "bytes": 975407
+    },
+    "alert": {
+     "file": "B-alert.mp3",
+     "bytes": 977327
+    }
+   },
+   "stack": {
+    "calm": -32.2,
+    "caution": -26.2,
+    "alert": -20.2,
+    "peak": -3.1
+   }
+  },
+  {
+   "id": "C",
+   "name": "Foundry",
+   "bpm": 84,
+   "bars": 21,
+   "loop": 60,
+   "about": "Heavy and industrial. Motor drone, chain grind and a frozen metal ring. Caution adds a slow pulse of big drum and anvil, creaks and a tritone tremolo. Alert adds a crushed, layered break, a distorted bass riff and timpani.",
+   "stems": {
+    "calm": {
+     "file": "C-calm.mp3",
+     "bytes": 975407
+    },
+    "caution": {
+     "file": "C-caution.mp3",
+     "bytes": 977327
+    },
+    "alert": {
+     "file": "C-alert.mp3",
+     "bytes": 977327
+    }
+   },
+   "stack": {
+    "calm": -32.4,
+    "caution": -26.4,
+    "alert": -20.4,
+    "peak": -3.1
+   }
+  }
+ ]
+}

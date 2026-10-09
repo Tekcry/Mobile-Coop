@@ -1,0 +1,550 @@
+{
+ "licence": "CC0-1.0",
+ "sources": {
+  "V": {
+   "repo": "sgossner/VSCO-2-CE",
+   "commit": "440300901dfe9275fd84e0b7763af1f8443ae62e"
+  },
+  "C": {
+   "repo": "sgossner/VCSL",
+   "commit": "c1ea7bcc3c7309650ab0da9d15c9cd1fbc4a4c7e"
+  }
+ },
+ "samples": [
+  {
+   "id": "bassPizzD",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Pizz/BKCtbss_Pizz_D1_v1_rr1.wav"
+  },
+  {
+   "id": "bassPizzD2",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Pizz/BKCtbss_Pizz_D1_v1_rr2.wav"
+  },
+  {
+   "id": "bassPizzC",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Pizz/BKCtbss_Pizz_C1_v3_rr1.wav"
+  },
+  {
+   "id": "bassPizzG",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Pizz/BKCtbss_Pizz_G0_v3_rr1.wav"
+  },
+  {
+   "id": "bassPizzA",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Pizz/BKCtbss_Pizz_A1_v1_rr1.wav"
+  },
+  {
+   "id": "bassPizzBb",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Pizz/BKCtbss_Pizz_A#0_v3_rr1.wav"
+  },
+  {
+   "id": "bassPizzE",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Pizz/BKCtbss_Pizz_E1_v3_rr1.wav"
+  },
+  {
+   "id": "bassArcoD",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/SusNV/BKCtbss_SusNV_D1_v1_rr1.wav"
+  },
+  {
+   "id": "bassArcoDf",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/SusNV/BKCtbss_SusNV_D1_v3_rr1.wav"
+  },
+  {
+   "id": "bassArcoBb",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/SusNV/BKCtbss_SusNV_A#0_v1_rr1.wav"
+  },
+  {
+   "id": "bassArcoG",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/SusNV/BKCtbss_SusNV_G0_v1_rr1.wav"
+  },
+  {
+   "id": "bassArcoA",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/SusNV/BKCtbss_SusNV_A1_v1_rr1.wav"
+  },
+  {
+   "id": "bassTremC",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Trem/BKCtbss_Trem_C1_v1_rr1.wav"
+  },
+  {
+   "id": "bassTremGs",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Trem/BKCtbss_Trem_G#1_v1_rr1.wav"
+  },
+  {
+   "id": "bassTremE",
+   "lib": "V",
+   "path": "Strings/Solo Contrabass/Trem/BKCtbss_Trem_E1_v1_rr1.wav"
+  },
+  {
+   "id": "celloD2",
+   "lib": "V",
+   "path": "Strings/Cello Section/susvib/susvib_D2_v1_1.wav"
+  },
+  {
+   "id": "celloA2",
+   "lib": "V",
+   "path": "Strings/Cello Section/susvib/susvib_A2_v1_1.wav"
+  },
+  {
+   "id": "celloD4",
+   "lib": "V",
+   "path": "Strings/Cello Section/susvib/susvib_D4_v1_1.wav"
+  },
+  {
+   "id": "celloTremD2",
+   "lib": "V",
+   "path": "Strings/Cello Section/trem/trem_D2_v1_1.wav"
+  },
+  {
+   "id": "celloTremA2",
+   "lib": "V",
+   "path": "Strings/Cello Section/trem/trem_A2_v1_1.wav"
+  },
+  {
+   "id": "pianoC2",
+   "lib": "V",
+   "path": "Keys/Upright Nr1/UR1_C2_pp_RR1.wav"
+  },
+  {
+   "id": "pianoG2",
+   "lib": "V",
+   "path": "Keys/Upright Nr1/UR1_G2_pp_RR1.wav"
+  },
+  {
+   "id": "pianoC3",
+   "lib": "V",
+   "path": "Keys/Upright Nr1/UR1_C3_pp_RR1.wav"
+  },
+  {
+   "id": "pianoG3",
+   "lib": "V",
+   "path": "Keys/Upright Nr1/UR1_G3_pp_RR2.wav"
+  },
+  {
+   "id": "pianoC4",
+   "lib": "V",
+   "path": "Keys/Upright Nr1/UR1_C4_mf_RR1.wav"
+  },
+  {
+   "id": "pianoG1",
+   "lib": "V",
+   "path": "Keys/Upright Nr1/UR1_G1_mf_RR1.wav"
+  },
+  {
+   "id": "metal1",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit1.wav"
+  },
+  {
+   "id": "metal2",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit2.wav"
+  },
+  {
+   "id": "metal3",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit3.wav"
+  },
+  {
+   "id": "metal4",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit4.wav"
+  },
+  {
+   "id": "metal5",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit5.wav"
+  },
+  {
+   "id": "metal6",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit6.wav"
+  },
+  {
+   "id": "metal7",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit7.wav"
+  },
+  {
+   "id": "metal8",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit8.wav"
+  },
+  {
+   "id": "metal9",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit9.wav"
+  },
+  {
+   "id": "metal10",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit10.wav"
+  },
+  {
+   "id": "metal11",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit11.wav"
+  },
+  {
+   "id": "metal13",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit13.wav"
+  },
+  {
+   "id": "metal14",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/metal_hit14.wav"
+  },
+  {
+   "id": "chainGrind",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/chain_grind.wav"
+  },
+  {
+   "id": "chainLoop",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/chain_loop.wav"
+  },
+  {
+   "id": "chainGrindLoop",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/chaingrindLoop.wav"
+  },
+  {
+   "id": "brickScrape",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/brick_scrape.wav"
+  },
+  {
+   "id": "brickScrape2",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/brick_scrape2.wav"
+  },
+  {
+   "id": "gongWeird",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/cymbgong_weird.wav"
+  },
+  {
+   "id": "cymbGong",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/cymb_gong.wav"
+  },
+  {
+   "id": "glass1",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/glass_break.wav"
+  },
+  {
+   "id": "glass3",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/glass_break3.wav"
+  },
+  {
+   "id": "zap1",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/zap1.wav"
+  },
+  {
+   "id": "zap5",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/zap5.wav"
+  },
+  {
+   "id": "zap9",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/zap9.wav"
+  },
+  {
+   "id": "zap12",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/zap12.wav"
+  },
+  {
+   "id": "ambience1",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/ambience1.wav"
+  },
+  {
+   "id": "timpSnare",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/timpsnare_mf.wav"
+  },
+  {
+   "id": "timpSnareTenor",
+   "lib": "V",
+   "path": "Miscellania Raw/Misc 1/timpsnare_tenor_ff.wav"
+  },
+  {
+   "id": "blower",
+   "lib": "V",
+   "path": "Keys/Organ/Rode_Blower.wav"
+  },
+  {
+   "id": "anvil",
+   "lib": "V",
+   "path": "Percussion/Anvil_Hit1_v2_Sum.wav"
+  },
+  {
+   "id": "brake1",
+   "lib": "V",
+   "path": "Percussion/BrakeDrum1_Hammer_v1_Sum.wav"
+  },
+  {
+   "id": "brake2",
+   "lib": "V",
+   "path": "Percussion/BrakeDrum1_Hammer_v2_Sum.wav"
+  },
+  {
+   "id": "gongScrape",
+   "lib": "V",
+   "path": "Percussion/gongscrape_mf.wav"
+  },
+  {
+   "id": "gongScrapePp",
+   "lib": "V",
+   "path": "Percussion/gongscrape_pp.wav"
+  },
+  {
+   "id": "cymbBow1",
+   "lib": "V",
+   "path": "Percussion/susCymb1-bow-1.wav"
+  },
+  {
+   "id": "cymbBow3",
+   "lib": "V",
+   "path": "Percussion/susCymb1-bow-3.wav"
+  },
+  {
+   "id": "cymbScrape1",
+   "lib": "V",
+   "path": "Percussion/susCymb1-scrape1_v1.wav"
+  },
+  {
+   "id": "cymbScrape2",
+   "lib": "V",
+   "path": "Percussion/susCymb1-scrape2_v1.wav"
+  },
+  {
+   "id": "bdRub1",
+   "lib": "V",
+   "path": "Percussion/bassdrum_rub1_v1.wav"
+  },
+  {
+   "id": "bdRub3",
+   "lib": "V",
+   "path": "Percussion/bassdrum_rub3_v1.wav"
+  },
+  {
+   "id": "ratchetSlow",
+   "lib": "V",
+   "path": "Percussion/Ratchet1-Slow_v1_rr1_Sum.wav"
+  },
+  {
+   "id": "guiroSlow",
+   "lib": "V",
+   "path": "Percussion/Guiro-Slow_v1_Sum.wav"
+  },
+  {
+   "id": "timpD",
+   "lib": "V",
+   "path": "Percussion/Timpani/Timpani2_Hit_v3_rr1_Sum.wav"
+  },
+  {
+   "id": "gongP",
+   "lib": "V",
+   "path": "Percussion/gongHit_p.wav"
+  },
+  {
+   "id": "kickBig",
+   "lib": "V",
+   "path": "Percussion/BDrumNewhit_v5_rr1_Sum.wav"
+  },
+  {
+   "id": "kickBig2",
+   "lib": "V",
+   "path": "Percussion/BDrumNewhit_v7_rr1_Sum.wav"
+  },
+  {
+   "id": "kickMuted",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/bass/bdrum_muted_ff_1.wav"
+  },
+  {
+   "id": "kickMutedMf",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/bass/bdrum_muted_mf_1.wav"
+  },
+  {
+   "id": "snareOld",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/OldSnare/snare_f.wav"
+  },
+  {
+   "id": "snareOldP",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/OldSnare/snare_p.wav"
+  },
+  {
+   "id": "snare1",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/drum1/snare1_f_3.wav"
+  },
+  {
+   "id": "snare1pp",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/drum1/snare1_pp_1.wav"
+  },
+  {
+   "id": "snareRim",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/drum1/snare1_rimshot_mf.wav"
+  },
+  {
+   "id": "snareClick",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/drum1/snare1_click.wav"
+  },
+  {
+   "id": "snareNoSn",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/drum1/snare1_nosnare_mf_1.wav"
+  },
+  {
+   "id": "snare2",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/drum2/snare2_f_1.wav"
+  },
+  {
+   "id": "snare2p",
+   "lib": "V",
+   "path": "VSCO 1 Percussion/drums/snare/drum2/snare2_p_1.wav"
+  },
+  {
+   "id": "snareM5",
+   "lib": "C",
+   "path": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v5_rr1_Mid.wav"
+  },
+  {
+   "id": "snareM7",
+   "lib": "C",
+   "path": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitSN_v7_rr2_Mid.wav"
+  },
+  {
+   "id": "snareGhost",
+   "lib": "C",
+   "path": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_HitNS_v2_rr1_Mid.wav"
+  },
+  {
+   "id": "snareStick",
+   "lib": "C",
+   "path": "Membranophones/Struck Membranophones/Snare Drum, Modern 1/Snare2_stick_v1_rr1_Mid.wav"
+  },
+  {
+   "id": "hatC1",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v1_rr1_Mid.wav"
+  },
+  {
+   "id": "hatC2",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v2_rr2_Mid.wav"
+  },
+  {
+   "id": "hatC3",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitC_v3_rr1_Mid.wav"
+  },
+  {
+   "id": "hatClose",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_Close_rr1_Mid.wav"
+  },
+  {
+   "id": "hatLoose",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitLoose_rr1_Mid.wav"
+  },
+  {
+   "id": "hatOpen",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Hi-Hat Cymbal/HiHat_HitO_rr1_Mid.wav"
+  },
+  {
+   "id": "clap1",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Claps/Clap_rr1.wav"
+  },
+  {
+   "id": "clap4",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Claps/Clap_rr4.wav"
+  },
+  {
+   "id": "cajonLow",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Cajon/Cajon_hit1_f_rr1.wav"
+  },
+  {
+   "id": "cajonHi",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Cajon/Cajon_hit3_mp_rr1.wav"
+  },
+  {
+   "id": "frameMuted",
+   "lib": "C",
+   "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_HitMuted_v3_rr1_Sum.wav"
+  },
+  {
+   "id": "frameLow",
+   "lib": "C",
+   "path": "Membranophones/Struck Membranophones/Frame Drum/HDrumL_Hit_v3_rr1_Sum.wav"
+  },
+  {
+   "id": "kickVcsl",
+   "lib": "C",
+   "path": "Membranophones/Struck Membranophones/Bass Drum 1/BDrumNew_hit_v5_rr2_Sum.wav"
+  },
+  {
+   "id": "shakerDown",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerDouble_Down_rr1.wav"
+  },
+  {
+   "id": "shakerUp",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Shaker, Small/Mid_ShakerHighFaster_Up_rr1.wav"
+  },
+  {
+   "id": "woodClick",
+   "lib": "C",
+   "path": "Idiophones/Struck Idiophones/Woodblock/wood_click_pp_rr1.wav"
+  },
+  {
+   "id": "ocean1",
+   "lib": "C",
+   "path": "Membranophones/Other Membranophones/Ocean Drum/OceanDrum_Sus_2_Mid.wav"
+  },
+  {
+   "id": "glassD5",
+   "lib": "C",
+   "path": "Idiophones/Friction Idiophones/Wine Glasses/Sustains/Slow/glass4_D5_Slow_2_Main.wav"
+  },
+  {
+   "id": "glassDs4",
+   "lib": "C",
+   "path": "Idiophones/Friction Idiophones/Wine Glasses/Sustains/Slow/glass1_D#4_Slow_1_Main.wav"
+  }
+ ]
+}
