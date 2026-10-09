@@ -336,7 +336,8 @@ All stems duck by 12 dB and a low-pass closes to 800 Hz over 0.3 s. The sequence
 ### 7.1 State mapping (adapter)
 
 The code's `AlertLevel` (`src/ai/alertState.ts`) is `unaware | suspicious | investigating | searching | alert |
-cooldown`. The adapter takes the highest level among the guards the HUD presents and maps it:
+cooldown`. The adapter takes the highest level among all living guards (Michael, 2026-10-09: all guards, as in Chaos Theory) and
+maps it:
 
 | Guard state (highest) | Music state |
 | --- | --- |
@@ -353,12 +354,13 @@ cooldown`. The adapter takes the highest level among the guards the HUD presents
 
 ### 7.2 Never reveal
 
-- Music reacts only to things the game already shows: awareness arcs and indicators, alert states, alarms, radio
-  events. If the HUD hides a guard's state, the music ignores it.
+- **Michael's rule (2026-10-09): music follows every guard's alert state,** including guards with no awareness arc
+  (one who heard the player through a wall, one searching out of sight). This is the Chaos Theory behaviour: the music
+  tells the player that someone is uneasy or hunting, never who, how many or where.
 - **No count, no distance, no direction.** Intensity never scales with how many guards are alert or how close they
   are (the old `alive / 5` rule is removed because it leaked the enemy count). No music is panned toward a guard.
-- **Calm stays calm.** A guard noticing the player at a level below the HUD's first indicator does not change the
-  music.
+- **Calm stays calm.** A guard's meter rising while still `unaware` does not change the music; only a state change
+  does.
 - **Stingers** fire only on events that also show on screen or on the radio.
 
 ### 7.3 The Confrontation (bible 5.15)
