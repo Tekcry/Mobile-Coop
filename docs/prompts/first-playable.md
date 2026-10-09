@@ -45,7 +45,7 @@ FIRST PLAYABLE = in this milestone. PARKED = no work until after the playtest (M
 - Phase 5 Co-op 2-4: FIRST PLAYABLE as S7a, S7a2, S7b, S8 (only the parts listed there); sync takedown is S9, after the first playtest. Lobby polish, co-op extras (`coopExtras`), team moves beyond what exists: PARKED.
 - Phase 6 CT verbs for the slice (new verbs): PARKED. Existing CT movement stays; the greybox does not require split jumps, rappel or secret routes.
 - Phase 6b visual target: PARKED. Phase 7 vertical slice, map phases 4-6 (dressing, readability, civilians, medkits, radio): PARKED.
-- Exchange alignment pass (`exchange-alignment.md`): PARKED except what S1 needs (light plan, 4 spawns).
+- Exchange alignment pass (`exchange-alignment.md`): PARKED except what S1c-v2 needs (light plan, 4 spawns).
 - Warehouse and the other maps as playtest maps: DROPPED from the playtest (they stay in the build).
 
 ### Backlog (`docs/backlog.md`)
@@ -62,8 +62,8 @@ FIRST PLAYABLE = in this milestone. PARKED = no work until after the playtest (M
 
 ## 2. Dependency notes (changes from the order Michael gave)
 
-- **S1 is split into S1a, S1b, S1c**, **S3 into S3a, S3b** and **S7 into S7a, S7a2, S7b**: one Sonnet session each, no step touches more than about 12 files.
-- Order otherwise unchanged. The map must exist first (S1), guards need lights (S2) and the player verbs (S3a, S4; S3b if it survives) to be tested properly in S5.
+- **S1 is replaced by R1, R2, R3 and S1c-v2** (Exchange layout v2, `docs/prompts/exchange-layout-v2.md`, approved by Michael 2026-10-10; the S1a and S1b room layout is superseded), **S3 is split into S3a, S3b** and **S7 into S7a, S7a2, S7b**: one Sonnet session each, no step touches more than about 12 files.
+- Order otherwise unchanged. The map must exist first (R1-R3, S1c-v2), guards need lights (S2) and the player verbs (S3a, S4; S3b if it survives) to be tested properly in S5.
 - S2 and S4 are mostly "make the existing system work on the Exchange and under the first-playable rules": switches, shot lamps, carry, hide spots and takedowns already exist (`stealthSystems.ts`, `takedown*.ts`), so they are small.
 - Single-player and the Exchange work end to end before any co-op step (S6 before S7a). S9 (sync takedown) moves after S10 and the first playtest. Co-op is never a prerequisite for a solo step.
 - The existing `?autostart=exchange&mode=infiltration` boot path is the test entry for every step. Co-op tests use `?net=local` (BroadcastChannel between tabs, `src/net/localTransport.ts`) with `scripts/e2e-coop.mjs` as the pattern.
@@ -74,49 +74,59 @@ FIRST PLAYABLE = in this milestone. PARKED = no work until after the playtest (M
 
 Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "Hand check" is what Michael does on his PC (`npm run dev`, open `/?autostart=exchange&mode=infiltration`; co-op: add `&net=local` in several tabs once S7a exists).
 
-### S1a - Exchange greybox: shell, ground floor, tunnel (Sonnet)
-**First, before anything else:** confirm `docs/prompts/exchange-design.md`, `docs/prompts/exchange-map.md` and every `docs/prompts/exchange-plans/*.svg` (`basement`, `ground`, `first`, `roof` and the four `-gameplay` versions) exist. If any is missing, STOP and tell Michael.
-**Goal.** The ground floor and cable tunnel of the Kestrel Exchange as walkable blocks, listed as a map.
-**Read.** `docs/prompts/exchange-design.md` Sections 2 (Basement, Ground floor) and 10 Spaces 1-4; `docs/prompts/exchange-plans/ground.svg`; `docs/prompts/exchange-map.md` "Construction rules" and "Target numbers"; `src/world/mapDef.ts`; `src/world/maps/warehouse.ts` (build pattern); `src/world/maps/index.ts`, `listed.ts`; `src/world/levelBuilder.ts` (grep the `box`, `room`, `door`, `light` methods); `src/world/rooms.ts`.
-**Files.** New `src/world/maps/exchange.ts` (`EXCHANGE_MAP`, build split into `buildGround`, later `buildFirst`, `buildRoof`); `src/world/maps/index.ts`, `listed.ts`; a unit test `tests/exchangeMap.test.ts`.
-**Do.** Real proportions from the design (1.8-2.4 m corridors, 0.9-1.0 x 2.1 m doors, 6 m column grid, ground y 0, first floor y 4.5, roof 9.0). Spaces 1-4: cable tunnel and chamber, MDF hall, battery and power rooms, light well, each as one `RoomDef` (`cable`, `mdf`, `power`, `well`). Real doors, plus a stair core (1.2 m wide, rise 0.17 run 0.28) to the first floor. Theme: night, `lightLevel` 0.1, `faction: 'urban'`, `modes: ['infiltration','sandbox']`. Skip: MDF frame tops, runways, trenches, ducts, drainpipes, string courses, secret routes. Leave floor-plane space for 3 player routes through the MDF hall (two aisles plus the cross aisle).
+### R1 - Exchange v2: basement and ground floor (Sonnet)
+**Goal.** Rebuild the basement and ground floor of `src/world/maps/exchange.ts` to `docs/prompts/exchange-layout-v2.md`; remove the old S1a layout; keep the map registration, the `exchange-greybox` mission entry, the fullbright flag and the `e2e-fp-map` suite.
+**Read.** `exchange-layout-v2.md` (Corridors, Spaces, Vertical links, Doors, Routes A); the existing `exchange.ts`, `tests/exchangeMap.test.ts` and `scripts/e2e-fp-map.mjs`; grep `src/world/levelBuilder.ts` for `box`, `room`, `door`, `stair`.
+**Files.** `src/world/maps/exchange.ts`, `tests/exchangeMap.test.ts`, `scripts/e2e-fp-map.mjs`, `docs/progress.md` and `CHANGELOG.md` lines.
+**Do.** Build the basement and ground spaces, C, B (basement to ground), M (ground only for now), V (basement to ground), R (basement to ground), the plant ramp and the coke stair, and all listed doors. Greybox blocks only, doors on half-metre centres.
 **Acceptance.**
-1. `?autostart=exchange&mode=sandbox` boots with 0 console errors and the operator stands in the cable chamber.
-2. Unit test: every room's centre is reachable from the first player spawn over the nav grid (use `navBuild.ts` the way `tests` for other maps do; grep `tests/` for a reachability test to copy) including the stair to y 4.5.
-3. No two walkable surfaces closer than 2.4 m in one column except stair runs (test or documented in the unit test).
-4. `npm run check` passes.
-**Smoke.** `scripts/e2e-fp-map.mjs`: boot the map, assert room ids `cable`, `mdf`, `power`, `well` exist, the player has a floor under it, and no console errors. (Extended in S1b and S1c.)
-**Hand check.** Walk cable chamber to MDF hall to battery room to light well to the stair. Anything you cannot walk through or get stuck on: note it.
+1. `?autostart=exchange&mode=sandbox&fullbright=1` boots with 0 console errors and the operator is in the spawn tunnel.
+2. Unit test: every basement and ground room centre is reachable from spawn 1, and routes A1, A2 and A3 hold hop by hop.
+3. No two walkable surfaces closer than 2.4 m in one column except stair runs.
+4. `npm run check` and `e2e:quick` pass (known-flaky suites excepted).
+**Smoke.** Update `e2e-fp-map` with the new room ids and teleports.
+**Hand check.** Spawn tunnel, chamber, C up to the MDF hall; chamber, spine, B stair up; walk the ring and the cross corridor; ride the V shaft from the battery hall to the transmission room.
 
-### S1b - Exchange greybox: first floor, roof, yard (Sonnet)
-**Goal.** Upper storey, roof and yard blocks, joined to S1a.
-**Read.** `exchange-design.md` Sections 2 (First floor, Roof) and 10 Spaces 5-8; `exchange-plans/first.svg`, `roof.svg`, `first-gameplay.svg`, `roof-gameplay.svg`; the S1a `exchange.ts`.
-**Files.** `src/world/maps/exchange.ts`, `tests/exchangeMap.test.ts`, `scripts/e2e-fp-map.mjs`.
-**Do.** Rooms `switchroom`, `offices`, `servers`, `roof`, plus the yard as a room (`yard`). Server hall with a chain-link-height cage (a 2.4 m fence block) around the core switch. Offices: a T-junction corridor with interconnecting office doors. Roof: parapet 1.0 m, tank room, a hatch route down by stair (no ladder or rappel needed), and the stair or external steel stair to the yard. Yard: van block, pallets as cover, a gate. Routes: the design's loud route (main stair), the switchroom window route may be a plain door; keep at least TWO ways between ground and first floor (central stair plus a second stair from the power room gallery or the yard), and in the server hall at least three lanes (stripped racks, cross aisles, cage perimeter) so 4 players do not queue.
+### R2 - Exchange v2: first floor and roof (Sonnet)
+**Goal.** Build the first floor and roof to the spec and finish the vertical links.
+**Read.** `exchange-layout-v2.md` (First floor, Roof, Vertical links, Doors, Routes B, Co-op places); `exchange.ts` from R1.
+**Files.** `src/world/maps/exchange.ts`, `tests/exchangeMap.test.ts`, `scripts/e2e-fp-map.mjs`, `docs/progress.md` and `CHANGELOG.md` lines.
+**Do.** First-floor spaces and the MDF void with its rail; the cage with the core switch placeholder and K1 and K2 inert interactable markers; B and M tops; V and R up to the roof; the roof deck, plant room with AHU blocks, riser head, tank room, dishes, stack housing, Y steel stair to the yard, the G7 post marker; guards G5 and G6 placed facing each other across the cage; reserve the D1 and D2 grille positions without building ducts.
 **Acceptance.**
-1. Reachability test from spawn to every room centre, to the cage interior door, and to the yard gate.
-2. Two separate ground-to-first-floor routes exist (the test finds two paths with no shared stair).
-3. `npm run check` and `e2e:quick` pass.
-**Smoke.** Extend `e2e-fp-map.mjs`: all 9 room ids exist; teleport to the server hall and the yard, floor present, 0 console errors.
-**Hand check.** Walk spawn to yard gate by the main stair, then find the second route. Note dead ends.
+1. Unit test: every room centre on all four levels is reachable from spawn 1; routes B1, B2 and B3 hold hop by hop up to the cage interior; routes E1 to E3 reach the yard side gate.
+2. `npm run check` and `e2e:quick` pass (known-flaky suites excepted).
+**Smoke.** Extend `e2e-fp-map` with first-floor and roof teleports.
+**Hand check.** Walk B1 (main stair), B2 (back stair and spine balcony), B3 (service tunnel and riser) to the cage; climb V to the roof.
 
-### S1c - Exchange greybox: lights, guards, spawns, objective, extraction (Sonnet)
-**Goal.** The map is a mission: lit pools and dark, 9 guards on patrols, 4 spawns, one objective, one extraction.
-**Read.** `exchange-design.md` Section 11 (guard sheets) and Section 10 per-space lamp notes; `exchange-map.md` "Mission and modes" and "Co-op routes" (ignore lips); `src/game/missions.ts` and the `Insertion` / `MissionDef` shapes; `src/game/modes/infiltrationMode.ts` (objective kinds `plant`, extraction); `src/world/lights.ts` (lamp API as used in `warehouse.ts`); `src/ai/patrol.ts`, `src/world/rooms.ts` (`SquadSlot`).
-**Files.** `src/world/maps/exchange.ts`; `src/game/missions.ts` (new mission `exchange-playtest`); `tests/exchangeMap.test.ts`; `scripts/e2e-fp-map.mjs`.
-**Note.** An Exchange infiltration mission entry already exists from the S1a fix; extend it, do not create a second one.
+### R3 - Exchange v2: ducts and grilles (Sonnet)
+**Goal.** The crawlable duct system from the plant room to D1 and D2.
+**Read.** `exchange-layout-v2.md` (Vents); `exchange.ts` from R2; the player crouch height in `src/player`.
+**Files.** `src/world/maps/exchange.ts`, `tests/exchangeMap.test.ts`, `scripts/e2e-fp-map.mjs`, `docs/progress.md` (egress decision) and `CHANGELOG.md` lines.
+**Do.** Measure crouch clearance first (clear height = crouch height + 0.15 m, minimum 1.1 m), then build the plant room floor hatch, the duct, the ceiling void, the D1 and D2 grilles as door-like interactables, and the egress the engine supports. Do not change nav, AI or other game code.
+**Acceptance.**
+1. Unit test: with all doors into the server hall treated as blocked, the cage interior is reachable from the plant room via D1; route B4 holds hop by hop.
+2. A crouched player fits the duct.
+3. `npm run check` and `e2e:quick` pass (known-flaky suites excepted).
+**Smoke.** Extend `e2e-fp-map`.
+**Hand check.** Climb V to the roof, enter the plant room, crawl to D1, drop into the cage.
+
+### S1c-v2 - Exchange v2: lights, guards, spawns, objective, extraction (Sonnet)
+**Goal.** The map is a mission: lit pools and dark, 9 guards on patrols, 4 spawns, the O1 then O2 objective chain, one extraction.
+**Read.** `exchange-layout-v2.md` (Guards, Objective chain, Co-op places); `exchange-design.md` Section 11 (guard sheets) and Section 10 per-space lamp notes; `src/game/missions.ts`; `src/game/modes/infiltrationMode.ts`; `src/world/lights.ts`; `src/ai/patrol.ts`, `src/world/rooms.ts`.
+**Files.** `src/world/maps/exchange.ts`, `src/game/missions.ts`, `tests/exchangeMap.test.ts`, `scripts/e2e-fp-map.mjs`.
+**Note.** Extend the existing `exchange-greybox` mission entry; do not create a second one.
 **Do.**
 - Lights: warm sodium lamps 0.9-1.0 intensity, radius 6-8 m, point-like (no long strip fittings). Dark `ambientZone` 0.08-0.12 per storey. At least two lamp circuits (switch groups) per lit space, one wall `switches` entry by a door per circuit. Every guard sits near a lit pool with a dark flank so a player has a shadow route.
-- Guards: the 9 from the design (G1-G9), `squads: 'rooms'`, each a loop of 2-4 waypoints; set each stop's facing as the design says. G4 is an officer, G7 a sniper, G6 a heavy; if an archetype needs code you lack, use `grunt`. Do not add a tenth.
-- Spawns: `playerSpawns` holds 4 points in the cable chamber, each at least 1.2 m apart and none on a door; insertion `manhole` at spawn 1.
-- Objective (the one): plant "tap the broker's line" (4 s hold) on the core switch inside the server hall cage, dark side. Extraction: the yard side gate, radius 2. Rules: `noAlarms`, `noKills`, `undetected` stay `bonus`.
-- Alarm panels in the offices corridor, server hall and yard; `reinforce` at the street lobby and the yard lane; `hideSpots` at least one per guarded space; medkits: skip.
+- Guards: the 9 from the layout spec (G1-G9, placement in `exchange-layout-v2.md`), `squads: 'rooms'`, each a loop of 2-4 waypoints; facing per `exchange-design.md` Section 11. G4 is an officer, G7 a sniper, G6 a heavy; if an archetype needs code you lack, use `grunt`. Do not add a tenth.
+- Spawns: `playerSpawns` holds 4 points in the spawn tunnel, each at least 1.2 m apart and none on a door; insertion `manhole` at spawn 1.
+- Objectives: O1 "Pull the circuit record" (3 s hold, line-record cabinet, Test room), then O2 "Tap the broker's line" (4 s hold, core switch inside the cage, dark side). Extraction: the yard side gate, radius 2. Rules: `noAlarms`, `noKills`, `undetected` stay `bonus`.
+- Alarm panels in the control room, server hall and yard; `reinforce` at the foyer street door and the yard lane; `hideSpots` at least one per guarded space; medkits: skip.
 **Acceptance.**
 1. `?autostart=exchange&mode=infiltration` boots, shows the objective, 9 guards spawn, 4 spawn points listed.
-2. Unit test: the objective and extraction are reachable from every spawn; every guard patrol point is on the nav grid; every objective site has light level below `LIGHT.shadow`.
-3. Headless run: the operator is teleported to the plant site, holds the interact, then to extraction; the mission reports complete (a basic path; fuller win/fail in S6).
+2. Unit test: both objectives and extraction are reachable from every spawn; every guard patrol point is on the nav grid; both objective sites (the Test room cabinet and the cage core switch) are below `LIGHT.shadow`.
+3. Headless run completes O1, O2 and extraction in order and the mission reports complete.
 **Smoke.** Extend `e2e-fp-map.mjs`: step 3 above.
-**Hand check.** Play solo from the cable chamber to the yard once, using whatever you like. Is the route readable? Is there a dark way past each guard? Where do you get lost?
+**Hand check.** Play solo from the spawn tunnel to the yard gate once. Is the route readable? Is there a dark way past each guard? Where do you get lost?
 
 ### S2 - Lights: switch off and shoot out (Sonnet)
 **Goal.** On the Exchange, a player can switch a circuit off and shoot out any lamp; the light meter, the render and guard perception agree; guards react.
@@ -228,7 +238,7 @@ Common to all steps: rules in Section 0 apply; "Smoke" is the one test to add; "
 **Read.** `src/net/protocol.ts` (`revive`, `ping`, `NetItem 'revive'`), `src/game/gameState.ts` (`onPlayerDeath`, `net.reviveAll`), `src/ui/hud/pings.ts`, `src/net/coopUi.ts` (lobby: player count and start); `src/game/interactables.ts` (`revive`); `src/net/remoteAvatar.ts`.
 **Files.** `src/net/coopHost.ts`, `src/net/coopClient.ts`, `src/net/coopUi.ts`, `src/game/gameState.ts`, `src/game/modes/infiltrationMode.ts`, `src/ui/hud/pings.ts`, results screen, `scripts/e2e-fp-coop4.mjs`.
 **Do.**
-- 4 players: each joins at `playerSpawns[i]` (S1c). Lobby accepts up to 4 for the Exchange and starts with 1-4; the mission works with any number.
+- 4 players: each joins at `playerSpawns[i]` (S1c-v2). Lobby accepts up to 4 for the Exchange and starts with 1-4; the mission works with any number.
 - Downed: at 0 health a co-op player is downed (crawl or stay down for 30 s; a mate holds interact within 1.5 m for 3 s to revive at 40% health). If nobody revives within 30 s they are dead for the rest of the run (no checkpoints in this milestone). All dead or downed at once = fail. Use the existing `revive` interactable and message; adapt rather than rebuild.
 - Pings: one button places a ping at the aim point, or on a guard; all players see it for 6 s with the pinger's name colour (existing message). Make sure the button exists on touch.
 - Team results: after the mission, a list of players with guards knocked out, revives, times downed, alarms; a team total and COMPLETE or FAILED.
