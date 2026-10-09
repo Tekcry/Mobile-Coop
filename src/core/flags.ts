@@ -35,6 +35,8 @@ export interface Flags {
   gear: number | null;
   /** 3.5 (`?legacy=1`, URL only, never saved): the parked Blacklist-era modes and the economy are shown (`core/legacy.ts`). */
   legacy: boolean;
+  /** Music project: `?musiclab=1` opens the music lab (a debug screen) after boot. */
+  musicLab: boolean;
 }
 
 function readParams(): URLSearchParams {
@@ -68,4 +70,5 @@ export const flags: Flags = {
   renderer: params.get('renderer')?.slice(0, 96) ?? null,
   gear: /^[1-6]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
+  musicLab: params.get('musiclab') === '1',
 };

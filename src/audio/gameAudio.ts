@@ -107,15 +107,11 @@ export function attachGameAudio(app: App, g: GameState): { frame(dt: number): vo
         sfx.footstep(c.crouched ? 0.5 : 1, 0, g.surface);
       }
     }
-    let alive = em?.alive ?? 0;
-    if (!em && g.puppet) for (const _ of g.registry.hostiles('player')) alive++;
-    app.music.setIntensity(g.opts.mode === 'sandbox' ? 0 : Math.min(1, alive / 5));
   };
   return {
     frame,
     dispose: () => {
       for (const o of offs) o();
-      app.music.setIntensity(0);
     },
   };
 }

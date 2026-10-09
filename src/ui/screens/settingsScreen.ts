@@ -1,5 +1,6 @@
 import type { HudWidth } from '../../core/display';
 import type { App } from '../../core/app';
+import { flags } from '../../core/flags';
 import { setAuto, setGfx, setPreset, type AimAssistLevel, type Settings } from '../../core/settings';
 import { FPS_CAPS, type AaMode, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type RtRes, type ShadowQuality, type TierQuality } from '../../core/quality';
 import { assignBind, bindable, BINDS, clearBind, keyName, type BindId } from '../../input/keyBindings';
@@ -205,6 +206,8 @@ export class SettingsScreen extends Screen {
             slider('Effects', { min: 0, max: 1, step: 0.05, get: () => s().audio.sfx, set: (v) => upd((d) => void (d.audio.sfx = v)), format: pct }),
             slider('Music', { min: 0, max: 1, step: 0.05, get: () => s().audio.music, set: (v) => upd((d) => void (d.audio.music = v)), format: pct }),
             slider('Interface', { min: 0, max: 1, step: 0.05, get: () => s().audio.ui, set: (v) => upd((d) => void (d.audio.ui = v)), format: pct }),
+            // (music project) a debug screen for the score: dev flag `?debug=1`
+            flags.debug ? button('Music lab', () => void import('../../audio/music/musicLab').then((m) => app.screens.push(new m.MusicLabScreen(app))), { icon: 'speaker', class: 'subtle' }) : null,
             resetBtn('audio', 'audio'),
           ),
       },

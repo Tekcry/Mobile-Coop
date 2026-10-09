@@ -6,7 +6,7 @@ Spec: `docs/prompts/music-spec.md`. Direction: `docs/audio/music-direction.md`. 
 | Stage | Name | Model | Status |
 | --- | --- | --- | --- |
 | M0 | Direction | Opus | done; waiting for Michael's approval |
-| M1 | Engine and music lab | Sonnet | not started |
+| M1 | Engine and music lab | Sonnet | done; waiting for Michael's listening approval |
 | M2 | States, transitions and adapter | Sonnet | not started |
 | M3 | Composition and themes | Opus | not started |
 | M4 | Polish and budget | Sonnet | not started |
@@ -48,3 +48,66 @@ Spec: `docs/prompts/music-spec.md`. Direction: `docs/audio/music-direction.md`. 
   - Motif ear test: Michael hears it in the M1 lab (a "play motif" button comes first in M1).
 - Next: Michael reviews the direction. On approval, M1 (Sonnet): engine, sound library, sequencer, mixer, seeded
   generator and the music lab with WAV export. STOP.
+
+---
+
+## Stage M1 report
+- Done (all in `src/audio/music/`; the old `src/audio/music.ts` is deleted):
+  - `rng.ts` seeded generator (mulberry32) with named sub-streams.
+  - `dsp.ts` pure Float32 DSP (modal and FM synthesis, filters, soft clip, bit crush, reverse, loop crossfade, generated
+    impulse responses).
+  - `library.ts` 48 found sounds from the direction palette: metal (`pipe plate boom rail hum scrape scrapeRev chain`), glass and
+    clicks (`glass click0-2 relay0-1 relayRel0-1 dial bell motifbell ring tick0-1`), `bellpiano`, machines (`thump piston motor
+    motorDown press`), drums (`kickTight kickRound snare snareMetal ghost brushTap brushSwish hatC hatO rim`), bass (`sub reese
+    sawbass bassmetal`), beds (`drone bowedD bowedAb air rainbed static`) and three impulse responses (room, hall, street).
+  - `scheduler.ts` step clock (16ths, lookahead, tempo change and glide, re-anchor after a stall). `voices.ts` voice cap of 24 with
+    priority stealing. `motif.ts` the Night Shift motif and its forms. `conductor.ts` pure event generator (rough calm and rough
+    combat, the motif ear test, stems). `engine.ts` Web Audio: nine stem gains, reverb and dub-delay sends (at most two convolvers
+    live), limiter and a -6 dBFS soft ceiling on the music bus. `offline.ts` and `wav.ts` offline render and WAV export.
+    `music.ts` the `Music` facade `App` uses (replaces the old class; same `start()`). `musicLab.ts` the lab.
+  - Music lab: `?musiclab=1` (opens over the menu) or Settings > Audio > Music lab with `?debug=1`. The **Play motif** button is
+    first (bell, bass, pipe in turn; also each alone and the Resolved form). Calm and Combat buttons, Stop, seed and tempo nudge,
+    mute per stem, Export 60 s WAV (calm, combat) and a motif WAV. The WAV is rendered offline by the same conductor and engine,
+    and uses the share sheet on the iPhone, a download on the PC. Live readout: library render ms, state, tempo, voices.
+  - Game wiring (only what the spec allows): `app.ts` imports the new `Music`; `gameAudio.ts` loses the `alive / 5` intensity rule
+    (it leaked the enemy count); `main.ts` opens the lab under `?musiclab=1`; `flags.ts` gets `musicLab`. Until M2 the game plays
+    the calm state only.
+- Files: `src/audio/music/*` (new), `src/audio/music.ts` (deleted), `src/core/{app,flags}.ts`, `src/main.ts`,
+  `src/audio/gameAudio.ts`, `src/ui/screens/settingsScreen.ts`, `src/styles.css` (lab styles), `tests/music.test.ts`,
+  `scripts/e2e-music.mjs` (added to the required list in `scripts/run-e2e.mjs`), `docs/systems/testing-tools.md`.
+- Decisions and deviations from the direction (for Michael to veto):
+  - **The library is rendered in pure JS, not an `OfflineAudioContext`** (spec Section 3). Same result (seeded Float32 buffers), but it
+    runs in node, so determinism is unit-tested, and it behaves the same on every browser. The WAV export does use an
+    `OfflineAudioContext` for the whole mix.
+  - **Library trimmed to fit the 60 s mono budget** (it was 64.7 s): drone 4 s, air and rainbed 4 s, bowed 2.4 s, scrape 1.2 s, motor 0.9 s,
+    boom 2.6 s, motifbell 2.6 s, ring 1.4 s. Now under 60 s. All loops are whole-cycle or crossfaded.
+  - Not in M1 (by the spec's staging): `smear` and the `break*` pre-chopped breaks (M3), suspicious and searching states, transitions,
+    stingers, pause duck wiring and the adapter (M2). The engine already has `setDuck` and the stinger priority.
+  - The combat break is my own 16-step pattern (kick 0 7 10, snare 4 12, ghosts seeded), not any known break. The reese is D, Eb, Ab, C
+    on 2-bar spans, gated on a 3-note rhythm.
+  - Level trims are STARTING values (`mix.ts`): calm -23 dB, combat -17 dB on the level node. Measured in the offline render (bus, before
+    the user volume): calm peak -18 / RMS -29.8 dBFS, combat peak -7.5 / RMS -15.7 dBFS (targets -30 and -16). The bus has a -6 dBFS soft
+    ceiling, so peaks cannot pass it. M4 sets the final mix by ear against the footsteps.
+- Tests:
+  - `tests/music.test.ts` (24 tests): seeded determinism (generator, library, conductor), per-sound independence, every sound finite and
+    non-silent, the 60 s budget and variants, loop joins, motif shape, scheduler timing (order, no duplicates, tempo change, glide, re-anchor
+    after a stall keeps bar alignment), voice cap (never above 24; steal and refuse rules; sustained layers free their slot), conductor
+    (168 BPM grid, calm sparsity and motif rules, state changes, cap through the pool, only library ids), WAV header and levels.
+  - `scripts/e2e-music.mjs` passes on phone emulation and desktop (software GL; the audio context runs with a null sink): motif button
+    first, no sideways scroll, library renders, context running, motif plays, calm and combat, 168 BPM, voices peak 13 of 24, nothing late,
+    seed and tempo nudge, stem mute, offline levels and cap, the 60 s WAV (11,520,044 bytes), no console errors.
+  - `npm run lint` clean, `npm test` 647 pass, `npm run build` ok, e2e `smoke`, `e2e-offline` and one movement suite still pass. The full
+    `npm run e2e` was not run (shared PC; only the narrow set).
+- Measurements:
+  - Library render: 0.3 s in node; 0.6-0.7 s in headless Chromium on the PC. **iPhone: pending Michael's run** (the lab's status line shows
+    the figure; the budget is 1.5 s). Voices: combat peaked at 13 live, calm 6.
+  - Scheduling cost per frame and the `perf.mjs --phone` music run: M4.
+- Open issues:
+  - **Listening is the real test.** I cannot hear the result. Pitches were checked by spectrum (sub 73.5 Hz, bellpiano and motifbell D4,
+    pipe near D4, bowed D3, rail D5) and levels by measurement only. Expect to tune sounds after the first listening round.
+  - Ear test (direction Section 12): listen to the motif (Play motif) and the combat break for any resemblance to a known cue. Record it in
+    the table at the top.
+  - The lab has no map theme selector or theme buttons yet (M3).
+  - On iOS the first tap unlocks audio, then the library renders (about a second) before the first sound; the lab shows progress.
+- Next: Michael listens in the lab on the PC and the iPhone, approves or sends changes. Then M2 (Sonnet): the four states, transitions,
+  stingers, adapter, Confrontation stub. STOP.

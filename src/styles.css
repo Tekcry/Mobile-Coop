@@ -3568,3 +3568,39 @@ body.rotated.ccw {
   width: min(36vw, 200px);
   height: auto;
 }
+
+/* music lab (music project): a debug screen */
+.music-lab {
+  background: rgba(8, 11, 15, 0.96);
+  overflow-y: auto;
+  gap: 10px;
+  -webkit-overflow-scrolling: touch;
+}
+.music-lab .lab-status {
+  margin: 0;
+  font: 12px/1.45 ui-monospace, Consolas, monospace;
+  opacity: 0.85;
+  white-space: pre-wrap;
+}
+.music-lab .lab-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.music-lab .lab-key,
+.music-lab .lab-val {
+  min-width: 56px;
+  font-size: 14px;
+  text-align: center;
+}
+.music-lab .lab-step {
+  min-width: 48px;
+}
+.music-lab .lab-on {
+  outline: 2px solid var(--accent, #6fd3c4);
+}
+.music-lab .lab-muted {
+  opacity: 0.4;
+  text-decoration: line-through;
+}
