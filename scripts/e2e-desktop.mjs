@@ -548,20 +548,38 @@ try {
   assert(lb && lb.pbr > 0 && lb.plugged === lb.pbr, `the lamp plugin is on every PBR material (${lb?.plugged} / ${lb?.pbr})`);
   assert(lb && lb.before > 0 && lb.after === 0, `a shot-out lamp goes dark in the baked lighting (${lb?.before} -> ${lb?.after}); bake ${lb?.ms} ms`);
   // 3.1.7: every material fits WebGL's guaranteed 16 textures per shader (software GL allows 32; on the laptop's
-  // D3D11 an Epic level shader with 8 soft lamp shadows failed: the level drew black under the fog)
-  const tex = await e.page.evaluate(() => {
+  // D3D11 an Epic level shader with 8 soft lamp shadows failed: the level drew black under the fog).
+  // An effect's sampler list is trimmed to the textures its program uses only once it has compiled (an uncompiled one
+  // lists every candidate: partSkinMat showed 61). D3D11 takes several seconds on the voxel characters' shaders, so
+  // the check waits for the effects of every drawn mesh, then counts.
+  const texProbe = () => e.page.evaluate(() => {
     const scene = window.__app.current.scene;
     let max = 0;
     let who = '';
-    for (const m of scene.meshes) for (const sm of m.subMeshes ?? []) {
-      const n = sm.effect?._samplerList?.length ?? 0;
-      if (n > max) {
-        max = n;
-        who = sm.getMaterial?.()?.name ?? '?';
+    let pending = 0;
+    for (const m of scene.meshes) {
+      if (!m.isEnabled() || !m.isVisible) continue;
+      for (const sm of m.subMeshes ?? []) {
+        if (!sm.getMaterial?.() || !sm.effect) continue;
+        if (!sm.effect.isReady()) {
+          pending++;
+          continue;
+        }
+        const n = sm.effect._samplerList?.length ?? 0;
+        if (n > max) {
+          max = n;
+          who = sm.getMaterial().name;
+        }
       }
     }
-    return { max, who };
+    return { max, who, pending };
   });
+  let tex = await texProbe();
+  for (let i = 0; i < 120 && tex.pending > 0; i++) {
+    await wait(500);
+    tex = await texProbe();
+  }
+  assert(tex.pending === 0, `Epic: every drawn mesh's shader compiled (${tex.pending} pending)`);
   assert(tex.max > 0 && tex.max <= 16, `Epic: every material shader within 16 textures (${tex.max}, ${tex.who})`);
   for (const pp of ['TAA', 'ssao', 'ssr', 'volumetric', 'bloomMerge', 'imageProcessing', 'cinematic']) assert(r.pps.includes(pp), `post stack has ${pp}`);
   assert(r.pps.at(-1) === 'cinematic', 'the grade / goggles pass stays last');

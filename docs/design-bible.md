@@ -1,6 +1,6 @@
 # Night Shift - Design Bible
 
-Version 1.10 - 2026-10-09 (1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.11 - 2026-10-09 (1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -199,6 +199,9 @@ The Phase column refers to Section 10.
 | Takedowns: behind, front, side, corner, above (drop), below (pull down), window, over low obstacle | Tap = non-lethal, hold = lethal | Have | - |
 | Knife | Lethal close takedown. Cuts cloth and tarps to make new paths. | Add | 6 |
 | Dual takedown (co-op) | | Have | - |
+| Elbow strike | Fire button while the weapon is holstered. Knocks out an unaware guard; staggers an aware one (5.4). | Add | 3 |
+| Holster / draw | The weapon comes out only while aiming and goes away when aiming stops (5.6) | Add | 3 |
+| Hip fire | Removed (Michael, 2026-10-09) | Remove | 3 |
 | Mark & Execute | Blacklist | Remove | 3 |
 
 ### Vision
@@ -422,7 +425,18 @@ The Phase column refers to Section 10.
 
 ### 5.4 Takedowns, grabs, interrogation
 
-- **Contextual takedowns only.** There is no free melee button (Michael, 2026-10-08). Spotted up close, the player shoots or runs.
+- **Contextual takedowns plus one melee strike** (Michael, 2026-10-09; replaces "contextual takedowns only").
+- **The elbow strike, as in Chaos Theory:** the fire button while the weapon is holstered.
+  - **Reach and speed:** about 1.2 m; about 0.5 s from press to hit, a committed move.
+  - **On an unaware guard** (from any side), or one taken from behind or the side: knocked out, the same result as a non-lethal takedown.
+  - **On an aware guard facing you:**
+    - staggered for about 1 s, his aim broken
+    - a second strike within the stagger knocks him out
+  - **Heavies:** a frontal strike only staggers them, never a knock-out.
+  - **Noise:** a small noise event (about 4 m).
+  - **A miss** leaves you exposed for its recovery (about 0.4 s).
+  - **Co-op:** approved by the host, like takedowns.
+  - Contextual takedowns (action button) stay for the full set of positions and the lethal / non-lethal choice.
 - **Quick, CT style:** about 1-1.5 s from press to victim down, every kind. That keeps exposure short and co-op sync simple.
 - **Keep** every existing takedown kind. Tap = knock out, hold = lethal.
 - **Offered from every state:**
@@ -453,7 +467,9 @@ The Phase column refers to Section 10.
 **Locked decisions (Michael, 2026-10-08):**
 
 - A small choice per class, 3-4 guns each.
-- Hip fire is allowed but inaccurate.
+- **Holstered unless aiming** (Michael, 2026-10-09):
+  - The weapon comes out only while aiming and is put away as soon as aiming stops, in every state, alert and combat included.
+  - **No hip fire.** The fire button is the elbow strike while the weapon is holstered (5.4).
 
 **Slots:** one primary and one sidearm, plus gadgets.
 
@@ -469,8 +485,13 @@ The Phase column refers to Section 10.
 
 **Gunplay:**
 
-- **Aim (ADS)** over the shoulder is the accurate way to shoot. Crouched and still is steadiest. Speed gear and motion widen spread.
-- **Hip fire** works but with wide spread: a panic option, not a tactic.
+- **Aiming is the only way to shoot.**
+  - **Hold aim:** the weapon is drawn (about 0.3 s for a pistol, 0.4 s for a primary, per the realism standard 5.12), then raised over the shoulder.
+  - **Fire** shoots only while aiming.
+  - **Release aim:** the weapon is put away (about 0.4 s); the hands are free again.
+  - Crouched and still is steadiest. Speed gear and motion widen spread.
+- **Holstered look:** the primary slung on the back, the pistol in its holster. The silhouette stays clean, as in Chaos Theory.
+- **Co-op:** the drawn / holstered state is in `MoveState`, so partners see it.
 - **Marksman zoom** has sway and hold breath. Breath is limited and recovers.
 - **Noise:** every shot is a noise event (Phase 2). Suppressed shots are quiet, not silent. Impacts are heard nearby.
 - **Lights:** every shot can kill a lamp (P1). The gun is also a light tool.
@@ -482,7 +503,7 @@ The Phase column refers to Section 10.
 
 **Phases:**
 
-- Phase 3: arsenal curation and renaming; hip fire and ADS spread tuning.
+- Phase 3: arsenal curation and renaming; holster and draw; no hip fire; the elbow strike; ADS spread tuning.
 - Phase 6: the launcher and its rounds.
 
 ### 5.7 AI (P5)
@@ -1067,9 +1088,13 @@ Each batch:
 3. **Takedowns on a traitor:**
    - Only from outside his front cone (about 120 deg), from above or below (gantries, pipes, grates), or while he is staggered (a hit by a thrown object, the shocker, a steam valve).
    - A frontal attempt shoves both apart. Nobody wins it.
+   - **The elbow strike in the Confrontation:**
+     - From outside the traitor's front cone it knocks him out, like a takedown.
+     - From the front it is a shove: both pushed apart, a 0.6 s stagger that does **not** open a takedown window.
+     - A second frontal strike is not a knock-out here.
 4. **Pistol limits:**
    - Every shot is heard across the arena, and the muzzle flash lights the shooter.
-   - Hip fire is wide (5.6). The first shot after moving fast is inaccurate.
+   - The traitor's pistol is always drawn (first person, Act 2 only). The first shot after moving fast is inaccurate.
    - Reloading takes 2.2 s and is loud: a takedown window.
    - 3 body hits or 2 head hits down a protagonist.
 5. **Information pulses every ~45 s:**
@@ -1294,7 +1319,7 @@ The standard's existing content stays. This bible adds the following:
   - Button prompts swap at once when a controller connects or disconnects.
 - **Touch control scheme (spec written in Phase 3)** - few buttons, the rest contextual:
   - move stick and look area
-  - fire, aim, crouch, jump
+  - aim, fire (the elbow strike while holstered: the button's icon changes), crouch, jump
   - one contextual action button (takedown, interact, traverse, grab)
   - the speed rocker
   - a comms wheel: pings, Sync, whistle
@@ -1381,7 +1406,7 @@ The standard's existing content stays. This bible adds the following:
 | 0 | Foundation | Merge `dev` (3.2.1-3.4.0 phone work) into `ct-movement`; this bible installed; `CLAUDE.md` cut to a lean core with `docs/systems/`; old changelog / testing archived; parked modes behind `?legacy=1`; player-facing title renamed to Night Shift; `docs/story.md` installed; `docs/progress.md`. Spec: `docs/prompts/phase-0-foundation.md`. |
 | 1 | Light parity | Section 5.1 rules L1-L13: gameplay meter reads the bake; bake on every device; phone renders the lamp volume on the blockout (Phone check gate); parity test; continuous meter HUD; fuse boxes; door decision. |
 | 2 | Sound | First the audio source A/B test (S7, Michael picks). Then Section 5.2: noise zones, masking, sound meter, whistle, ambient beds; zones on the Warehouse and Exchange. |
-| 3 | Pure CT conversion | The touch and controller control scheme spec (Section 8); Back-to-wall (peek, lean-shoot, SWAT turn, corner takedown); remove snap cover, Mark & Execute, sonar, the style tracker and the regenerating shield; medkits; thermal and electro vision; door peek; curated arsenal with original names; hip fire and ADS spread; Training rewritten; cover e2e rewritten. |
+| 3 | Pure CT conversion | The touch and controller control scheme spec (Section 8); holstered unless aiming, no hip fire, the elbow strike (5.4, 5.6); Back-to-wall (peek, lean-shoot, SWAT turn, corner takedown); remove snap cover, Mark & Execute, sonar, the style tracker and the regenerating shield; medkits; thermal and electro vision; door peek; curated arsenal with original names; hip fire and ADS spread; Training rewritten; cover e2e rewritten. |
 | 3b | Movement, camera and animation lock | The dev bot partner (C20) early. Then the full animation audit (5.12.4): inventory, audit harness, review, fixes in seven batches, Michael's sign-off per batch. Then the CT pulled-back camera and collision solver; drag; quick 180; momentum carry; spring layer; dedicated clips (rappel, fence, brace, back-to-wall, drag); guard body language; pose viewer; known fixes (thigh pistol vs elbow at slow crouch, brace prompt, human ladder by touch, thin fence); a phone feel pass with Michael; then the metrics freeze (Section 5.3). |
 | 4 | Mission framework | Shared campaign progress with spoiler warnings and the per-player mission record (5.8). Section 5.8: triggers / actions, objective tiers, rules and alarm levels, checkpoints with Continue and Restart from checkpoint, text radio with solo / team variants and speaker colours (story Section 7), briefing, field terminal, stealth rating; Warehouse missions ported as test content. |
 | 5 | Co-op 2-4 | Connection test and network stats (C19); the bot partner extended; the first playtest night (C20). Section 5.9: per-player detection, `coopExtras`, new team moves and their clips, distinct operators (5.14) and team-mate outlines; Sync, clutch saves, dragging downed partners, medkit on a team-mate, typed pings with quick lines, team results and highlights (C12-C18); 4-player e2e, host-leave resume. |
@@ -1401,6 +1426,8 @@ The standard's existing content stays. This bible adds the following:
 ## 11. Open decisions (Michael)
 
 **Decided on 2026-10-08 and 2026-10-09** (no longer open):
+
+- weapon holstered unless aiming; no hip fire; the elbow strike
 
 - the desktop visual target; CC0 textures for desktop detail; Phase 6b
 
