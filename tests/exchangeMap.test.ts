@@ -7,6 +7,10 @@ import { roomAt, roomCentre } from '../src/world/rooms';
 /** Standing room a guard needs over a surface (`navBuild.ts`). */
 const HEADROOM = 1.7;
 const CELL = 0.5;
+/** Expansions the nav search may use: the heuristic ignores storeys, so a path over a stair and a roof needs far more than the default. */
+const SEARCH = 3000000;
+
+type Boxes = Pick<LevelBuilder, 'boxes'>;
 
 interface Piece {
   bottom: number;
@@ -15,7 +19,7 @@ interface Piece {
 }
 
 /** The solid pieces over (x, z): flat boxes by footprint, ramps (pitched boxes, as `LevelBuilder.ramp` builds them) by slope. */
-function piecesAt(b: LevelBuilder, x: number, z: number): Piece[] {
+function piecesAt(b: Boxes, x: number, z: number): Piece[] {
   const out: Piece[] = [];
   for (const p of b.boxes) {
     if (!p.collide) continue;
@@ -42,7 +46,7 @@ function piecesAt(b: LevelBuilder, x: number, z: number): Piece[] {
 }
 
 /** Walkable surfaces in a column, lowest first: the top of a piece with nothing over it and standing room above. */
-function surfacesAt(b: LevelBuilder, x: number, z: number): { h: number; ramp: boolean }[] {
+function surfacesAt(b: Boxes, x: number, z: number): { h: number; ramp: boolean }[] {
   const ps = piecesAt(b, x, z);
   const out: { h: number; ramp: boolean }[] = [];
   for (const p of ps) {
@@ -64,9 +68,10 @@ function build(): { b: LevelBuilder; layout: ReturnType<typeof exchange.build> }
 }
 
 /** The nav grid `navBuild.ts` makes (same cell, radius, step and blockers), with the surfaces sampled analytically. */
-function navFor(b: LevelBuilder, seed: [number, number]): NavGrid {
+function navFor(b: LevelBuilder, seed: [number, number], skip: (p: LevelBuilder['boxes'][number]) => boolean = () => false): NavGrid {
+  const view: Boxes = { boxes: b.boxes.filter((p) => !skip(p)) };
   const blockers: NavBlocker[] = [];
-  for (const p of b.boxes) {
+  for (const p of view.boxes) {
     if (!p.collide || Math.abs(p.pitch) > 1e-3 || p.overhead) continue;
     blockers.push({ cx: p.c[0], cz: p.c[2], hx: p.s[0] / 2, hz: p.s[2] / 2, yaw: p.yaw, bottom: p.c[1] - p.s[1] / 2, top: p.c[1] + p.s[1] / 2 });
   }
@@ -84,7 +89,7 @@ function navFor(b: LevelBuilder, seed: [number, number]): NavGrid {
     blockers,
     seed,
     sample: () => ({ h: 0, ok: false }),
-    sampleLayers: (x, z): NavSample[] => surfacesAt(b, x, z).map((s) => ({ h: s.h, ok: true })),
+    sampleLayers: (x, z): NavSample[] => surfacesAt(view, x, z).map((s) => ({ h: s.h, ok: true })),
   });
 }
 
@@ -183,5 +188,82 @@ describe('Kestrel Exchange S1a: cable tunnel, ground floor, stair core', () => {
       const centre = Math.abs(Math.sin(d.yaw)) > 0.5 ? d.hinge.x + d.width / 2 : d.hinge.z + d.width / 2;
       expect(Math.abs(centre * 2 - Math.round(centre * 2)), `door at ${d.hinge.x},${d.hinge.z}`).toBeLessThan(1e-6);
     }
+  });
+});
+
+describe('Kestrel Exchange S1b: first floor, roof, yard', () => {
+  const { b, layout } = build();
+  const spawn = layout.playerSpawns[0]!.pos;
+  const rooms = layout.rooms ?? [];
+  const room = (id: string) => rooms.find((r) => r.id === id)!;
+  const grid = navFor(b, [spawn.x, spawn.z]);
+  const reach = (g: NavGrid, x: number, z: number, y: number, label: string): void => {
+    const i = g.nearestWalkable(x, z, 1, y);
+    expect(i, `${label}: a walkable cell at ${x},${z} y ${y}`).toBeGreaterThanOrEqual(0);
+    expect(Math.abs(g.height[i]! - y), `${label}: on its storey`).toBeLessThan(0.3);
+    expect(g.findPath([spawn.x, spawn.z], g.center(i), SEARCH, spawn.y, y), `${label} reachable`).not.toBeNull();
+  };
+
+  it('lists all nine rooms', () => {
+    const ids = ['cable', 'mdf', 'power', 'well', 'switchroom', 'offices', 'servers', 'roof', 'yard'];
+    for (const id of ids) expect(room(id), id).toBeDefined();
+    expect(rooms.length).toBe(ids.length);
+    // a first-floor point, the raised roof and a yard point each land in their own room
+    const at = (x: number, z: number, y: number) => rooms[roomAt(rooms, x, z, y)]?.id;
+    expect(at(3, 0, 4.5)).toBe('switchroom');
+    expect(at(0, 12, 4.5)).toBe('offices');
+    expect(at(14, 7, 4.5)).toBe('servers');
+    expect(at(16, 12, 10.5)).toBe('roof');
+    expect(at(-5, -27, 0)).toBe('yard');
+  });
+
+  it('every room centre is reachable from the first spawn (first floor, roof and yard included)', () => {
+    const floors: Record<string, number> = { switchroom: 4.5, offices: 4.5, servers: 4.5, roof: 9, yard: 0 };
+    for (const [id, y] of Object.entries(floors)) {
+      const [cx, cz] = roomCentre(room(id));
+      const i = grid.nearestWalkable(cx, cz, 6, y);
+      expect(i, `${id} has a walkable cell near its centre`).toBeGreaterThanOrEqual(0);
+      const [x, z] = grid.center(i);
+      expect(Math.hypot(x - cx, z - cz), `${id}: walkable cell within 3 m of the centre`).toBeLessThan(3);
+      expect(Math.abs(grid.height[i]! - y), `${id}: on its own storey`).toBeLessThan(0.3);
+      expect(grid.findPath([spawn.x, spawn.z], [x, z], SEARCH, spawn.y, y), `${id} reachable`).not.toBeNull();
+    }
+  });
+
+  it('reaches the cage gate and interior, the three server hall lanes, the yard gate and the lane gate', () => {
+    reach(grid, 14, 11.5, 4.5, 'cage gate (west lane)');
+    reach(grid, 17, 12, 4.5, 'cage interior');
+    reach(grid, 16, 17, 4.5, 'north aisle');
+    reach(grid, 16, 9.5, 4.5, 'lane south of the cage');
+    reach(grid, 16, 7, 4.5, 'south aisle');
+    reach(grid, 22.5, 12, 4.5, 'east aisle');
+    reach(grid, -23, -26.5, 0, 'yard gate');
+    reach(grid, 23, -27.5, 0, 'lane gate');
+    reach(grid, 27, -27.5, 0, 'extraction point in the lane');
+    reach(grid, -22.5, -7.5, 4.5, 'switchgear gallery');
+    reach(grid, -15, -3, 4.5, 'fan room');
+    reach(grid, 17, -9, 4.5, 'cloakroom');
+    reach(grid, 4.5, 8, 4.5, 'stem corridor');
+  });
+
+  it('two separate ways between the ground and the first floor (main stair, power room gallery stair)', () => {
+    const isMain = (p: { c: [number, number, number]; pitch: number }) => Math.abs(p.pitch) > 1e-3 && p.c[0] > 5 && p.c[0] < 10 && p.c[2] > -13 && p.c[2] < -7;
+    const isGallery = (p: { c: [number, number, number]; pitch: number }) => Math.abs(p.pitch) > 1e-3 && p.c[0] < -22 && p.c[0] > -24 && p.c[2] < -8 && p.c[2] > -16;
+    expect(b.boxes.filter(isMain).length).toBe(2);
+    expect(b.boxes.filter(isGallery).length).toBe(1);
+    const withoutMain = navFor(b, [spawn.x, spawn.z], isMain);
+    const withoutGallery = navFor(b, [spawn.x, spawn.z], isGallery);
+    for (const [g, label] of [[withoutMain, 'gallery stair only'], [withoutGallery, 'main stair only']] as const) {
+      for (const [x, z] of [[3, 0], [-3, 12]] as const) {
+        const i = g.nearestWalkable(x, z, 2, 4.5);
+        expect(i, `${label}: first-floor cell at ${x},${z}`).toBeGreaterThanOrEqual(0);
+        expect(Math.abs(g.height[i]! - 4.5), `${label}: the cell is on the first floor`).toBeLessThan(0.3);
+        expect(g.findPath([spawn.x, spawn.z], g.center(i), SEARCH, spawn.y, 4.5), `${label}: path to ${x},${z}`).not.toBeNull();
+      }
+    }
+    // with both stairs gone the first floor is cut off from the ground floor (the building has no other way up)
+    const none = navFor(b, [spawn.x, spawn.z], (p) => isMain(p) || isGallery(p));
+    const i = none.nearestWalkable(-3, -9, 1, 4.5);
+    expect(i < 0 || Math.abs(none.height[i]! - 4.5) > 0.3, 'no first-floor cell is connected to the spawn').toBe(true);
   });
 });

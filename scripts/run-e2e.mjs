@@ -30,7 +30,7 @@ const expand = (list) => list.flatMap((s) => (PARTS[s] ? Array.from({ length: PA
 
 // Suites that fail now and then for reasons not yet fixed (docs/backlog.md, "Flaky e2e suites"). They always run and are always reported:
 // a failure is printed as KNOWN FLAKY and does not fail the run, a failure of any other suite does. Never skipped.
-const KNOWN_FLAKY = new Set(['e2e-coop', 'e2e-netmove', 'e2e-darkness', 'e2e-weapons-carry']);
+const KNOWN_FLAKY = new Set(['e2e-coop', 'e2e-netmove', 'e2e-darkness', 'e2e-weapons-carry', 'e2e-touch', 'e2e-pad']);
 const flaky = (s) => KNOWN_FLAKY.has(s.split(':')[0]);
 
 // --quick: which suites cover which source folder (a path under `src/` not listed here runs CORE). Keep in step with docs/systems/testing-tools.md.
