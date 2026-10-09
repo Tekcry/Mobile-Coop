@@ -50,6 +50,13 @@ Design authority: docs/design-bible.md (Section 5.1)
   <= 4 (`BAKED_POOL`) lights, <= 2 shadowed (`BAKED_SHADOWS`): the flashlights. GLSL names must not clash with
   Babylon's macros (`E` is one).
 
+## Phone light look (3.6, Phase 1 Step 4)
+- `World` `phoneLamps` (`QualityLevel.lite`): `BakedLamps` volume mode on the lit standard materials (`BakeExtras.standard`):
+  `LampPlugin`'s standard variant adds `nsVolume` (two taps, N.L, capsules) and the ambient grid fill
+  (`LEVEL_TO_RENDER`) to `diffuseBase`; the baked moon multiplies the sun; the hemisphere is off; the rig keeps
+  `BAKED_PLAIN_POOL` 2 plain lights for flashlights. The grade lifts black to `PHONE_DARK_FLOOR` (L7). Maps without
+  lamps keep the plain path. Tests: `e2e-phonelamps`, `perf.mjs --phone`.
+
 ## Phone look (3.3; 3.4 the light renderer)
 - 3.4 direction: desktop first; phones get the 2.x renderer so they hold 60 cool or warm. `PHONE_FEATURES` (shadows off
   - blob shadows, 6 plain lights, every post feature off) + `QualityLevel.lite` (phone and `QualityManager.phoneLook`

@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | in progress (Step 3 done; Step 4) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | in progress (Step 4 done; waiting for Michael's iPhone check) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -426,6 +426,72 @@ See the Step 1 and Step 5 reports.
   - Phones still draw six plain lights (Step 4); the phone check, the volume and the readable-darkness floor come next.
   - CPU budgets on the cloud VM miss on both builds (noise, as in Phase 0).
 - Next: Step 4 (phones render the field), then STOP for Michael's iPhone check.
+
+#### Step 4 report (phones render the field) - 2026-10-09
+- Done:
+  - The phone light look (`World` `phoneLamps`, from `QualityLevel.lite`): `BakedLamps` in volume mode on the lit
+    standard materials (level, fences, smooth characters and parts, weapons, props, decals; not the sky, bulbs or
+    effects). `LampPlugin`'s standard variant adds the volume (`nsVolume`: two taps, N.L against the stored
+    direction, capsule shadows from the `VOL_CAPS` nearest characters - shared with the PBR path) and the ambient
+    grid fill (`LEVEL_TO_RENDER` = `LIGHT_GAIN / LAMP_LEVEL_GAIN` per level) to `diffuseBase`; the baked moon
+    multiplies the sun; the hemisphere fill is off. The six plain lamp lights are gone: the rig keeps
+    `BAKED_PLAIN_POOL` 2 plain lights, for the flashlights only.
+  - Readable darkness (L7): the grade pass lifts black to `PHONE_DARK_FLOOR` 0.045 (display value) and keeps white
+    (`darkFloor`, pure, tested); set on the light look only.
+  - `perf.mjs --phone`: the real phone light look (mobile platform, no `?gfx=`), its budget (36 draws, 0.16 M
+    triangles; CPU and allocations as the phone presets).
+  - Phone check (`phoneCheckRuns`): "light look + lamp volume" at 100% and 75%, "+ flashlight shadow (512), moon on
+    characters" (`shadows: 'medium'`), the 3.3 voxel look, the heat check, and the 3-minute hold at 60.
+  - Tests: `e2e-phonelamps` (new, REQUIRED) and a volume read-back (`BakedLamps.volumeAt`) for probes.
+- Files changed: `src/world/bakedLamps.ts`, `src/world/world.ts`, `src/world/lightRig.ts`, `src/game/gameState.ts`,
+  `src/game/benchmark.ts`, `src/core/quality.ts`, `src/vfx/cinematicPost.ts`, `tests/phoneLook.test.ts`,
+  `scripts/e2e-phonelamps.mjs` (new), `scripts/run-e2e.mjs`, `scripts/perf.mjs`, `scripts/e2e-desktop.mjs`,
+  `scripts/e2e-lightbake.mjs`, `docs/systems/testing-tools.md`, `docs/systems/lighting.md`,
+  `docs/prompts/phase-1-sheets/step4-phone-*.jpg`.
+- Decisions:
+  - The phone's fill is the ambient grid (the spec's "plus the ambient grid"); desktop keeps the sky bake (Step 3).
+    The phone has no sky bake, and the hemisphere lit every interior at the yard's level.
+  - Flashlight shadow on the phone: not on by default; the Phone check measures it (one 512 map, with the moon's
+    cascade on moving characters - the phone's Medium spec). Michael's numbers decide.
+  - `PHONE_FEATURES.lights` stays 6: quality clamps the light count to at least 8, so the cap lives in the rig.
+- Mistakes found on the way:
+  - The standard-material injection never happened at first: Babylon collects a plugin's injection points inside
+    the base constructor, and the flag was set after it. The level drew near black under every lamp; the first
+    `e2e-phonelamps` run passed anyway (it checked the volume's data, not the shader). Fixed (the flag is read from
+    the material), and the suite now asserts the level shader adds the volume and the fill.
+- Tests:
+  - `npx vitest run`: 62 files, 618 tests (new: the dark floor; the Phone check runs).
+  - `e2e-phonelamps`: volume on the standard level material (in its shader), grid fill, baked moon, hemisphere off,
+    two plain lights, the dark floor; a point behind a wall from a lamp reads 0 in the volume (field 0.000), one in
+    view (101, 93, 78) (field 0.48); Warehouse and Proving Grounds boot with no console errors.
+  - `e2e-desktop` (phone section updated: the lamps come from the volume) and `e2e-lightbake` (the phone look draws
+    the bake): pass.
+- Measurements (`perf.mjs --phone --budget`, interleaved; the cloud VM):
+
+  | Build | sim p95 ms | anim ms / char | alloc MB/s | draws | tris M |
+  | --- | --- | --- | --- | --- | --- |
+  | `a78293f` (plain lights) | 1.4, 1.85, 2.1, 2.05, 1.85, 2.2 | 0.039-0.049 | 10.42-13.10 | 28-29 | 0.11-0.12 |
+  | Step 4, before the injection fix | 2.35, 2.8, 2.7, 2.5 | 0.046-0.052 | 10.55-12.29 | 27-28 | 0.12-0.13 |
+  | Step 4, fixed | 2.0, 1.8 | 0.0445, 0.0428 | 10.38, 10.51 | 29 | 0.12 |
+  | Step 4, fixed, `?baked=0` | 2.1, 1.95 | 0.0478, 0.0421 | 10.57, 10.89 | 29 | 0.12 |
+
+  - The fixed build passes every budget twice and reads as `a78293f` and as itself with the lamps off: the lamp
+    volume costs no CPU here. The earlier runs' 0.7 ms higher sim p95 does not come back (VM noise; animation,
+    unchanged code, rose with it).
+  - Draw calls and triangles do not change (the volume adds taps, not draws).
+- Contact sheets (`docs/prompts/phase-1-sheets/step4-phone-<view>.jpg`, phone emulation; left `a78293f`, right Step 4):
+  lamp pools now stop at walls (the plain lights lit through them), the yard's moon and lamp pool read clearly,
+  interiors a little flatter (the floor and the grid fill). A dark disc on a rack face in the `rack` view is not
+  traced (likely a character's blob shadow or a marker; the guards stand elsewhere in the left shot).
+- Not measured here: the bake on the iPhone (Step 1 asks Michael to report the Warehouse cold load), and the GPU
+  cost of the volume, which only the phone shows.
+- Open issues:
+  - Proving Grounds has no lamps, so the phone keeps its plain path there (no `BakedLamps`): no grid fill or baked
+    moon on screen; the field has both. Step 5's parity test on Proving needs a lamp-less `BakedLamps` (moon, fill).
+  - The dark disc in the `rack` view.
+- Next: **STOP.** Michael runs Settings > Display > Phone check on the `/ct/` preview (iPhone 17 Pro Max) and sends
+  the note. Gate: the 3-minute hold averages 58 fps or more, no minute under 55. Also: the Warehouse's cold-load time
+  (the bake), and the flashlight-shadow run's numbers.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)
