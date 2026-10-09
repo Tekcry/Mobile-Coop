@@ -182,3 +182,8 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   Infiltration / Free Roam, save export / import) and the legacy-on menus.
 - Mixed suites stay required: `e2e-coop` opens its pages with `legacy=1` (its lobby walk-through hosts Wave / Hunter / TDM / FFA rooms); `e2e-missions` expects no
   Ghost / Panther / Assault bars (3 with `LEGACY=1`).
+
+## Dead Line G1 (greybox)
+- `node scripts/gen-dead-line.mjs [--check]` regenerates `src/world/maps/deadLine.geo.json` from the design JSON (a test fails when it is stale).
+- `scripts/e2e-dead-line.mjs [url] [--routes=M,EX-3] [--verbose]` (REQUIRED): boots `?autostart=dead-line&mode=sandbox`, the real controller walks every design route and VDUCT, every debug teleport, rule 27 camera rays.
+- `E2E_GPU=1 node scripts/g1-perf.mjs` frame time at six spots; `node scripts/g1-floors.mjs` top-down renders beside the plan (`docs/gates/G1/`).

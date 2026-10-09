@@ -58,6 +58,8 @@ export interface MapLayout {
   hideSpots?: { pos: Vector3 }[];
   /** Where reinforcement squads come in. */
   reinforce?: Vector3[];
+  /** Debug-menu teleport points (greybox maps): grouped, labelled, with the feet position and facing. */
+  debugPoints?: { group: string; id: string; label: string; pos: Vector3; yaw: number }[];
 }
 
 export interface MapDef {

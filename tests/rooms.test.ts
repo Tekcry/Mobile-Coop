@@ -119,6 +119,9 @@ describe('map room layouts', async () => {
           const oz = Math.min(a.maxZ, c.maxZ) - Math.max(a.minZ, c.minZ);
           // storeys: one over the other is not an overlap
           const oy = Math.min(a.maxY ?? Infinity, c.maxY ?? Infinity) - Math.max(a.minY ?? -Infinity, c.minY ?? -Infinity);
+          // a room standing wholly inside another (the Dead Line boiler house in the coke yard) is nested, not overlapping: the smallest wins (`roomAt`)
+          const nested = (p: typeof a, q: typeof a): boolean => p.minX >= q.minX && p.maxX <= q.maxX && p.minZ >= q.minZ && p.maxZ <= q.maxZ;
+          if (map.id === 'dead-line' && (nested(a, c) || nested(c, a))) continue;
           expect(ox > 0.01 && oz > 0.01 && oy > 0.01, `${a.id} overlaps ${c.id}`).toBe(false);
         }
       for (const r of rooms)
@@ -135,6 +138,6 @@ describe('map room layouts', async () => {
   it('Warehouse is the default map for every mode but Training (3.0: the only playable map)', () => {
     for (const mode of ['clear', 'sandbox', 'mission', 'wave', 'infiltration', 'tdm', 'ffa'] as const) expect(MAPS.find((m) => m.modes.includes(mode))?.id).toBe('warehouse');
     expect(MAPS.find((m) => m.modes.includes('training'))?.id).toBe('proving');
-    expect(MAPS.map((m) => m.id)).toEqual(['warehouse', 'proving', 'exchange', 'trunk-annex']);
+    expect(MAPS.map((m) => m.id)).toEqual(['warehouse', 'proving', 'exchange', 'trunk-annex', 'dead-line']);
   });
 });

@@ -1883,6 +1883,12 @@ body {
   margin-top: 6px;
   color: #8fd3ff;
 }
+.debug-warp {
+  pointer-events: auto;
+  margin-top: 4px;
+  max-height: calc(60 * var(--vh));
+  overflow-y: auto;
+}
 .debug-trace {
   display: block;
   margin-top: 2px;

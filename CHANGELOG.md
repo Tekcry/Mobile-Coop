@@ -1,6 +1,7 @@
 # Changelog
 
 ## 3.6.x - First Playable (in progress)
+- G1: Mission 1 DEAD LINE campus greybox (`?autostart=dead-line&mode=sandbox`), generated from `docs/design/map-dead-line.json` by `scripts/gen-dead-line.mjs`: four floors plus the trench and culvert, 12 doors, stairs, ladders, drops, ducts, ledge and roof beam, flat debug markers, flat light, no guards or lamps. Debug overlay Teleport menu (chapter starts, spawns, objectives). Gate report `docs/gates/G1.md`.
 - T1: the Kestrel Trunk Annex ("Dead Line") is a listed map and mission (`?autostart=trunk-annex&mode=infiltration`): a walkable 36 x 28 m greybox on three levels with the yard, Goods-in, break room, switch hall and gallery, generator room, core switch cage, Test and Control rooms, roof, open stair, fire stair and four ladders; four insertions, objectives O1 and O2, exits E1 and E2; six guards on 40 s master-clock loops (timed patrol routes). NavGrid path costs are Float64 (a long search could loop and find no path). No lights, switches, panels or trench yet (T2, T3).
 - S1a: the Kestrel Exchange greybox is a listed map (`?autostart=exchange&mode=sandbox`): cable tunnel and chamber, ground floor shell, basement stair, main stair to a first-floor landing. No lights, guards or objective yet (S1b, S1c).
 - S1b: the Exchange's first floor, roof and rear goods yard: switchroom, offices, server hall with its cage, gallery and motor-room stairs, roof with parapets and the steel stair to the yard, yard with cover. Nine rooms.

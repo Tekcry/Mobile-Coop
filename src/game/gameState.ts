@@ -556,6 +556,20 @@ export class GameState implements AppState {
       this.hud.setObjective(opts.map.id === 'proving' ? 'Free roam - try every weapon' : 'Free roam - explore with every weapon');
     }
 
+    const dbgPts = world.layout.debugPoints;
+    if (dbgPts?.length) {
+      app.debug.setTeleports(
+        dbgPts.map((p) => ({
+          group: p.group,
+          label: p.label,
+          go: () => {
+            const c = this.player.controller;
+            c.teleport(new Vector3(p.pos.x, p.pos.y + 0.05, p.pos.z), p.yaw);
+            this.player.cam.yaw = p.yaw;
+          },
+        })),
+      );
+    }
     app.debug.controllerCapsules = () => [{ feet: this.player.position, height: this.player.controller.capsuleHeight, radius: MOVEMENT.radius }];
     app.debug.extra.set('player', () => {
       const c = this.player.controller;
@@ -783,6 +797,7 @@ export class GameState implements AppState {
     for (const k of ['player', 'carry', 'cover', 'combat', 'anim', 'clips']) this.app.debug.extra.delete(k);
     for (const k of ['bob', 'speed', 'accel', 'cam']) this.app.debug.removeTrace(k);
     this.app.debug.controllerCapsules = null;
+    this.app.debug.setTeleports(null);
     this.app.debug.extra.delete('ai');
     this.mode?.dispose();
     this.enemyMgr?.clear();
