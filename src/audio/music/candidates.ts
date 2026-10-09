@@ -139,7 +139,7 @@ function figure(emit: Emit, notes: readonly MotifNote[], at: number, e8: number,
       prio: PRIO.motif,
       reverb: 'hall',
       send: o.send ?? 0.3,
-      ...(o.held ? { dur: n.len * e8 * 0.95, fadeOut: 0.12 } : {}),
+      ...(o.held ? { dur: n.len * e8 * 0.95, fadeOut: 0.35 } : {}),
     });
   }
 }
@@ -166,11 +166,11 @@ function sneakTake(emit: Emit, c: Candidate, t: number): void {
       if (s === 14 && b % 2 === 1) emit({ id: 'relay0', t: st, stem: 'TEX', gain: 0.2, rate: 1, pan: -0.4, prio: PRIO.tex, reverb: 'room', send: 0.4 });
     }
     // the bass pedal where the figure is not on the bass
-    if (b === 0 || b >= 3) emit({ id: 'upright', t: bt, stem: 'BASS', gain: 0.8, rate: 1, pan: 0, prio: PRIO.bass });
+    if (b === 0 || b >= 3) emit({ id: 'upright', t: bt, stem: 'BASS', gain: 0.55, rate: 1, pan: 0, prio: PRIO.bass });
   }
-  figure(emit, c.statement, t + bar, e8, { id: 'upright', gain: 0.95, stem: 'BASS', held: false, send: 0.1 });
+  figure(emit, c.statement, t + bar, e8, { id: 'upright', gain: 0.65, stem: 'BASS', held: false, send: 0.15 });
   emit({ id: 'darkbell', t: t + bar, stem: 'MOTIF', gain: 0.18, rate: semis(c.statement[0]!.semis), pan: 0.4, prio: PRIO.motif, reverb: 'hall', send: 0.9 });
-  figure(emit, c.statement, t + 3 * bar, e8, { id: 'horn', gain: 0.6, stem: 'MOTIF', held: true, send: 0.35 });
+  figure(emit, c.statement, t + 3 * bar, e8, { id: 'horn', gain: 0.45, stem: 'MOTIF', held: true, send: 0.45 });
 }
 
 const KICKS: readonly (readonly number[])[] = [
@@ -219,7 +219,7 @@ function breakTake(emit: Emit, c: Candidate, t: number): void {
     }
   };
   const stabs = (at: number): void => {
-    figure(emit, c.statement, at, e8, { id: 'stab', gain: 0.55, stem: 'MOTIF', held: false, send: 0.15 });
+    figure(emit, c.statement, at, e8, { id: 'stab', gain: 0.4, stem: 'MOTIF', held: false, send: 0.25 });
     for (const n of c.statement) emit({ id: 'plate', t: at + n.step * e8, stem: 'METAL', gain: 0.18, rate: 1, pan: 0.3, prio: PRIO.metal });
   };
   reese(t + bar);
@@ -266,20 +266,20 @@ function noirTake(emit: Emit, c: Candidate, t: number): void {
       emit({ id: 'sub', t: bt, stem: 'BASS', gain: 0.4, rate: semis(ch.root), pan: 0, prio: PRIO.bass, layer: 'msub', fadeIn: 0.5 });
     }
     // a slow pulse: soft kick on 1, a rim on 3, a dragged ghost
-    emit({ id: 'kickRound', t: bt, stem: 'PULSE', gain: 0.6, rate: 1, pan: 0, prio: PRIO.drum });
-    emit({ id: 'rim', t: swung(bt, 8, s16), stem: 'PULSE', gain: 0.2, rate: 0.9, pan: -0.2, prio: PRIO.drum, reverb: 'hall', send: 0.4 });
+    emit({ id: 'kickRound', t: bt, stem: 'PULSE', gain: 0.4, rate: 1, pan: 0, prio: PRIO.drum });
+    emit({ id: 'rim', t: swung(bt, 8, s16), stem: 'PULSE', gain: 0.12, rate: 0.9, pan: -0.2, prio: PRIO.drum, reverb: 'hall', send: 0.4 });
     emit({ id: 'ghost', t: swung(bt, 14, s16), stem: 'PULSE', gain: 0.12, rate: 0.8, pan: 0.2, prio: PRIO.drum });
   }
-  emit({ id: 'boom', t, stem: 'METAL', gain: 0.4, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'hall', send: 0.5 });
-  figure(emit, c.statement, t, e8, { id: 'upright', gain: 0.9, stem: 'BASS', held: false, send: 0.15 });
-  figure(emit, c.statement, t + 2 * bar, e8, { id: 'horn', gain: 0.55, stem: 'MOTIF', held: true, send: 0.45 });
+  emit({ id: 'boom', t, stem: 'METAL', gain: 0.25, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'hall', send: 0.5 });
+  figure(emit, c.statement, t, e8, { id: 'upright', gain: 0.6, stem: 'BASS', held: false, send: 0.2 });
+  figure(emit, c.statement, t + 2 * bar, e8, { id: 'horn', gain: 0.45, stem: 'MOTIF', held: true, send: 0.5 });
   // the swell ends exactly on bar 5's downbeat
-  emit({ id: 'swell', t: t + 4 * bar - 1.6, stem: 'GLITCH', gain: 0.35, rate: 1, pan: 0, prio: PRIO.harm, reverb: 'hall', send: 0.3 });
-  emit({ id: 'boom', t: t + 4 * bar, stem: 'METAL', gain: 0.45, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'hall', send: 0.5 });
-  figure(emit, c.statement, t + 4 * bar, e8, { id: 'stab', gain: 0.4, stem: 'MOTIF', held: false, send: 0.4, pan: 0.15 });
-  figure(emit, c.statement, t + 4 * bar, e8, { id: 'upright', gain: 0.8, stem: 'BASS', held: false, send: 0.1 });
-  figure(emit, c.resolved, t + 6 * bar, e8, { id: 'horn', gain: 0.55, stem: 'MOTIF', held: true, send: 0.5 });
-  emit({ id: 'darkbell', t: t + 7 * bar + 8 * e8, stem: 'MOTIF', gain: 0.15, rate: 1, pan: 0.4, prio: PRIO.motif, reverb: 'hall', send: 0.9 });
+  emit({ id: 'swell', t: t + 4 * bar - 1.6, stem: 'GLITCH', gain: 0.22, rate: 1, pan: 0, prio: PRIO.harm, reverb: 'hall', send: 0.3 });
+  emit({ id: 'boom', t: t + 4 * bar, stem: 'METAL', gain: 0.28, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'hall', send: 0.5 });
+  figure(emit, c.statement, t + 4 * bar, e8, { id: 'stab', gain: 0.25, stem: 'MOTIF', held: false, send: 0.5, pan: 0.15 });
+  figure(emit, c.statement, t + 4 * bar, e8, { id: 'upright', gain: 0.5, stem: 'BASS', held: false, send: 0.15 });
+  figure(emit, c.resolved, t + 6 * bar, e8, { id: 'horn', gain: 0.45, stem: 'MOTIF', held: true, send: 0.55 });
+  emit({ id: 'darkbell', t: t + 7 * bar + 8 * e8, stem: 'MOTIF', gain: 0.1, rate: 1, pan: 0.4, prio: PRIO.motif, reverb: 'hall', send: 0.9 });
 }
 
 /** Every sound id the takes use (for tests). */

@@ -42,7 +42,9 @@ layer, which Michael allowed on 2026-10-09 (Section 13).
    reverb, as if cut from old records; found sounds carry the rhythm.
 6. **Fair.** Music reflects only what the game already shows (Section 7.3).
 7. **Under the sound effects.** Footsteps and the sound meter's cues win every collision (Section 10).
-8. **Phone first.** The figure must read on the iPhone speaker (bass voices carry harmonics); the bass must never
+8. **Subtle (Michael, 2026-10-09).** Soft attacks, low levels, lots of room. Nothing jumps out of the mix except
+   the Alert stinger; when in doubt, quieter and darker.
+9. **Phone first.** The figure must read on the iPhone speaker (bass voices carry harmonics); the bass must never
    vanish there.
 
 ---
@@ -142,14 +144,15 @@ the lab A/Bs each sampled voice against its synthesised one.
 
 | Id | Sound | Synthesis |
 | --- | --- | --- |
-| `upright` | Plucked double bass (root D2) | Karplus-Strong: a soft noise excitation in a delay line with an averaging damping filter (about 1.5 s to -60 dB), two body resonances (98 Hz, 240 Hz), a finger thump, soft clip so it reads on the phone. |
-| `horn` | Muted, dark horn (root D3) | Two saws +-5 cents and a soft 1:1 FM pair; a low-pass that barely opens (280-930 Hz); a nasal +4 dB band at 1.1 kHz (the mute); 90 ms swell; a small pitch smear down in the last 0.6 s. |
-| `stab` | Chopped string stab (root D3) | An open fifth with the octave (D3 A3 D4), each from four detuned saws; 4 ms attack, 110 ms decay; a dark low-pass; 12-bit grain held every second sample, as if sampled. |
+| `upright` | Soft plucked double bass (root D2) | Karplus-Strong played with the flesh of the finger: a doubly low-passed, hump-shaped excitation, an averaging damping filter (about 1.6 s to -60 dB), a 3 ms onset (no click), a warm body at 95 Hz, low-passed at 700 Hz, barely clipped. |
+| `horn` | Soft, breathy horn (root D3) | Six additive harmonics falling as 1/n^2 (mellow), a 220 ms raised-cosine swell with no strike, breath noise riding the tone, a gentle late vibrato, low-passed at 1.1 kHz. No FM, no clipping. |
+| `stab` | Soft chopped string stab (root D3) | An open fifth with the octave (D3 A3 D4), each from four detuned saws; 12 ms attack, 150 ms decay; dark low-pass (550-1200 Hz, then 3 kHz); 12-bit grain held every second sample, as if sampled. |
 | `swell` | Reversed string swell | A longer `stab` (450 ms decay), reversed: it rises into a downbeat. |
 | `strings` | Low string pad (root D3, loop) | Seven saws +-14 cents, each drifting slowly; low-passed at 2.2 kHz. Attack and release at play time. |
 | `darkbell` | Soft, dark bell (root D4) | Harmonic FM (1:2), index 1.2 falling to 0.1, 6 ms attack, low-pass 1.8 kHz. A distant tone, not a strike. Always quiet. |
 
-Removed after Michael's first listen: the bright FM bell, vibes and the heroic synth-brass hook.
+Removed after Michael's first listen: the bright FM bell, vibes and the heroic synth-brass hook. Softened after the
+second (2026-10-09): the first upright was too aggressive and the FM horn sounded like a bad piano.
 
 ### 4.2 Bass
 
@@ -204,7 +207,18 @@ the gaps in the breaks, the texture events, the answers in Alert and the crackle
 7. **Original:** written from these rules. Each candidate gets an ear test (Section 12) before it is picked.
 
 V1 round 1 (A Lights Out, B Searchlight, C Undertow: bell, brass hook, menu fanfare) was rejected by Michael. Round 2
-composes three new figures in this language.
+composed three new figures in this language.
+
+**Chosen (Michael, 2026-10-09): B "Dead Drop", D D F Eb C D**, with the **noir** take (70 BPM: rain, low strings, the
+figure on upright bass, then horn, a reversed swell into stabs, resolved on the horn) as the reference for the whole
+score's mood: **subtle**. Every phase is mixed and voiced to that restraint.
+
+| Step | 0 | 2 | 3 | 5 | 10 | 12 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Note | D | D | F | Eb | C | D |
+| Length (eighths) | 1 | 1 | 2 | 3 | 2 | 4 |
+
+Resolved: Eb becomes E. Broken: the last D never comes; C is held.
 
 ### 5.2 Where the chosen figure appears
 

@@ -49,50 +49,53 @@ const cents = (c: number): number => Math.pow(2, c / 1200);
 // ---------------------------------------------------------------- horn
 
 /**
- * Muted, dark horn: two detuned saws and a soft 1:1 FM pair, a low-pass that barely opens (no bright bite), a slow
- * swell, and a smear down at the end of the note. Root D3, so the figure sits low.
+ * Soft, breathy horn (a muted flugel in a far room): mellow additive harmonics falling off as 1/n^2, a slow 220 ms
+ * swell with no strike, breath noise riding the tone, a gentle late vibrato and a dark low-pass. No FM, no clipping:
+ * nothing in the attack that could read as a hammer. Root D3.
  */
 function horn(c: Ctx): Sound {
   const rate = c.rate;
   const sec = 2.6;
   const n = len(sec, rate);
-  const attack = 0.09;
+  const attack = 0.22;
   const env = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const t = i / rate;
-    env[i] = (t < attack ? t / attack : 1) * (0.85 + 0.15 * Math.exp(-t / 0.4)) * (1 - 0.25 * Math.min(1, t / sec));
+    // a smooth (raised-cosine) swell, then a slow fade
+    const a = t < attack ? 0.5 - 0.5 * Math.cos((Math.PI * t) / attack) : 1;
+    env[i] = a * (1 - 0.3 * Math.min(1, t / sec));
   }
-  // a small fall in the last 0.6 s (the smear), most of it at the very end
-  const f = (i: number): number => {
-    const t = i / rate;
-    const fall = t > sec - 0.6 ? -60 * Math.pow((t - (sec - 0.6)) / 0.6, 2) : 0;
-    return D3 * cents(fall);
-  };
   const out = new Float32Array(n);
-  addSaw(out, rate, 0.5, (i) => f(i) * cents(5), c.rng.next());
-  addSaw(out, rate, 0.5, (i) => f(i) * cents(-5), c.rng.next());
-  let pc = 0;
-  let pm = c.rng.range(0, TAU);
+  const amps = [1, 0.32, 0.14, 0.07, 0.035, 0.018];
+  const phases = amps.map(() => c.rng.range(0, TAU));
+  let ph = 0;
   for (let i = 0; i < n; i++) {
-    const w = (TAU * f(i)) / rate;
-    pm += w;
-    pc += w;
-    out[i]! += 0.4 * Math.sin(pc + (0.3 + 1.2 * env[i]!) * Math.sin(pm));
+    const t = i / rate;
+    const vib = t > 0.6 ? 6 * Math.min(1, (t - 0.6) / 0.6) * Math.sin(TAU * 4.8 * t) : 0;
+    ph += (TAU * D3 * cents(vib)) / rate;
+    let s = 0;
+    for (let k = 0; k < amps.length; k++) s += amps[k]! * Math.sin((k + 1) * ph + phases[k]!);
+    out[i] = s;
   }
-  // the mute: a dark low-pass and a nasal band around 1.1 kHz
-  svfSweep(out, rate, 'lp', 0.9, (i) => 280 + 650 * env[i]!);
-  biquad(out, 'peaking', 1100, 2, rate, 4);
-  for (let i = 0; i < n; i++) out[i]! *= env[i]!;
-  softClip(out, 1.8);
-  fadeEdges(out, 16, Math.round(rate * 0.25));
-  return snd(normalize(out, 0.8), D3);
+  // breath: band-passed noise following the tone's envelope, a little stronger on the swell
+  const breath = new Float32Array(n);
+  whiteNoise(breath, c.rng);
+  biquad(breath, 'bandpass', 900, 0.8, rate);
+  for (let i = 0; i < n; i++) {
+    const t = i / rate;
+    out[i] = (out[i]! + breath[i]! * (0.05 + 0.08 * Math.exp(-t / 0.3))) * env[i]!;
+  }
+  biquad(out, 'lowpass', 1100, 0.6, rate);
+  fadeEdges(out, 16, Math.round(rate * 0.3));
+  return snd(normalize(out, 0.7), D3);
 }
 
 // ---------------------------------------------------------------- upright bass
 
 /**
- * Plucked double bass (Karplus-Strong): a noise-and-thump excitation in a delay line with a damping low-pass, a wooden
- * body (two resonances), a finger thump. Root D2; the figure's bass voice.
+ * Soft plucked double bass (Karplus-Strong), played with the flesh of the finger: a dark, low-passed excitation in a
+ * delay line with a damping filter, a gentle 3 ms onset (no click), a warm body resonance, and a low-pass at 700 Hz.
+ * Root D2; the figure's bass voice.
  */
 function upright(c: Ctx): Sound {
   const rate = c.rate;
@@ -101,40 +104,38 @@ function upright(c: Ctx): Sound {
   // integer delay: within 3 cents of D2 at 48 kHz
   const p = Math.round(rate / D2);
   const line = new Float32Array(p);
-  // excitation: soft noise shaped like a finger (low-passed)
-  let lp = 0;
-  for (let i = 0; i < line.length; i++) {
-    lp += 0.35 * (c.rng.next() * 2 - 1 - lp);
-    line[i] = lp * 2.2;
+  // excitation: noise low-passed twice (a soft finger, not a pick), then smoothed into a single hump
+  let lp1 = 0;
+  let lp2 = 0;
+  for (let i = 0; i < p; i++) {
+    lp1 += 0.15 * (c.rng.next() * 2 - 1 - lp1);
+    lp2 += 0.15 * (lp1 - lp2);
+    line[i] = lp2 * 6 * Math.sin((Math.PI * i) / p);
   }
   let idx = 0;
   for (let i = 0; i < n; i++) {
     const y = line[idx]!;
-    // damping: an averaging low-pass plus a loss per pass (about 1.5 s to -60 dB at D2)
-    line[idx] = 0.94 * 0.5 * (y + line[(idx + 1) % p]!);
+    // damping: an averaging low-pass plus a loss per pass (about 1.6 s to -60 dB at D2)
+    line[idx] = 0.945 * 0.5 * (y + line[(idx + 1) % p]!);
     idx = (idx + 1) % p;
     out[i] = y;
   }
-  biquad(out, 'peaking', 98, 1.5, rate, 5);
-  biquad(out, 'peaking', 240, 1.2, rate, 3);
-  biquad(out, 'lowpass', 1600, 0.7, rate);
-  // finger thump
-  let ph = 0;
-  for (let i = 0; i < rate * 0.05; i++) {
-    const t = i / rate;
-    ph += (TAU * 110) / rate;
-    out[i]! += 0.5 * Math.exp(-t / 0.012) * Math.sin(ph);
-  }
-  softClip(out, 1.6);
-  fadeEdges(out, 8, Math.round(rate * 0.15));
-  return snd(normalize(out, 0.85), D2);
+  biquad(out, 'peaking', 95, 1.2, rate, 3);
+  biquad(out, 'lowpass', 700, 0.6, rate);
+  biquad(out, 'highpass', 40, 0.7, rate);
+  // a gentle onset: no click
+  const on = Math.round(rate * 0.003);
+  for (let i = 0; i < on; i++) out[i]! *= i / on;
+  softClip(out, 1.15);
+  fadeEdges(out, 0, Math.round(rate * 0.2));
+  return snd(normalize(out, 0.8), D2);
 }
 
 // ---------------------------------------------------------------- string stab
 
 /**
  * A chopped string-section stab, as if cut from an old orchestral record and pitched down: an open fifth with the
- * octave (D3 A3 D4), fast attack, short decay, darkened and lightly crushed to 12 bits. `swell` is a longer one,
+ * octave (D3 A3 D4), a soft 12 ms attack, short decay, dark, lightly crushed to 12 bits. `swell` is a longer one,
  * reversed, so it rises into a downbeat.
  */
 function stabData(c: Ctx, sec: number, decay: number): Float32Array {
@@ -147,11 +148,11 @@ function stabData(c: Ctx, sec: number, decay: number): Float32Array {
       addSaw(out, rate, amp / 4, () => D3 * mul * cents(det), c.rng.next());
     }
   }
-  svfSweep(out, rate, 'lp', 1, (i) => 700 + 1500 * Math.exp(-i / (rate * 0.06)));
+  svfSweep(out, rate, 'lp', 0.8, (i) => 550 + 650 * Math.exp(-i / (rate * 0.08)));
   biquad(out, 'highpass', 110, 0.7, rate);
   for (let i = 0; i < n; i++) {
     const t = i / rate;
-    out[i]! *= Math.min(1, t / 0.004) * Math.exp(-t / decay);
+    out[i]! *= Math.min(1, t / 0.012) * Math.exp(-t / decay);
   }
   // the "sampled" grain: 12 bits, held every second sample
   const levels = 2048;
@@ -160,8 +161,8 @@ function stabData(c: Ctx, sec: number, decay: number): Float32Array {
     out[i] = q;
     if (i + 1 < n) out[i + 1] = q;
   }
-  biquad(out, 'lowpass', 5000, 0.7, rate);
-  softClip(out, 1.5);
+  biquad(out, 'lowpass', 3000, 0.7, rate);
+  softClip(out, 1.15);
   fadeEdges(out, 8, Math.round(rate * 0.05));
   return normalize(out, 0.85);
 }
@@ -314,7 +315,7 @@ function midbass(c: Ctx): Sound {
 export const ORCHESTRA_RECIPES: Record<string, (c: Ctx) => Sound> = {
   horn,
   upright,
-  stab: (c) => snd(stabData(c, 0.5, 0.11), D3),
+  stab: (c) => snd(stabData(c, 0.6, 0.15), D3),
   swell: (c) => snd(reversed(stabData(c, 1.6, 0.45)), D3),
   darkbell,
   strings,

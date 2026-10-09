@@ -10,7 +10,7 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 | M1 | Engine and music lab | Sonnet | done; Michael listened and did not like calm and combat. Engine and found-sound library kept |
 | M2-M4 | (old plan) | - | cancelled; replaced by V1-V4 |
 | V0 | Direction v2 (MGS structure + CT texture) | Opus | done; approved by Michael 2026-10-09 |
-| V1 | Three candidate motifs, motif picker, WAVs | Opus | round 1 rejected; round 2 (Chaos Theory-led) done, waiting for Michael to pick |
+| V1 | Three candidate motifs, motif picker, WAVs | Opus | B "Dead Drop" chosen with the noir take; softer voices done, waiting for Michael's listen |
 | V2 | Engine upgrade: instruments, mix glue, five phases, adapter | Sonnet | not started |
 | V3 | Composition: phases, stingers, themes, map colours | Opus | not started |
 | V4 | Polish, budget, docs | Sonnet | not started |
@@ -19,6 +19,7 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 | Date | Cue | Heard as | Action |
 | --- | --- | --- | --- |
 | 2026-10-09 | V1 round 1 (A, B, C) | Not liked; bell loud and jarring; wanted the Chaos Theory sound | All three dropped; direction v2.1 and round 2 |
+| 2026-10-09 | V1 round 2 | Likes B, noir take; upright too aggressive, horn like a bad piano; wants everything more subtle | B chosen; upright, horn and stab softened; levels down |
 
 ---
 
@@ -226,3 +227,21 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   emulation and desktop (each take plays; 60 s renders peak -7.1 dBFS, at most 16 voices; no console errors). Lint and
   build clean. Pitches measured: horn 148 Hz (D3), upright 73.5 Hz (D2), stab D-rooted fifths, dark bell 294 Hz (D4).
 - Next: Michael listens and picks A, B or C, or asks for more. STOP.
+
+### V1 round 2, revision (subtle)
+- Michael (2026-10-09): likes **B noir**; the first instrument (upright bass) is too aggressive, the second (horn)
+  sounds like a bad piano; make it all more subtle.
+- Done:
+  - **B "Dead Drop" (D D F Eb C D) is the chosen figure**; the noir take is the reference mood. Recorded in direction 5.1
+    with a new principle 8: subtle.
+  - `upright`: a soft finger pluck (doubly low-passed excitation, 3 ms onset, no click), low-passed at 700 Hz, barely
+    clipped.
+  - `horn`: rebuilt as a soft, breathy horn: six mellow additive harmonics, a 220 ms swell with no strike (measured peak at
+    197 ms), breath noise, late vibrato, low-pass 1.1 kHz. No FM, no clipping (the FM attack is what read as a piano).
+  - `stab`: 12 ms attack, darker filter, less clipping.
+  - Noir mix: bass, horn, stabs, swell, kick, rim, booms and the bell all 3-5 dB lower, more reverb; horn notes release over
+    0.35 s. Sneak's bass and horn lowered to match. Take level -14 dB (was -12). Break left punchy (it is Alert).
+- Tests: `npm test` 652 pass, lint and build clean, `scripts/e2e-music.mjs` passes (candidate B 60 s: peak -7.3 dBFS,
+  RMS -18.4 dBFS, 16 voices).
+- Next: Michael listens to B noir again. On approval, V1 closes and V2 (Sonnet) builds the engine around Dead Drop and the
+  noir mood. STOP.

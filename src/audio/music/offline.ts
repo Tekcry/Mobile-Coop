@@ -38,7 +38,7 @@ export async function renderOffline(lib: Library, o: OfflineOptions): Promise<Of
   const cond = new Conductor(o.seed, lib, (e) => engine.handle(e));
   cond.setBpmNudge(o.bpmNudge ?? 0);
   if (o.kind.startsWith('cand')) {
-    engine.setLevelDb(-12, 0, 0.001);
+    engine.setLevelDb(-14, 0, 0.001);
     playAllTakes((e) => engine.handle(e), candidate(o.kind.slice(4) as CandidateId), 0.1);
   } else if (o.kind === 'motif') {
     engine.setLevelDb(-6, 0, 0.001);
