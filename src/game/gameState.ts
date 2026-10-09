@@ -72,6 +72,7 @@ import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
 import { Silhouettes } from '../vfx/silhouettes';
 import { VISION, VisionState } from './vision';
+import { VISION_GAIN } from '../world/darkCurve';
 import { StealthSystems } from './stealthSystems';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { ExecuteController } from './executeController';
@@ -1216,6 +1217,9 @@ export class GameState implements AppState {
     look.y = look.y * this.assistScale + r.dPitch;
   }
 
+  /** The brightness calibration is held at its default (bible 5.15: the Confrontation; set by that mission). */
+  brightnessLocked = false;
+
   /** Photo mode (feedback screenshots): the camera is flown by the photo screen, the world holds still. */
   private photo = false;
 
@@ -1474,6 +1478,11 @@ export class GameState implements AppState {
         this.applyQuality(level);
       } else this.world.applyQuality(level, true);
     }
+    // (3.6 Step 4b) night vision for the run, or its middle third
+    if (run.vision) {
+      const third = run.seconds / 3;
+      this.vision.set(run.vision === 'night' || (b.t >= third && b.t < 2 * third) ? 'night' : 'off');
+    }
     // guards keep patrolling but never fight; the operator takes no damage
     for (const e of this.enemyMgr?.enemies ?? []) e.passive = true;
     this.target.damageMul = 0;
@@ -1501,6 +1510,8 @@ export class GameState implements AppState {
       if (b.sections.length) line += `; ${sectionText(b.sections)}`;
       if (run.sustained && b.buckets.length >= 2) {
         const d = sustainedDrift(b.buckets);
+        // (3.6: every minute - the gate is "no minute under 55")
+        line += `; by minute ${b.buckets.map((x) => x.toFixed(0)).join(' ')} fps`;
         line += `; first minute ${b.buckets[0]!.toFixed(0)} fps, last ${b.buckets[b.buckets.length - 1]!.toFixed(0)} fps (${(d * 100).toFixed(1)}%${d < -0.1 ? ', throttling' : ''})`;
       }
       b.lines.push(line);
@@ -1620,7 +1631,9 @@ export class GameState implements AppState {
   private renderVision(): void {
     const v = this.vision;
     this.post.setNightVision(v.night);
-    // the tri-lens glows while a mode is on
+    // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it)
+    if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
+    // the tri-lens glows brighter while a mode is on
     this.player.rig.setLensGlow(v.mode !== 'off');
     this.sonarMarks.setAlpha(v.markAlpha * 0.6);
     const t = v.sincePulse;
@@ -1803,6 +1816,8 @@ export class GameState implements AppState {
       this.postKey = key;
       this.post.configure(v.vignette, v.filmGrain);
     }
+    // (Step 4b) the brightness calibration; the Confrontation locks it (bible 5.15)
+    this.post.setBrightness(this.brightnessLocked ? 1 : v.brightness);
     const scale = this.app.loop.timeScale || 1;
     const real = dt / scale;
     if (this.beatT > 0) {

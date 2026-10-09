@@ -12,6 +12,7 @@ import type { Hint } from '../prompts';
 import { button, choice, refreshWidgets, section, slider, TabView, toggle, type TabDef } from '../widgets';
 import { LayoutEditorScreen } from './layoutEditor';
 import { ControlsScreen } from './controlsScreen';
+import { BrightnessScreen } from './brightnessScreen';
 import { enterFullscreenLandscape, toggleFullscreen } from '../../pwa/pwa';
 import { currentResolution, ResolutionPicker } from './resolutionPicker';
 
@@ -275,13 +276,14 @@ export class SettingsScreen extends Screen {
         h('div', { class: 'row-note', text: 'Graphics are set for this phone: 60 fps, 75 - 100% of the screen resolution (sharpened to full resolution), adapting in a match.' }),
         slider('Field of view (horizontal, 16:9)', { min: 60, max: 120, step: 1, get: () => s().video.fovH, set: (v) => upd((d) => void (d.video.fovH = v)), format: (v) => `${v}°` }),
         toggle('Show FPS overlay', () => s().video.showFps, (v) => upd((d) => void (d.video.showFps = v))),
+        button('Brightness', () => app.screens.push(new BrightnessScreen(app)), { class: 'subtle' }),
         choice('Avatar style', [{ value: 'detailed' as const, label: 'Operator (detailed)' }, { value: 'stick' as const, label: 'Stick' }], () => s().video.avatarStyle, (v) => upd((d) => void (d.video.avatarStyle = v))),
         choice('Interface', PLATFORM_OPTS, () => s().video.platform, (v) => upd((d) => void (d.video.platform = v))),
         button('Enter fullscreen', () => void enterFullscreenLandscape(), { class: 'subtle' }),
       ),
       section(
         'Phone check',
-        h('div', { class: 'row-note', text: 'About 8 minutes, best started with the phone cool: five 20 s flights through the Warehouse with a 30 s cool-down after each (the phone look at 100% and 75%, with the moon shadow, the old voxel look, the first again), then 3 minutes held at 60 fps (does 60 hold once warm?). Saved as feedback - send it.' }),
+        h('div', { class: 'row-note', text: 'About 9 minutes, best started with the phone cool: six 20 s flights through the Warehouse with a 30 s cool-down after each (the phone look at 100% and 75%, with night vision, with the flashlight and moon shadows, the old voxel look, the first again), then 3 minutes held at 60 fps, night vision in the second minute (does 60 hold once warm?). Saved as feedback - send it.' }),
         button('Run the Phone check', () => app.benchmark?.('phone'), { icon: 'monitor' }),
       ),
     );
@@ -372,6 +374,7 @@ export class SettingsScreen extends Screen {
         'Display',
         // (3.1.7: a list of real resolutions, applied on a pick and kept only when confirmed)
         resolutionRow(app),
+        button('Brightness', () => app.screens.push(new BrightnessScreen(app)), { class: 'subtle' }),
         toggle('Adaptive detail (holds the frame rate in a match)', () => s().video.adaptive, (v) => upd((d) => void (d.video.adaptive = v))),
         choice('Upscaler (with a resolution scale under 100%)', UPSCALER_OPTS, () => s().video.upscaler, (v) => upd((d) => void (d.video.upscaler = v))),
         slider('Panini projection (wide FOV)', { min: 0, max: 1, step: 0.05, get: () => s().video.panini, set: (v) => upd((d) => void (d.video.panini = v)), format: (v) => (v === 0 ? 'Off' : pct(v)) }),

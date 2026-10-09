@@ -3554,3 +3554,17 @@ body.rotated.ccw {
 .res-dialog .res-list .btn {
   justify-content: flex-start;
 }
+
+/* 3.6 Step 4b: brightness calibration - the symbol on true black */
+.brightness-stage {
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 18px 0;
+  margin: 8px 0;
+}
+.brightness-symbol {
+  width: min(36vw, 200px);
+  height: auto;
+}

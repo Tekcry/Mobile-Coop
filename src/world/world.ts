@@ -4,6 +4,8 @@ import {
   Color3,
   CreateBox,
   CreateCylinder,
+  CreatePlane,
+  PBRMaterial,
   Material,
   Matrix,
   Quaternion,
@@ -240,10 +242,12 @@ export class World {
     const phone = !!opts.phoneLamps;
     if (bake.lamps && flags.baked && (phone || (vo && level.voxels && !opts.cheap))) {
       // (3.3 phones: the light volume, from the ground floor up - the listed maps stand at y 0)
-      // 3.6: the baked moon and closed doors (desktop's fill stays the sky bake's: Michael, 2026-10-09); the phone
-      // has no sky bake: its fill is the ambient grid, at the lamps' scale
-      const fill = phone ? { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] } : null;
-      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume || phone ? { floorY: 0 } : null, { moon: bake.moon, doors: w.doors.list, fill, standard: phone });
+      // 3.6: the baked moon and closed doors (desktop's voxels keep the sky bake's fill: Michael, 2026-10-09); the
+      // phone has no sky bake: its fill is the ambient grid, at the lamps' scale. Step 4b: the darkness curve reads
+      // the grid everywhere, and it fills desktop's non-voxel surfaces (characters, props) in place of the hemisphere,
+      // which lit them as if under open sky indoors.
+      const fill = { grid: bake.ambient, color: [w.hemi.diffuse.r, w.hemi.diffuse.g, w.hemi.diffuse.b] as [number, number, number] };
+      w.lamps = new BakedLamps(scene, level.lights, bake.lamps.baked, bake.lamps.r, bake.lo, bake.hi, opts.lampVolume || phone ? { floorY: 0 } : null, { moon: bake.moon, doors: w.doors.list, fill, standard: phone, moonLight: bake.moonLight });
       if (phone) w.hemi.intensity = 0;
       w.lamps.bakeMs = bake.ms;
       w.lamps.attachAll();
@@ -252,6 +256,33 @@ export class World {
     }
     if (voxels?.giGroups) w.giSlotOf = giLights(level.lights).slotOf;
     return w;
+  }
+
+  /**
+   * Tests (3.6 Step 4b, the brightness probes): a matte 50% grey card (display grey) at a point, its face towards
+   * (nx, ny, nz), in the material the look lights (standard on the phone look and the cheap path, PBR on desktop) -
+   * the lamp plugin attaches to it as to any surface. Not a shadow caster; gameplay never sees it.
+   */
+  addLightProbe(x: number, y: number, z: number, nx: number, ny: number, nz: number, size = 0.3): Mesh {
+    const m = CreatePlane('lightProbe', { size, sideOrientation: 2 }, this.scene);
+    m.position.set(x, y, z);
+    // (a plane's front faces -z: look along -n)
+    m.lookAt(new Vector3(x - nx, y - ny, z - nz));
+    m.isPickable = false;
+    if (this.lamps?.standardLook || !this.surfaces) {
+      const mat = new StandardMaterial('lightProbe', this.scene);
+      mat.diffuseColor = new Color3(0.5, 0.5, 0.5);
+      mat.specularColor = Color3.Black();
+      m.material = mat;
+    } else {
+      const mat = new PBRMaterial('lightProbe', this.scene);
+      const g = Math.pow(0.5, 2.2);
+      mat.albedoColor = new Color3(g, g, g);
+      mat.metallic = 0;
+      mat.roughness = 1;
+      m.material = mat;
+    }
+    return m;
   }
 
   /** What the canonical light bake is made of (tests compare it across renderers; computed on demand). */

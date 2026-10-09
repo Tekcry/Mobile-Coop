@@ -130,10 +130,11 @@ export const PHONE_FLOOR = 0.75;
 export const PHONE_FPS_FALLBACK = 30;
 
 /**
- * 3.6 readable darkness (bible L7): the phone grade lifts black to this (display value, 0..1) and keeps white, so the
- * darkest playable corner is never pure black at default brightness (`darkFloor`, mirrored in the shader).
+ * The phone grade lifts black to this (display value, 0..1) and keeps white (`darkFloor`, mirrored in the shader).
+ * 3.6 Step 4b (bible 1.10 L7, darkness is dark): just enough to stop OLED black smear on the iPhone, not enough to see
+ * by (it was 0.045, "readable darkness").
  */
-export const PHONE_DARK_FLOOR = 0.045;
+export const PHONE_DARK_FLOOR = 0.008;
 
 /** The grade's floor (pure; the shader does the same per channel): black -> `floor`, white stays white. */
 export function darkFloor(c: number, floor: number): number {

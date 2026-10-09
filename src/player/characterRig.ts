@@ -1,5 +1,6 @@
 import { Color4, Matrix, Quaternion, TransformNode, Vector3, type AbstractMesh, type InstancedMesh, type Material, type Scene } from '../core/babylon';
 import { VoxelBody, type VoxelBodyOptions } from '../voxel/voxelBody';
+import { addGlow, GLOW_IDLE, GLOW_VISION } from './goggleGlow';
 import type { SwapReach } from '../anim/clips/actions';
 import type { PartShape } from '../world/partLibrary';
 import type { AvatarLook } from '../cosmetics/avatarLook';
@@ -497,6 +498,8 @@ export class CharacterRig {
   setHeadVisible(v: boolean): void {
     if (this.voxel) this.voxel.setHeadVisible(v);
     else for (const m of this.parts) if (m.parent === this.headNode) m.isVisible = v;
+    // (the goggle glow goes with the head: hidden in a first-person view)
+    for (const g of this.glows) g.isVisible = v;
   }
 
   /** All joints, for the debug skeleton view. Pairs of (parent, child). */
@@ -738,10 +741,15 @@ export class CharacterRig {
         const lens = (x: number, y: number): void => {
           part('rcyl', c.helmet, 'helmet', this.headNode, 0.034, 0.042, 0.034, x, y, z + 0.022, Math.PI / 2);
           this.lenses.push(part('rcyl', LENS_OFF, 'lens', this.headNode, 0.026, 0.006, 0.026, x, y, z + 0.044, Math.PI / 2) as InstancedMesh);
+          // (Step 4b) the goggle glow: the lens as an emissive point, seen in the dark (visual only)
+          this.glows.push(addGlow(this.headNode.getScene(), this.headNode, x, y, z + 0.047, 0.02));
         };
         lens(-0.026, 0.022);
         lens(0.026, 0.022);
         lens(0, 0.058);
+        // the goggle's battery pack at the back of the strap, its LED the glow the camera behind sees (Step 4b)
+        part('rbox', c.helmet, 'helmet', this.headNode, 0.05, 0.034, 0.022, 0, hh * 0.12, -hd * 0.52 - 0.006);
+        this.glows.push(addGlow(this.headNode.getScene(), this.headNode, 0, hh * 0.12, -hd * 0.52 - 0.019, 0.014));
         break;
       }
       case 'hood':
@@ -830,16 +838,19 @@ export class CharacterRig {
     this.root.setEnabled(v);
   }
 
-  /** Tri-lens goggle lenses (empty without the goggle). */
+  /** Tri-lens goggle lenses (empty without the goggle) and their glow points (Step 4b, `goggleGlow.ts`). */
   private readonly lenses: InstancedMesh[] = [];
+  private readonly glows: InstancedMesh[] = [];
   private lensOn = false;
 
-  /** The tri-lens lenses glow green while a vision mode (night vision, sonar) is on. */
+  /** The tri-lens lenses always glow faintly (the goggle glow, bible L7); brighter while a vision mode (night vision,
+   *  sonar) is on. */
   setLensGlow(on: boolean): void {
     if (on === this.lensOn) return;
     this.lensOn = on;
     const c = Color4.FromHexString(`${on ? LENS_ON : LENS_OFF}ff`);
     for (const m of this.lenses) m.instancedBuffers.color = c;
+    for (const g of this.glows) g.instancedBuffers.color = on ? GLOW_VISION : GLOW_IDLE;
     if (this.voxel) for (const m of this.lenses) this.voxel.setPartColor(this.parts.indexOf(m), c);
   }
 
@@ -1570,6 +1581,7 @@ export class CharacterRig {
     DEBUG_RIGS.delete(this);
     this.voxel?.dispose();
     for (const m of this.parts) m.dispose();
+    for (const g of this.glows) g.dispose();
     this.root.dispose();
   }
 }

@@ -45,9 +45,14 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   - `scripts/e2e-lightbake.mjs` (3.6) the Warehouse under `?gfx=min`, the phone look, `?gfx=low` and `?gfx=epic` bakes the same canonical shapes and the
     same lamp / moon / ambient bytes (cache keys and a content hash from `World.lightInfo()`)
   - `scripts/e2e-phonelamps.mjs` (3.6) the phone light look (`platform=mobile`, no `?gfx=`): the lamps from the light volume
-    on the standard materials, the ambient grid fill, the baked moon, two plain lights for flashlights, the readable-darkness
+    on the standard materials, the ambient grid fill, the baked moon, two plain lights for flashlights, the phone black
     floor; a probe behind a wall from a lamp reads dark in the volume (`BakedLamps.volumeAt`) and in the field, one in view
     reads lit; Warehouse and Proving Grounds boot without console errors
+  - `scripts/e2e-darkness.mjs` (3.6 Step 4b, bible L5) display brightness targets: on the Warehouse, a matte 50% grey card
+    (`World.addLightProbe`) at points of field level ~0.12 / 0.27 / 0.40 / 0.70 facing the strongest light, the camera
+    0.8 m in front, the HUD hidden; the screenshot's centre read as Rec. 709 luma - phone light look and Epic, night
+    vision off and on. `LOOK=phone|epic` runs one look; `REPORT=1` prints without asserting; `DARK_OFF=1` (with
+    `REPORT=1`) shows the look before Step 4b (no curve, the old phone floor)
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` Loadout by controller (live weapon preview, lock line, upgrade, buy in place), suit / HQ by touch, rewards, IndexedDB persistence, export/import

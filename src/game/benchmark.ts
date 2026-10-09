@@ -44,6 +44,8 @@ export interface BenchRun {
   cap?: number;
   /** 3.4 Phone check: the 3.3 voxel look for a comparison run (default the light look). */
   look?: PhoneLook;
+  /** 3.6 Step 4b: night vision on for the whole run, or for the middle third of it (the hold's second minute). */
+  vision?: 'night' | 'middle';
 }
 
 /** A benchmark in progress, carried from one run's match to the next. */
@@ -96,6 +98,8 @@ export function phoneCheckRuns(): BenchRun[] {
     // (3.6: the light look draws the lamps from the baked light volume, the ambient grid and the baked moon)
     run('light look + lamp volume, 100%'),
     run('light look + lamp volume, 75%', { scale: PHONE_FLOOR }),
+    // (3.6 Step 4b: night vision is a gain in the lighting - its cost, and it is in the hold's second minute)
+    run('light look + night vision, 100%', { vision: 'night' }),
     // (3.6: is a shadow map affordable - the nearest flashlight at 512, the moon's cascade on moving characters; the
     // level's moon shadows are baked)
     run('+ flashlight shadow (512), moon on characters', { gfx: { shadows: 'medium' } }),
@@ -104,7 +108,7 @@ export function phoneCheckRuns(): BenchRun[] {
     // (3.3.1: the first run again - a phone heating up through the check slows every later run; this says by how much)
     run('light look + lamp volume, 100% again (heat check)'),
     // (3.3.2: what a match does - capped at 60 for 3 minutes, once warm: does 60 hold?)
-    { ...run('light look + lamp volume held at 60, 3 min'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60 },
+    { ...run('light look + lamp volume held at 60, 3 min (night vision in minute 2)'), seconds: PHONE_HOLD_SECONDS, sustained: true, cap: 60, vision: 'middle' },
   ];
 }
 

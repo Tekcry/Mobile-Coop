@@ -1,4 +1,5 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
+import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 
 export { PHONE_DARK_FLOOR } from '../core/quality';
 
@@ -18,6 +19,7 @@ uniform vec3 tint;
 uniform float sat;
 uniform float contrast;
 uniform float darkFloor;
+uniform float bright;
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
   // the map's colour grade: tint, saturation, contrast round mid grey
@@ -25,15 +27,18 @@ void main(void) {
   float gl = dot(gr, vec3(0.299, 0.587, 0.114));
   gr = mix(vec3(gl), gr, sat);
   c.rgb = max((gr - 0.5) * contrast + 0.5, 0.0);
-  // (3.6) readable darkness: black lifted to the floor, white kept
+  // (Step 4b) the player's brightness calibration: a small, clamped exposure offset
+  c.rgb *= bright;
+  // (3.6) the phone's black floor (OLED smear), white kept
   if (darkFloor > 0.0) c.rgb = darkFloor + min(c.rgb, 1.0) * (1.0 - darkFloor);
   vec2 d = vUV - 0.5;
   d.x *= aspect;
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
   if (nv > 0.0) {
+    // (Step 4b) the gain is in the lighting (\`LampPlugin\`, \`VISION_GAIN\`): the tube maps the light it gets to green
+    // nearly as it is, and lamp light blows out towards white
     float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
-    float g = 1.0 - exp(-l * 7.0);
-    vec3 p = vec3(0.2, 1.0, 0.35) * (0.05 + g * 1.1) + (n - 0.5) * 0.14;
+    vec3 p = vec3(0.25, 1.0, 0.4) * (0.02 + l * 0.62) + vec3(max(l - 0.75, 0.0) * 4.0) + (n - 0.5) * 0.1;
     float tube = smoothstep(0.82, 0.38, length(d));
     c.rgb = mix(c.rgb, p * mix(1.0, tube, 0.85), nv);
   }
@@ -73,6 +78,8 @@ export class CinematicPost {
   private contrast = 1;
   /** Black lifted to this (3.6; `PHONE_DARK_FLOOR` on the phone look, 0 elsewhere). */
   private floor = 0;
+  /** The brightness calibration's exposure multiplier (Step 4b; 1 = default). */
+  private bright = 1;
 
   constructor(private camera: Camera) {}
 
@@ -81,6 +88,19 @@ export class CinematicPost {
     if (k === this.floor) return;
     this.floor = k;
     this.sync();
+  }
+
+  /** The brightness calibration (Settings > Display > Brightness), clamped to `BRIGHTNESS_MIN` .. `BRIGHTNESS_MAX`
+   *  so it cannot lift the dark band out of dark (bible L7). */
+  setBrightness(k: number): void {
+    const b = Math.min(BRIGHTNESS_MAX, Math.max(BRIGHTNESS_MIN, k));
+    if (b === this.bright) return;
+    this.bright = b;
+    this.sync();
+  }
+
+  get brightness(): number {
+    return this.bright;
   }
 
   /** The floor in use (tests). */
@@ -104,7 +124,7 @@ export class CinematicPost {
   }
 
   private get graded(): boolean {
-    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1 || this.floor > 0;
+    return this.sat !== 1 || this.contrast !== 1 || this.tint[0] !== 1 || this.tint[1] !== 1 || this.tint[2] !== 1 || this.floor > 0 || this.bright !== 1;
   }
 
   /** Night-vision goggles blend (0 off .. 1). */
@@ -136,7 +156,7 @@ export class CinematicPost {
   private sync(force = false): void {
     const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor'], null, 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright'], null, 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -150,6 +170,7 @@ export class CinematicPost {
         e.setFloat('sat', this.sat);
         e.setFloat('contrast', this.contrast);
         e.setFloat('darkFloor', this.floor);
+        e.setFloat('bright', this.bright);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

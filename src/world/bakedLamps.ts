@@ -4,7 +4,8 @@ import { BOX_STRIDE, fillLampAtlas, LAMP_CELL, LAMP_GRID, LAMP_STRIDE, lampGrid,
 import { LAMP_VOL_MAX, lampVolumeGrid, lampVolumeRegion, unionRegion, type LampVolumeGrid } from '../voxel/lampVolume';
 import type { LightRegistry } from './lights';
 import { bakedLights, type MoonGrid } from './lightBake';
-import { LAMP_CONE_COS, LAMP_EXP, LAMP_LEVEL_GAIN, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
+import { LAMP_CONE_COS, LAMP_EXP, LAMP_MATH_GLSL, LIGHT_GAIN, SPOT_EXP } from './lampMath';
+import { DARK_DESKTOP, DARK_GLSL, DARK_PHONE, LEVEL_TO_RENDER, VISION_GAIN, type DarkParams } from './darkCurve';
 import { AMBIENT_CELL, type AmbientGrid } from './ambientGrid';
 import { DOOR_SHUT, DOORS_PER_LAMP, lampDoorLists, type FieldDoor } from './lightField';
 
@@ -16,9 +17,7 @@ const LAMP_TEXELS = 7;
 /** Per door two texels after the capsules: hinge + width, (sin yaw, cos yaw, height, shut). */
 const DOOR_TEXELS = 2;
 
-/** Rendering: a gameplay light level shows as this much light on screen (a lamp's `LIGHT_GAIN` over its gameplay
- *  `LAMP_LEVEL_GAIN`), so the phone's ambient-grid fill and the lamps keep one scale. */
-export const LEVEL_TO_RENDER = LIGHT_GAIN / LAMP_LEVEL_GAIN;
+export { LEVEL_TO_RENDER };
 
 /** What the canonical bake adds to the baked lamps (3.6). */
 export interface BakeExtras {
@@ -26,8 +25,12 @@ export interface BakeExtras {
   moon?: MoonGrid | null;
   /** Doors (`Doors.list`): a closed leaf stops the lamps listed for it. */
   doors?: readonly FieldDoor[];
-  /** The phone light look: the ambient grid as the fill (gameplay's own; no sky bake there), with its colour. */
+  /** The ambient grid (gameplay's own) and the fill colour: the darkness curve reads the grid everywhere; it is the
+   *  fill on the phone light look and on desktop's non-voxel surfaces (characters, props), in place of the
+   *  hemisphere (Step 4b; the voxels keep the sky bake's fill). */
   fill?: { grid: AmbientGrid; color: [number, number, number] } | null;
+  /** The moon's share of the open-sky level (`moonLight`): the curve's moon term. */
+  moonLight?: number;
   /** The phone light look: the plugin goes on the lit standard materials (else on the PBR ones). */
   standard?: boolean;
 }
@@ -62,6 +65,14 @@ export class BakedLamps {
   readonly fill: BakeExtras['fill'];
   /** The plugin goes on standard materials (the phone light look). */
   private readonly standard: boolean;
+  get standardLook(): boolean {
+    return this.standard;
+  }
+  readonly moonLight: number;
+  /** Step 4b, rendering only: the night-vision gain (1 off; `GameState` eases it) and the curve's shape (the look's
+   *  set; tests may tune it). Gameplay never reads either. */
+  visionGain = 1;
+  dark: DarkParams;
   private readonly doors: readonly FieldDoor[];
   private readonly doorShut: Uint8Array;
   /** Per lamp its door indices (`lampDoorLists`). */
@@ -73,7 +84,6 @@ export class BakedLamps {
   private readonly capA = new Float32Array(MAX_CAPSULES * 4);
   private readonly capB = new Float32Array(MAX_CAPSULES * 4);
   private readonly plugins = new Set<Material>();
-  private obs: { remove(): void } | null = null;
   /** Load time: the bake (or the cache read), ms. */
   bakeMs = 0;
   /** Volume re-mixes so far (3.3 spike log). */
@@ -102,6 +112,8 @@ export class BakedLamps {
     this.moon = extra.moon ?? null;
     this.fill = extra.fill ?? null;
     this.standard = !!extra.standard;
+    this.moonLight = extra.moonLight ?? 0;
+    this.dark = { ...(this.standard ? DARK_PHONE : DARK_DESKTOP) };
     this.doors = extra.doors ?? [];
     this.doorShut = new Uint8Array(this.doors.length).fill(2);
     this.lampDoors = lampDoorLists(baked.lights, this.doors);
@@ -166,12 +178,16 @@ export class BakedLamps {
     this.update();
   }
 
-  /** Put the plugin on every PBR material in the scene, now and as they are made. */
+  /** Put the plugin on every lit material in the scene, now and as they are made. */
   attachAll(): void {
     for (const m of this.scene.materials) this.attach(m);
-    const o = this.scene.onNewMaterialAddedObservable.add((m) => this.attach(m));
-    this.obs = { remove: () => this.scene.onNewMaterialAddedObservable.remove(o) };
+    // (Step 4b: a material made later is attached on the next frame (`frame`), once its constructor has run - the
+    // scene's new-material event fires inside Babylon's base constructor, too early for a plugin)
+    this.matCount = this.scene.materials.length;
   }
+
+  /** Materials in the scene at the last check (a change: attach the new ones). */
+  private matCount = -1;
 
   attach(m: Material): void {
     if (this.plugins.has(m)) return;
@@ -217,6 +233,11 @@ export class BakedLamps {
   /** Per render frame: lamp changes and the characters' capsules (each lamp lists the nearest few in its reach). */
   frame(): void {
     let dirty = false;
+    const mats = this.scene.materials;
+    if (this.matCount >= 0 && mats.length !== this.matCount) {
+      this.matCount = mats.length;
+      for (let i = 0; i < mats.length; i++) this.attach(mats[i]!);
+    }
     if (this.version !== this.reg.version) this.update();
     if (this.doors.length && this.writeDoors()) {
       if (this.volume) this.data.update(this.buf);
@@ -315,7 +336,6 @@ export class BakedLamps {
   }
 
   dispose(): void {
-    this.obs?.remove();
     this.vis.dispose();
     this.data.dispose();
     this.moonTex?.dispose();
@@ -636,8 +656,10 @@ export class LampPlugin extends MaterialPluginBase {
         { name: 'lampAmbO', size: 4, type: 'vec4' },
         { name: 'lampAmbN', size: 4, type: 'vec4' },
         { name: 'lampFillC', size: 4, type: 'vec4' },
+        { name: 'lampDark', size: 4, type: 'vec4' },
+        { name: 'lampDarkP', size: 4, type: 'vec4' },
       ],
-      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\n#endif`,
+      fragment: `#ifdef BAKED_LAMPS\nuniform vec4 lampInfo;\nuniform vec4 lampGridO;\nuniform vec4 lampAtlas;\nuniform vec4 lampVolO;\nuniform vec4 lampVolD;\nuniform vec4 lampCaps[${VOL_CAPS * 2}];\nuniform vec4 lampMore;\nuniform vec4 lampMoonO;\nuniform vec4 lampMoonN;\nuniform vec4 lampAmbO;\nuniform vec4 lampAmbN;\nuniform vec4 lampFillC;\nuniform vec4 lampDark;\nuniform vec4 lampDarkP;\n#endif`,
     };
   }
 
@@ -648,6 +670,9 @@ export class LampPlugin extends MaterialPluginBase {
     const m = l.moon;
     const f = l.fill;
     ubo.updateFloat4('lampMore', l.doorBase, m && l.moonTex ? 1 : 0, f && l.fillTex ? 1 : 0, LEVEL_TO_RENDER);
+    // (Step 4b) the darkness curve: night-vision gain, the moon's level; the look's curve
+    ubo.updateFloat4('lampDark', l.visionGain, l.moonLight, 0, 0);
+    ubo.updateFloat4('lampDarkP', l.dark.centre, l.dark.steep, l.dark.floor, l.dark.top);
     if (f && l.fillTex) {
       ubo.updateFloat4('lampAmbO', f.grid.origin[0], f.grid.origin[1], f.grid.origin[2], AMBIENT_CELL);
       ubo.updateFloat4('lampAmbN', f.grid.n[0], f.grid.n[1], f.grid.n[2], 0);
@@ -678,20 +703,41 @@ export class LampPlugin extends MaterialPluginBase {
 
   override getCustomCode(shaderType: string): { [pointName: string]: string } | null {
     if (shaderType !== 'fragment') return null;
+    // Step 4b: the darkness curve. Each light's diffuse is told apart as it is summed: the moon (static), the
+    // hemisphere (replaced by the ambient grid where the grid is the fill) and the rest - flashlights and other moving
+    // lights, added after the curve unchanged.
+    const settle = `if (nsKind > 0.5) {
+  vec3 nsD = diffuseBase - nsSnap;
+  if (nsKind < 1.5) nsDyn += nsD;
+  else nsHemi += nsD;
+}
+nsKind = 0.0;`;
+    // the curve's input: the gameplay level here - fill, moon, lamps (as `LightField` sums them; no N.L)
+    const level = (lamps: string): string => `#ifdef LAMP_FILL
+float nsFillL = nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN);
+#else
+float nsFillL = 0.0;
+#endif
+float nsS = nsFillL + lampDark.y * nsMoon + max(${lamps}.r, max(${lamps}.g, ${lamps}.b)) / lampMore.w;
+float nsR = nsDarkRatio(nsS, lampDark.x, lampDarkP);`;
     const code: { [pointName: string]: string } = {
       CUSTOM_FRAGMENT_DEFINITIONS: `
 #ifdef BAKED_LAMPS
 ${LAMP_GLSL}
+${DARK_GLSL}
 #ifdef LAMP_VOLUME
 uniform highp sampler3D lampVolA;
 uniform highp sampler3D lampVolB;
 // 3.3 phones: the lamps pre-mixed - their light and the direction it comes from, two taps (gn: the geometric normal,
 // n: the shading normal)
+// (Step 4b: also the light without N.L or shadows, \`nsVolRaw\`: the darkness curve's lamp term)
+vec3 nsVolRaw = vec3(0.0);
 vec3 nsVolume(vec3 lp, vec3 gn, vec3 n) {
   vec3 q = (lp + gn * lampVolO.w - lampVolO.xyz) / (lampVolO.w * lampVolD.xyz);
   if (any(lessThan(q, vec3(0.0))) || any(greaterThan(q, vec3(1.0)))) return vec3(0.0);
   vec4 la = texture(lampVolA, q);
   if (la.r + la.g + la.b <= 0.002) return vec3(0.0);
+  nsVolRaw = la.rgb * la.rgb * lampVolD.w;
   vec4 lb = texture(lampVolB, q);
   vec3 ld = lb.rgb * 2.0 - 1.0;
   float dl = length(ld);
@@ -719,23 +765,43 @@ float nsMoon = nsGrid(lampMoon, vPositionW + normalize(vNormalW) * lampMoonO.w *
 #else
 float nsMoon = 1.0;
 #endif
+vec3 nsDyn = vec3(0.0);
+vec3 nsHemi = vec3(0.0);
+vec3 nsSnap = vec3(0.0);
+float nsKind = 0.0;
 #endif`,
       '!#define CUSTOM_LIGHT(\\d+)_COLOR': `#ifdef BAKED_LAMPS
-#ifdef DIRLIGHT$1
+${settle}
+nsSnap = diffuseBase;
+#if defined(DIRLIGHT$1)
 diffuse$1.rgb *= nsMoon;
+#elif defined(HEMILIGHT$1)
+nsKind = 2.0;
+#else
+nsKind = 1.0;
 #endif
 #endif
 #define CUSTOM_LIGHT$1_COLOR`,
       CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION: `
 #ifdef BAKED_LAMPS
-#ifdef LAMP_VOLUME
-finalDiffuse += nsVolume(vPositionW, normalize(vNormalW), normalW) * surfaceAlbedo.rgb;
-#else
+${settle}
 {
+  vec3 nsAlb = surfaceAlbedo.rgb * vLightingIntensity.x;
+  vec3 nsDynD = nsDyn * nsAlb;
+  // the static light so far: the moon (and the voxels' own fill and bounce); the hemisphere goes where the grid fills
+  vec3 nsStat = finalDiffuse - nsDynD;
+#if defined(LAMP_FILL) && !defined(VOXELS)
+  nsStat -= nsHemi * nsAlb;
+#endif
+#ifdef LAMP_VOLUME
+  nsStat += nsVolume(vPositionW, normalize(vNormalW), normalW) * surfaceAlbedo.rgb;
+  vec3 nsLampRaw = nsVolRaw;
+#else
   vec3 lp = vPositionW;
   vec3 lgn = normalize(vNormalW);
   vec2 gq = floor((lp.xz - lampGridO.xy) / lampGridO.z);
   vec3 lsum = vec3(0.0);
+  vec3 nsLampRaw = vec3(0.0);
   if (gq.x >= 0.0 && gq.y >= 0.0 && gq.x < lampInfo.y && gq.y < lampInfo.z) {
     int gk = (int(gq.y) * int(lampInfo.y) + int(gq.x)) * 2;
     vec4 ga = lampTexel(gk);
@@ -751,12 +817,10 @@ finalDiffuse += nsVolume(vPositionW, normalize(vNormalW), normalW) * surfaceAlbe
       float d = length(L);
       if (d >= t0.w) continue;
       L /= max(d, 1e-4);
-      float ndl = dot(normalW, L);
-      if (ndl <= 0.0) continue;
       vec4 t2 = lampTexel(lb + 2);
       float ca = dot(-L, t2.xyz);
       if (ca < t2.w) continue;
-      float k = ndl * nsLampFalloff(d, t0.w) * nsLampCone(ca, t2.w, t1.w);
+      float k = nsLampFalloff(d, t0.w) * nsLampCone(ca, t2.w, t1.w);
       vec4 t3 = lampTexel(lb + 3);
       vec4 t4 = lampTexel(lb + 4);
       vec3 dq = lp + lgn * lampAtlas.w;
@@ -775,6 +839,11 @@ finalDiffuse += nsVolume(vPositionW, normalize(vNormalW), normalW) * surfaceAlbe
         }
       }
       if (k <= 0.0) continue;
+      // (Step 4b: the curve's lamp term, as gameplay sums it: no N.L, no character shadows)
+      nsLampRaw += t1.rgb * k;
+      float ndl = dot(normalW, L);
+      if (ndl <= 0.0) continue;
+      k *= ndl;
       vec4 t5 = lampTexel(lb + 5);
       for (int c = 0; c < ${CAPS_PER_LAMP}; c++) {
         float cid = t5[c];
@@ -787,24 +856,48 @@ finalDiffuse += nsVolume(vPositionW, normalize(vNormalW), normalW) * surfaceAlbe
       lsum += t1.rgb * k;
     }
   }
-  finalDiffuse += lsum * surfaceAlbedo.rgb;
-}
+  nsStat += lsum * surfaceAlbedo.rgb;
 #endif
+${level('nsLampRaw')}
+#if defined(LAMP_FILL) && !defined(VOXELS)
+  nsStat += nsFillL * lampMore.w * lampFillC.rgb * surfaceAlbedo.rgb;
+#endif
+  finalDiffuse = max(nsStat, vec3(0.0)) * nsR + nsDynD;
+  finalAmbient *= nsR;
+#ifdef REFLECTION
+  finalIrradiance *= nsR;
+  finalRadianceScaled *= nsR;
+#endif
+}
 #endif`,
     };
     if (!this.std) return code;
     // the phone light look's standard materials: the volume and the ambient-grid fill join the lights' diffuse sum
-    // (the material's colour and albedo multiply it after)
+    // (the material's colour and albedo multiply it after), and the curve scales the static part
     delete code['CUSTOM_FRAGMENT_BEFORE_FINALCOLORCOMPOSITION'];
     code['!vec3 emissiveColor=vEmissiveColor;'] = `#ifdef BAKED_LAMPS
-#ifdef LAMP_FILL
-diffuseBase += nsGrid(lampAmb, vPositionW + normalize(vNormalW) * 0.25, lampAmbO, lampAmbN) * lampMore.w * lampFillC.rgb;
-#endif
+${settle}
+{
+  vec3 nsStat = diffuseBase - nsDyn - nsHemi;
 #ifdef LAMP_VOLUME
-diffuseBase += nsVolume(vPositionW, normalize(vNormalW), normalW);
+  nsStat += nsVolume(vPositionW, normalize(vNormalW), normalW);
+  vec3 nsLampRaw = nsVolRaw;
+#else
+  vec3 nsLampRaw = vec3(0.0);
 #endif
+${level('nsLampRaw')}
+#ifdef LAMP_FILL
+  nsStat += nsFillL * lampMore.w * lampFillC.rgb;
+#endif
+  diffuseBase = max(nsStat, vec3(0.0)) * nsR + nsDyn;
+}
 #endif
 vec3 emissiveColor=vEmissiveColor;`;
+    // night vision blows out in light (bible L7): the standard material clamps the light before the surface colour, so
+    // a lit wall would stop at its own colour - the light over twice full joins the colour, faded in with the gain
+    code['CUSTOM_FRAGMENT_BEFORE_FOG'] = `#ifdef BAKED_LAMPS
+if (lampDark.x > 1.0) color.rgb += vec3(max(dot(diffuseBase * diffuseColor, vec3(0.3, 0.59, 0.11)) - 2.0, 0.0) * 0.2 * min((lampDark.x - 1.0) / ${(VISION_GAIN - 1).toFixed(1)}, 1.0));
+#endif`;
     return code;
   }
 }

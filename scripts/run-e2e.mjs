@@ -15,7 +15,7 @@ for (let i = 0; i < 40; i++) {
 }
 // 3.5: REQUIRED = the suites `npm run e2e` runs; LEGACY = suites whose every check is about parked content (Wave, Hunter,
 // Mission, PvP, the economy and cosmetics behind `?legacy=1`): `npm run e2e:legacy` runs them with LEGACY=1 (report only).
-const REQUIRED = ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-cover', 'e2e-clip', 'e2e-tactics', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-training', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-feedback', 'e2e-desktop', 'e2e-offline'];
+const REQUIRED = ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-cover', 'e2e-clip', 'e2e-tactics', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-training', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-feedback', 'e2e-desktop', 'e2e-offline'];
 const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear'];
 const legacyRun = process.argv.includes('--legacy');
 const named = process.argv.slice(2).filter((a) => !a.startsWith('--'));

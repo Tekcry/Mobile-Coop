@@ -1,6 +1,7 @@
 import { HUD_WIDTHS, type HudWidth } from './display';
 import { clamp, type CurveKind } from '../input/stickMath';
 import { defaultBinds, sanitizeBinds, type KeyBinds } from '../input/keyBindings';
+import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
 import { FPS_CAPS, GRAPHICS_PRESETS, LIGHT_RANGE, PHONE_OUTPUT_DEFAULT, PHONE_OUTPUTS, PRESET_IDS, presetDisplay, presetOf, type AaMode, type FixedPreset, type GraphicsFeatures, type GraphicsPreset, type ReflectionMode, type ShadowQuality, type TierQuality } from './quality';
 import type { PlatformChoice } from './platform';
 
@@ -131,6 +132,10 @@ export interface Settings {
     /** Cinematic look: gentle vignette, film grain (one combined pass). */
     vignette: boolean;
     filmGrain: boolean;
+    /** Brightness calibration (3.6 Step 4b, render only): the grade's exposure multiplier (`BRIGHTNESS_MIN` ..
+     *  `BRIGHTNESS_MAX`), and whether the calibration screen has been shown (once, after the update). */
+    brightness: number;
+    brightnessSet: boolean;
     /** Characters drawn as the detailed smooth body (the 2.0 operator; default) or classic stick figures. */
     avatarStyle: 'stick' | 'detailed';
     /** 2: the 2.0 default (detailed) has been applied once to settings saved before it. */
@@ -258,7 +263,7 @@ export function defaultSettings(): Settings {
     },
     mouse: { sensitivity: 1, invertY: false, adsMultiplier: 0.6, raw: true },
     keys: defaultBinds(),
-    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, avatarStyle: 'detailed', avatarStyleV: 2 },
+    video: { platform: 'auto', preset: 'epic', auto: true, device: { key: '', tier: null, source: 'none' }, gfx: { ...GRAPHICS_PRESETS.epic }, renderScale: 1, resolution: '', phoneOutput: PHONE_OUTPUT_DEFAULT, phoneSetup: false, dynamicRes: false, adaptive: true, upscaler: 'off', panini: 0, fpsCap: 0, fovH: 75, maxFov: 120, hudWidth: 'auto', gpuNotice: false, showFps: false, vignette: true, filmGrain: false, brightness: 1, brightnessSet: false, avatarStyle: 'detailed', avatarStyleV: 2 },
     audio: { master: 0.8, sfx: 1, music: 0.5, ui: 0.7 },
     gameplay: { defaultShoulder: 'right', adsToggle: false, crouchToggle: true, coverDash: true, slowBeat: true, sprintHold: false, autoRecentre: true },
     access: { hudScale: 1, healthBar: false, ammoAlways: false, colorSafe: false, subtitles: true, holdToggle: false, shake: 1 },
@@ -444,6 +449,8 @@ export function sanitizeSettings(raw: unknown): Settings {
       showFps: bool(v.showFps, d.video.showFps),
       vignette: bool(v.vignette, d.video.vignette),
       filmGrain: bool(v.filmGrain, d.video.filmGrain),
+      brightness: num(v.brightness, d.video.brightness, BRIGHTNESS_MIN, BRIGHTNESS_MAX),
+      brightnessSet: bool(v.brightnessSet, false),
       // settings from before 2.0 move to the operator once (the stick style stays a choice)
       avatarStyle: v.avatarStyleV === 2 ? pick(v.avatarStyle, ['stick', 'detailed'] as const, d.video.avatarStyle) : 'detailed',
       avatarStyleV: 2,

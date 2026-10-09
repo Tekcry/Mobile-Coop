@@ -1,4 +1,5 @@
 import './styles.css';
+import { BrightnessScreen } from './ui/screens/brightnessScreen';
 import { WEAPON_IDS, type WeaponId } from './weapons/weaponDefs';
 import { suitLook } from './progression/suit';
 import { parseDifficulty } from './ai/archetypes';
@@ -98,6 +99,8 @@ async function boot(): Promise<void> {
     const menu = new MainMenuScreen(app);
     menu.badge.append(profileBadge(app));
     app.screens.push(menu);
+    // 3.6 Step 4b: the brightness calibration, once after the update (skippable; never under automation)
+    if (!app.settings.get().video.brightnessSet && !navigator.webdriver) app.screens.push(new BrightnessScreen(app));
   };
 
   MainMenuScreen.entries.push(

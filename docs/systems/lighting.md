@@ -57,6 +57,32 @@ Design authority: docs/design-bible.md (Section 5.1)
   `BAKED_PLAIN_POOL` 2 plain lights for flashlights. The grade lifts black to `PHONE_DARK_FLOOR` (L7). Maps without
   lamps keep the plain path. Tests: `e2e-phonelamps`, `perf.mjs --phone`.
 
+## Darkness is dark (3.6, Phase 1 Step 4b; bible 1.10 L5 / L7)
+- Rendering only; gameplay never reads any of it. `world/darkCurve.ts` (pure): the darkness curve
+  `curve(s) = s x g x w(g s)`, `w(x) = floor + (top - floor) / (1 + (centre / x)^steep)`, from a pixel's summed static
+  level `s` (fill + baked moon + baked lamps, as `LightField` sums them: no N.L) to the level it renders with; `g` the
+  night-vision gain. Two parameter sets, one function: `DARK_PHONE` (gamma-space standard materials) and `DARK_DESKTOP`
+  (linear PBR, then the neutral tone map's toe and the sRGB encode), each tuned on real pixels to the display targets
+  `DARK_TARGETS` (L5). `top` lifts the lit band (both looks read under 45% at 0.70 before).
+- `LampPlugin` applies it per pixel in the lighting: each light's diffuse is told apart as it is summed (the
+  `CUSTOM_LIGHT{X}_COLOR` injection: directional = the moon, static; hemisphere = replaced by the ambient grid where the
+  grid fills; the rest = flashlights and moving lights, added after the curve). Phone: on `diffuseBase` (static x ratio
+  + dynamic). Desktop: on `finalDiffuse` (with the lamps, the voxels' own fill and bounce), `finalIrradiance`,
+  `finalRadianceScaled` and `finalAmbient`. Uniforms `lampDark` (gain, the moon's level) and `lampDarkP` (the curve).
+- Desktop's non-voxel surfaces (characters, props, weapons) take the ambient grid as their fill in place of the
+  hemisphere, which lit them as if under open sky indoors; the voxels keep the sky bake's fill.
+- Night vision (`VISION_GAIN` 8): `GameState` eases `BakedLamps.visionGain` with the goggles; `CinematicPost` maps the
+  image to green nearly as it is and blows lamp light out towards white; on the phone the light over twice full joins
+  the colour (`CUSTOM_FRAGMENT_BEFORE_FOG`: the standard material clamps the light before the surface colour).
+- The phone's black floor is `PHONE_DARK_FLOOR` 0.008 (OLED smear). Brightness calibration (`BrightnessScreen`,
+  Settings > Display; once after the update): an exposure multiplier in the grade, `BRIGHTNESS_MIN` .. `MAX`,
+  `GameState.brightnessLocked` for the Confrontation.
+- The goggle glow (`player/goggleGlow.ts`): the tri-lens lenses and a rear battery-pack LED as emissive instances of one
+  unlit sphere (one draw), always on (brighter in a vision mode), hidden with the head. Visual only.
+- A material made after load gets the lamp plugin on the next frame (`BakedLamps.frame` re-scans when the scene's
+  material count changes; the scene's new-material event fires too early for a plugin).
+- Tests: `tests/darkCurve.test.ts`, `scripts/e2e-darkness.mjs`.
+
 ## Phone look (3.3; 3.4 the light renderer)
 - 3.4 direction: desktop first; phones get the 2.x renderer so they hold 60 cool or warm. `PHONE_FEATURES` (shadows off
   - blob shadows, 6 plain lights, every post feature off) + `QualityLevel.lite` (phone and `QualityManager.phoneLook`
