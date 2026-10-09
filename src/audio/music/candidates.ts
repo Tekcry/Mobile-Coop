@@ -58,46 +58,46 @@ export const CANDIDATES: readonly Candidate[] = [
     statement: [m(0, 7, 3), m(3, 6, 3), m(6, 5, 3), m(9, 3, 1), m(12, 0, 4)],
     resolved: [m(0, 7, 3), m(3, 7, 3), m(6, 5, 3), m(9, 3, 1), m(12, 0, 4)],
   },
-  // round 3 (Michael likes the tritone in A): five figures built around it
+  // round 4: Michael did not like D-H; the one thing he likes is A's tritone (the Ab over D). Five variations on A.
   {
     id: 'D',
-    name: 'Wire Drop',
-    notes: 'D D F Ab G F',
-    about: "B's low swung pick-ups, then A's climb to the tritone and slide down to F. A and B blended.",
-    statement: [m(0, 0, 1), m(2, 0, 1), m(3, 3, 2), m(5, 6, 3), m(10, 5, 1), m(11, 3, 5)],
-    resolved: [m(0, 0, 1), m(2, 0, 1), m(3, 3, 2), m(5, 7, 3), m(10, 5, 1), m(11, 0, 5)],
+    name: 'Wire, held',
+    notes: 'D Eb Ab G F',
+    about: "A's creep and tritone, but the Ab arrives off the beat and is held, so it hangs over the D for longer.",
+    statement: [m(0, 0, 3), m(3, 1, 2), m(5, 6, 5), m(10, 5, 2), m(12, 3, 4)],
+    resolved: [m(0, 0, 3), m(3, 1, 2), m(5, 7, 5), m(10, 5, 2), m(12, 0, 4)],
   },
   {
     id: 'E',
-    name: 'Lights Out',
-    notes: 'D Ab G A',
-    about: 'Four notes: a fall of a tritone straight away, a sigh down to G, and up to an open A. The most spacious.',
-    statement: [m(0, 0, 3), m(3, -6, 3), m(6, -7, 2), m(8, -5, 8)],
-    resolved: [m(0, 0, 3), m(3, -4, 3), m(6, -7, 2), m(8, 0, 8)],
+    name: 'Wire, sunk',
+    notes: 'D D Eb, low Ab G A',
+    about: "A's exact rhythm, but the tritone drops below the D instead of above, and it climbs out to a low A.",
+    statement: [m(0, 0, 2), m(3, 0, 1), m(4, 1, 3), m(8, -6, 2), m(10, -7, 1), m(11, -5, 5)],
+    resolved: [m(0, 0, 2), m(3, 0, 1), m(4, 1, 3), m(8, -4, 2), m(10, -7, 1), m(11, 0, 5)],
   },
   {
     id: 'F',
-    name: 'Crossed Line',
-    notes: 'A Eb D F Eb D',
-    about: 'Opens on the tritone itself (A down to Eb), then circles D through the flat second. Uneasy from the first note.',
-    statement: [m(0, 7, 2), m(3, 1, 3), m(6, 0, 2), m(9, 3, 1), m(10, 1, 2), m(12, 0, 4)],
-    resolved: [m(0, 7, 2), m(3, 2, 3), m(6, 0, 2), m(9, 3, 1), m(10, 2, 2), m(12, 0, 4)],
+    name: 'Wire, slow',
+    notes: 'D Eb Ab G F',
+    about: 'A at half the pace: a long D, a short Eb, the tritone landing late in bar 1 and sliding down across the bar line.',
+    statement: [m(0, 0, 4), m(4, 1, 3), m(7, 6, 4), m(11, 5, 1), m(12, 3, 4)],
+    resolved: [m(0, 0, 4), m(4, 1, 3), m(7, 7, 4), m(11, 5, 1), m(12, 0, 4)],
   },
   {
     id: 'G',
-    name: 'Two Shadows',
-    notes: 'D Ab F B A D',
-    about: 'Two tritones in a row: up D to Ab, then down F to B, settling on A and home. The most restless.',
-    statement: [m(0, 0, 1), m(1, 6, 3), m(4, 3, 2), m(6, -3, 2), m(8, -5, 4), m(12, 0, 4)],
-    resolved: [m(0, 0, 1), m(1, 7, 3), m(4, 3, 2), m(6, -4, 2), m(8, -5, 4), m(12, 0, 4)],
+    name: 'Wire, short',
+    notes: 'D D Eb Ab F D',
+    about: 'A with the slide cut short: from the tritone straight down to F and home to D. Closes the loop, good for repeating.',
+    statement: [m(0, 0, 2), m(3, 0, 1), m(4, 1, 3), m(8, 6, 2), m(10, 3, 1), m(11, 0, 5)],
+    resolved: [m(0, 0, 2), m(3, 0, 1), m(4, 1, 3), m(8, 7, 2), m(10, 3, 1), m(11, 0, 5)],
   },
   {
     id: 'H',
-    name: 'Pacing',
-    notes: 'F Ab G Ab D',
-    about: 'Paces back and forth on the tritone (Ab, G, Ab) before dropping home to D. Hypnotic, ostinato-like.',
-    statement: [m(0, 3, 2), m(2, 6, 1), m(3, 5, 3), m(6, 6, 2), m(8, 0, 8)],
-    resolved: [m(0, 3, 2), m(2, 7, 1), m(3, 5, 3), m(6, 7, 2), m(8, 0, 8)],
+    name: 'Wire, twice',
+    notes: 'D Eb Ab, D Eb Ab F',
+    about: 'The tritone reached twice: a short try in bar 1 that stops on the Ab, then again, falling to F.',
+    statement: [m(0, 0, 2), m(2, 1, 1), m(3, 6, 3), m(8, 0, 1), m(9, 1, 1), m(10, 6, 2), m(12, 3, 4)],
+    resolved: [m(0, 0, 2), m(2, 1, 1), m(3, 6, 3), m(8, 0, 1), m(9, 1, 1), m(10, 7, 2), m(12, 0, 4)],
   },
 ];
 
@@ -127,29 +127,30 @@ function emitter(sink: Sink): Emit {
   return (e) => sink({ k: 'play', ...e } as MusicEvent);
 }
 
-/** Seconds a take lasts (its last note's tail included), at its own tempo. */
-export function takeLength(take: Take): number {
-  const bar = (60 / TAKE_BPM[take]) * 4;
+/** Seconds a take lasts (its last note's tail included), at its own tempo times `tempo` (the lab's tempo control). */
+export function takeLength(take: Take, tempo = 1): number {
+  const bar = (60 / (TAKE_BPM[take] * tempo)) * 4;
   if (take === 'sneak') return 5 * bar + 2;
   if (take === 'break') return 9 * bar + 2;
   return 8 * bar + 2;
 }
 
 /** Play one take of a candidate from time t. Returns the time it ends. */
-export function playTake(sink: Sink, c: Candidate, take: Take, t: number): number {
+export function playTake(sink: Sink, c: Candidate, take: Take, t: number, tempo = 1): number {
   const emit = emitter(sink);
-  if (take === 'sneak') sneakTake(emit, c, t);
-  else if (take === 'break') breakTake(emit, c, t);
-  else noirTake(emit, c, t);
-  const end = t + takeLength(take);
+  const bpm = TAKE_BPM[take] * tempo;
+  if (take === 'sneak') sneakTake(emit, c, t, bpm);
+  else if (take === 'break') breakTake(emit, c, t, bpm);
+  else noirTake(emit, c, t, bpm);
+  const end = t + takeLength(take, tempo);
   for (const layer of LAYERS) sink({ k: 'stop', layer, t: end - 1.5, fade: 1 });
   return end;
 }
 
 /** All three takes back to back (the 60 s WAV and the "Play" button). Returns the end time. */
-export function playAllTakes(sink: Sink, c: Candidate, t: number): number {
+export function playAllTakes(sink: Sink, c: Candidate, t: number, tempo = 1): number {
   let at = t;
-  for (const take of TAKES) at = playTake(sink, c, take, at) - 0.6;
+  for (const take of TAKES) at = playTake(sink, c, take, at, tempo) - 0.6;
   return at + 0.6;
 }
 
@@ -190,8 +191,8 @@ function figure(emit: Emit, notes: readonly MotifNote[], at: number, e8: number,
  * the figure on upright bass (a far, soft bell touches its first note); bars 3-4 the figure on a muted horn while the bass
  * holds D.
  */
-function sneakTake(emit: Emit, c: Candidate, t: number): void {
-  const s16 = 60 / TAKE_BPM.sneak / 4;
+function sneakTake(emit: Emit, c: Candidate, t: number, bpm: number): void {
+  const s16 = 60 / bpm / 4;
   const e8 = s16 * 2;
   const bar = s16 * 16;
   emit({ id: 'static', t, stem: 'TEX', gain: 0.25, rate: 1, pan: 0, prio: PRIO.bed, layer: 'crackle', fadeIn: 0.5 });
@@ -225,8 +226,8 @@ const KICKS: readonly (readonly number[])[] = [
  * Break, 168 BPM: a chopped break (the half-time bar 4 lets it breathe), the reese bass on the figure (bars 1-2, 5-6),
  * answered by chopped string stabs with metal (3-4, 7-8), a stuttered fill into a final hit.
  */
-function breakTake(emit: Emit, c: Candidate, t: number): void {
-  const s16 = 60 / TAKE_BPM.break / 4;
+function breakTake(emit: Emit, c: Candidate, t: number, bpm: number): void {
+  const s16 = 60 / bpm / 4;
   const e8 = s16 * 2;
   const bar = s16 * 16;
   for (let b = 0; b < 9; b++) {
@@ -290,8 +291,8 @@ const NOIR_CHORDS: { v: [number, number, number]; root: number }[] = [
  * (bars 1-2), then the muted horn (3-4); a reversed string swell rises into bar 5, where stabs take the figure over the
  * bass; the horn brings the resolved form home (7-8) with a far, soft bell.
  */
-function noirTake(emit: Emit, c: Candidate, t: number): void {
-  const s16 = 60 / TAKE_BPM.noir / 4;
+function noirTake(emit: Emit, c: Candidate, t: number, bpm: number): void {
+  const s16 = 60 / bpm / 4;
   const e8 = s16 * 2;
   const bar = s16 * 16;
   emit({ id: 'rainbed', t, stem: 'AIR', gain: 0.22, rate: 1, pan: 0, prio: PRIO.bed, layer: 'bed', fadeIn: 2 });

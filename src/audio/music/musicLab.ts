@@ -25,6 +25,7 @@ export class MusicLabScreen extends Screen {
   private stateBtns = new Map<MusicState, HTMLButtonElement>();
   private seedLabel = h('span', { class: 'lab-val' });
   private nudgeLabel = h('span', { class: 'lab-val' });
+  private tempoNote = h('div', { class: 'row-note', text: '' });
   private since = 0;
 
   constructor(private app: App) {
@@ -71,7 +72,7 @@ export class MusicLabScreen extends Screen {
     const seedRow = h(
       'div',
       { class: 'lab-row' },
-      h('span', { class: 'lab-key', text: 'Seed' }),
+      h('span', { class: 'lab-key', text: 'Variation' }),
       button('-', () => this.seed(-1), { class: 'subtle lab-step' }),
       this.seedLabel,
       button('+', () => this.seed(1), { class: 'subtle lab-step' }),
@@ -81,9 +82,12 @@ export class MusicLabScreen extends Screen {
       'div',
       { class: 'lab-row' },
       h('span', { class: 'lab-key', text: 'Tempo' }),
-      button('-', () => this.nudge(-2), { class: 'subtle lab-step' }),
+      button('-10%', () => this.nudge(-10), { class: 'subtle' }),
+      button('-1%', () => this.nudge(-1), { class: 'subtle' }),
       this.nudgeLabel,
-      button('+', () => this.nudge(2), { class: 'subtle lab-step' }),
+      button('+1%', () => this.nudge(1), { class: 'subtle' }),
+      button('+10%', () => this.nudge(10), { class: 'subtle' }),
+      button('Reset', () => this.nudge(0), { class: 'subtle' }),
     );
 
     const stemRow = h('div', { class: 'lab-row' });
@@ -101,9 +105,14 @@ export class MusicLabScreen extends Screen {
     this.el.append(
       h('div', { class: 'screen-title', text: 'Music lab' }),
       this.status,
-      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'D to H are new figures built around the tritone. Play runs sneak (84 BPM downtempo), break (168 breakbeat) and noir (70, the menu opening) back to back. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
-      section('State', stateRow),
-      section('Seed and tempo', seedRow, nudgeRow),
+      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'D to H are variations on A (the tritone over D). Play runs sneak (84 BPM downtempo), break (168 breakbeat) and noir (70, the menu opening) back to back. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
+      section('Tempo', nudgeRow, this.tempoNote),
+      section(
+        'State',
+        stateRow,
+        seedRow,
+        h('div', { class: 'row-note', text: 'Variation picks a different set of random choices (which ticks play, which kick pattern) for Calm and Combat. It does not change the motif picker.' }),
+      ),
       section('Mute stems', stemRow),
       section('Export', h('div', { class: 'lab-row' }, exp('Calm 60 s WAV', 'calm'), exp('Combat 60 s WAV', 'combat'), exp('Motif WAV', 'motif')), this.exportNote),
     );
@@ -127,7 +136,7 @@ export class MusicLabScreen extends Screen {
 
   private nudge(d: number): void {
     const m = this.app.music;
-    m.setBpmNudge(Math.max(-8, Math.min(8, m.getBpmNudge() + d)));
+    m.setTempo(d === 0 ? 1 : m.getTempo() + d / 100);
     this.refresh();
   }
 
@@ -143,7 +152,8 @@ export class MusicLabScreen extends Screen {
         return;
       }
       const wav = encodeWav([r.left, r.right], r.rate);
-      const name = `night-shift-${kind}-seed${m.getSeed()}.wav`;
+      const pct = Math.round(m.getTempo() * 100);
+      const name = `night-shift-${kind}-seed${m.getSeed()}${pct === 100 ? '' : `-tempo${pct}`}.wav`;
       shareOrDownload(new Blob([wav as BlobPart], { type: 'audio/wav' }), name, 'Night Shift music');
       this.exportNote.textContent = `${name}: peak ${r.peakDb.toFixed(1)} dBFS, RMS ${r.rmsDb.toFixed(1)} dBFS, up to ${r.peakVoices} voices.`;
     } catch (e) {
@@ -154,8 +164,10 @@ export class MusicLabScreen extends Screen {
   private refresh(): void {
     const m = this.app.music;
     this.seedLabel.textContent = String(m.getSeed());
-    const n = m.getBpmNudge();
-    this.nudgeLabel.textContent = `${n >= 0 ? '+' : ''}${n} BPM`;
+    const k = m.getTempo();
+    this.nudgeLabel.textContent = `${Math.round(k * 100)}%`;
+    const b = (bpm: number): number => Math.round(bpm * k);
+    this.tempoNote.textContent = `noir ${b(70)} BPM, sneak ${b(84)}, break and Combat ${b(168)}. The pitch does not change. Takes use the new tempo from their next Play.`;
   }
 
   override update(dt: number): void {

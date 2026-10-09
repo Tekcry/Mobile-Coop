@@ -7,7 +7,7 @@
  */
 import type { AudioEngine } from '../audioEngine';
 import { candidate, playAllTakes, playTake, type CandidateId, type Take } from './candidates';
-import { Conductor, type MusicEvent, type MusicState, type Stem } from './conductor';
+import { COMBAT_BPM, Conductor, type MusicEvent, type MusicState, type Stem } from './conductor';
 import { MusicEngine, type EngineStats } from './engine';
 import { LIB_RATE, renderLibraryAsync, type Library } from './library';
 import { DEFAULT_PATTERN_SEED, LIBRARY_SEED, LOOKAHEAD, LOOKAHEAD_HIDDEN, STATE_LEVEL_DB, TICK_MS } from './mix';
@@ -24,6 +24,8 @@ export class Music {
   private wanted: MusicState = 'calm';
   private seed = DEFAULT_PATTERN_SEED;
   private bpmNudge = 0;
+  /** Lab tempo control: a factor on every tempo (the picker takes and Combat). Pitch is not affected. */
+  private tempoFactor = 1;
   private hidden = false;
   /** Library render time in ms (measured on this device), or 0 until it is done. */
   renderMs = 0;
@@ -139,7 +141,7 @@ export class Music {
     const t = ctx.currentTime + 0.25;
     const out: MusicEvent[] = [];
     const sink = (e: MusicEvent): number => out.push(e);
-    const end = take === 'all' ? playAllTakes(sink, candidate(id), t) : playTake(sink, candidate(id), take, t);
+    const end = take === 'all' ? playAllTakes(sink, candidate(id), t, this.tempoFactor) : playTake(sink, candidate(id), take, t, this.tempoFactor);
     this.queue = out.sort((a, b) => a.t - b.t);
     this.tick();
     return end - t;
@@ -171,6 +173,16 @@ export class Music {
     return this.bpmNudge;
   }
 
+  /** Set the tempo factor (0.5 to 1.5). Takes use it from their next Play; Combat follows at once. */
+  setTempo(factor: number): void {
+    this.tempoFactor = Math.round(Math.max(0.5, Math.min(1.5, factor)) * 100) / 100;
+    this.setBpmNudge(Math.round(COMBAT_BPM * (this.tempoFactor - 1)));
+  }
+
+  getTempo(): number {
+    return this.tempoFactor;
+  }
+
   setStemMuted(stem: Stem, muted: boolean): void {
     this.engine?.setStemMuted(stem, muted);
   }
@@ -186,7 +198,7 @@ export class Music {
   /** Render offline for the WAV export (and tests). Needs the library. */
   async renderExport(kind: ExportKind, seconds: number, muted: readonly Stem[]): Promise<OfflineResult | null> {
     if (!this.lib) return null;
-    return renderOffline(this.lib, { kind, seed: this.seed, seconds, bpmNudge: this.bpmNudge, muted });
+    return renderOffline(this.lib, { kind, seed: this.seed, seconds, bpmNudge: this.bpmNudge, tempo: this.tempoFactor, muted });
   }
 
   /** The tempo the current state runs at (for the lab's readout). */

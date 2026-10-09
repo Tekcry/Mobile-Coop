@@ -16,6 +16,8 @@ export interface OfflineOptions {
   seed: number;
   seconds: number;
   bpmNudge?: number;
+  /** Tempo factor for the motif-picker takes. */
+  tempo?: number;
   muted?: readonly Stem[];
 }
 
@@ -39,7 +41,7 @@ export async function renderOffline(lib: Library, o: OfflineOptions): Promise<Of
   cond.setBpmNudge(o.bpmNudge ?? 0);
   if (o.kind.startsWith('cand')) {
     engine.setLevelDb(-14, 0, 0.001);
-    playAllTakes((e) => engine.handle(e), candidate(o.kind.slice(4) as CandidateId), 0.1);
+    playAllTakes((e) => engine.handle(e), candidate(o.kind.slice(4) as CandidateId), 0.1, o.tempo ?? 1);
   } else if (o.kind === 'motif') {
     engine.setLevelDb(-6, 0, 0.001);
     cond.playMotif(0.1, 'all');

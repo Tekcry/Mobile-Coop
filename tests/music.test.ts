@@ -366,7 +366,7 @@ describe('motif candidates (V1)', () => {
       expect(b[b.length - 1]!.step + b[b.length - 1]!.len, c.id).toBe(16);
     }
     // every candidate is different
-    expect(new Set(CANDIDATES.map((c) => c.notes)).size).toBe(CANDIDATES.length);
+    expect(new Set(CANDIDATES.map((c) => JSON.stringify(c.statement))).size).toBe(CANDIDATES.length);
   });
 
   it('every take is deterministic, uses only library sounds and stays inside the instruments\' pitch range', () => {
@@ -386,6 +386,25 @@ describe('motif candidates (V1)', () => {
         const max = Math.pow(2, 7.05 / 12);
         expect(e.rate, `${c.id} ${e.id}`).toBeLessThanOrEqual(max);
         expect(e.rate, `${c.id} ${e.id}`).toBeGreaterThanOrEqual(Math.pow(2, -7.05 / 12)); // the reese is tuned 2 cents down onto D
+      }
+    }
+  });
+
+  it('the tempo factor scales every take in time, not in pitch', () => {
+    const c = CANDIDATES[1]!;
+    for (const take of TAKES) {
+      const a: MusicEvent[] = [];
+      const b: MusicEvent[] = [];
+      playTake((e) => a.push(e), c, take, 0, 1);
+      playTake((e) => b.push(e), c, take, 0, 1.25);
+      const pa = a.filter((e): e is PlayEvent => e.k === 'play');
+      const pb = b.filter((e): e is PlayEvent => e.k === 'play');
+      expect(pb.length, take).toBe(pa.length);
+      for (let i = 0; i < pa.length; i++) {
+        expect(pb[i]!.rate, take).toBe(pa[i]!.rate);
+        // the reversed swell is placed by its own length so it still ends on the downbeat
+        if (pa[i]!.id === 'swell') expect(pb[i]!.t + 1.6, take).toBeCloseTo((pa[i]!.t + 1.6) / 1.25, 6);
+        else expect(pb[i]!.t, take).toBeCloseTo(pa[i]!.t / 1.25, 6);
       }
     }
   });

@@ -261,3 +261,25 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 
 - Tests: every figure meets the rules (unit tests); `npm test` and lint pass.
 - Next: Michael picks a figure (or a blend). STOP.
+
+### V1 round 4: variations on A, and a tempo control
+- Michael (2026-10-09): did not like D-H (round 3). Asked what Seed is and for more tempo adjustment.
+- Done:
+  - D-H replaced by five variations on A "Wire" (the only thing he likes so far is A's tritone, the Ab over D):
+
+    | Id | Name | Notes | Change from A |
+    | --- | --- | --- | --- |
+    | D | Wire, held | D Eb Ab G F | The Ab arrives off the beat and is held, hanging over the D longer. |
+    | E | Wire, sunk | D D Eb, low Ab G A | A's rhythm; the tritone drops below the D and climbs out to a low A. |
+    | F | Wire, slow | D Eb Ab G F | Half the pace; the tritone lands late in bar 1 and slides across the bar line. |
+    | G | Wire, short | D D Eb Ab F D | From the tritone straight down to F and home; closes the loop. |
+    | H | Wire, twice | D Eb Ab, D Eb Ab F | Reaches the tritone twice, the second time falling to F. |
+
+  - Lab **Tempo** section: -10 %, -1 %, +1 %, +10 %, Reset (50-150 %). It scales the picker takes and Combat in time,
+    never in pitch; the note shows the resulting BPMs (noir, sneak, break and Combat). WAV exports carry the tempo in the
+    file name when it is not 100 %.
+  - "Seed" renamed **Variation** and moved under State, with a note: it changes the random choices in Calm and Combat
+    only, not the motif picker.
+- Tests: unit test for tempo scaling (time scales, pitch does not); `npm test` 653 pass; lint and build clean;
+  `scripts/e2e-music.mjs` passes (tempo +1 % gives Combat 170 BPM and noir 71; reset).
+- Next: Michael listens to D-H noir (with the tempo control). STOP.

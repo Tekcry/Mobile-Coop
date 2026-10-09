@@ -70,13 +70,13 @@ async function run(label, opts) {
     await click(page, '.music-lab .btn', '^\\+$');
     const seed1 = await G(page, () => window.__app.music.getSeed());
     assert(seed1 === 8, `seed + (${seed1})`);
-    await G(page, () => {
-      const b = [...document.querySelectorAll('.music-lab .lab-row')].find((r) => /Tempo/.test(r.textContent)).querySelectorAll('button')[1];
-      b.click();
-    });
+    await click(page, '.music-lab .btn', '^\\+1%$');
     await wait(400);
-    assert((await G(page, () => window.__app.music.tempo())) === 170, 'tempo nudge +2 BPM');
-    await G(page, () => window.__app.music.setBpmNudge(0));
+    assert((await G(page, () => window.__app.music.tempo())) === 170, 'tempo +1 % moves Combat to 170 BPM');
+    const note = await G(page, () => [...document.querySelectorAll('.music-lab .row-note')].find((n) => /noir \d+ BPM/.test(n.textContent))?.textContent ?? '');
+    assert(/noir 71 BPM/.test(note), `the tempo note shows the take tempos (${note})`);
+    await click(page, '.music-lab .btn', '^Reset$');
+    assert((await G(page, () => window.__app.music.getTempo())) === 1, 'tempo reset');
 
     // mute a stem
     await click(page, '.music-lab .lab-stem', '^BREAK$');
