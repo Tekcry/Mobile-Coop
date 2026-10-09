@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b fix pass round 5 done (desktop dark band in half float; phone approved); waiting for Michael's desktop look check and the item 15 decision | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b: night vision approved (desktop and phone); waiting for the desktop darkness check (round 5); Step 4c next | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -782,6 +782,8 @@ See the Step 1 and Step 5 reports.
 - Tests (this PC, `E2E_GPU=1`): pass `e2e-darkness` (Epic now 0.3% at 0.12, 5.8% at 0.27, 32.3% at 0.40, 49.2% at
   0.70 - all within the targets; night vision 33.1% / 98.2%), `e2e-desktop`, `e2e-phonelamps`, `e2e-lightbake`, `smoke`.
   `perf.mjs --desktop --budget` passes (main thread 4.55 ms, frame p95 8.7 ms, 195 draws).
+- Michael (2026-10-09): night vision works well on desktop and phone - approved (rounds 1 - 4; backlog 10, 11, 17 - 19
+  done).
 - Next: **STOP** for Michael's desktop look check: darkness clean and smooth (no bands or speckle).
 - Decisions (Michael, 2026-10-09): strip lamps as line sources become **Step 4c, before Step 5** (backlog 15; spec to be
   written: it changes the one lamp formula, gameplay light, the bake, the phone volume and an engine fact). The night
