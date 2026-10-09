@@ -60,12 +60,14 @@ try {
   const wp = await G(() => ({ rows: document.querySelectorAll('.lo-list .lo-row').length, locked: document.querySelectorAll('.lo-list .lo-row.m-locked').length, buy: document.querySelectorAll('.lo-list .lo-row.m-buyable').length, price: document.querySelectorAll('.lo-list .lo-val.price').length }));
   assert(wp.rows >= 10 && wp.locked === 0 && wp.buy === 0 && wp.price === 0, `every weapon is selectable: nothing locked or for sale (${JSON.stringify(wp)})`);
   // equip a weapon the profile does not own: the sniper
-  await G(() => {
-    const row = [...document.querySelectorAll('.lo-list .lo-row')].find((r) => /M700/.test(r.textContent));
-    row.click();
-    row.click();
-  });
-  await frames(page, 4);
+  // (a row tapped within 350 ms of gaining focus only previews: on a fast renderer the page is that young, so wait it out, then tap twice)
+  const tapM700 = () => G(() => [...document.querySelectorAll('.lo-list .lo-row')].find((r) => /M700/.test(r.textContent)).click());
+  await page.waitForTimeout(450);
+  await tapM700();
+  await page.waitForTimeout(450);
+  await tapM700();
+  // (until the save has it: a fixed frame count only passed because software GL frames are seconds long)
+  await page.waitForFunction(() => window.__app.save.get().loadout.primary === 'sniper', null, { timeout: 10000 }).catch(() => {});
   const eq = await G(() => { const s = window.__app.save.get(); return { primary: s.loadout.primary, unlocks: [...s.unlocks], credits: s.profile.credits, xp: s.profile.xp }; });
   assert(eq.primary === 'sniper', `the locked sniper equips (${eq.primary})`);
   assert(JSON.stringify(eq.unlocks) === JSON.stringify(before.unlocks) && eq.credits === before.credits && eq.xp === before.xp, 'nothing was unlocked, bought or paid for in the save');
@@ -73,12 +75,15 @@ try {
   await frames(page, 3);
   const cp = await G(() => ({ labels: [...document.querySelectorAll('.lo-list .lo-label')].map((e) => e.textContent), groups: [...document.querySelectorAll('.lo-list .lo-group')].map((e) => e.textContent), locked: document.querySelectorAll('.lo-list .lo-row.m-locked').length, price: document.querySelectorAll('.lo-list .lo-val.price').length, sub: document.querySelector('.lo-sub')?.textContent }));
   assert(cp.labels.length > 0 && cp.locked === 0 && cp.price === 0 && !cp.groups.some((g) => /UPGRADES|CAMO/.test(g)) && !/UPGRADES/.test(cp.sub), `attachments only: no upgrades, camo, locks or prices (${JSON.stringify(cp)})`);
-  const att = await G(() => {
-    const row = [...document.querySelectorAll('.lo-list .lo-row')][0];
-    row.click();
-    row.click();
-    return row.querySelector('.lo-label').textContent;
-  });
+  // (same 350 ms rule as the sniper above: wait it out, tap, wait, tap)
+  const tapFirst = () => G(() => { const row = [...document.querySelectorAll('.lo-list .lo-row')][0]; row.click(); return row.querySelector('.lo-label').textContent; });
+  // (a tap on an unfocused row only previews, a focused one acts - and a second tap would toggle it off again: tap until it is on)
+  const attsOn = () => G(() => window.__app.save.get().weapons.sniper.attachments.length);
+  let att = '';
+  for (let i = 0; i < 3 && (await attsOn()) === 0; i++) {
+    await page.waitForTimeout(450);
+    att = await tapFirst();
+  }
   await frames(page, 4);
   const sa = await G(() => ({ atts: window.__app.save.get().weapons.sniper.attachments, unlocks: window.__app.save.get().unlocks.length }));
   assert(sa.atts.length === 1 && sa.unlocks === before.unlocks.length, `an attachment equips without an unlock (${att}: ${sa.atts})`);

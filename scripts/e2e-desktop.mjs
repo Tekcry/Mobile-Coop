@@ -198,16 +198,26 @@ try {
   // 3.1.7: no match outlives its scene (the shader cache held every one: the phone ran out of memory)
   {
     const leak = await page.context().newCDPSession(page);
-    await leak.send('HeapProfiler.collectGarbage');
-    const { result: proto } = await leak.send('Runtime.evaluate', { expression: 'window.__gsProto', objectGroup: 'leak' });
-    const { objects } = await leak.send('Runtime.queryObjects', { prototypeObjectId: proto.objectId, objectGroup: 'leak' });
-    const { result } = await leak.send('Runtime.callFunctionOn', { objectId: objects.objectId, functionDeclaration: 'function(){return this.length}', returnByValue: true, objectGroup: 'leak' });
-    await leak.send('Runtime.releaseObjectGroup', { objectGroup: 'leak' });
+    // (the release is asynchronous: a slow renderer takes seconds to drop the last match, so count until it reaches 0 or stays)
+    const count = async () => {
+      await leak.send('HeapProfiler.collectGarbage');
+      const { result: proto } = await leak.send('Runtime.evaluate', { expression: 'window.__gsProto', objectGroup: 'leak' });
+      const { objects } = await leak.send('Runtime.queryObjects', { prototypeObjectId: proto.objectId, objectGroup: 'leak' });
+      const { result: r } = await leak.send('Runtime.callFunctionOn', { objectId: objects.objectId, functionDeclaration: 'function(){return this.length}', returnByValue: true, objectGroup: 'leak' });
+      await leak.send('Runtime.releaseObjectGroup', { objectGroup: 'leak' });
+      return r.value;
+    };
+    const result = { value: await count() };
+    for (let i = 0; i < 20 && result.value !== 0; i++) {
+      await page.waitForTimeout(500);
+      result.value = await count();
+    }
     assert(result.value === 0, `no match is kept in memory after it ends (${result.value} left)`);
   }
   assert(bm.tags.includes('Run 2/4 · without bloom') && bm.tags.includes('Run 4/4 · shadows rebuilt') && !bm.tagLeft, `the run tag names each run, gone at the end (${bm.tags.join(' | ')})`);
   assert(/^Benchmark \(\d of 4 runs so far\)$/.test(bm.partial), `the note is saved after every run (${bm.partial})`);
-  const errs = errors.filter((e) => !/GPU stall|GL Driver/.test(e));
+  // (the hardware driver warns once per released match: Babylon polls a program the match's teardown already deleted)
+  const errs = errors.filter((e) => !/GPU stall|GL Driver|glGetProgramiv: Program object expected/.test(e));
   assert(errs.length === 0, `no console errors${errs.length ? ': ' + errs.join(' | ') : ''}`);
   // 3.1.4 crash log: a page that dies while open leaves a note for the next start; a reload is a clean close
   await G(() => window.__app.crashLog.stage('crash test: run 2/9'));
@@ -274,7 +284,8 @@ try {
 
   // 3.1 Auto graphics: from the GPU's name (software GL = Low), else measured on the menu stage
   {
-    const d = await launch({ url, params: 'detect=1&platform=desktop', touch: false, viewport: { width: 1280, height: 720 } });
+    // (the software renderer is named explicitly: with E2E_GPU=1 the real name is the PC's RTX)
+    const d = await launch({ url, params: 'detect=1&platform=desktop&renderer=Google%20SwiftShader', touch: false, viewport: { width: 1280, height: 720 } });
     browser = d.browser;
     await d.page.waitForFunction(() => window.__app?.settings.get().video.device.source !== 'none', null, { timeout: 60000 });
     const v = await d.page.evaluate(() => window.__app.settings.get().video);
@@ -286,8 +297,9 @@ try {
     await c.page.waitForFunction(() => window.__app?.detecting, null, { timeout: 60000 });
     const during = await c.page.evaluate(() => window.__app.quality.level.name);
     await c.page.waitForFunction(() => window.__app.settings.get().video.device.source === 'calibrated', null, { timeout: 60000 });
-    const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: document.querySelector('.toast')?.textContent ?? '', ov: window.__app.quality.level.name }));
+    const cv = await c.page.evaluate(() => ({ v: window.__app.settings.get().video, toast: [...document.querySelectorAll('.toast')].map((t) => t.textContent).join(' | '), ov: window.__app.quality.level.name }));
     assert(['low', 'medium', 'high', 'ultra', 'epic'].includes(cv.v.device.tier) && cv.v.auto && cv.v.preset === cv.v.device.tier, `Auto: an unknown GPU is measured on the menu stage (${during} first, then ${cv.v.device.tier})`);
+    // (all toasts: on a fast renderer the service worker's "Ready to play offline" is still up beside the result)
     assert(/for this device/.test(cv.toast), `the result is shown (${cv.toast})`);
     // (the settings save is debounced: wait until IndexedDB has the result; page.evaluate awaits the promise,
     // waitForFunction would take the promise itself as truthy)

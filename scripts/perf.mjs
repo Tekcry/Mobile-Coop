@@ -11,9 +11,12 @@
 //   (shadow maps and post included). GPU time needs the laptop (Settings > Graphics > Benchmark).
 //   --preset=<p> (3.1): that preset (`?gfx=<p>`, the governor off), its budget from the phone table below;
 //   --mobile with it runs the phone platform (no Epic, no ray tracing).
+//   E2E_GPU=1 (Michael's PC only): the hardware GPU (headless, ANGLE D3D11) and the LOCAL budget profile below: no VM
+//   speed scaling, the render's JS counted (main thread = sim p95 + render JS) and the rendered frame pacing checked.
+//   Cloud runs (software GL) must not claim a perf result: they mark perf "pending PC run".
 //   --phone (3.6): the real phone light look (mobile platform, no `?gfx=`: the standard materials, the lamp volume,
 //   the ambient grid, the governor) - what a phone draws; `?gfx=` turns that look off, so the other modes miss it.
-import { launch, frames } from './e2e-lib.mjs';
+import { launch, frames, GPU } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -40,7 +43,7 @@ const PRESET_BUDGET = {
 const PHONE_LOOK_BUDGET = { cpuP95Ms: 2, animPerCharMs: 0.04, drawCalls: 36, trisM: 0.16, kbPerSecond: 11520 };
 // allocations: per second (the same garbage whatever the refresh rate - 240 Hz must not double it). What remains is
 // V8 boxing doubles passed to non-inlined calls and Havok's embind marshalling (young-generation churn, nothing kept).
-const BUDGET = phone
+const CLOUD_BUDGET = phone
   ? PHONE_LOOK_BUDGET
   : preset && PRESET_BUDGET[mobile && preset === 'epic' ? 'ultra' : preset]
   ? PRESET_BUDGET[mobile && preset === 'epic' ? 'ultra' : preset]
@@ -53,6 +56,19 @@ const BUDGET = phone
   : // the phone-era / test-path check (gfx=min: no post stack, no voxel characters, 20 cm voxels); measured 3.1.0:
     // sim p95 1.5 ms, 43 draws, 0.14 M triangles
     { cpuP95Ms: 2.5, animPerCharMs: 0.04, drawCalls: 55, trisM: 0.2, kbPerSecond: 11520 };
+
+// LOCAL profile (E2E_GPU=1, the RTX 4090 laptop): measured over 3 runs per mode (build 3.5.0) + 25-40% headroom, so a
+// regression fails and run-to-run noise does not. No machine-speed scaling (the PC is not the VM the cloud budgets were set
+// on). `mainMs` = sim p95 + the render's JS (real here: no software-GL stalls); `paceMul` = rendered frame interval p95 over
+// the display interval. Draws / triangles / allocations are GPU-independent: the cloud table's limits stay. The design
+// targets in docs/systems/performance.md (sim <= 2 ms, animation <= 0.04 ms, main <= 3 ms at Epic) are stricter than
+// Epic measures today (sim p95 2.2, animation 0.055, main 4.1): this profile is a regression check, not the target.
+const LOCAL_BUDGET = phone
+  ? { cpuP95Ms: 1.1, animPerCharMs: 0.03, mainMs: 3.4, paceMul: 1.15 }
+  : heavy
+  ? { cpuP95Ms: 2.9, animPerCharMs: 0.075, mainMs: 5.5, paceMul: 1.2 }
+  : { cpuP95Ms: 1.1, animPerCharMs: 0.03, mainMs: 3.6, paceMul: 1.15 };
+const BUDGET = GPU ? { ...CLOUD_BUDGET, ...LOCAL_BUDGET } : CLOUD_BUDGET;
 
 // STEALTH=1: the ten are unaware (stealth rules, patrols / posts, full perception with exposure rays)
 const stealth = !!process.env.STEALTH;
@@ -120,7 +136,7 @@ const calibMs = await page.evaluate(() => {
   }
   return best;
 });
-const speed = calibMs / REF_MS;
+const speed = GPU ? 1 : calibMs / REF_MS;
 
 // CPU per simulated 120 Hz display frame, sampled per frame
 const cpu = await page.evaluate(() => {
@@ -286,10 +302,11 @@ const out = {
 };
 if (asJson) console.log(JSON.stringify(out));
 else {
-  console.log(`Warehouse, ${out.enemies} enemies, ${out.profile} (SwiftShader: GPU numbers not representative)`);
-  console.log(`machine speed: reference workload ${calibMs.toFixed(1)} ms vs ${REF_MS} -> CPU budgets x${speed.toFixed(2)}`);
+  console.log(`Warehouse, ${out.enemies} enemies, ${out.profile} (${GPU ? 'hardware GPU, local budget profile' : 'SwiftShader: GPU numbers not representative'})`);
+  console.log(GPU ? `machine speed: reference workload ${calibMs.toFixed(1)} ms (info: the local budgets are not scaled)` : `machine speed: reference workload ${calibMs.toFixed(1)} ms vs ${REF_MS} -> CPU budgets x${speed.toFixed(2)}`);
   console.log(`CPU per frame @120 Hz (sim + anim + camera, no render): p50 ${out.cpu120.p50} p95 ${out.cpu120.p95} p99 ${out.cpu120.p99} ms`);
-  console.log(`sim p95 ${out.cpu120.p95} ms  [budget <= ${(BUDGET.cpuP95Ms * speed).toFixed(2)} = ${BUDGET.cpuP95Ms} x speed]; render JS ${out.renderJsMs} ms (info: GPU stalls of software GL land in it; the laptop's benchmark gives the real main thread)`);
+  console.log(`sim p95 ${out.cpu120.p95} ms  [budget <= ${(BUDGET.cpuP95Ms * speed).toFixed(2)} = ${BUDGET.cpuP95Ms} x speed]; render JS ${out.renderJsMs} ms${GPU ? '' : " (info: GPU stalls of software GL land in it; the laptop's benchmark gives the real main thread)"}`);
+  if (GPU) console.log(`main thread (sim p95 + render JS) ${out.mainP95} ms  [budget <= ${BUDGET.mainMs}]; rendered frame interval p95 ${out.rendered.p95} ms  [budget <= ${((1000 / real.hz) * BUDGET.paceMul).toFixed(1)} = ${BUDGET.paceMul} x ${(1000 / real.hz).toFixed(1)} ms display interval]`);
   console.log(`animation per character: ${out.animPerCharMs} ms  [budget <= ${(BUDGET.animPerCharMs * speed).toFixed(4)} = ${BUDGET.animPerCharMs} x speed]`);
   console.log(`allocations: ${out.allocKBPerSimSecond} KB per simulated second (${(out.allocKBPerSimSecond / 240).toFixed(1)} KB per 240 Hz frame)  [budget <= ${BUDGET.kbPerSecond} KB/s]`);
   for (const t of top) console.log('   ' + t);
@@ -298,8 +315,15 @@ else {
   console.log(`triangles (every pass): ${out.trisM} M  [budget <= ${BUDGET.trisM} M]`);
   console.log(`rendered frames: display ${real.hz} Hz, interval p50 ${out.rendered.p50} p95 ${out.rendered.p95} p99 ${out.rendered.p99} ms, cpu p50 ${out.rendered.cpuP50} p95 ${out.rendered.cpuP95} ms`);
 }
-const real_errors = errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
+// (GPU only: Babylon logs "Unable to compile effect ... texture image units count exceeds MAX_TEXTURE_IMAGE_UNITS(16)" before its
+// own fallback succeeds: a real-driver finding (the software renderer allows 32), reported below, not enforced)
+// (Babylon splits one failure into several console messages sharing a timestamp: uniforms, defines, both shader sources, the error)
+const stamp = (e) => /^\[error\] BJS - \[([^\]]*)\]/.exec(e)?.[1];
+const texStamps = new Set(errors.filter((e) => /MAX_TEXTURE_IMAGE_UNITS/.test(e)).map(stamp));
+const texUnits = errors.filter((e) => /MAX_TEXTURE_IMAGE_UNITS/.test(e) || (stamp(e) && texStamps.has(stamp(e))));
+const real_errors = errors.filter((e) => (e.startsWith('[error]') || e.startsWith('[pageerror]')) && !(GPU && texUnits.includes(e)));
 if (real_errors.length) console.log(real_errors.join('\n'));
+if (texUnits.length) console.log(`GPU-only note: ${texUnits.filter((e) => /MAX_TEXTURE_IMAGE_UNITS/.test(e)).length} shader(s) exceeded the driver's 16 texture units (Babylon fell back)`);
 await browser.close();
 const missed = [
   out.cpu120.p95 > BUDGET.cpuP95Ms * speed && 'sim p95',
@@ -307,6 +331,8 @@ const missed = [
   out.drawCalls > BUDGET.drawCalls && 'draw calls',
   out.trisM > BUDGET.trisM && 'triangles',
   out.allocKBPerSimSecond > BUDGET.kbPerSecond && 'allocations',
+  GPU && out.mainP95 > BUDGET.mainMs && 'main thread',
+  GPU && out.rendered.p95 > (1000 / real.hz) * BUDGET.paceMul && 'frame pacing',
 ].filter(Boolean);
 if (missed.length) console.log('over budget: ' + missed.join(', '));
 process.exit(enforce && (missed.length || real_errors.length) ? 1 : 0);

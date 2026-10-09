@@ -13,6 +13,9 @@ const log = process.argv.includes('--log');
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
 let failed = false;
 try {
+// (the sim advances only through stepHeadless: on a hardware GPU the live loop would run ~150 steps of the match in the wait below, a different
+// starting state each run, where software GL ran one or two)
+await page.evaluate(() => { window.__app.loop.manual = true; });
 await page.waitForTimeout(1200);
 const res = await page.evaluate(([only, log]) => {
   window.__dbg = log;

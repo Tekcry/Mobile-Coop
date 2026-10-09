@@ -143,6 +143,24 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
+## GPU runs (Michael's PC only)
+- `E2E_GPU=1 npm run e2e` (or any script: `E2E_GPU=1 node scripts/perf.mjs --desktop --budget`): `e2e-lib` launches Chromium with the hardware GPU
+  (Windows: ANGLE D3D11, GPU blocklist ignored) instead of SwiftShader. Always headless (no window, no real pointer lock);
+  `E2E_HEADED=1` (debugging) opens a window parked off-screen with a faked pointer lock. Browser: `E2E_BROWSER`, the cloud's
+  preinstalled Chromium, else playwright-core's own (`npx playwright-core install chromium`). `navigator.canShare` is stubbed off in
+  every run so exports take the download path (Windows would open the OS share sheet). `run-e2e.mjs` serves on 127.0.0.1 on Windows
+  (`E2E_HOST` overrides; `localhost` can resolve to a blocked `::1` behind a VPN adapter) and prints each suite's time.
+- Graphical and performance checks (perf budgets, contact sheets, visual parity and probe checks, phone-look emulation, beauty
+  shots) run here only. Cloud sessions run unit tests and logic e2e and report those checks "pending PC run".
+- `perf.mjs` with `E2E_GPU=1` uses the local budget profile (`LOCAL_BUDGET` in the script): no machine-speed scaling, main thread (sim p95 +
+  render JS) and rendered frame pacing enforced. Measured on the RTX 4090 laptop (3.5.0, Warehouse, 10 enemies): `gfx=min` sim p95 0.8 ms,
+  main 2.6 ms; `--phone` 0.8 / 2.5 ms, 30 draws; `--desktop` (Epic) sim p95 2.2-2.3 ms, animation 0.055-0.067 ms per character, main 4.1-4.4 ms,
+  ~205 draws, 0.6 M triangles, frame p99 ~30 ms (spikes). Epic misses the design targets (sim 2 ms, animation 0.04 ms, main 3 ms): the
+  profile is a regression check at today's numbers.
+- Known GPU-only finding: the D3D11 driver allows 16 texture units; `partSkinMat` (the voxel characters' skin material) asks for 61 at
+  Epic and its effects stay not ready (`e2e-desktop` "every material shader within 16 textures" fails; `perf.mjs --desktop` prints a
+  "GPU-only note" for the 14 shader compiles Babylon logs).
+
 ## Debug overlay
 - F3 / 3-finger tap. Buttons: Skeleton (bones, controller capsules, hit volumes and foot contacts as lines:
   green = planted, orange = swinging to its landing spot; things register in `ui/debugVolumes.ts`), Tune (sliders

@@ -427,7 +427,8 @@ try {
   await attach('ledge');
   await until(A, () => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'ledge', null, 8000, 'host sees the hang');
   await wait(700);
-  const shot = await GA(() => {
+  // (the posed hit volumes settle over a few seconds of real time: sample until the head is hit, up to 8 s - a fixed 700 ms wait passed or failed by luck on a fast renderer)
+  const takeShot = () => GA(() => {
     const g = window.__app.current;
     const r = g.net.remotes.values().next().value;
     const head = r.avatar.rig.headNode.getAbsolutePosition().clone();
@@ -445,6 +446,11 @@ try {
     const hips = r.avatar.rig.hips.getAbsolutePosition();
     return { best, feetY: r.feet.y, head: [head.x, head.y, head.z].map((v) => +v.toFixed(3)), hips: [hips.x, hips.y, hips.z].map((v) => +v.toFixed(3)), bn: [bn.position.x, bn.position.y, bn.position.z].map((v) => +v.toFixed(3)), q: bn.rotationQuaternion && [bn.rotationQuaternion.x, bn.rotationQuaternion.y, bn.rotationQuaternion.z, bn.rotationQuaternion.w].map((v) => +v.toFixed(3)) };
   });
+  let shot = await takeShot();
+  for (let i = 0; i < 16 && !(shot.best && shot.best.part === 'head' && shot.best.d < 0.2); i++) {
+    await wait(500);
+    shot = await takeShot();
+  }
   assert(shot.best && shot.best.part === 'head' && shot.best.d < 0.2, `a shot at the hanging client's head hits the head (${JSON.stringify(shot)})`);
 
   const errs = [...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));

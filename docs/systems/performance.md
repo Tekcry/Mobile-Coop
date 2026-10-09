@@ -49,6 +49,10 @@ Design authority: docs/design-bible.md (Section 8)
   compiled on the loading screen (`GameState.create` awaits `scene.whenReadyAsync`, <= `WARMUP_MAX_MS`), benchmark
   runs on phones release the match and wait `MOBILE_RUN_GAP_MS` 2.5 s. `World.refreshMaterials` when the shadow spec changes or the post stack rebuilds in a match (3.1.3; `PostStack.builds`; frozen
   materials re-read their lights, refreeze after two frames).
+- Local profile (`E2E_GPU=1 node scripts/perf.mjs [--desktop | --phone] --budget`, Michael's PC only; cloud VMs mark perf "pending PC run"): the
+  hardware GPU, no machine-speed scaling, plus the main thread (sim p95 + render JS) and the rendered frame interval p95. Limits (`LOCAL_BUDGET`):
+  gfx=min sim 1.1 ms / animation 0.03 / main 3.6 / pacing 1.15x; phone look 1.1 / 0.03 / 3.4 / 1.15x; Epic and presets 2.9 / 0.075 / 5.5 / 1.2x. Draws,
+  triangles and allocations keep the table's limits.
 - `perf.mjs --budget` (no flag) is the test-path regression check (`?gfx=min`: no post stack, no voxel characters,
   20 cm voxels): sim p95 <= 2.5 ms, animation <= 0.04 ms per character, <= 55 draws, <= 0.2 M triangles, allocations
   <= 11.5 MB/s. Measured (3.1.0): sim p95 1.5 ms, 0.043 ms, 43 draws, 0.14 M triangles, 11.0 MB/s.

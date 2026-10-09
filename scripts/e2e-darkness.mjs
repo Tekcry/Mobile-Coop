@@ -3,7 +3,7 @@
 // camera 0.8 m in front of it; the final pixels (after tone mapping, grade and post) are read back as display luminance
 // (Rec. 709 luma, 0..1) and checked against the targets - on the phone light look and at Epic, night vision off and on.
 // Gameplay is untouched: the card's level is the light field's, which this step does not change.
-import { launch, frames, assert } from './e2e-lib.mjs';
+import { launch, frames, assert, GPU } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const LOOKS = [
@@ -106,7 +106,22 @@ async function measure(page, p, nv) {
     if (w.lamps) w.lamps.visionGain = nv ? 8 : 1;
     g.post.setNightVision(nv ? 1 : 0);
   }, [p, nv]);
+  // settle: the post stack (TAAU history, bloom) converges over wall-clock time, not frames: at 120 Hz 30 frames is a quarter second
+  // (software GL took minutes for them). Read until three reads in a row agree within 0.5%, at least 30 frames, at most 8 s.
+  // (software GL: a frame takes seconds, so 30 frames already outlast any convergence: one read, as before)
   await frames(page, 30);
+  let last = await readLuma(page);
+  let stable = GPU ? 0 : 3;
+  for (let t0 = Date.now(); stable < 3 && Date.now() - t0 < 8000; ) {
+    await frames(page, 10);
+    const cur = await readLuma(page);
+    stable = Math.abs(cur.luma - last.luma) < 0.005 ? stable + 1 : 0;
+    last = cur;
+  }
+  return last;
+}
+
+async function readLuma(page) {
   // the final image as the screen shows it (the HUD hidden), centre 10 x 10, decoded in the page
   const vp = page.viewportSize();
   const png = await page.screenshot({ clip: { x: Math.floor(vp.width / 2) - 5, y: Math.floor(vp.height / 2) - 5, width: 10, height: 10 } });

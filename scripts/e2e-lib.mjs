@@ -2,12 +2,49 @@
 import { chromium, devices } from 'playwright-core';
 import { existsSync } from 'node:fs';
 
+/** E2E_GPU=1 (Michael's PC only): the hardware GPU instead of software GL. Cloud runs leave it unset. */
+export const GPU = process.env.E2E_GPU === '1';
+
+/** The Chromium to launch: E2E_BROWSER, else the cloud's preinstalled one, else undefined (playwright-core's own install: `npx playwright-core install chromium`, the PC). */
+export function browserExe() {
+  return [process.env.E2E_BROWSER, '/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium/chrome-linux/chrome'].find((c) => c && existsSync(c));
+}
+
+/** Chromium flags: software GL (SwiftShader) by default; E2E_GPU=1 the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored). */
+export function browserArgs() {
+  const base = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'];
+  if (!GPU) return ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
+  const angle = process.platform === 'win32' ? 'd3d11' : process.platform === 'darwin' ? 'metal' : 'gl';
+  return ['--use-gl=angle', `--use-angle=${angle}`, '--enable-gpu-rasterization', ...base];
+}
+
+/** Always headless: no window on the desktop and no real pointer lock. GPU runs use Chromium's new headless mode
+ * (full chrome, ANGLE D3D11). E2E_HEADED=1 (debugging only) opens a window parked off-screen and fakes pointer lock. */
+export const HEADED = process.env.E2E_HEADED === '1';
+export function launchOptions() {
+  const args = browserArgs();
+  const exe = browserExe();
+  if (HEADED) return { headless: false, ...(exe ? { executablePath: exe } : {}), args: [...args, '--window-position=-32000,-32000', '--window-size=1280,720', '--no-startup-window-focus'] };
+  return { headless: true, ...(exe ? { executablePath: exe } : GPU ? { channel: 'chromium' } : {}), args };
+}
+
+/** Headed runs only: a page-side pointer lock that never touches the real cursor. */
+function fakePointerLock() {
+  let locked = null;
+  Object.defineProperty(Document.prototype, 'pointerLockElement', { get: () => locked, configurable: true });
+  Element.prototype.requestPointerLock = function () {
+    locked = this;
+    setTimeout(() => document.dispatchEvent(new Event('pointerlockchange')), 0);
+    return Promise.resolve();
+  };
+  Document.prototype.exitPointerLock = function () {
+    locked = null;
+    setTimeout(() => document.dispatchEvent(new Event('pointerlockchange')), 0);
+  };
+}
+
 export async function launch({ url = 'http://localhost:4173/', params = '', touch = true, viewport = { width: 1280, height: 640 }, touchViewport = null } = {}) {
-  const exe = ['/opt/pw-browsers/chromium-1194/chrome-linux/chrome', '/opt/pw-browsers/chromium/chrome-linux/chrome'].find(existsSync);
-  const browser = await chromium.launch({
-    executablePath: exe,
-    args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'],
-  });
+  const browser = await chromium.launch(launchOptions());
   const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
   // (`touchViewport`: the phone held another way, e.g. upright)
   const ctx = await browser.newContext({ ...(touch ? { ...dev, ...(touchViewport ? { viewport: touchViewport, screen: touchViewport } : {}) } : { viewport }), acceptDownloads: true });
@@ -26,6 +63,11 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
     else if (process.env.VERBOSE) console.log(`[${m.type()}] ${m.text()}`);
   });
   page.on("pageerror", (e) => errors.push(`[pageerror] ${e.message}${process.env.STACK ? "\n" + e.stack : ""}`));
+  if (HEADED) await page.addInitScript(fakePointerLock);
+  // Windows Chromium offers the OS share sheet (navigator.canShare true): the exports must take the download path in every run, never open a sheet on the PC
+  await page.addInitScript(() => {
+    Navigator.prototype.canShare = () => false;
+  });
   // Fake standard-mapping gamepad, controllable via window.__pad.
   await page.addInitScript(() => {
     const pad = {
