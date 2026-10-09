@@ -71,9 +71,19 @@ Design authority: docs/design-bible.md (Section 5.1)
   `finalRadianceScaled` and `finalAmbient`. Uniforms `lampDark` (gain, the moon's level) and `lampDarkP` (the curve).
 - Desktop's non-voxel surfaces (characters, props, weapons) take the ambient grid as their fill in place of the
   hemisphere, which lit them as if under open sky indoors; the voxels keep the sky bake's fill.
-- Night vision (`VISION_GAIN` 8): `GameState` eases `BakedLamps.visionGain` with the goggles; `CinematicPost` maps the
-  image to green nearly as it is and blows lamp light out towards white; on the phone the light over twice full joins
-  the colour (`CUSTOM_FRAGMENT_BEFORE_FOG`: the standard material clamps the light before the surface colour).
+- Night vision (`VISION_GAIN` 8): `GameState` eases `BakedLamps.visionGain` with the goggles; on the phone the light over
+  twice full joins the colour (`CUSTOM_FRAGMENT_BEFORE_FOG`: the standard material clamps the light before the surface
+  colour).
+- The tube (Step 4b fix, `vfx/nightVision.ts`, pure; mirrored in GLSL as `NV_GLSL`): `CinematicPost` maps the image's
+  luma through `nvDrive` (contrast `gamma` 1.7) and `nvColor` (a pale grey-green phosphor that clips to white from drive
+  0.65, never quite black), adds intensifier grain (strongest in the dark) and darkens the edge (an eyepiece ellipse, x
+  scaled by the aspect up to 1.8). Lamps glare: `vfx/nightGlare.ts` picks up to `GLARE.max` (8) fixed lamps in view
+  (on, not shot out, within 45 m), keeps those with a clear line from the camera (a Havok ray against static geometry,
+  stopped 0.35 m short), projects them and hands the post pass u, v, radius (the glare's 2.5 m projected, 0.06 - 0.7
+  screen heights) and strength; each fades over 0.12 s. The glare joins the drive (a core, a halo and a wide tail); the
+  sum (`veil`) lowers the tube's gain a little (auto-gain) and lifts the whole image (scatter). `LightRig.setVisionBoost`
+  raises the fixtures (x2.5) and the cones' haze (x4) with the goggles. Rendering only; the glare's rays read collision,
+  gameplay reads none of it. Glare follows the free camera in photo mode.
 - The phone's black floor is `PHONE_DARK_FLOOR` 0.008 (OLED smear). Brightness calibration (`BrightnessScreen`,
   Settings > Display; once after the update): an exposure multiplier in the grade, `BRIGHTNESS_MIN` .. `MAX`,
   `GameState.brightnessLocked` for the Confrontation.

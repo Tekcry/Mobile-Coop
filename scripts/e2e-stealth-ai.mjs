@@ -712,28 +712,15 @@ try {
       st.tap('vision');
       t.step(0.1);
       g.frameUpdate(0.1, 1);
-      const sonar = { mode: v.mode, marks: g.sonarMarks.count, vis: g.sonarMarks['limbs'].isEnabled() };
-      t.step(3);
-      g.frameUpdate(0.1, 1);
-      const faded = g.sonarMarks['limbs'].isEnabled();
-      // runs out, then recharges
-      t.step(16);
-      const out = { mode: v.mode, cool: v.cooldown };
-      st.tap('vision');
-      t.step(0.1);
-      st.tap('vision');
-      t.step(0.1);
-      const skip = v.mode;
-      st.tap('vision');
-      t.step(0.1);
-      g.frameUpdate(0.1, 1);
-      return { night, sonar, faded, out, skip, nvOff: g.post['nv'] };
+      // (Step 4b fix) no sonar: the second press turns the goggles off (thermal replaces sonar in Phase 3)
+      t.step(0.4);
+      g.frameUpdate(0.4, 1);
+      const off = { mode: v.mode, marks: g.sonarMarks.count, hud: document.querySelector('.tac-vision')?.textContent };
+      return { night, off, nvOff: g.post['nv'] };
     });
     assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `the goggles button: night vision (${JSON.stringify(r.night)})`);
-    assert(r.sonar.mode === 'sonar' && r.sonar.marks === 1 && r.sonar.vis, `again: sonar marks the guard behind the wall (${JSON.stringify(r.sonar)})`);
-    assert(!r.faded, 'the marks fade after the pulse');
-    assert(r.out.mode === 'off' && r.out.cool > 0, `sonar runs out and recharges (${JSON.stringify(r.out)})`);
-    assert(r.skip === 'off', `while recharging the cycle skips sonar (${r.skip})`);
+    assert(r.off.mode === 'off' && r.off.marks === 0 && r.off.hud === '', `again: off, no sonar (${JSON.stringify(r.off)})`);
+    assert(r.nvOff < 0.01, `night vision fades out (${r.nvOff})`);
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));

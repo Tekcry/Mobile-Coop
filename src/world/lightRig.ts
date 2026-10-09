@@ -27,6 +27,10 @@ const LAMP_CONE = LAMP_CONE_MATH;
 const CONE_HALF = 0.5;
 const CONE_LEN = 3.6;
 const CONE_GLOW = 0.075;
+/** (Step 4b fix) night vision's gain on the fixtures and the cones' haze at full goggles (rendering only): a lamp is the
+ *  brightest thing in the tube and its beam reads as a shaft. */
+const NV_BULB = 2.5;
+const NV_CONE = 4;
 
 /** What the rig is asked to render (from the graphics settings). */
 export interface LightRigConfig {
@@ -466,19 +470,29 @@ export class LightRig {
     this.shadowPool.length = 0;
   }
 
+  /** Night vision's blend 0..1 (Step 4b fix): the fixtures and cones brighten with the goggles' gain. */
+  private vision = 0;
+  setVisionBoost(k: number): void {
+    if (Math.abs(k - this.vision) < 0.01 && !(k === 0 && this.vision !== 0) && !(k === 1 && this.vision !== 1)) return;
+    this.vision = k;
+    this.paintBulbs();
+  }
+
   private paintBulbs(): void {
     const c = this.bulbColors;
     if (!c || !this.bulbs) return;
+    const bulbNv = 1 + (NV_BULB - 1) * this.vision;
+    const coneNv = 1 + (NV_CONE - 1) * this.vision;
     for (let i = 0; i < this.bulbCount; i++) {
       const l = this.reg.lights[i]!;
-      const k = l.on && !l.destroyed ? 1 : 0.08;
+      const k = l.on && !l.destroyed ? bulbNv : 0.08;
       c[i * 4] = l.color[0] * k;
       c[i * 4 + 1] = l.color[1] * k;
       c[i * 4 + 2] = l.color[2] * k;
       c[i * 4 + 3] = 1;
       const cc = this.coneColors;
       if (cc) {
-        const g = l.on && !l.destroyed && l.kind !== 'flashlight' ? CONE_GLOW * Math.min(1.5, l.intensity) : 0;
+        const g = l.on && !l.destroyed && l.kind !== 'flashlight' ? CONE_GLOW * Math.min(1.5, l.intensity) * coneNv : 0;
         cc[i * 4] = l.color[0] * g;
         cc[i * 4 + 1] = l.color[1] * g;
         cc[i * 4 + 2] = l.color[2] * g;

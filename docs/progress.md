@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| 1 | Light parity | Step 4b: Phone check passes; night vision fails the look check; fix pass waits for Michael's go | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
+| 1 | Light parity | Step 4b fix pass done (night vision look, sonar off); waiting for Michael's look check | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
 | 3b | Movement, camera and animation lock | not started | 3.9.0 | (to be written) |
@@ -626,14 +626,57 @@ See the Step 1 and Step 5 reports.
   - Night vision costs about 1 fps uncapped (113 against 114); its 1% low falls from 86 to 71.
   - No heat loss (114 then 113).
 - Look check (Michael, desktop and iPhone, 2026-10-09): night vision fails. Lamps do not glare or flare in it, and the
-  image is a flat saturated green. Target look and the rest of the feedback: `docs/backlog.md` items 10 - 14. The fix
-  pass waits for Michael's go.
+  image is a flat saturated green. Target look and the rest of the feedback: `docs/backlog.md` items 10 - 14.
+  Michael chose the fix pass (2026-10-09); thermal stays in Phase 3.
+
+#### Step 4b fix pass (night vision look, sonar off the button; backlog items 10, 11) - 2026-10-09
+- Done:
+  - The tube (`vfx/nightVision.ts`, pure, `NV_GLSL` mirror; `vfx/cinematicPost.ts`): a pale grey-green phosphor
+    (`nvColor`) in place of the saturated green, contrast `gamma` 1.7 (`nvDrive`), highlights clip towards white from drive
+    0.65, a faint background glow (never black), random grain strongest in the dark (a per-cell hash at ~900 cells a
+    screen height, in place of the 720-cell grid that drew 10-pixel blocks at 7680 wide), and an eyepiece ellipse (x
+    scaled by the aspect up to 1.8: the old circle covered only the centre of a 32:9 screen).
+  - Lamp glare (`vfx/nightGlare.ts`): up to 8 fixed lamps in view with a clear line from the camera (a Havok ray against
+    static geometry) glare in the tube: a core, a halo and a wide tail, sized from 2.5 m projected, fading over 0.12 s.
+    Their sum lowers the gain a little and lifts the whole image (auto-gain and scatter). Glare follows the free camera
+    in photo mode.
+  - `LightRig.setVisionBoost`: the fixtures (x2.5) and the lamp cones' haze (x4) brighten with the goggles, so beams read
+    as shafts.
+  - Sonar is off the goggles button (`sonarAllowed` false; bible 6, thermal replaces it in Phase 3, which deletes the
+    code): the button cycles off / night vision, and the "SONAR" label cannot appear.
+  - Tests: `tests/nightVision.test.ts` (new: the phosphor's targets, monotony and colour; glare picking, fading, radius).
+    `e2e-stealth-ai` vision: the second press turns the goggles off, no sonar.
+- Files changed: `src/vfx/nightVision.ts` (new), `src/vfx/nightGlare.ts` (new), `src/vfx/cinematicPost.ts`,
+  `src/world/lightRig.ts`, `src/game/gameState.ts`, `tests/nightVision.test.ts` (new), `scripts/e2e-stealth-ai.mjs`,
+  `docs/systems/lighting.md`, `docs/systems/gadgets.md`, `TESTING.md`, `docs/backlog.md`,
+  `docs/prompts/phase-1-sheets/step4b-fix-*.jpg` (new).
+- Decisions:
+  - Glare comes from the lamps, not from a blur of the image: the phone look has no bloom chain, and a wide full-screen
+    blur would cost more than the Phone check's margin (the hold passed at 58, the line). The cost is 8 rays a frame and
+    8 analytic sources per pixel, only while the goggles are on. Not glaring: flashlights (no fixture; they could glare
+    through walls without the ray); lamps past the 8 nearest in view.
+  - Copied from the reference: the optical look only (phosphor colour, glare, grain, eyepiece). No HUD frames, icons or
+    UI art (no Splinter Cell IP).
+- Tests (this PC, `E2E_GPU=1`):
+  - `npm run check`: 64 files, 631 tests; lint clean; build ok.
+  - `e2e-darkness`: night vision at level 0.12 reads 38.3% on the phone look and 33.3% at Epic (target 25-45%); at 0.70
+    98.3% on both (target 90-100%). Night vision off is unchanged.
+  - Pass: `e2e-darkness`, `e2e-phonelamps`, `e2e-stealth-ai`, `e2e-stealth`, `e2e-tactics`, `e2e-missions`,
+    `e2e-enemies`, `e2e-desktop`. Not run: the full `npm run e2e` (Step 9).
+  - `perf.mjs --phone --budget` passes (main thread 2.8 ms, 29 draws). `perf.mjs --desktop --budget`: the first run was
+    over (sim p95, allocations, main thread, pacing), the rerun passes (main 4.06 ms, 204 draws, frame p95 8.5 ms).
+    Neither run turns night vision on; the Phone check measures it.
+- Contact sheets (`docs/prompts/phase-1-sheets/step4b-fix-<look>-<view>.jpg`, night vision off | on; four views at a
+  lamp, one from the spawn): pale grey-green, lamps glare into a wide soft white, the cones read as shafts.
+- Open: the iPhone cost of the tube (8 sources, three exponentials each, per pixel) - the Phone check's night vision run
+  and the hold measure it.
 - Next: **STOP** for Michael's look check on the iPhone (`/ct/`) and desktop:
-  - [ ] Indoors at night, standing in shadow, you can hardly see your operator: just the goggle glow.
-  - [ ] Night vision is now needed to read a dark room. It flares when you look at a lamp.
-  - [ ] Lamp pools and moonlit ground still read clearly (desktop pools are brighter: `top` x1.55).
-  - [ ] Brightness calibration: set it once and it feels right.
-  - [ ] Phone check including the night vision run (and night vision in the hold's second minute). Send the note.
+  - [ ] Night vision looks like an intensifier tube: pale grey-green, murky shadows, soft grain, a dark eyepiece edge.
+  - [ ] Lamps glare in it: a wide soft white bloom round each lamp in view, none through walls; beams read as shafts.
+  - [ ] The goggles button: off, night vision, off (no sonar, no "SONAR" label).
+  - [ ] Still true from Step 4b: shadow hides your operator (just the goggle glow); lamp pools and moonlit ground read;
+        brightness calibration feels right.
+  - [ ] Phone check, including the night vision run and the hold (58 fps or more, no minute under 55). Send the note.
 
 ## Links
 - Story: `docs/story.md` (story, setting, characters, in-game text)

@@ -60,6 +60,7 @@ import { LIGHT, type LightDef } from '../world/lights';
 import { CornerController } from '../cover/cornerController';
 import { landingNoise, noiseRadius } from '../player/movement';
 import { CinematicPost, PHONE_DARK_FLOOR } from '../vfx/cinematicPost';
+import { NightGlare } from '../vfx/nightGlare';
 import { PostStack } from '../vfx/postStack';
 import { Weather } from '../vfx/weather';
 import { benchTag } from '../ui/benchTag';
@@ -358,6 +359,8 @@ export class GameState implements AppState {
     this.blobs = new BlobShadows(this.scene);
     this.post = new CinematicPost(this.player.cam.camera);
     this.post.setGrade(world.map.theme.grade);
+    this.nightGlare = new NightGlare(world.level.lights.lights, this.glareBlocked);
+    this.post.setGlare(this.nightGlare.data, 0);
     const fc = Color3.FromHexString(world.map.theme.horizon);
     // weather (3.0, visual only): the map's theme, or the choice made on the Play screen / in the lobby
     const wx = opts.weather && world.map.weathers?.includes(opts.weather) ? opts.weather : null;
@@ -387,7 +390,9 @@ export class GameState implements AppState {
     this.team = new TeamController(this);
     this.execute = new ExecuteController(this);
     this.gadgets = new GadgetSystem(this);
-    this.vision.sonarAllowed = this.difficultyDef.sonar;
+    // sonar is off the goggles button (bible 6: thermal replaces it in Phase 3, which deletes the code; Michael,
+    // 2026-10-09): the button cycles off -> night vision -> off
+    this.vision.sonarAllowed = false;
     // suit and HQ: armour, hands, gadget carry, marks
     this.suit = suitStats(opts.suit && !pvpMatch ? opts.suit : defaultSuit());
     this.hq = hqStats(opts.hq && !pvpMatch ? opts.hq : defaultHq());
@@ -1011,6 +1016,14 @@ export class GameState implements AppState {
       see,
     };
   }
+  /** Night vision's lamp glare (Step 4b fix; rendering only). */
+  private nightGlare: NightGlare;
+  /** Static geometry on a segment (the glare's camera-to-lamp test; allocation-free). */
+  private readonly glareBlocked = (ax: number, ay: number, az: number, bx: number, by: number, bz: number): boolean => {
+    this.lightRay.reset();
+    (this.scene.getPhysicsEngine() as PhysicsEngine).raycastToRef(this.lightFrom.set(ax, ay, az), this.lightTo.set(bx, by, bz), this.lightRay, { membership: G.PROJECTILE, collideWith: G.STATIC });
+    return this.lightRay.hasHit;
+  };
   /** Static geometry between a light and a point (allocation-free; only runs for lights in range). */
   private readonly lightOccluder = (l: LightDef, x: number, y: number, z: number): boolean => {
     this.lightFrom.set(l.x, l.y, l.z);
@@ -1537,6 +1550,9 @@ export class GameState implements AppState {
       // frozen: only the lights follow the free camera
       this.world.frame(this.player.position, 0);
       this.stack.frame(0);
+      // night vision's glare follows the free camera
+      this.nightGlare.update(this.scene.activeCamera ?? this.player.cam.camera, this.vision.night, 1);
+      this.post.setGlare(this.nightGlare.data, this.nightGlare.veil);
       return;
     }
     const look = this.app.input.state.consumeLook();
@@ -1574,7 +1590,7 @@ export class GameState implements AppState {
     this.updateCinematic(dt);
     this.enemyMgr?.frameUpdate(dt, alpha);
     this.updateStealthHud(dt);
-    this.renderVision();
+    this.renderVision(dt);
     this.vfx.update(dt);
     this.audio?.frame(dt);
     this.mode?.frameUpdate(dt);
@@ -1628,9 +1644,13 @@ export class GameState implements AppState {
   }
 
   /** Goggles per render frame: night vision blend, sonar marks fading, the pulse ring growing. */
-  private renderVision(): void {
+  private renderVision(dt: number): void {
     const v = this.vision;
     this.post.setNightVision(v.night);
+    // (Step 4b fix) the lamps glare in the tube; their fixtures and beams brighten with the gain (rendering only)
+    this.nightGlare.update(this.scene.activeCamera ?? this.player.cam.camera, v.night, dt);
+    this.post.setGlare(this.nightGlare.data, this.nightGlare.veil);
+    this.world.lightRig.setVisionBoost(v.night);
     // (Step 4b) night vision is a gain inside the lighting (rendering only; gameplay never reads it)
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
     // the tri-lens glows brighter while a mode is on

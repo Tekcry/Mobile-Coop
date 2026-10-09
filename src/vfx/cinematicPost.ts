@@ -1,5 +1,6 @@
 import { Effect, PostProcess, type Camera } from '../core/babylon';
 import { BRIGHTNESS_MAX, BRIGHTNESS_MIN } from '../world/darkCurve';
+import { GLARE, NV_GLSL, NV_TONE } from './nightVision';
 
 export { PHONE_DARK_FLOOR } from '../core/quality';
 
@@ -20,6 +21,9 @@ uniform float sat;
 uniform float contrast;
 uniform float darkFloor;
 uniform float bright;
+uniform vec4 glare[${GLARE.max}];
+uniform float veil;
+${NV_GLSL}
 void main(void) {
   vec4 c = texture2D(textureSampler, vUV);
   // the map's colour grade: tint, saturation, contrast round mid grey
@@ -35,12 +39,27 @@ void main(void) {
   d.x *= aspect;
   float n = fract(sin(dot(floor(vUV * 720.0) + time, vec2(12.9898, 78.233))) * 43758.5453);
   if (nv > 0.0) {
-    // (Step 4b) the gain is in the lighting (\`LampPlugin\`, \`VISION_GAIN\`): the tube maps the light it gets to green
-    // nearly as it is, and lamp light blows out towards white
-    float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
-    vec3 p = vec3(0.25, 1.0, 0.4) * (0.02 + l * 0.62) + vec3(max(l - 0.75, 0.0) * 4.0) + (n - 0.5) * 0.1;
-    float tube = smoothstep(0.82, 0.38, length(d));
-    c.rgb = mix(c.rgb, p * mix(1.0, tube, 0.85), nv);
+    // (Step 4b) the gain is in the lighting (\`LampPlugin\`, \`VISION_GAIN\`). (Step 4b fix) the tube
+    // (\`nightVision.ts\`): the lamps' glare joins the drive, the phosphor is a pale grey-green that clips to white,
+    // intensifier grain is strongest in the dark, and the eyepiece darkens the edge
+    float l = dot(c.rgb, vec3(0.2126, 0.7152, 0.0722));
+    float g = 0.0;
+    for (int i = 0; i < ${GLARE.max}; i++) {
+      vec4 s = glare[i];
+      if (s.w > 0.0) {
+        vec2 o = (vUV - s.xy) * vec2(aspect, 1.0);
+        float r2 = dot(o, o) / (s.z * s.z);
+        g += s.w * (exp(-r2 * 10.0) + 0.45 * exp(-r2 * 1.2) + 0.12 / (1.0 + r2 * 2.0));
+      }
+    }
+    float drive = nvDrive(l, veil) + g;
+    vec3 p = nvColor(drive, veil);
+    highp vec2 gc = floor(vUV * vec2(aspect, 1.0) * 900.0) + time * vec2(37.0, 17.0);
+    highp float ng = fract(sin(dot(gc, vec2(12.9898, 78.233))) * 43758.5453);
+    p += (ng - 0.5) * ${NV_TONE.grain.toFixed(3)} * (1.0 - ${(1 - NV_TONE.grainLit).toFixed(3)} * min(drive, 1.0));
+    vec2 e = (vUV - 0.5) * vec2(min(aspect, 1.8), 1.0);
+    p *= mix(0.06, 1.0, smoothstep(0.8, 0.52, length(e)));
+    c.rgb = mix(c.rgb, max(p, 0.0), nv);
   }
   if (feed > 0.0) {
     float l = dot(c.rgb, vec3(0.3, 0.59, 0.11));
@@ -67,6 +86,9 @@ export class CinematicPost {
   barsTarget = 0;
   /** Night-vision blend 0..1. */
   private nv = 0;
+  /** Night vision's lamp glare (`NightGlare`: u, v, radius, strength per source) and its sum. */
+  private glare: Float32Array = new Float32Array(GLARE.max * 4);
+  private veil = 0;
   /** Flashbang white-out 0..1 (decays in `update`). */
   private flash = 0;
   /** Remote camera feed look (sticky cam, drone) 0..1. */
@@ -134,6 +156,12 @@ export class CinematicPost {
     this.sync();
   }
 
+  /** Night vision's lamp glare (Step 4b fix; `NightGlare`): the sources, read each frame by reference. */
+  setGlare(data: Float32Array, veil: number): void {
+    this.glare = data;
+    this.veil = veil;
+  }
+
   /** White-out (a flashbang in view); fades over ~2 s. */
   whiteOut(k: number): void {
     this.flash = Math.max(this.flash, Math.min(1, k));
@@ -156,7 +184,7 @@ export class CinematicPost {
   private sync(force = false): void {
     const needed = this.graded || this.vignette > 0 || this.grain > 0 || this.bars > 0.001 || this.barsTarget > 0 || this.nv > 0 || this.flash > 0 || this.feed > 0 || force;
     if (needed && !this.pp) {
-      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright'], null, 1, this.camera);
+      const pp = new PostProcess('cinematic', 'cinematic', ['vignette', 'grain', 'bars', 'time', 'aspect', 'nv', 'flash', 'feed', 'tint', 'sat', 'contrast', 'darkFloor', 'bright', 'glare', 'veil'], null, 1, this.camera);
       pp.onApply = (e) => {
         e.setFloat('vignette', this.vignette);
         e.setFloat('grain', this.grain);
@@ -171,6 +199,8 @@ export class CinematicPost {
         e.setFloat('contrast', this.contrast);
         e.setFloat('darkFloor', this.floor);
         e.setFloat('bright', this.bright);
+        e.setFloatArray4('glare', this.glare);
+        e.setFloat('veil', this.veil);
       };
       // The pass leaves its input (the scene target) bound to a texture unit; a material that declares a
       // sampler it does not bind this frame (shadow receivers before the map is ready) would then read the

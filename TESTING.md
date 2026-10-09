@@ -369,7 +369,7 @@ Gameplay mapping:
 - [ ] RT fire (analog threshold), LT aim (hold or toggle per setting); aim assist slows near targets on Standard/High, off when disabled.
 - [ ] RB / LB next / previous weapon (RB marks while aiming); X reload (hold: next weapon); A take / leave cover and
       cover-to-cover; B crouch; Y traverse / use / takedown (hold: lethal) / Execute when ready.
-- [ ] L3 sprint; R3 shoulder swap; View tap goggles (night vision / sonar), View held emote.
+- [ ] L3 sprint; R3 shoulder swap; View tap goggles (night vision on / off), View held emote.
 - [ ] D-pad up / down speed gear; D-pad right gadget (hold aims, release throws); D-pad left tap ping (co-op), held
       gadget wheel.
 - [ ] In cover: A leaves (or to the marked cover), Y vaults low cover, LT peeks / leans, RT blind-fires, A at an
