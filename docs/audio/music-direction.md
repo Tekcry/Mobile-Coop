@@ -523,6 +523,8 @@ How we work:
 
 ## 13. Notes for the engine (M1)
 
+- **First lab feature:** a "Play motif" button (statement on `motifbell`, `bassmetal` and `pipe`) for Michael's ear
+  test, before the rest of the lab.
 - One seeded generator (e.g. mulberry32) with sub-streams: `library`, `patterns`, `calm`. A seed renders the same
   library and the same pattern sequence every time.
 - Lookahead scheduler: a timer every 25-50 ms schedules everything due in the next 150 ms (combat at 168 BPM has 16ths
