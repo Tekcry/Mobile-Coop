@@ -382,8 +382,8 @@ describe('motif candidates (V1)', () => {
       for (const e of a) {
         if (e.k !== 'play') continue;
         expect(ids.has(e.id), e.id).toBe(true);
-        // +-7 semitones around the root, with one octave up allowed for the vibes answer
-        const max = e.id === 'vibes' ? Math.pow(2, 19 / 12) : Math.pow(2, 7.01 / 12);
+        // +-7 semitones around the root
+        const max = Math.pow(2, 7.01 / 12);
         expect(e.rate, `${c.id} ${e.id}`).toBeLessThanOrEqual(max);
         expect(e.rate, `${c.id} ${e.id}`).toBeGreaterThanOrEqual(Math.pow(2, -7.01 / 12));
       }
@@ -426,9 +426,11 @@ describe('motif candidates (V1)', () => {
   });
 
   it('the new instruments are pitched where the takes expect', () => {
-    const lib = renderLibrary(0x4e53, LIB_RATE, ['brass', 'strings', 'bellFM', 'vibes', 'timp', 'midbass'], false);
-    expect(lib.get('brass').root).toBeCloseTo(293.665, 2);
-    expect(lib.get('bellFM').root).toBeCloseTo(587.33, 1);
+    const lib = renderLibrary(0x4e53, LIB_RATE, ['horn', 'upright', 'stab', 'swell', 'darkbell', 'strings'], false);
+    expect(lib.get('horn').root).toBeCloseTo(146.832, 2);
+    expect(lib.get('upright').root).toBeCloseTo(73.416, 2);
+    expect(lib.get('stab').root).toBeCloseTo(146.832, 2);
+    expect(lib.get('darkbell').root).toBeCloseTo(293.665, 2);
     expect(lib.get('strings').loop).toBe(true);
     // the strings loop joins without a jump
     const d = lib.get('strings').data;

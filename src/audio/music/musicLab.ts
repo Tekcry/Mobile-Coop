@@ -47,9 +47,9 @@ export class MusicLabScreen extends Screen {
           'div',
           { class: 'lab-row' },
           take(`Play ${c.id}`, 'all', true),
-          take(`${c.id} bell`, 'bell'),
-          take(`${c.id} hook`, 'hook'),
-          take(`${c.id} menu`, 'menu'),
+          take(`${c.id} sneak`, 'sneak'),
+          take(`${c.id} break`, 'break'),
+          take(`${c.id} noir`, 'noir'),
           button(`${c.id} 60 s WAV`, () => go(() => void this.export(`cand${c.id}`)), { class: 'subtle' }),
         ),
       );
@@ -101,7 +101,7 @@ export class MusicLabScreen extends Screen {
     this.el.append(
       h('div', { class: 'screen-title', text: 'Music lab' }),
       this.status,
-      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'Play runs bell (72 BPM), hook (168) and menu (80) back to back. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
+      section('Motif picker', ...picker, h('div', { class: 'row-note', text: 'Play runs sneak (84 BPM downtempo), break (168 breakbeat) and noir (70, the menu opening) back to back. Pick one, or ask for more. Does any remind you of a known theme? Tell Claude and it gets rewritten.' })),
       section('State', stateRow),
       section('Seed and tempo', seedRow, nudgeRow),
       section('Mute stems', stemRow),

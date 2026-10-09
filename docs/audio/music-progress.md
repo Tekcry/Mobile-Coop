@@ -10,7 +10,7 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 | M1 | Engine and music lab | Sonnet | done; Michael listened and did not like calm and combat. Engine and found-sound library kept |
 | M2-M4 | (old plan) | - | cancelled; replaced by V1-V4 |
 | V0 | Direction v2 (MGS structure + CT texture) | Opus | done; approved by Michael 2026-10-09 |
-| V1 | Three candidate motifs, motif picker, WAVs | Opus | done; waiting for Michael to pick a motif |
+| V1 | Three candidate motifs, motif picker, WAVs | Opus | round 1 rejected; round 2 (Chaos Theory-led) done, waiting for Michael to pick |
 | V2 | Engine upgrade: instruments, mix glue, five phases, adapter | Sonnet | not started |
 | V3 | Composition: phases, stingers, themes, map colours | Opus | not started |
 | V4 | Polish, budget, docs | Sonnet | not started |
@@ -18,7 +18,7 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
 ## Ear-test log (originality, direction Section 12)
 | Date | Cue | Heard as | Action |
 | --- | --- | --- | --- |
-| | | | |
+| 2026-10-09 | V1 round 1 (A, B, C) | Not liked; bell loud and jarring; wanted the Chaos Theory sound | All three dropped; direction v2.1 and round 2 |
 
 ---
 
@@ -198,3 +198,31 @@ Spec: `docs/prompts/music-spec.md` (Section 2 rules still apply). Direction: `do
   - Ear test (direction v2 Section 12): for each candidate, does it remind Michael of a known theme? Log it in the table above.
   - The takes are sketches of the motif in context, not the V3 composition.
 - Next: Michael picks A, B or C (or asks for more). Then V2 (Sonnet): engine upgrade on the chosen motif. STOP.
+
+### V1 round 2 (Chaos Theory-led)
+- Michael (2026-10-09): did not like any round 1 motif; the bell was loud and jarring; "update to reflect chaos theory
+  soundtrack".
+- Done:
+  - Direction v2.1 (`music-direction-v2.md`): Chaos Theory now sets the sound, the melody and the arrangement; MGS keeps
+    only the phase structure. The motif becomes a low, dark **figure** for bass and muted horn (rules 5.1 rewritten);
+    Caution moves to 84 BPM (half of Alert's 168); menu 70 BPM; Alert's hook becomes a reese riff answered by chopped string
+    stabs; no bright bells, no heroic brass, no fanfares; a new principle: no bell or tone louder than the beat.
+  - `orchestra.ts`: removed the bright FM bell, vibes and the synth-brass; added `upright` (Karplus-Strong double bass),
+    `horn` (muted, dark, smears down), `stab` (chopped string fifths, 12-bit grain), `swell` (reversed stab), `darkbell`
+    (soft harmonic FM, low-passed).
+  - `candidates.ts`: three new figures and three new takes: **sneak** (84 BPM swung downtempo: figure on upright, then
+    horn; crackle and low pad), **break** (168 BPM chopped breakbeat: figure on the reese, answered by stabs and plate),
+    **noir** (70 BPM menu opening: rain, low strings, bass, horn, a reversed swell into stabs, resolved on horn). The
+    soft bell appears once per take, quietly (gain 0.15-0.18, mostly reverb).
+  - Takes play 4 dB quieter than round 1 (the 60 s renders now about -16 dBFS RMS, peak -7 dBFS).
+
+  | Id | Name | Notes | Character |
+  | --- | --- | --- | --- |
+  | A | Wire | D D Eb Ab G F | A semitone creep up, a jump to the tritone, a slow slide down to F, left hanging. |
+  | B | Dead Drop | D D F Eb C D | A low swung bass riff circling D; the most groove-led. |
+  | C | Long Night | A Ab G F D | A slow chromatic fall from A through the tritone to D; sparse. |
+
+- Tests: unit tests updated for the new instruments and takes (`npm test` passes); `scripts/e2e-music.mjs` passes on phone
+  emulation and desktop (each take plays; 60 s renders peak -7.1 dBFS, at most 16 voices; no console errors). Lint and
+  build clean. Pitches measured: horn 148 Hz (D3), upright 73.5 Hz (D2), stab D-rooted fifths, dark bell 294 Hz (D4).
+- Next: Michael listens and picks A, B or C, or asks for more. STOP.

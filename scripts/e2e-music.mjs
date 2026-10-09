@@ -35,7 +35,7 @@ async function run(label, opts) {
     await wait(1500);
     let st = await G(page, () => window.__app.music.stats());
     assert(st.played > 0, `candidate A plays (${st.played} sounds started)`);
-    for (const take of ['B bell', 'C hook', 'A menu']) {
+    for (const take of ['B sneak', 'C break', 'A noir']) {
       const p0 = (await G(page, () => window.__app.music.stats())).played;
       await click(page, '.music-lab .btn', `^${take}$`);
       await wait(2500);

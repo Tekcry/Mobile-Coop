@@ -135,7 +135,7 @@ export class Music {
     this.queue.length = 0;
     this.engine.stopAll(0.2);
     this.conductor.reset();
-    this.engine.setLevelDb(-8);
+    this.engine.setLevelDb(-12);
     const t = ctx.currentTime + 0.25;
     const out: MusicEvent[] = [];
     const sink = (e: MusicEvent): number => out.push(e);

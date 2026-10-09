@@ -1,21 +1,23 @@
 /**
- * Stage V1: three candidate main motifs (direction v2 Section 5) and the three takes the motif picker plays for each:
- * on a bell (72 BPM, the Caution pulse), as the Alert brass hook over a simple beat (168 BPM) and as the menu theme's
- * opening 8 bars (80 BPM). Pure: it turns a candidate and a start time into `MusicEvent`s for a sink, so the lab, the
- * offline WAV export and the tests hear the same thing.
+ * Stage V1 (round 2): three candidate figures (direction v2 Section 5) and the three takes the motif picker plays for
+ * each, in the noir-electronic language of the score:
+ * - **sneak** (84 BPM): a dusty, swung downtempo beat; the figure on upright bass, then on a muted horn.
+ * - **break** (168 BPM): a chopped breakbeat; the figure on the reese bass, answered by chopped string stabs.
+ * - **noir** (70 BPM, the menu's opening 8 bars): rain, low strings, the figure on bass, horn and stabs, a reversed swell.
  *
- * Every motif here was written for this project from the rules in direction v2 5.1. Steps and lengths are eighth notes
- * over two bars of 4/4; pitches are semitones from D4 (the bell and brass octave).
+ * Pure: it turns a candidate and a start time into `MusicEvent`s for a sink, so the lab, the offline WAV export and the
+ * tests hear the same thing. Every figure here was written for this project from the rules in direction v2 5.1. Steps
+ * and lengths are eighth notes over two bars of 4/4; pitches are semitones from D in each instrument's own octave.
  */
-import type { MusicEvent, PlayEvent, Sink, Stem } from './conductor';
-import { semis } from './library';
+import type { MusicEvent, PlayEvent, Sink } from './conductor';
+import { D2, semis } from './library';
 import type { MotifNote } from './motif';
 import { PRIO } from './voices';
 
 export type CandidateId = 'A' | 'B' | 'C';
-export type Take = 'bell' | 'hook' | 'menu';
-export const TAKES: readonly Take[] = ['bell', 'hook', 'menu'];
-export const TAKE_BPM: Record<Take, number> = { bell: 72, hook: 168, menu: 80 };
+export type Take = 'sneak' | 'break' | 'noir';
+export const TAKES: readonly Take[] = ['sneak', 'break', 'noir'];
+export const TAKE_BPM: Record<Take, number> = { sneak: 84, break: 168, noir: 70 };
 
 export interface Candidate {
   id: CandidateId;
@@ -34,27 +36,27 @@ const m = (step: number, s: number, len: number): MotifNote => ({ step, semis: s
 export const CANDIDATES: readonly Candidate[] = [
   {
     id: 'A',
-    name: 'Lights Out',
-    notes: 'D F E Bb A',
-    about: 'The M0 motif, F now held across the beat. Falls a tritone: the light going out.',
-    statement: [m(0, 0, 3), m(3, 3, 2), m(5, 2, 1), m(6, -4, 7), m(14, -5, 2)],
-    resolved: [m(0, 0, 3), m(3, 3, 2), m(5, 2, 1), m(6, -2, 7), m(14, 0, 2)],
+    name: 'Wire',
+    notes: 'D D Eb Ab G F',
+    about: 'A semitone creep up, a jump to the tritone, then a slow slide down to F, left hanging.',
+    statement: [m(0, 0, 2), m(3, 0, 1), m(4, 1, 3), m(8, 6, 2), m(10, 5, 1), m(11, 3, 5)],
+    resolved: [m(0, 0, 2), m(3, 0, 1), m(4, 1, 3), m(8, 7, 2), m(10, 5, 1), m(11, 0, 5)],
   },
   {
     id: 'B',
-    name: 'Searchlight',
-    notes: 'D D A Ab F E D',
-    about: 'Two quick pick-ups, a leap to A that slips down to the tritone, then a falling line home. The most hook-like.',
-    statement: [m(0, 0, 1), m(1, 0, 2), m(3, 7, 3), m(6, 6, 1), m(7, 3, 3), m(10, 2, 2), m(12, 0, 4)],
-    resolved: [m(0, 0, 1), m(1, 0, 2), m(3, 7, 3), m(6, 5, 1), m(7, 3, 3), m(10, 2, 2), m(12, 0, 4)],
+    name: 'Dead Drop',
+    notes: 'D D F Eb C D',
+    about: 'A low, swung bass riff that circles D: up to F, a flat second on the way down, home. The most groove-led.',
+    statement: [m(0, 0, 1), m(2, 0, 1), m(3, 3, 2), m(5, 1, 3), m(10, -2, 2), m(12, 0, 4)],
+    resolved: [m(0, 0, 1), m(2, 0, 1), m(3, 3, 2), m(5, 2, 3), m(10, -2, 2), m(12, 0, 4)],
   },
   {
     id: 'C',
-    name: 'Undertow',
-    notes: 'D Eb D A C Bb A',
-    about: 'A semitone rub on D, a drop to the low A and a sigh back down to it. Low, dark, ostinato-friendly.',
-    statement: [m(0, 0, 2), m(2, 1, 1), m(3, 0, 3), m(6, -5, 3), m(9, -2, 1), m(10, -4, 2), m(12, -5, 4)],
-    resolved: [m(0, 0, 2), m(2, 2, 1), m(3, 0, 3), m(6, -5, 3), m(9, -2, 1), m(10, -4, 2), m(12, 0, 4)],
+    name: 'Long Night',
+    notes: 'A Ab G F D',
+    about: 'A slow chromatic fall from A through the tritone to D. Sparse; the space between notes does the work.',
+    statement: [m(0, 7, 3), m(3, 6, 3), m(6, 5, 3), m(9, 3, 1), m(12, 0, 4)],
+    resolved: [m(0, 7, 3), m(3, 7, 3), m(6, 5, 3), m(9, 3, 1), m(12, 0, 4)],
   },
 ];
 
@@ -74,7 +76,11 @@ export function broken(notes: readonly MotifNote[]): MotifNote[] {
 
 type Emit = (e: Omit<PlayEvent, 'k'>) => void;
 
-const LAYERS = ['strLo', 'strHi', 'm0', 'm1', 'm2', 'msub', 'mbed'];
+const LAYERS = ['pad', 'bed', 'crackle', 'm0', 'm1', 'm2', 'msub'];
+/** The reese is rendered at 73.5 Hz; this puts it on D2. */
+const REESE_D = D2 / 73.5;
+/** Downtempo swing: the off-beat eighth lands at 57 % of the beat. */
+const SWING = 0.57;
 
 function emitter(sink: Sink): Emit {
   return (e) => sink({ k: 'play', ...e } as MusicEvent);
@@ -83,17 +89,17 @@ function emitter(sink: Sink): Emit {
 /** Seconds a take lasts (its last note's tail included), at its own tempo. */
 export function takeLength(take: Take): number {
   const bar = (60 / TAKE_BPM[take]) * 4;
-  if (take === 'bell') return 4 * bar + 2.5;
-  if (take === 'hook') return 9 * bar + 2;
-  return 8 * bar + 3;
+  if (take === 'sneak') return 5 * bar + 2;
+  if (take === 'break') return 9 * bar + 2;
+  return 8 * bar + 2;
 }
 
 /** Play one take of a candidate from time t. Returns the time it ends. */
 export function playTake(sink: Sink, c: Candidate, take: Take, t: number): number {
   const emit = emitter(sink);
-  if (take === 'bell') bellTake(emit, c, t);
-  else if (take === 'hook') hookTake(emit, c, t);
-  else menuTake(emit, c, t);
+  if (take === 'sneak') sneakTake(emit, c, t);
+  else if (take === 'break') breakTake(emit, c, t);
+  else noirTake(emit, c, t);
   const end = t + takeLength(take);
   for (const layer of LAYERS) sink({ k: 'stop', layer, t: end - 1.5, fade: 1 });
   return end;
@@ -106,130 +112,175 @@ export function playAllTakes(sink: Sink, c: Candidate, t: number): number {
   return at + 0.6;
 }
 
-/** On a bell at the Caution pulse: the statement, then the resolved form, far back in the hall. */
-function bellTake(emit: Emit, c: Candidate, t: number): void {
-  const e8 = 60 / TAKE_BPM.bell / 2;
-  const phrase = (notes: readonly MotifNote[], at: number, gain: number): void => {
-    for (const n of notes) {
-      emit({ id: 'bellFM', t: at + n.step * e8, stem: 'MOTIF', gain, rate: semis(n.semis), pan: 0.15, prio: PRIO.motif, reverb: 'hall', send: 0.55, delay: 0.25 });
-    }
-  };
-  // a low drone so the bell has a floor
-  emit({ id: 'drone', t, stem: 'AIR', gain: 0.35, rate: 1, pan: 0, prio: PRIO.bed, layer: 'mbed', fadeIn: 1.5 });
-  phrase(c.statement, t, 0.75);
-  phrase(c.resolved, t + 16 * e8, 0.6);
+/** Time of a 16th step with swing on the off-beat eighths. */
+function swung(bt: number, s: number, s16: number): number {
+  return bt + s * s16 + (s % 4 === 2 ? (SWING - 0.5) * 4 * s16 : 0);
+}
+
+interface FigureOpts {
+  id: string;
+  gain: number;
+  stem: PlayEvent['stem'];
+  /** Held notes (`dur`) for the horn; single hits for the rest. */
+  held: boolean;
+  send?: number;
+  pan?: number;
+}
+
+function figure(emit: Emit, notes: readonly MotifNote[], at: number, e8: number, o: FigureOpts): void {
+  for (const n of notes) {
+    emit({
+      id: o.id,
+      t: at + n.step * e8,
+      stem: o.stem,
+      gain: o.gain,
+      rate: semis(n.semis),
+      pan: o.pan ?? 0,
+      prio: PRIO.motif,
+      reverb: 'hall',
+      send: o.send ?? 0.3,
+      ...(o.held ? { dur: n.len * e8 * 0.95, fadeOut: 0.12 } : {}),
+    });
+  }
 }
 
 /**
- * The Alert hook at 168: one bar of beat and bass, then the hook on brass (bars 1-2), answered by metal hits in its
- * rhythm (3-4), the hook again (5-6) and once more with a snare build (7-8), landing on a final hit.
+ * Sneak, 84 BPM: a dusty swung beat with line crackle and a low string pad. Bar 0 is beat and a bass pedal; bars 1-2
+ * the figure on upright bass (a far, soft bell touches its first note); bars 3-4 the figure on a muted horn while the bass
+ * holds D.
  */
-function hookTake(emit: Emit, c: Candidate, t: number): void {
-  const s16 = 60 / TAKE_BPM.hook / 4;
+function sneakTake(emit: Emit, c: Candidate, t: number): void {
+  const s16 = 60 / TAKE_BPM.sneak / 4;
   const e8 = s16 * 2;
   const bar = s16 * 16;
-  const BASS = [0, 0, 0, 0, 0, 0, 3, -2];
-  for (let b = 0; b < 9; b++) {
+  emit({ id: 'static', t, stem: 'TEX', gain: 0.25, rate: 1, pan: 0, prio: PRIO.bed, layer: 'crackle', fadeIn: 0.5 });
+  emit({ id: 'strings', t, stem: 'HARM', gain: 0.12, rate: 1, pan: 0, prio: PRIO.harm, layer: 'pad', fadeIn: 2, reverb: 'hall', send: 0.4 });
+  for (let b = 0; b < 5; b++) {
     const bt = t + b * bar;
     for (let s = 0; s < 16; s++) {
-      const st = bt + s * s16;
-      if (s % 4 === 0) emit({ id: 'kickBig', t: st, stem: 'BREAK', gain: 0.9, rate: 1, pan: 0, prio: PRIO.drum });
-      if (s === 4 || s === 12) emit({ id: 'snareGated', t: st, stem: 'BREAK', gain: 0.7, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'room', send: 0.15 });
-      if (s % 2 === 1) emit({ id: 'hatC', t: st, stem: 'BREAK', gain: s % 4 === 3 ? 0.2 : 0.12, rate: 1, pan: 0.2, prio: PRIO.drum });
-      // the found-sound layer: syncopated clicks and a glass tick against the straight pulse
-      if (s === 3 || s === 10) emit({ id: 'click1', t: st, stem: 'METAL', gain: 0.35, rate: 1, pan: -0.3, prio: PRIO.metal });
-      if (s === 7) emit({ id: 'glass', t: st, stem: 'METAL', gain: 0.25, rate: 1, pan: 0.35, prio: PRIO.metal });
-      if (s % 2 === 0) emit({ id: 'midbass', t: st, stem: 'BASS', gain: 0.7, rate: semis(BASS[s / 2]!), pan: 0, prio: PRIO.bass, dur: e8 * 0.85, fadeOut: 0.02 });
+      const st = swung(bt, s, s16);
+      if (s === 0 || s === 10) emit({ id: 'kickRound', t: st, stem: 'PULSE', gain: 0.8, rate: 1, pan: 0, prio: PRIO.drum });
+      if (s === 4 || s === 12) emit({ id: 'snare', t: st, stem: 'PULSE', gain: 0.45, rate: 0.82, pan: 0, prio: PRIO.drum, reverb: 'room', send: 0.35 });
+      if (s === 7 || s === 15) emit({ id: 'ghost', t: st, stem: 'PULSE', gain: 0.18, rate: 0.85, pan: 0.1, prio: PRIO.drum });
+      if (s % 2 === 0 && s !== 0) emit({ id: 'hatC', t: st, stem: 'PULSE', gain: s % 4 === 2 ? 0.07 : 0.1, rate: 0.8, pan: 0.25, prio: PRIO.drum });
+      if (s === 14 && b % 2 === 1) emit({ id: 'relay0', t: st, stem: 'TEX', gain: 0.2, rate: 1, pan: -0.4, prio: PRIO.tex, reverb: 'room', send: 0.4 });
     }
-    // a snare build through bar 8
-    if (b === 8) {
-      for (let s = 8; s < 16; s++) emit({ id: 'snareGated', t: bt + s * s16, stem: 'GLITCH', gain: 0.25 + (s - 8) * 0.07, rate: 1 + (s - 8) * 0.02, pan: 0, prio: PRIO.drum });
-    }
+    // the bass pedal where the figure is not on the bass
+    if (b === 0 || b >= 3) emit({ id: 'upright', t: bt, stem: 'BASS', gain: 0.8, rate: 1, pan: 0, prio: PRIO.bass });
   }
-  // low string fifths under the hook (D3, A3)
-  emit({ id: 'strings', t: t + bar, stem: 'HARM', gain: 0.3, rate: 1, pan: -0.4, prio: PRIO.harm, layer: 'strLo', fadeIn: 0.4 });
-  emit({ id: 'strings', t: t + bar, stem: 'HARM', gain: 0.25, rate: semis(7), pan: 0.4, prio: PRIO.harm, layer: 'strHi', fadeIn: 0.4 });
-  const hook = (at: number): void => {
-    for (const n of c.statement) {
-      emit({ id: 'brass', t: at + n.step * e8, stem: 'MOTIF', gain: 0.85, rate: semis(n.semis), pan: 0, prio: PRIO.motif, dur: n.len * e8 * 0.92, fadeOut: 0.06, reverb: 'room', send: 0.2 });
-    }
-  };
-  const answer = (at: number): void => {
-    for (const n of c.statement) {
-      emit({ id: 'pipe', t: at + n.step * e8, stem: 'METAL', gain: 0.7, rate: semis(n.semis), pan: -0.15, prio: PRIO.metal, reverb: 'room', send: 0.3 });
-      emit({ id: 'plate', t: at + n.step * e8, stem: 'METAL', gain: 0.3, rate: 1, pan: 0.25, prio: PRIO.metal });
-    }
-  };
-  hook(t + bar);
-  answer(t + 3 * bar);
-  hook(t + 5 * bar);
-  hook(t + 7 * bar);
-  // the landing
-  const end = t + 9 * bar;
-  emit({ id: 'kickBig', t: end, stem: 'BREAK', gain: 1, rate: 1, pan: 0, prio: PRIO.stinger });
-  emit({ id: 'timp', t: end, stem: 'PULSE', gain: 0.9, rate: 1, pan: 0, prio: PRIO.stinger });
-  emit({ id: 'plate', t: end, stem: 'METAL', gain: 0.6, rate: 1, pan: 0, prio: PRIO.stinger, reverb: 'room', send: 0.4 });
-  emit({ id: 'brass', t: end, stem: 'MOTIF', gain: 0.8, rate: 1, pan: 0, prio: PRIO.stinger, dur: 0.6, fadeOut: 0.3 });
+  figure(emit, c.statement, t + bar, e8, { id: 'upright', gain: 0.95, stem: 'BASS', held: false, send: 0.1 });
+  emit({ id: 'darkbell', t: t + bar, stem: 'MOTIF', gain: 0.18, rate: semis(c.statement[0]!.semis), pan: 0.4, prio: PRIO.motif, reverb: 'hall', send: 0.9 });
+  figure(emit, c.statement, t + 3 * bar, e8, { id: 'horn', gain: 0.6, stem: 'MOTIF', held: true, send: 0.35 });
 }
 
-/** Menu chords per bar (semitones from D3 for three string voices) and the sub root (from D2). */
-const MENU_CHORDS: { v: [number, number, number]; root: number }[] = [
+const KICKS: readonly (readonly number[])[] = [
+  [0, 10],
+  [0, 7, 10],
+  [0, 10, 13],
+  [0, 6, 10],
+];
+
+/**
+ * Break, 168 BPM: a chopped break (the half-time bar 4 lets it breathe), the reese bass on the figure (bars 1-2, 5-6),
+ * answered by chopped string stabs with metal (3-4, 7-8), a stuttered fill into a final hit.
+ */
+function breakTake(emit: Emit, c: Candidate, t: number): void {
+  const s16 = 60 / TAKE_BPM.break / 4;
+  const e8 = s16 * 2;
+  const bar = s16 * 16;
+  for (let b = 0; b < 9; b++) {
+    const bt = t + b * bar;
+    const half = b === 4;
+    const kick = KICKS[b % KICKS.length]!;
+    for (let s = 0; s < 16; s++) {
+      const st = bt + s * s16;
+      const fill = b === 8 && s >= 12;
+      if (half) {
+        if (s === 0) emit({ id: 'kickTight', t: st, stem: 'BREAK', gain: 0.9, rate: 1, pan: 0, prio: PRIO.drum });
+        if (s === 8) emit({ id: 'snare', t: st, stem: 'BREAK', gain: 0.75, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'room', send: 0.2 });
+      } else {
+        if (kick.includes(s)) emit({ id: 'kickTight', t: st, stem: 'BREAK', gain: 0.9, rate: 1, pan: 0, prio: PRIO.drum });
+        if ((s === 4 || s === 12) && !fill) emit({ id: 'snare', t: st, stem: 'BREAK', gain: 0.75, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'room', send: 0.12 });
+        if ((s === 9 || s === 14) && !fill) emit({ id: 'ghost', t: st, stem: 'BREAK', gain: 0.2, rate: 1.05, pan: 0.15, prio: PRIO.drum });
+      }
+      if (s % 2 === 0 && !fill) emit({ id: 'hatC', t: st, stem: 'BREAK', gain: s % 4 === 0 ? 0.16 : 0.1, rate: 1, pan: 0.2, prio: PRIO.drum });
+      // the stutter: one snare slice repeated and pitched up
+      if (fill) emit({ id: 'snare', t: st, stem: 'GLITCH', gain: 0.4 + (s - 12) * 0.1, rate: 1 + (s - 12) * 0.08, pan: 0, prio: PRIO.drum });
+      if (s === 3 && b % 2 === 1) emit({ id: 'click1', t: st, stem: 'METAL', gain: 0.3, rate: 1, pan: -0.3, prio: PRIO.metal });
+    }
+    // reese pedal under the bars where the stabs answer
+    if (b === 0 || b === 3 || b === 4 || b === 7 || b === 8) {
+      emit({ id: 'reese', t: bt, stem: 'BASS', gain: 0.75, rate: REESE_D, pan: 0, prio: PRIO.bass, dur: bar * 0.9, fadeOut: 0.05 });
+    }
+  }
+  const reese = (at: number): void => {
+    for (const n of c.statement) {
+      emit({ id: 'reese', t: at + n.step * e8, stem: 'BASS', gain: 0.85, rate: semis(n.semis) * REESE_D, pan: 0, prio: PRIO.bass, dur: n.len * e8 * 0.9, fadeOut: 0.03 });
+    }
+  };
+  const stabs = (at: number): void => {
+    figure(emit, c.statement, at, e8, { id: 'stab', gain: 0.55, stem: 'MOTIF', held: false, send: 0.15 });
+    for (const n of c.statement) emit({ id: 'plate', t: at + n.step * e8, stem: 'METAL', gain: 0.18, rate: 1, pan: 0.3, prio: PRIO.metal });
+  };
+  reese(t + bar);
+  stabs(t + 3 * bar);
+  reese(t + 5 * bar);
+  stabs(t + 7 * bar);
+  const end = t + 9 * bar;
+  emit({ id: 'kickTight', t: end, stem: 'BREAK', gain: 1, rate: 1, pan: 0, prio: PRIO.stinger });
+  emit({ id: 'boom', t: end, stem: 'METAL', gain: 0.7, rate: 1, pan: 0, prio: PRIO.stinger });
+  emit({ id: 'stab', t: end, stem: 'MOTIF', gain: 0.6, rate: 1, pan: 0, prio: PRIO.stinger, reverb: 'hall', send: 0.4 });
+}
+
+/** Noir chords per bar (semitones from D3 for three string voices) and the sub root (from D2). */
+const NOIR_CHORDS: { v: [number, number, number]; root: number }[] = [
   { v: [0, 3, 7], root: 0 }, // Dm
   { v: [0, 3, 7], root: 0 },
-  { v: [-4, 0, 3], root: -4 }, // Bb
-  { v: [-4, 0, 3], root: -4 },
-  { v: [-7, -4, 0], root: -7 }, // Gm
-  { v: [-7, -4, 0], root: -7 },
-  { v: [-5, -1, 2], root: -5 }, // A
+  { v: [-4, 0, 5], root: -4 }, // Bb with D and G: open and uneasy
+  { v: [-4, 0, 5], root: -4 },
+  { v: [-7, -4, 1], root: -7 }, // Gm with the Eb rub
+  { v: [-7, -4, 1], root: -7 },
+  { v: [-5, -2, 1], root: -5 }, // A7b9 shell
   { v: [0, 3, 7], root: 0 }, // Dm
 ];
 
 /**
- * The menu theme's opening 8 bars at 80: the motif full on a brass swell over strings and timpani (bars 1-2), answered
- * on vibes (3-4), stated again with the strings doubling an octave down (5-6), then resolved home (7-8).
+ * Noir, 70 BPM (the menu's opening 8 bars): rain, crackle and low strings, a slow pulse. The figure on upright bass
+ * (bars 1-2), then the muted horn (3-4); a reversed string swell rises into bar 5, where stabs take the figure over the
+ * bass; the horn brings the resolved form home (7-8) with a far, soft bell.
  */
-function menuTake(emit: Emit, c: Candidate, t: number): void {
-  const e8 = 60 / TAKE_BPM.menu / 2;
-  const bar = e8 * 8;
-  emit({ id: 'rainbed', t, stem: 'AIR', gain: 0.25, rate: 1, pan: 0, prio: PRIO.bed, layer: 'mbed', fadeIn: 2 });
+function noirTake(emit: Emit, c: Candidate, t: number): void {
+  const s16 = 60 / TAKE_BPM.noir / 4;
+  const e8 = s16 * 2;
+  const bar = s16 * 16;
+  emit({ id: 'rainbed', t, stem: 'AIR', gain: 0.22, rate: 1, pan: 0, prio: PRIO.bed, layer: 'bed', fadeIn: 2 });
+  emit({ id: 'static', t, stem: 'TEX', gain: 0.18, rate: 1, pan: 0, prio: PRIO.bed, layer: 'crackle', fadeIn: 2 });
   for (let b = 0; b < 8; b++) {
-    const ch = MENU_CHORDS[b]!;
+    const ch = NOIR_CHORDS[b]!;
     const bt = t + b * bar;
-    const was = MENU_CHORDS[b - 1];
-    if (!was || was.root !== ch.root || was.v[1] !== ch.v[1]) {
+    const was = NOIR_CHORDS[b - 1];
+    if (!was || was.root !== ch.root || was.v[2] !== ch.v[2]) {
       for (let v = 0; v < 3; v++) {
-        emit({ id: 'strings', t: bt, stem: 'HARM', gain: 0.32, rate: semis(ch.v[v]!), pan: (v - 1) * 0.45, prio: PRIO.harm, layer: `m${v}`, fadeIn: b === 0 ? 1.2 : 0.5, reverb: 'hall', send: 0.4 });
+        emit({ id: 'strings', t: bt, stem: 'HARM', gain: 0.16, rate: semis(ch.v[v]!), pan: (v - 1) * 0.45, prio: PRIO.harm, layer: `m${v}`, fadeIn: b === 0 ? 2 : 0.8, reverb: 'hall', send: 0.5 });
       }
-      emit({ id: 'sub', t: bt, stem: 'BASS', gain: 0.55, rate: semis(ch.root), pan: 0, prio: PRIO.bass, layer: 'msub', fadeIn: 0.3 });
+      emit({ id: 'sub', t: bt, stem: 'BASS', gain: 0.4, rate: semis(ch.root), pan: 0, prio: PRIO.bass, layer: 'msub', fadeIn: 0.5 });
     }
-    // the relay undercurrent on the off-beat eighths
-    for (let e = 1; e < 8; e += 2) emit({ id: 'relay0', t: bt + e * e8, stem: 'TEX', gain: 0.12, rate: 1, pan: 0.4, prio: PRIO.tex });
+    // a slow pulse: soft kick on 1, a rim on 3, a dragged ghost
+    emit({ id: 'kickRound', t: bt, stem: 'PULSE', gain: 0.6, rate: 1, pan: 0, prio: PRIO.drum });
+    emit({ id: 'rim', t: swung(bt, 8, s16), stem: 'PULSE', gain: 0.2, rate: 0.9, pan: -0.2, prio: PRIO.drum, reverb: 'hall', send: 0.4 });
+    emit({ id: 'ghost', t: swung(bt, 14, s16), stem: 'PULSE', gain: 0.12, rate: 0.8, pan: 0.2, prio: PRIO.drum });
   }
-  for (const [b, r] of [[0, 0], [4, -7], [6, -5], [7, 0]] as const) {
-    emit({ id: 'timp', t: t + b * bar, stem: 'PULSE', gain: 0.7, rate: semis(r), pan: 0, prio: PRIO.drum, reverb: 'hall', send: 0.3 });
-  }
-  const line = (notes: readonly MotifNote[], at: number, id: string, gain: number, oct: number, stem: Stem, held: boolean): void => {
-    for (const n of notes) {
-      emit({
-        id,
-        t: at + n.step * e8,
-        stem,
-        gain,
-        rate: semis(n.semis + 12 * oct),
-        pan: 0,
-        prio: PRIO.motif,
-        reverb: 'hall',
-        send: 0.45,
-        ...(held ? { dur: n.len * e8 * 0.95, fadeOut: 0.25 } : {}),
-      });
-    }
-  };
-  line(c.statement, t, 'brassSwell', 0.75, 0, 'MOTIF', true);
-  line(c.statement, t + 2 * bar, 'vibes', 0.7, 1, 'MOTIF', false);
-  line(c.statement, t + 4 * bar, 'brassSwell', 0.75, 0, 'MOTIF', true);
-  line(c.statement, t + 4 * bar, 'strings', 0.3, 0, 'HARM', true);
-  line(c.resolved, t + 6 * bar, 'brassSwell', 0.8, 0, 'MOTIF', true);
+  emit({ id: 'boom', t, stem: 'METAL', gain: 0.4, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'hall', send: 0.5 });
+  figure(emit, c.statement, t, e8, { id: 'upright', gain: 0.9, stem: 'BASS', held: false, send: 0.15 });
+  figure(emit, c.statement, t + 2 * bar, e8, { id: 'horn', gain: 0.55, stem: 'MOTIF', held: true, send: 0.45 });
+  // the swell ends exactly on bar 5's downbeat
+  emit({ id: 'swell', t: t + 4 * bar - 1.6, stem: 'GLITCH', gain: 0.35, rate: 1, pan: 0, prio: PRIO.harm, reverb: 'hall', send: 0.3 });
+  emit({ id: 'boom', t: t + 4 * bar, stem: 'METAL', gain: 0.45, rate: 1, pan: 0, prio: PRIO.drum, reverb: 'hall', send: 0.5 });
+  figure(emit, c.statement, t + 4 * bar, e8, { id: 'stab', gain: 0.4, stem: 'MOTIF', held: false, send: 0.4, pan: 0.15 });
+  figure(emit, c.statement, t + 4 * bar, e8, { id: 'upright', gain: 0.8, stem: 'BASS', held: false, send: 0.1 });
+  figure(emit, c.resolved, t + 6 * bar, e8, { id: 'horn', gain: 0.55, stem: 'MOTIF', held: true, send: 0.5 });
+  emit({ id: 'darkbell', t: t + 7 * bar + 8 * e8, stem: 'MOTIF', gain: 0.15, rate: 1, pan: 0.4, prio: PRIO.motif, reverb: 'hall', send: 0.9 });
 }
 
 /** Every sound id the takes use (for tests). */
-export const TAKE_SOUNDS = ['bellFM', 'drone', 'kickBig', 'snareGated', 'hatC', 'click1', 'glass', 'midbass', 'strings', 'brass', 'pipe', 'plate', 'timp', 'rainbed', 'sub', 'relay0', 'brassSwell', 'vibes'];
+export const TAKE_SOUNDS = ['static', 'strings', 'kickRound', 'snare', 'ghost', 'hatC', 'relay0', 'upright', 'darkbell', 'horn', 'kickTight', 'click1', 'reese', 'stab', 'plate', 'boom', 'rainbed', 'sub', 'rim', 'swell'];
