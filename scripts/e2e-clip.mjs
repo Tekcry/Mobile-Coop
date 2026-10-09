@@ -5,7 +5,7 @@
 // turn-and-swap / crouched / reload / swap, edge peeks with aim sweeps from back across the cover round past
 // the edge (both edges, standing and crouched; stepping out as needed), fire from an edge, low cover idle /
 // moving / reload / aim over / edge peek / vault.  `node scripts/e2e-clip.mjs [url] [--only=name] [--log]`
-import { launch, assert } from './e2e-lib.mjs';
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -16,7 +16,7 @@ try {
 // (the sim advances only through stepHeadless: on a hardware GPU the live loop would run ~150 steps of the match in the wait below, a different
 // starting state each run, where software GL ran one or two)
 await page.evaluate(() => { window.__app.loop.manual = true; });
-await page.waitForTimeout(1200);
+await frames(page, 10);
 const res = await page.evaluate(([only, log]) => {
   window.__dbg = log;
   const a = window.__app, g = a.current, p = g.player, c = p.controller, st = a.input.state, V = p.position.constructor, rig = p.rig;

@@ -13,6 +13,7 @@ async function sim(s, setup) {
     const orig = st.fixedUpdate.bind(st);
     if (setup) for (const [k, v] of setup) window.__pad.set(k, v);
     st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; if (setup) for (const [k] of setup) window.__pad.set(k, 0); res(); } };
+    window.__ff();
   }), [s, setup ?? null]);
   await frames(page, 2);
 }

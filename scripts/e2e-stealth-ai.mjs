@@ -2,7 +2,7 @@
 // warning before detection, no sight through walls, noise -> suspicious -> investigating, the squad radio,
 // LKP set + ghost + search that converges and ends, patrols walking their routes.
 // `node scripts/e2e-stealth-ai.mjs [url] [--only=name]`
-import { launch, assert } from './e2e-lib.mjs';
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -10,7 +10,7 @@ let failed = false;
 const { browser, page, errors } = await launch({ url, params: 'autostart=warehouse&mode=clear' });
 const G = (f, a) => page.evaluate(f, a);
 try {
-  await page.waitForTimeout(800);
+  await frames(page, 10);
   await G(() => {
     const a = window.__app;
     const g = a.current;

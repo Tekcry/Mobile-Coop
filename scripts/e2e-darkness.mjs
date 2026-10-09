@@ -109,6 +109,9 @@ async function measure(page, p, nv) {
   // settle: the post stack (TAAU history, bloom) converges over wall-clock time, not frames: at 120 Hz 30 frames is a quarter second
   // (software GL took minutes for them). Read until three reads in a row agree within 0.5%, at least 30 frames, at most 8 s.
   // (software GL: a frame takes seconds, so 30 frames already outlast any convergence: one read, as before)
+  // (a probe's card and a lamp's shadow maps use shaders the first time they are drawn here: a hardware driver compiles them for seconds
+  // while the frames run on, and a read in that window is the unlit or half-lit card, never the converged one - wait until the scene is ready)
+  for (let i = 0; i < 120 && !(await page.evaluate(() => window.__app.current.scene.isReady())); i++) await new Promise((r) => setTimeout(r, 250));
   await frames(page, 30);
   let last = await readLuma(page);
   let stable = GPU ? 0 : 3;
@@ -211,7 +214,8 @@ for (const look of LOOKS) {
     });
     assert(mv.bloom.runs >= mv.n - 2 && mv.bloom.glow && mv.bloom.scale > 0, `${look.name}: night vision's bloom runs every frame (${JSON.stringify(mv.bloom)})`);
     assert(mv.night > 0.5 && mv.moved >= mv.n - 1, `${look.name}: turning in night vision, every frame reads as moving (${JSON.stringify(mv)})`);
-    const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc/i.test(e));
+    // (the hardware driver warns about a program a disposed probe's material had in flight: Babylon polls it once more; e2e-desktop filters it too)
+    const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc|glGetProgramiv: Program object expected/i.test(e));
     assert(bad.length === 0, `${look.name}: no console errors${bad.length ? ': ' + bad.slice(0, 3).join(' | ') : ''}`);
     await browser.close();
   } catch (e) {

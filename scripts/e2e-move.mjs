@@ -14,6 +14,7 @@ async function hold(ax, ay, seconds) {
     const st = window.__app.current; let t = 0; let maxY = -99;
     const orig = st.fixedUpdate.bind(st);
     st.fixedUpdate = (dt) => { orig(dt); t += dt; maxY = Math.max(maxY, st.player.controller.pos.y); if (t >= s) { st.fixedUpdate = orig; res(maxY); } };
+    window.__ff();
   }), seconds);
   await page.evaluate(() => { window.__pad.axis(0, 0); window.__pad.axis(1, 0); });
   await frames(page, 3);
@@ -25,6 +26,7 @@ const sim = (s) => page.evaluate((s) => new Promise((res) => {
   const st = window.__app.current; let t = 0;
   const orig = st.fixedUpdate.bind(st);
   st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; res(); } };
+  window.__ff();
 }), s);
 const SPD = () => page.evaluate(() => window.__app.current.player.controller.speed);
 try {
@@ -54,6 +56,7 @@ try {
     const st = window.__app.current; let t = 0; let sum = 0; let n = 0;
     const orig = st.fixedUpdate.bind(st);
     st.fixedUpdate = (dt) => { orig(dt); t += dt; sum += st.player.controller.speed; n++; if (t >= s) { st.fixedUpdate = orig; res(sum / n); } };
+    window.__ff();
   }), s);
   const STAND = [0.8, 1.3, 2.0, 2.8, 3.8, 5.0];
   const CROUCH = [0.5, 0.9, 1.3, 1.8, 2.3, 2.8];
@@ -166,6 +169,7 @@ try {
         res({ hold: c.stopHold, moved: Math.hypot(pl.L.x - p0[0], pl.L.z - p0[1]) + Math.hypot(pl.R.x - p0[2], pl.R.z - p0[3]) });
       }
     };
+    window.__ff();
   }));
   await page.evaluate(() => window.__pad.set(6, 1));
   await sim(0.3);
@@ -221,6 +225,7 @@ try {
       if (k < seq.length) minBefore = Math.min(minBefore, c.speed);
       if (++n > 30) { st.fixedUpdate = orig; res({ pace0, minBefore, hold: c.stopHold, pace: c.holdSpeed }); }
     };
+    window.__ff();
   }));
   assert(spring.hold && spring.pace > spring.pace0 * 0.85 && spring.minBefore > spring.pace0 * 0.85, `a stick springing back holds the full stride (${spring.pace0.toFixed(2)} -> held at ${spring.pace.toFixed(2)} m/s, never slowed under ${spring.minBefore.toFixed(2)})`);
   await settle(0.3);
@@ -253,6 +258,7 @@ try {
       if (t0 >= 0 && t1 < 0 && tr.kind !== 'roll') { t1 = t - dt; x1 = c.prevPos.x; }
       if (t > 1.6) { st.fixedUpdate = orig; res({ rolls: tr.forwardRolls - rolls0, dur: t1 - t0, len: x1 - x0, crouched: c.crouched, gear: c.gear, noise }); }
     };
+    window.__ff();
   }));
   await page.evaluate(() => { window.__pad.axis(1, 0); });
   assert(roll.rolls === 1 && Math.abs(roll.dur - 0.7) < 0.06 && roll.len > 2.6 && roll.len < 3.4, `crouch at gear 5: a forward roll (${roll.dur.toFixed(2)} s, ${roll.len.toFixed(2)} m)`);

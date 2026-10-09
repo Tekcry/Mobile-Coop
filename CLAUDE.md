@@ -20,9 +20,11 @@
 - `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
 - `npm run lint` - ESLint (typescript-eslint)
 - `npm run check` - lint + tests + build (what CI and every phase end must pass)
-- `npm run e2e` - serves `dist/` and runs the required headless e2e suites (needs a prior `npm run build`)
+- `npm run e2e` - serves `dist/` and runs the required headless e2e suites, 4 at a time, one browser each (needs a prior `npm run build`). `npm run e2e:serial` runs one at a time with live output (debugging)
+- `npm run e2e:quick` - `smoke` plus the suites that cover the folders the change touched (working tree plus unpushed commits). **Steps use the quick run; the full `npm run e2e` runs at the end of each phase and before every merge to `dev` / `master`.**
 - `npm run e2e:legacy` - the suites for parked content (from Phase 0 Step 4; report only)
 - GPU testing runs on Michael's PC only. Graphical and performance testing (perf budgets, contact sheets, visual parity and probe checks, phone-look emulation, beauty shots) runs there with `E2E_GPU=1` (hardware GPU: ANGLE D3D11 on Windows, GPU blocklist ignored; `perf.mjs` then uses the local budget profile). Cloud sessions run unit tests and logic e2e only (software GL, the default) and mark every GPU check "pending PC run" in their report; they never claim a perf or visual result from SwiftShader.
+- Known-flaky suites (`docs/backlog.md`, "Flaky e2e suites") always run; their failures print as KNOWN FLAKY and do not fail the run. Any other failure does.
 - Suites, helper scripts (`perf`, `soak`, `shot`, `anim-sheet`) and the debug overlay: `docs/systems/testing-tools.md`.
   `?autostart=<mapId>&mode=<mode>` boots straight into a match (dev and tests). Uses the preinstalled Chromium.
 

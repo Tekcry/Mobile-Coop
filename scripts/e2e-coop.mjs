@@ -381,7 +381,12 @@ try {
       prev?.(e, h);
     };
   });
-  const gg = await GA(() => window.__app.current.enemyMgr.enemies.find((e) => e.alive && !e.taken && !e.dog && e.def.kind !== 'dog')?.id ?? '');
+  // (a plain grunt, never the guard the gas cloud above is putting to sleep: the match's guards are a different mix each run, and a drone
+  // operator or an enforcer is taken differently - the grab from behind is the grunt's)
+  const gg = await GA((gv) => {
+    const guards = window.__app.current.enemyMgr.enemies.filter((e) => e.alive && !e.taken && !e.ko && !e.dog && e.def.kind !== 'dog' && e.id !== gv);
+    return (guards.find((e) => e.def.kind === 'grunt') ?? guards[0])?.id ?? '';
+  }, gv);
   if (gg) await until(B, (id) => { const p = window.__app.current.net.puppets.get(id); return !!p && p.alive; }, gg, 15000, 'the client has the chosen guard');
   if (gg) {
     let grabbed = false;
@@ -395,6 +400,10 @@ try {
         for (const r of g.net.remotes.values()) r.ref.spotted = false;
         const v = g.enemyMgr.enemies.find((e) => e.id === id);
         if (v?.alive && !v.taken) {
+          // (a statue while the client lines up: the guard's brain is off - the match's guards re-alert at once after the steps above, turn round
+          // and offer the front takedown, which is a race the test cannot win by calming them. The grab, the hold and the knock-out are
+          // the real code: his brain is back on as soon as the grab is held)
+          v.update = () => {};
           v['stagger'] = 99;
           v.pos.set(6, 0, -6);
           v.yaw = 0;
@@ -404,7 +413,8 @@ try {
       for (let i = 0; i < 30 && !grabbed; i++) {
         grabbed = await GB((id) => {
           const g = window.__app.current;
-          if (g.takedown.offer?.e.id === id && !g.takedown.active) g.takedown.start();
+          // (only the offer from behind is taken: a guard who turned round in the instant before offers the front takedown, a knock-out, not a grab)
+          if (g.takedown.offer?.e.id === id && g.takedown.offer.plan.kind === 'behind' && !g.takedown.active) g.takedown.start();
           return g.takedown.hostage?.id === id;
         }, gg);
         if (!grabbed) await wait(150);
@@ -415,6 +425,7 @@ try {
       console.log('    host kills since the pick:', gg, await GA(() => JSON.stringify(window.__kills)));
       console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); const o = g.takedown.offer; return JSON.stringify({ puppet: p && { pos: [p.pos.x, p.pos.z], yaw: p.yaw, alive: p.alive, taken: p.taken, level: p.level }, me: [g.player.position.x, g.player.position.z], yaw: g.player.cam.yaw, offer: o ? { id: o.e.id, kind: o.plan?.kind } : null, active: g.takedown.active, hostage: g.takedown.hostage?.id ?? null, alive: g.player.alive, move: g.player.controller.motion.state }); }, gg));
     }
+    await GA((id) => { const v = window.__app.current.enemyMgr.enemies.find((e) => e.id === id); if (v) delete v.update; }, gg);
     assert(grabbed, 'client grabs a host guard from behind');
     await until(A, (id) => { const g = window.__app.current; const r = [...g.net.remotes.values()][0]; return r.state?.mv?.m === 'grab' && r.ref.shield?.id === id; }, gg, 8000, 'host sees the grab');
     const held = await GA((id) => {

@@ -188,9 +188,19 @@ try {
   await attach('ladder');
   await compare('ladder', 'ladder');
   // climb a second, stop, compare again (both grip sets step from the same rung grid)
-  await GB(() => window.__pad.axis(1, -1));
-  await wait(900);
-  await GB(() => window.__pad.axis(1, 0));
+  // (a climb of 0.6 m, stopped in the very fixed step it is reached - not a fixed time on a ladder only 2.6 m long: the same second
+  // takes the client off the top when its frames run fast, and a stick released after the page polled is a step late too)
+  await GB(() => new Promise((res) => {
+    const st = window.__app.current;
+    const m = st.traversal.attach;
+    const s0 = m.s;
+    const orig = st.fixedUpdate.bind(st);
+    window.__pad.axis(1, -1);
+    st.fixedUpdate = (dt) => {
+      orig(dt);
+      if (m.s - s0 >= 0.6) { window.__pad.axis(1, 0); st.fixedUpdate = orig; res(); }
+    };
+  }));
   await wait(500);
   await compare('ladder after a climb', 'ladder');
   await reset();

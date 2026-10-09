@@ -21,6 +21,7 @@ async function sim(seconds, { lx = 0, ly = 0, buttons = [] } = {}) {
     const st = window.__app.current; let t = 0;
     const orig = st.fixedUpdate.bind(st);
     st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; res(); } };
+    window.__ff();
   }), seconds);
   await G((b) => { window.__pad.axis(0, 0); window.__pad.axis(1, 0); for (const i of b) window.__pad.set(i, 0); }, buttons);
   await frames(page, 2);
@@ -91,6 +92,7 @@ try {
         if (st.cover.state === 'in') peak = Math.max(peak, c.speed);
         if (t >= 1.2) { st.fixedUpdate = orig; window.__pad.axis(0, 0); res({ peak, state: st.cover.state }); }
       };
+      window.__ff();
     }));
     await sim(0.3);
     return r;
@@ -231,6 +233,7 @@ try {
     const st = window.__app.current; let t = 0;
     const orig = st.fixedUpdate.bind(st);
     st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; res(); } };
+    window.__ff();
   }), 0.3);
   const swat = await G(() => { const t = window.__app.current.cover.target; return t ? t.kind : 'none'; });
   await G(() => { window.__pad.axis(1, -1); });
@@ -261,6 +264,7 @@ try {
     const st = window.__app.current; let t = 0;
     const orig = st.fixedUpdate.bind(st);
     st.fixedUpdate = (dt) => { orig(dt); t += dt; if (t >= s) { st.fixedUpdate = orig; res(); } };
+    window.__ff();
   }), 0.6);
   await frames(page, 3);
   const tgt = await G(() => { const t = window.__app.current.cover.target; return t ? { kind: t.kind, x: t.x, z: t.z, st: window.__app.current.cover.state } : null; });

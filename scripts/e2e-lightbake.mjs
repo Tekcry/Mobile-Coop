@@ -12,7 +12,9 @@ const CONFIGS = [
 ];
 let failed = false;
 const infos = [];
-for (const [name, q] of CONFIGS) {
+// one browser per config, side by side: each has its own profile, so every config bakes cold (a shared cache would make the later
+// configs read the first one's bytes and the comparison below prove nothing)
+await Promise.all(CONFIGS.map(async ([name, q], k) => {
   const { browser, page, errors } = await launch({ url, params: `${q}&autostart=warehouse&mode=clear`, touch: false, viewport: { width: 640, height: 360 } });
   try {
     await page.waitForFunction(() => !!window.__app?.current?.world, null, { timeout: 240000 });
@@ -21,7 +23,7 @@ for (const [name, q] of CONFIGS) {
       const q = window.__app.quality.level;
       return { ...w.lightInfo(), lite: !!q.lite, minimal: !!q.minimal, voxels: !!w.voxels, lamps: !!w.lamps };
     });
-    infos.push([name, info]);
+    infos[k] = [name, info];
     console.log(`  ${name}: shapes ${info.shapes} hash ${info.hash} lamps ${info.lights} (${(info.lampBytes / 1e6).toFixed(1)} MB) moon ${info.moonCells} cells, bake ${Math.round(info.ms)} ms, voxels ${info.voxels}, baked lamps drawn ${info.lamps}`);
     const bad = errors.filter((e) => !/favicon|net::ERR|WebSocket|webrtc/i.test(e));
     assert(bad.length === 0, `${name}: no console errors${bad.length ? ': ' + bad.slice(0, 3).join(' | ') : ''}`);
@@ -30,9 +32,9 @@ for (const [name, q] of CONFIGS) {
     console.error(`${name}: ${String(e)}`);
   }
   await browser.close();
-}
+}));
 try {
-  assert(infos.length === CONFIGS.length, 'every config booted the Warehouse');
+  assert(infos.filter(Boolean).length === CONFIGS.length, 'every config booted the Warehouse');
   const ref = infos[0][1];
   assert(ref.lights > 0 && ref.lampBytes > 0 && ref.moonCells > 0 && !!ref.hash, `the bake is not empty (${ref.lights} lamps, ${ref.lampBytes} bytes, ${ref.moonCells} moon cells)`);
   for (const [name, i] of infos) {

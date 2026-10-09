@@ -471,7 +471,8 @@ try {
       const b = await page.evaluate((sel) => { const r = document.querySelector(sel)?.getBoundingClientRect(); return r && r.width > 0 ? { x: r.x + r.width / 2, y: r.y + r.height / 2 } : null; }, sel);
       if (b) {
         await page.touchscreen.tap(b.x, b.y);
-        await page.waitForTimeout(700);
+        // (until the prompt's action shows, at most 0.7 s)
+        for (let w = 0; w < 18 && !(await done()); w++) await page.waitForTimeout(40);
         if (await done()) return true;
       } else await frames(page, 2);
     }

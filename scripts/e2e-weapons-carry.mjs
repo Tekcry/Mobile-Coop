@@ -3,7 +3,7 @@
 // 10 deg of the spine, muzzle up) in every stance and gait, nothing clipping (weapon vs weapon, weapon vs
 // body, with and without a backpack, both avatar styles), the hands on the grip points (within 2 cm) for
 // every weapon, the swap reaching to the right slot, grenade pouches, and the draw-call budget.
-import { launch, assert as hard } from './e2e-lib.mjs';
+import { launch, frames, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
@@ -231,7 +231,7 @@ try {
     console.log(`loadout ${lo}`);
     await page.goto(`${url}?autostart=proving&loadout=${lo}&gfx=min&gear=4`);
     await page.waitForFunction(() => window.__app?.current?.player, null, { timeout: 30000 });
-    await page.waitForTimeout(800);
+    await frames(page, 10);
     await G(install);
     await checkLoadout(lo, lo.split(',').length);
   }

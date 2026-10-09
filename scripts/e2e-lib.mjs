@@ -45,8 +45,36 @@ function fakePointerLock() {
   };
 }
 
+
+/** E2E_PROFILE=1: where a suite's time goes, printed when it exits: browser launch, page boot, match build (voxel + light
+ * bake inside it), the first rendered frames of a match (the shaders compile there: warmup), later rendered frames, fixed
+ * waits, in-page work (`stepHeadless` and the rest of `evaluate`), screenshots, and the rest. A bucket never counts inside another. */
+export const PROFILE = process.env.E2E_PROFILE === '1';
+const prof = { launch: 0, boot: 0, match: 0, warmup: 0, frames: 0, pauses: 0, evaluate: 0, screenshot: 0, bake: 0, step: 0, simSeconds: 0 };
+let profDepth = 0;
+async function timed(bucket, fn) {
+  if (!PROFILE || profDepth) return fn();
+  profDepth++;
+  const t0 = performance.now();
+  try {
+    return await fn();
+  } finally {
+    prof[bucket] += performance.now() - t0;
+    profDepth--;
+  }
+}
+if (PROFILE) {
+  process.on('exit', () => {
+    const total = process.uptime() * 1000;
+    const known = Object.entries(prof).reduce((a, [k, v]) => a + (k === 'bake' || k === 'step' || k === 'simSeconds' ? 0 : v), 0);
+    const f = (k, v) => `${k} ${(v / 1000).toFixed(1)}s`;
+    console.log(`[profile] total ${(total / 1000).toFixed(1)}s: ${Object.entries(prof).filter(([k]) => !['bake', 'step', 'simSeconds'].includes(k)).map(([k, v]) => f(k, v)).join(', ')}, ${f('other', total - known)}${prof.bake ? ` (bakes inside match: ${(prof.bake / 1000).toFixed(1)}s)` : ''}${prof.step ? ` (stepHeadless inside evaluate: ${(prof.step / 1000).toFixed(1)}s for ${prof.simSeconds.toFixed(0)} simulated s)` : ''}`);
+  });
+}
+let warmed = true;
+
 export async function launch({ url = 'http://localhost:4173/', params = '', touch = true, viewport = { width: 1280, height: 640 }, touchViewport = null } = {}) {
-  const browser = await chromium.launch(launchOptions());
+  const browser = await timed('launch', () => chromium.launch(launchOptions()));
   const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
   // (`touchViewport`: the phone held another way, e.g. upright)
   const ctx = await browser.newContext({ ...(touch ? { ...dev, ...(touchViewport ? { viewport: touchViewport, screen: touchViewport } : {}) } : { viewport }), acceptDownloads: true });
@@ -57,6 +85,12 @@ export async function launch({ url = 'http://localhost:4173/', params = '', touc
 /** Open another page in an existing context (coop tests: pages share BroadcastChannel + IndexedDB). */
 export async function openPage(ctx, url = 'http://localhost:4173/', params = '') {
   const page = await ctx.newPage();
+  if (PROFILE) {
+    for (const [name, bucket] of [['evaluate', 'evaluate'], ['waitForFunction', 'evaluate'], ['waitForTimeout', 'pauses'], ['screenshot', 'screenshot']]) {
+      const orig = page[name].bind(page);
+      page[name] = (...a) => timed(bucket, () => orig(...a));
+    }
+  }
   const errors = [];
   page.on('console', (m) => {
     // SwiftShader / ANGLE performance notes about its own command buffer are not the game's problems
@@ -69,6 +103,18 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   // Windows Chromium offers the OS share sheet (navigator.canShare true): the exports must take the download path in every run, never open a sheet on the PC
   await page.addInitScript(() => {
     Navigator.prototype.canShare = () => false;
+  });
+  // Fast-forward for a wait written as "wrap `state.fixedUpdate`, resolve when N simulated seconds passed": call `window.__ff()` right
+  // after the wrapper is installed and the loop's headless stepper (`stepHeadless`) runs the steps now, until the wrapper takes itself
+  // off (its own end condition, unchanged), instead of the wait costing N real seconds. The game does the same work per step (input
+  // polled, sim, physics, frame update); only the rendering between steps is skipped. `max`: simulated seconds before giving up
+  // (the real loop then carries on, as it always did).
+  await page.addInitScript(() => {
+    window.__ff = (max = 60) => {
+      const st = window.__app.current;
+      const wrapper = st.fixedUpdate;
+      for (let i = 0, n = Math.round(max * 60); i < n && st.fixedUpdate === wrapper; i++) window.__app.loop.stepHeadless(1 / 60);
+    };
   });
   // Fake standard-mapping gamepad, controllable via window.__pad.
   await page.addInitScript(() => {
@@ -108,14 +154,31 @@ export async function openPage(ctx, url = 'http://localhost:4173/', params = '')
   const g = /(^|&)gear=/.test(p) || /[?&]gear=/.test(url) ? p : `${p}&gear=4`;
   // 3.5: the parked modes and the economy are behind ?legacy=1 (`npm run e2e:legacy` sets LEGACY=1; a suite can name `legacy=1` itself)
   const q = process.env.LEGACY === '1' && !/(^|&)legacy=/.test(g) && !/[?&]legacy=/.test(url) ? `${g}&legacy=1` : g;
+  await timed('boot', async () => {
   await page.goto(url + (url.includes('?') ? '&' : '?') + q);
   await page.waitForFunction(
     () => document.getElementById('boot')?.classList.contains('done') || /Failed/.test(document.getElementById('boot-status')?.textContent ?? ''),
     null,
     { timeout: 60000 },
   );
+  });
+  if (PROFILE) {
+    // in-page `stepHeadless` time: the wrapped method reports each call (`evaluate` below it counts the same time, once)
+    await page.exposeFunction('__profStep', (ms, sim) => { prof.step += ms; prof.simSeconds += sim; }).catch(() => {});
+    await page.evaluate(() => {
+      const proto = Object.getPrototypeOf(window.__app.loop);
+      const orig = proto.stepHeadless;
+      if (orig.__prof) return;
+      proto.stepHeadless = function (...a) { const t = performance.now(); try { return orig.apply(this, a); } finally { window.__profStep(performance.now() - t, a[0] ?? 0); } };
+      proto.stepHeadless.__prof = true;
+    }).catch(() => {});
+  }
   // autostart: the match itself (3.0: the voxel world builds in workers before it starts)
-  if (/(^|&)autostart=/.test(params)) await page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {});
+  if (/(^|&)autostart=/.test(params)) {
+    await timed('match', () => page.waitForFunction(() => !!window.__app?.current?.player, null, { timeout: 120000 }).catch(() => {}));
+    warmed = false;
+    if (PROFILE) prof.bake += await page.evaluate(() => { const w = window.__app?.current?.world; return (w?.lightInfo?.().ms ?? 0) + (w?.voxels?.stats?.ms ?? 0); }).catch(() => 0);
+  }
   return { page, errors };
 }
 
@@ -123,9 +186,13 @@ export const BTN = { A: 0, B: 1, X: 2, Y: 3, LB: 4, RB: 5, LT: 6, RT: 7, SELECT:
 
 /** Wait for n rendered frames (robust against slow software-GL frames). */
 export function frames(page, n = 3) {
-  return page.evaluate(
-    (k) => new Promise((res) => { let c = 0; const f = () => (++c >= k ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); }),
-    n,
+  const bucket = warmed ? 'frames' : 'warmup';
+  warmed = true;
+  return timed(bucket, () =>
+    page.evaluate(
+      (k) => new Promise((res) => { let c = 0; const f = () => (++c >= k ? res() : requestAnimationFrame(f)); requestAnimationFrame(f); }),
+      n,
+    ),
   );
 }
 

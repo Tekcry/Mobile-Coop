@@ -7,9 +7,13 @@ import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+// `--part=N[,M]` runs only those sections (the runner starts 1 to 4 side by side: each is its own browser; no argument: all four, as before)
+const PARTS = (process.argv.find((a) => a.startsWith('--part='))?.slice(7) ?? '1,2,3,4').split(',');
+const part = (n) => PARTS.includes(String(n));
 let failed = false;
 let browser;
 try {
+  if (part(1)) {
   // no ?platform=: detection on its own (no touch points, a fine pointer, 1920 x 1080)
   const l = await launch({ url, params: '', touch: false, viewport: { width: 1920, height: 1080 } });
   browser = l.browser;
@@ -240,6 +244,9 @@ try {
   assert((await crashes()).length === 1, 'a reload is not reported as a crash');
   await browser.close();
 
+  }
+
+  if (part(2)) {
   // aspects (16:10, 21:9, 32:9): menus a centred 16:9 layout, the HUD inset on 32:9, Hor+ up to the FOV cap
   for (const [w, hh, label] of [[1280, 800, '16:10'], [2520, 1080, '21:9'], [2560, 720, '32:9']]) {
     const a = await launch({ url, params: '', touch: false, viewport: { width: w, height: hh } });
@@ -403,6 +410,9 @@ try {
     await browser.close();
   }
 
+  }
+
+  if (part(3)) {
   // the Epic renderer in a match (small window: software GL)
   const e = await launch({ url, params: 'autostart=warehouse&mode=clear&gfx=epic&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = e.browser;
@@ -587,6 +597,9 @@ try {
   assert(eerrs.length === 0, `Epic renders without console errors${eerrs.length ? ': ' + eerrs.slice(0, 4).join(' | ') : ''}`);
   await browser.close();
 
+  }
+
+  if (part(4)) {
   // 3.0 phase 5: ray-traced reflections, TAAU, Panini (the saved settings, changed in the match)
   const u = await launch({ url, params: 'autostart=warehouse&gfx=user&platform=desktop', touch: false, viewport: { width: 640, height: 360 } });
   browser = u.browser;
@@ -678,6 +691,7 @@ try {
   assert(df.back.fStop >= 1e6 && df.back.depth === false, `after aiming: sharp again, depth paused (${JSON.stringify(df)})`);
   const uerrs = u.errors.filter((x) => !/GPU stall|GL Driver/.test(x));
   assert(uerrs.length === 0, `ray traced + TAAU + Panini render without console errors${uerrs.length ? ': ' + uerrs.slice(0, 4).join(' | ') : ''}`);
+  }
   console.log('desktop e2e passed');
 } catch (err) {
   failed = true;

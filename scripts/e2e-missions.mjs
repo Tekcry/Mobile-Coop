@@ -4,7 +4,7 @@
 // (a Ghost contract on detection, the operator down three times). Every mission objective is reachable along
 // the ground plus at least two anchor routes (above / through), and each mission map has 25+ anchors.
 // `node scripts/e2e-missions.mjs [url] [--only=name]`
-import { launch, assert } from './e2e-lib.mjs';
+import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
 const only = process.argv.find((a) => a.startsWith('--only='))?.slice(7) ?? '';
@@ -62,7 +62,7 @@ const run = async (params, scenarios) => {
   const { browser, page, errors } = await launch({ url, params });
   const G = (f, a) => page.evaluate(f, a);
   try {
-    await page.waitForTimeout(1000);
+    await frames(page, 10);
     await G(helpers);
     for (const [name, f] of scenarios) {
       if (only && !name.includes(only)) continue;

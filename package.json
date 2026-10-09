@@ -13,6 +13,8 @@
     "icons": "node scripts/gen-icons.mjs",
     "e2e": "node scripts/run-e2e.mjs",
     "e2e:legacy": "node scripts/run-e2e.mjs --legacy",
+    "e2e:serial": "node scripts/run-e2e.mjs --serial",
+    "e2e:quick": "node scripts/run-e2e.mjs --quick",
     "check": "npm run lint && npm test && npm run build"
   },
   "devDependencies": {
