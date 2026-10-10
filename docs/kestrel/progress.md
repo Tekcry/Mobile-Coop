@@ -10,7 +10,7 @@
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
-| P02 | Building brief | not started | | |
+| P02 | Building brief | DRAFT | | 2026-10-10 |
 | P03 | Tools | not started | | |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
@@ -31,6 +31,7 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 P02: docs/kestrel/02-building-brief.md (260 lines, DRAFT). Cinder Yard, 48x30 building on a 6.0 m grid, site 78x56. 42 rooms/areas across basement (vault), ground (reception, secure core, goods), first (staff), roof (plant). Every fixed-program room placed in its zone; zones confirmed S1=1..S6=5. Area arithmetic fits each floor. Two fire stairs (NE roof-to-ground, SW), data-hall fire exits, manhole X10 by the facilities fire exit, second exit via vehicle gate/loading apron. 4 ASK items, 4 questions (switchroom zone vs P01 B5, dock-shutter ring crossing, hall ceiling, carrier diversity).
 - 2026-10-10 P01 revision: fixes 5-7 applied to 01-mission-brief.md (207 lines, time 37.5 min, DRAFT). Zones S3 = 3+, S4 = 3; carrier route passes a corner of S5 again, P02 places the manhole near an exit-only fire door; fence and fence rattle removed from B8.
 - 2026-10-10 P01 revision: fixes 1-4 applied to 01-mission-brief.md (204 lines, time 37.5 min unchanged, DRAFT). Iris keys: engineer or manager; exit by vehicle gate or loading apron; carrier route by yard manhole, vault, riser; zones 1, 2, 3, 3+, 4, 5. Downstream lines at the end of the brief.
 - 2026-10-10 P01: docs/kestrel/01-mission-brief.md (194 lines, DRAFT). Seven objectives mapped to beats B1-B8 (one per space, S1 has none); time 37.5 min (13 moving, 24.5 waiting); tension 1,3,2,4,3,5,4,5.
