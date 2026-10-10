@@ -18,6 +18,10 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
+| V0 | Chaos Theory toolkit spec | DRAFT | | 2026-10-11 |
+| V1 | Toolkit: wall hug, optic cable | not started | | |
+| V2 | Toolkit: lockpick, hacking | not started | | |
+| V3 | Toolkit: mission kit, jammer, remaining tools | not started | | |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -37,6 +41,9 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 V0 toolkit spec: docs/systems/ct-toolkit.md (234 lines, DRAFT). Ten tools, each with fiction, targets, controls (desktop, pad, touch), timing, noise and light, noticing, S0 interaction, ghost tag, co-op and camera; numbers TUNE or F / SN ids. Mission kit as `MissionDef.kit` (absent = everything); map fields `lock`, `seal`, `optic`, `alarm`, `hack`, `cut`, `lines` for P06.
+  Dead Line kit proposed: in wall hug, optic, lockpick, hacking, jammer, shocker (2), interrogation; out disruptor, airfoil, knife. Build plan V1-V3, all before B3.
+  Findings: `GADGETS` is in src/game/gadgets.ts, not src/config; no toolkit verb exists in code yet; bindings for the optic (F, R3) are proposals V1 checks. 5 questions for Michael (kit, disruptor realism, snap cover, RULES 11 exception, minigames).
 - 2026-10-11 P01 revision (civilians, traversal, two tracks; fixes 1-8): 01-mission-brief.md 299 lines, DRAFT. 20 guards + 7 civilians (night duty engineer, NOC operator, night cleaner in A; facilities engineer, remote-hands technician, two visiting tenant engineers in B). Generator test moved to the facilities engineer; the freed guard post is the B ground rounds officer.
   Two tracks: A (card, cameras, cage number and key safe code, key safe) and B (reach B, scout, B credential, take position) meet at the secure zone, which needs one item from each (roof shaft: roof key + B's roof; riser: B credential + cameras looped). Beats keep ids B1-B10 with a track column. New 4.4 civilian opportunities, civilian column in 4.2, traversal rows (zip line not used).
   Time: solo 42.5 min (17 moving, 25.5 waiting); split team 36-39 min. RULES.md: sections 1 (two tracks, traversal), 2 (guards and civilians), 12 (S6). New ASK-16 to 19.
@@ -95,6 +102,7 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 Chaos Theory toolkit: the engine gets the full Chaos Theory toolkit (wall hug, optic cable, lockpick, hacking, camera jammer, light disruptor, sticky shocker, ring airfoil, interrogation, knife); each mission offers only the tools that suit it through a mission kit; every tool is realistic and respects the ghost rule. V0 writes the spec (docs/systems/ct-toolkit.md) and proposes Dead Line's kit for approval; build sessions V1-V3 follow it and all finish before B3.
 - 2026-10-11 P01 revision: 20 guards plus 7 civilians (each with an employer and a job); two parallel tracks (A in Building A, B in Building B) that meet at the secure zone, which needs one thing from each; every movement the engine supports appears at least once on a real element; no zip line on this campus (saved for a future mission); S6 civilians added to the build order after S5.
 - 2026-10-11 CAM exception to RULES section 11: the CAM session may change the third-person camera code and src/config/camera.ts; nothing else in src/player, src/ai or the movement config.
 - 2026-10-11 Campus redesign after the massing walk (RULES.md sections 1, 2, 12 updated; every design stage reruns):

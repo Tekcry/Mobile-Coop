@@ -38,6 +38,13 @@ V0 toolkit spec, P02 campus brief (Opus high), P03B campus block plan (Opus high
 - Wall hugging is not in the engine yet; it is part of the toolkit (V0 spec, V1 build), with the optic cable.
 - Site name: Cinder Yard and Ostler Colocation are placeholders; Michael still picks from D1's three options.
 
+## Chaos Theory toolkit (2026-10-11)
+- Decision (Michael): the engine gets the full Chaos Theory toolkit; each mission offers only the tools that suit it through a mission kit; every tool is real equipment used believably and respects the ghost rule.
+- Spec: docs/systems/ct-toolkit.md (V0, DRAFT): wall hug, optic cable, lockpick, hacking, camera jammer, light disruptor, sticky shocker, ring airfoil, interrogation, knife; the mission kit (`MissionDef.kit`); the map fields P06 adds (`lock`, `seal`, `optic`, `alarm`, `hack`, `cut`, `lines`).
+- Dead Line's proposed kit (Michael approves): in: wall hug (always), optic cable, lockpick, hacking, camera jammer, sticky shocker (2 rounds), interrogation; out: light disruptor (no real equivalent), ring airfoil (same role as the shocker), knife (no cuttable element). Existing gadgets: noisemaker, sticky cam, EMP, sleeping gas in; frag, mine, flashbang, tri-rotor out. P06 should give Pell's cage a `high` or code lock so the knowledge gates hold.
+- Order: V1 wall hug and optic cable; V2 lockpick and hacking; V3 mission kit, camera jammer, light disruptor, launcher (shocker, airfoil), interrogation, knife. They run after P10 and all must be APPROVED before B3. Each needs V0 and CAM APPROVED and a RULES.md section 11 exception (spec question 4).
+- Hooks for later stages: S1 Part B wires the hack and jammer events to the desk; S4 adds camera mode `jammed` to `sec`; S6 civilians are questioned through the grab.
+
 ## Working rules
 - Run one Claude Code session at a time; sessions share a working folder.
 - Every prompt starts by switching to feature/kestrel and checking the branch; type /clear before each prompt.
