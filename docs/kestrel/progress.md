@@ -12,7 +12,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 5764aad | 2026-10-11 |
-| P02 | Building brief | DRAFT (campus redesign) | c805978 | 2026-10-11 |
+| P02 | Building brief | DRAFT (campus rewrite) | pending | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03R | Campus review | not started | | |
@@ -41,6 +41,10 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P02 campus brief: 02-building-brief.md rewritten (419 lines, DRAFT). A 36 x 24 (two storeys at 4.2), B 48 x 30 (18 m two-storey west strip, 30 x 30 hall block, 6.6 roof), generator wing 24 x 12 behind a 1.5 passage, site 108 x 76; 151 schedule rows (AG/AF/AR/LF/BG/BF/BR/BU/TB/X).
+  Lifts: 630 kg machine-room-less traction beside each main core, shaft 2.5 x 2.5, pit 1.1, no overrun, zone 3 only. Gallery sits in the strip (3.0 ceiling), stair in a well; level U -1.6, 1.5 clear; vault and tunnel -3.6.
+  Zone corrections: S2 = 2 and 3, X = 1 to 3; tunnel and vault 4. Max stack 3. ASK-1 to 7, 5 questions.
+  Downstream: P03B redoes the block plan (both lift shafts); schema.md ring-to-space line stale; kit rows (tension g); builders make lifts closed shafts.
 - 2026-10-11 V0 answers applied: kit approved; V3 builds only the kit (disruptor, airfoil, knife to docs/backlog.md items 22-24, specs kept); snap cover replaced and deleted in V1; minigames only (hold mode removed); RULES 11 exception recorded. Spec status stays DRAFT until Michael approves V0.
 - 2026-10-11 V0 toolkit spec: docs/systems/ct-toolkit.md (234 lines, DRAFT). Ten tools, each with fiction, targets, controls (desktop, pad, touch), timing, noise and light, noticing, S0 interaction, ghost tag, co-op and camera; numbers TUNE or F / SN ids. Mission kit as `MissionDef.kit` (absent = everything); map fields `lock`, `seal`, `optic`, `alarm`, `hack`, `cut`, `lines` for P06.
   Dead Line kit proposed: in wall hug, optic, lockpick, hacking, jammer, shocker (2), interrogation; out disruptor, airfoil, knife. Build plan V1-V3, all before B3.
@@ -103,6 +107,8 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 P02 campus brief: handover.md 'Decisions to carry into P02' adopted as Michael's decisions.
+- 2026-10-11 P02: one passenger lift per building at the main core, locked off at night; no goods lift.
 - 2026-10-11 V0 questions: Dead Line's kit approved as proposed (in: wall hug, optic cable, lockpick, hacking, camera jammer, sticky shocker 2 rounds, interrogation; noisemaker, sticky cam, EMP, sleeping gas). V3 builds only Dead Line's kit; the light disruptor, ring airfoil and knife are not built now, their specs stay in ct-toolkit.md and each has a backlog line. V1 replaces snap cover (`src/cover`) with the wall hug and deletes it. Lockpick and hacking are minigames only. RULES.md section 11 exception for V1-V3: they may change the player controller, the camera and the grab and takedown code, and add src/config/tools.ts and the `toollab` debug map; no existing tuning value changes. This also brings the toolkit into the RULES.md section 2 scope.
 - 2026-10-11 Chaos Theory toolkit: the engine gets the full Chaos Theory toolkit (wall hug, optic cable, lockpick, hacking, camera jammer, light disruptor, sticky shocker, ring airfoil, interrogation, knife); each mission offers only the tools that suit it through a mission kit; every tool is realistic and respects the ghost rule. V0 writes the spec (docs/systems/ct-toolkit.md) and proposes Dead Line's kit for approval; build sessions V1-V3 follow it and all finish before B3.
 - 2026-10-11 P01 revision: 20 guards plus 7 civilians (each with an employer and a job); two parallel tracks (A in Building A, B in Building B) that meet at the secure zone, which needs one thing from each; every movement the engine supports appears at least once on a real element; no zip line on this campus (saved for a future mission); S6 civilians added to the build order after S5.
