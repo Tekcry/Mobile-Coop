@@ -1,5 +1,5 @@
 # Cinder Yard - block plan (zones and rings)
-Status: DRAFT (2026-10-10)
+Status: APPROVED (2026-10-10)
 
 Zones only: no rooms, doors or objects. File: `docs/kestrel/kestrel.blocks.json` (arch schema, rooms of kind zone or corridor).
 Plans: `docs/kestrel/plans/blocks-{B,G,F,R}.png`. Area check: brief room areas (02 section 5) at most 85% of the zone.
