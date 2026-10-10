@@ -78,8 +78,12 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Never claim a GPU, visual or performance check passed from a cloud session; write "pending PC run".
 
 ## 12. Build steps (B1-B7) only
-- Precondition: docs/kestrel/09-build-contract.md is APPROVED, and `git hash-object docs/kestrel/kestrel.arch.json docs/kestrel/kestrel.play.json docs/kestrel/kestrel.security.json` matches the hashes in the contract. If not, stop.
-- All geometry, gameplay and security data come from the three JSON files (arch, play, security). Copy them to src/world/maps/ under the same names. A unit test (tests/kestrelMap.test.ts) checks that the copies equal the docs files.
+- B0 is the massing walk: it needs only P03B APPROVED and builds kestrel.blocks.json. B1 later points the map at kestrel.arch.json.
+- B1 and B2 are the early walk: they need only P04 APPROVED (after P05 and its revisions). B1 records `git hash-object docs/kestrel/kestrel.arch.json` in progress.md under "Early build".
+- B3 onward: docs/kestrel/09-build-contract.md is APPROVED, and `git hash-object docs/kestrel/kestrel.arch.json docs/kestrel/kestrel.play.json docs/kestrel/kestrel.security.json` matches the hashes in the contract. If the arch hash differs from the Early build hash, B3 first reruns the B1 and B2 checks and fixes what the change broke. If a precondition fails, stop.
+- B4S also needs S1-S4 APPROVED; B5 also needs S5 APPROVED.
+- A B step can be rerun with a line FIXES: and a numbered list after the pasted prompt. It then applies only those fixes and reruns its tests.
+- All geometry, gameplay and security data come from the three JSON files (arch, play, security). Copy each to src/world/maps/ under the same name when a step first uses it (blocks in B0, arch in B1, play in B3, security in B4S). A unit test (tests/kestrelMap.test.ts) checks that the copies equal the docs files.
 - No coordinate is typed into TypeScript. src/world/maps/kestrel.ts only reads the JSON and derives positions with the rules in section 6.
 - Tests every step: `timeout 900 npm run check`, then `timeout 900 npm run build`, then `timeout 1500 npm run e2e:quick`. The map's suite is scripts/e2e-kestrel.mjs, registered in REQUIRED and COVERS in scripts/run-e2e.mjs.
 - The report lists every contract item for the step as DONE or NOT DONE (with the reason).

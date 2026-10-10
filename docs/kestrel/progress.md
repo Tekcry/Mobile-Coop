@@ -41,5 +41,6 @@
 
 ## Decisions by Michael
 - 2026-10-10 S0 questions: a shot camera makes a manned desk send a guard; cloning = hold a cloner to a grabbed guard's card; keycards are taken automatically on any takedown of the holder; the iris enrols the night duty engineer only; cameras or beams switched off at the panel are noticed when the desk is next manned (a guard is sent).
+- 2026-10-10: map first. Order: P01-P03, P03B block plan, B0 massing walk, P04-P05, early walk B1-B2 then BR, P04S, P06-P10, B3, B4, S1-S4, B4S, BR, S5, B5, B6, BR, B7. Designers use S0's SN numbers; the systems are built after the design. S1 Part A is already built; S1 Part B runs in its slot after B4.
 
 ## BLOCKED
