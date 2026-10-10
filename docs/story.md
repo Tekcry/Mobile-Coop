@@ -1,11 +1,11 @@
 # Night Shift - Story and world
 
-Version 2.0 - 2026-10-10. Draft for Michael. (2.0: present-day campaign; Mission 1 at a colocation data centre; Mission 5 The Strongroom; Kestrel Exchange retired. 1.2: the Client is Alistair Crane; the operators' real names. 1.1: the traitor finale.)
+Version 2.0 - 2026-10-10. Approved by Michael. (2.0: present-day campaign; Mission 1 at a colocation data centre; Mission 5 The Strongroom; Kestrel Exchange retired. 1.2: the Client is Alistair Crane; the operators' real names. 1.1: the traitor finale.)
 
 - This document is the authority on story, setting, characters and in-game text.
 - `docs/design-bible.md` wins on anything that affects gameplay.
 - All names here are original. No Splinter Cell names, organisations or plot.
-- The Mission 1 site name is a placeholder until Michael picks one (Section 9): **Cinder Yard**, run by **Ostler Colocation**.
+- The Mission 1 site is **Cinder Yard**, run by **Ostler Colocation** (decided 2026-10-10).
 
 ---
 
@@ -364,13 +364,12 @@ LANTERN: Then we've nine nights. Come home.
 
 ## 9. Open story items
 
-Decided on 2026-10-08: the Client (Crane) and the operators' real names.
+Decided on 2026-10-08: the Client (Crane) and the operators' real names. On 2026-10-10: the present-day campaign (2.0) and the Mission 1 site name.
 
-1. **The Mission 1 site name** (Michael to pick; Cinder Yard / Ostler Colocation until then).
-2. **The epilogue lines for both endings,** and each operator's betrayal and last lines.
-3. **Mission 6's location detail** and how Peg is held.
-4. **The guarding firm's name** in Mission 1 (and whether it recurs in Halcyon's buildings).
-5. **What the van in the Mission 1 yard carries** (spares for Pell's cage, or a first glimpse of the failover units).
-6. **Whether the Mission 1 optional intel pays off later** (the access log as a lead to Mission 4, the rack labels to Mission 5).
-7. **Crane's first appearance:** which early briefing he speaks in, and his one line.
-8. **Mission 7's rail set piece:** how the siding connects to the substation story, and what happens if it is skipped.
+1. **The epilogue lines for both endings,** and each operator's betrayal and last lines.
+2. **Mission 6's location detail** and how Peg is held.
+3. **The guarding firm's name** in Mission 1 (and whether it recurs in Halcyon's buildings).
+4. **What the van in the Mission 1 yard carries** (spares for Pell's cage, or a first glimpse of the failover units).
+5. **Whether the Mission 1 optional intel pays off later** (the access log as a lead to Mission 4, the rack labels to Mission 5).
+6. **Crane's first appearance:** which early briefing he speaks in, and his one line.
+7. **Mission 7's rail set piece:** how the siding connects to the substation story, and what happens if it is skipped.
