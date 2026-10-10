@@ -140,6 +140,21 @@ test('A14 trips on an uncovered upper floor, a bad void kind and a void with no 
   trips('A14', (a) => { a.voids[0].reason = ''; });
 });
 
+test('A14 uses a level footprint when the level has one', () => {
+  // F covered only over the south half, with its own footprint: pass. The same level with the full footprint: fail.
+  const half = (a) => {
+    find(a.levels, 'F').footprint = [2, 2, 17, 7];
+    a.rooms = a.rooms.filter((r) => r.id !== 'F01' && r.id !== 'F02');
+    a.rooms.push(room('F01', 'F', [2, 2, 11, 7], { ring: 3 }), room('F02', 'F', [11, 2, 17, 7], { ring: 3 }));
+    a.voids[0].rect = [13, 3, 15.5, 6.5];
+  };
+  assert.equal(status(run(half), 'A14'), 'PASS');
+  trips('A14', (a) => { half(a); delete find(a.levels, 'F').footprint; });
+  trips('A21', (a) => { find(a.levels, 'F').footprint = [1, 2, 17, 7]; });
+  trips('A02', (a) => { find(a.levels, 'F').footprint = [2, 2, 17, 7.2]; });
+  trips('A03', (a) => { find(a.levels, 'F').footprint = [17, 2, 2, 7]; });
+});
+
 test('A15 trips on an object with no name, an exterior with no reason and a void with no kind', () => {
   trips('A15', (a) => { a.objects[0].name = ''; });
   trips('A15', (a) => { a.exterior[0].reason = ''; });

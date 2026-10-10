@@ -129,6 +129,7 @@ check('A01', 'Required fields present, ids unique', 'FAIL', [], (c) => {
       }
     }
   }
+  for (const l of c.levels) if (l.footprint !== undefined && !isRect(l.footprint)) c.add(`level ${l.id}: footprint is not [x0, z0, x1, z1]`);
   const lvl = (id, label) => { if (!c.levelById.has(id)) c.add(`${label}: unknown level ${id}`); };
   for (const r of c.rooms) lvl(r.level, `room ${r.id}`);
   for (const w of c.walls) {
@@ -156,6 +157,7 @@ check('A02', 'Every coordinate except object edges is a multiple of meta.grid', 
   const pt = (p, label) => { if (isPt(p)) { test(p[0], `${label} x`); test(p[1], `${label} z`); } };
   for (const k of ['site', 'footprint']) rect(c.meta[k], `meta.${k}`);
   pt(c.meta.entry, 'meta.entry');
+  for (const l of c.levels) rect(l.footprint, `level ${l.id} footprint`);
   for (const r of c.rooms) rect(r.rect, `room ${r.id}`);
   for (const s of c.stairs) rect(s.rect, `stair ${s.id}`);
   for (const v of c.voids) rect(v.rect, `void ${v.id}`);
@@ -171,6 +173,7 @@ check('A03', 'Rects ordered (x0 < x1, z0 < z1)', 'FAIL', [], (c) => {
   const test = (r, label) => { if (isRect(r) && !(r[0] < r[2] && r[1] < r[3])) c.add(`${label} [${r.join(', ')}]`); };
   test(c.meta.site, 'meta.site');
   test(c.meta.footprint, 'meta.footprint');
+  for (const l of c.levels) test(l.footprint, `level ${l.id} footprint`);
   for (const r of c.rooms) test(r.rect, `room ${r.id}`);
   for (const s of c.stairs) test(s.rect, `stair ${s.id}`);
   for (const v of c.voids) test(v.rect, `void ${v.id}`);
@@ -342,16 +345,19 @@ check('A13', 'No ladder joins the same two levels as a stair within 15 m', 'FAIL
 });
 
 // ===== A14 upper levels covered =====
-check('A14', 'Every upper level is fully covered by rooms or voids; voids are an allowed kind with a reason', 'FAIL', [], (c) => {
+check('A14', 'Every upper level is fully covered by rooms or voids over its footprint; voids are an allowed kind with a reason', 'FAIL', [], (c) => {
   for (const v of c.voids) {
     if (!VOID_KINDS.has(v.kind)) c.add(`void ${v.id}: kind "${v.kind}" is not one of ${[...VOID_KINDS].join(', ')}`);
     if (!isText(v.reason)) c.add(`void ${v.id}: no reason`);
   }
-  const fp = c.meta.footprint;
-  if (!isRect(fp) || !(fp[2] > fp[0] && fp[3] > fp[1])) return { skip: 'meta.footprint is not set' };
+  const set = (r) => isRect(r) && r[2] > r[0] && r[3] > r[1];
+  if (!set(c.meta.footprint) && !c.levels.some((l) => l.floor > 0 && set(l.footprint))) return { skip: 'meta.footprint is not set' };
   const g = c.grid;
   for (const lv of c.levels) {
     if (!(lv.floor > 0)) continue;
+    // a level's own footprint (levels[].footprint) wins over the building footprint
+    const fp = set(lv.footprint) ? lv.footprint : c.meta.footprint;
+    if (!set(fp)) continue;
     const rects = [...c.onLevel(c.rooms, lv.id), ...c.onLevel(c.voids, lv.id)].map((x) => x.rect).filter(isRect);
     const miss = [];
     for (let x = fp[0] + g / 2; x < fp[2]; x += g) for (let z = fp[1] + g / 2; z < fp[3]; z += g) if (!rects.some((r) => inRectXZ(r, x, z))) miss.push([x, z]);
@@ -483,6 +489,10 @@ check('A21', 'Site and footprint inside the RULES section 2 limits', 'FAIL', ['r
   test(c.meta.footprint, 'footprint', c.F('rules.footprintMaxX'), c.F('rules.footprintMaxZ'));
   const s = c.meta.site;
   const f = c.meta.footprint;
+  for (const l of c.levels) {
+    const lf = l.footprint;
+    if (isRect(lf) && isRect(f) && (lf[0] < f[0] - EPS || lf[1] < f[1] - EPS || lf[2] > f[2] + EPS || lf[3] > f[3] + EPS)) c.add(`level ${l.id} footprint [${lf.join(', ')}] is not inside the building footprint [${f.join(', ')}]`);
+  }
   if (isRect(s) && isRect(f) && f[2] > f[0] && (f[0] < s[0] - EPS || f[1] < s[1] - EPS || f[2] > s[2] + EPS || f[3] > s[3] + EPS)) c.add(`footprint [${f.join(', ')}] is not inside site [${s.join(', ')}]`);
 });
 

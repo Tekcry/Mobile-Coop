@@ -42,6 +42,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | levels[].id, name | Level id (B, G, F, S, R) and its name |
 | levels[].floor | Floor height above ground floor level, in metres |
 | levels[].height | Floor-to-floor height of that level |
+| levels[].footprint | Optional rect `[x0, z0, x1, z1]` the level must be fully built over (A14); inside `meta.footprint` (A21). Default is `meta.footprint`. Use it when a floor covers only part of the building (first floor over the front block only) |
 | rooms[].id, level | Unique room id and its level |
 | rooms[].name | Name used on the plan label |
 | rooms[].kind | What the space is; `ladder` is allowed only in `plant` or `shaft` rooms |
@@ -217,4 +218,4 @@ Drawing conventions the renderer chose where this schema is silent:
 - Architecture: A01-A27 (always run; A24 needs `--register`). A19 is an INFO table, A10, A16, A18 and A27 only WARN.
 - Security: SC01-SC06 (need `--security`).
 - Play: the `// GAMEPLAY CHECKS (P09)` section of check.mjs is empty until P09. `--play` is read now only by A27.
-- Where the prompt table is open to two readings the checker uses: an opening must keep its near edge (not its centre) the end-clearance from the wall end; a walkable surface over a cell is a level floor (a room not under a void) or a non-`noLedge` object top at or above the auto-lip height; an upper level must be covered over `meta.footprint`; a split-jump face is a wall face or a floor-standing object face on one level.
+- Where the prompt table is open to two readings the checker uses: an opening must keep its near edge (not its centre) the end-clearance from the wall end; a walkable surface over a cell is a level floor (a room not under a void) or a non-`noLedge` object top at or above the auto-lip height; an upper level must be covered over its own `levels[].footprint` (default `meta.footprint`); a split-jump face is a wall face or a floor-standing object face on one level.
