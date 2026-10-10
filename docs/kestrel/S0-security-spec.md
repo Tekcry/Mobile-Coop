@@ -10,7 +10,7 @@ Bible lines followed: cameras are "light-dependent like guards, raise an alarm, 
 | --- | --- |
 | CCTV | Fixed IP cameras (domes, bullets) cover doors and aisles; a few pan-tilt units sweep on a preset tour. Lens field 30-100 deg horizontal. Most record to a VMS; a person watches live only at a staffed desk (general knowledge). |
 | Security desk | One operator faces a wall of monitors plus an alarm / access-control workstation. Events (door forced, beam break, video loss) pop up and the operator radios a patrol to check. Plant faults reach the desk and the on-call engineer from the BMS (general knowledge). |
-| Card access | Readers (HID-style, 13.56 MHz) beep and flash green on a valid card, red on a refused one; the door strike releases for a few seconds. Old 125 kHz prox cards are easy to clone; a "sniffer" spliced into the reader's Wiegand line captures the next card swiped (general knowledge). |
+| Card access | Readers (HID-style, 13.56 MHz) beep and flash green on a valid card, red on a refused one; the door strike releases for a few seconds. Old 125 kHz prox cards are easy to clone: a handheld cloner held near the card copies it in seconds (general knowledge). |
 | Mantrap / iris | A mantrap interlocks two doors so only one is open at a time; data halls often ask card plus biometric at the inner door. Iris readers need a live, open eye a short distance from the lens and refuse closed eyes (general knowledge). |
 | IR beams | An emitter post sends an invisible near-infrared beam (about 850-950 nm) to a receiver post; interrupting it for a short time trips a zone on the intrusion panel. Night-vision tubes and camera sensors see the beam where dust or haze catches it (general knowledge). |
 | PIR lights | A passive infrared sensor sees a warm body crossing its zones; slow movement crosses fewer zones and may not trigger. The lamp stays on for a set time after the last motion (general knowledge). |
@@ -42,12 +42,12 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
 | Item | Rule |
 | --- | --- |
 | Reader | Bound to one door (`Door` anchor with `locked: true`). A player holding a card whose `opens` lists the reader: "Swipe card" (tap) -> green, door `locked` false for SN30, then relocks when closed. No card: red, double beep, nothing else (no alert). |
-| Keycards | `cards[].heldBy` is a guard id or an object id. Object: "Take card" (tap). Guard: "Take card" (hold SN31) on the knocked-out or dead body; while grabbing (`GRAB`) a card holder, the held person's card counts as carried. Cards belong to the player who took them. |
+| Keycards | `cards[].heldBy` is a guard id or an object id. Object: "Take card" (tap). Guard: taken automatically when a takedown of the holder completes (Michael Q3), with a HUD line "Card taken"; while grabbing (`GRAB`) a card holder, the held person's card counts as carried. Cards belong to the player who took them. |
 | Guards | A guard whose card opens a reader door passes it (beep, green); guards without a card never route through a reader door (P07 rule). |
-| Clone (sniffer) | "Tap reader" (hold SN32) at any reader fits a sniffer (amber LED). The next guard card swiped there is copied to the player who fitted it: same `opens`. One sniffer per reader. |
+| Clone | While grabbing (`GRAB`) a card holder: "Clone card" (hold SN32) copies the card to the player (same `opens`); the guard keeps his own card (Michael Q2). |
 | Revoke | A card's holder found as a body (`EnemyManager.onBodyFound`) while the desk is manned: that card and its copies stop working after SN33. |
 | Mantrap | Two doors (`door` outer, `door2` inner) with readers. Interlock: one door unlocks only while the other is closed and has been closed SN34. Inner door needs card then iris (2.4) inside one SN35 window. A door held open past SN36 logs a "door held" event (manned: dispatch to the mantrap). |
-| State | `SecuritySystem.access`: card owners, sniffers, revoked ids, reader unlock timers, mantrap phase. Door open / lock state stays in `Doors`. |
+| State | `SecuritySystem.access`: card owners, clones, revoked ids, reader unlock timers, mantrap phase. Door open / lock state stays in `Doors`. |
 
 ### 2.4 Iris scanner
 | Item | Rule |
@@ -77,7 +77,7 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
 | Camera | Housing box at least SN05 long, contrasting colour, a red status LED (emissive dot, SN06). Panning cameras visibly turn and pause. Motor whir: event only, sound comes with the audio phase (bible S7). Being watched shows on the same HUD awareness arcs as guards (level-design 8.3). No drawn cone. Destroyed: LED off, housing tilted. Looped / off: LED off. |
 | Desk | Lit monitor wall (emissive). The operator is a visible guard at the seat. Radio barks with subtitles for every dispatch ("Beam break in the east corridor, check it"). |
 | Panel | Zone LEDs: green armed, red alarm, off disarmed. "LOOP" text on the feed monitors while looped. |
-| Reader | LED red idle, green on grant (SN30), red flash and double beep on refusal, amber while a sniffer is fitted. |
+| Reader | LED red idle, green on grant (SN30), red flash and double beep on refusal. |
 | Mantrap | Lamp over each door: green may open, red interlocked. |
 | Iris | Ring LED: blue idle, green granted, red refused. |
 | Beam | Posts always visible with a red receiver LED. The beam line (SN46 thick, emissive) shows only with night vision on. Flashes on break. |
@@ -89,7 +89,7 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
 | --- | --- |
 | Camera | Stay in darkness (2.1 times); time the sweep (SN13-SN15); shoot the housing (alerts the manned desk); EMP; loop or switch off at the panel; take out or lure the operator (feeds then go unwatched); stay out of frame (corners, under the mount, SN04). |
 | Desk | Lure the operator with a noise (noisemaker, `hear`) or a light out (`lightsOut`); take him down from behind or with gas; wait for the supervisor to leave on rounds; trip the cooling to pull other staff away. |
-| Reader | Take a card (desk drawer, body, held guard); fit a sniffer and wait for a guard to badge; follow another route (window, vent, carrier entrance). |
+| Reader | Take a card (desk drawer, any takedown of a holder, held guard); clone a held guard's card; follow another route (window, vent, carrier entrance). |
 | Mantrap | Card plus a grabbed enrolled person; the carrier entrance to the meet-me room. |
 | Iris | Grab an enrolled person and walk them to it (gear 2 or slower, `GRAB.maxGear`); another route. |
 | Beam | Crouch under a high beam (SN40); jump over a low beam (SN41); switch off at the panel; another route. |
@@ -124,8 +124,7 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
 | SN27 | Fault reset time | 120 | s | One lure per two minutes |
 | SN28 | Trip noise radius | 4 | m | Same as `HOLD_NOISE_RADIUS` (F19) |
 | SN30 | Reader unlock time | 5.0 | s | Real strike release 3-8 s |
-| SN31 | Hold: take card from a body | 1.0 | s | Searching a pocket |
-| SN32 | Hold: fit sniffer | 4.0 | s | Opening the reader and splicing |
+| SN32 | Hold: clone card from a held guard | 3.0 | s | Handheld cloner read time |
 | SN33 | Card revoke delay | 30 | s | Operator disables it in the access software |
 | SN34 | Mantrap interlock (closed time before the other door unlocks) | 3.0 | s | Real interlock cycle |
 | SN35 | Mantrap card-then-iris window | 10 | s | Two factors in one visit |
@@ -199,9 +198,9 @@ Added fields and why:
 ## 7. Co-op
 - The host runs `SecuritySystem` and tests every player (local and remote `PlayerRef`, with the host's light for each, lighting.md). Clients never decide a device state.
 - Clients see: camera yaws (simulated locally from the host clock and the device's sweep, corrected by state), LEDs, beam lines in their own night vision, PIR lamps (through the light state the host sends), reader / iris / mantrap lights, the panel and monitor state, their own HUD arcs for cameras watching them, the radio barks. Door open / lock state already syncs through `doors`.
-- Actions from clients (swipe, take card, fit sniffer, iris scan, panel holds, trip cooling) go through the existing `use` message; the host checks reach (F16) and conditions.
+- Actions from clients (swipe, take card, clone card, iris scan, panel holds, trip cooling) go through the existing `use` message; the host checks reach (F16) and conditions.
 - Cards are owned per player; a card taken by one player is not in another's pocket.
-- New messages (S4 designs them): `sec` {t, cams: [id, yaw, mode], beams: [id, armed, broken], pirs: [id, on], readers: [id, led], mantrap: [id, phase], panel: {looped, camsOff, beamsOff}, cards: [cardId, ownerId], arcs: [cameraId, meter]} sent when changed or every 2 s; `secEv` {kind: beamBreak | granted | refused | cameraDown | fault | revoked | sniffed, id, at} for one-off cues.
+- New messages (S4 designs them): `sec` {t, cams: [id, yaw, mode], beams: [id, armed, broken], pirs: [id, on], readers: [id, led], mantrap: [id, phase], panel: {looped, camsOff, beamsOff}, cards: [cardId, ownerId], arcs: [cameraId, meter]} sent when changed or every 2 s; `secEv` {kind: beamBreak | granted | refused | cameraDown | fault | revoked | cloned, id, at} for one-off cues.
 
 ## 8. Controls
 All through the existing contextual interact (pad Y, keyboard E, touch action button; holds use the existing hold progress). Prompt words:
@@ -210,8 +209,8 @@ All through the existing contextual interact (pad Y, keyboard E, touch action bu
 | Use a valid card | Swipe card | Tap |
 | No valid card | No access | Shown greyed |
 | Take card (object) | Take card | Tap |
-| Take card (body) | Search for card | Hold SN31 |
-| Fit sniffer | Tap reader | Hold SN32 |
+| Take card (takedown) | none: automatic, HUD "Card taken" | - |
+| Clone a held guard's card | Clone card | Hold SN32 |
 | Iris with held person | Scan eye | Hold SN37 |
 | Panel | Loop cameras / Cameras off / Beams off | Hold SN22 / SN23 |
 | Fault | Trip cooling | Hold SN25 |
@@ -221,7 +220,7 @@ Panel options: the nearest unused action shows; repeated interact cycles them (S
 | Step | New files | Unit tests | seclab contents | e2e checks (scripts/e2e-seclab.mjs) |
 | --- | --- | --- | --- | --- |
 | S1 cameras and desk | `src/config/security.ts`; `src/security/data.ts` (types, JSON parse and validation for every kind); `camera.ts` (sweep yaw, frame test, meter via `sightRate` / `stepMeter`); `desk.ts` (manned test, event log, panel flags, faults); `securitySystem.ts` (wiring: rays, enemy calls); `securityView.ts` (instanced housings, LEDs, monitors); `src/world/maps/seclab.ts` + `seclab.security.json` | data validation; sweep timing (SN13-15); frame test; derived detection times SN08-10 within 10%; unmanned log and review; loop / off flags; fault reset | Lit pad and dark pad under a fixed camera; a sweeping camera; desk with operator; panel; a fault point; a guard to dispatch | lit pad detected within SN08 + 0.5 s; dark pad not in 10 s; sweep gap; shot camera offline and a guard dispatched; desk emptied -> no dispatch, review on return; loop -> no detection |
-| S2 access | `src/security/access.ts` (cards, readers, sniffers, revoke); `mantrap.ts` (interlock machine); `iris.ts` (enrolled, conscious, reach) | grant / refuse; unlock timer; sniffer copy; revoke; interlock never opens both; card-then-iris window; knocked-out person refused | Reader door; card in a drawer; a guard with a card on a route through a sniffable reader; mantrap with card and iris; an enrolled guard to grab | swipe opens, relocks; refuse leaves locked; sniffer captures a guard swipe; mantrap interlock; grab + scan opens; unconscious refused |
+| S2 access | `src/security/access.ts` (cards, readers, clones, revoke); `mantrap.ts` (interlock machine); `iris.ts` (enrolled, conscious, reach) | grant / refuse; unlock timer; card on takedown; clone from a held guard; revoke; interlock never opens both; card-then-iris window; knocked-out person refused | Reader door; card in a drawer; a guard with a card to take down and one to grab and clone; mantrap with card and iris; an enrolled guard to grab | swipe opens, relocks; refuse leaves locked; takedown gives the card; clone from a grabbed guard opens the door; mantrap interlock; grab + scan opens; unconscious refused |
 | S3 beams and PIR | `src/security/beam.ts` (segment vs capsule, break timer); `pir.ts` (range, speed, timer) | capsule vs high beam standing / crouched; low beam walking / jumping; SN42 heights rejected by validation; PIR at each gear (SN51) | High beam, low beam, a stacked pair, the panel; PIR lamp over a corridor with a switch | crouch passes high beam; walk breaks low beam, jump clears it; panel off disarms; PIR on at gear 2, off at gear 1; switch and shot lamp stop it |
 | S4 co-op, controls, facts | `sec` and `secEv` in `src/net/protocol.ts` (+ `parseMessage`, `tests/net.test.ts`); host send / client mirror in the net layer; prompt words; facts rows for SN numbers in 00-facts.md and the level-design section 12 rows (with Michael's OK) | message parse and clamps; client mirror from a literal snapshot | Same seclab, `?net=local` | 2 and 4 players: a client breaks a beam and the host dispatches; client swipe; client sees camera yaw within 5 deg of the host |
 
@@ -254,11 +253,11 @@ All S1-S3 logic is Babylon-free with Vitest tests. Each step runs `npm run check
 - ASK: the HUD awareness arcs (`ui/hud/awareness.ts`) are fed by enemies; S1 checks they can take a camera as a source without a new HUD system.
 - ASK: how shots reach non-light targets (`PlayerWeapons.onRay` -> `StealthSystems.shotRay`); S1 adds the camera box test beside `lightOnRay` only if the hook is open to it.
 
-## 12. Questions for Michael
-1. Shot camera: (a) a manned desk sends a guard after video loss (recommended); (b) nobody notices; (c) it raises the full alarm.
-2. Cloning: (a) sniffer at the reader copies the next guard's swipe (recommended); (b) hold a cloner to a grabbed or downed guard's card; (c) hold at the reader to bypass it once.
-3. Keycards on guards: (a) search the body (hold) after a takedown (recommended); (b) taken automatically on any takedown; (c) only from desks and grabbed holders.
-4. Iris enrolment: (a) the night duty engineer only (recommended, fits objective 5); (b) the engineer and the escort officer; (c) every S5 guard.
-5. Cameras or beams switched off at the panel: (a) noticed by the operator SN24 later, who sends a guard (recommended; looping is the silent option); (b) never noticed.
+## 12. Questions for Michael (answered 2026-10-10)
+1. Shot camera: a manned desk sends a guard after video loss (2.1).
+2. Cloning: hold a cloner to a grabbed guard's card (2.3); a downed guard's card comes with the takedown (Q3).
+3. Keycards on guards: taken automatically on any takedown of the holder (2.3).
+4. Iris enrolment: the night duty engineer only.
+5. Cameras or beams switched off at the panel: noticed SN24 after the desk is next manned; a guard is sent (2.2).
 
 Self-check: 6 systems, each with 2+ counters (section 4); only the existing functions in section 10; every number in section 5 or quoted from 00-facts.md / the code; no instant fail (worst case is the existing alarm and reinforcements); line count under 320.

@@ -34,9 +34,10 @@
 - 2026-10-10 S0: docs/kestrel/S0-security-spec.md (264 lines, DRAFT). Six systems, 2+ counters each, numbers SN01-SN67 (proposals; detection times derived from PERCEPTION).
   Alerts only through existing functions: Enemy.notice / searchAt / alert, EnemyManager.lightsOut / hear / alarms -> onAlarm -> reinforce. No instant fail.
   Map file adds fields door2, enrolled, controls, responders, minPlayers and kind fault (reasons in section 6).
-  6 ASK items (private alarm and ray helpers, civilian grab, closed InteractKind, HUD arcs, shot hook). 5 questions for Michael.
+  6 ASK items (private alarm and ray helpers, civilian grab, closed InteractKind, HUD arcs, shot hook). 5 questions for Michael, answered the same day and applied to the draft (clone from a held guard, cards on takedown).
 - 2026-10-10 P00: branch feature/kestrel made from ct-movement (e60c835). RULES.md saved word for word. 00-facts.md: 33 rows read from code and docs; 4 notes under NOT FOUND (nav ladder standoff, drainpipe climb speed, lighting doc numbers, F28 key is "type"). Coordinates: north +Z, east +X, up +Y. Three scripts/e2e-dead-line*.mjs files are not covered by RULES section 4.
 
 ## Decisions by Michael
+- 2026-10-10 S0 questions: a shot camera makes a manned desk send a guard; cloning = hold a cloner to a grabbed guard's card; keycards are taken automatically on any takedown of the holder; the iris enrols the night duty engineer only; cameras or beams switched off at the panel are noticed when the desk is next manned (a guard is sent).
 
 ## BLOCKED
