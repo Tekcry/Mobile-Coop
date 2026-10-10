@@ -9,11 +9,12 @@
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
-| P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
-| P02 | Building brief | DRAFT (reopened by the P03B revision) | c805978 | 2026-10-11 |
+| P01 | Mission brief | DRAFT (campus redesign) | 30fad8a | 2026-10-11 |
+| P02 | Building brief | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
-| P03B | Block plan | DRAFT (massing walk revision) | c805978 | 2026-10-11 |
-| B0 | Massing walk | DRAFT (must rerun with the new blocks) | 57aaf6c | 2026-10-10 |
+| P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
+| P03R | Campus review | not started | | |
+| B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -76,6 +77,17 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - Lighting is a flat day look (no lamps); interiors are readable but the undersides of the slabs are black. Wall corners outside the building show a small notch.
 
 ## Decisions by Michael
+- 2026-10-11 Campus redesign after the massing walk (RULES.md sections 1, 2, 12 updated; every design stage reruns):
+  - Mission 1 is a campus of two buildings: A (2004 original: offices, security room, night operations desk, records) and B (2021 phase 2: secure data hall, meet-me room, Pell's cage), joined at first-floor level by an enclosed link bridge; shared grid, materials and storey logic, not identical. Objectives 1-4 at the site and in A, 5-6 in B, 7 out through the yard.
+  - Control ladder: a real control at every zone boundary and move inward, plus knowledge gates; each control has a realistic alternative with a cost.
+  - Secret routes, each with a real reason to exist: service tunnel, pipe rack, link bridge roof, cooling supply shaft (rappel, bolted alarmed grille), corridor ceiling voids (never into rooms whose walls run to the slab), risers with fixed ladders, smoke vents, carrier manhole and vault, underfloor void under B's hall with hinged hatches.
+  - B's hall is entered only from upstairs (mantrap, secure corridor, gallery, stair down); its ground equipment door is locked, no outside handle or reader, opens only from inside, alarmed, never a way in.
+  - Extra rooms: gas suppression, indoor generator hall with catwalks, CCTV equipment, key safe, customer staging and shipping cage, tape library, customer lounge, post room, locker room, media destruction. Office floors: corridor-only suspended ceilings, 1.5 m crawl void, about 4.2 m floor to floor.
+  - Ghost rule: every objective in order can be done as a perfect ghost (no detection, alarm, takedown, kill or grab); every critical-path control has a no-contact solution. Investigations are allowed if nobody is seen; the cooling trip is not an alarm; fire alarm, gas warning and anything raising the alarm level are. Grab, takedown, clone-by-grab and fire-alarm lock release stay as louder alternatives only.
+  - Scope: site at most 110 x 80 m; each building at most 48 x 30 m; about 8 guarded spaces plus the way out; critical path 450-650 m; solo ghost run 35-45 min, speedrun 12-16 min; 20 guards plus 1 civilian (night duty engineer); at most 12 awake through dormant guards (S5 may test a higher desktop cap as a recorded decision, not by default); roster table to be redone in the P01 revision.
+  - Performance: desktop is the performance target; the phone is for quick light-preset tests only, no stage tunes for it; phone controls must still work.
+  - Order: P01 revision (campus), P02 campus brief, P03B campus block plan, P03R campus review, B0 massing walk rerun, CAM camera fix, then P04-P05, early walk B1-B2 then BR, P04S, P06-P10, B3, B4, S1-S4, B4S, BR, S5, B5, B6, BR, B7.
+  - The "secure entry upstairs" revision was stopped and not applied; its ideas carry into the campus brief.
 - 2026-10-10 P03B approval: add a ground-floor staff WC (G27) in zone 3 off G20, P04 places it; depot facade 7.0 m, viaduct 9.0 m to its deck; the three A07 block-arch failures are accepted until P04's real doors.
 - 2026-10-10 P03B questions: loading bay G07 sits under the first floor at 3.0 m clear (brief 4.0; P04 records it); carrier manhole X10 moves to the north service strip beside the vault (short duct), reached from G22's exit-only fire door along the strip, brief 02 updated (revision row P03B Q2); critical path 388 m accepted.
 - 2026-10-10 P03 Part C questions: A07 corner rule applies to corridors and play-space rooms only (service rooms just need the door inside the wall); mantrap ring 4 and A29 steps 1-2-3-4-5 with 3+ beside 3 only; A11 takes dog-leg stairs and the stair cores go back to 6.0 m; fire stair stays 3.0 wide and the customer cage 3.5 deep (brief deviations for P04).
