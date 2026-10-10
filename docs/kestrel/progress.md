@@ -12,7 +12,7 @@
 | P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
 | P02 | Building brief | APPROVED | d0fc54f | 2026-10-10 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
-| P03B | Block plan | DRAFT | 5539e12 | 2026-10-10 |
+| P03B | Block plan | DRAFT | 5ff1e6f | 2026-10-10 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
