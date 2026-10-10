@@ -1,5 +1,5 @@
 # Cinder Yard - building brief
-Status: DRAFT
+Status: APPROVED (2026-10-10)
 
 Cinder Yard is a small carrier-neutral colocation data centre run by Ostler Colocation on an old railway goods
 yard in the Kestrel district of Hollowmere, under the viaduct. It opened in 2004 and was refitted in 2021.

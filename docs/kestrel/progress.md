@@ -10,7 +10,7 @@
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
-| P02 | Building brief | DRAFT | 637770f | 2026-10-10 |
+| P02 | Building brief | APPROVED | d0fc54f | 2026-10-10 |
 | P03 | Tools | not started | | |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
