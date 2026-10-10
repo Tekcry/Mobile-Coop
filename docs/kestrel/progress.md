@@ -9,7 +9,7 @@
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
-| P01 | Mission brief | DRAFT (campus redesign, revised) | d8103c6 | 2026-10-11 |
+| P01 | Mission brief | DRAFT (campus redesign, civilians and two tracks) | pending | 2026-10-11 |
 | P02 | Building brief | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
@@ -35,6 +35,10 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P01 revision (civilians, traversal, two tracks; fixes 1-8): 01-mission-brief.md 299 lines, DRAFT. 20 guards + 7 civilians (night duty engineer, NOC operator, night cleaner in A; facilities engineer, remote-hands technician, two visiting tenant engineers in B). Generator test moved to the facilities engineer; the freed guard post is the B ground rounds officer.
+  Two tracks: A (card, cameras, cage number and key safe code, key safe) and B (reach B, scout, B credential, take position) meet at the secure zone, which needs one item from each (roof shaft: roof key + B's roof; riser: B credential + cameras looped). Beats keep ids B1-B10 with a track column. New 4.4 civilian opportunities, civilian column in 4.2, traversal rows (zip line not used).
+  Time: solo 42.5 min (17 moving, 25.5 waiting); split team 36-39 min. RULES.md: sections 1 (two tracks, traversal), 2 (guards and civilians), 12 (S6). New ASK-16 to 19.
+  Downstream: P02, P04S, P07, P08, S5, S6 recheck (lines at the end of the brief); TALLY radio line still names the duty engineer.
 - 2026-10-11 CAM camera fix: diagnosis on the B0 map: kestrel geometry already blocks the camera (one static G.STATIC body); the faults were the single thin ray (camera 1 cm inside a corridor wall, 4 cm past the hit allowed), the shoulder point only pulled 75% back and the pivot never tested from the head, no floor or ceiling test (2 cm under a 1.5 m ceiling), and the near plane cutting walls 1-3 cm away (G20, S-MAIN, S-FS1, S-FS1R).
   Fix: src/player/shoulderCamera.ts sphere casts head -> pivot -> shoulder -> camera, up / down probes, near plane only while close; pure maths src/player/cameraBounds.ts; numbers in src/config/camera.ts; ShapeCastResult export in src/core/babylon.ts. tests/cameraBounds.test.ts (17), scripts/e2e-camera-bounds.mjs (REQUIRED, COVERS the camera files).
   Checks: e2e-camera-bounds 13 of 13 pass (old camera: corridor 40-43 bad frames per run, S-MAIN 115, S-FS1 63); yard within 0.27% of the old framing; check: lint, build pass, 779 of 780 tests (kestrelMap copy test fails before and after: docs blocks wait for the B0 rerun); e2e:quick all pass (e2e-touch KNOWN FLAKY; e2e-desktop:1 failed a performance-note save once, passed alone).
@@ -89,6 +93,7 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 P01 revision: 20 guards plus 7 civilians (each with an employer and a job); two parallel tracks (A in Building A, B in Building B) that meet at the secure zone, which needs one thing from each; every movement the engine supports appears at least once on a real element; no zip line on this campus (saved for a future mission); S6 civilians added to the build order after S5.
 - 2026-10-11 CAM exception to RULES section 11: the CAM session may change the third-person camera code and src/config/camera.ts; nothing else in src/player, src/ai or the movement config.
 - 2026-10-11 Campus redesign after the massing walk (RULES.md sections 1, 2, 12 updated; every design stage reruns):
   - Mission 1 is a campus of two buildings: A (2004 original: offices, security room, night operations desk, records) and B (2021 phase 2: secure data hall, meet-me room, Pell's cage), joined at first-floor level by an enclosed link bridge; shared grid, materials and storey logic, not identical. Objectives 1-4 at the site and in A, 5-6 in B, 7 out through the yard.
