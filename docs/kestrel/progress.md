@@ -4,7 +4,7 @@
 | --- | --- | --- | --- | --- |
 | P00 | Setup, rules, facts | APPROVED | 8945ddb | 2026-10-10 |
 | S0 | Security systems spec | APPROVED | d7881b6 | 2026-10-10 |
-| S1 | Cameras and security desk | DRAFT (Part A done, Part B to run) | see git log | 2026-10-10 |
+| S1 | Cameras and security desk | DRAFT (Part A done, Part B to run) | 478c3b8 | 2026-10-10 |
 | S2 | Card readers, keycards, mantrap | not started | | |
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
