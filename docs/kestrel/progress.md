@@ -19,10 +19,10 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
-| V0 | Chaos Theory toolkit spec | APPROVED | 75b2813 | 2026-10-11 |
+| V0 | Chaos Theory toolkit spec | DRAFT (revision: pistol secondary) | 75b2813 | 2026-10-11 |
 | V1 | Toolkit: wall hug, optic cable | not started | | |
 | V2 | Toolkit: lockpick, hacking | not started | | |
-| V3 | Toolkit: mission kit, jammer, shocker, interrogation | not started | | |
+| V3 | Toolkit: mission kit, pistol secondary, shocker, interrogation | not started | | |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -42,6 +42,10 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 V0 revision (pistol secondary, fixes 1-8): ct-toolkit.md 3.5 is now the pistol secondary (jammer and disruptor merged, ten rows, DRAFT again); 3.6 points to it; sections 2, 4, 5, 6, 7, 8, 9 updated; backlog item 22 removed; V3 row renamed.
+  No secondary-fire or fire-mode input exists (actions.ts:2-52; `fireMode` is semi / auto data, weaponDefs.ts:41). Proposed: desktop H, pad A while aiming, touch "Pulse" chip; V3 confirms. New map field `disrupt` (section 5).
+  Handover.md: lines 43-47 edited clause by clause (they also carry the rest of the approved kit), fix 7 line added once.
+  Cascade: touches no other stage; nothing after V0 reads the spec yet (V1-V3 not started, P04 onward not started).
 - 2026-10-11 P03T campus tools: facts site limit 110 x 80; meta.buildings, level footprint lists, rooms[].building, level H, ring-exempt INFO. check.mjs: A21 (buildings 48 x 30 inside the site, no overlap), A14 over rect lists, new A31, A29 lists exempt openings as INFO notes; plans.mjs: building outlines and ids, bay grid per building, exterior and services filtered on overlapping levels; expand.mjs: level stack follows level footprints. schema.md 1, 2, 5, 6, 7 updated (+32 lines).
   Baseline (sample 27 PASS / 0 WARN / 0 FAIL, blocks 25 / 1 / 1) unchanged per check id; A31 PASS on both; blocks shows one INFO line under A29 (D-B-DUCT). Old plan SVGs identical. Tool tests 79 -> 91 pass. npm run check: lint and build pass, 779 of 780 tests (kestrelMap copy test fails before and after: waits for the B0 rerun).
   Not tested: A30 on a campus layout built with modules (its serving test compares floors only, schema 6). Downstream: P03B uses meta.buildings, level footprint lists, rooms[].building and level H; the B0 rerun must update src/world/maps/kestrelGeo.ts and kestrel.ts, which read meta.footprint and one footprint rect per level (kestrelGeo.ts:85).
@@ -111,6 +115,7 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 V0 revision: the camera jammer and light disruptor are one pistol secondary function (Chaos Theory OCP style), always available in every mission, not a kit tool; it disables lights and electronics briefly on a recharge.
 - 2026-10-11 P02 ASK-6: the 1.2 m raised-floor pedestal grid stays in the brief as a real fact; pedestals are "not modelled", so P04 and the builds leave them out of level U.
 - 2026-10-11 P02 questions: generator hall is a separate wing behind B (1.5 m passage); key-only and exit-only doors (manhole, fire exits, passage door, wing doors, compound gates) are exempt from the zone step rule; office corridors 2.4 m clear under the 1.5 m void accepted; sizes A 36 x 24, B 48 x 30, site 108 x 76 accepted.
 - 2026-10-11 P02 campus brief: handover.md 'Decisions to carry into P02' adopted as Michael's decisions.

@@ -1,15 +1,15 @@
 # Chaos Theory toolkit - spec (V0)
-Status: APPROVED (Michael, 2026-10-11)
+Status: DRAFT (V0 revision 2026-10-11: pistol secondary; was APPROVED 2026-10-11, Michael re-approves)
 
-Michael's decision (2026-10-11): the engine gets the full Chaos Theory toolkit; each mission offers only the tools that suit it, through a mission kit (section 4). This file is the spec the build sessions V1-V3 follow (section 7). V1-V3 build only Dead Line's kit (Michael, 2026-10-11); the light disruptor (3.6), ring airfoil (3.8) and knife (3.10) keep their specs here for later missions (docs/backlog.md items 22-24). Splinter Cell: Chaos Theory is a design reference only; no names, art or text from it.
+Michael's decision (2026-10-11): the engine gets the full Chaos Theory toolkit; each mission offers only the tools that suit it, through a mission kit (section 4). This file is the spec the build sessions V1-V3 follow (section 7). V1-V3 build only Dead Line's kit (Michael, 2026-10-11); the ring airfoil (3.8) and knife (3.10) keep their specs here for later missions (docs/backlog.md items 23-24). The camera jammer and light disruptor are one tool, the pistol secondary (3.5): part of the pistol, always available, not a kit tool (Michael, 2026-10-11). Splinter Cell: Chaos Theory is a design reference only; no names, art or text from it.
 
 ## 1. Rules for every tool
-- **Realism.** Each tool is real equipment used the way a real operative would use it. Real-world facts are tagged `(general knowledge)`; where unsure the text says so. Where no real device exists, the section says so plainly (3.6).
+- **Realism.** Each tool is real equipment used the way a real operative would use it. Real-world facts are tagged `(general knowledge)`; where unsure the text says so. Where no real device exists, the section says so plainly (3.5).
 - **Ghost rule** (RULES.md section 1). Each tool is tagged **ghost-safe** (never knocks anyone down, grabs anyone or raises an alarm; a guard may investigate a noise, a light or a fault as long as nobody sees the player) or **louder only** (knocks down, grabs or alarms; never the only way past a control).
 - **Detection.** No new detection model. Tools use what exists: guard sight through `Enemy.perceive` (light x stance x motion x exposure, F24), noise through `EnemyManager.hear(pos, radius)` (src/ai/enemyManager.ts:483), light changes through `EnemyManager.lightsOut(x, z)` (enemyManager.ts:258) and `LightRegistry.disrupt` (src/world/lights.ts:196), cameras through S0 2.1, dispatches through S0's dispatch rule (S0 section 2 header). Civilians use the same perception (bible 5.7).
 - **Numbers.** Every number is `(TUNE)` (a proposal the build session puts in a new `src/config/tools.ts` and tunes) or carries its source id (F.. from 00-facts.md, SN.. from S0-security-spec.md section 5, or a code line). No existing tuning value in src/config changes.
 - **Camera.** The camera fix (CAM, 2026-10-11) stays on for every tool: sphere casts head -> pivot -> shoulder -> camera, up / down probes, low-space framing under 1.9 m clear, near plane only while close (src/player/shoulderCamera.ts, src/player/cameraBounds.ts, src/config/camera.ts). Each tool lists only what it needs on top.
-- **Co-op.** The host decides every outcome (lock open, hack result, camera jammed, person down). Clients send requests through the existing `use` message (S0 section 7) or the weapon / grenade path; the host checks reach (F16: 1.5 m height rule) and the kit (section 4). New body poses go into the `MoveState` mode enum (docs/ct-movement.md Phase 1: later phases add modes to this enum only).
+- **Co-op.** The host decides every outcome (lock open, hack result, camera disabled, person down). Clients send requests through the existing `use` message (S0 section 7) or the weapon / grenade path; the host checks reach (F16: 1.5 m height rule) and the kit (section 4). New body poses go into the `MoveState` mode enum (docs/ct-movement.md Phase 1: later phases add modes to this enum only).
 - **Animation.** Every new clip meets the realism standard (bible 5.12.2); contact sheets are a PC run.
 
 ## 2. Inputs
@@ -20,12 +20,15 @@ Tools use existing inputs wherever possible. Bindings marked "proposal" are chec
 | Contextual use (pick, hack, cut, question, SWAT turn) | E (existing interact) | Y (existing) | Action button (existing) |
 | Wall hug | E facing a high wall with nothing else in reach, or a move key held into the wall | Y, or left stick held into the wall | Action button "Wall", or move stick held into the wall |
 | Optic cable (new action `optic`) | F (proposal) | R3 (proposal) | "Optic" chip beside the action button, shown only in reach |
-| Wheel tools (jammer, disruptor, shocker, airfoil) | Tab wheel to select, G hold to aim, release to fire (jammer: fires while held) | D-pad left hold (wheel), D-pad right hold / release (existing `grenade`) | Existing wheel and gadget button |
+| Wheel tools (shocker, airfoil) | Tab wheel to select, G hold to aim, release to fire | D-pad left hold (wheel), D-pad right hold / release (existing `grenade`) | Existing wheel and gadget button |
+| Pistol secondary (new action `secondary`, always available) | H (proposal; free in keyBindings.ts:44-70) with the pistol drawn: hold to aim, release to fire | A while aiming (proposal; every other button and the D-pad are bound, gamepadMapping.ts:58-75) | "Pulse" chip beside Fire, shown while the pistol is drawn (button table, touchControls.ts:21-29) |
 | Lockpick minigame | Mouse moves the pick round a dial (A / D also turn it) | Left stick angle | Drag a finger round the dial |
 | Hack minigame | Left click (proposal) locks a column | A (proposal) | Tap the column |
 | Leave a tool | A move key away (proposal) | B (proposal) or stick away | Back chip or move stick away |
 
 Lockpick and hacking are minigames only, with no hold alternative (Michael, 2026-10-11).
+
+Pistol secondary: no secondary-fire or fire-mode input exists. `BUTTON_ACTIONS` has no such action (src/input/actions.ts:2-52); `fireMode` is only semi / auto weapon data (src/weapons/weaponDefs.ts:41). The bindings above are proposals for V3 to confirm with grep; if one is taken V3 stops and asks Michael.
 
 Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move > CT move > traversal > interact > wall hug. The wall hug is last so it never steals a mantle, a door or a pickup.
 
@@ -87,34 +90,23 @@ Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move >
 | Co-op | Minigame local; result to the host with `use` (kind `hack`), minimum time as 3.3. The host applies the service (door unlock through `doors`, intel flag to the team: RULES section 1, intel is shared). |
 | Camera | Close framing as 3.3, pivot at the screen or keypad. The minigame overlay leaves the edges of the view clear. |
 
-### 3.5 Camera jammer
+### 3.5 Pistol secondary (camera jammer and light disruptor, merged)
+Michael, 2026-10-11 (no real equivalent): one tool, the pistol's secondary function, in the Chaos Theory manner. It is part of the pistol and always available in every mission; it is not a kit tool (section 4) and not on the wheel. One shot at a lamp, camera or other powered device disables it for a short time, then it comes back on by itself. Lights and electronics only, never people. It runs on a recharge, not ammunition.
 | Item | Spec |
 | --- | --- |
-| Fiction | A handheld infrared dazzler: a strong infrared LED beam aimed at a camera washes out its picture; many CCTV cameras see infrared and people do not (general knowledge). Radio jamming would not stop wired IP cameras, so the tool is optical (general knowledge). |
-| Works on | S0 CCTV cameras (fixed and sweep) within range and in line of sight. Not: PIR sensors, beam receivers (they filter steady infrared; general knowledge, not certain), people, lamps. |
-| Controls | Select on the wheel; hold the gadget input to raise and aim, jamming while held and on target; release to stop. |
-| States and timing | Battery 10 s (TUNE); recharges fully in 20 s (TUNE) only while not in use. Range 15 m (TUNE; under camera range SN03 18 m, so a far camera cannot be jammed from where it sees you). On target = aim within 5 deg (TUNE) of the housing (SN05). Jammed camera: detection meter stops rising and falls by `stepMeter`; frame tests skipped. Jam continuous for more than 4 s (TUNE): the camera logs an "image fault" event at its position. |
-| Noise and light | Silent. Its light is infrared: not in the gameplay light field, never seen by guards. The beam shows in night vision for every player (like beam lines, S0 3). |
-| Noticed by | Guards and civilians see the body as normal; the beam is invisible to them. Cameras: as above. |
-| Security (S0) | New camera mode `jammed` beside `online / looped / off / destroyed` (S0 2.1 State). Image fault events: manned desk dispatches a guard to the camera (S0 dispatch); unmanned, logged (S0 2.1). Looped or off cameras need no jamming. |
-| Ghost rule | Ghost-safe (a fault dispatch is an investigation). |
-| Co-op | The client sends jam start / stop with the camera id; the host checks range, line and battery (battery simulated on both, host wins) and sets `jammed`. The mode syncs in S4's `sec` message (S4 adds `jammed` to its camera modes). |
-| Camera | Existing ADS framing (F23). No extra. |
+| Fiction | Michael, 2026-10-11 (no real equivalent). No fielded real device switches off a lamp or a camera from a pistol; it is near-future fiction, as in Chaos Theory (general knowledge). The infrared dazzler idea behind camera jamming is real, but a pistol emitter that also cuts a lamp is not. |
+| Works on | Lamps (including PIR lamps, S0 2.6 "Off") and S0 CCTV cameras (fixed and sweep). Other powered devices only where map data lists `disrupt: true` (section 5); none planned for Dead Line. Never: people, card readers, keypads, iris scanners, the mantrap, beams, the alarm panel (disabling a control would skip a mission control). |
+| Controls | Section 2 (`secondary`, proposal; V3 confirms). With the pistol drawn: hold to aim, release to fire. The shot needs a full recharge. Not offered while the pistol is not the drawn weapon. |
+| States and timing | One shot, then recharge 6 s (TUNE); no ammunition, the magazine is untouched. A shot that hits nothing uses the charge. Range 30 m (TUNE). Hit tolerance radius 0.5 m (TUNE). Lamp: `LightRegistry.disrupt` on the hit lamp for 10 s (TUNE), then on again. Camera: offline 10 s (TUNE) through the same timed offline state as the EMP (S0 2.1 Shot / EMP), then back online with its sweep phase kept; V3 adds a camera mode `disabled` only if the EMP path cannot take a per-hit time. |
+| Noise and light | The shot is silent (0 m, TUNE). Its beam is infrared: not in the gameplay light field and never seen by guards; it shows in night vision for every player (render only, like beam lines, S0 3). The lamp goes out through the light registry, so the screen, the meter and guards agree (light parity, bible 5.1). |
+| Noticed by | The shot is not seen or heard. Guards and civilians see the player's body as normal (F24). A camera going offline for 10 s raises no video-loss event (S0 2.1 Shot / EMP), so it dispatches nobody and S0 2.2's unmanned log gets no entry. A lamp that goes out is a light out: a calm guard with the lamp in view investigates the spot through `lightsOut` (enemyManager.ts:258; bible L9). A disabled PIR lamp stays off, so its turning on alerts nobody (S0 2.6 Off). |
+| Security (S0) | Camera: the S0 2.1 Shot / EMP path, no video-loss event. Lamp: `disrupt` stops the PIR lighting it (S0 2.6 Off). The desk, the panel flags and the loop / off states (S0 2.2) are untouched. Nothing here raises the security alarm level. |
+| Ghost rule | Ghost-safe when nobody sees the player. A disabled lamp or camera is not an alarm and does not raise the alarm level; who notices it and when is as in "Noticed by" and S0 2.1, 2.2 and 2.6. A guard who investigates the dark lamp is allowed if he never sees the player (RULES.md section 1). |
+| Co-op | The client sends the shot through the weapon path with the target id; the host checks range, line of sight and the charge (recharge simulated on both, host wins), then applies `disrupt` or the camera's timed offline. Each player has their own charge. Light state syncs (bible L10); the camera state syncs in S4's `sec` message. |
+| Camera | Existing ADS framing (F23: boom 1.5). |
 
 ### 3.6 Light disruptor
-Not built in V3 (backlog item 22).
-| Item | Spec |
-| --- | --- |
-| Fiction | No fielded real device does this (general knowledge): a pistol attachment that switches off a lamp or a camera for a few seconds is near-future fiction. A later mission decides whether it fits. |
-| Works on | Lamps (including PIR lamps, S0 2.6 "Off") and S0 cameras. Not: readers, keypads, iris, beams, people. |
-| Controls | Select on the wheel; hold the gadget input to aim with the sidearm, release to fire. |
-| States and timing | One shot, then recharge 6 s (TUNE). Range 30 m (TUNE). Lamp: `LightRegistry.disrupt` on the hit lamp for 10 s (TUNE), radius 0.5 m (TUNE). Camera: offline 10 s (TUNE) with no video-loss event, as S0's EMP rule. |
-| Noise and light | Shot silent (TUNE: 0 m). The lamp goes out through the light registry, so the screen, the meter and guards agree (light parity, bible 5.1). |
-| Noticed by | Guards with the lamp in view respond as to a light out (bible L9, `lightsOut`): an investigation. |
-| Security (S0) | Camera offline as above; PIR lamp stops while disrupted. |
-| Ghost rule | Ghost-safe. |
-| Co-op | Shot through the existing weapon path; the host applies `disrupt`; light state syncs (bible L10). |
-| Camera | Existing ADS framing (F23: boom 1.5). |
+Merged into 3.5 (Michael, 2026-10-11).
 
 ### 3.7 Sticky shocker
 | Item | Spec |
@@ -175,12 +167,12 @@ Not built in V3 (backlog item 24). Lethal takedowns stay as they are without it.
 | Camera | Takedown camera as now. Cut: close framing as 3.3. |
 
 ## 4. Mission kit
-- **Tool ids.** New pure `src/game/tools.ts`: `ToolId = 'wallHug' | 'optic' | 'lockpick' | 'hack' | 'jammer' | 'shocker' | 'interrogate'` (the built tools; `disruptor`, `airfoil` and `knife` join when a later session builds them) and a `TOOLS` table (name, use: `verb` / `wheel` / `launcher`, ghost tag, battery or rounds).
+- **Tool ids.** New pure `src/game/tools.ts`: `ToolId = 'wallHug' | 'optic' | 'lockpick' | 'hack' | 'shocker' | 'interrogate'` (the built kit tools; `airfoil` and `knife` join when a later session builds them). The pistol secondary (3.5) is not a `ToolId`: it belongs to the pistol and is always available, in every mission and in no-kit modes and a `TOOLS` table (name, use: `verb` / `wheel` / `launcher`, ghost tag, battery or rounds).
 - **Mission data.** `MissionDef` (src/game/missions.ts:49) gets an optional `kit`: `{ tools: ToolId[], gadgets: { <GadgetId>: count }, rounds: { shocker?: n, airfoil?: n } }`. `validateMissions` throws on an unknown id (as it does on a bad objective type) and clamps counts to `GADGETS[id].max` (src/game/gadgets.ts). `wallHug` is always added: it is a movement (bible 4 P4), not equipment.
 - **No kit** (sandbox, training, existing missions): every tool and every gadget's normal carry, so current content does not change.
 - **At run time.** `GameState` builds `GadgetInventory` from the kit (gadgets not in the kit carry 0) and a kit set that every tool checks before it offers a prompt. A tool not in the kit shows no prompt, does not appear on the wheel, has no HUD battery and its input does nothing.
 - **Loadout screen** (src/ui/screens/loadoutScreen.ts). In a mission with a kit: the gadgets page lists only kit gadgets; a read-only "Mission kit" panel lists the tools with rounds and batteries (every player carries the whole kit, as in Chaos Theory); a preset naming a gadget outside the kit falls back to the kit's first gadget. Weapons stay under the bible's loadout kits (5.6).
-- **Wheel.** Kit gadgets plus the kit's wheel tools (jammer and shocker now; disruptor and airfoil when built); `wheelSlot(x, y, slots)` already takes the slot count.
+- **Wheel.** Kit gadgets plus the kit's wheel tools (shocker now; airfoil when built; the pistol secondary is not on the wheel); `wheelSlot(x, y, slots)` already takes the slot count.
 - **Co-op.** Every peer reads the same mission definition; the host rejects tool requests outside the kit.
 - **Debug.** `?kit=all` gives the full toolkit in any mode (tests and the tool lab map).
 
@@ -194,6 +186,7 @@ Proposed fields; P06 adds them to the play schema (docs/kestrel/schema.md) and P
 | `alarm` | cars | `true` / `false` | 3.3 |
 | `hack` | terminals, keypads | `{ tier: terminal or keypad, services: [ "intel:<flag>", "unlock:<doorId>", "fault:<faultId>" ] }` | 3.4 |
 | `cut` | tarps, sheeting, screens | `true` | 3.10 |
+| `disrupt` | powered devices other than lamps and cameras | `true` (default false; none planned for Dead Line) | 3.5 |
 | `lines` | mission data per guard or civilian id | 1-3 lines, optional `reveals: <flag>` | 3.9 |
 Every placed item keeps a `reason` (RULES section 5): why a real site has that lock, terminal or tarp there.
 
@@ -205,12 +198,11 @@ Judged against the control ladder and the ghost rule (RULES.md section 1). The k
 | Optic cable | In | Many closed doors, the raised-floor hatches into level U, the corridor ceiling voids and the roof shaft top: look before committing. Sealed doors (gas room, data hall, mantrap) refuse it, so the secure zone keeps its scouting cost (gallery, hatch, shaft). Ghost-safe. |
 | Lockpick | In | Track B's no-contact credential: the technician's locker and the car door (badge in the glovebox; the key in the door stays the silent way, an alarmed car's picked door is louder). Card doors, the key safe, the mantrap and iris refuse it. Recommendation to P06: Pell's cage lock `high` (or a code lock) so the cage number and key safe code stay knowledge gates. |
 | Hacking | In | Objective 4 is a records lookup: the records PC is the realistic place to read the cage number and the key safe code. Keypads (the B-tier PIN) get a hack with a cost (tamper dispatch) beside the PIN-on-a-note answer. Services are listed per terminal so no hack loops the cameras or opens the secure zone (objective 3 stays at the security room). |
-| Camera jammer | In | Track B crosses cameras before Track A blinds the security room; a short jam is the ghost answer there, a long one gets a guard sent. Battery stops it replacing objective 3. |
-| Light disruptor | Out | No real equivalent (3.6). Bible L8's two ways to change light are already met by switches, breakable lamps, the fuse boxes and EMP. |
 | Sticky shocker | In (2 rounds, TUNE) | One non-lethal ranged recovery tool for players who get spotted; louder only, rated. |
 | Ring airfoil | Out | Same role as the shocker and the elbow strike; one launcher round type keeps the slice small. |
 | Interrogation | In | The grab is already in Dead Line as a louder answer (iris, clone card). Questioning gives the louder answer to the knowledge gates (PIN, cage number, who is enrolled). |
 | Knife | Out | No cuttable element is planned on the campus, and lethal takedowns exist without it. Revisit if P06 gives a real reason for one (for example dust sheeting on a fit-out). |
+Pistol secondary (3.5) is always available; it is not part of any kit.
 Existing gadgets in the kit: noisemaker, sticky cam, EMP and sleeping gas at their normal carry (`GADGETS`, src/game/gadgets.ts:33-37). Out: frag and mine (lethal explosives on a site with civilians), flashbang (loud, overlaps gas), tri-rotor (parked).
 
 ## 7. Build plan (V1-V3)
@@ -220,13 +212,13 @@ Preconditions for each: V0 APPROVED and CAM APPROVED. RULES.md section 11 except
 | --- | --- | --- | --- | --- | --- |
 | V1 | Wall hug (slide, peek, door-frame peek, lean-aim, SWAT turn, corner takedown); optic cable (doors, hatches, panels, grilles, shaft top); snap cover in `src/cover` replaced and deleted, with its tests and e2e checks (bible Phase 3; Michael, 2026-10-11) | New `src/player/wallHug.ts` (pure face and edge finder), `wallHugController.ts`, `src/player/opticCable.ts` (pure tip placement), `src/config/tools.ts`, `src/world/maps/toollab.ts`. Changed: `src/net/moveState.ts` (modes `wall`, `optic`), `src/config/camera.ts` (`ATTACH_FRAMING.wall`), `src/player/shoulderCamera.ts` (tip pose), input files (`optic` action), `src/ui/prompts.ts` | face height and length rules; edge detection at corners and door frames; tip placement and refusal (sealed, no gap, wall behind); SWAT gap limit | enter only within 0.6 m; slide speed = gear; peek exposes the head only (guard meter slower than standing); SWAT turn crosses a doorway; optic view under a door shows a guard; sealed door refused; camera never behind the hugged wall (CAM checks); 2-player pose sync | Hug a corridor wall and peek both ways; SWAT turn across an open door; optic under a door, through a raised-floor hatch and a grille; same on the phone |
 | V2 | Lockpick (tiers, minigame); hacking (terminals, keypads, services, failure); lock and hack map fields; the security event hook | New `src/game/lockpick.ts`, `src/game/hack.ts` (pure), `src/ui/hud/` minigame overlays, `locks` net list. Changed: `src/world/doors.ts` (`lock` tiers), interactables, `src/net/protocol.ts` (`use` kinds `pick`, `hack`) | pin model and sweet spot; slip; kept progress; minimum-time check; hack columns, wrong lock, lockout; services applied only from data; tamper and failure events | wafer locker opens; `high` and reader refused; slip noise heard by a guard at 2 m, not at 4 m; car alarm on an alarmed car only; hack reads an intel flag; failure locks out and logs an event; client pick accepted, too-fast pick rejected | Pick a locker, a door and a car on desktop, pad and phone; hack a terminal and a keypad; judge whether both minigames are fair on the phone |
-| V3 | Mission kit (section 4); camera jammer; multi-tool launcher with the sticky shocker; interrogation. Not the disruptor, airfoil or knife (backlog 22-24) | New `src/game/tools.ts`, `src/game/jammer.ts` (pure battery), shocker rounds in the weapon data. Changed: `src/game/missions.ts` (`kit`, `validateMissions`), `src/game/gadgets.ts` callers, `loadoutScreen.ts`, wheel, `src/security/camera.ts` (`jammed`), `src/game/takedown.ts` (question) | kit validation and defaults; wheel and loadout filtering; battery drain and recharge; jam stops the meter; 4 s fault event; shocker outcome; interrogation lines and flags | kit hides out-of-kit prompts and wheel slots; jammer blinds a camera, battery runs out, long jam logs an event; shocker knocks out; question sets a flag for both players | Pick a mission with a kit and see the loadout; jam a sweeping camera; shock and question a guard in toollab |
+| V3 | Mission kit (section 4); pistol secondary (3.5, the merged jammer and disruptor); multi-tool launcher with the sticky shocker; interrogation. Not the airfoil or knife (backlog 23-24) | New `src/game/tools.ts`, `src/game/pistolSecondary.ts` (pure recharge, range and target filter), shocker rounds in the weapon data. Changed: `src/game/missions.ts` (`kit`, `validateMissions`), `src/game/gadgets.ts` callers, `loadoutScreen.ts`, wheel, `src/security/camera.ts` (timed disable), `src/input/` (`secondary` action, `keyBindings.ts`, `gamepadMapping.ts`, `touchControls.ts`), `LightRegistry` callers, `src/game/takedown.ts` (question) | kit validation and defaults; wheel and loadout filtering; recharge and range; target filter (lamps and cameras only, never people or readers); disabled camera stops the meter and comes back; no alarm or event raised; shocker outcome; interrogation lines and flags | kit hides out-of-kit prompts and wheel slots; one shot disables a camera and a lamp and both come back by themselves; recharge blocks a second shot; no alarm level change; out-of-range client request rejected; shocker knocks out; question sets a flag for both players | Pick a mission with a kit and see the loadout; shoot a lamp and a sweeping camera with the pistol secondary on desktop, pad and phone; shock and question a guard in toollab |
 
-Order: the handover order already reads "toolkit builds V1-V3 (all before B3)". V1, V2 and V3 run after P10 and must all be APPROVED before B3 starts, so B3 builds the map with the tools in hand. S1 Part B wires the hack and jammer events to the desk; S4 adds `jammed` to `sec`; S6's civilians get questioning through the grab.
+Order: the handover order already reads "toolkit builds V1-V3 (all before B3)". V1, V2 and V3 run after P10 and must all be APPROVED before B3 starts, so B3 builds the map with the tools in hand. S1 Part B wires the hack events to the desk; S4 adds the camera's disabled state to `sec`; S6's civilians get questioning through the grab.
 
 ## 8. Questions for Michael (answered 2026-10-11)
 1. Dead Line's kit: approved as proposed.
-2. Light disruptor, ring airfoil and knife: not built in V3; V3 builds only Dead Line's kit. Specs stay here; backlog items 22-24.
+2. Ring airfoil and knife: not built in V3; V3 builds only Dead Line's kit. Specs stay here; backlog items 23-24. (The light disruptor is built, merged with the jammer into the pistol secondary, 3.5; Michael, 2026-10-11.)
 3. Snap cover: V1 replaces it with the wall hug and deletes it.
 4. RULES.md section 11 exception: granted for V1-V3 as listed (section 7); it also brings the toolkit into the RULES.md section 2 scope.
 5. Lockpick and hacking: minigames only, no hold alternative.
@@ -234,5 +226,15 @@ Order: the handover order already reads "toolkit builds V1-V3 (all before B3)". 
 ## 9. Self-check (V0)
 - Every tool in section 3 has all ten rows (fiction, works on, controls, states and timing, noise and light, noticed by, security, ghost rule, co-op, camera): pass.
 - Every number is (TUNE) or carries F.., SN.., a bible section or a code line: pass.
-- Ghost-safe tools never knock down, grab or alarm; tools that do (corner takedown, shocker, airfoil on a person, interrogation, knife takedown, alarmed car) are louder only: pass.
+- Ghost-safe tools never knock down, grab or alarm; tools that do (corner takedown, shocker, airfoil on a person, interrogation, knife takedown, alarmed car) are louder only: pass. The pistol secondary is ghost-safe when nobody sees the player: a disabled lamp or camera is not an alarm and does not raise the alarm level (S0 2.1, 2.2, 2.6): pass.
 - Under 400 lines: pass.
+
+## Revision log
+| Date | Fix # | What changed (sections) | Status |
+| --- | --- | --- | --- |
+| 2026-10-11 | 1 | 3.5 rewritten as the pistol secondary (ten rows); 3.6 is a pointer; header, 1, 5 and 8 follow | done |
+| 2026-10-11 | 2 | Section 2 (wheel row, new `secondary` row and grep note), section 4 (ToolId, wheel) | done; no existing input, binding proposed for V3 to confirm |
+| 2026-10-11 | 3 | 3.5 Noticed by, Security, Ghost rule; section 9 ghost line | done |
+| 2026-10-11 | 4 | Section 6: two rows removed, one line added | done |
+| 2026-10-11 | 5 | Section 7: V3 row and order line | done |
+| 2026-10-11 | 6-8 | Outside this file: backlog.md, progress.md, handover.md | done (see progress.md log) |
