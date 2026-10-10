@@ -64,12 +64,12 @@ Total 20 guards + 1 civilian. At most 12 are awake at once (F21 MAX_ALIVE); the 
 6. A broker sells private links: each party orders a cross-connect to his panel, so traffic never touches the public internet and the only record is the order. His circuits sit side by side in the meet-me room, labelled by cage number.
 7. A passive tap is an optical splitter clipped into one jumper. It copies a share of the light without breaking the line. It goes on the patch end in the meet-me room because the cage is locked mesh under cameras.
 
-Cards and codes (all findable without contact): the master card (A's readers) is in the duty manager's desk drawer; the B-tier card (B's readers, higher tier) is in the key safe, whose PIN is written in the shift key log in the records room; the escort PIN (B's readers accept it instead of the card) is on a note in the night engineer's locker in the locker room, where he keeps it because it changes monthly.
+Cards and codes (all findable without contact): the master card (A's readers) is in the duty manager's desk drawer; the B-tier card (B's readers and the carrier riser door, higher tier) and the roof maintenance key (4.1) are in the key safe, whose PIN is written in the shift key log in the records room; the escort PIN (B's readers accept it instead of the card) is on a note in the night engineer's locker in the locker room, where he keeps it because it changes monthly.
 
 | # | Where | Person, record or device | Player does | Why now | Unlocks | Risk |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1 Inside the perimeter | Lane, perimeter fence (site) | Lane fence (F14); sensor lamps | Climb the fence into the yard. Completion is a zone trigger: ASK-2 | First step | The yard | Sensor lamp trips; fence rattle at gears above 3 |
-| 2 Keycard | A ground floor, duty manager's office (S2) | Master card in his desk drawer | Take the card while he is on his walk (S0 "Take card") | The security zone and ops need it; nothing earlier carries a reader | Security room, CCTV room, key safe room, ops, records, riser door | Manager returns; rounds officer; reception officer |
+| 2 Keycard | A ground floor, duty manager's office (S2) | Master card in his desk drawer | Take the card while he is on his walk (S0 "Take card") | The security zone and ops need it; nothing earlier carries a reader | Security room, CCTV room, key safe room, ops, records | Manager returns; rounds officer; reception officer |
 | 3 Blind the security room | CCTV equipment room beside the security room (S3) | Intrusion panel; the monitor wall is next door | Panel: Loop cameras or Cameras off, and Beams off (S0). Completion rule ASK-3 | Cameras and beams cover A's first floor, the bridge, B and the hall | Safe movement through S4-S6 | Desk operator next door; supervisor away only part of the cycle; "off" is noticed 10 s after the desk is manned |
 | 4 Pell's cage number | A first floor, records room (S4); the ops terminal holds the same register | Customer file and shift key log; register on the engineer's terminal (F27), objective type intel (F28) | Read the file in the records room | Needs the card (2) and unwatched corridors (3) | Cage number, the key safe PIN, who is iris-enrolled | Corridor patrol; escort; ops desk officer; the engineer at the terminal |
 | 5 Secure zone | B: data hall, reached by a ghost route (4.1) | Roof cooling shaft, or the carrier route | Get into the hall, or into the meet-me room. Completion is a zone trigger: ASK-2 | Needs the cage number (4) | The hall, Pell's cage, the meet-me room | Pair; cameras; the shaft grille alarm |
@@ -84,7 +84,7 @@ Ghost = never detected, no alarm, nobody knocked out, killed or grabbed. Every o
 | 2 | Enter A by the admin office window left ajar, or the goods-in door in the loader's gap; take the master card from the manager's drawer on his walk | Takedown (card taken); clone-by-grab |
 | 3 | Panel in the CCTV equipment room (master-card reader, out of the operator's sight): Loop cameras, Beams off | Take the operator down and use the desk; shoot cameras (a manned desk sends a guard) |
 | 4 | Customer file and key log in the records room (master card) | Read the ops terminal with the engineer present (he flees and raises the alarm); grab or take down the engineer |
-| 5 | Roof cooling shaft: reach B's roof (smoke vent at the top of a fire stair, the link bridge roof or the pipe rack), isolate the grille's alarm contact, unbolt it, rappel into the hall. Or the carrier route: manhole, vault, service tunnel, riser to the meet-me room | Grab the engineer or the duty manager to the iris in the mantrap; fire-alarm lock release (alarm); break the grille (alarm) |
+| 5 | Roof cooling shaft: reach B's roof (smoke vent at the top of a fire stair, the link bridge roof or the pipe rack), isolate the grille's alarm contact with the maintenance key from the key safe, unbolt it, rappel into the hall. Or the carrier route: manhole, vault, service tunnel, riser to the meet-me room (riser door: B-tier card or PIN) | Grab the engineer or the duty manager to the iris in the mantrap; fire-alarm lock release (alarm); break the grille (alarm) |
 | 6 | From the hall the meet-me room reader takes the B-tier card or PIN (or arrive by the riser); trip cooling to draw off the roaming officer; fit the tap from the side of the panel the contractor's seat does not see | Take the contractor down; clone a B-tier card by grab |
 | 7 | Back down the riser, along the tunnel, up the manhole into the yard, then to the vehicle gate or loading apron under the test noise | Out of the hall's equipment door (opens from inside, alarmed); a run across the yard |
 
@@ -98,10 +98,10 @@ Ghost = never detected, no alarm, nobody knocked out, killed or grabbed. Every o
 | A ground floor to first floor | Fire stair, ops and records readers | Cage number is in the records | Master card; records file | Grab the engineer |
 | Link bridge | Reader at each end; post on B's side; camera | B end takes the B-tier card (key safe, PIN in the key log) or the escort PIN (engineer's locker note) | Cross in the post's gap, or skip the bridge by the roof or the pipe rack | Fire alarm releases the magnetic locks (alarm); clone-by-grab |
 | B mantrap | Outer door B-tier card or PIN; inner door card plus iris | Who is enrolled (register: engineer, manager) | None through it: skip by the fire stair and roof, or the carrier route | Grab an enrolled person to the iris; fire-alarm release (alarm) |
-| B roof to hall | Bolted, alarmed cooling shaft grille | Where the contact isolator is | Isolate, unbolt, rappel | Break the grille (alarm) |
+| B roof to hall | Bolted, alarmed cooling shaft grille | Maintenance key (key safe room), key switch box beside the grille | Isolate with the key, unbolt, rappel | Break the grille (alarm) |
 | Hall aisles | Cameras, pair, lit aisles, beams | The pair's round | Cameras looped; switch bank on the gallery; underfloor void | Shoot the aisle lights |
 | Hall to meet-me room | Reader | B-tier card or PIN | As the bridge | Clone-by-grab from the mantrap post |
-| Carrier entrance | Manhole cover (lift noise F19); riser door reader | Where the manhole is (LANTERN) | Lift while the yard patrol is away; master card at the riser door (ASK-9) | Run the yard |
+| Carrier entrance | Manhole cover (lift noise F19); riser door reader | Where the manhole is (LANTERN); B-tier card or PIN | Lift while the yard patrol is away; B-tier card or PIN at the riser door | Run the yard |
 | Meet-me room to Pell's panel | Contractor, roamer, camera | Cage number | Lure, gap, blind side | Take the contractor down |
 
 ### 4.3 Secret routes
@@ -114,7 +114,7 @@ Ghost = never detected, no alarm, nobody knocked out, killed or grabbed. Every o
 | Smoke vents | B6, B7 | Opened from the top of a fire stair to clear smoke; the fire service reaches the roof |
 | Link bridge roof | B6 | Flat roof joining A's and B's roofs; maintenance crosses it to the roof plant |
 | Pipe rack | B6 | Carries chilled water and power from A's plant to B (phase 2 shares A's chillers); horizontal pipes |
-| Roof cooling supply shaft | B8 | Feeds cooled air down into the hall; the grille is bolted and alarmed, with a hoist beam above for lifting fan units |
+| Roof cooling supply shaft | B8 | Feeds cooled air down into the hall; the grille is bolted and alarmed, with a key switch box beside it for maintenance and a hoist beam above for lifting fan units |
 | Hall underfloor void (level U) | B8 | Raised-floor space for cable and cold air, with hinged hatches through the aisles |
 
 ## 5. Optional objectives
@@ -234,12 +234,12 @@ LANTERN: Then we've nine nights. Come home.
 - ASK-6: if waking a guard would pass the awake cap (F21, 12), S5 decides which earlier guards go dormant again.
 - ASK-7: whether the noise model can mask footsteps near the generator (F19 lists no masking). If not, the generator is a story reason only.
 - ASK-8: the engineer is a civilian and must be grabbable for the louder iris route (S0 section 11).
-- ASK-9: which doors the carrier route has and whether the master card opens the riser door (P04S).
+- ASK-9: closed (Michael, 2026-10-11): the riser door takes the B-tier card or PIN. P04S confirms the other doors on the route.
 - ASK-11: "undetected" as a ghost condition; the bible lists only the four rules.
 - ASK-12: closed (Q3): all guards armed.
-- ASK-13: the shaft grille's alarm contact and its isolator: S0 has no such device. Proposal: a switch (F27) on the roof plant, held; P04S decides if it joins the security file. The hoist beam is the rappel anchor (F13).
-- ASK-14: PIN gates and the fire-alarm lock release are not in S0 (RULES 2: no other new systems). Proposal: a PIN is an intel pickup (F27) that sets a flag a reader or the key safe accepts; the fire-alarm release is dropped unless S2 builds it. No ghost solution depends on the fire alarm.
-- ASK-15: ghost counters "nobody knocked out" and "nobody grabbed" are not in the bible's four rules; B6 decides how to count them.
+- ASK-13: decided (Michael, 2026-10-11): a maintenance key switch in a box beside the grille on B's roof isolates its alarm contact; the key is in the key safe room. P04S decides whether it joins the security file. The hoist beam is the rappel anchor (F13).
+- ASK-14: decided (Michael, 2026-10-11): a PIN is an intel pickup (F27) that sets a flag a reader or the key safe accepts. The fire-alarm lock release is not in S0 (RULES 2) and is dropped unless S2 builds it; no ghost solution depends on it.
+- ASK-15: decided (Michael, 2026-10-11): "nobody knocked out" and "nobody grabbed" are new rating counters beside the bible's four; B6 builds them.
 
 ## 13. Questions for Michael (answered 2026-10-10)
 1. Triggers: assume the bible 5.8 triggers and actions. Objective 1 completes on a zone trigger; completing objective 6 starts the generator test (ASK-2 closed).
@@ -248,7 +248,7 @@ LANTERN: Then we've nine nights. Come home.
 4. Alarm fail: alarms never fail the mission; only killing the civilian does.
 5. Dormant guards: left to P07. Proposal in ASK-5 is a default only.
 
-Downstream: P02 must confirm the space-to-zone mapping in section 6, place the loading apron or vehicle gate, the carrier manhole, the CCTV equipment room beside the security room, the key safe room, the locker room, the link bridge and the pipe rack. P03B and P03R must recheck the beats and the three secret roofs (vent, bridge roof, rack). P04S must recheck: panel in the CCTV room (ASK-3), the riser door (ASK-9), the grille isolator (ASK-13), bridge readers and the post, and that beats B5 and B9 each have a live beam. S2 must recheck PIN gates and the B-tier card (ASK-14). P07 must recheck the 20 guards and 8 dormant (ASK-5), the bridge post gap and that the S7 roamer covers the riser door. P08 must recheck the hall highlight (section 9) and the ghost counters (ASK-15).
+Downstream: P02 must confirm the space-to-zone mapping in section 6, place the loading apron or vehicle gate, the carrier manhole, the CCTV equipment room beside the security room, the key safe room, the locker room, the link bridge and the pipe rack. P03B and P03R must recheck the beats and the three secret roofs (vent, bridge roof, rack). P04S must recheck: panel in the CCTV room (ASK-3), the riser door on the B-tier card or PIN (ASK-9), the grille key switch (ASK-13), bridge readers and the post, and that beats B5 and B9 each have a live beam. S2 must recheck the PIN intel flag, the B-tier card and the key safe (ASK-14). P07 must recheck the 20 guards and 8 dormant (ASK-5), the bridge post gap and that the S7 roamer covers the riser door. P08 must recheck the hall highlight (section 9) and the ghost counters (ASK-15).
 
 ## Revision log
 | Date | Fix # | What changed (sections) | Status |
@@ -270,3 +270,4 @@ Downstream: P02 must confirm the space-to-zone mapping in section 6, place the l
 | 2026-10-11 | C8 | Sections 7 (pipe rack, rappel, voids, risers, vents), 8 (41 min), 12 (ASK-13, ASK-14) | done |
 | 2026-10-11 | C9 | Section 9 (hall highlight on the gallery, solo way kept) | done |
 | 2026-10-11 | C10 | RULES.md section 2 (site line, levels line) | done |
+| 2026-10-11 | Q | Michael's answers: sections 4 (cards, 4.1, 4.2), 4.3, 12 (ASK-9, 13, 14, 15), downstream | done |
