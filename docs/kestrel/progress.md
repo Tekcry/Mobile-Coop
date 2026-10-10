@@ -11,7 +11,7 @@
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
 | P02 | Building brief | APPROVED | d0fc54f | 2026-10-10 |
-| P03 | Tools | DRAFT (Part A done, Parts B and C to run) | | 2026-10-10 |
+| P03 | Tools | DRAFT (Parts A and B done, Part C to run) | | 2026-10-10 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -31,6 +31,8 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 P03 Part B: scripts/kestrel/check.mjs (A01-A27, SC01-SC06, empty GAMEPLAY CHECKS (P09) section; exports runChecks) and check.test.mjs (39 tests: clean sample, a trip case per FAIL/WARN check, CLI exit codes, missing fact = SKIP; all pass). Fixed Part A's flaw in plans.mjs: a room label now goes where it clears stairs, voids and objects (full, then narrow, then small font), else into a callout column right of the site with a leader line; void label moved above its rect. Sample: downpipe E001 moved to x 17.5 (A02 grid). New facts: render.labelSteps, labelSpread, calloutGap, calloutPad.
+  Schema calls to confirm: stairs[].flights is optional (default = fewest flights at 18 risers or less, straight run); fire-door = exit-only (SC02); opening end-clearance measured from the opening's near edge; A14 uses meta.footprint for every upper level; A20 counts floors plus non-noLedge object tops at 1.9 m or more; the checker FAILs a wall that is not on the X or Z axis. All in schema.md section 6.
 - 2026-10-10 P03 Part A: docs/kestrel/schema.md, scripts/kestrel/facts.json (about 150 leaves, each with src), lib.mjs (shared loader and clear-size helper, added so Parts B and C reuse it), plans.mjs (SVG + PNG per level; --play and --security overlays), docs/kestrel/sample.arch.json. Rendered the sample (G, F, and with a scratch play and security file); walls, door arc, window, hatched stair with UP/DN, voids, labels all drawn. Prompt's play schema was cut off; Michael re-sent it and schema.md uses the full version.
   Schema calls to confirm: rooms[].open holds edge letters W/S/E/N; ring may be "3+"; lamp, switch and service points are [x, y, z]; a door leaf swings toward between[1]; devices[].level may be an id or a name. No rule number is typed in the scripts (only drawing arithmetic).
 - 2026-10-10 P02 revision: fixes 1-2 applied to 02-building-brief.md (291 lines, DRAFT). G06's only door now opens from G20 (window onto G01 kept), so no zone-2 door into 3+. Fire stair 1 (G24/R02) moved from NE to the SE corner of the front block; both fire stairs serve the first floor (first-floor escape ~24 m). Area sums unchanged. Downstream: P04, P06 recheck G06 and G24.

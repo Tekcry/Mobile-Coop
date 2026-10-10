@@ -1,7 +1,7 @@
 # Kestrel plan files - schema
 Status: DRAFT (P03 Part A)
 
-Three JSON files describe the map before any code: `kestrel.arch.json` (the building), `kestrel.play.json` (the play layer, filled by P06-P08) and `kestrel.security.json` (the security devices, shape from S0 section 6). `scripts/kestrel/plans.mjs` draws them, `scripts/kestrel/check.mjs` checks them (Part B). Every number a tool tests comes from `scripts/kestrel/facts.json`.
+Three JSON files describe the map before any code: `kestrel.arch.json` (the building), `kestrel.play.json` (the play layer, filled by P06-P08) and `kestrel.security.json` (the security devices, shape from S0 section 6). `scripts/kestrel/plans.mjs` draws them, `scripts/kestrel/check.mjs` checks them. Every number a tool tests comes from `scripts/kestrel/facts.json`.
 
 ## 1. Conventions
 - Metres. A point is `[x, z]`; north is +Z, east is +X, up is +Y (00-facts section 2). Origin is the south-west corner of the site at ground floor level.
@@ -12,6 +12,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 - Every coordinate except object edges sits on `meta.grid` (0.5 m). Object edges sit on `meta.objectGrid` (0.1 m).
 - An opening's `at` is the distance from wall end `a` to the opening's centre, along the wall.
 - `ring` is one of `1, 2, 3, "3+", 4, 5` (zones of the building brief section 11: S1 = 1, S2 = 2, S3 = 3+, S4 = 3, S5 = 4, S6 = 5). `"3+"` counts as one step above `3`.
+- The tools assume walls run along the X or Z axis, and a stair is one straight run in the `up` direction (A01, A11).
 - Edges of a rect, for a room's `open` list: `"W"` (x0), `"S"` (z0), `"E"` (x1), `"N"` (z1).
 
 ## 2. Architecture (kestrel.arch.json)
@@ -59,7 +60,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | openings[].wall | Wall id the opening sits in |
 | openings[].at, w | Centre distance from wall end `a`, and clear width |
 | openings[].h, sill | Opening height and sill height above the floor |
-| openings[].type | Door, double door, fire door, window, arch, roller door, hatch, gate or grille |
+| openings[].type | Door, double door, fire door, window, arch, roller door, hatch, gate or grille. A `fire-door` is exit-only: no handle on the lower-zone side (SC02) |
 | openings[].between | The two room ids it joins; an empty string means outside |
 | openings[].locked, key | Whether it is locked and which key or card opens it |
 | openings[].reason | Who uses it and why it is there (level-design 16.3.1) |
@@ -69,6 +70,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | stairs[].up | Direction of climb on the plan |
 | stairs[].width | Clear stair width |
 | stairs[].risers | Total risers: floor-to-floor / 0.165, rounded |
+| stairs[].flights | Optional. Number of straight flights; default is the fewest that keep each flight at or under the per-flight maximum (A11) |
 | ladders[].id, room | Unique id and the plant or shaft room it stands in |
 | ladders[].at | `[x, z]` of the ladder foot |
 | ladders[].from, to | Level ids it joins |
@@ -208,3 +210,11 @@ Drawing conventions the renderer chose where this schema is silent:
 - A door's leaf is hinged at the `a` end of its opening and swings toward `between[1]` (toward the left of the wall direction when that room is empty or unknown).
 - A stair is hatched on its `from` level with an UP arrow and drawn dashed with a DN arrow on its `to` level; a ladder is drawn on both its levels.
 - An exterior element or service is drawn on every level whose height span it touches.
+- A room label that does not fit inside its room clear of the stairs, voids and objects (for example a stair core filled by its stair) goes to a callout column right of the site, with a leader line to a dot in the room.
+
+## 6. Checker (scripts/kestrel/check.mjs)
+`node scripts/kestrel/check.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--register docs/kestrel/04-plans.md]` prints one line per check (PASS, WARN, FAIL, SKIP or INFO) and indented lines for each violation, then the counts. It exits 1 if any check FAILs. A check that needs a fact missing from facts.json prints SKIP (no fact). Tests: `node --test scripts/kestrel/check.test.mjs`.
+- Architecture: A01-A27 (always run; A24 needs `--register`). A19 is an INFO table, A10, A16, A18 and A27 only WARN.
+- Security: SC01-SC06 (need `--security`).
+- Play: the `// GAMEPLAY CHECKS (P09)` section of check.mjs is empty until P09. `--play` is read now only by A27.
+- Where the prompt table is open to two readings the checker uses: an opening must keep its near edge (not its centre) the end-clearance from the wall end; a walkable surface over a cell is a level floor (a room not under a void) or a non-`noLedge` object top at or above the auto-lip height; an upper level must be covered over `meta.footprint`; a split-jump face is a wall face or a floor-standing object face on one level.

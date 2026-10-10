@@ -39,7 +39,7 @@
     { "id": "O002", "level": "F", "name": "Plan chest", "rect": [3.5, 10.5, 5.5, 11.3], "h": 1.0, "y": 0, "noLedge": false, "reason": "Drawing storage for the office." }
   ],
   "exterior": [
-    { "id": "E001", "kind": "downpipe", "a": [17.2, 2], "b": [17.2, 2], "y0": 0, "y1": 6.6, "climbable": true, "reason": "Cast-iron rainwater downpipe at the south-east corner." }
+    { "id": "E001", "kind": "downpipe", "a": [17.5, 2], "b": [17.5, 2], "y0": 0, "y1": 6.6, "climbable": true, "reason": "Cast-iron rainwater downpipe at the south-east corner." }
   ],
   "services": [
     { "id": "SV01", "kind": "power", "path": [[3, 0, 3], [3, 3.0, 3], [10, 3.0, 3]], "size": [0.2, 0.1], "reason": "Cable tray from the lobby riser." }

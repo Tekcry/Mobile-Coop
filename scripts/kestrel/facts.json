@@ -205,6 +205,10 @@
     "haloStroke": { "value": 2, "src": "P03 style (drawing only)" },
     "flagFrac": { "value": 0.7, "src": "P03 style: flag width as a fraction of its pole" },
     "triBack": { "value": 0.8, "src": "P03 style (drawing only)" },
-    "lampStroke": { "value": 0.6, "src": "P03 style (drawing only)" }
+    "lampStroke": { "value": 0.6, "src": "P03 style (drawing only)" },
+    "labelSteps": { "value": 7, "src": "P03 style: label candidate spots per axis inside a room" },
+    "labelSpread": { "value": 0.75, "src": "P03 style: fraction of the room the label candidates cover" },
+    "calloutGap": { "value": 4, "src": "P03 style (drawing only): px between a leader line and its text" },
+    "calloutPad": { "value": 3, "src": "P03 style (drawing only): px between stacked callouts" }
   }
 }

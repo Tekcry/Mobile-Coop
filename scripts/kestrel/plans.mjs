@@ -241,22 +241,35 @@ function voidSym(v) {
   const ink = `stroke="#333" stroke-width="${R('thinStroke')}"`;
   return rectEl(r, `fill="none" ${ink} stroke-dasharray="${R('dashMid')}"`)
     + lineEl([r[0], r[1]], [r[2], r[3]], ink) + lineEl([r[0], r[3]], [r[2], r[1]], ink)
-    + textPx(X(r[0]) + R('dotR') / 2, Y(r[3]) + R('fontSmall') + R('dotR') / 2, `${v.id} ${v.kind}`, R('fontSmall'), `fill="#333" ${HALO()}`);
+    + textPx(X(r[0]), Y(r[3]) - R('dotR'), `${v.id} ${v.kind}`, R('fontSmall'), `fill="#333" ${HALO()}`);
 }
 
 const levelSpan = (l) => [l.floor, l.floor + l.height];
 
 const overlap1 = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
 
-/** Room label: the candidate spot (centre first, then quarter offsets) whose text box covers the least of the stairs, voids and objects on the level, and stays inside the room. */
+/** Labels that did not fit inside their room on the level being drawn; drawn in a column right of the site with a leader line. */
+let callouts = [];
+let calloutCol = 0;
+let calloutBottom = 0;
+
+/**
+ * Room label. Tries the full three-line label, then a four-line narrow one, then the narrow one in the small font, on a grid of spots
+ * (nearest the room centre first). The first spot that stays inside the room and clear of every stair, void and object wins.
+ * If none does (for example a stair core filled by its stair), the label goes to the callout column instead.
+ */
 function roomLabel(r, level) {
   const c = clearRect(r, walls);
   const w = c[2] - c[0];
   const d = c[3] - c[1];
-  const lines = [`${r.id} ${r.name ?? ''}`.trim(), `${fmt(w)} x ${fmt(d)} clear`, `zone ${r.ring ?? '?'}`];
+  const title = `${r.id} ${r.name ?? ''}`.trim();
   const size = Math.min(w, d) * S < R('labelSmallBelow') ? R('fontSmall') : R('fontRoom');
-  const bw = Math.max(...lines.map((l) => l.length)) * size * R('charWidth');
-  const bh = lines.length * size * R('lineHeight');
+  const size0 = size;
+  const sizeSmall = Math.min(size, R('fontSmall'));
+  const zone = `zone ${r.ring ?? '?'}`;
+  const wide = [title, `${fmt(w)} x ${fmt(d)} clear`, zone];
+  const narrow = [r.id, r.name ?? '', `${fmt(w)} x ${fmt(d)}`, `clear, ${zone}`].filter(Boolean);
+  const variants = [{ lines: wide, size: size0 }, { lines: narrow, size: size0 }, { lines: narrow, size: sizeSmall }];
   const toPx = (rc) => [X(rc[0]), Y(rc[3]), X(rc[2]), Y(rc[1])];
   const obstacles = [
     ...(arch.stairs ?? []).filter((s) => s.from === level.id || s.to === level.id).map((s) => s.rect),
@@ -265,20 +278,62 @@ function roomLabel(r, level) {
   ].map(toPx);
   const room = toPx(r.rect);
   const [cx, cz] = rectCentre(r.rect);
-  const q = 0.25;
-  let best = null;
-  for (const [fx, fz] of [[0, 0], [-q, 0], [q, 0], [0, q], [0, -q], [-q, q], [q, q], [-q, -q], [q, -q]]) {
-    const p = [cx + fx * w, cz + fz * d];
-    const box = [X(p[0]) - bw / 2, Y(p[1]) - bh / 2, X(p[0]) + bw / 2, Y(p[1]) + bh / 2];
-    let cost = 0;
-    for (const o of obstacles) cost += overlap1(box[0], box[2], o[0], o[2]) * overlap1(box[1], box[3], o[1], o[3]);
-    cost += (bw - overlap1(box[0], box[2], room[0], room[2])) * bh + (bh - overlap1(box[1], box[3], room[1], room[3])) * bw;
-    if (!best || cost < best.cost) best = { cost, p };
+  const n = R('labelSteps');
+  const spots = [];
+  for (let i = 0; i < n; i++) {
+    for (let j = 0; j < n; j++) {
+      const fx = (n > 1 ? i / (n - 1) - 0.5 : 0) * R('labelSpread');
+      const fz = (n > 1 ? j / (n - 1) - 0.5 : 0) * R('labelSpread');
+      spots.push({ p: [cx + fx * w, cz + fz * d], dist: Math.hypot(fx, fz) });
+    }
   }
-  return labelLines(best.p, lines, size, `fill="${INK}" ${HALO()}`);
+  spots.sort((a, b) => a.dist - b.dist);
+  /** Pixels of a w x h box centred on p that fall on an obstacle or outside the room. */
+  const cost = (p, bw, bh) => {
+    const box = [X(p[0]) - bw / 2, Y(p[1]) - bh / 2, X(p[0]) + bw / 2, Y(p[1]) + bh / 2];
+    let sum = 0;
+    for (const o of obstacles) sum += overlap1(box[0], box[2], o[0], o[2]) * overlap1(box[1], box[3], o[1], o[3]);
+    return sum + (bw - overlap1(box[0], box[2], room[0], room[2])) * bh + (bh - overlap1(box[1], box[3], room[1], room[3])) * bw;
+  };
+  for (const v of variants) {
+    const bw = Math.max(...v.lines.map((l) => l.length)) * v.size * R('charWidth');
+    const bh = v.lines.length * v.size * R('lineHeight');
+    const fit = spots.find((s) => Math.round(cost(s.p, bw, bh)) === 0); // whole px2 only: float noise is not an overlap
+    if (fit) return labelLines(fit.p, v.lines, v.size, `fill="${INK}" ${HALO()}`);
+  }
+  // Callout: the leader dot goes where a dot fits best; the text waits in the column.
+  const dotBox = R('dotR') * 2;
+  const dot = spots.reduce((best, s) => (best && cost(best.p, dotBox, dotBox) <= cost(s.p, dotBox, dotBox) ? best : s), null);
+  callouts.push({ lines: variants[0].lines, size: variants[0].size, anchor: dot.p });
+  return '';
+}
+
+/** Draws the queued callouts in a column right of the site, stacked top down, and records the column width and bottom edge. */
+function calloutLayer() {
+  if (!callouts.length) return '';
+  // right of the site and of any exterior element label that runs past the site edge
+  const reach = (arch.exterior ?? []).map((e) => Math.max(X(e.a[0]), X(e.b[0])) + R('dotR') * 1.5 + `${e.id} ${e.kind}`.length * R('fontSmall') * R('charWidth'));
+  const colX = Math.max(X(B[2]), ...reach) + R('legendGap');
+  const heightOf = (k) => k.lines.length * k.size * R('lineHeight');
+  const items = callouts.map((k) => ({ ...k, h: heightOf(k), y: Y(k.anchor[1]) })).sort((a, b) => a.y - b.y);
+  let out = '';
+  let prevBottom = TOP;
+  for (const k of items) {
+    const top = Math.max(k.y - k.h / 2, prevBottom + R('calloutPad'));
+    const mid = top + k.h / 2;
+    prevBottom = top + k.h;
+    out += `<line x1="${X(k.anchor[0])}" y1="${Y(k.anchor[1])}" x2="${colX - R('calloutGap')}" y2="${+mid.toFixed(2)}" stroke="${INK}" stroke-width="${R('markStroke')}"/>`;
+    out += `<circle cx="${X(k.anchor[0])}" cy="${Y(k.anchor[1])}" r="${R('dotR') / 2}" fill="${INK}"/>`;
+    const lh = k.size * R('lineHeight');
+    k.lines.forEach((l, i) => { out += textPx(colX, mid - ((k.lines.length - 1) * lh) / 2 + i * lh + k.size * (1 - R('lineHeight') + 0.55), l, k.size, `fill="${INK}"`); });
+    calloutCol = Math.max(calloutCol, colX - X(B[2]) + Math.max(...k.lines.map((l) => l.length)) * k.size * R('charWidth') + R('legendGap'));
+  }
+  calloutBottom = prevBottom;
+  return out;
 }
 
 function baseLayers(level) {
+  callouts = [];
   const here = (o) => o.level === level.id;
   let out = '';
   for (const r of (arch.rooms ?? []).filter(here)) out += rectEl(r.rect, `fill="${RING_TINT[r.ring] ?? '#eeeeee'}" fill-opacity="${R('tintOpacity')}" stroke="none"`);
@@ -319,6 +374,7 @@ function baseLayers(level) {
     out += polyEl(sv.path.map((p) => [p[0], p[2]]), `stroke="#00838f" stroke-width="${R('thinStroke')}" stroke-dasharray="${R('dashDot')}"`);
   }
   for (const r of (arch.rooms ?? []).filter(here)) out += roomLabel(r, level);
+  out += calloutLayer();
   return out;
 }
 
@@ -508,12 +564,15 @@ function buildSvg(level, kind) {
   const suffix = kind === 'arch' ? '' : kind === 'play' ? `play${security ? ' + security' : ''}` : 'security';
   const [lo] = levelSpan(level);
   const title = `${arch.meta?.id ?? 'plan'} - level ${level.id} ${level.name} (floor ${fmt(lo)} m, floor-to-floor ${fmt(level.height)} m)${suffix ? ' - ' + suffix : ''}`;
-  const Wd = Math.max(SITE_W, 2 * M + title.length * R('fontTitle') * R('charWidth'));
+  calloutCol = 0;
+  calloutBottom = 0;
   let body = baseLayers(level);
+  const Wd = Math.max(SITE_W + calloutCol, 2 * M + title.length * R('fontTitle') * R('charWidth'));
+  const footY = Math.max(FOOT_Y, calloutBottom + M);
   if (withPlay) body += playLayers(level);
   if (withSec) body += securityLayers(level);
   // foot: scale bar with the zone legend beside it, then the play legend rows
-  const barY = FOOT_Y + R('barTick');
+  const barY = footY + R('barTick');
   const barLen = R('scaleBarM') * S;
   let foot = `<line x1="${M}" y1="${barY}" x2="${M + barLen}" y2="${barY}" stroke="#000" stroke-width="${R('barStroke')}"/><line x1="${M}" y1="${barY - R('barTick')}" x2="${M}" y2="${barY + R('barTick')}" stroke="#000"/><line x1="${M + barLen}" y1="${barY - R('barTick')}" x2="${M + barLen}" y2="${barY + R('barTick')}" stroke="#000"/>`;
   foot += textPx(M, barY + R('fontLegend') + R('barTick'), `${R('scaleBarM')} m`, R('fontLegend'), `fill="${INK}"`);
