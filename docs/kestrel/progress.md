@@ -9,7 +9,7 @@
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
-| P01 | Mission brief | DRAFT | pending | 2026-10-10 |
+| P01 | Mission brief | DRAFT | dca28cb | 2026-10-10 |
 | P02 | Building brief | not started | | |
 | P03 | Tools | not started | | |
 | P04 | Floor plans | not started | | |
