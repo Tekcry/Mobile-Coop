@@ -9,7 +9,7 @@
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
-| P01 | Mission brief | not started | | |
+| P01 | Mission brief | DRAFT | pending | 2026-10-10 |
 | P02 | Building brief | not started | | |
 | P03 | Tools | not started | | |
 | P04 | Floor plans | not started | | |
@@ -31,6 +31,9 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 P01: docs/kestrel/01-mission-brief.md (194 lines, DRAFT). Seven objectives mapped to beats B1-B8 (one per space, S1 has none); time 37.5 min (13 moving, 24.5 waiting); tension 1,3,2,4,3,5,4,5.
+  Design calls: duty manager's master card is the one keycard (drawer, takedown or clone); engineer is the iris key, found in the ops register; carrier route in cable chamber under the yard; generator test event-driven.
+  12 ASK items, 5 questions for Michael (triggers, carrier route vs space-skip, guard weapons, alarm fail, which four sleep).
 - 2026-10-10 S1 Part A: cameras only. src/config/security.ts, src/security/ (camera, data, securitySystem, securityView), seclab map (MAPS only, modes [] so it is off the menus), tests/securityCamera.test.ts (19), scripts/e2e-security.mjs (REQUIRED, 18 checks), facts F40-F52. GameState builds SecuritySystem from layout.security and chains weapons.onRay (no src/ai, src/player or movement / camera config change).
   Findings: SN08 and SN10 hold at 1.3 m/s only (10.8 s at SN10 for 1.5 m/s+); sight is one head ray (prompt) not three (S0); the ray helper is the public Ballistics.ray; the guard seat and guard mode (clear) wait for Part B; EMP and HUD arcs not built.
 - 2026-10-10 S0: docs/kestrel/S0-security-spec.md (264 lines, DRAFT). Six systems, 2+ counters each, numbers SN01-SN67 (proposals; detection times derived from PERCEPTION).
