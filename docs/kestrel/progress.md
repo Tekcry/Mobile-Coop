@@ -12,6 +12,7 @@
 | P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
 | P02 | Building brief | APPROVED | d0fc54f | 2026-10-10 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
+| P03B | Block plan | DRAFT | (this commit) | 2026-10-10 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -31,6 +32,9 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 P03B: docs/kestrel/kestrel.blocks.json (36 zones and corridors, B/G/F/R), 03B-block-plan.md (137 lines), plans/blocks-{B,G,F,R}.png. Building x 15-63, z 22-52; first floor front block z 22-37.5; north block hall, gallery, power, meet-me. Critical path 387.7 m.
+  Check: 26 PASS, 1 FAIL (A07: three block arches on 4 m corridor-end walls, left for P04), A30 SKIP (no modules; fire stairs checked by hand).
+  Deviations raised: loading bay 3.0 m under the first floor (brief 4.0), 38 m carrier duct, G23 29 m and F08 48 m long, 4 m north service strip. 5 ASK items, 3 questions.
 - 2026-10-10 P03 Part C revision (Michael's 3 answers): A07 corner rule only for corridors and play-space rooms (rooms[].service added, set by service modules); A29 steps 1-2-3-4-5 with 3+ beside 3 only; mantrap back to ring 4; A11 teaches stairs[].layout "dogleg" (two flights side by side, 1.3 m landing for fire stairs, 2.0 otherwise); stair cores back to 6.0 m as dog-legs, main core uses two 1.3 m flights. Fire stair stays 3.0 wide, cage 3.5 deep (P04 records both as brief deviations). 78 tests pass (check 51, expand 27).
 - 2026-10-10 P03 Part C: module kit. scripts/kestrel/modules.json (37 modules: the 35 listed plus corridor and lift-shaft), expand.mjs (layout to rooms, walls, openings, objects, stairs, ladders, voids; shared walls merge; rotations; manual and untagged items kept; items it wrote carry "gen"), expand.test.mjs (23 tests incl. every module x size x rotation alone in a filler frame), docs/kestrel/sample.layout.json. check.mjs: A28 ring, A29 ring steps, A30 fire stairs / roof / staff WC and janitor (runs only when a room has a module); check.test.mjs now 49. 72 tests pass.
   Fixed Part B bugs found by the kit: A06 counted a collinear wall beside an edge as a gap; A26 flagged each rack against the next-but-one rack and the wall behind its neighbour (now a gap with a tall thing across it is ignored). plans.mjs leaves off an object id that does not fit.
