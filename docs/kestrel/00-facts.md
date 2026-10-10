@@ -1,4 +1,6 @@
 # Kestrel - engine facts
+Status: APPROVED (Michael, 2026-10-10)
+
 Read from the code on 2026-10-10 at commit e60c835. Only these numbers may be used by later stages.
 
 ## 1. Facts
@@ -84,10 +86,7 @@ trunkAnnex.ts
 
 Coverage by RULES section 4: the docs/design files (except dead-line-v2-engine-check.md) are covered; e2e-fp-*.mjs, g1*.mjs and gen-dead-line*.mjs are covered; the six src/world/maps files named there are covered; trunkAnnex.ts and e2e-dead-line-v2.mjs are the build-step exceptions; g1v2-plan.mjs is the P03 exception. `docs/gates/` and `docs/prompts/exchange-*` do not exist now (D0 moved them to docs/archive/).
 
-Not in RULES section 4:
-- scripts/e2e-dead-line.mjs
-- scripts/e2e-dead-line-menu.mjs
-- scripts/e2e-dead-line-v2-menu.mjs
+Not in RULES section 4: none. Michael approved adding scripts/e2e-dead-line.mjs, scripts/e2e-dead-line-menu.mjs and scripts/e2e-dead-line-v2-menu.mjs to section 4 on 2026-10-10 (done).
 
 (`scripts/e2e-dead-line-v2.mjs` is allowed only as a build-step exception, so it too is open to B1-B7 only.) RULES.md was not edited.
 

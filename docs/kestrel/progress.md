@@ -2,7 +2,7 @@
 
 | Stage | Prompt | Status | Commit | Date |
 | --- | --- | --- | --- | --- |
-| P00 | Setup, rules, facts | DRAFT | 8945ddb | 2026-10-10 |
+| P00 | Setup, rules, facts | APPROVED | 8945ddb | 2026-10-10 |
 | S0 | Security systems spec | not started | | |
 | S1 | Cameras and security desk | not started | | |
 | S2 | Card readers, keycards, mantrap | not started | | |

@@ -29,6 +29,7 @@ Michael > this file > APPROVED stage documents in docs/kestrel > docs/level-desi
 - docs/gates/
 - src/world/maps/exchange.ts, deadLine.ts, deadLine.geo.json, deadLineV2.ts, deadLineV2.geo.json, trunkAnnex.data.json
 - scripts/gen-dead-line*.mjs, scripts/e2e-fp-*.mjs, scripts/g1*.mjs
+- scripts/e2e-dead-line.mjs, scripts/e2e-dead-line-menu.mjs, scripts/e2e-dead-line-v2-menu.mjs
 Exceptions, for code shape only (how to call an API), never for layout ideas: build steps may read src/world/maps/trunkAnnex.ts and scripts/e2e-dead-line-v2.mjs; P03 may read scripts/g1v2-plan.mjs.
 
 ## 5. No guessing
