@@ -19,7 +19,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
-| V0 | Chaos Theory toolkit spec | DRAFT (revision: pistol secondary) | 811eaca | 2026-10-11 |
+| V0 | Chaos Theory toolkit spec | APPROVED | 811eaca | 2026-10-11 |
 | V1 | Toolkit: wall hug, optic cable | not started | | |
 | V2 | Toolkit: lockpick, hacking | not started | | |
 | V3 | Toolkit: mission kit, pistol secondary, shocker, interrogation | not started | | |
