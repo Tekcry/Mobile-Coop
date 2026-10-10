@@ -48,7 +48,7 @@ Spaces: S1 yard, S2 ground-floor offices, S3 security room, S4 ops and facilitie
 | Generator test technician | 1 | X | Guarding firm (trained facilities officer; the engineer is the only Ostler employee) | Runs the weekly generator test | Staff rest room until the test | yes |
 | Returning van driver | 1 | X | Guarding firm, extra post paid by Ansell & Crowe | Second officer of the van crew; off site on the lane run, walks back to sign the van sheet | Off site until the test | yes |
 | Night duty engineer (civilian) | 1 | S4 | Ostler Colocation | Watches the building-management screens, signs off the generator test; the only person iris-enrolled for the hall | Ops office | no |
-Total 16 guards + 1 civilian. At most 12 awake (F21): the four asleep at the start are the S6 pair and the exit pair (Q5). The bible's civilian rules (flee to the nearest guard or alarm and raise it; never fight; killing fails the mission) are followed. The engineer's grab for the iris is the S0 civilian-grab ASK (ASK-8).
+Total 16 guards + 1 civilian. At most 12 awake (F21): the four asleep at the start are the S6 pair and the exit pair (P07 chooses, Q5). The bible's civilian rules (flee to the nearest guard or alarm and raise it; never fight; killing fails the mission) are followed. The engineer's grab for the iris is the S0 civilian-grab ASK (ASK-8).
 
 ## 4. The objective chain
 (general knowledge) How a circuit reaches a tenant's cage:
@@ -186,9 +186,9 @@ LANTERN: Then we've nine nights. Come home.
 - ASK-11: "undetected" as a ghost condition; the bible lists only the four rules.
 - ASK-12: guards' kinds: whether an unarmed officer exists is not in F20 (Q3).
 
-## 13. Questions for Michael
-1. Mission triggers (objective 1 zone, and "objective 6 done starts the generator test"): (a) assume the bible 5.8 triggers and actions will exist (recommended), (b) no triggers: objective 1 is an intel pickup just inside the fence and the technician starts the test when his sleep ends, (c) the test starts at a fixed clock time.
-2. The carrier route and Space 5: (a) it passes the corner of S5 (a door the pair's round crosses) so no space is skipped (recommended), (b) it skips S5 as a deliberate exception to LD 3 (needs your written approval), (c) drop the carrier route.
-3. Guard weapons: (a) all 16 carry sidearms (engine default, my assumption), (b) the guarding firm's officers are unarmed (baton and torch) and only Pell's three (van crew, private contractor) are armed. Real contracted guards are normally unarmed (general knowledge).
-4. Alarm fail: (a) alarms never fail the mission; only killing the civilian does (recommended), (b) fail at alarm level 3, (c) fail at alarm level 2.
-5. Which four sleep at the start: (a) S6 pair and exit pair (recommended), (b) S4 escort and corridor patrol plus the exit pair, (c) leave it to P07.
+## 13. Questions for Michael (answered 2026-10-10)
+1. Triggers: assume the bible 5.8 triggers and actions. Objective 1 completes on a zone trigger; completing objective 6 starts the generator test (ASK-2 closed).
+2. Carrier route: it passes a corner of S5 (a door the talking pair's round crosses), so no space is skipped.
+3. Weapons: all 16 guards carry sidearms (ASK-12 closed).
+4. Alarm fail: alarms never fail the mission; only killing the civilian does.
+5. Dormant four: left to P07. The proposal in the people table (S6 pair and exit pair) is a default only.
