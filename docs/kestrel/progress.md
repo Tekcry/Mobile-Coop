@@ -13,6 +13,7 @@
 | P02 | Building brief | APPROVED | d0fc54f | 2026-10-10 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03B | Block plan | APPROVED | 17d8a89 | 2026-10-10 |
+| B0 | Massing walk | DRAFT | | 2026-10-10 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -32,6 +33,10 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 B0 massing walk: src/world/maps/kestrel.ts (builder, any arch-schema file) + kestrelGeo.ts (pure walls, floors, stairs, teleport spots) + kestrel.blocks.json (copy); registered in MAPS and LISTED_MAP_IDS (Sandbox); tests/kestrelMap.test.ts (9), scripts/e2e-kestrel.mjs (REQUIRED, 10 checks), scripts/kestrel/render-top.mjs, docs/kestrel/builds/B0-{B,G,F,R}.png.
+  Checks: npm run check pass (763 tests), build pass, e2e:quick all pass (e2e-touch KNOWN FLAKY failed, unrelated). Tour 301 m (entry, three stair cores, roof, ground landing of fire stair 1, back) walked by the real controller; critical path 382.1 m on the plan (03B: 385.1), 4.9 min crouched at gear 3.
+  Block plan findings (walk notes below): two walls where P04 puts a door (goods lobby to goods, hall to meet-me); fire stair exit doors sit behind the flights and G-FS1 has no door but the exit, so the ground landing is a dead end; camera rule 27: 143 of 628 tour tests hit (111 in the dog-leg cores, 6 at the spawn 0.5 m from the fence, 26 at doors under 1.5 m or inside the A07 corner rule), 0 elsewhere.
+  Builder calls: spawn moved 0.13 m off the fence face (capsule clearance); outside wall corners keep a half-thickness notch (the voxel fit test fails on a half-voxel face); stair flights fill the stair rect (landing as deep as the stair is wide), so flights are gentler than A11's minimum. GPU and perf: pending PC run (renders here are software GL).
 - 2026-10-10 P03B approval changes: staff WC zone G-Z3W (2.5 x 4) off G20 beside a 3 m mantrap; north block shifted 0.5 m east (all zones still at or under 85%); depot facade 7.0 m, viaduct 9.0 m; brief 02 gets G27 (revision row). Check 25 PASS, 1 WARN (A10), 1 FAIL (A07, accepted). Critical path 385.1 m.
 - 2026-10-10 P03B: docs/kestrel/kestrel.blocks.json (36 zones and corridors, B/G/F/R), 03B-block-plan.md (137 lines), plans/blocks-{B,G,F,R}.png. Building x 15-63, z 22-52; first floor front block z 22-37.5; north block hall, gallery, power, meet-me. Critical path 387.7 m.
   Check: 26 PASS, 1 FAIL (A07: three block arches on 4 m corridor-end walls, left for P04), A30 SKIP (no modules; fire stairs checked by hand).
@@ -58,6 +63,14 @@
   Map file adds fields door2, enrolled, controls, responders, minPlayers and kind fault (reasons in section 6).
   6 ASK items (private alarm and ray helpers, civilian grab, closed InteractKind, HUD arcs, shot hook). 5 questions for Michael, answered the same day and applied to the draft (clone from a held guard, cards on takedown).
 - 2026-10-10 P00: branch feature/kestrel made from ct-movement (e60c835). RULES.md saved word for word. 00-facts.md: 33 rows read from code and docs; 4 notes under NOT FOUND (nav ladder standoff, drainpipe climb speed, lighting doc numbers, F28 key is "type"). Coordinates: north +Z, east +X, up +Y. Three scripts/e2e-dead-line*.mjs files are not covered by RULES section 4.
+
+## Massing walk ready
+Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout fixes go to a PR on P03B (never edited quietly).
+- Launch: `npm run dev`, then `/?autostart=kestrel&mode=sandbox` (PC: http://localhost:5173/, phone: http://<PC LAN address>:5173/ on the same Wi-Fi). Cinder Yard is also in the Sandbox map list. F3 > Teleport has one entry per zone (and the stair feet), by level.
+- Critical path walking time: 382.1 m on the plan, 294 s = 4.9 min crouched at gear 3 (1.3 m/s) including three steps through walls P04 will open. The 03B route is 385.1 m.
+- Look at: scale against the operator (1.2 m doors, 3.7 m corridors, the 48 m F08 corridor, hall 5.0 m clear); distances between zones (entry to the front door 21 m, reception to the stair, G23 and the hall, the strip to the east gate); whether the rings read (floors darken from ring 1 to 5, walls one step lighter); whether you can guess where the stairs are from the yard (the cores show only a 1.2 m exit-only fire door on the south face); how the depot facade (7.0 m, south) and the viaduct (9.0 m, north) frame the yard and the strip.
+- Known gaps in the plan, not bugs in the build: goods lobby and goods zone, and hall and meet-me room, have no opening yet (P04 doors, 03B section 4), so they are walls; the fire stair cores have the stair across their full width, so the south exit-only fire doors (x 17 and x 61, z 22) are unreachable from inside, and from fire stair 1's ground landing there is no way out.
+- Lighting is a flat day look (no lamps); interiors are readable but the undersides of the slabs are black. Wall corners outside the building show a small notch.
 
 ## Decisions by Michael
 - 2026-10-10 P03B approval: add a ground-floor staff WC (G27) in zone 3 off G20, P04 places it; depot facade 7.0 m, viaduct 9.0 m to its deck; the three A07 block-arch failures are accepted until P04's real doors.
