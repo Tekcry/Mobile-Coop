@@ -6,12 +6,23 @@ Everything needed to continue Mission 1 "Dead Line" if the planning chat is lost
 - Approved: D0, D1, P00, S0, RU, P03. RU2 (campus rules) committed.
 - P01: APPROVED (b6157bf). Campus revision, answers, and the civilians, traversal and two-tracks follow-up committed (5764aad).
 - CAM (camera respects walls and low spaces): committed (6c1ac7a, record 45205ef); progress.md still lists it as DRAFT.
-- P02, P03B: DRAFT (campus redesign; to be redone). The "secure entry upstairs" revision was stopped and not applied.
+- P02 campus brief: APPROVED (6c43a9b; brief 133a4d1). One passenger lift per building, locked off at night (built as closed shafts with shut doors); separate generator wing with a 1.5 m service passage; key-only and exit-only doors ring-exempt; 2.4 m corridors under 1.5 m voids; A 36 x 24, B 48 x 30, site 108 x 76; raised-floor pedestals not modelled.
+- P03T campus tools: APPROVED (f097ce1): meta.buildings, level footprint lists, rooms[].building (A31), level H for low roofs, site limit 110 x 80.
+- V0 toolkit spec: APPROVED after the pistol secondary revision (811eaca, approved f67dc0b).
+- P03B: DRAFT, to be redone for the campus (next).
 - B0: built for the old single building (57aaf6c); rerun for the campus.
 - S1: Part A built (478c3b8); Part B runs after B4.
 
 ## Order
-V0 toolkit spec, P02 campus brief (Opus high), P03B campus block plan (Opus high), P03R campus review (independent architect plus level designer: realism and gameplay opportunities), B0 rerun, Michael walks it, P04-P05, B1-B2, BR, P04S, P06-P10, toolkit builds V1-V3 (all before B3), B3, B4, S1-S4, B4S, BR, S5, S6 civilians, B5, B6, BR, B7.
+P03B campus block plan (Opus high), P03R campus review, B0 rerun, Michael walks it, tools revision for A30 (backlog 25) before P04, P04-P05, B1-B2, BR, P04S, P06-P10, CAM approval then V1-V3 (all before B3), B3, B4, S1-S4, B4S, BR, S5, S6 civilians, B5, B6, BR, B7.
+
+## Notes for the next stages
+- P03B: use meta.buildings, level footprint lists, rooms[].building and level H (B hall roof and generator wing roof at 6.6). A30 cannot yet tell the buildings apart, so P03B confirms by hand that each building has its own fire stairs.
+- B0 rerun: update src/world/maps/kestrelGeo.ts and kestrel.ts, which read meta.footprint and one footprint rect per level (kestrelGeo.ts:85); the map copy test (tests/kestrelMap.test.ts) passes again once blocks are copied.
+- B0 walk, Michael reports: scale against the operator, campus layout and distances, storey heights and the bridge lining up, gallery headroom, crouch-moving in every 1.5 m space, reading entrances and roofs from the yard, stair cores, lift shafts against the cores, camera snapping or clipping, anything placed for no real reason, neighbour framing. Not judged yet: missing doors and windows, looks, guards and security devices, traversal elements, furniture, phone performance, room shapes inside zones, routes and timings.
+- CAM: progress.md still shows DRAFT; Michael tries the CAM checks on PC and approves it in its own short session before V1.
+- V1: the optic's proposed F key clashes with Use (keyBindings.ts:55) and R3 with shoulder swap. V3: the pistol secondary binding (desktop H, pad A while aiming, touch chip) is a proposal to confirm.
+- Tool tests on Node 24: node --test scripts/kestrel/*.test.mjs (the folder form fails).
 
 ## Decisions to carry into P02 (campus brief)
 - Parking in front of both buildings: marked bays, an accessible bay by each entrance, visitor bays at Building A's reception, cars matching who is on shift, Pell's van in the yard and the tenant pair's van.
@@ -40,7 +51,7 @@ V0 toolkit spec, P02 campus brief (Opus high), P03B campus block plan (Opus high
 
 ## Chaos Theory toolkit (2026-10-11)
 - Decision (Michael): the engine gets the full Chaos Theory toolkit; each mission offers only the tools that suit it through a mission kit; every tool is real equipment used believably and respects the ghost rule.
-- Spec: docs/systems/ct-toolkit.md (V0, DRAFT): wall hug, optic cable, lockpick, hacking, pistol secondary (the merged camera jammer and light disruptor), sticky shocker, ring airfoil, interrogation, knife; the mission kit (`MissionDef.kit`); the map fields P06 adds (`lock`, `seal`, `optic`, `alarm`, `hack`, `cut`, `lines`).
+- Spec: docs/systems/ct-toolkit.md (V0, APPROVED): wall hug, optic cable, lockpick, hacking, pistol secondary (the merged camera jammer and light disruptor), sticky shocker, ring airfoil, interrogation, knife; the mission kit (`MissionDef.kit`); the map fields P06 adds (`lock`, `seal`, `optic`, `alarm`, `hack`, `cut`, `lines`).
 - Dead Line's kit (approved by Michael, 2026-10-11): in: wall hug (always), optic cable, lockpick, hacking, sticky shocker (2 rounds), interrogation; out: ring airfoil (same role as the shocker), knife (no cuttable element). Existing gadgets: noisemaker, sticky cam, EMP, sleeping gas in; frag, mine, flashbang, tri-rotor out. P06 should give Pell's cage a `high` or code lock so the knowledge gates hold.
 - 2026-10-11 V0 revision: the camera jammer and light disruptor are one pistol secondary function (Chaos Theory OCP style), always available in every mission, not a kit tool; it disables lights and electronics briefly on a recharge.
 - Michael's answers (2026-10-11): V1-V3 build only Dead Line's kit (airfoil and knife stay specified, backlog items 23-24); V1 replaces snap cover with the wall hug and deletes it; lockpick and hacking are minigames only; RULES.md section 11 exception granted for V1-V3 (player controller, camera, grab and takedown code, new src/config/tools.ts, toollab debug map; no existing tuning value changes), which also brings the toolkit into the section 2 scope.
