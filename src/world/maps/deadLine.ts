@@ -79,7 +79,7 @@ export const deadLine: MapDef = {
   id: 'dead-line',
   name: 'Dead Line (campus greybox)',
   description: 'Mission 1 campus at night, generated from the design JSON: the lane yard, coke yard, service tunnel, plant basement, switch hall, upper floors, cage and roof. Greybox, flat light, no guards.',
-  modes: ['sandbox'],
+  modes: ['sandbox', 'infiltration'],
   theme: {
     sky: '#0b111b',
     horizon: '#2b3440',

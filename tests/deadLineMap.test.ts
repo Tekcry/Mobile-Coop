@@ -76,7 +76,7 @@ describe('Dead Line G1 greybox vs the design JSON', () => {
 
   it('is a listed sandbox map with four spawns and the debug points', () => {
     expect(isListedMap('dead-line')).toBe(true);
-    expect(deadLine.modes).toEqual(['sandbox']);
+    expect(deadLine.modes).toEqual(['sandbox', 'infiltration']);
     expect(layout.playerSpawns).toHaveLength(4);
     expect(layout.rooms).toHaveLength(D.spaces.length);
     const groups = new Set(DEAD_LINE_DEBUG.map((p) => p.group));

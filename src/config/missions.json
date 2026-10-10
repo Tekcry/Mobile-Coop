@@ -688,7 +688,7 @@
   },
   {
     "id": "trunk-annex",
-    "name": "Dead Line",
+    "name": "Trunk Annex (First Playable)",
     "map": "trunk-annex",
     "brief": "Kestrel Trunk Annex, night. Pull the circuit record for LC-4471 from the Test room, clip the tap onto the card in the core switch cage, then leave by the van at the vehicle gate or back out the lane gate.",
     "insertions": [
@@ -765,6 +765,83 @@
       "noKills": "bonus",
       "undetected": "bonus"
     },
+    "squads": "rooms"
+  },
+  {
+    "id": "dead-line",
+    "name": "Dead Line",
+    "map": "dead-line",
+    "brief": "Mission 1 campus greybox (G1): geometry only. No guards, lamps or locks yet. Start in the lane yard.",
+    "insertions": [
+      {
+        "id": "s1",
+        "name": "Lane yard S1",
+        "x": -55.5,
+        "z": -25.5,
+        "yaw": 1.5708
+      },
+      {
+        "id": "s2",
+        "name": "Lane yard S2",
+        "x": -55.5,
+        "z": -24.5,
+        "yaw": 1.5708
+      },
+      {
+        "id": "s3",
+        "name": "Lane yard S3",
+        "x": -54,
+        "z": -25.5,
+        "yaw": 1.5708
+      },
+      {
+        "id": "s4",
+        "name": "Lane yard S4",
+        "x": -54,
+        "z": -24.5,
+        "yaw": 1.5708
+      }
+    ],
+    "objectives": [
+      {
+        "type": "plant",
+        "id": "o1",
+        "label": "Pull the circuit record",
+        "x": 8.3,
+        "y": 3.3,
+        "z": -1.5,
+        "yaw": 0,
+        "time": 3
+      },
+      {
+        "type": "plant",
+        "id": "o2",
+        "label": "Plant the tap",
+        "x": 6.8,
+        "y": 0,
+        "z": -9,
+        "yaw": 0,
+        "time": 4
+      },
+      {
+        "type": "extract",
+        "id": "e1",
+        "label": "Leave by the van or the lane gate",
+        "x": 36,
+        "y": 0,
+        "z": -28.5,
+        "radius": 2,
+        "alt": [
+          [
+            -53,
+            0,
+            -28.8,
+            2
+          ]
+        ]
+      }
+    ],
+    "rules": {},
     "squads": "rooms"
   }
 ]
