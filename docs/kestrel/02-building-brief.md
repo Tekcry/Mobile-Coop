@@ -397,19 +397,19 @@ Must not touch:
 
 ## 14. ASK items
 - ASK-1: Lane fence height: take F14's climbable fence value (real security fences are 2.4-3.0, general knowledge).
-- ASK-2: Ring-exempt doors: manhole (1 to 4), equipment door, fire exits, passage door, wing doors and compound gates (key-only, from zone 1 into 3).
+- ASK-2 (answered 2026-10-11: exempt): Ring-exempt doors: manhole (1 to 4), equipment door, fire exits, passage door, wing doors and compound gates (key-only, from zone 1 into 3).
 - ASK-3: Equipment door 2.0 x 2.1 (SS double door); real equipment doors are often 2.4 high or more (general knowledge).
 - ASK-4: Lift numbers (shaft, pit 1.1, head 3.4) are maker data, not facts: add them to facts.json in P03B?
-- ASK-5: Corridors 2.4 clear under the 1.5 void (SS 3.0).
+- ASK-5 (answered 2026-10-11: accepted): Corridors 2.4 clear under the 1.5 void (SS 3.0).
 - ASK-6: Raised-floor pedestals at 1.2 centres for 1.2 lanes (real grids 0.6, general knowledge).
 - ASK-7: Gallery opening into the hall only 1.8 high (4.2 to 6.0).
 
 ## 15. Questions for Michael
-1. Generator hall: separate wing behind B with a 1.5 passage (as drawn), or inside B's footprint?
-2. Ring exemptions in ASK-2: accept, or add zone-2 airlocks in front of each key-only plant door?
-3. Corridor height (ASK-5): accept 2.4 clear, or raise office floors to 4.5 (2.7 clear)?
-4. Raised-floor pedestals (ASK-6): 1.2 grid as drawn, or leave pedestals out of the build?
-5. Sizes: A 36 x 24, B 48 x 30, site 108 x 76: accept, or shrink B to 42 x 30?
+1. Generator hall: separate wing behind B with a 1.5 passage (as drawn), or inside B's footprint? Answered (Michael 2026-10-11): separate wing.
+2. Ring exemptions in ASK-2: accept, or add zone-2 airlocks in front of each key-only plant door? Answered: exempt them.
+3. Corridor height (ASK-5): accept 2.4 clear, or raise office floors to 4.5 (2.7 clear)? Answered: accept 2.4.
+4. Raised-floor pedestals (ASK-6): 1.2 grid as drawn, or leave pedestals out of the build? Not asked; 1.2 grid stands unless Michael says otherwise.
+5. Sizes: A 36 x 24, B 48 x 30, site 108 x 76: accept, or shrink B to 42 x 30? Answered: accept.
 
 Downstream: P03B redoes the block plan from this brief, including both lift shafts (2.5 x 2.5 beside each main core, pits 1.1). schema.md's ring-to-space line (S1-S6) is stale: use section 6 here. The module kit needs the rows in tension g. B-step builders: lifts are built as closed shafts with shut landing doors (no working lift in the engine). P04S, P07: zone corrections for S2 and X; P07 places no guard on the floors in tension c.
 
@@ -417,3 +417,4 @@ Downstream: P03B redoes the block plan from this brief, including both lift shaf
 | Date | Fix # | What changed (rows, sections) | Checker counts after | Status |
 | --- | --- | --- | --- | --- |
 | 2026-10-11 | campus rewrite | Replaces the single-building brief (last commit c805978): Building A, Building B, link bridge, generator wing, yard, lane, level U, vault and tunnel; new ids AG/AF/AR/LF/BG/BF/BR/BU/TB/X; both lifts | - | DRAFT |
+| 2026-10-11 | answers | Michael: separate generator wing, ring exemptions (ASK-2), 2.4 corridors (ASK-5), sizes accepted; s14, s15 | - | DRAFT |
