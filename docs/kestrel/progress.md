@@ -11,7 +11,7 @@
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
 | P02 | Building brief | APPROVED | d0fc54f | 2026-10-10 |
-| P03 | Tools | not started | | |
+| P03 | Tools | DRAFT (Part A done, Parts B and C to run) | | 2026-10-10 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -31,6 +31,8 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 P03 Part A: docs/kestrel/schema.md, scripts/kestrel/facts.json (about 150 leaves, each with src), lib.mjs (shared loader and clear-size helper, added so Parts B and C reuse it), plans.mjs (SVG + PNG per level; --play and --security overlays), docs/kestrel/sample.arch.json. Rendered the sample (G, F, and with a scratch play and security file); walls, door arc, window, hatched stair with UP/DN, voids, labels all drawn. Prompt's play schema was cut off; Michael re-sent it and schema.md uses the full version.
+  Schema calls to confirm: rooms[].open holds edge letters W/S/E/N; ring may be "3+"; lamp, switch and service points are [x, y, z]; a door leaf swings toward between[1]; devices[].level may be an id or a name. No rule number is typed in the scripts (only drawing arithmetic).
 - 2026-10-10 P02 revision: fixes 1-2 applied to 02-building-brief.md (291 lines, DRAFT). G06's only door now opens from G20 (window onto G01 kept), so no zone-2 door into 3+. Fire stair 1 (G24/R02) moved from NE to the SE corner of the front block; both fire stairs serve the first floor (first-floor escape ~24 m). Area sums unchanged. Downstream: P04, P06 recheck G06 and G24.
 - 2026-10-10 P02: docs/kestrel/02-building-brief.md (260 lines, DRAFT). Cinder Yard, 48x30 building on a 6.0 m grid, site 78x56. 42 rooms/areas across basement (vault), ground (reception, secure core, goods), first (staff), roof (plant). Every fixed-program room placed in its zone; zones confirmed S1=1..S6=5. Area arithmetic fits each floor. Two fire stairs (NE roof-to-ground, SW), data-hall fire exits, manhole X10 by the facilities fire exit, second exit via vehicle gate/loading apron. 4 ASK items, 4 questions. Michael answered same day, applied: added zone-3 plant/services corridor G22, zone-2 goods lobby G26, hall ceiling 5.0 m, one carrier vault/manhole. 276 lines, DRAFT.
 - 2026-10-10 P01 revision: fixes 5-7 applied to 01-mission-brief.md (207 lines, time 37.5 min, DRAFT). Zones S3 = 3+, S4 = 3; carrier route passes a corner of S5 again, P02 places the manhole near an exit-only fire door; fence and fence rattle removed from B8.

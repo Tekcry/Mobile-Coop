@@ -1,0 +1,47 @@
+{
+  "meta": { "id": "sample", "version": 1, "grid": 0.5, "objectGrid": 0.1, "entry": [1, 1], "bay": [6, 6], "site": [0, 0, 20, 14], "footprint": [2, 2, 17, 12] },
+  "levels": [
+    { "id": "G", "name": "Ground", "floor": 0, "height": 3.3 },
+    { "id": "F", "name": "First", "floor": 3.3, "height": 3.3 }
+  ],
+  "rooms": [
+    { "id": "G01", "level": "G", "name": "Lobby", "kind": "room", "rect": [2, 2, 11, 12], "ceiling": 3.0, "finish": "polished concrete", "minShort": 3.0, "open": [], "ring": 2, "module": "" },
+    { "id": "G02", "level": "G", "name": "Stair core", "kind": "stair", "rect": [11, 2, 17, 12], "ceiling": 3.0, "finish": "terrazzo", "minShort": 3.0, "open": [], "ring": 2, "module": "" },
+    { "id": "F01", "level": "F", "name": "Office", "kind": "room", "rect": [2, 2, 11, 12], "ceiling": 3.0, "finish": "carpet tile", "minShort": 3.0, "open": [], "ring": 3, "module": "" },
+    { "id": "F02", "level": "F", "name": "Stair landing", "kind": "stair", "rect": [11, 2, 17, 12], "ceiling": 3.0, "finish": "terrazzo", "minShort": 3.0, "open": [], "ring": 3, "module": "" }
+  ],
+  "walls": [
+    { "id": "W001", "level": "G", "a": [2, 2], "b": [17, 2], "t": 0.45, "h": 3.0, "kind": "exterior" },
+    { "id": "W002", "level": "G", "a": [17, 2], "b": [17, 12], "t": 0.45, "h": 3.0, "kind": "exterior" },
+    { "id": "W003", "level": "G", "a": [17, 12], "b": [2, 12], "t": 0.45, "h": 3.0, "kind": "exterior" },
+    { "id": "W004", "level": "G", "a": [2, 12], "b": [2, 2], "t": 0.45, "h": 3.0, "kind": "exterior" },
+    { "id": "W005", "level": "G", "a": [11, 2], "b": [11, 12], "t": 0.3, "h": 3.0, "kind": "interior" },
+    { "id": "W101", "level": "F", "a": [2, 2], "b": [17, 2], "t": 0.45, "h": 3.0, "kind": "exterior" },
+    { "id": "W102", "level": "F", "a": [17, 2], "b": [17, 12], "t": 0.45, "h": 3.0, "kind": "exterior" },
+    { "id": "W103", "level": "F", "a": [17, 12], "b": [2, 12], "t": 0.45, "h": 3.0, "kind": "exterior" },
+    { "id": "W104", "level": "F", "a": [2, 12], "b": [2, 2], "t": 0.45, "h": 3.0, "kind": "exterior" },
+    { "id": "W105", "level": "F", "a": [11, 2], "b": [11, 12], "t": 0.3, "h": 3.0, "kind": "interior" }
+  ],
+  "openings": [
+    { "id": "D001", "wall": "W005", "at": 5.0, "w": 1.2, "h": 2.1, "sill": 0, "type": "door", "between": ["G01", "G02"], "locked": false, "key": "", "reason": "Staff pass from the lobby to the stair core." },
+    { "id": "D002", "wall": "W004", "at": 5.0, "w": 1.5, "h": 1.2, "sill": 0.9, "type": "window", "between": ["G01", ""], "locked": false, "key": "", "reason": "Daylight into the lobby." },
+    { "id": "D003", "wall": "W105", "at": 5.0, "w": 1.2, "h": 2.1, "sill": 0, "type": "door", "between": ["F01", "F02"], "locked": false, "key": "", "reason": "Office door from the stair landing." }
+  ],
+  "stairs": [
+    { "id": "S01", "kind": "main", "from": "G", "to": "F", "rect": [13, 3, 15.5, 11], "up": "N", "width": 2.4, "risers": 20 }
+  ],
+  "ladders": [],
+  "voids": [
+    { "id": "V01", "level": "F", "rect": [13, 3, 15.5, 11], "kind": "stairwell", "reason": "Stair well over the main stair." }
+  ],
+  "objects": [
+    { "id": "O001", "level": "G", "name": "Reception desk", "rect": [3.5, 9, 6.5, 10], "h": 1.1, "y": 0, "noLedge": false, "reason": "Reception desk, the visitor sign-in point." },
+    { "id": "O002", "level": "F", "name": "Plan chest", "rect": [3.5, 10.5, 5.5, 11.3], "h": 1.0, "y": 0, "noLedge": false, "reason": "Drawing storage for the office." }
+  ],
+  "exterior": [
+    { "id": "E001", "kind": "downpipe", "a": [17.2, 2], "b": [17.2, 2], "y0": 0, "y1": 6.6, "climbable": true, "reason": "Cast-iron rainwater downpipe at the south-east corner." }
+  ],
+  "services": [
+    { "id": "SV01", "kind": "power", "path": [[3, 0, 3], [3, 3.0, 3], [10, 3.0, 3]], "size": [0.2, 0.1], "reason": "Cable tray from the lobby riser." }
+  ]
+}
