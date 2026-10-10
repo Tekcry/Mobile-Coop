@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| FP | **First Playable** | Map steps (Exchange S1a-S1c, R1-R3, Trunk Annex T1-T3) SUPERSEDED 2026-10-10 by the vertical slice (Phase 7). System steps S2-S10 (lights, holster, takedowns, perception, mission loop, co-op sync, playtest) UNCHANGED, not started; their place in the order is Michael's decision | 3.6.x | `docs/archive/maps/prompts/first-playable.md` |
+| FP | **First Playable** | Map steps (Exchange S1a-S1c, R1-R3, Trunk Annex T1-T3) SUPERSEDED 2026-10-10 by the vertical slice (Phase 7). System steps S2-S10 (lights, holster, takedowns, perception, mission loop, co-op sync, playtest) UNCHANGED, not started; placed after the slice playtest (Michael, 2026-10-10) | 3.6.x | `docs/archive/maps/prompts/first-playable.md` |
 | 1 | Light parity | Step 4b done and approved (darkness, night vision); paused for First Playable; Step 4c (strip lamps) and Steps 5-9 PARKED until after the playtest (co-op light sync moves into FP S7a) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
@@ -41,7 +41,7 @@ every phase step.
 3. The vertical slice is Mission 1: 30-40 minutes, solo and 1-4 co-op, seven ordered and two optional objectives, 6 guarded spaces, 16 guards, 1 civilian; CCTV, security desk, keycards, mantrap, iris scanner, infrared beams, PIR lights.
 4. Built through the prompt pack in `docs/kestrel/` (P00 onward, branch `feature/kestrel`); the map id is `kestrel` (internal name only).
 5. Engine step S5 will let every guard spawn at the start, at most 12 awake. Until then SQUAD_CAP is 9 and MAX_ALIVE is 12.
-6. First Playable map steps are superseded; system steps S2-S10 are unchanged and wait for Michael to place them in the order.
+6. First Playable map steps are superseded; system steps S2-S10 are unchanged; Michael placed them after the slice playtest, then re-triage.
 
 ### e2e speed-up (2026-10-09, tooling only, no game change)
 - Full GPU run (`E2E_GPU=1`, 33 suites): serial **13 min 11 s** (791 s of suites) before; **3 min** now (`npm run e2e`, 4 suites at a time: 177 / 187 / 197 s in three runs in a row; serial with the faster suites 578 s). Jobs: 5 gave 235 s, 8 gave 331 s (the machine saturates), 4 gave 173-197 s.
