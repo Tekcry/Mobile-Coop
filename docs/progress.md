@@ -31,6 +31,7 @@ every phase step.
   rappel, fences, CT takedowns and the grab, co-op team moves, the Warehouse CT routes.
 - The Kestrel Exchange is retired (archived in `docs/archive/maps/`). Phase 7 builds the Dead Line data centre through `docs/kestrel/`.
 - Decisions of 2026-10-08 recorded: bible v1.8, story v1.2 (see the bible's Section 11).
+- Story 2.0 drafted (D1, `docs/story.md`: present-day campaign, Mission 1 at a data centre), awaiting Michael.
 - Bible 1.9: desktop visual target and CC0 textures (5.16), Phase 6b.
 - The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
 - Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) is behind `?legacy=1` (3.5.0, `core/legacy.ts`). The title is Night Shift. `CLAUDE.md` is a lean core (9.6 KB) with the detail in `docs/systems/`.
