@@ -12,7 +12,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 5764aad | 2026-10-11 |
-| P02 | Building brief | DRAFT (campus rewrite) | 133a4d1 | 2026-10-11 |
+| P02 | Building brief | APPROVED | 133a4d1 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03R | Campus review | not started | | |
