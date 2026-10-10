@@ -12,7 +12,7 @@
    ],
    "z": [
     -30,
-    44
+    60
    ]
   },
   "levels": [
@@ -238,7 +238,7 @@
     0,
     10,
     12,
-    38
+    58
    ],
    "kind": "outdoor",
    "wallH": 0,
@@ -246,7 +246,7 @@
     1
    ],
    "floor": "concrete",
-   "purpose": "Public road; the van drops the team in the dark under the bridge",
+   "purpose": "Public road; the van drops the team north of the railway bridge, out of the lane mouth's view",
    "landmark": "the bridge girders, rain dripping"
   },
   {
@@ -408,7 +408,7 @@
    "rect": [
     12,
     14,
-    17,
+    17.8,
     18.4
    ],
    "kind": "tunnel",
@@ -425,9 +425,9 @@
    "name": "Cable tunnel (west section)",
    "level": "B",
    "rect": [
-    17,
+    17.8,
     15,
-    131,
+    66,
     17.6
    ],
    "kind": "tunnel",
@@ -444,9 +444,9 @@
    "name": "Joint bay JC2",
    "level": "B",
    "rect": [
-    131,
+    66,
     14.5,
-    137,
+    72,
     18.4
    ],
    "kind": "tunnel",
@@ -498,7 +498,7 @@
   },
   {
    "id": "r3",
-   "name": "Lean-to roofs A14 to A16",
+   "name": "Lean-to roofs A14 to A16 (corrugated iron)",
    "level": "U",
    "rect": [
     142,
@@ -511,7 +511,7 @@
    "ch": [
     1
    ],
-   "floor": "wood",
+   "floor": "metal",
    "purpose": "Felt roofs of the brewery fronts",
    "landmark": "gutters, party upstands"
   },
@@ -1092,13 +1092,13 @@
    "id": "CAR",
    "level": "G",
    "rect": [
-    29,
-    13.5,
-    31,
-    18.5
+    18.5,
+    15.5,
+    20.5,
+    20.5
    ],
-   "h": 1.5,
-   "label": "Contractor saloon parked across the lane mouth"
+   "h": 1,
+   "label": "Contractor saloon parked across the lane mouth (body 1.0 m; the glazed cabin above it is see-through)"
   },
   {
    "id": "P1",
@@ -1500,9 +1500,9 @@
    "id": "BRG-S",
    "level": "B",
    "rect": [
-    17,
+    17.8,
     15,
-    131,
+    66,
     15.4
    ],
    "h": 2.1,
@@ -1512,9 +1512,9 @@
    "id": "BRG-N",
    "level": "B",
    "rect": [
-    17,
+    17.8,
     17.2,
-    131,
+    66,
     17.6
    ],
    "h": 2.1,
@@ -1543,6 +1543,54 @@
    ],
    "h": 0.3,
    "label": "Lean-to A9 roof lights (translucent sheets in a 0.3 m upstand frame; not walkable)"
+  },
+  {
+   "id": "SPK16",
+   "level": "U",
+   "rect": [
+    166.5,
+    21,
+    172,
+    26
+   ],
+   "h": 0.4,
+   "label": "Anti-climb spikes along A16 east end and gutter (brewery security, facing the turning head)"
+  },
+  {
+   "id": "RLY",
+   "level": "G",
+   "rect": [
+    12,
+    21,
+    22,
+    26
+   ],
+   "h": 0.05,
+   "label": "Railway lineside compound in front of A1: 2.4 m palisade (see-through), relay cabinets"
+  },
+  {
+   "id": "RL4",
+   "level": "U",
+   "rect": [
+    42.3,
+    22.2,
+    51.7,
+    25.8
+   ],
+   "h": 0.3,
+   "label": "Lean-to A4 roof lights (translucent sheets in a 0.3 m upstand frame; not walkable)"
+  },
+  {
+   "id": "RL5",
+   "level": "U",
+   "rect": [
+    52.3,
+    22.2,
+    61.7,
+    25.8
+   ],
+   "h": 0.3,
+   "label": "Lean-to A5 roof lights (translucent sheets in a 0.3 m upstand frame; not walkable)"
   }
  ],
  "openings": [
@@ -1671,7 +1719,7 @@
    "type": "open",
    "level": "B",
    "axis": "x",
-   "at": 17,
+   "at": 17.8,
    "c": 16.3,
    "w": 2.6,
    "from": "jc1",
@@ -1683,7 +1731,7 @@
    "type": "open",
    "level": "B",
    "axis": "x",
-   "at": 131,
+   "at": 66,
    "c": 16.3,
    "w": 2.6,
    "from": "tun",
@@ -1697,30 +1745,30 @@
    "kind": "ladder",
    "a": [
     "G",
-    14.5,
-    16.2
+    17.4,
+    15.4
    ],
    "b": [
     "B",
-    14.5,
-    16.2
+    17.4,
+    15.4
    ],
    "travel": 4.4,
    "lock": {
     "from": "both",
-    "how": "hold 4 s to lift the double telco cover (telco key)"
+    "how": "hold 6 s to lift both halves of the double cast-iron cover (telco keys; 10 m of noise)"
    },
    "note": "Manhole M1 over JC1: shaft 1.2 x 1.2, fixed ladder 4.4 m",
    "snap": {
     "a": [
      "G",
-     14.25,
-     16.25
+     17.25,
+     15.25
     ],
     "b": [
      "B",
-     14.25,
-     16.25
+     17.25,
+     15.25
     ]
    }
   },
@@ -1729,30 +1777,30 @@
    "kind": "ladder",
    "a": [
     "G",
-    134,
-    16.4
+    68.5,
+    17
    ],
    "b": [
     "B",
-    134,
-    16.4
+    68.5,
+    17
    ],
    "travel": 4.4,
    "lock": {
     "from": "both",
-    "how": "hold 3 s to lift the cover"
+    "how": "hold 3 s to lift the cast-iron cover (10 m of noise)"
    },
    "note": "Manhole M2 over JC2: shaft 1.2 x 1.2, fixed ladder 4.4 m",
    "snap": {
     "a": [
      "G",
-     133.75,
-     16.25
+     68.25,
+     16.75
     ],
     "b": [
      "B",
-     133.75,
-     16.25
+     68.25,
+     16.75
     ]
    }
   },
@@ -2142,11 +2190,7 @@
      22.75,
      23.25
     ],
-    "b": [
-     "G",
-     21.25,
-     23.25
-    ]
+    "b": null
    }
   },
   {
@@ -2169,7 +2213,7 @@
     "a": [
      "U",
      61.25,
-     22.75
+     21.75
     ],
     "b": [
      "G",
@@ -2264,35 +2308,6 @@
      24.25
     ]
    }
-  },
-  {
-   "id": "D-A16E",
-   "kind": "drop",
-   "oneway": true,
-   "a": [
-    "U",
-    171.6,
-    23.5
-   ],
-   "b": [
-    "G",
-    172.6,
-    23.5
-   ],
-   "travel": 1,
-   "note": "Drop off A16 east end in front of A17 (3 m)",
-   "snap": {
-    "a": [
-     "U",
-     171.25,
-     23.25
-    ],
-    "b": [
-     "G",
-     172.75,
-     23.25
-    ]
-   }
   }
  ],
  "lamps": [
@@ -2303,14 +2318,14 @@
    "also": [
     "U"
    ],
-   "x": 22,
+   "x": 20,
    "z": 12.3,
    "h": 5,
    "r": 12,
    "i": 1,
    "shoot": true,
    "space": "lane",
-   "note": "Sodium wall lantern on the pub wall at the lane mouth"
+   "note": "Sodium wall lantern on the pub wall at the lane mouth, over the pavement"
   },
   {
    "id": "LA2",
@@ -2329,20 +2344,36 @@
    "note": "Sodium wall lantern on the printworks wall over fire exit FX1 to FX2"
   },
   {
-   "id": "LA8",
+   "id": "LA9",
    "circuit": "CA1",
    "level": "G",
    "also": [
     "U"
    ],
-   "x": 92,
+   "x": 48,
    "z": 19.6,
    "h": 6,
    "r": 12,
    "i": 1,
    "shoot": true,
    "space": "lane",
-   "note": "Lamp column on the north kerb at A9"
+   "note": "Lamp column on the north kerb at A4"
+  },
+  {
+   "id": "LA8",
+   "circuit": "CA1",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 88,
+   "z": 19.6,
+   "h": 6,
+   "r": 12,
+   "i": 1,
+   "shoot": true,
+   "space": "lane",
+   "note": "Lamp column on the north kerb at A8"
   },
   {
    "id": "LA3",
@@ -2367,7 +2398,7 @@
    "also": [
     "U"
    ],
-   "x": 166,
+   "x": 164.5,
    "z": 19.6,
    "h": 6,
    "r": 12,
@@ -2420,6 +2451,22 @@
    "shoot": true,
    "space": "turn",
    "note": "Exchange gate floodlight on the gate pier"
+  },
+  {
+   "id": "LA10",
+   "circuit": "A6",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 67,
+   "z": 25.6,
+   "h": 4,
+   "r": 10,
+   "i": 1,
+   "shoot": false,
+   "space": "lane",
+   "note": "Car repairer security floodlight in a wire cage over the A6 forecourt (photocell)"
   }
  ],
  "circuits": [
@@ -2434,7 +2481,7 @@
     "space": "lane",
     "note": "Feeder pillar on the south pavement at the lane mouth; hold 3 s to pull the fuse"
    },
-   "lamps": "LA1, LA2, LA8, LA3, LA5",
+   "lamps": "LA1, LA2, LA9, LA8, LA3, LA5",
    "reaction": {
     "guards": "GA2",
     "what": "GA1 radios it in (2 s); GA2 walks to FP1 at the investigate pace (walk speed x 1.2), finds the door open, resets the fuse (3 s hold) and the lamps come back on. Shot lamps stay out.",
@@ -2483,6 +2530,16 @@
    "reaction": {
     "guards": "GA4, GB1",
     "what": "a shot lamp: GB1 hears it, GA4 checks it 8 s"
+   }
+  },
+  {
+   "id": "A6",
+   "name": "Car repairer forecourt floodlight",
+   "switch": null,
+   "lamps": "LA10",
+   "reaction": {
+    "guards": "-",
+    "what": "cannot be switched (supply inside the locked workshop) or shot (vandal cage)"
    }
   }
  ],
@@ -2547,21 +2604,6 @@
    "open": "N",
    "body": true,
    "enclosure": "Printworks fire exit recess FX2"
-  },
-  {
-   "id": "H5",
-   "level": "G",
-   "space": "lane",
-   "rect": [
-    66.8,
-    23.6,
-    68.2,
-    25.6
-   ],
-   "h": 1.5,
-   "open": "S",
-   "body": true,
-   "enclosure": "Between the two cars in the A6 forecourt"
   },
   {
    "id": "H6",
@@ -2721,26 +2763,26 @@
   {
    "id": "S1",
    "x": 5,
-   "z": 29,
-   "first": "Under the railway bridge, dark: watch GA1 at the lane mouth"
+   "z": 52,
+   "first": "North of the railway bridge, dark: walk south under the bridge to the lane mouth"
   },
   {
    "id": "S2",
    "x": 7,
-   "z": 29,
-   "first": "Under the railway bridge, dark: watch GA1 at the lane mouth"
+   "z": 52,
+   "first": "North of the railway bridge, dark: walk south under the bridge to the lane mouth"
   },
   {
    "id": "S3",
    "x": 5,
-   "z": 31,
-   "first": "Under the railway bridge, dark: watch GA1 at the lane mouth"
+   "z": 54,
+   "first": "North of the railway bridge, dark: walk south under the bridge to the lane mouth"
   },
   {
    "id": "S4",
    "x": 7,
-   "z": 31,
-   "first": "Under the railway bridge, dark: watch GA1 at the lane mouth"
+   "z": 54,
+   "first": "North of the railway bridge, dark: walk south under the bridge to the lane mouth"
   }
  ],
  "objectives": [],
@@ -2759,33 +2801,33 @@
    "id": "GA1",
    "arch": "grunt",
    "speed": 0.9,
-   "phase": 12.57,
+   "phase": 27,
    "level": "G",
    "role": "Lane mouth sentry with the car",
-   "post": "Car at the lane mouth and the A2 eaves",
+   "post": "The car at the lane mouth and the A2 eaves",
    "ch": [
     1
    ],
    "wps": [
     {
-     "x": 30,
-     "z": 19.25,
-     "d": 18,
+     "x": 21.2,
+     "z": 16.25,
+     "d": 17,
      "face": [
-      -0.89,
-      -0.45
+      -0.7,
+      -0.7
      ],
-     "what": "A: at the car north end, watching the Viaduct Road junction for a van turning in"
+     "what": "A: at the car, watching the foot gap past its tail (the only way past on foot) and the junction"
     },
     {
      "x": 27,
      "z": 20.25,
-     "d": 12.86,
+     "d": 6.22,
      "face": [
-      1,
-      0
+      0.94,
+      -0.34
      ],
-     "what": "B: under the A2 eaves out of the rain, radio call to GA2 and a cigarette, facing down the lane"
+     "what": "B: under A2 eaves out of the rain, radio call to GA2 and a cigarette, looking down the lane"
     }
    ],
    "why": "Holds the only road to the gate with the car; radio check with GA2 every cycle.",
@@ -2794,16 +2836,50 @@
     "the car creaks as he leans on it at A"
    ],
    "loop": 40,
-   "travel": 7.32
+   "travel": 14.2
+  },
+  {
+   "id": "GA5",
+   "arch": "grunt",
+   "speed": 0.9,
+   "phase": 0,
+   "level": "G",
+   "seated": true,
+   "eyeH": 1.15,
+   "hearMul": 0.45,
+   "role": "Contractor driver sitting in the car (heater on, windows up)",
+   "post": "Driver seat of the car at the lane mouth",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 19.9,
+     "z": 19,
+     "d": 39.5,
+     "face": [
+      0,
+      1
+     ],
+     "what": "seated, looking out through the windscreen at the north strip and the A1 and A2 fronts"
+    }
+   ],
+   "why": "Two men hold the car: one outside on foot, one in the dry ready to move it for the relief van.",
+   "tells": [
+    "the car radio murmurs",
+    "the courtesy light when he lights a cigarette"
+   ],
+   "loop": 40,
+   "travel": 0
   },
   {
    "id": "GA2",
    "arch": "grunt",
    "speed": 0.9,
-   "phase": 29.5,
+   "phase": 1,
    "level": "G",
    "role": "Lock-up row walker",
-   "post": "A5 door, printworks fire exit FX2, A6 forecourt",
+   "post": "A5 door (on VG) and the A6 forecourt mouth (over M2)",
    "ch": [
     1
    ],
@@ -2811,7 +2887,7 @@
     {
      "x": 57,
      "z": 19.75,
-     "d": 3.5,
+     "d": 6.5,
      "face": [
       -1,
       0
@@ -2819,40 +2895,29 @@
      "what": "W: at A5 door over the vent grating VG, radio reply, looking up the lane to GA1"
     },
     {
-     "x": 60.25,
-     "z": 13.75,
-     "d": 3.5,
-     "face": [
-      -1,
-      0
-     ],
-     "what": "S: tries printworks fire exit FX2, then looks west along the works wall"
-    },
-    {
-     "x": 64.5,
-     "z": 21.75,
-     "d": 3.98,
+     "x": 68,
+     "z": 20.75,
+     "d": 6.84,
      "face": [
       0,
       1
      ],
-     "what": "E: A6 forecourt, checks the repairer cars and shutter"
+     "what": "E: kerb at the A6 forecourt over manhole M2, checks the repairer cars and shutter"
     }
    ],
-   "why": "A5 was broken into last month: he tries the padlocks and answers GA1; the printworks lets the contractor park in its bay, so he also tries the works fire exits.",
+   "why": "A5 was broken into last month: he tries the padlocks along the row and answers GA1.",
    "tells": [
     "padlock rattle at A5",
-    "the fire exit bar rattles at FX2",
     "his radio reply"
    ],
    "loop": 40,
-   "travel": 24.77
+   "travel": 23.09
   },
   {
    "id": "GA3",
    "arch": "grunt",
    "speed": 0.9,
-   "phase": 0,
+   "phase": 30,
    "level": "G",
    "role": "Contractor van driver",
    "post": "Printworks bay, cab and rear doors",
@@ -2863,17 +2928,17 @@
     {
      "x": 89.1,
      "z": 12.25,
-     "d": 13,
+     "d": 17,
      "face": [
       0,
       1
      ],
-     "what": "cab: seated, looking across the lane through the windscreen"
+     "what": "cab: seated high in the van cab (eye 2.0 m), looking across the lane through the windscreen"
     },
     {
      "x": 89.1,
      "z": 7.1,
-     "d": 8.66,
+     "d": 4.66,
      "face": [
       0,
       -1
@@ -2890,34 +2955,76 @@
     "cab": 1.6
    },
    "loop": 40,
-   "travel": 15.61
+   "travel": 15.61,
+   "eyeH": 2
   },
   {
-   "id": "GA4",
+   "id": "GA6",
    "arch": "grunt",
    "speed": 0.9,
-   "phase": 0,
+   "phase": 35.5,
    "level": "G",
-   "role": "Outer man at the turning head",
-   "post": "Substation palisade to the lane end",
+   "role": "Van crew second man: walks the printworks wall",
+   "post": "Printworks fire exits FX2 to the P2 car",
    "ch": [
     1
    ],
    "wps": [
     {
-     "x": 186.5,
-     "z": 18.5,
-     "d": 7,
+     "x": 60.25,
+     "z": 13.75,
+     "d": 15,
      "face": [
-      -0.71,
-      -0.71
+      -1,
+      0
      ],
-     "what": "P1: beside the substation palisade in the warm air from the transformer louvres, watching the lane end and the gate"
+     "what": "FX2: tries the fire exit bar, then looks west along the works wall under LA2"
+    },
+    {
+     "x": 67,
+     "z": 14.25,
+     "d": 8.96,
+     "face": [
+      1,
+      0
+     ],
+     "what": "by the P2 car over the kerb from M2, looking east to the van and GA3"
+    }
+   ],
+   "why": "The printworks lets the contractor park its van in the bay; in return the van crew's second man tries the works' fire exits.",
+   "tells": [
+    "the fire exit bar rattles at FX2",
+    "he whistles to GA3 at the van"
+   ],
+   "loop": 40,
+   "travel": 13.54
+  },
+  {
+   "id": "GA4",
+   "arch": "grunt",
+   "speed": 0.9,
+   "phase": 11.5,
+   "level": "G",
+   "role": "Outer man at the turning head",
+   "post": "Turning head to the lane end",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 184,
+     "z": 16.5,
+     "d": 4,
+     "face": [
+      1,
+      0
+     ],
+     "what": "P1: turning head, talking to GA7"
     },
     {
      "x": 175,
      "z": 16.5,
-     "d": 4.49,
+     "d": 13.43,
      "face": [
       -1,
       0
@@ -2925,13 +3032,54 @@
      "what": "P2: lane end, looking down the lane for the relief van"
     }
    ],
-   "why": "Meets vans at the turning head and talks to the gate man.",
+   "why": "Meets vans at the turning head and talks to GA7 and the gate man.",
    "tells": [
     "radio chatter with GB1 at P1",
     "boots on the wet setts"
    ],
    "loop": 40,
-   "travel": 24.76
+   "travel": 19.41
+  },
+  {
+   "id": "GA7",
+   "arch": "grunt",
+   "speed": 0.9,
+   "phase": 38.5,
+   "level": "G",
+   "role": "Gate crew second man by the transformer louvres",
+   "post": "Substation palisade by the louvres",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 189.5,
+     "z": 18.75,
+     "d": 18,
+     "face": [
+      -0.7,
+      0.7
+     ],
+     "what": "facing the substation gate and the A17 frontage (the warm side)"
+    },
+    {
+     "x": 189.5,
+     "z": 18.75,
+     "d": 21,
+     "face": [
+      -0.7,
+      -0.7
+     ],
+     "what": "facing the lane end, talking to GA4"
+    }
+   ],
+   "why": "Two men meet the relief van at the turning head; on a cold wet night one stands in the warm air from the transformer louvres.",
+   "tells": [
+    "he stamps his feet and talks to GA4",
+    "his lighter at the palisade"
+   ],
+   "loop": 40,
+   "travel": 0
   },
   {
    "id": "GB1",
@@ -3013,7 +3161,7 @@
     {
      "lv": "G",
      "x": 6,
-     "z": 30,
+     "z": 53,
      "chapter": 1,
      "label": "spawn"
     },
@@ -3028,14 +3176,14 @@
     {
      "lv": "G",
      "x": 17.5,
-     "z": 13.6,
+     "z": 13.25,
      "m": "walk",
      "label": "H1 bin store"
     },
     {
      "lv": "G",
-     "x": 30,
-     "z": 12.75,
+     "x": 19.5,
+     "z": 13.75,
      "m": "walk",
      "enc": "E1.2",
      "label": "past the car"
@@ -3133,9 +3281,17 @@
      "x": 186.6,
      "z": 20.25,
      "m": "walk",
-     "hold": 3,
+     "hold": 4,
      "enc": "E1.8",
      "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 24.75,
+     "m": "walk",
+     "hold": 3,
+     "label": "unlock the switch room doors"
     },
     {
      "lv": "G",
@@ -3156,7 +3312,8 @@
      "x": 189.5,
      "z": 34.5,
      "m": "walk",
-     "label": "SD (to Area 2)"
+     "label": "SD (to Area 2)",
+     "hold": 3
     }
    ]
   },
@@ -3168,7 +3325,7 @@
     {
      "lv": "G",
      "x": 6,
-     "z": 30,
+     "z": 53,
      "chapter": 1,
      "label": "spawn"
     },
@@ -3192,7 +3349,7 @@
     {
      "lv": "U",
      "x": 61,
-     "z": 23.5,
+     "z": 21.6,
      "m": "crawl",
      "label": "A5 east end"
     },
@@ -3248,17 +3405,24 @@
     },
     {
      "lv": "U",
-     "x": 171,
+     "x": 165,
      "z": 23.5,
      "m": "crawl",
-     "label": "A16 east end"
+     "label": "A16"
+    },
+    {
+     "lv": "G",
+     "x": 165,
+     "z": 20.25,
+     "m": "crawl",
+     "via": "DP16",
+     "label": "down DP16"
     },
     {
      "lv": "G",
      "x": 177,
      "z": 25.5,
      "m": "crawl",
-     "via": "D-A16E",
      "label": "H11 A17 reveal (V4)"
     },
     {
@@ -3266,9 +3430,17 @@
      "x": 186.6,
      "z": 20.25,
      "m": "walk",
-     "hold": 3,
+     "hold": 4,
      "enc": "E1.8",
      "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 24.75,
+     "m": "walk",
+     "hold": 3,
+     "label": "unlock the switch room doors"
     },
     {
      "lv": "G",
@@ -3289,7 +3461,8 @@
      "x": 189.5,
      "z": 34.5,
      "m": "walk",
-     "label": "SD (to Area 2)"
+     "label": "SD (to Area 2)",
+     "hold": 3
     }
    ]
   },
@@ -3301,7 +3474,7 @@
     {
      "lv": "G",
      "x": 6,
-     "z": 30,
+     "z": 53,
      "chapter": 1,
      "label": "spawn"
     },
@@ -3325,7 +3498,7 @@
     {
      "lv": "U",
      "x": 55,
-     "z": 23.5,
+     "z": 21.6,
      "m": "crawl",
      "label": "A5"
     },
@@ -3420,9 +3593,17 @@
      "x": 186.6,
      "z": 20.25,
      "m": "walk",
-     "hold": 3,
+     "hold": 4,
      "enc": "E1.8",
      "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 24.75,
+     "m": "walk",
+     "hold": 3,
+     "label": "unlock the switch room doors"
     },
     {
      "lv": "G",
@@ -3443,7 +3624,8 @@
      "x": 189.5,
      "z": 34.5,
      "m": "walk",
-     "label": "SD (to Area 2)"
+     "label": "SD (to Area 2)",
+     "hold": 3
     }
    ]
   },
@@ -3455,7 +3637,7 @@
     {
      "lv": "G",
      "x": 6,
-     "z": 30,
+     "z": 53,
      "chapter": 1,
      "label": "spawn"
     },
@@ -3469,20 +3651,28 @@
     },
     {
      "lv": "G",
-     "x": 14.5,
-     "z": 16.75,
+     "x": 17.4,
+     "z": 15,
      "m": "walk",
-     "hold": 4,
+     "hold": 6,
+     "holdNoise": 10,
      "enc": "E1.2",
      "label": "lift M1"
     },
     {
      "lv": "B",
-     "x": 20,
+     "x": 17.4,
      "z": 16.3,
      "m": "crawl",
      "via": "M1",
      "label": "tunnel"
+    },
+    {
+     "lv": "B",
+     "x": 22,
+     "z": 16.3,
+     "m": "crawl",
+     "label": "tunnel walkway"
     },
     {
      "lv": "B",
@@ -3494,20 +3684,57 @@
     },
     {
      "lv": "B",
-     "x": 133.5,
-     "z": 16.4,
+     "x": 68.5,
+     "z": 16.3,
      "m": "crawl",
-     "hold": 3,
-     "label": "lift M2 from below"
+     "label": "joint bay JC2"
     },
     {
      "lv": "G",
-     "x": 134.5,
-     "z": 18,
-     "m": "walk",
+     "x": 68.5,
+     "z": 17,
+     "m": "crawl",
      "via": "M2",
+     "hold": 3,
+     "holdNoise": 10,
+     "label": "lift M2 (head at street level)"
+    },
+    {
+     "lv": "G",
+     "x": 78.25,
+     "z": 14.75,
+     "m": "walk",
+     "label": "FX3"
+    },
+    {
+     "lv": "G",
+     "x": 83,
+     "z": 20.25,
+     "m": "walk",
+     "enc": "E1.5",
+     "label": "north strip at A8"
+    },
+    {
+     "lv": "G",
+     "x": 98.75,
+     "z": 20.25,
+     "m": "walk",
+     "label": "H7 A9 recess (K2)"
+    },
+    {
+     "lv": "G",
+     "x": 118.75,
+     "z": 20.25,
+     "m": "walk",
+     "label": "H8 A11 recess"
+    },
+    {
+     "lv": "G",
+     "x": 136.75,
+     "z": 21.75,
+     "m": "walk",
      "enc": "E1.6",
-     "label": "out at M2"
+     "label": "H9 sand bay (K3)"
     },
     {
      "lv": "G",
@@ -3529,9 +3756,17 @@
      "x": 186.6,
      "z": 20.25,
      "m": "walk",
-     "hold": 3,
+     "hold": 4,
      "enc": "E1.8",
      "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 24.75,
+     "m": "walk",
+     "hold": 3,
+     "label": "unlock the switch room doors"
     },
     {
      "lv": "G",
@@ -3552,7 +3787,8 @@
      "x": 189.5,
      "z": 34.5,
      "m": "walk",
-     "label": "SD (to Area 2)"
+     "label": "SD (to Area 2)",
+     "hold": 3
     }
    ]
   },
@@ -3564,7 +3800,7 @@
     {
      "lv": "G",
      "x": 6,
-     "z": 30,
+     "z": 53,
      "chapter": 1,
      "label": "spawn"
     },
@@ -3579,14 +3815,14 @@
     {
      "lv": "G",
      "x": 17.5,
-     "z": 13.6,
+     "z": 13.25,
      "m": "walk",
      "label": "H1 bin store"
     },
     {
      "lv": "G",
-     "x": 30,
-     "z": 12.75,
+     "x": 19.5,
+     "z": 13.75,
      "m": "walk",
      "enc": "E1.2",
      "label": "past the car"
@@ -3605,7 +3841,8 @@
      "m": "walk",
      "hold": 3,
      "enc": "E1.3",
-     "label": "FP1: pull the fuse"
+     "label": "FP1: pull the fuse",
+     "event": "CA1"
     },
     {
      "lv": "G",
@@ -3693,9 +3930,17 @@
      "x": 186.6,
      "z": 20.25,
      "m": "walk",
-     "hold": 3,
+     "hold": 4,
      "enc": "E1.8",
      "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 24.75,
+     "m": "walk",
+     "hold": 3,
+     "label": "unlock the switch room doors"
     },
     {
      "lv": "G",
@@ -3716,7 +3961,8 @@
      "x": 189.5,
      "z": 34.5,
      "m": "walk",
-     "label": "SD (to Area 2)"
+     "label": "SD (to Area 2)",
+     "hold": 3
     }
    ]
   }
@@ -3790,7 +4036,7 @@
    "level": "G",
    "x": 136.75,
    "z": 23.75,
-   "name": "A13 sand bays: the layers meet, M2, the choice for the east lane",
+   "name": "A13 sand bays: the roofs end; the choice for the east lane",
    "kind": "fork",
    "main": true,
    "span": [
@@ -3900,20 +4146,20 @@
    "id": "SG",
    "type": "opening",
    "where": "turning head to the substation forecourt (186.6, 21)",
-   "opens": "hold 3 s, telco key",
+   "opens": "hold 4 s, telco key (padlock and chain)",
    "gate": "out of Area 1"
   },
   {
    "id": "M1",
    "type": "link",
-   "where": "lane mouth (14.5, 16.2)",
-   "opens": "hold 4 s, telco key, either side",
+   "where": "lane mouth beside the car tail (17.4, 15.4)",
+   "opens": "hold 6 s, telco keys, either side",
    "gate": "below route"
   },
   {
    "id": "M2",
    "type": "link",
-   "where": "by A13 (134, 16.4)",
+   "where": "joint bay JC2 at the duct bank (68.5, 17.0)",
    "opens": "hold 3 s, either side",
    "gate": "below route"
   },
@@ -3921,8 +4167,15 @@
    "id": "SD",
    "type": "opening",
    "where": "LV room east wall (191, 34.5)",
-   "opens": "telco key",
+   "opens": "telco key, hold 3 s",
    "gate": "into Area 2"
+  },
+  {
+   "id": "SRD",
+   "type": "opening",
+   "where": "switch room doors (185.6, 26)",
+   "opens": "telco key, hold 3 s",
+   "gate": "into the substation"
   }
  ],
  "coop": [],
@@ -3959,7 +4212,7 @@
    "id": "K0",
    "level": "G",
    "x": 6,
-   "z": 30,
+   "z": 53,
    "note": "start"
   },
   {
@@ -4100,7 +4353,7 @@
   {
    "id": "jc2",
    "element": "Joint bay JC2",
-   "reason": "Joint bay at the 1962 duct bank",
+   "reason": "Tunnel cables are jointed to the 1962 duct bank cables where the water main crosses at x 72",
    "use": "Tunnel cables are jointed to the 1962 duct bank cables",
    "rule": "16.6.2"
   },
@@ -4120,10 +4373,10 @@
   },
   {
    "id": "r3",
-   "element": "Lean-to roofs A14 to A16",
-   "reason": "Brewery lean-to roofs",
-   "use": "Felt roofs of the brewery fronts",
-   "rule": "16.6.2"
+   "element": "Lean-to roofs A14 to A16, corrugated iron",
+   "reason": "The brewery fronts are roofed in corrugated iron sheet",
+   "use": "Roof walk; loud above crouch gear 4 (metal 1.6)",
+   "rule": "16.8.3"
   },
   {
    "id": "aroof",
@@ -4547,9 +4800,9 @@
   },
   {
    "id": "CAR",
-   "element": "Contractor saloon parked across the lane mouth",
-   "reason": "Blocks any vehicle: the lane is the only road to the gate",
-   "use": "GA1 post; casts LA1 shadow west",
+   "element": "Contractor saloon parked across the lane mouth (body 1.0 m; the glazed cabin above it is see-through)",
+   "reason": "Parked across the mouth so no vehicle can turn in from Viaduct Road; the lane is the only road to the gate",
+   "use": "GA1 and GA5 post; parked hard against the north kerb, so the only way past on foot is the 3.5 m pavement side",
    "rule": "16.4.1"
   },
   {
@@ -4883,16 +5136,16 @@
   },
   {
    "id": "M1",
-   "element": "Manhole M1 over JC1: shaft 1.2 x 1.2, fixed ladder 4.4 m",
+   "element": "Manhole M1 over JC1 (17.4, 15.4): double cast-iron cover, 10 m lift noise",
    "reason": "Telco access to the jointing chamber",
-   "use": "Below route entry",
+   "use": "Below route entry, 4 m from GA1 at the car",
    "rule": "16.2.1"
   },
   {
    "id": "M2",
-   "element": "Manhole M2 over JC2: shaft 1.2 x 1.2, fixed ladder 4.4 m",
-   "reason": "Telco access to the joint bay",
-   "use": "Below route exit",
+   "element": "Manhole M2 over JC2 (68.5, 17.0): cast-iron cover in the lane at the A6 forecourt, 10 m lift noise",
+   "reason": "Telco access to the joint bay at the duct bank",
+   "use": "Below route exit, 3 m from GA6 at the P2 car and 5 m from GA2 at the forecourt",
    "rule": "16.2.1"
   },
   {
@@ -5022,16 +5275,9 @@
    "rule": "16.2.6"
   },
   {
-   "id": "D-A16E",
-   "element": "Drop off A16 east end in front of A17 (3 m)",
-   "reason": "The roof ends at the bricked arch",
-   "use": "Loud way down at the end of the roof walk",
-   "rule": "16.2.6"
-  },
-  {
    "id": "LA1",
    "element": "Sodium wall lantern on the pub wall at the lane mouth",
-   "reason": "The council lights the lane for the tenants",
+   "reason": "The council lights the junction end of the lane; the bracket is on the pub wall",
    "use": "Light pool",
    "rule": "16.8.1"
   },
@@ -5148,13 +5394,6 @@
    "rule": "16.0"
   },
   {
-   "id": "H5",
-   "element": "Between the two cars in the A6 forecourt",
-   "reason": "Cars waiting for repair",
-   "use": "Hide spot",
-   "rule": "16.0"
-  },
-  {
    "id": "H6",
    "element": "Printworks fire exit recess FX3",
    "reason": "Recessed fire exit door",
@@ -5234,28 +5473,28 @@
   {
    "id": "S1",
    "element": "Spawn S1",
-   "reason": "The van drops the team under the railway bridge",
+   "reason": "The van cannot stop in sight of the lane mouth, so it drops the team on the far side of the railway bridge",
    "use": "Start",
    "rule": "16.0"
   },
   {
    "id": "S2",
    "element": "Spawn S2",
-   "reason": "The van drops the team under the railway bridge",
+   "reason": "The van cannot stop in sight of the lane mouth, so it drops the team on the far side of the railway bridge",
    "use": "Start",
    "rule": "16.0"
   },
   {
    "id": "S3",
    "element": "Spawn S3",
-   "reason": "The van drops the team under the railway bridge",
+   "reason": "The van cannot stop in sight of the lane mouth, so it drops the team on the far side of the railway bridge",
    "use": "Start",
    "rule": "16.0"
   },
   {
    "id": "S4",
    "element": "Spawn S4",
-   "reason": "The van drops the team under the railway bridge",
+   "reason": "The van cannot stop in sight of the lane mouth, so it drops the team on the far side of the railway bridge",
    "use": "Start",
    "rule": "16.0"
   },
@@ -5263,14 +5502,14 @@
    "id": "GA1",
    "element": "GA1: Lane mouth sentry with the car",
    "reason": "Holds the only road to the gate with the car; radio check with GA2 every cycle.",
-   "use": "Car at the lane mouth and the A2 eaves",
+   "use": "The car at the lane mouth and the A2 eaves",
    "rule": "16.8.2"
   },
   {
    "id": "GA2",
    "element": "GA2: Lock-up row walker",
-   "reason": "A5 was broken into last month: he tries the padlocks and answers GA1; the printworks lets the contractor park in its bay, so he also tries the works fire exits.",
-   "use": "A5 door, printworks fire exit FX2, A6 forecourt",
+   "reason": "A5 was broken into last month: he tries the padlocks along the row and answers GA1.",
+   "use": "A5 door (on VG) and the A6 forecourt mouth (over M2)",
    "rule": "16.8.2"
   },
   {
@@ -5283,8 +5522,8 @@
   {
    "id": "GA4",
    "element": "GA4: Outer man at the turning head",
-   "reason": "Meets vans at the turning head and talks to the gate man.",
-   "use": "Substation palisade to the lane end",
+   "reason": "Meets vans at the turning head and talks to GA7 and the gate man.",
+   "use": "Turning head to the lane end",
    "rule": "16.8.2"
   },
   {
@@ -5493,7 +5732,7 @@
   {
    "id": "lock-SG",
    "element": "Lock SG",
-   "reason": "hold 3 s, telco key",
+   "reason": "hold 4 s, telco key (padlock and chain)",
    "use": "out of Area 1",
    "rule": "16.3.5"
   },
@@ -5520,7 +5759,7 @@
   },
   {
    "id": "LA8",
-   "element": "Lamp column on the north kerb at A9",
+   "element": "Lamp column on the north kerb at A8",
    "reason": "Council lanterns alternate sides every 25 to 35 m; a lean-to front is too low for a bracket, so a column",
    "use": "Light pool",
    "rule": "16.8.1"
@@ -5538,6 +5777,83 @@
    "reason": "The lock-up workshop is lit the same way",
    "use": "Only the 1.2 m gutter strip is walkable: the roof walk passes in LA8 light and GA3 cab view (item 6 exposure)",
    "rule": "16.5.1"
+  },
+  {
+   "id": "GA5",
+   "element": "GA5: contractor driver in the car",
+   "reason": "Two men hold the car: one outside on foot, one in the dry ready to move it for the relief van.",
+   "use": "Driver seat of the car at the lane mouth",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "SPK16",
+   "element": "Anti-climb spikes on the east 5.5 m of the A16 roof and gutter",
+   "reason": "The brewery fitted spikes where its roof meets the open turning head after a break-in",
+   "use": "No drop at the end of the roof walk: the way down is the A16 downpipe under LA5 in GA4's view",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "lock-SRD",
+   "element": "Lock SRD",
+   "reason": "telco key, hold 3 s",
+   "use": "into the substation",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "GA6",
+   "element": "GA6: van crew second man on the printworks wall",
+   "reason": "The printworks lets the contractor park its van in the bay; in return the van crew's second man tries the works' fire exits.",
+   "use": "Printworks fire exits FX2 to the P2 car",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "RLY",
+   "element": "Railway lineside compound in front of bricked arch A1 (2.4 m palisade, locked)",
+   "reason": "The railway keeps its signal relay cabinets in a fenced compound at the foot of its own arch",
+   "use": "Closes the A1 frontage: with the car against the north kerb the only way past on foot is the pavement gap",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LA9",
+   "element": "Lamp column on the north kerb at A4",
+   "reason": "Council lanterns alternate sides along the lane; the lean-to fronts are too low for a bracket, so a column",
+   "use": "Lights the north strip and the A4 and A5 gutters in GA2's view",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "RL4",
+   "element": "Lean-to A4 roof lights",
+   "reason": "The cabinet maker workshop is lit by daylight through translucent roof sheets; they will not bear a person",
+   "use": "Only the 1.2 m gutter strip is walkable, in LA9 light and GA2's view",
+   "rule": "16.5.1"
+  },
+  {
+   "id": "RL5",
+   "element": "Lean-to A5 roof lights",
+   "reason": "The lock-up workshop is lit by daylight through translucent roof sheets; they will not bear a person",
+   "use": "Only the 1.2 m gutter strip is walkable, in LA9 light and GA2's view",
+   "rule": "16.5.1"
+  },
+  {
+   "id": "GA7",
+   "element": "GA7: gate crew second man by the transformer louvres",
+   "reason": "Two men meet the relief van at the turning head; on a cold wet night one stands in the warm air from the transformer louvres.",
+   "use": "Substation palisade by the louvres",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "LA10",
+   "element": "Car repairer security floodlight over the A6 forecourt (caged, photocell)",
+   "reason": "Customers' cars stand on the open forecourt overnight; the repairer lights it dusk to dawn",
+   "use": "The A6 gap (where roof walkers must come down) is lit and GA2 checks it from his east stop",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "A6",
+   "element": "Car repairer floodlight circuit",
+   "reason": "The repairer's own security light",
+   "use": "Cannot be put out",
+   "rule": "16.8.1"
   }
  ]
 }

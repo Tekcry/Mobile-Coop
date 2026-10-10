@@ -32,7 +32,7 @@ export function playerState(ctx, segs, tau, mode, pace) {
 // end of a drop link (landingNoise of its band). All from the engine.
 export function noiseOf(ctx, pl, tau) {
   const s = pl.seg;
-  if (s.hold) return HOLD_NOISE_RADIUS;
+  if (s.hold) return s.holdNoise ?? HOLD_NOISE_RADIUS;
   if (s.link && s.mode === 'drop' && tau >= s.t1 - 0.5) { const L = ctx.D.links.find((l) => l.id === s.link); const fall = Math.abs(ctx.W.Y[L.a[0]] - ctx.W.Y[L.b[0]]); return landingNoise(landingKind(fall)); }
   if (s.link) return 0;
   return noiseRadius(pl.speed, pl.crouched, pl.sprinting) * floorMul(ctx, pl.lv, pl.x, pl.z);
@@ -116,8 +116,11 @@ export function timetableBot(ctx, opts = {}) {
   coverFlags(ctx, samples);
   // simulate: stand still for wait s, then move from route time tau0 to tau1; returns peak meter, who, end meters
   const TAIL = opts.tail ?? 6;
+  // a route event (a hold with `event`, e.g. the FP1 fuse) switches the world: ctx.dyn gives guard positions and light after it
+  let evT = null;
   const sim = (T0, tau0, tau1, m0, wait, tail = 0) => {
     let m = m0.map((x) => ({ ...x }));
+    let ev = evT;
     let peak = 0, peakG = null;
     let T = T0;
     const dur = tau1 - tau0;
@@ -129,13 +132,14 @@ export function timetableBot(ctx, opts = {}) {
       const tau = waiting ? tau0 : Math.min(tau1, tau0 + (km + 1) * dt);
       const pl = playerState(ctx, segs, tau, 'crawl', 'crawl');
       if (waiting || km >= nMove) pl.speed = 0;
+      if (ev === null && ctx.dyn && pl.seg.event && !waiting && tau >= pl.seg.t1 - 1e-9) ev = T;
       if (!pl.hidden) {
-        const light = ctx.light(pl.lv, pl.x, pl.z);
+        const light = ctx.dyn && ev !== null ? ctx.dyn.lightAt(pl, T, ev) : ctx.light(pl.lv, pl.x, pl.z);
         const radius = waiting ? 0 : noiseOf(ctx, pl, tau);
         for (let g = 0; g < ctx.guards.length; g++) {
           const G = ctx.guards[g];
           if (!ctx.isActive(G, pl.seg.chapter)) { m[g] = stepMeter(m[g], 0, dt); continue; }
-          const gp = guardPosAt(ctx, G, T);
+          const gp = ctx.dyn && ev !== null ? ctx.dyn.posOf(G, T, ev) : guardPosAt(ctx, G, T);
           const sg = sightOf(ctx, G, gp, pl, light);
           m[g] = stepMeter(m[g], sg.rate, dt);
           if (sg.instant) m[g] = { m: 1, since: 0 };
@@ -146,7 +150,7 @@ export function timetableBot(ctx, opts = {}) {
       } else m = m.map((x) => stepMeter(x, 0, dt));
       T += dt;
     }
-    return { peak, peakG, m, T };
+    return { peak, peakG, m, T, ev };
   };
   let T = 0;
   let meters = ctx.guards.map(() => ({ m: 0, since: 0 }));
@@ -190,6 +194,7 @@ export function timetableBot(ctx, opts = {}) {
     if (chosen.r.peak >= SUSP) suspiciousEvents.push({ t: +T.toFixed(1), g: chosen.r.peakG, peak: +chosen.r.peak.toFixed(2), at: [samples[idx].lv, +samples[idx].x.toFixed(1), +samples[idx].z.toFixed(1)], ch: samples[idx].chapter });
     chapterTimes[samples[idx].chapter] = (chapterTimes[samples[idx].chapter] || 0) + chosen.w + (tau1 - tau0);
     hopLog.push({ from: samples[idx].s, to: samples[j].s, wait: chosen.w });
+    evT = chosen.r.ev ?? evT;
     meters = chosen.r.m; T = chosen.r.T - (j === samples.length - 1 ? 0 : TAIL); idx = j;
   }
   const waitedTotal = waits.reduce((a, w) => a + w.s, 0);

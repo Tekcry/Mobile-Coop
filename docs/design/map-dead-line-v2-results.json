@@ -3,12 +3,12 @@
   [
    "Element register covers every Area 1 element (16.9)",
    "PASS",
-   "221 rows, 0 missing"
+   "230 rows, 0 missing"
   ],
   [
    "Hide spots dark and at least 1.2 x 1.0; vantages dark (rules 16 and 1)",
    "PASS",
-   "11 hides, lit: none, undersized: none; 5 vantages, lit: none"
+   "10 hides, lit: none, undersized: none; 5 vantages, lit: none"
   ],
   [
    "Every spawn, vantage, guard stop, hide and checkpoint is on the nav grid",
@@ -16,24 +16,29 @@
    "all walkable; all 5 routes build"
   ],
   [
-   "Ground route ideal walk (D0 estimate about 105 s)",
+   "Ground route ideal walk",
+   "INFO",
+   "129.9 s over 239.7 m"
+  ],
+  [
+   "Ground route: safe share 25 to 45% at every guarded encounter",
    "PASS",
-   "111.6 s over 217.2 m"
+   "E1.2 28%, E1.4 33%, E1.5 38%, E1.7 40%, E1.8 30%"
   ],
   [
-   "Lit share of the ground route (target about 60%)",
-   "FAIL",
-   "32% lit; 32% lit and in a sightline (L1 wants 50%)"
-  ],
-  [
-   "L1: half the route lit and in a sightline",
-   "FAIL",
-   "32%"
-  ],
-  [
-   "Every main-route encounter has a safe window (ground route)",
+   "Ground route: a guard whose position matters at every encounter",
    "PASS",
-   "E1.2 21.0 s, E1.4 17.0 s, E1.5 20.5 s, E1.7 22.5 s, E1.8 15.5 s"
+   "E1.2 GA1, E1.4 GA6, E1.5 GA3, E1.7 GA4, E1.8 GA7"
+  ],
+  [
+   "No route 100% safe at any guarded encounter (every route has a timed exposure)",
+   "PASS",
+   "every route has a timed exposure at every guarded encounter"
+  ],
+  [
+   "A route safer than the ground route costs at least 15 s more there",
+   "PASS",
+   "none cheaper and safer"
   ],
   [
    "No encounter where the roof is both fastest and lowest-risk (item 6)",
@@ -43,17 +48,17 @@
   [
    "FP1 dark window about 25 s (GA2 resets the fuse)",
    "PASS",
-   "median 25.4 s (22.6 to 29.9) over 80 usable throw times"
+   "median 27.5 s (22.6 to 32.7) over 80 usable throw times"
   ],
   [
    "FP1 is a usable trade (some throw lets the player through the row and bay unseen)",
    "PASS",
-   "79 of 80 usable throws"
+   "80 of 80 usable throws"
   ],
   [
    "Vent grating: crouched and slow passes, faster gears are heard (E1.4 cost)",
    "PASS",
-   "crouch gear 4 heard 0%; standing gear 3 heard 28% of starts"
+   "crouch gear 4 heard 0%; standing gear 3 heard 35% of starts"
   ],
   [
    "Sniper's range at the east end (open item)",
@@ -63,205 +68,268 @@
   [
    "Eaves shade the north strip (open item)",
    "INFO",
-   "no: 0 of 12970 lines change"
+   "no: 0 of 20212 lines change"
   ],
   [
-   "Sprint bot fails the run (an alarm in Area 1 and 4 or more events)",
+   "Sprint bot: alarm in the first 15 s",
    "PASS",
-   "alarm at 4.8 s, 5 events"
+   "alarm at 8.8 s, 12 events"
   ],
   [
    "Timetable bot, ground route: reaches K4 and SD with no alarm, under suspicious",
    "PASS",
-   "max meter 0.26, 140.8 s"
+   "max meter 0.29, 240.3 s"
   ],
   [
-   "Timetable bot, ground route: time in the derived band",
-   "INFO",
-   "2.35 min (band 3.3 to 3.9; derived, not set by Michael)"
-  ],
-  [
-   "Timetable bot, ground route: waits (share 30 to 40%, longest 40 s)",
-   "INFO",
-   "9%, longest 7.0 s"
-  ],
-  [
-   "Timetable bot, UP: reaches the exit unseen",
+   "Timetable bot, ground route: 4 to 5 min",
    "PASS",
-   "max meter 0.24, 141.0 s, waited 4%"
+   "240.3 s (4.00 min)"
   ],
   [
-   "Timetable bot, UPQ: reaches the exit unseen",
+   "Timetable bot, ground route: 35 to 45% waiting",
    "PASS",
-   "max meter 0.14, 152.5 s, waited 0%"
+   "38% (91.5 s)"
   ],
   [
-   "Timetable bot, BELOW: reaches the exit unseen",
+   "Timetable bot, ground route: longest single wait 45 s or less",
    "PASS",
-   "max meter 0.15, 142.8 s, waited 0%"
+   "26.0 s"
+  ],
+  [
+   "Timetable bot, UP: reaches the exit unseen, within 20% of the ground route",
+   "PASS",
+   "200.5 s (-17%), max meter 0.30, waited 14%"
+  ],
+  [
+   "Timetable bot, UPQ: reaches the exit unseen, within 20% of the ground route",
+   "PASS",
+   "240.5 s (+0%), max meter 0.28, waited 24%"
+  ],
+  [
+   "Timetable bot, BELOW: reaches the exit unseen, within 20% of the ground route",
+   "PASS",
+   "240.8 s (+0%), max meter 0.29, waited 31%"
+  ],
+  [
+   "Timetable bot, FP1: reaches the exit unseen, within 20% of the ground route",
+   "PASS",
+   "240.3 s (+0%), max meter 0.29, waited 37%"
   ],
   [
    "Rule 27: the camera boom never collides along any route",
    "PASS",
-   "2246 tests, 0 hits"
+   "2490 tests, 0 hits"
   ]
  ],
  "WIN": {
   "E1.2": {
    "M": {
-    "time": 20.620590750539513,
-    "safeShare": 0.525,
-    "longest": 21,
+    "time": 20.583855095220034,
+    "safeShare": 0.275,
+    "longest": 11,
     "blockers": {
-     "GA1": 38
+     "GA1": 58
     }
    },
    "UP": {
-    "time": 22.890278706062688,
-    "safeShare": 1,
-    "longest": 40,
-    "blockers": {}
+    "time": 29.191589589909622,
+    "safeShare": 0.3,
+    "longest": 12,
+    "blockers": {
+     "GA1": 56
+    }
    },
    "UPQ": {
-    "time": 22.890278706062688,
-    "safeShare": 1,
-    "longest": 40,
-    "blockers": {}
+    "time": 29.191589589909622,
+    "safeShare": 0.3,
+    "longest": 12,
+    "blockers": {
+     "GA1": 56
+    }
    },
    "BELOW": {
-    "time": 28.336741350592973,
-    "safeShare": 1,
-    "longest": 40,
-    "blockers": {}
+    "time": 31.435013830359086,
+    "safeShare": 0.2875,
+    "longest": 11.5,
+    "blockers": {
+     "GA1": 57
+    }
+   },
+   "FP1": {
+    "time": 23.556077317442256,
+    "safeShare": 0.275,
+    "longest": 11,
+    "blockers": {
+     "GA1": 58
+    }
    }
   },
   "E1.4": {
    "M": {
-    "time": 21.322253156557725,
-    "safeShare": 0.725,
-    "longest": 17,
+    "time": 21.32225315655775,
+    "safeShare": 0.325,
+    "longest": 13,
     "blockers": {
-     "GA2": 22
+     "GA6": 54
     }
    },
    "UP": {
-    "time": 24.381696564855652,
-    "safeShare": 0.75,
-    "longest": 30,
+    "time": 27.84441501975199,
+    "safeShare": 0.3375,
+    "longest": 8,
     "blockers": {
-     "GA2": 20
+     "GA2": 53
     }
    },
    "UPQ": {
-    "time": 29.756327711410023,
-    "safeShare": 0.975,
-    "longest": 39,
+    "time": 32.9889275205435,
+    "safeShare": 0.3125,
+    "longest": 12.5,
     "blockers": {
-     "GA2": 2
+     "GA2": 55
     }
    },
    "BELOW": {
-    "time": 19.909812409812417,
-    "safeShare": 1,
-    "longest": 40,
-    "blockers": {}
+    "time": 28.81560537252996,
+    "safeShare": 0.3625,
+    "longest": 14.5,
+    "blockers": {
+     "GA2": 30,
+     "GA6": 33
+    }
+   },
+   "FP1": {
+    "time": 21.35003093433553,
+    "safeShare": 0.325,
+    "longest": 13,
+    "blockers": {
+     "GA6": 54
+    }
    }
   },
   "E1.5": {
    "M": {
     "time": 10.409715704115719,
-    "safeShare": 0.5125,
-    "longest": 20.5,
+    "safeShare": 0.375,
+    "longest": 15,
     "blockers": {
-     "GA3": 39
+     "GA3": 50
     }
    },
    "UP": {
-    "time": 10.229418950875,
-    "safeShare": 0.575,
-    "longest": 22,
+    "time": 10.229418950874873,
+    "safeShare": 0.425,
+    "longest": 16,
     "blockers": {
-     "GA3": 34
+     "GA3": 46
     }
    },
    "UPQ": {
-    "time": 10.229600052102612,
-    "safeShare": 0.575,
-    "longest": 22,
+    "time": 10.22960005210254,
+    "safeShare": 0.425,
+    "longest": 16,
     "blockers": {
-     "GA3": 34
+     "GA3": 46
     }
    },
    "BELOW": {
-    "time": 9.935064935064936,
-    "safeShare": 1,
-    "longest": 40,
-    "blockers": {}
+    "time": 10.409715704115726,
+    "safeShare": 0.375,
+    "longest": 15,
+    "blockers": {
+     "GA3": 50
+    }
+   },
+   "FP1": {
+    "time": 10.409715704115719,
+    "safeShare": 0.375,
+    "longest": 15,
+    "blockers": {
+     "GA3": 50
+    }
    }
   },
   "E1.7": {
    "M": {
     "time": 16.630009702828687,
-    "safeShare": 0.5625,
-    "longest": 22.5,
+    "safeShare": 0.4,
+    "longest": 16,
     "blockers": {
-     "GA4": 35
+     "GA4": 48
     }
    },
    "UP": {
-    "time": 21.10909413904845,
-    "safeShare": 1,
-    "longest": 40,
-    "blockers": {}
+    "time": 25.698716552137043,
+    "safeShare": 0.35,
+    "longest": 14,
+    "blockers": {
+     "GA4": 52
+    }
    },
    "UPQ": {
-    "time": 25.698716552137157,
-    "safeShare": 0.5375,
-    "longest": 21.5,
+    "time": 25.698716552136787,
+    "safeShare": 0.35,
+    "longest": 14,
     "blockers": {
-     "GA4": 37
+     "GA4": 52
     }
    },
    "BELOW": {
-    "time": 16.92952178647907,
-    "safeShare": 0.575,
-    "longest": 23,
+    "time": 16.630009702828616,
+    "safeShare": 0.4,
+    "longest": 16,
     "blockers": {
-     "GA4": 34
+     "GA4": 48
+    }
+   },
+   "FP1": {
+    "time": 16.630009702828687,
+    "safeShare": 0.4,
+    "longest": 16,
+    "blockers": {
+     "GA4": 48
     }
    }
   },
   "E1.8": {
    "M": {
-    "time": 24.24988664711998,
-    "safeShare": 0.3875,
-    "longest": 15.5,
+    "time": 31.251795705498196,
+    "safeShare": 0.3,
+    "longest": 12,
     "blockers": {
-     "GA4": 49
+     "GA7": 56
     }
    },
    "UP": {
-    "time": 22.163955497932676,
-    "safeShare": 0.4,
-    "longest": 16,
+    "time": 30.794191379884865,
+    "safeShare": 0.3,
+    "longest": 12,
     "blockers": {
-     "GA4": 48
+     "GA7": 56
     }
    },
    "UPQ": {
-    "time": 23.792282321506633,
-    "safeShare": 0.4,
-    "longest": 16,
+    "time": 30.794191379884865,
+    "safeShare": 0.3,
+    "longest": 12,
     "blockers": {
-     "GA4": 48
+     "GA7": 56
     }
    },
    "BELOW": {
-    "time": 24.249886647119993,
-    "safeShare": 0.3875,
-    "longest": 15.5,
+    "time": 31.251795705498125,
+    "safeShare": 0.3,
+    "longest": 12,
     "blockers": {
-     "GA4": 49
+     "GA7": 56
+    }
+   },
+   "FP1": {
+    "time": 31.251795705498225,
+    "safeShare": 0.3,
+    "longest": 12,
+    "blockers": {
+     "GA7": 56
     }
    }
   }
@@ -271,25 +339,25 @@
   "E1.4": {},
   "E1.5": {
    "GA3": {
-    "crouched": 0.2777777777777778,
-    "standing": 0.3611111111111111,
-    "maxRate": 0.5496004119256919
+    "crouched": 0.3055555555555556,
+    "standing": 0.4166666666666667,
+    "maxRate": 0.5640970442761102
    }
   },
   "E1.7": {
    "GA4": {
-    "crouched": 0.010775862068965518,
-    "standing": 0.03017241379310345,
-    "maxRate": 0.46644183613391704
+    "crouched": 0.010638297872340425,
+    "standing": 0.0425531914893617,
+    "maxRate": 0.4547818354397836
    }
   }
  },
  "fp1": {
-  "darkMin": 22.612944579222628,
-  "darkMed": 25.400428575381465,
-  "darkMax": 29.922123607895458,
+  "darkMin": 22.613880203682783,
+  "darkMed": 27.47876290255315,
+  "darkMax": 32.66522031443627,
   "legal": 80,
-  "safeRuns": 79
+  "safeRuns": 80
  },
  "vg": [
   {
@@ -302,14 +370,14 @@
   {
    "label": "crouch gear 5 (2.3)",
    "radius": 1.7499999999999996,
-   "share": 0.25,
+   "share": 0.325,
    "maxS": 0.7,
    "elseShare": 0
   },
   {
    "label": "crouch gear 6 (2.8)",
    "radius": 2.4999999999999996,
-   "share": 0.2875,
+   "share": 0.3625,
    "maxS": 0.7,
    "elseShare": 0
   },
@@ -323,28 +391,28 @@
   {
    "label": "stand gear 3 (2.0)",
    "radius": 2.16,
-   "share": 0.275,
+   "share": 0.35,
    "maxS": 0.7,
    "elseShare": 0
   },
   {
    "label": "stand gear 4 jog (2.8)",
    "radius": 3.4399999999999995,
-   "share": 0.3375,
+   "share": 0.4125,
    "maxS": 0.7,
    "elseShare": 0
   },
   {
    "label": "stand gear 5 run (3.8)",
    "radius": 5.04,
-   "share": 0.425,
+   "share": 0.5,
    "maxS": 0.7,
    "elseShare": 0
   },
   {
    "label": "sprint (5.0)",
    "radius": 9,
-   "share": 0.8625,
+   "share": 0.9125,
    "maxS": 0.7,
    "elseShare": 0
   }
@@ -381,49 +449,58 @@
  ],
  "eaveDiff": 0,
  "sprint": {
-  "events": 5,
-  "alarmAtS": 4.8
+  "events": 12,
+  "alarmAtS": 8.8
  },
  "timetable": {
   "M": {
    "reached": true,
    "alarms": 0,
-   "maxMeter": 0.256,
-   "finishedAtS": 140.8,
-   "waitShare": 0.085,
-   "longestWaitS": 7,
+   "maxMeter": 0.294,
+   "finishedAtS": 240.3,
+   "waitShare": 0.381,
+   "longestWaitS": 26,
    "unsafe": []
   },
   "UP": {
    "reached": true,
    "alarms": 0,
-   "maxMeter": 0.243,
-   "finishedAtS": 141,
-   "waitShare": 0.035,
-   "longestWaitS": 5,
+   "maxMeter": 0.298,
+   "finishedAtS": 200.5,
+   "waitShare": 0.14,
+   "longestWaitS": 21.5,
    "unsafe": []
   },
   "UPQ": {
    "reached": true,
    "alarms": 0,
-   "maxMeter": 0.139,
-   "finishedAtS": 152.5,
-   "waitShare": 0,
-   "longestWaitS": 0,
+   "maxMeter": 0.278,
+   "finishedAtS": 240.5,
+   "waitShare": 0.243,
+   "longestWaitS": 24.5,
    "unsafe": []
   },
   "BELOW": {
    "reached": true,
    "alarms": 0,
-   "maxMeter": 0.154,
-   "finishedAtS": 142.8,
-   "waitShare": 0,
-   "longestWaitS": 0,
+   "maxMeter": 0.292,
+   "finishedAtS": 240.8,
+   "waitShare": 0.305,
+   "longestWaitS": 26.5,
+   "unsafe": []
+  },
+  "FP1": {
+   "reached": true,
+   "alarms": 0,
+   "maxMeter": 0.294,
+   "finishedAtS": 240.3,
+   "waitShare": 0.368,
+   "longestWaitS": 26,
    "unsafe": []
   }
  },
  "cam": {
-  "n": 2246,
+  "n": 2490,
   "hits": 0
  }
 }

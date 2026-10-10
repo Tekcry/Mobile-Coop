@@ -133,6 +133,7 @@ A level is a linear spine of encounter spaces joined by connectors.
 - `ambientZone` covers y -1..8 by default: set `minY` / `maxY` per storey.
 - Footsteps are silent on every surface at crouched gears 1-4 and standing gears 1-2; the surface only scales audible
   steps.
+- A hold can make noise per object (`Interactable.holdNoise`, pulses every 0.5 s); cast-iron manhole covers are 10 m (`MANHOLE_LIFT_NOISE_RADIUS`). A heard noise only pushes a guard past suspicious (0.3) within about 44% of its radius (`noiseSuspicion`): a 10 m lift alarms a guard within about 4.4 m and makes farther ones turn. Map decisions that relied on silent holds: none (2026-10-10).
 - Tuning tables never change for a map; change the geometry.
 
 ## 13. Required design deliverables (templates)

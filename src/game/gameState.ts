@@ -27,6 +27,7 @@ import { TrainingDummy } from './trainingDummy';
 import { computeAssist, type AimTarget } from '../weapons/aimAssist';
 import { G, MASK } from '../physics/groups';
 import { buildNavGrid } from '../ai/navBuild';
+import { holdNoisePulse } from '../config/noise';
 import type { NavGrid } from '../ai/navGrid';
 import { EnemyManager } from '../ai/enemyManager';
 import type { PlayerRef } from '../ai/enemy';
@@ -912,8 +913,15 @@ export class GameState implements AppState {
       if (this.app.input.state.pressed('interact')) this.holdLatch = this.holdLatch === it ? null : it;
       holding = this.holdLatch === it;
     }
-    if (holding) it.progress += dt;
-    else it.progress = Math.max(0, it.progress - dt * 2);
+    if (holding) {
+      const prev = it.progress;
+      it.progress += dt;
+      // a noisy hold (a manhole cover, a padlock) sounds at its start and on every pulse while it runs
+      if (it.holdNoise && holdNoisePulse(prev, it.progress)) {
+        this.eventNoise(it.holdNoise);
+        this.enemyMgr?.hear(it.pos, it.holdNoise);
+      }
+    } else it.progress = Math.max(0, it.progress - dt * 2);
     const pct = it.holdTime > 0 ? Math.min(1, it.progress / it.holdTime) : 0;
     this.hud.setInteract(it.holdTime > 0 ? `${it.label} (hold) ${pct > 0 ? Math.round(pct * 100) + '%' : ''}` : it.label, it.holdTime > 0 ? pct : -1);
     if ((it.holdTime === 0 && this.app.input.state.pressed('interact')) || (it.holdTime > 0 && it.progress >= it.holdTime)) {

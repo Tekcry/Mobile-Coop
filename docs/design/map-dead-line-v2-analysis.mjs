@@ -13,6 +13,7 @@ import { CAMERA, noiseRadius } from './map-dead-line-engine.mjs';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const D = JSON.parse(fs.readFileSync(path.join(here, 'map-dead-line-v2.json'), 'utf8'));
 const ctx = makeCtx(D);
+const FAST = process.argv.includes('--fast');
 const W = ctx.W;
 const f1 = (n) => (Math.round(n * 10) / 10).toFixed(1);
 const f2 = (n) => (Math.round(n * 100) / 100).toFixed(2);
@@ -30,7 +31,7 @@ const unwalk = [];
 const chk = (kind, id, lv, x, z, rad = 0.6) => { if (!W.grid.nearest(lv, x, z, rad)) unwalk.push(`${kind} ${id} ${lv} (${f1(x)}, ${f1(z)})`); };
 for (const s of D.spawns) chk('spawn', s.id, 'G', s.x, s.z);
 for (const v of D.vantage) chk('vantage', v.id, v.level, v.x, v.z);
-for (const g of D.guards) g.wps.forEach((w, k) => chk('guard wp', `${g.id}.${k}`, g.level, w.x, w.z));
+for (const g of D.guards) if (!g.seated) g.wps.forEach((w, k) => chk('guard wp', `${g.id}.${k}`, g.level, w.x, w.z));
 for (const h of D.hides) chk('hide', h.id, h.level, (h.rect[0] + h.rect[2]) / 2, (h.rect[1] + h.rect[3]) / 2, 1.0);
 for (const k of D.checkpoints) chk('checkpoint', k.id, k.level, k.x, k.z);
 const routeErr = Object.values(ctx.routes).filter((r) => r.error).map((r) => r.error);
@@ -56,108 +57,6 @@ const lightOn = lightShares(ctx, 'M');
 const lightOff = lightShares(ctx, 'M', ['CA1']);
 for (const p of lightOn.samples) p.by = sightedBy(ctx, p);
 const shareIn = (samples, x0, x1, f) => { const ss = samples.filter((p) => p.x >= x0 && p.x < x1); return ss.length ? ss.filter(f).length / ss.length : 0; };
-
-// ---------------------------------------------------------------------------------------------- 4. timing windows per encounter and route
-// cross the encounter span on the route at the silent gear (crouch 1.8 m/s; links, holds as built), starting at each 0.5 s of the 40 s
-// cycle: peak awareness of any guard (sight and hearing, engine model). A start is safe when the peak stays under suspicious (0.3).
-function crossing(rt, x0, x1) {
-  let a = null, b = null;
-  for (const s of rt.segs) {
-    const xa = s.a[0], xb = s.b[0];
-    if (a === null && (Math.max(xa, xb) >= x0)) a = s.t0;
-    if (a !== null && Math.max(xa, xb) >= x1) { b = s.t0; break; }
-  }
-  return a === null ? null : [a, b ?? rt.total];
-}
-function simRun(rt, tauA, tauB, T0, opts = {}) {
-  const dt = 0.25;
-  let m = ctx.guards.map(() => ({ m: 0, since: 0 }));
-  const by = {};
-  let peak = 0, peakG = null, peakAt = null;
-  for (let tau = tauA, T = T0; tau <= tauB + 1e-9; tau += dt, T += dt) {
-    const pl = playerState(ctx, rt.segs, tau, 'crawl', 'crawl');
-    if (pl.hidden) continue;
-    const light = opts.lightAt ? opts.lightAt(pl, T) : ctx.light(pl.lv, pl.x, pl.z);
-    const radius = noiseOf(ctx, pl, tau);
-    for (let g = 0; g < ctx.guards.length; g++) {
-      const G = ctx.guards[g];
-      const gp = opts.posOf ? opts.posOf(G, T) : guardPosAt(ctx, G, T);
-      const sg = sightOf(ctx, G, gp, pl, light);
-      m[g] = stepMeter(m[g], sg.rate, dt);
-      if (sg.instant) m[g] = { m: 1, since: 0 };
-      const h = hears(ctx, G, gp, pl, radius);
-      if (h.s > m[g].m) m[g] = { m: h.s, since: m[g].since };
-      if (m[g].m > (by[G.id] || 0)) by[G.id] = m[g].m;
-      if (m[g].m > peak) { peak = m[g].m; peakG = G.id; peakAt = [pl.lv, pl.x, pl.z]; }
-    }
-  }
-  return { peak, peakG, peakAt, by };
-}
-function windows(rt, x0, x1, opts = {}) {
-  const c = crossing(rt, x0, x1);
-  if (!c) return null;
-  const N = 80, ok = [], blockers = {};
-  let best = null;
-  for (let k = 0; k < N; k++) {
-    const r = simRun(rt, c[0], c[1], k * 0.5, opts);
-    ok.push(r.peak < PERCEPTION.suspicious);
-    if (!best || r.peak < best.peak) best = { ...r, start: k * 0.5 };
-    if (r.peak >= PERCEPTION.suspicious) for (const [g, v] of Object.entries(r.by)) if (v >= PERCEPTION.suspicious) blockers[g] = (blockers[g] || 0) + 1;
-  }
-  const safeN = ok.filter(Boolean).length;
-  let longest = 0, runs = 0;
-  if (safeN === N) { longest = 40; runs = 1; } else if (safeN) {
-    const start = ok.findIndex((v, i) => !v && ok[(i + 1) % N]);
-    let cur = 0;
-    for (let k = 1; k <= N; k++) { const i = (start + k) % N; if (ok[i]) cur++; else { if (cur) { runs++; longest = Math.max(longest, cur); } cur = 0; } }
-    if (cur) { runs++; longest = Math.max(longest, cur * 0.5); }
-    longest *= 0.5;
-  }
-  // safe start intervals on the master clock (start of the crossing)
-  const iv = [];
-  for (let k = 0; k < N; k++) if (ok[k] && !ok[(k + N - 1) % N]) { let e = k; while (ok[(e + 1) % N] && (e + 1) % N !== k) e = (e + 1) % N; iv.push(`${f1(k * 0.5)}-${f1(e * 0.5 + 0.5)}`); }
-  return { time: c[1] - c[0], safeShare: safeN / N, longest, runs, blockers, best, intervals: safeN === N ? 'any' : iv.join(', ') || 'none' };
-}
-const ENCS = ['E1.2', 'E1.4', 'E1.5', 'E1.7', 'E1.8'];
-const WIN = {};
-for (const e of ENCS) { WIN[e] = {}; for (const id of ['M', 'UP', 'UPQ', 'BELOW']) WIN[e][id] = windows(crawl[id], ...spanOf(e)); }
-
-// ---------------------------------------------------------------------------------------------- 5. sight cones: what each guard covers
-// 1 m cells of Area 1 (x 0 to 192) on G and U, crouched and standing still: seen (rate above the leak) at some moment of the cycle
-function coverage(G, lv, x0, x1, z0, z1, step = 1, crouched = true) {
-  const per = ctx.TL[G.id].period;
-  const cells = [];
-  for (let x = x0 + step / 2; x < x1; x += step) for (let z = z0 + step / 2; z < z1; z += step) { const [i, j] = W.grid.cellOf(x, z); if (W.grid.walk(lv, i, j)) cells.push([x, z]); }
-  let seen = 0, seenSec = 0, maxRate = 0;
-  const seenCells = [];
-  for (const [x, z] of cells) {
-    let any = false, secs = 0, mr = 0;
-    for (let t = 0; t < per; t += 1) {
-      const gp = guardAt(G, ctx.TL[G.id], t);
-      if (hyp(gp.x - x, gp.z - z) > 26) continue;
-      const sg = sightOf(ctx, G, gp, { lv, x, z, crouched, speed: 0 }, ctx.light(lv, x, z));
-      if (sg.rate > PERCEPTION.leak) { any = true; secs++; mr = Math.max(mr, sg.rate); }
-    }
-    if (any) { seen++; seenSec += secs; seenCells.push([x, z, secs, mr]); }
-    maxRate = Math.max(maxRate, mr);
-  }
-  return { cells: cells.length, seen, share: cells.length ? seen / cells.length : 0, meanSec: seen ? seenSec / seen : 0, maxRate, seenCells };
-}
-const COV = {};
-for (const G of ctx.guards) if (G.id !== 'SN') COV[G.id] = { G: coverage(G, 'G', 0, 192, 4, 38, 1), U: coverage(G, 'U', 0, 192, 21, 26, 1) };
-
-// ---------------------------------------------------------------------------------------------- 6. roof exposure at E1.2 and E1.5 (and every guard on the lean-tos)
-const ROOFX = { 'E1.2': [22, 46], 'E1.4': [46, 82], 'E1.5': [82, 100], 'E1.7': [142, 172] };
-const roofExp = {};
-for (const [e, [x0, x1]] of Object.entries(ROOFX)) {
-  roofExp[e] = {};
-  for (const G of ctx.guards) {
-    if (G.id === 'SN' || G.id === 'GB1') continue;
-    const c = coverage(G, 'U', x0, x1, 21, 26, 0.5);
-    const cs = coverage(G, 'U', x0, x1, 21, 26, 0.5, false);
-    if (c.seen || cs.seen) roofExp[e][G.id] = { crouched: c, standing: cs };
-  }
-}
 
 // ---------------------------------------------------------------------------------------------- 7. FP1 / CA1 dark window (GA2 resets the fuse)
 // GA1 radios it in (2 s); GA2 walks from where he is to FP1 at the investigate pace (walk 0.9 x 1.2), resets (3 s hold), lamps on;
@@ -188,13 +87,133 @@ function fp1Plan(Toff) {
   };
   return { Toff, dark: tOn - Toff, tOn, go: go.len, posOf };
 }
+const planCache = new Map();
+const planAt = (ev) => { const k = Math.round(ev * 4) / 4; if (!planCache.has(k)) planCache.set(k, fp1Plan(k)); return planCache.get(k); };
+const offLight = (pl) => withState(ctx, ['CA1'], [], () => ctx.light(pl.lv, pl.x, pl.z));
+// the FP1 hold is a route event: lamps CA1 out until GA2 has reset them, GA2 on his way to FP1 and back
+ctx.dyn = { posOf: (G, T, ev) => planAt(ev).posOf(G, T), lightAt: (pl, T, ev) => (T < planAt(ev).tOn ? offLight(pl) : ctx.light(pl.lv, pl.x, pl.z)) };
+
+// ---------------------------------------------------------------------------------------------- 4. timing windows per encounter and route
+// cross the encounter span on the route at the silent gear (crouch 1.8 m/s; links, holds as built), starting at each 0.5 s of the 40 s
+// cycle: peak awareness of any guard (sight and hearing, engine model). A start is safe when the peak stays under suspicious (0.3).
+function crossing(rt, x0, x1) {
+  let a = null, b = null;
+  for (const s of rt.segs) {
+    const xa = s.a[0], xb = s.b[0];
+    if (a === null && (Math.max(xa, xb) >= x0)) a = s.t0;
+    if (a !== null && Math.max(xa, xb) >= x1) { b = s.t0; break; }
+  }
+  return a === null ? null : [a, b ?? rt.total];
+}
+function simRun(rt, tauA, tauB, T0, opts = {}) {
+  const dt = 0.25;
+  let m = ctx.guards.map(() => ({ m: 0, since: 0 }));
+  const by = {};
+  let peak = 0, peakG = null, peakAt = null;
+  let ev = opts.ev ?? null;
+  for (let tau = tauA, T = T0; tau <= tauB + 1e-9; tau += dt, T += dt) {
+    const pl = playerState(ctx, rt.segs, tau, 'crawl', 'crawl');
+    if (!opts.posOf && ev === null && pl.seg.event && tau >= pl.seg.t1 - 1e-9) ev = T;
+    if (pl.hidden) continue;
+    const light = opts.lightAt ? opts.lightAt(pl, T) : ev !== null ? ctx.dyn.lightAt(pl, T, ev) : ctx.light(pl.lv, pl.x, pl.z);
+    const radius = noiseOf(ctx, pl, tau);
+    for (let g = 0; g < ctx.guards.length; g++) {
+      const G = ctx.guards[g];
+      const gp = opts.posOf ? opts.posOf(G, T) : ev !== null ? ctx.dyn.posOf(G, T, ev) : guardPosAt(ctx, G, T);
+      const sg = sightOf(ctx, G, gp, pl, light);
+      m[g] = stepMeter(m[g], sg.rate, dt);
+      if (sg.instant) m[g] = { m: 1, since: 0 };
+      const h = hears(ctx, G, gp, pl, radius);
+      if (h.s > m[g].m) m[g] = { m: h.s, since: m[g].since };
+      if (m[g].m > (by[G.id] || 0)) by[G.id] = m[g].m;
+      if (m[g].m > peak) { peak = m[g].m; peakG = G.id; peakAt = [pl.lv, pl.x, pl.z]; }
+    }
+  }
+  return { peak, peakG, peakAt, by };
+}
+function windows(rt, x0, x1, opts = {}) {
+  const c = crossing(rt, x0, x1);
+  if (!c) return null;
+  const N = 80, ok = [], blockers = {};
+  let best = null;
+  for (let k = 0; k < N; k++) {
+    const r = simRun(rt, c[0], c[1], k * 0.5, opts);
+    ok.push(r.peak < PERCEPTION.suspicious);
+    if (!best || r.peak < best.peak) best = { ...r, start: k * 0.5 };
+    if (r.peak >= PERCEPTION.suspicious) for (const [g, v] of Object.entries(r.by)) if (v >= PERCEPTION.suspicious) blockers[g] = (blockers[g] || 0) + 1;
+  }
+  const safeN = ok.filter(Boolean).length;
+  let longest = 0, runs = 0;
+  if (safeN === N) { longest = 40; runs = 1; } else if (safeN) {
+    const start = ok.findIndex((v, i) => !v && ok[(i + 1) % N]);
+    let cur = 0;
+    for (let k = 1; k <= N; k++) { const i = (start + k) % N; if (ok[i]) cur++; else { if (cur) { runs++; longest = Math.max(longest, cur); } cur = 0; } }
+    if (cur) { runs++; longest = Math.max(longest, cur); }
+    longest *= 0.5;
+  }
+  // safe start intervals on the master clock (start of the crossing)
+  const iv = [];
+  for (let k = 0; k < N; k++) if (ok[k] && !ok[(k + N - 1) % N]) { let e = k; while (ok[(e + 1) % N] && (e + 1) % N !== k) e = (e + 1) % N; iv.push(`${f1(k * 0.5)}-${f1(e * 0.5 + 0.5)}`); }
+  return { time: c[1] - c[0], safeShare: safeN / N, longest, runs, blockers, best, intervals: safeN === N ? 'any' : iv.join(', ') || 'none' };
+}
+const ENCS = ['E1.2', 'E1.4', 'E1.5', 'E1.7', 'E1.8'];
+// --json-only: the ground route windows with the engine and with the proposed dim-light rule (map-dead-line-v2-perception.mjs)
+if (process.argv.includes('--json-only')) {
+  const { proposedRate } = await import('./map-dead-line-v2-dimnear.mjs');
+  const res = { engine: {}, proposal: {} };
+  for (const e of ENCS) res.engine[e] = windows(crawl.M, ...spanOf(e)).safeShare;
+  ctx.sightRateFn = proposedRate; ctx.lightCache = new Map();
+  for (const e of ENCS) res.proposal[e] = windows(crawl.M, ...spanOf(e)).safeShare;
+  console.log(JSON.stringify(res));
+  process.exit(0);
+}
+const WIN = {};
+for (const e of ENCS) { WIN[e] = {}; for (const id of RIDS) WIN[e][id] = windows(crawl[id], ...spanOf(e)); }
+
+// ---------------------------------------------------------------------------------------------- 5. sight cones: what each guard covers
+// 1 m cells of Area 1 (x 0 to 192) on G and U, crouched and standing still: seen (rate above the leak) at some moment of the cycle
+function coverage(G, lv, x0, x1, z0, z1, step = 1, crouched = true) {
+  const per = ctx.TL[G.id].period;
+  const cells = [];
+  for (let x = x0 + step / 2; x < x1; x += step) for (let z = z0 + step / 2; z < z1; z += step) { const [i, j] = W.grid.cellOf(x, z); if (W.grid.walk(lv, i, j)) cells.push([x, z]); }
+  let seen = 0, seenSec = 0, maxRate = 0;
+  const seenCells = [];
+  for (const [x, z] of cells) {
+    let any = false, secs = 0, mr = 0;
+    for (let t = 0; t < per; t += 1) {
+      const gp = guardAt(G, ctx.TL[G.id], t);
+      if (hyp(gp.x - x, gp.z - z) > 26) continue;
+      const sg = sightOf(ctx, G, gp, { lv, x, z, crouched, speed: 0 }, ctx.light(lv, x, z));
+      if (sg.rate > PERCEPTION.leak) { any = true; secs++; mr = Math.max(mr, sg.rate); }
+    }
+    if (any) { seen++; seenSec += secs; seenCells.push([x, z, secs, mr]); }
+    maxRate = Math.max(maxRate, mr);
+  }
+  return { cells: cells.length, seen, share: cells.length ? seen / cells.length : 0, meanSec: seen ? seenSec / seen : 0, maxRate, seenCells };
+}
+const COV = {};
+if (!FAST) for (const G of ctx.guards) if (G.id !== 'SN') COV[G.id] = { G: coverage(G, 'G', 0, 192, 4, 38, 1), U: coverage(G, 'U', 0, 192, 21, 26, 1) };
+
+// ---------------------------------------------------------------------------------------------- 6. roof exposure at E1.2 and E1.5 (and every guard on the lean-tos)
+const ROOFX = { 'E1.2': [22, 46], 'E1.4': [46, 82], 'E1.5': [82, 100], 'E1.7': [142, 172] };
+const roofExp = {};
+for (const [e, [x0, x1]] of Object.entries(ROOFX)) {
+  roofExp[e] = {};
+  for (const G of ctx.guards) {
+    if (G.id === 'SN' || G.id === 'GB1') continue;
+    const c = coverage(G, 'U', x0, x1, 21, 26, 0.5);
+    const cs = coverage(G, 'U', x0, x1, 21, 26, 0.5, false);
+    if (c.seen || cs.seen) roofExp[e][G.id] = { crouched: c, standing: cs };
+  }
+}
+
 const fp1 = { plans: [] };
 {
   const rt = crawl.FP1;
   const hold = rt.segs.find((s) => s.hold && s.label?.startsWith('FP1'));
   const xEnd = 100; // run on to the A9 recess (K2)
   const tauEnd = rt.segs.find((s) => Math.max(s.a[0], s.b[0]) >= xEnd)?.t0 ?? rt.total;
-  for (let k = 0; k < 80; k++) {
+  for (let k = 0; k < (FAST ? 0 : 80); k++) {
     const Toff = k * 0.5; // master time when the fuse comes out (end of the 3 s hold)
     // the hold itself (3 s before Toff) with the lamps still on
     const h = simRun(rt, hold.t0, hold.t1, Toff - 3);
@@ -267,16 +286,16 @@ const snReach = snPositions.map(([label, [sx, sz]]) => {
 const noEaves = loadWorld({ ...D, meta: { ...D.meta, slabs: D.meta.slabs.filter((s) => !s.id.startsWith('EAV')) } });
 let eaveDiff = 0, eaveTests = 0;
 const viewers = [...ctx.guards.filter((g) => g.id !== 'SN').map((g) => ({ id: g.id, l: g.level, pts: Array.from({ length: 40 }, (_, t) => guardPosAt(ctx, g, t)) })), { id: 'SN worst case', l: 'R', pts: [{ x: 196.5, z: -12.5 }] }];
-for (const v of viewers) for (const gp of v.pts) for (let x = 12.5; x < 172; x += 1) {
+if (!FAST) for (const v of viewers) for (const gp of v.pts) for (let x = 12.5; x < 172; x += 1) {
   if (hyp(gp.x - x, gp.z - 20.6) > 26 && v.id !== 'SN worst case') continue;
   for (const h of [1.05, 1.6]) { eaveTests++; const a = W.los({ l: v.l, x: gp.x, z: gp.z, h: 1.6 }, { l: 'G', x, z: 20.6, h }); const b = noEaves.los({ l: v.l, x: gp.x, z: gp.z, h: 1.6 }, { l: 'G', x, z: 20.6, h }); if (a !== b) eaveDiff++; }
 }
 
 // ---------------------------------------------------------------------------------------------- 10. bots
 const sprint = sprintBot(ctx);
-const TT = Object.fromEntries(['M', 'UP', 'UPQ', 'BELOW'].map((id) => [id, timetableBot(ctx, { route: id })]));
-// Area 1 targets: the mission doc's known-route ratio (timetable 12 min for a 20 min first run: 0.6) on Area 1's 5.5 to 6.5 min first run
-const TT_LO = 0.6 * 5.5 * 60, TT_HI = 0.6 * 6.5 * 60;
+const TT = Object.fromEntries(RIDS.map((id) => [id, timetableBot(ctx, { route: id })]));
+// Area 1 targets (Michael, D1 revision): ground route 4 to 5 min, 35 to 45% waiting, longest wait 45 s; every route within 20% of it
+const TT_LO = 240, TT_HI = 300;
 
 // ---------------------------------------------------------------------------------------------- 11. rule 27 camera
 const cam = []; let camN = 0;
@@ -335,7 +354,7 @@ for (const id of RIDS) { const rt = ctx.routes[id], rc = crawl[id]; P(`| ${id} |
 P();
 P(`Encounter columns: crawl seconds spent inside each encounter's x span (E1.2 x ${spanOf('E1.2').join(' to ')}, E1.4 ${spanOf('E1.4').join(' to ')}, E1.5 ${spanOf('E1.5').join(' to ')}, E1.7 ${spanOf('E1.7').join(' to ')}, E1.8 ${spanOf('E1.8').join(' to ')}).`);
 const ideal = ctx.routes.M.total;
-result('Ground route ideal walk (D0 estimate about 105 s)', ideal >= 90 && ideal <= 120 ? 'PASS' : 'INFO', `${f1(ideal)} s over ${f1(routeLen(ctx.routes.M))} m`);
+result('Ground route ideal walk', 'INFO', `${f1(ideal)} s over ${f1(routeLen(ctx.routes.M))} m`);
 P();
 P('## 3. Light share along the ground route');
 P();
@@ -346,9 +365,7 @@ for (const [n, x0, x1] of stretches) P(`| ${n} | ${pc(shareIn(lightOn.samples, x
 const litAll = shareIn(lightOn.samples, 0, 200, (p) => p.lit);
 const litSighted = shareIn(lightOn.samples, 0, 200, (p) => p.lit && p.by.length);
 P();
-P(`Lit means light >= ${LIGHT.shadow} (LIGHT.shadow). The mission doc's chapter 1 target was about 60% lit; rule L1 asks for at least half of the route lit and inside a sightline.`);
-result('Lit share of the ground route (target about 60%)', Math.abs(litAll - 0.6) <= 0.15 ? 'PASS' : 'FAIL', `${pc(litAll)} lit; ${pc(litSighted)} lit and in a sightline (L1 wants 50%)`);
-result('L1: half the route lit and in a sightline', litSighted >= 0.5, pc(litSighted));
+P(`Lit means light >= ${LIGHT.shadow} (LIGHT.shadow). For information only: Michael removed the 60% target and L1 for Area 1 (D1 revision); lamps stand where guards face. Whole route ${pc(litAll)} lit, ${pc(litSighted)} lit and in a sightline.`);
 P();
 P('## 4. Sight cones: what each guard covers');
 P();
@@ -364,10 +381,18 @@ P('Crossing each encounter\'s span at the silent crouched gear 4 starting at eve
 P();
 P('| Encounter | Route | Crossing s | Safe share | Longest window s | Safe starts (master s) | Who closes the others |');
 P('| --- | --- | --- | --- | --- | --- | --- |');
-for (const e of ENCS) for (const id of ['M', 'UP', 'UPQ', 'BELOW']) { const w = WIN[e][id]; if (!w) continue; P(`| ${e} | ${id} | ${f1(w.time)} | ${pc(w.safeShare)} | ${f1(w.longest)} | ${w.intervals} | ${Object.entries(w.blockers).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g} (${n})`).join(', ') || '-'} |`); }
-const noWindow = [];
-for (const e of ENCS) { const w = WIN[e].M; if (w && w.safeShare === 0) noWindow.push(e); }
-result('Every main-route encounter has a safe window (ground route)', noWindow.length === 0, noWindow.length ? `no safe start at ${noWindow.join(', ')}` : ENCS.map((e) => `${e} ${f1(WIN[e].M.longest)} s`).join(', '));
+for (const e of ENCS) for (const id of RIDS) { const w = WIN[e][id]; if (!w) continue; P(`| ${e} | ${id} | ${f1(w.time)} | ${pc(w.safeShare)} | ${f1(w.longest)} | ${w.intervals} | ${Object.entries(w.blockers).sort((a, b) => b[1] - a[1]).map(([g, n]) => `${g} (${n})`).join(', ') || '-'} |`); }
+// Michael's encounter rules (D1 revision)
+const gShare = ENCS.map((e) => [e, WIN[e].M]);
+result('Ground route: safe share 25 to 45% at every guarded encounter', gShare.every(([, w]) => w.safeShare >= 0.25 - 1e-9 && w.safeShare <= 0.45 + 1e-9), gShare.map(([e, w]) => `${e} ${pc(w.safeShare)}`).join(', '));
+result('Ground route: a guard whose position matters at every encounter', gShare.every(([, w]) => Object.keys(w.blockers).length > 0), gShare.map(([e, w]) => `${e} ${Object.keys(w.blockers).join('+') || 'none'}`).join(', '));
+const full = [];
+for (const e of ENCS) for (const id of RIDS) { const w = WIN[e][id]; if (w && w.safeShare >= 1 - 1e-9) full.push(`${id} at ${e}`); }
+result('No route 100% safe at any guarded encounter (every route has a timed exposure)', full.length === 0, full.length ? full.join(', ') : 'every route has a timed exposure at every guarded encounter');
+const cheap = [];
+// safer = a safe share more than 5 points above the ground route (two routes on one path differ by a start step or two)
+for (const e of ENCS) for (const id of RIDS.filter((r) => r !== 'M')) { const w = WIN[e][id], g = WIN[e].M; if (w && w.safeShare > g.safeShare + 0.05 + 1e-9 && w.time < g.time + 15 - 1e-9) cheap.push(`${id} at ${e} (${pc(w.safeShare)} vs ${pc(g.safeShare)}, +${f1(w.time - g.time)} s)`); }
+result('A route safer than the ground route costs at least 15 s more there', cheap.length === 0, cheap.length ? cheap.join('; ') : 'none cheaper and safer');
 P();
 P('## 6. Roof exposure at E1.2 and E1.5 (and the other roof stretches)');
 P();
@@ -377,20 +402,21 @@ P('| Stretch | Guard | Crouched: cells seen | Share | Mean s per cycle | Standin
 P('| --- | --- | --- | --- | --- | --- | --- |');
 for (const [e, m] of Object.entries(roofExp)) { const ent = Object.entries(m); if (!ent.length) P(`| ${e} roofs x ${ROOFX[e].join(' to ')} | none | 0 | 0% | - | 0% | - |`); for (const [g, c] of ent) P(`| ${e} roofs x ${ROOFX[e].join(' to ')} | ${g} | ${c.crouched.seen} of ${c.crouched.cells} | ${pc(c.crouched.share)} | ${f1(c.crouched.meanSec)} | ${pc(c.standing.share)} | ${f2(Math.max(c.crouched.maxRate, c.standing.maxRate))} |`); }
 P();
-P('Dominance test: a roof route (UP or UPQ, counted only where it spends at least half of the crossing on the roofs) is "both the fastest and the lowest-risk way past" when no other route is more than 1 s faster and none has a safe share more than 5 points higher (near-ties count against the roof).');
+P('Dominance test: a roof route (UP or UPQ, counted only where it spends at least half of the crossing on the roofs) is "both the fastest and the lowest-risk way past" when no other route is more than 1 s faster and the roof route is more than 5 points safer than every other route (the same 5-point tolerance as rule 3).');
 P();
 P('| Encounter | Fastest (crawl s) | Safest (safe share) | Roof dominant? |');
 P('| --- | --- | --- | --- |');
 const dominant = [];
 for (const e of ENCS) {
-  const cand = ['M', 'UP', 'UPQ', 'BELOW'].map((id) => [id, WIN[e][id]]).filter(([, w]) => w);
+  const cand = RIDS.map((id) => [id, WIN[e][id]]).filter(([, w]) => w);
   const fastest = cand.reduce((a, b) => (b[1].time < a[1].time ? b : a));
   const safest = cand.reduce((a, b) => (b[1].safeShare > a[1].safeShare ? b : a));
   // the roof counts only where the roof route is on the roofs for at least half of the crossing; a tie within 1 s or 5 points counts against the roof
   const onRoof = (id) => { const rt = crawl[id]; const [x0, x1] = spanOf(e); let tot = 0, u = 0; for (const s of rt.segs) { const mx = (s.a[0] + s.b[0]) / 2; if (mx >= x0 && mx < x1) { tot += s.t1 - s.t0; if (s.lv === 'U') u += s.t1 - s.t0; } } return tot > 0 && u / tot >= 0.5; };
   const roofs = cand.filter(([id]) => ['UP', 'UPQ'].includes(id) && onRoof(id));
   const others = cand.filter(([id]) => !roofs.some(([r]) => r === id));
-  const roofDom = roofs.some(([, w]) => others.every(([, o]) => w.time <= o.time + 1 && w.safeShare >= o.safeShare - 0.05));
+  // dominant: no slower than any other route by more than 1 s and safer than all of them by more than 5 points (the rule 3 tolerance)
+  const roofDom = roofs.some(([, w]) => others.every(([, o]) => w.time <= o.time + 1 && w.safeShare > o.safeShare + 0.05 + 1e-9));
   if (roofDom) dominant.push(e);
   P(`| ${e} | ${fastest[0]} ${f1(fastest[1].time)} | ${safest[0]} ${pc(safest[1].safeShare)} | ${roofDom ? 'YES' : 'no'} |`);
 }
@@ -438,18 +464,18 @@ P('## 10. Bots');
 P();
 P(`**Sprint bot** (ground route M at sprint, 5.0 m/s, noise 9 m, never waits): route ${f1(sprint.routeS)} s; spotted ${sprint.spotted.length}, heard ${sprint.heard.length}, events ${sprint.events}; first alarm at ${sprint.alarmAtS === null ? 'none' : f1(sprint.alarmAtS) + ' s'}. Spotted by: ${sprint.spotted.map((e) => `${e.g} at ${e.t} s (${e.at[1]}, ${e.at[2]})`).join('; ') || 'nobody'}. Heard by: ${sprint.heard.map((e) => `${e.g} at ${e.t} s`).join('; ') || 'nobody'}.`);
 P();
-const spOk = sprint.alarmAtS !== null && sprint.events >= 4;
-result('Sprint bot fails the run (an alarm in Area 1 and 4 or more events)', spOk, `alarm ${sprint.alarmAtS === null ? 'none' : 'at ' + f1(sprint.alarmAtS) + ' s'}, ${sprint.events} events`);
-P(`**Timetable bot** (silent crouched gear 4, perfect knowledge of the guard clock, stop to stop between cover samples, waits only where waiting is safe). Area 1 target time, derived from the mission doc's known-route ratio (0.6 x the 5.5 to 6.5 min first run): ${f1(TT_LO / 60)} to ${f1(TT_HI / 60)} min; wait share 30 to 40%, longest wait 40 s or less.`);
+result('Sprint bot: alarm in the first 15 s', sprint.alarmAtS !== null && sprint.alarmAtS <= 15, `alarm ${sprint.alarmAtS === null ? 'none' : 'at ' + f1(sprint.alarmAtS) + ' s'}, ${sprint.events} events`);
+P('**Timetable bot** (silent crouched gear 4, perfect knowledge of the guard clock, stop to stop between cover samples, waits only where waiting is safe). Targets (Michael, D1 revision): ground route 4 to 5 min with 35 to 45% waiting and no wait over 45 s; every route within 20% of the ground route. The FP1 route plays the fuse event: lamps out until GA2 has reset them, GA2 walking to FP1 and back.');
 P();
 P('| Route | Reached | Alarms | Max meter | Finished s (min) | Waited s (share) | Longest wait s | Unsafe moments |');
 P('| --- | --- | --- | --- | --- | --- | --- | --- |');
 for (const [id, t] of Object.entries(TT)) P(`| ${id} | ${t.reached ? 'yes' : 'no'} | ${t.alarms} | ${f2(t.maxMeter)} | ${f1(t.finishedAtS)} (${f2(t.finishedMin)}) | ${f1(t.waitedS)} (${pc(t.waitShare)}) | ${f1(t.longestWaitS)} | ${t.unsafeMoments}${t.unsafe.length ? ': ' + t.unsafe.slice(0, 3).map((u) => `${u.g} ${u.peak} at (${u.at[1]}, ${u.at[2]})`).join('; ') : ''} |`);
 const ttM = TT.M;
 result('Timetable bot, ground route: reaches K4 and SD with no alarm, under suspicious', ttM.reached && ttM.alarms === 0 && ttM.maxMeter < PERCEPTION.suspicious, `max meter ${f2(ttM.maxMeter)}, ${f1(ttM.finishedAtS)} s`);
-result('Timetable bot, ground route: time in the derived band', ttM.finishedAtS >= TT_LO && ttM.finishedAtS <= TT_HI ? 'PASS' : 'INFO', `${f2(ttM.finishedMin)} min (band ${f1(TT_LO / 60)} to ${f1(TT_HI / 60)}; derived, not set by Michael)`);
-result('Timetable bot, ground route: waits (share 30 to 40%, longest 40 s)', ttM.waitShare <= 0.4 && ttM.longestWaitS <= 40 ? (ttM.waitShare >= 0.3 ? 'PASS' : 'INFO') : 'FAIL', `${pc(ttM.waitShare)}, longest ${f1(ttM.longestWaitS)} s`);
-for (const id of ['UP', 'UPQ', 'BELOW']) result(`Timetable bot, ${id}: reaches the exit unseen`, TT[id].reached && TT[id].alarms === 0 && TT[id].maxMeter < PERCEPTION.suspicious ? 'PASS' : 'INFO', `max meter ${f2(TT[id].maxMeter)}, ${f1(TT[id].finishedAtS)} s, waited ${pc(TT[id].waitShare)}`);
+result('Timetable bot, ground route: 4 to 5 min', ttM.finishedAtS >= TT_LO && ttM.finishedAtS <= TT_HI, `${f1(ttM.finishedAtS)} s (${f2(ttM.finishedMin)} min)`);
+result('Timetable bot, ground route: 35 to 45% waiting', ttM.waitShare >= 0.35 - 1e-9 && ttM.waitShare <= 0.45 + 1e-9, `${pc(ttM.waitShare)} (${f1(ttM.waitedS)} s)`);
+result('Timetable bot, ground route: longest single wait 45 s or less', ttM.longestWaitS <= 45, `${f1(ttM.longestWaitS)} s`);
+for (const id of RIDS.filter((r) => r !== 'M')) { const t = TT[id]; const dv = (t.finishedAtS - ttM.finishedAtS) / ttM.finishedAtS; result(`Timetable bot, ${id}: reaches the exit unseen, within 20% of the ground route`, t.reached && t.alarms === 0 && t.maxMeter < PERCEPTION.suspicious && Math.abs(dv) <= 0.2 + 1e-9, `${f1(t.finishedAtS)} s (${dv >= 0 ? '+' : ''}${pc(dv)}), max meter ${f2(t.maxMeter)}, waited ${pc(t.waitShare)}`); }
 P();
 P('## 11. Rule 27: the camera');
 P();

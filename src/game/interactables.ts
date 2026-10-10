@@ -36,6 +36,8 @@ export interface Interactable {
   light: InstancedMesh | null;
   /** Reach from the feet (m; default 1.8). */
   reach?: number;
+  /** Noise radius (m) the hold makes while it runs (a manhole cover, a padlock); none = silent. */
+  holdNoise?: number;
   /** Called when used (else the mode handles it). */
   onUse?: (it: Interactable) => void;
 }

@@ -18,7 +18,7 @@ export function buildRoute(W, route, opts = {}) {
   for (let k = 0; k < route.pts.length; k++) {
     const p = route.pts[k];
     if (k === 0) {
-      if (p.hold) push({ lv: p.lv, a: [p.x, p.z], b: [p.x, p.z], t0: t, t1: t + p.hold, speed: 0, mode: 'hold', chapter, label: p.label, hold: true, enc: p.enc });
+      if (p.hold) push({ lv: p.lv, a: [p.x, p.z], b: [p.x, p.z], t0: t, t1: t + p.hold, speed: 0, mode: 'hold', chapter, label: p.label, hold: true, enc: p.enc, holdNoise: p.holdNoise, event: p.event });
       continue;
     }
     const q = route.pts[k - 1];
@@ -61,7 +61,7 @@ export function buildRoute(W, route, opts = {}) {
         }
       }
     }
-    if (p.hold) push({ lv: p.lv, a: [p.x, p.z], b: [p.x, p.z], t0: t, t1: t + p.hold, speed: 0, mode: 'hold', chapter, label: p.label, hold: true, enc: p.enc });
+    if (p.hold) push({ lv: p.lv, a: [p.x, p.z], b: [p.x, p.z], t0: t, t1: t + p.hold, speed: 0, mode: 'hold', chapter, label: p.label, hold: true, enc: p.enc, holdNoise: p.holdNoise, event: p.event });
     if (p.chapter) chapter = p.chapter;
   }
   const byChapter = {};
@@ -136,21 +136,23 @@ export const guardPosAt = (ctx, g, T) => guardAt(g, ctx.TL[g.id], T + (g.phase |
 export function sightOf(ctx, g, gp, pl, light) {
   const W = ctx.W;
   const dx = pl.x - gp.x, dz = pl.z - gp.z;
-  const dyv = W.Y[pl.lv] + (pl.crouched ? 1.05 : 1.6) - (W.Y[g.level] + 1.6);
+  const eyeH = g.eyeH ?? 1.6;
+  const dyv = W.Y[pl.lv] + (pl.crouched ? 1.05 : 1.6) - (W.Y[g.level] + eyeH);
   const dist = Math.sqrt(dx * dx + dz * dz + dyv * dyv);
   if (dist > PERCEPTION.focusRange) return { rate: 0, dist, seen: false, exposure: 0 };
   const yaw = Math.atan2(gp.face[0], gp.face[1]);
   const ang = wrapA(Math.atan2(dx, dz) - yaw);
   const [, range] = fieldFactor(ang);
   if (dist >= Math.max(range, PERCEPTION.closeRange)) return { rate: 0, dist, seen: false, exposure: 0, angle: ang };
-  const eye = { l: g.level, x: gp.x, z: gp.z, h: 1.6 };
+  const eye = { l: g.level, x: gp.x, z: gp.z, h: eyeH };
   let hits = 0;
   if (W.los(eye, { l: pl.lv, x: pl.x, z: pl.z, h: pl.crouched ? 1.05 : 1.6 })) hits++;
   if (W.los(eye, { l: pl.lv, x: pl.x, z: pl.z, h: pl.crouched ? 0.6 : 1.0 })) hits++;
   if (W.los(eye, { l: pl.lv, x: pl.x, z: pl.z, h: 0.3 })) hits++;
   const exposure = hits / 3;
   if (!exposure) return { rate: 0, dist, seen: false, exposure: 0, angle: ang };
-  const rate = sightRate({ dist, angle: ang, light, crouched: pl.crouched, speed: pl.speed, exposure, sensitivity: 1 });
+  // ctx.sightRateFn: a proposed perception rule measured by the design scripts (default: the engine's)
+  const rate = (ctx.sightRateFn ?? sightRate)({ dist, angle: ang, light, crouched: pl.crouched, speed: pl.speed, exposure, sensitivity: 1 });
   const instant = instantDetect({ dist, angle: ang, light, crouched: pl.crouched, speed: pl.speed, exposure, sensitivity: 1 });
   return { rate, dist, seen: seenAt(rate), exposure, angle: ang, instant };
 }
@@ -162,6 +164,8 @@ export function stepMeter(m, rate, dt) {
 // does a noise of radius r (m) from the player reach the guard? a wall between (or another floor) muffles it to 0.45
 export function hears(ctx, g, gp, pl, radius) {
   if (radius <= 0) return { heard: false, d: 99, s: 0 };
+  // a guard in a closed vehicle (windows up, heater on) hears less: g.hearMul
+  if (g.hearMul) radius *= g.hearMul;
   const W = ctx.W;
   // a vent (D.acoustic, Dead Line v2): noise made in the zone under it comes out at its grating, unmuffled
   const v = ctx.D.acoustic?.find((a) => a.level === pl.lv && pl.x >= a.rect[0] && pl.x <= a.rect[2] && pl.z >= a.rect[1] && pl.z <= a.rect[3]);
