@@ -1,5 +1,5 @@
 # Security systems - spec
-Status: DRAFT (reopened 2026-10-10 for revision fixes 1-2; was APPROVED)
+Status: APPROVED (Michael, 2026-10-10)
 
 Six systems for Cinder Yard, reused later (Mission 5 bank): CCTV cameras, the security desk (with its alarm panel and plant faults), card access (readers, keycards, cloning, mantrap), the iris scanner, infrared beams and PIR lights. Coordinates and yaw follow 00-facts.md section 2 (north +Z, yaw 0 faces +Z). `SNxx` are the numbers in section 5. Every device raises suspicion only through existing enemy functions (section 10). Nothing here fails the mission.
 
