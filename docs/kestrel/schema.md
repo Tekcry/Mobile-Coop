@@ -1,5 +1,5 @@
 # Kestrel plan files - schema
-Status: DRAFT (P03 Parts A to C)
+Status: APPROVED (2026-10-10)
 
 Three JSON files describe the map before any code: `kestrel.arch.json` (the building), `kestrel.play.json` (the play layer, filled by P06-P08) and `kestrel.security.json` (the security devices, shape from S0 section 6). `scripts/kestrel/plans.mjs` draws them, `scripts/kestrel/check.mjs` checks them. Every number a tool tests comes from `scripts/kestrel/facts.json`.
 
