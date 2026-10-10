@@ -36,7 +36,7 @@ Spaces: S1 yard, S2 ground-floor offices, S3 security room, S4 ops and facilitie
 | Perimeter patrol | 1 | S1 | Guarding firm | Fixed loop of fence line and yard; checks the sensor lamps | Yard | yes |
 | Van driver | 1 | S1 | Guarding firm, extra post paid by Ansell & Crowe | Carries crates from goods-in to the van | Yard, goods-in bay | yes |
 | Rounds officer | 1 | S2 | Guarding firm | Tries doors and checks windows on a fixed round | Ground-floor offices | yes |
-| Duty manager | 1 | S2 | Guarding firm | Shift manager: signs the log, holds the master card, walks to reception and back each cycle | His office | yes |
+| Duty manager | 1 | S2 | Guarding firm | Shift manager: signs the log, holds the master card, walks to reception and back each cycle; iris-enrolled, so a second key for the hall | His office | yes |
 | Desk operator | 1 | S3 | Guarding firm | Watches the monitor wall, takes radio calls | Security room | yes |
 | Supervisor | 1 | S3 | Guarding firm | Leaves on a rounds loop through ops and the hall door, then returns | Security room, then rounds | yes |
 | Corridor patrol | 1 | S4 | Guarding firm | Walks the ops and facilities corridors | Ops and facilities | yes |
@@ -47,7 +47,7 @@ Spaces: S1 yard, S2 ground-floor offices, S3 security room, S4 ops and facilitie
 | Roaming officer | 1 | S6 | Guarding firm | Loops the meet-me room and the carrier-side corridor | Meet-me room and approaches | yes |
 | Generator test technician | 1 | X | Guarding firm (trained facilities officer; the engineer is the only Ostler employee) | Runs the weekly generator test | Staff rest room until the test | yes |
 | Returning van driver | 1 | X | Guarding firm, extra post paid by Ansell & Crowe | Second officer of the van crew; off site on the lane run, walks back to sign the van sheet | Off site until the test | yes |
-| Night duty engineer (civilian) | 1 | S4 | Ostler Colocation | Watches the building-management screens, signs off the generator test; the only person iris-enrolled for the hall | Ops office | no |
+| Night duty engineer (civilian) | 1 | S4 | Ostler Colocation | Watches the building-management screens, signs off the generator test; iris-enrolled for the hall, the story's preferred key | Ops office | no |
 Total 16 guards + 1 civilian. At most 12 awake (F21): the four asleep at the start are the S6 pair and the exit pair (P07 chooses, Q5). The bible's civilian rules (flee to the nearest guard or alarm and raise it; never fight; killing fails the mission) are followed. The engineer's grab for the iris is the S0 civilian-grab ASK (ASK-8).
 
 ## 4. The objective chain
@@ -65,11 +65,11 @@ Total 16 guards + 1 civilian. At most 12 awake (F21): the four asleep at the sta
 | 1 Inside the perimeter | Lane, perimeter fence | Lane fence (F14); sensor lamps | Climb the fence into the yard. Completion is a zone trigger: ASK-2 | First step; nothing else is reachable | The yard | Sensor lamp trips; fence rattle at gears above 3 |
 | 2 Keycard | Duty manager's office (S2) | Duty manager's master card | Take card from his desk drawer while he is on his walk (S0 "Take card"); or takedown (card taken automatically); or clone card from a grabbed manager | The security room door needs it; nothing earlier carries a reader | Security room, ops, mantrap and vault readers | Manager returns; rounds officer; a revoked card if a holder body is found while the desk is manned |
 | 3 Blind the security room | Security room (S3) | Intrusion panel beside the desk; the monitor wall | Panel holds: Loop cameras or Cameras off, and Beams off (S0). Completion rule ASK-3 | Cameras and beams cover ops, mantrap and hall; they must be dealt with before S4 | Safe movement through S4-S6 | Desk operator in the room; supervisor away only part of the cycle; "off" is noticed 10 s after the desk is manned |
-| 4 Pell's cage number | Ops office (S4) | Ostler's cage and cross-connect register on the engineer's monitoring terminal, behind the ops reader | Terminal (F27) reading, objective type intel (F28) | Needs the card (2) and unwatched corridors (3). The register also shows who is iris-enrolled | Cage number, the meet-me panel ports, the engineer as the iris key | Engineer is at the terminal (civilian: flees and raises the alarm); corridor patrol; escort officer |
-| 5 Secure zone | Mantrap and data hall (S5) | Mantrap with card and iris; the night duty engineer | Hold the engineer (grab), swipe the card, then Scan eye (S0). Alternative: carrier entrance below | Both factors need a card (2) and a grabbed enrolled person (4 identifies him) | The hall, Pell's cage, the meet-me room | Mantrap post; the pair; a seen grab; the engineer must stay conscious |
+| 4 Pell's cage number | Ops office (S4) | Ostler's cage and cross-connect register on the engineer's monitoring terminal, behind the ops reader | Terminal (F27) reading, objective type intel (F28) | Needs the card (2) and unwatched corridors (3) | Cage number, the meet-me panel ports; the register also shows who is iris-enrolled | Engineer is at the terminal (civilian: flees and raises the alarm); corridor patrol; escort officer |
+| 5 Secure zone | Mantrap and data hall (S5) | Mantrap with card and iris; the night duty engineer | Hold the engineer or the duty manager (grab), swipe the card, then Scan eye (S0). The engineer is the preferred key. Alternative: carrier entrance below | Both factors need a card (2) and a grabbed enrolled person (the register in 4 names them) | The hall, Pell's cage, the meet-me room | Mantrap post; the pair; a seen grab; the grabbed person must stay conscious |
 | 6 Tap | Meet-me room (S6) | Pell's patch panel under his cage number; passive fibre tap | Fit the tap: objective type plant (F28), held interact; kind and hold time ASK-4 | Needs the cage number (4) and the secure zone (5) | The tap's capture; the generator test starts (Q1) | Pell's contractor at the panel; roaming officer; hold noise (F19) |
-| 7 Exfiltration | Yard (X) | Generator test, technician, returning van driver, engineer | Reach the extract point (F27 "extract", F28 type extract) | Only after the tap; the test noise is the cover | End of mission; SUNDOWN reveal | Five officers and the civilian in the yard; sensor lamps |
-Carrier entrance (objective 5 alternative): a cable chamber under the yard, entered from a stair in the facilities area, with no guards (nav depth rule, F22). Its doors take the master card (ASK-9). Whether it passes Space 5 is Q2. The yard hatch opens from inside only.
+| 7 Exfiltration | Yard (X) | Generator test, technician, returning van driver, engineer | Reach the extract point (F27 "extract", F28 type extract), leaving by the vehicle gate or the loading apron (P02 places it), not back over the lane fence | Only after the tap; the test noise is the cover | End of mission; SUNDOWN reveal | Five officers and the civilian in the yard; sensor lamps |
+Carrier entrance (objective 5 alternative): entered from the yard by lifting the carrier duct manhole cover (the existing manhole lift noise, 10 m, F19), down into the vault, then up the carrier riser to the meet-me room's own card-reader door. No guards in the vault (nav depth rule, F22). The riser door takes the master card (ASK-9). The route does not pass S5 (Q2).
 
 ## 5. Optional objectives
 | Objective | Room | Why the record or label is there | Player does |
@@ -78,17 +78,17 @@ Carrier entrance (objective 5 alternative): a cable chamber under the yard, ente
 | Photograph his rack's labels | Data hall, Pell's cage | Cages are wire mesh so staff can audit them, and fibre is labelled at both ends for the engineers who patch it (general knowledge) | Interactable intel (F27, F28), through the mesh |
 
 ## 6. Beats
-Zones (proposal; P02 fixes them, ASK-10): Z0 public lane, Z1 perimeter and yard, Z2 staff offices, Z3 controlled (security room, ops and facilities), Z4 secure (mantrap, hall, meet-me room). Tension chart: 1,3,2,4,3,5,4,5. Each peak is followed by a release; each high route rejoins inside its own space (LD 3).
+Zones are P02's fixed program numbers: 1 site, 2 reception, 3 controlled, 3+ restricted, 4 secure, 5 high security. Which space gets which number is a proposal for P02 to confirm: S1 lane and yard 1, S2 offices 2, S3 security room 3, S4 ops and facilities 3+, S5 mantrap and hall 4, S6 meet-me room 5. Tension chart: 1,3,2,4,3,5,4,5. Each peak is followed by a release; each high route rejoins inside its own space (LD 3).
 | # | Place and zone | Obj | Player wants | In the way | Teaches | Mood | T | Min |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| B1 Insertion | Lane and fence, Z0 to Z1 | 1 | Get over the fence unseen | Sensor lamps just inside; a camera-free dark wall to follow | Crouch gears and noise (fence, sensor lamps) | Wet, exposed, quiet | 1 | 3 |
-| B2 S1 | Yard with gatehouse, goods-in bay, generator compound, van; Z1 | - | Reach the goods-in bay or a window | Gatehouse officer, patrol, loader at the van, a camera over goods-in | Making darkness: lamps, switches, a camera's frame | Watchful; a working yard | 3 | 6 |
-| B3 S2 | Ground-floor offices: reception, admin office, duty manager's office; Z2 | 2 | A card to open the security room | Manager, rounds officer, lit rooms | Takedown from behind, hiding bodies, taking a card | Dim, ordinary, tense | 2 | 4 |
-| B4 S3 | Security room; Z3 | 3 | Blind cameras and beams | Operator at the desk, supervisor's rounds window, monitor wall | Cameras, the desk and panel | Cold blue glow, cramped | 4 | 6 |
-| B5 S4 | Ops office, plant gallery, switch room; Z3 | 4 | Read the cage number | Patrol, escort, engineer at the terminal, beams | Beams, with the pipe route over them | Loud plant, noise helps | 3 | 5 |
-| B6 S5 | Mantrap vestibule and data hall; Z4 | 5 | Open the inner door with card and iris | Mantrap post, pair on rounds, long lit aisles | Grab and iris, hall lights | Clinical, humming, exposed | 5 | 6 |
-| B7 S6 | Meet-me room; Z4 | 6 | Tap Pell's panel | Contractor at the panel, roaming officer | The held tap beside a watcher | Small, cold, precise | 4 | 4 |
-| B8 X | Yard, back to the lane; Z1 to Z0 | 7 | Cross the yard and leave by the lane | Same yard, now with technician, returning driver, engineer, generator roar | Set piece: everything combined | Release into dread | 5 | 3.5 |
+| B1 Insertion | Lane and fence, zone 1 | 1 | Get over the fence unseen | Sensor lamps just inside; a camera-free dark wall to follow | Crouch gears and noise (fence, sensor lamps) | Wet, exposed, quiet | 1 | 3 |
+| B2 S1 | Yard with gatehouse, goods-in bay, generator compound, van; zone 1 | - | Reach the goods-in bay or a window | Gatehouse officer, patrol, loader at the van, a camera over goods-in | Making darkness: lamps, switches, a camera's frame | Watchful; a working yard | 3 | 6 |
+| B3 S2 | Ground-floor offices: reception, admin office, duty manager's office; zone 2 | 2 | A card to open the security room | Manager, rounds officer, lit rooms | Takedown from behind, hiding bodies, taking a card | Dim, ordinary, tense | 2 | 4 |
+| B4 S3 | Security room; zone 3 | 3 | Blind cameras and beams | Operator at the desk, supervisor's rounds window, monitor wall | Cameras, the desk and panel | Cold blue glow, cramped | 4 | 6 |
+| B5 S4 | Ops office, plant gallery, switch room; zone 3+ | 4 | Read the cage number | Patrol, escort, engineer at the terminal, beams | Beams, with the pipe route over them | Loud plant, noise helps | 3 | 5 |
+| B6 S5 | Mantrap vestibule and data hall; zone 4 | 5 | Open the inner door with card and iris | Mantrap post, pair on rounds, long lit aisles | Grab and iris, hall lights | Clinical, humming, exposed | 5 | 6 |
+| B7 S6 | Meet-me room; zone 5 | 6 | Tap Pell's panel | Contractor at the panel, roaming officer | The held tap beside a watcher | Small, cold, precise | 4 | 4 |
+| B8 X | Yard to the vehicle gate or loading apron; zone 1 | 7 | Cross the yard and leave by the vehicle gate or loading apron (a different path from the entry) | Same yard, now with technician, returning driver, engineer, generator roar | Set piece: everything combined | Release into dread | 5 | 3.5 |
 Teach, test, twist: B1-B3 teach, B4-B6 test with combinations, B7 tests precision, B8 is the twist (the yard learnt in B2 has changed). Counts as in section 3.
 
 ## 7. Mechanics
@@ -105,7 +105,7 @@ Only mechanics in 00-facts.md. Every row names a real element. "-" means no furt
 | Desk and panel | B4 | B5 | B6 | Security room desk and intrusion panel |
 | Card readers | B3 | B4 | B6 | Readers on security room, ops, mantrap and vault doors |
 | Takedown, drop attack | B3 | B5 | B6 | Behind in the offices; drop from the plant gantry onto the corridor |
-| Grab | B6 | B7 | - | Engineer to the iris; clone from a grabbed manager (B3 option) |
+| Grab | B6 | B7 | - | Engineer or duty manager to the iris; clone from a grabbed manager (B3 option) |
 | Hiding bodies | B3 | B5 | B6 | Comms cupboard, janitor's cupboard |
 | Mantrap and iris | B6 | - | - | Mantrap and iris at the hall; carrier route is the counter |
 | Beams | B5 | B6 | B7 | Plant corridor, hall approach, meet-me approach. Rule for P04S: at least one beam in B5 and one in B7 is on no panel, so beams are met live |
@@ -182,13 +182,23 @@ LANTERN: Then we've nine nights. Come home.
 - ASK-7: whether the noise model can mask footsteps near the generator (F19 lists no masking). If not, the generator is a story reason only.
 - ASK-8: the engineer is a civilian and must be grabbable (S0 section 11).
 - ASK-9: which doors the carrier route has and whether the master card opens them (P04S).
-- ASK-10: zone names Z0-Z4 are proposals; P02 fixes them.
+- ASK-10: closed (fix 4): zone numbers come from P02's fixed program.
 - ASK-11: "undetected" as a ghost condition; the bible lists only the four rules.
 - ASK-12: guards' kinds: whether an unarmed officer exists is not in F20 (Q3).
 
 ## 13. Questions for Michael (answered 2026-10-10)
 1. Triggers: assume the bible 5.8 triggers and actions. Objective 1 completes on a zone trigger; completing objective 6 starts the generator test (ASK-2 closed).
-2. Carrier route: it passes a corner of S5 (a door the talking pair's round crosses), so no space is skipped.
+2. Carrier route: yard manhole, vault, riser to the meet-me room's own reader door. It does not pass S5; the route skips B6 and its test (revised, fix 3).
 3. Weapons: all 16 guards carry sidearms (ASK-12 closed).
 4. Alarm fail: alarms never fail the mission; only killing the civilian does.
 5. Dormant four: left to P07. The proposal in the people table (S6 pair and exit pair) is a default only.
+
+Downstream: P02 must confirm the space-to-zone mapping in section 6, and place the vehicle gate or loading apron exit (fix 2) and the carrier manhole in the yard (fix 3). P04S must recheck ASK-9 for the vault-to-riser door. P07 must recheck that the S6 roamer covers the riser door. Not changed, left for Michael: section 7 still lists the lane fence as tested and combined in B8, and fence rattle in B8, which no longer fit the new exit.
+
+## Revision log
+| Date | Fix # | What changed (sections) | Status |
+| --- | --- | --- | --- |
+| 2026-10-10 | 1 | Sections 3 (manager and engineer rows), 4 (rows 4 and 5), 7 (Grab row) | done |
+| 2026-10-10 | 2 | Sections 4 (row 7), 6 (B8 row) | done |
+| 2026-10-10 | 3 | Sections 4 (carrier paragraph), 13 (answer 2) | done |
+| 2026-10-10 | 4 | Sections 6 (zone line, zone column), 12 (ASK-10 closed) | done |
