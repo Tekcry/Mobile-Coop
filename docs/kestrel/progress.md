@@ -3,7 +3,7 @@
 | Stage | Prompt | Status | Commit | Date |
 | --- | --- | --- | --- | --- |
 | P00 | Setup, rules, facts | APPROVED | 8945ddb | 2026-10-10 |
-| S0 | Security systems spec | DRAFT | d7881b6 | 2026-10-10 |
+| S0 | Security systems spec | APPROVED | d7881b6 | 2026-10-10 |
 | S1 | Cameras and security desk | not started | | |
 | S2 | Card readers, keycards, mantrap | not started | | |
 | S3 | Beam detectors and PIR lights | not started | | |
