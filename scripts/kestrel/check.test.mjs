@@ -57,6 +57,14 @@ test('A01 trips on a missing field, a duplicate id and a bad reference', () => {
   trips('A01', (a) => { a.walls[0].b = [17, 5]; });
 });
 
+test('A01 accepts the underfloor level id U (a void under a raised floor)', () => {
+  const results = run((a) => {
+    a.levels.push({ id: 'U', name: 'Underfloor', floor: -1.5, height: 1.5 });
+    a.rooms.push(room('U01', 'U', [2, 2, 8, 8], { kind: 'zone', ceiling: 1.5, ring: 4 }));
+  });
+  assert.equal(status(results, 'A01'), 'PASS', details(results, 'A01').join('\n'));
+});
+
 test('A02 trips on an off-grid coordinate', () => {
   trips('A02', (a) => { a.stairs[0].rect = [13, 3, 15.7, 11]; });
   trips('A02', (a) => { a.openings[0].at = 5.2; });

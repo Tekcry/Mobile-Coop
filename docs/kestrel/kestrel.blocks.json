@@ -34,6 +34,12 @@
    "height": 3.3
   },
   {
+   "id": "U",
+   "name": "Underfloor",
+   "floor": -1.5,
+   "height": 1.5
+  },
+  {
    "id": "G",
    "name": "Ground",
    "floor": 0,
@@ -205,12 +211,12 @@
    "rect": [
     18.5,
     22,
-    24,
+    23.5,
     29.5
    ],
    "ceiling": 3,
    "finish": "antistatic vinyl",
-   "minShort": 5,
+   "minShort": 4.5,
    "open": [],
    "ring": "3+",
    "holds": [
@@ -223,9 +229,9 @@
    "name": "G-Z2 reception",
    "kind": "zone",
    "rect": [
-    24,
+    23.5,
     22,
-    43,
+    42.5,
     29.5
    ],
    "ceiling": 3,
@@ -246,7 +252,7 @@
    "name": "G-Z3 main stair",
    "kind": "zone",
    "rect": [
-    43,
+    42.5,
     22,
     46.5,
     29.5
@@ -389,12 +395,12 @@
    "rect": [
     21,
     33.5,
-    24,
+    25.5,
     37.5
    ],
    "ceiling": 3,
    "finish": "antistatic vinyl",
-   "minShort": 2.5,
+   "minShort": 3,
    "open": [],
    "ring": 4,
    "holds": [
@@ -407,7 +413,7 @@
    "name": "G23 secure corridor",
    "kind": "corridor",
    "rect": [
-    24,
+    25.5,
     33.5,
     52,
     37.5
@@ -422,32 +428,12 @@
    ]
   },
   {
-   "id": "G-LIFT",
-   "level": "G",
-   "name": "G-Z3 goods lift",
-   "kind": "zone",
-   "rect": [
-    52,
-    33.5,
-    55,
-    37.5
-   ],
-   "ceiling": 3,
-   "finish": "steel",
-   "minShort": 2.5,
-   "open": [],
-   "ring": 3,
-   "holds": [
-    "G10"
-   ]
-  },
-  {
    "id": "G-Z3C",
    "level": "G",
    "name": "G-Z3 comms and janitor",
    "kind": "zone",
    "rect": [
-    55,
+    52,
     33.5,
     63,
     37.5
@@ -607,6 +593,26 @@
    ]
   },
   {
+   "id": "U-Z4V",
+   "level": "U",
+   "name": "U-Z4 hall underfloor void",
+   "kind": "zone",
+   "rect": [
+    26.5,
+    37.5,
+    49.5,
+    52
+   ],
+   "ceiling": 1.5,
+   "finish": "sealed concrete",
+   "minShort": 14,
+   "open": [],
+   "ring": 4,
+   "holds": [
+    "G13 underfloor"
+   ]
+  },
+  {
    "id": "F-FS2",
    "level": "F",
    "name": "F-Z3 fire stair 2",
@@ -634,7 +640,7 @@
    "rect": [
     18.5,
     22,
-    43,
+    42.5,
     29.5
    ],
    "ceiling": 3,
@@ -653,7 +659,7 @@
    "name": "F-Z3 main stair",
    "kind": "zone",
    "rect": [
-    43,
+    42.5,
     22,
     46.5,
     29.5
@@ -749,32 +755,12 @@
    ]
   },
   {
-   "id": "F-LIFT",
-   "level": "F",
-   "name": "F-Z3 goods lift",
-   "kind": "zone",
-   "rect": [
-    52,
-    33.5,
-    55,
-    37.5
-   ],
-   "ceiling": 3,
-   "finish": "steel",
-   "minShort": 2.5,
-   "open": [],
-   "ring": 3,
-   "holds": [
-    "G10"
-   ]
-  },
-  {
    "id": "F-Z3T",
    "level": "F",
    "name": "F-Z3 store and janitor",
    "kind": "zone",
    "rect": [
-    55,
+    52,
     33.5,
     63,
     37.5
@@ -1181,11 +1167,11 @@
    "id": "W021",
    "level": "G",
    "a": [
-    24,
+    23.5,
     22
    ],
    "b": [
-    24,
+    23.5,
     29.5
    ],
    "t": 0.3,
@@ -1196,11 +1182,11 @@
    "id": "W022",
    "level": "G",
    "a": [
-    24,
+    25.5,
     33.5
    ],
    "b": [
-    24,
+    25.5,
     37.5
    ],
    "t": 0.3,
@@ -1211,11 +1197,11 @@
    "id": "W023",
    "level": "G",
    "a": [
-    43,
+    42.5,
     22
    ],
    "b": [
-    43,
+    42.5,
     29.5
    ],
    "t": 0.3,
@@ -1321,21 +1307,6 @@
    ],
    "b": [
     52,
-    37.5
-   ],
-   "t": 0.3,
-   "h": 3,
-   "kind": "interior"
-  },
-  {
-   "id": "W031",
-   "level": "G",
-   "a": [
-    55,
-    33.5
-   ],
-   "b": [
-    55,
     37.5
    ],
    "t": 0.3,
@@ -1466,11 +1437,11 @@
    "id": "W040",
    "level": "F",
    "a": [
-    43,
+    42.5,
     22
    ],
    "b": [
-    43,
+    42.5,
     29.5
    ],
    "t": 0.3,
@@ -1566,21 +1537,6 @@
    "t": 0.45,
    "h": 3.3,
    "kind": "exterior"
-  },
-  {
-   "id": "W047",
-   "level": "F",
-   "a": [
-    55,
-    33.5
-   ],
-   "b": [
-    55,
-    37.5
-   ],
-   "t": 0.3,
-   "h": 3,
-   "kind": "interior"
   },
   {
    "id": "W048",
@@ -1700,6 +1656,66 @@
    ],
    "t": 0.45,
    "h": 2.4,
+   "kind": "exterior"
+  },
+  {
+   "id": "W056",
+   "level": "U",
+   "a": [
+    26.5,
+    37.5
+   ],
+   "b": [
+    49.5,
+    37.5
+   ],
+   "t": 0.45,
+   "h": 1.5,
+   "kind": "exterior"
+  },
+  {
+   "id": "W057",
+   "level": "U",
+   "a": [
+    26.5,
+    52
+   ],
+   "b": [
+    49.5,
+    52
+   ],
+   "t": 0.45,
+   "h": 1.5,
+   "kind": "exterior"
+  },
+  {
+   "id": "W058",
+   "level": "U",
+   "a": [
+    26.5,
+    37.5
+   ],
+   "b": [
+    26.5,
+    52
+   ],
+   "t": 0.45,
+   "h": 1.5,
+   "kind": "exterior"
+  },
+  {
+   "id": "W059",
+   "level": "U",
+   "a": [
+    49.5,
+    37.5
+   ],
+   "b": [
+    49.5,
+    52
+   ],
+   "t": 0.45,
+   "h": 1.5,
    "kind": "exterior"
   }
  ],
@@ -1897,25 +1913,25 @@
    "reason": "mantrap inner side into the secure corridor"
   },
   {
-   "id": "D-G23-C",
-   "wall": "W029",
+   "id": "D-H-C",
+   "wall": "W032",
    "at": 7,
    "w": 2.5,
    "h": 2.1,
    "sill": 0,
    "type": "arch",
    "between": [
-    "G23",
+    "G-Z4H",
     "G-Z4C"
    ],
    "locked": false,
    "key": "",
-   "reason": "secure corridor joins the cooling gallery"
+   "reason": "cooling gallery opens from the data hall, its only door (Michael, revision fix 3)"
   },
   {
    "id": "D-G23-H",
    "wall": "W029",
-   "at": 9.5,
+   "at": 28.5,
    "w": 2.5,
    "h": 2.1,
    "sill": 0,
@@ -1926,7 +1942,7 @@
    ],
    "locked": false,
    "key": "",
-   "reason": "secure corridor joins the data hall"
+   "reason": "the data hall's single entrance, at the east end of G23, farthest from the mantrap"
   },
   {
    "id": "D-G23-P",
@@ -1945,25 +1961,9 @@
    "reason": "secure corridor joins the power zone"
   },
   {
-   "id": "D-LIFT-G",
-   "wall": "W026",
-   "at": 35,
-   "w": 2.5,
-   "h": 2.1,
-   "sill": 0,
-   "type": "arch",
-   "between": [
-    "G-Z3G",
-    "G-LIFT"
-   ],
-   "locked": false,
-   "key": "",
-   "reason": "goods lift opens to the loading bay"
-  },
-  {
    "id": "D-X-FS2",
-   "wall": "W017",
-   "at": 2,
+   "wall": "W012",
+   "at": 6,
    "w": 1.2,
    "h": 2.1,
    "sill": 0,
@@ -1974,12 +1974,12 @@
    ],
    "locked": false,
    "key": "",
-   "reason": "fire stair 2 discharges to the yard (exit-only)"
+   "reason": "fire stair 2 discharges west to the yard from its bottom landing (exit-only)"
   },
   {
    "id": "D-X-FS1",
-   "wall": "W017",
-   "at": 46,
+   "wall": "W014",
+   "at": 6,
    "w": 1.2,
    "h": 2.1,
    "sill": 0,
@@ -1990,7 +1990,7 @@
    ],
    "locked": false,
    "key": "",
-   "reason": "fire stair 1 discharges to the yard (exit-only)"
+   "reason": "fire stair 1 discharges east to the yard from its bottom landing (exit-only)"
   },
   {
    "id": "D-X-G22",
@@ -2170,22 +2170,6 @@
    "reason": "F08 joins store and janitor"
   },
   {
-   "id": "D-F-LIFT",
-   "wall": "W047",
-   "at": 2,
-   "w": 2.5,
-   "h": 2.1,
-   "sill": 0,
-   "type": "arch",
-   "between": [
-    "F-LIFT",
-    "F-Z3T"
-   ],
-   "locked": false,
-   "key": "",
-   "reason": "goods lift opens to the store (F06)"
-  },
-  {
    "id": "D-R-BULK",
    "wall": "W054",
    "at": 1.5,
@@ -2209,13 +2193,13 @@
    "from": "G",
    "to": "F",
    "rect": [
-    43,
+    42.5,
     22,
     46.5,
-    29.5
+    27
    ],
    "up": "S",
-   "width": 1.3,
+   "width": 1.85,
    "risers": 20,
    "layout": "dogleg"
   },
@@ -2226,9 +2210,9 @@
    "to": "F",
    "rect": [
     15,
-    23.5,
+    22,
     18.5,
-    28
+    26.5
    ],
    "up": "S",
    "width": 1.3,
@@ -2242,9 +2226,9 @@
    "to": "F",
    "rect": [
     59,
-    23.5,
+    22,
     63,
-    28
+    26.5
    ],
    "up": "S",
    "width": 1.3,
@@ -2258,9 +2242,9 @@
    "to": "R",
    "rect": [
     59,
-    23.5,
+    22,
     63,
-    28
+    26.5
    ],
    "up": "S",
    "width": 1.3,
@@ -2274,10 +2258,10 @@
    "id": "V-F-MS",
    "level": "F",
    "rect": [
-    43,
+    42.5,
     22,
     46.5,
-    29.5
+    27
    ],
    "kind": "stairwell",
    "reason": "main stair well"
@@ -2287,9 +2271,9 @@
    "level": "F",
    "rect": [
     15,
-    23.5,
+    22,
     18.5,
-    28
+    26.5
    ],
    "kind": "stairwell",
    "reason": "fire stair 2 well"
@@ -2299,9 +2283,9 @@
    "level": "F",
    "rect": [
     59,
-    23.5,
+    22,
     63,
-    28
+    26.5
    ],
    "kind": "stairwell",
    "reason": "fire stair 1 well"
@@ -2311,24 +2295,12 @@
    "level": "R",
    "rect": [
     59,
-    23.5,
+    22,
     63,
-    28
+    26.5
    ],
    "kind": "stairwell",
    "reason": "fire stair 1 up to the bulkhead"
-  },
-  {
-   "id": "V-F-LIFT",
-   "level": "F",
-   "rect": [
-    52,
-    33.5,
-    55,
-    37.5
-   ],
-   "kind": "liftshaft",
-   "reason": "goods lift G10, ground to first (F06)"
   },
   {
    "id": "V-G-RISER",

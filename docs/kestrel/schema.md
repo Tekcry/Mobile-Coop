@@ -6,7 +6,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 ## 1. Conventions
 - Metres. A point is `[x, z]`; north is +Z, east is +X, up is +Y (00-facts section 2). Origin is the south-west corner of the site at ground floor level.
 - A play point is `[x, z, "L"]` where `L` is a level id. A 3D point (lamp, switch, beam end, service path) is `[x, y, z]`; `y` is the height above its own level's floor, except in `exterior` and `services`, where `y` is absolute (ground floor = 0).
-- Level ids: `B` basement, `G` ground, `F` first, `S` second (only if the building brief proves it), `R` roof.
+- Level ids: `B` basement, `U` underfloor (the 1.5 m void under the data hall's raised floor; Michael, P03B revision), `G` ground, `F` first, `S` second (only if the building brief proves it), `R` roof.
 - `rect = [x0, z0, x1, z1]` with `x0 < x1` and `z0 < z1`. Room and wall rects are wall-centreline (RULES section 6); clear size = rect minus half of each wall's thickness.
 - Yaw degrees: 0 faces +Z (north), 90 faces +X (east).
 - Every coordinate except object edges sits on `meta.grid` (0.5 m). Object edges sit on `meta.objectGrid` (0.1 m).

@@ -10,10 +10,10 @@
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
-| P02 | Building brief | APPROVED | d0fc54f | 2026-10-10 |
+| P02 | Building brief | DRAFT (reopened by the P03B revision) | pending | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
-| P03B | Block plan | APPROVED | 17d8a89 | 2026-10-10 |
-| B0 | Massing walk | DRAFT | 57aaf6c | 2026-10-10 |
+| P03B | Block plan | DRAFT (massing walk revision) | pending | 2026-10-11 |
+| B0 | Massing walk | DRAFT (must rerun with the new blocks) | 57aaf6c | 2026-10-10 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -33,6 +33,9 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P03B revision (massing walk fixes 1-6, P02 reopened): goods lift removed (comms and store take its slot); one hall entrance at G23's east end (x 47); mantrap 4.5 x 4 (clear 4.2 x 3.7), gallery now opens from the hall (Michael); main stair two 1.85 m flights, balustrade, 2.0 m landings, core 4.0 (Michael; 2.0 m flights did not fit at 85%), security zone 5.0 (G06 6.4 x 4.7); fire stairs z 22-26.5 with exits on the end walls off the bottom landing; level U (floor -1.5, 1.5 m void) zone U-Z4V under the hall.
+  Check 25 PASS, 1 WARN, 1 FAIL (same 3 A07 arches) after every fix; check.test.mjs 52 pass (+1 for level U). Critical path 390.0 m. Brief 306 lines, block plan 150.
+  Downstream: B0 reruns with the new blocks (src copy and tests/kestrelMap.test.ts now differ until then). Not changed (outside the list): brief s10 hall switch bank "by G12/G13".
 - 2026-10-10 B0 massing walk: src/world/maps/kestrel.ts (builder, any arch-schema file) + kestrelGeo.ts (pure walls, floors, stairs, teleport spots) + kestrel.blocks.json (copy); registered in MAPS and LISTED_MAP_IDS (Sandbox); tests/kestrelMap.test.ts (9), scripts/e2e-kestrel.mjs (REQUIRED, 10 checks), scripts/kestrel/render-top.mjs, docs/kestrel/builds/B0-{B,G,F,R}.png.
   Checks: npm run check pass (763 tests), build pass, e2e:quick all pass (e2e-touch KNOWN FLAKY failed, unrelated). Tour 301 m (entry, three stair cores, roof, ground landing of fire stair 1, back) walked by the real controller; critical path 382.1 m on the plan (03B: 385.1), 4.9 min crouched at gear 3.
   Block plan findings (walk notes below): two walls where P04 puts a door (goods lobby to goods, hall to meet-me); fire stair exit doors sit behind the flights and G-FS1 has no door but the exit, so the ground landing is a dead end; camera rule 27: 143 of 628 tour tests hit (111 in the dog-leg cores, 6 at the spawn 0.5 m from the fence, 26 at doors under 1.5 m or inside the A07 corner rule), 0 elsewhere.
