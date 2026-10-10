@@ -1,5 +1,5 @@
 # Chaos Theory toolkit - spec (V0)
-Status: DRAFT (V0, 2026-10-11)
+Status: APPROVED (Michael, 2026-10-11)
 
 Michael's decision (2026-10-11): the engine gets the full Chaos Theory toolkit; each mission offers only the tools that suit it, through a mission kit (section 4). This file is the spec the build sessions V1-V3 follow (section 7). V1-V3 build only Dead Line's kit (Michael, 2026-10-11); the light disruptor (3.6), ring airfoil (3.8) and knife (3.10) keep their specs here for later missions (docs/backlog.md items 22-24). Splinter Cell: Chaos Theory is a design reference only; no names, art or text from it.
 
