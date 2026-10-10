@@ -31,6 +31,7 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 P01 revision: fixes 5-7 applied to 01-mission-brief.md (207 lines, time 37.5 min, DRAFT). Zones S3 = 3+, S4 = 3; carrier route passes a corner of S5 again, P02 places the manhole near an exit-only fire door; fence and fence rattle removed from B8.
 - 2026-10-10 P01 revision: fixes 1-4 applied to 01-mission-brief.md (204 lines, time 37.5 min unchanged, DRAFT). Iris keys: engineer or manager; exit by vehicle gate or loading apron; carrier route by yard manhole, vault, riser; zones 1, 2, 3, 3+, 4, 5. Downstream lines at the end of the brief.
 - 2026-10-10 P01: docs/kestrel/01-mission-brief.md (194 lines, DRAFT). Seven objectives mapped to beats B1-B8 (one per space, S1 has none); time 37.5 min (13 moving, 24.5 waiting); tension 1,3,2,4,3,5,4,5.
   Design calls: duty manager's master card is the one keycard (drawer, takedown or clone); engineer is the iris key, found in the ops register; carrier route in cable chamber under the yard; generator test event-driven.
