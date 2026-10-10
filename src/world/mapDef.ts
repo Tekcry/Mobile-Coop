@@ -4,6 +4,7 @@ import type { PropKind } from './props';
 import type { RoomDef } from './rooms';
 import type { Surface } from './surfaces';
 import type { VoxelArt } from '../voxel/levelVoxels';
+import type { SecurityData } from '../security/data';
 
 /** 3.0 weather choice (visual only): clear, rain (wet floors under the open sky, roofs keep it out), fog (light shafts). */
 export type WeatherChoice = 'clear' | 'rain' | 'fog';
@@ -60,6 +61,8 @@ export interface MapLayout {
   reinforce?: Vector3[];
   /** Debug-menu teleport points (greybox maps): grouped, labelled, with the feet position and facing. */
   debugPoints?: { group: string; id: string; label: string; pos: Vector3; yaw: number }[];
+  /** Security devices (Kestrel S0-S3): the match builds a `SecuritySystem` when present (cameras so far). */
+  security?: SecurityData;
 }
 
 export interface MapDef {

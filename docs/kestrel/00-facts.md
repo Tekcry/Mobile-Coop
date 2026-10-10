@@ -95,3 +95,28 @@ Not in RULES section 4: none. Michael approved adding scripts/e2e-dead-line.mjs,
 - F12 drainpipe climb speed: `PIPE` holds only the legs-up shimmy speed (0.5). No separate vertical drainpipe climb speed was found in src/config/movement.ts.
 - F24 meter thresholds in docs/systems/lighting.md: the doc names `TORCH_DARK` and `TORCH_KEEP` but not the `LIGHT.shadow` and `LIGHT.lit` numbers; those were read from the code (src/world/lights.ts).
 - F28 grep as written (`"kind"`) found nothing; the objective key is `"type"` (counts in F28).
+
+## 5. Security facts
+Added by S1 Part A (cameras). Values are the constants in `src/config/security.ts`; the SN ids are in `S0-security-spec.md` section 5. Desk rows (SN19-SN28) join in Part B.
+
+| Id | Item | Value | Source (file:line) | Quoted line |
+| --- | --- | --- | --- | --- |
+| F40 | Camera horizontal field (SN01) | 70 deg | src/config/security.ts:11 (`CAMERA.hFov`) | `hFov: 70 * DEG,` |
+| F41 | Camera vertical field (SN02); the camera looks level, so a head under the mount is out of frame | 45 deg | src/config/security.ts:13 (`CAMERA.vFov`) | `vFov: 45 * DEG,` |
+| F42 | Camera range (SN03) | 18 m | src/config/security.ts:15 (`CAMERA.range`) | `range: 18,` |
+| F43 | Camera mount height, lowest and highest (SN04) | 2.4 to 3.5 m | src/config/security.ts:17-18 (`CAMERA.mountMin`, `mountMax`) | `mountMin: 2.4,` ; `mountMax: 3.5,` |
+| F44 | Camera housing, the shot target box (SN05) | 0.35 long x 0.15 wide x 0.15 high | src/config/security.ts:20 (`CAMERA.housing`) | `housing: { len: 0.35, w: 0.15, h: 0.15 },` |
+| F45 | Status LED size (SN06) | 0.04 m | src/config/security.ts:22 (`CAMERA.ledSize`) | `ledSize: 0.04,` |
+| F46 | Camera think rate (SN07) | 4 Hz | src/config/security.ts:24 (`CAMERA.thinkHz`) | `thinkHz: 4,` |
+| F47 | Frame time after meter 1 before the operator gets `alert()` (SN11; used by the desk, Part B) | 2.0 s | src/config/security.ts:26 (`CAMERA.fullFrameTime`) | `fullFrameTime: 2.0,` |
+| F48 | Body seen on a feed (SN12; used by the desk, Part B) | 2.0 s | src/config/security.ts:28 (`CAMERA.bodySeenTime`) | `bodySeenTime: 2.0,` |
+| F49 | Widest sweep (SN13) | 120 deg | src/config/security.ts:30 (`CAMERA.sweepMaxDeg`) | `sweepMaxDeg: 120,` |
+| F50 | Sweep speed (SN14) | 15 deg/s | src/config/security.ts:32 (`CAMERA.sweepSpeed`) | `sweepSpeed: 15 * DEG,` |
+| F51 | Pause at each end of a sweep (SN15); a 90 deg sweep cycle is 16 s | 2.0 s | src/config/security.ts:34 (`CAMERA.sweepPause`) | `sweepPause: 2.0,` |
+| F52 | Cameras per map (SN60) | 12 | src/config/security.ts:39 (`SECURITY_LIMITS.cameras`) | `cameras: 12,` |
+
+Notes (S1 Part A):
+- SN08 and SN10 hold only at the standing gear 2 speed, 1.3 m/s (F18): lit walking at 10 m fills in 1.30 s, shadow (light 0.28) at 4 m in 12.7 s, from `sightRate` and `stepMeter`. At 1.5 m/s or more the shadow time is 10.8 s (17 % under SN10). `tests/securityCamera.test.ts` uses 1.3 m/s.
+- SN09 (crouched still lit at 10 m, about 9 s) matches the code (9.15 s).
+- Camera vertical aim: S0 gives no tilt number, so the camera looks level (pitch 0). A head under the mount is out of frame closer than 3.4 m for a 3 m mount.
+- Sight uses one ray from the lens to the head (S1 prompt step 4), full exposure; S0 section 2.1 names three rays (chest, head, hips). The derived times above assume full exposure.

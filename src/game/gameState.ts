@@ -77,6 +77,8 @@ import { Silhouettes } from '../vfx/silhouettes';
 import { VISION, VisionState } from './vision';
 import { VISION_GAIN } from '../world/darkCurve';
 import { StealthSystems } from './stealthSystems';
+import { SecuritySystem } from '../security/securitySystem';
+import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
 import { ExecuteController } from './executeController';
 import { MarkSet } from './marks';
@@ -265,6 +267,8 @@ export class GameState implements AppState {
   readonly mode: GameMode | null = null;
   /** Bodies, switches, shot-out lights and alarm panels (modes with enemies). */
   readonly stealth: StealthSystems | null = null;
+  /** Cameras (and later the other security devices) of a map that has `layout.security`; host side, never on a co-op client. */
+  readonly security: SecuritySystem | null = null;
   readonly stats: SessionStats;
   private ended = false;
   private respawnAt: Vector3 | null = null;
@@ -542,6 +546,19 @@ export class GameState implements AppState {
     // doors collide from now on (the nav grid, built above, walks through doorways); co-op clients follow the
     // host's door states (snapshots)
     world.doors.arm();
+    if (world.layout.security && !this.puppet) {
+      const w = this as { -readonly [K in keyof GameState]: GameState[K] };
+      w.security = new SecuritySystem(
+        world.layout.security,
+        { ballistics: this.ballistics, players: () => this.playerRefs(), lightAt: (x, y, z) => world.lightField.totalAt(x, y, z) },
+        new SecurityView(this.scene, world.parts),
+      );
+      const prevRay = this.weapons.onRay;
+      this.weapons.onRay = (a, b) => {
+        prevRay?.(a, b);
+        this.security?.shotRay(a, b);
+      };
+    }
     if (opts.mode === 'sandbox') {
       this.weapons.infiniteAmmo = true;
       const d = (x: number, z: number, yaw: number, strafe = 0): void => {
@@ -804,6 +821,7 @@ export class GameState implements AppState {
     this.enemyMgr?.clear();
     this.pickups?.dispose();
     this.stealth?.dispose();
+    this.security?.dispose();
     this.gadgets.dispose();
     this.interactables?.dispose();
     this.hud.dispose();
@@ -1146,6 +1164,7 @@ export class GameState implements AppState {
     this.player.cam.attachYaw = this.player.controller.yaw;
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.stealth?.fixedUpdate();
+    this.security?.fixedUpdate(dt);
     // Mark & Execute, then takedowns (Y / E: a takedown on offer, else execute when ready, else the rest)
     // (co-op clients: takedowns and Mark & Execute on the host's enemies, through their puppets)
     // (3.2.0 phase 4: PvP gets the drop, ledge pull and inverted takedowns on opponents - no grab, no Mark & Execute)

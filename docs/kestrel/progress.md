@@ -4,7 +4,7 @@
 | --- | --- | --- | --- | --- |
 | P00 | Setup, rules, facts | APPROVED | 8945ddb | 2026-10-10 |
 | S0 | Security systems spec | APPROVED | d7881b6 | 2026-10-10 |
-| S1 | Cameras and security desk | not started | | |
+| S1 | Cameras and security desk | DRAFT (Part A done, Part B to run) | see git log | 2026-10-10 |
 | S2 | Card readers, keycards, mantrap | not started | | |
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
@@ -31,6 +31,8 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 S1 Part A: cameras only. src/config/security.ts, src/security/ (camera, data, securitySystem, securityView), seclab map (MAPS only, modes [] so it is off the menus), tests/securityCamera.test.ts (19), scripts/e2e-security.mjs (REQUIRED, 18 checks), facts F40-F52. GameState builds SecuritySystem from layout.security and chains weapons.onRay (no src/ai, src/player or movement / camera config change).
+  Findings: SN08 and SN10 hold at 1.3 m/s only (10.8 s at SN10 for 1.5 m/s+); sight is one head ray (prompt) not three (S0); the ray helper is the public Ballistics.ray; the guard seat and guard mode (clear) wait for Part B; EMP and HUD arcs not built.
 - 2026-10-10 S0: docs/kestrel/S0-security-spec.md (264 lines, DRAFT). Six systems, 2+ counters each, numbers SN01-SN67 (proposals; detection times derived from PERCEPTION).
   Alerts only through existing functions: Enemy.notice / searchAt / alert, EnemyManager.lightsOut / hear / alarms -> onAlarm -> reinforce. No instant fail.
   Map file adds fields door2, enrolled, controls, responders, minPlayers and kind fault (reasons in section 6).

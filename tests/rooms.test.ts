@@ -138,6 +138,6 @@ describe('map room layouts', async () => {
   it('Warehouse is the default map for every mode but Training (3.0: the only playable map)', () => {
     for (const mode of ['clear', 'sandbox', 'mission', 'wave', 'infiltration', 'tdm', 'ffa'] as const) expect(MAPS.find((m) => m.modes.includes(mode))?.id).toBe('warehouse');
     expect(MAPS.find((m) => m.modes.includes('training'))?.id).toBe('proving');
-    expect(MAPS.map((m) => m.id)).toEqual(['warehouse', 'proving', 'exchange', 'trunk-annex', 'dead-line', 'dead-line-v2']);
+    expect(MAPS.map((m) => m.id)).toEqual(['warehouse', 'proving', 'exchange', 'trunk-annex', 'dead-line', 'dead-line-v2', 'seclab']);
   });
 });
