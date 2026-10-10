@@ -10,9 +10,9 @@
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 30fad8a | 2026-10-10 |
-| P02 | Building brief | DRAFT (reopened by the P03B revision) | pending | 2026-10-11 |
+| P02 | Building brief | DRAFT (reopened by the P03B revision) | c805978 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
-| P03B | Block plan | DRAFT (massing walk revision) | pending | 2026-10-11 |
+| P03B | Block plan | DRAFT (massing walk revision) | c805978 | 2026-10-11 |
 | B0 | Massing walk | DRAFT (must rerun with the new blocks) | 57aaf6c | 2026-10-10 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
