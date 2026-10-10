@@ -12,7 +12,7 @@ Plans: `docs/kestrel/plans/blocks-{B,G,F,R}.png`. Area check: brief room areas (
 | Footprint `meta.footprint` | [15, 22, 63, 52]: 48 x 30, 8 x 5 bays of 6.0 (limit 48 x 30) |
 | Grid lines, west to east | A 15, B 21, C 27, D 33, E 39, F 45, G 51, H 57, I 63 |
 | Grid lines, south to north | 1 z22, 2 z28, 3 z34, 4 z40, 5 z46, 6 z52 |
-| Yards | front z 6-22 (16 m), west and east 15 m wide, north service strip z 52-56 (4 m, see ASK-3) |
+| Yards | front z 6-22 (16 m), west and east 15 m wide, north service strip z 52-56 (4 m, see ASK-3); X10 in the strip at x 52-53 |
 | `meta.entry` | [14, 6.5]: just inside the fence, west of centre |
 
 Front block z 22-37.5 (first floor above). North block z 37.5-52: single storey to the roof at 6.6 m (hall, gallery, power).
@@ -31,9 +31,9 @@ The front/north line z 37.5 and the row lines z 29.5 and 33.5 are on the 0.5 m g
 | --- | --- | --- | --- | --- | --- |
 | X-Z1-LANE | G | 1 | 0,0,78,6 | X01 | open |
 | X-Z1-YARD | G | 1 | 0,6,78,22 | X02, X03, X05, X06, X07, X09 | open |
-| X-Z1-WEST | G | 1 | 0,22,15,52 | X02, X04, X10 | open |
+| X-Z1-WEST | G | 1 | 0,22,15,52 | X02, X04 | open |
 | X-Z1-EAST | G | 1 | 63,22,78,52 | X02, X08 apron | open |
-| X-Z1-NORTH | G | 1 | 0,52,78,56 | X02 (service strip) | open |
+| X-Z1-NORTH | G | 1 | 0,52,78,56 | X02 (service strip), X10 | open |
 | G-Z2 reception | G | 2 | 24,22,43,29.5 | G01, G03, G04, G05 | 118.5 / 142.5 = 83% |
 | G-Z2G goods lobby | G | 2 | 59,29.5,63,33.5 | G26 | 12 / 16 = 75% |
 | G-Z3P security room | G | 3+ | 18.5,22,24,29.5 | G06 | 30 / 41.25 = 73% |
@@ -53,7 +53,7 @@ The front/north line z 37.5 and the row lines z 29.5 and 33.5 are on the 0.5 m g
 | G-Z4B battery | G | 4 | 57,45,63,52 | G15 | 30 / 42 = 71% |
 | G-Z5 meet-me | G | 5 | 49,45,57,52 | G18, B02 head | 46 / 56 = 82% |
 | B-Z5V carrier vault | B | 5 | 49,44,57,52 | B01, B02 foot | 52 / 64 = 81% |
-| B-Z5D carrier duct | B | 5 | 11,47.5,49,50.5 | X10 to B01 path | duct (ASK-2) |
+| B-Z5D carrier duct | B | 5 | 51,52,54,55 | X10 to B01 path (3 m) | duct |
 | F-Z3O offices and NOC | F | 3 | 18.5,22,43,29.5 | F01, F02 | 144 / 183.75 = 78% |
 | F-Z3S staff and facilities | F | 3 | 46.5,22,59,29.5 | F03, F04 | 72 / 93.75 = 77% |
 | F08 corridor | F | 3 | 15,29.5,63,33.5 | F08 (clear 47.6 x 3.7) | corridor |
@@ -81,9 +81,9 @@ All 48 rows of the brief room schedule are assigned to a zone. Roof ring is writ
 - Fire stair 2 (SW, G25): ground to first, dog-leg, door to G22 and F08, exit-only door to the yard (south face, x 17).
 - Fire stair 1 (SE, G24/R02): ground to first to roof, dog-leg, door to F08, exit-only door to the yard (x 61), bulkhead on the roof.
 - Both fire stairs serve the first floor, at its two ends (F08 runs between them, 48 m: at most ~24 m to the nearer stair).
-- Ground exits: G22 exit-only door on the west face (z 49) by manhole X10; two hall exit-only doors on the north face (x 29, x 45) to the service strip.
+- Ground exits: G22 exit-only door on the north face (x 17.5) into the service strip; two hall exit-only doors on the north face (x 29, x 45) to the same strip.
 - Goods lift: shaft 3 x 4 between the goods zone (arch) and F06 in F-Z3T (arch). Voids: stairwells, lift shaft, riser, X10 hatch.
-- Carriers: X10 (11.5, 48.5) in the west yard, crouch duct east under the north edge (38 m) to the vault under the meet-me room; riser void at (54-56, 49.5-51.5), by the hall's north-east corner.
+- Carriers: X10 at (52-53, 53.5-54.5) in the service strip beside the vault (Michael, Q2); a 3 m duct drops south into the vault under the meet-me room; riser void at (54-56, 49.5-51.5), by the hall's north-east corner. From G22's fire door to X10 is about 35 m along the strip, past both hall exits.
 
 ## 6. Entry and exit
 - Entry: over the lane fence at x 14 (meta.entry [14, 6.5]).
@@ -103,11 +103,11 @@ Polyline (G unless F), stair flight path 8.7 m (two flights of 10 risers plus th
 | Total | | 387.7 (target 380-550) |
 
 ## 8. Look notes
-- B: a 38 x 3 duct runs east from under X10 to the 8 x 8 vault under the meet-me room. Nothing else below ground. Walls are all retaining walls.
-- B: the duct enters the vault by one arch; the vault sits under G-Z5 and part of power. No walkable surface stacks over 3 here.
+- B: an 8 x 8 vault under the meet-me room with a 3 x 3 duct on its north side, under X10 in the service strip. Nothing else below ground.
+- B: the duct enters the vault by one arch; the vault sits under G-Z5 and part of power; walls are all retaining walls. No cell stacks over 3 surfaces.
 - B: the riser void on G lies over the vault; the ladder is P04's.
 - G: front block reads in three bands: rooms on the facade, G20, then G23 along the secure core. The north block reads gallery, hall, power with meet-me and battery.
-- G: G22 runs the full west side from G20 to the NW fire door by X10; the mantrap is the only link from G20 into ring 4.
+- G: G22 runs the full west side from G20 to its fire door into the service strip; the mantrap is the only link from G20 into ring 4.
 - G: labels for small zones go to the callout column; the plan is legible. Fence gates show as dashed gaps.
 - F: one 48 m corridor links fire stair 2, the main stair and fire stair 1; offices and NOC face south.
 - F: the north row is only 3.6 m clear (toilets, lockers, store); the lift shaft sits between them.
@@ -117,21 +117,22 @@ Polyline (G unless F), stair flight path 8.7 m (two flights of 10 risers plus th
 - R: only the bulkhead stair reaches the roof.
 
 ## 9. Checker notes
-`check.mjs`: 26 PASS, 1 FAIL, 8 SKIP, 1 INFO.
+`check.mjs`: 25 PASS, 1 WARN, 1 FAIL, 8 SKIP, 1 INFO.
 - A07 FAIL (opening detail, left for P04): three block arches sit on 4 m corridor-end walls and are within 1.5 m of a wall end: D-G20-MS (main stair), D-G20-GDS (G20 to goods), D-MT-G23 (mantrap inner side). P04's real 1.2 m doors fit.
+- A10 WARN: G22's two doors (fire stair 2 at the south end, fire exit at the north end) line up across G22; they are 22.5 m apart at opposite ends, not facing.
 - A24 SKIP (no register yet, P06). A30 SKIP (no module rooms): fire stairs checked by hand (section 5). SC01-SC06 SKIP (no security file).
 - A19 INFO: lip list only.
 
 ## 10. ASK items and brief deviations for P04
-- ASK-1: G07 loading bay sits under the first floor at 3.0 clear (brief 4.0). The first floor needs the full 48 m width; see Q1.
-- ASK-2: the carrier duct is 38 m. The meet-me room must touch the hall on the side away from G22 (G22 runs along the gallery), and X10 must sit by G22's fire door. See Q2.
+- ASK-1: closed (Q1). G07 sits under the first floor at 3.0 clear (brief 4.0); P04 records the deviation.
+- ASK-2: closed (Q2). X10 moved beside the vault; brief 02 sections 4, 7, 9 and the G22 and X10 rows updated.
 - ASK-3: a 4 m service strip behind the building (not in the brief) gives the hall fire exits a yard; the viaduct wall is on z 56.
 - ASK-4: heights of the depot facade and viaduct are unknown; 2.4 m (the brief's boundary walls) is used. East gate width 4.0 copied from X09.
 - ASK-5: no staff WC on the ground floor in the brief; A30 will ask for one once module rooms are placed.
 - Deviations: G23 29 m (brief 14); F08 48 m (brief 24); G22 3.13 clear (brief 3.5) and 22 m long; cooling gallery fits 14.1 m long (brief 16, same area); G09, F05 and F06 must reshape to 3.6-3.7 m deep; G08 and G09 open from the goods zone, not G20.
-- The critical path sits only 7.7 m over the 380 m floor; see Q3.
+- The critical path sits 7.7 m over the 380 m floor; accepted (Q3).
 
-## 11. Questions for Michael
-1. Loading bay height: (a) accept 3.0 m under the first floor; (b) keep 4.0 m: the first floor stops at x 50 and its rooms no longer fit at 85%.
-2. Carrier duct: (a) accept the 38 m crouch duct; (b) run it under the north service strip (same length, under the yard); (c) move X10 behind the meet-me room (short duct, X10 no longer by G22's fire door).
-3. Critical path at 388 m: (a) accept; (b) P04 lengthens it by giving the hall only its west fire exit (about +20 m).
+## 11. Questions for Michael (answered 2026-10-10)
+1. Loading bay height: (a) accept 3.0 m under the first floor; (b) keep 4.0 m and shrink the first floor. Answer: (a).
+2. Carrier duct: (a) 38 m duct; (b) under the north strip; (c) move X10. Answer: X10 moves to the north service strip beside the vault, short duct, reached from G22's fire door along the strip; the brief note is updated.
+3. Critical path at 388 m: (a) accept; (b) lengthen in P04. Answer: (a).

@@ -56,8 +56,9 @@ tonight. All metres. Clear sizes only; positions are set later.
 - Vehicle gate on the lane at the west, with an ANPR camera reading plates in and out. A second gate at the
   east serves the loading apron. Pedestrian entry in the story is over the lane fence on the south boundary; the
   way out is the vehicle gate or across the loading apron (a different path from the fence), separate from the fence.
-- The carrier duct manhole sits in the yard near the north-west, close to an exit-only fire door from the
-  facilities/secure area (fix 6). Its lid lifts to the carrier entry path down to the vault.
+- The carrier duct manhole sits in the north service strip behind the building, beside the carrier vault, so the duct
+  is short as at a real entrance room (Michael, P03B Q2). It is reached from the plant and services corridor's (G22)
+  exit-only fire door along the strip. Its lid lifts to the carrier entry path down to the vault.
 - Boundaries: a 2.4 m palisade lane fence on the south (the climb-in point); 2.4 m blockwork boundary walls on
   the east, west and north; the viaduct abutment forms part of the north edge.
 - Neighbours are solid: the viaduct (north) and the depot facade (south across the lane) are never enterable (RULES 2).
@@ -93,7 +94,7 @@ below the 6 m play-space minimum by function and are tagged; all occupied rooms 
 | G20 | Ground | 3 | Controlled corridor | Staff spine: reception to goods, stairs and the mantrap | quiet | 3.5 x 26.0 | 3.0 | linoleum | G01, G06, G07, G08, G09, G11, G12, G21, G25 | on | rounds officer passes |
 | G21 | Ground | 3 | Main stair core | Main stair, ground to first | passage | 6.0 x 3.5 | 3.0 | linoleum | G20, F08 | on | none |
 | G23 | Ground | 4 | Secure corridor | Serves UPS, battery, switch, cooling, hall, MMR | quiet | 3.5 x 14.0 | 3.0 | antistatic vinyl | G12, G13, G14, G16, G17 | dim | escort officer stands here |
-| G22 | Ground | 3 | Plant and services corridor | Facilities corridor carrying the chilled-water pipes and pipe riser into the cooling gallery; CRAC servicing (Q1) | quiet, loud plant | 3.5 x 16.0 | 3.0 | sealed concrete | G20, X02 (exit-only fire door by X10) | dim | escort officer on plant checks |
+| G22 | Ground | 3 | Plant and services corridor | Facilities corridor carrying the chilled-water pipes and pipe riser into the cooling gallery; CRAC servicing (Q1) | quiet, loud plant | 3.5 x 16.0 | 3.0 | sealed concrete | G20, X02 (exit-only fire door to the north service strip, the way to X10) | dim | escort officer on plant checks |
 | G24 | Ground | 3 | Fire stair 1 (SE, front block) | Enclosed escape stair, roof to ground, discharges outside | empty | 6.0 x 2.8 (stair) | 3.0 | concrete | F08, R02, X02 (exit-only) | emergency | none |
 | G25 | Ground | 3 | Fire stair 2 (SW) | Enclosed escape stair, ground to first, discharges outside | empty | 6.0 x 2.8 (stair) | 3.0 | concrete | G20, F08, X02 (exit-only) | emergency | none |
 | F01 | First | 3 | Ostler offices | Daytime admin and sales desks | dark | 12.0 x 8.0 | 3.0 | carpet tile | F08 | off | none |
@@ -116,7 +117,7 @@ below the 6 m play-space minimum by function and are tagged; all occupied rooms 
 | X07 | Site | 1 | Smoking shelter | Covered smoking point (clear of the fuel tank) | unused | 3.0 x 2.0 | 2.4 | concrete | X02 | off | none |
 | X08 | Site | 1 | Loading apron | Hardstanding at the dock shutter; van loading | van being loaded | ~12 x 8 | - | concrete | X02, G07, X09 | on | van driver |
 | X09 | Site | 1 | Vehicle gate (ANPR) | Plated vehicle entry/exit on the lane | closed | 4.0 wide gate | - | tarmac | X01, X02, X08 | lamp | gatehouse officer controls it |
-| X10 | Site | 1 | Carrier duct manhole | Lidded access to the carrier entry path to the vault | sealed | 1.0 x 1.0 opening | - | concrete | X02, B01 (carrier path) | PIR | none (near the facilities fire door) |
+| X10 | Site | 1 | Carrier duct manhole | Lidded access to the carrier entry path to the vault | sealed | 1.0 x 1.0 opening | - | concrete | X02, B01 (carrier path) | PIR | none (in the north service strip beside the vault; reached from G22's fire door) |
 
 Area check (clear room + circulation areas vs gross footprint):
 - Ground (excluding G19, an enclosure inside G13): 63+5.5+30+20+30+80+12+42+20+6.25+3+7.5+280+48+30+35+64+42+91+21+49+56+17+17 = 1069.25 m2. Gross 1440 m2; the remaining ~371 m2 is wall thickness, columns and reserved white space for future cages (TIA-942 flexible white space, general knowledge). Fits.
@@ -159,7 +160,7 @@ Follows level-design 16.2 (people move only by stair cores, enclosed fire stairs
   fire stairs sit at opposite ends of the first floor, so both serve it. The secure core (no first floor above it)
   keeps its own exit-only fire exits.
 - The data hall has its own exit-only fire doors straight to the yard (industry rule for a large room). The plant and
-  services corridor (G22) has an exit-only fire door that discharges by the carrier duct manhole X10 (fix 6).
+  services corridor (G22) has an exit-only fire door to the north service strip, along which the manhole X10 lies (P03B Q2).
 - Goods lift (G10): working, ground loading bay to first-floor storage, for consumables and lighter kit; heavy racks
   stay on the ground (heavy floor loads kept low). It does not serve the basement.
 - Carrier riser (B02): a fixed ladder in an enclosed shaft, vault (B01) up to the meet-me room (G18). The only link to
@@ -200,7 +201,7 @@ Longest escape travel per floor (general knowledge, BS 9999-type travel limits ~
 | Rainscreen cladding rails | All upper-level elevations | Fixing rails behind the profiled metal rainscreen | Yes, continuous |
 | Plant louvres | Cooling gallery wall and roof plant | Air in/out for CRAC and AHU plant | Yes, matched louvres |
 | Office windows | Office elevations (south/west, first floor) only | Daylight to staff rooms; halls stay windowless | Yes, same unit (hall/MMR have none) |
-| Fire exits (exit-only) | Fire stair 1 (SE), fire stair 2 (SW), data-hall exits, facilities exit by X10 | Escape; push bar inside, no handle outside, alarm to the desk | Yes, all the same door |
+| Fire exits (exit-only) | Fire stair 1 (SE), fire stair 2 (SW), data-hall exits, G22 exit to the service strip | Escape; push bar inside, no handle outside, alarm to the desk | Yes, all the same door |
 | Roof chillers | Roof deck (north) | Reject hall heat; chilled-water pipes down to G17 | With AHU, matched frames |
 | Roof AHU and aerials | Roof deck (south) | Office air handling; small aerials | One each |
 | Dock shutter and canopy | Loading apron face (east) | Goods dock; weather canopy over the apron | One |
@@ -288,4 +289,5 @@ Downstream: P04 and P06 must recheck fire stair 1 (G24) at the south-east corner
 | --- | --- | --- | --- |
 | 2026-10-10 | 1 | G06 door from G20, window onto G01 kept; G01, G06, G20 Doors to; section 6 G06 line | done |
 | 2026-10-10 | 2 | Fire stair 1 moved NE to SE of the front block; G24, R02, F08 Doors to; section 7 (stairs, first-floor escape ~24 m); section 9 fire exits row | done |
+| 2026-10-10 | P03B Q2 | Michael's answer in P03B: X10 moved beside the vault in the north service strip, reached from G22's fire door; section 4, G22 and X10 rows, section 7, section 9 fire exits row | done |
 

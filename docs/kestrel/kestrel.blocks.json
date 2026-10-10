@@ -127,8 +127,7 @@
    "ring": 1,
    "holds": [
     "X02",
-    "X04",
-    "X10"
+    "X04"
    ]
   },
   {
@@ -174,7 +173,8 @@
    ],
    "ring": 1,
    "holds": [
-    "X02"
+    "X02",
+    "X10"
    ]
   },
   {
@@ -572,10 +572,10 @@
    "name": "B-Z5 carrier duct",
    "kind": "zone",
    "rect": [
-    11,
-    47.5,
-    49,
-    50.5
+    51,
+    52,
+    54,
+    55
    ],
    "ceiling": 1.5,
    "finish": "concrete",
@@ -921,12 +921,12 @@
    "id": "W005",
    "level": "B",
    "a": [
-    11,
-    47.5
+    51,
+    52
    ],
    "b": [
-    11,
-    50.5
+    51,
+    55
    ],
    "t": 0.45,
    "h": 3.3,
@@ -936,12 +936,12 @@
    "id": "W006",
    "level": "B",
    "a": [
-    11,
-    47.5
+    54,
+    52
    ],
    "b": [
-    49,
-    47.5
+    54,
+    55
    ],
    "t": 0.45,
    "h": 3.3,
@@ -951,12 +951,12 @@
    "id": "W007",
    "level": "B",
    "a": [
-    11,
-    50.5
+    51,
+    55
    ],
    "b": [
-    49,
-    50.5
+    54,
+    55
    ],
    "t": 0.45,
    "h": 3.3,
@@ -1959,8 +1959,8 @@
   },
   {
    "id": "D-X-G22",
-   "wall": "W013",
-   "at": 19.5,
+   "wall": "W026",
+   "at": 2.5,
    "w": 1.2,
    "h": 2.1,
    "sill": 0,
@@ -1971,7 +1971,7 @@
    ],
    "locked": false,
    "key": "",
-   "reason": "plant corridor exit-only fire door by manhole X10"
+   "reason": "plant corridor exit-only fire door into the north service strip (route to manhole X10)"
   },
   {
    "id": "D-X-H1",
@@ -2007,8 +2007,8 @@
   },
   {
    "id": "D-B-DUCT",
-   "wall": "W001",
-   "at": 5,
+   "wall": "W004",
+   "at": 3.5,
    "w": 2.5,
    "h": 1.5,
    "sill": 0,
@@ -2311,13 +2311,13 @@
    "id": "V-G-X10",
    "level": "G",
    "rect": [
-    11.5,
-    48.5,
-    12.5,
-    49.5
+    52,
+    53.5,
+    53,
+    54.5
    ],
    "kind": "hatch",
-   "reason": "carrier duct manhole X10, lid to the carrier duct and vault"
+   "reason": "carrier duct manhole X10 in the north service strip beside the vault; lid to the short duct"
   }
  ],
  "objects": [],
