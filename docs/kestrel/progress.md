@@ -9,7 +9,7 @@
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
-| P01 | Mission brief | DRAFT (campus redesign, civilians and two tracks) | 5764aad | 2026-10-11 |
+| P01 | Mission brief | APPROVED | 5764aad | 2026-10-11 |
 | P02 | Building brief | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |

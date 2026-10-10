@@ -1,5 +1,5 @@
 # Kestrel - mission brief (Dead Line)
-Status: DRAFT (campus redesign, Michael 2026-10-11; the single-building version was APPROVED 2026-10-10)
+Status: APPROVED (Michael, 2026-10-11; campus redesign with civilians and two tracks)
 
 Short names: story = docs/story.md, S0 = S0-security-spec.md, F = 00-facts.md, LD = docs/level-design.md. A = Building A (2004 original), B = Building B (2021 phase 2). S1-S7 = the seven guarded spaces, X = the way out, B1-B10 = beats. No coordinates, sizes or routes here.
 
