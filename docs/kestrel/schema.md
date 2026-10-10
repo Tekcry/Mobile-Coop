@@ -52,6 +52,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | rooms[].open | Edges (`"W"`, `"S"`, `"E"`, `"N"`) left with no wall |
 | rooms[].ring | Security zone of the room (see conventions) |
 | rooms[].module | Module-kit module the room came from, or empty |
+| rooms[].service | Optional. True for a service room (the brief marks WCs, cupboards, risers, the mantrap and the like). A07 asks only that its doors fit inside the wall |
 | rooms[].zone | Optional. Space id (S1-S6) the room belongs to; set by the module kit |
 | gen, manual | Optional on rooms, walls, openings, objects, stairs, ladders and voids. `gen` is the placement id that made the item (section 7); `manual: true` keeps the item through a re-run |
 | openings[].ringExempt | Optional text. Exempts the opening from A29; only for the carriers' entrance |
@@ -74,7 +75,8 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | stairs[].up | Direction of climb on the plan |
 | stairs[].width | Clear stair width |
 | stairs[].risers | Total risers: floor-to-floor / 0.165, rounded |
-| stairs[].flights | Optional. Number of straight flights; default is the fewest that keep each flight at or under the per-flight maximum (A11) |
+| stairs[].layout | Optional. `dogleg`: two flights side by side with a landing between them at the far end (A11 sizes it: each flight at most the per-flight maximum, the rect `(risers/2 - 1) * going + landing` long and two flight widths wide; the landing is 1.3 m for a `fire` stair, 2.0 m otherwise). Default is one straight run |
+| stairs[].flights | Optional (straight runs only). Number of straight flights; default is the fewest that keep each flight at or under the per-flight maximum (A11) |
 | ladders[].id, room | Unique id and the plant or shaft room it stands in |
 | ladders[].at | `[x, z]` of the ladder foot |
 | ladders[].from, to | Level ids it joins |
@@ -220,7 +222,9 @@ Drawing conventions the renderer chose where this schema is silent:
 ## 6. Checker (scripts/kestrel/check.mjs)
 `node scripts/kestrel/check.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--register docs/kestrel/04-plans.md]` prints one line per check (PASS, WARN, FAIL, SKIP or INFO) and indented lines for each violation, then the counts. It exits 1 if any check FAILs. A check that needs a fact missing from facts.json prints SKIP (no fact). Tests: `node --test scripts/kestrel/check.test.mjs`.
 - Architecture: A01-A30 (A24 needs `--register`; A30 runs only when a room has a `module`). A19 is an INFO table, A10, A16, A18 and A27 only WARN.
-- A28: every room has a ring. A29: an opening of a passable type (door, double, fire-door, arch, roller, gate) joins rooms whose rings are at most one step apart (`kit.ringStepMax`; the order is 1, 2, 3, 3+, 4, 5), unless it is an exit-only `fire-door`, has `ringExempt`, or touches a room whose module has `carrier: true`.
+- A07: every opening sits inside its wall. The 1.5 m corner rule (near edge clear of the wall end) applies only when the opening joins a corridor or a room at play-space size (clear short side of `room.playSpaceMin` or more, not marked `service`); a service room, or a room under play-space size, only needs the opening to fit inside the wall.
+- A11: a straight run needs `(risers - flights) * going + (flights - 1) * midLanding` along `up`; a `dogleg` stair is sized as described under `stairs[].layout`.
+- A28: every room has a ring. A29: an opening of a passable type (door, double, fire-door, arch, roller, gate) joins rooms whose rings are one step apart on 1-2-3-4-5 (`kit.ringStepMax`) or equal; ring `3+` is a side room of zone 3 and joins `3` and `3+` only (so 3 to 4 passes, 2 to 3+ and 3+ to 4 fail); exempt are an exit-only `fire-door`, an opening with `ringExempt`, and one touching a room whose module has `carrier: true`.
 - A30: (1) every occupied floor (a floor with a room of kind `room` or `corridor`) has a staff WC and a janitor cupboard, found by the module's `provides` or, for a room with no module, by its name; (2) every upper occupied level has an enclosed `fire` stair that serves it and whose stack, going down by overlapping rects, ends on the ground floor in a room with an opening to the outside; (3) from each occupied room, the door route (room centre to door to room centre) to the nearest such stair is at most `escape.oneWay` with one stair reachable, or `escape.twoWay` with two or more; (4) when the plan has a level `R`, at least one such fire stair continues up (fire or bulkhead stairs, overlapping rects) to `R`.
 - Security: SC01-SC06 (need `--security`).
 - Play: the `// GAMEPLAY CHECKS (P09)` section of check.mjs is empty until P09. `--play` is read now only by A27.
@@ -276,11 +280,11 @@ A `"@a.b"` value is read from facts.json, so door sizes, aisles and rack width s
 - Walls: every room edge is a wall. A wall shared by two rooms is one wall (interior thickness); an edge with a room on one side only is exterior; collinear touching walls of the same kind, thickness and height join into one wall. Height is the taller ceiling of the rooms it serves, so a wall splits where the ceiling changes. An edge listed in `open` on every room using it gets no wall.
 - Doors: built from the module (or placement) door list at the wall position; `between` is the room and the room across the wall (empty string when none). Two doors overlapping on one wall keep the first, with a warning. A door on an open edge or past the wall end is a warning and is not made. Doors to the outside are listed as INFO.
 - Objects stand inside the clear room, rounded inward to `meta.objectGrid`, and turn with the room. One that does not fit is skipped with a warning.
-- Stairs: the stair rect is the clear room rounded inward to the grid; `risers` = floor-to-floor / riser height. The upper rooms use the same rect and doors (`levels` can restrict a door to the base floor).
+- Stairs: a `dogleg` stair (all three stair modules) fills its room, so its rect is the room rect; a straight stair is the clear room rounded inward to the grid. `risers` = floor-to-floor / riser height. The upper rooms use the same rect and doors (`levels` can restrict a door to the base floor). The stairwell void is the stair rect.
 - Re-runs: every item expand wrote carries `"gen": "<placement id>"` and is rewritten each run. Items marked `"manual": true`, and items with no `gen` tag, are kept untouched (a manual wall or opening may name a generated wall id; keep it only if that wall still exists).
 
-### Calls to confirm (Michael)
-- Door clearance: A07 needs 1.5 m between a door's near edge and the wall end, so a door in a small room (WC, janitor, mantrap, cage) only passes when the wall runs on past the room, as a corridor wall does. Place small rooms between neighbours, not at the end of a wall run.
-- The mantrap is ring 3+ here (brief section 5 says 4), so both its doors pass A29 (3 to 3+, 3+ to 4).
-- Stair cores and the cage differ from the brief: stair cores are 8.0 m long (A11 needs a 7.13 m straight run for 20 risers; the brief has 6.0), the fire stair is 3.0 wide, the customer cage is 3.5 deep (4.0 x 3.0 leaves less than a 1.8 m aisle beside a 1.2 m rack, A26).
+### Calls made (Michael, 2026-10-10) and brief deviations
+- A07 corner rule: corridors and play-space rooms only; service rooms only need the door to fit in the wall. Small rooms no longer need neighbours on both sides.
+- The mantrap is ring 4, as the brief says. A29 steps are 1-2-3-4-5; 3+ sits beside 3 only.
+- Stair cores are the brief's 6.0 m long, as dog-legs. The main core holds two 1.3 m flights (`stair.fireWidth`) side by side in its 3.5 m width, not the 2.4 m open feature stair, which would need a wider core. P04 records these as brief deviations: fire stair 3.0 wide (brief 2.8, to sit on the grid) and customer cage 3.5 deep (brief 3.0; 4.0 x 3.0 leaves less than a 1.8 m aisle beside a 1.2 m rack, A26).
 - Fixed-content sizes (rack 0.6 x 1.2 x 2.0 and the rest) are general knowledge; only the 0.6 m rack width and the 1.8 m aisle are facts.

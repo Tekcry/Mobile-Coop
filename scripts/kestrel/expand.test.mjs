@@ -142,12 +142,12 @@ function doorPoint(arch, id, key) {
 }
 
 test('rotations turn the room, its door side and its door position', () => {
-  // main-stair: clear 8 x 3.5 -> rect 8.5 x 4. Door "foot" is on local side S, 2.5 m from the west end.
+  // main-stair: clear 6 x 3.5 -> rect 6.5 x 4. Door "foot" is on local side S, 2.5 m from the west end.
   const cases = [
-    { rot: 0, rect: [10, 10, 18.5, 14], door: [12.5, 10] },     // south edge, 2.5 from the west end
-    { rot: 90, rect: [10, 10, 14, 18.5], door: [10, 16] },      // west edge, 2.5 from the north end
-    { rot: 180, rect: [10, 10, 18.5, 14], door: [16, 14] },     // north edge, 2.5 from the east end
-    { rot: 270, rect: [10, 10, 14, 18.5], door: [14, 12.5] },   // east edge, 2.5 from the south end
+    { rot: 0, rect: [10, 10, 16.5, 14], door: [12.5, 10] },     // south edge, 2.5 from the west end
+    { rot: 90, rect: [10, 10, 14, 16.5], door: [10, 14] },      // west edge, 2.5 from the north end
+    { rot: 180, rect: [10, 10, 16.5, 14], door: [14, 14] },     // north edge, 2.5 from the east end
+    { rot: 270, rect: [10, 10, 14, 16.5], door: [14, 12.5] },   // east edge, 2.5 from the south end
   ];
   for (const c of cases) {
     const arch = ok(expand(single({ id: 'S', module: 'main-stair', at: [10, 10], rot: c.rot }, upper)));
@@ -162,9 +162,10 @@ test('a rotated stair climbs the right way and its rect follows the room', () =>
     const arch = ok(expand(single({ id: 'S', module: 'main-stair', at: [10, 10], rot }, upper)));
     const s = arch.stairs[0];
     assert.equal(s.up, up[rot], `up at ${rot}`);
-    const long = s.up === 'E' || s.up === 'W' ? s.rect[2] - s.rect[0] : s.rect[3] - s.rect[1];
-    assert.ok(long >= 7.13, `stair run ${long} at ${rot}`);
+    assert.equal(s.layout, 'dogleg');
+    assert.deepEqual(s.rect, byId(arch.rooms, 'S').rect, 'a dog-leg fills its room');
     assert.equal(s.risers, 20);
+    assert.equal(checks(arch).find((r) => r.id === 'A11').status, 'PASS', `A11 at ${rot}`);
     assert.equal(arch.voids[0].level, 'F');
     assert.deepEqual(arch.voids[0].rect, s.rect);
   }
@@ -213,7 +214,8 @@ test('a stair core makes a room per level, a stair and a stairwell void per stor
   assert.equal(arch.stairs[0].from, 'G');
   assert.equal(arch.stairs[0].to, 'F');
   assert.equal(arch.stairs[0].kind, 'main');
-  assert.equal(arch.stairs[0].width, facts.fact('stair.featureWidth'));
+  assert.equal(arch.stairs[0].width, facts.fact('stair.fireWidth'), 'two flights of 1.3 m side by side in the 3.5 m core');
+  assert.equal(arch.stairs[0].layout, 'dogleg');
   assert.equal(arch.voids.length, 1);
 });
 
@@ -318,6 +320,40 @@ test('placement doors replace the module doors, skipDoors drops one, and the out
   assert.equal(r.outside.length, 1);
   const r2 = expand(single({ id: 'L', module: 'lobby', at: [10, 10], doors: [{ key: 'east', side: 'E', at: 2, w: 1.2, h: 2.1, type: 'door', reason: 'test' }] }));
   assert.deepEqual(r2.arch.openings.map((o) => o.id), ['L-Deast']);
+});
+
+// ---------- service rooms, rings, dog-leg stairs ----------
+test('service modules mark their room, so A07 only asks their doors to fit', () => {
+  const arch = ok(expand(sampleLayout()));
+  assert.equal(byId(arch.rooms, 'W1').service, true);
+  assert.equal(byId(arch.rooms, 'J1').service, true);
+  assert.equal(byId(arch.rooms, 'T1').service, undefined, 'a storage room is not a service room');
+  for (const id of ['visitor-wc', 'staff-wc', 'shower-lockers', 'janitor', 'mantrap', 'carrier-riser', 'riser-cupboard', 'lift-shaft']) assert.equal(modules.get(id).service, true, id);
+});
+
+test('a small service room at the end of a wall passes A07 alone; a play-space room does not', () => {
+  // a janitor cupboard on its own: 0.4 m from the wall end, fine because the brief marks it service
+  const solo = ok(expand(single({ id: 'J', module: 'janitor', at: [10, 10] })));
+  assert.equal(checks(solo).find((r) => r.id === 'A07').status, 'PASS');
+  // the same door in a 12 x 8 office (play-space size) at the end of its wall would fail: move the door to 1 m from the corner
+  const office = ok(expand(single({ id: 'O', module: 'office', at: [10, 10], doors: [{ key: 'x', side: 'S', at: 1.5, w: '@door.singleWidth', h: '@door.singleHeight', type: 'door', reason: 'test' }] })));
+  assert.equal(checks(office).find((r) => r.id === 'A07').status, 'FAIL');
+});
+
+test('the mantrap is zone 4: a door from zone 3 to it passes A29', () => {
+  assert.equal(modules.get('mantrap').ring, 4);
+  const layout = single({ id: 'M', module: 'mantrap', at: [10, 10] });
+  layout.placements.push({ level: 'G', id: 'C', module: 'corridor', size: [3.5, 14], at: [6, 10], rot: 0 });
+  const arch = ok(expand(layout));
+  assert.equal(byId(arch.rooms, 'C').ring, 3);
+  const results = checks(arch);
+  assert.equal(results.find((r) => r.id === 'A29').status, 'PASS');
+});
+
+test('stair cores are the brief length again (6.0 m) with two flights side by side', () => {
+  for (const id of ['main-stair', 'fire-stair', 'fire-stair-roof']) assert.equal(modules.get(id).sizes[0][0], 6, id);
+  assert.equal(modules.get('fire-stair').sizes[0][1], 3, 'fire stair stays 3.0 wide');
+  assert.equal(modules.get('customer-cage').sizes[0][1], 3.5, 'cage stays 3.5 deep');
 });
 
 // ---------- every module alone ----------

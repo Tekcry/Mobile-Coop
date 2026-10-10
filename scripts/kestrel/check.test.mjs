@@ -95,6 +95,31 @@ test('A07 trips on a door near a wall end, off the wall, and a bad door height',
   assert.equal(status(run((a) => { a.openings[1].h = 3.5; }), 'A07'), 'PASS', 'window height is free');
 });
 
+/** A room east of the sample with one wall and one door 0.9 m from the wall end (near edge), to the outside. */
+const cornerDoor = (rect, over = {}, doorOver = {}) => (a) => {
+  a.rooms.push(room('G03', 'G', rect, { ...over }));
+  a.walls.push({ id: 'W900', level: 'G', a: [rect[0], rect[1]], b: [rect[0], rect[3]], t: 0.3, h: 3, kind: 'interior' });
+  a.openings.push({ id: 'D900', wall: 'W900', at: 1.5, w: 1.2, h: 2.1, sill: 0, type: 'door', between: ['G03', ''], locked: false, key: '', reason: 'test door', ...doorOver });
+};
+test('A07: the corner rule applies to corridors and play-space rooms, not to service or small rooms', () => {
+  // a 3 x 3 room is under play-space size: the door only has to fit inside the wall
+  assert.equal(status(run(cornerDoor([20, 2, 23, 5])), 'A07'), 'PASS');
+  // a room at play-space size (7 x 7) is strict
+  trips('A07', cornerDoor([20, 2, 27, 9]));
+  // ... unless the brief marks it as a service room
+  assert.equal(status(run(cornerDoor([20, 2, 27, 9], { service: true })), 'A07'), 'PASS');
+  // a corridor is always strict, even a short one
+  trips('A07', cornerDoor([20, 2, 23.5, 5], { kind: 'corridor' }));
+  // an opening is strict when any room it joins is strict: a service room off the lobby
+  trips('A07', cornerDoor([20, 2, 23, 5], { service: true }, { between: ['G03', 'G01'] }));
+  assert.equal(status(run(cornerDoor([20, 2, 23, 5], { service: true }, { between: ['G03', 'G03'] })), 'A07'), 'PASS');
+  // the door still has to fit inside the wall
+  trips('A07', cornerDoor([20, 2, 23, 5], { service: true }, { at: 0.4 }));
+  trips('A07', cornerDoor([20, 2, 23, 5], { service: true }, { at: 2.8 }));
+  // and the height rule still holds
+  trips('A07', cornerDoor([20, 2, 23, 5], { service: true }, { h: 2.5 }));
+});
+
 test('A08 trips on two doors too close on one wall', () => {
   trips('A08', (a) => { a.openings.push({ ...a.openings[0], id: 'D004', at: 6.0 }); });
   assert.equal(status(run((a) => { a.openings.push({ ...a.openings[0], id: 'D004', at: 8.5 }); }), 'A08'), 'PASS');
@@ -120,6 +145,25 @@ test('A11 trips on a wrong riser count, too many risers per flight, and a short 
   trips('A11', (a) => { a.stairs[0].flights = 1; });
   trips('A11', (a) => { a.stairs[0].rect = [13, 3, 15.5, 6]; });
   trips('A11', (a) => { a.levels[1].floor = 3.0; });
+});
+
+test('A11 dog-leg: two flights side by side with a landing, sized by the scale sheet', () => {
+  const dog = (over = {}) => (a) => { Object.assign(a.stairs[0], { layout: 'dogleg', width: 1.2, ...over }); };
+  // 20 risers = two flights of 10: 9 goings of 0.285 plus a 2.0 landing = 4.57 m long, two flights of 1.2 = 2.4 m wide (rect 2.5 x 8)
+  assert.equal(status(run(dog()), 'A11'), 'PASS');
+  // a rect too short for flight and landing
+  trips('A11', dog({ rect: [13, 3, 15.5, 7] }));
+  assert.ok(details(run(dog({ rect: [13, 3, 15.5, 7] })), 'A11')[0].match(/need 4.5[67] m/));
+  // too narrow for two flights
+  trips('A11', dog({ width: 1.3 }));
+  // a fire stair uses the 1.3 m landing: 2.57 + 1.3 = 3.87 m
+  assert.equal(status(run(dog({ kind: 'fire', width: 1.2, rect: [13, 3, 15.5, 7] })), 'A11'), 'PASS');
+  trips('A11', dog({ kind: 'fire', width: 1.2, rect: [13, 3, 15.5, 6.5] }));
+  // more than 18 risers per flight: 38 risers is 19 per flight
+  trips('A11', (a) => { dog({ risers: 38 })(a); a.levels[1].floor = 6.27; });
+  // the riser count is still checked, and a stair with no layout is still a straight run
+  trips('A11', dog({ risers: 19 }));
+  trips('A11', (a) => { a.stairs[0].rect = [13, 3, 15.5, 7]; });
 });
 
 test('A12 trips on a ladder in an ordinary room', () => {
@@ -270,14 +314,11 @@ test('A28 trips on a missing or unknown ring', () => {
   assert.equal(status(run((a) => { a.rooms[0].ring = '3+'; }), 'A28'), 'PASS');
 });
 
-test('A29 trips on a door joining rings two steps apart, with 3+ one step above 3', () => {
+test('A29 steps are 1-2-3-4-5; 3+ is a side room of 3 only', () => {
   const rings = (r1, r2, mut) => (a) => { find(a.rooms, 'G01').ring = r1; find(a.rooms, 'G02').ring = r2; mut?.(a); };
   assert.equal(status(run(), 'A29'), 'PASS');
-  trips('A29', rings(2, 4));
-  trips('A29', rings(2, '3+'));
-  trips('A29', rings(3, 4));
-  trips('A29', rings(5, 3));
-  for (const [r1, r2] of [[2, 3], [3, '3+'], ['3+', 4], [4, 5], [4, 4]]) assert.equal(status(run(rings(r1, r2)), 'A29'), 'PASS', `${r1} to ${r2}`);
+  for (const [r1, r2] of [[1, 3], [2, 4], [5, 3], [1, 5], [2, '3+'], ['3+', 2], ['3+', 4], [4, '3+'], ['3+', 5]]) trips('A29', rings(r1, r2));
+  for (const [r1, r2] of [[1, 2], [2, 3], [3, 4], [4, 3], [4, 5], [4, 4], [3, '3+'], ['3+', 3], ['3+', '3+']]) assert.equal(status(run(rings(r1, r2)), 'A29'), 'PASS', `${r1} to ${r2}`);
   // exemptions: an exit-only fire door, the carriers' entrance (module flag or the opening's ringExempt), and a window
   assert.equal(status(run(rings(2, 5, (a) => { find(a.openings, 'D001').type = 'fire-door'; })), 'A29'), 'PASS');
   assert.equal(status(run(rings(2, 5, (a) => { find(a.rooms, 'G02').module = 'vault'; }), { modules: { vault: { carrier: true } } }), 'A29'), 'PASS');

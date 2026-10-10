@@ -130,7 +130,7 @@ export function expandLayout({ layout, base = null, modules, facts = loadFacts()
   // ---------- rooms ----------
   const newRooms = cells.map((c) => ({
     id: c.id, level: c.level, name: c.p.label ?? c.m.name, kind: c.m.kind, rect: [...c.rect], ceiling: c.ceiling, finish: c.m.finish,
-    minShort: Math.min(c.clear[0], c.clear[1]), open: [...c.open], ring: c.p.ring ?? c.m.ring, module: c.m.id, zone: c.p.zone ?? c.m.zone, gen: c.p.id,
+    minShort: Math.min(c.clear[0], c.clear[1]), open: [...c.open], ring: c.p.ring ?? c.m.ring, module: c.m.id, zone: c.p.zone ?? c.m.zone, ...(c.m.service ? { service: true } : {}), gen: c.p.id,
   }));
 
   // ---------- walls: shared walls merge into one, collinear touching walls of one kind join ----------
@@ -283,9 +283,11 @@ export function expandLayout({ layout, base = null, modules, facts = loadFacts()
       const from = levels[i0];
       const to = levels[i0 + 1];
       if (risePerStep === undefined) { fail('facts.json: stair.riserHeight is needed'); continue; }
-      const rect = cellRect();
+      const dogleg = c.m.stair.layout === 'dogleg';
+      // a dog-leg fills its room (two flights side by side), so its rect is the room rect; a straight run is the clear room rounded inward
+      const rect = dogleg ? [...c.rect] : cellRect();
       newStairs.push({
-        id: `${c.p.id}-S${from.id}${to.id}`, kind: c.m.stair.kind, from: from.id, to: to.id, rect, up: rotSide(c.m.stair.up, c.rot),
+        id: `${c.p.id}-S${from.id}${to.id}`, kind: c.m.stair.kind, ...(dogleg ? { layout: 'dogleg' } : {}), from: from.id, to: to.id, rect, up: rotSide(c.m.stair.up, c.rot),
         width: val(c.m.stair.width, `${label} stair width`), risers: Math.round((to.floor - from.floor) / risePerStep), gen: c.p.id,
       });
       newVoids.push({ id: `${c.p.id}-V${to.id}`, level: to.id, rect, kind: 'stairwell', reason: c.m.stair.reason ?? 'Stair well over the stair.', gen: c.p.id });

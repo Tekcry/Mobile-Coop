@@ -390,7 +390,7 @@
       "name": "Mantrap",
       "category": "zones 4 and 5",
       "zone": "S5",
-      "ring": "3+",
+      "ring": 4,
       "kind": "room",
       "ceiling": "@room.ceiling",
       "finish": "antistatic vinyl",
@@ -405,7 +405,7 @@
       "objects": [
         {"name":"Iris scanner pedestal","size":[0.3,0.3],"h":1.2,"x":["W",0],"z":["C",0],"reason":"The iris reader is mounted on it."}
       ],
-      "source": "02-building-brief s5 G12 (brief zone 4; ring 3+ here so both doors pass A29, see schema.md section 7); sizes of fixed contents: general knowledge"
+      "source": "02-building-brief s5 G12 (zone 4 as the brief says; its staff-side door joins zone 3 to 4, which A29 allows); sizes of fixed contents: general knowledge"
     },
     {
       "id": "data-hall-bay",
@@ -612,7 +612,7 @@
       "ceiling": "@room.ceiling",
       "finish": "linoleum",
       "sizes": [
-        [8,3.5]
+        [6,3.5]
       ],
       "doors": [
         {"key":"foot","side":"S","at":2.5,"w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff reach the main stair from the corridor."}
@@ -620,12 +620,13 @@
       "objects": [],
       "stair": {
         "kind": "main",
-        "width": "@stair.featureWidth",
+        "layout": "dogleg",
+        "width": "@stair.fireWidth",
         "up": "E",
         "span": 1,
         "reason": "Stair well over the main stair."
       },
-      "source": "02-building-brief s5 G21 (the brief gives 6.0 x 3.5; A11 needs a 7.13 m straight run for 20 risers, so 8.0 here); scale-sheet s3 (open stair)"
+      "source": "02-building-brief s5 G21 (6.0 x 3.5); scale-sheet s3 (two flights and a landing; each flight 1.3 m, so the 3.5 m core holds two side by side)"
     },
     {
       "id": "fire-stair",
@@ -637,21 +638,22 @@
       "ceiling": "@room.ceiling",
       "finish": "concrete",
       "sizes": [
-        [8,3]
+        [6,3]
       ],
       "doors": [
         {"key":"corridor","side":"S","at":2.5,"w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff reach the fire stair from the corridor."},
-        {"key":"exit","side":"N","at":5.5,"w":"@stair.fireDoorWidth","h":"@door.singleHeight","type":"fire-door","levels":"base","reason":"Exit-only discharge to the outside at the foot of the stair."}
+        {"key":"exit","side":"N","at":4,"w":"@stair.fireDoorWidth","h":"@door.singleHeight","type":"fire-door","levels":"base","reason":"Exit-only discharge to the outside at the foot of the stair."}
       ],
       "objects": [],
       "stair": {
         "kind": "fire",
+        "layout": "dogleg",
         "width": "@stair.fireWidth",
         "up": "E",
         "span": 1,
         "reason": "Stair well over the enclosed fire stair."
       },
-      "source": "02-building-brief s5 G24, G25 (the brief gives 6.0 x 2.8; A11 needs a 7.13 m straight run, so 8.0 here, and 3.0 wide to sit on the grid); scale-sheet s3 (fire stair)"
+      "source": "02-building-brief s5 G24, G25 (6.0 long as the brief; 3.0 wide instead of 2.8 to sit on the grid, a brief deviation); scale-sheet s3 (fire stair)"
     },
     {
       "id": "fire-stair-roof",
@@ -663,15 +665,16 @@
       "ceiling": "@room.ceiling",
       "finish": "concrete",
       "sizes": [
-        [8,3]
+        [6,3]
       ],
       "doors": [
         {"key":"corridor","side":"S","at":2.5,"w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff reach the fire stair from the corridor."},
-        {"key":"exit","side":"N","at":5.5,"w":"@stair.fireDoorWidth","h":"@door.singleHeight","type":"fire-door","levels":"base","reason":"Exit-only discharge to the outside at the foot of the stair."}
+        {"key":"exit","side":"N","at":4,"w":"@stair.fireDoorWidth","h":"@door.singleHeight","type":"fire-door","levels":"base","reason":"Exit-only discharge to the outside at the foot of the stair."}
       ],
       "objects": [],
       "stair": {
         "kind": "fire",
+        "layout": "dogleg",
         "width": "@stair.fireWidth",
         "up": "E",
         "span": "roof",

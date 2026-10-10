@@ -243,7 +243,20 @@ check('A06', "Every room edge is covered by walls or listed in the room's open a
 });
 
 // ===== A07 openings in walls =====
-check('A07', 'Openings inside their wall and clear of its ends; door height in range', 'FAIL', ['door.endClear', 'door.heightMin', 'door.heightMax'], (c) => {
+check('A07', 'Openings inside their wall; clear of its ends beside corridors and play-space rooms; door height in range', 'FAIL', ['door.endClear', 'door.heightMin', 'door.heightMax', 'room.playSpaceMin'], (c) => {
+  // The corner rule (door near edge clear of the wall end) applies to corridors and rooms at play-space size. A service room, or a room
+  // under play-space size, only needs the opening to fit inside its wall. An opening is strict if any room it joins is strict.
+  const strictRoom = (r) => {
+    if (!r || !isRect(r.rect)) return true;
+    if (r.kind === 'corridor') return true;
+    if (r.service === true) return false;
+    const cl = clearRect(r, c.walls);
+    return Math.min(cl[2] - cl[0], cl[3] - cl[1]) >= c.F('room.playSpaceMin') - EPS;
+  };
+  const strict = (o) => {
+    const rooms = (o.between ?? []).filter((id) => id !== '').map((id) => c.roomById.get(id));
+    return !rooms.length || rooms.some(strictRoom);
+  };
   for (const o of c.openings) {
     const w = c.wallById.get(o.wall);
     if (!w || !isPt(w.a) || !isPt(w.b) || !isNum(o.at) || !isNum(o.w)) continue;
@@ -253,7 +266,7 @@ check('A07', 'Openings inside their wall and clear of its ends; door height in r
     const p = wallPoint(w, Math.min(Math.max(o.at, 0), L)).p;
     const where = `(${f2(p[0])}, ${f2(p[1])})`;
     if (e1 < -EPS || e2 < -EPS) c.add(`${o.id} on ${w.id} ${where}: sticks out of the wall (at ${o.at}, w ${o.w}, wall length ${f2(L)})`);
-    else if (Math.min(e1, e2) < c.F('door.endClear') - EPS) c.add(`${o.id} on ${w.id} ${where}: ${f2(Math.min(e1, e2))} m from a wall end, need ${c.F('door.endClear')}`);
+    else if (strict(o) && Math.min(e1, e2) < c.F('door.endClear') - EPS) c.add(`${o.id} on ${w.id} ${where}: ${f2(Math.min(e1, e2))} m from a wall end, need ${c.F('door.endClear')}`);
     if (DOOR_TYPES.has(o.type) && isNum(o.h) && (o.h < c.F('door.heightMin') - EPS || o.h > c.F('door.heightMax') + EPS)) c.add(`${o.id} ${where}: door height ${o.h}, allowed ${c.F('door.heightMin')}-${c.F('door.heightMax')}`);
   }
 });
@@ -312,7 +325,7 @@ check('A10', 'Doors facing across a corridor are offset', 'WARN', ['door.facingO
 });
 
 // ===== A11 stairs =====
-check('A11', 'Stairs: riser count, risers per flight, rect long enough for the run', 'FAIL', ['stair.riserHeight', 'stair.maxRisersPerFlight', 'stair.going', 'stair.midLanding'], (c) => {
+check('A11', 'Stairs: riser count, risers per flight, rect big enough for the run (straight, or dog-leg)', 'FAIL', ['stair.riserHeight', 'stair.maxRisersPerFlight', 'stair.going', 'stair.midLanding', 'stair.fireLanding'], (c) => {
   const max = c.F('stair.maxRisersPerFlight');
   for (const s of c.stairs) {
     const from = c.levelById.get(s.from);
@@ -322,6 +335,18 @@ check('A11', 'Stairs: riser count, risers per flight, rect long enough for the r
     if (h <= 0) { c.add(`${s.id}: level ${s.to} is not above ${s.from}`); continue; }
     const expect = Math.round(h / c.F('stair.riserHeight'));
     if (s.risers !== expect) c.add(`${s.id}: ${s.risers} risers, floor-to-floor ${f2(h)} m needs ${expect}`);
+    if (s.layout === 'dogleg') {
+      // two flights of at most the maximum, side by side, a landing between them at the far end
+      const per2 = Math.ceil(s.risers / 2);
+      if (per2 > max) c.add(`${s.id}: dog-leg of ${s.risers} risers has ${per2} risers per flight, max ${max}`);
+      const landing = s.kind === 'fire' ? c.F('stair.fireLanding') : c.F('stair.midLanding');
+      const need = (per2 - 1) * c.F('stair.going') + landing;
+      const along = s.up === 'N' || s.up === 'S' ? rectD(s.rect) : rectW(s.rect);
+      const across = s.up === 'N' || s.up === 'S' ? rectW(s.rect) : rectD(s.rect);
+      if (along < need - EPS) c.add(`${s.id}: dog-leg rect is ${f2(along)} m long along ${s.up}, the flight and landing need ${f2(need)} m`);
+      if (isNum(s.width) && across < 2 * s.width - EPS) c.add(`${s.id}: dog-leg rect is ${f2(across)} m wide, two flights of ${s.width} m need ${f2(2 * s.width)} m`);
+      continue;
+    }
     const flights = isNum(s.flights) && s.flights >= 1 ? s.flights : Math.ceil(s.risers / max);
     const per = Math.ceil(s.risers / flights);
     if (per > max) c.add(`${s.id}: ${per} risers per flight over ${flights} flight(s), max ${max}`);
@@ -589,16 +614,16 @@ check('A28', 'Every room has a ring (1, 2, 3, "3+", 4 or 5)', 'FAIL', [], (c) =>
   for (const r of c.rooms) if (!RING_ORDER.includes(r.ring)) c.add(`${r.id} (${r.level}) ring ${JSON.stringify(r.ring ?? null)}`);
 });
 
-check('A29', 'An opening joins rooms whose rings differ by at most one step (3+ is one step above 3)', 'FAIL', ['kit.ringStepMax'], (c) => {
+check('A29', 'An opening joins rooms whose rings are one step apart (1-2-3-4-5); 3+ sits beside 3 only', 'FAIL', ['kit.ringStepMax'], (c) => {
+  // 3+ is a side room of zone 3, not a step between 3 and 4: it may join 3 and 3+ only.
   const carrier = (room) => c.modules?.[room?.module]?.carrier === true;
+  const joined = (x, y) => (x === '3+' || y === '3+' ? (x === 3 || x === '3+') && (y === 3 || y === '3+') : Math.abs(x - y) <= c.F('kit.ringStepMax'));
   for (const o of c.openings) {
     if (!PASS_TYPES.has(o.type) || o.type === 'fire-door' || isText(o.ringExempt)) continue;
     const [A, B] = (o.between ?? []).map((id) => c.roomById.get(id));
-    if (!A || !B) continue;
-    const [ia, ib] = [RING_ORDER.indexOf(A.ring), RING_ORDER.indexOf(B.ring)];
-    if (ia < 0 || ib < 0 || Math.abs(ia - ib) <= c.F('kit.ringStepMax') || carrier(A) || carrier(B)) continue;
+    if (!A || !B || !RING_ORDER.includes(A.ring) || !RING_ORDER.includes(B.ring) || carrier(A) || carrier(B) || joined(A.ring, B.ring)) continue;
     const p = c.openingPoint(o);
-    c.add(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) joins ${A.id} (ring ${A.ring}) and ${B.id} (ring ${B.ring}), ${Math.abs(ia - ib)} steps apart`);
+    c.add(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) joins ${A.id} (ring ${A.ring}) and ${B.id} (ring ${B.ring})`);
   }
 });
 
