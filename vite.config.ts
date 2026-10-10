@@ -62,8 +62,8 @@ export default defineConfig({
         maximumFileSizeToCacheInBytes: 16 * 1024 * 1024,
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
-        // the live game's worker never answers for the preview builds under /preview/ and /ct/ (their own workers do)
-        navigateFallbackDenylist: preview ? [] : [/\/preview(\/|$)/, /\/ct(\/|$)/],
+        // the live game's worker never answers for the preview builds under /preview/, /ct/ and /kestrel/ (their own workers do)
+        navigateFallbackDenylist: preview ? [] : [/\/preview(\/|$)/, /\/ct(\/|$)/, /\/kestrel(\/|$)/],
       },
       devOptions: { enabled: false },
     }),

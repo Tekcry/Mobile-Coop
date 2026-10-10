@@ -1,5 +1,5 @@
 # Branches and deploy
-Purpose: how branches map to the GitHub Pages slots (live, /preview/, /ct/) and how a release is made.
+Purpose: how branches map to the GitHub Pages slots (live, /preview/, /ct/, /kestrel/) and how a release is made.
 Design authority: docs/design-bible.md (Section 9, Branches)
 
 ## Branches and deploy
@@ -13,3 +13,4 @@ Design authority: docs/design-bible.md (Section 9, Branches)
 - 3.2.0: a second preview slot, `ct-movement` at `/<repo>/ct/` (`VITE_PREVIEW_ID=ct`: `__PREVIEW_ID__`, label
   "PREVIEW CT", IndexedDB `shoulder-strike-ct`; the live worker's denylist skips `/ct/` too). `preview.yml` also
   checks `ct-movement` pushes; `deploy.yml` builds it when the branch exists.
+- Kestrel slot: `feature/kestrel` at `/<repo>/kestrel/` (`VITE_PREVIEW_ID=kestrel`: label "PREVIEW KESTREL", IndexedDB `shoulder-strike-kestrel`, its own worker; the live worker's denylist skips `/kestrel/`). Same repository and Pages site, one deployment: `deploy.yml` builds each slot from its own branch, so the other slots do not change. `deploy.yml` always runs from the default branch, so the slot appears only once `deploy.yml`, `preview.yml` and the `vite.config.ts` denylist are on `master` (Michael merges, via `ct-movement` and `dev`). Boot straight into the map: `/<repo>/kestrel/?autostart=kestrel&mode=sandbox`.

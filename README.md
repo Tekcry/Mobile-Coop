@@ -65,6 +65,7 @@ to `dev` or `master`; Michael does the merges. The site carries all three:
 - live: `https://<user>.github.io/<repository>/` (`master`)
 - preview: `https://<user>.github.io/<repository>/preview/` (`dev`; the menu shows PREVIEW)
 - ct preview: `https://<user>.github.io/<repository>/ct/` (`ct-movement`; PREVIEW CT)
+- kestrel preview: `https://<user>.github.io/<repository>/kestrel/?autostart=kestrel&mode=sandbox` (`feature/kestrel`; PREVIEW KESTREL)
 
 Each preview keeps its own save (IndexedDB `shoulder-strike-preview`, `shoulder-strike-ct`), so a new build never
 overwrites the live save. Details: [docs/systems/deploy.md](docs/systems/deploy.md).
