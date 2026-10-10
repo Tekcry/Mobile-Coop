@@ -1,5 +1,6 @@
 # Kestrel - progress
-nPlanning handover (decisions not yet in the briefs, stage order, working rules): see handover.md.
+
+Planning handover (decisions not yet in the briefs, stage order, working rules): see handover.md.
 
 | Stage | Prompt | Status | Commit | Date |
 | --- | --- | --- | --- | --- |
