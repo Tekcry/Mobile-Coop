@@ -842,7 +842,7 @@ function main() {
   const text = JSON.stringify(geo) + '\n';
   if (process.argv.includes('--check')) {
     const cur = fs.existsSync(OUT) ? fs.readFileSync(OUT, 'utf8') : '';
-    if (cur !== text) {
+    if (cur.replaceAll(String.fromCharCode(13), '') !== text) {
       console.error('deadLine.geo.json is stale: run node scripts/gen-dead-line.mjs');
       process.exit(1);
     }
