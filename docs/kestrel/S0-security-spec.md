@@ -1,5 +1,5 @@
 # Security systems - spec
-Status: APPROVED (Michael, 2026-10-10)
+Status: DRAFT (reopened 2026-10-10 for revision fixes 1-2; was APPROVED)
 
 Six systems for Cinder Yard, reused later (Mission 5 bank): CCTV cameras, the security desk (with its alarm panel and plant faults), card access (readers, keycards, cloning, mantrap), the iris scanner, infrared beams and PIR lights. Coordinates and yaw follow 00-facts.md section 2 (north +Z, yaw 0 faces +Z). `SNxx` are the numbers in section 5. Every device raises suspicion only through existing enemy functions (section 10). Nothing here fails the mission.
 
@@ -52,7 +52,7 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
 ### 2.4 Iris scanner
 | Item | Rule |
 | --- | --- |
-| Detects | A person in its `enrolled` list, held by the existing grab (conscious, not knocked out), within SN38 of the scanner. Scan hold SN37. A knocked-out or dead person fails (closed eye). |
+| Detects | A person in its `enrolled` list (the night duty engineer and the duty manager `g-s2-manager`, because there is no civilian system yet), held by the existing grab (conscious, not knocked out), within SN38 of the scanner. Scan hold SN37. A knocked-out or dead person fails (closed eye). |
 | Stages | Granted: green ring, its door (or the mantrap inner factor) unlocks as a reader would. Refused: red ring, no event. A grab seen by a guard follows the existing human-shield rules (`GRAB.hesitate`). |
 | State | `SecuritySystem.access` (same as readers). |
 
@@ -169,7 +169,7 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
     { "id": "mt-hall", "kind": "mantrap", "level": "ground", "at": [34.0, 14.0], "y": 0, "room": "mantrap",
       "door": "op-mt-out", "door2": "op-mt-in", "reason": "data hall entry" },
     { "id": "iris-hall", "kind": "iris", "level": "ground", "at": [34.5, 15.5], "y": 1.6, "facing": 0, "room": "mantrap",
-      "door": "op-mt-in", "enrolled": ["civ-engineer"], "reason": "inner factor" },
+      "door": "op-mt-in", "enrolled": ["civ-engineer", "g-s2-manager"], "reason": "inner factor" },
     { "id": "beam-c1", "kind": "beam", "level": "ground", "a": [26.0, 1.4, 12.0], "b": [26.0, 1.4, 14.0],
       "room": "corr-e", "reason": "corridor trap, high beam" },
     { "id": "pir-yard-1", "kind": "pir", "level": "ground", "at": [8.0, 40.0], "y": 3.5, "lamp": "lamp-yard-3",
@@ -257,7 +257,15 @@ All S1-S3 logic is Babylon-free with Vitest tests. Each step runs `npm run check
 1. Shot camera: a manned desk sends a guard after video loss (2.1).
 2. Cloning: hold a cloner to a grabbed guard's card (2.3); a downed guard's card comes with the takedown (Q3).
 3. Keycards on guards: taken automatically on any takedown of the holder (2.3).
-4. Iris enrolment: the night duty engineer only.
+4. Iris enrolment: the night duty engineer and the duty manager (no civilian system yet).
 5. Cameras or beams switched off at the panel: noticed SN24 after the desk is next manned; a guard is sent (2.2).
 
 Self-check: 6 systems, each with 2+ counters (section 4); only the existing functions in section 10; every number in section 5 or quoted from 00-facts.md / the code; no instant fail (worst case is the existing alarm and reinforcements); line count under 320.
+
+## Revision log
+| Date | Fix # | What changed | Status |
+| --- | --- | --- | --- |
+| 2026-10-10 | 1 | Iris enrols the night duty engineer and the duty manager (g-s2-manager): section 2.4, section 6 example enrolled list, section 12 answer 4 | done |
+| 2026-10-10 | 2 | progress.md Decisions by Michael wording updated | done |
+
+Downstream: S2 must recheck iris tests (the enrolled guard can be g-s2-manager); P04S must recheck the iris `enrolled` list; S4 must recheck iris sync.
