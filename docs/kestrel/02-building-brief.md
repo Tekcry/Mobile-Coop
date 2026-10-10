@@ -28,8 +28,8 @@ tonight. All metres. Clear sizes only; positions are set later.
 - Overall building footprint 48.0 m (east-west) x 30.0 m (north-south) = 1440 m2 per floor (RULES 2 limit: 48 x 30).
 - Storey heights (floor to floor), scale-sheet values only: basement 3.3 m; ground office/logistics block 3.3 m;
   first floor 3.3 m (roof slab at +6.6 m). The data hall and cooling gallery are double-height, single-storey,
-  with a 4.5 m clear ceiling (scale sheet "halls 4.5-6.0"). A real data hall with an 800 mm raised floor would be
-  taller (~4.7-5.0 m clear, general knowledge); 4.5 m is the nearest allowed value, used.
+  with a 5.0 m clear ceiling (scale sheet "halls 4.5-6.0"), allowing for an 800 mm raised floor and a ceiling void
+  (a real data hall runs ~4.7-5.0 m clear, general knowledge). Roof slab at +6.6 m clears it (5.0 + 0.3 slab = 5.3 m).
 
 ## 3. Design and operation
 
@@ -76,22 +76,24 @@ below the 6 m play-space minimum by function and are tagged; all occupied rooms 
 | G04 | Ground | 2 | Meeting room | Tenant and visitor meetings | empty, locked (no daytime meetings) | 6.0 x 5.0 | 3.0 | carpet tile | G01 | off | none |
 | G05 | Ground | 2 | Security site office (duty manager) | Shift manager's office; log, master card | duty manager's base | 5.0 x 4.0 | 3.0 | carpet tile | G01 | on | duty manager (holds master card) |
 | G06 | Ground | 3+ | Security control room | Monitor wall, intrusion/alarm panel; window onto the lobby | manned all night | 6.0 x 5.0 | 3.0 | antistatic vinyl | G01 | on | desk operator; supervisor (leaves on rounds) |
-| G07 | Ground | 3 | Loading bay (goods-in) with goods lift | Delivery dock, kit receiving; roller shutter to apron | crates out to the van | 10.0 x 8.0 | 4.0 | sealed concrete | G20, G10, X08 (shutter) | on | van driver carrying crates |
+| G07 | Ground | 3 | Loading bay (goods-in) with goods lift | Delivery dock, kit receiving | crates out to the van | 10.0 x 8.0 | 4.0 | sealed concrete | G20, G10, G26 | on | van driver carrying crates |
+| G26 | Ground | 2 | Goods lobby | Goods airlock: roller shutter to apron, inner door to the loading bay (goods boundary, Q2) | shutter open for loading | 4.0 x 3.0 | 3.0 | sealed concrete | X08 (shutter), G07 | on | van driver passes |
 | G08 | Ground | 3 | Build room | Unbox, rack and test kit before install | quiet | 7.0 x 6.0 | 3.0 | antistatic vinyl | G20 | dim | none |
 | G09 | Ground | 3 | Comms room (house MDF) | The building's own telecoms/IT frame | unmanned | 5.0 x 4.0 | 3.0 | antistatic vinyl | G20 | dim | none (used to hide a body, P06) |
 | G10 | Ground | 3 | Goods lift shaft | Lift, ground to first (consumables) | idle | 2.5 x 2.5 (service) | shaft | steel | G07, F06 | off | none |
 | G11 | Ground | 3 | Janitor's cupboard (with sink) | Cleaner's store, ground floor | unused | 2.0 x 1.5 (service) | 3.0 | sealed concrete | G20 | off | none |
 | G12 | Ground | 4 | Mantrap | Two-door interlock; card plus iris into the hall | manned post | 3.0 x 2.5 (service) | 3.0 | antistatic vinyl | G20, G23 | on | mantrap post officer |
-| G13 | Ground | 4 | Data hall (computer room) | White space: rack rows and customer cages, overhead fibre trays | humming, lit | 20.0 x 14.0 | 4.5 | raised access floor | G12, G23, G18, G19, X (fire exits) | on | talking pair on the aisles |
+| G13 | Ground | 4 | Data hall (computer room) | White space: rack rows and customer cages, overhead fibre trays | humming, lit | 20.0 x 14.0 | 5.0 | raised access floor | G12, G23, G18, G19, X (fire exits) | on | talking pair on the aisles |
 | G14 | Ground | 4 | UPS room | UPS modules, no-break power to the hall | running | 8.0 x 6.0 | 3.5 | antistatic vinyl | G23, G15 | on | none |
 | G15 | Ground | 4 | Battery room | Battery strings for the UPS (~15 min autonomy, gen. knowl.) | running | 6.0 x 5.0 | 3.0 | acid-resistant | G14 | dim | none (vented; kept off staff rooms) |
 | G16 | Ground | 4 | Electrical switchroom | Incoming LV switchgear, generator changeover (ATS) | live | 7.0 x 5.0 | 3.5 | sealed concrete | G23 | dim | none |
-| G17 | Ground | 4 | Cooling gallery | CRAC/air-handling units and chilled-water headers; maintenance gantry | fans running | 16.0 x 4.0 | 4.5 | sealed concrete | G23, X (fire exit) | dim | none |
+| G17 | Ground | 4 | Cooling gallery | CRAC/air-handling units and chilled-water headers; maintenance gantry | fans running | 16.0 x 4.0 | 5.0 | sealed concrete | G23 | dim | none |
 | G18 | Ground | 5 | Meet-me room (MMR) | Carrier/tenant cross-connect patch panels | contractor at the panel | 7.0 x 6.0 | 3.0 | antistatic vinyl | G13, B02 (carrier reader door) | on | Pell's private contractor; roaming officer |
-| G19 | Ground | 5 | Pell's cage (mesh, in G13) | One tenant's locked mesh cage of racks | being re-equipped | 4.0 x 3.0 (enclosure in G13) | 4.5 | raised access floor | G13 (caged door) | on | none (other cages are like mesh areas in G13) |
+| G19 | Ground | 5 | Pell's cage (mesh, in G13) | One tenant's locked mesh cage of racks | being re-equipped | 4.0 x 3.0 (enclosure in G13) | 5.0 | raised access floor | G13 (caged door) | on | none (other cages are like mesh areas in G13) |
 | G20 | Ground | 3 | Controlled corridor | Staff spine: reception to goods, stairs and the mantrap | quiet | 3.5 x 26.0 | 3.0 | linoleum | G01, G07, G08, G09, G11, G12, G21, G25 | on | rounds officer passes |
 | G21 | Ground | 3 | Main stair core | Main stair, ground to first | passage | 6.0 x 3.5 | 3.0 | linoleum | G20, F08 | on | none |
 | G23 | Ground | 4 | Secure corridor | Serves UPS, battery, switch, cooling, hall, MMR | quiet | 3.5 x 14.0 | 3.0 | antistatic vinyl | G12, G13, G14, G16, G17 | dim | escort officer stands here |
+| G22 | Ground | 3 | Plant and services corridor | Facilities corridor carrying the chilled-water pipes and pipe riser into the cooling gallery; CRAC servicing (Q1) | quiet, loud plant | 3.5 x 16.0 | 3.0 | sealed concrete | G20, X02 (exit-only fire door by X10) | dim | escort officer on plant checks |
 | G24 | Ground | 3 | Fire stair 1 (NE) | Enclosed escape stair, roof to ground, discharges outside | empty | 6.0 x 2.8 (stair) | 3.0 | concrete | F-level, R02, X02 (exit-only) | emergency | none |
 | G25 | Ground | 3 | Fire stair 2 (SW) | Enclosed escape stair, ground to first, discharges outside | empty | 6.0 x 2.8 (stair) | 3.0 | concrete | G20, F08, X02 (exit-only) | emergency | none |
 | F01 | First | 3 | Ostler offices | Daytime admin and sales desks | dark | 12.0 x 8.0 | 3.0 | carpet tile | F08 | off | none |
@@ -117,7 +119,7 @@ below the 6 m play-space minimum by function and are tagged; all occupied rooms 
 | X10 | Site | 1 | Carrier duct manhole | Lidded access to the carrier entry path to the vault | sealed | 1.0 x 1.0 opening | - | concrete | X02, B01 (carrier path) | PIR | none (near the facilities fire door) |
 
 Area check (clear room + circulation areas vs gross footprint):
-- Ground (excluding G19, an enclosure inside G13): 63+5.5+30+20+30+80+42+20+6.25+3+7.5+280+48+30+35+64+42+91+21+49+17+17 = 1001.25 m2. Gross 1440 m2; the remaining ~439 m2 is wall thickness, columns and reserved white space for future cages (TIA-942 flexible white space, general knowledge). Fits.
+- Ground (excluding G19, an enclosure inside G13): 63+5.5+30+20+30+80+12+42+20+6.25+3+7.5+280+48+30+35+64+42+91+21+49+56+17+17 = 1069.25 m2. Gross 1440 m2; the remaining ~371 m2 is wall thickness, columns and reserved white space for future cages (TIA-942 flexible white space, general knowledge). Fits.
 - First floor (covers the south/front block, not the double-height secure core): rooms + corridor + stairs = 96+48+30+42+40+20+3+84+55 = 418 m2. Available first-floor footprint ~768 m2. Fits.
 - Basement: B01 48 + B02 4 = 52 m2, under the secure core only. Fits.
 - Roof: plant R01+R03 ~136 m2 plus the bulkhead; the rest is parapeted flat roof over 1440 m2. Fits.
@@ -134,6 +136,8 @@ Must touch (with the reason):
 - Security control room (G06) beside reception (G01): window onto the lobby, to watch arrivals.
 - Duty manager office (G05) off the lobby (G01): signs people in and holds the log and master card.
 - Loading bay (G07) beside the build room (G08) and goods lift (G10): kit is received, built, then installed.
+- Goods lobby (G26) between the loading apron (X08) and the loading bay (G07): the goods boundary, so deliveries pass a threshold (Q2).
+- Plant and services corridor (G22) along the cooling gallery (G17): the chilled-water pipes run in it and penetrate the wall into the gallery.
 
 Must not touch (with the reason):
 - Battery room (G15) away from the break room and offices: it off-gasses and must be vented clear of staff rooms.
@@ -150,8 +154,8 @@ Follows level-design 16.2 (people move only by stair cores, enclosed fire stairs
 - Fire stair 1 (G24/R02), north-east corner: enclosed, runs roof to ground and discharges straight outside to the
   yard (exit-only). It is also the only roof access, by the covered stair bulkhead at its head (16.2.5).
 - Fire stair 2 (G25), south-west corner: enclosed, ground to first, discharges outside. Opposite end from fire stair 1.
-- The data hall has its own exit-only fire doors straight to the yard (industry rule for a large room). One facilities
-  exit-only fire door discharges by the carrier duct manhole X10 (fix 6).
+- The data hall has its own exit-only fire doors straight to the yard (industry rule for a large room). The plant and
+  services corridor (G22) has an exit-only fire door that discharges by the carrier duct manhole X10 (fix 6).
 - Goods lift (G10): working, ground loading bay to first-floor storage, for consumables and lighter kit; heavy racks
   stay on the ground (heavy floor loads kept low). It does not serve the basement.
 - Carrier riser (B02): a fixed ladder in an enclosed shaft, vault (B01) up to the meet-me room (G18). The only link to
@@ -173,8 +177,9 @@ Longest escape travel per floor (general knowledge, BS 9999-type travel limits ~
   modules) <-> battery room G15 (battery strings, ~15 min autonomy, general knowledge) -> PDUs in the data hall G13.
   Standby: ~500 kW diesel generator in compound X05 with a ~7000 L bunded tank (general knowledge) -> feeds G16 on
   mains failure. The weekly test runs the generator under load.
-- Cooling and ventilation: roof chillers R01 -> chilled-water flow/return pipes down a pipe riser into the cooling
-  gallery G17 -> CRAC/AHU units in G17 blow cold air into the data hall G13 (raised-floor plenum and front-of-rack)
+- Cooling and ventilation: roof chillers R01 -> chilled-water flow/return pipes down a pipe riser into the plant and
+  services corridor G22 -> through the wall into the cooling gallery G17 -> CRAC/AHU units in G17 blow cold air into
+  the data hall G13 (raised-floor plenum and front-of-rack)
   -> warm air returns to the CRACs. Offices are served by the roof AHU R03. No walk-through ducts: data-hall air
   moves through the raised floor and the open hall, not through any duct a person could pass (F32).
 - Heating: electric panel heaters in the offices and break room (general knowledge); the data and plant spaces are
@@ -210,18 +215,19 @@ Longest escape travel per floor (general knowledge, BS 9999-type travel limits ~
 
 ## 11. Zones confirmed
 
-P01 section 6 proposes S1=1, S2=2, S3=3+, S4=3, S5=4, S6=5. Confirmed. The only clarification: S4 (zone 3) spans two
-floors - the ground-floor controlled logistics and the first-floor staff rooms - and the engineer's terminal and the
-cage records (objective 4) sit on the first floor (NOC F02 / facilities F03), per the fixed program. The electrical
-switchroom and cooling gallery are zone 4 (secure core), as the fixed program lists, not zone 3; P01 beat B5 named a
-"plant gallery / switch room" in zone 3, so the plant/pipe teaching now lives on the secure-core approach (see Q1).
+P01 section 6 proposes S1=1, S2=2, S3=3+, S4=3, S5=4, S6=5. Confirmed. Clarifications: S4 (zone 3) spans two floors -
+the ground-floor controlled logistics and the first-floor staff rooms - and the engineer's terminal and the cage
+records (objective 4) sit on the first floor (NOC F02 / facilities F03), per the fixed program. The electrical
+switchroom and cooling gallery are zone 4 (secure core), as the fixed program lists; a zone-3 plant and services
+corridor (G22) carries the chilled-water pipes and gives S4 its plant/beam/pipe character (Q1). The goods lobby (G26)
+is zone 2, the goods boundary between the apron and the loading bay (Q2).
 
 | P01 space | Zone | Rooms in this brief |
 | --- | --- | --- |
 | S1 lane and yard | 1 | X01, X02, X03, X04, X05, X06, X07, X08, X09, X10 |
-| S2 ground-floor offices | 2 | G01, G03, G04, G05 (fire alarm panel in G01) |
+| S2 ground-floor offices | 2 | G01, G03, G04, G05, G26 (fire alarm panel in G01) |
 | S3 security room | 3+ | G06 |
-| S4 ops and facilities | 3 | F01, F02, F03, F04, F05, F06, F07, F08 (first floor); G07, G08, G09, G10, G11, G20, G21 (ground logistics); fire stairs G24, G25 |
+| S4 ops and facilities | 3 | F01, F02, F03, F04, F05, F06, F07, F08 (first floor); G07, G08, G09, G10, G11, G20, G21, G22 (ground logistics); fire stairs G24, G25 |
 | S5 mantrap and data hall | 4 | G12, G13, G14, G15, G16, G17, G23 |
 | S6 meet-me room | 5 | G18, G19, B01, B02 |
 
@@ -247,9 +253,9 @@ switchroom and cooling gallery are zone 4 (secure core), as the fixed program li
 ## 13. ASK items
 
 - ASK-B1: the full element register (16.9) is a P06 deliverable; this brief gives the design use and reason for each room.
-- ASK-B2: the data hall 4.5 m clear ceiling is the nearest allowed value; a real hall would be ~4.7-5.0 m (general knowledge).
-- ASK-B3: the loading-bay dock shutter is a ring crossing from zone 1 (apron) to zone 3 (loading bay), parallel to the
-  reception door - treated here as a sanctioned, alarmed, normally-shut goods boundary (see Q2).
+- ASK-B2: closed (Q3) - the data hall and cooling gallery use a 5.0 m clear ceiling, within the allowed 4.5-6.0 m.
+- ASK-B3: closed (Q2) - a zone-2 goods lobby (G26) now sits between the apron and the loading bay, so the goods path
+  reads zone 1 -> 2 -> 3.
 - ASK-B4: storey heights use the scale sheet's 3.3 m; a real cable vault basement would be deeper (general knowledge).
 
 ## 14. Questions for Michael
@@ -264,4 +270,7 @@ switchroom and cooling gallery are zone 4 (secure core), as the fixed program li
 3. Data hall clear ceiling: (a) 4.5 m (used, scale-sheet minimum for a hall); (b) 5.0 m (closer to a real hall, still allowed).
 4. Carrier diversity: (a) one vault and one manhole (used, matches P01); (b) note a second divergent vault/manhole for
    redundancy but keep only one in play.
+
+Answers (Michael, 2026-10-10), applied to this draft: Q1 (b) add a zone-3 plant and services corridor (G22); Q2 (b)
+insert a zone-2 goods lobby (G26); Q3 (b) data hall and cooling gallery at 5.0 m clear; Q4 (a) one vault and manhole.
 
