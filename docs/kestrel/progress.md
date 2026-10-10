@@ -1,4 +1,4 @@
-﻿# Kestrel - progress
+# Kestrel - progress
 
 Planning handover (decisions not yet in the briefs, stage order, working rules): see handover.md.
 
