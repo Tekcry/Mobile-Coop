@@ -8,7 +8,7 @@ Plans: `docs/kestrel/plans/blocks-{B,G,F,R}.png`. Area check: brief room areas (
 | Item | Value |
 | --- | --- |
 | Site `meta.site` | [0, 0, 78, 56]: 78 x 56 (limit 80 x 60) |
-| Lane X01 | z 0-6, full width; depot facade on z 0; 2.4 m palisade fence on z 6 |
+| Lane X01 | z 0-6, full width; depot facade on z 0 (7.0 m); 2.4 m palisade fence on z 6; viaduct on z 56 (9.0 m to its deck) |
 | Footprint `meta.footprint` | [15, 22, 63, 52]: 48 x 30, 8 x 5 bays of 6.0 (limit 48 x 30) |
 | Grid lines, west to east | A 15, B 21, C 27, D 33, E 39, F 45, G 51, H 57, I 63 |
 | Grid lines, south to north | 1 z22, 2 z28, 3 z34, 4 z40, 5 z46, 6 z52 |
@@ -45,14 +45,15 @@ The front/north line z 37.5 and the row lines z 29.5 and 33.5 are on the 0.5 m g
 | G-MS / F-MS main stair | G, F | 3 | 43,22,46.5,29.5 | G21 | stair core |
 | G-FS2 / F-FS2 fire stair 2 | G, F | 3 | 15,22,18.5,29.5 | G25 | stair core |
 | G-FS1 / F-FS1 fire stair 1 | G, F | 3 | 59,22,63,29.5 | G24 | stair core |
-| G-Z4M mantrap | G | 4 | 18.5,33.5,23,37.5 | G12 | 7.5 / 18 = 42% |
-| G23 corridor | G | 4 | 23,33.5,52,37.5 | G23 (clear 28.7 x 3.7) | corridor |
-| G-Z4C cooling gallery | G | 4 | 18.5,37.5,26,52 | G17 | 64 / 108.75 = 59% |
-| G-Z4H data hall | G | 4 | 26,37.5,49,52 | G13, G19 (cage inside) | 280 / 333.5 = 84% |
-| G-Z4P power | G | 4 | 49,37.5,63,45 | G14, G16 | 83 / 105 = 79% |
-| G-Z4B battery | G | 4 | 57,45,63,52 | G15 | 30 / 42 = 71% |
-| G-Z5 meet-me | G | 5 | 49,45,57,52 | G18, B02 head | 46 / 56 = 82% |
-| B-Z5V carrier vault | B | 5 | 49,44,57,52 | B01, B02 foot | 52 / 64 = 81% |
+| G-Z3W staff WC | G | 3 | 18.5,33.5,21,37.5 | G27 (Michael, P03B) | 5.5 / 10 = 55% |
+| G-Z4M mantrap | G | 4 | 21,33.5,24,37.5 | G12 | 7.5 / 12 = 63% |
+| G23 corridor | G | 4 | 24,33.5,52,37.5 | G23 (clear 27.7 x 3.7) | corridor |
+| G-Z4C cooling gallery | G | 4 | 18.5,37.5,26.5,52 | G17 | 64 / 116 = 55% |
+| G-Z4H data hall | G | 4 | 26.5,37.5,49.5,52 | G13, G19 (cage inside) | 280 / 333.5 = 84% |
+| G-Z4P power | G | 4 | 49.5,37.5,63,45 | G14, G16 | 83 / 101.25 = 82% |
+| G-Z4B battery | G | 4 | 57.5,45,63,52 | G15 | 30 / 38.5 = 78% |
+| G-Z5 meet-me | G | 5 | 49.5,45,57.5,52 | G18, B02 head | 46 / 56 = 82% |
+| B-Z5V carrier vault | B | 5 | 49.5,44,57.5,52 | B01, B02 foot | 52 / 64 = 81% |
 | B-Z5D carrier duct | B | 5 | 51,52,54,55 | X10 to B01 path (3 m) | duct |
 | F-Z3O offices and NOC | F | 3 | 18.5,22,43,29.5 | F01, F02 | 144 / 183.75 = 78% |
 | F-Z3S staff and facilities | F | 3 | 46.5,22,59,29.5 | F03, F04 | 72 / 93.75 = 77% |
@@ -64,12 +65,12 @@ The front/north line z 37.5 and the row lines z 29.5 and 33.5 are on the 0.5 m g
 | R-PLANT-E east deck | R | plant (3) | 59,29.5,63,37.5 | - | open |
 | R-BULK bulkhead | R | plant (3) | 59,22,63,29.5 | R02 | stair head |
 
-All 48 rows of the brief room schedule are assigned to a zone. Roof ring is written as 3 because A28 accepts 1-5 only; the roof is reached only from fire stair 1 (ring 3).
+All 49 rows of the brief room schedule (48 plus G27) are assigned to a zone. Roof ring is written as 3 because A28 accepts 1-5 only; the roof is reached only from fire stair 1 (ring 3).
 
 ## 4. How each ring is entered
 - Ring 1: over the lane fence (story entry), the west vehicle gate X09, the east gate to the apron.
 - Ring 2: reception by the front door on the south face (arch at x 28.5); goods lobby by the dock shutter on the east face (z 31.5).
-- Ring 3: G20 from reception (arch at x 40); the goods zone from the goods lobby (P04 door). G22, stairs, comms, lift and all of F are entered only from ring 3.
+- Ring 3: G20 from reception (arch at x 40); the goods zone from the goods lobby (P04 door). G22, the staff WC, stairs, comms, lift and all of F are entered only from ring 3.
 - Ring 3+: the security room only from G20 (arch at x 21.5). It shares a wall with reception (the window), no opening.
 - Ring 4: only through the mantrap: G20 to the mantrap (south side), mantrap to G23 (east side). G23 serves the gallery, hall and power; battery off power.
 - Ring 5: the meet-me room only from the hall (P04 door on the hall's east wall, z 45-52).
@@ -97,17 +98,17 @@ Polyline (G unless F), stair flight path 8.7 m (two flights of 10 risers plus th
 | 1 to 2 keycard | yard diagonal to the apron, dock shutter, goods, G20, reception arch, G05 | 98.1 |
 | 2 to 3 security room | back to G20, west to the 3+ arch, G06 | 30.6 |
 | 3 to 4 cage number | G20 east, main stair up, F08 west, NOC | 69.4 |
-| 4 to 5 secure zone | F08 east, main stair down, G20 west, mantrap, G23, hall arch (x 28) | 76.5 |
+| 4 to 5 secure zone | F08 east, main stair down, G20 west, mantrap, G23, hall arch (x 28) | 73.9 |
 | 5 to 6 tap | across the hall to the meet-me room | 28.0 |
 | 6 to 7 exfiltration | hall east fire exit, service strip east, east yard south, east gate | 85.0 |
-| Total | | 387.7 (target 380-550) |
+| Total | | 385.1 (target 380-550) |
 
 ## 8. Look notes
 - B: an 8 x 8 vault under the meet-me room with a 3 x 3 duct on its north side, under X10 in the service strip. Nothing else below ground.
 - B: the duct enters the vault by one arch; the vault sits under G-Z5 and part of power; walls are all retaining walls. No cell stacks over 3 surfaces.
 - B: the riser void on G lies over the vault; the ladder is P04's.
 - G: front block reads in three bands: rooms on the facade, G20, then G23 along the secure core. The north block reads gallery, hall, power with meet-me and battery.
-- G: G22 runs the full west side from G20 to its fire door into the service strip; the mantrap is the only link from G20 into ring 4.
+- G: G22 runs the full west side from G20 to its fire door into the service strip; the staff WC and the mantrap sit side by side north of G20; the mantrap is the only link into ring 4.
 - G: labels for small zones go to the callout column; the plan is legible. Fence gates show as dashed gaps.
 - F: one 48 m corridor links fire stair 2, the main stair and fire stair 1; offices and NOC face south.
 - F: the north row is only 3.6 m clear (toilets, lockers, store); the lift shaft sits between them.
@@ -118,7 +119,7 @@ Polyline (G unless F), stair flight path 8.7 m (two flights of 10 risers plus th
 
 ## 9. Checker notes
 `check.mjs`: 25 PASS, 1 WARN, 1 FAIL, 8 SKIP, 1 INFO.
-- A07 FAIL (opening detail, left for P04): three block arches sit on 4 m corridor-end walls and are within 1.5 m of a wall end: D-G20-MS (main stair), D-G20-GDS (G20 to goods), D-MT-G23 (mantrap inner side). P04's real 1.2 m doors fit.
+- A07 FAIL (accepted by Michael until P04's real doors): three block arches sit on 4 m corridor-end walls and are within 1.5 m of a wall end: D-G20-MS (main stair), D-G20-GDS (G20 to goods), D-MT-G23 (mantrap inner side). P04's real 1.2 m doors fit.
 - A10 WARN: G22's two doors (fire stair 2 at the south end, fire exit at the north end) line up across G22; they are 22.5 m apart at opposite ends, not facing.
 - A24 SKIP (no register yet, P06). A30 SKIP (no module rooms): fire stairs checked by hand (section 5). SC01-SC06 SKIP (no security file).
 - A19 INFO: lip list only.
@@ -127,12 +128,12 @@ Polyline (G unless F), stair flight path 8.7 m (two flights of 10 risers plus th
 - ASK-1: closed (Q1). G07 sits under the first floor at 3.0 clear (brief 4.0); P04 records the deviation.
 - ASK-2: closed (Q2). X10 moved beside the vault; brief 02 sections 4, 7, 9 and the G22 and X10 rows updated.
 - ASK-3: a 4 m service strip behind the building (not in the brief) gives the hall fire exits a yard; the viaduct wall is on z 56.
-- ASK-4: heights of the depot facade and viaduct are unknown; 2.4 m (the brief's boundary walls) is used. East gate width 4.0 copied from X09.
-- ASK-5: no staff WC on the ground floor in the brief; A30 will ask for one once module rooms are placed.
+- ASK-4: closed. Depot facade 7.0 m (two-storey warehouse), viaduct 9.0 m to its deck (Michael). East gate width 4.0 copied from X09.
+- ASK-5: closed. Staff WC G27 added in zone 3 off G20 (Michael); zone G-Z3W, P04 places it. The mantrap zone narrows to 3 m and the north block shifts 0.5 m east to make room.
 - Deviations: G23 29 m (brief 14); F08 48 m (brief 24); G22 3.13 clear (brief 3.5) and 22 m long; cooling gallery fits 14.1 m long (brief 16, same area); G09, F05 and F06 must reshape to 3.6-3.7 m deep; G08 and G09 open from the goods zone, not G20.
-- The critical path sits 7.7 m over the 380 m floor; accepted (Q3).
+- The critical path sits 5.1 m over the 380 m floor; accepted (Q3).
 
 ## 11. Questions for Michael (answered 2026-10-10)
 1. Loading bay height: (a) accept 3.0 m under the first floor; (b) keep 4.0 m and shrink the first floor. Answer: (a).
 2. Carrier duct: (a) 38 m duct; (b) under the north strip; (c) move X10. Answer: X10 moves to the north service strip beside the vault, short duct, reached from G22's fire door along the strip; the brief note is updated.
-3. Critical path at 388 m: (a) accept; (b) lengthen in P04. Answer: (a).
+3. Critical path at 388 m: (a) accept; (b) lengthen in P04. Answer: (a); now 385 m after the staff WC change.

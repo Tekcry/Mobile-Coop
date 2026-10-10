@@ -91,8 +91,9 @@ below the 6 m play-space minimum by function and are tagged; all occupied rooms 
 | G17 | Ground | 4 | Cooling gallery | CRAC/air-handling units and chilled-water headers; maintenance gantry | fans running | 16.0 x 4.0 | 5.0 | sealed concrete | G23 | dim | none |
 | G18 | Ground | 5 | Meet-me room (MMR) | Carrier/tenant cross-connect patch panels | contractor at the panel | 7.0 x 6.0 | 3.0 | antistatic vinyl | G13, B02 (carrier reader door) | on | Pell's private contractor; roaming officer |
 | G19 | Ground | 5 | Pell's cage (mesh, in G13) | One tenant's locked mesh cage of racks | being re-equipped | 4.0 x 3.0 (enclosure in G13) | 5.0 | raised access floor | G13 (caged door) | on | none (other cages are like mesh areas in G13) |
-| G20 | Ground | 3 | Controlled corridor | Staff spine: reception to goods, stairs and the mantrap | quiet | 3.5 x 26.0 | 3.0 | linoleum | G01, G06, G07, G08, G09, G11, G12, G21, G25 | on | rounds officer passes |
+| G20 | Ground | 3 | Controlled corridor | Staff spine: reception to goods, stairs and the mantrap | quiet | 3.5 x 26.0 | 3.0 | linoleum | G01, G06, G07, G08, G09, G11, G12, G21, G25, G27 | on | rounds officer passes |
 | G21 | Ground | 3 | Main stair core | Main stair, ground to first | passage | 6.0 x 3.5 | 3.0 | linoleum | G20, F08 | on | none |
+| G27 | Ground | 3 | Staff WC | Staff toilet for the security officers on the ground floor all night (Michael, P03B) | in use | 2.5 x 2.2 (service, as G03) | 3.0 | tile | G20 | off | none |
 | G23 | Ground | 4 | Secure corridor | Serves UPS, battery, switch, cooling, hall, MMR | quiet | 3.5 x 14.0 | 3.0 | antistatic vinyl | G12, G13, G14, G16, G17 | dim | escort officer stands here |
 | G22 | Ground | 3 | Plant and services corridor | Facilities corridor carrying the chilled-water pipes and pipe riser into the cooling gallery; CRAC servicing (Q1) | quiet, loud plant | 3.5 x 16.0 | 3.0 | sealed concrete | G20, X02 (exit-only fire door to the north service strip, the way to X10) | dim | escort officer on plant checks |
 | G24 | Ground | 3 | Fire stair 1 (SE, front block) | Enclosed escape stair, roof to ground, discharges outside | empty | 6.0 x 2.8 (stair) | 3.0 | concrete | F08, R02, X02 (exit-only) | emergency | none |
@@ -120,7 +121,7 @@ below the 6 m play-space minimum by function and are tagged; all occupied rooms 
 | X10 | Site | 1 | Carrier duct manhole | Lidded access to the carrier entry path to the vault | sealed | 1.0 x 1.0 opening | - | concrete | X02, B01 (carrier path) | PIR | none (in the north service strip beside the vault; reached from G22's fire door) |
 
 Area check (clear room + circulation areas vs gross footprint):
-- Ground (excluding G19, an enclosure inside G13): 63+5.5+30+20+30+80+12+42+20+6.25+3+7.5+280+48+30+35+64+42+91+21+49+56+17+17 = 1069.25 m2. Gross 1440 m2; the remaining ~371 m2 is wall thickness, columns and reserved white space for future cages (TIA-942 flexible white space, general knowledge). Fits.
+- Ground (excluding G19, an enclosure inside G13): 63+5.5+30+20+30+80+12+42+20+6.25+3+7.5+280+48+30+35+64+42+91+21+49+56+17+17+5.5 (G27) = 1074.75 m2. Gross 1440 m2; the remaining ~371 m2 is wall thickness, columns and reserved white space for future cages (TIA-942 flexible white space, general knowledge). Fits.
 - First floor (covers the south/front block, not the double-height secure core): rooms + corridor + stairs = 96+48+30+42+40+20+3+84+55 = 418 m2. Available first-floor footprint ~768 m2. Fits.
 - Basement: B01 48 + B02 4 = 52 m2, under the secure core only. Fits.
 - Roof: plant R01+R03 ~136 m2 plus the bulkhead; the rest is parapeted flat roof over 1440 m2. Fits.
@@ -233,7 +234,7 @@ is zone 2, the goods boundary between the apron and the loading bay (Q2).
 | S1 lane and yard | 1 | X01, X02, X03, X04, X05, X06, X07, X08, X09, X10 |
 | S2 ground-floor offices | 2 | G01, G03, G04, G05, G26 (fire alarm panel in G01) |
 | S3 security room | 3+ | G06 |
-| S4 ops and facilities | 3 | F01, F02, F03, F04, F05, F06, F07, F08 (first floor); G07, G08, G09, G10, G11, G20, G21, G22 (ground logistics); fire stairs G24, G25 |
+| S4 ops and facilities | 3 | F01, F02, F03, F04, F05, F06, F07, F08 (first floor); G07, G08, G09, G10, G11, G20, G21, G22, G27 (ground logistics); fire stairs G24, G25 |
 | S5 mantrap and data hall | 4 | G12, G13, G14, G15, G16, G17, G23 |
 | S6 meet-me room | 5 | G18, G19, B01, B02 |
 
@@ -289,5 +290,6 @@ Downstream: P04 and P06 must recheck fire stair 1 (G24) at the south-east corner
 | --- | --- | --- | --- |
 | 2026-10-10 | 1 | G06 door from G20, window onto G01 kept; G01, G06, G20 Doors to; section 6 G06 line | done |
 | 2026-10-10 | 2 | Fire stair 1 moved NE to SE of the front block; G24, R02, F08 Doors to; section 7 (stairs, first-floor escape ~24 m); section 9 fire exits row | done |
+| 2026-10-10 | P03B approval | Michael: ground-floor staff WC G27 added in zone 3 off G20 (security staff work the ground floor all night); room row, G20 Doors to, area check, section 11. P04 places it | done |
 | 2026-10-10 | P03B Q2 | Michael's answer in P03B: X10 moved beside the vault in the north service strip, reached from G22's fire door; section 4, G22 and X10 rows, section 7, section 9 fire exits row | done |
 

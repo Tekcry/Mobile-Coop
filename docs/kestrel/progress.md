@@ -32,6 +32,7 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-10 P03B approval changes: staff WC zone G-Z3W (2.5 x 4) off G20 beside a 3 m mantrap; north block shifted 0.5 m east (all zones still at or under 85%); depot facade 7.0 m, viaduct 9.0 m; brief 02 gets G27 (revision row). Check 25 PASS, 1 WARN (A10), 1 FAIL (A07, accepted). Critical path 385.1 m.
 - 2026-10-10 P03B: docs/kestrel/kestrel.blocks.json (36 zones and corridors, B/G/F/R), 03B-block-plan.md (137 lines), plans/blocks-{B,G,F,R}.png. Building x 15-63, z 22-52; first floor front block z 22-37.5; north block hall, gallery, power, meet-me. Critical path 387.7 m.
   Check: 26 PASS, 1 FAIL (A07: three block arches on 4 m corridor-end walls, left for P04), A30 SKIP (no modules; fire stairs checked by hand).
   Deviations raised: loading bay 3.0 m under the first floor (brief 4.0), G23 29 m and F08 48 m long, 4 m north service strip. Michael answered the 3 questions: X10 moved beside the vault (duct 3 m, G22 fire door now opens to the strip); check now 25 PASS, 1 WARN (A10), 1 FAIL (A07).
@@ -59,6 +60,7 @@
 - 2026-10-10 P00: branch feature/kestrel made from ct-movement (e60c835). RULES.md saved word for word. 00-facts.md: 33 rows read from code and docs; 4 notes under NOT FOUND (nav ladder standoff, drainpipe climb speed, lighting doc numbers, F28 key is "type"). Coordinates: north +Z, east +X, up +Y. Three scripts/e2e-dead-line*.mjs files are not covered by RULES section 4.
 
 ## Decisions by Michael
+- 2026-10-10 P03B approval: add a ground-floor staff WC (G27) in zone 3 off G20, P04 places it; depot facade 7.0 m, viaduct 9.0 m to its deck; the three A07 block-arch failures are accepted until P04's real doors.
 - 2026-10-10 P03B questions: loading bay G07 sits under the first floor at 3.0 m clear (brief 4.0; P04 records it); carrier manhole X10 moves to the north service strip beside the vault (short duct), reached from G22's exit-only fire door along the strip, brief 02 updated (revision row P03B Q2); critical path 388 m accepted.
 - 2026-10-10 P03 Part C questions: A07 corner rule applies to corridors and play-space rooms only (service rooms just need the door inside the wall); mantrap ring 4 and A29 steps 1-2-3-4-5 with 3+ beside 3 only; A11 takes dog-leg stairs and the stair cores go back to 6.0 m; fire stair stays 3.0 wide and the customer cage 3.5 deep (brief deviations for P04).
 - 2026-10-10 P03 Part B questions: door end-clearance is measured from the opening's near edge; levels get an optional footprint rect for the first-floor-over-the-front-block-only shape (ground and roof use the full footprint, the first floor its own smaller rect).
