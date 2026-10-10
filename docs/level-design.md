@@ -226,3 +226,98 @@ Every new map follows these phases, stopping for Michael after each:
 - Co-op: each co-op route works for host and client; each co-op lip is out of solo reach (unit test); a player downed on
   each co-op surface is revived.
 - Perf budgets from `CLAUDE.md` on desktop and the mobile presets.
+
+## 16. Level logic rules
+
+Adopted by Michael on 2026-10-10 (Dead Line v2 D0 approval), written after the Dead Line D1 playtest. They bind every map from Dead Line v2 onwards. Rule ids are 16.N.M; references to other sections of this standard are plain section numbers.
+
+### 16.0 Rule zero
+
+Architecture first, gameplay second. Design the place as its architect drew it for its job, then find the stealth play inside it. If a gameplay idea has no real-world reason, change the idea, not the building.
+
+**The reason test.** Every space, wall, object, opening, level change, lamp and route element has a one-line real-world reason in the map's element register (16.9). "So the player can..." is never a reason. If no line can be written, the element goes.
+
+### 16.1 Program before plan
+
+16.1.1 The D0 brief comes first: what the site is, who built it, who works there and when, what each building does, every room with its function and size, circulation, services, and why it is quiet tonight. Gameplay design starts only after Michael approves it.
+16.1.2 Room sizes, storey heights, stair and door sizes follow the era and building type and `docs/design/scale-sheet.md`. Gameplay widths may be larger than code minimums, never smaller.
+16.1.3 A building has a structural grid. Walls, columns and cores sit on it.
+
+### 16.2 Vertical circulation
+
+16.2.1 People move between storeys only by **stair cores** (main stairs), **enclosed fire stairs**, or **fixed ladders inside plant spaces and service shafts** (plant rooms, lift motor rooms, risers, boiler platforms, manholes). Nothing else joins two floors.
+16.2.2 **Never a ladder beside a stair** that serves the same two levels. (Old layout: stairs next to a ladder.)
+16.2.3 **No ladder in a hole in an occupied floor.** A ladder opening exists only inside a plant space or shaft, with a cover or a guard rail. (Old layout: a ladder in a random hole in the floor.)
+16.2.4 **Every stair is complete:** real riser and going, handrails, a balustrade on every open side, and no gap between the stair, the landing, the floor edge or the wall. Enclosed stairs have full-height walls. (Old layout: stairs with no handrail and a gap.)
+16.2.5 **Roof access on a secure building is a covered stair bulkhead or a fire stair**, at a core or near a building corner. Never an exterior ladder in a random spot. (Old layout: roof ladders on a secure building.)
+16.2.6 Exterior climbing (drainpipes, low roofs, walls) is player traversal, not circulation. It uses real elements of the street or building, and the same element behaves the same everywhere: if one cast-iron downpipe is climbable, every one of that kind is (2.5).
+
+### 16.3 Openings, holes and barriers
+
+16.3.1 Every door, window, hatch, grille, vent, gap and hole has a stated function: who uses it, when, and why it is where it is.
+16.3.2 **No hole in a floor or roof** except a real opening: a stair well (with a balustrade), a lift shaft (enclosed), a service riser (enclosed, with access doors), a hatch (with a cover), a roof light or skylight (glazed), a cowl or vent (with its duct). (Old layout: a random hole in the roof.)
+16.3.3 **No barrier in front of a room, door or window** unless the object has a job at that spot and does not block that door's or window's own function. (Old layout: a barrier in front of a room for no reason; a block in front of a window.)
+16.3.4 **A vent exists only as the end of a real duct system** that starts at a plant room or fan and serves a room. No vent as a pure shortcut, no vent that goes nowhere. (Old layout: a pointless vent.)
+16.3.5 Gates are real locks with an owner (whose key, which side opens). The critical path is held linear by real locks, fences, cages, sealed doors and bricked openings, never invisible walls (2.6).
+
+### 16.4 Objects and blocks
+
+16.4.1 **No block without a named real object** (a skip, an A/C condenser, a transformer, a pallet of bricks, a parked van), placed where that object is used, stored or delivered. (Old layout: blocks with no purpose, several.)
+16.4.2 Objects keep real clearances: 1.0 m in front of electrical panels, doors and escape routes; nothing blocks a fire exit.
+16.4.3 **Roof objects are roof equipment:** A/C condensers on frames, lift motor rooms, water tanks, exhaust cowls, aerials. Each has pipes or cables going somewhere. (Old layout: random blocks on the roof.)
+16.4.4 Low cover comes from real objects of the right height (bins, cars, dock edges, bund walls), not from free-standing boxes.
+
+### 16.5 Roofs and floors
+
+16.5.1 **Roofs are fully covered.** The only openings are real hatches, bulkhead doors, roof lights and cowls.
+16.5.2 **Upper floors are fully enclosed:** every storey's slab is complete except stair wells, lift shafts and risers. (Old layout: upper floor not fully covered.)
+16.5.3 Roof edges where people work have a parapet or guard rail (1.1 m).
+
+### 16.6 Rooms and paths
+
+16.6.1 **Room shapes follow function and structure:** rectangles on the grid, corridors straight between cores. **No zig-zag or serpentine partitions to lengthen or force a path.** A route is long because the functions it joins are far apart. (Old layout: zig-zag rooms that force a path, several.)
+16.6.2 **Every space has a purpose and a matching level of access.** Valuable rooms are locked, guarded or high; utility rooms are plain. No space exists only to be there. (Old layout: areas with no purpose that are also too easy to access.)
+16.6.3 **No dead end that only works with an invented side entrance.** If a route dead-ends, either the room really has a second door (and the brief says why) or the dead end is removed. (Old layout: a dead end that would only work with a side vent into the room.)
+16.6.4 Circulation reads as a hierarchy: main corridors, service corridors, plant spaces. A player can guess where a stair or a plant room will be.
+
+### 16.7 Underground and ducts
+
+16.7.1 An underground or duct route exists only as a real system: cable tunnel, pipe subway, storm drain, cable trench, builder's-work air duct, basement link. Its row in the brief states what it carries, who owns it, its size, its access points and where it ends and why.
+16.7.2 **Walk-in tunnels:** at least 2.1 m clear (2.4 m preferred). Guards can walk them (nav headroom 1.7 m), so the brief says why they do or do not.
+16.7.3 **Crouch ducts and trenches:** 1.5 m clear height, 1.2 m wide (scale sheet; the camera reasons are in `docs/design/dead-line-v2-engine-check.md`). Guards cannot enter. The player crouches and walks; no auto-crawl anchors unless Michael approves one.
+16.7.4 Duct and tunnel ends are real: inspection doors, shafts with plant ladders, pit stairs, trench steps. Never a grille that pops into a room as a shortcut. Supply grilles are real sizes and are look-through only.
+16.7.5 Ducts are built inside walls, slabs or ceiling voids. A free-standing duct box under 1.8 m is an accidental mantle; one over 1.9 m becomes a hangable lip (Section 12). Neither is allowed unless planned.
+
+### 16.8 Light, guards and sound need reasons too
+
+16.8.1 Every lamp has an owner, a real fitting and a switch where a real one would be. An unswitchable lamp has a real reason (photocell, emergency circuit, vandal cage).
+16.8.2 Every guard has an employer, a job and a reason to be at each stop (4.1). No guard stands somewhere nobody would.
+16.8.3 Loud and quiet floors come from the room's real finish (gravel, chequer plate, linoleum, carpet).
+
+### 16.9 The element register (required for every map)
+
+One table in the map's design doc, one row per element:
+
+| Id | Element | Real-world reason (one line) | Gameplay use | Rule |
+| --- | --- | --- | --- | --- |
+
+Every route element (ladder, pipe, roof, duct, tunnel, hatch, opening, cover object, lamp) has a row. A missing row fails review.
+
+### 16.10 Review checklist (from the D1 playtest, Michael's notes)
+
+Before any map leaves D0 or D1, answer each with "none" or a list of fixes:
+
+1. Any room shape that exists to force a path (zig-zag, serpentine, dog-leg partitions)? (16.6.1)
+2. Any space with no purpose, or easier to reach than its value allows? (16.6.2)
+3. Any ladder beside a stair, or any ladder outside a plant space or shaft? (16.2.1, 16.2.2)
+4. Any stair without handrails or with a gap? (16.2.4)
+5. Any roof reached by anything other than a covered stair bulkhead or fire stair? (16.2.5)
+6. Any roof object that is not roof equipment? (16.4.3)
+7. Any floor or roof not fully covered, or any hole without a real reason? (16.3.2, 16.5.1, 16.5.2)
+8. Any block without a named object? Any object in front of a window or door it would block? (16.3.3, 16.4.1)
+9. Any barrier in front of a room for no reason? (16.3.3)
+10. Any ladder in a hole in a floor? (16.2.3)
+11. Any vent that is not the end of a real duct system? (16.3.4)
+12. Any dead end that only works with an invented side entrance? (16.6.3)
+13. Does every element have a register row with a real reason? (16.9)
+14. Would an architect of that era recognise every room, and could a visitor guess where the stairs are? (16.1, 16.6.4)

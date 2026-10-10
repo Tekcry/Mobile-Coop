@@ -41,7 +41,8 @@ Camera needs 0.62 + 0.16 = 0.78 m from the spine to a wall on the shoulder side,
 | Open feature stair | 2.4 m wide, rise 0.165, run 0.285 (slope 0.58, 30 deg), mid landing 2.0 m, no door, rails on open sides |
 | Stair height rule | floor to floor 3.3 m = 20 risers, so two flights of 10 (NCC allows 2 - 18 per flight) |
 | Ladder shaft | 1.0 x 1.0 m, ladder 0.5 wide, 0.6 m clear in front of the rungs |
-| Duct | 0.9 wide x 1.3 high (crouch 1.15 + 0.15), player only: nav headroom is 1.7 so guards cannot enter |
+| Duct, trench, pipe subway (crouch) | 1.2 wide x 1.5 high clear (Michael, 2026-10-10; was 0.9 x 1.3, too low for the camera: `dead-line-v2-engine-check.md`). Player only: nav headroom is 1.7 so guards cannot enter. Walked crouched, no auto-crawl anchor |
+| Walk-in tunnel | 2.1 m clear minimum, 2.4 preferred; guards can enter |
 | Low cover | 1.2 m high hides a crouched player; a 1.0 m rail does not |
 | Curb or step | 0.15 - 0.40 m; never between 0.40 and 0.45 (player and nav disagree) |
 | Recess, locker bay, pillar niche | 1.0 deep x 1.2 wide minimum, opening faces away from the guard's approach |
