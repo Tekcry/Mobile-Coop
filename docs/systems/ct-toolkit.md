@@ -1,7 +1,7 @@
 # Chaos Theory toolkit - spec (V0)
 Status: DRAFT (V0, 2026-10-11)
 
-Michael's decision (2026-10-11): the engine gets the full Chaos Theory toolkit; each mission offers only the tools that suit it, through a mission kit (section 4). This file is the spec the build sessions V1-V3 follow (section 7). Splinter Cell: Chaos Theory is a design reference only; no names, art or text from it.
+Michael's decision (2026-10-11): the engine gets the full Chaos Theory toolkit; each mission offers only the tools that suit it, through a mission kit (section 4). This file is the spec the build sessions V1-V3 follow (section 7). V1-V3 build only Dead Line's kit (Michael, 2026-10-11); the light disruptor (3.6), ring airfoil (3.8) and knife (3.10) keep their specs here for later missions (docs/backlog.md items 22-24). Splinter Cell: Chaos Theory is a design reference only; no names, art or text from it.
 
 ## 1. Rules for every tool
 - **Realism.** Each tool is real equipment used the way a real operative would use it. Real-world facts are tagged `(general knowledge)`; where unsure the text says so. Where no real device exists, the section says so plainly (3.6).
@@ -24,7 +24,8 @@ Tools use existing inputs wherever possible. Bindings marked "proposal" are chec
 | Lockpick minigame | Mouse moves the pick round a dial (A / D also turn it) | Left stick angle | Drag a finger round the dial |
 | Hack minigame | Left click (proposal) locks a column | A (proposal) | Tap the column |
 | Leave a tool | A move key away (proposal) | B (proposal) or stick away | Back chip or move stick away |
-| Hold mode (accessibility, Settings) | Lockpick and hack become one hold of the use input (times in 3.3, 3.4) | same | same |
+
+Lockpick and hacking are minigames only, with no hold alternative (Michael, 2026-10-11).
 
 Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move > CT move > traversal > interact > wall hug. The wall hug is last so it never steals a mantle, a door or a pickup.
 
@@ -63,8 +64,8 @@ Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move >
 | --- | --- |
 | Fiction | A pick and a tension wrench: the wrench turns the plug slightly while the pick sets each pin at the shear line (general knowledge). Wafer locks (lockers, cabinets, desk drawers, most car doors) are easier than pin-tumbler locks (general knowledge). High-security cylinders resist picking (general knowledge). |
 | Works on | Mechanical keyed locks: lockers, cupboards, desk drawers, filing cabinets, key cabinets, rack doors, cage padlocks, office doors with a sash lock, car doors. Never on card readers, PIN keypads, electronic key safes, iris doors or the mantrap. A reader door's key override cylinder is high-security and refuses ("Too complex"). |
-| Controls | Contextual use on a locked item: "Pick lock". Minigame (section 2): turn the pick to find each pin's sweet spot; the pin shivers more as the pick nears it; hold in the spot to set it. Hold mode: one hold. |
-| States and timing | Tiers (map data `lock`): `wafer` 2 pins (TUNE), `pin` 4 pins (TUNE), `high` refused. Sweet spot 20 deg wide (TUNE), held 0.4 s (TUNE) per pin. Hold mode: wafer 5 s, pin 12 s (TUNE). Slip (turning hard past the spot): lose one set pin. Set pins kept 10 s (TUNE) after leaving. Picks never run out. |
+| Controls | Contextual use on a locked item: "Pick lock". Minigame (section 2): turn the pick to find each pin's sweet spot; the pin shivers more as the pick nears it; hold in the spot to set it. |
+| States and timing | Tiers (map data `lock`): `wafer` 2 pins (TUNE), `pin` 4 pins (TUNE), `high` refused. Sweet spot 20 deg wide (TUNE), held 0.4 s (TUNE) per pin. Expected time: wafer about 5 s, pin about 12 s (TUNE). Slip (turning hard past the spot): lose one set pin. Set pins kept 10 s (TUNE) after leaving. Picks never run out. |
 | Noise and light | Silent while picking. A slip clicks: noise 2 m (TUNE) via `hear`. No light. |
 | Noticed by | The player is crouched and still (SN09 terms) at the lock; seen as any crouched body. A lock left open is a changed object; once the bible's "door left open" rule (5.7, "add") exists, an opened door counts. |
 | Security (S0) | None on S0 devices. Cars: if the car is alarmed (map data `alarm: true`), opening a picked door sets the car alarm (on many cars opening a locked door without the fob sets it off; this varies by model, general knowledge); that is louder. Unalarmed cars open quietly. |
@@ -77,8 +78,8 @@ Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move >
 | --- | --- |
 | Fiction | A pocket keystroke-injection device or a network implant plugged into a workstation's USB or network port, as penetration testers use (general knowledge). At a keypad: the housing is opened and a bypass tool is put on its wiring; opening the housing trips its tamper switch, which the alarm system logs (general knowledge). |
 | Works on | Workstations and terminals listed in map data with `hack` (records PC, access control PC, CCTV recorder, BMS PC) and PIN keypads. Each lists the services it gives (section 5): read an intel flag, unlock a named door for a time, trip a named fault. A hack gives only what the mission data lists, so it never skips a mission control by accident. Never: card readers, iris, the mantrap, the alarm panel (it has its own holds, SN22-SN23). |
-| Controls | Contextual use: "Hack". Minigame (section 2): columns of changing characters; each column briefly shows the right value; lock it while it shows. Hold mode: one hold. |
-| States and timing | Terminal 4 columns, keypad 3 (TUNE). Window 20 s (TUNE). Each value shows 0.5 s every 1.5 s (TUNE); a wrong lock costs 2 s (TUNE). Keypad: open the housing first, hold 2.0 s (TUNE). Hold mode: terminal 8 s, keypad 5 s (TUNE). Failure (window out): locked out 30 s (TUNE). Unlimited tries. |
+| Controls | Contextual use: "Hack". Minigame (section 2): columns of changing characters; each column briefly shows the right value; lock it while it shows. |
+| States and timing | Terminal 4 columns, keypad 3 (TUNE). Window 20 s (TUNE). Each value shows 0.5 s every 1.5 s (TUNE); a wrong lock costs 2 s (TUNE). Keypad: open the housing first, hold 2.0 s (TUNE). Failure (window out): locked out 30 s (TUNE). Unlimited tries. |
 | Noise and light | Typing: noise 1.5 m (TUNE). Opening a keypad housing: the existing hold noise (F19: 4 m, a pulse every 0.5 s). A terminal with a screen lamp in play data lights the player as any lamp does; hacking adds no light. |
 | Noticed by | The body as any crouched or standing still body at the terminal. Failure and keypad tamper are security events (below). |
 | Security (S0) | Failure ("account locked") and keypad tamper each log an event with a position on the desk, as S0 2.1's unmanned rule logs camera events: a manned desk dispatches a guard (S0 dispatch, an investigation, not an alarm). Until S1 Part B builds the desk, V2 raises the event through one new hook that S1 Part B wires up. |
@@ -101,9 +102,10 @@ Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move >
 | Camera | Existing ADS framing (F23). No extra. |
 
 ### 3.6 Light disruptor
+Not built in V3 (backlog item 22).
 | Item | Spec |
 | --- | --- |
-| Fiction | No fielded real device does this (general knowledge): a pistol attachment that switches off a lamp or a camera for a few seconds is near-future fiction. Michael decides whether it stays (question 2). |
+| Fiction | No fielded real device does this (general knowledge): a pistol attachment that switches off a lamp or a camera for a few seconds is near-future fiction. A later mission decides whether it fits. |
 | Works on | Lamps (including PIR lamps, S0 2.6 "Off") and S0 cameras. Not: readers, keypads, iris, beams, people. |
 | Controls | Select on the wheel; hold the gadget input to aim with the sidearm, release to fire. |
 | States and timing | One shot, then recharge 6 s (TUNE). Range 30 m (TUNE). Lamp: `LightRegistry.disrupt` on the hit lamp for 10 s (TUNE), radius 0.5 m (TUNE). Camera: offline 10 s (TUNE) with no video-loss event, as S0's EMP rule. |
@@ -129,6 +131,7 @@ Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move >
 | Camera | Existing ADS framing (F23). |
 
 ### 3.8 Ring airfoil
+Not built in V3 (backlog item 23).
 | Item | Spec |
 | --- | --- |
 | Fiction | A ring-shaped soft projectile from a launcher that knocks a person off balance (the ring airfoil projectile was a real less-lethal round, general knowledge). Multi-tool launcher (bible 5.6). |
@@ -157,6 +160,7 @@ Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move >
 | Camera | The grab camera, pushed in to boom 1.6 (TUNE) and turned so both faces show. |
 
 ### 3.10 Knife
+Not built in V3 (backlog item 24). Lethal takedowns stay as they are without it.
 | Item | Spec |
 | --- | --- |
 | Fiction | A fixed-blade knife: a close-quarters weapon and a cutting tool for tarps, fabric, plastic sheeting and cable ties (general knowledge). |
@@ -171,12 +175,12 @@ Contextual priority (docs/ct-movement.md Controls): takedown > co-op team move >
 | Camera | Takedown camera as now. Cut: close framing as 3.3. |
 
 ## 4. Mission kit
-- **Tool ids.** New pure `src/game/tools.ts`: `ToolId = 'wallHug' | 'optic' | 'lockpick' | 'hack' | 'jammer' | 'disruptor' | 'shocker' | 'airfoil' | 'interrogate' | 'knife'` and a `TOOLS` table (name, use: `verb` / `wheel` / `launcher`, ghost tag, battery or rounds).
+- **Tool ids.** New pure `src/game/tools.ts`: `ToolId = 'wallHug' | 'optic' | 'lockpick' | 'hack' | 'jammer' | 'shocker' | 'interrogate'` (the built tools; `disruptor`, `airfoil` and `knife` join when a later session builds them) and a `TOOLS` table (name, use: `verb` / `wheel` / `launcher`, ghost tag, battery or rounds).
 - **Mission data.** `MissionDef` (src/game/missions.ts:49) gets an optional `kit`: `{ tools: ToolId[], gadgets: { <GadgetId>: count }, rounds: { shocker?: n, airfoil?: n } }`. `validateMissions` throws on an unknown id (as it does on a bad objective type) and clamps counts to `GADGETS[id].max` (src/game/gadgets.ts). `wallHug` is always added: it is a movement (bible 4 P4), not equipment.
 - **No kit** (sandbox, training, existing missions): every tool and every gadget's normal carry, so current content does not change.
 - **At run time.** `GameState` builds `GadgetInventory` from the kit (gadgets not in the kit carry 0) and a kit set that every tool checks before it offers a prompt. A tool not in the kit shows no prompt, does not appear on the wheel, has no HUD battery and its input does nothing.
 - **Loadout screen** (src/ui/screens/loadoutScreen.ts). In a mission with a kit: the gadgets page lists only kit gadgets; a read-only "Mission kit" panel lists the tools with rounds and batteries (every player carries the whole kit, as in Chaos Theory); a preset naming a gadget outside the kit falls back to the kit's first gadget. Weapons stay under the bible's loadout kits (5.6).
-- **Wheel.** Kit gadgets plus the kit's wheel tools (jammer, disruptor, shocker, airfoil); `wheelSlot(x, y, slots)` already takes the slot count.
+- **Wheel.** Kit gadgets plus the kit's wheel tools (jammer and shocker now; disruptor and airfoil when built); `wheelSlot(x, y, slots)` already takes the slot count.
 - **Co-op.** Every peer reads the same mission definition; the host rejects tool requests outside the kit.
 - **Debug.** `?kit=all` gives the full toolkit in any mode (tests and the tool lab map).
 
@@ -193,7 +197,7 @@ Proposed fields; P06 adds them to the play schema (docs/kestrel/schema.md) and P
 | `lines` | mission data per guard or civilian id | 1-3 lines, optional `reveals: <flag>` | 3.9 |
 Every placed item keeps a `reason` (RULES section 5): why a real site has that lock, terminal or tarp there.
 
-## 6. Dead Line's kit (proposal, Michael approves)
+## 6. Dead Line's kit (approved by Michael, 2026-10-11)
 Judged against the control ladder and the ghost rule (RULES.md section 1). The kit must give every critical-path control a no-contact answer without letting a tool skip a control the mission depends on.
 | Tool | Kit | Why |
 | --- | --- | --- |
@@ -210,22 +214,22 @@ Judged against the control ladder and the ghost rule (RULES.md section 1). The k
 Existing gadgets in the kit: noisemaker, sticky cam, EMP and sleeping gas at their normal carry (`GADGETS`, src/game/gadgets.ts:33-37). Out: frag and mine (lethal explosives on a site with civilians), flashbang (loud, overlaps gas), tri-rotor (parked).
 
 ## 7. Build plan (V1-V3)
-Preconditions for each: V0 APPROVED, CAM APPROVED, and a recorded RULES.md section 11 exception (question 4). All logic is pure and Babylon-free with Vitest tests; constants go in a new `src/config/tools.ts`. Each session runs `timeout 900 npm run check`, `timeout 900 npm run build`, `timeout 1500 npm run e2e:quick`; GPU, contact sheets and performance are "pending PC run" from cloud sessions. New e2e suite `scripts/e2e-toolkit.mjs` (REQUIRED, COVERS the tool files in scripts/run-e2e.mjs), extended by each session; every new touch prompt is added to `scripts/e2e-touch.mjs`. Test space: a debug map `toollab` (MAPS only, modes [], like `seclab`). Each session may run as Part A and Part B if it nears its budget.
+Preconditions for each: V0 APPROVED and CAM APPROVED. RULES.md section 11 exception (Michael, 2026-10-11, recorded in progress.md): V1-V3 may change the player controller, the camera, the grab and takedown code, add `src/config/tools.ts` and the `toollab` debug map; no existing tuning value changes. All logic is pure and Babylon-free with Vitest tests; constants go in a new `src/config/tools.ts`. Each session runs `timeout 900 npm run check`, `timeout 900 npm run build`, `timeout 1500 npm run e2e:quick`; GPU, contact sheets and performance are "pending PC run" from cloud sessions. New e2e suite `scripts/e2e-toolkit.mjs` (REQUIRED, COVERS the tool files in scripts/run-e2e.mjs), extended by each session; every new touch prompt is added to `scripts/e2e-touch.mjs`. Test space: a debug map `toollab` (MAPS only, modes [], like `seclab`). Each session may run as Part A and Part B if it nears its budget.
 
 | Session | Builds | Files (new / changed) | Unit tests | e2e (e2e-toolkit) | Michael tries |
 | --- | --- | --- | --- | --- | --- |
-| V1 | Wall hug (slide, peek, door-frame peek, lean-aim, SWAT turn, corner takedown); optic cable (doors, hatches, panels, grilles, shaft top); `src/cover` retired per question 3 | New `src/player/wallHug.ts` (pure face and edge finder), `wallHugController.ts`, `src/player/opticCable.ts` (pure tip placement), `src/config/tools.ts`, `src/world/maps/toollab.ts`. Changed: `src/net/moveState.ts` (modes `wall`, `optic`), `src/config/camera.ts` (`ATTACH_FRAMING.wall`), `src/player/shoulderCamera.ts` (tip pose), input files (`optic` action), `src/ui/prompts.ts` | face height and length rules; edge detection at corners and door frames; tip placement and refusal (sealed, no gap, wall behind); SWAT gap limit | enter only within 0.6 m; slide speed = gear; peek exposes the head only (guard meter slower than standing); SWAT turn crosses a doorway; optic view under a door shows a guard; sealed door refused; camera never behind the hugged wall (CAM checks); 2-player pose sync | Hug a corridor wall and peek both ways; SWAT turn across an open door; optic under a door, through a raised-floor hatch and a grille; same on the phone |
-| V2 | Lockpick (tiers, minigame, hold mode); hacking (terminals, keypads, services, failure); lock and hack map fields; the security event hook | New `src/game/lockpick.ts`, `src/game/hack.ts` (pure), `src/ui/hud/` minigame overlays, `locks` net list. Changed: `src/world/doors.ts` (`lock` tiers), interactables, `src/net/protocol.ts` (`use` kinds `pick`, `hack`), loadout hold-mode setting | pin model and sweet spot; slip; kept progress; minimum-time check; hack columns, wrong lock, lockout; services applied only from data; tamper and failure events | wafer locker opens; `high` and reader refused; slip noise heard by a guard at 2 m, not at 4 m; car alarm on an alarmed car only; hack reads an intel flag; failure locks out and logs an event; client pick accepted, too-fast pick rejected | Pick a locker, a door and a car on desktop, pad and phone; hack a terminal and a keypad; try the hold mode |
-| V3 | Mission kit (section 4); camera jammer; light disruptor; multi-tool launcher with sticky shocker and ring airfoil; interrogation; knife (takedown and cut) | New `src/game/tools.ts`, `src/game/jammer.ts` (pure battery), launcher rounds in the weapon data. Changed: `src/game/missions.ts` (`kit`, `validateMissions`), `src/game/gadgets.ts` callers, `loadoutScreen.ts`, wheel, `src/security/camera.ts` (`jammed`), `src/world/lights.ts` caller, `src/game/takedown.ts` (question, knife) | kit validation and defaults; wheel and loadout filtering; battery drain and recharge; jam stops the meter; 4 s fault event; disruptor duration; shocker and airfoil outcomes; interrogation lines and flags | kit hides out-of-kit prompts and wheel slots; jammer blinds a camera, battery runs out, long jam logs an event; disruptor kills a lamp and the meter agrees; shocker knocks out; airfoil staggers and lures; question sets a flag for both players; knife cut opens a path | Pick a mission with a kit and see the loadout; jam a sweeping camera; shock, question and cut in toollab |
+| V1 | Wall hug (slide, peek, door-frame peek, lean-aim, SWAT turn, corner takedown); optic cable (doors, hatches, panels, grilles, shaft top); snap cover in `src/cover` replaced and deleted, with its tests and e2e checks (bible Phase 3; Michael, 2026-10-11) | New `src/player/wallHug.ts` (pure face and edge finder), `wallHugController.ts`, `src/player/opticCable.ts` (pure tip placement), `src/config/tools.ts`, `src/world/maps/toollab.ts`. Changed: `src/net/moveState.ts` (modes `wall`, `optic`), `src/config/camera.ts` (`ATTACH_FRAMING.wall`), `src/player/shoulderCamera.ts` (tip pose), input files (`optic` action), `src/ui/prompts.ts` | face height and length rules; edge detection at corners and door frames; tip placement and refusal (sealed, no gap, wall behind); SWAT gap limit | enter only within 0.6 m; slide speed = gear; peek exposes the head only (guard meter slower than standing); SWAT turn crosses a doorway; optic view under a door shows a guard; sealed door refused; camera never behind the hugged wall (CAM checks); 2-player pose sync | Hug a corridor wall and peek both ways; SWAT turn across an open door; optic under a door, through a raised-floor hatch and a grille; same on the phone |
+| V2 | Lockpick (tiers, minigame); hacking (terminals, keypads, services, failure); lock and hack map fields; the security event hook | New `src/game/lockpick.ts`, `src/game/hack.ts` (pure), `src/ui/hud/` minigame overlays, `locks` net list. Changed: `src/world/doors.ts` (`lock` tiers), interactables, `src/net/protocol.ts` (`use` kinds `pick`, `hack`) | pin model and sweet spot; slip; kept progress; minimum-time check; hack columns, wrong lock, lockout; services applied only from data; tamper and failure events | wafer locker opens; `high` and reader refused; slip noise heard by a guard at 2 m, not at 4 m; car alarm on an alarmed car only; hack reads an intel flag; failure locks out and logs an event; client pick accepted, too-fast pick rejected | Pick a locker, a door and a car on desktop, pad and phone; hack a terminal and a keypad; judge whether both minigames are fair on the phone |
+| V3 | Mission kit (section 4); camera jammer; multi-tool launcher with the sticky shocker; interrogation. Not the disruptor, airfoil or knife (backlog 22-24) | New `src/game/tools.ts`, `src/game/jammer.ts` (pure battery), shocker rounds in the weapon data. Changed: `src/game/missions.ts` (`kit`, `validateMissions`), `src/game/gadgets.ts` callers, `loadoutScreen.ts`, wheel, `src/security/camera.ts` (`jammed`), `src/game/takedown.ts` (question) | kit validation and defaults; wheel and loadout filtering; battery drain and recharge; jam stops the meter; 4 s fault event; shocker outcome; interrogation lines and flags | kit hides out-of-kit prompts and wheel slots; jammer blinds a camera, battery runs out, long jam logs an event; shocker knocks out; question sets a flag for both players | Pick a mission with a kit and see the loadout; jam a sweeping camera; shock and question a guard in toollab |
 
 Order: the handover order already reads "toolkit builds V1-V3 (all before B3)". V1, V2 and V3 run after P10 and must all be APPROVED before B3 starts, so B3 builds the map with the tools in hand. S1 Part B wires the hack and jammer events to the desk; S4 adds `jammed` to `sec`; S6's civilians get questioning through the grab.
 
-## 8. Questions for Michael
-1. Dead Line's kit (section 6): approve as proposed / approve and add the light disruptor / approve and add the ring airfoil and knife / change it.
-2. Light disruptor (no real equivalent): keep it in the engine as near-future fiction / build it but offer it in no mission yet / drop it from the toolkit.
-3. Snap cover in `src/cover`: V1 replaces it with the wall hug and deletes snap cover (bible Phase 3) / V1 keeps snap cover behind a flag until the Phase 3 removal.
-4. RULES.md section 11 exception for V1-V3 (player controller, camera, grab and takedown code, a new `src/config/tools.ts`, the `toollab` debug map; no existing tuning values change): grant for V1-V3 as listed / grant per session in each prompt.
-5. Lockpick and hacking: minigames with a hold mode in Settings / holds only for the slice / minigames only.
+## 8. Questions for Michael (answered 2026-10-11)
+1. Dead Line's kit: approved as proposed.
+2. Light disruptor, ring airfoil and knife: not built in V3; V3 builds only Dead Line's kit. Specs stay here; backlog items 22-24.
+3. Snap cover: V1 replaces it with the wall hug and deletes it.
+4. RULES.md section 11 exception: granted for V1-V3 as listed (section 7); it also brings the toolkit into the RULES.md section 2 scope.
+5. Lockpick and hacking: minigames only, no hold alternative.
 
 ## 9. Self-check (V0)
 - Every tool in section 3 has all ten rows (fiction, works on, controls, states and timing, noise and light, noticed by, security, ghost rule, co-op, camera): pass.

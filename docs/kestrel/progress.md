@@ -21,7 +21,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | V0 | Chaos Theory toolkit spec | DRAFT | 5be17d5 | 2026-10-11 |
 | V1 | Toolkit: wall hug, optic cable | not started | | |
 | V2 | Toolkit: lockpick, hacking | not started | | |
-| V3 | Toolkit: mission kit, jammer, remaining tools | not started | | |
+| V3 | Toolkit: mission kit, jammer, shocker, interrogation | not started | | |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -41,6 +41,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 V0 answers applied: kit approved; V3 builds only the kit (disruptor, airfoil, knife to docs/backlog.md items 22-24, specs kept); snap cover replaced and deleted in V1; minigames only (hold mode removed); RULES 11 exception recorded. Spec status stays DRAFT until Michael approves V0.
 - 2026-10-11 V0 toolkit spec: docs/systems/ct-toolkit.md (234 lines, DRAFT). Ten tools, each with fiction, targets, controls (desktop, pad, touch), timing, noise and light, noticing, S0 interaction, ghost tag, co-op and camera; numbers TUNE or F / SN ids. Mission kit as `MissionDef.kit` (absent = everything); map fields `lock`, `seal`, `optic`, `alarm`, `hack`, `cut`, `lines` for P06.
   Dead Line kit proposed: in wall hug, optic, lockpick, hacking, jammer, shocker (2), interrogation; out disruptor, airfoil, knife. Build plan V1-V3, all before B3.
   Findings: `GADGETS` is in src/game/gadgets.ts, not src/config; no toolkit verb exists in code yet; bindings for the optic (F, R3) are proposals V1 checks. 5 questions for Michael (kit, disruptor realism, snap cover, RULES 11 exception, minigames).
@@ -102,6 +103,7 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 V0 questions: Dead Line's kit approved as proposed (in: wall hug, optic cable, lockpick, hacking, camera jammer, sticky shocker 2 rounds, interrogation; noisemaker, sticky cam, EMP, sleeping gas). V3 builds only Dead Line's kit; the light disruptor, ring airfoil and knife are not built now, their specs stay in ct-toolkit.md and each has a backlog line. V1 replaces snap cover (`src/cover`) with the wall hug and deletes it. Lockpick and hacking are minigames only. RULES.md section 11 exception for V1-V3: they may change the player controller, the camera and the grab and takedown code, and add src/config/tools.ts and the `toollab` debug map; no existing tuning value changes. This also brings the toolkit into the RULES.md section 2 scope.
 - 2026-10-11 Chaos Theory toolkit: the engine gets the full Chaos Theory toolkit (wall hug, optic cable, lockpick, hacking, camera jammer, light disruptor, sticky shocker, ring airfoil, interrogation, knife); each mission offers only the tools that suit it through a mission kit; every tool is realistic and respects the ghost rule. V0 writes the spec (docs/systems/ct-toolkit.md) and proposes Dead Line's kit for approval; build sessions V1-V3 follow it and all finish before B3.
 - 2026-10-11 P01 revision: 20 guards plus 7 civilians (each with an employer and a job); two parallel tracks (A in Building A, B in Building B) that meet at the secure zone, which needs one thing from each; every movement the engine supports appears at least once on a real element; no zip line on this campus (saved for a future mission); S6 civilians added to the build order after S5.
 - 2026-10-11 CAM exception to RULES section 11: the CAM session may change the third-person camera code and src/config/camera.ts; nothing else in src/player, src/ai or the movement config.
