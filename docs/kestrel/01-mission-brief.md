@@ -1,5 +1,5 @@
 # Kestrel - mission brief (Dead Line)
-Status: DRAFT
+Status: APPROVED (Michael, 2026-10-10)
 
 Short names: story = docs/story.md, S0 = S0-security-spec.md, F = 00-facts.md, LD = docs/level-design.md. S1-S6 = the six guarded spaces, X = exfiltration, B1-B8 = beats. No coordinates, sizes or routes here.
 
