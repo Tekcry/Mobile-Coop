@@ -103,6 +103,27 @@ jobs:
           npm ci
           VITE_BASE=${BASE}ct/ VITE_PREVIEW_ID=ct npm run build
           cp -r dist ../live/dist/ct
+      - name: Is there a feature/kestrel branch?
+        id: kestrel
+        run: |
+          if git -C live ls-remote --exit-code --heads origin feature/kestrel >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Kestrel preview (feature/kestrel branch)
+        if: steps.kestrel.outputs.exists == 'true'
+        uses: actions/checkout@v4
+        with:
+          ref: feature/kestrel
+          path: kestrel
+      - name: Build the Kestrel preview into /kestrel/
+        if: steps.kestrel.outputs.exists == 'true'
+        working-directory: kestrel
+        run: |
+          npm ci
+          VITE_BASE=${BASE}kestrel/ VITE_PREVIEW_ID=kestrel npm run build
+          cp -r dist ../live/dist/kestrel
       - uses: actions/upload-pages-artifact@v3
         with:
           path: live/dist
