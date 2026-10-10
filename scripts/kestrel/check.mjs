@@ -2,12 +2,13 @@
 //   node scripts/kestrel/check.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--register docs/kestrel/04-plans.md]
 // One result line per check (PASS, WARN, FAIL, SKIP or INFO) with ids and coordinates; violations follow as indented lines.
 // Ends with counts and exits 1 if any check FAILs. Every rule number is read from facts.json (a missing fact prints SKIP).
+// A28-A30 (module kit): every room has a ring; openings join rooms at most one ring step apart; fire stairs, roof access and staff WC / janitor per floor.
 // Tool assumptions (documented in docs/kestrel/schema.md): walls run along the X or Z axis; a stair is one straight run
 // with `flights` flights (default ceil(risers / max per flight)); an opening of type fire-door is exit-only.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { clearRect, findLevel, loadFacts, near, readJson, rectD, rectW, wallLength, wallPoint } from './lib.mjs';
+import { HERE, clearRect, findLevel, loadFacts, near, readJson, rectCentre, rectD, rectW, wallLength, wallPoint } from './lib.mjs';
 
 const EPS = 1e-6;
 const f2 = (n) => +Number(n).toFixed(2);
@@ -57,10 +58,15 @@ const wallRect = (w) => {
 const CHECKS = [];
 const check = (id, title, sev, needs, run) => CHECKS.push({ id, title, sev, needs, run });
 
-function context(arch, play, security, registerText, facts) {
+/** modules.json as { id: module } (A29 reads `carrier`, A30 reads `provides`). Empty if the file is missing. */
+function loadModuleTable(file = path.join(HERE, 'modules.json')) {
+  try { return Object.fromEntries((readJson(file).modules ?? []).map((m) => [m.id, m])); } catch { return {}; }
+}
+
+function context(arch, play, security, registerText, facts, modules) {
   const arr = (k) => (Array.isArray(arch?.[k]) ? arch[k] : []);
   const c = {
-    arch, play, security, registerText,
+    arch, play, security, registerText, modules,
     F: facts.fact,
     meta: arch?.meta ?? {},
     levels: arr('levels'), rooms: arr('rooms'), walls: arr('walls'), openings: arr('openings'),
@@ -222,7 +228,8 @@ check('A06', "Every room edge is covered by walls or listed in the room's open a
         if (w.level !== r.level) continue;
         const a = axisWall(w);
         if (!a || a.horiz === vertical || !near(a.c, line)) continue;
-        spans.push([Math.max(a.lo, lo), Math.min(a.hi, hi)]);
+        // a collinear wall that only touches or lies beside this edge covers none of it
+        if (Math.min(a.hi, hi) - Math.max(a.lo, lo) > EPS) spans.push([Math.max(a.lo, lo), Math.min(a.hi, hi)]);
       }
       spans.sort((p, q) => p[0] - q[0]);
       let at = lo;
@@ -531,27 +538,41 @@ check('A25', 'Object edges are multiples of meta.objectGrid', 'FAIL', [], (c) =>
 // ===== A26 aisles =====
 check('A26', 'Gaps beside tall objects are a real aisle or closed', 'FAIL', ['rules.aisleMin', 'rules.aisleTallObject', 'rules.aisleMaxGap'], (c) => {
   const [aisle, tall, maxGap] = ['rules.aisleMin', 'rules.aisleTallObject', 'rules.aisleMaxGap'].map(c.F);
-  /** Facing gap of two rects: the separation on one axis when they overlap on the other; null when diagonal or overlapping. */
+  /** Facing gap of two rects: { g, region, span: [lo, hi] along the other axis, axis }; null when diagonal or overlapping. */
   const gapOf = (a, b) => {
     const dx = Math.max(a[0] - b[2], b[0] - a[2]);
     const dz = Math.max(a[1] - b[3], b[1] - a[3]);
-    if (dx > EPS && ov1(a[1], a[3], b[1], b[3]) > EPS) return dx;
-    if (dz > EPS && ov1(a[0], a[2], b[0], b[2]) > EPS) return dz;
+    if (dx > EPS && ov1(a[1], a[3], b[1], b[3]) > EPS) {
+      const span = [Math.max(a[1], b[1]), Math.min(a[3], b[3])];
+      return { g: dx, axis: 1, span, region: [Math.min(a[2], b[2]), span[0], Math.max(a[0], b[0]), span[1]] };
+    }
+    if (dz > EPS && ov1(a[0], a[2], b[0], b[2]) > EPS) {
+      const span = [Math.max(a[0], b[0]), Math.min(a[2], b[2])];
+      return { g: dz, axis: 0, span, region: [span[0], Math.min(a[3], b[3]), span[1], Math.max(a[1], b[1])] };
+    }
     return null;
   };
   const bad = (g) => g > maxGap + EPS && g < aisle - EPS;
+  /** A gap with a tall object or wall standing across its whole width is not a lane: the things in a row of racks are not each other's neighbours. */
+  const blocked = (gap, blockers, skip) => {
+    const parts = blockers.filter((r) => !skip.includes(r) && rectsOverlapArea(gap.region, r) > EPS).map((r) => [Math.max(r[gap.axis], gap.span[0]), Math.min(r[gap.axis + 2], gap.span[1])]).sort((p, q) => p[0] - q[0]);
+    let at = gap.span[0];
+    for (const [p, q] of parts) { if (p > at + EPS) return false; at = Math.max(at, q); }
+    return at >= gap.span[1] - EPS;
+  };
   for (const lv of c.levels) {
     const tallObjs = c.onLevel(c.objects, lv.id).filter((o) => isRect(o.rect) && isNum(o.h) && o.h > tall && (o.y ?? 0) === 0);
     const wallList = c.onLevel(c.walls, lv.id).map((w) => ({ w, r: wallRect(w) })).filter((x) => x.r);
+    const blockers = [...tallObjs.map((o) => o.rect), ...wallList.map((x) => x.r)];
     for (let i = 0; i < tallObjs.length; i++) {
       const a = tallObjs[i];
       for (let j = i + 1; j < tallObjs.length; j++) {
-        const g = gapOf(a.rect, tallObjs[j].rect);
-        if (g !== null && bad(g)) c.add(`${a.id} and ${tallObjs[j].id} on ${lv.id}: clear gap ${f2(g)} m`);
+        const gap = gapOf(a.rect, tallObjs[j].rect);
+        if (gap && bad(gap.g) && !blocked(gap, blockers, [a.rect, tallObjs[j].rect])) c.add(`${a.id} and ${tallObjs[j].id} on ${lv.id}: clear gap ${f2(gap.g)} m`);
       }
       for (const { w, r } of wallList) {
-        const g = gapOf(a.rect, r);
-        if (g !== null && bad(g)) c.add(`${a.id} and wall ${w.id} on ${lv.id}: clear gap ${f2(g)} m`);
+        const gap = gapOf(a.rect, r);
+        if (gap && bad(gap.g) && !blocked(gap, blockers, [a.rect, r])) c.add(`${a.id} and wall ${w.id} on ${lv.id}: clear gap ${f2(gap.g)} m`);
       }
     }
   }
@@ -561,6 +582,96 @@ check('A26', 'Gaps beside tall objects are a real aisle or closed', 'FAIL', ['ru
 check('A27', 'Rack rows have noLedge true unless the play file plans a traversal on them', 'WARN', [], (c) => {
   const planned = new Set((c.play?.traversal ?? []).map((t) => t.element));
   for (const o of c.objects) if (/\brack/i.test(o.name ?? '') && !o.noLedge && !planned.has(o.id)) c.add(`${o.id} ${o.name} on ${o.level} at [${o.rect?.join(', ')}] has noLedge false and no planned traversal`);
+});
+
+// ===== module kit checks (A28-A30) =====
+check('A28', 'Every room has a ring (1, 2, 3, "3+", 4 or 5)', 'FAIL', [], (c) => {
+  for (const r of c.rooms) if (!RING_ORDER.includes(r.ring)) c.add(`${r.id} (${r.level}) ring ${JSON.stringify(r.ring ?? null)}`);
+});
+
+check('A29', 'An opening joins rooms whose rings differ by at most one step (3+ is one step above 3)', 'FAIL', ['kit.ringStepMax'], (c) => {
+  const carrier = (room) => c.modules?.[room?.module]?.carrier === true;
+  for (const o of c.openings) {
+    if (!PASS_TYPES.has(o.type) || o.type === 'fire-door' || isText(o.ringExempt)) continue;
+    const [A, B] = (o.between ?? []).map((id) => c.roomById.get(id));
+    if (!A || !B) continue;
+    const [ia, ib] = [RING_ORDER.indexOf(A.ring), RING_ORDER.indexOf(B.ring)];
+    if (ia < 0 || ib < 0 || Math.abs(ia - ib) <= c.F('kit.ringStepMax') || carrier(A) || carrier(B)) continue;
+    const p = c.openingPoint(o);
+    c.add(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) joins ${A.id} (ring ${A.ring}) and ${B.id} (ring ${B.ring}), ${Math.abs(ia - ib)} steps apart`);
+  }
+});
+
+check('A30', 'Fire stairs: every upper occupied level reaches an outside exit within the escape distance, one stair reaches the roof, every occupied floor has a staff WC and a janitor cupboard', 'FAIL', ['escape.oneWay', 'escape.twoWay'], (c) => {
+  if (!c.rooms.some((r) => isText(r.module))) return { skip: 'no room uses the module kit' };
+  const OCCUPIED = new Set(['room', 'corridor']);
+  const provides = (r) => {
+    const m = c.modules?.[r.module];
+    if (m) return m.provides ?? [];
+    const n = r.name ?? '';
+    return [/staff.*(wc|toilet)|(wc|toilet).*staff/i.test(n) ? 'staffWC' : null, /janitor|cleaner/i.test(n) ? 'janitor' : null].filter(Boolean);
+  };
+  const floorOf = (id) => c.levelById.get(id)?.floor;
+  const sorted = [...c.levels].sort((a, b) => a.floor - b.floor);
+  const ground = sorted.find((l) => l.floor >= 0)?.floor;
+  // floors: a staff WC and a janitor's cupboard on every occupied floor
+  const occupied = sorted.filter((l) => c.onLevel(c.rooms, l.id).some((r) => OCCUPIED.has(r.kind)));
+  for (const lv of occupied) {
+    const have = new Set(c.onLevel(c.rooms, lv.id).flatMap(provides));
+    if (!have.has('staffWC')) c.add(`level ${lv.id}: occupied floor has no staff WC`);
+    if (!have.has('janitor')) c.add(`level ${lv.id}: occupied floor has no janitor's cupboard`);
+  }
+  // fire stairs
+  const fire = c.stairs.filter((s) => s.kind === 'fire' && isRect(s.rect));
+  const overlap = (a, b) => rectsOverlapArea(a.rect, b.rect) > 0;
+  const lowest = (s) => { let cur = s; for (;;) { const down = fire.find((t) => t !== cur && t.to === cur.from && overlap(t, cur)); if (!down) return cur; cur = down; } };
+  const roomAt = (level, rect) => { const [x, z] = rectCentre(rect); return c.onLevel(c.rooms, level).find((r) => isRect(r.rect) && inRectXZ(r.rect, x, z)); };
+  const exits = (s) => {
+    const base = lowest(s);
+    if (floorOf(base.from) !== ground) return false;
+    const room = roomAt(base.from, base.rect);
+    return !!room && c.openings.some((o) => PASS_TYPES.has(o.type) && Array.isArray(o.between) && o.between.includes('') && o.between.includes(room.id));
+  };
+  for (const s of fire) if (!exits(s)) c.add(`fire stair ${s.id} has no exit to the outside at its foot (the room at the base of the stair needs an opening to outside)`);
+  const doorsOn = (levelId) => c.openings.filter((o) => PASS_TYPES.has(o.type) && Array.isArray(o.between) && o.between.every((id) => c.roomById.get(id)?.level === levelId));
+  for (const lv of occupied.filter((l) => l.floor > ground)) {
+    const serving = fire.filter((s) => floorOf(s.from) <= lv.floor && lv.floor <= floorOf(s.to) && exits(s));
+    const access = serving.map((s) => ({ s, room: roomAt(lv.id, s.rect) })).filter((x) => x.room);
+    if (!access.length) { c.add(`level ${lv.id}: no enclosed fire stair with an outside exit serves this level`); continue; }
+    const doors = doorsOn(lv.id);
+    // shortest path over rooms, centre to door to centre, from each fire stair's room
+    const dist = access.map(({ room }) => {
+      const d = new Map([[room.id, 0]]);
+      const todo = [room.id];
+      while (todo.length) {
+        todo.sort((a, b) => d.get(a) - d.get(b));
+        const id = todo.shift();
+        for (const o of doors) {
+          const [a, b] = o.between;
+          if (a !== id && b !== id) continue;
+          const other = a === id ? b : a;
+          const p = c.openingPoint(o);
+          const [ra, rb] = [c.roomById.get(id), c.roomById.get(other)];
+          if (!p || !isRect(ra.rect) || !isRect(rb.rect)) continue;
+          const nd = d.get(id) + Math.hypot(...[0, 1].map((i) => p[i] - rectCentre(ra.rect)[i])) + Math.hypot(...[0, 1].map((i) => p[i] - rectCentre(rb.rect)[i]));
+          if (nd < (d.get(other) ?? Infinity) - EPS) { d.set(other, nd); if (!todo.includes(other)) todo.push(other); }
+        }
+      }
+      return d;
+    });
+    for (const r of c.onLevel(c.rooms, lv.id).filter((x) => OCCUPIED.has(x.kind))) {
+      const ds = dist.map((d) => d.get(r.id)).filter((v) => v !== undefined);
+      if (!ds.length) { c.add(`${r.id} (${lv.id}): no door route to a fire stair`); continue; }
+      const limit = ds.length >= 2 ? c.F('escape.twoWay') : c.F('escape.oneWay');
+      const near = Math.min(...ds);
+      if (near > limit + EPS) c.add(`${r.id} (${lv.id}): ${f2(near)} m to the nearest fire stair, limit ${limit} m (${ds.length >= 2 ? 'two directions' : 'one direction'})`);
+    }
+  }
+  // roof: at least one fire stair reaches the top level R
+  if (c.levelById.has('R')) {
+    const up = (s) => { let cur = s; for (;;) { if (cur.to === 'R') return true; const next = c.stairs.find((t) => (t.kind === 'fire' || t.kind === 'bulkhead') && isRect(t.rect) && t.from === cur.to && overlap(t, cur)); if (!next) return false; cur = next; } };
+    if (!fire.some((s) => exits(s) && up(s))) c.add('no enclosed fire stair reaches the roof (level R)');
+  }
 });
 
 // ===== security checks (--security) =====
@@ -638,12 +749,12 @@ SC('SC06', 'Every card opens existing readers', [], (c) => {
 
 // ---------- runner ----------
 /** Runs every check. Returns [{ id, title, status, details }]. */
-export function runChecks({ arch, play = null, security = null, registerText, facts = loadFacts() }) {
+export function runChecks({ arch, play = null, security = null, registerText, facts = loadFacts(), modules = loadModuleTable() }) {
   const out = [];
   for (const k of CHECKS) {
     const missing = k.needs.filter((n) => facts.fact(n) === undefined);
     if (missing.length) { out.push({ id: k.id, title: k.title, status: 'SKIP', details: [`(no fact: ${missing.join(', ')})`] }); continue; }
-    const c = context(arch, play, security, registerText, facts);
+    const c = context(arch, play, security, registerText, facts, modules);
     const details = [];
     c.add = (m) => details.push(m);
     let status;

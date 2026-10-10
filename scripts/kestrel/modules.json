@@ -1,0 +1,808 @@
+{
+  "_about": "The Kestrel module kit: standard rooms the architect places instead of typing walls. Read by scripts/kestrel/expand.mjs and check.mjs (A29, A30). Sizes are CLEAR (wall-face to wall-face) nominal sizes on the 0.5 m grid; expand turns each into a wall-centreline rect (size + wall thickness, rounded up to the grid). Local frame: south-west corner at 0,0, x east, z north; side S is the entry side. Fixed-content sizes are general knowledge unless a fact id is named. A \"@path\" value is read from facts.json. Format: docs/kestrel/schema.md section 7.",
+  "modules": [
+    {
+      "id": "lobby",
+      "name": "Lobby and reception desk",
+      "category": "zone 2 and 3+",
+      "zone": "S2",
+      "ring": 2,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "polished screed",
+      "sizes": [
+        [9,7]
+      ],
+      "doors": [
+        {"key":"entrance","side":"S","at":"centre","w":"@door.doubleWidthA","h":"@door.singleHeight","type":"double","reason":"Public entrance from the yard; visitors arrive here to sign in."},
+        {"key":"staff","side":"N","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff door from the desk side to the controlled corridor."}
+      ],
+      "objects": [
+        {"name":"Reception desk","size":[3,1],"h":1.1,"x":["W",0.5],"z":["N",1.5],"reason":"Visitor sign-in counter; the receptionist stands behind it."},
+        {"name":"Waiting seats","size":[0.6,3],"h":0.45,"x":["E",0.3],"z":["S",2],"reason":"Fixed bench where visitors wait to be collected."}
+      ],
+      "source": "02-building-brief s5 G01 (size, ceiling, finish, zone); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "visitor-wc",
+      "name": "Visitor toilet (accessible)",
+      "category": "zone 2 and 3+",
+      "zone": "S2",
+      "ring": 2,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "tile",
+      "sizes": [
+        [2.5,2.5]
+      ],
+      "service": true,
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Visitors reach the toilet from the lobby."}
+      ],
+      "objects": [
+        {"name":"WC pan and cistern","size":[0.4,0.7],"h":0.8,"x":["C",0],"z":["N",0],"reason":"The fixture the room exists for."},
+        {"name":"Wash basin","size":[0.5,0.4],"h":0.85,"x":["E",0.1],"z":["C",0],"reason":"Hand wash beside the pan."}
+      ],
+      "source": "02-building-brief s5 G03; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "meeting-room",
+      "name": "Meeting room",
+      "category": "zone 2 and 3+",
+      "zone": "S2",
+      "ring": 2,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "carpet tile",
+      "sizes": [
+        [6,5]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Tenants and visitors are taken in from the lobby."}
+      ],
+      "objects": [
+        {"name":"Meeting table","size":[3,1.2],"h":0.75,"x":["C",0],"z":["C",0],"reason":"Tenant and visitor meetings are held round it."}
+      ],
+      "source": "02-building-brief s5 G04; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "security-office",
+      "name": "Security site office (duty manager)",
+      "category": "zone 2 and 3+",
+      "zone": "S2",
+      "ring": 2,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "carpet tile",
+      "sizes": [
+        [5,4]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The duty manager comes and goes between the office and the lobby."}
+      ],
+      "objects": [
+        {"name":"Duty manager desk","size":[1.8,0.8],"h":0.75,"x":["W",0.5],"z":["N",0.5],"reason":"Where the log is kept and visitors are signed in."},
+        {"name":"Key and card cabinet","size":[0.5,0.6],"h":1.4,"x":["E",0],"z":["N",0],"reason":"The shift manager keeps the master card and keys here."}
+      ],
+      "source": "02-building-brief s5 G05; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "control-room",
+      "name": "Security control room",
+      "category": "zone 2 and 3+",
+      "zone": "S3",
+      "ring": "3+",
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "antistatic vinyl",
+      "sizes": [
+        [6,5]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The desk operator and the supervisor reach the room from the staff corridor."}
+      ],
+      "objects": [
+        {"name":"CCTV console desk","size":[4,0.9],"h":0.75,"x":["C",0],"z":["N",0.5],"reason":"The operator watches the monitor wall from this desk."}
+      ],
+      "source": "02-building-brief s5 G06; sizes of fixed contents: general knowledge. The window onto the lobby is added by hand (opening type window)."
+    },
+    {
+      "id": "goods-lobby",
+      "name": "Goods lobby",
+      "category": "zone 2 and 3+",
+      "zone": "S2",
+      "ring": 2,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "sealed concrete",
+      "sizes": [
+        [4,3]
+      ],
+      "doors": [
+        {"key":"shutter","side":"S","at":"centre","w":"@door.rollerWidth","h":"@door.rollerHeight","type":"roller","reason":"Roller shutter where goods come in from the apron."},
+        {"key":"inner","side":"N","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Inner door through to the loading bay."}
+      ],
+      "objects": [],
+      "source": "02-building-brief s5 G26 (goods lobby, Q2)"
+    },
+    {
+      "id": "office",
+      "name": "Office",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "carpet tile",
+      "sizes": [
+        [12,8],
+        [8,6]
+      ],
+      "free": true,
+      "sizeMin": [6,4],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff come in from the corridor."}
+      ],
+      "objects": [
+        {"name":"Desk","size":[1.6,0.8],"h":0.75,"x":["W",0.5],"z":["N",0.5],"reason":"Staff desks in rows facing the wall.","repeat":[{"axis":"x","count":"fit","pitch":2,"endGap":0.5},{"axis":"z","count":"fit","pitch":3,"endGap":1.2}]},
+        {"name":"Filing cabinet","size":[0.5,0.6],"h":1.4,"x":["E",0],"z":["N",0],"reason":"Paper records for the office."}
+      ],
+      "source": "02-building-brief s5 F01; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "noc",
+      "name": "Night operations desk (NOC)",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "antistatic vinyl",
+      "sizes": [
+        [8,6]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The night duty engineer comes in from the corridor."}
+      ],
+      "objects": [
+        {"name":"Operator console desk","size":[2.4,0.9],"h":0.75,"x":["C",0],"z":["N",0.5],"reason":"The engineer watches the building systems from here."},
+        {"name":"Monitoring cabinet","size":[0.6,1.2],"h":2,"x":["E",0],"z":["N",0],"reason":"Building management and monitoring kit."}
+      ],
+      "source": "02-building-brief s5 F02; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "facilities-office",
+      "name": "Facilities office",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "carpet tile",
+      "sizes": [
+        [6,5]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Facilities staff come in from the corridor."}
+      ],
+      "objects": [
+        {"name":"Facilities desk","size":[1.6,0.8],"h":0.75,"x":["W",0.5],"z":["N",0.5],"reason":"Where the facilities officer works."},
+        {"name":"Records cabinet","size":[1.8,0.5],"h":1.4,"x":["E",0],"z":["N",0],"reason":"Holds the cage and cross-connect records."}
+      ],
+      "source": "02-building-brief s5 F03; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "kitchenette",
+      "name": "Kitchenette and break room",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "vinyl",
+      "sizes": [
+        [7,6]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff come in from the corridor for their break."}
+      ],
+      "objects": [
+        {"name":"Kitchen bench with sink and hob","size":[3.6,0.6],"h":0.9,"x":["W",0],"z":["N",0],"reason":"Staff make hot drinks and food here."},
+        {"name":"Fridge","size":[0.6,0.6],"h":1.8,"x":["E",0],"z":["N",0],"reason":"Staff food is kept cold."},
+        {"name":"Break table","size":[1.6,0.9],"h":0.75,"x":["C",0],"z":["C",0],"reason":"Staff eat at it."}
+      ],
+      "source": "02-building-brief s5 F04; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "staff-wc",
+      "name": "Staff toilets",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "tile",
+      "sizes": [
+        [5,4]
+      ],
+      "service": true,
+      "provides": ["staffWC"],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff come in from the corridor."}
+      ],
+      "objects": [
+        {"name":"WC cubicle","size":[0.9,1.5],"h":1.8,"x":["W",0],"z":["N",0],"reason":"Each cubicle is one toilet.","repeat":[{"axis":"x","count":3,"pitch":0.9}]},
+        {"name":"Wash basin run","size":[1.8,0.5],"h":0.85,"x":["E",0],"z":["N",0],"reason":"Hand wash beside the cubicles."}
+      ],
+      "source": "02-building-brief s5 F05 (staff WC part); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "shower-lockers",
+      "name": "Staff showers and lockers",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "tile",
+      "sizes": [
+        [8,5]
+      ],
+      "service": true,
+      "provides": ["staffWC"],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff come in from the corridor."}
+      ],
+      "objects": [
+        {"name":"Locker bank","size":[3,0.5],"h":1.8,"x":["W",0],"z":["N",0],"reason":"Staff keep their kit in lockers."},
+        {"name":"Shower cubicle","size":[0.9,0.9],"h":2,"x":["E",0],"z":["N",0],"reason":"Staff shower after a shift.","repeat":[{"axis":"x","count":3,"pitch":0.9}]}
+      ],
+      "source": "02-building-brief s5 F05 (showers and lockers part); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "janitor",
+      "name": "Janitor's cupboard",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "sealed concrete",
+      "sizes": [
+        [2,1.5]
+      ],
+      "service": true,
+      "provides": ["janitor"],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The cleaner fetches and returns equipment."}
+      ],
+      "objects": [
+        {"name":"Cleaner's sink","size":[0.6,0.5],"h":0.9,"x":["W",0],"z":["N",0],"reason":"Where the cleaner empties buckets."}
+      ],
+      "source": "02-building-brief s5 G11, F07; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "storage",
+      "name": "Storage room",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "vinyl",
+      "sizes": [
+        [5,4]
+      ],
+      "free": true,
+      "sizeMin": [4,3],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff fetch consumables from the corridor."}
+      ],
+      "objects": [
+        {"name":"Shelving unit","size":[1.2,0.5],"h":1.8,"x":["W",0],"z":["N",0],"reason":"Consumables and spares are stored on it.","repeat":[{"axis":"x","count":"fit","pitch":1.2,"endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 F06; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "build-room",
+      "name": "Build room",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "antistatic vinyl",
+      "sizes": [
+        [7,6]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Kit arrives from the loading bay by the corridor."}
+      ],
+      "objects": [
+        {"name":"Build bench","size":[2.4,0.9],"h":0.9,"x":["W",0.5],"z":["N",0.5],"reason":"Kit is unboxed and tested on it.","repeat":[{"axis":"x","count":2,"pitch":2.6}]},
+        {"name":"Test rack","size":["@rules.rackWidth",1.2],"h":2,"x":["E",0],"z":["N",0],"reason":"A rack to burn in kit before it is installed."}
+      ],
+      "source": "02-building-brief s5 G08; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "loading-bay",
+      "name": "Loading bay with goods lift",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": 4,
+      "finish": "sealed concrete",
+      "sizes": [
+        [10,8]
+      ],
+      "doors": [
+        {"key":"goods","side":"S","at":"centre","w":"@door.doubleWidthA","h":"@door.singleHeight","type":"double","reason":"Goods come in through the goods lobby."}
+      ],
+      "objects": [
+        {"name":"Goods lift (car and landing)","size":[2.5,2.5],"h":4,"x":["E",0],"z":["N",0],"reason":"Takes consumables and light kit up to the first-floor store."},
+        {"name":"Pallet","size":[1.2,1],"h":1.2,"x":["W",0.5],"z":["N",0.5],"reason":"Crates waiting to be loaded or racked.","repeat":[{"axis":"x","count":2,"pitch":1.6}]}
+      ],
+      "source": "02-building-brief s5 G07 (ceiling 4.0 m is the brief value); sizes of fixed contents: general knowledge. The lift is an object; add the first-floor void by hand."
+    },
+    {
+      "id": "comms-room",
+      "name": "Comms room (house MDF)",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "antistatic vinyl",
+      "sizes": [
+        [5,4]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Facilities staff service the building's own telecoms frame."}
+      ],
+      "objects": [
+        {"name":"Comms rack","size":["@rules.rackWidth",1.2],"h":2,"x":["W",0],"z":["N",0],"reason":"Carries the building's own telecoms and network gear.","repeat":[{"axis":"x","count":"fit","pitch":"@rules.rackWidth","endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 G09; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "plant-corridor",
+      "name": "Plant and services corridor",
+      "category": "zone 3",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "corridor",
+      "ceiling": "@room.ceiling",
+      "finish": "sealed concrete",
+      "sizes": [
+        [3.5,16]
+      ],
+      "free": true,
+      "sizeMin": [3.5,6],
+      "doors": [],
+      "objects": [
+        {"name":"Chilled-water pipes (flow and return)","size":[0.5,2],"h":0.3,"x":["E",0],"z":["S",0],"reason":"Carry chilled water from the roof chillers to the cooling gallery.","y":2.2,"repeat":[{"axis":"z","count":"fit","pitch":2,"endGap":0}]}
+      ],
+      "source": "02-building-brief s5 G22 (plant and services corridor, Q1); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "mantrap",
+      "name": "Mantrap",
+      "category": "zones 4 and 5",
+      "zone": "S5",
+      "ring": "3+",
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "antistatic vinyl",
+      "sizes": [
+        [3,2.5]
+      ],
+      "service": true,
+      "doors": [
+        {"key":"outer","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The staff-side door of the two-door interlock."},
+        {"key":"inner","side":"N","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The secure-side door of the two-door interlock."}
+      ],
+      "objects": [
+        {"name":"Iris scanner pedestal","size":[0.3,0.3],"h":1.2,"x":["W",0],"z":["C",0],"reason":"The iris reader is mounted on it."}
+      ],
+      "source": "02-building-brief s5 G12 (brief zone 4; ring 3+ here so both doors pass A29, see schema.md section 7); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "data-hall-bay",
+      "name": "Data hall bay",
+      "category": "zones 4 and 5",
+      "zone": "S5",
+      "ring": 4,
+      "kind": "room",
+      "ceiling": 5,
+      "finish": "raised access floor",
+      "sizes": [
+        [20,14],
+        [12,9],
+        [9,6]
+      ],
+      "free": true,
+      "sizeMin": [6,6],
+      "doors": [
+        {"key":"entry","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff and customers enter the hall from the secure corridor."}
+      ],
+      "objects": [
+        {"name":"Server rack","size":["@rules.rackWidth",1.2],"h":2,"x":["W",0],"z":["S","@rules.aisleMin"],"reason":"Customer racks stand in rows with a clear aisle between them.","repeat":[{"axis":"x","count":"fit","pitch":"@rules.rackWidth","endGap":"@rules.aisleMin"},{"axis":"z","count":"fit","pitch":"size+@rules.aisleMin","endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 G13 (ceiling 5.0 m, Q3); rows at the 0.6 m rack pitch with 1.8 m aisles (RULES s6); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "meet-me-room",
+      "name": "Meet-me room",
+      "category": "zones 4 and 5",
+      "zone": "S6",
+      "ring": 5,
+      "kind": "room",
+      "ceiling": "@room.ceiling",
+      "finish": "antistatic vinyl",
+      "sizes": [
+        [7,6]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Carriers and tenants reach the cross-connect panels from the hall."}
+      ],
+      "objects": [
+        {"name":"Cross-connect patch rack","size":["@rules.rackWidth",1.2],"h":2,"x":["W",0],"z":["N",0],"reason":"Carrier and tenant fibre is patched together here.","repeat":[{"axis":"x","count":"fit","pitch":"@rules.rackWidth","endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 G18; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "customer-cage",
+      "name": "Customer cage",
+      "category": "zones 4 and 5",
+      "zone": "S6",
+      "ring": 5,
+      "kind": "room",
+      "ceiling": 5,
+      "finish": "raised access floor",
+      "sizes": [
+        [4,3.5],
+        [5,4]
+      ],
+      "doors": [
+        {"key":"mesh","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The tenant's locked mesh door into their cage."}
+      ],
+      "objects": [
+        {"name":"Tenant's rack","size":["@rules.rackWidth",1.2],"h":2,"x":["W",0],"z":["N",0],"reason":"The tenant's own kit stands in the cage.","repeat":[{"axis":"x","count":"fit","pitch":"@rules.rackWidth","endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 G19 (the brief gives 4.0 x 3.0; 3.5 deep is the least that keeps a 1.8 m aisle beside a 1.2 m rack, A26); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "ups-room",
+      "name": "UPS room",
+      "category": "zones 4 and 5",
+      "zone": "S5",
+      "ring": 4,
+      "kind": "plant",
+      "ceiling": 3.5,
+      "finish": "antistatic vinyl",
+      "sizes": [
+        [8,6]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Facilities staff service the UPS modules from the secure corridor."}
+      ],
+      "objects": [
+        {"name":"UPS module","size":[1.2,0.8],"h":2,"x":["W",0],"z":["N",0],"reason":"Keeps the hall powered when the mains drops out.","repeat":[{"axis":"x","count":"fit","pitch":1.2,"endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 G14 (ceiling 3.5 m is the brief value); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "battery-room",
+      "name": "Battery room",
+      "category": "zones 4 and 5",
+      "zone": "S5",
+      "ring": 4,
+      "kind": "plant",
+      "ceiling": "@room.ceiling",
+      "finish": "acid-resistant",
+      "sizes": [
+        [6,5]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Facilities staff inspect the battery strings."}
+      ],
+      "objects": [
+        {"name":"Battery cabinet","size":[1.2,0.8],"h":1.8,"x":["W",0],"z":["N",0],"reason":"Holds the battery strings that carry the UPS.","repeat":[{"axis":"x","count":"fit","pitch":1.2,"endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 G15; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "switchroom",
+      "name": "Electrical switchroom",
+      "category": "zones 4 and 5",
+      "zone": "S5",
+      "ring": 4,
+      "kind": "plant",
+      "ceiling": 3.5,
+      "finish": "sealed concrete",
+      "sizes": [
+        [7,5]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Electricians reach the switchgear from the secure corridor."}
+      ],
+      "objects": [
+        {"name":"LV switchgear cubicle","size":[0.8,0.8],"h":2,"x":["W",0],"z":["N",0],"reason":"Takes the incoming supply and the generator changeover.","repeat":[{"axis":"x","count":"fit","pitch":0.8,"endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 G16 (ceiling 3.5 m is the brief value); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "cooling-gallery",
+      "name": "Cooling gallery",
+      "category": "zones 4 and 5",
+      "zone": "S5",
+      "ring": 4,
+      "kind": "plant",
+      "ceiling": 5,
+      "finish": "sealed concrete",
+      "sizes": [
+        [16,4]
+      ],
+      "free": true,
+      "sizeMin": [8,4],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Facilities staff service the cooling units from the secure corridor."}
+      ],
+      "objects": [
+        {"name":"CRAC unit","size":[2.4,1],"h":2,"x":["W",0],"z":["N",0],"reason":"Blow cold air into the data hall.","repeat":[{"axis":"x","count":"fit","pitch":2.4,"endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 G17 (ceiling 5.0 m, Q3); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "carrier-vault",
+      "name": "Carrier entrance room (vault)",
+      "category": "zones 4 and 5",
+      "zone": "S6",
+      "ring": 5,
+      "kind": "plant",
+      "ceiling": "@room.ceiling",
+      "finish": "sealed concrete",
+      "carrier": true,
+      "sizes": [
+        [8,6]
+      ],
+      "doors": [
+        {"key":"riser","side":"E","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Carrier engineers go from the vault to the riser ladder."}
+      ],
+      "objects": [
+        {"name":"Carrier termination rack","size":["@rules.rackWidth",1.2],"h":2,"x":["W",0],"z":["N",0],"reason":"Carriers' fibre ends on these racks.","repeat":[{"axis":"x","count":"fit","pitch":"@rules.rackWidth","endGap":"@rules.aisleMin"}]}
+      ],
+      "source": "02-building-brief s5 B01; sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "carrier-riser",
+      "name": "Carrier riser shaft",
+      "category": "zones 4 and 5",
+      "zone": "S6",
+      "ring": 5,
+      "kind": "shaft",
+      "ceiling": "@room.storey",
+      "finish": "concrete",
+      "carrier": true,
+      "sizes": [
+        [2,2]
+      ],
+      "service": true,
+      "doors": [],
+      "ladder": {
+        "facing": "N",
+        "x": "centre",
+        "zFromFar": "@ladder.clearFront",
+        "reason": "Fixed ladder from the vault up to the meet-me room; the only link to the basement."
+      },
+      "voidAbove": {
+        "kind": "riser",
+        "reason": "The riser shaft opens through the floor into the meet-me room."
+      },
+      "source": "02-building-brief s5 B02"
+    },
+    {
+      "id": "main-stair",
+      "name": "Main stair core",
+      "category": "circulation",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "stair",
+      "ceiling": "@room.ceiling",
+      "finish": "linoleum",
+      "sizes": [
+        [8,3.5]
+      ],
+      "doors": [
+        {"key":"foot","side":"S","at":2.5,"w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff reach the main stair from the corridor."}
+      ],
+      "objects": [],
+      "stair": {
+        "kind": "main",
+        "width": "@stair.featureWidth",
+        "up": "E",
+        "span": 1,
+        "reason": "Stair well over the main stair."
+      },
+      "source": "02-building-brief s5 G21 (the brief gives 6.0 x 3.5; A11 needs a 7.13 m straight run for 20 risers, so 8.0 here); scale-sheet s3 (open stair)"
+    },
+    {
+      "id": "fire-stair",
+      "name": "Fire stair core",
+      "category": "circulation",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "stair",
+      "ceiling": "@room.ceiling",
+      "finish": "concrete",
+      "sizes": [
+        [8,3]
+      ],
+      "doors": [
+        {"key":"corridor","side":"S","at":2.5,"w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff reach the fire stair from the corridor."},
+        {"key":"exit","side":"N","at":5.5,"w":"@stair.fireDoorWidth","h":"@door.singleHeight","type":"fire-door","levels":"base","reason":"Exit-only discharge to the outside at the foot of the stair."}
+      ],
+      "objects": [],
+      "stair": {
+        "kind": "fire",
+        "width": "@stair.fireWidth",
+        "up": "E",
+        "span": 1,
+        "reason": "Stair well over the enclosed fire stair."
+      },
+      "source": "02-building-brief s5 G24, G25 (the brief gives 6.0 x 2.8; A11 needs a 7.13 m straight run, so 8.0 here, and 3.0 wide to sit on the grid); scale-sheet s3 (fire stair)"
+    },
+    {
+      "id": "fire-stair-roof",
+      "name": "Fire stair core (to roof)",
+      "category": "circulation",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "stair",
+      "ceiling": "@room.ceiling",
+      "finish": "concrete",
+      "sizes": [
+        [8,3]
+      ],
+      "doors": [
+        {"key":"corridor","side":"S","at":2.5,"w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff reach the fire stair from the corridor."},
+        {"key":"exit","side":"N","at":5.5,"w":"@stair.fireDoorWidth","h":"@door.singleHeight","type":"fire-door","levels":"base","reason":"Exit-only discharge to the outside at the foot of the stair."}
+      ],
+      "objects": [],
+      "stair": {
+        "kind": "fire",
+        "width": "@stair.fireWidth",
+        "up": "E",
+        "span": "roof",
+        "roofCeiling": 2.4,
+        "reason": "Stair well over the enclosed fire stair."
+      },
+      "source": "02-building-brief s5 G24, R02 (bulkhead ceiling 2.4 m is the brief value); scale-sheet s3 (fire stair)"
+    },
+    {
+      "id": "riser-cupboard",
+      "name": "Riser cupboard",
+      "category": "circulation",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "shaft",
+      "ceiling": "@room.ceiling",
+      "finish": "sealed concrete",
+      "sizes": [
+        [2,1.5]
+      ],
+      "service": true,
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Services staff reach the cable and pipe riser."}
+      ],
+      "objects": [],
+      "source": "general knowledge (services riser cupboard); size follows the janitor cupboard in 02-building-brief s5"
+    },
+    {
+      "id": "corridor",
+      "name": "Corridor",
+      "category": "circulation",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "corridor",
+      "ceiling": "@room.ceiling",
+      "finish": "linoleum",
+      "sizes": [
+        [3.5,26],
+        [3.5,24],
+        [3.5,16],
+        [3.5,14]
+      ],
+      "free": true,
+      "sizeMin": [3.5,6],
+      "doors": [],
+      "objects": [],
+      "source": "02-building-brief s5 G20, G23, F08 (3.5 m wide; scale-sheet s3 corridor 3.5-4.0 m). Rooms carry the doors onto it."
+    },
+    {
+      "id": "lift-shaft",
+      "name": "Lift shaft",
+      "category": "circulation",
+      "zone": "S4",
+      "ring": 3,
+      "kind": "shaft",
+      "ceiling": "@room.ceiling",
+      "finish": "steel",
+      "sizes": [
+        [2.5,2.5]
+      ],
+      "service": true,
+      "doors": [
+        {"key":"landing","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The lift landing door."}
+      ],
+      "voidAbove": {
+        "kind": "liftshaft",
+        "reason": "The lift runs up through the floor above."
+      },
+      "source": "02-building-brief s5 G10"
+    },
+    {
+      "id": "gatehouse",
+      "name": "Gatehouse",
+      "category": "site",
+      "zone": "S1",
+      "ring": 1,
+      "kind": "room",
+      "ceiling": 2.6,
+      "finish": "concrete",
+      "sizes": [
+        [4,3]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"The gatehouse officer steps out to the vehicle gate."}
+      ],
+      "objects": [
+        {"name":"Gate desk","size":[1.8,0.7],"h":0.75,"x":["C",0],"z":["N",0.3],"reason":"Vehicle sign-in and the yard monitor."}
+      ],
+      "source": "02-building-brief s5 X03 (ceiling 2.6 m); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "generator-compound",
+      "name": "Generator compound",
+      "category": "site",
+      "zone": "S1",
+      "ring": 1,
+      "kind": "yard",
+      "ceiling": 2.4,
+      "finish": "concrete bund",
+      "wallKind": "boundary",
+      "sizes": [
+        [10,6]
+      ],
+      "doors": [
+        {"key":"gate","side":"S","at":"centre","w":"@door.doubleWidthB","h":"@door.singleHeight","type":"gate","reason":"Maintenance gate in the compound fence."}
+      ],
+      "objects": [
+        {"name":"Standby diesel generator","size":[4,1.6],"h":2.2,"x":["W",0],"z":["N",0],"reason":"Takes over when the mains fails and runs the weekly test."},
+        {"name":"Bunded fuel tank","size":[3.5,2],"h":2.2,"x":["E",0],"z":["N",0],"reason":"Holds the diesel for the generator."}
+      ],
+      "source": "02-building-brief s5 X05 (fence height 2.4 m is the brief boundary value); sizes of fixed contents: general knowledge"
+    },
+    {
+      "id": "bin-store",
+      "name": "Bin store",
+      "category": "site",
+      "zone": "S1",
+      "ring": 1,
+      "kind": "room",
+      "ceiling": 2.4,
+      "finish": "concrete",
+      "sizes": [
+        [4,3]
+      ],
+      "doors": [
+        {"key":"main","side":"S","at":"centre","w":"@door.singleWidth","h":"@door.singleHeight","type":"door","reason":"Staff wheel bins in and out."}
+      ],
+      "objects": [
+        {"name":"Wheelie bin","size":[0.8,0.9],"h":1.1,"x":["W",0.3],"z":["N",0],"reason":"Waste and recycling bins.","repeat":[{"axis":"x","count":3,"pitch":1}]}
+      ],
+      "source": "02-building-brief s5 X06 (ceiling 2.4 m); sizes of fixed contents: general knowledge"
+    }
+  ]
+}

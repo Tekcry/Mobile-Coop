@@ -43,9 +43,9 @@ test('the clean sample has no FAIL and no WARN', () => {
   assert.ok(n.PASS >= 20);
 });
 
-test('every check in the table has a result line (A01-A27, SC01-SC06)', () => {
+test('every check in the table has a result line (A01-A30, SC01-SC06)', () => {
   const ids = run().map((r) => r.id);
-  for (let i = 1; i <= 27; i++) assert.ok(ids.includes(`A${String(i).padStart(2, '0')}`), `A${i}`);
+  for (let i = 1; i <= 30; i++) assert.ok(ids.includes(`A${String(i).padStart(2, '0')}`), `A${i}`);
   for (let i = 1; i <= 6; i++) assert.ok(ids.includes(`SC0${i}`), `SC0${i}`);
 });
 
@@ -243,6 +243,105 @@ test('A27 warns on a rack row that can be a lip, unless the play file plans a tr
   trips('A27', add, 'WARN');
   const play = { traversal: [{ id: 'T1', kind: 'mantle', element: 'O010' }] };
   assert.equal(status(run(add, { play }), 'A27'), 'PASS');
+});
+
+// ---------- module kit checks (A28-A30) and two Part B fixes found while building the kit ----------
+test('A06 ignores a collinear wall that only lies beside the edge', () => {
+  const beside = (a) => { a.walls.push({ id: 'W901', level: 'G', a: [17.5, 2], b: [19, 2], t: 0.45, h: 3, kind: 'exterior' }); };
+  assert.equal(status(run(beside), 'A06'), 'PASS');
+  trips('A06', (a) => { beside(a); a.walls = a.walls.filter((w) => w.id !== 'W005'); });
+});
+
+test('A26 does not count a gap with a tall object or wall standing across it (a row of racks at 0.6 m pitch)', () => {
+  const rack = (id, x0) => object(id, [x0, 5, x0 + 0.6, 6.2], { name: 'Test rack', h: 2, noLedge: true });
+  assert.equal(status(run((a) => { for (let i = 0; i < 4; i++) a.objects.push(rack(`O01${i}`, 5 + i * 0.6)); }), 'A26'), 'PASS');
+  // a rack 0.8 m from the west wall is a bad gap on its own, and fine with a second rack between it and the wall
+  trips('A26', (a) => { a.objects.push(rack('O010', 3.0)); });
+  assert.equal(status(run((a) => { a.objects.push(rack('O010', 3.0), rack('O011', 2.4)); }), 'A26'), 'PASS');
+  // a blocker that covers only part of the gap leaves a lane: still a bad gap
+  trips('A26', (a) => { a.objects.push(rack('O010', 3.0), object('O011', [2.4, 5, 3.0, 5.5], { name: 'Half rack', h: 2, noLedge: true })); });
+});
+
+test('A28 trips on a missing or unknown ring', () => {
+  assert.equal(status(run(), 'A28'), 'PASS');
+  trips('A28', (a) => { delete a.rooms[0].ring; });
+  trips('A28', (a) => { a.rooms[0].ring = 6; });
+  trips('A28', (a) => { a.rooms[0].ring = '3'; });
+  assert.equal(status(run((a) => { a.rooms[0].ring = '3+'; }), 'A28'), 'PASS');
+});
+
+test('A29 trips on a door joining rings two steps apart, with 3+ one step above 3', () => {
+  const rings = (r1, r2, mut) => (a) => { find(a.rooms, 'G01').ring = r1; find(a.rooms, 'G02').ring = r2; mut?.(a); };
+  assert.equal(status(run(), 'A29'), 'PASS');
+  trips('A29', rings(2, 4));
+  trips('A29', rings(2, '3+'));
+  trips('A29', rings(3, 4));
+  trips('A29', rings(5, 3));
+  for (const [r1, r2] of [[2, 3], [3, '3+'], ['3+', 4], [4, 5], [4, 4]]) assert.equal(status(run(rings(r1, r2)), 'A29'), 'PASS', `${r1} to ${r2}`);
+  // exemptions: an exit-only fire door, the carriers' entrance (module flag or the opening's ringExempt), and a window
+  assert.equal(status(run(rings(2, 5, (a) => { find(a.openings, 'D001').type = 'fire-door'; })), 'A29'), 'PASS');
+  assert.equal(status(run(rings(2, 5, (a) => { find(a.rooms, 'G02').module = 'vault'; }), { modules: { vault: { carrier: true } } }), 'A29'), 'PASS');
+  assert.equal(status(run(rings(2, 5, (a) => { find(a.openings, 'D001').ringExempt = 'carriers entrance'; })), 'A29'), 'PASS');
+  assert.equal(status(run(rings(2, 5, (a) => { find(a.openings, 'D001').type = 'window'; })), 'A29'), 'PASS');
+});
+
+/** The sample as a kit building: rooms carry modules, and every floor has a staff WC and a janitor cupboard (kept outside the footprint, kind shaft so only the stair rules look at them). */
+const kit = (a) => {
+  find(a.rooms, 'G01').module = 'lobby'; find(a.rooms, 'G02').module = 'main-stair'; find(a.rooms, 'F01').module = 'office'; find(a.rooms, 'F02').module = 'main-stair';
+  for (const L of ['G', 'F']) a.rooms.push(room(`${L}90`, L, [20, 2, 22, 4], { kind: 'shaft', name: 'Staff WC', module: 'staff-wc', ring: 3 }), room(`${L}91`, L, [20, 4, 22, 6], { kind: 'shaft', name: 'Janitor', module: 'janitor', ring: 3 }));
+};
+const fireStair = (id, from, to, rect) => ({ id, kind: 'fire', from, to, rect, up: 'N', width: 1, risers: 20 });
+const exitDoor = { id: 'D090', wall: 'W002', at: 5, w: 1.2, h: 2.1, sill: 0, type: 'fire-door', between: ['G02', ''], locked: false, key: '', reason: 'Exit-only discharge from the stair.' };
+const factsWith = (over) => ({ ...facts, fact: (p) => (p in over ? over[p] : facts.fact(p)) });
+const a30 = (mut, extra) => details(run((a) => { kit(a); mut?.(a); }, extra), 'A30');
+
+test('A30 skips a plan that uses no module', () => {
+  assert.equal(status(run(), 'A30'), 'SKIP');
+});
+
+test('A30: an occupied floor needs a staff WC and a janitor cupboard', () => {
+  const lines = a30((a) => { a.rooms = a.rooms.filter((r) => !['G90', 'F91'].includes(r.id)); });
+  assert.ok(lines.some((l) => /level G: occupied floor has no staff WC/.test(l)), lines.join('|'));
+  assert.ok(lines.some((l) => /level F: occupied floor has no janitor/.test(l)), lines.join('|'));
+  assert.ok(!lines.some((l) => /level G: occupied floor has no janitor|level F: occupied floor has no staff WC/.test(l)));
+  // a manual room with no module is found by its name
+  const named = a30((a) => { a.rooms = a.rooms.filter((r) => r.id !== 'G90'); a.rooms.push(room('G92', 'G', [22, 2, 24, 4], { kind: 'shaft', name: 'Staff toilets', ring: 3 })); });
+  assert.ok(!named.some((l) => /level G: occupied floor has no staff WC/.test(l)), named.join('|'));
+});
+
+test('A30: an upper occupied level needs an enclosed fire stair with an outside exit', () => {
+  const lines = a30();
+  assert.ok(lines.some((l) => /level F: no enclosed fire stair/.test(l)), lines.join('|'));
+  const ok1 = (a) => { a.stairs.push(fireStair('S02', 'G', 'F', [15.5, 3, 16.5, 11])); a.openings.push(structuredClone(exitDoor)); };
+  assert.deepEqual(a30(ok1), []);
+  const noExit = a30((a) => { ok1(a); a.openings = a.openings.filter((o) => o.id !== 'D090'); });
+  assert.ok(noExit.some((l) => /fire stair S02 has no exit/.test(l)), noExit.join('|'));
+  // an exit door that is not to the outside does not count
+  const inside = a30((a) => { ok1(a); find(a.openings, 'D090').between = ['G01', 'G02']; });
+  assert.ok(inside.some((l) => /fire stair S02 has no exit/.test(l)));
+});
+
+test('A30: travel to the nearest fire stair stays inside the escape distance (45 m with two stairs, 18 m with one)', () => {
+  const one = (a) => { a.stairs.push(fireStair('S02', 'G', 'F', [15.5, 3, 16.5, 11])); a.openings.push(structuredClone(exitDoor)); };
+  const two = (a) => { one(a); a.stairs.push(fireStair('S03', 'G', 'F', [12, 3, 13, 11])); };
+  // F01 is 7.5 m from the stair room
+  assert.deepEqual(a30(one), []);
+  assert.ok(a30(one, { facts: factsWith({ 'escape.oneWay': 5 }) }).some((l) => /F01 \(F\): 7\.5 m to the nearest fire stair, limit 5 m \(one direction\)/.test(l)));
+  assert.deepEqual(a30(two, { facts: factsWith({ 'escape.oneWay': 5 }) }), []);
+  assert.ok(a30(two, { facts: factsWith({ 'escape.twoWay': 5 }) }).some((l) => /limit 5 m \(two directions\)/.test(l)));
+  const lost = a30((a) => { one(a); a.rooms.push(room('F95', 'F', [30, 2, 34, 6], { ring: 3 })); });
+  assert.ok(lost.some((l) => /F95 \(F\): no door route to a fire stair/.test(l)), lost.join('|'));
+});
+
+test('A30: at least one fire stair reaches the roof, when the plan has a roof level', () => {
+  const roof = (a) => {
+    a.levels.push({ id: 'R', name: 'Roof', floor: 6.6, height: 3.3 });
+    a.stairs.push(fireStair('S02', 'G', 'F', [15.5, 3, 16.5, 11])); a.openings.push(structuredClone(exitDoor));
+  };
+  assert.ok(a30(roof).some((l) => /no enclosed fire stair reaches the roof/.test(l)));
+  assert.deepEqual(a30((a) => { roof(a); a.stairs.push(fireStair('S04', 'F', 'R', [15.5, 3, 16.5, 11])); }), []);
+  // a roof stair that does not continue the fire stair below it does not count
+  assert.ok(a30((a) => { roof(a); a.stairs.push(fireStair('S04', 'F', 'R', [12, 3, 13, 5])); }).some((l) => /roof/.test(l)));
 });
 
 // ---------- security checks ----------

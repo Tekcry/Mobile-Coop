@@ -117,6 +117,9 @@
     "oneWay": { "value": 18, "src": "02-building-brief s7 (general knowledge)" },
     "twoWay": { "value": 45, "src": "02-building-brief s7 (general knowledge)" }
   },
+  "kit": {
+    "ringStepMax": { "value": 1, "src": "P03 Part C A29 (rings differ by at most one step; 3+ is one step above 3)" }
+  },
   "security": {
     "cameraHFov": { "value": 70, "src": "SN01" },
     "cameraVFov": { "value": 45, "src": "SN02" },

@@ -349,7 +349,9 @@ function baseLayers(level) {
   out += rectEl(B, `fill="none" stroke="#999" stroke-width="${R('siteStroke')}" stroke-dasharray="${R('dashLong')}"`);
   for (const o of (arch.objects ?? []).filter(here)) {
     out += rectEl(o.rect, `fill="#b9b9b9" stroke="#666" stroke-width="${R('objectStroke')}"`);
-    out += labelLines(rectCentre(o.rect), [o.id], R('fontSmall'), 'fill="#222"');
+    // an id that does not fit inside its object (a row of racks) is left off; the id stays in the arch file
+    const fits = (o.rect[2] - o.rect[0]) * S >= o.id.length * R('fontSmall') * R('charWidth') && (o.rect[3] - o.rect[1]) * S >= R('fontSmall') * R('lineHeight');
+    if (fits) out += labelLines(rectCentre(o.rect), [o.id], R('fontSmall'), 'fill="#222"');
   }
   for (const w of walls.filter(here)) out += drawWall(w);
   for (const o of arch.openings ?? []) if (wallById.get(o.wall)?.level === level.id) out += drawOpening(o);
