@@ -76,6 +76,9 @@ export function loadWorld(D) {
   }
   // slabs: planes where a ray cannot pass
   W.slabs = [];
+  // a map may list its slabs itself (Dead Line v2); otherwise the D1 campus rules below
+  if (D.meta.slabs) W.slabs = D.meta.slabs.map((s) => ({ rect: s.rect, y: s.y, onlyBelow: !!s.onlyBelow }));
+  else {
   for (const s of D.spaces) if (s.level === 'U' && s.kind !== 'ledge') W.slabs.push({ rect: s.rect, y: 3.3 });
   for (const s of gridded) if (s.level === 'G' && s.wallH <= 3.3 && s.kind !== 'outdoor') W.slabs.push({ rect: s.rect, y: 3.3 });
   for (const s of D.spaces) if (s.level === 'R') W.slabs.push({ rect: s.rect, y: 6.6 });
@@ -83,6 +86,7 @@ export function loadWorld(D) {
   for (const s of gridded) if (s.level === 'U') W.slabs.push({ rect: s.rect, y: 6.6 });
   // ground slab: every B cell is under G/outdoor ground
   W.slabs.push({ rect: [-50, -38, 74, 12], y: 0, onlyBelow: true });
+  }
 
   // nav grid
   const [x0, x1] = D.meta.footprint.x;

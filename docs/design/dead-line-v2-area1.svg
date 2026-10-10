@@ -17,8 +17,8 @@
     </marker>
   </defs>
   <rect x="0" y="0" width="2240" height="960" fill="#ffffff"/>
-  <text x="60" y="30" font-size="22" font-weight="bold">Dead Line v2 - Area 1 Approach: Cable Lane (plan, ground level)</text>
-  <text x="60" y="50" font-size="13" fill="#555">D0 draft 2026-10-10. 1 m = 10 px, grid 6 m. Coordinates (x east, z north) in metres from the lane mouth. Detection numbers are checked in D1, not here.</text>
+  <text x="60" y="30" font-size="22" font-weight="bold">Dead Line v2 - Area 1 Approach: Cable Lane (plan, ground level) - D1</text>
+  <text x="60" y="50" font-size="13" fill="#555">D1 2026-10-10 (from map-dead-line-v2.json). 1 m = 10 px, grid 6 m. Coordinates (x east, z north) in metres from the lane mouth. Measured windows: map-dead-line-v2-validation.md.</text>
 
   <!-- grid -->
   <rect x="60" y="60" width="2100" height="440" fill="url(#g6)"/>
@@ -64,11 +64,11 @@
   <!-- Substation in arch A18 -->
   <rect x="1890" y="190" width="50" height="50" fill="#eceff1" stroke="#37474f" stroke-width="2"/>
   <text x="1893" y="203" font-size="9">switch</text><text x="1893" y="213" font-size="9">room</text>
-  <rect x="1940" y="160" width="30" height="80" fill="#cfd8dc" stroke="#37474f" stroke-width="2"/>
-  <text x="1944" y="176" font-size="9">trans-</text><text x="1944" y="186" font-size="9">former</text><text x="1944" y="196" font-size="9">(hum)</text>
-  <rect x="1970" y="208" width="20" height="12" fill="#ffffff" stroke="#37474f"/>
-  <text x="1948" y="152" font-size="10" font-weight="bold">SD pier door</text>
-  <path d="M1980 156 L1980 206" stroke="#37474f" stroke-width="1"/>
+  <rect x="1942" y="190" width="28" height="50" fill="#cfd8dc" stroke="#37474f" stroke-width="2"/><rect x="1890" y="125" width="80" height="65" fill="#eceff1" stroke="#37474f" stroke-width="2"/><text x="1895" y="140" font-size="9">LV room</text>
+  <text x="1944" y="206" font-size="8">trans-</text><text x="1944" y="215" font-size="8">former</text>
+  <rect x="1968" y="149" width="24" height="12" fill="#ffffff" stroke="#37474f"/>
+  <text x="1996" y="159" font-size="10" font-weight="bold">SD</text>
+  
   <rect x="1880" y="240" width="90" height="50" fill="#f3f3f3"/>
   <path d="M1880 240 L1880 290 L1910 290 M1930 290 L1970 290" fill="none" stroke="#263238" stroke-width="3" stroke-dasharray="2 2"/>
   <text x="1884" y="254" font-size="10">substation forecourt</text>
@@ -82,7 +82,7 @@
     <rect x="1080" y="240" width="100" height="50"/><rect x="1180" y="240" width="100" height="50"/><rect x="1280" y="240" width="100" height="50"/>
     <rect x="1480" y="240" width="100" height="50"/><rect x="1580" y="240" width="100" height="50"/><rect x="1680" y="240" width="100" height="50"/>
   </g>
-  <text x="290" y="252" font-size="10" fill="#263238">lean-to roofs +3.0 front, +3.6 at arch; felt; 0.3 m party upstands</text>
+  <g fill="#e3f2fd" stroke="#1e88e5" stroke-dasharray="3 2"><rect x="883" y="242" width="94" height="36"/><rect x="983" y="242" width="94" height="36"/></g><text x="890" y="258" font-size="9" fill="#0d47a1">roof lights (not walkable)</text><text x="290" y="252" font-size="10" fill="#263238">lean-to roofs +3.0 front, +3.6 at arch; felt; 0.3 m party upstands</text>
   <!-- door recesses (1.2 x 1.0) on lean-to fronts -->
   <g fill="#ffffff" stroke="#4b5d70">
     <rect x="340" y="280" width="12" height="10"/><rect x="440" y="280" width="12" height="10"/><rect x="540" y="280" width="12" height="10"/><rect x="640" y="280" width="12" height="10"/>
@@ -163,12 +163,13 @@
   <text x="300" y="312" font-size="10">contractor's car</text>
   <rect x="390" y="290" width="40" height="16" fill="#c9a227" stroke="#5d4037"/>
   <text x="396" y="302" font-size="9">skip</text>
-  <rect x="570" y="346" width="45" height="18" fill="#90a4ae" stroke="#455a64"/>
-  <rect x="750" y="346" width="45" height="18" fill="#90a4ae" stroke="#455a64"/>
+  <rect x="570" y="343" width="45" height="18" fill="#90a4ae" stroke="#455a64"/>
+  <rect x="750" y="343" width="45" height="18" fill="#90a4ae" stroke="#455a64"/>
   <text x="574" y="359" font-size="9">car P1</text><text x="754" y="359" font-size="9">car P2</text>
-  <rect x="449" y="368" width="9" height="8" fill="#2e7d32"/>
+  <rect x="450" y="376" width="6" height="4" fill="#2e7d32"/>
   <text x="440" y="363" font-size="10" font-weight="bold">FP1</text>
 
+  <rect x="625" y="299" width="10" height="6" fill="#fff" stroke="#6a1b9a" stroke-width="1.5"/><path d="M627 299 L627 305 M630 299 L630 305 M633 299 L633 305" stroke="#6a1b9a"/><text x="610" y="296" font-size="9" font-weight="bold" fill="#6a1b9a">VG</text>
   <!-- Cable tunnel below (dashed, purple) -->
   <g fill="none" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="7 4">
     <rect x="180" y="316" width="50" height="44"/>
@@ -187,58 +188,56 @@
 
   <!-- Lamps: pools and fittings -->
   <g fill="#ffd54f" fill-opacity="0.28" stroke="#e0a800" stroke-width="1.5">
-    <circle cx="420" cy="380" r="80"/><circle cx="720" cy="380" r="80"/><circle cx="1185" cy="372" r="90"/>
-    <circle cx="1580" cy="372" r="90"/><circle cx="1915" cy="238" r="50"/><circle cx="1986" cy="320" r="100"/>
+    <circle cx="280" cy="377" r="65"/><circle cx="580" cy="377" r="65"/><circle cx="980" cy="304" r="65"/><circle cx="1185" cy="372" r="65"/>
+    <circle cx="1720" cy="304" r="65"/><circle cx="1915" cy="243" r="35"/><circle cx="1968" cy="320" r="65"/>
   </g>
-  <circle cx="960" cy="457" r="70" fill="#ffd54f" fill-opacity="0.28" stroke="#e65100" stroke-width="2" stroke-dasharray="6 3"/>
+  <circle cx="960" cy="457" r="55" fill="#ffd54f" fill-opacity="0.28" stroke="#e65100" stroke-width="2" stroke-dasharray="6 3"/>
   <g fill="#ff8f00" stroke="#5d4037">
-    <circle cx="420" cy="380" r="6"/><circle cx="720" cy="380" r="6"/><circle cx="1185" cy="372" r="6"/><circle cx="960" cy="457" r="6"/>
-    <circle cx="1580" cy="372" r="6"/><circle cx="1915" cy="238" r="5"/><circle cx="1986" cy="320" r="6"/>
+    <circle cx="280" cy="377" r="6"/><circle cx="580" cy="377" r="6"/><circle cx="980" cy="304" r="6"/><circle cx="1185" cy="372" r="6"/><circle cx="960" cy="457" r="6"/>
+    <circle cx="1720" cy="304" r="6"/><circle cx="1915" cy="243" r="5"/><circle cx="1968" cy="320" r="6"/>
   </g>
   <g font-size="11" font-weight="bold" fill="#8d5a00">
-    <text x="404" y="408">LA1</text><text x="704" y="408">LA2</text><text x="1170" y="398">LA3</text><text x="970" y="474">LA4 caged</text>
-    <text x="1566" y="398">LA5</text><text x="1940" y="232">LA6</text><text x="1995" y="294">LA7</text>
+    <text x="266" y="404">LA1</text><text x="566" y="404">LA2</text><text x="988" y="322">LA8</text><text x="1170" y="398">LA3</text><text x="970" y="474">LA4 caged</text>
+    <text x="1728" y="322">LA5</text><text x="1925" y="236">LA6</text><text x="1940" y="300">LA7</text>
   </g>
 
   <!-- Sniper sweep (Area 2 guard SN on A block roof) and the gatehouse window view (GB1) -->
-  <polygon points="1560,380 1560,290 1980,240 1980,440 1780,440 1780,380" fill="#e53935" fill-opacity="0.08" stroke="#e53935" stroke-dasharray="10 5"/>
-  <text x="1566" y="455" font-size="10" fill="#c62828">SN laser sweep, 30 s</text>
-  <text x="1566" y="468" font-size="10" fill="#c62828">(sniper on A block roof, off plan to the SE, +14 m)</text>
+  <text x="1566" y="462" font-size="10" fill="#c62828">SN (Area 2 sniper) measured: sees no Area 1 cell</text>
   <polygon points="1990,438 1820,470 1820,372" fill="#1e88e5" fill-opacity="0.10" stroke="#1e88e5" stroke-dasharray="4 3"/>
-  <text x="1825" y="392" font-size="9" fill="#1565c0">GB1 window view</text>
+  <text x="1825" y="392" font-size="9" fill="#1565c0">GB1 window view (sees no Area 1 cell)</text>
 
   <!-- Routes: ground (blue), up (orange), below (purple) -->
   <polyline fill="none" stroke="#1565c0" stroke-width="3.5" stroke-linejoin="round"
-    points="120,200 165,275 235,372 370,372 521,374 661,374 770,372 841,374 870,365 890,298 1046,296 1246,296 1340,298 1430,265 1530,296 1646,296 1760,296 1830,250 1920,296 1915,230"/>
+    points="120,200 165,275 235,364 360,372.5 430,365 522.5,365 590,367.5 662.5,365 770,367.5 842.5,352.5 890,297.5 1047.5,297.5 1247.5,297.5 1427.5,282.5 1647.5,297.5 1830,245 1926,297.5 1916,215 1915,167.5 1955,155"/>
   <polyline fill="none" stroke="#ef6c00" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="12 5"
-    points="165,275 293,288 293,265 675,265 720,255 793,288 793,265 1375,265 1430,265 1493,288 1493,265 1775,265 1830,250"/>
+    points="165,275 293,295 310,265 670,265 684,276 735,272.5 793,295 820,265 870,284 1080,284 1370,265 1390,265 1427.5,282.5 1493,295 1520,265 1770,265 1786,265 1830,245"/>
   <polyline fill="none" stroke="#6a1b9a" stroke-width="3.5" stroke-linejoin="round" stroke-dasharray="3 5"
     points="165,275 205,338 1400,336 1430,265"/>
 
   <!-- Guards (red): routes, stops and facings -->
   <g stroke="#c62828" stroke-width="2.5" fill="none">
-    <path d="M360 307 L330 294"/>
-    <path d="M630 302 L730 280"/>
+    <path d="M360 307 L330 297"/>
+    <path d="M630 302.5 L662.5 362.5 L705 282.5 Z"/>
     <path d="M956 378 L968 378 L968 430 L956 430"/>
-    <path d="M1950 360 L1840 340"/>
+    <path d="M1925 315 L1810 335"/>
   </g>
   <g fill="#c62828">
     <circle cx="360" cy="307" r="6"/><circle cx="330" cy="294" r="6"/>
-    <circle cx="630" cy="302" r="6"/><circle cx="730" cy="280" r="6"/>
+    <circle cx="630" cy="302.5" r="6"/><circle cx="662.5" cy="362.5" r="6"/><circle cx="705" cy="282.5" r="6"/>
     <circle cx="956" cy="378" r="6"/><circle cx="956" cy="430" r="6"/>
-    <circle cx="1950" cy="360" r="6"/><circle cx="1840" cy="340" r="6"/>
+    <circle cx="1925" cy="315" r="6"/><circle cx="1810" cy="335" r="6"/>
     <circle cx="2000" cy="438" r="6"/>
   </g>
   <g stroke="#c62828" stroke-width="2.5" marker-end="url(#arr)">
-    <path d="M360 307 L335 307"/><path d="M330 294 L355 294"/>
-    <path d="M630 302 L605 302"/><path d="M730 280 L730 258"/>
+    <path d="M360 307 L338 318"/><path d="M330 297 L355 297"/>
+    <path d="M630 302.5 L605 302.5"/><path d="M662.5 362.5 L637.5 362.5"/><path d="M705 282.5 L705 260"/>
     <path d="M956 378 L956 353"/><path d="M956 430 L956 452"/>
-    <path d="M1950 360 L1925 360"/><path d="M1840 340 L1815 340"/>
+    <path d="M1925 315 L1907 333"/><path d="M1810 335 L1785 335"/>
     <path d="M2000 438 L1975 438"/>
   </g>
   <g font-size="12" font-weight="bold" fill="#b71c1c">
-    <text x="364" y="324">GA1</text><text x="616" y="322">GA2</text><text x="975" y="402">GA3</text>
-    <text x="1890" y="378">GA4</text><text x="2008" y="452">GB1</text>
+    <text x="364" y="324">GA1</text><text x="712" y="300">GA2</text><text x="975" y="402">GA3</text>
+    <text x="1870" y="352">GA4</text><text x="2008" y="452">GB1</text>
   </g>
 
   <!-- Hide spots (green), vantages (blue triangles), checkpoints (black) -->
@@ -246,12 +245,12 @@
     <rect x="230" y="382" width="10" height="10"/><rect x="516" y="383" width="10" height="10"/><rect x="441" y="280" width="10" height="10"/>
     <rect x="656" y="383" width="10" height="10"/><rect x="715" y="230" width="10" height="10"/><rect x="836" y="383" width="10" height="10"/>
     <rect x="1041" y="280" width="10" height="10"/><rect x="1241" y="280" width="10" height="10"/><rect x="1425" y="250" width="10" height="10"/>
-    <rect x="1641" y="280" width="10" height="10"/><rect x="1825" y="240" width="10" height="10"/><rect x="1955" y="260" width="10" height="10"/>
+    <rect x="1641" y="280" width="10" height="10"/><rect x="1825" y="240" width="10" height="10"/>
   </g>
   <g font-size="9" fill="#1b5e20" font-weight="bold">
     <text x="243" y="392">H1</text><text x="529" y="392">H2</text><text x="452" y="278">H3</text><text x="669" y="392">H4</text>
     <text x="702" y="230">H5</text><text x="849" y="392">H6</text><text x="1053" y="278">H7</text><text x="1253" y="278">H8</text>
-    <text x="1437" y="258">H9</text><text x="1653" y="278">H10</text><text x="1838" y="240">H11</text><text x="1955" y="257">H12</text>
+    <text x="1437" y="258">H9</text><text x="1653" y="278">H10</text><text x="1838" y="240">H11</text>
   </g>
   <g fill="#0d47a1">
     <polygon points="165,265 158,279 172,279"/><polygon points="521,402 514,416 528,416"/><polygon points="930,250 923,264 937,264"/>
@@ -290,7 +289,7 @@
   <rect x="1445" y="640" width="585" height="24" fill="#efe3f6" stroke="#6a1b9a" stroke-width="2"/>
   <rect x="1435" y="640" width="10" height="24" fill="url(#solid)" stroke="#424242"/>
   <rect x="200" y="620" width="12" height="20" fill="#efe3f6" stroke="#6a1b9a" stroke-width="2"/>
-  <rect x="1394" y="620" width="12" height="20" fill="#efe3f6" stroke="#6a1b9a" stroke-width="2"/>
+  <rect x="1394" y="620" width="12" height="20" fill="#efe3f6" stroke="#6a1b9a" stroke-width="2"/><path d="M630 620 L630 640" stroke="#6a1b9a" stroke-width="3" stroke-dasharray="2 2"/><text x="636" y="616" font-size="10" fill="#4a148c">VG vent shaft</text>
   <g font-size="10" fill="#4a148c">
     <text x="186" y="682">JC1</text><text x="214" y="634">M1 shaft 1.2 x 1.2, fixed ladder 4.4 m</text>
     <text x="600" y="657">cable tunnel 1934: 2.4 high x 2.6 wide, cable bearers both walls, 1.8 m walkway, unlit (bulkheads off)</text>
@@ -309,17 +308,17 @@
     <path d="M0 64 L40 64" stroke="#6a1b9a" stroke-width="3.5" stroke-dasharray="3 5"/><text x="48" y="68">Below route (cable tunnel, M1 to M2)</text>
     <path d="M0 86 L40 86" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="7 4"/><text x="48" y="90">Cable tunnel outline (below ground)</text>
     <circle cx="20" cy="108" r="6" fill="#c62828"/><text x="48" y="112">Guard stop; red line = patrol; arrow = facing at the stop</text>
-    <circle cx="20" cy="130" r="10" fill="#ffd54f" fill-opacity="0.4" stroke="#e0a800"/><text x="48" y="134">Lamp and pool (dashed orange: cannot be switched or shot)</text>
+    <circle cx="20" cy="130" r="10" fill="#ffd54f" fill-opacity="0.4" stroke="#e0a800"/><text x="48" y="134">Lamp and its lit pool (light 0.28+; dashed orange: cannot be switched or shot)</text>
     <rect x="15" y="146" width="10" height="10" fill="#2e7d32"/><text x="48" y="156">Hide spot H (1.2 x 1.0 or larger, dark)</text>
     <polygon points="20,166 13,180 27,180" fill="#0d47a1"/><text x="48" y="178">Vantage V</text>
   </g>
   <g transform="translate(560 720)" font-size="12">
-    <path d="M15 15 l5 5 -5 5 -5 -5z" fill="#000"/><text x="32" y="24">Hold interaction (M1 4 s, FP1 3 s, van cab 2 s, M2 3 s, SG 3 s)</text>
+    <path d="M15 15 l5 5 -5 5 -5 -5z" fill="#000"/><text x="32" y="24">Hold (M1 4 s, FP1 3 s, van cab 2 s, M2 3 s, SG 3 s); VG = tunnel vent grating</text>
     <circle cx="15" cy="42" r="3.5" fill="#212121"/><text x="32" y="46">Cast-iron downpipe (every one climbable, +3.0)</text>
     <text x="0" y="68">K = checkpoint, E = encounter, FX = printworks fire exit recess, DP = downpipe</text>
-    <text x="0" y="90">GA1 to GA4: Area 1 guards (Pell's contractor). GB1 and SN: Area 2 guards whose views reach Area 1.</text>
+    <text x="0" y="90">GA1 to GA4: Area 1 guards (Pell's contractor). GB1 and SN (Area 2) were measured: neither sees Area 1.</text>
     <text x="0" y="112">Rain all night. No guard has keys to the tunnel or the substation (telco property).</text>
-    <text x="0" y="134">Lamps: CA1 council lane circuit (LA1, LA2, LA3, LA5) off at feeder pillar FP1; LA4 printworks photocell, caged;</text>
+    <text x="0" y="134">Lamps: CA1 council lane circuit (LA1, LA2, LA8, LA3, LA5) off at FP1 for about 25 s until GA2 resets it; LA4 printworks photocell, caged;</text>
     <text x="0" y="152">LA6 substation (switch inside the switch room); LA7 exchange gate floodlight (gatehouse switch, Area 2).</text>
   </g>
 </svg>

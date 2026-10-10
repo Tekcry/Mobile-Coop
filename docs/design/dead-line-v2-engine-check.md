@@ -54,8 +54,9 @@ Reading it:
 | 3 | No cue at a low opening: a standing player walks into the lintel and stops | Missing (readability) | Touch players get no prompt; P7 says every action is possible through contextual prompts | A crouch hint when the player is pressed against a lintel under 1.75 m (no auto-crouch: Chaos Theory makes you crouch yourself) |
 | 4 | Standing-up check is one ray from the capsule centre | Verify | At a duct mouth the player may stand while the front of the capsule is still under the lintel | Test in the greybox; if it pops, check four points round the capsule |
 | 5 | Guards searching a last-known position inside a duct they cannot enter | Verify | A guard may stand at the mouth or fail to path | Test: get seen at a duct mouth, retreat inside |
-| 6 | Nav layers: default 3 per column | Limit | Area 1 has at most 3 (tunnel, lane, lean-to roof never overlap the tunnel). A block has basement, ground, first, second and roof over the same columns: 5 | Raise `layers` for this map (the grid supports it) and note it in `level-design.md` Section 12 when built |
+| 6 | Nav layers: default 3 per column | **Done (D1, 2026-10-10)** | Area 1 has at most 3 (tunnel, lane, lean-to roof never overlap the tunnel). A block has basement, ground, first, second and roof over the same columns: 5 | `MapDef.navLayers` (Dead Line 5), passed to `buildNavGrid`; unit tests in `tests/nav.test.ts`; `level-design.md` Section 12 updated |
 | 7 | Hold interactions with noise (manhole covers, gate padlock) | Built as a constant only | `HOLD_NOISE_RADIUS` 4 m exists; the hold runtime for these objects is mission-framework work | Already planned for the mission build |
+| 8 | Nav sampler depth: `sampleLayers` casts from the top down to y -2 and stops above -1.5 | Limit (found at D1) | The tunnel floor (-4.4) and A block's basement (-4.0) are not on the guards' grid at all. No Area 1 guard goes below ground, so Area 1 is unaffected; Area 3's basement guards are | Cast down to the map's lowest level (a map value, like `navLayers`) before Area 3's build |
 
 Not needed: an auto-crawl. The `Duct` anchor stays unused on this map.
 

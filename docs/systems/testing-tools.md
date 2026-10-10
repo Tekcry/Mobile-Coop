@@ -186,4 +186,5 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
 ## Dead Line G1 (greybox)
 - `node scripts/gen-dead-line.mjs [--check]` regenerates `src/world/maps/deadLine.geo.json` from the design JSON (a test fails when it is stale).
 - `scripts/e2e-dead-line.mjs [url] [--routes=M,EX-3] [--verbose]` (REQUIRED): boots `?autostart=dead-line&mode=sandbox`, the real controller walks every design route and VDUCT, every debug teleport, rule 27 camera rays.
+- `node docs/design/map-dead-line-v2-analysis.mjs`: Dead Line v2 Area 1 (D1) checks on `map-dead-line-v2.json` with the engine perception, light and noise: route timing, light share, guard cones, the timing window per encounter and route, roof exposure, the FP1 dark window, the vent grating, the sniper reach, the eaves, both bots, rule 27; writes `map-dead-line-v2-validation.md`, `map-dead-line-v2-results.json` and the element register table in `dead-line-v2-area1.md`.
 - `E2E_GPU=1 node scripts/g1-perf.mjs` frame time at six spots; `node scripts/g1-floors.mjs` top-down renders beside the plan (`docs/gates/G1/`).

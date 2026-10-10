@@ -74,4 +74,6 @@ export interface MapDef {
   art?: VoxelArt;
   /** 3.0: weather the Play screen / lobby offers on this map (none: the theme's own). */
   weathers?: readonly WeatherChoice[];
+  /** Walkable surfaces the nav grid keeps per column (default 3). Maps that stack more storeys raise it. */
+  navLayers?: number;
 }

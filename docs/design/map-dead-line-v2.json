@@ -1,0 +1,5543 @@
+{
+ "meta": {
+  "id": "dead-line-v2",
+  "title": "Dead Line v2, Area 1: Cable Lane (approach)",
+  "mission": "Dead Line",
+  "stage": "D1 Area 1 (2026-10-10)",
+  "units": "metres, 0.5 m grid, x east, z north (origin: south-west corner of the lane mouth)",
+  "footprint": {
+   "x": [
+    0,
+    232
+   ],
+   "z": [
+    -30,
+    44
+   ]
+  },
+  "levels": [
+   {
+    "id": "B",
+    "y": -4.4,
+    "name": "Cable tunnel (floor -4.4, soffit -2.0)"
+   },
+   {
+    "id": "G",
+    "y": 0,
+    "name": "Lane and Viaduct Road"
+   },
+   {
+    "id": "U",
+    "y": 3.3,
+    "name": "Lean-to roofs (felt, 3.0 at the gutter to 3.6 at the arch; walked at the mean 3.3)"
+   },
+   {
+    "id": "R",
+    "y": 12.6,
+    "name": "A block roof (context for SN only; Area 2 designs it)"
+   }
+  ],
+  "speeds": {
+   "walk": 2,
+   "jog": 2.8,
+   "crawl": 1.8,
+   "sprint": 5
+  },
+  "cycleSec": 40,
+  "sniperCycleSec": 30,
+  "guardTurnSec": 0.5,
+  "activeGuardCap": 12,
+  "chapters": [
+   {
+    "id": 1,
+    "name": "Area 1 Approach",
+    "budgetS": 105
+   }
+  ],
+  "slabs": [
+   {
+    "id": "GROUND",
+    "rect": [
+     0,
+     -30,
+     232,
+     44
+    ],
+    "y": 0,
+    "onlyBelow": true
+   },
+   {
+    "id": "BRIDGE",
+    "rect": [
+     0,
+     26,
+     12,
+     38
+    ],
+    "y": 6.5
+   },
+   {
+    "id": "A18CEIL",
+    "rect": [
+     182,
+     26,
+     192,
+     38
+    ],
+    "y": 3
+   },
+   {
+    "id": "GHROOF",
+    "rect": [
+     192,
+     3,
+     198,
+     9
+    ],
+    "y": 2.7
+   },
+   {
+    "id": "EAV2",
+    "rect": [
+     22,
+     20.4,
+     32,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV3",
+    "rect": [
+     32,
+     20.4,
+     42,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV4",
+    "rect": [
+     42,
+     20.4,
+     52,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV5",
+    "rect": [
+     52,
+     20.4,
+     62,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV7",
+    "rect": [
+     72,
+     20.4,
+     82,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV8",
+    "rect": [
+     82,
+     20.4,
+     92,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV9",
+    "rect": [
+     92,
+     20.4,
+     102,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV10",
+    "rect": [
+     102,
+     20.4,
+     112,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV11",
+    "rect": [
+     112,
+     20.4,
+     122,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV12",
+    "rect": [
+     122,
+     20.4,
+     132,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV14",
+    "rect": [
+     142,
+     20.4,
+     152,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV15",
+    "rect": [
+     152,
+     20.4,
+     162,
+     21
+    ],
+    "y": 3
+   },
+   {
+    "id": "EAV16",
+    "rect": [
+     162,
+     20.4,
+     172,
+     21
+    ],
+    "y": 3
+   }
+  ],
+  "note": "Lean-to roofs slope 3.0 to 3.6; the model walks them at 3.3 with the gutter edge (the lean-to body block) at its real 3.0. Eaves overhang 0.6 m at 3.0 (slabs EAV-*)."
+ },
+ "spaces": [
+  {
+   "id": "road",
+   "name": "Viaduct Road under the railway bridge",
+   "level": "G",
+   "rect": [
+    0,
+    10,
+    12,
+    38
+   ],
+   "kind": "outdoor",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "Public road; the van drops the team in the dark under the bridge",
+   "landmark": "the bridge girders, rain dripping"
+  },
+  {
+   "id": "lane",
+   "name": "Cable Lane",
+   "level": "G",
+   "rect": [
+    12,
+    10.6,
+    172,
+    26
+   ],
+   "kind": "outdoor",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "Service lane along the viaduct, the only road to the exchange gate",
+   "landmark": "sodium lanterns, the lean-to fronts, the printworks wall"
+  },
+  {
+   "id": "bay",
+   "name": "Printworks loading bay",
+   "level": "G",
+   "rect": [
+    84,
+    4,
+    96,
+    10.6
+   ],
+   "kind": "outdoor",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "Paper reels and print leave by lorry from the dock",
+   "landmark": "the caged floodlight, the contractor van"
+  },
+  {
+   "id": "turn",
+   "name": "Turning head",
+   "level": "G",
+   "rect": [
+    172,
+    6,
+    191,
+    21
+   ],
+   "kind": "outdoor",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "Vans and lorries turn at the dead end of the lane",
+   "landmark": "the exchange gate and its floodlight"
+  },
+  {
+   "id": "a17f",
+   "name": "In front of bricked arch A17",
+   "level": "G",
+   "rect": [
+    172,
+    21,
+    182,
+    27
+   ],
+   "kind": "outdoor",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "Hardstanding in front of the railway-sealed arch",
+   "landmark": "the bricked infill set back in its reveal"
+  },
+  {
+   "id": "subf",
+   "name": "Substation forecourt",
+   "level": "G",
+   "rect": [
+    182,
+    21,
+    191,
+    26
+   ],
+   "kind": "outdoor",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "Access hardstanding for the electricity board and telco engineers",
+   "landmark": "palisade, transformer louvres, the bulkhead lamp"
+  },
+  {
+   "id": "swr",
+   "name": "Substation switch room",
+   "level": "G",
+   "rect": [
+    183,
+    26,
+    188,
+    31
+   ],
+   "kind": "main",
+   "wallH": 3,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "High-voltage switchgear for the exchange supply",
+   "landmark": "green switchgear panels"
+  },
+  {
+   "id": "lvr",
+   "name": "Substation LV room",
+   "level": "G",
+   "rect": [
+    183,
+    31,
+    191,
+    37.5
+   ],
+   "kind": "main",
+   "wallH": 3,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "415 V distribution board feeding the exchange cables; the pier door SD to the drum store",
+   "landmark": "the LV board, cable trays"
+  },
+  {
+   "id": "gh",
+   "name": "Gatehouse (context, Area 2)",
+   "level": "G",
+   "rect": [
+    192,
+    3,
+    198,
+    9
+   ],
+   "kind": "main",
+   "wallH": 2.7,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "The contractor gate man watches the lane for vans",
+   "landmark": "window onto the turning head"
+  },
+  {
+   "id": "jc1",
+   "name": "Jointing chamber JC1",
+   "level": "B",
+   "rect": [
+    12,
+    14,
+    17,
+    18.4
+   ],
+   "kind": "tunnel",
+   "wallH": 2.4,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "Tunnel cables split into the small street ducts under Viaduct Road",
+   "landmark": "duct mouths in the west wall, manhole M1 overhead"
+  },
+  {
+   "id": "tun",
+   "name": "Cable tunnel (west section)",
+   "level": "B",
+   "rect": [
+    17,
+    15,
+    131,
+    17.6
+   ],
+   "kind": "tunnel",
+   "wallH": 2.4,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "1934 route for the exchange cables to the city",
+   "landmark": "cable bearers both walls, unlit bulkheads"
+  },
+  {
+   "id": "jc2",
+   "name": "Joint bay JC2",
+   "level": "B",
+   "rect": [
+    131,
+    14.5,
+    137,
+    18.4
+   ],
+   "kind": "tunnel",
+   "wallH": 2.4,
+   "ch": [
+    1
+   ],
+   "floor": "concrete",
+   "purpose": "Tunnel cables are jointed to the 1962 duct bank cables",
+   "landmark": "joint cases, the duct bank wall, manhole M2 overhead"
+  },
+  {
+   "id": "r1",
+   "name": "Lean-to roofs A2 to A5",
+   "level": "U",
+   "rect": [
+    22,
+    21,
+    62,
+    26
+   ],
+   "kind": "roof",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "wood",
+   "purpose": "Felt roofs of the tenants fronts",
+   "landmark": "gutters, party upstands"
+  },
+  {
+   "id": "r2",
+   "name": "Lean-to roofs A7 to A12",
+   "level": "U",
+   "rect": [
+    72,
+    21,
+    132,
+    26
+   ],
+   "kind": "roof",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "wood",
+   "purpose": "Felt roofs of the tenants fronts",
+   "landmark": "gutters, party upstands"
+  },
+  {
+   "id": "r3",
+   "name": "Lean-to roofs A14 to A16",
+   "level": "U",
+   "rect": [
+    142,
+    21,
+    172,
+    26
+   ],
+   "kind": "roof",
+   "wallH": 0,
+   "ch": [
+    1
+   ],
+   "floor": "wood",
+   "purpose": "Felt roofs of the brewery fronts",
+   "landmark": "gutters, party upstands"
+  },
+  {
+   "id": "aroof",
+   "name": "A block roof (context, Area 2)",
+   "level": "R",
+   "rect": [
+    196,
+    -30,
+    232,
+    -12
+   ],
+   "kind": "roof",
+   "wallH": 1.1,
+   "ch": [
+    1
+   ],
+   "floor": "gravel",
+   "purpose": "The exchange roof; Pell sniper post",
+   "landmark": "parapet 1.1 m"
+  }
+ ],
+ "blocks": [
+  {
+   "id": "VIA-W",
+   "level": "G",
+   "rect": [
+    12,
+    26,
+    173,
+    38
+   ],
+   "h": 7.5,
+   "label": "Railway viaduct A1 to A16 (arches let as lock-ups, shutters closed)"
+  },
+  {
+   "id": "A17",
+   "level": "G",
+   "rect": [
+    173,
+    27,
+    181,
+    38
+   ],
+   "h": 7.5,
+   "label": "Arch A17 bricked infill, set 1 m back"
+  },
+  {
+   "id": "P18W",
+   "level": "G",
+   "rect": [
+    181,
+    26,
+    183,
+    38
+   ],
+   "h": 7.5,
+   "label": "Viaduct pier between A17 and A18"
+  },
+  {
+   "id": "P18E",
+   "level": "G",
+   "rect": [
+    191,
+    26,
+    193,
+    38
+   ],
+   "h": 7.5,
+   "label": "Viaduct pier between A18 and A19 (pier door SD cut through it in 1961)"
+  },
+  {
+   "id": "VIA-E",
+   "level": "G",
+   "rect": [
+    193,
+    26,
+    232,
+    38
+   ],
+   "h": 7.5,
+   "label": "Viaduct over the exchange arches A19 onwards (Area 2)"
+  },
+  {
+   "id": "XFMR",
+   "level": "G",
+   "rect": [
+    188.2,
+    26,
+    191,
+    31
+   ],
+   "h": 4.5,
+   "label": "Transformer room (louvred doors to the forecourt)"
+  },
+  {
+   "id": "LT2a",
+   "level": "G",
+   "rect": [
+    22,
+    21,
+    28,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A2 (tyre shop)"
+  },
+  {
+   "id": "LT2b",
+   "level": "G",
+   "rect": [
+    29.2,
+    21,
+    32,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A2 (tyre shop)"
+  },
+  {
+   "id": "LT2c",
+   "level": "G",
+   "rect": [
+    28,
+    22,
+    29.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A2 door recess back"
+  },
+  {
+   "id": "LT3a",
+   "level": "G",
+   "rect": [
+    32,
+    21,
+    38,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A3 (scrap dealer)"
+  },
+  {
+   "id": "LT3b",
+   "level": "G",
+   "rect": [
+    39.2,
+    21,
+    42,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A3 (scrap dealer)"
+  },
+  {
+   "id": "LT3c",
+   "level": "G",
+   "rect": [
+    38,
+    22,
+    39.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A3 door recess back"
+  },
+  {
+   "id": "LT4a",
+   "level": "G",
+   "rect": [
+    42,
+    21,
+    48,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A4 (cabinet maker)"
+  },
+  {
+   "id": "LT4b",
+   "level": "G",
+   "rect": [
+    49.2,
+    21,
+    52,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A4 (cabinet maker)"
+  },
+  {
+   "id": "LT4c",
+   "level": "G",
+   "rect": [
+    48,
+    22,
+    49.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A4 door recess back"
+  },
+  {
+   "id": "LT5a",
+   "level": "G",
+   "rect": [
+    52,
+    21,
+    58,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A5 (lock-up)"
+  },
+  {
+   "id": "LT5b",
+   "level": "G",
+   "rect": [
+    59.2,
+    21,
+    62,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A5 (lock-up)"
+  },
+  {
+   "id": "LT5c",
+   "level": "G",
+   "rect": [
+    58,
+    22,
+    59.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A5 door recess back"
+  },
+  {
+   "id": "LT7a",
+   "level": "G",
+   "rect": [
+    72,
+    21,
+    78,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A7 (car repairs workshop)"
+  },
+  {
+   "id": "LT7b",
+   "level": "G",
+   "rect": [
+    79.2,
+    21,
+    82,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A7 (car repairs workshop)"
+  },
+  {
+   "id": "LT7c",
+   "level": "G",
+   "rect": [
+    78,
+    22,
+    79.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A7 door recess back"
+  },
+  {
+   "id": "LT8a",
+   "level": "G",
+   "rect": [
+    82,
+    21,
+    88,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A8 (van hire)"
+  },
+  {
+   "id": "LT8b",
+   "level": "G",
+   "rect": [
+    89.2,
+    21,
+    92,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A8 (van hire)"
+  },
+  {
+   "id": "LT8c",
+   "level": "G",
+   "rect": [
+    88,
+    22,
+    89.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A8 door recess back"
+  },
+  {
+   "id": "LT9a",
+   "level": "G",
+   "rect": [
+    92,
+    21,
+    98,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A9 (lock-up)"
+  },
+  {
+   "id": "LT9b",
+   "level": "G",
+   "rect": [
+    99.2,
+    21,
+    102,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A9 (lock-up)"
+  },
+  {
+   "id": "LT9c",
+   "level": "G",
+   "rect": [
+    98,
+    22,
+    99.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A9 door recess back"
+  },
+  {
+   "id": "LT10a",
+   "level": "G",
+   "rect": [
+    102,
+    21,
+    108,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A10 (printers store)"
+  },
+  {
+   "id": "LT10b",
+   "level": "G",
+   "rect": [
+    109.2,
+    21,
+    112,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A10 (printers store)"
+  },
+  {
+   "id": "LT10c",
+   "level": "G",
+   "rect": [
+    108,
+    22,
+    109.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A10 door recess back"
+  },
+  {
+   "id": "LT11a",
+   "level": "G",
+   "rect": [
+    112,
+    21,
+    118,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A11 (lock-up)"
+  },
+  {
+   "id": "LT11b",
+   "level": "G",
+   "rect": [
+    119.2,
+    21,
+    122,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A11 (lock-up)"
+  },
+  {
+   "id": "LT11c",
+   "level": "G",
+   "rect": [
+    118,
+    22,
+    119.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A11 door recess back"
+  },
+  {
+   "id": "LT12a",
+   "level": "G",
+   "rect": [
+    122,
+    21,
+    128,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A12 (lock-up)"
+  },
+  {
+   "id": "LT12b",
+   "level": "G",
+   "rect": [
+    129.2,
+    21,
+    132,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A12 (lock-up)"
+  },
+  {
+   "id": "LT12c",
+   "level": "G",
+   "rect": [
+    128,
+    22,
+    129.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A12 door recess back"
+  },
+  {
+   "id": "LT14a",
+   "level": "G",
+   "rect": [
+    142,
+    21,
+    148,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A14 (brewery)"
+  },
+  {
+   "id": "LT14b",
+   "level": "G",
+   "rect": [
+    149.2,
+    21,
+    152,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A14 (brewery)"
+  },
+  {
+   "id": "LT14c",
+   "level": "G",
+   "rect": [
+    148,
+    22,
+    149.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A14 door recess back"
+  },
+  {
+   "id": "LT15a",
+   "level": "G",
+   "rect": [
+    152,
+    21,
+    158,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A15 (brewery)"
+  },
+  {
+   "id": "LT15b",
+   "level": "G",
+   "rect": [
+    159.2,
+    21,
+    162,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A15 (brewery)"
+  },
+  {
+   "id": "LT15c",
+   "level": "G",
+   "rect": [
+    158,
+    22,
+    159.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A15 door recess back"
+  },
+  {
+   "id": "LT16a",
+   "level": "G",
+   "rect": [
+    162,
+    21,
+    168,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A16 (brewery)"
+  },
+  {
+   "id": "LT16b",
+   "level": "G",
+   "rect": [
+    169.2,
+    21,
+    172,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A16 (brewery)"
+  },
+  {
+   "id": "LT16c",
+   "level": "G",
+   "rect": [
+    168,
+    22,
+    169.2,
+    26
+   ],
+   "h": 3,
+   "label": "Lean-to A16 door recess back"
+  },
+  {
+   "id": "SKIP",
+   "level": "G",
+   "rect": [
+    33,
+    19.4,
+    37,
+    21
+   ],
+   "h": 1.4,
+   "label": "Scrap dealer skip on the kerb"
+  },
+  {
+   "id": "CAR",
+   "level": "G",
+   "rect": [
+    29,
+    13.5,
+    31,
+    18.5
+   ],
+   "h": 1.5,
+   "label": "Contractor saloon parked across the lane mouth"
+  },
+  {
+   "id": "P1",
+   "level": "G",
+   "rect": [
+    51,
+    13.9,
+    55.5,
+    15.7
+   ],
+   "h": 1.5,
+   "label": "Parked car P1 (a Mill Street resident)"
+  },
+  {
+   "id": "P2",
+   "level": "G",
+   "rect": [
+    69,
+    13.9,
+    73.5,
+    15.7
+   ],
+   "h": 1.5,
+   "label": "Parked car P2 (a Mill Street resident)"
+  },
+  {
+   "id": "A6CA",
+   "level": "G",
+   "rect": [
+    62.8,
+    23.6,
+    66.8,
+    25.6
+   ],
+   "h": 1.5,
+   "label": "Car waiting for repair (A6 forecourt)"
+  },
+  {
+   "id": "A6CB",
+   "level": "G",
+   "rect": [
+    68.2,
+    22.6,
+    71.6,
+    24.6
+   ],
+   "h": 1.5,
+   "label": "Car waiting for repair (A6 forecourt)"
+  },
+  {
+   "id": "SB-BK",
+   "level": "G",
+   "rect": [
+    132,
+    25.4,
+    142,
+    26
+   ],
+   "h": 1.5,
+   "label": "Sand bay back wall (concrete blocks)"
+  },
+  {
+   "id": "SB-D1",
+   "level": "G",
+   "rect": [
+    134.85,
+    22,
+    135.15,
+    25.4
+   ],
+   "h": 1.5,
+   "label": "Sand bay divider"
+  },
+  {
+   "id": "SB-D2",
+   "level": "G",
+   "rect": [
+    138.35,
+    22,
+    138.65,
+    25.4
+   ],
+   "h": 1.5,
+   "label": "Sand bay divider"
+  },
+  {
+   "id": "PAL",
+   "level": "G",
+   "rect": [
+    140,
+    22.2,
+    141.2,
+    23.4
+   ],
+   "h": 1,
+   "label": "Pallet of bricks"
+  },
+  {
+   "id": "FP1",
+   "level": "G",
+   "rect": [
+    39,
+    12,
+    39.6,
+    12.4
+   ],
+   "h": 1.2,
+   "label": "Council street-lighting feeder pillar FP1"
+  },
+  {
+   "id": "PUB-W",
+   "level": "G",
+   "rect": [
+    12,
+    0,
+    16,
+    12
+   ],
+   "h": 7,
+   "label": "The Linesman pub (back)"
+  },
+  {
+   "id": "PUB-E",
+   "level": "G",
+   "rect": [
+    19,
+    0,
+    40,
+    12
+   ],
+   "h": 7,
+   "label": "The Linesman pub (back)"
+  },
+  {
+   "id": "PUB-BIN",
+   "level": "G",
+   "rect": [
+    16,
+    0,
+    19,
+    10.6
+   ],
+   "h": 7,
+   "label": "Back of the pub bin store"
+  },
+  {
+   "id": "PW1",
+   "level": "G",
+   "rect": [
+    40,
+    0,
+    45.4,
+    12
+   ],
+   "h": 11,
+   "label": "Hollowmere printing works (3 storeys, closed at night)"
+  },
+  {
+   "id": "PW2",
+   "level": "G",
+   "rect": [
+    46.8,
+    0,
+    59.4,
+    12
+   ],
+   "h": 11,
+   "label": "Hollowmere printing works (3 storeys, closed at night)"
+  },
+  {
+   "id": "PW3",
+   "level": "G",
+   "rect": [
+    60.8,
+    0,
+    77.4,
+    12
+   ],
+   "h": 11,
+   "label": "Hollowmere printing works (3 storeys, closed at night)"
+  },
+  {
+   "id": "PW4",
+   "level": "G",
+   "rect": [
+    78.8,
+    0,
+    84,
+    12
+   ],
+   "h": 11,
+   "label": "Hollowmere printing works (3 storeys, closed at night)"
+  },
+  {
+   "id": "PW5",
+   "level": "G",
+   "rect": [
+    96,
+    0,
+    101.4,
+    12
+   ],
+   "h": 11,
+   "label": "Hollowmere printing works (3 storeys, closed at night)"
+  },
+  {
+   "id": "PW6",
+   "level": "G",
+   "rect": [
+    102.8,
+    0,
+    110,
+    12
+   ],
+   "h": 11,
+   "label": "Hollowmere printing works (3 storeys, closed at night)"
+  },
+  {
+   "id": "FX1-BK",
+   "level": "G",
+   "rect": [
+    45.4,
+    0,
+    46.8,
+    11
+   ],
+   "h": 11,
+   "label": "Printworks fire exit FX1 (door set 1.0 m back)"
+  },
+  {
+   "id": "FX2-BK",
+   "level": "G",
+   "rect": [
+    59.4,
+    0,
+    60.8,
+    11
+   ],
+   "h": 11,
+   "label": "Printworks fire exit FX2 (door set 1.0 m back)"
+  },
+  {
+   "id": "FX3-BK",
+   "level": "G",
+   "rect": [
+    77.4,
+    0,
+    78.8,
+    11
+   ],
+   "h": 11,
+   "label": "Printworks fire exit FX3 (door set 1.0 m back)"
+  },
+  {
+   "id": "FX4-BK",
+   "level": "G",
+   "rect": [
+    101.4,
+    0,
+    102.8,
+    11
+   ],
+   "h": 11,
+   "label": "Printworks fire exit FX4 (door set 1.0 m back)"
+  },
+  {
+   "id": "PW-BAYBK",
+   "level": "G",
+   "rect": [
+    84,
+    0,
+    96,
+    4
+   ],
+   "h": 11,
+   "label": "Printworks dock door wall"
+  },
+  {
+   "id": "DOCK",
+   "level": "G",
+   "rect": [
+    84,
+    4,
+    96,
+    6.5
+   ],
+   "h": 1.1,
+   "label": "Loading dock, 1.1 m"
+  },
+  {
+   "id": "VAN",
+   "level": "G",
+   "rect": [
+    88.1,
+    7.6,
+    90.1,
+    11.1
+   ],
+   "h": 2.6,
+   "label": "Contractor van, cargo body (cab glazed, not a block)"
+  },
+  {
+   "id": "MS-H",
+   "level": "G",
+   "rect": [
+    110,
+    0,
+    170,
+    6
+   ],
+   "h": 8,
+   "label": "Mill Street houses (backs)"
+  },
+  {
+   "id": "MS-Y",
+   "level": "G",
+   "rect": [
+    110,
+    6,
+    170,
+    12
+   ],
+   "h": 2.4,
+   "label": "Mill Street back yards, walls 2.4 m with glass coping"
+  },
+  {
+   "id": "WH",
+   "level": "G",
+   "rect": [
+    170,
+    0,
+    191,
+    6
+   ],
+   "h": 8,
+   "label": "Wharf Supplies warehouse (blank wall)"
+  },
+  {
+   "id": "WH-C",
+   "level": "G",
+   "rect": [
+    170,
+    6,
+    172,
+    10.6
+   ],
+   "h": 8,
+   "label": "Wharf Supplies warehouse corner"
+  },
+  {
+   "id": "BW1",
+   "level": "G",
+   "rect": [
+    191,
+    0,
+    193,
+    3
+   ],
+   "h": 2.7,
+   "label": "Exchange boundary wall"
+  },
+  {
+   "id": "BW2",
+   "level": "G",
+   "rect": [
+    191,
+    9,
+    193,
+    11
+   ],
+   "h": 2.7,
+   "label": "Exchange boundary wall"
+  },
+  {
+   "id": "BW3",
+   "level": "G",
+   "rect": [
+    191,
+    17,
+    193,
+    26
+   ],
+   "h": 2.7,
+   "label": "Exchange boundary wall"
+  },
+  {
+   "id": "ABLK",
+   "level": "G",
+   "rect": [
+    196,
+    -30,
+    232,
+    -12
+   ],
+   "h": 12.6,
+   "label": "A block (1934 exchange; context for SN)"
+  },
+  {
+   "id": "BRG-S",
+   "level": "B",
+   "rect": [
+    17,
+    15,
+    131,
+    15.4
+   ],
+   "h": 2.1,
+   "label": "Cable bearers and cables, south wall"
+  },
+  {
+   "id": "BRG-N",
+   "level": "B",
+   "rect": [
+    17,
+    17.2,
+    131,
+    17.6
+   ],
+   "h": 2.1,
+   "label": "Cable bearers and cables, north wall"
+  },
+  {
+   "id": "RL8",
+   "level": "U",
+   "rect": [
+    82.3,
+    22.2,
+    91.7,
+    25.8
+   ],
+   "h": 0.3,
+   "label": "Lean-to A8 roof lights (translucent sheets in a 0.3 m upstand frame; not walkable)"
+  },
+  {
+   "id": "RL9",
+   "level": "U",
+   "rect": [
+    92.3,
+    22.2,
+    101.7,
+    25.8
+   ],
+   "h": 0.3,
+   "label": "Lean-to A9 roof lights (translucent sheets in a 0.3 m upstand frame; not walkable)"
+  }
+ ],
+ "openings": [
+  {
+   "id": "o-road",
+   "type": "open",
+   "level": "G",
+   "axis": "x",
+   "at": 12,
+   "c": 18.3,
+   "w": 15.4,
+   "from": "road",
+   "to": "lane",
+   "purpose": "Lane mouth off Viaduct Road"
+  },
+  {
+   "id": "o-bay",
+   "type": "open",
+   "level": "G",
+   "axis": "z",
+   "at": 10.6,
+   "c": 90,
+   "w": 12,
+   "from": "bay",
+   "to": "lane",
+   "purpose": "Loading bay mouth"
+  },
+  {
+   "id": "o-turn",
+   "type": "open",
+   "level": "G",
+   "axis": "x",
+   "at": 172,
+   "c": 15.8,
+   "w": 10.4,
+   "from": "lane",
+   "to": "turn",
+   "purpose": "Lane into the turning head"
+  },
+  {
+   "id": "o-a17l",
+   "type": "open",
+   "level": "G",
+   "axis": "x",
+   "at": 172,
+   "c": 23.5,
+   "w": 5,
+   "from": "lane",
+   "to": "a17f",
+   "purpose": "Lane to the A17 hardstanding"
+  },
+  {
+   "id": "o-a17t",
+   "type": "open",
+   "level": "G",
+   "axis": "z",
+   "at": 21,
+   "c": 177,
+   "w": 10,
+   "from": "turn",
+   "to": "a17f",
+   "purpose": "Turning head to the A17 hardstanding"
+  },
+  {
+   "id": "SG",
+   "type": "gate",
+   "level": "G",
+   "axis": "z",
+   "at": 21,
+   "c": 186.6,
+   "w": 1.8,
+   "from": "turn",
+   "to": "subf",
+   "purpose": "Substation palisade gate SG (padlocked, telco key: hold 3 s)"
+  },
+  {
+   "id": "SRD",
+   "type": "door2",
+   "level": "G",
+   "axis": "z",
+   "at": 26,
+   "c": 185.6,
+   "w": 1.8,
+   "from": "subf",
+   "to": "swr",
+   "purpose": "Switch room double doors (telco key)"
+  },
+  {
+   "id": "LVD",
+   "type": "door2",
+   "level": "G",
+   "axis": "z",
+   "at": 31,
+   "c": 185.5,
+   "w": 1.8,
+   "from": "swr",
+   "to": "lvr",
+   "purpose": "Double doors from the switch room to the LV room"
+  },
+  {
+   "id": "SD",
+   "type": "door1",
+   "level": "G",
+   "axis": "x",
+   "at": 191,
+   "c": 34.5,
+   "w": 1.2,
+   "from": "lvr",
+   "to": "A19 (Area 2)",
+   "purpose": "Pier door SD to the telco drum store A19 (telco key both sides)"
+  },
+  {
+   "id": "GHW",
+   "type": "window",
+   "level": "G",
+   "axis": "x",
+   "at": 192,
+   "c": 6.25,
+   "w": 2.5,
+   "from": "gh",
+   "to": "turn",
+   "purpose": "Gatehouse window onto the turning head"
+  },
+  {
+   "id": "o-jc1",
+   "type": "open",
+   "level": "B",
+   "axis": "x",
+   "at": 17,
+   "c": 16.3,
+   "w": 2.6,
+   "from": "jc1",
+   "to": "tun",
+   "purpose": "Jointing chamber into the tunnel"
+  },
+  {
+   "id": "o-jc2",
+   "type": "open",
+   "level": "B",
+   "axis": "x",
+   "at": 131,
+   "c": 16.3,
+   "w": 2.6,
+   "from": "tun",
+   "to": "jc2",
+   "purpose": "Tunnel into the joint bay"
+  }
+ ],
+ "links": [
+  {
+   "id": "M1",
+   "kind": "ladder",
+   "a": [
+    "G",
+    14.5,
+    16.2
+   ],
+   "b": [
+    "B",
+    14.5,
+    16.2
+   ],
+   "travel": 4.4,
+   "lock": {
+    "from": "both",
+    "how": "hold 4 s to lift the double telco cover (telco key)"
+   },
+   "note": "Manhole M1 over JC1: shaft 1.2 x 1.2, fixed ladder 4.4 m",
+   "snap": {
+    "a": [
+     "G",
+     14.25,
+     16.25
+    ],
+    "b": [
+     "B",
+     14.25,
+     16.25
+    ]
+   }
+  },
+  {
+   "id": "M2",
+   "kind": "ladder",
+   "a": [
+    "G",
+    134,
+    16.4
+   ],
+   "b": [
+    "B",
+    134,
+    16.4
+   ],
+   "travel": 4.4,
+   "lock": {
+    "from": "both",
+    "how": "hold 3 s to lift the cover"
+   },
+   "note": "Manhole M2 over JC2: shaft 1.2 x 1.2, fixed ladder 4.4 m",
+   "snap": {
+    "a": [
+     "G",
+     133.75,
+     16.25
+    ],
+    "b": [
+     "B",
+     133.75,
+     16.25
+    ]
+   }
+  },
+  {
+   "id": "DP2",
+   "kind": "pipe",
+   "a": [
+    "G",
+    23.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    23.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A2 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     23.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     23.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP3",
+   "kind": "pipe",
+   "a": [
+    "G",
+    33.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    33.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A3 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     32.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     33.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP4",
+   "kind": "pipe",
+   "a": [
+    "G",
+    43.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    43.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A4 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     43.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     43.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP5",
+   "kind": "pipe",
+   "a": [
+    "G",
+    53.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    53.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A5 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     53.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     53.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP7",
+   "kind": "pipe",
+   "a": [
+    "G",
+    73.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    73.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A7 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     73.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     73.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP8",
+   "kind": "pipe",
+   "a": [
+    "G",
+    83.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    83.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A8 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     83.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     83.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP9",
+   "kind": "pipe",
+   "a": [
+    "G",
+    93.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    93.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A9 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     93.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     93.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP10",
+   "kind": "pipe",
+   "a": [
+    "G",
+    103.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    103.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A10 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     103.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     103.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP11",
+   "kind": "pipe",
+   "a": [
+    "G",
+    113.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    113.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A11 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     113.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     113.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP12",
+   "kind": "pipe",
+   "a": [
+    "G",
+    123.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    123.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A12 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     123.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     123.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP14",
+   "kind": "pipe",
+   "a": [
+    "G",
+    143.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    143.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A14 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     143.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     143.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP15",
+   "kind": "pipe",
+   "a": [
+    "G",
+    153.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    153.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A15 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     153.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     153.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "DP16",
+   "kind": "pipe",
+   "a": [
+    "G",
+    163.3,
+    20.5
+   ],
+   "b": [
+    "U",
+    163.3,
+    21.6
+   ],
+   "travel": 3.3,
+   "note": "Cast-iron downpipe at the west end of lean-to A16 (climbable, 3.0 m)",
+   "snap": {
+    "a": [
+     "G",
+     163.25,
+     20.25
+    ],
+    "b": [
+     "U",
+     163.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "D-A2W",
+   "kind": "drop",
+   "oneway": true,
+   "a": [
+    "U",
+    22.4,
+    23.5
+   ],
+   "b": [
+    "G",
+    21.4,
+    23.5
+   ],
+   "travel": 1,
+   "note": "Drop off A2 west end (3 m)",
+   "snap": {
+    "a": [
+     "U",
+     22.75,
+     23.25
+    ],
+    "b": [
+     "G",
+     21.25,
+     23.25
+    ]
+   }
+  },
+  {
+   "id": "D-A5E",
+   "kind": "drop",
+   "oneway": true,
+   "a": [
+    "U",
+    61.6,
+    23
+   ],
+   "b": [
+    "G",
+    62.4,
+    22.4
+   ],
+   "travel": 1,
+   "note": "Drop off A5 east end into the A6 forecourt (3 m)",
+   "snap": {
+    "a": [
+     "U",
+     61.25,
+     22.75
+    ],
+    "b": [
+     "G",
+     62.75,
+     22.25
+    ]
+   }
+  },
+  {
+   "id": "D-A7W",
+   "kind": "drop",
+   "oneway": true,
+   "a": [
+    "U",
+    72.4,
+    22.5
+   ],
+   "b": [
+    "G",
+    71.7,
+    21.9
+   ],
+   "travel": 1,
+   "note": "Drop off A7 west end into the A6 forecourt (3 m)",
+   "snap": {
+    "a": [
+     "U",
+     72.75,
+     22.25
+    ],
+    "b": [
+     "G",
+     71.25,
+     21.75
+    ]
+   }
+  },
+  {
+   "id": "D-A12E",
+   "kind": "drop",
+   "oneway": true,
+   "a": [
+    "U",
+    131.6,
+    23.5
+   ],
+   "b": [
+    "G",
+    133,
+    23.5
+   ],
+   "travel": 1,
+   "note": "Drop off A12 east end into the sand bays (3 m)",
+   "snap": {
+    "a": [
+     "U",
+     131.25,
+     23.25
+    ],
+    "b": [
+     "G",
+     132.75,
+     23.25
+    ]
+   }
+  },
+  {
+   "id": "D-A14W",
+   "kind": "drop",
+   "oneway": true,
+   "a": [
+    "U",
+    142.4,
+    24
+   ],
+   "b": [
+    "G",
+    141.7,
+    24.5
+   ],
+   "travel": 1,
+   "note": "Drop off A14 west end into the sand bays (3 m)",
+   "snap": {
+    "a": [
+     "U",
+     142.75,
+     23.75
+    ],
+    "b": [
+     "G",
+     141.25,
+     24.25
+    ]
+   }
+  },
+  {
+   "id": "D-A16E",
+   "kind": "drop",
+   "oneway": true,
+   "a": [
+    "U",
+    171.6,
+    23.5
+   ],
+   "b": [
+    "G",
+    172.6,
+    23.5
+   ],
+   "travel": 1,
+   "note": "Drop off A16 east end in front of A17 (3 m)",
+   "snap": {
+    "a": [
+     "U",
+     171.25,
+     23.25
+    ],
+    "b": [
+     "G",
+     172.75,
+     23.25
+    ]
+   }
+  }
+ ],
+ "lamps": [
+  {
+   "id": "LA1",
+   "circuit": "CA1",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 22,
+   "z": 12.3,
+   "h": 5,
+   "r": 12,
+   "i": 1,
+   "shoot": true,
+   "space": "lane",
+   "note": "Sodium wall lantern on the pub wall at the lane mouth"
+  },
+  {
+   "id": "LA2",
+   "circuit": "CA1",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 52,
+   "z": 12.3,
+   "h": 5,
+   "r": 12,
+   "i": 1,
+   "shoot": true,
+   "space": "lane",
+   "note": "Sodium wall lantern on the printworks wall over fire exit FX1 to FX2"
+  },
+  {
+   "id": "LA8",
+   "circuit": "CA1",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 92,
+   "z": 19.6,
+   "h": 6,
+   "r": 12,
+   "i": 1,
+   "shoot": true,
+   "space": "lane",
+   "note": "Lamp column on the north kerb at A9"
+  },
+  {
+   "id": "LA3",
+   "circuit": "CA1",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 112.5,
+   "z": 12.8,
+   "h": 6,
+   "r": 12,
+   "i": 1,
+   "shoot": true,
+   "space": "lane",
+   "note": "Lamp column at the Mill Street yards"
+  },
+  {
+   "id": "LA5",
+   "circuit": "CA1",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 166,
+   "z": 19.6,
+   "h": 6,
+   "r": 12,
+   "i": 1,
+   "shoot": true,
+   "space": "lane",
+   "note": "Lamp column on the north kerb at A16"
+  },
+  {
+   "id": "LA4",
+   "circuit": "PW",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 90,
+   "z": 4.3,
+   "h": 4.5,
+   "r": 10,
+   "i": 1,
+   "shoot": false,
+   "space": "bay",
+   "note": "Printworks dock floodlight in a wire vandal cage (photocell)"
+  },
+  {
+   "id": "LA6",
+   "circuit": "CA2",
+   "level": "G",
+   "x": 185.5,
+   "z": 25.7,
+   "h": 2.6,
+   "r": 5,
+   "i": 1,
+   "shoot": true,
+   "space": "subf",
+   "note": "Bulkhead over the switch room door"
+  },
+  {
+   "id": "LA7",
+   "circuit": "CX",
+   "level": "G",
+   "also": [
+    "U"
+   ],
+   "x": 190.8,
+   "z": 18,
+   "h": 5,
+   "r": 12,
+   "i": 1,
+   "shoot": true,
+   "space": "turn",
+   "note": "Exchange gate floodlight on the gate pier"
+  }
+ ],
+ "circuits": [
+  {
+   "id": "CA1",
+   "name": "Council lane lamps",
+   "switch": {
+    "id": "FP1",
+    "level": "G",
+    "x": 39.3,
+    "z": 12.9,
+    "space": "lane",
+    "note": "Feeder pillar on the south pavement at the lane mouth; hold 3 s to pull the fuse"
+   },
+   "lamps": "LA1, LA2, LA8, LA3, LA5",
+   "reaction": {
+    "guards": "GA2",
+    "what": "GA1 radios it in (2 s); GA2 walks to FP1 at the investigate pace (walk speed x 1.2), finds the door open, resets the fuse (3 s hold) and the lamps come back on. Shot lamps stay out.",
+    "duration": "dark window measured in the validation (target about 25 s)"
+   }
+  },
+  {
+   "id": "PW",
+   "name": "Printworks dock floodlight",
+   "switch": null,
+   "lamps": "LA4",
+   "reaction": {
+    "guards": "-",
+    "what": "cannot be switched (supply inside the locked works) or shot (vandal cage)"
+   }
+  },
+  {
+   "id": "CA2",
+   "name": "Substation bulkhead",
+   "switch": {
+    "id": "SW-SUB",
+    "level": "G",
+    "x": 184.2,
+    "z": 26.5,
+    "space": "swr",
+    "note": "inside the switch room by the door"
+   },
+   "lamps": "LA6",
+   "reaction": {
+    "guards": "GA4",
+    "what": "a shot lamp: GA4 checks it 8 s"
+   }
+  },
+  {
+   "id": "CX",
+   "name": "Exchange gate floodlight",
+   "switch": {
+    "id": "SW-GATE",
+    "level": "G",
+    "x": 196,
+    "z": 8.5,
+    "space": "gh",
+    "note": "in the gatehouse (Area 2)"
+   },
+   "lamps": "LA7",
+   "reaction": {
+    "guards": "GA4, GB1",
+    "what": "a shot lamp: GB1 hears it, GA4 checks it 8 s"
+   }
+  }
+ ],
+ "panels": [],
+ "hides": [
+  {
+   "id": "H1",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    16,
+    10.6,
+    19,
+    12
+   ],
+   "h": 2.4,
+   "open": "N",
+   "body": true,
+   "enclosure": "Pub bin store, among the bins"
+  },
+  {
+   "id": "H2",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    45.4,
+    11,
+    46.8,
+    12
+   ],
+   "h": 2.1,
+   "open": "N",
+   "body": true,
+   "enclosure": "Printworks fire exit recess FX1"
+  },
+  {
+   "id": "H3",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    38,
+    21,
+    39.2,
+    22
+   ],
+   "h": 2.1,
+   "open": "S",
+   "body": true,
+   "enclosure": "Lean-to A3 door recess"
+  },
+  {
+   "id": "H4",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    59.4,
+    11,
+    60.8,
+    12
+   ],
+   "h": 2.1,
+   "open": "N",
+   "body": true,
+   "enclosure": "Printworks fire exit recess FX2"
+  },
+  {
+   "id": "H5",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    66.8,
+    23.6,
+    68.2,
+    25.6
+   ],
+   "h": 1.5,
+   "open": "S",
+   "body": true,
+   "enclosure": "Between the two cars in the A6 forecourt"
+  },
+  {
+   "id": "H6",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    77.4,
+    11,
+    78.8,
+    12
+   ],
+   "h": 2.1,
+   "open": "N",
+   "body": true,
+   "enclosure": "Printworks fire exit recess FX3"
+  },
+  {
+   "id": "H7",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    98,
+    21,
+    99.2,
+    22
+   ],
+   "h": 2.1,
+   "open": "S",
+   "body": true,
+   "enclosure": "Lean-to A9 door recess"
+  },
+  {
+   "id": "H8",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    118,
+    21,
+    119.2,
+    22
+   ],
+   "h": 2.1,
+   "open": "S",
+   "body": true,
+   "enclosure": "Lean-to A11 door recess"
+  },
+  {
+   "id": "H9",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    135.3,
+    22.4,
+    138.2,
+    25.3
+   ],
+   "h": 1.5,
+   "open": "S",
+   "body": true,
+   "enclosure": "Sand bay between the dividers"
+  },
+  {
+   "id": "H10",
+   "level": "G",
+   "space": "lane",
+   "rect": [
+    158,
+    21,
+    159.2,
+    22
+   ],
+   "h": 2.1,
+   "open": "S",
+   "body": true,
+   "enclosure": "Lean-to A15 door recess"
+  },
+  {
+   "id": "H11",
+   "level": "G",
+   "space": "a17f",
+   "rect": [
+    176.4,
+    26,
+    177.6,
+    27
+   ],
+   "h": 2.1,
+   "open": "S",
+   "body": true,
+   "enclosure": "A17 bricked arch reveal"
+  }
+ ],
+ "vantage": [
+  {
+   "id": "V0",
+   "level": "G",
+   "x": 10.5,
+   "z": 22.5,
+   "space": "road",
+   "dark": true,
+   "shows": [
+    "GA1"
+   ],
+   "note": "Under the bridge at the lane mouth: GA1 both stops, LA1, the car shadow, FP1, M1"
+  },
+  {
+   "id": "V1",
+   "level": "G",
+   "x": 46.25,
+   "z": 11.75,
+   "space": "lane",
+   "dark": true,
+   "shows": [
+    "GA2"
+   ],
+   "note": "FX1 recess: GA2 both stops"
+  },
+  {
+   "id": "V2",
+   "level": "U",
+   "x": 79,
+   "z": 24.5,
+   "space": "r2",
+   "dark": true,
+   "shows": [
+    "GA3"
+   ],
+   "note": "A7 roof: GA3 cab and rear stop, over the bay"
+  },
+  {
+   "id": "V3",
+   "level": "G",
+   "x": 136.75,
+   "z": 23.75,
+   "space": "lane",
+   "dark": true,
+   "shows": [
+    "GA4"
+   ],
+   "note": "Sand bay H9: the east lane and GA4 at P2"
+  },
+  {
+   "id": "V4",
+   "level": "G",
+   "x": 177,
+   "z": 26.5,
+   "space": "a17f",
+   "dark": true,
+   "shows": [
+    "GA4",
+    "GB1"
+   ],
+   "note": "A17 reveal: GA4 both stops, the gatehouse window, SG"
+  }
+ ],
+ "spawns": [
+  {
+   "id": "S1",
+   "x": 5,
+   "z": 29,
+   "first": "Under the railway bridge, dark: watch GA1 at the lane mouth"
+  },
+  {
+   "id": "S2",
+   "x": 7,
+   "z": 29,
+   "first": "Under the railway bridge, dark: watch GA1 at the lane mouth"
+  },
+  {
+   "id": "S3",
+   "x": 5,
+   "z": 31,
+   "first": "Under the railway bridge, dark: watch GA1 at the lane mouth"
+  },
+  {
+   "id": "S4",
+   "x": 7,
+   "z": 31,
+   "first": "Under the railway bridge, dark: watch GA1 at the lane mouth"
+  }
+ ],
+ "objectives": [],
+ "extraction": [
+  {
+   "id": "X1",
+   "name": "Area 1 exit: pier door SD to the drum store A19",
+   "level": "G",
+   "x": 189.5,
+   "z": 34.5,
+   "r": 1.5
+  }
+ ],
+ "guards": [
+  {
+   "id": "GA1",
+   "arch": "grunt",
+   "speed": 0.9,
+   "phase": 12.57,
+   "level": "G",
+   "role": "Lane mouth sentry with the car",
+   "post": "Car at the lane mouth and the A2 eaves",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 30,
+     "z": 19.25,
+     "d": 18,
+     "face": [
+      -0.89,
+      -0.45
+     ],
+     "what": "A: at the car north end, watching the Viaduct Road junction for a van turning in"
+    },
+    {
+     "x": 27,
+     "z": 20.25,
+     "d": 12.86,
+     "face": [
+      1,
+      0
+     ],
+     "what": "B: under the A2 eaves out of the rain, radio call to GA2 and a cigarette, facing down the lane"
+    }
+   ],
+   "why": "Holds the only road to the gate with the car; radio check with GA2 every cycle.",
+   "tells": [
+    "lighter flare and the radio call at B",
+    "the car creaks as he leans on it at A"
+   ],
+   "loop": 40,
+   "travel": 7.32
+  },
+  {
+   "id": "GA2",
+   "arch": "grunt",
+   "speed": 0.9,
+   "phase": 29.5,
+   "level": "G",
+   "role": "Lock-up row walker",
+   "post": "A5 door, printworks fire exit FX2, A6 forecourt",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 57,
+     "z": 19.75,
+     "d": 3.5,
+     "face": [
+      -1,
+      0
+     ],
+     "what": "W: at A5 door over the vent grating VG, radio reply, looking up the lane to GA1"
+    },
+    {
+     "x": 60.25,
+     "z": 13.75,
+     "d": 3.5,
+     "face": [
+      -1,
+      0
+     ],
+     "what": "S: tries printworks fire exit FX2, then looks west along the works wall"
+    },
+    {
+     "x": 64.5,
+     "z": 21.75,
+     "d": 3.98,
+     "face": [
+      0,
+      1
+     ],
+     "what": "E: A6 forecourt, checks the repairer cars and shutter"
+    }
+   ],
+   "why": "A5 was broken into last month: he tries the padlocks and answers GA1; the printworks lets the contractor park in its bay, so he also tries the works fire exits.",
+   "tells": [
+    "padlock rattle at A5",
+    "the fire exit bar rattles at FX2",
+    "his radio reply"
+   ],
+   "loop": 40,
+   "travel": 24.77
+  },
+  {
+   "id": "GA3",
+   "arch": "grunt",
+   "speed": 0.9,
+   "phase": 0,
+   "level": "G",
+   "role": "Contractor van driver",
+   "post": "Printworks bay, cab and rear doors",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 89.1,
+     "z": 12.25,
+     "d": 13,
+     "face": [
+      0,
+      1
+     ],
+     "what": "cab: seated, looking across the lane through the windscreen"
+    },
+    {
+     "x": 89.1,
+     "z": 7.1,
+     "d": 8.66,
+     "face": [
+      0,
+      -1
+     ],
+     "what": "rear: flask, checks the load, facing the dock"
+    }
+   ],
+   "why": "Waits in the dry for the midnight relief.",
+   "tells": [
+    "cab light and door slam each way",
+    "phone glow in the cab"
+   ],
+   "eye": {
+    "cab": 1.6
+   },
+   "loop": 40,
+   "travel": 15.61
+  },
+  {
+   "id": "GA4",
+   "arch": "grunt",
+   "speed": 0.9,
+   "phase": 0,
+   "level": "G",
+   "role": "Outer man at the turning head",
+   "post": "Substation palisade to the lane end",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 186.5,
+     "z": 18.5,
+     "d": 7,
+     "face": [
+      -0.71,
+      -0.71
+     ],
+     "what": "P1: beside the substation palisade in the warm air from the transformer louvres, watching the lane end and the gate"
+    },
+    {
+     "x": 175,
+     "z": 16.5,
+     "d": 4.49,
+     "face": [
+      -1,
+      0
+     ],
+     "what": "P2: lane end, looking down the lane for the relief van"
+    }
+   ],
+   "why": "Meets vans at the turning head and talks to the gate man.",
+   "tells": [
+    "radio chatter with GB1 at P1",
+    "boots on the wet setts"
+   ],
+   "loop": 40,
+   "travel": 24.76
+  },
+  {
+   "id": "GB1",
+   "arch": "grunt",
+   "speed": 0.9,
+   "phase": 0,
+   "level": "G",
+   "role": "Gate man (Area 2 guard; his window looks into Area 1)",
+   "post": "Gatehouse window",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 194.5,
+     "z": 6.25,
+     "d": 39.5,
+     "face": [
+      -1,
+      0
+     ],
+     "what": "at the desk, facing the window onto the turning head"
+    }
+   ],
+   "why": "Logs vans at the gate.",
+   "tells": [
+    "kettle and radio through the window"
+   ],
+   "loop": 40,
+   "travel": 0
+  },
+  {
+   "id": "SN",
+   "arch": "sniper",
+   "speed": 0.85,
+   "phase": 0,
+   "level": "R",
+   "role": "Sniper on A block roof (Area 2; context to measure his reach)",
+   "post": "A block north parapet (brief: about 212, -20)",
+   "ch": [
+    1
+   ],
+   "wps": [
+    {
+     "x": 212,
+     "z": -13,
+     "d": 8,
+     "face": [
+      -0.6,
+      0.8
+     ],
+     "what": "north parapet, facing the yard and the gate"
+    },
+    {
+     "x": 207,
+     "z": -13,
+     "d": 7.57,
+     "face": [
+      -0.8,
+      0.6
+     ],
+     "what": "north-west, facing the gate"
+    }
+   ],
+   "why": "Overwatch of the yard (Area 2).",
+   "tells": [
+    "scope glint"
+   ],
+   "loop": 30,
+   "travel": 11.41
+  }
+ ],
+ "routes": [
+  {
+   "id": "M",
+   "name": "Ground route (shadow, timing)",
+   "kind": "main",
+   "pts": [
+    {
+     "lv": "G",
+     "x": 6,
+     "z": 30,
+     "chapter": 1,
+     "label": "spawn"
+    },
+    {
+     "lv": "G",
+     "x": 10.5,
+     "z": 22.5,
+     "m": "walk",
+     "enc": "E1.1",
+     "label": "V0"
+    },
+    {
+     "lv": "G",
+     "x": 17.5,
+     "z": 13.6,
+     "m": "walk",
+     "label": "H1 bin store"
+    },
+    {
+     "lv": "G",
+     "x": 30,
+     "z": 12.75,
+     "m": "walk",
+     "enc": "E1.2",
+     "label": "past the car"
+    },
+    {
+     "lv": "G",
+     "x": 37,
+     "z": 13.5,
+     "m": "walk",
+     "label": "past FP1"
+    },
+    {
+     "lv": "G",
+     "x": 46.25,
+     "z": 13.5,
+     "m": "walk",
+     "label": "FX1 (K1)"
+    },
+    {
+     "lv": "G",
+     "x": 53,
+     "z": 13.25,
+     "m": "walk",
+     "label": "behind P1"
+    },
+    {
+     "lv": "G",
+     "x": 60.25,
+     "z": 13.5,
+     "m": "walk",
+     "enc": "E1.4",
+     "label": "FX2"
+    },
+    {
+     "lv": "G",
+     "x": 71,
+     "z": 13.25,
+     "m": "walk",
+     "label": "behind P2"
+    },
+    {
+     "lv": "G",
+     "x": 78.25,
+     "z": 14.75,
+     "m": "walk",
+     "label": "FX3"
+    },
+    {
+     "lv": "G",
+     "x": 83,
+     "z": 20.25,
+     "m": "walk",
+     "enc": "E1.5",
+     "label": "north strip at A8"
+    },
+    {
+     "lv": "G",
+     "x": 98.75,
+     "z": 20.25,
+     "m": "walk",
+     "label": "H7 A9 recess (K2)"
+    },
+    {
+     "lv": "G",
+     "x": 118.75,
+     "z": 20.25,
+     "m": "walk",
+     "label": "H8 A11 recess"
+    },
+    {
+     "lv": "G",
+     "x": 136.75,
+     "z": 21.75,
+     "m": "walk",
+     "enc": "E1.6",
+     "label": "H9 sand bay (K3)"
+    },
+    {
+     "lv": "G",
+     "x": 158.75,
+     "z": 20.25,
+     "m": "walk",
+     "enc": "E1.7",
+     "label": "H10 A15 recess"
+    },
+    {
+     "lv": "G",
+     "x": 177,
+     "z": 25.5,
+     "m": "walk",
+     "label": "H11 A17 reveal (V4)"
+    },
+    {
+     "lv": "G",
+     "x": 186.6,
+     "z": 20.25,
+     "m": "walk",
+     "hold": 3,
+     "enc": "E1.8",
+     "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 28.5,
+     "m": "walk",
+     "label": "switch room (K4)"
+    },
+    {
+     "lv": "G",
+     "x": 185.5,
+     "z": 33.25,
+     "m": "walk",
+     "label": "LV room"
+    },
+    {
+     "lv": "G",
+     "x": 189.5,
+     "z": 34.5,
+     "m": "walk",
+     "label": "SD (to Area 2)"
+    }
+   ]
+  },
+  {
+   "id": "UP",
+   "name": "Up route (downpipes and lean-to roofs; drops at the gaps)",
+   "kind": "alt",
+   "pts": [
+    {
+     "lv": "G",
+     "x": 6,
+     "z": 30,
+     "chapter": 1,
+     "label": "spawn"
+    },
+    {
+     "lv": "G",
+     "x": 10.5,
+     "z": 22.5,
+     "m": "walk",
+     "enc": "E1.1",
+     "label": "V0"
+    },
+    {
+     "lv": "U",
+     "x": 25,
+     "z": 23.5,
+     "m": "crawl",
+     "via": "DP2",
+     "enc": "E1.2",
+     "label": "up DP2 over GA1"
+    },
+    {
+     "lv": "U",
+     "x": 61,
+     "z": 23.5,
+     "m": "crawl",
+     "label": "A5 east end"
+    },
+    {
+     "lv": "G",
+     "x": 67.5,
+     "z": 22.75,
+     "m": "crawl",
+     "via": "D-A5E",
+     "enc": "E1.4",
+     "label": "A6 forecourt"
+    },
+    {
+     "lv": "U",
+     "x": 76,
+     "z": 23.5,
+     "m": "crawl",
+     "via": "DP7",
+     "label": "up DP7"
+    },
+    {
+     "lv": "U",
+     "x": 90,
+     "z": 21.6,
+     "m": "crawl",
+     "enc": "E1.5",
+     "label": "over the bay"
+    },
+    {
+     "lv": "U",
+     "x": 131,
+     "z": 23.5,
+     "m": "crawl",
+     "label": "A12 east end"
+    },
+    {
+     "lv": "G",
+     "x": 136.75,
+     "z": 21.75,
+     "m": "crawl",
+     "via": "D-A12E",
+     "enc": "E1.6",
+     "label": "H9 sand bay (K3)"
+    },
+    {
+     "lv": "U",
+     "x": 146,
+     "z": 23.5,
+     "m": "crawl",
+     "via": "DP14",
+     "enc": "E1.7",
+     "label": "up DP14"
+    },
+    {
+     "lv": "U",
+     "x": 171,
+     "z": 23.5,
+     "m": "crawl",
+     "label": "A16 east end"
+    },
+    {
+     "lv": "G",
+     "x": 177,
+     "z": 25.5,
+     "m": "crawl",
+     "via": "D-A16E",
+     "label": "H11 A17 reveal (V4)"
+    },
+    {
+     "lv": "G",
+     "x": 186.6,
+     "z": 20.25,
+     "m": "walk",
+     "hold": 3,
+     "enc": "E1.8",
+     "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 28.5,
+     "m": "walk",
+     "label": "switch room (K4)"
+    },
+    {
+     "lv": "G",
+     "x": 185.5,
+     "z": 33.25,
+     "m": "walk",
+     "label": "LV room"
+    },
+    {
+     "lv": "G",
+     "x": 189.5,
+     "z": 34.5,
+     "m": "walk",
+     "label": "SD (to Area 2)"
+    }
+   ]
+  },
+  {
+   "id": "UPQ",
+   "name": "Up route, climbing down the downpipes (quiet)",
+   "kind": "alt",
+   "pts": [
+    {
+     "lv": "G",
+     "x": 6,
+     "z": 30,
+     "chapter": 1,
+     "label": "spawn"
+    },
+    {
+     "lv": "G",
+     "x": 10.5,
+     "z": 22.5,
+     "m": "walk",
+     "enc": "E1.1",
+     "label": "V0"
+    },
+    {
+     "lv": "U",
+     "x": 25,
+     "z": 23.5,
+     "m": "crawl",
+     "via": "DP2",
+     "enc": "E1.2",
+     "label": "up DP2 over GA1"
+    },
+    {
+     "lv": "U",
+     "x": 55,
+     "z": 23.5,
+     "m": "crawl",
+     "label": "A5"
+    },
+    {
+     "lv": "G",
+     "x": 55,
+     "z": 20.25,
+     "m": "crawl",
+     "via": "DP5",
+     "enc": "E1.4",
+     "label": "down DP5"
+    },
+    {
+     "lv": "G",
+     "x": 67.5,
+     "z": 22.75,
+     "m": "crawl",
+     "label": "A6 forecourt"
+    },
+    {
+     "lv": "U",
+     "x": 76,
+     "z": 23.5,
+     "m": "crawl",
+     "via": "DP7",
+     "label": "up DP7"
+    },
+    {
+     "lv": "U",
+     "x": 90,
+     "z": 21.6,
+     "m": "crawl",
+     "enc": "E1.5",
+     "label": "over the bay"
+    },
+    {
+     "lv": "U",
+     "x": 125,
+     "z": 23.5,
+     "m": "crawl",
+     "label": "A12"
+    },
+    {
+     "lv": "G",
+     "x": 125,
+     "z": 20.25,
+     "m": "crawl",
+     "via": "DP12",
+     "label": "down DP12"
+    },
+    {
+     "lv": "G",
+     "x": 136.75,
+     "z": 21.75,
+     "m": "crawl",
+     "enc": "E1.6",
+     "label": "H9 sand bay (K3)"
+    },
+    {
+     "lv": "U",
+     "x": 146,
+     "z": 23.5,
+     "m": "crawl",
+     "via": "DP14",
+     "enc": "E1.7",
+     "label": "up DP14"
+    },
+    {
+     "lv": "U",
+     "x": 165,
+     "z": 23.5,
+     "m": "crawl",
+     "label": "A16"
+    },
+    {
+     "lv": "G",
+     "x": 165,
+     "z": 20.25,
+     "m": "crawl",
+     "via": "DP16",
+     "label": "down DP16"
+    },
+    {
+     "lv": "G",
+     "x": 177,
+     "z": 25.5,
+     "m": "crawl",
+     "label": "H11 A17 reveal (V4)"
+    },
+    {
+     "lv": "G",
+     "x": 186.6,
+     "z": 20.25,
+     "m": "walk",
+     "hold": 3,
+     "enc": "E1.8",
+     "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 28.5,
+     "m": "walk",
+     "label": "switch room (K4)"
+    },
+    {
+     "lv": "G",
+     "x": 185.5,
+     "z": 33.25,
+     "m": "walk",
+     "label": "LV room"
+    },
+    {
+     "lv": "G",
+     "x": 189.5,
+     "z": 34.5,
+     "m": "walk",
+     "label": "SD (to Area 2)"
+    }
+   ]
+  },
+  {
+   "id": "BELOW",
+   "name": "Below route (cable tunnel M1 to M2)",
+   "kind": "alt",
+   "pts": [
+    {
+     "lv": "G",
+     "x": 6,
+     "z": 30,
+     "chapter": 1,
+     "label": "spawn"
+    },
+    {
+     "lv": "G",
+     "x": 10.5,
+     "z": 22.5,
+     "m": "walk",
+     "enc": "E1.1",
+     "label": "V0"
+    },
+    {
+     "lv": "G",
+     "x": 14.5,
+     "z": 16.75,
+     "m": "walk",
+     "hold": 4,
+     "enc": "E1.2",
+     "label": "lift M1"
+    },
+    {
+     "lv": "B",
+     "x": 20,
+     "z": 16.3,
+     "m": "crawl",
+     "via": "M1",
+     "label": "tunnel"
+    },
+    {
+     "lv": "B",
+     "x": 57,
+     "z": 16.3,
+     "m": "crawl",
+     "enc": "E1.4",
+     "label": "under the vent grating VG"
+    },
+    {
+     "lv": "B",
+     "x": 133.5,
+     "z": 16.4,
+     "m": "crawl",
+     "hold": 3,
+     "label": "lift M2 from below"
+    },
+    {
+     "lv": "G",
+     "x": 134.5,
+     "z": 18,
+     "m": "walk",
+     "via": "M2",
+     "enc": "E1.6",
+     "label": "out at M2"
+    },
+    {
+     "lv": "G",
+     "x": 158.75,
+     "z": 20.25,
+     "m": "walk",
+     "enc": "E1.7",
+     "label": "H10 A15 recess"
+    },
+    {
+     "lv": "G",
+     "x": 177,
+     "z": 25.5,
+     "m": "walk",
+     "label": "H11 A17 reveal (V4)"
+    },
+    {
+     "lv": "G",
+     "x": 186.6,
+     "z": 20.25,
+     "m": "walk",
+     "hold": 3,
+     "enc": "E1.8",
+     "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 28.5,
+     "m": "walk",
+     "label": "switch room (K4)"
+    },
+    {
+     "lv": "G",
+     "x": 185.5,
+     "z": 33.25,
+     "m": "walk",
+     "label": "LV room"
+    },
+    {
+     "lv": "G",
+     "x": 189.5,
+     "z": 34.5,
+     "m": "walk",
+     "label": "SD (to Area 2)"
+    }
+   ]
+  },
+  {
+   "id": "FP1",
+   "name": "Lane mouth with the lamps out (FP1 detour)",
+   "kind": "alt",
+   "pts": [
+    {
+     "lv": "G",
+     "x": 6,
+     "z": 30,
+     "chapter": 1,
+     "label": "spawn"
+    },
+    {
+     "lv": "G",
+     "x": 10.5,
+     "z": 22.5,
+     "m": "walk",
+     "enc": "E1.1",
+     "label": "V0"
+    },
+    {
+     "lv": "G",
+     "x": 17.5,
+     "z": 13.6,
+     "m": "walk",
+     "label": "H1 bin store"
+    },
+    {
+     "lv": "G",
+     "x": 30,
+     "z": 12.75,
+     "m": "walk",
+     "enc": "E1.2",
+     "label": "past the car"
+    },
+    {
+     "lv": "G",
+     "x": 37,
+     "z": 13.5,
+     "m": "walk",
+     "label": "past FP1"
+    },
+    {
+     "lv": "G",
+     "x": 39.3,
+     "z": 13.25,
+     "m": "walk",
+     "hold": 3,
+     "enc": "E1.3",
+     "label": "FP1: pull the fuse"
+    },
+    {
+     "lv": "G",
+     "x": 46.25,
+     "z": 13.5,
+     "m": "walk",
+     "label": "FX1 (K1)"
+    },
+    {
+     "lv": "G",
+     "x": 53,
+     "z": 13.25,
+     "m": "walk",
+     "label": "behind P1"
+    },
+    {
+     "lv": "G",
+     "x": 60.25,
+     "z": 13.5,
+     "m": "walk",
+     "enc": "E1.4",
+     "label": "FX2"
+    },
+    {
+     "lv": "G",
+     "x": 71,
+     "z": 13.25,
+     "m": "walk",
+     "label": "behind P2"
+    },
+    {
+     "lv": "G",
+     "x": 78.25,
+     "z": 14.75,
+     "m": "walk",
+     "label": "FX3"
+    },
+    {
+     "lv": "G",
+     "x": 83,
+     "z": 20.25,
+     "m": "walk",
+     "enc": "E1.5",
+     "label": "north strip at A8"
+    },
+    {
+     "lv": "G",
+     "x": 98.75,
+     "z": 20.25,
+     "m": "walk",
+     "label": "H7 A9 recess (K2)"
+    },
+    {
+     "lv": "G",
+     "x": 118.75,
+     "z": 20.25,
+     "m": "walk",
+     "label": "H8 A11 recess"
+    },
+    {
+     "lv": "G",
+     "x": 136.75,
+     "z": 21.75,
+     "m": "walk",
+     "enc": "E1.6",
+     "label": "H9 sand bay (K3)"
+    },
+    {
+     "lv": "G",
+     "x": 158.75,
+     "z": 20.25,
+     "m": "walk",
+     "enc": "E1.7",
+     "label": "H10 A15 recess"
+    },
+    {
+     "lv": "G",
+     "x": 177,
+     "z": 25.5,
+     "m": "walk",
+     "label": "H11 A17 reveal (V4)"
+    },
+    {
+     "lv": "G",
+     "x": 186.6,
+     "z": 20.25,
+     "m": "walk",
+     "hold": 3,
+     "enc": "E1.8",
+     "label": "SG padlock"
+    },
+    {
+     "lv": "G",
+     "x": 185.6,
+     "z": 28.5,
+     "m": "walk",
+     "label": "switch room (K4)"
+    },
+    {
+     "lv": "G",
+     "x": 185.5,
+     "z": 33.25,
+     "m": "walk",
+     "label": "LV room"
+    },
+    {
+     "lv": "G",
+     "x": 189.5,
+     "z": 34.5,
+     "m": "walk",
+     "label": "SD (to Area 2)"
+    }
+   ]
+  }
+ ],
+ "encounters": [
+  {
+   "id": "E1.1",
+   "ch": 1,
+   "level": "G",
+   "x": 10.5,
+   "z": 22.5,
+   "name": "Start vantage V0: watch GA1 for one cycle",
+   "kind": "watch",
+   "main": true
+  },
+  {
+   "id": "E1.2",
+   "ch": 1,
+   "level": "G",
+   "x": 30,
+   "z": 16,
+   "name": "Lane mouth: GA1 and the car",
+   "kind": "guard",
+   "main": true,
+   "span": [
+    12,
+    46
+   ]
+  },
+  {
+   "id": "E1.3",
+   "ch": 1,
+   "level": "G",
+   "x": 39.3,
+   "z": 12.6,
+   "name": "Feeder pillar FP1: lane lamps off (GA2 resets it)",
+   "kind": "light",
+   "main": false
+  },
+  {
+   "id": "E1.4",
+   "ch": 1,
+   "level": "G",
+   "x": 62,
+   "z": 18,
+   "name": "Lock-up row: GA2; vent grating VG over the tunnel",
+   "kind": "guard",
+   "main": true,
+   "span": [
+    46,
+    82
+   ]
+  },
+  {
+   "id": "E1.5",
+   "ch": 1,
+   "level": "G",
+   "x": 89,
+   "z": 14,
+   "name": "Printworks bay: GA3, the van and the caged floodlight",
+   "kind": "guard",
+   "main": true,
+   "span": [
+    82,
+    100
+   ]
+  },
+  {
+   "id": "E1.6",
+   "ch": 1,
+   "level": "G",
+   "x": 136.75,
+   "z": 23.75,
+   "name": "A13 sand bays: the layers meet, M2, the choice for the east lane",
+   "kind": "fork",
+   "main": true,
+   "span": [
+    128,
+    142
+   ]
+  },
+  {
+   "id": "E1.7",
+   "ch": 1,
+   "level": "G",
+   "x": 155,
+   "z": 17,
+   "name": "East lane under GA4 at P2 (looking down the lane) and LA5",
+   "kind": "guard",
+   "main": true,
+   "span": [
+    142,
+    172
+   ]
+  },
+  {
+   "id": "E1.8",
+   "ch": 1,
+   "level": "G",
+   "x": 183,
+   "z": 15,
+   "name": "Turning head: GA4, the gatehouse window, LA6 and LA7, gate SG",
+   "kind": "guard",
+   "main": true,
+   "span": [
+    172,
+    191
+   ]
+  }
+ ],
+ "toys": [
+  {
+   "id": "T1",
+   "ch": [
+    1
+   ],
+   "name": "Lean-to roof walk (downpipes up, drop or downpipe down)",
+   "status": "TODAY geometry",
+   "item": "links DP*, D-*",
+   "gives": "passes over E1.2, E1.5",
+   "costs": "crouched pace; gaps at A6 and A13 force a descent; exposure measured"
+  },
+  {
+   "id": "T2",
+   "ch": [
+    1
+   ],
+   "name": "Cable tunnel M1 to M2",
+   "status": "TODAY geometry (hold NEW)",
+   "item": "links M1, M2",
+   "gives": "passes E1.2 to E1.5 unseen",
+   "costs": "holds 4 s and 3 s, blind exit, the vent grating, no rota card"
+  },
+  {
+   "id": "T3",
+   "ch": [
+    1
+   ],
+   "name": "Feeder pillar FP1 (lane lamps CA1)",
+   "status": "NEW-small (switch)",
+   "item": "circuit CA1",
+   "gives": "dark lane for the measured window",
+   "costs": "GA2 walks to it and resets it"
+  },
+  {
+   "id": "T4",
+   "ch": [
+    1
+   ],
+   "name": "Lamps to shoot (LA1, LA2, LA3, LA5, LA6, LA7)",
+   "status": "TODAY",
+   "item": "lamps",
+   "gives": "a dark pool",
+   "costs": "glass noise, a guard checks 8 s"
+  },
+  {
+   "id": "T5",
+   "ch": [
+    1
+   ],
+   "name": "Hide spots and body hides (skip, van, cars, recesses)",
+   "status": "TODAY",
+   "item": "hides",
+   "gives": "safety",
+   "costs": "bodies found by radio checks"
+  },
+  {
+   "id": "T6",
+   "ch": [
+    1
+   ],
+   "name": "Van cab rota card (Area 2 intel)",
+   "status": "NEW-small (hold 2 s)",
+   "item": "GA3 van",
+   "gives": "the gate man break time and the card box location",
+   "costs": "2 s at the passenger door in the bay mouth"
+  }
+ ],
+ "locks": [
+  {
+   "id": "SG",
+   "type": "opening",
+   "where": "turning head to the substation forecourt (186.6, 21)",
+   "opens": "hold 3 s, telco key",
+   "gate": "out of Area 1"
+  },
+  {
+   "id": "M1",
+   "type": "link",
+   "where": "lane mouth (14.5, 16.2)",
+   "opens": "hold 4 s, telco key, either side",
+   "gate": "below route"
+  },
+  {
+   "id": "M2",
+   "type": "link",
+   "where": "by A13 (134, 16.4)",
+   "opens": "hold 3 s, either side",
+   "gate": "below route"
+  },
+  {
+   "id": "SD",
+   "type": "opening",
+   "where": "LV room east wall (191, 34.5)",
+   "opens": "telco key",
+   "gate": "into Area 2"
+  }
+ ],
+ "coop": [],
+ "regroup": [
+  {
+   "id": "RG1",
+   "name": "Substation switch room (K4)",
+   "level": "G",
+   "x": 185.6,
+   "z": 28.5,
+   "why": "all routes rejoin here"
+  }
+ ],
+ "acoustic": [
+  {
+   "id": "VG",
+   "level": "B",
+   "rect": [
+    55.5,
+    15,
+    58.5,
+    17.6
+   ],
+   "emit": [
+    "G",
+    57,
+    19.75
+   ],
+   "note": "Cable tunnel ventilation grating VG (1.0 x 0.6) in the north kerb under GA2 west stop, on a short vent shaft to the tunnel crown at x 57: noise made under it comes out at the grating, unmuffled"
+  }
+ ],
+ "checkpoints": [
+  {
+   "id": "K0",
+   "level": "G",
+   "x": 6,
+   "z": 30,
+   "note": "start"
+  },
+  {
+   "id": "K1",
+   "level": "G",
+   "x": 46.25,
+   "z": 11.75,
+   "note": "FX1 after the lane mouth"
+  },
+  {
+   "id": "K2",
+   "level": "G",
+   "x": 98.75,
+   "z": 21.25,
+   "note": "A9 recess after the bay"
+  },
+  {
+   "id": "K3",
+   "level": "G",
+   "x": 136.75,
+   "z": 23.75,
+   "note": "A13 sand bays"
+  },
+  {
+   "id": "K4",
+   "level": "G",
+   "x": 185.6,
+   "z": 28.5,
+   "note": "substation switch room"
+  }
+ ],
+ "register": [
+  {
+   "id": "GROUND",
+   "element": "Ground slab over the tunnel",
+   "reason": "The tunnel is 2.0 m below the lane surface (1934 cut-and-cover box)",
+   "use": "Sight and noise between the tunnel and the lane",
+   "rule": "16.7.1"
+  },
+  {
+   "id": "BRIDGE",
+   "element": "Railway bridge deck over Viaduct Road, +6.5",
+   "reason": "The railway crosses the road on a girder bridge",
+   "use": "Dark drop-off under it",
+   "rule": "16.0"
+  },
+  {
+   "id": "A18CEIL",
+   "element": "Ceiling of the substation rooms, 3.0",
+   "reason": "Rooms built inside the arch vault",
+   "use": "Encloses the switch room and LV room",
+   "rule": "16.5.1"
+  },
+  {
+   "id": "GHROOF",
+   "element": "Gatehouse flat roof, 2.7",
+   "reason": "Single-storey 1962 gatehouse",
+   "use": "Encloses GB1",
+   "rule": "16.5.1"
+  },
+  {
+   "id": "road",
+   "element": "Viaduct Road under the railway bridge",
+   "reason": "Viaduct Road passes under the railway; public road",
+   "use": "Public road; the van drops the team in the dark under the bridge",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "lane",
+   "element": "Cable Lane",
+   "reason": "Cable Lane: 1930s service lane along the viaduct to the exchange gate",
+   "use": "Service lane along the viaduct, the only road to the exchange gate",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "bay",
+   "element": "Printworks loading bay",
+   "reason": "The printworks loading bay off the lane",
+   "use": "Paper reels and print leave by lorry from the dock",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "turn",
+   "element": "Turning head",
+   "reason": "A dead-end lane needs a turning head for vans and lorries",
+   "use": "Vans and lorries turn at the dead end of the lane",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "a17f",
+   "element": "In front of bricked arch A17",
+   "reason": "Hardstanding in front of the railway-sealed arch A17",
+   "use": "Hardstanding in front of the railway-sealed arch",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "subf",
+   "element": "Substation forecourt",
+   "reason": "Substation access hardstanding, fenced as HV equipment must be",
+   "use": "Access hardstanding for the electricity board and telco engineers",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "swr",
+   "element": "Substation switch room",
+   "reason": "1961 HV switch room for the exchange supply",
+   "use": "High-voltage switchgear for the exchange supply",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "lvr",
+   "element": "Substation LV room",
+   "reason": "415 V distribution board room behind the switch room",
+   "use": "415 V distribution board feeding the exchange cables; the pier door SD to the drum store",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "gh",
+   "element": "Gatehouse (context, Area 2)",
+   "reason": "The exchange gatehouse at the vehicle gate (Area 2 context)",
+   "use": "The contractor gate man watches the lane for vans",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "jc1",
+   "element": "Jointing chamber JC1",
+   "reason": "Jointing chamber where tunnel cables split into street ducts",
+   "use": "Tunnel cables split into the small street ducts under Viaduct Road",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "tun",
+   "element": "Cable tunnel (west section)",
+   "reason": "1934 cable tunnel under the lane",
+   "use": "1934 route for the exchange cables to the city",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "jc2",
+   "element": "Joint bay JC2",
+   "reason": "Joint bay at the 1962 duct bank",
+   "use": "Tunnel cables are jointed to the 1962 duct bank cables",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "r1",
+   "element": "Lean-to roofs A2 to A5",
+   "reason": "Tenants lean-to roofs",
+   "use": "Felt roofs of the tenants fronts",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "r2",
+   "element": "Lean-to roofs A7 to A12",
+   "reason": "Tenants lean-to roofs",
+   "use": "Felt roofs of the tenants fronts",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "r3",
+   "element": "Lean-to roofs A14 to A16",
+   "reason": "Brewery lean-to roofs",
+   "use": "Felt roofs of the brewery fronts",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "aroof",
+   "element": "A block roof (context, Area 2)",
+   "reason": "A block roof (Area 2 context)",
+   "use": "The exchange roof; Pell sniper post",
+   "rule": "16.6.2"
+  },
+  {
+   "id": "VIA-W",
+   "element": "Railway viaduct A1 to A16 (arches let as lock-ups, shutters closed)",
+   "reason": "The railway crosses Kestrel on brick arches (1870s)",
+   "use": "North wall of the lane; landmark",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "A17",
+   "element": "Arch A17 bricked infill, set 1 m back",
+   "reason": "Sealed by the railway after a fire; infill built inside the reveal",
+   "use": "Recess H11 and vantage V4",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "P18W",
+   "element": "Viaduct pier between A17 and A18",
+   "reason": "Structure of the viaduct",
+   "use": "West wall of the substation",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "P18E",
+   "element": "Viaduct pier between A18 and A19 (pier door SD cut through it in 1961)",
+   "reason": "Structure of the viaduct",
+   "use": "East wall of the LV room",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "VIA-E",
+   "element": "Viaduct over the exchange arches A19 onwards (Area 2)",
+   "reason": "The railway continues east",
+   "use": "Context",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "XFMR",
+   "element": "Transformer room (louvred doors to the forecourt)",
+   "reason": "11 kV to 415 V transformer for the exchange, ventilated by louvres",
+   "use": "Hum; cover at H12",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT2a",
+   "element": "Lean-to A2 (tyre shop), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT2b",
+   "element": "Lean-to A2 (tyre shop), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT2c",
+   "element": "Lean-to A2 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV2",
+   "element": "Lean-to A2 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT3a",
+   "element": "Lean-to A3 (scrap dealer), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT3b",
+   "element": "Lean-to A3 (scrap dealer), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT3c",
+   "element": "Lean-to A3 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV3",
+   "element": "Lean-to A3 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT4a",
+   "element": "Lean-to A4 (cabinet maker), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT4b",
+   "element": "Lean-to A4 (cabinet maker), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT4c",
+   "element": "Lean-to A4 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV4",
+   "element": "Lean-to A4 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT5a",
+   "element": "Lean-to A5 (lock-up), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT5b",
+   "element": "Lean-to A5 (lock-up), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT5c",
+   "element": "Lean-to A5 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV5",
+   "element": "Lean-to A5 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT7a",
+   "element": "Lean-to A7 (car repairs workshop), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT7b",
+   "element": "Lean-to A7 (car repairs workshop), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT7c",
+   "element": "Lean-to A7 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV7",
+   "element": "Lean-to A7 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT8a",
+   "element": "Lean-to A8 (van hire), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT8b",
+   "element": "Lean-to A8 (van hire), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT8c",
+   "element": "Lean-to A8 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV8",
+   "element": "Lean-to A8 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT9a",
+   "element": "Lean-to A9 (lock-up), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT9b",
+   "element": "Lean-to A9 (lock-up), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT9c",
+   "element": "Lean-to A9 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV9",
+   "element": "Lean-to A9 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT10a",
+   "element": "Lean-to A10 (printers store), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT10b",
+   "element": "Lean-to A10 (printers store), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT10c",
+   "element": "Lean-to A10 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV10",
+   "element": "Lean-to A10 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT11a",
+   "element": "Lean-to A11 (lock-up), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT11b",
+   "element": "Lean-to A11 (lock-up), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT11c",
+   "element": "Lean-to A11 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV11",
+   "element": "Lean-to A11 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT12a",
+   "element": "Lean-to A12 (lock-up), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT12b",
+   "element": "Lean-to A12 (lock-up), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT12c",
+   "element": "Lean-to A12 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV12",
+   "element": "Lean-to A12 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT14a",
+   "element": "Lean-to A14 (brewery), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT14b",
+   "element": "Lean-to A14 (brewery), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT14c",
+   "element": "Lean-to A14 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV14",
+   "element": "Lean-to A14 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT15a",
+   "element": "Lean-to A15 (brewery), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT15b",
+   "element": "Lean-to A15 (brewery), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT15c",
+   "element": "Lean-to A15 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV15",
+   "element": "Lean-to A15 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "LT16a",
+   "element": "Lean-to A16 (brewery), west of its door",
+   "reason": "Tenants built single-storey fronts for floor space and a shop door",
+   "use": "Body under the roof walk; front wall",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT16b",
+   "element": "Lean-to A16 (brewery), east of its door",
+   "reason": "As above",
+   "use": "As above",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "LT16c",
+   "element": "Lean-to A16 door, set 1.0 m back",
+   "reason": "Shop doorway recessed off the lane",
+   "use": "Hide spot depth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "EAV16",
+   "element": "Lean-to A16 eaves, 0.6 m overhang at 3.0",
+   "reason": "Felt roofs overhang the front wall to throw rain clear",
+   "use": "Shelter for GA1 (A2); tested for shading",
+   "rule": "16.0"
+  },
+  {
+   "id": "SKIP",
+   "element": "Scrap dealer skip on the kerb",
+   "reason": "Skips stand in the road under a council permit",
+   "use": "Cover; body hide for GA1",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "CAR",
+   "element": "Contractor saloon parked across the lane mouth",
+   "reason": "Blocks any vehicle: the lane is the only road to the gate",
+   "use": "GA1 post; casts LA1 shadow west",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "P1",
+   "element": "Parked car P1 (a Mill Street resident)",
+   "reason": "Residents park in the lane overnight",
+   "use": "Stepping-stone cover",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "P2",
+   "element": "Parked car P2 (a Mill Street resident)",
+   "reason": "As P1",
+   "use": "Stepping-stone cover",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "A6CA",
+   "element": "Car waiting for repair (A6 forecourt)",
+   "reason": "The repairer drives cars straight into the arch; a lean-to would block it",
+   "use": "Cover; H5",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "A6CB",
+   "element": "Car waiting for repair (A6 forecourt)",
+   "reason": "As A6CA",
+   "use": "Cover; H5",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "SB-BK",
+   "element": "Sand bay back wall (concrete blocks)",
+   "reason": "Builders merchant keeps loose sand in open bays, loaded by loader from the lane",
+   "use": "Cover",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "SB-D1",
+   "element": "Sand bay divider",
+   "reason": "Separates sand from gravel",
+   "use": "Cover; H9",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "SB-D2",
+   "element": "Sand bay divider",
+   "reason": "Separates gravel from ballast",
+   "use": "Cover; H9",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PAL",
+   "element": "Pallet of bricks",
+   "reason": "Merchant stock waiting for collection",
+   "use": "Low cover",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "FP1",
+   "element": "Council street-lighting feeder pillar FP1",
+   "reason": "Street lighting is fed from a pillar at the back of the footway at the lane end (photocell and fuses)",
+   "use": "Switch for circuit CA1",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "PUB-W",
+   "element": "The Linesman pub (back)",
+   "reason": "Pub named for the telephone linesmen; back wall on the lane",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PUB-E",
+   "element": "The Linesman pub (back)",
+   "reason": "As above",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PUB-BIN",
+   "element": "Back of the pub bin store",
+   "reason": "Commercial bins kept in a brick enclosure open to the lane for the collection lorry",
+   "use": "Hide H1",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PW1",
+   "element": "Hollowmere printing works (3 storeys, closed at night)",
+   "reason": "1920s works; high barred windows on the lane",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PW2",
+   "element": "Hollowmere printing works (3 storeys, closed at night)",
+   "reason": "1920s works; high barred windows on the lane",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PW3",
+   "element": "Hollowmere printing works (3 storeys, closed at night)",
+   "reason": "1920s works; high barred windows on the lane",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PW4",
+   "element": "Hollowmere printing works (3 storeys, closed at night)",
+   "reason": "1920s works; high barred windows on the lane",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PW5",
+   "element": "Hollowmere printing works (3 storeys, closed at night)",
+   "reason": "1920s works; high barred windows on the lane",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "PW6",
+   "element": "Hollowmere printing works (3 storeys, closed at night)",
+   "reason": "1920s works; high barred windows on the lane",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "FX1-BK",
+   "element": "Printworks fire exit FX1 (door set 1.0 m back)",
+   "reason": "Exit doors open outward; recessed so they do not swing into the lane",
+   "use": "Hide spot FX1",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "FX2-BK",
+   "element": "Printworks fire exit FX2 (door set 1.0 m back)",
+   "reason": "Exit doors open outward; recessed so they do not swing into the lane",
+   "use": "Hide spot FX2",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "FX3-BK",
+   "element": "Printworks fire exit FX3 (door set 1.0 m back)",
+   "reason": "Exit doors open outward; recessed so they do not swing into the lane",
+   "use": "Hide spot FX3",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "FX4-BK",
+   "element": "Printworks fire exit FX4 (door set 1.0 m back)",
+   "reason": "Exit doors open outward; recessed so they do not swing into the lane",
+   "use": "Hide spot FX4",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "PW-BAYBK",
+   "element": "Printworks dock door wall",
+   "reason": "The works loads through a dock door",
+   "use": "Back of the bay",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "DOCK",
+   "element": "Loading dock, 1.1 m",
+   "reason": "Dock height matches a lorry bed",
+   "use": "GA3 rear stop faces it",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "VAN",
+   "element": "Contractor van, cargo body (cab glazed, not a block)",
+   "reason": "The only off-street space on the lane; it waits for the midnight relief",
+   "use": "GA3 post; hides the lane from the dock",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "MS-H",
+   "element": "Mill Street houses (backs)",
+   "reason": "Victorian terrace",
+   "use": "South edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "MS-Y",
+   "element": "Mill Street back yards, walls 2.4 m with glass coping",
+   "reason": "Victorian back yards; glass coping against burglars",
+   "use": "Unclimbable south edge",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "WH",
+   "element": "Wharf Supplies warehouse (blank wall)",
+   "reason": "The warehouse faces Wharf Street, not the lane",
+   "use": "South edge of the turning head",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "WH-C",
+   "element": "Wharf Supplies warehouse corner",
+   "reason": "As WH",
+   "use": "Corner of the lane and the turning head",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "BW1",
+   "element": "Exchange boundary wall",
+   "reason": "Site boundary; no openings but the gate",
+   "use": "East edge",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "BW2",
+   "element": "Exchange boundary wall",
+   "reason": "As BW1",
+   "use": "East edge",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "BW3",
+   "element": "Exchange boundary wall",
+   "reason": "As BW1",
+   "use": "East edge",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "ABLK",
+   "element": "A block (1934 exchange; context for SN)",
+   "reason": "The exchange building",
+   "use": "Carries the sniper post (Area 2)",
+   "rule": "16.4.1"
+  },
+  {
+   "id": "BRG-S",
+   "element": "Cable bearers and cables, south wall",
+   "reason": "Steel bearers carry the cables along the tunnel",
+   "use": "Narrows the walkway to 1.8 m",
+   "rule": "16.7.1"
+  },
+  {
+   "id": "BRG-N",
+   "element": "Cable bearers and cables, north wall",
+   "reason": "As BRG-S",
+   "use": "As BRG-S",
+   "rule": "16.7.1"
+  },
+  {
+   "id": "o-road",
+   "element": "Lane mouth off Viaduct Road",
+   "reason": "The lane joins the public road",
+   "use": "Lane mouth off Viaduct Road",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "o-bay",
+   "element": "Loading bay mouth",
+   "reason": "Lorries back into the bay from the lane",
+   "use": "Loading bay mouth",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "o-turn",
+   "element": "Lane into the turning head",
+   "reason": "The lane widens at its end",
+   "use": "Lane into the turning head",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "o-a17l",
+   "element": "Lane to the A17 hardstanding",
+   "reason": "Continuous hardstanding along the arch fronts",
+   "use": "Lane to the A17 hardstanding",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "o-a17t",
+   "element": "Turning head to the A17 hardstanding",
+   "reason": "As above",
+   "use": "Turning head to the A17 hardstanding",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "SG",
+   "element": "Substation palisade gate SG (padlocked, telco key: hold 3 s)",
+   "reason": "HV equipment must be fenced; the board and the telco reach it from the lane",
+   "use": "Substation palisade gate SG (padlocked, telco key: hold 3 s)",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "SRD",
+   "element": "Switch room double doors, 1.8 m",
+   "reason": "Switchgear panels come in through double doors",
+   "use": "Switch room door (telco key)",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "LVD",
+   "element": "Double doors, switch room to LV room, 1.8 m",
+   "reason": "The LV board came in through the switch room",
+   "use": "Door from the switch room to the LV room",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "SD",
+   "element": "Pier door SD to the telco drum store A19 (telco key both sides)",
+   "reason": "Cut in 1961 so telco staff reach their substation from the drum store",
+   "use": "Pier door SD to the telco drum store A19 (telco key both sides)",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "GHW",
+   "element": "Gatehouse window onto the turning head",
+   "reason": "The gate man watches the lane for arriving vans",
+   "use": "Gatehouse window onto the turning head",
+   "rule": "16.3.1"
+  },
+  {
+   "id": "o-jc1",
+   "element": "Jointing chamber into the tunnel",
+   "reason": "Same structure, the chamber is the tunnel end",
+   "use": "Jointing chamber into the tunnel",
+   "rule": "16.7.1"
+  },
+  {
+   "id": "o-jc2",
+   "element": "Tunnel into the joint bay",
+   "reason": "As above",
+   "use": "Tunnel into the joint bay",
+   "rule": "16.7.1"
+  },
+  {
+   "id": "M1",
+   "element": "Manhole M1 over JC1: shaft 1.2 x 1.2, fixed ladder 4.4 m",
+   "reason": "Telco access to the jointing chamber",
+   "use": "Below route entry",
+   "rule": "16.2.1"
+  },
+  {
+   "id": "M2",
+   "element": "Manhole M2 over JC2: shaft 1.2 x 1.2, fixed ladder 4.4 m",
+   "reason": "Telco access to the joint bay",
+   "use": "Below route exit",
+   "rule": "16.2.1"
+  },
+  {
+   "id": "DP2",
+   "element": "Cast-iron downpipe at the west end of lean-to A2 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP3",
+   "element": "Cast-iron downpipe at the west end of lean-to A3 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP4",
+   "element": "Cast-iron downpipe at the west end of lean-to A4 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP5",
+   "element": "Cast-iron downpipe at the west end of lean-to A5 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP7",
+   "element": "Cast-iron downpipe at the west end of lean-to A7 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP8",
+   "element": "Cast-iron downpipe at the west end of lean-to A8 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP9",
+   "element": "Cast-iron downpipe at the west end of lean-to A9 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP10",
+   "element": "Cast-iron downpipe at the west end of lean-to A10 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP11",
+   "element": "Cast-iron downpipe at the west end of lean-to A11 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP12",
+   "element": "Cast-iron downpipe at the west end of lean-to A12 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP14",
+   "element": "Cast-iron downpipe at the west end of lean-to A14 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP15",
+   "element": "Cast-iron downpipe at the west end of lean-to A15 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "DP16",
+   "element": "Cast-iron downpipe at the west end of lean-to A16 (climbable, 3.0 m)",
+   "reason": "Each lean-to gutter falls west to a cast-iron downpipe",
+   "use": "Up route access; every one is climbable (16.2.6)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "D-A2W",
+   "element": "Drop off A2 west end (3 m)",
+   "reason": "The roof edge; no stair",
+   "use": "Loud way down (roll landing)",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "D-A5E",
+   "element": "Drop off A5 east end into the A6 forecourt (3 m)",
+   "reason": "The roof ends where the repairer forecourt starts",
+   "use": "Loud way down at the A6 gap",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "D-A7W",
+   "element": "Drop off A7 west end into the A6 forecourt (3 m)",
+   "reason": "Roof edge",
+   "use": "Loud way down",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "D-A12E",
+   "element": "Drop off A12 east end into the sand bays (3 m)",
+   "reason": "The roof ends where the merchant bays start",
+   "use": "Loud way down at the A13 gap",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "D-A14W",
+   "element": "Drop off A14 west end into the sand bays (3 m)",
+   "reason": "Roof edge",
+   "use": "Loud way down",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "D-A16E",
+   "element": "Drop off A16 east end in front of A17 (3 m)",
+   "reason": "The roof ends at the bricked arch",
+   "use": "Loud way down at the end of the roof walk",
+   "rule": "16.2.6"
+  },
+  {
+   "id": "LA1",
+   "element": "Sodium wall lantern on the pub wall at the lane mouth",
+   "reason": "The council lights the lane for the tenants",
+   "use": "Light pool",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "LA2",
+   "element": "Sodium wall lantern on the printworks wall between FX1 and FX2",
+   "reason": "The council lights the lane; the works asked for a lantern over its fire exits",
+   "use": "Light pool",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "LA3",
+   "element": "Lamp column at the Mill Street yards",
+   "reason": "The yard walls are too low to carry a lantern",
+   "use": "Light pool",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "LA5",
+   "element": "Lamp column on the north kerb at A16",
+   "reason": "Council lanterns alternate sides every 25 to 35 m; the brewery fronts carry no bracket",
+   "use": "Light pool",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "LA4",
+   "element": "Printworks dock floodlight in a wire vandal cage (photocell)",
+   "reason": "The works was burgled; dusk-to-dawn security light, supply inside the locked works",
+   "use": "Light pool",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "LA6",
+   "element": "Bulkhead over the switch room door",
+   "reason": "Light for engineers at the door; switch inside by the door",
+   "use": "Light pool",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "LA7",
+   "element": "Exchange gate floodlight on the gate pier",
+   "reason": "Lights arriving vans; switch in the gatehouse",
+   "use": "Light pool",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "CA1",
+   "element": "Circuit CA1, council lane lamps",
+   "reason": "Street lighting on one photocell circuit from the feeder pillar",
+   "use": "The switchable lane circuit (rule L3)",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "PW",
+   "element": "Printworks floodlight circuit",
+   "reason": "The works own security light",
+   "use": "The circuit that cannot be put out (rule L3)",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "CA2",
+   "element": "Circuit CA2, substation bulkhead",
+   "reason": "Telco light for the substation door",
+   "use": "Lights SG",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "CX",
+   "element": "Circuit CX, exchange gate floodlight",
+   "reason": "Exchange security light at the gate",
+   "use": "Lights the turning head",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "SW-SUB",
+   "element": "Switch for LA6 inside the switch room",
+   "reason": "Light switch by the door, inside",
+   "use": "Exfil only",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "SW-GATE",
+   "element": "Switch for LA7 in the gatehouse",
+   "reason": "Gate man controls the gate light",
+   "use": "Area 2",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "H1",
+   "element": "Pub bin store, among the bins",
+   "reason": "Commercial bins collected from the lane",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H2",
+   "element": "Printworks fire exit recess FX1",
+   "reason": "Recessed fire exit door",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H3",
+   "element": "Lean-to A3 door recess",
+   "reason": "Recessed shop doorway",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H4",
+   "element": "Printworks fire exit recess FX2",
+   "reason": "Recessed fire exit door",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H5",
+   "element": "Between the two cars in the A6 forecourt",
+   "reason": "Cars waiting for repair",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H6",
+   "element": "Printworks fire exit recess FX3",
+   "reason": "Recessed fire exit door",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H7",
+   "element": "Lean-to A9 door recess",
+   "reason": "Recessed shop doorway",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H8",
+   "element": "Lean-to A11 door recess",
+   "reason": "Recessed shop doorway",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H9",
+   "element": "Sand bay between the dividers",
+   "reason": "Merchant sand bays",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H10",
+   "element": "Lean-to A15 door recess",
+   "reason": "Recessed shop doorway",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "H11",
+   "element": "A17 bricked arch reveal",
+   "reason": "Infill set back in the arch reveal",
+   "use": "Hide spot",
+   "rule": "16.0"
+  },
+  {
+   "id": "V0",
+   "element": "Vantage V0",
+   "reason": "A dark place a person would wait (see its space)",
+   "use": "Under the bridge at the lane mouth: GA1 both stops, LA1, the car shadow, FP1, M1",
+   "rule": "3.1"
+  },
+  {
+   "id": "V1",
+   "element": "Vantage V1",
+   "reason": "A dark place a person would wait (see its space)",
+   "use": "FX1 recess: GA2 both stops",
+   "rule": "3.1"
+  },
+  {
+   "id": "V2",
+   "element": "Vantage V2",
+   "reason": "A dark place a person would wait (see its space)",
+   "use": "A8 roof: GA3 cab and rear stop",
+   "rule": "3.1"
+  },
+  {
+   "id": "V3",
+   "element": "Vantage V3",
+   "reason": "A dark place a person would wait (see its space)",
+   "use": "Sand bay H9: the east lane and GA4 at P2",
+   "rule": "3.1"
+  },
+  {
+   "id": "V4",
+   "element": "Vantage V4",
+   "reason": "A dark place a person would wait (see its space)",
+   "use": "A17 reveal: GA4 both stops, the gatehouse window, SG",
+   "rule": "3.1"
+  },
+  {
+   "id": "S1",
+   "element": "Spawn S1",
+   "reason": "The van drops the team under the railway bridge",
+   "use": "Start",
+   "rule": "16.0"
+  },
+  {
+   "id": "S2",
+   "element": "Spawn S2",
+   "reason": "The van drops the team under the railway bridge",
+   "use": "Start",
+   "rule": "16.0"
+  },
+  {
+   "id": "S3",
+   "element": "Spawn S3",
+   "reason": "The van drops the team under the railway bridge",
+   "use": "Start",
+   "rule": "16.0"
+  },
+  {
+   "id": "S4",
+   "element": "Spawn S4",
+   "reason": "The van drops the team under the railway bridge",
+   "use": "Start",
+   "rule": "16.0"
+  },
+  {
+   "id": "GA1",
+   "element": "GA1: Lane mouth sentry with the car",
+   "reason": "Holds the only road to the gate with the car; radio check with GA2 every cycle.",
+   "use": "Car at the lane mouth and the A2 eaves",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "GA2",
+   "element": "GA2: Lock-up row walker",
+   "reason": "A5 was broken into last month: he tries the padlocks and answers GA1; the printworks lets the contractor park in its bay, so he also tries the works fire exits.",
+   "use": "A5 door, printworks fire exit FX2, A6 forecourt",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "GA3",
+   "element": "GA3: Contractor van driver",
+   "reason": "Waits in the dry for the midnight relief.",
+   "use": "Printworks bay, cab and rear doors",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "GA4",
+   "element": "GA4: Outer man at the turning head",
+   "reason": "Meets vans at the turning head and talks to the gate man.",
+   "use": "Substation palisade to the lane end",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "GB1",
+   "element": "GB1: Gate man (Area 2 guard; his window looks into Area 1)",
+   "reason": "Logs vans at the gate.",
+   "use": "Gatehouse window",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "SN",
+   "element": "SN: Sniper on A block roof (Area 2; context to measure his reach)",
+   "reason": "Overwatch of the yard (Area 2).",
+   "use": "A block north parapet (brief: about 212, -20)",
+   "rule": "16.8.2"
+  },
+  {
+   "id": "route-M",
+   "element": "Ground route (shadow, timing)",
+   "reason": "A way along the lane",
+   "use": "Timed route",
+   "rule": "3.2"
+  },
+  {
+   "id": "route-UP",
+   "element": "Up route (downpipes and lean-to roofs; drops at the gaps)",
+   "reason": "A way along the lane",
+   "use": "Timed route",
+   "rule": "3.2"
+  },
+  {
+   "id": "route-UPQ",
+   "element": "Up route, climbing down the downpipes (quiet)",
+   "reason": "A way along the lane",
+   "use": "Timed route",
+   "rule": "3.2"
+  },
+  {
+   "id": "route-BELOW",
+   "element": "Below route (cable tunnel M1 to M2)",
+   "reason": "A way along the lane",
+   "use": "Timed route",
+   "rule": "3.2"
+  },
+  {
+   "id": "route-FP1",
+   "element": "Lane mouth with the lamps out (FP1 detour)",
+   "reason": "A way along the lane",
+   "use": "Timed route",
+   "rule": "3.2"
+  },
+  {
+   "id": "VG",
+   "element": "Cable tunnel ventilation grating VG in the north kerb at (57, 19.75)",
+   "reason": "A 120 m cable tunnel needs natural ventilation: a vent shaft to a kerb grating (kerb, not carriageway, so vans do not load it)",
+   "use": "Noise under it reaches the lane unmuffled; GA2 stands on it at his west stop (E1.4 cost)",
+   "rule": "16.3.4"
+  },
+  {
+   "id": "X1",
+   "element": "Area 1 exit through the pier door SD",
+   "reason": "The telco route into its own drum store",
+   "use": "Ends Area 1",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "K0",
+   "element": "Checkpoint K0",
+   "reason": "Before each encounter space (standard 3.9)",
+   "use": "start",
+   "rule": "3.9"
+  },
+  {
+   "id": "K1",
+   "element": "Checkpoint K1",
+   "reason": "Before each encounter space (standard 3.9)",
+   "use": "FX1 after the lane mouth",
+   "rule": "3.9"
+  },
+  {
+   "id": "K2",
+   "element": "Checkpoint K2",
+   "reason": "Before each encounter space (standard 3.9)",
+   "use": "A9 recess after the bay",
+   "rule": "3.9"
+  },
+  {
+   "id": "K3",
+   "element": "Checkpoint K3",
+   "reason": "Before each encounter space (standard 3.9)",
+   "use": "A13 sand bays",
+   "rule": "3.9"
+  },
+  {
+   "id": "K4",
+   "element": "Checkpoint K4",
+   "reason": "Before each encounter space (standard 3.9)",
+   "use": "substation switch room",
+   "rule": "3.9"
+  },
+  {
+   "id": "RG1",
+   "element": "Regroup point RG1",
+   "reason": "All routes rejoin at the substation",
+   "use": "Co-op regroup",
+   "rule": "11"
+  },
+  {
+   "id": "E1.1",
+   "element": "Start vantage V0: watch GA1 for one cycle",
+   "reason": "Encounter (see the area doc)",
+   "use": "Encounter",
+   "rule": "3"
+  },
+  {
+   "id": "E1.2",
+   "element": "Lane mouth: GA1 and the car",
+   "reason": "Encounter (see the area doc)",
+   "use": "Encounter",
+   "rule": "3"
+  },
+  {
+   "id": "E1.3",
+   "element": "Feeder pillar FP1: lane lamps off (GA2 resets it)",
+   "reason": "Encounter (see the area doc)",
+   "use": "Encounter",
+   "rule": "3"
+  },
+  {
+   "id": "E1.4",
+   "element": "Lock-up row: GA2; vent grating VG over the tunnel",
+   "reason": "Encounter (see the area doc)",
+   "use": "Encounter",
+   "rule": "3"
+  },
+  {
+   "id": "E1.5",
+   "element": "Printworks bay: GA3, the van and the caged floodlight",
+   "reason": "Encounter (see the area doc)",
+   "use": "Encounter",
+   "rule": "3"
+  },
+  {
+   "id": "E1.6",
+   "element": "A13 sand bays: the layers meet, M2, the choice for the east lane",
+   "reason": "Encounter (see the area doc)",
+   "use": "Encounter",
+   "rule": "3"
+  },
+  {
+   "id": "E1.7",
+   "element": "East lane under GA4 at P2 (looking down the lane) and LA5",
+   "reason": "Encounter (see the area doc)",
+   "use": "Encounter",
+   "rule": "3"
+  },
+  {
+   "id": "E1.8",
+   "element": "Turning head: GA4, the gatehouse window, LA6 and LA7, gate SG",
+   "reason": "Encounter (see the area doc)",
+   "use": "Encounter",
+   "rule": "3"
+  },
+  {
+   "id": "T1",
+   "element": "Lean-to roof walk (downpipes up, drop or downpipe down)",
+   "reason": "Toy (see the area doc)",
+   "use": "passes over E1.2, E1.5",
+   "rule": "7"
+  },
+  {
+   "id": "T2",
+   "element": "Cable tunnel M1 to M2",
+   "reason": "Toy (see the area doc)",
+   "use": "passes E1.2 to E1.5 unseen",
+   "rule": "7"
+  },
+  {
+   "id": "T3",
+   "element": "Feeder pillar FP1 (lane lamps CA1)",
+   "reason": "Toy (see the area doc)",
+   "use": "dark lane for the measured window",
+   "rule": "7"
+  },
+  {
+   "id": "T4",
+   "element": "Lamps to shoot (LA1, LA2, LA3, LA5, LA6, LA7)",
+   "reason": "Toy (see the area doc)",
+   "use": "a dark pool",
+   "rule": "7"
+  },
+  {
+   "id": "T5",
+   "element": "Hide spots and body hides (skip, van, cars, recesses)",
+   "reason": "Toy (see the area doc)",
+   "use": "safety",
+   "rule": "7"
+  },
+  {
+   "id": "T6",
+   "element": "Van cab rota card (Area 2 intel)",
+   "reason": "Toy (see the area doc)",
+   "use": "the gate man break time and the card box location",
+   "rule": "7"
+  },
+  {
+   "id": "lock-SG",
+   "element": "Lock SG",
+   "reason": "hold 3 s, telco key",
+   "use": "out of Area 1",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "lock-M1",
+   "element": "Lock M1",
+   "reason": "hold 4 s, telco key, either side",
+   "use": "below route",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "lock-M2",
+   "element": "Lock M2",
+   "reason": "hold 3 s, either side",
+   "use": "below route",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "lock-SD",
+   "element": "Lock SD",
+   "reason": "telco key",
+   "use": "into Area 2",
+   "rule": "16.3.5"
+  },
+  {
+   "id": "LA8",
+   "element": "Lamp column on the north kerb at A9",
+   "reason": "Council lanterns alternate sides every 25 to 35 m; a lean-to front is too low for a bracket, so a column",
+   "use": "Light pool",
+   "rule": "16.8.1"
+  },
+  {
+   "id": "RL8",
+   "element": "Lean-to A8 roof lights",
+   "reason": "The van hire workshop is lit by daylight through translucent roof sheets; they will not bear a person",
+   "use": "Only the 1.2 m gutter strip is walkable: the roof walk passes in LA8 light and GA3 cab view (item 6 exposure)",
+   "rule": "16.5.1"
+  },
+  {
+   "id": "RL9",
+   "element": "Lean-to A9 roof lights",
+   "reason": "The lock-up workshop is lit the same way",
+   "use": "Only the 1.2 m gutter strip is walkable: the roof walk passes in LA8 light and GA3 cab view (item 6 exposure)",
+   "rule": "16.5.1"
+  }
+ ]
+}

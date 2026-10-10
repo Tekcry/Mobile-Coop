@@ -163,6 +163,16 @@ export function stepMeter(m, rate, dt) {
 export function hears(ctx, g, gp, pl, radius) {
   if (radius <= 0) return { heard: false, d: 99, s: 0 };
   const W = ctx.W;
+  // a vent (D.acoustic, Dead Line v2): noise made in the zone under it comes out at its grating, unmuffled
+  const v = ctx.D.acoustic?.find((a) => a.level === pl.lv && pl.x >= a.rect[0] && pl.x <= a.rect[2] && pl.z >= a.rect[1] && pl.z <= a.rect[3]);
+  if (v) {
+    const [elv, ex, ez] = v.emit;
+    const d = Math.sqrt((ex - gp.x) ** 2 + (ez - gp.z) ** 2 + (W.Y[elv] - W.Y[g.level]) ** 2);
+    if (d > radius) return { heard: false, d, s: 0, vent: v.id };
+    const clear = elv === g.level && W.los({ l: elv, x: ex, z: ez, h: 0.2 }, { l: g.level, x: gp.x, z: gp.z, h: 1.6 });
+    const r = clear ? radius : radius * MUFFLE;
+    return { heard: d <= r, d, muffled: !clear, s: d <= r ? noiseSuspicion(hyp(ex - gp.x, ez - gp.z), r) : 0, vent: v.id };
+  }
   const d = Math.sqrt((pl.x - gp.x) ** 2 + (pl.z - gp.z) ** 2 + (W.Y[pl.lv] - W.Y[g.level]) ** 2);
   if (d > radius) return { heard: false, d, s: 0 };
   const clear = pl.lv === g.level && W.los({ l: pl.lv, x: pl.x, z: pl.z, h: 1.6 }, { l: g.level, x: gp.x, z: gp.z, h: 1.6 });

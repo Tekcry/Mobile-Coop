@@ -203,3 +203,9 @@ describe('Dead Line G1 greybox vs the design JSON', () => {
     expect(deadLine.theme.lightLevel).toBeGreaterThan(0.9);
   });
 });
+
+describe('Dead Line nav layers', () => {
+  it('keeps five surfaces per column (basement to roof)', () => {
+    expect(deadLine.navLayers).toBe(5);
+  });
+});

@@ -33,6 +33,8 @@ const MARKERS = geo.markers as unknown as Marker[];
 
 /** Where the debug menu teleports to: chapter starts, spawns S1-S4, objectives (all from the design JSON). */
 export const DEAD_LINE_DEBUG = geo.debug as unknown as DebugPoint[];
+/** Nav surfaces per column on this map (the engine default is 3). */
+export const DEAD_LINE_NAV_LAYERS = 5;
 
 /** Replay the generated ops into the builder. */
 export function buildDeadLine(b: LevelBuilder): void {
@@ -80,6 +82,8 @@ export const deadLine: MapDef = {
   name: 'Dead Line (campus greybox)',
   description: 'Mission 1 campus at night, generated from the design JSON: the lane yard, coke yard, service tunnel, plant basement, switch hall, upper floors, cage and roof. Greybox, flat light, no guards.',
   modes: ['sandbox', 'infiltration'],
+  // Dead Line v2: A block stacks basement, ground, first, second and roof over the same columns (D1, 2026-10-10)
+  navLayers: DEAD_LINE_NAV_LAYERS,
   theme: {
     sky: '#0b111b',
     horizon: '#2b3440',

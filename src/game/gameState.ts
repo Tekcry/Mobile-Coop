@@ -473,7 +473,7 @@ export class GameState implements AppState {
       w.pickups.onPickup = (k, who) => this.pickedUp(k, who);
     } else if (opts.mode !== 'sandbox') {
       const w = this as { -readonly [K in keyof GameState]: GameState[K] };
-      w.nav = buildNavGrid(this.scene, world.level, spawn.pos);
+      w.nav = buildNavGrid(this.scene, world.level, spawn.pos, world.map.navLayers);
       w.enemyMgr = new EnemyManager(this.scene, world, w.nav, this.registry, this.ballistics, this.vfx, opts.difficulty ?? 'normal', () => this.playerRefs());
       w.enemyMgr.onKilled = (e, h) => {
         // own kills only (coop teammates are credited by the net layer); barrels count for whoever is local

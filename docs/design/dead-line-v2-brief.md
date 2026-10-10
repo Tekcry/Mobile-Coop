@@ -74,10 +74,11 @@ Flat roof at 3.0 m behind a 0.3 m upstand, no access (a single-storey roof needs
 
 | Room | Size | Function | Contents |
 | --- | --- | --- | --- |
-| Forecourt | 9 x 5, open | Access hardstanding for the electricity board and telco engineers | 2.4 m steel palisade (anti-climb, standard for substations), padlocked gate SG, bulkhead lamp LA6 over the switch room door |
-| Switch room | 5 x 5 x 3.0 | High-voltage switchgear for the exchange's supply | Switchgear panels, light switch for LA6 by the door; the supply cable leaves through a sealed 0.6 m cable duct into the cable tunnel (not passable); door SD through the pier into arch A19 |
-| Pier door SD | 1.2 x 2.1, through the 2 m pier | Cut in 1961 so telco staff reach their substation from the drum store without going round by the lane | Steel door, telco lock both sides (the team's key opens it) |
-| Transformer room | 3 x 8 x 4.5 | 11 kV to 415 V transformer | Transformer on a plinth, louvred steel doors to the forecourt (ventilation), constant hum |
+| Forecourt | 9 x 5, open | Access hardstanding for the electricity board and telco engineers | 2.4 m steel palisade (anti-climb, standard for substations), padlocked gate SG, bulkhead lamp LA6 over the switch room doors |
+| Switch room | 5 x 5 x 3.0 | High-voltage switchgear for the exchange's supply | Switchgear panels, light switch for LA6 by the door, 1.8 m double doors from the forecourt (switchgear comes in through them); the supply cable leaves through a sealed 0.6 m cable duct into the cable tunnel (not passable) |
+| LV room | 8 x 6.5 x 3.0, behind the switch room | 415 V distribution board feeding the exchange cables (added at D1) | The LV board, cable trays; 1.8 m double doors from the switch room; pier door SD in its east wall |
+| Pier door SD | 1.2 x 2.1, through the 2 m pier from the LV room | Cut in 1961 so telco staff reach their substation from the drum store without going round by the lane | Steel door, telco lock both sides (the team's key opens it) |
+| Transformer room | 3 x 5 x 4.5, beside the switch room | 11 kV to 415 V transformer | Transformer on a plinth, louvred steel doors to the forecourt (ventilation), constant hum |
 
 ### 4.3 Telco arches (A19 to A22), on the yard's north edge
 

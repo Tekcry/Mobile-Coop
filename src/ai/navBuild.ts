@@ -10,12 +10,14 @@ const HEADROOM = 1.7;
 /** Ledge drops enemies take (m): above the lower bound it is a link, beyond the upper they go round. */
 const DROP_MIN = 1.0;
 const DROP_MAX = 2.2;
+/** Walkable surfaces kept per column unless the map asks for more (`MapDef.navLayers`). */
+export const DEFAULT_NAV_LAYERS = 3;
 
 /**
  * Builds the nav grid for a level: every standing surface per column via Havok raycasts (a floor, a storey
  * over it, a roof), blockers from level pieces, links for ladders (both ways) and drops off ledges (down).
  */
-export function buildNavGrid(scene: Scene, level: BuiltLevel, seed: Vector3): NavGrid {
+export function buildNavGrid(scene: Scene, level: BuiltLevel, seed: Vector3, layers = DEFAULT_NAV_LAYERS): NavGrid {
   const eng = scene.getPhysicsEngine() as PhysicsEngine;
   const res = new PhysicsRaycastResult();
   const from = new Vector3();
@@ -70,6 +72,7 @@ export function buildNavGrid(scene: Scene, level: BuiltLevel, seed: Vector3): Na
     cell: 0.5,
     agentRadius: 0.32,
     stepHeight: 0.45,
+    layers,
     blockers,
     links: navLinks(level),
     seed: [seed.x, seed.z],

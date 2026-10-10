@@ -1,0 +1,429 @@
+{
+ "rows": [
+  [
+   "Element register covers every Area 1 element (16.9)",
+   "PASS",
+   "221 rows, 0 missing"
+  ],
+  [
+   "Hide spots dark and at least 1.2 x 1.0; vantages dark (rules 16 and 1)",
+   "PASS",
+   "11 hides, lit: none, undersized: none; 5 vantages, lit: none"
+  ],
+  [
+   "Every spawn, vantage, guard stop, hide and checkpoint is on the nav grid",
+   "PASS",
+   "all walkable; all 5 routes build"
+  ],
+  [
+   "Ground route ideal walk (D0 estimate about 105 s)",
+   "PASS",
+   "111.6 s over 217.2 m"
+  ],
+  [
+   "Lit share of the ground route (target about 60%)",
+   "FAIL",
+   "32% lit; 32% lit and in a sightline (L1 wants 50%)"
+  ],
+  [
+   "L1: half the route lit and in a sightline",
+   "FAIL",
+   "32%"
+  ],
+  [
+   "Every main-route encounter has a safe window (ground route)",
+   "PASS",
+   "E1.2 21.0 s, E1.4 17.0 s, E1.5 20.5 s, E1.7 22.5 s, E1.8 15.5 s"
+  ],
+  [
+   "No encounter where the roof is both fastest and lowest-risk (item 6)",
+   "PASS",
+   "roof never dominates"
+  ],
+  [
+   "FP1 dark window about 25 s (GA2 resets the fuse)",
+   "PASS",
+   "median 25.4 s (22.6 to 29.9) over 80 usable throw times"
+  ],
+  [
+   "FP1 is a usable trade (some throw lets the player through the row and bay unseen)",
+   "PASS",
+   "79 of 80 usable throws"
+  ],
+  [
+   "Vent grating: crouched and slow passes, faster gears are heard (E1.4 cost)",
+   "PASS",
+   "crouch gear 4 heard 0%; standing gear 3 heard 28% of starts"
+  ],
+  [
+   "Sniper's range at the east end (open item)",
+   "INFO",
+   "brief position: nearest Area 1 cell 37.2 m, 0 cells seen; worst case (NW corner): 0 cells seen"
+  ],
+  [
+   "Eaves shade the north strip (open item)",
+   "INFO",
+   "no: 0 of 12970 lines change"
+  ],
+  [
+   "Sprint bot fails the run (an alarm in Area 1 and 4 or more events)",
+   "PASS",
+   "alarm at 4.8 s, 5 events"
+  ],
+  [
+   "Timetable bot, ground route: reaches K4 and SD with no alarm, under suspicious",
+   "PASS",
+   "max meter 0.26, 140.8 s"
+  ],
+  [
+   "Timetable bot, ground route: time in the derived band",
+   "INFO",
+   "2.35 min (band 3.3 to 3.9; derived, not set by Michael)"
+  ],
+  [
+   "Timetable bot, ground route: waits (share 30 to 40%, longest 40 s)",
+   "INFO",
+   "9%, longest 7.0 s"
+  ],
+  [
+   "Timetable bot, UP: reaches the exit unseen",
+   "PASS",
+   "max meter 0.24, 141.0 s, waited 4%"
+  ],
+  [
+   "Timetable bot, UPQ: reaches the exit unseen",
+   "PASS",
+   "max meter 0.14, 152.5 s, waited 0%"
+  ],
+  [
+   "Timetable bot, BELOW: reaches the exit unseen",
+   "PASS",
+   "max meter 0.15, 142.8 s, waited 0%"
+  ],
+  [
+   "Rule 27: the camera boom never collides along any route",
+   "PASS",
+   "2246 tests, 0 hits"
+  ]
+ ],
+ "WIN": {
+  "E1.2": {
+   "M": {
+    "time": 20.620590750539513,
+    "safeShare": 0.525,
+    "longest": 21,
+    "blockers": {
+     "GA1": 38
+    }
+   },
+   "UP": {
+    "time": 22.890278706062688,
+    "safeShare": 1,
+    "longest": 40,
+    "blockers": {}
+   },
+   "UPQ": {
+    "time": 22.890278706062688,
+    "safeShare": 1,
+    "longest": 40,
+    "blockers": {}
+   },
+   "BELOW": {
+    "time": 28.336741350592973,
+    "safeShare": 1,
+    "longest": 40,
+    "blockers": {}
+   }
+  },
+  "E1.4": {
+   "M": {
+    "time": 21.322253156557725,
+    "safeShare": 0.725,
+    "longest": 17,
+    "blockers": {
+     "GA2": 22
+    }
+   },
+   "UP": {
+    "time": 24.381696564855652,
+    "safeShare": 0.75,
+    "longest": 30,
+    "blockers": {
+     "GA2": 20
+    }
+   },
+   "UPQ": {
+    "time": 29.756327711410023,
+    "safeShare": 0.975,
+    "longest": 39,
+    "blockers": {
+     "GA2": 2
+    }
+   },
+   "BELOW": {
+    "time": 19.909812409812417,
+    "safeShare": 1,
+    "longest": 40,
+    "blockers": {}
+   }
+  },
+  "E1.5": {
+   "M": {
+    "time": 10.409715704115719,
+    "safeShare": 0.5125,
+    "longest": 20.5,
+    "blockers": {
+     "GA3": 39
+    }
+   },
+   "UP": {
+    "time": 10.229418950875,
+    "safeShare": 0.575,
+    "longest": 22,
+    "blockers": {
+     "GA3": 34
+    }
+   },
+   "UPQ": {
+    "time": 10.229600052102612,
+    "safeShare": 0.575,
+    "longest": 22,
+    "blockers": {
+     "GA3": 34
+    }
+   },
+   "BELOW": {
+    "time": 9.935064935064936,
+    "safeShare": 1,
+    "longest": 40,
+    "blockers": {}
+   }
+  },
+  "E1.7": {
+   "M": {
+    "time": 16.630009702828687,
+    "safeShare": 0.5625,
+    "longest": 22.5,
+    "blockers": {
+     "GA4": 35
+    }
+   },
+   "UP": {
+    "time": 21.10909413904845,
+    "safeShare": 1,
+    "longest": 40,
+    "blockers": {}
+   },
+   "UPQ": {
+    "time": 25.698716552137157,
+    "safeShare": 0.5375,
+    "longest": 21.5,
+    "blockers": {
+     "GA4": 37
+    }
+   },
+   "BELOW": {
+    "time": 16.92952178647907,
+    "safeShare": 0.575,
+    "longest": 23,
+    "blockers": {
+     "GA4": 34
+    }
+   }
+  },
+  "E1.8": {
+   "M": {
+    "time": 24.24988664711998,
+    "safeShare": 0.3875,
+    "longest": 15.5,
+    "blockers": {
+     "GA4": 49
+    }
+   },
+   "UP": {
+    "time": 22.163955497932676,
+    "safeShare": 0.4,
+    "longest": 16,
+    "blockers": {
+     "GA4": 48
+    }
+   },
+   "UPQ": {
+    "time": 23.792282321506633,
+    "safeShare": 0.4,
+    "longest": 16,
+    "blockers": {
+     "GA4": 48
+    }
+   },
+   "BELOW": {
+    "time": 24.249886647119993,
+    "safeShare": 0.3875,
+    "longest": 15.5,
+    "blockers": {
+     "GA4": 49
+    }
+   }
+  }
+ },
+ "roofExp": {
+  "E1.2": {},
+  "E1.4": {},
+  "E1.5": {
+   "GA3": {
+    "crouched": 0.2777777777777778,
+    "standing": 0.3611111111111111,
+    "maxRate": 0.5496004119256919
+   }
+  },
+  "E1.7": {
+   "GA4": {
+    "crouched": 0.010775862068965518,
+    "standing": 0.03017241379310345,
+    "maxRate": 0.46644183613391704
+   }
+  }
+ },
+ "fp1": {
+  "darkMin": 22.612944579222628,
+  "darkMed": 25.400428575381465,
+  "darkMax": 29.922123607895458,
+  "legal": 80,
+  "safeRuns": 79
+ },
+ "vg": [
+  {
+   "label": "crouch gear 4 (1.8)",
+   "radius": 0,
+   "share": 0,
+   "maxS": 0,
+   "elseShare": 0
+  },
+  {
+   "label": "crouch gear 5 (2.3)",
+   "radius": 1.7499999999999996,
+   "share": 0.25,
+   "maxS": 0.7,
+   "elseShare": 0
+  },
+  {
+   "label": "crouch gear 6 (2.8)",
+   "radius": 2.4999999999999996,
+   "share": 0.2875,
+   "maxS": 0.7,
+   "elseShare": 0
+  },
+  {
+   "label": "stand gear 2 (1.3)",
+   "radius": 0,
+   "share": 0,
+   "maxS": 0,
+   "elseShare": 0
+  },
+  {
+   "label": "stand gear 3 (2.0)",
+   "radius": 2.16,
+   "share": 0.275,
+   "maxS": 0.7,
+   "elseShare": 0
+  },
+  {
+   "label": "stand gear 4 jog (2.8)",
+   "radius": 3.4399999999999995,
+   "share": 0.3375,
+   "maxS": 0.7,
+   "elseShare": 0
+  },
+  {
+   "label": "stand gear 5 run (3.8)",
+   "radius": 5.04,
+   "share": 0.425,
+   "maxS": 0.7,
+   "elseShare": 0
+  },
+  {
+   "label": "sprint (5.0)",
+   "radius": 9,
+   "share": 0.8625,
+   "maxS": 0.7,
+   "elseShare": 0
+  }
+ ],
+ "snReach": [
+  {
+   "label": "brief position (212, -20)",
+   "inRange": 0,
+   "visible": 0,
+   "nearest": 37.16749251698317,
+   "xs": null
+  },
+  {
+   "label": "JSON loop, east stop (212, -13)",
+   "inRange": 0,
+   "visible": 0,
+   "nearest": 32.548771098153615,
+   "xs": null
+  },
+  {
+   "label": "JSON loop, west stop (207, -13)",
+   "inRange": 0,
+   "visible": 0,
+   "nearest": 29.315908650423918,
+   "xs": null
+  },
+  {
+   "label": "A block NW corner (196.5, -12.5), worst case",
+   "inRange": 4,
+   "visible": 0,
+   "nearest": 24.14378802093822,
+   "xs": null
+  }
+ ],
+ "eaveDiff": 0,
+ "sprint": {
+  "events": 5,
+  "alarmAtS": 4.8
+ },
+ "timetable": {
+  "M": {
+   "reached": true,
+   "alarms": 0,
+   "maxMeter": 0.256,
+   "finishedAtS": 140.8,
+   "waitShare": 0.085,
+   "longestWaitS": 7,
+   "unsafe": []
+  },
+  "UP": {
+   "reached": true,
+   "alarms": 0,
+   "maxMeter": 0.243,
+   "finishedAtS": 141,
+   "waitShare": 0.035,
+   "longestWaitS": 5,
+   "unsafe": []
+  },
+  "UPQ": {
+   "reached": true,
+   "alarms": 0,
+   "maxMeter": 0.139,
+   "finishedAtS": 152.5,
+   "waitShare": 0,
+   "longestWaitS": 0,
+   "unsafe": []
+  },
+  "BELOW": {
+   "reached": true,
+   "alarms": 0,
+   "maxMeter": 0.154,
+   "finishedAtS": 142.8,
+   "waitShare": 0,
+   "longestWaitS": 0,
+   "unsafe": []
+  }
+ },
+ "cam": {
+  "n": 2246,
+  "hits": 0
+ }
+}

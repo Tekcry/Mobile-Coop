@@ -16,7 +16,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 import { SURFACE_NOISE as FLOORMUL, HOLD_NOISE_RADIUS, landingKind, landingNoise } from './map-dead-line-engine.mjs';
 const floorMul = (ctx, lv, x, z) => FLOORMUL[ctx.W.spaceAt(lv, x, z)?.floor || 'concrete'] ?? 1;
 
-function playerState(ctx, segs, tau, mode, pace) {
+export function playerState(ctx, segs, tau, mode, pace) {
   const p = routePos(segs, tau);
   const s = p.seg;
   let speed = s.speed || 0;
@@ -30,7 +30,7 @@ function playerState(ctx, segs, tau, mode, pace) {
 
 // noise radius the player makes at route time tau: footsteps (noiseRadius x surface), a hold (HOLD_NOISE_RADIUS), a landing at the
 // end of a drop link (landingNoise of its band). All from the engine.
-function noiseOf(ctx, pl, tau) {
+export function noiseOf(ctx, pl, tau) {
   const s = pl.seg;
   if (s.hold) return HOLD_NOISE_RADIUS;
   if (s.link && s.mode === 'drop' && tau >= s.t1 - 0.5) { const L = ctx.D.links.find((l) => l.id === s.link); const fall = Math.abs(ctx.W.Y[L.a[0]] - ctx.W.Y[L.b[0]]); return landingNoise(landingKind(fall)); }
