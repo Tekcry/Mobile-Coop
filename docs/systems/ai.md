@@ -116,7 +116,7 @@ Design authority: docs/design-bible.md (Section 5.7)
   flanker against a player holding cover (> 4 s) and allows one grenade in the air at a time (player camping
   the same cover > 6 s); `hear()` makes unalerted enemies investigate footsteps (`PlayerRef.cover/coverT/
   suppress` carry the player side).
-- `EnemyManager` caps alive enemies (10) and ragdolls (`BUDGET.maxRagdolls`).
+- `EnemyManager` caps alive enemies (12, `MAX_ALIVE` in `src/ai/enemyManager.ts`) and ragdolls (`BUDGET.maxRagdolls`).
 - Modes implement `GameMode` (`game/modes/`; `ModeId` also has `tdm | ffa`, run by the net host, not a mode); `GameState` owns world, player, combat, AI, pickups,
   interactables and calls mode hooks. `GameState.endSession` shows results; `GameState.rewardHook` lets
   progression add rewards.

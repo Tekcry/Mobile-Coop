@@ -7,7 +7,7 @@ every phase step.
 | Phase | Name | Status | Version | Spec file |
 | --- | --- | --- | --- | --- |
 | 0 | Foundation | done | 3.5.0 | `docs/prompts/phase-0-foundation.md` |
-| FP | **First Playable (comes first)** | S1a, S1b done (S1a-S1b layout replaced by Exchange v2); R1 done; R2, R3, S1c-v2 superseded by the Trunk Annex (`docs/design/map-trunk-annex.md`): T1 done (walkable greybox, six timed guards, four spawns, O1 / O2, E1 / E2), T2, T3 and S2-S10 not started: 4-player greybox, then a friends playtest | 3.6.x | `docs/prompts/first-playable.md` |
+| FP | **First Playable** | Map steps (Exchange S1a-S1c, R1-R3, Trunk Annex T1-T3) SUPERSEDED 2026-10-10 by the vertical slice (Phase 7). System steps S2-S10 (lights, holster, takedowns, perception, mission loop, co-op sync, playtest) UNCHANGED, not started; their place in the order is Michael's decision | 3.6.x | `docs/archive/maps/prompts/first-playable.md` |
 | 1 | Light parity | Step 4b done and approved (darkness, night vision); paused for First Playable; Step 4c (strip lamps) and Steps 5-9 PARKED until after the playtest (co-op light sync moves into FP S7a) | 3.6.0 | `docs/prompts/phase-1-light-parity.md` |
 | 2 | Sound | not started | 3.7.0 | (to be written) |
 | 3 | Pure CT conversion | not started | 3.8.0 | (to be written) |
@@ -16,12 +16,12 @@ every phase step.
 | 5 | Co-op 2-4 | not started | 3.11.0 | (to be written) |
 | 6 | CT verbs for the slice | not started | 3.12.0 | (to be written) |
 | 6b | Visual target | not started | 3.13.0 | (to be written) |
-| 7 | Vertical slice (Kestrel Exchange, "Dead Line") | not started | 3.14.0 | `docs/prompts/exchange-alignment.md` first, then the map's phases 3-6 |
+| 7 | Vertical slice: Dead Line, colocation data centre; prompt pack `docs/kestrel/` | not started | 3.14.0 | `docs/kestrel/` (P00 onward, branch `feature/kestrel`) |
 
 ## Current state
-- **Roadmap change (2026-10-09, Michael):** the First Playable milestone (`docs/prompts/first-playable.md`) runs before Phase 1 Step 4c and every later phase. After the friends playtest Michael re-triages the PARKED list and the roadmap resumes. Phases 2-7 are unchanged but wait.
-- `ct-movement` is at 3.5.0: `master` 3.4.0 plus CT movement plus Phase 0. `master` already carries the Step 1 integration (Michael merged PR #2); `dev` and
-  `master` get 3.5.0 when Michael merges `ct-movement` again.
+- **Roadmap change (2026-10-09, Michael):** the First Playable milestone (`docs/archive/maps/prompts/first-playable.md`) ran before Phase 1 Step 4c and every later phase. Its map steps are superseded (see Decisions of 2026-10-10); its system steps S2-S10 stand.
+- `ct-movement` is at 3.5.1 (`package.json`): `master` 3.4.0 plus CT movement plus Phase 0 plus the Dead Line v1 / v2 greybox work (both retired as designs). `master` already carries the Step 1 integration (Michael merged PR #2); `dev` and
+  `master` get 3.5.1 when Michael merges `ct-movement` again.
 - Phones draw the phone look: the 3.4 light renderer (plain blockout, nearest six lamps as plain lights, no shadow
   maps, no post stack). Desktop renders lamps from the baked visibility atlas (`voxel/lampBake.ts`, `world/bakedLamps.ts`).
 - Three separate light calculations can disagree (bible 5.1): desktop baked lamps, the phone's six unshadowed lights
@@ -29,12 +29,19 @@ every phase step.
   Roadmap Phase 1 replaces them with one source of truth.
 - CT movement is complete (`docs/ct-movement-progress.md`): speed gears, instant stop, roll, split / wall jump, pipes,
   rappel, fences, CT takedowns and the grab, co-op team moves, the Warehouse CT routes.
-- Kestrel Exchange is a paper design only: map phases 0-2 done, Phase 2 approved 2026-10-08; no map code; build
-  phases held until roadmap Phase 3b and the alignment pass (bible Section 10, Phase 7).
+- The Kestrel Exchange is retired (archived in `docs/archive/maps/`). Phase 7 builds the Dead Line data centre through `docs/kestrel/`.
 - Decisions of 2026-10-08 recorded: bible v1.8, story v1.2 (see the bible's Section 11).
 - Bible 1.9: desktop visual target and CC0 textures (5.16), Phase 6b.
 - The game is now Night Shift (bible 1.7, story `docs/story.md`); the player-facing rename is Phase 0 Step 4.
 - Parked content (Wave, Hunter, Mission, PvP, the economy, cosmetics) is behind `?legacy=1` (3.5.0, `core/legacy.ts`). The title is Night Shift. `CLAUDE.md` is a lean core (9.6 KB) with the detail in `docs/systems/`.
+
+### Decisions of 2026-10-10 (Michael)
+1. The 1934 Kestrel Exchange is retired as Mission 1; the Trunk Annex and Dead Line v1 and v2 map designs are retired too (archived in `docs/archive/maps/`).
+2. The campaign is set in the present day, 2026 onwards. Mission 1 "Dead Line" is at a modern colocation data centre; Mission 5 is "The Strongroom", a Victorian bank turned private vault. Prompt D1 rewrites the story.
+3. The vertical slice is Mission 1: 30-40 minutes, solo and 1-4 co-op, seven ordered and two optional objectives, 6 guarded spaces, 16 guards, 1 civilian; CCTV, security desk, keycards, mantrap, iris scanner, infrared beams, PIR lights.
+4. Built through the prompt pack in `docs/kestrel/` (P00 onward, branch `feature/kestrel`); the map id is `kestrel` (internal name only).
+5. Engine step S5 will let every guard spawn at the start, at most 12 awake. Until then SQUAD_CAP is 9 and MAX_ALIVE is 12.
+6. First Playable map steps are superseded; system steps S2-S10 are unchanged and wait for Michael to place them in the order.
 
 ### e2e speed-up (2026-10-09, tooling only, no game change)
 - Full GPU run (`E2E_GPU=1`, 33 suites): serial **13 min 11 s** (791 s of suites) before; **3 min** now (`npm run e2e`, 4 suites at a time: 177 / 187 / 197 s in three runs in a row; serial with the faster suites 578 s). Jobs: 5 gave 235 s, 8 gave 331 s (the machine saturates), 4 gave 173-197 s.
@@ -197,8 +204,8 @@ See the Step 1 and Step 5 reports.
 
 - **S1b (done):** first floor (+4.5), roof (+9.0, raised roof +10.5 over the server hall) and the rear goods yard are built in `exchange.ts` (`buildFirst`, `buildRoof`, `buildYard`). Rooms `switchroom`, `offices`, `servers`, `roof`, `yard` (nine in all). Routes up: main stair, a steel stair from the power room to the switchgear gallery (door to the supervisor's office), a motor-room stair to the roof; the roof reaches the yard by a steel stair at x 16.5. `tests/exchangeMap.test.ts` covers all room centres, the cage, the three hall lanes, the yard and lane gates, and two separate ground-to-first routes. `e2e-fp-map` checks all nine rooms and a floor in the server hall, yard and roof. GPU / visual: pending PC run.
 - **R1 (done):** Exchange v2 basement and ground floor rebuilt in `exchange.ts` to `exchange-layout-v2.md` (the S1a/S1b first floor, roof and old stairs are removed; R2 rebuilds them). Rooms: basement `cable`, `rectifier`, `battery`, `genroom`, `boiler`, `riserbase`; ground `mdf`, `test`, `transmission`, `foyer`, `security`, `canteen`, `meeting`, `cleaners`, `goodsin`, `workshop`, `well`; `yard`. Links: C ladder, B / V / R stairs (basement to ground), plant ramp, coke stair. `tests/exchangeMap.test.ts` rewritten (room centres, routes A1-A3 hop by hop, 2.4 m gap, doors), `e2e-fp-map` updated. GPU / visual: pending PC run.
-- **G1 (done):** Mission 1 DEAD LINE campus greybox: `scripts/gen-dead-line.mjs` turns `docs/design/map-dead-line.json` into `src/world/maps/deadLine.geo.json`, `src/world/maps/deadLine.ts` replays it (map `dead-line`, sandbox). Tests: `tests/deadLineMap.test.ts` (geometry vs JSON, 0.25 m), `scripts/e2e-dead-line.mjs` (in `REQUIRED`: the real controller walks 12 routes, VDUCT, the debug teleports, rule 27 in-engine with 0 hits). Report with deviations: `docs/gates/G1.md`. G2 not started.
-- **Dead Line v2 D0 (approved 2026-10-10):** the D1 layout failed playtest; a new site from the architecture up. `docs/design/dead-line-v2-brief.md` (1934 exchange with 1960s additions, every room, circulation, tunnels and ducts), `dead-line-v2-area1.md` / `.svg` (Area 1 Cable Lane in detail, Areas 2-4 outlined), `dead-line-v2-engine-check.md` (crouch ducts 1.5 x 1.2 m; camera findings). The level logic rules are now `docs/level-design.md` Section 16. The old JSON and the G1 greybox stay until v2 replaces them.
+- **G1 (done):** Mission 1 DEAD LINE campus greybox: `scripts/gen-dead-line.mjs` turns `docs/design/map-dead-line.json` into `src/world/maps/deadLine.geo.json`, `src/world/maps/deadLine.ts` replays it (map `dead-line`, sandbox). Tests: `tests/deadLineMap.test.ts` (geometry vs JSON, 0.25 m), `scripts/e2e-dead-line.mjs` (in `REQUIRED`: the real controller walks 12 routes, VDUCT, the debug teleports, rule 27 in-engine with 0 hits). Report with deviations: `docs/archive/maps/gates/G1.md`. G2 not started.
+- **Dead Line v2 D0 (approved 2026-10-10):** the D1 layout failed playtest; a new site from the architecture up. `docs/archive/maps/design/dead-line-v2-brief.md` (1934 exchange with 1960s additions, every room, circulation, tunnels and ducts), `dead-line-v2-area1.md` / `.svg` (Area 1 Cable Lane in detail, Areas 2-4 outlined), `dead-line-v2-engine-check.md` (crouch ducts 1.5 x 1.2 m; camera findings). The level logic rules are now `docs/level-design.md` Section 16. The old JSON and the G1 greybox stay until v2 replaces them.
 - **Dead Line v2 D1, Area 1 (2026-10-10):** `docs/design/map-dead-line-v2.json` (G1 generator format; its one hard-coded old-yard line is G-stage work), the element register (221 rows) in `dead-line-v2-area1.md`, checks in `map-dead-line-v2-validation.md` (`map-dead-line-v2-analysis.mjs`). Lamp scheme, GA2 and GA4 stops, A8/A9 roof lights, the tunnel vent grating and the FP1 reset changed from D0 (area doc section 9). Open: the ground route is 32% lit against the mission doc's 60% (L1 50%); the timetable bot needs 2.35 min with 9% waiting; the tunnel is the safest way past E1.2 to E1.5. Engine: `MapDef.navLayers` (Dead Line 5); the nav sampler stops above y -1.5 (basements, Area 3).
 - **Dead Line v2 D1 Area 1 revision (2026-10-10):** Area 1 now needs planning and patience: seven guards (GA5 in the car, GA6 on the works wall, GA7 at the transformer louvres added), the car and a railway compound closing the lane mouth to one lit foot gap, roof lights and spikes on the roof walk, the duct bank at x 72 with M1 and M2 lifted within earshot (10 m cast-iron covers, runtime `Interactable.holdNoise`). All checks pass: ground safe shares 28 to 40%, every route timed at every guarded encounter, timetable bot 240.3 s with 38% waiting, sprint alarm 8.8 s. The proposed dim-light perception rule was measured (`map-dead-line-v2-perception.md`) and not applied.
 - **T1 (done):** the Kestrel Trunk Annex is a listed map (`src/world/maps/trunkAnnex.ts`, data `trunkAnnex.data.json` = a copy of `docs/design/map-trunk-annex.json`, a test keeps them equal) and the mission `trunk-annex` ("Dead Line", infiltration, four insertions = the four spawns, objectives O1 and O2 as 3 s and 4 s holds, extract E1 with E2 as an alternate zone). Walkable greybox on three levels (Ground, Upper 3.3, Roof 6.6) plus Cooper's Lane: spaces, 12 doors (built from the design openings), the wide openings, the cage mesh and window W1 (fences), open stair S1, fire stair FS, ladders RL, R1, GL, ES, blocks, rails and parapets. Six guards on the 40 s master clock (`ai/loopSchedule.ts`, pure): each starts where its loop is at clock 0 (it arrives at waypoint 0 at master time = phase), pauses until its planned departure (so early or late arrival never drifts) and walks at the plain walking speed. Tests: `tests/trunkAnnexMap.test.ts` (44) and `tests/loopSchedule.test.ts` (5); smoke `scripts/e2e-fp-trunk.mjs` (in `REQUIRED`). Lamps, switches, panels, hide spots (T2), the trench D1 and the 40 s window test (T3) are not built. GPU / visual: pending PC run.
@@ -388,7 +395,7 @@ See the Step 1 and Step 5 reports.
   - Guards light torches where the static level at the head is below 0.35 (lamps count), and keep them to 0.45.
   - Daylight maps too (review): Proving Grounds' sun share is 0.411 (sun 0.85, sky 0.7), so ground in the sun's
     shadow reads 0.339 (mid) instead of 0.75 (lit), as the desktop draws it. Nowhere on it is dark.
-  - Map decisions that relied on the old facts (bible 7): `docs/prompts/exchange-design.md` Section 9 (the detection
+  - Map decisions that relied on the old facts (bible 7): `docs/archive/maps/prompts/exchange-design.md` Section 9 (the detection
     table by light band; darkness from ambient 0.08-0.12) and Space 2's moonlight, authored as ambient zones at 0.28
     under the windows - exactly the dark / mid edge, and with the baked moon the windows' light comes from the moon
     itself rather than a zone; lamp pools reach differently (the formula). Re-check in the alignment pass (map Phase 2b).
@@ -872,7 +879,7 @@ See the Step 1 and Step 5 reports.
 - Story: `docs/story.md` (story, setting, characters, in-game text)
 - CT movement: `docs/ct-movement.md` (spec), `docs/ct-movement-progress.md` (status)
 - Level design: `docs/level-design.md` (the standard), `docs/templates/map-spec.md` (map spec template)
-- Kestrel Exchange: `docs/prompts/exchange-map.md` (spec), `docs/prompts/exchange-design.md` (design),
-  `docs/prompts/exchange-map-progress.md` (log), `docs/prompts/exchange-plans/` (plans and overlays),
-  `docs/prompts/exchange-alignment.md` (map Phase 2b)
+- Kestrel Exchange: `docs/archive/maps/prompts/exchange-map.md` (spec), `docs/archive/maps/prompts/exchange-design.md` (design),
+  `docs/archive/maps/prompts/exchange-map-progress.md` (log), `docs/archive/maps/prompts/exchange-plans/` (plans and overlays),
+  `docs/archive/maps/prompts/exchange-alignment.md` (map Phase 2b)
 - Phase 0: `docs/prompts/phase-0-foundation.md`, `docs/prompts/phase-0-handover.md`

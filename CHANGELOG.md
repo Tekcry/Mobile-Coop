@@ -1,10 +1,11 @@
 # Changelog
 
 ## 3.6.x - First Playable (in progress)
-- Dead Line v2 G1 (Area 1, 3.5.1): the Cable Lane greybox (`?autostart=dead-line-v2&mode=sandbox`, main menu card "Dead Line v2"), generated from `docs/design/map-dead-line-v2.json` by `scripts/gen-dead-line-v2.mjs`: lane, viaduct, lean-to roofs with downpipes, roof lights, palisades, spikes, cars, substation rooms, cable tunnel with M1 and M2 shafts and ladders, vent grating, flat debug markers, debug Teleport (encounters, checkpoints, spawns). Gate report `docs/gates/dead-line-v2-G1.md`. The old Dead Line is unchanged.
+- Docs: 2026-10-10 cleanup (retired maps archived, docs match the new campaign).
+- Dead Line v2 G1 (Area 1, 3.5.1): the Cable Lane greybox (`?autostart=dead-line-v2&mode=sandbox`, main menu card "Dead Line v2"), generated from `docs/design/map-dead-line-v2.json` by `scripts/gen-dead-line-v2.mjs`: lane, viaduct, lean-to roofs with downpipes, roof lights, palisades, spikes, cars, substation rooms, cable tunnel with M1 and M2 shafts and ladders, vent grating, flat debug markers, debug Teleport (encounters, checkpoints, spawns). Gate report `docs/archive/maps/gates/dead-line-v2-G1.md`. The old Dead Line is unchanged.
 - Per-object hold noise: `Interactable.holdNoise` sounds at the start of a hold and every 0.5 s while it runs (`holdNoisePulse`, `HOLD_NOISE_PULSE` in `config/noise.ts`); `MANHOLE_LIFT_NOISE_RADIUS` 10 m for cast-iron covers. Holds without it stay silent.
 - Nav layers per map: `MapDef.navLayers` (default 3, `DEFAULT_NAV_LAYERS`); Dead Line keeps 5 surfaces per column for v2's A block (basement to roof).
-- G1: Mission 1 DEAD LINE campus greybox (`?autostart=dead-line&mode=sandbox`), generated from `docs/design/map-dead-line.json` by `scripts/gen-dead-line.mjs`: four floors plus the trench and culvert, 12 doors, stairs, ladders, drops, ducts, ledge and roof beam, flat debug markers, flat light, no guards or lamps. Debug overlay Teleport menu (chapter starts, spawns, objectives). Gate report `docs/gates/G1.md`.
+- G1: Mission 1 DEAD LINE campus greybox (`?autostart=dead-line&mode=sandbox`), generated from `docs/design/map-dead-line.json` by `scripts/gen-dead-line.mjs`: four floors plus the trench and culvert, 12 doors, stairs, ladders, drops, ducts, ledge and roof beam, flat debug markers, flat light, no guards or lamps. Debug overlay Teleport menu (chapter starts, spawns, objectives). Gate report `docs/archive/maps/gates/G1.md`.
 - T1: the Kestrel Trunk Annex ("Dead Line") is a listed map and mission (`?autostart=trunk-annex&mode=infiltration`): a walkable 36 x 28 m greybox on three levels with the yard, Goods-in, break room, switch hall and gallery, generator room, core switch cage, Test and Control rooms, roof, open stair, fire stair and four ladders; four insertions, objectives O1 and O2, exits E1 and E2; six guards on 40 s master-clock loops (timed patrol routes). NavGrid path costs are Float64 (a long search could loop and find no path). No lights, switches, panels or trench yet (T2, T3).
 - S1a: the Kestrel Exchange greybox is a listed map (`?autostart=exchange&mode=sandbox`): cable tunnel and chamber, ground floor shell, basement stair, main stair to a first-floor landing. No lights, guards or objective yet (S1b, S1c).
 - S1b: the Exchange's first floor, roof and rear goods yard: switchroom, offices, server hall with its cage, gallery and motor-room stairs, roof with parapets and the steel stair to the yard, yard with cover. Nine rooms.
@@ -15,7 +16,7 @@
   (`docs/design-bible.md` v1.7, story in `docs/story.md`). This release changes no gameplay and no feel.
 - Integration: `ct-movement` now carries `master` 3.4.0 (the light phone renderer, baked lamps, the Phone check) with the
   Chaos Theory movement (3.2.0-ct) and the Warehouse CT routes. The Kestrel Exchange is a paper design only (map phases
-  0-2, `docs/prompts/exchange-design.md`; paused until roadmap Phase 3b); the old Exchange blockout is gone. The split
+  0-2, `docs/archive/maps/prompts/exchange-design.md`; paused until roadmap Phase 3b); the old Exchange blockout is gone. The split
   jump can be jumped out of again.
 - Design bible: `docs/design-bible.md` is the authority on design (vision, pillars, systems, out-of-scope list, process,
   roadmap Phases 0-7 with 3b); `docs/progress.md` says where the project stands.
@@ -310,7 +311,7 @@ Playtest changes, second round (Michael, 2026-10-08):
   over the split ahead of you; drop, a drop attack and the pistol stay as before.
 
 - Docs: level design standard (`docs/level-design.md`), map spec template (`docs/templates/map-spec.md`) and the
-  Kestrel Exchange spec (`docs/prompts/exchange-map.md`).
+  Kestrel Exchange spec (`docs/archive/maps/prompts/exchange-map.md`).
 
 ## 3.1.9 - Epic's half-fog, the phone's display rate, no locks, lighter phone passes
 - Desktop Epic sometimes drew the bottom half of the screen as flat fog: ray-traced reflections and depth of field

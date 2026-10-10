@@ -1,8 +1,8 @@
-> **Current milestone (2026-10-09): First Playable - a 4-player Kestrel Exchange greybox for a friends playtest comes before the rest of the roadmap. See `docs/prompts/first-playable.md`.**
+> **Current milestone (2026-10-10): the vertical slice - Mission 1 "Dead Line", a colocation data centre, built through the prompt pack in `docs/kestrel/` (P00 onward, branch `feature/kestrel`). Retired map designs are in `docs/archive/maps/`.**
 
 # Night Shift - Design Bible
 
-Version 1.11 - 2026-10-09 (1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.12 - 2026-10-10 (1.12: the vertical slice is Mission 1 "Dead Line" at a modern colocation data centre, built through the prompt pack in docs/kestrel/; the 1934 Kestrel Exchange, Trunk Annex and Dead Line v1 / v2 maps are retired. 1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -546,7 +546,7 @@ The Phase column refers to Section 10.
   - They can be grabbed, interrogated, and knocked out (a rating penalty).
   - Killing a civilian fails the mission.
   - A distinct look and body language make them readable at a glance.
-  - The Kestrel Exchange's contracted watchman (G1) becomes the first civilian.
+  - The data centre's night duty engineer (Mission 1) is the first civilian.
 - **Drone operator** is parked: kept in code, not placed in campaign maps.
 
 ### 5.8 Missions and campaign
@@ -649,18 +649,15 @@ It is validated by a schema with a unit test (extend `validateMissions`).
 
 **Difficulty:** one per session, chosen by the host. Player count never changes it (C7).
 
-**Vertical slice:** Kestrel Exchange, a 1934 telephone exchange now used by a data broker. Its mission is "Dead Line": 8 spaces and 9 guards.
+**Vertical slice (decided 2026-10-10):** Mission 1 "Dead Line", set in the present day (2026 onwards) at a modern colocation data centre. The 1934 Kestrel Exchange, the Trunk Annex and Dead Line v1 / v2 are retired (archived in `docs/archive/maps/`).
 
-- Design documents:
-  - `docs/prompts/exchange-design.md` (Part 1 building, Part 2 gameplay)
-  - `docs/prompts/exchange-plans/` (floor plans and gameplay overlays)
-  - `docs/prompts/exchange-map.md` (spec)
-  - `docs/prompts/exchange-map-progress.md` (log)
-- Map phases 0-2 (paper) are done.
-- **Phase 2 approved by Michael on 2026-10-08, all decisions (D10-D27) final.**
-  - If a later roadmap phase changes a number a decision relies on, the alignment pass flags it for Michael rather than changing it silently.
-- **Space 8's secret route** (over the neighbour's roof) gets a security camera covering the lane and the fire escape (Phase 6 sensors). The player must jam it, disrupt it or time its sweep. The sniper keeps covering the loaders.
-- The map's build phases (3-6) are held until roadmap Phase 3b is done and the design has passed the alignment pass in `docs/prompts/exchange-alignment.md` (Section 10, Phase 7).
+- A 30-40 minute solo and 1-4 player co-op stealth mission.
+- A chain of seven ordered objectives and two optional ones.
+- 6 guarded spaces, 16 guards and 1 civilian (the night duty engineer).
+- Systems it exercises: CCTV cameras, a security desk, card readers with keycards, a mantrap, an iris scanner, infrared beams and PIR motion-sensor lights.
+- Built through the prompt pack in `docs/kestrel/` (P00 onward) on branch `feature/kestrel`. The map id is `kestrel` (internal name only).
+- Engine step S5 will let every guard spawn at the start with at most 12 awake at once. Until it lands the code limits are SQUAD_CAP 9 and MAX_ALIVE 12.
+- Story: Mission 1 is Dead Line; Mission 5 is "The Strongroom", a Victorian bank turned private vault. `docs/story.md` is rewritten to match (prompt D1).
 
 ### 5.9 Co-op (P6)
 
@@ -1298,7 +1295,7 @@ The standard's existing content stays. This bible adds the following:
   - at least one more co-op moment (light control as teamwork, a sync opportunity, or a split-and-converge pair of objectives)
   - its `coopExtras`
 - **Medkit and civilian plan.** Wall medkits about every second space. Where civilians work and why they are there at night.
-- **Every map ships with a map spec** in `docs/maps/<map>.md` written before blockout. The Exchange prompt and plan are the template.
+- **Every map ships with a map spec** in `docs/maps/<map>.md` written before blockout. `docs/templates/map-spec.md` is the template.
 
 ---
 
@@ -1407,14 +1404,14 @@ The standard's existing content stays. This bible adds the following:
 | --- | --- | --- |
 | 0 | Foundation | Merge `dev` (3.2.1-3.4.0 phone work) into `ct-movement`; this bible installed; `CLAUDE.md` cut to a lean core with `docs/systems/`; old changelog / testing archived; parked modes behind `?legacy=1`; player-facing title renamed to Night Shift; `docs/story.md` installed; `docs/progress.md`. Spec: `docs/prompts/phase-0-foundation.md`. |
 | 1 | Light parity | Section 5.1 rules L1-L13: gameplay meter reads the bake; bake on every device; phone renders the lamp volume on the blockout (Phone check gate); parity test; continuous meter HUD; fuse boxes; door decision. |
-| 2 | Sound | First the audio source A/B test (S7, Michael picks). Then Section 5.2: noise zones, masking, sound meter, whistle, ambient beds; zones on the Warehouse and Exchange. |
+| 2 | Sound | First the audio source A/B test (S7, Michael picks). Then Section 5.2: noise zones, masking, sound meter, whistle, ambient beds; zones on the Warehouse and the Dead Line map. |
 | 3 | Pure CT conversion | The touch and controller control scheme spec (Section 8); holstered unless aiming, no hip fire, the elbow strike (5.4, 5.6); Back-to-wall (peek, lean-shoot, SWAT turn, corner takedown); remove snap cover, Mark & Execute, sonar, the style tracker and the regenerating shield; medkits; thermal and electro vision; door peek; curated arsenal with original names; hip fire and ADS spread; Training rewritten; cover e2e rewritten. |
 | 3b | Movement, camera and animation lock | The dev bot partner (C20) early. Then the full animation audit (5.12.4): inventory, audit harness, review, fixes in seven batches, Michael's sign-off per batch. Then the CT pulled-back camera and collision solver; drag; quick 180; momentum carry; spring layer; dedicated clips (rappel, fence, brace, back-to-wall, drag); guard body language; pose viewer; known fixes (thigh pistol vs elbow at slow crouch, brace prompt, human ladder by touch, thin fence); a phone feel pass with Michael; then the metrics freeze (Section 5.3). |
 | 4 | Mission framework | Shared campaign progress with spoiler warnings and the per-player mission record (5.8). Section 5.8: triggers / actions, objective tiers, rules and alarm levels, checkpoints with Continue and Restart from checkpoint, text radio with solo / team variants and speaker colours (story Section 7), briefing, field terminal, stealth rating; Warehouse missions ported as test content. |
 | 5 | Co-op 2-4 | Connection test and network stats (C19); the bot partner extended; the first playtest night (C20). Section 5.9: per-player detection, `coopExtras`, new team moves and their clips, distinct operators (5.14) and team-mate outlines; Sync, clutch saves, dragging downed partners, medkit on a team-mate, typed pings with quick lines, team results and highlights (C12-C18); 4-player e2e, host-leave resume. |
 | 6 | CT verbs for the slice | Civilians (5.7); per-stop guard facing (5.7); lockpick, hack minigame, optic cable, interrogation, knife, cameras, lasers, camera jammer, sticky shocker, ring airfoil, light disruptor; curated campaign kit and loadout kits. |
 | 6b | Visual target | Section 5.16: the CC0 texture pipeline (desktop-only download, offline cache, size budget, credits); the material library; operator detail; rain and wetness; light cones, haze, flicker; vision mode beauty pass; district grading; beauty shot script and baseline. Works from `docs/art-direction.md`. |
-| 7 | Vertical slice | Kestrel Exchange as Mission 1 "Dead Line". First the alignment pass in `docs/prompts/exchange-alignment.md` (map Phase 2b) on `exchange-design.md`: replace cover-to-cover and Mark & Execute in Spaces 5-7, re-check engine facts changed by Phases 1-3b (including the frozen movement metrics), add the light, sound, checkpoint and co-op plans. Then the map's own build phases 3-6 (ground floor; first floor, roof and yard; guards and mission; dressing and verification), then the Dead Line radio script (story Section 8), checkpoints and rating. Finally a playtest pass on iPhone, desktop and 2-player co-op. |
+| 7 | Vertical slice | Mission 1 "Dead Line", a modern colocation data centre, through the prompt pack in `docs/kestrel/` (P00 onward, branch `feature/kestrel`): 30-40 minutes, 7 ordered and 2 optional objectives, 6 guarded spaces, 16 guards, 1 civilian; CCTV, security desk, keycards, mantrap, iris scanner, infrared beams, PIR lights. Engine step S5 first lets every guard spawn with at most 12 awake. Then the radio script, checkpoints and rating, and a playtest pass on iPhone, desktop and 2-player co-op. |
 
 **After the slice:**
 

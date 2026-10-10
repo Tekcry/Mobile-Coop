@@ -1,5 +1,6 @@
 # CT movement - progress
-Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-10-08
+Spec: docs/ct-movement.md | Branch: ct-movement (from dev) | Last updated: 2026-10-10
+Status: done, shipped in 3.5.0. Review state: ASK.
 
 ## Status
 | Phase | Status | Commit |

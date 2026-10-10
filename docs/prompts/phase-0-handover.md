@@ -127,7 +127,7 @@ The Exchange design is good, but parts of it rest on things that are about to ch
 - **Movement metrics** (reach, jump bands, split widths, boost heights, camera distances) are frozen only at the end of roadmap Phase 3b. The map's geometry is sized to them.
 - **The bible adds per-space plans** that the design does not have yet: a light plan, a sound plan, a 2-4 player co-op plan, and mission data for the new framework.
 
-`docs/prompts/exchange-alignment.md` (in this bundle) is the spec for the pass that fixes all of this (map Phase 2b). It runs only when Michael says so, after roadmap Phase 3b.
+`docs/archive/maps/prompts/exchange-alignment.md` (in this bundle) is the spec for the pass that fixes all of this (map Phase 2b). It runs only when Michael says so, after roadmap Phase 3b.
 
 ---
 
@@ -149,7 +149,7 @@ The Exchange design is good, but parts of it rest on things that are about to ch
 | `docs/design-bible.md` | `docs/design-bible.md` | Vision, pillars, systems, out-of-scope list, process, roadmap (v1.7) |
 | `docs/story.md` | `docs/story.md` | Story, setting, characters, campaign outline, radio writing rules |
 | `docs/prompts/phase-0-foundation.md` | `docs/prompts/phase-0-foundation.md` | The Phase 0 spec you run next |
-| `docs/prompts/exchange-alignment.md` | `docs/prompts/exchange-alignment.md` | Map Phase 2b spec (waits for Michael) |
+| `docs/archive/maps/prompts/exchange-alignment.md` | `docs/archive/maps/prompts/exchange-alignment.md` | Map Phase 2b spec (waits for Michael) |
 
 ---
 
@@ -158,10 +158,10 @@ The Exchange design is good, but parts of it rest on things that are about to ch
 ### Step 0a - Park the map on its branch
 
 1. On `feature/exchange-map`: make sure the working tree is clean and everything is committed and pushed. If anything from Phase 2 is uncommitted, commit it as part of this step.
-2. Add a short "Paused" entry at the top of `docs/prompts/exchange-map-progress.md`. It says:
+2. Add a short "Paused" entry at the top of `docs/archive/maps/prompts/exchange-map-progress.md`. It says:
    - Phase 2 is done and awaiting Michael's approval, now deferred;
    - the map is paused for roadmap Phases 0-3b;
-   - the next map step is `docs/prompts/exchange-alignment.md` (Phase 2b), then Phase 3.
+   - the next map step is `docs/archive/maps/prompts/exchange-alignment.md` (Phase 2b), then Phase 3.
 3. Carry over any open items not already in the log:
    - the Space 8 secret route question
    - the sloped battery-room duct clip risk
@@ -183,7 +183,7 @@ The Exchange design is good, but parts of it rest on things that are about to ch
 ### After Phase 0
 
 - `feature/exchange-map` stays as it is until the map resumes.
-- When Michael says "start the Exchange alignment pass", follow `docs/prompts/exchange-alignment.md`. It begins by merging `ct-movement` into the map branch.
+- When Michael says "start the Exchange alignment pass", follow `docs/archive/maps/prompts/exchange-alignment.md`. It begins by merging `ct-movement` into the map branch.
 
 ---
 

@@ -94,7 +94,9 @@
 | `docs/progress.md` | Phase status table, current state, phase logs | Every session |
 | `docs/level-design.md`, `docs/templates/map-spec.md` | The map standard (engine facts in Section 12) and the map spec template | Any map or engine-fact change |
 | `docs/ct-movement.md`, `docs/ct-movement-progress.md` | Chaos Theory movement spec and status | Movement work |
-| `docs/prompts/` | Phase specs, the handover, map specs, designs and progress logs | The current phase; map work |
+| `docs/prompts/` | Phase specs (phase 0-1) and the handover | The current phase |
+| `docs/kestrel/` | The vertical slice prompt pack (P00 onward) and its outputs, branch `feature/kestrel` | Vertical slice (Phase 7) work |
+| `docs/archive/maps/` | Retired map designs (Exchange, Trunk Annex, Dead Line v1 / v2) | Do not read |
 | `TESTING.md` | Manual device checklists (3.0.0 onwards) and the release checklist | Ending a phase |
 | `docs/systems/testing-tools.md` | Commands, every e2e suite, helper scripts, debug overlay | Running or writing tests |
 | `docs/systems/deploy.md` | Branches and the Pages slots (`/`, `/preview/`, `/ct/`) | Releases, preview builds |

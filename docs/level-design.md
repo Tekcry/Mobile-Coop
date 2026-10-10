@@ -124,10 +124,11 @@ A level is a linear spine of encounter spaces joined by connectors.
 6. **Co-op verbs** are the ones the game has (brace and boost, human ladder, dual takedown). New verbs are Future work.
 
 ## 12. Engine constraints (re-confirm per map)
-- Nav: 3 walkable surfaces per column by default (`DEFAULT_NAV_LAYERS` in `src/ai/navBuild.ts`); a map raises it with `MapDef.navLayers` (Dead Line: 5, 2026-10-10). Map decisions that relied on 3: none (Exchange and Trunk Annex stay within 3). The nav sampler casts down to y -2 only, so a surface below about -1.5 m (a basement, a tunnel) is not on the guards' grid. Stairs and ramps join storeys by height.
+- Nav: 3 walkable surfaces per column by default (`DEFAULT_NAV_LAYERS` in `src/ai/navBuild.ts`); a map raises it with `MapDef.navLayers` (Dead Line: 5, 2026-10-10). Map decisions that relied on 3: retired maps only. The nav sampler casts down to y -2 only, so a surface below about -1.5 m (a basement, a tunnel) is not on the guards' grid. Stairs and ramps join storeys by height.
 - Guards: Infiltration and Hunter spawn up to `SQUAD_CAP` 9 nearest first; `MAX_ALIVE` 12
   (raised from 10 for Dead Line, 2026-10-10). A map that wants every guard present on a ghost run has 9 or fewer.
-  Map decisions that relied on 10: none (Exchange and Trunk Annex stay within 9).
+  S5 will change this: every guard spawns, at most 12 awake.
+  Map decisions that relied on 10: retired maps only.
 - Split gaps are found automatically from any two facing faces >= 3.6 m tall and 1.2-1.95 m apart: no accidental ones.
 - Box tops >= 1.9 m become hangable lips automatically: remove unwanted ones with `noLedge` / `mark`.
 - `ambientZone` covers y -1..8 by default: set `minY` / `maxY` per storey.
