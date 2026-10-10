@@ -220,7 +220,7 @@ Sums (rectangles): B ground strip 481 of 540 m2 (89%); hall block 900 of 900 (fu
 ### B level U
 | Id | Level | Name | Zone | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| BU01 | U (-1.6) | Hall underfloor void | 4 | Cold-air plenum and cable space under the raised floor; pedestals at 0.6 centres; leak detection | Cold air moving | 25.7 x 14.2 | 1.5 | Dust-sealed concrete | BG20 (hinged hatches throughout), BU02 | Y | N | N | Nobody | none |
+| BU01 | U (-1.6) | Hall underfloor void | 4 | Cold-air plenum and cable space under the raised floor; pedestals at 1.2 centres (not modelled); leak detection | Cold air moving | 25.7 x 14.2 | 1.5 | Dust-sealed concrete | BG20 (hinged hatches throughout), BU02 | Y | N | N | Nobody | none |
 | BU02 | U (-1.6) | Cooling gallery plenum | 4 | Discharge plenum under the CRAH units, open to BU01 | Cold air moving | 3.7 x 14.2 | 1.5 | Dust-sealed concrete | BU01 (open), BG23 (hatch) | Y | N | N | Nobody | none |
 Sum: 435 m2 under the hall band (377 + 58).
 
@@ -338,7 +338,7 @@ Must not touch:
 - Fire alarm: addressable panel in AG11, repeaters at AG01 and BF01; call points at every exit. The alarm releases fail-safe locks, homes both lifts and opens the smoke vents; gas release is by the gas panel only.
 - CCTV: network cameras to switches in AG25, AF16, BG15, BF12 and BG31, fibre by the risers (A) and the tunnel (B) to the recorders in AG12, pictures on the wall in AG11.
 - Rainwater: downpipes at every corner and about every 12 m on every facade of A, B and the wing, into yard gullies; the bridge roof drains to hoppers on A's and B's walls.
-- Crawl and walk spaces against F32 (floor to the underside of what is above): corridor voids 1.5 x 2.6 (crouch 1.5 x 1.2: pass); BU01/BU02 1.5 high, lanes 1.2 wide between pedestals at 1.2 centres (pass; ASK-6); tunnel 2.4 high x 2.6 wide, 1.8 walkway (walk-in: pass); vault 3.0 (pass); manhole 1.2 x 1.2, ladder shaft (SS 1.0: pass); risers and shafts 1.7 x 1.7 or 1.7 x 1.2 (pass); service passage 1.5 wide, open above (F08 1.2-1.95: pass).
+- Crawl and walk spaces against F32 (floor to the underside of what is above): corridor voids 1.5 x 2.6 (crouch 1.5 x 1.2: pass); BU01/BU02 1.5 high, pedestals at 1.2 centres, not modelled (pass; ASK-6); tunnel 2.4 high x 2.6 wide, 1.8 walkway (walk-in: pass); vault 3.0 (pass); manhole 1.2 x 1.2, ladder shaft (SS 1.0: pass); risers and shafts 1.7 x 1.7 or 1.7 x 1.2 (pass); service passage 1.5 wide, open above (F08 1.2-1.95: pass).
 
 ## 10. Exterior elements
 | Element | Building, facade or roof | Real reason | Same kind elsewhere? |
@@ -377,7 +377,7 @@ Must not touch:
 
 ## 12. Known tensions
 - a. The gallery is not under the 6.6 hall roof: it sits in the two-storey strip under the 8.4 roof (3.0 ceiling, 3.9 to soffit) and looks into the hall through a 1.8 high opening (4.2 to the 6.0 hall soffit) with a 1.1 glass balustrade. Its stair runs in a well inside the strip. ASK-7.
-- b. Level U floor -1.6. Hall floor: 0.1 tile and stringer on pedestals from -1.6 to -0.1, so 1.5 clear; only the hall and cooling gallery slab is sunk. Equipment door threshold level at 0.0 both sides, no ramp. Pedestals at 1.2 centres: ASK-6.
+- b. Level U floor -1.6. Hall floor: 0.1 tile and stringer on pedestals from -1.6 to -0.1, so 1.5 clear; only the hall and cooling gallery slab is sunk. Equipment door threshold level at 0.0 both sides, no ramp. Pedestals at 1.2 centres, not modelled: P04 and the builds leave them out of level U (Michael, ASK-6).
 - c. At or below the F22 sampler depth: level U (-1.6), vault and tunnel (-3.6), manhole and riser shafts, both lift pits (-1.1, closed). P07 places no guard there.
 - d. Each lift shaft (2.5 x 2.5) sits beside its core; the core stays 4.0 x 8.0; core and shaft 6.5 x 8.0 together. No protected lobby is needed (section 8 source).
 - e. Service passage 1.5 clear (F08 1.2-1.95); walls 7.7-8.4 and 7.7 (F08 3.6 minimum, feet 2.5); gravel floor level with the yard.
@@ -401,14 +401,14 @@ Must not touch:
 - ASK-3: Equipment door 2.0 x 2.1 (SS double door); real equipment doors are often 2.4 high or more (general knowledge).
 - ASK-4: Lift numbers (shaft, pit 1.1, head 3.4) are maker data, not facts: add them to facts.json in P03B?
 - ASK-5 (answered 2026-10-11: accepted): Corridors 2.4 clear under the 1.5 void (SS 3.0).
-- ASK-6: Raised-floor pedestals at 1.2 centres for 1.2 lanes (real grids 0.6, general knowledge).
+- ASK-6 (answered 2026-10-11: 1.2 grid kept in the brief; pedestals not modelled, P04 and the builds leave them out of level U): Raised-floor pedestals at 1.2 centres for 1.2 lanes (real grids 0.6, general knowledge).
 - ASK-7: Gallery opening into the hall only 1.8 high (4.2 to 6.0).
 
 ## 15. Questions for Michael
 1. Generator hall: separate wing behind B with a 1.5 passage (as drawn), or inside B's footprint? Answered (Michael 2026-10-11): separate wing.
 2. Ring exemptions in ASK-2: accept, or add zone-2 airlocks in front of each key-only plant door? Answered: exempt them.
 3. Corridor height (ASK-5): accept 2.4 clear, or raise office floors to 4.5 (2.7 clear)? Answered: accept 2.4.
-4. Raised-floor pedestals (ASK-6): 1.2 grid as drawn, or leave pedestals out of the build? Not asked; 1.2 grid stands unless Michael says otherwise.
+4. Raised-floor pedestals (ASK-6): 1.2 grid as drawn, or leave pedestals out of the build? Answered: 1.2 grid kept; pedestals not modelled.
 5. Sizes: A 36 x 24, B 48 x 30, site 108 x 76: accept, or shrink B to 42 x 30? Answered: accept.
 
 Downstream: P03B redoes the block plan from this brief, including both lift shafts (2.5 x 2.5 beside each main core, pits 1.1). schema.md's ring-to-space line (S1-S6) is stale: use section 6 here. The module kit needs the rows in tension g. B-step builders: lifts are built as closed shafts with shut landing doors (no working lift in the engine). P04S, P07: zone corrections for S2 and X; P07 places no guard on the floors in tension c.
@@ -417,4 +417,4 @@ Downstream: P03B redoes the block plan from this brief, including both lift shaf
 | Date | Fix # | What changed (rows, sections) | Checker counts after | Status |
 | --- | --- | --- | --- | --- |
 | 2026-10-11 | campus rewrite | Replaces the single-building brief (last commit c805978): Building A, Building B, link bridge, generator wing, yard, lane, level U, vault and tunnel; new ids AG/AF/AR/LF/BG/BF/BR/BU/TB/X; both lifts | - | DRAFT |
-| 2026-10-11 | answers | Michael: separate generator wing, ring exemptions (ASK-2), 2.4 corridors (ASK-5), sizes accepted; s14, s15 | - | DRAFT |
+| 2026-10-11 | answers | Michael: separate generator wing, ring exemptions (ASK-2), 2.4 corridors (ASK-5), sizes accepted, pedestals 1.2 grid not modelled (ASK-6); BU01, s9, s12b, s14, s15 | - | DRAFT |

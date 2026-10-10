@@ -107,6 +107,7 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 P02 ASK-6: the 1.2 m raised-floor pedestal grid stays in the brief as a real fact; pedestals are "not modelled", so P04 and the builds leave them out of level U.
 - 2026-10-11 P02 questions: generator hall is a separate wing behind B (1.5 m passage); key-only and exit-only doors (manhole, fire exits, passage door, wing doors, compound gates) are exempt from the zone step rule; office corridors 2.4 m clear under the 1.5 m void accepted; sizes A 36 x 24, B 48 x 30, site 108 x 76 accepted.
 - 2026-10-11 P02 campus brief: handover.md 'Decisions to carry into P02' adopted as Michael's decisions.
 - 2026-10-11 P02: one passenger lift per building at the main core, locked off at night; no goods lift.
