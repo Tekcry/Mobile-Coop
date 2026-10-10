@@ -13,7 +13,7 @@
 | P02 | Building brief | APPROVED | d0fc54f | 2026-10-10 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03B | Block plan | APPROVED | 17d8a89 | 2026-10-10 |
-| B0 | Massing walk | DRAFT | | 2026-10-10 |
+| B0 | Massing walk | DRAFT | 57aaf6c | 2026-10-10 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
