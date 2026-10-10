@@ -14,7 +14,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P01 | Mission brief | APPROVED | 5764aad | 2026-10-11 |
 | P02 | Building brief | APPROVED | 133a4d1 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
-| P03T | Campus tools (two buildings) | DRAFT | f097ce1 | 2026-10-11 |
+| P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |

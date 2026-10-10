@@ -23,6 +23,7 @@ Format: `N. Item - destination - status`.
 22. **Light disruptor** (toolkit, spec `docs/systems/ct-toolkit.md` 3.6). Not built in V3 (Michael, 2026-10-11: V3 builds only Dead Line's kit); no real equivalent, so a later mission decides if it fits. Destination: a later mission's kit.
 23. **Ring airfoil** (toolkit, spec `docs/systems/ct-toolkit.md` 3.8). Not built in V3 (Michael, 2026-10-11). Destination: a later mission's kit.
 24. **Knife** (toolkit, spec `docs/systems/ct-toolkit.md` 3.10: knife takedown and cutting). Not built in V3 (Michael, 2026-10-11). Destination: a later mission with a cuttable element.
+25. **A30 must judge fire stairs per building** (`rooms[].building`). Today A30 compares floor heights only, so a fire stair in one building counts as serving a level of the other (`docs/kestrel/schema.md` section 6); on a campus each building needs its own enclosed fire stair, escape distance and roof access. Destination: a Kestrel tools revision before P04 (Michael, 2026-10-11, P03T approval).
 
 ## Flaky e2e suites
 
