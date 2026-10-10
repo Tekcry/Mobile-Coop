@@ -1,4 +1,4 @@
-import { Camera, FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
+import { Camera, FreeCamera, PhysicsRaycastResult, PhysicsShapeSphere, Quaternion, ShapeCastResult, Vector3, type HavokPlugin, type PhysicsEngine, type Scene } from '../core/babylon';
 import { G } from '../physics/groups';
 import { MOVEMENT } from '../config/movement';
 import { ATTACH_FRAMING, attachFraming, CAMERA, framing, type AttachCamera, type AttachFraming } from '../config/camera';
@@ -6,6 +6,7 @@ import type { CharacterRig } from './characterRig';
 import { Spring } from '../anim/rigMath';
 import { hyp2 } from '../core/mathx';
 import { vfovFor } from '../core/display';
+import { castStop, easeRate, lowFraming, lowSwing, lowWeight, nearPlane, pivotFraction } from './cameraBounds';
 
 /** Vertical FOV (rad) for a horizontal FOV (deg) at a 16:9 reference aspect. */
 export function vfovFromH16x9(hDeg: number): number {
@@ -37,7 +38,10 @@ export const COVER_EYE = 0.26;
  * the feet with a 150-250 ms lag and looks ahead along the movement; every framing change (crouch,
  * ADS, cover, lean, dash, shoulder swap) blends over 350-600 ms; the shoulder swap arcs back behind
  * the head. Subtle handheld drift (steadier when kneeling or aiming) and a damped footstep micro-bob
- * give it weight. The boom pulls in smoothly against walls (never pops) and eases back out.
+ * give it weight. Walls (CAM): sphere casts run head -> pivot -> shoulder point -> camera, so neither the pivot, the
+ * shoulder point nor the camera ever sits behind a surface, and the camera keeps its near plane clear of it; the boom pulls
+ * in at once and eases back out. Low spaces: probes up and down from the head lower the shoulder point and shorten the boom
+ * between floor and ceiling, easing back when the space opens. In the open none of this changes the framing.
  * Updated every render frame from interpolated targets.
  */
 
@@ -111,11 +115,26 @@ export class ShoulderCamera {
   private shoulderPt = new Vector3();
   private desired = new Vector3();
   private camPos = new Vector3();
+  private head = new Vector3();
+  private probe = new Vector3();
+  private castVec = new Vector3();
   private static readonly Q = { membership: G.PLAYER, collideWith: G.STATIC };
+  /** Sphere casts (the camera's own shapes, G.PLAYER against G.STATIC like its rays), built on first use. */
+  private castShape: PhysicsShapeSphere | null = null;
+  private pivotShape: PhysicsShapeSphere | null = null;
+  private castHit = new ShapeCastResult();
+  private castHitOther = new ShapeCastResult();
+  private castQuery = { shape: null as unknown as PhysicsShapeSphere, rotation: Quaternion.Identity(), startPosition: new Vector3(), endPosition: new Vector3(), shouldHitTriggers: false };
+  /** Low space: weight 0..1 (eased) and the clear height over the head last frame (m). */
+  private sLow = new Spring();
+  private sLowDy = new Spring();
+  lowW = 0;
+  clearHeight = Number.POSITIVE_INFINITY;
+  private lowOut = { boom: 0, shoulderY: 0 };
 
   constructor(private scene: Scene) {
     this.camera = new FreeCamera('ots', new Vector3(0, 2, -4), scene);
-    this.camera.minZ = 0.05;
+    this.camera.minZ = CAMERA.near;
     this.camera.maxZ = 220;
     // Hor+: the vertical FOV is fixed from the horizontal setting at 16:9, so tall framing (head to
     // hips) holds on any aspect and wider screens see more at the sides, up to `maxFovDeg` (then Vert-)
@@ -126,6 +145,53 @@ export class ShoulderCamera {
     // frame's pitch for good (a lasting tilt after a hard landing, a hit or an explosion)
     this.camera.updateUpVectorFromRotation = true;
     scene.activeCamera = this.camera;
+    scene.onDisposeObservable.addOnce(() => {
+      this.castShape?.dispose();
+      this.pivotShape?.dispose();
+      this.castShape = this.pivotShape = null;
+    });
+  }
+
+  /** A sphere of `radius` for casts, rebuilt if the radius was retuned. */
+  private sphere(cur: PhysicsShapeSphere | null, radius: number): PhysicsShapeSphere {
+    if (cur && this.radii.get(cur) === radius) return cur;
+    cur?.dispose();
+    const s = new PhysicsShapeSphere(Vector3.Zero(), radius, this.scene);
+    s.filterMembershipMask = G.PLAYER;
+    s.filterCollideMask = G.STATIC;
+    this.radii.set(s, radius);
+    return s;
+  }
+  private radii = new WeakMap<PhysicsShapeSphere, number>();
+
+  /**
+   * Fraction (0..1) of `from` -> `to` a sphere of `radius` travels before it touches level geometry (1 = clear). A start that
+   * already overlaps a surface (a tight duct) falls back to the ray, so the chain never collapses onto its start.
+   */
+  private cast(eng: PhysicsEngine, shape: PhysicsShapeSphere, radius: number, from: Vector3, to: Vector3): number {
+    const plugin = eng.getPhysicsPlugin() as HavokPlugin;
+    if (typeof plugin.shapeCast === 'function') {
+      const q = this.castQuery;
+      q.shape = shape;
+      q.startPosition.copyFrom(from);
+      q.endPosition.copyFrom(to);
+      plugin.shapeCast(q, this.castHitOther, this.castHit);
+      if (!this.castHit.hasHit) return 1;
+      if (this.castHit.hitFraction > 1e-4) return this.castHit.hitFraction;
+    }
+    this.rr.reset();
+    eng.raycastToRef(from, to, this.rr, ShoulderCamera.Q);
+    if (!this.rr.hasHit) return 1;
+    const len = Vector3.Distance(from, to);
+    return len > 1e-6 ? Math.max(0, Vector3.Distance(from, this.rr.hitPoint) - radius) / len : 0;
+  }
+
+  /** Height (m) of the first surface straight up (`dir` 1) or down (-1) from `p` within `len`, else p.y + dir * len. */
+  private probeY(eng: PhysicsEngine, p: Vector3, dir: number, len: number): number {
+    this.probe.set(p.x, p.y + dir * len, p.z);
+    this.rr.reset();
+    eng.raycastToRef(p, this.probe, this.rr, ShoulderCamera.Q);
+    return this.rr.hasHit ? this.rr.hitPoint.y : this.probe.y;
   }
 
   swapShoulder(): void {
@@ -230,6 +296,24 @@ export class ShoulderCamera {
     const fz = this.sFz.step(feet.z, MOVEMENT.camFollow, dt);
     const bob = this.sBob.step(0, 16, dt);
     this.pivot.set(fx + lx, footY + pivotY + bob, fz + lz);
+    // the head: the pivot height on the operator's own axis (no follow lag, no look-ahead), always in the operator's space
+    const head = this.head.set(feet.x, this.pivot.y, feet.z);
+    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
+    let lowDyT = 0;
+    if (eng) {
+      this.castShape = this.sphere(this.castShape, T.castRadius);
+      this.pivotShape = this.sphere(this.pivotShape, T.pivotRadius);
+      // pivot safety: the lagged, looked-ahead pivot is pulled back to the head side of any wall between them
+      const f = pivotFraction(this.cast(eng, this.pivotShape, T.pivotRadius, head, this.pivot), Vector3.Distance(head, this.pivot), T.castSkin);
+      if (f < 1) Vector3.LerpToRef(head, this.pivot, f, this.pivot);
+      // low space: clear height over the head, floor to ceiling
+      const ceilY = this.probeY(eng, head, 1, T.probeUp);
+      const floorY = this.probeY(eng, head, -1, T.probeDown);
+      this.clearHeight = ceilY - floorY;
+      const wT = lowWeight(this.clearHeight);
+      this.lowW = Math.max(0, Math.min(1, this.sLow.step(wT, easeRate(wT > this.sLow.x, T.lowIn, T.lowOut), dt)));
+      if (wT > 0) lowDyT = Math.min(0, lowFraming(0, this.pivot.y + T.height, floorY, ceilY, 1, this.lowOut).shoulderY - (this.pivot.y + T.height));
+    } else this.lowW = 0;
 
     // rendered rotation: look input applies the same frame (no lag); smoothing and acceleration live in
     // the input sources, so the view is exactly where the player points it
@@ -254,35 +338,35 @@ export class ShoulderCamera {
     const arc = 0.2 * (1 - side * side);
     // pace: a sneak frames a touch tighter, a jog / sprint pulls back a little (sprint adds the dash framing)
     const paceS = this.sPace.step(Math.min(1, this.pace / 2.8), 4, dt);
-    const boomTarget = fr.boom + coverS * T.coverBoom * (1 - this.ads) + arc + (paceS - 0.45) * 0.16 * (1 - this.ads);
+    const boomFr = Math.max(T.minBoom, fr.boom + coverS * T.coverBoom * (1 - this.ads) + arc + (paceS - 0.45) * 0.16 * (1 - this.ads));
+    // low space: a shorter boom and the shoulder point between floor and ceiling (eased in fast, out slowly)
+    const low = this.lowW;
+    const lowDy = this.sLowDy.step(lowDyT, easeRate(lowDyT < this.sLowDy.x, T.lowIn, T.lowOut), dt);
+    const boomTarget = boomFr + (Math.min(boomFr, T.lowBoom) - boomFr) * low;
     const shoulder = fr.shoulder * side + leanS * T.leanShift;
-    const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height, this.pivot.z + rightZ * shoulder);
-    const eng = this.scene.getPhysicsEngine() as PhysicsEngine | null;
-    const q = ShoulderCamera.Q;
-    if (eng) {
-      // keep the shoulder point itself out of walls in tight corridors
-      this.rr.reset();
-      eng.raycastToRef(this.pivot, shoulderPt, this.rr, q);
-      if (this.rr.hasHit) Vector3.LerpToRef(this.pivot, this.rr.hitPoint, 0.75, shoulderPt);
+    const shoulderPt = this.shoulderPt.set(this.pivot.x + rightX * shoulder, this.pivot.y + T.height + Math.min(0, lowDy), this.pivot.z + rightZ * shoulder);
+    if (eng && this.pivotShape) {
+      // the shoulder point stays on the pivot's side of a wall (tight corridors, leaning past a corner)
+      const f = pivotFraction(this.cast(eng, this.pivotShape, T.pivotRadius, this.pivot, shoulderPt), Vector3.Distance(this.pivot, shoulderPt), T.castSkin);
+      if (f < 1) Vector3.LerpToRef(this.pivot, shoulderPt, f, shoulderPt);
     }
-    const desired = this.forward.scaleToRef(-boomTarget, this.desired).addInPlace(shoulderPt);
-    let dist = boomTarget;
-    if (eng) {
-      this.rr.reset();
-      eng.raycastToRef(shoulderPt, desired, this.rr, q);
-      if (this.rr.hasHit) dist = Math.max(T.minBoom, Vector3.Distance(shoulderPt, this.rr.hitPoint) - T.padding);
-    }
-    // pull in quickly but smoothly (never pops), ease back out slowly; never behind a wall
-    const boomNow = this.sBoom.step(dist, dist < this.sBoom.x ? 40 : 7, dt);
-    this.boomActual = Math.min(boomNow, dist + 0.04);
-    const pos = this.forward.scaleToRef(-this.boomActual, this.camPos).addInPlace(shoulderPt);
-
-    // shake (smooth pseudo-noise)
+    // the boom: back along the view (its vertical swing flattened in a low space), shake included so the cast covers it
+    const v = this.castVec.set(-this.forward.x, -this.forward.y * lowSwing(low), -this.forward.z);
+    v.scaleInPlace(boomTarget / Math.max(1e-6, v.length()));
     const s = this.trauma * this.trauma;
     if (s > 0) {
-      pos.x += Math.sin(this.t * 37.3) * 0.06 * s;
-      pos.y += Math.sin(this.t * 41.7 + 1.3) * 0.06 * s;
+      v.x += Math.sin(this.t * 37.3) * 0.06 * s;
+      v.y += Math.sin(this.t * 41.7 + 1.3) * 0.06 * s;
     }
+    const len = Math.max(1e-6, v.length());
+    const desired = this.desired.copyFrom(shoulderPt).addInPlace(v);
+    let dist = len;
+    if (eng && this.castShape) dist = castStop(this.cast(eng, this.castShape, T.castRadius, shoulderPt, desired), len, T.castPad);
+    // pull in fast, ease back out slowly; never past the cast's stop (never behind a wall)
+    const boomNow = this.sBoom.step(dist, easeRate(dist < this.sBoom.x, T.boomIn, T.boomOut), dt);
+    this.boomActual = Math.min(boomNow, dist);
+    const pos = v.scaleToRef(this.boomActual / len, this.camPos).addInPlace(shoulderPt);
+    this.camera.minZ = nearPlane(this.boomActual);
     this.camera.position.copyFrom(pos);
     this.camera.rotation.set(-pitch + Math.sin(this.t * 29.1) * 0.02 * s, yaw, Math.sin(this.t * 23.3) * 0.03 * s);
     const zoom = 1 + (this.adsZoom - 1) * this.ads;

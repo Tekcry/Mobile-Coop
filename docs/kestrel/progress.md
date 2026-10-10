@@ -15,6 +15,7 @@
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
+| CAM | Camera respects walls and low spaces | DRAFT | (this commit) | 2026-10-11 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
@@ -34,6 +35,10 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 CAM camera fix: diagnosis on the B0 map: kestrel geometry already blocks the camera (one static G.STATIC body); the faults were the single thin ray (camera 1 cm inside a corridor wall, 4 cm past the hit allowed), the shoulder point only pulled 75% back and the pivot never tested from the head, no floor or ceiling test (2 cm under a 1.5 m ceiling), and the near plane cutting walls 1-3 cm away (G20, S-MAIN, S-FS1, S-FS1R).
+  Fix: src/player/shoulderCamera.ts sphere casts head -> pivot -> shoulder -> camera, up / down probes, near plane only while close; pure maths src/player/cameraBounds.ts; numbers in src/config/camera.ts; ShapeCastResult export in src/core/babylon.ts. tests/cameraBounds.test.ts (17), scripts/e2e-camera-bounds.mjs (REQUIRED, COVERS the camera files).
+  Checks: e2e-camera-bounds 13 of 13 pass (old camera: corridor 40-43 bad frames per run, S-MAIN 115, S-FS1 63); yard within 0.27% of the old framing; check: lint, build pass, 779 of 780 tests (kestrelMap copy test fails before and after: docs blocks wait for the B0 rerun); e2e:quick all pass (e2e-touch KNOWN FLAKY; e2e-desktop:1 failed a performance-note save once, passed alone).
+  Level U is not in the built map: the low-space run used a 1.5 m test box ("rerun after B0"). Note for B0: level U in the docs blocks is a 1.5 m void under a 0.3 m slab, so 1.2 m clear; F32 says 1.2 m fails for crouching. GPU and perf: pending PC run.
 - 2026-10-11 P01 revision (campus, fixes 1-10): 01-mission-brief.md rewritten for Building A, Building B and the link bridge (272 lines, DRAFT). New tables: ghost solutions (4.1), control ladder (4.2), secret routes (4.3). 20 guards + engineer in 7 spaces plus the way out, 8 dormant; beats B1-B10, tension 1,3,2,4,3,4,3,5,4,5; time 41 min (16 moving, 25 waiting). RULES section 2: site and levels lines only.
   Design calls: the panel sits in a CCTV equipment room beside the security room; the B-tier card is in the key safe (PIN in the records), the escort PIN on a note in the engineer's locker; the mantrap has no ghost solution, so the standard ghost route goes bridge, fire stair, roof, shaft, rappel; carrier route is also the way out. New ASK-13 to 15 (grille isolator, PIN gates and fire-alarm release not in S0, ghost counters).
   Downstream: P02, P03B, P03R, P04S, S2, P07, P08 recheck (lines at the end of the brief).
@@ -79,7 +84,12 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - Known gaps in the plan, not bugs in the build: goods lobby and goods zone, and hall and meet-me room, have no opening yet (P04 doors, 03B section 4), so they are walls; the fire stair cores have the stair across their full width, so the south exit-only fire doors (x 17 and x 61, z 22) are unreachable from inside, and from fire stair 1's ground landing there is no way out.
 - Lighting is a flat day look (no lamps); interiors are readable but the undersides of the slabs are black. Wall corners outside the building show a small notch.
 
+## Camera fix (CAM)
+- What changed: the camera checks walls with spheres, not one ray, from the head to the pivot, the pivot to the shoulder and the shoulder to the camera, so none of them ends up behind a wall, and no wall can cut the edge of the view. It pulls in at once and eases back out. Under 1.9 m of clear height it shortens the boom to 1.4 m, keeps the shoulder point between floor and ceiling and flattens the camera's up / down swing, easing back when the space opens. In the open nothing changes.
+- Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
+
 ## Decisions by Michael
+- 2026-10-11 CAM exception to RULES section 11: the CAM session may change the third-person camera code and src/config/camera.ts; nothing else in src/player, src/ai or the movement config.
 - 2026-10-11 Campus redesign after the massing walk (RULES.md sections 1, 2, 12 updated; every design stage reruns):
   - Mission 1 is a campus of two buildings: A (2004 original: offices, security room, night operations desk, records) and B (2021 phase 2: secure data hall, meet-me room, Pell's cage), joined at first-floor level by an enclosed link bridge; shared grid, materials and storey logic, not identical. Objectives 1-4 at the site and in A, 5-6 in B, 7 out through the yard.
   - Control ladder: a real control at every zone boundary and move inward, plus knowledge gates; each control has a realistic alternative with a cost.

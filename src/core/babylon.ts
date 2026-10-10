@@ -91,6 +91,7 @@ export { PhysicsCharacterController, CharacterSupportedState } from '@babylonjs/
 export type { CharacterSurfaceInfo } from '@babylonjs/core/Physics/v2/characterController';
 export { PhysicsShapeType, PhysicsMotionType } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin';
 export { PhysicsRaycastResult } from '@babylonjs/core/Physics/physicsRaycastResult';
+export { ShapeCastResult } from '@babylonjs/core/Physics/shapeCastResult';
 export { BallAndSocketConstraint, HingeConstraint } from '@babylonjs/core/Physics/v2/physicsConstraint';
 export type { Nullable } from '@babylonjs/core/types';
 export type { IPhysicsCollisionEvent } from '@babylonjs/core/Physics/v2/IPhysicsEnginePlugin';

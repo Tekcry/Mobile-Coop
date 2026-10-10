@@ -21,7 +21,7 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 
 // 3.5: REQUIRED = the suites `npm run e2e` runs; LEGACY = suites whose every check is about parked content (Wave, Hunter,
 // Mission, PvP, the economy and cosmetics behind `?legacy=1`): `npm run e2e:legacy` runs them with LEGACY=1 (report only).
-const REQUIRED = ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-cover', 'e2e-clip', 'e2e-tactics', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-training', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-fp-map', 'e2e-fp-trunk', 'e2e-dead-line', 'e2e-dead-line-menu', 'e2e-dead-line-v2', 'e2e-dead-line-v2-menu', 'e2e-security', 'e2e-kestrel'];
+const REQUIRED = ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-cover', 'e2e-clip', 'e2e-tactics', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-training', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-fp-map', 'e2e-fp-trunk', 'e2e-dead-line', 'e2e-dead-line-menu', 'e2e-dead-line-v2', 'e2e-dead-line-v2-menu', 'e2e-security', 'e2e-kestrel', 'e2e-camera-bounds'];
 const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear'];
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` = `e2e-desktop:1` .. `:4`
 // (`node scripts/e2e-desktop.mjs --part=N`; named alone it still runs whole). The sections' checks are the suite's, none dropped.
@@ -41,6 +41,10 @@ const COVERS = {
   'src/ui/': ['e2e-pad', 'e2e-touch', 'e2e-desktop', 'e2e-feedback', 'e2e-park', 'e2e-training'],
   'src/game/': ['e2e-modes', 'e2e-missions', 'e2e-takedown', 'e2e-gadgets', 'e2e-tactics', 'e2e-enemies', 'e2e-training', 'e2e-park', 'e2e-fp-trunk'],
   'src/physics/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-ct'],
+  // the camera files (CAM): the camera bounds suite on top of what their folders run
+  'src/player/shoulderCamera': ['e2e-camera-bounds', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-cover', 'e2e-clip', 'e2e-weapons-carry', 'e2e-mouse'],
+  'src/player/cameraBounds': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-clip'],
+  'src/config/camera': ['e2e-camera-bounds', 'e2e-anim', 'e2e-clip', ...CORE],
   'src/player/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-cover', 'e2e-clip', 'e2e-weapons-carry', 'e2e-mouse'],
   'src/anim/': ['e2e-anim', 'e2e-clip', 'e2e-weapons-carry', 'e2e-move'],
   'src/cover/': ['e2e-cover', 'e2e-stealth', 'e2e-clip', 'e2e-tactics'],
