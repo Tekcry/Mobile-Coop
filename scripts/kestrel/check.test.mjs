@@ -43,9 +43,9 @@ test('the clean sample has no FAIL and no WARN', () => {
   assert.ok(n.PASS >= 20);
 });
 
-test('every check in the table has a result line (A01-A30, SC01-SC06)', () => {
+test('every check in the table has a result line (A01-A31, SC01-SC06)', () => {
   const ids = run().map((r) => r.id);
-  for (let i = 1; i <= 30; i++) assert.ok(ids.includes(`A${String(i).padStart(2, '0')}`), `A${i}`);
+  for (let i = 1; i <= 31; i++) assert.ok(ids.includes(`A${String(i).padStart(2, '0')}`), `A${i}`);
   for (let i = 1; i <= 6; i++) assert.ok(ids.includes(`SC0${i}`), `SC0${i}`);
 });
 
@@ -250,7 +250,9 @@ test('A20 trips on five stacked walkable surfaces', () => {
 });
 
 test('A21 trips on an oversize site, an oversize footprint and a footprint outside the site', () => {
-  trips('A21', (a) => { a.meta.site = [0, 0, 100, 14]; });
+  trips('A21', (a) => { a.meta.site = [0, 0, 120, 14]; });
+  trips('A21', (a) => { a.meta.site = [0, 0, 90, 85]; });
+  assert.equal(status(run((a) => { a.meta.site = [0, 0, 100, 14]; }), 'A21'), 'PASS', 'the campus site limit is 110 x 80');
   trips('A21', (a) => { a.meta.footprint = [2, 2, 52, 12]; });
   trips('A21', (a) => { a.meta.footprint = [2, 2, 17, 15]; });
   trips('A21', (a) => { a.meta.footprint = [0, 0, 0, 0]; });
@@ -481,4 +483,150 @@ test('a missing fact prints SKIP, not PASS', () => {
   const results = runChecks({ arch: sample(), facts: noFacts });
   assert.equal(status(results, 'A07'), 'SKIP');
   assert.match(details(results, 'A07').join(), /no fact/);
+});
+
+// ---------- campus: two buildings, a link bridge, a low roof level ----------
+/**
+ * Two buildings on a 60 x 40 site. A is 12 x 10, two storeys with a roof. B is 18 x 10: a two-storey strip on the west (6 m) and a single-storey
+ * hall block on the east with its own low roof level H, which sits inside the first floor's height span over a different area. A link bridge
+ * (a room with no building) joins the first floors. Walls are drawn round every room except the bridge's open ends.
+ */
+function campus() {
+  const A = [2, 2, 14, 12];
+  const strip = [20, 2, 26, 12];
+  const hall = [26, 2, 38, 12];
+  const bridge = [14, 5, 20, 8];
+  const rooms = [
+    room('AG01', 'G', A, { building: 'A', ring: 2 }),
+    room('BG01', 'G', strip, { building: 'B', ring: 2 }),
+    room('BG02', 'G', hall, { building: 'B', ring: 2, ceiling: 6.0 }),
+    room('AF01', 'F', A, { building: 'A', ring: 3 }),
+    room('BF01', 'F', strip, { building: 'B', ring: 3 }),
+    room('LF01', 'F', bridge, { ring: 3, minShort: 2.0, open: ['W', 'E'], name: 'Link bridge' }),
+    room('BH01', 'H', hall, { building: 'B', ring: 1, kind: 'roof', minShort: 3.0 }),
+    room('AR01', 'R', A, { building: 'A', ring: 1, kind: 'roof' }),
+    room('BR01', 'R', strip, { building: 'B', ring: 1, kind: 'roof' }),
+  ];
+  const walls = [];
+  const wall = (level, a, b, kind = 'exterior', h = 3.0) => walls.push({ id: `W${String(walls.length + 1).padStart(3, '0')}`, level, a, b, t: kind === 'interior' ? 0.3 : 0.45, h, kind });
+  const box = (level, r, skip = [], kind = 'exterior', h = 3.0) => {
+    const edges = { S: [[r[0], r[1]], [r[2], r[1]]], E: [[r[2], r[1]], [r[2], r[3]]], N: [[r[2], r[3]], [r[0], r[3]]], W: [[r[0], r[3]], [r[0], r[1]]] };
+    for (const [e, [p, q]] of Object.entries(edges)) if (!skip.includes(e)) wall(level, p, q, kind, h);
+  };
+  box('G', A); box('G', strip, ['E']); box('G', hall, ['W'], 'exterior', 6.0); wall('G', [26, 2], [26, 12], 'interior', 6.0);
+  box('F', A); box('F', strip); wall('F', [14, 5], [20, 5]); wall('F', [14, 8], [20, 8]);
+  box('H', hall, [], 'parapet', 1.1); box('R', A, [], 'parapet', 1.1); box('R', strip, [], 'parapet', 1.1);
+  return {
+    meta: { id: 'campus', version: 1, grid: 0.5, objectGrid: 0.1, entry: [1, 1], bay: [6, 6], site: [0, 0, 60, 40], buildings: [{ id: 'A', name: 'Original', footprint: A }, { id: 'B', name: 'Phase 2', footprint: [20, 2, 38, 12] }] },
+    levels: [
+      { id: 'G', name: 'Ground', floor: 0, height: 4.2 },
+      { id: 'F', name: 'First', floor: 4.2, height: 4.2, footprint: [A, strip, bridge] },
+      { id: 'H', name: 'Hall roof', floor: 6.6, height: 1.8, footprint: hall },
+      { id: 'R', name: 'Roof', floor: 8.4, height: 2.4, footprint: [A, strip] },
+    ],
+    rooms, walls, openings: [],
+  };
+}
+const runCampus = (mut, extra = {}) => {
+  const arch = campus();
+  mut?.(arch);
+  return runChecks({ arch, facts, ...extra });
+};
+const campusTrips = (id, mut, want = 'FAIL') => {
+  const results = runCampus(mut);
+  assert.equal(status(results, id), want, `${id}: expected ${want}, got ${status(results, id)}\n${details(results, id).join('\n')}`);
+  return results;
+};
+
+test('campus: two buildings, a link bridge room and a level H pass every check', () => {
+  const results = runCampus();
+  assert.deepEqual(results.filter((r) => r.status === 'FAIL' || r.status === 'WARN').map((r) => `${r.id}: ${r.details.join(' | ')}`), []);
+  for (const id of ['A01', 'A14', 'A20', 'A21', 'A31']) assert.equal(status(results, id), 'PASS', id);
+  assert.equal(campus().meta.footprint, undefined, 'a campus file has no meta.footprint');
+});
+
+test('campus: levels F and H overlap in height without a problem; A20 still counts surfaces per cell', () => {
+  const lv = campus().levels;
+  assert.ok(lv[2].floor > lv[1].floor && lv[2].floor < lv[1].floor + lv[1].height, 'H starts inside the first floor span');
+  // five more levels stacked over building A's cells (G, F, R, plus these) are over the limit of 4
+  campusTrips('A20', (a) => {
+    for (const id of ['S1', 'S2']) {
+      a.levels.push({ id, name: id, floor: 20 + a.levels.length, height: 1 });
+      a.rooms.push(room(`X${id}`, id, [2, 2, 14, 12], { building: 'A' }));
+    }
+  });
+});
+
+test('A01: meta.footprint is needed without buildings and optional with them; building ids are unique', () => {
+  trips('A01', (a) => { delete a.meta.footprint; });
+  campusTrips('A01', (a) => { a.meta.buildings[1].id = 'A'; });
+  campusTrips('A01', (a) => { a.meta.buildings[0].footprint = [2, 2, 14]; });
+  campusTrips('A01', (a) => { a.meta.buildings = []; });
+  campusTrips('A01', (a) => { a.levels[1].footprint = [[2, 2, 14, 12], [1, 2]]; });
+});
+
+test('A21: a building over 48 x 30, overlapping buildings, and a building or level rect outside the site', () => {
+  campusTrips('A21', (a) => { a.meta.site = [0, 0, 100, 40]; a.meta.buildings[1].footprint = [20, 2, 70, 12]; });
+  campusTrips('A21', (a) => { a.meta.site = [0, 0, 60, 70]; a.meta.buildings[1].footprint = [20, 2, 56, 36]; });
+  campusTrips('A21', (a) => { a.meta.buildings[1].footprint = [20, 2, 65, 12]; });
+  campusTrips('A21', (a) => { a.levels[3].footprint = [[2, 2, 14, 12], [20, 2, 26, 45]]; });
+  const r = runCampus((a) => { a.meta.buildings[1].footprint = [12, 2, 38, 12]; });
+  assert.equal(status(r, 'A21'), 'FAIL');
+  assert.match(details(r, 'A21').join(), /buildings A and B overlap/);
+});
+
+test('A14: a level footprint may be a list; every cell of every rect must be covered', () => {
+  const uncovered = (a) => { a.levels[1].footprint = [[2, 2, 14, 12], [20, 2, 26, 12], [14, 5, 20, 8], [40, 2, 44, 6]]; };
+  campusTrips('A14', uncovered);
+  assert.match(details(runCampus(uncovered), 'A14').join(), /16 m2/);
+  campusTrips('A14', (a) => { a.rooms = a.rooms.filter((r) => r.id !== 'LF01'); });
+  campusTrips('A14', (a) => { a.rooms = a.rooms.filter((r) => r.id !== 'BH01'); });
+  // a level with no footprint is built over every building footprint
+  campusTrips('A14', (a) => { delete a.levels[3].footprint; });
+});
+
+test('A31: a room outside its building, or naming a building that is not listed, fails', () => {
+  campusTrips('A31', (a) => { a.rooms.find((r) => r.id === 'BF01').building = 'A'; });
+  campusTrips('A31', (a) => { a.rooms.find((r) => r.id === 'BF01').building = 'Z'; });
+  campusTrips('A31', (a) => { a.rooms.find((r) => r.id === 'AG01').rect = [2, 2, 15, 12]; });
+  campusTrips('A31', (a) => { delete a.meta.buildings; a.meta.footprint = [2, 2, 38, 12]; });
+  // rooms with no building (the link bridge, a yard) are allowed anywhere inside the site
+  campusTrips('A31', (a) => { a.rooms.push(room('X01', 'G', [40, 2, 58, 38], { kind: 'yard', ring: 1 })); }, 'PASS');
+  assert.equal(status(run(), 'A31'), 'PASS', 'an old one-building file has no building ids to check');
+});
+
+const exemptDoor = { id: 'D-EX', wall: campus().walls.find((w) => w.level === 'G' && w.kind === 'interior').id, at: 5, w: 1.2, h: 2.1, sill: 0, type: 'door', between: ['BG01', 'BG02'], locked: true, key: 'facilities key', reason: 'Key-only plant door.' };
+const joinTwoApart = (a) => { a.rooms.find((r) => r.id === 'BG02').ring = 4; a.openings.push({ ...exemptDoor }); };
+
+test('A29: a ring-exempt opening two rings apart passes and is listed as INFO', () => {
+  campusTrips('A29', joinTwoApart);
+  const results = runCampus((a) => { joinTwoApart(a); a.openings[0].ringExempt = 'Key-only plant door: the facilities team has the only key.'; });
+  assert.equal(status(results, 'A29'), 'PASS');
+  const notes = results.find((r) => r.id === 'A29').notes ?? [];
+  assert.equal(notes.length, 1);
+  assert.match(notes[0], /D-EX .*ring-exempt: Key-only plant door/);
+  assert.equal(results.find((r) => r.id === 'A01').notes, undefined, 'only A29 carries notes');
+});
+
+test('the command line prints an exempt opening as an INFO line under A29', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'kestrel-check-'));
+  try {
+    const arch = campus();
+    joinTwoApart(arch);
+    arch.openings[0].ringExempt = 'Key-only plant door, facilities keys only.';
+    const file = path.join(dir, 'campus.arch.json');
+    fs.writeFileSync(file, JSON.stringify(arch));
+    const out = spawnSync(process.execPath, [path.join(HERE, 'check.mjs'), file], { encoding: 'utf8' });
+    assert.match(out.stdout, /^PASS A29/m);
+    assert.match(out.stdout, /^ +INFO D-EX .*ring-exempt: Key-only plant door, facilities keys only\./m);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('A02 and A03 read building footprints and every rect of a level footprint list', () => {
+  campusTrips('A02', (a) => { a.meta.buildings[0].footprint = [2, 2, 14, 12.2]; });
+  campusTrips('A02', (a) => { a.levels[1].footprint = [[2, 2, 14, 12], [20, 2, 26.2, 12]]; });
+  campusTrips('A03', (a) => { a.meta.buildings[0].footprint = [14, 2, 2, 12]; });
+  campusTrips('A03', (a) => { a.levels[1].footprint = [[2, 2, 14, 12], [26, 2, 20, 12]]; });
 });

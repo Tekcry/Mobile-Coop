@@ -2,7 +2,7 @@
 //   node scripts/kestrel/check.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--register docs/kestrel/04-plans.md]
 // One result line per check (PASS, WARN, FAIL, SKIP or INFO) with ids and coordinates; violations follow as indented lines.
 // Ends with counts and exits 1 if any check FAILs. Every rule number is read from facts.json (a missing fact prints SKIP).
-// A28-A30 (module kit): every room has a ring; openings join rooms at most one ring step apart; fire stairs, roof access and staff WC / janitor per floor.
+// A28-A31 (module kit, campus): every room has a ring; openings join rooms at most one ring step apart (ring-exempt openings are listed as INFO); fire stairs, roof access and staff WC / janitor per floor; a room that names a building lies inside it.
 // Tool assumptions (documented in docs/kestrel/schema.md): walls run along the X or Z axis; a stair is one straight run
 // with `flights` flights (default ceil(risers / max per flight)); an opening of type fire-door is exit-only.
 import fs from 'node:fs';
@@ -24,6 +24,10 @@ const rectsOverlapArea = (a, b) => {
   return x > EPS && z > EPS ? x * z : 0;
 };
 const inRectXZ = (r, x, z) => x > r[0] && x < r[2] && z > r[1] && z < r[3];
+const rectSet = (r) => isRect(r) && r[2] > r[0] && r[3] > r[1];
+/** A level footprint is one rect or a list of rects: returns the list, or null when it is neither. */
+const rectsOf = (v) => (isRect(v) ? [v] : Array.isArray(v) && v.length > 0 && v.every(isRect) ? v : null);
+const rectInside = (r, o) => r[0] >= o[0] - EPS && r[1] >= o[1] - EPS && r[2] <= o[2] + EPS && r[3] <= o[3] + EPS;
 const ptSeg = (p, a, b) => {
   const dx = b[0] - a[0];
   const dz = b[1] - a[1];
@@ -76,6 +80,13 @@ function context(arch, play, security, registerText, facts, modules) {
   // A missing or bad grid is NaN: A01 reports it and the grid loops below simply do not run.
   c.grid = isNum(c.meta.grid) && c.meta.grid > 0 ? c.meta.grid : NaN;
   c.objectGrid = isNum(c.meta.objectGrid) && c.meta.objectGrid > 0 ? c.meta.objectGrid : NaN;
+  // Buildings (campus files): meta.buildings lists them. With buildings, meta.footprint is ignored; without, it is the one building.
+  c.buildings = Array.isArray(c.meta.buildings) ? c.meta.buildings : [];
+  c.hasBuildings = c.buildings.length > 0;
+  c.buildingById = new Map(c.buildings.map((b) => [b?.id, b]));
+  c.footprints = c.hasBuildings ? c.buildings.map((b) => b?.footprint).filter(rectSet) : rectSet(c.meta.footprint) ? [c.meta.footprint] : [];
+  /** The rects a level must be built over: its own footprint (one rect or a list), else every building footprint. */
+  c.levelFootprint = (lv) => (lv?.footprint !== undefined ? (rectsOf(lv.footprint) ?? []).filter(rectSet) : c.footprints);
   c.wallById = new Map(c.walls.map((w) => [w.id, w]));
   c.roomById = new Map(c.rooms.map((r) => [r.id, r]));
   c.levelById = new Map(c.levels.map((l) => [l.id, l]));
@@ -103,9 +114,21 @@ check('A01', 'Required fields present, ids unique', 'FAIL', [], (c) => {
   };
   if (!arch.meta || typeof arch.meta !== 'object') c.add('meta missing');
   else {
-    need(arch.meta, ['id', 'grid', 'objectGrid', 'entry', 'bay', 'site', 'footprint'], 'meta', {
+    // meta.footprint is needed only when meta.buildings is absent (campus files list their buildings instead)
+    need(arch.meta, ['id', 'grid', 'objectGrid', 'entry', 'bay', 'site', ...(c.hasBuildings ? [] : ['footprint'])], 'meta', {
       grid: (v) => isNum(v) && v > 0, objectGrid: (v) => isNum(v) && v > 0, entry: (v) => isPt(v), bay: (v) => isPt(v), site: isRect, footprint: isRect,
     });
+    if (arch.meta.buildings !== undefined && (!Array.isArray(arch.meta.buildings) || !arch.meta.buildings.length)) c.add('meta.buildings is not a non-empty list');
+    const bseen = new Set();
+    for (const [i, b] of c.buildings.entries()) {
+      const label = `meta.buildings[${i}] ${b?.id ?? '?'}`;
+      need(b, ['id', 'footprint'], label, { footprint: isRect });
+      if (b?.name !== undefined && typeof b.name !== 'string') c.add(`${label}: name is not text`);
+      if (typeof b?.id === 'string' && b.id) {
+        if (bseen.has(b.id)) c.add(`duplicate building id ${b.id}`);
+        bseen.add(b.id);
+      }
+    }
   }
   for (const k of ['levels', 'rooms', 'walls', 'openings']) if (!Array.isArray(arch[k])) c.add(`table ${k} missing`);
   for (const k of OPTIONAL_TABLES) if (arch[k] !== undefined && !Array.isArray(arch[k])) c.add(`table ${k} is not a list`);
@@ -135,7 +158,7 @@ check('A01', 'Required fields present, ids unique', 'FAIL', [], (c) => {
       }
     }
   }
-  for (const l of c.levels) if (l.footprint !== undefined && !isRect(l.footprint)) c.add(`level ${l.id}: footprint is not [x0, z0, x1, z1]`);
+  for (const l of c.levels) if (l.footprint !== undefined && !rectsOf(l.footprint)) c.add(`level ${l.id}: footprint is not [x0, z0, x1, z1] or a list of them`);
   const lvl = (id, label) => { if (!c.levelById.has(id)) c.add(`${label}: unknown level ${id}`); };
   for (const r of c.rooms) lvl(r.level, `room ${r.id}`);
   for (const w of c.walls) {
@@ -162,8 +185,9 @@ check('A02', 'Every coordinate except object edges is a multiple of meta.grid', 
   const rect = (r, label) => { if (isRect(r)) r.forEach((v, i) => test(v, `${label}[${i}]`)); };
   const pt = (p, label) => { if (isPt(p)) { test(p[0], `${label} x`); test(p[1], `${label} z`); } };
   for (const k of ['site', 'footprint']) rect(c.meta[k], `meta.${k}`);
+  for (const b of c.buildings) rect(b?.footprint, `building ${b?.id} footprint`);
   pt(c.meta.entry, 'meta.entry');
-  for (const l of c.levels) rect(l.footprint, `level ${l.id} footprint`);
+  for (const l of c.levels) (rectsOf(l.footprint) ?? []).forEach((r, i, all) => rect(r, `level ${l.id} footprint${all.length > 1 ? ` ${i + 1}` : ''}`));
   for (const r of c.rooms) rect(r.rect, `room ${r.id}`);
   for (const s of c.stairs) rect(s.rect, `stair ${s.id}`);
   for (const v of c.voids) rect(v.rect, `void ${v.id}`);
@@ -179,7 +203,8 @@ check('A03', 'Rects ordered (x0 < x1, z0 < z1)', 'FAIL', [], (c) => {
   const test = (r, label) => { if (isRect(r) && !(r[0] < r[2] && r[1] < r[3])) c.add(`${label} [${r.join(', ')}]`); };
   test(c.meta.site, 'meta.site');
   test(c.meta.footprint, 'meta.footprint');
-  for (const l of c.levels) test(l.footprint, `level ${l.id} footprint`);
+  for (const b of c.buildings) test(b?.footprint, `building ${b?.id} footprint`);
+  for (const l of c.levels) (rectsOf(l.footprint) ?? []).forEach((r, i, all) => test(r, `level ${l.id} footprint${all.length > 1 ? ` ${i + 1}` : ''}`));
   for (const r of c.rooms) test(r.rect, `room ${r.id}`);
   for (const s of c.stairs) test(s.rect, `stair ${s.id}`);
   for (const v of c.voids) test(v.rect, `void ${v.id}`);
@@ -382,17 +407,26 @@ check('A14', 'Every upper level is fully covered by rooms or voids over its foot
     if (!VOID_KINDS.has(v.kind)) c.add(`void ${v.id}: kind "${v.kind}" is not one of ${[...VOID_KINDS].join(', ')}`);
     if (!isText(v.reason)) c.add(`void ${v.id}: no reason`);
   }
-  const set = (r) => isRect(r) && r[2] > r[0] && r[3] > r[1];
-  if (!set(c.meta.footprint) && !c.levels.some((l) => l.floor > 0 && set(l.footprint))) return { skip: 'meta.footprint is not set' };
+  if (!c.footprints.length && !c.levels.some((l) => l.floor > 0 && c.levelFootprint(l).length)) return { skip: c.hasBuildings ? 'no building footprint is set' : 'meta.footprint is not set' };
   const g = c.grid;
   for (const lv of c.levels) {
     if (!(lv.floor > 0)) continue;
-    // a level's own footprint (levels[].footprint) wins over the building footprint
-    const fp = set(lv.footprint) ? lv.footprint : c.meta.footprint;
-    if (!set(fp)) continue;
+    // a level's own footprint (one rect or a list, levels[].footprint) wins over the building footprints
+    const fps = c.levelFootprint(lv);
+    if (!fps.length) continue;
     const rects = [...c.onLevel(c.rooms, lv.id), ...c.onLevel(c.voids, lv.id)].map((x) => x.rect).filter(isRect);
     const miss = [];
-    for (let x = fp[0] + g / 2; x < fp[2]; x += g) for (let z = fp[1] + g / 2; z < fp[3]; z += g) if (!rects.some((r) => inRectXZ(r, x, z))) miss.push([x, z]);
+    const seen = new Set();
+    for (const fp of fps) {
+      for (let x = fp[0] + g / 2; x < fp[2]; x += g) {
+        for (let z = fp[1] + g / 2; z < fp[3]; z += g) {
+          const key = `${f2(x)},${f2(z)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          if (!rects.some((r) => inRectXZ(r, x, z))) miss.push([x, z]);
+        }
+      }
+    }
     if (miss.length) {
       const xs = miss.map((m) => m[0]);
       const zs = miss.map((m) => m[1]);
@@ -510,22 +544,43 @@ check('A20', 'Walkable surfaces over any cell stay within the limit', 'FAIL', ['
 });
 
 // ===== A21 site and footprint =====
-check('A21', 'Site and footprint inside the RULES section 2 limits', 'FAIL', ['rules.siteMaxX', 'rules.siteMaxZ', 'rules.footprintMaxX', 'rules.footprintMaxZ'], (c) => {
+check('A21', 'Site, building and level footprints inside the RULES section 2 limits; buildings do not overlap', 'FAIL', ['rules.siteMaxX', 'rules.siteMaxZ', 'rules.footprintMaxX', 'rules.footprintMaxZ'], (c) => {
   const test = (r, label, mx, mz) => {
     if (!isRect(r) || !(r[2] > r[0] && r[3] > r[1])) { c.add(`${label} is not set`); return; }
     const sides = [rectW(r), rectD(r)].sort((a, b) => b - a);
     const lim = [mx, mz].sort((a, b) => b - a);
     if (sides[0] > lim[0] + EPS || sides[1] > lim[1] + EPS) c.add(`${label} is ${f2(rectW(r))} x ${f2(rectD(r))} m, limit ${mx} x ${mz}`);
   };
-  test(c.meta.site, 'site', c.F('rules.siteMaxX'), c.F('rules.siteMaxZ'));
-  test(c.meta.footprint, 'footprint', c.F('rules.footprintMaxX'), c.F('rules.footprintMaxZ'));
   const s = c.meta.site;
+  const siteSet = rectSet(s);
+  test(s, 'site', c.F('rules.siteMaxX'), c.F('rules.siteMaxZ'));
+  if (c.hasBuildings) {
+    // campus: each building is at most the footprint limit and inside the site; no two overlap; each level rect is inside the site
+    for (const b of c.buildings) {
+      const label = `building ${b?.id}`;
+      test(b?.footprint, `${label} footprint`, c.F('rules.footprintMaxX'), c.F('rules.footprintMaxZ'));
+      if (siteSet && rectSet(b?.footprint) && !rectInside(b.footprint, s)) c.add(`${label} footprint [${b.footprint.join(', ')}] is not inside site [${s.join(', ')}]`);
+    }
+    for (let i = 0; i < c.buildings.length; i++) {
+      for (let j = i + 1; j < c.buildings.length; j++) {
+        const p = c.buildings[i]?.footprint;
+        const q = c.buildings[j]?.footprint;
+        if (rectSet(p) && rectSet(q) && rectsOverlapArea(p, q)) c.add(`buildings ${c.buildings[i].id} and ${c.buildings[j].id} overlap by ${f2(rectsOverlapArea(p, q))} m2`);
+      }
+    }
+    for (const l of c.levels) {
+      for (const r of c.levelFootprint(l)) if (siteSet && !rectInside(r, s)) c.add(`level ${l.id} footprint [${r.join(', ')}] is not inside site [${s.join(', ')}]`);
+    }
+    return;
+  }
+  test(c.meta.footprint, 'footprint', c.F('rules.footprintMaxX'), c.F('rules.footprintMaxZ'));
   const f = c.meta.footprint;
   for (const l of c.levels) {
-    const lf = l.footprint;
-    if (isRect(lf) && isRect(f) && (lf[0] < f[0] - EPS || lf[1] < f[1] - EPS || lf[2] > f[2] + EPS || lf[3] > f[3] + EPS)) c.add(`level ${l.id} footprint [${lf.join(', ')}] is not inside the building footprint [${f.join(', ')}]`);
+    for (const lf of rectsOf(l.footprint) ?? []) {
+      if (isRect(f) && !rectInside(lf, f)) c.add(`level ${l.id} footprint [${lf.join(', ')}] is not inside the building footprint [${f.join(', ')}]`);
+    }
   }
-  if (isRect(s) && isRect(f) && f[2] > f[0] && (f[0] < s[0] - EPS || f[1] < s[1] - EPS || f[2] > s[2] + EPS || f[3] > s[3] + EPS)) c.add(`footprint [${f.join(', ')}] is not inside site [${s.join(', ')}]`);
+  if (siteSet && isRect(f) && f[2] > f[0] && !rectInside(f, s)) c.add(`footprint [${f.join(', ')}] is not inside site [${s.join(', ')}]`);
 });
 
 // ===== A22 wall thickness =====
@@ -619,7 +674,12 @@ check('A29', 'An opening joins rooms whose rings are one step apart (1-2-3-4-5);
   const carrier = (room) => c.modules?.[room?.module]?.carrier === true;
   const joined = (x, y) => (x === '3+' || y === '3+' ? (x === 3 || x === '3+') && (y === 3 || y === '3+') : Math.abs(x - y) <= c.F('kit.ringStepMax'));
   for (const o of c.openings) {
-    if (!PASS_TYPES.has(o.type) || o.type === 'fire-door' || isText(o.ringExempt)) continue;
+    if (isText(o.ringExempt)) {
+      const p = c.openingPoint(o);
+      c.note(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) ring-exempt: ${o.ringExempt}`);
+      continue;
+    }
+    if (!PASS_TYPES.has(o.type) || o.type === 'fire-door') continue;
     const [A, B] = (o.between ?? []).map((id) => c.roomById.get(id));
     if (!A || !B || !RING_ORDER.includes(A.ring) || !RING_ORDER.includes(B.ring) || carrier(A) || carrier(B) || joined(A.ring, B.ring)) continue;
     const p = c.openingPoint(o);
@@ -699,6 +759,16 @@ check('A30', 'Fire stairs: every upper occupied level reaches an outside exit wi
   }
 });
 
+check('A31', 'A room that names a building lies wholly inside that building footprint; the building id is in meta.buildings', 'FAIL', [], (c) => {
+  // Rooms with no building (yard, lane, link bridge) are allowed anywhere inside the site.
+  for (const r of c.rooms) {
+    if (r.building === undefined || r.building === '') continue;
+    const b = c.buildingById.get(r.building);
+    if (!b) { c.add(`${r.id} (${r.level}): building "${r.building}" is not in meta.buildings`); continue; }
+    if (isRect(r.rect) && rectSet(b.footprint) && !rectInside(r.rect, b.footprint)) c.add(`${r.id} (${r.level}) [${r.rect.join(', ')}] is not inside building ${b.id} footprint [${b.footprint.join(', ')}]`);
+  }
+});
+
 // ===== security checks (--security) =====
 const SC = (id, title, needs, run) => check(id, title, 'FAIL', needs, (c) => (c.security ? run(c) : { skip: 'no --security given' }));
 const devices = (c) => (Array.isArray(c.security?.devices) ? c.security.devices : []);
@@ -773,7 +843,7 @@ SC('SC06', 'Every card opens existing readers', [], (c) => {
 // No checks yet. Each one calls check('G..', title, sev, needs, run) like the ones above.
 
 // ---------- runner ----------
-/** Runs every check. Returns [{ id, title, status, details }]. */
+/** Runs every check. Returns [{ id, title, status, details, notes? }]; notes are INFO lines that do not change the status (A29's ring-exempt openings). */
 export function runChecks({ arch, play = null, security = null, registerText, facts = loadFacts(), modules = loadModuleTable() }) {
   const out = [];
   for (const k of CHECKS) {
@@ -781,7 +851,9 @@ export function runChecks({ arch, play = null, security = null, registerText, fa
     if (missing.length) { out.push({ id: k.id, title: k.title, status: 'SKIP', details: [`(no fact: ${missing.join(', ')})`] }); continue; }
     const c = context(arch, play, security, registerText, facts, modules);
     const details = [];
+    const notes = [];
     c.add = (m) => details.push(m);
+    c.note = (m) => notes.push(m);
     let status;
     try {
       const r = k.run(c);
@@ -792,7 +864,7 @@ export function runChecks({ arch, play = null, security = null, registerText, fa
       status = 'FAIL';
       details.push(`check crashed: ${e.message} (the file is malformed; see A01)`);
     }
-    out.push({ id: k.id, title: k.title, status, details });
+    out.push({ id: k.id, title: k.title, status, details, ...(notes.length ? { notes } : {}) });
   }
   return out;
 }
@@ -821,6 +893,7 @@ function main() {
   for (const r of results) {
     console.log(`${r.status.padEnd(4)} ${r.id}  ${r.title}`);
     for (const d of r.details) console.log(`       ${r.status === 'PASS' ? '' : '- '}${d}`);
+    for (const n of r.notes ?? []) console.log(`       INFO ${n}`);
   }
   const n = summary(results);
   console.log(`\n${n.PASS} PASS, ${n.WARN} WARN, ${n.FAIL} FAIL, ${n.SKIP} SKIP, ${n.INFO} INFO`);

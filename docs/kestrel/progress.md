@@ -14,6 +14,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P01 | Mission brief | APPROVED | 5764aad | 2026-10-11 |
 | P02 | Building brief | APPROVED | 133a4d1 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
+| P03T | Campus tools (two buildings) | DRAFT | pending | 2026-10-11 |
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
@@ -41,6 +42,9 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P03T campus tools: facts site limit 110 x 80; meta.buildings, level footprint lists, rooms[].building, level H, ring-exempt INFO. check.mjs: A21 (buildings 48 x 30 inside the site, no overlap), A14 over rect lists, new A31, A29 lists exempt openings as INFO notes; plans.mjs: building outlines and ids, bay grid per building, exterior and services filtered on overlapping levels; expand.mjs: level stack follows level footprints. schema.md 1, 2, 5, 6, 7 updated (+32 lines).
+  Baseline (sample 27 PASS / 0 WARN / 0 FAIL, blocks 25 / 1 / 1) unchanged per check id; A31 PASS on both; blocks shows one INFO line under A29 (D-B-DUCT). Old plan SVGs identical. Tool tests 79 -> 91 pass. npm run check: lint and build pass, 779 of 780 tests (kestrelMap copy test fails before and after: waits for the B0 rerun).
+  Not tested: A30 on a campus layout built with modules (its serving test compares floors only, schema 6). Downstream: P03B uses meta.buildings, level footprint lists, rooms[].building and level H; the B0 rerun must update src/world/maps/kestrelGeo.ts and kestrel.ts, which read meta.footprint and one footprint rect per level (kestrelGeo.ts:85).
 - 2026-10-11 P02 campus brief: 02-building-brief.md rewritten (419 lines, DRAFT). A 36 x 24 (two storeys at 4.2), B 48 x 30 (18 m two-storey west strip, 30 x 30 hall block, 6.6 roof), generator wing 24 x 12 behind a 1.5 passage, site 108 x 76; 151 schedule rows (AG/AF/AR/LF/BG/BF/BR/BU/TB/X).
   Lifts: 630 kg machine-room-less traction beside each main core, shaft 2.5 x 2.5, pit 1.1, no overrun, zone 3 only. Gallery sits in the strip (3.0 ceiling), stair in a well; level U -1.6, 1.5 clear; vault and tunnel -3.6.
   Zone corrections: S2 = 2 and 3, X = 1 to 3; tunnel and vault 4. Max stack 3. ASK-1 to 7, 5 questions.

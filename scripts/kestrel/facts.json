@@ -101,8 +101,8 @@
   },
   "rules": {
     "walkableSurfacesMax": { "value": 4, "src": "RULES s2" },
-    "siteMaxX": { "value": 80, "src": "RULES s2" },
-    "siteMaxZ": { "value": 60, "src": "RULES s2" },
+    "siteMaxX": { "value": 110, "src": "RULES s2 (campus)" },
+    "siteMaxZ": { "value": 80, "src": "RULES s2 (campus)" },
     "footprintMaxX": { "value": 48, "src": "RULES s2" },
     "footprintMaxZ": { "value": 30, "src": "RULES s2" },
     "wallExterior": { "value": 0.45, "src": "RULES s6" },

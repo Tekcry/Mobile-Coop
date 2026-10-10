@@ -6,21 +6,33 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 ## 1. Conventions
 - Metres. A point is `[x, z]`; north is +Z, east is +X, up is +Y (00-facts section 2). Origin is the south-west corner of the site at ground floor level.
 - A play point is `[x, z, "L"]` where `L` is a level id. A 3D point (lamp, switch, beam end, service path) is `[x, y, z]`; `y` is the height above its own level's floor, except in `exterior` and `services`, where `y` is absolute (ground floor = 0).
-- Level ids: `B` basement, `U` underfloor (the 1.5 m void under the data hall's raised floor; Michael, P03B revision), `G` ground, `F` first, `S` second (only if the building brief proves it), `R` roof.
+- Level ids are whatever `levels[]` lists: `B` basement, `U` underfloor (the void under the data hall's raised floor), `G` ground, `F` first, `H` low roof (the roof of single-storey blocks, for example 6.6 m), `S` second, `R` roof. Two levels may overlap in height when their footprints do not (a hall block's roof `H` at 6.6 m sits inside the first floor's span over a different area). Every check and the plan renderer work per level and per cell, so none assumes the spans are separate; `expand.mjs` stacks only the levels whose footprint covers a placement (section 7).
+- A campus lists its buildings in `meta.buildings` (id `A`, `B`: a building id and a level id may be the same letter; they are different namespaces). Rooms with no `building` (yard, lane, link bridge) may stand anywhere inside the site.
 - `rect = [x0, z0, x1, z1]` with `x0 < x1` and `z0 < z1`. Room and wall rects are wall-centreline (RULES section 6); clear size = rect minus half of each wall's thickness.
 - Yaw degrees: 0 faces +Z (north), 90 faces +X (east).
 - Every coordinate except object edges sits on `meta.grid` (0.5 m). Object edges sit on `meta.objectGrid` (0.1 m).
 - An opening's `at` is the distance from wall end `a` to the opening's centre, along the wall.
-- `ring` is one of `1, 2, 3, "3+", 4, 5` (zones of the building brief section 11: S1 = 1, S2 = 2, S3 = 3+, S4 = 3, S5 = 4, S6 = 5). `"3+"` counts as one step above `3`.
+- `ring` is one of `1, 2, 3, "3+", 4, 5` by zone (campus brief 02-building-brief section 6). `"3+"` counts as one step above `3`.
+
+| Space | Ring |
+| --- | --- |
+| S1 site, X way out (yard) | 1 (X09 is 3; B ground and the wing are 2 to 3) |
+| S2 A ground | 2 (reception side) or 3 (staff side) |
+| S3 security room | 3+ |
+| S4 A first floor | 3 |
+| S5 link bridge and B secure floor | 3 or 4 by room |
+| S6 data hall | 4 (cages 5) |
+| S7 meet-me room | 5 (its lobby 4) |
+| Tunnel, vault | 4 |
 - The tools assume walls run along the X or Z axis, and a stair is one straight run in the `up` direction (A01, A11).
 - Edges of a rect, for a room's `open` list: `"W"` (x0), `"S"` (z0), `"E"` (x1), `"N"` (z1).
 
 ## 2. Architecture (kestrel.arch.json)
 ```json
 {
-  "meta": { "id": "kestrel", "version": 1, "grid": 0.5, "objectGrid": 0.1, "entry": [0, 0], "bay": [6, 6], "site": [0, 0, 60, 45], "footprint": [0, 0, 0, 0] },
+  "meta": { "id": "kestrel", "version": 1, "grid": 0.5, "objectGrid": 0.1, "entry": [0, 0], "bay": [6, 6], "site": [0, 0, 60, 45], "footprint": [0, 0, 0, 0], "buildings": [ { "id": "A", "name": "", "footprint": [0, 0, 0, 0] } ] },
   "levels": [ { "id": "G", "name": "Ground", "floor": 0, "height": 3.3 } ],
-  "rooms": [ { "id": "G01", "level": "G", "name": "", "kind": "room|corridor|stair|shaft|plant|yard|lane|roof|zone", "rect": [0, 0, 0, 0], "ceiling": 3.0, "finish": "", "minShort": 3.0, "open": [], "ring": 3, "module": "" } ],
+  "rooms": [ { "id": "G01", "level": "G", "name": "", "kind": "room|corridor|stair|shaft|plant|yard|lane|roof|zone", "rect": [0, 0, 0, 0], "ceiling": 3.0, "finish": "", "minShort": 3.0, "open": [], "ring": 3, "module": "", "building": "A" } ],
   "walls": [ { "id": "W001", "level": "G", "a": [0, 0], "b": [0, 0], "t": 0.3, "h": 3.0, "kind": "interior|exterior|boundary|parapet|balustrade" } ],
   "openings": [ { "id": "D001", "wall": "W001", "at": 0, "w": 1.2, "h": 2.1, "sill": 0, "type": "door|double|fire-door|window|arch|roller|hatch|gate|grille", "between": ["G01", "G02"], "locked": false, "key": "", "reason": "" } ],
   "stairs": [ { "id": "S01", "kind": "main|fire|feature|bulkhead", "from": "G", "to": "F", "rect": [0, 0, 0, 0], "up": "N|S|E|W", "width": 1.3, "risers": 20 } ],
@@ -37,12 +49,13 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | meta.grid, objectGrid | Grid for walls, rooms and openings (0.5) and for objects (0.1) |
 | meta.entry | `[x, z]` just inside the site gate, where the early builds start the player |
 | meta.bay | Structural bay `[x, z]` in metres; the plan draws a grid line on every bay |
-| meta.site | Site rect (RULES section 2 limit 80 x 60) |
-| meta.footprint | Building footprint rect (limit 48 x 30) |
-| levels[].id, name | Level id (B, G, F, S, R) and its name |
+| meta.site | Site rect (RULES section 2 limit 110 x 80) |
+| meta.footprint | Building footprint rect (limit 48 x 30). Optional and ignored by the checks when `meta.buildings` is set; without `meta.buildings` it is the one building, as before |
+| meta.buildings | Optional list `{ id, name, footprint }`, one per building. Each footprint is at most 48 x 30 and inside the site; no two overlap (A21) |
+| levels[].id, name | Level id (B, U, G, F, H, S, R) and its name |
 | levels[].floor | Floor height above ground floor level, in metres |
 | levels[].height | Floor-to-floor height of that level |
-| levels[].footprint | Optional rect `[x0, z0, x1, z1]` the level must be fully built over (A14); inside `meta.footprint` (A21). Default is `meta.footprint`. Use it when a floor covers only part of the building (first floor over the front block only) |
+| levels[].footprint | Optional. One rect `[x0, z0, x1, z1]` or a list of rects the level must be fully built over, every cell of every rect (A14). With `meta.buildings` each rect is inside the site; without, inside `meta.footprint` (A21). Default: every building footprint (`meta.footprint` for a file with no buildings). Use it when a level covers only part of the campus (the first floor over the strips and the link bridge, `H` over the hall block) |
 | rooms[].id, level | Unique room id and its level |
 | rooms[].name | Name used on the plan label |
 | rooms[].kind | What the space is; `ladder` is allowed only in `plant` or `shaft` rooms |
@@ -54,8 +67,9 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | rooms[].module | Module-kit module the room came from, or empty |
 | rooms[].service | Optional. True for a service room (the brief marks WCs, cupboards, risers, the mantrap and the like). A07 asks only that its doors fit inside the wall |
 | rooms[].zone | Optional. Space id (S1-S6) the room belongs to; set by the module kit |
+| rooms[].building | Optional. A building id from `meta.buildings`. The room lies wholly inside that footprint, and the id must exist (A31). Leave it out for the yard, the lane and the link bridge |
 | gen, manual | Optional on rooms, walls, openings, objects, stairs, ladders and voids. `gen` is the placement id that made the item (section 7); `manual: true` keeps the item through a re-run |
-| openings[].ringExempt | Optional text. Exempts the opening from A29; only for the carriers' entrance |
+| openings[].ringExempt | Optional text. Exempts the opening from A29, which lists it as INFO. Only for a door that is key-only or exit-only in the real building (the carrier manhole, fire exits, the service passage door, the generator wing doors, the transformer compound gates, the equipment door; Michael, 2026-10-11, brief ASK-2). The text gives the real reason |
 | walls[].id, level | Unique wall id and its level |
 | walls[].a, b | Centreline end points `[x, z]` |
 | walls[].t | Thickness: exterior 0.45, interior 0.30 |
@@ -218,18 +232,22 @@ Drawing conventions the renderer chose where this schema is silent:
 - An exterior element or service is drawn on every level whose height span it touches.
 - An object id that does not fit inside the object (each rack of a row) is left off the plan.
 - A room label that does not fit inside its room clear of the stairs, voids and objects (for example a stair core filled by its stair) goes to a callout column right of the site, with a leader line to a dot in the room.
+- With `meta.buildings`, every plan draws each building footprint as a dashed outline labelled `Building <id> <name>`. With two or more buildings the bay grid is drawn per building, anchored on that building's own corner, inside its footprint; with one building or none, across the site from the footprint corner, as before. The site outline is unchanged.
+- On a level with its own footprint whose height span overlaps another level's (`H` beside `F`), an exterior element or service is drawn only where it touches that footprint (grown by twice the exterior wall thickness). Other levels draw every element in their height span, as before.
 
 ## 6. Checker (scripts/kestrel/check.mjs)
-`node scripts/kestrel/check.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--register docs/kestrel/04-plans.md]` prints one line per check (PASS, WARN, FAIL, SKIP or INFO) and indented lines for each violation, then the counts. It exits 1 if any check FAILs. A check that needs a fact missing from facts.json prints SKIP (no fact). Tests: `node --test scripts/kestrel/check.test.mjs`.
-- Architecture: A01-A30 (A24 needs `--register`; A30 runs only when a room has a `module`). A19 is an INFO table, A10, A16, A18 and A27 only WARN.
+`node scripts/kestrel/check.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--register docs/kestrel/04-plans.md]` prints one line per check (PASS, WARN, FAIL, SKIP or INFO) and indented lines for each violation (and `INFO` lines that do not change the status), then the counts. It exits 1 if any check FAILs. A check that needs a fact missing from facts.json prints SKIP (no fact). Tests: `node --test scripts/kestrel/check.test.mjs`.
+- Architecture: A01-A31 (A24 needs `--register`; A30 runs only when a room has a `module`). A19 is an INFO table, A10, A16, A18 and A27 only WARN.
+- Campus (when `meta.buildings` is set, `meta.footprint` is not needed and not read). A01: each building has a unique id and a rect. A02, A03: building and level footprint rects are on the grid and ordered. A14: every cell of every rect of a level footprint (or of every building footprint when the level has none) has a room or void. A21: site at most 110 x 80; each building at most 48 x 30 and inside the site; no two buildings overlap; each level footprint rect inside the site (without buildings: the footprint tests as before). A31: a room with a `building` lies wholly inside that footprint and the id is in `meta.buildings` (an old file has none, so it passes).
+- A29 skips an opening with `ringExempt` and prints it as an `INFO` line under A29 (id, type, position, the text); the status of A29 does not change.
 - A07: every opening sits inside its wall. The 1.5 m corner rule (near edge clear of the wall end) applies only when the opening joins a corridor or a room at play-space size (clear short side of `room.playSpaceMin` or more, not marked `service`); a service room, or a room under play-space size, only needs the opening to fit inside the wall.
 - A11: a straight run needs `(risers - flights) * going + (flights - 1) * midLanding` along `up`; a `dogleg` stair is sized as described under `stairs[].layout`.
 - A28: every room has a ring. A29: an opening of a passable type (door, double, fire-door, arch, roller, gate) joins rooms whose rings are one step apart on 1-2-3-4-5 (`kit.ringStepMax`) or equal; ring `3+` is a side room of zone 3 and joins `3` and `3+` only (so 3 to 4 passes, 2 to 3+ and 3+ to 4 fail); exempt are an exit-only `fire-door`, an opening with `ringExempt`, and one touching a room whose module has `carrier: true`.
-- A30: (1) every occupied floor (a floor with a room of kind `room` or `corridor`) has a staff WC and a janitor cupboard, found by the module's `provides` or, for a room with no module, by its name; (2) every upper occupied level has an enclosed `fire` stair that serves it and whose stack, going down by overlapping rects, ends on the ground floor in a room with an opening to the outside; (3) from each occupied room, the door route (room centre to door to room centre) to the nearest such stair is at most `escape.oneWay` with one stair reachable, or `escape.twoWay` with two or more; (4) when the plan has a level `R`, at least one such fire stair continues up (fire or bulkhead stairs, overlapping rects) to `R`.
+- A30: (1) every occupied floor (a floor with a room of kind `room` or `corridor`) has a staff WC and a janitor cupboard, found by the module's `provides` or, for a room with no module, by its name; (2) every upper occupied level has an enclosed `fire` stair that serves it and whose stack, going down by overlapping rects, ends on the ground floor in a room with an opening to the outside; (3) from each occupied room, the door route (room centre to door to room centre) to the nearest such stair is at most `escape.oneWay` with one stair reachable, or `escape.twoWay` with two or more; (4) when the plan has a level `R`, at least one such fire stair continues up (fire or bulkhead stairs, overlapping rects) to `R`. On a campus (3) follows door routes, so it crosses the link bridge; (2) compares floor heights only, so a stair in one building counts as serving a level of the other that sits between its floors (not tested on a campus layout).
 - Security: SC01-SC06 (need `--security`).
 - Play: the `// GAMEPLAY CHECKS (P09)` section of check.mjs is empty until P09. `--play` is read now only by A27.
 - Fixed in Part C: A06 no longer counts a collinear wall that only lies beside an edge; A26 ignores a gap with a tall object or wall standing across its whole width (a row of racks at the 0.6 m pitch would otherwise fail against itself).
-- Where the prompt table is open to two readings the checker uses: an opening must keep its near edge (not its centre) the end-clearance from the wall end; a walkable surface over a cell is a level floor (a room not under a void) or a non-`noLedge` object top at or above the auto-lip height; an upper level must be covered over its own `levels[].footprint` (default `meta.footprint`); a split-jump face is a wall face or a floor-standing object face on one level.
+- Where the prompt table is open to two readings the checker uses: an opening must keep its near edge (not its centre) the end-clearance from the wall end; a walkable surface over a cell is a level floor (a room not under a void) or a non-`noLedge` object top at or above the auto-lip height; an upper level must be covered over its own `levels[].footprint` (one rect or a list; default every building footprint, or `meta.footprint` with no buildings); a split-jump face is a wall face or a floor-standing object face on one level.
 
 ## 7. Module kit (scripts/kestrel/modules.json, expand.mjs)
 The architect places real, pre-checked rooms instead of typing walls. `node scripts/kestrel/expand.mjs [--layout docs/kestrel/kestrel.layout.json] [--arch <existing arch>] [--out docs/kestrel/kestrel.arch.json] [--modules scripts/kestrel/modules.json] [--dry]` reads the layout and writes rooms, walls, openings, objects, stairs, ladders and voids into the arch file. `--list` prints every module with its sizes. `docs/kestrel/sample.layout.json` is a 3-module example.
@@ -280,6 +298,7 @@ A `"@a.b"` value is read from facts.json, so door sizes, aisles and rack width s
 - Walls: every room edge is a wall. A wall shared by two rooms is one wall (interior thickness); an edge with a room on one side only is exterior; collinear touching walls of the same kind, thickness and height join into one wall. Height is the taller ceiling of the rooms it serves, so a wall splits where the ceiling changes. An edge listed in `open` on every room using it gets no wall.
 - Doors: built from the module (or placement) door list at the wall position; `between` is the room and the room across the wall (empty string when none). Two doors overlapping on one wall keep the first, with a warning. A door on an open edge or past the wall end is a warning and is not made. Doors to the outside are listed as INFO.
 - Objects stand inside the clear room, rounded inward to `meta.objectGrid`, and turn with the room. One that does not fit is skipped with a warning.
+- Level stack: a placement stands on its base level plus every higher level (sorted by floor) whose `footprint` covers the centre of the placement's rect; a level with no footprint covers everything. A stair, ladder or shaft goes to the next level of that stack, `span: "roof"` to `R` and `to` to the named level; a level not in the stack is an error. A file whose levels have no footprint stacks every level, as before.
 - Stairs: a `dogleg` stair (all three stair modules) fills its room, so its rect is the room rect; a straight stair is the clear room rounded inward to the grid. `risers` = floor-to-floor / riser height. The upper rooms use the same rect and doors (`levels` can restrict a door to the base floor). The stairwell void is the stair rect.
 - Re-runs: every item expand wrote carries `"gen": "<placement id>"` and is rewritten each run. Items marked `"manual": true`, and items with no `gen` tag, are kept untouched (a manual wall or opening may name a generated wall id; keep it only if that wall still exists).
 

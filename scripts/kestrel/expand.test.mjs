@@ -234,6 +234,44 @@ test('a plain fire stair stops at the next level', () => {
   assert.deepEqual(arch.rooms.map((r) => r.level), ['G', 'F']);
 });
 
+// ---------- campus: levels that overlap in height ----------
+// G 0-4.2, F 4.2-8.4 over the west strip, H (a low roof, 6.6-8.4) over the hall block: H starts inside the span of F, over a different area.
+const campusLayout = (p, footprints = true) => ({
+  ...single(p),
+  levels: [
+    { id: 'G', name: 'Ground', floor: 0, height: 4.2 },
+    { id: 'F', name: 'First', floor: 4.2, height: 4.2, ...(footprints ? { footprint: [0, 0, 30, 45] } : {}) },
+    { id: 'H', name: 'Hall roof', floor: 6.6, height: 1.8, ...(footprints ? { footprint: [30, 0, 60, 45] } : {}) },
+    { id: 'R', name: 'Roof', floor: 8.4, height: 2.4, ...(footprints ? { footprint: [[0, 0, 30, 45]] } : {}) },
+  ],
+});
+
+test('a level stack skips a level whose footprint does not cover the placement (H beside the first floor)', () => {
+  const west = ok(expand(campusLayout({ id: 'FS', module: 'fire-stair-roof', at: [10, 10] })));
+  assert.deepEqual(west.rooms.map((r) => r.level), ['G', 'F', 'R']);
+  assert.deepEqual(west.stairs.map((s) => `${s.from}${s.to}`), ['GF', 'FR']);
+  assert.deepEqual(west.voids.map((v) => v.level), ['F', 'R']);
+  const east = ok(expand(campusLayout({ id: 'MS', module: 'main-stair', at: [40, 10], to: 'H' })));
+  assert.deepEqual(east.rooms.map((r) => r.level), ['G', 'H']);
+  assert.deepEqual(east.stairs.map((s) => `${s.from}${s.to}`), ['GH']);
+  assert.equal(east.stairs[0].risers, Math.round(6.6 / facts.fact('stair.riserHeight')));
+  const strip = ok(expand(campusLayout({ id: 'MS', module: 'main-stair', at: [10, 10] })));
+  assert.deepEqual(strip.stairs.map((s) => `${s.from}${s.to}`), ['GF'], 'a plain stair in the strip climbs to F, not to H');
+});
+
+test('a stack never reaches a level whose footprint is elsewhere', () => {
+  const r = expand(campusLayout({ id: 'MS', module: 'main-stair', at: [40, 10], to: 'R' }));
+  assert.match(r.errors.join(), /the stack of levels above G does not exist/);
+  const roof = expand(campusLayout({ id: 'FS', module: 'fire-stair-roof', at: [40, 10] }));
+  assert.match(roof.errors.join(), /the stack of levels above G does not exist/, 'span roof needs a roof level over the placement');
+});
+
+test('levels with no footprint keep the old stack: every level above, in order', () => {
+  const arch = ok(expand(campusLayout({ id: 'FS', module: 'fire-stair-roof', at: [10, 10] }, false)));
+  assert.deepEqual(arch.rooms.map((r) => r.level), ['G', 'F', 'H', 'R']);
+  assert.deepEqual(arch.stairs.map((s) => `${s.from}${s.to}`), ['GF', 'FH', 'HR']);
+});
+
 // ---------- contents ----------
 test('data hall racks stand at the 0.6 m pitch in rows with 1.8 m aisles', () => {
   const arch = ok(expand(single({ id: 'H', module: 'data-hall-bay', size: [20, 14], at: [10, 10] })));

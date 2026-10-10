@@ -63,6 +63,21 @@ export function expandLayout({ layout, base = null, modules, facts = loadFacts()
   if (!(g > 0) || !(og > 0)) { fail('meta.grid and meta.objectGrid are needed (in the arch file or in the layout meta)'); return { arch, warnings, outside, errors }; }
   const levels = [...(arch.levels ?? [])].sort((a, b) => a.floor - b.floor);
   const levelIdx = new Map(levels.map((l, i) => [l.id, i]));
+  /** A level's footprint as a list of rects (one rect or a list), or null when it has none (it then covers everything). */
+  const footprintOf = (l) => {
+    const rect = (r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite);
+    return rect(l.footprint) ? [l.footprint] : Array.isArray(l.footprint) && l.footprint.length && l.footprint.every(rect) ? l.footprint : null;
+  };
+  /**
+   * The levels a placement stands on, bottom to top: its base level, then every higher level whose footprint covers the placement's centre
+   * (a level with no footprint covers everything). Levels may overlap in height when their footprints do not (a hall block's low roof level
+   * H beside a two-storey strip), so the next level up in the sorted list is not always the next level of this stack.
+   */
+  const stackAt = (i0, rect) => {
+    const cx = (rect[0] + rect[2]) / 2;
+    const cz = (rect[1] + rect[3]) / 2;
+    return levels.filter((l, i) => i === i0 || (i > i0 && ((fp) => !fp || fp.some((r) => cx >= r[0] && cx <= r[2] && cz >= r[1] && cz <= r[3]))(footprintOf(l))));
+  };
   const wallExt = F('rules.wallExterior');
   const wallInt = F('rules.wallInterior');
   if (wallExt === undefined || wallInt === undefined) { fail('facts.json: rules.wallExterior and rules.wallInterior are needed'); return { arch, warnings, outside, errors }; }
@@ -107,16 +122,18 @@ export function expandLayout({ layout, base = null, modules, facts = loadFacts()
     const W = swap ? rd : rw;
     const D = swap ? rw : rd;
     const rect = [p.at[0], p.at[1], clean(p.at[0] + W), clean(p.at[1] + D)];
+    const stack = stackAt(i0, rect);
+    const stackIdx = (id) => { const i = stack.findIndex((l) => l.id === id); return i < 0 ? NaN : i; };
     let span = m.stair ? m.stair.span ?? 1 : 0;
-    if (p.to !== undefined) span = (levelIdx.get(p.to) ?? NaN) - i0;
-    else if (span === 'roof') span = (levelIdx.get('R') ?? NaN) - i0;
-    if (!(span >= 0) || i0 + span >= levels.length) { fail(`${label}: the stack of levels above ${p.level} does not exist`); continue; }
+    if (p.to !== undefined) span = stackIdx(p.to);
+    else if (span === 'roof') span = stackIdx('R');
+    if (!(span >= 0) || span >= stack.length) { fail(`${label}: the stack of levels above ${p.level} does not exist`); continue; }
     for (let k = 0; k <= span; k++) {
-      const lvl = levels[i0 + k];
+      const lvl = stack[k];
       const top = k === span && span > 0 && m.stair?.roofCeiling !== undefined && lvl.id === 'R';
       cells.push({
         id: k === 0 ? p.id : p.ids?.[lvl.id] ?? `${p.id}.${lvl.id}`,
-        level: lvl.id, k, span, p, m, rot, clear, rw, rd, rect,
+        level: lvl.id, k, span, stack, p, m, rot, clear, rw, rd, rect,
         ceiling: top ? val(m.stair.roofCeiling, `${m.id}.roofCeiling`) : val(m.ceiling, `${m.id}.ceiling`),
         boundary: m.wallKind === 'boundary',
         open: new Set(p.open ?? []),
@@ -276,12 +293,12 @@ export function expandLayout({ layout, base = null, modules, facts = loadFacts()
   const gridInward = (wc) => [ceilTo(wc[0], g), ceilTo(wc[1], g), floorTo(wc[2], g), floorTo(wc[3], g)];
   const risePerStep = F('stair.riserHeight');
   for (const c of cells) {
-    const i0 = levelIdx.get(c.level);
+    const i0 = c.k;
     const label = `${c.id}`;
     const cellRect = () => gridInward(clearRect({ level: c.level, rect: c.rect }, wallsOn(c.level)));
     if (c.m.stair && c.k < c.span) {
-      const from = levels[i0];
-      const to = levels[i0 + 1];
+      const from = c.stack[i0];
+      const to = c.stack[i0 + 1];
       if (risePerStep === undefined) { fail('facts.json: stair.riserHeight is needed'); continue; }
       const dogleg = c.m.stair.layout === 'dogleg';
       // a dog-leg fills its room (two flights side by side), so its rect is the room rect; a straight run is the clear room rounded inward
@@ -295,7 +312,7 @@ export function expandLayout({ layout, base = null, modules, facts = loadFacts()
     if (c.k !== 0) continue;
     if (c.m.ladder) {
       const lad = c.m.ladder;
-      const up = levels[i0 + 1];
+      const up = c.stack[i0 + 1];
       if (!up) { fail(`${label}: a ladder needs a level above ${c.level}`); continue; }
       const gap = snap(val(lad.zFromFar, `${label} ladder gap`), g);
       const across = lad.x === 'centre' ? snap((lad.facing === 'N' || lad.facing === 'S' ? c.rw : c.rd) / 2, g) : val(lad.x, `${label} ladder x`);
@@ -304,7 +321,7 @@ export function expandLayout({ layout, base = null, modules, facts = loadFacts()
       newLadders.push({ id: `${c.p.id}-L`, room: c.id, at: [clean(c.origin[0] + off[0]), clean(c.origin[1] + off[1])], from: c.level, to: up.id, facing: rotSide(lad.facing, c.rot), reason: lad.reason ?? '', gen: c.p.id });
     }
     if (c.m.voidAbove) {
-      const up = levels[i0 + 1];
+      const up = c.stack[i0 + 1];
       if (!up) { fail(`${label}: a shaft needs a level above ${c.level}`); continue; }
       newVoids.push({ id: `${c.p.id}-V`, level: up.id, rect: cellRect(), kind: c.m.voidAbove.kind, reason: c.m.voidAbove.reason ?? '', gen: c.p.id });
     }

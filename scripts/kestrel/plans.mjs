@@ -248,6 +248,30 @@ const levelSpan = (l) => [l.floor, l.floor + l.height];
 
 const overlap1 = (a0, a1, b0, b1) => Math.max(0, Math.min(a1, b1) - Math.max(a0, b0));
 
+/** A footprint as a list of rects: one rect or a list of rects ([] when it is neither). */
+const rectsOf = (v) => {
+  const rect = (r) => Array.isArray(r) && r.length === 4 && r.every(Number.isFinite);
+  return rect(v) ? [v] : Array.isArray(v) && v.length > 0 && v.every(rect) ? v : [];
+};
+/** Building footprints with their ids: meta.buildings, else the one meta.footprint. */
+const BUILDINGS = (arch.meta?.buildings ?? []).filter((b) => rectsOf(b?.footprint).length).map((b) => ({ id: b.id, name: b.name, rect: b.footprint }));
+const FOOTPRINTS = BUILDINGS.length ? BUILDINGS : rectsOf(arch.meta?.footprint).map((rect) => ({ rect }));
+
+/**
+ * Levels may overlap in height when their footprints do not (a single-storey hall block beside a two-storey strip). On a level with its own
+ * footprint whose height span overlaps another level's, an exterior element or service is drawn only where it touches that footprint
+ * (grown by twice the exterior wall thickness). Any other level draws every element in its height span, as before.
+ */
+function touchesLevel(level, pts) {
+  const own = rectsOf(level.footprint);
+  const [lo, hi] = levelSpan(level);
+  if (!own.length || !levels.some((o) => o !== level && overlap1(lo, hi, ...levelSpan(o)) > 1e-6)) return true;
+  const g = FACT('rules.wallExterior') * 2; // an exterior element stands on the facade, a little outside the wall centreline
+  const bx = [Math.min(...pts.map((p) => p[0])), Math.max(...pts.map((p) => p[0]))];
+  const bz = [Math.min(...pts.map((p) => p[1])), Math.max(...pts.map((p) => p[1]))];
+  return own.some((r) => bx[1] >= r[0] - g && bx[0] <= r[2] + g && bz[1] >= r[1] - g && bz[0] <= r[3] + g);
+}
+
 /** Labels that did not fit inside their room on the level being drawn; drawn in a column right of the site with a leader line. */
 let callouts = [];
 let calloutCol = 0;
@@ -337,14 +361,29 @@ function baseLayers(level) {
   const here = (o) => o.level === level.id;
   let out = '';
   for (const r of (arch.rooms ?? []).filter(here)) out += rectEl(r.rect, `fill="${RING_TINT[r.ring] ?? '#eeeeee'}" fill-opacity="${R('tintOpacity')}" stroke="none"`);
-  // structural bay grid, anchored on the footprint corner
+  // structural bay grid. One building (or none): lines across the site, anchored on the footprint corner. Several buildings: each building's
+  // own lines, anchored on its own corner and drawn inside its footprint.
   const bay = arch.meta?.bay;
-  const f = arch.meta?.footprint;
-  const ox = f && f[2] > f[0] ? f[0] : B[0];
-  const oz = f && f[3] > f[1] ? f[1] : B[1];
   if (bay && bay[0] > 0 && bay[1] > 0) {
-    for (let x = ox - Math.floor((ox - B[0]) / bay[0]) * bay[0]; x <= B[2] + 1e-6; x += bay[0]) out += lineEl([x, B[1]], [x, B[3]], `stroke="${GRID}" stroke-width="${R('gridStroke')}"`);
-    for (let z = oz - Math.floor((oz - B[1]) / bay[1]) * bay[1]; z <= B[3] + 1e-6; z += bay[1]) out += lineEl([B[0], z], [B[2], z], `stroke="${GRID}" stroke-width="${R('gridStroke')}"`);
+    const gridStroke = `stroke="${GRID}" stroke-width="${R('gridStroke')}"`;
+    if (BUILDINGS.length > 1) {
+      for (const b of BUILDINGS) {
+        const [x0, z0, x1, z1] = b.rect;
+        for (let x = x0; x <= x1 + 1e-6; x += bay[0]) out += lineEl([x, z0], [x, z1], gridStroke);
+        for (let z = z0; z <= z1 + 1e-6; z += bay[1]) out += lineEl([x0, z], [x1, z], gridStroke);
+      }
+    } else {
+      const f = FOOTPRINTS[0]?.rect;
+      const ox = f && f[2] > f[0] ? f[0] : B[0];
+      const oz = f && f[3] > f[1] ? f[1] : B[1];
+      for (let x = ox - Math.floor((ox - B[0]) / bay[0]) * bay[0]; x <= B[2] + 1e-6; x += bay[0]) out += lineEl([x, B[1]], [x, B[3]], gridStroke);
+      for (let z = oz - Math.floor((oz - B[1]) / bay[1]) * bay[1]; z <= B[3] + 1e-6; z += bay[1]) out += lineEl([B[0], z], [B[2], z], gridStroke);
+    }
+  }
+  // each building's footprint outline, labelled with its id (campus files only)
+  for (const b of BUILDINGS) {
+    out += rectEl(b.rect, `fill="none" stroke="#555" stroke-width="${R('outlineStroke')}" stroke-dasharray="${R('dashMid')}"`);
+    out += textAt([b.rect[0], b.rect[3]], 2, -(FACT('rules.wallExterior') / 2) * S - 2, `Building ${b.id}${b.name ? ` ${b.name}` : ''}`, R('fontLegend'), `fill="#555" font-weight="bold"`);
   }
   out += rectEl(B, `fill="none" stroke="#999" stroke-width="${R('siteStroke')}" stroke-dasharray="${R('dashLong')}"`);
   for (const o of (arch.objects ?? []).filter(here)) {
@@ -363,7 +402,7 @@ function baseLayers(level) {
   for (const v of (arch.voids ?? []).filter(here)) out += voidSym(v);
   const [lo, hi] = levelSpan(level);
   for (const e of arch.exterior ?? []) {
-    if (e.y1 < lo || e.y0 > hi) continue;
+    if (e.y1 < lo || e.y0 > hi || !touchesLevel(level, [e.a, e.b])) continue;
     const col = e.climbable ? '#1c9c3f' : '#777';
     out += e.a[0] === e.b[0] && e.a[1] === e.b[1]
       ? dotEl(e.a, R('dotR'), `fill="${col}" stroke="#222" stroke-width="${R('thinStroke')}"`)
@@ -372,7 +411,7 @@ function baseLayers(level) {
   }
   for (const sv of arch.services ?? []) {
     const ys = sv.path.map((p) => p[1]);
-    if (Math.max(...ys) < lo || Math.min(...ys) > hi) continue;
+    if (Math.max(...ys) < lo || Math.min(...ys) > hi || !touchesLevel(level, sv.path.map((p) => [p[0], p[2]]))) continue;
     out += polyEl(sv.path.map((p) => [p[0], p[2]]), `stroke="#00838f" stroke-width="${R('thinStroke')}" stroke-dasharray="${R('dashDot')}"`);
   }
   for (const r of (arch.rooms ?? []).filter(here)) out += roomLabel(r, level);
