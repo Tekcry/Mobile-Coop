@@ -18,10 +18,10 @@
 - Map id `kestrel`. Branch `feature/kestrel` (made from `ct-movement`). Design files in docs/kestrel/. Tools in scripts/kestrel/.
 
 ## 2. Scope lock (change only with Michael's written OK under "Decisions by Michael" in progress.md)
-- One site: a lane, a yard and the exchange building. Neighbouring buildings are solid boundary walls or facades only, never enterable.
+- One site: a lane, a yard and two buildings (A and B) joined by a first-floor link bridge. Neighbouring buildings are solid boundary walls or facades only, never enterable.
 - Site at most 110 x 80 m. Each building's footprint at most 48 x 30 m.
 - Solo ghost run 35-45 minutes; speedrun 12-16 minutes.
-- Levels: basement, ground, first floor, roof. A second floor only if the building brief proves the building needs it.
+- Levels per building: ground, first floor, roof; a basement vault and the service tunnel below the yard; Building B adds the underfloor void (level U) under its hall.
 - At most 4 walkable surfaces stacked over any point of the map.
 - About 8 guarded spaces plus the way out, with quiet connectors between them.
 - Guards: 20 plus 1 civilian (the night duty engineer) (Michael, 2026-10-11). Roster rule kept; the roster table below is to be redone for the campus in the P01 revision. Roster by space: S1 perimeter and yard 3 (gatehouse officer, perimeter patrol, van driver); S2 ground floor offices 2 (rounds officer, duty manager with a card); S3 security room 2 (desk operator, supervisor who leaves for rounds); S4 ops and facilities 2 (corridor patrol, escort officer); S5 mantrap and data hall 3 (mantrap post, talking pair on rounds); S6 meet-me room 2 (Pell's private contractor, roaming officer); exfiltration 2 (generator test technician, the returning van driver). Civilian: the night duty engineer, the authorised person for the iris scan. Pell's paid extra cover for his handover explains the numbers. At most 12 awake at once through dormant guards (S5); the rest sleep under the S5 dormant-guard system. S5 may test raising the awake cap for desktop, as a recorded decision, not by default. No guard on any floor lower than the nav sampler's lowest depth in 00-facts.md.

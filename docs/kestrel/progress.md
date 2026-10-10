@@ -9,7 +9,7 @@
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
-| P01 | Mission brief | DRAFT (campus redesign) | 30fad8a | 2026-10-11 |
+| P01 | Mission brief | DRAFT (campus redesign, revised) | pending | 2026-10-11 |
 | P02 | Building brief | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
@@ -34,6 +34,9 @@
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P01 revision (campus, fixes 1-10): 01-mission-brief.md rewritten for Building A, Building B and the link bridge (272 lines, DRAFT). New tables: ghost solutions (4.1), control ladder (4.2), secret routes (4.3). 20 guards + engineer in 7 spaces plus the way out, 8 dormant; beats B1-B10, tension 1,3,2,4,3,4,3,5,4,5; time 41 min (16 moving, 25 waiting). RULES section 2: site and levels lines only.
+  Design calls: the panel sits in a CCTV equipment room beside the security room; the B-tier card is in the key safe (PIN in the records), the escort PIN on a note in the engineer's locker; the mantrap has no ghost solution, so the standard ghost route goes bridge, fire stair, roof, shaft, rappel; carrier route is also the way out. New ASK-13 to 15 (grille isolator, PIN gates and fire-alarm release not in S0, ghost counters).
+  Downstream: P02, P03B, P03R, P04S, S2, P07, P08 recheck (lines at the end of the brief).
 - 2026-10-11 P03B revision (massing walk fixes 1-6, P02 reopened): goods lift removed (comms and store take its slot); one hall entrance at G23's east end (x 47); mantrap 4.5 x 4 (clear 4.2 x 3.7), gallery now opens from the hall (Michael); main stair two 1.85 m flights, balustrade, 2.0 m landings, core 4.0 (Michael; 2.0 m flights did not fit at 85%), security zone 5.0 (G06 6.4 x 4.7); fire stairs z 22-26.5 with exits on the end walls off the bottom landing; level U (floor -1.5, 1.5 m void) zone U-Z4V under the hall.
   Check 25 PASS, 1 WARN, 1 FAIL (same 3 A07 arches) after every fix; check.test.mjs 52 pass (+1 for level U). Critical path 390.0 m. Brief 306 lines, block plan 150.
   Downstream: B0 reruns with the new blocks (src copy and tests/kestrelMap.test.ts now differ until then). Not changed (outside the list): brief s10 hall switch bank "by G12/G13".
