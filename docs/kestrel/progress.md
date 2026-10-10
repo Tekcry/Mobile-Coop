@@ -15,7 +15,7 @@
 | P03B | Block plan | DRAFT (campus redesign) | c805978 | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
-| CAM | Camera respects walls and low spaces | DRAFT | (this commit) | 2026-10-11 |
+| CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
 | P04 | Floor plans | not started | | |
 | P05 | Architecture review | not started | | |
 | P04S | Security layout | not started | | |
