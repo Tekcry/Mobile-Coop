@@ -5,6 +5,12 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Dead Line v2 G1 - Area 1 greybox (PC and phone)
+- [ ] Main menu, Play, "Dead Line v2", Deploy: you start on Viaduct Road in the dark, facing south, under the railway bridge; walk to the lane mouth.
+- [ ] F3, Teleport: 8 encounters, 5 checkpoints, 4 spawns each put you on the ground at the marker.
+- [ ] Climb a downpipe (face it, Y), walk the lean-to roof; hold B at the eave to lower yourself, shimmy onto the pipe and climb down. The corrugated roofs east of A14 are louder than the felt.
+- [ ] Phone check: the map holds frame rate at the lane mouth, the bay and the turning head (the PC runs 250+ fps uncapped).
+
 ## 3.6.0 (Phase 1) - Desktop sharpness, backlog 3 (PC; phone for the look only)
 - [ ] Desktop, Epic, Reflections Screen space, in a match, not aiming: the whole frame is sharp (crate edges, far
       shelving, the operator's outline); the same with Reflections Off.

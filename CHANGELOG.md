@@ -1,6 +1,7 @@
 # Changelog
 
 ## 3.6.x - First Playable (in progress)
+- Dead Line v2 G1 (Area 1, 3.5.1): the Cable Lane greybox (`?autostart=dead-line-v2&mode=sandbox`, main menu card "Dead Line v2"), generated from `docs/design/map-dead-line-v2.json` by `scripts/gen-dead-line-v2.mjs`: lane, viaduct, lean-to roofs with downpipes, roof lights, palisades, spikes, cars, substation rooms, cable tunnel with M1 and M2 shafts and ladders, vent grating, flat debug markers, debug Teleport (encounters, checkpoints, spawns). Gate report `docs/gates/dead-line-v2-G1.md`. The old Dead Line is unchanged.
 - Per-object hold noise: `Interactable.holdNoise` sounds at the start of a hold and every 0.5 s while it runs (`holdNoisePulse`, `HOLD_NOISE_PULSE` in `config/noise.ts`); `MANHOLE_LIFT_NOISE_RADIUS` 10 m for cast-iron covers. Holds without it stay silent.
 - Nav layers per map: `MapDef.navLayers` (default 3, `DEFAULT_NAV_LAYERS`); Dead Line keeps 5 surfaces per column for v2's A block (basement to roof).
 - G1: Mission 1 DEAD LINE campus greybox (`?autostart=dead-line&mode=sandbox`), generated from `docs/design/map-dead-line.json` by `scripts/gen-dead-line.mjs`: four floors plus the trench and culvert, 12 doors, stairs, ladders, drops, ducts, ledge and roof beam, flat debug markers, flat light, no guards or lamps. Debug overlay Teleport menu (chapter starts, spawns, objectives). Gate report `docs/gates/G1.md`.

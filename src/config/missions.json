@@ -843,5 +843,54 @@
     ],
     "rules": {},
     "squads": "rooms"
+  },
+  {
+    "id": "dead-line-v2",
+    "name": "Dead Line v2",
+    "map": "dead-line-v2",
+    "brief": "Mission 1 v2, Area 1 greybox (G1): geometry only. No guards, lamps or locks yet. The van drops you north of the railway bridge.",
+    "insertions": [
+      {
+        "id": "s1",
+        "name": "Viaduct Road S1",
+        "x": 5,
+        "z": 52,
+        "yaw": 3.1416
+      },
+      {
+        "id": "s2",
+        "name": "Viaduct Road S2",
+        "x": 7,
+        "z": 52,
+        "yaw": 3.1416
+      },
+      {
+        "id": "s3",
+        "name": "Viaduct Road S3",
+        "x": 5,
+        "z": 54,
+        "yaw": 3.1416
+      },
+      {
+        "id": "s4",
+        "name": "Viaduct Road S4",
+        "x": 7,
+        "z": 54,
+        "yaw": 3.1416
+      }
+    ],
+    "objectives": [
+      {
+        "type": "extract",
+        "id": "e1",
+        "label": "Leave by the pier door to the drum store",
+        "x": 189.5,
+        "y": 0,
+        "z": 34.5,
+        "radius": 1.5
+      }
+    ],
+    "rules": {},
+    "squads": "rooms"
   }
 ]

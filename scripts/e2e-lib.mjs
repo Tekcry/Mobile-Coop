@@ -13,6 +13,8 @@ export function browserExe() {
 /** Chromium flags: software GL (SwiftShader) by default; E2E_GPU=1 the hardware GPU (Windows: ANGLE D3D11, GPU blocklist ignored). */
 export function browserArgs() {
   const base = ['--ignore-gpu-blocklist', '--autoplay-policy=no-user-gesture-required'];
+  // E2E_UNCAP=1 (frame-time measurements): no display-rate limit on requestAnimationFrame, so a frame cost is not hidden by a 60 / 120 Hz cap
+  if (process.env.E2E_UNCAP === '1') base.push('--disable-frame-rate-limit', '--disable-gpu-vsync');
   if (!GPU) return ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', ...base];
   const angle = process.platform === 'win32' ? 'd3d11' : process.platform === 'darwin' ? 'metal' : 'gl';
   return ['--use-gl=angle', `--use-angle=${angle}`, '--enable-gpu-rasterization', ...base];
