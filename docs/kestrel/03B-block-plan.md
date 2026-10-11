@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1 done; Part 2d-2a done, 2d-2b next)
+Status: DRAFT (Part 1 done; Part 2d done, 2e next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -398,6 +398,7 @@ Notes for P04, 1g and P03R:
 - P04: BG07's door to BG05 goes north of BG08 (or B-GGOODS is reordered), recorded; BF06 opens off BF05 (brief 5) on B-FSEC's west face at x 60.5, z 48.5-53, where the bridge post in BF01 can see it; BG13 opens only into the hall, on x 70, z 43-50.5; RB09's double doors and BG42's fill point share W-GEN's east wall (4.5).
 - P04: brief 5 doors with no brief 6 control, same ring: BF05 to BF13 reader, BG05 to BG15 and BF01 to BF12 locked riser doors, X06 to X07 chain-link gate on x 52, z 60-62 (push-bar on the passage side: the escape way from RB15, 6.3).
 - 1g: RB16 is the rappel route R04 (routes.md); RB13 is the hall's only way out to the strip on G, alarmed.
+- Part 2d-2b: 17 openings at the positions in prompts/P03B-2d-2b.md plus XG01 (X06 to X07 gate); RB16 stays the hatch void VH-BR05, RB18's hatches are P06; every gate is full fence height
 
 ## 8. Critical path
 Solo ghost line, roof-shaft entry, carrier exit (mission brief 4.1). Waypoints are zone points, not doors; P04's path is longer. Vertical: stair floor 9.0, ladders their height, rappel 6.0 (6.1).

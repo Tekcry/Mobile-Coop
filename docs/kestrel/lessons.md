@@ -37,3 +37,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - P03B 2c: precomputing the exact summary line (vertical 31, info 2) in the prompt made the generator and the negative test a one-run check; keep doing that for every generator piece.
 - P03B 2d-1: planner prototype counts (115 walls, per level and kind) let a wall generator be verified in one run; a late fix that changes two counts must be named in the prompt, or the parse-back needs a manual edit.
 - P03B 2d-2a: deriving each opening's wall, `at` and `between` in code from a centre and width (and failing on an off-grid `at`) removed the hand arithmetic; prompts should give centres and let the generator find the wall.
+- P03B 2d-2b: a single table of centres plus widths covered 17 openings in one run; when a reviewer moves one centre (RB15), the prompt FIXES line plus unchanged counts keeps the run a one-pass check.
