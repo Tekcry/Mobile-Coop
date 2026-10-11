@@ -41,16 +41,20 @@ export function standardsCheck(arch) {
   for (const r of rooms) {
     if (r.level !== 'U' && !r.crawl) continue;
     counts.crawl++;
-    const h = r.ceiling > 0 ? r.ceiling : lvl(r.level)?.height ?? 0;
+    // level U: ceiling if set, else height minus 0.1 floor tiles (03B 2 row U "1.6 to hall floor (1.5 clear under tiles)")
+    const lh = lvl(r.level)?.height ?? 0;
+    const h = r.ceiling > 0 ? r.ceiling : r.level === 'U' ? lh - 0.1 : lh;
     if (h < 1.5 - EPS) fails.push(`crawl ${r.id}: clear height ${h} < 1.5`);
     const clear = short(r.rect) - WALL;
     if (clear < 1.2 - EPS) fails.push(`crawl ${r.id}: clear short side ${clear.toFixed(2)} < 1.2`);
   }
 
-  // Stairs: width >= 1.3 (fire) or 1.85 (main); levels exist (scale-sheet l.40; handover Decisions "Main stair")
+  // Stairs: width by kind; levels exist
   for (const s of arch.stairs ?? []) {
     counts.stairs++;
-    const min = s.kind === 'fire' ? 1.3 : s.kind === 'main' ? 1.85 : 0;
+    // fire 1.3 (scale-sheet l.40), main 1.85 (handover Decisions "Main stair"), feature 2.4 (scale-sheet l.41); other kinds have no minimum
+    const min = { fire: 1.3, main: 1.85, feature: 2.4 }[s.kind] ?? 0;
+    if (!(s.kind in { fire: 1, main: 1, feature: 1 })) info.push(`stair ${s.id}: kind ${s.kind} has no width minimum`);
     if (s.width < min - EPS) fails.push(`stair ${s.id}: width ${s.width} < ${min} (${s.kind})`);
     if (!lvl(s.from) || !lvl(s.to)) fails.push(`stair ${s.id}: missing level at from ${s.from} or to ${s.to}`);
   }
