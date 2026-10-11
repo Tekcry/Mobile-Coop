@@ -392,6 +392,27 @@ Notes for P04, 1g and P03R:
 - P04: brief 5 doors with no brief 6 control, same ring: BF05 to BF13 reader, BG05 to BG15 and BF01 to BF12 locked riser doors, X06 to X07 chain-link gate on x 52, z 60-62.
 - 1g: RB16 is the rappel route R04 (routes.md); RB13 is the hall's only way out to the strip on G, alarmed.
 
+## 8. Critical path
+Solo ghost line, roof-shaft entry, carrier exit (mission brief 4.1). Waypoints are zone points, not doors; P04's path is longer. Vertical: stair floor 9.0, ladders their height, rappel 6.0 (6.1).
+
+### 8.1 Legs
+| Leg | Objective | Waypoints | Vertical | Length | Source |
+| --- | --- | --- | --- | --- | --- |
+| P01 | 1 | S-LANE 84,4 > S-YARDB 84,10 | 0 (lane fence) | 6.0 | MB 4 obj 1, 4.1; brief 4 (gatehouse west); 7.1 RA02 (exit 20 m east) |
+| P02 | TA1 | S-YARDB 84,10 > S-YARDB 70,20 > S-YARDA 40,28 > S-YARDA 25,29.5 > G-SOFF 25,31 | 0 (window) | 64.83 | MB 4.1 TA1; brief 5 AG06 |
+| P03 | TA1 | G-SOFF 25,31 > G-SPINE 25,41.75 > G-SPINE 5.75,41.75 > G-WLINK 5.75,47 > G-NCOR 5.75,52.25 > G-NCOR 15,52.25 > G-NW 15,56 | 0 | 53.5 | MB 4 TA1; brief 5 AG05; 3.3 |
+| P04 | TA2 | G-NW 15,56 > G-NCOR 15,52.25 > G-NCOR 5.75,52.25 > G-SPINE 5.75,41.75 > G-SPINE 13.5,41.75 > G-SEC 13.5,45 | 0 | 34.5 | MB 4 TA2; brief 5 AG12 |
+| P05 | TA3 | G-SEC 13.5,45 > G-SPINE 13.5,41.75 > G-SPINE 23.5,41.75 > F-SPINE 23.5,41.75 > F-SPINE 13.5,41.75 > F-BW 13.5,45 | 9.0 (V-ASTAIR G to F) | 35.5 | MB 4 TA3; brief 5 AF04; 6.1 |
+| P06 | TA4 | F-BW 13.5,45 > F-SPINE 13.5,41.75 > F-SPINE 23.5,41.75 > G-SPINE 23.5,41.75 > G-SPINE 13.5,41.75 > G-SEC 13.5,45 | 9.0 (V-ASTAIR F to G) | 35.5 | MB 4 TA4; brief 5 AG13 |
+| P07 | TB1 | G-SEC 13.5,45 > G-SPINE 13.5,41.75 > G-SPINE 5.75,41.75 > G-NCOR 5.75,52.25 > V-AFS 7.25,55.75 > RF-A 10.5,55.75 > RF-A 27,42 > RF-A 39.5,41.75 | 18.0 (V-AFS G to R) | 80.54 | MB 4.1 TB1; 6.1 V-AFS, V-LAD1; 3.3 R-PLANT |
+| P08 | TB1, TB4 | RF-A 39.5,41.75 > L-ROOF 40,41.75 > L-ROOF 52,41.75 > RF-BS 52.5,41.75 > RF-BS 69.75,57.75 > RF-BH 70.5,57.75 > V-BR05 81,49 | 3.0 (V-LAD1 0.6, V-LAD2 0.6, V-LAD3 1.8) | 53.95 | MB 4.1 TB4; 6.1; routes R03 |
+| P09 | 5 | V-BR05 81,49 > B-GHALL 81,49 | 6.0 (rappel) | 6.0 | MB 4.1 TB4, 5; routes R04 |
+| P10 | 6 | B-GHALL 81,49 > B-GHALL 78,36.5 > B-GHCAR 78,33 | 0 | 16.35 | MB 4 obj 6; brief 5 BG29, BG30 |
+| P11 | 7 | B-GHCAR 78,33 > T-RISER 73,31 > T-TUNB 73,28.5 > T-TUNB 49,28.5 > T-VAULT 47,28.5 > T-VAULT 47,24.75 > T-MH 48.75,24.75 | 7.2 (BG32 3.6 down, TB02 3.6 up) | 46.59 | MB 4.1 obj 7; routes R08; 5.2 |
+| P12 | 7 | T-MH 48.75,24.75 > S-YARDB 104,9 > S-LANE 104,4 | 0 (east service gate RA02) | 62.45 | MB 4 obj 7; 7.1 RA02; question 1 |
+
+Total: 495.7 m (RULES 2: 450-650).
+
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
 
