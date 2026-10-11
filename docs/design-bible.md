@@ -1247,7 +1247,7 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
 
 **Parked** (code kept behind `?legacy=1` from Phase 0; no new work; their e2e suites are optional):
 
-- Hunter and Wave Survival - Michael wants both back after the vertical slice, rebuilt on campaign maps (unparked, Michael 2026-10-11; Cinder Yard stage BM, game-wide backlog 26).
+- Hunter and Wave Survival - Michael wants both back after the vertical slice, rebuilt on campaign maps (unparked, Michael 2026-10-11; game-wide backlog 26; Cinder Yard after its campaign mission is ready).
 - The old Mission mode (retired 2026-10-11: Mission returns as PvP attack and defend, one team defends while the other attacks several objectives one at a time; Michael).
 - PvP: Team Deathmatch and Free-for-all. The Confrontation (5.15) reuses their network code but is its own design.
 - Credits, XP-gated unlocks, shop, suit upgrades, HQ, challenges, weapon mastery.

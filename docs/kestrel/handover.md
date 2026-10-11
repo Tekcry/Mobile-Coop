@@ -14,7 +14,7 @@ Everything needed to continue Mission 1 "Dead Line" if the planning chat is lost
 - S1: Part A built (478c3b8); Part B runs after B4.
 
 ## Order
-P03B campus block plan (parts, Opus medium), P03R campus review, B0 rerun, Michael walks it, tools revision for A30 (backlog 25) before P04, DR door kinds (engine stage, before P04), P04-P05, B1-B2, BR, P04S, P06-P10, CAM approval then V1-V3 (all before B3), B3, B4, S1-S4, B4S, BR, S5, S6 civilians, B5, B6, BM modes, BR, B7.
+P03B campus block plan (parts, Opus medium), P03R campus review, B0 rerun, Michael walks it, tools revision for A30 (backlog 25) before P04, DR door kinds (engine stage, before P04), P04-P05, B1-B2, BR, P04S, P06-P10, CAM approval then V1-V3 (all before B3), B3, B4, S1-S4, B4S, BR, S5, S6 civilians, B5, B6, BR, B7. Then revisit the other modes with Michael (BM).
 
 ## Notes for the next stages
 - Main stairs stay non-escape (Michael, 2026-10-11): one escape stair per building upper floor; worst walks about 52 m (A) and 31 m (B) accepted as game licence. Do not add escape doors to the main cores.
@@ -46,7 +46,8 @@ P03B campus block plan (parts, Opus medium), P03R campus review, B0 rerun, Micha
 - Neighbours: depot facade 7.0 m, viaduct 9.0 m.
 
 ## Decisions to carry into later stages
-- BM (modes, Michael 2026-10-11): after B6, before B7, add Hunter (`clear`), Wave (`wave`) and PvP Mission (`mission`) on `kestrel`. PvP Mission: attackers against defenders, several objectives in a fixed order, one live at a time; a new design, so BM needs its own design part first (objective sites, spawns per side, sequence) approved by Michael. It may be split into BM1 Hunter and Wave, BM2 PvP Mission. Prompt writer greps src/game/modes and src/net for ClearMode, WaveMode, MissionMode, the spawn fill and the PvP code first. P07 lists candidate spawn areas per building; P06 marks mission-only routes and candidate attack and defend sites. B7 adds a check per mode.
+- B6 (Campaign, Michael 2026-10-11): rename the player-facing mode "Infiltration" to "Campaign" in the Play screen and the co-op lobby (id `infiltration` unchanged); list campaign missions numbered in play order, Cinder Yard as "Mission 1: Dead Line". Prompt writer greps src/ui/screens/playScreen.ts and src/net/coopUi.ts first.
+- BM (other modes, Michael 2026-10-11): not scheduled. After B7, revisit Hunter (`clear`), Wave (`wave`) and PvP Mission (`mission`: attackers against defenders, several objectives in a fixed order, one live at a time) for Cinder Yard with Michael. PvP Mission needs its own design part, approved by Michael. No earlier stage plans for these modes.
 - P06 and P08: the car opportunity: the remote-hands technician's Building B badge in their glovebox; car keys in a jacket in the locker room or in the security office key cabinet; remote fob unlocks fast but flashes and beeps, the key in the door is silent and slow (the ghost way), breaking a window sets off the car alarm. Cars give cover; their lights can give the player away.
 - P06 and P10, "best operative" checklist (pass or fail): at least 3 real approaches per space; at least 1 expert route per space; at least 1 "can't believe that worked" moment per building; guards pass near hides by design, never randomly; every failure is readable; a perfect ghost feels earned. Every movement the engine supports is used at least once on a real element.
 - P06: the play schema needs a "zipline" traversal kind for later missions, and "drainpipe" maps to the engine's vertical pipe.
