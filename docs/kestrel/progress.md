@@ -50,6 +50,7 @@ Older entries: progress-archive.md.
   - Q1 wing grid: (a, Recommended) wing keeps its own grid offset 2.0 north, x on campus lines - own foundations per brief 2; (b) move wing to grid lines, passage 6.0 - breaks brief 12e.
   - Q2 bridge side walls: (a, Recommended) exterior 0.45, 3.05 clear - it is an outside enclosure; (b) interior 0.30, 3.2 clear.
   - Q3 bridge roof 7.8: (a, Recommended) add its own level (for example `L` at 7.8, footprint the bridge rect) - the bridge roof is a secret route (RULES 1) and every walkable height needs a level (lessons); (b) object top on F.
+  - Michael answered all recommended (2026-10-11); applied. Schema 1 level-id list needs `L` added.
 - 2026-10-11 SETUP-2: PLANNER.md and prompts/P03B-1a.md created; RULES 7 and 9 gain the prompt-file, Next-line and recommended-option rules; handover Working rules gain the workflow and P03B part plan.
 - 2026-10-11 SETUP-1: RULES.md gets Task size and Reading and checking rules, roster and order lines point to one source; CLAUDE.md skip line; lessons.md created.
   progress.md log trimmed to the newest 8 entries, old entries and the old Massing walk section moved to progress-archive.md.

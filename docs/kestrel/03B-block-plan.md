@@ -35,7 +35,7 @@ Self-check (node script over a 0.5 grid, this session): `items 13, area sum 8208
 ### Deviations from the brief
 - Service passage X07: 2.0 between wall centrelines, 1.55 clear, not 1.5 clear. A 1.5 clear passage needs centrelines 1.95 apart, off the 0.5 grid (RULES 6). 1.55 stays inside F08 1.2-1.95 (brief 12e).
 - Rear strip behind the wing: 2.0 deep, not 2.5 (brief 5 X06), because the passage takes the extra 0.5. Site sum is unchanged: passage 48 (was 36), rear yard 1192 (was 1204), total 8208.
-- Generator wing walls on z 62 and z 74 are off the structural grid (z lines 60, 66, 72). The wing stands on its own foundations behind the passage (brief 2), so it has its own grid offset 2.0 north; its x walls (52, 76) stay on campus lines. ASK: is an offset wing grid acceptable, or should the wing move to grid lines (a 6.0 passage, which breaks brief 12e)?
+- Generator wing walls on z 62 and z 74 are off the structural grid (z lines 60, 66, 72). The wing stands on its own foundations behind the passage (brief 2), so it has its own grid offset 2.0 north; its x walls (52, 76) stay on campus lines (Michael, 2026-10-11).
 - No other row of the proposed table changed.
 
 ## 2. Levels and footprints
@@ -47,8 +47,9 @@ Self-check (node script over a 0.5 grid, this session): `items 13, area sum 8208
 | G | Ground | 0.0 | 4.2 (A, B strip); 6.6 to roof (hall block, wing) | Listed, not default: A [4, 30, 40, 54], B [52, 30, 100, 60], wing [52, 62, 76, 74]. The wing is outside `meta.buildings` footprints, so the default would miss it | brief 2; schema 2 levels[].footprint |
 | F | First | 4.2 | 4.2 | A [4, 30, 40, 54], B strip [52, 30, 70, 60], link bridge [40, z0, 52, z0 + 3.5] in the gap, between AF17 and BF01; z0 set with those rooms (Part 1b) | brief 2, 12h |
 | H | Low roof | 6.6 | - (open roof, parapet 1.1 to 7.7) | Hall block [70, 30, 100, 60], wing [52, 62, 76, 74] | brief 2, 4 |
+| L | Bridge roof | 7.8 | - (open roof) | Link bridge rect [40, z0, 52, z0 + 3.5] (Michael, 2026-10-11) | brief 2 |
 | R | Roof | 8.4 | - (open roof, parapet 1.1) | A [4, 30, 40, 54], B strip [52, 30, 70, 60] | brief 2 |
 
 - H at 6.6 overlaps F's span (4.2-8.4) in height; their footprints do not overlap (schema 1).
-- Bridge width 3.5 is wall-centreline; clear width is 3.2 with 0.3 interior walls or 3.05 with 0.45 exterior walls. ASK: which wall type for the bridge sides?
-- ASK: bridge roof LF02 is at 7.8 (brief 2), on no level. Options: add a level for it, or treat it as an object top on F.
+- Bridge width 3.5 is wall-centreline; side walls exterior 0.45, so 3.05 clear (Michael, 2026-10-11).
+- Bridge roof LF02 at 7.8 gets its own level L (Michael, 2026-10-11). L is a new level id; schema 1 lists B, U, G, F, H, S, R, so schema 1 needs `L` added (P03R or a schema revision).
