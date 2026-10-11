@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1 done; Part 2d done, 2e next)
+Status: DRAFT (Part 1 done; Part 2 done, awaiting Michael's approval of Part 2)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -572,6 +572,27 @@ Deviations (1g-c fixes, Michael 2026-10-11):
 
 Settled, so dropped: wing grid offset, bridge walls and level L heights (Michael, 1a); AG22 across the spine (Michael, 1b ASK-4); fire stair walk distances (Michael, 6.2); exit at RA02 (Michael, 8.2 question 1); vault touching A (1g-c fix); 1c, 1d, 1e, 1f-b and 1g notes (done by those parts).
 Rows per For: Michael 0, P03R 13, P04 13, P06 1.
+
+## 11. Part 2 checks
+| Check | Command | Result |
+| --- | --- | --- |
+| 1 | `node scripts/kestrel/p03b-blocks.mjs` | standards corridors 11, doors 25, crawl 2, stairs 7, vertical 32, fails 0, info 2 |
+| 2 | `node --test standards-check.test.mjs` | 8 pass, 0 fail |
+| 3 | `node --test check.test.mjs` | 61 pass, 0 fail |
+| 4 | `node --test expand.test.mjs` | 30 pass, 0 fail |
+| 5 | `node check.mjs kestrel.campus.blocks.json` | 22 PASS, 2 WARN, 4 FAIL, 8 SKIP, 1 INFO |
+| 6 | `p03b-zones-check.mjs` | zones 27, fixed 15, fails 0, info 0 |
+| 7 | `p03b-zones-check-b.mjs` | zones 19, fixed 10, fails 0 |
+| 8 | `p03b-zones-check-d.mjs` | zones 26, rows 126 of 126, fails 0 |
+| 9 | `p03b-vert-check-e.mjs` | vert 17, fails 0, info 2 |
+| 10 | `p03b-ring-check-f.mjs` | ring 35 (RA 17, RB 18), rects 114, fails 0, info 2 |
+| 11 | `p03b-adj-check-g.mjs` | adjacency rows 34, items 14 of 14, apart rows 26, items 8 of 8, rects 114, fails 0 |
+| 12 | `p03b-path-check-g.mjs` | path legs 12, total 499.0; coverage moves 14, placed 6, open 7; fails 0 |
+| 13 | `plans.mjs kestrel.campus.blocks.json` | wrote 7 SVG + PNG pairs |
+
+Plans: docs/kestrel/plans/blocks-<L>.png for B, U, G, F, H, L, R (Part 2e)
+
+Expected fails, all for the tools revision before P04 or for P04 (handover Notes): FAIL A07 (RA14, RB11 sit 0.5 m from a wall end); FAIL A09 (fire-stair doors RA13, RA14, RB05, RB15, RB17 sit at stair ends); FAIL A12 (ladders V-LAD1-3 stand on roofs, not plant or shaft rooms); FAIL A29 (RB01 joins ring 1 to ring 3). WARN A10 (RA11 and RA12 face each other across the bridge corridor); WARN A18 (split-jump gaps).
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
