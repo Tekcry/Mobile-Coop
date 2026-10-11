@@ -37,7 +37,7 @@ const NOT_MENU: Ctx[] = ['idle', 'selected', 'drag', 'draw'];
 
 export const ACTIONS: readonly Action[] = [
   { id: 'look', name: 'look around', group: 'Camera', keys: [], mouse: 'Right drag', pad: ['RS'], ctx: NOT_MENU, hint: ['idle', 'draw'], passive: true },
-  { id: 'move', name: 'move (Shift fast; wheel zooms)', group: 'Camera', keys: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], pad: ['LS'], ctx: NOT_MENU, passive: true, hint: ['idle', 'drag', 'draw'] },
+  { id: 'move', name: 'move', group: 'Camera', keys: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], pad: ['LS'], ctx: NOT_MENU, passive: true, hint: ['idle', 'drag', 'draw'] },
   { id: 'fly', name: 'down / up when flying (deeper is faster)', group: 'Camera', keys: ['KeyQ', 'KeyE'], pad: ['LT/RT'], ctx: NOT_MENU, passive: true },
   { id: 'fast', name: 'fast on / off', group: 'Camera', keys: [], pad: ['L3'], ctx: NOT_MENU, passive: true },
   { id: 'crouch', name: 'crouch when walking', group: 'Camera', keys: ['KeyC'], ctx: NOT_MENU, passive: true },
@@ -142,7 +142,7 @@ export function keyWords(id: string): string {
 
 /** An action's keyboard and mouse bindings in words, shortened for families (WASD, the arrows). */
 export function bindingWords(a: Action): string {
-  if (a.id === 'move') return 'W A S D';
+  if (a.id === 'move') return 'W A S D (Shift fast, wheel zooms)';
   if (a.id === 'fly') return 'Q / E';
   if (a.id === 'nudge') return 'Arrows';
   return [a.mouse, ...a.keys.map(keyWords)].filter(Boolean).join(' / ');

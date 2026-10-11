@@ -105,6 +105,7 @@
       #help .padrow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
       #help td.pad { color: #7cc4ff; white-space: nowrap; }
       #planSvg.nolabels text { display: none; }
+      body:has(#radial:not(.hidden)) #help, body:has(#radial:not(.hidden)) #reticle { display: none; }
       #ask div { margin-bottom: 8px; max-width: 420px; }
       #status { flex: none; height: 24px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>

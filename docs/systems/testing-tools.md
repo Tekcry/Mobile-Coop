@@ -175,6 +175,7 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   budget line; `addTrace` graphs values per frame (weapon bob, speed, acceleration, camera angular velocity).
 
 ## 3.5 e2e suite lists
+- `npm run e2e:editor` (`scripts/e2e-editor.mjs`): the Kestrel level editor driven by a fake controller alone (hold-Y radial, Build > Wall, a 6 m wall drawn with A and the D-pad, X undo and X held redo, View cycling, Build > Door > Double door placed with A, B and Y tap). Starts its own Vite dev server on a free port (the editor is dev-only, never in `dist/`); never saves; `SHOTS=<dir>` keeps screenshots. Not part of the required `npm run e2e` set.
 - `scripts/run-e2e.mjs`: `REQUIRED` (what `npm run e2e` runs) and `LEGACY` (`npm run e2e:legacy`: `e2e-progression`, `e2e-cosmetics`, `e2e-clear`, run with
   `LEGACY=1`; report only). `e2e-lib` `openPage` appends `legacy=1` to the params when `LEGACY=1` (or a suite names `legacy=1`); suites can be named on the command
   line (`node scripts/run-e2e.mjs e2e-missions`; add `--legacy` for `LEGACY=1`).

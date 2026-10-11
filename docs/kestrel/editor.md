@@ -1,4 +1,4 @@
-# Kestrel level editor (v2, Part A)
+# Kestrel level editor (v2, Parts A and C)
 
 A dev-only tool for Michael to fly and walk the campus in 3D and change it directly. It edits
 `docs/kestrel/kestrel.campus.blocks.json`, shows the live floor plan beside the 3D view, runs the Kestrel checks as you
@@ -52,6 +52,41 @@ The plan view takes the same tools and drags. Mouse wheel zooms, right drag pans
 The blue arrow on the plan is the camera. Hovering a room, wall or opening in 3D or on the plan outlines it blue on the
 plan and names it in the corner of the 3D view.
 
+## Controller (ED2 Part C)
+Any Xbox, PlayStation or Nintendo pad works alongside the mouse and keyboard. The hint bar and the help switch to the
+pad's own button names when the pad was used last, and back when the keyboard or mouse is used.
+
+| Button | Does |
+| --- | --- |
+| Left stick / right stick | move / look (right stick click: look at the selection; left stick click: fast on / off) |
+| LT / RT | down / up when flying; a deeper press is faster |
+| A | select what the centre dot is on; on the selection, grab it (or aim at an orange handle); A again drops it. Drawing tools: A starts, A finishes (wall ends, room corners); door and window tools: A on a wall places one |
+| B | cancel a grab or a drawing; else put the tool down; else clear the selection. Never deletes |
+| X / X held | undo / redo |
+| Y held | the radial menu (below); Y tap: the last tool again |
+| LB held | fine grid (0.1 m) |
+| RB | go to the selection |
+| D-pad | while grabbing or drawing: nudge one grid step (up is the way the camera faces most). Otherwise up / down change level, left / right pick the previous / next thing near the dot |
+| View / View held | 3D, Both, Plan / move pad focus between the 3D view, the plan and the side panel (orange border) |
+| Menu | help, with Save, Revert, Walk and rumble on / off along the top |
+
+- The **centre dot** in 3D snaps to the grid on the editing level and shows the position, what A would pick, and while
+  grabbing the live size, length or move.
+- **Plan with pad focus**: left stick moves a crosshair (it speeds up the longer it is held), right stick pans, LT / RT
+  zoom; A, B, X, Y and the D-pad work as in 3D at the crosshair.
+- **Side panel with pad focus** (Edit > Properties, or View held): D-pad up / down picks a field, left / right changes a
+  number by one grid step (LB: fine) or steps a list, A presses a button or opens a text field (on-screen keyboard
+  where there is one), B leaves.
+- **Radial menu**: hold Y, point with either stick, release Y to pick. Resting on a submenu (marked >) for a quarter
+  second, or A, opens it; the menu then stays open until a pick or B (back; at the top, close). The last pick in each
+  ring is highlighted next time. Root, clockwise from the top: Select, Build (Room, Wall, Door > types, Window), Edit
+  (Properties, Duplicate, Delete, Rotate 90, Copy, Paste, Paste to level above, Measure), Undo, Walk, View (3D, Both,
+  Plan, Levels >, Buildings >, Plan labels, Small plan), Level (each level by name and height), File (Save, Revert,
+  Help). Mouse and keyboard: hold Space, point with the mouse, release or click; Esc goes back.
+- **Questions** such as Revert are answered in the editor: A (or click) yes, B no. The browser's own dialogs are gone.
+- **Rumble**: a light tap on snapping a wall end onto another wall's end, on a drop, and a heavier one on an error.
+  Off in the help (Menu).
+- Copy and paste take rooms, walls and floor holes. Measure is pad-only for now (A, A).
 ## Views (ED2 Part A)
 - **3D | Both | Plan** in the toolbar (or V). Both has a divider to drag, **Side by side / Stacked** and **Swap**. The
   choice, the divider and the panel state are remembered (browser storage; a view preference, not a save).
@@ -79,7 +114,7 @@ plan and names it in the corner of the 3D view.
 - **Changes**: what has been done since the last save, newest first.
 
 ## What it does not do yet (ED2 parts B-H)
-- Walk test with the game's own player and camera (Part B); controller editing (Part C); linked walls, snapping,
+- Walk test with the game's own player and camera (Part B); the controller-only screen (Part C2); linked walls, snapping,
   dimensions, clickable problems, search (Part D).
 - Add, reshape or delete stairs, ladders and floor holes beyond moving them; no new levels; renaming ids (Part E).
 - Lighting preview, props, guards and routes.
@@ -93,6 +128,8 @@ plan and names it in the corner of the 3D view.
 | `editor.html`, `src/editor/main.ts` | page, tools, panels, plan view |
 | `src/editor/scene3d.ts`, `src/editor/controls.ts` | 3D massing, picking, handles; fly and walk camera |
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision (Babylon-free, `tests/editor/`) |
+| `src/editor/padControl.ts`, `src/editor/padMenu.ts` | controller editing: the dot, grab, plan crosshair, side panel, rumble; the radial menu's contents and ring |
+| `src/editor/pad.ts`, `src/editor/radial.ts` | pad reading (edges, taps and holds, D-pad repeat, button names); radial slot maths and menu navigation (Babylon-free, `tests/editor/editorPad.test.ts`) |
 | `src/editor/actions.ts`, `src/editor/visibility.ts`, `src/editor/draft.ts` | the action map (keys, help, hint bar); which levels and buildings are shown, ghosted or hidden, and the exploded lift; unsaved drafts in IndexedDB (Babylon-free, `tests/editor/editorV2.test.ts`) |
 | `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |
