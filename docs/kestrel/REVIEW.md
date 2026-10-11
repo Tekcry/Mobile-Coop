@@ -52,6 +52,8 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - Line endings: the generator rerun must leave git status clean.
 - Prompts over 20 decisions must be split (RULES 7).
 - Plan labels overlapping each other: readability needs a command that counts label-box overlaps (0 on every plan), not a look by eye.
+- Planner stating facts about an approved document without reading it (REV-levels assumed two yard-patrol guards; the roster has one). Check every "the N X" claim against the source table.
+- Level mapping by old number alone: check each mapped space's real control (a padlocked compound is not a card level; a floor reached by an open stair cannot sit above the floor below it).
 
 ## Expected fails the tools revision (before P04) must clear
 - Doors close to a wall end: fire stair A's roof door, the compound gate from the passage.
@@ -71,10 +73,13 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - P04: Pell's cage and the tenant cage are zone 5 rooms inside the zone 4 data hall (brief rings table); the block plan shows only the hall.
 - Next milestone Michael walks: the B0 massing walk after P03R. For it, prepare what he should judge (scale, distances, storey heights, bridge alignment, crawl spaces, stair cores, entrances and roofs read from the yard).
 
+- Attach to the P03B-2g-1 run message as FIXES (from the REV-levels planner review, 2026-10-11): (1) S-COMP (transformer compound) ring 0 Perimeter, not 2; (2) RB09 (wing double doors into the compound) gets `ringExempt: "Key only (brief ASK-2, wing doors)"`, else A29 fails it (W-GEN 2 to S-COMP 0); (3) expected zone counts `{"0":20,"1":3,"2":45,"3":6,"4":11,"5":2}`; check.mjs summary and A29 (RB01 only) unchanged, any difference is an ASK. Drop these if the REV-levels run did not make X09 Perimeter.
+
 ## Where we are
-P03B 2f run reviewed; Michael added label, name and zone-level rules (preferences above), so the FIXES rerun is replaced by a planner round. Next: planner records the decisions and writes the fix prompt (zone levels touch the brief, rings data and check A29, so P03R or a revision may carry part of it), run it, review all 7 plans, then Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
+Planner round for Michael's 2f review reviewed (REV-levels, 2g-1, 2g-2 prompts): right apart from three fixes sent as FIXES under the REV-levels run (dog handler, bridge door level, compound and pipe rack Perimeter). Michael chose a 21st guard as the second dog handler. Next: run REV-levels, review, Michael re-approves (`Planner: APPROVED REV-levels`, Opus medium), run 2g-1 with the FIXES in Open items, run 2g-2, review all 7 plans, Michael approves Part 2, then HK, then P03R.
 
 ## Review log (newest first; keep the last 15 lines, HK archives older ones)
+- 2026-10-11 Planner (Michael's 2f review: REV-levels, 2g-1, 2g-2): mostly right; dog refs hold (enemyDefs.ts:6, archetypes.ts:134). Fixes: roster has one yard patrol (Michael: add a 21st guard, contracted dog handler, rear yard and east drive); bridge door into B is Level 2 (B's first floor is open from B's ground by main stair B); transformer compound and pipe rack Perimeter (2g-1 also needs RB09 ring-exempt). Sent as FIXES under REV-levels; 2g-1 fixes in Open items.
 - 2026-10-11 P03B 2f: names right (116 of 116, no duplicates, no A30 words, names-only diff same); 13 checks reproduce, git clean. Fix (FIXES rerun): stair, ladder and void labels and building labels skip the room labels' obstacle test, so they overlap (fire stairs, carrier riser hatch over the zone 5 tag, manhole, bridge roof ladders, Building B on the roof plan). Zone 5 legend is right per brief (cages are zone 5 rooms inside the zone 4 hall, drawn by P04); wording clarified, not a question for Michael.
 - 2026-10-11 P03B 2f, Michael's follow-up: no duplicate callouts, nearest-side callouts, Title Case plain names with no abbreviations, name large and id small, zones as numbered access levels with door signs (Metal Gear Solid style). Sent to the planner; the FIXES rerun is withdrawn.
 - 2026-10-11 Planner (2f prompt, plain names): right; 116 names = 87 zones + 7 stairs + 6 ladders + 16 voids; A30 skips without modules and only rack objects are name-matched, so names cannot move checks; line refs hold. One fix: the legend's zone 2 omits goods-in (both goods zones are zone 2) and zone 4 omits the tunnels and locked plant under the yard.
