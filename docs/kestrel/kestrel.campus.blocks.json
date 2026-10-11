@@ -78,6 +78,12 @@
      30,
      74,
      32
+    ],
+    [
+     38,
+     45,
+     40,
+     47
     ]
    ]
   },
@@ -1526,14 +1532,421 @@
    "open": [],
    "ring": 4,
    "building": "B"
+  },
+  {
+   "id": "V-AG23",
+   "level": "B",
+   "name": "V-AG23 (AG23)",
+   "kind": "shaft",
+   "rect": [
+    38,
+    45,
+    40,
+    47
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.7,
+   "open": [],
+   "ring": 4,
+   "building": "A"
   }
  ],
  "walls": [],
  "openings": [],
- "stairs": [],
- "ladders": [],
- "voids": [],
+ "stairs": [
+  {
+   "id": "V-ASTAIR",
+   "kind": "main",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    19.5,
+    43.5,
+    27.5,
+    47.5
+   ],
+   "up": "W",
+   "width": 1.85,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-AFS-GF",
+   "kind": "fire",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "up": "E",
+   "width": 1.45,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-AFS-FR",
+   "kind": "fire",
+   "from": "F",
+   "to": "R",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "up": "E",
+   "width": 1.45,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-BSTAIR",
+   "kind": "main",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    52,
+    48.5,
+    57,
+    56.5
+   ],
+   "up": "N",
+   "width": 1.85,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-BFS-GF",
+   "kind": "fire",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "up": "W",
+   "width": 1.45,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-BFS-FR",
+   "kind": "fire",
+   "from": "F",
+   "to": "R",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "up": "W",
+   "width": 1.45,
+   "risers": 25,
+   "layout": "dogleg"
+  },
+  {
+   "id": "V-GAL",
+   "kind": "feature",
+   "from": "G",
+   "to": "F",
+   "rect": [
+    67,
+    43,
+    70,
+    52
+   ],
+   "up": "S",
+   "width": 2.4,
+   "risers": 25,
+   "flights": 2
+  }
+ ],
+ "ladders": [
+  {
+   "id": "LD-AG23",
+   "room": "V-AG23",
+   "at": [
+    38.5,
+    46
+   ],
+   "from": "B",
+   "to": "G",
+   "facing": "W",
+   "reason": "Fixed ladder in the tunnel shaft up to AG22's hatch; the TB03 door is in the east wall"
+  },
+  {
+   "id": "LD-BG32",
+   "room": "T-RISER",
+   "at": [
+    73,
+    31.5
+   ],
+   "from": "B",
+   "to": "G",
+   "facing": "N",
+   "reason": "Fixed ladder in the carrier riser up to BG31's hatch; the TB04 door is in the south wall"
+  },
+  {
+   "id": "LD-TB02",
+   "room": "T-MH",
+   "at": [
+    50,
+    25
+   ],
+   "from": "B",
+   "to": "G",
+   "facing": "E",
+   "reason": "Fixed ladder in the carrier manhole up to the yard lid; the TB01 door is in the west wall"
+  },
+  {
+   "id": "V-LAD1",
+   "room": "L-ROOF",
+   "at": [
+    40.5,
+    41.5
+   ],
+   "from": "L",
+   "to": "R",
+   "facing": "W",
+   "reason": "Hooped access ladder from the bridge roof up A's east parapet (0.6)"
+  },
+  {
+   "id": "V-LAD2",
+   "room": "L-ROOF",
+   "at": [
+    51.5,
+    41.5
+   ],
+   "from": "L",
+   "to": "R",
+   "facing": "E",
+   "reason": "Hooped access ladder from the bridge roof up B's west parapet (0.6)"
+  }
+ ],
+ "voids": [
+  {
+   "id": "VF-ASTAIR",
+   "level": "F",
+   "rect": [
+    19.5,
+    43.5,
+    27.5,
+    47.5
+   ],
+   "kind": "stairwell",
+   "reason": "Main stair A well (V-ASTAIR)"
+  },
+  {
+   "id": "VF-ALIFT",
+   "level": "F",
+   "rect": [
+    27.5,
+    46,
+    30,
+    48.5
+   ],
+   "kind": "liftshaft",
+   "reason": "Passenger lift A shaft, locked off at night (V-ALIFT)"
+  },
+  {
+   "id": "VF-AFS",
+   "level": "F",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "kind": "stairwell",
+   "reason": "Fire stair A well (V-AFS)"
+  },
+  {
+   "id": "VR-AFS",
+   "level": "R",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "kind": "stairwell",
+   "reason": "Fire stair A up to the roof bulkhead AR04 (V-AFS)"
+  },
+  {
+   "id": "VF-ARISER",
+   "level": "F",
+   "rect": [
+    7.5,
+    49,
+    9.5,
+    50.5
+   ],
+   "kind": "riser",
+   "reason": "Cable riser A (V-ARISER)"
+  },
+  {
+   "id": "VR-APIPE",
+   "level": "R",
+   "rect": [
+    34.5,
+    43.5,
+    36.5,
+    45
+   ],
+   "kind": "hatch",
+   "reason": "Pipe riser roof hatch into R-PLANT (V-APIPE)"
+  },
+  {
+   "id": "VF-BSTAIR",
+   "level": "F",
+   "rect": [
+    52,
+    48.5,
+    57,
+    56.5
+   ],
+   "kind": "stairwell",
+   "reason": "Main stair B well (V-BSTAIR)"
+  },
+  {
+   "id": "VF-BLIFT",
+   "level": "F",
+   "rect": [
+    54.5,
+    46,
+    57,
+    48.5
+   ],
+   "kind": "liftshaft",
+   "reason": "Passenger lift B shaft, locked off at night (V-BLIFT)"
+  },
+  {
+   "id": "VF-BFS",
+   "level": "F",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "kind": "stairwell",
+   "reason": "Fire stair B well (V-BFS)"
+  },
+  {
+   "id": "VR-BFS",
+   "level": "R",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "kind": "stairwell",
+   "reason": "Fire stair B up to the roof bulkhead BR02 (V-BFS)"
+  },
+  {
+   "id": "VF-BRISER",
+   "level": "F",
+   "rect": [
+    55,
+    44.5,
+    57,
+    46
+   ],
+   "kind": "riser",
+   "reason": "Cable riser B (V-BRISER)"
+  },
+  {
+   "id": "VF-GAL",
+   "level": "F",
+   "rect": [
+    67,
+    43,
+    70,
+    52
+   ],
+   "kind": "stairwell",
+   "reason": "Gallery stair down into the hall (V-GAL)"
+  },
+  {
+   "id": "VG-AG23",
+   "level": "G",
+   "rect": [
+    38,
+    45,
+    40,
+    47
+   ],
+   "kind": "hatch",
+   "reason": "Floor hatch in AG22 over the tunnel shaft (V-AG23)"
+  },
+  {
+   "id": "VG-BG32",
+   "level": "G",
+   "rect": [
+    72,
+    30,
+    74,
+    32
+   ],
+   "kind": "hatch",
+   "reason": "Floor hatch in BG31 over the carrier riser (V-BG32)"
+  },
+  {
+   "id": "VG-TB02",
+   "level": "G",
+   "rect": [
+    49,
+    24,
+    50.5,
+    25.5
+   ],
+   "kind": "hatch",
+   "reason": "Manhole lid in the yard over the carrier manhole (V-TB02)"
+  },
+  {
+   "id": "VH-BR05",
+   "level": "H",
+   "rect": [
+    80,
+    48,
+    82,
+    50
+   ],
+   "kind": "riser",
+   "reason": "Cooling supply shaft from the roof AHU into the hall, bolted alarmed grille (V-BR05)"
+  }
+ ],
  "objects": [],
  "exterior": [],
- "services": []
+ "services": [
+  {
+   "id": "SI-RACK",
+   "kind": "water",
+   "path": [
+    [
+     40,
+     5.75,
+     45.5
+    ],
+    [
+     52,
+     5.75,
+     45.5
+    ]
+   ],
+   "size": [
+    2,
+    1.5
+   ],
+   "reason": "Chilled-water flow and return and a cable tray from AF10 to B's first floor, on two steel portal frames over the gap (X13)"
+  }
+ ]
 }
