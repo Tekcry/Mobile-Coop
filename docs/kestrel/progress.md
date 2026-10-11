@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (parts 1a, 1b) | e40948c | 2026-10-11 |
+| P03B | Block plan | DRAFT (parts 1a, 1b, 1c) | see log | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -47,6 +47,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 P03B 1c: Building B and generator wing zones in 03B section 4: plan form, 10 fixed blocks, 19 zones (G 10, F 7, H 1, R 1). Candidate kept unchanged. Check B: `zones 19, fixed 10, fails 0`; A still `zones 27, fixed 15, fails 0, info 0`. Deviations in 4.4 (main stair x 52-56 z 48.5-56.5, fire stair turned, BG10 11.5, BF05 8 plus end bay, BG04 and BF04 as bays, BF13 north-east, BF12 and BF15 off BF01); notes for P04, 1d, P03R in 4.5. No ASKs. Next: Part 1d.
 - 2026-10-11 Planner: review of P03B 1b: realistic (central core, corridor ring, fire stair corner, plant gallery by X13); flows (patrol loop, two corridor faces per band zone); no disagreements; minor: R-PLANT z1 54.5 is on no line (cosmetic). Michael's doors decision recorded (Decisions, handover, RULES 2; stage DR before P04, prompt later). prompts/P03B-1c.md written with scripts/kestrel/p03b-zones-check-b.mjs: B strip G needs 523 of 540 (17 spare); only the split west 5 + corridor 3.5 + east 9.5 closes it; main stair moves to x 52-56 z 48.5-56.5 (bridge lobby fills the west wall z 35-48.5), BF13 to the north-east. Planner test run: zones 19, fixed 10, fails 0; A check still 0.
 - 2026-10-11 P03B 1b (r2): Building A zones at 36 x 30 in 03B section 3: plan form, 15 fixed blocks, 27 zones (G 12, F 13, R 2), bridge z0 = 40, section 2 F and L rows set. Candidate kept unchanged. Check: `zones 27, fixed 15, fails 0, info 0`; doors G 73.5 m needed of 127, F 63 of 86. Deviations in 3.4 (turned core, corridor lengths and links, AF17, AF10 length, ring door targets); notes for P04, 1c, P03R in 3.5. No ASKs. Next: Part 1c.
 - 2026-10-11 Planner: prompts/P03B-1b-zones-r2.md written (A 36 x 30: south row 10, spine, core band 7, north corridor, north row 6; corridor ring with two links; core stays turned; fire stair north-west corner; AF10 on the east wall). Door frontage per zone for every G and F room (G 73.5 m needed of 127, F 63 of 86); door-access rule added to the check script; planner test run 0 fails. Review of P02 rev A30: no blocking faults; for P03R: column line z 42 in the spine, brief door targets and section 8 need ring wording, links not in section 5, tension d wording.

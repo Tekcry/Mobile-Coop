@@ -21,3 +21,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Three sessions failed because the planner turned the block plan into room placement, a puzzle the brief made nearly impossible (74.5 m of doors on a 60 m spine). Check each prompt against its stage's definition, test feasibility with arithmetic before any puzzle, zones first, rooms in P04.
 - A prompt that fixes a dimension should carry the scale-sheet minimum in its table; the first candidate corridor width (2.7) broke the sheet's 3.0 floor and Michael had to correct it.
 - A planner candidate with precomputed sums and a check script passed on the first run in one session; prompts that carry the arithmetic and the check together are the pattern to keep.
+- P03B 1c: a candidate whose check script was run by the planner on the exact tables went in unchanged in about 12 tool calls; for small tables the doors column could be printed by the script in table form to skip the insert step.
