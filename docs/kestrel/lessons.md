@@ -13,3 +13,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Prompts live in the repo and a planner session writes them; copying prompts between chats lost decisions.
 - Questions carry a recommended answer and are answered in the stage session.
 - Build the template after the playtest (P11), not before.
+- Briefs should give centreline sizes, not clear sizes: 0.45 walls on a 0.5 grid make most clear sizes (1.5 m passage) impossible, and a separate block (the wing) needs its grid stated.
