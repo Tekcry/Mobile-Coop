@@ -1341,7 +1341,7 @@
    "id": "SI-GATE",
    "level": "G",
    "name": "SI-GATE (X02)",
-   "kind": "yard",
+   "kind": "zone",
    "rect": [
     1,
     8,
@@ -1358,7 +1358,7 @@
    "id": "SI-BIN",
    "level": "G",
    "name": "SI-BIN (X11)",
-   "kind": "yard",
+   "kind": "zone",
    "rect": [
     8,
     63,

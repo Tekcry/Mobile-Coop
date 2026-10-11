@@ -124,7 +124,7 @@ function zonesSite() {
     if (r[0] === 'SI-RACK' || r[0].startsWith('RF-')) continue; // decisions 4, 5: rack is a vertical item (2c), open roofs are 2d
     const rect = JSON.parse(r[2]);
     const level = r[1].split(' ')[0]; // "B to G" -> B (decision 6)
-    const kind = r[0] === 'S-LANE' ? 'lane' : /^(S|SI)-/.test(r[0]) ? 'yard' : KIND_B[r[0]] ?? 'zone'; // decision 8
+    const kind = r[0] === 'S-LANE' ? 'lane' : /^(S-|SI-APRON)/.test(r[0]) ? 'yard' : KIND_B[r[0]] ?? 'zone'; // 2b decision 8 (Michael, 2026-10-11): SI-GATE and SI-BIN are enclosed (zone), SI-APRON a yard
     const ring = RING_S[r[0]] ?? 1;
     const kid = YARD_KIDS[r[0]];
     if (kid) { // decision 7: pieces <parent>-<n>, the kid stays its own zone
