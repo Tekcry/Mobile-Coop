@@ -97,5 +97,5 @@ Parse the ground table and check, then paste the summary line into section 3 and
 - lessons.md: one line if you have one.
 - git add only 03B-block-plan.md, progress.md and lessons.md. Commit "kestrel P03B 1b-G r2: Building A ground, doors resolved". Push.
 - Report in at most 8 lines per RULES 9: what changed, check summary (paste the line), ASKs, and the questions in a code block headed "Questions for Michael".
-- Last line: "Next: switch to Opus, medium; type /clear, then send: Planner: next"
+- End with the RULES 9 "Next step" block: 1. Type /clear. 2. Switch to Opus, medium (or "Stay on Opus, medium" if unchanged). 3. Send the prompt below: then a fenced code block containing only `Planner: next`.
 - STOP.

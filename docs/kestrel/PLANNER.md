@@ -27,4 +27,4 @@ Never run while a stage session is running. Never edit a stage's output files ex
 
 ## Ending
 - Commit only files you changed: "kestrel planner: <summary>". Push. Budget about 20 tool calls.
-- The last line is always: "Next: switch to <model>, <effort>; type /clear, then send: <exact message>". "Planner: next" always uses Opus, medium; approvals, recording decisions and simple questions use Sonnet, medium.
+- The session ends with a "Next step" block in exactly this format: "Next step:" then "1. Type /clear." "2. Switch to <model>, <effort> (or "Stay on <model>, <effort>" if unchanged)." "3. Send the prompt below:" followed by the exact message in its own fenced code block (nothing else in the block) so Michael can tap copy. Any other prompt or command Michael must paste also goes in a code block. "Planner: next" always uses Opus, medium; approvals, recording decisions and simple questions use Sonnet, medium.

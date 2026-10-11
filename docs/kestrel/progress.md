@@ -46,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 Michael's decision (planner): the old Next line is replaced by a "Next step" block (1 /clear, 2 model and effort or Stay on, 3 prompt in a code block); RULES 9, PLANNER Ending, handover and P03B-1b-G-r2 updated.
 - 2026-10-11 Michael's decisions (planner): model and effort on every Next line, "split this smaller" job, pre-run checks, stall rule, chat-question template; RULES 9, PLANNER, handover, lessons and P03B-1b-G-r2 Next line updated.
 - 2026-10-11 Michael's decisions (planner): P03B ASK-5 answered none of a, b, c (d not approved); 1b-G re-run as prompts/P03B-1b-G-r2.md with a frontage table (74.5 m of door frontage needed, 60 m on the spine). RULES 9 4a: a recommended option may never leave a brief requirement unmet or defer it. RULES 7: layout self-checks include door reach, sources, brief coverage. PLANNER: next job starts with a review of the last session. lessons.md updated.
 - 2026-10-11 P03B 1b-G answers: ASK-2 branch corridor tried; north four (AG05, AG07, AG14, AG24) cannot fit (north half 5+3.5+2 deep; spine frontage 60 of 60 m); AG06 fits via a stub if AG16 and AG17 move. ASK-5 options in 03B-block-plan section 3: (a) west N-S branch plus stub, (b) loosen AG06 south-wall rule, (d) spine to z 36-39.5. ASK-3, ASK-4 accepted; ASK-1 leftover goes to corridors first.
@@ -88,6 +89,7 @@ Older entries: progress-archive.md.
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 Next step block: every session ends with "Next step:" 1. Type /clear. 2. Switch to <model>, <effort> (or Stay on). 3. Send the prompt below: (exact message alone in a fenced code block). Replaces the old Next line everywhere.
 - 2026-10-11 Model on Next lines: every Next line names model and effort; "Planner: next" uses Opus, medium; approvals, recording decisions, simple questions use Sonnet, medium. New planner job "split this smaller". Michael's pre-run checks (High or Decisions over 20: do not run), 15-minute stall rule and claude.ai question template in handover.md. ASK-5 option (d) stays unapproved; r2 resolves it.
 - 2026-10-11 Task size: P03B-1b stopped (too big). Sessions are capped by decisions (about 15-20), not lines; layout is one level of one building per session; stage sessions run medium or low effort, never high; commit and push after every table. P03B-1b is split into 1b-G, 1b-F, 1b-R and 1c by floor the same way. RULES 7, PLANNER, lessons updated.
 - 2026-10-11 V0 revision: the camera jammer and light disruptor are one pistol secondary function (Chaos Theory OCP style), always available in every mission, not a kit tool; it disables lights and electronics briefly on a recharge.
