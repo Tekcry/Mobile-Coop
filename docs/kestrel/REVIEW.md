@@ -51,7 +51,7 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - Scale-sheet minimums and vertical clearances (standards-check.mjs).
 - Line endings: the generator rerun must leave git status clean.
 - Prompts over 20 decisions must be split (RULES 7).
-- Plan labels overlapping each other: readability needs a command that counts label-box overlaps (0 on every plan), not a look by eye.
+- Plan labels overlapping each other: readability needs a command that counts label-box overlaps (0 on every plan), not a look by eye. The count must also cover leader lines crossing labels (2g-2 had 0 box overlaps but leaders struck through the data hall, records room and Building B roof tags), and rooms must be labelled before stairs, ladders and voids (the bridge roof lost its own label to a ladder).
 - Planner stating facts about an approved document without reading it (REV-levels assumed two yard-patrol guards; the roster has one). Check every "the N X" claim against the source table.
 - Level mapping by old number alone: check each mapped space's real control (a padlocked compound is not a card level; a floor reached by an open stair cannot sit above the floor below it).
 
@@ -76,9 +76,10 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - After 2g-1: the compound gates (drive and passage) join Perimeter to Perimeter but keep their key exemption; harmless, HK may tidy the 03B Exempt column.
 
 ## Where we are
-2g-1 done and reviewed (levels 0-5 in data and tools; zone counts 0:20 1:3 2:45 3:6 4:11 5:2 with the compound fix). Next: run 2g-2 (labels and names, Sonnet medium), review all 7 plans, Michael approves Part 2, then HK, then P03R.
+2g-2 done and reviewed: checks reproduce, names right; plan readability fix sent as a FIXES rerun of 2g-2 (Sonnet medium). Next: review the rerun's 7 plans, Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
 
 ## Review log (newest first; keep the last 15 lines, HK archives older ones)
+- 2026-10-11 P03B 2g-2: names right (118 of 118, unique, names-only diff from 2g-1 same); all 13 checks reproduce, generator clean, overlaps 0 on 7 levels. 7 plans walked: ground, underground, underfloor and low roof read well. Fixes (FIXES rerun, plans.mjs and 4 first-floor names): leaders cross other labels (data hall tag, records room tag, Building B roof label); bridge roof plan gives the room's label to a ladder and sends the bridge roof to an 80 m east callout; rooms labelled first, short nearby callouts before side columns, one callout size, leader crossings counted; "First ..." names to "First Floor ...", commas out.
 - 2026-10-11 P03B 2g-1: right; every check reproduces (generator clean, tests 8/61/30, campus 22 PASS 2 WARN 4 FAIL with A29 on Building B's staff door only, samples at baseline, ring check 35 fails 0, no "3+" left, zone counts as the FIXES predicted). Deviations accepted: the vault key hatch and the cooling-shaft grille (Level 2 to 4) are key or bolted, no reader, so ring-exempt is real; expand.test and module category text had to follow the values; mixed modules keep the plain map (P04 sets room levels). No fixes.
 - 2026-10-11 REV-levels approval (planner): right; status lines, progress rows, 21 / 9 guards, model use rule all in. 2g-1 FIXES verified against the generator (compound maps to 2 without fix 1; exempt openings 8 to 9). Sharpened fix 2: 03B's RB09 Exempt column changes from "no" to "yes (key)" (the planner's text read as a claim).
 - 2026-10-11 REV-levels: right; level counts, Level 3 list (14, AF11 only off AF10), card model, door signs, bridge door Level 2, compound and pipe rack Perimeter, 21 guards and two dog teams all check. Fix in the approval message: mission brief downstream line 20 guards / 8 dormant to 21 / 9. Tunnels sit at Level 4 with no reader (key hatch, ring-exempt lid): data only, no sign; 2g-1 checks the step rule.
