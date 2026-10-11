@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1b done: A zones; Part 1c next)
+Status: DRAFT (Part 1c done: B and wing zones; Part 1d next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -136,6 +136,74 @@ Check (`timeout 60 node scripts/kestrel/p03b-zones-check.mjs docs/kestrel/03B-bl
 - 1c: bridge z0 = 40, so BF01 takes B's west wall at z 40-43.5. X13 leaves AF10's east wall north of the bridge (z 43.5-60), so BF13 sits at B's north-west.
 - Level L footprint [40, 40, 52, 43.5]. The LF02 ladder lands on A's roof at the east edge, z 40-43.5.
 - P03R: grid line z 42 runs down the middle of the spine and z 48 through the band, so columns stand in corridors and rooms. Recommend A's z column lines on the corridor walls: 30, 40, 43.5, 50.5, 54, 60. Brief 5 door targets and section 8's fire stair line need the ring wording (3.4).
+
+## 4. Building B and generator wing
+Zones for G, F, H and R (Part 1c, prompts/P03B-1c.md). Same 85% fill rule as section 3; hall block and wing are tiled by the brief (tight).
+
+### 4.1 Plan form
+- Strip [52, 30, 70, 60], two storeys. One north-south corridor at x 57-60.5 on both floors. West of it a 5 m band (entrance lobby, lockers, WC, riser, lift, main stair); east of it a 9.5 m band against the hall wall (goods on G, the secure route on F) (brief 5 widths; the only split whose widths close, section 2 of the prompt).
+- Main stair B 4 x 8 at x 52-56, z 48.5-56.5, lift on its south side (brief 8). On F it lands on BF01's north side: the bridge lands on the west wall at z 40-43.5 (section 2) into BF01, which with its lift landing fills the west wall z 35-48.5.
+- Fire stair B at the north-west corner, turned east-west, exit on the west wall off its bottom landing (brief 8). Its east end meets BG10 on G and BF05's end bay on F.
+- BG10 runs along the north wall from the fire stair to the hall block, reaching X07, BG28 and BG11 (brief 5, 7).
+- F: BF01 is the bridge lobby holding the stair landing, lift landing (BF04 as its bay, brief 8) and riser door; BF05 runs north to the fire stair and BF13. The secure column (mantrap, secure corridor, gallery, stair well) is the east band, entered off BF01 and BF05, so the bridge post sees the mantrap post (brief 7).
+- BF13 at the strip's north-east, beside BG24's high level and the hall roof AHU (brief 9).
+- Hall block [70, 30, 100, 60] in bands: carrier rooms south (z 30-36), hall (z 36-50.5), inner plant corridor and plant rooms north (z 50.5-60), cooling gallery east (x 96-100). Wing [52, 62, 76, 74] is one tight zone (brief 5 tiles both).
+
+### 4.2 Fixed blocks
+| K-id | Levels | Rect [x0, z0, x1, z1] | Rooms by level | Size | Source |
+| --- | --- | --- | --- | --- | --- |
+| KB-COR-G | G | [57, 30, 60.5, 56.5] | G BG05 | 3.5 x 26.5 (brief 26) | brief 5 BG05; BG04 is its bay in front of the lift (brief 8) |
+| KB-COR-F | F | [57, 48.5, 60.5, 56.5] | F BF05 | 3.5 x 8 (brief 14; BF01 takes the south half) | brief 5 BF05 |
+| KB-COR-F2 | F | [58.5, 56.5, 60.5, 60] | F - | 2 x 3.5 | BF05's end bay at the fire stair and BF13 |
+| KB-STAIR | G, F | [52, 48.5, 56, 56.5] | G BG02; F BF02 | 4 x 8 | brief 8 (core 4.0 x 8.0); lands on BF01 (F) |
+| KB-LIFT | G, F | [54.5, 46, 57, 48.5] | G BG03; F BF03 | 2.5 x 2.5 | brief 8 (south side of the core); doors east |
+| KB-RISER | G, F | [55, 44.5, 57, 46] | G BG15; F BF12 | 2 x 1.5 | brief 8 (mid-strip, beside no stair) |
+| KB-FS | G, F, R | [52, 56.5, 58.5, 60] | G BG12; F BF11; R BR02 | 6.5 x 3.5 (turned) | brief 8 (north-west corner, west wall exit) |
+| KB-BG10 | G | [58.5, 56.5, 70, 60] | G BG10 | 11.5 x 3.5 (brief 14.5) | brief 5, 7 (X07, BG11, BG12, BG28) |
+| KB-WELL | G, F | [67, 43, 70, 52] | G BG13; F BF10 | 3 x 9 | brief 5, 8, 12a (hall wall z 43-50.5) |
+| KB-GALLERY | F | [67, 37.5, 70, 43] | F BF09 | 3 x 5.5 | brief 5, 12a (looks over the hall z 37.5-43) |
+
+### 4.3 Zones
+| Zone | Level | Rect [x0, z0, x1, z1] | Rooms | Area | Fill | Doors (need of available) | Note | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| B-GW | G | [52, 30, 57, 56.5] | BG01, BG06, BG16, BG02, BG03, BG15 | 132.5 | 83.6% | 16.5 of 22.5 | entrance lobby on the south wall (X04 door), lockers, WC, riser, lift, stair | brief 5, 8 |
+| B-GCOR | G | [57, 30, 60.5, 56.5] | BG05, BG04 | 92.75 | tight | - | corridor, lift bay | brief 5, 8 |
+| B-GGOODS | G | [60.5, 30, 70, 43] | BG07, BG08, BG09 | 123.5 | 79.4% | 12 of 13 | staging on the yard (X12), cage off it, build room on the hall wall | brief 5, 7 |
+| B-GE | G | [60.5, 43, 70, 56.5] | BG13, BG11, BG14 | 128.25 | 64.2% | 5 of 13.5 | stair foot on the hall wall, switchroom off BG10, facilities office | brief 5, 7 |
+| B-GN | G | [52, 56.5, 70, 60] | BG12, BG10 | 63 | tight | - | fire stair, plant corridor on the north wall | brief 5, 8 |
+| B-GHCAR | G | [70, 30, 96, 36] | BG29, BG30, BG31, BG33 | 156 | tight | - | carrier band; BG31 order sets TB04 (1d) | brief 5, 7 |
+| B-GHALL | G | [70, 36, 96, 50.5] | BG20, BG21, BG22 | 377 | tight | - | hall, cages inside | brief 5 |
+| B-GHPLANT | G | [70, 50.5, 96, 60] | BG24, BG25, BG26, BG27, BG28 | 247 | tight | - | BG24 on the hall's north side, rooms north of it, BG28 at the west end | brief 5, 7, 9 |
+| B-GHCOOL | G | [96, 30, 100, 60] | BG23 | 120 | tight | - | cooling gallery, X08 fire exit | brief 5, 7 |
+| W-GEN | G | [52, 62, 76, 74] | BG40, BG41, BG42, BG43 | 288 | tight | - | wing; catwalks inside BG40 | brief 2, 5 |
+| B-FS | F | [52, 30, 60.5, 35] | BF15 | 42.5 | 70.6% | 6 of 8.5 | tenant work room off BF01 | brief 5 |
+| B-FLOBBY | F | [52, 35, 60.5, 48.5] | BF01, BF04, BF03, BF12 | 114.75 | 65.1% | - | bridge lobby, post desk, lift landing, riser door | brief 5, 7, 8 |
+| B-FBW | F | [52, 48.5, 57, 56.5] | BF02 | 40 | tight | - | main stair | brief 8 |
+| B-FCOR | F | [57, 48.5, 60.5, 56.5] | BF05 | 28 | tight | - | staff corridor | brief 5 |
+| B-FNW | F | [52, 56.5, 60.5, 60] | BF11 | 29.75 | tight | - | fire stair and BF05's end bay | brief 8 |
+| B-FNE | F | [60.5, 53, 70, 60] | BF13 | 66.5 | 63.2% | 6 of 7 | valve room by BG24 and the hall roof (4.1) | brief 7, 9 |
+| B-FSEC | F | [60.5, 30, 70, 53] | BF06, BF07, BF08, BF09, BF10, BF14 | 218.5 | 29.6% | 7.5 of 18 | mantrap off BF01 and BF05, secure corridor, gallery, stair well; staff WC | brief 5, 7 |
+| B-HSUPPLY | H | [70, 44.5, 82, 54] | BR04, BR05 | 114 | 24.6% | - | AHU and shaft over the hall's north edge, near BF13 | brief 9 |
+| B-RBULK | R | [52, 56.5, 58.5, 60] | BR02 | 22.75 | tight | - | fire stair bulkhead | brief 8 |
+
+Check (`node scripts/kestrel/p03b-zones-check-b.mjs`, this session): `zones 19, fixed 10, fails 0`. A's check still `zones 27, fixed 15, fails 0, info 0`. G tiles B plus the wing (1728); F tiles the strip (540); H and R list plant and bulkheads only, the rest is open roof BR01, BR03, BR06.
+
+### 4.4 Deviations
+- Main stair B at x 52-56, z 48.5-56.5, not south-west behind BG01 (brief 8): on F the bridge and BF01 with its lift landing fill the west wall z 35-48.5, so the stair lands on BF01's north side.
+- Fire stair B turned east-west (6.5 along the north wall), so its east end meets BG10 on G and BF05's end bay on F. Exit stays on the west wall off the bottom landing (brief 8).
+- BG10 11.5 long (rect) against the brief's 14.5: the fire stair takes the north wall's west end. It still reaches X07, BG11, BG12 and BG28 (brief 7).
+- BF05 8 long plus a 2 x 3.5 end bay (KB-COR-F2) against the brief's 14: BF01 takes the corridor's south half as the bridge lobby.
+- BG04 and BF04 are bays of BG05 and BF01, not rooms (brief 8: "its lobby is a corridor bay").
+- BF13 at the strip's north-east [60.5, 53, 70, 60], not north-west (brief 7): the west wall north of the bridge holds the stairs. X13 lands on the west wall at 5.0-6.5 and crosses in the 0.9 service void over the corridor (brief 9). From the north-east BF13 sits beside BG24's high level and the hall roof AHU, where its two branches go (brief 9), and above BG10 and BG11 as brief 7 asks.
+- BF12 (riser) and BF15 (tenant work room) open off BF01, not BF05 (brief 5): both sit south of BF05 in the lobby zone.
+- No other row of the candidate changed.
+
+### 4.5 Notes for P04, 1d and P03R
+- P04: B-GGOODS packs BG08 [60.5-64] beside BG07 [64-70] on the yard wall and BG09 6 x 7 on the hall wall north of BG07 (z 36-43 or 37-43). B-GE packs BG14 (5 x 6) then BG11 (5 x 7) along the corridor, BG11 touching BG10.
+- P04: the wing puts BG42 and BG43 in one 6 x 12 column, so BG40's double doors to X09 and BG42's east-wall fill point (brief 9) cannot both be on outside walls. P04 chooses and records it.
+- P04: the hall's rack rows keep aisles of at least 1.8 (RULES 6).
+- 1d: BG31's place in B-GHCAR sets TB04's length (brief 30). BU01 and BU02 lie under B-GHALL and the cooling gallery band. The LF02 ladder lands on BR01 at the west edge, z 40-43.5.
+- P03R: B's z column lines (36, 42, 48, 54) cross the hall and corridor bands. Brief 7 and 8 wording needs the deviations in 4.4.
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
