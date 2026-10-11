@@ -14,3 +14,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Questions carry a recommended answer and are answered in the stage session.
 - Build the template after the playtest (P11), not before.
 - Briefs should give centreline sizes, not clear sizes: 0.45 walls on a 0.5 grid make most clear sizes (1.5 m passage) impossible, and a separate block (the wing) needs its grid stated.
+- Line limits did not stop overload: P03B-1b packed 45 rooms on three floors into one section at high effort. Cap decisions, one floor per session, never high effort; Michael controls the effort setting.

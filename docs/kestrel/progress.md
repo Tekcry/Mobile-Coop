@@ -84,6 +84,7 @@ Older entries: progress-archive.md.
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 Task size: P03B-1b stopped (too big). Sessions are capped by decisions (about 15-20), not lines; layout is one level of one building per session; stage sessions run medium or low effort, never high; commit and push after every table. P03B-1b is split into 1b-G, 1b-F, 1b-R and 1c by floor the same way. RULES 7, PLANNER, lessons updated.
 - 2026-10-11 V0 revision: the camera jammer and light disruptor are one pistol secondary function (Chaos Theory OCP style), always available in every mission, not a kit tool; it disables lights and electronics briefly on a recharge.
 - 2026-10-11 P02 ASK-6: the 1.2 m raised-floor pedestal grid stays in the brief as a real fact; pedestals are "not modelled", so P04 and the builds leave them out of level U.
 - 2026-10-11 P02 questions: generator hall is a separate wing behind B (1.5 m passage); key-only and exit-only doors (manhole, fire exits, passage door, wing doors, compound gates) are exempt from the zone step rule; office corridors 2.4 m clear under the 1.5 m void accepted; sizes A 36 x 24, B 48 x 30, site 108 x 76 accepted.

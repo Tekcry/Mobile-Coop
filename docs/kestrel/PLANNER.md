@@ -14,7 +14,8 @@ Never run while a stage session is running. Never edit a stage's output files ex
 ## Prompt files
 - Path docs/kestrel/prompts/<stage>.md, or <stage>-<part>.md (1a, 1b, 2, 3 ...). Line 1 the title, line 2 "Model: <model>, <effort> effort." (RULES 7 model use and task size).
 - Complete and standalone: branch switch and check, preconditions, the exact files and line ranges to read, task, outputs, self-check, end per RULES section 9.
-- Follow RULES 7 task size: one deliverable per session, at most about 100 lines of new content; split anything bigger into parts. Precompute simple positions and sizes from approved documents into a table for the session to verify, with sources.
+- Follow RULES 7 task size: one deliverable per session, capped at about 15-20 decisions; split anything bigger into parts. Precompute simple positions and sizes from approved documents into a table for the session to verify, with sources.
+- Line 3 of every prompt is 'Decisions: N' (count of placements or decisions). If N is over 20, split before writing the prompt. Never set high effort.
 - Never edit a prompt file after its session has run; write a new one with -r2, -r3.
 
 ## Talking to Michael

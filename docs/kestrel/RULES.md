@@ -75,10 +75,11 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - If one step has produced no file after about 15 tool calls, stop, commit, report what is blocking.
 
 ### Task size (Michael, 2026-10-11)
-- One deliverable per session: about one table or one document section, at most about 100 lines of new content. A stage that needs more is split into numbered parts (1a, 1b, ...), each its own session and prompt file.
+- One deliverable per session, capped by decisions, not lines: at most about 15-20 placements or decisions. Layout work is one level of one building per session. A stage that needs more is split into numbered parts, each its own session and prompt file.
 - Write as you go: decide one table, write it to the file, then the next. Never draft a whole document or file in your head before writing.
 - If one decision takes long, write "ASK: <question>" and move on.
-- Effort: medium by default. High only for one focused design decision, never for a multi-section deliverable.
+- Effort: stage sessions use medium, or low for mechanical work. Never high.
+- Commit and push after every table written, not only at the end.
 - Prompt writers precompute simple arithmetic (positions and sizes from approved documents) into the prompt as a table for the session to verify, with the source on each row.
 - Never raise CLAUDE_CODE_MAX_OUTPUT_TOKENS or similar limits; a session that hits a limit is too big and is split.
 

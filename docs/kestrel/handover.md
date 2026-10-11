@@ -9,7 +9,7 @@ Everything needed to continue Mission 1 "Dead Line" if the planning chat is lost
 - P02 campus brief: APPROVED (6c43a9b; brief 133a4d1). One passenger lift per building, locked off at night (built as closed shafts with shut doors); separate generator wing with a 1.5 m service passage; key-only and exit-only doors ring-exempt; 2.4 m corridors under 1.5 m voids; A 36 x 24, B 48 x 30, site 108 x 76; raised-floor pedestals not modelled.
 - P03T campus tools: APPROVED (f097ce1): meta.buildings, level footprint lists, rooms[].building (A31), level H for low roofs, site limit 110 x 80.
 - V0 toolkit spec: APPROVED after the pistol secondary revision (811eaca, approved f67dc0b).
-- P03B: part 1a (site and levels) done with Michael's answers (8df2618); part 1b Building A zones next (prompts/P03B-1b.md).
+- P03B: part 1a (site and levels) done with Michael's answers (8df2618); part 1b was stopped (too big) and is split by floor: 1b-G next (prompts/P03B-1b-G.md). prompts/P03B-1b.md is superseded, not run.
 - B0: built for the old single building (57aaf6c); rerun for the campus.
 - S1: Part A built (478c3b8); Part B runs after B4.
 
@@ -68,6 +68,6 @@ P03B campus block plan (Opus high), P03R campus review, B0 rerun, Michael walks 
 - Michael's preferences: answer his question before asking one; multiple-choice questions as native selectable options; prompts complete and ready to paste; plain English; hyphens, not em dashes.
 - Workflow (Michael, 2026-10-11): send "Run docs/kestrel/prompts/<file>.md"; answer its questions in that session (recommended option first); type /clear and send "Planner: next" for the next prompt file; follow the Next line. Approve with "Planner: APPROVED <stage>". Every session ends with "Next: type /clear, then send: <message>". Show Michael one step at a time.
 - Small sessions (RULES 7 task size): one deliverable per session; big stages split into numbered parts; positions precomputed in the prompt; medium effort by default.
-- P03B plan: 1a site and levels; 1b Building A zones; 1c Building B and wing zones; 1d site, bridge, under-yard and level U zones plus the row count (151); 1e ring entries, stairs, lifts, risers, per-building fire stair check; 1f critical path, adjacency, questions. Then Part 2 blocks JSON (generator in pieces) and Part 3 plans and the finished document. The planner writes each prompt after the last one commits.
+- P03B plan: 1a site and levels; 1b-G Building A ground, 1b-F A first (sets the bridge z0), 1b-R A roof (task-size decision 2026-10-11: sessions capped at about 15-20 decisions, one level of one building each, medium effort); 1c Building B and wing zones split the same way by floor (1c-G, 1c-F, 1c-R/H for B strip, hall block and wing as needed, each at most 20 decisions); 1d site, bridge, under-yard and level U zones plus the row count (151); 1e ring entries, stairs, lifts, risers, per-building fire stair check; 1f critical path, adjacency, questions. Then Part 2 blocks JSON (generator in pieces) and Part 3 plans and the finished document. The planner writes each prompt after the last one commits.
 - If a session stalls or hits a limit: type /clear and send "Planner: the last session stalled, split it smaller".
 - The map template is built at P11 from docs/kestrel/lessons.md and the approved documents; until then only lessons are collected.
