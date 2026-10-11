@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1 done; Part 2c done, 2d next)
+Status: DRAFT (Part 1 done; Part 2d-1 done, 2d-2 next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -255,6 +255,7 @@ Self-check (this session): D `zones 26, rows 126 of 126, fails 0`; A `zones 27, 
 - TB04 is 25 long (brief 30): BG31 at the carrier band's west end.
 - Manhole TB02 beside the vault, not over it: a shaft is its own rect (Appendix A rule, as AG23 beside AG22). Its lid at x 49-50.5 lies in X03 (x 0-52), not X04 as brief 5 lists; it is still the aisle in front of the gap (brief 4).
 - Level B sum 181.75 (brief 170): the tunnel lengths above.
+- SI-GATE and SI-BIN grown to 4.5 x 3.5 so 0.45 exterior walls keep brief clear 3.7 x 2.7 (Part 2d-1).
 
 ### 5.4 Notes for P04, 1e and P03R
 - P04: carrier band west to east BG31, BG30, BG29, BG33 (x 70-74, 74-83, 83-87, 87-96). AG23 on G-EAST's east wall within z 43.5-47.5.
