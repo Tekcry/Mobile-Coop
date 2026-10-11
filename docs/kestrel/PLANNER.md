@@ -11,6 +11,8 @@ Rules for planner sessions (Michael, 2026-10-11). A planner session starts when 
 - Fix now, don't defer: a problem in a DRAFT document is fixed in the current stage. Only wording in APPROVED documents goes to a review or revision stage.
 - Review step (Michael, 2026-10-11): rerun the last run's check scripts; look for lines added twice in progress.md and lessons.md; for every value Michael or the run changed, grep the brief and recorded decisions for the old value and list any clash as a P03R item (03B section 10 and handover P03R notes). Compare each recorded decision's value with the generated data (the JSON), not only the run's own claim that decisions matched (Michael, 2026-10-11).
 - Review routing (Michael, 2026-10-11): every prompt's End block, and this session's report, ends with the RULES 9 4b line "Review chat: SEND - <reason>" or "Review chat: SKIP" just before the Next step block.
+- Reviewer (Michael, 2026-10-11): a SEND report means Michael types /clear and sends `Reviewer: next` with the report pasted under it (Opus, medium); see docs/kestrel/REVIEW.md.
+- "Planner: APPROVED" runs on Opus, medium, because it does the next planner job.
 
 ## Start
 - git checkout feature/kestrel && git pull; confirm the branch.
