@@ -72,7 +72,7 @@ Building A [4, 30, 40, 54]. Spine AG10 runs east-west at z 40 to 43.5. South wal
 | AG04 | [15.5, 36, 20.5, 40] | 5 x 4 | AG01, AG02, AG10, AG15 | brief 5, 7 (hatch to AG01) |
 | AG05 | [20, 49, 26, 54] | 6 x 5 | AG14, AG18 | brief 5; north wall |
 | AG06 | [20.5, 30, 28.5, 36] | 8 x 6 | AG02, AG15 | brief 2, 5; south wall, window ajar |
-| AG07 | [4, 48, 12, 54] | 8 x 6 | AG14 | brief 5; north and west walls |
+| AG07 | [4, 48, 12, 54] | 8 x 6 | AG14 | MOVED: now AF20 on A first floor (Michael, 2026-10-11); this row is history, not on G |
 | AG08 | [32, 30, 40, 40] | 8 x 10 | AG09, AG10 | brief 5, 7; south wall, roller door |
 | AG09 | [29, 36, 32, 40] | 3 x 4 | AG08, AG10 | brief 5, 7 |
 | AG10 | [10, 40, 40, 43.5] | 30 x 3.5 | AG01, AG04, AG08, AG09, AG11, AG12, AG13, AG15, AG16, AG17, AG18, AG20, AG22, AG25 | brief 5, 7; spine band, constraint 3 |
