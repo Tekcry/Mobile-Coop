@@ -9,6 +9,7 @@ Rules for planner sessions (Michael, 2026-10-11). A planner session starts when 
 - "Planner: next": First review the last session's output against the brief and RULES: check its self-check covered the universal checks, and that each recommended option meets the brief. List anything you disagree with, with your own recommendation, before writing the next prompt. Then read what the last session committed (its document section, progress row and log line), update handover.md (Status, Order, Notes), and write the next prompt file. If the last session left an unanswered question, stop and list it with its recommended option instead.
 - "Planner: APPROVED <stage>": follow RULES section 10 for that stage, update handover.md Status, then do the "next" job if the next prompt file does not exist yet.
 - "Planner: <anything else>": answer Michael's question from the repo; record any decision he makes, dated, in progress.md "Decisions by Michael" and in handover.md when it affects later stages.
+- "Planner: split this smaller": rewrite the last prompt file not yet run (or the one that stalled) as smaller parts per RULES 7, as new files; leave the old file unchanged.
 Never run while a stage session is running. Never edit a stage's output files except status lines on approval.
 
 ## Prompt files
@@ -26,5 +27,4 @@ Never run while a stage session is running. Never edit a stage's output files ex
 
 ## Ending
 - Commit only files you changed: "kestrel planner: <summary>". Push. Budget about 20 tool calls.
-- If Michael should use a different model next, say so on the second-last line.
-- The last line is always: "Next: type /clear, then send: <exact message>".
+- The last line is always: "Next: switch to <model>, <effort>; type /clear, then send: <exact message>". "Planner: next" always uses Opus, medium; approvals, recording decisions and simple questions use Sonnet, medium.
