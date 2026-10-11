@@ -447,7 +447,7 @@
   {
    "id": "F-OPS",
    "level": "F",
-   "name": "Operations Room, Tape Library",
+   "name": "Operations and Tape Library",
    "kind": "zone",
    "rect": [
     11,
@@ -501,7 +501,7 @@
   {
    "id": "F-WLINK",
    "level": "F",
-   "name": "First West Link Corridor",
+   "name": "First Floor West Link Corridor",
    "kind": "corridor",
    "rect": [
     4,
@@ -537,7 +537,7 @@
   {
    "id": "F-CORE",
    "level": "F",
-   "name": "First Stair and Lift Core",
+   "name": "First Floor Main Stair Core",
    "kind": "zone",
    "rect": [
     19.5,
@@ -555,7 +555,7 @@
   {
    "id": "F-ELINK",
    "level": "F",
-   "name": "First East Link Corridor",
+   "name": "First Floor East Link Corridor",
    "kind": "corridor",
    "rect": [
     31,
@@ -609,7 +609,7 @@
   {
    "id": "F-NCOR",
    "level": "F",
-   "name": "First North Corridor",
+   "name": "First Floor North Corridor",
    "kind": "corridor",
    "rect": [
     4,
@@ -757,7 +757,7 @@
   {
    "id": "B-GE",
    "level": "G",
-   "name": "Gallery Stair Foot, Switchroom",
+   "name": "Gallery Stair and Switchroom",
    "kind": "zone",
    "rect": [
     60.5,

@@ -284,7 +284,10 @@ let calloutCol = 0; // width of the east column
 let calloutLeft = 0; // width of the west column
 let calloutBottom = 0;
 let labelBoxes = []; // px boxes of every label drawn on this level, for the overlap count
-let labelStats = { boxes: 0, overlaps: 0 };
+let labelStats = { boxes: 0, overlaps: 0, crossings: 0 };
+let leaders = []; // leader lines: { segs: [[p1, p2] px], own: index of the leader's own box in labelBoxes }
+let drawnBuildings = []; // footprints (m) of the buildings that have rooms on the level being drawn
+const SHORT_REACH = 8; // m: a callout that does not fit inside its room first looks for a free spot this near its anchor
 
 const boxOf = (lines) => ({ w: Math.max(...lines.map((l) => l.t.length * l.size * R('charWidth'))), h: lines.reduce((s, l) => s + l.size * R('lineHeight'), 0) });
 const inter = (a, b) => overlap1(a[0], a[2], b[0], b[2]) * overlap1(a[1], a[3], b[1], b[3]);
@@ -314,6 +317,15 @@ function labelVariants(name, small, size, tag, dims) {
   return [full, narrow(size), narrow(Math.min(size, R('fontSmall')))];
 }
 
+/** True when the segment (px) runs through the interior of the box [x0, y0, x1, y1] (px). */
+function segHitsBox(p1, p2, r) {
+  const [x1, y1] = p1, [x2, y2] = p2;
+  let t0 = 0, t1 = 1;
+  const clip = (p, q) => { if (p === 0) return q >= 0; const t = q / p; if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; } return true; };
+  return clip(-(x2 - x1), x1 - r[0]) && clip(x2 - x1, r[2] - x1) && clip(-(y2 - y1), y1 - r[1]) && clip(y2 - y1, r[3] - y1) && t1 - t0 > 1e-6;
+}
+const hitsLabel = (p1, p2) => labelBoxes.some((b) => segHitsBox(p1, p2, b));
+
 /** The footprint of a building that the segment (px) from an anchor outside it crosses, or null. */
 function blockingBuilding(anchor, p1, p2) {
   const [x1, y1] = p1, [x2, y2] = p2;
@@ -335,12 +347,13 @@ const MID_X = BUILDINGS.length === 2 ? (Math.max(...BUILDINGS.map((b) => b.rect[
  */
 function placeLabel(item, obstacles) {
   const variants = labelVariants(item.name, item.small, item.size, item.tag, item.dims).map((v) => v.map((l, i) => (i === 0 && item.bold ? { ...l, bold: true } : l)));
-  const cost = (p, bw, bh) => {
+  const cost = (p, bw, bh, free = false) => {
     const box = [X(p[0]) - bw / 2, Y(p[1]) - bh / 2, X(p[0]) + bw / 2, Y(p[1]) + bh / 2];
     let sum = 0;
     for (const o of obstacles) sum += inter(box, o);
     for (const o of labelBoxes) sum += inter(box, o);
-    if (item.region) sum += (bw - overlap1(box[0], box[2], item.region[0], item.region[2])) * bh + (bh - overlap1(box[1], box[3], item.region[1], item.region[3])) * bw;
+    for (const l of leaders) for (const sg of l.segs) if (segHitsBox(sg[0], sg[1], box)) sum += 1e6; // a leader line is an obstacle too
+    if (item.region && !free) sum += (bw - overlap1(box[0], box[2], item.region[0], item.region[2])) * bh + (bh - overlap1(box[1], box[3], item.region[1], item.region[3])) * bw;
     return sum;
   };
   for (const v of variants) {
@@ -352,8 +365,27 @@ function placeLabel(item, obstacles) {
     }
   }
   const dotBox = R('dotR') * 2;
-  const dot = item.dotSpots.reduce((best, p) => (best && cost(best, dotBox, dotBox) <= cost(p, dotBox, dotBox) ? best : p), null);
-  callouts.push({ lines: variants[0], anchor: dot, west: dot[0] < MID_X });
+  const dots = item.dotSpots.map((p, i) => ({ p, i, c: cost(p, dotBox, dotBox) })).sort((a, b) => a.c - b.c || a.i - b.i).slice(0, 60).map((d) => d.p); // best first
+  const dot = dots[0];
+  // one callout size: the plan's small label size
+  const calloutLines = labelVariants(item.name, item.small, R('fontSmall'), item.tag, item.dims)[0].map((l, i) => (i === 0 && item.bold ? { ...l, bold: true } : l));
+  const cb = boxOf(calloutLines);
+  const ap = [X(dot[0]), Y(dot[1])];
+  const site = [X(B[0]), Y(B[3]), X(B[2]), Y(B[1])];
+  for (let r = 1; r <= SHORT_REACH; r += 0.5) for (let k = 0; k < 24; k++) {
+    const a = k * Math.PI / 12, p = [dot[0] + Math.cos(a) * r, dot[1] + Math.sin(a) * r];
+    const box = [X(p[0]) - cb.w / 2, Y(p[1]) - cb.h / 2, X(p[0]) + cb.w / 2, Y(p[1]) + cb.h / 2];
+    if (box[0] < site[0] || box[1] < site[1] || box[2] > site[2] || box[3] > site[3]) continue;
+    if (drawnBuildings.some((b) => Math.round(inter(box, rectOfPx(b))) > 0)) continue;
+    if (Math.round(cost(p, cb.w, cb.h, true)) !== 0) continue;
+    const end = [Math.min(Math.max(ap[0], box[0]), box[2]), Math.min(Math.max(ap[1], box[1]), box[3])];
+    if (end[0] === ap[0] && end[1] === ap[1]) continue;
+    if (hitsLabel(ap, end) || blockingBuilding(dot, ap, end)) continue;
+    labelBoxes.push(box);
+    leaders.push({ segs: [[ap, end]], own: labelBoxes.length - 1 });
+    return `<line x1="${ap[0]}" y1="${ap[1]}" x2="${+end[0].toFixed(2)}" y2="${+end[1].toFixed(2)}" stroke="${INK}" stroke-width="${R('markStroke')}"/><circle cx="${ap[0]}" cy="${ap[1]}" r="${R('dotR') / 2}" fill="${INK}"/>${drawLines(p, calloutLines)}`;
+  }
+  callouts.push({ lines: calloutLines, anchor: dot, dots, west: dot[0] < MID_X });
   return '';
 }
 
@@ -366,33 +398,54 @@ function calloutLayer() {
   let out = '';
   for (const west of [true, false]) {
     const items = callouts.filter((k) => k.west === west).map((k) => ({ ...k, ...boxOf(k.lines), y: Y(k.anchor[1]) })).sort((a, b) => a.y - b.y);
-    let prevBottom = TOP;
+    const taken = []; // [top, bottom] of the slots already used in this column
     for (const k of items) {
-      const top = Math.max(k.y - k.h / 2, prevBottom + R('calloutPad'));
-      const mid = top + k.h / 2;
-      prevBottom = top + k.h;
-      const ax = X(k.anchor[0]), ay = Y(k.anchor[1]);
+      const pad = R('calloutPad');
       const edge = west ? colW + R('calloutGap') : colE - R('calloutGap');
+      const x = west ? colW : colE;
       const stroke = `stroke="${INK}" stroke-width="${R('markStroke')}" fill="none"`;
-      const hit = blockingBuilding(k.anchor, [ax, ay], [edge, mid]);
-      if (hit) {
-        const north = k.anchor[1] >= (hit.rect[1] + hit.rect[3]) / 2;
-        const yv = +(north ? Y(hit.rect[3]) - R('legendGap') : Y(hit.rect[1]) + R('legendGap')).toFixed(2);
-        out += `<polyline points="${ax},${ay} ${ax},${yv} ${edge},${yv} ${edge},${+mid.toFixed(2)}" ${stroke}/>`;
-      } else out += `<line x1="${ax}" y1="${ay}" x2="${edge}" y2="${+mid.toFixed(2)}" ${stroke}/>`;
+      // slots nearest the anchor first: level with it, then alternately below and above in half-box steps
+      const topAt = (shift) => k.y - k.h / 2 + (shift % 2 ? 1 : -1) * Math.ceil(shift / 2) * (k.h + pad) / 2;
+      const free = (t) => t >= TOP && taken.every((q) => t + k.h + pad <= q[0] || t >= q[1] + pad);
+      let top = topAt(0), route = null, ax = X(k.anchor[0]), ay = Y(k.anchor[1]);
+      for (const anc of k.dots) { // the best anchor spot first; another spot when no leader from it is clear
+        const px = X(anc[0]), py = Y(anc[1]);
+        const clear = (pts) => pts.every((p, i) => i === 0 || (!hitsLabel(pts[i - 1], p) && !blockingBuilding(anc, pts[i - 1], p)));
+        const bends = (mid) => {
+          const list = [[[px, py], [px, mid], [edge, mid]], [[px, py], [edge, py], [edge, mid]]];
+          const hit = blockingBuilding(anc, [px, py], [edge, mid]);
+          if (hit) {
+            const north = anc[1] >= (hit.rect[1] + hit.rect[3]) / 2;
+            const yv = north ? Y(hit.rect[3]) - R('legendGap') : Y(hit.rect[1]) + R('legendGap');
+            list.push([[px, py], [px, yv], [edge, yv], [edge, mid]]);
+          }
+          return list;
+        };
+        for (let shift = 0; shift < 60 && !route; shift++) { // a straight leader, then the next free slots down; every fourth slot also tries the single-bend routes
+          const t = topAt(shift), pts = [[px, py], [edge, t + k.h / 2]];
+          if (!free(t)) continue;
+          if (clear(pts)) { top = t; route = pts; } else if (shift % 4 === 3) { const found = bends(t + k.h / 2).find(clear); if (found) { top = t; route = found; } }
+        }
+        if (route) { ax = px; ay = py; break; }
+      }
+      if (!route) { for (let shift = 0; shift < 200; shift++) if (free(topAt(shift))) { top = topAt(shift); break; } route = [[ax, ay], [edge, top + k.h / 2]]; }
+      taken.push([top, top + k.h]);
+      out += route.length === 2
+        ? `<line x1="${ax}" y1="${ay}" x2="${+route[1][0].toFixed(2)}" y2="${+route[1][1].toFixed(2)}" ${stroke}/>`
+        : `<polyline points="${route.map((p) => `${+p[0].toFixed(2)},${+p[1].toFixed(2)}`).join(' ')}" ${stroke}/>`;
       out += `<circle cx="${ax}" cy="${ay}" r="${R('dotR') / 2}" fill="${INK}"/>`;
       let y = top;
-      const x = west ? colW : colE;
       for (const l of k.lines) {
         const lh = l.size * R('lineHeight');
         out += textPx(x, y + lh * 0.8, l.t, l.size, `text-anchor="${west ? 'end' : 'start'}" fill="${l.grey ? GREY : INK}"${l.bold ? ' font-weight="bold"' : ''}`);
         y += lh;
       }
       labelBoxes.push(west ? [x - k.w, top, x, top + k.h] : [x, top, x + k.w, top + k.h]);
+      leaders.push({ segs: route.slice(1).map((p, i) => [route[i], p]), own: labelBoxes.length - 1 });
       if (west) calloutLeft = Math.max(calloutLeft, k.w + R('legendGap') * 2 - M);
       else calloutCol = Math.max(calloutCol, colE - X(B[2]) + k.w + R('legendGap'));
     }
-    calloutBottom = Math.max(calloutBottom, prevBottom);
+    calloutBottom = Math.max(calloutBottom, ...taken.map((q) => q[1]));
   }
   return out;
 }
@@ -408,9 +461,11 @@ function gridSpots(c, anchor, n, spread) {
   return spots.sort((a, b) => hyp(a, anchor) - hyp(b, anchor));
 }
 
-/** Builds and places every label of a level: buildings, stairs, ladders, voids, then rooms (large and flexible last). */
+/** Builds and places every label of a level: rooms first, then buildings, stairs, ladders and voids. */
 function allLabels(level) {
   labelBoxes = [];
+  leaders = [];
+  drawnBuildings = BUILDINGS.filter((b) => (arch.rooms ?? []).some((r) => r.level === level.id && inRect(b.rect, (r.rect[0] + r.rect[2]) / 2, (r.rect[1] + r.rect[3]) / 2))).map((b) => b.rect);
   const here = (o) => o.level === level.id;
   const [lo, hi] = levelSpan(level);
   const obstacles = [
@@ -436,6 +491,12 @@ function allLabels(level) {
   const roomAt = (p) => rooms.filter((r) => inRect(r.rect, p[0], p[1])).sort((a, b) => area(a) - area(b))[0];
   const tagOf = (r) => (r.kind === 'lane' ? 'Outside' : r.ring === 0 ? 'Perimeter' : `Level ${r.ring ?? '?'}`);
   let out = '';
+  for (const r of rooms) {
+    const c = clearRect(r, walls);
+    const size = Math.min(c[2] - c[0], c[3] - c[1]) * S < R('labelSmallBelow') ? R('fontSmall') : R('fontRoom');
+    const spots = gridSpots(c, rectCentre(r.rect), R('labelSteps'), R('labelSpread'));
+    out += placeLabel({ name: plainName(r) ? r.name : r.id, small: r.id, tag: tagOf(r), dims: `${fmt(c[2] - c[0])} x ${fmt(c[3] - c[1])} clear`, size, anchor: rectCentre(r.rect), dotSpots: spots, spots, region: rectOfPx(c) }, obstacles);
+  }
   for (const b of BUILDINGS) { // just outside the top edge, else just outside the bottom edge
     const size = R('fontLegend'), pad = R('legendGap') / 2;
     const nm = b.name && !b.name.startsWith('Building') ? b.name : `Building ${b.id}`;
@@ -465,12 +526,6 @@ function allLabels(level) {
     const c = rectCentre(v.rect);
     out += placeLabel({ name: plainName(v) ? v.name : v.kind, small: v.id, size: R('fontSmall'), anchor: c, dotSpots: [c], ...near(c) }, obstacles);
   }
-  for (const r of rooms) {
-    const c = clearRect(r, walls);
-    const size = Math.min(c[2] - c[0], c[3] - c[1]) * S < R('labelSmallBelow') ? R('fontSmall') : R('fontRoom');
-    const spots = gridSpots(c, rectCentre(r.rect), R('labelSteps'), R('labelSpread'));
-    out += placeLabel({ name: plainName(r) ? r.name : r.id, small: r.id, tag: tagOf(r), dims: `${fmt(c[2] - c[0])} x ${fmt(c[3] - c[1])} clear`, size, anchor: rectCentre(r.rect), dotSpots: spots, spots, region: rectOfPx(c) }, obstacles);
-  }
   return out;
 }
 
@@ -478,7 +533,9 @@ function allLabels(level) {
 function countOverlaps() {
   let k = 0;
   for (let i = 0; i < labelBoxes.length; i++) for (let j = i + 1; j < labelBoxes.length; j++) if (Math.round(inter(labelBoxes[i], labelBoxes[j])) > 0) k++;
-  labelStats = { boxes: labelBoxes.length, overlaps: k };
+  let c = 0;
+  for (const l of leaders) for (const sg of l.segs) labelBoxes.forEach((b, i) => { if (i !== l.own && segHitsBox(sg[0], sg[1], b)) c++; });
+  labelStats = { boxes: labelBoxes.length, overlaps: k, crossings: c };
 }
 
 function baseLayers(level) {
@@ -734,7 +791,7 @@ function buildSvg(level, kind) {
   calloutLeft = 0;
   calloutBottom = 0;
   let body = baseLayers(level);
-  if (kind === 'arch') console.log(`labels ${level.id}: boxes ${labelStats.boxes}, overlaps ${labelStats.overlaps}`);
+  if (kind === 'arch') console.log(`labels ${level.id}: boxes ${labelStats.boxes}, overlaps ${labelStats.overlaps}, leader crossings ${labelStats.crossings}`);
   body = `<g transform="translate(${+calloutLeft.toFixed(2)},0)">${body}</g>`; // the west callout column hangs left of the site
   const Wd = Math.max(calloutLeft + SITE_W + calloutCol, 2 * M + title.length * R('fontTitle') * R('charWidth'));
   const footY = Math.max(FOOT_Y, calloutBottom + M);
