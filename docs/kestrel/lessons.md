@@ -22,3 +22,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - A prompt that fixes a dimension should carry the scale-sheet minimum in its table; the first candidate corridor width (2.7) broke the sheet's 3.0 floor and Michael had to correct it.
 - A planner candidate with precomputed sums and a check script passed on the first run in one session; prompts that carry the arithmetic and the check together are the pattern to keep.
 - P03B 1c: a candidate whose check script was run by the planner on the exact tables went in unchanged in about 12 tool calls; for small tables the doors column could be printed by the script in table form to skip the insert step.
+- P03B 1d: site rows still need a cross-check of each shaft's surface zone against the brief's "Doors to" (TB02's lid sat in X03, brief said X04); a check script could test that rects named as doors overlap the right zone.
