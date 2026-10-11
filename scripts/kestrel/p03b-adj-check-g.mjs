@@ -1,9 +1,13 @@
-// P03B Part 1g-b check: brief 7 must-touch adjacency at zone level (section 9 of 03B-block-plan.md).
+// P03B Part 1g-b / 1g-c check: brief 7 adjacency at zone level (section 9 of 03B-block-plan.md).
 // Usage: node scripts/kestrel/p03b-adj-check-g.mjs docs/kestrel/03B-block-plan.md
 // Rows J01.. with columns Id | Item | Rooms | Zones | Relation | Result | P04 | Source.
 // Relation: same (one zone holds all rooms), face (plan edges share >= 1.0), above (plans overlap, different levels),
 // line (rects in a row east to east, the first's z band inside each), gap <n> (plan gap n, judged by the session).
 // Result starts with the measured metres (face length, overlap m2, gap) for face, above and gap.
+// Part 1g-c: rows N01.. (items U01-U08, must not touch) with relations none (plan gap > 0; Result starts with the gap),
+// apart (no plan overlap, a shared face allowed because the walls run to the slab; Result starts with the face length),
+// door (a shared face allowed, P04 puts no door in it; Result starts with the face length), level (the two zones are on
+// different levels, known from the zone id prefix; Result not measured) and gap <n> (a known gap, as in 9.1).
 import { readFileSync } from 'node:fs';
 
 const lines = readFileSync(process.argv[2], 'utf8').split(/\r?\n/);
@@ -11,6 +15,9 @@ const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.tr
 const RECT = /\[(-?[\d.]+), (-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\]/;
 const ROOM = /\b(?:[A-Z]{2}\d{2}|X\d{2})\b/g;
 const ITEMS = Array.from({ length: 14 }, (_, i) => 'T' + String(i + 1).padStart(2, '0'));
+const NITEMS = Array.from({ length: 8 }, (_, i) => 'U' + String(i + 1).padStart(2, '0'));
+const LEVEL = [[/^(G-|W-|B-G)/, 'G'], [/^(F-|B-F)/, 'F'], [/^(R-|RF-|B-R|B-H)/, 'R'], [/^(S|SI)-/, 'site'], [/^T-/, 'B'], [/^U-/, 'U']];
+const levelOf = (z) => (LEVEL.find(([re]) => re.test(z)) ?? [null, null])[1];
 
 // Rects with rooms from every table in sections 1-6; J rows from section 9.
 const rects = {}, rows = [];
@@ -23,7 +30,7 @@ for (const l of lines) {
   const c = cells(l);
   if (!header) { header = c; continue; }
   if (/^-+$/.test(c[0])) continue;
-  if (sec === 9 && /^J\d{2}$/.test(c[0])) { rows.push(Object.fromEntries(header.map((k, i) => [k, c[i] ?? '']))); continue; }
+  if (sec === 9 && /^[JN]\d{2}$/.test(c[0])) { rows.push(Object.fromEntries(header.map((k, i) => [k, c[i] ?? '']))); continue; }
   if (sec >= 7) continue;
   const ri = header.findIndex((k) => k.startsWith('Rect'));
   const mi = header.findIndex((k) => k === 'Rooms' || k === 'Rooms by level');
@@ -46,11 +53,13 @@ const gap = (A, B) => {
 
 let fails = 0;
 const fail = (id, s) => { fails++; console.log(`FAIL ${id}: ${s}`); };
-const seen = new Set();
+const seen = new Set(), nseen = new Set();
 for (const row of rows) {
   const id = row.Id;
   const item = (row.Item ?? '').trim();
-  if (!ITEMS.includes(item)) fail(id, `item "${item}" not T01-T14`); else seen.add(item);
+  const must = id.startsWith('J');
+  if (must && !ITEMS.includes(item)) fail(id, `item "${item}" not T01-T14`); else if (must) seen.add(item);
+  if (!must && !NITEMS.includes(item)) fail(id, `item "${item}" not U01-U08`); else if (!must) nseen.add(item);
   const zs = (row.Zones ?? '').split(' / ').map((s) => s.trim());
   const rs = (row.Rooms ?? '').split(' / ').map((s) => s.match(ROOM) ?? []);
   if (zs.length !== rs.length) { fail(id, `${zs.length} zones for ${rs.length} room groups`); continue; }
@@ -66,7 +75,22 @@ for (const row of rows) {
   const num = Number((/^(-?[\d.]+)/.exec(row.Result ?? '') ?? [])[1]);
   const measured = (v, what) => { if (!(Math.abs(num - v) < 0.05)) fail(id, `Result starts ${num}, ${what} is ${+v.toFixed(2)}`); };
   const gm = /^gap ([\d.]+)$/.exec(rel);
-  if (rel === 'same') {
+  if (!must && ['same', 'face', 'above', 'line'].includes(rel)) fail(id, `must-not-touch row cannot use ${rel}`);
+  else if (!must && rel === 'level') {
+    const [la, lb] = zs.map(levelOf);
+    if (zs.length !== 2 || !la || !lb || la === lb) fail(id, `level needs two zones on known different levels (${zs.join(' / ')}: ${la} / ${lb})`);
+  } else if (!must && zs.length !== 2) {
+    fail(id, ` needs two zones`);
+  } else if (!must && rel === 'none') {
+    const v = gap(R[0].r, R[1].r);
+    if (v < 0.05) fail(id, `zones touch (gap ${+v.toFixed(2)}, face ${+face(R[0].r, R[1].r).toFixed(2)})`);
+    measured(v, 'gap');
+  } else if (!must && rel === 'apart') {
+    if (overlap(R[0].r, R[1].r) > eps) fail(id, 'plans overlap');
+    measured(face(R[0].r, R[1].r), 'shared face');
+  } else if (!must && rel === 'door') {
+    measured(face(R[0].r, R[1].r), 'shared face');
+  } else if (rel === 'same') {
     if (zs.length !== 1) fail(id, 'same needs one zone');
   } else if (rel === 'line') {
     if (zs.length < 3) fail(id, 'line needs three or more rects');
@@ -93,5 +117,7 @@ for (const row of rows) {
   if (!row.Source || row.Source === '-') fail(id, 'no source');
 }
 for (const t of ITEMS) if (!seen.has(t)) fail(t, 'brief 7 item has no row');
-console.log(`adjacency rows ${rows.length}, items ${seen.size} of ${ITEMS.length}, rects ${Object.keys(rects).length}, fails ${fails}`);
+const nrows = rows.filter((r) => r.Id.startsWith('N')).length;
+if (nrows) for (const t of NITEMS) if (!nseen.has(t)) fail(t, 'brief 7 must-not-touch item has no row');
+console.log(`adjacency rows ${rows.length - nrows}, items ${seen.size} of ${ITEMS.length}, apart rows ${nrows}, items ${nseen.size} of ${NITEMS.length}, rects ${Object.keys(rects).length}, fails ${fails}`);
 process.exit(fails ? 1 : 0);
