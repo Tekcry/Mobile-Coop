@@ -14,7 +14,7 @@ Everything needed to continue Mission 1 "Dead Line" if the planning chat is lost
 - S1: Part A built (478c3b8); Part B runs after B4.
 
 ## Order
-P03B campus block plan (parts, Opus medium), P03R campus review, B0 rerun, Michael walks it, tools revision for A30 (backlog 25) before P04, DR door kinds (engine stage, before P04), P04-P05, B1-B2, BR, P04S, P06-P10, CAM approval then V1-V3 (all before B3), B3, B4, S1-S4, B4S, BR, S5, S6 civilians, B5, B6, BR, B7.
+P03B campus block plan (parts, Opus medium), P03R campus review, B0 rerun, Michael walks it, tools revision for A30 (backlog 25) before P04, DR door kinds (engine stage, before P04), P04-P05, B1-B2, BR, P04S, P06-P10, CAM approval then V1-V3 (all before B3), B3, B4, S1-S4, B4S, BR, S5, S6 civilians, B5, B6, BC clear mode, BR, B7.
 
 ## Notes for the next stages
 - Main stairs stay non-escape (Michael, 2026-10-11): one escape stair per building upper floor; worst walks about 52 m (A) and 31 m (B) accepted as game licence. Do not add escape doors to the main cores.
@@ -46,6 +46,7 @@ P03B campus block plan (parts, Opus medium), P03R campus review, B0 rerun, Micha
 - Neighbours: depot facade 7.0 m, viaduct 9.0 m.
 
 ## Decisions to carry into later stages
+- BC (clear mode, Michael 2026-10-11): add Hunter (`ClearMode`, id `clear`) on `kestrel` after B6, before B7. Prompt writer first greps src/game/modes for ClearMode, its spawn fill and the legacy gate, and asks Michael whether it shows without ?legacy=1. P07 lists candidate spawn areas per building; P06 marks mission-only routes (objective doors, the generator test). B7 adds a clear-mode check.
 - P06 and P08: the car opportunity: the remote-hands technician's Building B badge in their glovebox; car keys in a jacket in the locker room or in the security office key cabinet; remote fob unlocks fast but flashes and beeps, the key in the door is silent and slow (the ghost way), breaking a window sets off the car alarm. Cars give cover; their lights can give the player away.
 - P06 and P10, "best operative" checklist (pass or fail): at least 3 real approaches per space; at least 1 expert route per space; at least 1 "can't believe that worked" moment per building; guards pass near hides by design, never randomly; every failure is readable; a perfect ghost feels earned. Every movement the engine supports is used at least once on a real element.
 - P06: the play schema needs a "zipline" traversal kind for later missions, and "drainpipe" maps to the engine's vertical pipe.
