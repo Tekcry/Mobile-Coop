@@ -33,8 +33,8 @@ function meta() {
     bay: [6, 6], // 03B 1 (bay 6.0 x 6.0)
     site: [0, 0, 108, 76], // 03B 1 Site
     buildings: [ // 03B 1; the wing is not a building (03B 2 row G)
-      { id: 'A', name: 'Offices and security', footprint: A },
-      { id: 'B', name: 'Data hall building', footprint: BFULL },
+      { id: 'A', name: 'Offices and Security', footprint: A },
+      { id: 'B', name: 'Data Centre Hall', footprint: BFULL },
     ],
     stage: 'P03B Part 2: campus zones and corridors only', // 03B line 3
   };
@@ -61,36 +61,42 @@ const CEILING = { 'G-SPINE': 2.4, 'G-NCOR': 2.4, 'F-SPINE': 2.4, 'F-NCOR': 2.4 }
 // Plain names for the plan labels (P03B 2f decisions 1-3, 5; Michael 2026-10-11). Source: 03B Note columns and brief 5 room names.
 // At most 30 characters, no ids inside, none of the words A30 reads (check.mjs:697). 03B's Rooms column keeps the room list.
 const NAME = {
-  'G-FRONT': 'Reception and front offices', 'G-SOFF': 'Admin office', 'G-GOODS': 'Goods-in and goods lobby', 'G-SPINE': 'Ground floor spine corridor',
-  'G-WLINK': 'Ground west link corridor', 'G-SEC': 'Security room and key safe', 'G-CORE': 'Main stair and lift core', 'G-ELINK': 'Ground east link corridor',
-  'G-EAST': 'Comms room and tunnel shaft', 'G-NCOR': 'Ground north corridor', 'G-NW': 'Fire stair and manager office', 'G-NE': 'Locker room and switchroom',
-  'F-SW': 'Customer services office', 'F-OPS': 'Operations room, tape library', 'F-SPINE': 'First floor spine corridor', 'F-VEST': 'Bridge vestibule',
-  'F-WLINK': 'First west link corridor', 'F-BW': 'Records room', 'F-CORE': 'First floor stair, lift core', 'F-ELINK': 'First east link corridor',
-  'F-E': 'Pipe riser', 'F-PLANT': 'Plant gallery', 'F-NCOR': 'First north corridor', 'F-NW': 'Offices and fire stair', 'F-NE': 'Kitchen and pump room',
-  'R-BULK': 'Fire stair roof bulkhead', 'R-PLANT': 'Chillers and roof air handler',
-  'B-GW': 'Building B entrance lobby', 'B-GCOR': 'Building B ground corridor', 'B-GGOODS': 'Staging, shipping and build', 'B-GE': 'Gallery stair foot, switchroom',
-  'B-GN': 'Fire stair and plant corridor', 'B-GHCAR': 'Meet-me room and carrier rooms', 'B-GHALL': 'Data hall', 'B-GHPLANT': 'Power, battery and gas rooms',
-  'B-GHCOOL': 'Cooling gallery', 'W-GEN': 'Generator hall', 'B-FS': 'Tenant work room', 'B-FLOBBY': 'Bridge lobby and post desk',
-  'B-FBW': 'Stair B, first floor', 'B-FCOR': 'Building B staff corridor', 'B-FNW': 'Fire stair B', 'B-FNE': 'Valve room', 'B-FSEC': 'Mantrap and secure corridor',
-  'B-HSUPPLY': 'Hall air handler and shaft', 'B-RBULK': 'Fire stair B roof bulkhead', 'K-BRIDGE': 'Link bridge',
-  'S-LANE': 'Lane and footway', 'S-YARDA': 'Front yard A', 'S-YARDB': 'Front yard B', 'S-GAP': 'Service way under the bridge', 'S-REAR': 'Rear yard', 'S-REAR2': 'Strip behind the wing',
-  'S-PASS': 'Service passage', 'S-DRIVE': 'East service drive', 'S-COMP': 'Transformer compound', 'S-WPATH': 'West path',
-  'SI-GATE': 'Gatehouse', 'SI-BIN': 'Bin store', 'SI-APRON': 'Loading apron', 'L-ROOF': 'Link bridge roof',
-  'T-VAULT': 'Carrier vault', 'T-MH': 'Carrier manhole', 'T-TUNA': 'Tunnel to Building A', 'T-TUNB': 'Tunnel to Building B', 'T-RISER': 'Carrier riser shaft',
-  'U-HALL': 'Hall underfloor void', 'U-COOL': 'Cooling plenum', 'V-AG23': 'Tunnel access shaft',
-  'RF-A': 'Building A roof', 'RF-BS': 'B strip roof', 'RF-BH': 'Hall roof', 'RF-W': 'Generator wing roof',
+  'G-FRONT': 'Reception and Front Offices', 'G-SOFF': 'Admin Office', 'G-GOODS': 'Goods In and Goods Lobby', 'G-SPINE': 'Ground Floor Spine Corridor',
+  'G-WLINK': 'Ground West Link Corridor', 'G-SEC': 'Security Room and Key Safe', 'G-CORE': 'Main Stair and Lift Core', 'G-ELINK': 'Ground East Link Corridor',
+  'G-EAST': 'Communications Room', 'G-NCOR': 'Ground North Corridor', 'G-NW': 'Fire Stair and Manager Office', 'G-NE': 'Locker Room and Switchroom',
+  'F-SW': 'Customer Services Office', 'F-OPS': 'Operations Room, Tape Library', 'F-SPINE': 'First Floor Spine Corridor', 'F-VEST': 'Bridge Vestibule',
+  'F-WLINK': 'First West Link Corridor', 'F-BW': 'Records Room', 'F-CORE': 'First Stair and Lift Core', 'F-ELINK': 'First East Link Corridor',
+  'F-E': 'Pipe Riser', 'F-PLANT': 'Plant Gallery', 'F-NCOR': 'First North Corridor', 'F-NW': 'Offices and Fire Stair', 'F-NE': 'Kitchen and Pump Room',
+  'R-BULK': 'Fire Stair Roof Bulkhead', 'R-PLANT': 'Chillers and Roof Air Handler',
+  'B-GW': 'Building B Entrance Lobby', 'B-GCOR': 'Building B Ground Corridor', 'B-GGOODS': 'Staging and Shipping Rooms', 'B-GE': 'Gallery Stair Foot, Switchroom',
+  'B-GN': 'Fire Stair and Plant Corridor', 'B-GHCAR': 'Meet-Me Room and Carriers', 'B-GHALL': 'Data Hall', 'B-GHPLANT': 'Power, Battery and Gas Rooms',
+  'B-GHCOOL': 'Cooling Gallery', 'W-GEN': 'Generator Hall', 'B-FS': 'Tenant Work Room', 'B-FLOBBY': 'Bridge Lobby and Post Desk',
+  'B-FBW': 'Building B First Floor Stair', 'B-FCOR': 'Building B Staff Corridor', 'B-FNW': 'Building B Fire Stair', 'B-FNE': 'Valve Room', 'B-FSEC': 'Mantrap and Secure Corridor',
+  'B-HSUPPLY': 'Hall Air Handler and Shaft', 'B-RBULK': 'Building B Roof Bulkhead', 'K-BRIDGE': 'Link Bridge',
+  'S-LANE': 'Lane and Footway', 'S-YARDA': 'Building A Yard', 'S-YARDB': 'Building B Yard', 'S-GAP': 'Service Way Under the Bridge', 'S-REAR': 'Rear Yard', 'S-REAR2': 'Strip Behind the Wing',
+  'S-PASS': 'Service Passage', 'S-DRIVE': 'East Service Drive', 'S-COMP': 'Transformer Compound', 'S-WPATH': 'West Path',
+  'SI-GATE': 'Gatehouse', 'SI-BIN': 'Bin Store', 'SI-APRON': 'Loading Apron', 'L-ROOF': 'Link Bridge Roof',
+  'T-VAULT': 'Carrier Vault', 'T-MH': 'Carrier Manhole', 'T-TUNA': 'Building A Tunnel', 'T-TUNB': 'Building B Tunnel', 'T-RISER': 'Carrier Riser Shaft',
+  'U-HALL': 'Hall Underfloor Void', 'U-COOL': 'Cooling Plenum', 'V-AG23': 'Tunnel Access Shaft',
+  'RF-A': 'Building A Roof', 'RF-BS': 'Building B Roof', 'RF-BH': 'Hall Roof', 'RF-W': 'Generator Wing Roof',
 };
-// decision 3: parent name plus a position word from the piece rect; a repeated word gets 1, 2 ... by order so each name shows once
+// Piece names (2g-2 decision 2): parent name plus a compass word from the piece rect; if two pieces of one parent get the same word,
+// the threshold shrinks until each word is unique; a tie that remains goes to the thin piece as Strip. Never a digit.
 function named(pieces, parentId, pr) {
   const px = (pr[0] + pr[2]) / 2, pz = (pr[1] + pr[3]) / 2, w = pr[2] - pr[0], d = pr[3] - pr[1];
-  const raw = pieces.map((p) => {
+  const word = (p, t) => {
     const cx = (p[0] + p[2]) / 2, cz = (p[1] + p[3]) / 2;
-    const ew = Math.abs(cx - px) > w / 6 ? (cx < px ? 'west' : 'east') : '', ns = Math.abs(cz - pz) > d / 6 ? (cz < pz ? 'south' : 'north') : '';
-    return [p, [ns, ew].filter(Boolean).join(' ') || 'middle'];
-  });
-  const count = {}, seen = {};
-  for (const [, wd] of raw) count[wd] = (count[wd] ?? 0) + 1;
-  return raw.map(([p, wd]) => { seen[wd] = (seen[wd] ?? 0) + 1; return [p, NAME[parentId] + ', ' + wd + (count[wd] > 1 ? ' ' + seen[wd] : '')]; });
+    const ew = Math.abs(cx - px) > w * t ? (cx < px ? 'West' : 'East') : '', ns = Math.abs(cz - pz) > d * t ? (cz < pz ? 'South' : 'North') : '';
+    return [ns, ew].filter(Boolean).join('-') || 'Centre';
+  };
+  let words = pieces.map((p) => word(p, 1 / 6));
+  for (const t of [1 / 12, 1 / 24, 1 / 48, 0]) {
+    if (new Set(words).size === words.length) break;
+    words = pieces.map((p) => word(p, t));
+  }
+  const area = (p) => (p[2] - p[0]) * (p[3] - p[1]);
+  words = words.map((x, i) => (words.indexOf(x) !== i || words.lastIndexOf(x) !== i) && area(pieces[i]) < w * d / 100 ? 'Strip' : x); // still tied: the thin piece is the Strip
+  return pieces.map((p, i) => [p, NAME[parentId] + ' ' + words[i]]);
 }
 
 // 03B 3.3 rows: cols Zone, Level, Rect, Rooms, ...
@@ -173,13 +179,13 @@ function zonesSite() {
 const RISERS = 25; // decision 1: round(4.2 / 0.165) (schema stairs[].risers; check.mjs A11 stair.riserHeight)
 function stairs() { // decisions 3-7: [id, kind, from, to, rect, up, width, layout]; main and fire dogleg, V-GAL straight 2 flights
   const T = [
-    ['V-ASTAIR', 'main', 'G', 'F', [19.5, 43.5, 27.5, 47.5], 'W', 1.85, 'Main stair A'],
-    ['V-AFS-GF', 'fire', 'G', 'F', [4, 54, 10.5, 57.5], 'E', 1.45, 'Fire stair A, ground up'],
-    ['V-AFS-FR', 'fire', 'F', 'R', [4, 54, 10.5, 57.5], 'E', 1.45, 'Fire stair A, up to roof'],
-    ['V-BSTAIR', 'main', 'G', 'F', [52, 48.5, 57, 56.5], 'N', 1.85, 'Main stair B'],
-    ['V-BFS-GF', 'fire', 'G', 'F', [52, 56.5, 58.5, 60], 'W', 1.45, 'Fire stair B, ground up'],
-    ['V-BFS-FR', 'fire', 'F', 'R', [52, 56.5, 58.5, 60], 'W', 1.45, 'Fire stair B, up to roof'],
-    ['V-GAL', 'feature', 'G', 'F', [67, 43, 70, 52], 'S', 2.4, 'Gallery stair into the hall'],
+    ['V-ASTAIR', 'main', 'G', 'F', [19.5, 43.5, 27.5, 47.5], 'W', 1.85, 'Building A Main Stair'],
+    ['V-AFS-GF', 'fire', 'G', 'F', [4, 54, 10.5, 57.5], 'E', 1.45, 'Building A Fire Stair to First'],
+    ['V-AFS-FR', 'fire', 'F', 'R', [4, 54, 10.5, 57.5], 'E', 1.45, 'Building A Fire Stair to Roof'],
+    ['V-BSTAIR', 'main', 'G', 'F', [52, 48.5, 57, 56.5], 'N', 1.85, 'Building B Main Stair'],
+    ['V-BFS-GF', 'fire', 'G', 'F', [52, 56.5, 58.5, 60], 'W', 1.45, 'Building B Fire Stair to First'],
+    ['V-BFS-FR', 'fire', 'F', 'R', [52, 56.5, 58.5, 60], 'W', 1.45, 'Building B Fire Stair to Roof'],
+    ['V-GAL', 'feature', 'G', 'F', [67, 43, 70, 52], 'S', 2.4, 'Gallery Stair to the Hall'],
   ];
   return T.map(([id, kind, from, to, rect, up, width, name]) => ({ id, name, kind, from, to, rect, up, width, risers: RISERS, ...(id === 'V-GAL' ? { flights: 2 } : { layout: 'dogleg' }) }));
 }
@@ -203,7 +209,7 @@ function voids() { // decision 9: [id, level, rect, kind, reason]
     ['VG-TB02', 'G', [49, 24, 50.5, 25.5], 'hatch', 'Manhole lid in the yard over the carrier manhole (V-TB02)'],
     ['VH-BR05', 'H', [80, 48, 82, 50], 'riser', 'Cooling supply shaft from the roof AHU into the hall, bolted alarmed grille (V-BR05)'],
   ];
-  const VN = {"VF-ASTAIR":"Main stair A well","VF-ALIFT":"Lift A shaft","VF-AFS":"Fire stair A well","VR-AFS":"Fire stair A roof well","VF-ARISER":"Cable riser A","VR-APIPE":"Pipe riser roof hatch","VF-BSTAIR":"Main stair B well","VF-BLIFT":"Lift B shaft","VF-BFS":"Fire stair B well","VR-BFS":"Fire stair B roof well","VF-BRISER":"Cable riser B","VF-GAL":"Gallery stair well","VG-AG23":"Tunnel shaft hatch","VG-BG32":"Carrier riser hatch","VG-TB02":"Manhole lid","VH-BR05":"Cooling supply shaft"}; // 2f decision 5: plain names for plan labels
+  const VN = {"VF-ASTAIR":"Building A Main Stair Well","VF-ALIFT":"Building A Lift Shaft","VF-AFS":"Building A Fire Stair Well","VR-AFS":"Building A Stair Roof Well","VF-ARISER":"Building A Cable Riser","VR-APIPE":"Pipe Riser Roof Hatch","VF-BSTAIR":"Building B Main Stair Well","VF-BLIFT":"Building B Lift Shaft","VF-BFS":"Building B Fire Stair Well","VR-BFS":"Building B Stair Roof Well","VF-BRISER":"Building B Cable Riser","VF-GAL":"Gallery Stair Well","VG-AG23":"Tunnel Shaft Hatch","VG-BG32":"Carrier Riser Hatch","VG-TB02":"Manhole Lid","VH-BR05":"Cooling Supply Shaft"}; // 2f decision 5: plain names for plan labels
   return T.map(([id, level, rect, kind, reason]) => ({ id, name: VN[id], level, rect, kind, reason }));
 }
 
@@ -216,7 +222,7 @@ function ladders() { // decisions 12-14: [id, room, at, from, to, facing, reason
     ['V-LAD2', 'L-ROOF', [51.5, 41.5], 'L', 'R', 'E', "Hooped access ladder from the bridge roof up B's west parapet (0.6)"],
     ['V-LAD3', 'RF-BH-3', [70.5, 57.5], 'H', 'R', 'W', "Access ladder from the hall roof up the B strip's east parapet (1.8)"], // 2d-1 decision 4: 03B 6.1 V-LAD3 [69.5, 57, 70, 58.5], foot on the H side
   ];
-  const LN = {"LD-AG23":"Tunnel shaft ladder","LD-BG32":"Carrier riser ladder","LD-TB02":"Manhole ladder","V-LAD1":"Bridge roof ladder, west","V-LAD2":"Bridge roof ladder, east","V-LAD3":"Hall roof ladder"}; // 2f decision 5
+  const LN = {"LD-AG23":"Tunnel Shaft Ladder","LD-BG32":"Carrier Riser Ladder","LD-TB02":"Manhole Ladder","V-LAD1":"Bridge Roof Ladder West","V-LAD2":"Bridge Roof Ladder East","V-LAD3":"Hall Roof Ladder"}; // 2f decision 5
   return T.map(([id, room, at, from, to, facing, reason]) => ({ id, name: LN[id], room, at, from, to, facing, reason }));
 }
 
