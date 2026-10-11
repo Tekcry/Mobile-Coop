@@ -68,9 +68,10 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - Next milestone Michael walks: the B0 massing walk after P03R. For it, prepare what he should judge (scale, distances, storey heights, bridge alignment, crawl spaces, stair cores, entrances and roofs read from the yard).
 
 ## Where we are
-P03B-2e prompt (every check, plan images, Part 2 done) written and reviewed: right, with one fix sent on its run message (the approval message runs on Opus, medium). After 2e: the reviewer walks the plan images before Michael approves Part 2, then HK, then P03R.
+P03B 2e done and reviewed: right; all 13 checks reproduce, plan images walked. Next: Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
 
 ## Review log (newest first; keep the last 15 lines, HK archives older ones)
+- 2026-10-11 P03B 2e: right; 13 checks reproduce, generator leaves git clean, no duplicate lines; 7 plan images walked (realistic, flows; ground plan labels crowded until P04 names rooms). Approval message sent.
 - 2026-10-11 Planner (2d-2b review, LF fix, 2e prompt): right; one fix: the approval message runs on Opus, medium (on the 2e run message).
 - 2026-10-11 P03B 2d-2b: right; fire stair B exit moved to 57.5 to clear the stair's side wall (applied); line-endings fix and front-yard wording sent to the planner (applied).
 - 2026-10-11 P03B 2d-2b prompt: fix; fire stair B exit position.
