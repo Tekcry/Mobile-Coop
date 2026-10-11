@@ -69,9 +69,10 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - Next milestone Michael walks: the B0 massing walk after P03R. For it, prepare what he should judge (scale, distances, storey heights, bridge alignment, crawl spaces, stair cores, entrances and roofs read from the yard).
 
 ## Where we are
-P03B 2e done and reviewed: right; all 13 checks reproduce, plan images walked. Michael's fix before approval: plain zone names and a worded zone legend on the plans (planner writes a short part 2f; generator `name` per zone from the 03B zone tables and brief rooms, plans.mjs legend). Then Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
+P03B 2f prompt reviewed: right, one small fix (zone 2 and zone 4 legend wording, as a FIXES block on the run message). Next: run P03B-2f (Sonnet medium), review its plans, then Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
 
 ## Review log (newest first; keep the last 15 lines, HK archives older ones)
+- 2026-10-11 Planner (2f prompt, plain names): right; 116 names = 87 zones + 7 stairs + 6 ladders + 16 voids; A30 skips without modules and only rack objects are name-matched, so names cannot move checks; line refs hold. One fix: the legend's zone 2 omits goods-in (both goods zones are zone 2) and zone 4 omits the tunnels and locked plant under the yard.
 - 2026-10-11 P03B 2e: right; 13 checks reproduce, generator leaves git clean, no duplicate lines; 7 plan images walked (realistic, flows). Michael: zones unreadable by id; plain names and a worded zone legend required before approval (planner message sent).
 - 2026-10-11 Planner (2d-2b review, LF fix, 2e prompt): right; one fix: the approval message runs on Opus, medium (on the 2e run message).
 - 2026-10-11 P03B 2d-2b: right; fire stair B exit moved to 57.5 to clear the stair's side wall (applied); line-endings fix and front-yard wording sent to the planner (applied).
