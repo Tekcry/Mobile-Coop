@@ -50,6 +50,7 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - Scale-sheet minimums and vertical clearances (standards-check.mjs).
 - Line endings: the generator rerun must leave git status clean.
 - Prompts over 20 decisions must be split (RULES 7).
+- Plan labels overlapping each other: readability needs a command that counts label-box overlaps (0 on every plan), not a look by eye.
 
 ## Expected fails the tools revision (before P04) must clear
 - Doors close to a wall end: fire stair A's roof door, the compound gate from the passage.
@@ -66,12 +67,14 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - P06: cover and a dark line on the last 57 m of open yard; hides along Building B's long ground corridor.
 - DR (door kinds) runs before P04 and must answer whether the engine supports one-way doors (fire exits and push-bar gates open from inside only; doors are only locked or unlocked now).
 - HK housekeeping after P03B, before P03R: condense handover, archive old progress and review log lines.
+- P04: Pell's cage and the tenant cage are zone 5 rooms inside the zone 4 data hall (brief rings table); the block plan shows only the hall.
 - Next milestone Michael walks: the B0 massing walk after P03R. For it, prepare what he should judge (scale, distances, storey heights, bridge alignment, crawl spaces, stair cores, entrances and roofs read from the yard).
 
 ## Where we are
-P03B 2f prompt reviewed: right, one small fix (zone 2 and zone 4 legend wording, as a FIXES block on the run message). Next: run P03B-2f (Sonnet medium), review its plans, then Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
+P03B 2f run reviewed: names right, checks reproduce; label overlaps make several stairs, hatches, ladders and the Building B roof label unreadable. Next: rerun P03B-2f with FIXES (overlap-free labels, zone 5 legend wording; Sonnet medium), review G and R plus the five plans not yet seen with names, then Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
 
 ## Review log (newest first; keep the last 15 lines, HK archives older ones)
+- 2026-10-11 P03B 2f: names right (116 of 116, no duplicates, no A30 words, names-only diff same); 13 checks reproduce, git clean. Fix (FIXES rerun): stair, ladder and void labels and building labels skip the room labels' obstacle test, so they overlap (fire stairs, carrier riser hatch over the zone 5 tag, manhole, bridge roof ladders, Building B on the roof plan). Zone 5 legend is right per brief (cages are zone 5 rooms inside the zone 4 hall, drawn by P04); wording clarified, not a question for Michael.
 - 2026-10-11 Planner (2f prompt, plain names): right; 116 names = 87 zones + 7 stairs + 6 ladders + 16 voids; A30 skips without modules and only rack objects are name-matched, so names cannot move checks; line refs hold. One fix: the legend's zone 2 omits goods-in (both goods zones are zone 2) and zone 4 omits the tunnels and locked plant under the yard.
 - 2026-10-11 P03B 2e: right; 13 checks reproduce, generator leaves git clean, no duplicate lines; 7 plan images walked (realistic, flows). Michael: zones unreadable by id; plain names and a worded zone legend required before approval (planner message sent).
 - 2026-10-11 Planner (2d-2b review, LF fix, 2e prompt): right; one fix: the approval message runs on Opus, medium (on the 2e run message).
