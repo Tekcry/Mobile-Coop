@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1f-a done: ring entries site and A; Part 1f-b next)
+Status: DRAFT (Part 1f done: ring entries; Part 1g next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -356,6 +356,41 @@ Notes for P04, 1f-b and P03R:
 - P04: each door goes on its segment; RA01's gates sit east of the gatehouse so the officer sees both; RA07's three security doors share z 43.5 with no zone 2 contact (3.3 G-SEC).
 - P03R: brief 4 east service gate wording (opposite X08).
 - 1f-b: RA12's B reader is the bridge post's door; B's rows start at RB01.
+
+### 7.2 Building B, hall, wing and compound
+| Id | Level | From (ring) | To (ring) | Control | Between | Segment | Exempt | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| RB01 | G | X04 (1) | BG01 (2) | Staff door reader, B or contractor card | S-YARDB / B-GW | z 30, x 52-57 | no | brief 6, 5 BG01 |
+| RB02 | G | X12 (1) | BG07 (2) | Roller door, key switch inside, locked at night | SI-APRON / B-GGOODS | z 30, x 64-70 | no | brief 6; 4.5 (BG07 x 64-70) |
+| RB03 | G | BG01 (2) | BG05 (3) | Reader, B or contractor card | B-GW / B-GCOR | x 57, z 30-36 | no | brief 6, 5 BG01 |
+| RB04 | G | BG07 (2) | BG05 (3) | Reader, B or contractor card | B-GGOODS / B-GCOR | x 60.5, z 30-43 | no | brief 6, 5 BG07 |
+| RB05 | G | BG05 (3) | BG10 (3) | Reader, B-tier or contractor card (the door the technician wedges) | B-GCOR / KB-BG10 | z 56.5, x 58.5-60.5 | no | brief 6; 4.2 KB-BG10 |
+| RB06 | G | BG10 (3) | BG28 (3) | Key | KB-BG10 / B-GHPLANT | x 70, z 56.5-60 | no | brief 6; 4.3 B-GHPLANT |
+| RB07 | G | BG10 (3) | X07 (1) | Passage door, exit only, key cylinder outside | KB-BG10 / S-PASS | z 60, x 58.5-70 | yes (exit) | brief 6, 5 BG10 |
+| RB08 | G | X07 (1) | BG40 (3) | Wing personnel door, key; push-bar exit | S-PASS / W-GEN | z 62, x 52-76 | yes (key) | brief 6, 5 BG40 |
+| RB09 | G | X09 (3) | BG40 (3) | Double doors, key; push-bar exit | S-COMP / W-GEN | x 76, z 62-74 | no | brief 6, 5 BG40; 4.5 |
+| RB10 | G | X08 (1) | X09 (3) | Compound gate, padlock | S-DRIVE / S-COMP | x 100, z 60-76 | yes (key) | brief 6, 5 X09 |
+| RB11 | G | X07 (1) | X09 (3) | Compound gate from the passage, padlock | S-PASS / S-COMP | x 76, z 60-62 | yes (key) | brief 6, 5 X07, X09 |
+| RB12 | G | BG20 (4) | BG24 (4) | Reader, B-tier; free exit | B-GHALL / B-GHPLANT | z 50.5, x 70-96 | no | brief 6, 5 BG24 |
+| RB13 | G | BG20 (4) | BG09 (3) | Equipment door: no outside handle or reader, exit device inside, forced and held alarms to AG11 | B-GHALL / B-GGOODS | x 70, z 36-43 | yes (exit) | brief 6, 5 BG09 |
+| RB14 | G | BG23 (4) | X08 (1) | Fire exit, exit only, no outside hardware, alarmed | B-GHCOOL / S-DRIVE | x 100, z 30-60 | yes (exit) | brief 6, 5 BG23 |
+| RB15 | G | BG12 (3) | X05 (1) | Fire exit, exit only, no outside hardware, alarmed | KB-FS / S-GAP | x 52, z 56.5-60 | yes (exit) | brief 6; 6.1 V-BFS |
+| RB16 | H | BR03 (3) | BR05 (4) | Bolted grille, alarm contact; key switch box beside it; roof key in AG13 | RF-BH / V-BR05 | plan | no | brief 6; 6.1 V-BR05 |
+| RB17 | R | BR02 (3) | BR01 (3) | Roof door, key outside, thumb-turn inside (BF11 below) | B-RBULK / RF-BS | x 58.5, z 56.5-60 | no | brief 6; 4.3 B-RBULK |
+| RB18 | G | BG20 (4) | BU01 (4) | Floor hatches, unlocked, hinged | B-GHALL / U-HALL | plan | no | brief 6; 5.2 U-HALL |
+
+Inside zones (no face; P04 places): BG07 to BG09 reader (B-GGOODS); mantrap BF06 to BF07 outer, BF07 to BF08 inner, BF08 to BF09 sealed door (B-FSEC); BG29 to BG30 / BG33 and BG30 to BG31 readers (B-GHCAR); cages BG21, BG22 (B-GHALL); lift B (G landing on x 57, z 46-48.5 from the BG04 bay; F inside B-FLOBBY; locked off at night).
+
+Self-check (this session):
+- F `node scripts/kestrel/p03b-ring-check-f.mjs`: `ring 35 (RA 17, RB 18), rects 114, fails 0, info 2` (RA14, RB17: bulkheads inside the roof zones, expected).
+- E: `vert 17, fails 0, info 2`; A: `zones 27, fixed 15, fails 0, info 0`; B: `zones 19, fixed 10, fails 0`; D: `zones 26, rows 126 of 126, fails 0`.
+
+Deviations: none.
+
+Notes for P04, 1g and P03R:
+- P04: BG07's door to BG05 goes north of BG08 (or B-GGOODS is reordered), recorded; BF06 opens off BF05 (brief 5) on B-FSEC's west face at x 60.5, z 48.5-53, where the bridge post in BF01 can see it; BG13 opens only into the hall, on x 70, z 43-50.5; RB09's double doors and BG42's fill point share W-GEN's east wall (4.5).
+- P04: brief 5 doors with no brief 6 control, same ring: BF05 to BF13 reader, BG05 to BG15 and BF01 to BF12 locked riser doors, X06 to X07 chain-link gate on x 52, z 60-62.
+- 1g: RB16 is the rappel route R04 (routes.md); RB13 is the hall's only way out to the strip on G, alarmed.
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
