@@ -143,7 +143,7 @@ Zones for G, F, H and R (Part 1c, prompts/P03B-1c.md). Same 85% fill rule as sec
 ### 4.1 Plan form
 - Strip [52, 30, 70, 60], two storeys. One north-south corridor at x 57-60.5 on both floors. West of it a 5 m band (entrance lobby, lockers, WC, riser, lift, main stair); east of it a 9.5 m band against the hall wall (goods on G, the secure route on F) (brief 5 widths; the only split whose widths close, section 2 of the prompt).
 - Main stair B 4 x 8 at x 52-56, z 48.5-56.5, lift on its south side (brief 8). On F it lands on BF01's north side: the bridge lands on the west wall at z 40-43.5 (section 2) into BF01, which with its lift landing fills the west wall z 35-48.5.
-- Fire stair B at the north-west corner, turned east-west, exit on the west wall off its bottom landing (brief 8). Its east end meets BG10 on G and BF05's end bay on F.
+- Fire stair B at the north-west corner, turned east-west; both runs climb west, so every floor landing is at the east end, where it meets BG10 on G, BF05's end bay on F and the roof door on R. Ground exit on the north wall off the bottom landing into the service passage X07 (Michael, 2026-10-11; brief 8 said the west wall, 6.3).
 - BG10 runs along the north wall from the fire stair to the hall block, reaching X07, BG28 and BG11 (brief 5, 7).
 - F: BF01 is the bridge lobby holding the stair landing, lift landing (BF04 as its bay, brief 8) and riser door; BF05 runs north to the fire stair and BF13. The secure column (mantrap, secure corridor, gallery, stair well) is the east band, entered off BF01 and BF05, so the bridge post sees the mantrap post (brief 7).
 - BF13 at the strip's north-east, beside BG24's high level and the hall roof AHU (brief 9).
@@ -158,7 +158,7 @@ Zones for G, F, H and R (Part 1c, prompts/P03B-1c.md). Same 85% fill rule as sec
 | KB-STAIR | G, F | [52, 48.5, 57, 56.5] | G BG02; F BF02 | 5 x 8 (flights 2 x 1.85, 1.0 open well) | brief 8 (core 4.0 x 8.0); lands on BF01 (F) |
 | KB-LIFT | G, F | [54.5, 46, 57, 48.5] | G BG03; F BF03 | 2.5 x 2.5 | brief 8 (south side of the core); doors east |
 | KB-RISER | G, F | [55, 44.5, 57, 46] | G BG15; F BF12 | 2 x 1.5 | brief 8 (mid-strip, beside no stair) |
-| KB-FS | G, F, R | [52, 56.5, 58.5, 60] | G BG12; F BF11; R BR02 | 6.5 x 3.5 (turned) | brief 8 (north-west corner, west wall exit) |
+| KB-FS | G, F, R | [52, 56.5, 58.5, 60] | G BG12; F BF11; R BR02 | 6.5 x 3.5 (turned) | brief 8 (north-west corner); north wall exit into X07 (6.3) |
 | KB-BG10 | G | [58.5, 56.5, 70, 60] | G BG10 | 11.5 x 3.5 (brief 14.5) | brief 5, 7 (X07, BG11, BG12, BG28) |
 | KB-WELL | G, F | [67, 43, 70, 52] | G BG13; F BF10 | 3 x 9 | brief 5, 8, 12a (hall wall z 43-50.5) |
 | KB-GALLERY | F | [67, 37.5, 70, 43] | F BF09 | 3 x 5.5 | brief 5, 12a (looks over the hall z 37.5-43) |
@@ -190,7 +190,7 @@ Check (`node scripts/kestrel/p03b-zones-check-b.mjs`, this session): `zones 19, 
 
 ### 4.4 Deviations
 - Main stair B at x 52-56, z 48.5-56.5, not south-west behind BG01 (brief 8): on F the bridge and BF01 with its lift landing fill the west wall z 35-48.5, so the stair lands on BF01's north side.
-- Fire stair B turned east-west (6.5 along the north wall), so its east end meets BG10 on G and BF05's end bay on F. Exit stays on the west wall off the bottom landing (brief 8).
+- Fire stair B turned east-west (6.5 along the north wall), so its east end meets BG10 on G and BF05's end bay on F. Both runs climb west, so the floor landings are at the east end; the ground exit is on the north wall there, into X07 (6.3).
 - BG10 11.5 long (rect) against the brief's 14.5: the fire stair takes the north wall's west end. It still reaches X07, BG11, BG12 and BG28 (brief 7).
 - BF05 8 long plus a 2 x 3.5 end bay (KB-COR-F2) against the brief's 14: BF01 takes the corridor's south half as the bridge lobby.
 - BG04 and BF04 are bays of BG05 and BF01, not rooms (brief 8: "its lobby is a corridor bay").
@@ -272,12 +272,12 @@ Rise per storey 4.2 / 26 = 0.1615 (brief 8). Clear = rect - 0.3 each way (brief 
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | V-ASTAIR | G, F | [19.5, 43.5, 27.5, 47.5] | dogleg | AG18, AF12 | AG10, AF01 (south side, open) | clear 7.7 x 3.7; going 0.285: 12 x 0.285 + 2 x 2.0 = 7.42 of 7.7; flights 2 x 1.85 = 3.7 of 3.7 | brief 8; 3.2 K-STAIR |
 | V-ALIFT | G, F | [27.5, 46, 30, 48.5] | lift | AG19, AF13 | AG20, AF14 (K-LOBBY, south side) | clear 2.2 x 2.2; pit 1.1; head 3.9 (to 8.1, under the 8.4 roof) | brief 8; 3.2 K-LIFT |
-| V-AFS | G, F, R | [4, 54, 10.5, 57.5] | fire | AG21, AF15, AR04 | AG26, AF21 (south side, fire door); X10 (west wall exit); AR01 (roof door) | clear 6.2 x 3.2; flights 1.45 wide; going 0.285: landings (6.2 - 3.42) / 2 = 1.39 | brief 8; 3.2 K-FS |
+| V-AFS | G, F, R | [4, 54, 10.5, 57.5] | fire | AG21, AF15, AR04 | AG26, AF21 (south side at the west end, fire door); X10 (west wall exit); AR01 (roof door, south side at the west end) | clear 6.2 x 3.2; flights 1.45 wide; going 0.285: landings (6.2 - 3.42) / 2 = 1.39 | brief 8; 3.2 K-FS |
 | V-ARISER | G, F | [7.5, 49, 9.5, 50.5] | riser | AG25, AF16 | west link (locked door); north corridor voids (side doors) | clear 1.7 x 1.2 | brief 8; 3.2 K-RISER, 3.4 |
 | V-APIPE | F, R | [34.5, 43.5, 36.5, 45] | riser | AF19 | AF10 (locked door); AR01 roof hatch in R-PLANT | clear 1.7 x 1.2 | brief 8; 3.2 K-PIPE |
 | V-BSTAIR | G, F | [52, 48.5, 57, 56.5] | dogleg | BG02, BF02 | BG05 (G, east side); BF01 (F, south side) and BF05 (F, east side) | clear 4.7 x 7.7; going 0.285: 7.42 of 7.7; flights 2 x 1.85 + 1.0 open well = 4.7 | brief 8; 4.2 KB-STAIR (widened, 6.3) |
 | V-BLIFT | G, F | [54.5, 46, 57, 48.5] | lift | BG03, BF03 | BG04 (BG05 bay, G), BF04 (BF01 bay, F); east side | clear 2.2 x 2.2; pit 1.1; head 3.9 | brief 8; 4.2 KB-LIFT |
-| V-BFS | G, F, R | [52, 56.5, 58.5, 60] | fire | BG12, BF11, BR02 | BG10 (G, east side, fire door); BF05 end bay (F, east side); X05 (west wall exit); BR01 (roof door) | clear 6.2 x 3.2; going 0.285: landings 1.39 | brief 8; 4.2 KB-FS |
+| V-BFS | G, F, R | [52, 56.5, 58.5, 60] | fire | BG12, BF11, BR02 | BG10 (G, east side, fire door); BF05 end bay (F, east side); X07 (G, north wall exit at the east end); BR01 (roof door, east side) | clear 6.2 x 3.2; going 0.285: landings 1.39 | brief 8; 4.2 KB-FS |
 | V-BRISER | G, F | [55, 44.5, 57, 46] | riser | BG15, BF12 | BG05 (G, locked door); BF01 (F, 4.4) | clear 1.7 x 1.2 | brief 8; 4.2 KB-RISER |
 | V-GAL | G, F | [67, 43, 70, 52] | straight | BG13, BF10 | BF09 (F, south end); BG20 (G, hall side, open) | clear 2.7 x 8.7; going 0.26, landing 2.4: 24 x 0.26 + 2.4 = 8.64 of 8.7; stair 2.4 of 2.7 | brief 8, 12a; 4.2 KB-WELL |
 | V-AG23 | B to G | [38, 45, 40, 47] | shaft | AG23 | TB03 (door in its west wall on x 40); AG22 floor hatch (P04's AG22 covers it) | clear 1.7 x 1.7; 3.6 deep | brief 5 AG23, 8; 5.4 |
@@ -297,8 +297,8 @@ Self-check (this session, on this file):
 ### 6.2 Fire stair per building
 | Building | Escape stair or exits | Levels served | Ground exit | Upper door | Own footprint | Source |
 | --- | --- | --- | --- | --- | --- | --- |
-| A | V-AFS (AG21, AF15, AR04) | G, F, R | X10 on A's west wall | AG26 / AF21 (north corridor), AR01 roof door | yes | brief 8; 3.2 K-FS |
-| B strip | V-BFS (BG12, BF11, BR02) | G, F, R | X05 on B's west wall | BG10 (G), BF05 end bay (F), BR01 roof door | yes | brief 8; 4.2 KB-FS |
+| A | V-AFS (AG21, AF15, AR04) | G, F, R | X10 on A's west wall | AG26 / AF21 (north corridor), AR01 roof door; all at the west end (floor landings, both runs climb east) | yes | brief 8; 3.2 K-FS |
+| B strip | V-BFS (BG12, BF11, BR02) | G, F, R | X07 on B's north wall at the east end | BG10 (G), BF05 end bay (F), BR01 roof door; all at the east end (floor landings, both runs climb west) | yes | brief 8; 4.2 KB-FS |
 | Wing | own exits, single storey | G | X07 / X09 doors | - | yes | brief 6 X07 / X09 row |
 | Hall block | BG23 fire exit and BG20 equipment door, single storey | G | X08 (BG23), BG20 door | - | yes | brief 6, 7 |
 | Bridge | each end leads to that building's fire stair | F | via A or B | AF17 / BF01 to AF21 / BF05 | no (link) | brief 7, 8; 3.2, 4.2 |
@@ -311,12 +311,16 @@ Main stairs are not escape stairs (brief 8, kept by Michael 2026-10-11), so each
 - Fire stair landings 1.39 against 1.45 flight width (check E INFO, both A and B): Michael's rule "flights keep their length, flights fill the width" at going 0.285 in a 6.2 x 3.2 clear core.
 - Gallery stair going 0.26 and landing 2.4 (brief 0.285, 2.0): 24 x 0.285 + 2.0 = 8.84 does not fit 8.7 clear, and a 2.0 landing is shorter than the 2.4 width. 2R + G = 0.583 (0.55-0.70, general knowledge).
 - AG23 shaft rect [38, 45, 40, 47] beside TB03, top under AG22's floor (brief 5 hatch), as TB02 beside the vault (5.3).
+- Fire stair B climbs west on both runs (Michael, 2026-10-11): climbing east put the floor landings at the west end, so BG10's door (G) and BF05's end-bay door (F) met half landings, about 2.1 and 6.3 up. Climbing west puts every floor landing (G, F, R) at the east end by those doors and the roof door. The ground exit moves from the west wall into X05 (brief 8) to the north wall at the east end, z 60, x 57-58.5, into the service passage X07 (1.55 clear, open above, the F landing 4.2 over the exit). The escape runs west along X07 through the X06 gate (push-bar on the passage side) into the rear yard and the gap; the east gate to X09 stays padlocked. Critical path unchanged (it does not use this stair).
+- Fire stair A climbs east (floor landings at the west end, exit X10 on the west wall), so its roof door moves from the bulkhead's east wall to its south wall at the west end, z 54, x 4-5.5 (RA14; the east wall met the half landing). Critical path leg P07 follows it.
 - No other row of the candidate changed.
 
 ### 6.4 Notes for P04, 1f and P03R
 - P04: AG22 covers AG23 [38, 45, 40, 47]; BG31 covers BG32's hatch; an aisle runs under BR05 [80, 48, 82, 50]; BG02's door is on its east wall onto BG05.
 - P03R: brief 8 needs lines for the gallery stair going and landing and the 5 wide B core; fire stair landings: recommend going 0.27 (landings 1.48), game-invisible.
 - 1f: ring doors on stairs and risers come from 6.1's "Opens to" column.
+- P04: fire stair A's corridor doors (AG21 to AG26, AF15 to AF21) go on the south side at the west end, x 4-5.5, where the floor landings are (6.3).
+- P04: fire stair B's exit door (RB15, z 60, x 57-58.5) opens out into X07; BG40's personnel door on z 62 stays clear of it.
 
 ## 7. Ring entries
 Where each control in brief 6 crosses between zones. Segment = the shared zone face P04 puts the door on; "plan" = a hatch or lid inside the zone. Rings from brief 6 (3+ written 3.5).
@@ -337,7 +341,7 @@ Where each control in brief 6 crosses between zones. Segment = the shared zone f
 | RA11 | F | AF17 (3) | LF01 (3) | Reader, A card | F-VEST / K-BRIDGE | x 40, z 40-43.5 | no | brief 6, 5 AF17 |
 | RA12 | F | LF01 (3) | BF01 (3) | Reader, B-tier card or escort PIN; bridge post | K-BRIDGE / B-FLOBBY | x 52, z 40-43.5 | no | brief 6, 5 LF01 |
 | RA13 | G | AG21 (3) | X10 (1) | Fire exit, exit only, no outside hardware, alarmed | V-AFS / S-WPATH | x 4, z 54-57.5 | yes (exit) | brief 6; 6.2 |
-| RA14 | R | AR04 (3) | AR01 (3) | Roof door, key outside, thumb-turn inside (AF15 below) | R-BULK / RF-A | x 10.5, z 54-57.5 | no | brief 6; 3.3 R-BULK |
+| RA14 | R | AR04 (3) | AR01 (3) | Roof door, key outside, thumb-turn inside (AF15 below) | R-BULK / RF-A | z 54, x 4-5.5 | no | brief 6; 3.3 R-BULK; 6.3 (west end, Michael 2026-10-11) |
 | RA15 | G | X03 (1) | TB02 (4) | Heavy lid, carriers' and Ostler's lifting keys | S-YARDA / V-TB02 | plan | yes (ASK-2) | brief 6; 5.3, 6.1 |
 | RA16 | G | AG22 (3) | AG23 (4) | Locked floor hatch, key | G-EAST / V-AG23 | plan | no | brief 6; 6.1 |
 | RA17 | B | TB04 (4) | BG32 (5) | Riser door at the tunnel end, reader B-tier or PIN | T-TUNB / T-RISER | z 30, x 72-74 | no | brief 6; 6.1 V-BG32 |
@@ -374,7 +378,7 @@ Notes for P04, 1f-b and P03R:
 | RB12 | G | BG20 (4) | BG24 (4) | Reader, B-tier; free exit | B-GHALL / B-GHPLANT | z 50.5, x 70-96 | no | brief 6, 5 BG24 |
 | RB13 | G | BG20 (4) | BG09 (3) | Equipment door: no outside handle or reader, exit device inside, forced and held alarms to AG11 | B-GHALL / B-GGOODS | x 70, z 36-43 | yes (exit) | brief 6, 5 BG09 |
 | RB14 | G | BG23 (4) | X08 (1) | Fire exit, exit only, no outside hardware, alarmed | B-GHCOOL / S-DRIVE | x 100, z 30-60 | yes (exit) | brief 6, 5 BG23 |
-| RB15 | G | BG12 (3) | X05 (1) | Fire exit, exit only, no outside hardware, alarmed | KB-FS / S-GAP | x 52, z 56.5-60 | yes (exit) | brief 6; 6.1 V-BFS |
+| RB15 | G | BG12 (3) | X07 (1) | Fire exit, exit only, no outside hardware, alarmed | KB-FS / S-PASS | z 60, x 57-58.5 | yes (exit) | brief 6; 6.1 V-BFS; 6.3 (north wall, Michael 2026-10-11) |
 | RB16 | H | BR03 (3) | BR05 (4) | Bolted grille, alarm contact; key switch box beside it; roof key in AG13 | RF-BH / V-BR05 | plan | no | brief 6; 6.1 V-BR05 |
 | RB17 | R | BR02 (3) | BR01 (3) | Roof door, key outside, thumb-turn inside (BF11 below) | B-RBULK / RF-BS | x 58.5, z 56.5-60 | no | brief 6; 4.3 B-RBULK |
 | RB18 | G | BG20 (4) | BU01 (4) | Floor hatches, unlocked, hinged | B-GHALL / U-HALL | plan | no | brief 6; 5.2 U-HALL |
@@ -389,7 +393,7 @@ Deviations: none.
 
 Notes for P04, 1g and P03R:
 - P04: BG07's door to BG05 goes north of BG08 (or B-GGOODS is reordered), recorded; BF06 opens off BF05 (brief 5) on B-FSEC's west face at x 60.5, z 48.5-53, where the bridge post in BF01 can see it; BG13 opens only into the hall, on x 70, z 43-50.5; RB09's double doors and BG42's fill point share W-GEN's east wall (4.5).
-- P04: brief 5 doors with no brief 6 control, same ring: BF05 to BF13 reader, BG05 to BG15 and BF01 to BF12 locked riser doors, X06 to X07 chain-link gate on x 52, z 60-62.
+- P04: brief 5 doors with no brief 6 control, same ring: BF05 to BF13 reader, BG05 to BG15 and BF01 to BF12 locked riser doors, X06 to X07 chain-link gate on x 52, z 60-62 (push-bar on the passage side: the escape way from RB15, 6.3).
 - 1g: RB16 is the rappel route R04 (routes.md); RB13 is the hall's only way out to the strip on G, alarmed.
 
 ## 8. Critical path
@@ -404,14 +408,14 @@ Solo ghost line, roof-shaft entry, carrier exit (mission brief 4.1). Waypoints a
 | P04 | TA2 | G-NW 15,56 > G-NCOR 15,52.25 > G-NCOR 5.75,52.25 > G-SPINE 5.75,41.75 > G-SPINE 13.5,41.75 > G-SEC 13.5,45 | 0 | 34.5 | MB 4 TA2; brief 5 AG12 |
 | P05 | TA3 | G-SEC 13.5,45 > G-SPINE 13.5,41.75 > G-SPINE 23.5,41.75 > F-SPINE 23.5,41.75 > F-SPINE 13.5,41.75 > F-BW 13.5,45 | 9.0 (V-ASTAIR G to F) | 35.5 | MB 4 TA3; brief 5 AF04; 6.1 |
 | P06 | TA4 | F-BW 13.5,45 > F-SPINE 13.5,41.75 > F-SPINE 23.5,41.75 > G-SPINE 23.5,41.75 > G-SPINE 13.5,41.75 > G-SEC 13.5,45 | 9.0 (V-ASTAIR F to G) | 35.5 | MB 4 TA4; brief 5 AG13 |
-| P07 | TB1 | G-SEC 13.5,45 > G-SPINE 13.5,41.75 > G-SPINE 5.75,41.75 > G-NCOR 5.75,52.25 > V-AFS 7.25,55.75 > RF-A 10.5,55.75 > RF-A 27,42 > RF-A 39.5,41.75 | 18.0 (V-AFS G to R) | 80.54 | MB 4.1 TB1; 6.1 V-AFS, V-LAD1; 3.3 R-PLANT |
+| P07 | TB1 | G-SEC 13.5,45 > G-SPINE 13.5,41.75 > G-SPINE 5.75,41.75 > G-NCOR 5.75,52.25 > V-AFS 7.25,55.75 > RF-A 5,53.5 > RF-A 27,42 > RF-A 39.5,41.75 | 18.0 (V-AFS G to R) | 83.82 | MB 4.1 TB1; 6.1 V-AFS, V-LAD1; 3.3 R-PLANT |
 | P08 | TB1, TB4 | RF-A 39.5,41.75 > L-ROOF 40,41.75 > L-ROOF 52,41.75 > RF-BS 52.5,41.75 > RF-BS 69.75,57.75 > RF-BH 70.5,57.75 > V-BR05 81,49 | 3.0 (V-LAD1 0.6, V-LAD2 0.6, V-LAD3 1.8) | 53.95 | MB 4.1 TB4; 6.1; routes R03 |
 | P09 | 5 | V-BR05 81,49 > B-GHALL 81,49 | 6.0 (rappel) | 6.0 | MB 4.1 TB4, 5; routes R04 |
 | P10 | 6 | B-GHALL 81,49 > B-GHALL 78,36.5 > B-GHCAR 78,33 | 0 | 16.35 | MB 4 obj 6; brief 5 BG29, BG30 |
 | P11 | 7 | B-GHCAR 78,33 > T-RISER 73,31 > T-TUNB 73,28.5 > T-TUNB 49,28.5 > T-VAULT 47,28.5 > T-VAULT 47,24.75 > T-MH 49.75,24.75 | 7.2 (BG32 3.6 down, TB02 3.6 up) | 47.59 | MB 4.1 obj 7; routes R08; 5.2 |
 | P12 | 7 | T-MH 49.75,24.75 > S-YARDB 104,9 > S-LANE 104,4 | 0 (east service gate RA02) | 61.49 | MB 4 obj 7; 7.1 RA02; question 1 |
 
-Total: 495.8 m (RULES 2: 450-650; 495.7 before the 1g-c vault move).
+Total: 499.0 m (RULES 2: 450-650; 495.8 before A's roof door moved to the west end, 6.3; 495.7 before the 1g-c vault move).
 
 ### 8.2 Notes for P04, P06 and 1g-b
 - Insertion at the lane fence's east half (x 84): a west insertion near A gives about 417 m, under the 450 floor; x 84 rather than x 96 keeps 20 m between the way in and the RA02 exit (MB 6 B10, a different path out).
@@ -559,9 +563,11 @@ Deviations (1g-c fixes, Michael 2026-10-11):
 | Q23 | 8.2 | Critical path rooms: AG06 window, AG05 door, west link, fire stair door | P04 | Keep them on the 8.1 lines or record added metres |
 | Q24 | 8.2 | Anchors on the critical path | P06 | Fence anchor at P01, window anchor at AG06 (P02), gate climb at RA02 (P12) |
 | Q25 | 2 row L; Michael 2026-10-11 | Brief 10 line 351 "roof with 1.1 edge rail drains to hoppers" and line 354 "LF02 rail" clash with Michael's decision: bridge roof has a 0.3 m edge upstand, no parapet, no rail | P03R | Line 351: LF02 roof has a 0.3 edge upstand draining to hoppers; line 354: fall-arrest on LF02 is anchor posts, placed by P06. Until reworded, Michael's decision wins (RULES 7) |
+| Q26 | 6.3; Michael 2026-10-11 | Fire stair B's ground exit is on the north wall at the east end into X07, not the west wall into X05: brief 8 line 328 "west end wall into the gap", brief 5 rows BG12 (X05 exit), X05 ("BG12 exit") and X07, brief 6's fire exits row, H6 "end wall by the bottom landing" | P03R | Brief 8: "north wall exit into the service passage at the east end"; brief 5 and 6 rows follow; X07's gate to X06 push-bar on the passage side |
+| Q27 | 6.3, 6.4 | Fire stair doors at the floor-landing ends: A's corridor doors on the south side at the west end (x 4-5.5); B's exit door on z 60, x 57-58.5 clear of BG40's door | P04 | Keep each door at its floor landing |
 
 Settled, so dropped: wing grid offset, bridge walls and level L heights (Michael, 1a); AG22 across the spine (Michael, 1b ASK-4); fire stair walk distances (Michael, 6.2); exit at RA02 (Michael, 8.2 question 1); vault touching A (1g-c fix); 1c, 1d, 1e, 1f-b and 1g notes (done by those parts).
-Rows per For: Michael 0, P03R 12, P04 12, P06 1.
+Rows per For: Michael 0, P03R 13, P04 13, P06 1.
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.

@@ -84,7 +84,7 @@ rule(inside(l3, r('RF-BS')) && l3[2] === 70 && zo(l3, r('B-HSUPPLY')) <= 0 && !o
 const afs = r('V-AFS'), bfs = r('V-BFS');
 rule(inside(afs, A) && afs[0] === A[0] && V['V-AFS']?.lv.includes('R'), 'A fire stair in A, exit on the west wall, to the roof');
 rule(edge(afs, r('K-NCOR-G')) >= 1 && edge(afs, r('K-NCOR-F')) >= 1 && same(afs, r('R-BULK')), 'A fire stair off the north corridor on G and F, bulkhead above');
-rule(inside(bfs, STRIP) && bfs[0] === STRIP[0] && V['V-BFS']?.lv.includes('R'), 'B fire stair in the strip, exit on the west wall, to the roof');
+rule(inside(bfs, STRIP) && bfs[3] === STRIP[3] && edge(bfs, r('S-PASS')) >= 1 && V['V-BFS']?.lv.includes('R'), 'B fire stair in the strip, exit on the north wall into X07 (6.3, Michael 2026-10-11), to the roof');
 rule(edge(bfs, r('KB-BG10')) >= 1 && edge(bfs, r('KB-COR-F2')) >= 1 && same(bfs, r('B-RBULK')), 'B fire stair off BG10 (G) and BF05 end bay (F), bulkhead above');
 for (const f of fail) console.log('FAIL', f);
 for (const i of info) console.log('INFO', i);
