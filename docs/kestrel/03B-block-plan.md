@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1g-a done: critical path; Part 1g-b next)
+Status: DRAFT (Part 1g-b done: adjacency must touch; Part 1g-c next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -426,6 +426,62 @@ Self-check (this session):
 - F: `ring 35 (RA 17, RB 18), rects 114, fails 0, info 2`; E: `vert 17, fails 0, info 2`; A: `zones 27, fixed 15, fails 0, info 0`; B: `zones 19, fixed 10, fails 0`; D: `zones 26, rows 126 of 126, fails 0`.
 
 Deviations: P12 ends at RA02 (x 104, z 8, opposite X08; Michael's fix, 7.1), over the gate to the lane, not at x 73 beside X12. P01 moved from x 96 to x 84 (P02 64.83, was 75.48) so the way in is not beside the exit. Total 495.7, was 472.8.
+
+## 9. Adjacency
+Brief 7 checked at zone level: rooms in one zone, zones sharing a face of at least 1.0, or plans overlapping for above and under. P04 keeps each relation when it places rooms.
+
+### 9.1 Must touch
+| Id | Item | Rooms | Zones | Relation | Result | P04 | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| J01 | T01 | AG11 AG12 AG13 | G-SEC | same | - | the three side by side on the spine face | brief 7 |
+| J02 | T01 | AG11 AG12 AG13 / AG10 | G-SEC / G-SPINE | face | 12.0 on z 43.5, x 7.5-19.5 | doors only on this face, none on the north corridor | brief 7 |
+| J03 | T02 | AG01 AG02 AG03 AG04 | G-FRONT | same | - | AG04's hatch in its wall to AG01 | brief 7 |
+| J04 | T03 | AG08 AG09 | G-GOODS | same | - | - | brief 7 |
+| J05 | T03 | AG08 AG09 / AG22 | G-GOODS / G-EAST | gap 3.5 | 3.5 across the spine, x 34.5-40 | AG22 opposite the goods door across the spine | brief 7; 3.1 (1b-G ASK-4, Michael) |
+| J06 | T04 | AF02 AF03 AF05 AF06 | F-OPS | same | - | AF03 at AF02's door, AF05 and AF06 beside it | brief 7 |
+| J07 | T05 | AF10 / AF11 | F-PLANT / F-NE | face | 6.0 on x 36.5, z 54-60 | AF11 in F-NE's east end | brief 7 |
+| J08 | T05 | AF10 / X13 | F-PLANT / SI-RACK | face | 2.0 on x 40, z 44.5-46.5 | pipes leave AF10's east wall | brief 7, 9; 5.1 |
+| J09 | T06 | AF17 / LF01 / BF01 | F-VEST / K-BRIDGE / B-FLOBBY | line | x 36.5-60.5 on z 40-43.5, all at 4.2 | BF01's bridge door on x 52, z 40-43.5 | brief 7; 2 |
+| J10 | T07 | AG18 / AG19 | K-STAIR / K-LIFT | face | 1.5 on x 27.5, z 46-47.5 | - | brief 7, 8 |
+| J11 | T07 | BG02 / BG03 | KB-STAIR / KB-LIFT | face | 2.5 on z 48.5, x 54.5-57 | - | brief 7, 8 |
+| J12 | T08 | BF06 BF07 / BF05 | B-FSEC / B-FCOR | face | 4.5 on x 60.5, z 48.5-53 | BF06 and BF07 at B-FSEC's north-west corner | brief 7 |
+| J13 | T08 | BF07 / BF01 | B-FSEC / B-FLOBBY | face | 13.5 on x 60.5, z 35-48.5 | mantrap post in sight of the bridge post across BF01 | brief 7 |
+| J14 | T09 | BF08 BF09 | B-FSEC | same | - | BF08 runs from the mantrap to the gallery | brief 7 |
+| J15 | T09 | BF09 / BF10 | KB-GALLERY / KB-WELL | face | 3.0 on z 43, x 67-70 | - | brief 7; 4.2 |
+| J16 | T09 | BF10 BG13 | KB-WELL | same | - | BG13 opens only into the hall (5.4) | brief 7; 6.1 V-GAL |
+| J17 | T10 | BG07 BG09 | B-GGOODS | same | - | BG09 north of BG07 (4.5) | brief 7 |
+| J18 | T10 | BG09 / BG20 | B-GGOODS / B-GHALL | face | 7.0 on x 70, z 36-43 | equipment door on this face | brief 7 |
+| J19 | T10 | BG07 / X04 | B-GGOODS / S-YARDB | face | 9.5 on z 30, x 60.5-70 | roller door to X12 | brief 7; 5.1 |
+| J20 | T11 | BG24 BG25 BG26 BG27 | B-GHPLANT | same | - | BG24 along the south side, rooms north of it | brief 7 |
+| J21 | T11 | BG24 / BG20 | B-GHPLANT / B-GHALL | face | 26.0 on z 50.5, x 70-96 | - | brief 7 |
+| J22 | T11 | BG23 / BG20 | B-GHCOOL / B-GHALL | face | 14.5 on x 96, z 36-50.5 | - | brief 7 |
+| J23 | T11 | BG23 / BU02 | B-GHCOOL / U-COOL | above | 58.0 (x 96-100, z 36-50.5) | - | brief 7; 5.2 |
+| J24 | T12 | BG29 BG30 BG31 BG33 | B-GHCAR | same | - | order BG31, BG30, BG29, BG33 west to east (5.4) | brief 7 |
+| J25 | T12 | BG31 / BG32 | B-GHCAR / T-RISER | above | 4.0 (x 72-74, z 30-32) | BG31's floor hatch over BG32 | brief 7; 6.1 V-BG32 |
+| J26 | T12 | BG32 / TB04 | T-RISER / T-TUNB | face | 2.0 on z 30, x 72-74 | - | brief 7; 5.2 |
+| J27 | T13 | BG28 / BG10 | B-GHPLANT / KB-BG10 | face | 3.5 on x 70, z 56.5-60 | BG28 at B-GHPLANT's west end | brief 7 |
+| J28 | T13 | BF13 / BG10 | B-FNE / KB-BG10 | above | 33.25 (x 60.5-70, z 56.5-60) | - | brief 7 |
+| J29 | T13 | BF13 / BG11 | B-FNE / B-GE | above | 33.25 (x 60.5-70, z 53-56.5) | BG11 touching BG10 (4.5) | brief 7 |
+| J30 | T13 | BF13 / X13 | B-FNE / SI-RACK | gap 10.7 | 10.7 (BF13 north-east, deviation 4.4) | pipes run on in B's service void | brief 7, 9; 4.4 |
+| J31 | T13 | BG11 / BG40 | B-GE / W-GEN | gap 5.5 | 5.5 across BG10 and X07 | - | brief 7 |
+| J32 | T14 | TB01 / X03 | T-VAULT / S-YARDA | above | 48.0 (x 40-48, z 24-30) | - | brief 7; 5.1 |
+| J33 | T14 | TB01 / X05 | T-VAULT / S-GAP | face | 8.0 on z 30, x 40-48 | - | brief 7; 5.1 |
+| J34 | T14 | TB02 / TB01 | T-MH / T-VAULT | face | 1.5 on x 48, z 24-25.5 | - | brief 7; 5.3 |
+
+Notes for P04 and P03R:
+- T03: AG22 sits across the 3.5 spine from goods, not beside it (Michael, 1b-G ASK-4; 3.1). A short trolley run across one corridor is normal practice (general knowledge).
+- T12: BG31 is above the carrier riser BG32, which meets TB04's east end; the ducts still rise once (5.1).
+- T13: BF13 is at the strip's north-east (brief 7 says north-west), 10.7 from where X13 lands; pipes run on in B's service void (4.4). BG11 is 5.5 from the wing across BG10 and X07; cables cross under 6 m.
+- T14: brief 7 asks for equal tunnel runs; TB03 is 17.5 and TB04 26 (5.3). For P03R, not a failure.
+- T08: the 13.5 face is the sight line; P04 keeps BF01's partition to B-FSEC glazed, or an open line, so the two posts see each other (brief 7).
+- T01: AG11-AG13 doors only on the spine face keeps the security suite a single-entry cluster, as real control rooms are (general knowledge).
+
+Self-check (this session):
+- Adjacency `node scripts/kestrel/p03b-adj-check-g.mjs`: `adjacency rows 34, items 14 of 14, rects 114, fails 0`.
+- Path: `path legs 12, total 495.7`, `coverage moves 14, placed 6, open 7`, `fails 0`.
+- F: `ring 35 (RA 17, RB 18), rects 114, fails 0, info 2`; E: `vert 17, fails 0, info 2`; A: `zones 27, fixed 15, fails 0, info 0`; B: `zones 19, fixed 10, fails 0`; D: `zones 26, rows 126 of 126, fails 0`.
+
+Deviations: none (candidate kept unchanged).
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
