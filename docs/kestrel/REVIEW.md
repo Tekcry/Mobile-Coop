@@ -22,6 +22,7 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - Clean runs ("Review chat: SKIP") go straight to their Next step without review.
 - He prefers a FIXES block over a planner round when a fix is small.
 - He has a commercial and industrial electrical background; his own walk of the built massing is the real outside check.
+- Plan images must be readable without the documents (Michael, 2026-10-11): every zone and room shows a short plain name beside its id ("Reception and front offices", "Data hall"), and the legend says in words what each security zone number means ("zone 1 - outside, public"). A plan with bare ids is a fix, not a note.
 
 ## Design decisions to judge against (Michael, all 2026-10-11 unless noted; details in handover.md)
 - P03B is zones only; room rectangles belong to P04.
@@ -68,10 +69,10 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - Next milestone Michael walks: the B0 massing walk after P03R. For it, prepare what he should judge (scale, distances, storey heights, bridge alignment, crawl spaces, stair cores, entrances and roofs read from the yard).
 
 ## Where we are
-P03B 2e done and reviewed: right; all 13 checks reproduce, plan images walked. Next: Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
+P03B 2e done and reviewed: right; all 13 checks reproduce, plan images walked. Michael's fix before approval: plain zone names and a worded zone legend on the plans (planner writes a short part 2f; generator `name` per zone from the 03B zone tables and brief rooms, plans.mjs legend). Then Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
 
 ## Review log (newest first; keep the last 15 lines, HK archives older ones)
-- 2026-10-11 P03B 2e: right; 13 checks reproduce, generator leaves git clean, no duplicate lines; 7 plan images walked (realistic, flows; ground plan labels crowded until P04 names rooms). Approval message sent.
+- 2026-10-11 P03B 2e: right; 13 checks reproduce, generator leaves git clean, no duplicate lines; 7 plan images walked (realistic, flows). Michael: zones unreadable by id; plain names and a worded zone legend required before approval (planner message sent).
 - 2026-10-11 Planner (2d-2b review, LF fix, 2e prompt): right; one fix: the approval message runs on Opus, medium (on the 2e run message).
 - 2026-10-11 P03B 2d-2b: right; fire stair B exit moved to 57.5 to clear the stair's side wall (applied); line-endings fix and front-yard wording sent to the planner (applied).
 - 2026-10-11 P03B 2d-2b prompt: fix; fire stair B exit position.
