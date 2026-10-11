@@ -1,5 +1,6 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1b-G: Building A ground)
+Status: DRAFT (Part 1a done; Part 1b zones next)
+Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
 
@@ -55,8 +56,12 @@ Self-check (node script over a 0.5 grid, this session): `items 13, area sum 8208
 - Bridge roof LF02 at 7.8 gets its own level L (Michael, 2026-10-11). L is a new level id; schema 1 lists B, U, G, F, H, S, R, so schema 1 needs `L` added (P03R or a schema revision).
 
 ## 3. Building A
+Zones for G, F and R are written by Part 1b (prompts/P03B-1b-zones.md). A zone holds brief rooms whose rect areas fill at most 85% of it; the spare space is for P04's extra corridors (Michael, 2026-10-11).
 
-### Ground (G)
+## Appendix A. Room sketch for P04 (not binding)
+Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
+
+### A ground (G) sketch
 Building A [4, 30, 40, 54]. Spine AG10 runs east-west at z 40 to 43.5. South wall z 30 faces yard X03.
 
 | Id | Rect [x0, z0, x1, z1] | Size | Touches (shared edge of 1.0 m or more) | Source |
@@ -91,7 +96,7 @@ Spine band: [10, 40, 40, 43.5] (bridge z0 for 1b-F is 40; bridge rect [40, 40, 5
 
 Self-check (node script, this session): `rects 25, area 731 of 731, grid 0, outside A 0, size mismatches 0, overlaps 0, must-touch failures 1 (AG21-AG10, see ASK-3), AG11-13 vs AG01-03/08/09 touching 0, lift touches AG18 and AG20 only`.
 
-### Leftover (ground)
+### Leftover (sketch)
 133 m2 (864 - 731), unassigned rects (merged by script, rows may be split further):
 
 | Rect [x0, z0, x1, z1] | m2 | Could be |
@@ -106,7 +111,7 @@ Self-check (node script, this session): `rects 25, area 731 of 731, grid 0, outs
 
 Michael answered ASK-1: leftover goes to the branch corridor first; what remains stays as wall and shaft pockets.
 
-### Deviations from the brief (ground)
+### Deviations (sketch)
 - No rect sizes changed. Turned 90 degrees: AG02 (5 x 6), AG06 kept 8 x 6, AG08 (8 x 10), AG09 (3 x 4), AG17 (1.5 x 2), AG18 kept 4 x 8, AG21 (3.5 wide x 6.5 deep).
 - Rooms with one outside wall lose 0.075 more clear (not resized): AG03, AG05, AG06, AG07 (two outside walls), AG08, AG24, AG22, AG23.
 - Spine x 10-40, not 7.5-37.5: it must reach x 40 for the bridge in line with AF17. AG21 is 3.5 wide (x 4-7.5), so a 2.5 m foot lobby sits between AG21 and the spine (leftover [7.5, 40, 10, 43.5]). The "AG21 touches AG10" check therefore reads 0 and the fire door goes through that lobby.
@@ -114,7 +119,7 @@ Michael answered ASK-1: leftover goes to the branch corridor first; what remains
 - AG23 is a separate rect beside AG22 (north edge), not overlapping it (schema 1b rule in the prompt).
 - AG12 and AG13 do not touch each other. AG11 sits between them and touches both. Brief 7 asks AG11 with AG12 and AG13 only.
 
-### Questions and ASKs (ground)
+### ASKs (sketch)
 Michael's answers (2026-10-11): ASK-2 use the leftover for a short branch corridor (kind corridor, 3.5 rect, 3.2 clear, ceiling 2.4, void) so AG05, AG06, AG07, AG14, AG24 each touch a corridor, moving rooms only as far as needed; if it cannot fit, write ASK and stop. ASK-3 accept the foot lobby. ASK-4 accept AG22 across the spine.
 
 Extra self-check rule (every room touches a corridor or its own lobby; AG02 and AG03 use AG01, AG19 uses AG20, AG21 uses its foot lobby, AG23 uses the AG22 hatch): 5 failures, AG05, AG06, AG07, AG14, AG24. Layout unchanged.

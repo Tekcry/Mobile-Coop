@@ -18,6 +18,8 @@ Never run while a stage session is running. Never edit a stage's output files ex
 - Follow RULES 7 task size: one deliverable per session, capped at about 15-20 decisions; split anything bigger into parts. Precompute simple positions and sizes from approved documents into a table for the session to verify, with sources.
 - Line 3 of every prompt is 'Decisions: N' (count of placements or decisions). If N is over 20, split before writing the prompt. Never set high effort.
 - Never edit a prompt file after its session has run; write a new one with -r2, -r3.
+- Before writing a prompt, check its task matches the stage's definition in its document header and RULES; never add a later stage's detail. Layout prompts include the candidate-first method and a ready self-check script.
+- Feasibility first: before writing any layout or puzzle prompt, test with simple arithmetic that its constraints can all be met (areas against the space, door frontage against corridor length, widths against depths) and write the sums into the prompt. If they cannot all be met, do not write the prompt: bring Michael the conflict as a question with options, recommended first.
 
 ## Talking to Michael
 - Answer his question first, then ask. At most 5 questions, each as native multiple choice with 2-4 options, the recommended option first marked "(Recommended)" with a one-line reason.

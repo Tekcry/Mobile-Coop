@@ -82,6 +82,9 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Commit and push after every table written, not only at the end.
 - Prompt writers precompute simple arithmetic (positions and sizes from approved documents) into the prompt as a table for the session to verify, with the source on each row.
 - Never raise CLAUDE_CODE_MAX_OUTPUT_TOKENS or similar limits; a session that hits a limit is too big and is split.
+- Layout and other puzzle tasks are solved on paper, not in thought: within the first reply, write a rough candidate to the file even if it fails checks, run the self-check, then fix failures one at a time, rerunning after each fix and committing after each improvement. If a failure cannot be fixed, write it as ASK with options (recommended first) and stop.
+- A stage never takes on a later stage's detail (a block plan has no rooms; floor plans have no guards).
+- Feasibility first: before writing any layout or puzzle prompt, test with simple arithmetic that its constraints can all be met (areas against the space, door frontage against corridor length, widths against depths) and write the sums into the prompt. If they cannot all be met, do not write the prompt: bring Michael the conflict as a question with options, recommended first.
 
 ### Reading and checking (Michael, 2026-10-11)
 - Before reading a file over 200 lines, list its sections with grep -n '^#' and read only the line ranges you need. Never read the same file twice in a session.

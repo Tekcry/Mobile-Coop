@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED | 133a4d1 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (part 1b-G) | pending | 2026-10-11 |
+| P03B | Block plan | DRAFT (part 1a; 1b zones held: A ground feasibility question) | pending | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -46,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 Michael's decision (planner): P03B back to zones only; 1b-G room table moved to 03B-block-plan.md Appendix A (not binding); handover P03B plan rewritten (1b A zones all levels, 1c B and wing, 1d site/bridge/under-yard/U, 1e cores and checks, 1f path and questions); RULES 7 and PLANNER gain candidate-first, no-later-stage-detail and feasibility-first rules; lessons updated. P03B-1b-zones.md not written: feasibility test fails on A ground (zones at 85% need 829 of 864 m2; north half needs 36.5 m of width in 32.5 m). Question for Michael (recommended first): move AG07 to A first (Recommended: north fits with 1.5 m spare, frontage need 68.5 m); move AG14 to A first; allow full A ground zones; deepen A to 36 x 30.
 - 2026-10-11 Michael's decision (planner): the old Next line is replaced by a "Next step" block (1 /clear, 2 model and effort or Stay on, 3 prompt in a code block); RULES 9, PLANNER Ending, handover and P03B-1b-G-r2 updated.
 - 2026-10-11 Michael's decisions (planner): model and effort on every Next line, "split this smaller" job, pre-run checks, stall rule, chat-question template; RULES 9, PLANNER, handover, lessons and P03B-1b-G-r2 Next line updated.
 - 2026-10-11 Michael's decisions (planner): P03B ASK-5 answered none of a, b, c (d not approved); 1b-G re-run as prompts/P03B-1b-G-r2.md with a frontage table (74.5 m of door frontage needed, 60 m on the spine). RULES 9 4a: a recommended option may never leave a brief requirement unmet or defer it. RULES 7: layout self-checks include door reach, sources, brief coverage. PLANNER: next job starts with a review of the last session. lessons.md updated.
@@ -89,6 +90,7 @@ Older entries: progress-archive.md.
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 P03B is a block plan, zones only (no rooms, doors or objects); room rectangles belong to P04. A zone holds brief rooms whose rect areas fill at most 85% of it; tight blocks the brief fixes are listed, not failures; the spare space is for P04's extra corridors. The A ground frontage shortfall (74.5 m needed, 60 m spine) is solved in P04 inside zones. Layout tasks are candidate-first; feasibility is tested with arithmetic before any layout prompt.
 - 2026-10-11 Next step block: every session ends with "Next step:" 1. Type /clear. 2. Switch to <model>, <effort> (or Stay on). 3. Send the prompt below: (exact message alone in a fenced code block). Replaces the old Next line everywhere.
 - 2026-10-11 Model on Next lines: every Next line names model and effort; "Planner: next" uses Opus, medium; approvals, recording decisions, simple questions use Sonnet, medium. New planner job "split this smaller". Michael's pre-run checks (High or Decisions over 20: do not run), 15-minute stall rule and claude.ai question template in handover.md. ASK-5 option (d) stays unapproved; r2 resolves it.
 - 2026-10-11 Task size: P03B-1b stopped (too big). Sessions are capped by decisions (about 15-20), not lines; layout is one level of one building per session; stage sessions run medium or low effort, never high; commit and push after every table. P03B-1b is split into 1b-G, 1b-F, 1b-R and 1c by floor the same way. RULES 7, PLANNER, lessons updated.

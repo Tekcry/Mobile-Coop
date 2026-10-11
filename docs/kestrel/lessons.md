@@ -18,3 +18,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Spine frontage is a hard budget: count door-metres (about 70 m wanted vs 60 m available) before fixing room depths; a building brief that asks every room for a corridor door and an outside wall cannot be placed as given.
 - A session judging its own work recommended deferring a real defect (five rooms with no door). Universal checks in every self-check, no recommending a deferral, and the planner reviews each session's output before the next prompt.
 - Tell the user the model on every Next line; the planner's review needs the stronger model.
+- Three sessions failed because the planner turned the block plan into room placement, a puzzle the brief made nearly impossible (74.5 m of doors on a 60 m spine). Check each prompt against its stage's definition, test feasibility with arithmetic before any puzzle, zones first, rooms in P04.
