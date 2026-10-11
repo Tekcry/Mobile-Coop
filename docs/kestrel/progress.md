@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (Part 2b done) | b1da33e | 2026-10-11 |
+| P03B | Block plan | DRAFT (Part 2c done) | 11c36ab | 2026-10-11 |
 | HK | Housekeeping | NOT STARTED | | |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
@@ -177,3 +177,4 @@ Older entries: progress-archive.md.
 
 ## BLOCKED
 - 2026-10-11 P02 revision (A 36 x 30) re-approved by Michael (all three questions: recommended).
+- 2026-10-11 P03B 2c: SI-GATE, SI-BIN kind zone; vertical test VT1-VT5 (standards-check.test.mjs 8 pass); generator piece 3 (7 stairs, 16 voids, 5 ladders, V-AG23, SI-RACK). standards corridors 11, doors 0, crawl 2, stairs 7, vertical 31, fails 0, info 2; parse-back rooms 76 stairs 7 voids 16 ladders 5 services 1 fails 0; negative test vertical 30, fails 1. check.mjs 25 PASS, 0 WARN, 3 FAIL, 8 SKIP, 1 INFO. Expected fails: A06 (no walls, 2d); A12 V-LAD1, V-LAD2 (kind roof, tools revision); A14 levels H and R (open roofs, 2d). No ASKs; decisions 1-17 matched their sources.

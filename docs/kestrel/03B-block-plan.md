@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1 done; Part 2b done, 2c next)
+Status: DRAFT (Part 1 done; Part 2c done, 2d next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -43,7 +43,7 @@ Self-check (node script over a 0.5 grid, this session): `items 13, area sum 8208
 
 | Level | Name | Floor (m) | Height (m) | Footprint | Source |
 | --- | --- | --- | --- | --- | --- |
-| B | Under the yard | -3.6 | 3.6 | TB01 [41, 24, 49, 30], TB03 [40, 30, 43, 47.5], TB04 [49, 27, 74, 30], shafts TB02 [49, 24, 50.5, 25.5] and BG32 [72, 30, 74, 32] (Part 1d) | brief 2, 4, 12c |
+| B | Under the yard | -3.6 | 3.6 | TB01 [41, 24, 49, 30], TB03 [40, 30, 43, 47.5], TB04 [49, 27, 74, 30], shafts TB02 [49, 24, 50.5, 25.5] and BG32 [72, 30, 74, 32] and AG23 [38, 45, 40, 47] (Part 2c) | brief 2, 4, 12c |
 | U | Underfloor void | -1.6 | 1.6 to hall floor (1.5 clear under tiles) | [70, 36, 100, 50.5] (BU01, BU02; Part 1d) | brief 2, 12b |
 | G | Ground | 0.0 | 4.2 (A, B strip); 6.6 to roof (hall block, wing) | Listed, not default: A [4, 30, 40, 60], B [52, 30, 100, 60], wing [52, 62, 76, 74]. The wing is outside `meta.buildings` footprints, so the default would miss it | brief 2; schema 2 levels[].footprint |
 | F | First | 4.2 | 4.2 | A [4, 30, 40, 60], B strip [52, 30, 70, 60], link bridge [40, 40, 52, 43.5] (z0 = 40) in the gap, between AF17 and BF01 (Part 1b) | brief 2, 12h |
@@ -129,6 +129,7 @@ Check (`timeout 60 node scripts/kestrel/p03b-zones-check.mjs docs/kestrel/03B-bl
 - AF17 3.5 x 3.5 (clear 3.2 x 3.2) against brief 3.2 x 2.7: it fills the spine width between the spine end and the bridge.
 - AF10 16.5 long (brief 15.7 clear, rect 16): it runs to the north wall so X13 can leave anywhere on z 43.5-60.
 - Door targets off the ring instead of AG10 or AF01: AG16, AG17 (AG26, behind the stair); AG21 and AF15 (north corridor west end; brief 8 says "west end of the spine"); AG25 and AF16 (west link); AF10 (AF21 east end, reader).
+- Risers 25 of 0.168 for every stair, not 4.2 / 26 (A11 and schema stairs[].risers use 0.165): fits still hold, main and fire flights 13 and 12, V-GAL 23 x 0.26 + 2.4 = 8.38 of 8.7 (Part 2c).
 - No other row of the candidate changed.
 
 ### 3.5 Notes for P04, 1c and P03R
@@ -643,3 +644,6 @@ ASK-5 (branch corridor cannot fit the north four; stopped as instructed). Why: t
 
 
 Michael's answer to ASK-5 (2026-10-11): none of (a), (b) or (c); (d) is not approved either. Re-run as prompts/P03B-1b-G-r2.md: every room must reach a corridor or its own lobby by a door, with the brief's rules kept (AG06 on an outside wall with an openable window, no room below its brief clear size). Allowed: an L or loop corridor, a second short corridor, moving rooms, suites where a real building has them. The spine may move only with a written reason.
+- (P06) riser ladders in V-ARISER, V-BRISER and V-APIPE: their foot room is the riser room P04 draws (A12 needs a shaft or plant room).
+- (2d) V-LAD3 with RF-BH: its foot room is the open hall roof, which 2d makes (A01).
+- (tools revision) A12 must accept roof-to-roof ladders (V-LAD1, V-LAD2 stand in L-ROOF, kind roof) before P04.

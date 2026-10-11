@@ -34,3 +34,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 
 - P03B 2a: a shared standards check run by the generator from its first piece catches corridor and crawl sizes before any wall exists; precomputed ring and ceiling tables made the zone piece one pass.
 - P03B 2b: a planner-precomputed overlap table (yards minus their kids, area sums) let the generator hit 75 rooms, overlaps 0 and G area 8208 on the first run.
+- P03B 2c: precomputing the exact summary line (vertical 31, info 2) in the prompt made the generator and the negative test a one-run check; keep doing that for every generator piece.
