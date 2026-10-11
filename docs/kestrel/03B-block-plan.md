@@ -43,7 +43,7 @@ Self-check (node script over a 0.5 grid, this session): `items 13, area sum 8208
 
 | Level | Name | Floor (m) | Height (m) | Footprint | Source |
 | --- | --- | --- | --- | --- | --- |
-| B | Under the yard | -3.6 | 3.6 | TB01 [40, 24, 48, 30], TB03 [40, 30, 43, 47.5], TB04 [48, 27, 74, 30], shafts TB02 [48, 24, 49.5, 25.5] and BG32 [72, 30, 74, 32] (Part 1d) | brief 2, 4, 12c |
+| B | Under the yard | -3.6 | 3.6 | TB01 [41, 24, 49, 30], TB03 [40, 30, 43, 47.5], TB04 [49, 27, 74, 30], shafts TB02 [49, 24, 50.5, 25.5] and BG32 [72, 30, 74, 32] (Part 1d) | brief 2, 4, 12c |
 | U | Underfloor void | -1.6 | 1.6 to hall floor (1.5 clear under tiles) | [70, 36, 100, 50.5] (BU01, BU02; Part 1d) | brief 2, 12b |
 | G | Ground | 0.0 | 4.2 (A, B strip); 6.6 to roof (hall block, wing) | Listed, not default: A [4, 30, 40, 60], B [52, 30, 100, 60], wing [52, 62, 76, 74]. The wing is outside `meta.buildings` footprints, so the default would miss it | brief 2; schema 2 levels[].footprint |
 | F | First | 4.2 | 4.2 | A [4, 30, 40, 60], B strip [52, 30, 70, 60], link bridge [40, 40, 52, 43.5] (z0 = 40) in the gap, between AF17 and BF01 (Part 1b) | brief 2, 12h |
@@ -235,10 +235,10 @@ Check (`node scripts/kestrel/p03b-zones-check-b.mjs`, this session): `zones 19, 
 | SI-APRON | G | [60, 22, 70, 30] | X12 | 80 | loading apron in front of BG07 (x 64-70, 1c 4.5) | brief 5 X12 (10 x 8) |
 | SI-RACK | G (5.0-6.5) | [40, 44.5, 52, 46.5] | X13 | 24 | pipe rack, AF10 to B west wall into the BF01 zone, 1.0 north of the bridge | brief 4, 5 X13, 9 |
 | L-ROOF | L | [40, 40, 52, 43.5] | LF02 | 42 | bridge roof | section 2; brief 5 LF02 |
-| T-VAULT | B | [40, 24, 48, 30] | TB01 | 48 | carrier vault under the yard in front of the gap | brief 4, 5 TB01 (7.7 x 5.7) |
-| T-MH | B to G | [48, 24, 49.5, 25.5] | TB02 | 2.25 | manhole shaft on the vault's east wall, lid in the X03 aisle (see 5.3) | brief 4, 5 TB02 (1.2 x 1.2) |
+| T-VAULT | B | [41, 24, 49, 30] | TB01 | 48 | carrier vault under the yard in front of the gap | brief 4, 5 TB01 (7.7 x 5.7) |
+| T-MH | B to G | [49, 24, 50.5, 25.5] | TB02 | 2.25 | manhole shaft on the vault's east wall, lid in the X03 aisle (see 5.3) | brief 4, 5 TB02 (1.2 x 1.2) |
 | T-TUNA | B | [40, 30, 43, 47.5] | TB03 | 52.5 | A branch north under the gap to AG23 on G-EAST's east wall | brief 5 TB03 (2.6 wide) |
-| T-TUNB | B | [48, 27, 74, 30] | TB04 | 78 | B branch east under the yard along B's south wall to BG32 | brief 5 TB04 (2.6 wide) |
+| T-TUNB | B | [49, 27, 74, 30] | TB04 | 75 | B branch east under the yard along B's south wall to BG32 | brief 5 TB04 (2.6 wide) |
 | T-RISER | B to G | [72, 30, 74, 32] | BG32 | 4 | carrier riser under BG31 at the carrier band's west end | brief 5 BG32 (1.7 x 1.7) |
 | U-HALL | U | [70, 36, 96, 50.5] | BU01 | 377 | hall underfloor void | brief 5 BU01 (25.7 x 14.2), 12b |
 | U-COOL | U | [96, 36, 100, 50.5] | BU02 | 58 | cooling gallery plenum | brief 5 BU02 (3.7 x 14.2) |
@@ -251,9 +251,9 @@ Self-check (this session): D `zones 26, rows 126 of 126, fails 0`; A `zones 27, 
 
 ### 5.3 Deviations
 - TB03 is 17.5 long (brief 10): A grew to 30 deep and AG22 / AG23 stay in G-EAST (1b, Michael's ASK-4).
-- TB04 is 26 long (brief 30): BG31 at the carrier band's west end.
-- Manhole TB02 beside the vault, not over it: a shaft is its own rect (Appendix A rule, as AG23 beside AG22). Its lid at x 48-49.5 lies in X03 (x 0-52), not X04 as brief 5 lists; it is still the aisle in front of the gap (brief 4).
-- Level B sum 184.75 (brief 170): the tunnel lengths above.
+- TB04 is 25 long (brief 30): BG31 at the carrier band's west end.
+- Manhole TB02 beside the vault, not over it: a shaft is its own rect (Appendix A rule, as AG23 beside AG22). Its lid at x 49-50.5 lies in X03 (x 0-52), not X04 as brief 5 lists; it is still the aisle in front of the gap (brief 4).
+- Level B sum 181.75 (brief 170): the tunnel lengths above.
 
 ### 5.4 Notes for P04, 1e and P03R
 - P04: carrier band west to east BG31, BG30, BG29, BG33 (x 70-74, 74-83, 83-87, 87-96). AG23 on G-EAST's east wall within z 43.5-47.5.
@@ -282,7 +282,7 @@ Rise per storey 4.2 / 26 = 0.1615 (brief 8). Clear = rect - 0.3 each way (brief 
 | V-GAL | G, F | [67, 43, 70, 52] | straight | BG13, BF10 | BF09 (F, south end); BG20 (G, hall side, open) | clear 2.7 x 8.7; going 0.26, landing 2.4: 24 x 0.26 + 2.4 = 8.64 of 8.7; stair 2.4 of 2.7 | brief 8, 12a; 4.2 KB-WELL |
 | V-AG23 | B to G | [38, 45, 40, 47] | shaft | AG23 | TB03 (door in its west wall on x 40); AG22 floor hatch (P04's AG22 covers it) | clear 1.7 x 1.7; 3.6 deep | brief 5 AG23, 8; 5.4 |
 | V-BG32 | B to G | [72, 30, 74, 32] | shaft | BG32 | TB04 (riser door, north wall); BG31 floor hatch | clear 1.7 x 1.7; 3.6 | brief 5 BG32, 8; 5.2 T-RISER |
-| V-TB02 | B to G | [48, 24, 49.5, 25.5] | manhole | TB02 | TB01 (east wall); X03 lid | clear 1.2 x 1.2; 3.6 | brief 5 TB02, 8; 5.2 T-MH |
+| V-TB02 | B to G | [49, 24, 50.5, 25.5] | manhole | TB02 | TB01 (east wall); X03 lid | clear 1.2 x 1.2; 3.6 | brief 5 TB02, 8; 5.2 T-MH |
 | V-BR05 | H to G | [80, 48, 82, 50] | shaft | BR05 | BR03 grille (in B-HSUPPLY); BG20 diffuser panel, 6.0 drop | clear 1.7 x 1.7 | brief 5 BR05, 9; 4.3 B-HSUPPLY |
 | V-LAD1 | R to L | [39.5, 41, 40, 42.5] | ladder | - | AR01 east edge, 0.6 down over the parapet to LF02 | hooped, step-over | brief 8, 10; 3.5 |
 | V-LAD2 | R to L | [52, 41, 52.5, 42.5] | ladder | - | BR01 west edge, 0.6 down over the parapet to LF02 | hooped, step-over | brief 8, 10; 4.5 |
@@ -408,10 +408,10 @@ Solo ghost line, roof-shaft entry, carrier exit (mission brief 4.1). Waypoints a
 | P08 | TB1, TB4 | RF-A 39.5,41.75 > L-ROOF 40,41.75 > L-ROOF 52,41.75 > RF-BS 52.5,41.75 > RF-BS 69.75,57.75 > RF-BH 70.5,57.75 > V-BR05 81,49 | 3.0 (V-LAD1 0.6, V-LAD2 0.6, V-LAD3 1.8) | 53.95 | MB 4.1 TB4; 6.1; routes R03 |
 | P09 | 5 | V-BR05 81,49 > B-GHALL 81,49 | 6.0 (rappel) | 6.0 | MB 4.1 TB4, 5; routes R04 |
 | P10 | 6 | B-GHALL 81,49 > B-GHALL 78,36.5 > B-GHCAR 78,33 | 0 | 16.35 | MB 4 obj 6; brief 5 BG29, BG30 |
-| P11 | 7 | B-GHCAR 78,33 > T-RISER 73,31 > T-TUNB 73,28.5 > T-TUNB 49,28.5 > T-VAULT 47,28.5 > T-VAULT 47,24.75 > T-MH 48.75,24.75 | 7.2 (BG32 3.6 down, TB02 3.6 up) | 46.59 | MB 4.1 obj 7; routes R08; 5.2 |
-| P12 | 7 | T-MH 48.75,24.75 > S-YARDB 104,9 > S-LANE 104,4 | 0 (east service gate RA02) | 62.45 | MB 4 obj 7; 7.1 RA02; question 1 |
+| P11 | 7 | B-GHCAR 78,33 > T-RISER 73,31 > T-TUNB 73,28.5 > T-TUNB 49,28.5 > T-VAULT 47,28.5 > T-VAULT 47,24.75 > T-MH 49.75,24.75 | 7.2 (BG32 3.6 down, TB02 3.6 up) | 47.59 | MB 4.1 obj 7; routes R08; 5.2 |
+| P12 | 7 | T-MH 49.75,24.75 > S-YARDB 104,9 > S-LANE 104,4 | 0 (east service gate RA02) | 61.49 | MB 4 obj 7; 7.1 RA02; question 1 |
 
-Total: 495.7 m (RULES 2: 450-650).
+Total: 495.8 m (RULES 2: 450-650; 495.7 before the 1g-c vault move).
 
 ### 8.2 Notes for P04, P06 and 1g-b
 - Insertion at the lane fence's east half (x 84): a west insertion near A gives about 417 m, under the 450 floor; x 84 rather than x 96 keeps 20 m between the way in and the RA02 exit (MB 6 B10, a different path out).
@@ -464,15 +464,15 @@ Brief 7 checked at zone level: rooms in one zone, zones sharing a face of at lea
 | J29 | T13 | BF13 / BG11 | B-FNE / B-GE | above | 33.25 (x 60.5-70, z 53-56.5) | BG11 touching BG10 (4.5) | brief 7 |
 | J30 | T13 | BF13 / X13 | B-FNE / SI-RACK | gap 10.7 | 10.7 (BF13 north-east, deviation 4.4) | pipes run on in B's service void | brief 7, 9; 4.4 |
 | J31 | T13 | BG11 / BG40 | B-GE / W-GEN | gap 5.5 | 5.5 across BG10 and X07 | - | brief 7 |
-| J32 | T14 | TB01 / X03 | T-VAULT / S-YARDA | above | 48.0 (x 40-48, z 24-30) | - | brief 7; 5.1 |
-| J33 | T14 | TB01 / X05 | T-VAULT / S-GAP | face | 8.0 on z 30, x 40-48 | - | brief 7; 5.1 |
-| J34 | T14 | TB02 / TB01 | T-MH / T-VAULT | face | 1.5 on x 48, z 24-25.5 | - | brief 7; 5.3 |
+| J32 | T14 | TB01 / X03 | T-VAULT / S-YARDA | above | 48.0 (x 41-49, z 24-30) | - | brief 7; 5.1 |
+| J33 | T14 | TB01 / X05 | T-VAULT / S-GAP | face | 8.0 on z 30, x 41-49 | - | brief 7; 5.1 |
+| J34 | T14 | TB02 / TB01 | T-MH / T-VAULT | face | 1.5 on x 49, z 24-25.5 | - | brief 7; 5.3 |
 
 Notes for P04 and P03R:
 - T03: AG22 sits across the 3.5 spine from goods, not beside it (Michael, 1b-G ASK-4; 3.1). A short trolley run across one corridor is normal practice (general knowledge).
 - T12: BG31 is above the carrier riser BG32, which meets TB04's east end; the ducts still rise once (5.1).
 - T13: BF13 is at the strip's north-east (brief 7 says north-west), 10.7 from where X13 lands; pipes run on in B's service void (4.4). BG11 is 5.5 from the wing across BG10 and X07; cables cross under 6 m.
-- T14: brief 7 asks for equal tunnel runs; TB03 is 17.5 and TB04 26 (5.3). For P03R, not a failure.
+- T14: brief 7 asks for equal tunnel runs; TB03 is 17.5 and TB04 25 (5.3). For P03R, not a failure.
 - T08: the 13.5 face is the sight line; P04 keeps BF01's partition to B-FSEC glazed, or an open line, so the two posts see each other (brief 7).
 - T01: AG11-AG13 doors only on the spine face keeps the security suite a single-entry cluster, as real control rooms are (general knowledge).
 
@@ -483,6 +483,53 @@ Self-check (this session):
 
 Deviations: none (candidate kept unchanged).
 
+
+### 9.2 Must not touch
+| Id | Item | Rooms | Zones | Relation | Result | P04 | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| N01 | U01 | AG19 / AG23 | K-LIFT / G-EAST | none | 4.5 across G-ELINK | - | brief 7 |
+| N02 | U01 | BG03 / BG13 | KB-LIFT / B-GE | none | 3.5 across BG05 | - | brief 7 |
+| N03 | U01 | BF03 / BF07 BF08 BF09 BF10 | KB-LIFT / B-FSEC | none | 3.5 across BF01 | - | brief 7 |
+| N04 | U01 | BG03 BF03 / BG15 BF12 | KB-LIFT / KB-RISER | door | 2.0 on z 46, x 55-57 | no opening between shaft and riser | brief 7; 6.1 |
+| N05 | U02 | BG20 / X04 | B-GHALL / S-YARDB | none | 6.0 across BG29-BG33 | - | brief 7 |
+| N06 | U02 | BG20 / BG05 | B-GHALL / B-GCOR | none | 9.5 across B-GGOODS and B-GE | hall doors on x 70 only the equipment door (z 36-43) and the well (z 43-50.5) | brief 7; 9.1 J16, J18 |
+| N07 | U03 | BF07 / AG08 | B-FSEC / G-GOODS | none | 20.5 across the gap | - | brief 7 |
+| N08 | U03 | BF07 / BG07 BG09 | B-FSEC / B-GGOODS | level | F over G | mantrap doors only to BF06 and BF08 | brief 7 |
+| N09 | U04 | AG10 / AG11 AG12 AG13 | G-SPINE / G-SEC | apart | 12.0 on z 43.5 | void stops at the suite's wall | brief 7 |
+| N10 | U04 | AG26 / AG11 AG12 AG13 | G-NCOR / G-SEC | apart | 12.0 on z 50.5 | void stops at the suite's wall | brief 7 |
+| N11 | U04 | AG10 / AG22 | G-SPINE / G-EAST | apart | 5.5 on z 43.5 | - | brief 7 |
+| N12 | U04 | AG26 / AG22 | G-NCOR / G-EAST | apart | 5.5 on z 50.5 | - | brief 7 |
+| N13 | U04 | AG26 / AG24 | G-NCOR / G-NE | apart | 20.0 on z 54 | - | brief 7 |
+| N14 | U04 | AF01 / AF02 AF05 AF06 | F-SPINE / F-OPS | apart | 25.5 on z 40 | - | brief 7 |
+| N15 | U04 | AF01 / AF04 | F-SPINE / F-BW | apart | 12.0 on z 43.5 | - | brief 7 |
+| N16 | U04 | AF21 / AF04 | F-NCOR / F-BW | apart | 12.0 on z 50.5 | - | brief 7 |
+| N17 | U04 | AF01 / AF10 | F-SPINE / F-PLANT | apart | 0 (corner at x 36.5, z 43.5) | - | brief 7 |
+| N18 | U04 | AF21 / AF10 | F-NCOR / F-PLANT | apart | 3.5 on x 36.5 | - | brief 7 |
+| N19 | U04 | AF21 / AF11 | F-NCOR / F-NE | apart | 15.5 on z 54 | - | brief 7 |
+| N20 | U05 | BG28 / BG20 | B-GHPLANT / B-GHALL | door | 26.0 on z 50.5 | BG28's only door to BG10 (J27); BG24's reader door to the hall | brief 6, 7 |
+| N21 | U06 | BG40 / BG10 BG12 | W-GEN / B-GN | none | 2.0 across X07 | - | brief 7; 5.2 |
+| N22 | U06 | BG40 / BG24 BG28 | W-GEN / B-GHPLANT | none | 2.0 across X07 | - | brief 7; 5.2 |
+| N23 | U07 | AG01 AG02 AG03 / AG11 AG12 AG13 | G-FRONT / G-SEC | none | 3.5 across AG10 | - | brief 7 |
+| N24 | U07 | AG08 AG09 / AG11 AG12 AG13 | G-GOODS / G-SEC | none | 9.66 | - | brief 7 |
+| N25 | U08 | TB01 / AG08 AG09 | T-VAULT / G-GOODS | gap 1.0 | 1.0 (x 40-41 on z 30) | - | brief 7; 5.3 |
+| N26 | U08 | TB01 / BG01 | T-VAULT / B-GW | none | 3.0 across X05 | - | brief 7 |
+
+Notes for P04 and P03R:
+- U01: lifts also sit beside their main stairs (J10, J11) and stairs are slab-walled, so "slab-walled room" reads as any room but the lift's own lobby and main stair. Lift B's shaft shares 2.0 on z 46 with riser B (N04) with no opening; lifts serve staff floors only, and a shared core wall is normal practice (general knowledge). P03R tidies brief 7's wording.
+- U04: voids lie over the corridor zones only. A shared face is allowed: the room's wall runs to the slab and closes the void. N17 is a corner contact, face 0.
+- U05: BG28 shares B-GHPLANT with BG24, which must face the hall (J21); BG28's only door is to BG10 (J27).
+- U08: vault moved 1.0 east (1g-c fix, Michael), so it no longer meets A's footprint; it stays under open yard in front of the gap.
+- U02: the hall's only ground-floor door to the strip is RB13 (exit only, alarmed); P04 adds no other door on x 70 (N06).
+
+Self-check (this session):
+- Adjacency `node scripts/kestrel/p03b-adj-check-g.mjs`: `adjacency rows 34, items 14 of 14, apart rows 26, items 8 of 8, rects 114, fails 0`.
+- Path: `path legs 12, total 495.8`, `coverage moves 14, placed 6, open 7`, `fails 0`.
+- F: `ring 35 (RA 17, RB 18), rects 114, fails 0, info 2`; E: `vert 17, fails 0, info 2`; A: `zones 27, fixed 15, fails 0, info 0`; B: `zones 19, fixed 10, fails 0`; D: `zones 26, rows 126 of 126, fails 0`.
+
+Deviations (1g-c fixes, Michael 2026-10-11):
+- Vault and manhole 1.0 east so the vault does not touch Building A (brief 7): T-VAULT [41, 24, 49, 30], T-MH [49, 24, 50.5, 25.5], TB04 [49, 27, 74, 30] (25 long, area 75). TB03 unchanged, meets the vault over x 41-43 (2.0). Updated in section 2 level B row, 5.2, 5.3, 6.1 V-TB02, 8.1 P11 / P12 (lengths 47.59, 61.49; total 495.8), 9.1 J32-J34 and T14. 8.2 question 1 keeps its distances as asked at the time.
+- Check D rule for TB03 relaxed from a 2.6 to a 2.0 meeting with the vault (script comment); a full-width meeting would need TB03 4 wide.
+- N25 gap 1.0, not 0.0; N26 3.0, not 4.0.
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
 

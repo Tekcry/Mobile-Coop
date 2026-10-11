@@ -47,7 +47,8 @@ rule(area(V) >= 48 && V[3] <= 30 && V[1] >= 8 && xo(V, GAP) >= 6, 'vault TB01 8 
 rule(area(MH) === 2.25 && MH[3] <= 30 && edge(MH, V) >= 1.5 && xo(MH, GAP) > 0, 'manhole TB02 1.5 x 1.5 in the yard in front of the gap, beside the vault (brief 4)');
 const gEast = (() => { const l = lines.find((x) => /^\| G-EAST \|/.test(x)); return l ? JSON.parse(cells(l)[2]) : [0, 0, 0, 0]; })();
 const w = (r) => Math.min(r[2] - r[0], r[3] - r[1]);
-rule(w(TA) - 0.3 >= 2.6 && edge(TA, V) >= 2.6 && edge(TA, gEast) >= 2, 'tunnel TB03 2.6 clear, from the vault to AG23 on G-EAST (brief 5)');
+// 1g-c (Michael, 2026-10-11): vault moved 1.0 east off A; TB03 meets it over x 41-43 (2.0, a 1.7 clear door), not its full width.
+rule(w(TA) - 0.3 >= 2.6 && edge(TA, V) >= 2.0 && edge(TA, gEast) >= 2, 'tunnel TB03 2.6 clear, from the vault to AG23 on G-EAST (brief 5)');
 rule(w(TBB) - 0.3 >= 2.6 && edge(TBB, V) >= 2.6 && edge(TBB, BR) >= 1.5, 'tunnel TB04 2.6 clear, from the vault to the BG32 riser door (brief 5)');
 const car = (() => { const l = lines.find((x) => /^\| B-GHCAR \|/.test(x)); return l ? JSON.parse(cells(l)[2]) : [0, 0, 0, 0]; })();
 rule(area(BR) === 4 && inside(BR, car) && inside(BR, [70, 30, 74, 36]), 'riser BG32 2 x 2 under BG31 at the carrier band west end x 70-74 (1d decision)');
