@@ -30,7 +30,7 @@ function trips(id, mut, want = 'FAIL', extra = {}) {
   return results;
 }
 
-const room = (id, level, rect, over = {}) => ({ id, level, name: id, kind: 'room', rect, ceiling: 3.0, finish: 'carpet tile', minShort: 3.0, open: [], ring: 2, module: '', ...over });
+const room = (id, level, rect, over = {}) => ({ id, level, name: id, kind: 'room', rect, ceiling: 3.0, finish: 'carpet tile', minShort: 3.0, open: [], ring: 1, module: '', ...over });
 const object = (id, rect, over = {}) => ({ id, level: 'G', name: 'Test box', rect, h: 1.0, y: 0, noLedge: false, reason: 'test object', ...over });
 
 // ---------- clean sample ----------
@@ -197,7 +197,7 @@ test('A14 uses a level footprint when the level has one', () => {
   const half = (a) => {
     find(a.levels, 'F').footprint = [2, 2, 17, 7];
     a.rooms = a.rooms.filter((r) => r.id !== 'F01' && r.id !== 'F02');
-    a.rooms.push(room('F01', 'F', [2, 2, 11, 7], { ring: 3 }), room('F02', 'F', [11, 2, 17, 7], { ring: 3 }));
+    a.rooms.push(room('F01', 'F', [2, 2, 11, 7], { ring: 2 }), room('F02', 'F', [11, 2, 17, 7], { ring: 2 }));
     a.voids[0].rect = [13, 3, 15.5, 6.5];
   };
   assert.equal(status(run(half), 'A14'), 'PASS');
@@ -316,19 +316,20 @@ test('A26 does not count a gap with a tall object or wall standing across it (a 
   trips('A26', (a) => { a.objects.push(rack('O010', 3.0), object('O011', [2.4, 5, 3.0, 5.5], { name: 'Half rack', h: 2, noLedge: true })); });
 });
 
-test('A28 trips on a missing or unknown ring', () => {
+test('A28 trips on a missing or unknown level', () => {
   assert.equal(status(run(), 'A28'), 'PASS');
   trips('A28', (a) => { delete a.rooms[0].ring; });
   trips('A28', (a) => { a.rooms[0].ring = 6; });
   trips('A28', (a) => { a.rooms[0].ring = '3'; });
-  assert.equal(status(run((a) => { a.rooms[0].ring = '3+'; }), 'A28'), 'PASS');
+  trips('A28', (a) => { a.rooms[0].ring = '3+'; });
+  assert.equal(status(run((a) => { a.rooms[0].ring = 0; }), 'A28'), 'PASS');
 });
 
-test('A29 steps are 1-2-3-4-5; 3+ is a side room of 3 only', () => {
+test('A29 joins rooms at most one level apart (0-5)', () => {
   const rings = (r1, r2, mut) => (a) => { find(a.rooms, 'G01').ring = r1; find(a.rooms, 'G02').ring = r2; mut?.(a); };
   assert.equal(status(run(), 'A29'), 'PASS');
-  for (const [r1, r2] of [[1, 3], [2, 4], [5, 3], [1, 5], [2, '3+'], ['3+', 2], ['3+', 4], [4, '3+'], ['3+', 5]]) trips('A29', rings(r1, r2));
-  for (const [r1, r2] of [[1, 2], [2, 3], [3, 4], [4, 3], [4, 5], [4, 4], [3, '3+'], ['3+', 3], ['3+', '3+']]) assert.equal(status(run(rings(r1, r2)), 'A29'), 'PASS', `${r1} to ${r2}`);
+  for (const [r1, r2] of [[0, 2], [2, 4], [5, 3], [1, 5], [0, 5]]) trips('A29', rings(r1, r2));
+  for (const [r1, r2] of [[0, 1], [1, 2], [2, 3], [3, 4], [4, 3], [4, 5], [4, 4], [0, 0]]) assert.equal(status(run(rings(r1, r2)), 'A29'), 'PASS', `${r1} to ${r2}`);
   // exemptions: an exit-only fire door, the carriers' entrance (module flag or the opening's ringExempt), and a window
   assert.equal(status(run(rings(2, 5, (a) => { find(a.openings, 'D001').type = 'fire-door'; })), 'A29'), 'PASS');
   assert.equal(status(run(rings(2, 5, (a) => { find(a.rooms, 'G02').module = 'vault'; }), { modules: { vault: { carrier: true } } }), 'A29'), 'PASS');
@@ -339,7 +340,7 @@ test('A29 steps are 1-2-3-4-5; 3+ is a side room of 3 only', () => {
 /** The sample as a kit building: rooms carry modules, and every floor has a staff WC and a janitor cupboard (kept outside the footprint, kind shaft so only the stair rules look at them). */
 const kit = (a) => {
   find(a.rooms, 'G01').module = 'lobby'; find(a.rooms, 'G02').module = 'main-stair'; find(a.rooms, 'F01').module = 'office'; find(a.rooms, 'F02').module = 'main-stair';
-  for (const L of ['G', 'F']) a.rooms.push(room(`${L}90`, L, [20, 2, 22, 4], { kind: 'shaft', name: 'Staff WC', module: 'staff-wc', ring: 3 }), room(`${L}91`, L, [20, 4, 22, 6], { kind: 'shaft', name: 'Janitor', module: 'janitor', ring: 3 }));
+  for (const L of ['G', 'F']) a.rooms.push(room(`${L}90`, L, [20, 2, 22, 4], { kind: 'shaft', name: 'Staff WC', module: 'staff-wc', ring: 2 }), room(`${L}91`, L, [20, 4, 22, 6], { kind: 'shaft', name: 'Janitor', module: 'janitor', ring: 2 }));
 };
 const fireStair = (id, from, to, rect) => ({ id, kind: 'fire', from, to, rect, up: 'N', width: 1, risers: 20 });
 const exitDoor = { id: 'D090', wall: 'W002', at: 5, w: 1.2, h: 2.1, sill: 0, type: 'fire-door', between: ['G02', ''], locked: false, key: '', reason: 'Exit-only discharge from the stair.' };
@@ -356,7 +357,7 @@ test('A30: an occupied floor needs a staff WC and a janitor cupboard', () => {
   assert.ok(lines.some((l) => /level F: occupied floor has no janitor/.test(l)), lines.join('|'));
   assert.ok(!lines.some((l) => /level G: occupied floor has no janitor|level F: occupied floor has no staff WC/.test(l)));
   // a manual room with no module is found by its name
-  const named = a30((a) => { a.rooms = a.rooms.filter((r) => r.id !== 'G90'); a.rooms.push(room('G92', 'G', [22, 2, 24, 4], { kind: 'shaft', name: 'Staff toilets', ring: 3 })); });
+  const named = a30((a) => { a.rooms = a.rooms.filter((r) => r.id !== 'G90'); a.rooms.push(room('G92', 'G', [22, 2, 24, 4], { kind: 'shaft', name: 'Staff toilets', ring: 2 })); });
   assert.ok(!named.some((l) => /level G: occupied floor has no staff WC/.test(l)), named.join('|'));
 });
 
@@ -380,7 +381,7 @@ test('A30: travel to the nearest fire stair stays inside the escape distance (45
   assert.ok(a30(one, { facts: factsWith({ 'escape.oneWay': 5 }) }).some((l) => /F01 \(F\): 7\.5 m to the nearest fire stair, limit 5 m \(one direction\)/.test(l)));
   assert.deepEqual(a30(two, { facts: factsWith({ 'escape.oneWay': 5 }) }), []);
   assert.ok(a30(two, { facts: factsWith({ 'escape.twoWay': 5 }) }).some((l) => /limit 5 m \(two directions\)/.test(l)));
-  const lost = a30((a) => { one(a); a.rooms.push(room('F95', 'F', [30, 2, 34, 6], { ring: 3 })); });
+  const lost = a30((a) => { one(a); a.rooms.push(room('F95', 'F', [30, 2, 34, 6], { ring: 2 })); });
   assert.ok(lost.some((l) => /F95 \(F\): no door route to a fire stair/.test(l)), lost.join('|'));
 });
 
@@ -405,7 +406,7 @@ const security = () => ({
   zones: [{ id: 'core', rooms: ['G02'], secure: false }],
   cards: [{ id: 'card-1', opens: ['rd-1'], heldBy: 'g-s2-manager' }],
 });
-const ringed = (a) => { find(a.rooms, 'G02').ring = 3; };
+const ringed = (a) => { find(a.rooms, 'G02').ring = 2; };
 function secTrips(id, mutSec, mutArch, want = 'FAIL') {
   const sec = security();
   mutSec?.(sec);
@@ -497,15 +498,15 @@ function campus() {
   const hall = [26, 2, 38, 12];
   const bridge = [14, 5, 20, 8];
   const rooms = [
-    room('AG01', 'G', A, { building: 'A', ring: 2 }),
-    room('BG01', 'G', strip, { building: 'B', ring: 2 }),
-    room('BG02', 'G', hall, { building: 'B', ring: 2, ceiling: 6.0 }),
-    room('AF01', 'F', A, { building: 'A', ring: 3 }),
-    room('BF01', 'F', strip, { building: 'B', ring: 3 }),
-    room('LF01', 'F', bridge, { ring: 3, minShort: 2.0, open: ['W', 'E'], name: 'Link bridge' }),
-    room('BH01', 'H', hall, { building: 'B', ring: 1, kind: 'roof', minShort: 3.0 }),
-    room('AR01', 'R', A, { building: 'A', ring: 1, kind: 'roof' }),
-    room('BR01', 'R', strip, { building: 'B', ring: 1, kind: 'roof' }),
+    room('AG01', 'G', A, { building: 'A', ring: 1 }),
+    room('BG01', 'G', strip, { building: 'B', ring: 1 }),
+    room('BG02', 'G', hall, { building: 'B', ring: 1, ceiling: 6.0 }),
+    room('AF01', 'F', A, { building: 'A', ring: 2 }),
+    room('BF01', 'F', strip, { building: 'B', ring: 2 }),
+    room('LF01', 'F', bridge, { ring: 2, minShort: 2.0, open: ['W', 'E'], name: 'Link bridge' }),
+    room('BH01', 'H', hall, { building: 'B', ring: 0, kind: 'roof', minShort: 3.0 }),
+    room('AR01', 'R', A, { building: 'A', ring: 0, kind: 'roof' }),
+    room('BR01', 'R', strip, { building: 'B', ring: 0, kind: 'roof' }),
   ];
   const walls = [];
   const wall = (level, a, b, kind = 'exterior', h = 3.0) => walls.push({ id: `W${String(walls.length + 1).padStart(3, '0')}`, level, a, b, t: kind === 'interior' ? 0.3 : 0.45, h, kind });
@@ -591,7 +592,7 @@ test('A31: a room outside its building, or naming a building that is not listed,
   campusTrips('A31', (a) => { a.rooms.find((r) => r.id === 'AG01').rect = [2, 2, 15, 12]; });
   campusTrips('A31', (a) => { delete a.meta.buildings; a.meta.footprint = [2, 2, 38, 12]; });
   // rooms with no building (the link bridge, a yard) are allowed anywhere inside the site
-  campusTrips('A31', (a) => { a.rooms.push(room('X01', 'G', [40, 2, 58, 38], { kind: 'yard', ring: 1 })); }, 'PASS');
+  campusTrips('A31', (a) => { a.rooms.push(room('X01', 'G', [40, 2, 58, 38], { kind: 'yard', ring: 0 })); }, 'PASS');
   assert.equal(status(run(), 'A31'), 'PASS', 'an old one-building file has no building ids to check');
 });
 

@@ -12,15 +12,15 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 - Yaw degrees: 0 faces +Z (north), 90 faces +X (east).
 - Every coordinate except object edges sits on `meta.grid` (0.5 m). Object edges sit on `meta.objectGrid` (0.1 m).
 - An opening's `at` is the distance from wall end `a` to the opening's centre, along the wall.
-- `ring` is one of `1, 2, 3, "3+", 4, 5` by zone (campus brief 02-building-brief section 6). `"3+"` counts as one step above `3`.
+- `ring` is the access level: 0 Perimeter (yard and site inside the fence; kind `lane` is Outside), 1-5 card levels (02 section 6). The field keeps its old name.
 
-| Space | Ring |
+| Space | Level |
 | --- | --- |
-| S1 site, X way out (yard) | 1 (X09 is 3; B ground and the wing are 2 to 3) |
-| S2 A ground | 2 (reception side) or 3 (staff side) |
-| S3 security room | 3+ |
-| S4 A first floor | 3 |
-| S5 link bridge and B secure floor | 3 or 4 by room |
+| S1 site, X way out (yard) | 0 Perimeter (the lane is Outside, also 0; B ground is 1 to 3, the wing 2) |
+| S2 A ground | 1 (reception side) or 2 (staff side) |
+| S3 security room | 3 |
+| S4 A first floor | 2 (3 for the ops, records and plant rooms) |
+| S5 link bridge and B secure floor | 2 to 4 by room (the mantrap 3) |
 | S6 data hall | 4 (cages 5) |
 | S7 meet-me room | 5 (its lobby 4) |
 | Tunnel, vault | 4 |
@@ -63,7 +63,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | rooms[].ceiling, finish | Ceiling height and floor finish (gravel, linoleum, carpet; level-design 16.8.3) |
 | rooms[].minShort | Minimum clear short side this room must keep |
 | rooms[].open | Edges (`"W"`, `"S"`, `"E"`, `"N"`) left with no wall |
-| rooms[].ring | Security zone of the room (see conventions) |
+| rooms[].ring | Access level of the room, 0-5 (see conventions) |
 | rooms[].module | Module-kit module the room came from, or empty |
 | rooms[].service | Optional. True for a service room (the brief marks WCs, cupboards, risers, the mantrap and the like). A07 asks only that its doors fit inside the wall |
 | rooms[].zone | Optional. Space id (S1-S6) the room belongs to; set by the module kit |
@@ -243,7 +243,7 @@ Drawing conventions the renderer chose where this schema is silent:
 - A29 skips an opening with `ringExempt` and prints it as an `INFO` line under A29 (id, type, position, the text); the status of A29 does not change.
 - A07: every opening sits inside its wall. The 1.5 m corner rule (near edge clear of the wall end) applies only when the opening joins a corridor or a room at play-space size (clear short side of `room.playSpaceMin` or more, not marked `service`); a service room, or a room under play-space size, only needs the opening to fit inside the wall.
 - A11: a straight run needs `(risers - flights) * going + (flights - 1) * midLanding` along `up`; a `dogleg` stair is sized as described under `stairs[].layout`.
-- A28: every room has a ring. A29: an opening of a passable type (door, double, fire-door, arch, roller, gate) joins rooms whose rings are one step apart on 1-2-3-4-5 (`kit.ringStepMax`) or equal; ring `3+` is a side room of zone 3 and joins `3` and `3+` only (so 3 to 4 passes, 2 to 3+ and 3+ to 4 fail); exempt are an exit-only `fire-door`, an opening with `ringExempt`, and one touching a room whose module has `carrier: true`.
+- A28: every room has an access level (0-5). A29: an opening of a passable type (door, double, fire-door, arch, roller, gate) joins rooms at most `kit.ringStepMax` levels apart (so 2 to 3 passes and 2 to 4 fails); exempt are an exit-only `fire-door`, an opening with `ringExempt`, and one touching a room whose module has `carrier: true`.
 - A30: (1) every occupied floor (a floor with a room of kind `room` or `corridor`) has a staff WC and a janitor cupboard, found by the module's `provides` or, for a room with no module, by its name; (2) every upper occupied level has an enclosed `fire` stair that serves it and whose stack, going down by overlapping rects, ends on the ground floor in a room with an opening to the outside; (3) from each occupied room, the door route (room centre to door to room centre) to the nearest such stair is at most `escape.oneWay` with one stair reachable, or `escape.twoWay` with two or more; (4) when the plan has a level `R`, at least one such fire stair continues up (fire or bulkhead stairs, overlapping rects) to `R`. On a campus (3) follows door routes, so it crosses the link bridge; (2) compares floor heights only, so a stair in one building counts as serving a level of the other that sits between its floors (not tested on a campus layout).
 - Security: SC01-SC06 (need `--security`).
 - Play: the `// GAMEPLAY CHECKS (P09)` section of check.mjs is empty until P09. `--play` is read now only by A27.
@@ -266,7 +266,7 @@ The architect places real, pre-checked rooms instead of typing walls. `node scri
 | placements[].level | Level id of the base floor |
 | placements[].at | `[x, z]` of the south-west corner of the room's wall-centreline rect, on the grid |
 | placements[].rot | 0, 90, 180 or 270 degrees clockwise on the plan (north up). Default 0. `at` stays the south-west corner of the turned rect |
-| placements[].zone, ring | Override the module's zone (space id) and ring |
+| placements[].zone, ring | Override the module's zone (space id) and level |
 | placements[].label | Room name on the plan (default: the module's name) |
 | placements[].open | World edge letters (W, S, E, N) left with no wall, as `rooms[].open` |
 | placements[].doors | A list of door specs (same shape as modules.json doors) that replaces the module's doors |
@@ -277,7 +277,7 @@ The architect places real, pre-checked rooms instead of typing walls. `node scri
 | Field | Meaning |
 | --- | --- |
 | id, name, category | Module id, plan name, and the group the prompt lists it under |
-| zone, ring | Default space id (S1-S6) and ring |
+| zone, ring | Default space id (S1-S6) and access level |
 | kind, ceiling, finish | Copied to the room. `ceiling` is a number or `@fact` |
 | sizes | Clear sizes `[w, d]` on the 0.5 m grid |
 | free, sizeMin | `free: true` allows any grid size at or above `sizeMin` |
@@ -305,6 +305,6 @@ A `"@a.b"` value is read from facts.json, so door sizes, aisles and rack width s
 
 ### Calls made (Michael, 2026-10-10) and brief deviations
 - A07 corner rule: corridors and play-space rooms only; service rooms only need the door to fit in the wall. Small rooms no longer need neighbours on both sides.
-- The mantrap is ring 4, as the brief says. A29 steps are 1-2-3-4-5; 3+ sits beside 3 only.
+- The mantrap is Level 3 (the first Level 3 door in Building B, brief 6). A29 allows one level between joined rooms.
 - Stair cores are the brief's 6.0 m long, as dog-legs. The main core holds two 1.3 m flights (`stair.fireWidth`) side by side in its 3.5 m width, not the 2.4 m open feature stair, which would need a wider core. P04 records these as brief deviations: fire stair 3.0 wide (brief 2.8, to sit on the grid) and customer cage 3.5 deep (brief 3.0; 4.0 x 3.0 leaves less than a 1.8 m aisle beside a 1.2 m rack, A26).
 - Fixed-content sizes (rack 0.6 x 1.2 x 2.0 and the rest) are general knowledge; only the 0.6 m rack width and the 1.8 m aisle are facts.

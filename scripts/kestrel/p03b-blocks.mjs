@@ -55,7 +55,7 @@ function levels() {
 }
 
 const CORRIDORS = new Set(['G-SPINE', 'G-NCOR', 'G-WLINK', 'G-ELINK', 'F-SPINE', 'F-NCOR', 'F-WLINK', 'F-ELINK']); // decision 9 (03B 3.2 K-SPINE, K-NCOR, K-WLINK, K-ELINK)
-const RING = { 'G-FRONT': 2, 'G-GOODS': 2, 'G-SEC': '3+' }; // decision 10 (brief 6 S2-S4 lines 260-262); all others 3
+const RING = { 'G-FRONT': 1, 'G-GOODS': 1, 'G-SEC': 3, 'F-OPS': 3, 'F-BW': 3, 'F-PLANT': 3, 'F-E': 3 }; // access levels (2g-1 decisions 1, 2; brief 6); all others 2
 const CEILING = { 'G-SPINE': 2.4, 'G-NCOR': 2.4, 'F-SPINE': 2.4, 'F-NCOR': 2.4 }; // decision 11: 2.4 + 1.5 void + 0.3 slab = 4.2; P04 sets the rest
 
 // Plain names for the plan labels (P03B 2f decisions 1-3, 5; Michael 2026-10-11). Source: 03B Note columns and brief 5 room names.
@@ -107,7 +107,7 @@ function zonesA() {
       finish: '', // decision 13 (P04)
       minShort: Math.min(3.0, Math.min(rect[2] - rect[0], rect[3] - rect[1]) - 0.3), // decision 12 (scale-sheet l.37; RULES 6)
       open: [],
-      ring: RING[r[0]] ?? 3, // decision 10
+      ring: RING[r[0]] ?? 2, // 2g-1 decision 1
       building: 'A', // decision 14
     };
   });
@@ -139,28 +139,28 @@ function zone(id, level, name, kind, rect, ring) { // decisions 11, 12: ceiling 
 }
 
 // Rings (brief 6 lines 259-267; mixed zones take the ring of the larger brief-5 area, decision 9 table)
-const RING_B = { 'B-GGOODS': 2, 'B-GHCAR': 5, 'B-GHALL': 4, 'B-GHPLANT': 4, 'B-FSEC': 4, 'B-GHCOOL': 4 }; // all other B zones: 3
+const RING_B = { 'B-GGOODS': 1, 'B-GHCAR': 5, 'B-GHALL': 4, 'B-GHPLANT': 4, 'B-FSEC': 4, 'B-GHCOOL': 4, 'B-GN': 3 }; // access levels (2g-1 decisions 1, 2); all other B zones: 2
 const KIND_B = { 'B-GCOR': 'corridor', 'B-FCOR': 'corridor', 'L-ROOF': 'roof', 'T-MH': 'shaft', 'T-RISER': 'shaft' }; // decision 8
-const RING_S = { 'U-HALL': 4, 'U-COOL': 4, 'T-VAULT': 4, 'T-MH': 4, 'T-TUNA': 4, 'T-TUNB': 4, 'T-RISER': 5, 'S-COMP': 3, 'L-ROOF': 3 }; // decisions 9, 14; all other S- and SI- zones: 1
+const RING_S = { 'U-HALL': 4, 'U-COOL': 4, 'T-VAULT': 4, 'T-MH': 4, 'T-TUNA': 4, 'T-TUNB': 4, 'T-RISER': 5, 'S-COMP': 0, 'L-ROOF': 2 }; // access levels (2g-1 decision 1; S-COMP Perimeter, Michael 2026-10-11 fix 3); all other S- and SI- zones: 0
 const YARD_KIDS = { 'S-YARDA': 'SI-GATE', 'S-YARDB': 'SI-APRON', 'S-REAR': 'SI-BIN' }; // decision 7 (check.mjs A04: no two rooms on a level overlap)
 
 // 03B 4.3 rows (19): level from the Level column (decision 1)
 function zonesB() {
   return section('### 4.3 Zones', '\nCheck (').filter((r) => /^(B|W)-/.test(r[0])).map((r) =>
-    zone(r[0], r[1], NAME[r[0]], KIND_B[r[0]] ?? 'zone', JSON.parse(r[2]), RING_B[r[0]] ?? 3)); // kinds decision 8
+    zone(r[0], r[1], NAME[r[0]], KIND_B[r[0]] ?? 'zone', JSON.parse(r[2]), RING_B[r[0]] ?? 2)); // kinds decision 8
 }
 
 // 03B 5.2 rows (decisions 3-8) plus K-BRIDGE (decision 2: 03B 3.2 K-BRIDGE, 03B 2 row F)
 function zonesSite() {
   const sec = section('### 5.2 Zones', '\nSelf-check');
   const get = (id) => sec.find((r) => r[0] === id);
-  const out = [zone('K-BRIDGE', 'F', NAME['K-BRIDGE'], 'corridor', BRIDGE, 3)];
+  const out = [zone('K-BRIDGE', 'F', NAME['K-BRIDGE'], 'corridor', BRIDGE, 2)];
   for (const r of sec) {
     if (r[0] === 'SI-RACK' || r[0].startsWith('RF-')) continue; // decisions 4, 5: rack is a vertical item (2c), open roofs are 2d
     const rect = JSON.parse(r[2]);
     const level = r[1].split(' ')[0]; // "B to G" -> B (decision 6)
     const kind = r[0] === 'S-LANE' ? 'lane' : /^(S-|SI-APRON)/.test(r[0]) ? 'yard' : KIND_B[r[0]] ?? 'zone'; // 2b decision 8 (Michael, 2026-10-11): SI-GATE and SI-BIN are enclosed (zone), SI-APRON a yard
-    const ring = RING_S[r[0]] ?? 1;
+    const ring = RING_S[r[0]] ?? 0;
     const kid = YARD_KIDS[r[0]];
     if (kid) { // decision 7: pieces <parent>-<n>, the kid stays its own zone
       named(remainder(rect, [JSON.parse(get(kid)[2])]), r[0], rect).forEach(([p, nm], n) => out.push(zone(`${r[0]}-${n + 1}`, level, nm, 'yard', p, ring)));
@@ -234,7 +234,7 @@ function roofs(base) { // decisions 2, 3: open roofs minus the enclosed or plant
   return section('### 5.2 Zones', '\nSelf-check').filter((r) => r[0].startsWith('RF-')).flatMap((r) => {
     const ps = remainder(JSON.parse(r[2]), KIDS[r[0]].map(rect));
     const many = ps.length > 1;
-    return (many ? named(ps, r[0], JSON.parse(r[2])) : [[ps[0], NAME[r[0]]]]).map(([p, nm], n) => zone(many ? `${r[0]}-${n + 1}` : r[0], r[1], nm, 'roof', p, 3)); // kind roof, ring 3 (brief 5 AR01, BR01, BR03, BR06)
+    return (many ? named(ps, r[0], JSON.parse(r[2])) : [[ps[0], NAME[r[0]]]]).map(([p, nm], n) => zone(many ? `${r[0]}-${n + 1}` : r[0], r[1], nm, 'roof', p, 2)); // kind roof, level 2 (brief 5 AR01, BR01, BR03, BR06)
   });
 }
 

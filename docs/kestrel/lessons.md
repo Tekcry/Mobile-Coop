@@ -41,3 +41,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - P03B 2e: a closing part that only runs checks and renders plans, with each expected summary line in the prompt, finished in one pass; keep final check sessions data-free.
 - Plans need plain names from the first render; ids alone are unreadable to the person approving.
 - Security levels should be set as numbered access levels with a card model (building and level) in the first brief, not as zones.
+- A value format the tools check (here the zone level) should be fixed before the first generator runs, so a format change does not touch every generator, test and table.

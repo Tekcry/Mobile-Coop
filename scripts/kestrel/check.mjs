@@ -2,7 +2,7 @@
 //   node scripts/kestrel/check.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--register docs/kestrel/04-plans.md]
 // One result line per check (PASS, WARN, FAIL, SKIP or INFO) with ids and coordinates; violations follow as indented lines.
 // Ends with counts and exits 1 if any check FAILs. Every rule number is read from facts.json (a missing fact prints SKIP).
-// A28-A31 (module kit, campus): every room has a ring; openings join rooms at most one ring step apart (ring-exempt openings are listed as INFO); fire stairs, roof access and staff WC / janitor per floor; a room that names a building lies inside it.
+// A28-A31 (module kit, campus): every room has an access level; openings join rooms at most one level apart (ring-exempt openings are listed as INFO); fire stairs, roof access and staff WC / janitor per floor; a room that names a building lies inside it.
 // Tool assumptions (documented in docs/kestrel/schema.md): walls run along the X or Z axis; a stair is one straight run
 // with `flights` flights (default ceil(risers / max per flight)); an opening of type fire-door is exit-only.
 import fs from 'node:fs';
@@ -40,7 +40,7 @@ const ptRectDist = (p, r) => Math.hypot(Math.max(r[0] - p[0], 0, p[0] - r[2]), M
 const DOOR_TYPES = new Set(['door', 'double', 'fire-door']);
 const PASS_TYPES = new Set(['door', 'double', 'fire-door', 'arch', 'roller', 'gate']);
 const VOID_KINDS = new Set(['stairwell', 'liftshaft', 'riser', 'hatch', 'rooflight']);
-const RING_ORDER = [1, 2, 3, '3+', 4, 5];
+const RING_ORDER = [0, 1, 2, 3, 4, 5];
 const EDGES = 'WSEN';
 const OPTIONAL_TABLES = ['stairs', 'ladders', 'voids', 'objects', 'exterior', 'services'];
 
@@ -665,14 +665,13 @@ check('A27', 'Rack rows have noLedge true unless the play file plans a traversal
 });
 
 // ===== module kit checks (A28-A30) =====
-check('A28', 'Every room has a ring (1, 2, 3, "3+", 4 or 5)', 'FAIL', [], (c) => {
-  for (const r of c.rooms) if (!RING_ORDER.includes(r.ring)) c.add(`${r.id} (${r.level}) ring ${JSON.stringify(r.ring ?? null)}`);
+check('A28', 'Every room has an access level (0 perimeter, 1-5)', 'FAIL', [], (c) => {
+  for (const r of c.rooms) if (!RING_ORDER.includes(r.ring)) c.add(`${r.id} (${r.level}) level ${JSON.stringify(r.ring ?? null)}`);
 });
 
-check('A29', 'An opening joins rooms whose rings are one step apart (1-2-3-4-5); 3+ sits beside 3 only', 'FAIL', ['kit.ringStepMax'], (c) => {
-  // 3+ is a side room of zone 3, not a step between 3 and 4: it may join 3 and 3+ only.
+check('A29', 'An opening joins rooms at most one level apart', 'FAIL', ['kit.ringStepMax'], (c) => {
   const carrier = (room) => c.modules?.[room?.module]?.carrier === true;
-  const joined = (x, y) => (x === '3+' || y === '3+' ? (x === 3 || x === '3+') && (y === 3 || y === '3+') : Math.abs(x - y) <= c.F('kit.ringStepMax'));
+  const joined = (x, y) => Math.abs(x - y) <= c.F('kit.ringStepMax');
   for (const o of c.openings) {
     if (isText(o.ringExempt)) {
       const p = c.openingPoint(o);
@@ -683,7 +682,7 @@ check('A29', 'An opening joins rooms whose rings are one step apart (1-2-3-4-5);
     const [A, B] = (o.between ?? []).map((id) => c.roomById.get(id));
     if (!A || !B || !RING_ORDER.includes(A.ring) || !RING_ORDER.includes(B.ring) || carrier(A) || carrier(B) || joined(A.ring, B.ring)) continue;
     const p = c.openingPoint(o);
-    c.add(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) joins ${A.id} (ring ${A.ring}) and ${B.id} (ring ${B.ring})`);
+    c.add(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) joins ${A.id} (level ${A.ring}) and ${B.id} (level ${B.ring})`);
   }
 });
 
@@ -798,7 +797,7 @@ SC('SC02', 'Every opening into a higher zone has a reader or is an exit-only doo
     if (ra < 0 || rb < 0 || ra === rb) continue;
     if (!gated.has(o.id) && o.type !== 'fire-door') {
       const p = c.openingPoint(o);
-      c.add(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) joins ${o.between.join(' and ')} (zone ${c.roomById.get(o.between[0]).ring} and ${c.roomById.get(o.between[1]).ring}) with no reader and is not exit-only`);
+      c.add(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) joins ${o.between.join(' and ')} (level ${c.roomById.get(o.between[0]).ring} and ${c.roomById.get(o.between[1]).ring}) with no reader and is not exit-only`);
     }
   }
 });

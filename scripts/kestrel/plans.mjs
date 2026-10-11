@@ -38,7 +38,8 @@ const wallById = new Map(walls.map((w) => [w.id, w]));
 const roomById = new Map((arch.rooms ?? []).map((r) => [r.id, r]));
 
 // ---------- colours (names, not measurements) ----------
-const RING_TINT = { 1: '#d6ebc9', 2: '#e6efc2', 3: '#fbeab9', '3+': '#fbd9a8', 4: '#f6c3a8', 5: '#efb0c0' };
+const RING_TINT = { 0: '#d6ebc9', 1: '#e6efc2', 2: '#fbeab9', 3: '#fbd9a8', 4: '#f6c3a8', 5: '#efb0c0' }; // access levels 0-5 (2g-1); legend words are 2g-2
+const OUTSIDE_TINT = '#e9f4e1'; // kind lane: Outside, the Perimeter tint lightened
 const WALL_FILL = { exterior: '#1c1c1c', interior: '#4a4a4a', boundary: '#6b4f3a', parapet: '#7b7b7b', balustrade: '#9a9a9a' };
 const ROUTE_COLOUR = { shadow: '#1f5fd1', high: '#1c9c3f', loud: '#d32f2f', secret: '#8e24aa', coop: '#f57c00', critical: '#000000', exfil: '#00897b' };
 const INK = '#222';
@@ -294,7 +295,7 @@ function roomLabel(r, level) {
   const size = Math.min(w, d) * S < R('labelSmallBelow') ? R('fontSmall') : R('fontRoom');
   const size0 = size;
   const sizeSmall = Math.min(size, R('fontSmall'));
-  const zone = `zone ${r.ring ?? '?'}`;
+  const zone = r.kind === 'lane' ? 'Outside' : r.ring === 0 ? 'Perimeter' : `Level ${r.ring ?? '?'}`;
   const wide = [title, `${fmt(w)} x ${fmt(d)} clear`, zone];
   const narrow = [named ? `${r.id} -` : r.id, named ? r.name : '', `${fmt(w)} x ${fmt(d)}`, `clear, ${zone}`].filter(Boolean);
   const variants = [{ lines: wide, size: size0 }, { lines: narrow, size: size0 }, { lines: narrow, size: sizeSmall }];
@@ -364,7 +365,7 @@ function baseLayers(level) {
   callouts = [];
   const here = (o) => o.level === level.id;
   let out = '';
-  for (const r of (arch.rooms ?? []).filter(here)) out += rectEl(r.rect, `fill="${RING_TINT[r.ring] ?? '#eeeeee'}" fill-opacity="${R('tintOpacity')}" stroke="none"`);
+  for (const r of (arch.rooms ?? []).filter(here)) out += rectEl(r.rect, `fill="${(r.kind === 'lane' ? OUTSIDE_TINT : RING_TINT[r.ring]) ?? '#eeeeee'}" fill-opacity="${R('tintOpacity')}" stroke="none"`);
   // structural bay grid. One building (or none): lines across the site, anchored on the footprint corner. Several buildings: each building's
   // own lines, anchored on its own corner and drawn inside its footprint.
   const bay = arch.meta?.bay;
@@ -589,7 +590,7 @@ function flow(items, startX, startY, maxX, firstRowEnd) {
 const swatch = (fill) => (x, y) => `<rect x="${x}" y="${y - R('swatchH') / 2}" width="${R('swatchW')}" height="${R('swatchH')}" fill="${fill}" fill-opacity="${R('tintOpacity')}" stroke="#888" stroke-width="${R('gridStroke')}"/>`;
 const sample = (c, dash, w) => (x, y) => `<line x1="${x}" y1="${y}" x2="${x + R('legendSample')}" y2="${y}" stroke="${c}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
 function archItems() {
-  return [['zone 1 - outside, public (lane and yard)', swatch(RING_TINT[1])], ['zone 2 - reception and goods-in', swatch(RING_TINT[2])], ['zone 3 - staff areas behind card readers', swatch(RING_TINT[3])], ['zone 3+ - restricted (security room)', swatch(RING_TINT['3+'])], ['zone 4 - secure (data hall, tunnels, plant under the yard)', swatch(RING_TINT[4])], ['zone 5 - most secure (locked cages, meet-me room)', swatch(RING_TINT[5])]];
+  return [['zone 1 - outside, public (lane and yard)', swatch(RING_TINT[0])], ['zone 2 - reception and goods-in', swatch(RING_TINT[1])], ['zone 3 - staff areas behind card readers', swatch(RING_TINT[2])], ['zone 3+ - restricted (security room)', swatch(RING_TINT[3])], ['zone 4 - secure (data hall, tunnels, plant under the yard)', swatch(RING_TINT[4])], ['zone 5 - most secure (locked cages, meet-me room)', swatch(RING_TINT[5])]];
 }
 function playItems() {
   const items = Object.entries(ROUTE_COLOUR).map(([k, c]) => [`route ${k}`, sample(c, k === 'critical' ? R('dashRoute') : '', R('routeStroke'))]);

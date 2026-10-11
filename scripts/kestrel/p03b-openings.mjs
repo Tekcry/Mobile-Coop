@@ -55,7 +55,7 @@ const T = [
   ['RB06', 'G', 'x', 70, 58, 'door', 1.0],
   ['RB07', 'G', 'z', 60, 64, 'door', 1.0, DOOR_H, EXIT('RB07')],
   ['RB08', 'G', 'z', 62, 60, 'door', 1.0, DOOR_H, KEY('RB08')], // 4 off RB07 across the passage
-  ['RB09', 'G', 'x', 76, 68, 'double', 1.8],
+  ['RB09', 'G', 'x', 76, 68, 'double', 1.8, DOOR_H, KEY('RB09')],
   ['RB10', 'G', 'x', 100, 68, 'gate', 3.0, DOOR_H, KEY('RB10')], // compound gate off the drive (h replaced by the wall's, decision 1)
   ['RB11', 'G', 'x', 76, 61, 'gate', 1.0, DOOR_H, KEY('RB11')], // compound gate from the passage
   ['RB12', 'G', 'z', 50.5, 83, 'door', 1.0],

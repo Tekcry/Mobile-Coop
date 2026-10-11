@@ -225,7 +225,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 2,
+   "ring": 1,
    "building": "A"
   },
   {
@@ -243,7 +243,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -261,7 +261,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 2,
+   "ring": 1,
    "building": "A"
   },
   {
@@ -279,7 +279,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -297,7 +297,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -315,7 +315,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": "3+",
+   "ring": 3,
    "building": "A"
   },
   {
@@ -333,7 +333,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -351,7 +351,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -369,7 +369,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -387,7 +387,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -405,7 +405,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -423,7 +423,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -441,7 +441,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -477,7 +477,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -495,7 +495,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -513,7 +513,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -549,7 +549,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -567,7 +567,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -621,7 +621,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -639,7 +639,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -657,7 +657,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -675,7 +675,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -697,7 +697,7 @@
     "S",
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -715,7 +715,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -733,7 +733,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -751,7 +751,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 2,
+   "ring": 1,
    "building": "B"
   },
   {
@@ -769,7 +769,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -877,7 +877,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3
+   "ring": 2
   },
   {
    "id": "B-FS",
@@ -894,7 +894,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -912,7 +912,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -930,7 +930,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -948,7 +948,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -966,7 +966,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -984,7 +984,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -1025,7 +1025,7 @@
     "E",
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -1043,7 +1043,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -1061,7 +1061,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 3
+   "ring": 2
   },
   {
    "id": "S-LANE",
@@ -1083,7 +1083,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-YARDA-1",
@@ -1104,7 +1104,7 @@
     "S",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-YARDA-2",
@@ -1125,7 +1125,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-YARDA-3",
@@ -1147,7 +1147,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-YARDB-1",
@@ -1169,7 +1169,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-YARDB-2",
@@ -1190,7 +1190,7 @@
     "S",
     "E"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-YARDB-3",
@@ -1212,7 +1212,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-GAP",
@@ -1232,7 +1232,7 @@
     "S",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-REAR-1",
@@ -1254,7 +1254,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-REAR-2",
@@ -1275,7 +1275,7 @@
     "S",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-REAR-3",
@@ -1295,7 +1295,7 @@
     "S",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-REAR-4",
@@ -1317,7 +1317,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-REAR2",
@@ -1338,7 +1338,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-PASS",
@@ -1358,7 +1358,7 @@
     "W",
     "E"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-DRIVE",
@@ -1380,7 +1380,7 @@
     "E",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "S-COMP",
@@ -1401,7 +1401,7 @@
     "E",
     "N"
    ],
-   "ring": 3
+   "ring": 0
   },
   {
    "id": "S-WPATH",
@@ -1422,7 +1422,7 @@
     "S",
     "N"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "SI-GATE",
@@ -1439,7 +1439,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "SI-BIN",
@@ -1456,7 +1456,7 @@
    "finish": "",
    "minShort": 3,
    "open": [],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "SI-APRON",
@@ -1477,7 +1477,7 @@
     "S",
     "E"
    ],
-   "ring": 1
+   "ring": 0
   },
   {
    "id": "L-ROOF",
@@ -1497,7 +1497,7 @@
     "W",
     "E"
    ],
-   "ring": 3
+   "ring": 2
   },
   {
    "id": "T-VAULT",
@@ -1656,7 +1656,7 @@
    "open": [
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -1678,7 +1678,7 @@
     "E",
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -1700,7 +1700,7 @@
     "E",
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -1721,7 +1721,7 @@
     "S",
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -1741,7 +1741,7 @@
    "open": [
     "S"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "A"
   },
   {
@@ -1761,7 +1761,7 @@
    "open": [
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -1781,7 +1781,7 @@
    "open": [
     "S"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -1802,7 +1802,7 @@
     "W",
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -1824,7 +1824,7 @@
     "S",
     "N"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -1845,7 +1845,7 @@
     "W",
     "S"
    ],
-   "ring": 3,
+   "ring": 2,
    "building": "B"
   },
   {
@@ -1863,7 +1863,7 @@
    "finish": "",
    "minShort": 0,
    "open": [],
-   "ring": 3
+   "ring": 2
   }
  ],
  "walls": [
@@ -4115,7 +4115,8 @@
    ],
    "locked": true,
    "key": "Double doors, key; push-bar exit",
-   "reason": "Double doors, key; push-bar exit (03B 7.2 RB09)"
+   "reason": "Double doors, key; push-bar exit (03B 7.2 RB09)",
+   "ringExempt": "Key only (brief ASK-2; 03B 7.2 RB09)"
   },
   {
    "id": "RB10",

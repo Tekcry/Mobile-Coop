@@ -93,12 +93,12 @@ G and F tile A [4, 30, 40, 60] exactly; R lists only plant zones, the rest is op
 
 | Zone | Level | Rect [x0, z0, x1, z1] | Rooms | Area | Fill | Doors (need of available) | Note | Source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| G-FRONT | G | [4, 30, 22, 40] | AG01, AG02, AG03, AG04 | 180 | 81.3% | 13 of 18 | zone 2, main door to X03; AG04 hatch to AG01 | brief 5, 7 |
+| G-FRONT | G | [4, 30, 22, 40] | AG01, AG02, AG03, AG04 | 180 | 81.3% | 13 of 18 | Level 1, main door to X03; AG04 hatch to AG01 | brief 5, 7 |
 | G-SOFF | G | [22, 30, 28.5, 40] | AG06 | 65 | 73.8% | 6 of 6.5 | south window (brief 5) | brief 5 |
-| G-GOODS | G | [28.5, 30, 40, 40] | AG08, AG09 | 115 | 80.0% | 11 of 11.5 | zone 2, south-east, roller door | brief 5, 7 |
+| G-GOODS | G | [28.5, 30, 40, 40] | AG08, AG09 | 115 | 80.0% | 11 of 11.5 | Level 1, south-east, roller door | brief 5, 7 |
 | G-SPINE | G | [4, 40, 40, 43.5] | AG10 | 126 | tight | - | spine | brief 5, 12i |
 | G-WLINK | G | [4, 43.5, 7.5, 50.5] | - | 24.5 | tight | - | west link | brief 12i |
-| G-SEC | G | [7.5, 43.5, 19.5, 50.5] | AG11, AG12, AG13, AG25 | 84 | 76.5% | 12 of 27.5 | 3+, all three on the spine, no contact with zone 2 | brief 6, 7 |
+| G-SEC | G | [7.5, 43.5, 19.5, 50.5] | AG11, AG12, AG13, AG25 | 84 | 76.5% | 12 of 27.5 | Level 3, all three on the spine, no contact with Level 1 or 2 rooms beside it | brief 6, 7 |
 | G-CORE | G | [19.5, 43.5, 31, 50.5] | AG18, AG19, AG20, AG16, AG17 | 80.5 | 23.9% | 3.5 of 16 | main core; cleaner's store behind it off AG26 | brief 8 |
 | G-ELINK | G | [31, 43.5, 34.5, 50.5] | - | 24.5 | tight | - | east link | brief 12i |
 | G-EAST | G | [34.5, 43.5, 40, 50.5] | AG22, AG23 | 38.5 | 58.0% | 4 of 18 | across the spine from goods (1b-G ASK-4, Michael) | brief 7 |
@@ -324,28 +324,28 @@ Main stairs are not escape stairs (brief 8, kept by Michael 2026-10-11), so each
 - P04: fire stair A's corridor doors (AG21 to AG26, AF15 to AF21) go on the south side at the west end, x 4-5.5, where the floor landings are (6.3).
 - P04: fire stair B's exit door (RB15, z 60, x 57-58.5) opens out into X07; BG40's personnel door on z 62 stays clear of it.
 
-## 7. Ring entries
-Where each control in brief 6 crosses between zones. Segment = the shared zone face P04 puts the door on; "plan" = a hatch or lid inside the zone. Rings from brief 6 (3+ written 3.5).
+## 7. Level entries
+Where each control in brief 6 crosses between zones. Segment = the shared zone face P04 puts the door on; "plan" = a hatch or lid inside the zone. Levels from brief 6 (0 Perimeter, 1-5 card levels).
 
 ### 7.1 Site, Building A, bridge and under the yard
-| Id | Level | From (ring) | To (ring) | Control | Between | Segment | Exempt | Source |
+| Id | Level | From (level) | To (level) | Control | Between | Segment | Exempt | Source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| RA01 | G | X01 (0) | X03 (1) | Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases | S-LANE / S-YARDA | z 8, x 5-16 | no | brief 6; 5.2 SI-GATE (gates east of the gatehouse) |
-| RA02 | G | X01 (0) | X04 (1) | East service gate, chain and padlock | S-LANE / S-YARDB | z 8, x 100-108 | no | brief 6; 5.4 (opposite X08) |
-| RA03 | G | X03 (1) | AG01 (2) | Main door, locked out of hours, intercom | S-YARDA / G-FRONT | z 30, x 4-22 | no | brief 6, 5 AG01 |
-| RA04 | G | X03 (1) | AG08 (2) | Roller door by key switch inside; wicket door reader | S-YARDA / G-GOODS | z 30, x 28.5-40 | no | brief 6, 5 AG08 |
-| RA05 | G | AG01 (2) | AG10 (3) | Reader, A card | G-FRONT / G-SPINE | z 40, x 4-22 | no | brief 6, 5 AG01 |
-| RA06 | G | AG09 (2) | AG10 (3) | Reader, A card | G-GOODS / G-SPINE | z 40, x 28.5-40 | no | brief 6, 5 AG09 |
-| RA07 | G | AG10 (3) | AG11, AG12, AG13 (3.5) | Reader, master card tier; key safe PIN inside AG13 | G-SPINE / G-SEC | z 43.5, x 7.5-19.5 | no | brief 6; 3.3 G-SEC |
-| RA08 | F | AF01 (3) | AF03, AF05, AF06 (3) | Reader, master card tier (AF02 through AF03) | F-SPINE / F-OPS | z 40, x 11-36.5 | no | brief 6; 3.3 F-OPS |
-| RA09 | F | AF01 (3) | AF04 (3) | Reader, master card tier | F-SPINE / F-BW | z 43.5, x 7.5-19.5 | no | brief 6; 3.3 F-BW |
-| RA10 | F | AF21 (3) | AF10 (3) | Reader, master card tier | F-NCOR / F-PLANT | x 36.5, z 50.5-54 | no | brief 6; 3.4 (AF21 east end) |
-| RA11 | F | AF17 (3) | LF01 (3) | Reader, A card | F-VEST / K-BRIDGE | x 40, z 40-43.5 | no | brief 6, 5 AF17 |
-| RA12 | F | LF01 (3) | BF01 (3) | Reader, B-tier card or escort PIN; bridge post | K-BRIDGE / B-FLOBBY | x 52, z 40-43.5 | no | brief 6, 5 LF01 |
-| RA13 | G | AG21 (3) | X10 (1) | Fire exit, exit only, no outside hardware, alarmed | V-AFS / S-WPATH | x 4, z 54-57.5 | yes (exit) | brief 6; 6.2 |
-| RA14 | R | AR04 (3) | AR01 (3) | Roof door, key outside, thumb-turn inside (AF15 below) | R-BULK / RF-A | z 54, x 4-5.5 | no | brief 6; 3.3 R-BULK; 6.3 (west end, Michael 2026-10-11) |
-| RA15 | G | X03 (1) | TB02 (4) | Heavy lid, carriers' and Ostler's lifting keys | S-YARDA / V-TB02 | plan | yes (ASK-2) | brief 6; 5.3, 6.1 |
-| RA16 | G | AG22 (3) | AG23 (4) | Locked floor hatch, key | G-EAST / V-AG23 | plan | no | brief 6; 6.1 |
+| RA01 | G | X01 (0) | X03 (0) | Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases | S-LANE / S-YARDA | z 8, x 5-16 | no | brief 6; 5.2 SI-GATE (gates east of the gatehouse) |
+| RA02 | G | X01 (0) | X04 (0) | East service gate, chain and padlock | S-LANE / S-YARDB | z 8, x 100-108 | no | brief 6; 5.4 (opposite X08) |
+| RA03 | G | X03 (0) | AG01 (1) | Main door, locked out of hours, intercom | S-YARDA / G-FRONT | z 30, x 4-22 | no | brief 6, 5 AG01 |
+| RA04 | G | X03 (0) | AG08 (1) | Roller door by key switch inside; wicket door reader | S-YARDA / G-GOODS | z 30, x 28.5-40 | no | brief 6, 5 AG08 |
+| RA05 | G | AG01 (1) | AG10 (2) | Reader, A card | G-FRONT / G-SPINE | z 40, x 4-22 | no | brief 6, 5 AG01 |
+| RA06 | G | AG09 (1) | AG10 (2) | Reader, A card | G-GOODS / G-SPINE | z 40, x 28.5-40 | no | brief 6, 5 AG09 |
+| RA07 | G | AG10 (2) | AG11, AG12, AG13 (3) | Reader, master card tier; key safe PIN inside AG13 | G-SPINE / G-SEC | z 43.5, x 7.5-19.5 | no | brief 6; 3.3 G-SEC |
+| RA08 | F | AF01 (2) | AF03, AF05, AF06 (3) | Reader, master card tier (AF02 through AF03) | F-SPINE / F-OPS | z 40, x 11-36.5 | no | brief 6; 3.3 F-OPS |
+| RA09 | F | AF01 (2) | AF04 (3) | Reader, master card tier | F-SPINE / F-BW | z 43.5, x 7.5-19.5 | no | brief 6; 3.3 F-BW |
+| RA10 | F | AF21 (2) | AF10 (3) | Reader, master card tier | F-NCOR / F-PLANT | x 36.5, z 50.5-54 | no | brief 6; 3.4 (AF21 east end) |
+| RA11 | F | AF17 (2) | LF01 (2) | Reader, A card | F-VEST / K-BRIDGE | x 40, z 40-43.5 | no | brief 6, 5 AF17 |
+| RA12 | F | LF01 (2) | BF01 (2) | Reader, B-tier card or escort PIN; bridge post | K-BRIDGE / B-FLOBBY | x 52, z 40-43.5 | no | brief 6, 5 LF01 |
+| RA13 | G | AG21 (2) | X10 (0) | Fire exit, exit only, no outside hardware, alarmed | V-AFS / S-WPATH | x 4, z 54-57.5 | yes (exit) | brief 6; 6.2 |
+| RA14 | R | AR04 (2) | AR01 (2) | Roof door, key outside, thumb-turn inside (AF15 below) | R-BULK / RF-A | z 54, x 4-5.5 | no | brief 6; 3.3 R-BULK; 6.3 (west end, Michael 2026-10-11) |
+| RA15 | G | X03 (0) | TB02 (4) | Heavy lid, carriers' and Ostler's lifting keys | S-YARDA / V-TB02 | plan | yes (ASK-2) | brief 6; 5.3, 6.1 |
+| RA16 | G | AG22 (2) | AG23 (4) | Locked floor hatch, key | G-EAST / V-AG23 | plan | yes (key) | brief 6; 6.1 |
 | RA17 | B | TB04 (4) | BG32 (5) | Riser door at the tunnel end, reader B-tier or PIN | T-TUNB / T-RISER | z 30, x 72-74 | no | brief 6; 6.1 V-BG32 |
 
 Self-check (this session):
@@ -360,30 +360,30 @@ Deviations:
 
 Notes for P04, 1f-b and P03R:
 - Part 2d-2a: 16 openings at the positions in prompts/P03B-2d-2a.md; RA01 is two gates (RA01-P, RA01-V); RA15 and RA16 stay hatch voids; fences are boundary walls 2.4 (brief ASK-1)
-- P04: each door goes on its segment; RA01's gates sit east of the gatehouse so the officer sees both; RA07's three security doors share z 43.5 with no zone 2 contact (3.3 G-SEC).
+- P04: each door goes on its segment; RA01's gates sit east of the gatehouse so the officer sees both; RA07's three security doors share z 43.5 with no Level 1 contact (3.3 G-SEC).
 - P03R: brief 4 east service gate wording (opposite X08).
 - 1f-b: RA12's B reader is the bridge post's door; B's rows start at RB01.
 
 ### 7.2 Building B, hall, wing and compound
-| Id | Level | From (ring) | To (ring) | Control | Between | Segment | Exempt | Source |
+| Id | Level | From (level) | To (level) | Control | Between | Segment | Exempt | Source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| RB01 | G | X04 (1) | BG01 (2) | Staff door reader, B or contractor card | S-YARDB / B-GW | z 30, x 52-57 | no | brief 6, 5 BG01 |
-| RB02 | G | X12 (1) | BG07 (2) | Roller door, key switch inside, locked at night | SI-APRON / B-GGOODS | z 30, x 64-70 | no | brief 6; 4.5 (BG07 x 64-70) |
-| RB03 | G | BG01 (2) | BG05 (3) | Reader, B or contractor card | B-GW / B-GCOR | x 57, z 30-36 | no | brief 6, 5 BG01 |
-| RB04 | G | BG07 (2) | BG05 (3) | Reader, B or contractor card | B-GGOODS / B-GCOR | x 60.5, z 30-43 | no | brief 6, 5 BG07 |
-| RB05 | G | BG05 (3) | BG10 (3) | Reader, B-tier or contractor card (the door the technician wedges) | B-GCOR / KB-BG10 | z 56.5, x 58.5-60.5 | no | brief 6; 4.2 KB-BG10 |
+| RB01 | G | X04 (0) | BG01 (1) | Staff door reader, B or contractor card | S-YARDB / B-GW | z 30, x 52-57 | no | brief 6, 5 BG01 |
+| RB02 | G | X12 (0) | BG07 (1) | Roller door, key switch inside, locked at night | SI-APRON / B-GGOODS | z 30, x 64-70 | no | brief 6; 4.5 (BG07 x 64-70) |
+| RB03 | G | BG01 (1) | BG05 (2) | Reader, B or contractor card | B-GW / B-GCOR | x 57, z 30-36 | no | brief 6, 5 BG01 |
+| RB04 | G | BG07 (1) | BG05 (2) | Reader, B or contractor card | B-GGOODS / B-GCOR | x 60.5, z 30-43 | no | brief 6, 5 BG07 |
+| RB05 | G | BG05 (2) | BG10 (3) | Reader, B-tier or contractor card (the door the technician wedges) | B-GCOR / KB-BG10 | z 56.5, x 58.5-60.5 | no | brief 6; 4.2 KB-BG10 |
 | RB06 | G | BG10 (3) | BG28 (3) | Key | KB-BG10 / B-GHPLANT | x 70, z 56.5-60 | no | brief 6; 4.3 B-GHPLANT |
-| RB07 | G | BG10 (3) | X07 (1) | Passage door, exit only, key cylinder outside | KB-BG10 / S-PASS | z 60, x 58.5-70 | yes (exit) | brief 6, 5 BG10 |
-| RB08 | G | X07 (1) | BG40 (3) | Wing personnel door, key; push-bar exit | S-PASS / W-GEN | z 62, x 52-76 | yes (key) | brief 6, 5 BG40 |
-| RB09 | G | X09 (3) | BG40 (3) | Double doors, key; push-bar exit | S-COMP / W-GEN | x 76, z 62-74 | no | brief 6, 5 BG40; 4.5 |
-| RB10 | G | X08 (1) | X09 (3) | Compound gate, padlock | S-DRIVE / S-COMP | x 100, z 60-76 | yes (key) | brief 6, 5 X09 |
-| RB11 | G | X07 (1) | X09 (3) | Compound gate from the passage, padlock | S-PASS / S-COMP | x 76, z 60-62 | yes (key) | brief 6, 5 X07, X09 |
+| RB07 | G | BG10 (3) | X07 (0) | Passage door, exit only, key cylinder outside | KB-BG10 / S-PASS | z 60, x 58.5-70 | yes (exit) | brief 6, 5 BG10 |
+| RB08 | G | X07 (0) | BG40 (2) | Wing personnel door, key; push-bar exit | S-PASS / W-GEN | z 62, x 52-76 | yes (key) | brief 6, 5 BG40 |
+| RB09 | G | X09 (0) | BG40 (2) | Double doors, key; push-bar exit | S-COMP / W-GEN | x 76, z 62-74 | yes (key) | brief 6, 5 BG40; 4.5 |
+| RB10 | G | X08 (0) | X09 (0) | Compound gate, padlock | S-DRIVE / S-COMP | x 100, z 60-76 | yes (key) | brief 6, 5 X09 |
+| RB11 | G | X07 (0) | X09 (0) | Compound gate from the passage, padlock | S-PASS / S-COMP | x 76, z 60-62 | yes (key) | brief 6, 5 X07, X09 |
 | RB12 | G | BG20 (4) | BG24 (4) | Reader, B-tier; free exit | B-GHALL / B-GHPLANT | z 50.5, x 70-96 | no | brief 6, 5 BG24 |
-| RB13 | G | BG20 (4) | BG09 (3) | Equipment door: no outside handle or reader, exit device inside, forced and held alarms to AG11 | B-GHALL / B-GGOODS | x 70, z 36-43 | yes (exit) | brief 6, 5 BG09 |
-| RB14 | G | BG23 (4) | X08 (1) | Fire exit, exit only, no outside hardware, alarmed | B-GHCOOL / S-DRIVE | x 100, z 30-60 | yes (exit) | brief 6, 5 BG23 |
-| RB15 | G | BG12 (3) | X07 (1) | Fire exit, exit only, no outside hardware, alarmed | KB-FS / S-PASS | z 60, x 57-58.5 | yes (exit) | brief 6; 6.1 V-BFS; 6.3 (north wall, Michael 2026-10-11) |
-| RB16 | H | BR03 (3) | BR05 (4) | Bolted grille, alarm contact; key switch box beside it; roof key in AG13 | RF-BH / V-BR05 | plan | no | brief 6; 6.1 V-BR05 |
-| RB17 | R | BR02 (3) | BR01 (3) | Roof door, key outside, thumb-turn inside (BF11 below) | B-RBULK / RF-BS | x 58.5, z 56.5-60 | no | brief 6; 4.3 B-RBULK |
+| RB13 | G | BG20 (4) | BG09 (2) | Equipment door: no outside handle or reader, exit device inside, forced and held alarms to AG11 | B-GHALL / B-GGOODS | x 70, z 36-43 | yes (exit) | brief 6, 5 BG09 |
+| RB14 | G | BG23 (4) | X08 (0) | Fire exit, exit only, no outside hardware, alarmed | B-GHCOOL / S-DRIVE | x 100, z 30-60 | yes (exit) | brief 6, 5 BG23 |
+| RB15 | G | BG12 (2) | X07 (0) | Fire exit, exit only, no outside hardware, alarmed | KB-FS / S-PASS | z 60, x 57-58.5 | yes (exit) | brief 6; 6.1 V-BFS; 6.3 (north wall, Michael 2026-10-11) |
+| RB16 | H | BR03 (2) | BR05 (4) | Bolted grille, alarm contact; key switch box beside it; roof key in AG13 | RF-BH / V-BR05 | plan | yes (key) | brief 6; 6.1 V-BR05 |
+| RB17 | R | BR02 (2) | BR01 (2) | Roof door, key outside, thumb-turn inside (BF11 below) | B-RBULK / RF-BS | x 58.5, z 56.5-60 | no | brief 6; 4.3 B-RBULK |
 | RB18 | G | BG20 (4) | BU01 (4) | Floor hatches, unlocked, hinged | B-GHALL / U-HALL | plan | no | brief 6; 5.2 U-HALL |
 
 Inside zones (no face; P04 places): BG07 to BG09 reader (B-GGOODS); mantrap BF06 to BF07 outer, BF07 to BF08 inner, BF08 to BF09 sealed door (B-FSEC); BG29 to BG30 / BG33 and BG30 to BG31 readers (B-GHCAR); cages BG21, BG22 (B-GHALL); lift B (G landing on x 57, z 46-48.5 from the BG04 bay; F inside B-FLOBBY; locked off at night).
@@ -589,11 +589,14 @@ Rows per For: Michael 0, P03R 13, P04 13, P06 1.
 | 11 | `p03b-adj-check-g.mjs` | adjacency rows 34, items 14 of 14, apart rows 26, items 8 of 8, rects 114, fails 0 |
 | 12 | `p03b-path-check-g.mjs` | path legs 12, total 499.0; coverage moves 14, placed 6, open 7; fails 0 |
 | 13 | `plans.mjs kestrel.campus.blocks.json` | wrote 7 SVG + PNG pairs |
+| 14 | zone levels (2g-1) | {"0":20,"1":3,"2":45,"3":6,"4":11,"5":2} (87 zones) |
+| 15 | ring-exempt openings in the JSON (2g-1) | 9: RA13 RB07 RB08 RB09 RB10 RB11 RB13 RB14 RB15 (RB09 added: key-only wing double doors) |
 
 Plans: docs/kestrel/plans/blocks-<L>.png for B, U, G, F, H, L, R (Part 2e)
+Part 2g-1 (Michael, 2026-10-11): zones are access levels 0-5 (0 Perimeter); S-COMP is Perimeter; G-SEC, F-OPS, F-BW, F-PLANT, F-E and B-GN are Level 3; RA16 and RB16 (key hatch and key grille, Level 2 to 4) marked exempt (key). Checks 1-13 unchanged.
 Part 2f (Michael, 2026-10-11): plain names on every zone, site piece, tunnel, roof and vertical piece; worded zone legend; checks unchanged.
 
-Expected fails, all for the tools revision before P04 or for P04 (handover Notes): FAIL A07 (RA14, RB11 sit 0.5 m from a wall end); FAIL A09 (fire-stair doors RA13, RA14, RB05, RB15, RB17 sit at stair ends); FAIL A12 (ladders V-LAD1-3 stand on roofs, not plant or shaft rooms); FAIL A29 (RB01 joins ring 1 to ring 3). WARN A10 (RA11 and RA12 face each other across the bridge corridor); WARN A18 (split-jump gaps).
+Expected fails, all for the tools revision before P04 or for P04 (handover Notes): FAIL A07 (RA14, RB11 sit 0.5 m from a wall end); FAIL A09 (fire-stair doors RA13, RA14, RB05, RB15, RB17 sit at stair ends); FAIL A12 (ladders V-LAD1-3 stand on roofs, not plant or shaft rooms); FAIL A29 (RB01: the Building B staff door joins the Perimeter yard to a Level 2 zone that holds a Level 1 lobby; P04 sets room levels). WARN A10 (RA11 and RA12 face each other across the bridge corridor); WARN A18 (split-jump gaps).
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.

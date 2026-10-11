@@ -47,7 +47,7 @@ test('modules.json: every prompt module is there and the data is well formed', (
     'storage', 'build-room', 'loading-bay', 'comms-room', 'plant-corridor', 'mantrap', 'data-hall-bay', 'meet-me-room', 'customer-cage', 'ups-room', 'battery-room', 'switchroom',
     'cooling-gallery', 'carrier-vault', 'carrier-riser', 'main-stair', 'fire-stair', 'fire-stair-roof', 'riser-cupboard', 'gatehouse', 'generator-compound', 'bin-store'];
   for (const id of need) assert.ok(modules.has(id), `module ${id}`);
-  const rings = [1, 2, 3, '3+', 4, 5];
+  const rings = [0, 1, 2, 3, 4, 5];
   const ref = (v, where) => {
     if (typeof v === 'string' && v.startsWith('@')) assert.notEqual(facts.fact(v.slice(1)), undefined, `${where}: ${v} is not in facts.json`);
     else if (typeof v === 'string' && v.startsWith('size+')) ref(v.slice(5), where);
@@ -74,9 +74,9 @@ test('modules.json: every prompt module is there and the data is well formed', (
 });
 
 test('modules.json: zone rooms ring and group, as the prompt lists them', () => {
-  assert.equal(modules.get('lobby').ring, 2);
-  assert.equal(modules.get('control-room').ring, '3+');
-  assert.equal(modules.get('office').ring, 3);
+  assert.equal(modules.get('lobby').ring, 1);
+  assert.equal(modules.get('control-room').ring, 3);
+  assert.equal(modules.get('office').ring, 2);
   assert.equal(modules.get('data-hall-bay').ring, 4);
   assert.equal(modules.get('meet-me-room').ring, 5);
   assert.equal(modules.get('staff-wc').provides[0], 'staffWC');
@@ -91,7 +91,7 @@ test('the 3-module sample expands: three rooms, no errors', () => {
   assert.deepEqual(byId(arch.rooms, 'J1').rect, [7.5, 2, 10, 4]);
   assert.deepEqual(byId(arch.rooms, 'T1').rect, [10, 2, 15.5, 6.5]);
   assert.equal(byId(arch.rooms, 'W1').module, 'staff-wc');
-  assert.equal(byId(arch.rooms, 'W1').ring, 3);
+  assert.equal(byId(arch.rooms, 'W1').ring, 2);
   assert.equal(byId(arch.rooms, 'W1').name, 'Staff WC');
 });
 
@@ -378,12 +378,12 @@ test('a small service room at the end of a wall passes A07 alone; a play-space r
   assert.equal(checks(office).find((r) => r.id === 'A07').status, 'FAIL');
 });
 
-test('the mantrap is zone 4: a door from zone 3 to it passes A29', () => {
-  assert.equal(modules.get('mantrap').ring, 4);
+test('the mantrap is Level 3: a door from a Level 2 corridor to it passes A29', () => {
+  assert.equal(modules.get('mantrap').ring, 3);
   const layout = single({ id: 'M', module: 'mantrap', at: [10, 10] });
   layout.placements.push({ level: 'G', id: 'C', module: 'corridor', size: [3.5, 14], at: [6, 10], rot: 0 });
   const arch = ok(expand(layout));
-  assert.equal(byId(arch.rooms, 'C').ring, 3);
+  assert.equal(byId(arch.rooms, 'C').ring, 2);
   const results = checks(arch);
   assert.equal(results.find((r) => r.id === 'A29').status, 'PASS');
 });
@@ -466,7 +466,7 @@ test('the command line expands the sample and writes the arch file; --list print
   assert.equal(dry.status, 0);
   assert.equal(fs.existsSync(path.join(dir, 'never.json')), false);
   const list = run('--layout', SAMPLE, '--list');
-  assert.match(list.stdout, /lobby\s+ring 2/);
+  assert.match(list.stdout, /lobby\s+ring 1/);
   assert.match(list.stdout, /9 x 7 -> rect 9.5 x 7.5/);
   const bad = path.join(dir, 'bad.layout.json');
   fs.writeFileSync(bad, JSON.stringify({ ...sampleLayout(), placements: [{ id: 'X', module: 'nope', level: 'G', at: [0, 0] }] }));

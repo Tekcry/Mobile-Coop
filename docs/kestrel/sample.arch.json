@@ -5,10 +5,10 @@
     { "id": "F", "name": "First", "floor": 3.3, "height": 3.3 }
   ],
   "rooms": [
-    { "id": "G01", "level": "G", "name": "Lobby", "kind": "room", "rect": [2, 2, 11, 12], "ceiling": 3.0, "finish": "polished concrete", "minShort": 3.0, "open": [], "ring": 2, "module": "" },
-    { "id": "G02", "level": "G", "name": "Stair core", "kind": "stair", "rect": [11, 2, 17, 12], "ceiling": 3.0, "finish": "terrazzo", "minShort": 3.0, "open": [], "ring": 2, "module": "" },
-    { "id": "F01", "level": "F", "name": "Office", "kind": "room", "rect": [2, 2, 11, 12], "ceiling": 3.0, "finish": "carpet tile", "minShort": 3.0, "open": [], "ring": 3, "module": "" },
-    { "id": "F02", "level": "F", "name": "Stair landing", "kind": "stair", "rect": [11, 2, 17, 12], "ceiling": 3.0, "finish": "terrazzo", "minShort": 3.0, "open": [], "ring": 3, "module": "" }
+    { "id": "G01", "level": "G", "name": "Lobby", "kind": "room", "rect": [2, 2, 11, 12], "ceiling": 3.0, "finish": "polished concrete", "minShort": 3.0, "open": [], "ring": 1, "module": "" },
+    { "id": "G02", "level": "G", "name": "Stair core", "kind": "stair", "rect": [11, 2, 17, 12], "ceiling": 3.0, "finish": "terrazzo", "minShort": 3.0, "open": [], "ring": 1, "module": "" },
+    { "id": "F01", "level": "F", "name": "Office", "kind": "room", "rect": [2, 2, 11, 12], "ceiling": 3.0, "finish": "carpet tile", "minShort": 3.0, "open": [], "ring": 2, "module": "" },
+    { "id": "F02", "level": "F", "name": "Stair landing", "kind": "stair", "rect": [11, 2, 17, 12], "ceiling": 3.0, "finish": "terrazzo", "minShort": 3.0, "open": [], "ring": 2, "module": "" }
   ],
   "walls": [
     { "id": "W001", "level": "G", "a": [2, 2], "b": [17, 2], "t": 0.45, "h": 3.0, "kind": "exterior" },

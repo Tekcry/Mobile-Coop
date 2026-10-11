@@ -5,20 +5,19 @@ import { readFileSync } from 'node:fs';
 const md = readFileSync(process.argv[2], 'utf8');
 const lines = md.split(/\r?\n/);
 
-// Rings from brief 02 section 6 (planner, 2026-10-11). 3.5 = "3+" (security room).
+// Access levels from brief 02 section 6 (2g-1: 0 Perimeter, the lane included; 1-5 card levels).
 const RING = {};
 const put = (ring, ids) => { for (const id of ids) RING[id] = ring; };
 const range = (p, a, b) => Array.from({ length: b - a + 1 }, (_, i) => p + String(a + i).padStart(2, '0'));
-put(0, ['X01']);
-put(1, [...range('X', 2, 8), ...range('X', 10, 12)]);
-put(3, ['X09', 'X13']);
-put(2, ['AG01', 'AG02', 'AG03', 'AG08', 'AG09', 'BG01', 'BG07', 'BG08']);
-put(3, ['AG04', 'AG05', 'AG06', 'AG10', ...range('AG', 14, 22), 'AG24', 'AG25', 'AG26']);
-put(3.5, ['AG11', 'AG12', 'AG13']);
-put(3, [...range('AF', 1, 21), ...range('AR', 1, 4), 'LF01', 'LF02', ...range('BF', 1, 6), ...range('BF', 11, 15), ...range('BR', 1, 4)]);
-put(4, [...range('BF', 7, 10), 'BG13', 'BG20', ...range('BG', 23, 27), 'BU01', 'BU02', 'BR05', 'BG29', ...range('TB', 1, 4), 'AG23']);
+put(0, range('X', 1, 13));
+put(1, ['AG01', 'AG02', 'AG03', 'AG08', 'AG09', 'BG01', 'BG07', 'BG08']);
+put(2, ['AG04', 'AG05', 'AG06', 'AG10', ...range('AG', 14, 22), 'AG24', 'AG25', 'AG26']);
+put(3, ['AG11', 'AG12', 'AG13']);
+put(2, [...range('AF', 1, 21), ...range('AR', 1, 4), 'LF01', 'LF02', ...range('BF', 1, 6), ...range('BF', 11, 15), ...range('BR', 1, 4)]);
+put(3, [...range('AF', 2, 6), 'AF10', 'AF11', 'AF19', 'BF07', 'BG10', 'BG28']);
+put(4, [...range('BF', 8, 10), 'BG13', 'BG20', ...range('BG', 23, 27), 'BU01', 'BU02', 'BR05', 'BG29', ...range('TB', 1, 4), 'AG23']);
 put(5, ['BG21', 'BG22', ...range('BG', 30, 33)]);
-put(3, [...range('BG', 2, 6), ...range('BG', 9, 12), ...range('BG', 14, 16), 'BG28', ...range('BG', 40, 43), 'BR06']);
+put(2, [...range('BG', 2, 6), 'BG09', 'BG11', 'BG12', ...range('BG', 14, 16), ...range('BG', 40, 43), 'BR06']);
 
 const cells = (l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim());
 const RECT = /\[(-?[\d.]+), (-?[\d.]+), (-?[\d.]+), (-?[\d.]+)\]/;
@@ -53,14 +52,14 @@ for (const row of ring) {
   const [a, b] = (row.Between ?? '').split(' / ').map((s) => s.trim());
   const A = rects[a], B = rects[b];
   if (!A || !B) { fail(id, `unknown rect id ${!A ? a : b}`); continue; }
-  const from = (row['From (ring)'].match(ROOM) ?? []), to = (row['To (ring)'].match(ROOM) ?? []);
+  const from = (row['From (level)'].match(ROOM) ?? []), to = (row['To (level)'].match(ROOM) ?? []);
   if (!from[0] || !A.rooms.includes(from[0])) fail(id, `${from[0]} not in ${a} rooms (${A.rooms.join(' ')})`);
   for (const t of to) if (!B.rooms.includes(t)) fail(id, `${t} not in ${b} rooms (${B.rooms.join(' ')})`);
-  const rf = ringOf(row['From (ring)']), rt = ringOf(row['To (ring)']);
-  if (RING[from[0]] !== rf) fail(id, `${from[0]} ring written ${rf}, brief 6 ${RING[from[0]]}`);
-  for (const t of to) if (RING[t] !== rt) fail(id, `${t} ring written ${rt}, brief 6 ${RING[t]}`);
+  const rf = ringOf(row['From (level)']), rt = ringOf(row['To (level)']);
+  if (RING[from[0]] !== rf) fail(id, `${from[0]} level written ${rf}, brief 6 ${RING[from[0]]}`);
+  for (const t of to) if (RING[t] !== rt) fail(id, `${t} level written ${rt}, brief 6 ${RING[t]}`);
   const exempt = /^yes/i.test(row.Exempt ?? '');
-  if (!exempt && !(rt - rf >= 0 && rt - rf <= 1)) fail(id, `ring ${rf} to ${rt} skips or goes outward, not marked exempt`);
+  if (!exempt && !(rt - rf >= 0 && rt - rf <= 1)) fail(id, `level ${rf} to ${rt} skips or goes outward, not marked exempt`);
   const seg = (row.Segment ?? '').trim();
   if (seg === 'plan') {
     const [x0, z0, x1, z1] = B.r, [X0, Z0, X1, Z1] = A.r;
