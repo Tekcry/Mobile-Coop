@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED | 133a4d1 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (part 1a) | c805978 | 2026-10-11 |
+| P03B | Block plan | DRAFT (part 1b-G) | pending | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -46,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 P03B 1b-G: Building A ground, 25 rects in section 3 (731 of 731 m2, 0 overlaps, lift touches only AG18 and AG20). Spine [10, 40, 40, 43.5], bridge z0 = 40. Questions (recommended first): ASK-2 five rooms (AG05, AG06, AG07, AG14, AG24) cannot touch the spine: (a) side corridor later, (b) drop AG06 south-wall rule, (c) loosen AG01; ASK-3 fire stair reaches spine through a 2.5 m foot lobby: (a) accept, (b) none valid; ASK-4 AG22 across the spine from AG08/09: (a) accept, (b) swap with AG15; ASK-1 133 m2 leftover: (a) leave as pockets, (b) add stores.
 - 2026-10-11 P03B 1a: 03B-block-plan.md replaced with the campus plan, sections 1 (site, grid) and 2 (levels, footprints). Site tiling check: 8208 of 8208, 0 cells wrong. Corrected: passage 2.0 centreline / 1.55 clear, rear strip behind wing 2.0 (was 2.5). Questions (recommended first):
   - Q1 wing grid: (a, Recommended) wing keeps its own grid offset 2.0 north, x on campus lines - own foundations per brief 2; (b) move wing to grid lines, passage 6.0 - breaks brief 12e.
   - Q2 bridge side walls: (a, Recommended) exterior 0.45, 3.05 clear - it is an outside enclosure; (b) interior 0.30, 3.2 clear.
