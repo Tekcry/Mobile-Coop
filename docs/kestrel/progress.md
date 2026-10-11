@@ -5,14 +5,14 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | Stage | Prompt | Status | Commit | Date |
 | --- | --- | --- | --- | --- |
 | P00 | Setup, rules, facts | APPROVED | 8945ddb | 2026-10-10 |
-| S0 | Security systems spec | DRAFT (levels revision) | 65e28f9 | 2026-10-11 |
+| S0 | Security systems spec | APPROVED (levels revision) | 65e28f9 | 2026-10-11 |
 | S1 | Cameras and security desk | DRAFT (Part A done, Part B to run) | 478c3b8 | 2026-10-10 |
 | S2 | Card readers, keycards, mantrap | not started | | |
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
-| P01 | Mission brief | DRAFT (levels revision) | 5764aad | 2026-10-11 |
-| P02 | Building brief | DRAFT (levels revision) | 852d3ab | 2026-10-11 |
+| P01 | Mission brief | APPROVED (levels revision) | 5764aad | 2026-10-11 |
+| P02 | Building brief | APPROVED (levels revision) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
 | P03B | Block plan | DRAFT (Part 2 done, awaiting approval) | c5a0e52 | 2026-10-11 |
@@ -135,6 +135,8 @@ Older entries: progress-archive.md.
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 Model use (RULES 7 "Model use", PLANNER checklist): Opus, medium for planner, reviews, approvals and design parts. Sonnet, medium for data files, generators and document rewrites with any judgement. Haiku only for closed mechanical sessions: check-only runs and plan renders, FIXES with exact old and new text, recording decisions, housekeeping line moves. Every Haiku prompt is written by Opus and is closed: exact edits (old text, new text, file), precomputed values, command self-checks with the expected summary line for each; any mismatch or anything not listed means stop, commit nothing, report; no ASK solving, no layout, no generator edits. Haiku runs always end "Review chat: SEND - Haiku run". The planner names the model for each prompt, Haiku only if the prompt meets the closed rule.
+- 2026-10-11 REV-levels approved: 01 mission brief downstream line now reads 21 guards and 9 dormant (was 20 and 8); 01, 02 and S0 re-approved.
 - 2026-10-11 Review of REV-levels (fixes, replace the earlier dog-team ASK condition): (1) Dog teams: the roster had one yard patrol, so the perimeter patrol becomes dog handler 1 with one dog (front yard) and a contracted dog handler is added (rear yard and east service drive); 21 guards (2 handlers) plus 2 dogs plus 7 civilians, at most 12 awake, the other 9 guards dormant. (2) Building B's first floor stays Level 2 (main stair B reaches it openly from B's ground staff corridor); the bridge door into B is a Level 2 reader (B); the mantrap's outer door is the first Level 3 door in B; lift B is Level 2 on both floors. (3) The transformer compound (X09) and pipe rack (X13) are Perimeter, not Level 2; the site row reads "Perimeter (X01 Outside)"; wing doors and compound gates stay key-only and ring-exempt.
 - 2026-10-11 Access levels, plan labels and dogs (review of the P03B 2f plans, before Part 2 approval; replaces the reviewer's FIXES rerun of 2f):
   - Labels: a label that fits inside its room shows only there, with no second callout; callouts go to the nearest side of the site (west column for Building A and the west pieces, east for Building B), and their lines never cross the other building; stair, ladder, void and building labels use the same obstacle test as room labels; plans.mjs prints overlapping label boxes per level, expected 0 on all 7.
