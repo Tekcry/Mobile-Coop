@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (Part 2a done) | 282f7a4 | 2026-10-11 |
+| P03B | Block plan | DRAFT (Part 2b done) | b1da33e | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -46,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P03B 2b: standards-check fixes (stairs by kind, feature 2.4, other kinds info; U crawl clear = height minus 0.1; standards-check.test.mjs 5 pass) and generator piece 2 (zonesB, zonesSite, remainder): 75 rooms. standards corridors 11, doors 0, crawl 2, stairs 0, fails 0, info 0; parse-back rooms 75 corridors 11 overlaps 0 areaG 8208 fails 0; negative test fails 2. check.mjs 26 PASS, 2 FAIL: A06 (no walls) and A14 (levels H and R only, open roofs in 2d), no other fails. No ASKs; decisions 1-16 matched their sources.
 - 2026-10-11 Planner: review of P03B 2a: correct; generator rerun reproduces the file, standards `fails 0`, check.mjs 26 PASS, 2 FAIL (A06, A14 expected). Michael's fixes: duplicate 2a log, bridge-roof decision and lessons lines removed; 03B Q25 (brief 10 bridge roof rail vs 0.3 upstand, P03R). Planner finds: site kids (SI-GATE, SI-APRON, SI-BIN) overlap their yards and SI-RACK overlaps S-GAP (A04), so 2b splits the yards with `remainder()` and moves the rack to 2c. prompts/P03B-2b.md (Sonnet medium, 16 decisions): Step 0 standards fixes (feature stair 2.4, other kinds info; U clear = height minus 0.1; test file), piece 2 (75 rooms, G area 8208).
 - 2026-10-11 P03B 2a: scripts/kestrel/standards-check.mjs (corridors, doors, crawl, stairs) and p03b-blocks.mjs piece 1 (meta, levels, 27 A zones) -> docs/kestrel/kestrel.campus.blocks.json. standards corridors 8, doors 0, crawl 0, stairs 0, fails 0, info 0; parse-back zonesA 27 rooms 27 corridors 8 levels 7 buildings 2 fails 0; negative test fails 1. check.mjs 26 PASS, 2 FAIL, 1 INFO. Expected until 2b-2d: A06 (no walls yet), A14 (levels F, H, L, R footprints without rooms: B strip, bridge, hall roof, wing roof, A and B strip roofs). L height 0.3 (Michael).
 - 2026-10-11 Planner: no new stage output since the 1g-c review. Part 2 split into 2a-2e (handover Status). prompts/P03B-2a.md (Sonnet medium, 16 decisions): scripts/kestrel/standards-check.mjs and generator piece 1 (meta, levels, 27 A zones) into kestrel.campus.blocks.json; planner test of the parse-back regex finds 27 A zones.
