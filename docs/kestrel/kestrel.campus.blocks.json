@@ -2186,6 +2186,21 @@
    "id": "WG001",
    "level": "G",
    "a": [
+    0,
+    8
+   ],
+   "b": [
+    1,
+    8
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG002",
+   "level": "G",
+   "a": [
     1,
     8
    ],
@@ -2198,7 +2213,22 @@
    "kind": "exterior"
   },
   {
-   "id": "WG002",
+   "id": "WG003",
+   "level": "G",
+   "a": [
+    5.5,
+    8
+   ],
+   "b": [
+    108,
+    8
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG004",
    "level": "G",
    "a": [
     1,
@@ -2213,7 +2243,7 @@
    "kind": "exterior"
   },
   {
-   "id": "WG003",
+   "id": "WG005",
    "level": "G",
    "a": [
     4,
@@ -2228,7 +2258,7 @@
    "kind": "exterior"
   },
   {
-   "id": "WG004",
+   "id": "WG006",
    "level": "G",
    "a": [
     52,
@@ -2243,7 +2273,7 @@
    "kind": "exterior"
   },
   {
-   "id": "WG005",
+   "id": "WG007",
    "level": "G",
    "a": [
     70,
@@ -2258,7 +2288,7 @@
    "kind": "exterior"
   },
   {
-   "id": "WG006",
+   "id": "WG008",
    "level": "G",
    "a": [
     70,
@@ -2273,7 +2303,7 @@
    "kind": "interior"
   },
   {
-   "id": "WG007",
+   "id": "WG009",
    "level": "G",
    "a": [
     4,
@@ -2288,7 +2318,7 @@
    "kind": "interior"
   },
   {
-   "id": "WG008",
+   "id": "WG010",
    "level": "G",
    "a": [
     60.5,
@@ -2303,37 +2333,37 @@
    "kind": "interior"
   },
   {
-   "id": "WG009",
-   "level": "G",
-   "a": [
-    4,
-    43.5
-   ],
-   "b": [
-    40,
-    43.5
-   ],
-   "t": 0.3,
-   "h": 4.2,
-   "kind": "interior"
-  },
-  {
-   "id": "WG010",
-   "level": "G",
-   "a": [
-    4,
-    50.5
-   ],
-   "b": [
-    40,
-    50.5
-   ],
-   "t": 0.3,
-   "h": 4.2,
-   "kind": "interior"
-  },
-  {
    "id": "WG011",
+   "level": "G",
+   "a": [
+    4,
+    43.5
+   ],
+   "b": [
+    40,
+    43.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG012",
+   "level": "G",
+   "a": [
+    4,
+    50.5
+   ],
+   "b": [
+    40,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG013",
    "level": "G",
    "a": [
     70,
@@ -2348,55 +2378,55 @@
    "kind": "interior"
   },
   {
-   "id": "WG012",
-   "level": "G",
-   "a": [
-    4,
-    54
-   ],
-   "b": [
-    40,
-    54
-   ],
-   "t": 0.3,
-   "h": 4.2,
-   "kind": "interior"
-  },
-  {
-   "id": "WG013",
-   "level": "G",
-   "a": [
-    52,
-    56.5
-   ],
-   "b": [
-    70,
-    56.5
-   ],
-   "t": 0.3,
-   "h": 4.2,
-   "kind": "interior"
-  },
-  {
    "id": "WG014",
    "level": "G",
    "a": [
     4,
-    60
+    54
    ],
    "b": [
     40,
-    60
+    54
    ],
-   "t": 0.45,
+   "t": 0.3,
    "h": 4.2,
-   "kind": "exterior"
+   "kind": "interior"
   },
   {
    "id": "WG015",
    "level": "G",
    "a": [
     52,
+    56.5
+   ],
+   "b": [
+    70,
+    56.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG016",
+   "level": "G",
+   "a": [
+    4,
+    60
+   ],
+   "b": [
+    40,
+    60
+   ],
+   "t": 0.45,
+   "h": 4.2,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG017",
+   "level": "G",
+   "a": [
+    52,
     60
    ],
    "b": [
@@ -2408,7 +2438,7 @@
    "kind": "exterior"
   },
   {
-   "id": "WG016",
+   "id": "WG018",
    "level": "G",
    "a": [
     70,
@@ -2423,7 +2453,7 @@
    "kind": "exterior"
   },
   {
-   "id": "WG017",
+   "id": "WG019",
    "level": "G",
    "a": [
     52,
@@ -2436,41 +2466,41 @@
    "t": 0.45,
    "h": 6.6,
    "kind": "exterior"
-  },
-  {
-   "id": "WG018",
-   "level": "G",
-   "a": [
-    8,
-    63
-   ],
-   "b": [
-    12.5,
-    63
-   ],
-   "t": 0.45,
-   "h": 2.4,
-   "kind": "boundary"
-  },
-  {
-   "id": "WG019",
-   "level": "G",
-   "a": [
-    8,
-    66.5
-   ],
-   "b": [
-    12.5,
-    66.5
-   ],
-   "t": 0.45,
-   "h": 2.4,
-   "kind": "boundary"
   },
   {
    "id": "WG020",
    "level": "G",
    "a": [
+    8,
+    63
+   ],
+   "b": [
+    12.5,
+    63
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG021",
+   "level": "G",
+   "a": [
+    8,
+    66.5
+   ],
+   "b": [
+    12.5,
+    66.5
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG022",
+   "level": "G",
+   "a": [
     52,
     74
    ],
@@ -2483,7 +2513,22 @@
    "kind": "exterior"
   },
   {
-   "id": "WG021",
+   "id": "WG023",
+   "level": "G",
+   "a": [
+    0,
+    8
+   ],
+   "b": [
+    0,
+    76
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG024",
    "level": "G",
    "a": [
     1,
@@ -2498,7 +2543,7 @@
    "kind": "exterior"
   },
   {
-   "id": "WG022",
+   "id": "WG025",
    "level": "G",
    "a": [
     4,
@@ -2513,7 +2558,7 @@
    "kind": "exterior"
   },
   {
-   "id": "WG023",
+   "id": "WG026",
    "level": "G",
    "a": [
     5.5,
@@ -2528,59 +2573,14 @@
    "kind": "exterior"
   },
   {
-   "id": "WG024",
-   "level": "G",
-   "a": [
-    7.5,
-    43.5
-   ],
-   "b": [
-    7.5,
-    50.5
-   ],
-   "t": 0.3,
-   "h": 4.2,
-   "kind": "interior"
-  },
-  {
-   "id": "WG025",
-   "level": "G",
-   "a": [
-    8,
-    63
-   ],
-   "b": [
-    8,
-    66.5
-   ],
-   "t": 0.45,
-   "h": 2.4,
-   "kind": "boundary"
-  },
-  {
-   "id": "WG026",
-   "level": "G",
-   "a": [
-    12.5,
-    63
-   ],
-   "b": [
-    12.5,
-    66.5
-   ],
-   "t": 0.45,
-   "h": 2.4,
-   "kind": "boundary"
-  },
-  {
    "id": "WG027",
    "level": "G",
    "a": [
-    19.5,
+    7.5,
     43.5
    ],
    "b": [
-    19.5,
+    7.5,
     50.5
    ],
    "t": 0.3,
@@ -2591,6 +2591,51 @@
    "id": "WG028",
    "level": "G",
    "a": [
+    8,
+    63
+   ],
+   "b": [
+    8,
+    66.5
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG029",
+   "level": "G",
+   "a": [
+    12.5,
+    63
+   ],
+   "b": [
+    12.5,
+    66.5
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG030",
+   "level": "G",
+   "a": [
+    19.5,
+    43.5
+   ],
+   "b": [
+    19.5,
+    50.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG031",
+   "level": "G",
+   "a": [
     20,
     54
    ],
@@ -2603,60 +2648,15 @@
    "kind": "interior"
   },
   {
-   "id": "WG029",
-   "level": "G",
-   "a": [
-    22,
-    30
-   ],
-   "b": [
-    22,
-    40
-   ],
-   "t": 0.3,
-   "h": 4.2,
-   "kind": "interior"
-  },
-  {
-   "id": "WG030",
-   "level": "G",
-   "a": [
-    28.5,
-    30
-   ],
-   "b": [
-    28.5,
-    40
-   ],
-   "t": 0.3,
-   "h": 4.2,
-   "kind": "interior"
-  },
-  {
-   "id": "WG031",
-   "level": "G",
-   "a": [
-    31,
-    43.5
-   ],
-   "b": [
-    31,
-    50.5
-   ],
-   "t": 0.3,
-   "h": 4.2,
-   "kind": "interior"
-  },
-  {
    "id": "WG032",
    "level": "G",
    "a": [
-    34.5,
-    43.5
+    22,
+    30
    ],
    "b": [
-    34.5,
-    50.5
+    22,
+    40
    ],
    "t": 0.3,
    "h": 4.2,
@@ -2666,101 +2666,101 @@
    "id": "WG033",
    "level": "G",
    "a": [
-    40,
+    28.5,
     30
    ],
    "b": [
-    40,
-    60
+    28.5,
+    40
    ],
-   "t": 0.45,
+   "t": 0.3,
    "h": 4.2,
-   "kind": "exterior"
+   "kind": "interior"
   },
   {
    "id": "WG034",
    "level": "G",
    "a": [
-    52,
-    30
+    31,
+    43.5
    ],
    "b": [
-    52,
-    60
+    31,
+    50.5
    ],
-   "t": 0.45,
+   "t": 0.3,
    "h": 4.2,
-   "kind": "exterior"
+   "kind": "interior"
   },
   {
    "id": "WG035",
    "level": "G",
    "a": [
-    52,
-    62
+    34.5,
+    43.5
    ],
    "b": [
-    52,
-    74
+    34.5,
+    50.5
    ],
-   "t": 0.45,
-   "h": 6.6,
-   "kind": "exterior"
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
   },
   {
    "id": "WG036",
    "level": "G",
    "a": [
-    57,
+    40,
     30
    ],
    "b": [
-    57,
-    56.5
+    40,
+    60
    ],
-   "t": 0.3,
+   "t": 0.45,
    "h": 4.2,
-   "kind": "interior"
+   "kind": "exterior"
   },
   {
    "id": "WG037",
    "level": "G",
    "a": [
-    60.5,
+    52,
     30
    ],
    "b": [
-    60.5,
-    56.5
+    52,
+    60
    ],
-   "t": 0.3,
+   "t": 0.45,
    "h": 4.2,
-   "kind": "interior"
+   "kind": "exterior"
   },
   {
    "id": "WG038",
    "level": "G",
    "a": [
-    70,
-    30
-   ],
-   "b": [
-    70,
+    52,
     60
    ],
-   "t": 0.3,
-   "h": 6.6,
-   "kind": "interior"
+   "b": [
+    52,
+    62
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
   },
   {
    "id": "WG039",
    "level": "G",
    "a": [
-    76,
+    52,
     62
    ],
    "b": [
-    76,
+    52,
     74
    ],
    "t": 0.45,
@@ -2771,6 +2771,96 @@
    "id": "WG040",
    "level": "G",
    "a": [
+    57,
+    30
+   ],
+   "b": [
+    57,
+    56.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG041",
+   "level": "G",
+   "a": [
+    60.5,
+    30
+   ],
+   "b": [
+    60.5,
+    56.5
+   ],
+   "t": 0.3,
+   "h": 4.2,
+   "kind": "interior"
+  },
+  {
+   "id": "WG042",
+   "level": "G",
+   "a": [
+    70,
+    30
+   ],
+   "b": [
+    70,
+    60
+   ],
+   "t": 0.3,
+   "h": 6.6,
+   "kind": "interior"
+  },
+  {
+   "id": "WG043",
+   "level": "G",
+   "a": [
+    76,
+    60
+   ],
+   "b": [
+    76,
+    62
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG044",
+   "level": "G",
+   "a": [
+    76,
+    62
+   ],
+   "b": [
+    76,
+    74
+   ],
+   "t": 0.45,
+   "h": 6.6,
+   "kind": "exterior"
+  },
+  {
+   "id": "WG045",
+   "level": "G",
+   "a": [
+    76,
+    74
+   ],
+   "b": [
+    76,
+    76
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG046",
+   "level": "G",
+   "a": [
     96,
     30
    ],
@@ -2783,7 +2873,7 @@
    "kind": "interior"
   },
   {
-   "id": "WG041",
+   "id": "WG047",
    "level": "G",
    "a": [
     100,
@@ -2796,6 +2886,36 @@
    "t": 0.45,
    "h": 6.6,
    "kind": "exterior"
+  },
+  {
+   "id": "WG048",
+   "level": "G",
+   "a": [
+    100,
+    60
+   ],
+   "b": [
+    100,
+    76
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
+  },
+  {
+   "id": "WG049",
+   "level": "G",
+   "a": [
+    108,
+    8
+   ],
+   "b": [
+    108,
+    76
+   ],
+   "t": 0.45,
+   "h": 2.4,
+   "kind": "boundary"
   },
   {
    "id": "WF001",
@@ -3593,7 +3713,265 @@
    "kind": "parapet"
   }
  ],
- "openings": [],
+ "openings": [
+  {
+   "id": "RA01-P",
+   "wall": "WG003",
+   "at": 2,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-LANE",
+    "S-YARDA-2"
+   ],
+   "locked": true,
+   "key": "Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases",
+   "reason": "Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases (03B 7.1 RA01-P)"
+  },
+  {
+   "id": "RA01-V",
+   "wall": "WG003",
+   "at": 7,
+   "w": 6,
+   "h": 2.1,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-LANE",
+    "S-YARDA-2"
+   ],
+   "locked": true,
+   "key": "Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases",
+   "reason": "Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases (03B 7.1 RA01-V)"
+  },
+  {
+   "id": "RA02",
+   "wall": "WG003",
+   "at": 98.5,
+   "w": 5,
+   "h": 2.1,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-LANE",
+    "S-YARDB-1"
+   ],
+   "locked": true,
+   "key": "East service gate, chain and padlock",
+   "reason": "East service gate, chain and padlock (03B 7.1 RA02)"
+  },
+  {
+   "id": "RA03",
+   "wall": "WG005",
+   "at": 9,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "S-YARDA-3",
+    "G-FRONT"
+   ],
+   "locked": true,
+   "key": "Main door, locked out of hours, intercom",
+   "reason": "Main door, locked out of hours, intercom (03B 7.1 RA03)"
+  },
+  {
+   "id": "RA04",
+   "wall": "WG005",
+   "at": 29,
+   "w": 3,
+   "h": 3,
+   "sill": 0,
+   "type": "roller",
+   "between": [
+    "S-YARDA-3",
+    "G-GOODS"
+   ],
+   "locked": true,
+   "key": "Roller door by key switch inside; wicket door reader",
+   "reason": "Roller door by key switch inside; wicket door reader (03B 7.1 RA04)"
+  },
+  {
+   "id": "RA05",
+   "wall": "WG009",
+   "at": 9,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "G-FRONT",
+    "G-SPINE"
+   ],
+   "locked": true,
+   "key": "Reader, A card",
+   "reason": "Reader, A card (03B 7.1 RA05)"
+  },
+  {
+   "id": "RA06",
+   "wall": "WG009",
+   "at": 30,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "G-GOODS",
+    "G-SPINE"
+   ],
+   "locked": true,
+   "key": "Reader, A card",
+   "reason": "Reader, A card (03B 7.1 RA06)"
+  },
+  {
+   "id": "RA07",
+   "wall": "WG011",
+   "at": 12.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "G-SPINE",
+    "G-SEC"
+   ],
+   "locked": true,
+   "key": "Reader, master card tier; key safe PIN inside AG13",
+   "reason": "Reader, master card tier; key safe PIN inside AG13 (03B 7.1 RA07)"
+  },
+  {
+   "id": "RA08",
+   "wall": "WF004",
+   "at": 20,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "F-OPS",
+    "F-SPINE"
+   ],
+   "locked": true,
+   "key": "Reader, master card tier (AF02 through AF03)",
+   "reason": "Reader, master card tier (AF02 through AF03) (03B 7.1 RA08)"
+  },
+  {
+   "id": "RA09",
+   "wall": "WF006",
+   "at": 9.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "F-SPINE",
+    "F-BW"
+   ],
+   "locked": true,
+   "key": "Reader, master card tier",
+   "reason": "Reader, master card tier (03B 7.1 RA09)"
+  },
+  {
+   "id": "RA10",
+   "wall": "WF022",
+   "at": 12,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "F-NCOR",
+    "F-PLANT"
+   ],
+   "locked": true,
+   "key": "Reader, master card tier",
+   "reason": "Reader, master card tier (03B 7.1 RA10)"
+  },
+  {
+   "id": "RA11",
+   "wall": "WF023",
+   "at": 12,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "F-VEST",
+    "K-BRIDGE"
+   ],
+   "locked": true,
+   "key": "Reader, A card",
+   "reason": "Reader, A card (03B 7.1 RA11)"
+  },
+  {
+   "id": "RA12",
+   "wall": "WF024",
+   "at": 12,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "K-BRIDGE",
+    "B-FLOBBY"
+   ],
+   "locked": true,
+   "key": "Reader, B-tier card or escort PIN; bridge post",
+   "reason": "Reader, B-tier card or escort PIN; bridge post (03B 7.1 RA12)"
+  },
+  {
+   "id": "RA13",
+   "wall": "WG025",
+   "at": 26,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "fire-door",
+   "between": [
+    "S-WPATH",
+    "G-NW"
+   ],
+   "locked": true,
+   "key": "Fire exit, exit only, no outside hardware, alarmed",
+   "reason": "Fire exit, exit only, no outside hardware, alarmed (03B 7.1 RA13)",
+   "ringExempt": "Fire exit, exit only, no outside hardware (brief ASK-2)"
+  },
+  {
+   "id": "RA14",
+   "wall": "WR003",
+   "at": 1,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "RF-A-2",
+    "R-BULK"
+   ],
+   "locked": true,
+   "key": "Roof door, key outside, thumb-turn inside (AF15 below)",
+   "reason": "Roof door, key outside, thumb-turn inside (AF15 below) (03B 7.1 RA14)"
+  },
+  {
+   "id": "RA17",
+   "wall": "WB004",
+   "at": 33,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "T-TUNB",
+    "T-RISER"
+   ],
+   "locked": true,
+   "key": "Riser door at the tunnel end, reader B-tier or PIN",
+   "reason": "Riser door at the tunnel end, reader B-tier or PIN (03B 7.1 RA17)"
+  }
+ ],
  "stairs": [
   {
    "id": "V-ASTAIR",

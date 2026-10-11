@@ -1,7 +1,8 @@
-// P03B Part 2 blocks generator. Piece 1 (2a): meta, levels, Building A zones. Piece 2 (2b): B, wing, bridge, site, level U zones. Piece 3 (2c): stairs, voids, ladders, V-AG23, pipe rack. Piece 4 (2d-1): open roofs, V-LAD3, walls, parapets, open edges. 2d-2 adds openings.
+// P03B Part 2 blocks generator. Piece 1 (2a): meta, levels, Building A zones. Piece 2 (2b): B, wing, bridge, site, level U zones. Piece 3 (2c): stairs, voids, ladders, V-AG23, pipe rack. Piece 4 (2d-1): open roofs, V-LAD3, walls, parapets, open edges. 2d-2a adds fences and openings (p03b-openings.mjs).
 // Usage: node scripts/kestrel/p03b-blocks.mjs  -> docs/kestrel/kestrel.campus.blocks.json (planner 2026-10-11: keeps npm test green until B0)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { standardsCheck, summary } from './standards-check.mjs';
+import { fenceUnits, openings } from './p03b-openings.mjs';
 
 const MD = 'docs/kestrel/03B-block-plan.md';
 const OUT = 'docs/kestrel/kestrel.campus.blocks.json';
@@ -239,6 +240,7 @@ function walls(rs, lv) { // decisions 6-11; returns the walls and the covered un
       covered.add(`${L.id}|${ukey(u)}`);
     }
   }
+  raw.push(...fenceUnits(covered, ukey)); // 2d-2a decision 1: fences before the merge, skipping walled units
   const groups = new Map(); // decision 11: merge consecutive units with one kind and h
   for (const u of raw) { const g = `${u.level}|${u.horiz}|${u.c}|${u.kind}|${u.h}`; (groups.get(g) ?? groups.set(g, []).get(g)).push(u); }
   const merged = [];
@@ -268,7 +270,7 @@ const out = {
   meta: meta(),
   levels: lvls,
   rooms, // zonesA, zonesB, zonesSite, V-AG23, roofs
-  walls: wallList, openings: [], stairs: stairs(), ladders: ladders(), voids: voids(), objects: [], exterior: [], services: services(), // openings are 2d-2
+  walls: wallList, openings: openings(md, cells, wallList, rooms), stairs: stairs(), ladders: ladders(), voids: voids(), objects: [], exterior: [], services: services(), // openings 2d-2a (2d-2b adds 7.2)
 };
 writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
 console.log(`wrote ${OUT}: rooms ${out.rooms.length}, walls ${out.walls.length}, levels ${out.levels.length}`);

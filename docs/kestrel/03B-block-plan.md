@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1 done; Part 2d-1 done, 2d-2 next)
+Status: DRAFT (Part 1 done; Part 2d-2a done, 2d-2b next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -359,6 +359,7 @@ Deviations:
 - No other row of the candidate changed.
 
 Notes for P04, 1f-b and P03R:
+- Part 2d-2a: 16 openings at the positions in prompts/P03B-2d-2a.md; RA01 is two gates (RA01-P, RA01-V); RA15 and RA16 stay hatch voids; fences are boundary walls 2.4 (brief ASK-1)
 - P04: each door goes on its segment; RA01's gates sit east of the gatehouse so the officer sees both; RA07's three security doors share z 43.5 with no zone 2 contact (3.3 G-SEC).
 - P03R: brief 4 east service gate wording (opposite X08).
 - 1f-b: RA12's B reader is the bridge post's door; B's rows start at RB01.
