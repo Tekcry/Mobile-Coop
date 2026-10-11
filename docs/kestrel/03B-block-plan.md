@@ -104,7 +104,7 @@ Self-check (node script, this session): `rects 25, area 731 of 731, grid 0, outs
 | [38, 49.5, 40, 54] | 9 | Dead space at the north-east corner |
 | 13 more slivers | 43.5 | 0.5 grid residue (mostly 0.5 to 2.0 m wide): wall pockets, shafts |
 
-ASK-1: Spare 133 m2 is mostly slivers and pockets. Options: (a) leave as wall and shaft pockets (recommended), (b) fill the three larger blocks with stores for gameplay hiding spots.
+Michael answered ASK-1: leftover goes to the branch corridor first; what remains stays as wall and shaft pockets.
 
 ### Deviations from the brief (ground)
 - No rect sizes changed. Turned 90 degrees: AG02 (5 x 6), AG06 kept 8 x 6, AG08 (8 x 10), AG09 (3 x 4), AG17 (1.5 x 2), AG18 kept 4 x 8, AG21 (3.5 wide x 6.5 deep).
@@ -115,6 +115,13 @@ ASK-1: Spare 133 m2 is mostly slivers and pockets. Options: (a) leave as wall an
 - AG12 and AG13 do not touch each other. AG11 sits between them and touches both. Brief 7 asks AG11 with AG12 and AG13 only.
 
 ### Questions and ASKs (ground)
-- ASK-2: Spine frontage is 60 m (2 x 30) but the brief wants about 70 m of direct doors. Not touching the spine: AG05, AG06, AG07, AG14, AG24 (AG23 by design). AG06 (south wall, 6 deep) cannot reach the spine when AG01 is 10 deep. Options: (a) accept second-row rooms reached by a short side corridor added later (recommended), (b) drop the south-wall rule for AG06 and move it to the spine, (c) make AG01 depth 9 and move the spine to z 39 (needs Michael to loosen AG01).
-- ASK-3: AG21 does not touch the spine (2.5 m lobby between). Options: (a) accept the foot lobby, the exit door on x 4 is through AG21 (recommended), (b) make AG21 a 6.5 x 3.5 core at x 4-10.5 with the spine at x 10.5-40.5 (outside A, not allowed).
-- ASK-4: AG22 is across the spine from AG08 and AG09, not touching them (the south row is full). Options: (a) accept (recommended), (b) swap AG15 for AG22 on the south row.
+Michael's answers (2026-10-11): ASK-2 use the leftover for a short branch corridor (kind corridor, 3.5 rect, 3.2 clear, ceiling 2.4, void) so AG05, AG06, AG07, AG14, AG24 each touch a corridor, moving rooms only as far as needed; if it cannot fit, write ASK and stop. ASK-3 accept the foot lobby. ASK-4 accept AG22 across the spine.
+
+Extra self-check rule (every room touches a corridor or its own lobby; AG02 and AG03 use AG01, AG19 uses AG20, AG21 uses its foot lobby, AG23 uses the AG22 hatch): 5 failures, AG05, AG06, AG07, AG14, AG24. Layout unchanged.
+
+ASK-5 (branch corridor cannot fit the north four; stopped as instructed). Why: the north half is 10.5 deep. A room off the spine takes 4 to 5, a corridor 3.5, and a north-wall room needs 5 to 6, so an east-west branch leaves 2. A north-south branch has only 3 wall slots (one west of it, one east of it, plus the spine row), and it needs 3.5 m of spine frontage, which is all used (60 m of 60). Fits: AG06 only. A 3.5 x 4 stub [25.5, 36, 29, 40] off the spine touches AG06's north edge, using leftover, if AG16 and AG17 move (they have no home: no frontage left). What would have to move, options (recommended first):
+- (a) Split the load: a north-south branch [10, 43.5, 13.5, 54] at the spine's west end, AG25 and AG17 move onto it (frees 3.5 m of frontage), AG13, AG11, AG12, core, lobby slide 1.5 m east to x 13.5-35, AG24 west of it [5, 46.5, 10, 53.5], AG14 east [13.5, 48.5, 21.5, 53.5]; AG05 and AG07 still do not touch. Plus the AG06 stub; AG16 needs a home.
+- (b) Reduce the count: AG07 (customer services) and AG05 move to the south row in place of AG06 and AG15, and AG06 goes north. Needs Michael to loosen "AG06 on the south wall".
+- (c) Swap to a double-loaded north wing: shrink the spine rooms AG11-AG13 to the south half (needs AG02-AG04 or AG15 to move north), freeing the north half for an east-west branch at z 48.5-52 with rooms at z 52-54... does not work (2 deep).
+- (d) Allow a second spine-parallel corridor by moving the spine to z 36-39.5 and AG01 to 9 x 10 turned 10 x 9 (loosens AG01 and AG08 constraints; Michael's approval).
+
