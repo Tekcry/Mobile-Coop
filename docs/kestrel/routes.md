@@ -15,6 +15,7 @@ Planner, 2026-10-11 (Michael's decision). Built only from RULES.md section 1 (se
 | R07 Smoke vents | Smoke vents at the top of the fire stairs | ASK: way through the vent (P06) | AR01 / BR01 | AR04 / BR02 | RULES 1 l.15 "smoke vents at the top of the fire stairs"; brief AR04, BR02 |
 | R08 Carrier manhole | Manhole lid and fixed ladder, vault, tunnel B branch, carrier riser | ladder, crawl space (tunnel) | X04 (lid of TB02) | BG31, then BG30 | RULES 1 l.15 "the carrier manhole and vault to the meet-me room"; brief TB02, TB01, TB04, BG32 |
 | R09 Underfloor void | Level U under the hall, hinged hatches throughout | crawl space (underfloor) | BG20 (hatches) or BG23 (hatch to BU02) | BG20 (another hatch) | RULES 1 l.15 "the underfloor void under Building B's hall with hinged hatches throughout"; brief BU01, BU02 |
+| CP Critical path | Lane fence, AG06 window, A fire stair, roof ladders, shaft BR05, riser BG32, tunnel, manhole | fence, window, ladder, rappel, crawl space (tunnel) | X01 (lane fence, east half) | RA02 east service gate (P12) | 03B 8.1 |
 
 ## 2. Traversal coverage (RULES 1 line 10)
 Engine column: anchor kind from `AnchorKind` (src/world/anchors.ts:18), or a move mode from `MOVE_MODES` (src/player/moveState.ts:12-45) for moves that are not anchors.
@@ -27,8 +28,8 @@ Engine column: anchor kind from `AnchorKind` (src/world/anchors.ts:18), or a mov
 | Split jump | anchor `split` | not yet placed |
 | Wall jump | move mode `wallJump` (moveState.ts:34) | not yet placed |
 | Rappel | anchor `rappel` | R04 |
-| Fences | anchor `fence` | not yet placed |
-| Windows | anchor `window` | not yet placed |
+| Fences | anchor `fence` | CP (lane fence, P01) |
+| Windows | anchor `window` | CP (AG06 south window, P02) |
 | Crawl spaces (ceiling voids, underfloor, tunnel) | anchor `duct` (`where` wall, ceiling or floor, anchors.ts:85) | R05 (ceiling), R09 (underfloor), R01 and R08 (tunnel) |
 | Vault and mantle | move modes `vault`, `mantle` (moveState.ts:24-25) | not yet placed |
 | Drops | move mode `drop` (moveState.ts:26) | not yet placed |

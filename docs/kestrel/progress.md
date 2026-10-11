@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (parts 1a-1f) | 6e74470 | 2026-10-11 |
+| P03B | Block plan | DRAFT (parts 1a-1g-a) | COMMIT | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -46,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P03B 1g-a: section 8 of 03B (critical path, 12 legs, 8.1 and 8.2) and routes.md CP row, fences and windows. Michael's fixes: P12 exits at RA02 (x 100-108, z 8, opposite X08), not x 73; question 1 answered east service gate RA02. Deviation: P01 moved x 96 to x 84 so the way in is not 8 m from the exit (MB 6 B10). Checks: path `path legs 12, total 495.7`, `coverage moves 14, placed 6, open 7`, `fails 0`; F `fails 0, info 2`; E `fails 0, info 2`; A, B, D `fails 0`. No ASKs. Next: Part 1g-b.
 Older entries: progress-archive.md.
 - 2026-10-11 Planner: review of P03B 1f-b: realistic (staff door and roller door on the yard, readers into the corridor, exit-only passage and equipment doors, padlocked compound gates, roof door toward the hall-roof ladder) and flows; self-check covered all five scripts; no disagreements. 1g split into 1g-a (critical path, coverage) and 1g-b (brief 7 adjacency, questions). prompts/P03B-1g-a.md (15 decisions) with scripts/kestrel/p03b-path-check-g.mjs; planner test `path legs 12, total 472.8, coverage placed 4, open 9, fails 0`, negative test 5 fails. East insertion needed: a west one gives about 417 m, under 450.
 - 2026-10-11 P03B 1f-b: section 7.2 of 03B (18 ring entries: B doors and readers, BG10's plant and passage doors, wing doors and compound gates, hall reader and equipment door, fire exits, grille, roof door, hall hatches) plus the inside-zones list. Candidate kept unchanged. Checks: F `ring 35 (RA 17, RB 18), rects 114, fails 0, info 2` (RA14, RB17 bulkheads, expected); E `vert 17, fails 0, info 2`; A `zones 27, fixed 15, fails 0, info 0`; B `zones 19, fixed 10, fails 0`; D `zones 26, rows 126 of 126, fails 0`. Deviations: none. No ASKs. Next: Part 1g.

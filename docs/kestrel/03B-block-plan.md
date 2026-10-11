@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1f done: ring entries; Part 1g next)
+Status: DRAFT (Part 1g-a done: critical path; Part 1g-b next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -412,6 +412,20 @@ Solo ghost line, roof-shaft entry, carrier exit (mission brief 4.1). Waypoints a
 | P12 | 7 | T-MH 48.75,24.75 > S-YARDB 104,9 > S-LANE 104,4 | 0 (east service gate RA02) | 62.45 | MB 4 obj 7; 7.1 RA02; question 1 |
 
 Total: 495.7 m (RULES 2: 450-650).
+
+### 8.2 Notes for P04, P06 and 1g-b
+- Insertion at the lane fence's east half (x 84): a west insertion near A gives about 417 m, under the 450 floor; x 84 rather than x 96 keeps 20 m between the way in and the RA02 exit (MB 6 B10, a different path out).
+- No-contact way per leg where not obvious: P01 dark fence, slow past the sensor lamps; P03 card from the drawer on the manager's walk; P07-P08 roofs need no reader (cameras looped at P04); P09 grille contact isolated with the roof key (RB16); P11 riser door exits free, B-tier card from TA4 (RA17); P12 under the generator test noise.
+- P04 keeps AG06's window, AG05's door, the west link and the fire stair door on these lines, or records the added metres.
+- P06 places the fence anchor at P01, the window anchor at AG06 (P02) and a gate climb at RA02 (P12).
+- Off this line (other tracks and co-op): the mantrap (no ghost route, MB 4.1), the bridge doors RA11 / RA12 and TB3.
+- Question 1 (Michael, 2026-10-11): where does the player leave the site? Options: east service gate RA02 (Recommended: unmanned, chained, at the end of the tanker drive by the compound and generator side, where the generator test noise covers the climb; 101 m from the gatehouse, 57.5 m from the manhole; total 495.7 m) or main vehicle gate RA01 (past the manned gatehouse; 43.7 m from the manhole; total 481.9 m). Answer: east service gate RA02.
+
+Self-check (this session):
+- Path `node scripts/kestrel/p03b-path-check-g.mjs`: `path legs 12, total 495.7`, `coverage moves 14, placed 6, open 7`, `fails 0`.
+- F: `ring 35 (RA 17, RB 18), rects 114, fails 0, info 2`; E: `vert 17, fails 0, info 2`; A: `zones 27, fixed 15, fails 0, info 0`; B: `zones 19, fixed 10, fails 0`; D: `zones 26, rows 126 of 126, fails 0`.
+
+Deviations: P12 ends at RA02 (x 104, z 8, opposite X08; Michael's fix, 7.1), over the gate to the lane, not at x 73 beside X12. P01 moved from x 96 to x 84 (P02 64.83, was 75.48) so the way in is not beside the exit. Total 495.7, was 472.8.
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
