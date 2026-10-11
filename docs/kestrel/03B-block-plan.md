@@ -593,6 +593,7 @@ Rows per For: Michael 0, P03R 13, P04 13, P06 1.
 | 15 | ring-exempt openings in the JSON (2g-1) | 9: RA13 RB07 RB08 RB09 RB10 RB11 RB13 RB14 RB15 (RB09 added: key-only wing double doors) |
 
 Plans: docs/kestrel/plans/blocks-<L>.png for B, U, G, F, H, L, R (Part 2e)
+Part 2g-2 (Michael, 2026-10-11): Title Case plain names, name over a small grey id, one label each, nearest-side callouts, legend in access levels; overlaps 0 on all 7 levels.
 Part 2g-1 (Michael, 2026-10-11): zones are access levels 0-5 (0 Perimeter); S-COMP is Perimeter; G-SEC, F-OPS, F-BW, F-PLANT, F-E and B-GN are Level 3; RA16 and RB16 (key hatch and key grille, Level 2 to 4) marked exempt (key). Checks 1-13 unchanged.
 Part 2f (Michael, 2026-10-11): plain names on every zone, site piece, tunnel, roof and vertical piece; worded zone legend; checks unchanged.
 

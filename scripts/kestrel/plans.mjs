@@ -221,9 +221,7 @@ function stairSym(s, onFrom) {
   const side = [-dir[1], dir[0]];
   const back = [head[0] - dir[0] * sgn * ah, head[1] - dir[1] * sgn * ah];
   out += polyEl([[back[0] + side[0] * ah, back[1] + side[1] * ah], head, [back[0] - side[0] * ah, back[1] - side[1] * ah]], ink);
-  const at = [tail[0] + dir[0] * sgn * ((R('arrowHead') * 2) / S), tail[1] + dir[1] * sgn * ((R('arrowHead') * 2) / S)];
-  out += labelLines(at, [`${onFrom ? 'UP' : 'DN'} ${plainName(s) ? `${s.id} - ${s.name}` : s.id}`], R('fontSmall'), `fill="#111" ${HALO()}`);
-  return out;
+  return out; // the label is placed by allLabels
 }
 const FACT_GOING = FACT('stair.going');
 
@@ -237,15 +235,14 @@ function ladderSym(l) {
   let out = lineEl(p(-hw, 0), p(-hw, depth), ink) + lineEl(p(hw, 0), p(hw, depth), ink);
   const rungs = Math.max(2, Math.round(depth / FACT('ladder.rungSpacing') * S));
   for (let i = 0; i <= rungs; i++) out += lineEl(p(-hw, (depth * i) / rungs), p(hw, (depth * i) / rungs), `stroke="#111" stroke-width="${R('thinStroke')}"`);
-  return out + textAt(l.at, hw * S + R('dotR'), -R('dotR'), `${plainName(l) ? `${l.id} - ${l.name}` : l.id} ${l.from}-${l.to}`, R('fontSmall'), 'fill="#111"');
+  return out;
 }
 
 function voidSym(v) {
   const r = v.rect;
   const ink = `stroke="#333" stroke-width="${R('thinStroke')}"`;
   return rectEl(r, `fill="none" ${ink} stroke-dasharray="${R('dashMid')}"`)
-    + lineEl([r[0], r[1]], [r[2], r[3]], ink) + lineEl([r[0], r[3]], [r[2], r[1]], ink)
-    + textPx(X(r[0]), Y(r[3]) - R('dotR'), `${plainName(v) ? `${v.id} - ${v.name}` : `${v.id} ${v.kind}`}`, R('fontSmall'), `fill="#333" ${HALO()}`);
+    + lineEl([r[0], r[1]], [r[2], r[3]], ink) + lineEl([r[0], r[3]], [r[2], r[1]], ink);
 }
 
 const levelSpan = (l) => [l.floor, l.floor + l.height];
@@ -276,89 +273,212 @@ function touchesLevel(level, pts) {
   return own.some((r) => bx[1] >= r[0] - g && bx[0] <= r[2] + g && bz[1] >= r[1] - g && bz[0] <= r[3] + g);
 }
 
-/** Labels that did not fit inside their room on the level being drawn; drawn in a column right of the site with a leader line. */
+// ---------- labels (2g-2) ----------
+// Every label kind (room, stair, ladder, void, building) goes through one obstacle test: the box must sit clear of the boxes already
+// drawn (stairs, voids, ladders, objects, exterior element labels), the walls and the labels placed before it. A label that fails goes
+// to a callout column: west for pieces whose centre is west of the middle of the gap between the buildings, east otherwise.
+const GREY = '#888';
+const ID_SCALE = 0.6; // the id and the level tag are 60% of the name's font size
 let callouts = [];
-let calloutCol = 0;
+let calloutCol = 0; // width of the east column
+let calloutLeft = 0; // width of the west column
 let calloutBottom = 0;
+let labelBoxes = []; // px boxes of every label drawn on this level, for the overlap count
+let labelStats = { boxes: 0, overlaps: 0 };
+
+const boxOf = (lines) => ({ w: Math.max(...lines.map((l) => l.t.length * l.size * R('charWidth'))), h: lines.reduce((s, l) => s + l.size * R('lineHeight'), 0) });
+const inter = (a, b) => overlap1(a[0], a[2], b[0], b[2]) * overlap1(a[1], a[3], b[1], b[3]);
+const hyp = (a, b) => Math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2);
+const rectOfPx = (rc) => [X(rc[0]), Y(rc[3]), X(rc[2]), Y(rc[1])];
+/** Lines with their own sizes, centred on a point in metres. */
+function drawLines(c, lines) {
+  let y = Y(c[1]) - boxOf(lines).h / 2;
+  return lines.map((l) => {
+    const lh = l.size * R('lineHeight');
+    const out = textPx(X(c[0]), y + lh * 0.8, l.t, l.size, `text-anchor="middle" fill="${l.grey ? GREY : INK}" ${l.bold ? 'font-weight="bold" ' : ''}${HALO()}`);
+    y += lh;
+    return out;
+  }).join('');
+}
+/** Name over a small grey id and tag, in three shapes: the name on one line, the name wrapped, the wrapped name in the small font. */
+function labelVariants(name, small, size, tag, dims) {
+  const sub = (t, sz) => ({ t, size: Math.max(1, sz * ID_SCALE), grey: true });
+  const words = name.split(' ');
+  let wrapped = [name], gap = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const a = words.slice(0, i).join(' '), b = words.slice(i).join(' ');
+    if (Math.abs(a.length - b.length) < gap) { gap = Math.abs(a.length - b.length); wrapped = [a, b]; }
+  }
+  const full = [{ t: name, size }, sub(small, size), ...(tag ? [sub(dims ? `${tag} - ${dims}` : tag, size)] : [])];
+  const narrow = (sz) => [...wrapped.map((t) => ({ t, size: sz })), sub(small, sz), ...(tag ? [sub(tag, sz)] : [])];
+  return [full, narrow(size), narrow(Math.min(size, R('fontSmall')))];
+}
+
+/** The footprint of a building that the segment (px) from an anchor outside it crosses, or null. */
+function blockingBuilding(anchor, p1, p2) {
+  const [x1, y1] = p1, [x2, y2] = p2;
+  for (const b of BUILDINGS) {
+    if (inRect(b.rect, anchor[0], anchor[1])) continue;
+    const r = rectOfPx(b.rect);
+    let t0 = 0, t1 = 1;
+    const clip = (p, q) => { if (p === 0) return q >= 0; const t = q / p; if (p < 0) { if (t > t1) return false; if (t > t0) t0 = t; } else { if (t < t0) return false; if (t < t1) t1 = t; } return true; };
+    if (clip(-(x2 - x1), x1 - r[0]) && clip(x2 - x1, r[2] - x1) && clip(-(y2 - y1), y1 - r[1]) && clip(y2 - y1, r[3] - y1) && t1 - t0 > 1e-6) return b;
+  }
+  return null;
+}
+// the middle of the gap between the buildings (03B section 1: x 46); the middle of the site when there are not two buildings
+const MID_X = BUILDINGS.length === 2 ? (Math.max(...BUILDINGS.map((b) => b.rect[0])) + Math.min(...BUILDINGS.map((b) => b.rect[2]))) / 2 : (B[0] + B[2]) / 2;
 
 /**
- * Room label. Tries the full three-line label, then a four-line narrow one, then the narrow one in the small font, on a grid of spots
- * (nearest the room centre first). The first spot that stays inside the room and clear of every stair, void and object wins.
- * If none does (for example a stair core filled by its stair), the label goes to the callout column instead.
+ * Places one label. item: { name, small (id line), tag, dims, size, bold, anchor (metres), region (px box the label must stay in, or null),
+ * spots (candidate centres in metres, best first), dotSpots (where a callout dot may go) }. Returns the SVG, or queues a callout and returns ''.
  */
-function roomLabel(r, level) {
-  const c = clearRect(r, walls);
-  const w = c[2] - c[0];
-  const d = c[3] - c[1];
-  const named = plainName(r);
-  const title = named ? `${r.id} - ${r.name}` : r.id;
-  const size = Math.min(w, d) * S < R('labelSmallBelow') ? R('fontSmall') : R('fontRoom');
-  const size0 = size;
-  const sizeSmall = Math.min(size, R('fontSmall'));
-  const zone = r.kind === 'lane' ? 'Outside' : r.ring === 0 ? 'Perimeter' : `Level ${r.ring ?? '?'}`;
-  const wide = [title, `${fmt(w)} x ${fmt(d)} clear`, zone];
-  const narrow = [named ? `${r.id} -` : r.id, named ? r.name : '', `${fmt(w)} x ${fmt(d)}`, `clear, ${zone}`].filter(Boolean);
-  const variants = [{ lines: wide, size: size0 }, { lines: narrow, size: size0 }, { lines: narrow, size: sizeSmall }];
-  const toPx = (rc) => [X(rc[0]), Y(rc[3]), X(rc[2]), Y(rc[1])];
-  const obstacles = [
-    ...(arch.stairs ?? []).filter((s) => s.from === level.id || s.to === level.id).map((s) => s.rect),
-    ...(arch.voids ?? []).filter((v) => v.level === level.id).map((v) => v.rect),
-    ...(arch.objects ?? []).filter((o) => o.level === level.id).map((o) => o.rect),
-  ].map(toPx);
-  const room = toPx(r.rect);
-  const [cx, cz] = rectCentre(r.rect);
-  const n = R('labelSteps');
-  const spots = [];
-  for (let i = 0; i < n; i++) {
-    for (let j = 0; j < n; j++) {
-      const fx = (n > 1 ? i / (n - 1) - 0.5 : 0) * R('labelSpread');
-      const fz = (n > 1 ? j / (n - 1) - 0.5 : 0) * R('labelSpread');
-      spots.push({ p: [cx + fx * w, cz + fz * d], dist: Math.hypot(fx, fz) });
-    }
-  }
-  spots.sort((a, b) => a.dist - b.dist);
-  /** Pixels of a w x h box centred on p that fall on an obstacle or outside the room. */
+function placeLabel(item, obstacles) {
+  const variants = labelVariants(item.name, item.small, item.size, item.tag, item.dims).map((v) => v.map((l, i) => (i === 0 && item.bold ? { ...l, bold: true } : l)));
   const cost = (p, bw, bh) => {
     const box = [X(p[0]) - bw / 2, Y(p[1]) - bh / 2, X(p[0]) + bw / 2, Y(p[1]) + bh / 2];
     let sum = 0;
-    for (const o of obstacles) sum += overlap1(box[0], box[2], o[0], o[2]) * overlap1(box[1], box[3], o[1], o[3]);
-    return sum + (bw - overlap1(box[0], box[2], room[0], room[2])) * bh + (bh - overlap1(box[1], box[3], room[1], room[3])) * bw;
+    for (const o of obstacles) sum += inter(box, o);
+    for (const o of labelBoxes) sum += inter(box, o);
+    if (item.region) sum += (bw - overlap1(box[0], box[2], item.region[0], item.region[2])) * bh + (bh - overlap1(box[1], box[3], item.region[1], item.region[3])) * bw;
+    return sum;
   };
   for (const v of variants) {
-    const bw = Math.max(...v.lines.map((l) => l.length)) * v.size * R('charWidth');
-    const bh = v.lines.length * v.size * R('lineHeight');
-    const fit = spots.find((s) => Math.round(cost(s.p, bw, bh)) === 0); // whole px2 only: float noise is not an overlap
-    if (fit) return labelLines(fit.p, v.lines, v.size, `fill="${INK}" ${HALO()}`);
+    const { w, h } = boxOf(v);
+    const fit = item.spots.find((p) => Math.round(cost(p, w, h)) === 0); // whole px2 only: float noise is not an overlap
+    if (fit) {
+      labelBoxes.push([X(fit[0]) - w / 2, Y(fit[1]) - h / 2, X(fit[0]) + w / 2, Y(fit[1]) + h / 2]);
+      return drawLines(fit, v);
+    }
   }
-  // Callout: the leader dot goes where a dot fits best; the text waits in the column.
   const dotBox = R('dotR') * 2;
-  const dot = spots.reduce((best, s) => (best && cost(best.p, dotBox, dotBox) <= cost(s.p, dotBox, dotBox) ? best : s), null);
-  callouts.push({ lines: variants[0].lines, size: variants[0].size, anchor: dot.p });
+  const dot = item.dotSpots.reduce((best, p) => (best && cost(best, dotBox, dotBox) <= cost(p, dotBox, dotBox) ? best : p), null);
+  callouts.push({ lines: variants[0], anchor: dot, west: dot[0] < MID_X });
   return '';
 }
 
-/** Draws the queued callouts in a column right of the site, stacked top down, and records the column width and bottom edge. */
+/** Draws the queued callouts in a west and an east column, stacked top down; a leader line that would cross another building bends round it. */
 function calloutLayer() {
   if (!callouts.length) return '';
-  // right of the site and of any exterior element label that runs past the site edge
   const reach = (arch.exterior ?? []).map((e) => Math.max(X(e.a[0]), X(e.b[0])) + R('dotR') * 1.5 + `${e.id} ${e.kind}`.length * R('fontSmall') * R('charWidth'));
-  const colX = Math.max(X(B[2]), ...reach) + R('legendGap');
-  const heightOf = (k) => k.lines.length * k.size * R('lineHeight');
-  const items = callouts.map((k) => ({ ...k, h: heightOf(k), y: Y(k.anchor[1]) })).sort((a, b) => a.y - b.y);
+  const colE = Math.max(X(B[2]), ...reach) + R('legendGap');
+  const colW = X(B[0]) - R('legendGap');
   let out = '';
-  let prevBottom = TOP;
-  for (const k of items) {
-    const top = Math.max(k.y - k.h / 2, prevBottom + R('calloutPad'));
-    const mid = top + k.h / 2;
-    prevBottom = top + k.h;
-    out += `<line x1="${X(k.anchor[0])}" y1="${Y(k.anchor[1])}" x2="${colX - R('calloutGap')}" y2="${+mid.toFixed(2)}" stroke="${INK}" stroke-width="${R('markStroke')}"/>`;
-    out += `<circle cx="${X(k.anchor[0])}" cy="${Y(k.anchor[1])}" r="${R('dotR') / 2}" fill="${INK}"/>`;
-    const lh = k.size * R('lineHeight');
-    k.lines.forEach((l, i) => { out += textPx(colX, mid - ((k.lines.length - 1) * lh) / 2 + i * lh + k.size * (1 - R('lineHeight') + 0.55), l, k.size, `fill="${INK}"`); });
-    calloutCol = Math.max(calloutCol, colX - X(B[2]) + Math.max(...k.lines.map((l) => l.length)) * k.size * R('charWidth') + R('legendGap'));
+  for (const west of [true, false]) {
+    const items = callouts.filter((k) => k.west === west).map((k) => ({ ...k, ...boxOf(k.lines), y: Y(k.anchor[1]) })).sort((a, b) => a.y - b.y);
+    let prevBottom = TOP;
+    for (const k of items) {
+      const top = Math.max(k.y - k.h / 2, prevBottom + R('calloutPad'));
+      const mid = top + k.h / 2;
+      prevBottom = top + k.h;
+      const ax = X(k.anchor[0]), ay = Y(k.anchor[1]);
+      const edge = west ? colW + R('calloutGap') : colE - R('calloutGap');
+      const stroke = `stroke="${INK}" stroke-width="${R('markStroke')}" fill="none"`;
+      const hit = blockingBuilding(k.anchor, [ax, ay], [edge, mid]);
+      if (hit) {
+        const north = k.anchor[1] >= (hit.rect[1] + hit.rect[3]) / 2;
+        const yv = +(north ? Y(hit.rect[3]) - R('legendGap') : Y(hit.rect[1]) + R('legendGap')).toFixed(2);
+        out += `<polyline points="${ax},${ay} ${ax},${yv} ${edge},${yv} ${edge},${+mid.toFixed(2)}" ${stroke}/>`;
+      } else out += `<line x1="${ax}" y1="${ay}" x2="${edge}" y2="${+mid.toFixed(2)}" ${stroke}/>`;
+      out += `<circle cx="${ax}" cy="${ay}" r="${R('dotR') / 2}" fill="${INK}"/>`;
+      let y = top;
+      const x = west ? colW : colE;
+      for (const l of k.lines) {
+        const lh = l.size * R('lineHeight');
+        out += textPx(x, y + lh * 0.8, l.t, l.size, `text-anchor="${west ? 'end' : 'start'}" fill="${l.grey ? GREY : INK}"${l.bold ? ' font-weight="bold"' : ''}`);
+        y += lh;
+      }
+      labelBoxes.push(west ? [x - k.w, top, x, top + k.h] : [x, top, x + k.w, top + k.h]);
+      if (west) calloutLeft = Math.max(calloutLeft, k.w + R('legendGap') * 2 - M);
+      else calloutCol = Math.max(calloutCol, colE - X(B[2]) + k.w + R('legendGap'));
+    }
+    calloutBottom = Math.max(calloutBottom, prevBottom);
   }
-  calloutBottom = prevBottom;
   return out;
+}
+
+/** Candidate centres (metres) over a rect, nearest the anchor first. */
+function gridSpots(c, anchor, n, spread) {
+  const w = c[2] - c[0], d = c[3] - c[1];
+  const spots = [];
+  for (let i = 0; i < n; i++) for (let j = 0; j < n; j++) {
+    const fx = (n > 1 ? i / (n - 1) - 0.5 : 0) * spread, fz = (n > 1 ? j / (n - 1) - 0.5 : 0) * spread;
+    spots.push([(c[0] + c[2]) / 2 + fx * w, (c[1] + c[3]) / 2 + fz * d]);
+  }
+  return spots.sort((a, b) => hyp(a, anchor) - hyp(b, anchor));
+}
+
+/** Builds and places every label of a level: buildings, stairs, ladders, voids, then rooms (large and flexible last). */
+function allLabels(level) {
+  labelBoxes = [];
+  const here = (o) => o.level === level.id;
+  const [lo, hi] = levelSpan(level);
+  const obstacles = [
+    ...(arch.stairs ?? []).filter((s) => s.from === level.id || s.to === level.id).map((s) => rectOfPx(s.rect)),
+    ...(arch.voids ?? []).filter(here).map((v) => rectOfPx(v.rect)),
+    ...(arch.objects ?? []).filter(here).map((o) => rectOfPx(o.rect)),
+    ...(arch.ladders ?? []).filter((l) => l.from === level.id || l.to === level.id).map((l) => {
+      const dir = DIRS[l.facing] ?? DIRS.N, side = [-dir[1], dir[0]], hw = FACT('ladder.width') / 2, dp = R('ladderDepth');
+      const pts = [[-hw, 0], [hw, dp]].map(([u, v]) => [l.at[0] + side[0] * u + dir[0] * v, l.at[1] + side[1] * u + dir[1] * v]);
+      return rectOfPx([Math.min(pts[0][0], pts[1][0]), Math.min(pts[0][1], pts[1][1]), Math.max(pts[0][0], pts[1][0]), Math.max(pts[0][1], pts[1][1])]);
+    }),
+    ...walls.filter(here).map((w) => { const h = w.t / 2; return rectOfPx([Math.min(w.a[0], w.b[0]) - h, Math.min(w.a[1], w.b[1]) - h, Math.max(w.a[0], w.b[0]) + h, Math.max(w.a[1], w.b[1]) + h]); }),
+  ];
+  for (const e of arch.exterior ?? []) { // the text drawn by baseLayers beside each exterior element
+    if (e.y1 < lo || e.y0 > hi || !touchesLevel(level, [e.a, e.b])) continue;
+    const size = R('fontSmall'), x = X(e.a[0]) + R('dotR') * 1.5, y = Y(e.a[1]) - R('dotR');
+    const b = [x, y - size, x + `${e.id} ${e.kind}`.length * size * R('charWidth'), y];
+    obstacles.push(b);
+    labelBoxes.push(b);
+  }
+  const rooms = (arch.rooms ?? []).filter(here);
+  const area = (r) => (r.rect[2] - r.rect[0]) * (r.rect[3] - r.rect[1]);
+  const roomAt = (p) => rooms.filter((r) => inRect(r.rect, p[0], p[1])).sort((a, b) => area(a) - area(b))[0];
+  const tagOf = (r) => (r.kind === 'lane' ? 'Outside' : r.ring === 0 ? 'Perimeter' : `Level ${r.ring ?? '?'}`);
+  let out = '';
+  for (const b of BUILDINGS) { // just outside the top edge, else just outside the bottom edge
+    const size = R('fontLegend'), pad = R('legendGap') / 2;
+    const nm = b.name && !b.name.startsWith('Building') ? b.name : `Building ${b.id}`;
+    const probe = boxOf([{ t: nm, size }, { t: `Building ${b.id}`, size: size * ID_SCALE }]);
+    const spots = [];
+    for (const f of [0.5, 0.3, 0.7, 0.15, 0.85]) for (const top of [true, false]) {
+      spots.push([b.rect[0] + (b.rect[2] - b.rect[0]) * f, top ? b.rect[3] + (probe.h / 2 + pad) / S : b.rect[1] - (probe.h / 2 + pad) / S]);
+    }
+    out += placeLabel({ name: nm, small: `Building ${b.id}`, size, bold: true, anchor: rectCentre(b.rect), spots, dotSpots: [[b.rect[0], b.rect[3]]], region: null }, obstacles);
+  }
+  const near = (p) => {
+    const rm = roomAt(p);
+    const c = rm ? clearRect(rm, walls) : [p[0] - 3, p[1] - 3, p[0] + 3, p[1] + 3];
+    return { region: rectOfPx(c), spots: gridSpots(c, p, 13, 0.9) };
+  };
+  for (const s of arch.stairs ?? []) {
+    const onFrom = s.from === level.id;
+    if (!onFrom && s.to !== level.id) continue;
+    const c = rectCentre(s.rect);
+    out += placeLabel({ name: plainName(s) ? s.name : s.id, small: s.id, tag: onFrom ? 'Up' : 'Down', size: R('fontSmall'), anchor: c, dotSpots: [c], ...near(c) }, obstacles);
+  }
+  for (const l of arch.ladders ?? []) {
+    if (l.from !== level.id && l.to !== level.id) continue;
+    out += placeLabel({ name: plainName(l) ? l.name : l.id, small: l.id, tag: `${l.from} to ${l.to}`, size: R('fontSmall'), anchor: l.at, dotSpots: [l.at], ...near(l.at) }, obstacles);
+  }
+  for (const v of (arch.voids ?? []).filter(here)) {
+    const c = rectCentre(v.rect);
+    out += placeLabel({ name: plainName(v) ? v.name : v.kind, small: v.id, size: R('fontSmall'), anchor: c, dotSpots: [c], ...near(c) }, obstacles);
+  }
+  for (const r of rooms) {
+    const c = clearRect(r, walls);
+    const size = Math.min(c[2] - c[0], c[3] - c[1]) * S < R('labelSmallBelow') ? R('fontSmall') : R('fontRoom');
+    const spots = gridSpots(c, rectCentre(r.rect), R('labelSteps'), R('labelSpread'));
+    out += placeLabel({ name: plainName(r) ? r.name : r.id, small: r.id, tag: tagOf(r), dims: `${fmt(c[2] - c[0])} x ${fmt(c[3] - c[1])} clear`, size, anchor: rectCentre(r.rect), dotSpots: spots, spots, region: rectOfPx(c) }, obstacles);
+  }
+  return out;
+}
+
+/** After calloutLayer: counts the label boxes and the pairs that intersect. */
+function countOverlaps() {
+  let k = 0;
+  for (let i = 0; i < labelBoxes.length; i++) for (let j = i + 1; j < labelBoxes.length; j++) if (Math.round(inter(labelBoxes[i], labelBoxes[j])) > 0) k++;
+  labelStats = { boxes: labelBoxes.length, overlaps: k };
 }
 
 function baseLayers(level) {
@@ -388,7 +508,6 @@ function baseLayers(level) {
   // each building's footprint outline, labelled with its id (campus files only)
   for (const b of BUILDINGS) {
     out += rectEl(b.rect, `fill="none" stroke="#555" stroke-width="${R('outlineStroke')}" stroke-dasharray="${R('dashMid')}"`);
-    out += textAt([b.rect[0], b.rect[3]], 2, -(FACT('rules.wallExterior') / 2) * S - 2, `Building ${b.id}${b.name && !b.name.startsWith('Building') ? ` - ${b.name}` : ''}`, R('fontLegend'), `fill="#555" font-weight="bold"`);
   }
   out += rectEl(B, `fill="none" stroke="#999" stroke-width="${R('siteStroke')}" stroke-dasharray="${R('dashLong')}"`);
   for (const o of (arch.objects ?? []).filter(here)) {
@@ -419,8 +538,9 @@ function baseLayers(level) {
     if (Math.max(...ys) < lo || Math.min(...ys) > hi || !touchesLevel(level, sv.path.map((p) => [p[0], p[2]]))) continue;
     out += polyEl(sv.path.map((p) => [p[0], p[2]]), `stroke="#00838f" stroke-width="${R('thinStroke')}" stroke-dasharray="${R('dashDot')}"`);
   }
-  for (const r of (arch.rooms ?? []).filter(here)) out += roomLabel(r, level);
+  out += allLabels(level);
   out += calloutLayer();
+  countOverlaps();
   return out;
 }
 
@@ -590,7 +710,7 @@ function flow(items, startX, startY, maxX, firstRowEnd) {
 const swatch = (fill) => (x, y) => `<rect x="${x}" y="${y - R('swatchH') / 2}" width="${R('swatchW')}" height="${R('swatchH')}" fill="${fill}" fill-opacity="${R('tintOpacity')}" stroke="#888" stroke-width="${R('gridStroke')}"/>`;
 const sample = (c, dash, w) => (x, y) => `<line x1="${x}" y1="${y}" x2="${x + R('legendSample')}" y2="${y}" stroke="${c}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
 function archItems() {
-  return [['zone 1 - outside, public (lane and yard)', swatch(RING_TINT[0])], ['zone 2 - reception and goods-in', swatch(RING_TINT[1])], ['zone 3 - staff areas behind card readers', swatch(RING_TINT[2])], ['zone 3+ - restricted (security room)', swatch(RING_TINT[3])], ['zone 4 - secure (data hall, tunnels, plant under the yard)', swatch(RING_TINT[4])], ['zone 5 - most secure (locked cages, meet-me room)', swatch(RING_TINT[5])]];
+  return [['Outside - the public lane', swatch(OUTSIDE_TINT)], ['Perimeter - yard inside the fence, gatehouse controlled', swatch(RING_TINT[0])], ['Level 1 - reception and goods-in', swatch(RING_TINT[1])], ['Level 2 - staff areas behind card readers', swatch(RING_TINT[2])], ['Level 3 - higher card: security suite, ops and records, Building B plant corridor', swatch(RING_TINT[3])], ['Level 4 - data hall, secure corridor, hall plant, tunnels', swatch(RING_TINT[4])], ['Level 5 - meet-me room, carrier riser; locked cages inside the hall', swatch(RING_TINT[5])]];
 }
 function playItems() {
   const items = Object.entries(ROUTE_COLOUR).map(([k, c]) => [`route ${k}`, sample(c, k === 'critical' ? R('dashRoute') : '', R('routeStroke'))]);
@@ -611,12 +731,15 @@ function buildSvg(level, kind) {
   const [lo] = levelSpan(level);
   const title = `${arch.meta?.id ?? 'plan'} - level ${level.id} ${level.name} (floor ${fmt(lo)} m, floor-to-floor ${fmt(level.height)} m)${suffix ? ' - ' + suffix : ''}`;
   calloutCol = 0;
+  calloutLeft = 0;
   calloutBottom = 0;
   let body = baseLayers(level);
-  const Wd = Math.max(SITE_W + calloutCol, 2 * M + title.length * R('fontTitle') * R('charWidth'));
+  if (kind === 'arch') console.log(`labels ${level.id}: boxes ${labelStats.boxes}, overlaps ${labelStats.overlaps}`);
+  body = `<g transform="translate(${+calloutLeft.toFixed(2)},0)">${body}</g>`; // the west callout column hangs left of the site
+  const Wd = Math.max(calloutLeft + SITE_W + calloutCol, 2 * M + title.length * R('fontTitle') * R('charWidth'));
   const footY = Math.max(FOOT_Y, calloutBottom + M);
-  if (withPlay) body += playLayers(level);
-  if (withSec) body += securityLayers(level);
+  if (withPlay) body += `<g transform="translate(${+calloutLeft.toFixed(2)},0)">${playLayers(level)}</g>`;
+  if (withSec) body += `<g transform="translate(${+calloutLeft.toFixed(2)},0)">${securityLayers(level)}</g>`;
   // foot: scale bar with the zone legend beside it, then the play legend rows
   const barY = footY + R('barTick');
   const barLen = R('scaleBarM') * S;

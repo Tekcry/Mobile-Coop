@@ -57,7 +57,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | levels[].height | Floor-to-floor height of that level |
 | levels[].footprint | Optional. One rect `[x0, z0, x1, z1]` or a list of rects the level must be fully built over, every cell of every rect (A14). With `meta.buildings` each rect is inside the site; without, inside `meta.footprint` (A21). Default: every building footprint (`meta.footprint` for a file with no buildings). Use it when a level covers only part of the campus (the first floor over the strips and the link bridge, `H` over the hall block) |
 | rooms[].id, level | Unique room id and its level |
-| rooms[].name | Name used on the plan label |
+| rooms[].name | Name used on the plan label. Plain words in Title Case, no abbreviations (2g-2) |
 | rooms[].kind | What the space is; `ladder` is allowed only in `plant` or `shaft` rooms |
 | rooms[].rect | Wall-centreline rectangle |
 | rooms[].ceiling, finish | Ceiling height and floor finish (gravel, linoleum, carpet; level-design 16.8.3) |
@@ -99,7 +99,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | voids[].id, level | Unique id and the level whose floor has the hole |
 | voids[].rect, kind | Hole rect, and what it is (well, shaft, riser, hatch, roof light) |
 | voids[].reason | Why the floor is open here (level-design 16.3.2) |
-| stairs[].name, ladders[].name, voids[].name | Optional. Short plain name for the plan label (Michael, 2026-10-11) |
+| stairs[].name, ladders[].name, voids[].name | Optional. Short plain name for the plan label, Title Case, no abbreviations (Michael, 2026-10-11; 2g-2) |
 | objects[].id, level | Unique id and level |
 | objects[].name | The real object (rack, transformer, skip) |
 | objects[].rect | Footprint on the 0.1 m grid |
