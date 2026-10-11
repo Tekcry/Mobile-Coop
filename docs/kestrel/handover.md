@@ -9,7 +9,7 @@ Everything needed to continue Mission 1 "Dead Line" if the planning chat is lost
 - P02 campus brief: APPROVED (6c43a9b; brief 133a4d1). One passenger lift per building, locked off at night (built as closed shafts with shut doors); separate generator wing with a 1.5 m service passage; key-only and exit-only doors ring-exempt; 2.4 m corridors under 1.5 m voids; A 36 x 24, B 48 x 30, site 108 x 76; raised-floor pedestals not modelled.
 - P03T campus tools: APPROVED (f097ce1): meta.buildings, level footprint lists, rooms[].building (A31), level H for low roofs, site limit 110 x 80.
 - V0 toolkit spec: APPROVED after the pistol secondary revision (811eaca, approved f67dc0b).
-- P03B: DRAFT, to be redone for the campus (next).
+- P03B: part 1a (site and levels) done with Michael's answers (8df2618); part 1b Building A zones next (prompts/P03B-1b.md).
 - B0: built for the old single building (57aaf6c); rerun for the campus.
 - S1: Part A built (478c3b8); Part B runs after B4.
 
@@ -17,6 +17,7 @@ Everything needed to continue Mission 1 "Dead Line" if the planning chat is lost
 P03B campus block plan (Opus high), P03R campus review, B0 rerun, Michael walks it, tools revision for A30 (backlog 25) before P04, P04-P05, B1-B2, BR, P04S, P06-P10, CAM approval then V1-V3 (all before B3), B3, B4, S1-S4, B4S, BR, S5, S6 civilians, B5, B6, BR, B7.
 
 ## Notes for the next stages
+- P03B 1a decisions (Michael, 2026-10-11): wing on its own grid offset 2.0 north; bridge side walls exterior 0.45 (3.05 clear); bridge roof gets level L at 7.8. Schema 1's level-id list needs `L` added (P03R or a schema revision). Bridge z0 is set in 1b and fixes BF01's z band for 1c.
 - P03B: use meta.buildings, level footprint lists, rooms[].building and level H (B hall roof and generator wing roof at 6.6). A30 cannot yet tell the buildings apart, so P03B confirms by hand that each building has its own fire stairs.
 - B0 rerun: update src/world/maps/kestrelGeo.ts and kestrel.ts, which read meta.footprint and one footprint rect per level (kestrelGeo.ts:85); the map copy test (tests/kestrelMap.test.ts) passes again once blocks are copied.
 - B0 walk, Michael reports: scale against the operator, campus layout and distances, storey heights and the bridge lining up, gallery headroom, crouch-moving in every 1.5 m space, reading entrances and roofs from the yard, stair cores, lift shafts against the cores, camera snapping or clipping, anything placed for no real reason, neighbour framing. Not judged yet: missing doors and windows, looks, guards and security devices, traversal elements, furniture, phone performance, room shapes inside zones, routes and timings.
