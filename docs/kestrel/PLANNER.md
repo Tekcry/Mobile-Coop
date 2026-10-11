@@ -3,7 +3,8 @@ Rules for planner sessions (Michael, 2026-10-11). A planner session starts when 
 
 ## Start
 - git checkout feature/kestrel && git pull; confirm the branch.
-- Read this file, docs/kestrel/handover.md, and docs/kestrel/progress.md (status table and newest 5 log entries only). Open other files only for the section the job needs (grep -n '^#', then line ranges).
+- Read this file, docs/kestrel/handover.md, docs/kestrel/routes.md, and docs/kestrel/progress.md (status table and newest 5 log entries only).
+- Capability rule (RULES 5): any statement that a move, tool or system is or is not available cites RULES 1 or V0 by line, or a grep of src/world/anchors.ts; otherwise write it as ASK. Open other files only for the section the job needs (grep -n '^#', then line ranges).
 
 ## Jobs (one per session, then stop)
 - "Planner: next": First review the last session's output, judging it first on realism and flow: would a real architect lay it out this way, and does it flow for stealth play (Michael, 2026-10-11). Then check it against the brief and RULES: check its self-check covered the universal checks, and that each recommended option meets the brief. List anything you disagree with, with your own recommendation, before writing the next prompt. Then read what the last session committed (its document section, progress row and log line), update handover.md (Status, Order, Notes), and write the next prompt file. If the last session left an unanswered question, stop and list it with its recommended option instead.
