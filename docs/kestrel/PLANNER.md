@@ -3,7 +3,7 @@ Rules for planner sessions (Michael, 2026-10-11). A planner session starts when 
 
 ## Checklist before writing any prompt (Michael, 2026-10-11)
 - (a) Is any file I am changing APPROVED? Then write a Revision prompt.
-- (b) Does the next job need Opus? Then an approval or Sonnet session stops before writing it.
+- (b) Does the next job need Opus? Then a Sonnet session stops before writing it.
 - (c) Is every capability claim cited (RULES 5)?
 - (d) Did any handover line become stale?
 - (e) Does the End block carry the plain-English report rules (RULES 9 4c)? This session's own report follows them too (Michael, 2026-10-11).
@@ -43,4 +43,4 @@ Never run while a stage session is running. Never edit a stage's output files ex
 
 ## Ending
 - Commit only files you changed: "kestrel planner: <summary>". Push. Budget about 20 tool calls.
-- The session ends with a "Next step" block in exactly this format: "Next step:" then "1. Type /clear." "2. Switch to <model>, <effort> (or "Stay on <model>, <effort>" if unchanged)." "3. Send the prompt below:" followed by the exact message in its own fenced code block (nothing else in the block) so Michael can tap copy. Any other prompt or command Michael must paste also goes in a code block. "Planner: next" always uses Opus, medium; approvals, recording decisions and simple questions use Sonnet, medium.
+- The session ends with a "Next step" block in exactly this format: "Next step:" then "1. Type /clear." "2. Switch to <model>, <effort> (or "Stay on <model>, <effort>" if unchanged)." "3. Send the prompt below:" followed by the exact message in its own fenced code block (nothing else in the block) so Michael can tap copy. Any other prompt or command Michael must paste also goes in a code block. "Planner: next" and approvals always use Opus, medium; recording decisions and simple questions use Sonnet, medium.
