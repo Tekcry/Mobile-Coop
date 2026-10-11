@@ -77,7 +77,7 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - After 2g-1: the compound gates (drive and passage) join Perimeter to Perimeter but keep their key exemption; harmless, HK may tidy the 03B Exempt column.
 
 ## Where we are
-2g-2 fixes rerun reviewed: content right, labels readable. Next: Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium, with the leader tidy for HK), then HK, then P03R.
+2g-2 fixes rerun reviewed: content right, labels readable. Next: Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium, with the leader tidy for HK), then the pipeline pauses (Michael, 2026-10-12) while a dev-only 3D level editor v1 is built: fly and walk, select / move / resize / delete walls and rooms, add and remove doors and windows, grid snap, undo, save, a change log, live check warnings, and a live plan view in the editor reusing plans.mjs's SVG builder (plan PNGs rewritten on save). The editor's building file is in charge (Michael, 2026-10-12); the plan documents follow it, and the reviewer reads the change log and reruns the checks. HK and P03R wait until Michael has walked and edited the campus.
 
 ## Review log (newest first; keep the last 15 lines, HK archives older ones)
 - 2026-10-11 P03B 2g-2 fixes rerun: right; generator clean, check.mjs 22 PASS 2 WARN 4 FAIL 8 SKIP 1 INFO, standards 0 fails, JSON diff names only (6). Labels no longer overlap or get struck. Left: leaders still go to the far side column and cross their own building (B's lobby, ground corridor, fire stair and first-floor west-side tags run across the whole hall; A's east link and pipe riser run west across A). Cosmetic; recommended approve and fold into HK as a plans.mjs tidy rather than a fourth rerun.
