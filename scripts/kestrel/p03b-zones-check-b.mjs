@@ -5,9 +5,9 @@ const md = readFileSync(process.argv[2], 'utf8');
 const B = [52, 30, 100, 60], STRIP = [52, 30, 70, 60], HALLB = [70, 30, 100, 60], WING = [52, 62, 76, 74];
 // brief 02 section 5 rect areas (clear + 0.3 each way); cages and catwalks sit inside BG20 / BG40 (area 0); BR03, BR06, BR01 are open roof
 const ROOMS = {
-  G: { BG01: 30, BG02: 32, BG03: 6.25, BG04: 8.75, BG05: 91, BG06: 40, BG07: 42, BG08: 14, BG09: 42, BG10: 50.75, BG11: 35, BG12: 22.75, BG13: 27, BG14: 30, BG15: 3, BG16: 6.25,
+  G: { BG01: 30, BG02: 40, BG03: 6.25, BG04: 8.75, BG05: 91, BG06: 40, BG07: 42, BG08: 14, BG09: 42, BG10: 50.75, BG11: 35, BG12: 22.75, BG13: 27, BG14: 30, BG15: 3, BG16: 6.25,
     BG20: 377, BG21: 0, BG22: 0, BG23: 120, BG24: 91, BG25: 48, BG26: 36, BG27: 42, BG28: 30, BG29: 24, BG30: 54, BG31: 24, BG33: 54, BG40: 216, BG41: 0, BG42: 36, BG43: 36 },
-  F: { BF01: 63, BF02: 32, BF03: 6.25, BF04: 8.75, BF05: 49, BF06: 14, BF07: 18, BF08: 42, BF09: 16.5, BF10: 27, BF11: 22.75, BF12: 3, BF13: 42, BF14: 20, BF15: 30 },
+  F: { BF01: 63, BF02: 40, BF03: 6.25, BF04: 8.75, BF05: 49, BF06: 14, BF07: 18, BF08: 42, BF09: 16.5, BF10: 27, BF11: 22.75, BF12: 3, BF13: 42, BF14: 20, BF15: 30 },
   H: { BR04: 24, BR05: 4 },
   R: { BR02: 22.75 },
 };

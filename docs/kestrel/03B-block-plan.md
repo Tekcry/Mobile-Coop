@@ -155,7 +155,7 @@ Zones for G, F, H and R (Part 1c, prompts/P03B-1c.md). Same 85% fill rule as sec
 | KB-COR-G | G | [57, 30, 60.5, 56.5] | G BG05 | 3.5 x 26.5 (brief 26) | brief 5 BG05; BG04 is its bay in front of the lift (brief 8) |
 | KB-COR-F | F | [57, 48.5, 60.5, 56.5] | F BF05 | 3.5 x 8 (brief 14; BF01 takes the south half) | brief 5 BF05 |
 | KB-COR-F2 | F | [58.5, 56.5, 60.5, 60] | F - | 2 x 3.5 | BF05's end bay at the fire stair and BF13 |
-| KB-STAIR | G, F | [52, 48.5, 56, 56.5] | G BG02; F BF02 | 4 x 8 | brief 8 (core 4.0 x 8.0); lands on BF01 (F) |
+| KB-STAIR | G, F | [52, 48.5, 57, 56.5] | G BG02; F BF02 | 5 x 8 (flights 2 x 1.85, 1.0 open well) | brief 8 (core 4.0 x 8.0); lands on BF01 (F) |
 | KB-LIFT | G, F | [54.5, 46, 57, 48.5] | G BG03; F BF03 | 2.5 x 2.5 | brief 8 (south side of the core); doors east |
 | KB-RISER | G, F | [55, 44.5, 57, 46] | G BG15; F BF12 | 2 x 1.5 | brief 8 (mid-strip, beside no stair) |
 | KB-FS | G, F, R | [52, 56.5, 58.5, 60] | G BG12; F BF11; R BR02 | 6.5 x 3.5 (turned) | brief 8 (north-west corner, west wall exit) |
@@ -166,10 +166,10 @@ Zones for G, F, H and R (Part 1c, prompts/P03B-1c.md). Same 85% fill rule as sec
 ### 4.3 Zones
 | Zone | Level | Rect [x0, z0, x1, z1] | Rooms | Area | Fill | Doors (need of available) | Note | Source |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| B-GW | G | [52, 30, 57, 56.5] | BG01, BG06, BG16, BG02, BG03, BG15 | 132.5 | 83.6% | 16.5 of 22.5 | entrance lobby on the south wall (X04 door), lockers, WC, riser, lift, stair | brief 5, 8 |
+| B-GW | G | [52, 30, 57, 56.5] | BG01, BG06, BG02, BG03, BG15 | 132.5 | 84.1% | 14 of 14.5 | entrance lobby on the south wall (X04 door), lockers, riser, lift, stair | brief 5, 8 |
 | B-GCOR | G | [57, 30, 60.5, 56.5] | BG05, BG04 | 92.75 | tight | - | corridor, lift bay | brief 5, 8 |
 | B-GGOODS | G | [60.5, 30, 70, 43] | BG07, BG08, BG09 | 123.5 | 79.4% | 12 of 13 | staging on the yard (X12), cage off it, build room on the hall wall | brief 5, 7 |
-| B-GE | G | [60.5, 43, 70, 56.5] | BG13, BG11, BG14 | 128.25 | 64.2% | 5 of 13.5 | stair foot on the hall wall, switchroom off BG10, facilities office | brief 5, 7 |
+| B-GE | G | [60.5, 43, 70, 56.5] | BG13, BG11, BG14, BG16 | 128.25 | 70.4% | 7.5 of 13.5 | stair foot on the hall wall, switchroom off BG10, facilities office, WC | brief 5, 7 |
 | B-GN | G | [52, 56.5, 70, 60] | BG12, BG10 | 63 | tight | - | fire stair, plant corridor on the north wall | brief 5, 8 |
 | B-GHCAR | G | [70, 30, 96, 36] | BG29, BG30, BG31, BG33 | 156 | tight | - | carrier band; BG31 order sets TB04 (1d) | brief 5, 7 |
 | B-GHALL | G | [70, 36, 96, 50.5] | BG20, BG21, BG22 | 377 | tight | - | hall, cages inside | brief 5 |
@@ -197,6 +197,7 @@ Check (`node scripts/kestrel/p03b-zones-check-b.mjs`, this session): `zones 19, 
 - BF13 at the strip's north-east [60.5, 53, 70, 60], not north-west (brief 7): the west wall north of the bridge holds the stairs. X13 lands on the west wall at 5.0-6.5 and crosses in the 0.9 service void over the corridor (brief 9). From the north-east BF13 sits beside BG24's high level and the hall roof AHU, where its two branches go (brief 9), and above BG10 and BG11 as brief 7 asks.
 - BF12 (riser) and BF15 (tenant work room) open off BF01, not BF05 (brief 5): both sit south of BF05 in the lobby zone.
 - No other row of the candidate changed.
+- Main stair B 5 wide (1.0 open well) so its east wall is BG05's wall; BG16 moved to B-GE (Part 1e, 6.3).
 
 ### 4.5 Notes for P04, 1d and P03R
 - P04: B-GGOODS packs BG08 [60.5-64] beside BG07 [64-70] on the yard wall and BG09 6 x 7 on the hall wall north of BG07 (z 36-43 or 37-43). B-GE packs BG14 (5 x 6) then BG11 (5 x 7) along the corridor, BG11 touching BG10.
@@ -262,6 +263,30 @@ Self-check (this session): D `zones 26, rows 126 of 126, fails 0`; A `zones 27, 
 - P03R: X13 at 5.0-6.5 (brief 5, 9) is 0.8-2.3 above B's first floor (4.2), while 1c 4.1 says it crosses in the 0.9 service void (7.2-8.1). Recommend the pipes rise inside B's west wall to the void, or the rack runs at 7.2-8.1 outside; the brief needs one line.
 - P03R: brief 5 TB02 "Doors to" should read X03 (lid), not X04.
 - 1e: TB02, AG23 and BG32 are shafts with fixed ladders between level B and G; the tunnel doors are 1e's ring entries.
+
+## 6. Vertical circulation
+Rise per storey 4.2 / 26 = 0.1615 (brief 8). Clear = rect - 0.3 each way (brief 5 convention).
+
+### 6.1 Stairs, lifts, risers, shafts and roof ladders
+| Id | Levels | Rect [x0, z0, x1, z1] | Kind | Rooms | Opens to | Fit | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| V-ASTAIR | G, F | [19.5, 43.5, 27.5, 47.5] | dogleg | AG18, AF12 | AG10, AF01 (south side, open) | clear 7.7 x 3.7; going 0.285: 12 x 0.285 + 2 x 2.0 = 7.42 of 7.7; flights 2 x 1.85 = 3.7 of 3.7 | brief 8; 3.2 K-STAIR |
+| V-ALIFT | G, F | [27.5, 46, 30, 48.5] | lift | AG19, AF13 | AG20, AF14 (K-LOBBY, south side) | clear 2.2 x 2.2; pit 1.1; head 3.9 (to 8.1, under the 8.4 roof) | brief 8; 3.2 K-LIFT |
+| V-AFS | G, F, R | [4, 54, 10.5, 57.5] | fire | AG21, AF15, AR04 | AG26, AF21 (south side, fire door); X10 (west wall exit); AR01 (roof door) | clear 6.2 x 3.2; flights 1.45 wide; going 0.285: landings (6.2 - 3.42) / 2 = 1.39 | brief 8; 3.2 K-FS |
+| V-ARISER | G, F | [7.5, 49, 9.5, 50.5] | riser | AG25, AF16 | west link (locked door); north corridor voids (side doors) | clear 1.7 x 1.2 | brief 8; 3.2 K-RISER, 3.4 |
+| V-APIPE | F, R | [34.5, 43.5, 36.5, 45] | riser | AF19 | AF10 (locked door); AR01 roof hatch in R-PLANT | clear 1.7 x 1.2 | brief 8; 3.2 K-PIPE |
+| V-BSTAIR | G, F | [52, 48.5, 57, 56.5] | dogleg | BG02, BF02 | BG05 (G, east side); BF01 (F, south side) and BF05 (F, east side) | clear 4.7 x 7.7; going 0.285: 7.42 of 7.7; flights 2 x 1.85 + 1.0 open well = 4.7 | brief 8; 4.2 KB-STAIR (widened, 6.3) |
+| V-BLIFT | G, F | [54.5, 46, 57, 48.5] | lift | BG03, BF03 | BG04 (BG05 bay, G), BF04 (BF01 bay, F); east side | clear 2.2 x 2.2; pit 1.1; head 3.9 | brief 8; 4.2 KB-LIFT |
+| V-BFS | G, F, R | [52, 56.5, 58.5, 60] | fire | BG12, BF11, BR02 | BG10 (G, east side, fire door); BF05 end bay (F, east side); X05 (west wall exit); BR01 (roof door) | clear 6.2 x 3.2; going 0.285: landings 1.39 | brief 8; 4.2 KB-FS |
+| V-BRISER | G, F | [55, 44.5, 57, 46] | riser | BG15, BF12 | BG05 (G, locked door); BF01 (F, 4.4) | clear 1.7 x 1.2 | brief 8; 4.2 KB-RISER |
+| V-GAL | G, F | [67, 43, 70, 52] | straight | BG13, BF10 | BF09 (F, south end); BG20 (G, hall side, open) | clear 2.7 x 8.7; going 0.26, landing 2.4: 24 x 0.26 + 2.4 = 8.64 of 8.7; stair 2.4 of 2.7 | brief 8, 12a; 4.2 KB-WELL |
+| V-AG23 | B to G | [38, 45, 40, 47] | shaft | AG23 | TB03 (door in its west wall on x 40); AG22 floor hatch (P04's AG22 covers it) | clear 1.7 x 1.7; 3.6 deep | brief 5 AG23, 8; 5.4 |
+| V-BG32 | B to G | [72, 30, 74, 32] | shaft | BG32 | TB04 (riser door, north wall); BG31 floor hatch | clear 1.7 x 1.7; 3.6 | brief 5 BG32, 8; 5.2 T-RISER |
+| V-TB02 | B to G | [48, 24, 49.5, 25.5] | manhole | TB02 | TB01 (east wall); X03 lid | clear 1.2 x 1.2; 3.6 | brief 5 TB02, 8; 5.2 T-MH |
+| V-BR05 | H to G | [80, 48, 82, 50] | shaft | BR05 | BR03 grille (in B-HSUPPLY); BG20 diffuser panel, 6.0 drop | clear 1.7 x 1.7 | brief 5 BR05, 9; 4.3 B-HSUPPLY |
+| V-LAD1 | R to L | [39.5, 41, 40, 42.5] | ladder | - | AR01 east edge, 0.6 down over the parapet to LF02 | hooped, step-over | brief 8, 10; 3.5 |
+| V-LAD2 | R to L | [52, 41, 52.5, 42.5] | ladder | - | BR01 west edge, 0.6 down over the parapet to LF02 | hooped, step-over | brief 8, 10; 4.5 |
+| V-LAD3 | R to H | [69.5, 57, 70, 58.5] | ladder | - | BR01 east edge, 1.8 down to BR03, clear of the AHU zone (z 44.5-54) | hooped, step-over | brief 8, 10 |
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
