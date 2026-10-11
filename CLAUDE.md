@@ -1,5 +1,7 @@
 # Night Shift - architecture and conventions
 
+On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading below: follow docs/kestrel/RULES.md and read only the files the prompt lists. Planner sessions (message begins 'Planner:') follow docs/kestrel/PLANNER.md.
+
 - Night Shift (renamed from Silent But Deadly) is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
 - Story, setting and in-game text: `docs/story.md`.
 - It has a solo campaign that is also playable in 2-4 player co-op. Light and shadow is the core.

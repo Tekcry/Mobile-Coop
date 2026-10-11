@@ -26,7 +26,7 @@
 - Levels per building: ground, first floor, roof; a basement vault and the service tunnel below the yard; Building B adds the underfloor void (level U) under its hall.
 - At most 4 walkable surfaces stacked over any point of the map.
 - About 8 guarded spaces plus the way out, with quiet connectors between them.
-- Guards: 20 guards plus 7 civilians (Michael, 2026-10-11). Civilians count as people who must never see the player under the ghost rule; whether they count towards the awake cap is decided in S5 and S6. Roster rule kept; the roster table below is to be redone for the campus in the P01 revision. Roster by space: S1 perimeter and yard 3 (gatehouse officer, perimeter patrol, van driver); S2 ground floor offices 2 (rounds officer, duty manager with a card); S3 security room 2 (desk operator, supervisor who leaves for rounds); S4 ops and facilities 2 (corridor patrol, escort officer); S5 mantrap and data hall 3 (mantrap post, talking pair on rounds); S6 meet-me room 2 (Pell's private contractor, roaming officer); exfiltration 2 (generator test technician, the returning van driver). Civilian: the night duty engineer, the authorised person for the iris scan. Pell's paid extra cover for his handover explains the numbers. At most 12 awake at once through dormant guards (S5); the rest sleep under the S5 dormant-guard system. S5 may test raising the awake cap for desktop, as a recorded decision, not by default. No guard on any floor lower than the nav sampler's lowest depth in 00-facts.md.
+- Guards: 20 guards plus 7 civilians (Michael, 2026-10-11). Civilians count as people who must never see the player under the ghost rule; whether they count towards the awake cap is decided in S5 and S6. Roster rule kept; the roster table below is to be redone for the campus in the P01 revision. The roster is docs/kestrel/01-mission-brief.md section 3 (APPROVED). At most 12 awake at once through dormant guards (S5); the rest sleep under the S5 dormant-guard system. S5 may test raising the awake cap for desktop, as a recorded decision, not by default. No guard on any floor lower than the nav sampler's lowest depth in 00-facts.md.
 - The seven chained objectives above, the two optional ones, one extraction.
 - Security systems: CCTV cameras, the security desk, card readers with keycards and a mantrap, an iris scanner, infrared beam detectors ("lasers") and PIR motion-sensor lights, as specified in docs/kestrel/S0-security-spec.md and built by prompts S1-S4. No other new systems.
 - Critical path (insertion to extraction along the shortest stealth route, visiting the objectives in order) 450-650 m.
@@ -63,7 +63,7 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Start: `git checkout feature/kestrel && git pull`. Read this file and docs/kestrel/progress.md. Check the prompt's preconditions; if one fails, stop and report.
 - Before working, print a plan of at most 10 lines (steps and files).
 - Read only the files the prompt lists. For any file over 200 lines use grep and line ranges.
-- Budget: about 60 tool calls. If you reach it, or a check still fails after two rounds of fixes, stop: commit what exists, write `BLOCKED: <what, why, what was tried>` in progress.md and report.
+- Budget: about 60 tool calls for a stage run as one session; parts use the Session size budget. If you reach it, or a check still fails after two rounds of fixes, stop: commit what exists, write `BLOCKED: <what, why, what was tried>` in progress.md and report.
 - Every shell command has a timeout (for example `timeout 300 node ...`). No watch modes, no dev servers left running, no sub-agents, no background tasks.
 
 ### Session size (Michael, 2026-10-11)
@@ -72,6 +72,23 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Commit and push after each completed step, with one line in the progress.md log, so a stalled session can resume after /clear.
 - Budget per part: about 35 tool calls. At the budget, commit what exists, write what is left under the stage's log line, report and stop.
 - If one step has produced no file after about 15 tool calls, stop, commit, report what is blocking.
+
+### Task size (Michael, 2026-10-11)
+- One deliverable per session: about one table or one document section, at most about 100 lines of new content. A stage that needs more is split into numbered parts (1a, 1b, ...), each its own session and prompt file.
+- Write as you go: decide one table, write it to the file, then the next. Never draft a whole document or file in your head before writing.
+- If one decision takes long, write "ASK: <question>" and move on.
+- Effort: medium by default. High only for one focused design decision, never for a multi-section deliverable.
+- Prompt writers precompute simple arithmetic (positions and sizes from approved documents) into the prompt as a table for the session to verify, with the source on each row.
+- Never raise CLAUDE_CODE_MAX_OUTPUT_TOKENS or similar limits; a session that hits a limit is too big and is split.
+
+### Reading and checking (Michael, 2026-10-11)
+- Before reading a file over 200 lines, list its sections with grep -n '^#' and read only the line ranges you need. Never read the same file twice in a session.
+- Every number in a design document carries its source in brackets or a source column: a document and section, a fact id, or ASK.
+- Self-checks that count or match ids use a command, not reading by eye. Paste the command's summary line in the report.
+- Never write that a check passed unless you ran it in this session.
+- View each rendered image once.
+- Model use: design parts Opus medium (high only per the task size rule); reviews Opus medium; data files, documents, plans and approvals Sonnet.
+- Every stage adds one or two lines to docs/kestrel/lessons.md: what it would change in the process for the next map.
 
 ## 8. Writing style
 - Plain English, short sentences, tables where possible. Hyphens, not em dashes. No marketing words.
@@ -97,7 +114,7 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Never claim a GPU, visual or performance check passed from a cloud session; write "pending PC run".
 
 ## 12. Build steps (B1-B7) only
-- Order (Michael, 2026-10-11): P01 revision (campus), P02 campus brief, P03B campus block plan, P03R campus review, B0 massing walk rerun, CAM camera fix, then P04-P05, early walk B1-B2 then BR, P04S, P06-P10, B3, B4, S1-S4, B4S, BR, S5, S6 civilians (working routines, noticing the player, fleeing to a guard or alarm, mission fails if one is killed), B5, B6, BR, B7.
+- Order: docs/kestrel/handover.md section Order is the one list (Michael, 2026-10-11).
 - B0 is the massing walk: it needs only P03B APPROVED and builds kestrel.blocks.json. B1 later points the map at kestrel.arch.json.
 - B1 and B2 are the early walk: they need only P04 APPROVED (after P05 and its revisions). B1 records `git hash-object docs/kestrel/kestrel.arch.json` in progress.md under "Early build".
 - B3 onward: docs/kestrel/09-build-contract.md is APPROVED, and `git hash-object docs/kestrel/kestrel.arch.json docs/kestrel/kestrel.play.json docs/kestrel/kestrel.security.json` matches the hashes in the contract. If the arch hash differs from the Early build hash, B3 first reruns the B1 and B2 checks and fixes what the change broke. If a precondition fails, stop.
