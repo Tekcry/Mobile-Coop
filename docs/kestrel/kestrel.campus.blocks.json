@@ -3719,7 +3719,7 @@
    "wall": "WG003",
    "at": 2,
    "w": 1,
-   "h": 2.1,
+   "h": 2.4,
    "sill": 0,
    "type": "gate",
    "between": [
@@ -3735,7 +3735,7 @@
    "wall": "WG003",
    "at": 7,
    "w": 6,
-   "h": 2.1,
+   "h": 2.4,
    "sill": 0,
    "type": "gate",
    "between": [
@@ -3751,7 +3751,7 @@
    "wall": "WG003",
    "at": 98.5,
    "w": 5,
-   "h": 2.1,
+   "h": 2.4,
    "sill": 0,
    "type": "gate",
    "between": [
@@ -3970,6 +3970,285 @@
    "locked": true,
    "key": "Riser door at the tunnel end, reader B-tier or PIN",
    "reason": "Riser door at the tunnel end, reader B-tier or PIN (03B 7.1 RA17)"
+  },
+  {
+   "id": "RB01",
+   "wall": "WG006",
+   "at": 2.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "S-YARDB-2",
+    "B-GW"
+   ],
+   "locked": true,
+   "key": "Staff door reader, B or contractor card",
+   "reason": "Staff door reader, B or contractor card (03B 7.2 RB01)"
+  },
+  {
+   "id": "RB02",
+   "wall": "WG006",
+   "at": 15,
+   "w": 3,
+   "h": 3,
+   "sill": 0,
+   "type": "roller",
+   "between": [
+    "SI-APRON",
+    "B-GGOODS"
+   ],
+   "locked": true,
+   "key": "Roller door, key switch inside, locked at night",
+   "reason": "Roller door, key switch inside, locked at night (03B 7.2 RB02)"
+  },
+  {
+   "id": "RB03",
+   "wall": "WG040",
+   "at": 3,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GW",
+    "B-GCOR"
+   ],
+   "locked": true,
+   "key": "Reader, B or contractor card",
+   "reason": "Reader, B or contractor card (03B 7.2 RB03)"
+  },
+  {
+   "id": "RB04",
+   "wall": "WG041",
+   "at": 6.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GCOR",
+    "B-GGOODS"
+   ],
+   "locked": true,
+   "key": "Reader, B or contractor card",
+   "reason": "Reader, B or contractor card (03B 7.2 RB04)"
+  },
+  {
+   "id": "RB05",
+   "wall": "WG015",
+   "at": 7.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GCOR",
+    "B-GN"
+   ],
+   "locked": true,
+   "key": "Reader, B-tier or contractor card (the door the technician wedges)",
+   "reason": "Reader, B-tier or contractor card (the door the technician wedges) (03B 7.2 RB05)"
+  },
+  {
+   "id": "RB06",
+   "wall": "WG042",
+   "at": 28,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GN",
+    "B-GHPLANT"
+   ],
+   "locked": true,
+   "key": "Key",
+   "reason": "Key (03B 7.2 RB06)"
+  },
+  {
+   "id": "RB07",
+   "wall": "WG017",
+   "at": 12,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GN",
+    "S-PASS"
+   ],
+   "locked": true,
+   "key": "Passage door, exit only, key cylinder outside",
+   "reason": "Passage door, exit only, key cylinder outside (03B 7.2 RB07)",
+   "ringExempt": "Exit only, no outside hardware (brief ASK-2; 03B 7.2 RB07)"
+  },
+  {
+   "id": "RB08",
+   "wall": "WG019",
+   "at": 8,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "S-PASS",
+    "W-GEN"
+   ],
+   "locked": true,
+   "key": "Wing personnel door, key; push-bar exit",
+   "reason": "Wing personnel door, key; push-bar exit (03B 7.2 RB08)",
+   "ringExempt": "Key only (brief ASK-2; 03B 7.2 RB08)"
+  },
+  {
+   "id": "RB09",
+   "wall": "WG044",
+   "at": 6,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "W-GEN",
+    "S-COMP"
+   ],
+   "locked": true,
+   "key": "Double doors, key; push-bar exit",
+   "reason": "Double doors, key; push-bar exit (03B 7.2 RB09)"
+  },
+  {
+   "id": "RB10",
+   "wall": "WG048",
+   "at": 8,
+   "w": 3,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-COMP",
+    "S-DRIVE"
+   ],
+   "locked": true,
+   "key": "Compound gate, padlock",
+   "reason": "Compound gate, padlock (03B 7.2 RB10)",
+   "ringExempt": "Key only (brief ASK-2; 03B 7.2 RB10)"
+  },
+  {
+   "id": "RB11",
+   "wall": "WG043",
+   "at": 1,
+   "w": 1,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-PASS",
+    "S-COMP"
+   ],
+   "locked": true,
+   "key": "Compound gate from the passage, padlock",
+   "reason": "Compound gate from the passage, padlock (03B 7.2 RB11)",
+   "ringExempt": "Key only (brief ASK-2; 03B 7.2 RB11)"
+  },
+  {
+   "id": "RB12",
+   "wall": "WG013",
+   "at": 13,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-GHALL",
+    "B-GHPLANT"
+   ],
+   "locked": true,
+   "key": "Reader, B-tier; free exit",
+   "reason": "Reader, B-tier; free exit (03B 7.2 RB12)"
+  },
+  {
+   "id": "RB13",
+   "wall": "WG042",
+   "at": 9.5,
+   "w": 1.8,
+   "h": 2.1,
+   "sill": 0,
+   "type": "double",
+   "between": [
+    "B-GGOODS",
+    "B-GHALL"
+   ],
+   "locked": true,
+   "key": "Equipment door: no outside handle or reader, exit device inside, forced and held alarms to AG11",
+   "reason": "Equipment door: no outside handle or reader, exit device inside, forced and held alarms to AG11 (03B 7.2 RB13)",
+   "ringExempt": "Exit only, no outside hardware (brief ASK-2; 03B 7.2 RB13)"
+  },
+  {
+   "id": "RB14",
+   "wall": "WG047",
+   "at": 15,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "fire-door",
+   "between": [
+    "B-GHCOOL",
+    "S-DRIVE"
+   ],
+   "locked": true,
+   "key": "Fire exit, exit only, no outside hardware, alarmed",
+   "reason": "Fire exit, exit only, no outside hardware, alarmed (03B 7.2 RB14)",
+   "ringExempt": "Exit only, no outside hardware (brief ASK-2; 03B 7.2 RB14)"
+  },
+  {
+   "id": "RB15",
+   "wall": "WG017",
+   "at": 5.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "fire-door",
+   "between": [
+    "B-GN",
+    "S-PASS"
+   ],
+   "locked": true,
+   "key": "Fire exit, exit only, no outside hardware, alarmed",
+   "reason": "Fire exit, exit only, no outside hardware, alarmed (03B 7.2 RB15)",
+   "ringExempt": "Exit only, no outside hardware (brief ASK-2; 03B 7.2 RB15)"
+  },
+  {
+   "id": "RB17",
+   "wall": "WR016",
+   "at": 1.5,
+   "w": 1,
+   "h": 2.1,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "B-RBULK",
+    "RF-BS-2"
+   ],
+   "locked": true,
+   "key": "Roof door, key outside, thumb-turn inside (BF11 below)",
+   "reason": "Roof door, key outside, thumb-turn inside (BF11 below) (03B 7.2 RB17)"
+  },
+  {
+   "id": "XG01",
+   "wall": "WG038",
+   "at": 1,
+   "w": 1,
+   "h": 2.4,
+   "sill": 0,
+   "type": "gate",
+   "between": [
+    "S-REAR-1",
+    "S-PASS"
+   ],
+   "locked": true,
+   "key": "Chain-link gate, push-bar on the passage side",
+   "reason": "Chain-link gate, push-bar on the passage side (03B 7.2 notes: X06 to X07 gate, escape way from RB15)"
   }
  ],
  "stairs": [

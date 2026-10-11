@@ -1,4 +1,4 @@
-// P03B Part 2 blocks generator. Piece 1 (2a): meta, levels, Building A zones. Piece 2 (2b): B, wing, bridge, site, level U zones. Piece 3 (2c): stairs, voids, ladders, V-AG23, pipe rack. Piece 4 (2d-1): open roofs, V-LAD3, walls, parapets, open edges. 2d-2a adds fences and openings (p03b-openings.mjs).
+// P03B Part 2 blocks generator. Piece 1 (2a): meta, levels, Building A zones. Piece 2 (2b): B, wing, bridge, site, level U zones. Piece 3 (2c): stairs, voids, ladders, V-AG23, pipe rack. Piece 4 (2d-1): open roofs, V-LAD3, walls, parapets, open edges. 2d-2a adds fences and 16 openings, 2d-2b the 17 openings of 7.2 and XG01 (p03b-openings.mjs).
 // Usage: node scripts/kestrel/p03b-blocks.mjs  -> docs/kestrel/kestrel.campus.blocks.json (planner 2026-10-11: keeps npm test green until B0)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { standardsCheck, summary } from './standards-check.mjs';
@@ -270,7 +270,7 @@ const out = {
   meta: meta(),
   levels: lvls,
   rooms, // zonesA, zonesB, zonesSite, V-AG23, roofs
-  walls: wallList, openings: openings(md, cells, wallList, rooms), stairs: stairs(), ladders: ladders(), voids: voids(), objects: [], exterior: [], services: services(), // openings 2d-2a (2d-2b adds 7.2)
+  walls: wallList, openings: openings(md, cells, wallList, rooms), stairs: stairs(), ladders: ladders(), voids: voids(), objects: [], exterior: [], services: services(), // openings 2d-2a (7.1) and 2d-2b (7.2, XG01)
 };
 writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
 console.log(`wrote ${OUT}: rooms ${out.rooms.length}, walls ${out.walls.length}, levels ${out.levels.length}`);
