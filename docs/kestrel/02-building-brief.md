@@ -74,7 +74,7 @@ Other sources used: lift data (Orona Next Essentia (source: https://www.orona-gr
 
 ## 3. Design and operation
 - A ground (2004): reception, security room, offices, goods-in and the first data hall. A first (2004): operations room, records, offices, plant gallery with the chilled-water pumps. A roof: chillers.
-- 2021 phase 2: B's hall took over all customer racks; A's hall was emptied by 2022, its raised floor lifted and the space rebuilt as the locker room, staff WC, post room and customer services office. A's old meet-me room became A's comms room (A's own network and the tunnel shaft). A's chillers were replaced with larger units that serve both buildings through the pipe rack. A's outdoor generator was removed; its plinth in A's rear yard holds the bin store.
+- 2021 phase 2: B's hall took over all customer racks; A's hall was emptied by 2022, its raised floor lifted and the space rebuilt as the locker room, staff WC and post room. The customer services office went to the first floor (AF20), beside the other offices (Michael, 2026-10-11). A's old meet-me room became A's comms room (A's own network and the tunnel shaft). A's chillers were replaced with larger units that serve both buildings through the pipe rack. A's outdoor generator was removed; its plinth in A's rear yard holds the bin store.
 - 2021 also added the CCTV equipment room and key safe room beside A's security room, the link bridge, the iris-and-card mantrap, and moved the tape library and media destruction next to A's ops counter.
 - B ground: staff entrance, lockers, customer staging, build room, B's plant corridor and LV switchroom. B first: bridge lobby and post, mantrap, secure corridor, gallery. B hall block: hall, cooling gallery, inner plant corridor (UPS, batteries, UPS switchroom), meet-me room, riser room, carrier equipment room.
 - Tonight (Tuesday, late November, 01:10, rain): A's security room, reception and ops room are manned; corridors are lit; the cleaner works A's ground floor, then the first. B: bridge post, mantrap post, gallery patrol, the talking pair in the hall, the remote-hands technician at a tenant's racks, two tenant engineers in their cage near Pell's, Pell's contractor in the meet-me room, the facilities engineer on plant rounds. Pell's van is loaded at A's goods-in. The weekly generator test is due before dawn. Neither lift is used.
@@ -103,7 +103,6 @@ Clear size = wall-centreline rectangle less 0.3 each way (interior walls 0.3; on
 | AG04 | G | Post room | 3 | Courier parcels and post, hatch to reception | Locked, on the rounds | 4.7 x 3.7 | 3.0 | Vinyl | AG10; hatch to AG01 | N | N | N | Rounds officer passes | storage |
 | AG05 | G | Duty manager's office | 3 | Guarding firm's shift manager; shift log | Manager's base; master card in the desk drawer | 5.7 x 4.7 | 3.0 | Carpet tile | AG10 | N | N | Y | Duty manager (away on his walk part of each cycle) | facilities-office |
 | AG06 | G | Admin office | 3 | Ostler admin staff | Dark; one south window left ajar | 7.7 x 5.7 | 3.0 | Carpet tile | AG10 | N | N | N | Cleaner in its pass | office |
-| AG07 | G | Customer services office | 3 | Account managers (2004 hall area) | Dark | 7.7 x 5.7 | 3.0 | Carpet tile | AG10 | N | N | N | Cleaner in its pass | office |
 | AG08 | G | Goods-in bay | 2 | Deliveries and outbound customer kit, asset check | Pell's crates staged for the van | 9.7 x 7.7 | 3.0 | Sealed concrete | X03 (roller door 3.0 x 3.0), AG09 | Y | N | Y | Van driver | loading-bay |
 | AG09 | G | Goods lobby | 2 | Airlock between bay and corridor | Passage for the crates | 3.7 x 2.7 | 3.0 | Sealed concrete | AG08, AG10 (reader) | Y | N | Y | Van driver | goods-lobby |
 | AG10 | G | Ground spine corridor | 3 | Controlled staff corridor east-west | Lit; rounds and cleaning | 3.2 x 29.7 | 2.4 | Vinyl | All AG rooms off it, AG18, AG20 | Y | Y | Y | Rounds officer, cleaner, duty manager on his walk | corridor |
@@ -141,12 +140,13 @@ Clear size = wall-centreline rectangle less 0.3 each way (interior walls 0.3; on
 | AF17 | F | Bridge vestibule A | 3 | A end of the link bridge | Lit | 3.2 x 2.7 | 2.4 | Vinyl | AF01 (open), LF01 (reader) | N | Y | Y | Supervisor on rounds | none |
 | AF18 | F | Staff WC first | 3 | Staff WCs | In use | 4.7 x 3.7 | 3.0 | Sheet vinyl | AF01 | N | N | N | Anyone briefly | staff-wc |
 | AF19 | F to R | Pipe riser A | 3 | Chilled-water pipes from AF11 to the roof chillers, fixed ladder, roof hatch | Closed | 1.7 x 1.2 | full height | Concrete | AF10 (locked door), AR01 (hatch) | Y | N | N | - | riser-cupboard |
+| AF20 | F | Customer services office | 3 | Account managers (was AG07; moved to the first floor, Michael 2026-10-11) | Dark | 7.7 x 5.7 | 3.0 | Carpet tile | AF01 | N | N | N | Cleaner in its pass | office |
 | AR01 | R | A roof | 3 | Membrane roof, paved walkways, parapet | Wet, dark | 35.1 x 23.1 | open | Membrane, pavers | AR04, AF19 hatch, LF02 (fixed ladder) | - | - | N | - | none |
 | AR02 | R | Chiller compound | 3 | Three air-cooled chillers on steel frames (two run, one standby) for both buildings | Running | 12.0 x 6.0 | open | Steel frame on plinths | AR01 | - | - | N | - | none |
 | AR03 | R | Office AHU | 3 | Air handler for A's offices; ducts down into the corridor voids | Running | 6.0 x 3.0 | open | Plinth | AR01 | - | - | N | - | none |
 | AR04 | R | Fire stair A bulkhead | 3 | Stair head with roof door and smoke vent | Closed | 3.2 x 6.2 | 3.0 | Vinyl | AF15, AR01 (roof door) | Y | N | N | - | none |
 
-Sums (rectangles): A ground 731 of 864 m2 (85%); A first 592 of 864 (69%); A roof plant and bulkhead 113 of 864.
+Sums (rectangles): A ground 683 of 864 m2 (79%); A first 640 of 864 (74%); A roof plant and bulkhead 113 of 864. AG07 is retired: the customer services office is AF20 (Michael, 2026-10-11, P03B feasibility).
 
 ### Link bridge
 | Id | Level | Name | Zone | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
@@ -255,9 +255,9 @@ Site sum: lane 864 + yards 1144 + 1232 + 288 + rear 1204 + drive 368 + compound 
 | 01 space | Zone | Room ids |
 | --- | --- | --- |
 | S1 site | 1 (X09 3; X01 outside) | X02-X08, X10-X12, X13 (3) |
-| S2 A ground | 2 and 3 (correction: 01 said 2; the staff side behind reception's reader is the controlled corridor H2 and H6 name) | 2: AG01-AG03, AG08, AG09; 3: AG04-AG07, AG10, AG14-AG22, AG24, AG25 |
+| S2 A ground | 2 and 3 (correction: 01 said 2; the staff side behind reception's reader is the controlled corridor H2 and H6 name) | 2: AG01-AG03, AG08, AG09; 3: AG04-AG06, AG10, AG14-AG22, AG24, AG25 |
 | S3 security room | 3+ (confirmed) | AG11, AG12, AG13 |
-| S4 A first | 3 (confirmed) | AF01-AF19, AR01-AR04 |
+| S4 A first | 3 (confirmed) | AF01-AF20, AR01-AR04 |
 | S5 bridge and B secure floor | 3 to 4 (confirmed) | 3: LF01, LF02, BF01-BF06, BF11-BF15, BR01-BR04; 4: BF07-BF10 |
 | S6 data hall | 4 (confirmed; cages 5) | BG13, BG20, BG23-BG27, BU01, BU02, BR05; 5: BG21, BG22 |
 | S7 meet-me room | 5 (confirmed; its lobby 4) | BG30-BG33; 4: BG29 |
@@ -417,4 +417,5 @@ Downstream: P03B redoes the block plan from this brief, including both lift shaf
 | Date | Fix # | What changed (rows, sections) | Checker counts after | Status |
 | --- | --- | --- | --- | --- |
 | 2026-10-11 | campus rewrite | Replaces the single-building brief (last commit c805978): Building A, Building B, link bridge, generator wing, yard, lane, level U, vault and tunnel; new ids AG/AF/AR/LF/BG/BF/BR/BU/TB/X; both lifts | - | DRAFT |
+| 2026-10-11 | Michael: AG07 moved to first floor, P03B feasibility | AG07 row removed and retired, AF20 added (same size and use); section 3 note; A sums (ground 683, first 640); section 6 S2 and S4 lists | 151 schedule rows (unchanged) | DRAFT |
 | 2026-10-11 | answers | Michael: separate generator wing, ring exemptions (ASK-2), 2.4 corridors (ASK-5), sizes accepted, pedestals 1.2 grid not modelled (ASK-6); BU01, s9, s12b, s14, s15 | - | DRAFT |
