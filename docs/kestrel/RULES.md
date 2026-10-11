@@ -90,6 +90,7 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Never write that a check passed unless you ran it in this session.
 - View each rendered image once.
 - Model use: design parts Opus medium (high only per the task size rule); reviews Opus medium; data files, documents, plans and approvals Sonnet.
+- Every layout self-check also tests: every room reaches a corridor or its own lobby by a door; every rect and number has a source; every brief requirement for that floor is met or listed as ASK.
 - Every stage adds one or two lines to docs/kestrel/lessons.md: what it would change in the process for the next map.
 
 ## 8. Writing style
@@ -101,7 +102,7 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 2. Update docs/kestrel/progress.md: your stage row (status DRAFT or BLOCKED, commit, date) and a log entry of at most 6 lines.
 3. `git add` only files you created or changed. Commit `kestrel <stage>: <summary>`. Push feature/kestrel.
 4. Report to Michael in at most 8 lines: done, files, checks (pass and fail counts), ASK items, questions (at most 5, each with 2-4 options; use the multiple-choice question tool if you have one), and as the last line: "Next: type /clear, then send: <exact message>" (usually "Planner: next").
-4a. Every question for Michael lists the recommended option first, marked '(Recommended)', with a one-line reason. Questions and options are also written in the stage's document (its questions section) or, if it has none, in its progress.md log entry. The report repeats them once in a single code block headed 'Questions for Michael'. Michael answers in the same session (he may reply 'all recommended'); the session applies the answers, commits, pushes, and ends with the Next line.
+4a. Every question for Michael lists the recommended option first, marked '(Recommended)', with a one-line reason. Questions and options are also written in the stage's document (its questions section) or, if it has none, in its progress.md log entry. The report repeats them once in a single code block headed 'Questions for Michael'. Michael answers in the same session (he may reply 'all recommended'); the session applies the answers, commits, pushes, and ends with the Next line. A recommended option may never leave a brief requirement unmet or defer it to a later stage; deferring is only allowed when Michael chooses it himself.
 5. STOP.
 
 ## 10. Approval

@@ -16,3 +16,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Briefs should give centreline sizes, not clear sizes: 0.45 walls on a 0.5 grid make most clear sizes (1.5 m passage) impossible, and a separate block (the wing) needs its grid stated.
 - Line limits did not stop overload: P03B-1b packed 45 rooms on three floors into one section at high effort. Cap decisions, one floor per session, never high effort; Michael controls the effort setting.
 - Spine frontage is a hard budget: count door-metres (about 70 m wanted vs 60 m available) before fixing room depths; a building brief that asks every room for a corridor door and an outside wall cannot be placed as given.
+- A session judging its own work recommended deferring a real defect (five rooms with no door). Universal checks in every self-check, no recommending a deferral, and the planner reviews each session's output before the next prompt.

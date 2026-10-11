@@ -9,7 +9,7 @@ Everything needed to continue Mission 1 "Dead Line" if the planning chat is lost
 - P02 campus brief: APPROVED (6c43a9b; brief 133a4d1). One passenger lift per building, locked off at night (built as closed shafts with shut doors); separate generator wing with a 1.5 m service passage; key-only and exit-only doors ring-exempt; 2.4 m corridors under 1.5 m voids; A 36 x 24, B 48 x 30, site 108 x 76; raised-floor pedestals not modelled.
 - P03T campus tools: APPROVED (f097ce1): meta.buildings, level footprint lists, rooms[].building (A31), level H for low roofs, site limit 110 x 80.
 - V0 toolkit spec: APPROVED after the pistol secondary revision (811eaca, approved f67dc0b).
-- P03B: part 1a (site and levels) done with Michael's answers (8df2618); part 1b was stopped (too big) and is split by floor: 1b-G next (prompts/P03B-1b-G.md). prompts/P03B-1b.md is superseded, not run.
+- P03B: part 1a (site and levels) done with Michael's answers (8df2618); part 1b was stopped (too big) and is split by floor: 1b-G ran and left ASK-5 (five rooms with no corridor door); Michael rejected options a, b, c (2026-10-11), so prompts/P03B-1b-G-r2.md is next (prompts/P03B-1b-G.md is superseded). prompts/P03B-1b.md is superseded, not run.
 - B0: built for the old single building (57aaf6c); rerun for the campus.
 - S1: Part A built (478c3b8); Part B runs after B4.
 
@@ -60,6 +60,7 @@ P03B campus block plan (Opus high), P03R campus review, B0 rerun, Michael walks 
 - Hooks for later stages: S1 Part B wires the hack events to the desk; S4 adds the camera's disabled state to `sec`; S6 civilians are questioned through the grab.
 
 ## Working rules
+- Reviewer rules (Michael, 2026-10-11): a recommended option never leaves a brief requirement unmet or defers it (RULES 9 4a); layout self-checks test door reach, sources and brief coverage (RULES 7); a planner session reviews the last session's output before writing the next prompt (PLANNER).
 - Run one Claude Code session at a time; sessions share a working folder.
 - Every prompt starts by switching to feature/kestrel and checking the branch; type /clear before each prompt.
 - Desktop is the performance target; the phone is for quick tests on the light preset.

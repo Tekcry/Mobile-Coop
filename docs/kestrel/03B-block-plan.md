@@ -125,3 +125,5 @@ ASK-5 (branch corridor cannot fit the north four; stopped as instructed). Why: t
 - (c) Swap to a double-loaded north wing: shrink the spine rooms AG11-AG13 to the south half (needs AG02-AG04 or AG15 to move north), freeing the north half for an east-west branch at z 48.5-52 with rooms at z 52-54... does not work (2 deep).
 - (d) Allow a second spine-parallel corridor by moving the spine to z 36-39.5 and AG01 to 9 x 10 turned 10 x 9 (loosens AG01 and AG08 constraints; Michael's approval).
 
+
+Michael's answer to ASK-5 (2026-10-11): none of (a), (b) or (c); (d) is not approved either. Re-run as prompts/P03B-1b-G-r2.md: every room must reach a corridor or its own lobby by a door, with the brief's rules kept (AG06 on an outside wall with an openable window, no room below its brief clear size). Allowed: an L or loop corridor, a second short corridor, moving rooms, suites where a real building has them. The spine may move only with a written reason.
