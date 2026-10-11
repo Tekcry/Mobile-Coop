@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1e done: vertical circulation; Part 1f next)
+Status: DRAFT (Part 1f-a done: ring entries site and A; Part 1f-b next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -317,6 +317,45 @@ Main stairs are not escape stairs (brief 8, kept by Michael 2026-10-11), so each
 - P04: AG22 covers AG23 [38, 45, 40, 47]; BG31 covers BG32's hatch; an aisle runs under BR05 [80, 48, 82, 50]; BG02's door is on its east wall onto BG05.
 - P03R: brief 8 needs lines for the gallery stair going and landing and the 5 wide B core; fire stair landings: recommend going 0.27 (landings 1.48), game-invisible.
 - 1f: ring doors on stairs and risers come from 6.1's "Opens to" column.
+
+## 7. Ring entries
+Where each control in brief 6 crosses between zones. Segment = the shared zone face P04 puts the door on; "plan" = a hatch or lid inside the zone. Rings from brief 6 (3+ written 3.5).
+
+### 7.1 Site, Building A, bridge and under the yard
+| Id | Level | From (ring) | To (ring) | Control | Between | Segment | Exempt | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| RA01 | G | X01 (0) | X03 (1) | Main sliding gate and pedestrian gate, pedestrian reader; gatehouse officer releases | S-LANE / S-YARDA | z 8, x 5-16 | no | brief 6; 5.2 SI-GATE (gates east of the gatehouse) |
+| RA02 | G | X01 (0) | X04 (1) | East service gate, chain and padlock | S-LANE / S-YARDB | z 8, x 100-108 | no | brief 6; 5.4 (opposite X08) |
+| RA03 | G | X03 (1) | AG01 (2) | Main door, locked out of hours, intercom | S-YARDA / G-FRONT | z 30, x 4-22 | no | brief 6, 5 AG01 |
+| RA04 | G | X03 (1) | AG08 (2) | Roller door by key switch inside; wicket door reader | S-YARDA / G-GOODS | z 30, x 28.5-40 | no | brief 6, 5 AG08 |
+| RA05 | G | AG01 (2) | AG10 (3) | Reader, A card | G-FRONT / G-SPINE | z 40, x 4-22 | no | brief 6, 5 AG01 |
+| RA06 | G | AG09 (2) | AG10 (3) | Reader, A card | G-GOODS / G-SPINE | z 40, x 28.5-40 | no | brief 6, 5 AG09 |
+| RA07 | G | AG10 (3) | AG11, AG12, AG13 (3.5) | Reader, master card tier; key safe PIN inside AG13 | G-SPINE / G-SEC | z 43.5, x 7.5-19.5 | no | brief 6; 3.3 G-SEC |
+| RA08 | F | AF01 (3) | AF03, AF05, AF06 (3) | Reader, master card tier (AF02 through AF03) | F-SPINE / F-OPS | z 40, x 11-36.5 | no | brief 6; 3.3 F-OPS |
+| RA09 | F | AF01 (3) | AF04 (3) | Reader, master card tier | F-SPINE / F-BW | z 43.5, x 7.5-19.5 | no | brief 6; 3.3 F-BW |
+| RA10 | F | AF21 (3) | AF10 (3) | Reader, master card tier | F-NCOR / F-PLANT | x 36.5, z 50.5-54 | no | brief 6; 3.4 (AF21 east end) |
+| RA11 | F | AF17 (3) | LF01 (3) | Reader, A card | F-VEST / K-BRIDGE | x 40, z 40-43.5 | no | brief 6, 5 AF17 |
+| RA12 | F | LF01 (3) | BF01 (3) | Reader, B-tier card or escort PIN; bridge post | K-BRIDGE / B-FLOBBY | x 52, z 40-43.5 | no | brief 6, 5 LF01 |
+| RA13 | G | AG21 (3) | X10 (1) | Fire exit, exit only, no outside hardware, alarmed | V-AFS / S-WPATH | x 4, z 54-57.5 | yes (exit) | brief 6; 6.2 |
+| RA14 | R | AR04 (3) | AR01 (3) | Roof door, key outside, thumb-turn inside (AF15 below) | R-BULK / RF-A | x 10.5, z 54-57.5 | no | brief 6; 3.3 R-BULK |
+| RA15 | G | X03 (1) | TB02 (4) | Heavy lid, carriers' and Ostler's lifting keys | S-YARDA / V-TB02 | plan | yes (ASK-2) | brief 6; 5.3, 6.1 |
+| RA16 | G | AG22 (3) | AG23 (4) | Locked floor hatch, key | G-EAST / V-AG23 | plan | no | brief 6; 6.1 |
+| RA17 | B | TB04 (4) | BG32 (5) | Riser door at the tunnel end, reader B-tier or PIN | T-TUNB / T-RISER | z 30, x 72-74 | no | brief 6; 6.1 V-BG32 |
+
+Self-check (this session):
+- F `node scripts/kestrel/p03b-ring-check-f.mjs`: `ring 17 (RA 17, RB 0), rects 114, fails 0, info 1` (RA14: bulkhead inside the roof zone, expected).
+- E: `vert 17, fails 0, info 2`; A: `zones 27, fixed 15, fails 0, info 0`; B: `zones 19, fixed 10, fails 0`; D: `zones 26, rows 126 of 126, fails 0`.
+
+Deviations:
+- RA02: east service gate on the lane fence opposite X08 (x 100-108), not beside X12 (brief 4); X12 is at x 60-70 and tankers use the drive (5.4).
+- RA10: AF10's door is off AF21's east end, not AF01 (3.4).
+- RA15: lid in X03, not X04 (brief 6; 5.3). RA14: from the bulkhead AR04 over AF15 (brief 6 names AF15).
+- No other row of the candidate changed.
+
+Notes for P04, 1f-b and P03R:
+- P04: each door goes on its segment; RA01's gates sit east of the gatehouse so the officer sees both; RA07's three security doors share z 43.5 with no zone 2 contact (3.3 G-SEC).
+- P03R: brief 4 east service gate wording (opposite X08).
+- 1f-b: RA12's B reader is the bridge post's door; B's rows start at RB01.
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
