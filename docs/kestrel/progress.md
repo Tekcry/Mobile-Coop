@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED | 133a4d1 | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (part 1a; 1b zones prompt ready) | pending | 2026-10-11 |
+| P03B | Block plan | DRAFT (part 1a; 1b zones held: A ground door test) | pending | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -91,6 +91,7 @@ Older entries: progress-archive.md.
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 P03B-1b-zones held: a planner session tests door access on A ground first (north-wall rooms AG05, AG14, AG15, AG24 have no route to the spine; 2 m spare in the front row against a 3.5 m branch) and brings options before the prompt runs.
 - 2026-10-11 P03B feasibility: AG07 (customer services office) moves to A first floor as AF20, same size and use; AG07 is retired. Brief 02 updated (revision log row).
 - 2026-10-11 P03B is a block plan, zones only (no rooms, doors or objects); room rectangles belong to P04. A zone holds brief rooms whose rect areas fill at most 85% of it; tight blocks the brief fixes are listed, not failures; the spare space is for P04's extra corridors. The A ground frontage shortfall (74.5 m needed, 60 m spine) is solved in P04 inside zones. Layout tasks are candidate-first; feasibility is tested with arithmetic before any layout prompt.
 - 2026-10-11 Next step block: every session ends with "Next step:" 1. Type /clear. 2. Switch to <model>, <effort> (or Stay on). 3. Send the prompt below: (exact message alone in a fenced code block). Replaces the old Next line everywhere.
