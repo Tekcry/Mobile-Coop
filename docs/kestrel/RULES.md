@@ -89,6 +89,11 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Building sizes (Michael, 2026-10-11): sizes are not fixed. Within section 2's caps (site 110 x 80, each building 48 x 30) they follow the brief's room needs and real architectural practice. If feasibility sums fail, the session resizes the building within the caps itself, records the reason and carries on; it does not ask Michael. Questions to Michael are only about whether the design is realistic, believable and flows well for stealth play. An APPROVED document still changes only through a Revision prompt (section 10).
 - Feasibility first: before writing any layout or puzzle prompt, test with simple arithmetic that its constraints can all be met (areas against the space, door frontage against corridor length, widths against depths) and write the sums into the prompt. If a building size makes them fail, resize within the caps (Building sizes, above). If they still cannot all be met, do not write the prompt: bring Michael the conflict as a question with options, recommended first.
 
+### Plan and drafts (Michael, 2026-10-11)
+- Current plan wins: once a stage document records a deviation from the brief, prompts take positions, ids and wording from that document, not the brief. Any id or point a prompt uses must exist as placed in the current stage document.
+- Fix now, don't defer: a problem in a DRAFT document is fixed in the current stage. Only wording in APPROVED documents goes to a review or revision stage.
+- Planner checklist before any prompt: docs/kestrel/PLANNER.md (top).
+
 ### Reading and checking (Michael, 2026-10-11)
 - Before reading a file over 200 lines, list its sections with grep -n '^#' and read only the line ranges you need. Never read the same file twice in a session.
 - Every number in a design document carries its source in brackets or a source column: a document and section, a fact id, or ASK.

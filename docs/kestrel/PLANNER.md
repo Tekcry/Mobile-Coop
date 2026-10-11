@@ -1,6 +1,14 @@
 # Kestrel planner sessions
 Rules for planner sessions (Michael, 2026-10-11). A planner session starts when Michael's message begins "Planner:".
 
+## Checklist before writing any prompt (Michael, 2026-10-11)
+- (a) Is any file I am changing APPROVED? Then write a Revision prompt.
+- (b) Does the next job need Opus? Then an approval or Sonnet session stops before writing it.
+- (c) Is every capability claim cited (RULES 5)?
+- (d) Did any handover line become stale?
+- Current plan wins: once a stage document records a deviation from the brief, prompts take positions, ids and wording from that document, not the brief. Any id or point a prompt uses must exist as placed in the current stage document.
+- Fix now, don't defer: a problem in a DRAFT document is fixed in the current stage. Only wording in APPROVED documents goes to a review or revision stage.
+
 ## Start
 - git checkout feature/kestrel && git pull; confirm the branch.
 - Read this file, docs/kestrel/handover.md, docs/kestrel/routes.md, and docs/kestrel/progress.md (status table and newest 5 log entries only).
