@@ -1263,6 +1263,7 @@ export class Editor {
     const pad = this.pad;
     if (pad?.device === 'pad' && pad.focus !== '3d') notes.push(pad.focus === 'plan' ? 'Pad on the plan (View held moves on)' : 'Pad in the side panel (B leaves)');
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
+    if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
     const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox').map((i) => `<b>${esc(i.keys)}</b> ${esc(i.name)}`);
     $('hint').innerHTML = [...notes.map((n) => `<span class="note">${esc(n)}</span>`), ...items].join('&nbsp;&nbsp;&nbsp;');
   }

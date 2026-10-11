@@ -94,6 +94,12 @@ export function kestrelEditor(): Plugin {
   return {
     name: 'kestrel-editor',
     apply: 'serve',
+    // Kestrel-Editor-Network.cmd: https with the editor's own certificate (iOS allows controllers on secure pages only)
+    config() {
+      const dir = path.join(process.cwd(), '.kestrel-cert');
+      if (process.env.KESTREL_EDITOR_HTTPS !== '1' || !existsSync(path.join(dir, 'cert.pem'))) return;
+      return { server: { https: { key: readFileSync(path.join(dir, 'key.pem')), cert: readFileSync(path.join(dir, 'cert.pem')) } } };
+    },
     configResolved(c) {
       root = c.root;
     },
@@ -106,6 +112,13 @@ export function kestrelEditor(): Plugin {
             // the file time lets the editor tell whether an unsaved draft is newer than the file
             res.setHeader('x-mtime', String(Math.floor(statSync(path.join(root, CAMPUS)).mtimeMs)));
             return send(res, 200, 'application/json', readFileSync(path.join(root, CAMPUS), 'utf8'));
+          }
+          // the phone downloads this once to trust the editor's https certificate
+          if (url.pathname === '/__editor/cert.crt' && req.method === 'GET') {
+            const f = path.join(root, '.kestrel-cert', 'cert.pem');
+            if (!existsSync(f)) return json(res, { error: 'no certificate: start Kestrel-Editor-Network.cmd' }, 404);
+            res.setHeader('content-disposition', 'attachment; filename="kestrel-editor.crt"');
+            return send(res, 200, 'application/x-x509-ca-cert', readFileSync(f, 'utf8'));
           }
           if (req.method !== 'POST') return json(res, { error: 'POST only' }, 405);
           if (!isLocal(req)) return json(res, { error: 'the editor only runs on this PC (localhost)' }, 403);

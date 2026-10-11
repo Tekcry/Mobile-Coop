@@ -16,10 +16,19 @@ work, and on save writes the file, the plan images and a change log for review. 
    window (or press Ctrl+C in it). Unsaved edits are offered back next time you open it.
 6. Checks of the controller: `npm run e2e:editor` (about a minute, never saves).
 
-7. Phone or tablet on the home Wi-Fi: double-click `Kestrel-Editor-Network.cmd` instead. It prints a Network address
-   (for example `http://192.168.1.20:5199/`); open it on the phone with `editor.html` on the end. Saving works from devices
-   on the home network only (private addresses), never from the internet. Allow Node.js on private networks if Windows asks.
-
+7. Phone or tablet on the home Wi-Fi: double-click `Kestrel-Editor-Network.cmd` instead. It serves the editor over https
+   with its own certificate (iOS lets a page use a controller only when it is secure), and devices on the home network
+   (private addresses, never the internet) can save. Open `https://192.168.1.249:5199/editor.html` (the PC's address; the
+   window prints it). Windows Firewall must allow port 5199 on Private networks (one admin command, done 2026-10-12).
+8. First time on each iPhone (so Safari, home-screen web apps and controllers trust the editor):
+   1. In Safari open `https://192.168.1.249:5199/__editor/cert.crt`. Safari warns the connection is not private:
+      Show Details, then visit this website, then Allow the profile download.
+   2. Settings, Profile Downloaded, Install.
+   3. Settings, General, About, Certificate Trust Settings: switch on "Kestrel level editor".
+   4. Open `https://192.168.1.249:5199/editor.html`. Share, Add to Home Screen makes it a web app.
+   If the PC's address changes, the launcher makes a new certificate; install it again.
+- On a phone the toolbars scroll sideways, the side panel slides over the view, and in portrait Both stacks the 3D view
+  over the plan. With a controller the toolbars hide as on the PC.
 ## Controller screen (ED2 Part C2)
 - Any controller input switches to the controller screen: both toolbars, the mouse cursor and the side panel hide; a
   status strip (top left: editing level, view, levels setting, building, tool, unsaved changes, new problems) and large

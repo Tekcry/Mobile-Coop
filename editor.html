@@ -2,7 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>Kestrel Level Editor</title>
     <style>
       :root {
@@ -15,7 +17,7 @@
         --bad: #ff5a5a;
       }
       * { box-sizing: border-box; }
-      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, Segoe UI, Arial, sans-serif; overflow: hidden; }
+      html, body { margin: 0; height: 100%; box-sizing: border-box; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, Segoe UI, Arial, sans-serif; overflow: hidden; }
       body { display: flex; flex-direction: column; }
       #bar { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
       #bar .line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
@@ -121,7 +123,34 @@
       body[data-device='pad'] #help { font-size: 16px; width: 560px; }
       body[data-device='pad'] #reticleText, body[data-device='pad'] #crossText { font-size: 18px; }
       body[data-device='pad'] #ask { font-size: 20px; padding: 16px 20px; }
-      body[data-device='pad'] #ask button { font-size: 20px; padding: 8px 14px; }      #status { flex: none; height: 24px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      body[data-device='pad'] #ask button { font-size: 20px; padding: 8px 14px; }      /* phones and small windows (iPhone portrait and landscape): ED2 follow-up, Michael 2026-10-12 */
+      body { height: 100dvh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); -webkit-text-size-adjust: 100%; touch-action: manipulation; }
+      @media (max-width: 900px), (max-height: 500px) {
+        html, body { font-size: 13px; }
+        #bar { padding: 4px 6px; gap: 2px; }
+        #bar .line { flex-wrap: nowrap; overflow-x: auto; gap: 6px; scrollbar-width: none; }
+        #bar .line > * { flex: none; }
+        #bar .title, #checksBadge { display: none; }
+        button, select { min-height: 34px; }
+        #drawer, body[data-drawer='pinned'] #drawer { position: absolute; z-index: 10; right: 0; top: 0; bottom: 0; width: min(92vw, 420px); box-shadow: -4px 0 16px rgba(0, 0, 0, 0.45); }
+        body[data-device='pad'] #drawer { width: min(92vw, 460px); }
+        #help { width: calc(100% - 16px); max-height: 70%; }
+        .rm-ring { width: min(88vmin, 560px); height: min(88vmin, 560px); }
+        .rm-slot { min-width: 70px; max-width: 110px; padding: 7px 8px; font-size: 13px; }
+        .rm-name { font-size: 16px; }
+        .rm-desc, .rm-crumb { font-size: 11px; }
+        #hint, body[data-device='pad'] #hint { font-size: 13px; padding: 4px 8px; white-space: normal; max-height: 3.2em; }
+        #padStrip { font-size: 13px; padding: 5px 8px; }
+        body[data-device='pad'] #panel, body[data-device='pad'] #panel input, body[data-device='pad'] #panel select, body[data-device='pad'] #panel button { font-size: 15px; }
+        #stage[data-layout='3d'][data-minimap='1'] #planWrap { width: 38vw; height: 28vw; min-width: 140px; min-height: 105px; bottom: 50px; }
+        #reticleText, #crossText, body[data-device='pad'] #reticleText { font-size: 13px; }
+        #status { font-size: 12px; }
+      }
+      /* portrait: Both stacks the views */
+      @media (max-aspect-ratio: 1/1) {
+        #stage[data-split] { flex-direction: column; }
+        #stage[data-split] #divider { width: auto; height: 6px; cursor: row-resize; }
+      }      #status { flex: none; height: 24px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
   </head>
   <body data-drawer="pinned">
