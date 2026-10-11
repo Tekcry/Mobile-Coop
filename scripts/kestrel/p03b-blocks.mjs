@@ -313,6 +313,17 @@ const out = {
   rooms, // zonesA, zonesB, zonesSite, V-AG23, roofs
   walls: wallList, openings: openings(md, cells, wallList, rooms), stairs: stairs(), ladders: ladders(), voids: voids(), objects: [], exterior: [], services: services(), // openings 2d-2a (7.1) and 2d-2b (7.2, XG01)
 };
+// The level editor owns the file once Michael saves from it (2026-10-12): never overwrite those edits unless told to.
+let owner = null;
+try {
+  owner = JSON.parse(readFileSync(OUT, 'utf8')).meta?.editor ?? null;
+} catch {
+  owner = null;
+}
+if (owner && !process.argv.includes('--force')) {
+  console.error(`${OUT} is owned by the ${owner}; not overwritten (pass --force to discard the editor's changes)`);
+  process.exit(1);
+}
 writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
 console.log(`wrote ${OUT}: rooms ${out.rooms.length}, walls ${out.walls.length}, levels ${out.levels.length}`);
 const res = standardsCheck(out);

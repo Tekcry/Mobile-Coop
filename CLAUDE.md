@@ -18,6 +18,7 @@ On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading 
 
 ## Commands
 - `npm run dev` - dev server (LAN-exposed for phone testing)
+- `npm run editor` - Kestrel level editor (dev only, `docs/kestrel/editor.md`)
 - `npm run build` - typecheck + production build into `dist/`
 - `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
 - `npm run lint` - ESLint (typescript-eslint)

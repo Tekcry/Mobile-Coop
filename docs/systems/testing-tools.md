@@ -4,6 +4,7 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
 
 ## Commands
 - `npm run dev` - dev server (LAN-exposed for phone testing)
+- `npm run editor` - the Kestrel level editor on this PC (`editor.html`, dev server only; docs/kestrel/editor.md)
 - `npm run build` - typecheck + production build into `dist/`
 - `npm test` - Vitest unit tests (node env, `fake-indexeddb` for save tests)
 - `npm run lint` - ESLint (typescript-eslint)

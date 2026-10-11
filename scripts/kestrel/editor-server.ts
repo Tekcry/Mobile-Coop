@@ -1,0 +1,154 @@
+/**
+ * Level editor dev-server endpoints (Vite plugin, `npm run dev` only; docs/kestrel/editor.md). The editor page posts the
+ * campus data here for the live plan view and the checks, and saves through here. Writes are accepted only from this
+ * PC (the dev server is LAN-exposed for phone testing) and only to fixed paths.
+ */
+import { spawn } from 'node:child_process';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
+import { pathToFileURL } from 'node:url';
+import type { Plugin } from 'vite';
+
+const CAMPUS = 'docs/kestrel/kestrel.campus.blocks.json';
+const PLANS = 'docs/kestrel/plans';
+const LOG_MD = 'docs/kestrel/editor-log.md';
+const LOG_JSONL = 'docs/kestrel/editor-log.jsonl';
+/** Marks the file as owned by the editor; the P03B generator refuses to overwrite it (Michael, 2026-10-12). */
+const OWNER = 'level editor (docs/kestrel/editor.md)';
+
+interface Journal {
+  time: string;
+  action: string;
+  text: string;
+  changes: unknown[];
+}
+
+function body(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const parts: Buffer[] = [];
+    let n = 0;
+    req.on('data', (b: Buffer) => {
+      n += b.length;
+      if (n > 32 * 1024 * 1024) reject(new Error('body too large'));
+      else parts.push(b);
+    });
+    req.on('end', () => resolve(Buffer.concat(parts).toString('utf8')));
+    req.on('error', reject);
+  });
+}
+
+function send(res: ServerResponse, status: number, type: string, text: string): void {
+  res.statusCode = status;
+  res.setHeader('content-type', type);
+  res.setHeader('cache-control', 'no-store');
+  res.end(text);
+}
+const json = (res: ServerResponse, v: unknown, status = 200): void => send(res, status, 'application/json', JSON.stringify(v));
+
+const isLocal = (req: IncomingMessage): boolean => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '');
+
+function run(root: string, args: string[]): Promise<{ code: number; out: string }> {
+  return new Promise((resolve) => {
+    const p = spawn(process.execPath, args, { cwd: root });
+    let out = '';
+    p.stdout.on('data', (b: Buffer) => (out += b.toString()));
+    p.stderr.on('data', (b: Buffer) => (out += b.toString()));
+    p.on('close', (code) => resolve({ code: code ?? 1, out }));
+  });
+}
+
+/** Draws one level (svg) or every level (svg + png) of `data` into a fresh temp folder. */
+async function renderPlans(root: string, data: unknown, level: string | null): Promise<{ dir: string; code: number; out: string }> {
+  const dir = mkdtempSync(path.join(tmpdir(), 'kestrel-editor-'));
+  const file = path.join(dir, 'campus.json');
+  writeFileSync(file, JSON.stringify(data));
+  const args = [path.join(root, 'scripts/kestrel/plans.mjs'), file, '--out', dir];
+  if (level) args.push('--level', level, '--svg-only');
+  const r = await run(root, args);
+  return { dir, ...r };
+}
+
+type CheckMod = { runChecks: (o: { arch: unknown }) => { id: string; title: string; status: string; details: string[]; notes?: string[] }[]; summary: (r: unknown) => Record<string, number> };
+type StdMod = { standardsCheck: (a: unknown) => { fails: string[]; info: string[]; counts: unknown }; summary: (r: unknown) => string };
+
+export function kestrelEditor(): Plugin {
+  let root = process.cwd();
+  let checks: Promise<[CheckMod, StdMod]> | null = null;
+  const loadChecks = (): Promise<[CheckMod, StdMod]> =>
+    (checks ??= Promise.all([
+      import(/* @vite-ignore */ pathToFileURL(path.join(root, 'scripts/kestrel/check.mjs')).href) as Promise<CheckMod>,
+      import(/* @vite-ignore */ pathToFileURL(path.join(root, 'scripts/kestrel/standards-check.mjs')).href) as Promise<StdMod>,
+    ]));
+
+  return {
+    name: 'kestrel-editor',
+    apply: 'serve',
+    configResolved(c) {
+      root = c.root;
+    },
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const url = new URL(req.url ?? '/', 'http://x');
+        if (!url.pathname.startsWith('/__editor/')) return next();
+        try {
+          if (url.pathname === '/__editor/campus' && req.method === 'GET') {
+            return send(res, 200, 'application/json', readFileSync(path.join(root, CAMPUS), 'utf8'));
+          }
+          if (req.method !== 'POST') return json(res, { error: 'POST only' }, 405);
+          if (!isLocal(req)) return json(res, { error: 'the editor only runs on this PC (localhost)' }, 403);
+          const data = JSON.parse(await body(req)) as Record<string, unknown>;
+
+          if (url.pathname === '/__editor/plan') {
+            const level = url.searchParams.get('level') ?? '';
+            if (!/^[A-Za-z0-9_-]{1,8}$/.test(level)) return json(res, { error: 'bad level' }, 400);
+            const r = await renderPlans(root, data, level);
+            const f = path.join(r.dir, `${level}.svg`);
+            const svg = existsSync(f) ? readFileSync(f, 'utf8') : '';
+            rmSync(r.dir, { recursive: true, force: true });
+            return svg ? send(res, 200, 'image/svg+xml', svg) : json(res, { error: r.out.slice(-2000) }, 500);
+          }
+
+          if (url.pathname === '/__editor/check') {
+            const [c, s] = await loadChecks();
+            const results = c.runChecks({ arch: data });
+            const std = s.standardsCheck(data);
+            return json(res, { results: results.filter((r) => r.status !== 'PASS'), summary: c.summary(results), standards: { fails: std.fails, info: std.info, line: s.summary(std) } });
+          }
+
+          if (url.pathname === '/__editor/save') {
+            const campus = data.campus as { meta: Record<string, unknown> };
+            const journal = (data.journal ?? []) as Journal[];
+            if (!campus?.meta) return json(res, { error: 'no campus' }, 400);
+            campus.meta.editor = OWNER;
+            writeFileSync(path.join(root, CAMPUS), JSON.stringify(campus, null, 1) + '\n');
+            const savedAt = new Date().toISOString();
+            if (journal.length) {
+              const logMd = path.join(root, LOG_MD);
+              if (!existsSync(logMd)) writeFileSync(logMd, '# Level editor change log\n\nEvery save appends what changed, in order. Exact before and after values are in editor-log.jsonl.\n\n');
+              appendFileSync(logMd, String(data.logText ?? ''));
+              appendFileSync(path.join(root, LOG_JSONL), journal.map((j) => JSON.stringify({ savedAt, ...j })).join('\n') + '\n');
+            }
+            const r = await renderPlans(root, campus, null);
+            const levels = (campus as unknown as { levels: { id: string }[] }).levels.map((l) => l.id);
+            mkdirSync(path.join(root, PLANS), { recursive: true });
+            let copied = 0;
+            for (const id of levels) {
+              const png = path.join(r.dir, `${id}.png`);
+              if (existsSync(png)) {
+                copyFileSync(png, path.join(root, PLANS, `blocks-${id}.png`));
+                copied++;
+              }
+            }
+            rmSync(r.dir, { recursive: true, force: true });
+            return json(res, { ok: true, savedAt, plans: copied, planLog: r.code ? r.out.slice(-2000) : '' });
+          }
+          return json(res, { error: 'unknown endpoint' }, 404);
+        } catch (e) {
+          return json(res, { error: e instanceof Error ? e.message : String(e) }, 500);
+        }
+      });
+    },
+  };
+}

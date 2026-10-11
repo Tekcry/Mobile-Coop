@@ -1,0 +1,211 @@
+/**
+ * The level editor's document: the campus data, undo / redo, and the change journal written beside the file on save.
+ * Every edit is a list of element changes (before and after snapshots), so undo, redo and the review log all read the
+ * same record. Babylon-free (tests/editor/model.test.ts).
+ */
+import type { Campus, Coll, Elem, Key } from './types';
+import { keyOf } from './types';
+
+export interface Change {
+  coll: Coll;
+  id: string;
+  /** null: the element is added by this change. */
+  before: Elem | null;
+  /** null: the element is deleted by this change. */
+  after: Elem | null;
+  /** Where a deleted element sat in its list, so undo puts it back in the same place (keeps the file diff small). */
+  index?: number;
+}
+
+export interface Edit {
+  /** Plain-English line for Michael and the reviewer: "Moved Data Hall (B-GHALL, Ground) 2 m east". */
+  text: string;
+  changes: Change[];
+}
+
+export interface JournalEntry {
+  time: string;
+  action: 'edit' | 'undo' | 'redo';
+  text: string;
+  changes: Change[];
+}
+
+const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+
+export class EditorModel {
+  readonly data: Campus;
+  private readonly past: Edit[] = [];
+  private readonly future: Edit[] = [];
+  /** Everything done since the last save, undos included, in order. */
+  journal: JournalEntry[] = [];
+  private readonly listeners: ((keys: Key[]) => void)[] = [];
+  /** Clock for journal times (tests pin it). */
+  now: () => Date = () => new Date();
+
+  constructor(data: Campus) {
+    this.data = data;
+  }
+
+  list(coll: Coll): Elem[] {
+    return (this.data[coll] as Elem[] | undefined) ?? [];
+  }
+
+  get<T extends Elem = Elem>(coll: Coll, id: string): T | undefined {
+    return this.list(coll).find((e) => e.id === id) as T | undefined;
+  }
+
+  /** A deep copy of an element, for a change's `before`. */
+  snapshot<T extends Elem = Elem>(coll: Coll, id: string): T | null {
+    const e = this.get<T>(coll, id);
+    return e ? clone(e) : null;
+  }
+
+  onChange(fn: (keys: Key[]) => void): void {
+    this.listeners.push(fn);
+  }
+
+  get canUndo(): boolean {
+    return this.past.length > 0;
+  }
+
+  get canRedo(): boolean {
+    return this.future.length > 0;
+  }
+
+  /** Unsaved journal entries. */
+  get dirty(): number {
+    return this.journal.length;
+  }
+
+  /** Applies a change's `after` without recording it (live preview while dragging). The final commit records it. */
+  preview(coll: Coll, after: Elem): void {
+    this.put(coll, after.id, clone(after));
+    this.emit([keyOf(coll, after.id)]);
+  }
+
+  /** Throws away a previewed element that was never committed (a new wall or room cancelled mid-drag). */
+  drop(coll: Coll, id: string): void {
+    this.remove(coll, id);
+    this.emit([keyOf(coll, id)]);
+  }
+
+  /** Records and applies an edit. Changes whose before and after are equal are dropped; an empty edit is ignored. */
+  commit(text: string, changes: Change[]): boolean {
+    const real = changes.filter((c) => JSON.stringify(c.before) !== JSON.stringify(c.after));
+    if (!real.length) {
+      // a drag that ended where it began: put the previewed element back exactly
+      for (const c of changes) if (c.before) this.put(c.coll, c.id, clone(c.before));
+      if (changes.length) this.emit(changes.map((c) => keyOf(c.coll, c.id)));
+      return false;
+    }
+    const edit: Edit = { text, changes: clone(real) };
+    this.applyForward(edit);
+    this.past.push(edit);
+    this.future.length = 0;
+    this.record('edit', edit);
+    return true;
+  }
+
+  undo(): Edit | null {
+    const edit = this.past.pop();
+    if (!edit) return null;
+    for (const c of edit.changes.slice().reverse()) {
+      if (c.before === null) this.remove(c.coll, c.id);
+      else if (c.after === null) this.insert(c.coll, clone(c.before), c.index);
+      else this.put(c.coll, c.id, clone(c.before));
+    }
+    this.future.push(edit);
+    this.record('undo', edit);
+    this.emit(edit.changes.map((c) => keyOf(c.coll, c.id)));
+    return edit;
+  }
+
+  redo(): Edit | null {
+    const edit = this.future.pop();
+    if (!edit) return null;
+    this.applyForward(edit);
+    this.past.push(edit);
+    this.record('redo', edit);
+    return edit;
+  }
+
+  /** Clears the journal after a save (undo history stays). */
+  markSaved(): void {
+    this.journal = [];
+  }
+
+  /** An id not used in `coll`: prefix + 1, 2, 3 ... */
+  freshId(coll: Coll, prefix: string): string {
+    const used = new Set(this.list(coll).map((e) => e.id));
+    for (let n = 1; ; n++) {
+      const id = `${prefix}${n}`;
+      if (!used.has(id)) return id;
+    }
+  }
+
+  private applyForward(edit: Edit): void {
+    for (const c of edit.changes) {
+      if (c.after === null) {
+        // index read just before each removal, so undo (in reverse) restores the order exactly
+        c.index = this.list(c.coll).findIndex((e) => e.id === c.id);
+        this.remove(c.coll, c.id);
+      } else if (c.before === null) this.insert(c.coll, clone(c.after));
+      else this.put(c.coll, c.id, clone(c.after));
+    }
+    this.emit(edit.changes.map((c) => keyOf(c.coll, c.id)));
+  }
+
+  private record(action: JournalEntry['action'], edit: Edit): void {
+    this.journal.push({ time: this.now().toISOString(), action, text: edit.text, changes: clone(edit.changes) });
+  }
+
+  private arr(coll: Coll): Elem[] {
+    if (!Array.isArray(this.data[coll])) (this.data as Record<string, unknown>)[coll] = [];
+    return this.data[coll] as Elem[];
+  }
+
+  private put(coll: Coll, id: string, e: Elem): void {
+    const a = this.arr(coll);
+    const i = a.findIndex((x) => x.id === id);
+    if (i >= 0) a[i] = e;
+    else a.push(e);
+  }
+
+  private insert(coll: Coll, e: Elem, index?: number): void {
+    const a = this.arr(coll);
+    if (a.some((x) => x.id === e.id)) return this.put(coll, e.id, e);
+    if (index !== undefined && index >= 0 && index <= a.length) a.splice(index, 0, e);
+    else a.push(e);
+  }
+
+  private remove(coll: Coll, id: string): void {
+    const a = this.arr(coll);
+    const i = a.findIndex((x) => x.id === id);
+    if (i >= 0) a.splice(i, 1);
+  }
+
+  private emit(keys: Key[]): void {
+    for (const fn of this.listeners) fn(keys);
+  }
+}
+
+/** The campus file text exactly as the Kestrel tools write it (one-space indent, LF, trailing newline). */
+export const campusText = (data: Campus): string => JSON.stringify(data, null, 1) + '\n';
+
+/** HH:MM:SS in the editor's own time zone (journal times are UTC ISO strings). */
+export const localTime = (iso: string): string => {
+  const d = new Date(iso);
+  const p = (n: number): string => String(n).padStart(2, '0');
+  return `${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`;
+};
+
+/** The human log block appended to docs/kestrel/editor-log.md on save; `savedAt` is a heading such as "2026-10-12 00:22". */
+export function logMarkdown(journal: readonly JournalEntry[], savedAt: string): string {
+  const lines = [`## Saved ${savedAt}`, ''];
+  for (const j of journal) {
+    const t = localTime(j.time);
+    const what = j.action === 'edit' ? j.text : `${j.action === 'undo' ? 'Undid' : 'Redid'}: ${j.text}`;
+    lines.push(`- ${t} ${what}`);
+  }
+  return lines.join('\n') + '\n\n';
+}

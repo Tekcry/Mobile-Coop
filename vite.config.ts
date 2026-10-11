@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { kestrelEditor } from './scripts/kestrel/editor-server';
 
 // GitHub Pages serves from /<repo>/. The deploy workflow sets VITE_BASE.
 const base = process.env.VITE_BASE ?? '/';
@@ -37,6 +38,8 @@ export default defineConfig({
     },
   },
   plugins: [
+    // the level editor's endpoints (dev server only; editor.html is never built)
+    kestrelEditor(),
     VitePWA({
       registerType: 'autoUpdate',
       injectRegister: null,

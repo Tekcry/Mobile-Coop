@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kestrel Level Editor</title>
+    <style>
+      :root {
+        --bg: #1d2126;
+        --panel: #262b31;
+        --line: #3a4048;
+        --ink: #e8eaed;
+        --dim: #9aa3ad;
+        --accent: #ff7300;
+        --bad: #ff5a5a;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, Segoe UI, Arial, sans-serif; overflow: hidden; }
+      body { display: flex; flex-direction: column; }
+      #bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
+      #bar .title { font-weight: 700; margin-right: 6px; }
+      #bar .group { display: inline-flex; gap: 2px; }
+      button, select, input { font: inherit; color: var(--ink); background: #343a42; border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; }
+      button:hover:not(:disabled) { border-color: var(--accent); }
+      button:disabled { opacity: 0.45; }
+      button.on { background: var(--accent); border-color: var(--accent); color: #111; }
+      #checksBadge { margin-left: auto; cursor: pointer; color: var(--dim); }
+      .bad { color: var(--bad); }
+      .dim { color: var(--dim); }
+      main { flex: 1; min-height: 0; display: flex; }
+      #view3d { position: relative; flex: 1; min-width: 0; }
+      #c { width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
+      #hud { position: absolute; left: 8px; top: 8px; padding: 2px 8px; background: rgba(0, 0, 0, 0.55); border-radius: 4px; pointer-events: none; white-space: pre; }
+      #hud:empty { display: none; }
+      #help { position: absolute; right: 8px; top: 8px; width: 330px; padding: 10px 12px; background: rgba(20, 23, 27, 0.92); border: 1px solid var(--line); border-radius: 6px; }
+      #help h3 { margin: 0 0 6px; font-size: 13px; }
+      #help td { padding: 1px 6px 1px 0; vertical-align: top; }
+      #help td:first-child { color: var(--accent); white-space: nowrap; }
+      .hidden { display: none; }
+      #side { width: 42%; min-width: 360px; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--panel); }
+      body[data-plan='big'] #side { width: 68%; }
+      body[data-plan='hidden'] #side { display: none; }
+      #planWrap { position: relative; flex: 1; min-height: 200px; background: #fff; overflow: hidden; }
+      #planSvg, #planSvg svg { width: 100%; height: 100%; display: block; }
+      #planSvg text { pointer-events: none; }
+      #planSvg [data-id] { cursor: pointer; }
+      #planSvg rect.sel { stroke: var(--accent); stroke-width: 3; }
+      #planSvg g.sel polygon { fill: var(--accent); }
+      #planStatus { position: absolute; left: 6px; bottom: 4px; color: #333; background: rgba(255, 255, 255, 0.85); padding: 0 4px; pointer-events: none; }
+      #tabs { display: flex; gap: 2px; padding: 4px 6px 0; border-top: 1px solid var(--line); }
+      #tabs button { border-bottom: none; border-radius: 4px 4px 0 0; }
+      #panel { height: 38%; overflow: auto; padding: 8px 10px; border-top: 1px solid var(--line); }
+      .row { display: flex; gap: 8px; align-items: center; margin: 3px 0; }
+      .row > span:first-child { width: 96px; color: var(--dim); flex: none; }
+      .row input, .row select { flex: 1; min-width: 0; }
+      .list { margin: 0; padding-left: 16px; }
+      .list li { margin: 3px 0; }
+      #status { flex: none; height: 24px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    </style>
+  </head>
+  <body data-plan="split">
+    <header id="bar"></header>
+    <main>
+      <section id="view3d">
+        <canvas id="c" tabindex="0"></canvas>
+        <div id="hud"></div>
+        <div id="help">
+          <h3>Kestrel level editor <span class="dim">(H hides this)</span></h3>
+          <table>
+            <tr><td>Right drag</td><td>look around</td></tr>
+            <tr><td>W A S D</td><td>move; Q / E down / up; Shift fast; wheel zooms</td></tr>
+            <tr><td>Tab</td><td>walk at eye height (walls block, C crouches) / fly</td></tr>
+            <tr><td>PgUp / PgDn</td><td>level up / down</td></tr>
+            <tr><td>1 - 5</td><td>select, room, wall, door, window</td></tr>
+            <tr><td>Click, drag</td><td>select and move; orange handles resize</td></tr>
+            <tr><td>Ctrl while dragging</td><td>fine grid (0.1 m instead of 0.5 m)</td></tr>
+            <tr><td>Arrows</td><td>nudge the selection 0.5 m (Shift: 5 m)</td></tr>
+            <tr><td>Del, Ctrl+D</td><td>delete, duplicate</td></tr>
+            <tr><td>F</td><td>go to the selection</td></tr>
+            <tr><td>Ctrl+Z / Ctrl+Y</td><td>undo / redo</td></tr>
+            <tr><td>Ctrl+S</td><td>save the file, plans and change log</td></tr>
+            <tr><td>Plan</td><td>same tools; wheel zooms, right drag pans, double-click takes the camera there; P resizes it</td></tr>
+          </table>
+        </div>
+      </section>
+      <aside id="side">
+        <div id="planWrap"><div id="planSvg"></div><div id="planStatus"></div></div>
+        <div id="tabs"><button data-tab="props">Selected</button><button data-tab="checks">Checks</button><button data-tab="log">Changes</button></div>
+        <div id="panel"></div>
+      </aside>
+    </main>
+    <div id="status">Loading the campus...</div>
+    <script type="module" src="/src/editor/main.ts"></script>
+  </body>
+</html>

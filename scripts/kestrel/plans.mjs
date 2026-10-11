@@ -1,5 +1,6 @@
 // Kestrel plan renderer: one SVG (and PNG) per level from kestrel.arch.json, with optional play and security overlays.
-//   node scripts/kestrel/plans.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--out docs/kestrel/plans]
+//   node scripts/kestrel/plans.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--out docs/kestrel/plans] [--level <id>] [--svg-only]
+// --level draws one level; --svg-only skips the PNGs (the level editor's live plan view, docs/kestrel/editor.md).
 // Writes <level>.svg, <level>-play.svg (with --play), <level>-security.svg (with --security) and a PNG beside each.
 // Every drawing number comes from facts.json ("render" group and the rule groups); see lib.mjs.
 import fs from 'node:fs';
@@ -23,6 +24,8 @@ const outDir = path.resolve(flag('--out') ?? 'docs/kestrel/plans');
 const arch = readJson(archFile);
 const play = flag('--play') ? readJson(flag('--play')) : null;
 const security = flag('--security') ? readJson(flag('--security')) : null;
+const onlyLevel = flag('--level');
+const svgOnly = argv.includes('--svg-only');
 const facts = loadFacts();
 const R = (k) => facts.need(`render.${k}`);
 const FACT = (k) => facts.need(k);
@@ -542,7 +545,7 @@ function baseLayers(level) {
   callouts = [];
   const here = (o) => o.level === level.id;
   let out = '';
-  for (const r of (arch.rooms ?? []).filter(here)) out += rectEl(r.rect, `fill="${(r.kind === 'lane' ? OUTSIDE_TINT : RING_TINT[r.ring]) ?? '#eeeeee'}" fill-opacity="${R('tintOpacity')}" stroke="none"`);
+  for (const r of (arch.rooms ?? []).filter(here)) out += rectEl(r.rect, `data-id="rooms:${esc(r.id)}" fill="${(r.kind === 'lane' ? OUTSIDE_TINT : RING_TINT[r.ring]) ?? '#eeeeee'}" fill-opacity="${R('tintOpacity')}" stroke="none"`);
   // structural bay grid. One building (or none): lines across the site, anchored on the footprint corner. Several buildings: each building's
   // own lines, anchored on its own corner and drawn inside its footprint.
   const bay = arch.meta?.bay;
@@ -573,8 +576,8 @@ function baseLayers(level) {
     const fits = (o.rect[2] - o.rect[0]) * S >= o.id.length * R('fontSmall') * R('charWidth') && (o.rect[3] - o.rect[1]) * S >= R('fontSmall') * R('lineHeight');
     if (fits) out += labelLines(rectCentre(o.rect), [o.id], R('fontSmall'), 'fill="#222"');
   }
-  for (const w of walls.filter(here)) out += drawWall(w);
-  for (const o of arch.openings ?? []) if (wallById.get(o.wall)?.level === level.id) out += drawOpening(o);
+  for (const w of walls.filter(here)) out += `<g data-id="walls:${esc(w.id)}">${drawWall(w)}</g>`;
+  for (const o of arch.openings ?? []) if (wallById.get(o.wall)?.level === level.id) out += `<g data-id="openings:${esc(o.id)}">${drawOpening(o)}</g>`;
   for (const s of arch.stairs ?? []) {
     if (s.from === level.id) out += stairSym(s, true);
     else if (s.to === level.id) out += stairSym(s, false);
@@ -820,7 +823,8 @@ function buildSvg(level, kind) {
   const head = textPx(M, M, title, R('fontTitle'), `fill="${INK}" font-weight="bold"`);
   const nx = Wd - M;
   const north = polyPx([[nx, M - R('northLen')], [nx - R('northHalf'), M], [nx, M - R('northNotch')], [nx + R('northHalf'), M]], 'fill="#000"') + textPx(nx - R('northNotch'), M + R('fontLegend') + 2, 'N', R('fontLegend'), `fill="${INK}" font-weight="bold"`);
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${Wd}" height="${Ht}" viewBox="0 0 ${Wd} ${Ht}"><rect width="${Wd}" height="${Ht}" fill="${PAPER}"/>${body}${head}${north}${foot}</svg>\n`;
+  const map = `data-map="${+calloutLeft.toFixed(2)},${M},${TOP},${S},${B[0]},${B[3]}"`; // px = left + M + (x - x0) * S, py = TOP + (z1 - z) * S (the level editor)
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" ${map} width="${Wd}" height="${Ht}" viewBox="0 0 ${Wd} ${Ht}"><rect width="${Wd}" height="${Ht}" fill="${PAPER}"/>${body}${head}${north}${foot}</svg>\n`;
   return { svg, w: Math.ceil(Wd), h: Math.ceil(Ht) };
 }
 
@@ -828,6 +832,7 @@ function buildSvg(level, kind) {
 fs.mkdirSync(outDir, { recursive: true });
 const jobs = [];
 for (const level of levels) {
+  if (onlyLevel && level.id !== onlyLevel) continue;
   jobs.push([level, 'arch', level.id]);
   if (play) jobs.push([level, 'play', `${level.id}-play`]);
   if (security) jobs.push([level, 'security', `${level.id}-security`]);
@@ -853,6 +858,10 @@ async function openBrowser() {
   throw last;
 }
 
+if (svgOnly) {
+  console.log(`wrote ${written.length} SVG to ${path.relative(process.cwd(), outDir) || '.'}`);
+  process.exit(0);
+}
 const browser = await openBrowser();
 for (const { f, w, h } of written) {
   const page = await browser.newPage({ viewport: { width: w, height: h }, deviceScaleFactor: R('pngScale') });
