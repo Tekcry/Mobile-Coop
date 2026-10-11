@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1d done: site, under the yard, level U; Part 1e next)
+Status: DRAFT (Part 1e done: vertical circulation; Part 1f next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -287,6 +287,36 @@ Rise per storey 4.2 / 26 = 0.1615 (brief 8). Clear = rect - 0.3 each way (brief 
 | V-LAD1 | R to L | [39.5, 41, 40, 42.5] | ladder | - | AR01 east edge, 0.6 down over the parapet to LF02 | hooped, step-over | brief 8, 10; 3.5 |
 | V-LAD2 | R to L | [52, 41, 52.5, 42.5] | ladder | - | BR01 west edge, 0.6 down over the parapet to LF02 | hooped, step-over | brief 8, 10; 4.5 |
 | V-LAD3 | R to H | [69.5, 57, 70, 58.5] | ladder | - | BR01 east edge, 1.8 down to BR03, clear of the AHU zone (z 44.5-54) | hooped, step-over | brief 8, 10 |
+
+Self-check (this session, on this file):
+- E `node scripts/kestrel/p03b-vert-check-e.mjs`: `vert 17, fails 0, info 2` (fire stair landings A and B, 6.3).
+- A: `zones 27, fixed 15, fails 0, info 0`.
+- B (BG02 / BF02 at 40): `zones 19, fixed 10, fails 0`.
+- D: `zones 26, rows 126 of 126, fails 0`.
+
+### 6.2 Fire stair per building
+| Building | Escape stair or exits | Levels served | Ground exit | Upper door | Own footprint | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| A | V-AFS (AG21, AF15, AR04) | G, F, R | X10 on A's west wall | AG26 / AF21 (north corridor), AR01 roof door | yes | brief 8; 3.2 K-FS |
+| B strip | V-BFS (BG12, BF11, BR02) | G, F, R | X05 on B's west wall | BG10 (G), BF05 end bay (F), BR01 roof door | yes | brief 8; 4.2 KB-FS |
+| Wing | own exits, single storey | G | X07 / X09 doors | - | yes | brief 6 X07 / X09 row |
+| Hall block | BG23 fire exit and BG20 equipment door, single storey | G | X08 (BG23), BG20 door | - | yes | brief 6, 7 |
+| Bridge | each end leads to that building's fire stair | F | via A or B | AF17 / BF01 to AF21 / BF05 | no (link) | brief 7, 8; 3.2, 4.2 |
+
+Main stairs are not escape stairs (brief 8, kept by Michael 2026-10-11), so each building's upper floor has one escape stair. Rough worst walks to it are about 52 m in A (F-OPS south-east corner) and about 31 m in B (BF15), against the usual 18 m single-direction limit for offices (general knowledge). Michael accepted this as game licence.
+
+### 6.3 Deviations
+- Main stair B 5 wide [52, 48.5, 57, 56.5] (brief 4.0): the extra 1.0 is the open well between the 1.85 flights, so the core's east wall is BG05's wall and BG02 opens onto BG05 (brief 5). Old 4 wide left a 0.7 clear strip.
+- BG16 moved from B-GW to B-GE (B-GW 84.1%, B-GE 70.4%, script B); its old corner behind the lift had no corridor face.
+- Fire stair landings 1.39 against 1.45 flight width (check E INFO, both A and B): Michael's rule "flights keep their length, flights fill the width" at going 0.285 in a 6.2 x 3.2 clear core.
+- Gallery stair going 0.26 and landing 2.4 (brief 0.285, 2.0): 24 x 0.285 + 2.0 = 8.84 does not fit 8.7 clear, and a 2.0 landing is shorter than the 2.4 width. 2R + G = 0.583 (0.55-0.70, general knowledge).
+- AG23 shaft rect [38, 45, 40, 47] beside TB03, top under AG22's floor (brief 5 hatch), as TB02 beside the vault (5.3).
+- No other row of the candidate changed.
+
+### 6.4 Notes for P04, 1f and P03R
+- P04: AG22 covers AG23 [38, 45, 40, 47]; BG31 covers BG32's hatch; an aisle runs under BR05 [80, 48, 82, 50]; BG02's door is on its east wall onto BG05.
+- P03R: brief 8 needs lines for the gallery stair going and landing and the 5 wide B core; fire stair landings: recommend going 0.27 (landings 1.48), game-invisible.
+- 1f: ring doors on stairs and risers come from 6.1's "Opens to" column.
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.

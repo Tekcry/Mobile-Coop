@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (parts 1a-1d) | c62825f | 2026-10-11 |
+| P03B | Block plan | DRAFT (parts 1a-1e) | 07cd3f1 | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -47,6 +47,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 P03B 1e: section 6 of 03B (17 stairs, lifts, risers, shafts, roof ladders; fire stair per building). Candidate kept unchanged. Main stair B widened to 5 (1.0 open well), BG16 moved to B-GE, script B BG02 / BF02 at 40. Checks: E `vert 17, fails 0, info 2` (fire stair landings 1.39 vs 1.45, deviation and P03R note); A `zones 27, fixed 15, fails 0, info 0`; B `zones 19, fixed 10, fails 0`; D `zones 26, rows 126 of 126, fails 0`. No ASKs. Next: Part 1f ring entries.
 - 2026-10-11 Planner: review of P03B 1d: realistic (vault under open yard, tunnels along wall lines, rack clear of B stairs) and flows; self-check covered tiling, sources, row count; no disagreements. Found in 1c: main stair B (4 wide) left a 0.7 clear sliver to BG05, so BG02 had no door; 1e widens it to 5 (1.0 open well) and moves BG16 to B-GE. Stair fit: fire stair landings 1.39 vs 1.45 flights (INFO, P03R), gallery stair needs going 0.26 with a 2.4 landing. Michael kept main stairs non-escape (Decisions). Remaining P03B parts: 1e vertical circulation and fire check, 1f ring entries, 1g critical path, adjacency, questions. prompts/P03B-1e.md (18 decisions) with scripts/kestrel/p03b-vert-check-e.mjs; planner test run E `vert 17, fails 0, info 2`, A, B (BG02 40), D 0 fails.
 - 2026-10-11 P03B 1d: section 5 of 03B (site, bridge roof, under the yard, level U, open roofs; 26 zones) and section 2's B and U footprints. Candidate kept; one note change: TB02's lid lies in X03, not X04 (brief 5 lists X04), added to 5.3 and 5.4. Check D `zones 26, rows 126 of 126, fails 0`; A `zones 27, fixed 15, fails 0, info 0`; B `zones 19, fixed 10, fails 0`. Deviations in 5.3; notes for P04, 1e, P03R in 5.4 (service gate opposite X08, X13 height vs B's void, BG13, BG05 hides). No ASKs. Next: Part 1e.
 - 2026-10-11 Planner: review of P03B 1c: realistic (stacked corridor, cores on the west band, secure column by the bridge post, hall block in service bands); flows; self-check covered tiling, fill, doors, sources. Not blocking, for P04 / P03R: BG13 must open only into the hall; BG05 is a straight 26.5 m corridor (needs hides); east service gate opposite X08, not beside X12; X13 at 5.0-6.5 is not in B's 0.9 void. Brief rows are 126, not 151. prompts/P03B-1d.md (16 decisions) written with scripts/kestrel/p03b-zones-check-d.mjs; planner test run `zones 26, rows 126 of 126, fails 0`; A and B checks still 0.
