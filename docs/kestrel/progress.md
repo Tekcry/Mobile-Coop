@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (parts 1a-1g-b) | e33b759 | 2026-10-11 |
+| P03B | Block plan | DRAFT (Part 1 done) | d9a9c1f | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -46,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P03B 1g-c: 9.2 must not touch (26 rows N01-N26, brief 7 U01-U08) and section 10 (24 rows: P03R 11, P04 12, P06 1, Michael 0); Part 1 done. Michael's fixes: vault and manhole 1.0 east off A (T-VAULT [41, 24, 49, 30], T-MH [49, 24, 50.5, 25.5], TB04 [49, 27, 74, 30]); N25 gap 1.0; U08 P03R row dropped. Check D's TB03-vault rule relaxed 2.6 to 2.0 (Michael's fix gives a 2.0 meeting). Checks: adjacency `apart rows 26, items 8 of 8, fails 0`; path `total 495.8`, fails 0; F, E, A, B, D fails 0. No ASKs.
 - 2026-10-11 Planner: review of P03B 1g-b: realistic (single-entry security suite, glazed sight line between the bridge and mantrap posts, goods across one corridor) and flows; self-check covered adjacency and all six other scripts; no disagreements. prompts/P03B-1g-c.md: 9.2 must not touch (26 rows) and section 10 questions list; p03b-adj-check-g.mjs extended (none, apart, door, level). Planner test `apart rows 26, items 8 of 8, fails 0`, other checks unchanged; negative test 7 fails. Found: vault corner touches A's footprint (P03R).
 - 2026-10-11 P03B 1g-b: section 9 of 03B (9.1 must touch, 34 rows J01-J34 for brief 7 items T01-T14 at zone level, notes for the four known gaps plus T08 glazed sight line and T01 single-entry suite). Candidate kept unchanged. Checks: adjacency `adjacency rows 34, items 14 of 14, rects 114, fails 0`; path `total 495.7`, `placed 6, open 7`, `fails 0`; F `fails 0, info 2`; E `fails 0, info 2`; A, B, D `fails 0`. Deviations: none. No ASKs. Next: Part 1g-c.
 - 2026-10-11 Planner: review of P03B 1g-a: realistic (window entry, fire stair to the roof, roof ladders, rappel, carrier tunnel out) and flows; self-check covered path and all five zone and ring scripts; no disagreements. P06 note: P12 crosses about 57 m of open yard, needs cover and a dark line. 1g split again: 1g-b must touch (14 items), 1g-c must not touch and questions. prompts/P03B-1g-b.md with scripts/kestrel/p03b-adj-check-g.mjs; planner test `adjacency rows 34, items 14 of 14, fails 0`, other checks unchanged, negative test 5 fails.

@@ -29,3 +29,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - P03B 1f-b: with the planner's test run and a negative test in the prompt, the session only verified and wrote; a precomputed, pre-tested table is the right size for a zones-only part.
 - P03B 1g-a: a planner candidate that moves one end of the path (the exit) must recheck the other end; insertion and extraction 8 m apart passed every script but broke the brief's "different path out" - add an entry-exit separation test to path checks.
 - P03B 1g-b: zone-level adjacency with known gaps pre-listed in the prompt passed on the first run; carry brief wording mismatches (BF13 north-west vs north-east) into the notes so P03R sees them.
+- P03B 1g-c: a planner-recommended geometry move must be rerun through every check before it reaches the prompt; the 1.0 vault shift broke check D's tunnel-meets-vault rule and two leg lengths.
