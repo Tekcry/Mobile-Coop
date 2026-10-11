@@ -26,3 +26,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Planner, 2026-10-11: a planner wrote that the mission has no rope, but rappel was in RULES 1; the fact sat in long section 1 bullets that planners do not read. Keep capabilities in one short table (routes.md) every planner reads, and cite a line or grep for any "is or is not available".
 - P03B 1e: a "Fit" column with the sum written out (flights + landings of clear) let the script and the reader check every core at once; use it for any stage that places stairs or shafts.
 - P03B 1f-a: a zones-only ring table (shared face as a segment) checked by script went in unchanged in under 10 tool calls; keep door rects out of block plans and let the script test face sharing.
+- P03B 1f-b: with the planner's test run and a negative test in the prompt, the session only verified and wrote; a precomputed, pre-tested table is the right size for a zones-only part.

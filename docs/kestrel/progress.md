@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (parts 1a-1f-a) | 7120150 | 2026-10-11 |
+| P03B | Block plan | DRAFT (parts 1a-1f) | 6e74470 | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -47,6 +47,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 P03B 1f-b: section 7.2 of 03B (18 ring entries: B doors and readers, BG10's plant and passage doors, wing doors and compound gates, hall reader and equipment door, fire exits, grille, roof door, hall hatches) plus the inside-zones list. Candidate kept unchanged. Checks: F `ring 35 (RA 17, RB 18), rects 114, fails 0, info 2` (RA14, RB17 bulkheads, expected); E `vert 17, fails 0, info 2`; A `zones 27, fixed 15, fails 0, info 0`; B `zones 19, fixed 10, fails 0`; D `zones 26, rows 126 of 126, fails 0`. Deviations: none. No ASKs. Next: Part 1g.
 - 2026-10-11 Planner: review of P03B 1f-a: realistic (gates by the gatehouse, readers on the lobby / spine faces, fire exit off the bottom landing, roof door toward the bridge ladder) and flows; self-check covered all five scripts and every deviation; no disagreements. Corrected the 1f-b handover list: BF06 opens off BF05 (brief 5), not a ring entry. prompts/P03B-1f-b.md (18 decisions, RB01-RB18 plus an inside-zones list); planner test `ring 35 (RA 17, RB 18), fails 0, info 2`, negative test 4 fails. Next: 1f-b, then 1g.
 - 2026-10-11 P03B 1f-a: section 7 intro and 7.1 of 03B (17 ring entries: site gates, A doors and tier doors, bridge readers, fire exit, roof door, lid, hatch, riser door). Candidate kept unchanged. Checks: F `ring 17 (RA 17, RB 0), rects 114, fails 0, info 1` (RA14 bulkhead, expected); E `vert 17, fails 0, info 2`; A `zones 27, fixed 15, fails 0, info 0`; B `zones 19, fixed 10, fails 0`; D `zones 26, rows 126 of 126, fails 0`. Deviations: RA02 opposite X08, RA10 off AF21, RA15 lid in X03. No ASKs. Next: Part 1f-b.
 - 2026-10-11 Planner: review of P03B 1e: realistic (cores sized from flights and landings, shafts beside the rooms they hatch into, hooped ladders at roof edges) and flows; self-check covered fit sums, sources and all four zone checks; no disagreements. For 1g / P06: BR05 is a 6.0 drop into the hall and needs a supported way down. 1f has 37 ring entries, so it is split: prompts/P03B-1f-a.md (17 decisions: site, A, bridge, tunnels) with scripts/kestrel/p03b-ring-check-f.mjs; planner test `ring 17, fails 0, info 1`, negative test 4 fails. 1f-b (B, hall, wing) next.
