@@ -558,9 +558,10 @@ Deviations (1g-c fixes, Michael 2026-10-11):
 | Q22 | 9.2 | Must-not-touch P04 column: no shaft-riser opening, hall doors on x 70 only RB13 and the well, mantrap doors only to BF06 and BF08, BG28's only door to BG10 | P04 | Keep each N row's P04 cell |
 | Q23 | 8.2 | Critical path rooms: AG06 window, AG05 door, west link, fire stair door | P04 | Keep them on the 8.1 lines or record added metres |
 | Q24 | 8.2 | Anchors on the critical path | P06 | Fence anchor at P01, window anchor at AG06 (P02), gate climb at RA02 (P12) |
+| Q25 | 2 row L; Michael 2026-10-11 | Brief 10 line 351 "roof with 1.1 edge rail drains to hoppers" and line 354 "LF02 rail" clash with Michael's decision: bridge roof has a 0.3 m edge upstand, no parapet, no rail | P03R | Line 351: LF02 roof has a 0.3 edge upstand draining to hoppers; line 354: fall-arrest on LF02 is anchor posts, placed by P06. Until reworded, Michael's decision wins (RULES 7) |
 
 Settled, so dropped: wing grid offset, bridge walls and level L heights (Michael, 1a); AG22 across the spine (Michael, 1b ASK-4); fire stair walk distances (Michael, 6.2); exit at RA02 (Michael, 8.2 question 1); vault touching A (1g-c fix); 1c, 1d, 1e, 1f-b and 1g notes (done by those parts).
-Rows per For: Michael 0, P03R 11, P04 12, P06 1.
+Rows per For: Michael 0, P03R 12, P04 12, P06 1.
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
