@@ -16,6 +16,10 @@ work, and on save writes the file, the plan images and a change log for review. 
    window (or press Ctrl+C in it). Unsaved edits are offered back next time you open it.
 6. Checks of the controller: `npm run e2e:editor` (about a minute, never saves).
 
+7. Phone or tablet on the home Wi-Fi: double-click `Kestrel-Editor-Network.cmd` instead. It prints a Network address
+   (for example `http://192.168.1.20:5199/`); open it on the phone with `editor.html` on the end. Saving works from devices
+   on the home network only (private addresses), never from the internet. Allow Node.js on private networks if Windows asks.
+
 ## Controller screen (ED2 Part C2)
 - Any controller input switches to the controller screen: both toolbars, the mouse cursor and the side panel hide; a
   status strip (top left: editing level, view, levels setting, building, tool, unsaved changes, new problems) and large

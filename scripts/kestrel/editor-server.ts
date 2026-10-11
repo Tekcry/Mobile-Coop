@@ -47,7 +47,16 @@ function send(res: ServerResponse, status: number, type: string, text: string): 
 }
 const json = (res: ServerResponse, v: unknown, status = 200): void => send(res, status, 'application/json', JSON.stringify(v));
 
-const isLocal = (req: IncomingMessage): boolean => ['127.0.0.1', '::1', '::ffff:127.0.0.1'].includes(req.socket.remoteAddress ?? '');
+/**
+ * This PC, or (only when KESTREL_EDITOR_LAN=1, set by Kestrel-Editor-Network.cmd; Michael, 2026-10-12) a device on the
+ * home network: private IPv4 ranges and IPv6 link-local / unique-local addresses. Never the internet.
+ */
+function isLocal(req: IncomingMessage): boolean {
+  const a = (req.socket.remoteAddress ?? '').replace(/^::ffff:/, '');
+  if (a === '127.0.0.1' || a === '::1') return true;
+  if (process.env.KESTREL_EDITOR_LAN !== '1') return false;
+  return /^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(a) || /^f(e8|e9|ea|eb|c|d)/i.test(a);
+}
 
 function run(root: string, args: string[]): Promise<{ code: number; out: string }> {
   return new Promise((resolve) => {
