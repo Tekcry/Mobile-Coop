@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (parts 1a-1e) | 07cd3f1 | 2026-10-11 |
+| P03B | Block plan | DRAFT (parts 1a-1f-a) | 7120150 | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -47,6 +47,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 P03B 1f-a: section 7 intro and 7.1 of 03B (17 ring entries: site gates, A doors and tier doors, bridge readers, fire exit, roof door, lid, hatch, riser door). Candidate kept unchanged. Checks: F `ring 17 (RA 17, RB 0), rects 114, fails 0, info 1` (RA14 bulkhead, expected); E `vert 17, fails 0, info 2`; A `zones 27, fixed 15, fails 0, info 0`; B `zones 19, fixed 10, fails 0`; D `zones 26, rows 126 of 126, fails 0`. Deviations: RA02 opposite X08, RA10 off AF21, RA15 lid in X03. No ASKs. Next: Part 1f-b.
 - 2026-10-11 Planner: review of P03B 1e: realistic (cores sized from flights and landings, shafts beside the rooms they hatch into, hooped ladders at roof edges) and flows; self-check covered fit sums, sources and all four zone checks; no disagreements. For 1g / P06: BR05 is a 6.0 drop into the hall and needs a supported way down. 1f has 37 ring entries, so it is split: prompts/P03B-1f-a.md (17 decisions: site, A, bridge, tunnels) with scripts/kestrel/p03b-ring-check-f.mjs; planner test `ring 17, fails 0, info 1`, negative test 4 fails. 1f-b (B, hall, wing) next.
 - 2026-10-11 P03B 1e: section 6 of 03B (17 stairs, lifts, risers, shafts, roof ladders; fire stair per building). Candidate kept unchanged. Main stair B widened to 5 (1.0 open well), BG16 moved to B-GE, script B BG02 / BF02 at 40. Checks: E `vert 17, fails 0, info 2` (fire stair landings 1.39 vs 1.45, deviation and P03R note); A `zones 27, fixed 15, fails 0, info 0`; B `zones 19, fixed 10, fails 0`; D `zones 26, rows 126 of 126, fails 0`. No ASKs. Next: Part 1f ring entries.
 - 2026-10-11 Planner: review of P03B 1d: realistic (vault under open yard, tunnels along wall lines, rack clear of B stairs) and flows; self-check covered tiling, sources, row count; no disagreements. Found in 1c: main stair B (4 wide) left a 0.7 clear sliver to BG05, so BG02 had no door; 1e widens it to 5 (1.0 open well) and moves BG16 to B-GE. Stair fit: fire stair landings 1.39 vs 1.45 flights (INFO, P03R), gallery stair needs going 0.26 with a 2.4 landing. Michael kept main stairs non-escape (Decisions). Remaining P03B parts: 1e vertical circulation and fire check, 1f ring entries, 1g critical path, adjacency, questions. prompts/P03B-1e.md (18 decisions) with scripts/kestrel/p03b-vert-check-e.mjs; planner test run E `vert 17, fails 0, info 2`, A, B (BG02 40), D 0 fails.
