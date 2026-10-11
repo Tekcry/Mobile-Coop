@@ -12,7 +12,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 5764aad | 2026-10-11 |
-| P02 | Building brief | APPROVED | 133a4d1 | 2026-10-11 |
+| P02 | Building brief | DRAFT (revision A 36 x 30) | pending | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
 | P03B | Block plan | DRAFT (part 1a; 1b zones held: A ground door test) | pending | 2026-10-11 |
@@ -67,6 +67,9 @@ Older entries: progress-archive.md.
   No secondary-fire or fire-mode input exists (actions.ts:2-52; `fireMode` is semi / auto data, weaponDefs.ts:41). Proposed: desktop H, pad A while aiming, touch "Pulse" chip; V3 confirms. New map field `disrupt` (section 5).
   Handover.md: lines 43-47 edited clause by clause (they also carry the rest of the approved kit), fix 7 line added once.
   Cascade: touches no other stage; nothing after V0 reads the spec yet (V1-V3 not started, P04 onward not started).
+- 2026-10-11 P02 revision A 36 x 30 (Michael): brief 02 rows AG26, AF21 (new, rect 3.5 x 30.0, clear 3.2 x 29.7; Michael's width fix over the 3.0 / 2.7 candidate), AG10, AF01, AR01, X05, X06, X10; A sums ground 788, first 745 of 1080; site sum 8208; sections 2, 6, 9, 12i, 15 and log; 03B sections 1-2 (A, X05, X06, X10, rear 880). Checks: section 5 rows 126 (was 124; the old "151" matches no count and was not reproduced); tiling `items 13, area sum 8208 of 8208, cells not covered exactly once: 0`.
+  Cascade (not changed): handover.md line 9; prompts P03B-1a, P03B-1b, P03B-1b-G, P03B-1b-G-r2, P03B-1b-zones (old A 36 x 24 numbers; zones-r2 replaces them); 03B Appendix A and section 3 (A z 30-54 rooms, not binding). Later stages reading brief 02: P03B, P03R, B0, P04 onward. P03B stays DRAFT, B0 stays to rerun.
+  Questions for Michael: see report (realism and flow).
 - 2026-10-11 P03T campus tools: facts site limit 110 x 80; meta.buildings, level footprint lists, rooms[].building, level H, ring-exempt INFO. check.mjs: A21 (buildings 48 x 30 inside the site, no overlap), A14 over rect lists, new A31, A29 lists exempt openings as INFO notes; plans.mjs: building outlines and ids, bay grid per building, exterior and services filtered on overlapping levels; expand.mjs: level stack follows level footprints. schema.md 1, 2, 5, 6, 7 updated (+32 lines).
   Baseline (sample 27 PASS / 0 WARN / 0 FAIL, blocks 25 / 1 / 1) unchanged per check id; A31 PASS on both; blocks shows one INFO line under A29 (D-B-DUCT). Old plan SVGs identical. Tool tests 79 -> 91 pass. npm run check: lint and build pass, 779 of 780 tests (kestrelMap copy test fails before and after: waits for the B0 rerun).
   Not tested: A30 on a campus layout built with modules (its serving test compares floors only, schema 6). Downstream: P03B uses meta.buildings, level footprint lists, rooms[].building and level H; the B0 rerun must update src/world/maps/kestrelGeo.ts and kestrel.ts, which read meta.footprint and one footprint rect per level (kestrelGeo.ts:85).
