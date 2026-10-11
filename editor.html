@@ -87,6 +87,25 @@
       .list li { margin: 3px 0; }
       #ask { position: absolute; z-index: 30; left: 50%; top: 12px; transform: translateX(-50%); padding: 10px 14px; background: var(--panel); border: 2px solid var(--accent); border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6); }
       #ask button { margin-left: 8px; }
+      #radial { position: absolute; z-index: 25; inset: 0; display: flex; align-items: center; justify-content: center; background: rgba(0, 0, 0, 0.25); pointer-events: none; }
+      .rm-ring { position: relative; width: min(62vh, 560px); height: min(62vh, 560px); border-radius: 50%; background: radial-gradient(circle, rgba(15, 17, 20, 0.88) 0 34%, rgba(15, 17, 20, 0.55) 35% 68%, transparent 69%); }
+      .rm-slot { position: absolute; transform: translate(-50%, -50%); min-width: 104px; max-width: 140px; padding: 10px 12px; text-align: center; font-size: 15px; font-weight: 600; color: var(--ink); background: rgba(40, 45, 52, 0.95); border: 2px solid var(--line); border-radius: 12px; transition: transform 0.08s; }
+      .rm-slot.hl { transform: translate(-50%, -50%) scale(1.18); background: var(--accent); border-color: #fff; color: #111; }
+      .rm-sub { margin-left: 4px; }
+      .rm-centre { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); width: 36%; text-align: center; }
+      .rm-crumb { color: var(--dim); font-size: 13px; }
+      .rm-name { font-size: 20px; font-weight: 700; color: var(--accent); }
+      .rm-desc { color: var(--ink); font-size: 13px; }
+      #reticle { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 3; }
+      #reticle::before, #cross::before { content: ''; position: absolute; left: -9px; top: -9px; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px var(--accent); }
+      #reticleText, #crossText { position: absolute; left: 16px; top: 12px; white-space: nowrap; padding: 2px 8px; background: rgba(0, 0, 0, 0.7); color: #fff; border-radius: 4px; font-size: 14px; }
+      #cross { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 3; }
+      .padfocus { outline: 3px solid var(--accent) !important; outline-offset: -3px; }
+      #panel .padfocus { outline-offset: 1px; }
+      #help .padrow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+      #help td.pad { color: #7cc4ff; white-space: nowrap; }
+      #planSvg.nolabels text { display: none; }
+      #ask div { margin-bottom: 8px; max-width: 420px; }
       #status { flex: none; height: 24px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
   </head>
@@ -98,10 +117,12 @@
           <canvas id="c" tabindex="0"></canvas>
           <div id="hud"></div>
           <div id="help" class="hidden"></div>
+          <div id="reticle" class="hidden"><div id="reticleText"></div></div>
         </section>
         <div id="divider" title="Drag to resize"></div>
-        <section id="planWrap"><div id="planSvg"></div><div id="planStatus"></div></section>
+        <section id="planWrap"><div id="planSvg"></div><div id="planStatus"></div><div id="cross" class="hidden"><div id="crossText"></div></div></section>
         <div id="hint"></div>
+        <div id="radial" class="hidden"></div>
       </div>
       <aside id="drawer">
         <div id="drawerHead"><button data-tab="props">Selected</button><button data-tab="checks">Checks</button><button data-tab="log">Changes</button><span class="grow"></span><button id="pin" title="Pin the panel beside the views, or let it float over them">Pin</button><button id="closeDrawer" title="Close (` or I)">x</button></div>

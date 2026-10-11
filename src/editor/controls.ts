@@ -15,6 +15,8 @@ const WALK = 1.6; // m/s, a careful walk
 const RUN = 4.5;
 const FLY = 10;
 const FLY_FAST = 35;
+/** Pad look, radians per second at full stick. */
+const LOOK_RATE = 2.4;
 
 export class CameraControls {
   yaw = 0;
@@ -25,6 +27,12 @@ export class CameraControls {
   floor = 0;
   /** Wall boxes that block the walker (rebuilt by the editor when the level or the walls change). */
   blockers: Obb[] = [];
+  /** Controller input, set each frame by padControl.ts: left stick move (x right, y forward), right stick look rate (x right, y up), triggers rise (RT up, LT down, -1..1). */
+  padMove = { x: 0, y: 0 };
+  padLook = { x: 0, y: 0 };
+  padRise = 0;
+  /** L3 toggles fast movement for the pad. */
+  padFast = false;
   private readonly keys = new Set<string>();
   private looking = false;
   private lastX = 0;
@@ -111,9 +119,15 @@ export class CameraControls {
 
   update(dt: number): void {
     const k = this.keys;
-    const fast = k.has('ShiftLeft') || k.has('ShiftRight');
-    const fwd = (k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0);
-    const side = (k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0);
+    const fast = k.has('ShiftLeft') || k.has('ShiftRight') || this.padFast;
+    const clamp1 = (v: number): number => Math.max(-1, Math.min(1, v));
+    const fwd = clamp1((k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0) + this.padMove.y);
+    const side = clamp1((k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + this.padMove.x);
+    // right stick: a turn rate, squared for fine aim near the centre
+    const lx = this.padLook.x;
+    const ly = this.padLook.y;
+    this.yaw += Math.sign(lx) * lx * lx * LOOK_RATE * dt;
+    this.pitch = Math.max(-1.55, Math.min(1.55, this.pitch - Math.sign(ly) * ly * ly * LOOK_RATE * 0.7 * dt));
     const p = this.camera.position;
     if (this.walking) {
       const v = (fast && !this.crouched ? RUN : WALK) * dt;
@@ -128,7 +142,9 @@ export class CameraControls {
       const f = this.forward();
       const rx = Math.cos(this.yaw);
       const rz = -Math.sin(this.yaw);
-      const up = (k.has('KeyE') ? 1 : 0) - (k.has('KeyQ') ? 1 : 0);
+      // triggers: a deeper press is faster (squared)
+      const r = this.padRise;
+      const up = clamp1((k.has('KeyE') ? 1 : 0) - (k.has('KeyQ') ? 1 : 0) + Math.sign(r) * r * r);
       p.set(p.x + (f[0] * fwd + rx * side) * v, p.y + (f[1] * fwd + up) * v, p.z + (f[2] * fwd + rz * side) * v);
     }
     this.camera.rotation.set(this.pitch, this.yaw, 0);

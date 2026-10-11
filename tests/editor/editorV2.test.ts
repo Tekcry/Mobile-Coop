@@ -82,7 +82,7 @@ describe('editor action map', () => {
 
   it('every action has an id, a name and a binding, ids are unique', () => {
     expect(new Set(ACTIONS.map((a) => a.id)).size).toBe(ACTIONS.length);
-    for (const a of ACTIONS) expect(a.name && (a.keys.length || a.mouse)).toBeTruthy();
+    for (const a of ACTIONS) expect(a.name && (a.keys.length || a.mouse || a.pad?.length)).toBeTruthy();
   });
 
   it('finds actions by key and context', () => {

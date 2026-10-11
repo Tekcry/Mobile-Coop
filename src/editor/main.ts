@@ -6,6 +6,7 @@
 import { actionForKey, helpRows, hintItems, keyId } from './actions';
 import type { Ctx, Group } from './actions';
 import { CameraControls } from './controls';
+import { PadControl } from './padControl';
 import { clearDraft, makeDraft, readDraft, shouldOffer, writeDraft } from './draft';
 import type { Draft } from './draft';
 import { EditorScene } from './scene3d';
@@ -13,7 +14,7 @@ import { buildingAt, editingForced, GAP_MAX, parseVis, presetPicks } from './vis
 import type { LevelPreset } from './visibility';
 import { EditorModel, localTime, logMarkdown } from './model';
 import type { Change, JournalEntry } from './model';
-import { fmt, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallLen, wallPieces, wallPoint } from './geometry';
+import { fmt, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb } from './geometry';
 import { deleteChanges, describeEdit, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import type { Campus, Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
@@ -89,12 +90,12 @@ interface Drag {
   moved: boolean;
   sx: number;
   sy: number;
-  source: '3d' | 'plan';
+  source: '3d' | 'plan' | 'pad';
   /** A new element being drawn (room or wall tool). */
   isNew: boolean;
 }
 
-class Editor {
+export class Editor {
   readonly model: EditorModel;
   readonly view: EditorScene;
   readonly controls: CameraControls;
@@ -109,11 +110,12 @@ class Editor {
   private planViewBox: number[] | null = null;
   private planMap: number[] | null = null;
   private baseline: Set<string> | null = null;
-  private tab: 'props' | 'checks' | 'log' = 'props';
+  tab: 'props' | 'checks' | 'log' = 'props';
+  pad: PadControl | null = null;
   private lastChecks: CheckReply | null = null;
   private hoverAt = 0;
   private hoverKey: Key | null = null;
-  private readonly prefs = loadPrefs();
+  readonly prefs = loadPrefs();
   private planFullBox: number[] | null = null;
   private draftTimer = 0;
 
@@ -139,6 +141,7 @@ class Editor {
 
     this.model.onChange((keys) => this.changed(keys));
     this.buildToolbar();
+    this.pad = new PadControl(this);
     this.bind3d(canvas);
     this.bindPlan();
     this.bindKeys();
@@ -186,6 +189,7 @@ class Editor {
 
   /** What the editor is doing now, for the hint bar and key dispatch. */
   ctx(): Ctx {
+    if (this.pad?.menuOpen) return 'menu';
     if (this.drag) return 'drag';
     if (this.tool !== 'select') return 'draw';
     return this.selected ? 'selected' : 'idle';
@@ -290,7 +294,7 @@ class Editor {
   }
 
   // ---------- dragging (shared by 3D and plan) ----------
-  beginDrag(coll: Coll, id: string, handle: string | null, start: Pt, planeY: number, sx: number, sy: number, source: '3d' | 'plan', isNew = false): void {
+  beginDrag(coll: Coll, id: string, handle: string | null, start: Pt, planeY: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad', isNew = false): void {
     const before = this.model.snapshot(coll, id);
     if (!before) return;
     this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew };
@@ -387,7 +391,7 @@ class Editor {
 
   // ---------- tools (shared by 3D and plan) ----------
   /** Pointer down with a drawing tool at plan point (x, z). */
-  toolDown(x: number, z: number, sx: number, sy: number, source: '3d' | 'plan', fine: boolean, onWall?: string): void {
+  toolDown(x: number, z: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad', fine: boolean, onWall?: string): void {
     const g = fine ? this.fineGrid : this.grid;
     const p: Pt = [snap(x, g), snap(z, g)];
     const lvl = this.view.level;
@@ -529,6 +533,36 @@ class Editor {
   toPlan(x: number, z: number): Pt {
     const [left, M, TOP, S, x0, z1] = this.planMap ?? [0, 0, 0, 1, 0, 0];
     return [left! + M! + (x - x0!) * S!, TOP! + (z1! - z) * S!];
+  }
+
+  /** Screen point -> plan SVG user units. */
+  svgPointAt(clientX: number, clientY: number): Pt | null {
+    return this.svgPoint({ clientX, clientY } as MouseEvent);
+  }
+
+  /** Pad: pan by (dx, dy) screen pixels and zoom by k around a screen point. */
+  panZoomPlan(dx: number, dy: number, k: number, cx: number, cy: number): void {
+    const svg = this.planSvg();
+    const m = svg?.getScreenCTM();
+    const p = this.svgPointAt(cx, cy);
+    if (!svg || !m || !p || !this.planViewBox) return;
+    const [vx, vy, vw, vh] = this.planViewBox as [number, number, number, number];
+    this.planViewBox = [p[0] - (p[0] - vx) * k + dx / m.a, p[1] - (p[1] - vy) * k + dy / m.d, vw * k, vh * k];
+    if (!this.isMinimap()) svg.setAttribute('viewBox', this.planViewBox.join(' '));
+  }
+
+  /** The live size or offset of what is being dragged, for the pad's dot label. */
+  dragWords(): string {
+    const d = this.drag;
+    const s = d ? this.model.get(d.coll, d.id) : undefined;
+    if (!d || !s) return '';
+    if (d.coll === 'walls') return `length ${fmt(wallLen(s as Wall))} m`;
+    if ('rect' in s) {
+      const r = (s as Room).rect;
+      return d.isNew || d.handle ? `size ${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m` : `moved ${moveWordsOf(d.before, s)}`;
+    }
+    if (d.coll === 'openings') return `width ${fmt((s as Opening).w)} m, at ${fmt((s as Opening).at)} m`;
+    return '';
   }
 
   fromPlan(px: number, py: number): Pt {
@@ -1226,17 +1260,20 @@ class Editor {
     if (this.controls.walking) notes.push('Walking (Tab flies)');
     else if (editingForced(this.view.vis, this.model.data.levels, this.view.level)) notes.push(`${lv?.name ?? 'This level'} is hidden by the Levels settings - shown anyway because you are editing it`);
     if (this.view.vis.exploded && !this.controls.walking) notes.push('Exploded: levels drawn apart, saved as built');
+    const pad = this.pad;
+    if (pad?.device === 'pad' && pad.focus !== '3d') notes.push(pad.focus === 'plan' ? 'Pad on the plan (View held moves on)' : 'Pad in the side panel (B leaves)');
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
-    const items = hintItems(c).map((i) => `<b>${esc(i.keys)}</b> ${esc(i.name)}`);
+    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox').map((i) => `<b>${esc(i.keys)}</b> ${esc(i.name)}`);
     $('hint').innerHTML = [...notes.map((n) => `<span class="note">${esc(n)}</span>`), ...items].join('&nbsp;&nbsp;&nbsp;');
   }
 
-  private renderHelp(): void {
+  renderHelp(): void {
     const groups: Group[] = ['Camera', 'Edit', 'Tools', 'View', 'File'];
-    const rows = helpRows();
+    const rows = helpRows(this.pad?.style ?? 'xbox');
     $('help').innerHTML =
       '<h3>Kestrel level editor <span class="dim">(H hides this)</span></h3>' +
-      groups.map((g) => `<h4>${g}</h4><table>${rows.filter((r) => r.group === g).map((r) => `<tr><td>${esc(r.keys)}</td><td>${esc(r.name)}</td></tr>`).join('')}</table>`).join('') +
+      '<table><tr class="dim"><td>Keys, mouse</td><td>Controller</td><td></td></tr></table>' +
+      groups.map((g) => `<h4>${g}</h4><table>${rows.filter((r) => r.group === g).map((r) => `<tr><td>${esc(r.keys)}</td><td class="pad">${esc(r.pad)}</td><td>${esc(r.name)}</td></tr>`).join('')}</table>`).join('') +
       '<p class="dim">The plan takes the same tools: wheel zooms, right drag pans, double-click takes the camera there. In the small plan a click takes the camera there.</p>';
   }
 
@@ -1281,7 +1318,7 @@ class Editor {
   }
 
   async revert(): Promise<void> {
-    if (!window.confirm('Throw away every unsaved change and reload the file from disk? Undo history is cleared.')) return;
+    if (!(await this.ask('Throw away every unsaved change and reload the file from disk? Undo history is cleared.', 'Revert', 'Keep my changes'))) return;
     try {
       const f = await loadFile();
       clearTimeout(this.draftTimer);
@@ -1291,6 +1328,21 @@ class Editor {
     } catch (err) {
       this.status(`Revert failed: ${String(err)}`);
     }
+  }
+
+  /** A yes / no question in the editor (A / B on the pad, or click); never the browser's own dialog. */
+  ask(text: string, yes: string, no: string): Promise<boolean> {
+    const box = $('ask');
+    box.innerHTML = `<div>${esc(text)}</div><button class="yes">${esc(yes)} <span class="dim">(A)</span></button><button class="no">${esc(no)} <span class="dim">(B)</span></button>`;
+    box.classList.remove('hidden');
+    return new Promise((resolve) => {
+      const done = (v: boolean): void => {
+        box.classList.add('hidden');
+        resolve(v);
+      };
+      box.querySelector('.yes')!.addEventListener('click', () => done(true));
+      box.querySelector('.no')!.addEventListener('click', () => done(false));
+    });
   }
 
   newProblems(c: CheckReply): string[] {
@@ -1432,6 +1484,12 @@ function checkLines(c: CheckReply): string[] {
   for (const f of c.standards.fails) out.push(`STD ${f}`);
   for (const r of c.results) if (r.status === 'FAIL' || r.status === 'WARN') for (const d of r.details) out.push(`${r.id} ${d}`);
   return out;
+}
+
+function moveWordsOf(a: Elem, b: Elem): string {
+  const ra = (a as Room).rect;
+  const rb = (b as Room).rect;
+  return moveWords(rb[0] - ra[0], rb[1] - ra[1]);
 }
 
 function isTyping(): boolean {

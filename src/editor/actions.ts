@@ -1,14 +1,17 @@
 /**
- * The level editor's one action map: every action has an id, a plain name and its bindings per device. Keyboard
- * dispatch, the help overlay and the hint bar are all generated from it, so a binding is written once. Part C adds
- * gamepad bindings here. Babylon-free (tests/editor/actions.test.ts).
+ * The level editor's one action map: every action has an id, a plain name and its bindings per device (keyboard,
+ * mouse words, controller). Keyboard dispatch, the help overlay and the hint bar are all generated from it, so a
+ * binding is written once. Babylon-free (tests/editor/actions.test.ts, editorPad.test.ts).
  */
+import type { PadStyle } from '../input/gamepadMapping';
+import { padWords } from './pad';
 
-/** What the editor is doing right now; the hint bar and key dispatch read it. */
+/** What the editor is doing right now; the hint bar and key dispatch read it. 'drag' is also a pad grab. */
 export type Ctx = 'idle' | 'selected' | 'drag' | 'draw' | 'menu';
 export const CTXS: readonly Ctx[] = ['idle', 'selected', 'drag', 'draw', 'menu'];
 
 export type Group = 'Camera' | 'Edit' | 'Tools' | 'View' | 'File';
+export type Device = 'keys' | 'pad';
 
 export interface Action {
   id: string;
@@ -19,53 +22,69 @@ export interface Action {
   keys: string[];
   /** Mouse words, shown only (the pointer code handles the mouse). */
   mouse?: string;
+  /** Controller bindings in Xbox names ("Y hold", "D-pad up"); padControl.ts handles them, the words go to the screen. */
+  pad?: string[];
   /** Contexts the action works in; omitted means every context. */
   ctx?: Ctx[];
   /** Contexts whose hint bar lists it. */
   hint?: Ctx[];
-  /** Handled by the camera controls, not by dispatch (listed for the help and conflict checks). */
+  /** Handled by the camera controls or the pointer code, not by key dispatch. */
   passive?: boolean;
 }
 
 const NOT_DRAG: Ctx[] = ['idle', 'selected', 'draw'];
+const NOT_MENU: Ctx[] = ['idle', 'selected', 'drag', 'draw'];
 
 export const ACTIONS: readonly Action[] = [
-  { id: 'look', name: 'look around', group: 'Camera', keys: [], mouse: 'Right drag', hint: ['idle', 'selected', 'draw'], passive: true },
-  { id: 'move', name: 'move (Shift fast; wheel zooms)', group: 'Camera', keys: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], passive: true, hint: ['idle'] },
-  { id: 'fly', name: 'down / up when flying', group: 'Camera', keys: ['KeyQ', 'KeyE'], passive: true },
-  { id: 'crouch', name: 'crouch when walking', group: 'Camera', keys: ['KeyC'], passive: true },
+  { id: 'look', name: 'look around', group: 'Camera', keys: [], mouse: 'Right drag', pad: ['RS'], ctx: NOT_MENU, hint: ['idle', 'draw'], passive: true },
+  { id: 'move', name: 'move (Shift fast; wheel zooms)', group: 'Camera', keys: ['KeyW', 'KeyA', 'KeyS', 'KeyD'], pad: ['LS'], ctx: NOT_MENU, passive: true, hint: ['idle', 'drag', 'draw'] },
+  { id: 'fly', name: 'down / up when flying (deeper is faster)', group: 'Camera', keys: ['KeyQ', 'KeyE'], pad: ['LT/RT'], ctx: NOT_MENU, passive: true },
+  { id: 'fast', name: 'fast on / off', group: 'Camera', keys: [], pad: ['L3'], ctx: NOT_MENU, passive: true },
+  { id: 'crouch', name: 'crouch when walking', group: 'Camera', keys: ['KeyC'], ctx: NOT_MENU, passive: true },
   { id: 'walk', name: 'walk at eye height / fly', group: 'Camera', keys: ['Tab'], ctx: NOT_DRAG, hint: ['idle'] },
-  { id: 'levelUp', name: 'level up', group: 'Camera', keys: ['PageUp'], ctx: NOT_DRAG, hint: ['idle'] },
-  { id: 'levelDown', name: 'level down', group: 'Camera', keys: ['PageDown'], ctx: NOT_DRAG },
-  { id: 'frame', name: 'go to the selection', group: 'Camera', keys: ['KeyF'], ctx: ['selected'], hint: ['selected'] },
+  { id: 'levelUp', name: 'level up', group: 'Camera', keys: ['PageUp'], pad: ['D-pad up'], ctx: NOT_DRAG, hint: ['idle'] },
+  { id: 'levelDown', name: 'level down', group: 'Camera', keys: ['PageDown'], pad: ['D-pad down'], ctx: NOT_DRAG },
+  { id: 'frame', name: 'go to the selection', group: 'Camera', keys: ['KeyF'], pad: ['RB'], ctx: ['selected'], hint: ['selected'] },
+  { id: 'lookSel', name: 'look at the selection', group: 'Camera', keys: [], pad: ['R3'], ctx: ['selected', 'drag'], passive: true },
 
-  { id: 'pick', name: 'select; drag to move; orange handles resize', group: 'Edit', keys: [], mouse: 'Click, drag', hint: ['idle', 'selected'] },
-  { id: 'fine', name: 'fine grid (0.1 m) while dragging', group: 'Edit', keys: [], mouse: 'Ctrl', hint: ['drag', 'draw'] },
-  { id: 'cancel', name: 'cancel / put the tool down / clear the selection', group: 'Edit', keys: ['Escape'], hint: ['selected', 'drag', 'draw', 'menu'] },
+  { id: 'pick', name: 'select; drag to move; orange handles resize', group: 'Edit', keys: [], mouse: 'Click, drag', ctx: NOT_MENU, hint: ['idle', 'selected'], passive: true },
+  { id: 'padPick', name: 'select what the dot is on; on the selection, grab it', group: 'Edit', keys: [], pad: ['A'], ctx: ['idle', 'selected'], hint: ['idle', 'selected'], passive: true },
+  { id: 'padDrop', name: 'drop it here', group: 'Edit', keys: [], pad: ['A'], ctx: ['drag'], hint: ['drag'], passive: true },
+  { id: 'padDraw', name: 'start / finish (wall ends, room corners), place a door', group: 'Tools', keys: [], pad: ['A'], ctx: ['draw'], hint: ['draw'], passive: true },
+  { id: 'fine', name: 'fine grid (0.1 m) while held', group: 'Edit', keys: [], mouse: 'Ctrl', pad: ['LB'], ctx: NOT_MENU, hint: ['drag', 'draw'], passive: true },
+  { id: 'padNudge', name: 'nudge one grid step (as the camera faces)', group: 'Edit', keys: [], pad: ['D-pad'], ctx: ['drag'], hint: ['drag'], passive: true },
+  { id: 'near', name: 'previous / next element near the dot', group: 'Edit', keys: [], pad: ['D-pad left/right'], ctx: ['idle', 'selected'], passive: true },
+  { id: 'cancel', name: 'cancel / put the tool down / clear the selection; never deletes', group: 'Edit', keys: ['Escape'], pad: ['B'], ctx: NOT_MENU, hint: ['selected', 'drag', 'draw'] },
   { id: 'delete', name: 'delete', group: 'Edit', keys: ['Delete', 'Backspace'], ctx: ['selected'], hint: ['selected'] },
-  { id: 'duplicate', name: 'duplicate', group: 'Edit', keys: ['Ctrl+KeyD'], ctx: ['selected'], hint: ['selected'] },
+  { id: 'duplicate', name: 'duplicate', group: 'Edit', keys: ['Ctrl+KeyD'], ctx: ['selected'] },
   { id: 'nudge', name: 'nudge 0.5 m (Shift: 5 m)', group: 'Edit', keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight', 'Shift+ArrowUp', 'Shift+ArrowDown'], ctx: ['selected'], hint: ['selected'] },
-  { id: 'undo', name: 'undo', group: 'Edit', keys: ['Ctrl+KeyZ'], ctx: NOT_DRAG, hint: ['idle'] },
-  { id: 'redo', name: 'redo', group: 'Edit', keys: ['Ctrl+KeyY', 'Ctrl+Shift+KeyZ'], ctx: NOT_DRAG },
+  { id: 'undo', name: 'undo', group: 'Edit', keys: ['Ctrl+KeyZ'], pad: ['X'], ctx: NOT_DRAG, hint: ['idle', 'selected'] },
+  { id: 'redo', name: 'redo', group: 'Edit', keys: ['Ctrl+KeyY', 'Ctrl+Shift+KeyZ'], pad: ['X hold'], ctx: NOT_DRAG },
 
+  { id: 'radial', name: 'menu wheel (point, release to pick)', group: 'Tools', keys: [], mouse: 'Hold Space', pad: ['Y hold'], ctx: ['idle', 'selected', 'draw'], hint: ['idle', 'selected', 'draw'], passive: true },
+  { id: 'repeatTool', name: 'the last tool again', group: 'Tools', keys: [], pad: ['Y'], ctx: ['idle', 'selected', 'draw'], passive: true },
+  { id: 'menuPick', name: 'pick / open', group: 'Tools', keys: [], mouse: 'Click', pad: ['A'], ctx: ['menu'], hint: ['menu'], passive: true },
+  { id: 'menuPoint', name: 'point at a slot (rest on a submenu to open it)', group: 'Tools', keys: [], mouse: 'Mouse', pad: ['LS/RS'], ctx: ['menu'], hint: ['menu'], passive: true },
+  { id: 'menuBack', name: 'back; at the top, close', group: 'Tools', keys: [], mouse: 'Esc', pad: ['B'], ctx: ['menu'], hint: ['menu'], passive: true },
   { id: 'toolSelect', name: 'select tool', group: 'Tools', keys: ['Digit1'], ctx: NOT_DRAG },
   { id: 'toolRoom', name: 'room tool (drag a rectangle)', group: 'Tools', keys: ['Digit2'], ctx: NOT_DRAG },
   { id: 'toolWall', name: 'wall tool (drag end to end)', group: 'Tools', keys: ['Digit3'], ctx: NOT_DRAG },
   { id: 'toolDoor', name: 'door tool (click a wall)', group: 'Tools', keys: ['Digit4'], ctx: NOT_DRAG },
   { id: 'toolWindow', name: 'window tool (click a wall)', group: 'Tools', keys: ['Digit5'], ctx: NOT_DRAG },
-  { id: 'draw', name: 'draw on the editing level', group: 'Tools', keys: [], mouse: 'Drag', hint: ['draw'] },
+  { id: 'draw', name: 'draw on the editing level', group: 'Tools', keys: [], mouse: 'Drag', ctx: ['draw'], hint: ['draw'], passive: true },
 
-  { id: 'layout', name: 'view: 3D, both, plan', group: 'View', keys: ['KeyV'], hint: ['idle'] },
-  { id: 'drawer', name: 'open / close the side panel', group: 'View', keys: ['Backquote', 'KeyI'], hint: ['selected'] },
-  { id: 'minimap', name: 'small plan in 3D only', group: 'View', keys: ['KeyM'] },
-  { id: 'whole', name: 'whole building', group: 'View', keys: ['KeyG'], hint: ['idle'] },
-  { id: 'single', name: 'single level', group: 'View', keys: ['KeyO'], hint: ['idle'] },
-  { id: 'upTo', name: 'up to this level', group: 'View', keys: ['KeyU'] },
-  { id: 'ghost', name: 'ghost the hidden levels', group: 'View', keys: ['Shift+KeyG'] },
-  { id: 'exploded', name: 'exploded view', group: 'View', keys: ['KeyX'] },
-  { id: 'help', name: 'show / hide this help', group: 'View', keys: ['KeyH'] },
+  { id: 'layout', name: 'view: 3D, both, plan', group: 'View', keys: ['KeyV'], pad: ['View'], ctx: NOT_MENU, hint: ['idle'] },
+  { id: 'paneFocus', name: 'move pad focus: 3D, plan, side panel', group: 'View', keys: [], pad: ['View hold'], ctx: NOT_MENU, passive: true },
+  { id: 'drawer', name: 'open / close the side panel', group: 'View', keys: ['Backquote', 'KeyI'], ctx: NOT_MENU },
+  { id: 'minimap', name: 'small plan in 3D only', group: 'View', keys: ['KeyM'], ctx: NOT_MENU },
+  { id: 'whole', name: 'whole building', group: 'View', keys: ['KeyG'], ctx: NOT_MENU },
+  { id: 'single', name: 'single level', group: 'View', keys: ['KeyO'], ctx: NOT_MENU },
+  { id: 'upTo', name: 'up to this level', group: 'View', keys: ['KeyU'], ctx: NOT_MENU },
+  { id: 'ghost', name: 'ghost the hidden levels', group: 'View', keys: ['Shift+KeyG'], ctx: NOT_MENU },
+  { id: 'exploded', name: 'exploded view', group: 'View', keys: ['KeyX'], ctx: NOT_MENU },
+  { id: 'help', name: 'help (with Save, Revert, Walk, rumble)', group: 'View', keys: ['KeyH'], pad: ['Menu'], ctx: NOT_MENU, hint: ['idle'] },
 
-  { id: 'save', name: 'save the file, plans and change log', group: 'File', keys: ['Ctrl+KeyS'], ctx: NOT_DRAG, hint: ['idle', 'selected'] },
+  { id: 'save', name: 'save the file, plans and change log', group: 'File', keys: ['Ctrl+KeyS'], ctx: NOT_DRAG, hint: ['idle'] },
 ];
 
 const byId = new Map(ACTIONS.map((a) => [a.id, a]));
@@ -83,17 +102,28 @@ export function actionForKey(id: string, c: Ctx): Action | undefined {
   return ACTIONS.find((a) => !a.passive && inCtx(a, c) && a.keys.includes(id));
 }
 
-/** Key ids bound twice in one context (should be empty; a Vitest checks it). */
+/** Pad binding parts: "D-pad left/right" covers "D-pad left" and "D-pad right"; "D-pad" covers all four. */
+function padParts(b: string): string[] {
+  if (b === 'D-pad') return ['D-pad up', 'D-pad down', 'D-pad left', 'D-pad right'];
+  if (b === 'LS/RS') return ['LS', 'RS'];
+  if (b === 'LT/RT') return ['LT', 'RT'];
+  const m = /^D-pad (\w+)\/(\w+)$/.exec(b);
+  return m ? [`D-pad ${m[1]}`, `D-pad ${m[2]}`] : [b];
+}
+
+/** Bindings used twice in one context, keyboard or pad (should be empty; a Vitest checks it). */
 export function conflicts(): string[] {
   const out: string[] = [];
   for (const c of CTXS) {
-    const seen = new Map<string, string>();
-    for (const a of ACTIONS) {
-      if (!inCtx(a, c)) continue;
-      for (const k of a.keys) {
-        const prev = seen.get(k);
-        if (prev && prev !== a.id) out.push(`${c}: ${k} is ${prev} and ${a.id}`);
-        seen.set(k, a.id);
+    for (const dev of ['keys', 'pad'] as const) {
+      const seen = new Map<string, string>();
+      for (const a of ACTIONS) {
+        if (!inCtx(a, c)) continue;
+        for (const k of (dev === 'keys' ? a.keys : (a.pad ?? []).flatMap(padParts))) {
+          const prev = seen.get(k);
+          if (prev && prev !== a.id) out.push(`${c} ${dev}: ${k} is ${prev} and ${a.id}`);
+          seen.set(k, a.id);
+        }
       }
     }
   }
@@ -110,21 +140,25 @@ export function keyWords(id: string): string {
   return [...parts, word].join('+');
 }
 
-/** An action's bindings in words, shortened for families (WASD, the arrows). */
+/** An action's keyboard and mouse bindings in words, shortened for families (WASD, the arrows). */
 export function bindingWords(a: Action): string {
   if (a.id === 'move') return 'W A S D';
   if (a.id === 'fly') return 'Q / E';
   if (a.id === 'nudge') return 'Arrows';
-  const keys = a.keys.map(keyWords);
-  return [a.mouse, ...keys].filter(Boolean).join(' / ');
+  return [a.mouse, ...a.keys.map(keyWords)].filter(Boolean).join(' / ');
 }
 
-/** Help rows by group, in map order. */
-export function helpRows(): { group: Group; keys: string; name: string }[] {
-  return ACTIONS.map((a) => ({ group: a.group, keys: bindingWords(a), name: a.name }));
+/** An action's controller bindings in the pad's own names. */
+export const padBindingWords = (a: Action, style: PadStyle): string => (a.pad ?? []).map((b) => padWords(b, style)).join(' / ');
+
+/** Help rows by group, in map order: keyboard and mouse words, and controller words. */
+export function helpRows(style: PadStyle = 'xbox'): { group: Group; keys: string; pad: string; name: string }[] {
+  return ACTIONS.map((a) => ({ group: a.group, keys: bindingWords(a), pad: padBindingWords(a, style), name: a.name }));
 }
 
-/** The hint bar for a context: "Click, drag select ...   Del delete   ...". */
-export function hintItems(c: Ctx): { keys: string; name: string }[] {
-  return ACTIONS.filter((a) => a.hint?.includes(c)).map((a) => ({ keys: bindingWords(a), name: a.name }));
+/** The hint bar for a context and the device used last. */
+export function hintItems(c: Ctx, device: Device = 'keys', style: PadStyle = 'xbox'): { keys: string; name: string }[] {
+  return ACTIONS.filter((a) => a.hint?.includes(c))
+    .map((a) => ({ keys: device === 'pad' ? padBindingWords(a, style) : bindingWords(a), name: a.name }))
+    .filter((i) => i.keys);
 }
