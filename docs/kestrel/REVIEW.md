@@ -23,6 +23,7 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - He prefers a FIXES block over a planner round when a fix is small.
 - He has a commercial and industrial electrical background; his own walk of the built massing is the real outside check.
 - Plan images must be readable without the documents (Michael, 2026-10-11): every zone and room shows a short plain name beside its id ("Reception and front offices", "Data hall"), and the legend says in words what each security zone number means ("zone 1 - outside, public"). A plan with bare ids is a fix, not a note.
+- Plan labels (Michael, 2026-10-11, after 2f): a label that fits in its room shows only there, never also as a callout; callouts go to the nearest side, and lines never cross the other building; names are simple, in Title Case, with no abbreviations; the name is large and the id small and grey under it. Zones become numbered access levels (public has no number, plain integers, no 3+), shown on signs at doors in the style of Metal Gear Solid.
 
 ## Design decisions to judge against (Michael, all 2026-10-11 unless noted; details in handover.md)
 - P03B is zones only; room rectangles belong to P04.
@@ -71,10 +72,11 @@ Michael sends `Reviewer: next` (after /clear, Opus medium), usually with the las
 - Next milestone Michael walks: the B0 massing walk after P03R. For it, prepare what he should judge (scale, distances, storey heights, bridge alignment, crawl spaces, stair cores, entrances and roofs read from the yard).
 
 ## Where we are
-P03B 2f run reviewed: names right, checks reproduce; label overlaps make several stairs, hatches, ladders and the Building B roof label unreadable. Next: rerun P03B-2f with FIXES (overlap-free labels, zone 5 legend wording; Sonnet medium), review G and R plus the five plans not yet seen with names, then Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
+P03B 2f run reviewed; Michael added label, name and zone-level rules (preferences above), so the FIXES rerun is replaced by a planner round. Next: planner records the decisions and writes the fix prompt (zone levels touch the brief, rings data and check A29, so P03R or a revision may carry part of it), run it, review all 7 plans, then Michael approves Part 2 (`Planner: APPROVED P03B Part 2`, Opus medium), then HK, then P03R.
 
 ## Review log (newest first; keep the last 15 lines, HK archives older ones)
 - 2026-10-11 P03B 2f: names right (116 of 116, no duplicates, no A30 words, names-only diff same); 13 checks reproduce, git clean. Fix (FIXES rerun): stair, ladder and void labels and building labels skip the room labels' obstacle test, so they overlap (fire stairs, carrier riser hatch over the zone 5 tag, manhole, bridge roof ladders, Building B on the roof plan). Zone 5 legend is right per brief (cages are zone 5 rooms inside the zone 4 hall, drawn by P04); wording clarified, not a question for Michael.
+- 2026-10-11 P03B 2f, Michael's follow-up: no duplicate callouts, nearest-side callouts, Title Case plain names with no abbreviations, name large and id small, zones as numbered access levels with door signs (Metal Gear Solid style). Sent to the planner; the FIXES rerun is withdrawn.
 - 2026-10-11 Planner (2f prompt, plain names): right; 116 names = 87 zones + 7 stairs + 6 ladders + 16 voids; A30 skips without modules and only rack objects are name-matched, so names cannot move checks; line refs hold. One fix: the legend's zone 2 omits goods-in (both goods zones are zone 2) and zone 4 omits the tunnels and locked plant under the yard.
 - 2026-10-11 P03B 2e: right; 13 checks reproduce, generator leaves git clean, no duplicate lines; 7 plan images walked (realistic, flows). Michael: zones unreadable by id; plain names and a worded zone legend required before approval (planner message sent).
 - 2026-10-11 Planner (2d-2b review, LF fix, 2e prompt): right; one fix: the approval message runs on Opus, medium (on the 2e run message).
