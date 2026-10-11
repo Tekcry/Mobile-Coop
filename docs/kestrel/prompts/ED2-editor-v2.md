@@ -12,7 +12,8 @@ needs Michael's decisions before it can be written in full.
 | --- | --- | --- | --- | --- |
 | A | View modes (3D, plan, both), level and building visibility, shared groundwork | `Editor: ED2 Part A` | Opus, medium | - |
 | B | Walk test with the game's own player, movement and camera | `Editor: ED2 Part B` | Opus, medium | A |
-| C | Controller editing with a hold-to-open radial menu | `Editor: ED2 Part C` | Opus, medium | A |
+| C | Controller editing with a hold-to-open radial menu (C1-C4) | `Editor: ED2 Part C` | Opus, medium | A |
+| C2 | Controller-only screen (C5) | `Editor: ED2 Part C2` | Opus, medium | C |
 | D | Ease of use: linked walls, snapping, dimensions, problems you can click, search | `Editor: ED2 Part D` | Opus, medium | A |
 | E | Levels and vertical pieces: stairs, ladders, floor holes, adding and changing levels, renaming | `Editor: ED2 Part E` | Opus, medium | A, D |
 | F | Objects and cover: racks, desks, crates, plant, outside features | `Editor: ED2 Part F` | Opus, medium | A, D |
@@ -266,6 +267,31 @@ Defaults below; every binding lives in the Part A action map, so changing one is
 - Browser check with the fake pad: screenshots of the radial at the root and in a submenu, and of the hint bar in
   three contexts.
 - Report what Michael should try with his real controller (he tests on his PC).
+
+### C5. Controller-only screen (Part C2, its own session; Michael, 2026-10-12)
+Michael will edit mainly with a controller. He chose a controller-only screen over adding the pad on top of the mouse
+screen. Part C (C1-C4) builds the pad input, reticle and radial menu; Part C2 builds this screen on top of them.
+- **Pad mode**: the first pad input (a button, or a stick past the deadzone) switches to the pad screen; the first mouse
+  move over about 8 px or key press switches back to the normal screen. No flicker from stick drift or a resting mouse.
+  Every setting, the selection, the camera and any open menu stay as they were across the switch.
+- **What goes**: both toolbar rows, the side panel (unless opened from the pad, below), the browser cursor.
+- **What stays**: the 3D view and the plan (3D / Both / Plan, View button), the reticle, the small plan in 3D only.
+- **Status strip** (top left, read-only, large type): editing level with its height, view, Levels setting (for example
+  "Up to this level, ghosted"), building filter, current tool, unsaved changes count, new check problems. It replaces
+  the toolbar as the place to see settings at a glance.
+- **Button prompts** (bottom centre, console style): pad glyphs from `GLYPHS` for the current context, from the Part A
+  action map. Large enough to read from a sofa: at least 20 px text at 1080p, and the whole pad screen scales with it.
+- **Pad panels** (large rows, D-pad moves, A acts, left / right changes, B closes; one open at a time, over the right
+  side): Selected (the properties, as C2's drawer rules), Checks (list; A on a problem goes to it), Changes, Pick levels
+  (A ticks a level), Value (one slider at a time: exploded gap, cut walls at; left / right one step, LB held fine,
+  the 3D view updates live). The radial menu opens each one (View > Levels > Pick levels / Exploded gap / Cut walls at;
+  Selected from Edit >; Checks and Changes from File >); RB-hold or Menu also opens Selected.
+- **Dialogs**: restore draft, revert, and any other question become in-editor dialogs answered with A (yes) / B (no),
+  the same on the mouse screen. Remove every `window.confirm` from the editor.
+- Pure logic (mode switching thresholds, panel focus and value stepping) in a Babylon-free module with Vitest tests.
+- **Checks**: screenshots of the pad screen (3D, Both, Plan), each pad panel, a dialog, and the switch back to the
+  mouse screen; the e2e from C4 extended: switch to pad mode, change the cut height and pick two levels with the pad
+  alone, answer the revert dialog with B, move the mouse and see the toolbar return.
 
 ---
 
