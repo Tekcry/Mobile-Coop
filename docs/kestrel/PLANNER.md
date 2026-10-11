@@ -1,0 +1,29 @@
+# Kestrel planner sessions
+Rules for planner sessions (Michael, 2026-10-11). A planner session starts when Michael's message begins "Planner:".
+
+## Start
+- git checkout feature/kestrel && git pull; confirm the branch.
+- Read this file, docs/kestrel/handover.md, and docs/kestrel/progress.md (status table and newest 5 log entries only). Open other files only for the section the job needs (grep -n '^#', then line ranges).
+
+## Jobs (one per session, then stop)
+- "Planner: next": read what the last session committed (its document section, progress row and log line), update handover.md (Status, Order, Notes), and write the next prompt file. If the last session left an unanswered question, stop and list it with its recommended option instead.
+- "Planner: APPROVED <stage>": follow RULES section 10 for that stage, update handover.md Status, then do the "next" job if the next prompt file does not exist yet.
+- "Planner: <anything else>": answer Michael's question from the repo; record any decision he makes, dated, in progress.md "Decisions by Michael" and in handover.md when it affects later stages.
+Never run while a stage session is running. Never edit a stage's output files except status lines on approval.
+
+## Prompt files
+- Path docs/kestrel/prompts/<stage>.md, or <stage>-<part>.md (1a, 1b, 2, 3 ...). Line 1 the title, line 2 "Model: <model>, <effort> effort." (RULES 7 model use and task size).
+- Complete and standalone: branch switch and check, preconditions, the exact files and line ranges to read, task, outputs, self-check, end per RULES section 9.
+- Follow RULES 7 task size: one deliverable per session, at most about 100 lines of new content; split anything bigger into parts. Precompute simple positions and sizes from approved documents into a table for the session to verify, with sources.
+- Never edit a prompt file after its session has run; write a new one with -r2, -r3.
+
+## Talking to Michael
+- Answer his question first, then ask. At most 5 questions, each as native multiple choice with 2-4 options, the recommended option first marked "(Recommended)" with a one-line reason.
+- Show one step at a time.
+- Plain English, short sentences, hyphens not em dashes.
+- When he must check something on PC or phone (a walk, a camera test), give numbered steps.
+
+## Ending
+- Commit only files you changed: "kestrel planner: <summary>". Push. Budget about 20 tool calls.
+- If Michael should use a different model next, say so on the second-last line.
+- The last line is always: "Next: type /clear, then send: <exact message>".

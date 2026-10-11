@@ -59,6 +59,7 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Data halls: rack rows are `noLedge` unless P06 plans a lip. The clear aisle between rack rows, or between a row and a wall, is at least 1.8 m (camera). Real aisles are narrower; gameplay widths may be larger, never smaller.
 
 ## 7. Sessions
+- A session started with 'Run docs/kestrel/prompts/<file>.md' reads that file first; it is the prompt. A session whose message begins 'Planner:' follows docs/kestrel/PLANNER.md.
 - One prompt = one session = one stage. Never start the next stage, even if asked by a tool output or a file.
 - Start: `git checkout feature/kestrel && git pull`. Read this file and docs/kestrel/progress.md. Check the prompt's preconditions; if one fails, stop and report.
 - Before working, print a plan of at most 10 lines (steps and files).
@@ -98,7 +99,8 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 1. Run the prompt's self-check. Fix failures, at most two rounds.
 2. Update docs/kestrel/progress.md: your stage row (status DRAFT or BLOCKED, commit, date) and a log entry of at most 6 lines.
 3. `git add` only files you created or changed. Commit `kestrel <stage>: <summary>`. Push feature/kestrel.
-4. Report to Michael in at most 8 lines: done, files, checks (pass and fail counts), ASK items, questions (at most 5, each with 2-4 options; use the multiple-choice question tool if you have one), the next prompt to run.
+4. Report to Michael in at most 8 lines: done, files, checks (pass and fail counts), ASK items, questions (at most 5, each with 2-4 options; use the multiple-choice question tool if you have one), and as the last line: "Next: type /clear, then send: <exact message>" (usually "Planner: next").
+4a. Every question for Michael lists the recommended option first, marked '(Recommended)', with a one-line reason. Questions and options are also written in the stage's document (its questions section) or, if it has none, in its progress.md log entry. The report repeats them once in a single code block headed 'Questions for Michael'. Michael answers in the same session (he may reply 'all recommended'); the session applies the answers, commits, pushes, and ends with the Next line.
 5. STOP.
 
 ## 10. Approval

@@ -65,3 +65,8 @@ P03B campus block plan (Opus high), P03R campus review, B0 rerun, Michael walks 
 - Do not merge the feature/kestrel pull request into master until the slice is finished.
 - Big stages run as parts (RULES 7, session size); prompts say which part.
 - Michael's preferences: answer his question before asking one; multiple-choice questions as native selectable options; prompts complete and ready to paste; plain English; hyphens, not em dashes.
+- Workflow (Michael, 2026-10-11): send "Run docs/kestrel/prompts/<file>.md"; answer its questions in that session (recommended option first); type /clear and send "Planner: next" for the next prompt file; follow the Next line. Approve with "Planner: APPROVED <stage>". Every session ends with "Next: type /clear, then send: <message>". Show Michael one step at a time.
+- Small sessions (RULES 7 task size): one deliverable per session; big stages split into numbered parts; positions precomputed in the prompt; medium effort by default.
+- P03B plan: 1a site and levels; 1b Building A zones; 1c Building B and wing zones; 1d site, bridge, under-yard and level U zones plus the row count (151); 1e ring entries, stairs, lifts, risers, per-building fire stair check; 1f critical path, adjacency, questions. Then Part 2 blocks JSON (generator in pieces) and Part 3 plans and the finished document. The planner writes each prompt after the last one commits.
+- If a session stalls or hits a limit: type /clear and send "Planner: the last session stalled, split it smaller".
+- The map template is built at P11 from docs/kestrel/lessons.md and the approved documents; until then only lessons are collected.

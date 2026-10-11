@@ -21,6 +21,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
 | RU3 | Session size rules | DRAFT | | 2026-10-11 |
 | SETUP-1 | Small sessions, reading rules, lessons | DRAFT | | 2026-10-11 |
+| SETUP-2 | Planner, prompt files, workflow | DRAFT | | 2026-10-11 |
 | V0 | Chaos Theory toolkit spec | APPROVED | 811eaca | 2026-10-11 |
 | V1 | Toolkit: wall hug, optic cable | not started | | |
 | V2 | Toolkit: lockpick, hacking | not started | | |
@@ -45,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 SETUP-2: PLANNER.md and prompts/P03B-1a.md created; RULES 7 and 9 gain the prompt-file, Next-line and recommended-option rules; handover Working rules gain the workflow and P03B part plan.
 - 2026-10-11 SETUP-1: RULES.md gets Task size and Reading and checking rules, roster and order lines point to one source; CLAUDE.md skip line; lessons.md created.
   progress.md log trimmed to the newest 8 entries, old entries and the old Massing walk section moved to progress-archive.md.
 - 2026-10-11 RU3: added the Session size rules (five lines) to RULES.md section 7 and a Working rules line to handover.md.
@@ -107,5 +109,6 @@ Older entries: progress-archive.md.
 - 2026-10-11 Session size rules added to RULES.md section 7 (RU3).
 
 - 2026-10-11 SETUP-1: task size and reading rules, lessons.md, progress archive; Kestrel sessions skip CLAUDE.md's main-project reading.
+- 2026-10-11 SETUP-2: planning runs in Claude Code planner sessions; prompts live in docs/kestrel/prompts/; questions carry a recommended option; one step at a time.
 
 ## BLOCKED
