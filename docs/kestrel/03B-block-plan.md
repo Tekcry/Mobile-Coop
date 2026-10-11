@@ -56,7 +56,70 @@ Self-check (node script over a 0.5 grid, this session): `items 13, area sum 8208
 - Bridge roof LF02 at 7.8 gets its own level L (Michael, 2026-10-11). L is a new level id; schema 1 lists B, U, G, F, H, S, R, so schema 1 needs `L` added (P03R or a schema revision).
 
 ## 3. Building A
-Zones for G, F and R are written by Part 1b (prompts/P03B-1b-zones.md). A zone holds brief rooms whose rect areas fill at most 85% of it; the spare space is for P04's extra corridors (Michael, 2026-10-11).
+Zones for G, F and R (Part 1b, prompts/P03B-1b-zones-r2.md). A zone holds brief rooms whose rect areas fill at most 85% of it, after its tight blocks (corridors, cores, stairs, shafts, risers, AF17, AF10); the spare space is for P04's extra corridors (Michael, 2026-10-11).
+
+### 3.1 Plan form
+- Bands south to north (wall centrelines): south row z 30-40 (10 deep), spine 40-43.5 (fixed by bridge z0 = 40), core band 43.5-50.5 (7), north corridor 50.5-54 (3.5, north wall on grid line z 54), north row 54-60 (6). 10 + 3.5 + 7 + 3.5 + 6 = 30 (brief 2, 12i).
+- North row 6 deep (about 5.6 clear): normal cellular office depth, inside Michael's 5-6.5; every north-row room (5-6 on its short side) fits (brief 5).
+- Main core turned (8 along x, 4 deep, lift on its east side): a core standing north-south needs an 8 band, leaving a 5 north row that loses AF08 (7 x 6). Stairs parallel to the corridor, entered off the spine at the floor landing, are normal office core practice (general knowledge). See 3.4.
+- Corridor ring (brief 12i, "joined at both ends"): spine and north corridor joined by two 3.5 links through the band, west link at the west wall, east link beside the core. Patrols get a loop; every band zone has two corridor faces.
+- Fire stair at the north-west corner off the north corridor's west end, exit on the west wall from the bottom landing (brief 8). The west wall at band level is the west link, so the stair cannot sit there.
+- Plant gallery AF10 along the east wall (z 43.5-60), so chilled-water pipes leave A north of the bridge (X13, brief 7). Reader door off AF21's east end; AF11 in the north row against it; pipe riser AF19 on its west side.
+- AG22 stays in the band at the east end, across the spine from goods (1b-G ASK-4, Michael). The south row cannot take it: G south needs 306.25 / 0.85 + 4 = 364 m2 of 360 with AG22, 340 without.
+
+### 3.2 Fixed blocks
+Same rect on every level listed.
+
+| K-id | Levels | Rect [x0, z0, x1, z1] | Rooms by level | Size | Source |
+| --- | --- | --- | --- | --- | --- |
+| K-SPINE-G | G | [4, 40, 40, 43.5] | G AG10 | 36 x 3.5 | brief 5 AG10, 12i; window at both ends |
+| K-SPINE-F | F | [4, 40, 36.5, 43.5] | F AF01 | 32.5 x 3.5 | brief 5 AF01; ends at AF17 |
+| K-NCOR-G | G | [4, 50.5, 40, 54] | G AG26 | 36 x 3.5 | brief 5 AG26, 12i |
+| K-NCOR-F | F | [4, 50.5, 36.5, 54] | F AF21 | 32.5 x 3.5 | brief 5 AF21, 12i; ends at AF10 |
+| K-WLINK | G, F | [4, 43.5, 7.5, 50.5] | G -; F - | 3.5 x 7 | brief 12i (joined at both ends) |
+| K-ELINK | G, F | [31, 43.5, 34.5, 50.5] | G -; F - | 3.5 x 7 | brief 12i |
+| K-FS | G, F, R | [4, 54, 10.5, 57.5] | G AG21; F AF15; R AR04 | 6.5 x 3.5 | brief 8 (west end, exit on the west wall); 3.1 |
+| K-RISER | G, F | [7.5, 49, 9.5, 50.5] | G AG25; F AF16 | 2 x 1.5 | brief 8 (west third, beside no stair); door off the west link |
+| K-STAIR | G, F | [19.5, 43.5, 27.5, 47.5] | G AG18; F AF12 | 8 x 4 (turned) | brief 8 (north of the spine, east of centre: centre x 23.5 > 22) |
+| K-LOBBY | G, F | [27.5, 43.5, 31, 46] | G AG20; F AF14 | 3.5 x 2.5 | brief 5, 8 |
+| K-LIFT | G, F | [27.5, 46, 30, 48.5] | G AG19; F AF13 | 2.5 x 2.5 | brief 8 (east side, shares the core wall) |
+| K-AF17 | F | [36.5, 40, 40, 43.5] | F AF17 | 3.5 x 3.5 (clear 3.2 x 3.2, brief 3.2 x 2.7) | brief 7 (in line with LF01, BF01) |
+| K-BRIDGE | F, L | [40, 40, 52, 43.5] | F LF01; L LF02 | 12 x 3.5 | section 2; bridge z0 = 40 |
+| K-AF10 | F | [36.5, 43.5, 40, 60] | F AF10 | 3.5 x 16.5 (brief 16; runs to the north wall) | brief 5, 7 (north-east, X13) |
+| K-PIPE | F, R | [34.5, 43.5, 36.5, 45] | F AF19; R - | 2 x 1.5 | brief 8 (off AF10, hatch by the chillers) |
+
+### 3.3 Zones
+G and F tile A [4, 30, 40, 60] exactly; R lists only plant zones, the rest is open roof AR01. Fill = non-tight room rect areas / (zone area - tight blocks). Doors = metres of corridor wall the zone's corridor-door rooms need, of what it has (check script).
+
+| Zone | Level | Rect [x0, z0, x1, z1] | Rooms | Area | Fill | Doors (need of available) | Note | Source |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| G-FRONT | G | [4, 30, 22, 40] | AG01, AG02, AG03, AG04 | 180 | 81.3% | 13 of 18 | zone 2, main door to X03; AG04 hatch to AG01 | brief 5, 7 |
+| G-SOFF | G | [22, 30, 28.5, 40] | AG06 | 65 | 73.8% | 6 of 6.5 | south window (brief 5) | brief 5 |
+| G-GOODS | G | [28.5, 30, 40, 40] | AG08, AG09 | 115 | 80.0% | 11 of 11.5 | zone 2, south-east, roller door | brief 5, 7 |
+| G-SPINE | G | [4, 40, 40, 43.5] | AG10 | 126 | tight | - | spine | brief 5, 12i |
+| G-WLINK | G | [4, 43.5, 7.5, 50.5] | - | 24.5 | tight | - | west link | brief 12i |
+| G-SEC | G | [7.5, 43.5, 19.5, 50.5] | AG11, AG12, AG13, AG25 | 84 | 76.5% | 12 of 27.5 | 3+, all three on the spine, no contact with zone 2 | brief 6, 7 |
+| G-CORE | G | [19.5, 43.5, 31, 50.5] | AG18, AG19, AG20, AG16, AG17 | 80.5 | 23.9% | 3.5 of 16 | main core; cleaner's store behind it off AG26 | brief 8 |
+| G-ELINK | G | [31, 43.5, 34.5, 50.5] | - | 24.5 | tight | - | east link | brief 12i |
+| G-EAST | G | [34.5, 43.5, 40, 50.5] | AG22, AG23 | 38.5 | 58.0% | 4 of 18 | across the spine from goods (1b-G ASK-4, Michael) | brief 7 |
+| G-NCOR | G | [4, 50.5, 40, 54] | AG26 | 126 | tight | - | north corridor | brief 5, 12i |
+| G-NW | G | [4, 54, 20, 60] | AG21, AG05, AG15 | 96 | 68.3% | 9 of 9.5 | fire stair; AG05 north window | brief 5, 8 |
+| G-NE | G | [20, 54, 40, 60] | AG14, AG24 | 120 | 62.5% | 15 of 20 | locker room, LV switchroom | brief 5 |
+| F-SW | F | [4, 30, 11, 40] | AF20 | 70 | 68.6% | 6 of 7 | office, south window | brief 5 |
+| F-OPS | F | [11, 30, 40, 40] | AF02, AF03, AF05, AF06 | 290 | 54.5% | 24 of 25.5 | counter at the ops door beside tape and media | brief 7 |
+| F-SPINE | F | [4, 40, 36.5, 43.5] | AF01 | 113.75 | tight | - | spine | brief 5 |
+| F-VEST | F | [36.5, 40, 40, 43.5] | AF17 | 12.25 | tight | - | bridge vestibule | brief 7 |
+| F-WLINK | F | [4, 43.5, 7.5, 50.5] | - | 24.5 | tight | - | west link | brief 12i |
+| F-BW | F | [7.5, 43.5, 19.5, 50.5] | AF04, AF18, AF16 | 84 | 61.7% | 9 of 27.5 | records (walls to slab), staff WC | brief 5 |
+| F-CORE | F | [19.5, 43.5, 31, 50.5] | AF12, AF13, AF14 | 80.5 | tight | - | main core | brief 8 |
+| F-ELINK | F | [31, 43.5, 34.5, 50.5] | - | 24.5 | tight | - | east link | brief 12i |
+| F-E | F | [34.5, 43.5, 36.5, 50.5] | AF19 | 14 | tight | - | pipe riser against AF10 | brief 8 |
+| F-PLANT | F | [36.5, 43.5, 40, 60] | AF10 | 57.75 | tight | - | plant gallery on the east wall, X13 leaves north of the bridge | brief 7, 9 |
+| F-NCOR | F | [4, 50.5, 36.5, 54] | AF21 | 113.75 | tight | - | north corridor | brief 5, 12i |
+| F-NW | F | [4, 54, 21, 60] | AF15, AF07, AF09 | 102 | 75.7% | 10 of 10.5 | fire stair; offices, north windows | brief 5, 8 |
+| F-NE | F | [21, 54, 36.5, 60] | AF08, AF11 | 93 | 82.8% | 14 of 15.5 | kitchen with windows; pump room against AF10 | brief 5, 7 |
+| R-BULK | R | [4, 54, 10.5, 57.5] | AR04 | 22.75 | tight | - | over the fire stair | brief 8 |
+| R-PLANT | R | [28, 43.5, 40, 54.5] | AR02, AR03 | 132 | 68.2% | - | chillers over AF19's hatch; AHU beside the spine; east roof edge at z 40-43.5 kept clear for the LF02 ladder | brief 9, 10 |
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
