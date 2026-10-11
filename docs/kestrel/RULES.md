@@ -66,6 +66,13 @@ Exceptions, for code shape only (how to call an API), never for layout ideas: bu
 - Budget: about 60 tool calls. If you reach it, or a check still fails after two rounds of fixes, stop: commit what exists, write `BLOCKED: <what, why, what was tried>` in progress.md and report.
 - Every shell command has a timeout (for example `timeout 300 node ...`). No watch modes, no dev servers left running, no sub-agents, no background tasks.
 
+### Session size (Michael, 2026-10-11)
+- A stage that both designs and builds is split into parts, one session each: Part 1 design in words and tables only, approved by Michael before Part 2; Part 2 data files and checks; Part 3 documents and plans. A prompt may merge parts only if it says so.
+- No single file write or tool call over about 200 lines. Generators and large JSON are written in pieces and run after each piece.
+- Commit and push after each completed step, with one line in the progress.md log, so a stalled session can resume after /clear.
+- Budget per part: about 35 tool calls. At the budget, commit what exists, write what is left under the stage's log line, report and stop.
+- If one step has produced no file after about 15 tool calls, stop, commit, report what is blocking.
+
 ## 8. Writing style
 - Plain English, short sentences, tables where possible. Hyphens, not em dashes. No marketing words.
 - Stay inside the line limits each prompt sets.

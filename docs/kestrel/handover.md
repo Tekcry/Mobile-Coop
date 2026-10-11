@@ -63,4 +63,5 @@ P03B campus block plan (Opus high), P03R campus review, B0 rerun, Michael walks 
 - Every prompt starts by switching to feature/kestrel and checking the branch; type /clear before each prompt.
 - Desktop is the performance target; the phone is for quick tests on the light preset.
 - Do not merge the feature/kestrel pull request into master until the slice is finished.
+- Big stages run as parts (RULES 7, session size); prompts say which part.
 - Michael's preferences: answer his question before asking one; multiple-choice questions as native selectable options; prompts complete and ready to paste; plain English; hyphens, not em dashes.

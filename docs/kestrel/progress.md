@@ -19,6 +19,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
+| RU3 | Session size rules | DRAFT | | 2026-10-11 |
 | V0 | Chaos Theory toolkit spec | APPROVED | 811eaca | 2026-10-11 |
 | V1 | Toolkit: wall hug, optic cable | not started | | |
 | V2 | Toolkit: lockpick, hacking | not started | | |
@@ -42,6 +43,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 RU3: added the Session size rules (five lines) to RULES.md section 7 and a Working rules line to handover.md.
 - 2026-10-11 V0 revision (pistol secondary, fixes 1-8): ct-toolkit.md 3.5 is now the pistol secondary (jammer and disruptor merged, ten rows, DRAFT again); 3.6 points to it; sections 2, 4, 5, 6, 7, 8, 9 updated; backlog item 22 removed; V3 row renamed.
   No secondary-fire or fire-mode input exists (actions.ts:2-52; `fireMode` is semi / auto data, weaponDefs.ts:41). Proposed: desktop H, pad A while aiming, touch "Pulse" chip; V3 confirms. New map field `disrupt` (section 5).
   Handover.md: lines 43-47 edited clause by clause (they also carry the rest of the approved kit), fix 7 line added once.
@@ -142,5 +144,6 @@ Walk it on PC and phone, then send notes to P11 with TYPE: massing walk. Layout 
 - 2026-10-10 P01 questions: bible 5.8 triggers are assumed (zone trigger for objective 1; objective 6 starts the generator test); the carrier route passes a corner of S5; all 16 guards armed with sidearms; alarms never fail the mission (only killing the civilian); the four sleeping guards are chosen by P07.
 - 2026-10-10 S0 questions: a shot camera makes a manned desk send a guard; cloning = hold a cloner to a grabbed guard's card; keycards are taken automatically on any takedown of the holder; the iris enrols the night duty engineer and the duty manager (no civilian system yet); cameras or beams switched off at the panel are noticed when the desk is next manned (a guard is sent).
 - 2026-10-10: map first. Order: P01-P03, P03B block plan, B0 massing walk, P04-P05, early walk B1-B2 then BR, P04S, P06-P10, B3, B4, S1-S4, B4S, BR, S5, B5, B6, BR, B7. Designers use S0's SN numbers; the systems are built after the design. S1 Part A is already built; S1 Part B runs in its slot after B4.
+- 2026-10-11 Session size rules added to RULES.md section 7 (RU3).
 
 ## BLOCKED
