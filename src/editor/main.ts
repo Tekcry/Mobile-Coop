@@ -3,11 +3,16 @@
  * walls, doors and windows in 3D or on the live floor plan, see the Kestrel checks update, and save the campus file,
  * the plan images and a change log for review. Never part of the game build.
  */
+import { actionForKey, helpRows, hintItems, keyId } from './actions';
+import type { Ctx, Group } from './actions';
 import { CameraControls } from './controls';
+import { clearDraft, makeDraft, readDraft, shouldOffer, writeDraft } from './draft';
+import type { Draft } from './draft';
 import { EditorScene } from './scene3d';
-import type { ViewMode } from './scene3d';
+import { buildingAt, editingForced, GAP_MAX, parseVis, presetPicks } from './visibility';
+import type { LevelPreset } from './visibility';
 import { EditorModel, localTime, logMarkdown } from './model';
-import type { Change } from './model';
+import type { Change, JournalEntry } from './model';
 import { fmt, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb } from './geometry';
 import { deleteChanges, describeEdit, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
@@ -22,12 +27,56 @@ const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
 const RING_NAMES = ['Perimeter (yard, public lane)', 'Level 1 - reception, goods-in', 'Level 2 - staff', 'Level 3 - higher card', 'Level 4 - data hall, tunnels', 'Level 5 - meet-me, riser'];
 
-async function boot(): Promise<void> {
+/** View preferences (layout, levels, panel); not a save, so localStorage is allowed (ED2 rules). */
+const PREFS = 'kestrel-editor-ui';
+type Layout = '3d' | 'both' | 'plan';
+interface Prefs {
+  layout: Layout;
+  split: 'row' | 'col';
+  swap: boolean;
+  frac: number;
+  pinned: boolean;
+  drawer: boolean;
+  minimap: boolean;
+  help: boolean;
+  vis: unknown;
+}
+function loadPrefs(): Prefs {
+  const p: Prefs = { layout: 'both', split: 'row', swap: false, frac: 0.58, pinned: true, drawer: true, minimap: true, help: true, vis: null };
+  try {
+    const r = JSON.parse(localStorage.getItem(PREFS) ?? 'null') as Partial<Prefs> | null;
+    if (r && typeof r === 'object') {
+      if (r.layout === '3d' || r.layout === 'both' || r.layout === 'plan') p.layout = r.layout;
+      if (r.split === 'row' || r.split === 'col') p.split = r.split;
+      if (typeof r.frac === 'number' && r.frac >= 0.15 && r.frac <= 0.85) p.frac = r.frac;
+      for (const k of ['swap', 'pinned', 'drawer', 'minimap', 'help'] as const) if (typeof r[k] === 'boolean') p[k] = r[k];
+      p.vis = r.vis;
+    }
+  } catch {
+    // no storage (private window): defaults
+  }
+  return p;
+}
+
+async function loadFile(): Promise<{ data: Campus; text: string; mtime: number }> {
   const res = await fetch('/__editor/campus', { cache: 'no-store' });
   if (!res.ok) throw new Error(`could not load the campus file (${res.status})`);
-  const data = (await res.json()) as Campus;
+  const text = await res.text();
+  return { data: JSON.parse(text) as Campus, text, mtime: Number(res.headers.get('x-mtime') ?? 0) };
+}
+
+async function boot(): Promise<void> {
+  const f = await loadFile();
+  const ed = new Editor(f.data);
   // exposed for the e2e smoke test and console poking (dev tool only)
-  (window as unknown as { __editor: Editor }).__editor = new Editor(data);
+  (window as unknown as { __editor: Editor }).__editor = ed;
+  try {
+    const d = await readDraft();
+    if (shouldOffer(d, f.text, f.mtime)) ed.offerDraft(d);
+    else if (d) await clearDraft();
+  } catch (err) {
+    console.warn('draft store unavailable', err);
+  }
 }
 
 interface Drag {
@@ -63,6 +112,10 @@ class Editor {
   private tab: 'props' | 'checks' | 'log' = 'props';
   private lastChecks: CheckReply | null = null;
   private hoverAt = 0;
+  private hoverKey: Key | null = null;
+  private readonly prefs = loadPrefs();
+  private planFullBox: number[] | null = null;
+  private draftTimer = 0;
 
   constructor(data: Campus) {
     this.model = new EditorModel(data);
@@ -70,7 +123,12 @@ class Editor {
     this.view = new EditorScene(canvas, this.model);
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
+    this.view.vis = parseVis(this.prefs.vis);
+    if (this.view.vis.building !== 'all' && this.view.vis.building !== 'site' && !data.meta.buildings?.some((b) => b.id === this.view.vis.building)) this.view.vis.building = 'all';
     this.view.rebuildAll();
+    this.renderHelp();
+    this.bindLayout();
+    this.applyLayout();
     const site = data.meta.site ?? [0, 0, 100, 80];
     this.controls.overlook((site[0] + site[2]) / 2, (site[1] + site[3]) / 2, 0, 90);
     this.view.scene.onBeforeRenderObservable.add(() => {
@@ -88,7 +146,8 @@ class Editor {
     this.refreshPlan(true);
     this.runChecks(true);
     this.renderPanel();
-    this.status(`Loaded ${data.rooms.length} rooms, ${data.walls.length} walls, ${data.openings.length} openings on ${data.levels.length} levels. H shows the keys.`);
+    this.updateHint();
+    this.status(`Loaded ${data.rooms.length} rooms, ${data.walls.length} walls, ${data.openings.length} openings on ${data.levels.length} levels. H shows the keys, V changes the view.`);
     window.addEventListener('beforeunload', (e) => {
       if (this.model.dirty) e.preventDefault();
     });
@@ -111,6 +170,25 @@ class Editor {
 
   floor(level = this.view.level): number {
     return this.view.floorOf(level);
+  }
+
+  /** A level's floor as drawn in 3D (lifted in exploded view). Data always uses floor(). */
+  viewFloor(level = this.view.level): number {
+    return this.view.floorOf(level) + this.view.offsetOf(level);
+  }
+
+  /** Building of an element (rooms say it; the rest by where they sit), for the building filter on the plan. */
+  buildingOf(coll: Coll, e: Elem): string {
+    if (coll === 'rooms' && (e as Room).building) return (e as Room).building!;
+    const [x, z] = this.centreOf(coll, e);
+    return buildingAt(this.model.data.meta.buildings, x, z);
+  }
+
+  /** What the editor is doing now, for the hint bar and key dispatch. */
+  ctx(): Ctx {
+    if (this.drag) return 'drag';
+    if (this.tool !== 'select') return 'draw';
+    return this.selected ? 'selected' : 'idle';
   }
 
   /** A plan point for an element: the centre of its rect, its wall's middle, its spot. */
@@ -156,11 +234,15 @@ class Editor {
     this.highlightPlan();
     if (key) this.tab = 'props';
     this.renderPanel();
+    this.updateHint();
   }
 
   commit(changes: Change[]): void {
     const text = describeEdit(this.model.data, changes);
-    if (this.model.commit(text, changes)) this.status(text);
+    if (this.model.commit(text, changes)) {
+      this.status(text);
+      this.scheduleDraft();
+    }
   }
 
   // ---------- handles ----------
@@ -168,7 +250,7 @@ class Editor {
     const s = this.selectedElem();
     if (!s || this.tool !== 'select') return [];
     const lvl = this.levelOf(s.coll, s.e);
-    const f = this.floor(lvl);
+    const f = this.viewFloor(lvl);
     if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids') {
       const r = (s.e as Room).rect;
       const cx = (r[0] + r[2]) / 2;
@@ -212,6 +294,7 @@ class Editor {
     const before = this.model.snapshot(coll, id);
     if (!before) return;
     this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew };
+    this.updateHint();
   }
 
   /** The element as it would be with the pointer at (x, z). */
@@ -277,6 +360,7 @@ class Editor {
     const d = this.drag;
     if (!d) return;
     this.drag = null;
+    this.updateHint();
     if (cancel || !d.moved) {
       if (d.isNew) this.model.drop(d.coll, d.id);
       else this.model.preview(d.coll, d.before);
@@ -310,11 +394,11 @@ class Editor {
     if (this.tool === 'room') {
       const r = newRoom(this.model, lvl, [p[0], p[1], p[0], p[1]]);
       this.model.preview('rooms', r);
-      this.beginDrag('rooms', r.id, null, p, this.floor(), sx, sy, source, true);
+      this.beginDrag('rooms', r.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'wall') {
       const w = newWall(this.model, lvl, p, p, this.wallTemplate ?? undefined);
       this.model.preview('walls', w);
-      this.beginDrag('walls', w.id, null, p, this.floor(), sx, sy, source, true);
+      this.beginDrag('walls', w.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'door' || this.tool === 'window') {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
@@ -343,7 +427,7 @@ class Editor {
         if (h && p?.coll === 'walls') return this.toolDown(h.x, h.z, e.clientX, e.clientY, '3d', fine, p.id);
       }
       if (this.tool !== 'select') {
-        const pt = this.view.planePoint(px, py, this.floor());
+        const pt = this.view.planePoint(px, py, this.viewFloor());
         if (pt) this.toolDown(pt[0], pt[1], e.clientX, e.clientY, '3d', fine);
         return;
       }
@@ -382,10 +466,11 @@ class Editor {
 
   private hover(px: number, py: number): void {
     const hud = $('hud');
-    const pt = this.view.planePoint(px, py, this.floor());
+    const pt = this.view.planePoint(px, py, this.viewFloor());
     const hit = this.view.pick(px, py).hit;
     const p = hit ? parseKey(hit.key) : null;
     const e = p ? this.model.get(p.coll, p.id) : undefined;
+    this.setHover(hit && e ? hit.key : null);
     const where = pt ? `x ${fmt(pt[0])}  z ${fmt(pt[1])}` : '';
     hud.textContent = `${e && p ? label(this.model.data, p.coll, e) : ''}${e && where ? '   ' : ''}${where}`;
   }
@@ -419,10 +504,15 @@ class Editor {
       const vb = (svg.getAttribute('viewBox') ?? '0 0 1 1').split(' ').map(Number);
       if (resetView || this.planLevel !== level || !this.planViewBox) this.planViewBox = vb;
       this.planLevel = level;
-      svg.setAttribute('viewBox', this.planViewBox.join(' '));
+      this.planFullBox = vb;
+      svg.setAttribute('viewBox', (this.isMinimap() ? vb : this.planViewBox).join(' '));
+      const under = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      under.id = 'underlay';
+      svg.appendChild(under);
       const overlay = document.createElementNS('http://www.w3.org/2000/svg', 'g');
       overlay.id = 'overlay';
       svg.appendChild(overlay);
+      this.decoratePlan();
       $('planStatus').textContent = '';
       this.highlightPlan();
       this.drawPlanOverlay();
@@ -535,6 +625,10 @@ class Editor {
       host.setPointerCapture(e.pointerId);
       downAt = [e.clientX, e.clientY];
       const [x, z] = this.fromPlan(p[0], p[1]);
+      if (this.isMinimap()) {
+        if (e.button === 0) this.goTo(x, z);
+        return;
+      }
       if (e.button === 2 || e.button === 1 || (e.button === 0 && e.altKey)) {
         pan = { x: e.clientX, y: e.clientY, vb: (this.planViewBox ?? [0, 0, 1, 1]).slice() };
         return;
@@ -571,6 +665,7 @@ class Editor {
       if (p) {
         const [x, z] = this.fromPlan(p[0], p[1]);
         $('planStatus').textContent = `x ${fmt(x)}  z ${fmt(z)}`;
+        if (!this.drag) this.setHover(((e.target as Element).closest('[data-id]')?.getAttribute('data-id') as Key | null) ?? null);
         const d = this.drag;
         if (d && d.source === 'plan') {
           if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 4) return;
@@ -598,7 +693,7 @@ class Editor {
   /** Moves the camera to a plan point: the walker steps there, the flyer looks down on it. */
   goTo(x: number, z: number): void {
     if (this.controls.walking) this.controls.walkAt(x, z, this.floor());
-    else this.controls.overlook(x, z, this.floor(), 22);
+    else this.controls.overlook(x, z, this.viewFloor(), 22);
   }
 
   // ---------- walk mode ----------
@@ -616,7 +711,7 @@ class Editor {
   toggleWalk(): void {
     if (this.controls.walking) {
       const c = this.view.camera.position;
-      this.controls.overlook(c.x, c.z, this.floor(), 22);
+      this.controls.overlook(c.x, c.z, this.viewFloor(), 22);
       this.view.showAll = false;
     } else {
       const canvas = $<HTMLCanvasElement>('c');
@@ -626,8 +721,12 @@ class Editor {
       this.controls.walkAt(x, z, this.floor());
       this.view.showAll = true;
     }
-    this.view.applyVisibility();
+    // walking shows the whole campus as built: no cut walls, no exploded gap
+    if (this.view.vis.section > 0) this.view.rebuildAll();
+    else this.view.applyVisibility();
+    this.updateHandles();
     this.updateBar();
+    this.updateHint();
   }
 
   setLevel(id: string): void {
@@ -642,6 +741,8 @@ class Editor {
     if (this.controls.walking) this.controls.floor = this.floor();
     this.updateHandles();
     $<HTMLSelectElement>('level').value = id;
+    this.syncLevelsUi();
+    this.updateHint();
     this.refreshPlan(false);
   }
 
@@ -668,7 +769,7 @@ class Editor {
       this.updateBar();
       if (this.tab === 'checks') this.renderPanel();
     } catch (err) {
-      $('checks').textContent = `checks failed to run: ${String(err)}`;
+      this.status(`Checks failed to run: ${String(err)}`);
     }
   }
 
@@ -679,55 +780,70 @@ class Editor {
         if (e.key === 'Escape') (document.activeElement as HTMLElement).blur();
         return;
       }
-      const ctrl = e.ctrlKey || e.metaKey;
-      if (ctrl && e.code === 'KeyZ') {
-        e.preventDefault();
-        if (e.shiftKey) this.redo();
-        else this.undo();
-      } else if (ctrl && e.code === 'KeyY') {
-        e.preventDefault();
-        this.redo();
-      } else if (ctrl && e.code === 'KeyS') {
-        e.preventDefault();
-        void this.save();
-      } else if (ctrl && e.code === 'KeyD') {
-        e.preventDefault();
-        this.duplicate();
-      } else if (ctrl) return;
-      else if (e.code === 'Tab') {
-        e.preventDefault();
-        this.toggleWalk();
-      } else if (e.key >= '1' && e.key <= '5') this.setTool((['select', 'room', 'wall', 'door', 'window'] as Tool[])[Number(e.key) - 1]!);
-      else if (e.code === 'Escape') {
+      // one action map (actions.ts) for every binding; the camera keys are handled by the controls
+      const a = actionForKey(keyId(e), this.ctx());
+      if (!a) return;
+      e.preventDefault();
+      this.run(a.id, e);
+    });
+  }
+
+  /** Runs an action from the action map (keys now; the controller in Part C). */
+  run(id: string, e?: { code: string; shiftKey: boolean }): void {
+    const vis = this.view.vis;
+    const tools: Record<string, Tool> = { toolSelect: 'select', toolRoom: 'room', toolWall: 'wall', toolDoor: 'door', toolWindow: 'window' };
+    if (tools[id]) return this.setTool(tools[id]);
+    switch (id) {
+      case 'walk': return this.toggleWalk();
+      case 'levelUp': return this.stepLevel(1);
+      case 'levelDown': return this.stepLevel(-1);
+      case 'frame': return this.frameSelected();
+      case 'cancel':
         if (this.drag) this.endDrag(true);
         else if (this.tool !== 'select') this.setTool('select');
         else this.select(null);
-      } else if (e.code === 'Delete' || e.code === 'Backspace') this.deleteSelected();
-      else if (e.code === 'KeyF') this.frameSelected();
-      else if (e.code === 'KeyP') this.cyclePlan();
-      else if (e.code === 'KeyH') $('help').classList.toggle('hidden');
-      else if (e.code === 'PageUp') {
-        e.preventDefault();
-        this.stepLevel(1);
-      } else if (e.code === 'PageDown') {
-        e.preventDefault();
-        this.stepLevel(-1);
-      } else if (e.code.startsWith('Arrow')) {
-        e.preventDefault();
-        const g = e.shiftKey ? this.grid * 10 : this.grid;
-        const v: Pt = e.code === 'ArrowLeft' ? [-g, 0] : e.code === 'ArrowRight' ? [g, 0] : e.code === 'ArrowUp' ? [0, g] : [0, -g];
-        this.nudge(v);
+        return;
+      case 'delete': return this.deleteSelected();
+      case 'duplicate': return this.duplicate();
+      case 'nudge': {
+        const g = e?.shiftKey ? this.grid * 10 : this.grid;
+        const c = e?.code ?? '';
+        return this.nudge(c === 'ArrowLeft' ? [-g, 0] : c === 'ArrowRight' ? [g, 0] : c === 'ArrowUp' ? [0, g] : [0, -g]);
       }
-    });
+      case 'undo': return this.undo();
+      case 'redo': return this.redo();
+      case 'save': return void this.save();
+      case 'layout': return this.setLayout(this.prefs.layout === '3d' ? 'both' : this.prefs.layout === 'both' ? 'plan' : '3d');
+      case 'drawer': return this.toggleDrawer();
+      case 'minimap':
+        this.prefs.minimap = !this.prefs.minimap;
+        if (this.prefs.layout !== '3d') this.status(this.prefs.minimap ? 'Small plan on (shows in 3D only, V)' : 'Small plan off');
+        return this.applyLayout();
+      case 'whole':
+      case 'single':
+      case 'upTo':
+        return this.setPreset(id);
+      case 'ghost':
+        vis.ghost = !vis.ghost;
+        return this.applyVis();
+      case 'exploded':
+        vis.exploded = !vis.exploded;
+        return this.applyVis();
+      case 'help':
+        this.prefs.help = $('help').classList.toggle('hidden') === false;
+        return this.savePrefs();
+    }
   }
 
   undo(): void {
     const e = this.model.undo();
+    if (e) this.scheduleDraft();
     this.status(e ? `Undid: ${e.text}` : 'Nothing to undo');
   }
 
   redo(): void {
     const e = this.model.redo();
+    if (e) this.scheduleDraft();
     this.status(e ? `Redid: ${e.text}` : 'Nothing to redo');
   }
 
@@ -790,6 +906,8 @@ class Editor {
       this.model.data.meta.editor = 'level editor (docs/kestrel/editor.md)';
       const n = this.model.journal.length;
       this.model.markSaved();
+      clearTimeout(this.draftTimer);
+      void clearDraft().catch(() => undefined);
       this.status(`Saved ${n} change${n === 1 ? '' : 's'} at ${new Date().toLocaleTimeString()}; ${reply.plans ?? 0} plan images redrawn${reply.planLog ? ' (plan warnings: see console)' : ''}`);
       if (reply.planLog) console.warn(reply.planLog);
       this.updateBar();
@@ -813,50 +931,105 @@ class Editor {
       window: 'Window: click on a wall',
     };
     this.status(hint[t]);
-  }
-
-  private viewIndex = 0;
-  cyclePlan(): void {
-    const modes = ['split', 'big', 'hidden'];
-    this.viewIndex = (this.viewIndex + 1) % modes.length;
-    document.body.dataset.plan = modes[this.viewIndex];
+    this.updateHint();
   }
 
   private buildToolbar(): void {
     const d = this.model.data;
     const levels = d.levels.slice().sort((a, b) => b.floor - a.floor);
+    const levelWords = (l: { name: string; floor: number }): string => `${esc(l.name)} (${fmt(l.floor)} m)`;
+    const buildings = [['all', 'All'], ...(d.meta.buildings ?? []).map((b) => [b.id, `Building ${b.id}`]), ['site', 'Site (outside)']];
     $('bar').innerHTML = `
-      <span class="title">Kestrel editor</span>
-      <label>Level <select id="level">${levels.map((l) => `<option value="${esc(l.id)}">${esc(l.id)} - ${esc(l.name)} (${fmt(l.floor)} m)</option>`).join('')}</select></label>
-      <label>Show <select id="viewMode"><option value="cut">This level and below</option><option value="only">This level only</option><option value="all">Everything</option></select></label>
-      <span class="group" id="tools">
-        <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option>${t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button>
-      </span>
-      <span class="group"><button id="walk" title="Tab">Walk</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="helpBtn" title="H">Help</button></span>
-      <span id="checksBadge"></span>`;
+      <div class="line">
+        <span class="title">Kestrel editor</span>
+        <span class="group seg" id="layout" title="V cycles"><button data-layout="3d">3D</button><button data-layout="both">Both</button><button data-layout="plan">Plan</button></span>
+        <span class="group"><button id="splitDir" title="Side by side or stacked">Side by side</button><button id="swap" title="Swap the 3D and the plan">Swap</button><button id="minimap" title="Small plan in the corner of 3D only (M)">Small plan</button><button id="drawerBtn" title="Side panel (\` or I)">Panel</button></span>
+        <span class="group" id="tools">
+          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option>${t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button>
+        </span>
+        <span class="group"><button id="walk" title="Tab">Walk</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
+        <span id="checksBadge"></span>
+      </div>
+      <div class="line">
+        <label>Editing <select id="level">${levels.map((l) => `<option value="${esc(l.id)}">${levelWords(l)}</option>`).join('')}</select></label>
+        <span class="group seg" id="presets"><button data-preset="whole" title="G">Whole building</button><button data-preset="single" title="O">Single level</button><button data-preset="upTo" title="U">Up to this level</button></span>
+        <details class="pick" id="pick"><summary>Pick levels</summary><div class="menu">${levels.map((l) => `<label><input type="checkbox" data-level="${esc(l.id)}"> ${levelWords(l)}</label>`).join('')}</div></details>
+        <span class="group"><button id="ghost" title="Shift+G">Ghost the rest</button><button id="exploded" title="X">Exploded</button><input type="range" id="gap" min="0" max="${GAP_MAX}" step="0.5" title="Gap between levels"><span id="gapText" class="dim"></span></span>
+        <label class="group"><input type="checkbox" id="sectionOn"> Cut walls at <input type="range" id="section" min="0.3" max="4" step="0.1"><span id="sectionText" class="dim"></span></label>
+        <label>Building <select id="building">${buildings.map(([v, t]) => `<option value="${esc(v!)}">${esc(t!)}</option>`).join('')}</select></label>
+        <button id="underlay" title="Faint walls of the level below on the plan">Plan: level below</button>
+      </div>`;
     $<HTMLSelectElement>('level').value = this.view.level;
     $<HTMLSelectElement>('level').addEventListener('change', (e) => this.setLevel((e.target as HTMLSelectElement).value));
-    $<HTMLSelectElement>('viewMode').addEventListener('change', (e) => {
-      this.view.view = (e.target as HTMLSelectElement).value as ViewMode;
-      this.view.applyVisibility();
+    for (const b of $('layout').querySelectorAll<HTMLButtonElement>('button')) b.addEventListener('click', () => this.setLayout(b.dataset.layout as Layout));
+    $('splitDir').addEventListener('click', () => {
+      this.prefs.split = this.prefs.split === 'row' ? 'col' : 'row';
+      this.applyLayout();
+    });
+    $('swap').addEventListener('click', () => {
+      this.prefs.swap = !this.prefs.swap;
+      this.applyLayout();
+    });
+    $('minimap').addEventListener('click', () => this.run('minimap'));
+    $('drawerBtn').addEventListener('click', () => this.toggleDrawer());
+    for (const b of $('presets').querySelectorAll<HTMLButtonElement>('button')) b.addEventListener('click', () => this.setPreset(b.dataset.preset as LevelPreset));
+    for (const c of $('pick').querySelectorAll<HTMLInputElement>('input[data-level]'))
+      c.addEventListener('change', () => {
+        const vis = this.view.vis;
+        vis.picked = [...$('pick').querySelectorAll<HTMLInputElement>('input[data-level]')].filter((x) => x.checked).map((x) => x.dataset.level!);
+        vis.preset = 'pick';
+        this.applyVis();
+      });
+    $('ghost').addEventListener('click', () => this.run('ghost'));
+    $('exploded').addEventListener('click', () => this.run('exploded'));
+    $('gap').addEventListener('input', () => {
+      this.view.vis.gap = Number($<HTMLInputElement>('gap').value);
+      this.view.vis.exploded = true;
+      this.applyVis();
+    });
+    const section = (): void => {
+      this.view.vis.section = $<HTMLInputElement>('sectionOn').checked ? Number($<HTMLInputElement>('section').value) : 0;
+      this.applyVis(true);
+    };
+    $('sectionOn').addEventListener('change', section);
+    $('section').addEventListener('input', () => {
+      $<HTMLInputElement>('sectionOn').checked = true;
+      section();
+    });
+    $('building').addEventListener('change', () => {
+      this.view.vis.building = $<HTMLSelectElement>('building').value;
+      this.applyVis();
+    });
+    $('underlay').addEventListener('click', () => {
+      this.view.vis.underlay = !this.view.vis.underlay;
+      this.applyVis();
     });
     for (const b of $('tools').querySelectorAll('button')) b.addEventListener('click', () => this.setTool(b.dataset.tool as Tool));
     $('walk').addEventListener('click', () => this.toggleWalk());
     $('undo').addEventListener('click', () => this.undo());
     $('redo').addEventListener('click', () => this.redo());
     $('save').addEventListener('click', () => void this.save());
-    $('helpBtn').addEventListener('click', () => $('help').classList.toggle('hidden'));
+    $('revert').addEventListener('click', () => void this.revert());
+    $('helpBtn').addEventListener('click', () => this.run('help'));
     $('checksBadge').addEventListener('click', () => {
       this.tab = 'checks';
+      this.openDrawer();
       this.renderPanel();
     });
-    for (const t of document.querySelectorAll<HTMLButtonElement>('#tabs button'))
+    for (const t of document.querySelectorAll<HTMLButtonElement>('#drawerHead button[data-tab]'))
       t.addEventListener('click', () => {
         this.tab = t.dataset.tab as 'props' | 'checks' | 'log';
         this.renderPanel();
       });
+    $('pin').addEventListener('click', () => {
+      this.prefs.pinned = !this.prefs.pinned;
+      this.applyLayout();
+    });
+    $('closeDrawer').addEventListener('click', () => this.toggleDrawer());
     // keep shortcuts working after a toolbar click
-    for (const el of $('bar').querySelectorAll('button, select')) el.addEventListener('change', () => (el as HTMLElement).blur());
+    for (const el of $('bar').querySelectorAll('button, select, input')) el.addEventListener('change', () => (el as HTMLElement).blur());
+    for (const el of $('bar').querySelectorAll('button')) el.addEventListener('click', () => (el as HTMLElement).blur());
+    this.syncLevelsUi();
     this.updateBar();
   }
 
@@ -876,12 +1049,256 @@ class Editor {
     }
   }
 
+  // ---------- layout: 3D, both, plan; the side panel; the small plan ----------
+  isMinimap(): boolean {
+    return this.prefs.layout === '3d' && this.prefs.minimap;
+  }
+
+  setLayout(l: Layout): void {
+    if (this.prefs.layout === l) return;
+    this.prefs.layout = l;
+    this.applyLayout();
+    this.status(l === '3d' ? '3D only (V cycles; M shows or hides the small plan)' : l === 'plan' ? 'Plan only (V cycles)' : '3D and plan (V cycles; drag the divider to resize)');
+  }
+
+  applyLayout(): void {
+    const p = this.prefs;
+    const st = $('stage');
+    st.dataset.layout = p.layout;
+    st.dataset.split = p.split;
+    st.dataset.swap = p.swap ? '1' : '0';
+    st.dataset.minimap = p.minimap ? '1' : '0';
+    st.style.setProperty('--split', `${(p.frac * 100).toFixed(1)}%`);
+    document.body.dataset.drawer = !p.drawer ? 'closed' : p.pinned ? 'pinned' : 'open';
+    $('help').classList.toggle('hidden', !p.help);
+    // the small plan always shows the whole level; the full plan keeps its own zoom
+    const svg = this.planSvg();
+    const box = this.isMinimap() ? this.planFullBox : this.planViewBox;
+    if (svg && box) svg.setAttribute('viewBox', box.join(' '));
+    this.syncViewButtons();
+    this.savePrefs();
+    this.view.engine.resize();
+    requestAnimationFrame(() => this.view.engine.resize());
+  }
+
+  private syncViewButtons(): void {
+    if (!document.getElementById('layout')) return;
+    const p = this.prefs;
+    for (const b of $('layout').querySelectorAll<HTMLButtonElement>('button')) b.classList.toggle('on', b.dataset.layout === p.layout);
+    $('splitDir').textContent = p.split === 'row' ? 'Side by side' : 'Stacked';
+    $('swap').classList.toggle('on', p.swap);
+    $('minimap').classList.toggle('on', p.minimap);
+    $('drawerBtn').classList.toggle('on', p.drawer);
+    $('pin').classList.toggle('on', p.pinned);
+    $('pin').textContent = p.pinned ? 'Pinned' : 'Pin';
+  }
+
+  private bindLayout(): void {
+    const div = $('divider');
+    div.addEventListener('pointerdown', (e) => {
+      div.setPointerCapture(e.pointerId);
+      const move = (ev: PointerEvent): void => {
+        const r = $('stage').getBoundingClientRect();
+        let f = this.prefs.split === 'row' ? (ev.clientX - r.left) / r.width : (ev.clientY - r.top) / r.height;
+        if (this.prefs.swap) f = 1 - f;
+        this.prefs.frac = Math.max(0.15, Math.min(0.85, f));
+        $('stage').style.setProperty('--split', `${(this.prefs.frac * 100).toFixed(1)}%`);
+        this.view.engine.resize();
+      };
+      const up = (): void => {
+        div.removeEventListener('pointermove', move);
+        div.removeEventListener('pointerup', up);
+        this.savePrefs();
+      };
+      div.addEventListener('pointermove', move);
+      div.addEventListener('pointerup', up);
+    });
+  }
+
+  toggleDrawer(): void {
+    this.prefs.drawer = !this.prefs.drawer;
+    this.applyLayout();
+  }
+
+  openDrawer(): void {
+    if (this.prefs.drawer) return;
+    this.prefs.drawer = true;
+    this.applyLayout();
+  }
+
+  savePrefs(): void {
+    try {
+      localStorage.setItem(PREFS, JSON.stringify({ ...this.prefs, vis: this.view.vis }));
+    } catch {
+      // preferences are a convenience; no storage is fine
+    }
+  }
+
+  // ---------- levels and buildings ----------
+  setPreset(p: LevelPreset): void {
+    const vis = this.view.vis;
+    vis.preset = p;
+    vis.picked = presetPicks(p, this.model.data.levels, this.view.level);
+    this.applyVis();
+    this.status(p === 'whole' ? 'Whole building' : p === 'single' ? 'Single level' : 'Up to this level');
+  }
+
+  /** Redraws after a Levels change (`rebuild` when wall heights change: the section cut). */
+  applyVis(rebuild = false): void {
+    if (rebuild) this.view.rebuildAll();
+    else this.view.applyVisibility();
+    this.updateHandles();
+    this.syncLevelsUi();
+    this.decoratePlan();
+    this.updateHint();
+    this.savePrefs();
+  }
+
+  syncLevelsUi(): void {
+    if (!document.getElementById('presets')) return;
+    const vis = this.view.vis;
+    for (const b of $('presets').querySelectorAll<HTMLButtonElement>('button')) b.classList.toggle('on', b.dataset.preset === vis.preset);
+    const ticks = presetPicks(vis.preset, this.model.data.levels, this.view.level, vis.picked);
+    for (const c of $('pick').querySelectorAll<HTMLInputElement>('input[data-level]')) c.checked = ticks.includes(c.dataset.level!);
+    $('pick').classList.toggle('on', vis.preset === 'pick');
+    $('ghost').classList.toggle('on', vis.ghost);
+    $('exploded').classList.toggle('on', vis.exploded);
+    $<HTMLInputElement>('gap').value = String(vis.gap);
+    $('gapText').textContent = `${fmt(vis.gap)} m`;
+    $<HTMLInputElement>('sectionOn').checked = vis.section > 0;
+    if (vis.section > 0) $<HTMLInputElement>('section').value = String(vis.section);
+    else if (!$<HTMLInputElement>('section').dataset.set) $<HTMLInputElement>('section').value = '1.2';
+    $<HTMLInputElement>('section').dataset.set = '1';
+    $('sectionText').textContent = vis.section > 0 ? `${fmt(vis.section)} m` : 'off';
+    $<HTMLSelectElement>('building').value = vis.building;
+    $('underlay').classList.toggle('on', vis.underlay);
+  }
+
+  /** Client-side plan extras (no server round trip): hide filtered buildings, faint walls of the level below. */
+  decoratePlan(): void {
+    const svg = this.planSvg();
+    if (!svg) return;
+    const b = this.view.vis.building;
+    for (const el of svg.querySelectorAll('[data-id]')) {
+      let gone = false;
+      if (b !== 'all') {
+        const p = parseKey(el.getAttribute('data-id') ?? '');
+        const e = p ? this.model.get(p.coll, p.id) : undefined;
+        gone = !!(p && e) && this.buildingOf(p.coll, e!) !== b;
+      }
+      el.classList.toggle('gone', gone);
+    }
+    const g = svg.querySelector('#underlay');
+    if (!g) return;
+    let out = '';
+    if (this.view.vis.underlay) {
+      const ls = this.model.data.levels.slice().sort((x, y) => x.floor - y.floor);
+      const below = ls[ls.findIndex((l) => l.id === this.view.level) - 1];
+      const S = this.planMap?.[3] ?? 1;
+      for (const w of (this.model.list('walls') as Wall[]).filter((x) => below && x.level === below.id)) {
+        const a = this.toPlan(...w.a);
+        const c = this.toPlan(...w.b);
+        out += `<line x1="${a[0]}" y1="${a[1]}" x2="${c[0]}" y2="${c[1]}" stroke="#0a84ff" stroke-opacity="0.4" stroke-width="${Math.max(2, w.t * S)}" stroke-dasharray="6 4"/>`;
+      }
+    }
+    g.innerHTML = out;
+    g.setAttribute('pointer-events', 'none');
+  }
+
+  // ---------- hover, hint bar, help ----------
+  setHover(k: Key | null): void {
+    if (k === this.hoverKey) return;
+    this.hoverKey = k;
+    const svg = this.planSvg();
+    if (svg) {
+      for (const el of svg.querySelectorAll('.hov')) el.classList.remove('hov');
+      if (k) for (const el of svg.querySelectorAll(`[data-id="${CSS.escape(k)}"]`)) el.classList.add('hov');
+    }
+    const p = k ? parseKey(k) : null;
+    const e = p ? this.model.get(p.coll, p.id) : undefined;
+    $('hud').textContent = p && e ? label(this.model.data, p.coll, e) : '';
+  }
+
+  updateHint(): void {
+    const c = this.ctx();
+    const notes: string[] = [];
+    const lv = this.model.data.levels.find((l) => l.id === this.view.level);
+    if (this.controls.walking) notes.push('Walking (Tab flies)');
+    else if (editingForced(this.view.vis, this.model.data.levels, this.view.level)) notes.push(`${lv?.name ?? 'This level'} is hidden by the Levels settings - shown anyway because you are editing it`);
+    if (this.view.vis.exploded && !this.controls.walking) notes.push('Exploded: levels drawn apart, saved as built');
+    if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
+    const items = hintItems(c).map((i) => `<b>${esc(i.keys)}</b> ${esc(i.name)}`);
+    $('hint').innerHTML = [...notes.map((n) => `<span class="note">${esc(n)}</span>`), ...items].join('&nbsp;&nbsp;&nbsp;');
+  }
+
+  private renderHelp(): void {
+    const groups: Group[] = ['Camera', 'Edit', 'Tools', 'View', 'File'];
+    const rows = helpRows();
+    $('help').innerHTML =
+      '<h3>Kestrel level editor <span class="dim">(H hides this)</span></h3>' +
+      groups.map((g) => `<h4>${g}</h4><table>${rows.filter((r) => r.group === g).map((r) => `<tr><td>${esc(r.keys)}</td><td>${esc(r.name)}</td></tr>`).join('')}</table>`).join('') +
+      '<p class="dim">The plan takes the same tools: wheel zooms, right drag pans, double-click takes the camera there. In the small plan a click takes the camera there.</p>';
+  }
+
+  // ---------- drafts and revert ----------
+  scheduleDraft(): void {
+    clearTimeout(this.draftTimer);
+    this.draftTimer = window.setTimeout(() => {
+      const write = this.model.dirty ? writeDraft(makeDraft(this.model.data, this.model.journal, Date.now())) : clearDraft();
+      write.catch((err: unknown) => console.warn('draft not written', err));
+    }, 1000);
+  }
+
+  offerDraft(d: Draft): void {
+    const ask = $('ask');
+    const when = new Date(d.savedAt).toLocaleString();
+    const n = d.journal.length;
+    ask.innerHTML = `Restore unsaved changes from ${esc(when)}? (${n} change${n === 1 ? '' : 's'})<button id="restore">Restore</button><button id="discard">Discard</button>`;
+    ask.classList.remove('hidden');
+    $('restore').addEventListener('click', () => {
+      ask.classList.add('hidden');
+      this.reload(d.campus, d.journal);
+      this.status(`Restored ${n} unsaved change${n === 1 ? '' : 's'} from ${when}. Save keeps them; undo starts from here.`);
+    });
+    $('discard').addEventListener('click', () => {
+      ask.classList.add('hidden');
+      void clearDraft().catch(() => undefined);
+      this.status('Discarded the unsaved changes');
+    });
+  }
+
+  /** Swaps in other campus data (restore a draft, revert to the file) and redraws everything. */
+  reload(data: Campus, journal: JournalEntry[]): void {
+    if (this.drag) this.endDrag(true);
+    this.model.replace(data, journal);
+    this.select(null);
+    this.view.rebuildAll();
+    this.rebuildBlockers();
+    void this.refreshPlan(false);
+    this.scheduleChecks();
+    this.renderPanel();
+    this.updateBar();
+  }
+
+  async revert(): Promise<void> {
+    if (!window.confirm('Throw away every unsaved change and reload the file from disk? Undo history is cleared.')) return;
+    try {
+      const f = await loadFile();
+      clearTimeout(this.draftTimer);
+      await clearDraft().catch(() => undefined);
+      this.reload(f.data, []);
+      this.status('Reverted to the last saved file');
+    } catch (err) {
+      this.status(`Revert failed: ${String(err)}`);
+    }
+  }
+
   newProblems(c: CheckReply): string[] {
     return checkLines(c).filter((l) => !this.baseline?.has(l));
   }
 
   renderPanel(): void {
-    for (const t of document.querySelectorAll<HTMLButtonElement>('#tabs button')) t.classList.toggle('on', t.dataset.tab === this.tab);
+    for (const t of document.querySelectorAll<HTMLButtonElement>('#drawerHead button[data-tab]')) t.classList.toggle('on', t.dataset.tab === this.tab);
     const panel = $('panel');
     if (this.tab === 'checks') panel.innerHTML = this.checksHtml();
     else if (this.tab === 'log') panel.innerHTML = this.logHtml();

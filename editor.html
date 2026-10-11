@@ -17,77 +17,97 @@
       * { box-sizing: border-box; }
       html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); font: 13px/1.4 system-ui, Segoe UI, Arial, sans-serif; overflow: hidden; }
       body { display: flex; flex-direction: column; }
-      #bar { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
+      #bar { display: flex; flex-direction: column; gap: 4px; padding: 6px 10px; background: var(--panel); border-bottom: 1px solid var(--line); }
+      #bar .line { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
       #bar .title { font-weight: 700; margin-right: 6px; }
-      #bar .group { display: inline-flex; gap: 2px; }
+      #bar .group { display: inline-flex; gap: 2px; align-items: center; }
+      #bar .seg button { border-radius: 0; margin-left: -1px; }
+      #bar .seg button:first-child { border-radius: 4px 0 0 4px; }
+      #bar .seg button:last-child { border-radius: 0 4px 4px 0; }
       button, select, input { font: inherit; color: var(--ink); background: #343a42; border: 1px solid var(--line); border-radius: 4px; padding: 3px 8px; }
+      input[type='range'] { padding: 0; width: 90px; vertical-align: middle; }
       button:hover:not(:disabled) { border-color: var(--accent); }
       button:disabled { opacity: 0.45; }
       button.on { background: var(--accent); border-color: var(--accent); color: #111; }
+      details.pick { position: relative; }
+      details.pick summary { cursor: pointer; list-style: none; padding: 3px 8px; border: 1px solid var(--line); border-radius: 4px; background: #343a42; }
+      details.pick[open] summary, details.pick.on summary { border-color: var(--accent); }
+      details.pick .menu { position: absolute; z-index: 20; top: 100%; left: 0; margin-top: 2px; padding: 6px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; white-space: nowrap; }
+      details.pick label { display: block; }
       #checksBadge { margin-left: auto; cursor: pointer; color: var(--dim); }
       .bad { color: var(--bad); }
       .dim { color: var(--dim); }
-      main { flex: 1; min-height: 0; display: flex; }
-      #view3d { position: relative; flex: 1; min-width: 0; }
+      main { flex: 1; min-height: 0; display: flex; position: relative; }
+      #stage { --split: 58%; position: relative; flex: 1; min-width: 0; display: flex; }
+      #stage[data-split='col'] { flex-direction: column; }
+      #view3d { position: relative; flex: 0 0 var(--split); min-width: 0; min-height: 0; }
+      #divider { flex: none; width: 6px; cursor: col-resize; background: var(--line); }
+      #stage[data-split='col'] #divider { width: auto; height: 6px; cursor: row-resize; }
+      #divider:hover { background: var(--accent); }
+      #planWrap { position: relative; flex: 1; min-width: 0; min-height: 0; background: #fff; overflow: hidden; }
+      #stage[data-swap='1'] #view3d { order: 3; }
+      #stage[data-swap='1'] #divider { order: 2; }
+      #stage[data-swap='1'] #planWrap { order: 1; }
+      #stage[data-layout='3d'] #view3d { flex: 1; }
+      #stage[data-layout='3d'] #divider, #stage[data-layout='3d'] #planWrap { display: none; }
+      #stage[data-layout='3d'][data-minimap='1'] #planWrap { display: block; position: absolute; z-index: 5; left: 8px; bottom: 34px; width: 280px; height: 210px; border: 2px solid var(--line); border-radius: 6px; box-shadow: 0 2px 12px rgba(0, 0, 0, 0.5); }
+      #stage[data-layout='plan'] #view3d { flex: 0 0 0; visibility: hidden; }
+      #stage[data-layout='plan'] #divider { display: none; }
       #c { width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
       #hud { position: absolute; left: 8px; top: 8px; padding: 2px 8px; background: rgba(0, 0, 0, 0.55); border-radius: 4px; pointer-events: none; white-space: pre; }
       #hud:empty { display: none; }
-      #help { position: absolute; right: 8px; top: 8px; width: 330px; padding: 10px 12px; background: rgba(20, 23, 27, 0.92); border: 1px solid var(--line); border-radius: 6px; }
+      #help { position: absolute; right: 8px; top: 8px; z-index: 6; width: 360px; max-height: calc(100% - 50px); overflow: auto; padding: 10px 12px; background: rgba(20, 23, 27, 0.94); border: 1px solid var(--line); border-radius: 6px; }
       #help h3 { margin: 0 0 6px; font-size: 13px; }
+      #help h4 { margin: 8px 0 2px; font-size: 12px; color: var(--dim); }
       #help td { padding: 1px 6px 1px 0; vertical-align: top; }
       #help td:first-child { color: var(--accent); white-space: nowrap; }
-      .hidden { display: none; }
-      #side { width: 42%; min-width: 360px; display: flex; flex-direction: column; border-left: 1px solid var(--line); background: var(--panel); }
-      body[data-plan='big'] #side { width: 68%; }
-      body[data-plan='hidden'] #side { display: none; }
-      #planWrap { position: relative; flex: 1; min-height: 200px; background: #fff; overflow: hidden; }
+      .hidden { display: none !important; }
       #planSvg, #planSvg svg { width: 100%; height: 100%; display: block; }
       #planSvg text { pointer-events: none; }
       #planSvg [data-id] { cursor: pointer; }
       #planSvg rect.sel { stroke: var(--accent); stroke-width: 3; }
       #planSvg g.sel polygon { fill: var(--accent); }
-      #planStatus { position: absolute; left: 6px; bottom: 4px; color: #333; background: rgba(255, 255, 255, 0.85); padding: 0 4px; pointer-events: none; }
-      #tabs { display: flex; gap: 2px; padding: 4px 6px 0; border-top: 1px solid var(--line); }
-      #tabs button { border-bottom: none; border-radius: 4px 4px 0 0; }
-      #panel { height: 38%; overflow: auto; padding: 8px 10px; border-top: 1px solid var(--line); }
+      #planSvg .hov { stroke: #0a84ff; stroke-width: 3; }
+      #planSvg .gone { display: none; }
+      #planStatus { position: absolute; left: 6px; bottom: 30px; color: #333; background: rgba(255, 255, 255, 0.85); padding: 0 4px; pointer-events: none; }
+      #hint { position: absolute; z-index: 4; left: 0; right: 0; bottom: 0; padding: 4px 10px; background: rgba(15, 17, 20, 0.82); color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; }
+      #hint b { color: var(--accent); font-weight: 600; }
+      #hint .note { color: #ffd166; }
+      #drawer { display: flex; flex-direction: column; width: 360px; flex: none; background: var(--panel); border-left: 1px solid var(--line); }
+      body[data-drawer='open'] #drawer { position: absolute; z-index: 10; right: 0; top: 0; bottom: 0; box-shadow: -4px 0 16px rgba(0, 0, 0, 0.45); }
+      body[data-drawer='closed'] #drawer { display: none; }
+      #drawerHead { display: flex; gap: 2px; padding: 4px 6px 0; align-items: center; }
+      #drawerHead button { border-bottom: none; border-radius: 4px 4px 0 0; }
+      #drawerHead .grow { flex: 1; }
+      #panel { flex: 1; overflow: auto; padding: 8px 10px; border-top: 1px solid var(--line); }
       .row { display: flex; gap: 8px; align-items: center; margin: 3px 0; }
       .row > span:first-child { width: 96px; color: var(--dim); flex: none; }
       .row input, .row select { flex: 1; min-width: 0; }
       .list { margin: 0; padding-left: 16px; }
       .list li { margin: 3px 0; }
+      #ask { position: absolute; z-index: 30; left: 50%; top: 12px; transform: translateX(-50%); padding: 10px 14px; background: var(--panel); border: 2px solid var(--accent); border-radius: 8px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6); }
+      #ask button { margin-left: 8px; }
       #status { flex: none; height: 24px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
   </head>
-  <body data-plan="split">
+  <body data-drawer="pinned">
     <header id="bar"></header>
     <main>
-      <section id="view3d">
-        <canvas id="c" tabindex="0"></canvas>
-        <div id="hud"></div>
-        <div id="help">
-          <h3>Kestrel level editor <span class="dim">(H hides this)</span></h3>
-          <table>
-            <tr><td>Right drag</td><td>look around</td></tr>
-            <tr><td>W A S D</td><td>move; Q / E down / up; Shift fast; wheel zooms</td></tr>
-            <tr><td>Tab</td><td>walk at eye height (walls block, C crouches) / fly</td></tr>
-            <tr><td>PgUp / PgDn</td><td>level up / down</td></tr>
-            <tr><td>1 - 5</td><td>select, room, wall, door, window</td></tr>
-            <tr><td>Click, drag</td><td>select and move; orange handles resize</td></tr>
-            <tr><td>Ctrl while dragging</td><td>fine grid (0.1 m instead of 0.5 m)</td></tr>
-            <tr><td>Arrows</td><td>nudge the selection 0.5 m (Shift: 5 m)</td></tr>
-            <tr><td>Del, Ctrl+D</td><td>delete, duplicate</td></tr>
-            <tr><td>F</td><td>go to the selection</td></tr>
-            <tr><td>Ctrl+Z / Ctrl+Y</td><td>undo / redo</td></tr>
-            <tr><td>Ctrl+S</td><td>save the file, plans and change log</td></tr>
-            <tr><td>Plan</td><td>same tools; wheel zooms, right drag pans, double-click takes the camera there; P resizes it</td></tr>
-          </table>
-        </div>
-      </section>
-      <aside id="side">
-        <div id="planWrap"><div id="planSvg"></div><div id="planStatus"></div></div>
-        <div id="tabs"><button data-tab="props">Selected</button><button data-tab="checks">Checks</button><button data-tab="log">Changes</button></div>
+      <div id="stage" data-layout="both" data-split="row">
+        <section id="view3d">
+          <canvas id="c" tabindex="0"></canvas>
+          <div id="hud"></div>
+          <div id="help" class="hidden"></div>
+        </section>
+        <div id="divider" title="Drag to resize"></div>
+        <section id="planWrap"><div id="planSvg"></div><div id="planStatus"></div></section>
+        <div id="hint"></div>
+      </div>
+      <aside id="drawer">
+        <div id="drawerHead"><button data-tab="props">Selected</button><button data-tab="checks">Checks</button><button data-tab="log">Changes</button><span class="grow"></span><button id="pin" title="Pin the panel beside the views, or let it float over them">Pin</button><button id="closeDrawer" title="Close (` or I)">x</button></div>
         <div id="panel"></div>
       </aside>
+      <div id="ask" class="hidden"></div>
     </main>
     <div id="status">Loading the campus...</div>
     <script type="module" src="/src/editor/main.ts"></script>

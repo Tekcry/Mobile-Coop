@@ -3,26 +3,28 @@
  * tinted by access level, stairs, ladders, floor holes, pipe runs), picking, selection outlines and drag handles.
  * A dev tool: it rebuilds whole elements on change and never touches the game's renderer.
  */
-import { Color3, Color4, CreateBox, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, Vector3 } from '../core/babylon';
+import { Color3, Color4, CreateBox, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3 } from '../core/babylon';
 import type { AbstractMesh } from '../core/babylon';
 import { wallDir, wallLen, wallPieces, wallPoint } from './geometry';
 import type { EditorModel } from './model';
 import type { Campus, Coll, Key, Ladder, Level, Opening, Room, Service, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
+import { buildingAt, DEFAULT_VIS, elementState, explodeOffset } from './visibility';
+import type { VisSettings } from './visibility';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
 const OUTSIDE_TINT = '#e9f4e1';
 const WALL_TINT: Record<string, string> = { exterior: '#5b5f66', interior: '#b9bcc2', boundary: '#8a6f55', parapet: '#8d9096' };
 
-export type ViewMode = 'cut' | 'only' | 'all';
-
 interface Meta {
   key: Key;
   /** Level ids the element belongs to (a stair: both). */
   levels: string[];
-  /** Floor height of its lowest level, for the cutaway. */
+  /** Floor height of its lowest level. */
   floor: number;
+  /** Building id from meta.buildings, or 'site'. */
+  building: string;
 }
 
 export interface Hit {
@@ -44,13 +46,16 @@ export class EditorScene {
   readonly scene: Scene;
   readonly camera: FreeCamera;
   level = 'G';
-  view: ViewMode = 'cut';
-  /** Walk mode shows every level whatever the view. */
+  vis: VisSettings = { ...DEFAULT_VIS };
+  /** Walk mode shows every level whatever the settings, unexploded. */
   showAll = false;
   private readonly nodes = new Map<Key, Mesh[]>();
   private readonly mats = new Map<string, StandardMaterial>();
   private handleMeshes: Mesh[] = [];
   private selected: Key | null = null;
+  /** One node per level; exploded view lifts it. */
+  private readonly levelNodes = new Map<string, TransformNode>();
+  private links: Mesh[] = [];
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -126,6 +131,7 @@ export class EditorScene {
     for (const v of d.voids) this.build(keyOf('voids', v.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
+    if (this.selected) this.outline(this.selected, true);
   }
 
   /** Rebuilds the changed elements (a wall's openings and an opening's wall come along). */
@@ -167,11 +173,45 @@ export class EditorScene {
     else if (p.coll === 'ladders') [meshes, levels] = this.buildLadder(e as Ladder);
     else if (p.coll === 'voids') [meshes, levels] = this.buildVoid(e as Void);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
+    const [bx, bz] = this.planCentre(p.coll, e);
+    const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
+    const node = levels[0] !== undefined ? this.levelNode(levels[0]) : null;
     for (const m of meshes) {
-      m.metadata = { ...(m.metadata as object), key, levels, floor } satisfies Meta;
+      m.metadata = { ...(m.metadata as object), key, levels, floor, building } satisfies Meta;
       m.isPickable = true;
+      if (node) m.parent = node;
     }
     this.nodes.set(key, meshes);
+  }
+
+  private planCentre(coll: Coll, e: unknown): [number, number] {
+    if (coll === 'walls') return wallPoint(e as Wall, wallLen(e as Wall) / 2);
+    if (coll === 'openings') {
+      const w = this.model.get<Wall>('walls', (e as Opening).wall);
+      return w ? wallPoint(w, (e as Opening).at) : [0, 0];
+    }
+    if (coll === 'ladders') return (e as Ladder).at;
+    const r = (e as Room).rect;
+    return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
+  }
+
+  private levelNode(id: string): TransformNode {
+    let n = this.levelNodes.get(id);
+    if (!n) {
+      n = new TransformNode(`level ${id}`, this.scene);
+      this.levelNodes.set(id, n);
+    }
+    return n;
+  }
+
+  /** How far a level is lifted on screen (exploded view; 0 while walking). Never part of the data. */
+  offsetOf(level: string): number {
+    return this.showAll ? 0 : explodeOffset(this.vis, this.data.levels, level);
+  }
+
+  /** Wall height cap from the section setting (Infinity when off or walking). */
+  private get cut(): number {
+    return this.vis.section > 0 && !this.showAll ? this.vis.section : Infinity;
   }
 
   private buildRoom(r: Room): [Mesh[], string[]] {
@@ -192,9 +232,12 @@ export class EditorScene {
     const mat = this.mat('wall', WALL_TINT[w.kind] ?? WALL_TINT.interior!, fence ? 0.45 : 1);
     const ops = this.data.openings.filter((o) => o.wall === w.id);
     const out: Mesh[] = [];
+    const cut = this.cut;
     for (const p of wallPieces(w, ops)) {
+      if (p.y0 >= cut) continue;
+      const y1 = Math.min(p.y1, cut);
       const c = wallPoint(w, (p.s0 + p.s1) / 2);
-      const m = this.box(`wall ${w.id}`, c[0], f + (p.y0 + p.y1) / 2, c[1], p.s1 - p.s0, p.y1 - p.y0, fence ? 0.06 : w.t, yaw, mat);
+      const m = this.box(`wall ${w.id}`, c[0], f + (p.y0 + y1) / 2, c[1], p.s1 - p.s0, y1 - p.y0, fence ? 0.06 : w.t, yaw, mat);
       if (!fence) {
         m.enableEdgesRendering();
         m.edgesWidth = 2;
@@ -215,7 +258,9 @@ export class EditorScene {
     const yaw = EditorScene.yaw(d[0], d[1]);
     const glass = o.type === 'window';
     const hex = glass ? '#9fd3ff' : o.type === 'gate' ? '#8a6f55' : o.type === 'roller' ? '#7c8790' : o.type === 'fire-door' ? '#c0392b' : '#a0703c';
-    const m = this.box(`opening ${o.id}`, c[0], f + o.sill + o.h / 2, c[1], o.w, o.h, glass ? 0.04 : 0.08, yaw, this.mat('opening', hex, glass ? 0.35 : 0.55, 0.15));
+    const top = Math.min(o.sill + o.h, this.cut);
+    if (top <= o.sill) return [[], [w.level]];
+    const m = this.box(`opening ${o.id}`, c[0], f + (o.sill + top) / 2, c[1], o.w, top - o.sill, glass ? 0.04 : 0.08, yaw, this.mat('opening', hex, glass ? 0.35 : 0.55, 0.15));
     return [[m], [w.level]];
   }
 
@@ -296,15 +341,46 @@ export class EditorScene {
     }
   }
 
-  /** Shows levels by the view mode: cutaway (this level and below), this level only, or everything. */
+  /** Shows, ghosts or hides every element by the Levels settings (visibility.ts), and lifts levels when exploded. */
   applyVisibility(): void {
-    const cur = this.floorOf(this.level);
+    const s = this.showAll ? { ...this.vis, preset: 'whole' as const, building: 'all', exploded: false } : this.vis;
     for (const ms of this.nodes.values()) {
       for (const m of ms) {
         const meta = m.metadata as Meta;
-        const on = this.showAll || this.view === 'all' || (this.view === 'only' ? meta.levels.includes(this.level) : meta.floor <= cur + 1e-6);
-        m.setEnabled(on);
+        const st = elementState(s, this.data.levels, this.level, meta.levels, meta.building);
+        m.setEnabled(st !== 'hidden');
+        m.visibility = st === 'ghost' ? 0.12 : 1;
+        m.isPickable = st === 'shown';
       }
+    }
+    for (const [id, n] of this.levelNodes) n.position.y = this.offsetOf(id);
+    this.buildLinks();
+  }
+
+  /** Exploded view: thin rods joining the floors each stair and ladder links. */
+  private buildLinks(): void {
+    for (const m of this.links) m.dispose();
+    this.links = [];
+    if (this.showAll || !this.vis.exploded) return;
+    const mat = this.mat('link', '#0a84ff', 1, 0.5);
+    const rod = (id: string, x: number, z: number, from: string, to: string): void => {
+      // from the top of the flight as drawn on the lower level to the upper level's lifted floor
+      const y0 = this.floorOf(to) + this.offsetOf(from);
+      const y1 = this.floorOf(to) + this.offsetOf(to);
+      if (y1 - y0 < 0.05) return;
+      const m = this.box(`link ${id}`, x, (y0 + y1) / 2, z, 0.12, y1 - y0, 0.12, 0, mat);
+      m.isPickable = false;
+      this.links.push(m);
+    };
+    for (const st of this.data.stairs) {
+      const [state] = this.nodes.get(keyOf('stairs', st.id)) ?? [];
+      if (!state?.isEnabled()) continue;
+      rod(st.id, (st.rect[0] + st.rect[2]) / 2, (st.rect[1] + st.rect[3]) / 2, st.from, st.to);
+    }
+    for (const l of this.data.ladders) {
+      const [state] = this.nodes.get(keyOf('ladders', l.id)) ?? [];
+      if (!state?.isEnabled()) continue;
+      rod(l.id, l.at[0], l.at[1], l.from, l.to);
     }
   }
 
@@ -339,7 +415,7 @@ export class EditorScene {
     if (ph?.hit && ph.pickedMesh) return { handle: (ph.pickedMesh.metadata as { handle: string }).handle };
     const pr = this.scene.pick(px, py, (m: AbstractMesh) => {
       const meta = m.metadata as Meta | null;
-      return m.isEnabled() && !!meta?.key && meta.levels.includes(this.level);
+      return m.isEnabled() && m.isPickable && !!meta?.key && meta.levels.includes(this.level);
     });
     if (!pr?.hit || !pr.pickedMesh || !pr.pickedPoint) return {};
     const meta = pr.pickedMesh.metadata as Meta;

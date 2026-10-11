@@ -134,6 +134,19 @@ export class EditorModel {
     this.journal = [];
   }
 
+  /**
+   * Swaps in other campus data in place (revert to the file, restore a draft): undo and redo are cleared and the journal
+   * becomes `journal`. Listeners are not told; the caller rebuilds its views.
+   */
+  replace(data: Campus, journal: JournalEntry[] = []): void {
+    const d = this.data as Record<string, unknown>;
+    for (const k of Object.keys(d)) delete d[k];
+    Object.assign(d, clone(data));
+    this.past.length = 0;
+    this.future.length = 0;
+    this.journal = clone(journal);
+  }
+
   /** An id not used in `coll`: prefix + 1, 2, 3 ... */
   freshId(coll: Coll, prefix: string): string {
     const used = new Set(this.list(coll).map((e) => e.id));

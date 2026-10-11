@@ -43,3 +43,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Security levels should be set as numbered access levels with a card model (building and level) in the first brief, not as zones.
 - A value format the tools check (here the zone level) should be fixed before the first generator runs, so a format change does not touch every generator, test and table.
 - Plan labels need one obstacle test for every label kind and an overlap count from the first render.
+- Editor tools need a render-ready check (meshes ready, not just created) in their first browser test; a blank 3D view from a dev-server shader quirk went unseen until v2.

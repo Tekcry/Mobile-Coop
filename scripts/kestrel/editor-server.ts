@@ -4,7 +4,7 @@
  * PC (the dev server is LAN-exposed for phone testing) and only to fixed paths.
  */
 import { spawn } from 'node:child_process';
-import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { appendFileSync, copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -94,6 +94,8 @@ export function kestrelEditor(): Plugin {
         if (!url.pathname.startsWith('/__editor/')) return next();
         try {
           if (url.pathname === '/__editor/campus' && req.method === 'GET') {
+            // the file time lets the editor tell whether an unsaved draft is newer than the file
+            res.setHeader('x-mtime', String(Math.floor(statSync(path.join(root, CAMPUS)).mtimeMs)));
             return send(res, 200, 'application/json', readFileSync(path.join(root, CAMPUS), 'utf8'));
           }
           if (req.method !== 'POST') return json(res, { error: 'POST only' }, 405);

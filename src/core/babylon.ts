@@ -106,6 +106,14 @@ import '@babylonjs/core/Rendering/boundingBoxRenderer';
 import '@babylonjs/core/Rendering/outlineRenderer';
 import '@babylonjs/core/Lights/Shadows/shadowGeneratorSceneComponent';
 import '@babylonjs/core/Shaders/postprocess.vertex';
+// Standard material, edge and outline shaders registered up front: in the Vite dev server their lazy imports can load a
+// second copy of the shader store and fall back to fetching .fx files that do not exist (seen in the level editor).
+import '@babylonjs/core/Shaders/default.vertex';
+import '@babylonjs/core/Shaders/default.fragment';
+import '@babylonjs/core/Shaders/line.vertex';
+import '@babylonjs/core/Shaders/line.fragment';
+import '@babylonjs/core/Shaders/outline.vertex';
+import '@babylonjs/core/Shaders/outline.fragment';
 import '@babylonjs/core/Lights/Clustered/clusteredLightingSceneComponent';
 import '@babylonjs/core/Materials/Textures/Procedurals/proceduralTextureSceneComponent';
 import '@babylonjs/core/Rendering/depthRendererSceneComponent';
