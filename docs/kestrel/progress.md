@@ -5,14 +5,14 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | Stage | Prompt | Status | Commit | Date |
 | --- | --- | --- | --- | --- |
 | P00 | Setup, rules, facts | APPROVED | 8945ddb | 2026-10-10 |
-| S0 | Security systems spec | APPROVED | 65e28f9 | 2026-10-10 |
+| S0 | Security systems spec | DRAFT (levels revision) | 65e28f9 | 2026-10-11 |
 | S1 | Cameras and security desk | DRAFT (Part A done, Part B to run) | 478c3b8 | 2026-10-10 |
 | S2 | Card readers, keycards, mantrap | not started | | |
 | S3 | Beam detectors and PIR lights | not started | | |
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
-| P01 | Mission brief | APPROVED | 5764aad | 2026-10-11 |
-| P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
+| P01 | Mission brief | DRAFT (levels revision) | 5764aad | 2026-10-11 |
+| P02 | Building brief | DRAFT (levels revision) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
 | P03B | Block plan | DRAFT (Part 2 done, awaiting approval) | c5a0e52 | 2026-10-11 |
@@ -47,6 +47,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 REV-levels: 02 section 5 level column (126 rows: O 1, P 12, 1: 8, 2: 66, 3: 14, 4: 19, 5: 6), section 6 (levels table, card model, door signs, controls with level and building) and tail lines; 01 roster (21 guards, dog handler row, dogs line), cards, beats, level line; S0 2.3 reader `accessLevel` and `building`, cards `building` and `level` (replaces `opens`). Michael's fixes applied: dog handler 1 is the perimeter patrol plus a contracted handler; B first floor Level 2, mantrap outer door first Level 3; X09 and X13 Perimeter. Deviations: column heading "Access level" (a floor "Level" column exists); reader field `accessLevel` (device `level` is the floor). AF11 Level 3 (only door off AF10). P01, P02, S0 DRAFT (levels revision). No ASKs.
 - 2026-10-11 Planner: Michael's review of the 2f plans recorded (Decisions by Michael: labels, names, codes, access levels, per-building cards, door signs, two dog teams). Planner prototype of the levels (old 1 to 0 perimeter, 2 to 1, 3 to 2, 3+ to 3, plus G-SEC, F-OPS, F-BW, F-PLANT, F-E, B-GN at 3; A29 one plain step): campus check.mjs 22 PASS, 2 WARN, 4 FAIL, 8 SKIP, 1 INFO unchanged, A29 fails RB01 only; zone counts 0:19, 1:3, 2:46, 3:6, 4:11, 5:2; negative test G-SEC 4 fails RA07. Prompts written: REV-levels.md (15 decisions), P03B-2g-1.md (13), P03B-2g-2.md (12). RULES 2 guards and doors lines updated.
 - 2026-10-11 P03B 2f: names added to 87 zones, 7 stairs, 6 ladders, 16 voids and both buildings (116 of 116 named once, none over 30 characters, none with an id inside); legend worded (zone 2 and 4 per reviewer fixes; zone 5 text still says locked cages, which sit in zone 4 hall - reviewer to confirm); labels "<id> - <name>". 13 checks unchanged (blocks 11/25/2/7/32 fails 0; tests 8, 61, 30; check.mjs 22 PASS, 2 WARN, 4 FAIL; zones 27/19/26; vert 17; ring 35; adjacency 34+26; path 499.0). Names-only JSON diff: same apart from names. Small label overlaps on stairs, bridge ladders, Building B label.
 - 2026-10-11 Planner: Michael's fix before approving P03B Part 2: plans unreadable by id. prompts/P03B-2f.md (Sonnet medium, 12 decisions): plain names for 87 zones, 7 stairs, 6 ladders, 16 voids and both buildings from the 03B zone tables and brief rooms; labels "<id> - <name>" once; worded zone legend (brief l.47, l.95, section 6); names avoid A30's WC / janitor words; names-only JSON diff; 13 checks must equal 03B section 11.
@@ -134,6 +135,7 @@ Older entries: progress-archive.md.
 - Try on PC (`/?autostart=kestrel&mode=sandbox`): hug a corridor wall and turn round slowly and fast on each shoulder; walk up the main stair and both fire stairs looking back down; crouch into a low space (level U after the B0 rerun; any duct on other maps); open the yard and check the framing feels as before. Watch for a snap or jitter when a wall comes in or goes away.
 
 ## Decisions by Michael
+- 2026-10-11 Review of REV-levels (fixes, replace the earlier dog-team ASK condition): (1) Dog teams: the roster had one yard patrol, so the perimeter patrol becomes dog handler 1 with one dog (front yard) and a contracted dog handler is added (rear yard and east service drive); 21 guards (2 handlers) plus 2 dogs plus 7 civilians, at most 12 awake, the other 9 guards dormant. (2) Building B's first floor stays Level 2 (main stair B reaches it openly from B's ground staff corridor); the bridge door into B is a Level 2 reader (B); the mantrap's outer door is the first Level 3 door in B; lift B is Level 2 on both floors. (3) The transformer compound (X09) and pipe rack (X13) are Perimeter, not Level 2; the site row reads "Perimeter (X01 Outside)"; wing doors and compound gates stay key-only and ring-exempt.
 - 2026-10-11 Access levels, plan labels and dogs (review of the P03B 2f plans, before Part 2 approval; replaces the reviewer's FIXES rerun of 2f):
   - Labels: a label that fits inside its room shows only there, with no second callout; callouts go to the nearest side of the site (west column for Building A and the west pieces, east for Building B), and their lines never cross the other building; stair, ladder, void and building labels use the same obstacle test as room labels; plans.mjs prints overlapping label boxes per level, expected 0 on all 7.
   - Names: simple plain words in Title Case ("Reception and Front Offices", "Data Hall"); no abbreviations, letter codes or numbered tags ("B strip roof", "RF", "north 2", "H-R", "B-G" become words such as "Ground to First Floor"); still none of the words A30 counts (WC, toilet, janitor, cleaner).

@@ -1,5 +1,5 @@
 # Cinder Yard - campus building brief
-Status: APPROVED (Michael, 2026-10-11, revision A 36 x 30)
+Status: DRAFT (levels revision 2026-10-11, awaiting Michael's re-approval)
 
 Ostler Colocation's architect's record for the Cinder Yard campus off Cooper's Lane, Kestrel: Building A (2004), Building B (2021), the link bridge, the yard, the lane and what lies under the yard. Metres. Words and tables only; positions in words, P03B draws them. Short names: H = handover.md "Decisions to carry into P02", M = Michael's decisions for this stage, R = RULES.md section 1, D = 01-mission-brief.md "P02 must" lines, F = 00-facts.md, LD = docs/level-design.md, SS = docs/design/scale-sheet.md.
 
@@ -23,8 +23,8 @@ Ostler Colocation's architect's record for the Cinder Yard campus off Cooper's L
 | R2 | RULES 1 list of hidden service paths, each with a real purpose (tunnel, rack, bridge roof, cooling shaft, corridor voids, risers, smoke vents, manhole and vault, underfloor void) | 8, 9, 10 |
 | R3 | Extra rooms (as H2) | as H2 |
 | R4 | Office floors: corridor-only suspended ceilings with a 1.5 void, about 4.2 floor to floor | 2, 9; AG10, AF01 |
-| R5 | Control ladder: a real control at every zone boundary and inward step, knowledge gates, each with a costly alternative | 6 |
-| D1 | Confirm the space-to-zone mapping in 01 section 6 | 6 |
+| R5 | Control ladder: a real control at every access level boundary and inward step, knowledge gates, each with a costly alternative | 6 |
+| D1 | Confirm the space-to-level mapping in 01 section 6 | 6 |
 | D2 | Place the loading apron or vehicle gate | 4; X02, X12, X08 |
 | D3 | Carrier manhole | 4; TB02 |
 | D4 | CCTV equipment room beside the security room | AG12 |
@@ -92,91 +92,91 @@ Other sources used: lift data (Orona Next Essentia (source: https://www.orona-gr
 - An east service drive (X08) runs along B's east side from the service gate to the transformer compound (X09) and the wing's east doors. A west path (X10) runs along A's west wall to the rear yard.
 
 ## 5. Room schedule
-Clear size = wall-centreline rectangle less 0.3 each way (interior walls 0.3; on an outside wall 0.075 more). Area sums use the rectangles. Zone 3+ = restricted beside 3. "Void" = corridor ceiling void (1.5 clear). People are 01 section 3.
+Clear size = wall-centreline rectangle less 0.3 each way (interior walls 0.3; on an outside wall 0.075 more). Area sums use the rectangles. Level: O outside (lane), P perimeter (yard, gatehouse controlled), 1-5 card levels; a room behind a door needing a higher card than its floor's staff card is 3. "Void" = corridor ceiling void (1.5 clear). People are 01 section 3.
 
 ### Building A (2004)
-| Id | Level | Name | Zone | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
+| Id | Level | Name | Access level | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| AG01 | G | Entrance lobby and reception | 2 | Visitor sign-in, reception desk, fire repeater panel | Night reception post | 8.7 x 9.7 | 3.0 | Vinyl, entrance matting | X03 (main door), AG02, AG03, AG10 (reader); hatch to AG04 | N | N | Y | Reception officer | lobby |
-| AG02 | G | Customer lounge | 2 | Customers wait for escort; intercom to the ops counter | Empty | 5.7 x 4.7 | 3.0 | Carpet tile | AG01 | N | N | N | - | meeting-room |
-| AG03 | G | Visitor WC | 2 | Visitors' WC | Unused | 2.2 x 2.2 | 3.0 | Sheet vinyl | AG01 | N | N | N | - | visitor-wc |
-| AG04 | G | Post room | 3 | Courier parcels and post, hatch to reception | Locked, on the rounds | 4.7 x 3.7 | 3.0 | Vinyl | AG10; hatch to AG01 | N | N | N | Rounds officer passes | storage |
-| AG05 | G | Duty manager's office | 3 | Guarding firm's shift manager; shift log | Manager's base; master card in the desk drawer | 5.7 x 4.7 | 3.0 | Carpet tile | AG10 | N | N | Y | Duty manager (away on his walk part of each cycle) | facilities-office |
-| AG06 | G | Admin office | 3 | Ostler admin staff | Dark; one south window left ajar | 7.7 x 5.7 | 3.0 | Carpet tile | AG10 | N | N | N | Cleaner in its pass | office |
-| AG08 | G | Goods-in bay | 2 | Deliveries and outbound customer kit, asset check | Pell's crates staged for the van | 9.7 x 7.7 | 3.0 | Sealed concrete | X03 (roller door 3.0 x 3.0), AG09 | Y | N | Y | Van driver | loading-bay |
-| AG09 | G | Goods lobby | 2 | Airlock between bay and corridor | Passage for the crates | 3.7 x 2.7 | 3.0 | Sealed concrete | AG08, AG10 (reader) | Y | N | Y | Van driver | goods-lobby |
-| AG10 | G | Ground spine corridor | 3 | Controlled staff corridor east-west | Lit; rounds and cleaning | 3.2 x 29.7 | 2.4 | Vinyl | All AG rooms off it except the north row, AG18, AG20, AG26 (both ends) | Y | Y | Y | Rounds officer, cleaner, duty manager on his walk | corridor |
-| AG11 | G | Security room | 3+ | Monitor wall, access-control and alarm workstation, fire alarm main panel | Manned | 5.7 x 4.7 | 3.0 | Anti-static vinyl | AG10 (reader) | Y | N | Y | Desk operator, supervisor (leaves on rounds) | control-room |
-| AG12 | G | CCTV equipment room | 3+ | Video recorders, network switches, intrusion panel; beside AG11 | Unmanned | 4.7 x 3.7 | 3.0 | Anti-static vinyl | AG10 (reader) | Y | N | N | - | comms-room |
-| AG13 | G | Key safe room | 3+ | Electronic key safe and card store: B-tier cards, roof maintenance key | Unmanned | 2.7 x 3.7 | 3.0 | Vinyl | AG10 (reader) | Y | N | N | - | none |
-| AG14 | G | Locker room | 3 | Staff lockers and benches (2004 hall area) | Night engineer's locker (note inside) | 7.7 x 4.7 | 3.0 | Sheet vinyl | AG10 | N | N | N | Rounds officer passes | shower-lockers |
-| AG15 | G | Staff WC | 3 | Ground-floor staff WC off the controlled corridor | In use by staff | 4.7 x 3.7 | 3.0 | Sheet vinyl | AG10 | N | N | N | Anyone briefly | staff-wc |
-| AG16 | G | Cleaner's store | 3 | Cleaning materials, sink | Cleaner's base | 2.2 x 1.7 | 3.0 | Sheet vinyl | AG10 | N | N | N | Cleaner briefly | janitor |
-| AG17 | G | Cleaner's trolley bay | 3 | Recess where the trolley is parked | Trolley out with the cleaner | 1.7 x 1.2 | 2.4 | Vinyl | AG10 (open) | N | Y | Y | - | none |
-| AG18 | G | Main stair A | 3 | Staff stair ground to first | Guards' stair | 3.7 x 7.7 | to soffit | Vinyl, nosings | AG10 (open) | Y | N | Y | Passing guards | none |
-| AG19 | G | Lift shaft A | 3 | Passenger lift, ground to first | Car parked, locked off | 2.2 x 2.2 | full height | Pit -1.1 | AG20 (landing door) | Y | N | N | - | lift-shaft |
-| AG20 | G | Lift lobby A ground | 3 | Landing in front of the lift | Corridor lit | 3.2 x 2.2 | 2.4 | Vinyl | AG10 (open), AG19 | N | Y | Y | Passing | none |
-| AG21 | G | Fire stair A | 3 | Enclosed escape stair ground, first, roof | Unused | 3.2 x 6.2 | to soffit | Vinyl, nosings | AG10 (fire door), X10 (exit-only, west end wall), AF15 | Y | N | Emergency only | - | fire-stair-roof |
-| AG22 | G | A comms room | 3 | 2004 meet-me room, now A's network racks; top of the tunnel shaft | Unmanned | 4.7 x 3.7 | 3.0 | Anti-static vinyl | AG10 (reader), AG23 (floor hatch, key) | Y | N | N | - | comms-room |
+| AG01 | G | Entrance lobby and reception | 1 | Visitor sign-in, reception desk, fire repeater panel | Night reception post | 8.7 x 9.7 | 3.0 | Vinyl, entrance matting | X03 (main door), AG02, AG03, AG10 (reader); hatch to AG04 | N | N | Y | Reception officer | lobby |
+| AG02 | G | Customer lounge | 1 | Customers wait for escort; intercom to the ops counter | Empty | 5.7 x 4.7 | 3.0 | Carpet tile | AG01 | N | N | N | - | meeting-room |
+| AG03 | G | Visitor WC | 1 | Visitors' WC | Unused | 2.2 x 2.2 | 3.0 | Sheet vinyl | AG01 | N | N | N | - | visitor-wc |
+| AG04 | G | Post room | 2 | Courier parcels and post, hatch to reception | Locked, on the rounds | 4.7 x 3.7 | 3.0 | Vinyl | AG10; hatch to AG01 | N | N | N | Rounds officer passes | storage |
+| AG05 | G | Duty manager's office | 2 | Guarding firm's shift manager; shift log | Manager's base; master card in the desk drawer | 5.7 x 4.7 | 3.0 | Carpet tile | AG10 | N | N | Y | Duty manager (away on his walk part of each cycle) | facilities-office |
+| AG06 | G | Admin office | 2 | Ostler admin staff | Dark; one south window left ajar | 7.7 x 5.7 | 3.0 | Carpet tile | AG10 | N | N | N | Cleaner in its pass | office |
+| AG08 | G | Goods-in bay | 1 | Deliveries and outbound customer kit, asset check | Pell's crates staged for the van | 9.7 x 7.7 | 3.0 | Sealed concrete | X03 (roller door 3.0 x 3.0), AG09 | Y | N | Y | Van driver | loading-bay |
+| AG09 | G | Goods lobby | 1 | Airlock between bay and corridor | Passage for the crates | 3.7 x 2.7 | 3.0 | Sealed concrete | AG08, AG10 (reader) | Y | N | Y | Van driver | goods-lobby |
+| AG10 | G | Ground spine corridor | 2 | Controlled staff corridor east-west | Lit; rounds and cleaning | 3.2 x 29.7 | 2.4 | Vinyl | All AG rooms off it except the north row, AG18, AG20, AG26 (both ends) | Y | Y | Y | Rounds officer, cleaner, duty manager on his walk | corridor |
+| AG11 | G | Security room | 3 | Monitor wall, access-control and alarm workstation, fire alarm main panel | Manned | 5.7 x 4.7 | 3.0 | Anti-static vinyl | AG10 (reader) | Y | N | Y | Desk operator, supervisor (leaves on rounds) | control-room |
+| AG12 | G | CCTV equipment room | 3 | Video recorders, network switches, intrusion panel; beside AG11 | Unmanned | 4.7 x 3.7 | 3.0 | Anti-static vinyl | AG10 (reader) | Y | N | N | - | comms-room |
+| AG13 | G | Key safe room | 3 | Electronic key safe and card store: B-tier cards, roof maintenance key | Unmanned | 2.7 x 3.7 | 3.0 | Vinyl | AG10 (reader) | Y | N | N | - | none |
+| AG14 | G | Locker room | 2 | Staff lockers and benches (2004 hall area) | Night engineer's locker (note inside) | 7.7 x 4.7 | 3.0 | Sheet vinyl | AG10 | N | N | N | Rounds officer passes | shower-lockers |
+| AG15 | G | Staff WC | 2 | Ground-floor staff WC off the controlled corridor | In use by staff | 4.7 x 3.7 | 3.0 | Sheet vinyl | AG10 | N | N | N | Anyone briefly | staff-wc |
+| AG16 | G | Cleaner's store | 2 | Cleaning materials, sink | Cleaner's base | 2.2 x 1.7 | 3.0 | Sheet vinyl | AG10 | N | N | N | Cleaner briefly | janitor |
+| AG17 | G | Cleaner's trolley bay | 2 | Recess where the trolley is parked | Trolley out with the cleaner | 1.7 x 1.2 | 2.4 | Vinyl | AG10 (open) | N | Y | Y | - | none |
+| AG18 | G | Main stair A | 2 | Staff stair ground to first | Guards' stair | 3.7 x 7.7 | to soffit | Vinyl, nosings | AG10 (open) | Y | N | Y | Passing guards | none |
+| AG19 | G | Lift shaft A | 2 | Passenger lift, ground to first | Car parked, locked off | 2.2 x 2.2 | full height | Pit -1.1 | AG20 (landing door) | Y | N | N | - | lift-shaft |
+| AG20 | G | Lift lobby A ground | 2 | Landing in front of the lift | Corridor lit | 3.2 x 2.2 | 2.4 | Vinyl | AG10 (open), AG19 | N | Y | Y | Passing | none |
+| AG21 | G | Fire stair A | 2 | Enclosed escape stair ground, first, roof | Unused | 3.2 x 6.2 | to soffit | Vinyl, nosings | AG10 (fire door), X10 (exit-only, west end wall), AF15 | Y | N | Emergency only | - | fire-stair-roof |
+| AG22 | G | A comms room | 2 | 2004 meet-me room, now A's network racks; top of the tunnel shaft | Unmanned | 4.7 x 3.7 | 3.0 | Anti-static vinyl | AG10 (reader), AG23 (floor hatch, key) | Y | N | N | - | comms-room |
 | AG23 | G to B | Tunnel access shaft A | 4 | Fixed ladder from the tunnel to AG22 | Closed | 1.7 x 1.7 | 3.6 deep | Concrete | AG22 (hatch), TB03 | Y | N | N | - | carrier-riser |
-| AG24 | G | LV switchroom A | 3 | A's switchboard and small UPS for security and ops | Unmanned | 6.7 x 4.7 | 3.0 | Sealed concrete | AG10 | Y | N | N | - | switchroom |
-| AG25 | G | Cable riser A | 3 | Cable riser with fixed ladder, ground to first; opens to both corridor voids | Closed | 1.7 x 1.2 | full height | Concrete | AG10 (locked door) | Y | N | N | - | riser-cupboard |
-| AG26 | G | Ground north corridor | 3 | Controlled staff corridor east-west, north of the core band; joined to AG10 at both ends (no dead ends) | Lit; rounds and cleaning | 3.2 x 29.7 | 2.4 | Vinyl | North-row AG rooms, AG10 (both ends, open) | Y | Y | Y | Rounds officer, cleaner | corridor |
-| AF01 | F | First-floor spine corridor | 3 | Controlled staff corridor east-west | Lit | 3.2 x 29.7 | 2.4 | Vinyl | All AF rooms off it except the north row, AF12, AF14, AF17, AF21 (both ends) | Y | Y | Y | Corridor patrol, escort officer, cleaner later | corridor |
+| AG24 | G | LV switchroom A | 2 | A's switchboard and small UPS for security and ops | Unmanned | 6.7 x 4.7 | 3.0 | Sealed concrete | AG10 | Y | N | N | - | switchroom |
+| AG25 | G | Cable riser A | 2 | Cable riser with fixed ladder, ground to first; opens to both corridor voids | Closed | 1.7 x 1.2 | full height | Concrete | AG10 (locked door) | Y | N | N | - | riser-cupboard |
+| AG26 | G | Ground north corridor | 2 | Controlled staff corridor east-west, north of the core band; joined to AG10 at both ends (no dead ends) | Lit; rounds and cleaning | 3.2 x 29.7 | 2.4 | Vinyl | North-row AG rooms, AG10 (both ends, open) | Y | Y | Y | Rounds officer, cleaner | corridor |
+| AF01 | F | First-floor spine corridor | 2 | Controlled staff corridor east-west | Lit | 3.2 x 29.7 | 2.4 | Vinyl | All AF rooms off it except the north row, AF12, AF14, AF17, AF21 (both ends) | Y | Y | Y | Corridor patrol, escort officer, cleaner later | corridor |
 | AF02 | F | Operations room | 3 | Night operations desk (BMS screens for both buildings) and NOC monitoring desk | Manned | 11.7 x 7.7 | 3.0 | Carpet tile | AF03 (reader) | Y | N | Y | Night duty engineer, NOC operator | office |
 | AF03 | F | Ops counter | 3 | Sign-in counter at the ops door: call-outs, media movements, lounge intercom | Manned | 3.7 x 2.7 | 2.4 | Vinyl | AF01 (open), AF02 (reader) | N | Y | Y | Operations desk officer; escort officer at the door | none |
 | AF04 | F | Records room | 3 | Customer files, contracts, shift key log; register terminal | Unmanned | 5.7 x 4.7 | 3.0 | Carpet tile | AF01 (reader) | Y | N | N | Corridor patrol passes | storage |
 | AF05 | F | Tape library | 3 | Customers' backup tapes in fire safes, own gas cylinders | Unmanned | 5.7 x 4.7 | 3.0 | Anti-static vinyl | AF01 (reader) | Y | N | N | - | storage |
 | AF06 | F | Media destruction room | 3 | Shredder and degausser for retired drives | Unmanned | 4.7 x 3.7 | 3.0 | Sealed concrete | AF01 (reader) | Y | N | N | - | storage |
-| AF07 | F | Meeting room | 3 | Customer and staff meetings | Dark | 5.7 x 4.7 | 3.0 | Carpet tile | AF01 | N | N | N | Cleaner in its pass | meeting-room |
-| AF08 | F | Kitchen and break room | 3 | Staff kitchen | Kettle breaks | 6.7 x 5.7 | 3.0 | Sheet vinyl | AF01 | N | N | Y | Guards on breaks | kitchenette |
-| AF09 | F | Facilities office | 3 | Ostler engineers' office: drawings, permits, spares | Dark | 5.7 x 4.7 | 3.0 | Carpet tile | AF01 | N | N | N | - | facilities-office |
+| AF07 | F | Meeting room | 2 | Customer and staff meetings | Dark | 5.7 x 4.7 | 3.0 | Carpet tile | AF01 | N | N | N | Cleaner in its pass | meeting-room |
+| AF08 | F | Kitchen and break room | 2 | Staff kitchen | Kettle breaks | 6.7 x 5.7 | 3.0 | Sheet vinyl | AF01 | N | N | Y | Guards on breaks | kitchenette |
+| AF09 | F | Facilities office | 2 | Ostler engineers' office: drawings, permits, spares | Dark | 5.7 x 4.7 | 3.0 | Carpet tile | AF01 | N | N | N | - | facilities-office |
 | AF10 | F | Plant gallery | 3 | Service corridor with chilled-water headers overhead, AHU ducts, pipes out to the rack | Lit, noisy | 3.2 x 15.7 | 3.9 to soffit (pipes 2.6-3.6) | Sealed concrete | AF01 (reader), AF11, AF19 | Y | N | Y | Corridor patrol; engineer and escort on checks | plant-corridor |
 | AF11 | F | Chilled-water pump room | 3 | Pumps, buffer vessel, pressurisation unit for both buildings | Running | 6.7 x 4.7 | 3.9 | Sealed concrete | AF10 | Y | N | N | Engineer on checks | none |
-| AF12 | F | Main stair A | 3 | As AG18 | - | 3.7 x 7.7 | to soffit | Vinyl | AF01 (open) | Y | N | Y | Passing guards | none |
-| AF13 | F | Lift shaft A | 3 | As AG19; machine on the guide rails at the shaft head | Locked off | 2.2 x 2.2 | head 3.9 | - | AF14 | Y | N | N | - | lift-shaft |
-| AF14 | F | Lift lobby A first | 3 | Landing in front of the lift | Corridor lit | 3.2 x 2.2 | 2.4 | Vinyl | AF01 (open), AF13 | N | Y | Y | Passing | none |
-| AF15 | F | Fire stair A | 3 | As AG21, on to the roof bulkhead | Unused | 3.2 x 6.2 | to soffit | Vinyl | AF01 (fire door), AR04 | Y | N | Emergency only | - | fire-stair-roof |
-| AF16 | F | Cable riser A | 3 | As AG25 | Closed | 1.7 x 1.2 | full height | Concrete | AF01 (locked door) | Y | N | N | - | riser-cupboard |
-| AF17 | F | Bridge vestibule A | 3 | A end of the link bridge | Lit | 3.2 x 2.7 | 2.4 | Vinyl | AF01 (open), LF01 (reader) | N | Y | Y | Supervisor on rounds | none |
-| AF18 | F | Staff WC first | 3 | Staff WCs | In use | 4.7 x 3.7 | 3.0 | Sheet vinyl | AF01 | N | N | N | Anyone briefly | staff-wc |
+| AF12 | F | Main stair A | 2 | As AG18 | - | 3.7 x 7.7 | to soffit | Vinyl | AF01 (open) | Y | N | Y | Passing guards | none |
+| AF13 | F | Lift shaft A | 2 | As AG19; machine on the guide rails at the shaft head | Locked off | 2.2 x 2.2 | head 3.9 | - | AF14 | Y | N | N | - | lift-shaft |
+| AF14 | F | Lift lobby A first | 2 | Landing in front of the lift | Corridor lit | 3.2 x 2.2 | 2.4 | Vinyl | AF01 (open), AF13 | N | Y | Y | Passing | none |
+| AF15 | F | Fire stair A | 2 | As AG21, on to the roof bulkhead | Unused | 3.2 x 6.2 | to soffit | Vinyl | AF01 (fire door), AR04 | Y | N | Emergency only | - | fire-stair-roof |
+| AF16 | F | Cable riser A | 2 | As AG25 | Closed | 1.7 x 1.2 | full height | Concrete | AF01 (locked door) | Y | N | N | - | riser-cupboard |
+| AF17 | F | Bridge vestibule A | 2 | A end of the link bridge | Lit | 3.2 x 2.7 | 2.4 | Vinyl | AF01 (open), LF01 (reader) | N | Y | Y | Supervisor on rounds | none |
+| AF18 | F | Staff WC first | 2 | Staff WCs | In use | 4.7 x 3.7 | 3.0 | Sheet vinyl | AF01 | N | N | N | Anyone briefly | staff-wc |
 | AF19 | F to R | Pipe riser A | 3 | Chilled-water pipes from AF11 to the roof chillers, fixed ladder, roof hatch | Closed | 1.7 x 1.2 | full height | Concrete | AF10 (locked door), AR01 (hatch) | Y | N | N | - | riser-cupboard |
-| AF20 | F | Customer services office | 3 | Account managers (was AG07; moved to the first floor, Michael 2026-10-11) | Dark | 7.7 x 5.7 | 3.0 | Carpet tile | AF01 | N | N | N | Cleaner in its pass | office |
-| AF21 | F | First north corridor | 3 | Controlled staff corridor east-west, north of the core band; joined to AF01 at both ends (no dead ends) | Lit | 3.2 x 29.7 | 2.4 | Vinyl | North-row AF rooms, AF01 (both ends, open) | Y | Y | Y | Corridor patrol, cleaner later | corridor |
-| AR01 | R | A roof | 3 | Membrane roof, paved walkways, parapet | Wet, dark | 35.1 x 29.1 | open | Membrane, pavers | AR04, AF19 hatch, LF02 (fixed ladder) | - | - | N | - | none |
-| AR02 | R | Chiller compound | 3 | Three air-cooled chillers on steel frames (two run, one standby) for both buildings | Running | 12.0 x 6.0 | open | Steel frame on plinths | AR01 | - | - | N | - | none |
-| AR03 | R | Office AHU | 3 | Air handler for A's offices; ducts down into the corridor voids | Running | 6.0 x 3.0 | open | Plinth | AR01 | - | - | N | - | none |
-| AR04 | R | Fire stair A bulkhead | 3 | Stair head with roof door and smoke vent | Closed | 3.2 x 6.2 | 3.0 | Vinyl | AF15, AR01 (roof door) | Y | N | N | - | none |
+| AF20 | F | Customer services office | 2 | Account managers (was AG07; moved to the first floor, Michael 2026-10-11) | Dark | 7.7 x 5.7 | 3.0 | Carpet tile | AF01 | N | N | N | Cleaner in its pass | office |
+| AF21 | F | First north corridor | 2 | Controlled staff corridor east-west, north of the core band; joined to AF01 at both ends (no dead ends) | Lit | 3.2 x 29.7 | 2.4 | Vinyl | North-row AF rooms, AF01 (both ends, open) | Y | Y | Y | Corridor patrol, cleaner later | corridor |
+| AR01 | R | A roof | 2 | Membrane roof, paved walkways, parapet | Wet, dark | 35.1 x 29.1 | open | Membrane, pavers | AR04, AF19 hatch, LF02 (fixed ladder) | - | - | N | - | none |
+| AR02 | R | Chiller compound | 2 | Three air-cooled chillers on steel frames (two run, one standby) for both buildings | Running | 12.0 x 6.0 | open | Steel frame on plinths | AR01 | - | - | N | - | none |
+| AR03 | R | Office AHU | 2 | Air handler for A's offices; ducts down into the corridor voids | Running | 6.0 x 3.0 | open | Plinth | AR01 | - | - | N | - | none |
+| AR04 | R | Fire stair A bulkhead | 2 | Stair head with roof door and smoke vent | Closed | 3.2 x 6.2 | 3.0 | Vinyl | AF15, AR01 (roof door) | Y | N | N | - | none |
 
 Sums (rectangles, command over the A rows, 2026-10-11 revision): A ground 683 + 105 (AG26) = 788 of 1080 m2 (73%); A first 640 + 105 (AF21) = 745 of 1080 (69%); A roof plant and bulkhead 113 of 1080. AG26 and AF21 use AG10's and AF01's width (rect 3.5 x 30.0, clear 3.2 x 29.7; Michael's fix: the scale sheet says corridors are never under 3.0 and narrow corridors broke the camera on the Exchange; 2.7 clear was rejected). Corridor clear 3.2 is under SS 3.5-4.0 but not under 3.0 (ASK-5 accepted). AG07 is retired: the customer services office is AF20 (Michael, 2026-10-11, P03B feasibility).
 
 ### Link bridge
-| Id | Level | Name | Zone | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
+| Id | Level | Name | Access level | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| LF01 | F (4.2) | Link bridge | 3 | Enclosed glazed steel bridge between A's and B's first floors; camera | Lit | 12.0 x 3.0 | 3.0 | Rubber | AF17 (A reader), BF01 (B reader, post) | Y | N | Y | Supervisor on rounds; the bridge post watches it | corridor |
-| LF02 | Roof (7.8) | Bridge roof | 3 | Flat roof with edge rail; maintenance crossing between A's and B's roofs | Wet, dark | 12.0 x 3.5 | open | Membrane | AR01, BR01 (fixed ladders) | - | - | N | - | none |
+| LF01 | F (4.2) | Link bridge | 2 | Enclosed glazed steel bridge between A's and B's first floors; camera | Lit | 12.0 x 3.0 | 3.0 | Rubber | AF17 (A reader), BF01 (B reader, post) | Y | N | Y | Supervisor on rounds; the bridge post watches it | corridor |
+| LF02 | Roof (7.8) | Bridge roof | 2 | Flat roof with edge rail; maintenance crossing between A's and B's roofs | Wet, dark | 12.0 x 3.5 | open | Membrane | AR01, BR01 (fixed ladders) | - | - | N | - | none |
 
 Sum: 42 m2 over the 12 m gap (X05). Max stack: 3 walkable surfaces (gap: yard, bridge, bridge roof; wing: floor, catwalk, roof; riser: tunnel, BG31, hall roof); RULES 2 allows 4.
 
 ### Building B (2021), with the generator wing
-| Id | Level | Name | Zone | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
+| Id | Level | Name | Access level | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| BG01 | G | B ground lobby | 2 | Staff and contractor entrance, sign-in screen | Lit | 5.7 x 4.7 | 3.0 | Vinyl, matting | X04 (staff door, reader), BG05 (reader) | N | N | Y | Technician passes with kit | none |
-| BG02 | G | Main stair B | 3 | Staff stair ground to first | Used by guards | 3.7 x 7.7 | to soffit | Vinyl, nosings | BG05 (open) | Y | N | Y | Passing | none |
-| BG03 | G | Lift shaft B | 3 | Passenger lift, ground to first | Car parked, locked off | 2.2 x 2.2 | full height | Pit -1.1 | BG04 | Y | N | N | - | lift-shaft |
-| BG04 | G | Lift lobby B ground | 3 | Landing in front of the lift | Lit | 3.2 x 2.2 | 3.0 | Vinyl | BG05 (open), BG03 | N | N | Y | Passing | none |
-| BG05 | G | B ground corridor | 3 | Staff corridor north-south along the strip | Lit | 3.2 x 25.7 | 3.0 | Vinyl | BG01, BG02, BG04, BG06, BG07 (reader), BG09, BG10 (reader), BG14, BG15, BG16 | Y | N | Y | B ground rounds officer, facilities engineer, technician | corridor |
-| BG06 | G | Locker area | 3 | Lockers for staff and contractors | Technician's locker (contractor card inside) | 7.7 x 4.7 | 3.0 | Sheet vinyl | BG05 | N | N | N | B ground rounds officer passes | shower-lockers |
-| BG07 | G | Customer staging room | 2 | Customers unpack and test kit before it goes up | Technician's jacket over a chair, badge in it | 6.7 x 5.7 | 3.0 | Sealed concrete | X12 (roller door 3.0 x 3.0, key switch inside), BG05 (reader), BG08, BG09 (reader) | Y | N | Y | Technician between trips | build-room |
-| BG08 | G | Shipping cage | 2 | Mesh cage for parcels in and out | Locked | 3.7 x 3.2 | 3.0 | Sealed concrete | BG07 (mesh door, key) | N | N | N | - | customer-cage |
-| BG09 | G | Build room | 3 | Racks assembled before going into the hall | Empty racks on skates | 6.7 x 5.7 | 3.0 | Anti-static vinyl | BG05, BG07 (reader), BG20 (equipment door, opens from the hall only) | Y | N | N | - | build-room |
+| BG01 | G | B ground lobby | 1 | Staff and contractor entrance, sign-in screen | Lit | 5.7 x 4.7 | 3.0 | Vinyl, matting | X04 (staff door, reader), BG05 (reader) | N | N | Y | Technician passes with kit | none |
+| BG02 | G | Main stair B | 2 | Staff stair ground to first | Used by guards | 3.7 x 7.7 | to soffit | Vinyl, nosings | BG05 (open) | Y | N | Y | Passing | none |
+| BG03 | G | Lift shaft B | 2 | Passenger lift, ground to first | Car parked, locked off | 2.2 x 2.2 | full height | Pit -1.1 | BG04 | Y | N | N | - | lift-shaft |
+| BG04 | G | Lift lobby B ground | 2 | Landing in front of the lift | Lit | 3.2 x 2.2 | 3.0 | Vinyl | BG05 (open), BG03 | N | N | Y | Passing | none |
+| BG05 | G | B ground corridor | 2 | Staff corridor north-south along the strip | Lit | 3.2 x 25.7 | 3.0 | Vinyl | BG01, BG02, BG04, BG06, BG07 (reader), BG09, BG10 (reader), BG14, BG15, BG16 | Y | N | Y | B ground rounds officer, facilities engineer, technician | corridor |
+| BG06 | G | Locker area | 2 | Lockers for staff and contractors | Technician's locker (contractor card inside) | 7.7 x 4.7 | 3.0 | Sheet vinyl | BG05 | N | N | N | B ground rounds officer passes | shower-lockers |
+| BG07 | G | Customer staging room | 1 | Customers unpack and test kit before it goes up | Technician's jacket over a chair, badge in it | 6.7 x 5.7 | 3.0 | Sealed concrete | X12 (roller door 3.0 x 3.0, key switch inside), BG05 (reader), BG08, BG09 (reader) | Y | N | Y | Technician between trips | build-room |
+| BG08 | G | Shipping cage | 1 | Mesh cage for parcels in and out | Locked | 3.7 x 3.2 | 3.0 | Sealed concrete | BG07 (mesh door, key) | N | N | N | - | customer-cage |
+| BG09 | G | Build room | 2 | Racks assembled before going into the hall | Empty racks on skates | 6.7 x 5.7 | 3.0 | Anti-static vinyl | BG05, BG07 (reader), BG20 (equipment door, opens from the hall only) | Y | N | N | - | build-room |
 | BG10 | G | B plant corridor | 3 | Plant corridor behind a reader door: switchroom, gas room, fire stair, passage door | Lit; door sometimes wedged by the technician | 3.2 x 14.2 | 3.0 | Sealed concrete | BG05 (reader), BG11, BG12, BG28, X07 (exit-only, key outside) | Y | N | Y | Facilities engineer on rounds, B ground rounds officer | none |
-| BG11 | G | LV switchroom B | 3 | Main LV switchboard, generator changeover, feeds to the UPS | Running | 6.7 x 4.7 | 3.0 | Sealed concrete | BG10 | Y | N | N | Facilities engineer | switchroom |
-| BG12 | G | Fire stair B | 3 | Enclosed escape stair ground, first, roof | The facilities engineer's way to the roof | 3.2 x 6.2 | to soffit | Vinyl, nosings | BG10 (fire door), X05 (exit-only, west end wall), BF11 | Y | N | Emergency only | Facilities engineer on rounds | fire-stair-roof |
+| BG11 | G | LV switchroom B | 2 | Main LV switchboard, generator changeover, feeds to the UPS | Running | 6.7 x 4.7 | 3.0 | Sealed concrete | BG10 | Y | N | N | Facilities engineer | switchroom |
+| BG12 | G | Fire stair B | 2 | Enclosed escape stair ground, first, roof | The facilities engineer's way to the roof | 3.2 x 6.2 | to soffit | Vinyl, nosings | BG10 (fire door), X05 (exit-only, west end wall), BF11 | Y | N | Emergency only | Facilities engineer on rounds | fire-stair-roof |
 | BG13 | G | Gallery stair foot | 4 | Foot of the gallery stair, an alcove of the hall | Dark | 2.7 x 8.7 | open to BF10 | Raised floor tile | BG20 (open) | Y | N | N | Talking pair pass | none |
-| BG14 | G | Facilities office B | 3 | Facilities engineer's desk, BMS screen, permits | Lit | 5.7 x 4.7 | 3.0 | Vinyl | BG05 | N | N | Y | Facilities engineer between rounds | facilities-office |
-| BG15 | G | Cable riser B | 3 | Cable riser with fixed ladder, ground to first | Closed | 1.7 x 1.2 | full height | Concrete | BG05 (locked door) | Y | N | N | - | riser-cupboard |
-| BG16 | G | B staff WC | 3 | WC for staff and contractors | In use | 2.2 x 2.2 | 3.0 | Sheet vinyl | BG05 | N | N | N | Anyone briefly | visitor-wc |
+| BG14 | G | Facilities office B | 2 | Facilities engineer's desk, BMS screen, permits | Lit | 5.7 x 4.7 | 3.0 | Vinyl | BG05 | N | N | Y | Facilities engineer between rounds | facilities-office |
+| BG15 | G | Cable riser B | 2 | Cable riser with fixed ladder, ground to first | Closed | 1.7 x 1.2 | full height | Concrete | BG05 (locked door) | Y | N | N | - | riser-cupboard |
+| BG16 | G | B staff WC | 2 | WC for staff and contractors | In use | 2.2 x 2.2 | 3.0 | Sheet vinyl | BG05 | N | N | N | Anyone briefly | visitor-wc |
 | BG20 | G (hall block) | Data hall | 4 | Customer racks in rows, cages, overhead fibre trays, perforated tiles, cameras, beams | Lit aisles, cooling hum | 25.7 x 14.2 | 6.0 | Anti-static raised floor tiles | BG09 (equipment door), BG13, BG23 (open), BG24 (reader), BG29 (open), BU01 (hatches) | Y | N | Y | Talking pair, technician at a tenant's racks, tenant pair | data-hall-bay |
 | BG21 | G | Pell's cage | 5 | Ansell & Crowe's mesh cage of racks, labelled fibre | Being re-equipped; locked | 4.7 x 3.7 | 6.0 (mesh to 3.0) | Raised floor | BG20 (code lock and key) | N | N | N | - | customer-cage |
 | BG22 | G | Tenant cage | 5 | Another tenant's cage beside Pell's | Maintenance window, door open | 4.7 x 3.7 | 6.0 (mesh to 3.0) | Raised floor | BG20 (key) | N | N | Y | Tenant pair | customer-cage |
@@ -191,43 +191,43 @@ Sum: 42 m2 over the 12 m gap (X05). Max stack: 3 walkable surfaces (gap: yard, b
 | BG31 | G | Riser room | 5 | Top of the carrier riser; ducts turn into trays | Unmanned; camera | 3.7 x 5.7 | 6.0 | Sealed concrete | BG30, BG32 (floor hatch with rail) | Y | N | N | Roaming officer passes | none |
 | BG32 | B to G | Carrier riser | 5 | Shaft with fixed ladder carrying the carrier ducts from the tunnel | Closed | 1.7 x 1.7 | 3.6 high | Concrete | TB04 (riser door, reader), BG31 (hatch) | Y | N | N | - | carrier-riser |
 | BG33 | G | Carrier equipment room | 5 | Carriers' line-terminating racks | Unmanned | 8.7 x 5.7 | 6.0 | Anti-static raised floor | BG29 (reader) | Y | N | N | - | data-hall-bay |
-| BG40 | G (wing) | Generator hall | 3 | Two diesel generator sets (one duty, one standby), silencers, day tanks | Dark until the test | 17.7 x 11.7 | 6.0 | Epoxy-painted concrete | X07 (personnel door, key), X09 (double doors), BG41, BG42, BG43 | Y | N | N (on for the test) | Facilities engineer for the test | generator-compound |
-| BG41 | G (wing) | Generator catwalks | 3 | Steel grating walkways at 3.0 along both sets for silencers and valves; steel stair from the floor | As BG40 | 1.0 wide | 3.0 above | Steel grating | BG40 (stair) | - | N | N | - | none |
-| BG42 | G (wing) | Bulk fuel room | 3 | Bunded diesel tank, fill point on the east wall | Unmanned | 5.7 x 5.7 | 6.0 | Bund, sealed concrete | BG40 | Y | N | N | - | none |
-| BG43 | G (wing) | Generator control room | 3 | Generator panels and test controls | Dark until the test | 5.7 x 5.7 | 3.0 | Vinyl | BG40 | Y | N | N | Facilities engineer for the test | facilities-office |
-| BF01 | F | B first lobby | 3 | Bridge arrival, bridge post desk, stair and lift landing | Lit | 8.7 x 6.7 | 3.0 | Vinyl | LF01 (reader), BF02, BF04, BF05 | N | N | Y | Bridge post officer | lobby |
-| BF02 | F | Main stair B | 3 | As BG02 | - | 3.7 x 7.7 | to soffit | Vinyl | BF01 (open) | Y | N | Y | Passing | none |
-| BF03 | F | Lift shaft B | 3 | As BG03; machine at the shaft head | Locked off | 2.2 x 2.2 | head 3.9 | - | BF04 | Y | N | N | - | lift-shaft |
-| BF04 | F | Lift lobby B first | 3 | Landing in front of the lift | Lit | 3.2 x 2.2 | 3.0 | Vinyl | BF01 (open), BF03 | N | N | Y | Passing | none |
-| BF05 | F | Staff corridor B | 3 | First-floor staff corridor from the lobby to the mantrap, plant and fire stair | Lit | 3.2 x 13.7 | 3.0 | Vinyl | BF01, BF06, BF11, BF12, BF13, BF14, BF15 | Y | N | Y | Mantrap post, bridge post's glances | corridor |
-| BF06 | F | Mantrap vestibule | 3 | Waiting space and post desk at the mantrap's outer door | Lit | 3.7 x 3.2 | 3.0 | Vinyl | BF05 (open), BF07 (outer door) | N | N | Y | Mantrap post | none |
-| BF07 | F | Mantrap | 4 | Interlocked two-door booth: outer card or PIN, inner card plus iris | Lit | 4.2 x 3.7 | 3.0 | Vinyl | BF06 (outer), BF08 (inner) | Y | N | Y | Anyone passing | mantrap (kit too small) |
+| BG40 | G (wing) | Generator hall | 2 | Two diesel generator sets (one duty, one standby), silencers, day tanks | Dark until the test | 17.7 x 11.7 | 6.0 | Epoxy-painted concrete | X07 (personnel door, key), X09 (double doors), BG41, BG42, BG43 | Y | N | N (on for the test) | Facilities engineer for the test | generator-compound |
+| BG41 | G (wing) | Generator catwalks | 2 | Steel grating walkways at 3.0 along both sets for silencers and valves; steel stair from the floor | As BG40 | 1.0 wide | 3.0 above | Steel grating | BG40 (stair) | - | N | N | - | none |
+| BG42 | G (wing) | Bulk fuel room | 2 | Bunded diesel tank, fill point on the east wall | Unmanned | 5.7 x 5.7 | 6.0 | Bund, sealed concrete | BG40 | Y | N | N | - | none |
+| BG43 | G (wing) | Generator control room | 2 | Generator panels and test controls | Dark until the test | 5.7 x 5.7 | 3.0 | Vinyl | BG40 | Y | N | N | Facilities engineer for the test | facilities-office |
+| BF01 | F | B first lobby | 2 | Bridge arrival, bridge post desk, stair and lift landing | Lit | 8.7 x 6.7 | 3.0 | Vinyl | LF01 (reader), BF02, BF04, BF05 | N | N | Y | Bridge post officer | lobby |
+| BF02 | F | Main stair B | 2 | As BG02 | - | 3.7 x 7.7 | to soffit | Vinyl | BF01 (open) | Y | N | Y | Passing | none |
+| BF03 | F | Lift shaft B | 2 | As BG03; machine at the shaft head | Locked off | 2.2 x 2.2 | head 3.9 | - | BF04 | Y | N | N | - | lift-shaft |
+| BF04 | F | Lift lobby B first | 2 | Landing in front of the lift | Lit | 3.2 x 2.2 | 3.0 | Vinyl | BF01 (open), BF03 | N | N | Y | Passing | none |
+| BF05 | F | Staff corridor B | 2 | First-floor staff corridor from the lobby to the mantrap, plant and fire stair | Lit | 3.2 x 13.7 | 3.0 | Vinyl | BF01, BF06, BF11, BF12, BF13, BF14, BF15 | Y | N | Y | Mantrap post, bridge post's glances | corridor |
+| BF06 | F | Mantrap vestibule | 2 | Waiting space and post desk at the mantrap's outer door | Lit | 3.7 x 3.2 | 3.0 | Vinyl | BF05 (open), BF07 (outer door) | N | N | Y | Mantrap post | none |
+| BF07 | F | Mantrap | 3 | Interlocked two-door booth: outer card or PIN, inner card plus iris | Lit | 4.2 x 3.7 | 3.0 | Vinyl | BF06 (outer), BF08 (inner) | Y | N | Y | Anyone passing | mantrap (kit too small) |
 | BF08 | F | Secure corridor | 4 | Corridor from the mantrap to the gallery | Lit | 3.2 x 11.7 | 3.0 | Anti-static vinyl | BF07, BF09 (sealed door) | Y | N | Y | Gallery patrol | corridor |
 | BF09 | F | Gallery | 4 | Viewing gallery over the hall: glass balustrade 1.1 on the hall side, hall light switch bank at its entrance | Lit | 2.7 x 5.2 | 3.0 (hall side open 4.2-6.0) | Anti-static vinyl | BF08, BF10 (open), hall (looks over) | Y | N | Y | Gallery patrol | none |
 | BF10 | F to G | Gallery stair well | 4 | Open stair 2.4 wide, two flights and a 2.0 landing, gallery to hall floor | Lit at the head | 2.7 x 8.7 | 3.9 to soffit | Vinyl, nosings | BF09, BG13 | Y | N | Y | Gallery patrol, talking pair | none |
-| BF11 | F | Fire stair B | 3 | As BG12, on to the roof bulkhead | As BG12 | 3.2 x 6.2 | to soffit | Vinyl | BF05 (fire door), BR02 | Y | N | Emergency only | Facilities engineer on rounds | fire-stair-roof |
-| BF12 | F | Cable riser B | 3 | As BG15 | Closed | 1.7 x 1.2 | full height | Concrete | BF05 (locked door) | Y | N | N | - | riser-cupboard |
-| BF13 | F | Chilled-water valve room | 3 | Pipe rack entry, isolating valves, meters; pipes on to BG24 and the hall roof AHU | Running | 6.7 x 5.7 | 3.0 | Sealed concrete | BF05 (reader) | Y | N | N | Facilities engineer on checks | none |
-| BF14 | F | Staff WC B first | 3 | WCs | In use | 4.7 x 3.7 | 3.0 | Sheet vinyl | BF05 | N | N | N | Anyone briefly | staff-wc |
-| BF15 | F | Tenant work room | 3 | Desk space for visiting tenant engineers | Tenant pair's bags | 5.7 x 4.7 | 3.0 | Carpet tile | BF05 | N | N | N | - | meeting-room |
-| BR01 | R (8.4) | B strip roof | 3 | Membrane roof, parapet | Wet, dark | 17.1 x 29.1 | open | Membrane, pavers | BR02, LF02 and BR03 (fixed ladders) | - | - | N | - | none |
-| BR02 | R | Fire stair B bulkhead | 3 | Stair head with roof door and smoke vent | Closed | 3.2 x 6.2 | 3.0 | Vinyl | BF11, BR01 | Y | N | N | Facilities engineer on rounds | none |
-| BR03 | R (6.6) | B hall roof | 3 | Lightweight deck, walkway pavers, perimeter anchors | Wet, dark | 29.1 x 29.1 | open | Membrane | BR01 (fixed ladder), BR04, BR05 | - | - | N | Facilities engineer on rounds | none |
-| BR04 | R (6.6) | Hall supply AHU | 3 | Air handler with chilled-water coils feeding BR05 | Running | 8.0 x 3.0 | open | Plinth | BR03 | - | - | N | - | none |
+| BF11 | F | Fire stair B | 2 | As BG12, on to the roof bulkhead | As BG12 | 3.2 x 6.2 | to soffit | Vinyl | BF05 (fire door), BR02 | Y | N | Emergency only | Facilities engineer on rounds | fire-stair-roof |
+| BF12 | F | Cable riser B | 2 | As BG15 | Closed | 1.7 x 1.2 | full height | Concrete | BF05 (locked door) | Y | N | N | - | riser-cupboard |
+| BF13 | F | Chilled-water valve room | 2 | Pipe rack entry, isolating valves, meters; pipes on to BG24 and the hall roof AHU | Running | 6.7 x 5.7 | 3.0 | Sealed concrete | BF05 (reader) | Y | N | N | Facilities engineer on checks | none |
+| BF14 | F | Staff WC B first | 2 | WCs | In use | 4.7 x 3.7 | 3.0 | Sheet vinyl | BF05 | N | N | N | Anyone briefly | staff-wc |
+| BF15 | F | Tenant work room | 2 | Desk space for visiting tenant engineers | Tenant pair's bags | 5.7 x 4.7 | 3.0 | Carpet tile | BF05 | N | N | N | - | meeting-room |
+| BR01 | R (8.4) | B strip roof | 2 | Membrane roof, parapet | Wet, dark | 17.1 x 29.1 | open | Membrane, pavers | BR02, LF02 and BR03 (fixed ladders) | - | - | N | - | none |
+| BR02 | R | Fire stair B bulkhead | 2 | Stair head with roof door and smoke vent | Closed | 3.2 x 6.2 | 3.0 | Vinyl | BF11, BR01 | Y | N | N | Facilities engineer on rounds | none |
+| BR03 | R (6.6) | B hall roof | 2 | Lightweight deck, walkway pavers, perimeter anchors | Wet, dark | 29.1 x 29.1 | open | Membrane | BR01 (fixed ladder), BR04, BR05 | - | - | N | Facilities engineer on rounds | none |
+| BR04 | R (6.6) | Hall supply AHU | 2 | Air handler with chilled-water coils feeding BR05 | Running | 8.0 x 3.0 | open | Plinth | BR03 | - | - | N | - | none |
 | BR05 | R to G | Cooling supply shaft | 4 | Builder's-work shaft from BR04 down into the hall; bolted alarmed grille, key switch box beside it, hoist beam over it | Grille shut and armed | 1.7 x 1.7 | 0.9 deep plus the 6.0 drop | - | BR03 (grille), BG20 (diffuser panel) | Y | N | N | - | none |
-| BR06 | R (6.6) | Generator wing roof | 3 | Exhaust stacks, attenuators, membrane | Dark; stacks hot after the test | 23.1 x 11.1 | open | Membrane | none (reached for repair by access platform) | - | - | N | - | none |
+| BR06 | R (6.6) | Generator wing roof | 2 | Exhaust stacks, attenuators, membrane | Dark; stacks hot after the test | 23.1 x 11.1 | open | Membrane | none (reached for repair by access platform) | - | - | N | - | none |
 
 Sums (rectangles): B ground strip 481 of 540 m2 (89%); hall block 900 of 900 (fully tiled); B ground total 1381 of 1440 (96%). B first (strip only) 394 of 540 (73%). Generator wing 288 of 288. Pell's and the tenant cage sit inside BG20 and are not added.
 
 ### B level U
-| Id | Level | Name | Zone | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
+| Id | Level | Name | Access level | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | BU01 | U (-1.6) | Hall underfloor void | 4 | Cold-air plenum and cable space under the raised floor; pedestals at 1.2 centres (not modelled); leak detection | Cold air moving | 25.7 x 14.2 | 1.5 | Dust-sealed concrete | BG20 (hinged hatches throughout), BU02 | Y | N | N | Nobody | none |
 | BU02 | U (-1.6) | Cooling gallery plenum | 4 | Discharge plenum under the CRAH units, open to BU01 | Cold air moving | 3.7 x 14.2 | 1.5 | Dust-sealed concrete | BU01 (open), BG23 (hatch) | Y | N | N | Nobody | none |
 Sum: 435 m2 under the hall band (377 + 58).
 
 ### Under the yard (level B)
-| Id | Level | Name | Zone | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
+| Id | Level | Name | Access level | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | TB01 | B (-3.6) | Carrier vault | 4 | Carrier entrance room: street ducts in, carriers' splice cases; LANTERN's 2003 cable | Dark | 7.7 x 5.7 | 3.0 | Concrete | TB02 (ladder), TB03, TB04 | Y | N | N | Nobody | carrier-vault |
 | TB02 | Yard to B | Carrier manhole | 4 | Lidded shaft with fixed ladder from the yard into the vault | Lid shut | 1.2 x 1.2 | 3.6 deep | Concrete | X04 (lid), TB01 | Y | N | N | - | none |
@@ -236,65 +236,73 @@ Sum: 435 m2 under the hall band (377 + 58).
 Sum: 48 + 2 + 30 + 90 = 170 m2, all under the yard and B's south band.
 
 ### Site
-| Id | Level | Name | Zone | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
+| Id | Level | Name | Access level | Designed use | Use tonight | Clear (m) | Ceiling | Floor | Doors to | Walls to slab? | Void? | Lit? | Who at night | Module |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| X01 | G | Cooper's Lane | outside | Public lane and footway | Wet, quiet | 108 x 8 | open | Asphalt | X02 gates | - | - | Street lamps | Returning van driver on foot | none |
-| X02 | G | Gatehouse | 1 | Vehicle and visitor control at the main and pedestrian gates; yard monitor | Manned | 3.7 x 2.7 | 2.7 | Vinyl | X03, X01 (gates) | N | N | Y | Gatehouse officer | gatehouse |
-| X03 | G | Front yard and car park A | 1 | Bays in front of A, goods-in apron | Cars, Pell's van at goods-in | 52 x 22 | open | Asphalt, marked bays | X01 (gates), AG01, AG08, X05, X10, X04 | - | - | PIR | Perimeter patrol, van driver | none |
-| X04 | G | Front yard and car park B | 1 | Bays in front of B, loading apron, manhole lid | Cars, tenant van | 56 x 22 | open | Asphalt, marked bays | X03, BG01, X08, X12, TB02 | - | - | PIR | Perimeter patrol | none |
-| X05 | G | Gap yard | 1 | Paved service way between A and B, under the bridge and rack | Dark | 12 x 30 | under LF01 at 4.2 | Concrete paving | X03, X06, BG12 exit | - | - | PIR | Perimeter patrol | none |
-| X06 | G | Rear yard | 1 | Behind A to the viaduct and behind the wing: bin store, cycle shelter, old generator plinth | Dark | 52 x 16 + 24 x 2.5 | open | Concrete | X05, X10, X07 (gate), X11 | - | - | PIR | Perimeter patrol | none |
-| X07 | G | Service passage | 1 | Gap between B and the wing: maintenance of both walls, buried cable drawpits | Dark | 1.5 x 24 | open | Gravel | X06 and X09 (chain-link gates), BG10, BG40 | - | - | N | Facilities engineer to the test | none |
-| X08 | G | East service drive | 1 | Tanker and delivery drive from the service gate | Dark | 8 x 46 | open | Asphalt | X04, X09, BG23 exit | - | - | PIR | - | none |
-| X09 | G | Transformer compound | 3 | Two transformers and the network operator's substation, chain-link fenced | Humming | 24 x 16 | open | Gravel | X08 (gate, padlock), X07 (gate), BG40, BG42 fill point | - | - | N | - | none |
-| X10 | G | West path | 1 | Path along A's west wall from the yard to the rear yard; fire stair A exit | Dark | 4 x 30 | open | Concrete paving | X03, X06, AG21 exit | - | - | PIR | Perimeter patrol | none |
-| X11 | G | Bin store | 1 | Chain-link bin enclosure on the old generator plinth | Locked | 3.7 x 2.7 | open | Concrete plinth | X06 | - | - | N | - | bin-store |
-| X12 | G | Loading apron | 1 | Hatched no-parking apron at B's staging roller door, beside the east service gate | Empty | 10 x 8 | open | Concrete | X04, BG07 | - | - | PIR | - | none |
-| X13 | 5.0-6.5 | Pipe rack | 3 | Two steel portal frames carrying chilled-water flow and return and a cable tray from AF10 to BF13 | Running | 12 x 2 | open | Steel | AF10, BF13 (wall sleeves) | - | - | N | - | none |
+| X01 | G | Cooper's Lane | O | Public lane and footway | Wet, quiet | 108 x 8 | open | Asphalt | X02 gates | - | - | Street lamps | Returning van driver on foot | none |
+| X02 | G | Gatehouse | P | Vehicle and visitor control at the main and pedestrian gates; yard monitor | Manned | 3.7 x 2.7 | 2.7 | Vinyl | X03, X01 (gates) | N | N | Y | Gatehouse officer | gatehouse |
+| X03 | G | Front yard and car park A | P | Bays in front of A, goods-in apron | Cars, Pell's van at goods-in | 52 x 22 | open | Asphalt, marked bays | X01 (gates), AG01, AG08, X05, X10, X04 | - | - | PIR | Perimeter patrol, van driver | none |
+| X04 | G | Front yard and car park B | P | Bays in front of B, loading apron, manhole lid | Cars, tenant van | 56 x 22 | open | Asphalt, marked bays | X03, BG01, X08, X12, TB02 | - | - | PIR | Perimeter patrol | none |
+| X05 | G | Gap yard | P | Paved service way between A and B, under the bridge and rack | Dark | 12 x 30 | under LF01 at 4.2 | Concrete paving | X03, X06, BG12 exit | - | - | PIR | Perimeter patrol | none |
+| X06 | G | Rear yard | P | Behind A to the viaduct and behind the wing: bin store, cycle shelter, old generator plinth | Dark | 52 x 16 + 24 x 2.5 | open | Concrete | X05, X10, X07 (gate), X11 | - | - | PIR | Perimeter patrol | none |
+| X07 | G | Service passage | P | Gap between B and the wing: maintenance of both walls, buried cable drawpits | Dark | 1.5 x 24 | open | Gravel | X06 and X09 (chain-link gates), BG10, BG40 | - | - | N | Facilities engineer to the test | none |
+| X08 | G | East service drive | P | Tanker and delivery drive from the service gate | Dark | 8 x 46 | open | Asphalt | X04, X09, BG23 exit | - | - | PIR | - | none |
+| X09 | G | Transformer compound | P | Two transformers and the network operator's substation, chain-link fenced | Humming | 24 x 16 | open | Gravel | X08 (gate, padlock), X07 (gate), BG40, BG42 fill point | - | - | N | - | none |
+| X10 | G | West path | P | Path along A's west wall from the yard to the rear yard; fire stair A exit | Dark | 4 x 30 | open | Concrete paving | X03, X06, AG21 exit | - | - | PIR | Perimeter patrol | none |
+| X11 | G | Bin store | P | Chain-link bin enclosure on the old generator plinth | Locked | 3.7 x 2.7 | open | Concrete plinth | X06 | - | - | N | - | bin-store |
+| X12 | G | Loading apron | P | Hatched no-parking apron at B's staging roller door, beside the east service gate | Empty | 10 x 8 | open | Concrete | X04, BG07 | - | - | PIR | - | none |
+| X13 | 5.0-6.5 | Pipe rack | P | Two steel portal frames carrying chilled-water flow and return and a cable tray from AF10 to BF13 | Running | 12 x 2 | open | Steel | AF10, BF13 (wall sleeves) | - | - | N | - | none |
 Site sum (command, 2026-10-11 revision; was gap 288, rear 1204, west path 96, A 864): lane 864 + yards 1144 + 1232 + gap 360 + rear 892 + drive 368 + compound 384 + west path 120 + passage 36 + A 1080 + B 1440 + wing 288 = 8208 = 108 x 76. The rear yard is 16 m deep behind A (was 22): the old generator plinth with the bin store X11, a cycle shelter (about 6 x 2) and the way to the X07 gate still fit, with a 3.5 m path left clear along the viaduct side (general knowledge).
 
-## 6. Zones and controls
-| 01 space | Zone | Room ids |
+## 6. Access levels and controls
+Level words: Outside is the lane (public street, outside the fence; no level). Perimeter is the yard and every site piece inside the fence, controlled by the gatehouse officer, gates signed "Authorised only"; no card level. Then Level 1 to Level 5. A room whose door needs a higher card than its floor's staff card is Level 3.
+
+| 01 space | Level | Room ids |
 | --- | --- | --- |
-| S1 site | 1 (X09 3; X01 outside) | X02-X08, X10-X12, X13 (3) |
-| S2 A ground | 2 and 3 (correction: 01 said 2; the staff side behind reception's reader is the controlled corridor H2 and H6 name) | 2: AG01-AG03, AG08, AG09; 3: AG04-AG06, AG10, AG14-AG22, AG24-AG26 |
-| S3 security room | 3+ (confirmed) | AG11, AG12, AG13 |
-| S4 A first | 3 (confirmed) | AF01-AF21, AR01-AR04 |
-| S5 bridge and B secure floor | 3 to 4 (confirmed) | 3: LF01, LF02, BF01-BF06, BF11-BF15, BR01-BR04; 4: BF07-BF10 |
-| S6 data hall | 4 (confirmed; cages 5) | BG13, BG20, BG23-BG27, BU01, BU02, BR05; 5: BG21, BG22 |
-| S7 meet-me room | 5 (confirmed; its lobby 4) | BG30-BG33; 4: BG29 |
-| X way out | 1 to 3 (correction: 01 said 1; B's ground and the wing are staff areas behind readers and keys) | 1: yard; 2: BG01, BG07, BG08; 3: BG02-BG06, BG09-BG12, BG14-BG16, BG28, BG40-BG43, BR06 |
+| S1 site | Perimeter (X01 Outside) | X02-X13 (the transformer compound X09 and the pipe rack X13 are padlocked chain-link and open steel, no card reader) |
+| S2 A ground | 1 and 2 | 1: AG01-AG03, AG08, AG09; 2: AG04-AG06, AG10, AG14-AG22, AG24-AG26 |
+| S3 security room | 3 | AG11, AG12, AG13 |
+| S4 A first | 2 and 3 | 2: AF01, AF07-AF09, AF12-AF18, AF20, AF21, AR01-AR04; 3 (master card from AF01): AF02-AF06, AF10, AF11, AF19 |
+| S5 bridge and B secure floor | 2 to 4 | 2: LF01, LF02, BF01-BF06, BF11-BF15, BR01-BR04; 3: BF07 (mantrap; outer door Level 3, inner door Level 4); 4: BF08-BF10 |
+| S6 data hall | 4 (cages 5) | BG13, BG20, BG23-BG27, BU01, BU02, BR05; 5: BG21, BG22 |
+| S7 meet-me room | 5 (its lobby 4) | BG30-BG33; 4: BG29 |
+| X way out | Perimeter to 3 | Perimeter: yard; 1: BG01, BG07, BG08; 2: BG02-BG06, BG09, BG11, BG12, BG14-BG16, BG40-BG43, BR06; 3: BG10, BG28 (B plant corridor and the gas room behind it) |
 | Not named in 01 | 4 | TB01-TB04, AG23 (locked plant under the yard; the riser door leads into 5) |
+
+Card model: each card has a building (A or B) and a level, and opens every reader door at or below its level in its building; a bridge door belongs to the building it leads into. Cards: visitor or contractor day card A1 (issued at reception, holder still passes the gatehouse); A staff card A2; master card A3; B staff card B2; B-tier card and the remote-hands contractor card B5. Extra on top of the card: the iris at the mantrap's inner door, Pell's cage code and key, the tenant cage key, the key safe PIN. The escort PIN works on the same readers as today.
+
+Door signs: every reader door shows its level on a sign on or beside the door, in the style of Metal Gear Solid; perimeter gates carry "Authorised only". DR builds them as part of the door system (RULES 2 Doors).
+
+Building B's first floor (lobby, staff corridor, mantrap vestibule, valve and tenant rooms) stays Level 2, because main stair B reaches it openly from B's ground staff corridor. The mantrap's outer door is the first Level 3 door in Building B. Lift B is Level 2 on both floors. The wing doors and compound gates are key-only and ring-exempt (ASK-2).
 
 | From | To | Control | Who holds access | In a fire |
 | --- | --- | --- | --- | --- |
-| X01 | X03 | Main sliding gate and pedestrian gate at the gatehouse; pedestrian reader | Staff cards; gatehouse officer releases | Gatehouse opens for the brigade |
+| X01 | X03 | Main sliding gate and pedestrian gate at the gatehouse; no card level, the officer checks everyone, staff cards open the pedestrian reader | Staff cards; gatehouse officer releases | Gatehouse opens for the brigade |
 | X01 | X04 | East service gate, chain and padlock | Facilities; fuel supplier escorted | Stays shut |
 | X03 | AG01 | Main door locked out of hours, intercom | Reception officer releases | Releases |
 | X03 | AG08 | Roller door by key switch inside; wicket door reader | Ostler staff; van crew escorted | Wicket free to exit |
-| AG01, AG09; AF17 | AG10; LF01 | Reader, A card (master card opens all A readers) | A staff, guards | Maglock releases |
-| X04 / X12 | BG01 / BG07 | Staff door reader (B or contractor card); roller door key switch inside, locked at night | Staff, contractors; facilities | Staff door releases; roller door stays |
-| BG01, BG07 | BG05 | Reader, B or contractor card; BG07 to BG09 reader | Staff, contractors | Releases |
-| AG10 | AG11, AG12, AG13 | Reader, master card tier; key safe inside AG13 needs its PIN | Security staff, duty manager, Ostler | AG11 releases; AG12, AG13 stay locked (free exit) |
-| AF01 | AF02 (via AF03), AF04-AF06, AF10 | Reader, master card tier | Ostler, security | Ops releases; records, tape, media, plant stay locked (free exit) |
-| LF01 | BF01 | Reader, B-tier card or escort PIN; bridge post | B-tier holders | Releases both ways |
-| BF06 | BF07, BF08 | Mantrap: outer door B-tier card or PIN; inner door card plus iris; interlock | Iris: night duty engineer, duty manager | Both doors release outward, interlock dropped |
-| BF08 | BF09 | Sealed gas-tight door, no reader | Anyone inside 4 | Free both ways |
-| BG05 | BG10 | Reader, B-tier or contractor card (the door the technician wedges) | Ostler, contractors | Releases |
+| AG01, AG09; AF17 | AG10; LF01 | Level 2 reader (A), A staff card (A2) or higher; master card (A3) opens all A readers | A staff, guards | Maglock releases |
+| X04 / X12 | BG01 / BG07 | Level 1 reader (B), B staff card (B2) or higher or contractor card (B5); roller door key switch inside, locked at night | Staff, contractors; facilities | Staff door releases; roller door stays |
+| BG01, BG07 | BG05 | Level 2 reader (B), B staff card (B2) or higher or contractor card (B5); BG07 to BG09 Level 2 reader | Staff, contractors | Releases |
+| AG10 | AG11, AG12, AG13 | Level 3 reader (A), master card (A3); key safe inside AG13 needs its PIN | Security staff, duty manager, Ostler | AG11 releases; AG12, AG13 stay locked (free exit) |
+| AF01 | AF02 (via AF03), AF04-AF06, AF10 | Level 3 reader (A), master card (A3) | Ostler, security | Ops releases; records, tape, media, plant stay locked (free exit) |
+| LF01 | BF01 | Level 2 reader (B), B card or escort PIN; bridge post | B staff, B-tier and contractor cards | Releases both ways |
+| BF06 | BF07, BF08 | Mantrap: outer door Level 3 reader (B), B-tier card (B5) or PIN; inner door Level 4 reader (B), B-tier card (B5) plus iris; interlock | Iris: night duty engineer, duty manager | Both doors release outward, interlock dropped |
+| BF08 | BF09 | Sealed gas-tight door, no reader | Anyone inside Level 4 | Free both ways |
+| BG05 | BG10 | Level 3 reader (B), B-tier or contractor card (B5) (the door the technician wedges) | Ostler, contractors | Releases |
 | BG10 | BG28; X07 | Key; passage door exit-only with key cylinder outside | Facilities, gas contractor | Passage door is an exit |
 | X07 / X09 | BG40 | Wing personnel door key; double doors key; compound gate padlock | Facilities, network operator | Exits push-bar |
-| BG20 | BG24 | Reader, B-tier | Ostler engineers | Stays locked, free exit |
-| BG29 | BG30, BG33 | Reader, B-tier card or PIN | Ostler; carriers escorted | Stays locked, free exit |
-| BG30 | BG31 | Reader both sides, B-tier or PIN | Ostler cable team | Stays locked, free exit |
-| TB04 | BG32 | Riser door at the tunnel end, reader B-tier or PIN | Ostler cable team | Stays locked, free exit |
+| BG20 | BG24 | Level 4 reader (B), B-tier card (B5) | Ostler engineers | Stays locked, free exit |
+| BG29 | BG30, BG33 | Level 5 reader (B), B-tier card (B5) or PIN | Ostler; carriers escorted | Stays locked, free exit |
+| BG30 | BG31 | Level 5 reader (B) both sides, B-tier card (B5) or PIN | Ostler cable team | Stays locked, free exit |
+| TB04 | BG32 | Riser door at the tunnel end, Level 5 reader (B), B-tier card (B5) or PIN | Ostler cable team | Stays locked, free exit |
 | AG22 | AG23 | Locked floor hatch, key | Ostler | - |
-| X04 | TB02 | Heavy lid, carriers' and Ostler's lifting keys (zone 1 to 4, ring-exempt: ASK-2) | Carriers, Ostler | - |
+| X04 | TB02 | Heavy lid, carriers' and Ostler's lifting keys (Perimeter to Level 4, ring-exempt: ASK-2) | Carriers, Ostler | - |
 | BG20 | BG09 | Equipment door: no outside handle or reader, exit device inside, door-forced and held alarms to AG11; ring-exempt | Staff inside the hall | It is an exit; opening alarms |
 | BG23; AG21, BG12 | X08; X10, X05 | Fire exits, exit-only, no outside hardware, alarmed | - | Exits |
 | BR03 | BR05 to BG20 | Bolted grille with an alarm contact on the intrusion panel; key switch box beside it isolates the contact; roof key in AG13 | Facilities | Stays bolted |
 | AF15, BF11 | AR01, BR01 | Roof doors: key outside, thumb-turn inside; smoke vents open only by the fire alarm or the firefighter's switch | Facilities; brigade | Vents open |
-| AG10, AF01 | AG19, AF13 (lift A) | Zone 3 both floors. Day: staff card at each landing and in the car. Night: locked off, car at ground, doors shut; only an engineer's key switch or Ostler card in the car call panel | Ostler engineers | Car homes to ground and goes out of service |
-| BG05, BF01 | BG03, BF03 (lift B) | Zone 3 both floors, never into 4. Same as lift A with B cards | Ostler engineers | Same |
+| AG10, AF01 | AG19, AF13 (lift A) | Level 2 (A) on both floors. Day: staff card (A2) at each landing and in the car. Night: locked off, car at ground, doors shut; only an engineer's key switch or Ostler card in the car call panel | Ostler engineers | Car homes to ground and goes out of service |
+| BG05, BF01 | BG03, BF03 (lift B) | Level 2 (B) on both floors, never above. Same as lift A with B staff cards (B2) | Ostler engineers | Same |
 | BG20 | BG21, BG22, BU01 | Pell's cage code lock plus key; tenant cage key; floor hatches unlocked, hinged | Tenants, Ostler escort; engineers | Cages stay locked |
 
 ## 7. Adjacency
@@ -309,16 +317,16 @@ Must touch:
 - BG09 on the hall's west wall with BG07 beside it and BG07 on the yard: goods go yard, staging, build room, equipment door.
 - BG24 along the hall's north side with BG25-BG27 off it; BG23 along the hall's east side over BU02.
 - BG31 above the end of TB04, beside BG30; BG33 beside BG29: carrier ducts rise once and meet the panels.
-- BG28 between BG10 and the hall block: cylinders are refilled from zone 3. BF13 at the strip's north-west where X13 lands, above BG10 and BG11; BG11 near the wing: short pipe and cable runs.
+- BG28 between BG10 and the hall block: cylinders are refilled from Level 3. BF13 at the strip's north-west where X13 lands, above BG10 and BG11; BG11 near the wing: short pipe and cable runs.
 - TB01 under the yard in front of the gap, TB02 beside it: equal tunnel runs to both buildings.
 
 Must not touch:
-- Either lift shaft and any zone 4 or 5 room, or any room whose walls run to the slab other than its own lobby: lifts serve staff floors only.
+- Either lift shaft and any Level 4 or 5 room, or any room whose walls run to the slab other than its own lobby: lifts serve staff floors only.
 - BG20 and the yard or BG05: only BG09's equipment door joins the hall to the ground floor.
 - BF07 and any goods door (AG08, BG07, BG09): people and goods enter by separate doors.
 - Corridor voids and AG11-AG13, AG22, AG24, AF02, AF04-AF06, AF10, AF11: those walls run to the slab.
-- BG28 and BG20 by a door (cylinders reached from zone 3 only). The generator wing and B's walls: the 1.5 passage keeps the structures and fire risks apart.
-- A zone 1 or 2 room and AG11-AG13. The vault and any building footprint: the carriers' chamber stays under open yard for street access.
+- BG28 and BG20 by a door (cylinders reached from Level 3 only). The generator wing and B's walls: the 1.5 passage keeps the structures and fire risks apart.
+- A Perimeter or Level 1 room and AG11-AG13. The vault and any building footprint: the carriers' chamber stays under open yard for street access.
 
 ## 8. Vertical circulation (LD 16.2)
 - Main stair A (AG18, AF12): north side of the spine, east of centre. Dog-leg, two 1.85 flights of 13 risers (rise 0.1615, going 0.285), 2.0 landings, open centre with balustrade, handrails both sides; core 4.0 x 8.0; opens only to the controlled corridor.
@@ -390,7 +398,7 @@ Must not touch:
 
 ## 13. Review checklist (level-design 16.10)
 1. None: every room is a rectangle on the grid; corridors run straight between cores.
-2. None: every space has a use; 3+, 4 and 5 rooms are behind readers, keys or the mantrap. 3. None: ladders only in risers, shafts, the manhole and between roof levels; none beside a stair.
+2. None: every space has a use; Level 3, 4 and 5 rooms are behind readers, keys or the mantrap. 3. None: ladders only in risers, shafts, the manhole and between roof levels; none beside a stair.
 4. None: every stair has handrails both sides and a balustrade on each open side. 5. None: roofs only by the fire stair bulkheads; lower roofs by fixed ladders from those roofs.
 6. None: chillers, AHUs, stacks, bulkheads, hoist beam, each with its pipes, ducts or cables. 7. None: openings are stair wells, lift shafts, risers, lidded hatches, smoke vents and the BR05 duct.
 8. None: every object is named (cars, vans, crates, racks, CRAH units, cylinders, sets, tanks). 9. None.
@@ -400,7 +408,7 @@ Must not touch:
 
 ## 14. ASK items
 - ASK-1: Lane fence height: take F14's climbable fence value (real security fences are 2.4-3.0, general knowledge).
-- ASK-2 (answered 2026-10-11: exempt): Ring-exempt doors: manhole (1 to 4), equipment door, fire exits, passage door, wing doors and compound gates (key-only, from zone 1 into 3).
+- ASK-2 (answered 2026-10-11: exempt): Ring-exempt doors: manhole (Perimeter to Level 4), equipment door, fire exits, passage door, wing doors and compound gates (key-only, from Perimeter into Level 2 and 3).
 - ASK-3: Equipment door 2.0 x 2.1 (SS double door); real equipment doors are often 2.4 high or more (general knowledge).
 - ASK-4: Lift numbers (shaft, pit 1.1, head 3.4) are maker data, not facts: add them to facts.json in P03B?
 - ASK-5 (answered 2026-10-11: accepted): Corridors 2.4 clear under the 1.5 void (SS 3.0).
@@ -409,12 +417,12 @@ Must not touch:
 
 ## 15. Questions for Michael
 1. Generator hall: separate wing behind B with a 1.5 passage (as drawn), or inside B's footprint? Answered (Michael 2026-10-11): separate wing.
-2. Ring exemptions in ASK-2: accept, or add zone-2 airlocks in front of each key-only plant door? Answered: exempt them.
+2. Ring exemptions in ASK-2: accept, or add Level 1 airlocks in front of each key-only plant door? Answered: exempt them.
 3. Corridor height (ASK-5): accept 2.4 clear, or raise office floors to 4.5 (2.7 clear)? Answered: accept 2.4.
 4. Raised-floor pedestals (ASK-6): 1.2 grid as drawn, or leave pedestals out of the build? Answered: 1.2 grid kept; pedestals not modelled.
 5. Sizes: A 36 x 24, B 48 x 30, site 108 x 76: accept, or shrink B to 42 x 30? Answered: accept. Revised 2026-10-11: A 36 x 30 (Michael).
 
-Downstream: P03B redoes the block plan from this brief, including both lift shafts (2.5 x 2.5 beside each main core, pits 1.1). schema.md's ring-to-space line (S1-S6) is stale: use section 6 here. The module kit needs the rows in tension g. B-step builders: lifts are built as closed shafts with shut landing doors (no working lift in the engine). P04S, P07: zone corrections for S2 and X; P07 places no guard on the floors in tension c.
+Downstream: P03B redoes the block plan from this brief, including both lift shafts (2.5 x 2.5 beside each main core, pits 1.1). schema.md's ring-to-space line (S1-S6) is stale: use section 6 here. The module kit needs the rows in tension g. B-step builders: lifts are built as closed shafts with shut landing doors (no working lift in the engine). P04S, P07: level corrections for S2 and X; P07 places no guard on the floors in tension c.
 
 ## Revision log
 | Date | Fix # | What changed (rows, sections) | Checker counts after | Status |
@@ -423,3 +431,4 @@ Downstream: P03B redoes the block plan from this brief, including both lift shaf
 | 2026-10-11 | Michael: AG07 moved to first floor, P03B feasibility | AG07 row removed and retired, AF20 added (same size and use); section 3 note; A sums (ground 683, first 640); section 6 S2 and S4 lists | 151 schedule rows (unchanged) | DRAFT |
 | 2026-10-11 | answers | Michael: separate generator wing, ring exemptions (ASK-2), 2.4 corridors (ASK-5), sizes accepted, pedestals 1.2 grid not modelled (ASK-6); BU01, s9, s12b, s14, s15 | - | DRAFT |
 | 2026-10-11 | Michael: A 36 x 30 (+ corridor width fix) | Line 2 status; section 2 A size and plan form; section 5 rows AG26, AF21 (new), AG10, AF01, AR01, X05, X06, X10, A sums, site sum; section 6 S2 and S4; section 9 ventilation; section 12 item i; section 15 item 5. AG26 and AF21 use AG10's width (rect 3.5 x 30.0, clear 3.2 x 29.7), not 3.0 / 2.7 (scale sheet: corridors never under 3.0); sums recomputed with 3.5 (ground 788, first 745 of 1080) | 126 schedule rows in section 5 (was 124, +2). The earlier "151" matches no count of the file; it was not reproduced | DRAFT |
+| 2026-10-11 | levels revision (Michael) | Zones to access levels, per-building cards, door signs, perimeter: section 5 level column (126 rows), section 6 (spaces table, card model, door signs, controls), lines in sections 0, 5, 7, 12-15 | 126 schedule rows; levels O 1, P 12, 1: 8, 2: 66, 3: 14, 4: 19, 5: 6 | DRAFT |

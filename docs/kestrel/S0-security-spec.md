@@ -1,5 +1,5 @@
 # Security systems - spec
-Status: APPROVED (Michael, 2026-10-10)
+Status: DRAFT (levels revision 2026-10-11, awaiting Michael's re-approval)
 
 Six systems for Cinder Yard, reused later (Mission 5 bank): CCTV cameras, the security desk (with its alarm panel and plant faults), card access (readers, keycards, cloning, mantrap), the iris scanner, infrared beams and PIR lights. Coordinates and yaw follow 00-facts.md section 2 (north +Z, yaw 0 faces +Z). `SNxx` are the numbers in section 5. Every device raises suspicion only through existing enemy functions (section 10). Nothing here fails the mission.
 
@@ -41,12 +41,12 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
 ### 2.3 Card readers, keycards, cloning, mantrap
 | Item | Rule |
 | --- | --- |
-| Reader | Bound to one door (`Door` anchor with `locked: true`). A player holding a card whose `opens` lists the reader: "Swipe card" (tap) -> green, door `locked` false for SN30, then relocks when closed. No card: red, double beep, nothing else (no alert). |
-| Keycards | `cards[].heldBy` is a guard id or an object id. Object: "Take card" (tap). Guard: taken automatically when a takedown of the holder completes (Michael Q3), with a HUD line "Card taken"; while grabbing (`GRAB`) a card holder, the held person's card counts as carried. Cards belong to the player who took them. |
-| Guards | A guard whose card opens a reader door passes it (beep, green); guards without a card never route through a reader door (P07 rule). |
-| Clone | While grabbing (`GRAB`) a card holder: "Clone card" (hold SN32) copies the card to the player (same `opens`); the guard keeps his own card (Michael Q2). |
+| Reader | Bound to one door (`Door` anchor with `locked: true`). A reader door has an access level (`accessLevel`, 1-5) and a `building` (A or B); the level is shown on a sign on or beside the door (stage DR builds the signs). A player holding a card whose `building` matches and whose `level` is at least the door's level: "Swipe card" (tap) -> green, door `locked` false for SN30, then relocks when closed. No card: red, double beep, nothing else (no alert). A reader flagged `pin` also takes the escort PIN. |
+| Keycards | `cards[]` have a `building` (A or B) and a `level` (1-5), and `heldBy` is a guard id or an object id. Object: "Take card" (tap). Guard: taken automatically when a takedown of the holder completes (Michael Q3), with a HUD line "Card taken"; while grabbing (`GRAB`) a card holder, the held person's card counts as carried. Cards belong to the player who took them. |
+| Guards | A guard whose card's building and level open a reader door passes it (beep, green); guards without a card never route through a reader door (P07 rule). |
+| Clone | While grabbing (`GRAB`) a card holder: "Clone card" (hold SN32) copies the card to the player (same `building` and `level`); the guard keeps his own card (Michael Q2). |
 | Revoke | A card's holder found as a body (`EnemyManager.onBodyFound`) while the desk is manned: that card and its copies stop working after SN33. |
-| Mantrap | Two doors (`door` outer, `door2` inner) with readers. Interlock: one door unlocks only while the other is closed and has been closed SN34. Inner door needs card then iris (2.4) inside one SN35 window. A door held open past SN36 logs a "door held" event (manned: dispatch to the mantrap). |
+| Mantrap | Two doors (`door` outer, `door2` inner) with readers, each with its own `accessLevel` (`accessLevel2` for the inner door; outer 3, inner 4 in Kestrel). Interlock: one door unlocks only while the other is closed and has been closed SN34. Inner door needs card then iris (2.4) inside one SN35 window. A door held open past SN36 logs a "door held" event (manned: dispatch to the mantrap). |
 | State | `SecuritySystem.access`: card owners, clones, revoked ids, reader unlock timers, mantrap phase. Door open / lock state stays in `Doors`. |
 
 ### 2.4 Iris scanner
@@ -165,7 +165,7 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
     { "id": "panel", "kind": "panel", "level": "ground", "at": [21.5, 11.0], "y": 1.4, "facing": 270, "room": "secroom",
       "controls": ["cam-lobby-1", "beam-c1"], "reason": "intrusion panel" },
     { "id": "rd-ops", "kind": "reader", "level": "ground", "at": [30.0, 12.5], "y": 1.1, "facing": 0, "room": "corr-e",
-      "door": "op-ops-1", "reason": "ops office door" },
+      "door": "op-ops-1", "accessLevel": 3, "building": "A", "reason": "ops office door" },
     { "id": "mt-hall", "kind": "mantrap", "level": "ground", "at": [34.0, 14.0], "y": 0, "room": "mantrap",
       "door": "op-mt-out", "door2": "op-mt-in", "reason": "data hall entry" },
     { "id": "iris-hall", "kind": "iris", "level": "ground", "at": [34.5, 15.5], "y": 1.6, "facing": 0, "room": "mantrap",
@@ -178,7 +178,7 @@ All state lives in one host-side `SecuritySystem` (pure logic in `src/security/`
       "responders": ["civ-engineer"], "reason": "CRAC trip lure", "minPlayers": 1 }
   ],
   "zones": [ { "id": "secure", "rooms": ["mantrap", "datahall", "mmr"], "secure": true } ],
-  "cards": [ { "id": "card-mgr", "opens": ["rd-ops"], "heldBy": "g-s2-manager" } ]
+  "cards": [ { "id": "card-mgr", "building": "A", "level": 3, "heldBy": "g-s2-manager" } ]
 }
 ```
 (Coordinates above are placeholders for shape only; P04S places the real devices.)
@@ -189,6 +189,8 @@ Added fields and why:
 | Field | On | Why |
 | --- | --- | --- |
 | `door2` | mantrap | A mantrap is two doors in series |
+| `accessLevel`, `accessLevel2`, `building` | reader, mantrap | A reader opens for a card of its building at or above its level (named `accessLevel` so it does not clash with the floor `level` every device has) |
+| `pin` | reader | The reader also takes the escort PIN |
 | `enrolled` | iris | Biometric is per person, not per card |
 | `controls` | panel | Which cameras and beams the panel switches (`feeds` is what the desk shows) |
 | `responders` | fault | The BMS pages named staff (the duty engineer) whether or not the desk is manned |
@@ -267,5 +269,6 @@ Self-check: 6 systems, each with 2+ counters (section 4); only the existing func
 | --- | --- | --- | --- |
 | 2026-10-10 | 1 | Iris enrols the night duty engineer and the duty manager (g-s2-manager): section 2.4, section 6 example enrolled list, section 12 answer 4 | done |
 | 2026-10-10 | 2 | progress.md Decisions by Michael wording updated | done |
+| 2026-10-11 | levels | Section 2.3: reader `accessLevel` and `building`, cards `building` and `level` (replace `opens`), `pin` flag, mantrap door levels; section 6 example and added fields. Zone, ring and LED words for the intrusion panel and status LEDs are a different idea and stay. Door signs: DR | done |
 
-Downstream: S2 must recheck iris tests (the enrolled guard can be g-s2-manager); P04S must recheck the iris `enrolled` list; S4 must recheck iris sync.
+Downstream (levels revision): S2 builds readers and cards with `accessLevel` / `building` / `level` (not started). S1 Part A uses S0 cameras only and is unchanged. Downstream: S2 must recheck iris tests (the enrolled guard can be g-s2-manager); P04S must recheck the iris `enrolled` list; S4 must recheck iris sync.
