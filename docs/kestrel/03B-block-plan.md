@@ -231,8 +231,8 @@ Check (`node scripts/kestrel/p03b-zones-check-b.mjs`, this session): `zones 19, 
 | S-DRIVE | G | [100, 30, 108, 76] | X08 | 368 | east service drive | section 1; brief 5 X08 |
 | S-COMP | G | [76, 60, 100, 76] | X09 | 384 | transformer compound | section 1; brief 5 X09 |
 | S-WPATH | G | [0, 30, 4, 60] | X10 | 120 | west path, fire stair A exit | section 1; brief 5 X10 |
-| SI-GATE | G | [1, 8, 5, 11] | X02 | 12 | gatehouse at the lane fence west end, gates east of it | brief 4, 5 X02 (3.7 x 2.7) |
-| SI-BIN | G | [8, 63, 12, 66] | X11 | 12 | bin store on the old generator plinth behind A | brief 3, 5 X11 (3.7 x 2.7) |
+| SI-GATE | G | [1, 8, 5.5, 11.5] | X02 | 15.75 | gatehouse at the lane fence west end, gates east of it | brief 4, 5 X02 (3.7 x 2.7) |
+| SI-BIN | G | [8, 63, 12.5, 66.5] | X11 | 15.75 | bin store on the old generator plinth behind A | brief 3, 5 X11 (3.7 x 2.7) |
 | SI-APRON | G | [60, 22, 70, 30] | X12 | 80 | loading apron in front of BG07 (x 64-70, 1c 4.5) | brief 5 X12 (10 x 8) |
 | SI-RACK | G (5.0-6.5) | [40, 44.5, 52, 46.5] | X13 | 24 | pipe rack, AF10 to B west wall into the BF01 zone, 1.0 north of the bridge | brief 4, 5 X13, 9 |
 | L-ROOF | L | [40, 40, 52, 43.5] | LF02 | 42 | bridge roof | section 2; brief 5 LF02 |
@@ -266,7 +266,7 @@ Self-check (this session): D `zones 26, rows 126 of 126, fails 0`; A `zones 27, 
 - 1e: TB02, AG23 and BG32 are shafts with fixed ladders between level B and G; the tunnel doors are 1e's ring entries.
 
 ## 6. Vertical circulation
-Rise per storey 4.2 / 26 = 0.1615 (brief 8). Clear = rect - 0.3 each way (brief 5 convention).
+Rise per storey 4.2 / 25 = 0.168 (A11 and schema stairs[].risers; brief 8 says 26, P03R). Clear = rect - 0.3 each way (brief 5 convention).
 
 ### 6.1 Stairs, lifts, risers, shafts and roof ladders
 | Id | Levels | Rect [x0, z0, x1, z1] | Kind | Rooms | Opens to | Fit | Source |
@@ -280,7 +280,7 @@ Rise per storey 4.2 / 26 = 0.1615 (brief 8). Clear = rect - 0.3 each way (brief 
 | V-BLIFT | G, F | [54.5, 46, 57, 48.5] | lift | BG03, BF03 | BG04 (BG05 bay, G), BF04 (BF01 bay, F); east side | clear 2.2 x 2.2; pit 1.1; head 3.9 | brief 8; 4.2 KB-LIFT |
 | V-BFS | G, F, R | [52, 56.5, 58.5, 60] | fire | BG12, BF11, BR02 | BG10 (G, east side, fire door); BF05 end bay (F, east side); X07 (G, north wall exit at the east end); BR01 (roof door, east side) | clear 6.2 x 3.2; going 0.285: landings 1.39 | brief 8; 4.2 KB-FS |
 | V-BRISER | G, F | [55, 44.5, 57, 46] | riser | BG15, BF12 | BG05 (G, locked door); BF01 (F, 4.4) | clear 1.7 x 1.2 | brief 8; 4.2 KB-RISER |
-| V-GAL | G, F | [67, 43, 70, 52] | straight | BG13, BF10 | BF09 (F, south end); BG20 (G, hall side, open) | clear 2.7 x 8.7; going 0.26, landing 2.4: 24 x 0.26 + 2.4 = 8.64 of 8.7; stair 2.4 of 2.7 | brief 8, 12a; 4.2 KB-WELL |
+| V-GAL | G, F | [67, 43, 70, 52] | straight | BG13, BF10 | BF09 (F, south end); BG20 (G, hall side, open) | clear 2.7 x 8.7; going 0.26, landing 2.4: 23 x 0.26 + 2.4 = 8.38 of 8.7; stair 2.4 of 2.7 | brief 8, 12a; 4.2 KB-WELL |
 | V-AG23 | B to G | [38, 45, 40, 47] | shaft | AG23 | TB03 (door in its west wall on x 40); AG22 floor hatch (P04's AG22 covers it) | clear 1.7 x 1.7; 3.6 deep | brief 5 AG23, 8; 5.4 |
 | V-BG32 | B to G | [72, 30, 74, 32] | shaft | BG32 | TB04 (riser door, north wall); BG31 floor hatch | clear 1.7 x 1.7; 3.6 | brief 5 BG32, 8; 5.2 T-RISER |
 | V-TB02 | B to G | [49, 24, 50.5, 25.5] | manhole | TB02 | TB01 (east wall); X03 lid | clear 1.2 x 1.2; 3.6 | brief 5 TB02, 8; 5.2 T-MH |

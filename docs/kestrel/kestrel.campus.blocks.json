@@ -1080,7 +1080,7 @@
     0,
     8,
     1,
-    11
+    11.5
    ],
    "ceiling": 0,
    "finish": "",
@@ -1094,14 +1094,14 @@
    "name": "S-YARDA (X03) part 2",
    "kind": "yard",
    "rect": [
-    5,
+    5.5,
     8,
     52,
-    11
+    11.5
    ],
    "ceiling": 0,
    "finish": "",
-   "minShort": 2.7,
+   "minShort": 3,
    "open": [],
    "ring": 1
   },
@@ -1112,7 +1112,7 @@
    "kind": "yard",
    "rect": [
     0,
-    11,
+    11.5,
     52,
     30
    ],
@@ -1216,11 +1216,11 @@
     0,
     63,
     8,
-    66
+    66.5
    ],
    "ceiling": 0,
    "finish": "",
-   "minShort": 2.7,
+   "minShort": 3,
    "open": [],
    "ring": 1
   },
@@ -1230,14 +1230,14 @@
    "name": "S-REAR (X06) part 3",
    "kind": "yard",
    "rect": [
-    12,
+    12.5,
     63,
     52,
-    66
+    66.5
    ],
    "ceiling": 0,
    "finish": "",
-   "minShort": 2.7,
+   "minShort": 3,
    "open": [],
    "ring": 1
   },
@@ -1248,7 +1248,7 @@
    "kind": "yard",
    "rect": [
     0,
-    66,
+    66.5,
     52,
     76
    ],
@@ -1351,12 +1351,12 @@
    "rect": [
     1,
     8,
-    5,
-    11
+    5.5,
+    11.5
    ],
    "ceiling": 0,
    "finish": "",
-   "minShort": 2.7,
+   "minShort": 3,
    "open": [],
    "ring": 1
   },
@@ -1368,12 +1368,12 @@
    "rect": [
     8,
     63,
-    12,
-    66
+    12.5,
+    66.5
    ],
    "ceiling": 0,
    "finish": "",
-   "minShort": 2.7,
+   "minShort": 3,
    "open": [],
    "ring": 1
   },
