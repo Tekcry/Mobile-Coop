@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1a done; Part 1b zones next; sections 1-2 revised for A 36 x 30, 2026-10-11)
+Status: DRAFT (Part 1b done: A zones; Part 1c next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -46,9 +46,9 @@ Self-check (node script over a 0.5 grid, this session): `items 13, area sum 8208
 | B | Under the yard | -3.6 | 3.6 | Vault, carrier manhole shaft, service tunnel; rects set in Part 1d | brief 2, 4, 12c |
 | U | Underfloor void | -1.6 | 1.6 to hall floor (1.5 clear under tiles) | Hall and cooling-gallery plenum band, inside the hall block [70, 30, 100, 60]; exact rect set with B's hall rooms in a later part | brief 2, 12b |
 | G | Ground | 0.0 | 4.2 (A, B strip); 6.6 to roof (hall block, wing) | Listed, not default: A [4, 30, 40, 60], B [52, 30, 100, 60], wing [52, 62, 76, 74]. The wing is outside `meta.buildings` footprints, so the default would miss it | brief 2; schema 2 levels[].footprint |
-| F | First | 4.2 | 4.2 | A [4, 30, 40, 60], B strip [52, 30, 70, 60], link bridge [40, z0, 52, z0 + 3.5] in the gap, between AF17 and BF01; z0 set with those rooms (Part 1b) | brief 2, 12h |
+| F | First | 4.2 | 4.2 | A [4, 30, 40, 60], B strip [52, 30, 70, 60], link bridge [40, 40, 52, 43.5] (z0 = 40) in the gap, between AF17 and BF01 (Part 1b) | brief 2, 12h |
 | H | Low roof | 6.6 | - (open roof, parapet 1.1 to 7.7) | Hall block [70, 30, 100, 60], wing [52, 62, 76, 74] | brief 2, 4 |
-| L | Bridge roof | 7.8 | - (open roof) | Link bridge rect [40, z0, 52, z0 + 3.5] (Michael, 2026-10-11) | brief 2 |
+| L | Bridge roof | 7.8 | - (open roof) | Link bridge rect [40, 40, 52, 43.5] (z0 = 40; Michael, 2026-10-11) | brief 2 |
 | R | Roof | 8.4 | - (open roof, parapet 1.1) | A [4, 30, 40, 60], B strip [52, 30, 70, 60] | brief 2 |
 
 - H at 6.6 overlaps F's span (4.2-8.4) in height; their footprints do not overlap (schema 1).
@@ -120,6 +120,22 @@ G and F tile A [4, 30, 40, 60] exactly; R lists only plant zones, the rest is op
 | F-NE | F | [21, 54, 36.5, 60] | AF08, AF11 | 93 | 82.8% | 14 of 15.5 | kitchen with windows; pump room against AF10 | brief 5, 7 |
 | R-BULK | R | [4, 54, 10.5, 57.5] | AR04 | 22.75 | tight | - | over the fire stair | brief 8 |
 | R-PLANT | R | [28, 43.5, 40, 54.5] | AR02, AR03 | 132 | 68.2% | - | chillers over AF19's hatch; AHU beside the spine; east roof edge at z 40-43.5 kept clear for the LF02 ladder | brief 9, 10 |
+
+Check (`timeout 60 node scripts/kestrel/p03b-zones-check.mjs docs/kestrel/03B-block-plan.md`, this session): `zones 27, fixed 15, fails 0, info 0`.
+
+### 3.4 Deviations
+- Main core turned: stair 8 along x by 4 deep, lift on its east side, against tension d's "core 4.0 x 8.0, core and shaft 6.5 x 8.0 together" read north-south. Same core size, turned to keep the north row 6 deep (3.1).
+- Corridors longer than the brief's 30: spine and north corridor 36 on G, 32.5 on F (F stops at AF17 and AF10). The two links (2 x 24.5 = 49 m2 per floor) are what brief 12i's ring needs; section 5 does not list them.
+- AF17 3.5 x 3.5 (clear 3.2 x 3.2) against brief 3.2 x 2.7: it fills the spine width between the spine end and the bridge.
+- AF10 16.5 long (brief 15.7 clear, rect 16): it runs to the north wall so X13 can leave anywhere on z 43.5-60.
+- Door targets off the ring instead of AG10 or AF01: AG16, AG17 (AG26, behind the stair); AG21 and AF15 (north corridor west end; brief 8 says "west end of the spine"); AG25 and AF16 (west link); AF10 (AF21 east end, reader).
+- No other row of the candidate changed.
+
+### 3.5 Notes for P04, 1c and P03R
+- P04: AG06 is 8 deep in a 10 deep zone; take the full depth or add a door lobby, keep the south window. AF02 takes 12 m of spine wall with AF03 beside it (nothing fits in front). AG24 and AG23 stay off the lift (brief 7). Rooms whose walls run to the slab (AG11-AG13, AG22, AG24, AF02, AF04-AF06, AF10, AF11) keep the corridor voids out (brief 7).
+- 1c: bridge z0 = 40, so BF01 takes B's west wall at z 40-43.5. X13 leaves AF10's east wall north of the bridge (z 43.5-60), so BF13 sits at B's north-west.
+- Level L footprint [40, 40, 52, 43.5]. The LF02 ladder lands on A's roof at the east edge, z 40-43.5.
+- P03R: grid line z 42 runs down the middle of the spine and z 48 through the band, so columns stand in corridors and rooms. Recommend A's z column lines on the corridor walls: 30, 40, 43.5, 50.5, 54, 60. Brief 5 door targets and section 8's fire stair line need the ring wording (3.4).
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.

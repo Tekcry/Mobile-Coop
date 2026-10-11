@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (part 1a; 1b zones next: prompts/P03B-1b-zones-r2.md; door-test hold resolved by the A 36 x 30 revision) | pending | 2026-10-11 |
+| P03B | Block plan | DRAFT (parts 1a, 1b) | e40948c | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -46,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 
 ## Log (newest first)
 Older entries: progress-archive.md.
+- 2026-10-11 P03B 1b (r2): Building A zones at 36 x 30 in 03B section 3: plan form, 15 fixed blocks, 27 zones (G 12, F 13, R 2), bridge z0 = 40, section 2 F and L rows set. Candidate kept unchanged. Check: `zones 27, fixed 15, fails 0, info 0`; doors G 73.5 m needed of 127, F 63 of 86. Deviations in 3.4 (turned core, corridor lengths and links, AF17, AF10 length, ring door targets); notes for P04, 1c, P03R in 3.5. No ASKs. Next: Part 1c.
 - 2026-10-11 Planner: prompts/P03B-1b-zones-r2.md written (A 36 x 30: south row 10, spine, core band 7, north corridor, north row 6; corridor ring with two links; core stays turned; fire stair north-west corner; AF10 on the east wall). Door frontage per zone for every G and F room (G 73.5 m needed of 127, F 63 of 86); door-access rule added to the check script; planner test run 0 fails. Review of P02 rev A30: no blocking faults; for P03R: column line z 42 in the spine, brief door targets and section 8 need ring wording, links not in section 5, tension d wording.
 - 2026-10-11 Michael's decisions (planner): building sizes are not fixed (RULES 7 Building sizes, PLANNER review and feasibility lines, handover Working rules); prompts/P02-rev-A30.md written (17 decisions: A 36 x 30, north corridors AG26 and AF21, X05, X06, X10, sums, 03B sections 1-2); handover note for P03B-1b-zones-r2 door frontage sums on G and F. Review: no stage session ran since the last planner session. Found: brief 02's "151 schedule rows" does not match a section 5 row count (124); the revision prompt asks the session to state what it counts.
 - 2026-10-11 Michael's decision (planner): AG07 moves to A first floor as AF20 (brief 02 section 5 row, sums ground 683 / first 640, section 3 note, section 6 lists, revision log). prompts/P03B-1b-zones.md written: A zones G, F, R with feasibility sums (G needs 771.5 of 864, F 709.6, R 128.6), a precomputed candidate (10 fixed blocks, 20 zones, bridge z0 = 40, main core turned 8 x 4 so AF10 fits the north wall) and scripts/kestrel/p03b-zones-check.mjs; planner test run on the candidate tables: 0 fails, 3 INFO (G-NW, G-NE and AF10 do not touch the spine).
