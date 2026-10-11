@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1g-b done: adjacency must touch; Part 1g-c next)
+Status: DRAFT (Part 1 done; Part 2 blocks JSON next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -530,6 +530,38 @@ Deviations (1g-c fixes, Michael 2026-10-11):
 - Vault and manhole 1.0 east so the vault does not touch Building A (brief 7): T-VAULT [41, 24, 49, 30], T-MH [49, 24, 50.5, 25.5], TB04 [49, 27, 74, 30] (25 long, area 75). TB03 unchanged, meets the vault over x 41-43 (2.0). Updated in section 2 level B row, 5.2, 5.3, 6.1 V-TB02, 8.1 P11 / P12 (lengths 47.59, 61.49; total 495.8), 9.1 J32-J34 and T14. 8.2 question 1 keeps its distances as asked at the time.
 - Check D rule for TB03 relaxed from a 2.6 to a 2.0 meeting with the vault (script comment); a full-width meeting would need TB03 4 wide.
 - N25 gap 1.0, not 0.0; N26 3.0, not 4.0.
+
+## 10. Open questions and notes
+| Id | From | Item | For | Recommended |
+| --- | --- | --- | --- | --- |
+| Q01 | 1 dev | X07 1.55 clear and rear strip 2.0 deep against brief 5 (1.5, 2.5) | P03R | Brief 5 X06 / X07 take the 0.5 grid values |
+| Q02 | 2 | Level L (bridge roof, 7.8) not in schema 1's level list | P03R | Add `L` to schema 1 before B0 |
+| Q03 | 3.4, 3.5 | Brief wording: turned A core (tension d), two corridor links per floor (49 m2) not in brief 5, AF17 3.5 x 3.5, AF10 16.5, door targets off the ring (AG16, AG17, AG21, AG25, AF10, AF15, AF16), section 8 "west end of the spine" | P03R | One brief revision pass using 3.4 as the list |
+| Q04 | 3.5 | A's z column lines 42 and 48 stand in the spine and band | P03R | A's z lines on the corridor walls: 30, 40, 43.5, 50.5, 54, 60 |
+| Q05 | 4.4; 9.1 T13 | Brief wording: B main stair north of BF01, fire stair turned, BG10 11.5, BF05 8 plus end bay, BG04 / BF04 bays, BF13 north-east, BF12 / BF15 off BF01 | P03R | One brief revision pass using 4.4 as the list |
+| Q06 | 4.5 | B's z column lines (36, 42, 48, 54) cross the hall and corridor bands | P03R | Same rule as Q04: z lines on B's band walls |
+| Q07 | 5.3; 9.1 T14 | TB03 17.5 and TB04 25 against brief 10 / 30 and brief 7's equal runs; level B 181.75 against 170 | P03R | Brief 5 / 7 take the real runs; equal runs would move AG23 or BG32 and break 1b / 1d |
+| Q08 | 5.3, 5.4, 7.1 | Brief 5 TB02 "Doors to" X04 and brief 4 east service gate beside X12 | P03R | TB02 lid in X03; service gate on the lane fence opposite X08 (RA02) |
+| Q09 | 5.4 | X13 at 5.0-6.5 meets B's first floor 0.8-2.3 above it, not the 0.9 service void | P03R | Pipes rise inside B's west wall to the void; brief 9 gets one line |
+| Q10 | 6.3, 6.4 | Brief 8: gallery stair going 0.26 / landing 2.4, B core 5 wide, fire stair landings 1.39 against 1.45 flights | P03R | Brief 8 lines for both; fire stair going 0.27 (landings 1.48) |
+| Q11 | 9.2 U01 | Brief 7 "lift must not touch a slab-walled room" clashes with "lift beside its main stair"; lift B shares a wall with riser B | P03R | Reword: no opening from a lift to any room but its own lobby |
+| Q12 | 3.5 | AG06 is 8 deep in a 10 deep zone; AF02 takes 12 m of spine wall with AF03 beside it | P04 | AG06 takes the full depth or a door lobby, south window kept |
+| Q13 | 3.5, 9.2 U04 | Slab-walled rooms (AG11-AG13, AG22, AG24, AF02, AF04-AF06, AF10, AF11) keep corridor voids out; AG23 and AG24 off the lift | P04 | Walls to the slab on those rooms; voids over corridor zones only |
+| Q14 | 4.5, 7.2 | B-GGOODS packing (BG08, BG07 on the yard wall, BG09 north of BG07); BG07's door to BG05 north of BG08 | P04 | Pack as 4.5, record any reorder |
+| Q15 | 4.5, 7.2 | Wing: BG40's double doors to X09 and BG42's east-wall fill point share one wall | P04 | P04 chooses and records it |
+| Q16 | 4.5 | Hall rack aisles | P04 | At least 1.8 clear (RULES 6) |
+| Q17 | 5.4, 7.2, 9.1 J16 | BG13 opens only into the hall, on x 70, z 43-50.5 | P04 | No door from BG13 to the strip |
+| Q18 | 5.4 | BG05 is one straight 26.5 corridor | P04 | Hides at the BG04 bay, door recesses and the BG10 corner |
+| Q19 | 5.4, 6.4 | Carrier band order BG31, BG30, BG29, BG33; AG22 covers AG23; BG31 covers BG32's hatch; aisle under BR05; BG02's door east onto BG05 | P04 | Keep as listed |
+| Q20 | 7.1, 7.2 | Doors on their ring segments: RA01 gates east of the gatehouse, RA07 on z 43.5, BF06 off BF05 in sight of the bridge post; brief 5 doors with no brief 6 control (BF05-BF13, BG05-BG15, BF01-BF12, X06-X07) | P04 | Place each on its 7.1 / 7.2 segment |
+| Q21 | 9.1 T08, T01 | BF01 to B-FSEC partition glazed (two posts see each other); AG11-AG13 doors only on the spine | P04 | Keep both |
+| Q22 | 9.2 | Must-not-touch P04 column: no shaft-riser opening, hall doors on x 70 only RB13 and the well, mantrap doors only to BF06 and BF08, BG28's only door to BG10 | P04 | Keep each N row's P04 cell |
+| Q23 | 8.2 | Critical path rooms: AG06 window, AG05 door, west link, fire stair door | P04 | Keep them on the 8.1 lines or record added metres |
+| Q24 | 8.2 | Anchors on the critical path | P06 | Fence anchor at P01, window anchor at AG06 (P02), gate climb at RA02 (P12) |
+
+Settled, so dropped: wing grid offset, bridge walls and level L heights (Michael, 1a); AG22 across the spine (Michael, 1b ASK-4); fire stair walk distances (Michael, 6.2); exit at RA02 (Michael, 8.2 question 1); vault touching A (1g-c fix); 1c, 1d, 1e, 1f-b and 1g notes (done by those parts).
+Rows per For: Michael 0, P03R 11, P04 12, P06 1.
+
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
 
