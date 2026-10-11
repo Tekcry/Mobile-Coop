@@ -1,5 +1,5 @@
 # Cinder Yard - campus building brief
-Status: DRAFT (revision A 36 x 30, 2026-10-11)
+Status: APPROVED (Michael, 2026-10-11, revision A 36 x 30)
 
 Ostler Colocation's architect's record for the Cinder Yard campus off Cooper's Lane, Kestrel: Building A (2004), Building B (2021), the link bridge, the yard, the lane and what lies under the yard. Metres. Words and tables only; positions in words, P03B draws them. Short names: H = handover.md "Decisions to carry into P02", M = Michael's decisions for this stage, R = RULES.md section 1, D = 01-mission-brief.md "P02 must" lines, F = 00-facts.md, LD = docs/level-design.md, SS = docs/design/scale-sheet.md.
 

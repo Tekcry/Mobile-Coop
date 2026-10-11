@@ -12,7 +12,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | S4 | Security co-op sync and controls | not started | | |
 | S5 | Dormant guards (Part A, Part B) | not started | | |
 | P01 | Mission brief | APPROVED | 5764aad | 2026-10-11 |
-| P02 | Building brief | DRAFT (revision A 36 x 30) | 852d3ab | 2026-10-11 |
+| P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
 | P03B | Block plan | DRAFT (part 1a; 1b zones held: A ground door test) | pending | 2026-10-11 |
@@ -136,3 +136,4 @@ Older entries: progress-archive.md.
 - 2026-10-11 SETUP-2: planning runs in Claude Code planner sessions; prompts live in docs/kestrel/prompts/; questions carry a recommended option; one step at a time.
 
 ## BLOCKED
+- 2026-10-11 P02 revision (A 36 x 30) re-approved by Michael (all three questions: recommended).
