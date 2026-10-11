@@ -1,0 +1,702 @@
+{
+ "meta": {
+  "id": "kestrel",
+  "version": 2,
+  "grid": 0.5,
+  "objectGrid": 0.1,
+  "entry": [
+   84,
+   4
+  ],
+  "bay": [
+   6,
+   6
+  ],
+  "site": [
+   0,
+   0,
+   108,
+   76
+  ],
+  "buildings": [
+   {
+    "id": "A",
+    "name": "Building A",
+    "footprint": [
+     4,
+     30,
+     40,
+     60
+    ]
+   },
+   {
+    "id": "B",
+    "name": "Building B",
+    "footprint": [
+     52,
+     30,
+     100,
+     60
+    ]
+   }
+  ],
+  "stage": "P03B Part 2: campus zones and corridors only"
+ },
+ "levels": [
+  {
+   "id": "B",
+   "name": "Under the yard",
+   "floor": -3.6,
+   "height": 3.6,
+   "footprint": [
+    [
+     41,
+     24,
+     49,
+     30
+    ],
+    [
+     40,
+     30,
+     43,
+     47.5
+    ],
+    [
+     49,
+     27,
+     74,
+     30
+    ],
+    [
+     49,
+     24,
+     50.5,
+     25.5
+    ],
+    [
+     72,
+     30,
+     74,
+     32
+    ]
+   ]
+  },
+  {
+   "id": "U",
+   "name": "Underfloor void",
+   "floor": -1.6,
+   "height": 1.6,
+   "footprint": [
+    [
+     70,
+     36,
+     100,
+     50.5
+    ]
+   ]
+  },
+  {
+   "id": "G",
+   "name": "Ground",
+   "floor": 0,
+   "height": 4.2,
+   "footprint": [
+    [
+     4,
+     30,
+     40,
+     60
+    ],
+    [
+     52,
+     30,
+     100,
+     60
+    ],
+    [
+     52,
+     62,
+     76,
+     74
+    ]
+   ]
+  },
+  {
+   "id": "F",
+   "name": "First",
+   "floor": 4.2,
+   "height": 4.2,
+   "footprint": [
+    [
+     4,
+     30,
+     40,
+     60
+    ],
+    [
+     52,
+     30,
+     70,
+     60
+    ],
+    [
+     40,
+     40,
+     52,
+     43.5
+    ]
+   ]
+  },
+  {
+   "id": "H",
+   "name": "Low roof",
+   "floor": 6.6,
+   "height": 1.1,
+   "footprint": [
+    [
+     70,
+     30,
+     100,
+     60
+    ],
+    [
+     52,
+     62,
+     76,
+     74
+    ]
+   ]
+  },
+  {
+   "id": "L",
+   "name": "Bridge roof",
+   "floor": 7.8,
+   "height": 0.3,
+   "source": "Michael 2026-10-11",
+   "footprint": [
+    [
+     40,
+     40,
+     52,
+     43.5
+    ]
+   ]
+  },
+  {
+   "id": "R",
+   "name": "Roof",
+   "floor": 8.4,
+   "height": 1.1,
+   "footprint": [
+    [
+     4,
+     30,
+     40,
+     60
+    ],
+    [
+     52,
+     30,
+     70,
+     60
+    ]
+   ]
+  }
+ ],
+ "rooms": [
+  {
+   "id": "G-FRONT",
+   "level": "G",
+   "name": "G-FRONT (AG01, AG02, AG03, AG04)",
+   "kind": "zone",
+   "rect": [
+    4,
+    30,
+    22,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-SOFF",
+   "level": "G",
+   "name": "G-SOFF (AG06)",
+   "kind": "zone",
+   "rect": [
+    22,
+    30,
+    28.5,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-GOODS",
+   "level": "G",
+   "name": "G-GOODS (AG08, AG09)",
+   "kind": "zone",
+   "rect": [
+    28.5,
+    30,
+    40,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "A"
+  },
+  {
+   "id": "G-SPINE",
+   "level": "G",
+   "name": "G-SPINE (AG10)",
+   "kind": "corridor",
+   "rect": [
+    4,
+    40,
+    40,
+    43.5
+   ],
+   "ceiling": 2.4,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-WLINK",
+   "level": "G",
+   "name": "G-WLINK",
+   "kind": "corridor",
+   "rect": [
+    4,
+    43.5,
+    7.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-SEC",
+   "level": "G",
+   "name": "G-SEC (AG11, AG12, AG13, AG25)",
+   "kind": "zone",
+   "rect": [
+    7.5,
+    43.5,
+    19.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": "3+",
+   "building": "A"
+  },
+  {
+   "id": "G-CORE",
+   "level": "G",
+   "name": "G-CORE (AG18, AG19, AG20, AG16, AG17)",
+   "kind": "zone",
+   "rect": [
+    19.5,
+    43.5,
+    31,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-ELINK",
+   "level": "G",
+   "name": "G-ELINK",
+   "kind": "corridor",
+   "rect": [
+    31,
+    43.5,
+    34.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-EAST",
+   "level": "G",
+   "name": "G-EAST (AG22, AG23)",
+   "kind": "zone",
+   "rect": [
+    34.5,
+    43.5,
+    40,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-NCOR",
+   "level": "G",
+   "name": "G-NCOR (AG26)",
+   "kind": "corridor",
+   "rect": [
+    4,
+    50.5,
+    40,
+    54
+   ],
+   "ceiling": 2.4,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-NW",
+   "level": "G",
+   "name": "G-NW (AG21, AG05, AG15)",
+   "kind": "zone",
+   "rect": [
+    4,
+    54,
+    20,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "G-NE",
+   "level": "G",
+   "name": "G-NE (AG14, AG24)",
+   "kind": "zone",
+   "rect": [
+    20,
+    54,
+    40,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-SW",
+   "level": "F",
+   "name": "F-SW (AF20)",
+   "kind": "zone",
+   "rect": [
+    4,
+    30,
+    11,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-OPS",
+   "level": "F",
+   "name": "F-OPS (AF02, AF03, AF05, AF06)",
+   "kind": "zone",
+   "rect": [
+    11,
+    30,
+    40,
+    40
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-SPINE",
+   "level": "F",
+   "name": "F-SPINE (AF01)",
+   "kind": "corridor",
+   "rect": [
+    4,
+    40,
+    36.5,
+    43.5
+   ],
+   "ceiling": 2.4,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-VEST",
+   "level": "F",
+   "name": "F-VEST (AF17)",
+   "kind": "zone",
+   "rect": [
+    36.5,
+    40,
+    40,
+    43.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-WLINK",
+   "level": "F",
+   "name": "F-WLINK",
+   "kind": "corridor",
+   "rect": [
+    4,
+    43.5,
+    7.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-BW",
+   "level": "F",
+   "name": "F-BW (AF04, AF18, AF16)",
+   "kind": "zone",
+   "rect": [
+    7.5,
+    43.5,
+    19.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-CORE",
+   "level": "F",
+   "name": "F-CORE (AF12, AF13, AF14)",
+   "kind": "zone",
+   "rect": [
+    19.5,
+    43.5,
+    31,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-ELINK",
+   "level": "F",
+   "name": "F-ELINK",
+   "kind": "corridor",
+   "rect": [
+    31,
+    43.5,
+    34.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-E",
+   "level": "F",
+   "name": "F-E (AF19)",
+   "kind": "zone",
+   "rect": [
+    34.5,
+    43.5,
+    36.5,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.7,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-PLANT",
+   "level": "F",
+   "name": "F-PLANT (AF10)",
+   "kind": "zone",
+   "rect": [
+    36.5,
+    43.5,
+    40,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-NCOR",
+   "level": "F",
+   "name": "F-NCOR (AF21)",
+   "kind": "corridor",
+   "rect": [
+    4,
+    50.5,
+    36.5,
+    54
+   ],
+   "ceiling": 2.4,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-NW",
+   "level": "F",
+   "name": "F-NW (AF15, AF07, AF09)",
+   "kind": "zone",
+   "rect": [
+    4,
+    54,
+    21,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "F-NE",
+   "level": "F",
+   "name": "F-NE (AF08, AF11)",
+   "kind": "zone",
+   "rect": [
+    21,
+    54,
+    36.5,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "R-BULK",
+   "level": "R",
+   "name": "R-BULK (AR04)",
+   "kind": "zone",
+   "rect": [
+    4,
+    54,
+    10.5,
+    57.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  },
+  {
+   "id": "R-PLANT",
+   "level": "R",
+   "name": "R-PLANT (AR02, AR03)",
+   "kind": "zone",
+   "rect": [
+    28,
+    43.5,
+    40,
+    54.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "A"
+  }
+ ],
+ "walls": [],
+ "openings": [],
+ "stairs": [],
+ "ladders": [],
+ "voids": [],
+ "objects": [],
+ "exterior": [],
+ "services": []
+}
