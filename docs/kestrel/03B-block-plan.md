@@ -1,5 +1,5 @@
 # Cinder Yard - campus block plan
-Status: DRAFT (Part 1c done: B and wing zones; Part 1d next)
+Status: DRAFT (Part 1d done: site, under the yard, level U; Part 1e next)
 Zones only: no rooms, doors or objects. Zones, corridors, cores and levels; room rectangles belong to P04 (Michael, 2026-10-11).
 
 Metres, origin at the site's south-west corner, +X east, +Z north (schema 1). Rects are `[x0, z0, x1, z1]`, wall centrelines (RULES 6).
@@ -43,8 +43,8 @@ Self-check (node script over a 0.5 grid, this session): `items 13, area sum 8208
 
 | Level | Name | Floor (m) | Height (m) | Footprint | Source |
 | --- | --- | --- | --- | --- | --- |
-| B | Under the yard | -3.6 | 3.6 | Vault, carrier manhole shaft, service tunnel; rects set in Part 1d | brief 2, 4, 12c |
-| U | Underfloor void | -1.6 | 1.6 to hall floor (1.5 clear under tiles) | Hall and cooling-gallery plenum band, inside the hall block [70, 30, 100, 60]; exact rect set with B's hall rooms in a later part | brief 2, 12b |
+| B | Under the yard | -3.6 | 3.6 | TB01 [40, 24, 48, 30], TB03 [40, 30, 43, 47.5], TB04 [48, 27, 74, 30], shafts TB02 [48, 24, 49.5, 25.5] and BG32 [72, 30, 74, 32] (Part 1d) | brief 2, 4, 12c |
+| U | Underfloor void | -1.6 | 1.6 to hall floor (1.5 clear under tiles) | [70, 36, 100, 50.5] (BU01, BU02; Part 1d) | brief 2, 12b |
 | G | Ground | 0.0 | 4.2 (A, B strip); 6.6 to roof (hall block, wing) | Listed, not default: A [4, 30, 40, 60], B [52, 30, 100, 60], wing [52, 62, 76, 74]. The wing is outside `meta.buildings` footprints, so the default would miss it | brief 2; schema 2 levels[].footprint |
 | F | First | 4.2 | 4.2 | A [4, 30, 40, 60], B strip [52, 30, 70, 60], link bridge [40, 40, 52, 43.5] (z0 = 40) in the gap, between AF17 and BF01 (Part 1b) | brief 2, 12h |
 | H | Low roof | 6.6 | - (open roof, parapet 1.1 to 7.7) | Hall block [70, 30, 100, 60], wing [52, 62, 76, 74] | brief 2, 4 |
@@ -204,6 +204,64 @@ Check (`node scripts/kestrel/p03b-zones-check-b.mjs`, this session): `zones 19, 
 - P04: the hall's rack rows keep aisles of at least 1.8 (RULES 6).
 - 1d: BG31's place in B-GHCAR sets TB04's length (brief 30). BU01 and BU02 lie under B-GHALL and the cooling gallery band. The LF02 ladder lands on BR01 at the west edge, z 40-43.5.
 - P03R: B's z column lines (36, 42, 48, 54) cross the hall and corridor bands. Brief 7 and 8 wording needs the deviations in 4.4.
+
+## 5. Site, bridge roof, under the yard and level U
+
+### 5.1 Plan
+- Vault TB01 under the yard in front of the gap, north wall on A's front line (z 30); manhole TB02 is its own shaft on the vault's east wall, lid in the yard aisle where no bay is marked (brief 4).
+- Tunnel A TB03 runs north from the vault under the gap along A's east wall line to AG23 on G-EAST's east wall (z 43.5-47.5). Tunnel B TB04 runs east under the yard along B's south wall to the carrier riser BG32 under BG31.
+- Carrier band (1c 4.5) west to east: BG31, BG30, BG29, BG33 (4 + 9 + 4 + 9 = 26). BG31 at the west end gives the shortest tunnel.
+- Level U is the hall zone BU01 plus the cooling gallery's hall band BU02; the carrier band, plant band and BG32 keep normal slabs (brief 12b).
+- Gatehouse X02 at the lane fence's west end inside X03. Bin store X11 on the old generator plinth behind A, keeping the 3.5 path along the viaduct (z 72.5-76) and the way to the X07 gate clear.
+- Apron X12 in front of BG07's roller door. Pipe rack X13 crosses the gap 1.0 north of the bridge, from AF10 to B's west wall in the BF01 zone, clear of both B stairs (main z 48.5-56.5, fire z 56.5-60).
+- Bridge roof LF02 = the K-BRIDGE rect on level L. Open roofs are whole-roof zones; their plant and bulkheads are in 3.3 and 4.3.
+
+### 5.2 Zones
+| Zone | Level | Rect [x0, z0, x1, z1] | Rooms | Area | Note | Source |
+| --- | --- | --- | --- | --- | --- | --- |
+| S-LANE | G | [0, 0, 108, 8] | X01 | 864 | lane and footway, depot facade on z 0 | section 1; brief 4 |
+| S-YARDA | G | [0, 8, 52, 30] | X03 | 1144 | yard and bays in front of A, goods-in apron | section 1; brief 5 X03 |
+| S-YARDB | G | [52, 8, 108, 30] | X04 | 1232 | yard and bays in front of B | section 1; brief 5 X04 |
+| S-GAP | G | [40, 30, 52, 60] | X05 | 360 | service way under the bridge and rack | section 1; brief 5 X05 |
+| S-REAR | G | [0, 60, 52, 76] | X06 | 832 | rear yard behind A and the gap | section 1; brief 5 X06 |
+| S-REAR2 | G | [52, 74, 76, 76] | X06 | 48 | strip behind the wing | section 1 deviation |
+| S-PASS | G | [52, 60, 76, 62] | X07 | 48 | service passage, 1.55 clear | section 1; brief 4, 12e |
+| S-DRIVE | G | [100, 30, 108, 76] | X08 | 368 | east service drive | section 1; brief 5 X08 |
+| S-COMP | G | [76, 60, 100, 76] | X09 | 384 | transformer compound | section 1; brief 5 X09 |
+| S-WPATH | G | [0, 30, 4, 60] | X10 | 120 | west path, fire stair A exit | section 1; brief 5 X10 |
+| SI-GATE | G | [1, 8, 5, 11] | X02 | 12 | gatehouse at the lane fence west end, gates east of it | brief 4, 5 X02 (3.7 x 2.7) |
+| SI-BIN | G | [8, 63, 12, 66] | X11 | 12 | bin store on the old generator plinth behind A | brief 3, 5 X11 (3.7 x 2.7) |
+| SI-APRON | G | [60, 22, 70, 30] | X12 | 80 | loading apron in front of BG07 (x 64-70, 1c 4.5) | brief 5 X12 (10 x 8) |
+| SI-RACK | G (5.0-6.5) | [40, 44.5, 52, 46.5] | X13 | 24 | pipe rack, AF10 to B west wall into the BF01 zone, 1.0 north of the bridge | brief 4, 5 X13, 9 |
+| L-ROOF | L | [40, 40, 52, 43.5] | LF02 | 42 | bridge roof | section 2; brief 5 LF02 |
+| T-VAULT | B | [40, 24, 48, 30] | TB01 | 48 | carrier vault under the yard in front of the gap | brief 4, 5 TB01 (7.7 x 5.7) |
+| T-MH | B to G | [48, 24, 49.5, 25.5] | TB02 | 2.25 | manhole shaft on the vault's east wall, lid in the X03 aisle (see 5.3) | brief 4, 5 TB02 (1.2 x 1.2) |
+| T-TUNA | B | [40, 30, 43, 47.5] | TB03 | 52.5 | A branch north under the gap to AG23 on G-EAST's east wall | brief 5 TB03 (2.6 wide) |
+| T-TUNB | B | [48, 27, 74, 30] | TB04 | 78 | B branch east under the yard along B's south wall to BG32 | brief 5 TB04 (2.6 wide) |
+| T-RISER | B to G | [72, 30, 74, 32] | BG32 | 4 | carrier riser under BG31 at the carrier band's west end | brief 5 BG32 (1.7 x 1.7) |
+| U-HALL | U | [70, 36, 96, 50.5] | BU01 | 377 | hall underfloor void | brief 5 BU01 (25.7 x 14.2), 12b |
+| U-COOL | U | [96, 36, 100, 50.5] | BU02 | 58 | cooling gallery plenum | brief 5 BU02 (3.7 x 14.2) |
+| RF-A | R | [4, 30, 40, 60] | AR01 | 1080 | A roof, open; plant and bulkheads in 3.3 | section 2; brief 5 AR01 |
+| RF-BS | R | [52, 30, 70, 60] | BR01 | 540 | B strip roof, open; bulkhead in 4.3 | section 2; brief 5 BR01 |
+| RF-BH | H | [70, 30, 100, 60] | BR03 | 900 | hall roof, open; AHU and shaft in 4.3 | section 2; brief 5 BR03 |
+| RF-W | H | [52, 62, 76, 74] | BR06 | 288 | wing roof, open | section 2; brief 5 BR06 |
+
+Self-check (this session): D `zones 26, rows 126 of 126, fails 0`; A `zones 27, fixed 15, fails 0, info 0`; B `zones 19, fixed 10, fails 0`.
+
+### 5.3 Deviations
+- TB03 is 17.5 long (brief 10): A grew to 30 deep and AG22 / AG23 stay in G-EAST (1b, Michael's ASK-4).
+- TB04 is 26 long (brief 30): BG31 at the carrier band's west end.
+- Manhole TB02 beside the vault, not over it: a shaft is its own rect (Appendix A rule, as AG23 beside AG22). Its lid at x 48-49.5 lies in X03 (x 0-52), not X04 as brief 5 lists; it is still the aisle in front of the gap (brief 4).
+- Level B sum 184.75 (brief 170): the tunnel lengths above.
+
+### 5.4 Notes for P04, 1e and P03R
+- P04: carrier band west to east BG31, BG30, BG29, BG33 (x 70-74, 74-83, 83-87, 87-96). AG23 on G-EAST's east wall within z 43.5-47.5.
+- P04: BG13 (gallery stair foot, in B-GE) opens only into the hall, never into the strip (brief 2: the hall is entered only from the first floor).
+- P04: BG05 on B's ground floor is one straight 26.5 corridor; give it hides for stealth flow (lift bay BG04, door recesses, the BG10 corner).
+- P04 or P03R: brief 4 puts the east service gate beside the apron X12, but X12 is at x 60-70 and the drive X08 at x 100-108. Recommend the service gate on the lane fence opposite X08 (x 100-108), the apron reached across the yard aisle, and the brief wording changed.
+- P03R: X13 at 5.0-6.5 (brief 5, 9) is 0.8-2.3 above B's first floor (4.2), while 1c 4.1 says it crosses in the 0.9 service void (7.2-8.1). Recommend the pipes rise inside B's west wall to the void, or the rack runs at 7.2-8.1 outside; the brief needs one line.
+- P03R: brief 5 TB02 "Doors to" should read X03 (lid), not X04.
+- 1e: TB02, AG23 and BG32 are shafts with fixed ladders between level B and G; the tunnel doors are 1e's ring entries.
 
 ## Appendix A. Room sketch for P04 (not binding)
 Written by Part 1b-G before Michael's decision of 2026-10-11 that the block plan holds zones only. Kept as a sketch for P04 with its ASKs; nothing here binds P03B or P04. The frontage shortfall it hit (74.5 m of doors needed, 60 m of spine) is solved in P04 inside the zones.
