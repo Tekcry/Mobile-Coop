@@ -13,6 +13,7 @@ import { label } from './ops';
 import { PAD, PadState } from './pad';
 import { menuTree, RadialView } from './padMenu';
 import { Radial } from './radial';
+import { presetPicks } from './visibility';
 import type { RadialNode } from './radial';
 import type { Coll, Elem, Key, Ladder, Pt, Rect, Room, Stair, Wall } from './types';
 import { keyOf, parseKey } from './types';
@@ -21,6 +22,7 @@ type Focus = '3d' | 'plan' | 'drawer';
 const PREFS = 'kestrel-editor-pad';
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
+const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 
 export class PadControl {
   device: Device = 'keys';
@@ -172,6 +174,9 @@ export class PadControl {
     else if (id === 'build.window') tool('window');
     else if (id.startsWith('door.')) tool('door', id.slice(5));
     else if (id === 'edit.props') this.enterDrawer();
+    else if (id === 'lv.panel') this.enterDrawer('pad');
+    else if (id === 'file.checks') this.enterDrawer('checks');
+    else if (id === 'file.changes') this.enterDrawer('log');
     else if (id === 'edit.dup') ed.duplicate();
     else if (id === 'edit.del') ed.deleteSelected();
     else if (id === 'edit.rotate') this.rotate();
@@ -222,6 +227,7 @@ export class PadControl {
         this.setDevice('pad');
       }
     }
+    this.drawStrip();
     if (this.radial?.isOpen) return this.menuFrame(now);
     if (!gp) return this.followDrag();
     const st = this.st;
@@ -453,9 +459,9 @@ export class PadControl {
     this.showPointers();
   }
 
-  enterDrawer(): void {
+  enterDrawer(tab: 'props' | 'checks' | 'log' | 'pad' = 'props'): void {
     this.ed.openDrawer();
-    this.ed.tab = 'props';
+    this.ed.tab = tab;
     this.ed.renderPanel();
     this.setFocus('drawer');
   }
@@ -475,7 +481,7 @@ export class PadControl {
 
   private drawerFrame(): void {
     const st = this.st;
-    const fields = [...$('panel').querySelectorAll<HTMLElement>('[data-k], button')];
+    const fields = [...$('panel').querySelectorAll<HTMLElement>('[data-k], button, [data-go]')];
     if (st.pressed(PAD.B)) return this.setFocus(this.panes()[0] ?? '3d');
     if (!fields.length) return;
     if (st.repeat(PAD.DOWN)) this.drawerIndex = (this.drawerIndex + 1) % fields.length;
@@ -492,12 +498,16 @@ export class PadControl {
       const g = st.down(PAD.LB) ? this.ed.fineGrid : this.ed.grid;
       f.value = String(+(Number(f.value) + step * g).toFixed(3));
       f.dispatchEvent(new Event('change'));
+    } else if (step && f instanceof HTMLInputElement && f.type === 'range') {
+      f.value = String(+(Number(f.value) + step * Number(f.step || 1) * (st.down(PAD.LB) ? 1 : 2)).toFixed(3));
+      f.dispatchEvent(new Event('input'));
     } else if (step && f instanceof HTMLSelectElement) {
       f.selectedIndex = (f.selectedIndex + step + f.options.length) % f.options.length;
       f.dispatchEvent(new Event('change'));
     }
     if (st.pressed(PAD.A)) {
-      if (f instanceof HTMLButtonElement) f.click();
+      if (f instanceof HTMLButtonElement || (f instanceof HTMLInputElement && f.type === 'checkbox')) f.click();
+      else if (f.dataset.go) this.goToProblem(f.dataset.go);
       else if (f instanceof HTMLInputElement && f.type !== 'number') f.focus();
     }
   }
@@ -669,6 +679,91 @@ export class PadControl {
     const [x0, z0] = this.measureFrom;
     this.measureFrom = null;
     this.ed.status(`Measured ${fmt(hyp2(p[0] - x0, p[1] - z0))} m (east ${fmt(p[0] - x0)}, north ${fmt(p[1] - z0)})`);
+  }
+
+  // ---------- pad screen (Part C2): status strip and the Levels panel ----------
+  private stripAt = 0;
+  private drawStrip(): void {
+    if (this.device !== 'pad') return;
+    const now = performance.now();
+    if (now - this.stripAt < 250) return;
+    this.stripAt = now;
+    const ed = this.ed;
+    const v = ed.view.vis;
+    const lv = ed.model.data.levels.find((l) => l.id === ed.view.level);
+    const preset = { whole: 'Whole building', single: 'Single level', upTo: 'Up to this level', pick: 'Picked levels' }[v.preset];
+    const extras = [v.ghost ? 'ghosted' : '', v.exploded ? `exploded ${fmt(v.gap)} m` : '', v.section > 0 ? `walls cut at ${fmt(v.section)} m` : ''].filter(Boolean).join(', ');
+    const view = { '3d': '3D', both: 'Both', plan: 'Plan' }[ed.prefs.layout];
+    const fresh = ed.lastChecks ? ed.newProblems(ed.lastChecks).length : 0;
+    const bld = v.building === 'all' ? 'All' : v.building === 'site' ? 'Site' : `Building ${esc(v.building)}`;
+    $('padStrip').innerHTML = [
+      `Editing <b>${lv ? `${esc(lv.name)} (${fmt(lv.floor)} m)` : ''}</b>`,
+      `View <b>${view}</b> &nbsp; Levels <b>${preset}${extras ? `, ${extras}` : ''}</b>`,
+      `Building <b>${bld}</b> &nbsp; Tool <b>${this.measureFrom ? 'measure' : ed.tool}</b>`,
+      `Unsaved <b>${ed.model.dirty}</b> &nbsp; New problems <b>${fresh}</b>`,
+    ].join('<br>');
+  }
+
+  /** The Levels panel in the side panel: everything on the Levels toolbar row, reachable with the D-pad. */
+  renderPanel(panel: HTMLElement): void {
+    const ed = this.ed;
+    const v = ed.view.vis;
+    const levels = ed.model.data.levels.slice().sort((a, b) => b.floor - a.floor);
+    const ticks = presetPicks(v.preset, ed.model.data.levels, ed.view.level, v.picked);
+    const btn = (id: string, text: string, on = false): string => `<button data-pv="${id}" class="${on ? 'on' : ''}">${text}</button>`;
+    const bs = [{ id: 'all', n: 'All' }, ...(ed.model.data.meta.buildings ?? []).map((b) => ({ id: b.id, n: `Building ${b.id}` })), { id: 'site', n: 'Site' }];
+    panel.innerHTML =
+      '<p class="dim">D-pad up / down picks, A ticks or presses, left / right moves a slider (LB: fine), B leaves.</p>' +
+      `<div class="row">${btn('whole', 'Whole building', v.preset === 'whole')}${btn('single', 'Single level', v.preset === 'single')}${btn('upTo', 'Up to this level', v.preset === 'upTo')}</div>` +
+      levels.map((l) => `<label class="row"><input type="checkbox" data-k="pick" data-level="${esc(l.id)}" ${ticks.includes(l.id) ? 'checked' : ''}> ${esc(l.name)} (${fmt(l.floor)} m)</label>`).join('') +
+      `<div class="row">${btn('ghost', 'Ghost the rest', v.ghost)}${btn('exploded', 'Exploded', v.exploded)}${btn('underlay', 'Plan: level below', v.underlay)}</div>` +
+      `<label class="row"><span>Exploded gap</span><input type="range" data-k="gap" min="0" max="12" step="0.5" value="${v.gap}"><b>${fmt(v.gap)} m</b></label>` +
+      `<label class="row"><span>Cut walls at</span><input type="range" data-k="cut" min="0" max="4" step="0.1" value="${v.section}"><b>${v.section > 0 ? `${fmt(v.section)} m` : 'off'}</b></label>` +
+      `<div class="row">${bs.map((b) => btn(`b.${b.id}`, esc(b.n), v.building === b.id)).join('')}</div>`;
+    for (const c of panel.querySelectorAll<HTMLInputElement>('input[data-level]'))
+      c.addEventListener('change', () => {
+        v.picked = [...panel.querySelectorAll<HTMLInputElement>('input[data-level]')].filter((x) => x.checked).map((x) => x.dataset.level!);
+        v.preset = 'pick';
+        this.applyPanel();
+      });
+    for (const r of panel.querySelectorAll<HTMLInputElement>('input[type=range]'))
+      r.addEventListener('input', () => {
+        const n = Number(r.value);
+        if (r.dataset.k === 'gap') {
+          v.gap = n;
+          v.exploded = true;
+        } else v.section = n;
+        this.applyPanel(r.dataset.k === 'cut');
+      });
+    for (const b of panel.querySelectorAll<HTMLButtonElement>('button[data-pv]'))
+      b.addEventListener('click', () => {
+        const id = b.dataset.pv!;
+        if (id === 'whole' || id === 'single' || id === 'upTo') ed.setPreset(id);
+        else if (id === 'ghost' || id === 'exploded' || id === 'underlay') v[id] = !v[id];
+        else if (id.startsWith('b.')) v.building = id.slice(2);
+        this.applyPanel();
+      });
+  }
+
+  private applyPanel(rebuild = false): void {
+    this.ed.applyVis(rebuild);
+    this.ed.renderPanel();
+    this.stripAt = 0;
+  }
+
+  /** Checks panel: A on a problem line takes the camera to the first element it names. */
+  private goToProblem(text: string): void {
+    const ed = this.ed;
+    for (const coll of ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids'] as Coll[])
+      for (const e of ed.model.list(coll)) {
+        const idRe = new RegExp(`(^|[^A-Za-z0-9-])${e.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9-])`);
+        if (!idRe.test(text)) continue;
+        ed.setLevel(ed.levelOf(coll, e));
+        ed.select(keyOf(coll, e.id));
+        ed.frameSelected();
+        return;
+      }
+    ed.status('That line names nothing to go to');
   }
 }
 

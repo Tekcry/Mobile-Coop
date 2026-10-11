@@ -67,6 +67,7 @@ export function menuTree(d: Campus, opts: { selected: boolean; clipboard: boolea
             name: 'Levels',
             desc: 'Which levels are drawn',
             children: [
+              { id: 'lv.panel', name: 'Levels panel', desc: 'Pick levels, gap, cut height, building with the D-pad' },
               { id: 'lv.whole', name: 'Whole building' },
               { id: 'lv.single', name: 'Single level' },
               { id: 'lv.upTo', name: 'Up to this level' },
@@ -93,6 +94,8 @@ export function menuTree(d: Campus, opts: { selected: boolean; clipboard: boolea
           { id: 'file.save', name: 'Save', desc: 'The file, the plan images and the change log' },
           { id: 'file.revert', name: 'Revert to last save', desc: 'Asks first' },
           { id: 'file.help', name: 'Help', desc: 'Every button' },
+          { id: 'file.checks', name: 'Checks', desc: 'Problems found; A on one goes there' },
+          { id: 'file.changes', name: 'Changes', desc: 'What changed since the last save' },
         ],
       },
     ],

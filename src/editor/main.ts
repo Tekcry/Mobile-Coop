@@ -110,9 +110,9 @@ export class Editor {
   private planViewBox: number[] | null = null;
   private planMap: number[] | null = null;
   private baseline: Set<string> | null = null;
-  tab: 'props' | 'checks' | 'log' = 'props';
+  tab: 'props' | 'checks' | 'log' | 'pad' = 'props';
   pad: PadControl | null = null;
-  private lastChecks: CheckReply | null = null;
+  lastChecks: CheckReply | null = null;
   private hoverAt = 0;
   private hoverKey: Key | null = null;
   readonly prefs = loadPrefs();
@@ -1352,7 +1352,8 @@ export class Editor {
   renderPanel(): void {
     for (const t of document.querySelectorAll<HTMLButtonElement>('#drawerHead button[data-tab]')) t.classList.toggle('on', t.dataset.tab === this.tab);
     const panel = $('panel');
-    if (this.tab === 'checks') panel.innerHTML = this.checksHtml();
+    if (this.tab === 'pad' && this.pad) this.pad.renderPanel(panel);
+    else if (this.tab === 'checks') panel.innerHTML = this.checksHtml();
     else if (this.tab === 'log') panel.innerHTML = this.logHtml();
     else this.renderProps(panel);
   }
@@ -1368,7 +1369,7 @@ export class Editor {
     for (const f of c.standards.fails) items.push(`<li class="${fresh.has(`STD ${f}`) ? 'bad' : ''}">standards: ${esc(f)}</li>`);
     for (const r of c.results) {
       if (r.status === 'SKIP') continue;
-      const lines = r.details.map((dt) => `<div class="${fresh.has(`${r.id} ${dt}`) ? 'bad' : ''}">- ${esc(dt)}</div>`).join('');
+      const lines = r.details.map((dt) => `<div data-go="${esc(dt)}" class="${fresh.has(`${r.id} ${dt}`) ? 'bad' : ''}">- ${esc(dt)}</div>`).join('');
       items.push(`<li><b>${esc(r.status)} ${esc(r.id)}</b> ${esc(r.title)}${lines}</li>`);
     }
     return h + `<ul class="list">${items.join('')}</ul>`;

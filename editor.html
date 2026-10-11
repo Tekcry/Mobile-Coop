@@ -107,7 +107,21 @@
       #planSvg.nolabels text { display: none; }
       body:has(#radial:not(.hidden)) #help, body:has(#radial:not(.hidden)) #reticle { display: none; }
       #ask div { margin-bottom: 8px; max-width: 420px; }
-      #status { flex: none; height: 24px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      #padStrip { display: none; position: absolute; z-index: 4; left: 8px; top: 8px; padding: 8px 12px; background: rgba(15, 17, 20, 0.85); border-radius: 8px; font-size: 18px; line-height: 1.5; pointer-events: none; }
+      #padStrip b { color: var(--accent); }
+      body[data-device='pad'] { cursor: none; }
+      body[data-device='pad'] #bar, body[data-device='pad'] #hud { display: none; }
+      body[data-device='pad'] #drawer:not(.padfocus) { display: none; }
+      body[data-device='pad'] #padStrip { display: block; }
+      body[data-device='pad'] #hint { font-size: 20px; text-align: center; padding: 8px 12px; }
+      body[data-device='pad'] #status { font-size: 16px; height: auto; }
+      body[data-device='pad'] #drawer { width: 460px; font-size: 18px; }
+      body[data-device='pad'] #panel .row { margin: 8px 0; }
+      body[data-device='pad'] #panel input, body[data-device='pad'] #panel select, body[data-device='pad'] #panel button, body[data-device='pad'] #drawerHead button { font-size: 18px; padding: 6px 10px; }
+      body[data-device='pad'] #help { font-size: 16px; width: 560px; }
+      body[data-device='pad'] #reticleText, body[data-device='pad'] #crossText { font-size: 18px; }
+      body[data-device='pad'] #ask { font-size: 20px; padding: 16px 20px; }
+      body[data-device='pad'] #ask button { font-size: 20px; padding: 8px 14px; }      #status { flex: none; height: 24px; padding: 3px 10px; background: var(--panel); border-top: 1px solid var(--line); color: var(--dim); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     </style>
   </head>
   <body data-drawer="pinned">
@@ -123,6 +137,7 @@
         <div id="divider" title="Drag to resize"></div>
         <section id="planWrap"><div id="planSvg"></div><div id="planStatus"></div><div id="cross" class="hidden"><div id="crossText"></div></div></section>
         <div id="hint"></div>
+        <div id="padStrip"></div>
         <div id="radial" class="hidden"></div>
       </div>
       <aside id="drawer">

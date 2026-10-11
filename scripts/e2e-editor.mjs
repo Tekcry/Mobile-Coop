@@ -120,7 +120,25 @@ try {
   await press(BTN.Y);
   assert((await st()).tool === 'door', 'Y tap: the last tool again');
   await press(BTN.B);
-} catch (e) {
+  console.log('pad screen: toolbars hidden, status strip, mouse brings them back');
+  const ui = () => E(() => ({ bar: getComputedStyle(document.getElementById('bar')).display, strip: document.getElementById('padStrip').textContent, shown: getComputedStyle(document.getElementById('padStrip')).display }));
+  await press(BTN.LB);
+  await wait(400);
+  let u = await ui();
+  assert(u.bar === 'none' && u.shown === 'block' && /Editing/.test(u.strip) && /Unsaved/.test(u.strip), `pad screen (toolbar ${u.bar}, strip "${u.strip.slice(0, 60)}")`);
+  await shot('pad-screen');
+  await radial(225, 154, 0);
+  await release();
+  await wait(300);
+  const panel = await E(() => document.querySelectorAll('#panel input[data-level]').length);
+  assert(panel > 0 && (await E(() => window.__editor.pad.focus)) === 'drawer', `View > Levels panel opens with pad focus (${panel} level ticks)`);
+  await shot('pad-levels-panel');
+  await press(BTN.B);
+  await page.mouse.move(100, 400);
+  await page.mouse.move(400, 500, { steps: 4 });
+  await wait(200);
+  u = await ui();
+  assert(u.bar !== 'none' && u.shown === 'none', `mouse brings the toolbars back (${u.bar})`);} catch (e) {
   failed = true;
   console.error(String(e));
   await page.screenshot({ path: path.join(shots ?? process.env.TEMP ?? '/tmp', 'e2e-editor-fail.png') }).catch(() => {});

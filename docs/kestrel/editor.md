@@ -5,13 +5,27 @@ A dev-only tool for Michael to fly and walk the campus in 3D and change it direc
 work, and on save writes the file, the plan images and a change log for review. It is never part of the game build
 (`editor.html` is not a build input; the endpoints exist only on the dev server).
 
-## Start it
-```bash
-npm run editor
-```
-This opens `http://localhost:5199/editor.html` on this PC. Saving only works from this PC (localhost); the dev server
-refuses writes from the network.
+## Start it (no Claude needed)
+1. Install Node.js once (nodejs.org, the LTS version), if `node -v` in PowerShell shows nothing.
+2. Either double-click `Kestrel-Editor.cmd` in the project folder (`C:\NightShift\Mobile-Coop`),
+   or open Windows PowerShell and type:
+   `cd C:\NightShift\Mobile-Coop` then `npm run editor`.
+3. The browser opens `http://localhost:5199/editor.html`. If it does not, type that address into Chrome or Edge.
+4. Plug in the controller (USB or Bluetooth) and press any button: the screen switches to the controller layout.
+5. Save with Hold Y > File > Save (or Menu > Save, or Ctrl+S). To stop the editor, close the PowerShell or command
+   window (or press Ctrl+C in it). Unsaved edits are offered back next time you open it.
+6. Checks of the controller: `npm run e2e:editor` (about a minute, never saves).
 
+## Controller screen (ED2 Part C2)
+- Any controller input switches to the controller screen: both toolbars, the mouse cursor and the side panel hide; a
+  status strip (top left: editing level, view, levels setting, building, tool, unsaved changes, new problems) and large
+  button prompts along the bottom replace them. Moving the mouse more than a few pixels or pressing a key brings the
+  normal screen back. Nothing else changes between the two.
+- Panels open from the radial menu and take the pad focus (D-pad up / down picks, A ticks or presses, left / right
+  changes a number or slider, LB fine, B leaves): View > Levels > Levels panel (pick levels, presets, ghost, exploded and
+  its gap, cut walls at, building, level below); Edit > Properties; File > Checks (A on a problem goes to it); File >
+  Changes.
+- Questions are in-editor boxes answered with A or B.
 ## Who is in charge (Michael, 2026-10-12)
 - Once Michael saves from the editor, the campus file is the source of truth. The plan documents follow the file, not
   the other way round.
@@ -114,7 +128,7 @@ pad's own button names when the pad was used last, and back when the keyboard or
 - **Changes**: what has been done since the last save, newest first.
 
 ## What it does not do yet (ED2 parts B-H)
-- Walk test with the game's own player and camera (Part B); the controller-only screen (Part C2); linked walls, snapping,
+- Walk test with the game's own player and camera (Part B); linked walls, snapping,
   dimensions, clickable problems, search (Part D).
 - Add, reshape or delete stairs, ladders and floor holes beyond moving them; no new levels; renaming ids (Part E).
 - Lighting preview, props, guards and routes.
