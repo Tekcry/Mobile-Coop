@@ -1,4 +1,4 @@
-// P03B Part 2 blocks generator. Piece 1 (2a): meta, levels, Building A zones. Later pieces add functions (2b-2d).
+// P03B Part 2 blocks generator. Piece 1 (2a): meta, levels, Building A zones. Piece 2 (2b): B, wing, bridge, site, level U zones. Later pieces add functions (2c-2d).
 // Usage: node scripts/kestrel/p03b-blocks.mjs  -> docs/kestrel/kestrel.campus.blocks.json (planner 2026-10-11: keeps npm test green until B0)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { standardsCheck, summary } from './standards-check.mjs';
@@ -8,7 +8,12 @@ const OUT = 'docs/kestrel/kestrel.campus.blocks.json';
 const md = readFileSync(MD, 'utf8');
 const cells = (l) => l.split('|').slice(1, -1).map((c) => c.trim());
 // table parsing copied from p03b-zones-check.mjs lines 1-20
-const rows = md.split('\n').filter((l) => /^\| (G|F|R|K)-/.test(l)).map(cells).filter((r) => r[2]?.startsWith('['));
+// widened in 2b to the B-, W-, S-, SI-, L-, T-, U-, RF- prefixes (decision 1); each zones function filters its own rows
+const rows = md.split('\n').filter((l) => /^\| (G|F|R|K|B|W|S|SI|L|T|U|RF)-/.test(l)).map(cells).filter((r) => r[2]?.startsWith('['));
+const section = (from, to) => { // table rows of one 03B section (4.3 and 5.2 use one row reader: rect in column 3)
+  const a = md.indexOf(from), b = md.indexOf(to, a);
+  return md.slice(a, b).split('\n').filter((l) => l.startsWith('| ')).map(cells).filter((r) => r[2]?.startsWith('['));
+};
 
 const A = [4, 30, 40, 60]; // 03B 1 Building A
 const BSTRIP = [52, 30, 70, 60]; // 03B 1 B west strip
@@ -72,11 +77,68 @@ function zonesA() {
   });
 }
 
+// Piece 2 (2b). Cut parent into bands at the kids' z edges, then each band at the x edges of the kids crossing it;
+// keep the uncovered pieces, south to north, west to east (2b "remainder"; 2d reuses it for the open roofs).
+function remainder(parent, kids) {
+  const zs = [...new Set([parent[1], parent[3], ...kids.flatMap((k) => [k[1], k[3]])])].filter((z) => z >= parent[1] && z <= parent[3]).sort((a, b) => a - b);
+  const pieces = [];
+  for (let i = 0; i + 1 < zs.length; i++) {
+    const z0 = zs[i], z1 = zs[i + 1];
+    const cross = kids.filter((k) => k[1] < z1 && k[3] > z0).sort((a, b) => a[0] - b[0]);
+    let x = parent[0];
+    for (const k of cross) { if (k[0] > x) pieces.push([x, z0, k[0], z1]); x = Math.max(x, k[2]); }
+    if (x < parent[2]) pieces.push([x, z0, parent[2], z1]);
+  }
+  return pieces;
+}
+
+const FOOT = { A, B: BFULL }; // meta.buildings footprints
+const within = (r, f) => r[0] >= f[0] && r[1] >= f[1] && r[2] <= f[2] && r[3] <= f[3];
+const buildingOf = (r) => Object.keys(FOOT).find((id) => within(r, FOOT[id])); // decision 10 (schema rooms[].building, A31)
+function zone(id, level, name, kind, rect, ring) { // decisions 11, 12: ceiling 0 (P04 sets it), finish "", open []
+  const z = { id, level, name, kind, rect, ceiling: 0, finish: '', minShort: Math.min(3.0, Math.min(rect[2] - rect[0], rect[3] - rect[1]) - 0.3), open: [], ring };
+  const b = buildingOf(rect);
+  if (b) z.building = b;
+  return z;
+}
+const holdsOf = (r) => (r[3] === '-' ? r[0] : `${r[0]} (${r[3]})`); // decision 12: id plus the Rooms column
+
+// Rings (brief 6 lines 259-267; mixed zones take the ring of the larger brief-5 area, decision 9 table)
+const RING_B = { 'B-GGOODS': 2, 'B-GHCAR': 5, 'B-GHALL': 4, 'B-GHPLANT': 4, 'B-FSEC': 4, 'B-GHCOOL': 4 }; // all other B zones: 3
+const KIND_B = { 'B-GCOR': 'corridor', 'B-FCOR': 'corridor', 'L-ROOF': 'roof', 'T-MH': 'shaft', 'T-RISER': 'shaft' }; // decision 8
+const RING_S = { 'U-HALL': 4, 'U-COOL': 4, 'T-VAULT': 4, 'T-MH': 4, 'T-TUNA': 4, 'T-TUNB': 4, 'T-RISER': 5, 'S-COMP': 3, 'L-ROOF': 3 }; // decisions 9, 14; all other S- and SI- zones: 1
+const YARD_KIDS = { 'S-YARDA': 'SI-GATE', 'S-YARDB': 'SI-APRON', 'S-REAR': 'SI-BIN' }; // decision 7 (check.mjs A04: no two rooms on a level overlap)
+
+// 03B 4.3 rows (19): level from the Level column (decision 1)
+function zonesB() {
+  return section('### 4.3 Zones', '\nCheck (').filter((r) => /^(B|W)-/.test(r[0])).map((r) =>
+    zone(r[0], r[1], holdsOf(r), KIND_B[r[0]] ?? 'zone', JSON.parse(r[2]), RING_B[r[0]] ?? 3)); // kinds decision 8
+}
+
+// 03B 5.2 rows (decisions 3-8) plus K-BRIDGE (decision 2: 03B 3.2 K-BRIDGE, 03B 2 row F)
+function zonesSite() {
+  const sec = section('### 5.2 Zones', '\nSelf-check');
+  const get = (id) => sec.find((r) => r[0] === id);
+  const out = [zone('K-BRIDGE', 'F', 'K-BRIDGE (LF01)', 'corridor', BRIDGE, 3)];
+  for (const r of sec) {
+    if (r[0] === 'SI-RACK' || r[0].startsWith('RF-')) continue; // decisions 4, 5: rack is a vertical item (2c), open roofs are 2d
+    const rect = JSON.parse(r[2]);
+    const level = r[1].split(' ')[0]; // "B to G" -> B (decision 6)
+    const kind = r[0] === 'S-LANE' ? 'lane' : /^(S|SI)-/.test(r[0]) ? 'yard' : KIND_B[r[0]] ?? 'zone'; // decision 8
+    const ring = RING_S[r[0]] ?? 1;
+    const kid = YARD_KIDS[r[0]];
+    if (kid) { // decision 7: pieces <parent>-<n>, the kid stays its own zone
+      remainder(rect, [JSON.parse(get(kid)[2])]).forEach((p, n) => out.push(zone(`${r[0]}-${n + 1}`, level, `${r[0]} (${r[3]}) part ${n + 1}`, 'yard', p, ring)));
+    } else out.push(zone(r[0], level, holdsOf(r), kind, rect, ring));
+  }
+  return out;
+}
+
 const out = {
   meta: meta(),
   levels: levels(),
-  rooms: zonesA(),
-  walls: [], openings: [], stairs: [], ladders: [], voids: [], objects: [], exterior: [], services: [], // later pieces 2b-2d
+  rooms: [...zonesA(), ...zonesB(), ...zonesSite()], // decision: zonesA, zonesB, zonesSite
+  walls: [], openings: [], stairs: [], ladders: [], voids: [], objects: [], exterior: [], services: [], // later pieces 2c-2d
 };
 writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
 console.log(`wrote ${OUT}: rooms ${out.rooms.length}, levels ${out.levels.length}`);

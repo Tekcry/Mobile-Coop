@@ -689,6 +689,843 @@
    "open": [],
    "ring": 3,
    "building": "A"
+  },
+  {
+   "id": "B-GW",
+   "level": "G",
+   "name": "B-GW (BG01, BG06, BG02, BG03, BG15)",
+   "kind": "zone",
+   "rect": [
+    52,
+    30,
+    57,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-GCOR",
+   "level": "G",
+   "name": "B-GCOR (BG05, BG04)",
+   "kind": "corridor",
+   "rect": [
+    57,
+    30,
+    60.5,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-GGOODS",
+   "level": "G",
+   "name": "B-GGOODS (BG07, BG08, BG09)",
+   "kind": "zone",
+   "rect": [
+    60.5,
+    30,
+    70,
+    43
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 2,
+   "building": "B"
+  },
+  {
+   "id": "B-GE",
+   "level": "G",
+   "name": "B-GE (BG13, BG11, BG14, BG16)",
+   "kind": "zone",
+   "rect": [
+    60.5,
+    43,
+    70,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-GN",
+   "level": "G",
+   "name": "B-GN (BG12, BG10)",
+   "kind": "zone",
+   "rect": [
+    52,
+    56.5,
+    70,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-GHCAR",
+   "level": "G",
+   "name": "B-GHCAR (BG29, BG30, BG31, BG33)",
+   "kind": "zone",
+   "rect": [
+    70,
+    30,
+    96,
+    36
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 5,
+   "building": "B"
+  },
+  {
+   "id": "B-GHALL",
+   "level": "G",
+   "name": "B-GHALL (BG20, BG21, BG22)",
+   "kind": "zone",
+   "rect": [
+    70,
+    36,
+    96,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "B-GHPLANT",
+   "level": "G",
+   "name": "B-GHPLANT (BG24, BG25, BG26, BG27, BG28)",
+   "kind": "zone",
+   "rect": [
+    70,
+    50.5,
+    96,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "B-GHCOOL",
+   "level": "G",
+   "name": "B-GHCOOL (BG23)",
+   "kind": "zone",
+   "rect": [
+    96,
+    30,
+    100,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "W-GEN",
+   "level": "G",
+   "name": "W-GEN (BG40, BG41, BG42, BG43)",
+   "kind": "zone",
+   "rect": [
+    52,
+    62,
+    76,
+    74
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3
+  },
+  {
+   "id": "B-FS",
+   "level": "F",
+   "name": "B-FS (BF15)",
+   "kind": "zone",
+   "rect": [
+    52,
+    30,
+    60.5,
+    35
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-FLOBBY",
+   "level": "F",
+   "name": "B-FLOBBY (BF01, BF04, BF03, BF12)",
+   "kind": "zone",
+   "rect": [
+    52,
+    35,
+    60.5,
+    48.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-FBW",
+   "level": "F",
+   "name": "B-FBW (BF02)",
+   "kind": "zone",
+   "rect": [
+    52,
+    48.5,
+    57,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-FCOR",
+   "level": "F",
+   "name": "B-FCOR (BF05)",
+   "kind": "corridor",
+   "rect": [
+    57,
+    48.5,
+    60.5,
+    56.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-FNW",
+   "level": "F",
+   "name": "B-FNW (BF11)",
+   "kind": "zone",
+   "rect": [
+    52,
+    56.5,
+    60.5,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-FNE",
+   "level": "F",
+   "name": "B-FNE (BF13)",
+   "kind": "zone",
+   "rect": [
+    60.5,
+    53,
+    70,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-FSEC",
+   "level": "F",
+   "name": "B-FSEC (BF06, BF07, BF08, BF09, BF10, BF14)",
+   "kind": "zone",
+   "rect": [
+    60.5,
+    30,
+    70,
+    53
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "B-HSUPPLY",
+   "level": "H",
+   "name": "B-HSUPPLY (BR04, BR05)",
+   "kind": "zone",
+   "rect": [
+    70,
+    44.5,
+    82,
+    54
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "B-RBULK",
+   "level": "R",
+   "name": "B-RBULK (BR02)",
+   "kind": "zone",
+   "rect": [
+    52,
+    56.5,
+    58.5,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3,
+   "building": "B"
+  },
+  {
+   "id": "K-BRIDGE",
+   "level": "F",
+   "name": "K-BRIDGE (LF01)",
+   "kind": "corridor",
+   "rect": [
+    40,
+    40,
+    52,
+    43.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3
+  },
+  {
+   "id": "S-LANE",
+   "level": "G",
+   "name": "S-LANE (X01)",
+   "kind": "lane",
+   "rect": [
+    0,
+    0,
+    108,
+    8
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-YARDA-1",
+   "level": "G",
+   "name": "S-YARDA (X03) part 1",
+   "kind": "yard",
+   "rect": [
+    0,
+    8,
+    1,
+    11
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 0.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-YARDA-2",
+   "level": "G",
+   "name": "S-YARDA (X03) part 2",
+   "kind": "yard",
+   "rect": [
+    5,
+    8,
+    52,
+    11
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-YARDA-3",
+   "level": "G",
+   "name": "S-YARDA (X03) part 3",
+   "kind": "yard",
+   "rect": [
+    0,
+    11,
+    52,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-YARDB-1",
+   "level": "G",
+   "name": "S-YARDB (X04) part 1",
+   "kind": "yard",
+   "rect": [
+    52,
+    8,
+    108,
+    22
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-YARDB-2",
+   "level": "G",
+   "name": "S-YARDB (X04) part 2",
+   "kind": "yard",
+   "rect": [
+    52,
+    22,
+    60,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-YARDB-3",
+   "level": "G",
+   "name": "S-YARDB (X04) part 3",
+   "kind": "yard",
+   "rect": [
+    70,
+    22,
+    108,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-GAP",
+   "level": "G",
+   "name": "S-GAP (X05)",
+   "kind": "yard",
+   "rect": [
+    40,
+    30,
+    52,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-REAR-1",
+   "level": "G",
+   "name": "S-REAR (X06) part 1",
+   "kind": "yard",
+   "rect": [
+    0,
+    60,
+    52,
+    63
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-REAR-2",
+   "level": "G",
+   "name": "S-REAR (X06) part 2",
+   "kind": "yard",
+   "rect": [
+    0,
+    63,
+    8,
+    66
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-REAR-3",
+   "level": "G",
+   "name": "S-REAR (X06) part 3",
+   "kind": "yard",
+   "rect": [
+    12,
+    63,
+    52,
+    66
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-REAR-4",
+   "level": "G",
+   "name": "S-REAR (X06) part 4",
+   "kind": "yard",
+   "rect": [
+    0,
+    66,
+    52,
+    76
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-REAR2",
+   "level": "G",
+   "name": "S-REAR2 (X06)",
+   "kind": "yard",
+   "rect": [
+    52,
+    74,
+    76,
+    76
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-PASS",
+   "level": "G",
+   "name": "S-PASS (X07)",
+   "kind": "yard",
+   "rect": [
+    52,
+    60,
+    76,
+    62
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-DRIVE",
+   "level": "G",
+   "name": "S-DRIVE (X08)",
+   "kind": "yard",
+   "rect": [
+    100,
+    30,
+    108,
+    76
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "S-COMP",
+   "level": "G",
+   "name": "S-COMP (X09)",
+   "kind": "yard",
+   "rect": [
+    76,
+    60,
+    100,
+    76
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3
+  },
+  {
+   "id": "S-WPATH",
+   "level": "G",
+   "name": "S-WPATH (X10)",
+   "kind": "yard",
+   "rect": [
+    0,
+    30,
+    4,
+    60
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "SI-GATE",
+   "level": "G",
+   "name": "SI-GATE (X02)",
+   "kind": "yard",
+   "rect": [
+    1,
+    8,
+    5,
+    11
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "SI-BIN",
+   "level": "G",
+   "name": "SI-BIN (X11)",
+   "kind": "yard",
+   "rect": [
+    8,
+    63,
+    12,
+    66
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "SI-APRON",
+   "level": "G",
+   "name": "SI-APRON (X12)",
+   "kind": "yard",
+   "rect": [
+    60,
+    22,
+    70,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 1
+  },
+  {
+   "id": "L-ROOF",
+   "level": "L",
+   "name": "L-ROOF (LF02)",
+   "kind": "roof",
+   "rect": [
+    40,
+    40,
+    52,
+    43.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 3
+  },
+  {
+   "id": "T-VAULT",
+   "level": "B",
+   "name": "T-VAULT (TB01)",
+   "kind": "zone",
+   "rect": [
+    41,
+    24,
+    49,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4
+  },
+  {
+   "id": "T-MH",
+   "level": "B",
+   "name": "T-MH (TB02)",
+   "kind": "shaft",
+   "rect": [
+    49,
+    24,
+    50.5,
+    25.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.2,
+   "open": [],
+   "ring": 4
+  },
+  {
+   "id": "T-TUNA",
+   "level": "B",
+   "name": "T-TUNA (TB03)",
+   "kind": "zone",
+   "rect": [
+    40,
+    30,
+    43,
+    47.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 4
+  },
+  {
+   "id": "T-TUNB",
+   "level": "B",
+   "name": "T-TUNB (TB04)",
+   "kind": "zone",
+   "rect": [
+    49,
+    27,
+    74,
+    30
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 2.7,
+   "open": [],
+   "ring": 4
+  },
+  {
+   "id": "T-RISER",
+   "level": "B",
+   "name": "T-RISER (BG32)",
+   "kind": "shaft",
+   "rect": [
+    72,
+    30,
+    74,
+    32
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 1.7,
+   "open": [],
+   "ring": 5,
+   "building": "B"
+  },
+  {
+   "id": "U-HALL",
+   "level": "U",
+   "name": "U-HALL (BU01)",
+   "kind": "zone",
+   "rect": [
+    70,
+    36,
+    96,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
+  },
+  {
+   "id": "U-COOL",
+   "level": "U",
+   "name": "U-COOL (BU02)",
+   "kind": "zone",
+   "rect": [
+    96,
+    36,
+    100,
+    50.5
+   ],
+   "ceiling": 0,
+   "finish": "",
+   "minShort": 3,
+   "open": [],
+   "ring": 4,
+   "building": "B"
   }
  ],
  "walls": [],
