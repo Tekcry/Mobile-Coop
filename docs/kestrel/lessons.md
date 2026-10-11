@@ -28,3 +28,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - P03B 1f-a: a zones-only ring table (shared face as a segment) checked by script went in unchanged in under 10 tool calls; keep door rects out of block plans and let the script test face sharing.
 - P03B 1f-b: with the planner's test run and a negative test in the prompt, the session only verified and wrote; a precomputed, pre-tested table is the right size for a zones-only part.
 - P03B 1g-a: a planner candidate that moves one end of the path (the exit) must recheck the other end; insertion and extraction 8 m apart passed every script but broke the brief's "different path out" - add an entry-exit separation test to path checks.
+- P03B 1g-b: zone-level adjacency with known gaps pre-listed in the prompt passed on the first run; carry brief wording mismatches (BF13 north-west vs north-east) into the notes so P03R sees them.

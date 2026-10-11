@@ -15,7 +15,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P02 | Building brief | APPROVED (revision A 36 x 30) | 852d3ab | 2026-10-11 |
 | P03 | Tools | APPROVED | 81e50aa | 2026-10-10 |
 | P03T | Campus tools (two buildings) | APPROVED | f097ce1 | 2026-10-11 |
-| P03B | Block plan | DRAFT (parts 1a-1g-a) | 1042f8b | 2026-10-11 |
+| P03B | Block plan | DRAFT (parts 1a-1g-b) | e33b759 | 2026-10-11 |
 | P03R | Campus review | not started | | |
 | B0 | Massing walk | to rerun (campus) | 57aaf6c | 2026-10-11 |
 | CAM | Camera respects walls and low spaces | DRAFT | 6c1ac7a | 2026-10-11 |
@@ -46,6 +46,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-11 P03B 1g-b: section 9 of 03B (9.1 must touch, 34 rows J01-J34 for brief 7 items T01-T14 at zone level, notes for the four known gaps plus T08 glazed sight line and T01 single-entry suite). Candidate kept unchanged. Checks: adjacency `adjacency rows 34, items 14 of 14, rects 114, fails 0`; path `total 495.7`, `placed 6, open 7`, `fails 0`; F `fails 0, info 2`; E `fails 0, info 2`; A, B, D `fails 0`. Deviations: none. No ASKs. Next: Part 1g-c.
 - 2026-10-11 Planner: review of P03B 1g-a: realistic (window entry, fire stair to the roof, roof ladders, rappel, carrier tunnel out) and flows; self-check covered path and all five zone and ring scripts; no disagreements. P06 note: P12 crosses about 57 m of open yard, needs cover and a dark line. 1g split again: 1g-b must touch (14 items), 1g-c must not touch and questions. prompts/P03B-1g-b.md with scripts/kestrel/p03b-adj-check-g.mjs; planner test `adjacency rows 34, items 14 of 14, fails 0`, other checks unchanged, negative test 5 fails.
 - 2026-10-11 P03B 1g-a: section 8 of 03B (critical path, 12 legs, 8.1 and 8.2) and routes.md CP row, fences and windows. Michael's fixes: P12 exits at RA02 (x 100-108, z 8, opposite X08), not x 73; question 1 answered east service gate RA02. Deviation: P01 moved x 96 to x 84 so the way in is not 8 m from the exit (MB 6 B10). Checks: path `path legs 12, total 495.7`, `coverage moves 14, placed 6, open 7`, `fails 0`; F `fails 0, info 2`; E `fails 0, info 2`; A, B, D `fails 0`. No ASKs. Next: Part 1g-b.
 Older entries: progress-archive.md.
