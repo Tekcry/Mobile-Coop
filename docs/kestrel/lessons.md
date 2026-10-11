@@ -31,3 +31,7 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - P03B 1g-b: zone-level adjacency with known gaps pre-listed in the prompt passed on the first run; carry brief wording mismatches (BF13 north-west vs north-east) into the notes so P03R sees them.
 - P03B 1g-c: a planner-recommended geometry move must be rerun through every check before it reaches the prompt; the 1.0 vault shift broke check D's tunnel-meets-vault rule and two leg lengths.
 - Process, 2026-10-11 (Michael): a prompt that used a brief id or position after a stage document had moved it wasted a session; prompts take ids and positions from the current stage document, and DRAFT problems are fixed in the current stage, not deferred.
+
+- P03B 2a: a shared standards check run by the generator from its first piece catches corridor and crawl sizes before any wall exists; precomputed ring and ceiling tables made the zone piece one pass.
+
+- P03B 2a: a shared standards check run by the generator from its first piece catches corridor and crawl sizes before any wall exists; precomputed ring and ceiling tables made the zone piece one pass.
