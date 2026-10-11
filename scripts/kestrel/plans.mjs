@@ -192,6 +192,9 @@ function drawOpening(o) {
   return out; // arch: gap and end ticks only
 }
 
+// 2f decisions 7, 8: a name counts only when it is not empty, not the id and does not start with the id (older files)
+const plainName = (o) => !!o.name && o.name !== o.id && !o.name.startsWith(o.id);
+
 function stairSym(s, onFrom) {
   const r = s.rect;
   const dir = DIRS[s.up] ?? DIRS.N;
@@ -218,7 +221,7 @@ function stairSym(s, onFrom) {
   const back = [head[0] - dir[0] * sgn * ah, head[1] - dir[1] * sgn * ah];
   out += polyEl([[back[0] + side[0] * ah, back[1] + side[1] * ah], head, [back[0] - side[0] * ah, back[1] - side[1] * ah]], ink);
   const at = [tail[0] + dir[0] * sgn * ((R('arrowHead') * 2) / S), tail[1] + dir[1] * sgn * ((R('arrowHead') * 2) / S)];
-  out += labelLines(at, [`${onFrom ? 'UP' : 'DN'} ${s.id}`], R('fontSmall'), `fill="#111" ${HALO()}`);
+  out += labelLines(at, [`${onFrom ? 'UP' : 'DN'} ${plainName(s) ? `${s.id} - ${s.name}` : s.id}`], R('fontSmall'), `fill="#111" ${HALO()}`);
   return out;
 }
 const FACT_GOING = FACT('stair.going');
@@ -233,7 +236,7 @@ function ladderSym(l) {
   let out = lineEl(p(-hw, 0), p(-hw, depth), ink) + lineEl(p(hw, 0), p(hw, depth), ink);
   const rungs = Math.max(2, Math.round(depth / FACT('ladder.rungSpacing') * S));
   for (let i = 0; i <= rungs; i++) out += lineEl(p(-hw, (depth * i) / rungs), p(hw, (depth * i) / rungs), `stroke="#111" stroke-width="${R('thinStroke')}"`);
-  return out + textAt(l.at, hw * S + R('dotR'), -R('dotR'), `${l.id} ${l.from}-${l.to}`, R('fontSmall'), 'fill="#111"');
+  return out + textAt(l.at, hw * S + R('dotR'), -R('dotR'), `${plainName(l) ? `${l.id} - ${l.name}` : l.id} ${l.from}-${l.to}`, R('fontSmall'), 'fill="#111"');
 }
 
 function voidSym(v) {
@@ -241,7 +244,7 @@ function voidSym(v) {
   const ink = `stroke="#333" stroke-width="${R('thinStroke')}"`;
   return rectEl(r, `fill="none" ${ink} stroke-dasharray="${R('dashMid')}"`)
     + lineEl([r[0], r[1]], [r[2], r[3]], ink) + lineEl([r[0], r[3]], [r[2], r[1]], ink)
-    + textPx(X(r[0]), Y(r[3]) - R('dotR'), `${v.id} ${v.kind}`, R('fontSmall'), `fill="#333" ${HALO()}`);
+    + textPx(X(r[0]), Y(r[3]) - R('dotR'), `${plainName(v) ? `${v.id} - ${v.name}` : `${v.id} ${v.kind}`}`, R('fontSmall'), `fill="#333" ${HALO()}`);
 }
 
 const levelSpan = (l) => [l.floor, l.floor + l.height];
@@ -286,13 +289,14 @@ function roomLabel(r, level) {
   const c = clearRect(r, walls);
   const w = c[2] - c[0];
   const d = c[3] - c[1];
-  const title = `${r.id} ${r.name ?? ''}`.trim();
+  const named = plainName(r);
+  const title = named ? `${r.id} - ${r.name}` : r.id;
   const size = Math.min(w, d) * S < R('labelSmallBelow') ? R('fontSmall') : R('fontRoom');
   const size0 = size;
   const sizeSmall = Math.min(size, R('fontSmall'));
   const zone = `zone ${r.ring ?? '?'}`;
   const wide = [title, `${fmt(w)} x ${fmt(d)} clear`, zone];
-  const narrow = [r.id, r.name ?? '', `${fmt(w)} x ${fmt(d)}`, `clear, ${zone}`].filter(Boolean);
+  const narrow = [named ? `${r.id} -` : r.id, named ? r.name : '', `${fmt(w)} x ${fmt(d)}`, `clear, ${zone}`].filter(Boolean);
   const variants = [{ lines: wide, size: size0 }, { lines: narrow, size: size0 }, { lines: narrow, size: sizeSmall }];
   const toPx = (rc) => [X(rc[0]), Y(rc[3]), X(rc[2]), Y(rc[1])];
   const obstacles = [
@@ -383,7 +387,7 @@ function baseLayers(level) {
   // each building's footprint outline, labelled with its id (campus files only)
   for (const b of BUILDINGS) {
     out += rectEl(b.rect, `fill="none" stroke="#555" stroke-width="${R('outlineStroke')}" stroke-dasharray="${R('dashMid')}"`);
-    out += textAt([b.rect[0], b.rect[3]], 2, -(FACT('rules.wallExterior') / 2) * S - 2, `Building ${b.id}${b.name ? ` ${b.name}` : ''}`, R('fontLegend'), `fill="#555" font-weight="bold"`);
+    out += textAt([b.rect[0], b.rect[3]], 2, -(FACT('rules.wallExterior') / 2) * S - 2, `Building ${b.id}${b.name && !b.name.startsWith('Building') ? ` - ${b.name}` : ''}`, R('fontLegend'), `fill="#555" font-weight="bold"`);
   }
   out += rectEl(B, `fill="none" stroke="#999" stroke-width="${R('siteStroke')}" stroke-dasharray="${R('dashLong')}"`);
   for (const o of (arch.objects ?? []).filter(here)) {
@@ -585,7 +589,7 @@ function flow(items, startX, startY, maxX, firstRowEnd) {
 const swatch = (fill) => (x, y) => `<rect x="${x}" y="${y - R('swatchH') / 2}" width="${R('swatchW')}" height="${R('swatchH')}" fill="${fill}" fill-opacity="${R('tintOpacity')}" stroke="#888" stroke-width="${R('gridStroke')}"/>`;
 const sample = (c, dash, w) => (x, y) => `<line x1="${x}" y1="${y}" x2="${x + R('legendSample')}" y2="${y}" stroke="${c}" stroke-width="${w}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
 function archItems() {
-  return [['zone 1', swatch(RING_TINT[1])], ['zone 2', swatch(RING_TINT[2])], ['zone 3', swatch(RING_TINT[3])], ['zone 3+', swatch(RING_TINT['3+'])], ['zone 4', swatch(RING_TINT[4])], ['zone 5', swatch(RING_TINT[5])]];
+  return [['zone 1 - outside, public (lane and yard)', swatch(RING_TINT[1])], ['zone 2 - reception and goods-in', swatch(RING_TINT[2])], ['zone 3 - staff areas behind card readers', swatch(RING_TINT[3])], ['zone 3+ - restricted (security room)', swatch(RING_TINT['3+'])], ['zone 4 - secure (data hall, tunnels, plant under the yard)', swatch(RING_TINT[4])], ['zone 5 - most secure (locked cages, meet-me room)', swatch(RING_TINT[5])]];
 }
 function playItems() {
   const items = Object.entries(ROUTE_COLOUR).map(([k, c]) => [`route ${k}`, sample(c, k === 'critical' ? R('dashRoute') : '', R('routeStroke'))]);

@@ -21,7 +21,7 @@
   "buildings": [
    {
     "id": "A",
-    "name": "Building A",
+    "name": "Offices and security",
     "footprint": [
      4,
      30,
@@ -31,7 +31,7 @@
    },
    {
     "id": "B",
-    "name": "Building B",
+    "name": "Data hall building",
     "footprint": [
      52,
      30,
@@ -213,7 +213,7 @@
   {
    "id": "G-FRONT",
    "level": "G",
-   "name": "G-FRONT (AG01, AG02, AG03, AG04)",
+   "name": "Reception and front offices",
    "kind": "zone",
    "rect": [
     4,
@@ -231,7 +231,7 @@
   {
    "id": "G-SOFF",
    "level": "G",
-   "name": "G-SOFF (AG06)",
+   "name": "Admin office",
    "kind": "zone",
    "rect": [
     22,
@@ -249,7 +249,7 @@
   {
    "id": "G-GOODS",
    "level": "G",
-   "name": "G-GOODS (AG08, AG09)",
+   "name": "Goods-in and goods lobby",
    "kind": "zone",
    "rect": [
     28.5,
@@ -267,7 +267,7 @@
   {
    "id": "G-SPINE",
    "level": "G",
-   "name": "G-SPINE (AG10)",
+   "name": "Ground floor spine corridor",
    "kind": "corridor",
    "rect": [
     4,
@@ -285,7 +285,7 @@
   {
    "id": "G-WLINK",
    "level": "G",
-   "name": "G-WLINK",
+   "name": "Ground west link corridor",
    "kind": "corridor",
    "rect": [
     4,
@@ -303,7 +303,7 @@
   {
    "id": "G-SEC",
    "level": "G",
-   "name": "G-SEC (AG11, AG12, AG13, AG25)",
+   "name": "Security room and key safe",
    "kind": "zone",
    "rect": [
     7.5,
@@ -321,7 +321,7 @@
   {
    "id": "G-CORE",
    "level": "G",
-   "name": "G-CORE (AG18, AG19, AG20, AG16, AG17)",
+   "name": "Main stair and lift core",
    "kind": "zone",
    "rect": [
     19.5,
@@ -339,7 +339,7 @@
   {
    "id": "G-ELINK",
    "level": "G",
-   "name": "G-ELINK",
+   "name": "Ground east link corridor",
    "kind": "corridor",
    "rect": [
     31,
@@ -357,7 +357,7 @@
   {
    "id": "G-EAST",
    "level": "G",
-   "name": "G-EAST (AG22, AG23)",
+   "name": "Comms room and tunnel shaft",
    "kind": "zone",
    "rect": [
     34.5,
@@ -375,7 +375,7 @@
   {
    "id": "G-NCOR",
    "level": "G",
-   "name": "G-NCOR (AG26)",
+   "name": "Ground north corridor",
    "kind": "corridor",
    "rect": [
     4,
@@ -393,7 +393,7 @@
   {
    "id": "G-NW",
    "level": "G",
-   "name": "G-NW (AG21, AG05, AG15)",
+   "name": "Fire stair and manager office",
    "kind": "zone",
    "rect": [
     4,
@@ -411,7 +411,7 @@
   {
    "id": "G-NE",
    "level": "G",
-   "name": "G-NE (AG14, AG24)",
+   "name": "Locker room and switchroom",
    "kind": "zone",
    "rect": [
     20,
@@ -429,7 +429,7 @@
   {
    "id": "F-SW",
    "level": "F",
-   "name": "F-SW (AF20)",
+   "name": "Customer services office",
    "kind": "zone",
    "rect": [
     4,
@@ -447,7 +447,7 @@
   {
    "id": "F-OPS",
    "level": "F",
-   "name": "F-OPS (AF02, AF03, AF05, AF06)",
+   "name": "Operations room, tape library",
    "kind": "zone",
    "rect": [
     11,
@@ -465,7 +465,7 @@
   {
    "id": "F-SPINE",
    "level": "F",
-   "name": "F-SPINE (AF01)",
+   "name": "First floor spine corridor",
    "kind": "corridor",
    "rect": [
     4,
@@ -483,7 +483,7 @@
   {
    "id": "F-VEST",
    "level": "F",
-   "name": "F-VEST (AF17)",
+   "name": "Bridge vestibule",
    "kind": "zone",
    "rect": [
     36.5,
@@ -501,7 +501,7 @@
   {
    "id": "F-WLINK",
    "level": "F",
-   "name": "F-WLINK",
+   "name": "First west link corridor",
    "kind": "corridor",
    "rect": [
     4,
@@ -519,7 +519,7 @@
   {
    "id": "F-BW",
    "level": "F",
-   "name": "F-BW (AF04, AF18, AF16)",
+   "name": "Records room",
    "kind": "zone",
    "rect": [
     7.5,
@@ -537,7 +537,7 @@
   {
    "id": "F-CORE",
    "level": "F",
-   "name": "F-CORE (AF12, AF13, AF14)",
+   "name": "First floor stair, lift core",
    "kind": "zone",
    "rect": [
     19.5,
@@ -555,7 +555,7 @@
   {
    "id": "F-ELINK",
    "level": "F",
-   "name": "F-ELINK",
+   "name": "First east link corridor",
    "kind": "corridor",
    "rect": [
     31,
@@ -573,7 +573,7 @@
   {
    "id": "F-E",
    "level": "F",
-   "name": "F-E (AF19)",
+   "name": "Pipe riser",
    "kind": "zone",
    "rect": [
     34.5,
@@ -591,7 +591,7 @@
   {
    "id": "F-PLANT",
    "level": "F",
-   "name": "F-PLANT (AF10)",
+   "name": "Plant gallery",
    "kind": "zone",
    "rect": [
     36.5,
@@ -609,7 +609,7 @@
   {
    "id": "F-NCOR",
    "level": "F",
-   "name": "F-NCOR (AF21)",
+   "name": "First north corridor",
    "kind": "corridor",
    "rect": [
     4,
@@ -627,7 +627,7 @@
   {
    "id": "F-NW",
    "level": "F",
-   "name": "F-NW (AF15, AF07, AF09)",
+   "name": "Offices and fire stair",
    "kind": "zone",
    "rect": [
     4,
@@ -645,7 +645,7 @@
   {
    "id": "F-NE",
    "level": "F",
-   "name": "F-NE (AF08, AF11)",
+   "name": "Kitchen and pump room",
    "kind": "zone",
    "rect": [
     21,
@@ -663,7 +663,7 @@
   {
    "id": "R-BULK",
    "level": "R",
-   "name": "R-BULK (AR04)",
+   "name": "Fire stair roof bulkhead",
    "kind": "zone",
    "rect": [
     4,
@@ -681,7 +681,7 @@
   {
    "id": "R-PLANT",
    "level": "R",
-   "name": "R-PLANT (AR02, AR03)",
+   "name": "Chillers and roof air handler",
    "kind": "zone",
    "rect": [
     28,
@@ -703,7 +703,7 @@
   {
    "id": "B-GW",
    "level": "G",
-   "name": "B-GW (BG01, BG06, BG02, BG03, BG15)",
+   "name": "Building B entrance lobby",
    "kind": "zone",
    "rect": [
     52,
@@ -721,7 +721,7 @@
   {
    "id": "B-GCOR",
    "level": "G",
-   "name": "B-GCOR (BG05, BG04)",
+   "name": "Building B ground corridor",
    "kind": "corridor",
    "rect": [
     57,
@@ -739,7 +739,7 @@
   {
    "id": "B-GGOODS",
    "level": "G",
-   "name": "B-GGOODS (BG07, BG08, BG09)",
+   "name": "Staging, shipping and build",
    "kind": "zone",
    "rect": [
     60.5,
@@ -757,7 +757,7 @@
   {
    "id": "B-GE",
    "level": "G",
-   "name": "B-GE (BG13, BG11, BG14, BG16)",
+   "name": "Gallery stair foot, switchroom",
    "kind": "zone",
    "rect": [
     60.5,
@@ -775,7 +775,7 @@
   {
    "id": "B-GN",
    "level": "G",
-   "name": "B-GN (BG12, BG10)",
+   "name": "Fire stair and plant corridor",
    "kind": "zone",
    "rect": [
     52,
@@ -793,7 +793,7 @@
   {
    "id": "B-GHCAR",
    "level": "G",
-   "name": "B-GHCAR (BG29, BG30, BG31, BG33)",
+   "name": "Meet-me room and carrier rooms",
    "kind": "zone",
    "rect": [
     70,
@@ -811,7 +811,7 @@
   {
    "id": "B-GHALL",
    "level": "G",
-   "name": "B-GHALL (BG20, BG21, BG22)",
+   "name": "Data hall",
    "kind": "zone",
    "rect": [
     70,
@@ -829,7 +829,7 @@
   {
    "id": "B-GHPLANT",
    "level": "G",
-   "name": "B-GHPLANT (BG24, BG25, BG26, BG27, BG28)",
+   "name": "Power, battery and gas rooms",
    "kind": "zone",
    "rect": [
     70,
@@ -847,7 +847,7 @@
   {
    "id": "B-GHCOOL",
    "level": "G",
-   "name": "B-GHCOOL (BG23)",
+   "name": "Cooling gallery",
    "kind": "zone",
    "rect": [
     96,
@@ -865,7 +865,7 @@
   {
    "id": "W-GEN",
    "level": "G",
-   "name": "W-GEN (BG40, BG41, BG42, BG43)",
+   "name": "Generator hall",
    "kind": "zone",
    "rect": [
     52,
@@ -882,7 +882,7 @@
   {
    "id": "B-FS",
    "level": "F",
-   "name": "B-FS (BF15)",
+   "name": "Tenant work room",
    "kind": "zone",
    "rect": [
     52,
@@ -900,7 +900,7 @@
   {
    "id": "B-FLOBBY",
    "level": "F",
-   "name": "B-FLOBBY (BF01, BF04, BF03, BF12)",
+   "name": "Bridge lobby and post desk",
    "kind": "zone",
    "rect": [
     52,
@@ -918,7 +918,7 @@
   {
    "id": "B-FBW",
    "level": "F",
-   "name": "B-FBW (BF02)",
+   "name": "Stair B, first floor",
    "kind": "zone",
    "rect": [
     52,
@@ -936,7 +936,7 @@
   {
    "id": "B-FCOR",
    "level": "F",
-   "name": "B-FCOR (BF05)",
+   "name": "Building B staff corridor",
    "kind": "corridor",
    "rect": [
     57,
@@ -954,7 +954,7 @@
   {
    "id": "B-FNW",
    "level": "F",
-   "name": "B-FNW (BF11)",
+   "name": "Fire stair B",
    "kind": "zone",
    "rect": [
     52,
@@ -972,7 +972,7 @@
   {
    "id": "B-FNE",
    "level": "F",
-   "name": "B-FNE (BF13)",
+   "name": "Valve room",
    "kind": "zone",
    "rect": [
     60.5,
@@ -990,7 +990,7 @@
   {
    "id": "B-FSEC",
    "level": "F",
-   "name": "B-FSEC (BF06, BF07, BF08, BF09, BF10, BF14)",
+   "name": "Mantrap and secure corridor",
    "kind": "zone",
    "rect": [
     60.5,
@@ -1008,7 +1008,7 @@
   {
    "id": "B-HSUPPLY",
    "level": "H",
-   "name": "B-HSUPPLY (BR04, BR05)",
+   "name": "Hall air handler and shaft",
    "kind": "zone",
    "rect": [
     70,
@@ -1031,7 +1031,7 @@
   {
    "id": "B-RBULK",
    "level": "R",
-   "name": "B-RBULK (BR02)",
+   "name": "Fire stair B roof bulkhead",
    "kind": "zone",
    "rect": [
     52,
@@ -1049,7 +1049,7 @@
   {
    "id": "K-BRIDGE",
    "level": "F",
-   "name": "K-BRIDGE (LF01)",
+   "name": "Link bridge",
    "kind": "corridor",
    "rect": [
     40,
@@ -1066,7 +1066,7 @@
   {
    "id": "S-LANE",
    "level": "G",
-   "name": "S-LANE (X01)",
+   "name": "Lane and footway",
    "kind": "lane",
    "rect": [
     0,
@@ -1088,7 +1088,7 @@
   {
    "id": "S-YARDA-1",
    "level": "G",
-   "name": "S-YARDA (X03) part 1",
+   "name": "Front yard A, south west",
    "kind": "yard",
    "rect": [
     0,
@@ -1109,7 +1109,7 @@
   {
    "id": "S-YARDA-2",
    "level": "G",
-   "name": "S-YARDA (X03) part 2",
+   "name": "Front yard A, south",
    "kind": "yard",
    "rect": [
     5.5,
@@ -1130,7 +1130,7 @@
   {
    "id": "S-YARDA-3",
    "level": "G",
-   "name": "S-YARDA (X03) part 3",
+   "name": "Front yard A, middle",
    "kind": "yard",
    "rect": [
     0,
@@ -1152,7 +1152,7 @@
   {
    "id": "S-YARDB-1",
    "level": "G",
-   "name": "S-YARDB (X04) part 1",
+   "name": "Front yard B, south",
    "kind": "yard",
    "rect": [
     52,
@@ -1174,7 +1174,7 @@
   {
    "id": "S-YARDB-2",
    "level": "G",
-   "name": "S-YARDB (X04) part 2",
+   "name": "Front yard B, north west",
    "kind": "yard",
    "rect": [
     52,
@@ -1195,7 +1195,7 @@
   {
    "id": "S-YARDB-3",
    "level": "G",
-   "name": "S-YARDB (X04) part 3",
+   "name": "Front yard B, north",
    "kind": "yard",
    "rect": [
     70,
@@ -1217,7 +1217,7 @@
   {
    "id": "S-GAP",
    "level": "G",
-   "name": "S-GAP (X05)",
+   "name": "Service way under the bridge",
    "kind": "yard",
    "rect": [
     40,
@@ -1237,7 +1237,7 @@
   {
    "id": "S-REAR-1",
    "level": "G",
-   "name": "S-REAR (X06) part 1",
+   "name": "Rear yard, south 1",
    "kind": "yard",
    "rect": [
     0,
@@ -1259,7 +1259,7 @@
   {
    "id": "S-REAR-2",
    "level": "G",
-   "name": "S-REAR (X06) part 2",
+   "name": "Rear yard, south west",
    "kind": "yard",
    "rect": [
     0,
@@ -1280,7 +1280,7 @@
   {
    "id": "S-REAR-3",
    "level": "G",
-   "name": "S-REAR (X06) part 3",
+   "name": "Rear yard, south 2",
    "kind": "yard",
    "rect": [
     12.5,
@@ -1300,7 +1300,7 @@
   {
    "id": "S-REAR-4",
    "level": "G",
-   "name": "S-REAR (X06) part 4",
+   "name": "Rear yard, north",
    "kind": "yard",
    "rect": [
     0,
@@ -1322,7 +1322,7 @@
   {
    "id": "S-REAR2",
    "level": "G",
-   "name": "S-REAR2 (X06)",
+   "name": "Strip behind the wing",
    "kind": "yard",
    "rect": [
     52,
@@ -1343,7 +1343,7 @@
   {
    "id": "S-PASS",
    "level": "G",
-   "name": "S-PASS (X07)",
+   "name": "Service passage",
    "kind": "yard",
    "rect": [
     52,
@@ -1363,7 +1363,7 @@
   {
    "id": "S-DRIVE",
    "level": "G",
-   "name": "S-DRIVE (X08)",
+   "name": "East service drive",
    "kind": "yard",
    "rect": [
     100,
@@ -1385,7 +1385,7 @@
   {
    "id": "S-COMP",
    "level": "G",
-   "name": "S-COMP (X09)",
+   "name": "Transformer compound",
    "kind": "yard",
    "rect": [
     76,
@@ -1406,7 +1406,7 @@
   {
    "id": "S-WPATH",
    "level": "G",
-   "name": "S-WPATH (X10)",
+   "name": "West path",
    "kind": "yard",
    "rect": [
     0,
@@ -1427,7 +1427,7 @@
   {
    "id": "SI-GATE",
    "level": "G",
-   "name": "SI-GATE (X02)",
+   "name": "Gatehouse",
    "kind": "zone",
    "rect": [
     1,
@@ -1444,7 +1444,7 @@
   {
    "id": "SI-BIN",
    "level": "G",
-   "name": "SI-BIN (X11)",
+   "name": "Bin store",
    "kind": "zone",
    "rect": [
     8,
@@ -1461,7 +1461,7 @@
   {
    "id": "SI-APRON",
    "level": "G",
-   "name": "SI-APRON (X12)",
+   "name": "Loading apron",
    "kind": "yard",
    "rect": [
     60,
@@ -1482,7 +1482,7 @@
   {
    "id": "L-ROOF",
    "level": "L",
-   "name": "L-ROOF (LF02)",
+   "name": "Link bridge roof",
    "kind": "roof",
    "rect": [
     40,
@@ -1502,7 +1502,7 @@
   {
    "id": "T-VAULT",
    "level": "B",
-   "name": "T-VAULT (TB01)",
+   "name": "Carrier vault",
    "kind": "zone",
    "rect": [
     41,
@@ -1519,7 +1519,7 @@
   {
    "id": "T-MH",
    "level": "B",
-   "name": "T-MH (TB02)",
+   "name": "Carrier manhole",
    "kind": "shaft",
    "rect": [
     49,
@@ -1536,7 +1536,7 @@
   {
    "id": "T-TUNA",
    "level": "B",
-   "name": "T-TUNA (TB03)",
+   "name": "Tunnel to Building A",
    "kind": "zone",
    "rect": [
     40,
@@ -1553,7 +1553,7 @@
   {
    "id": "T-TUNB",
    "level": "B",
-   "name": "T-TUNB (TB04)",
+   "name": "Tunnel to Building B",
    "kind": "zone",
    "rect": [
     49,
@@ -1570,7 +1570,7 @@
   {
    "id": "T-RISER",
    "level": "B",
-   "name": "T-RISER (BG32)",
+   "name": "Carrier riser shaft",
    "kind": "shaft",
    "rect": [
     72,
@@ -1588,7 +1588,7 @@
   {
    "id": "U-HALL",
    "level": "U",
-   "name": "U-HALL (BU01)",
+   "name": "Hall underfloor void",
    "kind": "zone",
    "rect": [
     70,
@@ -1606,7 +1606,7 @@
   {
    "id": "U-COOL",
    "level": "U",
-   "name": "U-COOL (BU02)",
+   "name": "Cooling plenum",
    "kind": "zone",
    "rect": [
     96,
@@ -1624,7 +1624,7 @@
   {
    "id": "V-AG23",
    "level": "B",
-   "name": "V-AG23 (AG23)",
+   "name": "Tunnel access shaft",
    "kind": "shaft",
    "rect": [
     38,
@@ -1642,7 +1642,7 @@
   {
    "id": "RF-A-1",
    "level": "R",
-   "name": "RF-A (AR01) part 1",
+   "name": "Building A roof, south",
    "kind": "roof",
    "rect": [
     4,
@@ -1662,7 +1662,7 @@
   {
    "id": "RF-A-2",
    "level": "R",
-   "name": "RF-A (AR01) part 2",
+   "name": "Building A roof, middle",
    "kind": "roof",
    "rect": [
     4,
@@ -1684,7 +1684,7 @@
   {
    "id": "RF-A-3",
    "level": "R",
-   "name": "RF-A (AR01) part 3",
+   "name": "Building A roof, north 1",
    "kind": "roof",
    "rect": [
     10.5,
@@ -1706,7 +1706,7 @@
   {
    "id": "RF-A-4",
    "level": "R",
-   "name": "RF-A (AR01) part 4",
+   "name": "Building A roof, north 2",
    "kind": "roof",
    "rect": [
     10.5,
@@ -1727,7 +1727,7 @@
   {
    "id": "RF-A-5",
    "level": "R",
-   "name": "RF-A (AR01) part 5",
+   "name": "Building A roof, north 3",
    "kind": "roof",
    "rect": [
     4,
@@ -1747,7 +1747,7 @@
   {
    "id": "RF-BS-1",
    "level": "R",
-   "name": "RF-BS (BR01) part 1",
+   "name": "B strip roof, middle",
    "kind": "roof",
    "rect": [
     52,
@@ -1767,7 +1767,7 @@
   {
    "id": "RF-BS-2",
    "level": "R",
-   "name": "RF-BS (BR01) part 2",
+   "name": "B strip roof, north east",
    "kind": "roof",
    "rect": [
     58.5,
@@ -1787,7 +1787,7 @@
   {
    "id": "RF-BH-1",
    "level": "H",
-   "name": "RF-BH (BR03) part 1",
+   "name": "Hall roof, south",
    "kind": "roof",
    "rect": [
     70,
@@ -1808,7 +1808,7 @@
   {
    "id": "RF-BH-2",
    "level": "H",
-   "name": "RF-BH (BR03) part 2",
+   "name": "Hall roof, east",
    "kind": "roof",
    "rect": [
     82,
@@ -1830,7 +1830,7 @@
   {
    "id": "RF-BH-3",
    "level": "H",
-   "name": "RF-BH (BR03) part 3",
+   "name": "Hall roof, north",
    "kind": "roof",
    "rect": [
     70,
@@ -1851,7 +1851,7 @@
   {
    "id": "RF-W",
    "level": "H",
-   "name": "RF-W (BR06)",
+   "name": "Generator wing roof",
    "kind": "roof",
    "rect": [
     52,
@@ -4254,6 +4254,7 @@
  "stairs": [
   {
    "id": "V-ASTAIR",
+   "name": "Main stair A",
    "kind": "main",
    "from": "G",
    "to": "F",
@@ -4270,6 +4271,7 @@
   },
   {
    "id": "V-AFS-GF",
+   "name": "Fire stair A, ground up",
    "kind": "fire",
    "from": "G",
    "to": "F",
@@ -4286,6 +4288,7 @@
   },
   {
    "id": "V-AFS-FR",
+   "name": "Fire stair A, up to roof",
    "kind": "fire",
    "from": "F",
    "to": "R",
@@ -4302,6 +4305,7 @@
   },
   {
    "id": "V-BSTAIR",
+   "name": "Main stair B",
    "kind": "main",
    "from": "G",
    "to": "F",
@@ -4318,6 +4322,7 @@
   },
   {
    "id": "V-BFS-GF",
+   "name": "Fire stair B, ground up",
    "kind": "fire",
    "from": "G",
    "to": "F",
@@ -4334,6 +4339,7 @@
   },
   {
    "id": "V-BFS-FR",
+   "name": "Fire stair B, up to roof",
    "kind": "fire",
    "from": "F",
    "to": "R",
@@ -4350,6 +4356,7 @@
   },
   {
    "id": "V-GAL",
+   "name": "Gallery stair into the hall",
    "kind": "feature",
    "from": "G",
    "to": "F",
@@ -4368,6 +4375,7 @@
  "ladders": [
   {
    "id": "LD-AG23",
+   "name": "Tunnel shaft ladder",
    "room": "V-AG23",
    "at": [
     38.5,
@@ -4380,6 +4388,7 @@
   },
   {
    "id": "LD-BG32",
+   "name": "Carrier riser ladder",
    "room": "T-RISER",
    "at": [
     73,
@@ -4392,6 +4401,7 @@
   },
   {
    "id": "LD-TB02",
+   "name": "Manhole ladder",
    "room": "T-MH",
    "at": [
     50,
@@ -4404,6 +4414,7 @@
   },
   {
    "id": "V-LAD1",
+   "name": "Bridge roof ladder, west",
    "room": "L-ROOF",
    "at": [
     40.5,
@@ -4416,6 +4427,7 @@
   },
   {
    "id": "V-LAD2",
+   "name": "Bridge roof ladder, east",
    "room": "L-ROOF",
    "at": [
     51.5,
@@ -4428,6 +4440,7 @@
   },
   {
    "id": "V-LAD3",
+   "name": "Hall roof ladder",
    "room": "RF-BH-3",
    "at": [
     70.5,
@@ -4442,6 +4455,7 @@
  "voids": [
   {
    "id": "VF-ASTAIR",
+   "name": "Main stair A well",
    "level": "F",
    "rect": [
     19.5,
@@ -4454,6 +4468,7 @@
   },
   {
    "id": "VF-ALIFT",
+   "name": "Lift A shaft",
    "level": "F",
    "rect": [
     27.5,
@@ -4466,6 +4481,7 @@
   },
   {
    "id": "VF-AFS",
+   "name": "Fire stair A well",
    "level": "F",
    "rect": [
     4,
@@ -4478,6 +4494,7 @@
   },
   {
    "id": "VR-AFS",
+   "name": "Fire stair A roof well",
    "level": "R",
    "rect": [
     4,
@@ -4490,6 +4507,7 @@
   },
   {
    "id": "VF-ARISER",
+   "name": "Cable riser A",
    "level": "F",
    "rect": [
     7.5,
@@ -4502,6 +4520,7 @@
   },
   {
    "id": "VR-APIPE",
+   "name": "Pipe riser roof hatch",
    "level": "R",
    "rect": [
     34.5,
@@ -4514,6 +4533,7 @@
   },
   {
    "id": "VF-BSTAIR",
+   "name": "Main stair B well",
    "level": "F",
    "rect": [
     52,
@@ -4526,6 +4546,7 @@
   },
   {
    "id": "VF-BLIFT",
+   "name": "Lift B shaft",
    "level": "F",
    "rect": [
     54.5,
@@ -4538,6 +4559,7 @@
   },
   {
    "id": "VF-BFS",
+   "name": "Fire stair B well",
    "level": "F",
    "rect": [
     52,
@@ -4550,6 +4572,7 @@
   },
   {
    "id": "VR-BFS",
+   "name": "Fire stair B roof well",
    "level": "R",
    "rect": [
     52,
@@ -4562,6 +4585,7 @@
   },
   {
    "id": "VF-BRISER",
+   "name": "Cable riser B",
    "level": "F",
    "rect": [
     55,
@@ -4574,6 +4598,7 @@
   },
   {
    "id": "VF-GAL",
+   "name": "Gallery stair well",
    "level": "F",
    "rect": [
     67,
@@ -4586,6 +4611,7 @@
   },
   {
    "id": "VG-AG23",
+   "name": "Tunnel shaft hatch",
    "level": "G",
    "rect": [
     38,
@@ -4598,6 +4624,7 @@
   },
   {
    "id": "VG-BG32",
+   "name": "Carrier riser hatch",
    "level": "G",
    "rect": [
     72,
@@ -4610,6 +4637,7 @@
   },
   {
    "id": "VG-TB02",
+   "name": "Manhole lid",
    "level": "G",
    "rect": [
     49,
@@ -4622,6 +4650,7 @@
   },
   {
    "id": "VH-BR05",
+   "name": "Cooling supply shaft",
    "level": "H",
    "rect": [
     80,

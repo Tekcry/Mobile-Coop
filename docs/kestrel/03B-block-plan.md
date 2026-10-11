@@ -591,6 +591,7 @@ Rows per For: Michael 0, P03R 13, P04 13, P06 1.
 | 13 | `plans.mjs kestrel.campus.blocks.json` | wrote 7 SVG + PNG pairs |
 
 Plans: docs/kestrel/plans/blocks-<L>.png for B, U, G, F, H, L, R (Part 2e)
+Part 2f (Michael, 2026-10-11): plain names on every zone, site piece, tunnel, roof and vertical piece; worded zone legend; checks unchanged.
 
 Expected fails, all for the tools revision before P04 or for P04 (handover Notes): FAIL A07 (RA14, RB11 sit 0.5 m from a wall end); FAIL A09 (fire-stair doors RA13, RA14, RB05, RB15, RB17 sit at stair ends); FAIL A12 (ladders V-LAD1-3 stand on roofs, not plant or shaft rooms); FAIL A29 (RB01 joins ring 1 to ring 3). WARN A10 (RA11 and RA12 face each other across the bridge corridor); WARN A18 (split-jump gaps).
 

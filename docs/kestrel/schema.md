@@ -99,6 +99,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | voids[].id, level | Unique id and the level whose floor has the hole |
 | voids[].rect, kind | Hole rect, and what it is (well, shaft, riser, hatch, roof light) |
 | voids[].reason | Why the floor is open here (level-design 16.3.2) |
+| stairs[].name, ladders[].name, voids[].name | Optional. Short plain name for the plan label (Michael, 2026-10-11) |
 | objects[].id, level | Unique id and level |
 | objects[].name | The real object (rack, transformer, skip) |
 | objects[].rect | Footprint on the 0.1 m grid |
@@ -232,7 +233,7 @@ Drawing conventions the renderer chose where this schema is silent:
 - An exterior element or service is drawn on every level whose height span it touches.
 - An object id that does not fit inside the object (each rack of a row) is left off the plan.
 - A room label that does not fit inside its room clear of the stairs, voids and objects (for example a stair core filled by its stair) goes to a callout column right of the site, with a leader line to a dot in the room.
-- With `meta.buildings`, every plan draws each building footprint as a dashed outline labelled `Building <id> <name>`. With two or more buildings the bay grid is drawn per building, anchored on that building's own corner, inside its footprint; with one building or none, across the site from the footprint corner, as before. The site outline is unchanged.
+- With `meta.buildings`, every plan draws each building footprint as a dashed outline labelled `Building <id> - <name>`. With two or more buildings the bay grid is drawn per building, anchored on that building's own corner, inside its footprint; with one building or none, across the site from the footprint corner, as before. The site outline is unchanged.
 - On a level with its own footprint whose height span overlaps another level's (`H` beside `F`), an exterior element or service is drawn only where it touches that footprint (grown by twice the exterior wall thickness). Other levels draw every element in their height span, as before.
 
 ## 6. Checker (scripts/kestrel/check.mjs)

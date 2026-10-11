@@ -33,8 +33,8 @@ function meta() {
     bay: [6, 6], // 03B 1 (bay 6.0 x 6.0)
     site: [0, 0, 108, 76], // 03B 1 Site
     buildings: [ // 03B 1; the wing is not a building (03B 2 row G)
-      { id: 'A', name: 'Building A', footprint: A },
-      { id: 'B', name: 'Building B', footprint: BFULL },
+      { id: 'A', name: 'Offices and security', footprint: A },
+      { id: 'B', name: 'Data hall building', footprint: BFULL },
     ],
     stage: 'P03B Part 2: campus zones and corridors only', // 03B line 3
   };
@@ -58,15 +58,49 @@ const CORRIDORS = new Set(['G-SPINE', 'G-NCOR', 'G-WLINK', 'G-ELINK', 'F-SPINE',
 const RING = { 'G-FRONT': 2, 'G-GOODS': 2, 'G-SEC': '3+' }; // decision 10 (brief 6 S2-S4 lines 260-262); all others 3
 const CEILING = { 'G-SPINE': 2.4, 'G-NCOR': 2.4, 'F-SPINE': 2.4, 'F-NCOR': 2.4 }; // decision 11: 2.4 + 1.5 void + 0.3 slab = 4.2; P04 sets the rest
 
+// Plain names for the plan labels (P03B 2f decisions 1-3, 5; Michael 2026-10-11). Source: 03B Note columns and brief 5 room names.
+// At most 30 characters, no ids inside, none of the words A30 reads (check.mjs:697). 03B's Rooms column keeps the room list.
+const NAME = {
+  'G-FRONT': 'Reception and front offices', 'G-SOFF': 'Admin office', 'G-GOODS': 'Goods-in and goods lobby', 'G-SPINE': 'Ground floor spine corridor',
+  'G-WLINK': 'Ground west link corridor', 'G-SEC': 'Security room and key safe', 'G-CORE': 'Main stair and lift core', 'G-ELINK': 'Ground east link corridor',
+  'G-EAST': 'Comms room and tunnel shaft', 'G-NCOR': 'Ground north corridor', 'G-NW': 'Fire stair and manager office', 'G-NE': 'Locker room and switchroom',
+  'F-SW': 'Customer services office', 'F-OPS': 'Operations room, tape library', 'F-SPINE': 'First floor spine corridor', 'F-VEST': 'Bridge vestibule',
+  'F-WLINK': 'First west link corridor', 'F-BW': 'Records room', 'F-CORE': 'First floor stair, lift core', 'F-ELINK': 'First east link corridor',
+  'F-E': 'Pipe riser', 'F-PLANT': 'Plant gallery', 'F-NCOR': 'First north corridor', 'F-NW': 'Offices and fire stair', 'F-NE': 'Kitchen and pump room',
+  'R-BULK': 'Fire stair roof bulkhead', 'R-PLANT': 'Chillers and roof air handler',
+  'B-GW': 'Building B entrance lobby', 'B-GCOR': 'Building B ground corridor', 'B-GGOODS': 'Staging, shipping and build', 'B-GE': 'Gallery stair foot, switchroom',
+  'B-GN': 'Fire stair and plant corridor', 'B-GHCAR': 'Meet-me room and carrier rooms', 'B-GHALL': 'Data hall', 'B-GHPLANT': 'Power, battery and gas rooms',
+  'B-GHCOOL': 'Cooling gallery', 'W-GEN': 'Generator hall', 'B-FS': 'Tenant work room', 'B-FLOBBY': 'Bridge lobby and post desk',
+  'B-FBW': 'Stair B, first floor', 'B-FCOR': 'Building B staff corridor', 'B-FNW': 'Fire stair B', 'B-FNE': 'Valve room', 'B-FSEC': 'Mantrap and secure corridor',
+  'B-HSUPPLY': 'Hall air handler and shaft', 'B-RBULK': 'Fire stair B roof bulkhead', 'K-BRIDGE': 'Link bridge',
+  'S-LANE': 'Lane and footway', 'S-YARDA': 'Front yard A', 'S-YARDB': 'Front yard B', 'S-GAP': 'Service way under the bridge', 'S-REAR': 'Rear yard', 'S-REAR2': 'Strip behind the wing',
+  'S-PASS': 'Service passage', 'S-DRIVE': 'East service drive', 'S-COMP': 'Transformer compound', 'S-WPATH': 'West path',
+  'SI-GATE': 'Gatehouse', 'SI-BIN': 'Bin store', 'SI-APRON': 'Loading apron', 'L-ROOF': 'Link bridge roof',
+  'T-VAULT': 'Carrier vault', 'T-MH': 'Carrier manhole', 'T-TUNA': 'Tunnel to Building A', 'T-TUNB': 'Tunnel to Building B', 'T-RISER': 'Carrier riser shaft',
+  'U-HALL': 'Hall underfloor void', 'U-COOL': 'Cooling plenum', 'V-AG23': 'Tunnel access shaft',
+  'RF-A': 'Building A roof', 'RF-BS': 'B strip roof', 'RF-BH': 'Hall roof', 'RF-W': 'Generator wing roof',
+};
+// decision 3: parent name plus a position word from the piece rect; a repeated word gets 1, 2 ... by order so each name shows once
+function named(pieces, parentId, pr) {
+  const px = (pr[0] + pr[2]) / 2, pz = (pr[1] + pr[3]) / 2, w = pr[2] - pr[0], d = pr[3] - pr[1];
+  const raw = pieces.map((p) => {
+    const cx = (p[0] + p[2]) / 2, cz = (p[1] + p[3]) / 2;
+    const ew = Math.abs(cx - px) > w / 6 ? (cx < px ? 'west' : 'east') : '', ns = Math.abs(cz - pz) > d / 6 ? (cz < pz ? 'south' : 'north') : '';
+    return [p, [ns, ew].filter(Boolean).join(' ') || 'middle'];
+  });
+  const count = {}, seen = {};
+  for (const [, wd] of raw) count[wd] = (count[wd] ?? 0) + 1;
+  return raw.map(([p, wd]) => { seen[wd] = (seen[wd] ?? 0) + 1; return [p, NAME[parentId] + ', ' + wd + (count[wd] > 1 ? ' ' + seen[wd] : '')]; });
+}
+
 // 03B 3.3 rows: cols Zone, Level, Rect, Rooms, ...
 function zonesA() {
   return rows.filter((r) => /^(G|F|R)-/.test(r[0])).map((r) => {
     const rect = JSON.parse(r[2]);
-    const holds = r[3] === '-' ? '' : ` (${r[3]})`; // decision 15: check.mjs and schema do not read holds, so the rooms go in name
     return {
       id: r[0],
       level: r[1],
-      name: r[0] + holds,
+      name: NAME[r[0]], // 2f decisions 1, 2: plain name; the room list stays in 03B's Rooms column (replaces the 2a decision 15 note)
       kind: CORRIDORS.has(r[0]) ? 'corridor' : 'zone', // decision 9
       rect,
       ceiling: CEILING[r[0]] ?? 0, // decision 11
@@ -103,7 +137,6 @@ function zone(id, level, name, kind, rect, ring) { // decisions 11, 12: ceiling 
   if (b) z.building = b;
   return z;
 }
-const holdsOf = (r) => (r[3] === '-' ? r[0] : `${r[0]} (${r[3]})`); // decision 12: id plus the Rooms column
 
 // Rings (brief 6 lines 259-267; mixed zones take the ring of the larger brief-5 area, decision 9 table)
 const RING_B = { 'B-GGOODS': 2, 'B-GHCAR': 5, 'B-GHALL': 4, 'B-GHPLANT': 4, 'B-FSEC': 4, 'B-GHCOOL': 4 }; // all other B zones: 3
@@ -114,14 +147,14 @@ const YARD_KIDS = { 'S-YARDA': 'SI-GATE', 'S-YARDB': 'SI-APRON', 'S-REAR': 'SI-B
 // 03B 4.3 rows (19): level from the Level column (decision 1)
 function zonesB() {
   return section('### 4.3 Zones', '\nCheck (').filter((r) => /^(B|W)-/.test(r[0])).map((r) =>
-    zone(r[0], r[1], holdsOf(r), KIND_B[r[0]] ?? 'zone', JSON.parse(r[2]), RING_B[r[0]] ?? 3)); // kinds decision 8
+    zone(r[0], r[1], NAME[r[0]], KIND_B[r[0]] ?? 'zone', JSON.parse(r[2]), RING_B[r[0]] ?? 3)); // kinds decision 8
 }
 
 // 03B 5.2 rows (decisions 3-8) plus K-BRIDGE (decision 2: 03B 3.2 K-BRIDGE, 03B 2 row F)
 function zonesSite() {
   const sec = section('### 5.2 Zones', '\nSelf-check');
   const get = (id) => sec.find((r) => r[0] === id);
-  const out = [zone('K-BRIDGE', 'F', 'K-BRIDGE (LF01)', 'corridor', BRIDGE, 3)];
+  const out = [zone('K-BRIDGE', 'F', NAME['K-BRIDGE'], 'corridor', BRIDGE, 3)];
   for (const r of sec) {
     if (r[0] === 'SI-RACK' || r[0].startsWith('RF-')) continue; // decisions 4, 5: rack is a vertical item (2c), open roofs are 2d
     const rect = JSON.parse(r[2]);
@@ -130,8 +163,8 @@ function zonesSite() {
     const ring = RING_S[r[0]] ?? 1;
     const kid = YARD_KIDS[r[0]];
     if (kid) { // decision 7: pieces <parent>-<n>, the kid stays its own zone
-      remainder(rect, [JSON.parse(get(kid)[2])]).forEach((p, n) => out.push(zone(`${r[0]}-${n + 1}`, level, `${r[0]} (${r[3]}) part ${n + 1}`, 'yard', p, ring)));
-    } else out.push(zone(r[0], level, holdsOf(r), kind, rect, ring));
+      named(remainder(rect, [JSON.parse(get(kid)[2])]), r[0], rect).forEach(([p, nm], n) => out.push(zone(`${r[0]}-${n + 1}`, level, nm, 'yard', p, ring)));
+    } else out.push(zone(r[0], level, NAME[r[0]], kind, rect, ring));
   }
   return out;
 }
@@ -140,15 +173,15 @@ function zonesSite() {
 const RISERS = 25; // decision 1: round(4.2 / 0.165) (schema stairs[].risers; check.mjs A11 stair.riserHeight)
 function stairs() { // decisions 3-7: [id, kind, from, to, rect, up, width, layout]; main and fire dogleg, V-GAL straight 2 flights
   const T = [
-    ['V-ASTAIR', 'main', 'G', 'F', [19.5, 43.5, 27.5, 47.5], 'W', 1.85],
-    ['V-AFS-GF', 'fire', 'G', 'F', [4, 54, 10.5, 57.5], 'E', 1.45],
-    ['V-AFS-FR', 'fire', 'F', 'R', [4, 54, 10.5, 57.5], 'E', 1.45],
-    ['V-BSTAIR', 'main', 'G', 'F', [52, 48.5, 57, 56.5], 'N', 1.85],
-    ['V-BFS-GF', 'fire', 'G', 'F', [52, 56.5, 58.5, 60], 'W', 1.45],
-    ['V-BFS-FR', 'fire', 'F', 'R', [52, 56.5, 58.5, 60], 'W', 1.45],
-    ['V-GAL', 'feature', 'G', 'F', [67, 43, 70, 52], 'S', 2.4],
+    ['V-ASTAIR', 'main', 'G', 'F', [19.5, 43.5, 27.5, 47.5], 'W', 1.85, 'Main stair A'],
+    ['V-AFS-GF', 'fire', 'G', 'F', [4, 54, 10.5, 57.5], 'E', 1.45, 'Fire stair A, ground up'],
+    ['V-AFS-FR', 'fire', 'F', 'R', [4, 54, 10.5, 57.5], 'E', 1.45, 'Fire stair A, up to roof'],
+    ['V-BSTAIR', 'main', 'G', 'F', [52, 48.5, 57, 56.5], 'N', 1.85, 'Main stair B'],
+    ['V-BFS-GF', 'fire', 'G', 'F', [52, 56.5, 58.5, 60], 'W', 1.45, 'Fire stair B, ground up'],
+    ['V-BFS-FR', 'fire', 'F', 'R', [52, 56.5, 58.5, 60], 'W', 1.45, 'Fire stair B, up to roof'],
+    ['V-GAL', 'feature', 'G', 'F', [67, 43, 70, 52], 'S', 2.4, 'Gallery stair into the hall'],
   ];
-  return T.map(([id, kind, from, to, rect, up, width]) => ({ id, kind, from, to, rect, up, width, risers: RISERS, ...(id === 'V-GAL' ? { flights: 2 } : { layout: 'dogleg' }) }));
+  return T.map(([id, kind, from, to, rect, up, width, name]) => ({ id, name, kind, from, to, rect, up, width, risers: RISERS, ...(id === 'V-GAL' ? { flights: 2 } : { layout: 'dogleg' }) }));
 }
 
 function voids() { // decision 9: [id, level, rect, kind, reason]
@@ -170,7 +203,8 @@ function voids() { // decision 9: [id, level, rect, kind, reason]
     ['VG-TB02', 'G', [49, 24, 50.5, 25.5], 'hatch', 'Manhole lid in the yard over the carrier manhole (V-TB02)'],
     ['VH-BR05', 'H', [80, 48, 82, 50], 'riser', 'Cooling supply shaft from the roof AHU into the hall, bolted alarmed grille (V-BR05)'],
   ];
-  return T.map(([id, level, rect, kind, reason]) => ({ id, level, rect, kind, reason }));
+  const VN = {"VF-ASTAIR":"Main stair A well","VF-ALIFT":"Lift A shaft","VF-AFS":"Fire stair A well","VR-AFS":"Fire stair A roof well","VF-ARISER":"Cable riser A","VR-APIPE":"Pipe riser roof hatch","VF-BSTAIR":"Main stair B well","VF-BLIFT":"Lift B shaft","VF-BFS":"Fire stair B well","VR-BFS":"Fire stair B roof well","VF-BRISER":"Cable riser B","VF-GAL":"Gallery stair well","VG-AG23":"Tunnel shaft hatch","VG-BG32":"Carrier riser hatch","VG-TB02":"Manhole lid","VH-BR05":"Cooling supply shaft"}; // 2f decision 5: plain names for plan labels
+  return T.map(([id, level, rect, kind, reason]) => ({ id, name: VN[id], level, rect, kind, reason }));
 }
 
 function ladders() { // decisions 12-14: [id, room, at, from, to, facing, reason]; V-LAD3 added in 2d-1, riser ladders are P06
@@ -182,7 +216,8 @@ function ladders() { // decisions 12-14: [id, room, at, from, to, facing, reason
     ['V-LAD2', 'L-ROOF', [51.5, 41.5], 'L', 'R', 'E', "Hooped access ladder from the bridge roof up B's west parapet (0.6)"],
     ['V-LAD3', 'RF-BH-3', [70.5, 57.5], 'H', 'R', 'W', "Access ladder from the hall roof up the B strip's east parapet (1.8)"], // 2d-1 decision 4: 03B 6.1 V-LAD3 [69.5, 57, 70, 58.5], foot on the H side
   ];
-  return T.map(([id, room, at, from, to, facing, reason]) => ({ id, room, at, from, to, facing, reason }));
+  const LN = {"LD-AG23":"Tunnel shaft ladder","LD-BG32":"Carrier riser ladder","LD-TB02":"Manhole ladder","V-LAD1":"Bridge roof ladder, west","V-LAD2":"Bridge roof ladder, east","V-LAD3":"Hall roof ladder"}; // 2f decision 5
+  return T.map(([id, room, at, from, to, facing, reason]) => ({ id, name: LN[id], room, at, from, to, facing, reason }));
 }
 
 function services() { // decision 15: 03B 5.2 SI-RACK [40, 44.5, 52, 46.5] at 5.0-6.5 (centre 5.75, size 1.5); brief 5 X13
@@ -190,7 +225,7 @@ function services() { // decision 15: 03B 5.2 SI-RACK [40, 44.5, 52, 46.5] at 5.
 }
 
 // decision 10: V-AG23 shaft room on level B, building A from the footprint (03B 6.1; brief 5 AG23 ring 4)
-const agShaft = () => zone('V-AG23', 'B', 'V-AG23 (AG23)', 'shaft', [38, 45, 40, 47], 4);
+const agShaft = () => zone('V-AG23', 'B', NAME['V-AG23'], 'shaft', [38, 45, 40, 47], 4);
 
 // Piece 4 (2d-1). Sources per rule are in prompts/P03B-2d-1.md decisions 1-16.
 function roofs(base) { // decisions 2, 3: open roofs minus the enclosed or plant zones on them, by remainder()
@@ -199,7 +234,7 @@ function roofs(base) { // decisions 2, 3: open roofs minus the enclosed or plant
   return section('### 5.2 Zones', '\nSelf-check').filter((r) => r[0].startsWith('RF-')).flatMap((r) => {
     const ps = remainder(JSON.parse(r[2]), KIDS[r[0]].map(rect));
     const many = ps.length > 1;
-    return ps.map((p, n) => zone(many ? `${r[0]}-${n + 1}` : r[0], r[1], many ? `${holdsOf(r)} part ${n + 1}` : holdsOf(r), 'roof', p, 3)); // kind roof, ring 3 (brief 5 AR01, BR01, BR03, BR06)
+    return (many ? named(ps, r[0], JSON.parse(r[2])) : [[ps[0], NAME[r[0]]]]).map(([p, nm], n) => zone(many ? `${r[0]}-${n + 1}` : r[0], r[1], nm, 'roof', p, 3)); // kind roof, ring 3 (brief 5 AR01, BR01, BR03, BR06)
   });
 }
 
