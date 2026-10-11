@@ -1,4 +1,4 @@
-// P03B Part 2 blocks generator. Piece 1 (2a): meta, levels, Building A zones. Piece 2 (2b): B, wing, bridge, site, level U zones. Piece 3 (2c): stairs, voids, ladders, V-AG23, pipe rack. Later pieces add functions (2d).
+// P03B Part 2 blocks generator. Piece 1 (2a): meta, levels, Building A zones. Piece 2 (2b): B, wing, bridge, site, level U zones. Piece 3 (2c): stairs, voids, ladders, V-AG23, pipe rack. Piece 4 (2d-1): open roofs, V-LAD3, walls, parapets, open edges. 2d-2 adds openings.
 // Usage: node scripts/kestrel/p03b-blocks.mjs  -> docs/kestrel/kestrel.campus.blocks.json (planner 2026-10-11: keeps npm test green until B0)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { standardsCheck, summary } from './standards-check.mjs';
@@ -20,6 +20,7 @@ const BSTRIP = [52, 30, 70, 60]; // 03B 1 B west strip
 const BFULL = [52, 30, 100, 60]; // 03B 1 Building B
 const WING = [52, 62, 76, 74]; // 03B 1 generator wing
 const BRIDGE = [40, 40, 52, 43.5]; // 03B 2 link bridge (z0 = 40)
+const HALL = [70, 30, 100, 60]; // 03B 2 row H hall block
 
 function meta() {
   return {
@@ -45,7 +46,7 @@ function levels() {
     { id: 'U', name: 'Underfloor void', floor: -1.6, height: 1.6, footprint: [[70, 36, 100, 50.5]] }, // 03B 2 U (BU01, BU02)
     { id: 'G', name: 'Ground', floor: 0, height: 4.2, footprint: [A, BFULL, WING] }, // 03B 2 G (listed: A, B, wing)
     { id: 'F', name: 'First', floor: 4.2, height: 4.2, footprint: [A, BSTRIP, BRIDGE] }, // 03B 2 F (A, B strip, bridge)
-    { id: 'H', name: 'Low roof', floor: 6.6, height: 1.1, footprint: [[70, 30, 100, 60], WING] }, // 03B 2 H (hall block, wing); parapet 1.1
+    { id: 'H', name: 'Low roof', floor: 6.6, height: 1.1, footprint: [HALL, WING] }, // 03B 2 H (hall block, wing); parapet 1.1
     // Michael 2026-10-11: bridge roof has no parapet, only a 0.3 m edge upstand (enclosed glazed link bridge)
     { id: 'L', name: 'Bridge roof', floor: 7.8, height: 0.3, source: 'Michael 2026-10-11', footprint: [BRIDGE] }, // 03B 2 L
     { id: 'R', name: 'Roof', floor: 8.4, height: 1.1, footprint: [A, BSTRIP] }, // 03B 2 R; parapet 1.1
@@ -171,13 +172,14 @@ function voids() { // decision 9: [id, level, rect, kind, reason]
   return T.map(([id, level, rect, kind, reason]) => ({ id, level, rect, kind, reason }));
 }
 
-function ladders() { // decisions 12-14: [id, room, at, from, to, facing, reason]; V-LAD3 is 2d, riser ladders are P06
+function ladders() { // decisions 12-14: [id, room, at, from, to, facing, reason]; V-LAD3 added in 2d-1, riser ladders are P06
   const T = [
     ['LD-AG23', 'V-AG23', [38.5, 46], 'B', 'G', 'W', "Fixed ladder in the tunnel shaft up to AG22's hatch; the TB03 door is in the east wall"],
     ['LD-BG32', 'T-RISER', [73, 31.5], 'B', 'G', 'N', "Fixed ladder in the carrier riser up to BG31's hatch; the TB04 door is in the south wall"],
     ['LD-TB02', 'T-MH', [50, 25], 'B', 'G', 'E', 'Fixed ladder in the carrier manhole up to the yard lid; the TB01 door is in the west wall'],
     ['V-LAD1', 'L-ROOF', [40.5, 41.5], 'L', 'R', 'W', "Hooped access ladder from the bridge roof up A's east parapet (0.6)"],
     ['V-LAD2', 'L-ROOF', [51.5, 41.5], 'L', 'R', 'E', "Hooped access ladder from the bridge roof up B's west parapet (0.6)"],
+    ['V-LAD3', 'RF-BH-3', [70.5, 57.5], 'H', 'R', 'W', "Access ladder from the hall roof up the B strip's east parapet (1.8)"], // 2d-1 decision 4: 03B 6.1 V-LAD3 [69.5, 57, 70, 58.5], foot on the H side
   ];
   return T.map(([id, room, at, from, to, facing, reason]) => ({ id, room, at, from, to, facing, reason }));
 }
@@ -189,15 +191,87 @@ function services() { // decision 15: 03B 5.2 SI-RACK [40, 44.5, 52, 46.5] at 5.
 // decision 10: V-AG23 shaft room on level B, building A from the footprint (03B 6.1; brief 5 AG23 ring 4)
 const agShaft = () => zone('V-AG23', 'B', 'V-AG23 (AG23)', 'shaft', [38, 45, 40, 47], 4);
 
-const rooms = [...zonesA(), ...zonesB(), ...zonesSite(), agShaft()];
+// Piece 4 (2d-1). Sources per rule are in prompts/P03B-2d-1.md decisions 1-16.
+function roofs(base) { // decisions 2, 3: open roofs minus the enclosed or plant zones on them, by remainder()
+  const KIDS = { 'RF-A': ['R-BULK', 'R-PLANT'], 'RF-BS': ['B-RBULK'], 'RF-BH': ['B-HSUPPLY'], 'RF-W': [] }; // 03B 5.2 RF- rows; 3.3 R-BULK, R-PLANT; 4.3 B-RBULK, B-HSUPPLY
+  const rect = (id) => base.find((r) => r.id === id).rect;
+  return section('### 5.2 Zones', '\nSelf-check').filter((r) => r[0].startsWith('RF-')).flatMap((r) => {
+    const ps = remainder(JSON.parse(r[2]), KIDS[r[0]].map(rect));
+    const many = ps.length > 1;
+    return ps.map((p, n) => zone(many ? `${r[0]}-${n + 1}` : r[0], r[1], many ? `${holdsOf(r)} part ${n + 1}` : holdsOf(r), 'roof', p, 3)); // kind roof, ring 3 (brief 5 AR01, BR01, BR03, BR06)
+  });
+}
+
+const OPEN_ZONES = new Set(['R-PLANT', 'B-HSUPPLY']); // decision 5 (brief 5 AR02, BR04: open plant on the roof)
+const enclosed = (r) => !['yard', 'lane', 'roof'].includes(r.kind) && !OPEN_ZONES.has(r.id); // decision 5
+const ROOM_H = { 'K-BRIDGE': 3.6, 'SI-GATE': 3.0, 'SI-BIN': 2.4, 'R-BULK': 3.0, 'B-RBULK': 3.0 }; // 2d-1 FIXES 1-3 (bridge walls stop at the roof 7.8); decision 9 (stair bulkhead 3.0)
+const edgeUnits = (f) => { // 0.5 units of the four edges W, S, E, N (RULES 6 grid); unit = { horiz, c: line, s: start }
+  const run = (a, b, mk) => { const o = []; for (let s = a; s < b; s += 0.5) o.push(mk(s)); return o; };
+  return [run(f[1], f[3], (s) => ({ horiz: false, c: f[0], s })), run(f[0], f[2], (s) => ({ horiz: true, c: f[1], s })), run(f[1], f[3], (s) => ({ horiz: false, c: f[2], s })), run(f[0], f[2], (s) => ({ horiz: true, c: f[3], s }))];
+};
+const ukey = (u) => `${u.horiz ? 'h' : 'v'}|${u.c}|${u.s}`;
+const onOutline = (u, f) => (u.horiz ? (u.c === f[1] || u.c === f[3]) && u.s >= f[0] && u.s + 0.5 <= f[2] : (u.c === f[0] || u.c === f[2]) && u.s >= f[1] && u.s + 0.5 <= f[3]);
+const inClosed = (u, f) => (u.horiz ? u.c >= f[1] && u.c <= f[3] && u.s >= f[0] && u.s + 0.5 <= f[2] : u.c >= f[0] && u.c <= f[2] && u.s >= f[1] && u.s + 0.5 <= f[3]);
+
+function walls(rs, lv) { // decisions 6-11; returns the walls and the covered unit keys per level
+  const raw = [];
+  const covered = new Set();
+  const floorH = lv.find((l) => l.id === 'H').floor; // 6.6: the hall block and wing rise to the H floor (03B 2 row G)
+  const foot = (id) => lv.find((l) => l.id === id).footprint;
+  const BUILD = [A, BFULL, WING]; // decision 7: outlines on G and F (03B 1)
+  for (const L of lv) {
+    const U = new Map();
+    for (const r of rs) if (r.level === L.id && enclosed(r)) for (const u of edgeUnits(r.rect).flat()) (U.get(ukey(u)) ?? U.set(ukey(u), { ...u, by: [] }).get(ukey(u))).by.push(r.id);
+    for (const [k, u] of U) {
+      let h = Math.max(...u.by.map((id) => ROOM_H[id] ?? L.height)); // decision 9: taller wins
+      if (L.id === 'G' && [HALL, WING].some((f) => inClosed(u, f))) h = Math.max(h, floorH); // hall block [70, 30, 100, 60]
+      const solo = u.by.length === 1 ? u.by[0] : ''; // decision 7: no enclosed room on the other side
+      let kind = 'interior'; // decision 8
+      if (L.id === 'R' || ((L.id === 'G' || L.id === 'F') && (BUILD.some((f) => onOutline(u, f)) || ['K-BRIDGE', 'SI-GATE'].includes(solo)))) kind = 'exterior'; // decision 7
+      if (solo === 'SI-BIN') kind = 'boundary'; // 2d-1 FIX 3: chain-link enclosure
+      raw.push({ ...u, level: L.id, kind, h });
+      covered.add(`${L.id}|${k}`);
+    }
+    if (['H', 'L', 'R'].includes(L.id)) for (const f of foot(L.id)) for (const u of edgeUnits(f).flat()) { // decision 10
+      if (covered.has(`${L.id}|${ukey(u)}`)) continue;
+      if (L.id !== 'R' && foot('R').some((g) => onOutline(u, g))) continue; // the taller facade stands there
+      raw.push({ ...u, level: L.id, kind: 'parapet', h: L.height }); // H 1.1, R 1.1, L 0.3 (Michael)
+      covered.add(`${L.id}|${ukey(u)}`);
+    }
+  }
+  const groups = new Map(); // decision 11: merge consecutive units with one kind and h
+  for (const u of raw) { const g = `${u.level}|${u.horiz}|${u.c}|${u.kind}|${u.h}`; (groups.get(g) ?? groups.set(g, []).get(g)).push(u); }
+  const merged = [];
+  for (const us of groups.values()) {
+    us.sort((p, q) => p.s - q.s);
+    let cur = null;
+    for (const u of us) { if (cur && cur.e === u.s) cur.e = u.s + 0.5; else merged.push((cur = { ...u, e: u.s + 0.5 })); }
+  }
+  const lvOrder = lv.map((l) => l.id);
+  merged.sort((p, q) => lvOrder.indexOf(p.level) - lvOrder.indexOf(q.level) || Number(q.horiz) - Number(p.horiz) || p.c - q.c || p.s - q.s);
+  const n = {};
+  const ws = merged.map((m) => ({ id: `W${m.level}${String((n[m.level] = (n[m.level] ?? 0) + 1)).padStart(3, '0')}`, level: m.level, a: m.horiz ? [m.s, m.c] : [m.c, m.s], b: m.horiz ? [m.e, m.c] : [m.c, m.e], t: m.kind === 'interior' ? 0.3 : 0.45, h: m.h, kind: m.kind })); // schema walls[]; t from A22
+  return { walls: ws, covered };
+}
+
+function openEdges(rs, covered) { // decision 12: edges of yard, lane, roof and plant rooms not fully covered by walls
+  for (const r of rs) if (!enclosed(r)) r.open = ['W', 'S', 'E', 'N'].filter((_, i) => edgeUnits(r.rect)[i].some((u) => !covered.has(`${r.level}|${ukey(u)}`)));
+}
+
+const base = [...zonesA(), ...zonesB(), ...zonesSite(), agShaft()];
+const rooms = [...base, ...roofs(base)]; // decision 3: 11 roof pieces
+for (const r of rooms) if (['yard', 'lane', 'roof'].includes(r.kind)) r.minShort = r.id === 'S-PASS' ? 1.2 : 0; // decision 13 (check.mjs A05; brief 12e)
+const lvls = levels();
+const { walls: wallList, covered } = walls(rooms, lvls);
+openEdges(rooms, covered);
 const out = {
   meta: meta(),
-  levels: levels(),
-  rooms, // decision: zonesA, zonesB, zonesSite, V-AG23
-  walls: [], openings: [], stairs: stairs(), ladders: ladders(), voids: voids(), objects: [], exterior: [], services: services(), // walls, openings, exterior are 2d
+  levels: lvls,
+  rooms, // zonesA, zonesB, zonesSite, V-AG23, roofs
+  walls: wallList, openings: [], stairs: stairs(), ladders: ladders(), voids: voids(), objects: [], exterior: [], services: services(), // openings are 2d-2
 };
 writeFileSync(OUT, JSON.stringify(out, null, 1) + '\n');
-console.log(`wrote ${OUT}: rooms ${out.rooms.length}, levels ${out.levels.length}`);
+console.log(`wrote ${OUT}: rooms ${out.rooms.length}, walls ${out.walls.length}, levels ${out.levels.length}`);
 const res = standardsCheck(out);
 for (const f of res.fails) console.log('FAIL', f);
 console.log(summary(res));
