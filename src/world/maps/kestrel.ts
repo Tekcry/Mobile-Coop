@@ -114,6 +114,8 @@ export const kestrel: MapDef = {
   name: 'Cinder Yard',
   description: 'Mission 1 Dead Line, massing walk: the block plan of the Cinder Yard data centre as plain volumes.',
   modes: ['sandbox'],
+  // ON0b (Michael): no generated wall or floor dressing; everything on a wall is placed on purpose in the editor
+  detail: false,
   theme: {
     sky: '#8fa1b3',
     horizon: '#b9c3cc',

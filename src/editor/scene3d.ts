@@ -5,7 +5,8 @@
  */
 import { Color3, Color4, CreateBox, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3 } from '../core/babylon';
 import type { AbstractMesh } from '../core/babylon';
-import { wallDir, wallLen, wallPieces, wallPoint } from './geometry';
+import { EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
+import type { WallJoin } from './geometry';
 import type { EditorModel } from './model';
 import type { Campus, Coll, Key, Ladder, Level, Opening, Room, Service, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
@@ -133,10 +134,15 @@ export class EditorScene {
     return Math.atan2(-dz, dx);
   }
 
+  /** Corner joins per wall id (ON0b), recomputed whenever walls change; a wall whose join changes is rebuilt. */
+  private joins = new Map<string, WallJoin>();
+  private static joinKey = (j: WallJoin | undefined): string => (j ? `${j.a}|${j.b}|${j.seamA}|${j.seamB}` : '');
+
   rebuildAll(): void {
     for (const ms of this.nodes.values()) for (const m of ms) m.dispose();
     this.nodes.clear();
     const d = this.data;
+    this.joins = wallJoins(d.walls);
     for (const r of d.rooms) this.build(keyOf('rooms', r.id));
     for (const w of d.walls) this.build(keyOf('walls', w.id));
     for (const o of d.openings) this.build(keyOf('openings', o.id));
@@ -161,6 +167,12 @@ export class EditorScene {
         // a deleted opening: its wall is whichever wall's pieces no longer match; rebuild walls that lost one
         else for (const w of this.data.walls) if ((this.nodes.get(keyOf('walls', w.id))?.length ?? 0) > 0 && this.wallHadOpening(w.id, p.id)) todo.add(keyOf('walls', w.id));
       }
+    }
+    // a moved, added or removed wall changes its neighbours' corners: rebuild every wall whose join changed
+    if ([...todo].some((k) => k.startsWith('walls:'))) {
+      const old = this.joins;
+      this.joins = wallJoins(this.data.walls);
+      for (const w of this.data.walls) if (EditorScene.joinKey(old.get(w.id)) !== EditorScene.joinKey(this.joins.get(w.id))) todo.add(keyOf('walls', w.id));
     }
     for (const k of todo) this.build(k);
     this.applyVisibility();
@@ -247,12 +259,16 @@ export class EditorScene {
     const ops = this.data.openings.filter((o) => o.wall === w.id);
     const out: Mesh[] = [];
     const cut = this.cut;
-    for (const p of wallPieces(w, ops)) {
+    const L = wallLen(w);
+    const j = this.joins.get(w.id);
+    for (const p of joinPieces(wallPieces(w, ops), L, j)) {
       if (p.y0 >= cut) continue;
       const y1 = Math.min(p.y1, cut);
       const c = wallPoint(w, (p.s0 + p.s1) / 2);
       const m = this.box(`wall ${w.id}`, c[0], f + (p.y0 + y1) / 2, c[1], p.s1 - p.s0, y1 - p.y0, fence ? 0.06 : w.t, yaw, mat);
-      if (!fence) {
+      // a piece that runs on into a wall on the same line draws no outline, so the two read as one wall (no seam)
+      const seam = (j?.seamA && p.s0 <= EPS) || (j?.seamB && p.s1 >= L - EPS);
+      if (!fence && !seam) {
         m.enableEdgesRendering();
         m.edgesWidth = 2;
         m.edgesColor = new Color4(0.15, 0.15, 0.18, 1);

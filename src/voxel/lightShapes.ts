@@ -17,7 +17,7 @@ export const CANON_DRESSING = 'medium' as const;
 export const CANON_VERSION = 1;
 
 /** The canonical shapes: structure boxes, cylinders, then the Medium dressing (deterministic order). */
-export function canonicalLightShapes(boxes: readonly BoxPiece[], cylinders: readonly CylPiece[], mapId: string): VoxelShape[] {
+export function canonicalLightShapes(boxes: readonly BoxPiece[], cylinders: readonly CylPiece[], mapId: string, dressing = true): VoxelShape[] {
   const out: VoxelShape[] = [];
   const base = boxes.filter((b) => !b.detail);
   const add = (b: BoxPiece): void => {
@@ -29,7 +29,8 @@ export function canonicalLightShapes(boxes: readonly BoxPiece[], cylinders: read
     if (Math.min(c.r * 2, c.h) < CANON_MIN_THICK) continue;
     out.push({ kind: 'cyl', c: c.c, r: c.r, h: c.h, mat: 1 });
   }
-  for (const b of detailPieces(base, mapId, CANON_DRESSING)) add(b);
+  // a map without the detail pass (MapDef `detail: false`, ON0b) has no dressing to bake
+  if (dressing) for (const b of detailPieces(base, mapId, CANON_DRESSING)) add(b);
   return out;
 }
 
@@ -62,8 +63,8 @@ export function fnv(bytes: Uint8Array, seed = 2166136261): number {
 }
 
 /** The canonical shapes packed, with their bounds and content hash (base 36). */
-export function canonicalLightSet(boxes: readonly BoxPiece[], cylinders: readonly CylPiece[], mapId: string): { shapes: Float32Array; lo: [number, number, number]; hi: [number, number, number]; hash: string } {
-  const shapes = packShapes(canonicalLightShapes(boxes, cylinders, mapId));
+export function canonicalLightSet(boxes: readonly BoxPiece[], cylinders: readonly CylPiece[], mapId: string, dressing = true): { shapes: Float32Array; lo: [number, number, number]; hi: [number, number, number]; hash: string } {
+  const shapes = packShapes(canonicalLightShapes(boxes, cylinders, mapId, dressing));
   const { lo, hi } = canonicalBounds(shapes);
   return { shapes, lo, hi, hash: fnv(new Uint8Array(shapes.buffer, shapes.byteOffset, shapes.byteLength)).toString(36) };
 }

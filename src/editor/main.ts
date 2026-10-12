@@ -20,8 +20,8 @@ import { buildingAt, editingForced, GAP_MAX, parseVis, presetPicks } from './vis
 import type { LevelPreset } from './visibility';
 import { campusText, EditorModel, localTime, logMarkdown } from './model';
 import type { Change, JournalEntry } from './model';
-import { fmt, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallLen, wallPieces, wallPoint } from './geometry';
-import type { Edge, Obb } from './geometry';
+import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
+import type { Edge, Obb, WallGap } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
 import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import type { Campus, Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
@@ -177,12 +177,14 @@ export class Editor {
   }
 
   // ---------- small helpers ----------
+  /** The editing grid: Settings > Grid (ON0b: 0.1 m by default; the file's meta.grid is no longer read). */
   get grid(): number {
-    return this.model.data.meta.grid ?? 0.5;
+    return this.pad?.settings.grid ?? 0.1;
   }
 
+  /** The mouse's Ctrl grid: the map's object grid, never coarser than the editing grid. */
   get fineGrid(): number {
-    return this.model.data.meta.objectGrid ?? 0.1;
+    return Math.min(this.grid, this.model.data.meta.objectGrid ?? 0.1);
   }
 
   levelOf(coll: Coll, e: Elem): string {
@@ -849,6 +851,12 @@ export class Editor {
         out += `<rect data-handle="${h.id}" x="${p[0] - 7}" y="${p[1] - 7}" width="14" height="14" fill="#ff7300" stroke="#fff" stroke-width="2" style="cursor:move"/>`;
       }
     }
+    // wall gaps on this level: a red ring and its size (ON0b decision 7)
+    for (const gp of this.gaps()) {
+      if (gp.level !== this.view.level) continue;
+      const a = this.toPlan(...gp.at);
+      out += `<g class="gapMark" data-gap="${esc(gp.wall)}"><circle cx="${a[0]}" cy="${a[1]}" r="9" fill="none" stroke="#e0182d" stroke-width="3"/><text x="${a[0] + 12}" y="${a[1] - 10}" font-size="13" fill="#e0182d" font-weight="bold">Gap ${fmt(gp.dist)} m</text></g>`;
+    }
     out += '<g id="camMark"></g>';
     g.innerHTML = out;
     this.drawCameraMarker();
@@ -967,9 +975,11 @@ export class Editor {
     const level = this.view.level;
     const ops = this.model.list('openings') as Opening[];
     const out: Obb[] = [];
-    for (const w of this.model.list('walls') as Wall[]) {
+    const walls = this.model.list('walls') as Wall[];
+    const joins = wallJoins(walls);
+    for (const w of walls) {
       if (w.level !== level) continue;
-      for (const p of wallPieces(w, ops)) if (p.y0 < 1.75 && p.y1 > 0.42) out.push(pieceObb(w, p));
+      for (const p of joinPieces(wallPieces(w, ops), wallLen(w), joins.get(w.id))) if (p.y0 < 1.75 && p.y1 > 0.42) out.push(pieceObb(w, p));
     }
     this.controls.blockers = out;
   }
@@ -1015,7 +1025,8 @@ export class Editor {
     this.quickLevel = this.view.level;
     c.walkAt(o.tx, o.tz, this.floor());
     c.yaw = o.yaw;
-    c.padRun = false;
+    // ON0b: the quick walk runs by default (L3 toggles a slow walk)
+    c.padRun = true;
     this.walkChanged();
   }
 
@@ -1044,7 +1055,8 @@ export class Editor {
     const o = c.mode === 'orbit' ? c.orbit.s : null;
     this.walkFrom = { pitch: o?.pitch ?? Math.max(ORBIT.PITCH_MIN, Math.min(ORBIT.PITCH_MAX, c.pitch || 0.9)), dist: o?.dist ?? ORBIT.DIST_START, selected: this.selected };
     try {
-      const how = await this.walk.start(this.model.data, campusText(this.model.data), spawn);
+      // ON0b: the game gets the walls grown by their corner joins (the file keeps its centre lines)
+      const how = await this.walk.start(joinedCampus(this.model.data), campusText(this.model.data), spawn);
       this.status(how === 'warm' ? 'Walk test: same building, the player moves to the dot' : 'Loading game...');
     } catch (err) {
       this.status(`Walk test failed: ${String(err)}`);
@@ -1653,13 +1665,13 @@ export class Editor {
     const pad = this.pad;
     if (pad?.device === 'pad' && pad.focus === 'drawer') notes.push('Pad in the side panel (B leaves)');
     if (this.splitting) notes.push(pad?.device === 'pad' ? 'Split' : 'Split: click where the line goes, Esc cancels');
-    if (this.quickWalking) notes.push(pad?.device === 'pad' ? `Quick walk - left stick walk, ${padWords('L3', pad.style)} ${this.controls.padRun ? 'running' : 'run'}, ${padWords('B', pad.style)} back` : 'Quick walk - Shift held runs, Shift+Tab back');
+    if (this.quickWalking) notes.push(pad?.device === 'pad' ? `Quick walk - ${this.controls.padRun ? 'running' : 'walking'}, ${padWords('L3', pad.style)} ${this.controls.padRun ? 'slow walk' : 'run'}, ${padWords('L3', pad.style)} held walk test, ${padWords('B', pad.style)} back` : 'Quick walk - Shift held runs, Shift+Tab back');
     // the controller: what A would take ("Stretch east edge (A)") becomes the A prompt's word; other dot words stay at the dot
     const padOn = pad?.device === 'pad';
     const partWords = this.splitting ? 'Split here' : padOn && pad.grabWords.endsWith(' (A)') ? pad.grabWords.slice(0, -4) : '';
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
     if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
-    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox').map((i) => `<b>${esc(i.keys)}</b> ${esc(i.id === 'padPick' && partWords ? partWords : i.name)}`);
+    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox', pad?.lbHeld ?? false).map((i) => `<b>${esc(i.keys)}</b> ${esc(i.id === 'padPick' && partWords ? partWords : i.name)}`);
     $('hint').innerHTML = [...notes.map((n) => `<span class="note">${esc(n)}</span>`), ...items].join('&nbsp;&nbsp;&nbsp;');
   }
 
@@ -1679,12 +1691,39 @@ export class Editor {
     );
   }
 
-  /** The problem lines for the hub's Checks tab (fails and warnings), new ones marked. */
+  // ---------- wall gaps (ON0b decision 7) ----------
+  /** Every wall end within 5 cm of another wall but not on it. */
+  gaps(): WallGap[] {
+    return wallGaps(this.model.list('walls') as Wall[]);
+  }
+
+  /** The gaps at a wall's ends (its own ends, or another wall's end that would close onto it). */
+  gapsOf(id: string): WallGap[] {
+    return wallGaps(this.model.list('walls') as Wall[], false).filter((g) => g.wall === id);
+  }
+
+  /** Selected > Close gap: the selected wall's end moves onto the other wall (its doors keep their places). */
+  closeGapSelected(): void {
+    const s = this.selectedElem();
+    const g = s?.coll === 'walls' ? this.gapsOf(s.id)[0] : undefined;
+    if (!s || !g) return this.status('No gap at the ends of this wall');
+    const w = s.e as Wall;
+    const after = closeGap(w, g, this.model.get<Wall>('walls', g.other));
+    const changes: Change[] = [{ coll: 'walls', id: w.id, before: clone(w), after }];
+    // an opening is measured from end a: keep it where it was when end a moves
+    const d = wallDir(w);
+    const shift = (w.a[0] - after.a[0]) * d[0] + (w.a[1] - after.a[1]) * d[1];
+    if (Math.abs(shift) > 1e-9) for (const o of this.model.list('openings') as Opening[]) if (o.wall === w.id) changes.push({ coll: 'openings', id: o.id, before: clone(o), after: { ...clone(o), at: +(o.at + shift).toFixed(3) } });
+    this.commitText(`Closed the ${fmt(g.dist)} m gap at ${w.id} end ${g.end}`, changes);
+  }
+
+  /** The problem lines for the hub's Checks tab (wall gaps first, then fails and warnings), new ones marked. */
   problemLines(): { text: string; fresh: boolean }[] {
+    const gaps = this.gaps().map((g) => ({ text: gapWords(g), fresh: true }));
     const c = this.lastChecks;
-    if (!c) return [];
+    if (!c) return gaps;
     const fresh = new Set(this.newProblems(c));
-    const out: { text: string; fresh: boolean }[] = [];
+    const out: { text: string; fresh: boolean }[] = [...gaps];
     for (const f of c.standards.fails) out.push({ text: `standards: ${f}`, fresh: fresh.has(`STD ${f}`) });
     for (const r of c.results) if (r.status === 'FAIL' || r.status === 'WARN') for (const d of r.details) out.push({ text: `${r.status} ${r.id}: ${d}`, fresh: fresh.has(`${r.id} ${d}`) });
     return out;
@@ -1781,6 +1820,8 @@ export class Editor {
     let h = `<p id="checks"><b>${s.PASS ?? 0} pass, ${s.WARN ?? 0} warn, ${s.FAIL ?? 0} fail, ${s.SKIP ?? 0} skip</b> (check.mjs)<br>${esc(c.standards.line)}</p>`;
     h += '<p class="dim">Red lines are new since the editor opened. The rest were there before (expected fails are listed in REVIEW.md).</p>';
     const items: string[] = [];
+    const gaps = this.gaps();
+    if (gaps.length) items.push(`<li><b>Wall gaps</b> ${gaps.length} wall end${gaps.length === 1 ? '' : 's'} within 5 cm of another wall (select the wall: Close gap)${gaps.map((g) => `<div data-go="${esc(gapWords(g))}" class="bad">- ${esc(gapWords(g))}</div>`).join('')}</li>`);
     for (const f of c.standards.fails) items.push(`<li class="${fresh.has(`STD ${f}`) ? 'bad' : ''}">standards: ${esc(f)}</li>`);
     for (const r of c.results) {
       if (r.status === 'SKIP') continue;
@@ -1859,8 +1900,11 @@ export class Editor {
       num('at.1', 'z', (e as Ladder).at[1]);
       sel('facing', 'Facing', ['N', 'S', 'E', 'W'].map((d) => [d, d]));
     }
-    rows.push('<div class="row"><button id="del">Delete</button><button id="dup">Duplicate</button><button id="frame">Go to</button></div>');
+    const gap = s.coll === 'walls' ? this.gapsOf(s.id)[0] : undefined;
+    if (gap) rows.push(`<p class="bad">${esc(gapWords(gap))}</p>`);
+    rows.push(`<div class="row"><button id="del">Delete</button><button id="dup">Duplicate</button><button id="frame">Go to</button>${gap ? '<button id="closeGap">Close gap</button>' : ''}</div>`);
     panel.innerHTML = rows.join('');
+    if (gap) $('closeGap').addEventListener('click', () => this.closeGapSelected());
     for (const el of panel.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-k]')) el.addEventListener('change', () => this.setField(s.coll, s.id, el.dataset.k!, el.value, el.type === 'number'));
     $('del').addEventListener('click', () => this.deleteSelected());
     $('dup').addEventListener('click', () => this.duplicate());

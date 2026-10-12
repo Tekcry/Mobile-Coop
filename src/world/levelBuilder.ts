@@ -401,11 +401,13 @@ export class LevelBuilder {
    * Build the level. With an `atlas` (3.0) the pieces are PBR with the procedural surfaces (a per-instance `surf`
    * id: floors by what is underfoot, `floor` the map's default; the rest by colour); without, the flat shading.
    */
-  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; voxelSize?: number; fineSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
+  build(scene: Scene, name: string, opts: { atlas?: SurfaceAtlas; floor?: Surface; detail?: TierQuality; dressing?: boolean; voxelSize?: number; fineSize?: number; art?: VoxelArt | null } = {}): BuiltLevel {
     const root = new TransformNode(`level-${name}`, scene);
     // visual-only dressing (3.0): never collides, so nav / cover / ledges are unchanged
     // (a map with a voxel art layer dresses itself in voxels: the box dressing is only for the plain path)
-    if (opts.detail && !(opts.voxelSize && opts.art)) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
+    // (a map with `detail: false` (MapDef, ON0b) gets none at any tier; the light shapes below agree)
+    const dressing = opts.dressing !== false;
+    if (dressing && opts.detail && !(opts.voxelSize && opts.art)) this.boxes.push(...detailPieces(this.boxes, name, opts.detail));
     // voxels (3.0): pieces thick enough become voxels; the rest stay thin-instanced boxes / cylinders
     const voxels = opts.voxelSize ? levelVoxels(this.boxes, this.cylinders, this.surfaces, opts.floor ?? 'concrete', opts.voxelSize, undefined, opts.art ?? null, opts.fineSize ?? 0) : null;
     let mat: StandardMaterial | PBRMaterial;
@@ -562,7 +564,7 @@ export class LevelBuilder {
       bounds: this.bounds,
       surfacePlugin,
       voxels,
-      light: canonicalLightSet(this.boxes, this.cylinders, name),
+      light: canonicalLightSet(this.boxes, this.cylinders, name, dressing),
       dispose: () => {
         body.dispose();
         container.dispose();

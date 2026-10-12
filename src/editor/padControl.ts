@@ -89,6 +89,11 @@ export class PadControl {
   private lastNow = 0;
   /** After a menu or the hub opens or closes, the sticks do nothing until they come back to the centre. */
   private stickLatch = false;
+  /** LB was held last frame (the hint bar shows the LB words while it is). */
+  private lbWas = false;
+  get lbHeld(): boolean {
+    return this.lbWas;
+  }
 
   constructor(private readonly ed: Editor) {
     this.menuView = new TileMenuView(
@@ -215,7 +220,7 @@ export class PadControl {
   menuInput(): MenuInput {
     const s = this.ed.selectedElem();
     const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : 'kind'] ?? '') : '';
-    return { sel: s ? { coll: s.coll, type } : null, clipboard: !!this.clipboard, view: this.viewState() };
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0 } : null, clipboard: !!this.clipboard, view: this.viewState() };
   }
 
   viewState(): ViewState {
@@ -341,6 +346,7 @@ export class PadControl {
     else if (id === 'build.pasteUp') this.paste(true);
     else if (id === 'sel.move') this.grabWhole();
     else if (id === 'sel.props') this.enterDrawer();
+    else if (id === 'sel.closeGap') ed.closeGapSelected();
     else if (id === 'sel.dup') ed.duplicate();
     else if (id === 'sel.del') ed.deleteSelected();
     else if (id === 'sel.rotate') this.rotate();
@@ -399,7 +405,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const wall = s.coll === 'openings' ? ed.model.get<Wall>('walls', (s.e as Opening).wall) : undefined;
-    let after = stepCard(s.coll, s.e, row, dir, { step: ed.fineGrid, wallLen: wall ? wallLen(wall) : undefined });
+    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined });
     if (!after) {
       if (row === 'name') return ed.status('A opens the name list');
       this.rumble('error');
@@ -506,18 +512,28 @@ export class PadControl {
     const plan = this.ed.prefs.layout === 'plan';
     const zoom = st.rt - st.lt;
     const fine = st.down(PAD.LB);
+    if (fine !== this.lbWas) {
+      this.lbWas = fine;
+      this.ed.updateHint();
+    }
     this.magnetFrame(dt, fine);
-    // stick speed scales pan and orbit (orbit and tilt are squared, so their input takes the square root)
-    const k = this.settings.stickSpeed * (this.magnet ? MAGNET.PAN_SLOW : 1);
-    const ko = Math.sqrt(this.settings.stickSpeed);
-    const tilt = this.settings.invertTilt ? st.rs.y : -st.rs.y;
+    // ON0b: raw sticks go to the orbit camera, which applies the dead zone, the curve and the ease (orbit.ts);
+    // LB + right stick up / down raises or lowers the camera instead of tilting
+    const o = c.orbit;
+    o.tune = { dead: this.settings.deadZone, smoothing: this.settings.smoothing, pan: this.settings.stickSpeed, orbit: this.settings.orbitSpeed };
+    const ry = st.rawR.y;
+    const tilt = fine ? 0 : this.settings.invertTilt ? ry : -ry;
+    const rise = fine ? -ry : 0;
+    const panScale = this.magnet ? MAGNET.PAN_SLOW : 1;
     // in Plan only the triggers zoom the plan, not the 3D camera
-    if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rs.x * ko, tiltY: tilt * ko, zoom: plan ? 0 : zoom, precision: fine };
-    else if (!this.stickLatch) c.orbitIn = { panX: st.ls.x * k, panY: -st.ls.y * k, orbitX: st.rs.x * ko, tiltY: tilt * ko, zoom: plan ? 0 : zoom, precision: fine };
+    if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
+    else if (!this.stickLatch) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
     if (st.pressed(PAD.RS)) this.cycleDisplay();
     if (!this.ed.drag) {
-      if (st.pressed(PAD.LS)) return this.ed.quickWalk();
+      // L3 tap: quick walk (running); L3 held 0.6 s: the walk test as the player (ON0b decision 4)
+      if (st.l3Tap === 'tap') return this.ed.quickWalk();
+      if (st.l3Tap === 'hold') return void this.ed.gameWalk();
       if (st.xTap === 'tap') this.ed.undo();
       else if (st.xTap === 'hold') this.ed.redo();
       if (st.rbTap === 'tap') {
@@ -543,15 +559,15 @@ export class PadControl {
     if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, kz);
   }
 
-  /** Quick walk (L3 from building): sticks walk and look, L3 toggles run (the game's sprint), B comes back; the dot, tool bar and card hide; A does nothing. */
+  /** Quick walk (L3 tap from building): sticks walk and look, it runs, L3 toggles a slow walk, L3 held starts the walk test, B comes back; the dot, tool bar and card hide; A does nothing. */
   private walkFrame(): void {
     const st = this.st;
     const c = this.ed.controls;
     if (this.ed.quickWalking && st.pressed(PAD.B)) return this.ed.quickWalk();
-    if (st.pressed(PAD.LS)) {
+    if (st.l3Tap === 'tap') {
       c.padRun = !c.padRun;
       this.ed.updateHint();
-    }
+    } else if (st.l3Tap === 'hold' && this.ed.quickWalking) return void this.ed.gameWalk();
     if (!this.stickLatch) {
       c.padMove = { x: st.ls.x, y: -st.ls.y };
       c.padLook = { x: st.rs.x, y: this.settings.invertTilt ? st.rs.y : -st.rs.y };
@@ -640,8 +656,9 @@ export class PadControl {
 
   /** The pad's point on the editing level: the magnet's snap point exactly while snapped, else the dot on the grid. */
   point(planeY?: number): Pt | null {
+    // ON0b: LB no longer means a fine grid (it keeps magnet off and a slower camera); the grid is Settings > Grid
     const fine = this.st.down(PAD.LB);
-    const g = fine ? this.ed.fineGrid : this.ed.grid;
+    const g = this.ed.grid;
     const c = this.ed.controls;
     let p: Pt | null;
     if (c.mode === 'orbit') {
@@ -795,7 +812,7 @@ export class PadControl {
     if (!d || d.source !== 'pad') return this.updatePointers();
     const p = this.point(d.planeY);
     if (!p) return;
-    this.ed.moveDrag(p[0] + this.offset[0], p[1] + this.offset[1], this.st.down(PAD.LB), this.turns ? (e) => this.turned(d.coll, e, p[0], p[1]) : undefined);
+    this.ed.moveDrag(p[0] + this.offset[0], p[1] + this.offset[1], false, this.turns ? (e) => this.turned(d.coll, e, p[0], p[1]) : undefined);
     this.updatePointers();
   }
 
@@ -818,7 +835,7 @@ export class PadControl {
     const ed = this.ed;
     const dirs: [number, Pt][] = [[PAD.UP, [0, 1]], [PAD.DOWN, [0, -1]], [PAD.RIGHT, [1, 0]], [PAD.LEFT, [-1, 0]]];
     if (ed.drag?.source === 'pad') {
-      const g = st.down(PAD.LB) ? ed.fineGrid : ed.grid;
+      const g = ed.grid;
       // up is the axis the camera faces most (Plan only: north)
       const yaw = ed.prefs.layout === 'plan' ? 0 : ed.controls.yaw;
       const fx = Math.sin(yaw);
@@ -874,7 +891,7 @@ export class PadControl {
     const f = fields[this.drawerIndex]!;
     const step = n.x;
     const fine = st.down(PAD.LB);
-    stepField(f, step, fine ? this.ed.fineGrid : this.ed.grid, fine);
+    stepField(f, step, this.ed.grid, fine);
     if (st.pressed(PAD.A)) {
       if (f instanceof HTMLButtonElement || (f instanceof HTMLInputElement && f.type === 'checkbox')) f.click();
       else if (f.dataset.go) this.goToProblem(f.dataset.go);

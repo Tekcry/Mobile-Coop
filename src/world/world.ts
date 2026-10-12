@@ -24,6 +24,7 @@ import {
 } from '../core/babylon';
 import { enablePhysics } from '../physics/havok';
 import { LevelBuilder, type BuiltLevel } from './levelBuilder';
+import { dressingOn } from './detailPass';
 import type { MapDef, MapLayout } from './mapDef';
 import { PartLibrary } from './partLibrary';
 import { PropSystem } from './props';
@@ -222,7 +223,7 @@ export class World {
     // procedural surfaces: drawn small here, sized by the Textures setting in applyQuality
     const atlas = opts.cheap ? null : new SurfaceAtlas(scene, 256, 4);
     const vo = opts.voxel ?? null;
-    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
+    const level = b.build(scene, map.id, { atlas: atlas ?? undefined, floor: map.theme.floor ?? 'concrete', detail: opts.detail, dressing: dressingOn(map), voxelSize: vo?.size, fineSize: vo?.fineSize ?? 0, art: map.art ?? null });
     let voxels: VoxelWorld | null = null;
     let fine: VoxelWorld | null = null;
     if (vo && level.voxels) {

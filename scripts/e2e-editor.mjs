@@ -107,8 +107,10 @@ try {
 
   console.log('draw a 6 m wall with the pad alone');
   const walls0 = s.walls;
+  const drawFrom = await orb();
   await press(BTN.A);
-  for (let i = 0; i < 12; i++) await press(BTN.RIGHT);
+  // (ON0b: the grid is 0.1 m; 60 D-pad steps overshoot when frames are slow, so the end is set on the dot)
+  await dotAt(Math.round(drawFrom.tx * 10) / 10 + 6, Math.round(drawFrom.tz * 10) / 10);
   await shot('hint-draw');
   await press(BTN.A);
   const w = await E(() => { const ws = window.__editor.model.data.walls; const w = ws[ws.length - 1]; return { n: ws.length, len: Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]), dz: w.b[1] - w.a[1] }; });
@@ -234,22 +236,24 @@ try {
     assert(mid.walking && hidden && after.mode === 'orbit' && err < 0.01 && (await shown('toolBar')), `${how} starts a quick walk (tool bar hidden), ${endHow} ends it, orbit restored (${err.toFixed(4)} m)`);
   };
   await qw(() => press(BTN.LS), 'L3');
-  // ED3-pad1: L3 while walking runs (the game's sprint) and keeps walking; B is the way back
+  // ON0b: L3 tap starts a quick walk that runs (the walk's RUN speed); L3 again walks slowly and back; B ends it
   {
     await press(BTN.LS);
     await wait(200);
     const pos = () => E(() => { const p = window.__editor.view.camera.position; return { x: p.x, z: p.z }; });
-    const stride = async () => { const a = await pos(); await axes(0, -1); await wait(500); await axes(0, 0); await frames(page, 2); const b = await pos(); return Math.hypot(b.x - a.x, b.z - a.z); };
-    const slow = await stride();
-    await press(BTN.LS);
-    const r = await E(() => ({ walking: window.__editor.controls.walking, run: window.__editor.controls.padRun, hint: document.getElementById('hint').textContent }));
+    const stride = async () => { const a = await pos(); const t0 = await E(() => performance.now()); await axes(0, -1); await wait(500); await axes(0, 0); const t1 = await E(() => performance.now()); await frames(page, 2); const b = await pos(); return Math.hypot(b.x - a.x, b.z - a.z) / ((t1 - t0) / 1000); };
+    const r0 = await E(() => ({ walking: window.__editor.controls.walking, run: window.__editor.controls.padRun, hint: document.getElementById('hint').textContent }));
     const fast = await stride();
+    await press(BTN.LS);
+    const r1 = await E(() => ({ walking: window.__editor.controls.walking, run: window.__editor.controls.padRun }));
+    const slow = await stride();
     await press(BTN.LS);
     const r2 = await E(() => ({ walking: window.__editor.controls.walking, run: window.__editor.controls.padRun }));
     await press(BTN.B);
     await wait(200);
     const out = await E(() => window.__editor.controls.walking);
-    assert(r.walking && r.run && r2.walking && !r2.run && !out && /LS click running, B back/.test(r.hint) && slow > 0.05 && fast > slow * 1.5, `quick walk: L3 runs and keeps walking (stride ${slow.toFixed(2)} -> ${fast.toFixed(2)} m), L3 again walks, B ends it`);
+    // (speeds in m/s from wall-clock time: running 4.5, walking 1.6; a slow headless frame only shortens the stride)
+    assert(r0.walking && r0.run && /running, LS click slow walk/.test(r0.hint) && r1.walking && !r1.run && r2.run && !out && fast > 2 && fast < 5 && slow < 2 && fast > slow * 1.8, `quick walk: L3 starts it running (${fast.toFixed(2)} m/s, RUN 4.5), L3 walks slowly (${slow.toFixed(2)} m/s), L3 runs again, B ends it`);
   }
   await qw(async () => { await press(BTN.START); await E(() => window.__editor.pad.hub.setTab('Play')); await press(BTN.A); }, 'the hub\'s Play > Quick walk');
   console.log('quick walk: A does nothing; D-pad up / down changes floor');
@@ -311,7 +315,7 @@ try {
   assert(/Stretch east edge/.test(edge) && (await E(() => window.__editor.view.scene.getMeshByName('mark 0')?.isEnabled())), `0.2 m inside the east edge: "Stretch east edge", the edge lit ("${edge.slice(-24)}")`);
   await shot('edge-lit');
   await press(BTN.A);
-  await presses(BTN.RIGHT, 2);
+  await presses(BTN.RIGHT, 10);
   await press(BTN.A);
   let rr = await E((id) => window.__editor.model.get('rooms', id).rect.slice(), room.id);
   assert(Math.abs(rr[2] - room.rect[2] - 1) < 1e-6 && rr[0] === room.rect[0], `A, 1 m east, A: the east edge moved 1 m, the west did not (${room.rect[2]} -> ${rr[2]})`);
@@ -339,7 +343,7 @@ try {
   await dotAt(wall.a[0] + 0.2, wall.a[1]);
   const endText = await dotText();
   await press(BTN.A);
-  await presses(BTN.RIGHT, 2);
+  await presses(BTN.RIGHT, 10);
   await press(BTN.A);
   const wa = await E((id) => { const w = window.__editor.model.get('walls', id); return { a: w.a.slice(), b: w.b.slice() }; }, wall.id);
   assert(/Stretch this end/.test(endText) && Math.abs(wa.a[0] - wall.a[0] - 1) < 1e-6 && wa.b.join() === wall.b.join(), `a wall end stretches the same way ("${endText.slice(-22)}", end a ${wall.a[0]} -> ${wa.a[0]})`);
@@ -566,6 +570,8 @@ try {
   const readout = await gf().evaluate(() => document.getElementById('walkReadout')?.textContent ?? '');
   assert(/x 83\.0, z 43\.0, Ground floor/.test(readout) && /Doors are open gaps/.test(readout), `corner readout ("${readout}")`);
   await shot('walk-game');
+  const dressing = await gf().evaluate(() => window.__app.current.world.level.boxes.filter((b) => b.detail).length);
+  assert(dressing === 0, `ON0b: the Kestrel walk test builds no generated wall or floor dressing (${dressing} detail pieces)`);
   await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
   await backCheck('F10', before1);
   await shot('walk-back');
@@ -605,6 +611,24 @@ try {
   const before3 = await edState();
   await gf().evaluate(() => { window.__pad.connect(); window.__pad.set(8, 1); window.__pad.set(9, 1); });
   await backCheck('View + Menu held', before3);
+  await gf().evaluate(() => { window.__pad.set(8, 0); window.__pad.set(9, 0); });
+  await frames(page, 4);
+
+  console.log('ON0b: L3 held 0.6 s starts the walk test at the dot (a corridor, plain walls)');
+  await dot(22, 41.75, Math.PI / 2);
+  // (the editor reads the pad again only once the swap back is over and every button was let go)
+  await page.waitForFunction(() => !window.__editor.walk.blocking && !window.__editor.controls.blend, null, { timeout: 20000 });
+  await frames(page, 6);
+  const holdL3 = async () => { await set(BTN.LS, 1); await wait(900); await set(BTN.LS, 0); return page.waitForFunction(() => window.__editor.walk.state !== 'warm', null, { timeout: 5000 }).then(() => true, () => false); };
+  if (!(await holdL3())) { console.log('  (L3 hold not seen: once more)'); await frames(page, 6); await holdL3(); }
+  await walkIs('open', 90000);
+  p = await player();
+  const before4 = await edState();
+  assert(Math.hypot(p.x - 22, p.z - 41.75) < 0.5 && !(await E(() => window.__editor.quickWalking)), `L3 held: the walk test as the player at the dot in the spine corridor (x ${p.x.toFixed(2)}, z ${p.z.toFixed(2)}), no quick walk`);
+  await wait(600);
+  await shot('walk-corridor-plain');
+  await gf().evaluate(() => { window.__pad.connect(); window.__pad.set(8, 1); window.__pad.set(9, 1); });
+  await backCheck('View + Menu held (corridor)', before4);
   await gf().evaluate(() => { window.__pad.set(8, 0); window.__pad.set(9, 0); });
   await frames(page, 4);
 
@@ -777,6 +801,79 @@ try {
   // undo everything: back to the file
   const undone = await E(() => { const ed = window.__editor; let n = 0; while (ed.model.dirty > 0 && n < 30) { ed.undo(); n++; } return { n, dirty: ed.model.dirty, rooms: ed.model.data.rooms.length, walls: ed.model.data.walls.length }; });
   assert(undone.dirty === 0 && undone.rooms === c0.rooms && undone.walls === c0.walls, `undo ${undone.n} times: unsaved 0, rooms and walls as in the file`);
+
+  console.log('ON0b: 0.1 m nudges, a wall gap and Close gap, square corners in 3D, LB + right stick height');
+  {
+    await E(() => { const ed = window.__editor; ed.setLayout('3d'); ed.select(null); ed.setTool('select'); });
+    const [sx, sz] = [spot[0] + 2, spot[1] + 2];
+    // an L of two walls drawn with the pad; then the second is set 0.04 m short of the first in the data (the grid is 0.1)
+    const drawWall = async (a, b) => {
+      await E(() => window.__editor.pad.runMenu('build.wall'));
+      await dotAt(a[0], a[1]);
+      await press(BTN.A);
+      await dotAt(b[0], b[1]);
+      await press(BTN.A);
+      return E(() => { const ws = window.__editor.model.data.walls; return ws[ws.length - 1]; });
+    };
+    const wA = await drawWall([sx, sz], [sx + 4, sz]);
+    const wB = await drawWall([sx + 4, sz + 3], [sx + 4, sz + 0.5]);
+    await E(() => window.__editor.setTool('select'));
+    await E(([id, z]) => { const ed = window.__editor; const b = ed.model.snapshot('walls', id); ed.commit([{ coll: 'walls', id, before: b, after: { ...b, b: [b.b[0], z] } }]); }, [wB.id, sz + 0.04]);
+    await frames(page, 4);
+    const g1 = await E((id) => ({ gaps: window.__editor.gapsOf(id).map((g) => `${g.dist}`), lines: window.__editor.problemLines().filter((l) => l.text.startsWith('Gap')).map((l) => l.text) }), wB.id);
+    await E((id) => window.__editor.select(`walls:${id}`), wB.id);
+    await frames(page, 3);
+    const tiles = await E(() => window.__editor.pad.menuInput().sel?.gap);
+    // the corner close up, from the south-west
+    const look = () => E(([x, z]) => { const ed = window.__editor; ed.controls.mode = 'fly'; ed.view.camera.position.set(x + 2.6, 3.6, z - 3.2); ed.controls.lookAt(x, 1.0, z); }, [sx + 4, sz]);
+    await look();
+    await frames(page, 4);
+    await shot('corner-gap-before');
+    assert(g1.gaps.join() === '0.04' && g1.lines.some((l) => l.startsWith('Gap 0.04 m: ') && l.includes(wA.id) && l.includes(wB.id)) && tiles === true, `a wall end 0.04 m short of a corner: "Gap 0.04 m" in the checks, Close gap on the Selected tab (${g1.lines.join('; ')})`);
+    await E(() => window.__editor.pad.runMenu('sel.closeGap'));
+    await frames(page, 4);
+    const fixed = await E((id) => ({ b: window.__editor.model.get('walls', id).b, gaps: window.__editor.gapsOf(id).length }), wB.id);
+    // 3D: the two walls' boxes overlap at the corner, each reaching the other's outer face
+    const bounds = await E(([a, b]) => {
+      const sc = window.__editor.view.scene;
+      const bb = (id) => { const ms = sc.meshes.filter((m) => m.name === `wall ${id}`); const lo = [Infinity, Infinity], hi = [-Infinity, -Infinity]; for (const m of ms) { m.computeWorldMatrix(true); m.refreshBoundingInfo(); const bi = m.getBoundingInfo().boundingBox; lo[0] = Math.min(lo[0], bi.minimumWorld.x); lo[1] = Math.min(lo[1], bi.minimumWorld.z); hi[0] = Math.max(hi[0], bi.maximumWorld.x); hi[1] = Math.max(hi[1], bi.maximumWorld.z); } return { lo, hi, n: ms.length }; };
+      return { a: bb(a.id), b: bb(b.id), ta: a.t, tb: b.t };
+    }, [wA, wB]);
+    await look();
+    await frames(page, 4);
+    await shot('corner-joined-after');
+    const ex = sx + 4 + bounds.tb / 2;
+    const ez = sz - bounds.ta / 2;
+    assert(fixed.b[1] === sz && fixed.gaps === 0 && Math.abs(bounds.a.hi[0] - ex) < 0.01 && Math.abs(bounds.b.lo[1] - ez) < 0.01, `Close gap: the end sits on the corner; in 3D both walls reach the outside corner (${bounds.a.hi[0].toFixed(3)} / ${ex}, ${bounds.b.lo[1].toFixed(3)} / ${ez}), no gap`);
+    // a 0.3 m nudge is three 0.1 m D-pad steps
+    await E(() => { const ed = window.__editor; if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    await E((id) => window.__editor.select(`walls:${id}`), wA.id);
+    await dotAt(sx + 2, sz);
+    await page.waitForFunction(() => /A: Move/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const nb = await E((id) => window.__editor.model.get('walls', id).a.slice(), wA.id);
+    await press(BTN.A);
+    await presses(BTN.RIGHT, 3);
+    await press(BTN.A);
+    const na = await E((id) => window.__editor.model.get('walls', id).a.slice(), wA.id);
+    assert(Math.abs(na[0] - nb[0] - 0.3) < 1e-6 && na[1] === nb[1], `three D-pad nudges move the wall 0.3 m (${nb[0]} -> ${na[0]})`);
+    // LB + right stick up: the camera rises without tilting; the hint bar says so while LB is held
+    await E(() => window.__editor.select(null));
+    const h0 = await orb();
+    await set(BTN.LB, 1);
+    await frames(page, 3);
+    const lbHint = await E(() => document.getElementById('hint').textContent);
+    await rs(-1);
+    // (held until it has risen a metre: slow headless frames are capped at 0.05 s each)
+    await page.waitForFunction((y) => window.__editor.controls.orbit.position()[1] > y + 1, h0.py, { timeout: 8000 }).catch(() => {});
+    await rs(0);
+    await wait(400);
+    await set(BTN.LB, 0);
+    await frames(page, 3);
+    const h1 = await orb();
+    assert(/Height/.test(lbHint) && h1.py > h0.py + 1 && Math.abs(h1.pitch - h0.pitch) < 1e-9 && Math.hypot(h1.px - h0.px, h1.pz - h0.pz) < 0.05, `LB + right stick up raises the camera ${(h1.py - h0.py).toFixed(2)} m, tilt unchanged; hint "${lbHint.slice(0, 40)}"`);
+    const left = await E(() => { const ed = window.__editor; let n = 0; while (ed.model.dirty > 0 && n < 30) { ed.undo(); n++; } return ed.model.dirty; });
+    assert(left === 0, 'ON0b steps undone: back to the file');
+  }
 
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });

@@ -2,8 +2,9 @@
  * Pure geometry for the level editor: wall pieces around openings, snapping, wall projection, room lookup and the
  * walk-mode collision. Babylon-free (tests/editor/geometry.test.ts).
  */
+import facts from '../../scripts/kestrel/facts.json';
 import { hyp2 } from '../core/mathx';
-import type { Opening, Pt, Rect, Room, Wall } from './types';
+import type { Campus, Opening, Pt, Rect, Room, Wall } from './types';
 
 export const EPS = 1e-6;
 
@@ -189,3 +190,159 @@ export function moveWords(dx: number, dz: number): string {
 }
 
 export const fmt = (n: number): string => (Math.round(n * 100) / 100).toString();
+
+// ---------- wall corners and gaps (ON0b decisions 6 and 7) ----------
+/** A wall end within this of another wall meets it; a near miss up to GAP_MAX is a Gap (scripts/kestrel/facts.json). */
+export const JOIN_TOL = facts.rules.wallJoinTol.value;
+export const GAP_MAX = facts.rules.wallGapMax.value;
+/** Each joining end grows by this share of the other wall's thickness (0.5: to its far face, so corners are square). */
+export const WALL_EXTEND = facts.render.wallExtend.value;
+
+/** How far each end of a wall is drawn past its centre-line end, and whether an end runs on into a wall on the same line. */
+export interface WallJoin {
+  a: number;
+  b: number;
+  /** The end continues into a wall on the same line (drawn as one wall: no extension, no seam outline). */
+  seamA: boolean;
+  seamB: boolean;
+}
+
+const cross = (u: Pt, v: Pt): number => u[0] * v[1] - u[1] * v[0];
+
+/** The join at one end of w: `out` points away from the wall at that end. */
+function endJoin(w: Wall, e: Pt, out: Pt, others: readonly Wall[]): { ext: number; seam: boolean } {
+  const d = wallDir(w);
+  let ext = 0;
+  let seam = false;
+  for (const q of others) {
+    if (q === w || q.level !== w.level || wallLen(q) < EPS) continue;
+    if (projectOnWall(q, e[0], e[1]).dist > JOIN_TOL) continue;
+    if (Math.abs(cross(d, wallDir(q))) < 1e-6) {
+      // same line: a continuation past this end joins seamlessly; one lying back along this wall changes nothing
+      const beyond = Math.max((q.a[0] - e[0]) * out[0] + (q.a[1] - e[1]) * out[1], (q.b[0] - e[0]) * out[0] + (q.b[1] - e[1]) * out[1]);
+      if (beyond > JOIN_TOL) seam = true;
+      continue;
+    }
+    ext = Math.max(ext, WALL_EXTEND * q.t);
+  }
+  return { ext: seam ? 0 : ext, seam };
+}
+
+/**
+ * Corner joins for every wall (ON0b decision 6): an end that meets another wall (end to end, or on its line) is drawn
+ * WALL_EXTEND x that wall's thickness longer, so outside corners are square and T-joins reach the far face; an end that
+ * runs on into a wall on the same line is not extended (the two draw as one); a free end stays as drawn. The data is
+ * not changed. Walls with no join are left out of the map.
+ */
+export function wallJoins(walls: readonly Wall[]): Map<string, WallJoin> {
+  const out = new Map<string, WallJoin>();
+  const byLevel = new Map<string, Wall[]>();
+  for (const w of walls) byLevel.set(w.level, [...(byLevel.get(w.level) ?? []), w]);
+  for (const w of walls) {
+    if (wallLen(w) < EPS) continue;
+    const d = wallDir(w);
+    const same = byLevel.get(w.level) ?? [];
+    const ja = endJoin(w, w.a, [-d[0], -d[1]], same);
+    const jb = endJoin(w, w.b, d, same);
+    if (ja.ext || jb.ext || ja.seam || jb.seam) out.set(w.id, { a: ja.ext, b: jb.ext, seamA: ja.seam, seamB: jb.seam });
+  }
+  return out;
+}
+
+/** Wall pieces with the end pieces grown by the join (s runs from -j.a to L + j.b). */
+export function joinPieces(pieces: readonly Piece[], L: number, j: WallJoin | undefined): Piece[] {
+  if (!j || (!j.a && !j.b)) return pieces.slice();
+  return pieces.map((p) => ({ ...p, s0: p.s0 <= EPS ? -j.a : p.s0, s1: p.s1 >= L - EPS ? L + j.b : p.s1 }));
+}
+
+/**
+ * The campus as the walk test builds it (ON0b): each wall grown by its joins, its openings' `at` moved with the a end.
+ * A copy; the file's centre lines stay as they are.
+ */
+export function joinedCampus<C extends Pick<Campus, 'walls' | 'openings'>>(c: C): C {
+  const joins = wallJoins(c.walls);
+  const walls = c.walls.map((w) => {
+    const j = joins.get(w.id);
+    if (!j || (!j.a && !j.b)) return w;
+    const d = wallDir(w);
+    const r = (v: number): number => +v.toFixed(4);
+    return { ...w, a: [r(w.a[0] - d[0] * j.a), r(w.a[1] - d[1] * j.a)] as Pt, b: [r(w.b[0] + d[0] * j.b), r(w.b[1] + d[1] * j.b)] as Pt };
+  });
+  const openings = c.openings.map((o) => {
+    const ja = joins.get(o.wall)?.a ?? 0;
+    return ja ? { ...o, at: +(o.at + ja).toFixed(4) } : o;
+  });
+  return { ...c, walls, openings };
+}
+
+/** A wall end that nearly meets another wall (within GAP_MAX, not within JOIN_TOL). */
+export interface WallGap {
+  wall: string;
+  end: 'a' | 'b';
+  other: string;
+  level: string;
+  /** Gap, metres. */
+  dist: number;
+  at: Pt;
+  /** Where the end would close the gap: the other wall's end when that is near, else the nearest point on it. */
+  to: Pt;
+}
+
+/** Every near-miss wall end (ON0b decision 7), largest first; `once`: an end-to-end pair is listed once (the checks), else both ends (Close gap on either wall). */
+export function wallGaps(walls: readonly Wall[], once = true): WallGap[] {
+  const out: WallGap[] = [];
+  const seen = new Set<string>();
+  const key = (p: Pt): string => `${p[0].toFixed(3)},${p[1].toFixed(3)}`;
+  for (const w of walls) {
+    if (wallLen(w) < EPS) continue;
+    const same = walls.filter((q) => q !== w && q.level === w.level && wallLen(q) >= EPS);
+    for (const end of ['a', 'b'] as const) {
+      const e = w[end];
+      if (same.some((q) => projectOnWall(q, e[0], e[1]).dist <= JOIN_TOL)) continue;
+      let best: WallGap | null = null;
+      for (const q of same) {
+        const pr = projectOnWall(q, e[0], e[1]);
+        if (pr.dist >= GAP_MAX) continue;
+        const ends = [q.a, q.b].map((p) => ({ p, d: hyp2(p[0] - e[0], p[1] - e[1]) })).sort((x, y) => x.d - y.d);
+        const near = ends[0]!;
+        const to: Pt = near.d < GAP_MAX ? [near.p[0], near.p[1]] : wallPoint(q, pr.s);
+        const dist = near.d < GAP_MAX ? near.d : pr.dist;
+        if (!best || dist < best.dist) best = { wall: w.id, end, other: q.id, level: w.level, dist: +dist.toFixed(3), at: [e[0], e[1]], to: [+to[0].toFixed(4), +to[1].toFixed(4)] };
+      }
+      if (!best) continue;
+      const k = [key(best.at), key(best.to)].sort().join('|');
+      if (once && seen.has(k)) continue;
+      seen.add(k);
+      out.push(best);
+    }
+  }
+  return out.sort((p, q) => q.dist - p.dist);
+}
+
+/** Words for a gap: "Gap 0.04 m: W12 end b to W13". */
+export const gapWords = (g: WallGap): string => `Gap ${fmt(g.dist)} m: ${g.wall} end ${g.end} to ${g.other}`;
+
+/**
+ * The wall with its gap closed (decision 7's one-click fix): the end moves onto `to`. A wall along x or z stays along
+ * it: the end moves along the wall, and when that alone leaves it off the other wall, the whole wall shifts across.
+ */
+export function closeGap(w: Wall, g: WallGap, other?: Wall): Wall {
+  const e = w[g.end];
+  const alongX = Math.abs(w.a[1] - w.b[1]) < EPS;
+  const alongZ = Math.abs(w.a[0] - w.b[0]) < EPS;
+  const out = { ...w, a: [...w.a] as Pt, b: [...w.b] as Pt };
+  if (!alongX && !alongZ) {
+    out[g.end] = [g.to[0], g.to[1]];
+    return out;
+  }
+  const ai = alongX ? 0 : 1;
+  const ci = alongX ? 1 : 0;
+  out[g.end][ai] = g.to[ai];
+  const off = g.to[ci] - e[ci];
+  const on = other ? projectOnWall(other, out[g.end][0], out[g.end][1]).dist <= JOIN_TOL : hyp2(out[g.end][0] - g.to[0], out[g.end][1] - g.to[1]) <= JOIN_TOL;
+  if (Math.abs(off) > JOIN_TOL && !on) {
+    out.a[ci] = +(out.a[ci] + off).toFixed(4);
+    out.b[ci] = +(out.b[ci] + off).toFixed(4);
+  }
+  return out;
+}

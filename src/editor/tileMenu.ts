@@ -28,7 +28,8 @@ export interface Tile {
 
 /** What the tiles depend on; padControl fills it from the editor. */
 export interface MenuInput {
-  sel: { coll: Coll; type: string } | null;
+  /** The selection; `gap` when a selected wall has an end within 5 cm of another wall (ON0b). */
+  sel: { coll: Coll; type: string; gap?: boolean } | null;
   clipboard: boolean;
   view: ViewState;
 }
@@ -87,6 +88,7 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         copies && { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up', kind: 'go' },
         s.coll === 'rooms' && { id: 'sel.split', icon: 'S', name: 'Split', desc: 'A line across the room; RB turns it', kind: 'go' },
         types && { id: 'sel.type', icon: 'T', name: 'Change type', desc: 'The card\'s Type row: left / right', kind: 'go' },
+        s.gap === true && { id: 'sel.closeGap', icon: 'G', name: 'Close gap', desc: 'The wall end moves onto the wall it nearly meets', kind: 'go' },
         { id: 'sel.props', icon: 'P', name: 'Properties', desc: 'Every field in the side panel', kind: 'go' },
         { id: 'sel.del', icon: 'X', name: 'Delete', desc: 'A wall takes its doors and windows', kind: 'go' },
       ];

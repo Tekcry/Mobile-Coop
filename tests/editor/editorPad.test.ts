@@ -78,3 +78,14 @@ describe('pad bindings in the action map', () => {
     expect(ACTIONS.some((a) => /Save, Revert, Walk/.test(a.name))).toBe(false);
   });
 });
+
+describe('ON0b: LB hint bar', () => {
+  it('while LB is held the pad hint bar says the camera height binding (and nothing clashes)', async () => {
+    const { conflicts, hintItems } = await import('../../src/editor/actions');
+    expect(conflicts()).toEqual([]);
+    const lb = hintItems('idle', 'pad', 'xbox', true);
+    expect(lb.map((i) => `${i.keys} ${i.name}`)).toEqual(['LB + RS Height', 'LB Slow']);
+    expect(hintItems('menu', 'pad', 'xbox', true).map((i) => i.id)).toEqual(hintItems('menu', 'pad', 'xbox').map((i) => i.id));
+    expect(hintItems('idle', 'pad', 'xbox').map((i) => i.id)).not.toContain('camHeight');
+  });
+});

@@ -51,3 +51,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Screen overlap checks must cover every optional overlay (the small plan as well as the card and bar) at phone and desktop sizes; the first pass that skipped the small plan looked clean but was not.
 - Live previews that touch many elements must run only when their input changes; re-applying them every frame multiplies scene rebuilds and made the editor suite three times slower.
 - The pad bar and card redraw on a 100 ms throttle and only after a frame; e2e reads of them after a change must wait for the new DOM (waitForFunction), not a fixed delay, or slow software-GL frames read the old bar.
+- At a 0.1 m grid, e2e steps that count D-pad presses (60 for 6 m) overshoot under parallel load; set the dot instead. A pad hold pressed while the editor is still taking the pad back from the walk test is never seen (it waits for every button up): wait for `walk.blocking` false first.

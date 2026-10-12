@@ -17,8 +17,8 @@ export interface PadSnap {
 const DOWN = 0.5;
 export const STICK_DEAD = 0.18;
 export const TRIGGER_DEAD = 0.08;
-/** Hold times (seconds): X held redoes, View held changes the layout, RB held is free (ON0a: Y is a plain press). */
-export const HOLD = { X: 0.5, Y: 0.2, VIEW: 0.4, RB: 0.3 } as const;
+/** Hold times (seconds): X held redoes, View held changes the layout, RB held is free (ON0a: Y is a plain press), L3 held starts the walk test (ON0b). */
+export const HOLD = { X: 0.5, Y: 0.2, VIEW: 0.4, RB: 0.3, L3: 0.6 } as const;
 /** D-pad repeat while held: first repeat, then every. */
 export const REPEAT_FIRST = 0.35;
 export const REPEAT_EVERY = 0.12;
@@ -33,11 +33,14 @@ export class PadState {
   private readonly y = new TapHold(HOLD.Y);
   private readonly view = new TapHold(HOLD.VIEW);
   private readonly rb = new TapHold(HOLD.RB);
+  private readonly l3 = new TapHold(HOLD.L3);
   /** Tap or hold of X, Y, View and RB this frame. */
   xTap: 'tap' | 'hold' | null = null;
   yTap: 'tap' | 'hold' | null = null;
   viewTap: 'tap' | 'hold' | null = null;
   rbTap: 'tap' | 'hold' | null = null;
+  /** L3: a tap is the quick walk, a hold the walk test (ON0b decision 4). */
+  l3Tap: 'tap' | 'hold' | null = null;
   ls = { x: 0, y: 0 };
   rs = { x: 0, y: 0 };
   /** Raw left and right stick (menus apply their own dead zone, stickSteps.ts). */
@@ -72,6 +75,7 @@ export class PadState {
     this.yTap = this.y.update(this.down(PAD.Y), now);
     this.viewTap = this.view.update(this.down(PAD.SELECT), now);
     this.rbTap = this.rb.update(this.down(PAD.RB), now);
+    this.l3Tap = this.l3.update(this.down(PAD.LS), now);
     this.active = this.cur.some(Boolean) || this.ls.x !== 0 || this.ls.y !== 0 || this.rs.x !== 0 || this.rs.y !== 0 || this.lt > 0 || this.rt > 0;
   }
 

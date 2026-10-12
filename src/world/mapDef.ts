@@ -79,4 +79,10 @@ export interface MapDef {
   weathers?: readonly WeatherChoice[];
   /** Walkable surfaces the nav grid keeps per column (default 3). Maps that stack more storeys raise it. */
   navLayers?: number;
+  /**
+   * ON0b: false turns the detail pass off (no generated skirting, conduits, junction boxes, vents, signs or floor
+   * clutter at any tier, and none in the light-bake shapes, so light parity holds): everything on a wall is placed on
+   * purpose. Default true.
+   */
+  detail?: boolean;
 }

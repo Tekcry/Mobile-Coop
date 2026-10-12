@@ -58,13 +58,13 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Right mouse drag | look around |
 | W A S D | move; Q / E down / up (fly); Shift fast; mouse wheel zooms in and out |
 | Tab | **walk test (game)**: the game's own player at the dot, unsaved edits included (below) |
-| Shift+Tab | **quick walk** at the dot (same as L3; 1.75 m eye, walls block, C crouches to 1.15 m); again goes back |
+| Shift+Tab | **quick walk** at the dot (same as L3 tap; 1.75 m eye, walls block, C crouches to 1.15 m, Shift held runs); again goes back |
 | F10 (in the game) | back to the editor from the walk test |
 | Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
-| Ctrl while dragging | fine grid (0.1 m) instead of the 0.5 m grid |
-| Arrow keys | nudge the selection 0.5 m (Shift: 5 m) |
+| Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
+| Arrow keys | nudge the selection one grid step, 0.1 m by default (Shift: ten steps) |
 | Delete, Ctrl+D | delete (a wall takes its doors and windows), duplicate |
 | F | go to the selection |
 | Ctrl+Z, Ctrl+Y (or Ctrl+Shift+Z) | undo, redo |
@@ -95,6 +95,7 @@ the free camera from the same spot. Nothing jumps either way.
 | --- | --- |
 | Left stick | move the dot across the editing floor, the way the camera faces; faster when zoomed out, a little slower near a snap |
 | Right stick | orbit left / right, tilt up / down (about 20 degrees to straight down) |
+| LB held + right stick up / down | raise or lower the camera without tilting (the camera keeps its x, z; the dot slides along the view); the hint bar says so while LB is held |
 | LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan |
 | A | the tool's action: select what the dot is on; on the selection, take the part the dot names (below); drawing tools start and finish; door and window tools place one |
 | B | cancel a grab or a drawing; else leave the card; else put the tool down; else clear the selection. Never deletes |
@@ -103,12 +104,43 @@ the free camera from the same spot. Nothing jumps either way.
 | D-pad, something selected | the **selection card** (below): up / down picks a row, left / right changes it |
 | D-pad up / down, nothing selected | level up / down; the dot and camera rise or drop with it |
 | D-pad left / right, a tool in hand | the tool's type: door type (Door), walls option (Room). Without a tool: nothing |
-| LB held | precision: 0.1 m grid, pan, orbit and zoom at 30 %, magnet off |
+| LB held | slow: pan, orbit and zoom at 30 %, magnet off (ON0b: no longer a finer grid; the grid is Settings > Grid) |
 | RB tap | go to the selection (with Split: turn the line). RB held does nothing |
-| L3 (left stick click) | quick walk at the dot; while walking L3 toggles run (as the game's sprint), B returns to the camera exactly as it was |
+| L3 tap | quick walk at the dot, **running** (the walk's run speed, 4.5 m/s); while walking L3 toggles a slow walk (1.6 m/s) and back, B returns to the camera exactly as it was |
+| L3 held 0.6 s | the **walk test as the player** (the game), same as Tab; also from a quick walk |
 | R3 (right stick click) | levels shown: up to this level, single level, whole building (cycles) |
 | View tap / View held | top-down and back (north up) / layout: 3D, Both, Plan (cycles) |
 | Menu | the **hub** |
+
+### Camera feel (ON0b)
+All the numbers are in one table, `ORBIT` in `src/editor/orbit.ts`. Both sticks have a radial dead zone (0.15) and an
+exponent-2 response curve, so small pushes are fine and a full push is full speed. Pan, orbit, tilt, zoom and height ease
+in over 0.25 s (Smoothing medium) and stop in half that, never past zero, so the camera does not overshoot. A full left
+stick pans about one screen width in 1.5 s at the default zoom (25 m); orbit (1.8 rad/s) and tilt (1.1 rad/s) have their
+own rates. Hub > Settings: **Grid** (0.1 m, 0.25 m, 0.5 m), **Pan speed**, **Orbit speed** (0.5x to 2x), **Smoothing**
+(low 0.12 s, medium 0.25 s, high 0.4 s), **Invert tilt**, **Dead zone** (0.05 to 0.35), saved with the pad settings.
+
+### Grid: 0.1 m everywhere (ON0b)
+Drawing, moving, stretching, D-pad nudges, arrow-key nudges and every length on the selection card step one grid:
+Settings > Grid, 0.1 m by default (0.25 and 0.5 m too). The file's `meta.grid` is no longer read. The magnet still snaps
+onto wall ends, wall lines, room corners and door centres, so lining things up stays easy.
+
+### Wall corners and gaps (ON0b)
+- **Corners**: in the 3D view, the quick walk and the walk test, a wall end that meets another wall (end to end, or on its
+  line) is drawn longer by half the other wall's thickness (`wallExtend` 0.5 x its thickness, facts.json), so outside
+  corners are square and a T-join reaches the far face. Walls on one line whose ends meet draw as one wall: no extension
+  and no outline at the seam. A free end stays as drawn. The file keeps its centre lines (`geometry.ts` `wallJoins`).
+- **Gaps**: a wall end within 0.05 m of another wall but not on it (`wallGapMax`; on it means within `wallJoinTol`
+  0.001 m) shows a red ring and "Gap 0.04 m" on the plan, and a red "Gap 0.04 m: W1 end b to W2" line first in the
+  Checks (side panel and hub). Select the wall: **Close gap** on the Selected tab (or the button in the side panel) moves
+  the end onto the other wall's end (or its line); a wall along x or z stays along it, shifting across only when it
+  must. Its doors and windows keep their places. One undo step.
+
+### No generated wall dressing on Kestrel (ON0b)
+The game's detail pass (skirting, conduits, junction boxes, vents, signs, floor clutter at Ultra and Epic, and the Medium
+dressing in the light bake) does not run for the Kestrel map (`MapDef.detail: false`; `detailPass.ts` `dressingOn`,
+read by the level builder and the light-bake shapes, so light parity holds). Everything on a wall is placed on purpose
+in the editor; the editor never adds dressing. Other maps are unchanged.
 
 ### Grabbing and drawing
 | Button | Does |
@@ -118,7 +150,7 @@ the free camera from the same spot. Nothing jumps either way.
 | A | drop / finish the corner or wall end |
 | B | put it back / cancel |
 | RB tap | turn the grabbed room, stair, ladder or wall 90 degrees about the dot (shown live; the drop saves move and turn as one change; B puts it back). Doors, windows and floor holes ignore it |
-| LB held | precision, as above |
+| LB held | slow and no magnet, as above |
 
 ### Smarter A
 - **Edge-aware grab**: with something selected, the part A would take lights up (3D and plan) and the dot and the hint bar
@@ -202,7 +234,7 @@ pad, and any grab is put back first.
 
 | Tab | Holds |
 | --- | --- |
-| Play | Quick walk at the dot (same as L3; L3 runs, B comes back); Walk test as the player (the game, as Tab) |
+| Play | Quick walk at the dot (same as L3 tap; it runs, L3 slows to a walk, B comes back); Walk test as the player (the game, as Tab or L3 held) |
 | File | Save (with the unsaved count), Revert to last save (asks first), the change list newest first: A on a line asks "Undo back to here?" and undoes every change down to and including it |
 | Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub and goes there |
 | Levels | the level to edit (A edits it), then the Levels panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
@@ -224,10 +256,10 @@ pad, and any grab is put back first.
   first row, size and level; while the D-pad edits it, every row with the lit one between arrows (the dot's words hide).
 - **Hint bar** (controller): one line, at most 5 prompts. Nothing selected: "A Select, Y Menu, X Undo, L3 Walk, Menu Hub";
   with a selection: "D-pad Edit, A Grab, Y Menu, B Clear, RB Go to"; editing the card: "D-pad Edit, A Done, Y Menu, B
-  Back, RB Go to"; menu open: "D-pad Move, A Pick, LB/RB Tab, B Close". What A would take replaces "Grab" ("Stretch east
+  Back, RB Go to"; menu open: "D-pad Move, A Pick, LB/RB Tab, B Close"; LB held: "LB + RS Height, LB Slow". What A would take replaces "Grab" ("Stretch east
   edge"). Full words are in the hub's Help. The keyboard keeps the long words.
 - **Quick walk**: left stick walks, right stick looks, D-pad up / down changes level (the walk moves to that floor at
-  the same spot), L3 toggles run, B ends it. The dot, tool bar and card hide; A does nothing. Shift+Tab does the same from the keyboard.
+  the same spot); it runs by default, L3 toggles a slow walk, L3 held starts the walk test, B ends it. The dot, tool bar and card hide; A does nothing. Shift+Tab does the same from the keyboard.
 - **Plan with the pad**: the plan never takes the pad; it shows the dot as a blue ring, the lit part and the ghosts as
   dashed outlines, and pans to keep the dot in view. The mouse still pans, zooms and edits the plan as before.
 - **Side panel**: Selected > Properties takes the pad: D-pad (or left stick) up / down picks a field, left / right changes
@@ -312,17 +344,20 @@ pad, and any grab is put back first.
 - Lighting preview, props, guards and routes.
 - Quick walk up stairs: change level with Page Up / Page Down (the walk test climbs stairs and ladders for real).
 - On the plan, the building filter hides rooms, walls and openings; their name labels stay.
+- Corner joins are drawn for the editor's 3D, the quick walk and the walk test; the plan images (`plans.mjs`) keep their own
+  `wallExtend` drawing. Joins assume straight walls; an angled join is closed but not mitred. Gaps are listed in the
+  editor only, not by `check.mjs`.
 
 ## Files
 | File | Role |
 | --- | --- |
 | `editor.html`, `src/editor/main.ts` | page, tools, panels, plan view |
 | `src/editor/scene3d.ts`, `src/editor/controls.ts` | 3D massing, picking, handles; fly and walk camera |
-| `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision (Babylon-free, `tests/editor/`) |
+| `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision, corner joins, gaps and Close gap (Babylon-free, `tests/editor/`, `wallJoins.test.ts`) |
 | `src/editor/padControl.ts`, `src/editor/tileMenuView.ts` | controller editing: the dot and its magnet, edge-aware grab, ghosts, tool bar, the selection card on the D-pad, the tile menu's frame and actions, View items, quick walk, plan marker, side panel, rumble; the tile menu and the name picker on screen |
 | `src/editor/tileMenu.ts`, `src/editor/card.ts`, `src/editor/stickSteps.ts` | the tile menu's tabs, tiles (one data list), navigation and memory; the card's rows and steps, the name list and keyboard; stick and D-pad to menu steps (pure, `tests/editor/tileMenu.test.ts`, `card.test.ts`) |
 | `src/editor/grab.ts`, `src/editor/hub.ts`, `src/editor/hubView.ts` | which part A takes, the magnet search and their constants; the hub's tabs, rows, settings and help labels (pure, `tests/editor/grab.test.ts`, `hub.test.ts`); the hub on screen |
-| `src/editor/orbit.ts` | the pad's builder camera: state, pan / orbit / zoom, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
+| `src/editor/orbit.ts` | the pad's builder camera: the ORBIT feel table, dead zone and curve, eased pan / orbit / tilt / zoom / height, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
 | `src/editor/pad.ts` | pad reading (edges, taps and holds, D-pad repeat, button names) (Babylon-free, `tests/editor/editorPad.test.ts`) |
 | `src/editor/actions.ts`, `src/editor/visibility.ts`, `src/editor/draft.ts` | the action map (keys, help, hint bar); which levels and buildings are shown, ghosted or hidden, and the exploded lift; unsaved drafts in IndexedDB (Babylon-free, `tests/editor/editorV2.test.ts`) |
 | `src/editor/roomWalls.ts` | rooms and their walls: walls on an edge, the walls a new room needs, linked edits, Split, A's linked words (pure, `tests/editor/roomWalls.test.ts`) |

@@ -111,7 +111,9 @@
     "aisleMin": { "value": 1.8, "src": "RULES s6" },
     "aisleTallObject": { "value": 1.2, "src": "P03 prompt A26" },
     "aisleMaxGap": { "value": 0.3, "src": "P03 prompt A26" },
-    "parapet": { "value": 1.1, "src": "level-design 16.5.3" }
+    "parapet": { "value": 1.1, "src": "level-design 16.5.3" },
+    "wallJoinTol": { "value": 0.001, "src": "ON0b (Michael 2026-10-13): a wall end within this of another wall meets it (corners join)" },
+    "wallGapMax": { "value": 0.05, "src": "ON0b (Michael 2026-10-13): a wall end this near another wall but not on it is a Gap" }
   },
   "escape": {
     "oneWay": { "value": 18, "src": "02-building-brief s7 (general knowledge)" },

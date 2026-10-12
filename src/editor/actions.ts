@@ -50,13 +50,14 @@ export const ACTIONS: readonly Action[] = [
   { id: 'zoom', name: 'zoom out / in (Plan only: the plan)', group: 'Camera', keys: [], pad: ['LT/RT'], ctx: NOT_MENU, hint: ['idle'], passive: true },
   { id: 'fly', name: 'down / up when flying', group: 'Camera', keys: ['KeyQ', 'KeyE'], ctx: NOT_MENU, passive: true },
   { id: 'crouch', name: 'crouch when walking', group: 'Camera', keys: ['KeyC'], ctx: NOT_MENU, passive: true },
-  { id: 'walk', name: 'walk test (game): the real player at the dot, unsaved edits included', group: 'Camera', keys: ['Tab'], ctx: NOT_DRAG, hint: ['idle'] },
-  { id: 'quickWalk', name: 'quick walk at the dot (pad: L3 then runs, B back)', group: 'Camera', keys: ['Shift+Tab'], pad: ['L3'], ctx: NOT_DRAG, hint: ['idle'] , short: 'Walk' },
+  { id: 'walk', name: 'walk test (game): the real player at the dot, unsaved edits included', group: 'Camera', keys: ['Tab'], pad: ['L3 hold'], ctx: NOT_DRAG, hint: ['idle'] },
+  { id: 'quickWalk', name: 'quick walk at the dot, running (pad: L3 tap; L3 again walks slowly and back, B ends; L3 held is the walk test)', group: 'Camera', keys: ['Shift+Tab'], pad: ['L3'], ctx: NOT_DRAG, hint: ['idle'] , short: 'Walk' },
   { id: 'walkBack', name: 'back to the editor from the walk test (also Esc, then Back to editor)', group: 'Camera', keys: ['F10'], pad: ['View + Menu hold'], ctx: NOT_MENU, passive: true },
   { id: 'levelUp', name: 'level up', group: 'Camera', keys: ['PageUp'], ctx: NOT_DRAG, hint: ['idle'] },
   { id: 'levelDown', name: 'level down', group: 'Camera', keys: ['PageDown'], ctx: NOT_DRAG },
   { id: 'padLevel', name: 'level up / down (nothing selected)', group: 'Camera', keys: [], pad: ['D-pad up/down'], ctx: ['idle', 'draw'], passive: true, short: 'Level' },
   { id: 'frame', name: 'go to the selection', group: 'Camera', keys: ['KeyF'], pad: ['RB'], ctx: SEL, hint: SEL, short: 'Go to' },
+  { id: 'camHeight', name: 'camera up / down without tilting (LB held, right stick up / down)', group: 'Camera', keys: [], pad: ['LB + RS'], ctx: NOT_MENU, passive: true, short: 'Height' },
   { id: 'topDown', name: 'top-down and back', group: 'Camera', keys: [], pad: ['View'], ctx: NOT_MENU, hint: ['idle'], passive: true },
 
   { id: 'pick', name: 'select; drag to move; orange handles resize', group: 'Edit', keys: [], mouse: 'Click, drag', ctx: NOT_MENU, hint: ['idle', 'selected'], passive: true },
@@ -65,14 +66,14 @@ export const ACTIONS: readonly Action[] = [
   { id: 'cardDone', name: 'on the card: Name opens the name list and keyboard; elsewhere back to the dot', group: 'Edit', keys: [], pad: ['A'], ctx: ['card'], hint: ['card'], passive: true, short: 'Done' },
   { id: 'padDrop', name: 'drop it here', group: 'Edit', keys: [], pad: ['A'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Drop' },
   { id: 'padDraw', name: 'start / finish (wall ends, room corners), place a door', group: 'Tools', keys: [], pad: ['A'], ctx: ['draw'], hint: ['draw'], passive: true , short: 'Start / finish' },
-  { id: 'fine', name: 'fine grid (0.1 m) while held', group: 'Edit', keys: [], mouse: 'Ctrl', ctx: NOT_MENU, hint: ['drag', 'draw'], passive: true },
-  { id: 'precision', name: 'precision while held: 0.1 m grid, slower camera, no magnet', group: 'Edit', keys: [], pad: ['LB'], ctx: NOT_MENU, hint: ['drag', 'draw'], passive: true , short: 'Fine' },
+  { id: 'fine', name: 'fine grid (the object grid, 0.1 m) while held, when Settings > Grid is coarser', group: 'Edit', keys: [], mouse: 'Ctrl', ctx: NOT_MENU, hint: ['drag', 'draw'], passive: true },
+  { id: 'precision', name: 'while held: slower camera, magnet off (the grid stays Settings > Grid)', group: 'Edit', keys: [], pad: ['LB'], ctx: NOT_MENU, hint: ['drag', 'draw'], passive: true , short: 'Slow' },
   { id: 'padRotate', name: 'turn it 90 degrees about the dot (rooms, stairs, ladders, walls)', group: 'Edit', keys: [], pad: ['RB'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Turn 90' },
   { id: 'padNudge', name: 'nudge one grid step (as the camera faces)', group: 'Edit', keys: [], pad: ['D-pad'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Nudge' },
   { id: 'cancel', name: 'cancel / leave the card / put the tool down / clear the selection; never deletes', group: 'Edit', keys: ['Escape'], pad: ['B'], ctx: NOT_MENU, hint: ['selected', 'card', 'drag', 'draw'], short: 'Back', shortIn: { selected: 'Clear' } },
   { id: 'delete', name: 'delete', group: 'Edit', keys: ['Delete', 'Backspace'], ctx: SEL, hint: ['selected'] },
   { id: 'duplicate', name: 'duplicate', group: 'Edit', keys: ['Ctrl+KeyD'], ctx: SEL },
-  { id: 'nudge', name: 'nudge 0.5 m (Shift: 5 m)', group: 'Edit', keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight', 'Shift+ArrowUp', 'Shift+ArrowDown'], ctx: ['selected'], hint: ['selected'] },
+  { id: 'nudge', name: 'nudge one grid step (Shift: ten steps)', group: 'Edit', keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight', 'Shift+ArrowUp', 'Shift+ArrowDown'], ctx: ['selected'], hint: ['selected'] },
   { id: 'undo', name: 'undo', group: 'Edit', keys: ['Ctrl+KeyZ'], pad: ['X'], ctx: NOT_DRAG, hint: ['idle', 'selected'] , short: 'Undo' },
   { id: 'redo', name: 'redo', group: 'Edit', keys: ['Ctrl+KeyY', 'Ctrl+Shift+KeyZ'], pad: ['X hold'], ctx: NOT_DRAG },
 
@@ -191,10 +192,13 @@ export const PAD_HINTS: Record<Ctx, readonly string[]> = {
   hub: ['hubTab', 'hubRow', 'hubChange', 'hubDo', 'hubClose'],
 };
 
+/** The controller's hint bar while LB is held outside the menus (ON0b decision 2). */
+export const PAD_LB_HINTS: readonly string[] = ['camHeight', 'precision'];
+
 /** The hint bar for a context and the device used last. The controller gets its short words, at most PAD_HINT_MAX; the full words are in the hub's Help. */
-export function hintItems(c: Ctx, device: Device = 'keys', style: PadStyle = 'xbox'): { id: string; keys: string; name: string }[] {
+export function hintItems(c: Ctx, device: Device = 'keys', style: PadStyle = 'xbox', lbHeld = false): { id: string; keys: string; name: string }[] {
   if (device === 'pad') {
-    return PAD_HINTS[c]
+    return (lbHeld && c !== 'menu' && c !== 'hub' ? PAD_LB_HINTS : PAD_HINTS[c])
       .map((id) => byId.get(id))
       .filter((a): a is Action => !!a?.short)
       .map((a) => ({ id: a.id, keys: padBindingWords(a, style), name: a.shortIn?.[c] ?? a.short! }))

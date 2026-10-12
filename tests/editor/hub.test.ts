@@ -43,7 +43,8 @@ describe('hub tabs and rows', () => {
   it('Levels, View and Settings rows', () => {
     expect(hubRows('Levels', input).map((x) => [x.text, x.value])).toEqual([['First (4.2 m)', undefined], ['Ground (0 m)', 'editing']]);
     expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Ghost other levels: off', 'Exploded: 3 m gap', 'Cut walls at: off', 'Levels shown: Up to this level', 'Building filter: Building A', 'Small plan: off', 'Labels: on', 'Level below on the plan: off']);
-    expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '1.00x', '1.00x', 'off', 'Normal', 'Last tab', 'on']);
+    expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '0.1 m', '1.00x', '1.00x', 'Medium', '0.15', '1.00x', 'off', 'Normal', 'Last tab', 'on']);
+    expect(hubRows('Settings', input).map((x) => x.text).slice(1, 6)).toEqual(['Grid', 'Pan speed', 'Orbit speed', 'Smoothing', 'Dead zone']);
     expect(hubRows('Settings', input).find((x) => x.id === 'set.repeat')!.slider).toBeCloseTo((1 - 0.5) / 1.5);
     expect(hubRows('Help', input)).toEqual([]);
     expect(stepLayout('3d', -1)).toBe('plan');
@@ -75,6 +76,21 @@ describe('pad settings', () => {
     expect(readSettings({ stickSpeed: 9, textSize: 'huge', invertTilt: 'yes', menuOpens: 'first', repeatSpeed: 5 })).toEqual(DEFAULT_SETTINGS);
     expect(readSettings({ menuOpens: 'build', repeatSpeed: 1.5 })).toEqual({ ...DEFAULT_SETTINGS, menuOpens: 'build', repeatSpeed: 1.5 });
     expect(readSettings(null)).toEqual(DEFAULT_SETTINGS);
+    expect(readSettings({ grid: 0.3, deadZone: 0.9, smoothing: 'max', orbitSpeed: 0 })).toEqual(DEFAULT_SETTINGS);
+    expect(readSettings({ grid: 0.5, deadZone: 0.25, smoothing: 'high', orbitSpeed: 1.5 })).toEqual({ ...DEFAULT_SETTINGS, grid: 0.5, deadZone: 0.25, smoothing: 'high', orbitSpeed: 1.5 });
+  });
+
+  it('ON0b: the grid is 0.1 m by default and cycles 0.1, 0.25, 0.5; camera settings step and stop at the ends', () => {
+    expect(DEFAULT_SETTINGS.grid).toBe(0.1);
+    const g1 = changeSetting(DEFAULT_SETTINGS, 'set.grid', 1);
+    expect([g1.grid, changeSetting(g1, 'set.grid', 1).grid, changeSetting(DEFAULT_SETTINGS, 'set.grid', -1).grid]).toEqual([0.25, 0.5, 0.5]);
+    expect(changeSetting(DEFAULT_SETTINGS, 'set.smooth', 1).smoothing).toBe('high');
+    expect(changeSetting(changeSetting(DEFAULT_SETTINGS, 'set.smooth', -1), 'set.smooth', -1).smoothing).toBe('low');
+    expect(changeSetting(DEFAULT_SETTINGS, 'set.dead', 1).deadZone).toBe(0.2);
+    let d = DEFAULT_SETTINGS;
+    for (let i = 0; i < 10; i++) d = changeSetting(d, 'set.dead', -1);
+    expect(d.deadZone).toBe(0.05);
+    expect(changeSetting(DEFAULT_SETTINGS, 'set.orbit', 1).orbitSpeed).toBe(1.25);
   });
 });
 
