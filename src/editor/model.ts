@@ -64,6 +64,11 @@ export class EditorModel {
     this.listeners.push(fn);
   }
 
+  /** The undo history, oldest first (the hub's change list). */
+  get history(): readonly Edit[] {
+    return this.past;
+  }
+
   get canUndo(): boolean {
     return this.past.length > 0;
   }

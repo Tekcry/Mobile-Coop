@@ -1,4 +1,4 @@
-// Level editor controller test (ED2 Part C, ED3-1 builder camera): every edit step uses the fake gamepad. Starts its own Vite dev server on
+// Level editor controller test (ED2 Part C, ED3-1 builder camera, ED3-2 hub, wheels, grab, magnet, ghosts): every edit step uses the fake gamepad. Starts its own Vite dev server on
 // a free port (the editor is dev-only, never in dist/). Never saves. `npm run e2e:editor`; SHOTS=<dir> keeps screenshots.
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -24,7 +24,8 @@ page.on('pageerror', (e) => errors.push(`[pageerror] ${e.message}`));
 let saves = 0;
 page.on('request', (r) => { if (r.url().includes('/__editor/save')) saves++; });
 await page.addInitScript(() => {
-  try { localStorage.clear(); indexedDB.deleteDatabase('kestrel-editor'); } catch {}
+  // a fresh start once per run; a reload keeps the view preferences (the settings test)
+  try { if (!sessionStorage.getItem('e2e-kept')) { localStorage.clear(); indexedDB.deleteDatabase('kestrel-editor'); sessionStorage.setItem('e2e-kept', '1'); } } catch {}
   const pad = { id: 'Xbox Wireless Controller (STANDARD GAMEPAD)', index: 0, connected: false, mapping: 'standard', timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, () => ({ pressed: false, touched: false, value: 0 })), vibrationActuator: { playEffect: async () => { window.__rumbles = (window.__rumbles ?? 0) + 1; return 'complete'; } } };
   window.__pad = {
     connect() { pad.connected = true; },
@@ -34,16 +35,18 @@ await page.addInitScript(() => {
   navigator.getGamepads = () => [pad.connected ? pad : null, null, null, null];
 });
 
+
 const E = (f, a) => page.evaluate(f, a);
 const set = (b, v) => E(([b, v]) => window.__pad.set(b, v), [b, v]);
 const axes = (x, y) => E(([x, y]) => { window.__pad.axis(0, x); window.__pad.axis(1, y); }, [x, y]);
 const press = async (b) => { await set(b, 1); await frames(page, 3); await set(b, 0); await frames(page, 3); };
+const presses = async (b, n) => { for (let i = 0; i < n; i++) await press(b); };
 const wait = (ms) => page.waitForTimeout(ms);
 const shot = async (name) => { if (shots) await page.screenshot({ path: path.join(shots, `${name}.png`) }); };
 const st = () => E(() => { const ed = window.__editor; return { tool: ed.tool, layout: ed.prefs.layout, walls: ed.model.data.walls.length, ops: ed.model.data.openings.map((o) => o.type), dirty: ed.model.dirty, crumb: ed.pad.radial?.isOpen ? ed.pad.radial.breadcrumb.join(' > ') : null, hint: document.getElementById('hint').textContent, status: document.getElementById('status').textContent }; });
-/** Holds Y, points the stick at each angle in turn (resting past the dwell), then releases Y. */
-const radial = async (...angles) => {
-  await set(BTN.Y, 1);
+/** Holds a wheel button (Y: Build, RB: Selection), points the stick at each angle in turn (resting past the dwell). */
+const wheel = async (btn, ...angles) => {
+  await set(btn, 1);
   await page.waitForFunction(() => window.__editor.pad.menuOpen, null, { timeout: 5000 }).catch(() => {});
   for (const [i, a] of angles.entries()) {
     const r = (a * Math.PI) / 180;
@@ -53,7 +56,15 @@ const radial = async (...angles) => {
     await wait(120);
   }
 };
-const release = async () => { await set(BTN.Y, 0); await frames(page, 3); await axes(0, 0); await frames(page, 3); };
+const radial = (...angles) => wheel(BTN.Y, ...angles);
+const releaseBtn = async (btn) => { await set(btn, 0); await frames(page, 3); await axes(0, 0); await frames(page, 3); };
+const release = () => releaseBtn(BTN.Y);
+const orb = () => E(() => { const c = window.__editor.controls; const p = c.orbit.position(); return { mode: c.mode, walking: c.walking, floor: c.floor, ...c.orbit.s, px: p[0], py: p[1], pz: p[2] }; });
+const shown = (id) => E((id) => getComputedStyle(document.getElementById(id)).display !== 'none', id);
+const dotText = () => E(() => document.getElementById('reticleText').textContent);
+/** Puts the dot (the orbit target) at x, z and lets the magnet settle. */
+const dotAt = async (x, z) => { await E(([x, z]) => { const s = window.__editor.controls.orbit.s; s.tx = x; s.tz = z; s.yaw = 0; }, [x, z]); await frames(page, 4); await wait(250); };
+const hub = () => E(() => ({ open: window.__editor.pad.hub.isOpen, tab: window.__editor.pad.hub.tab }));
 
 let failed = false;
 try {
@@ -67,14 +78,14 @@ try {
   assert(/Y hold/.test((await st()).hint), `hint bar shows pad buttons ("${(await st()).hint.slice(0, 80)}")`);
   await shot('hint-idle');
 
-  console.log('radial: Build > Wall');
-  await radial(45);
-  await shot('radial-root');
-  assert((await st()).crumb === 'Build', `dwell on Build opens it (${(await st()).crumb})`);
-  await shot('radial-build');
-  await shot('hint-menu');
-  await axes(1, 0);
+  console.log('Build wheel (Y): what to make only; Wall');
+  await set(BTN.Y, 1);
+  await page.waitForFunction(() => window.__editor.pad.menuOpen, null, { timeout: 5000 });
+  const root = await E(() => window.__editor.pad.radial.ring.map((n) => n.name));
+  assert(root.join(',') === 'Select,Room,Wall,Door,Window,Measure' && !root.some((n) => ['View', 'Level', 'File', 'Walk', 'Undo'].includes(n)), `Build wheel root has no View, Level, File, Walk or Undo (${root.join(', ')})`);
+  await axes(Math.sin((120 * Math.PI) / 180), -Math.cos((120 * Math.PI) / 180));
   await wait(150);
+  await shot('radial-build');
   await release();
   let s = await st();
   assert(s.tool === 'wall' && s.crumb === null, `release picks Wall (tool ${s.tool})`);
@@ -123,18 +134,37 @@ try {
   }
   assert(seen.join(',') === 'both,plan,3d', `View hold cycles (${seen})`);
 
-  console.log('Build > Door > Double door, placed with A');
-  await radial(45, 180, 144);
-  assert((await st()).crumb === 'Build > Door', `nested submenus (${(await st()).crumb})`);
+  console.log('Build > Door > Double door: its ghost on the wall, placed with A');
+  await radial(180, 144);
+  assert((await st()).crumb === 'Door', `Door opens its submenu (${(await st()).crumb})`);
   await shot('radial-door');
   await release();
   s = await st();
   assert(s.tool === 'door' && (await E(() => document.getElementById('doorType').value)) === 'double', `picked the double door (tool ${s.tool})`);
+  await frames(page, 4);
+  await wait(200);
+  const ghostText = await dotText();
+  assert(/A: place Double door on /.test(ghostText) && (await E(() => window.__editor.view.scene.getMeshByName('mark 0')?.isEnabled())), `the door ghost and its words before A ("${ghostText.slice(0, 80)}")`);
+  await shot('door-ghost');
   const ops0 = s.ops.length;
   await press(BTN.A);
   s = await st();
   assert(s.ops.length === ops0 + 1 && s.ops[s.ops.length - 1] === 'double', `A places a double door on the new wall (${s.status})`);
   assert(saves === 0 && s.dirty > 0, `nothing saved (${saves} saves, ${s.dirty} unsaved steps)`);
+
+  console.log('Door tool far from any wall: red dot, "Move onto a wall", A adds nothing');
+  const far = await E(() => {
+    const ed = window.__editor;
+    const ws = ed.model.data.walls.filter((w) => w.level === 'G');
+    const dist = (w, x, z) => { const dx = w.b[0] - w.a[0], dz = w.b[1] - w.a[1], L = Math.hypot(dx, dz) || 1; const s = Math.max(0, Math.min(L, ((x - w.a[0]) * dx + (z - w.a[1]) * dz) / L)); return Math.hypot(x - (w.a[0] + (dx * s) / L), z - (w.a[1] + (dz * s) / L)); };
+    for (let x = 2; x < 110; x += 1) for (let z = 2; z < 80; z += 1) if (ws.every((w) => dist(w, x, z) >= 3)) return [x, z];
+    return null;
+  });
+  await dotAt(far[0], far[1]);
+  const farText = await dotText();
+  const ops1 = (await st()).ops.length;
+  await press(BTN.A);
+  assert(/Move onto a wall/.test(farText) && (await E(() => document.getElementById('reticle').classList.contains('bad'))) && (await st()).ops.length === ops1, `3 m from any wall: "${farText.slice(-20)}", red dot, A adds nothing`);
 
   console.log('B puts the tool down; Y tap repeats it');
   await press(BTN.B);
@@ -143,49 +173,85 @@ try {
   assert((await st()).tool === 'door', 'Y tap: the last tool again');
   await press(BTN.B);
   console.log('pad tool bar, level, dot, display, quick walk, go to the selection');
-  const orb = () => E(() => { const c = window.__editor.controls; const p = c.orbit.position(); return { mode: c.mode, walking: c.walking, ...c.orbit.s, px: p[0], py: p[1], pz: p[2] }; });
-  const shown = (id) => E((id) => getComputedStyle(document.getElementById(id)).display !== 'none', id);
   await press(BTN.RIGHT);
   await wait(250);
   s = await st();
   const lit = await E(() => document.querySelector('#toolBar .slot.on')?.dataset.slot);
   assert(s.tool === 'room' && lit === 'room', `D-pad right from Select lights Room on the tool bar (tool ${s.tool}, lit ${lit})`);
+  const startText = await dotText();
+  assert(/A: start a room here/.test(startText), `Room tool: the start marker's words ("${startText.slice(-22)}")`);
   await press(BTN.B);
-  const up = await E(() => { const ed = window.__editor; const ls = ed.model.data.levels.slice().sort((a, b) => a.floor - b.floor); const i = ls.findIndex((l) => l.id === ed.view.level); return ls[i + 1] ? ed.viewFloor(ls[i + 1].id) : null; });
+  const up = await E(() => { const ed = window.__editor; const ls = ed.model.data.levels.slice().sort((a, b) => a.floor - b.floor); const i = ls.findIndex((l) => l.id === ed.view.level); return ls[i + 1] ? { y: ed.viewFloor(ls[i + 1].id), id: ls[i + 1].id, floor: ed.floor(ls[i + 1].id) } : null; });
   await press(BTN.UP);
   await wait(500);
   let o = await orb();
-  assert(up !== null && Math.abs(o.floorY - up) < 0.01, `D-pad up raises the dot to the next level's floor (${o.floorY.toFixed(2)} m, expected ${up})`);
+  assert(up !== null && Math.abs(o.floorY - up.y) < 0.01, `D-pad up raises the dot to the next level's floor (${o.floorY.toFixed(2)} m, expected ${up.y})`);
   await press(BTN.DOWN);
   await wait(500);
   const t0 = await orb();
-  const text0 = await E(() => document.getElementById('reticleText').textContent);
+  const text0 = await dotText();
   await axes(1, 0);
   await wait(500);
   await axes(0, 0);
   await frames(page, 3);
   await wait(150);
   o = await orb();
-  const text1 = await E(() => document.getElementById('reticleText').textContent);
+  const text1 = await dotText();
   assert(Math.hypot(o.tx - t0.tx, o.tz - t0.tz) > 0.5 && text1 !== text0, `left stick moves the dot (${Math.hypot(o.tx - t0.tx, o.tz - t0.tz).toFixed(1)} m; "${text0.slice(0, 18)}" -> "${text1.slice(0, 18)}")`);
   const displays = [];
   for (let i = 0; i < 3; i++) { await press(BTN.RS); displays.push(await E(() => window.__editor.view.vis.preset)); }
   assert([...new Set(displays)].sort().join(',') === 'single,upTo,whole', `R3 cycles the three level displays (${displays})`);
-  const qw = async (start, how) => {
+  const qw = async (start, how, end = BTN.LS, endHow = 'L3') => {
     const before = await orb();
     await start();
     await wait(200);
     const mid = await orb();
     const hidden = !(await shown('toolBar')) && !(await shown('reticle'));
-    await press(BTN.LS);
+    await press(end);
     await wait(200);
     const after = await orb();
     const err = Math.hypot(after.px - before.px, after.py - before.py, after.pz - before.pz);
-    assert(mid.walking && hidden && after.mode === 'orbit' && err < 0.01 && (await shown('toolBar')), `${how} starts a quick walk (tool bar hidden), L3 ends it, orbit restored (${err.toFixed(4)} m)`);
+    assert(mid.walking && hidden && after.mode === 'orbit' && err < 0.01 && (await shown('toolBar')), `${how} starts a quick walk (tool bar hidden), ${endHow} ends it, orbit restored (${err.toFixed(4)} m)`);
   };
   await qw(() => press(BTN.LS), 'L3');
-  await qw(async () => { await radial(180); await release(); }, 'the wheel\'s Walk');
-  const room = await E(() => { const ed = window.__editor; const r = ed.model.data.rooms.find((q) => q.level === ed.view.level && q.rect[0] > 5); ed.select(`rooms:${r.id}`); return { id: r.id, cx: (r.rect[0] + r.rect[2]) / 2, cz: (r.rect[1] + r.rect[3]) / 2 }; });
+  await qw(() => press(BTN.LS), 'L3', BTN.B, 'B');
+  await qw(async () => { await press(BTN.START); await E(() => window.__editor.pad.hub.setTab('Play')); await press(BTN.A); }, 'the hub\'s Play > Quick walk');
+  console.log('quick walk: A does nothing; D-pad up / down changes floor');
+  const qa = await E(() => { const ed = window.__editor; return { sel: ed.selected, tool: ed.tool, dirty: ed.model.dirty }; });
+  const q0 = await orb();
+  await press(BTN.LS);
+  await wait(200);
+  await press(BTN.A);
+  const qb = await E(() => { const ed = window.__editor; return { sel: ed.selected, tool: ed.tool, dirty: ed.model.dirty, walking: ed.controls.walking }; });
+  assert(qb.walking && qb.sel === qa.sel && qb.tool === qa.tool && qb.dirty === qa.dirty, 'A does nothing while walking (still walking; selection, tool, unsaved count unchanged)');
+  await press(BTN.UP);
+  await wait(200);
+  const q1 = await E(() => ({ floor: window.__editor.controls.floor, level: window.__editor.view.level }));
+  await press(BTN.DOWN);
+  await wait(200);
+  const q2 = await E(() => ({ floor: window.__editor.controls.floor, level: window.__editor.view.level, g: window.__editor.floor('G') }));
+  await press(BTN.UP);
+  await wait(200);
+  assert(q1.level === up.id && Math.abs(q1.floor - up.floor) < 1e-6 && q2.level === 'G' && Math.abs(q2.floor - q2.g) < 1e-6, `D-pad up / down while walking moves the walk to the next / previous floor (${q1.level} ${q1.floor} m, ${q2.level} ${q2.floor} m)`);
+  await press(BTN.B);
+  await wait(400);
+  const q3 = await orb();
+  assert(q3.mode === 'orbit' && Math.abs(q3.floorY - up.y) < 0.01 && Math.hypot(q3.tx - q0.tx, q3.tz - q0.tz) < 0.01, `ending the walk leaves the orbit on that level's floor (${q3.floorY.toFixed(2)} m) with x, z restored`);
+  await press(BTN.DOWN);
+  await wait(400);
+  // a room on G with clear space around its east edge and its middle (no other snap point within 0.7 m)
+  const room = await E(() => {
+    const ed = window.__editor;
+    const cs = ed.pad.candidates();
+    const clear = (id, x, z, sameX) => cs.every((c) => c.kind !== 'point' || c.owner === `rooms:${id}` || (sameX && Math.abs(c.p[0] - x - 0.2) < 1e-6) || Math.hypot(c.p[0] - x, c.p[1] - z) > 0.7);
+    const r = ed.model.data.rooms.find((q) => {
+      const [x0, z0, x1, z1] = q.rect;
+      const cx = (x0 + x1) / 2, cz = (z0 + z1) / 2;
+      return q.level === 'G' && x0 > 5 && x1 - x0 >= 3 && z1 - z0 >= 3 && x1 - x0 !== z1 - z0 && clear(q.id, x1 - 0.2, cz, true) && clear(q.id, cx, cz, false);
+    });
+    ed.select(`rooms:${r.id}`);
+    return { id: r.id, rect: r.rect.slice(), cx: (r.rect[0] + r.rect[2]) / 2, cz: (r.rect[1] + r.rect[3]) / 2 };
+  });
   await press(BTN.RB);
   await wait(600);
   o = await orb();
@@ -199,7 +265,157 @@ try {
   await shot('pad-top-down');
   await press(BTN.SELECT);
   await wait(500);
+
+  console.log('edge-aware grab: stretch an edge, move from the middle');
+  await dotAt(room.cx, room.cz);
+  const mid = await dotText();
+  assert(/Move \(A\)/.test(mid), `the dot at the room's centre says "Move" ("${mid.slice(-12)}")`);
+  await dotAt(room.rect[2] - 0.2, room.cz);
+  const edge = await dotText();
+  assert(/Stretch east edge/.test(edge) && (await E(() => window.__editor.view.scene.getMeshByName('mark 0')?.isEnabled())), `0.2 m inside the east edge: "Stretch east edge", the edge lit ("${edge.slice(-24)}")`);
+  await shot('edge-lit');
+  await press(BTN.A);
+  await presses(BTN.RIGHT, 2);
+  await press(BTN.A);
+  let rr = await E((id) => window.__editor.model.get('rooms', id).rect.slice(), room.id);
+  assert(Math.abs(rr[2] - room.rect[2] - 1) < 1e-6 && rr[0] === room.rect[0], `A, 1 m east, A: the east edge moved 1 m, the west did not (${room.rect[2]} -> ${rr[2]})`);
+  await press(BTN.X);
+
+  console.log('RB tap while grabbing turns the room; B puts it back');
+  await dotAt(room.cx, room.cz);
+  await press(BTN.A);
+  await press(BTN.RB);
+  await frames(page, 3);
+  rr = await E((id) => window.__editor.model.get('rooms', id).rect.slice(), room.id);
+  const w0 = room.rect[2] - room.rect[0], d0 = room.rect[3] - room.rect[1];
+  const turned = Math.abs(rr[2] - rr[0] - d0) < 1e-6 && Math.abs(rr[3] - rr[1] - w0) < 1e-6;
   await press(BTN.B);
+  rr = await E((id) => window.__editor.model.get('rooms', id).rect.slice(), room.id);
+  assert(turned && rr.join() === room.rect.join(), `RB tap while grabbing swaps width and depth (${w0} x ${d0}); B puts it back`);
+
+  console.log('wall end: stretch this end');
+  const wall = await E(() => {
+    const ed = window.__editor;
+    const w = ed.model.data.walls.find((q) => q.level === 'G' && q.a[1] === q.b[1] && q.b[0] - q.a[0] >= 3);
+    ed.select(`walls:${w.id}`);
+    return { id: w.id, a: w.a.slice(), b: w.b.slice() };
+  });
+  await dotAt(wall.a[0] + 0.2, wall.a[1]);
+  const endText = await dotText();
+  await press(BTN.A);
+  await presses(BTN.RIGHT, 2);
+  await press(BTN.A);
+  const wa = await E((id) => { const w = window.__editor.model.get('walls', id); return { a: w.a.slice(), b: w.b.slice() }; }, wall.id);
+  assert(/Stretch this end/.test(endText) && Math.abs(wa.a[0] - wall.a[0] - 1) < 1e-6 && wa.b.join() === wall.b.join(), `a wall end stretches the same way ("${endText.slice(-22)}", end a ${wall.a[0]} -> ${wa.a[0]})`);
+  await press(BTN.X);
+
+  console.log('magnet: snaps onto a wall end exactly and rumbles once; not with LB held');
+  await press(BTN.B);
+  const end = await E(() => {
+    const cs = window.__editor.pad.candidates();
+    const pts = cs.filter((c) => c.kind === 'point');
+    for (const c of pts) {
+      if (!c.key.startsWith('end:')) continue;
+      const q = [c.p[0] + 0.3, c.p[1]];
+      if (pts.every((o) => (o.p[0] === c.p[0] && o.p[1] === c.p[1]) || Math.hypot(o.p[0] - q[0], o.p[1] - q[1]) > 0.75)) return c.p.slice();
+    }
+    return null;
+  });
+  await dotAt(end[0] + 3, end[1] + 3);
+  const rum0 = await E(() => window.__rumbles ?? 0);
+  await dotAt(end[0] + 0.3, end[1]);
+  const snapped = await E(() => ({ p: window.__editor.pad.point(), m: window.__editor.pad.magnet?.label, rum: window.__rumbles ?? 0 }));
+  assert(snapped.p[0] === end[0] && snapped.p[1] === end[1] && snapped.rum === rum0 + 1, `0.3 m from a wall end the dot snaps onto it exactly (${snapped.m}, ${snapped.p}) and rumbles once (${snapped.rum - rum0})`);
+  await dotAt(end[0] + 3, end[1] + 3);
+  await set(BTN.LB, 1);
+  await dotAt(end[0] + 0.3, end[1]);
+  const free = await E(() => ({ p: window.__editor.pad.point(), m: window.__editor.pad.magnet }));
+  await set(BTN.LB, 0);
+  assert(!free.m && Math.abs(free.p[0] - end[0] - 0.3) < 1e-6, `with LB held it does not snap (${free.p})`);
+
+  console.log('Selection wheel (RB held)');
+  await E(() => window.__editor.select(null));
+  await set(BTN.RB, 1);
+  await wait(700);
+  const none = await E(() => ({ open: window.__editor.pad.menuOpen, status: document.getElementById('status').textContent }));
+  await releaseBtn(BTN.RB);
+  assert(!none.open && /Select something first/.test(none.status), `RB held with nothing selected opens nothing ("${none.status}")`);
+  await E((id) => window.__editor.select(`rooms:${id}`), room.id);
+  await set(BTN.RB, 1);
+  await page.waitForFunction(() => window.__editor.pad.menuOpen, null, { timeout: 5000 });
+  const selRing = await E(() => window.__editor.pad.radial.ring.map((n) => n.name));
+  await shot('selection-wheel');
+  await releaseBtn(BTN.RB);
+  assert(selRing.join(',') === 'Move,Properties,Duplicate,Rotate 90,Copy,Copy to level above,Change type,Delete' && !(await E(() => window.__editor.pad.menuOpen)), `with a room selected: ${selRing.join(', ')}; release in the centre closes it`);
+  const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return o.id; });
+  const h0 = await E(() => window.__editor.model.history.length);
+  await wheel(BTN.RB, 216, 72);
+  await releaseBtn(BTN.RB);
+  const dt1 = await E((id) => ({ type: window.__editor.model.get('openings', id).type, h: window.__editor.model.history.length }), door);
+  await press(BTN.X);
+  const dt2 = await E((id) => window.__editor.model.get('openings', id).type, door);
+  assert(dt1.type === 'double' && dt1.h === h0 + 1 && dt2 === 'door', `Change type on a door to Double door is one undo step (${dt1.type}, ${dt1.h - h0} step, undo -> ${dt2})`);
+
+  console.log('the hub (Menu)');
+  await press(BTN.B);
+  await press(BTN.START);
+  let hb = await hub();
+  assert(hb.open, `Menu opens the hub (${hb.tab})`);
+  await E(() => window.__editor.pad.hub.setTab('Play'));
+  await press(BTN.RB);
+  const t1 = (await hub()).tab;
+  await press(BTN.LB);
+  await press(BTN.LB);
+  const t2 = (await hub()).tab;
+  assert(t1 === 'File' && t2 === 'Help', `RB / LB change tabs, wrapping (Play -> ${t1}; back twice -> ${t2})`);
+  const pic = await E(() => ({ svg: !!document.getElementById('padPicture'), text: document.getElementById('padPicture')?.textContent ?? '' }));
+  assert(pic.svg && /Build wheel/.test(pic.text) && /Selection wheel/.test(pic.text), 'Help tab shows the controller picture with labels');
+  await shot('hub-help');
+  await press(BTN.LB);
+  await press(BTN.LB);
+  await press(BTN.LB);
+  assert((await hub()).tab === 'Levels', 'LB from Help reaches Levels');
+  const target = await E(() => { const ls = window.__editor.model.data.levels.slice().sort((a, b) => b.floor - a.floor); const i = ls.findIndex((l) => l.id !== 'G'); return { i, id: ls[i].id }; });
+  await presses(BTN.DOWN, target.i);
+  const ticks = await E(() => document.querySelectorAll('#hubPanel input[data-level]').length);
+  await shot('hub-levels');
+  await press(BTN.A);
+  assert((await E(() => window.__editor.view.level)) === target.id && ticks > 0, `Levels tab: A on a level edits it (${target.id}); the Levels panel is there too (${ticks} level ticks)`);
+  await E(() => window.__editor.setLevel('G'));
+  console.log('File tab: undo back to an older line');
+  await press(BTN.B);
+  const before = await E((id) => { const ed = window.__editor; ed.select(`rooms:${id}`); return { h: ed.model.history.length, rect: ed.model.get('rooms', id).rect.slice() }; }, room.id);
+  await E(() => { const ed = window.__editor; ed.nudge([0.5, 0]); ed.nudge([0, 0.5]); });
+  await press(BTN.START);
+  await E(() => window.__editor.pad.hub.setTab('File'));
+  await presses(BTN.DOWN, 3);
+  await press(BTN.A);
+  const asked = await E(() => document.getElementById('ask').textContent);
+  await press(BTN.A);
+  const after = await E((id) => ({ h: window.__editor.model.history.length, rect: window.__editor.model.get('rooms', id).rect.slice(), open: window.__editor.pad.hub.isOpen }), room.id);
+  assert(/Undo back to here/.test(asked) && after.h === before.h && after.rect.join() === before.rect.join() && after.open, `two edits, A on the older line, yes: the undo history is back to before (${after.h}) and the room where it was`);
+  console.log('Checks tab: A on a line goes there');
+  await page.waitForFunction(() => window.__editor.lastChecks, null, { timeout: 60000 });
+  await E(() => window.__editor.pad.hub.setTab('Checks'));
+  const prob = await E(() => {
+    const ed = window.__editor;
+    const lines = ed.problemLines();
+    const ids = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids'].flatMap((c) => ed.model.list(c).map((e) => e.id));
+    return lines.findIndex((l) => ids.some((id) => new RegExp(`(^|[^A-Za-z0-9-])${id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9-])`).test(l.text)));
+  });
+  await E(() => window.__editor.select(null));
+  await presses(BTN.DOWN, prob + 1);
+  await press(BTN.A);
+  const went = await E(() => ({ open: window.__editor.pad.hub.isOpen, sel: window.__editor.selected }));
+  assert(prob >= 0 && !went.open && !!went.sel, `Checks tab: A on line ${prob + 1} closes the hub and selects ${went.sel}`);
+  console.log('Settings: rumble off survives a reload; B closes');
+  await press(BTN.START);
+  await E(() => window.__editor.pad.hub.setTab('Settings'));
+  await press(BTN.A);
+  const rumble = await E(() => window.__editor.pad.settings.rumble);
+  await press(BTN.B);
+  assert(!rumble && !(await hub()).open, 'Settings: A turns rumble off; B closes the hub');
+
   console.log('pad screen: toolbars hidden, status strip, mouse brings them back');
   const ui = () => E(() => ({ bar: getComputedStyle(document.getElementById('bar')).display, strip: document.getElementById('padStrip').textContent, shown: getComputedStyle(document.getElementById('padStrip')).display }));
   await press(BTN.LB);
@@ -207,18 +423,17 @@ try {
   let u = await ui();
   assert(u.bar === 'none' && u.shown === 'block' && /Editing/.test(u.strip) && /Unsaved/.test(u.strip), `pad screen (toolbar ${u.bar}, strip "${u.strip.slice(0, 60)}")`);
   await shot('pad-screen');
-  await radial(225, 154, 0);
-  await release();
-  await wait(300);
-  const panel = await E(() => document.querySelectorAll('#panel input[data-level]').length);
-  assert(panel > 0 && (await E(() => window.__editor.pad.focus)) === 'drawer', `View > Levels panel opens with pad focus (${panel} level ticks)`);
-  await shot('pad-levels-panel');
-  await press(BTN.B);
   await page.mouse.move(100, 400);
   await page.mouse.move(400, 500, { steps: 4 });
   await wait(200);
   u = await ui();
-  assert(u.bar !== 'none' && u.shown === 'none', `mouse brings the toolbars back (${u.bar})`);} catch (e) {
+  assert(u.bar !== 'none' && u.shown === 'none', `mouse brings the toolbars back (${u.bar})`);
+  assert(saves === 0, `nothing saved (${saves} saves)`);
+  await page.reload();
+  await page.waitForFunction(() => window.__editor?.pad, null, { timeout: 90000 });
+  assert((await E(() => window.__editor.pad.settings.rumble)) === false, 'the rumble setting survives a reload');
+} catch (e) {
+
   failed = true;
   console.error(String(e));
   await page.screenshot({ path: path.join(shots ?? process.env.TEMP ?? '/tmp', 'e2e-editor-fail.png') }).catch(() => {});

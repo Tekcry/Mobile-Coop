@@ -58,11 +58,38 @@
       #c { width: 100%; height: 100%; display: block; outline: none; touch-action: none; }
       #hud { position: absolute; left: 8px; top: 8px; padding: 2px 8px; background: rgba(0, 0, 0, 0.55); border-radius: 4px; pointer-events: none; white-space: pre; }
       #hud:empty { display: none; }
-      #help { position: absolute; right: 8px; top: 8px; z-index: 6; width: 360px; max-height: calc(100% - 50px); overflow: auto; padding: 10px 12px; background: rgba(20, 23, 27, 0.94); border: 1px solid var(--line); border-radius: 6px; }
-      #help h3 { margin: 0 0 6px; font-size: 13px; }
-      #help h4 { margin: 8px 0 2px; font-size: 12px; color: var(--dim); }
-      #help td { padding: 1px 6px 1px 0; vertical-align: top; }
-      #help td:first-child { color: var(--accent); white-space: nowrap; }
+      /* the hub (ED3-2): full-screen, pause-style; text at least 20 px; --ts is the Large text setting */
+      #hub { position: fixed; z-index: 28; inset: 0; overflow: auto; background: rgba(10, 12, 15, 0.94); color: var(--ink); font-size: calc(20px * var(--ts, 1)); }
+      #hubInner { max-width: 1500px; margin: 0 auto; padding: 24px 32px; }
+      .hub-tabs { display: flex; flex-wrap: wrap; gap: 8px; }
+      .hub-tabs button { font-size: calc(22px * var(--ts, 1)); padding: 8px 18px; border-radius: 8px; }
+      .hub-tabs button.on { background: var(--accent); color: #fff; border-color: #fff; }
+      .hub-keys { margin: 10px 0 14px; }
+      .hub-row { display: flex; align-items: baseline; gap: 16px; padding: 10px 14px; margin: 4px 0; border: 2px solid transparent; border-radius: 8px; background: rgba(40, 45, 52, 0.7); cursor: pointer; }
+      .hub-row b { color: var(--accent); margin-left: auto; }
+      .hub-row small { color: var(--dim); font-size: calc(18px * var(--ts, 1)); }
+      .hub-row.line { background: rgba(30, 34, 40, 0.6); }
+      .hub-row.off { opacity: 0.45; cursor: default; }
+      .hub-row.bad span { color: #ff6b6b; }
+      #hub .padfocus { border-color: #fff; background: rgba(10, 132, 255, 0.35); }
+      #hubPanel .row { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin: 6px 0; }
+      #hub h4 { margin: 18px 0 4px; color: var(--dim); font-weight: 600; }
+      #hubPanel button, #hubPanel input { font-size: calc(20px * var(--ts, 1)); }
+      #hubPanel .row input[type='checkbox'] { flex: none; width: 22px; height: 22px; }
+      #hubPanel .row input[type='range'] { flex: none; width: 260px; }
+      #hubPanel .row > span:first-child { width: 160px; }
+      #padPicture { display: block; width: 100%; height: auto; margin: 6px 0 14px; }
+      #helpTable h4 { margin: 12px 0 2px; color: var(--dim); }
+      #helpTable td { padding: 2px 10px 2px 0; vertical-align: top; }
+      #helpTable td:first-child { color: var(--accent); white-space: nowrap; }
+      #helpTable td.pad { color: #7cc4ff; white-space: nowrap; }
+      /* the magnetic dot: one pulse on a new snap; red where A cannot place */
+      #reticle.pulse::before { animation: dotPulse 0.3s ease-out; }
+      @keyframes dotPulse { 50% { transform: scale(1.8); } }
+      #reticle.bad::before { border-color: #ff3b30; box-shadow: 0 0 0 2px #ff3b30; }
+      #reticle.bad #reticleText { color: #ff8a80; }
+      /* Large text: the pad screen and the wheels */
+      #padStrip, #toolBar, #selCard, #reticleText, .rm-ring { zoom: var(--ts, 1); }
       .hidden { display: none !important; }
       #planSvg, #planSvg svg { width: 100%; height: 100%; display: block; }
       #planSvg text { pointer-events: none; }
@@ -114,10 +141,8 @@
       body[data-device='pad'] #selCard:not(.hidden) { display: block; }
       .padfocus { outline: 3px solid var(--accent) !important; outline-offset: -3px; }
       #panel .padfocus { outline-offset: 1px; }
-      #help .padrow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
-      #help td.pad { color: #7cc4ff; white-space: nowrap; }
       #planSvg.nolabels text { display: none; }
-      body:has(#radial:not(.hidden)) #help, body:has(#radial:not(.hidden)) #reticle { display: none; }
+      body:has(#radial:not(.hidden)) #reticle { display: none; }
       #ask div { margin-bottom: 8px; max-width: 420px; }
       #padStrip { display: none; position: absolute; z-index: 4; left: 8px; top: 8px; padding: 8px 12px; background: rgba(15, 17, 20, 0.85); border-radius: 8px; font-size: 18px; line-height: 1.5; pointer-events: none; }
       #padStrip b { color: var(--accent); }
@@ -130,7 +155,6 @@
       body[data-device='pad'] #drawer { width: 460px; font-size: 18px; }
       body[data-device='pad'] #panel .row { margin: 8px 0; }
       body[data-device='pad'] #panel input, body[data-device='pad'] #panel select, body[data-device='pad'] #panel button, body[data-device='pad'] #drawerHead button { font-size: 18px; padding: 6px 10px; }
-      body[data-device='pad'] #help { font-size: 16px; width: 560px; }
       body[data-device='pad'] #reticleText { font-size: 18px; }
       body[data-device='pad'] #ask { font-size: 20px; padding: 16px 20px; }
       body[data-device='pad'] #ask button { font-size: 20px; padding: 8px 14px; }      /* phones and small windows (iPhone portrait and landscape): ED2 follow-up, Michael 2026-10-12 */
@@ -144,7 +168,6 @@
         button, select { min-height: 34px; }
         #drawer, body[data-drawer='pinned'] #drawer { position: absolute; z-index: 10; right: 0; top: 0; bottom: 0; width: min(92vw, 420px); box-shadow: -4px 0 16px rgba(0, 0, 0, 0.45); }
         body[data-device='pad'] #drawer { width: min(92vw, 460px); }
-        #help { width: calc(100% - 16px); max-height: 70%; }
         .rm-ring { width: min(88vmin, 560px); height: min(88vmin, 560px); }
         .rm-slot { min-width: 70px; max-width: 110px; padding: 7px 8px; font-size: 13px; }
         .rm-name { font-size: 16px; }
@@ -172,7 +195,6 @@
         <section id="view3d">
           <canvas id="c" tabindex="0"></canvas>
           <div id="hud"></div>
-          <div id="help" class="hidden"></div>
           <div id="reticle" class="hidden"><div id="reticleText"></div></div>
         </section>
         <div id="divider" title="Drag to resize"></div>
@@ -188,6 +210,7 @@
         <div id="panel"></div>
       </aside>
       <div id="ask" class="hidden"></div>
+      <div id="hub" class="hidden"></div>
     </main>
     <div id="status">Loading the campus...</div>
     <script type="module" src="/src/editor/main.ts"></script>

@@ -41,6 +41,20 @@ export interface Handle {
   z: number;
 }
 
+/** One box of the pad's grab preview or a ghost: centre, size along its own x (laid along dx, dz), look. */
+export interface Mark {
+  x: number;
+  y: number;
+  z: number;
+  sx: number;
+  sy: number;
+  sz: number;
+  dx: number;
+  dz: number;
+  look: 'lit' | 'ghost' | 'bad';
+}
+const MARK_POOL = 8;
+
 export class EditorScene {
   readonly engine: Engine;
   readonly scene: Scene;
@@ -407,6 +421,35 @@ export class EditorScene {
       m.renderingGroupId = 1; // drawn over walls so a handle is never lost inside one
       return m;
     });
+  }
+
+  private markMeshes: Mesh[] = [];
+  /**
+   * The pad's grab preview and tool ghosts (ED3-2): a fixed pool of unit boxes made once, then moved, scaled and
+   * shown; never picked. Callers pass a new list only when the part or ghost changed.
+   */
+  setMarks(ms: readonly Mark[]): void {
+    if (!this.markMeshes.length)
+      for (let i = 0; i < MARK_POOL; i++) {
+        const m = this.box(`mark ${i}`, 0, 0, 0, 1, 1, 1, 0, this.mat('mark-lit', '#ffd166', 0.75, 0.8));
+        m.isPickable = false;
+        m.renderingGroupId = 1;
+        m.setEnabled(false);
+        this.markMeshes.push(m);
+      }
+    for (let i = 0; i < this.markMeshes.length; i++) {
+      const m = this.markMeshes[i]!;
+      const k = ms[i];
+      if (!k) {
+        m.setEnabled(false);
+        continue;
+      }
+      m.position.set(k.x, k.y, k.z);
+      m.scaling.set(Math.max(k.sx, 0.01), Math.max(k.sy, 0.01), Math.max(k.sz, 0.01));
+      m.rotation.y = EditorScene.yaw(k.dx, k.dz);
+      m.material = k.look === 'lit' ? this.mat('mark-lit', '#ffd166', 0.75, 0.8) : k.look === 'bad' ? this.mat('mark-bad', '#ff3b30', 0.35, 0.6) : this.mat('mark-ghost', '#5ac8fa', 0.35, 0.6);
+      m.setEnabled(true);
+    }
   }
 
   /** The handle under the pointer, else the element on the current level (stairs: either end's level). */

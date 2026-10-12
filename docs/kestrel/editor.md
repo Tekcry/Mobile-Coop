@@ -35,10 +35,9 @@ work, and on save writes the file, the plan images and a change log for review. 
   button prompts along the bottom replace them. Moving the mouse more than a few pixels or pressing a key brings the
   normal screen back. Nothing else changes between the two.
 - The tool bar (bottom centre) and the selection card (bottom right) show on the controller screen only.
-- Panels open from the radial menu and take the pad (D-pad up / down picks, A ticks or presses, left / right
-  changes a number or slider, LB fine, B leaves): View > Levels > Levels panel (pick levels, presets, ghost, exploded and
-  its gap, cut walls at, building, level below); Edit > Properties; File > Checks (A on a problem goes to it); File >
-  Changes.
+- Rare things are in the hub (Menu, ED3-2): Play, File (save, revert, the change list), Checks, Levels (the level to
+  edit and the Levels panel), View, Settings and Help. Selection wheel > Properties opens the side panel with the pad
+  (D-pad up / down picks, A ticks or presses, left / right changes a number or slider, LB fine, B leaves).
 - Questions are in-editor boxes answered with A or B.
 ## Who is in charge (Michael, 2026-10-12)
 - Once Michael saves from the editor, the campus file is the source of truth. The plan documents follow the file, not
@@ -51,7 +50,7 @@ work, and on save writes the file, the plan images and a change log for review. 
   `check.mjs` and `standards-check.mjs`.
 
 ## Controls
-Every binding lives in one action map, `src/editor/actions.ts`; the help (H) and the hint bar along the bottom of the
+Every binding lives in one action map, `src/editor/actions.ts`; the hub's Help tab (H) and the hint bar along the bottom of the
 views are generated from it, so this table and the editor cannot drift apart for long.
 
 | Input | Does |
@@ -73,66 +72,110 @@ views are generated from it, so this table and the editor cannot drift apart for
 | M | small plan in the corner of 3D only (click it to take the camera there) |
 | G, O, U | whole building, single level, up to this level |
 | Shift+G, X | ghost the hidden levels, exploded view |
-| H | show / hide the help |
+| H | the hub, on its Help tab (H or Esc closes it) |
+| Hold Space / hold R | the Build wheel / the Selection wheel (with something selected) |
 | Esc | cancel a drag, put the tool down, clear the selection |
 
 The plan view takes the same tools and drags. Mouse wheel zooms, right drag pans, double-click takes the camera there.
 The blue arrow on the plan is the camera. Hovering a room, wall or opening in 3D or on the plan outlines it blue on the
 plan and names it in the corner of the 3D view.
 
-## Controller (ED2 Part C, ED3-1 builder camera)
-Any Xbox, PlayStation or Nintendo pad works alongside the mouse and keyboard. The hint bar and the help switch to the
-pad's own button names when the pad was used last, and back when the keyboard or mouse is used.
+## Controller (ED2 Part C, ED3-1 builder camera, ED3-2 hub, wheels, smarter A)
+Any Xbox, PlayStation or Nintendo pad works alongside the mouse and keyboard. The hint bar and the hub's Help tab switch
+to the pad's own button names when the pad was used last, and back when the keyboard or mouse is used.
 
 The pad drives a **builder camera** that circles the **dot**, a point on the editing floor. The first pad input starts
 it from the current view (aimed at the screen centre, or 25 m ahead when that misses); mouse or key input hands back to
 the free camera from the same spot. Nothing jumps either way.
 
+### Building (the normal state)
 | Button | Does |
 | --- | --- |
-| Left stick | move the dot across the editing floor, the way the camera faces; faster when zoomed out |
+| Left stick | move the dot across the editing floor, the way the camera faces; faster when zoomed out, a little slower near a snap |
 | Right stick | orbit left / right, tilt up / down (about 20 degrees to straight down) |
 | LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan |
-| A | select what the dot is on; on the selection, grab it (or aim at an orange handle); A again drops it. Drawing tools: A starts, A finishes (wall ends, room corners); door and window tools: A on a wall places one |
+| A | the tool's action: select what the dot is on; on the selection, take the part the dot names (below); drawing tools start and finish; door and window tools place one |
 | B | cancel a grab or a drawing; else put the tool down; else clear the selection. Never deletes |
 | X / X held | undo / redo |
-| Y held | the radial menu (below); Y tap: the last tool again |
-| D-pad left / right | previous / next tool on the tool bar (wraps). While grabbing or drawing: nudge one grid step |
-| D-pad up / down | level up / down; the dot and camera rise or drop with it. While grabbing or drawing: nudge |
-| LB held | precision: 0.1 m grid, pan, orbit and zoom at 30 % |
-| RB | go to the selection (the dot moves to its centre; the view angle and zoom stay) |
-| L3 (left stick click) | quick walk at the dot, facing the camera's way; L3 again or B returns to the camera exactly as it was |
+| Y tap / Y held | the last tool again / the **Build wheel** |
+| D-pad left / right | previous / next tool on the tool bar (wraps) |
+| D-pad up / down | level up / down; the dot and camera rise or drop with it |
+| LB held | precision: 0.1 m grid, pan, orbit and zoom at 30 %, magnet off |
+| RB tap / RB held | go to the selection / the **Selection wheel** (with nothing selected: "Select something first") |
+| L3 (left stick click) | quick walk at the dot; L3 again or B returns to the camera exactly as it was |
 | R3 (right stick click) | levels shown: up to this level, single level, whole building (cycles) |
-| View | top-down and back (north up); moving the right stick while top-down just orbits from there |
-| View held | layout: 3D, Both, Plan (cycles) |
-| Menu | help, with Save, Revert, Walk and rumble on / off along the top |
+| View tap / View held | top-down and back (north up) / layout: 3D, Both, Plan (cycles) |
+| Menu | the **hub** |
 
-- The **dot** snaps to the grid on the editing level and shows the position, what A would pick, and while grabbing the
-  live size, length or move. In Plan only its words show under the plan.
-- **Tool bar** (bottom centre): Select, Room, Wall, Door (the door type under it), Window, Measure; the current one is
-  lit. Picking a tool from the wheel lights it too. Measure: A at the first point, A at the second.
-- **Selection card** (bottom right): the selected thing's name, kind, size and level. Read-only; edit through Edit >
-  Properties.
+### Grabbing and drawing
+| Button | Does |
+| --- | --- |
+| Left stick | the grabbed thing follows the dot, snapped |
+| D-pad | nudge one grid step (relative to the camera) |
+| A | drop / finish the corner or wall end |
+| B | put it back / cancel |
+| RB tap | turn the grabbed room, stair, ladder or wall 90 degrees about the dot (shown live; the drop saves move and turn as one change; B puts it back). Doors, windows and floor holes ignore it |
+| LB held | precision, as above |
+
+### Smarter A
+- **Edge-aware grab**: with something selected, the part A would take lights up (3D and plan) and the dot and the hint bar
+  say it. Rooms, stairs and floor holes: near an edge (inside or just outside) "Stretch east edge" and so on, the nearer
+  edge at a corner; elsewhere "Move". Walls: near an end "Stretch this end", else "Move". Doors and windows: near a side
+  "Widen", else "Slide along the wall". Further away, A selects what the dot is on. The band is 0.5 m, or a quarter of
+  the shorter side or the wall length when that is less (doors and windows: 0.25 m or a quarter of the width). The mouse
+  keeps the orange handles.
+- **Magnetic dot**: on the editing level the dot pulls onto wall ends, room corners and door or window centres within
+  0.5 m, else onto wall centre lines (grid steps along the line); it lets go beyond 0.7 m. It pulses once, the pad
+  rumbles once and the dot names the snap ("Wall end", "Room corner", "Door centre", "On wall"). While dragging, the
+  dragged thing's own points are skipped. LB held turns it off.
+- **Ghosts**: before A, Room and Wall show a start marker ("A: start a room here"); Door and Window show a see-through
+  opening at its default size on the nearest wall within 1.2 m, with its width and "A: place <kind> on <wall>"; with no
+  wall in reach the dot turns red and says "Move onto a wall". Measure shows its line and length. The plan shows the
+  same as dashed outlines.
+- The constants are one table at the top of `src/editor/grab.ts` (Michael tunes them after his pad test).
+
+### The wheels (hold, point with either stick, release to pick; resting on a submenu opens it)
+| Build wheel (Y held; mouse: hold Space) | Selection wheel (RB held; mouse: hold R) |
+| --- | --- |
+| Select, Room, Wall, Door > (door kinds), Window, Measure, Paste and Paste to level above (only with something copied). Stair, Ladder, Floor hole and Object join when those tools exist | Only what fits the selection: Move (as A in the middle), Properties (the side panel), Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Change type > (door kinds for doors and windows, room kinds, wall kinds; one undo step), Delete |
+
+- Picking from the Build wheel also lights that tool on the tool bar. **Copy to level above** copies, pastes one level up
+  in one change, selects the copy and takes the editing level up with it ("No level above" at the top).
+- A on a slot picks it; B goes back (at the top, closes). The last pick in each ring is highlighted next time. After a
+  wheel or the hub closes, the sticks do nothing until they return to the centre.
+
+### The hub (Menu; H on the keyboard opens it on Help)
+A full-screen pause-style screen. LB / RB change tabs (wrapping), D-pad up / down picks a row, left / right changes a
+value, A does it, B or Menu closes. Mouse: click a tab or a row; Esc or H closes. While it is open nothing else reads the
+pad, and any grab is put back first.
+
+| Tab | Holds |
+| --- | --- |
+| Play | Quick walk at the dot (same as L3); Walk test as the player (greyed: comes in the next part) |
+| File | Save (with the unsaved count), Revert to last save (asks first), the change list newest first: A on a line asks "Undo back to here?" and undoes every change down to and including it |
+| Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub and goes there |
+| Levels | the level to edit (A edits it), then the Levels panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
+| View | layout 3D / Both / Plan, plan labels, small plan (3D only), level below on the plan |
+| Settings | rumble on / off, stick speed (0.5 to 2.0, step 0.25), invert tilt, text size (Large = 1.25x on the pad screen, the hub and the wheels). Saved with the pad preferences (browser storage, a view preference) |
+| Help | a picture of the controller with every button labelled with its building-state action (from the action map), then every binding by group for keys, mouse and pad |
+
+- Undo adds a line to the unsaved changes (the change list counts undos too), so "undo back to here" brings the undo
+  history and the building back, not the unsaved count.
+
+### Screen
+- The **dot** shows the position, the snap, what A would do and, while grabbing or drawing, the live size, length or
+  move. In Plan only its words show under the plan.
+- **Tool bar** (bottom centre): Select, Room, Wall, Door (the door type under it), Window, Measure; the current one lit.
+- **Selection card** (bottom right): name, kind, size, level. Read-only; edit through the Selection wheel > Properties.
 - **Quick walk**: left stick walks, right stick looks, D-pad up / down changes level (the walk moves to that floor at
-  the same spot). The dot, tool bar and card hide; A does nothing. The wheel's Walk and the help's Walk start and end
-  the same quick walk when the pad is in use. Tab stays the keyboard's walk.
-- **Plan with the pad**: the plan never takes the pad; it shows the dot as a blue ring and pans to keep it in view. The
-  mouse still pans, zooms and edits the plan as before.
-- **Side panel**: panels opened from the wheel (Edit > Properties, View > Levels > Levels panel, File > Checks, File >
-  Changes) take the pad: D-pad up / down picks a field, left / right changes a number by one grid step (LB: fine) or
-  steps a list, A presses a button or opens a text field (on-screen keyboard where there is one), B leaves.
-- **Radial menu**: hold Y, point with either stick, release Y to pick. Resting on a submenu (marked >) for a quarter
-  second, or A, opens it; the menu then stays open until a pick or B (back; at the top, close). The last pick in each
-  ring is highlighted next time. Root, clockwise from the top: Select, Build (Room, Wall, Door > types, Window), Edit
-  (Properties, Duplicate, Delete, Rotate 90, Copy, Paste, Paste to level above, Measure), Undo, Walk, View (3D, Both,
-  Plan, Levels >, Buildings >, Plan labels, Small plan), Level (each level by name and height), File (Save, Revert,
-  Help). Mouse and keyboard: hold Space, point with the mouse, release or click; Esc goes back.
-- **Questions** such as Revert are answered in the editor: A (or click) yes, B no. The browser's own dialogs are gone.
-- **Rumble**: a light tap on snapping a wall end onto another wall's end, on a drop, and a heavier one on an error.
-  Off in the help (Menu).
+  the same spot), B or L3 ends it. The dot, tool bar and card hide; A does nothing. Tab stays the keyboard's walk.
+- **Plan with the pad**: the plan never takes the pad; it shows the dot as a blue ring, the lit part and the ghosts as
+  dashed outlines, and pans to keep the dot in view. The mouse still pans, zooms and edits the plan as before.
+- **Side panel**: Selection wheel > Properties takes the pad: D-pad up / down picks a field, left / right changes a
+  number by one grid step (LB: fine) or steps a list, A presses a button or opens a text field, B leaves.
+- **Questions** such as Revert are answered in the editor: A (or click) yes, B no.
+- **Rumble**: once on a new snap, on a drop, and a heavier one on an error. Off in the hub's Settings.
 - Copy and paste take rooms, walls and floor holes. Measure is pad-only for now (A, A).
-- After a wheel closes, the sticks do nothing until they return to the centre, so letting go of Y with the stick still
-  pushed does not move the dot.
 ## Views (ED2 Part A)
 - **3D | Both | Plan** in the toolbar (or V). Both has a divider to drag, **Side by side / Stacked** and **Swap**. The
   choice, the divider and the panel state are remembered (browser storage; a view preference, not a save).
@@ -174,7 +217,8 @@ the free camera from the same spot. Nothing jumps either way.
 | `editor.html`, `src/editor/main.ts` | page, tools, panels, plan view |
 | `src/editor/scene3d.ts`, `src/editor/controls.ts` | 3D massing, picking, handles; fly and walk camera |
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision (Babylon-free, `tests/editor/`) |
-| `src/editor/padControl.ts`, `src/editor/padMenu.ts` | controller editing: the dot, grab, tool bar, selection card, quick walk, plan marker, side panel, rumble; the radial menu's contents and ring |
+| `src/editor/padControl.ts`, `src/editor/padMenu.ts` | controller editing: the dot and its magnet, edge-aware grab, ghosts, tool bar, selection card, quick walk, plan marker, side panel, rumble; the Build and Selection wheels' contents and ring |
+| `src/editor/grab.ts`, `src/editor/hub.ts`, `src/editor/hubView.ts` | which part A takes, the magnet search and their constants; the hub's tabs, rows, settings and help labels (pure, `tests/editor/grab.test.ts`, `hub.test.ts`); the hub on screen |
 | `src/editor/orbit.ts` | the pad's builder camera: state, pan / orbit / zoom, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
 | `src/editor/pad.ts`, `src/editor/radial.ts` | pad reading (edges, taps and holds, D-pad repeat, button names); radial slot maths and menu navigation (Babylon-free, `tests/editor/editorPad.test.ts`) |
 | `src/editor/actions.ts`, `src/editor/visibility.ts`, `src/editor/draft.ts` | the action map (keys, help, hint bar); which levels and buildings are shown, ghosted or hidden, and the exploded lift; unsaved drafts in IndexedDB (Babylon-free, `tests/editor/editorV2.test.ts`) |

@@ -17,7 +17,8 @@ export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: numb
 };
 export const OPENING_TYPES = Object.keys(OPENING_DEFAULTS);
 export const WALL_KINDS = ['interior', 'exterior', 'boundary', 'parapet'];
-export const ROOM_KINDS = ['zone', 'corridor', 'yard', 'roof', 'shaft', 'lane'];
+/** schema.md: room kinds. */
+export const ROOM_KINDS = ['room', 'corridor', 'stair', 'shaft', 'plant', 'yard', 'lane', 'roof', 'zone'];
 
 const levelName = (d: Campus, id: string): string => d.levels.find((l) => l.id === id)?.name ?? id;
 

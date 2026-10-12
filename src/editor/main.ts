@@ -40,18 +40,17 @@ interface Prefs {
   pinned: boolean;
   drawer: boolean;
   minimap: boolean;
-  help: boolean;
   vis: unknown;
 }
 function loadPrefs(): Prefs {
-  const p: Prefs = { layout: 'both', split: 'row', swap: false, frac: 0.58, pinned: true, drawer: true, minimap: true, help: true, vis: null };
+  const p: Prefs = { layout: 'both', split: 'row', swap: false, frac: 0.58, pinned: true, drawer: true, minimap: true, vis: null };
   try {
     const r = JSON.parse(localStorage.getItem(PREFS) ?? 'null') as Partial<Prefs> | null;
     if (r && typeof r === 'object') {
       if (r.layout === '3d' || r.layout === 'both' || r.layout === 'plan') p.layout = r.layout;
       if (r.split === 'row' || r.split === 'col') p.split = r.split;
       if (typeof r.frac === 'number' && r.frac >= 0.15 && r.frac <= 0.85) p.frac = r.frac;
-      for (const k of ['swap', 'pinned', 'drawer', 'minimap', 'help'] as const) if (typeof r[k] === 'boolean') p[k] = r[k];
+      for (const k of ['swap', 'pinned', 'drawer', 'minimap'] as const) if (typeof r[k] === 'boolean') p[k] = r[k];
       p.vis = r.vis;
     }
   } catch {
@@ -59,6 +58,9 @@ function loadPrefs(): Prefs {
   }
   return p;
 }
+
+/** A dashed shape the pad draws over the plan: a line (an edge, a wall, an opening) or a ring (a point). */
+export type PlanShape = { kind: 'line'; a: Pt; b: Pt } | { kind: 'ring'; p: Pt };
 
 async function loadFile(): Promise<{ data: Campus; text: string; mtime: number }> {
   const res = await fetch('/__editor/campus', { cache: 'no-store' });
@@ -190,6 +192,7 @@ export class Editor {
 
   /** What the editor is doing now, for the hint bar and key dispatch. */
   ctx(): Ctx {
+    if (this.pad?.hub.isOpen) return 'hub';
     if (this.pad?.menuOpen) return 'menu';
     if (this.drag) return 'drag';
     if (this.tool !== 'select') return 'draw';
@@ -591,6 +594,41 @@ export class Editor {
     }
   }
 
+  /**
+   * The pad's grab preview and tool ghosts on the plan (ED3-2 decisions 14, 18): dashed outlines over the plan, redrawn
+   * only when they change. The mouse use of the plan is unchanged (the group takes no pointer events).
+   */
+  planGhost(shapes: readonly PlanShape[], look: 'lit' | 'ghost' | 'bad'): void {
+    const svg = this.planSvg();
+    if (!svg || !this.planViewBox) return;
+    let g = svg.querySelector('#padGhost');
+    if (!g) {
+      g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.id = 'padGhost';
+      g.setAttribute('pointer-events', 'none');
+      svg.appendChild(g);
+    }
+    const box = this.isMinimap() ? this.planFullBox ?? this.planViewBox : this.planViewBox;
+    const u = box[2]! / Math.max(1, svg.clientWidth);
+    const col = look === 'lit' ? '#ffd166' : look === 'bad' ? '#ff3b30' : '#5ac8fa';
+    const st = `fill="none" stroke="${col}" stroke-width="${(4 * u).toFixed(2)}" stroke-dasharray="${(8 * u).toFixed(1)} ${(5 * u).toFixed(1)}"`;
+    const html = shapes
+      .map((s) => {
+        if (s.kind === 'ring') {
+          const [x, y] = this.toPlan(...s.p);
+          return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(12 * u).toFixed(2)}" ${st}/>`;
+        }
+        const a = this.toPlan(...s.a);
+        const b = this.toPlan(...s.b);
+        return `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" ${st}/>`;
+      })
+      .join('');
+    if (g.getAttribute('data-k') !== html) {
+      g.setAttribute('data-k', html);
+      g.innerHTML = html;
+    }
+  }
+
   /** The live size or offset of what is being dragged, for the pad's dot label. */
   dragWords(): string {
     const d = this.drag;
@@ -946,9 +984,11 @@ export class Editor {
       case 'exploded':
         vis.exploded = !vis.exploded;
         return this.applyVis();
+      // H and Menu: the hub (H opens it on Help; the help overlay is the hub's Help tab)
       case 'help':
-        this.prefs.help = $('help').classList.toggle('hidden') === false;
-        return this.savePrefs();
+        return this.pad?.hub.toggle(this.pad.device === 'pad' ? this.pad.hub.tab : 'Help');
+      case 'hubClose':
+        return this.pad?.hub.close();
     }
   }
 
@@ -1187,7 +1227,6 @@ export class Editor {
     st.dataset.minimap = p.minimap ? '1' : '0';
     st.style.setProperty('--split', `${(p.frac * 100).toFixed(1)}%`);
     document.body.dataset.drawer = !p.drawer ? 'closed' : p.pinned ? 'pinned' : 'open';
-    $('help').classList.toggle('hidden', !p.help);
     // the small plan always shows the whole level; the full plan keeps its own zoom
     const svg = this.planSvg();
     const box = this.isMinimap() ? this.planFullBox : this.planViewBox;
@@ -1346,20 +1385,38 @@ export class Editor {
     const pad = this.pad;
     if (pad?.device === 'pad' && pad.focus === 'drawer') notes.push('Pad in the side panel (B leaves)');
     if (this.quickWalking) notes.push('Quick walk (L3 or B goes back)');
+    if (pad?.device === 'pad' && pad.grabWords && c !== 'hub' && c !== 'menu') notes.push(pad.grabWords);
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
     if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
     const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox').map((i) => `<b>${esc(i.keys)}</b> ${esc(i.name)}`);
     $('hint').innerHTML = [...notes.map((n) => `<span class="note">${esc(n)}</span>`), ...items].join('&nbsp;&nbsp;&nbsp;');
   }
 
+  /** Redraws the hub when the controller style or the device changes (its Help tab shows their words). */
   renderHelp(): void {
+    this.pad?.hub.render();
+  }
+
+  /** Every binding by group, keyboard and mouse words and the controller's: the hub's Help tab under the picture. */
+  helpTableHtml(): string {
     const groups: Group[] = ['Camera', 'Edit', 'Tools', 'View', 'File'];
     const rows = helpRows(this.pad?.style ?? 'xbox');
-    $('help').innerHTML =
-      '<h3>Kestrel level editor <span class="dim">(H hides this)</span></h3>' +
-      '<table><tr class="dim"><td>Keys, mouse</td><td>Controller</td><td></td></tr></table>' +
+    return (
+      '<div id="helpTable"><table><tr class="dim"><td>Keys, mouse</td><td>Controller</td><td></td></tr></table>' +
       groups.map((g) => `<h4>${g}</h4><table>${rows.filter((r) => r.group === g).map((r) => `<tr><td>${esc(r.keys)}</td><td class="pad">${esc(r.pad)}</td><td>${esc(r.name)}</td></tr>`).join('')}</table>`).join('') +
-      '<p class="dim">The plan takes the same tools: wheel zooms, right drag pans, double-click takes the camera there. In the small plan a click takes the camera there.</p>';
+      '<p class="dim">The plan takes the same tools: wheel zooms, right drag pans, double-click takes the camera there. In the small plan a click takes the camera there.</p></div>'
+    );
+  }
+
+  /** The problem lines for the hub's Checks tab (fails and warnings), new ones marked. */
+  problemLines(): { text: string; fresh: boolean }[] {
+    const c = this.lastChecks;
+    if (!c) return [];
+    const fresh = new Set(this.newProblems(c));
+    const out: { text: string; fresh: boolean }[] = [];
+    for (const f of c.standards.fails) out.push({ text: `standards: ${f}`, fresh: fresh.has(`STD ${f}`) });
+    for (const r of c.results) if (r.status === 'FAIL' || r.status === 'WARN') for (const d of r.details) out.push({ text: `${r.status} ${r.id}: ${d}`, fresh: fresh.has(`${r.id} ${d}`) });
+    return out;
   }
 
   // ---------- drafts and revert ----------

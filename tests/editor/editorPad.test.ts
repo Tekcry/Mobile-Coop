@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { ACTIONS, conflicts, hintItems, padBindingWords } from '../../src/editor/actions';
 import { HOLD, PAD, PadState, padWords, REPEAT_EVERY, REPEAT_FIRST } from '../../src/editor/pad';
-import { menuTree } from '../../src/editor/padMenu';
+import { buildTree, changeTypes, selectionTree } from '../../src/editor/padMenu';
 import { DWELL, Radial, slotAt, visible } from '../../src/editor/radial';
 import type { RadialInput, RadialNode } from '../../src/editor/radial';
-import type { Campus } from '../../src/editor/types';
 
 const deg = (d: number, m = 1): [number, number] => [Math.sin((d * Math.PI) / 180) * m, -Math.cos((d * Math.PI) / 180) * m];
 
@@ -107,17 +106,25 @@ describe('radial menu', () => {
     expect(r.update(inp({ a: true }))).toMatchObject({ kind: 'pick', node: { id: 'c' } });
   });
 
-  it('the editor root ring has 8 slots, at most 8 per ring, levels named with heights', () => {
-    const d = { meta: { id: 't', buildings: [{ id: 'A', footprint: [0, 0, 1, 1] }] }, levels: [{ id: 'G', name: 'Ground', floor: 0, height: 4.2 }, { id: 'F', name: 'First', floor: 4.2, height: 4.2 }], rooms: [], walls: [], openings: [], stairs: [], ladders: [], voids: [] } as unknown as Campus;
-    const t = menuTree(d, { selected: false, clipboard: false });
-    expect(t.children!.map((n) => n.name)).toEqual(['Select', 'Build', 'Edit', 'Undo', 'Walk', 'View', 'Level', 'File']);
-    const walk = (n: RadialNode): void => {
-      expect(visible(n.children ?? []).length).toBeLessThanOrEqual(8);
-      for (const c of n.children ?? []) walk(c);
-    };
-    walk(t);
-    expect(t.children![6]!.children!.map((n) => n.name)).toEqual(['First (4.2 m)', 'Ground (0 m)']);
-    expect(visible(t.children![1]!.children!).map((n) => n.name)).toEqual(['Room', 'Wall', 'Door', 'Window']);
+  it('the Build wheel: what to make only; Paste rings only with something copied', () => {
+    const names = (n: RadialNode): string[] => visible(n.children ?? []).map((c) => c.name);
+    expect(names(buildTree({ clipboard: false }))).toEqual(['Select', 'Room', 'Wall', 'Door', 'Window', 'Measure']);
+    const t = buildTree({ clipboard: true });
+    expect(names(t)).toEqual(['Select', 'Room', 'Wall', 'Door', 'Window', 'Measure', 'Paste', 'Paste to level above']);
+    for (const gone of ['View', 'Level', 'File', 'Walk', 'Undo', 'Edit']) expect(names(t)).not.toContain(gone);
+    expect(visible(t.children!.find((c) => c.id === 'build.door')!.children!).map((c) => c.name)).toContain('Double door');
+  });
+
+  it('the Selection wheel shows only what fits the selection', () => {
+    const names = (n: RadialNode): string[] => visible(n.children ?? []).map((c) => c.name);
+    expect(names(selectionTree('rooms', 'zone'))).toEqual(['Move', 'Properties', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Change type', 'Delete']);
+    expect(names(selectionTree('openings', 'door'))).toEqual(['Move', 'Properties', 'Duplicate', 'Change type', 'Delete']);
+    expect(names(selectionTree('ladders', ''))).toEqual(['Move', 'Properties', 'Duplicate', 'Rotate 90', 'Delete']);
+    expect(names(selectionTree('voids', ''))).toEqual(['Move', 'Properties', 'Duplicate', 'Copy', 'Copy to level above', 'Delete']);
+    // Change type leaves out the current kind; rooms offer every schema kind
+    expect(changeTypes('openings', 'door').map((t) => t.name)).toEqual(['Fire door', 'Double door', 'Roller shutter', 'Gate', 'Window']);
+    expect(changeTypes('rooms', 'zone').map((t) => t.id)).toEqual(['type.room', 'type.corridor', 'type.stair', 'type.shaft', 'type.plant', 'type.yard', 'type.lane', 'type.roof']);
+    expect(changeTypes('stairs', '')).toEqual([]);
   });
 });
 
@@ -177,5 +184,14 @@ describe('pad bindings in the action map', () => {
     expect(hintItems('idle', 'pad').map((i) => i.keys)).toContain('Y hold');
     expect(hintItems('menu', 'pad', 'playstation').map((i) => i.keys)).toContain('✕');
     expect(padBindingWords(ACTIONS.find((a) => a.id === 'redo')!, 'xbox')).toBe('X hold');
+  });
+
+  it('RB: go to the selection (tap), the Selection wheel (hold), turn while grabbing; the hub has its own hint row', () => {
+    expect(hintItems('selected', 'pad').map((i) => i.keys)).toEqual(expect.arrayContaining(['RB', 'RB hold']));
+    expect(hintItems('drag', 'pad').find((i) => i.keys === 'RB')?.name).toMatch(/turn it 90/);
+    expect(hintItems('hub', 'pad').map((i) => i.keys)).toEqual(['LB / RB', 'D-pad up/down', 'D-pad left/right', 'A', 'B / Menu']);
+    expect(hintItems('hub', 'keys').map((i) => i.keys)).toContain('Esc / H');
+    expect(ACTIONS.find((a) => a.id === 'selWheel')?.mouse).toBe('Hold R');
+    expect(ACTIONS.some((a) => /Save, Revert, Walk/.test(a.name))).toBe(false);
   });
 });

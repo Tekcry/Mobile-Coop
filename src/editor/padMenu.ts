@@ -1,103 +1,65 @@
 /**
- * The level editor's radial menu contents (ED2 Part C3) and its ring on screen. The tree is rebuilt each time the
- * menu opens, so levels and buildings are always current. Picks run through `runMenu`.
+ * The level editor's two wheels (ED2 Part C3, ED3-2) and their ring on screen. The Build wheel (Y held, hold Space)
+ * picks what to make; the Selection wheel (RB held, hold R) changes the selected thing and shows only what fits it.
+ * Trees are rebuilt each time a wheel opens. Picks run through `runMenu`.
  */
-import { fmt } from './geometry';
-import { OPENING_TYPES } from './ops';
+import { OPENING_TYPES, ROOM_KINDS, WALL_KINDS } from './ops';
 import type { Radial, RadialNode } from './radial';
-import type { Campus } from './types';
+import type { Coll } from './types';
 
-const DOOR_NAMES: Record<string, string> = { door: 'Door', double: 'Double door', 'fire-door': 'Fire door', roller: 'Roller shutter', gate: 'Gate' };
+export const DOOR_NAMES: Record<string, string> = { door: 'Door', double: 'Double door', 'fire-door': 'Fire door', roller: 'Roller shutter', gate: 'Gate', window: 'Window' };
 
-/** Root ring, clockwise from the top: Select, Build, Edit, Undo, Walk, View, Level, File. */
-export function menuTree(d: Campus, opts: { selected: boolean; clipboard: boolean }): RadialNode {
-  const levels = d.levels.slice().sort((a, b) => b.floor - a.floor);
+/** Build wheel, clockwise from the top. Stair, Ladder, Floor hole and Object stay hidden until those tools exist. */
+export function buildTree(opts: { clipboard: boolean }): RadialNode {
   return {
-    id: 'root',
-    name: 'Menu',
+    id: 'build',
+    name: 'Build',
     children: [
       { id: 'select', name: 'Select', desc: 'Pick, grab and move what the dot is on' },
+      { id: 'build.room', name: 'Room', desc: 'A starts a corner, A finishes the opposite one' },
+      { id: 'build.wall', name: 'Wall', desc: 'A at one end, A at the other (copies the last wall selected)' },
       {
-        id: 'build',
-        name: 'Build',
-        desc: 'Rooms, walls, doors and windows',
-        children: [
-          { id: 'build.room', name: 'Room', desc: 'A starts a corner, A finishes the opposite one' },
-          { id: 'build.wall', name: 'Wall', desc: 'A at one end, A at the other (copies the last wall selected)' },
-          {
-            id: 'build.door',
-            name: 'Door',
-            desc: 'Door types; A on a wall places one',
-            children: OPENING_TYPES.filter((t) => t !== 'window').map((t) => ({ id: `door.${t}`, name: DOOR_NAMES[t] ?? t, desc: 'A on a wall places it' })),
-          },
-          { id: 'build.window', name: 'Window', desc: 'A on a wall places one' },
-          { id: 'build.stair', name: 'Stair', hidden: true },
-          { id: 'build.ladder', name: 'Ladder', hidden: true },
-          { id: 'build.hole', name: 'Floor hole', hidden: true },
-          { id: 'build.object', name: 'Object', hidden: true },
-        ],
+        id: 'build.door',
+        name: 'Door',
+        desc: 'Door types; A on a wall places one',
+        children: OPENING_TYPES.filter((t) => t !== 'window').map((t) => ({ id: `door.${t}`, name: DOOR_NAMES[t] ?? t, desc: 'A on a wall places it' })),
       },
-      {
-        id: 'edit',
-        name: 'Edit',
-        desc: 'Duplicate, delete, rotate, copy, paste, measure',
-        children: [
-          { id: 'edit.props', name: 'Properties', desc: 'Change the fields with the D-pad', hidden: !opts.selected },
-          { id: 'edit.dup', name: 'Duplicate', desc: 'A copy beside it', hidden: !opts.selected },
-          { id: 'edit.del', name: 'Delete', desc: 'A wall takes its doors and windows', hidden: !opts.selected },
-          { id: 'edit.rotate', name: 'Rotate 90', desc: 'Turn a room, wall, stair or ladder a quarter turn', hidden: !opts.selected },
-          { id: 'edit.copy', name: 'Copy', desc: 'Rooms, walls and floor holes', hidden: !opts.selected },
-          { id: 'edit.paste', name: 'Paste', desc: 'At the dot, on this level', hidden: !opts.clipboard },
-          { id: 'edit.pasteUp', name: 'Paste to level above', desc: 'Same spot, one level up', hidden: !opts.clipboard },
-          { id: 'edit.measure', name: 'Measure', desc: 'A at one point, A at the other' },
-        ],
-      },
-      { id: 'undo', name: 'Undo', desc: 'Undo the last change (X does it too)' },
-      { id: 'walk', name: 'Walk', desc: 'Walk at eye height / fly (the game player comes in Part B)' },
-      {
-        id: 'view',
-        name: 'View',
-        desc: '3D, plan, levels, buildings',
-        children: [
-          { id: 'view.3d', name: '3D only' },
-          { id: 'view.both', name: 'Both' },
-          { id: 'view.plan', name: 'Plan only' },
-          {
-            id: 'view.levels',
-            name: 'Levels',
-            desc: 'Which levels are drawn',
-            children: [
-              { id: 'lv.panel', name: 'Levels panel', desc: 'Pick levels, gap, cut height, building with the D-pad' },
-              { id: 'lv.whole', name: 'Whole building' },
-              { id: 'lv.single', name: 'Single level' },
-              { id: 'lv.upTo', name: 'Up to this level' },
-              { id: 'lv.ghost', name: 'Ghost the rest', desc: 'On / off' },
-              { id: 'lv.exploded', name: 'Exploded', desc: 'On / off' },
-              { id: 'lv.section', name: 'Cut walls at 1.2 m', desc: 'On / off' },
-              { id: 'lv.underlay', name: 'Level below on plan', desc: 'On / off' },
-            ],
-          },
-          {
-            id: 'view.buildings',
-            name: 'Buildings',
-            children: [{ id: 'b.all', name: 'All' }, ...(d.meta.buildings ?? []).map((b) => ({ id: `b.${b.id}`, name: `Building ${b.id}` })), { id: 'b.site', name: 'Site (outside)' }],
-          },
-          { id: 'view.labels', name: 'Plan labels', desc: 'On / off' },
-          { id: 'view.minimap', name: 'Small plan', desc: 'On / off (3D only)' },
-        ],
-      },
-      { id: 'level', name: 'Level', desc: 'Edit another level', children: levels.map((l) => ({ id: `level.${l.id}`, name: `${l.name} (${fmt(l.floor)} m)` })) },
-      {
-        id: 'file',
-        name: 'File',
-        children: [
-          { id: 'file.save', name: 'Save', desc: 'The file, the plan images and the change log' },
-          { id: 'file.revert', name: 'Revert to last save', desc: 'Asks first' },
-          { id: 'file.help', name: 'Help', desc: 'Every button' },
-          { id: 'file.checks', name: 'Checks', desc: 'Problems found; A on one goes there' },
-          { id: 'file.changes', name: 'Changes', desc: 'What changed since the last save' },
-        ],
-      },
+      { id: 'build.window', name: 'Window', desc: 'A on a wall places one' },
+      { id: 'build.measure', name: 'Measure', desc: 'A at one point, A at the other' },
+      { id: 'build.paste', name: 'Paste', desc: 'At the dot, on this level', hidden: !opts.clipboard },
+      { id: 'build.pasteUp', name: 'Paste to level above', desc: 'Same spot, one level up', hidden: !opts.clipboard },
+      { id: 'build.stair', name: 'Stair', hidden: true },
+      { id: 'build.ladder', name: 'Ladder', hidden: true },
+      { id: 'build.hole', name: 'Floor hole', hidden: true },
+      { id: 'build.object', name: 'Object', hidden: true },
+    ],
+  };
+}
+
+/** The kinds "Change type" offers for a selected element (its own kind left out); empty when it has none. */
+export function changeTypes(coll: Coll, current: string): { id: string; name: string }[] {
+  const list = coll === 'openings' ? OPENING_TYPES.map((t) => [t, DOOR_NAMES[t] ?? t]) : coll === 'rooms' ? ROOM_KINDS.map((k) => [k, k]) : coll === 'walls' ? WALL_KINDS.map((k) => [k, k]) : [];
+  return list.filter(([v]) => v !== current).map(([v, n]) => ({ id: `type.${v}`, name: n! }));
+}
+
+/** Selection wheel for the selected element: only what fits it. Split joins in ED3-3. */
+export function selectionTree(coll: Coll, current: string): RadialNode {
+  const turns = coll === 'rooms' || coll === 'walls' || coll === 'stairs' || coll === 'ladders';
+  const copies = coll === 'rooms' || coll === 'walls' || coll === 'voids';
+  const types = changeTypes(coll, current);
+  return {
+    id: 'sel',
+    name: 'Selection',
+    children: [
+      { id: 'sel.move', name: 'Move', desc: 'Grab it, as A in the middle' },
+      { id: 'sel.props', name: 'Properties', desc: 'Change the fields with the D-pad' },
+      { id: 'sel.dup', name: 'Duplicate', desc: 'A copy beside it' },
+      { id: 'sel.rotate', name: 'Rotate 90', desc: 'A quarter turn', hidden: !turns },
+      { id: 'sel.copy', name: 'Copy', desc: 'Paste it from the Build wheel', hidden: !copies },
+      { id: 'sel.copyUp', name: 'Copy to level above', desc: 'Same spot, one level up; the editing level goes with it', hidden: !copies },
+      { id: 'sel.type', name: 'Change type', desc: 'One undo step', hidden: !types.length, children: types.map((t) => ({ ...t, desc: 'A picks it' })) },
+      { id: 'sel.split', name: 'Split', hidden: true },
+      { id: 'sel.del', name: 'Delete', desc: 'A wall takes its doors and windows' },
     ],
   };
 }
