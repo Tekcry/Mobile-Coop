@@ -1,7 +1,7 @@
 # Level editor - controller and UI review (proposal)
 
-Status: PROPOSAL, direction chosen (Michael, 2026-10-12: all four recommended options in section 8). ED3-1 prompt written
-(docs/kestrel/prompts/ED3-1.md); ED3-2 is written after ED3-1 is reviewed. It replaces the unrun ED2 order; ED2 Parts B, E, F, G, H keep their text.
+Status: PROPOSAL, direction chosen (Michael, 2026-10-12: all four recommended options in section 8). ED3-1 built and reviewed
+(2026-10-12); ED3-2 prompt written (docs/kestrel/prompts/ED3-2.md). It replaces the unrun ED2 order; ED2 Parts B, E, F, G, H keep their text.
 
 ## 1. Where things stand
 

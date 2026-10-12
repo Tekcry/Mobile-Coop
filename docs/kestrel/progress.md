@@ -47,6 +47,7 @@ Planning handover (decisions not yet in the briefs, stage order, working rules):
 | P11 | Playtest triage | not started | | |
 
 ## Log (newest first)
+- 2026-10-12 Planner: ED3-1 reviewed (realistic for a console builder, flows; no disagreements; Michael's pad test: no changes). prompts/ED3-2.md written (Opus medium, 20 decisions): hub with seven tabs, Y wheel becomes the Build wheel, RB held Selection wheel (Change type, Copy to level above), edge-aware grab, magnetic dot, ghost previews in 3D and plan, RB rotate while carrying; e2e adds B ends a quick walk, A ignored while walking, D-pad level change while walking. Found: editor ROOM_KINDS lacks room, stair, plant (schema.md line 35); ED3-2 fixes it.
 - 2026-10-12 ED3-1 (Opus medium, run with the reviewer's 3 FIXES): pad builder camera (src/editor/orbit.ts, Vitest 10 cases), dot = orbit target, View tap top-down / held layout, D-pad left / right tool bar, R3 levels shown, L3 quick walk (the wheel's and the help's Walk use it with the pad), RB go to (eased), LB precision, selection card, plan marker that pans the plan. Removed pane focus, plan crosshair, near-cycling, look-at-selection, L3 fast.
   Added: sticks do nothing after a wheel closes until centred (the release otherwise panned the dot several metres).
   Checks: lint 0 errors; vitest tests/editor 57/57; npm test 833/837 (kestrelMap known; detailPass, pvp, voxel time out under full load, pass alone with and without this change); build ok, dist has no editor code; self-check grep 0 / 0; e2e:editor 29 ok, no console errors.
