@@ -177,3 +177,26 @@ export class OrbitCam {
     return orbitPosition(this.s);
   }
 }
+
+/** A camera pose for the walk test's swap (ED2 Part B): position, angles as controls.ts, field of view. */
+export interface CamPose {
+  pos: [number, number, number];
+  yaw: number;
+  pitch: number;
+  fov: number;
+}
+
+/** Yaw and pitch (controls.ts convention) of a camera at `pos` looking at `target`. */
+export function poseAngles(pos: readonly number[], target: readonly number[]): [yaw: number, pitch: number] {
+  const dx = target[0]! - pos[0]!;
+  const dy = target[1]! - pos[1]!;
+  const dz = target[2]! - pos[2]!;
+  return [Math.atan2(dx, dz), Math.atan2(-dy, Math.sqrt(dx * dx + dz * dz))];
+}
+
+/** The pose `t` (0..1, eased) of the way from a to b; yaw takes the short way round. */
+export function blendPose(a: CamPose, b: CamPose, t: number): CamPose {
+  const k = smooth(clamp(t, 0, 1));
+  const lerp = (p: number, q: number): number => p + (q - p) * k;
+  return { pos: [lerp(a.pos[0], b.pos[0]), lerp(a.pos[1], b.pos[1]), lerp(a.pos[2], b.pos[2])], yaw: a.yaw + turn(a.yaw, b.yaw) * k, pitch: lerp(a.pitch, b.pitch), fov: lerp(a.fov, b.fov) };
+}

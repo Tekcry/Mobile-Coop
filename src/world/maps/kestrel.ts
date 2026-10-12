@@ -4,6 +4,7 @@ import type { MapDef, MapLayout } from '../mapDef';
 import type { LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import blocks from './kestrel.blocks.json';
+import { campusToBuild, type CampusFile } from './kestrelCampus';
 import { debugSpots, floorTiles, levelOf, ringFloorColour, SLAB, stairLayout, STAIR_COLOUR, wallBoxes, type KestrelArch } from './kestrelGeo';
 
 /**
@@ -15,6 +16,16 @@ import { debugSpots, floorTiles, levelOf, ringFloorColour, SLAB, stairLayout, ST
  * coordinate is typed here (RULES section 12). Geometry rules: `kestrelGeo.ts`.
  */
 const SOURCE = blocks as unknown as KestrelArch;
+
+/**
+ * Dev only (ED2 Part B, the editor's walk test): campus data handed in before the match starts and the spawn the editor asked
+ * for. `src/main.ts` sets them behind `import.meta.env.DEV`; the production build never calls this, so the B0 path is
+ * unchanged.
+ */
+let draft: { campus: CampusFile; spawn: { x: number; z: number; level: string; yaw: number } | null } | null = null;
+export function setKestrelDraft(campus: CampusFile, spawn: { x: number; z: number; level: string; yaw: number } | null): void {
+  draft = { campus, spawn };
+}
 
 /** Standing clearance round the spawn: the capsule radius and a hand's width. */
 const SPAWN_CLEAR = MOVEMENT.radius + 0.1;
@@ -34,6 +45,20 @@ function clearOfWalls(b: LevelBuilder, x: number, z: number, y: number, r: numbe
     }
   }
   return [x, z];
+}
+
+/** The editor's campus: the builder's arch plus ladders and solid service boxes, spawned where the editor camera was. */
+function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
+  const c = campusToBuild(d.campus);
+  const layout = buildKestrel(b, c.arch);
+  for (const l of c.ladders) b.ladder(l.x, l.z, l.y0, l.y1, l.yaw);
+  for (const s of c.solids) b.box(s.c[0], s.c[1], s.c[2], s.s[0], s.s[1], s.s[2], STAIR_COLOUR);
+  if (d.spawn) {
+    const y = levelOf(c.arch, d.spawn.level).floor;
+    const [x, z] = clearOfWalls(b, d.spawn.x, d.spawn.z, y, SPAWN_CLEAR);
+    layout.playerSpawns = [{ pos: new Vector3(x, y, z), yaw: d.spawn.yaw }];
+  }
+  return layout;
 }
 
 export function buildKestrel(b: LevelBuilder, arch: KestrelArch): MapLayout {
@@ -102,6 +127,6 @@ export const kestrel: MapDef = {
     faction: 'urban',
   },
   build(b: LevelBuilder): MapLayout {
-    return buildKestrel(b, SOURCE);
+    return draft ? buildDraft(b, draft) : buildKestrel(b, SOURCE);
   },
 };

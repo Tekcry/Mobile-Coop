@@ -37,6 +37,10 @@ export interface Flags {
   legacy: boolean;
   /** Dev / hand checks (`?fullbright=1`): the map is lit like day (theme light level, hemisphere, sun, gameplay light). Nothing changes without it. */
   fullbright: boolean;
+  /** Dev only (the level editor's walk test, `?editorDraft=1`): build the Kestrel map from the editor's unsaved campus. Always false in production. */
+  devDraft: boolean;
+  /** Dev only (`?spawn=x,z,level,yaw`, yaw in radians): where the editor's walk test starts the player. */
+  spawn: { x: number; z: number; level: string; yaw: number } | null;
 }
 
 function readParams(): URLSearchParams {
@@ -48,6 +52,13 @@ function readParams(): URLSearchParams {
 }
 
 const params = readParams();
+
+function readSpawn(v: string | null): Flags['spawn'] {
+  const p = v?.split(',') ?? [];
+  if (p.length !== 4) return null;
+  const [x, z, yaw] = [Number(p[0]), Number(p[1]), Number(p[3])];
+  return Number.isFinite(x) && Number.isFinite(z) && Number.isFinite(yaw) && /^[A-Za-z0-9_-]{1,8}$/.test(p[2]!) ? { x, z, level: p[2]!, yaw } : null;
+}
 
 export const flags: Flags = {
   coop: params.get('coop') !== '0',
@@ -71,4 +82,7 @@ export const flags: Flags = {
   gear: /^[1-6]$/.test(params.get('gear') ?? '') ? Number(params.get('gear')) : null,
   legacy: params.get('legacy') === '1',
   fullbright: params.get('fullbright') === '1',
+  // (the DEV test first: the production build drops the parameter name and the whole read)
+  devDraft: import.meta.env.DEV && params.get('editorDraft') === '1',
+  spawn: import.meta.env.DEV ? readSpawn(params.get('spawn')) : null,
 };

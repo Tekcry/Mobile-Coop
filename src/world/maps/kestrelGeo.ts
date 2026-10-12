@@ -14,6 +14,8 @@ export interface ArchLevel {
   floor: number;
   height: number;
   footprint?: Rect4;
+  /** A level built over several rects (the campus file: one per building part); wins over `footprint`. */
+  footprints?: Rect4[];
 }
 export interface ArchRoom {
   id: string;
@@ -85,6 +87,11 @@ export function levelFootprint(arch: KestrelArch, l: ArchLevel): Rect4 {
   return l.footprint ?? arch.meta.footprint;
 }
 
+/** Every rect a level is built over (one for the B0 file, one per building part for the campus file). */
+export function levelFootprints(arch: KestrelArch, l: ArchLevel): Rect4[] {
+  return l.footprints ?? [levelFootprint(arch, l)];
+}
+
 /** Rooms are drawn in zone rings: one grey per ring (`3+` between 3 and 4). */
 const RING_GREY: Record<string, number> = { '1': 0x9c, '2': 0x90, '3': 0x84, '3+': 0x7a, '4': 0x70, '5': 0x62 };
 export function ringRank(r: Ring): number {
@@ -128,7 +135,7 @@ export interface WallBox {
 }
 
 function wallColour(arch: KestrelArch, w: ArchWall, lowestBoundary: number): string {
-  if (w.kind === 'parapet') return PARAPET_COLOUR;
+  if (w.kind === 'parapet' || w.kind === 'balustrade') return PARAPET_COLOUR;
   if (w.kind === 'boundary') return w.h > lowestBoundary + EPS ? NEIGHBOUR_COLOUR : FENCE_COLOUR;
   if (w.kind === 'exterior') return EXTERIOR_COLOUR;
   return ringWallColour(ringOfWall(arch, w));
@@ -160,11 +167,12 @@ export function wallBoxes(arch: KestrelArch, w: ArchWall): WallBox[] {
   const marks = new Set<number>([lo, hi]);
   for (const g of gaps) for (const v of [g.lo, g.hi]) if (v > lo && v < hi) marks.add(v);
   for (const u of upper) {
-    const fp = levelFootprint(arch, u);
-    const across0 = alongX ? fp[1] : fp[0];
-    const across1 = alongX ? fp[3] : fp[2];
-    if (!(line > across0 + EPS && line < across1 - EPS)) continue;
-    for (const v of alongX ? [fp[0], fp[2]] : [fp[1], fp[3]]) if (v > lo && v < hi) marks.add(v);
+    for (const fp of levelFootprints(arch, u)) {
+      const across0 = alongX ? fp[1] : fp[0];
+      const across1 = alongX ? fp[3] : fp[2];
+      if (!(line > across0 + EPS && line < across1 - EPS)) continue;
+      for (const v of alongX ? [fp[0], fp[2]] : [fp[1], fp[3]]) if (v > lo && v < hi) marks.add(v);
+    }
   }
   const xs = [...marks].sort((p, q) => p - q);
   const out: WallBox[] = [];
@@ -177,12 +185,13 @@ export function wallBoxes(arch: KestrelArch, w: ArchWall): WallBox[] {
     const m = (p + q) / 2;
     let cap = w.h;
     for (const u of upper) {
-      const fp = levelFootprint(arch, u);
-      const across0 = alongX ? fp[1] : fp[0];
-      const across1 = alongX ? fp[3] : fp[2];
-      const along0 = alongX ? fp[0] : fp[1];
-      const along1 = alongX ? fp[2] : fp[3];
-      if (line > across0 + EPS && line < across1 - EPS && m > along0 && m < along1) cap = Math.min(cap, u.floor - lvl.floor);
+      for (const fp of levelFootprints(arch, u)) {
+        const across0 = alongX ? fp[1] : fp[0];
+        const across1 = alongX ? fp[3] : fp[2];
+        const along0 = alongX ? fp[0] : fp[1];
+        const along1 = alongX ? fp[2] : fp[3];
+        if (line > across0 + EPS && line < across1 - EPS && m > along0 && m < along1) cap = Math.min(cap, u.floor - lvl.floor);
+      }
     }
     const gap = gaps.find((g) => m > g.lo && m < g.hi);
     const piece = (y0: number, y1: number): void => {
