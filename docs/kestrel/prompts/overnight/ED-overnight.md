@@ -1,6 +1,6 @@
-# ED overnight - fourteen editor parts in a row, one fresh agent per part
+# ED overnight - seventeen editor parts in a row, one fresh agent per part
 Model: Opus, medium effort.
-Decisions: 14 (one per part; each part's own decisions are in its brief, at most 20 each)
+Decisions: 17 (one per part; each part's own decisions are in its brief, at most 20 each)
 
 Start message: `Run docs/kestrel/prompts/overnight/ED-overnight.md`. Michael is asleep and does not read the run; he reads
 the morning report. Written 2026-10-13 (planner) from Michael's answers the same night (progress.md Decisions,
@@ -22,8 +22,8 @@ the morning report. Written 2026-10-13 (planner) from Michael's answers the same
 
 ## 1. Start
 1. `git checkout feature/kestrel && git pull`; confirm the branch and a clean tree.
-2. `ls docs/kestrel/prompts/overnight/` shows the fourteen part briefs (ON0a, ON0b, ON1-ON12).
-3. Expect a long run (roughly 15-25 hours). Do not hurry a part; never skip its tests.
+2. `ls docs/kestrel/prompts/overnight/` shows the seventeen part briefs (ON0a, ON0b, ON1-ON15).
+3. Expect a long run (roughly 18-30 hours). Do not hurry a part; never skip its tests.
 
 ## 2. Parts, in order
 | # | Brief | What | Depends on |
@@ -42,6 +42,9 @@ the morning report. Written 2026-10-13 (planner) from Michael's answers the same
 | 12 | ON7-light-preview.md | Live lighting (quick while dragging, exact on drop), darkness map, mains-off and motion preview, guard view tester | 11 |
 | 13 | ON8-guards-markers.md | Per-guard patrol paths, mission markers (insertion, extraction, objectives, intel) | 11 |
 | 14 | ON12-security.md | Cameras, card readers, motion sensors, beams, coverage view, security file | 5, 12 |
+| 15 | ON13-ceilings-crawl.md | Ceilings as pieces, ceiling voids, crawl spaces, ceiling hatches | 4, 9 |
+| 16 | ON14-layout-signs.md | Mirror, align, evenly space, arrays; door name plates, wayfinding and safety signs | 5, 7, 8 |
+| 17 | ON15-moon-night.md | Moon direction and time-of-night preview, saved for the map | 12 |
 
 ## 3. The prompt you give each agent (fill in the brief name)
 ```
