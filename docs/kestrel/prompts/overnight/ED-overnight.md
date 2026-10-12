@@ -1,6 +1,6 @@
-# ED overnight - eight editor parts in a row, one fresh agent per part
+# ED overnight - fourteen editor parts in a row, one fresh agent per part
 Model: Opus, medium effort.
-Decisions: 8 (one per part; each part's own decisions are in its brief, at most 20 each)
+Decisions: 14 (one per part; each part's own decisions are in its brief, at most 20 each)
 
 Start message: `Run docs/kestrel/prompts/overnight/ED-overnight.md`. Michael is asleep and does not read the run; he reads
 the morning report. Written 2026-10-13 (planner) from Michael's answers the same night (progress.md Decisions,
@@ -22,19 +22,26 @@ the morning report. Written 2026-10-13 (planner) from Michael's answers the same
 
 ## 1. Start
 1. `git checkout feature/kestrel && git pull`; confirm the branch and a clean tree.
-2. `ls docs/kestrel/prompts/overnight/` shows the eight part briefs ON1-ON8.
+2. `ls docs/kestrel/prompts/overnight/` shows the fourteen part briefs (ON0a, ON0b, ON1-ON12).
+3. Expect a long run (roughly 15-25 hours). Do not hurry a part; never skip its tests.
 
 ## 2. Parts, in order
 | # | Brief | What | Depends on |
 | --- | --- | --- | --- |
-| 1 | ON1-room-tools-2.md | Wall chains, door centring, live sizes and distances, guide lines | - |
-| 2 | ON2-levels-stairs.md | Stair, ladder and floor-hole tools, levels, storey heights, renaming ids | - |
-| 3 | ON3-ease.md | Clickable problems, floating names, save summary, search, history, person figure, bookmarks | - |
-| 4 | ON4-objects.md | Realistic object catalogue (data hall, plant, office and security, goods-in, yard and roof), object tool, rows, stealth badges, walk test boxes | - |
-| 5 | ON5-exterior-floors.md | Climb pieces and exterior features, floor finishes and footstep loudness | 4 |
-| 6 | ON6-lights.md | Light fitting catalogue, lamp tool, switches and circuits, emergency, motion and breakable lamps, play file, walk test lamps | 4 |
-| 7 | ON7-light-preview.md | Live lighting in the editor (quick while dragging, exact on drop), darkness map, emergency and motion preview, guard view tester | 6 |
-| 8 | ON8-guards-markers.md | Per-guard patrol paths, mission markers (insertion, extraction, objectives, intel) | 6 |
+| 1 | ON0a-controls.md | Tile build menu (Y toggles), selection card on the D-pad, quick view toggles, friendlier settings | - |
+| 2 | ON0b-feel.md | Camera feel, walk runs by default and L3 held starts the game walk, 0.1 m steps, wall corners join, no random wall dressing | 1 |
+| 3 | ON1-room-tools-2.md | Wall chains, door centring, live sizes and distances, guide lines | 2 |
+| 4 | ON2-levels-stairs.md | Stair, ladder and floor-hole tools, levels, storey heights, renaming ids | 2 |
+| 5 | ON9-doors-glass.md | Door, window and glass types and settings (breakable, one-way, locked, sliding glass, frosted, blinds) | 3 |
+| 6 | ON10-roofs.md | Roof tool: flat, mono-pitch, gable, hip, sawtooth, curved, all adjustable | 4 |
+| 7 | ON3-ease.md | Clickable problems, floating names, save summary, search, history, scale figure, bookmarks, box select | 2 |
+| 8 | ON4-objects.md | Realistic object catalogue, object tool, rows, stealth badges, walk test boxes | 2 |
+| 9 | ON5-exterior-floors.md | Climb pieces and exterior features, floor finishes and footstep loudness | 8 |
+| 10 | ON11-presets.md | Room presets (office, WC block, stair core, data hall bay ...) and saved groups | 4, 5, 8 |
+| 11 | ON6-lights.md | Light fitting catalogue, lamp tool, switches and circuits, emergency, motion and breakable lamps, play file, walk test lamps | 8 |
+| 12 | ON7-light-preview.md | Live lighting (quick while dragging, exact on drop), darkness map, mains-off and motion preview, guard view tester | 11 |
+| 13 | ON8-guards-markers.md | Per-guard patrol paths, mission markers (insertion, extraction, objectives, intel) | 11 |
+| 14 | ON12-security.md | Cameras, card readers, motion sensors, beams, coverage view, security file | 5, 12 |
 
 ## 3. The prompt you give each agent (fill in the brief name)
 ```
@@ -77,9 +84,10 @@ the ranges you need. Never read `docs/archive/`.
 - Do not change game tuning, the player controller, camera, AI or saves (RULES 11), except where a brief says so.
 - No external art or audio; no CDN. Plain English in everything Michael sees; hyphens, not em dashes.
 
-**Controller first:** every new tool works on the pad (Build wheel or Selection wheel entry, A / B / RB / LB as the
-existing tools use them, hint bar short words in `actions.ts` `short`, at most 5 prompts), and with the mouse and
-keyboard. New tools join the tool bar only if the brief says so. Nothing on the pad screen may overlap (the e2e
+**Controller first:** every new tool works on the pad and with the mouse and keyboard. From ON0a on, the radial wheels
+are gone: where a brief says "Build wheel" use the Y tile menu (its matching tab, or a new tab), where it says
+"Selection wheel" use the Selected tab, and the D-pad edits the selection card (Type row first); hint bar short words in
+`actions.ts` `short`, at most 5 prompts. From ON0b on, every length steps 0.1 m. New tools join the tool bar only if the brief says so. Nothing on the pad screen may overlap (the e2e
 overlap step checks 1280 x 720, 1024 x 600, 932 x 430).
 
 **Tests:**

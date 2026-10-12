@@ -40,7 +40,8 @@
     ]
    }
   ],
-  "stage": "P03B Part 2: campus zones and corridors only"
+  "stage": "P03B Part 2: campus zones and corridors only",
+  "editor": "level editor (docs/kestrel/editor.md)"
  },
  "levels": [
   {
@@ -4250,6 +4251,51 @@
    "locked": true,
    "key": "Chain-link gate, push-bar on the passage side",
    "reason": "Chain-link gate, push-bar on the passage side (03B 7.2 notes: X06 to X07 gate, escape way from RB15)"
+  },
+  {
+   "id": "O-NEW1",
+   "wall": "WG026",
+   "at": 1,
+   "w": 1.7,
+   "h": 1.7,
+   "sill": 0.9,
+   "type": "window",
+   "between": [
+    "SI-GATE",
+    "S-YARDA-2"
+   ],
+   "locked": false,
+   "reason": "Added in the level editor"
+  },
+  {
+   "id": "O-NEW2",
+   "wall": "WG002",
+   "at": 2.2,
+   "w": 3.7,
+   "h": 1.7,
+   "sill": 0.9,
+   "type": "window",
+   "between": [
+    "SI-GATE",
+    "S-LANE"
+   ],
+   "locked": false,
+   "reason": "Added in the level editor"
+  },
+  {
+   "id": "O-NEW3",
+   "wall": "WG026",
+   "at": 2.7,
+   "w": 1.2,
+   "h": 2.6,
+   "sill": 0,
+   "type": "door",
+   "between": [
+    "SI-GATE",
+    "S-YARDA-2"
+   ],
+   "locked": false,
+   "reason": "Added in the level editor"
   }
  ],
  "stairs": [
