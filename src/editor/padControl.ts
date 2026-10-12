@@ -32,6 +32,8 @@ import type { Mark } from './scene3d';
 import { presetPicks } from './visibility';
 import type { Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Wall } from './types';
 import { keyOf, parseKey } from './types';
+import { climbWords, HOLE_KINDS, HOLE_NAMES, levelAbove, proposeLadder, STAIR_TYPES, stairFit, stairType } from './vertical';
+import type { StairTypeId } from './vertical';
 
 type Focus = '3d' | 'drawer';
 /** Tool names on the tool bar, which shows the active tool only (ON0a: the Y menu picks tools). */
@@ -41,6 +43,9 @@ const BAR = [
   ['wall', 'Wall'],
   ['door', 'Door'],
   ['window', 'Window'],
+  ['stair', 'Stair'],
+  ['ladder', 'Ladder'],
+  ['hole', 'Floor hole'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -340,6 +345,14 @@ export class PadControl {
       tool('room');
     } else if (id === 'sel.split') ed.startSplit();
     else if (id === 'build.wall') tool('wall');
+    else if (id.startsWith('stair.')) {
+      ed.setStairType(id.slice(6) as StairTypeId);
+      tool('stair');
+    } else if (id === 'build.ladder') tool('ladder');
+    else if (id === 'build.hole') tool('hole');
+    else if (id === 'sel.fit') ed.fitSelected();
+    else if (id === 'sel.turnClimb') ed.turnStairClimb();
+    else if (id === 'sel.rename') this.openRename();
     else if (id === 'build.window') tool('window');
     else if (id.startsWith('door.')) tool('door', id.slice(5));
     else if (id === 'build.measure') this.startMeasure();
@@ -370,6 +383,16 @@ export class PadControl {
       const o = ROOM_OPTIONS[(i + dir + ROOM_OPTIONS.length) % ROOM_OPTIONS.length]!;
       ed.setRoomOption(o.id);
       ed.status(`Room: ${o.name}`);
+    } else if (ed.tool === 'stair') {
+      const i = STAIR_TYPES.findIndex((t) => t.id === ed.stairTypeId);
+      const t = STAIR_TYPES[(i + dir + STAIR_TYPES.length) % STAIR_TYPES.length]!;
+      ed.setStairType(t.id);
+      ed.status(`Stair: ${t.name}`);
+    } else if (ed.tool === 'hole') {
+      const i = HOLE_KINDS.indexOf(ed.holeKind as (typeof HOLE_KINDS)[number]);
+      const k = HOLE_KINDS[(i + dir + HOLE_KINDS.length) % HOLE_KINDS.length]!;
+      ed.setHoleKind(k);
+      ed.status(`Floor hole: ${HOLE_NAMES[k] ?? k}`);
     }
   }
 
@@ -406,7 +429,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const wall = s.coll === 'openings' ? ed.model.get<Wall>('walls', (s.e as Opening).wall) : undefined;
-    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined });
+    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined, levels: ed.model.data.levels });
     if (!after) {
       if (row === 'name') return ed.status('A opens the name list');
       this.rumble('error');
@@ -425,7 +448,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const cur = typeof s.e.name === 'string' ? s.e.name : '';
-    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole' }[s.coll];
+    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole', levels: 'Level', buildings: 'Building', objects: 'Object' }[s.coll];
     this.latchSticks();
     this.names.open(`${what} name`, nameList(ed.model.list(s.coll)), cur, (name) => {
       this.latchSticks();
@@ -437,6 +460,25 @@ export class PadControl {
       ed.commit([{ coll: s.coll, id: s.id, before: s.e, after }]);
       ed.renderPanel();
     });
+    ed.updateHint();
+  }
+
+  /**
+   * A on the card's Id row, or Selected > Rename id (ON2 decision 10): the keyboard (capitals kept) with the id; Done
+   * renames it and every reference in one edit. A taken or empty id is refused with a rumble.
+   */
+  openRename(): void {
+    const ed = this.ed;
+    const s = ed.selectedElem();
+    if (!s) return;
+    this.latchSticks();
+    this.names.open(`Rename ${s.id}`, [], s.id, (id) => {
+      this.latchSticks();
+      ed.updateHint();
+      if (id === null || id === s.id) return;
+      if (!ed.renameSelected(id)) this.rumble('error');
+      ed.renderPanel();
+    }, true);
     ed.updateHint();
   }
 
@@ -548,7 +590,9 @@ export class PadControl {
       this.ed.updateHint();
     } else if (this.cardEditing && st.pressed(PAD.A)) {
       const s = this.ed.selectedElem();
-      if (s && cardRows(s.coll, s.e)[this.cardRow]?.id === 'name') this.openNames();
+      const rowId = s ? cardRows(s.coll, s.e)[this.cardRow]?.id : undefined;
+      if (rowId === 'name') this.openNames();
+      else if (rowId === 'id') this.openRename();
       else {
         this.cardEditing = false;
         this.ed.updateHint();
@@ -756,7 +800,7 @@ export class PadControl {
       // (toolDown may have started a drag; the narrowing above does not know)
       const nd = ed.drag as { moved: boolean } | null;
       if (nd) nd.moved = true;
-      else if (ed.model.history.length === before) this.rumble('error');
+      else if (ed.model.history.length === before && !ed.stairDraw) this.rumble('error');
       this.offset = [0, 0];
       return;
     }
@@ -821,6 +865,11 @@ export class PadControl {
   /** While grabbing or drawing with the pad: the item follows the dot, plus D-pad nudges and RB turns. */
   private followDrag(): void {
     const d = this.ed.drag;
+    // ON2: aiming a stair, the proposal follows the dot
+    if (!d && this.ed.stairDraw?.phase === 'aim') {
+      const p = this.point();
+      if (p) this.ed.aimStair(p[0], p[1]);
+    }
     if (!d || d.source !== 'pad') return this.updatePointers();
     const p = this.point(d.planeY);
     if (!p) return;
@@ -833,6 +882,7 @@ export class PadControl {
   private cancel(): void {
     const ed = this.ed;
     if (ed.splitting) return ed.cancelSplit();
+    if (ed.stairDraw) return ed.cancelStair();
     if (this.measureFrom) {
       this.measureFrom = null;
       return ed.status('Measure cancelled');
@@ -942,13 +992,14 @@ export class PadControl {
     const doorName = slotDoorName($<HTMLSelectElement>('doorType').value);
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${roomName}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${slot === 'door' ? `<small>${esc(doorName)}</small>` : slot === 'room' ? `<small>${esc(roomName)}</small>` : ''}</div>`;
+    const sub = slot === 'door' ? doorName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : '';
+    $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
       const lv = ed.model.data.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
@@ -963,7 +1014,10 @@ export class PadControl {
           return `<div class="crow${on ? ' on' : ''}" data-row="${r.id}"><span>${esc(r.label)}</span><b>${v}</b></div>`;
         })
         .join('');
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div><div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON2: a stair says whether it fits ("Needs 1.4 m more length for 25 risers"; Selected > Fit)
+      const fit = s.coll === 'stairs' ? stairFit(ed.model.data, s.e as Stair) : null;
+      const fitLine = fit ? `<div class="${fit.ok ? 'dim' : 'bad'}" data-fit>${esc(fit.ok ? `Fits: ${fit.size?.risers ?? ''} risers` : fit.words.replace(/ \(the file says.*$/, ''))}</div>` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1074,6 +1128,15 @@ export class PadControl {
         marks.push(this.bar([x0, z0], p, f + 0.05, 0.08, 0.08, 'ghost'));
         plan.push({ kind: 'line', a: [x0, z0], b: p });
       }
+    } else if (ed.stairDraw) {
+      // ON2: the stair proposal (the stair itself is previewed in 3D and on the plan); its words at the dot
+      const sd = ed.stairDraw;
+      bad = !sd.ok;
+      words = sd.ok ? `${sd.words} - ${sd.phase === 'aim' ? 'A: show it' : 'A: accept, B: cancel'}` : sd.words;
+      key = `st|${sd.phase}|${sd.words}`;
+      const r = ed.model.get<Stair>('stairs', sd.id)?.rect;
+      if (r) plan.push({ kind: 'line', a: [r[0], r[1]], b: [r[2], r[1]] }, { kind: 'line', a: [r[2], r[1]], b: [r[2], r[3]] }, { kind: 'line', a: [r[2], r[3]], b: [r[0], r[3]] }, { kind: 'line', a: [r[0], r[3]], b: [r[0], r[1]] });
+      else plan.push({ kind: 'ring', p: sd.start });
     } else if (d?.source === 'pad') {
       const live = ed.liveNow();
       words = live.words;
@@ -1084,9 +1147,31 @@ export class PadControl {
       words = `${part.words}${s.coll === 'rooms' && ed.wallsFollow ? this.linkedHintFor(s.id, part.handle) : ''} (A)`;
       key = `g|${ed.selected}|${part.handle}|${ed.model.history.length}`;
       this.partMarks(s.coll, s.e, part, f, marks, plan);
-    } else if (ed.tool === 'room' || ed.tool === 'wall') {
+    } else if (ed.tool === 'stair' && p) {
+      const to = levelAbove(ed.model.data, ed.view.level);
+      bad = !to;
+      words = to ? `A: start corner of a stair (${stairType(ed.stairTypeId).name}) to ${to.name}` : 'No level above: add one on the hub\'s Levels tab';
+      key = `s|${p[0]},${p[1]}|${ed.stairTypeId}`;
+      marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
+      plan.push({ kind: 'ring', p });
+    } else if (ed.tool === 'ladder' && p) {
+      const r = proposeLadder(ed.model.data, ed.view.level, p, 'LD-GHOST', ed.grid, GHOST.REACH);
+      if ('why' in r) {
+        bad = true;
+        words = r.why;
+      } else {
+        words = `A: ${r.words.charAt(0).toLowerCase()}${r.words.slice(1)}`;
+        const a = r.ladder.at;
+        const h = (ed.model.data.levels.find((l) => l.id === r.ladder.to)?.floor ?? 0) - (ed.model.data.levels.find((l) => l.id === r.ladder.from)?.floor ?? 0);
+        const ew = r.ladder.facing === 'E' || r.ladder.facing === 'W';
+        marks.push({ x: a[0], y: f + h / 2, z: a[1], sx: ew ? 0.08 : 0.5, sy: Math.max(0.5, h), sz: ew ? 0.5 : 0.08, dx: 1, dz: 0, look: 'ghost' });
+        plan.push({ kind: 'ring', p: a });
+      }
+      key = `l|${p[0]},${p[1]}`;
+      void climbWords;
+    } else if (ed.tool === 'room' || ed.tool === 'wall' || ed.tool === 'hole') {
       if (p) {
-        words = `A: start a ${ed.tool} here`;
+        words = ed.tool === 'hole' ? `A: start a floor hole (${HOLE_NAMES[ed.holeKind] ?? ed.holeKind}) here` : `A: start a ${ed.tool} here`;
         key = `s|${p[0]},${p[1]}`;
         marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' }, { x: p[0], y: f + 0.03, z: p[1], sx: 0.8, sy: 0.06, sz: 0.8, dx: 1, dz: 0, look: 'ghost' });
         plan.push({ kind: 'ring', p });
@@ -1129,7 +1214,7 @@ export class PadControl {
     // Plan only: the 3D dot is hidden, so its words go under the plan
     $(ed.prefs.layout === 'plan' ? 'planStatus' : 'reticleText').textContent = text;
     $('reticle').classList.toggle('bad', bad);
-    const hint = part || key.startsWith('o|') || key.startsWith('s|') || bad ? words : '';
+    const hint = part || key.startsWith('o|') || key.startsWith('s|') || key.startsWith('l|') || key.startsWith('st|') || bad ? words : '';
     if (hint !== this.grabWords) {
       this.grabWords = hint;
       ed.updateHint();

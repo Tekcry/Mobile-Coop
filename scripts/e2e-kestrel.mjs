@@ -6,7 +6,8 @@
 // Everything is read from docs/kestrel/kestrel.blocks.json through the same geometry module the map uses (src/world/maps/kestrelGeo.ts,
 // compiled here with esbuild): no coordinate is typed in this file. The only constants are walking offsets and tolerances.
 import fs from 'node:fs';
-import { transformSync } from 'esbuild';
+import { buildSync, transformSync } from 'esbuild';
+import { fileURLToPath } from 'node:url';
 import { launch, frames } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
@@ -14,7 +15,10 @@ const url = args.find((a) => /^https?:/.test(a)) ?? 'http://127.0.0.1:4179/';
 const verbose = args.includes('--verbose');
 const A = JSON.parse(fs.readFileSync(new URL('../docs/kestrel/kestrel.blocks.json', import.meta.url), 'utf8'));
 const geoSrc = fs.readFileSync(new URL('../src/world/maps/kestrelGeo.ts', import.meta.url), 'utf8');
-const geo = await import('data:text/javascript;base64,' + Buffer.from(transformSync(geoSrc, { loader: 'ts', format: 'esm' }).code).toString('base64'));
+// (bundled: kestrelGeo imports the shared stair module, stairs.ts, ON2)
+const geo = await import('data:text/javascript;base64,' + Buffer.from(buildSync({ entryPoints: [fileURLToPath(new URL('../src/world/maps/kestrelGeo.ts', import.meta.url))], bundle: true, write: false, format: 'esm' }).outputFiles[0].text).toString('base64'));
+void geoSrc;
+void transformSync;
 const Y = Object.fromEntries(A.levels.map((l) => [l.id, l.floor]));
 let failed = false;
 /** A check: logged, never thrown, so one failure does not hide the rest. */

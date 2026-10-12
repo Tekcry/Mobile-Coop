@@ -79,6 +79,7 @@
     "fireLanding": { "value": 1.3, "src": "scale-sheet s3" },
     "fireDoorWidth": { "value": 1.2, "src": "scale-sheet s3" },
     "featureWidth": { "value": 2.4, "src": "scale-sheet s3" },
+    "mainWidth": { "value": 1.85, "src": "handover Decisions Main stair (standards-check.mjs main stair minimum); ON2 editor default for a main stair" },
     "midLanding": { "value": 2.0, "src": "scale-sheet s3" }
   },
   "ladder": {

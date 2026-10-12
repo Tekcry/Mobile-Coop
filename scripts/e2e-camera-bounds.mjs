@@ -8,14 +8,17 @@
 // Places come from the map's own block file (src/world/maps/kestrel.blocks.json, what the build uses) through kestrelGeo.ts, compiled
 // here with esbuild: no map coordinate is typed in this file. The low-space run uses level U when the map has one, else a 1.5 m test box.
 import fs from 'node:fs';
-import { transformSync } from 'esbuild';
+import { buildSync, transformSync } from 'esbuild';
+import { fileURLToPath } from 'node:url';
 import { launch, frames } from './e2e-lib.mjs';
 
 const args = process.argv.slice(2);
 const url = args.find((a) => /^https?:/.test(a)) ?? 'http://127.0.0.1:4179/';
 const verbose = args.includes('--verbose');
 const A = JSON.parse(fs.readFileSync(new URL('../src/world/maps/kestrel.blocks.json', import.meta.url), 'utf8'));
-const esm = (p) => 'data:text/javascript;base64,' + Buffer.from(transformSync(fs.readFileSync(new URL(p, import.meta.url), 'utf8'), { loader: 'ts', format: 'esm' }).code).toString('base64');
+// (bundled: kestrelGeo imports the shared stair module, stairs.ts, ON2)
+const esm = (p) => 'data:text/javascript;base64,' + Buffer.from(buildSync({ entryPoints: [fileURLToPath(new URL(p, import.meta.url))], bundle: true, write: false, format: 'esm' }).outputFiles[0].text).toString('base64');
+void transformSync;
 const geo = await import(esm('../src/world/maps/kestrelGeo.ts'));
 const Y = Object.fromEntries(A.levels.map((l) => [l.id, l.floor]));
 let failed = false;

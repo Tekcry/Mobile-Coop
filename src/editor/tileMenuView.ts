@@ -89,12 +89,16 @@ export class NamePick {
     });
   }
 
-  open(title: string, names: string[], current: string, done: (name: string | null) => void): void {
+  /** `raw` (ON2: ids): capitals are kept as typed, and with no names the keyboard opens straight away. */
+  private raw = false;
+
+  open(title: string, names: string[], current: string, done: (name: string | null) => void, raw = false): void {
+    this.raw = raw;
     this.title = title;
     this.names = names;
     this.text = current;
     this.done = done;
-    this.mode = 'list';
+    this.mode = raw && !names.length ? 'keys' : 'list';
     this.index = Math.max(0, names.indexOf(current));
     this.isOpen = true;
     this.render();
@@ -137,7 +141,7 @@ export class NamePick {
     }
     const k = KEYBOARD[this.index]!;
     if (k === 'Done') return this.close(this.text.trim());
-    this.text = typeKey(this.text, k);
+    this.text = typeKey(this.text, k, this.raw);
     this.render();
   }
 

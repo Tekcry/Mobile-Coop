@@ -390,7 +390,7 @@ try {
   const selTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
   await shot('menu-selected');
   await press(BTN.B);
-  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Split,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
+  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Split,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
   const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return { id: o.id, w: o.w }; });
   await frames(page, 3);
   assert(/D-pad Edit\s+A Grab\s+Y Menu\s+B Clear\s+RB Go to/.test((await st()).hint), `selection hint bar ("${(await st()).hint.slice(0, 70)}")`);
@@ -925,7 +925,7 @@ try {
     await dotAt(x + 5, z + 4);
     await press(BTN.A);
     await dotAt(x, z + 4);
-    await page.waitForFunction(() => /chain: 3 walls/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await page.waitForFunction(() => /length 5 m.*chain: 3 walls, 14 m/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     const chainWords = await dotText();
     await shot('on1-chain-drawing');
     await press(BTN.A);
@@ -974,6 +974,107 @@ try {
     assert(guide.snap === 'Wall end' && guide.plan === 2 && guideOff === 0, `ON1: guide lines while snapped (${guide.snap}: ${guide.plan} on the plan, ${guide.marks} marks in 3D), gone when the snap lets go (${guideOff})`);
     const left = await E(() => { const ed = window.__editor; let n = 0; while (ed.model.dirty > 0 && n < 30) { ed.undo(); n++; } return ed.model.dirty; });
     assert(left === 0, 'ON1 steps undone: back to the file');
+  }
+
+  console.log('ON2: a dogleg main stair from Ground to First with the pad, its well, the walk test; a level above the roof and back');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    const text0 = await E(() => JSON.stringify(window.__editor.model.data, null, 1));
+    const h0 = await E(() => window.__editor.model.history.length);
+    // first (frames are quicker before the walk test warms the game): a level above the roof with the pad (Levels tab: Add a level above, a name from the list), deleted again, then undone
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLevel('R'); });
+    await press(BTN.START);
+    await E(() => window.__editor.pad.hub.setTab('Levels'));
+    const toHubRow = async (row, btn = BTN.DOWN) => { for (let i = 0; i < 40 && (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) !== row; i++) await press(btn); return (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) === row; };
+    assert(await toHubRow('lv.addAbove'), 'ON2: the Levels tab has "Add a level above Roof"');
+    await shot('on2-levels');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.pad.names.isOpen, null, { timeout: 5000 }).catch(() => {});
+    const pick = await E(() => document.querySelector('#namePick .np-item.hl')?.textContent ?? '');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.pad.hub.isOpen && window.__editor.model.data.levels.length === 8, null, { timeout: 5000 }).catch(() => {});
+    const added = await E(() => { const ed = window.__editor; const l = ed.model.data.levels.at(-1); return { n: ed.model.data.levels.length, id: l.id, name: l.name, floor: l.floor, height: l.height, editing: ed.view.level, opt: [...document.getElementById('level').options].some((o) => o.value === l.id) }; });
+    assert(added.n === 8 && added.name === pick && Math.abs(added.floor - 9.5) < 1e-6 && Math.abs(added.height - 1.1) < 1e-6 && added.editing === added.id && added.opt, `ON2: a level "${added.name}" (${added.id}) above the roof at ${added.floor} m, storey ${added.height} m from its neighbour; editing it; in the level list`);
+    assert(await toHubRow('lv.delete'), 'ON2: the Levels tab has "Delete"');
+    await press(BTN.A);
+    await page.waitForFunction(() => !document.getElementById('ask').classList.contains('hidden'), null, { timeout: 5000 }).catch(() => {});
+    const askText = await E(() => document.getElementById('ask').textContent);
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.model.data.levels.length === 7, null, { timeout: 5000 }).catch(() => {});
+    const afterDel = await E(() => ({ n: window.__editor.model.data.levels.length, editing: window.__editor.view.level }));
+    assert(/Delete level .* With it go nothing on it/.test(askText) && afterDel.n === 7 && afterDel.editing === 'R', `ON2: Delete asks first ("${askText.slice(0, 80)}"), the level goes, editing drops to the roof`);
+    await press(BTN.B);
+    await E(() => { window.__editor.undo(); window.__editor.undo(); });
+    const back = await E(() => JSON.stringify(window.__editor.model.data, null, 1));
+    assert(back === text0, 'ON2: after undo the campus text is byte-identical');
+    await E(() => { const ed = window.__editor; ed.setLevel('G'); ed.select(null); });
+    // an empty patch 4.5 x 6.5 m inside a ground room with a first-floor room over it: no wall, stair or hole on G or F near it
+    const spot = await E(() => {
+      const d = window.__editor.model.data;
+      const hit = (r, a) => r[0] < a[2] && r[2] > a[0] && r[1] < a[3] && r[3] > a[1];
+      const inside = (r, a) => a[0] >= r[0] && a[1] >= r[1] && a[2] <= r[2] && a[3] <= r[3];
+      for (const needF of [true, false])
+        for (let z = 31; z < 58; z += 0.5) for (let x = 5; x < 98; x += 0.5) {
+          const box = [x - 0.6, z - 0.6, x + 4.3, z + 6.6];
+          if (d.walls.some((w) => (w.level === 'G' || w.level === 'F') && hit([Math.min(w.a[0], w.b[0]) - 0.3, Math.min(w.a[1], w.b[1]) - 0.3, Math.max(w.a[0], w.b[0]) + 0.3, Math.max(w.a[1], w.b[1]) + 0.3], box))) continue;
+          if (d.stairs.some((s) => hit(s.rect, box)) || d.voids.some((v) => (v.level === 'G' || v.level === 'F') && hit(v.rect, box))) continue;
+          if (!d.rooms.some((r) => r.level === 'G' && inside(r.rect, box))) continue;
+          if (needF && !d.rooms.some((r) => r.level === 'F' && inside(r.rect, box))) continue;
+          // no room edge crosses the box (the magnet would pull the dot onto it)
+          const crosses = (r) => { const [x0, z0, x1, z1] = r.rect; const inX = (v) => v > box[0] && v < box[2] && z1 > box[1] && z0 < box[3]; const inZ = (v) => v > box[1] && v < box[3] && x1 > box[0] && x0 < box[2]; return inX(x0) || inX(x1) || inZ(z0) || inZ(z1); };
+          if (d.rooms.some((r) => (r.level === 'G' || r.level === 'F') && crosses(r))) continue;
+          return { x, z };
+        }
+      return null;
+    });
+    assert(!!spot, 'ON2: an empty patch for the stair');
+    const { x, z } = spot;
+    await press(BTN.Y);
+    assert(await toTile('Stair: Main dogleg'), 'ON2: the Build tab has the Stair: Main dogleg tile');
+    await press(BTN.A);
+    assert((await st()).tool === 'stair', 'ON2: A picks the Stair tool');
+    await dotAt(x, z);
+    await page.waitForFunction(() => /start corner of a stair/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const startWords = await dotText();
+    await press(BTN.A);
+    await dotAt(x + 0.3, z + 3);
+    await page.waitForFunction(() => /25 risers/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.stairDraw?.phase === 'proposed' && /A: accept/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const ghost = await E(() => ({ words: document.getElementById('reticleText').textContent, phase: window.__editor.stairDraw?.phase, id: window.__editor.stairDraw?.id }));
+    await shot('on2-stair-ghost');
+    assert(/start corner of a stair \(Main dogleg\) to First/.test(startWords) && ghost.phase === 'proposed' && /25 risers of 0\.168 m, going 0\.285 m, 2 flights \(13 \+ 12\), landing 2 m/.test(ghost.words), `ON2: the proposal in words before A accepts ("${ghost.words.slice(0, 140)}")`);
+    await press(BTN.A);
+    await page.waitForFunction((id) => !window.__editor.stairDraw && !!window.__editor.model.get('stairs', id), ghost.id, { timeout: 5000 }).catch(() => {});
+    const made = await E((id) => {
+      const ed = window.__editor;
+      const s = ed.model.get('stairs', id);
+      const well = s && ed.model.data.voids.find((v) => v.kind === 'stairwell' && v.level === 'F' && v.rect.join() === s.rect.join());
+      return { s, well: well?.id ?? null, h: ed.model.history.length, mesh: ed.view.scene.meshes.some((m) => m.name === `stair ${id}` && m.isEnabled()), sel: ed.selected, card: document.getElementById('selCard').textContent };
+    }, ghost.id);
+    assert(!!made.s && made.s.from === 'G' && made.s.to === 'F' && made.s.layout === 'dogleg' && made.s.kind === 'main' && made.s.risers === 25 && made.s.rect[0] === x && made.s.rect[1] === z && made.s.up === 'N', `ON2: A accepts a 25-riser main dogleg G to F from the corner (${JSON.stringify(made.s?.rect)}, climbs ${made.s?.up})`);
+    assert(!!made.well && made.h === h0 + 1 && made.mesh && made.sel === `stairs:${ghost.id}` && /Fits: 25 risers/.test(made.card), `ON2: its stairwell ${made.well} is on First in the same undo step; drawn in 3D; selected, the card says it fits ("${made.card.slice(0, 80)}")`);
+    await E(([x, z]) => { const o = window.__editor.controls.orbit.s; o.tx = x + 2; o.tz = z + 3; o.yaw = 0.6; o.dist = 12; o.pitch = 1.05; }, [x, z]);
+    await frames(page, 10);
+    await shot('on2-stair-3d');
+
+    // the walk test builds it from the same data: the game's collision has the flights and the landing up to First
+    const foot = await E((id) => { const ed = window.__editor; const s = ed.model.get('stairs', id); return [s.rect[0] + 0.9, s.rect[1] + 0.3]; }, ghost.id);
+    await dot(foot[0], foot[1], 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 90000);
+    p = await player();
+    const flights = await gf().evaluate((r) => window.__app.current.world.level.boxes.filter((b) => b.collide && b.c[0] > r[0] && b.c[0] < r[2] && b.c[2] > r[1] && b.c[2] < r[3] && b.c[1] > 0.2).map((b) => +(b.c[1] + b.s[1] / 2).toFixed(2)), made.s.rect);
+    const high = flights.filter((y) => y > 3).length;
+    assert(Math.abs(p.y) < 0.3 && flights.length >= 3 && high > 0, `ON2: the walk test stands at the stair foot (y ${p.y.toFixed(2)}) and collides with its flights and landing (${flights.length} pieces, ${high} reaching above 3 m)`);
+    const beforeW = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the stair', beforeW);
+    await E(() => window.__editor.undo());
+    const gone = await E((id) => ({ s: !!window.__editor.model.get('stairs', id), text: JSON.stringify(window.__editor.model.data, null, 1) }), ghost.id);
+    assert(!gone.s && gone.text === text0, 'ON2: one undo takes the stair and its well away (the file as before)');
+
+    await E(() => window.__editor.setLevel('G'));
   }
 
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a)');

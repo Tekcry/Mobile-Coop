@@ -55,7 +55,20 @@ export class EditorModel {
   }
 
   list(coll: Coll): Elem[] {
+    if (coll === 'buildings') return (this.data.meta.buildings as Elem[] | undefined) ?? [];
     return (this.data[coll] as Elem[] | undefined) ?? [];
+  }
+
+  /**
+   * Changes an edit brings along (ON2: a stair's stairwell in the floor above, vertical.ts `stairwellLink`). Run on every
+   * commit and preview, so every path (drag, card, panel, delete, rename) keeps them in step in the same undo step.
+   */
+  link: ((data: Campus, changes: readonly Change[]) => Change[]) | null = null;
+
+  private linked(changes: Change[]): Change[] {
+    if (!this.link) return changes;
+    const more = this.link(this.data, changes).filter((m) => !changes.some((c) => c.coll === m.coll && c.id === m.id));
+    return more.length ? [...changes, ...more] : changes;
   }
 
   get<T extends Elem = Elem>(coll: Coll, id: string): T | undefined {
@@ -108,14 +121,31 @@ export class EditorModel {
 
   /** Applies a change's `after` without recording it (live preview while dragging). The final commit records it. */
   preview(coll: Coll, after: Elem): void {
+    const keys = [keyOf(coll, after.id)];
+    if (this.link) {
+      const before = this.snapshot(coll, after.id);
+      for (const c of this.link(this.data, [{ coll, id: after.id, before, after }])) {
+        if (c.after) this.put(c.coll, c.id, clone(c.after));
+        else this.remove(c.coll, c.id);
+        keys.push(keyOf(c.coll, c.id));
+      }
+    }
     this.put(coll, after.id, clone(after));
-    this.emit([keyOf(coll, after.id)]);
+    this.emit(keys);
   }
 
   /** Throws away a previewed element that was never committed (a new wall or room cancelled mid-drag). */
   drop(coll: Coll, id: string): void {
+    const keys = [keyOf(coll, id)];
+    const before = this.snapshot(coll, id);
+    if (this.link && before) {
+      for (const c of this.link(this.data, [{ coll, id, before, after: null }])) {
+        this.remove(c.coll, c.id);
+        keys.push(keyOf(c.coll, c.id));
+      }
+    }
     this.remove(coll, id);
-    this.emit([keyOf(coll, id)]);
+    this.emit(keys);
   }
 
   /** The last edit made with a merge key (selection card steps), for merging the next quick step on the same row. */
@@ -127,6 +157,7 @@ export class EditorModel {
    * that edit is still the newest undo step and not saved, joins it: one undo step, each element's first `before` kept.
    */
   commit(text: string, changes: Change[], merge?: { key: string; at: number; within: number }): boolean {
+    changes = this.linked(changes);
     const lm = this.lastMerge;
     if (merge && lm && lm.key === merge.key && merge.at - lm.at <= merge.within && this.past[this.past.length - 1] === lm.edit && !this.savedPast.includes(lm.edit) && !this.future.length) {
       const real = changes.filter((c) => JSON.stringify(c.before) !== JSON.stringify(c.after));
@@ -177,11 +208,12 @@ export class EditorModel {
     for (const c of edit.changes.slice().reverse()) {
       if (c.before === null) this.remove(c.coll, c.id);
       else if (c.after === null) this.insert(c.coll, clone(c.before), c.index);
-      else this.put(c.coll, c.id, clone(c.before));
+      // (a renamed element is found by its new id, ON2)
+      else this.put(c.coll, c.after.id, clone(c.before));
     }
     this.future.push(edit);
     this.record('undo', edit);
-    this.emit(edit.changes.map((c) => keyOf(c.coll, c.id)));
+    this.emit(changeKeys(edit.changes));
     return edit;
   }
 
@@ -235,10 +267,10 @@ export class EditorModel {
         // index read just before each removal, so undo (in reverse) restores the order exactly
         c.index = this.list(c.coll).findIndex((e) => e.id === c.id);
         this.remove(c.coll, c.id);
-      } else if (c.before === null) this.insert(c.coll, clone(c.after));
+      } else if (c.before === null) this.insert(c.coll, clone(c.after), c.index);
       else this.put(c.coll, c.id, clone(c.after));
     }
-    this.emit(edit.changes.map((c) => keyOf(c.coll, c.id)));
+    this.emit(changeKeys(edit.changes));
   }
 
   private record(action: JournalEntry['action'], edit: Edit): void {
@@ -247,6 +279,10 @@ export class EditorModel {
 
   private arr(coll: Coll): Elem[] {
     this.version++;
+    if (coll === 'buildings') {
+      if (!Array.isArray(this.data.meta.buildings)) this.data.meta.buildings = [];
+      return this.data.meta.buildings as Elem[];
+    }
     if (!Array.isArray(this.data[coll])) (this.data as Record<string, unknown>)[coll] = [];
     return this.data[coll] as Elem[];
   }
@@ -275,6 +311,16 @@ export class EditorModel {
     this.version++;
     for (const fn of this.listeners) fn(keys);
   }
+}
+
+/** Every key an edit touched: a renamed element under its old and its new id. */
+function changeKeys(changes: readonly Change[]): Key[] {
+  const out: Key[] = [];
+  for (const c of changes) {
+    out.push(keyOf(c.coll, c.id));
+    if (c.after && c.after.id !== c.id) out.push(keyOf(c.coll, c.after.id));
+  }
+  return out;
 }
 
 /** The campus file text exactly as the Kestrel tools write it (one-space indent, LF, trailing newline). */

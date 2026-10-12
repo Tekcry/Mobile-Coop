@@ -10,11 +10,11 @@ const c = { step: 0.1, wallLen: 6 };
 
 describe('selection card rows (ON0a decision 4)', () => {
   it('Type first, then the element own fields', () => {
-    expect(cardRows('openings', door).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Height', 'Sill', 'Along wall', 'Locked']);
-    expect(cardRows('walls', wall).map((r) => r.label)).toEqual(['Type', 'Name', 'Thickness', 'Height', 'Length']);
-    expect(cardRows('rooms', room).map((r) => `${r.label} ${r.value}`)).toEqual(['Type Room', 'Name Office', 'Width 4 m', 'Depth 3 m', `Access ${RING_NAMES[2]}`]);
-    expect(cardRows('stairs', { id: 'S', kind: 'stair', from: 'G', to: 'F', rect: [0, 0, 2, 5], up: 'N' })[0]!.label).toBe('Name');
-    expect(cardRows('ladders', { id: 'L', at: [1, 1], from: 'G', to: 'F' }).map((r) => r.label)).toEqual(['Name', 'Facing']);
+    expect(cardRows('openings', door).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Height', 'Sill', 'Along wall', 'Locked', 'Id']);
+    expect(cardRows('walls', wall).map((r) => r.label)).toEqual(['Type', 'Name', 'Thickness', 'Height', 'Length', 'Id']);
+    expect(cardRows('rooms', room).map((r) => `${r.label} ${r.value}`)).toEqual(['Type Room', 'Name Office', 'Width 4 m', 'Depth 3 m', `Access ${RING_NAMES[2]}`, `Id ${room.id}`]);
+    expect(cardRows('stairs', { id: 'S', kind: 'stair', from: 'G', to: 'F', rect: [0, 0, 2, 5], up: 'N' }).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Depth', 'Climbs', 'To level', 'Id']);
+    expect(cardRows('ladders', { id: 'L', at: [1, 1], from: 'G', to: 'F' }).map((r) => r.label)).toEqual(['Name', 'Facing', 'To level', 'Id']);
   });
 
   it('step sizes: lengths by 0.1 m, lists by one entry (wrapping), flags on / off', () => {

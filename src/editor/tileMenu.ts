@@ -7,6 +7,7 @@
 import { fmt } from './geometry';
 import { DOOR_NAMES, OPENING_TYPES } from './ops';
 import { ROOM_OPTIONS } from './roomWalls';
+import { STAIR_TYPES } from './vertical';
 import type { Coll } from './types';
 
 export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Lights', 'Mission', 'View'] as const;
@@ -79,7 +80,7 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids';
       const t: (Tile | false)[] = [
         { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
         { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
@@ -87,6 +88,9 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         copies && { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Paste it from the Build tab', kind: 'go' },
         copies && { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up', kind: 'go' },
         s.coll === 'rooms' && { id: 'sel.split', icon: 'S', name: 'Split', desc: 'A line across the room; RB turns it', kind: 'go' },
+        s.coll === 'stairs' && { id: 'sel.fit', icon: 'F', name: 'Fit', desc: 'The smallest legal size from its start corner', kind: 'go' },
+        s.coll === 'stairs' && { id: 'sel.turnClimb', icon: 'A', name: 'Turn climb 90', desc: 'The climb turns; the stair stays put', kind: 'go' },
+        { id: 'sel.rename', icon: 'I', name: 'Rename id', desc: 'Every reference follows', kind: 'go' },
         types && { id: 'sel.type', icon: 'T', name: 'Change type', desc: 'The card\'s Type row: left / right', kind: 'go' },
         s.gap === true && { id: 'sel.closeGap', icon: 'G', name: 'Close gap', desc: 'The wall end moves onto the wall it nearly meets', kind: 'go' },
         { id: 'sel.props', icon: 'P', name: 'Properties', desc: 'Every field in the side panel', kind: 'go' },
@@ -99,6 +103,9 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         { id: 'select', icon: 'S', name: 'Select', desc: 'Pick, grab and move what the dot is on', kind: 'go' },
         ...ROOM_OPTIONS.map((o): Tile => ({ id: `room.${o.id}`, icon: 'R', name: o.id === 'walls' ? 'Room with walls' : o.id === 'outside' ? 'Room with outside walls' : 'Room only', desc: 'A at one corner, A at the opposite one', kind: 'go' })),
         { id: 'build.wall', icon: 'W', name: 'Wall', desc: 'A at one end, A at the other', kind: 'go' },
+        ...STAIR_TYPES.map((t): Tile => ({ id: `stair.${t.id}`, icon: 'S', name: t.id === 'main-straight' ? 'Straight stair' : `Stair: ${t.name}`, desc: 'A at the start corner, point the climb, A, A', kind: 'go' })),
+        { id: 'build.ladder', icon: 'L', name: 'Ladder', desc: 'A on a wall face: up to the level above', kind: 'go' },
+        { id: 'build.hole', icon: 'H', name: 'Floor hole', desc: 'A at one corner, A at the other', kind: 'go' },
         { id: 'build.measure', icon: 'M', name: 'Measure', desc: 'A at one point, A at the other', kind: 'go' },
         { id: 'build.paste', icon: 'P', name: 'Paste', desc: 'At the dot, on this level', kind: 'go', disabled: copyFirst },
         { id: 'build.pasteUp', icon: 'P', name: 'Paste to level above', desc: 'Same spot, one level up', kind: 'go', disabled: copyFirst },

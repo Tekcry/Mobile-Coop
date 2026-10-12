@@ -55,6 +55,7 @@ export interface ArchStair {
   width: number;
   risers: number;
   layout?: string;
+  flights?: number;
 }
 export interface ArchVoid {
   id: string;
@@ -246,86 +247,10 @@ export function floorTiles(arch: KestrelArch, levelId: string): FloorTile[] {
   return out;
 }
 
-export interface Flight {
-  /** Centre of the flight's plan, width across, length along `yaw`. */
-  c: [number, number];
-  w: number;
-  len: number;
-  /** Climb direction (0 = +Z, as `LevelBuilder.stairs`). */
-  yaw: number;
-  /** Height of its low end, rise over its length, and the number of steps (risers). */
-  y: number;
-  rise: number;
-  steps: number;
-}
-export interface StairLayout {
-  flights: Flight[];
-  /** Mid landing of a dog-leg: plan rect and top height. */
-  landing: { rect: Rect4; top: number } | null;
-  /** On flight 1 near its foot (level `from`) and on the last flight near its head (level `to`). */
-  foot: [number, number];
-  head: [number, number];
-}
-
-const DIR: Record<string, [number, number, number]> = { N: [0, 1, 0], S: [0, -1, Math.PI], E: [1, 0, Math.PI / 2], W: [-1, 0, -Math.PI / 2] };
-
-/**
- * A stair as flights. Flights run from the stair rect's edge on the `from` side to the far edge, inset from the walls by half
- * the thinnest wall. A dog-leg (the layout of every stair in the block plan) is two flights side by side, a landing as deep
- * as the stair is wide at the far end; the first flight sits in the column nearer the opening on the `from` level's edge.
- */
-export function stairLayout(arch: KestrelArch, s: ArchStair): StairLayout {
-  const from = levelOf(arch, s.from);
-  const to = levelOf(arch, s.to);
-  const [dx, dz, yaw] = DIR[s.up]!;
-  const alongZ = dx === 0;
-  const half = arch.walls.reduce((m, q) => Math.min(m, q.t), Infinity) / 2;
-  const [x0, z0, x1, z1] = s.rect;
-  const a0 = alongZ ? z0 : x0;
-  const a1 = alongZ ? z1 : x1;
-  const c0 = (alongZ ? x0 : z0) + half;
-  const c1 = (alongZ ? x1 : z1) - half;
-  const dir = alongZ ? dz : dx;
-  const u0 = dir > 0 ? a0 : a1;
-  const uFar = dir > 0 ? a1 : a0;
-  const total = to.floor - from.floor;
-  const at = (u: number, c: number): [number, number] => (alongZ ? [c, u] : [u, c]);
-  const dog = s.layout === 'dogleg';
-  const w = s.width;
-  const run = dog ? Math.abs(uFar - u0) - w : Math.abs(uFar - u0);
-  const rise = dog ? total / 2 : total;
-  const steps = dog ? s.risers / 2 : s.risers;
-  const uEnd = u0 + dir * run;
-  const mid = (u0 + uEnd) / 2;
-  const colLow = c0 + w / 2;
-  const colHigh = c1 - w / 2;
-  if (!dog) {
-    const col = (c0 + c1) / 2;
-    return { flights: [{ c: at(mid, col), w, len: run, yaw, y: from.floor, rise, steps }], landing: null, foot: at(u0 + dir * 0.1, col), head: at(uEnd - dir * 0.1, col) };
-  }
-  // the opening on the start edge decides the column of flight 1
-  let first = colLow;
-  for (const o of arch.openings) {
-    const wall = arch.walls.find((q) => q.id === o.wall);
-    if (!wall || wall.level !== s.from) continue;
-    const onEdge = alongZ ? Math.abs(wall.a[1] - u0) < EPS && Math.abs(wall.b[1] - u0) < EPS : Math.abs(wall.a[0] - u0) < EPS && Math.abs(wall.b[0] - u0) < EPS;
-    if (!onEdge) continue;
-    const ai = alongZ ? 0 : 1;
-    const centre = wall.a[ai]! + (wall.b[ai]! >= wall.a[ai]! ? 1 : -1) * o.at;
-    if (centre > c0 && centre < c1) first = Math.abs(centre - colLow) <= Math.abs(centre - colHigh) ? colLow : colHigh;
-  }
-  const second = first === colLow ? colHigh : colLow;
-  const lRect: Rect4 = alongZ ? [c0, Math.min(uEnd, uFar), c1, Math.max(uEnd, uFar)] : [Math.min(uEnd, uFar), c0, Math.max(uEnd, uFar), c1];
-  return {
-    flights: [
-      { c: at(mid, first), w, len: run, yaw, y: from.floor, rise, steps },
-      { c: at(mid, second), w, len: run, yaw: yaw + Math.PI, y: from.floor + rise, rise, steps },
-    ],
-    landing: { rect: lRect, top: from.floor + rise },
-    foot: at(u0 + dir * 0.1, first),
-    head: at(u0 + dir * 0.1, second),
-  };
-}
+// ON2: the stair layout moved to stairs.ts (one copy of the stair maths, shared with the level editor)
+import { stairLayout } from './stairs';
+export { stairLayout };
+export type { Flight, StairLayout } from './stairs';
 
 export interface DebugSpot {
   room: string;

@@ -6,14 +6,15 @@
  */
 import { fmt, normRect, wallLen } from './geometry';
 import { DOOR_NAMES, OPENING_TYPES, ROOM_KINDS, WALL_KINDS } from './ops';
-import type { Coll, Elem, Ladder, Opening, Rect, Room, Stair, Wall } from './types';
+import { HOLE_KINDS, HOLE_NAMES, STAIR_FACTS, STAIR_TYPES, stairType, stairTypeOf, withStairType } from './vertical';
+import type { Coll, Elem, Ladder, Opening, Rect, Room, Stair, Void, Wall } from './types';
 
 /** Room access rings (schema.md: `ring`), shown as words. */
 export const RING_NAMES = ['Perimeter (yard, public lane)', 'Level 1 - reception, goods-in', 'Level 2 - staff', 'Level 3 - higher card', 'Level 4 - data hall, tunnels', 'Level 5 - meet-me, riser'];
 const DIRS = ['N', 'E', 'S', 'W'];
 const DIR_WORDS: Record<string, string> = { N: 'North', E: 'East', S: 'South', W: 'West' };
 
-export type CardKind = 'list' | 'len' | 'flag' | 'name';
+export type CardKind = 'list' | 'len' | 'flag' | 'name' | 'id';
 export interface CardRow {
   id: string;
   label: string;
@@ -27,6 +28,8 @@ export const CARD_MERGE_S = 1;
 const cap = (s: string): string => (s ? s[0]!.toUpperCase() + s.slice(1) : s);
 const m = (v: number): string => `${fmt(v)} m`;
 const nameRow = (e: Elem): CardRow => ({ id: 'name', label: 'Name', value: typeof e.name === 'string' && e.name ? e.name : '(none)', kind: 'name' });
+/** ON2: the id, last on every card; A opens the keyboard to rename it (every reference follows). */
+const idRow = (e: Elem): CardRow => ({ id: 'id', label: 'Id', value: e.id, kind: 'id' });
 const sizeRows = (r: Rect): CardRow[] => [
   { id: 'width', label: 'Width', value: m(r[2] - r[0]), kind: 'len' },
   { id: 'depth', label: 'Depth', value: m(r[3] - r[1]), kind: 'len' },
@@ -44,6 +47,7 @@ export function cardRows(coll: Coll, e: Elem): CardRow[] {
       { id: 'sill', label: 'Sill', value: m(o.sill), kind: 'len' },
       { id: 'at', label: 'Along wall', value: m(o.at), kind: 'len' },
       { id: 'locked', label: 'Locked', value: o.locked === true ? 'yes' : 'no', kind: 'flag' },
+      idRow(e),
     ];
   }
   if (coll === 'walls') {
@@ -54,6 +58,7 @@ export function cardRows(coll: Coll, e: Elem): CardRow[] {
       { id: 't', label: 'Thickness', value: m(w.t), kind: 'len' },
       { id: 'h', label: 'Height', value: m(w.h), kind: 'len' },
       { id: 'len', label: 'Length', value: m(wallLen(w)), kind: 'len' },
+      idRow(e),
     ];
   }
   if (coll === 'rooms') {
@@ -63,11 +68,23 @@ export function cardRows(coll: Coll, e: Elem): CardRow[] {
       nameRow(e),
       ...sizeRows(r.rect),
       { id: 'ring', label: 'Access', value: RING_NAMES[r.ring ?? 0] ?? String(r.ring), kind: 'list' },
+      idRow(e),
     ];
   }
-  if (coll === 'stairs') return [nameRow(e), ...sizeRows((e as Stair).rect), { id: 'up', label: 'Climbs', value: DIR_WORDS[(e as Stair).up] ?? (e as Stair).up, kind: 'list' }];
-  if (coll === 'voids') return [nameRow(e), ...sizeRows((e as { rect: Rect }).rect)];
-  return [nameRow(e), { id: 'facing', label: 'Facing', value: DIR_WORDS[(e as Ladder).facing ?? 'N'] ?? '', kind: 'list' }];
+  if (coll === 'stairs') {
+    const st = e as Stair;
+    return [
+      { id: 'type', label: 'Type', value: stairType(stairTypeOf(st)).name, kind: 'list' },
+      nameRow(e),
+      ...sizeRows(st.rect),
+      { id: 'up', label: 'Climbs', value: DIR_WORDS[st.up] ?? st.up, kind: 'list' },
+      { id: 'to', label: 'To level', value: st.to, kind: 'list' },
+      idRow(e),
+    ];
+  }
+  if (coll === 'voids') return [{ id: 'type', label: 'Type', value: HOLE_NAMES[(e as Void).kind] ?? (e as Void).kind, kind: 'list' }, nameRow(e), ...sizeRows((e as { rect: Rect }).rect), idRow(e)];
+  if (coll === 'ladders') return [nameRow(e), { id: 'facing', label: 'Facing', value: DIR_WORDS[(e as Ladder).facing ?? 'N'] ?? '', kind: 'list' }, { id: 'to', label: 'To level', value: (e as Ladder).to, kind: 'list' }, idRow(e)];
+  return [nameRow(e), idRow(e)];
 }
 
 const wrap = <T>(list: readonly T[], cur: T, dir: number): T => list[(Math.max(0, list.indexOf(cur)) + dir + list.length) % list.length]!;
@@ -78,6 +95,8 @@ export interface StepCtx {
   step: number;
   /** The opening's wall length (openings only), to keep it on its wall. */
   wallLen?: number;
+  /** The file's levels (stairs and ladders: the To level row steps through the levels above `from`). */
+  levels?: readonly { id: string; floor: number }[];
 }
 
 /**
@@ -91,7 +110,18 @@ export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepC
     if (coll === 'openings') a.type = wrap(OPENING_TYPES, (e as Opening).type, dir);
     else if (coll === 'walls') a.kind = wrap(WALL_KINDS, (e as Wall).kind, dir);
     else if (coll === 'rooms') a.kind = wrap(ROOM_KINDS, (e as Room).kind, dir);
+    else if (coll === 'stairs') return withStairType(e as Stair, wrap(STAIR_TYPES.map((t) => t.id), stairTypeOf(e as Stair), dir)) as Elem;
+    else if (coll === 'voids') a.kind = wrap(HOLE_KINDS, (e as Void).kind as (typeof HOLE_KINDS)[number], dir);
     else return null;
+  } else if (row === 'to' && (coll === 'stairs' || coll === 'ladders')) {
+    const ls = c.levels ?? [];
+    const from = ls.find((l) => l.id === (e as Stair).from);
+    const above = ls.filter((l) => from && l.floor > from.floor).sort((p, q) => p.floor - q.floor).map((l) => l.id);
+    if (above.length < 2 || !from) return null;
+    a.to = wrap(above, (e as Stair).to, dir);
+    // a stair takes the rule's risers for its new rise (the well moves with it: vertical.ts stairwellLink)
+    const to = ls.find((l) => l.id === a.to)!;
+    if (coll === 'stairs') a.risers = Math.max(2, Math.round((to.floor - from.floor) / STAIR_FACTS.riserHeight));
   } else if (row === 'locked') a.locked = !(e as Opening).locked;
   else if (row === 'ring') a.ring = (((e as Room).ring ?? 0) + dir + RING_NAMES.length) % RING_NAMES.length;
   else if (row === 'up') a.up = wrap(DIRS, (e as Stair).up, dir);
@@ -129,8 +159,10 @@ export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepC
 export const KEYBOARD: readonly string[] = [...'ABCDEFGHIJ', ...'KLMNOPQRST', ...'UVWXYZ-()/', ...'0123456789', 'Space', 'Delete', 'Clear', 'Done'];
 export const KEYBOARD_COLS = 10;
 
-/** A key typed into a name: letters are capitals at the start of a word, small letters elsewhere. 'Done' is the caller's. */
-export function typeKey(text: string, key: string): string {
+/** A key typed into a name: letters are capitals at the start of a word, small letters elsewhere; `raw` (ids) keeps every capital and drops spaces. 'Done' is the caller's. */
+export function typeKey(text: string, key: string, raw = false): string {
+  if (raw && key === 'Space') return text;
+  if (raw && key.length === 1) return text + key;
   if (key === 'Space') return text.endsWith(' ') || !text ? text : `${text} `;
   if (key === 'Delete') return text.slice(0, -1);
   if (key === 'Clear') return '';

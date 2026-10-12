@@ -27,10 +27,15 @@ import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpen
 import { WallChain } from './chain';
 import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './liveSizes';
 import type { LiveInfo, LiveShape } from './liveSizes';
-import type { Campus, Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
+import type { Campus, Coll, Elem, Key, Ladder, Level, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
+import { fitStair, HOLE_KINDS, HOLE_NAMES, holeId, ladderId, newHole, proposeLadder, proposeStair, STAIR_TYPES, stairFit, stairId, stairType, stairTypeOf, stairwellLink, turnClimb, withStairType } from './vertical';
+import type { StairTypeId } from './vertical';
+import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole';
+/** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
+const LADDER_REACH = 1.2;
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -144,8 +149,21 @@ export class Editor {
   private planFullBox: number[] | null = null;
   private draftTimer = 0;
 
+  /** The Stair tool's type and the Floor hole tool's kind (the tool bar's lists, D-pad left / right with the tool). */
+  stairTypeId: StairTypeId = 'main-dogleg';
+  holeKind = 'liftshaft';
+  /**
+   * The Stair tool (ON2): A at the start corner ('aim': the dot points the climb, the proposal follows), A again ('proposed':
+   * the ghost holds still with its words), A accepts, B cancels. The proposal is previewed in the model as a real stair.
+   */
+  stairDraw: { level: string; start: Pt; id: string; phase: 'aim' | 'proposed'; words: string; key: string; ok: boolean } | null = null;
+  /** Hub > Levels > Edit building outlines: the outlines are drawn in 3D and their edges are rows on the Levels tab. */
+  outlines = false;
+
   constructor(data: Campus) {
     this.model = new EditorModel(data);
+    // ON2: a stair's stairwell moves, resizes and goes with it in the same edit
+    this.model.link = stairwellLink;
     this.chain = new WallChain(this.model);
     const canvas = $<HTMLCanvasElement>('c');
     this.view = new EditorScene(canvas, this.model);
@@ -244,7 +262,14 @@ export class Editor {
 
   // ---------- model changes ----------
   private changed(keys: Key[]): void {
-    this.view.refresh(keys);
+    // a level or building edit moves floors and outlines: rebuild the 3D and the level lists
+    if (keys.some((k) => k.startsWith('levels:') || k.startsWith('buildings:'))) {
+      this.view.rebuildAll();
+      this.refreshLevelLists();
+      if (!this.model.data.levels.some((l) => l.id === this.view.level)) this.setLevel(this.model.data.levels.find((l) => l.id === 'G')?.id ?? this.model.data.levels[0]?.id ?? '');
+      this.view.setOutlines(this.outlines);
+      this.pad?.hub.render();
+    } else this.view.refresh(keys);
     if (this.selected && !this.selectedElem()) this.select(null);
     this.updateHandles();
     this.rebuildBlockers();
@@ -366,12 +391,18 @@ export class Editor {
       const r = (s.e as Room).rect;
       const cx = (r[0] + r[2]) / 2;
       const cz = (r[1] + r[3]) / 2;
-      return [
+      const hs = [
         { id: 'W', x: r[0], z: cz, y: f + 0.3 },
         { id: 'E', x: r[2], z: cz, y: f + 0.3 },
         { id: 'S', x: cx, z: r[1], y: f + 0.3 },
         { id: 'N', x: cx, z: r[3], y: f + 0.3 },
       ];
+      // ON2: a stair's arrow handle, a third of the way along the climb from the centre: a click turns the climb 90 degrees
+      if (s.coll === 'stairs') {
+        const d = ({ N: [0, 1], S: [0, -1], E: [1, 0], W: [-1, 0] } as Record<string, [number, number]>)[(s.e as Stair).up] ?? [0, 1];
+        hs.push({ id: 'turn', x: cx + (d[0] * (r[2] - r[0])) / 3, z: cz + (d[1] * (r[3] - r[1])) / 3, y: f + 0.6 });
+      }
+      return hs;
     }
     if (s.coll === 'walls') {
       const w = s.e as Wall;
@@ -404,6 +435,8 @@ export class Editor {
   beginDrag(coll: Coll, id: string, handle: string | null, start: Pt, planeY: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad', isNew = false): void {
     const before = this.model.snapshot(coll, id);
     if (!before) return;
+    // the stair's arrow handle is a click, not a drag
+    if (coll === 'stairs' && handle === 'turn') return this.turnStairClimb();
     this.drag = { coll, id, handle, before, start, planeY, moved: isNew, sx, sy, source, isNew };
     this.updateHint();
   }
@@ -649,6 +682,17 @@ export class Editor {
       const w = newWall(this.model, lvl, p, p, this.wallTemplate ?? undefined);
       this.model.preview('walls', w);
       this.beginDrag('walls', w.id, null, p, this.viewFloor(), sx, sy, source, true);
+    } else if (this.tool === 'stair') {
+      this.stairStep(p);
+    } else if (this.tool === 'ladder') {
+      const r = proposeLadder(this.model.data, lvl, [x, z], ladderId(this.model.data), g, LADDER_REACH);
+      if ('why' in r) return this.status(r.why);
+      this.commitText(`Added ${r.ladder.id}: ${r.words}`, [{ coll: 'ladders', id: r.ladder.id, before: null, after: r.ladder }]);
+      this.select(keyOf('ladders', r.ladder.id));
+    } else if (this.tool === 'hole') {
+      const v = newHole(lvl, [p[0], p[1], p[0], p[1]], this.holeKind, holeId(this.model.data, lvl));
+      this.model.preview('voids', v);
+      this.beginDrag('voids', v.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'door' || this.tool === 'window') {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
@@ -658,6 +702,231 @@ export class Editor {
       this.commit([{ coll: 'openings', id: o.id, before: null, after: o }]);
       this.select(keyOf('openings', o.id));
     }
+  }
+
+  // ---------- stairs, ladders, floor holes (ON2) ----------
+  /** One A (or click) with the Stair tool: start, then propose (the ghost holds), then accept. */
+  stairStep(p: Pt): void {
+    const sd = this.stairDraw;
+    if (!sd) {
+      this.stairDraw = { level: this.view.level, start: p, id: stairId(this.model.data), phase: 'aim', words: '', key: '', ok: false };
+      this.aimStair(p[0], p[1] + this.grid);
+      const now = this.stairDraw as { words: string } | null;
+      if (now) this.status(`Stair: point the climb with the dot, A (click) shows the proposal, B cancels. ${now.words}`);
+      this.updateHint();
+      return;
+    }
+    if (sd.phase === 'aim') {
+      this.aimStair(p[0], p[1]);
+      if (!sd.ok) return this.status(sd.words);
+      sd.phase = 'proposed';
+      this.status(`${sd.words}. A (click) accepts, B (Esc) cancels`);
+      return;
+    }
+    const st = this.model.snapshot<Stair>('stairs', sd.id);
+    this.stairDraw = null;
+    if (!st) return;
+    const to = this.model.data.levels.find((l) => l.id === st.to)?.name ?? st.to;
+    this.commitText(`Added ${st.name ?? 'stair'} (${st.id}) with its well on ${to}: ${sd.words}`, [{ coll: 'stairs', id: st.id, before: null, after: st }]);
+    this.setTool('select');
+    this.select(keyOf('stairs', st.id));
+    this.status(`Placed: ${sd.words}`);
+  }
+
+  /** The dot (or pointer) moved while aiming a stair: the proposal follows it (previewed only when it changes). */
+  aimStair(x: number, z: number): void {
+    const sd = this.stairDraw;
+    if (!sd || sd.phase !== 'aim') return;
+    const r = proposeStair(this.model.data, sd.level, sd.start, [x, z], this.stairTypeId, sd.id, this.grid);
+    if ('why' in r) {
+      sd.ok = false;
+      sd.words = r.why;
+      if (this.model.get('stairs', sd.id)) this.model.drop('stairs', sd.id);
+      sd.key = '';
+      return;
+    }
+    sd.ok = true;
+    sd.words = r.words;
+    const key = JSON.stringify(r.stair);
+    if (key === sd.key) return;
+    sd.key = key;
+    this.model.preview('stairs', r.stair);
+  }
+
+  /** B, Esc or a tool change while drawing a stair: the proposal (and its well) go. */
+  cancelStair(): void {
+    const sd = this.stairDraw;
+    if (!sd) return;
+    this.stairDraw = null;
+    if (this.model.get('stairs', sd.id)) this.model.drop('stairs', sd.id);
+    this.status('Stair cancelled');
+    this.updateHint();
+  }
+
+  /** The Stair tool's type: D-pad left / right with the tool, the tool bar list, the Build tab's Stair tiles. */
+  setStairType(id: StairTypeId): void {
+    this.stairTypeId = id;
+    const sel = document.getElementById('stairType') as HTMLSelectElement | null;
+    if (sel) sel.value = id;
+    const sd = this.stairDraw;
+    if (sd?.phase === 'aim') {
+      sd.key = '';
+      this.aimStair(sd.start[0], sd.start[1] + this.grid);
+    }
+  }
+
+  /** The Floor hole tool's kind (stairwell, lift shaft, riser, hatch, roof light). */
+  setHoleKind(k: string): void {
+    this.holeKind = k;
+    const sel = document.getElementById('holeKind') as HTMLSelectElement | null;
+    if (sel) sel.value = k;
+  }
+
+  /** The selected stair's fit in words ("Needs 1.4 m more length for 25 risers"). */
+  stairWords(s: Stair): string {
+    return stairFit(this.model.data, s).words;
+  }
+
+  /** Selected > Fit (ON2 decision 2): the smallest legal rect from the corner it was drawn from. */
+  fitSelected(): void {
+    const s = this.selectedElem();
+    if (!s || s.coll !== 'stairs') return this.status('Select a stair to fit');
+    const after = fitStair(this.model.data, s.e as Stair, this.grid);
+    if (!after) return this.status(`Already fits: ${this.stairWords(s.e as Stair)}`);
+    this.commitText(`Fitted ${label(this.model.data, 'stairs', s.e)} to ${fmt(after.rect[2] - after.rect[0])} x ${fmt(after.rect[3] - after.rect[1])} m, ${after.risers} risers`, [{ coll: 'stairs', id: s.id, before: s.e, after }]);
+  }
+
+  /** The stair's arrow handle (and Selected > Turn climb): the climb turns 90 degrees, the rect stays. */
+  turnStairClimb(): void {
+    const s = this.selectedElem();
+    if (!s || s.coll !== 'stairs') return;
+    const after = turnClimb(s.e as Stair);
+    this.commit([{ coll: 'stairs', id: s.id, before: s.e, after }]);
+    this.status(`Climbs ${after.up}: ${this.stairWords(after)}`);
+  }
+
+  /**
+   * Renames the selected element's id (ON2 decision 10): every reference in the file follows in the same edit, on its own
+   * change-log line. A taken or empty id is refused; an id out of the file's style is kept with a warning.
+   */
+  renameSelected(id: string): boolean {
+    const s = this.selectedElem();
+    if (!s) return false;
+    return this.renameId(s.coll, s.id, id.trim());
+  }
+
+  renameId(coll: Coll, old: string, id: string): boolean {
+    const prob = idProblem(this.model.data, coll, old, id);
+    if (prob.block) {
+      this.status(prob.text);
+      return false;
+    }
+    if (id === old) return false;
+    const refs = refCount(this.model.data, coll, old);
+    const changes = renameChanges(this.model.data, coll, old, id);
+    if (!changes.length) return false;
+    const wasSel = this.selected === keyOf(coll, old);
+    const editing = coll === 'levels' && this.view.level === old;
+    if (editing) this.view.level = id;
+    this.commitText(`Renamed ${old} to ${id}${refs ? ` (${refs} reference${refs === 1 ? '' : 's'} updated)` : ''}`, changes);
+    if (wasSel) this.select(keyOf(coll, id));
+    if (editing) this.setLevel(id);
+    if (prob.text) this.status(`Renamed ${old} to ${id}; warning: ${prob.text}`);
+    return true;
+  }
+
+  // ---------- levels (ON2 decisions 7-9) ----------
+  /** Adds a level above or below the editing level, named `name`; the editing level moves to it. */
+  addLevelHere(where: 'above' | 'below', name: string): void {
+    const e = addLevel(this.model.data, this.view.level, where, name);
+    if (!e) return;
+    this.commitText(e.words, e.changes);
+    if (e.id) this.setLevel(e.id);
+  }
+
+  /** Duplicates the editing level one storey up (rooms, walls, openings, objects, floor holes with new ids). */
+  duplicateLevelHere(name: string): void {
+    const e = duplicateLevel(this.model.data, this.view.level, name);
+    if (!e) return;
+    this.commitText(e.words, e.changes);
+    if (e.id) this.setLevel(e.id);
+  }
+
+  /** Deletes the editing level after a confirm that lists what goes with it; the editing level drops to the one below. */
+  async deleteLevelHere(): Promise<void> {
+    const id = this.view.level;
+    const l = this.model.data.levels.find((q) => q.id === id);
+    if (!l) return;
+    if (this.model.data.levels.length < 2) return this.status('The last level cannot be deleted');
+    const what = countWords(levelContents(this.model.data, id));
+    if (!(await this.ask(`Delete level ${l.name} (${id})? With it go ${what}.`, 'Delete', 'Keep'))) return;
+    const e = deleteLevel(this.model.data, id);
+    if (!e) return;
+    const rest = this.model.data.levels.filter((q) => q.id !== id);
+    const below = rest.filter((q) => q.floor <= l.floor).sort((a, b) => b.floor - a.floor)[0] ?? rest[0];
+    this.select(null);
+    if (below) this.setLevel(below.id);
+    this.commitText(e.words, e.changes);
+  }
+
+  /** A new name for the editing level (its id stays; Rename id changes that). */
+  renameLevelHere(name: string): void {
+    const l = this.model.snapshot<Level>('levels', this.view.level);
+    if (!l || !name || name === l.name) return;
+    this.commitText(`Renamed level ${l.name} (${l.id}) to ${name}`, [{ coll: 'levels', id: l.id, before: l, after: { ...l, name } }]);
+  }
+
+  /**
+   * A new storey height for the editing level (ON2 decision 8): the levels above move by the difference; walls that were
+   * exactly the old height are offered a stretch ("47 walls were 4.2 m: stretch to 4.5 m?"). One undo step either way.
+   */
+  async setStoreyHeight(h: number): Promise<void> {
+    const l = this.model.data.levels.find((q) => q.id === this.view.level);
+    if (!l || h <= 0 || Math.abs(h - l.height) < 1e-6) return;
+    const n = wallsAtHeight(this.model.data, l.id, l.height);
+    const stretch = n > 0 && (await this.ask(`${n} wall${n === 1 ? ' was' : 's were'} ${fmt(l.height)} m: stretch to ${fmt(h)} m?`, 'Stretch', 'Leave them'));
+    const e = storeyChange(this.model.data, l.id, h, stretch);
+    if (!e) return;
+    this.commitText(e.words, e.changes);
+  }
+
+  /** Hub > Levels > Edit building outlines: on / off; the outlines draw in 3D while it is on. */
+  setOutlines(on: boolean): void {
+    this.outlines = on;
+    this.view.setOutlines(on);
+  }
+
+  /** One edge of a building outline moved one grid step (quick steps on the same edge are one undo step). */
+  moveOutline(id: string, edge: 'W' | 'S' | 'E' | 'N', dir: 1 | -1): void {
+    const c = moveBuildingEdge(this.model.data, id, edge, dir * this.grid, this.grid);
+    if (!c.length) return;
+    const r = (c[0]!.after as unknown as { footprint: Rect }).footprint;
+    const i = { W: 0, S: 1, E: 2, N: 3 }[edge];
+    const word = { W: 'west', S: 'south', E: 'east', N: 'north' }[edge];
+    this.commitText(`Building ${id} ${word} edge to ${fmt(r[i]!)} (${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m)`, c, { key: `outline:${id}:${edge}`, at: performance.now() / 1000, within: 1 });
+  }
+
+  /** The editing level's and the pick menu's lists after a level is added, removed, renamed or moved. */
+  refreshLevelLists(): void {
+    const levels = this.model.data.levels.slice().sort((a, b) => b.floor - a.floor);
+    const words = (l: { name: string; floor: number }): string => `${esc(l.name)} (${fmt(l.floor)} m)`;
+    const sel = document.getElementById('level') as HTMLSelectElement | null;
+    if (sel) {
+      sel.innerHTML = levels.map((l) => `<option value="${esc(l.id)}">${words(l)}</option>`).join('');
+      sel.value = this.view.level;
+    }
+    const menu = document.querySelector('#pick .menu');
+    if (menu) {
+      menu.innerHTML = levels.map((l) => `<label><input type="checkbox" data-level="${esc(l.id)}"> ${words(l)}</label>`).join('');
+      for (const c of menu.querySelectorAll<HTMLInputElement>('input[data-level]'))
+        c.addEventListener('change', () => {
+          const vis = this.view.vis;
+          vis.picked = [...menu.querySelectorAll<HTMLInputElement>('input[data-level]')].filter((x) => x.checked).map((x) => x.dataset.level!);
+          vis.preset = 'pick';
+          this.applyVis();
+        });
+    }
+    this.syncLevelsUi();
   }
 
   // ---------- 3D pointer ----------
@@ -710,6 +979,10 @@ export class Editor {
         if (pt) this.moveDrag(pt[0], pt[1], e.ctrlKey);
         this.mouseLive();
         return;
+      }
+      if (this.stairDraw?.phase === 'aim') {
+        const pt = this.view.planePoint(px, py, this.viewFloor());
+        if (pt) this.aimStair(pt[0], pt[1]);
       }
       const now = performance.now();
       if (now - this.hoverAt < 60) return;
@@ -1075,6 +1348,7 @@ export class Editor {
         const [x, z] = this.fromPlan(p[0], p[1]);
         $('planStatus').textContent = `x ${fmt(x)}  z ${fmt(z)}`;
         if (!this.drag) this.setHover(((e.target as Element).closest('[data-id]')?.getAttribute('data-id') as Key | null) ?? null);
+        if (this.stairDraw?.phase === 'aim') this.aimStair(x, z);
         const d = this.drag;
         if (d && d.source === 'plan') {
           if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 4) return;
@@ -1318,7 +1592,7 @@ export class Editor {
   /** Runs an action from the action map (keys now; the controller in Part C). */
   run(id: string, e?: { code: string; shiftKey: boolean }): void {
     const vis = this.view.vis;
-    const tools: Record<string, Tool> = { toolSelect: 'select', toolRoom: 'room', toolWall: 'wall', toolDoor: 'door', toolWindow: 'window' };
+    const tools: Record<string, Tool> = { toolSelect: 'select', toolRoom: 'room', toolWall: 'wall', toolDoor: 'door', toolWindow: 'window', toolStair: 'stair', toolLadder: 'ladder', toolHole: 'hole' };
     if (tools[id]) return this.setTool(tools[id]);
     switch (id) {
       case 'walk': return void this.gameWalk();
@@ -1329,6 +1603,7 @@ export class Editor {
       case 'chainRemove': return this.chainRemoveLast();
       case 'cancel':
         if (this.splitting) this.cancelSplit();
+        else if (this.stairDraw) this.cancelStair();
         else if (this.drag) this.endDrag(true);
         else if (this.tool !== 'select') this.setTool('select');
         else this.select(null);
@@ -1479,6 +1754,7 @@ export class Editor {
   // ---------- toolbar and panels ----------
   setTool(t: Tool): void {
     if (this.drag) this.endDrag(true);
+    if (this.stairDraw) this.cancelStair();
     this.tool = t;
     this.updateHandles();
     this.updateBar();
@@ -1488,6 +1764,9 @@ export class Editor {
       wall: 'Wall: drag from one end to the other (copies the last wall you selected)',
       door: 'Door: click on a wall (type from the list)',
       window: 'Window: click on a wall',
+      stair: `Stair (${stairType(this.stairTypeId).name}): A (click) at the start corner, point the climb, A shows the proposal, A accepts`,
+      ladder: 'Ladder: A (click) on a wall face or a point; it climbs to the level above',
+      hole: `Floor hole (${HOLE_NAMES[this.holeKind] ?? this.holeKind}): drag out a rectangle on the floor`,
     };
     this.status(hint[t]);
     this.updateHint();
@@ -1504,7 +1783,7 @@ export class Editor {
         <span class="group seg" id="layout" title="V cycles"><button data-layout="3d">3D</button><button data-layout="both">Both</button><button data-layout="plan">Plan</button></span>
         <span class="group"><button id="splitDir" title="Side by side or stacked">Side by side</button><button id="swap" title="Swap the 3D and the plan">Swap</button><button id="minimap" title="Small plan in the corner of 3D only (M)">Small plan</button><button id="drawerBtn" title="Side panel (\` or I)">Panel</button></span>
         <span class="group" id="tools">
-          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button>
+          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button><button data-tool="stair" title="6">6 Stair</button><select id="stairType" title="The Stair tool's type">${STAIR_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}</select><button data-tool="ladder" title="7">7 Ladder</button><button data-tool="hole" title="8">8 Floor hole</button><select id="holeKind" title="The Floor hole tool's kind">${HOLE_KINDS.map((k) => `<option value="${k}">${HOLE_NAMES[k] ?? k}</option>`).join('')}</select>
         </span>
         <span class="group"><button id="walk" title="Tab: the game's own player, unsaved edits included (Shift+Tab: quick walk)">Walk test (game)</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
         <span id="checksBadge"></span>
@@ -1535,6 +1814,16 @@ export class Editor {
       this.setTool('room');
     });
     $('follow').addEventListener('click', () => this.setWallsFollow(!this.wallsFollow));
+    $<HTMLSelectElement>('stairType').value = this.stairTypeId;
+    $<HTMLSelectElement>('holeKind').value = this.holeKind;
+    $('stairType').addEventListener('change', () => {
+      this.setStairType($<HTMLSelectElement>('stairType').value as StairTypeId);
+      this.setTool('stair');
+    });
+    $('holeKind').addEventListener('change', () => {
+      this.setHoleKind($<HTMLSelectElement>('holeKind').value);
+      this.setTool('hole');
+    });
     $('drawerBtn').addEventListener('click', () => this.toggleDrawer());
     for (const b of $('presets').querySelectorAll<HTMLButtonElement>('button')) b.addEventListener('click', () => this.setPreset(b.dataset.preset as LevelPreset));
     for (const c of $('pick').querySelectorAll<HTMLInputElement>('input[data-level]'))
@@ -1568,7 +1857,7 @@ export class Editor {
       this.view.vis.underlay = !this.view.vis.underlay;
       this.applyVis();
     });
-    for (const b of $('tools').querySelectorAll('button')) b.addEventListener('click', () => this.setTool(b.dataset.tool as Tool));
+    for (const b of $('tools').querySelectorAll<HTMLButtonElement>('button[data-tool]')) b.addEventListener('click', () => this.setTool(b.dataset.tool as Tool));
     $('walk').addEventListener('click', () => void this.gameWalk());
     $('undo').addEventListener('click', () => this.undo());
     $('redo').addEventListener('click', () => this.redo());
@@ -2027,27 +2316,51 @@ export class Editor {
       const names = (o.between ?? []).map((id) => (this.model.get<Room>('rooms', id)?.name as string | undefined) ?? id);
       rows.push(`<div class="row"><span>Between</span>${esc(names.join(' and ') || '-')}</div>`);
     } else if (s.coll === 'stairs') {
+      const st = e as Stair;
+      const above = this.levelsAbove(st.from);
       text('name', 'Name');
+      rows.push(`<label class="row"><span>Type</span><select data-stairtype>${STAIR_TYPES.map((t) => `<option value="${t.id}" ${stairTypeOf(st) === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></label>`);
       sel('up', 'Climbs', ['N', 'S', 'E', 'W'].map((d) => [d, d]));
-      rect((e as Stair).rect);
+      sel('to', 'To level', above.map((l) => [l.id, `${l.name} (${l.id})`]));
+      num('width', 'Flight width m', st.width);
+      rect(st.rect);
+      const fit = stairFit(this.model.data, st);
+      rows.push(`<p id="stairFit" class="${fit.ok ? 'dim' : 'bad'}">${esc(fit.words)}</p><div class="row"><button id="fitStair">Fit</button><button id="turnClimb">Turn climb 90</button></div>`);
     } else if (s.coll === 'voids') {
       text('name', 'Name');
+      sel('kind', 'Kind', HOLE_KINDS.map((k) => [k, HOLE_NAMES[k] ?? k]));
       rect((e as Void).rect);
     } else if (s.coll === 'ladders') {
+      const ld = e as Ladder;
       text('name', 'Name');
-      num('at.0', 'x', (e as Ladder).at[0]);
-      num('at.1', 'z', (e as Ladder).at[1]);
+      num('at.0', 'x', ld.at[0]);
+      num('at.1', 'z', ld.at[1]);
       sel('facing', 'Facing', ['N', 'S', 'E', 'W'].map((d) => [d, d]));
+      sel('to', 'To level', this.levelsAbove(ld.from).map((l) => [l.id, `${l.name} (${l.id})`]));
     }
+    // ON2 decision 10: the id, renamed with every reference (Enter keeps it)
+    rows.push(`<label class="row"><span>Id</span><input data-id-field value="${esc(s.id)}"></label>`);
     const gap = s.coll === 'walls' ? this.gapsOf(s.id)[0] : undefined;
     if (gap) rows.push(`<p class="bad">${esc(gapWords(gap))}</p>`);
     rows.push(`<div class="row"><button id="del">Delete</button><button id="dup">Duplicate</button><button id="frame">Go to</button>${gap ? '<button id="closeGap">Close gap</button>' : ''}</div>`);
     panel.innerHTML = rows.join('');
     if (gap) $('closeGap').addEventListener('click', () => this.closeGapSelected());
     for (const el of panel.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-k]')) el.addEventListener('change', () => this.setField(s.coll, s.id, el.dataset.k!, el.value, el.type === 'number'));
+    panel.querySelector<HTMLInputElement>('[data-id-field]')?.addEventListener('change', (ev) => {
+      if (!this.renameSelected((ev.target as HTMLInputElement).value)) this.renderPanel();
+    });
+    panel.querySelector<HTMLSelectElement>('[data-stairtype]')?.addEventListener('change', (ev) => this.commit([{ coll: 'stairs', id: s.id, before: s.e, after: withStairType(s.e as Stair, (ev.target as HTMLSelectElement).value) }]));
+    document.getElementById('fitStair')?.addEventListener('click', () => this.fitSelected());
+    document.getElementById('turnClimb')?.addEventListener('click', () => this.turnStairClimb());
     $('del').addEventListener('click', () => this.deleteSelected());
     $('dup').addEventListener('click', () => this.duplicate());
     $('frame').addEventListener('click', () => this.frameSelected());
+  }
+
+  /** The levels above a level, lowest first (a stair's or ladder's To level list). */
+  levelsAbove(id: string): Level[] {
+    const f = this.model.data.levels.find((q) => q.id === id)?.floor ?? Infinity;
+    return this.model.data.levels.filter((l) => l.floor > f).sort((a, b) => a.floor - b.floor);
   }
 
   private setField(coll: Coll, id: string, path: string, raw: string, isNum: boolean): void {

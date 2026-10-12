@@ -5,12 +5,14 @@
  */
 import { Color3, Color4, CreateBox, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3 } from '../core/babylon';
 import type { AbstractMesh } from '../core/babylon';
-import { EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
+import { cutRect, EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { WallJoin } from './geometry';
 import type { EditorModel } from './model';
 import type { Campus, Coll, Key, Ladder, Level, Opening, Room, Service, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
 import { buildingAt, DEFAULT_VIS, elementState, explodeOffset } from './visibility';
+import { stairLayout } from '../world/maps/stairs';
+import { STAIR_FACTS } from './vertical';
 import type { VisSettings } from './visibility';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
@@ -168,6 +170,13 @@ export class EditorScene {
         else for (const w of this.data.walls) if ((this.nodes.get(keyOf('walls', w.id))?.length ?? 0) > 0 && this.wallHadOpening(w.id, p.id)) todo.add(keyOf('walls', w.id));
       }
     }
+    // ON2: a floor hole cuts the room floors on its level (old and new rect: rebuild every room on the level, or all when it went)
+    for (const k of keys) {
+      const p = parseKey(k);
+      if (p?.coll !== 'voids') continue;
+      const v = this.model.get<Void>('voids', p.id);
+      for (const r of this.data.rooms) if (!v || r.level === v.level) todo.add(keyOf('rooms', r.id));
+    }
     // a moved, added or removed wall changes its neighbours' corners: rebuild every wall whose join changed
     if ([...todo].some((k) => k.startsWith('walls:'))) {
       const old = this.joins;
@@ -246,8 +255,13 @@ export class EditorScene {
     const [x0, z0, x1, z1] = r.rect;
     // a smaller room sits a hair higher, so a room drawn inside a yard does not flicker against it
     const lift = 0.012 * (1 - Math.min(1, ((x1 - x0) * (z1 - z0)) / 4000));
-    const m = this.box(`room ${r.id}`, (x0 + x1) / 2, f - 0.03 + lift, (z0 + z1) / 2, x1 - x0, 0.06, z1 - z0, 0, this.mat('room', tint));
-    return [[m], [r.level]];
+    // ON2: the level's floor holes are cut out of the floor (one box per piece left)
+    const holes = this.data.voids.filter((v) => v.level === r.level && v.rect[0] < x1 - EPS && v.rect[2] > x0 + EPS && v.rect[1] < z1 - EPS && v.rect[3] > z0 + EPS).map((v) => v.rect);
+    const parts = cutRect(r.rect, holes).map(([a0, b0, a1, b1]) => this.box(`room ${r.id}`, (a0 + a1) / 2, f - 0.03 + lift, (b0 + b1) / 2, a1 - a0, 0.06, b1 - b0, 0, this.mat('room', tint)));
+    if (parts.length <= 1) return [parts, [r.level]];
+    const merged = Mesh.MergeMeshes(parts, true);
+    if (merged) merged.name = `room ${r.id}`;
+    return [merged ? [merged] : parts, [r.level]];
   }
 
   private buildWall(w: Wall): [Mesh[], string[]] {
@@ -294,46 +308,38 @@ export class EditorScene {
     return [[m], [w.level]];
   }
 
+  /**
+   * A stair as the game's walk test builds it (ON2 decision 4): the shared layout (src/world/maps/stairs.ts) gives the
+   * flights and landings; each step is a box from the flight's low end up to its tread, as LevelBuilder.stairs draws.
+   */
   private buildStair(s: Stair): [Mesh[], string[]] {
     const f0 = this.floorOf(s.from);
-    const f1 = this.floorOf(s.to);
-    const rise = f1 - f0;
-    const n = Math.max(2, Math.round((s.risers as number | undefined) ?? rise / 0.168));
-    const [x0, z0, x1, z1] = s.rect;
-    // local frame: u runs in the climbing direction, v across; (u, v) in metres from the rect's start corner
-    const alongX = s.up === 'E' || s.up === 'W';
-    const len = alongX ? x1 - x0 : z1 - z0;
-    const wid = alongX ? z1 - z0 : x1 - x0;
-    const toWorld = (u: number, v: number): [number, number] => {
-      if (s.up === 'E') return [x0 + u, z0 + v];
-      if (s.up === 'W') return [x1 - u, z0 + v];
-      if (s.up === 'N') return [x0 + v, z0 + u];
-      return [x0 + v, z1 - u];
-    };
     const mat = this.mat('stair', '#d9d4c7');
     const parts: Mesh[] = [];
-    const step = (u0: number, u1: number, v0: number, v1: number, top: number): void => {
-      const a = toWorld(u0, v0);
-      const b = toWorld(u1, v1);
-      const cx = (a[0] + b[0]) / 2;
-      const cz = (a[1] + b[1]) / 2;
-      parts.push(this.box(`stair ${s.id}`, cx, f0 + top / 2, cz, Math.abs(b[0] - a[0]), Math.max(top, 0.02), Math.abs(b[1] - a[1]), 0, mat));
-    };
-    if (s.layout === 'dogleg') {
-      // two flights side by side: the first climbs `up` on one half, a landing across the far end, the second comes back
-      const half = wid / 2;
-      const landing = Math.min(half, len / 3);
-      const run = len - landing;
-      const n1 = Math.ceil(n / 2);
-      const n2 = n - n1;
-      const h = rise / n;
-      for (let i = 0; i < n1; i++) step((i * run) / n1, ((i + 1) * run) / n1, 0, half, (i + 1) * h);
-      step(run, len, 0, wid, n1 * h);
-      for (let i = 0; i < n2; i++) step(run - ((i + 1) * run) / n2, run - (i * run) / n2, half, wid, (n1 + i + 1) * h);
-    } else {
-      const h = rise / n;
-      for (let i = 0; i < n; i++) step((i * len) / n, ((i + 1) * len) / n, 0, wid, (i + 1) * h);
+    let lay: ReturnType<typeof stairLayout> | null;
+    try {
+      lay = stairLayout(this.data, { ...s, risers: s.risers ?? Math.max(2, Math.round((this.floorOf(s.to) - f0) / STAIR_FACTS.riserHeight)) });
+    } catch {
+      lay = null; // a level that is gone mid-edit: nothing to draw
     }
+    for (const fl of lay?.flights ?? []) {
+      const n = Math.max(1, Math.round(fl.steps));
+      const sd = fl.len / n;
+      const sh = fl.rise / n;
+      const fx = Math.sin(fl.yaw);
+      const fz = Math.cos(fl.yaw);
+      for (let i = 0; i < n; i++) {
+        const along = -fl.len / 2 + sd * (i + 0.5);
+        const hgt = sh * (i + 1);
+        // yaw 0 climbs +z: the step box is w across (x) by sd along (z), turned by the flight's yaw
+        parts.push(this.box(`stair ${s.id}`, fl.c[0] + fx * along, fl.y + hgt / 2, fl.c[1] + fz * along, fl.w, Math.max(hgt, 0.02), sd, fl.yaw, mat));
+      }
+    }
+    for (const l of lay ? [...(lay.landing ? [lay.landing] : []), ...lay.landings] : []) {
+      const [x0, z0, x1, z1] = l.rect;
+      parts.push(this.box(`stair ${s.id}`, (x0 + x1) / 2, l.top - 0.15, (z0 + z1) / 2, x1 - x0, 0.3, z1 - z0, 0, mat));
+    }
+    if (!parts.length) return [[], [s.from, s.to]];
     const merged = Mesh.MergeMeshes(parts, true);
     if (!merged) return [[], [s.from, s.to]];
     merged.name = `stair ${s.id}`;
@@ -354,7 +360,7 @@ export class EditorScene {
   private buildVoid(v: Void): [Mesh[], string[]] {
     const f = this.floorOf(v.level);
     const [x0, z0, x1, z1] = v.rect;
-    const m = this.box(`void ${v.id}`, (x0 + x1) / 2, f + 0.01, (z0 + z1) / 2, x1 - x0, 0.02, z1 - z0, 0, this.mat('void', '#202428', 0.7));
+    const m = this.box(`void ${v.id}`, (x0 + x1) / 2, f + 0.01, (z0 + z1) / 2, x1 - x0, 0.02, z1 - z0, 0, this.mat('void', '#202428', 0.35));
     return [[m], [v.level]];
   }
 
@@ -426,6 +432,30 @@ export class EditorScene {
       m.outlineColor = new Color3(1, 0.45, 0);
       m.outlineWidth = 0.06;
     }
+  }
+
+  private outlineMeshes: Mesh[] = [];
+  /**
+   * Hub > Levels > Edit building outlines (ON2 decision 9): every building footprint as an orange frame on the ground and
+   * the site as a blue one, drawn while the mode is on.
+   */
+  setOutlines(on: boolean): void {
+    for (const m of this.outlineMeshes) m.dispose();
+    this.outlineMeshes = [];
+    if (!on) return;
+    const frame = (name: string, r: readonly number[], mat: StandardMaterial): void => {
+      const [x0, z0, x1, z1] = r as [number, number, number, number];
+      const y = 0.08;
+      const t = 0.25;
+      for (const [cx, cz, sx, sz] of [[(x0 + x1) / 2, z0, x1 - x0, t], [(x0 + x1) / 2, z1, x1 - x0, t], [x0, (z0 + z1) / 2, t, z1 - z0], [x1, (z0 + z1) / 2, t, z1 - z0]] as const) {
+        const m = this.box(name, cx, y, cz, sx, 0.16, sz, 0, mat);
+        m.isPickable = false;
+        m.renderingGroupId = 1;
+        this.outlineMeshes.push(m);
+      }
+    };
+    if (this.data.meta.site) frame('site outline', this.data.meta.site, this.mat('site-outline', '#0a84ff', 0.9, 0.6));
+    for (const b of this.data.meta.buildings ?? []) frame(`building ${b.id} outline`, b.footprint, this.mat('building-outline', '#ff7300', 0.9, 0.6));
   }
 
   /** Drag handles (orange cubes) for the selected element. */

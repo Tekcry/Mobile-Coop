@@ -78,13 +78,14 @@ export function buildKestrel(b: LevelBuilder, arch: KestrelArch): MapLayout {
   for (const s of arch.stairs) {
     const lay = stairLayout(arch, s);
     for (const f of lay.flights) b.stairs(f.c[0], f.c[1], f.w, f.len, f.rise, f.steps, STAIR_COLOUR, f.yaw, f.y);
-    if (lay.landing) {
-      const [x0, z0, x1, z1] = lay.landing.rect;
-      b.floor((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, STAIR_COLOUR, lay.landing.top, SLAB);
+    for (const l of lay.landing ? [lay.landing, ...lay.landings] : lay.landings) {
+      const [x0, z0, x1, z1] = l.rect;
+      b.floor((x0 + x1) / 2, (z0 + z1) / 2, x1 - x0, z1 - z0, STAIR_COLOUR, l.top, SLAB);
     }
   }
 
-  const ground = levelOf(arch, 'G');
+  // the ground level (an editor rename of G keeps the walk test working: the level nearest floor 0)
+  const ground = arch.levels.find((l) => l.id === 'G') ?? arch.levels.reduce((a, l) => (Math.abs(l.floor) < Math.abs(a.floor) ? l : a));
   const [ex, ez] = clearOfWalls(b, arch.meta.entry[0], arch.meta.entry[1], ground.floor, SPAWN_CLEAR);
   const rooms: RoomDef[] = arch.rooms.map((r) => {
     const l = levelOf(arch, r.level);

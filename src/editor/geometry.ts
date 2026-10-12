@@ -346,3 +346,35 @@ export function closeGap(w: Wall, g: WallGap, other?: Wall): Wall {
   }
   return out;
 }
+
+/**
+ * A rect with holes cut out (ON2: floor holes cut the room floors in the editor's 3D): the pieces left, as strips along x
+ * per band of z between the hole edges. A rect with no hole in it comes back whole.
+ */
+export function cutRect(r: Rect, holes: readonly Rect[]): Rect[] {
+  if (!holes.length) return [r];
+  const xs = new Set([r[0], r[2]]);
+  const zs = new Set([r[1], r[3]]);
+  for (const h of holes) {
+    for (const x of [h[0], h[2]]) if (x > r[0] && x < r[2]) xs.add(x);
+    for (const z of [h[1], h[3]]) if (z > r[1] && z < r[3]) zs.add(z);
+  }
+  const X = [...xs].sort((a, b) => a - b);
+  const Z = [...zs].sort((a, b) => a - b);
+  const out: Rect[] = [];
+  for (let j = 0; j + 1 < Z.length; j++) {
+    const mz = (Z[j]! + Z[j + 1]!) / 2;
+    let start: number | null = null;
+    for (let i = 0; i + 1 < X.length; i++) {
+      const mx = (X[i]! + X[i + 1]!) / 2;
+      const open = holes.some((h) => mx > h[0] && mx < h[2] && mz > h[1] && mz < h[3]);
+      if (!open && start === null) start = X[i]!;
+      if (open && start !== null) {
+        out.push([start, Z[j]!, X[i]!, Z[j + 1]!]);
+        start = null;
+      }
+    }
+    if (start !== null) out.push([start, Z[j]!, X[X.length - 1]!, Z[j + 1]!]);
+  }
+  return out;
+}

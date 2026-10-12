@@ -108,6 +108,21 @@ export interface HubInput {
   changes: string[];
   problems: { text: string; fresh: boolean }[];
   levels: { id: string; name: string; floor: string; editing: boolean }[];
+  /**
+   * ON2: the Levels panel's level actions for the editing level (storey height left / right then A applies) and, with
+   * Edit building outlines on, each building's four edges and the RULES 2 warnings. Optional (older callers and tests).
+   */
+  levelPanel?: {
+    id: string;
+    name: string;
+    height: number;
+    /** The storey height being set (left / right), applied by A. */
+    pending: number;
+    outlines: boolean;
+    buildings: { id: string; rect: readonly number[]; size: string }[];
+    warnings: string[];
+    limits: string;
+  };
   /** The View tab's items (shared with the tile menu's View tab). */
   view: ViewState;
   settings: PadSettings;
@@ -134,8 +149,29 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
         { id: 'checks.next', text: 'Next problem', note: h.problems.length ? `${h.problems.length} lines` : 'No problems', disabled: !h.problems.length, kind: 'go' },
         ...h.problems.map((p, i) => ({ id: `prob.${i}`, text: p.text, fresh: p.fresh, kind: 'line' as const })),
       ];
-    case 'Levels':
-      return h.levels.map((l) => ({ id: `level.${l.id}`, text: `${l.name} (${l.floor} m)`, value: l.editing ? 'editing' : undefined, note: l.editing ? undefined : 'A edits it', kind: 'go' as const }));
+    case 'Levels': {
+      const rows: HubRow[] = h.levels.map((l) => ({ id: `level.${l.id}`, text: `${l.name} (${l.floor} m)`, value: l.editing ? 'editing' : undefined, note: l.editing ? undefined : 'A edits it', kind: 'go' as const }));
+      const p = h.levelPanel;
+      if (!p) return rows;
+      const changed = Math.abs(p.pending - p.height) > 1e-6;
+      rows.push(
+        { id: 'lv.height', text: `Storey height of ${p.name}`, value: `${p.pending.toFixed(1)} m`, note: changed ? `A applies (was ${p.height.toFixed(1)} m); the levels above move` : 'Left / right sets it, A applies', kind: 'step' },
+        { id: 'lv.addAbove', text: `Add a level above ${p.name}`, note: 'Pick a name; the levels above move up a storey', kind: 'go' },
+        { id: 'lv.addBelow', text: `Add a level below ${p.name}`, note: 'Pick a name; the levels below move down a storey', kind: 'go' },
+        { id: 'lv.dup', text: `Duplicate ${p.name} one storey up`, note: 'Rooms, walls, doors, windows, objects and floor holes, new ids', kind: 'go' },
+        { id: 'lv.rename', text: `Rename ${p.name}`, note: 'Name list or keyboard', kind: 'go' },
+        { id: 'lv.renameId', text: `Rename id ${p.id}`, note: 'Every reference follows', kind: 'go' },
+        { id: 'lv.delete', text: `Delete ${p.name}`, note: 'Asks first, listing what goes with it', kind: 'go' },
+        { id: 'lv.outlines', text: 'Edit building outlines', value: onOff(p.outlines), note: p.limits, kind: 'step' },
+      );
+      if (p.outlines) {
+        for (const b of p.buildings)
+          for (const [e, word, i] of [['W', 'west', 0], ['S', 'south', 1], ['E', 'east', 2], ['N', 'north', 3]] as const)
+            rows.push({ id: `bo.${b.id}.${e}`, text: `Building ${b.id} ${word} edge`, value: `${e === 'W' || e === 'E' ? 'x' : 'z'} ${b.rect[i]}`, note: b.size, kind: 'step' });
+        p.warnings.forEach((w, i) => rows.push({ id: `bow.${i}`, text: w, fresh: true, kind: 'line' }));
+      }
+      return rows;
+    }
     case 'View':
       return viewTiles(h.view).map((t) => ({ id: t.id, text: t.name, value: t.value, note: t.desc, kind: 'step' as const }));
     case 'Settings':

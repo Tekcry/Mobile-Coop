@@ -1,4 +1,4 @@
-# Kestrel level editor (v2, Parts A and C)
+# Kestrel level editor (v2, Parts A, C and E)
 
 A dev-only tool for Michael to fly and walk the campus in 3D and change it directly. It edits
 `docs/kestrel/kestrel.campus.blocks.json`, shows the live floor plan beside the 3D view, runs the Kestrel checks as you
@@ -62,6 +62,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | F10 (in the game) | back to the editor from the walk test |
 | Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window |
+| 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
 | Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
@@ -104,7 +105,7 @@ the free camera from the same spot. Nothing jumps either way.
 | Y (tap) | the **tile menu** opens; Y again closes it (below) |
 | D-pad, something selected | the **selection card** (below): up / down picks a row, left / right changes it |
 | D-pad up / down, nothing selected | level up / down; the dot and camera rise or drop with it |
-| D-pad left / right, a tool in hand | the tool's type: door type (Door), walls option (Room). Without a tool: nothing |
+| D-pad left / right, a tool in hand | the tool's type: door type (Door), walls option (Room), stair type (Stair), hole kind (Floor hole). Without a tool: nothing |
 | LB held | slow: pan, orbit and zoom at 30 %, magnet off (ON0b: no longer a finer grid; the grid is Settings > Grid) |
 | RB tap | go to the selection (with Split: turn the line). RB held does nothing |
 | L3 tap | quick walk at the dot, **running** (the walk's run speed, 4.5 m/s); while walking L3 toggles a slow walk (1.6 m/s) and back, B returns to the camera exactly as it was |
@@ -185,8 +186,8 @@ wait until it closes. A row of tabs, then a grid of large tiles (a letter, the n
 
 | Tab | Tiles |
 | --- | --- |
-| Selected (first, only with a selection) | Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split (rooms), Change type (lights the card's Type row), Properties (the full side panel), Delete |
-| Build | Select, Room with walls, Room with outside walls, Room only, Wall, Measure, Paste, Paste to level above (greyed until something is copied) |
+| Selected (first, only with a selection) | Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split (rooms), Fit and Turn climb 90 (stairs), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
+| Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Measure, Paste, Paste to level above (greyed until something is copied) |
 | Openings | one tile per door and window type: Door, Fire door, Double door, Roller shutter, Gate, Window |
 | Objects, Lights, Mission | shown once a later part adds tiles to them |
 | View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan |
@@ -207,7 +208,9 @@ first** (door type, wall kind, room kind), then its own fields.
 | Door or window | Type, Name, Width, Height, Sill, Along wall, Locked |
 | Wall | Type (interior, exterior, boundary, parapet, balustrade), Name, Thickness, Height, Length (moves its end) |
 | Room | Type (room kind), Name, Width, Depth (east and north edges; walls follow as set), Access (ring 0-5) |
-| Stair, floor hole, ladder | Name, Width, Depth, Climbs (stair); Name, Width, Depth (floor hole); Name, Facing (ladder) |
+| Stair | Type (Main dogleg, Fire dogleg, Straight), Name, Width, Depth, Climbs, To level (risers follow); the foot says whether it fits ("Fits: 25 risers", or "Needs 1.42 m more length for 25 risers") |
+| Floor hole, ladder | Type (stair well, lift shaft, riser, hatch, roof light), Name, Width, Depth (floor hole); Name, Facing, To level (ladder) |
+| Every card | ends with **Id**: A opens the keyboard (capitals kept); Done renames it and every reference (ON2) |
 
 | Button | Does |
 | --- | --- |
@@ -238,7 +241,7 @@ pad, and any grab is put back first.
 | Play | Quick walk at the dot (same as L3 tap; it runs, L3 slows to a walk, B comes back); Walk test as the player (the game, as Tab or L3 held) |
 | File | Save (with the unsaved count), Revert to last save (asks first), the change list newest first: A on a line asks "Undo back to here?" and undoes every change down to and including it |
 | Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub and goes there |
-| Levels | the level to edit (A edits it), then the Levels panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
+| Levels | the level to edit (A edits it); the level rows (ON2, below): storey height, add above / below, duplicate one storey up, rename, rename id, delete, Edit building outlines; then the Levels shown panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
 | View | the tile menu's View rows: layout, ghost, exploded and gap, cut walls at, levels shown, building filter, small plan, labels, level below on the plan |
 | Settings | plain toggles and sliders, the value shown large: rumble on / off, stick speed (0.5 to 2.0, step 0.25), repeat speed (0.5 to 2.0: held D-pad and stick in every menu and on the card), invert tilt, text size (Large = 1.25x on the pad screen, the hub and the tile menu), Menu opens on (last tab / Build tab), Walls follow rooms (on by default; the tool bar's button for the mouse). Saved with the pad preferences (browser storage, a view preference) |
 | Help | a picture of the controller with every button labelled with its building-state action (from the action map), then every binding by group for keys, mouse and pad |
@@ -360,14 +363,69 @@ pad, and any grab is put back first.
 - Tests run the editor server with `KESTREL_EDITOR_SANDBOX=<folder>`: it loads and saves a copy there, never
   `docs/kestrel`. The walk test's draft is served only to this PC.
 
+## Stairs, ladders, floor holes, levels, renaming (ON2, ED2 Part E)
+Everything that joins or makes floors can be drawn and changed, so a building can be made from nothing.
+
+**Stair tool** (Y menu > Build: Stair: Main dogleg, Stair: Fire dogleg, Straight stair; key 6 with the type list):
+1. A (click) at the start corner. The dot (or pointer) points the climb: the larger of its east-west and north-south
+   offsets from the corner is the climbing direction, the other picks the side the stair goes.
+2. The smallest legal stair to the level above follows the dot, drawn in 3D as real flights and a landing, with its
+   words at the dot: "Main dogleg, Ground to First: 25 risers of 0.168 m, going 0.285 m, 2 flights (13 + 12), landing
+   2 m; 3.7 x 5.5 m, climbs north". A (click) holds the proposal still; A (click) again accepts it, B (Esc) cancels.
+- The sizes are the A11 rule (`check.mjs`), worked out by one shared function (`src/world/maps/stairs.ts`
+  `stairSize`) from `scripts/kestrel/facts.json` (`stair.riserHeight`, `going`, `maxRisersPerFlight`, `midLanding`,
+  `fireLanding`, `fireWidth`, `mainWidth`): 25 risers for a 4.2 m storey (progress.md Decisions), a dogleg twice the
+  flight width wide and `(risers / 2 rounded up - 1) x going + landing` long (2 m main, 1.3 m fire). Rounded up to the
+  0.1 m grid.
+- The **stairwell** (a `stairwell` floor hole on the to-level, same rect) is made, moved, resized, relevelled and
+  deleted with its stair in the same undo step, however the stair changes (grab, handles, card, panel, delete, rename).
+- A selected stair: the card's foot and the side panel say whether it fits and by how much it does not ("Needs 1.42 m
+  more length for 25 risers"). **Fit** (Selected tab, or the panel's button) resizes it to the smallest legal rect from
+  the corner it was drawn from (the foot edge and the west or south side stay) and sets the rule's risers.
+- Handles: the four edges (stretch), and the orange **arrow** handle a third of the way up the climb (mouse: a click turns
+  the climb 90 degrees, the rect stays; pad: the card's Climbs row or Selected > Turn climb 90). RB while grabbing turns
+  the whole stair about the dot, as before.
+- The 3D view and the walk test draw stairs from the same layout (`stairLayout`): a dogleg's flights split 13 + 12, a
+  straight run of more than 18 risers gets a mid landing.
+
+**Ladder tool** (Build > Ladder; key 7): A (click) on or near a wall face: the foot stands off the wall by half its
+thickness and half the ladder's width (`ladder.width`), facing the wall; on open floor it stands at the dot facing north.
+It climbs from the editing level to the level above (the card's To level row or the panel changes it), stands in the
+room it is in, and its words give the climb against the reach facts: "climbs 4.2 m to First, beyond jump-grab reach
+(3.1 m): the ladder is the way up" (within `reach.grabMax` 2.7 m it says a ladder is optional).
+
+**Floor hole tool** (Build > Floor hole; key 8, kind from the list or D-pad left / right): drag a rectangle (A, A) on
+the editing level; kinds stairwell, lift shaft, riser, hatch, roof light. Holes cut the room floors in the editor's 3D
+(you see the level below through them) and in the walk test (the converter already cut voids; unchanged).
+
+**Levels panel** (hub > Levels; mouse: click the rows, - / + on the stepped rows). Rows below the level list, for the
+editing level:
+| Row | Does |
+| --- | --- |
+| Storey height of ... | left / right (or - / +) sets a new height in 0.1 m steps, A applies it: every level that started at or above the old storey top moves by the difference; "47 walls were 4.2 m: stretch to 4.5 m?" (A yes, B no) stretches the walls that were exactly the old height; stairs whose rise changed get the rule's risers. One undo step, in words |
+| Add a level above / below | a name from the list (Ground, First, Second, Third, Roof, Basement, Mezzanine) or the keyboard; storey height and footprint from the editing level; above: the levels at or above it move up a storey; below: the levels under it move down. The id is a free capital from the name (Roof Plant: O) |
+| Duplicate ... one storey up | a new level above (as Add) with the level's rooms, walls, doors and windows, objects and floor holes copied with new ids (the level letter swapped: G-FRONT to S-FRONT, WG003 to WS003; else "-S" added) |
+| Rename ... / Rename id ... | the level's name (list or keyboard); its id (keyboard), every reference following |
+| Delete ... | asks first, listing what goes ("With it go 12 rooms, 40 walls, ..."): its rooms, walls with their doors and windows, objects, floor holes, the stairs and ladders from or to it (and the wells of stairs from it). Levels above keep their floors |
+| Edit building outlines | on: each building's footprint (orange) and the site (blue) are drawn in 3D, and each building's four edges are rows (left / right moves an edge 0.1 m) with its size and the RULES 2 limits (site 110 x 80 m, building 48 x 30 m, facts.json `rules`); over a limit, outside the site or overlapping shows red lines. Warned, never blocked |
+
+**Renaming ids** (the card's Id row, Selected > Rename id, the side panel's Id field, Levels > Rename id): every
+reference in the file changes in the same edit: a wall's openings (`wall`), a room's openings (`between`) and ladders
+(`room`), a level's rooms, walls, floor holes, objects (`level`) and stairs and ladders (`from`, `to`). A taken or empty
+id is refused; one out of the file's style (capitals, digits and hyphens; a level: one capital) is kept with a warning.
+Each rename is its own change-log line: "Renamed WG-NEW1 to WG015 (3 references updated)".
+
 ## What it does not do yet (ED2 parts B-H)
-- The tile menu's Objects, Lights and Mission tabs are empty (hidden) until the later parts add tiles. The card has no
-  Type row for stairs, ladders and floor holes. The on-screen keyboard has no lower-case or symbol page (words start with
-  a capital, the rest is small).
+- The tile menu's Objects, Lights and Mission tabs are empty (hidden) until the later parts add tiles. The on-screen
+  keyboard has no lower-case or symbol page (words start with a capital, the rest is small; ids keep capitals).
+- ON2: building outlines are edited as edge rows on the Levels tab with the outlines drawn in 3D, not dragged on a site
+  plan; the plan images do not draw them. Deleting a level leaves the levels above where they are. Free text that names an
+  id (a hole's `reason`, the documents) is not renamed. Renaming the ground level G makes the walk test start on the level
+  nearest floor 0. Services (pipe runs) keep their heights when a storey height changes. Duplicate does not copy stairs or
+  ladders (they join two levels).
 - Clickable problems, search (Part D). With the mouse, wall ends do not snap to other walls (the pad's magnet does);
   a wall crossing another (an X, no end on it) is not a cross wall for door centring; live sizes measure straight walls
   along x or z for room edges (angled walls are skipped).
-- Add, reshape or delete stairs, ladders and floor holes beyond moving them; no new levels; renaming ids (Part E).
 - Lighting preview, props, guards and routes.
 - Quick walk up stairs: change level with Page Up / Page Down (the walk test climbs stairs and ladders for real).
 - On the plan, the building filter hides rooms, walls and openings; their name labels stay.
@@ -389,5 +447,7 @@ pad, and any grab is put back first.
 | `src/editor/actions.ts`, `src/editor/visibility.ts`, `src/editor/draft.ts` | the action map (keys, help, hint bar); which levels and buildings are shown, ghosted or hidden, and the exploded lift; unsaved drafts in IndexedDB (Babylon-free, `tests/editor/editorV2.test.ts`) |
 | `src/editor/liveSizes.ts`, `src/editor/chain.ts` | live sizes and distances: clear runs between cross walls, door centring and side distances, the nearest parallel wall, room sizes, room edge snapping; wall chains (pure, `tests/editor/liveSizes.test.ts`, `chain.test.ts`) |
 | `src/editor/roomWalls.ts` | rooms and their walls: walls on an edge, the walls a new room needs, linked edits, Split, A's linked words (pure, `tests/editor/roomWalls.test.ts`) |
+| `src/editor/vertical.ts`, `src/editor/levels.ts` | ON2: the stair proposal, fit and Fit, the stairwell link, ladders, floor holes; add, duplicate, delete levels, storey heights, renaming ids with every reference, building outlines and the RULES 2 warnings (pure, `tests/editor/vertical.test.ts`) |
+| `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
 | `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft; `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

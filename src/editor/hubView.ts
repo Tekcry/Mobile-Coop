@@ -11,6 +11,7 @@ import type { Editor } from './main';
 import { PAD } from './pad';
 import type { PadState } from './pad';
 import type { PadControl } from './padControl';
+import { CAPS, LEVEL_NAMES, outlineWarnings } from './levels';
 
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -94,6 +95,8 @@ export class HubView {
   /** The last problem line gone to (Checks, "Next problem"). */
   private lastProblem = -1;
   private rows: HubRow[] = [];
+  /** ON2: the storey height being set on the Levels tab (null: the editing level's own). */
+  private pendingHeight: number | null = null;
 
   constructor(
     private readonly ed: Editor,
@@ -107,6 +110,9 @@ export class HubView {
       const row = t.closest('[data-row]');
       if (row) {
         this.index = this.fields().indexOf(row as HTMLElement);
+        // ON2: the - / + buttons of a Levels row step it with the mouse; a click elsewhere on the row is A
+        const step = t.closest('[data-step]')?.getAttribute('data-step');
+        if (step) return void this.runRow(row.getAttribute('data-row')!, Number(step) < 0 ? -1 : 1, false);
         void this.runRow(row.getAttribute('data-row')!, 1, true);
       }
     });
@@ -147,11 +153,25 @@ export class HubView {
   private input(): HubInput {
     const ed = this.ed;
     const levels = ed.model.data.levels.slice().sort((a, b) => b.floor - a.floor);
+    const cur = ed.model.data.levels.find((l) => l.id === ed.view.level);
+    const bs = ed.model.data.meta.buildings ?? [];
     return {
       unsaved: ed.model.dirty,
       changes: ed.model.history.map((e) => e.text).reverse(),
       problems: ed.problemLines(),
       levels: levels.map((l) => ({ id: l.id, name: l.name, floor: fmt(l.floor), editing: l.id === ed.view.level })),
+      levelPanel: cur
+        ? {
+            id: cur.id,
+            name: cur.name,
+            height: cur.height,
+            pending: this.pendingHeight ?? cur.height,
+            outlines: ed.outlines,
+            buildings: bs.map((b) => ({ id: b.id, rect: b.footprint, size: `${fmt(b.footprint[2] - b.footprint[0])} x ${fmt(b.footprint[3] - b.footprint[1])} m (limit ${CAPS.buildingX} x ${CAPS.buildingZ})` })),
+            warnings: outlineWarnings(ed.model.data),
+            limits: `Limits: site ${CAPS.siteX} x ${CAPS.siteZ} m, each building ${CAPS.buildingX} x ${CAPS.buildingZ} m (warned, never blocked)`,
+          }
+        : undefined,
       view: this.pad.viewState(),
       settings: this.pad.settings,
     };
@@ -166,7 +186,8 @@ export class HubView {
     const rows = this.rows
       .map((r) => {
         const bar = r.slider !== undefined ? `<i class="track"><i style="width:${Math.round(r.slider * 100)}%"></i></i>` : '';
-        return `<div class="hub-row ${r.kind}${r.disabled ? ' off' : ''}${r.fresh ? ' bad' : ''}" data-row="${esc(r.id)}"><span>${esc(r.text)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${bar}${r.value ? `<b>${esc(r.value)}</b>` : ''}</div>`;
+        const steppers = r.kind === 'step' && (r.id === 'lv.height' || r.id.startsWith('bo.')) ? '<button data-step="-1" title="Step down">-</button><button data-step="1" title="Step up">+</button>' : '';
+        return `<div class="hub-row ${r.kind}${r.disabled ? ' off' : ''}${r.fresh ? ' bad' : ''}" data-row="${esc(r.id)}"><span>${esc(r.text)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${bar}${r.value ? `<b>${esc(r.value)}</b>` : ''}${steppers}</div>`;
       })
       .join('');
     let extra = '';
@@ -241,7 +262,10 @@ export class HubView {
       this.lastProblem = i;
       this.close();
       return pad.goToProblem(p.text);
-    } else if (id.startsWith('level.')) ed.setLevel(id.slice(6));
+    } else if (id.startsWith('level.')) {
+      this.pendingHeight = null;
+      ed.setLevel(id.slice(6));
+    } else if (id.startsWith('lv.') || id.startsWith('bo.')) await this.levelRow(id, dir, press);
     else if (id.startsWith('view.')) pad.runView(id, dir, press);
     else if (id.startsWith('set.')) {
       pad.settings = changeSetting(pad.settings, id, dir);
@@ -251,5 +275,41 @@ export class HubView {
       ed.updateBar();
     }
     this.render();
+  }
+
+  /** The Levels panel's rows (ON2 decisions 7-10): names come from the name list or the keyboard, over the hub. */
+  private async levelRow(id: string, dir: 1 | -1, press: boolean): Promise<void> {
+    const ed = this.ed;
+    const cur = ed.model.data.levels.find((l) => l.id === ed.view.level);
+    if (!cur) return;
+    const askName = (title: string, current: string, done: (name: string) => void, raw = false): void => {
+      // the name picker takes the pad while open: the hub closes and comes back on Levels
+      this.close();
+      this.pad.latchSticks();
+      this.pad.names.open(title, raw ? [] : LEVEL_NAMES, current, (name) => {
+        this.pad.latchSticks();
+        if (name) done(name);
+        this.open('Levels');
+      }, raw);
+      ed.updateHint();
+    };
+    if (id === 'lv.height') {
+      if (press) {
+        const h = this.pendingHeight;
+        this.pendingHeight = null;
+        if (h !== null && Math.abs(h - cur.height) > 1e-6) await ed.setStoreyHeight(h);
+        return;
+      }
+      this.pendingHeight = Math.max(ed.grid, +((this.pendingHeight ?? cur.height) + dir * ed.grid).toFixed(3));
+    } else if (id === 'lv.addAbove' || id === 'lv.addBelow') askName(`New level ${id === 'lv.addAbove' ? 'above' : 'below'} ${cur.name}`, '', (n) => ed.addLevelHere(id === 'lv.addAbove' ? 'above' : 'below', n));
+    else if (id === 'lv.dup') askName(`Copy of ${cur.name}, one storey up`, `${cur.name} Copy`, (n) => ed.duplicateLevelHere(n));
+    else if (id === 'lv.rename') askName(`Rename ${cur.name}`, cur.name, (n) => ed.renameLevelHere(n));
+    else if (id === 'lv.renameId') askName(`Rename level id ${cur.id}`, cur.id, (n) => void ed.renameId('levels', cur.id, n.trim()), true);
+    else if (id === 'lv.delete') await ed.deleteLevelHere();
+    else if (id === 'lv.outlines') ed.setOutlines(!ed.outlines);
+    else if (id.startsWith('bo.') && !press) {
+      const [, b, e] = id.split('.') as [string, string, 'W' | 'S' | 'E' | 'N'];
+      ed.moveOutline(b, e, dir);
+    }
   }
 }

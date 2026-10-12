@@ -58,6 +58,7 @@ export interface Stair {
   rect: Rect;
   up: 'N' | 'S' | 'E' | 'W';
   width?: number;
+  risers?: number;
   layout?: string;
   [k: string]: unknown;
 }
@@ -65,6 +66,7 @@ export interface Stair {
 export interface Ladder {
   id: string;
   name?: string;
+  room?: string;
   at: Pt;
   from: string;
   to: string;
@@ -78,6 +80,14 @@ export interface Void {
   level: string;
   rect: Rect;
   kind: string;
+  [k: string]: unknown;
+}
+
+/** A placed object (schema.md section 2 `objects`); the editor only copies, moves with a level and renames its level (ON2). */
+export interface Obj {
+  id: string;
+  level: string;
+  name?: string;
   [k: string]: unknown;
 }
 
@@ -109,9 +119,12 @@ export interface Campus {
   [k: string]: unknown;
 }
 
-/** The collections the editor can change. */
-export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids';
-export type Elem = Room | Wall | Opening | Stair | Ladder | Void;
+/**
+ * The collections the editor can change. `levels`, `objects` and `buildings` (meta.buildings) change through the Levels tab only
+ * (ON2); they are not in COLLS (nothing picks or draws them as elements), so a key of theirs parses to null.
+ */
+export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'levels' | 'buildings' | 'objects';
+export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Level | Obj | (Building & { [k: string]: unknown });
 export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids'];
 
 /** A reference to one element: `rooms:G-FRONT`. */
