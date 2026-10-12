@@ -18,6 +18,43 @@ export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: numb
 export const OPENING_TYPES = Object.keys(OPENING_DEFAULTS);
 /** schema.md section 2: wall kinds. */
 export const WALL_KINDS = ['interior', 'exterior', 'boundary', 'parapet', 'balustrade'];
+/** Plain names of the opening types (the Build wheel, ghosts, the selection card). */
+export const DOOR_NAMES: Record<string, string> = { door: 'Door', double: 'Double door', 'fire-door': 'Fire door', roller: 'Roller shutter', gate: 'Gate', window: 'Window' };
+
+/** The door type under the tool bar's Door slot: "Single", "Double", "Fire door" (ED3-pad1). */
+export function slotDoorName(type: string): string {
+  if (type === 'door') return 'Single';
+  if (type === 'double') return 'Double';
+  return DOOR_NAMES[type] ?? type;
+}
+
+
+/** The selection card's words (ED3-pad1): a plain title (the name, else the kind) and one size line. The id is shown apart, small. */
+export function cardWords(coll: Coll, e: Elem): { title: string; size: string } {
+  const name = typeof e.name === 'string' && e.name ? e.name : '';
+  if (coll === 'walls') {
+    const w = e as Wall;
+    return { title: name || `${capital(w.kind)} wall`, size: `${fmt(wallLen(w))} m long, ${fmt(w.t)} m thick` };
+  }
+  if (coll === 'openings') {
+    const o = e as Opening;
+    return { title: name || (DOOR_NAMES[o.type] ?? capital(o.type)), size: `${fmt(o.w)} m wide, ${fmt(o.h)} m high` };
+  }
+  if ('rect' in e && Array.isArray(e.rect)) {
+    const r = e.rect as Rect;
+    const dims = `${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m`;
+    if (coll === 'rooms') {
+      const kind = capital((e as Room).kind);
+      return { title: name || kind, size: name ? `${kind}, ${dims}` : dims };
+    }
+    const kind = coll === 'stairs' ? 'Stair' : 'Floor hole';
+    return { title: name || kind, size: name ? `${kind}, ${dims}` : dims };
+  }
+  const at = (e as { at?: unknown }).at;
+  const where = Array.isArray(at) ? `at x ${fmt(at[0] as number)}, z ${fmt(at[1] as number)}` : '';
+  return { title: name || (coll === 'ladders' ? 'Ladder' : capital(coll)), size: where };
+}
+
 /** schema.md: room kinds. */
 export const ROOM_KINDS = ['room', 'corridor', 'stair', 'shaft', 'plant', 'yard', 'lane', 'roof', 'zone'];
 
@@ -67,11 +104,19 @@ export function describeChange(d: Campus, c: Change): string {
     const db = [wb.b[0] - wa.b[0], wb.b[1] - wa.b[1]] as const;
     const movedA = Math.abs(da[0]) > EPS || Math.abs(da[1]) > EPS;
     const movedB = Math.abs(db[0]) > EPS || Math.abs(db[1]) > EPS;
+    const la = wallLen(wa);
+    const lb = wallLen(wb);
+    const turn = la > EPS && lb > EPS ? turnDegrees(wa, wb) : 0;
     if (movedA && movedB && Math.abs(da[0] - db[0]) < EPS && Math.abs(da[1] - db[1]) < EPS) parts.unshift(`moved ${moveWords(da[0], da[1])}`);
-    else {
+    else if (turn !== 0 && Math.abs(la - lb) < EPS) {
+      // same length, new direction: a turn (RB while grabbing), and a move if its middle moved too
+      const mx = (wb.a[0] + wb.b[0] - wa.a[0] - wa.b[0]) / 2;
+      const mz = (wb.a[1] + wb.b[1] - wa.a[1] - wa.b[1]) / 2;
+      parts.unshift(Math.abs(mx) > EPS || Math.abs(mz) > EPS ? `turned ${turn} degrees and moved ${moveWords(mx, mz)}` : `turned ${turn} degrees`);
+    } else {
       if (movedA) parts.unshift(`moved its start ${moveWords(da[0], da[1])}`);
       if (movedB) parts.unshift(`moved its end ${moveWords(db[0], db[1])}`);
-      if (movedA || movedB) parts.push(`now ${fmt(wallLen(wb))} m long`);
+      if ((movedA || movedB) && Math.abs(la - lb) > EPS) parts.push(`now ${fmt(lb)} m long`);
     }
   }
   const name = (c.before as Elem).id === (c.after as Elem).id ? label(d, c.coll, c.after as Elem) : label(d, c.coll, c.before as Elem);
@@ -79,6 +124,15 @@ export function describeChange(d: Campus, c: Change): string {
 }
 
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** The angle between a wall's old and new direction, whole degrees, 0 when parallel (either way round). */
+function turnDegrees(wa: Wall, wb: Wall): number {
+  const a = Math.atan2(wa.b[1] - wa.a[1], wa.b[0] - wa.a[0]);
+  const b = Math.atan2(wb.b[1] - wb.a[1], wb.b[0] - wb.a[0]);
+  let deg = Math.round((Math.abs(b - a) * 180) / Math.PI) % 360;
+  if (deg > 180) deg = 360 - deg;
+  return deg === 180 || deg === 0 ? 0 : deg;
+}
 
 /** All of an edit's changes in words; an edit that also removed openings with a wall says so once. */
 export function describeEdit(d: Campus, changes: readonly Change[]): string {

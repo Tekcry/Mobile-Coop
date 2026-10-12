@@ -188,7 +188,7 @@ describe('pad bindings in the action map', () => {
 
   it('RB: go to the selection (tap), the Selection wheel (hold), turn while grabbing; the hub has its own hint row', () => {
     expect(hintItems('selected', 'pad').map((i) => i.keys)).toEqual(expect.arrayContaining(['RB', 'RB hold']));
-    expect(hintItems('drag', 'pad').find((i) => i.keys === 'RB')?.name).toMatch(/turn it 90/);
+    expect(hintItems('drag', 'pad').find((i) => i.keys === 'RB')?.name).toBe('Turn 90');
     expect(hintItems('hub', 'pad').map((i) => i.keys)).toEqual(['LB / RB', 'D-pad up/down', 'D-pad left/right', 'A', 'B / Menu']);
     expect(hintItems('hub', 'keys').map((i) => i.keys)).toContain('Esc / H');
     expect(ACTIONS.find((a) => a.id === 'selWheel')?.mouse).toBe('Hold R');

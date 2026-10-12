@@ -82,7 +82,7 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
   switch (tab) {
     case 'Play':
       return [
-        { id: 'play.quick', text: 'Quick walk at the dot', note: 'Same as L3; B or L3 comes back', kind: 'go' },
+        { id: 'play.quick', text: 'Quick walk at the dot', note: 'Same as L3; L3 runs, B comes back', kind: 'go' },
         { id: 'play.walk', text: 'Walk test as the player', note: 'The game itself, unsaved edits included; Tab too', kind: 'go' },
       ];
     case 'File':

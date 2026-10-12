@@ -104,7 +104,7 @@ the free camera from the same spot. Nothing jumps either way.
 | D-pad up / down | level up / down; the dot and camera rise or drop with it |
 | LB held | precision: 0.1 m grid, pan, orbit and zoom at 30 %, magnet off |
 | RB tap / RB held | go to the selection / the **Selection wheel** (with nothing selected: "Select something first") |
-| L3 (left stick click) | quick walk at the dot; L3 again or B returns to the camera exactly as it was |
+| L3 (left stick click) | quick walk at the dot; while walking L3 toggles run (as the game's sprint), B returns to the camera exactly as it was |
 | R3 (right stick click) | levels shown: up to this level, single level, whole building (cycles) |
 | View tap / View held | top-down and back (north up) / layout: 3D, Both, Plan (cycles) |
 | Menu | the **hub** |
@@ -153,7 +153,7 @@ pad, and any grab is put back first.
 
 | Tab | Holds |
 | --- | --- |
-| Play | Quick walk at the dot (same as L3); Walk test as the player (the game, as Tab) |
+| Play | Quick walk at the dot (same as L3; L3 runs, B comes back); Walk test as the player (the game, as Tab) |
 | File | Save (with the unsaved count), Revert to last save (asks first), the change list newest first: A on a line asks "Undo back to here?" and undoes every change down to and including it |
 | Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub and goes there |
 | Levels | the level to edit (A edits it), then the Levels panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
@@ -167,10 +167,15 @@ pad, and any grab is put back first.
 ### Screen
 - The **dot** shows the position, the snap, what A would do and, while grabbing or drawing, the live size, length or
   move. In Plan only its words show under the plan.
-- **Tool bar** (bottom centre): Select, Room, Wall, Door (the door type under it), Window, Measure; the current one lit.
-- **Selection card** (bottom right): name, kind, size, level. Read-only; edit through the Selection wheel > Properties.
+- **Tool bar** (bottom centre): Select, Room, Wall, Door (the door type under it in words: Single, Double, Fire door), Window,
+  Measure; the current one lit. When the selection card shows, the bar centres in the width left of it; where that is too
+  narrow the card rises above the bar. Nothing on the pad screen overlaps (e2e checks 1280 x 720, 1024 x 600, 932 x 430).
+- **Selection card** (bottom right): the name, or the kind in words ("Interior wall"), with its code small and grey; size;
+  level. Read-only; edit through the Selection wheel > Properties.
+- **Hint bar** (controller): one line, at most 5 prompts in one or two words ("A Move", "RB Go to", "RB hold Change",
+  "B Back"); what A would take is the A prompt's word. Full words are in the hub's Help. The keyboard keeps the long words.
 - **Quick walk**: left stick walks, right stick looks, D-pad up / down changes level (the walk moves to that floor at
-  the same spot), B or L3 ends it. The dot, tool bar and card hide; A does nothing. Shift+Tab does the same from the keyboard.
+  the same spot), L3 toggles run, B ends it. The dot, tool bar and card hide; A does nothing. Shift+Tab does the same from the keyboard.
 - **Plan with the pad**: the plan never takes the pad; it shows the dot as a blue ring, the lit part and the ghosts as
   dashed outlines, and pans to keep the dot in view. The mouse still pans, zooms and edits the plan as before.
 - **Side panel**: Selection wheel > Properties takes the pad: D-pad up / down picks a field, left / right changes a

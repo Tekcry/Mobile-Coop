@@ -3,11 +3,11 @@
  * picks what to make; the Selection wheel (RB held, hold R) changes the selected thing and shows only what fits it.
  * Trees are rebuilt each time a wheel opens. Picks run through `runMenu`.
  */
-import { OPENING_TYPES, ROOM_KINDS, WALL_KINDS } from './ops';
+import { DOOR_NAMES, OPENING_TYPES, ROOM_KINDS, WALL_KINDS } from './ops';
 import type { Radial, RadialNode } from './radial';
 import type { Coll } from './types';
 
-export const DOOR_NAMES: Record<string, string> = { door: 'Door', double: 'Double door', 'fire-door': 'Fire door', roller: 'Roller shutter', gate: 'Gate', window: 'Window' };
+export { DOOR_NAMES };
 
 /** Build wheel, clockwise from the top. Stair, Ladder, Floor hole and Object stay hidden until those tools exist. */
 export function buildTree(opts: { clipboard: boolean }): RadialNode {

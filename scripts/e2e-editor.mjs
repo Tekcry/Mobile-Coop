@@ -201,7 +201,7 @@ try {
   const displays = [];
   for (let i = 0; i < 3; i++) { await press(BTN.RS); displays.push(await E(() => window.__editor.view.vis.preset)); }
   assert([...new Set(displays)].sort().join(',') === 'single,upTo,whole', `R3 cycles the three level displays (${displays})`);
-  const qw = async (start, how, end = BTN.LS, endHow = 'L3') => {
+  const qw = async (start, how, end = BTN.B, endHow = 'B') => {
     const before = await orb();
     await start();
     await wait(200);
@@ -214,7 +214,23 @@ try {
     assert(mid.walking && hidden && after.mode === 'orbit' && err < 0.01 && (await shown('toolBar')), `${how} starts a quick walk (tool bar hidden), ${endHow} ends it, orbit restored (${err.toFixed(4)} m)`);
   };
   await qw(() => press(BTN.LS), 'L3');
-  await qw(() => press(BTN.LS), 'L3', BTN.B, 'B');
+  // ED3-pad1: L3 while walking runs (the game's sprint) and keeps walking; B is the way back
+  {
+    await press(BTN.LS);
+    await wait(200);
+    const pos = () => E(() => { const p = window.__editor.view.camera.position; return { x: p.x, z: p.z }; });
+    const stride = async () => { const a = await pos(); await axes(0, -1); await wait(500); await axes(0, 0); await frames(page, 2); const b = await pos(); return Math.hypot(b.x - a.x, b.z - a.z); };
+    const slow = await stride();
+    await press(BTN.LS);
+    const r = await E(() => ({ walking: window.__editor.controls.walking, run: window.__editor.controls.padRun, hint: document.getElementById('hint').textContent }));
+    const fast = await stride();
+    await press(BTN.LS);
+    const r2 = await E(() => ({ walking: window.__editor.controls.walking, run: window.__editor.controls.padRun }));
+    await press(BTN.B);
+    await wait(200);
+    const out = await E(() => window.__editor.controls.walking);
+    assert(r.walking && r.run && r2.walking && !r2.run && !out && /LS click running, B back/.test(r.hint) && slow > 0.05 && fast > slow * 1.5, `quick walk: L3 runs and keeps walking (stride ${slow.toFixed(2)} -> ${fast.toFixed(2)} m), L3 again walks, B ends it`);
+  }
   await qw(async () => { await press(BTN.START); await E(() => window.__editor.pad.hub.setTab('Play')); await press(BTN.A); }, 'the hub\'s Play > Quick walk');
   console.log('quick walk: A does nothing; D-pad up / down changes floor');
   const qa = await E(() => { const ed = window.__editor; return { sel: ed.selected, tool: ed.tool, dirty: ed.model.dirty }; });
@@ -269,7 +285,7 @@ try {
   console.log('edge-aware grab: stretch an edge, move from the middle');
   await dotAt(room.cx, room.cz);
   const mid = await dotText();
-  assert(/Move \(A\)/.test(mid), `the dot at the room's centre says "Move" ("${mid.slice(-12)}")`);
+  assert(/A: Move$/.test(mid), `the dot at the room's centre says "A: Move" ("${mid.slice(-12)}")`);
   await dotAt(room.rect[2] - 0.2, room.cz);
   const edge = await dotText();
   assert(/Stretch east edge/.test(edge) && (await E(() => window.__editor.view.scene.getMeshByName('mark 0')?.isEnabled())), `0.2 m inside the east edge: "Stretch east edge", the edge lit ("${edge.slice(-24)}")`);
@@ -554,6 +570,41 @@ try {
   await page.keyboard.press('Control+z'); await frames(page, 2);
   const wBack = await E((id) => window.__editor.model.get('walls', id).kind, wWid);
   assert(wKinds.includes('balustrade') && wCt.kind === 'balustrade' && wCt.h === wh0 + 1 && wBack === 'interior', `Change type on a wall offers balustrade (${wKinds.join(', ')}) and is one undo step`);
+
+  console.log('pad screen: nothing overlaps, the hint bar is one line (ED3-pad1)');
+  await press(BTN.LB);
+  await E((id) => window.__editor.select(`walls:${id}`), wWid);
+  for (const minimap of [false, true]) {
+  await E((on) => { const ed = window.__editor; ed.prefs.layout = '3d'; ed.prefs.minimap = on; ed.applyLayout?.(); }, minimap);
+  for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) {
+    await page.setViewportSize({ width: vw, height: vh });
+    await wait(400);
+    await frames(page, 4);
+    const r = await E(() => {
+      const ids = ['padStrip', 'toolBar', 'selCard', 'reticleText', 'hint', ...(window.__editor.isMinimap() ? ['planWrap'] : [])];
+      const box = {};
+      for (const id of ids) {
+        const el = document.getElementById(id);
+        const b = el.getBoundingClientRect();
+        if (getComputedStyle(el).display !== 'none' && b.width > 0 && el.offsetParent !== null) box[id] = [b.left, b.top, b.right, b.bottom];
+      }
+      const hits = [];
+      const k = Object.keys(box);
+      for (let i = 0; i < k.length; i++) for (let j = i + 1; j < k.length; j++) {
+        const [a, c] = [box[k[i]], box[k[j]]];
+        if (a[0] < c[2] - 0.5 && c[0] < a[2] - 0.5 && a[1] < c[3] - 0.5 && c[1] < a[3] - 0.5) hits.push(`${k[i]}/${k[j]}`);
+      }
+      const hint = document.getElementById('hint');
+      const line = parseFloat(getComputedStyle(hint).lineHeight) || parseFloat(getComputedStyle(hint).fontSize) * 1.3;
+      const cut = [...document.querySelectorAll('#toolBar .slot b, #toolBar .slot small')].filter((e) => e.scrollWidth > e.clientWidth + 0.5).map((e) => e.textContent);
+      return { shown: k, hits, hintCut: hint.scrollWidth > hint.clientWidth + 0.5, hintTall: hint.clientHeight > line * 1.6 + 20, slots: document.querySelectorAll('#toolBar .slot').length, cut, hint: hint.textContent, card: document.getElementById('selCard').textContent };
+    });
+    assert(r.shown.includes('toolBar') && r.shown.includes('selCard') && r.hits.length === 0 && !r.hintCut && !r.hintTall && r.slots >= 6 && r.cut.length === 0 && /^Interior wall /.test(r.card),
+      `${vw} x ${vh}${minimap ? ', small plan' : ''}: ${r.shown.length} pad panels, overlaps [${r.hits.join(', ')}], hint one line uncut (${!r.hintCut && !r.hintTall}), ${r.slots} tool slots, cut names [${r.cut.join(', ')}], card "${r.card.slice(0, 40)}"`);
+    await shot(`pad-screen-${vw}x${vh}${minimap ? '-small-plan' : ''}`);
+  }
+  }
+  await page.setViewportSize({ width: 1600, height: 900 });
 } catch (e) {
 
   failed = true;

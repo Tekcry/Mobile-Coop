@@ -16,7 +16,7 @@ import { DEFAULT_SETTINGS, LARGE_TEXT, readSettings } from './hub';
 import type { PadSettings } from './hub';
 import { focusField, HubView, stepField } from './hubView';
 import type { Editor, PlanShape } from './main';
-import { label, OPENING_DEFAULTS } from './ops';
+import { cardWords, label, OPENING_DEFAULTS, slotDoorName } from './ops';
 import { ORBIT } from './orbit';
 import { PAD, PadState } from './pad';
 import { buildTree, DOOR_NAMES, RadialView, selectionTree } from './padMenu';
@@ -42,7 +42,6 @@ const DISPLAYS = [
   ['single', 'Single level'],
   ['whole', 'Whole building'],
 ] as const;
-const KIND: Record<Coll, string> = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole' };
 /** What RB turns while grabbing (openings and floor holes ignore it). */
 const TURNS: readonly Coll[] = ['rooms', 'stairs', 'ladders', 'walls'];
 const PREFS = 'kestrel-editor-pad';
@@ -353,11 +352,15 @@ export class PadControl {
     if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, kz);
   }
 
-  /** Quick walk (L3): sticks walk and look; the dot, tool bar and card hide; A does nothing. */
+  /** Quick walk (L3 from building): sticks walk and look, L3 toggles run (the game's sprint), B comes back; the dot, tool bar and card hide; A does nothing. */
   private walkFrame(): void {
     const st = this.st;
     const c = this.ed.controls;
-    if (this.ed.quickWalking && (st.pressed(PAD.LS) || st.pressed(PAD.B))) return this.ed.quickWalk();
+    if (this.ed.quickWalking && st.pressed(PAD.B)) return this.ed.quickWalk();
+    if (st.pressed(PAD.LS)) {
+      c.padRun = !c.padRun;
+      this.ed.updateHint();
+    }
     if (!this.stickLatch) {
       c.padMove = { x: st.ls.x, y: -st.ls.y };
       c.padLook = { x: st.rs.x, y: this.settings.invertTilt ? st.rs.y : -st.rs.y };
@@ -706,34 +709,72 @@ export class PadControl {
     if (now - this.barAt < 100) return;
     this.barAt = now;
     this.showPointers();
+    this.layoutBar();
     const ed = this.ed;
-    const door = $<HTMLSelectElement>('doorType');
-    const doorName = door.selectedOptions[0]?.textContent ?? door.value;
+    const doorName = slotDoorName($<HTMLSelectElement>('doorType').value);
     const s = ed.selectedElem();
     const key = `${this.barSlot()}|${doorName}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     $('toolBar').innerHTML = BAR.map(([id, name]) => `<div class="slot${id === slot ? ' on' : ''}" data-slot="${id}"><b>${name}</b>${id === 'door' ? `<small>${esc(doorName)}</small>` : ''}</div>`).join('');
-    if (!s) return;
-    const d = ed.model.data;
-    const lv = d.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
-    let kind = KIND[s.coll];
-    let size = '';
-    if ('rect' in s.e) {
-      const r = (s.e as Room).rect;
-      size = `${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m`;
-      if (s.coll === 'rooms') kind = `Room (${(s.e as Room).kind})`;
-    } else if (s.coll === 'walls') {
-      const w = s.e as Wall;
-      kind = `${w.kind} wall`;
-      size = `length ${fmt(wallLen(w))} m, thickness ${fmt(w.t)} m`;
-    } else if (s.coll === 'openings') {
-      const o = s.e as Opening;
-      kind = `Opening: ${o.type}`;
-      size = `${o.type}, width ${fmt(o.w)} m`;
-    } else if (s.coll === 'ladders') size = `at x ${fmt((s.e as Ladder).at[0])}, z ${fmt((s.e as Ladder).at[1])}`;
-    $('selCard').innerHTML = `<b>${esc(label(d, s.coll, s.e))}</b><div>${esc(kind)}</div><div>${esc(size)}</div><div>Level ${esc(lv?.name ?? '')}</div>`;
+    if (s) {
+      const c = cardWords(s.coll, s.e);
+      const lv = ed.model.data.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
+      $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small><div>${esc(c.size)}</div><div>Level ${esc(lv?.name ?? '')}</div>`;
+    }
+    this.layoutBar();
+  }
+
+  /**
+   * Keeps the tool bar clear of the selection card and the small plan (ED3-pad1): the bar centres in the width between
+   * them; where that is too narrow the card rises above the bar, and if the bar still does not fit beside the small plan
+   * it rises above that too. Bar and card carry the Large text zoom, so CSS lengths are divided by it.
+   */
+  private layoutBar(): void {
+    const bar = $('toolBar');
+    const card = $('selCard');
+    bar.style.left = '';
+    bar.style.transform = '';
+    bar.style.bottom = '';
+    card.style.bottom = '';
+    bar.classList.remove('compact');
+    if (!bar.offsetParent) return;
+    const gap = 8;
+    const stage = $('stage').getBoundingClientRect();
+    let b = bar.getBoundingClientRect();
+    const kb = b.width / Math.max(1, bar.offsetWidth) || 1;
+    // the small plan (3D only) sits bottom left over the view; in Both or Plan the plan is its own pane
+    const mini = this.ed.isMinimap() ? $('planWrap').getBoundingClientRect() : null;
+    const miniBeside = mini && mini.width > 0 && mini.top < b.bottom && mini.bottom > b.top;
+    const L = (miniBeside ? mini.right : stage.left) + gap;
+    const cardOn = !!card.offsetParent;
+    const c = cardOn ? card.getBoundingClientRect() : null;
+    const place = (right: number): boolean => {
+      if (b.width > right - L) return false;
+      bar.style.left = `${(L - stage.left + (right - L - b.width) / 2) / kb}px`;
+      bar.style.transform = 'none';
+      return true;
+    };
+    const right = c ? c.left - gap : stage.right - gap;
+    if (place(right)) return;
+    // tighter slots before anything moves
+    bar.classList.add('compact');
+    b = bar.getBoundingClientRect();
+    if (place(right)) return;
+    if (c) {
+      const kc = c.width / Math.max(1, card.offsetWidth) || 1;
+      card.style.bottom = `${(stage.bottom - b.top + gap) / kc}px`;
+    }
+    if (place(stage.right - gap)) return;
+    // narrower still: the bar goes above the small plan, centred
+    if (miniBeside && mini) {
+      bar.style.bottom = `${(stage.bottom - mini.top + gap) / kb}px`;
+      if (c) {
+        const kc = c.width / Math.max(1, card.offsetWidth) || 1;
+        card.style.bottom = `${(stage.bottom - mini.top + gap + b.height + gap) / kc}px`;
+      }
+    }
   }
 
   private labelAt = 0;
@@ -746,8 +787,8 @@ export class PadControl {
     const ed = this.ed;
     const d = ed.drag;
     const p = this.point(d?.source === 'pad' ? d.planeY : undefined);
-    let text = p ? `x ${fmt(p[0])}  z ${fmt(p[1])}` : '';
-    if (this.magnet) text += `   ${this.magnet.label}`;
+    let text = p ? `x ${fmt(p[0])}, z ${fmt(p[1])}` : '';
+    if (this.magnet) text += ` - ${this.magnet.label}`;
     let words = '';
     let bad = false;
     let key = '';
@@ -791,7 +832,7 @@ export class PadControl {
         const at = Math.min(L - def.w / 2, Math.max(def.w / 2, snap(projectOnWall(w, p[0], p[1]).s, ed.grid)));
         const a = wallPoint(w, at - def.w / 2);
         const b = wallPoint(w, at + def.w / 2);
-        words = `width ${fmt(def.w)} m   A: place ${DOOR_NAMES[type] ?? type} on ${label(ed.model.data, 'walls', w)}`;
+        words = `width ${fmt(def.w)} m - A: place ${DOOR_NAMES[type] ?? type} on ${label(ed.model.data, 'walls', w)}`;
         key = `o|${w.id}|${at}|${type}`;
         marks.push(this.bar(a, b, f + def.sill + def.h / 2, def.h, w.t + 0.1, 'ghost'));
         plan.push({ kind: 'line', a, b });
@@ -804,7 +845,7 @@ export class PadControl {
       hover = t?.key ?? null;
     }
     ed.setHover(hover);
-    if (words) text += `   ${words}`;
+    if (words) text += ` - ${words.endsWith(' (A)') ? `A: ${words.slice(0, -4)}` : words}`;
     // Plan only: the 3D dot is hidden, so its words go under the plan
     $(ed.prefs.layout === 'plan' ? 'planStatus' : 'reticleText').textContent = text;
     $('reticle').classList.toggle('bad', bad);
@@ -998,7 +1039,7 @@ export class PadControl {
     $('padStrip').innerHTML = [
       `Editing <b>${lv ? `${esc(lv.name)} (${fmt(lv.floor)} m)` : ''}</b>`,
       `View <b>${view}${ed.controls.mode === 'orbit' && ed.controls.orbit.topDown ? ', Top-down' : ''}</b> &nbsp; Levels <b>${preset}${extras ? `, ${extras}` : ''}</b>`,
-      `Building <b>${bld}</b> &nbsp; Tool <b>${this.measureFrom ? 'measure' : ed.tool}</b>`,
+      `Building <b>${bld}</b> &nbsp; Tool <b>${BAR.find(([id]) => id === this.barSlot())?.[1] ?? ed.tool}</b>`,
       `Unsaved <b>${ed.model.dirty}</b> &nbsp; New problems <b>${fresh}</b>`,
     ].join('<br>');
   }

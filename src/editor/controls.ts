@@ -38,6 +38,8 @@ export class CameraControls {
   /** Controller input when walking, set each frame by padControl.ts: left stick move (x right, y forward), right stick look rate (x right, y up). */
   padMove = { x: 0, y: 0 };
   padLook = { x: 0, y: 0 };
+  /** Controller run while walking (L3 toggles it, as the game's sprint; ED3-pad1). Reset when a walk starts. */
+  padRun = false;
   private readonly keys = new Set<string>();
   private looking = false;
   private lastX = 0;
@@ -174,7 +176,7 @@ export class CameraControls {
     }
     if (this.mode === 'orbit') return this.updateOrbit(dt);
     const k = this.keys;
-    const fast = k.has('ShiftLeft') || k.has('ShiftRight');
+    const fast = k.has('ShiftLeft') || k.has('ShiftRight') || (this.walking && this.padRun);
     const clamp1 = (v: number): number => Math.max(-1, Math.min(1, v));
     const fwd = clamp1((k.has('KeyW') ? 1 : 0) - (k.has('KeyS') ? 1 : 0) + this.padMove.y);
     const side = clamp1((k.has('KeyD') ? 1 : 0) - (k.has('KeyA') ? 1 : 0) + this.padMove.x);

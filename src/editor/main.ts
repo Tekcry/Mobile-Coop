@@ -9,6 +9,7 @@ import { CameraControls } from './controls';
 import type { OrbitState } from './orbit';
 import { ORBIT, poseAngles, type CamPose } from './orbit';
 import { PadControl } from './padControl';
+import { padWords } from './pad';
 import { clearDraft, makeDraft, readDraft, shouldOffer, writeDraft } from './draft';
 import type { Draft } from './draft';
 import { EditorScene } from './scene3d';
@@ -19,7 +20,7 @@ import type { Change, JournalEntry } from './model';
 import { fmt, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
-import { deleteChanges, describeEdit, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
+import { deleteChanges, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import type { Campus, Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
 
@@ -868,6 +869,7 @@ export class Editor {
     this.quickLevel = this.view.level;
     c.walkAt(o.tx, o.tz, this.floor());
     c.yaw = o.yaw;
+    c.padRun = false;
     this.walkChanged();
   }
 
@@ -1187,7 +1189,7 @@ export class Editor {
         <span class="group seg" id="layout" title="V cycles"><button data-layout="3d">3D</button><button data-layout="both">Both</button><button data-layout="plan">Plan</button></span>
         <span class="group"><button id="splitDir" title="Side by side or stacked">Side by side</button><button id="swap" title="Swap the 3D and the plan">Swap</button><button id="minimap" title="Small plan in the corner of 3D only (M)">Small plan</button><button id="drawerBtn" title="Side panel (\` or I)">Panel</button></span>
         <span class="group" id="tools">
-          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option>${t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button>
+          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button>
         </span>
         <span class="group"><button id="walk" title="Tab: the game's own player, unsaved edits included (Shift+Tab: quick walk)">Walk test (game)</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
         <span id="checksBadge"></span>
@@ -1470,11 +1472,13 @@ export class Editor {
     if (this.view.vis.exploded && !this.controls.walking) notes.push('Exploded: levels drawn apart, saved as built');
     const pad = this.pad;
     if (pad?.device === 'pad' && pad.focus === 'drawer') notes.push('Pad in the side panel (B leaves)');
-    if (this.quickWalking) notes.push('Quick walk (L3, B or Shift+Tab goes back)');
-    if (pad?.device === 'pad' && pad.grabWords && c !== 'hub' && c !== 'menu') notes.push(pad.grabWords);
+    if (this.quickWalking) notes.push(pad?.device === 'pad' ? `Quick walk - left stick walk, ${padWords('L3', pad.style)} ${this.controls.padRun ? 'running' : 'run'}, ${padWords('B', pad.style)} back` : 'Quick walk - Shift held runs, Shift+Tab back');
+    // the controller: what A would take ("Stretch east edge (A)") becomes the A prompt's word; other dot words stay at the dot
+    const padOn = pad?.device === 'pad';
+    const partWords = padOn && pad.grabWords.endsWith(' (A)') ? pad.grabWords.slice(0, -4) : '';
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
     if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
-    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox').map((i) => `<b>${esc(i.keys)}</b> ${esc(i.name)}`);
+    const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox').map((i) => `<b>${esc(i.keys)}</b> ${esc(i.id === 'padPick' && partWords ? partWords : i.name)}`);
     $('hint').innerHTML = [...notes.map((n) => `<span class="note">${esc(n)}</span>`), ...items].join('&nbsp;&nbsp;&nbsp;');
   }
 

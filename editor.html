@@ -135,8 +135,12 @@
       #toolBar .slot b { display: block; font-weight: 600; }
       #toolBar .slot small { display: block; font-size: 14px; }
       #toolBar .slot.on { background: var(--accent); color: #fff; }
+      #toolBar.compact { gap: 2px; padding: 4px; }
+      #toolBar.compact .slot { min-width: 0; padding: 4px 7px; font-size: 16px; }
+      #toolBar.compact .slot small { font-size: 12px; }
       #selCard { right: 8px; bottom: 64px; padding: 10px 14px; font-size: 20px; line-height: 1.4; max-width: 420px; }
       #selCard b { color: var(--accent); }
+      #selCard small.id { color: var(--dim); font-size: 0.7em; margin-left: 4px; }
       body[data-device='pad'] #toolBar:not(.hidden) { display: flex; }
       body[data-device='pad'] #selCard:not(.hidden) { display: block; }
       .padfocus { outline: 3px solid var(--accent) !important; outline-offset: -3px; }
@@ -151,6 +155,8 @@
       body[data-device='pad'] #drawer:not(.padfocus) { display: none; }
       body[data-device='pad'] #padStrip { display: block; }
       body[data-device='pad'] #hint { font-size: 20px; text-align: center; padding: 8px 12px; }
+      /* the small plan clears the controller's taller hint bar (ED3-pad1) */
+      body[data-device='pad'] #stage[data-layout='3d'][data-minimap='1'] #planWrap { bottom: 52px; }
       body[data-device='pad'] #status { font-size: 16px; height: auto; }
       body[data-device='pad'] #drawer { width: 460px; font-size: 18px; }
       body[data-device='pad'] #panel .row { margin: 8px 0; }
@@ -172,10 +178,10 @@
         .rm-slot { min-width: 70px; max-width: 110px; padding: 7px 8px; font-size: 13px; }
         .rm-name { font-size: 16px; }
         .rm-desc, .rm-crumb { font-size: 11px; }
-        #hint, body[data-device='pad'] #hint { font-size: 13px; padding: 4px 8px; white-space: normal; max-height: 3.2em; }
+        #hint, body[data-device='pad'] #hint { font-size: 13px; padding: 4px 8px; }
         #padStrip { font-size: 13px; padding: 5px 8px; }
         body[data-device='pad'] #panel, body[data-device='pad'] #panel input, body[data-device='pad'] #panel select, body[data-device='pad'] #panel button { font-size: 15px; }
-        #stage[data-layout='3d'][data-minimap='1'] #planWrap { width: 38vw; height: 28vw; min-width: 140px; min-height: 105px; bottom: 50px; }
+        #stage[data-layout='3d'][data-minimap='1'] #planWrap { width: min(38vw, 50vh); height: min(28vw, 37.5vh); min-width: 140px; min-height: 105px; bottom: 50px; }
         #reticleText, body[data-device='pad'] #reticleText { font-size: 13px; }
         #toolBar .slot { min-width: 0; font-size: 14px; padding: 4px 6px; }
         #selCard { font-size: 14px; max-width: 60vw; }
