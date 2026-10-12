@@ -90,6 +90,11 @@ export class EditorModel {
     return this.past;
   }
 
+  /** ON3: the undone edits that redo would bring back, the next redo last (the hub greys them until a new edit drops them). */
+  get undone(): readonly Edit[] {
+    return this.future;
+  }
+
   get canUndo(): boolean {
     return this.past.length > 0;
   }

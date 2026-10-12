@@ -71,6 +71,20 @@
       .hub-row.line { background: rgba(30, 34, 40, 0.6); }
       .hub-row.off { opacity: 0.45; cursor: default; }
       .hub-row.bad span { color: #ff6b6b; }
+      /* ON3: undone changes (File tab) stay grey until a new edit drops them */
+      .hub-row.undone span { color: var(--dim); font-style: italic; }
+      /* ON3: floating room names (a fixed pool), the save summary, Find, problem lines you can click */
+      #roomNames { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
+      .rname { position: absolute; left: 0; top: 0; padding: 1px 6px; border-radius: 4px; background: rgba(12, 14, 17, 0.6); color: #fff; font-size: 13px; white-space: nowrap; will-change: transform, opacity; }
+      #ask .askMore { margin: 0 0 8px; max-width: 520px; }
+      #ask .askMore p { margin: 4px 0; }
+      #ask .sumWords { font-weight: 600; }
+      #panel [data-go] { cursor: pointer; }
+      #panel [data-go]:hover { text-decoration: underline; }
+      #findBox { position: absolute; z-index: 26; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(92%, 680px); max-height: 90%; display: flex; flex-direction: column; gap: 8px; padding: 12px 14px; background: rgba(12, 14, 17, 0.96); border: 2px solid var(--accent); border-radius: 10px; box-sizing: border-box; zoom: var(--ts, 1); }
+      #findBox input { font-size: 18px; width: 70%; }
+      #findBox .fb-list { overflow: auto; min-height: 0; max-height: 40vh; }
+      #findBox .np-body.dimmed { opacity: 0.45; }
       #hub .padfocus { border-color: #fff; background: rgba(10, 132, 255, 0.35); }
       #hubPanel .row { display: flex; align-items: center; justify-content: flex-start; gap: 10px; margin: 6px 0; }
       #hub h4 { margin: 18px 0 4px; color: var(--dim); font-weight: 600; }
@@ -252,6 +266,7 @@
         <div id="selCard" class="hidden"></div>
         <div id="tileMenu" class="hidden"></div>
         <div id="namePick" class="hidden"></div>
+        <div id="findBox" class="hidden"></div>
       </div>
       <aside id="drawer">
         <div id="drawerHead"><button data-tab="props">Selected</button><button data-tab="checks">Checks</button><button data-tab="log">Changes</button><span class="grow"></span><button id="pin" title="Pin the panel beside the views, or let it float over them">Pin</button><button id="closeDrawer" title="Close (` or I)">x</button></div>

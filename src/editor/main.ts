@@ -31,6 +31,12 @@ import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './live
 import type { LiveInfo, LiveShape } from './liveSizes';
 import type { Campus, Coll, Elem, Key, Ladder, Level, Opening, Pt, Rect, Roof, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
+import { BOOKMARK_NAMES, freeSlot, idIndex, netChanges, problemTarget, problemWords, putBookmark, readBookmarks, summaryWords } from './ease';
+import type { Bookmark, FindItem } from './ease';
+import { groupCentre, groupMoveWords, groupWords, moveSetChanges } from './group';
+import { EditorOverlays } from './overlays';
+import type { ProblemSpot } from './overlays';
+import { FindBox } from './findView';
 import { fitStair, HOLE_KINDS, HOLE_NAMES, holeId, ladderId, newHole, proposeLadder, proposeStair, STAIR_TYPES, stairFit, stairId, stairType, stairTypeOf, stairwellLink, turnClimb, withStairType } from './vertical';
 import type { StairTypeId } from './vertical';
 import { defaultBase, footprintAt, newRoof, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
@@ -58,22 +64,35 @@ interface Prefs {
   drawer: boolean;
   minimap: boolean;
   vis: unknown;
+  /** ON3: floating room names in 3D (L) and the scale figure (K). */
+  names: boolean;
+  figure: boolean;
 }
 function loadPrefs(): Prefs {
-  const p: Prefs = { layout: 'both', split: 'row', swap: false, frac: 0.58, pinned: true, drawer: true, minimap: true, vis: null };
+  const p: Prefs = { layout: 'both', split: 'row', swap: false, frac: 0.58, pinned: true, drawer: true, minimap: true, vis: null, names: false, figure: false };
   try {
     const r = JSON.parse(localStorage.getItem(PREFS) ?? 'null') as Partial<Prefs> | null;
     if (r && typeof r === 'object') {
       if (r.layout === '3d' || r.layout === 'both' || r.layout === 'plan') p.layout = r.layout;
       if (r.split === 'row' || r.split === 'col') p.split = r.split;
       if (typeof r.frac === 'number' && r.frac >= 0.15 && r.frac <= 0.85) p.frac = r.frac;
-      for (const k of ['swap', 'pinned', 'drawer', 'minimap'] as const) if (typeof r[k] === 'boolean') p[k] = r[k];
+      for (const k of ['swap', 'pinned', 'drawer', 'minimap', 'names', 'figure'] as const) if (typeof r[k] === 'boolean') p[k] = r[k];
       p.vis = r.vis;
     }
   } catch {
     // no storage (private window): defaults
   }
   return p;
+}
+
+/** ON3 camera bookmarks: a view preference in browser storage, never in the file. */
+const BOOKMARKS = 'kestrel-editor-bookmarks';
+function loadBookmarks(): Bookmark[] {
+  try {
+    return readBookmarks(JSON.parse(localStorage.getItem(BOOKMARKS) ?? 'null'));
+  } catch {
+    return [];
+  }
 }
 
 /** A dashed shape the pad draws over the plan: a line (an edge, a wall, an opening) or a ring (a point). */
@@ -129,6 +148,17 @@ export class Editor {
   readonly controls: CameraControls;
   tool: Tool = 'select';
   selected: Key | null = null;
+  /** ON3 multi-select (box select, Shift+click): two or more keys; `selected` is then null. */
+  group: Key[] = [];
+  /** ON3: the set being moved (pad, 3D or plan): its snapshots at the start and the move shown now. */
+  groupDrag: { start: Pt; planeY: number; before: Map<Key, Elem>; dx: number; dz: number; source: '3d' | 'plan' | 'pad' } | null = null;
+  /** Bumped on every data change (the overlays rebuild their lists only then). */
+  dataVersion = 0;
+  /** Bumped on every finished checks run. */
+  checksSeq = 0;
+  overlays!: EditorOverlays;
+  find!: FindBox;
+  bookmarks: Bookmark[] = loadBookmarks();
   drag: Drag | null = null;
   wallTemplate: Wall | null = null;
   /** Wall chains (ON1): the Wall tool's finished segments while drawing; the segment being drawn is the drag. */
@@ -183,9 +213,17 @@ export class Editor {
     this.applyLayout();
     const site = data.meta.site ?? [0, 0, 100, 80];
     this.controls.overlook((site[0] + site[2]) / 2, (site[1] + site[3]) / 2, 0, 90);
+    this.overlays = new EditorOverlays(this);
+    this.overlays.names = this.prefs.names;
+    this.overlays.figure = this.prefs.figure;
+    this.find = new FindBox($('findBox'), () => this.model.data, (it) => this.goToFind(it), () => {
+      this.pad?.latchSticks();
+      this.updateHint();
+    });
     this.view.scene.onBeforeRenderObservable.add(() => {
       this.controls.update(Math.min(0.05, this.view.engine.getDeltaTime() / 1000));
       this.drawCameraMarker();
+      this.overlays.frame();
     });
     new ResizeObserver(() => this.view.engine.resize()).observe($('view3d'));
 
@@ -199,6 +237,11 @@ export class Editor {
     this.refreshPlan(true);
     this.runChecks(true);
     this.renderPanel();
+    // ON3: a Checks line that names an element is a link
+    $('panel').addEventListener('click', (e) => {
+      const go = (e.target as Element).closest('[data-go]')?.getAttribute('data-go');
+      if (go) this.goToProblem(go);
+    });
     this.updateHint();
     this.status(`Loaded ${data.rooms.length} rooms, ${data.walls.length} walls, ${data.openings.length} openings on ${data.levels.length} levels. H shows the keys, V changes the view.`);
     window.addEventListener('beforeunload', (e) => {
@@ -242,12 +285,12 @@ export class Editor {
   /** What the editor is doing now, for the hint bar and key dispatch. */
   ctx(): Ctx {
     if (this.pad?.hub.isOpen) return 'hub';
-    if (this.pad?.menuOpen) return 'menu';
+    if (this.pad?.menuOpen || this.find?.isOpen) return 'menu';
     if (this.chaining) return 'chain';
-    if (this.drag) return 'drag';
+    if (this.drag || this.groupDrag) return 'drag';
     if (this.tool !== 'select') return 'draw';
     if (this.selected && this.pad?.cardEditing) return 'card';
-    return this.selected ? 'selected' : 'idle';
+    return this.selected || this.group.length ? 'selected' : 'idle';
   }
 
   /** A plan point for an element: the centre of its rect, its wall's middle, its spot. */
@@ -268,6 +311,7 @@ export class Editor {
 
   // ---------- model changes ----------
   private changed(keys: Key[]): void {
+    this.dataVersion++;
     // a level or building edit moves floors and outlines: rebuild the 3D and the level lists
     if (keys.some((k) => k.startsWith('levels:') || k.startsWith('buildings:'))) {
       this.view.rebuildAll();
@@ -277,6 +321,13 @@ export class Editor {
       this.pad?.hub.render();
     } else this.view.refresh(keys);
     if (this.selected && !this.selectedElem()) this.select(null);
+    if (this.group.length && !this.groupDrag) {
+      const alive = this.group.filter((k) => {
+        const p = parseKey(k);
+        return !!p && !!this.model.get(p.coll, p.id);
+      });
+      if (alive.length !== this.group.length) this.setGroup(alive);
+    }
     this.updateHandles();
     this.rebuildBlockers();
     this.schedulePlan();
@@ -292,6 +343,10 @@ export class Editor {
   }
 
   select(key: Key | null): void {
+    if (this.group.length) {
+      this.group = [];
+      this.view.setGroup([]);
+    }
     this.selected = key;
     this.view.setSelected(key);
     const s = this.selectedElem();
@@ -301,6 +356,73 @@ export class Editor {
     if (key) this.tab = 'props';
     this.renderPanel();
     this.updateHint();
+  }
+
+  // ---------- ON3 multi-select ----------
+  /** Makes `keys` the selection: one key selects it as usual, none clears it, more make a set. */
+  setGroup(keys: Key[]): void {
+    if (keys.length <= 1) return this.select(keys[0] ?? null);
+    this.select(null);
+    this.group = keys.slice();
+    this.view.setGroup(this.group);
+    this.highlightPlan();
+    this.drawPlanOverlay();
+    this.renderPanel();
+    this.updateHint();
+    this.status(`Selected ${groupWords(this.group)}: Y menu (Move, Copy, Copy to level above, Delete), A on one of them moves them all, B clears`);
+  }
+
+  /** Shift+click: adds the element to the set or takes it out (the single selection joins the set first). */
+  toggleGroup(key: Key): void {
+    const set = this.group.length ? this.group.slice() : this.selected ? [this.selected] : [];
+    const i = set.indexOf(key);
+    if (i >= 0) set.splice(i, 1);
+    else set.push(key);
+    this.setGroup(set);
+  }
+
+  /** Grabs the whole set at a point: it follows the pointer or the dot, one edit on the drop. */
+  startGroupDrag(p: Pt, source: '3d' | 'plan' | 'pad', planeY = this.viewFloor()): void {
+    const before = this.groupSnapshots();
+    if (!before.size) return;
+    this.groupDrag = { start: p, planeY, before, dx: 0, dz: 0, source };
+    this.status(`Moving ${groupWords(this.group)}: ${source === 'pad' ? 'move the dot, A drops them, B puts them back' : 'release to drop, Esc puts them back'}`);
+    this.updateHint();
+  }
+
+  /** The set follows (x, z), on the grid; shown only when the step changes. */
+  moveGroup(x: number, z: number): void {
+    const g = this.groupDrag;
+    if (!g) return;
+    const dx = snap(x - g.start[0], this.grid);
+    const dz = snap(z - g.start[1], this.grid);
+    if (dx === g.dx && dz === g.dz) return;
+    g.dx = dx;
+    g.dz = dz;
+    for (const c of moveSetChanges(g.before, dx, dz)) this.model.preview(c.coll, c.after!);
+    $('hud').textContent = `moved ${moveWords(dx, dz)}`;
+  }
+
+  /** Drops the set (one edit) or puts it back. */
+  endGroupDrag(cancel: boolean): void {
+    const g = this.groupDrag;
+    if (!g) return;
+    this.groupDrag = null;
+    // back to the start first, so the edit records the true befores (and the stairwell link sees them)
+    for (const c of moveSetChanges(g.before, 0, 0)) this.model.preview(c.coll, c.after!);
+    if (!cancel && (g.dx || g.dz)) this.commitText(groupMoveWords([...g.before.keys()], g.dx, g.dz), moveSetChanges(g.before, g.dx, g.dz));
+    else this.status(cancel ? 'Put back' : 'Not moved');
+    this.updateHint();
+  }
+
+  private groupSnapshots(): Map<Key, Elem> {
+    const m = new Map<Key, Elem>();
+    for (const k of this.group) {
+      const q = parseKey(k);
+      const e = q ? this.model.snapshot(q.coll, q.id) : null;
+      if (q && e) m.set(k, e);
+    }
+    return m;
   }
 
   /** Commits one edit; with `merge` (selection card steps) a quick next step on the same row joins it (model.commit). */
@@ -997,6 +1119,9 @@ export class Editor {
         return;
       }
       const hit = this.view.pick(px, py);
+      // ON3: Shift+click adds to the set or takes out; a press on a member grabs the whole set
+      if (e.shiftKey && hit.hit) return this.toggleGroup(hit.hit.key);
+      if (hit.hit && this.group.includes(hit.hit.key)) return this.startGroupDrag([hit.hit.x, hit.hit.z], '3d', hit.hit.y);
       const s = this.selectedElem();
       if (hit.handle && s) {
         const h = this.handlesFor().find((q) => q.id === hit.handle);
@@ -1011,6 +1136,12 @@ export class Editor {
     });
     canvas.addEventListener('pointermove', (e) => {
       const [px, py] = local(e);
+      const gd = this.groupDrag;
+      if (gd?.source === '3d') {
+        const pt = this.view.planePoint(px, py, gd.planeY);
+        if (pt) this.moveGroup(pt[0], pt[1]);
+        return;
+      }
       const d = this.drag;
       if (d && d.source === '3d') {
         if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 4) return;
@@ -1037,6 +1168,7 @@ export class Editor {
       // a right click (not a look drag) ends a wall chain (ON1)
       if (e.button === 2 && rightAt && Math.abs(e.clientX - rightAt[0]) + Math.abs(e.clientY - rightAt[1]) < 5 && this.chaining) return this.endDrag(true);
       if (e.button === 0 && this.drag?.source === '3d') this.release();
+      if (e.button === 0 && this.groupDrag?.source === '3d') this.endGroupDrag(false);
     });
   }
 
@@ -1263,7 +1395,7 @@ export class Editor {
     const svg = this.planSvg();
     if (!svg) return;
     for (const el of svg.querySelectorAll('.sel')) el.classList.remove('sel');
-    if (this.selected) for (const el of svg.querySelectorAll(`[data-id="${CSS.escape(this.selected)}"]`)) el.classList.add('sel');
+    for (const k of this.selected ? [this.selected, ...this.group] : this.group) for (const el of svg.querySelectorAll(`[data-id="${CSS.escape(k)}"]`)) el.classList.add('sel');
   }
 
   /** Orange outline of the selected element, its handles, and the camera, drawn over the plan. */
@@ -1306,6 +1438,13 @@ export class Editor {
       const a = this.toPlan(...gp.at);
       out += `<g class="gapMark" data-gap="${esc(gp.wall)}"><circle cx="${a[0]}" cy="${a[1]}" r="9" fill="none" stroke="#e0182d" stroke-width="3"/><text x="${a[0] + 12}" y="${a[1] - 10}" font-size="13" fill="#e0182d" font-weight="bold">Gap ${fmt(gp.dist)} m</text></g>`;
     }
+    // ON3: red problem markers while a Checks list is open
+    if (this.checksShown())
+      for (const p of this.problemSpots()) {
+        if (p.level !== this.view.level) continue;
+        const a = this.toPlan(p.x, p.z);
+        out += `<g class="probMark"><circle cx="${a[0]}" cy="${a[1]}" r="11" fill="#ff3b30" fill-opacity="0.25" stroke="#ff3b30" stroke-width="3"/><path d="M${a[0] - 6} ${a[1] - 6}L${a[0] + 6} ${a[1] + 6}M${a[0] + 6} ${a[1] - 6}L${a[0] - 6} ${a[1] + 6}" stroke="#ff3b30" stroke-width="3"/></g>`;
+      }
     out += '<g id="camMark"></g>';
     g.innerHTML = out;
     this.drawCameraMarker();
@@ -1367,6 +1506,8 @@ export class Editor {
       }
       // walls and openings sit on top of rooms; the first data-id up the tree is what was clicked
       const key = target.closest('[data-id]')?.getAttribute('data-id') as Key | undefined;
+      if (e.shiftKey && key && parseKey(key)) return this.toggleGroup(key);
+      if (key && this.group.includes(key)) return this.startGroupDrag([x, z], 'plan', this.floor());
       if (!key || !parseKey(key)) return this.select(null);
       if (key !== this.selected) this.select(key);
       const k = parseKey(key)!;
@@ -1389,6 +1530,7 @@ export class Editor {
         $('planStatus').textContent = `x ${fmt(x)}  z ${fmt(z)}`;
         if (!this.drag) this.setHover(((e.target as Element).closest('[data-id]')?.getAttribute('data-id') as Key | null) ?? null);
         if (this.stairDraw?.phase === 'aim') this.aimStair(x, z);
+        if (this.groupDrag?.source === 'plan') return this.moveGroup(x, z);
         const d = this.drag;
         if (d && d.source === 'plan') {
           if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 4) return;
@@ -1406,6 +1548,7 @@ export class Editor {
       }
       if (e.button === 2 && this.chaining) return this.endDrag(true);
       if (this.drag?.source === 'plan') this.release();
+      if (this.groupDrag?.source === 'plan') this.endGroupDrag(false);
     });
     host.addEventListener('dblclick', (e) => {
       const p = this.svgPoint(e);
@@ -1609,6 +1752,7 @@ export class Editor {
       if (!r.ok || !reply.summary) throw new Error((reply as { error?: string }).error ?? String(r.status));
       if (first || !this.baseline) this.baseline = new Set(checkLines(reply));
       this.lastChecks = reply;
+      this.checksSeq++;
       this.updateBar();
       if (this.tab === 'checks') this.renderPanel();
     } catch (err) {
@@ -1644,7 +1788,9 @@ export class Editor {
       case 'frame': return this.frameSelected();
       case 'chainRemove': return this.chainRemoveLast();
       case 'cancel':
-        if (this.splitting) this.cancelSplit();
+        if (this.find.isOpen) this.find.close();
+        else if (this.groupDrag) this.endGroupDrag(true);
+        else if (this.splitting) this.cancelSplit();
         else if (this.stairDraw) this.cancelStair();
         else if (this.drag) this.endDrag(true);
         else if (this.tool !== 'select') this.setTool('select');
@@ -1659,6 +1805,11 @@ export class Editor {
       }
       case 'undo': return this.undo();
       case 'redo': return this.redo();
+      case 'find': return this.find.open(true);
+      case 'names': return this.setNames(!this.prefs.names);
+      case 'figure': return this.setFigure(!this.prefs.figure);
+      case 'bookmarkSave': return this.saveBookmark(`View ${(e?.code ?? 'Digit1').slice(5)}`, Number((e?.code ?? 'Digit1').slice(5)));
+      case 'bookmarkGo': return this.goBookmark(Number((e?.code ?? 'Digit1').slice(5)));
       case 'save': return void this.save();
       case 'layout': return this.setLayout(this.prefs.layout === '3d' ? 'both' : this.prefs.layout === 'both' ? 'plan' : '3d');
       case 'drawer': return this.toggleDrawer();
@@ -1703,6 +1854,16 @@ export class Editor {
   }
 
   deleteSelected(): void {
+    if (this.group.length) {
+      const changes: Change[] = [];
+      for (const k of this.group) {
+        const q = parseKey(k);
+        if (q) for (const c of deleteChanges(this.model, q.coll, q.id)) if (!changes.some((x) => x.coll === c.coll && x.id === c.id)) changes.push(c);
+      }
+      const words = groupWords(this.group);
+      this.select(null);
+      return this.commitText(`Deleted ${words}`, changes);
+    }
     const s = this.selectedElem();
     if (!s) return;
     this.commit(deleteChanges(this.model, s.coll, s.id));
@@ -1710,6 +1871,7 @@ export class Editor {
   }
 
   nudge(v: Pt): void {
+    if (this.group.length) return this.commitText(groupMoveWords(this.group, v[0], v[1]), moveSetChanges(this.groupSnapshots(), v[0], v[1]));
     const s = this.selectedElem();
     if (!s) return;
     const c = this.centreOf(s.coll, s.e);
@@ -1750,6 +1912,10 @@ export class Editor {
   }
 
   frameSelected(): void {
+    if (this.group.length) {
+      const [x, z] = groupCentre(this.model.data, this.group);
+      return this.goTo(x, z);
+    }
     const s = this.selectedElem();
     if (!s) return;
     const [x, z] = this.centreOf(s.coll, s.e);
@@ -1757,7 +1923,29 @@ export class Editor {
   }
 
   // ---------- save ----------
+  private saving = false;
+  /**
+   * Save (ON3 decision 3): first the summary of what will be written, the net changes in plain words and the new check
+   * problems, with Save / Cancel (A / B); Cancel writes nothing.
+   */
   async save(): Promise<void> {
+    if (!this.model.dirty || this.saving) return this.saveNow();
+    this.saving = true;
+    try {
+      clearTimeout(this.checkTimer);
+      await this.runChecks(false);
+      const words = summaryWords(netChanges(JSON.parse(this.model.savedFileText) as Campus, this.model.data));
+      const fresh = this.lastChecks ? this.newProblems(this.lastChecks).length : 0;
+      const ok = await this.ask('Save? This writes the campus file, the plan images and the change log.', 'Save', 'Cancel', `<p class="sumWords">${esc(words[0]!.toUpperCase() + words.slice(1))}.</p><p class="${fresh ? 'bad' : 'dim'}">${esc(problemWords(fresh))}</p>`);
+      if (ok) await this.saveNow();
+      else this.status('Save cancelled: nothing written');
+    } finally {
+      this.saving = false;
+    }
+  }
+
+  /** Writes the file, the plans and the change log now (after the summary). */
+  async saveNow(): Promise<void> {
     if (!this.model.dirty) {
       // edit then undo: the building is as saved, so the journal (and the draft) go without a write
       if (this.model.journal.length) {
@@ -2189,15 +2377,113 @@ export class Editor {
   }
 
   /** The problem lines for the hub's Checks tab (wall gaps first, then fails and warnings), new ones marked. */
-  problemLines(): { text: string; fresh: boolean }[] {
-    const gaps = this.gaps().map((g) => ({ text: gapWords(g), fresh: true }));
+  problemLines(): { text: string; fresh: boolean; place: boolean }[] {
+    const idx = idIndex(this.model.data);
+    const gaps = this.gaps().map((g) => ({ text: gapWords(g), fresh: true, place: true }));
     const c = this.lastChecks;
     if (!c) return gaps;
     const fresh = new Set(this.newProblems(c));
-    const out: { text: string; fresh: boolean }[] = [...gaps];
-    for (const f of c.standards.fails) out.push({ text: `standards: ${f}`, fresh: fresh.has(`STD ${f}`) });
-    for (const r of c.results) if (r.status === 'FAIL' || r.status === 'WARN') for (const d of r.details) out.push({ text: `${r.status} ${r.id}: ${d}`, fresh: fresh.has(`${r.id} ${d}`) });
+    const out: { text: string; fresh: boolean; place: boolean }[] = [...gaps];
+    const add = (text: string, isNew: boolean, detail: string): void => void out.push({ text, fresh: isNew, place: !!problemTarget(detail, idx) });
+    for (const f of c.standards.fails) add(`standards: ${f}`, fresh.has(`STD ${f}`), f);
+    for (const r of c.results) if (r.status === 'FAIL' || r.status === 'WARN') for (const d of r.details) add(`${r.status} ${r.id}: ${d}`, fresh.has(`${r.id} ${d}`), d);
     return out;
+  }
+
+  /** ON3 decision 1: the element a problem line names, selected and framed on its level; else "no place to go". */
+  goToProblem(text: string): void {
+    const t = problemTarget(problemDetail(text), idIndex(this.model.data));
+    const e = t ? this.model.get(t.coll, t.id) : undefined;
+    if (!t || !e) return this.status('That line names no element: no place to go');
+    this.setLevel(this.levelOf(t.coll, e));
+    this.select(keyOf(t.coll, t.id));
+    this.frameSelected();
+    this.status(`Went to ${label(this.model.data, t.coll, e)}`);
+  }
+
+  /** Is a Checks list on screen (the hub's Checks tab, or the side panel's)? Problem spots are marked while it is. */
+  checksShown(): boolean {
+    if (this.pad?.hub.isOpen) return this.pad.hub.tab === 'Checks';
+    return this.tab === 'checks' && this.prefs.drawer;
+  }
+
+  /** The problem spots: each named element once, at its centre on its level. */
+  problemSpots(): ProblemSpot[] {
+    const idx = idIndex(this.model.data);
+    const seen = new Set<string>();
+    const out: ProblemSpot[] = [];
+    for (const l of this.problemLines()) {
+      const t = problemTarget(problemDetail(l.text), idx);
+      const e = t ? this.model.get(t.coll, t.id) : undefined;
+      if (!t || !e || seen.has(`${t.coll}:${t.id}`)) continue;
+      seen.add(`${t.coll}:${t.id}`);
+      const [x, z] = this.centreOf(t.coll, e);
+      out.push({ x, z, level: this.levelOf(t.coll, e) });
+    }
+    return out;
+  }
+
+  // ---------- ON3: find, names, scale figure, bookmarks ----------
+  /** Find: goes to a room, stair or object on its level and selects it. */
+  goToFind(it: FindItem): void {
+    if (this.model.data.levels.some((l) => l.id === it.level)) this.setLevel(it.level);
+    if (it.coll === 'objects') {
+      this.goTo(it.at[0], it.at[1]);
+      return this.status(`Went to ${it.name} (${it.id})`);
+    }
+    this.select(keyOf(it.coll, it.id));
+    this.frameSelected();
+    this.status(`Went to ${it.name} (${it.id}, ${it.levelName})`);
+  }
+
+  /** The dot (pad) or the screen centre on the editing floor (mouse): where the scale figure stands. */
+  dotPoint(): Pt | null {
+    const c = this.controls;
+    if (c.mode === 'orbit') return [c.orbit.s.tx, c.orbit.s.tz];
+    const cv = $<HTMLCanvasElement>('c');
+    return cv.clientWidth > 0 ? this.view.planePoint(cv.clientWidth / 2, cv.clientHeight / 2, this.viewFloor()) : null;
+  }
+
+  setNames(on: boolean): void {
+    this.prefs.names = on;
+    this.overlays.names = on;
+    this.savePrefs();
+    this.status(on ? 'Room names in 3D on (L)' : 'Room names in 3D off (L)');
+  }
+
+  setFigure(on: boolean): void {
+    this.prefs.figure = on;
+    this.overlays.figure = on;
+    this.savePrefs();
+    this.status(on ? 'Scale figure on: a 1.75 m person and a 1.15 m crouch at the dot (K)' : 'Scale figure off (K)');
+  }
+
+  /** Saves the camera as a bookmark in `slot` (default: a free one, else the oldest). */
+  saveBookmark(name: string, slot = freeSlot(this.bookmarks)): void {
+    this.bookmarks = putBookmark(this.bookmarks, { slot, name, level: this.view.level, pose: this.controls.pose(), at: Date.now() });
+    try {
+      localStorage.setItem(BOOKMARKS, JSON.stringify(this.bookmarks));
+    } catch {
+      // a view preference; no storage is fine
+    }
+    this.status(`Bookmark ${slot} saved: ${name} (Alt+${slot} goes there)`);
+  }
+
+  goBookmark(slot: number): void {
+    const b = this.bookmarks.find((q) => q.slot === slot);
+    if (!b) return this.status(`No bookmark ${slot} (Ctrl+${slot} saves one)`);
+    if (this.model.data.levels.some((l) => l.id === b.level)) this.setLevel(b.level);
+    const c = this.controls;
+    const orbit = c.mode === 'orbit';
+    c.setPose({ ...b.pose, fov: c.pose().fov });
+    if (orbit) this.enterOrbit();
+    this.status(`Bookmark ${slot}: ${b.name}`);
+  }
+
+  /** Names offered when saving a bookmark: the usual ones, then the rooms on the editing level. */
+  bookmarkNames(): string[] {
+    const rooms = this.model.data.rooms.filter((r) => r.level === this.view.level && r.name).map((r) => `${r.name}`);
+    return [...new Set([...BOOKMARK_NAMES, ...rooms.sort((a, b) => a.localeCompare(b))])];
   }
 
   // ---------- drafts and revert ----------
@@ -2256,9 +2542,9 @@ export class Editor {
   }
 
   /** A yes / no question in the editor (A / B on the pad, or click); never the browser's own dialog. */
-  ask(text: string, yes: string, no: string): Promise<boolean> {
+  ask(text: string, yes: string, no: string, detailHtml = ''): Promise<boolean> {
     const box = $('ask');
-    box.innerHTML = `<div>${esc(text)}</div><button class="yes">${esc(yes)} <span class="dim">(A)</span></button><button class="no">${esc(no)} <span class="dim">(B)</span></button>`;
+    box.innerHTML = `<div>${esc(text)}</div>${detailHtml ? `<div class="askMore">${detailHtml}</div>` : ''}<button class="yes">${esc(yes)} <span class="dim">(A)</span></button><button class="no">${esc(no)} <span class="dim">(B)</span></button>`;
     box.classList.remove('hidden');
     return new Promise((resolve) => {
       const done = (v: boolean): void => {
@@ -2287,6 +2573,7 @@ export class Editor {
     const c = this.lastChecks;
     if (!c) return '<p id="checks">Running the checks...</p>';
     const fresh = new Set(this.newProblems(c));
+    const idx = idIndex(this.model.data);
     const s = c.summary;
     let h = `<p id="checks"><b>${s.PASS ?? 0} pass, ${s.WARN ?? 0} warn, ${s.FAIL ?? 0} fail, ${s.SKIP ?? 0} skip</b> (check.mjs)<br>${esc(c.standards.line)}</p>`;
     h += '<p class="dim">Red lines are new since the editor opened. The rest were there before (expected fails are listed in REVIEW.md).</p>';
@@ -2296,7 +2583,8 @@ export class Editor {
     for (const f of c.standards.fails) items.push(`<li class="${fresh.has(`STD ${f}`) ? 'bad' : ''}">standards: ${esc(f)}</li>`);
     for (const r of c.results) {
       if (r.status === 'SKIP') continue;
-      const lines = r.details.map((dt) => `<div data-go="${esc(dt)}" class="${fresh.has(`${r.id} ${dt}`) ? 'bad' : ''}">- ${esc(dt)}</div>`).join('');
+      // ON3: a line naming an element is a link (click: select and go there); the rest say so
+      const lines = r.details.map((dt) => (problemTarget(dt, idx) ? `<div data-go="${esc(dt)}" class="go ${fresh.has(`${r.id} ${dt}`) ? 'bad' : ''}">- ${esc(dt)}</div>` : `<div class="${fresh.has(`${r.id} ${dt}`) ? 'bad' : ''}">- ${esc(dt)} <small class="dim">(no place to go)</small></div>`)).join('');
       items.push(`<li><b>${esc(r.status)} ${esc(r.id)}</b> ${esc(r.title)}${lines}</li>`);
     }
     return h + `<ul class="list">${items.join('')}</ul>`;
@@ -2468,6 +2756,9 @@ interface CheckReply {
   summary: Record<string, number>;
   standards: { fails: string[]; info: string[]; line: string };
 }
+
+/** The check's own words of a problem line (without "FAIL A07: " or "standards: "), where the ids are. */
+const problemDetail = (text: string): string => text.replace(/^(FAIL|WARN) [A-Z]+[0-9]+: /, '').replace(/^standards: /, '');
 
 /** Every problem as one comparable line, for "new since the editor opened". */
 function checkLines(c: CheckReply): string[] {

@@ -160,6 +160,7 @@ export class EditorScene {
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
+    for (const k of this.group) this.outline(k, true);
   }
 
   /** Rebuilds the changed elements (a wall's openings and an opening's wall come along). */
@@ -192,6 +193,7 @@ export class EditorScene {
     for (const k of todo) this.build(k);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
+    for (const k of this.group) this.outline(k, true);
   }
 
   private wallHadOpening(wallId: string, openingId: string): boolean {
@@ -579,6 +581,14 @@ export class EditorScene {
       if (!state?.isEnabled()) continue;
       rod(l.id, l.at[0], l.at[1], l.from, l.to);
     }
+  }
+
+  private group: Key[] = [];
+  /** ON3 multi-select: every member outlined as the selection is. */
+  setGroup(keys: readonly Key[]): void {
+    for (const k of this.group) if (k !== this.selected) this.outline(k, false);
+    this.group = keys.slice();
+    for (const k of this.group) this.outline(k, true);
   }
 
   setSelected(key: Key | null): void {

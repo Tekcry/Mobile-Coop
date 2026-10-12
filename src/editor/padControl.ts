@@ -36,6 +36,8 @@ import { keyOf, parseKey } from './types';
 import { climbWords, HOLE_KINDS, HOLE_NAMES, levelAbove, proposeLadder, STAIR_TYPES, stairFit, stairType } from './vertical';
 import type { StairTypeId } from './vertical';
 import { footprintAt, ROOF_TYPES, roofType, roofWords } from './roofGeometry';
+import { boxOf, boxPick, COPY_COLLS, copyItems, groupWords, itemsCentre, levelAbove as levelIdAbove, pasteChanges } from './group';
+import type { ClipItem } from './group';
 
 type Focus = '3d' | 'drawer';
 /** Tool names on the tool bar, which shows the active tool only (ON0a: the Y menu picks tools). */
@@ -86,7 +88,11 @@ export class PadControl {
   /** Quarter turns (RB taps) of the grabbed thing, about the dot. */
   private turns = 0;
   private measureFrom: Pt | null = null;
-  clipboard: { coll: Coll; e: Elem } | null = null;
+  /** Copied elements (one, or a set with the doors and windows of its walls, ON3). */
+  clipboard: ClipItem[] | null = null;
+  /** ON3 box select: where A went down (raw dot) and where the dot is now, while A is held. */
+  private boxFrom: Pt | null = null;
+  private boxTo: Pt | null = null;
   /** The magnetic dot's current snap, and the snap candidates on the editing level (rebuilt after a change). */
   magnet: SnapHit | null = null;
   private cands: SnapCand[] = [];
@@ -229,20 +235,20 @@ export class PadControl {
   menuInput(): MenuInput {
     const s = this.ed.selectedElem();
     const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : 'kind'] ?? '') : '';
-    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0 } : null, clipboard: !!this.clipboard, view: this.viewState() };
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0 } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length };
   }
 
   viewState(): ViewState {
     const ed = this.ed;
     const v = ed.view.vis;
-    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay };
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure };
   }
 
   /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
   toggleMenu(): void {
     if (this.menu.isOpen) return this.closeMenu();
     if (this.names.isOpen) return;
-    if (this.ed.drag) return this.ed.status('Drop it or put it back first');
+    if (this.ed.drag || this.ed.groupDrag) return this.ed.status('Drop it or put it back first');
     if (this.focus === 'drawer') this.setFocus('3d');
     this.cardEditing = false;
     this.menu.open(this.menuInput(), this.settings.menuOpens);
@@ -330,6 +336,8 @@ export class PadControl {
       $('planSvg').classList.toggle('nolabels');
       return;
     } else if (id === 'view.underlay') v.underlay = !v.underlay;
+    else if (id === 'view.names') return ed.setNames(!ed.prefs.names);
+    else if (id === 'view.figure') return ed.setFigure(!ed.prefs.figure);
     this.applyPanel(rebuild);
   }
 
@@ -571,9 +579,13 @@ export class PadControl {
       this.scroll(this.names.body, dt);
       return this.names.frame(n.x, n.y, st.pressed(PAD.A), st.pressed(PAD.B));
     }
+    if (this.ed.find.isOpen) {
+      const n = this.nav(now, true);
+      return this.ed.find.frame(n.x, n.y, st.pressed(PAD.A), st.pressed(PAD.B), st.pressed(PAD.X), st.pressed(PAD.Y));
+    }
     if (this.menu.isOpen) return this.menuFrame(now, dt);
     if (c.walking) return this.walkFrame();
-    if (st.pressed(PAD.Y) && !this.ed.drag) return this.toggleMenu();
+    if (st.pressed(PAD.Y) && !this.ed.drag && !this.ed.groupDrag) return this.toggleMenu();
     if (st.viewTap === 'tap') this.topDown();
     else if (st.viewTap === 'hold') this.ed.run('layout');
     if (this.focus === 'drawer' && !this.ed.prefs.drawer) this.setFocus('3d');
@@ -598,6 +610,9 @@ export class PadControl {
     if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
     else if (!this.stickLatch) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
+    // ON3: a set being moved follows the dot (A drops, B puts back); A held and moved draws a box
+    if (this.ed.groupDrag?.source === 'pad') return this.groupFrame();
+    if (this.boxFrom) this.boxFrame();
     if (st.pressed(PAD.RS)) this.cycleDisplay();
     if (!this.ed.drag) {
       // L3 tap: quick walk (running); L3 held 0.6 s: the walk test as the player (ON0b decision 4)
@@ -793,6 +808,51 @@ export class PadControl {
   }
 
   /** What A takes of the selection at the dot (Select tool, nothing grabbed), or null. */
+  /** The dot on the grid without the magnet (box select and moving a set use it). */
+  private rawDot(): Pt | null {
+    const c = this.ed.controls;
+    const g = this.ed.grid;
+    if (c.mode === 'orbit') return [snap(c.orbit.s.tx, g), snap(c.orbit.s.tz, g)];
+    return this.point();
+  }
+
+  /** ON3: one frame while a set is moved with the pad. */
+  private groupFrame(): void {
+    const p = this.rawDot();
+    if (p) this.ed.moveGroup(p[0], p[1]);
+    if (this.st.pressed(PAD.A)) {
+      this.ed.endGroupDrag(false);
+      this.rumble('drop');
+    } else if (this.st.pressed(PAD.B)) this.ed.endGroupDrag(true);
+    this.updatePointers();
+  }
+
+  /** ON3: while A is held after a press on the floor, the box follows the dot; letting go picks what lies inside. */
+  private boxFrame(): void {
+    const ed = this.ed;
+    if (ed.drag || ed.groupDrag || ed.tool !== 'select' || !this.boxFrom) {
+      this.boxFrom = this.boxTo = null;
+      return;
+    }
+    const p = this.rawDot();
+    const from = this.boxFrom;
+    const big = (q: Pt | null): boolean => !!q && (Math.abs(q[0] - from[0]) >= 5 * ed.grid - 1e-9 || Math.abs(q[1] - from[1]) >= 5 * ed.grid - 1e-9);
+    if (this.st.down(PAD.A)) {
+      if (p && (this.boxTo || big(p))) this.boxTo = p;
+      return;
+    }
+    const to = this.boxTo;
+    this.boxFrom = this.boxTo = null;
+    if (!to || !big(to)) return;
+    const keys = boxPick(ed.model.data, ed.view.level, boxOf(from, to));
+    if (!keys.length) {
+      this.rumble('error');
+      return ed.status('Nothing lies wholly inside the box on this level');
+    }
+    ed.setGroup(keys);
+    this.rumble('drop');
+  }
+
   grabPartNow(): GrabPart | null {
     if (this.ed.tool !== 'select' || this.ed.drag || this.measureFrom) return null;
     const g = this.grabShape();
@@ -830,11 +890,20 @@ export class PadControl {
       this.offset = [0, 0];
       return;
     }
+    // ON3: A on a member of the set grabs the whole set
+    if (ed.group.length) {
+      const t = this.target();
+      const raw = this.rawDot();
+      if (t?.key && ed.group.includes(t.key) && raw) return ed.startGroupDrag(raw, 'pad');
+    }
     // edge-aware grab: the part the dot names (decision 13); outside the selection, A selects as before
     const s = ed.selectedElem();
     const part = this.grabPartNow();
     if (s && part && p) return this.grab(s.coll, s.id, part.handle, p, ed.viewFloor(), part.words);
     const t = this.target();
+    // ON3: A held and the dot moved draws a box (it replaces the selection when A is let go)
+    this.boxFrom = this.rawDot();
+    this.boxTo = null;
     if (!t?.key) return;
     if (t.key !== ed.selected) return ed.select(t.key);
     // a selected ladder: A on it grabs it whole
@@ -844,6 +913,11 @@ export class PadControl {
 
   /** Selected > Move: grab it whole at the dot, as A in the middle. */
   private grabWhole(): void {
+    if (this.ed.group.length) {
+      const r = this.rawDot();
+      if (r) this.ed.startGroupDrag(r, 'pad');
+      return;
+    }
     const s = this.ed.selectedElem();
     const p = this.point();
     if (s && p) this.grab(s.coll, s.id, null, p, this.ed.viewFloor(), 'Move');
@@ -907,6 +981,7 @@ export class PadControl {
 
   private cancel(): void {
     const ed = this.ed;
+    this.boxFrom = null;
     if (ed.splitting) return ed.cancelSplit();
     if (ed.stairDraw) return ed.cancelStair();
     if (this.measureFrom) {
@@ -1142,7 +1217,20 @@ export class PadControl {
     const part = this.grabPartNow();
     const s = ed.selectedElem();
     let hover: Key | null = null;
-    if (ed.splitting && p) {
+    if (this.boxFrom && this.boxTo) {
+      // ON3 box select: the box on the floor and the plan
+      const b = boxOf(this.boxFrom, this.boxTo);
+      const cs: Pt[] = [[b[0], b[1]], [b[2], b[1]], [b[2], b[3]], [b[0], b[3]]];
+      for (let i = 0; i < 4; i++) {
+        marks.push(this.bar(cs[i]!, cs[(i + 1) % 4]!, f + 0.1, 0.2, 0.15, 'ghost'));
+        plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
+      }
+      words = `box ${fmt(b[2] - b[0])} x ${fmt(b[3] - b[1])} m: let go of A to select what is wholly inside`;
+      key = `box|${b.join()}`;
+    } else if (ed.groupDrag) {
+      words = `moving ${groupWords(ed.group)} ${fmt(ed.groupDrag.dx)}, ${fmt(ed.groupDrag.dz)} m - A drops, B puts back`;
+      key = `gd|${ed.groupDrag.dx}|${ed.groupDrag.dz}`;
+    } else if (ed.splitting && p) {
       // Split: the line across the room through the dot (red where it is too close to an edge)
       const l = ed.splitLine(p[0], p[1]);
       if (l) {
@@ -1345,52 +1433,52 @@ export class PadControl {
   }
 
   private copy(): void {
-    const s = this.ed.selectedElem();
-    if (!s || !['rooms', 'walls', 'voids'].includes(s.coll)) return this.ed.status('Copy takes rooms, walls and floor holes');
-    this.clipboard = { coll: s.coll, e: clone(s.e) };
-    this.ed.status(`Copied ${label(this.ed.model.data, s.coll, s.e)}`);
+    const ed = this.ed;
+    if (ed.group.length) {
+      const items = copyItems(ed.model.data, ed.group);
+      if (!items.length) return ed.status('Copy takes rooms, walls (with their doors and windows) and floor holes');
+      this.clipboard = items;
+      return ed.status(`Copied ${groupWords(items.filter((i) => i.coll !== 'openings').map((i) => keyOf(i.coll, i.e.id)))}`);
+    }
+    const s = ed.selectedElem();
+    if (!s || !COPY_COLLS.includes(s.coll)) return ed.status('Copy takes rooms, walls and floor holes');
+    this.clipboard = [{ coll: s.coll, e: clone(s.e) }];
+    ed.status(`Copied ${label(ed.model.data, s.coll, s.e)}`);
   }
 
+  /** Paste (at the dot on the editing level) or Paste to level above (same spot): one edit; a set stays a set (ON3). */
   private paste(up: boolean): void {
-    const cb = this.clipboard;
-    if (!cb) return;
+    const items = this.clipboard;
+    if (!items?.length) return;
     const ed = this.ed;
-    const e = clone(cb.e) as Elem & { level: string };
-    const levels = ed.model.data.levels.slice().sort((a, b) => a.floor - b.floor);
+    const d = ed.model.data;
     let dx = 0;
     let dz = 0;
-    if (up) {
-      const i = levels.findIndex((l) => l.id === e.level);
-      const above = levels[i + 1];
-      if (!above) return ed.status('No level above');
-      e.level = above.id;
-    } else {
+    if (!up) {
       const p = this.point();
       if (!p) return;
-      const c = ed.centreOf(cb.coll, cb.e);
+      const c = itemsCentre(items);
       dx = snap(p[0] - c[0], ed.grid);
       dz = snap(p[1] - c[1], ed.grid);
-      e.level = ed.view.level;
     }
-    e.id = ed.model.freshId(cb.coll, cb.coll === 'rooms' ? `${e.level}-NEW` : cb.coll === 'walls' ? `W${e.level}-NEW` : `${cb.e.id}-COPY`);
-    if ('rect' in e) (e as Room).rect = (e as Room).rect.map((v, i) => +(v + (i % 2 ? dz : dx)).toFixed(3)) as Rect;
-    if (cb.coll === 'walls') {
-      const w = e as unknown as Wall;
-      w.a = [+(w.a[0] + dx).toFixed(3), +(w.a[1] + dz).toFixed(3)];
-      w.b = [+(w.b[0] + dx).toFixed(3), +(w.b[1] + dz).toFixed(3)];
-    }
-    ed.commit([{ coll: cb.coll, id: e.id, before: null, after: e }]);
-    if (up) ed.setLevel(e.level);
-    ed.select(keyOf(cb.coll, e.id));
+    const res = pasteChanges(d, items, up ? (l) => levelIdAbove(d, l) : () => ed.view.level, dx, dz);
+    if (!res) return ed.status('No level above');
+    if (!res.changes.length) return;
+    const lv = (res.changes[0]!.after as Elem & { level: string }).level;
+    if (res.keys.length === 1) ed.commit(res.changes);
+    else ed.commitText(`Pasted ${groupWords(res.keys)}${up ? ' one level up' : ''}`, res.changes);
+    if (up) ed.setLevel(lv);
+    ed.setGroup(res.keys);
   }
 
   /** Selected > Copy to level above: copy and paste one level up in one edit; the editing level goes with it. */
   private copyUp(): void {
-    const s = this.ed.selectedElem();
-    if (!s) return;
-    const levels = this.ed.model.data.levels.slice().sort((a, b) => a.floor - b.floor);
-    const i = levels.findIndex((l) => l.id === this.ed.levelOf(s.coll, s.e));
-    if (!levels[i + 1]) return this.ed.status('No level above');
+    const ed = this.ed;
+    const k = ed.group[0] ?? ed.selected;
+    const q = k ? parseKey(k) : null;
+    const e = q ? ed.model.get(q.coll, q.id) : undefined;
+    if (!q || !e) return;
+    if (!levelIdAbove(ed.model.data, ed.levelOf(q.coll, e))) return ed.status('No level above');
     this.copy();
     this.paste(true);
   }
@@ -1498,18 +1586,9 @@ export class PadControl {
   }
 
   /** Checks panel: A on a problem line takes the camera to the first element it names. */
+  /** A Checks line (hub or side panel): the editor selects and frames the element it names (ON3). */
   goToProblem(text: string): void {
-    const ed = this.ed;
-    for (const coll of ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids'] as Coll[])
-      for (const e of ed.model.list(coll)) {
-        const idRe = new RegExp(`(^|[^A-Za-z0-9-])${e.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}($|[^A-Za-z0-9-])`);
-        if (!idRe.test(text)) continue;
-        ed.setLevel(ed.levelOf(coll, e));
-        ed.select(keyOf(coll, e.id));
-        ed.frameSelected();
-        return;
-      }
-    ed.status('That line names nothing to go to');
+    this.ed.goToProblem(text);
   }
 }
 

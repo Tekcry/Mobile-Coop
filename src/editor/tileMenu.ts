@@ -38,6 +38,8 @@ export interface MenuInput {
   sel: { coll: Coll; type: string; gap?: boolean } | null;
   clipboard: boolean;
   view: ViewState;
+  /** ON3: the number of things in a multi-selection (box select or Shift+click); its tiles replace the Selected tab's. */
+  group?: number;
 }
 
 export interface ViewState {
@@ -52,6 +54,9 @@ export interface ViewState {
   minimap: boolean;
   labels: boolean;
   underlay: boolean;
+  /** ON3: room names floating in 3D (L) and the scale figure at the dot (K). */
+  names?: boolean;
+  figure?: boolean;
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -73,6 +78,8 @@ export function viewTiles(v: ViewState): Tile[] {
     { id: 'view.minimap', icon: 'M', name: 'Small plan', desc: 'A plan in the corner of 3D only', kind: 'toggle', on: v.minimap, value: onOff(v.minimap) },
     { id: 'view.labels', icon: 'T', name: 'Labels', desc: 'Room names on the plan', kind: 'toggle', on: v.labels, value: onOff(v.labels) },
     { id: 'view.underlay', icon: 'U', name: 'Level below on the plan', desc: 'The floor under this one, faint', kind: 'toggle', on: v.underlay, value: onOff(v.underlay) },
+    { id: 'view.names', icon: 'N', name: 'Room names in 3D', desc: 'On each floor, fading out by 40 m (L)', kind: 'toggle', on: !!v.names, value: onOff(!!v.names) },
+    { id: 'view.figure', icon: 'K', name: 'Scale figure', desc: 'A 1.75 m person and a crouch at the dot (K)', kind: 'toggle', on: !!v.figure, value: onOff(!!v.figure) },
   ];
 }
 
@@ -81,6 +88,13 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
   const copyFirst = inp.clipboard ? undefined : 'Copy something first (Selected > Copy)';
   switch (tab) {
     case 'Selected': {
+      if (inp.group)
+        return [
+          { id: 'sel.move', icon: 'M', name: `Move ${inp.group} things`, desc: 'Grab them all at the dot, one edit', kind: 'go' },
+          { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Rooms, walls (with their doors) and floor holes', kind: 'go' },
+          { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up, one edit', kind: 'go' },
+          { id: 'sel.del', icon: 'X', name: `Delete ${inp.group} things`, desc: 'One edit; walls take their doors and windows', kind: 'go' },
+        ];
       const s = inp.sel;
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders'].includes(s.coll);

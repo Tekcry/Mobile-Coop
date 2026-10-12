@@ -73,6 +73,8 @@ export const ACTIONS: readonly Action[] = [
   { id: 'cancel', name: 'cancel / leave the card / put the tool down / clear the selection; never deletes', group: 'Edit', keys: ['Escape'], pad: ['B'], ctx: NOT_MENU, hint: ['selected', 'card', 'drag', 'draw', 'chain'], short: 'Back', shortIn: { selected: 'Clear', chain: 'End chain' } },
   { id: 'chainNext', name: 'wall chain: end this wall here and start the next from its end; on the first point the loop closes', group: 'Tools', keys: [], mouse: 'Click', pad: ['A'], ctx: ['chain'], hint: ['chain'], passive: true, short: 'Next wall' },
   { id: 'chainRemove', name: 'wall chain: remove the last finished wall', group: 'Tools', keys: ['Backspace'], pad: ['X'], ctx: ['chain'], hint: ['chain'], short: 'Remove last' },
+  { id: 'multi', name: 'add to the selection or take out (several things move, copy and delete together)', group: 'Edit', keys: [], mouse: 'Shift+click', ctx: NOT_MENU, passive: true },
+  { id: 'padBox', name: 'box select: hold A where nothing is selected and move the dot; A on one of the set grabs them all', group: 'Edit', keys: [], pad: ['A hold'], ctx: ['idle', 'selected'], passive: true },
   { id: 'delete', name: 'delete', group: 'Edit', keys: ['Delete', 'Backspace'], ctx: SEL, hint: ['selected'] },
   { id: 'duplicate', name: 'duplicate', group: 'Edit', keys: ['Ctrl+KeyD'], ctx: SEL },
   { id: 'nudge', name: 'nudge one grid step (Shift: ten steps)', group: 'Edit', keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight', 'Shift+ArrowUp', 'Shift+ArrowDown'], ctx: ['selected'], hint: ['selected'] },
@@ -104,6 +106,10 @@ export const ACTIONS: readonly Action[] = [
   { id: 'display', name: 'levels shown: up to this level, single level, whole building', group: 'View', keys: [], pad: ['R3'], ctx: NOT_MENU, passive: true },
   { id: 'ghost', name: 'ghost the hidden levels', group: 'View', keys: ['Shift+KeyG'], ctx: NOT_MENU },
   { id: 'exploded', name: 'exploded view', group: 'View', keys: ['KeyX'], ctx: NOT_MENU },
+  { id: 'names', name: 'room names floating in 3D (fade out by 40 m)', group: 'View', keys: ['KeyL'], ctx: NOT_MENU },
+  { id: 'figure', name: 'scale figure at the dot: a 1.75 m person and a 1.15 m crouch', group: 'View', keys: ['KeyK'], ctx: NOT_MENU },
+  { id: 'bookmarkSave', name: 'save the camera as bookmark 1-9 (pad: Hub > View > Bookmarks)', group: 'View', keys: ['Ctrl+Digit1', 'Ctrl+Digit2', 'Ctrl+Digit3', 'Ctrl+Digit4', 'Ctrl+Digit5', 'Ctrl+Digit6', 'Ctrl+Digit7', 'Ctrl+Digit8', 'Ctrl+Digit9'], ctx: NOT_DRAG },
+  { id: 'bookmarkGo', name: 'go to bookmark 1-9', group: 'View', keys: ['Alt+Digit1', 'Alt+Digit2', 'Alt+Digit3', 'Alt+Digit4', 'Alt+Digit5', 'Alt+Digit6', 'Alt+Digit7', 'Alt+Digit8', 'Alt+Digit9'], ctx: NOT_DRAG },
   { id: 'help', name: 'the hub: play, file, checks, levels, view, settings, help (H opens it on Help)', group: 'View', keys: ['KeyH'], pad: ['Menu'], ctx: NOT_MENU, hint: ['idle'] , short: 'Hub' },
   { id: 'hubTab', name: 'change tab', group: 'View', keys: [], mouse: 'Click a tab', pad: ['LB', 'RB'], ctx: ['hub'], hint: ['hub'], passive: true , short: 'Tab' },
   { id: 'hubRow', name: 'pick a row', group: 'View', keys: [], mouse: 'Click a row', pad: ['D-pad up/down'], ctx: ['hub'], hint: ['hub'], passive: true , short: 'Row' },
@@ -111,7 +117,8 @@ export const ACTIONS: readonly Action[] = [
   { id: 'hubDo', name: 'do it', group: 'View', keys: [], pad: ['A'], ctx: ['hub'], hint: ['hub'], passive: true , short: 'Do it' },
   { id: 'hubClose', name: 'close the hub', group: 'View', keys: ['Escape', 'KeyH'], pad: ['B', 'Menu'], ctx: ['hub'], hint: ['hub'] , short: 'Close' },
 
-  { id: 'save', name: 'save the file, plans and change log', group: 'File', keys: ['Ctrl+KeyS'], ctx: NOT_DRAG, hint: ['idle'] },
+  { id: 'save', name: 'save the file, plans and change log (first a summary of what will be written: Save / Cancel)', group: 'File', keys: ['Ctrl+KeyS'], ctx: NOT_DRAG, hint: ['idle'] },
+  { id: 'find', name: 'find a room, stair or object by name and go there (pad: Hub > Play > Find)', group: 'File', keys: ['Ctrl+KeyK'], ctx: NOT_DRAG },
 ];
 
 const byId = new Map(ACTIONS.map((a) => [a.id, a]));
@@ -172,6 +179,8 @@ export function bindingWords(a: Action): string {
   if (a.id === 'move') return 'W A S D (Shift fast, wheel zooms)';
   if (a.id === 'fly') return 'Q / E';
   if (a.id === 'nudge') return 'Arrows';
+  if (a.id === 'bookmarkSave') return 'Ctrl+1-9';
+  if (a.id === 'bookmarkGo') return 'Alt+1-9';
   return [a.mouse, ...a.keys.map(keyWords)].filter(Boolean).join(' / ');
 }
 

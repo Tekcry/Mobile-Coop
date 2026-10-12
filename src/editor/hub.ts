@@ -12,6 +12,7 @@ import { viewTiles } from './tileMenu';
 import { ORBIT } from './orbit';
 import type { Smoothing } from './orbit';
 import type { ViewState } from './tileMenu';
+import { NO_PLACE } from './ease';
 
 export const HUB_TABS = ['Play', 'File', 'Checks', 'Levels', 'View', 'Settings', 'Help'] as const;
 export type HubTab = (typeof HUB_TABS)[number];
@@ -99,6 +100,8 @@ export interface HubRow {
   fresh?: boolean;
   /** Slider rows: where the value sits, 0 to 1 (drawn as a bar). */
   slider?: number;
+  /** ON3: an undone change (File tab), drawn grey until a new edit drops it. */
+  undone?: boolean;
 }
 
 /** What the rows show; padControl fills it from the editor. */
@@ -106,7 +109,12 @@ export interface HubInput {
   unsaved: number;
   /** The undo history, newest first. */
   changes: string[];
-  problems: { text: string; fresh: boolean }[];
+  /** ON3: the undone changes redo would bring back, newest first (the furthest redo first). */
+  undone?: string[];
+  /** `place: false`: the line names no element (ON3: "no place to go"). */
+  problems: { text: string; fresh: boolean; place?: boolean }[];
+  /** ON3: the camera bookmarks (Hub > View). */
+  bookmarks?: { slot: number; name: string }[];
   levels: { id: string; name: string; floor: string; editing: boolean }[];
   /**
    * ON2: the Levels panel's level actions for the editing level (storey height left / right then A applies) and, with
@@ -135,6 +143,7 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
   switch (tab) {
     case 'Play':
       return [
+        { id: 'play.find', text: 'Find a room, stair or object', note: 'An on-screen keyboard filters the list; A goes there (Ctrl+K on the keyboard)', kind: 'go' },
         { id: 'play.quick', text: 'Quick walk at the dot', note: 'Same as L3 tap; runs, L3 slows to a walk, B comes back', kind: 'go' },
         { id: 'play.walk', text: 'Walk test as the player', note: 'The game itself, unsaved edits included; L3 held or Tab too', kind: 'go' },
       ];
@@ -142,12 +151,13 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
       return [
         { id: 'file.save', text: 'Save', value: `${h.unsaved} unsaved`, kind: 'go' },
         { id: 'file.revert', text: 'Revert to last save', note: 'Asks first', kind: 'go' },
+        ...(h.undone ?? []).map((t, i) => ({ id: `redo.${i}`, text: t, note: i === (h.undone ?? []).length - 1 ? 'Undone; A: redo up to here' : 'Undone', undone: true, kind: 'line' as const })),
         ...h.changes.map((t, i) => ({ id: `undo.${i}`, text: t, note: i === 0 ? 'A: undo back to here' : undefined, kind: 'line' as const })),
       ];
     case 'Checks':
       return [
         { id: 'checks.next', text: 'Next problem', note: h.problems.length ? `${h.problems.length} lines` : 'No problems', disabled: !h.problems.length, kind: 'go' },
-        ...h.problems.map((p, i) => ({ id: `prob.${i}`, text: p.text, fresh: p.fresh, kind: 'line' as const })),
+        ...h.problems.map((p, i) => ({ id: `prob.${i}`, text: p.text, fresh: p.fresh, note: p.place === false ? NO_PLACE : undefined, kind: 'line' as const })),
       ];
     case 'Levels': {
       const rows: HubRow[] = h.levels.map((l) => ({ id: `level.${l.id}`, text: `${l.name} (${l.floor} m)`, value: l.editing ? 'editing' : undefined, note: l.editing ? undefined : 'A edits it', kind: 'go' as const }));
@@ -173,7 +183,12 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
       return rows;
     }
     case 'View':
-      return viewTiles(h.view).map((t) => ({ id: t.id, text: t.name, value: t.value, note: t.desc, kind: 'step' as const }));
+      return [
+        ...viewTiles(h.view).map((t) => ({ id: t.id, text: t.name, value: t.value, note: t.desc, kind: 'step' as const })),
+        // ON3 decision 7: bookmarks (Ctrl+1-9 save, Alt+1-9 go on the keyboard)
+        { id: 'bm.save', text: 'Bookmarks: save this view', note: 'A name from the list or typed; Ctrl+1-9 on the keyboard', kind: 'go' as const },
+        ...(h.bookmarks ?? []).map((b) => ({ id: `bm.go.${b.slot}`, text: `Go to: ${b.name}`, value: `${b.slot}`, note: `Alt+${b.slot} on the keyboard`, kind: 'go' as const })),
+      ];
     case 'Settings':
       return [
         { id: 'set.rumble', text: 'Rumble', value: onOff(h.settings.rumble), kind: 'step' },

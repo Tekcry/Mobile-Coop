@@ -158,6 +158,8 @@ export class HubView {
     return {
       unsaved: ed.model.dirty,
       changes: ed.model.history.map((e) => e.text).reverse(),
+      undone: ed.model.undone.map((e) => e.text),
+      bookmarks: ed.bookmarks.map((b) => ({ slot: b.slot, name: b.name })),
       problems: ed.problemLines(),
       levels: levels.map((l) => ({ id: l.id, name: l.name, floor: fmt(l.floor), editing: l.id === ed.view.level })),
       levelPanel: cur
@@ -187,7 +189,7 @@ export class HubView {
       .map((r) => {
         const bar = r.slider !== undefined ? `<i class="track"><i style="width:${Math.round(r.slider * 100)}%"></i></i>` : '';
         const steppers = r.kind === 'step' && (r.id === 'lv.height' || r.id.startsWith('bo.')) ? '<button data-step="-1" title="Step down">-</button><button data-step="1" title="Step up">+</button>' : '';
-        return `<div class="hub-row ${r.kind}${r.disabled ? ' off' : ''}${r.fresh ? ' bad' : ''}" data-row="${esc(r.id)}"><span>${esc(r.text)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${bar}${r.value ? `<b>${esc(r.value)}</b>` : ''}${steppers}</div>`;
+        return `<div class="hub-row ${r.kind}${r.disabled ? ' off' : ''}${r.fresh ? ' bad' : ''}${r.undone ? ' undone' : ''}" data-row="${esc(r.id)}"><span>${esc(r.text)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${bar}${r.value ? `<b>${esc(r.value)}</b>` : ''}${steppers}</div>`;
       })
       .join('');
     let extra = '';
@@ -241,6 +243,11 @@ export class HubView {
     const pad = this.pad;
     const r = this.rows.find((q) => q.id === id);
     if (!r || r.disabled) return;
+    if (id === 'play.find') {
+      // ON3: Find takes the pad while open; the hub closes
+      this.close();
+      return ed.find.open(false);
+    }
     if (id === 'play.quick') {
       this.close();
       return ed.quickWalk();
@@ -254,6 +261,24 @@ export class HubView {
     else if (id.startsWith('undo.') && press) {
       const n = Number(id.slice(5)) + 1;
       if (await ed.ask(`Undo back to here? That undoes ${n} change${n === 1 ? '' : 's'}: "${r.text}"${n > 1 ? ' and the newer ones' : ''}.`, 'Undo', 'Keep')) for (let i = 0; i < n; i++) ed.undo();
+    } else if (id.startsWith('redo.') && press) {
+      // ON3 decision 5: redo forward to a greyed line
+      const n = ed.model.undone.length - Number(id.slice(5));
+      if (await ed.ask(`Redo up to here? That redoes ${n} change${n === 1 ? '' : 's'}, up to "${r.text}".`, 'Redo', 'Keep')) for (let i = 0; i < n; i++) ed.redo();
+    } else if (id === 'bm.save' && press) {
+      // ON3 decision 7: a name from the list or typed, over the hub (it comes back on View)
+      this.close();
+      this.pad.latchSticks();
+      this.pad.names.open('Bookmark this view', ed.bookmarkNames(), '', (name) => {
+        this.pad.latchSticks();
+        if (name) ed.saveBookmark(name);
+        this.open('View');
+      });
+      ed.updateHint();
+      return;
+    } else if (id.startsWith('bm.go.') && press) {
+      this.close();
+      return ed.goBookmark(Number(id.slice(6)));
     } else if (id === 'checks.next' || id.startsWith('prob.')) {
       const ps = ed.problemLines();
       const i = id === 'checks.next' ? (this.lastProblem + 1) % ps.length : Number(id.slice(5));
