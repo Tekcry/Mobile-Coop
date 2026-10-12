@@ -52,7 +52,16 @@ const st = () => E(() => { const ed = window.__editor; return { tool: ed.tool, l
 const rs = (y) => E((y) => window.__pad.axis(3, y), y);
 const menuState = () => E(() => { const m = window.__editor.pad.menu; return { open: m.isOpen, tab: m.tab, index: m.index, tile: document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? null, tabs: [...document.querySelectorAll('#tileMenu [data-mtab]')].map((b) => b.textContent) }; });
 /** Moves the menu highlight with the D-pad until the tile is lit (one press at a time, read back: presses can repeat on slow frames). */
-const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 20 && (await menuState()).tile !== name; i++) await press(btn); return (await menuState()).tile === name; };
+// (ON10: each step holds the D-pad only until the highlight moves, so a slow frame cannot repeat it; the Build tab has 19 tiles)
+const stepMenu = (b) => E(async (b) => {
+  const raf = () => new Promise((r) => requestAnimationFrame(r));
+  const probe = () => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}`; };
+  const v0 = probe();
+  window.__pad.set(b, 1);
+  for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+  window.__pad.set(b, 0); await raf(); await raf(); await raf();
+}, b);
+const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await stepMenu(btn); return (await menuState()).tile === name; };
 /** Lights a card row with the D-pad (read back each press). */
 const toRow = async (row) => { for (let i = 0; i < 12 && (await E(() => document.querySelector('#selCard .crow.on')?.dataset.row)) !== row; i++) await press(BTN.DOWN); return (await E(() => document.querySelector('#selCard .crow.on')?.dataset.row)) === row; };
 const releaseBtn = async (btn) => { await set(btn, 0); await frames(page, 3); await axes(0, 0); await frames(page, 3); };
@@ -621,8 +630,16 @@ try {
   // (the editor reads the pad again only once the swap back is over and every button was let go)
   await page.waitForFunction(() => !window.__editor.walk.blocking && !window.__editor.controls.blend, null, { timeout: 20000 });
   await frames(page, 6);
-  const holdL3 = async () => { await set(BTN.LS, 1); await wait(900); await set(BTN.LS, 0); return page.waitForFunction(() => window.__editor.walk.state !== 'warm', null, { timeout: 5000 }).then(() => true, () => false); };
-  if (!(await holdL3())) { console.log('  (L3 hold not seen: once more)'); await frames(page, 6); await holdL3(); }
+  // (ON10: held until the walk starts, not for a fixed time, so a slow frame cannot cut the hold short; at most 6 s)
+  const holdL3 = () => E(async (b) => {
+    const raf = () => new Promise((r) => requestAnimationFrame(r));
+    const t0 = performance.now();
+    window.__pad.set(b, 1);
+    while (window.__editor.walk.state === 'warm' && performance.now() - t0 < 6000) await raf();
+    window.__pad.set(b, 0); await raf(); await raf();
+    return window.__editor.walk.state !== 'warm';
+  }, BTN.LS);
+  for (let i = 0; i < 3 && !(await holdL3()); i++) { console.log('  (L3 hold not seen: once more)'); await frames(page, 10); }
   await walkIs('open', 90000);
   p = await player();
   const before4 = await edState();
@@ -1105,7 +1122,17 @@ try {
       window.__pad.set(b, 0); await raf(); await raf(); await raf();
     }, [btn, what]);
     const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
-    const toRowHeld = async (row) => { for (let i = 0; i < 20 && (await litRow()) !== row; i++) await hold(BTN.DOWN, 'card'); return (await litRow()) === row; };
+    // down to the row; if the card stops (its last row) before it, back up (ON10: a row passed on a slow frame is found)
+    const toRowHeld = async (row) => {
+      for (const btn of [BTN.DOWN, BTN.UP]) {
+        for (let i = 0; i < 24 && (await litRow()) !== row; i++) {
+          const was = await litRow();
+          await hold(btn, 'card');
+          if ((await litRow()) === was && was) break;
+        }
+      }
+      return (await litRow()) === row;
+    };
     const tileTo = async (name) => {
       for (let i = 0; i < 8 && (await menuState()).tab !== 'Openings'; i++) await hold(BTN.RB, 'menu');
       for (let i = 0; i < 20 && (await menuState()).tile !== name; i++) await hold(BTN.RIGHT, 'menu');
@@ -1230,6 +1257,174 @@ try {
     await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
     await backCheck('F10 after ON9', beforeW);
     await E(() => window.__editor.setLevel('G'));
+  }
+
+  console.log('ON10: a gable roof on the gatehouse (A twice), Type to hip and overhang 0.6 on the D-pad; a flat roof with a parapet; the walk test player stands on it');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a D-pad button only until what it moves changes (the menu highlight or the card's lit row and value)
+    const hold = (btn, what) => E(async ([b, what]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const probe = () => {
+        if (what === 'menu') { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}`; }
+        const r = document.querySelector('#selCard .crow.on');
+        return r ? `${r.dataset.row}|${r.querySelector('b').textContent}` : '';
+      };
+      const v0 = probe();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, what]);
+    const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
+    // down to the row; if the card stops (its last row) before it, back up (ON10: a row passed on a slow frame is found)
+    const toRowHeld = async (row) => {
+      for (const btn of [BTN.DOWN, BTN.UP]) {
+        for (let i = 0; i < 24 && (await litRow()) !== row; i++) {
+          const was = await litRow();
+          await hold(btn, 'card');
+          if ((await litRow()) === was && was) break;
+        }
+      }
+      return (await litRow()) === row;
+    };
+    const roofTile = async (name) => {
+      for (let i = 0; i < 8 && (await menuState()).tab !== 'Build'; i++) await hold(BTN.RB, 'menu');
+      for (let i = 0; i < 30 && (await menuState()).tile !== name; i++) await hold(BTN.RIGHT, 'menu');
+      return (await menuState()).tile === name;
+    };
+    const roofs = () => E(() => window.__editor.model.data.roofs ?? []);
+    // holds a D-pad button only until the roof's field changes in the data (the card redraws a frame later)
+    const holdRoof = (btn, id, field) => E(async ([b, id, field]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const probe = () => JSON.stringify(window.__editor.model.get('roofs', id)?.[field]);
+      const v0 = probe();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, id, field]);
+    const pickTool = async (name) => {
+      await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
+      await press(BTN.Y);
+      const ok = await roofTile(name);
+      await press(BTN.A);
+      return ok && (await E(() => window.__editor.tool)) === 'roof';
+    };
+
+    // a gable roof on the gatehouse: the Roof: Gable tile, A twice on the gatehouse takes its room and walls
+    const gh = await E(() => window.__editor.model.data.rooms.find((r) => r.name === 'Gatehouse')?.rect ?? null);
+    assert(!!gh && (await pickTool('Roof: Gable')), `ON10: Build tab > Roof: Gable picks the Roof tool (gatehouse ${JSON.stringify(gh)})`);
+    await dotAt((gh[0] + gh[2]) / 2, (gh[1] + gh[3]) / 2);
+    await page.waitForFunction(() => /A: start a gable roof here; A twice: on the Gatehouse/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const reticle = await E(() => document.getElementById('reticleText').textContent);
+    const n0 = (await roofs()).length;
+    await press(BTN.A);
+    await press(BTN.A);
+    await page.waitForFunction((n) => (window.__editor.model.data.roofs ?? []).length > n, n0, { timeout: 5000 }).catch(() => {});
+    const g = (await roofs()).at(-1);
+    assert(!!g && g.type === 'gable' && g.pitch === 25 && g.base === 3 && JSON.stringify(g.rect) === JSON.stringify([0.775, 7.775, 5.725, 11.725]) && /A twice: on the Gatehouse/.test(reticle), `ON10: A twice on the gatehouse puts a gable roof on its walls (${JSON.stringify(g?.rect)}, pitch ${g?.pitch}, eaves ${g?.base} m); the reticle said "${reticle}"`);
+    await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`roofs:${id}`); }, g.id);
+    await page.waitForFunction(() => /Ridge 3\.92 m/.test(document.querySelector('#selCard [data-roof]')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const foot = await E(() => document.querySelector('#selCard [data-roof]')?.textContent ?? '');
+    assert(/walkable up to the game limit of 50 degrees/.test(foot), `ON10: the card's foot gives the ridge and the game's slope limit ("${foot}")`);
+    // the D-pad: Type right flips gable to hip (the pitch stays); the Overhang row to 0.6 m
+    const h0 = await E(() => window.__editor.model.history.length);
+    await holdRoof(BTN.RIGHT, g.id, 'type');
+    await page.waitForFunction((id) => window.__editor.model.get('roofs', id)?.type === 'hip', g.id, { timeout: 5000 }).catch(() => {});
+    const hip = await E((id) => window.__editor.model.get('roofs', id), g.id);
+    assert(hip.type === 'hip' && hip.pitch === 25 && (await litRow()) === 'type', `ON10: D-pad right on the Type row: gable to ${hip.type}, pitch ${hip.pitch} kept`);
+    assert(await toRowHeld('overhang'), 'ON10: D-pad down reaches the Overhang row');
+    for (let i = 0; i < 6 && (await E((id) => window.__editor.model.get('roofs', id).overhang, g.id)) < 0.6 - 1e-6; i++) await holdRoof(BTN.RIGHT, g.id, 'overhang');
+    await page.waitForFunction(() => /0\.6 m/.test(document.querySelector('#selCard .crow.on b')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const rowsShown = await E(() => [...document.querySelectorAll('#selCard .crow')].map((r) => r.dataset.row).join(','));
+    const hip2 = await E((id) => ({ r: window.__editor.model.get('roofs', id), h: window.__editor.model.history.length, mesh: window.__editor.view.scene.meshes.some((m) => m.name === `roof ${id}` && m.isEnabled()) }), g.id);
+    assert(hip2.r.overhang === 0.6 && hip2.r.type === 'hip' && hip2.h > h0 && hip2.mesh && !/,ridge,|,fall,/.test(`,${rowsShown},`), `ON10: overhang ${hip2.r.overhang} m on the hip roof, drawn in 3D; the card shows only the hip's settings (${rowsShown})`);
+    await press(BTN.B);
+    await E(([x, z]) => { const o = window.__editor.controls.orbit.s; o.tx = x; o.tz = z; o.yaw = 0.7; o.dist = 14; o.pitch = 0.7; }, [(gh[0] + gh[2]) / 2, (gh[1] + gh[3]) / 2]);
+    await frames(page, 10);
+    await shot('on10-gatehouse-hip');
+
+    // a flat roof with a parapet on a test outline: an empty patch, A at two corners
+    const patch = await E(() => {
+      const d = window.__editor.model.data;
+      const near = (r, x, z, w, h) => r[0] < x + w + 1 && r[2] > x - 1 && r[1] < z + h + 1 && r[3] > z - 1;
+      const ws = d.walls.filter((w) => w.level === 'G');
+      for (let z = 14; z < 70; z += 1) for (let x = 6; x < 100; x += 1) {
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < x - 1 || Math.min(w.a[0], w.b[0]) > x + 9 || Math.max(w.a[1], w.b[1]) < z - 1 || Math.min(w.a[1], w.b[1]) > z + 7)
+          && ![...d.stairs.map((s) => s.rect), ...d.voids.map((v) => v.rect), ...(d.roofs ?? []).map((r) => r.rect)].some((r) => near(r, x, z, 8, 6));
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!patch && (await pickTool('Roof: Flat')), `ON10: Roof: Flat picked; an empty patch at ${patch}`);
+    const n1 = (await roofs()).length;
+    await dotAt(patch[0], patch[1]);
+    await press(BTN.A);
+    await dotAt(patch[0] + 8, patch[1] + 6);
+    await press(BTN.A);
+    await page.waitForFunction((n) => (window.__editor.model.data.roofs ?? []).length > n, n1, { timeout: 5000 }).catch(() => {});
+    const flat = (await roofs()).at(-1);
+    assert(!!flat && flat.type === 'flat' && flat.edge === 'parapet' && flat.parapet === 1.1 && flat.base === 4.2 && Math.abs(flat.rect[2] - flat.rect[0] - 8) < 0.15 && Math.abs(flat.rect[3] - flat.rect[1] - 6) < 0.15, `ON10: a flat roof with a 1.1 m parapet on the test outline, eaves at the top of Ground (${JSON.stringify(flat?.rect)}, ${flat?.base} m)`);
+    await E(() => window.__editor.setTool('select'));
+
+    // the walk test: the roof is collision the player stands on
+    const fc = [(flat.rect[0] + flat.rect[2]) / 2, (flat.rect[1] + flat.rect[3]) / 2];
+    await dot(fc[0], fc[1], 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 90000);
+    const onRoof = await gf().evaluate(async ([x, y, z]) => {
+      const a = window.__app;
+      const c = a.current.player.controller;
+      c.teleport(new c.pos.constructor(x, y + 0.6, z), 0);
+      for (let i = 0; i < 90; i++) await new Promise((r) => requestAnimationFrame(r));
+      const p = a.current.player.position;
+      const slab = a.current.world.level.boxes.filter((b) => b.collide && Math.abs(b.c[1] + b.s[1] / 2 - y) < 0.02 && Math.abs(b.c[0] - x) < 5 && Math.abs(b.c[2] - z) < 4).length;
+      return { y: p.y, x: p.x, z: p.z, slab };
+    }, [fc[0], flat.base, fc[1]]);
+    assert(Math.abs(onRoof.y - flat.base) < 0.2 && onRoof.slab > 0, `ON10: the walk test player stands on the flat roof (feet ${onRoof.y.toFixed(2)} m, roof ${flat.base} m, ${onRoof.slab} slab pieces)`);
+    await shot('on10-walk-roof');
+    const beforeW = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the roof', beforeW);
+
+    // screenshots: four small roofs in 3D (mono, gable, sawtooth, curved) and the plan's symbols
+    const row = await E(() => {
+      const d = window.__editor.model.data;
+      const ws = d.walls.filter((w) => w.level === 'G');
+      const taken = [...d.stairs.map((s) => s.rect), ...d.voids.map((v) => v.rect), ...(d.roofs ?? []).map((r) => r.rect)];
+      for (let z = 14; z < 70; z += 1) for (let x = 6; x < 80; x += 1) {
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < x - 1 || Math.min(w.a[0], w.b[0]) > x + 31 || Math.max(w.a[1], w.b[1]) < z - 1 || Math.min(w.a[1], w.b[1]) > z + 7)
+          && !taken.some((r) => r[0] < x + 32 && r[2] > x - 1 && r[1] < z + 8 && r[3] > z - 1);
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!row, `ON10: an empty row for four small roofs at ${row}`);
+    await E(([x, z]) => {
+      const ed = window.__editor;
+      ed.setLevel('G');
+      const types = ['mono', 'gable', 'sawtooth', 'curved'];
+      for (let i = 0; i < 4; i++) {
+        ed.setTool('roof');
+        ed.setRoofType(types[i]);
+        ed.toolDown(x + i * 8, z, 0, 0, 'pad', false);
+        ed.moveDrag(x + i * 8 + 6, z + 6, false);
+        ed.endDrag(false);
+      }
+      ed.setTool('select');
+      ed.select(null);
+      const o = ed.controls.orbit.s; o.tx = x + 15; o.tz = z + 3; o.yaw = 0.5; o.dist = 30; o.pitch = 0.6;
+    }, row);
+    await frames(page, 12);
+    await shot('on10-roof-types');
+    const kinds = await E(() => (window.__editor.model.data.roofs ?? []).map((r) => r.type).join(','));
+    assert(/mono,gable,sawtooth,curved$/.test(kinds), `ON10: four small roofs drawn with the tool's types (${kinds})`);
+    await E(() => { const ed = window.__editor; ed.setLayout('plan'); ed.select(`roofs:${ed.model.data.roofs.at(-3).id}`); ed.frameSelected(); });
+    await page.waitForFunction(() => (document.querySelector('#planSvg svg')?.innerHTML.match(/data-id="roofs:/g) ?? []).length >= 4, null, { timeout: 15000 }).catch(() => {});
+    await wait(500);
+    await shot('on10-plan-roofs');
+    const planRoofs = await E(() => (document.querySelector('#planSvg svg')?.innerHTML.match(/data-id="roofs:/g) ?? []).length);
+    assert(planRoofs >= 4, `ON10: the plan draws the roofs with their ridge lines and heights (${planRoofs} roofs on Ground)`);
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setLayout('both'); ed.setLevel('G'); });
   }
 
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a)');

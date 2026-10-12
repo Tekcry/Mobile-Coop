@@ -63,6 +63,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window (type from the list beside it, ON9) |
 | 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
+| Space > Build: Roof tiles | the Roof tool (ON10): drag out the outline, or one click on a building to take its footprint; type from its tile |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
 | Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
@@ -461,7 +462,62 @@ defaults; files written before ON9 show their type's defaults until a setting is
 - **Frosted glass and closed blinds** block sight but pass light (bible 5.1). The editor shows it; the game has no such
   state yet: in the game from stage DR.
 
+## Roofs (ON10)
+Every roof is one record in `roofs[]` (schema.md section 2): an axis-aligned outline at the wall line, the eaves height
+(`base`) there, a type and only that type's settings. The geometry is one pure module, `src/world/maps/kestrelRoofs.ts`,
+used by the editor's 3D, the plan (`plans.mjs` imports it directly) and the walk test.
+
+**Roof tool** (Y menu > Build: Roof: Flat, Mono-pitch (skillion), Gable, Hip, Sawtooth, Curved (barrel); with the tool in
+hand D-pad left / right changes the type, as for stairs):
+1. A at one corner, A at the other (mouse: drag): the roof follows the dot, its eaves on the walls under it.
+2. Or A twice on the same spot (mouse: one click): the roof takes the footprint of the building under the dot; outside the
+   buildings, the room under it grown to the outside faces of its walls (the gatehouse). The reticle names what it takes.
+- **Eaves height default**: the wall top that most of the wall length under the outline reaches (interior, exterior and
+  glass walls on this level or below; a bulkhead on a roof does not lift it), else the top of the level (floor + storey
+  height). The card's Eaves height row changes it.
+- **Defaults** (`src/editor/roofGeometry.ts` `ROOF_TYPES`, each with its source): flat membrane, falls 1 degree to the
+  south, parapet 1.1 m (facts `rules.parapet`) or upstand 0.3 m (facts `roof.upstand`); mono-pitch metal deck 10 degrees,
+  high side north; gable and hip tile 25 degrees, 0.5 m eaves; sawtooth metal deck 25 degrees, 6 m teeth, glass facing
+  south (away from the sun in Australia); curved metal deck, rise 1.5 m. Pitched types have a gutter and downpipes.
+
+| Type | Settings on the card (after Type, Name, Width, Depth, Eaves height) |
+| --- | --- |
+| Flat | Fall (1-2 degrees, facts `roof.fallMin` / `fallMax`), Falls to, Edge (parapet or upstand), Parapet height or Upstand height |
+| Mono-pitch | Pitch, High side |
+| Gable | Pitch, Ridge (east-west or north-south) |
+| Hip | Pitch (hips on all four sides; the ridge runs along the longer side, as long as the long side less the short side) |
+| Sawtooth | Pitch, Tooth width (teeth = span / width, rounded), Glass faces |
+| Curved | Rise, Ridge (the barrel's axis) |
+| Every type | Overhang (0-1.0 m, facts `roof.overhangMax`), Fascia depth, Material (metal deck, concrete, membrane, tile; sets its colour), Colour, Gutter, Downpipes (with a gutter) |
+
+- Pitch and fall step 1 degree, lengths 0.1 m. **Type** flips keep the pitch, overhang, trim and material between pitched
+  types; to or from Flat the new type's defaults apply. Mouse: the side panel has a Type list, the eaves height and the
+  outline as fields and every setting with ‹ › buttons.
+- **Words**: the card's foot and the panel give the ridge and eaves heights (hip: the ridge length; sawtooth: the teeth)
+  and the walking verdict from the game's own slope limit (`player.maxSlope` 50 degrees, the controller's
+  `maxSlopeCosine`; a test keeps them equal): "walkable up to the game limit of 50 degrees" or "too steep to walk (game
+  limit 50 degrees)". A flat roof over roof rooms is checked against that level's floor: "Top 8.6 m is 0.2 m above the
+  Roof floor (8.4 m)" in red.
+- **Overhang** carries the slope past the wall line: the eaves drop by overhang x tan(pitch), the ridge stays.
+- **3D**: the planes, the end walls under them (gable ends, a skillion's cheeks and high wall, barrel ends), sawtooth
+  glass, parapets or upstands, fascia and barge boards, gutters along the eaves and downpipes from their ends to the
+  ground. Handles sit at the eaves. With Cut walls at on, a roof above the cut is hidden (to see under the gatehouse roof).
+- **Plan** (`plans.mjs`, the level the roof was drawn on): the overhang dashed, the wall line thin, ridge and hip lines,
+  an arrow down each slope (the fall on a flat roof), the ridge and eaves heights.
+- **Walk test**: every roof as the game's boxes (`kestrel.ts`): a flat roof is a slab the player walks on with its
+  parapets or upstands; a sloped plane is strips tilted to the pitch (0.5 m, `ROOF_BUILD.strip`): within the game's slope
+  limit the player stands on it, steeper the controller slides off it; end walls as upright pieces; sawtooth glass as the
+  game's glass panes; trim, gutters and downpipes as boxes. No player or physics change. They are ordinary boxes, so the
+  moon and sky bakes see them as the game does (bible 5.1). Roof lights (floor holes of kind roof light on the roof's
+  level or at its height) cut through. A flat roof whose top already has level floors under it (level R's roof rooms) adds
+  no second slab, and no parapet on an edge that already has a parapet wall.
+
 ## What it does not do yet (ED2 parts B-H)
+- ON10: outlines are rectangles along x and z (no L-shapes or angled roofs); one roof per outline, no valleys between
+  roofs. A flat roof's fall is drawn, not built (level in 3D and in the walk test). Roof lights cut the walk test's roof
+  but are not drawn as holes in the editor's 3D roof planes. Gutters and downpipes are roof settings drawn as boxes; ON5
+  judges them as climbing pieces. Roof edges are not checked by `check.mjs`. Hip roofs always run their ridge along the
+  longer side.
 - ON9: the door and glass settings are data and drawing only; the game builds them from stage DR: sliding and glass
   doors, readers and card levels, one-way (push bar) doors, closers, alarms, vision panels, and frosted glass and closed
   blinds that block sight but pass light (in the game from stage DR; the walk test draws a glass partition as a solid wall
@@ -502,6 +558,8 @@ defaults; files written before ON9 show their type's defaults until a setting is
 | `src/editor/vertical.ts`, `src/editor/levels.ts` | ON2: the stair proposal, fit and Fit, the stairwell link, ladders, floor holes; add, duplicate, delete levels, storey heights, renaming ids with every reference, building outlines and the RULES 2 warnings (pure, `tests/editor/vertical.test.ts`) |
 | `src/editor/openingCatalogue.ts` | ON9: every door and window type (name, family, leaf, size with its source, the settings it has), realistic defaults per type, the settings in words and their steps, a type flip within the family (pure, `tests/editor/openingCatalogue.test.ts`) |
 | `src/world/maps/kestrelDoors.ts` | ON9: the one copy of the door side maths (swing side, hinge or stack end), shared by the editor and the walk test, and the walk test's game doors and panes (pure) |
+| `src/editor/roofGeometry.ts` | ON10: the roof types, settings and defaults with sources, a new roof, the footprint under the dot, the default eaves height, the card's rows and steps, the type flip, the steepness flag and the roof level check (pure, `tests/editor/roofGeometry.test.ts`) |
+| `src/world/maps/kestrelRoofs.ts` | ON10: the one copy of the roof geometry (planes, edges, ridges, hips, plan marks, the walk test's boxes and panes), shared by the editor, the walk test and `plans.mjs` (pure, import-free) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
 | `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft; `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

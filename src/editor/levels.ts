@@ -85,13 +85,15 @@ export function levelContents(d: Campus, id: string): { coll: Coll; e: Elem }[] 
   for (const s of d.stairs) if (s.from === id || s.to === id) out.push({ coll: 'stairs', e: s });
   for (const l of d.ladders) if (l.from === id || l.to === id) out.push({ coll: 'ladders', e: l });
   for (const v of d.voids) if (v.level === id) out.push({ coll: 'voids', e: v });
+  // ON10: the roofs drawn on it
+  for (const r of d.roofs ?? []) if (r.level === id) out.push({ coll: 'roofs', e: r });
   for (const o of (d.objects as Elem[] | undefined) ?? []) if ((o as { level?: string }).level === id) out.push({ coll: 'objects', e: o });
   return out;
 }
 
 const COLL_WORDS: Record<string, [string, string]> = {
   rooms: ['room', 'rooms'], walls: ['wall', 'walls'], openings: ['door or window', 'doors and windows'], stairs: ['stair', 'stairs'],
-  ladders: ['ladder', 'ladders'], voids: ['floor hole', 'floor holes'], objects: ['object', 'objects'],
+  ladders: ['ladder', 'ladders'], voids: ['floor hole', 'floor holes'], roofs: ['roof', 'roofs'], objects: ['object', 'objects'],
 };
 /** "12 rooms, 40 walls, 3 doors and windows". */
 export function countWords(items: readonly { coll: Coll }[]): string {
@@ -224,6 +226,7 @@ export function references(d: Campus, coll: Coll, id: string): { coll: Coll; e: 
   }
   if (coll === 'levels') {
     for (const k of ['rooms', 'walls', 'voids'] as const) for (const e of d[k]) add(k, e, e.level === id ? ['level'] : []);
+    for (const e of d.roofs ?? []) add('roofs', e, e.level === id ? ['level'] : []);
     for (const k of ['stairs', 'ladders'] as const) for (const e of d[k]) add(k, e, [e.from === id ? 'from' : '', e.to === id ? 'to' : ''].filter(Boolean));
     for (const o of (d.objects as Elem[] | undefined) ?? []) add('objects', o, (o as { level?: string }).level === id ? ['level'] : []);
   }

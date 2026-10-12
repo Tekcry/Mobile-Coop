@@ -99,7 +99,7 @@ describe('the walk test pieces', () => {
   });
   it('roof lights cut through; a flat roof on a level floor builds no second slab and no second parapet', () => {
     const f = roof({ type: 'flat', edge: 'parapet', parapet: 1.1, rect: [0, 0, 10, 10] });
-    const area = (bs: { s: number[]; pitch: number }[]): number => bs.filter((b) => b.pitch === 0 && b.s[1] < 0.3).reduce((a, b) => a + b.s[0]! * b.s[2]!, 0);
+    const area = (bs: { s: number[]; pitch: number }[]): number => bs.filter((b) => b.pitch === 0 && b.s[1]! < 0.3).reduce((a, b) => a + b.s[0]! * b.s[2]!, 0);
     expect(area(roofWalkPieces(f).boxes)).toBeCloseTo(100, 6);
     expect(area(roofWalkPieces(f, { cuts: [[2, 2, 4, 5]] }).boxes)).toBeCloseTo(94, 6);
     const g = roof({ rect: [0, 0, 10, 8] });
