@@ -47,3 +47,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Pad e2e steps should wait on editor state (menu open, breadcrumb) rather than fixed pauses; fixed waits passed once and failed on the next run under load.
 - A pad camera that moves with the stick needs a stick latch after any menu closes; a test that releases the menu button before the stick shows it at once.
 - A magnetic cursor changes where every later pad test lands; e2e steps that place the dot should set it directly and pick spots clear of other snap points, not rely on stick travel.
+- An e2e that calls the real Save must guard it on the expected state (never save unless the count is 0), and cached derived values (an unsaved count) must be invalidated after every stack change, not only on data change; listeners read them mid-change.

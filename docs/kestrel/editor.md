@@ -57,7 +57,9 @@ views are generated from it, so this table and the editor cannot drift apart for
 | --- | --- |
 | Right mouse drag | look around |
 | W A S D | move; Q / E down / up (fly); Shift fast; mouse wheel zooms in and out |
-| Tab | walk at eye height (1.75 m player, walls block, doors and gaps let you through, C crouches to 1.15 m) / fly |
+| Tab | **walk test (game)**: the game's own player at the dot, unsaved edits included (below) |
+| Shift+Tab | **quick walk** at the dot (same as L3; 1.75 m eye, walls block, C crouches to 1.15 m); again goes back |
+| F10 (in the game) | back to the editor from the walk test |
 | Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
 | 1 - 5 | tools: select, room, wall, door (type from the list beside it), window |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
@@ -137,7 +139,7 @@ the free camera from the same spot. Nothing jumps either way.
 ### The wheels (hold, point with either stick, release to pick; resting on a submenu opens it)
 | Build wheel (Y held; mouse: hold Space) | Selection wheel (RB held; mouse: hold R) |
 | --- | --- |
-| Select, Room, Wall, Door > (door kinds), Window, Measure, Paste and Paste to level above (only with something copied). Stair, Ladder, Floor hole and Object join when those tools exist | Only what fits the selection: Move (as A in the middle), Properties (the side panel), Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Change type > (door kinds for doors and windows, room kinds, wall kinds; one undo step), Delete |
+| Select, Room, Wall, Door > (door kinds), Window, Measure, Paste and Paste to level above (only with something copied). Stair, Ladder, Floor hole and Object join when those tools exist | Only what fits the selection: Move (as A in the middle), Properties (the side panel), Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Change type > (door kinds for doors and windows, room kinds, wall kinds: interior, exterior, boundary, parapet, balustrade (blue-grey in 3D); one undo step), Delete |
 
 - Picking from the Build wheel also lights that tool on the tool bar. **Copy to level above** copies, pastes one level up
   in one change, selects the copy and takes the editing level up with it ("No level above" at the top).
@@ -151,7 +153,7 @@ pad, and any grab is put back first.
 
 | Tab | Holds |
 | --- | --- |
-| Play | Quick walk at the dot (same as L3); Walk test as the player (greyed: comes in the next part) |
+| Play | Quick walk at the dot (same as L3); Walk test as the player (the game, as Tab) |
 | File | Save (with the unsaved count), Revert to last save (asks first), the change list newest first: A on a line asks "Undo back to here?" and undoes every change down to and including it |
 | Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub and goes there |
 | Levels | the level to edit (A edits it), then the Levels panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
@@ -159,8 +161,8 @@ pad, and any grab is put back first.
 | Settings | rumble on / off, stick speed (0.5 to 2.0, step 0.25), invert tilt, text size (Large = 1.25x on the pad screen, the hub and the wheels). Saved with the pad preferences (browser storage, a view preference) |
 | Help | a picture of the controller with every button labelled with its building-state action (from the action map), then every binding by group for keys, mouse and pad |
 
-- Undo adds a line to the unsaved changes (the change list counts undos too), so "undo back to here" brings the undo
-  history and the building back, not the unsaved count.
+- The unsaved count is the net change since the last save: undo lowers it, and it is 0 exactly when the building is as
+  saved (an edit after undoing past the save counts both ways). The change log written on save still lists every undo.
 
 ### Screen
 - The **dot** shows the position, the snap, what A would do and, while grabbing or drawing, the live size, length or
@@ -168,7 +170,7 @@ pad, and any grab is put back first.
 - **Tool bar** (bottom centre): Select, Room, Wall, Door (the door type under it), Window, Measure; the current one lit.
 - **Selection card** (bottom right): name, kind, size, level. Read-only; edit through the Selection wheel > Properties.
 - **Quick walk**: left stick walks, right stick looks, D-pad up / down changes level (the walk moves to that floor at
-  the same spot), B or L3 ends it. The dot, tool bar and card hide; A does nothing. Tab stays the keyboard's walk.
+  the same spot), B or L3 ends it. The dot, tool bar and card hide; A does nothing. Shift+Tab does the same from the keyboard.
 - **Plan with the pad**: the plan never takes the pad; it shows the dot as a blue ring, the lit part and the ghosts as
   dashed outlines, and pans to keep the dot in view. The mouse still pans, zooms and edits the plan as before.
 - **Side panel**: Selection wheel > Properties takes the pad: D-pad up / down picks a field, left / right changes a
@@ -189,6 +191,28 @@ pad, and any grab is put back first.
   level below as faint blue dashes. The editing level is always shown; if the settings would hide it the hint bar says so.
 - Walking (Tab) always shows the whole campus as built: no gap, no cut walls, every building.
 
+## Walk test as the player (ED2 Part B)
+- **Ways in**: Tab, the tool bar's "Walk test (game)", or Hub > Play > Walk test as the player. The game opens over the
+  editor in the same tab, built from the campus exactly as the editor holds it, unsaved edits included (the editor sends
+  it to the dev server's memory; nothing is written to disk).
+- **Where you start**: exactly where the editor camera is centred: the dot on the editing level (pad), the eye during a
+  quick walk, or the screen centre on the floor (mouse); facing the camera's way, pushed clear of walls by a hand's width.
+  No room or reachability test: a sealed room, a roof or a void is a valid start.
+- **Ways back**: F10, Esc then "Back to editor", or hold View + Menu for half a second. The camera starts where the game
+  camera was and eases to an orbit round the player on the player's level; undo history, selection and the unsaved count
+  are as before the walk. The swap in eases the editor camera onto the game camera first, so there is no blank frame.
+- **Kept warm**: after the first walk the game stays loaded, hidden and paused. With no edits since, the next walk only
+  moves the player (instant); after an edit it rebuilds ("Loading game..." on the status strip, the editor stays live).
+  Revert and restore drop it. The hidden game still draws frames (a dev-tool cost; fine on the PC, slow under software GL).
+- **What is modelled**: walls, fences, parapets and balustrades collide at their own heights; every opening is an open gap
+  of its width and height (windows above their sill); stairs are walkable flights with the file's risers; floors have their
+  voids cut; all six ladders are climbable (the engine's ladder anchor, facing their wall); the pipe rack is a solid box.
+- **Not yet**: doors that open, close or lock (stage DR; the game says "Doors are open gaps for now"), pipe anchors on the
+  rack (later work), guards, security, lighting. The corner readout shows "x, z, level" to say where something feels wrong;
+  the game's debug overlay (F3) works as usual.
+- Code: `src/editor/gameWalk.ts` (iframe, warm game), `src/dev/editorBridge.ts` (game side, dev only),
+  `src/world/maps/kestrelCampus.ts` (campus file to the game's builder, Babylon-free, `tests/kestrelCampus.test.ts`).
+
 ## Unsaved work
 - Every edit is copied to the browser's database (`kestrel-editor`, not the game's save) about a second later. If the
   page closes before a save, opening the editor again asks "Restore unsaved changes from <time>?". Restore brings back
@@ -203,11 +227,11 @@ pad, and any grab is put back first.
 - **Changes**: what has been done since the last save, newest first.
 
 ## What it does not do yet (ED2 parts B-H)
-- Walk test with the game's own player and camera (Part B); linked walls, snapping,
+- Linked walls, snapping,
   dimensions, clickable problems, search (Part D).
 - Add, reshape or delete stairs, ladders and floor holes beyond moving them; no new levels; renaming ids (Part E).
 - Lighting preview, props, guards and routes.
-- Walking up stairs: change level with Page Up / Page Down.
+- Quick walk up stairs: change level with Page Up / Page Down (the walk test climbs stairs and ladders for real).
 - Openings keep the rooms either side (`between`) up to date when they are placed or moved, not when a room moves.
 - On the plan, the building filter hides rooms, walls and openings; their name labels stay.
 
