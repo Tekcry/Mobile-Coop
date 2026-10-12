@@ -45,3 +45,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - Plan labels need one obstacle test for every label kind and an overlap count from the first render.
 - Editor tools need a render-ready check (meshes ready, not just created) in their first browser test; a blank 3D view from a dev-server shader quirk went unseen until v2.
 - Pad e2e steps should wait on editor state (menu open, breadcrumb) rather than fixed pauses; fixed waits passed once and failed on the next run under load.
+- A pad camera that moves with the stick needs a stick latch after any menu closes; a test that releases the menu button before the stick shows it at once.

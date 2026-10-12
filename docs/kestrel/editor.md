@@ -34,7 +34,8 @@ work, and on save writes the file, the plan images and a change log for review. 
   status strip (top left: editing level, view, levels setting, building, tool, unsaved changes, new problems) and large
   button prompts along the bottom replace them. Moving the mouse more than a few pixels or pressing a key brings the
   normal screen back. Nothing else changes between the two.
-- Panels open from the radial menu and take the pad focus (D-pad up / down picks, A ticks or presses, left / right
+- The tool bar (bottom centre) and the selection card (bottom right) show on the controller screen only.
+- Panels open from the radial menu and take the pad (D-pad up / down picks, A ticks or presses, left / right
   changes a number or slider, LB fine, B leaves): View > Levels > Levels panel (pick levels, presets, ghost, exploded and
   its gap, cut walls at, building, level below); Edit > Properties; File > Checks (A on a problem goes to it); File >
   Changes.
@@ -79,31 +80,47 @@ The plan view takes the same tools and drags. Mouse wheel zooms, right drag pans
 The blue arrow on the plan is the camera. Hovering a room, wall or opening in 3D or on the plan outlines it blue on the
 plan and names it in the corner of the 3D view.
 
-## Controller (ED2 Part C)
+## Controller (ED2 Part C, ED3-1 builder camera)
 Any Xbox, PlayStation or Nintendo pad works alongside the mouse and keyboard. The hint bar and the help switch to the
 pad's own button names when the pad was used last, and back when the keyboard or mouse is used.
 
+The pad drives a **builder camera** that circles the **dot**, a point on the editing floor. The first pad input starts
+it from the current view (aimed at the screen centre, or 25 m ahead when that misses); mouse or key input hands back to
+the free camera from the same spot. Nothing jumps either way.
+
 | Button | Does |
 | --- | --- |
-| Left stick / right stick | move / look (right stick click: look at the selection; left stick click: fast on / off) |
-| LT / RT | down / up when flying; a deeper press is faster |
-| A | select what the centre dot is on; on the selection, grab it (or aim at an orange handle); A again drops it. Drawing tools: A starts, A finishes (wall ends, room corners); door and window tools: A on a wall places one |
+| Left stick | move the dot across the editing floor, the way the camera faces; faster when zoomed out |
+| Right stick | orbit left / right, tilt up / down (about 20 degrees to straight down) |
+| LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan |
+| A | select what the dot is on; on the selection, grab it (or aim at an orange handle); A again drops it. Drawing tools: A starts, A finishes (wall ends, room corners); door and window tools: A on a wall places one |
 | B | cancel a grab or a drawing; else put the tool down; else clear the selection. Never deletes |
 | X / X held | undo / redo |
 | Y held | the radial menu (below); Y tap: the last tool again |
-| LB held | fine grid (0.1 m) |
-| RB | go to the selection |
-| D-pad | while grabbing or drawing: nudge one grid step (up is the way the camera faces most). Otherwise up / down change level, left / right pick the previous / next thing near the dot |
-| View / View held | 3D, Both, Plan / move pad focus between the 3D view, the plan and the side panel (orange border) |
+| D-pad left / right | previous / next tool on the tool bar (wraps). While grabbing or drawing: nudge one grid step |
+| D-pad up / down | level up / down; the dot and camera rise or drop with it. While grabbing or drawing: nudge |
+| LB held | precision: 0.1 m grid, pan, orbit and zoom at 30 % |
+| RB | go to the selection (the dot moves to its centre; the view angle and zoom stay) |
+| L3 (left stick click) | quick walk at the dot, facing the camera's way; L3 again or B returns to the camera exactly as it was |
+| R3 (right stick click) | levels shown: up to this level, single level, whole building (cycles) |
+| View | top-down and back (north up); moving the right stick while top-down just orbits from there |
+| View held | layout: 3D, Both, Plan (cycles) |
 | Menu | help, with Save, Revert, Walk and rumble on / off along the top |
 
-- The **centre dot** in 3D snaps to the grid on the editing level and shows the position, what A would pick, and while
-  grabbing the live size, length or move.
-- **Plan with pad focus**: left stick moves a crosshair (it speeds up the longer it is held), right stick pans, LT / RT
-  zoom; A, B, X, Y and the D-pad work as in 3D at the crosshair.
-- **Side panel with pad focus** (Edit > Properties, or View held): D-pad up / down picks a field, left / right changes a
-  number by one grid step (LB: fine) or steps a list, A presses a button or opens a text field (on-screen keyboard
-  where there is one), B leaves.
+- The **dot** snaps to the grid on the editing level and shows the position, what A would pick, and while grabbing the
+  live size, length or move. In Plan only its words show under the plan.
+- **Tool bar** (bottom centre): Select, Room, Wall, Door (the door type under it), Window, Measure; the current one is
+  lit. Picking a tool from the wheel lights it too. Measure: A at the first point, A at the second.
+- **Selection card** (bottom right): the selected thing's name, kind, size and level. Read-only; edit through Edit >
+  Properties.
+- **Quick walk**: left stick walks, right stick looks, D-pad up / down changes level (the walk moves to that floor at
+  the same spot). The dot, tool bar and card hide; A does nothing. The wheel's Walk and the help's Walk start and end
+  the same quick walk when the pad is in use. Tab stays the keyboard's walk.
+- **Plan with the pad**: the plan never takes the pad; it shows the dot as a blue ring and pans to keep it in view. The
+  mouse still pans, zooms and edits the plan as before.
+- **Side panel**: panels opened from the wheel (Edit > Properties, View > Levels > Levels panel, File > Checks, File >
+  Changes) take the pad: D-pad up / down picks a field, left / right changes a number by one grid step (LB: fine) or
+  steps a list, A presses a button or opens a text field (on-screen keyboard where there is one), B leaves.
 - **Radial menu**: hold Y, point with either stick, release Y to pick. Resting on a submenu (marked >) for a quarter
   second, or A, opens it; the menu then stays open until a pick or B (back; at the top, close). The last pick in each
   ring is highlighted next time. Root, clockwise from the top: Select, Build (Room, Wall, Door > types, Window), Edit
@@ -114,6 +131,8 @@ pad's own button names when the pad was used last, and back when the keyboard or
 - **Rumble**: a light tap on snapping a wall end onto another wall's end, on a drop, and a heavier one on an error.
   Off in the help (Menu).
 - Copy and paste take rooms, walls and floor holes. Measure is pad-only for now (A, A).
+- After a wheel closes, the sticks do nothing until they return to the centre, so letting go of Y with the stick still
+  pushed does not move the dot.
 ## Views (ED2 Part A)
 - **3D | Both | Plan** in the toolbar (or V). Both has a divider to drag, **Side by side / Stacked** and **Swap**. The
   choice, the divider and the panel state are remembered (browser storage; a view preference, not a save).
@@ -155,7 +174,8 @@ pad's own button names when the pad was used last, and back when the keyboard or
 | `editor.html`, `src/editor/main.ts` | page, tools, panels, plan view |
 | `src/editor/scene3d.ts`, `src/editor/controls.ts` | 3D massing, picking, handles; fly and walk camera |
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision (Babylon-free, `tests/editor/`) |
-| `src/editor/padControl.ts`, `src/editor/padMenu.ts` | controller editing: the dot, grab, plan crosshair, side panel, rumble; the radial menu's contents and ring |
+| `src/editor/padControl.ts`, `src/editor/padMenu.ts` | controller editing: the dot, grab, tool bar, selection card, quick walk, plan marker, side panel, rumble; the radial menu's contents and ring |
+| `src/editor/orbit.ts` | the pad's builder camera: state, pan / orbit / zoom, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
 | `src/editor/pad.ts`, `src/editor/radial.ts` | pad reading (edges, taps and holds, D-pad repeat, button names); radial slot maths and menu navigation (Babylon-free, `tests/editor/editorPad.test.ts`) |
 | `src/editor/actions.ts`, `src/editor/visibility.ts`, `src/editor/draft.ts` | the action map (keys, help, hint bar); which levels and buildings are shown, ghosted or hidden, and the exploded lift; unsaved drafts in IndexedDB (Babylon-free, `tests/editor/editorV2.test.ts`) |
 | `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save |

@@ -17,8 +17,8 @@ export interface PadSnap {
 const DOWN = 0.5;
 export const STICK_DEAD = 0.18;
 export const TRIGGER_DEAD = 0.08;
-/** Hold times (seconds): X held redoes, Y held opens the radial, View held moves pad focus. */
-export const HOLD = { X: 0.5, Y: 0.2, VIEW: 0.4 } as const;
+/** Hold times (seconds): X held redoes, Y held opens the radial, View held changes the layout, RB held is free until ED3-2. */
+export const HOLD = { X: 0.5, Y: 0.2, VIEW: 0.4, RB: 0.3 } as const;
 /** D-pad repeat while held: first repeat, then every. */
 export const REPEAT_FIRST = 0.35;
 export const REPEAT_EVERY = 0.12;
@@ -32,10 +32,12 @@ export class PadState {
   private readonly x = new TapHold(HOLD.X);
   private readonly y = new TapHold(HOLD.Y);
   private readonly view = new TapHold(HOLD.VIEW);
-  /** Tap or hold of X, Y and View this frame. */
+  private readonly rb = new TapHold(HOLD.RB);
+  /** Tap or hold of X, Y, View and RB this frame. */
   xTap: 'tap' | 'hold' | null = null;
   yTap: 'tap' | 'hold' | null = null;
   viewTap: 'tap' | 'hold' | null = null;
+  rbTap: 'tap' | 'hold' | null = null;
   ls = { x: 0, y: 0 };
   rs = { x: 0, y: 0 };
   /** Raw left and right stick (for the radial, which applies its own dead zone). */
@@ -69,6 +71,7 @@ export class PadState {
     this.xTap = this.x.update(this.down(PAD.X), now);
     this.yTap = this.y.update(this.down(PAD.Y), now);
     this.viewTap = this.view.update(this.down(PAD.SELECT), now);
+    this.rbTap = this.rb.update(this.down(PAD.RB), now);
     this.active = this.cur.some(Boolean) || this.ls.x !== 0 || this.ls.y !== 0 || this.rs.x !== 0 || this.rs.y !== 0 || this.lt > 0 || this.rt > 0;
   }
 

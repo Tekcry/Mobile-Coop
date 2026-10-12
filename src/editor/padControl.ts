@@ -1,7 +1,8 @@
 /**
- * Controller editing for the level editor (ED2 Part C): polls the pad each frame and drives the editor. A centre dot
- * in 3D (a crosshair on the plan) is the pad's pointer; A selects, grabs and drops; Y held opens the radial menu (hold
- * Space for the mouse version). Bindings and their words live in actions.ts; the pure parts in pad.ts and radial.ts.
+ * Controller editing for the level editor (ED2 Part C, ED3-1): polls the pad each frame and drives the editor. The pad
+ * moves a builder camera (orbit.ts) whose target is the dot on the editing floor; A selects, grabs and drops; Y held
+ * opens the radial menu (hold Space for the mouse version); the D-pad steps the tool bar and the level. Bindings and
+ * their words live in actions.ts; the pure parts in pad.ts, orbit.ts and radial.ts.
  */
 import { hyp2 } from '../core/mathx';
 import { detectPadStyle } from '../input/gamepadMapping';
@@ -10,15 +11,31 @@ import type { Device } from './actions';
 import { fmt, normRect, snap, wallLen, wallPoint } from './geometry';
 import type { Editor } from './main';
 import { label } from './ops';
+import { ORBIT } from './orbit';
 import { PAD, PadState } from './pad';
 import { menuTree, RadialView } from './padMenu';
 import { Radial } from './radial';
 import { presetPicks } from './visibility';
 import type { RadialNode } from './radial';
-import type { Coll, Elem, Key, Ladder, Pt, Rect, Room, Stair, Wall } from './types';
+import type { Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Wall } from './types';
 import { keyOf, parseKey } from './types';
 
-type Focus = '3d' | 'plan' | 'drawer';
+type Focus = '3d' | 'drawer';
+/** The tool bar's slots, left to right (Stair, Ladder, Floor hole and Object join when those tools exist). */
+const BAR = [
+  ['select', 'Select'],
+  ['room', 'Room'],
+  ['wall', 'Wall'],
+  ['door', 'Door'],
+  ['window', 'Window'],
+  ['measure', 'Measure'],
+] as const;
+const DISPLAYS = [
+  ['upTo', 'Up to this level'],
+  ['single', 'Single level'],
+  ['whole', 'Whole building'],
+] as const;
+const KIND: Record<Coll, string> = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole' };
 const PREFS = 'kestrel-editor-pad';
 const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) as T;
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
@@ -44,9 +61,9 @@ export class PadControl {
   private drawerIndex = 0;
   private helpIndex = 0;
   private padHelp = false;
-  /** Plan crosshair, pixels inside the plan pane. */
-  private cross = { x: -1, y: -1, heldAt: 0 };
-  private nearIndex = -1;
+  private lastNow = 0;
+  /** After a wheel closes, the sticks do nothing until they come back to the centre. */
+  private stickLatch = false;
 
   constructor(private readonly ed: Editor) {
     this.ringView = new RadialView($('radial'));
@@ -91,6 +108,11 @@ export class PadControl {
   setDevice(d: Device): void {
     if (this.device === d) return;
     this.device = d;
+    // mouse or keys: the fly camera takes over from the same pose; the plan marker goes
+    if (d === 'keys') {
+      this.ed.controls.leaveOrbit();
+      document.getElementById('padMark')?.remove();
+    }
     document.body.dataset.device = d;
     this.ed.renderHelp();
     this.ed.updateHint();
@@ -154,7 +176,10 @@ export class PadControl {
     }
     const res = r.update(inp);
     if (res?.kind === 'pick') this.runMenu(res.node, res.path);
-    if (!r.isOpen) this.ed.updateHint();
+    if (!r.isOpen) {
+      this.stickLatch = true;
+      this.ed.updateHint();
+    }
     this.ringView.render(r);
   }
 
@@ -164,6 +189,7 @@ export class PadControl {
     const id = node.id;
     const vis = ed.view.vis;
     const tool = (t: string, door?: string): void => {
+      this.measureFrom = null;
       if (door) $<HTMLSelectElement>('doorType').value = door;
       this.lastTool = { tool: t, door };
       ed.setTool(t as Parameters<Editor['setTool']>[0]);
@@ -185,7 +211,11 @@ export class PadControl {
     else if (id === 'edit.pasteUp') this.paste(true);
     else if (id === 'edit.measure') this.startMeasure();
     else if (id === 'undo') ed.undo();
-    else if (id === 'walk') ed.toggleWalk();
+    else if (id === 'walk') {
+      // with the pad, the wheel's Walk is the quick walk (L3) both ways
+      if (this.device === 'pad' && !this.mouseMenu) ed.quickWalk();
+      else ed.toggleWalk();
+    }
     else if (id.startsWith('view.') && ['3d', 'both', 'plan'].includes(id.slice(5))) ed.setLayout(id.slice(5) as '3d' | 'both' | 'plan');
     else if (id === 'lv.whole' || id === 'lv.single' || id === 'lv.upTo') ed.setPreset(id.slice(3) as 'whole' | 'single' | 'upTo');
     else if (id === 'lv.ghost') ed.run('ghost');
@@ -211,11 +241,13 @@ export class PadControl {
   // ---------- every frame ----------
   private frame(): void {
     const now = performance.now() / 1000;
+    const dt = Math.min(0.05, Math.max(0, now - (this.lastNow || now)));
+    this.lastNow = now;
     const gp = this.gamepad();
     const c = this.ed.controls;
     c.padMove = { x: 0, y: 0 };
     c.padLook = { x: 0, y: 0 };
-    c.padRise = 0;
+    c.orbitIn = { panX: 0, panY: 0, orbitX: 0, tiltY: 0, zoom: 0, precision: false };
     if (gp) {
       this.st.update({ buttons: gp.buttons.map((b) => b.value), axes: gp.axes }, now);
       if (this.st.active) {
@@ -227,7 +259,10 @@ export class PadControl {
         this.setDevice('pad');
       }
     }
+    // the pad drives the builder camera; a walk (Tab or quick) keeps walking
+    if (gp && this.device === 'pad' && c.mode === 'fly') this.ed.enterOrbit();
     this.drawStrip();
+    this.drawBar();
     if (this.radial?.isOpen) return this.menuFrame(now);
     if (!gp) return this.followDrag();
     const st = this.st;
@@ -239,39 +274,75 @@ export class PadControl {
     }
     if (this.padHelp) return this.helpFrame();
     if (st.pressed(PAD.START)) return this.openHelp();
+    if (this.stickLatch && !st.ls.x && !st.ls.y && !st.rs.x && !st.rs.y) this.stickLatch = false;
+    if (c.walking) return this.walkFrame();
     if (st.yTap === 'hold' && !this.ed.drag) return this.openMenu(false);
     if (st.yTap === 'tap' && this.lastTool && !this.ed.drag) this.runMenu({ id: this.lastTool.door ? `door.${this.lastTool.door}` : this.lastTool.tool === 'select' ? 'select' : `build.${this.lastTool.tool}`, name: '' }, []);
-    if (st.viewTap === 'tap') this.ed.run('layout');
-    else if (st.viewTap === 'hold') this.cycleFocus();
-    this.checkFocus();
+    if (st.viewTap === 'tap') this.topDown();
+    else if (st.viewTap === 'hold') this.ed.run('layout');
+    if (this.focus === 'drawer' && !this.ed.prefs.drawer) this.setFocus('3d');
     if (this.focus === 'drawer') return this.drawerFrame();
-    if (this.focus === '3d') {
-      c.padMove = { x: st.ls.x, y: -st.ls.y };
-      c.padLook = { x: st.rs.x, y: -st.rs.y };
-      c.padRise = st.rt - st.lt;
-    } else this.planFrame(now);
-    if (st.pressed(PAD.LS)) {
-      c.padFast = !c.padFast;
-      this.ed.status(c.padFast ? 'Fast movement on (L3)' : 'Fast movement off');
-    }
-    if (st.pressed(PAD.RS)) this.lookAtSelection();
+    const plan = this.ed.prefs.layout === 'plan';
+    const zoom = st.rt - st.lt;
+    const fine = st.down(PAD.LB);
+    // in Plan only the triggers zoom the plan, not the 3D camera
+    if (!this.stickLatch) c.orbitIn = { panX: st.ls.x, panY: -st.ls.y, orbitX: st.rs.x, tiltY: -st.rs.y, zoom: plan ? 0 : zoom, precision: fine };
+    else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
+    if (st.pressed(PAD.RS)) this.cycleDisplay();
     if (!this.ed.drag) {
+      if (st.pressed(PAD.LS)) return this.ed.quickWalk();
       if (st.xTap === 'tap') this.ed.undo();
       else if (st.xTap === 'hold') this.ed.redo();
-      if (st.pressed(PAD.RB)) this.ed.frameSelected();
+      if (st.rbTap === 'tap') this.ed.frameSelected();
     }
     if (st.pressed(PAD.B)) this.cancel();
     else if (st.pressed(PAD.A)) this.primary();
     this.dpad();
     this.followDrag();
+    const k = plan ? Math.exp(Math.sign(zoom) * zoom * zoom * ORBIT.ZOOM_RATE * (fine ? ORBIT.PRECISION : 1) * dt) : 1;
+    if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, k);
   }
 
-  /** The pad's point on the editing level: the centre dot in 3D, the crosshair on the plan; snapped to the grid. */
+  /** Quick walk (L3, decision 14): sticks walk and look; the dot, tool bar and card hide; A does nothing. */
+  private walkFrame(): void {
+    const st = this.st;
+    const c = this.ed.controls;
+    if (st.yTap === 'hold') return this.openMenu(false);
+    if (this.ed.quickWalking && (st.pressed(PAD.LS) || st.pressed(PAD.B))) return this.ed.quickWalk();
+    if (!this.stickLatch) {
+      c.padMove = { x: st.ls.x, y: -st.ls.y };
+      c.padLook = { x: st.rs.x, y: -st.rs.y };
+    }
+    // the walk drops or rises to the new level at the same x, z (setLevel moves the walker's floor)
+    if (st.repeat(PAD.UP)) this.ed.stepLevel(1);
+    if (st.repeat(PAD.DOWN)) this.ed.stepLevel(-1);
+  }
+
+  /** View tap (decision 7): top-down and back. */
+  private topDown(): void {
+    const c = this.ed.controls;
+    if (c.mode !== 'orbit') return;
+    c.orbit.toggleTopDown();
+    this.ed.status(c.orbit.topDown ? 'Top-down (View again goes back)' : 'Back from top-down');
+    this.stripAt = 0;
+  }
+
+  /** R3 (decision 13): levels shown cycles up to this level, single level, whole building. */
+  private cycleDisplay(): void {
+    const i = DISPLAYS.findIndex((d) => d[0] === this.ed.view.vis.preset);
+    const n = DISPLAYS[(i + 1) % DISPLAYS.length]!;
+    this.ed.setPreset(n[0]);
+    this.ed.status(`Levels shown: ${n[1]}`);
+    this.stripAt = 0;
+  }
+
+  /** The pad's point on the editing level: the orbit target (the dot), snapped to the grid. */
   point(planeY?: number): Pt | null {
     const fine = this.st.down(PAD.LB);
     const g = fine ? this.ed.fineGrid : this.ed.grid;
+    const c = this.ed.controls;
     let p: Pt | null;
-    if (this.focus === 'plan') p = this.planPoint();
+    if (c.mode === 'orbit') p = [c.orbit.s.tx, c.orbit.s.tz];
     else {
       const cv = $<HTMLCanvasElement>('c');
       p = this.ed.view.planePoint(cv.clientWidth / 2, cv.clientHeight / 2, planeY ?? this.ed.viewFloor());
@@ -279,25 +350,21 @@ export class PadControl {
     return p ? [snap(p[0], g), snap(p[1], g)] : null;
   }
 
-  private planPoint(): Pt | null {
-    const b = $('planWrap').getBoundingClientRect();
-    const sp = this.ed.svgPointAt(b.left + this.cross.x, b.top + this.cross.y);
-    return sp ? this.ed.fromPlan(sp[0], sp[1]) : null;
-  }
-
-  /** What A would pick: a handle of the selection, else an element on the editing level. */
+  /** What A would pick: a handle of the selection, else an element on the editing level (in Plan only, on the plan). */
   private target(): { handle?: string; key?: Key; x: number; y: number; z: number } | null {
-    if (this.focus === 'plan') {
-      const b = $('planWrap').getBoundingClientRect();
-      const el = document.elementFromPoint(b.left + this.cross.x, b.top + this.cross.y);
-      const p = this.planPoint();
-      if (!p) return null;
+    const ed = this.ed;
+    if (ed.prefs.layout === 'plan') {
+      const o = ed.controls.orbit.s;
+      const sp = ed.planScreen(o.tx, o.tz);
+      const p = this.point();
+      if (!sp || !p) return null;
+      const el = document.elementFromPoint(sp[0], sp[1]);
       const handle = el?.closest('[data-handle]')?.getAttribute('data-handle') ?? undefined;
       const key = (el?.closest('[data-id]')?.getAttribute('data-id') ?? undefined) as Key | undefined;
-      return { handle, key: key && parseKey(key) ? key : undefined, x: p[0], y: this.ed.floor(), z: p[1] };
+      return { handle, key: key && parseKey(key) ? key : undefined, x: p[0], y: ed.floor(), z: p[1] };
     }
     const cv = $<HTMLCanvasElement>('c');
-    const h = this.ed.view.pick(cv.clientWidth / 2, cv.clientHeight / 2);
+    const h = ed.view.pick(cv.clientWidth / 2, cv.clientHeight / 2);
     if (h.handle) return { handle: h.handle, x: 0, y: 0, z: 0 };
     return h.hit ? { key: h.hit.key, x: h.hit.x, y: h.hit.y, z: h.hit.z } : null;
   }
@@ -327,7 +394,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (t?.handle && s) {
       const h = ed.handlesFor().find((q) => q.id === t.handle);
-      if (h) this.grab(s.coll, s.id, t.handle, [h.x, h.z], this.focus === 'plan' ? ed.floor() : h.y);
+      if (h) this.grab(s.coll, s.id, t.handle, [h.x, h.z], ed.prefs.layout === 'plan' ? ed.floor() : h.y);
       return;
     }
     if (!t?.key) return;
@@ -348,7 +415,7 @@ export class PadControl {
   private followDrag(): void {
     const d = this.ed.drag;
     if (!d || d.source !== 'pad') return this.updatePointers();
-    const p = this.point(this.focus === 'plan' ? undefined : d.planeY);
+    const p = this.point(d.planeY);
     if (!p) return;
     this.ed.moveDrag(p[0] + this.offset[0], p[1] + this.offset[1], this.st.down(PAD.LB));
     if (d.coll === 'walls') {
@@ -380,8 +447,8 @@ export class PadControl {
     const dirs: [number, Pt][] = [[PAD.UP, [0, 1]], [PAD.DOWN, [0, -1]], [PAD.RIGHT, [1, 0]], [PAD.LEFT, [-1, 0]]];
     if (ed.drag?.source === 'pad') {
       const g = st.down(PAD.LB) ? ed.fineGrid : ed.grid;
-      // up is the axis the camera faces most (on the plan: north)
-      const yaw = this.focus === 'plan' ? 0 : ed.controls.yaw;
+      // up is the axis the camera faces most (Plan only: north)
+      const yaw = ed.prefs.layout === 'plan' ? 0 : ed.controls.yaw;
       const fx = Math.sin(yaw);
       const fz = Math.cos(yaw);
       const fwd: Pt = Math.abs(fx) > Math.abs(fz) ? [Math.sign(fx), 0] : [0, Math.sign(fz)];
@@ -394,68 +461,29 @@ export class PadControl {
     }
     if (st.repeat(PAD.UP)) ed.stepLevel(1);
     if (st.repeat(PAD.DOWN)) ed.stepLevel(-1);
-    if (st.repeat(PAD.RIGHT)) this.near(1);
-    if (st.repeat(PAD.LEFT)) this.near(-1);
+    if (st.repeat(PAD.RIGHT)) this.toolStep(1);
+    if (st.repeat(PAD.LEFT)) this.toolStep(-1);
   }
 
-  /** Previous / next element near the dot on the editing level, nearest first. */
-  private near(dir: 1 | -1): void {
-    const ed = this.ed;
-    const p = this.point() ?? [0, 0];
-    const all: { key: Key; d: number }[] = [];
-    for (const coll of ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids'] as Coll[])
-      for (const e of ed.model.list(coll)) {
-        if (ed.levelOf(coll, e) !== ed.view.level) continue;
-        const c = ed.centreOf(coll, e);
-        const d = hyp2(c[0] - p[0], c[1] - p[1]);
-        if (d <= 12) all.push({ key: keyOf(coll, e.id), d });
-      }
-    if (!all.length) return ed.status('Nothing within 12 m of the dot');
-    all.sort((a, b) => a.d - b.d);
-    const cur = all.findIndex((a) => a.key === ed.selected);
-    this.nearIndex = cur < 0 ? (dir > 0 ? 0 : all.length - 1) : (cur + dir + all.length) % all.length;
-    ed.select(all[this.nearIndex]!.key);
-    const s = ed.selectedElem();
-    if (s) ed.status(`${this.nearIndex + 1} of ${all.length} near the dot: ${label(ed.model.data, s.coll, s.e)}`);
+  /** D-pad left / right (decisions 10, 11): the previous / next tool on the tool bar, wrapping at the ends. */
+  private toolStep(dir: 1 | -1): void {
+    const i = BAR.findIndex((b) => b[0] === this.barSlot());
+    const [id] = BAR[(i + dir + BAR.length) % BAR.length]!;
+    if (id === 'measure') return this.startMeasure();
+    this.runMenu({ id: id === 'select' ? 'select' : id === 'door' ? `door.${$<HTMLSelectElement>('doorType').value}` : `build.${id}`, name: '' }, []);
   }
 
-  private lookAtSelection(): void {
-    const s = this.ed.selectedElem();
-    if (!s) return;
-    const c = this.ed.centreOf(s.coll, s.e);
-    this.ed.controls.lookAt(c[0], this.ed.viewFloor(this.ed.levelOf(s.coll, s.e)) + 1, c[1]);
-  }
-
-  // ---------- pad focus: 3D, plan, side panel ----------
-  private panes(): Focus[] {
-    const l = this.ed.prefs.layout;
-    const out: Focus[] = [];
-    if (l !== 'plan') out.push('3d');
-    if (l !== '3d') out.push('plan');
-    if (this.ed.prefs.drawer) out.push('drawer');
-    return out;
-  }
-
-  private cycleFocus(): void {
-    const ps = this.panes();
-    this.setFocus(ps[(ps.indexOf(this.focus) + 1) % ps.length] ?? '3d');
-  }
-
-  private checkFocus(): void {
-    const ps = this.panes();
-    if (!ps.includes(this.focus)) this.setFocus(ps[0] ?? '3d');
+  private barSlot(): string {
+    return this.measureFrom ? 'measure' : this.ed.tool;
   }
 
   setFocus(f: Focus): void {
-    if (this.ed.drag?.source === 'pad') this.ed.endDrag(true);
+    if (f === 'drawer' && this.ed.drag?.source === 'pad') this.ed.endDrag(true);
     this.focus = f;
-    if (f === 'plan' && this.cross.x < 0) {
-      const b = $('planWrap').getBoundingClientRect();
-      this.cross.x = b.width / 2;
-      this.cross.y = b.height / 2;
+    if (f === 'drawer') {
+      this.drawerIndex = 0;
+      this.ed.status('Pad: side panel (D-pad up / down picks a field, left / right changes it, B leaves)');
     }
-    if (f === 'drawer') this.drawerIndex = 0;
-    this.ed.status(f === '3d' ? 'Pad: 3D view' : f === 'plan' ? 'Pad: plan (left stick moves the crosshair, right stick pans, LT / RT zoom)' : 'Pad: side panel (D-pad up / down picks a field, left / right changes it, B leaves)');
     this.showPointers();
   }
 
@@ -466,23 +494,10 @@ export class PadControl {
     this.setFocus('drawer');
   }
 
-  private planFrame(now: number): void {
-    const st = this.st;
-    const b = $('planWrap').getBoundingClientRect();
-    const moving = st.ls.x !== 0 || st.ls.y !== 0;
-    if (!moving) this.cross.heldAt = now;
-    // accelerates the longer the stick is held: 250 px/s, up to 3x after 2 s
-    const v = 250 * (1 + Math.min(2, now - this.cross.heldAt)) * (1 / 60);
-    this.cross.x = Math.max(0, Math.min(b.width, this.cross.x + st.ls.x * v));
-    this.cross.y = Math.max(0, Math.min(b.height, this.cross.y + st.ls.y * v));
-    const zoom = st.rt - st.lt;
-    if (st.rs.x || st.rs.y || zoom) this.ed.panZoomPlan(st.rs.x * 12, st.rs.y * 12, zoom ? 1 - zoom * 0.04 : 1, b.left + this.cross.x, b.top + this.cross.y);
-  }
-
   private drawerFrame(): void {
     const st = this.st;
     const fields = [...$('panel').querySelectorAll<HTMLElement>('[data-k], button, [data-go]')];
-    if (st.pressed(PAD.B)) return this.setFocus(this.panes()[0] ?? '3d');
+    if (st.pressed(PAD.B)) return this.setFocus('3d');
     if (!fields.length) return;
     if (st.repeat(PAD.DOWN)) this.drawerIndex = (this.drawerIndex + 1) % fields.length;
     if (st.repeat(PAD.UP)) this.drawerIndex = (this.drawerIndex - 1 + fields.length) % fields.length;
@@ -553,38 +568,73 @@ export class PadControl {
         if (!$('help').classList.contains('hidden')) this.ed.run('help');
         if (i === 0) void this.ed.save();
         else if (i === 1) void this.ed.revert();
-        else if (i === 2) this.ed.toggleWalk();
+        // the pad is in use: Walk is the quick walk, both ways
+        else if (i === 2) this.ed.quickWalk();
         return;
       }
     }
     this.drawHelpButtons();
   }
 
-  // ---------- the dot, the crosshair and the focus border ----------
+  // ---------- the dot, the tool bar and the selection card ----------
   showPointers(): void {
     const pad = this.device === 'pad';
-    $('reticle').classList.toggle('hidden', !pad || this.focus !== '3d');
-    $('cross').classList.toggle('hidden', !pad || this.focus !== 'plan');
-    $('view3d').classList.toggle('padfocus', pad && this.focus === '3d');
-    $('planWrap').classList.toggle('padfocus', pad && this.focus === 'plan');
+    // the quick walk hides the dot, the tool bar and the card (decision 14)
+    const walk = this.ed.controls.walking;
+    $('reticle').classList.toggle('hidden', !pad || this.focus !== '3d' || walk);
+    $('toolBar').classList.toggle('hidden', !pad || walk);
+    $('selCard').classList.toggle('hidden', !pad || walk || !this.ed.selectedElem());
     $('drawer').classList.toggle('padfocus', pad && this.focus === 'drawer');
     if (!(pad && this.focus === 'drawer')) for (const x of $('panel').querySelectorAll('.padfocus')) x.classList.remove('padfocus');
   }
 
+  private barAt = 0;
+  private barKey = '';
+  /** The tool bar (decision 11) and the selection card (decision 16), pad screen only. */
+  private drawBar(): void {
+    if (this.device !== 'pad') return;
+    const now = performance.now();
+    if (now - this.barAt < 100) return;
+    this.barAt = now;
+    this.showPointers();
+    const ed = this.ed;
+    const door = $<HTMLSelectElement>('doorType');
+    const doorName = door.selectedOptions[0]?.textContent ?? door.value;
+    const s = ed.selectedElem();
+    const key = `${this.barSlot()}|${doorName}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}`;
+    if (key === this.barKey) return;
+    this.barKey = key;
+    const slot = this.barSlot();
+    $('toolBar').innerHTML = BAR.map(([id, name]) => `<div class="slot${id === slot ? ' on' : ''}" data-slot="${id}"><b>${name}</b>${id === 'door' ? `<small>${esc(doorName)}</small>` : ''}</div>`).join('');
+    if (!s) return;
+    const d = ed.model.data;
+    const lv = d.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
+    let kind = KIND[s.coll];
+    let size = '';
+    if ('rect' in s.e) {
+      const r = (s.e as Room).rect;
+      size = `${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m`;
+      if (s.coll === 'rooms') kind = `Room (${(s.e as Room).kind})`;
+    } else if (s.coll === 'walls') {
+      const w = s.e as Wall;
+      kind = `${w.kind} wall`;
+      size = `length ${fmt(wallLen(w))} m, thickness ${fmt(w.t)} m`;
+    } else if (s.coll === 'openings') {
+      const o = s.e as Opening;
+      kind = `Opening: ${o.type}`;
+      size = `${o.type}, width ${fmt(o.w)} m`;
+    } else if (s.coll === 'ladders') size = `at x ${fmt((s.e as Ladder).at[0])}, z ${fmt((s.e as Ladder).at[1])}`;
+    $('selCard').innerHTML = `<b>${esc(label(d, s.coll, s.e))}</b><div>${esc(kind)}</div><div>${esc(size)}</div><div>Level ${esc(lv?.name ?? '')}</div>`;
+  }
+
   private labelAt = 0;
   private updatePointers(): void {
-    if (this.device !== 'pad') return;
+    if (this.device !== 'pad' || this.focus === 'drawer' || this.ed.controls.walking) return;
     const now = performance.now();
     if (now - this.labelAt < 80) return;
     this.labelAt = now;
-    if (this.focus === 'plan') {
-      const c = $('cross');
-      c.style.left = `${this.cross.x}px`;
-      c.style.top = `${this.cross.y}px`;
-    }
-    if (this.focus === 'drawer') return;
     const d = this.ed.drag;
-    const p = this.point(d?.source === 'pad' && this.focus === '3d' ? d.planeY : undefined);
+    const p = this.point(d?.source === 'pad' ? d.planeY : undefined);
     const t = d ? null : this.target();
     const k = t?.key ? parseKey(t.key) : null;
     const e = k ? this.ed.model.get(k.coll, k.id) : undefined;
@@ -593,7 +643,8 @@ export class PadControl {
     else if (d?.source === 'pad') text += `   ${this.ed.dragWords()}`;
     else if (t?.handle) text += '   handle: A grabs it';
     else if (k && e) text += `   ${label(this.ed.model.data, k.coll, e)}${t!.key === this.ed.selected ? ' - A grabs it' : ''}`;
-    $(this.focus === 'plan' ? 'crossText' : 'reticleText').textContent = text;
+    // Plan only: the 3D dot is hidden, so its words go under the plan
+    $(this.ed.prefs.layout === 'plan' ? 'planStatus' : 'reticleText').textContent = text;
     this.ed.setHover(t?.key ?? null);
   }
 
@@ -698,7 +749,7 @@ export class PadControl {
     const bld = v.building === 'all' ? 'All' : v.building === 'site' ? 'Site' : `Building ${esc(v.building)}`;
     $('padStrip').innerHTML = [
       `Editing <b>${lv ? `${esc(lv.name)} (${fmt(lv.floor)} m)` : ''}</b>`,
-      `View <b>${view}</b> &nbsp; Levels <b>${preset}${extras ? `, ${extras}` : ''}</b>`,
+      `View <b>${view}${ed.controls.mode === 'orbit' && ed.controls.orbit.topDown ? ', Top-down' : ''}</b> &nbsp; Levels <b>${preset}${extras ? `, ${extras}` : ''}</b>`,
       `Building <b>${bld}</b> &nbsp; Tool <b>${this.measureFrom ? 'measure' : ed.tool}</b>`,
       `Unsaved <b>${ed.model.dirty}</b> &nbsp; New problems <b>${fresh}</b>`,
     ].join('<br>');

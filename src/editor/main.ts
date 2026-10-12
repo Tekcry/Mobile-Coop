@@ -6,6 +6,7 @@
 import { actionForKey, helpRows, hintItems, keyId } from './actions';
 import type { Ctx, Group } from './actions';
 import { CameraControls } from './controls';
+import type { OrbitState } from './orbit';
 import { PadControl } from './padControl';
 import { clearDraft, makeDraft, readDraft, shouldOffer, writeDraft } from './draft';
 import type { Draft } from './draft';
@@ -551,6 +552,45 @@ export class Editor {
     if (!this.isMinimap()) svg.setAttribute('viewBox', this.planViewBox.join(' '));
   }
 
+  /** A plan point in metres -> screen pixels, or null with no plan drawn. */
+  planScreen(x: number, z: number): Pt | null {
+    const m = this.planSvg()?.getScreenCTM();
+    if (!m) return null;
+    const p = new DOMPoint(...this.toPlan(x, z)).matrixTransform(m);
+    return [p.x, p.y];
+  }
+
+  /**
+   * Pad (decision 9): the dot's marker on the plan, and the plan pans (the view, not the data) to keep it inside the
+   * middle 60 %; k zooms the plan around the marker (Plan only).
+   */
+  planFollow(x: number, z: number, k = 1): void {
+    const svg = this.planSvg();
+    if (!svg || !this.planViewBox) return;
+    let g = svg.querySelector('#padMark');
+    if (!g) {
+      g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+      g.id = 'padMark';
+      svg.appendChild(g);
+    }
+    const [px, py] = this.toPlan(x, z);
+    const box = this.isMinimap() ? this.planFullBox ?? this.planViewBox : this.planViewBox;
+    const r = (9 * box[2]!) / Math.max(1, svg.clientWidth);
+    g.innerHTML = `<circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${r.toFixed(2)}" fill="none" stroke="#fff" stroke-width="${(r * 0.3).toFixed(2)}"/><circle cx="${px.toFixed(1)}" cy="${py.toFixed(1)}" r="${(r * 1.25).toFixed(2)}" fill="none" stroke="#0a84ff" stroke-width="${(r * 0.25).toFixed(2)}"/>`;
+    if (this.isMinimap()) return;
+    let [vx, vy, vw, vh] = this.planViewBox as [number, number, number, number];
+    if (k !== 1) [vx, vy, vw, vh] = [px - (px - vx) * k, py - (py - vy) * k, vw * k, vh * k];
+    const mx = vw * 0.2;
+    const my = vh * 0.2;
+    vx = Math.min(Math.max(vx, px - vw + mx), px - mx);
+    vy = Math.min(Math.max(vy, py - vh + my), py - my);
+    const next = [vx, vy, vw, vh];
+    if (next.some((v, i) => Math.abs(v - this.planViewBox![i]!) > 1e-6)) {
+      this.planViewBox = next;
+      svg.setAttribute('viewBox', next.join(' '));
+    }
+  }
+
   /** The live size or offset of what is being dragged, for the pad's dot label. */
   dragWords(): string {
     const d = this.drag;
@@ -725,9 +765,10 @@ export class Editor {
   }
 
   /** Moves the camera to a plan point: the walker steps there, the flyer looks down on it. */
-  goTo(x: number, z: number): void {
+  goTo(x: number, z: number, floorY = this.viewFloor()): void {
     if (this.controls.walking) this.controls.walkAt(x, z, this.floor());
-    else this.controls.overlook(x, z, this.viewFloor(), 22);
+    else if (this.controls.mode === 'orbit') this.controls.orbit.goTo(x, z, floorY);
+    else this.controls.overlook(x, z, floorY, 22);
   }
 
   // ---------- walk mode ----------
@@ -746,15 +787,56 @@ export class Editor {
     if (this.controls.walking) {
       const c = this.view.camera.position;
       this.controls.overlook(c.x, c.z, this.viewFloor(), 22);
-      this.view.showAll = false;
     } else {
       const canvas = $<HTMLCanvasElement>('c');
       const pt = this.view.planePoint(canvas.clientWidth / 2, canvas.clientHeight / 2, this.floor());
       const c = this.view.camera.position;
       const [x, z] = pt ?? [c.x, c.z];
       this.controls.walkAt(x, z, this.floor());
-      this.view.showAll = true;
     }
+    this.walkChanged();
+  }
+
+  /** The orbit as it was before the pad's quick walk; null when not quick walking. */
+  private quickFrom: OrbitState | null = null;
+  private quickLevel = '';
+
+  get quickWalking(): boolean {
+    if (this.quickFrom && !this.controls.walking) this.quickFrom = null;
+    return this.quickFrom !== null;
+  }
+
+  /** Pad quick walk (L3, decision 14): walk at the dot facing the camera's way; again returns to the orbit as it was. */
+  quickWalk(): void {
+    const c = this.controls;
+    if (this.quickWalking) {
+      c.orbit.enter(this.quickFrom!);
+      c.mode = 'orbit';
+      this.quickFrom = null;
+      this.walkChanged();
+      // a level change while walking moves the orbit to that level's floor
+      if (this.view.level !== this.quickLevel) c.orbit.s.floorY = this.viewFloor();
+      return;
+    }
+    if (c.mode !== 'orbit') this.enterOrbit();
+    const o = c.orbit.s;
+    this.quickFrom = c.orbit.snapshot();
+    this.quickLevel = this.view.level;
+    c.walkAt(o.tx, o.tz, this.floor());
+    c.yaw = o.yaw;
+    this.walkChanged();
+  }
+
+  /** The pad's builder camera starts from the current pose, aimed at the screen centre on the editing floor. */
+  enterOrbit(): void {
+    const canvas = $<HTMLCanvasElement>('c');
+    const y = this.viewFloor();
+    const hit = canvas.clientWidth > 0 ? this.view.planePoint(canvas.clientWidth / 2, canvas.clientHeight / 2, y) : null;
+    this.controls.enterOrbit(y, hit);
+  }
+
+  private walkChanged(): void {
+    this.view.showAll = this.controls.walking;
     // walking shows the whole campus as built: no cut walls, no exploded gap
     if (this.view.vis.section > 0) this.view.rebuildAll();
     else this.view.applyVisibility();
@@ -773,6 +855,7 @@ export class Editor {
     this.view.applyVisibility();
     this.rebuildBlockers();
     if (this.controls.walking) this.controls.floor = this.floor();
+    else if (this.controls.mode === 'orbit') this.controls.orbit.setFloor(this.viewFloor());
     this.updateHandles();
     $<HTMLSelectElement>('level').value = id;
     this.syncLevelsUi();
@@ -921,7 +1004,7 @@ export class Editor {
     const s = this.selectedElem();
     if (!s) return;
     const [x, z] = this.centreOf(s.coll, s.e);
-    this.goTo(x, z);
+    this.goTo(x, z, this.viewFloor(this.levelOf(s.coll, s.e)));
   }
 
   // ---------- save ----------
@@ -1257,11 +1340,12 @@ export class Editor {
     const c = this.ctx();
     const notes: string[] = [];
     const lv = this.model.data.levels.find((l) => l.id === this.view.level);
-    if (this.controls.walking) notes.push('Walking (Tab flies)');
+    if (this.controls.walking && !this.quickFrom) notes.push('Walking (Tab flies)');
     else if (editingForced(this.view.vis, this.model.data.levels, this.view.level)) notes.push(`${lv?.name ?? 'This level'} is hidden by the Levels settings - shown anyway because you are editing it`);
     if (this.view.vis.exploded && !this.controls.walking) notes.push('Exploded: levels drawn apart, saved as built');
     const pad = this.pad;
-    if (pad?.device === 'pad' && pad.focus !== '3d') notes.push(pad.focus === 'plan' ? 'Pad on the plan (View held moves on)' : 'Pad in the side panel (B leaves)');
+    if (pad?.device === 'pad' && pad.focus === 'drawer') notes.push('Pad in the side panel (B leaves)');
+    if (this.quickWalking) notes.push('Quick walk (L3 or B goes back)');
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
     if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
     const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox').map((i) => `<b>${esc(i.keys)}</b> ${esc(i.name)}`);

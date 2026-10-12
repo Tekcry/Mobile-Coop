@@ -1,4 +1,4 @@
-// Level editor controller test (ED2 Part C): every edit step uses the fake gamepad. Starts its own Vite dev server on
+// Level editor controller test (ED2 Part C, ED3-1 builder camera): every edit step uses the fake gamepad. Starts its own Vite dev server on
 // a free port (the editor is dev-only, never in dist/). Never saves. `npm run e2e:editor`; SHOTS=<dir> keeps screenshots.
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -63,6 +63,7 @@ try {
   await E(() => window.__pad.connect());
   await press(BTN.LB);
   assert((await E(() => window.__editor.pad.device)) === 'pad', 'pad input switches the hint bar to the pad');
+  assert((await E(() => window.__editor.controls.mode)) === 'orbit', 'pad input starts the builder camera');
   assert(/Y hold/.test((await st()).hint), `hint bar shows pad buttons ("${(await st()).hint.slice(0, 80)}")`);
   await shot('hint-idle');
 
@@ -96,10 +97,31 @@ try {
   await frames(page, 3);
   assert((await st()).walls === walls0 + 1, 'X held redoes it');
 
-  console.log('View cycles 3D, Both, Plan');
+  console.log('View tap: top-down and back; View hold cycles 3D, Both, Plan');
+  const pitch0 = await E(() => window.__editor.controls.pitch);
+  await press(BTN.SELECT);
+  await wait(600);
+  const td = await E(() => ({ pitch: window.__editor.controls.pitch, strip: document.getElementById('padStrip').textContent }));
+  assert(Math.abs(td.pitch - 1.55) < 0.05 && /Top-down/.test(td.strip), `View tap: top-down (pitch ${td.pitch.toFixed(3)})`);
+  await press(BTN.SELECT);
+  await wait(600);
+  const pitch1 = await E(() => window.__editor.controls.pitch);
+  assert(Math.abs(pitch1 - pitch0) < 0.01, `View tap again: back (pitch ${pitch1.toFixed(3)})`);
   const seen = [];
-  for (let i = 0; i < 3; i++) { await press(BTN.SELECT); seen.push((await st()).layout); }
-  assert(seen.join(',') === 'both,plan,3d', `View cycles (${seen})`);
+  for (let i = 0; i < 3; i++) {
+    await set(BTN.SELECT, 1);
+    await wait(600);
+    await set(BTN.SELECT, 0);
+    await frames(page, 3);
+    seen.push((await st()).layout);
+    if (seen.length === 2) {
+      await wait(300);
+      const mark = await E(() => !!document.getElementById('padMark'));
+      assert(mark, 'Plan only shows the dot on the plan');
+      await shot('pad-plan-only');
+    }
+  }
+  assert(seen.join(',') === 'both,plan,3d', `View hold cycles (${seen})`);
 
   console.log('Build > Door > Double door, placed with A');
   await radial(45, 180, 144);
@@ -119,6 +141,64 @@ try {
   assert((await st()).tool === 'select', 'B: back to select');
   await press(BTN.Y);
   assert((await st()).tool === 'door', 'Y tap: the last tool again');
+  await press(BTN.B);
+  console.log('pad tool bar, level, dot, display, quick walk, go to the selection');
+  const orb = () => E(() => { const c = window.__editor.controls; const p = c.orbit.position(); return { mode: c.mode, walking: c.walking, ...c.orbit.s, px: p[0], py: p[1], pz: p[2] }; });
+  const shown = (id) => E((id) => getComputedStyle(document.getElementById(id)).display !== 'none', id);
+  await press(BTN.RIGHT);
+  await wait(250);
+  s = await st();
+  const lit = await E(() => document.querySelector('#toolBar .slot.on')?.dataset.slot);
+  assert(s.tool === 'room' && lit === 'room', `D-pad right from Select lights Room on the tool bar (tool ${s.tool}, lit ${lit})`);
+  await press(BTN.B);
+  const up = await E(() => { const ed = window.__editor; const ls = ed.model.data.levels.slice().sort((a, b) => a.floor - b.floor); const i = ls.findIndex((l) => l.id === ed.view.level); return ls[i + 1] ? ed.viewFloor(ls[i + 1].id) : null; });
+  await press(BTN.UP);
+  await wait(500);
+  let o = await orb();
+  assert(up !== null && Math.abs(o.floorY - up) < 0.01, `D-pad up raises the dot to the next level's floor (${o.floorY.toFixed(2)} m, expected ${up})`);
+  await press(BTN.DOWN);
+  await wait(500);
+  const t0 = await orb();
+  const text0 = await E(() => document.getElementById('reticleText').textContent);
+  await axes(1, 0);
+  await wait(500);
+  await axes(0, 0);
+  await frames(page, 3);
+  await wait(150);
+  o = await orb();
+  const text1 = await E(() => document.getElementById('reticleText').textContent);
+  assert(Math.hypot(o.tx - t0.tx, o.tz - t0.tz) > 0.5 && text1 !== text0, `left stick moves the dot (${Math.hypot(o.tx - t0.tx, o.tz - t0.tz).toFixed(1)} m; "${text0.slice(0, 18)}" -> "${text1.slice(0, 18)}")`);
+  const displays = [];
+  for (let i = 0; i < 3; i++) { await press(BTN.RS); displays.push(await E(() => window.__editor.view.vis.preset)); }
+  assert([...new Set(displays)].sort().join(',') === 'single,upTo,whole', `R3 cycles the three level displays (${displays})`);
+  const qw = async (start, how) => {
+    const before = await orb();
+    await start();
+    await wait(200);
+    const mid = await orb();
+    const hidden = !(await shown('toolBar')) && !(await shown('reticle'));
+    await press(BTN.LS);
+    await wait(200);
+    const after = await orb();
+    const err = Math.hypot(after.px - before.px, after.py - before.py, after.pz - before.pz);
+    assert(mid.walking && hidden && after.mode === 'orbit' && err < 0.01 && (await shown('toolBar')), `${how} starts a quick walk (tool bar hidden), L3 ends it, orbit restored (${err.toFixed(4)} m)`);
+  };
+  await qw(() => press(BTN.LS), 'L3');
+  await qw(async () => { await radial(180); await release(); }, 'the wheel\'s Walk');
+  const room = await E(() => { const ed = window.__editor; const r = ed.model.data.rooms.find((q) => q.level === ed.view.level && q.rect[0] > 5); ed.select(`rooms:${r.id}`); return { id: r.id, cx: (r.rect[0] + r.rect[2]) / 2, cz: (r.rect[1] + r.rect[3]) / 2 }; });
+  await press(BTN.RB);
+  await wait(600);
+  o = await orb();
+  assert(Math.abs(o.tx - room.cx) < 0.01 && Math.abs(o.tz - room.cz) < 0.01, `RB goes to the selected room's centre (${o.tx.toFixed(2)}, ${o.tz.toFixed(2)})`);
+  await wait(200);
+  const card = await E(() => document.getElementById('selCard').textContent);
+  assert((await shown('selCard')) && card.includes(room.id), `the selection card names the room ("${card.slice(0, 60)}")`);
+  await shot('pad-3d-bar-card');
+  await press(BTN.SELECT);
+  await wait(500);
+  await shot('pad-top-down');
+  await press(BTN.SELECT);
+  await wait(500);
   await press(BTN.B);
   console.log('pad screen: toolbars hidden, status strip, mouse brings them back');
   const ui = () => E(() => ({ bar: getComputedStyle(document.getElementById('bar')).display, strip: document.getElementById('padStrip').textContent, shown: getComputedStyle(document.getElementById('padStrip')).display }));

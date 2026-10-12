@@ -99,9 +99,19 @@
       .rm-name { font-size: 20px; font-weight: 700; color: var(--accent); }
       .rm-desc { color: var(--ink); font-size: 13px; }
       #reticle { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 3; }
-      #reticle::before, #cross::before { content: ''; position: absolute; left: -9px; top: -9px; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px var(--accent); }
-      #reticleText, #crossText { position: absolute; left: 16px; top: 12px; white-space: nowrap; padding: 2px 8px; background: rgba(0, 0, 0, 0.7); color: #fff; border-radius: 4px; font-size: 14px; }
-      #cross { position: absolute; width: 0; height: 0; pointer-events: none; z-index: 3; }
+      #reticle::before { content: ''; position: absolute; left: -9px; top: -9px; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px var(--accent); }
+      #reticleText { position: absolute; left: 16px; top: 12px; white-space: nowrap; padding: 2px 8px; background: rgba(0, 0, 0, 0.7); color: #fff; border-radius: 4px; font-size: 14px; }
+      /* pad screen (ED3-1): tool bar bottom centre above the button prompts, selection card bottom right */
+      #toolBar, #selCard { display: none; position: absolute; z-index: 4; pointer-events: none; background: rgba(15, 17, 20, 0.85); border-radius: 8px; }
+      #toolBar { left: 50%; transform: translateX(-50%); bottom: 64px; gap: 6px; padding: 6px; }
+      #toolBar .slot { min-width: 88px; padding: 6px 10px; border-radius: 6px; text-align: center; font-size: 20px; color: var(--dim); }
+      #toolBar .slot b { display: block; font-weight: 600; }
+      #toolBar .slot small { display: block; font-size: 14px; }
+      #toolBar .slot.on { background: var(--accent); color: #fff; }
+      #selCard { right: 8px; bottom: 64px; padding: 10px 14px; font-size: 20px; line-height: 1.4; max-width: 420px; }
+      #selCard b { color: var(--accent); }
+      body[data-device='pad'] #toolBar:not(.hidden) { display: flex; }
+      body[data-device='pad'] #selCard:not(.hidden) { display: block; }
       .padfocus { outline: 3px solid var(--accent) !important; outline-offset: -3px; }
       #panel .padfocus { outline-offset: 1px; }
       #help .padrow { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
@@ -121,7 +131,7 @@
       body[data-device='pad'] #panel .row { margin: 8px 0; }
       body[data-device='pad'] #panel input, body[data-device='pad'] #panel select, body[data-device='pad'] #panel button, body[data-device='pad'] #drawerHead button { font-size: 18px; padding: 6px 10px; }
       body[data-device='pad'] #help { font-size: 16px; width: 560px; }
-      body[data-device='pad'] #reticleText, body[data-device='pad'] #crossText { font-size: 18px; }
+      body[data-device='pad'] #reticleText { font-size: 18px; }
       body[data-device='pad'] #ask { font-size: 20px; padding: 16px 20px; }
       body[data-device='pad'] #ask button { font-size: 20px; padding: 8px 14px; }      /* phones and small windows (iPhone portrait and landscape): ED2 follow-up, Michael 2026-10-12 */
       body { height: 100dvh; padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); -webkit-text-size-adjust: 100%; touch-action: manipulation; }
@@ -143,7 +153,9 @@
         #padStrip { font-size: 13px; padding: 5px 8px; }
         body[data-device='pad'] #panel, body[data-device='pad'] #panel input, body[data-device='pad'] #panel select, body[data-device='pad'] #panel button { font-size: 15px; }
         #stage[data-layout='3d'][data-minimap='1'] #planWrap { width: 38vw; height: 28vw; min-width: 140px; min-height: 105px; bottom: 50px; }
-        #reticleText, #crossText, body[data-device='pad'] #reticleText { font-size: 13px; }
+        #reticleText, body[data-device='pad'] #reticleText { font-size: 13px; }
+        #toolBar .slot { min-width: 0; font-size: 14px; padding: 4px 6px; }
+        #selCard { font-size: 14px; max-width: 60vw; }
         #status { font-size: 12px; }
       }
       /* portrait: Both stacks the views */
@@ -164,9 +176,11 @@
           <div id="reticle" class="hidden"><div id="reticleText"></div></div>
         </section>
         <div id="divider" title="Drag to resize"></div>
-        <section id="planWrap"><div id="planSvg"></div><div id="planStatus"></div><div id="cross" class="hidden"><div id="crossText"></div></div></section>
+        <section id="planWrap"><div id="planSvg"></div><div id="planStatus"></div></section>
         <div id="hint"></div>
         <div id="padStrip"></div>
+        <div id="toolBar" class="hidden"></div>
+        <div id="selCard" class="hidden"></div>
         <div id="radial" class="hidden"></div>
       </div>
       <aside id="drawer">
