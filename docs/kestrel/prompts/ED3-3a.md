@@ -2,8 +2,8 @@
 Model: Opus, medium effort.
 Decisions: 18
 
-Start message: `Run docs/kestrel/prompts/ED3-3a.md`. Status: ready once Michael has tried the walk test (ED2-B) and
-ED3-2 with his controller. If he has pad notes, a planner session folds them in first. One session. This is the first
+Start message: `Run docs/kestrel/prompts/ED3-3a.md`. Status: runs after ED3-pad1 (Michael's first pad notes) has committed
+and Michael has tried it. If he has more pad notes, a planner session folds them in first. One session. This is the first
 half of ED3-3 (`docs/kestrel/editor-controller-review.md` section 7); ED3-3b (wall chains, door centring, live sizes
 and guide lines) is written after this part commits. The ED2 "Every part" rules
 (`docs/kestrel/prompts/ED2-editor-v2.md` lines 26-68) still apply. Do not start ED3-3b.
@@ -12,7 +12,8 @@ and guide lines) is written after this part commits. The ED2 "Every part" rules
 1. `git checkout feature/kestrel && git pull`. Confirm the branch and a clean tree.
 2. Preconditions (stop and report if one fails): `src/editor/gameWalk.ts`, `src/editor/grab.ts`, `src/editor/hub.ts`
    exist; `grep -n "wallInterior\|wallExterior" scripts/kestrel/facts.json` shows both (0.3 and 0.45);
-   `timeout 300 npm run e2e:editor` passes (71 ok).
+   `timeout 300 npm run e2e:editor` passes (every step ok; 71 before ED3-pad1 added its steps);
+   `grep -n "L3 run" src/editor/main.ts` shows the ED3-pad1 walk note.
 3. Print a plan of at most 10 lines.
 
 ## 1. Read (only these; files over 200 lines by line range or grep)
