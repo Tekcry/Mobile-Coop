@@ -12,7 +12,8 @@ import type { PadStyle } from '../input/gamepadMapping';
 import type { Device } from './actions';
 import { CARD_MERGE_S, cardRows, nameList, stepCard } from './card';
 import { fmt, nearestWall, normRect, projectOnWall, snap, wallLen, wallPoint } from './geometry';
-import { easeFactor, GHOST, grabPart, MAGNET, magnetSearch, turnPt } from './grab';
+import { easeFactor, GHOST, grabPart, guideLines, MAGNET, magnetSearch, SNAP, turnPt } from './grab';
+import { centreOpening, liveOpening } from './liveSizes';
 import type { GrabPart, GrabShape, SnapCand, SnapHit } from './grab';
 import { DEFAULT_SETTINGS, LARGE_TEXT, readSettings, stepLayout } from './hub';
 import type { PadSettings } from './hub';
@@ -540,7 +541,8 @@ export class PadControl {
         if (this.ed.splitting) this.ed.splitTurn();
         else this.ed.frameSelected();
       }
-    } else if (st.rbTap === 'tap') this.turnGrab();
+    } else if (this.ed.chaining && st.pressed(PAD.X)) this.ed.chainRemoveLast(); // on press: a slow frame never turns it into a hold
+    else if (st.rbTap === 'tap') this.turnGrab();
     if (this.cardEditing && st.pressed(PAD.B)) {
       this.cardEditing = false;
       this.ed.updateHint();
@@ -581,7 +583,7 @@ export class PadControl {
   /** Snap candidates on the editing level: wall ends, room corners, opening centres (points), wall centre lines. */
   private candidates(): SnapCand[] {
     const ed = this.ed;
-    const key = `${ed.view.level}|${ed.model.history.length}|${ed.model.dirty}`;
+    const key = `${ed.view.level}|${ed.model.history.length}|${ed.model.dirty}|${ed.chain.walls.length}`;
     if (key === this.candsKey) return this.cands;
     this.candsKey = key;
     const lv = ed.view.level;
@@ -603,6 +605,14 @@ export class PadControl {
       if (w) out.push({ kind: 'point', key: `open:${o.id}`, label: o.type === 'window' ? 'Window centre' : 'Door centre', owner: keyOf('openings', o.id), p: wallPoint(w, o.at) });
     }
     for (const w of walls) out.push({ kind: 'line', key: `line:${w.id}`, label: 'On wall', owner: keyOf('walls', w.id), a: w.a, b: w.b });
+    // ON1 decision 7: room edges pull within SNAP.EDGE (after the wall lines, so a wall on the edge wins)
+    for (const r of ed.model.list('rooms') as Room[]) {
+      if (r.level !== lv) continue;
+      const owner = keyOf('rooms', r.id);
+      const [x0, z0, x1, z1] = r.rect;
+      const sides: [string, Pt, Pt][] = [['W', [x0, z0], [x0, z1]], ['E', [x1, z0], [x1, z1]], ['S', [x0, z0], [x1, z0]], ['N', [x0, z1], [x1, z1]]];
+      for (const [e, a, b] of sides) out.push({ kind: 'line', key: `edge:${r.id}:${e}`, label: 'Room edge', owner, a, b, pull: SNAP.EDGE });
+    }
     this.cands = out;
     return out;
   }
@@ -730,7 +740,9 @@ export class PadControl {
       return;
     }
     if (ed.drag) {
-      ed.endDrag(false);
+      // drawing a wall: A ends this one and starts the next (ON1 wall chains)
+      if (ed.chaining) ed.chainNext();
+      else ed.endDrag(false);
       this.offset = [0, 0];
       this.turns = 0;
       this.rumble('drop');
@@ -812,7 +824,9 @@ export class PadControl {
     if (!d || d.source !== 'pad') return this.updatePointers();
     const p = this.point(d.planeY);
     if (!p) return;
-    this.ed.moveDrag(p[0] + this.offset[0], p[1] + this.offset[1], false, this.turns ? (e) => this.turned(d.coll, e, p[0], p[1]) : undefined);
+    // LB held or a D-pad nudge: no smart snapping (a nudge lands exactly where it was put)
+    const exact = this.st.down(PAD.LB) || this.offset[0] !== 0 || this.offset[1] !== 0;
+    this.ed.moveDrag(p[0] + this.offset[0], p[1] + this.offset[1], exact, this.turns ? (e) => this.turned(d.coll, e, p[0], p[1]) : undefined);
     this.updatePointers();
   }
 
@@ -1060,7 +1074,12 @@ export class PadControl {
         marks.push(this.bar([x0, z0], p, f + 0.05, 0.08, 0.08, 'ghost'));
         plan.push({ kind: 'line', a: [x0, z0], b: p });
       }
-    } else if (d?.source === 'pad') words = ed.dragWords();
+    } else if (d?.source === 'pad') {
+      const live = ed.liveNow();
+      words = live.words;
+      key = `d|${words}`;
+      plan.push(...live.shapes);
+    }
     else if (part && s) {
       words = `${part.words}${s.coll === 'rooms' && ed.wallsFollow ? this.linkedHintFor(s.id, part.handle) : ''} (A)`;
       key = `g|${ed.selected}|${part.handle}|${ed.model.history.length}`;
@@ -1080,14 +1099,17 @@ export class PadControl {
       } else {
         const type = ed.tool === 'window' ? 'window' : $<HTMLSelectElement>('doorType').value;
         const def = OPENING_DEFAULTS[type] ?? OPENING_DEFAULTS.door!;
-        const L = wallLen(w);
-        const at = Math.min(L - def.w / 2, Math.max(def.w / 2, snap(projectOnWall(w, p[0], p[1]).s, ed.grid)));
-        const a = wallPoint(w, at - def.w / 2);
-        const b = wallPoint(w, at + def.w / 2);
-        words = `width ${fmt(def.w)} m - A: place ${DOOR_NAMES[type] ?? type} on ${label(ed.model.data, 'walls', w)}`;
+        // ON1 decisions 3, 4: centred between the cross walls near the middle (LB: off), the clear distance each side
+        const walls = ed.model.list('walls') as Wall[];
+        const width = Math.min(def.w, wallLen(w));
+        const { at } = centreOpening(w, walls, snap(projectOnWall(w, p[0], p[1]).s, ed.grid), width, this.st.down(PAD.LB));
+        const a = wallPoint(w, at - width / 2);
+        const b = wallPoint(w, at + width / 2);
+        const lo = liveOpening(w, walls, at, width);
+        words = `width ${fmt(width)} m, ${lo.words} - A: place ${DOOR_NAMES[type] ?? type} on ${label(ed.model.data, 'walls', w)}`;
         key = `o|${w.id}|${at}|${type}`;
         marks.push(this.bar(a, b, f + def.sill + def.h / 2, def.h, w.t + 0.1, 'ghost'));
-        plan.push({ kind: 'line', a, b });
+        plan.push({ kind: 'line', a, b }, ...lo.shapes);
       }
     } else if (!d) {
       const t = this.target();
@@ -1096,6 +1118,12 @@ export class PadControl {
       if (k && e) words = label(ed.model.data, k.coll, e);
       hover = t?.key ?? null;
     }
+    // ON1 decision 6: guide lines while the magnet holds a snap (3D: a thin box on the floor; plan: a fine dashed line)
+    for (const [a, b] of guideLines(this.magnet, this.cands)) {
+      marks.push(this.bar(a, b, f + 0.02, 0.02, 0.05, 'ghost'));
+      plan.push({ kind: 'line', a, b, guide: true });
+    }
+    if (this.magnet) key += `|m:${this.magnet.key}`;
     ed.setHover(hover);
     if (words) text += ` - ${words.endsWith(' (A)') ? `A: ${words.slice(0, -4)}` : words}`;
     // Plan only: the 3D dot is hidden, so its words go under the plan
@@ -1111,7 +1139,11 @@ export class PadControl {
 
   /** Shows the marks in 3D and the dashed shapes on the plan when they changed. */
   private setMarks(marks: readonly Mark[], plan: readonly PlanShape[], key: string): void {
-    if (key === this.marksKey) return;
+    if (key === this.marksKey) {
+      // a plan redraw (after an edit or a live preview) drops the dashed group: put it back (ON1)
+      if (plan.length && !document.getElementById('padGhost')) this.ed.planGhost(plan, marks[0]?.look ?? 'ghost');
+      return;
+    }
     this.marksKey = key;
     this.ed.view.setMarks(marks);
     this.ed.planGhost(plan, marks[0]?.look ?? 'ghost');

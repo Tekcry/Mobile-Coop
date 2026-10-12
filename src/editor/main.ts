@@ -23,7 +23,10 @@ import type { Change, JournalEntry } from './model';
 import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb, WallGap } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
-import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
+import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_DEFAULTS, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
+import { WallChain } from './chain';
+import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './liveSizes';
+import type { LiveInfo, LiveShape } from './liveSizes';
 import type { Campus, Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
 
@@ -65,7 +68,7 @@ function loadPrefs(): Prefs {
 }
 
 /** A dashed shape the pad draws over the plan: a line (an edge, a wall, an opening) or a ring (a point). */
-export type PlanShape = { kind: 'line'; a: Pt; b: Pt } | { kind: 'ring'; p: Pt };
+export type PlanShape = LiveShape | { kind: 'ring'; p: Pt };
 
 async function loadFile(): Promise<{ data: Campus; text: string; mtime: number }> {
   const res = await fetch('/__editor/campus', { cache: 'no-store' });
@@ -119,6 +122,8 @@ export class Editor {
   selected: Key | null = null;
   drag: Drag | null = null;
   wallTemplate: Wall | null = null;
+  /** Wall chains (ON1): the Wall tool's finished segments while drawing; the segment being drawn is the drag. */
+  readonly chain: WallChain;
   private planTimer = 0;
   private checkTimer = 0;
   private planSeq = 0;
@@ -141,6 +146,7 @@ export class Editor {
 
   constructor(data: Campus) {
     this.model = new EditorModel(data);
+    this.chain = new WallChain(this.model);
     const canvas = $<HTMLCanvasElement>('c');
     this.view = new EditorScene(canvas, this.model);
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
@@ -213,6 +219,7 @@ export class Editor {
   ctx(): Ctx {
     if (this.pad?.hub.isOpen) return 'hub';
     if (this.pad?.menuOpen) return 'menu';
+    if (this.chaining) return 'chain';
     if (this.drag) return 'drag';
     if (this.tool !== 'select') return 'draw';
     if (this.selected && this.pad?.cardEditing) return 'card';
@@ -409,8 +416,18 @@ export class Editor {
     const dz = snap(z - d.start[1], g);
     if (d.coll === 'rooms' || d.coll === 'stairs' || d.coll === 'voids') {
       const r = (d.before as Room).rect;
-      if (d.isNew) (e as Room).rect = normRect([r[0], r[1], snap(x, g), snap(z, g)]);
-      else if (d.handle) (e as Room).rect = setEdge(r, d.handle as Edge, snap(d.handle === 'W' || d.handle === 'E' ? x : z, g), Math.max(g, 0.5));
+      // ON1 decision 7: the moving edges snap to wall lines, wall faces and other room edges (LB / Ctrl: off)
+      const lv = (d.before as Room).level;
+      // (the walls this drag moves along, previewed, are skipped: an edge never snaps onto its own wall)
+      const moving = new Set((d.linked ?? []).map((c) => `${c.coll}:${c.id}`));
+      const near = normRect(d.isNew ? [r[0], r[1], x, z] : r);
+      const es = (v: number, edge: Edge): number => {
+        if (fine || d.coll !== 'rooms') return v;
+        const span: [number, number] = edge === 'W' || edge === 'E' ? [near[1], near[3]] : [near[0], near[2]];
+        return edgeSnap(v, edge, lv, (this.model.list('walls') as Wall[]).filter((w) => !moving.has(`walls:${w.id}`)), (this.model.list('rooms') as Room[]).filter((q) => !moving.has(`rooms:${q.id}`)), d.id, span)?.v ?? v;
+      };
+      if (d.isNew) (e as Room).rect = normRect([r[0], r[1], es(snap(x, g), x >= r[0] ? 'E' : 'W'), es(snap(z, g), z >= r[1] ? 'N' : 'S')]);
+      else if (d.handle) (e as Room).rect = setEdge(r, d.handle as Edge, es(snap(d.handle === 'W' || d.handle === 'E' ? x : z, g), d.handle as Edge), Math.max(g, 0.5));
       else (e as Room).rect = [r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz].map((v) => +v.toFixed(3)) as Rect;
       return e;
     }
@@ -444,7 +461,7 @@ export class Editor {
         hi = Math.min(L, hi);
         (e as Opening).w = +(hi - lo).toFixed(3);
         (e as Opening).at = +((lo + hi) / 2).toFixed(3);
-      } else (e as Opening).at = +Math.min(L - o.w / 2, Math.max(o.w / 2, s)).toFixed(3);
+      } else (e as Opening).at = centreOpening(w, this.model.list('walls') as Wall[], s, o.w, fine).at;
       return e;
     }
     if (d.coll === 'ladders') {
@@ -495,10 +512,75 @@ export class Editor {
     d.linked = undefined;
   }
 
+  /** Drawing a wall (ON1): A, a click or Esc act on the chain. */
+  get chaining(): boolean {
+    const d = this.drag;
+    return !!d && d.isNew && d.coll === 'walls';
+  }
+
+  /**
+   * Wall chains (ON1 decision 1): ends the segment being drawn and starts the next from its end with the same kind and
+   * thickness. A segment shorter than the grid is ignored (a click on the same spot). On the chain's first point the loop
+   * closes and the chain ends.
+   */
+  chainNext(): void {
+    const d = this.drag;
+    if (!d || !this.chaining) return;
+    const w = this.model.snapshot<Wall>('walls', d.id);
+    if (!w || wallLen(w) < this.grid - 1e-6) return;
+    this.drag = null;
+    if (this.chain.add(w)) return this.finishChain(' - closed');
+    const next = newWall(this.model, w.level, w.b, w.b, this.chain.walls[0]);
+    this.model.preview('walls', next);
+    this.beginDrag('walls', next.id, null, w.b, d.planeY, d.sx, d.sy, d.source, true);
+    const n = this.chain.walls.length;
+    this.status(`${n} wall${n > 1 ? 's' : ''}, ${fmt(this.chain.total)} m: A (click) next wall, X removes the last, B (Esc, right click) ends`);
+  }
+
+  /** X while drawing (ON1): the last finished segment goes; the wall being drawn starts again from its start. */
+  chainRemoveLast(): void {
+    const d = this.drag;
+    if (!d || !this.chaining) return;
+    const w = this.chain.removeLast();
+    if (!w) return this.status('Nothing to remove: B ends the wall');
+    const cur = this.model.snapshot<Wall>('walls', d.id);
+    this.model.drop('walls', d.id);
+    this.drag = null;
+    const next = newWall(this.model, w.level, w.a, cur?.b ?? w.b, w);
+    this.model.preview('walls', next);
+    this.beginDrag('walls', next.id, null, w.a, d.planeY, d.sx, d.sy, d.source, true);
+    const dn = this.drag as Drag | null;
+    if (dn) dn.before = { ...next, b: w.a };
+    this.status(`Removed the last wall (${this.chain.walls.length} left)`);
+  }
+
+  /** Commits the chain's finished walls as one undo step and selects the last. */
+  private finishChain(extra = ''): void {
+    const last = this.chain.walls[this.chain.walls.length - 1];
+    const res = this.chain.finish();
+    this.updateHint();
+    if (!res || !last) return;
+    this.commitText(res.text, res.changes);
+    if (extra) this.status(`${res.text}${extra}`);
+    this.select(keyOf('walls', last.id));
+  }
+
   endDrag(cancel: boolean): void {
     const d = this.drag;
     if (!d) return;
+    if (this.chaining && this.chain.walls.length) {
+      // B, Esc, a right click or a tool change end the chain: the wall being drawn goes unless it is finished (not cancel)
+      if (!cancel) this.chainNext();
+      if (this.drag) {
+        this.model.drop('walls', this.drag.id);
+        this.drag = null;
+      }
+      this.finishChain();
+      this.planGhost([], 'ghost');
+      return;
+    }
     this.drag = null;
+    if (d.source !== 'pad') this.planGhost([], 'ghost');
     this.updateHint();
     if (cancel || !d.moved || d.refused) {
       this.unpreviewLinked(d);
@@ -542,6 +624,12 @@ export class Editor {
     this.renderPanel();
   }
 
+  /** The mouse button comes up while dragging: a drawn wall continues the chain (ON1), anything else drops. */
+  private release(): void {
+    if (this.chaining) return this.chainNext();
+    this.endDrag(false);
+  }
+
   // ---------- tools (shared by 3D and plan) ----------
   /** Pointer down with a drawing tool at plan point (x, z). */
   toolDown(x: number, z: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad', fine: boolean, onWall?: string): void {
@@ -553,6 +641,11 @@ export class Editor {
       this.model.preview('rooms', r);
       this.beginDrag('rooms', r.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'wall') {
+      if (this.chaining) {
+        // a click while drawing (ON1): the segment ends here and the next starts
+        this.moveDrag(x, z, fine);
+        return this.chainNext();
+      }
       const w = newWall(this.model, lvl, p, p, this.wallTemplate ?? undefined);
       this.model.preview('walls', w);
       this.beginDrag('walls', w.id, null, p, this.viewFloor(), sx, sy, source, true);
@@ -560,7 +653,8 @@ export class Editor {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
       const type = this.tool === 'window' ? 'window' : $<HTMLSelectElement>('doorType').value;
-      const o = newOpening(this.model, w, snap(projectOnWall(w, x, z).s, g), type);
+      const width = Math.min((OPENING_DEFAULTS[type] ?? OPENING_DEFAULTS.door!).w, wallLen(w));
+      const o = newOpening(this.model, w, centreOpening(w, this.model.list('walls') as Wall[], snap(projectOnWall(w, x, z).s, g), width, fine).at, type);
       this.commit([{ coll: 'openings', id: o.id, before: null, after: o }]);
       this.select(keyOf('openings', o.id));
     }
@@ -614,6 +708,7 @@ export class Editor {
         d.moved = true;
         const pt = this.view.planePoint(px, py, d.planeY);
         if (pt) this.moveDrag(pt[0], pt[1], e.ctrlKey);
+        this.mouseLive();
         return;
       }
       const now = performance.now();
@@ -621,8 +716,14 @@ export class Editor {
       this.hoverAt = now;
       this.hover(px, py);
     });
+    let rightAt: [number, number] | null = null;
+    canvas.addEventListener('pointerdown', (e) => {
+      if (e.button === 2) rightAt = [e.clientX, e.clientY];
+    });
     canvas.addEventListener('pointerup', (e) => {
-      if (e.button === 0 && this.drag?.source === '3d') this.endDrag(false);
+      // a right click (not a look drag) ends a wall chain (ON1)
+      if (e.button === 2 && rightAt && Math.abs(e.clientX - rightAt[0]) + Math.abs(e.clientY - rightAt[1]) < 5 && this.chaining) return this.endDrag(true);
+      if (e.button === 0 && this.drag?.source === '3d') this.release();
     });
   }
 
@@ -772,9 +873,16 @@ export class Editor {
           const [x, y] = this.toPlan(...s.p);
           return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="${(12 * u).toFixed(2)}" ${st}/>`;
         }
+        if (s.kind === 'text') {
+          // ON1: live sizes as text on the plan, dark-edged so they read over any fill
+          const [x, y] = this.toPlan(...s.p);
+          return `<text class="live" x="${x.toFixed(1)}" y="${y.toFixed(1)}" font-size="${(13 * u).toFixed(2)}" text-anchor="middle" dominant-baseline="middle" fill="${col}" stroke="#101418" stroke-width="${(3 * u).toFixed(2)}" paint-order="stroke">${s.text.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</text>`;
+        }
         const a = this.toPlan(...s.a);
         const b = this.toPlan(...s.b);
-        return `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" ${st}/>`;
+        // ON1 decision 6: guide lines are thin and finely dashed
+        const ls = s.guide ? `class="guide" fill="none" stroke="#c9f" stroke-width="${(1.5 * u).toFixed(2)}" stroke-dasharray="${(3 * u).toFixed(1)} ${(3 * u).toFixed(1)}"` : st;
+        return `<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" ${ls}/>`;
       })
       .join('');
     if (g.getAttribute('data-k') !== html) {
@@ -785,16 +893,44 @@ export class Editor {
 
   /** The live size or offset of what is being dragged, for the pad's dot label. */
   dragWords(): string {
+    return this.liveNow().words;
+  }
+
+  /**
+   * The live size words and plan shapes of what is being drawn or dragged (ON1 decisions 4, 5, 8): one source for the
+   * pad's dot, the mouse's corner text and the plan. Walls: length and the parallel wall; rooms: size and area, a stretched
+   * edge the wall it approaches; doors and windows: width and the clear distance each side.
+   */
+  liveNow(): LiveInfo {
     const d = this.drag;
     const s = d ? this.model.get(d.coll, d.id) : undefined;
-    if (!d || !s) return '';
-    if (d.coll === 'walls') return `length ${fmt(wallLen(s as Wall))} m`;
+    if (!d || !s) return { words: '', shapes: [] };
+    const walls = this.model.list('walls') as Wall[];
+    if (d.coll === 'walls') {
+      const lw = liveWall(s as Wall, walls);
+      const n = this.chain.walls.length;
+      return this.chaining && n ? { ...lw, words: `${lw.words} (chain: ${n + 1} walls, ${fmt(this.chain.total + wallLen(s as Wall))} m)` } : lw;
+    }
     if ('rect' in s) {
       const r = (s as Room).rect;
-      return d.isNew || d.handle ? `size ${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m` : `moved ${moveWordsOf(d.before, s)}`;
+      if (d.coll === 'rooms' && (d.isNew || d.handle)) return liveRoom(r, d.isNew ? null : (d.handle as Edge), (d.before as Room).rect, (s as Room).level, walls);
+      return { words: d.isNew || d.handle ? `size ${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m` : `moved ${moveWordsOf(d.before, s)}`, shapes: [] };
     }
-    if (d.coll === 'openings') return `width ${fmt((s as Opening).w)} m, at ${fmt((s as Opening).at)} m`;
-    return '';
+    if (d.coll === 'openings') {
+      const o = s as Opening;
+      const w = this.model.get<Wall>('walls', o.wall);
+      if (!w) return { words: '', shapes: [] };
+      const lo = liveOpening(w, walls, o.at, o.w);
+      return { words: `width ${fmt(o.w)} m, ${lo.words}`, shapes: lo.shapes };
+    }
+    return { words: '', shapes: [] };
+  }
+
+  /** The mouse's live sizes while drawing or dragging (ON1): the corner text and the plan's dashed figures. */
+  private mouseLive(): void {
+    const live = this.liveNow();
+    $('hud').textContent = live.words;
+    this.planGhost(live.shapes, 'ghost');
   }
 
   fromPlan(px: number, py: number): Pt {
@@ -944,6 +1080,7 @@ export class Editor {
           if (!d.moved && Math.abs(e.clientX - d.sx) + Math.abs(e.clientY - d.sy) < 4) return;
           d.moved = true;
           this.moveDrag(x, z, e.ctrlKey);
+          this.mouseLive();
         }
       }
     });
@@ -953,7 +1090,8 @@ export class Editor {
         pan = null;
         if (moved || e.button !== 2) return;
       }
-      if (this.drag?.source === 'plan') this.endDrag(false);
+      if (e.button === 2 && this.chaining) return this.endDrag(true);
+      if (this.drag?.source === 'plan') this.release();
     });
     host.addEventListener('dblclick', (e) => {
       const p = this.svgPoint(e);
@@ -1188,6 +1326,7 @@ export class Editor {
       case 'levelUp': return this.stepLevel(1);
       case 'levelDown': return this.stepLevel(-1);
       case 'frame': return this.frameSelected();
+      case 'chainRemove': return this.chainRemoveLast();
       case 'cancel':
         if (this.splitting) this.cancelSplit();
         else if (this.drag) this.endDrag(true);

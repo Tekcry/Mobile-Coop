@@ -63,6 +63,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
+| Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
 | Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
 | Arrow keys | nudge the selection one grid step, 0.1 m by default (Shift: ten steps) |
 | Delete, Ctrl+D | delete (a wall takes its doors and windows), duplicate |
@@ -97,7 +98,7 @@ the free camera from the same spot. Nothing jumps either way.
 | Right stick | orbit left / right, tilt up / down (about 20 degrees to straight down) |
 | LB held + right stick up / down | raise or lower the camera without tilting (the camera keeps its x, z; the dot slides along the view); the hint bar says so while LB is held |
 | LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan |
-| A | the tool's action: select what the dot is on; on the selection, take the part the dot names (below); drawing tools start and finish; door and window tools place one |
+| A | the tool's action: select what the dot is on; on the selection, take the part the dot names (below); drawing tools start and finish (Wall: each A ends a wall and starts the next, a chain); door and window tools place one |
 | B | cancel a grab or a drawing; else leave the card; else put the tool down; else clear the selection. Never deletes |
 | X / X held | undo / redo |
 | Y (tap) | the **tile menu** opens; Y again closes it (below) |
@@ -315,6 +316,30 @@ pad, and any grab is put back first.
   editor opened. The badge on the toolbar counts them and opens the panel.
 - **Changes**: what has been done since the last save, newest first.
 
+## Wall chains, door centring, live sizes, guide lines (ON1, ED3-3b)
+- **Wall chains** (Wall tool): A starts a wall; each next A ends it and starts the next from that end; A on the chain's
+  first point closes the loop and ends it; B ends the chain (the wall being drawn is dropped); X removes the last
+  finished wall (the one being drawn starts again from its start). Mouse: click, click, ... (a drag-and-release also ends
+  a wall and goes on); Esc or a right click ends it; Backspace removes the last. The whole chain is one undo step:
+  "Added 4 walls (a chain, 18 m)" (one wall keeps the old words). Segments copy the first wall's kind and thickness (the
+  Wall tool copies the last wall selected; otherwise `wallInterior` from facts.json). Hint bar while drawing a wall:
+  A Next wall, X Remove last, B End chain, LB Fine.
+- **Door centring**: the Door and Window ghost (and a placed or slid opening) snaps its centre to the middle of the clear
+  run between the two nearest cross walls (walls meeting this one, or its ends) when the dot is within 0.5 m of that
+  middle and it fits; the dot says "Centred". LB held (Ctrl with the mouse) turns it off.
+- **Door distances**: while placing or sliding a door or window, the dot shows the clear distance from each side to the
+  nearest cross wall face (or wall end), "1.2 m | 2.4 m", and the plan draws each as a dashed line with its figure.
+- **Live sizes** while drawing or dragging: a room "4 x 3 m, 12 m2" (a stretched edge adds "2.4 m to the next wall": the
+  nearest parallel wall's face the way the edge moves); a wall its length and "2.7 m to the parallel wall" (the nearest
+  parallel wall on its level within 10 m that overlaps it, face to face); while chaining, the chain's count and total.
+  Shown at the dot and as dashed text on the plan; with the mouse in the corner of the 3D view and on the plan. One pure
+  function per element feeds both (`liveSizes.ts`).
+- **Guide lines**: while the magnet holds a snap, a thin line runs along the snapped wall line or room edge (3 m past its
+  ends), or through the snapped point along x and z: a thin box on the floor in 3D, a fine dashed line on the plan.
+- **Smart snapping**: room edges (drawing or stretching) snap to wall centre lines, wall faces and other room edges on the
+  level within 0.3 m; the dot also pulls onto room edges within 0.3 m (wall ends, wall lines, room corners and opening
+  centres as before). A D-pad nudge, LB or Ctrl skips it. The distances are one table, `SNAP` in `grab.ts`.
+
 ## Rooms and their walls (ED3-3a)
 - A room edge is a wall's centre line (every wall in the campus file sits on one). A wall counts as on an edge when it is
   on the same level, parallel, within half its thickness of the edge and overlapping it.
@@ -339,7 +364,9 @@ pad, and any grab is put back first.
 - The tile menu's Objects, Lights and Mission tabs are empty (hidden) until the later parts add tiles. The card has no
   Type row for stairs, ladders and floor holes. The on-screen keyboard has no lower-case or symbol page (words start with
   a capital, the rest is small).
-- Wall chains, door centring, live sizes and distances, guide lines (ED3-3b); clickable problems, search (Part D).
+- Clickable problems, search (Part D). With the mouse, wall ends do not snap to other walls (the pad's magnet does);
+  a wall crossing another (an X, no end on it) is not a cross wall for door centring; live sizes measure straight walls
+  along x or z for room edges (angled walls are skipped).
 - Add, reshape or delete stairs, ladders and floor holes beyond moving them; no new levels; renaming ids (Part E).
 - Lighting preview, props, guards and routes.
 - Quick walk up stairs: change level with Page Up / Page Down (the walk test climbs stairs and ladders for real).
@@ -356,10 +383,11 @@ pad, and any grab is put back first.
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision, corner joins, gaps and Close gap (Babylon-free, `tests/editor/`, `wallJoins.test.ts`) |
 | `src/editor/padControl.ts`, `src/editor/tileMenuView.ts` | controller editing: the dot and its magnet, edge-aware grab, ghosts, tool bar, the selection card on the D-pad, the tile menu's frame and actions, View items, quick walk, plan marker, side panel, rumble; the tile menu and the name picker on screen |
 | `src/editor/tileMenu.ts`, `src/editor/card.ts`, `src/editor/stickSteps.ts` | the tile menu's tabs, tiles (one data list), navigation and memory; the card's rows and steps, the name list and keyboard; stick and D-pad to menu steps (pure, `tests/editor/tileMenu.test.ts`, `card.test.ts`) |
-| `src/editor/grab.ts`, `src/editor/hub.ts`, `src/editor/hubView.ts` | which part A takes, the magnet search and their constants; the hub's tabs, rows, settings and help labels (pure, `tests/editor/grab.test.ts`, `hub.test.ts`); the hub on screen |
+| `src/editor/grab.ts`, `src/editor/hub.ts`, `src/editor/hubView.ts` | which part A takes, the magnet search, guide lines and their constants (`GRAB`, `MAGNET`, `SNAP`); the hub's tabs, rows, settings and help labels (pure, `tests/editor/grab.test.ts`, `hub.test.ts`); the hub on screen |
 | `src/editor/orbit.ts` | the pad's builder camera: the ORBIT feel table, dead zone and curve, eased pan / orbit / tilt / zoom / height, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
 | `src/editor/pad.ts` | pad reading (edges, taps and holds, D-pad repeat, button names) (Babylon-free, `tests/editor/editorPad.test.ts`) |
 | `src/editor/actions.ts`, `src/editor/visibility.ts`, `src/editor/draft.ts` | the action map (keys, help, hint bar); which levels and buildings are shown, ghosted or hidden, and the exploded lift; unsaved drafts in IndexedDB (Babylon-free, `tests/editor/editorV2.test.ts`) |
+| `src/editor/liveSizes.ts`, `src/editor/chain.ts` | live sizes and distances: clear runs between cross walls, door centring and side distances, the nearest parallel wall, room sizes, room edge snapping; wall chains (pure, `tests/editor/liveSizes.test.ts`, `chain.test.ts`) |
 | `src/editor/roomWalls.ts` | rooms and their walls: walls on an edge, the walls a new room needs, linked edits, Split, A's linked words (pure, `tests/editor/roomWalls.test.ts`) |
 | `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft; `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

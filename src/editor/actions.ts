@@ -10,8 +10,8 @@ import { padWords } from './pad';
  * What the editor is doing right now; the hint bar and key dispatch read it. 'drag' is also a pad grab; 'menu' the tile
  * menu; 'card' the selection card being edited with the D-pad (ON0a).
  */
-export type Ctx = 'idle' | 'selected' | 'card' | 'drag' | 'draw' | 'menu' | 'hub';
-export const CTXS: readonly Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'menu', 'hub'];
+export type Ctx = 'idle' | 'selected' | 'card' | 'drag' | 'draw' | 'chain' | 'menu' | 'hub';
+export const CTXS: readonly Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'chain', 'menu', 'hub'];
 
 export type Group = 'Camera' | 'Edit' | 'Tools' | 'View' | 'File';
 export type Device = 'keys' | 'pad';
@@ -40,7 +40,7 @@ export interface Action {
 }
 
 const NOT_DRAG: Ctx[] = ['idle', 'selected', 'card', 'draw'];
-const NOT_MENU: Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw'];
+const NOT_MENU: Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'chain'];
 const SEL: Ctx[] = ['selected', 'card'];
 
 export const ACTIONS: readonly Action[] = [
@@ -67,10 +67,12 @@ export const ACTIONS: readonly Action[] = [
   { id: 'padDrop', name: 'drop it here', group: 'Edit', keys: [], pad: ['A'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Drop' },
   { id: 'padDraw', name: 'start / finish (wall ends, room corners), place a door', group: 'Tools', keys: [], pad: ['A'], ctx: ['draw'], hint: ['draw'], passive: true , short: 'Start / finish' },
   { id: 'fine', name: 'fine grid (the object grid, 0.1 m) while held, when Settings > Grid is coarser', group: 'Edit', keys: [], mouse: 'Ctrl', ctx: NOT_MENU, hint: ['drag', 'draw'], passive: true },
-  { id: 'precision', name: 'while held: slower camera, magnet off (the grid stays Settings > Grid)', group: 'Edit', keys: [], pad: ['LB'], ctx: NOT_MENU, hint: ['drag', 'draw'], passive: true , short: 'Slow' },
+  { id: 'precision', name: 'while held: slower camera, magnet off (the grid stays Settings > Grid)', group: 'Edit', keys: [], pad: ['LB'], ctx: NOT_MENU, hint: ['drag', 'draw', 'chain'], passive: true , short: 'Slow', shortIn: { chain: 'Fine' } },
   { id: 'padRotate', name: 'turn it 90 degrees about the dot (rooms, stairs, ladders, walls)', group: 'Edit', keys: [], pad: ['RB'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Turn 90' },
   { id: 'padNudge', name: 'nudge one grid step (as the camera faces)', group: 'Edit', keys: [], pad: ['D-pad'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Nudge' },
-  { id: 'cancel', name: 'cancel / leave the card / put the tool down / clear the selection; never deletes', group: 'Edit', keys: ['Escape'], pad: ['B'], ctx: NOT_MENU, hint: ['selected', 'card', 'drag', 'draw'], short: 'Back', shortIn: { selected: 'Clear' } },
+  { id: 'cancel', name: 'cancel / leave the card / put the tool down / clear the selection; never deletes', group: 'Edit', keys: ['Escape'], pad: ['B'], ctx: NOT_MENU, hint: ['selected', 'card', 'drag', 'draw', 'chain'], short: 'Back', shortIn: { selected: 'Clear', chain: 'End chain' } },
+  { id: 'chainNext', name: 'wall chain: end this wall here and start the next from its end; on the first point the loop closes', group: 'Tools', keys: [], mouse: 'Click', pad: ['A'], ctx: ['chain'], hint: ['chain'], passive: true, short: 'Next wall' },
+  { id: 'chainRemove', name: 'wall chain: remove the last finished wall', group: 'Tools', keys: ['Backspace'], pad: ['X'], ctx: ['chain'], hint: ['chain'], short: 'Remove last' },
   { id: 'delete', name: 'delete', group: 'Edit', keys: ['Delete', 'Backspace'], ctx: SEL, hint: ['selected'] },
   { id: 'duplicate', name: 'duplicate', group: 'Edit', keys: ['Ctrl+KeyD'], ctx: SEL },
   { id: 'nudge', name: 'nudge one grid step (Shift: ten steps)', group: 'Edit', keys: ['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Shift+ArrowLeft', 'Shift+ArrowRight', 'Shift+ArrowUp', 'Shift+ArrowDown'], ctx: ['selected'], hint: ['selected'] },
@@ -187,6 +189,7 @@ export const PAD_HINTS: Record<Ctx, readonly string[]> = {
   selected: ['cardEdit', 'padPick', 'menu', 'cancel', 'frame'],
   card: ['cardEdit', 'cardDone', 'menu', 'cancel', 'frame'],
   drag: ['padDrop', 'padNudge', 'padRotate', 'precision', 'cancel'],
+  chain: ['chainNext', 'chainRemove', 'cancel', 'precision'],
   draw: ['padDraw', 'toolVariant', 'menu', 'precision', 'cancel'],
   menu: ['menuMove', 'menuPick', 'menuTab', 'menuClose'],
   hub: ['hubTab', 'hubRow', 'hubChange', 'hubDo', 'hubClose'],

@@ -28,6 +28,18 @@ export const MAGNET = {
   PAN_SLOW: 0.6,
 } as const;
 
+/** ON1 (ED3-3b) smart snapping and live sizes: every distance in one table (metres). */
+export const SNAP = {
+  /** Room edges snap to wall centre lines, wall faces and other room edges within this; the dot's pull onto a room edge. */
+  EDGE: 0.3,
+  /** A door or window centres between the two nearest cross walls when the dot is within this of that middle. */
+  CENTRE: 0.5,
+  /** Live sizes: the nearest parallel wall counts within this, face to face. */
+  PARALLEL_MAX: 10,
+  /** Guide lines run this far past a snapped wall line's ends, and each way through a snapped point. */
+  GUIDE: 3,
+} as const;
+
 export const GHOST = {
   /** A door or window ghost sits on the nearest wall within this many metres (toolDown's nearestWall reach). */
   REACH: 1.2,
@@ -98,7 +110,7 @@ export function grabPart(g: GrabShape, x: number, z: number): GrabPart | null {
 
 // ---------- the magnetic dot ----------
 /** A snap candidate on the editing level. `owner` is the element key it belongs to (skipped while that one is dragged). */
-export type SnapCand = { kind: 'point'; key: string; label: string; owner: string; p: Pt } | { kind: 'line'; key: string; label: string; owner: string; a: Pt; b: Pt };
+export type SnapCand = { kind: 'point'; key: string; label: string; owner: string; p: Pt } | { kind: 'line'; key: string; label: string; owner: string; a: Pt; b: Pt; pull?: number };
 
 export interface SnapHit {
   key: string;
@@ -147,7 +159,8 @@ export function magnetSearch(x: number, z: number, cands: readonly SnapCand[], p
       }
     } else if (prev?.key === c.key) {
       const q = onLine(c, x, z, o.grid);
-      if (q && q.d <= MAGNET.RELEASE) held = { key: c.key, label: c.label, kind: 'line', x: q.x, z: q.z };
+      // a line with its own pull (room edges) lets go in the same proportion (0.3 m pull: 0.42 m)
+      if (q && q.d <= ((c.pull ?? MAGNET.PULL) * MAGNET.RELEASE) / MAGNET.PULL) held = { key: c.key, label: c.label, kind: 'line', x: q.x, z: q.z };
     }
   }
   if (held?.kind === 'point') return held;
@@ -158,12 +171,31 @@ export function magnetSearch(x: number, z: number, cands: readonly SnapCand[], p
   for (const c of cands) {
     if (c.kind !== 'line' || (o.skip && c.owner === o.skip)) continue;
     const q = onLine(c, x, z, o.grid);
-    if (q && q.d < bestLD - 1e-9) {
+    if (q && q.d < bestLD - 1e-9 && q.d <= (c.pull ?? MAGNET.PULL)) {
       bestLD = q.d;
       bestL = { key: c.key, label: c.label, kind: 'line', x: q.x, z: q.z };
     }
   }
   return bestL;
+}
+
+/**
+ * Guide lines while the magnet holds a snap (ON1 decision 6): along a snapped line, past its ends by SNAP.GUIDE; through a
+ * snapped point, one line along x and one along z.
+ */
+export function guideLines(hit: SnapHit | null, cands: readonly SnapCand[]): [Pt, Pt][] {
+  if (!hit) return [];
+  const G = SNAP.GUIDE;
+  if (hit.kind === 'point') return [[[hit.x - G, hit.z], [hit.x + G, hit.z]], [[hit.x, hit.z - G], [hit.x, hit.z + G]]];
+  const c = cands.find((q) => q.key === hit.key);
+  if (!c || c.kind !== 'line') return [];
+  const dx = c.b[0] - c.a[0];
+  const dz = c.b[1] - c.a[1];
+  const len = hyp2(dx, dz);
+  if (len < 1e-9) return [];
+  const ux = (dx / len) * G;
+  const uz = (dz / len) * G;
+  return [[[c.a[0] - ux, c.a[1] - uz], [c.b[0] + ux, c.b[1] + uz]]];
 }
 
 /** One frame of the pull: the target eases onto the snap point (factor for dt seconds). */

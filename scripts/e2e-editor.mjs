@@ -113,6 +113,8 @@ try {
   await dotAt(Math.round(drawFrom.tx * 10) / 10 + 6, Math.round(drawFrom.tz * 10) / 10);
   await shot('hint-draw');
   await press(BTN.A);
+  // ON1: A ends this wall and starts the next (a chain); B ends the chain
+  await press(BTN.B);
   const w = await E(() => { const ws = window.__editor.model.data.walls; const w = ws[ws.length - 1]; return { n: ws.length, len: Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]), dz: w.b[1] - w.a[1] }; });
   assert(w.n === walls0 + 1 && Math.abs(w.len - 6) < 1e-6 && Math.abs(w.dz) < 1e-6, `a 6 m east-west wall (${w.n - walls0} new, ${w.len} m)`);
 
@@ -813,6 +815,7 @@ try {
       await press(BTN.A);
       await dotAt(b[0], b[1]);
       await press(BTN.A);
+      await press(BTN.B);
       return E(() => { const ws = window.__editor.model.data.walls; return ws[ws.length - 1]; });
     };
     const wA = await drawWall([sx, sz], [sx + 4, sz]);
@@ -881,6 +884,96 @@ try {
     assert(/Height/.test(lbHint) && h1.py > h0.py + 1 && Math.abs(h1.pitch - h0.pitch) < 1e-9 && Math.hypot(h1.px - h0.px, h1.pz - h0.pz) < 0.05, `LB + right stick up raises the camera ${(h1.py - h0.py).toFixed(2)} m, tilt unchanged; hint "${lbHint.slice(0, 40)}"`);
     const left = await E(() => { const ed = window.__editor; let n = 0; while (ed.model.dirty > 0 && n < 30) { ed.undo(); n++; } return ed.model.dirty; });
     assert(left === 0, 'ON0b steps undone: back to the file');
+  }
+
+  console.log('ON1: wall chains, door centring and distances, live sizes, guide lines');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // an empty patch: no wall or room edge within a metre of a 16 x 6 box
+    const free = await E(() => {
+      const ed = window.__editor;
+      const ws = ed.model.data.walls.filter((w) => w.level === 'G');
+      const rs = ed.model.data.rooms.filter((r) => r.level === 'G');
+      for (let z = 4; z < 70; z += 1) for (let x = 4; x < 100; x += 1) {
+        const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < x - 1 || Math.min(w.a[0], w.b[0]) > x + 17 || Math.max(w.a[1], w.b[1]) < z - 1 || Math.min(w.a[1], w.b[1]) > z + 7)
+          && rs.every((r) => {
+            // no room edge crosses the box (a big room around it all is fine)
+            const [x0, z0, x1, z1] = r.rect;
+            const hitX = (v) => v >= x - 1 && v <= x + 17 && z1 >= z - 1 && z0 <= z + 7;
+            const hitZ = (v) => v >= z - 1 && v <= z + 7 && x1 >= x - 1 && x0 <= x + 17;
+            return !hitX(x0) && !hitX(x1) && !hitZ(z0) && !hitZ(z1);
+          });
+        if (clear) return [x, z];
+      }
+      return null;
+    });
+    assert(!!free, `ON1: an empty patch at ${free}`);
+    const [x, z] = free;
+    const n0 = await E(() => ({ walls: window.__editor.model.data.walls.length, h: window.__editor.model.history.length }));
+    const chainN = () => E(() => window.__editor.chain.walls.length);
+    await E(() => window.__editor.pad.runMenu('build.wall'));
+    await dotAt(x, z);
+    await press(BTN.A);
+    await dotAt(x + 5, z);
+    await press(BTN.A);
+    await dotAt(x + 5, z + 4);
+    await press(BTN.A);
+    const hintChain = (await st()).hint;
+    // X removes the last finished wall; the wall being drawn starts again from its start
+    await press(BTN.X);
+    const afterX = await chainN();
+    await dotAt(x + 5, z + 4);
+    await press(BTN.A);
+    await dotAt(x, z + 4);
+    await page.waitForFunction(() => /chain: 3 walls/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const chainWords = await dotText();
+    await shot('on1-chain-drawing');
+    await press(BTN.A);
+    await dotAt(x, z);
+    await press(BTN.A);
+    const n1 = await E(() => { const ed = window.__editor; const j = ed.model.journal; return { walls: ed.model.data.walls.length, h: ed.model.history.length, text: j[j.length - 1]?.text, drag: !!ed.drag, chain: ed.chain.walls.length }; });
+    assert(afterX === 1 && /A Next wall/.test(hintChain) && /X Remove last/.test(hintChain) && /B End chain/.test(hintChain) && /LB Fine/.test(hintChain), `ON1: X removes the last wall while chaining (${afterX} left); hint "${hintChain}"`);
+    assert(/length 5 m/.test(chainWords) && /chain: 3 walls, 14 m/.test(chainWords), `ON1: the dot shows the wall length and the chain while drawing ("${chainWords}")`);
+    assert(n1.walls === n0.walls + 4 && n1.h === n0.h + 1 && n1.text === 'Added 4 walls (a chain, 18 m)' && !n1.drag && n1.chain === 0, `ON1: a 3-wall run closed on its first point: ${n1.walls - n0.walls} walls, ${n1.h - n0.h} undo step, "${n1.text}"`);
+    await E(() => window.__editor.undo());
+    const n2 = await E(() => window.__editor.model.data.walls.length);
+    await E(() => window.__editor.redo());
+    assert(n2 === n0.walls, `ON1: one undo takes the whole chain away (${n0.walls + 4} -> ${n2})`);
+
+    // door centring: the south wall runs x .. x + 5 between the two corner walls: its clear middle is x + 2.5
+    const south = await E(([x, z]) => window.__editor.model.data.walls.find((w) => w.a[0] === x && w.a[1] === z && w.b[0] === x + 5 && w.b[1] === z)?.id, [x, z]);
+    await E(() => window.__editor.pad.runMenu('door.door'));
+    await dotAt(x + 2.8, z);
+    await page.waitForFunction(() => /Centred/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const doorWords = await dotText();
+    await shot('on1-door-centred');
+    await press(BTN.A);
+    const door = await E((id) => { const os = window.__editor.model.data.openings; const o = os[os.length - 1]; return { wall: o.wall, at: o.at, w: o.w }; }, south);
+    const dm = /Centred, ([\d.]+) m \| ([\d.]+) m/.exec(doorWords);
+    assert(!!south && door.wall === south && Math.abs(door.at - 2.5) <= 0.01 && !!dm && dm[1] === dm[2], `ON1: a door placed near the middle sits centred between the cross walls (at ${door.at} m of 5 m; "${doorWords.slice(0, 90)}")`);
+
+    // live size words while drawing a room
+    await E(() => window.__editor.pad.runMenu('room.none'));
+    await dotAt(x + 9, z + 1);
+    await press(BTN.A);
+    await dotAt(x + 13, z + 4);
+    await page.waitForFunction(() => /4 x 3 m, 12 m2/.test(document.getElementById('reticleText').textContent) && [...document.querySelectorAll('#padGhost text.live')].some((t) => /4 x 3 m, 12 m2/.test(t.textContent)), null, { timeout: 5000 }).catch(() => {});
+    const roomWords = await dotText();
+    const planText = await E(() => [...document.querySelectorAll('#padGhost text.live')].map((t) => t.textContent).join(' | '));
+    await press(BTN.B);
+    assert(/4 x 3 m, 12 m2/.test(roomWords) && /4 x 3 m, 12 m2/.test(planText), `ON1: live room size at the dot and on the plan ("${roomWords.slice(0, 60)}", plan "${planText.slice(0, 40)}")`);
+
+    // a guide line while the magnet holds a snap (a wall end of the chain)
+    await E(() => window.__editor.pad.runMenu('select'));
+    await dotAt(x + 0.2, z + 0.15);
+    await page.waitForFunction(() => document.querySelectorAll('#padGhost line.guide').length > 0, null, { timeout: 5000 }).catch(() => {});
+    const guide = await E(() => ({ snap: window.__editor.pad.magnet?.label ?? null, plan: document.querySelectorAll('#padGhost line.guide').length, marks: window.__editor.view.scene.meshes.filter((m) => m.isEnabled() && /mark/i.test(m.name)).length }));
+    await dotAt(x + 2.5, z + 2);
+    await page.waitForFunction(() => document.querySelectorAll('#padGhost line.guide').length === 0, null, { timeout: 5000 }).catch(() => {});
+    const guideOff = await E(() => document.querySelectorAll('#padGhost line.guide').length);
+    assert(guide.snap === 'Wall end' && guide.plan === 2 && guideOff === 0, `ON1: guide lines while snapped (${guide.snap}: ${guide.plan} on the plan, ${guide.marks} marks in 3D), gone when the snap lets go (${guideOff})`);
+    const left = await E(() => { const ed = window.__editor; let n = 0; while (ed.model.dirty > 0 && n < 30) { ed.undo(); n++; } return ed.model.dirty; });
+    assert(left === 0, 'ON1 steps undone: back to the file');
   }
 
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a)');
