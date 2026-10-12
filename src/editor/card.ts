@@ -9,7 +9,24 @@ import { DOOR_NAMES, ROOM_KINDS, WALL_KINDS } from './ops';
 import { BLINDS, familyOf, familyTypes, FLAG_SETTINGS, GLASS_KINDS, GLASS_WALL_DEFAULT, SETTING_LABELS, settingWords, shownSettings, stepSetting, withOpeningType } from './openingCatalogue';
 import type { GlassData, Setting, SideCtx } from './openingCatalogue';
 import { HOLE_KINDS, HOLE_NAMES, STAIR_FACTS, STAIR_TYPES, stairType, stairTypeOf, withStairType } from './vertical';
-import type { Coll, Elem, Ladder, Opening, Rect, Room, Stair, Void, Wall } from './types';
+import type { Coll, Elem, Ladder, Opening, Rect, Roof, Room, Stair, Void, Wall } from './types';
+import { ROOF_LABELS, ROOF_TYPES, roofSettingWords, roofType, shownRoofSettings, stepRoofSetting, withRoofType } from './roofGeometry';
+import type { RoofSetting } from './roofGeometry';
+
+/** ON10: the roof settings that are lengths and flags (the rest step through a list or by a degree). */
+const ROOF_LEN: ReadonlySet<string> = new Set(['parapet', 'upstand', 'tooth', 'rise', 'overhang', 'fascia']);
+const ROOF_FLAG: ReadonlySet<string> = new Set(['gutter', 'downpipes']);
+/** A roof's card (ON10 decision 3): Type, Name, size, eaves height, then only its type's settings. */
+function roofRows(r: Roof): CardRow[] {
+  return [
+    { id: 'type', label: 'Type', value: roofType(r.type).name, kind: 'list' },
+    nameRow(r),
+    ...sizeRows(r.rect),
+    { id: 'base', label: ROOF_LABELS.base, value: roofSettingWords(r, 'base'), kind: 'len' },
+    ...shownRoofSettings(r).map((s): CardRow => ({ id: s, label: ROOF_LABELS[s], value: roofSettingWords(r, s), kind: ROOF_LEN.has(s) ? 'len' : ROOF_FLAG.has(s) ? 'flag' : 'list' })),
+    idRow(r),
+  ];
+}
 
 /** Room access rings (schema.md: `ring`), shown as words. */
 export const RING_NAMES = ['Perimeter (yard, public lane)', 'Level 1 - reception, goods-in', 'Level 2 - staff', 'Level 3 - higher card', 'Level 4 - data hall, tunnels', 'Level 5 - meet-me, riser'];
@@ -101,6 +118,7 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
       idRow(e),
     ];
   }
+  if (coll === 'roofs') return roofRows(e as Roof);
   if (coll === 'voids') return [{ id: 'type', label: 'Type', value: HOLE_NAMES[(e as Void).kind] ?? (e as Void).kind, kind: 'list' }, nameRow(e), ...sizeRows((e as { rect: Rect }).rect), idRow(e)];
   if (coll === 'ladders') return [nameRow(e), { id: 'facing', label: 'Facing', value: DIR_WORDS[(e as Ladder).facing ?? 'N'] ?? '', kind: 'list' }, { id: 'to', label: 'To level', value: (e as Ladder).to, kind: 'list' }, idRow(e)];
   return [nameRow(e), idRow(e)];
@@ -138,6 +156,11 @@ export function cardWindow(n: number, lit: number, max = CARD_ROWS_SHOWN): [numb
 export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepCtx): Elem | null {
   const a = JSON.parse(JSON.stringify(e)) as Elem & Record<string, unknown>;
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
+  if (coll === 'roofs' && row !== 'width' && row !== 'depth' && row !== 'name' && row !== 'id') {
+    const r = e as Roof;
+    if (row === 'type') return withRoofType(r, wrap(ROOF_TYPES.map((t) => t.id), roofType(r.type).id, dir)) as Elem;
+    return stepRoofSetting(r, row as RoofSetting | 'base', dir, c.step) as Elem | null;
+  }
   if (row === 'type') {
     if (coll === 'openings') {
       // ON9: doors flip through doors, windows through windows, with the new type's settings

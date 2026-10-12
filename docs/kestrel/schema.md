@@ -40,7 +40,8 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
   "voids": [ { "id": "V01", "level": "F", "rect": [0, 0, 0, 0], "kind": "stairwell|liftshaft|riser|hatch|rooflight", "reason": "" } ],
   "objects": [ { "id": "O001", "level": "G", "name": "", "rect": [0, 0, 0, 0], "h": 1.2, "y": 0, "noLedge": false, "reason": "" } ],
   "exterior": [ { "id": "E001", "kind": "downpipe|stringcourse|sill|fire-escape|lamp-post|gate|fence|parapet|pipe", "a": [0, 0], "b": [0, 0], "y0": 0, "y1": 0, "climbable": false, "reason": "" } ],
-  "services": [ { "id": "SV01", "kind": "cable|power|air|water|drain|heat", "path": [[0, 0, 0]], "size": [0, 0], "reason": "" } ]
+  "services": [ { "id": "SV01", "kind": "cable|power|air|water|drain|heat", "path": [[0, 0, 0]], "size": [0, 0], "reason": "" } ],
+  "roofs": [ { "id": "RF01", "name": "", "building": "A", "level": "G", "rect": [0, 0, 0, 0], "base": 3.0, "type": "flat|mono|gable|hip|sawtooth|curved", "pitch": 25, "ridge": "x|z", "overhang": 0.5, "fascia": 0.2, "material": "metal|concrete|membrane|tile", "colour": "terracotta", "gutter": true, "downpipes": true } ]
 }
 ```
 | Field | Meaning |
@@ -118,6 +119,21 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | services[].path | Route as `[x, y, z]` points (absolute y) |
 | services[].size | Cross-section `[w, h]` |
 | services[].reason | What it serves |
+| roofs[] | Optional (ON10; absent until the first roof is drawn). One roof per axis-aligned outline; geometry in `src/world/maps/kestrelRoofs.ts` (shared by the editor, the walk test and `plans.mjs`) |
+| roofs[].id, name, building | Unique id (`RF01`), optional plain name, the building it sits on (absent on the site) |
+| roofs[].level | The level it was drawn on: the editor shows and selects it there and the plan draws it on that level |
+| roofs[].rect | Plan outline at the wall line `[x0, z0, x1, z1]` |
+| roofs[].base | Eaves height above ground floor level at the wall line. Editor default: the wall top most of the wall length under the outline reaches, else the top of the level. A flat roof is level at `base` |
+| roofs[].type | `flat`, `mono` (mono-pitch, skillion), `gable`, `hip`, `sawtooth`, `curved` (barrel). The editor writes every setting of the type and drops the others |
+| roofs[].pitch | Degrees (mono, gable, hip, sawtooth). Over the game's slope limit (facts `player.maxSlope`) the walk test player slides off |
+| roofs[].high | Mono: the high side, N, E, S or W |
+| roofs[].ridge | Gable ridge, curved barrel axis: `x` (east-west) or `z` (north-south); hip ridges run along the longer side |
+| roofs[].fall, fallsTo, edge, parapet, upstand | Flat: fall in degrees (facts `roof.fallMin`-`fallMax`, drawn as arrows, not modelled in height), the side it falls to, `parapet` (height default facts `rules.parapet`) or `upstand` (default facts `roof.upstand`) |
+| roofs[].tooth, glazed | Sawtooth: tooth width (teeth = span / width, rounded) and the side the upright glass faces |
+| roofs[].rise | Curved: the barrel's rise above the eaves |
+| roofs[].overhang, fascia | Overhang past the wall line, 0 to facts `roof.overhangMax`, the slope carried on (the eaves drop, the ridge stays); fascia board depth |
+| roofs[].material, colour | Metal deck, concrete, membrane or tile; a colour name from the editor's list |
+| roofs[].gutter, downpipes | A gutter along the eaves; downpipes at the ends of each eaves gutter, down to the ground level |
 
 ## 3. Play (kestrel.play.json)
 ```json

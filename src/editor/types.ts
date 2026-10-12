@@ -2,7 +2,11 @@
  * Kestrel campus file shapes (docs/kestrel/kestrel.campus.blocks.json) as the level editor sees them. Only the fields the
  * editor reads or writes are typed; every other field rides along untouched (the index signatures).
  */
+import type { RoofData } from '../world/maps/kestrelRoofs';
+
 export type Pt = [number, number];
+/** A roof (ON10, schema.md section 2 `roofs[]`); the geometry is src/world/maps/kestrelRoofs.ts. */
+export type Roof = RoofData;
 /** [x0, z0, x1, z1] in metres; x east, z north. */
 export type Rect = [number, number, number, number];
 
@@ -116,6 +120,8 @@ export interface Campus {
   ladders: Ladder[];
   voids: Void[];
   services?: Service[];
+  /** ON10: absent until the first roof is drawn (a file without roofs saves byte-identical). */
+  roofs?: Roof[];
   [k: string]: unknown;
 }
 
@@ -123,9 +129,9 @@ export interface Campus {
  * The collections the editor can change. `levels`, `objects` and `buildings` (meta.buildings) change through the Levels tab only
  * (ON2); they are not in COLLS (nothing picks or draws them as elements), so a key of theirs parses to null.
  */
-export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'levels' | 'buildings' | 'objects';
-export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Level | Obj | (Building & { [k: string]: unknown });
-export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids'];
+export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects';
+export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | (Building & { [k: string]: unknown });
+export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs'];
 
 /** A reference to one element: `rooms:G-FRONT`. */
 export type Key = `${Coll}:${string}`;

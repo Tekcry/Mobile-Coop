@@ -2,6 +2,7 @@
  * Editor operations on the campus data: new elements with sensible defaults, deletes that take dependent openings with
  * them, and the plain-English description of any change (the review log). Babylon-free (tests/editor/ops.test.ts).
  */
+import { roofType } from './roofGeometry';
 import { EPS, fmt, moveWords, roomsEitherSide, wallLen } from './geometry';
 import type { Change, EditorModel } from './model';
 import { WALL_T } from './roomWalls';
@@ -42,7 +43,7 @@ export function cardWords(coll: Coll, e: Elem): { title: string; size: string } 
       const kind = capital((e as Room).kind);
       return { title: name || kind, size: name ? `${kind}, ${dims}` : dims };
     }
-    const kind = coll === 'stairs' ? 'Stair' : 'Floor hole';
+    const kind = coll === 'stairs' ? 'Stair' : coll === 'roofs' ? `${roofType((e as { type: string }).type).name} roof` : 'Floor hole';
     return { title: name || kind, size: name ? `${kind}, ${dims}` : dims };
   }
   const at = (e as { at?: unknown }).at;
@@ -60,7 +61,7 @@ export function label(d: Campus, coll: Coll, e: Elem): string {
   const name = typeof e.name === 'string' && e.name ? `${e.name} ` : '';
   const lvlId = 'level' in e && typeof e.level === 'string' ? e.level : coll === 'openings' ? d.walls.find((w) => w.id === (e as Opening).wall)?.level : coll === 'stairs' || coll === 'ladders' ? (e as { from: string }).from : undefined;
   const lvl = lvlId ? `, ${levelName(d, lvlId)}` : '';
-  const kind = coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : '';
+  const kind = coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : '';
   return `${kind}${name}(${e.id}${lvl})`;
 }
 

@@ -12,6 +12,7 @@ import type { Motion } from './openingCatalogue';
 const OPENING_DESC: Record<Motion, string> = { swing: 'Hinged leaf; A on a wall places one', double: 'Two hinged leaves; A on a wall', slide: 'Slides along a track; A on a wall', roll: 'Rolls up; A on a wall', none: 'A on a wall places one', hung: 'Opens out from the top; A on a wall', louvre: 'Tilting glass slats; A on a wall' };
 import { ROOM_OPTIONS } from './roomWalls';
 import { STAIR_TYPES } from './vertical';
+import { ROOF_TYPES } from './roofGeometry';
 import type { Coll } from './types';
 
 export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Lights', 'Mission', 'View'] as const;
@@ -84,7 +85,7 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs';
       const t: (Tile | false)[] = [
         { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
         { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
@@ -110,6 +111,8 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         ...STAIR_TYPES.map((t): Tile => ({ id: `stair.${t.id}`, icon: 'S', name: t.id === 'main-straight' ? 'Straight stair' : `Stair: ${t.name}`, desc: 'A at the start corner, point the climb, A, A', kind: 'go' })),
         { id: 'build.ladder', icon: 'L', name: 'Ladder', desc: 'A on a wall face: up to the level above', kind: 'go' },
         { id: 'build.hole', icon: 'H', name: 'Floor hole', desc: 'A at one corner, A at the other', kind: 'go' },
+        // ON10: one Roof tile per type; A, A on the same spot takes the building (or room) under the dot
+        ...ROOF_TYPES.map((t): Tile => ({ id: `roof.${t.id}`, icon: 'R', name: `Roof: ${t.name}`, desc: 'A at two corners, or A twice on a building', kind: 'go' })),
         { id: 'build.measure', icon: 'M', name: 'Measure', desc: 'A at one point, A at the other', kind: 'go' },
         { id: 'build.paste', icon: 'P', name: 'Paste', desc: 'At the dot, on this level', kind: 'go', disabled: copyFirst },
         { id: 'build.pasteUp', icon: 'P', name: 'Paste to level above', desc: 'Same spot, one level up', kind: 'go', disabled: copyFirst },

@@ -29,13 +29,15 @@ import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpen
 import { WallChain } from './chain';
 import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './liveSizes';
 import type { LiveInfo, LiveShape } from './liveSizes';
-import type { Campus, Coll, Elem, Key, Ladder, Level, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
+import type { Campus, Coll, Elem, Key, Ladder, Level, Opening, Pt, Rect, Roof, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
 import { fitStair, HOLE_KINDS, HOLE_NAMES, holeId, ladderId, newHole, proposeLadder, proposeStair, STAIR_TYPES, stairFit, stairId, stairType, stairTypeOf, stairwellLink, turnClimb, withStairType } from './vertical';
 import type { StairTypeId } from './vertical';
+import { defaultBase, footprintAt, newRoof, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
+import type { RoofType } from './roofGeometry';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -154,6 +156,8 @@ export class Editor {
   /** The Stair tool's type and the Floor hole tool's kind (the tool bar's lists, D-pad left / right with the tool). */
   stairTypeId: StairTypeId = 'main-dogleg';
   holeKind = 'liftshaft';
+  /** ON10: the Roof tool's type (the Build tab's Roof tiles, D-pad left / right with the tool). */
+  roofTypeId: RoofType = 'gable';
   /**
    * The Stair tool (ON2): A at the start corner ('aim': the dot points the climb, the proposal follows), A again ('proposed':
    * the ghost holds still with its words), A accepts, B cancels. The proposal is previewed in the model as a real stair.
@@ -389,20 +393,22 @@ export class Editor {
     if (!s || this.tool !== 'select') return [];
     const lvl = this.levelOf(s.coll, s.e);
     const f = this.viewFloor(lvl);
-    if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids') {
+    if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs') {
       const r = (s.e as Room).rect;
+      // ON10: a roof's handles sit at its eaves
+      const fl = s.coll === 'roofs' ? (s.e as Roof).base + this.view.offsetOf(lvl) : f;
       const cx = (r[0] + r[2]) / 2;
       const cz = (r[1] + r[3]) / 2;
       const hs = [
-        { id: 'W', x: r[0], z: cz, y: f + 0.3 },
-        { id: 'E', x: r[2], z: cz, y: f + 0.3 },
-        { id: 'S', x: cx, z: r[1], y: f + 0.3 },
-        { id: 'N', x: cx, z: r[3], y: f + 0.3 },
+        { id: 'W', x: r[0], z: cz, y: fl + 0.3 },
+        { id: 'E', x: r[2], z: cz, y: fl + 0.3 },
+        { id: 'S', x: cx, z: r[1], y: fl + 0.3 },
+        { id: 'N', x: cx, z: r[3], y: fl + 0.3 },
       ];
       // ON2: a stair's arrow handle, a third of the way along the climb from the centre: a click turns the climb 90 degrees
       if (s.coll === 'stairs') {
         const d = ({ N: [0, 1], S: [0, -1], E: [1, 0], W: [-1, 0] } as Record<string, [number, number]>)[(s.e as Stair).up] ?? [0, 1];
-        hs.push({ id: 'turn', x: cx + (d[0] * (r[2] - r[0])) / 3, z: cz + (d[1] * (r[3] - r[1])) / 3, y: f + 0.6 });
+        hs.push({ id: 'turn', x: cx + (d[0] * (r[2] - r[0])) / 3, z: cz + (d[1] * (r[3] - r[1])) / 3, y: fl + 0.6 });
       }
       return hs;
     }
@@ -449,7 +455,7 @@ export class Editor {
     const e = clone(d.before) as Elem & Record<string, unknown>;
     const dx = snap(x - d.start[0], g);
     const dz = snap(z - d.start[1], g);
-    if (d.coll === 'rooms' || d.coll === 'stairs' || d.coll === 'voids') {
+    if (d.coll === 'rooms' || d.coll === 'stairs' || d.coll === 'voids' || d.coll === 'roofs') {
       const r = (d.before as Room).rect;
       // ON1 decision 7: the moving edges snap to wall lines, wall faces and other room edges (LB / Ctrl: off)
       const lv = (d.before as Room).level;
@@ -464,6 +470,8 @@ export class Editor {
       if (d.isNew) (e as Room).rect = normRect([r[0], r[1], es(snap(x, g), x >= r[0] ? 'E' : 'W'), es(snap(z, g), z >= r[1] ? 'N' : 'S')]);
       else if (d.handle) (e as Room).rect = setEdge(r, d.handle as Edge, es(snap(d.handle === 'W' || d.handle === 'E' ? x : z, g), d.handle as Edge), Math.max(g, 0.5));
       else (e as Room).rect = [r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz].map((v) => +v.toFixed(3)) as Rect;
+      // ON10: a roof being drawn sits on the walls under its outline as it grows
+      if (d.coll === 'roofs' && d.isNew) (e as Roof).base = defaultBase(this.model.data, (e as Roof).level, (e as Roof).rect);
       return e;
     }
     if (d.coll === 'walls') {
@@ -637,6 +645,7 @@ export class Editor {
     if (!after) return;
     if (d.isNew) {
       const tiny = d.coll === 'walls' ? wallLen(after as Wall) < this.grid - 1e-6 : (after as Room).rect[2] - (after as Room).rect[0] < this.grid - 1e-6 || (after as Room).rect[3] - (after as Room).rect[1] < this.grid - 1e-6;
+      if (tiny && d.coll === 'roofs') return this.roofOnFootprint(d.id, d.start);
       if (tiny) {
         this.model.drop(d.coll, d.id);
         this.status('Too small - drag further to draw it');
@@ -695,6 +704,11 @@ export class Editor {
       const v = newHole(lvl, [p[0], p[1], p[0], p[1]], this.holeKind, holeId(this.model.data, lvl));
       this.model.preview('voids', v);
       this.beginDrag('voids', v.id, null, p, this.viewFloor(), sx, sy, source, true);
+    } else if (this.tool === 'roof') {
+      // ON10: A at one corner, A at the other; the same spot twice takes the building (or room) under it
+      const r = newRoof(this.model.data, lvl, [p[0], p[1], p[0], p[1]], this.roofTypeId, roofId(this.model.data));
+      this.model.preview('roofs', r);
+      this.beginDrag('roofs', r.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'door' || this.tool === 'window') {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
@@ -782,6 +796,30 @@ export class Editor {
     this.holeKind = k;
     const sel = document.getElementById('holeKind') as HTMLSelectElement | null;
     if (sel) sel.value = k;
+  }
+
+  /** ON10: the Roof tool's type (Build tab Roof tiles, D-pad left / right with the tool). */
+  setRoofType(t: RoofType): void {
+    this.roofTypeId = t;
+  }
+
+  /**
+   * ON10 decision 3: A twice on the same spot (a click) with the Roof tool: the roof takes the footprint of the building
+   * under it (or of the room, grown to its walls' outside faces). Nothing there: the roof goes.
+   */
+  roofOnFootprint(id: string, at: Pt): void {
+    const r = this.model.snapshot<Roof>('roofs', id);
+    const fp = r ? footprintAt(this.model.data, r.level, at[0], at[1]) : null;
+    if (!r || !fp) {
+      this.model.drop('roofs', id);
+      return this.status('No building or room here: drag out the roof outline (A at two corners)');
+    }
+    this.model.drop('roofs', id);
+    const roof = newRoof(this.model.data, r.level, fp.rect, roofType(r.type).id, id);
+    const w = roofWords(this.model.data, roof);
+    this.commitText(`Added ${w.size} (${roof.id}) on the ${fp.what}: ${w.ridge}`, [{ coll: 'roofs', id: roof.id, before: null, after: roof }]);
+    this.select(keyOf('roofs', roof.id));
+    this.status(`Roof on the ${fp.what}: ${w.ridge}${w.warn ? `. ${w.warn}` : ''}`);
   }
 
   /** The selected stair's fit in words ("Needs 1.4 m more length for 25 risers"). */
@@ -1236,7 +1274,7 @@ export class Editor {
     let out = '';
     const s = this.selectedElem();
     if (s && this.levelOf(s.coll, s.e) === this.view.level) {
-      if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids') {
+      if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs') {
         const r = (s.e as Room).rect;
         const a = this.toPlan(r[0], r[3]);
         out += `<rect x="${a[0]}" y="${a[1]}" width="${(r[2] - r[0]) * S}" height="${(r[3] - r[1]) * S}" fill="#ff7300" fill-opacity="0.12" stroke="#ff7300" stroke-width="3"/>`;
@@ -1698,7 +1736,7 @@ export class Editor {
     const e = clone(s.e) as Elem & Record<string, unknown>;
     const g = this.grid * 2;
     const prefix = s.coll === 'rooms' ? `${(s.e as Room).level}-NEW` : s.coll === 'walls' ? `W${(s.e as Wall).level}-NEW` : s.coll === 'openings' ? 'O-NEW' : `${s.id}-COPY`;
-    e.id = this.model.freshId(s.coll, prefix);
+    e.id = s.coll === 'roofs' ? roofId(this.model.data) : this.model.freshId(s.coll, prefix);
     if ('rect' in e) (e as Room).rect = (e as Room).rect.map((v, i) => +(v + (i % 2 ? -g : g)).toFixed(3)) as Rect;
     if (s.coll === 'walls') {
       (e as Wall).a = [(e as Wall).a[0] + g, (e as Wall).a[1] - g];
@@ -1771,6 +1809,7 @@ export class Editor {
       stair: `Stair (${stairType(this.stairTypeId).name}): A (click) at the start corner, point the climb, A shows the proposal, A accepts`,
       ladder: 'Ladder: A (click) on a wall face or a point; it climbs to the level above',
       hole: `Floor hole (${HOLE_NAMES[this.holeKind] ?? this.holeKind}): drag out a rectangle on the floor`,
+      roof: `Roof (${roofType(this.roofTypeId).name}): A (click) at two corners, or A twice (a click) on a building to take its footprint`,
     };
     this.status(hint[t]);
     this.updateHint();
@@ -2334,6 +2373,16 @@ export class Editor {
       text('name', 'Name');
       sel('kind', 'Kind', HOLE_KINDS.map((k) => [k, HOLE_NAMES[k] ?? k]));
       rect((e as Void).rect);
+    } else if (s.coll === 'roofs') {
+      // ON10: the type list, the eaves height and the outline; the type's own settings follow as stepped rows
+      const rf = e as Roof;
+      text('name', 'Name');
+      rows.push(`<label class="row"><span>Type</span><select data-rooftype>${ROOF_TYPES.map((t) => `<option value="${t.id}" ${rf.type === t.id ? 'selected' : ''}>${t.name}</option>`).join('')}</select></label>`);
+      num('base', 'Eaves height m', rf.base);
+      rect(rf.rect);
+      const w = roofWords(this.model.data, rf);
+      rows.push(`<p id="roofWords" class="${w.steep ? 'bad' : 'dim'}">${esc(w.ridge)}</p>`);
+      if (w.warn) rows.push(`<p class="bad">${esc(w.warn)}</p>`);
     } else if (s.coll === 'ladders') {
       const ld = e as Ladder;
       text('name', 'Name');
@@ -2343,9 +2392,9 @@ export class Editor {
       sel('to', 'To level', this.levelsAbove(ld.from).map((l) => [l.id, `${l.name} (${l.id})`]));
     }
     // ON9: door, window and glass settings, the card's rows, stepped with the mouse (the same step as the D-pad)
-    if (s.coll === 'openings' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
+    if (s.coll === 'openings' || s.coll === 'roofs' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
       const ctx = s.coll === 'openings' ? { rooms: this.model.list('rooms') as Room[], wall: this.model.get<Wall>('walls', (e as Opening).wall) } : {};
-      const set = cardRows(s.coll, s.e, ctx).filter((r) => !['type', 'name', 'w', 'h', 'sill', 'at', 'id', 't', 'len'].includes(r.id));
+      const set = cardRows(s.coll, s.e, ctx).filter((r) => !['type', 'name', 'w', 'h', 'sill', 'at', 'id', 't', 'len', 'width', 'depth', 'base'].includes(r.id));
       for (const r of set) rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);
     }
     // ON2 decision 10: the id, renamed with every reference (Enter keeps it)
@@ -2361,6 +2410,7 @@ export class Editor {
       if (!this.renameSelected((ev.target as HTMLInputElement).value)) this.renderPanel();
     });
     panel.querySelector<HTMLSelectElement>('[data-stairtype]')?.addEventListener('change', (ev) => this.commit([{ coll: 'stairs', id: s.id, before: s.e, after: withStairType(s.e as Stair, (ev.target as HTMLSelectElement).value) }]));
+    panel.querySelector<HTMLSelectElement>('[data-rooftype]')?.addEventListener('change', (ev) => this.commit([{ coll: 'roofs', id: s.id, before: s.e, after: withRoofType(s.e as Roof, (ev.target as HTMLSelectElement).value as RoofType) }]));
     document.getElementById('fitStair')?.addEventListener('click', () => this.fitSelected());
     document.getElementById('turnClimb')?.addEventListener('click', () => this.turnStairClimb());
     $('del').addEventListener('click', () => this.deleteSelected());

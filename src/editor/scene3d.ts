@@ -3,12 +3,14 @@
  * tinted by access level, stairs, ladders, floor holes, pipe runs), picking, selection outlines and drag handles.
  * A dev tool: it rebuilds whole elements on change and never touches the game's renderer.
  */
-import { Color3, Color4, CreateBox, CreateLineSystem, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3 } from '../core/babylon';
+import { Color3, Color4, CreateBox, CreateLineSystem, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3, VertexData } from '../core/babylon';
 import type { AbstractMesh } from '../core/babylon';
 import { cutRect, EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { WallJoin } from './geometry';
 import type { EditorModel } from './model';
-import type { Campus, Coll, Key, Ladder, Level, Opening, Room, Service, Stair, Void, Wall } from './types';
+import type { Campus, Coll, Key, Ladder, Level, Opening, Roof, Room, Service, Stair, Void, Wall } from './types';
+import { roofHex, roofParapets, roofShape, roofTrim } from '../world/maps/kestrelRoofs';
+import type { RoofBox, RoofPlane } from '../world/maps/kestrelRoofs';
 import { keyOf, parseKey } from './types';
 import { buildingAt, DEFAULT_VIS, elementState, explodeOffset } from './visibility';
 import { stairLayout } from '../world/maps/stairs';
@@ -154,6 +156,7 @@ export class EditorScene {
     for (const s of d.stairs) this.build(keyOf('stairs', s.id));
     for (const l of d.ladders) this.build(keyOf('ladders', l.id));
     for (const v of d.voids) this.build(keyOf('voids', v.id));
+    for (const r of d.roofs ?? []) this.build(keyOf('roofs', r.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -210,6 +213,7 @@ export class EditorScene {
     else if (p.coll === 'stairs') [meshes, levels] = this.buildStair(e as Stair);
     else if (p.coll === 'ladders') [meshes, levels] = this.buildLadder(e as Ladder);
     else if (p.coll === 'voids') [meshes, levels] = this.buildVoid(e as Void);
+    else if (p.coll === 'roofs') [meshes, levels] = this.buildRoof(e as Roof);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -472,6 +476,50 @@ export class EditorScene {
     return [[m], [v.level]];
   }
 
+  /**
+   * ON10: a roof from the shared geometry (kestrelRoofs.ts): its planes as one double-sided mesh, the end walls and
+   * glazing under it, parapets or upstands, fascia, gutters and downpipes. Drawn at its eaves height on its level.
+   */
+  private buildRoof(r: Roof): [Mesh[], string[]] {
+    const sh = roofShape(r);
+    const out: Mesh[] = [];
+    const poly = (name: string, planes: readonly RoofPlane[], mat: StandardMaterial): void => {
+      if (!planes.length) return;
+      const pos: number[] = [];
+      const idx: number[] = [];
+      for (const p of planes) {
+        const i0 = pos.length / 3;
+        for (const q of p.pts) pos.push(q[0], q[1], q[2]);
+        for (let i = 1; i + 1 < p.pts.length; i++) idx.push(i0, i0 + i, i0 + i + 1);
+      }
+      const nrm: number[] = [];
+      VertexData.ComputeNormals(pos, idx, nrm);
+      const vd = new VertexData();
+      vd.positions = pos;
+      vd.indices = idx;
+      vd.normals = nrm;
+      const m = new Mesh(name, this.scene);
+      vd.applyToMesh(m);
+      m.material = mat;
+      out.push(m);
+    };
+    const two = (name: string, hex: string, alpha = 1): StandardMaterial => {
+      const m = this.mat(`${name}2`, hex, alpha);
+      m.backFaceCulling = false;
+      return m;
+    };
+    poly(`roof ${r.id}`, sh.planes.filter((p) => p.kind === 'roof'), two('roof', roofHex(r)));
+    poly(`roof ${r.id} ends`, sh.planes.filter((p) => p.kind === 'end'), two('roof-end', '#b9b6ae'));
+    poly(`roof ${r.id} glass`, sh.planes.filter((p) => p.kind === 'glass'), two('roof-glass', '#9fd3ff', 0.45));
+    const box = (b: RoofBox, i: number): void => {
+      const m = this.box(`roof ${r.id} trim ${i}`, b.c[0], b.c[1], b.c[2], b.s[0], b.s[1], b.s[2], b.yaw, this.mat('roof-trim', b.colour));
+      m.rotation.x = b.pitch;
+      out.push(m);
+    };
+    [...roofParapets(r).map((p) => p.box), ...roofTrim(r, this.floorOf(this.data.levels.find((l) => l.id === 'G')?.id ?? r.level))].forEach(box);
+    return [out, [r.level]];
+  }
+
   private buildService(s: Service): void {
     const mat = this.mat('service', '#4f7fa8');
     for (let i = 0; i + 1 < s.path.length; i++) {
@@ -491,7 +539,12 @@ export class EditorScene {
     for (const ms of this.nodes.values()) {
       for (const m of ms) {
         const meta = m.metadata as Meta;
-        const st = elementState(s, this.data.levels, this.level, meta.levels, meta.building);
+        let st = elementState(s, this.data.levels, this.level, meta.levels, meta.building);
+        // ON10: with Cut walls at on, a roof above the cut is hidden (a gatehouse roof drawn on Ground hides its rooms)
+        if (st !== 'hidden' && meta.key.startsWith('roofs:') && this.cut < Infinity) {
+          const rf = this.model.get<Roof>('roofs', meta.key.slice(6));
+          if (rf && rf.base > this.floorOf(this.level) + this.cut) st = 'hidden';
+        }
         m.setEnabled(st !== 'hidden');
         m.visibility = st === 'ghost' ? 0.12 : 1;
         m.isPickable = st === 'shown';

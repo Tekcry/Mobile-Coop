@@ -4,7 +4,8 @@
     "standHeight": { "value": 1.75, "src": "F01" },
     "crouchHeight": { "value": 1.15, "src": "F01" },
     "radius": { "value": 0.3, "src": "F01" },
-    "maxStep": { "value": 0.42, "src": "F03" }
+    "maxStep": { "value": 0.42, "src": "F03" },
+    "maxSlope": { "value": 50, "src": "src/player/playerController.ts maxSlopeCosine = cos 50 degrees (steepest ground the player stands on; tests/editor/roofGeometry.test.ts keeps them equal)" }
   },
   "reach": {
     "grabMin": { "value": 1.6, "src": "F05" },
@@ -81,6 +82,13 @@
     "featureWidth": { "value": 2.4, "src": "scale-sheet s3" },
     "mainWidth": { "value": 1.85, "src": "handover Decisions Main stair (standards-check.mjs main stair minimum); ON2 editor default for a main stair" },
     "midLanding": { "value": 2.0, "src": "scale-sheet s3" }
+  },
+  "roof": {
+    "fallMin": { "value": 1, "src": "ON10 brief (Michael 2026-10-13): flat roof fall 1-2 degrees" },
+    "fallMax": { "value": 2, "src": "ON10 brief (Michael 2026-10-13): flat roof fall 1-2 degrees" },
+    "upstand": { "value": 0.3, "src": "ON10 brief (Michael 2026-10-13): upstand 0.3 with no parapet" },
+    "overhangMax": { "value": 1.0, "src": "ON10 brief (Michael 2026-10-13): overhang 0-1.0 m" },
+    "levelTol": { "value": 0.05, "src": "ON10: a flat roof top within this of the roof level's floor matches it" }
   },
   "ladder": {
     "shaft": { "value": 1.0, "src": "scale-sheet s3" },

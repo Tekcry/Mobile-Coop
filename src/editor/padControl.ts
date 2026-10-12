@@ -31,10 +31,11 @@ import type { MenuInput, ViewState } from './tileMenu';
 import { NamePick, TileMenuView } from './tileMenuView';
 import type { Mark } from './scene3d';
 import { presetPicks } from './visibility';
-import type { Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Wall } from './types';
+import type { Coll, Elem, Key, Ladder, Opening, Pt, Rect, Roof, Room, Stair, Wall } from './types';
 import { keyOf, parseKey } from './types';
 import { climbWords, HOLE_KINDS, HOLE_NAMES, levelAbove, proposeLadder, STAIR_TYPES, stairFit, stairType } from './vertical';
 import type { StairTypeId } from './vertical';
+import { footprintAt, ROOF_TYPES, roofType, roofWords } from './roofGeometry';
 
 type Focus = '3d' | 'drawer';
 /** Tool names on the tool bar, which shows the active tool only (ON0a: the Y menu picks tools). */
@@ -47,6 +48,7 @@ const BAR = [
   ['stair', 'Stair'],
   ['ladder', 'Ladder'],
   ['hole', 'Floor hole'],
+  ['roof', 'Roof'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -352,6 +354,10 @@ export class PadControl {
       tool('stair');
     } else if (id === 'build.ladder') tool('ladder');
     else if (id === 'build.hole') tool('hole');
+    else if (id.startsWith('roof.')) {
+      ed.setRoofType(roofType(id.slice(5)).id);
+      tool('roof');
+    }
     else if (id === 'sel.fit') ed.fitSelected();
     else if (id === 'sel.turnClimb') ed.turnStairClimb();
     else if (id === 'sel.rename') this.openRename();
@@ -402,6 +408,11 @@ export class PadControl {
       const k = HOLE_KINDS[(i + dir + HOLE_KINDS.length) % HOLE_KINDS.length]!;
       ed.setHoleKind(k);
       ed.status(`Floor hole: ${HOLE_NAMES[k] ?? k}`);
+    } else if (ed.tool === 'roof') {
+      const i = ROOF_TYPES.findIndex((t) => t.id === ed.roofTypeId);
+      const t = ROOF_TYPES[(i + dir + ROOF_TYPES.length) % ROOF_TYPES.length]!;
+      ed.setRoofType(t.id);
+      ed.status(`Roof: ${t.name}`);
     }
   }
 
@@ -463,7 +474,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const cur = typeof s.e.name === 'string' ? s.e.name : '';
-    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole', levels: 'Level', buildings: 'Building', objects: 'Object' }[s.coll];
+    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole', roofs: 'Roof', levels: 'Level', buildings: 'Building', objects: 'Object' }[s.coll];
     this.latchSticks();
     this.names.open(`${what} name`, nameList(ed.model.list(s.coll)), cur, (name) => {
       this.latchSticks();
@@ -768,7 +779,7 @@ export class PadControl {
   private grabShape(): GrabShape | null {
     const s = this.ed.selectedElem();
     if (!s || this.ed.levelOf(s.coll, s.e) !== this.ed.view.level) return null;
-    if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids') return { kind: 'rect', rect: (s.e as Room).rect };
+    if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs') return { kind: 'rect', rect: (s.e as Room).rect };
     if (s.coll === 'walls') {
       const w = s.e as Wall;
       return { kind: 'wall', a: w.a, b: w.b, t: w.t };
@@ -1008,13 +1019,13 @@ export class PadControl {
     const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : '';
+    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : '';
     $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
@@ -1037,7 +1048,10 @@ export class PadControl {
       // ON2: a stair says whether it fits ("Needs 1.4 m more length for 25 risers"; Selected > Fit)
       const fit = s.coll === 'stairs' ? stairFit(ed.model.data, s.e as Stair) : null;
       const fitLine = fit ? `<div class="${fit.ok ? 'dim' : 'bad'}" data-fit>${esc(fit.ok ? `Fits: ${fit.size?.risers ?? ''} risers` : fit.words.replace(/ \(the file says.*$/, ''))}</div>` : '';
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON10: a roof's ridge and whether the game lets the player stand on it; a flat roof against its roof level
+      const rw = s.coll === 'roofs' ? roofWords(ed.model.data, s.e as Roof) : null;
+      const roofLine = rw ? `<div class="${rw.steep ? 'bad' : 'dim'}" data-roof>${esc(rw.ridge)}</div>${rw.warn ? `<div class="bad">${esc(rw.warn)}</div>` : ''}` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1189,9 +1203,10 @@ export class PadControl {
       }
       key = `l|${p[0]},${p[1]}`;
       void climbWords;
-    } else if (ed.tool === 'room' || ed.tool === 'wall' || ed.tool === 'hole') {
+    } else if (ed.tool === 'room' || ed.tool === 'wall' || ed.tool === 'hole' || ed.tool === 'roof') {
       if (p) {
-        words = ed.tool === 'hole' ? `A: start a floor hole (${HOLE_NAMES[ed.holeKind] ?? ed.holeKind}) here` : `A: start a ${ed.tool} here`;
+        const fp = ed.tool === 'roof' ? footprintAt(ed.model.data, ed.view.level, p[0], p[1]) : null;
+        words = ed.tool === 'roof' ? `A: start a ${roofType(ed.roofTypeId).name.toLowerCase()} roof here${fp ? `; A twice: on the ${fp.what}` : ''}` : ed.tool === 'hole' ? `A: start a floor hole (${HOLE_NAMES[ed.holeKind] ?? ed.holeKind}) here` : `A: start a ${ed.tool} here`;
         key = `s|${p[0]},${p[1]}`;
         marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' }, { x: p[0], y: f + 0.03, z: p[1], sx: 0.8, sy: 0.06, sz: 0.8, dx: 1, dz: 0, look: 'ghost' });
         plan.push({ kind: 'ring', p });

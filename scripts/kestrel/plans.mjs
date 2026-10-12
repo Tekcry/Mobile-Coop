@@ -7,6 +7,8 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
 import { launchOptions } from '../e2e-lib.mjs';
+// ON10: the roof geometry is the game's own (one copy; Node strips the types)
+import { roofPlan } from '../../src/world/maps/kestrelRoofs.ts';
 import { clearRect, findLevel, inRect, loadFacts, readJson, rectCentre, wallLength, wallPoint } from './lib.mjs';
 
 // ---------- arguments ----------
@@ -294,6 +296,27 @@ function voidSym(v) {
   const ink = `stroke="#333" stroke-width="${R('thinStroke')}"`;
   return rectEl(r, `fill="none" ${ink} stroke-dasharray="${R('dashMid')}"`)
     + lineEl([r[0], r[1]], [r[2], r[3]], ink) + lineEl([r[0], r[3]], [r[2], r[1]], ink);
+}
+
+// ON10: a roof on the plan of the level it was drawn on: the overhang dashed, the wall line thin, ridge and hip lines,
+// arrows down the slope (the fall on a flat roof) and the ridge and eaves heights
+function roofSym(rf) {
+  const pl = roofPlan(rf);
+  const ink = `stroke="#7a4b2a" stroke-width="${R('leafStroke')}"`;
+  let out = rectEl(pl.outer, `fill="none" ${ink} stroke-dasharray="${R('dashMid')}"`) + rectEl(pl.wall, `fill="none" stroke="#7a4b2a" stroke-width="${R('thinStroke')}"`);
+  for (const [a, b] of [...pl.ridges, ...pl.hips]) out += lineEl(a, b, ink);
+  for (const ar of pl.arrows) {
+    out += lineEl(ar.at, ar.to, ink);
+    const dx = X(ar.to[0]) - X(ar.at[0]);
+    const dy = Y(ar.to[1]) - Y(ar.at[1]);
+    const L = Math.sqrt(dx * dx + dy * dy) || 1;
+    const t = R('dotR') * 2;
+    const [ux, uy] = [dx / L, dy / L];
+    const tip = [X(ar.to[0]), Y(ar.to[1])];
+    out += polyPx([tip, [tip[0] - ux * t - uy * t / 2, tip[1] - uy * t + ux * t / 2], [tip[0] - ux * t + uy * t / 2, tip[1] - uy * t - ux * t / 2]], 'fill="#7a4b2a"');
+  }
+  for (const lb of pl.labels) out += textAt(lb.at, 2, -2, lb.text, R('fontSmall'), `fill="#7a4b2a" ${HALO()}`);
+  return `<g data-id="roofs:${esc(rf.id)}">${out}</g>`;
 }
 
 const levelSpan = (l) => [l.floor, l.floor + l.height];
@@ -632,6 +655,7 @@ function baseLayers(level) {
   }
   for (const l of arch.ladders ?? []) if (l.from === level.id || l.to === level.id) out += ladderSym(l);
   for (const v of (arch.voids ?? []).filter(here)) out += voidSym(v);
+  for (const rf of (arch.roofs ?? []).filter(here)) out += roofSym(rf);
   const [lo, hi] = levelSpan(level);
   for (const e of arch.exterior ?? []) {
     if (e.y1 < lo || e.y0 > hi || !touchesLevel(level, [e.a, e.b])) continue;

@@ -5,6 +5,8 @@
  * ladders and solid service boxes. No coordinate is typed here; everything comes from the file. The B0 path
  * (`kestrel.blocks.json`) does not pass through this module.
  */
+import { roofWalkPieces } from './kestrelRoofs';
+import type { Dir, RoofBox, RoofData, RoofPane } from './kestrelRoofs';
 import type { ArchLevel, ArchOpening, ArchRoom, ArchStair, ArchVoid, ArchWall, KestrelArch, Pt, Rect4 } from './kestrelGeo';
 
 export interface CampusLadder {
@@ -34,6 +36,8 @@ export interface CampusFile {
   ladders?: CampusLadder[];
   voids: ArchVoid[];
   services?: CampusService[];
+  /** ON10: roofs (kestrelRoofs.ts). */
+  roofs?: RoofData[];
 }
 
 export interface LadderPlace {
@@ -54,6 +58,9 @@ export interface CampusBuild {
   arch: KestrelArch;
   ladders: LadderPlace[];
   solids: SolidBox[];
+  /** ON10: every roof as boxes (strips on a slope) and its glazing as panes. */
+  roofBoxes: RoofBox[];
+  roofPanes: RoofPane[];
 }
 
 /** Compass letter to yaw: north = +Z = 0, east = +X = 90 degrees (docs/kestrel/00-facts.md section 2). */
@@ -109,7 +116,47 @@ export function campusToBuild(f: CampusFile): CampusBuild {
       solids.push({ id: `${sv.id}.${i}`, c, s: dx >= dz ? [dx, dy + h, w] : [w, dy + h, dz] });
     }
   }
-  return { arch, ladders, solids };
+  const roofBoxes: RoofBox[] = [];
+  const roofPanes: RoofPane[] = [];
+  for (const r of f.roofs ?? []) {
+    const pc = roofWalkPieces(r, roofContext(f, r));
+    roofBoxes.push(...pc.boxes);
+    roofPanes.push(...pc.panes);
+  }
+  return { arch, ladders, solids, roofBoxes, roofPanes };
+}
+
+/**
+ * What the file already builds round a roof (ON10 decisions 5 and 6): roof lights (voids of kind `rooflight` over it,
+ * on a level at its height) cut through it; a flat roof's slab is left out where a level floor at its top already covers
+ * it (level R's roof rooms), and its parapet on an edge that already has a parapet wall there.
+ */
+export function roofContext(f: Pick<CampusFile, 'levels' | 'rooms' | 'walls' | 'voids'>, r: RoofData): { cuts: number[][]; slabCovered: boolean; walledEdges: Dir[]; ground: number } {
+  const near = (id: string, tol: number): boolean => {
+    const l = f.levels.find((q) => q.id === id);
+    return !!l && Math.abs(l.floor - r.base) <= tol;
+  };
+  const [x0, z0, x1, z1] = r.rect;
+  const ov = (q: readonly number[]): number => Math.max(0, Math.min(x1, q[2]!) - Math.max(x0, q[0]!)) * Math.max(0, Math.min(z1, q[3]!) - Math.max(z0, q[1]!));
+  const cuts = f.voids.filter((v) => v.kind === 'rooflight' && (v.level === r.level || near(v.level, 0.5)) && ov(v.rect) > 0).map((v) => v.rect.slice());
+  const covered = f.rooms.filter((q) => near(q.level, 0.05)).reduce((a, q) => a + ov(q.rect), 0);
+  const slabCovered = r.type === 'flat' && covered >= (x1 - x0) * (z1 - z0) * 0.99;
+  const walledEdges: Dir[] = [];
+  const edges: [Dir, number, number, number, 0 | 1][] = [
+    ['S', z0, x0, x1, 1],
+    ['N', z1, x0, x1, 1],
+    ['W', x0, z0, z1, 0],
+    ['E', x1, z0, z1, 0],
+  ];
+  for (const [d, v, lo, hi, axis] of edges) {
+    // a parapet wall within a wall's thickness of the edge, along at least half of it
+    const run = f.walls
+      .filter((w) => w.kind === 'parapet' && near(w.level, 0.05) && Math.abs(w.a[axis] - v) <= w.t && Math.abs(w.b[axis] - v) <= w.t)
+      .reduce((a, w) => a + Math.max(0, Math.min(hi, Math.max(w.a[1 - axis]!, w.b[1 - axis]!)) - Math.max(lo, Math.min(w.a[1 - axis]!, w.b[1 - axis]!))), 0);
+    if (run >= (hi - lo) / 2) walledEdges.push(d);
+  }
+  const ground = f.levels.find((l) => l.id === 'G')?.floor ?? 0;
+  return { cuts, slabCovered, walledEdges, ground };
 }
 
 /**
