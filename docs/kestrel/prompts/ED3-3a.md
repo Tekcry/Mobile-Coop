@@ -1,6 +1,6 @@
 # ED3-3a - Rooms make their walls, walls follow rooms, Split, plus two fixes from the ED2-B review
 Model: Opus, medium effort.
-Decisions: 18
+Decisions: 19
 
 Start message: `Run docs/kestrel/prompts/ED3-3a.md`. Status: runs after ED3-pad1 (Michael's first pad notes) has committed
 and Michael has tried it. If he has more pad notes, a planner session folds them in first. One session. This is the first
@@ -12,7 +12,7 @@ and guide lines) is written after this part commits. The ED2 "Every part" rules
 1. `git checkout feature/kestrel && git pull`. Confirm the branch and a clean tree.
 2. Preconditions (stop and report if one fails): `src/editor/gameWalk.ts`, `src/editor/grab.ts`, `src/editor/hub.ts`
    exist; `grep -n "wallInterior\|wallExterior" scripts/kestrel/facts.json` shows both (0.3 and 0.45);
-   `timeout 300 npm run e2e:editor` passes (every step ok; 71 before ED3-pad1 added its steps);
+   `timeout 300 npm run e2e:editor` passes (77 ok after ED3-pad1; the View-hold step may fail once on timing, rerun);
    `grep -n "L3 run" src/editor/main.ts` shows the ED3-pad1 walk note.
 3. Print a plan of at most 10 lines.
 
@@ -64,6 +64,7 @@ interior 0.3 (58), exterior 0.45 (35), boundary 0.45 (12), parapet 0.45 (18). `s
 | 16 | **Smarter A words**: grab.ts's hint for a room edge and a room move uses the linked-edit words above (9, 10) when "Walls follow rooms" is on; constants stay in grab.ts's table. |
 | 17 | **Fix: tests never write the real files** (ED2-B incident): the editor server takes `KESTREL_EDITOR_SANDBOX=<dir>`; when set, it loads from and saves the campus file, plan images and change logs into that folder (copied from `docs/kestrel` at start) and never under `docs/kestrel`. `scripts/e2e-editor.mjs` always sets it to a temp folder, and gains one step that saves once and then checks `git status --porcelain docs/kestrel` is empty. The "saves only at count 0" guard stays. |
 | 18 | **Fix: the draft is local only**: `GET /__editor/draft` answers only `isLocal` requests (editor-server.ts line 54), like the POST; the game iframe is same-origin, so the walk test is unaffected. |
+| 19 | **Fix: field changes in plain words** (left from ED3-pad1): `describeChange` (ops.ts) words a kind or type change as "Changed to balustrade wall" / "Changed to double door" / "Changed to corridor", a name change as now, a number as 'Height 3 m to 3.6 m', a flag as "Now locked" / "Now unlocked"; never raw JSON quotes. Vitest for each. |
 
 ## 3. Out of scope
 Wall chains, door centring between cross walls, live sizes and distances, guide lines (ED3-3b); clickable problems,
