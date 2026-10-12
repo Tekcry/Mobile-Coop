@@ -1,6 +1,6 @@
 # ON0a - Controller rework: tile build menu, selection card on the D-pad, quick view toggles
 Model: Opus, medium effort.
-Decisions: 16
+Decisions: 17
 
 Read `ED-overnight.md` section 5 first. Then: `docs/kestrel/editor.md` sections "Controller", "The wheels", "The hub",
 "Screen"; `docs/kestrel/editor-controller-review.md` sections 3-4 (principles and the old scheme); `src/editor/actions.ts`
@@ -23,12 +23,13 @@ a menu. Properties must be quick. Ghosting, exploded view and the like must be e
 | 6 | **View tab** (also Hub > View): big toggles for Ghost other levels, Exploded (with the gap as a left / right slider), Cut walls at (height slider), Levels shown (up to this, single, whole), Building filter, Small plan, Labels, plus the later parts' views (stealth, finishes, lighting, darkness map). One tile press, no deep menus. R3 keeps cycling Levels shown. |
 | 7 | **Hint bar** (pad) follows the new state: building with nothing selected "A Select, Y Menu, X Undo, L3 Walk, Menu Hub"; with a selection "D-pad Edit, A Grab, Y Menu, B Clear, RB Go to"; menu open "D-pad Move, A Pick, LB/RB Tab, B Close". At most 5. |
 | 8 | **Settings friendlier**: Hub > Settings rows are plain toggles and sliders with the value shown large; add "Menu opens on: last tab / Build tab", "Repeat speed" for held D-pad, and the camera settings ON0b adds. |
+| 8b | **Analogue sticks in every menu** (Michael, 2026-10-13): the hub (tabs, rows, Settings, Levels, Checks, File lists), the tile menu, the selection card in edit mode, name lists and the on-screen keyboard all take the left stick as well as the D-pad: a push past the dead zone moves one step at once, held it repeats after 0.35 s and speeds up; left / right on a slider row (speeds, gap, cut height, lengths) changes the value, faster the further the stick is pushed; the right stick scrolls long lists and the help page. One shared pure stick-to-steps helper (Vitest: dead zone, first step, repeat, acceleration), used by every menu. |
 | 9 | **Remove** the radial wheels from the pad (`radial.ts` stays only if the mouse still uses hold-Space; prefer the tile menu for the mouse too and delete the wheel code if nothing else uses it; e2e steps that used wheels move to the tile menu). |
 | 10 | **Later briefs**: where ON1-ON12 say "Build wheel" or "Selection wheel", the agent uses the tile menu's matching tab and the Selected tab; where they say "D-pad", the ON0a scheme. Write this rule into editor.md so later agents find it. |
 | 11 | Controller help (Hub > Help picture and table) regenerated from the action map, no stale wheel words. |
 | 12 | Nothing overlaps: the tile menu, card, tool bar, strip, dot words and hint bar at 1280 x 720, 1024 x 600, 932 x 430 (the existing overlap step extended with the menu open and with the card in edit mode). |
 | 13 | Vitest: tile menu model (tabs per selection, tile order, navigation wrap, remembered tab), card rows per element kind (Type first), step sizes (0.1 m, lists, flags), merge of quick consecutive changes into one undo step. |
-| 14 | e2e: Y tap opens the menu, LB / RB changes tab, D-pad and A pick Wall, Y closes; select a door, D-pad right on Type changes it to the next door type (one undo step), D-pad down to Width, right three times = +0.3 m; nothing selected: D-pad up changes level; View tab toggles Ghost and Exploded. Old wheel steps rewritten. |
+| 14 | e2e: Y tap opens the menu, LB / RB changes tab, D-pad and A pick Wall, Y closes; select a door, D-pad right on Type changes it to the next door type (one undo step), D-pad down to Width, right three times = +0.3 m; nothing selected: D-pad up changes level; View tab toggles Ghost and Exploded; the left stick moves the tile highlight and a Settings row, and pushes a slider value; the right stick scrolls the Checks list. Old wheel steps rewritten. |
 | 15 | Screenshots: the menu on the Build tab, the Selected tab, the card in edit mode with the Type row lit, the View tab. |
 | 16 | editor.md: the new controller tables (building, selection card, menu), the rule of decision 10, removed wheels. |
 
