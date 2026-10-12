@@ -6,7 +6,7 @@
 import type { FreeCamera } from '../core/babylon';
 import { collide } from './geometry';
 import type { Obb } from './geometry';
-import { OrbitCam, orbitFromPose } from './orbit';
+import { OrbitCam, orbitFromPose, blendPose, type CamPose } from './orbit';
 import type { OrbitInput } from './orbit';
 
 export type CamMode = 'fly' | 'walk' | 'orbit';
@@ -140,7 +140,38 @@ export class CameraControls {
     return (this.crouched ? CROUCH : STAND) - EYE_DROP;
   }
 
+  /** The walk test's swap (ED2 Part B): the camera eases between the editor's pose and the game camera's; input waits. */
+  blend: { from: CamPose; to: CamPose; t: number; dur: number; done: () => void; at?: number } | null = null;
+
+  /** The camera's pose now (position, angles, field of view). */
+  pose(): CamPose {
+    const p = this.camera.position;
+    return { pos: [p.x, p.y, p.z], yaw: this.yaw, pitch: this.pitch, fov: this.camera.fov };
+  }
+
+  /** Puts the camera at a pose at once. */
+  setPose(c: CamPose): void {
+    this.camera.position.set(c.pos[0], c.pos[1], c.pos[2]);
+    this.yaw = c.yaw;
+    this.pitch = c.pitch;
+    this.camera.fov = c.fov;
+    this.camera.rotation.set(this.pitch, this.yaw, 0);
+  }
+
   update(dt: number): void {
+    const b = this.blend;
+    if (b) {
+      // wall-clock time, so a slow frame never stretches the swap
+      const now = performance.now() / 1000;
+      b.t += Math.max(0, now - (b.at ?? now));
+      b.at = now;
+      this.setPose(blendPose(b.from, b.to, b.dur > 0 ? b.t / b.dur : 1));
+      if (b.t >= b.dur) {
+        this.blend = null;
+        b.done();
+      }
+      return;
+    }
     if (this.mode === 'orbit') return this.updateOrbit(dt);
     const k = this.keys;
     const fast = k.has('ShiftLeft') || k.has('ShiftRight');

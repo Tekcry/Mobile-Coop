@@ -22,10 +22,11 @@ describe('hub tabs and rows', () => {
     expect(stepTab('File', 1)).toBe('Checks');
   });
 
-  it('Play: quick walk, and the walk test greyed until the next part', () => {
+  it('Play: quick walk, and the walk test as the player (enabled)', () => {
     const r = hubRows('Play', input);
     expect(r.map((x) => x.text)).toEqual(['Quick walk at the dot', 'Walk test as the player']);
-    expect(r[1]).toMatchObject({ disabled: true, note: 'Comes in the next part' });
+    expect(r[1]!.disabled).toBeFalsy();
+    expect(r[1]!.id).toBe('play.walk');
   });
 
   it('File: save with the unsaved count, revert, the change list newest first', () => {

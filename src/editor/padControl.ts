@@ -269,11 +269,24 @@ export class PadControl {
   }
 
   // ---------- every frame ----------
+  /** After the walk test, buttons still held from the game are read but do nothing until all are released. */
+  private settling = false;
+
   private frame(): void {
     const now = performance.now() / 1000;
     const dt = Math.min(0.05, Math.max(0, now - (this.lastNow || now)));
     this.lastNow = now;
+    // the game has the pad while its walk test is easing in or playing: no read here, so a press is never seen twice
+    if (this.ed.walk.blocking) {
+      this.settling = true;
+      return;
+    }
     const gp = this.gamepad();
+    if (this.settling) {
+      if (gp) this.st.update({ buttons: gp.buttons.map((b) => b.value), axes: gp.axes }, now);
+      if (gp && gp.buttons.some((b) => b.value > 0.5)) return;
+      this.settling = false;
+    }
     const c = this.ed.controls;
     c.padMove = { x: 0, y: 0 };
     c.padLook = { x: 0, y: 0 };

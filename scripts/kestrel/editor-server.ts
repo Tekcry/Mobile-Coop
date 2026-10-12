@@ -104,6 +104,7 @@ export function kestrelEditor(): Plugin {
       root = c.root;
     },
     configureServer(server) {
+      let draftText = '';
       server.middlewares.use(async (req, res, next) => {
         const url = new URL(req.url ?? '/', 'http://x');
         if (!url.pathname.startsWith('/__editor/')) return next();
@@ -120,9 +121,19 @@ export function kestrelEditor(): Plugin {
             res.setHeader('content-disposition', 'attachment; filename="kestrel-editor.crt"');
             return send(res, 200, 'application/x-x509-ca-cert', readFileSync(f, 'utf8'));
           }
+          // the walk test's draft (ED2 Part B): the editor's campus held in this server's memory, never written to disk
+          if (url.pathname === '/__editor/draft' && req.method === 'GET') {
+            return draftText ? send(res, 200, 'application/json', draftText) : json(res, { error: 'no draft' }, 404);
+          }
           if (req.method !== 'POST') return json(res, { error: 'POST only' }, 405);
           if (!isLocal(req)) return json(res, { error: 'the editor only runs on this PC (localhost)' }, 403);
-          const data = JSON.parse(await body(req)) as Record<string, unknown>;
+          const raw = await body(req);
+          const data = JSON.parse(raw) as Record<string, unknown>;
+          if (url.pathname === '/__editor/draft') {
+            if (!Array.isArray(data.levels) || !data.meta) return json(res, { error: 'no campus' }, 400);
+            draftText = raw;
+            return json(res, { ok: true });
+          }
 
           if (url.pathname === '/__editor/plan') {
             const level = url.searchParams.get('level') ?? '';

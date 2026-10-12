@@ -220,6 +220,10 @@ export class HubView {
       this.close();
       return ed.quickWalk();
     }
+    if (id === 'play.walk') {
+      this.close();
+      return ed.gameWalk();
+    }
     if (id === 'file.save') await ed.save();
     else if (id === 'file.revert') await ed.revert();
     else if (id.startsWith('undo.') && press) {

@@ -76,7 +76,7 @@ describe('Kestrel campus converter (editor walk test)', () => {
     expect(w.yaw).toBeCloseTo(-Math.PI / 2, 6);
     expect(w.y1).toBeGreaterThan(w.y0);
     const rack = solids[0]!;
-    const bridge = campus.levels.find((l) => l.id === 'F')!.footprint as number[][];
+    const bridge = campus.levels.find((l) => l.id === 'F')!.footprint as unknown as number[][];
     const link = bridge.find((r) => r[0] === 40 && r[2] === 52)!;
     expect(rack.c[2] - rack.s[2] / 2).toBeGreaterThanOrEqual(link[3]!);
   });

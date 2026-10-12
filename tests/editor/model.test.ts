@@ -118,8 +118,9 @@ describe('net unsaved count (ED2 Part B)', () => {
     m.commit(`moved ${id}`, [{ coll: 'rooms', id, before, after: { ...before, rect: [r[0] + dx, r[1], r[2] + dx, r[3]] } }]);
   };
 
-  it('edit, undo = 0; edit, edit, undo = 1', () => {
+  it('edit, undo = 0; edit, edit, undo = 1 (also read by a listener during each change)', () => {
     const m = new EditorModel(tiny());
+    m.onChange(() => void m.dirty);
     move(m, 'R1', 1);
     expect(m.dirty).toBe(1);
     m.undo();

@@ -203,12 +203,17 @@ async function boot(): Promise<void> {
   // tests: a shorter flight
   (window as unknown as { __bench: typeof BENCH }).__bench = BENCH;
 
+  // dev only (the level editor's walk test): the editor's unsaved campus, fetched before the map builds; the production
+  // build drops this branch and its module
+  const editorWalk = import.meta.env.DEV && flags.devDraft ? await import('./dev/editorBridge') : null;
+  if (editorWalk) await editorWalk.loadDraft();
   if (flags.autostart) {
     // infiltration: the mission picks its map
     const mission = flags.mode === 'infiltration' ? missionById(flags.mission ?? '') ?? MISSIONS.find((m) => m.map === flags.autostart) ?? MISSIONS[0]! : null;
     startGame({ map: getMap(mission ? mission.map : flags.autostart), mode: flags.mode ?? 'sandbox', seed: 1, difficulty: parseDifficulty(flags.difficulty), missionId: mission?.id, insertion: flags.insertion ?? undefined, weather: flags.weather ?? undefined, loadout: flags.loadout ? flags.loadout.filter((w): w is WeaponId => (WEAPON_IDS as readonly string[]).includes(w)).map((id) => ({ id })) : undefined });
   }
   else goToMenu();
+  editorWalk?.attach(app);
   if (flags.coop && flags.room && !flags.autostart) {
     const room = flags.room;
     void loadCoop().then((m) => m.openJoinLink(app, coopApi, room));

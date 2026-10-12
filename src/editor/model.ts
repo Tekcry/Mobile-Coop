@@ -131,6 +131,8 @@ export class EditorModel {
     this.applyForward(edit);
     this.past.push(edit);
     this.future.length = 0;
+    // (listeners ran before the push: the count is read fresh next time)
+    this.version++;
     this.record('edit', edit);
     return true;
   }
@@ -154,6 +156,7 @@ export class EditorModel {
     if (!edit) return null;
     this.applyForward(edit);
     this.past.push(edit);
+    this.version++;
     this.record('redo', edit);
     return edit;
   }

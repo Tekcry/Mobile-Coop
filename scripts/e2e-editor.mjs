@@ -1,4 +1,4 @@
-// Level editor controller test (ED2 Part C, ED3-1 builder camera, ED3-2 hub, wheels, grab, magnet, ghosts): every edit step uses the fake gamepad. Starts its own Vite dev server on
+// Level editor controller test (ED2 Part C, ED3-1 builder camera, ED3-2 hub, wheels, grab, magnet, ghosts; ED2 Part B walk test as the player): every edit step uses the fake gamepad. Starts its own Vite dev server on
 // a free port (the editor is dev-only, never in dist/). Never saves. `npm run e2e:editor`; SHOTS=<dir> keeps screenshots.
 import { spawn } from 'node:child_process';
 import { mkdirSync } from 'node:fs';
@@ -432,10 +432,133 @@ try {
   await page.reload();
   await page.waitForFunction(() => window.__editor?.pad, null, { timeout: 90000 });
   assert((await E(() => window.__editor.pad.settings.rumble)) === false, 'the rumble setting survives a reload');
+
+  console.log('Walk test as the player (ED2 Part B)');
+  if (await E(() => !document.getElementById('ask').classList.contains('hidden'))) await page.click('#discard');
+  // (the reload above disconnected the fake pad)
+  await E(() => window.__pad.connect());
+  await press(BTN.LB);
+  const gf = () => page.frames().find((f) => f.url().includes('editorDraft=1'));
+  const walkIs = (s, ms = 60000) => page.waitForFunction((s) => window.__editor.walk.state === s, s, { timeout: ms });
+  const dot = (x, z, yaw, level = 'G') => E(([x, z, yaw, level]) => { const ed = window.__editor; ed.setLevel(level); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); const s = ed.controls.orbit.s; s.tx = x; s.tz = z; s.yaw = yaw; }, [x, z, yaw, level]).then(() => frames(page, 4));
+  const player = () => gf().evaluate(() => { const g = window.__app.current; const p = g.player.position; return { x: p.x, y: p.y, z: p.z, yaw: g.player.cam.yaw, pyaw: g.player.controller.yaw }; });
+  const edState = () => E(() => { const ed = window.__editor; const o = ed.controls.orbit.s; return { h: ed.model.history.length, dirty: ed.model.dirty, level: ed.view.level, tx: o.tx, tz: o.tz, mode: ed.controls.mode, shown: document.getElementById('gameWalk')?.style.opacity === '1', loads: ed.walk.loads, last: ed.walk.last }; });
+  const turnDiff = (a, b) => Math.abs(Math.atan2(Math.sin(a - b), Math.cos(a - b)));
+  // every frame: the walk state, whether the game is shown, and the editor camera
+  await E(() => { window.__swap = []; const step = () => { const ed = window.__editor; const f = document.getElementById('gameWalk'); window.__swap.push({ st: ed.walk.state, op: f ? f.style.opacity : '', cam: ed.controls.pose().pos }); requestAnimationFrame(step); }; requestAnimationFrame(step); });
+  const backCheck = async (how, before) => {
+    await walkIs('warm', 20000);
+    await page.waitForFunction(() => !window.__editor.controls.blend && window.__swap.at(-1).st === 'warm', null, { timeout: 20000 });
+    // the first frame drawn after the game reported back
+    const first = await E(() => { const s = window.__swap; let i = s.length - 1; while (i > 0 && s[i - 1].st === 'warm') i--; return s[i]; });
+    const a = await edState();
+    const d = Math.hypot(...first.cam.map((v, i) => v - a.last.cam.pos[i]));
+    assert(d < 0.1, `${how}: the editor camera's first frame is the game camera (${d.toFixed(3)} m)`);
+    assert(!a.shown && a.level === a.last.level && Math.hypot(a.tx - a.last.x, a.tz - a.last.z) < 0.5 && a.h === before.h && a.dirty === before.dirty, `${how}: game hidden, editing ${a.level}, orbit on the player, undo ${a.h} and unsaved ${a.dirty} unchanged`);
+  };
+
+  await dot(83, 43, 0.5);
+  await press(BTN.START);
+  await E(() => window.__editor.pad.hub.setTab('Play'));
+  await press(BTN.DOWN);
+  const before1 = await edState();
+  await press(BTN.A);
+  await walkIs('open', 90000);
+  let p = await player();
+  assert(Math.hypot(p.x - 83, p.z - 43) < 0.5 && Math.abs(p.y) < 0.3 && turnDiff(p.yaw, 0.5) < 0.0873, `Hub > Play > Walk test: the player stands at the dot in the data hall (x ${p.x.toFixed(2)}, z ${p.z.toFixed(2)}, y ${p.y.toFixed(2)}, facing ${p.yaw.toFixed(2)})`);
+  const swap = await E(() => { const s = window.__swap; const i = s.findIndex((f) => f.op === '1'); return { early: s.some((f) => f.op === '1' && f.st !== 'open'), atShow: s[i]?.cam, game: window.__editor.walk.last.cam.pos }; });
+  const dIn = Math.hypot(...swap.atShow.map((v, i) => v - swap.game[i]));
+  assert(!swap.early && dIn < 0.1, `seamless in: the game shows only after it reports ready, the editor camera on the game camera (${dIn.toFixed(3)} m)`);
+  const readout = await gf().evaluate(() => document.getElementById('walkReadout')?.textContent ?? '');
+  assert(/x 83\.0, z 43\.0, Ground floor/.test(readout) && /Doors are open gaps/.test(readout), `corner readout ("${readout}")`);
+  await shot('walk-game');
+  await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+  await backCheck('F10', before1);
+  await shot('walk-back');
+
+  console.log('second walk, no edits: the warm game teleports; the pause screen comes back');
+  const loads1 = (await edState()).loads;
+  await dot(80, 40, -1);
+  await page.keyboard.press('Tab');
+  await walkIs('open', 30000);
+  p = await player();
+  assert((await edState()).loads === loads1 && Math.hypot(p.x - 80, p.z - 40) < 0.5 && turnDiff(p.yaw, -1) < 0.0873, `Tab: no reload (${loads1} loads), the player moved to the new dot (x ${p.x.toFixed(2)}, z ${p.z.toFixed(2)})`);
+  const before2 = await edState();
+  await gf().evaluate(() => window.__app.current.pause());
+  await gf().click('text=Back to editor');
+  await backCheck('pause screen Back to editor', before2);
+
+  console.log('a wall moved 1 m without saving reaches the game; a sealed room is a valid start');
+  const moved = await E(() => {
+    const ed = window.__editor;
+    const doors = new Set(ed.model.list('openings').map((o) => o.wall));
+    const w = ed.model.list('walls').find((q) => q.level === 'G' && q.kind === 'interior' && q.a[1] === q.b[1] && Math.abs(q.a[0] - q.b[0]) > 3 && !doors.has(q.id));
+    const before = ed.model.snapshot('walls', w.id);
+    ed.model.commit(`e2e moved ${w.id}`, [{ coll: 'walls', id: w.id, before, after: { ...before, a: [before.a[0], before.a[1] + 1], b: [before.b[0], before.b[1] + 1] } }]);
+    const roomsWithDoor = new Set(ed.model.list('openings').flatMap((o) => o.between ?? []));
+    const sealed = ed.model.list('rooms').find((r) => r.level === 'G' && r.kind !== 'zone' && !roomsWithDoor.has(r.id) && r.rect[2] - r.rect[0] > 2 && r.rect[3] - r.rect[1] > 2);
+    return { id: w.id, z: before.a[1] + 1, oldZ: before.a[1], lo: Math.min(w.a[0], w.b[0]), hi: Math.max(w.a[0], w.b[0]), sealed: sealed ? { id: sealed.id, x: (sealed.rect[0] + sealed.rect[2]) / 2, z: (sealed.rect[1] + sealed.rect[3]) / 2 } : null };
+  });
+  const sealed = moved.sealed ?? { id: 'none', x: 83, z: 43 };
+  await dot(sealed.x, sealed.z, 0);
+  await page.keyboard.press('Tab');
+  await walkIs('open', 90000);
+  p = await player();
+  const coll = await gf().evaluate((m) => window.__app.current.world.level.boxes.filter((b) => b.collide && Math.abs(b.c[2] - m.z) < 0.01 && b.c[0] > m.lo && b.c[0] < m.hi && b.c[1] < 4.2).length, moved);
+  const disk = await E(async (id) => (await (await fetch('/__editor/campus')).json()).walls.find((w) => w.id === id).a[1], moved.id);
+  assert((await edState()).loads === loads1 + 1 && coll > 0 && disk === moved.oldZ, `wall ${moved.id} moved 1 m: the game reloaded and collides at z ${moved.z} (${coll} boxes); the file on disk still has z ${disk}`);
+  assert(Math.hypot(p.x - sealed.x, p.z - sealed.z) < 0.5, `a room with no door (${sealed.id}) is a valid start (x ${p.x.toFixed(2)}, z ${p.z.toFixed(2)})`);
+  const before3 = await edState();
+  await gf().evaluate(() => { window.__pad.connect(); window.__pad.set(8, 1); window.__pad.set(9, 1); });
+  await backCheck('View + Menu held', before3);
+  await gf().evaluate(() => { window.__pad.set(8, 0); window.__pad.set(9, 0); });
+  await frames(page, 4);
+
+  console.log('Shift+Tab: quick walk; B ends it');
+  await page.keyboard.press('Shift+Tab');
+  await frames(page, 3);
+  const qWalk = await E(() => window.__editor.quickWalking);
+  await press(BTN.B);
+  assert(qWalk && !(await E(() => window.__editor.quickWalking)), 'Shift+Tab starts the quick walk (as L3); B ends it');
+
+  console.log('unsaved count is the net change; balustrade');
+  await page.keyboard.press('Control+z'); await frames(page, 2);
+  const wd0 = (await edState()).dirty;
+  assert(wd0 === 0, `undoing the wall move brings the unsaved count back to 0 (${wd0})`);
+  const wNudge = () => E(() => { const ed = window.__editor; const r = ed.model.list('rooms').find((q) => q.level === 'G' && q.kind !== 'zone'); const b = ed.model.snapshot('rooms', r.id); ed.model.commit('e2e nudge', [{ coll: 'rooms', id: r.id, before: b, after: { ...b, rect: [b.rect[0] + 0.5, b.rect[1], b.rect[2] + 0.5, b.rect[3]] } }]); });
+  await wNudge();
+  await wNudge();
+  const wc2 = (await edState()).dirty;
+  await page.keyboard.press('Control+z'); await frames(page, 2);
+  const wc1 = (await edState()).dirty;
+  await page.keyboard.press('Control+z'); await frames(page, 2);
+  const wc0 = (await edState()).dirty;
+  await E(() => window.__editor.updateBar());
+  const wTitle = await E(() => document.getElementById('save').title);
+  // (only with nothing to save: the test never writes the file)
+  if (wc0 === 0) await E(() => window.__editor.save());
+  const wStatus = await E(() => document.getElementById('status').textContent);
+  assert(wc2 === 2 && wc1 === 1 && wc0 === 0 && wTitle === 'Nothing to save' && /Nothing new to save/.test(wStatus) && saves === 0, `two edits ${wc2}, undo ${wc1}, undo ${wc0}; Save title "${wTitle}", "${wStatus}", ${saves} saves`);
+  const wWid = await E(() => { const ed = window.__editor; const w = ed.model.list('walls').find((q) => q.kind === 'interior'); ed.select(`walls:${w.id}`); return w.id; });
+  // (Ctrl+Z handed the editor to the keyboard: one pad press takes it back)
+  await press(BTN.LB);
+  await set(BTN.RB, 1);
+  await page.waitForFunction(() => window.__editor.pad.menuOpen, null, { timeout: 15000 });
+  const wKinds = await E(() => (window.__editor.pad.radial.ring.find((n) => n.name === 'Change type')?.children ?? []).map((n) => n.name));
+  await releaseBtn(BTN.RB);
+  // (releasing in the middle picks Move: put it back, keep the wall selected)
+  await E((id) => { const ed = window.__editor; if (ed.drag) ed.endDrag(true); ed.select(`walls:${id}`); }, wWid);
+  const wh0 = (await edState()).h;
+  await E(() => window.__editor.pad.changeType('balustrade'));
+  const wCt = await E((id) => ({ h: window.__editor.model.history.length, kind: window.__editor.model.get('walls', id).kind }), wWid);
+  await page.keyboard.press('Control+z'); await frames(page, 2);
+  const wBack = await E((id) => window.__editor.model.get('walls', id).kind, wWid);
+  assert(wKinds.includes('balustrade') && wCt.kind === 'balustrade' && wCt.h === wh0 + 1 && wBack === 'interior', `Change type on a wall offers balustrade (${wKinds.join(', ')}) and is one undo step`);
 } catch (e) {
 
   failed = true;
   console.error(String(e));
+  console.error(await E(() => { const ed = window.__editor; const f = document.getElementById('gameWalk'); return JSON.stringify({ walk: ed?.walk?.state, hub: ed?.pad?.hub?.isOpen, status: document.getElementById('status')?.textContent, src: f?.src, boot: f?.contentDocument?.getElementById('boot')?.textContent?.trim().slice(0, 120), game: !!f?.contentWindow?.__app?.current }); }).catch((x) => String(x)));
   await page.screenshot({ path: path.join(shots ?? process.env.TEMP ?? '/tmp', 'e2e-editor-fail.png') }).catch(() => {});
 } finally {
   const bad = errors.filter((e) => !/GPU stall|swiftshader|GL Driver/i.test(e));

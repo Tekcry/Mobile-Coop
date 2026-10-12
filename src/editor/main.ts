@@ -7,16 +7,18 @@ import { actionForKey, helpRows, hintItems, keyId } from './actions';
 import type { Ctx, Group } from './actions';
 import { CameraControls } from './controls';
 import type { OrbitState } from './orbit';
+import { ORBIT, poseAngles, type CamPose } from './orbit';
 import { PadControl } from './padControl';
 import { clearDraft, makeDraft, readDraft, shouldOffer, writeDraft } from './draft';
 import type { Draft } from './draft';
 import { EditorScene } from './scene3d';
 import { buildingAt, editingForced, GAP_MAX, parseVis, presetPicks } from './visibility';
 import type { LevelPreset } from './visibility';
-import { EditorModel, localTime, logMarkdown } from './model';
+import { campusText, EditorModel, localTime, logMarkdown } from './model';
 import type { Change, JournalEntry } from './model';
 import { fmt, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb } from './geometry';
+import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
 import { deleteChanges, describeEdit, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import type { Campus, Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
@@ -115,6 +117,10 @@ export class Editor {
   private baseline: Set<string> | null = null;
   tab: 'props' | 'checks' | 'log' | 'pad' = 'props';
   pad: PadControl | null = null;
+  /** Walk test as the player (ED2 Part B): the game in an iframe over the editor. */
+  readonly walk = new GameWalk({ ready: (r) => this.walkReady(r), back: (r) => this.walkBack(r), failed: (why) => this.walkFailed(why) });
+  /** The orbit's tilt and zoom before the game walk (the way back keeps them). */
+  private walkFrom: { pitch: number; dist: number; selected: Key | null } | null = null;
   lastChecks: CheckReply | null = null;
   private hoverAt = 0;
   private hoverKey: Key | null = null;
@@ -865,6 +871,74 @@ export class Editor {
     this.walkChanged();
   }
 
+  // ---------- walk test as the player (ED2 Part B) ----------
+  /** Where the game puts the player: the dot (orbit), the eye (walking) or the screen centre on the floor (flying). */
+  walkSpawn(): WalkSpawn {
+    const c = this.controls;
+    const p = this.view.camera.position;
+    // (a key press hands the orbit to the fly camera at the same pose: Tab right after the pad still means the dot)
+    const [ox, oy, oz] = c.orbit.position();
+    const atOrbit = c.mode === 'fly' && Math.abs(p.x - ox) + Math.abs(p.y - oy) + Math.abs(p.z - oz) < 0.01;
+    if (c.mode === 'orbit' || atOrbit) return { x: c.orbit.s.tx, z: c.orbit.s.tz, level: this.view.level, yaw: c.orbit.s.yaw };
+    if (c.walking) return { x: p.x, z: p.z, level: this.view.level, yaw: c.yaw };
+    const canvas = $<HTMLCanvasElement>('c');
+    const pt = canvas.clientWidth > 0 ? this.view.planePoint(canvas.clientWidth / 2, canvas.clientHeight / 2, this.viewFloor()) : null;
+    return { x: pt?.[0] ?? p.x, z: pt?.[1] ?? p.z, level: this.view.level, yaw: c.yaw };
+  }
+
+  /** Tab, the Walk button and Hub > Play: the real game, unsaved edits included, at the dot. */
+  async gameWalk(): Promise<void> {
+    if (this.walk.state !== 'off' && this.walk.state !== 'warm') return;
+    if (this.drag) this.endDrag(true);
+    if (this.quickWalking) this.quickWalk();
+    const c = this.controls;
+    const spawn = this.walkSpawn();
+    const o = c.mode === 'orbit' ? c.orbit.s : null;
+    this.walkFrom = { pitch: o?.pitch ?? Math.max(ORBIT.PITCH_MIN, Math.min(ORBIT.PITCH_MAX, c.pitch || 0.9)), dist: o?.dist ?? ORBIT.DIST_START, selected: this.selected };
+    try {
+      const how = await this.walk.start(this.model.data, campusText(this.model.data), spawn);
+      this.status(how === 'warm' ? 'Walk test: same building, the player moves to the dot' : 'Loading game...');
+    } catch (err) {
+      this.status(`Walk test failed: ${String(err)}`);
+    }
+    this.updateHint();
+  }
+
+  private gamePose(r: WalkReport): CamPose {
+    const [yaw, pitch] = poseAngles(r.cam.pos, r.cam.target);
+    return { pos: [...r.cam.pos], yaw, pitch, fov: r.cam.fov };
+  }
+
+  /** The game shows the player: ease the editor camera onto the game camera, then show the game. */
+  private walkReady(r: WalkReport): void {
+    this.controls.blend = { from: this.controls.pose(), to: this.gamePose(r), t: 0, dur: 0.4, done: () => this.walk.show() };
+    this.status('Walk test: F10, Esc then Back to editor, or hold View + Menu comes back');
+    this.updateHint();
+  }
+
+  /** Back from the game: the camera starts at the game camera and eases to an orbit round the player. */
+  private walkBack(r: WalkReport): void {
+    const c = this.controls;
+    const from = this.gamePose(r);
+    const editorFov = c.pose().fov;
+    c.setPose({ ...from, fov: editorFov });
+    const keep = this.walkFrom?.selected ?? this.selected;
+    if (r.level && r.level !== this.view.level) this.setLevel(r.level);
+    if (keep && this.selected !== keep) this.select(keep);
+    const floorY = this.viewFloor();
+    c.orbit.enter({ tx: r.x, tz: r.z, floorY, dist: this.walkFrom?.dist ?? ORBIT.DIST_START, yaw: from.yaw, pitch: this.walkFrom?.pitch ?? 0.9 });
+    c.mode = 'orbit';
+    const [x, y, z] = c.orbit.position();
+    c.blend = { from: { ...from, fov: editorFov }, to: { pos: [x, y, z], yaw: c.orbit.s.yaw, pitch: c.orbit.s.pitch, fov: editorFov }, t: 0, dur: 0.4, done: () => undefined };
+    this.walkChanged();
+    this.status(`Back from the walk test at x ${r.x.toFixed(1)}, z ${r.z.toFixed(1)}`);
+  }
+
+  private walkFailed(why: string): void {
+    this.status(why);
+    this.updateHint();
+  }
+
   /** The pad's builder camera starts from the current pose, aimed at the screen centre on the editing floor. */
   enterOrbit(): void {
     const canvas = $<HTMLCanvasElement>('c');
@@ -949,7 +1023,8 @@ export class Editor {
     const tools: Record<string, Tool> = { toolSelect: 'select', toolRoom: 'room', toolWall: 'wall', toolDoor: 'door', toolWindow: 'window' };
     if (tools[id]) return this.setTool(tools[id]);
     switch (id) {
-      case 'walk': return this.toggleWalk();
+      case 'walk': return void this.gameWalk();
+      case 'quickWalk': return this.quickWalk();
       case 'levelUp': return this.stepLevel(1);
       case 'levelDown': return this.stepLevel(-1);
       case 'frame': return this.frameSelected();
@@ -1114,7 +1189,7 @@ export class Editor {
         <span class="group" id="tools">
           <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option>${t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button>
         </span>
-        <span class="group"><button id="walk" title="Tab">Walk</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
+        <span class="group"><button id="walk" title="Tab: the game's own player, unsaved edits included (Shift+Tab: quick walk)">Walk test (game)</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
         <span id="checksBadge"></span>
       </div>
       <div class="line">
@@ -1172,7 +1247,7 @@ export class Editor {
       this.applyVis();
     });
     for (const b of $('tools').querySelectorAll('button')) b.addEventListener('click', () => this.setTool(b.dataset.tool as Tool));
-    $('walk').addEventListener('click', () => this.toggleWalk());
+    $('walk').addEventListener('click', () => void this.gameWalk());
     $('undo').addEventListener('click', () => this.undo());
     $('redo').addEventListener('click', () => this.redo());
     $('save').addEventListener('click', () => void this.save());
@@ -1202,8 +1277,8 @@ export class Editor {
 
   updateBar(): void {
     for (const b of $('tools').querySelectorAll<HTMLButtonElement>('button')) b.classList.toggle('on', b.dataset.tool === this.tool);
-    $('walk').textContent = this.controls.walking ? 'Fly' : 'Walk';
-    $('walk').classList.toggle('on', this.controls.walking);
+    $('walk').textContent = this.walk.state === 'loading' ? 'Loading game...' : 'Walk test (game)';
+    $('walk').classList.toggle('on', this.walk.state !== 'off' && this.walk.state !== 'warm');
     $<HTMLButtonElement>('undo').disabled = !this.model.canUndo;
     $<HTMLButtonElement>('redo').disabled = !this.model.canRedo;
     const n = this.model.dirty;
@@ -1389,12 +1464,13 @@ export class Editor {
     const c = this.ctx();
     const notes: string[] = [];
     const lv = this.model.data.levels.find((l) => l.id === this.view.level);
-    if (this.controls.walking && !this.quickFrom) notes.push('Walking (Tab flies)');
+    if (this.walk.state === 'loading') notes.push('Loading game...');
+    if (this.controls.walking && !this.quickFrom) notes.push('Walking at eye height');
     else if (editingForced(this.view.vis, this.model.data.levels, this.view.level)) notes.push(`${lv?.name ?? 'This level'} is hidden by the Levels settings - shown anyway because you are editing it`);
     if (this.view.vis.exploded && !this.controls.walking) notes.push('Exploded: levels drawn apart, saved as built');
     const pad = this.pad;
     if (pad?.device === 'pad' && pad.focus === 'drawer') notes.push('Pad in the side panel (B leaves)');
-    if (this.quickWalking) notes.push('Quick walk (L3 or B goes back)');
+    if (this.quickWalking) notes.push('Quick walk (L3, B or Shift+Tab goes back)');
     if (pad?.device === 'pad' && pad.grabWords && c !== 'hub' && c !== 'menu') notes.push(pad.grabWords);
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
     if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
@@ -1459,6 +1535,8 @@ export class Editor {
   /** Swaps in other campus data (restore a draft, revert to the file) and redraws everything. */
   reload(data: Campus, journal: JournalEntry[], keepSaved = false): void {
     if (this.drag) this.endDrag(true);
+    // a reverted or restored building is not the one the warm game holds
+    this.walk.drop();
     this.model.replace(data, journal, keepSaved);
     this.select(null);
     this.view.rebuildAll();

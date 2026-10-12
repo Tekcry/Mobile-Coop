@@ -6,6 +6,9 @@ import { button, Dialog } from '../widgets';
 import { SettingsScreen } from './settingsScreen';
 import { FeedbackFormScreen } from './feedbackScreen';
 
+/** Extra pause-menu rows added at run time (dev tools: the level editor's walk test adds "Back to editor"). Empty in play. */
+export const pauseExtraRows: { label: string; act: () => void }[] = [];
+
 export class PauseScreen extends Screen {
   override modal = true;
 
@@ -34,10 +37,12 @@ export class PauseScreen extends Screen {
         { icon: 'back', class: 'big' },
       ),
     );
+    for (const r of pauseExtraRows) list.append(button(r.label, r.act, { icon: 'back', class: 'big' }));
     this.el.append(h('div', { class: 'pause-panel' }, h('div', { class: 'screen-title', text: 'Paused' }), extra, list));
   }
 
-  private resume(): void {
+  /** Closes the menu and resumes (B, Resume, or a dev tool resuming the match from outside). */
+  resume(): void {
     this.manager.pop();
     this.onResume();
   }

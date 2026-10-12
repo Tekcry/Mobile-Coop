@@ -1,7 +1,7 @@
 import { Vector3 } from '../../core/babylon';
 import { MOVEMENT } from '../../config/movement';
 import type { MapDef, MapLayout } from '../mapDef';
-import type { LevelBuilder } from '../levelBuilder';
+import type { BoxPiece, LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import blocks from './kestrel.blocks.json';
 import { campusToBuild, type CampusFile } from './kestrelCampus';
@@ -31,7 +31,7 @@ export function setKestrelDraft(campus: CampusFile, spawn: { x: number; z: numbe
 const SPAWN_CLEAR = MOVEMENT.radius + 0.1;
 
 /** Moves a point out of any wall it is within `r` of (the entry sits half a metre inside the fence, whose face is nearer than the capsule is wide). */
-function clearOfWalls(b: LevelBuilder, x: number, z: number, y: number, r: number): [number, number] {
+export function clearOfWalls(b: { readonly boxes: readonly BoxPiece[] }, x: number, z: number, y: number, r: number = SPAWN_CLEAR): [number, number] {
   for (let pass = 0; pass < 3; pass++) {
     for (const p of b.boxes) {
       if (!p.collide || p.pitch !== 0 || p.yaw !== 0 || p.c[1] + p.s[1] / 2 <= y + 0.1 || p.c[1] - p.s[1] / 2 > y + 1.6) continue;
