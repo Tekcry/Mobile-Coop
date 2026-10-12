@@ -10,7 +10,7 @@ import { hyp2 } from '../core/mathx';
 import { detectPadStyle } from '../input/gamepadMapping';
 import type { PadStyle } from '../input/gamepadMapping';
 import type { Device } from './actions';
-import { CARD_MERGE_S, cardRows, nameList, stepCard } from './card';
+import { CARD_MERGE_S, cardRows, cardWindow, nameList, stepCard } from './card';
 import { fmt, nearestWall, normRect, projectOnWall, snap, wallLen, wallPoint } from './geometry';
 import { easeFactor, GHOST, grabPart, guideLines, MAGNET, magnetSearch, SNAP, turnPt } from './grab';
 import { centreOpening, liveOpening } from './liveSizes';
@@ -19,7 +19,8 @@ import { DEFAULT_SETTINGS, LARGE_TEXT, readSettings, stepLayout } from './hub';
 import type { PadSettings } from './hub';
 import { focusField, HubView, stepField } from './hubView';
 import type { Editor, PlanShape } from './main';
-import { cardWords, DOOR_NAMES, label, OPENING_DEFAULTS, OPENING_TYPES, slotDoorName, withBetween } from './ops';
+import { cardWords, DOOR_NAMES, label, OPENING_DEFAULTS, slotDoorName, withBetween } from './ops';
+import { familyTypes } from './openingCatalogue';
 import { ORBIT } from './orbit';
 import { PAD, PadState, padWords as padWordsOf } from './pad';
 import { linkedHint, ROOM_OPTIONS } from './roomWalls';
@@ -333,9 +334,10 @@ export class PadControl {
   /** Runs a tile (and the D-pad tool variants), by the Build, Openings and Selected tabs' ids. */
   runMenu(id: string): void {
     const ed = this.ed;
-    const tool = (t: string, door?: string): void => {
+    const tool = (t: string, door?: string, win?: string): void => {
       this.measureFrom = null;
       if (door) $<HTMLSelectElement>('doorType').value = door;
+      if (win) $<HTMLSelectElement>('windowType').value = win;
       ed.setTool(t as Parameters<Editor['setTool']>[0]);
     };
     if (id === 'select') tool('select');
@@ -353,7 +355,8 @@ export class PadControl {
     else if (id === 'sel.fit') ed.fitSelected();
     else if (id === 'sel.turnClimb') ed.turnStairClimb();
     else if (id === 'sel.rename') this.openRename();
-    else if (id === 'build.window') tool('window');
+    else if (id === 'build.window') tool('window', undefined, 'window');
+    else if (id.startsWith('window.')) tool('window', undefined, id.slice(7));
     else if (id.startsWith('door.')) tool('door', id.slice(5));
     else if (id === 'build.measure') this.startMeasure();
     else if (id === 'build.paste') this.paste(false);
@@ -373,11 +376,17 @@ export class PadControl {
   private toolVariant(dir: 1 | -1): void {
     const ed = this.ed;
     if (ed.tool === 'door') {
-      const doors = OPENING_TYPES.filter((t) => t !== 'window');
+      const doors = familyTypes('door');
       const sel = $<HTMLSelectElement>('doorType');
       const next = doors[(Math.max(0, doors.indexOf(sel.value)) + dir + doors.length) % doors.length]!;
       sel.value = next;
       ed.status(`Door type: ${DOOR_NAMES[next] ?? next}`);
+    } else if (ed.tool === 'window') {
+      const wins = familyTypes('window');
+      const sel = $<HTMLSelectElement>('windowType');
+      const next = wins[(Math.max(0, wins.indexOf(sel.value)) + dir + wins.length) % wins.length]!;
+      sel.value = next;
+      ed.status(`Window type: ${DOOR_NAMES[next] ?? next}`);
     } else if (ed.tool === 'room') {
       const i = ROOM_OPTIONS.findIndex((o) => o.id === ed.roomOption);
       const o = ROOM_OPTIONS[(i + dir + ROOM_OPTIONS.length) % ROOM_OPTIONS.length]!;
@@ -397,11 +406,17 @@ export class PadControl {
   }
 
   // ---------- the selection card on the D-pad (ON0a) ----------
+  /** The rooms and the wall an opening's side settings need (ON9). */
+  private cardCtx(s: { coll: string; e: Elem }): { rooms: Room[]; wall?: Wall } {
+    const rooms = this.ed.model.list('rooms') as Room[];
+    return s.coll === 'openings' ? { rooms, wall: this.ed.model.get<Wall>('walls', (s.e as Opening).wall) } : { rooms };
+  }
+
   /** Lights a card row by id and starts editing (Selected > Change type lights Type). */
   editCard(row: string): void {
     const s = this.ed.selectedElem();
     if (!s) return;
-    const i = cardRows(s.coll, s.e).findIndex((r) => r.id === row);
+    const i = cardRows(s.coll, s.e, this.cardCtx(s)).findIndex((r) => r.id === row);
     this.cardRow = Math.max(0, i);
     this.cardEditing = true;
     this.ed.updateHint();
@@ -411,7 +426,7 @@ export class PadControl {
   private cardFrame(now: number): void {
     const s = this.ed.selectedElem();
     if (!s) return;
-    const rows = cardRows(s.coll, s.e);
+    const rows = cardRows(s.coll, s.e, this.cardCtx(s));
     const n = this.nav(now, this.cardEditing);
     if (!n.x && !n.y) return;
     if (!this.cardEditing) {
@@ -429,7 +444,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const wall = s.coll === 'openings' ? ed.model.get<Wall>('walls', (s.e as Opening).wall) : undefined;
-    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined, levels: ed.model.data.levels });
+    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined, levels: ed.model.data.levels, ...this.cardCtx(s) });
     if (!after) {
       if (row === 'name') return ed.status('A opens the name list');
       this.rumble('error');
@@ -590,7 +605,7 @@ export class PadControl {
       this.ed.updateHint();
     } else if (this.cardEditing && st.pressed(PAD.A)) {
       const s = this.ed.selectedElem();
-      const rowId = s ? cardRows(s.coll, s.e)[this.cardRow]?.id : undefined;
+      const rowId = s ? cardRows(s.coll, s.e, this.cardCtx(s))[this.cardRow]?.id : undefined;
       if (rowId === 'name') this.openNames();
       else if (rowId === 'id') this.openRename();
       else {
@@ -990,30 +1005,35 @@ export class PadControl {
     this.layoutBar();
     const ed = this.ed;
     const doorName = slotDoorName($<HTMLSelectElement>('doorType').value);
+    const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    const sub = slot === 'door' ? doorName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : '';
+    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : '';
     $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
       const lv = ed.model.data.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
-      const rows = cardRows(s.coll, s.e);
+      const rows = cardRows(s.coll, s.e, this.cardCtx(s));
       const lit = Math.min(this.cardRow, rows.length - 1);
       // not editing: the first row and the size; editing: every row, the lit one with its arrows
-      const shown = this.cardEditing ? rows : rows.slice(0, 1);
-      const body = shown
-        .map((r, i) => {
+      // ON9: a long card (a door has up to 16 rows) shows a window of rows that follows the lit one
+      const [w0, w1] = this.cardEditing ? cardWindow(rows.length, lit) : [0, 1];
+      const shown = rows.slice(w0, w1);
+      const more = (n: number, dir: string): string => (n > 0 ? `<div class="dim cmore">${dir} ${n} more</div>` : '');
+      const body = (this.cardEditing ? more(w0, '&#9650;') : '') + shown
+        .map((r, j) => {
+          const i = j + w0;
           const on = this.cardEditing && i === lit;
           const v = r.kind === 'name' ? (on ? `${esc(r.value)} <small>(A)</small>` : esc(r.value)) : on ? `&#8249; ${esc(r.value)} &#8250;` : esc(r.value);
           return `<div class="crow${on ? ' on' : ''}" data-row="${r.id}"><span>${esc(r.label)}</span><b>${v}</b></div>`;
         })
-        .join('');
+        .join('') + (this.cardEditing ? more(rows.length - w1, '&#9660;') : '');
       // ON2: a stair says whether it fits ("Needs 1.4 m more length for 25 risers"; Selected > Fit)
       const fit = s.coll === 'stairs' ? stairFit(ed.model.data, s.e as Stair) : null;
       const fitLine = fit ? `<div class="${fit.ok ? 'dim' : 'bad'}" data-fit>${esc(fit.ok ? `Fits: ${fit.size?.risers ?? ''} risers` : fit.words.replace(/ \(the file says.*$/, ''))}</div>` : '';
@@ -1182,7 +1202,7 @@ export class PadControl {
         bad = true;
         words = 'Move onto a wall';
       } else {
-        const type = ed.tool === 'window' ? 'window' : $<HTMLSelectElement>('doorType').value;
+        const type = $<HTMLSelectElement>(ed.tool === 'window' ? 'windowType' : 'doorType').value;
         const def = OPENING_DEFAULTS[type] ?? OPENING_DEFAULTS.door!;
         // ON1 decisions 3, 4: centred between the cross walls near the middle (LB: off), the clear distance each side
         const walls = ed.model.list('walls') as Wall[];

@@ -5,7 +5,9 @@
  * (tests/editor/card.test.ts); padControl.ts commits the result (quick steps on one row merge into one undo step).
  */
 import { fmt, normRect, wallLen } from './geometry';
-import { DOOR_NAMES, OPENING_TYPES, ROOM_KINDS, WALL_KINDS } from './ops';
+import { DOOR_NAMES, ROOM_KINDS, WALL_KINDS } from './ops';
+import { BLINDS, familyOf, familyTypes, FLAG_SETTINGS, GLASS_KINDS, GLASS_WALL_DEFAULT, SETTING_LABELS, settingWords, shownSettings, stepSetting, withOpeningType } from './openingCatalogue';
+import type { GlassData, Setting, SideCtx } from './openingCatalogue';
 import { HOLE_KINDS, HOLE_NAMES, STAIR_FACTS, STAIR_TYPES, stairType, stairTypeOf, withStairType } from './vertical';
 import type { Coll, Elem, Ladder, Opening, Rect, Room, Stair, Void, Wall } from './types';
 
@@ -35,10 +37,17 @@ const sizeRows = (r: Rect): CardRow[] => [
   { id: 'depth', label: 'Depth', value: m(r[3] - r[1]), kind: 'len' },
 ];
 
-/** The card's rows for an element, Type first where the element has a type. */
-export function cardRows(coll: Coll, e: Elem): CardRow[] {
+/** Glass partition settings (ON9 decision 4): a wall of kind `glass`. */
+const glassOf = (w: Wall): GlassData => ({ ...GLASS_WALL_DEFAULT, ...(w.glass && typeof w.glass === 'object' ? (w.glass as GlassData) : {}) });
+
+/**
+ * The card's rows for an element, Type first where the element has a type. An opening shows only the settings its type
+ * has (ON9: no hinge on a sliding door); `ctx` gives the rooms and the wall for the side words.
+ */
+export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
   if (coll === 'openings') {
     const o = e as Opening;
+    const set = shownSettings(o, ctx.rooms ?? []).map((s): CardRow => ({ id: s, label: SETTING_LABELS[s], value: settingWords(o, s, ctx), kind: FLAG_SETTINGS.has(s) ? 'flag' : 'list' }));
     return [
       { id: 'type', label: 'Type', value: DOOR_NAMES[o.type] ?? o.type, kind: 'list' },
       nameRow(e),
@@ -46,18 +55,28 @@ export function cardRows(coll: Coll, e: Elem): CardRow[] {
       { id: 'h', label: 'Height', value: m(o.h), kind: 'len' },
       { id: 'sill', label: 'Sill', value: m(o.sill), kind: 'len' },
       { id: 'at', label: 'Along wall', value: m(o.at), kind: 'len' },
-      { id: 'locked', label: 'Locked', value: o.locked === true ? 'yes' : 'no', kind: 'flag' },
+      ...set,
       idRow(e),
     ];
   }
   if (coll === 'walls') {
     const w = e as Wall;
+    const g = glassOf(w);
+    const glassRows: CardRow[] =
+      w.kind === 'glass'
+        ? [
+            { id: 'glass', label: 'Glass', value: cap(g.kind ?? 'clear'), kind: 'list' },
+            { id: 'blinds', label: 'Blinds', value: cap(g.blinds ?? 'none'), kind: 'list' },
+            { id: 'breakable', label: 'Breakable', value: g.breakable ? 'yes' : 'no', kind: 'flag' },
+          ]
+        : [];
     return [
-      { id: 'type', label: 'Type', value: `${cap(w.kind)} wall`, kind: 'list' },
+      { id: 'type', label: 'Type', value: w.kind === 'glass' ? 'Glass partition' : `${cap(w.kind)} wall`, kind: 'list' },
       nameRow(e),
       { id: 't', label: 'Thickness', value: m(w.t), kind: 'len' },
       { id: 'h', label: 'Height', value: m(w.h), kind: 'len' },
       { id: 'len', label: 'Length', value: m(wallLen(w)), kind: 'len' },
+      ...glassRows,
       idRow(e),
     ];
   }
@@ -87,6 +106,7 @@ export function cardRows(coll: Coll, e: Elem): CardRow[] {
   return [nameRow(e), idRow(e)];
 }
 
+const shownSettingIds: ReadonlySet<string> = new Set(Object.keys(SETTING_LABELS));
 const wrap = <T>(list: readonly T[], cur: T, dir: number): T => list[(Math.max(0, list.indexOf(cur)) + dir + list.length) % list.length]!;
 const r3 = (v: number): number => +v.toFixed(3);
 
@@ -97,6 +117,18 @@ export interface StepCtx {
   wallLen?: number;
   /** The file's levels (stairs and ladders: the To level row steps through the levels above `from`). */
   levels?: readonly { id: string; floor: number }[];
+  /** Openings (ON9): the rooms and the wall, for the side settings and the type defaults. */
+  rooms?: SideCtx['rooms'];
+  wall?: SideCtx['wall'];
+}
+
+/** At most this many card rows show while editing; more scroll with the lit row (ON9: a door has up to 16). */
+export const CARD_ROWS_SHOWN = 9;
+/** The rows shown while editing: a window of `max` rows that keeps the lit one inside. [start, end). */
+export function cardWindow(n: number, lit: number, max = CARD_ROWS_SHOWN): [number, number] {
+  if (n <= max) return [0, n];
+  const start = Math.min(Math.max(0, lit - Math.floor(max / 2)), n - max);
+  return [start, start + max];
 }
 
 /**
@@ -107,9 +139,15 @@ export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepC
   const a = JSON.parse(JSON.stringify(e)) as Elem & Record<string, unknown>;
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
   if (row === 'type') {
-    if (coll === 'openings') a.type = wrap(OPENING_TYPES, (e as Opening).type, dir);
-    else if (coll === 'walls') a.kind = wrap(WALL_KINDS, (e as Wall).kind, dir);
-    else if (coll === 'rooms') a.kind = wrap(ROOM_KINDS, (e as Room).kind, dir);
+    if (coll === 'openings') {
+      // ON9: doors flip through doors, windows through windows, with the new type's settings
+      const o = e as Opening;
+      return withOpeningType(o, wrap(familyTypes(familyOf(o.type)), o.type, dir), c.rooms ?? []) as Elem;
+    } else if (coll === 'walls') {
+      a.kind = wrap(WALL_KINDS, (e as Wall).kind, dir);
+      if (a.kind === 'glass') a.glass = { ...GLASS_WALL_DEFAULT };
+      else delete a.glass;
+    } else if (coll === 'rooms') a.kind = wrap(ROOM_KINDS, (e as Room).kind, dir);
     else if (coll === 'stairs') return withStairType(e as Stair, wrap(STAIR_TYPES.map((t) => t.id), stairTypeOf(e as Stair), dir)) as Elem;
     else if (coll === 'voids') a.kind = wrap(HOLE_KINDS, (e as Void).kind as (typeof HOLE_KINDS)[number], dir);
     else return null;
@@ -122,8 +160,15 @@ export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepC
     // a stair takes the rule's risers for its new rise (the well moves with it: vertical.ts stairwellLink)
     const to = ls.find((l) => l.id === a.to)!;
     if (coll === 'stairs') a.risers = Math.max(2, Math.round((to.floor - from.floor) / STAIR_FACTS.riserHeight));
-  } else if (row === 'locked') a.locked = !(e as Opening).locked;
-  else if (row === 'ring') a.ring = (((e as Room).ring ?? 0) + dir + RING_NAMES.length) % RING_NAMES.length;
+  } else if (coll === 'openings' && shownSettingIds.has(row)) {
+    return stepSetting(e as Opening, row as Setting, dir, { rooms: c.rooms, wall: c.wall }) as Elem | null;
+  } else if (coll === 'walls' && (row === 'glass' || row === 'blinds' || row === 'breakable')) {
+    const g = glassOf(e as Wall);
+    if (row === 'glass') g.kind = wrap(GLASS_KINDS, g.kind ?? 'clear', dir);
+    else if (row === 'blinds') g.blinds = wrap(BLINDS, g.blinds ?? 'none', dir);
+    else g.breakable = !g.breakable;
+    a.glass = g;
+  } else if (row === 'ring') a.ring = (((e as Room).ring ?? 0) + dir + RING_NAMES.length) % RING_NAMES.length;
   else if (row === 'up') a.up = wrap(DIRS, (e as Stair).up, dir);
   else if (row === 'facing') a.facing = wrap(DIRS, (e as Ladder).facing ?? 'N', dir);
   else if (coll === 'openings' && (row === 'w' || row === 'h' || row === 'sill' || row === 'at')) {

@@ -19,7 +19,7 @@ describe('tile menu model (ON0a)', () => {
     expect(names('Build', none)).toEqual(['Select', 'Room with walls', 'Room with outside walls', 'Room only', 'Wall', 'Stair: Main dogleg', 'Stair: Fire dogleg', 'Straight stair', 'Ladder', 'Floor hole', 'Measure', 'Paste', 'Paste to level above']);
     expect(menuTiles('Build', none).find((t) => t.id === 'build.paste')!.disabled).toBeTruthy();
     expect(menuTiles('Build', room).find((t) => t.id === 'build.paste')!.disabled).toBeUndefined();
-    expect(names('Openings', none)).toEqual(['Door', 'Fire door', 'Double door', 'Roller shutter', 'Gate', 'Window']);
+    expect(names('Openings', none)).toEqual(['Single door', 'Fire door', 'Double door', 'Glass swing door', 'Sliding glass door (automatic)', 'Sliding glass door (card)', 'Sliding door (manual)', 'Roller shutter', 'Gate', 'Sliding gate', 'Hatch', 'Arch (no leaf)', 'Fixed window', 'Opening window (top hung)', 'Frosted fixed window', 'Louvre window', 'Roof light']);
     expect(names('Selected', room)).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Split', 'Rename id', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', door)).toEqual(['Move', 'Duplicate', 'Rename id', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', { ...none, sel: { coll: 'ladders', type: '' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Rename id', 'Properties', 'Delete']);

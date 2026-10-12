@@ -61,7 +61,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Shift+Tab | **quick walk** at the dot (same as L3 tap; 1.75 m eye, walls block, C crouches to 1.15 m, Shift held runs); again goes back |
 | F10 (in the game) | back to the editor from the walk test |
 | Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
-| 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window |
+| 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window (type from the list beside it, ON9) |
 | 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
@@ -188,7 +188,7 @@ wait until it closes. A row of tabs, then a grid of large tiles (a letter, the n
 | --- | --- |
 | Selected (first, only with a selection) | Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split (rooms), Fit and Turn climb 90 (stairs), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
 | Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Measure, Paste, Paste to level above (greyed until something is copied) |
-| Openings | one tile per door and window type: Door, Fire door, Double door, Roller shutter, Gate, Window |
+| Openings | one tile per door and window type (ON9): Single door, Fire door, Double door, Glass swing door, Sliding glass door (automatic), Sliding glass door (card), Sliding door (manual), Roller shutter, Gate, Sliding gate, Hatch, Arch (no leaf), Fixed window, Opening window (top hung), Frosted fixed window, Louvre window, Roof light |
 | Objects, Lights, Mission | shown once a later part adds tiles to them |
 | View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan |
 
@@ -205,8 +205,8 @@ first** (door type, wall kind, room kind), then its own fields.
 
 | Element | Rows |
 | --- | --- |
-| Door or window | Type, Name, Width, Height, Sill, Along wall, Locked |
-| Wall | Type (interior, exterior, boundary, parapet, balustrade), Name, Thickness, Height, Length (moves its end) |
+| Door or window | Type (flips through doors only, or windows only), Name, Width, Height, Sill, Along wall, then only the settings the type has (ON9, below) |
+| Wall | Type (interior, exterior, boundary, parapet, balustrade, glass partition), Name, Thickness, Height, Length (moves its end); a glass partition adds Glass, Blinds, Breakable |
 | Room | Type (room kind), Name, Width, Depth (east and north edges; walls follow as set), Access (ring 0-5) |
 | Stair | Type (Main dogleg, Fire dogleg, Straight), Name, Width, Depth, Climbs, To level (risers follow); the foot says whether it fits ("Fits: 25 risers", or "Needs 1.42 m more length for 25 risers") |
 | Floor hole, ladder | Type (stair well, lift shaft, riser, hatch, roof light), Name, Width, Depth (floor hole); Name, Facing, To level (ladder) |
@@ -223,6 +223,7 @@ first** (door type, wall kind, room kind), then its own fields.
 - Every change is its own undo step, except that changes to the same row less than 1 s apart join into one (holding
   right on Width is one undo step). A save in between keeps the steps apart.
 - A length never goes below one step; a door or window stays on its wall.
+- A card longer than 9 rows (a door has up to 16) shows 9 at a time round the lit row, with "N more" above or below.
 
 ### Every menu takes the sticks (ON0a decision 8b)
 The hub (tabs, rows, Settings, Levels, Checks, File), the tile menu, the card while editing, the name list and the
@@ -300,7 +301,11 @@ pad, and any grab is put back first.
 - **What is modelled**: walls, fences, parapets and balustrades collide at their own heights; every opening is an open gap
   of its width and height (windows above their sill); stairs are walkable flights with the file's risers; floors have their
   voids cut; all six ladders are climbable (the engine's ladder anchor, facing their wall); the pipe rack is a solid box.
-- **Not yet**: doors that open, close or lock (stage DR; the game says "Doors are open gaps for now"), pipe anchors on the
+- **Doors and windows (ON9)**: single, fire and double doors build as the game's hinged doors (hinge side, swing side and
+  lock from the data; a double is two half leaves); every window is the game's glass pane (breakable unless set not to);
+  sliding and glass doors, gates, hatches and arches stay open gaps, and the status strip says "Sliding and glass doors
+  open in the game from stage DR" when the campus has one.
+- **Not yet**: sliding and glass doors, readers, one-way doors and alarms (stage DR), pipe anchors on the
   rack (later work), guards, security, lighting. The corner readout shows "x, z, level" to say where something feels wrong;
   the game's debug overlay (F3) works as usual.
 - Code: `src/editor/gameWalk.ts` (iframe, warm game), `src/dev/editorBridge.ts` (game side, dev only),
@@ -415,7 +420,54 @@ reference in the file changes in the same edit: a wall's openings (`wall`), a ro
 id is refused; one out of the file's style (capitals, digits and hyphens; a level: one capital) is kept with a warning.
 Each rename is its own change-log line: "Renamed WG-NEW1 to WG015 (3 references updated)".
 
+## Doors, windows and glass (ON9)
+Every door and window has a **type** from one catalogue (`src/editor/openingCatalogue.ts`; sizes from the facts' door
+numbers or a typical product, each with its source) and only the settings that type has. New ones start with realistic
+defaults; files written before ON9 show their type's defaults until a setting is changed.
+
+| Type | Settings on the card |
+| --- | --- |
+| Single door, Fire door | Hinge, Swings into, One-way, Locked, Reader, Card level (card readers only), Self-closing, Alarmed, Vision panel |
+| Double door | as a single door, no Hinge |
+| Glass swing door | Hinge, Swings into, One-way, Locked, Reader, Card level, Self-closing, Alarmed, Glass, Breakable |
+| Sliding glass door (automatic or card) | Slides to, One-way, Locked, Reader, Card level, Alarmed, Glass, Breakable |
+| Sliding door (manual) | Slides to, Locked, Reader, Card level, Alarmed, Vision panel |
+| Roller shutter, Sliding gate | Locked, Reader, Card level, Alarmed (a sliding gate also Slides to) |
+| Gate | Hinge, Swings into, One-way, Locked, Reader, Card level, Self-closing, Alarmed |
+| Hatch | Hinge, Swings into, Locked, Alarmed |
+| Arch (no leaf) | none |
+| Every window type | Glass (clear, frosted, wired, tinted), Blinds (none, open, half, closed), Breakable, Opens |
+
+- **Defaults**: fire doors self-closing, alarmed and one-way out (free from the stair, else from the inside, swinging
+  the way people escape); double and glass doors self-closing; a card sliding door locked with a card reader at the
+  higher room's access level; an automatic sliding door has no reader; a roller shutter a key switch; frosted windows
+  frosted; opening and louvre windows open.
+- **Words**: Hinge and Slides to are left or right as seen standing on the side the door opens away from, facing it.
+  Swings into and One-way name the rooms (Outside for none). Reader: None, Card, Card and PIN, Keypad, Key switch.
+  Card level 0-5 (S0 2.3).
+- **Editing**: the D-pad on the card (Type first; the Type row flips doors with doors and windows with windows and
+  gives the new type its defaults, keeping the hinge, swing, one-way and card level; a fire door keeps its own swing and
+  one-way); with the mouse, the side panel (Properties) shows the same settings with ‹ › buttons and a Type list. The
+  Window tool has its own type list beside it (D-pad left / right with the tool in hand flips it, as for doors).
+- **3D**: the leaf as solid, glass (clear, milky frosted, wired, tinted) or mesh; a dark hinge post, the swing arc and the
+  open leaf on the floor; a sliding door's track running past its stack side and an arrow toward it; a reader (green:
+  card) or a lock (yellow) at handle height on both faces; a green one-way arrow from the free side through the door; a
+  door with a card reader and a level shows a small plate over it in the plans' level colour; blinds as a pale panel
+  (closed: all, half: the top half, open: a strip at the head). A glass partition is see-through, with its blinds.
+- **Plan**: swing arcs on the hinge side, sliding leaves offset with an arrow toward the stack, glass hatching on glass
+  leaves, windows and glass partitions (denser when frosted).
+- **Checks**: no check changed. A29 and SC02 also read the new door types as passable, a door with One-way as exit-only
+  and one with its own card reader and level as a reader door (`check.mjs`).
+- **Frosted glass and closed blinds** block sight but pass light (bible 5.1). The editor shows it; the game has no such
+  state yet: in the game from stage DR.
+
 ## What it does not do yet (ED2 parts B-H)
+- ON9: the door and glass settings are data and drawing only; the game builds them from stage DR: sliding and glass
+  doors, readers and card levels, one-way (push bar) doors, closers, alarms, vision panels, and frosted glass and closed
+  blinds that block sight but pass light (in the game from stage DR; the walk test draws a glass partition as a solid wall
+  and a frosted pane as clear). Hatches sit in walls; a floor or ceiling hatch is still a Floor hole. A roof light is a
+  high window in a wall; a glazed hole in a roof slab is the Floor hole tool's Roof light. The card level does not change
+  the room's access level (the Checks show A29 as before).
 - The tile menu's Objects, Lights and Mission tabs are empty (hidden) until the later parts add tiles. The on-screen
   keyboard has no lower-case or symbol page (words start with a capital, the rest is small; ids keep capitals).
 - ON2: building outlines are edited as edge rows on the Levels tab with the outlines drawn in 3D, not dragged on a site
@@ -448,6 +500,8 @@ Each rename is its own change-log line: "Renamed WG-NEW1 to WG015 (3 references 
 | `src/editor/liveSizes.ts`, `src/editor/chain.ts` | live sizes and distances: clear runs between cross walls, door centring and side distances, the nearest parallel wall, room sizes, room edge snapping; wall chains (pure, `tests/editor/liveSizes.test.ts`, `chain.test.ts`) |
 | `src/editor/roomWalls.ts` | rooms and their walls: walls on an edge, the walls a new room needs, linked edits, Split, A's linked words (pure, `tests/editor/roomWalls.test.ts`) |
 | `src/editor/vertical.ts`, `src/editor/levels.ts` | ON2: the stair proposal, fit and Fit, the stairwell link, ladders, floor holes; add, duplicate, delete levels, storey heights, renaming ids with every reference, building outlines and the RULES 2 warnings (pure, `tests/editor/vertical.test.ts`) |
+| `src/editor/openingCatalogue.ts` | ON9: every door and window type (name, family, leaf, size with its source, the settings it has), realistic defaults per type, the settings in words and their steps, a type flip within the family (pure, `tests/editor/openingCatalogue.test.ts`) |
+| `src/world/maps/kestrelDoors.ts` | ON9: the one copy of the door side maths (swing side, hinge or stack end), shared by the editor and the walk test, and the walk test's game doors and panes (pure) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
 | `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft; `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

@@ -5,6 +5,7 @@ import type { BoxPiece, LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
 import blocks from './kestrel.blocks.json';
 import { campusToBuild, type CampusFile } from './kestrelCampus';
+import { walkOpenings } from './kestrelDoors';
 import { debugSpots, floorTiles, levelOf, ringFloorColour, SLAB, stairLayout, STAIR_COLOUR, wallBoxes, type KestrelArch } from './kestrelGeo';
 
 /**
@@ -53,6 +54,10 @@ function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
   const layout = buildKestrel(b, c.arch);
   for (const l of c.ladders) b.ladder(l.x, l.z, l.y0, l.y1, l.yaw);
   for (const s of c.solids) b.box(s.c[0], s.c[1], s.c[2], s.s[0], s.s[1], s.s[2], STAIR_COLOUR);
+  // ON9: swing doors as the game's hinged doors, windows as its glass panes; sliding and glass doors stay gaps (stage DR)
+  const ops = walkOpenings(c.arch);
+  for (const o of ops.doors) b.door(o.hinge[0], o.hinge[1], o.hinge[2], o.width, o.yaw, { height: o.height, swing: o.swing, locked: o.locked });
+  for (const p of ops.panes) b.windowAt(p.c[0], p.c[1], p.c[2], p.w, p.h, p.yaw, { breakable: p.breakable });
   if (d.spawn) {
     const y = levelOf(c.arch, d.spawn.level).floor;
     const [x, z] = clearOfWalls(b, d.spawn.x, d.spawn.z, y, SPAWN_CLEAR);

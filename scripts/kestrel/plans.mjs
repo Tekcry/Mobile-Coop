@@ -121,25 +121,55 @@ function drawWall(w) {
   const ops = (openingsByWall.get(w.id) ?? []).slice().sort((p, q) => p.at - q.at);
   let out = '';
   let cur = 0;
+  const piece = (s0, s1) => (w.kind === 'glass' ? glassPiece(w, s0, s1, w.glass?.kind === 'frosted') : wallPiece(w, s0, s1, fill));
   for (const o of ops) {
     const s0 = Math.max(0, o.at - o.w / 2);
     const s1 = Math.min(L, o.at + o.w / 2);
-    if (s0 > cur) out += wallPiece(w, cur, s0, fill);
+    if (s0 > cur) out += piece(cur, s0);
     cur = Math.max(cur, s1);
   }
-  if (cur < L) out += wallPiece(w, cur, L, fill);
+  if (cur < L) out += piece(cur, L);
   return out;
+}
+
+/** ON9: glass (a glass partition piece, a glass leaf or a pane) between s0 and s1: its two faces and diagonal hatching (denser when frosted). */
+function glassPiece(w, s0, s1, frosted, half = w.t / 2) {
+  const thin = `stroke="${INK}" stroke-width="${R('thinStroke')}" fill="none"`;
+  const at = (s, k) => { const q = wallPoint(w, s); return [q.p[0] + q.n[0] * k, q.p[1] + q.n[1] * k]; };
+  let out = lineEl(at(s0, half), at(s1, half), thin) + lineEl(at(s0, -half), at(s1, -half), thin);
+  const step = R('tickM') * (frosted ? 0.5 : 1);
+  for (let s = s0 + step / 2; s + half * 2 <= s1 + 1e-9; s += step) out += lineEl(at(s, -half), at(s + half * 2, half), `stroke="#5b8fb9" stroke-width="${R('markStroke')}"`);
+  return out;
+}
+
+const DR_SLIDE = new Set(['slide-auto', 'slide-card', 'slide', 'slide-gate']);
+const GLASS_LEAF = new Set(['glass-door', 'slide-auto', 'slide-card']);
+const WINDOWS = new Set(['window', 'window-open', 'window-frosted', 'louvre', 'rooflight']);
+/** ON9: the end a leaf hangs from (or a slider stacks at): absent = the a end; left / right seen from the side it opens away from. */
+function hangsAtA(o, w, C, key) {
+  const v = o.door?.[key];
+  if (v !== 'left' && v !== 'right') return true;
+  const leftIsA = swingSide(o, w, C.p, C.n) === 1;
+  return (v === 'left') === leftIsA;
 }
 
 /** +1 or -1: which side of the wall (along its left normal) the leaf swings toward: the room in between[1]. */
 function swingSide(o, w, pt, n) {
-  const room = roomById.get(o.between?.[1]);
+  // ON9: the room in door.swing wins; outside swings away from the room on the other side
+  const id = typeof o.door?.swing === 'string' ? o.door.swing : o.between?.[1];
   const probe = (sgn) => [pt[0] + n[0] * sgn * w.t, pt[1] + n[1] * sgn * w.t];
-  if (room) {
-    if (inRect(room.rect, ...probe(1))) return 1;
-    if (inRect(room.rect, ...probe(-1))) return -1;
-  }
-  return 1;
+  const side = (rid) => {
+    const room = roomById.get(rid);
+    if (room) {
+      if (inRect(room.rect, ...probe(1))) return 1;
+      if (inRect(room.rect, ...probe(-1))) return -1;
+    }
+    return 0;
+  };
+  const s = id ? side(id) : 0;
+  if (s) return s;
+  const other = o.between?.[0] === id ? o.between?.[1] : o.between?.[0];
+  return (other ? -side(other) : 0) || 1;
 }
 
 function drawOpening(o) {
@@ -157,12 +187,27 @@ function drawOpening(o) {
   const leafAttrs = `stroke="${INK}" stroke-width="${R('leafStroke')}" fill="none"`;
   const t = o.type;
   let out = lineEl(edge(A, -1), edge(A, 1), thin) + lineEl(edge(Bp, -1), edge(Bp, 1), thin);
-  if (t === 'window') {
-    const g = R('windowGap');
-    for (const sgn of [-1, 1]) out += lineEl([A.p[0] + A.n[0] * sgn * g, A.p[1] + A.n[1] * sgn * g], [Bp.p[0] + Bp.n[0] * sgn * g, Bp.p[1] + Bp.n[1] * sgn * g], thin);
+  if (WINDOWS.has(t)) {
+    // ON9: a pane with glass hatching (denser when frosted)
+    return out + glassPiece(w, lo, hi, t === 'window-frosted' || o.glass?.kind === 'frosted', R('windowGap'));
+  }
+  if (DR_SLIDE.has(t)) {
+    // ON9: a sliding leaf drawn beside the opening, half over the stack side, and an arrow toward the stack
+    const atA = hangsAtA(o, w, C, 'stack');
+    const off = h + R('windowGap');
+    const sgn = -swingSide(o, w, C.p, C.n);
+    const at = (sv, k) => { const q = wallPoint(w, sv); return [q.p[0] + q.n[0] * k, q.p[1] + q.n[1] * k]; };
+    const span = hi - lo;
+    const l0 = atA ? lo - span * 0.5 : lo + span * 0.5;
+    out += GLASS_LEAF.has(t) ? glassPiece(w, l0, l0 + span, false, R('windowGap') / 2) : '';
+    out += lineEl(at(l0, sgn * off), at(l0 + span, sgn * off), leafAttrs);
+    const tip = atA ? lo : hi;
+    const tail = atA ? hi : lo;
+    const back = (atA ? 1 : -1) * Math.min(0.3, span / 4);
+    out += lineEl(at(tail, sgn * off * 2), at(tip, sgn * off * 2), thin) + lineEl(at(tip, sgn * off * 2), at(tip + back, sgn * off * 2.8), thin) + lineEl(at(tip, sgn * off * 2), at(tip + back, sgn * off * 1.2), thin);
     return out;
   }
-  if (t === 'door' || t === 'fire-door' || t === 'double') {
+  if (t === 'door' || t === 'fire-door' || t === 'double' || t === 'glass-door') {
     const sgn = swingSide(o, w, C.p, C.n);
     const leaf = (hinge, closed, len) => {
       const open = [hinge.p[0] + C.n[0] * sgn * len, hinge.p[1] + C.n[1] * sgn * len];
@@ -176,9 +221,12 @@ function drawOpening(o) {
       const half = (hi - lo) / 2;
       const mid = wallPoint(w, lo + half).p;
       out += leaf(A, mid, half) + leaf(Bp, mid, half);
-    } else {
+    } else if (hangsAtA(o, w, C, 'hinge')) {
       out += leaf(A, Bp.p, hi - lo);
+    } else {
+      out += leaf(Bp, A.p, hi - lo);
     }
+    if (t === 'glass-door') out += glassPiece(w, lo, hi, o.glass?.kind === 'frosted', R('windowGap') / 2);
     if (t === 'fire-door') out += lineEl(A.p, Bp.p, `stroke="#d32f2f" stroke-width="${R('thinStroke')}" stroke-dasharray="${R('dashShort')}"`);
   } else if (t === 'roller') {
     out += lineEl(A.p, Bp.p, `stroke="${INK}" stroke-width="${R('leafStroke')}" stroke-dasharray="${R('dashRoller')}"`);

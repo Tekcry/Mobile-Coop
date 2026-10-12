@@ -6,21 +6,15 @@ import { EPS, fmt, moveWords, roomsEitherSide, wallLen } from './geometry';
 import type { Change, EditorModel } from './model';
 import { WALL_T } from './roomWalls';
 import type { Campus, Coll, Elem, Opening, Rect, Room, Wall } from './types';
+import { CATALOGUE, settingsChangeWords, typeDefaults } from './openingCatalogue';
 
-/** Door and window defaults (docs/kestrel scale sheet: door.singleWidth 1.2 x 2.1, double 1.8; windows are editor defaults). */
-export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: number }> = {
-  door: { w: 1.2, h: 2.1, sill: 0 },
-  'fire-door': { w: 1.2, h: 2.1, sill: 0 },
-  double: { w: 1.8, h: 2.1, sill: 0 },
-  roller: { w: 3, h: 3, sill: 0 },
-  gate: { w: 1.2, h: 2.4, sill: 0 },
-  window: { w: 1.2, h: 1.2, sill: 0.9 },
-};
-export const OPENING_TYPES = Object.keys(OPENING_DEFAULTS);
-/** schema.md section 2: wall kinds. */
-export const WALL_KINDS = ['interior', 'exterior', 'boundary', 'parapet', 'balustrade'];
+/** Door and window sizes by type, from the ON9 catalogue (openingCatalogue.ts: the scale sheet's door facts or typical products). */
+export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: number }> = Object.fromEntries(CATALOGUE.map((c) => [c.id, { w: c.w, h: c.h, sill: c.sill }]));
+export const OPENING_TYPES = CATALOGUE.map((c) => c.id);
+/** schema.md section 2: wall kinds (ON9: `glass`, a glass partition). */
+export const WALL_KINDS = ['interior', 'exterior', 'boundary', 'parapet', 'balustrade', 'glass'];
 /** Plain names of the opening types (the Openings tab, ghosts, the selection card). */
-export const DOOR_NAMES: Record<string, string> = { door: 'Door', double: 'Double door', 'fire-door': 'Fire door', roller: 'Roller shutter', gate: 'Gate', window: 'Window' };
+export const DOOR_NAMES: Record<string, string> = Object.fromEntries(CATALOGUE.map((c) => [c.id, c.name]));
 
 /** The door type under the tool bar's Door slot: "Single", "Double", "Fire door" (ED3-pad1). */
 export function slotDoorName(type: string): string {
@@ -134,11 +128,12 @@ const METRES = new Set(['h', 't', 'w', 'sill', 'ceiling', 'minShort', 'width', '
 function fieldWords(coll: Coll, k: string, va: unknown, vb: unknown): string {
   if (k === 'kind' || (k === 'type' && coll === 'openings')) {
     const v = String(vb ?? '');
-    if (coll === 'walls') return `changed to ${v} wall`;
+    if (coll === 'walls') return v === 'glass' ? 'changed to glass partition' : `changed to ${v} wall`;
     if (coll === 'openings') return `changed to ${(DOOR_NAMES[v] ?? v).toLowerCase()}`;
     return `changed to ${v}`;
   }
   if (k === 'locked') return vb ? 'now locked' : 'now unlocked';
+  if (k === 'door' || k === 'glass') return `${k === 'door' ? 'door' : 'glass'} settings: ${settingsChangeWords(va, vb) || 'changed'}`;
   if (typeof vb === 'boolean') return `${FIELD_WORDS[k] ?? k} ${vb ? 'on' : 'off'}`;
   const word = capital(FIELD_WORDS[k] ?? k);
   if (typeof va === 'number' && typeof vb === 'number') return METRES.has(k) ? `${word} ${fmt(va)} m to ${fmt(vb)} m` : `${word} ${fmt(va)} to ${fmt(vb)}`;
@@ -200,7 +195,11 @@ export function newOpening(m: EditorModel, w: Wall, at: number, type: string): O
   const L = wallLen(w);
   const width = Math.min(def.w, L);
   const c = Math.max(width / 2, Math.min(L - width / 2, at));
-  return {
+  const rooms = m.list('rooms') as Room[];
+  const between = roomsEitherSide(w, c, rooms);
+  // ON9: the type's realistic settings (fire doors one-way out and self-closing, card doors locked at the room's level)
+  const set = typeDefaults(type, between, rooms);
+  const o: Opening = {
     id: m.freshId('openings', 'O-NEW'),
     wall: w.id,
     at: +c.toFixed(3),
@@ -208,10 +207,13 @@ export function newOpening(m: EditorModel, w: Wall, at: number, type: string): O
     h: Math.min(def.h, w.h - def.sill),
     sill: def.sill,
     type,
-    between: roomsEitherSide(w, c, m.list('rooms') as Room[]),
-    locked: false,
+    between,
+    locked: set.locked ?? false,
     reason: 'Added in the level editor',
   };
+  if (set.door) o.door = set.door;
+  if (set.glass) o.glass = set.glass;
+  return o;
 }
 
 /** An opening's `between` after it moved (the rooms either side at its new centre). */

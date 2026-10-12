@@ -5,7 +5,11 @@
  * them), shared with the hub's View tab. Babylon- and DOM-free (tests/editor/tileMenu.test.ts); tileMenuView.ts draws it.
  */
 import { fmt } from './geometry';
-import { DOOR_NAMES, OPENING_TYPES } from './ops';
+import { CATALOGUE } from './openingCatalogue';
+import type { Motion } from './openingCatalogue';
+
+/** The Openings tiles' second line, by how the leaf moves. */
+const OPENING_DESC: Record<Motion, string> = { swing: 'Hinged leaf; A on a wall places one', double: 'Two hinged leaves; A on a wall', slide: 'Slides along a track; A on a wall', roll: 'Rolls up; A on a wall', none: 'A on a wall places one', hung: 'Opens out from the top; A on a wall', louvre: 'Tilting glass slats; A on a wall' };
 import { ROOM_OPTIONS } from './roomWalls';
 import { STAIR_TYPES } from './vertical';
 import type { Coll } from './types';
@@ -111,7 +115,8 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         { id: 'build.pasteUp', icon: 'P', name: 'Paste to level above', desc: 'Same spot, one level up', kind: 'go', disabled: copyFirst },
       ];
     case 'Openings':
-      return OPENING_TYPES.map((t): Tile => ({ id: t === 'window' ? 'build.window' : `door.${t}`, icon: t === 'window' ? 'W' : 'D', name: DOOR_NAMES[t] ?? t, desc: 'A on a wall places one', kind: 'go' }));
+      // ON9: every door and window type of the catalogue, doors first
+      return CATALOGUE.map((c): Tile => ({ id: c.id === 'window' ? 'build.window' : `${c.family}.${c.id}`, icon: c.family === 'window' ? 'W' : 'D', name: c.name, desc: OPENING_DESC[c.motion], kind: 'go' }));
     case 'View':
       return viewTiles(inp.view);
     default:

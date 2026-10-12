@@ -192,7 +192,7 @@ try {
   const dtR = await E(() => document.getElementById('doorType').value);
   await press(BTN.LEFT);
   const dtL = await E(() => document.getElementById('doorType').value);
-  assert(dtR === 'roller' && dtL === 'double' && (await st()).tool === 'door', `door tool: D-pad right / left flip the door type (${dtR}, ${dtL}); the tool stays`);
+  assert(dtR === 'glass-door' && dtL === 'double' && (await st()).tool === 'door', `door tool: D-pad right / left flip the door type (${dtR}, ${dtL}); the tool stays`);
   await press(BTN.B);
   assert((await st()).tool === 'select', 'B: back to select');
   console.log('pad tool bar, level, dot, display, quick walk, go to the selection');
@@ -666,7 +666,16 @@ try {
   const wh = await E(() => window.__editor.model.history.length);
   const wKinds = await E(() => { const p = window.__editor.pad; p.editCard('type'); return true; });
   const kinds = [];
-  for (let i = 0; i < 4; i++) { await press(BTN.RIGHT); kinds.push(await E((id) => window.__editor.model.get('walls', id).kind, wWid)); }
+  // (each step holds the D-pad only until the kind changes, so a slow frame cannot repeat it; ON9)
+  for (let i = 0; i < 4; i++) {
+    kinds.push(await E(async ([id, b]) => {
+      const ed = window.__editor; const raf = () => new Promise((r) => requestAnimationFrame(r)); const k0 = ed.model.get('walls', id).kind;
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && ed.model.get('walls', id).kind === k0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+      return ed.model.get('walls', id).kind;
+    }, [wWid, BTN.RIGHT]));
+  }
   await E(([id, h]) => { const ed = window.__editor; while (ed.model.history.length > h) ed.undo(); ed.pad.cardEditing = false; ed.select(`walls:${id}`); }, [wWid, wh]);
   const wh0 = (await edState()).h;
   await E(() => window.__editor.pad.changeType('balustrade'));
@@ -985,7 +994,9 @@ try {
     await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLevel('R'); });
     await press(BTN.START);
     await E(() => window.__editor.pad.hub.setTab('Levels'));
-    const toHubRow = async (row, btn = BTN.DOWN) => { for (let i = 0; i < 40 && (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) !== row; i++) await press(btn); return (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) === row; };
+    // (each step holds the D-pad only until the focus moves, so a slow frame cannot repeat it; ON9)
+    const hubStep = (btn) => E(async (b) => { const raf = () => new Promise((r) => requestAnimationFrame(r)); const f = () => document.querySelector('#hub .padfocus')?.dataset.row ?? ''; const r0 = f(); window.__pad.set(b, 1); for (let k = 0; k < 150 && f() === r0; k++) await raf(); window.__pad.set(b, 0); await raf(); await raf(); await raf(); }, btn);
+    const toHubRow = async (row, btn = BTN.DOWN) => { for (let i = 0; i < 40 && (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) !== row; i++) await hubStep(btn); return (await E(() => document.querySelector('#hub .padfocus')?.dataset.row)) === row; };
     assert(await toHubRow('lv.addAbove'), 'ON2: the Levels tab has "Add a level above Roof"');
     await shot('on2-levels');
     await press(BTN.A);
@@ -1074,6 +1085,150 @@ try {
     const gone = await E((id) => ({ s: !!window.__editor.model.get('stairs', id), text: JSON.stringify(window.__editor.model.data, null, 1) }), ghost.id);
     assert(!gone.s && gone.text === text0, 'ON2: one undo takes the stair and its well away (the file as before)');
 
+    await E(() => window.__editor.setLevel('G'));
+  }
+
+  console.log('ON9: a card sliding glass door at Building A, a fire door one-way out, a frosted window with blinds closed, a Type flip, a save, the walk test door');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a D-pad button only until what it moves changes (the menu highlight or the card's lit row), so a slow frame cannot repeat it
+    const hold = (btn, what) => E(async ([b, what]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const probe = () => {
+        if (what === 'menu') { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}`; }
+        const r = document.querySelector('#selCard .crow.on');
+        return r ? `${r.dataset.row}|${r.querySelector('b').textContent}` : '';
+      };
+      const v0 = probe();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, what]);
+    const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
+    const toRowHeld = async (row) => { for (let i = 0; i < 20 && (await litRow()) !== row; i++) await hold(BTN.DOWN, 'card'); return (await litRow()) === row; };
+    const tileTo = async (name) => {
+      for (let i = 0; i < 8 && (await menuState()).tab !== 'Openings'; i++) await hold(BTN.RB, 'menu');
+      for (let i = 0; i < 20 && (await menuState()).tile !== name; i++) await hold(BTN.RIGHT, 'menu');
+      return (await menuState()).tile === name;
+    };
+    // Building A's entrance wall (the wall of the front entrance RA03); a spot on it clear of its openings and of cross walls
+    const entWall = await E(() => window.__editor.model.data.openings.find((o) => o.id === 'RA03')?.wall ?? null);
+    assert(!!entWall, `ON9: Building A's entrance wall (${entWall})`);
+    const freeSpot = () => E((id) => {
+      const d = window.__editor.model.data;
+      const w = d.walls.find((q) => q.id === id);
+      const L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+      const dir = [(w.b[0] - w.a[0]) / L, (w.b[1] - w.a[1]) / L];
+      const segD = (p, q) => { const dx = q.b[0] - q.a[0]; const dz = q.b[1] - q.a[1]; const l2 = dx * dx + dz * dz || 1; const t = Math.max(0, Math.min(1, ((p[0] - q.a[0]) * dx + (p[1] - q.a[1]) * dz) / l2)); return Math.hypot(p[0] - q.a[0] - dx * t, p[1] - q.a[1] - dz * t); };
+      for (let s = 3; s < L - 3; s += 0.5) {
+        const p = [w.a[0] + dir[0] * s, w.a[1] + dir[1] * s];
+        if (d.openings.filter((o) => o.wall === id).some((o) => Math.abs(o.at - s) < o.w / 2 + 2.6)) continue;
+        if (d.walls.some((q) => q.level === w.level && q.id !== id && segD(p, q) < 2)) continue;
+        return p;
+      }
+      return null;
+    }, entWall);
+    const lastOf = (type) => E((t) => { const os = window.__editor.model.data.openings.filter((o) => o.type === t); return os[os.length - 1] ?? null; }, type);
+    const place = async (tile, type) => {
+      const n0 = await E((t) => window.__editor.model.data.openings.filter((o) => o.type === t).length, type);
+      await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
+      await press(BTN.Y);
+      const ok = await tileTo(tile);
+      if (tile === 'Sliding glass door (card)') await shot('on9-openings-tab');
+      await press(BTN.A);
+      const spot = await freeSpot();
+      if (!ok || !spot) return null;
+      await dotAt(spot[0], spot[1]);
+      await page.waitForFunction((t) => document.getElementById('reticleText').textContent.includes(`A: place ${t}`), tile, { timeout: 5000 }).catch(() => {});
+      // LB held: no centring between the cross walls (the spot was picked clear of the openings already there)
+      await set(BTN.LB, 1);
+      await frames(page, 2);
+      await press(BTN.A);
+      await set(BTN.LB, 0);
+      await frames(page, 3);
+      await page.waitForFunction(([t, n]) => window.__editor.model.data.openings.filter((o) => o.type === t).length > n, [type, n0], { timeout: 5000 }).catch(() => {});
+      return lastOf(type);
+    };
+
+    const card = await place('Sliding glass door (card)', 'slide-card');
+    assert(!!card && card.wall === entWall && card.door?.reader === 'card' && card.locked === true, `ON9: Openings tab > Sliding glass door (card) placed on Building A's entrance wall, card reader and locked by default (${JSON.stringify(card?.door)})`);
+    await E(() => window.__editor.setTool('select'));
+    await E((id) => window.__editor.select(`openings:${id}`), card.id);
+    await frames(page, 3);
+    assert(await toRowHeld('level'), 'ON9: D-pad down reaches the Card level row');
+    for (let i = 0; i < 6 && (await E((id) => window.__editor.model.get('openings', id).door.level, card.id)) !== 2; i++) await hold(BTN.RIGHT, 'card');
+    await page.waitForFunction(() => /Level 2/.test(document.querySelector('#selCard .crow.on b')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const cardRowsText = await E(() => [...document.querySelectorAll('#selCard .crow')].map((r) => r.dataset.row).join(','));
+    await shot('on9-door-card');
+    const c2 = await E((id) => { const ed = window.__editor; const o = ed.model.get('openings', id); const on = (n) => ed.view.scene.meshes.some((m) => m.name === `opening ${id} ${n}` && m.isEnabled()); return { door: o.door, sign: on('sign'), reader: on('reader'), marks: on('marks') }; }, card.id);
+    assert(c2.door.level === 2 && c2.door.reader === 'card' && !/hinge/.test(cardRowsText) && /stack/.test(cardRowsText) && c2.sign && c2.reader && c2.marks, `ON9: Card level 2 with a card reader; no Hinge row on a sliding door (rows ${cardRowsText}); 3D draws the level plate, the reader and the track`);
+    await press(BTN.B);
+
+    const fire = await place('Fire door', 'fire-door');
+    const inner = await E((o) => { const d = window.__editor.model.data; return o.between.find((id) => { const r = d.rooms.find((q) => q.id === id); return r && !['yard', 'lane', 'roof'].includes(r.kind); }) ?? null; }, fire);
+    assert(!!fire && fire.door?.oneWay === inner && fire.door?.swing === fire.between.find((b) => b !== inner) && fire.door?.closer === true, `ON9: a fire door is one-way out by default: free from ${inner}, swings out to ${fire?.door?.swing}, self-closing`);
+
+    const win = await place('Frosted fixed window', 'window-frosted');
+    assert(!!win && win.glass?.kind === 'frosted', `ON9: a frosted window placed (${JSON.stringify(win?.glass)})`);
+    await E(() => window.__editor.setTool('select'));
+    await E((id) => window.__editor.select(`openings:${id}`), win.id);
+    await frames(page, 3);
+    assert(await toRowHeld('blinds'), 'ON9: the window card has a Blinds row');
+    for (let i = 0; i < 6 && (await E((id) => window.__editor.model.get('openings', id).glass.blinds, win.id)) !== 'closed'; i++) await hold(BTN.LEFT, 'card');
+    const w2 = await E((id) => ({ g: window.__editor.model.get('openings', id).glass, blinds: window.__editor.view.scene.meshes.some((m) => m.name === `opening ${id} blinds` && m.isEnabled()) }), win.id);
+    assert(w2.g.blinds === 'closed' && w2.blinds, `ON9: blinds closed on the frosted window, drawn in 3D (${JSON.stringify(w2.g)})`);
+    await press(BTN.B);
+
+    // the Type row flips within the family: a door stays a door
+    await E((id) => window.__editor.select(`openings:${id}`), card.id);
+    await frames(page, 3);
+    const hT = await E(() => window.__editor.model.history.length);
+    await hold(BTN.RIGHT, 'card');
+    const flipped = await E((id) => ({ o: window.__editor.model.get('openings', id), lit: document.querySelector('#selCard .crow.on')?.dataset.row, h: window.__editor.model.history.length }), card.id);
+    assert(flipped.o.type === 'slide' && flipped.lit === 'type' && flipped.h === hT + 1 && flipped.o.door.level === 2, `ON9: D-pad right on Type: Sliding glass door (card) -> ${flipped.o.type} (a door), the card level kept`);
+    await press(BTN.B);
+    await E(() => window.__editor.undo());
+    assert((await E((id) => window.__editor.model.get('openings', id).type, card.id)) === 'slide-card', 'ON9: undo puts the card door back');
+
+    // the plan's symbols: framed on the new doors
+    await E((id) => { const ed = window.__editor; ed.select(`openings:${id}`); ed.frameSelected(); }, fire.id);
+    await page.waitForFunction(() => (document.querySelector('#planSvg svg')?.innerHTML.match(/#5b8fb9/g) ?? []).length > 0, null, { timeout: 15000 }).catch(() => {});
+    await wait(500);
+    await shot('on9-plan-symbols');
+    const planHatch = await E(() => (document.querySelector('#planSvg svg')?.innerHTML.match(/#5b8fb9/g) ?? []).length);
+    assert(planHatch > 0, `ON9: the plan draws glass hatching (${planHatch} hatch lines)`);
+
+    // saved to the sandbox with the new data fields
+    await E(() => window.__editor.save());
+    await page.waitForFunction(() => /Saved \d+ change/.test(document.getElementById('status').textContent), null, { timeout: 120000 });
+    const saved = JSON.parse(readFileSync(path.join(sandbox, 'docs/kestrel/kestrel.campus.blocks.json'), 'utf8'));
+    const so = (id) => saved.openings.find((o) => o.id === id);
+    assert(so(card.id)?.door?.level === 2 && so(fire.id)?.door?.oneWay === inner && so(win.id)?.glass?.blinds === 'closed', 'ON9: the sandbox file has the card level, the one-way side and the closed blinds');
+
+    // the walk test builds the fire door as the game's hinged door
+    const walkAt = await E(([id, inner]) => {
+      const d = window.__editor.model.data;
+      const o = d.openings.find((q) => q.id === id);
+      const w = d.walls.find((q) => q.id === o.wall);
+      const L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+      const dir = [(w.b[0] - w.a[0]) / L, (w.b[1] - w.a[1]) / L];
+      const c = [w.a[0] + dir[0] * o.at, w.a[1] + dir[1] * o.at];
+      const r = d.rooms.find((q) => q.id === inner);
+      const n = [-dir[1], dir[0]];
+      const s = c[0] + n[0] * 2 > r.rect[0] && c[0] + n[0] * 2 < r.rect[2] && c[1] + n[1] * 2 > r.rect[1] && c[1] + n[1] * 2 < r.rect[3] ? 1 : -1;
+      return { spawn: [c[0] + n[0] * 2 * s, c[1] + n[1] * 2 * s], ends: [[w.a[0] + dir[0] * (o.at - o.w / 2), w.a[1] + dir[1] * (o.at - o.w / 2)], [w.a[0] + dir[0] * (o.at + o.w / 2), w.a[1] + dir[1] * (o.at + o.w / 2)]] };
+    }, [fire.id, inner]);
+    await dot(walkAt.spawn[0], walkAt.spawn[1], 0);
+    await page.keyboard.press('Tab');
+    await page.waitForFunction(() => /stage DR/.test(document.getElementById('status').textContent), null, { timeout: 5000 }).catch(() => {});
+    const drNote = await E(() => document.getElementById('status').textContent);
+    await walkIs('open', 90000);
+    const gameDoors = await gf().evaluate(() => window.__app.current.world.level.anchors.doors.map((a) => [a.hinge.x, a.hinge.z, a.width]));
+    const hinged = gameDoors.some(([x, z]) => walkAt.ends.some((e) => Math.hypot(e[0] - x, e[1] - z) < 0.6));
+    assert(hinged && /Sliding and glass doors open in the game from stage DR/.test(drNote), `ON9: the walk test builds the fire door as a hinged game door (${gameDoors.length} doors in the game); the status says "${drNote.slice(0, 90)}"`);
+    const beforeW = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after ON9', beforeW);
     await E(() => window.__editor.setLevel('G'));
   }
 

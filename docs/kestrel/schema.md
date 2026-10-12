@@ -33,8 +33,8 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
   "meta": { "id": "kestrel", "version": 1, "grid": 0.5, "objectGrid": 0.1, "entry": [0, 0], "bay": [6, 6], "site": [0, 0, 60, 45], "footprint": [0, 0, 0, 0], "buildings": [ { "id": "A", "name": "", "footprint": [0, 0, 0, 0] } ] },
   "levels": [ { "id": "G", "name": "Ground", "floor": 0, "height": 3.3 } ],
   "rooms": [ { "id": "G01", "level": "G", "name": "", "kind": "room|corridor|stair|shaft|plant|yard|lane|roof|zone", "rect": [0, 0, 0, 0], "ceiling": 3.0, "finish": "", "minShort": 3.0, "open": [], "ring": 3, "module": "", "building": "A" } ],
-  "walls": [ { "id": "W001", "level": "G", "a": [0, 0], "b": [0, 0], "t": 0.3, "h": 3.0, "kind": "interior|exterior|boundary|parapet|balustrade" } ],
-  "openings": [ { "id": "D001", "wall": "W001", "at": 0, "w": 1.2, "h": 2.1, "sill": 0, "type": "door|double|fire-door|window|arch|roller|hatch|gate|grille", "between": ["G01", "G02"], "locked": false, "key": "", "reason": "" } ],
+  "walls": [ { "id": "W001", "level": "G", "a": [0, 0], "b": [0, 0], "t": 0.3, "h": 3.0, "kind": "interior|exterior|boundary|parapet|balustrade|glass", "glass": { "kind": "clear", "blinds": "none", "breakable": true } } ],
+  "openings": [ { "id": "D001", "wall": "W001", "at": 0, "w": 1.2, "h": 2.1, "sill": 0, "type": "door|fire-door|double|glass-door|slide-auto|slide-card|slide|roller|gate|slide-gate|hatch|arch|window|window-open|window-frosted|louvre|rooflight|grille", "between": ["G01", "G02"], "locked": false, "key": "", "reason": "", "door": { "hinge": "left", "swing": "G02", "oneWay": "G01", "reader": "card", "level": 2, "closer": true, "alarmed": false, "vision": false }, "glass": { "kind": "clear", "blinds": "none", "breakable": true, "opens": false } } ],
   "stairs": [ { "id": "S01", "kind": "main|fire|feature|bulkhead", "from": "G", "to": "F", "rect": [0, 0, 0, 0], "up": "N|S|E|W", "width": 1.3, "risers": 20 } ],
   "ladders": [ { "id": "L01", "room": "B02", "at": [0, 0], "from": "B", "to": "G", "facing": "N|S|E|W", "reason": "" } ],
   "voids": [ { "id": "V01", "level": "F", "rect": [0, 0, 0, 0], "kind": "stairwell|liftshaft|riser|hatch|rooflight", "reason": "" } ],
@@ -74,12 +74,15 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | walls[].a, b | Centreline end points `[x, z]` |
 | walls[].t | Thickness: exterior 0.45, interior 0.30 |
 | walls[].h | Wall height above the level floor |
-| walls[].kind | Wall type; `parapet` and `balustrade` are low edge walls |
+| walls[].kind | Wall type; `parapet` and `balustrade` are low edge walls; `glass` is a glass partition (ON9: drawn see-through, collides in the walk test) |
+| walls[].glass | Optional, only on a `glass` wall (ON9): `kind` clear, frosted, wired or tinted; `blinds` none, open, half or closed; `breakable`. Absent means clear, no blinds, breakable. Frosted glass and closed blinds block sight and pass light (bible 5.1; the game from stage DR) |
 | openings[].id | Unique opening id |
 | openings[].wall | Wall id the opening sits in |
 | openings[].at, w | Centre distance from wall end `a`, and clear width |
 | openings[].h, sill | Opening height and sill height above the floor |
-| openings[].type | Door, double door, fire door, window, arch, roller door, hatch, gate or grille. A `fire-door` is exit-only: no handle on the lower-zone side (SC02) |
+| openings[].type | Doors (ON9 catalogue, `src/editor/openingCatalogue.ts`): `door` single swing, `fire-door` solid fire door, `double` double swing, `glass-door` glass swing, `slide-auto` sliding glass (automatic), `slide-card` sliding glass (card), `slide` sliding (manual), `roller` roller shutter, `gate` swing gate, `slide-gate` sliding gate, `hatch`, `arch` (no leaf). Windows: `window` fixed, `window-open` opening (top hung), `window-frosted` frosted fixed, `louvre`, `rooflight` (high in the wall). `grille` is kept from older files. A `fire-door` is exit-only: no handle on the lower-zone side (SC02) |
+| openings[].door | Optional door settings (ON9), each optional; absent means the type's default (`typeDefaults`): `hinge` left or right (seen standing on the side the door opens away from, facing it; absent is the `a` end); `stack` the same for a sliding leaf's stack side; `swing` the room id the leaf swings into ('' outside; absent is `between[1]`); `oneWay` the room id of the side that opens freely (push bar; the other side needs the key or card, or cannot open); `reader` none, card, card-pin, keypad or key-switch; `level` the card access level 0-5 (S0 2.3); `closer` self-closing; `alarmed`; `vision` a glass vision panel in a solid leaf. A door with `oneWay` counts as exit-only, and one with a card reader and a `level` as a reader door, in A29 and SC02 |
+| openings[].glass | Optional glass settings (ON9) on windows and glass leaves: `kind` clear, frosted, wired or tinted; `blinds` none, open, half or closed (windows); `breakable` can be shot or smashed; `opens` the window opens (windows). Frosted glass and closed blinds block sight and pass light (bible 5.1; the game from stage DR) |
 | openings[].between | The two room ids it joins; an empty string means outside |
 | openings[].locked, key | Whether it is locked and which key or card opens it |
 | openings[].reason | Who uses it and why it is there (level-design 16.3.1) |
@@ -228,7 +231,7 @@ Shape and field rules are S0-security-spec.md section 6; they are not repeated h
 - `L-security.svg` and `.png` with `--security`: the architecture plus the security devices.
 
 Drawing conventions the renderer chose where this schema is silent:
-- A door's leaf is hinged at the `a` end of its opening and swings toward `between[1]` (toward the left of the wall direction when that room is empty or unknown).
+- A door's leaf is hinged at the `a` end of its opening and swings toward `between[1]` (away from the room on the other side when that room is empty, else toward the left of the wall direction when unknown); `door.hinge` and `door.swing` override both (ON9, `src/world/maps/kestrelDoors.ts`).
 - A stair is hatched on its `from` level with an UP arrow and drawn dashed with a DN arrow on its `to` level; a ladder is drawn on both its levels.
 - An exterior element or service is drawn on every level whose height span it touches.
 - An object id that does not fit inside the object (each rack of a row) is left off the plan.

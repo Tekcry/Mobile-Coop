@@ -3,7 +3,7 @@
  * tinted by access level, stairs, ladders, floor holes, pipe runs), picking, selection outlines and drag handles.
  * A dev tool: it rebuilds whole elements on change and never touches the game's renderer.
  */
-import { Color3, Color4, CreateBox, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3 } from '../core/babylon';
+import { Color3, Color4, CreateBox, CreateLineSystem, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3 } from '../core/babylon';
 import type { AbstractMesh } from '../core/babylon';
 import { cutRect, EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { WallJoin } from './geometry';
@@ -13,12 +13,15 @@ import { keyOf, parseKey } from './types';
 import { buildingAt, DEFAULT_VIS, elementState, explodeOffset } from './visibility';
 import { stairLayout } from '../world/maps/stairs';
 import { STAIR_FACTS } from './vertical';
+import { catEntry, effective, GLASS_WALL_DEFAULT } from './openingCatalogue';
+import type { GlassData } from './openingCatalogue';
+import { hangsAtA, swingSign } from '../world/maps/kestrelDoors';
 import type { VisSettings } from './visibility';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
 const OUTSIDE_TINT = '#e9f4e1';
-const WALL_TINT: Record<string, string> = { exterior: '#5b5f66', interior: '#b9bcc2', boundary: '#8a6f55', parapet: '#8d9096', balustrade: '#6f8fa8' };
+const WALL_TINT: Record<string, string> = { exterior: '#5b5f66', interior: '#b9bcc2', boundary: '#8a6f55', parapet: '#8d9096', balustrade: '#6f8fa8', glass: '#9fd3ff' };
 
 interface Meta {
   key: Key;
@@ -213,7 +216,8 @@ export class EditorScene {
     const node = levels[0] !== undefined ? this.levelNode(levels[0]) : null;
     for (const m of meshes) {
       m.metadata = { ...(m.metadata as object), key, levels, floor, building } satisfies Meta;
-      m.isPickable = true;
+      // ON9: a door's floor marks (swing arcs, tracks, arrows) are lines, never picked or outlined
+      m.isPickable = m.getClassName() !== 'LinesMesh';
       if (node) m.parent = node;
     }
     this.nodes.set(key, meshes);
@@ -269,7 +273,9 @@ export class EditorScene {
     const d = wallDir(w);
     const yaw = EditorScene.yaw(d[0], d[1]);
     const fence = w.kind === 'boundary';
-    const mat = this.mat('wall', WALL_TINT[w.kind] ?? WALL_TINT.interior!, fence ? 0.45 : 1);
+    // ON9 decision 4: a glass partition is drawn see-through, as its glass
+    const glass = w.kind === 'glass' ? { ...GLASS_WALL_DEFAULT, ...(w.glass && typeof w.glass === 'object' ? (w.glass as GlassData) : {}) } : null;
+    const mat = glass ? this.glassMat(glass) : this.mat('wall', WALL_TINT[w.kind] ?? WALL_TINT.interior!, fence ? 0.45 : 1);
     const ops = this.data.openings.filter((o) => o.wall === w.id);
     const out: Mesh[] = [];
     const cut = this.cut;
@@ -289,6 +295,14 @@ export class EditorScene {
       }
       m.metadata = { openings: ops.map((o) => o.id) };
       out.push(m);
+      if (glass && glass.blinds !== 'none' && y1 - p.y0 > 1) {
+        // blinds on a glass partition: closed fill it, half the top half, open a strip at the head
+        const frac = glass.blinds === 'closed' ? 1 : glass.blinds === 'half' ? 0.5 : 0.12;
+        const off = w.t / 2 + 0.02;
+        const b = this.box(`wall ${w.id}`, c[0] - d[1] * off, f + y1 - ((y1 - p.y0) * frac) / 2, c[1] + d[0] * off, p.s1 - p.s0, (y1 - p.y0) * frac, 0.02, yaw, this.mat('blinds', '#d9d4c7', 0.9));
+        b.metadata = { openings: ops.map((o) => o.id) };
+        out.push(b);
+      }
     }
     return [out, [w.level]];
   }
@@ -298,14 +312,108 @@ export class EditorScene {
     if (!w) return [[], []];
     const f = this.floorOf(w.level);
     const d = wallDir(w);
-    const c = wallPoint(w, Math.max(0, Math.min(wallLen(w), o.at)));
+    const L = wallLen(w);
+    const at = Math.max(0, Math.min(L, o.at));
+    const c = wallPoint(w, at);
     const yaw = EditorScene.yaw(d[0], d[1]);
-    const glass = o.type === 'window';
-    const hex = glass ? '#9fd3ff' : o.type === 'gate' ? '#8a6f55' : o.type === 'roller' ? '#7c8790' : o.type === 'fire-door' ? '#c0392b' : '#a0703c';
     const top = Math.min(o.sill + o.h, this.cut);
     if (top <= o.sill) return [[], [w.level]];
-    const m = this.box(`opening ${o.id}`, c[0], f + (o.sill + top) / 2, c[1], o.w, top - o.sill, glass ? 0.04 : 0.08, yaw, this.mat('opening', hex, glass ? 0.35 : 0.55, 0.15));
-    return [[m], [w.level]];
+    // ON9 decision 6: the leaf by what it is made of, its hinge and swing arc or its track, a reader or lock, one-way arrows
+    const e = catEntry(o.type);
+    const rooms = this.data.rooms;
+    const set = effective(o, rooms);
+    const out: Mesh[] = [];
+    const y0 = f + o.sill;
+    const hgt = top - o.sill;
+    const solidHex = o.type === 'fire-door' ? '#c0392b' : o.type === 'roller' ? '#7c8790' : '#a0703c';
+    const leafMat = e.leaf === 'glass' ? this.glassMat(set.glass) : e.leaf === 'mesh' ? this.mat('mesh', '#8a8f94', 0.4, 0.1) : e.leaf === 'none' ? this.mat('arch', '#a0703c', 0.12) : this.mat('opening', solidHex, 0.55, 0.15);
+    out.push(this.box(`opening ${o.id}`, c[0], y0 + hgt / 2, c[1], o.w, hgt, e.leaf === 'solid' ? 0.08 : 0.04, yaw, leafMat));
+    const n: [number, number] = [-d[1], d[0]];
+    const P = (s: number, off: number, y: number): Vector3 => new Vector3(w.a[0] + d[0] * s + n[0] * off, y, w.a[1] + d[1] * s + n[1] * off);
+    const lines: Vector3[][] = [];
+    const colours: string[] = [];
+    const line = (pts: Vector3[], hex: string): void => {
+      lines.push(pts);
+      colours.push(hex);
+    };
+    const s0 = at - o.w / 2;
+    const s1 = at + o.w / 2;
+    const fy = f + 0.03;
+    if (e.family === 'window') {
+      const blinds = set.glass.blinds ?? 'none';
+      if (blinds !== 'none') {
+        const frac = blinds === 'closed' ? 1 : blinds === 'half' ? 0.5 : 0.12;
+        out.push(this.box(`opening ${o.id} blinds`, c[0] + n[0] * 0.06, y0 + hgt * (1 - frac / 2), c[1] + n[1] * 0.06, o.w * 0.98, hgt * frac, 0.02, yaw, this.mat('blinds', '#d9d4c7', 0.9)));
+      }
+    } else if (e.motion === 'swing' || e.motion === 'double') {
+      const sgn = swingSign(o, w, rooms);
+      const leaves: [number, number][] = e.motion === 'double' ? [[s0, 1], [s1, -1]] : hangsAtA(o, w, rooms) ? [[s0, 1]] : [[s1, -1]];
+      const len = e.motion === 'double' ? o.w / 2 : o.w;
+      for (const [h, dir] of leaves) {
+        // the hinge post, the open leaf and the arc it sweeps on the floor
+        out.push(this.box(`opening ${o.id} hinge`, w.a[0] + d[0] * h, y0 + hgt / 2, w.a[1] + d[1] * h, 0.06, hgt, w.t + 0.04, yaw, this.mat('hinge', '#2b2e33')));
+        const arc: Vector3[] = [];
+        for (let k = 0; k <= 12; k++) {
+          const t = (k / 12) * (Math.PI / 2);
+          arc.push(P(h + dir * len * Math.cos(t), sgn * len * Math.sin(t), fy));
+        }
+        line(arc, '#3b4a5a');
+        line([P(h, 0, fy), P(h, sgn * len, fy)], '#3b4a5a');
+      }
+    } else if (e.motion === 'slide') {
+      // the track along the floor, running on past the stack side, and an arrow toward the stack
+      const atA = hangsAtA(o, w, rooms, 'stack');
+      const off = (w.t / 2 + 0.05) * (swingSign(o, w, rooms) === 1 ? -1 : 1);
+      const far = atA ? s0 - o.w / 2 : s1 + o.w / 2;
+      line([P(atA ? s1 : s0, off, fy), P(far, off, fy)], '#3b4a5a');
+      const tip = atA ? s0 - 0.1 : s1 + 0.1;
+      const back = atA ? 0.35 : -0.35;
+      line([P(at, off * 2.5, fy), P(tip, off * 2.5, fy), P(tip + back, off * 2.5 + 0.18, fy)], '#3b4a5a');
+      line([P(tip, off * 2.5, fy), P(tip + back, off * 2.5 - 0.18, fy)], '#3b4a5a');
+    }
+    if (e.family === 'door' && e.settings.length) {
+      // a reader (card: green light) or a lock at handle height on both faces, at the latch end
+      const latch = e.motion === 'double' ? at : e.motion === 'slide' ? (hangsAtA(o, w, rooms, 'stack') ? s1 : s0) : hangsAtA(o, w, rooms) ? s1 : s0;
+      const sOut = latch + (latch >= at ? 0.25 : -0.25);
+      const reader = set.door.reader ?? 'none';
+      if (reader !== 'none' || set.locked) {
+        const m = reader === 'card' || reader === 'card-pin' ? this.mat('reader', '#2fbf71', 1, 0.6) : reader === 'none' ? this.mat('lock', '#d4a017', 1, 0.4) : this.mat('keypad', '#5b6b7a', 1, 0.4);
+        for (const side of [1, -1]) {
+          const p = P(sOut, side * (w.t / 2 + 0.03), y0 + 1.05);
+          out.push(this.box(`opening ${o.id} reader`, p.x, p.y, p.z, 0.09, 0.14, 0.04, yaw, m));
+        }
+      }
+      // one-way: an arrow on the floor from the side that opens freely, through the door
+      const ow = set.door.oneWay;
+      if (ow !== undefined && o.between && o.between.includes(ow)) {
+        const away = -swingSign({ ...o, door: { swing: ow } }, w, rooms);
+        line([P(at, -away * 1.0, fy), P(at, away * 1.0, fy), P(at - 0.25, away * 0.7, fy)], '#2e8b57');
+        line([P(at, away * 1.0, fy), P(at + 0.25, away * 0.7, fy)], '#2e8b57');
+      }
+      // ON9 decision 9: the card level on a small plate over the door, in the plans' level colour
+      const lv = set.door.level;
+      if (lv !== undefined && (reader === 'card' || reader === 'card-pin') && o.sill + o.h + 0.25 < Math.min(w.h, this.cut)) {
+        for (const side of [1, -1]) {
+          const p = P(at, side * (w.t / 2 + 0.02), y0 + o.h + 0.15);
+          out.push(this.box(`opening ${o.id} sign`, p.x, p.y, p.z, 0.36, 0.16, 0.03, yaw, this.mat('sign', RING_TINT[lv] ?? '#ffffff', 1, 0.5)));
+        }
+      }
+      if (set.door.vision && e.leaf === 'solid') out.push(this.box(`opening ${o.id} vision`, c[0], y0 + Math.min(hgt, 1.5), c[1], Math.min(0.25, o.w / 4), 0.6, 0.1, yaw, this.glassMat({ kind: 'clear' })));
+    }
+    if (lines.length) {
+      const colors = lines.map((l, i) => l.map(() => Color4.FromHexString(`${colours[i]!}ff`)));
+      out.push(CreateLineSystem(`opening ${o.id} marks`, { lines, colors }, this.scene));
+    }
+    return [out, [w.level]];
+  }
+
+  /** Glass by its kind: clear, frosted (milky, nearly opaque), wired, tinted (ON9). */
+  private glassMat(g: GlassData): StandardMaterial {
+    const k = g.kind ?? 'clear';
+    if (k === 'frosted') return this.mat('glass', '#eef3f6', 0.75, 0.2);
+    if (k === 'tinted') return this.mat('glass', '#4a6070', 0.5, 0.1);
+    if (k === 'wired') return this.mat('glass', '#b8d0dc', 0.45, 0.15);
+    return this.mat('glass', '#9fd3ff', 0.3, 0.15);
   }
 
   /**
@@ -428,6 +536,7 @@ export class EditorScene {
 
   private outline(key: Key, on: boolean): void {
     for (const m of this.nodes.get(key) ?? []) {
+      if (m.getClassName() === 'LinesMesh') continue;
       m.renderOutline = on;
       m.outlineColor = new Color3(1, 0.45, 0);
       m.outlineWidth = 0.06;

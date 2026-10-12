@@ -36,7 +36,7 @@ describe('pad hint bar', () => {
 describe('selection card and tool bar words', () => {
   it('titles a wall by its kind, capitalised, once; the id is not in the title', () => {
     expect(cardWords('walls', w)).toEqual({ title: 'Interior wall', size: '10 m long, 0.3 m thick' });
-    expect(cardWords('openings', d.openings[0] as Opening)).toEqual({ title: 'Door', size: '1.2 m wide, 2.1 m high' });
+    expect(cardWords('openings', d.openings[0] as Opening)).toEqual({ title: 'Single door', size: '1.2 m wide, 2.1 m high' });
     expect(cardWords('rooms', d.rooms[0] as Room)).toEqual({ title: 'Office', size: 'Zone, 10 x 5 m' });
   });
 

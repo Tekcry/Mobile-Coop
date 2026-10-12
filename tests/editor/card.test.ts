@@ -10,7 +10,8 @@ const c = { step: 0.1, wallLen: 6 };
 
 describe('selection card rows (ON0a decision 4)', () => {
   it('Type first, then the element own fields', () => {
-    expect(cardRows('openings', door).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Height', 'Sill', 'Along wall', 'Locked', 'Id']);
+    // ON9: a single door's own settings follow its sizes
+    expect(cardRows('openings', door).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Height', 'Sill', 'Along wall', 'Hinge', 'Swings into', 'One-way', 'Locked', 'Reader', 'Self-closing', 'Alarmed', 'Vision panel', 'Id']);
     expect(cardRows('walls', wall).map((r) => r.label)).toEqual(['Type', 'Name', 'Thickness', 'Height', 'Length', 'Id']);
     expect(cardRows('rooms', room).map((r) => `${r.label} ${r.value}`)).toEqual(['Type Room', 'Name Office', 'Width 4 m', 'Depth 3 m', `Access ${RING_NAMES[2]}`, `Id ${room.id}`]);
     expect(cardRows('stairs', { id: 'S', kind: 'stair', from: 'G', to: 'F', rect: [0, 0, 2, 5], up: 'N' }).map((r) => r.label)).toEqual(['Type', 'Name', 'Width', 'Depth', 'Climbs', 'To level', 'Id']);
@@ -19,7 +20,7 @@ describe('selection card rows (ON0a decision 4)', () => {
 
   it('step sizes: lengths by 0.1 m, lists by one entry (wrapping), flags on / off', () => {
     expect((stepCard('openings', door, 'type', 1, c) as Opening).type).toBe('fire-door');
-    expect((stepCard('openings', door, 'type', -1, c) as Opening).type).toBe('window');
+    expect((stepCard('openings', door, 'type', -1, c) as Opening).type).toBe('arch');
     let o = door;
     for (let i = 0; i < 3; i++) o = stepCard('openings', o, 'w', 1, c) as Opening;
     expect(o.w).toBe(1.5);

@@ -38,7 +38,12 @@ const ptSeg = (p, a, b) => {
 const ptRectDist = (p, r) => Math.hypot(Math.max(r[0] - p[0], 0, p[0] - r[2]), Math.max(r[1] - p[1], 0, p[1] - r[3]));
 
 const DOOR_TYPES = new Set(['door', 'double', 'fire-door']);
-const PASS_TYPES = new Set(['door', 'double', 'fire-door', 'arch', 'roller', 'gate']);
+// ON9: the editor's door types are passable too (the sliding and glass doors, the sliding gate); the rules are unchanged
+const PASS_TYPES = new Set(['door', 'double', 'fire-door', 'arch', 'roller', 'gate', 'glass-door', 'slide-auto', 'slide-card', 'slide', 'slide-gate']);
+/** ON9: an exit-only door (a fire door, or one with `door.oneWay`: free from one side only). */
+const exitOnly = (o) => o.type === 'fire-door' || (typeof o.door?.oneWay === 'string');
+/** ON9 (S0 2.3): a door with its own card reader and access level counts as a reader door. */
+const ownReader = (o) => ['card', 'card-pin'].includes(o.door?.reader) && Number.isInteger(o.door?.level);
 const VOID_KINDS = new Set(['stairwell', 'liftshaft', 'riser', 'hatch', 'rooflight']);
 const RING_ORDER = [0, 1, 2, 3, 4, 5];
 const EDGES = 'WSEN';
@@ -678,7 +683,7 @@ check('A29', 'An opening joins rooms at most one level apart', 'FAIL', ['kit.rin
       c.note(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) ring-exempt: ${o.ringExempt}`);
       continue;
     }
-    if (!PASS_TYPES.has(o.type) || o.type === 'fire-door') continue;
+    if (!PASS_TYPES.has(o.type) || exitOnly(o)) continue;
     const [A, B] = (o.between ?? []).map((id) => c.roomById.get(id));
     if (!A || !B || !RING_ORDER.includes(A.ring) || !RING_ORDER.includes(B.ring) || carrier(A) || carrier(B) || joined(A.ring, B.ring)) continue;
     const p = c.openingPoint(o);
@@ -795,7 +800,7 @@ SC('SC02', 'Every opening into a higher zone has a reader or is an exit-only doo
     if (!PASS_TYPES.has(o.type) || !Array.isArray(o.between)) continue;
     const [ra, rb] = o.between.map(rank);
     if (ra < 0 || rb < 0 || ra === rb) continue;
-    if (!gated.has(o.id) && o.type !== 'fire-door') {
+    if (!gated.has(o.id) && !ownReader(o) && !exitOnly(o)) {
       const p = c.openingPoint(o);
       c.add(`${o.id} (${o.type}${p ? ` at ${f2(p[0])}, ${f2(p[1])}` : ''}) joins ${o.between.join(' and ')} (level ${c.roomById.get(o.between[0]).ring} and ${c.roomById.get(o.between[1]).ring}) with no reader and is not exit-only`);
     }

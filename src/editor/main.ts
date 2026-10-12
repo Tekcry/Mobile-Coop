@@ -4,7 +4,7 @@
  * the plan images and a change log for review. Never part of the game build.
  */
 import { actionForKey, helpRows, hintItems, keyId } from './actions';
-import { RING_NAMES } from './card';
+import { cardRows, RING_NAMES, stepCard } from './card';
 import type { Ctx, Group } from './actions';
 import { CameraControls } from './controls';
 import type { OrbitState } from './orbit';
@@ -23,6 +23,8 @@ import type { Change, JournalEntry } from './model';
 import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb, WallGap } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
+import { DR_NOTE, DR_TYPES } from '../world/maps/kestrelDoors';
+import { familyTypes, GLASS_WALL_DEFAULT, withOpeningType } from './openingCatalogue';
 import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_DEFAULTS, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import { WallChain } from './chain';
 import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './liveSizes';
@@ -696,7 +698,7 @@ export class Editor {
     } else if (this.tool === 'door' || this.tool === 'window') {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
-      const type = this.tool === 'window' ? 'window' : $<HTMLSelectElement>('doorType').value;
+      const type = $<HTMLSelectElement>(this.tool === 'window' ? 'windowType' : 'doorType').value;
       const width = Math.min((OPENING_DEFAULTS[type] ?? OPENING_DEFAULTS.door!).w, wallLen(w));
       const o = newOpening(this.model, w, centreOpening(w, this.model.list('walls') as Wall[], snap(projectOnWall(w, x, z).s, g), width, fine).at, type);
       this.commit([{ coll: 'openings', id: o.id, before: null, after: o }]);
@@ -1469,7 +1471,9 @@ export class Editor {
     try {
       // ON0b: the game gets the walls grown by their corner joins (the file keeps its centre lines)
       const how = await this.walk.start(joinedCampus(this.model.data), campusText(this.model.data), spawn);
-      this.status(how === 'warm' ? 'Walk test: same building, the player moves to the dot' : 'Loading game...');
+      // ON9 decision 8: sliding and glass doors are gaps in the game until stage DR
+      const dr = this.model.data.openings.some((o) => DR_TYPES.has(o.type)) ? ` (${DR_NOTE})` : '';
+      this.status(how === 'warm' ? `Walk test: same building, the player moves to the dot${dr}` : `Loading game...${dr}`);
     } catch (err) {
       this.status(`Walk test failed: ${String(err)}`);
     }
@@ -1783,7 +1787,7 @@ export class Editor {
         <span class="group seg" id="layout" title="V cycles"><button data-layout="3d">3D</button><button data-layout="both">Both</button><button data-layout="plan">Plan</button></span>
         <span class="group"><button id="splitDir" title="Side by side or stacked">Side by side</button><button id="swap" title="Swap the 3D and the plan">Swap</button><button id="minimap" title="Small plan in the corner of 3D only (M)">Small plan</button><button id="drawerBtn" title="Side panel (\` or I)">Panel</button></span>
         <span class="group" id="tools">
-          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button><button data-tool="stair" title="6">6 Stair</button><select id="stairType" title="The Stair tool's type">${STAIR_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}</select><button data-tool="ladder" title="7">7 Ladder</button><button data-tool="hole" title="8">8 Floor hole</button><select id="holeKind" title="The Floor hole tool's kind">${HOLE_KINDS.map((k) => `<option value="${k}">${HOLE_NAMES[k] ?? k}</option>`).join('')}</select>
+          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${familyTypes('door').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button><select id="windowType" title="The Window tool's type">${familyTypes('window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="stair" title="6">6 Stair</button><select id="stairType" title="The Stair tool's type">${STAIR_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}</select><button data-tool="ladder" title="7">7 Ladder</button><button data-tool="hole" title="8">8 Floor hole</button><select id="holeKind" title="The Floor hole tool's kind">${HOLE_KINDS.map((k) => `<option value="${k}">${HOLE_NAMES[k] ?? k}</option>`).join('')}</select>
         </span>
         <span class="group"><button id="walk" title="Tab: the game's own player, unsaved edits included (Shift+Tab: quick walk)">Walk test (game)</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
         <span id="checksBadge"></span>
@@ -2305,7 +2309,7 @@ export class Editor {
       rows.push(`<div class="row"><span>Length</span>${fmt(wallLen(w))} m</div>`);
     } else if (s.coll === 'openings') {
       const o = e as Opening;
-      sel('type', 'Type', OPENING_TYPES.map((t) => [t, t]));
+      sel('type', 'Type', OPENING_TYPES.map((t) => [t, DOOR_NAMES[t] ?? t]));
       num('w', 'Width m', o.w);
       num('h', 'Height m', o.h);
       num('sill', 'Sill m', o.sill);
@@ -2338,6 +2342,12 @@ export class Editor {
       sel('facing', 'Facing', ['N', 'S', 'E', 'W'].map((d) => [d, d]));
       sel('to', 'To level', this.levelsAbove(ld.from).map((l) => [l.id, `${l.name} (${l.id})`]));
     }
+    // ON9: door, window and glass settings, the card's rows, stepped with the mouse (the same step as the D-pad)
+    if (s.coll === 'openings' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
+      const ctx = s.coll === 'openings' ? { rooms: this.model.list('rooms') as Room[], wall: this.model.get<Wall>('walls', (e as Opening).wall) } : {};
+      const set = cardRows(s.coll, s.e, ctx).filter((r) => !['type', 'name', 'w', 'h', 'sill', 'at', 'id', 't', 'len'].includes(r.id));
+      for (const r of set) rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);
+    }
     // ON2 decision 10: the id, renamed with every reference (Enter keeps it)
     rows.push(`<label class="row"><span>Id</span><input data-id-field value="${esc(s.id)}"></label>`);
     const gap = s.coll === 'walls' ? this.gapsOf(s.id)[0] : undefined;
@@ -2345,6 +2355,7 @@ export class Editor {
     rows.push(`<div class="row"><button id="del">Delete</button><button id="dup">Duplicate</button><button id="frame">Go to</button>${gap ? '<button id="closeGap">Close gap</button>' : ''}</div>`);
     panel.innerHTML = rows.join('');
     if (gap) $('closeGap').addEventListener('click', () => this.closeGapSelected());
+    for (const el of panel.querySelectorAll<HTMLButtonElement>('[data-cstep]')) el.addEventListener('click', () => this.stepSetting(s.coll, s.id, el.dataset.cstep!, Number(el.dataset.dir) as 1 | -1));
     for (const el of panel.querySelectorAll<HTMLInputElement | HTMLSelectElement>('[data-k]')) el.addEventListener('change', () => this.setField(s.coll, s.id, el.dataset.k!, el.value, el.type === 'number'));
     panel.querySelector<HTMLInputElement>('[data-id-field]')?.addEventListener('change', (ev) => {
       if (!this.renameSelected((ev.target as HTMLInputElement).value)) this.renderPanel();
@@ -2363,6 +2374,16 @@ export class Editor {
     return this.model.data.levels.filter((l) => l.floor > f).sort((a, b) => a.floor - b.floor);
   }
 
+  /** One step of a card row from the side panel (ON9 settings). */
+  private stepSetting(coll: Coll, id: string, row: string, dir: 1 | -1): void {
+    const before = this.model.snapshot(coll, id);
+    if (!before) return;
+    const rooms = this.model.list('rooms') as Room[];
+    const wall = coll === 'openings' ? this.model.get<Wall>('walls', (before as Opening).wall) : undefined;
+    const after = stepCard(coll, before, row, dir, { step: this.grid, rooms, wall });
+    if (after) this.commit([{ coll, id, before, after }]);
+  }
+
   private setField(coll: Coll, id: string, path: string, raw: string, isNum: boolean): void {
     const before = this.model.snapshot(coll, id);
     if (!before) return;
@@ -2379,6 +2400,12 @@ export class Editor {
       after[k] = k === 'rect' ? normRect(arr as Rect) : arr;
     } else after[k] = v;
     let a = after as unknown as Elem;
+    // ON9: a new type takes its own settings; a glass partition its glass
+    if (coll === 'openings' && k === 'type') a = withOpeningType(before as Opening, String(v), this.model.list('rooms') as Room[]);
+    if (coll === 'walls' && k === 'kind') {
+      if (v === 'glass') (a as Wall).glass ??= { ...GLASS_WALL_DEFAULT };
+      else delete (a as Wall).glass;
+    }
     if (coll === 'openings') a = withBetween(this.model, a as Opening);
     this.commit([{ coll, id, before, after: a }]);
   }
