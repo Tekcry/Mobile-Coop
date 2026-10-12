@@ -110,3 +110,49 @@ describe('change descriptions', () => {
     expect(logMarkdown([{ time: t, action: 'undo', text: 'Added Office (R1, Ground)', changes: [] }], '2026-10-12 09:06')).toBe('## Saved 2026-10-12 09:06\n\n- 09:05:07 Undid: Added Office (R1, Ground)\n\n');
   });
 });
+
+describe('net unsaved count (ED2 Part B)', () => {
+  const move = (m: EditorModel, id: string, dx: number): void => {
+    const before = m.snapshot<Room>('rooms', id)!;
+    const r = before.rect;
+    m.commit(`moved ${id}`, [{ coll: 'rooms', id, before, after: { ...before, rect: [r[0] + dx, r[1], r[2] + dx, r[3]] } }]);
+  };
+
+  it('edit, undo = 0; edit, edit, undo = 1', () => {
+    const m = new EditorModel(tiny());
+    move(m, 'R1', 1);
+    expect(m.dirty).toBe(1);
+    m.undo();
+    expect(m.dirty).toBe(0);
+    expect(m.journal.length).toBe(2);
+    move(m, 'R1', 1);
+    move(m, 'R2', 1);
+    expect(m.dirty).toBe(2);
+    m.undo();
+    expect(m.dirty).toBe(1);
+  });
+
+  it('save, undo = 1; undo past the save then a new edit = 2', () => {
+    const m = new EditorModel(tiny());
+    move(m, 'R1', 1);
+    m.markSaved();
+    expect(m.dirty).toBe(0);
+    m.undo();
+    expect(m.dirty).toBe(1);
+    move(m, 'R2', 1);
+    expect(m.dirty).toBe(2);
+  });
+
+  it('0 when the text is back as saved; a restored draft that differs counts at least 1', () => {
+    const m = new EditorModel(tiny());
+    move(m, 'R1', 1);
+    move(m, 'R1', -1);
+    expect(m.dirty).toBe(0);
+    const draft = tiny();
+    draft.rooms[0]!.name = 'Changed';
+    m.replace(draft, [], true);
+    expect(m.dirty).toBeGreaterThanOrEqual(1);
+    m.replace(tiny(), []);
+    expect(m.dirty).toBe(0);
+  });
+});

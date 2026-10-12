@@ -15,7 +15,7 @@ import type { VisSettings } from './visibility';
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
 const OUTSIDE_TINT = '#e9f4e1';
-const WALL_TINT: Record<string, string> = { exterior: '#5b5f66', interior: '#b9bcc2', boundary: '#8a6f55', parapet: '#8d9096' };
+const WALL_TINT: Record<string, string> = { exterior: '#5b5f66', interior: '#b9bcc2', boundary: '#8a6f55', parapet: '#8d9096', balustrade: '#6f8fa8' };
 
 interface Meta {
   key: Key;

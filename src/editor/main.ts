@@ -1049,7 +1049,17 @@ export class Editor {
 
   // ---------- save ----------
   async save(): Promise<void> {
-    if (!this.model.dirty) return this.status('Nothing new to save');
+    if (!this.model.dirty) {
+      // edit then undo: the building is as saved, so the journal (and the draft) go without a write
+      if (this.model.journal.length) {
+        this.model.markSaved();
+        clearTimeout(this.draftTimer);
+        void clearDraft().catch(() => undefined);
+        this.updateBar();
+        this.renderPanel();
+      }
+      return this.status('Nothing new to save');
+    }
     this.status('Saving and redrawing the plans...');
     const now = new Date();
     const savedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${localTime(now.toISOString()).slice(0, 5)}`;
@@ -1436,7 +1446,7 @@ export class Editor {
     ask.classList.remove('hidden');
     $('restore').addEventListener('click', () => {
       ask.classList.add('hidden');
-      this.reload(d.campus, d.journal);
+      this.reload(d.campus, d.journal, true);
       this.status(`Restored ${n} unsaved change${n === 1 ? '' : 's'} from ${when}. Save keeps them; undo starts from here.`);
     });
     $('discard').addEventListener('click', () => {
@@ -1447,9 +1457,9 @@ export class Editor {
   }
 
   /** Swaps in other campus data (restore a draft, revert to the file) and redraws everything. */
-  reload(data: Campus, journal: JournalEntry[]): void {
+  reload(data: Campus, journal: JournalEntry[], keepSaved = false): void {
     if (this.drag) this.endDrag(true);
-    this.model.replace(data, journal);
+    this.model.replace(data, journal, keepSaved);
     this.select(null);
     this.view.rebuildAll();
     this.rebuildBlockers();

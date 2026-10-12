@@ -505,12 +505,12 @@ export class PadControl {
     const p = this.point();
     if (ed.tool !== 'select') {
       if (!p) return;
-      const before = ed.model.dirty;
+      const before = ed.model.history.length;
       ed.toolDown(p[0], p[1], 0, 0, 'pad', this.st.down(PAD.LB));
       // (toolDown may have started a drag; the narrowing above does not know)
       const nd = ed.drag as { moved: boolean } | null;
       if (nd) nd.moved = true;
-      else if (ed.model.dirty === before) this.rumble('error');
+      else if (ed.model.history.length === before) this.rumble('error');
       this.offset = [0, 0];
       return;
     }

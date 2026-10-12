@@ -41,9 +41,17 @@ export class EditorModel {
   private readonly listeners: ((keys: Key[]) => void)[] = [];
   /** Clock for journal times (tests pin it). */
   now: () => Date = () => new Date();
+  /** The undo history at the last load or save (edit identities), and the file text then. */
+  private savedPast: Edit[] = [];
+  private savedText: string;
+  /** Bumped on every change to the data, so the text compare runs once per change, not once per read. */
+  private version = 0;
+  private dirtyAt = -1;
+  private dirtyCache = 0;
 
   constructor(data: Campus) {
     this.data = data;
+    this.savedText = campusText(data);
   }
 
   list(coll: Coll): Elem[] {
@@ -77,9 +85,25 @@ export class EditorModel {
     return this.future.length > 0;
   }
 
-  /** Unsaved journal entries. */
+  /**
+   * The net unsaved count (ED2 Part B): the undo or redo steps between now and the last load or save (an edit after
+   * undoing past the saved point counts both ways). 0 exactly when the data's file text equals the file as last loaded
+   * or saved; at least 1 whenever it differs (a restored draft). The journal still records every undo.
+   */
   get dirty(): number {
-    return this.journal.length;
+    if (this.dirtyAt === this.version) return this.dirtyCache;
+    let common = 0;
+    while (common < this.past.length && common < this.savedPast.length && this.past[common] === this.savedPast[common]) common++;
+    const steps = this.past.length - common + (this.savedPast.length - common);
+    const same = campusText(this.data) === this.savedText;
+    this.dirtyCache = same ? 0 : Math.max(1, steps);
+    this.dirtyAt = this.version;
+    return this.dirtyCache;
+  }
+
+  /** The file text as last loaded or saved (the walk test's warm game compares against the text it was built from). */
+  get savedFileText(): string {
+    return this.savedText;
   }
 
   /** Applies a change's `after` without recording it (live preview while dragging). The final commit records it. */
@@ -134,22 +158,29 @@ export class EditorModel {
     return edit;
   }
 
-  /** Clears the journal after a save (undo history stays). */
+  /** Clears the journal after a save (undo history stays); the current data becomes the saved point. */
   markSaved(): void {
     this.journal = [];
+    this.savedPast = this.past.slice();
+    this.savedText = campusText(this.data);
+    this.version++;
   }
 
   /**
    * Swaps in other campus data in place (revert to the file, restore a draft): undo and redo are cleared and the journal
-   * becomes `journal`. Listeners are not told; the caller rebuilds its views.
+   * becomes `journal`. A restored draft keeps the saved point (the file on disk; its count is then at least 1 while it
+   * differs); a revert makes the new data the saved point. Listeners are not told; the caller rebuilds its views.
    */
-  replace(data: Campus, journal: JournalEntry[] = []): void {
+  replace(data: Campus, journal: JournalEntry[] = [], keepSaved = false): void {
     const d = this.data as Record<string, unknown>;
     for (const k of Object.keys(d)) delete d[k];
     Object.assign(d, clone(data));
     this.past.length = 0;
     this.future.length = 0;
     this.journal = clone(journal);
+    this.savedPast = [];
+    if (!keepSaved) this.savedText = campusText(this.data);
+    this.version++;
   }
 
   /** An id not used in `coll`: prefix + 1, 2, 3 ... */
@@ -178,6 +209,7 @@ export class EditorModel {
   }
 
   private arr(coll: Coll): Elem[] {
+    this.version++;
     if (!Array.isArray(this.data[coll])) (this.data as Record<string, unknown>)[coll] = [];
     return this.data[coll] as Elem[];
   }
@@ -203,6 +235,7 @@ export class EditorModel {
   }
 
   private emit(keys: Key[]): void {
+    this.version++;
     for (const fn of this.listeners) fn(keys);
   }
 }

@@ -16,7 +16,8 @@ export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: numb
   window: { w: 1.2, h: 1.2, sill: 0.9 },
 };
 export const OPENING_TYPES = Object.keys(OPENING_DEFAULTS);
-export const WALL_KINDS = ['interior', 'exterior', 'boundary', 'parapet'];
+/** schema.md section 2: wall kinds. */
+export const WALL_KINDS = ['interior', 'exterior', 'boundary', 'parapet', 'balustrade'];
 /** schema.md: room kinds. */
 export const ROOM_KINDS = ['room', 'corridor', 'stair', 'shaft', 'plant', 'yard', 'lane', 'roof', 'zone'];
 
