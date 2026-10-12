@@ -103,7 +103,7 @@ Performance is not judged (dev tool), but report the debug overlay's frame time 
    Building A to the first floor; across the link bridge into Building B; back to the editor with the pause screen
    and check the camera is where you stopped; move a wall without saving and walk again; undo everything and check
    the unsaved count reads 0. Real-pad feel and the frame rate on his PC are his tests: say so in one line.
-5. Last line before the Next step block: "Review chat: SEND - editor part end". The Next step block is the review step
-   (RULES 9 4b): "1. Type /clear." "2. Stay on Opus, medium." "3. Send the prompt below:" then one fenced code block
-   holding `Reviewer: next` on its first line and the whole report under it.
+5. Last line before the Next step block: "Review chat: SKIP" (editor parts skip review; Michael, 2026-10-12, progress.md
+   Decisions). The Next step block: "1. Type /clear." "2. Stay on Opus, medium." "3. Send the prompt below:" then a
+   fenced code block holding `Planner: next` on its first line and the whole report under it.
 6. STOP. Do not start ED3-3.
