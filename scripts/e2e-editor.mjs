@@ -825,7 +825,7 @@ try {
     await frames(page, 3);
     const tiles = await E(() => window.__editor.pad.menuInput().sel?.gap);
     // the corner close up, from the south-west
-    const look = () => E(([x, z]) => { const ed = window.__editor; ed.controls.mode = 'fly'; ed.view.camera.position.set(x + 2.6, 3.6, z - 3.2); ed.controls.lookAt(x, 1.0, z); }, [sx + 4, sz]);
+    const look = () => E(([x, z]) => { const ed = window.__editor; ed.controls.mode = 'fly'; ed.view.camera.position.set(x + 6.5, 7.5, z - 8); ed.controls.lookAt(x, 0.5, z); }, [sx + 4, sz]);
     await look();
     await frames(page, 4);
     await shot('corner-gap-before');
@@ -852,7 +852,15 @@ try {
     await page.waitForFunction(() => /A: Move/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
     const nb = await E((id) => window.__editor.model.get('walls', id).a.slice(), wA.id);
     await press(BTN.A);
-    await presses(BTN.RIGHT, 3);
+    // each step: hold the D-pad only until the wall moves (in the page), so a slow frame cannot repeat it
+    for (let i = 0; i < 3; i++) {
+      await E(async ([, b]) => {
+        const pc = window.__editor.pad; const o0 = pc.offset.join(); const raf = () => new Promise((r) => requestAnimationFrame(r));
+        window.__pad.set(b, 1);
+        for (let k = 0; k < 120 && pc.offset.join() === o0; k++) await raf();
+        window.__pad.set(b, 0); await raf(); await raf();
+      }, [0, BTN.RIGHT]);
+    }
     await press(BTN.A);
     const na = await E((id) => window.__editor.model.get('walls', id).a.slice(), wA.id);
     assert(Math.abs(na[0] - nb[0] - 0.3) < 1e-6 && na[1] === nb[1], `three D-pad nudges move the wall 0.3 m (${nb[0]} -> ${na[0]})`);
