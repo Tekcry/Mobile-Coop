@@ -118,8 +118,41 @@ export class EditorModel {
     this.emit([keyOf(coll, id)]);
   }
 
-  /** Records and applies an edit. Changes whose before and after are equal are dropped; an empty edit is ignored. */
-  commit(text: string, changes: Change[]): boolean {
+  /** The last edit made with a merge key (selection card steps), for merging the next quick step on the same row. */
+  private lastMerge: { key: string; at: number; edit: Edit } | null = null;
+
+  /**
+   * Records and applies an edit. Changes whose before and after are equal are dropped; an empty edit is ignored.
+   * With `merge` (ON0a: selection card steps), an edit with the same key within `within` seconds of the last one, while
+   * that edit is still the newest undo step and not saved, joins it: one undo step, each element's first `before` kept.
+   */
+  commit(text: string, changes: Change[], merge?: { key: string; at: number; within: number }): boolean {
+    const lm = this.lastMerge;
+    if (merge && lm && lm.key === merge.key && merge.at - lm.at <= merge.within && this.past[this.past.length - 1] === lm.edit && !this.savedPast.includes(lm.edit) && !this.future.length) {
+      const real = changes.filter((c) => JSON.stringify(c.before) !== JSON.stringify(c.after));
+      if (!real.length) return false;
+      if (real.some((c) => c.before === null || c.after === null)) return this.commitNew(text, changes, merge);
+      this.applyForward({ text, changes: clone(real) });
+      for (const c of real) {
+        const prev = lm.edit.changes.find((p) => p.coll === c.coll && p.id === c.id);
+        if (prev) prev.after = clone(c.after);
+        else lm.edit.changes.push(clone(c));
+      }
+      lm.edit.text = text;
+      lm.at = merge.at;
+      this.version++;
+      const j = this.journal[this.journal.length - 1];
+      if (j && j.action === 'edit') {
+        j.text = text;
+        j.changes = clone(lm.edit.changes);
+      } else this.record('edit', lm.edit);
+      return true;
+    }
+    return this.commitNew(text, changes, merge);
+  }
+
+  private commitNew(text: string, changes: Change[], merge?: { key: string; at: number }): boolean {
+    this.lastMerge = null;
     const real = changes.filter((c) => JSON.stringify(c.before) !== JSON.stringify(c.after));
     if (!real.length) {
       // a drag that ended where it began: put the previewed element back exactly
@@ -134,6 +167,7 @@ export class EditorModel {
     // (listeners ran before the push: the count is read fresh next time)
     this.version++;
     this.record('edit', edit);
+    if (merge) this.lastMerge = { key: merge.key, at: merge.at, edit };
     return true;
   }
 

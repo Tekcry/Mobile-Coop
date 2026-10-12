@@ -7,6 +7,9 @@ import type { PadStyle } from '../input/gamepadMapping';
 import { ACTIONS, padParts } from './actions';
 import type { Ctx } from './actions';
 import { padWords } from './pad';
+import { REPEAT_SPEED } from './stickSteps';
+import { viewTiles } from './tileMenu';
+import type { ViewState } from './tileMenu';
 
 export const HUB_TABS = ['Play', 'File', 'Checks', 'Levels', 'View', 'Settings', 'Help'] as const;
 export type HubTab = (typeof HUB_TABS)[number];
@@ -23,10 +26,14 @@ export interface PadSettings {
   textSize: 'normal' | 'large';
   /** Stretching or moving a room takes its walls, neighbours and doors along (ED3-3a). */
   wallsFollow: boolean;
+  /** The tile menu opens on the last tab used, or always on Build (ON0a). */
+  menuOpens: 'last' | 'build';
+  /** Held D-pad and stick repeat in every menu and on the card (1 = normal). */
+  repeatSpeed: number;
 }
-export const DEFAULT_SETTINGS: PadSettings = { rumble: true, stickSpeed: 1, invertTilt: false, textSize: 'normal', wallsFollow: true };
+export const DEFAULT_SETTINGS: PadSettings = { rumble: true, stickSpeed: 1, invertTilt: false, textSize: 'normal', wallsFollow: true, menuOpens: 'last', repeatSpeed: 1 };
 export const STICK_SPEED = { MIN: 0.5, MAX: 2, STEP: 0.25 } as const;
-/** Large text: 1.25x on the pad screen, the hub and the wheels. */
+/** Large text: 1.25x on the pad screen, the hub and the tile menu. */
 export const LARGE_TEXT = 1.25;
 
 /** Reads stored settings, keeping only valid fields. */
@@ -38,6 +45,8 @@ export function readSettings(raw: unknown): PadSettings {
   if (typeof r.invertTilt === 'boolean') s.invertTilt = r.invertTilt;
   if (r.textSize === 'normal' || r.textSize === 'large') s.textSize = r.textSize;
   if (typeof r.wallsFollow === 'boolean') s.wallsFollow = r.wallsFollow;
+  if (r.menuOpens === 'last' || r.menuOpens === 'build') s.menuOpens = r.menuOpens;
+  if (typeof r.repeatSpeed === 'number' && r.repeatSpeed >= REPEAT_SPEED.MIN && r.repeatSpeed <= REPEAT_SPEED.MAX) s.repeatSpeed = r.repeatSpeed;
   return s;
 }
 
@@ -49,6 +58,8 @@ export function changeSetting(s: PadSettings, id: string, dir: 1 | -1): PadSetti
   else if (id === 'set.follow') n.wallsFollow = !s.wallsFollow;
   else if (id === 'set.text') n.textSize = s.textSize === 'normal' ? 'large' : 'normal';
   else if (id === 'set.speed') n.stickSpeed = Math.min(STICK_SPEED.MAX, Math.max(STICK_SPEED.MIN, +(s.stickSpeed + dir * STICK_SPEED.STEP).toFixed(2)));
+  else if (id === 'set.menuOpens') n.menuOpens = s.menuOpens === 'last' ? 'build' : 'last';
+  else if (id === 'set.repeat') n.repeatSpeed = Math.min(REPEAT_SPEED.MAX, Math.max(REPEAT_SPEED.MIN, +(s.repeatSpeed + dir * REPEAT_SPEED.STEP).toFixed(2)));
   return n;
 }
 
@@ -63,6 +74,8 @@ export interface HubRow {
   kind: 'go' | 'step' | 'line';
   /** A list line marked new (Checks). */
   fresh?: boolean;
+  /** Slider rows: where the value sits, 0 to 1 (drawn as a bar). */
+  slider?: number;
 }
 
 /** What the rows show; padControl fills it from the editor. */
@@ -72,15 +85,13 @@ export interface HubInput {
   changes: string[];
   problems: { text: string; fresh: boolean }[];
   levels: { id: string; name: string; floor: string; editing: boolean }[];
-  layout: '3d' | 'both' | 'plan';
-  labels: boolean;
-  minimap: boolean;
-  underlay: boolean;
+  /** The View tab's items (shared with the tile menu's View tab). */
+  view: ViewState;
   settings: PadSettings;
 }
 
 const onOff = (b: boolean): string => (b ? 'on' : 'off');
-const LAYOUT_WORDS = { '3d': '3D', both: 'Both', plan: 'Plan' } as const;
+const frac = (v: number, r: { MIN: number; MAX: number }): number => (v - r.MIN) / (r.MAX - r.MIN);
 
 export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
   switch (tab) {
@@ -103,18 +114,15 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
     case 'Levels':
       return h.levels.map((l) => ({ id: `level.${l.id}`, text: `${l.name} (${l.floor} m)`, value: l.editing ? 'editing' : undefined, note: l.editing ? undefined : 'A edits it', kind: 'go' as const }));
     case 'View':
-      return [
-        { id: 'view.layout', text: 'Layout', value: LAYOUT_WORDS[h.layout], kind: 'step' },
-        { id: 'view.labels', text: 'Plan labels', value: onOff(h.labels), kind: 'step' },
-        { id: 'view.minimap', text: 'Small plan (3D only)', value: onOff(h.minimap), kind: 'step' },
-        { id: 'view.underlay', text: 'Level below on the plan', value: onOff(h.underlay), kind: 'step' },
-      ];
+      return viewTiles(h.view).map((t) => ({ id: t.id, text: t.name, value: t.value, note: t.desc, kind: 'step' as const }));
     case 'Settings':
       return [
         { id: 'set.rumble', text: 'Rumble', value: onOff(h.settings.rumble), kind: 'step' },
-        { id: 'set.speed', text: 'Stick speed', value: `${h.settings.stickSpeed.toFixed(2)}x`, kind: 'step' },
+        { id: 'set.speed', text: 'Stick speed', value: `${h.settings.stickSpeed.toFixed(2)}x`, kind: 'step', slider: frac(h.settings.stickSpeed, STICK_SPEED) },
+        { id: 'set.repeat', text: 'Repeat speed', value: `${h.settings.repeatSpeed.toFixed(2)}x`, note: 'Held D-pad and stick in menus and on the card', kind: 'step', slider: frac(h.settings.repeatSpeed, REPEAT_SPEED) },
         { id: 'set.invert', text: 'Invert tilt', value: onOff(h.settings.invertTilt), kind: 'step' },
         { id: 'set.text', text: 'Text size', value: h.settings.textSize === 'large' ? 'Large' : 'Normal', kind: 'step' },
+        { id: 'set.menuOpens', text: 'Menu opens on', value: h.settings.menuOpens === 'last' ? 'Last tab' : 'Build tab', kind: 'step' },
         { id: 'set.follow', text: 'Walls follow rooms', value: onOff(h.settings.wallsFollow), note: 'Stretching or moving a room takes its walls along', kind: 'step' },
       ];
     case 'Help':
@@ -137,8 +145,8 @@ export const PICTURE_BUTTONS = {
 const BUILDING: readonly Ctx[] = ['idle', 'selected'];
 
 /**
- * Every picture button with its building-state words from the action map: taps first, then "hold: ...". Grabbing and
- * the wheels have their own words in the hint bar.
+ * Every picture button with its building-state words from the action map: taps first, then "hold: ...". Grabbing, the
+ * card and the tile menu have their own words in the hint bar.
  */
 export function controllerLabels(style: PadStyle): { button: string; name: string; words: string }[] {
   const all = [...PICTURE_BUTTONS.left, ...PICTURE_BUTTONS.right];

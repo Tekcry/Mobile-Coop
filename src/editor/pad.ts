@@ -17,7 +17,7 @@ export interface PadSnap {
 const DOWN = 0.5;
 export const STICK_DEAD = 0.18;
 export const TRIGGER_DEAD = 0.08;
-/** Hold times (seconds): X held redoes, Y held opens the radial, View held changes the layout, RB held is free until ED3-2. */
+/** Hold times (seconds): X held redoes, View held changes the layout, RB held is free (ON0a: Y is a plain press). */
 export const HOLD = { X: 0.5, Y: 0.2, VIEW: 0.4, RB: 0.3 } as const;
 /** D-pad repeat while held: first repeat, then every. */
 export const REPEAT_FIRST = 0.35;
@@ -40,7 +40,7 @@ export class PadState {
   rbTap: 'tap' | 'hold' | null = null;
   ls = { x: 0, y: 0 };
   rs = { x: 0, y: 0 };
-  /** Raw left and right stick (for the radial, which applies its own dead zone). */
+  /** Raw left and right stick (menus apply their own dead zone, stickSteps.ts). */
   rawL = { x: 0, y: 0 };
   rawR = { x: 0, y: 0 };
   lt = 0;

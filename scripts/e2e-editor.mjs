@@ -48,22 +48,14 @@ const press = async (b) => { await set(b, 1); await frames(page, 3); await set(b
 const presses = async (b, n) => { for (let i = 0; i < n; i++) await press(b); };
 const wait = (ms) => page.waitForTimeout(ms);
 const shot = async (name) => { if (shots) await page.screenshot({ path: path.join(shots, `${name}.png`) }); };
-const st = () => E(() => { const ed = window.__editor; return { tool: ed.tool, layout: ed.prefs.layout, walls: ed.model.data.walls.length, ops: ed.model.data.openings.map((o) => o.type), dirty: ed.model.dirty, crumb: ed.pad.radial?.isOpen ? ed.pad.radial.breadcrumb.join(' > ') : null, hint: document.getElementById('hint').textContent, status: document.getElementById('status').textContent }; });
-/** Holds a wheel button (Y: Build, RB: Selection), points the stick at each angle in turn (resting past the dwell). */
-const wheel = async (btn, ...angles) => {
-  await set(btn, 1);
-  await page.waitForFunction(() => window.__editor.pad.menuOpen, null, { timeout: 5000 }).catch(() => {});
-  for (const [i, a] of angles.entries()) {
-    const r = (a * Math.PI) / 180;
-    await axes(Math.sin(r), -Math.cos(r));
-    // each angle but a leaf at the end opens a submenu after the dwell (polled: frames are slow under software GL)
-    await page.waitForFunction((n) => (window.__editor.pad.radial?.breadcrumb.length ?? 0) >= n, i + 1, { timeout: 4000 }).catch(() => {});
-    await wait(120);
-  }
-};
-const radial = (...angles) => wheel(BTN.Y, ...angles);
+const st = () => E(() => { const ed = window.__editor; return { tool: ed.tool, layout: ed.prefs.layout, walls: ed.model.data.walls.length, ops: ed.model.data.openings.map((o) => o.type), dirty: ed.model.dirty, menu: ed.pad.menu.isOpen ? ed.pad.menu.tab : null, hint: document.getElementById('hint').textContent, status: document.getElementById('status').textContent }; });
+const rs = (y) => E((y) => window.__pad.axis(3, y), y);
+const menuState = () => E(() => { const m = window.__editor.pad.menu; return { open: m.isOpen, tab: m.tab, index: m.index, tile: document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? null, tabs: [...document.querySelectorAll('#tileMenu [data-mtab]')].map((b) => b.textContent) }; });
+/** Moves the menu highlight with the D-pad until the tile is lit (one press at a time, read back: presses can repeat on slow frames). */
+const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 20 && (await menuState()).tile !== name; i++) await press(btn); return (await menuState()).tile === name; };
+/** Lights a card row with the D-pad (read back each press). */
+const toRow = async (row) => { for (let i = 0; i < 12 && (await E(() => document.querySelector('#selCard .crow.on')?.dataset.row)) !== row; i++) await press(BTN.DOWN); return (await E(() => document.querySelector('#selCard .crow.on')?.dataset.row)) === row; };
 const releaseBtn = async (btn) => { await set(btn, 0); await frames(page, 3); await axes(0, 0); await frames(page, 3); };
-const release = () => releaseBtn(BTN.Y);
 const orb = () => E(() => { const c = window.__editor.controls; const p = c.orbit.position(); return { mode: c.mode, walking: c.walking, floor: c.floor, ...c.orbit.s, px: p[0], py: p[1], pz: p[2] }; });
 const shown = (id) => E((id) => getComputedStyle(document.getElementById(id)).display !== 'none', id);
 const dotText = () => E(() => document.getElementById('reticleText').textContent);
@@ -80,20 +72,38 @@ try {
   await press(BTN.LB);
   assert((await E(() => window.__editor.pad.device)) === 'pad', 'pad input switches the hint bar to the pad');
   assert((await E(() => window.__editor.controls.mode)) === 'orbit', 'pad input starts the builder camera');
-  assert(/Y hold/.test((await st()).hint), `hint bar shows pad buttons ("${(await st()).hint.slice(0, 80)}")`);
+  assert(/A Select\s+Y Menu\s+X Undo\s+LS click Walk\s+Menu Hub/.test((await st()).hint), `hint bar shows the pad's building words ("${(await st()).hint.slice(0, 80)}")`);
   await shot('hint-idle');
 
-  console.log('Build wheel (Y): what to make only; Wall');
-  await set(BTN.Y, 1);
-  await page.waitForFunction(() => window.__editor.pad.menuOpen, null, { timeout: 5000 });
-  const root = await E(() => window.__editor.pad.radial.ring.map((n) => n.name));
-  assert(root.join(',') === 'Select,Room,Wall,Door,Window,Measure' && !root.some((n) => ['View', 'Level', 'File', 'Walk', 'Undo'].includes(n)), `Build wheel root has no View, Level, File, Walk or Undo (${root.join(', ')})`);
-  await axes(Math.sin((120 * Math.PI) / 180), -Math.cos((120 * Math.PI) / 180));
-  await wait(150);
-  await shot('radial-build');
-  await release();
+  console.log('tile menu (Y tap): tabs, D-pad and A pick Wall, Y closes (ON0a)');
+  await press(BTN.Y);
+  let ms = await menuState();
+  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
+  assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
+  await press(BTN.RB);
+  const tabR = (await menuState()).tab;
+  await press(BTN.LB);
+  await press(BTN.LB);
+  const tabL = (await menuState()).tab;
+  await press(BTN.RB);
+  assert(tabR === 'Openings' && tabL === 'View' && (await menuState()).tab === 'Build', `RB / LB change tab, wrapping (${tabR}, ${tabL})`);
+  await shot('menu-build');
+  await press(BTN.Y);
+  assert(!(await menuState()).open && !(await shown('tileMenu')), 'Y again closes it');
+  await press(BTN.Y);
+  const i0 = (await menuState()).index;
+  await axes(1, 0);
+  await page.waitForFunction((i) => window.__editor.pad.menu.index !== i, i0, { timeout: 5000 }).catch(() => {});
+  await axes(0, 0);
+  await frames(page, 3);
+  const i1 = (await menuState()).index;
+  assert(i1 !== i0, `the left stick moves the tile highlight (${i0} -> ${i1})`);
+  assert(await toTile('Wall'), 'the D-pad reaches the Wall tile');
+  await press(BTN.A);
   let s = await st();
-  assert(s.tool === 'wall' && s.crumb === null, `release picks Wall (tool ${s.tool})`);
+  assert(s.tool === 'wall' && s.menu === null && !(await shown('tileMenu')), `A picks Wall and closes the menu (tool ${s.tool})`);
+  const bar1 = await E(() => [...document.querySelectorAll('#toolBar .slot')].map((e) => `${e.dataset.slot}${e.classList.contains('on') ? '*' : ''}`).join());
+  assert(bar1 === 'wall*', `the tool bar shows the active tool only (${bar1})`);
 
   console.log('draw a 6 m wall with the pad alone');
   const walls0 = s.walls;
@@ -139,11 +149,12 @@ try {
   }
   assert(seen.join(',') === 'both,plan,3d', `View hold cycles (${seen})`);
 
-  console.log('Build > Door > Double door: its ghost on the wall, placed with A');
-  await radial(180, 144);
-  assert((await st()).crumb === 'Door', `Door opens its submenu (${(await st()).crumb})`);
-  await shot('radial-door');
-  await release();
+  console.log('Openings tab > Double door: its ghost on the wall, placed with A');
+  await press(BTN.Y);
+  await press(BTN.RB);
+  assert((await menuState()).tab === 'Openings' && (await toTile('Double door')), 'Openings tab: the Double door tile');
+  await shot('menu-openings');
+  await press(BTN.A);
   s = await st();
   assert(s.tool === 'door' && (await E(() => document.getElementById('doorType').value)) === 'double', `picked the double door (tool ${s.tool})`);
   await frames(page, 4);
@@ -171,21 +182,25 @@ try {
   await press(BTN.A);
   assert(/Move onto a wall/.test(farText) && (await E(() => document.getElementById('reticle').classList.contains('bad'))) && (await st()).ops.length === ops1, `3 m from any wall: "${farText.slice(-20)}", red dot, A adds nothing`);
 
-  console.log('B puts the tool down; Y tap repeats it');
+  console.log('D-pad left / right flip the tool type; B puts the tool down');
+  await E(() => window.__editor.select(null));
+  await press(BTN.RIGHT);
+  const dtR = await E(() => document.getElementById('doorType').value);
+  await press(BTN.LEFT);
+  const dtL = await E(() => document.getElementById('doorType').value);
+  assert(dtR === 'roller' && dtL === 'double' && (await st()).tool === 'door', `door tool: D-pad right / left flip the door type (${dtR}, ${dtL}); the tool stays`);
   await press(BTN.B);
   assert((await st()).tool === 'select', 'B: back to select');
-  await press(BTN.Y);
-  assert((await st()).tool === 'door', 'Y tap: the last tool again');
-  await press(BTN.B);
   console.log('pad tool bar, level, dot, display, quick walk, go to the selection');
-  await press(BTN.RIGHT);
+  await E(() => window.__editor.pad.runMenu('room.walls'));
   await wait(250);
   s = await st();
   const lit = await E(() => document.querySelector('#toolBar .slot.on')?.dataset.slot);
-  assert(s.tool === 'room' && lit === 'room', `D-pad right from Select lights Room on the tool bar (tool ${s.tool}, lit ${lit})`);
+  assert(s.tool === 'room' && lit === 'room', `the Room tile lights Room on the tool bar (tool ${s.tool}, lit ${lit})`);
   const startText = await dotText();
   assert(/A: start a room here/.test(startText), `Room tool: the start marker's words ("${startText.slice(-22)}")`);
   await press(BTN.B);
+  await E(() => window.__editor.select(null));
   const up = await E(() => { const ed = window.__editor; const ls = ed.model.data.levels.slice().sort((a, b) => a.floor - b.floor); const i = ls.findIndex((l) => l.id === ed.view.level); return ls[i + 1] ? { y: ed.viewFloor(ls[i + 1].id), id: ls[i + 1].id, floor: ed.floor(ls[i + 1].id) } : null; });
   await press(BTN.UP);
   await wait(500);
@@ -354,28 +369,58 @@ try {
   await set(BTN.LB, 0);
   assert(!free.m && Math.abs(free.p[0] - end[0] - 0.3) < 1e-6, `with LB held it does not snap (${free.p})`);
 
-  console.log('Selection wheel (RB held)');
+  console.log('Selected tab, RB hold free; the selection card on the D-pad (ON0a)');
   await E(() => window.__editor.select(null));
-  await set(BTN.RB, 1);
-  await wait(700);
-  const none = await E(() => ({ open: window.__editor.pad.menuOpen, status: document.getElementById('status').textContent }));
-  await releaseBtn(BTN.RB);
-  assert(!none.open && /Select something first/.test(none.status), `RB held with nothing selected opens nothing ("${none.status}")`);
+  await press(BTN.Y);
+  const noSel = (await menuState()).tabs;
+  await press(BTN.B);
   await E((id) => window.__editor.select(`rooms:${id}`), room.id);
   await set(BTN.RB, 1);
-  await page.waitForFunction(() => window.__editor.pad.menuOpen, null, { timeout: 5000 });
-  const selRing = await E(() => window.__editor.pad.radial.ring.map((n) => n.name));
-  await shot('selection-wheel');
+  await wait(700);
+  const rbOpen = await E(() => window.__editor.pad.menuOpen);
   await releaseBtn(BTN.RB);
-  assert(selRing.join(',') === 'Move,Properties,Duplicate,Rotate 90,Copy,Copy to level above,Change type,Split,Delete' && !(await E(() => window.__editor.pad.menuOpen)), `with a room selected: ${selRing.join(', ')}; release in the centre closes it`);
-  const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return o.id; });
+  await press(BTN.Y);
+  for (let i = 0; i < 6 && (await menuState()).tab !== 'Selected'; i++) await press(BTN.LB);
+  const selTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
+  await shot('menu-selected');
+  await press(BTN.B);
+  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Split,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
+  const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return { id: o.id, w: o.w }; });
+  await frames(page, 3);
+  assert(/D-pad Edit\s+A Grab\s+Y Menu\s+B Clear\s+RB Go to/.test((await st()).hint), `selection hint bar ("${(await st()).hint.slice(0, 70)}")`);
+  const lv0 = await E(() => window.__editor.view.level);
   const h0 = await E(() => window.__editor.model.history.length);
-  await wheel(BTN.RB, 216, 72);
-  await releaseBtn(BTN.RB);
-  const dt1 = await E((id) => ({ type: window.__editor.model.get('openings', id).type, h: window.__editor.model.history.length }), door);
-  await press(BTN.X);
-  const dt2 = await E((id) => window.__editor.model.get('openings', id).type, door);
-  assert(dt1.type === 'double' && dt1.h === h0 + 1 && dt2 === 'door', `Change type on a door to Double door is one undo step (${dt1.type}, ${dt1.h - h0} step, undo -> ${dt2})`);
+  await press(BTN.RIGHT);
+  await wait(250);
+  const dt1 = await E((id) => ({ type: window.__editor.model.get('openings', id).type, h: window.__editor.model.history.length, lit: document.querySelector('#selCard .crow.on')?.dataset.row, level: window.__editor.view.level }), door.id);
+  await shot('card-type-lit');
+  assert(dt1.type === 'fire-door' && dt1.h === h0 + 1 && dt1.lit === 'type' && dt1.level === lv0, `D-pad right on the card's Type row: door -> ${dt1.type}, ${dt1.h - h0} undo step, Type lit, level unchanged`);
+  assert(await toRow('w'), 'D-pad down reaches the Width row');
+  for (let i = 0; i < 3; i++) await press(BTN.RIGHT);
+  const w3 = await E((id) => window.__editor.model.get('openings', id).w, door.id);
+  assert(Math.abs(w3 - door.w - 0.3) < 1e-6, `Width: right three times = +0.3 m (${door.w} -> ${w3})`);
+  await press(BTN.B);
+  const leave = await E(() => ({ editing: window.__editor.pad.cardEditing, sel: window.__editor.selected }));
+  assert(!leave.editing && !!leave.sel, 'B leaves the card and keeps the selection');
+  await E((h) => { const ed = window.__editor; while (ed.model.history.length > h) ed.undo(); }, h0);
+  const back = await E((id) => window.__editor.model.get('openings', id), door.id);
+  assert(back.type === 'door' && back.w === door.w, `undo puts the door back (${back.type}, ${back.w} m)`);
+
+  console.log('View tab: Ghost and Exploded (one tile press each), the gap with left / right');
+  await E(() => { const v = window.__editor.view.vis; v.ghost = false; v.exploded = false; window.__editor.select(null); });
+  await press(BTN.Y);
+  for (let i = 0; i < 6 && (await menuState()).tab !== 'View'; i++) await press(BTN.LB);
+  assert(await toTile('Ghost other levels', BTN.DOWN), 'the Ghost row');
+  await press(BTN.A);
+  assert(await toTile('Exploded', BTN.DOWN), 'the Exploded row');
+  await press(BTN.A);
+  const gap0 = await E(() => window.__editor.view.vis.gap);
+  await press(BTN.RIGHT);
+  const vv = await E(() => ({ ghost: window.__editor.view.vis.ghost, exploded: window.__editor.view.vis.exploded, gap: window.__editor.view.vis.gap, open: window.__editor.pad.menu.isOpen }));
+  await shot('menu-view');
+  assert(vv.ghost && vv.exploded && vv.gap === gap0 + 0.5 && vv.open, `View tab: Ghost on, Exploded on, right moves the gap ${gap0} -> ${vv.gap} m; the menu stays open`);
+  await press(BTN.B);
+  await E(() => { const ed = window.__editor; ed.view.vis.ghost = false; ed.view.vis.exploded = false; ed.view.vis.gap = 3; ed.applyVis(); });
 
   console.log('the hub (Menu)');
   await press(BTN.B);
@@ -390,7 +435,7 @@ try {
   const t2 = (await hub()).tab;
   assert(t1 === 'File' && t2 === 'Help', `RB / LB change tabs, wrapping (Play -> ${t1}; back twice -> ${t2})`);
   const pic = await E(() => ({ svg: !!document.getElementById('padPicture'), text: document.getElementById('padPicture')?.textContent ?? '' }));
-  assert(pic.svg && /Build wheel/.test(pic.text) && /Selection wheel/.test(pic.text), 'Help tab shows the controller picture with labels');
+  assert(pic.svg && /tile menu/.test(pic.text) && /selection card/.test(pic.text) && !/wheel/i.test(pic.text), 'Help tab shows the controller picture with labels (no wheel words)');
   await shot('hub-help');
   await press(BTN.LB);
   await press(BTN.LB);
@@ -429,6 +474,34 @@ try {
   await press(BTN.A);
   const went = await E(() => ({ open: window.__editor.pad.hub.isOpen, sel: window.__editor.selected }));
   assert(prob >= 0 && !went.open && !!went.sel, `Checks tab: A on line ${prob + 1} closes the hub and selects ${went.sel}`);
+  console.log('the sticks in the hub: the left moves a row and pushes a slider, the right scrolls (decision 8b)');
+  await press(BTN.START);
+  await E(() => window.__editor.pad.hub.setTab('Checks'));
+  await wait(200);
+  let scrollIn = await E(() => { const h = document.getElementById('hub'); h.scrollTop = 0; return h.scrollHeight > h.clientHeight + 50 ? 'Checks' : ''; });
+  if (!scrollIn) { await E(() => window.__editor.pad.hub.setTab('Help')); scrollIn = 'Help'; await wait(200); await E(() => { document.getElementById('hub').scrollTop = 0; }); }
+  await rs(1);
+  await wait(500);
+  await rs(0);
+  const scrolled = await E(() => document.getElementById('hub').scrollTop);
+  assert(scrolled > 40, `the right stick scrolls the ${scrollIn} list (${Math.round(scrolled)} px)`);
+  await E(() => window.__editor.pad.hub.setTab('Settings'));
+  await frames(page, 3);
+  await axes(0, 1);
+  await page.waitForFunction(() => document.querySelector('#hub .padfocus')?.dataset.row === 'set.speed', null, { timeout: 5000 }).catch(() => {});
+  await axes(0, 0);
+  await frames(page, 3);
+  const rowNow = await E(() => document.querySelector('#hub .padfocus')?.dataset.row);
+  const sp0 = await E(() => window.__editor.pad.settings.stickSpeed);
+  await axes(1, 0);
+  await page.waitForFunction((v) => window.__editor.pad.settings.stickSpeed > v, sp0, { timeout: 5000 }).catch(() => {});
+  await axes(0, 0);
+  await frames(page, 3);
+  const sp1 = await E(() => window.__editor.pad.settings.stickSpeed);
+  assert(rowNow === 'set.speed' && sp1 > sp0, `Settings: the left stick moves to Stick speed and pushes it (${sp0} -> ${sp1})`);
+  await E(() => { const p = window.__editor.pad; p.settings = { ...p.settings, stickSpeed: 1 }; p.savePrefs(); });
+  await press(BTN.B);
+
   console.log('Settings: rumble off survives a reload; B closes');
   await press(BTN.START);
   await E(() => window.__editor.pad.hub.setTab('Settings'));
@@ -563,35 +636,36 @@ try {
   const wWid = await E(() => { const ed = window.__editor; const w = ed.model.list('walls').find((q) => q.kind === 'interior'); ed.select(`walls:${w.id}`); return w.id; });
   // (Ctrl+Z handed the editor to the keyboard: one pad press takes it back)
   await press(BTN.LB);
-  await set(BTN.RB, 1);
-  await page.waitForFunction(() => window.__editor.pad.menuOpen, null, { timeout: 15000 });
-  const wKinds = await E(() => (window.__editor.pad.radial.ring.find((n) => n.name === 'Change type')?.children ?? []).map((n) => n.name));
-  await releaseBtn(BTN.RB);
-  // (releasing in the middle picks Move: put it back, keep the wall selected)
-  await E((id) => { const ed = window.__editor; if (ed.drag) ed.endDrag(true); ed.select(`walls:${id}`); }, wWid);
+  // the card's Type row steps through the wall kinds: right four times from interior reaches balustrade
+  const wh = await E(() => window.__editor.model.history.length);
+  const wKinds = await E(() => { const p = window.__editor.pad; p.editCard('type'); return true; });
+  const kinds = [];
+  for (let i = 0; i < 4; i++) { await press(BTN.RIGHT); kinds.push(await E((id) => window.__editor.model.get('walls', id).kind, wWid)); }
+  await E(([id, h]) => { const ed = window.__editor; while (ed.model.history.length > h) ed.undo(); ed.pad.cardEditing = false; ed.select(`walls:${id}`); }, [wWid, wh]);
   const wh0 = (await edState()).h;
   await E(() => window.__editor.pad.changeType('balustrade'));
   const wCt = await E((id) => ({ h: window.__editor.model.history.length, kind: window.__editor.model.get('walls', id).kind }), wWid);
   await page.keyboard.press('Control+z'); await frames(page, 2);
   const wBack = await E((id) => window.__editor.model.get('walls', id).kind, wWid);
-  assert(wKinds.includes('balustrade') && wCt.kind === 'balustrade' && wCt.h === wh0 + 1 && wBack === 'interior', `Change type on a wall offers balustrade (${wKinds.join(', ')}) and is one undo step`);
+  assert(wKinds && kinds.includes('balustrade') && wCt.kind === 'balustrade' && wCt.h === wh0 + 1 && wBack === 'interior', `the card's Type row steps a wall through ${kinds.join(', ')}; Change type is one undo step`);
 
   console.log('pad screen: nothing overlaps, the hint bar is one line (ED3-pad1)');
   await press(BTN.LB);
   await E((id) => window.__editor.select(`walls:${id}`), wWid);
   for (const minimap of [false, true]) {
   await E((on) => { const ed = window.__editor; ed.prefs.layout = '3d'; ed.prefs.minimap = on; ed.applyLayout?.(); }, minimap);
-  for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) {
+  for (const [vw, vh] of [[1280, 720], [1024, 600], [932, 430]]) for (const mode of ['', 'card', 'menu']) {
     await page.setViewportSize({ width: vw, height: vh });
+    await E((m) => { const p = window.__editor.pad; if (m === 'card') p.editCard('type'); else p.cardEditing = false; if (m === 'menu') p.toggleMenu(); }, mode);
     await wait(400);
     await frames(page, 4);
     const r = await E(() => {
-      const ids = ['padStrip', 'toolBar', 'selCard', 'reticleText', 'hint', ...(window.__editor.isMinimap() ? ['planWrap'] : [])];
+      const ids = ['padStrip', 'toolBar', 'selCard', 'reticleText', 'hint', 'tileMenu', ...(window.__editor.isMinimap() ? ['planWrap'] : [])];
       const box = {};
       for (const id of ids) {
         const el = document.getElementById(id);
         const b = el.getBoundingClientRect();
-        if (getComputedStyle(el).display !== 'none' && b.width > 0 && el.offsetParent !== null) box[id] = [b.left, b.top, b.right, b.bottom];
+        if (getComputedStyle(el).display !== 'none' && getComputedStyle(el).visibility !== 'hidden' && b.width > 0 && el.offsetParent !== null) box[id] = [b.left, b.top, b.right, b.bottom];
       }
       const hits = [];
       const k = Object.keys(box);
@@ -604,9 +678,12 @@ try {
       const cut = [...document.querySelectorAll('#toolBar .slot b, #toolBar .slot small')].filter((e) => e.scrollWidth > e.clientWidth + 0.5).map((e) => e.textContent);
       return { shown: k, hits, hintCut: hint.scrollWidth > hint.clientWidth + 0.5, hintTall: hint.clientHeight > line * 1.6 + 20, slots: document.querySelectorAll('#toolBar .slot').length, cut, hint: hint.textContent, card: document.getElementById('selCard').textContent };
     });
-    assert(r.shown.includes('toolBar') && r.shown.includes('selCard') && r.hits.length === 0 && !r.hintCut && !r.hintTall && r.slots >= 6 && r.cut.length === 0 && /^Interior wall /.test(r.card),
-      `${vw} x ${vh}${minimap ? ', small plan' : ''}: ${r.shown.length} pad panels, overlaps [${r.hits.join(', ')}], hint one line uncut (${!r.hintCut && !r.hintTall}), ${r.slots} tool slots, cut names [${r.cut.join(', ')}], card "${r.card.slice(0, 40)}"`);
-    await shot(`pad-screen-${vw}x${vh}${minimap ? '-small-plan' : ''}`);
+    const want = mode === 'menu' ? r.shown.includes('tileMenu') && !r.shown.includes('selCard') : r.shown.includes('toolBar') && r.shown.includes('selCard') && r.slots === 1 && /^Interior wall /.test(r.card) && (mode !== 'card' || !r.shown.includes('reticleText'));
+    assert(want && r.hits.length === 0 && !r.hintCut && !r.hintTall && r.cut.length === 0,
+      `${vw} x ${vh}${minimap ? ', small plan' : ''}${mode ? `, ${mode === 'menu' ? 'menu open' : 'card editing'}` : ''}: ${r.shown.length} pad panels, overlaps [${r.hits.join(', ')}], hint one line uncut (${!r.hintCut && !r.hintTall}), ${r.slots} tool slot, cut names [${r.cut.join(', ')}], card "${r.card.slice(0, 40)}"`);
+    if (mode === 'card' && vw === 1280 && !minimap) await shot('card-editing');
+    await shot(`pad-screen-${vw}x${vh}${minimap ? '-small-plan' : ''}${mode ? `-${mode}` : ''}`);
+    await E(() => { const p = window.__editor.pad; p.closeMenu(); p.cardEditing = false; });
   }
   }
   await page.setViewportSize({ width: 1600, height: 900 });
@@ -626,8 +703,8 @@ try {
   assert(!!spot, `an empty patch on the ground floor at ${spot}`);
   const cnt = () => E(() => { const ed = window.__editor; return { rooms: ed.model.data.rooms.length, walls: ed.model.data.walls.length, h: ed.model.history.length, dirty: ed.model.dirty }; });
   const c0 = await cnt();
-  await E(() => window.__editor.pad.runMenu({ id: 'room.walls', name: '' }, []));
-  await wait(300);
+  await E(() => window.__editor.pad.runMenu('room.walls'));
+  await page.waitForFunction(() => !!document.querySelector('#toolBar [data-slot="room"] small'), null, { timeout: 10000 }).catch(() => {});
   const bar = await E(() => document.querySelector('#toolBar [data-slot="room"] small')?.textContent);
   // (corners set on the dot directly: D-pad steps follow the camera and the magnet)
   const drawRoom = async (x, z) => {
@@ -671,7 +748,7 @@ try {
   // Split the second room across its middle
   await E((id) => window.__editor.select(`rooms:${id}`), r2.id);
   const b2 = await E((id) => window.__editor.model.get('rooms', id).rect, r2.id);
-  await E(() => window.__editor.pad.runMenu({ id: 'sel.split', name: '' }, []));
+  await E(() => window.__editor.pad.runMenu('sel.split'));
   await dotAt(b2[0] + 1.5, (b2[1] + b2[3]) / 2);
   await page.waitForFunction(() => /split here|Too close/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
   const splitWords = await dotText();

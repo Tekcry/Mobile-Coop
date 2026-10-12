@@ -1,36 +1,39 @@
 /**
  * Controller editing for the level editor (ED2 Part C, ED3-1, ED3-2): polls the pad each frame and drives the editor.
  * The pad moves a builder camera (orbit.ts) whose target is the dot on the editing floor; the dot is magnetic (grab.ts).
- * A selects, takes the part of the selection the dot names (edge-aware grab) and drops; Y held opens the Build wheel,
- * RB held the Selection wheel (hold Space / hold R with the mouse); Menu opens the hub (hubView.ts). Bindings and their
- * words live in actions.ts; the pure parts in pad.ts, orbit.ts, radial.ts, grab.ts and hub.ts.
+ * A selects, takes the part of the selection the dot names (edge-aware grab) and drops; Y (Space with the mouse) opens
+ * and closes the tile menu (ON0a); with something selected the D-pad edits the selection card; Menu opens the hub
+ * (hubView.ts). Every menu takes the D-pad and the left stick through one stepper (stickSteps.ts). Bindings and their
+ * words live in actions.ts; the pure parts in pad.ts, orbit.ts, stickSteps.ts, tileMenu.ts, card.ts, grab.ts and hub.ts.
  */
 import { hyp2 } from '../core/mathx';
 import { detectPadStyle } from '../input/gamepadMapping';
 import type { PadStyle } from '../input/gamepadMapping';
 import type { Device } from './actions';
+import { CARD_MERGE_S, cardRows, nameList, stepCard } from './card';
 import { fmt, nearestWall, normRect, projectOnWall, snap, wallLen, wallPoint } from './geometry';
 import { easeFactor, GHOST, grabPart, MAGNET, magnetSearch, turnPt } from './grab';
 import type { GrabPart, GrabShape, SnapCand, SnapHit } from './grab';
-import { DEFAULT_SETTINGS, LARGE_TEXT, readSettings } from './hub';
+import { DEFAULT_SETTINGS, LARGE_TEXT, readSettings, stepLayout } from './hub';
 import type { PadSettings } from './hub';
 import { focusField, HubView, stepField } from './hubView';
 import type { Editor, PlanShape } from './main';
-import { cardWords, label, OPENING_DEFAULTS, slotDoorName } from './ops';
+import { cardWords, DOOR_NAMES, label, OPENING_DEFAULTS, OPENING_TYPES, slotDoorName, withBetween } from './ops';
 import { ORBIT } from './orbit';
-import { PAD, PadState } from './pad';
-import { buildTree, DOOR_NAMES, RadialView, selectionTree } from './padMenu';
-import { Radial } from './radial';
+import { PAD, PadState, padWords as padWordsOf } from './pad';
 import { linkedHint, ROOM_OPTIONS } from './roomWalls';
 import type { RoomWallOption } from './roomWalls';
-import type { RadialNode } from './radial';
+import { navAxes, StepRepeat } from './stickSteps';
+import { TileMenu } from './tileMenu';
+import type { MenuInput, ViewState } from './tileMenu';
+import { NamePick, TileMenuView } from './tileMenuView';
 import type { Mark } from './scene3d';
 import { presetPicks } from './visibility';
 import type { Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Wall } from './types';
 import { keyOf, parseKey } from './types';
 
 type Focus = '3d' | 'drawer';
-/** The tool bar's slots, left to right (Stair, Ladder, Floor hole and Object join when those tools exist). */
+/** Tool names on the tool bar, which shows the active tool only (ON0a: the Y menu picks tools). */
 const BAR = [
   ['select', 'Select'],
   ['room', 'Room'],
@@ -56,20 +59,23 @@ export class PadControl {
   style: PadStyle = 'xbox';
   focus: Focus = '3d';
   readonly st = new PadState();
-  radial: Radial | null = null;
   readonly hub: HubView;
   settings: PadSettings = { ...DEFAULT_SETTINGS };
-  private readonly ringView: RadialView;
-  /** The wheel was opened with Space or R (mouse) rather than Y or RB. */
-  private mouseMenu = false;
-  /** The pad button holding the open wheel: Y (Build) or RB (Selection). */
-  private wheelBtn: number = PAD.Y;
-  private mouse = { x: 0, y: 0, click: false, back: false, held: false, key: '' };
+  /** The tile menu (Y, Space) and its view; the name picker (A on the card's Name row). */
+  readonly menu = new TileMenu();
+  private readonly menuView: TileMenuView;
+  readonly names: NamePick;
+  /** The selection card: its lit row, and whether the D-pad is editing it (B or A leaves; another selection resets it). */
+  cardRow = 0;
+  cardEditing = false;
+  private cardSel = '';
+  /** D-pad and stick steps for every menu, one per axis. */
+  private readonly navX = new StepRepeat();
+  private readonly navY = new StepRepeat();
   /** Grid steps added by D-pad nudges while grabbing. */
   private offset: Pt = [0, 0];
   /** Quarter turns (RB taps) of the grabbed thing, about the dot. */
   private turns = 0;
-  private lastTool: { tool: string; door?: string } | null = null;
   private measureFrom: Pt | null = null;
   clipboard: { coll: Coll; e: Elem } | null = null;
   /** The magnetic dot's current snap, and the snap candidates on the editing level (rebuilt after a change). */
@@ -81,11 +87,22 @@ export class PadControl {
   private marksKey = '';
   private drawerIndex = 0;
   private lastNow = 0;
-  /** After a wheel or the hub closes, the sticks do nothing until they come back to the centre. */
+  /** After a menu or the hub opens or closes, the sticks do nothing until they come back to the centre. */
   private stickLatch = false;
 
   constructor(private readonly ed: Editor) {
-    this.ringView = new RadialView($('radial'));
+    this.menuView = new TileMenuView(
+      $('tileMenu'),
+      (t) => {
+        this.menu.setTab(t, this.menuInput());
+        this.renderMenu();
+      },
+      (i) => {
+        this.menu.index = i;
+        this.pickTile();
+      },
+    );
+    this.names = new NamePick($('namePick'));
     try {
       this.settings = readSettings(JSON.parse(localStorage.getItem(PREFS) ?? 'null'));
     } catch {
@@ -97,39 +114,19 @@ export class PadControl {
     ed.model.onChange(() => {
       if (!this.ed.drag) this.candsKey = '';
     });
-    // keyboard and mouse take the hint bar back; the mouse wheels are hold Space (Build) and hold R (Selection)
+    // keyboard and mouse take the hint bar back; Space (the action map) opens the tile menu, a click picks a tile
     const keysUsed = (): void => this.setDevice('keys');
-    window.addEventListener('keydown', (e) => {
-      keysUsed();
-      const free = !e.repeat && !isTyping() && !this.hub.isOpen && !this.menuOpen && !this.ed.drag;
-      if (e.code === 'Space' && !isTyping()) {
-        e.preventDefault();
-        if (free) this.openMenu(true, 'build', 'Space');
-      } else if (e.code === 'KeyR' && free) {
-        if (this.ed.selectedElem()) this.openMenu(true, 'sel', 'KeyR');
-        else this.ed.status('Select something first');
-      } else if (e.code === 'Escape' && this.radial?.isOpen) this.mouse.back = true;
-    });
-    window.addEventListener('keyup', (e) => {
-      if (e.code === this.mouse.key) this.mouse.held = false;
-    });
-    window.addEventListener('pointerdown', (e) => {
-      keysUsed();
-      if (this.radial?.isOpen && this.mouseMenu && e.button === 0) {
-        e.stopPropagation();
-        this.mouse.click = true;
-      }
-    }, true);
+    window.addEventListener('keydown', keysUsed);
+    window.addEventListener('pointerdown', keysUsed, true);
     window.addEventListener('pointermove', (e) => {
       if (Math.abs(e.movementX) + Math.abs(e.movementY) > 8) keysUsed();
-      this.mouse.x = e.clientX;
-      this.mouse.y = e.clientY;
     });
     this.ed.view.scene.onBeforeRenderObservable.add(() => this.frame());
   }
 
+  /** The tile menu or the name picker is open (the 'menu' context). */
   get menuOpen(): boolean {
-    return !!this.radial?.isOpen;
+    return this.menu.isOpen || this.names.isOpen;
   }
 
   get rumbleOn(): boolean {
@@ -141,6 +138,7 @@ export class PadControl {
     this.device = d;
     // mouse or keys: the fly camera takes over from the same pose; the plan marker and the pad's marks go
     if (d === 'keys') {
+      this.cardEditing = false;
       this.ed.controls.leaveOrbit();
       document.getElementById('padMark')?.remove();
       this.magnet = null;
@@ -160,14 +158,36 @@ export class PadControl {
     }
   }
 
-  /** Text size on the pad screen, the hub and the wheels; stick speed and invert tilt are read each frame. */
+  /** Text size on the pad screen, the hub and the tile menu; stick speed and invert tilt are read each frame. */
   applySettings(): void {
     document.body.style.setProperty('--ts', String(this.settings.textSize === 'large' ? LARGE_TEXT : 1));
   }
 
-  /** The sticks do nothing until they return to the centre (after a wheel or the hub). */
+  /** The sticks do nothing until they return to the centre (after a menu or the hub opens or closes). */
   latchSticks(): void {
     this.stickLatch = true;
+    this.navX.reset();
+    this.navY.reset();
+  }
+
+  /**
+   * This frame's menu steps: the D-pad, or the left stick when `stick` (and not latched), through the shared stepper
+   * (a push steps at once, held repeats after 0.35 s and speeds up). y is down-positive (screen).
+   */
+  nav(now: number, stick: boolean): { x: number; y: number } {
+    const st = this.st;
+    const dx = (st.down(PAD.RIGHT) ? 1 : 0) - (st.down(PAD.LEFT) ? 1 : 0);
+    const dy = (st.down(PAD.DOWN) ? 1 : 0) - (st.down(PAD.UP) ? 1 : 0);
+    const l = stick && !this.stickLatch ? st.rawL : { x: 0, y: 0 };
+    const a = navAxes(dx, dy, l.x, l.y);
+    this.navX.speed = this.navY.speed = this.settings.repeatSpeed;
+    return { x: this.navX.update(a.x, now), y: this.navY.update(a.y, now) };
+  }
+
+  /** The right stick scrolls a long list or page. */
+  scroll(el: HTMLElement | null, dt: number): void {
+    const y = this.st.rs.y;
+    if (el && y) el.scrollTop += y * 1400 * dt;
   }
 
   rumble(kind: 'snap' | 'drop' | 'error'): void {
@@ -190,64 +210,121 @@ export class PadControl {
     }
   }
 
-  // ---------- the wheels ----------
-  /** Opens the Build wheel (Y, hold Space) or the Selection wheel (RB, hold R). */
-  openMenu(mouse: boolean, kind: 'build' | 'sel' = 'build', key = ''): void {
+  // ---------- the tile menu (ON0a) ----------
+  /** What the tiles depend on: the selection, the clipboard and the view toggles. */
+  menuInput(): MenuInput {
     const s = this.ed.selectedElem();
-    if (kind === 'sel' && !s) return this.ed.status('Select something first');
-    const cur = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : 'kind'] ?? '') : '';
-    const tree = kind === 'sel' && s ? selectionTree(s.coll, cur) : buildTree({ clipboard: !!this.clipboard });
-    const last = this.radial?.last;
-    this.radial = new Radial(tree);
-    if (last) for (const [k, v] of last) this.radial.last.set(k, v);
-    this.radial.open();
-    this.mouseMenu = mouse;
-    this.wheelBtn = kind === 'sel' ? PAD.RB : PAD.Y;
-    this.mouse.click = this.mouse.back = false;
-    this.mouse.held = mouse;
-    this.mouse.key = key;
+    const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : 'kind'] ?? '') : '';
+    return { sel: s ? { coll: s.coll, type } : null, clipboard: !!this.clipboard, view: this.viewState() };
+  }
+
+  viewState(): ViewState {
+    const ed = this.ed;
+    const v = ed.view.vis;
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay };
+  }
+
+  /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
+  toggleMenu(): void {
+    if (this.menu.isOpen) return this.closeMenu();
+    if (this.names.isOpen) return;
+    if (this.ed.drag) return this.ed.status('Drop it or put it back first');
+    if (this.focus === 'drawer') this.setFocus('3d');
+    this.cardEditing = false;
+    this.menu.open(this.menuInput(), this.settings.menuOpens);
+    this.latchSticks();
+    this.renderMenu();
+    this.showPointers();
     this.ed.updateHint();
   }
 
-  /** Closes an open wheel without a pick (the hub opening). */
+  /** Closes the menu without a pick (B, Y, Esc, the hub opening). */
   closeMenu(): void {
-    if (!this.radial?.isOpen) return;
-    this.radial.close();
-    this.ringView.render(this.radial);
+    if (!this.menu.isOpen) return;
+    this.menu.close();
+    this.latchSticks();
+    this.renderMenu();
+    this.showPointers();
+    this.ed.updateHint();
   }
 
-  private menuFrame(now: number): void {
-    const r = this.radial!;
-    let inp;
-    if (this.mouseMenu) {
-      const b = $('stage').getBoundingClientRect();
-      const R = Math.min(b.width, b.height) * 0.3;
-      inp = { x: (this.mouse.x - (b.left + b.width / 2)) / R, y: (this.mouse.y - (b.top + b.height / 2)) / R, now, held: this.mouse.held, a: this.mouse.click, b: this.mouse.back };
-      this.mouse.click = this.mouse.back = false;
-    } else {
-      const st = this.st;
-      const l = st.rawL;
-      const rr = st.rawR;
-      const s = l.x * l.x + l.y * l.y >= rr.x * rr.x + rr.y * rr.y ? l : rr;
-      inp = { x: s.x, y: s.y, now, held: st.down(this.wheelBtn), a: st.pressed(PAD.A), b: st.pressed(PAD.B) };
-    }
-    const res = r.update(inp);
-    if (res?.kind === 'pick') this.runMenu(res.node, res.path);
-    if (!r.isOpen) {
-      this.stickLatch = true;
-      this.ed.updateHint();
-    }
-    this.ringView.render(r);
+  renderMenu(): void {
+    const s = this.style;
+    const pad = this.device === 'pad';
+    const words = { tab: pad ? `${padWordsOf('LB', s)} / ${padWordsOf('RB', s)}` : 'Click a tab', close: pad ? `${padWordsOf('B', s)} or ${padWordsOf('Y', s)} closes` : 'Space or Esc closes' };
+    this.menuView.render(this.menu, this.menuInput(), words, $('hint').offsetHeight);
   }
 
-  /** Runs a pick from either wheel (and the tool bar and Y tap, which use the Build wheel's ids). */
-  runMenu(node: RadialNode, path: string[]): void {
+  /** One pad frame with the menu open. */
+  private menuFrame(now: number, dt: number): void {
+    const st = this.st;
+    const inp = this.menuInput();
+    if (st.pressed(PAD.B) || st.pressed(PAD.Y)) return this.closeMenu();
+    if (st.pressed(PAD.LB)) this.menu.stepTab(-1, inp);
+    if (st.pressed(PAD.RB)) this.menu.stepTab(1, inp);
+    const n = this.nav(now, true);
+    const t = this.menu.tile(inp);
+    // on the View rows left / right change the value (sliders faster the further the stick is pushed)
+    if (n.x && t && this.menu.tab === 'View') this.runView(t.id, n.x as 1 | -1, false);
+    if (n.x || n.y) this.menu.move(n.x, n.y, this.menuView.cols(), inp);
+    this.scroll(this.menuView.body, dt);
+    if (st.pressed(PAD.A)) return this.pickTile();
+    this.renderMenu();
+  }
+
+  /** A on the highlighted tile (or a click): a View tile changes and the menu stays; anything else closes it and runs. */
+  private pickTile(): void {
+    const inp = this.menuInput();
+    const t = this.menu.tile(inp);
+    if (!t) return;
+    if (t.disabled) {
+      this.rumble('error');
+      return this.ed.status(t.disabled);
+    }
+    if (t.id.startsWith('view.')) {
+      this.runView(t.id, 1, true);
+      return this.renderMenu();
+    }
+    this.closeMenu();
+    this.runMenu(t.id);
+  }
+
+  /** A View item from the tile menu or the hub: A (press) toggles; left / right steps a cycle or moves a slider. */
+  runView(id: string, dir: 1 | -1, press: boolean): void {
     const ed = this.ed;
-    const id = node.id;
+    const v = ed.view.vis;
+    let rebuild = false;
+    if (id === 'view.layout') return ed.setLayout(stepLayout(ed.prefs.layout, dir));
+    if (id === 'view.ghost') v.ghost = !v.ghost;
+    else if (id === 'view.exploded') {
+      if (press) v.exploded = !v.exploded;
+      else {
+        v.gap = Math.min(12, Math.max(0, v.gap + dir * 0.5));
+        v.exploded = true;
+      }
+    } else if (id === 'view.cut') {
+      v.section = press ? (v.section > 0 ? 0 : 1.2) : Math.min(4, Math.max(0, +(v.section + dir * 0.1).toFixed(2)));
+      rebuild = true;
+    } else if (id === 'view.levels') {
+      const i = DISPLAYS.findIndex(([p]) => p === v.preset);
+      return this.setDisplay(DISPLAYS[(i + dir + DISPLAYS.length) % DISPLAYS.length]![0]);
+    } else if (id === 'view.building') {
+      const bs = ['all', ...(ed.model.data.meta.buildings ?? []).map((b) => b.id), 'site'];
+      v.building = bs[(bs.indexOf(v.building) + dir + bs.length) % bs.length]!;
+    } else if (id === 'view.minimap') return ed.run('minimap');
+    else if (id === 'view.labels') {
+      $('planSvg').classList.toggle('nolabels');
+      return;
+    } else if (id === 'view.underlay') v.underlay = !v.underlay;
+    this.applyPanel(rebuild);
+  }
+
+  /** Runs a tile (and the D-pad tool variants), by the Build, Openings and Selected tabs' ids. */
+  runMenu(id: string): void {
+    const ed = this.ed;
     const tool = (t: string, door?: string): void => {
       this.measureFrom = null;
       if (door) $<HTMLSelectElement>('doorType').value = door;
-      this.lastTool = { tool: t, door };
       ed.setTool(t as Parameters<Editor['setTool']>[0]);
     };
     if (id === 'select') tool('select');
@@ -269,8 +346,91 @@ export class PadControl {
     else if (id === 'sel.rotate') this.rotate();
     else if (id === 'sel.copy') this.copy();
     else if (id === 'sel.copyUp') this.copyUp();
-    else if (id.startsWith('type.')) this.changeType(id.slice(5));
-    if (path.length > 1 && id.startsWith('type.')) ed.status(`${path.join(' > ')}`);
+    else if (id === 'sel.type') this.editCard('type');
+  }
+
+  /** D-pad left / right with a tool and nothing grabbed: the door type or the room's walls option. */
+  private toolVariant(dir: 1 | -1): void {
+    const ed = this.ed;
+    if (ed.tool === 'door') {
+      const doors = OPENING_TYPES.filter((t) => t !== 'window');
+      const sel = $<HTMLSelectElement>('doorType');
+      const next = doors[(Math.max(0, doors.indexOf(sel.value)) + dir + doors.length) % doors.length]!;
+      sel.value = next;
+      ed.status(`Door type: ${DOOR_NAMES[next] ?? next}`);
+    } else if (ed.tool === 'room') {
+      const i = ROOM_OPTIONS.findIndex((o) => o.id === ed.roomOption);
+      const o = ROOM_OPTIONS[(i + dir + ROOM_OPTIONS.length) % ROOM_OPTIONS.length]!;
+      ed.setRoomOption(o.id);
+      ed.status(`Room: ${o.name}`);
+    }
+  }
+
+  // ---------- the selection card on the D-pad (ON0a) ----------
+  /** Lights a card row by id and starts editing (Selected > Change type lights Type). */
+  editCard(row: string): void {
+    const s = this.ed.selectedElem();
+    if (!s) return;
+    const i = cardRows(s.coll, s.e).findIndex((r) => r.id === row);
+    this.cardRow = Math.max(0, i);
+    this.cardEditing = true;
+    this.ed.updateHint();
+  }
+
+  /** One frame with something selected, no tool and nothing grabbed: the D-pad (and the stick while editing) works the card. */
+  private cardFrame(now: number): void {
+    const s = this.ed.selectedElem();
+    if (!s) return;
+    const rows = cardRows(s.coll, s.e);
+    const n = this.nav(now, this.cardEditing);
+    if (!n.x && !n.y) return;
+    if (!this.cardEditing) {
+      this.cardEditing = true;
+      this.ed.updateHint();
+    }
+    if (n.y) this.cardRow = (this.cardRow + n.y + rows.length) % rows.length;
+    const row = rows[Math.min(this.cardRow, rows.length - 1)];
+    if (n.x && row) this.stepCardRow(row.id, n.x as 1 | -1, now);
+  }
+
+  /** One step of a card row, committed; quick steps on the same row join one undo step. */
+  private stepCardRow(row: string, dir: 1 | -1, now: number): void {
+    const ed = this.ed;
+    const s = ed.selectedElem();
+    if (!s) return;
+    const wall = s.coll === 'openings' ? ed.model.get<Wall>('walls', (s.e as Opening).wall) : undefined;
+    let after = stepCard(s.coll, s.e, row, dir, { step: ed.fineGrid, wallLen: wall ? wallLen(wall) : undefined });
+    if (!after) {
+      if (row === 'name') return ed.status('A opens the name list');
+      this.rumble('error');
+      return ed.status('At its limit');
+    }
+    const merge = { key: `${s.coll}:${s.id}|${row}`, at: now, within: CARD_MERGE_S };
+    if (s.coll === 'rooms' && (row === 'width' || row === 'depth')) return ed.commitRoom(s.id, (after as Room).rect, merge);
+    if (s.coll === 'openings') after = withBetween(ed.model, after as Opening);
+    ed.commit([{ coll: s.coll, id: s.id, before: s.e, after }], merge);
+    ed.renderPanel();
+  }
+
+  /** A on the card's Name row: the name list and the on-screen keyboard. */
+  private openNames(): void {
+    const ed = this.ed;
+    const s = ed.selectedElem();
+    if (!s) return;
+    const cur = typeof s.e.name === 'string' ? s.e.name : '';
+    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole' }[s.coll];
+    this.latchSticks();
+    this.names.open(`${what} name`, nameList(ed.model.list(s.coll)), cur, (name) => {
+      this.latchSticks();
+      ed.updateHint();
+      if (name === null || name === cur) return;
+      const after = clone(s.e) as Elem & Record<string, unknown>;
+      if (name) after.name = name;
+      else delete after.name;
+      ed.commit([{ coll: s.coll, id: s.id, before: s.e, after }]);
+      ed.renderPanel();
+    });
+    ed.updateHint();
   }
 
   // ---------- every frame ----------
@@ -311,7 +471,14 @@ export class PadControl {
     if (gp && this.device === 'pad' && c.mode === 'fly') this.ed.enterOrbit();
     this.drawStrip();
     this.drawBar();
-    if (this.radial?.isOpen) return this.menuFrame(now);
+    // a new selection starts the card at its first row, not editing
+    const selKey = this.ed.selected ?? '';
+    if (selKey !== this.cardSel) {
+      this.cardSel = selKey;
+      this.cardRow = 0;
+      this.cardEditing = false;
+    }
+    if (this.menu.isOpen) this.renderMenu();
     if (!gp) return this.followDrag();
     const st = this.st;
     if ($('ask').classList.contains('hidden') === false) {
@@ -320,18 +487,22 @@ export class PadControl {
       else if (st.pressed(PAD.B)) bs[1]?.click();
       return;
     }
-    // the hub: nothing else reads the pad while it is open
-    if (this.hub.isOpen) return this.hub.frame(st);
-    if (st.pressed(PAD.START)) return this.hub.open();
     if (this.stickLatch && !st.ls.x && !st.ls.y && !st.rs.x && !st.rs.y) this.stickLatch = false;
+    // the hub: nothing else reads the pad while it is open
+    if (this.hub.isOpen) return this.hub.frame(st, this.nav(now, true), dt);
+    if (st.pressed(PAD.START)) return this.hub.open();
+    if (this.names.isOpen) {
+      const n = this.nav(now, true);
+      this.scroll(this.names.body, dt);
+      return this.names.frame(n.x, n.y, st.pressed(PAD.A), st.pressed(PAD.B));
+    }
+    if (this.menu.isOpen) return this.menuFrame(now, dt);
     if (c.walking) return this.walkFrame();
-    if (st.yTap === 'hold' && !this.ed.drag) return this.openMenu(false, 'build');
-    if (st.rbTap === 'hold' && !this.ed.drag && !this.ed.splitting) return this.openMenu(false, 'sel');
-    if (st.yTap === 'tap' && this.lastTool && !this.ed.drag) this.runMenu({ id: this.lastTool.door ? `door.${this.lastTool.door}` : this.lastTool.tool === 'select' ? 'select' : `build.${this.lastTool.tool}`, name: '' }, []);
+    if (st.pressed(PAD.Y) && !this.ed.drag) return this.toggleMenu();
     if (st.viewTap === 'tap') this.topDown();
     else if (st.viewTap === 'hold') this.ed.run('layout');
     if (this.focus === 'drawer' && !this.ed.prefs.drawer) this.setFocus('3d');
-    if (this.focus === 'drawer') return this.drawerFrame();
+    if (this.focus === 'drawer') return this.drawerFrame(now, dt);
     const plan = this.ed.prefs.layout === 'plan';
     const zoom = st.rt - st.lt;
     const fine = st.down(PAD.LB);
@@ -341,7 +512,8 @@ export class PadControl {
     const ko = Math.sqrt(this.settings.stickSpeed);
     const tilt = this.settings.invertTilt ? st.rs.y : -st.rs.y;
     // in Plan only the triggers zoom the plan, not the 3D camera
-    if (!this.stickLatch) c.orbitIn = { panX: st.ls.x * k, panY: -st.ls.y * k, orbitX: st.rs.x * ko, tiltY: tilt * ko, zoom: plan ? 0 : zoom, precision: fine };
+    if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rs.x * ko, tiltY: tilt * ko, zoom: plan ? 0 : zoom, precision: fine };
+    else if (!this.stickLatch) c.orbitIn = { panX: st.ls.x * k, panY: -st.ls.y * k, orbitX: st.rs.x * ko, tiltY: tilt * ko, zoom: plan ? 0 : zoom, precision: fine };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
     if (st.pressed(PAD.RS)) this.cycleDisplay();
     if (!this.ed.drag) {
@@ -353,9 +525,19 @@ export class PadControl {
         else this.ed.frameSelected();
       }
     } else if (st.rbTap === 'tap') this.turnGrab();
-    if (st.pressed(PAD.B)) this.cancel();
+    if (this.cardEditing && st.pressed(PAD.B)) {
+      this.cardEditing = false;
+      this.ed.updateHint();
+    } else if (this.cardEditing && st.pressed(PAD.A)) {
+      const s = this.ed.selectedElem();
+      if (s && cardRows(s.coll, s.e)[this.cardRow]?.id === 'name') this.openNames();
+      else {
+        this.cardEditing = false;
+        this.ed.updateHint();
+      }
+    } else if (st.pressed(PAD.B)) this.cancel();
     else if (st.pressed(PAD.A)) this.primary();
-    this.dpad();
+    this.dpad(now);
     this.followDrag();
     const kz = plan ? Math.exp(Math.sign(zoom) * zoom * zoom * ORBIT.ZOOM_RATE * (fine ? ORBIT.PRECISION : 1) * dt) : 1;
     if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, kz);
@@ -446,10 +628,14 @@ export class PadControl {
   /** R3 (decision 13): levels shown cycles up to this level, single level, whole building. */
   private cycleDisplay(): void {
     const i = DISPLAYS.findIndex((d) => d[0] === this.ed.view.vis.preset);
-    const n = DISPLAYS[(i + 1) % DISPLAYS.length]!;
-    this.ed.setPreset(n[0]);
-    this.ed.status(`Levels shown: ${n[1]}`);
+    this.setDisplay(DISPLAYS[(i + 1) % DISPLAYS.length]![0]);
+  }
+
+  private setDisplay(p: (typeof DISPLAYS)[number][0]): void {
+    this.ed.setPreset(p);
+    this.ed.status(`Levels shown: ${DISPLAYS.find((d) => d[0] === p)![1]}`);
     this.stripAt = 0;
+    if (this.hub.isOpen) this.hub.render();
   }
 
   /** The pad's point on the editing level: the magnet's snap point exactly while snapped, else the dot on the grid. */
@@ -557,7 +743,7 @@ export class PadControl {
     if (p) this.grab(k.coll, k.id, null, p, ed.viewFloor(), 'Move');
   }
 
-  /** Selection wheel > Move: grab it whole at the dot, as A in the middle. */
+  /** Selected > Move: grab it whole at the dot, as A in the middle. */
   private grabWhole(): void {
     const s = this.ed.selectedElem();
     const p = this.point();
@@ -627,7 +813,7 @@ export class PadControl {
     this.turns = 0;
   }
 
-  private dpad(): void {
+  private dpad(now: number): void {
     const st = this.st;
     const ed = this.ed;
     const dirs: [number, Pt][] = [[PAD.UP, [0, 1]], [PAD.DOWN, [0, -1]], [PAD.RIGHT, [1, 0]], [PAD.LEFT, [-1, 0]]];
@@ -645,18 +831,13 @@ export class PadControl {
       }
       return;
     }
-    if (st.repeat(PAD.UP)) ed.stepLevel(1);
-    if (st.repeat(PAD.DOWN)) ed.stepLevel(-1);
-    if (st.repeat(PAD.RIGHT)) this.toolStep(1);
-    if (st.repeat(PAD.LEFT)) this.toolStep(-1);
-  }
-
-  /** D-pad left / right (decisions 10, 11): the previous / next tool on the tool bar, wrapping at the ends. */
-  private toolStep(dir: 1 | -1): void {
-    const i = BAR.findIndex((b) => b[0] === this.barSlot());
-    const [id] = BAR[(i + dir + BAR.length) % BAR.length]!;
-    if (id === 'measure') return this.startMeasure();
-    this.runMenu({ id: id === 'select' ? 'select' : id === 'door' ? `door.${$<HTMLSelectElement>('doorType').value}` : `build.${id}`, name: '' }, []);
+    if (ed.drag) return;
+    // something selected, no tool: the D-pad edits the selection card (ON0a decision 4)
+    if (ed.tool === 'select' && ed.selected && !this.measureFrom && !ed.splitting) return this.cardFrame(now);
+    // nothing selected: up / down change level; with a tool, left / right flip its type (decision 5)
+    const n = this.nav(now, false);
+    if (n.y) ed.stepLevel(n.y < 0 ? 1 : -1);
+    if (n.x && ed.tool !== 'select') this.toolVariant(n.x as 1 | -1);
   }
 
   private barSlot(): string {
@@ -680,17 +861,18 @@ export class PadControl {
     this.setFocus('drawer');
   }
 
-  private drawerFrame(): void {
+  private drawerFrame(now: number, dt: number): void {
     const st = this.st;
     const fields = [...$('panel').querySelectorAll<HTMLElement>('[data-k], button, [data-go]')];
     if (st.pressed(PAD.B)) return this.setFocus('3d');
     if (!fields.length) return;
-    if (st.repeat(PAD.DOWN)) this.drawerIndex = (this.drawerIndex + 1) % fields.length;
-    if (st.repeat(PAD.UP)) this.drawerIndex = (this.drawerIndex - 1 + fields.length) % fields.length;
+    const n = this.nav(now, true);
+    this.scroll($('panel'), dt);
+    if (n.y) this.drawerIndex = (this.drawerIndex + n.y + fields.length) % fields.length;
     this.drawerIndex = Math.min(this.drawerIndex, fields.length - 1);
     focusField(fields, this.drawerIndex, $('panel'));
     const f = fields[this.drawerIndex]!;
-    const step = st.repeat(PAD.RIGHT) ? 1 : st.repeat(PAD.LEFT) ? -1 : 0;
+    const step = n.x;
     const fine = st.down(PAD.LB);
     stepField(f, step, fine ? this.ed.fineGrid : this.ed.grid, fine);
     if (st.pressed(PAD.A)) {
@@ -705,9 +887,12 @@ export class PadControl {
     const pad = this.device === 'pad';
     // the quick walk hides the dot, the tool bar and the card (decision 14)
     const walk = this.ed.controls.walking;
-    $('reticle').classList.toggle('hidden', !pad || this.focus !== '3d' || walk);
-    $('toolBar').classList.toggle('hidden', !pad || walk);
-    $('selCard').classList.toggle('hidden', !pad || walk || !this.ed.selectedElem());
+    // the tile menu covers the bottom half: the dot, tool bar and card wait above it; the card being edited hides the dot's words
+    const menu = this.menuOpen;
+    $('reticle').classList.toggle('hidden', !pad || this.focus !== '3d' || walk || menu);
+    $('reticleText').classList.toggle('hidden', this.cardEditing);
+    $('toolBar').classList.toggle('hidden', !pad || walk || menu);
+    $('selCard').classList.toggle('hidden', !pad || walk || menu || !this.ed.selectedElem());
     $('drawer').classList.toggle('padfocus', pad && this.focus === 'drawer');
     if (!(pad && this.focus === 'drawer')) for (const x of $('panel').querySelectorAll('.padfocus')) x.classList.remove('padfocus');
   }
@@ -726,15 +911,30 @@ export class PadControl {
     const doorName = slotDoorName($<HTMLSelectElement>('doorType').value);
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${roomName}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}`;
+    const key = `${this.barSlot()}|${doorName}|${roomName}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
-    $('toolBar').innerHTML = BAR.map(([id, name]) => `<div class="slot${id === slot ? ' on' : ''}" data-slot="${id}"><b>${name}</b>${id === 'door' ? `<small>${esc(doorName)}</small>` : id === 'room' ? `<small>${esc(roomName)}</small>` : ''}</div>`).join('');
+    // the active tool only (the Y menu picks tools); its type under it
+    const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
+    $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${slot === 'door' ? `<small>${esc(doorName)}</small>` : slot === 'room' ? `<small>${esc(roomName)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
       const lv = ed.model.data.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
-      $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small><div>${esc(c.size)}</div><div>Level ${esc(lv?.name ?? '')}</div>`;
+      const rows = cardRows(s.coll, s.e);
+      const lit = Math.min(this.cardRow, rows.length - 1);
+      // not editing: the first row and the size; editing: every row, the lit one with its arrows
+      const shown = this.cardEditing ? rows : rows.slice(0, 1);
+      const body = shown
+        .map((r, i) => {
+          const on = this.cardEditing && i === lit;
+          const v = r.kind === 'name' ? (on ? `${esc(r.value)} <small>(A)</small>` : esc(r.value)) : on ? `&#8249; ${esc(r.value)} &#8250;` : esc(r.value);
+          return `<div class="crow${on ? ' on' : ''}" data-row="${r.id}"><span>${esc(r.label)}</span><b>${v}</b></div>`;
+        })
+        .join('');
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div><div>Level ${esc(lv?.name ?? '')}</div>`;
+      $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
+      $('selCard').classList.toggle('editing', this.cardEditing);
     }
     this.layoutBar();
   }
@@ -1015,7 +1215,7 @@ export class PadControl {
     ed.select(keyOf(cb.coll, e.id));
   }
 
-  /** Selection wheel > Copy to level above: copy and paste one level up in one edit; the editing level goes with it. */
+  /** Selected > Copy to level above: copy and paste one level up in one edit; the editing level goes with it. */
   private copyUp(): void {
     const s = this.ed.selectedElem();
     if (!s) return;
@@ -1026,8 +1226,8 @@ export class PadControl {
     this.paste(true);
   }
 
-  /** Selection wheel > Change type: the opening's type, the room's or the wall's kind; one undoable edit. */
-  private changeType(v: string): void {
+  /** Change type to a given kind (the card's Type row steps instead): the opening's type, the room's or the wall's kind; one undoable edit. */
+  changeType(v: string): void {
     const s = this.ed.selectedElem();
     if (!s) return;
     const after = clone(s.e) as Elem & Record<string, unknown>;

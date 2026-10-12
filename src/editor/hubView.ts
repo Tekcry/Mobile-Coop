@@ -5,7 +5,7 @@
  */
 import type { PadStyle } from '../input/gamepadMapping';
 import { fmt } from './geometry';
-import { changeSetting, controllerLabels, HUB_TABS, hubRows, PICTURE_BUTTONS, stepLayout, stepTab } from './hub';
+import { changeSetting, controllerLabels, HUB_TABS, hubRows, PICTURE_BUTTONS, stepTab } from './hub';
 import type { HubInput, HubRow, HubTab } from './hub';
 import type { Editor } from './main';
 import { PAD } from './pad';
@@ -152,10 +152,7 @@ export class HubView {
       changes: ed.model.history.map((e) => e.text).reverse(),
       problems: ed.problemLines(),
       levels: levels.map((l) => ({ id: l.id, name: l.name, floor: fmt(l.floor), editing: l.id === ed.view.level })),
-      layout: ed.prefs.layout,
-      labels: !$('planSvg').classList.contains('nolabels'),
-      minimap: ed.prefs.minimap,
-      underlay: ed.view.vis.underlay,
+      view: this.pad.viewState(),
       settings: this.pad.settings,
     };
   }
@@ -167,14 +164,17 @@ export class HubView {
     this.rows = hubRows(this.tab, this.input());
     const tabs = HUB_TABS.map((t) => `<button data-tab="${t}" class="${t === this.tab ? 'on' : ''}">${t}</button>`).join('');
     const rows = this.rows
-      .map((r) => `<div class="hub-row ${r.kind}${r.disabled ? ' off' : ''}${r.fresh ? ' bad' : ''}" data-row="${esc(r.id)}"><span>${esc(r.text)}</span>${r.value ? `<b>${esc(r.value)}</b>` : ''}${r.note ? `<small>${esc(r.note)}</small>` : ''}</div>`)
+      .map((r) => {
+        const bar = r.slider !== undefined ? `<i class="track"><i style="width:${Math.round(r.slider * 100)}%"></i></i>` : '';
+        return `<div class="hub-row ${r.kind}${r.disabled ? ' off' : ''}${r.fresh ? ' bad' : ''}" data-row="${esc(r.id)}"><span>${esc(r.text)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${bar}${r.value ? `<b>${esc(r.value)}</b>` : ''}</div>`;
+      })
       .join('');
     let extra = '';
     if (this.tab === 'Help') extra = controllerSvg(style) + this.ed.helpTableHtml();
     else if (this.tab === 'Levels') extra = '<h4>Levels shown</h4><div id="hubPanel"></div>';
     else if (this.tab === 'File' && !this.ed.model.history.length) extra = '<p class="dim">No changes to undo.</p>';
     else if (this.tab === 'Checks' && !this.ed.lastChecks) extra = '<p class="dim">Running the checks...</p>';
-    const keys = this.pad.device === 'pad' ? 'LB / RB change tabs, D-pad picks, left / right changes, A does it, B closes' : 'Click a tab or a row; Esc or H closes';
+    const keys = this.pad.device === 'pad' ? 'LB / RB change tabs, D-pad or left stick picks, left / right changes, A does it, right stick scrolls, B closes' : 'Click a tab or a row; Esc or H closes';
     $('hub').innerHTML = `<div id="hubInner"><div class="hub-tabs">${tabs}</div><div class="dim hub-keys">${keys}</div><div class="hub-body">${rows}${extra}</div></div>`;
     const panel = document.getElementById('hubPanel');
     if (panel) this.pad.renderPanel(panel);
@@ -187,19 +187,23 @@ export class HubView {
     return [...$('hub').querySelectorAll<HTMLElement>('[data-row], .hub-body [data-k], .hub-body button[data-pv]')];
   }
 
-  /** One pad frame while the hub is open. */
-  frame(st: PadState): void {
+  /** One pad frame while the hub is open: `n` is this frame's D-pad or left stick steps (stickSteps.ts); the right stick scrolls. */
+  frame(st: PadState, n: { x: number; y: number }, dt: number): void {
     if (st.pressed(PAD.B) || st.pressed(PAD.START)) return this.close();
     if (st.pressed(PAD.LB)) return this.setTab(stepTab(this.tab, -1));
     if (st.pressed(PAD.RB)) return this.setTab(stepTab(this.tab, 1));
+    this.pad.scroll($('hub'), dt);
     const fs = this.fields();
     if (!fs.length) return;
-    if (st.repeat(PAD.DOWN)) this.index = (this.index + 1) % fs.length;
-    if (st.repeat(PAD.UP)) this.index = (this.index - 1 + fs.length) % fs.length;
+    // the right stick scrolls freely (Help, long lists); the focus only moves with the D-pad or left stick
+    if (n.y) {
+      this.index = (this.index + n.y + fs.length) % fs.length;
+      focusField(fs, this.index, $('hub'));
+    }
     this.index = Math.min(this.index, fs.length - 1);
-    focusField(fs, this.index, $('hub'));
+    if (!fs[this.index]!.classList.contains('padfocus')) focusField(fs, this.index, $('hub'));
     const f = fs[this.index]!;
-    const step = st.repeat(PAD.RIGHT) ? 1 : st.repeat(PAD.LEFT) ? -1 : 0;
+    const step = n.x;
     const row = f.dataset.row;
     if (row) {
       if (step && this.rows.find((r) => r.id === row)?.kind === 'step') void this.runRow(row, step as 1 | -1, false);
@@ -238,13 +242,8 @@ export class HubView {
       this.close();
       return pad.goToProblem(p.text);
     } else if (id.startsWith('level.')) ed.setLevel(id.slice(6));
-    else if (id === 'view.layout') ed.setLayout(stepLayout(ed.prefs.layout, dir));
-    else if (id === 'view.labels') $('planSvg').classList.toggle('nolabels');
-    else if (id === 'view.minimap') ed.run('minimap');
-    else if (id === 'view.underlay') {
-      ed.view.vis.underlay = !ed.view.vis.underlay;
-      ed.applyVis();
-    } else if (id.startsWith('set.')) {
+    else if (id.startsWith('view.')) pad.runView(id, dir, press);
+    else if (id.startsWith('set.')) {
       pad.settings = changeSetting(pad.settings, id, dir);
       pad.applySettings();
       pad.savePrefs();

@@ -4,6 +4,7 @@
  * the plan images and a change log for review. Never part of the game build.
  */
 import { actionForKey, helpRows, hintItems, keyId } from './actions';
+import { RING_NAMES } from './card';
 import type { Ctx, Group } from './actions';
 import { CameraControls } from './controls';
 import type { OrbitState } from './orbit';
@@ -32,7 +33,6 @@ const $ = <T extends HTMLElement>(id: string): T => document.getElementById(id) 
 const esc = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 const clone = <T>(v: T): T => JSON.parse(JSON.stringify(v)) as T;
 
-const RING_NAMES = ['Perimeter (yard, public lane)', 'Level 1 - reception, goods-in', 'Level 2 - staff', 'Level 3 - higher card', 'Level 4 - data hall, tunnels', 'Level 5 - meet-me, riser'];
 
 /** View preferences (layout, levels, panel); not a save, so localStorage is allowed (ED2 rules). */
 const PREFS = 'kestrel-editor-ui';
@@ -213,6 +213,7 @@ export class Editor {
     if (this.pad?.menuOpen) return 'menu';
     if (this.drag) return 'drag';
     if (this.tool !== 'select') return 'draw';
+    if (this.selected && this.pad?.cardEditing) return 'card';
     return this.selected ? 'selected' : 'idle';
   }
 
@@ -262,19 +263,20 @@ export class Editor {
     this.updateHint();
   }
 
-  commit(changes: Change[]): void {
-    this.commitText(describeEdit(this.model.data, changes), changes);
+  /** Commits one edit; with `merge` (selection card steps) a quick next step on the same row joins it (model.commit). */
+  commit(changes: Change[], merge?: Merge): void {
+    this.commitText(describeEdit(this.model.data, changes), changes, merge);
   }
 
   /** Commits one edit with its own words (room tool walls, linked edits, Split). */
-  commitText(text: string, changes: Change[]): void {
-    if (this.model.commit(text, changes)) {
+  commitText(text: string, changes: Change[], merge?: Merge): void {
+    if (this.model.commit(text, changes, merge)) {
       this.status(text);
       this.scheduleDraft();
     }
   }
 
-  /** What the room tool makes around a room (the list beside the Room button; the Build wheel's Room submenu). */
+  /** What the room tool makes around a room (the list beside the Room button; the Build tab's Room tiles). */
   roomOption: RoomWallOption = 'walls';
 
   setRoomOption(o: RoomWallOption): void {
@@ -1211,6 +1213,12 @@ export class Editor {
         return this.pad?.hub.toggle(this.pad.device === 'pad' ? this.pad.hub.tab : 'Help');
       case 'hubClose':
         return this.pad?.hub.close();
+      // Space and Y: the tile menu (ON0a); Esc closes it
+      case 'menu':
+        return this.pad?.toggleMenu();
+      case 'menuClose':
+        if (this.pad?.names.isOpen) return this.pad.names.close(null);
+        return this.pad?.closeMenu();
     }
   }
 
@@ -1245,13 +1253,13 @@ export class Editor {
   }
 
   /** A room's new rect, committed with the walls, neighbours and doors that follow it (ED3-3a). */
-  commitRoom(id: string, rect: Rect): void {
+  commitRoom(id: string, rect: Rect, merge?: Merge): void {
     const res = linkedEdit(this.model.data, id, rect, this.wallsFollow);
     if (res.refused) return this.status(res.refused);
     if (!res.changes.length) return;
     const words = linkedWords(res);
     const room = describeChange(this.model.data, res.changes[0]!);
-    this.commitText(words ? `${room}; ${words}` : room, res.changes);
+    this.commitText(words ? `${room}; ${words}` : room, res.changes, merge);
   }
 
   duplicate(): void {
@@ -1879,6 +1887,8 @@ export class Editor {
     this.commit([{ coll, id, before, after: a }]);
   }
 }
+
+type Merge = { key: string; at: number; within: number };
 
 interface CheckReply {
   results: { id: string; title: string; status: string; details: string[] }[];

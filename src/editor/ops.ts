@@ -19,7 +19,7 @@ export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: numb
 export const OPENING_TYPES = Object.keys(OPENING_DEFAULTS);
 /** schema.md section 2: wall kinds. */
 export const WALL_KINDS = ['interior', 'exterior', 'boundary', 'parapet', 'balustrade'];
-/** Plain names of the opening types (the Build wheel, ghosts, the selection card). */
+/** Plain names of the opening types (the Openings tab, ghosts, the selection card). */
 export const DOOR_NAMES: Record<string, string> = { door: 'Door', double: 'Double door', 'fire-door': 'Fire door', roller: 'Roller shutter', gate: 'Gate', window: 'Window' };
 
 /** The door type under the tool bar's Door slot: "Single", "Double", "Fire door" (ED3-pad1). */

@@ -36,7 +36,7 @@ work, and on save writes the file, the plan images and a change log for review. 
   normal screen back. Nothing else changes between the two.
 - The tool bar (bottom centre) and the selection card (bottom right) show on the controller screen only.
 - Rare things are in the hub (Menu, ED3-2): Play, File (save, revert, the change list), Checks, Levels (the level to
-  edit and the Levels panel), View, Settings and Help. Selection wheel > Properties opens the side panel with the pad
+  edit and the Levels panel), View, Settings and Help. Selected > Properties (the Y tile menu) opens the side panel with the pad
   (D-pad up / down picks, A ticks or presses, left / right changes a number or slider, LB fine, B leaves).
 - Questions are in-editor boxes answered with A or B.
 ## Who is in charge (Michael, 2026-10-12)
@@ -75,14 +75,14 @@ views are generated from it, so this table and the editor cannot drift apart for
 | G, O, U | whole building, single level, up to this level |
 | Shift+G, X | ghost the hidden levels, exploded view |
 | H | the hub, on its Help tab (H or Esc closes it) |
-| Hold Space / hold R | the Build wheel / the Selection wheel (with something selected) |
-| Esc | cancel a drag, put the tool down, clear the selection |
+| Space | the **tile menu** (Space again or Esc closes; click a tab or a tile) |
+| Esc | close the menu, cancel a drag, put the tool down, clear the selection |
 
 The plan view takes the same tools and drags. Mouse wheel zooms, right drag pans, double-click takes the camera there.
 The blue arrow on the plan is the camera. Hovering a room, wall or opening in 3D or on the plan outlines it blue on the
 plan and names it in the corner of the 3D view.
 
-## Controller (ED2 Part C, ED3-1 builder camera, ED3-2 hub, wheels, smarter A)
+## Controller (ED2 Part C, ED3-1 builder camera, ED3-2 hub, smarter A, ON0a tile menu and card)
 Any Xbox, PlayStation or Nintendo pad works alongside the mouse and keyboard. The hint bar and the hub's Help tab switch
 to the pad's own button names when the pad was used last, and back when the keyboard or mouse is used.
 
@@ -97,13 +97,14 @@ the free camera from the same spot. Nothing jumps either way.
 | Right stick | orbit left / right, tilt up / down (about 20 degrees to straight down) |
 | LT / RT | zoom out / in (4 to 140 m); in Plan only they zoom the plan |
 | A | the tool's action: select what the dot is on; on the selection, take the part the dot names (below); drawing tools start and finish; door and window tools place one |
-| B | cancel a grab or a drawing; else put the tool down; else clear the selection. Never deletes |
+| B | cancel a grab or a drawing; else leave the card; else put the tool down; else clear the selection. Never deletes |
 | X / X held | undo / redo |
-| Y tap / Y held | the last tool again / the **Build wheel** |
-| D-pad left / right | previous / next tool on the tool bar (wraps) |
-| D-pad up / down | level up / down; the dot and camera rise or drop with it |
+| Y (tap) | the **tile menu** opens; Y again closes it (below) |
+| D-pad, something selected | the **selection card** (below): up / down picks a row, left / right changes it |
+| D-pad up / down, nothing selected | level up / down; the dot and camera rise or drop with it |
+| D-pad left / right, a tool in hand | the tool's type: door type (Door), walls option (Room). Without a tool: nothing |
 | LB held | precision: 0.1 m grid, pan, orbit and zoom at 30 %, magnet off |
-| RB tap / RB held | go to the selection / the **Selection wheel** (with nothing selected: "Select something first") |
+| RB tap | go to the selection (with Split: turn the line). RB held does nothing |
 | L3 (left stick click) | quick walk at the dot; while walking L3 toggles run (as the game's sprint), B returns to the camera exactly as it was |
 | R3 (right stick click) | levels shown: up to this level, single level, whole building (cycles) |
 | View tap / View held | top-down and back (north up) / layout: 3D, Both, Plan (cycles) |
@@ -136,15 +137,63 @@ the free camera from the same spot. Nothing jumps either way.
   same as dashed outlines.
 - The constants are one table at the top of `src/editor/grab.ts` (Michael tunes them after his pad test).
 
-### The wheels (hold, point with either stick, release to pick; resting on a submenu opens it)
-| Build wheel (Y held; mouse: hold Space) | Selection wheel (RB held; mouse: hold R) |
-| --- | --- |
-| Select, Room > (Room with walls, Room with outside walls, Room only), Wall, Door > (door kinds), Window, Measure, Paste and Paste to level above (only with something copied). Stair, Ladder, Floor hole and Object join when those tools exist | Only what fits the selection: Move (as A in the middle), Properties (the side panel), Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Change type > (door kinds for doors and windows, room kinds, wall kinds: interior, exterior, boundary, parapet, balustrade (blue-grey in 3D); one undo step), Split (rooms), Delete |
+### The tile menu (ON0a: replaces the wheels; Y tap, Space with the mouse)
+A full-width panel over the bottom half of the views; the 3D view stays visible above it, and the dot, tool bar and card
+wait until it closes. A row of tabs, then a grid of large tiles (a letter, the name, one line of what it does).
 
-- Picking from the Build wheel also lights that tool on the tool bar. **Copy to level above** copies, pastes one level up
-  in one change, selects the copy and takes the editing level up with it ("No level above" at the top).
-- A on a slot picks it; B goes back (at the top, closes). The last pick in each ring is highlighted next time. After a
-  wheel or the hub closes, the sticks do nothing until they return to the centre.
+| Button | Does |
+| --- | --- |
+| D-pad or left stick | move the highlight (wraps); on the View tab, left / right change the row's value |
+| A | pick the tile: a tool or an action runs and the menu closes; a View row changes and the menu stays |
+| LB / RB | previous / next tab (wraps) |
+| B or Y | close |
+| Right stick | scroll a long tab |
+| Mouse | Space opens and closes it; click a tab or a tile; Esc closes |
+
+| Tab | Tiles |
+| --- | --- |
+| Selected (first, only with a selection) | Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split (rooms), Change type (lights the card's Type row), Properties (the full side panel), Delete |
+| Build | Select, Room with walls, Room with outside walls, Room only, Wall, Measure, Paste, Paste to level above (greyed until something is copied) |
+| Openings | one tile per door and window type: Door, Fire door, Double door, Roller shutter, Gate, Window |
+| Objects, Lights, Mission | shown once a later part adds tiles to them |
+| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan |
+
+- The menu remembers the last tab and the tile on each tab while the editor runs. Hub > Settings > "Menu opens on"
+  chooses the last tab (default) or always Build.
+- **Rule for later parts (ON0a decision 10):** where a brief says "Build wheel", add tiles to the tile menu's matching
+  tab (or a new tab in `MENU_TABS`); where it says "Selection wheel", use the Selected tab; where it says "D-pad", use
+  this scheme (the card with a selection, levels and tool types without). The tiles are one data list in
+  `src/editor/tileMenu.ts` (`menuTiles`); a tab with no tiles is hidden.
+
+### The selection card on the D-pad (ON0a)
+With something selected, no tool in hand and nothing grabbed, the card (bottom right) shows the element's rows: **Type
+first** (door type, wall kind, room kind), then its own fields.
+
+| Element | Rows |
+| --- | --- |
+| Door or window | Type, Name, Width, Height, Sill, Along wall, Locked |
+| Wall | Type (interior, exterior, boundary, parapet, balustrade), Name, Thickness, Height, Length (moves its end) |
+| Room | Type (room kind), Name, Width, Depth (east and north edges; walls follow as set), Access (ring 0-5) |
+| Stair, floor hole, ladder | Name, Width, Depth, Climbs (stair); Name, Width, Depth (floor hole); Name, Facing (ladder) |
+
+| Button | Does |
+| --- | --- |
+| D-pad up / down | pick a row (lit); the first press starts editing the card |
+| D-pad left / right | change the lit row by one step: 0.1 m (the object grid) for lengths, one item for lists (wrapping), on / off for flags; held, it repeats and speeds up |
+| Left stick (while editing) | as the D-pad; the dot stays put until you leave the card |
+| A | on Name: the **name list** (the names already used for that kind) and "Type a name..." (an on-screen keyboard: D-pad or stick moves, A types, Done keeps it, B back); elsewhere: done, back to the dot |
+| B | leave the card (the selection stays); B again clears the selection |
+
+- Every change is its own undo step, except that changes to the same row less than 1 s apart join into one (holding
+  right on Width is one undo step). A save in between keeps the steps apart.
+- A length never goes below one step; a door or window stays on its wall.
+
+### Every menu takes the sticks (ON0a decision 8b)
+The hub (tabs, rows, Settings, Levels, Checks, File), the tile menu, the card while editing, the name list and the
+keyboard take the left stick as well as the D-pad: a push past half way steps once at once; held, it repeats after
+0.35 s and speeds up the longer it is held and the further it is pushed (so left / right on a slider row, such as Stick
+speed, the exploded gap or a length, runs faster at full push). The right stick scrolls long lists and the Help page.
+One pure helper, `src/editor/stickSteps.ts`; Hub > Settings > Repeat speed scales it.
 
 ### The hub (Menu; H on the keyboard opens it on Help)
 A full-screen pause-style screen. LB / RB change tabs (wrapping), D-pad up / down picks a row, left / right changes a
@@ -157,8 +206,8 @@ pad, and any grab is put back first.
 | File | Save (with the unsaved count), Revert to last save (asks first), the change list newest first: A on a line asks "Undo back to here?" and undoes every change down to and including it |
 | Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub and goes there |
 | Levels | the level to edit (A edits it), then the Levels panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
-| View | layout 3D / Both / Plan, plan labels, small plan (3D only), level below on the plan |
-| Settings | rumble on / off, stick speed (0.5 to 2.0, step 0.25), invert tilt, text size (Large = 1.25x on the pad screen, the hub and the wheels), Walls follow rooms (on by default; the tool bar's button for the mouse). Saved with the pad preferences (browser storage, a view preference) |
+| View | the tile menu's View rows: layout, ghost, exploded and gap, cut walls at, levels shown, building filter, small plan, labels, level below on the plan |
+| Settings | plain toggles and sliders, the value shown large: rumble on / off, stick speed (0.5 to 2.0, step 0.25), repeat speed (0.5 to 2.0: held D-pad and stick in every menu and on the card), invert tilt, text size (Large = 1.25x on the pad screen, the hub and the tile menu), Menu opens on (last tab / Build tab), Walls follow rooms (on by default; the tool bar's button for the mouse). Saved with the pad preferences (browser storage, a view preference) |
 | Help | a picture of the controller with every button labelled with its building-state action (from the action map), then every binding by group for keys, mouse and pad |
 
 - The unsaved count is the net change since the last save: undo lowers it, and it is 0 exactly when the building is as
@@ -167,19 +216,22 @@ pad, and any grab is put back first.
 ### Screen
 - The **dot** shows the position, the snap, what A would do and, while grabbing or drawing, the live size, length or
   move. In Plan only its words show under the plan.
-- **Tool bar** (bottom centre): Select, Room, Wall, Door (the door type under it in words: Single, Double, Fire door), Window,
-  Measure; the current one lit. When the selection card shows, the bar centres in the width left of it; where that is too
-  narrow the card rises above the bar. Nothing on the pad screen overlaps (e2e checks 1280 x 720, 1024 x 600, 932 x 430).
-- **Selection card** (bottom right): the name, or the kind in words ("Interior wall"), with its code small and grey; size;
-  level. Read-only; edit through the Selection wheel > Properties.
-- **Hint bar** (controller): one line, at most 5 prompts in one or two words ("A Move", "RB Go to", "RB hold Change",
-  "B Back"); what A would take is the A prompt's word. Full words are in the hub's Help. The keyboard keeps the long words.
+- **Tool bar** (bottom centre): the active tool only (the Y menu picks tools), with its type under it in words (Door:
+  Single, Double, Fire door; Room: With walls, Outside walls, Room only). When the selection card shows, the bar centres
+  in the width left of it; where that is too narrow the card rises above the bar. Nothing on the pad screen overlaps (e2e
+  checks 1280 x 720, 1024 x 600, 932 x 430, also with the menu open and with the card being edited).
+- **Selection card** (bottom right): the name, or the kind in words ("Interior wall"), with its code small and grey; its
+  first row, size and level; while the D-pad edits it, every row with the lit one between arrows (the dot's words hide).
+- **Hint bar** (controller): one line, at most 5 prompts. Nothing selected: "A Select, Y Menu, X Undo, L3 Walk, Menu Hub";
+  with a selection: "D-pad Edit, A Grab, Y Menu, B Clear, RB Go to"; editing the card: "D-pad Edit, A Done, Y Menu, B
+  Back, RB Go to"; menu open: "D-pad Move, A Pick, LB/RB Tab, B Close". What A would take replaces "Grab" ("Stretch east
+  edge"). Full words are in the hub's Help. The keyboard keeps the long words.
 - **Quick walk**: left stick walks, right stick looks, D-pad up / down changes level (the walk moves to that floor at
   the same spot), L3 toggles run, B ends it. The dot, tool bar and card hide; A does nothing. Shift+Tab does the same from the keyboard.
 - **Plan with the pad**: the plan never takes the pad; it shows the dot as a blue ring, the lit part and the ghosts as
   dashed outlines, and pans to keep the dot in view. The mouse still pans, zooms and edits the plan as before.
-- **Side panel**: Selection wheel > Properties takes the pad: D-pad up / down picks a field, left / right changes a
-  number by one grid step (LB: fine) or steps a list, A presses a button or opens a text field, B leaves.
+- **Side panel**: Selected > Properties takes the pad: D-pad (or left stick) up / down picks a field, left / right changes
+  a number by one grid step (LB: fine) or steps a list, A presses a button or opens a text field, B leaves.
 - **Questions** such as Revert are answered in the editor: A (or click) yes, B no.
 - **Rumble**: once on a new snap, on a drop, and a heavier one on an error. Off in the hub's Settings.
 - Copy and paste take rooms, walls and floor holes. Measure is pad-only for now (A, A).
@@ -245,13 +297,16 @@ pad, and any grab is put back first.
   lies on; shared walls stay ("Move (2 shared walls stay)"). Doors keep their distance from the nearer wall end. A room
   turned with RB leaves its walls. Every room move, stretch or split refreshes the rooms either side of the doors it
   touched. One undo step for all of it.
-- **Split** (Selection wheel, rooms): a line across the room through the dot, across its longer side; RB turns it, A
+- **Split** (the Y menu's Selected tab, rooms): a line across the room through the dot, across its longer side; RB turns it, A
   places it, B cancels (mouse: click, Esc). At least 1 m each side. The wall follows the room tool's option; the room
   keeps its name on the west or south part, the other part is "<name> 2" with the same kind and access level.
 - Tests run the editor server with `KESTREL_EDITOR_SANDBOX=<folder>`: it loads and saves a copy there, never
   `docs/kestrel`. The walk test's draft is served only to this PC.
 
 ## What it does not do yet (ED2 parts B-H)
+- The tile menu's Objects, Lights and Mission tabs are empty (hidden) until the later parts add tiles. The card has no
+  Type row for stairs, ladders and floor holes. The on-screen keyboard has no lower-case or symbol page (words start with
+  a capital, the rest is small).
 - Wall chains, door centring, live sizes and distances, guide lines (ED3-3b); clickable problems, search (Part D).
 - Add, reshape or delete stairs, ladders and floor holes beyond moving them; no new levels; renaming ids (Part E).
 - Lighting preview, props, guards and routes.
@@ -264,10 +319,11 @@ pad, and any grab is put back first.
 | `editor.html`, `src/editor/main.ts` | page, tools, panels, plan view |
 | `src/editor/scene3d.ts`, `src/editor/controls.ts` | 3D massing, picking, handles; fly and walk camera |
 | `src/editor/model.ts`, `src/editor/ops.ts`, `src/editor/geometry.ts` | data, undo and the journal; new elements and change words; wall cuts, snapping, walk collision (Babylon-free, `tests/editor/`) |
-| `src/editor/padControl.ts`, `src/editor/padMenu.ts` | controller editing: the dot and its magnet, edge-aware grab, ghosts, tool bar, selection card, quick walk, plan marker, side panel, rumble; the Build and Selection wheels' contents and ring |
+| `src/editor/padControl.ts`, `src/editor/tileMenuView.ts` | controller editing: the dot and its magnet, edge-aware grab, ghosts, tool bar, the selection card on the D-pad, the tile menu's frame and actions, View items, quick walk, plan marker, side panel, rumble; the tile menu and the name picker on screen |
+| `src/editor/tileMenu.ts`, `src/editor/card.ts`, `src/editor/stickSteps.ts` | the tile menu's tabs, tiles (one data list), navigation and memory; the card's rows and steps, the name list and keyboard; stick and D-pad to menu steps (pure, `tests/editor/tileMenu.test.ts`, `card.test.ts`) |
 | `src/editor/grab.ts`, `src/editor/hub.ts`, `src/editor/hubView.ts` | which part A takes, the magnet search and their constants; the hub's tabs, rows, settings and help labels (pure, `tests/editor/grab.test.ts`, `hub.test.ts`); the hub on screen |
 | `src/editor/orbit.ts` | the pad's builder camera: state, pan / orbit / zoom, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
-| `src/editor/pad.ts`, `src/editor/radial.ts` | pad reading (edges, taps and holds, D-pad repeat, button names); radial slot maths and menu navigation (Babylon-free, `tests/editor/editorPad.test.ts`) |
+| `src/editor/pad.ts` | pad reading (edges, taps and holds, D-pad repeat, button names) (Babylon-free, `tests/editor/editorPad.test.ts`) |
 | `src/editor/actions.ts`, `src/editor/visibility.ts`, `src/editor/draft.ts` | the action map (keys, help, hint bar); which levels and buildings are shown, ghosted or hidden, and the exploded lift; unsaved drafts in IndexedDB (Babylon-free, `tests/editor/editorV2.test.ts`) |
 | `src/editor/roomWalls.ts` | rooms and their walls: walls on an edge, the walls a new room needs, linked edits, Split, A's linked words (pure, `tests/editor/roomWalls.test.ts`) |
 | `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft; `KESTREL_EDITOR_SANDBOX` for tests |

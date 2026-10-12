@@ -7,10 +7,7 @@ const input: HubInput = {
   changes: ['Moved Office 1 m east', 'Added wall W1'],
   problems: [{ text: 'FAIL L3: room G01 has no door', fresh: true }],
   levels: [{ id: 'F', name: 'First', floor: '4.2', editing: false }, { id: 'G', name: 'Ground', floor: '0', editing: true }],
-  layout: '3d',
-  labels: true,
-  minimap: false,
-  underlay: false,
+  view: { layout: '3d', ghost: false, exploded: true, gap: 3, cut: 0, preset: 'upTo', building: 'A', minimap: false, labels: true, underlay: false },
   settings: DEFAULT_SETTINGS,
 };
 
@@ -45,8 +42,9 @@ describe('hub tabs and rows', () => {
 
   it('Levels, View and Settings rows', () => {
     expect(hubRows('Levels', input).map((x) => [x.text, x.value])).toEqual([['First (4.2 m)', undefined], ['Ground (0 m)', 'editing']]);
-    expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Plan labels: on', 'Small plan (3D only): off', 'Level below on the plan: off']);
-    expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '1.00x', 'off', 'Normal', 'on']);
+    expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Ghost other levels: off', 'Exploded: 3 m gap', 'Cut walls at: off', 'Levels shown: Up to this level', 'Building filter: Building A', 'Small plan: off', 'Labels: on', 'Level below on the plan: off']);
+    expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '1.00x', '1.00x', 'off', 'Normal', 'Last tab', 'on']);
+    expect(hubRows('Settings', input).find((x) => x.id === 'set.repeat')!.slider).toBeCloseTo((1 - 0.5) / 1.5);
     expect(hubRows('Help', input)).toEqual([]);
     expect(stepLayout('3d', -1)).toBe('plan');
     expect(stepLayout('plan', 1)).toBe('3d');
@@ -65,11 +63,17 @@ describe('pad settings', () => {
     expect(changeSetting(DEFAULT_SETTINGS, 'set.invert', -1).invertTilt).toBe(true);
     expect(changeSetting(DEFAULT_SETTINGS, 'set.text', 1).textSize).toBe('large');
     expect(changeSetting(DEFAULT_SETTINGS, 'set.follow', 1).wallsFollow).toBe(false);
+    expect(changeSetting(DEFAULT_SETTINGS, 'set.menuOpens', 1).menuOpens).toBe('build');
+    expect(changeSetting(DEFAULT_SETTINGS, 'set.repeat', 1).repeatSpeed).toBe(1.25);
+    let r = DEFAULT_SETTINGS;
+    for (let i = 0; i < 10; i++) r = changeSetting(r, 'set.repeat', -1);
+    expect(r.repeatSpeed).toBe(0.5);
   });
 
   it('stored settings keep only valid fields (old prefs had rumble only)', () => {
     expect(readSettings({ rumble: false })).toEqual({ ...DEFAULT_SETTINGS, rumble: false });
-    expect(readSettings({ stickSpeed: 9, textSize: 'huge', invertTilt: 'yes' })).toEqual(DEFAULT_SETTINGS);
+    expect(readSettings({ stickSpeed: 9, textSize: 'huge', invertTilt: 'yes', menuOpens: 'first', repeatSpeed: 5 })).toEqual(DEFAULT_SETTINGS);
+    expect(readSettings({ menuOpens: 'build', repeatSpeed: 1.5 })).toEqual({ ...DEFAULT_SETTINGS, menuOpens: 'build', repeatSpeed: 1.5 });
     expect(readSettings(null)).toEqual(DEFAULT_SETTINGS);
   });
 });
@@ -79,8 +83,10 @@ describe('help picture labels', () => {
     const l = controllerLabels('xbox');
     expect(l.map((x) => x.button)).toEqual([...PICTURE_BUTTONS.left, ...PICTURE_BUTTONS.right]);
     const by = (b: string): string => l.find((x) => x.button === b)!.words;
-    expect(by('Y')).toMatch(/the last tool again.*hold: Build wheel/);
-    expect(by('RB')).toMatch(/go to the selection.*hold: Selection wheel/);
+    expect(by('Y')).toMatch(/the tile menu/);
+    expect(by('RB')).toMatch(/go to the selection/);
+    expect(by('RB')).not.toMatch(/hold/);
+    expect(by('D-pad left')).toMatch(/the selection card/);
     expect(by('Menu')).toMatch(/the hub/);
     expect(by('X')).toMatch(/undo; hold: redo/);
     expect(by('L3')).toMatch(/quick walk/);

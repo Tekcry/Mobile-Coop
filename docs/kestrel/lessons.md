@@ -50,3 +50,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - An e2e that calls the real Save must guard it on the expected state (never save unless the count is 0), and cached derived values (an unsaved count) must be invalidated after every stack change, not only on data change; listeners read them mid-change.
 - Screen overlap checks must cover every optional overlay (the small plan as well as the card and bar) at phone and desktop sizes; the first pass that skipped the small plan looked clean but was not.
 - Live previews that touch many elements must run only when their input changes; re-applying them every frame multiplies scene rebuilds and made the editor suite three times slower.
+- The pad bar and card redraw on a 100 ms throttle and only after a frame; e2e reads of them after a change must wait for the new DOM (waitForFunction), not a fixed delay, or slow software-GL frames read the old bar.

@@ -109,8 +109,8 @@ describe('orbit camera maths', () => {
 
 describe('ED3-1 pad map', () => {
   it('has the builder bindings and none of the removed ones', () => {
-    for (const id of ['zoom', 'orbit', 'topDown', 'toolPrev', 'toolNext', 'display', 'quickWalk', 'precision']) expect(action(id)?.pad?.length).toBeTruthy();
-    for (const id of ['near', 'paneFocus', 'lookSel', 'fast']) expect(action(id)).toBeUndefined();
+    for (const id of ['zoom', 'orbit', 'topDown', 'padLevel', 'toolVariant', 'cardEdit', 'menu', 'display', 'quickWalk', 'precision']) expect(action(id)?.pad?.length).toBeTruthy();
+    for (const id of ['near', 'paneFocus', 'lookSel', 'fast', 'toolPrev', 'toolNext', 'radial', 'selWheel', 'repeatTool']) expect(action(id)).toBeUndefined();
     expect(action('fly')?.pad).toBeUndefined();
     expect(action('layout')?.pad).toEqual(['View hold']);
     expect(action('topDown')?.pad).toEqual(['View']);
