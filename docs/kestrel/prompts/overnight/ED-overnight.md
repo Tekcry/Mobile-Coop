@@ -23,7 +23,13 @@ the morning report. Written 2026-10-13 (planner) from Michael's answers the same
 ## 1. Start
 1. `git checkout feature/kestrel && git pull`; confirm the branch and a clean tree.
 2. `ls docs/kestrel/prompts/overnight/` shows the seventeen part briefs (ON0a, ON0b, ON1-ON15).
-3. Expect a long run (roughly 18-30 hours). Do not hurry a part; never skip its tests.
+3. Expect a long run (roughly 18-30 hours) that may stop on a usage limit. It is **resumable**: the same start
+   message continues it. Find what is done: `git log --oneline -60 | grep -E "kestrel ON[0-9]+[ab]?:"` lists the
+   committed parts (commit ids ON0a, ON0b, ON1 ... ON15). Skip every committed part. If `git status --porcelain` is
+   not empty, the last run stopped inside a part: the first agent of this run is for that part (section 2 order: the
+   first part with no commit), told "finish or repair the work in the tree, then commit" (it must check the tree
+   against its brief, not trust it). Then go on in section 2 order.
+4. Do not hurry a part; never skip its tests.
 
 ## 2. Parts, in order
 | # | Brief | What | Depends on |
@@ -108,6 +114,15 @@ overlap step checks 1280 x 720, 1024 x 600, 932 x 430).
   print KNOWN FLAKY and do not fail it; `e2e-kestrel` fails 4 steps on the stale B0 copy before any of this work.
 - Screenshots: `SHOTS=<scratch dir> npm run e2e:editor` keeps them; view each new one once.
 - At most two fix rounds; then stop, write BLOCKED in the log line with the reason, commit what passes, report.
+
+**Use tokens carefully (Michael, 2026-10-13), without cutting corners:**
+- Read by grep and line ranges only; never read a whole file over 200 lines; never re-read a file you just edited.
+- While building, run only the Vitest files you touch (`npx vitest run tests/editor/<file>`) and `npx tsc --noEmit`.
+  Run the full `npm run e2e:editor` once when the part is complete, and once more only after fixes (at most three runs
+  per part). Run `npm test`, lint and build once at the end.
+- Print only failing lines and counts from test logs (`grep`), never whole logs. View at most 4 screenshots.
+- Do not explore beyond your brief; no refactors outside it.
+- Commit as soon as the part passes, so a usage stop loses as little as possible.
 
 **End of every part:**
 1. `docs/kestrel/editor.md`: controls, the new tool's section, the limits list ("What it does not do yet") and the
