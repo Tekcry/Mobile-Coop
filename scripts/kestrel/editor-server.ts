@@ -91,6 +91,25 @@ export function kestrelEditor(): Plugin {
       import(/* @vite-ignore */ pathToFileURL(path.join(root, 'scripts/kestrel/standards-check.mjs')).href) as Promise<StdMod>,
     ]));
 
+  /**
+   * Where the campus file, plan images and change logs are read and written: the repository, or with
+   * KESTREL_EDITOR_SANDBOX=<dir> (the e2e test, ED3-3a) a copy under that folder, so a test never writes docs/kestrel.
+   */
+  let store = root;
+  const useSandbox = (): void => {
+    const dir = process.env.KESTREL_EDITOR_SANDBOX;
+    if (!dir) {
+      store = root;
+      return;
+    }
+    store = path.resolve(dir);
+    const f = path.join(store, CAMPUS);
+    if (!existsSync(f)) {
+      mkdirSync(path.dirname(f), { recursive: true });
+      copyFileSync(path.join(root, CAMPUS), f);
+    }
+  };
+
   return {
     name: 'kestrel-editor',
     apply: 'serve',
@@ -102,6 +121,7 @@ export function kestrelEditor(): Plugin {
     },
     configResolved(c) {
       root = c.root;
+      useSandbox();
     },
     configureServer(server) {
       let draftText = '';
@@ -111,8 +131,8 @@ export function kestrelEditor(): Plugin {
         try {
           if (url.pathname === '/__editor/campus' && req.method === 'GET') {
             // the file time lets the editor tell whether an unsaved draft is newer than the file
-            res.setHeader('x-mtime', String(Math.floor(statSync(path.join(root, CAMPUS)).mtimeMs)));
-            return send(res, 200, 'application/json', readFileSync(path.join(root, CAMPUS), 'utf8'));
+            res.setHeader('x-mtime', String(Math.floor(statSync(path.join(store, CAMPUS)).mtimeMs)));
+            return send(res, 200, 'application/json', readFileSync(path.join(store, CAMPUS), 'utf8'));
           }
           // the phone downloads this once to trust the editor's https certificate
           if (url.pathname === '/__editor/cert.crt' && req.method === 'GET') {
@@ -123,6 +143,7 @@ export function kestrelEditor(): Plugin {
           }
           // the walk test's draft (ED2 Part B): the editor's campus held in this server's memory, never written to disk
           if (url.pathname === '/__editor/draft' && req.method === 'GET') {
+            if (!isLocal(req)) return json(res, { error: 'the editor only runs on this PC (localhost)' }, 403);
             return draftText ? send(res, 200, 'application/json', draftText) : json(res, { error: 'no draft' }, 404);
           }
           if (req.method !== 'POST') return json(res, { error: 'POST only' }, 405);
@@ -157,22 +178,22 @@ export function kestrelEditor(): Plugin {
             const journal = (data.journal ?? []) as Journal[];
             if (!campus?.meta) return json(res, { error: 'no campus' }, 400);
             campus.meta.editor = OWNER;
-            writeFileSync(path.join(root, CAMPUS), JSON.stringify(campus, null, 1) + '\n');
+            writeFileSync(path.join(store, CAMPUS), JSON.stringify(campus, null, 1) + '\n');
             const savedAt = new Date().toISOString();
             if (journal.length) {
-              const logMd = path.join(root, LOG_MD);
+              const logMd = path.join(store, LOG_MD);
               if (!existsSync(logMd)) writeFileSync(logMd, '# Level editor change log\n\nEvery save appends what changed, in order. Exact before and after values are in editor-log.jsonl.\n\n');
               appendFileSync(logMd, String(data.logText ?? ''));
-              appendFileSync(path.join(root, LOG_JSONL), journal.map((j) => JSON.stringify({ savedAt, ...j })).join('\n') + '\n');
+              appendFileSync(path.join(store, LOG_JSONL), journal.map((j) => JSON.stringify({ savedAt, ...j })).join('\n') + '\n');
             }
             const r = await renderPlans(root, campus, null);
             const levels = (campus as unknown as { levels: { id: string }[] }).levels.map((l) => l.id);
-            mkdirSync(path.join(root, PLANS), { recursive: true });
+            mkdirSync(path.join(store, PLANS), { recursive: true });
             let copied = 0;
             for (const id of levels) {
               const png = path.join(r.dir, `${id}.png`);
               if (existsSync(png)) {
-                copyFileSync(png, path.join(root, PLANS, `blocks-${id}.png`));
+                copyFileSync(png, path.join(store, PLANS, `blocks-${id}.png`));
                 copied++;
               }
             }

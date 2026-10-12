@@ -117,7 +117,7 @@ describe('radial menu', () => {
 
   it('the Selection wheel shows only what fits the selection', () => {
     const names = (n: RadialNode): string[] => visible(n.children ?? []).map((c) => c.name);
-    expect(names(selectionTree('rooms', 'zone'))).toEqual(['Move', 'Properties', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Change type', 'Delete']);
+    expect(names(selectionTree('rooms', 'zone'))).toEqual(['Move', 'Properties', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Change type', 'Split', 'Delete']);
     expect(names(selectionTree('openings', 'door'))).toEqual(['Move', 'Properties', 'Duplicate', 'Change type', 'Delete']);
     expect(names(selectionTree('ladders', ''))).toEqual(['Move', 'Properties', 'Duplicate', 'Rotate 90', 'Delete']);
     expect(names(selectionTree('voids', ''))).toEqual(['Move', 'Properties', 'Duplicate', 'Copy', 'Copy to level above', 'Delete']);

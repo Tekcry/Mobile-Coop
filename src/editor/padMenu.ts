@@ -5,6 +5,7 @@
  */
 import { DOOR_NAMES, OPENING_TYPES, ROOM_KINDS, WALL_KINDS } from './ops';
 import type { Radial, RadialNode } from './radial';
+import { ROOM_OPTIONS } from './roomWalls';
 import type { Coll } from './types';
 
 export { DOOR_NAMES };
@@ -16,7 +17,12 @@ export function buildTree(opts: { clipboard: boolean }): RadialNode {
     name: 'Build',
     children: [
       { id: 'select', name: 'Select', desc: 'Pick, grab and move what the dot is on' },
-      { id: 'build.room', name: 'Room', desc: 'A starts a corner, A finishes the opposite one' },
+      {
+        id: 'build.room',
+        name: 'Room',
+        desc: 'With walls, outside walls or none; A starts a corner, A finishes the opposite one',
+        children: ROOM_OPTIONS.map((o) => ({ id: `room.${o.id}`, name: o.name, desc: o.id === 'none' ? 'Just the room' : 'Its walls are made with it' })),
+      },
       { id: 'build.wall', name: 'Wall', desc: 'A at one end, A at the other (copies the last wall selected)' },
       {
         id: 'build.door',
@@ -42,7 +48,7 @@ export function changeTypes(coll: Coll, current: string): { id: string; name: st
   return list.filter(([v]) => v !== current).map(([v, n]) => ({ id: `type.${v}`, name: n! }));
 }
 
-/** Selection wheel for the selected element: only what fits it. Split joins in ED3-3. */
+/** Selection wheel for the selected element: only what fits it. */
 export function selectionTree(coll: Coll, current: string): RadialNode {
   const turns = coll === 'rooms' || coll === 'walls' || coll === 'stairs' || coll === 'ladders';
   const copies = coll === 'rooms' || coll === 'walls' || coll === 'voids';
@@ -58,7 +64,7 @@ export function selectionTree(coll: Coll, current: string): RadialNode {
       { id: 'sel.copy', name: 'Copy', desc: 'Paste it from the Build wheel', hidden: !copies },
       { id: 'sel.copyUp', name: 'Copy to level above', desc: 'Same spot, one level up; the editing level goes with it', hidden: !copies },
       { id: 'sel.type', name: 'Change type', desc: 'One undo step', hidden: !types.length, children: types.map((t) => ({ ...t, desc: 'A picks it' })) },
-      { id: 'sel.split', name: 'Split', hidden: true },
+      { id: 'sel.split', name: 'Split', desc: 'A line across the room; RB turns it, A places it', hidden: coll !== 'rooms' },
       { id: 'sel.del', name: 'Delete', desc: 'A wall takes its doors and windows' },
     ],
   };

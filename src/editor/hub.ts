@@ -21,8 +21,10 @@ export interface PadSettings {
   stickSpeed: number;
   invertTilt: boolean;
   textSize: 'normal' | 'large';
+  /** Stretching or moving a room takes its walls, neighbours and doors along (ED3-3a). */
+  wallsFollow: boolean;
 }
-export const DEFAULT_SETTINGS: PadSettings = { rumble: true, stickSpeed: 1, invertTilt: false, textSize: 'normal' };
+export const DEFAULT_SETTINGS: PadSettings = { rumble: true, stickSpeed: 1, invertTilt: false, textSize: 'normal', wallsFollow: true };
 export const STICK_SPEED = { MIN: 0.5, MAX: 2, STEP: 0.25 } as const;
 /** Large text: 1.25x on the pad screen, the hub and the wheels. */
 export const LARGE_TEXT = 1.25;
@@ -35,6 +37,7 @@ export function readSettings(raw: unknown): PadSettings {
   if (typeof r.stickSpeed === 'number' && r.stickSpeed >= STICK_SPEED.MIN && r.stickSpeed <= STICK_SPEED.MAX) s.stickSpeed = r.stickSpeed;
   if (typeof r.invertTilt === 'boolean') s.invertTilt = r.invertTilt;
   if (r.textSize === 'normal' || r.textSize === 'large') s.textSize = r.textSize;
+  if (typeof r.wallsFollow === 'boolean') s.wallsFollow = r.wallsFollow;
   return s;
 }
 
@@ -43,6 +46,7 @@ export function changeSetting(s: PadSettings, id: string, dir: 1 | -1): PadSetti
   const n = { ...s };
   if (id === 'set.rumble') n.rumble = !s.rumble;
   else if (id === 'set.invert') n.invertTilt = !s.invertTilt;
+  else if (id === 'set.follow') n.wallsFollow = !s.wallsFollow;
   else if (id === 'set.text') n.textSize = s.textSize === 'normal' ? 'large' : 'normal';
   else if (id === 'set.speed') n.stickSpeed = Math.min(STICK_SPEED.MAX, Math.max(STICK_SPEED.MIN, +(s.stickSpeed + dir * STICK_SPEED.STEP).toFixed(2)));
   return n;
@@ -111,6 +115,7 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
         { id: 'set.speed', text: 'Stick speed', value: `${h.settings.stickSpeed.toFixed(2)}x`, kind: 'step' },
         { id: 'set.invert', text: 'Invert tilt', value: onOff(h.settings.invertTilt), kind: 'step' },
         { id: 'set.text', text: 'Text size', value: h.settings.textSize === 'large' ? 'Large' : 'Normal', kind: 'step' },
+        { id: 'set.follow', text: 'Walls follow rooms', value: onOff(h.settings.wallsFollow), note: 'Stretching or moving a room takes its walls along', kind: 'step' },
       ];
     case 'Help':
       return [];

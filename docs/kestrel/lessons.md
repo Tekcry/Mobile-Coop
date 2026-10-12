@@ -49,3 +49,4 @@ Collected stage by stage; turned into the map template at P11 (Michael, 2026-10-
 - A magnetic cursor changes where every later pad test lands; e2e steps that place the dot should set it directly and pick spots clear of other snap points, not rely on stick travel.
 - An e2e that calls the real Save must guard it on the expected state (never save unless the count is 0), and cached derived values (an unsaved count) must be invalidated after every stack change, not only on data change; listeners read them mid-change.
 - Screen overlap checks must cover every optional overlay (the small plan as well as the card and bar) at phone and desktop sizes; the first pass that skipped the small plan looked clean but was not.
+- Live previews that touch many elements must run only when their input changes; re-applying them every frame multiplies scene rebuilds and made the editor suite three times slower.

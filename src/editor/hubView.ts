@@ -249,6 +249,7 @@ export class HubView {
       pad.applySettings();
       pad.savePrefs();
       if (id === 'set.rumble') pad.rumble('drop');
+      ed.updateBar();
     }
     this.render();
   }

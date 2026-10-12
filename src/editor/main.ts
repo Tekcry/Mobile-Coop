@@ -10,6 +10,8 @@ import type { OrbitState } from './orbit';
 import { ORBIT, poseAngles, type CamPose } from './orbit';
 import { PadControl } from './padControl';
 import { padWords } from './pad';
+import { linkedEdit, linkedWords, ROOM_OPTIONS, SPLIT_MIN, splitRoom, wallsForRoom } from './roomWalls';
+import type { RoomWallOption } from './roomWalls';
 import { clearDraft, makeDraft, readDraft, shouldOffer, writeDraft } from './draft';
 import type { Draft } from './draft';
 import { EditorScene } from './scene3d';
@@ -20,7 +22,7 @@ import type { Change, JournalEntry } from './model';
 import { fmt, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
-import { deleteChanges, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
+import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import type { Campus, Coll, Elem, Key, Ladder, Opening, Pt, Rect, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
 
@@ -99,6 +101,14 @@ interface Drag {
   source: '3d' | 'plan' | 'pad';
   /** A new element being drawn (room or wall tool). */
   isNew: boolean;
+  /** Walls follow rooms (ED3-3a): the linked changes now previewed (befores are the data at the drag's start). */
+  linked?: Change[];
+  /** Why the linked edit cannot be done at this spot, if it cannot. */
+  refused?: string;
+  /** Words of the last linked preview (moved, stretched, neighbours). */
+  linkedText?: string;
+  /** The rect and setting the linked preview was made for (the work is skipped while they do not change). */
+  linkedKey?: string;
 }
 
 export class Editor {
@@ -253,11 +263,86 @@ export class Editor {
   }
 
   commit(changes: Change[]): void {
-    const text = describeEdit(this.model.data, changes);
+    this.commitText(describeEdit(this.model.data, changes), changes);
+  }
+
+  /** Commits one edit with its own words (room tool walls, linked edits, Split). */
+  commitText(text: string, changes: Change[]): void {
     if (this.model.commit(text, changes)) {
       this.status(text);
       this.scheduleDraft();
     }
+  }
+
+  /** What the room tool makes around a room (the list beside the Room button; the Build wheel's Room submenu). */
+  roomOption: RoomWallOption = 'walls';
+
+  setRoomOption(o: RoomWallOption): void {
+    this.roomOption = o;
+    const sel = document.getElementById('roomOpt') as HTMLSelectElement | null;
+    if (sel) sel.value = o;
+  }
+
+  // ---------- Split (ED3-3a): a line across the selected room ----------
+  /** The room being split and the line's direction (x: the line x = v; z: the line z = v); null when not splitting. */
+  splitting: { id: string; axis: 'x' | 'z' } | null = null;
+
+  startSplit(): void {
+    const s = this.selectedElem();
+    if (!s || s.coll !== 'rooms') return this.status('Select a room to split');
+    if (this.drag) this.endDrag(true);
+    const r = (s.e as Room).rect;
+    // across the longer side by default
+    this.splitting = { id: s.id, axis: r[2] - r[0] >= r[3] - r[1] ? 'x' : 'z' };
+    this.status('Split: move the dot, A places the line, RB turns it, B cancels (mouse: click places it, Esc cancels)');
+    this.updateHint();
+  }
+
+  splitTurn(): void {
+    if (this.splitting) this.splitting.axis = this.splitting.axis === 'x' ? 'z' : 'x';
+  }
+
+  cancelSplit(): void {
+    if (!this.splitting) return;
+    this.splitting = null;
+    this.status('Split cancelled');
+    this.updateHint();
+  }
+
+  /** The split line through (x, z) on the grid, its ends, and why it cannot go there (if it cannot). */
+  splitLine(x: number, z: number): { axis: 'x' | 'z'; v: number; a: Pt; b: Pt; why?: string } | null {
+    const sp = this.splitting;
+    const room = sp ? this.model.get<Room>('rooms', sp.id) : undefined;
+    if (!sp || !room) return null;
+    const [x0, z0, x1, z1] = room.rect;
+    const v = snap(sp.axis === 'x' ? x : z, this.grid);
+    const [lo, hi] = sp.axis === 'x' ? [x0, x1] : [z0, z1];
+    const why = v - lo < SPLIT_MIN - 1e-6 || hi - v < SPLIT_MIN - 1e-6 ? 'Too close to the edge' : undefined;
+    return sp.axis === 'x' ? { axis: 'x', v, a: [v, z0], b: [v, z1], why } : { axis: 'z', v, a: [x0, v], b: [x1, v], why };
+  }
+
+  /** Places the split line through (x, z); false when it cannot (the status says why). */
+  splitAt(x: number, z: number): boolean {
+    const sp = this.splitting;
+    const l = this.splitLine(x, z);
+    if (!sp || !l) return false;
+    if (l.why) {
+      this.status(l.why);
+      return false;
+    }
+    const room = this.model.get<Room>('rooms', sp.id)!;
+    const res = splitRoom(this.model.data, sp.id, l.axis, l.v, this.roomOption);
+    if (res.refused || !res.newRoom) {
+      this.status(res.refused ?? 'Cannot split here');
+      return false;
+    }
+    const name = room.name || room.id;
+    const wall = res.wallLen > 0 ? ` with a ${fmt(res.wallLen)} m wall` : '';
+    this.splitting = null;
+    this.commitText(`Split ${name} into ${name} and ${res.newRoom.name ?? ''}${wall}`, res.changes);
+    this.select(keyOf('rooms', sp.id));
+    this.updateHint();
+    return true;
   }
 
   // ---------- handles ----------
@@ -365,10 +450,45 @@ export class Editor {
     return e;
   }
 
-  moveDrag(x: number, z: number, fine: boolean): void {
+  /** Walls follow rooms: the hub setting (on by default; the tool bar button for the mouse). */
+  get wallsFollow(): boolean {
+    return this.pad?.settings.wallsFollow ?? true;
+  }
+
+  /** The pointer moved while dragging; `turn` (the pad's RB turns) reshapes the element first. */
+  moveDrag(x: number, z: number, fine: boolean, turn?: (e: Elem) => Elem): void {
     const d = this.drag;
     if (!d) return;
-    this.model.preview(d.coll, this.dragged(d, x, z, fine));
+    let e = this.dragged(d, x, z, fine);
+    if (turn) e = turn(e);
+    if (d.coll !== 'rooms' || d.isNew) return this.model.preview(d.coll, e);
+    // a room: the walls, neighbours and doors it takes along (a turned room leaves its walls)
+    const follow = this.wallsFollow && !turn;
+    const key = `${(e as Room).rect.join()}|${follow}`;
+    if (key === d.linkedKey) return;
+    d.linkedKey = key;
+    this.unpreviewLinked(d);
+    const res = linkedEdit(this.model.data, d.id, (e as Room).rect, follow);
+    d.refused = res.refused;
+    d.linkedText = res.refused ? '' : linkedWords(res);
+    if (res.refused) {
+      this.model.preview(d.coll, e);
+      return;
+    }
+    for (const c of res.changes) {
+      if (c.after) this.model.preview(c.coll, c.after);
+      else this.model.drop(c.coll, c.id);
+    }
+    d.linked = res.changes;
+  }
+
+  /** Puts back what the last linked preview changed (to the data at the drag's start). */
+  private unpreviewLinked(d: Drag): void {
+    for (const c of (d.linked ?? []).slice().reverse()) {
+      if (c.before) this.model.preview(c.coll, c.before);
+      else this.model.drop(c.coll, c.id);
+    }
+    d.linked = undefined;
   }
 
   endDrag(cancel: boolean): void {
@@ -376,9 +496,19 @@ export class Editor {
     if (!d) return;
     this.drag = null;
     this.updateHint();
-    if (cancel || !d.moved) {
+    if (cancel || !d.moved || d.refused) {
+      this.unpreviewLinked(d);
       if (d.isNew) this.model.drop(d.coll, d.id);
       else this.model.preview(d.coll, d.before);
+      if (d.refused && !cancel) this.status(`${d.refused} - put back`);
+      this.renderPanel();
+      return;
+    }
+    if (d.linked) {
+      // one commit for the room and everything it took along (decision 13)
+      const changes = d.linked;
+      const room = describeChange(this.model.data, changes[0]!);
+      this.commitText(d.linkedText ? `${room}; ${d.linkedText}` : room, changes);
       this.renderPanel();
       return;
     }
@@ -391,7 +521,15 @@ export class Editor {
         this.status('Too small - drag further to draw it');
         return;
       }
-      this.commit([{ coll: d.coll, id: d.id, before: null, after }]);
+      if (d.coll === 'rooms') {
+        // the room tool makes its walls (decisions 4-6): one undo step
+        const room = after as Room;
+        this.model.drop('rooms', room.id);
+        const { walls, reusedEdges } = wallsForRoom(this.model.data, room, this.roomOption);
+        const size = `${fmt(room.rect[2] - room.rect[0])} x ${fmt(room.rect[3] - room.rect[1])} m`;
+        const extra = walls.length ? ` with ${walls.length} wall${walls.length > 1 ? 's' : ''}${reusedEdges ? ` (${reusedEdges === 1 ? 'one side' : `${reusedEdges} sides`} already walled)` : ''}` : '';
+        this.commitText(`Added ${room.name || 'room'} ${size}${extra}`, [{ coll: 'rooms', id: room.id, before: null, after: room }, ...walls.map((w): Change => ({ coll: 'walls', id: w.id, before: null, after: w }))]);
+      } else this.commit([{ coll: d.coll, id: d.id, before: null, after }]);
       this.select(keyOf(d.coll, d.id));
       return;
     }
@@ -435,6 +573,11 @@ export class Editor {
       canvas.setPointerCapture(e.pointerId);
       const [px, py] = local(e);
       const fine = e.ctrlKey;
+      if (this.splitting) {
+        const pt = this.view.planePoint(px, py, this.viewFloor());
+        if (pt) this.splitAt(pt[0], pt[1]);
+        return;
+      }
       if (this.tool === 'door' || this.tool === 'window') {
         // the wall under the pointer (its face can be metres above the floor point the ray meets)
         const h = this.view.pick(px, py).hit;
@@ -753,6 +896,7 @@ export class Editor {
         return;
       }
       if (e.button !== 0) return;
+      if (this.splitting) return void this.splitAt(x, z);
       if (this.tool !== 'select') return this.toolDown(x, z, e.clientX, e.clientY, 'plan', e.ctrlKey);
       const target = e.target as Element;
       const handle = target.closest('[data-handle]')?.getAttribute('data-handle');
@@ -1031,7 +1175,8 @@ export class Editor {
       case 'levelDown': return this.stepLevel(-1);
       case 'frame': return this.frameSelected();
       case 'cancel':
-        if (this.drag) this.endDrag(true);
+        if (this.splitting) this.cancelSplit();
+        else if (this.drag) this.endDrag(true);
         else if (this.tool !== 'select') this.setTool('select');
         else this.select(null);
         return;
@@ -1094,8 +1239,19 @@ export class Editor {
     const c = this.centreOf(s.coll, s.e);
     const d: Drag = { coll: s.coll, id: s.id, handle: null, before: clone(s.e), start: c, planeY: 0, moved: true, sx: 0, sy: 0, source: '3d', isNew: false };
     let after = this.dragged(d, c[0] + v[0], c[1] + v[1], false);
+    if (s.coll === 'rooms') return this.commitRoom(s.id, (after as Room).rect);
     if (s.coll === 'openings') after = withBetween(this.model, after as Opening);
     this.commit([{ coll: s.coll, id: s.id, before: d.before, after }]);
+  }
+
+  /** A room's new rect, committed with the walls, neighbours and doors that follow it (ED3-3a). */
+  commitRoom(id: string, rect: Rect): void {
+    const res = linkedEdit(this.model.data, id, rect, this.wallsFollow);
+    if (res.refused) return this.status(res.refused);
+    if (!res.changes.length) return;
+    const words = linkedWords(res);
+    const room = describeChange(this.model.data, res.changes[0]!);
+    this.commitText(words ? `${room}; ${words}` : room, res.changes);
   }
 
   duplicate(): void {
@@ -1189,7 +1345,7 @@ export class Editor {
         <span class="group seg" id="layout" title="V cycles"><button data-layout="3d">3D</button><button data-layout="both">Both</button><button data-layout="plan">Plan</button></span>
         <span class="group"><button id="splitDir" title="Side by side or stacked">Side by side</button><button id="swap" title="Swap the 3D and the plan">Swap</button><button id="minimap" title="Small plan in the corner of 3D only (M)">Small plan</button><button id="drawerBtn" title="Side panel (\` or I)">Panel</button></span>
         <span class="group" id="tools">
-          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button>
+          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${OPENING_TYPES.filter((t) => t !== 'window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button>
         </span>
         <span class="group"><button id="walk" title="Tab: the game's own player, unsaved edits included (Shift+Tab: quick walk)">Walk test (game)</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
         <span id="checksBadge"></span>
@@ -1215,6 +1371,11 @@ export class Editor {
       this.applyLayout();
     });
     $('minimap').addEventListener('click', () => this.run('minimap'));
+    $('roomOpt').addEventListener('change', () => {
+      this.roomOption = $<HTMLSelectElement>('roomOpt').value as RoomWallOption;
+      this.setTool('room');
+    });
+    $('follow').addEventListener('click', () => this.setWallsFollow(!this.wallsFollow));
     $('drawerBtn').addEventListener('click', () => this.toggleDrawer());
     for (const b of $('presets').querySelectorAll<HTMLButtonElement>('button')) b.addEventListener('click', () => this.setPreset(b.dataset.preset as LevelPreset));
     for (const c of $('pick').querySelectorAll<HTMLInputElement>('input[data-level]'))
@@ -1277,8 +1438,19 @@ export class Editor {
     this.updateBar();
   }
 
+  /** The hub's "Walls follow rooms" and the tool bar button share one setting. */
+  setWallsFollow(on: boolean): void {
+    const pad = this.pad;
+    if (!pad) return;
+    pad.settings = { ...pad.settings, wallsFollow: on };
+    pad.savePrefs();
+    this.status(on ? 'Walls follow rooms: on' : 'Walls follow rooms: off (rooms move and stretch alone)');
+    this.updateBar();
+  }
+
   updateBar(): void {
-    for (const b of $('tools').querySelectorAll<HTMLButtonElement>('button')) b.classList.toggle('on', b.dataset.tool === this.tool);
+    for (const b of $('tools').querySelectorAll<HTMLButtonElement>('button[data-tool]')) b.classList.toggle('on', b.dataset.tool === this.tool);
+    $('follow').classList.toggle('on', this.wallsFollow);
     $('walk').textContent = this.walk.state === 'loading' ? 'Loading game...' : 'Walk test (game)';
     $('walk').classList.toggle('on', this.walk.state !== 'off' && this.walk.state !== 'warm');
     $<HTMLButtonElement>('undo').disabled = !this.model.canUndo;
@@ -1472,10 +1644,11 @@ export class Editor {
     if (this.view.vis.exploded && !this.controls.walking) notes.push('Exploded: levels drawn apart, saved as built');
     const pad = this.pad;
     if (pad?.device === 'pad' && pad.focus === 'drawer') notes.push('Pad in the side panel (B leaves)');
+    if (this.splitting) notes.push(pad?.device === 'pad' ? 'Split' : 'Split: click where the line goes, Esc cancels');
     if (this.quickWalking) notes.push(pad?.device === 'pad' ? `Quick walk - left stick walk, ${padWords('L3', pad.style)} ${this.controls.padRun ? 'running' : 'run'}, ${padWords('B', pad.style)} back` : 'Quick walk - Shift held runs, Shift+Tab back');
     // the controller: what A would take ("Stretch east edge (A)") becomes the A prompt's word; other dot words stay at the dot
     const padOn = pad?.device === 'pad';
-    const partWords = padOn && pad.grabWords.endsWith(' (A)') ? pad.grabWords.slice(0, -4) : '';
+    const partWords = this.splitting ? 'Split here' : padOn && pad.grabWords.endsWith(' (A)') ? pad.grabWords.slice(0, -4) : '';
     if (c === 'draw') notes.push(`${this.tool[0]!.toUpperCase()}${this.tool.slice(1)} tool on ${lv?.name ?? 'this level'}`);
     if (!window.isSecureContext) notes.push('Controller off: this address is not secure - use the https address from Kestrel-Editor-Network.cmd');
     const items = hintItems(c, pad?.device ?? 'keys', pad?.style ?? 'xbox').map((i) => `<b>${esc(i.keys)}</b> ${esc(i.id === 'padPick' && partWords ? partWords : i.name)}`);

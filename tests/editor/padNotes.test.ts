@@ -59,3 +59,22 @@ describe('wall change words', () => {
     expect(words({ a: [0, 0], b: [0, 10] })).toBe('Turned 90 degrees and moved 5 m west, 5 m north: interior wall (W1, Ground)');
   });
 });
+
+describe('field changes in plain words (ED3-3a)', () => {
+  const ch = (coll: 'walls' | 'openings' | 'rooms', before: object, after: object): string => describeChange(d, { coll, id: (before as { id: string }).id, before: before as Wall, after: after as Wall });
+  const o = d.openings[0] as Opening;
+  const r = d.rooms[0] as Room;
+  it('kind and type changes', () => {
+    expect(ch('walls', w, { ...w, kind: 'balustrade' })).toBe('Changed to balustrade wall: balustrade wall (W1, Ground)');
+    expect(ch('openings', o, { ...o, type: 'double' })).toBe('Changed to double door: double (O1, Ground)');
+    expect(ch('rooms', r, { ...r, kind: 'corridor' })).toBe('Changed to corridor: Office (R1, Ground)');
+  });
+  it('numbers, flags and names', () => {
+    expect(ch('walls', w, { ...w, h: 3.6 })).toBe('Height 4.2 m to 3.6 m: interior wall (W1, Ground)');
+    expect(ch('rooms', r, { ...r, ring: 3 })).toBe('Access level 2 to 3: Office (R1, Ground)');
+    expect(ch('openings', o, { ...o, locked: true })).toBe('Now locked: door (O1, Ground)');
+    expect(ch('openings', { ...o, locked: true }, { ...o, locked: false })).toBe('Now unlocked: door (O1, Ground)');
+    expect(ch('rooms', r, { ...r, name: 'Server Room' })).toBe('Name "Office" to "Server Room": Server Room (R1, Ground)');
+    expect(ch('walls', w, { ...w, kind: 'parapet' })).not.toMatch(/"/);
+  });
+});

@@ -61,7 +61,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Shift+Tab | **quick walk** at the dot (same as L3; 1.75 m eye, walls block, C crouches to 1.15 m); again goes back |
 | F10 (in the game) | back to the editor from the walk test |
 | Page Up / Page Down, Editing list | change the editing level (walking: you stay at the same spot on the new floor) |
-| 1 - 5 | tools: select, room, wall, door (type from the list beside it), window |
+| 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
 | Ctrl while dragging | fine grid (0.1 m) instead of the 0.5 m grid |
 | Arrow keys | nudge the selection 0.5 m (Shift: 5 m) |
@@ -139,7 +139,7 @@ the free camera from the same spot. Nothing jumps either way.
 ### The wheels (hold, point with either stick, release to pick; resting on a submenu opens it)
 | Build wheel (Y held; mouse: hold Space) | Selection wheel (RB held; mouse: hold R) |
 | --- | --- |
-| Select, Room, Wall, Door > (door kinds), Window, Measure, Paste and Paste to level above (only with something copied). Stair, Ladder, Floor hole and Object join when those tools exist | Only what fits the selection: Move (as A in the middle), Properties (the side panel), Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Change type > (door kinds for doors and windows, room kinds, wall kinds: interior, exterior, boundary, parapet, balustrade (blue-grey in 3D); one undo step), Delete |
+| Select, Room > (Room with walls, Room with outside walls, Room only), Wall, Door > (door kinds), Window, Measure, Paste and Paste to level above (only with something copied). Stair, Ladder, Floor hole and Object join when those tools exist | Only what fits the selection: Move (as A in the middle), Properties (the side panel), Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Change type > (door kinds for doors and windows, room kinds, wall kinds: interior, exterior, boundary, parapet, balustrade (blue-grey in 3D); one undo step), Split (rooms), Delete |
 
 - Picking from the Build wheel also lights that tool on the tool bar. **Copy to level above** copies, pastes one level up
   in one change, selects the copy and takes the editing level up with it ("No level above" at the top).
@@ -158,7 +158,7 @@ pad, and any grab is put back first.
 | Checks | Next problem (the line after the last one visited), then the problem lines (fails and warnings; new ones red). A on a line closes the hub and goes there |
 | Levels | the level to edit (A edits it), then the Levels panel: presets, picked levels, ghost, exploded and gap, cut height, building filter |
 | View | layout 3D / Both / Plan, plan labels, small plan (3D only), level below on the plan |
-| Settings | rumble on / off, stick speed (0.5 to 2.0, step 0.25), invert tilt, text size (Large = 1.25x on the pad screen, the hub and the wheels). Saved with the pad preferences (browser storage, a view preference) |
+| Settings | rumble on / off, stick speed (0.5 to 2.0, step 0.25), invert tilt, text size (Large = 1.25x on the pad screen, the hub and the wheels), Walls follow rooms (on by default; the tool bar's button for the mouse). Saved with the pad preferences (browser storage, a view preference) |
 | Help | a picture of the controller with every button labelled with its building-state action (from the action map), then every binding by group for keys, mouse and pad |
 
 - The unsaved count is the net change since the last save: undo lowers it, and it is 0 exactly when the building is as
@@ -231,13 +231,31 @@ pad, and any grab is put back first.
   editor opened. The badge on the toolbar counts them and opens the panel.
 - **Changes**: what has been done since the last save, newest first.
 
+## Rooms and their walls (ED3-3a)
+- A room edge is a wall's centre line (every wall in the campus file sits on one). A wall counts as on an edge when it is
+  on the same level, parallel, within half its thickness of the edge and overlapping it.
+- **Room tool**: "Room with walls" (default) adds an interior wall (0.3 m) on every part of the four sides that no wall
+  covers yet; "Room with outside walls" makes them exterior (0.45 m); "Room only" makes none. Thicknesses come from
+  `scripts/kestrel/facts.json` (`rules.wallInterior`, `rules.wallExterior`). Walls already there are reused, never
+  doubled; gaps under 0.5 m are skipped; height is the level's. The room and its walls are one undo step.
+- **Walls follow rooms** (on by default): stretching a side moves the walls on it and stretches the walls that end on
+  it; a wall running past the side's ends is cut there first (up to three walls, the middle one moves; a door across a
+  cut point refuses the stretch: "A door is in the way at the corner"). A room lying wholly along the moved wall
+  resizes with it (A's words name it: "Stretch east edge (also resizes Store)"). Moving a room takes the walls only it
+  lies on; shared walls stay ("Move (2 shared walls stay)"). Doors keep their distance from the nearer wall end. A room
+  turned with RB leaves its walls. Every room move, stretch or split refreshes the rooms either side of the doors it
+  touched. One undo step for all of it.
+- **Split** (Selection wheel, rooms): a line across the room through the dot, across its longer side; RB turns it, A
+  places it, B cancels (mouse: click, Esc). At least 1 m each side. The wall follows the room tool's option; the room
+  keeps its name on the west or south part, the other part is "<name> 2" with the same kind and access level.
+- Tests run the editor server with `KESTREL_EDITOR_SANDBOX=<folder>`: it loads and saves a copy there, never
+  `docs/kestrel`. The walk test's draft is served only to this PC.
+
 ## What it does not do yet (ED2 parts B-H)
-- Linked walls, snapping,
-  dimensions, clickable problems, search (Part D).
+- Wall chains, door centring, live sizes and distances, guide lines (ED3-3b); clickable problems, search (Part D).
 - Add, reshape or delete stairs, ladders and floor holes beyond moving them; no new levels; renaming ids (Part E).
 - Lighting preview, props, guards and routes.
 - Quick walk up stairs: change level with Page Up / Page Down (the walk test climbs stairs and ladders for real).
-- Openings keep the rooms either side (`between`) up to date when they are placed or moved, not when a room moves.
 - On the plan, the building filter hides rooms, walls and openings; their name labels stay.
 
 ## Files
@@ -251,5 +269,6 @@ pad, and any grab is put back first.
 | `src/editor/orbit.ts` | the pad's builder camera: state, pan / orbit / zoom, clamps, eases, top-down swap (pure, `tests/editor/orbit.test.ts`) |
 | `src/editor/pad.ts`, `src/editor/radial.ts` | pad reading (edges, taps and holds, D-pad repeat, button names); radial slot maths and menu navigation (Babylon-free, `tests/editor/editorPad.test.ts`) |
 | `src/editor/actions.ts`, `src/editor/visibility.ts`, `src/editor/draft.ts` | the action map (keys, help, hint bar); which levels and buildings are shown, ghosted or hidden, and the exploded lift; unsaved drafts in IndexedDB (Babylon-free, `tests/editor/editorV2.test.ts`) |
-| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save |
+| `src/editor/roomWalls.ts` | rooms and their walls: walls on an edge, the walls a new room needs, linked edits, Split, A's linked words (pure, `tests/editor/roomWalls.test.ts`) |
+| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft; `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

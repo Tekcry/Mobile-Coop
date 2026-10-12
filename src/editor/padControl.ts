@@ -21,6 +21,8 @@ import { ORBIT } from './orbit';
 import { PAD, PadState } from './pad';
 import { buildTree, DOOR_NAMES, RadialView, selectionTree } from './padMenu';
 import { Radial } from './radial';
+import { linkedHint, ROOM_OPTIONS } from './roomWalls';
+import type { RoomWallOption } from './roomWalls';
 import type { RadialNode } from './radial';
 import type { Mark } from './scene3d';
 import { presetPicks } from './visibility';
@@ -250,6 +252,10 @@ export class PadControl {
     };
     if (id === 'select') tool('select');
     else if (id === 'build.room') tool('room');
+    else if (id.startsWith('room.')) {
+      ed.setRoomOption(id.slice(5) as RoomWallOption);
+      tool('room');
+    } else if (id === 'sel.split') ed.startSplit();
     else if (id === 'build.wall') tool('wall');
     else if (id === 'build.window') tool('window');
     else if (id.startsWith('door.')) tool('door', id.slice(5));
@@ -320,7 +326,7 @@ export class PadControl {
     if (this.stickLatch && !st.ls.x && !st.ls.y && !st.rs.x && !st.rs.y) this.stickLatch = false;
     if (c.walking) return this.walkFrame();
     if (st.yTap === 'hold' && !this.ed.drag) return this.openMenu(false, 'build');
-    if (st.rbTap === 'hold' && !this.ed.drag) return this.openMenu(false, 'sel');
+    if (st.rbTap === 'hold' && !this.ed.drag && !this.ed.splitting) return this.openMenu(false, 'sel');
     if (st.yTap === 'tap' && this.lastTool && !this.ed.drag) this.runMenu({ id: this.lastTool.door ? `door.${this.lastTool.door}` : this.lastTool.tool === 'select' ? 'select' : `build.${this.lastTool.tool}`, name: '' }, []);
     if (st.viewTap === 'tap') this.topDown();
     else if (st.viewTap === 'hold') this.ed.run('layout');
@@ -342,7 +348,10 @@ export class PadControl {
       if (st.pressed(PAD.LS)) return this.ed.quickWalk();
       if (st.xTap === 'tap') this.ed.undo();
       else if (st.xTap === 'hold') this.ed.redo();
-      if (st.rbTap === 'tap') this.ed.frameSelected();
+      if (st.rbTap === 'tap') {
+        if (this.ed.splitting) this.ed.splitTurn();
+        else this.ed.frameSelected();
+      }
     } else if (st.rbTap === 'tap') this.turnGrab();
     if (st.pressed(PAD.B)) this.cancel();
     else if (st.pressed(PAD.A)) this.primary();
@@ -511,6 +520,12 @@ export class PadControl {
   private primary(): void {
     const ed = this.ed;
     if (this.measureFrom) return this.finishMeasure();
+    if (ed.splitting) {
+      const p = this.point();
+      if (p && !ed.splitAt(p[0], p[1])) this.rumble('error');
+      else if (p) this.rumble('drop');
+      return;
+    }
     if (ed.drag) {
       ed.endDrag(false);
       this.offset = [0, 0];
@@ -594,16 +609,13 @@ export class PadControl {
     if (!d || d.source !== 'pad') return this.updatePointers();
     const p = this.point(d.planeY);
     if (!p) return;
-    this.ed.moveDrag(p[0] + this.offset[0], p[1] + this.offset[1], this.st.down(PAD.LB));
-    if (this.turns) {
-      const e = this.ed.model.get(d.coll, d.id);
-      if (e) this.ed.model.preview(d.coll, this.turned(d.coll, e, p[0], p[1]));
-    }
+    this.ed.moveDrag(p[0] + this.offset[0], p[1] + this.offset[1], this.st.down(PAD.LB), this.turns ? (e) => this.turned(d.coll, e, p[0], p[1]) : undefined);
     this.updatePointers();
   }
 
   private cancel(): void {
     const ed = this.ed;
+    if (ed.splitting) return ed.cancelSplit();
     if (this.measureFrom) {
       this.measureFrom = null;
       return ed.status('Measure cancelled');
@@ -712,12 +724,13 @@ export class PadControl {
     this.layoutBar();
     const ed = this.ed;
     const doorName = slotDoorName($<HTMLSelectElement>('doorType').value);
+    const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}`;
+    const key = `${this.barSlot()}|${doorName}|${roomName}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
-    $('toolBar').innerHTML = BAR.map(([id, name]) => `<div class="slot${id === slot ? ' on' : ''}" data-slot="${id}"><b>${name}</b>${id === 'door' ? `<small>${esc(doorName)}</small>` : ''}</div>`).join('');
+    $('toolBar').innerHTML = BAR.map(([id, name]) => `<div class="slot${id === slot ? ' on' : ''}" data-slot="${id}"><b>${name}</b>${id === 'door' ? `<small>${esc(doorName)}</small>` : id === 'room' ? `<small>${esc(roomName)}</small>` : ''}</div>`).join('');
     if (s) {
       const c = cardWords(s.coll, s.e);
       const lv = ed.model.data.levels.find((l) => l.id === ed.levelOf(s.coll, s.e));
@@ -777,6 +790,18 @@ export class PadControl {
     }
   }
 
+  private hintKey = '';
+  private hintWords = '';
+  /** The linked words for a room part, cached until the data or the part changes. */
+  private linkedHintFor(id: string, handle: string | null): string {
+    const key = `${id}|${handle}|${this.ed.model.history.length}|${this.ed.model.dirty}`;
+    if (key !== this.hintKey) {
+      this.hintKey = key;
+      this.hintWords = linkedHint(this.ed.model.data, id, handle, this.ed.grid);
+    }
+    return this.hintWords;
+  }
+
   private labelAt = 0;
   /** The dot's words, the grab preview (decision 14) and the tool ghosts (decisions 17, 18), a few times a second. */
   private updatePointers(): void {
@@ -798,7 +823,17 @@ export class PadControl {
     const part = this.grabPartNow();
     const s = ed.selectedElem();
     let hover: Key | null = null;
-    if (this.measureFrom && p) {
+    if (ed.splitting && p) {
+      // Split: the line across the room through the dot (red where it is too close to an edge)
+      const l = ed.splitLine(p[0], p[1]);
+      if (l) {
+        bad = !!l.why;
+        words = l.why ?? `A: split here (${l.axis === 'x' ? 'north-south' : 'east-west'} line), RB turns it, B cancels`;
+        key = `x|${l.axis}|${l.v}|${bad}`;
+        marks.push(this.bar(l.a, l.b, f + 1.2, 2.4, 0.15, 'ghost'));
+        plan.push({ kind: 'line', a: l.a, b: l.b });
+      }
+    } else if (this.measureFrom && p) {
       if (Number.isNaN(this.measureFrom[0])) words = 'A: first point';
       else {
         const [x0, z0] = this.measureFrom;
@@ -810,7 +845,7 @@ export class PadControl {
       }
     } else if (d?.source === 'pad') words = ed.dragWords();
     else if (part && s) {
-      words = `${part.words} (A)`;
+      words = `${part.words}${s.coll === 'rooms' && ed.wallsFollow ? this.linkedHintFor(s.id, part.handle) : ''} (A)`;
       key = `g|${ed.selected}|${part.handle}|${ed.model.history.length}`;
       this.partMarks(s.coll, s.e, part, f, marks, plan);
     } else if (ed.tool === 'room' || ed.tool === 'wall') {

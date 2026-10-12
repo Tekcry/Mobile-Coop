@@ -46,7 +46,7 @@ describe('hub tabs and rows', () => {
   it('Levels, View and Settings rows', () => {
     expect(hubRows('Levels', input).map((x) => [x.text, x.value])).toEqual([['First (4.2 m)', undefined], ['Ground (0 m)', 'editing']]);
     expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Plan labels: on', 'Small plan (3D only): off', 'Level below on the plan: off']);
-    expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '1.00x', 'off', 'Normal']);
+    expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '1.00x', 'off', 'Normal', 'on']);
     expect(hubRows('Help', input)).toEqual([]);
     expect(stepLayout('3d', -1)).toBe('plan');
     expect(stepLayout('plan', 1)).toBe('3d');
@@ -64,6 +64,7 @@ describe('pad settings', () => {
     expect(changeSetting(DEFAULT_SETTINGS, 'set.rumble', 1).rumble).toBe(false);
     expect(changeSetting(DEFAULT_SETTINGS, 'set.invert', -1).invertTilt).toBe(true);
     expect(changeSetting(DEFAULT_SETTINGS, 'set.text', 1).textSize).toBe('large');
+    expect(changeSetting(DEFAULT_SETTINGS, 'set.follow', 1).wallsFollow).toBe(false);
   });
 
   it('stored settings keep only valid fields (old prefs had rumble only)', () => {

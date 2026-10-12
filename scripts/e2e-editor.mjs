@@ -1,7 +1,8 @@
 // Level editor controller test (ED2 Part C, ED3-1 builder camera, ED3-2 hub, wheels, grab, magnet, ghosts; ED2 Part B walk test as the player): every edit step uses the fake gamepad. Starts its own Vite dev server on
 // a free port (the editor is dev-only, never in dist/). Never saves. `npm run e2e:editor`; SHOTS=<dir> keeps screenshots.
-import { spawn } from 'node:child_process';
-import { mkdirSync } from 'node:fs';
+import { execSync, spawn } from 'node:child_process';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { createServer } from 'node:net';
 import path from 'node:path';
 import { chromium } from 'playwright-core';
@@ -9,7 +10,11 @@ import { assert, BTN, frames, launchOptions } from './e2e-lib.mjs';
 
 const freePort = () => new Promise((res) => { const s = createServer(); s.listen(0, () => { const p = s.address().port; s.close(() => res(p)); }); });
 const port = await freePort();
-const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', String(port), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'] });
+// ED3-3a: the server reads and saves a copy of the campus in a temp folder, never docs/kestrel
+const sandbox = mkdtempSync(path.join(tmpdir(), 'kestrel-e2e-'));
+// docs/kestrel as it was before the run (a session's own uncommitted edits are not the test's)
+const docsBefore = execSync('git status --porcelain docs/kestrel', { encoding: 'utf8' });
+const vite = spawn(process.execPath, ['node_modules/vite/bin/vite.js', '--port', String(port), '--strictPort'], { stdio: ['ignore', 'pipe', 'pipe'], env: { ...process.env, KESTREL_EDITOR_SANDBOX: sandbox } });
 await new Promise((res, rej) => {
   const t = setTimeout(() => rej(new Error('vite did not start')), 60000);
   vite.stdout.on('data', (b) => { if (/ready in/.test(String(b))) { clearTimeout(t); res(); } });
@@ -285,7 +290,7 @@ try {
   console.log('edge-aware grab: stretch an edge, move from the middle');
   await dotAt(room.cx, room.cz);
   const mid = await dotText();
-  assert(/A: Move$/.test(mid), `the dot at the room's centre says "A: Move" ("${mid.slice(-12)}")`);
+  assert(/A: Move( \(\d+ shared walls? stays?\))?$/.test(mid), `the dot at the room's centre says "A: Move" ("${mid.slice(-12)}")`);
   await dotAt(room.rect[2] - 0.2, room.cz);
   const edge = await dotText();
   assert(/Stretch east edge/.test(edge) && (await E(() => window.__editor.view.scene.getMeshByName('mark 0')?.isEnabled())), `0.2 m inside the east edge: "Stretch east edge", the edge lit ("${edge.slice(-24)}")`);
@@ -362,7 +367,7 @@ try {
   const selRing = await E(() => window.__editor.pad.radial.ring.map((n) => n.name));
   await shot('selection-wheel');
   await releaseBtn(BTN.RB);
-  assert(selRing.join(',') === 'Move,Properties,Duplicate,Rotate 90,Copy,Copy to level above,Change type,Delete' && !(await E(() => window.__editor.pad.menuOpen)), `with a room selected: ${selRing.join(', ')}; release in the centre closes it`);
+  assert(selRing.join(',') === 'Move,Properties,Duplicate,Rotate 90,Copy,Copy to level above,Change type,Split,Delete' && !(await E(() => window.__editor.pad.menuOpen)), `with a room selected: ${selRing.join(', ')}; release in the centre closes it`);
   const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return o.id; });
   const h0 = await E(() => window.__editor.model.history.length);
   await wheel(BTN.RB, 216, 72);
@@ -605,6 +610,105 @@ try {
   }
   }
   await page.setViewportSize({ width: 1600, height: 900 });
+
+  console.log('rooms make walls, walls follow rooms, Split (ED3-3a)');
+  await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setLevel('G'); });
+  await press(BTN.LB);
+  // an empty patch on the ground floor: no wall within a metre of a 10 x 8 box
+  const spot = await E(() => {
+    const ws = window.__editor.model.data.walls.filter((w) => w.level === 'G');
+    for (let z = 4; z < 70; z += 1) for (let x = 4; x < 100; x += 1) {
+      const clear = ws.every((w) => Math.max(w.a[0], w.b[0]) < x - 1 || Math.min(w.a[0], w.b[0]) > x + 11 || Math.max(w.a[1], w.b[1]) < z - 1 || Math.min(w.a[1], w.b[1]) > z + 9);
+      if (clear) return [x, z];
+    }
+    return null;
+  });
+  assert(!!spot, `an empty patch on the ground floor at ${spot}`);
+  const cnt = () => E(() => { const ed = window.__editor; return { rooms: ed.model.data.rooms.length, walls: ed.model.data.walls.length, h: ed.model.history.length, dirty: ed.model.dirty }; });
+  const c0 = await cnt();
+  await E(() => window.__editor.pad.runMenu({ id: 'room.walls', name: '' }, []));
+  await wait(300);
+  const bar = await E(() => document.querySelector('#toolBar [data-slot="room"] small')?.textContent);
+  // (corners set on the dot directly: D-pad steps follow the camera and the magnet)
+  const drawRoom = async (x, z) => {
+    await dotAt(x, z);
+    await press(BTN.A);
+    await dotAt(x + 4, z + 3);
+    await press(BTN.A);
+    return E(() => { const rs = window.__editor.model.data.rooms; return rs[rs.length - 1]; });
+  };
+  const r1 = await drawRoom(spot[0], spot[1]);
+  const c1 = await cnt();
+  assert(r1.rect.join() === [spot[0], spot[1], spot[0] + 4, spot[1] + 3].join() && c1.rooms === c0.rooms + 1 && c1.walls === c0.walls + 4 && c1.h === c0.h + 1 && bar === 'With walls', `a room drawn with walls: 1 room, ${c1.walls - c0.walls} walls, ${c1.h - c0.h} undo step; tool bar says "${bar}" (${r1.rect})`);
+  await shot('room-with-walls');
+  const r2 = await drawRoom(r1.rect[2], r1.rect[1]);
+  const c2 = await cnt();
+  assert(c2.walls === c1.walls + 3 && r2.rect[0] === r1.rect[2] && r2.rect[1] === r1.rect[1], `a second room against it makes 3 new walls (${c2.walls - c1.walls}; ${r2.rect})`);
+  const wallAt = (x, r) => E(([x, r]) => window.__editor.model.data.walls.find((w) => w.level === 'G' && w.a[0] === x && w.b[0] === x && Math.min(w.a[1], w.b[1]) <= r[1] && Math.max(w.a[1], w.b[1]) >= r[3])?.id, [x, r]);
+  const shared = await wallAt(r1.rect[2], r1.rect);
+  await E(() => window.__editor.setTool('select'));
+  // stretch the shared edge 1 m east: the wall moves, both rooms resize
+  await E((id) => window.__editor.select(`rooms:${id}`), r1.id);
+  await dotAt(r1.rect[2] - 0.2, (r1.rect[1] + r1.rect[3]) / 2);
+  await page.waitForFunction(() => /Stretch east edge/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+  const edgeWords = await dotText();
+  await shot('stretch-also-resizes');
+  await press(BTN.A);
+  await dotAt(r1.rect[2] + 1, (r1.rect[1] + r1.rect[3]) / 2);
+  await press(BTN.A);
+  const s1 = await E(([a, b, w]) => { const m = window.__editor.model; return { a: m.get('rooms', a).rect, b: m.get('rooms', b).rect, w: m.get('walls', w), status: document.getElementById('status').textContent }; }, [r1.id, r2.id, shared]);
+  assert(/Stretch east edge \(also resizes /.test(edgeWords) && s1.a[2] === r1.rect[2] + 1 && s1.b[0] === r1.rect[2] + 1 && s1.w.a[0] === r1.rect[2] + 1 && s1.w.b[0] === r1.rect[2] + 1, `stretching the shared side moves the wall and resizes both rooms ("${edgeWords.slice(-40)}"; ${s1.a} / ${s1.b}; "${s1.status.slice(0, 100)}")`);
+  // move the first room 1 m west: its own walls go, the shared wall stays
+  const ownWest = await wallAt(s1.a[0], s1.a);
+  await dotAt((s1.a[0] + s1.a[2]) / 2, (s1.a[1] + s1.a[3]) / 2);
+  await page.waitForFunction(() => /A: Move/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+  const moveText = await dotText();
+  await press(BTN.A);
+  await dotAt((s1.a[0] + s1.a[2]) / 2 - 1, (s1.a[1] + s1.a[3]) / 2);
+  await press(BTN.A);
+  const s2 = await E(([a, w, o]) => { const m = window.__editor.model; return { a: m.get('rooms', a).rect, w: m.get('walls', w), o: m.get('walls', o) }; }, [r1.id, shared, ownWest]);
+  assert(/Move \(1 shared wall stays\)/.test(moveText) && s2.a[0] === s1.a[0] - 1 && s2.w.a[0] === s1.w.a[0] && s2.o.a[0] === s1.a[0] - 1, `moving the first room takes its walls and leaves the shared one ("${moveText.slice(-30)}"; west wall ${s1.a[0]} -> ${s2.o.a[0]}, shared ${s2.w.a[0]})`);
+  // Split the second room across its middle
+  await E((id) => window.__editor.select(`rooms:${id}`), r2.id);
+  const b2 = await E((id) => window.__editor.model.get('rooms', id).rect, r2.id);
+  await E(() => window.__editor.pad.runMenu({ id: 'sel.split', name: '' }, []));
+  await dotAt(b2[0] + 1.5, (b2[1] + b2[3]) / 2);
+  await page.waitForFunction(() => /split here|Too close/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+  const splitWords = await dotText();
+  await shot('split-ghost');
+  const c3 = await cnt();
+  await press(BTN.A);
+  const c4 = await cnt();
+  const parts = await E((id) => { const m = window.__editor.model; const n = m.get('rooms', id).name; return m.data.rooms.filter((r) => r.id === id || r.name === `${n} 2`).map((r) => r.rect); }, r2.id);
+  assert(/A: split here/.test(splitWords) && c4.rooms === c3.rooms + 1 && c4.walls === c3.walls + 1 && c4.h === c3.h + 1 && parts.length === 2, `Split makes 2 rooms and 1 wall in one undo step ("${splitWords.slice(-50)}"; ${parts.map((p) => p.join(' ')).join(' | ')})`);
+  await E(() => window.__editor.setLayout('plan'));
+  await wait(1200);
+  await shot('split-plan');
+  await E(() => window.__editor.setLayout('both'));
+  // walls follow rooms off: stretching moves no wall
+  await E(() => window.__editor.setWallsFollow(false));
+  const wallsBefore = await E(() => JSON.stringify(window.__editor.model.data.walls));
+  await E((id) => window.__editor.select(`rooms:${id}`), r2.id);
+  const b3 = await E((id) => window.__editor.model.get('rooms', id).rect, r2.id);
+  await dotAt(b3[0] + 0.2, (b3[1] + b3[3]) / 2);
+  await press(BTN.A);
+  await dotAt(b3[0] - 1, (b3[1] + b3[3]) / 2);
+  await press(BTN.A);
+  const off = await E(([id, wb]) => ({ rect: window.__editor.model.get('rooms', id).rect, same: JSON.stringify(window.__editor.model.data.walls) === wb }), [r2.id, wallsBefore]);
+  await E(() => window.__editor.setWallsFollow(true));
+  assert(off.same && off.rect[0] === b3[0] - 1, `with "Walls follow rooms" off the room stretches alone (${off.rect}; walls unchanged ${off.same})`);
+  // undo everything: back to the file
+  const undone = await E(() => { const ed = window.__editor; let n = 0; while (ed.model.dirty > 0 && n < 30) { ed.undo(); n++; } return { n, dirty: ed.model.dirty, rooms: ed.model.data.rooms.length, walls: ed.model.data.walls.length }; });
+  assert(undone.dirty === 0 && undone.rooms === c0.rooms && undone.walls === c0.walls, `undo ${undone.n} times: unsaved 0, rooms and walls as in the file`);
+
+  console.log('saves go to the sandbox, never docs/kestrel (ED3-3a)');
+  await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
+  await E(() => window.__editor.save());
+  await page.waitForFunction(() => /Saved \d+ change/.test(document.getElementById('status').textContent), null, { timeout: 120000 });
+  const gitDocs = execSync('git status --porcelain docs/kestrel', { encoding: 'utf8' }) === docsBefore ? '' : 'changed';
+  const sandFile = path.join(sandbox, 'docs/kestrel/kestrel.campus.blocks.json');
+  const sandSaved = existsSync(sandFile) && /level editor/.test(readFileSync(sandFile, 'utf8'));
+  assert(gitDocs === '' && sandSaved && existsSync(path.join(sandbox, 'docs/kestrel/plans')), `a save writes the sandbox copy and its plans; docs/kestrel unchanged ("${gitDocs}")`);
 } catch (e) {
 
   failed = true;
@@ -616,5 +720,6 @@ try {
   console.log(bad.length ? 'console problems:\n' + bad.join('\n') : 'no console errors');
   await browser.close();
   vite.kill();
+  try { rmSync(sandbox, { recursive: true, force: true }); } catch {}
   process.exit(failed || bad.length ? 1 : 0);
 }

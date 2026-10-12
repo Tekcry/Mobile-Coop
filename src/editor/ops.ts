@@ -4,6 +4,7 @@
  */
 import { EPS, fmt, moveWords, roomsEitherSide, wallLen } from './geometry';
 import type { Change, EditorModel } from './model';
+import { WALL_T } from './roomWalls';
 import type { Campus, Coll, Elem, Opening, Rect, Room, Wall } from './types';
 
 /** Door and window defaults (docs/kestrel scale sheet: door.singleWidth 1.2 x 2.1, double 1.8; windows are editor defaults). */
@@ -95,7 +96,7 @@ export function describeChange(d: Campus, c: Change): string {
     else if (k === 'at' && c.coll === 'openings') parts.push(`moved ${fmt(Math.abs((vb as number) - (va as number)))} m along its wall`);
     else if (k === 'at' && Array.isArray(va)) parts.push(`moved ${moveWords((vb as number[])[0]! - (va as number[])[0]!, (vb as number[])[1]! - (va as number[])[1]!)}`);
     else if (k === 'between' || k === 'index') continue;
-    else parts.push(`${k} ${JSON.stringify(va ?? null)} to ${JSON.stringify(vb ?? null)}`);
+    else parts.push(fieldWords(c.coll, k, va, vb));
   }
   if (c.coll === 'walls') {
     const wa = a as unknown as Wall;
@@ -124,6 +125,27 @@ export function describeChange(d: Campus, c: Change): string {
 }
 
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
+
+/** Field names in words; metre fields carry "m". */
+const FIELD_WORDS: Record<string, string> = { h: 'height', t: 'thickness', w: 'width', sill: 'sill', ceiling: 'ceiling', ring: 'access level', minShort: 'shortest side', risers: 'risers', width: 'width', floor: 'floor', height: 'height', key: 'key', reason: 'reason', finish: 'finish', building: 'building', up: 'climbs', facing: 'facing', name: 'name' };
+const METRES = new Set(['h', 't', 'w', 'sill', 'ceiling', 'minShort', 'width', 'floor', 'height']);
+
+/** One field change in plain words (ED3-3a decision 19): no raw JSON. */
+function fieldWords(coll: Coll, k: string, va: unknown, vb: unknown): string {
+  if (k === 'kind' || (k === 'type' && coll === 'openings')) {
+    const v = String(vb ?? '');
+    if (coll === 'walls') return `changed to ${v} wall`;
+    if (coll === 'openings') return `changed to ${(DOOR_NAMES[v] ?? v).toLowerCase()}`;
+    return `changed to ${v}`;
+  }
+  if (k === 'locked') return vb ? 'now locked' : 'now unlocked';
+  if (typeof vb === 'boolean') return `${FIELD_WORDS[k] ?? k} ${vb ? 'on' : 'off'}`;
+  const word = capital(FIELD_WORDS[k] ?? k);
+  if (typeof va === 'number' && typeof vb === 'number') return METRES.has(k) ? `${word} ${fmt(va)} m to ${fmt(vb)} m` : `${word} ${fmt(va)} to ${fmt(vb)}`;
+  if ((typeof va === 'string' || va === undefined) && typeof vb === 'string') return va ? `${word} "${va}" to "${vb}"` : `${word} set to "${vb}"`;
+  if (vb === undefined || vb === null) return `${word} cleared`;
+  return `${word} changed`;
+}
 
 /** The angle between a wall's old and new direction, whole degrees, 0 when parallel (either way round). */
 function turnDegrees(wa: Wall, wb: Wall): number {
@@ -170,7 +192,7 @@ export function newRoom(m: EditorModel, level: string, rect: Rect): Room {
 
 export function newWall(m: EditorModel, level: string, a: [number, number], b: [number, number], like?: Wall): Wall {
   const lvl = m.data.levels.find((l) => l.id === level);
-  return { id: m.freshId('walls', `W${level}-NEW`), level, a, b, t: like?.t ?? 0.3, h: like?.h ?? lvl?.height ?? 3, kind: like?.kind ?? 'interior' };
+  return { id: m.freshId('walls', `W${level}-NEW`), level, a, b, t: like?.t ?? WALL_T.interior, h: like?.h ?? lvl?.height ?? 3, kind: like?.kind ?? 'interior' };
 }
 
 export function newOpening(m: EditorModel, w: Wall, at: number, type: string): Opening {
