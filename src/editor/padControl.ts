@@ -31,7 +31,7 @@ import type { MenuInput, ViewState } from './tileMenu';
 import { NamePick, TileMenuView } from './tileMenuView';
 import type { Mark } from './scene3d';
 import { presetPicks } from './visibility';
-import type { Coll, Elem, Key, Ladder, Obj, Opening, Pt, Rect, Roof, Room, Stair, Wall } from './types';
+import type { Coll, Elem, Ext, Key, Ladder, Obj, Opening, Pt, Rect, Roof, Room, Stair, Wall } from './types';
 import { keyOf, parseKey } from './types';
 import { climbWords, HOLE_KINDS, HOLE_NAMES, levelAbove, proposeLadder, STAIR_TYPES, stairFit, stairType } from './vertical';
 import type { StairTypeId } from './vertical';
@@ -39,6 +39,10 @@ import { footprintAt, ROOF_TYPES, roofType, roofWords } from './roofGeometry';
 import { boxOf, boxPick, COPY_COLLS, copyItems, groupWords, itemsCentre, levelAbove as levelIdAbove, pasteChanges } from './group';
 import type { ClipItem } from './group';
 import { badgeWords } from './objects';
+import { CLIMB_PIECES, finishOf, pieceOf } from './climbCatalogue';
+import type { ExtKind } from './climbCatalogue';
+import { pieceWords } from './climb';
+import { loudWords } from './finishes';
 import { groupPresets } from './catalogue';
 import type { ObjGroup } from './catalogue';
 
@@ -55,6 +59,7 @@ const BAR = [
   ['hole', 'Floor hole'],
   ['roof', 'Roof'],
   ['object', 'Object'],
+  ['climb', 'Climb'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -245,7 +250,7 @@ export class PadControl {
   viewState(): ViewState {
     const ed = this.ed;
     const v = ed.view.vis;
-    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth };
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView };
   }
 
   /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
@@ -348,6 +353,7 @@ export class PadControl {
     else if (id === 'view.names') return ed.setNames(!ed.prefs.names);
     else if (id === 'view.figure') return ed.setFigure(!ed.prefs.figure);
     else if (id === 'view.stealth') return ed.setStealth(!ed.stealth);
+    else if (id === 'view.finish') return ed.setFinishView(!ed.finishView);
     this.applyPanel(rebuild);
   }
 
@@ -380,6 +386,12 @@ export class PadControl {
       ed.setObjectPreset(id.slice(4));
       tool('object');
     }
+    else if (id.startsWith('climb.')) {
+      // ON5: a climb piece or exterior feature
+      ed.setClimbKind(id.slice(6) as ExtKind);
+      tool('climb');
+    }
+    else if (id === 'sel.finish') this.editCard('finish')
     else if (id === 'sel.fit') ed.fitSelected();
     else if (id === 'sel.turnClimb') ed.turnStairClimb();
     else if (id === 'sel.rename') this.openRename();
@@ -436,6 +448,11 @@ export class PadControl {
       const p = ps[(i + dir + ps.length) % ps.length]!;
       ed.setObjectPreset(p.id);
       ed.status(`Object: ${p.name}`);
+    } else if (ed.tool === 'climb') {
+      const i = CLIMB_PIECES.findIndex((q) => q.id === ed.climbKind);
+      const q = CLIMB_PIECES[(i + dir + CLIMB_PIECES.length) % CLIMB_PIECES.length]!;
+      ed.setClimbKind(q.id);
+      ed.status(`Climb: ${q.name}`);
     } else if (ed.tool === 'roof') {
       const i = ROOF_TYPES.findIndex((t) => t.id === ed.roofTypeId);
       const t = ROOF_TYPES[(i + dir + ROOF_TYPES.length) % ROOF_TYPES.length]!;
@@ -483,7 +500,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const wall = s.coll === 'openings' ? ed.model.get<Wall>('walls', (s.e as Opening).wall) : undefined;
-    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined, levels: ed.model.data.levels, ...this.cardCtx(s) });
+    let after = stepCard(s.coll, s.e, row, dir, { step: ed.grid, wallLen: wall ? wallLen(wall) : undefined, levels: ed.model.data.levels, data: ed.model.data, ...this.cardCtx(s) });
     if (!after) {
       if (row === 'name') return ed.status('A opens the name list');
       this.rumble('error');
@@ -1115,13 +1132,13 @@ export class PadControl {
     const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : '';
+    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : '';
     $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
@@ -1151,7 +1168,10 @@ export class PadControl {
       const ob = s.coll === 'objects' ? (s.e as Obj) : null;
       const ai = ob ? ed.objectAisle(ob) : null;
       const objLine = ob ? `<div class="dim" data-badges>${esc(badgeWords(ob))}</div>${ai ? `<div class="${ai.ok ? 'dim' : 'bad'}" data-aisle>${esc(ai.words)}</div>` : ''}` : '';
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON5: what the player can do with a climb piece (the reach rules); a room's footstep loudness by its floor finish
+      const extLine = s.coll === 'exterior' ? `<div class="dim" data-climb>${esc(pieceWords(ed.model.data, s.e as Ext))}</div>` : '';
+      const finLine = s.coll === 'rooms' && finishOf((s.e as Room).finish) ? `<div class="dim" data-finish>${esc(loudWords((s.e as Room).finish))}</div>` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1334,6 +1354,31 @@ export class PadControl {
         marks.push({ x: (r[0] + r[2]) / 2, y: f + pre.y + pre.h / 2, z: (r[1] + r[3]) / 2, sx: r[2] - r[0], sy: pre.h, sz: r[3] - r[1], dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
         for (let i = 0; i < 4; i++) plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
+      }
+    } else if (ed.tool === 'climb' && p) {
+      // ON5: the piece's ghost at the dot with what the player can do with it (red where it cannot go)
+      const kind = pieceOf(ed.climbKind);
+      const g = ed.climbGhost(p[0], p[1]);
+      if (!g) {
+        words = `A: start a ${(kind?.name ?? '').toLowerCase()} here`;
+        key = `cs|${p[0]},${p[1]}|${ed.climbKind}`;
+        marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'ghost' });
+        plan.push({ kind: 'ring', p });
+      } else if (!g.e) {
+        bad = true;
+        words = g.why ?? 'Cannot go here';
+        key = `cb|${p[0]},${p[1]}|${ed.climbKind}`;
+        marks.push({ x: p[0], y: f + 0.75, z: p[1], sx: 0.2, sy: 1.5, sz: 0.2, dx: 1, dz: 0, look: 'bad' });
+        plan.push({ kind: 'ring', p });
+      } else {
+        const e = g.e;
+        words = `A: ${pieceWords(ed.model.data, e)}`;
+        key = `cg|${e.a.join()}|${e.b.join()}|${e.y0}|${e.y1}|${ed.climbKind}`;
+        const y = f - ed.floor() + (e.y0 + e.y1) / 2;
+        const h = Math.max(0.05, e.y1 - e.y0);
+        if (e.a[0] === e.b[0] && e.a[1] === e.b[1]) marks.push({ x: e.a[0], y, z: e.a[1], sx: 0.15, sy: h, sz: 0.15, dx: 1, dz: 0, look: 'ghost' });
+        else marks.push(this.bar(e.a, e.b, y, h, Math.max(0.05, e.depth ?? 0.1), 'ghost'));
+        plan.push(e.a[0] === e.b[0] && e.a[1] === e.b[1] ? { kind: 'ring', p: e.a } : { kind: 'line', a: e.a, b: e.b });
       }
     } else if (ed.tool === 'room' || ed.tool === 'wall' || ed.tool === 'hole' || ed.tool === 'roof') {
       if (p) {

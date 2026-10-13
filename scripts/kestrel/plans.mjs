@@ -663,10 +663,13 @@ function baseLayers(level) {
   for (const e of arch.exterior ?? []) {
     if (e.y1 < lo || e.y0 > hi || !touchesLevel(level, [e.a, e.b])) continue;
     const col = e.climbable ? '#1c9c3f' : '#777';
+    // ON5: each piece in a group the editor can click
+    out += `<g data-id="exterior:${esc(e.id)}">`;
     out += e.a[0] === e.b[0] && e.a[1] === e.b[1]
       ? dotEl(e.a, R('dotR'), `fill="${col}" stroke="#222" stroke-width="${R('thinStroke')}"`)
       : lineEl(e.a, e.b, `stroke="${col}" stroke-width="${R('outlineStroke')}" stroke-dasharray="${R('dashLong')}"`);
     out += textAt(e.a, R('dotR') + R('dotR') / 2, -R('dotR'), `${e.id} ${e.kind}`, R('fontSmall'), `fill="${col}"`);
+    out += '</g>';
   }
   for (const sv of arch.services ?? []) {
     const ys = sv.path.map((p) => p[1]);

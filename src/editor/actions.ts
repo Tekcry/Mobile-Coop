@@ -111,6 +111,7 @@ export const ACTIONS: readonly Action[] = [
   { id: 'exploded', name: 'exploded view', group: 'View', keys: ['KeyX'], ctx: NOT_MENU },
   { id: 'names', name: 'room names floating in 3D (fade out by 40 m)', group: 'View', keys: ['KeyL'], ctx: NOT_MENU },
   { id: 'stealth', name: 'stealth view: objects tinted by what they do for the player (full cover green, crouch cover yellow, climb blue, see-through grey)', group: 'View', keys: ['KeyJ'], ctx: NOT_MENU },
+  { id: 'finishView', name: 'finish view: floors tinted by finish, with a legend of how loud footsteps are', group: 'View', keys: ['KeyN'], ctx: NOT_MENU },
   { id: 'figure', name: 'scale figure at the dot: a 1.75 m person and a 1.15 m crouch', group: 'View', keys: ['KeyK'], ctx: NOT_MENU },
   { id: 'bookmarkSave', name: 'save the camera as bookmark 1-9 (pad: Hub > View > Bookmarks)', group: 'View', keys: ['Ctrl+Digit1', 'Ctrl+Digit2', 'Ctrl+Digit3', 'Ctrl+Digit4', 'Ctrl+Digit5', 'Ctrl+Digit6', 'Ctrl+Digit7', 'Ctrl+Digit8', 'Ctrl+Digit9'], ctx: NOT_DRAG },
   { id: 'bookmarkGo', name: 'go to bookmark 1-9', group: 'View', keys: ['Alt+Digit1', 'Alt+Digit2', 'Alt+Digit3', 'Alt+Digit4', 'Alt+Digit5', 'Alt+Digit6', 'Alt+Digit7', 'Alt+Digit8', 'Alt+Digit9'], ctx: NOT_DRAG },

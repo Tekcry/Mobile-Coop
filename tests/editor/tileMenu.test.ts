@@ -11,8 +11,8 @@ const names = (tab: Parameters<typeof menuTiles>[0], inp: MenuInput): string[] =
 
 describe('tile menu model (ON0a)', () => {
   it('tabs: Selected only with a selection and first; empty tabs (Lights, Mission) hidden until later parts add tiles', () => {
-    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'View']);
-    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'View']);
+    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Climb', 'View']);
+    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Climb', 'View']);
   });
 
   it('Objects tab (ON4): the five groups, then the presets of the chosen group', () => {
@@ -28,7 +28,7 @@ describe('tile menu model (ON0a)', () => {
     expect(menuTiles('Build', none).find((t) => t.id === 'build.paste')!.disabled).toBeTruthy();
     expect(menuTiles('Build', room).find((t) => t.id === 'build.paste')!.disabled).toBeUndefined();
     expect(names('Openings', none)).toEqual(['Single door', 'Fire door', 'Double door', 'Glass swing door', 'Sliding glass door (automatic)', 'Sliding glass door (card)', 'Sliding door (manual)', 'Roller shutter', 'Gate', 'Sliding gate', 'Hatch', 'Arch (no leaf)', 'Fixed window', 'Opening window (top hung)', 'Frosted fixed window', 'Louvre window', 'Roof light']);
-    expect(names('Selected', room)).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Split', 'Rename id', 'Change type', 'Properties', 'Delete']);
+    expect(names('Selected', room)).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Floor finish', 'Split', 'Rename id', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', door)).toEqual(['Move', 'Duplicate', 'Rename id', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', { ...none, sel: { coll: 'ladders', type: '' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Rename id', 'Properties', 'Delete']);
     expect(names('Selected', { ...none, sel: { coll: 'stairs', type: 'main' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Fit', 'Turn climb 90', 'Rename id', 'Change type', 'Properties', 'Delete']);
@@ -120,5 +120,13 @@ describe('stick and D-pad steps (decision 8b)', () => {
     expect(navAxes(1, 0, -1, 1)).toEqual({ x: 1, y: 0 });
     expect(navAxes(0, 0, 0.6, 0.8)).toEqual({ x: 0, y: 0.8 });
     expect(navAxes(0, 0, -0.9, 0.2)).toEqual({ x: -0.9, y: 0 });
+  });
+});
+
+describe('Climb tab (ON5)', () => {
+  it('one tile per climb piece, in catalogue order; a climb piece has Change type', () => {
+    const none2: MenuInput = { sel: null, clipboard: false, view: { layout: '3d', ghost: false, exploded: false, gap: 3, cut: 0, preset: 'whole', building: 'all', minimap: false, labels: true, underlay: false } };
+    expect(menuTiles('Climb', none2).map((t) => t.id)).toEqual(['climb.downpipe', 'climb.pipe', 'climb.ledge', 'climb.sill', 'climb.parapet', 'climb.vent', 'climb.duct', 'climb.fire-escape', 'climb.lamp-post', 'climb.fence']);
+    expect(menuTiles('Selected', { ...none2, sel: { coll: 'exterior', type: 'downpipe' } }).map((t) => t.name)).toContain('Change type');
   });
 });

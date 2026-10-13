@@ -87,7 +87,7 @@ try {
   console.log('tile menu (Y tap): tabs, D-pad and A pick Wall, Y closes (ON0a)');
   await press(BTN.Y);
   let ms = await menuState();
-  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
+  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Climb,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
   assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
   await press(BTN.RB);
   const tabR = (await menuState()).tab;
@@ -401,7 +401,7 @@ try {
   const selTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
   await shot('menu-selected');
   await press(BTN.B);
-  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Split,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
+  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Floor finish,Split,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
   const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return { id: o.id, w: o.w }; });
   await frames(page, 3);
   assert(/D-pad Edit\s+A Grab\s+Y Menu\s+B Clear\s+RB Go to/.test((await st()).hint), `selection hint bar ("${(await st()).hint.slice(0, 70)}")`);
@@ -1119,8 +1119,10 @@ try {
         return r ? `${r.dataset.row}|${r.querySelector('b').textContent}` : '';
       };
       const v0 = probe();
+      const t0 = performance.now();
       window.__pad.set(b, 1);
-      for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+      // (a card step lets go before the 0.35 s repeat, so a slow frame cannot step twice; a press no frame saw is tried again)
+      for (let k = 0; k < 150 && probe() === v0 && (what !== 'card' || performance.now() - t0 < 250); k++) await raf();
       window.__pad.set(b, 0); await raf(); await raf(); await raf();
     }, [btn, what]);
     const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
@@ -1762,6 +1764,127 @@ try {
     await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
     await backCheck('F10 after the objects', beforeW);
     await E(() => { const ed = window.__editor; ed.setStealth(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
+  // ---------- ON5: climb pieces, floor finishes ----------
+  console.log('ON5: a downpipe on Building A\'s west wall to the roof parapet (its words, the walk test\'s pipe and lip); a corridor in steel grating (card words); the finish view');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a D-pad button only until the menu highlight or the lit card row's value moves (a slow frame cannot repeat it)
+    const hold = (btn, what) => E(async ([b, what]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const probe = () => {
+        if (what === 'menu') { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }
+        const r = document.querySelector('#selCard .crow.on');
+        return r ? `${r.dataset.row}|${r.querySelector('b')?.textContent ?? ''}` : '';
+      };
+      const v0 = probe();
+      const t0 = performance.now();
+      window.__pad.set(b, 1);
+      // (a card step lets go before the 0.35 s repeat, so a slow frame cannot step twice)
+      for (let k = 0; k < 150 && probe() === v0 && (what !== 'card' || performance.now() - t0 < 250); k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, what]);
+    const toTab = async (tab) => { for (let i = 0; i < 9 && (await menuState()).tab !== tab; i++) await hold(BTN.RB, 'menu'); return (await menuState()).tab === tab; };
+    const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await hold(btn, 'menu'); return (await menuState()).tile === name; };
+    const exts = () => E(() => window.__editor.model.data.exterior ?? []);
+
+    // Building A's west wall on the ground floor, and the parapet top over it (the tallest wall top on that line)
+    const west = await E(() => {
+      const d = window.__editor.model.data;
+      const fp = d.meta.buildings.find((b) => b.id === 'A').footprint;
+      const fl = (id) => d.levels.find((l) => l.id === id).floor;
+      const w = d.walls.find((q) => q.level === 'G' && q.a[0] === fp[0] && q.b[0] === fp[0]);
+      // a spot along it clear of its openings
+      const ops = d.openings.filter((o) => o.wall === w?.id);
+      const z0 = Math.min(w.a[1], w.b[1]);
+      let z = z0 + 2;
+      for (; z < Math.max(w.a[1], w.b[1]) - 2; z += 0.5) if (!ops.some((o) => Math.abs(z0 + o.at - z) < o.w / 2 + 1)) break;
+      // the tallest wall top on that line at the spot (the roof parapet)
+      const top = Math.max(...d.walls.filter((q) => q.a[0] === fp[0] && q.b[0] === fp[0] && Math.min(q.a[1], q.b[1]) <= z && Math.max(q.a[1], q.b[1]) >= z).map((q) => fl(q.level) + q.h));
+      return w ? { id: w.id, x: fp[0], t: w.t, z, top: +top.toFixed(3) } : null;
+    });
+    await E(() => { window.__editor.select(null); window.__editor.setTool('select'); });
+    await press(BTN.Y);
+    const cTab = await toTab('Climb');
+    const cTile = await toTileHeld('Downpipe');
+    await shot('on5-climb-menu');
+    await press(BTN.A);
+    const picked = await E(() => ({ tool: window.__editor.tool, kind: window.__editor.climbKind }));
+    assert(!!west && cTab && cTile && picked.tool === 'climb' && picked.kind === 'downpipe', `ON5: Y > Climb > Downpipe picks the Climb tool (${JSON.stringify(picked)}; west wall ${JSON.stringify(west)})`);
+    const n0 = (await exts()).length;
+    await dotAt(west.x - west.t / 2 - 0.5, west.z);
+    await page.waitForFunction(() => /Downpipe [0-9.]+ m: climbable, top lip/.test(document.getElementById('reticleText').textContent), null, { timeout: 5000 }).catch(() => {});
+    const ghostWords = await dotText();
+    await press(BTN.A);
+    await page.waitForFunction((n) => (window.__editor.model.data.exterior ?? []).length > n, n0, { timeout: 5000 }).catch(() => {});
+    const pipe = (await exts()).at(-1);
+    assert(!!pipe && pipe.kind === 'downpipe' && pipe.facing === 'E' && pipe.y0 === 0 && Math.abs(pipe.y1 - west.top) < 1e-6 && pipe.climbable === true && Math.abs(pipe.a[0] - (west.x - west.t / 2 - 0.06)) < 1e-6, `ON5: A puts a downpipe on the west wall face from the ground to the parapet top ${west.top} m, climbable (${JSON.stringify(pipe)}); the dot said "${ghostWords}"`);
+    await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`exterior:${id}`); }, pipe.id);
+    await page.waitForFunction(() => /top lip/.test(document.querySelector('#selCard [data-climb]')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const pipeCard = await E(() => document.querySelector('#selCard [data-climb]')?.textContent ?? '');
+    assert(new RegExp(`^Downpipe ${String(west.top).replace('.', '\\.')} m: climbable, top lip ${String(west.top).replace('.', '\\.')} m within reach`).test(pipeCard), `ON5: the card gives what the player can do ("${pipeCard}")`);
+    await E(([x, z]) => { const ed = window.__editor; const o = ed.controls.orbit.s; o.tx = x - 3; o.tz = z; o.yaw = -1.2; o.dist = 22; o.pitch = 0.35; }, [west.x, west.z]);
+    await frames(page, 10);
+    await shot('on5-downpipe');
+
+    // a corridor in steel grating: Selected > Floor finish lights the card's row; D-pad right steps to Steel grating
+    const cor = await E(() => window.__editor.model.data.rooms.find((r) => r.level === 'G' && r.kind === 'corridor')?.id ?? null);
+    await E((id) => { const ed = window.__editor; ed.select(`rooms:${id}`); }, cor);
+    await frames(page, 3);
+    await press(BTN.Y);
+    const sTab = await toTab('Selected');
+    const fTile = await toTileHeld('Floor finish');
+    await press(BTN.A);
+    await page.waitForFunction(() => document.querySelector('#selCard .crow.on')?.dataset.row === 'finish', null, { timeout: 5000 }).catch(() => {});
+    for (let i = 0; i < 14; i++) {
+      const f = await E((id) => window.__editor.model.get('rooms', id).finish, cor);
+      if (f === 'grating') break;
+      await hold(BTN.RIGHT, 'card');
+    }
+    await press(BTN.B);
+    await page.waitForFunction(() => /Steel grating: loud, heard at/.test(document.querySelector('#selCard [data-finish]')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const fin = await E((id) => ({ f: window.__editor.model.get('rooms', id).finish, words: document.querySelector('#selCard [data-finish]')?.textContent ?? '' }), cor);
+    assert(sTab && fTile && fin.f === 'grating' && /^Steel grating: loud, heard at [0-9.]+ m jogging, [0-9.]+ m sprinting/.test(fin.words), `ON5: ${cor} painted steel grating on the card (${fin.f}); the card says "${fin.words}"`);
+
+    // the finish view: Y > View > Finish view; floors tinted in 3D and on the plan, the legend shown
+    await E(() => window.__editor.select(null));
+    await press(BTN.Y);
+    const vTab = await toTab('View');
+    const vTile = await toTileHeld('Finish view', BTN.DOWN);
+    await press(BTN.A);
+    await press(BTN.B);
+    await page.waitForFunction((id) => !!document.querySelector(`#planSvg svg [data-id="rooms:${id}"][style]`), cor, { timeout: 15000 }).catch(() => {});
+    const fv = await E((id) => ({ on: window.__editor.finishView, tinted: window.__editor.view.finishTinted, plan: !!document.querySelector(`#planSvg svg [data-id="rooms:${id}"][style]`), legend: !document.getElementById('finishLegend').hidden && /Steel grating/.test(document.getElementById('finishLegend').textContent) }), cor);
+    assert(vTab && vTile && fv.on && fv.tinted >= 1 && fv.plan && fv.legend, `ON5: View > Finish view: ${fv.tinted} floor tinted in 3D, on the plan ${fv.plan}, legend ${fv.legend}`);
+    const corRect = await E((id) => window.__editor.model.get('rooms', id).rect, cor);
+    await E((r) => { const ed = window.__editor; const o = ed.controls.orbit.s; o.tx = (r[0] + r[2]) / 2; o.tz = (r[1] + r[3]) / 2; o.yaw = 0.4; o.dist = 30; o.pitch = 1.0; }, corRect);
+    await frames(page, 10);
+    await shot('on5-finish-view');
+    await E(() => window.__editor.setFinishView(false));
+
+    // the walk test: the game's own drainpipe anchor at the spot, the lip at its top it climbs off onto, the grating floor
+    await dot(west.x - 1.5, west.z, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 90000);
+    const walk = await gf().evaluate(([p, r]) => {
+      const g = window.__app.current;
+      const lv = g.world.level;
+      const all = lv.anchors.all;
+      const pv = all.find((a) => a.kind === 'pipeV' && Math.abs(a.base.x - p.a[0]) < 0.01 && Math.abs(a.base.z - p.a[1]) < 0.01);
+      const seg = (a, b, x, z) => { const dx = b.x - a.x; const dz = b.z - a.z; const L2 = dx * dx + dz * dz; const t = L2 ? Math.max(0, Math.min(1, ((x - a.x) * dx + (z - a.z) * dz) / L2)) : 0; return Math.hypot(x - a.x - dx * t, z - a.z - dz * t); };
+      const lip = pv ? all.find((a) => a.kind === 'ledge' && a.canHang && Math.abs(a.top - pv.top.y) <= 0.8 && seg(a.a, a.b, pv.top.x, pv.top.z) <= 1.0) : null;
+      const cx = (r[0] + r[2]) / 2;
+      const cz = (r[1] + r[3]) / 2;
+      const grate = lv.surfaces.some((s) => s.kind === 'grate' && cx >= s.minX && cx <= s.maxX && cz >= s.minZ && cz <= s.maxZ);
+      return { pipe: pv ? { y0: pv.base.y, y1: pv.top.y, side: pv.side } : null, lip: lip ? lip.top : null, grate };
+    }, [pipe, corRect]);
+    assert(!!walk.pipe && Math.abs(walk.pipe.y1 - west.top) < 1e-6 && walk.pipe.y0 === 0 && Math.abs(walk.pipe.side - Math.PI / 2) < 1e-6 && walk.lip !== null, `ON5: the walk test builds the downpipe as the game's drainpipe anchor (${JSON.stringify(walk.pipe)}) with a lip at its top to climb off onto (${walk.lip})`);
+    assert(walk.grate, 'ON5: the walk test marks the corridor floor as grating (footstep loudness)');
+    const beforeW = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the climb pieces', beforeW);
+    await E(() => { const ed = window.__editor; ed.setFinishView(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
   }
 
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');

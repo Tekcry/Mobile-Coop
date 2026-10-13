@@ -39,7 +39,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
   "ladders": [ { "id": "L01", "room": "B02", "at": [0, 0], "from": "B", "to": "G", "facing": "N|S|E|W", "reason": "" } ],
   "voids": [ { "id": "V01", "level": "F", "rect": [0, 0, 0, 0], "kind": "stairwell|liftshaft|riser|hatch|rooflight", "reason": "" } ],
   "objects": [ { "id": "O001", "level": "G", "name": "", "preset": "crate-1.2", "rect": [0, 0, 0, 0], "h": 1.2, "y": 0, "yaw": 90, "noLedge": false, "seeThrough": true, "reason": "" } ],
-  "exterior": [ { "id": "E001", "kind": "downpipe|stringcourse|sill|fire-escape|lamp-post|gate|fence|parapet|pipe", "a": [0, 0], "b": [0, 0], "y0": 0, "y1": 0, "climbable": false, "reason": "" } ],
+  "exterior": [ { "id": "E001", "kind": "downpipe|stringcourse|ledge|sill|fire-escape|lamp-post|gate|fence|parapet|pipe|vent|duct", "a": [0, 0], "b": [0, 0], "y0": 0, "y1": 0, "climbable": false, "reason": "" } ],
   "services": [ { "id": "SV01", "kind": "cable|power|air|water|drain|heat", "path": [[0, 0, 0]], "size": [0, 0], "reason": "" } ],
   "roofs": [ { "id": "RF01", "name": "", "building": "A", "level": "G", "rect": [0, 0, 0, 0], "base": 3.0, "type": "flat|mono|gable|hip|sawtooth|curved", "pitch": 25, "ridge": "x|z", "overhang": 0.5, "fascia": 0.2, "material": "metal|concrete|membrane|tile", "colour": "terracotta", "gutter": true, "downpipes": true } ]
 }
@@ -61,7 +61,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | rooms[].name | Name used on the plan label. Plain words in Title Case, no abbreviations (2g-2) |
 | rooms[].kind | What the space is; `ladder` is allowed only in `plant` or `shaft` rooms |
 | rooms[].rect | Wall-centreline rectangle |
-| rooms[].ceiling, finish | Ceiling height and floor finish (gravel, linoleum, carpet; level-design 16.8.3) |
+| rooms[].ceiling, finish | Ceiling height and floor finish (level-design 16.8.3). ON5: the editor writes a finish id from `src/world/maps/kestrelExterior.ts` (carpet, vinyl, ceramic, concrete, grating, raised, gravel, grass, asphalt; `linoleum` reads as vinyl), or "" for none; the walk test marks the floor with its game surface (footstep loudness) |
 | rooms[].minShort | Minimum clear short side this room must keep |
 | rooms[].open | Edges (`"W"`, `"S"`, `"E"`, `"N"`) left with no wall |
 | rooms[].ring | Access level of the room, 0-5 (see conventions) |
@@ -116,8 +116,16 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | exterior[].id, kind | Unique id and the kind of exterior element |
 | exterior[].a, b | End points `[x, z]`; equal for a point element |
 | exterior[].y0, y1 | Absolute bottom and top height |
-| exterior[].climbable | The same value for every element of one kind (A23) |
-| exterior[].reason | Why it is there |
+| exterior[].climbable | The same value for every element of one kind (A23), except one set by hand (`override`). ON5: the editor sets it from the reach rules (`src/editor/climb.ts`, facts `reach`, `lip`, `duct`, `climb`) |
+| exterior[].reason | Why it is there; with `override`, why the flag was set by hand |
+| exterior[].kind (ON5) | `ledge` (a ledge or string course, as `stringcourse`), `vent` (a wall grille a duct starts at) and `duct` (a crawl route) added. `parapet` is a parapet coping, `pipe` a horizontal pipe, `fence` a chain-link fence |
+| exterior[].level | Optional (ON5). The level it was placed from: the floor its reach is measured from (a parapet coping: the ground) and where the editor draws it |
+| exterior[].wall | Optional (ON5). The wall it backs onto (renamed with the wall) |
+| exterior[].facing | Optional (ON5). N, E, S or W: the way a climber faces (towards the wall) for a downpipe; the grille's wall side for a vent |
+| exterior[].depth | Optional (ON5). How far a ledge, sill or coping stands out across its line (a ledge 0.15-0.3) |
+| exterior[].size | Optional (ON5). A vent's width and height; a duct's clear section, width and height; a fire escape's width and riser count; a lamp post's column size |
+| exterior[].override | Optional (ON5). True when `climbable` was set by hand against the reach rules (`reason` says why); A23 leaves it out |
+| exterior[].name | Optional (ON5). A name for the piece |
 | services[].id, kind | Unique id and the service carried |
 | services[].path | Route as `[x, y, z]` points (absolute y) |
 | services[].size | Cross-section `[w, h]` |

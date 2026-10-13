@@ -599,7 +599,8 @@ check('A22', 'Wall thickness: exterior and interior values', 'FAIL', ['rules.wal
 // ===== A23 climbable by kind =====
 check('A23', 'Elements of one exterior kind share the same climbable value', 'FAIL', [], (c) => {
   const byKind = new Map();
-  for (const e of c.exterior) byKind.set(e.kind, [...(byKind.get(e.kind) ?? []), e]);
+  // ON5: a piece whose flag was set by hand in the editor (`override`, with its `reason`) is left out
+  for (const e of c.exterior) if (!e.override) byKind.set(e.kind, [...(byKind.get(e.kind) ?? []), e]);
   for (const [kind, list] of byKind) {
     if (new Set(list.map((e) => e.climbable)).size > 1) c.add(`${kind}: climbable true on ${list.filter((e) => e.climbable).map((e) => e.id).join(', ')}, false on ${list.filter((e) => !e.climbable).map((e) => e.id).join(', ')}`);
   }
