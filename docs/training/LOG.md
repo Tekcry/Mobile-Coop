@@ -181,3 +181,5 @@ T4 checked: PASS after 1 fix round (1094b71: nav seeds per bay, mains lamp not d
 - B9: B-1 / B-2 / cabin depths and the stair towers as built (A39); the bridge reaches the north wall.
 - Course: B6 exits into A6; the course ends in L9 (A41).
 
+T5 checked: PASS after 1 fix round (d6cbef8). In-game nav: every B7-B9 storey reaches its floor within findPath's
+20000 limit (bridge 17954); guards' 3000 limit carried to T7b.

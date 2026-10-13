@@ -49,3 +49,8 @@ bay, `E2E_GPU=1`), results recorded.
 ## Commit
 "training T7b: guards for B5-B9". Docs: LOG, STATE, CHANGELOG, TESTING.md (a "Fallow" manual section: one line per bay),
 PC-PASS results. Opus self-review at the block end against level-design section 4 and 15, logged.
+
+## Carry-over from T5's check
+Guard path queries use a 3000-expansion limit (src/ai/enemy.ts ~:953, 1362, 1403); B7-B9 storey changes need up to
+17954 (bridge). Give B8 / B9 / B7 routes storey-local legs that meet at stair doors, or raise the limit only for
+storey-changing queries and prove other maps' AI timing is unchanged (e2e-enemies, e2e-stealth-ai, perf trend).
