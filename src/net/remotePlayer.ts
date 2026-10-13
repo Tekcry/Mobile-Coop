@@ -176,6 +176,8 @@ export class RemotePlayer implements Damageable {
     return true;
   }
 
+  /** The host's own bullets may hit it (course mode friendly fire, D38); `friendly` still decides the damage. */
+  shootable = false;
   /** Hits that do not hurt (team-mates); PvP replaces it with the match's rules. */
   friendly: (h: HitInfo) => boolean = (h) => h.attackerTeam === 'player';
   /** The last hit taken (PvP credit). */

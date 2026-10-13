@@ -47,3 +47,14 @@ Design authority: docs/design-bible.md (Section 5.9)
   from `PvpScore.hostile`; host shots hit opponents through `Hitboxes` on their avatars; client shots hit
   `PvpTarget`s (hit volumes on opponent avatars) and are sent with the player id, rewound on the host
   (`RemotePlayer.history`, host `selfHist`). Results: eliminations / deaths (`SessionStats.deaths`).
+- Course mode (T1b, `NetMode` 'course', `COURSE_MAX` 2: host P1, client P2; the lobby lists "Training course" only for listed
+  maps with the mode): the host runs `CourseMode` (`game/modes/courseMode.ts`) and sends `course` (host -> all; `CourseWire`
+  in `game/course/courseWire.ts`) when it changes or every `COURSE_SEND`: the packed `CourseState`, locked door indices
+  (`Doors.setLocked`), locked anchor ids (`AttachController.disabled`), light state (`lights.groups` [group, on] and
+  `lights.dead` destroyed lamp ids: clients `setGroup` / `kill` / `restore` their own registry) and `ref` / `rn` (P2's last
+  refusal and its counter: the client shows its own refusal). Clients press and hold course devices through `use`.
+  `ctick` (client -> host, `{ verb }`, `TickLimiter` 4 a second) reports the drill verbs only the client sees (gear,
+  stance, vision, ping, aim, reload, swap; `VerbEdges`); the host ticks traversal modes (`pstate.mv`), team moves,
+  takedowns, gadgets and gates itself. Friendly fire (D38): `playersHostile` (pure, `net/pvp.ts`) makes partners hostile
+  in course mode, so the PvP paths carry team damage (`friendly` flags, host `Hitboxes` + `RemotePlayer.shootable`,
+  client `PvpTarget`, `blast`), with co-op rules otherwise: a partner at zero is downed and revivable, never a frag.

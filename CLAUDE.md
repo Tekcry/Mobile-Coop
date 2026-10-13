@@ -75,7 +75,7 @@ On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading 
 | `core/` | Babylon import surface, engine, `GameLoop` (fixed 60 Hz sim), flags, settings, quality / governor / display / platform (pure parts) |
 | `input/` | Action map; touch, gamepad, keyboard / mouse sources write one `InputState` |
 | `ui/` | DOM overlay: screens, `FocusNav`, widgets, HUD, debug overlay |
-| `game/` | `GameState`, modes (wave, clear / Hunter, mission / Infiltration, sandbox, training), takedowns, gadgets, tactics |
+| `game/` | `GameState`, modes (wave, clear / Hunter, mission / Infiltration, sandbox, training, course), the training course framework (`course/`), takedowns, gadgets, tactics |
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller, movement, traversal and attach states, move state, camera |
 | `anim/` | Pure animation: motion driver, clips, graph, foot planner, IK |

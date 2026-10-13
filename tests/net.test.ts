@@ -2,7 +2,8 @@ import { emptyKinds } from '../src/ai/enemyDefs';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
 import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES, MAX_DOORS, capacity, PROTOCOL_VERSION } from '../src/net/protocol';
-import { TickLimiter } from '../src/game/course/courseWire';
+import { TickLimiter, VerbEdges, type ClientVerb } from '../src/game/course/courseWire';
+import { playersHostile, PvpScore } from '../src/net/pvp';
 import { mulberry } from '../src/core/rng';
 
 const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80, sh: 20 };
@@ -398,7 +399,39 @@ describe('course messages (T1b)', () => {
     expect(m.s.flagBay).toEqual([['key', 1]]);
     expect(m.s.ticks[0]).toEqual([1, 99]);
     expect(m.s.stats[0]).toMatchObject({ time: 2, kills: 0 });
+    expect(m.ref).toBe('');
+    expect(m.rn).toBe(0);
     expect(parseMessage({ t: 'course', s: 1, lights: {} })).toBeNull();
+  });
+  it('carries the client refusal (text cleaned and capped, counter clamped)', () => {
+    const m = parseMessage({ t: 'course', s: {}, lights: {}, locks: [], anchors: [], ref: '<b>Bring your partner</b>' + 'x'.repeat(300), rn: -5 });
+    if (m?.t !== 'course') throw new Error('not course');
+    expect(m.ref.startsWith('bBring your partner/b')).toBe(true);
+    expect(m.ref.length).toBeLessThanOrEqual(160);
+    expect(m.rn).toBe(0);
+  });
+  it('stance, aim, reload and swap tick on their rising edges only (C10)', () => {
+    const e = new VerbEdges();
+    const out: ClientVerb[] = [];
+    e.step(false, false, false, 'pistol', out);
+    expect(out).toEqual([]);
+    e.step(true, true, true, 'rifle', out);
+    expect(out).toEqual(['stance', 'aim', 'reload', 'swap']);
+    e.step(true, true, true, 'rifle', out);
+    expect(out).toEqual([]);
+    e.step(false, false, false, 'rifle', out);
+    expect(out).toEqual(['stance']);
+  });
+  it('friendly fire (D38): course partners hurt each other, never themselves; co-op never; PvP by sides', () => {
+    expect(playersHostile(null, true, 'a', 'b')).toBe(true);
+    expect(playersHostile(null, true, 'a', 'a')).toBe(false);
+    expect(playersHostile(null, false, 'a', 'b')).toBe(false);
+    const sc = new PvpScore('tdm');
+    sc.add('a', 0);
+    sc.add('b', 0);
+    sc.add('c', 1);
+    expect(playersHostile(sc, true, 'a', 'b')).toBe(false);
+    expect(playersHostile(sc, false, 'a', 'c')).toBe(true);
   });
   it('parses ctick for client-only verbs only', () => {
     expect(parseMessage({ t: 'ctick', verb: 'gear' })).toEqual({ t: 'ctick', verb: 'gear' });

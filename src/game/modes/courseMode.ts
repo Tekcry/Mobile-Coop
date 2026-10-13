@@ -8,7 +8,7 @@ import type { Interactable } from '../interactables';
 import type { DoorState } from '../../world/doors';
 import { CourseState, type CourseEvent } from '../course/courseState';
 import { layoutKnownIds, validateCourse, type CourseLayout, type GateDef, type PlayerIdx } from '../course/courseDef';
-import type { CourseWire } from '../course/courseWire';
+import { VerbEdges, type ClientVerb, type CourseWire } from '../course/courseWire';
 import { COURSE_SEND, RESTART_DELAY } from '../../config/course';
 import { emptyMoveState } from '../../player/moveState';
 import { localMoveState } from '../localMoveState';
@@ -64,6 +64,12 @@ export class CourseMode implements GameMode {
   private remoteMode = '';
   private offs: (() => void)[] = [];
   private refusal = '';
+  /** P2's last refusal and its counter (the `course` message's `ref` / `rn`: the client shows its own refusals). */
+  private ref2 = '';
+  private refN = 0;
+  /** The host's own stance / aim / reload / swap edges (the client sends its own as `ctick`, C10). */
+  private edges = new VerbEdges();
+  private edgeOut: ClientVerb[] = [];
 
   constructor(private g: GameState) {}
 
@@ -175,6 +181,10 @@ export class CourseMode implements GameMode {
     this.dirty = true;
     if (why && p === 0) this.g.hud.banner('', why, 1800);
     if (why) this.refusal = why;
+    if (why && p === 1) {
+      this.ref2 = why;
+      this.refN++;
+    }
     this.handle();
   }
 
@@ -232,6 +242,9 @@ export class CourseMode implements GameMode {
     }
     if (this.lastGear !== 0 && this.mv.g !== this.lastGear) this.verb(0, 'gear');
     this.lastGear = this.mv.g;
+    const eo = this.edgeOut;
+    this.edges.step(g.player.controller.crouched, g.player.ads, g.weapons.reloading, g.weapons.current.def.id, eo);
+    for (let i = 0; i < eo.length; i++) this.verb(0, eo[i]!);
     // holds: released when the holder walks off or goes down
     for (let i = 0; i < this.holds.length; i++) {
       const h = this.holds[i]!;
@@ -407,7 +420,7 @@ export class CourseMode implements GameMode {
     for (const gid of Object.values(this.layout!.groups ?? {})) groups.push([gid, this.groupOn(gid)]);
     const dead: number[] = [];
     for (const l of g.world.level.lights.lights) if (l.destroyed) dead.push(l.id);
-    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead } };
+    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN };
   }
 
   /** Test view (`window.__course.debug()`). */
@@ -456,8 +469,15 @@ export class CourseMode implements GameMode {
   }
 }
 
-/** Client: apply a `course` message to the local world (door locks, anchor locks, lights). */
+/** The refusal counter the client last showed (a new match starts the host's counter at 0 again). */
+let shownRn = 0;
+
+/** Client: apply a `course` message to the local world (door locks, anchor locks, lights) and show a new refusal. */
 export function applyCourseWire(g: GameState, w: CourseWire): void {
+  if (w.rn !== shownRn) {
+    if (w.rn > shownRn && w.ref) g.hud.banner('', w.ref, 1800);
+    shownRn = w.rn;
+  }
   const doors = g.world.doors;
   for (const d of doors.list) {
     const on = w.locks.includes(d.index);
@@ -470,5 +490,5 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
   for (const l of reg.lights) if (l.destroyed && !w.lights.dead.includes(l.id)) reg.restore(l.id);
   for (const id of w.lights.dead) reg.kill(id);
   for (const [gid, on] of w.lights.groups) reg.setGroup(gid, on);
-  (window as unknown as { __course?: unknown }).__course = { wire: w, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks }) };
+  (window as unknown as { __course?: unknown }).__course = { wire: w, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
 }

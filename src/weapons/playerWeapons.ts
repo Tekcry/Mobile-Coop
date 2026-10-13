@@ -569,7 +569,7 @@ export class PlayerWeapons {
     this.ballistics.impactFx(h, dir);
     const head = h.part === 'head';
     const dmg = damageAt(s.def, s.stats, travelled, head) * factor;
-    if (h.target && h.target.team !== 'player') {
+    if (h.target && (h.target.team !== 'player' || h.target.shootable === true)) {
       const res = h.target.applyDamage({
         amount: dmg,
         point: h.point,

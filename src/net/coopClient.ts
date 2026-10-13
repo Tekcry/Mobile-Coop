@@ -19,7 +19,7 @@ import type { TeamKind } from '../game/teamMoves';
 import { pvpInfo, type PvpMode } from './pvp';
 import { clampEnd, coopSessionStats } from './validate';
 import { applyCourseWire } from '../game/modes/courseMode';
-import type { ClientVerb } from '../game/course/courseWire';
+import { VerbEdges, type ClientVerb } from '../game/course/courseWire';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
@@ -150,7 +150,8 @@ export class CoopClient implements NetAttachment {
       a.onFire = (cls, at) => g.events.emit('remoteShot', { cls, x: at.x, y: at.y, z: at.z });
       if (this.pvp === 'tdm' && !this.hostile(st.id)) a.markTeam(info.team);
       this.avatars.set(st.id, a);
-      if (this.hostile(st.id)) {
+      // PvP opponents; course mode (D38): the partner too (the host decides the damage, co-op rules)
+      if (this.hostile(st.id) || g.opts.mode === 'course') {
         const t = new PvpTarget(g.scene, g.registry, st.id, a);
         t.onShot = (h) => this.sendShot(st.id, h);
         this.targets.set(st.id, t);
@@ -460,7 +461,13 @@ export class CoopClient implements NetAttachment {
     this.sendT -= dt;
     // the movement state: a new mode or sub-state (cover, a ladder, a vault) goes out at once, not on the next tick
     const mv = localMoveState(this.g, this.mvNow);
-    if (this.mvSent.g !== 0 && mv.g !== this.mvSent.g) this.ctick('gear');
+    if (this.inCourse) {
+      if (this.mvSent.g !== 0 && mv.g !== this.mvSent.g) this.ctick('gear');
+      const eo = this.edgeOut;
+      const gp = this.g.player;
+      this.edges.step(gp.controller.crouched, gp.ads, this.g.weapons.reloading, this.g.weapons.current.def.id, eo);
+      for (let i = 0; i < eo.length; i++) this.ctick(eo[i]!);
+    }
     const changed = moveChanged(this.mvSent, mv);
     if (this.sendT > 0 && !changed) return;
     this.sendT = 1 / SEND_HZ;
@@ -516,11 +523,18 @@ export class CoopClient implements NetAttachment {
     return true;
   }
 
-  /** Own ping: shown at once, the host relays it. */
   /** Course mode: a verb only this client sees (C10); the host rate-limits and ticks it. */
   private ctick(verb: ClientVerb): void {
-    if (this.g.opts.mode === 'course') this.s.toHost({ t: 'ctick', verb });
+    if (this.inCourse) this.s.toHost({ t: 'ctick', verb });
   }
+  private get inCourse(): boolean {
+    return this.g.opts.mode === 'course';
+  }
+  /** Course mode: stance / aim / reload / swap edges (C10). */
+  private edges = new VerbEdges();
+  private edgeOut: ClientVerb[] = [];
+
+  /** Own ping: shown at once, the host relays it. */
 
   ping(x: number, y: number, z: number, target: string): void {
     this.ctick('ping');

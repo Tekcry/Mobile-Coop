@@ -18,7 +18,7 @@ import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
 import { checkBlast, checkShot, maxHitDamage } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
-import { pickSpawn, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
+import { pickSpawn, playersHostile, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
 import { hyp2 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
 import { emptyMoveState, moveChanged } from '../player/moveState';
@@ -115,6 +115,8 @@ export class CoopHost implements NetAttachment {
   /** PvP: the score; per player hit volumes the host's own shots resolve against; respawn timers. */
   readonly score: PvpScore | null;
   private pvpBoxes = new Map<string, Hitboxes>();
+  /** Course mode (D38): team damage on through the PvP hit paths, co-op rules otherwise (downed, revivable, no frags). */
+  private readonly ff: boolean;
   /** Course mode: `ctick` rate limit per client. */
   private ctickLim = new Map<string, TickLimiter>();
   private respawnIn = new Map<string, number>();
@@ -128,6 +130,8 @@ export class CoopHost implements NetAttachment {
   ) {
     const mode = g.opts.mode;
     this.score = isPvp(mode) ? new PvpScore(mode as PvpMode) : null;
+    this.ff = mode === 'course';
+    if (this.ff) g.target.friendly = (h) => this.friendly(h, s.selfId);
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? { radar: 0, sonar: 0, marks: 0, restock: 0, revive: 0 }).reviveSpeed;
     g.remotePlayers = () => {
       const out = [];
@@ -165,10 +169,15 @@ export class CoopHost implements NetAttachment {
     return id === 'local' || id === '' ? this.s.selfId : id;
   }
 
-  /** PvP: hits that do not hurt `victim` (its own, a team-mate's). */
+  /** Can `a` hurt `b`? PvP: the match's sides; course mode (D38): anyone but themselves; co-op: never. */
+  private hostile(a: string, b: string): boolean {
+    return playersHostile(this.score, this.ff, a, b);
+  }
+
+  /** PvP and course mode: hits that do not hurt `victim` (its own; a team-mate's in team PvP). */
   private friendly(h: HitInfo, victim: string): boolean {
     if (h.attackerTeam !== 'player') return false;
-    return !this.score!.hostile(this.who(h.attackerId), victim);
+    return !this.hostile(this.who(h.attackerId), victim);
   }
 
   private hookHud(): void {
@@ -281,11 +290,12 @@ export class CoopHost implements NetAttachment {
     const r = new RemotePlayer(g.scene, g.registry, p.id, avatar, sc ? this.spawnFor(p.id) : this.spawnPoint(this.remotes.size + 1));
     r.onDamaged = (h) => this.push({ e: 'hurt', player: p.id, x: h.sourcePos.x, z: h.sourcePos.z, boom: h.kind === 'explosion' });
     r.onDeath = () => this.onRemoteDeath(r);
-    if (sc) {
+    if (sc || this.ff) {
       r.friendly = (h) => this.friendly(h, p.id);
-      r.allowTeleport(3);
-      // the host's own shots hit opponents through their own hit volumes (head / body)
-      if (sc.hostile(this.s.selfId, p.id)) this.pvpBoxes.set(p.id, new Hitboxes(g.scene, g.registry, r, 1, 'average'));
+      if (sc) r.allowTeleport(3);
+      // the host's own shots hit opponents (course mode: the partner) through their own hit volumes (head / body)
+      if (this.hostile(this.s.selfId, p.id)) this.pvpBoxes.set(p.id, new Hitboxes(g.scene, g.registry, r, 1, 'average'));
+      r.shootable = this.ff;
     }
     this.remotes.set(p.id, r);
     if (!this.tallies.has(p.id)) this.tallies.set(p.id, emptyTally());
@@ -441,7 +451,7 @@ export class CoopHost implements NetAttachment {
         if (msg.s.mv) this.g.mode?.onRemoteMove?.(r.id, msg.s.mv.m);
         break;
       case 'shot':
-        if (this.score && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);
+        if ((this.score || this.ff) && (msg.target === this.s.selfId || this.remotes.has(msg.target))) this.onPlayerShot(r, msg);
         else this.onShot(r, msg);
         break;
       case 'blast':
@@ -753,10 +763,9 @@ export class CoopHost implements NetAttachment {
     enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
   }
 
-  /** PvP: a client's hit on another player (the host or a client), rewound to what the shooter saw. */
+  /** PvP and course mode: a client's hit on another player (the host or a client), rewound to what the shooter saw. */
   private onPlayerShot(r: RemotePlayer, m: Extract<Msg, { t: 'shot' }>): void {
-    const sc = this.score!;
-    if (!r.alive || !sc.hostile(r.id, m.target)) return;
+    if (!r.alive || !this.hostile(r.id, m.target)) return;
     const self = m.target === this.s.selfId;
     const victim = self ? null : this.remotes.get(m.target)!;
     if (self ? !this.g.player.alive : !victim!.alive) return;

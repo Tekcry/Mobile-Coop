@@ -105,6 +105,10 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     but Training, Infiltration lists the Warehouse missions only
   - `scripts/e2e-training.mjs` the training course by touch: hints per device, each step advancing, the
     Takedown / Mark / Execute buttons, HUD defaults (no health bar, ammo fades), the results
+  - `scripts/e2e-course.mjs` (T1b) two pages `?net=local`, Course on courselab: the airlock refuses one player (the client sees its
+    own refusal), cycles with both, the near door stays locked; every gate kind by the host, a forced both-down restart (both in
+    the airlock, gates reset), every gate kind by the client; door locks and the lamp group reach the client within 0.5 s;
+    friendly fire: a host shot and a client grenade down the partner, who is revived.
   - `scripts/e2e-netmove.mjs` (3.2.0) two pages `?net=local`, Free Roam on Proving: the client in low cover (+ over
     peek), high cover (+ edge peek), ladder (+ after a climb), drainpipe, pipe, ledge, duct (hands / feet / head within
     10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted, rappel +
