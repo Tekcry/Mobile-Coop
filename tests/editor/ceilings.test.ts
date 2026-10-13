@@ -5,6 +5,7 @@ import { addHatch, ceilingOf, ceilingWords, crawlEnd, crawlId, crawlRows, crawlW
 import type { Ceiling, CrawlRecord } from '../../src/editor/ceilings';
 import { cardRows, stepCard } from '../../src/editor/card';
 import { campusText, EditorModel } from '../../src/editor/model';
+import { deleteChanges } from '../../src/editor/ops';
 import type { Campus, Elem, Room } from '../../src/editor/types';
 import { BUILD_MIN, ceilingBoxes, ceilingType, crawlBoxes, CRAWL_BOARD, rectMinus } from '../../src/world/maps/kestrelCeilings';
 import { campusToBuild } from '../../src/world/maps/kestrelCampus';
@@ -154,6 +155,11 @@ describe('ON13 crawl spaces', () => {
     m.commit('Ceiling', [{ coll: 'ceilings', id: c.id, before: c as Elem, after: { ...c, ceiling: 2.3, ceilingType: 'plasterboard', hatches: [[5, 11]] } as Elem }]);
     const r = m.get<Room>('rooms', 'G-COR')!;
     expect([r.ceiling, r.ceilingType, r.hatches]).toEqual([2.3, 'plasterboard', [[5, 11]]]);
+    m.undo();
+    expect(campusText(m.data)).toBe(text);
+    // Delete takes the ceiling away (open); undo brings it back
+    m.commit('Delete', deleteChanges(m, 'ceilings', 'G-COR'));
+    expect(m.get<Room>('rooms', 'G-COR')!.ceiling).toBe(0);
     m.undo();
     expect(campusText(m.data)).toBe(text);
   });

@@ -41,6 +41,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
   "objects": [ { "id": "O001", "level": "G", "name": "", "preset": "crate-1.2", "rect": [0, 0, 0, 0], "h": 1.2, "y": 0, "yaw": 90, "noLedge": false, "seeThrough": true, "reason": "" } ],
   "exterior": [ { "id": "E001", "kind": "downpipe|stringcourse|ledge|sill|fire-escape|lamp-post|gate|fence|parapet|pipe|vent|duct", "a": [0, 0], "b": [0, 0], "y0": 0, "y1": 0, "climbable": false, "reason": "" } ],
   "services": [ { "id": "SV01", "kind": "cable|power|air|water|drain|heat", "path": [[0, 0, 0]], "size": [0, 0], "reason": "" } ],
+  "crawls": [ { "id": "CR1", "level": "G", "name": "", "path": [[0, 0], [0, 0]], "width": 1.2, "y0": 2.42, "y1": 3.9, "ends": [ { "kind": "hatch|vent|open", "ref": "G-SPINE", "at": [0, 0] } ], "reason": "" } ],
   "roofs": [ { "id": "RF01", "name": "", "building": "A", "level": "G", "rect": [0, 0, 0, 0], "base": 3.0, "type": "flat|mono|gable|hip|sawtooth|curved", "pitch": 25, "ridge": "x|z", "overhang": 0.5, "fascia": 0.2, "material": "metal|concrete|membrane|tile", "colour": "terracotta", "gutter": true, "downpipes": true } ]
 }
 ```
@@ -61,7 +62,9 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | rooms[].name | Name used on the plan label. Plain words in Title Case, no abbreviations (2g-2) |
 | rooms[].kind | What the space is; `ladder` is allowed only in `plant` or `shaft` rooms |
 | rooms[].rect | Wall-centreline rectangle |
-| rooms[].ceiling, finish | Ceiling height and floor finish (level-design 16.8.3). ON5: the editor writes a finish id from `src/world/maps/kestrelExterior.ts` (carpet, vinyl, ceramic, concrete, grating, raised, gravel, grass, asphalt; `linoleum` reads as vinyl), or "" for none; the walk test marks the floor with its game surface (footstep loudness) |
+| rooms[].ceiling, finish | Ceiling height (ON13: 0 = none; the editor edits it as the room's ceiling piece) and floor finish (level-design 16.8.3). ON5: the editor writes a finish id from `src/world/maps/kestrelExterior.ts` (carpet, vinyl, ceramic, concrete, grating, raised, gravel, grass, asphalt; `linoleum` reads as vinyl), or "" for none; the walk test marks the floor with its game surface (footstep loudness) |
+| rooms[].ceilingType | Optional (ON13). `grid` (suspended grid tiles), `plasterboard`, `slab` (exposed slab) or `open`; absent: a corridor with a ceiling is a grid, any other room plasterboard, a room with `ceiling` 0 open (`src/world/maps/kestrelCeilings.ts`, thicknesses with sources). The editor writes it once the type is set |
+| rooms[].hatches | Optional (ON13). Ceiling hatch centres `[x, z]`: on a grid ceiling the tile marked as a hatch (any tile lifts), elsewhere a placed access hatch (only those open). The walk test leaves each hatch open |
 | rooms[].minShort | Minimum clear short side this room must keep |
 | rooms[].open | Edges (`"W"`, `"S"`, `"E"`, `"N"`) left with no wall |
 | rooms[].ring | Access level of the room, 0-5 (see conventions) |
@@ -130,6 +133,13 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | services[].path | Route as `[x, y, z]` points (absolute y) |
 | services[].size | Cross-section `[w, h]` |
 | services[].reason | What it serves |
+| crawls[] | Optional (ON13; absent until the first is drawn). Crawl spaces in ceiling voids (or on a floor). The walk test builds floor boards and side boards (`src/world/maps/kestrelCeilings.ts`); the player crouch-moves in them; guards never enter |
+| crawls[].id, level, name | Unique id (`CR1`), its level, an optional plain name |
+| crawls[].path | The route's points `[x, z]`, two or more (one straight leg per pair) |
+| crawls[].width | Clear width, facts `crawl.widthMin`-`widthMax` (0.6-1.2; under 1.2 the words say it is narrower than the crouch width, F32) |
+| crawls[].y0, y1 | The boards' top and the underside above, over the level's floor. Default: the ceiling void under the route (the ceiling plus its thickness up to the slab above less facts `room.slab`); clear height `y1 - y0` against the crawl rule facts `duct.crouchHeight` (1.5, F32) |
+| crawls[].ends | The start and the end: `hatch` (`ref` the room whose ceiling has the hatch, `at` the hatch centre), `vent` (`ref` an ON5 vent piece in `exterior`) or `open` |
+| crawls[].reason | Why it is there |
 | roofs[] | Optional (ON10; absent until the first roof is drawn). One roof per axis-aligned outline; geometry in `src/world/maps/kestrelRoofs.ts` (shared by the editor, the walk test and `plans.mjs`) |
 | roofs[].id, name, building | Unique id (`RF01`), optional plain name, the building it sits on (absent on the site) |
 | roofs[].level | The level it was drawn on: the editor shows and selects it there and the plan draws it on that level |

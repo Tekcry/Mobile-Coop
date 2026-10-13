@@ -83,6 +83,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Space > Lights > Guard view | the guard view tester (ON7): a click places a guard eye facing the way the camera looks; R turns the last eye 45 degrees; Esc or Delete removes it (Esc again leaves the tool) |
 | Space > Mission tiles | the Mission tools (ON8): Guard (a click places a guard, then clicks add its patrol stops; a click on the first stop closes the loop; R turns the last stop 45 degrees, + / - its wait, Backspace removes it, Page Up / Down the level of the next stop, Esc ends), Insertion, Extraction (click a corner, click the far corner), Objective, Intel, Checkpoint, Hide |
 | Space > Security tiles | the Security tools (ON12): Fixed camera, Pan camera (a click on a wall face mounts it facing out, elsewhere under the ceiling facing the way the view looks; R turns that ceiling ghost 45 degrees), Card reader and Keypad (a click by a door binds it to the door; on a wall face alone), Motion sensor, Beam (click one end, click the other); the card's rows in the side panel step them; Space > View > Security coverage |
+| Space > Build > Crawl space | the Crawl space tool (ON13): click one end, click the other; a click at the selected crawl's end goes on with another leg; Esc puts the tool down. A room's side panel: Select the ceiling (its type, height and hatches step with the arrows); Space > View > Ceiling voids |
 | 0, R | the Light tool (ON6): click places the fitting from the list beside it (a strip: click the start, click the end; R turns the ghost); Switch in the list: click a wall face for a switch, then click lamps to put them on it, Esc ends |
 | Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
@@ -200,14 +201,14 @@ wait until it closes. A row of tabs, then a grid of large tiles (a letter, the n
 
 | Tab | Tiles |
 | --- | --- |
-| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split and Floor finish (rooms, ON5: lights the card's Floor finish row), Fit and Turn climb 90 (stairs), Save as preset (rooms, and a set: ON11), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
-| Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Measure, Paste, Paste to level above (greyed until something is copied) |
+| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split and Floor finish (rooms, ON5: lights the card's Floor finish row), Ceiling (rooms, ON13: selects the room's ceiling) and Room (a ceiling: back to its room; a ceiling has no Move, Duplicate or Rename id), Fit and Turn climb 90 (stairs), Save as preset (rooms, and a set: ON11), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
+| Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Crawl space (ON13), the Roof types (ON10), Measure, Paste, Paste to level above (greyed until something is copied) |
 | Openings | one tile per door and window type (ON9): Single door, Fire door, Double door, Glass swing door, Sliding glass door (automatic), Sliding glass door (card), Sliding door (manual), Roller shutter, Gate, Sliding gate, Hatch, Arch (no leaf), Fixed window, Opening window (top hung), Frosted fixed window, Louvre window, Roof light |
 | Objects | the ON4 object groups and presets (below) |
 | Presets (ON11) | Start set, Module kit, Mine (A shows that source, the menu stays), then its presets (A picks the Stamp tool); under Mine also Rename and Delete for the preset last picked (below) |
 | Climb (ON5) | Downpipe, Horizontal pipe, Ledge or string course, Window sill, Parapet coping, Vent grille, Duct crawl, Fire escape stair, Lamp post, Chain-link fence |
 | Lights, Mission | shown once a later part adds tiles to them |
-| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3), Stealth view (ON4), Finish view (ON5) |
+| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3), Stealth view (ON4), Finish view (ON5), the light rows (ON7), Guard paths (ON8), Security coverage (ON12), Ceiling voids (ON13) |
 
 - The menu remembers the last tab and the tile on each tab while the editor runs. Hub > Settings > "Menu opens on"
   chooses the last tab (default) or always Build.
@@ -227,6 +228,8 @@ first** (door type, wall kind, room kind), then its own fields.
 | Room | Type (room kind), Name, Width, Depth (east and north edges; walls follow as set), Access (ring 0-5), Floor finish (ON5; the foot gives the footstep loudness) |
 | Climb piece (ON5) | Type (flips between pieces placed the same way: downpipe and vent; the drawn ones), Name, its heights and sizes (Bottom, Top, Height, Depth, Width, Length as the piece has them), Climbable (by hand: an override); the foot says what the player can do |
 | Stair | Type (Main dogleg, Fire dogleg, Straight), Name, Width, Depth, Climbs, To level (risers follow); the foot says whether it fits ("Fits: 25 risers", or "Needs 1.42 m more length for 25 risers") |
+| Ceiling (ON13) | Type (Suspended grid tile, Plasterboard, Exposed slab, Open / none), Height (0.1 m steps up to the slab's underside; below facts `ceiling.min` 2.1 m it becomes none; from none it takes 2.4 m in a corridor, 3.0 m elsewhere), Hatches (right adds one at the dot, or the room's middle; left takes the last off); no Id row (it is the room's); the foot gives the void's clear height against the crawl rule |
+| Crawl space (ON13) | Name, Width (0.6-1.2 m), Floor height, Clear height, Start and End (what each end took: a hatch, a vent or open; redraw to change), Id; the foot gives the clear height against the crawl rule |
 | Floor hole, ladder | Type (stair well, lift shaft, riser, hatch, roof light), Name, Width, Depth (floor hole); Name, Facing, To level (ladder) |
 | Every card | ends with **Id**: A opens the keyboard (capitals kept); Done renames it and every reference (ON2) |
 
@@ -924,7 +927,59 @@ room (the room under it) and a plain reason ("watches G-FRONT", "controls door R
   Mount, Height, Id; a beam: Type, Name, Height, Visible, Id. The card's foot says what it does in the game and which stage
   builds it.
 
+## Ceilings, voids and crawl spaces (ON13)
+Every room's ceiling is a piece of its own: `rooms[].ceiling` (height, 0 = none), `ceilingType` and `hatches`
+(schema.md section 2), edited as the element `ceilings:<room id>` (`src/editor/ceilings.ts`; the model writes it back
+into the room, so undo, drafts, the change log and the save treat it as a room change, and a no-op save stays
+byte-identical). Types, thicknesses and hatch sizes are data with sources in `src/world/maps/kestrelCeilings.ts`
+(shared with the walk test): suspended grid tiles (20 mm, 600 mm tiles), plasterboard (15 mm), exposed slab (150 mm),
+open / none. A ceiling with no type of its own is a grid in a corridor and plasterboard elsewhere.
+
+- **Select it**: Selected > **Ceiling** on a room (or the side panel's "Select the ceiling"); in 3D a ceiling is drawn
+  facing down, so it is seen and picked (A, a click) only from below and never hides a room from the builder camera.
+  Selected > Room goes back. Delete takes the ceiling away (open), as the Type row's Open / none does.
+- **Ceiling void**: the space from the ceiling's top to the underside of the slab above (the lowest level above whose
+  rooms cover the room's middle, less facts `room.slab`; else the top of its own level less a slab). Its clear height is
+  the slab underside less the ceiling height less the ceiling's thickness, against the crawl rule facts
+  `duct.crouchHeight` (1.5 m, F32): green when it meets it, red when not. **Y > View > Ceiling voids** draws every void
+  as a see-through box in that colour, tints the plan with "Void 1.48 m" labels, and lists the editing level's voids
+  with their clear heights in a legend (top right). Not saved.
+- **Hatches**: on a grid ceiling any tile pushes up, so a hatch is a marked tile (tiles laid from the room's south-west
+  corner, only whole tiles); on plasterboard or a slab only a placed 600 mm access hatch opens (on the 0.1 m grid, inside
+  the room). The words say what the player can do from below at the ceiling's height: climb up (mantle, facts
+  `traverse.mantleMax` 1.8 m), reach up and grab the edge (facts `reach.grabMax` 2.7 m), jump and grab (`reach.jumpGrab`
+  3.1 m), or out of reach (a ladder or something to stand on).
+- **Crawl space** (Y > Build > Crawl space): A (a click) at one end, A at the other draws a straight leg at the height of
+  the ceiling void under its middle (no void there: on the floor, up to the ceiling or the slab); A at the end of the
+  selected crawl goes on with another leg. An end within facts `ceiling.endReach` (0.6 m) of an ON5 vent piece takes the
+  vent; an end under a ceiling takes a hatch there (a hatch already there, else a new one: the tile on a grid, an access
+  hatch elsewhere, added to the room's ceiling in the same edit); else it is open. Width facts `crawl.widthDefault` 1.2 m,
+  0.6-1.2 on the card. Written as `crawls[]` (schema.md section 2). The dot's words say where it would start and how
+  clear it is; the plan draws each route at its width in the rule's colour, dashed, with its id and clear height.
+- **What the player can do**: the game has a duct move (`duct` in `MOVE_MODES`, a `Duct` anchor), used by the Climb
+  tab's Duct crawl; a crawl space does not use it: it is a crouch space (the crouch height facts `player.crouchHeight`
+  1.15 m under its clear height), and the card says so. No new move.
+- **Guards never enter voids** (handover); the card and the words say so; nothing for guards changes.
+- **Walk test** (decision 6): a ceiling builds as thin boxes over the room less its hatches, at least 0.05 m thick so
+  the light bake sees it (`CANON_MIN_THICK`): grid tiles are drawn and block light but do not collide (a tile pushes up
+  and nobody stands on tiles; one-sided collision is not available); plasterboard and an exposed slab collide (a player
+  can stand on plasterboard in the walk test: no one-sided collision); open builds nothing. A crawl space builds floor
+  boards (top at `y0`, past each bend to cover the corner, stopping short of a hatch end so the hole stays open) and side
+  boards (no ledge); both collide, so the player crouch-moves along the boards and climbs out at a hatch where the grab
+  reaches. Ceilings and boards are light shapes (bible 5.1), so a void is dark unless a lamp is placed in it; the light
+  view (ON7) bakes them too.
+
 ## What it does not do yet (ED2 parts B-H)
+- ON13: the clear height counts the ceiling's thickness but not the crawl boards' (boards sit on the ceiling). A ceiling
+  is the room's whole rectangle (wall-centreline; no cut round columns, risers or bulkheads), one height, flat. The
+  void's slab is found from the room's middle only. A crawl route's legs are straight; a bend leaves its corner square
+  without side boards; a crawl does not cut walls it crosses (walls to the slab stay solid in the walk test). Ends are
+  taken on the drop (move a crawl and drop it again to retake them); Start and End rows are words only. Hatches cannot
+  be moved (take the last off and add one at the dot); a crawl's hatch stays when the crawl is deleted. Renaming a room
+  or vent does not rename a crawl end's `ref`. Crawl spaces are not boxed, copied, pasted or in presets; the plan images
+  (`plans.mjs`) and `check.mjs` do not read them. The walk test lets the player stand on plasterboard ceilings (no
+  one-sided collision) and fall through grid tiles off the boards; whether the game's ledge grab climbs up through a
+  hatch into a 1.5 m space is the game's (not tested).
 - ON12: the desk, panel, mantrap, iris and fault devices, zones and cards are not placed or edited (kept from the file);
   the desk link is stored on the camera (`desk`, `monitor`), not as a desk device's `feeds`. Coverage counts the editing
   level only and needs the light bake; a pan camera's cone is its whole sweep (the time it watches each part is not
@@ -1032,6 +1087,8 @@ room (the room under it) and a plain reason ("watches G-FRONT", "controls door R
 | `src/editor/missionCatalogue.ts`, `src/editor/mission.ts`, `src/editor/missionTool.ts` | ON8: the guard kinds and walk speeds, the brief's roster, objective and hide kinds (data with sources); the mission records, the walk grid and leg search, length and cycle, path edits, the patrol as time, isolation, objective links and loops, the play file shapes (pure, `tests/editor/mission.test.ts`); the Mission tools in the editor: path editing, markers, picking, the patrol preview, plan marks and 3D labels |
 | `src/editor/lightView.ts` | ON7: the exact light through the game's pipeline (map builder, hidden physics scene, `bakeLevelLight`, `LightField`, `BakedLamps` on material clones), the quick light, the darkness map and guard view in 3D and on the plan, the eyes, the legend |
 | `src/editor/securityCatalogue.ts`, `src/editor/security.ts`, `src/editor/securityTool.ts` | ON12: the Security tab's devices, reader types, access level colours and drawn sizes (data with sources); the device records, placing (wall face, ceiling, by a door), the reader's door link, what a camera sees (`inFrame`, `losClear`), sensor fans, coverage and gaps, the card's rows and steps, the security file split (pure, `tests/editor/security.test.ts`); the Security tool in the editor: ghost and words, plan marks, labels, the light view's security cells |
+| `src/editor/ceilings.ts`, `src/editor/crawlTool.ts` | ON13: the ceiling piece (a room's ceiling fields), the slab underside and the void's clear height against the crawl rule, hatches (tiles and access hatches), the card's rows and steps, crawl records (ends at hatches and vents, heights from the void, legs, settling), words (pure, `tests/editor/ceilings.test.ts`); the Crawl space tool in the editor: drawing and going on, the dot's words, plan marks, the voids legend |
+| `src/world/maps/kestrelCeilings.ts` | ON13: the one copy of the ceiling types, tile and hatch sizes and crawl boards (data with sources), and how the walk test builds ceilings (less their hatches) and crawl spaces, shared by the editor's 3D (pure) |
 | `docs/kestrel/kestrel.security.json` | ON12: the security file (S0 section 6, schema.md section 4); the editor writes `devices` |
 | `docs/kestrel/kestrel.play.json` | ON6: the play file (schema.md section 3); the editor writes `lamps` and `circuits` |
 | `docs/kestrel/editor-presets.json` | ON11: Michael's own presets (schema.md section 7, own presets); written by the editor's Save |
