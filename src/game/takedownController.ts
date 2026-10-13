@@ -167,7 +167,7 @@ export class TakedownController {
       t: 0,
       from: c.pos.clone(),
       vFrom: o.e.pos.clone(),
-      hp: g.target.health.hp + g.target.health.shield,
+      hp: g.target.health.hp,
       grab: grab ? { hold: false, pressT: -1, strikeT: -1 } : null,
     };
     if (grab) this.grabs.held++;
@@ -274,7 +274,7 @@ export class TakedownController {
     }
     if (!gr.hold) {
       // stepping in behind them (hurt on the way: it falls apart)
-      if (g.target.health.hp + g.target.health.shield < a.hp - 0.5) {
+      if (g.target.health.hp < a.hp - 0.5) {
         this.abort();
         return;
       }
@@ -350,7 +350,7 @@ export class TakedownController {
       }
     }
     // hurt mid-move (or the victim died to something else): it falls apart
-    if (g.target.health.hp + g.target.health.shield < a.hp - 0.5 || !g.player.alive || !e.alive) {
+    if (g.target.health.hp < a.hp - 0.5 || !g.player.alive || !e.alive) {
       this.abort();
       return;
     }

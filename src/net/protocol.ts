@@ -62,7 +62,6 @@ export interface PlayerState {
   f: number;
   w: WeaponId;
   hp: number;
-  sh: number;
   /** Movement state (3.2.0): cover, attached, committed moves, takedowns (`player/moveState.ts`). */
   mv?: MoveState;
 }
@@ -234,7 +233,6 @@ function playerState(v: unknown): PlayerState | null {
     f: Math.floor(num(v.f, 0, 2047) ?? 0),
     w,
     hp: num(v.hp, 0, 100) ?? 100,
-    sh: num(v.sh, 0, 50) ?? 0,
     ...(v.mv !== undefined && sanitizeMoveState(v.mv) ? { mv: sanitizeMoveState(v.mv)! } : {}),
   };
 }

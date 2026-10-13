@@ -946,12 +946,6 @@ body {
 .tac-vision {
   color: #7dff9b;
 }
-.tac-vision[data-mode='sonar'] {
-  color: #ffb36b;
-}
-.tac-vision[data-mode='cool'] {
-  color: rgba(255, 255, 255, 0.4);
-}
 .hud-awareness {
   position: absolute;
   left: 0;
@@ -990,9 +984,6 @@ body {
   height: 100%;
   width: 100%;
   transition: width 0.15s;
-}
-.bar-fill.sh {
-  background: linear-gradient(90deg, #3fa9ff, #7fd0ff);
 }
 .bar-fill.hp {
   background: linear-gradient(90deg, #39c46b, #7ae69a);
@@ -2147,46 +2138,7 @@ body {
 .hud-barks .bark[hidden] {
   display: none;
 }
-/* results: play style bars and mission rating (phase 7) */
-.style-bars {
-  display: grid;
-  gap: 6px;
-  margin: 10px 0;
-}
-.style-bar {
-  display: grid;
-  grid-template-columns: 70px 1fr 50px;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-}
-.style-bar i {
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(255, 255, 255, 0.12);
-  position: relative;
-  overflow: hidden;
-}
-.style-bar i::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  width: var(--w, 0%);
-  border-radius: 4px;
-  background: #9bb2c8;
-}
-.style-bar.ghost i::after {
-  background: #7fd0ff;
-}
-.style-bar.panther i::after {
-  background: #b07cff;
-}
-.style-bar.assault i::after {
-  background: #ff7a5a;
-}
-.style-bar b {
-  text-align: right;
-}
+/* results: mission rating (phase 7) */
 .mission-rating {
   margin: 8px 0 2px;
   font-size: 18px;
@@ -2244,7 +2196,6 @@ body {
 }
 /* health as the screen-edge vignette only (Blacklist): the bars hidden */
 .hud.no-hbar .bar.health,
-.hud.no-hbar .bar.shield,
 .hud.no-hbar .vital-text {
   display: none;
 }

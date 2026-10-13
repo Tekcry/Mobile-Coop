@@ -1,5 +1,5 @@
 import type { App, AppState } from '../core/app';
-import { Color3, CreateTorus, type FreeCamera, PhysicsRaycastResult, StandardMaterial, Vector3, type Mesh, type PhysicsEngine, type Scene } from '../core/babylon';
+import { Color3, type FreeCamera, PhysicsRaycastResult, Vector3, type PhysicsEngine, type Scene } from '../core/babylon';
 import { VOXEL_LOD, World } from '../world/world';
 import { flags } from '../core/flags';
 import { showEconomy } from '../core/legacy';
@@ -73,8 +73,7 @@ import { Dialog } from '../ui/widgets';
 import { newEntry } from '../feedback/feedback';
 import { BlobShadows } from '../vfx/blobShadows';
 import { LkpGhost } from '../vfx/lkpGhost';
-import { Silhouettes } from '../vfx/silhouettes';
-import { VISION, VisionState } from './vision';
+import { VisionState } from './vision';
 import { VISION_GAIN } from '../world/darkCurve';
 import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
@@ -88,7 +87,7 @@ import { hyp2, hyp3 } from '../core/mathx';
 import { GadgetSystem } from './gadgetSystem';
 import { InfiltrationMode } from './modes/infiltrationMode';
 import { TrainingMode } from './modes/trainingMode';
-import { StyleTracker } from './playstyle';
+import { StealthRating } from './playstyle';
 import { defaultHq, defaultSuit, hqStats, suitStats, type HqLevels, type HqStats, type SuitLoadout, type SuitStats } from '../progression/suit';
 import { GADGET_IDS, type GadgetId } from './gadgets';
 import { InputState } from '../input/inputState';
@@ -278,8 +277,8 @@ export class GameState implements AppState {
   /** Suit and HQ effects for this session. */
   readonly suit: SuitStats;
   readonly hq: HqStats;
-  /** Play-style points (Ghost / Panther / Assault) for the results and the economy. */
-  readonly style = new StyleTracker();
+  /** Stealth rating counters (bible 6). */
+  readonly style = new StealthRating();
   /** An enemy is in combat on the operator (stealth rules); flips record a detection. */
   detected = false;
   /** Gadgets: the wheel, throws, remote views, effects (phase 5). */
@@ -396,10 +395,7 @@ export class GameState implements AppState {
     this.takedown = new TakedownController(this);
     this.team = new TeamController(this);
     this.gadgets = new GadgetSystem(this);
-    // sonar is off the goggles button (bible 6: thermal replaces it in Phase 3, which deletes the code; Michael,
-    // 2026-10-09): the button cycles off -> night vision -> off
-    this.vision.sonarAllowed = false;
-    // suit and HQ: armour, hands, gadget carry, marks
+    // suit and HQ: armour, hands, gadget carry
     this.suit = suitStats(opts.suit && !pvpMatch ? opts.suit : defaultSuit());
     this.hq = hqStats(opts.hq && !pvpMatch ? opts.hq : defaultHq());
     this.target.armorMul = this.suit.damage;
@@ -412,15 +408,6 @@ export class GameState implements AppState {
       this.gadgets.closeWheel(false);
     };
     this.hud.gadgets.onClose = () => this.gadgets.closeWheel(false);
-    this.sonarMarks = new Silhouettes(this.scene, 'sonar', 12, new Color3(1, 0.55, 0.18), true);
-    this.sonarRing = CreateTorus('sonarRing', { diameter: 1, thickness: 0.012, tessellation: 48 }, this.scene);
-    const rm = new StandardMaterial('sonarRingMat', this.scene);
-    rm.disableLighting = true;
-    rm.emissiveColor = new Color3(1, 0.6, 0.25);
-    rm.alpha = 0;
-    this.sonarRing.material = rm;
-    this.sonarRing.isPickable = false;
-    this.sonarRing.setEnabled(false);
     this.corners = new CornerController(this.scene, this.player, world.level.coverSegments);
     this.minimap = new Minimap(world.level);
     this.hud.setMinimap(this.minimap);
@@ -485,8 +472,6 @@ export class GameState implements AppState {
         if (h.attackerId === 'local' || h.attackerId === '') {
           const ev = h.kind === 'melee' ? (e.ko ? 'takedownNonLethal' : 'takedownLethal') : e.ko ? 'knockout' : 'kill';
           this.style.record(ev, this.detected);
-          if (h.part === 'head' && !e.ko) this.style.record('headshot', this.detected);
-          if (h.kind === 'explosion') this.style.record('explosion', this.detected);
           if (e.ko) this.stats.knockouts++;
         }
         this.mode?.onEnemyKilled(e, h);
@@ -734,7 +719,6 @@ export class GameState implements AppState {
     }
     this.stats.shots = shots;
     this.stats.hits = hits;
-    this.stats.style = { ...this.style.points };
     this.stats.detections = this.style.detections;
     this.stats.alarms = this.style.alarms;
     this.stats.takedownsByKind = { ...this.takedown.done.byKind };
@@ -1220,7 +1204,6 @@ export class GameState implements AppState {
     this.updateInteract(dt);
     this.mode?.fixedUpdate(dt);
     this.net?.fixedUpdate(dt);
-    this.target.health.update(dt);
     if (this.respawnT >= 0) {
       this.respawnT -= dt;
       if (this.respawnT < 0) {
@@ -1662,31 +1645,20 @@ export class GameState implements AppState {
 
   /** Last Known Position ghost (stealth rules only). */
   ghost: LkpGhost;
-  /** Goggles (night vision / sonar), the sonar's enemy marks and its pulse ring. */
+  /** Goggles (night vision only until step 14: thermal / electro). */
   readonly vision = new VisionState();
-  sonarMarks: Silhouettes;
-  private sonarRing: Mesh;
 
-  /** Goggles per fixed step: the button cycles modes; a sonar pulse marks every enemy in range. */
+  /** Goggles per fixed step: the button toggles night vision. */
   private updateVision(dt: number): void {
     const v = this.vision;
     if (this.app.input.state.pressed('vision') && this.player.alive) {
       v.cycle();
       this.events.emit('vision', { mode: v.mode });
     }
-    if (!v.step(dt)) return;
-    this.events.emit('sonar', {});
-    const m = this.sonarMarks;
-    m.begin();
-    const p = this.player.position;
-    for (const e of this.enemyMgr?.enemies ?? []) {
-      if (!e.alive || hyp2(e.pos.x - p.x, e.pos.z - p.z) > VISION.sonarRange * this.sonarMul) continue;
-      if (!m.add(e.bodyRig)) break;
-    }
-    m.end();
+    v.step(dt);
   }
 
-  /** Goggles per render frame: night vision blend, sonar marks fading, the pulse ring growing. */
+  /** Goggles per render frame: night vision blend, flip, lens glow. */
   private renderVision(dt: number): void {
     const v = this.vision;
     this.post.setNightVision(v.night);
@@ -1700,18 +1672,7 @@ export class GameState implements AppState {
     if (this.world.lamps) this.world.lamps.visionGain = 1 + (VISION_GAIN - 1) * v.night;
     // the tri-lens glows brighter while a mode is on
     this.player.rig.setLensGlow(v.mode !== 'off');
-    this.sonarMarks.setAlpha(v.markAlpha * 0.6);
-    const t = v.sincePulse;
-    const ring = this.sonarRing;
-    if (t < 0.9) {
-      const r = (t / 0.9) * VISION.sonarRange * this.sonarMul;
-      ring.setEnabled(true);
-      ring.position.copyFrom(this.player.position);
-      ring.position.y += 0.15;
-      ring.scaling.set(r * 2, 1, r * 2);
-      (ring.material as StandardMaterial).alpha = 0.5 * (1 - t / 0.9);
-    } else if (ring.isEnabled()) ring.setEnabled(false);
-    this.hud.setVision(v.mode, v.cooldown);
+    this.hud.setVision(v.mode);
   }
 
   /**
@@ -1827,14 +1788,9 @@ export class GameState implements AppState {
     this.post.letterbox(true);
   }
 
-  /** Sonar range from the goggles tier and the HQ amplifier. */
-  get sonarMul(): number {
-    return this.suit.sonarRange * this.hq.sonarRange;
-  }
-
   private scopeT = 0;
 
-  /** Difficulty tier rules (perception, damage, sonar allowed). */
+  /** Difficulty tier rules (perception, damage). */
   get difficultyDef(): DifficultyDef {
     return DIFFICULTY[this.opts.difficulty ?? 'normal'];
   }
@@ -2314,8 +2270,6 @@ export class GameState implements AppState {
     const f: HudFrame = {
       hp: th.hp,
       maxHp: th.maxHp,
-      shield: th.shield,
-      maxShield: th.maxShield,
       weapon: w.def.name,
       mag: w.mag,
       magSize: w.stats.magSize,

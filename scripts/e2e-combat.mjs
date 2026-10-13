@@ -134,7 +134,7 @@ try {
   assert(barrels1 < barrels0, `shooting an explosive barrel detonates it (${barrels0} -> ${barrels1})`);
 
   // player damage + death + respawn: blow a barrel next to the player
-  const hpBefore = await G(() => window.__app.current.target.health.hp + window.__app.current.target.health.shield);
+  const hpBefore = await G(() => window.__app.current.target.health.hp);
   await G(() => { const g = window.__app.current; g.explosions.explode(g.player.position.add(new g.player.position.constructor(1, 0.3, 0)), 6, 400, 50, 'neutral', ''); });
   await sim(0.2);
   const alive = await G(() => window.__app.current.target.alive);

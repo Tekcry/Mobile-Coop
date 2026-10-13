@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { ALL_MISSIONS, DOWNLOAD, evaluateRules, MISSIONS, missionRating, ObjectiveChain, validateMissions, type MissionDef } from '../src/game/missions';
-import { StyleTracker } from '../src/game/playstyle';
+import { StealthRating } from '../src/game/playstyle';
 import { MAPS } from '../src/world/maps';
 
 const base = {
@@ -97,22 +97,19 @@ describe('rules and rating', () => {
   });
 });
 
-describe('play styles', () => {
-  it('unseen non-lethal is Ghost, unseen lethal is Panther, seen is Assault', () => {
-    const s = new StyleTracker();
+describe('stealth rating', () => {
+  it('counts alarms, kills, knockouts and detections', () => {
+    const s = new StealthRating();
     s.record('takedownNonLethal', false);
     s.record('knockout', false);
-    expect(s.dominant()).toBe('ghost');
     s.record('takedownLethal', false);
     s.record('takedownLethal', false);
     s.record('kill', false);
-    expect(s.dominant()).toBe('panther');
     for (let i = 0; i < 8; i++) s.record('kill', true);
     s.record('alarm', true);
-    expect(s.dominant()).toBe('assault');
-    const sp = s.split();
-    expect(sp.ghost + sp.panther + sp.assault).toBeCloseTo(1, 6);
+    s.record('detected', true);
     expect(s.alarms).toBe(1);
+    expect(s.detections).toBe(1);
     expect(s.kills).toBe(11);
     expect(s.knockouts).toBe(2);
   });

@@ -24,7 +24,7 @@ const MAX_SPEED = MAX_FREE_SPEED;
  */
 export class RemotePlayer implements Damageable {
   readonly team = 'player' as const;
-  readonly health = new Health(100, 50, 4, 30);
+  readonly health = new Health(100);
   readonly feet = new Vector3();
   readonly ref: PlayerRef;
   state: PlayerState | null = null;
@@ -121,7 +121,6 @@ export class RemotePlayer implements Damageable {
       this.protectT -= dt;
       if (this.protectT <= 0) this.damageMul = 1;
     }
-    this.health.update(dt);
   }
 
   private sync(): void {

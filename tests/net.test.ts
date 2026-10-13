@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES } from '../src/net/protocol';
 import { mulberry } from '../src/core/rng';
 
-const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80, sh: 20 };
+const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80 };
 
 describe('net message validation', () => {
   it('accepts well-formed messages', () => {

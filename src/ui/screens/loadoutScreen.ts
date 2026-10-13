@@ -472,7 +472,7 @@ export class LoadoutScreen extends Screen {
           { key: 'suit', group: 'OPERATOR', label: 'Suit', value: SUIT[ 'vest'][s.suit.worn.vest]!.name, go: true, detail: () => this.suitDetail(s.suit.worn), act: { label: 'Open suit', run: () => this.open(this.suitPage()) } },
           { key: 'look', label: 'Appearance', go: true, detail: () => this.panel('APPEARANCE', this.note('Build, head, hair, outfit, headgear, backpack, pattern and colours. Locked parts preview on the operator.')), act: { label: 'Open appearance', run: () => this.open(this.lookPage()) } },
           { key: 'tag', label: 'Tag & emotes', value: s.profile.name, go: true, detail: () => this.panel('TAG & EMOTES', this.note('Callsign, title, emblem and colour; emote slots (View held, J / K / L).')), act: { label: 'Open tag & emotes', run: () => this.open(this.tagPage()) } },
-          { key: 'hq', group: 'SBD-NET', label: 'HQ upgrades', value: `${hqLv}/${hqMax}`, go: true, detail: () => this.panel('HQ', this.note('Radar, sonar, Execute capacity, supply drops and field medic training.')), act: { label: 'Open HQ', run: () => this.open(this.hqPage()) } },
+          { key: 'hq', group: 'SBD-NET', label: 'HQ upgrades', value: `${hqLv}/${hqMax}`, go: true, detail: () => this.panel('HQ', this.note('Radar, supply drops and field medic training.')), act: { label: 'Open HQ', run: () => this.open(this.hqPage()) } },
           { key: 'challenges', label: 'Challenges', value: `${s.challenges.done.length}/${CHALLENGES.length}`, go: true, detail: () => this.panel('CHALLENGES', this.note('Finish them in any mode for credits and XP.')), act: { label: 'Open challenges', run: () => this.open(this.challengesPage()) } },
         ];
         // (3.5: weapons, attachments, gadget and presets; the suit, appearance, tag, HQ and challenges only with `?legacy=1`)
@@ -733,7 +733,6 @@ export class LoadoutScreen extends Screen {
       this.bar('ARMOR', 1 - st.damage, b && 1 - b.damage),
       this.bar('STEALTH', 1 - (st.noise - 0.6), b && 1 - (b.noise - 0.6)),
       this.bar('HANDLING', 1 - (st.hands - 0.7) * 2, b && 1 - (b.hands - 0.7) * 2),
-      this.bar('SONAR', (st.sonarRange - 0.8) / 0.8, b && (b.sonarRange - 0.8) / 0.8),
       this.line('EXTRA GADGETS', String(st.gadgets), b && String(b.gadgets)),
     );
   }

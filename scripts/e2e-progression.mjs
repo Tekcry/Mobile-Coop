@@ -127,13 +127,13 @@ try {
   await tapAct(/Back/);
   await tapAct(/Back/);
   await tapRow('hq');
-  await tapRow('hq-marks', false);
+  await tapRow('hq-restock', false);
   await tapAct(/Upgrade/);
   const hq = await G(() => {
     const s = window.__app.save.get();
-    return { vest: s.suit.worn.vest, marks: s.hq.marks, credits: s.profile.credits };
+    return { vest: s.suit.worn.vest, restock: s.hq.restock, credits: s.profile.credits };
   });
-  assert(hq.vest === 1 && hq.marks === 1 && hq.credits < 20000, `Loadout: suit tier and HQ upgrade bought (${JSON.stringify(hq)}, previewed torso ${vestPreview})`);
+  assert(hq.vest === 1 && hq.restock === 1 && hq.credits < 20000, `Loadout: suit tier and HQ upgrade bought (${JSON.stringify(hq)}, previewed torso ${vestPreview})`);
   await G(() => window.__app.save.update((d) => {
     d.unlocks.push('weapon:ak');
     d.weapons.ak.attachments = ['suppressor'];
@@ -156,7 +156,7 @@ try {
   await page.waitForFunction(() => document.getElementById('boot')?.classList.contains('done'), null, { timeout: 60000 });
   const kept = await G(() => {
     const s = window.__app.save.get();
-    return s.suit.owned.vest === 1 && s.hq.marks === 1 && s.loadout.primary === 'ak';
+    return s.suit.owned.vest === 1 && s.hq.restock === 1 && s.loadout.primary === 'ak';
   });
   assert(kept, 'suit, HQ and loadout survive a reload');
 

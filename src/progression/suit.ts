@@ -37,9 +37,9 @@ export const SUIT: Record<SuitPiece, SuitTier[]> = {
     { name: 'Ghost boots', price: 2400, level: 9, desc: '-40% noise' },
   ],
   goggles: [
-    { name: 'Tri-lens Mk1', price: 0, level: 1, desc: 'Night vision, sonar' },
-    { name: 'Tri-lens Mk2', price: 1200, level: 4, desc: 'Sonar range +25%' },
-    { name: 'Tri-lens Mk3', price: 2400, level: 8, desc: 'Sonar range +50%, faster recharge' },
+    { name: 'Tri-lens Mk1', price: 0, level: 1, desc: 'Night vision' },
+    { name: 'Tri-lens Mk2', price: 1200, level: 4, desc: 'Night vision' },
+    { name: 'Tri-lens Mk3', price: 2400, level: 8, desc: 'Night vision' },
   ],
   pouches: [
     { name: 'Belt', price: 0, level: 1, desc: 'Standard gadget carry' },
@@ -61,9 +61,6 @@ export interface SuitStats {
   noise: number;
   /** Swap / takedown time multiplier. */
   hands: number;
-  /** Sonar range multiplier and recharge multiplier. */
-  sonarRange: number;
-  sonarRecharge: number;
   /** Extra of each gadget. */
   gadgets: number;
 }
@@ -72,7 +69,6 @@ const VEST_DMG = [1, 0.85, 0.7, 0.55];
 const VEST_NOISE = [1, 1.1, 1.25, 1.45];
 const HANDS = [1, 0.92, 0.85, 0.78];
 const BOOTS = [1, 0.85, 0.72, 0.6];
-const SONAR = [1, 1.25, 1.5];
 
 const tier = (piece: SuitPiece, t: number): number => Math.max(0, Math.min(SUIT[piece].length - 1, Math.floor(t)));
 
@@ -81,8 +77,6 @@ export function suitStats(s: SuitLoadout): SuitStats {
     damage: VEST_DMG[tier('vest', s.vest)]!,
     noise: VEST_NOISE[tier('vest', s.vest)]! * BOOTS[tier('boots', s.boots)]!,
     hands: HANDS[tier('gloves', s.gloves)]!,
-    sonarRange: SONAR[tier('goggles', s.goggles)]!,
-    sonarRecharge: tier('goggles', s.goggles) >= 2 ? 0.75 : 1,
     gadgets: tier('pouches', s.pouches),
   };
 }
@@ -106,8 +100,8 @@ export function suitLook(base: AvatarLook, s: SuitLoadout): AvatarLook {
 
 // ------------------------------------------------------------------------------------------------ HQ upgrades
 
-export type HqId = 'radar' | 'sonar' | 'marks' | 'restock' | 'revive';
-export const HQ_IDS: readonly HqId[] = ['radar', 'sonar', 'marks', 'restock', 'revive'];
+export type HqId = 'radar' | 'restock' | 'revive';
+export const HQ_IDS: readonly HqId[] = ['radar', 'restock', 'revive'];
 
 export interface HqDef {
   name: string;
@@ -119,8 +113,6 @@ export interface HqDef {
 
 export const HQ: Record<HqId, HqDef> = {
   radar: { name: 'Minimap radar', desc: 'Enemies within 15 m (level 2: 25 m) show on the minimap in stealth modes', prices: [1500, 3000], levels: [4, 9] },
-  sonar: { name: 'Sonar amplifier', desc: 'Sonar range +20% per level', prices: [1000, 2000], levels: [3, 7] },
-  marks: { name: 'Execute capacity', desc: 'Retired', prices: [2500], levels: [6] },
   restock: { name: 'Supply drops', desc: 'Gadgets restock at checkpoints', prices: [1800], levels: [5] },
   revive: { name: 'Field medic training', desc: 'Co-op revives 30% faster per level', prices: [800, 1600], levels: [2, 6] },
 };
@@ -128,12 +120,11 @@ export const HQ: Record<HqId, HqDef> = {
 export type HqLevels = Record<HqId, number>;
 
 export function defaultHq(): HqLevels {
-  return { radar: 0, sonar: 0, marks: 0, restock: 0, revive: 0 };
+  return { radar: 0, restock: 0, revive: 0 };
 }
 
 export interface HqStats {
   radar: number;
-  sonarRange: number;
   restock: boolean;
   reviveSpeed: number;
 }
@@ -142,7 +133,6 @@ export function hqStats(h: HqLevels): HqStats {
   const lv = (k: HqId): number => Math.max(0, Math.min(HQ[k].prices.length, Math.floor(h[k] ?? 0)));
   return {
     radar: lv('radar') === 0 ? 0 : lv('radar') === 1 ? 15 : 25,
-    sonarRange: 1 + 0.2 * lv('sonar'),
     restock: lv('restock') > 0,
     reviveSpeed: 1 + 0.3 * lv('revive'),
   };
@@ -186,7 +176,6 @@ export const CHALLENGES: ChallengeDef[] = [
   { id: 'aboveTakedowns', name: '10 takedowns from above', goal: 10, credits: 800, xp: 1500 },
   { id: 'knockouts', name: 'Knock out 25 enemies', goal: 25, credits: 600, xp: 1200 },
   { id: 'headshots', name: '50 headshots', goal: 50, credits: 600, xp: 1200 },
-  { id: 'executes', name: 'Mark & Execute 15 enemies', goal: 15, credits: 700, xp: 1300 },
   { id: 'ghostMissions', name: 'Complete 3 missions undetected', goal: 3, credits: 1500, xp: 3000 },
   { id: 'hunterNoAlarm', name: 'Finish Hunter without an alarm', goal: 1, credits: 900, xp: 1600 },
   { id: 'gadgetKos', name: 'Put 20 enemies down with gadgets', goal: 20, credits: 700, xp: 1300 },
@@ -197,7 +186,6 @@ export interface ChallengeSession {
   takedownsByKind: Record<string, number>;
   knockouts: number;
   headshots: number;
-  executes: number;
   gadgetKos: number;
   mode: string;
   won: boolean;
@@ -211,30 +199,10 @@ export function challengeProgress(s: ChallengeSession): Record<string, number> {
     aboveTakedowns: clamp(s.takedownsByKind.above ?? 0),
     knockouts: clamp(s.knockouts),
     headshots: clamp(s.headshots),
-    executes: clamp(s.executes),
     ghostMissions: s.mode === 'infiltration' && s.won && s.detections === 0 ? 1 : 0,
     hunterNoAlarm: s.mode === 'clear' && s.won && s.alarms === 0 ? 1 : 0,
     gadgetKos: clamp(s.gadgetKos),
   };
-}
-
-// ------------------------------------------------------------------------------------------------ style cash
-
-/** Cash and XP per play-style point (the mission's difficulty multiplier applies on top). */
-export const STYLE_PAY = { credits: 0.12, xp: 0.4 } as const;
-
-export function styleLines(style: { ghost: number; panther: number; assault: number }): { label: string; xp: number; credits: number }[] {
-  const out: { label: string; xp: number; credits: number }[] = [];
-  const nn = (v: number): number => (Number.isFinite(v) && v > 0 ? Math.min(50000, Math.floor(v)) : 0);
-  for (const [k, label] of [
-    ['ghost', 'Ghost'],
-    ['panther', 'Panther'],
-    ['assault', 'Assault'],
-  ] as const) {
-    const p = nn(style[k]);
-    if (p) out.push({ label: `${label} (${p})`, xp: Math.round(p * STYLE_PAY.xp), credits: Math.round(p * STYLE_PAY.credits) });
-  }
-  return out;
 }
 
 // ------------------------------------------------------------------------------------------------ presets
@@ -250,8 +218,8 @@ export const PRESETS = 3;
 
 export function defaultPresets(): LoadoutPreset[] {
   return [
-    { name: 'Ghost', primary: 'pistolSd', secondary: 'rifle', gadget: 'gas' },
-    { name: 'Panther', primary: 'pistolSd', secondary: 'rifle', gadget: 'flash' },
-    { name: 'Assault', primary: 'rifle', secondary: 'pistol', gadget: 'frag' },
+    { name: 'Silent', primary: 'pistolSd', secondary: 'rifle', gadget: 'gas' },
+    { name: 'Flash', primary: 'pistolSd', secondary: 'rifle', gadget: 'flash' },
+    { name: 'Loud', primary: 'rifle', secondary: 'pistol', gadget: 'frag' },
   ];
 }

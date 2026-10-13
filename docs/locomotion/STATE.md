@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: 02 remove-sonar (next)
+Current step: 05 remove-cover-player (next)
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)
@@ -16,6 +16,7 @@ Last commit: see git log (locomotion 00)
 - 01 audit: AUDIT.md + audit/*.
 - 02 plan: PLAN.md, steps/01-34, A1-A32.
 - step 01 remove-mark-execute.
+- steps 02-04 sonar, shield, style (SAVE_VERSION 8).
 
 ## Blocked
 (none)

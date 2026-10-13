@@ -71,11 +71,10 @@ Design authority: docs/design-bible.md (Section 5.7)
   `open(d, quiet | bash | enemy)` drops the body and swings the leaf, `close` refuses an occupied doorway;
   `pushOpen` (enemies, each step), sprint bash and the interact (`door` kind) live in `StealthSystems`; `onSound`
   -> `door` event (audio) + noise (quiet 2 m, bash 10 m).
-- Goggles (3d): `game/vision.ts` (pure) `VisionState` (action `vision` cycles off / night / sonar; `VISION` pulse
-  period, reveal, range, max run, recharge). Night vision is the `nv` uniform of `CinematicPost`
-  (`setNightVision`); sonar pulses capture enemies in range into `GameState.sonarMarks` (`vfx/silhouettes.ts`,
-  overlay = depth ALWAYS), plus a torus ring; `Hud.setVision` on the tactical strip. The LKP ghost uses the same
-  `Silhouettes`.
+- Goggles (3d): `game/vision.ts` (pure) `VisionState` (action `vision` toggles off / night; `VISION.flip`). Night
+  vision only until step 14 (thermal / electro). Night vision is the `nv` uniform of `CinematicPost`
+  (`setNightVision`); `Hud.setVision` on the tactical strip. The LKP ghost uses `vfx/silhouettes.ts`
+  (overlay = depth ALWAYS).
 - Interactables: kinds `switch`, `alarm`, `hide`, `body`, `door` with per-item `reach` and `onUse`; `nearest(feet, reach,
   only)` (hide spots only with `only`); `GameState.updateInteract` calls `onUse` (else Mission).
 
@@ -83,7 +82,7 @@ Design authority: docs/design-bible.md (Section 5.7)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal =
   lethal only, enforcer frontal = none; `TakedownController` offers `lethalOnly`), `sniperRelocate`, `glint`,
   `smellRate`, `radioCheck`, `DIFFICULTY` tiers (`rookie | normal | realistic | perfectionist`: perception, damage,
-  accuracy, hp, reaction, reward, `sonar`; `parseDifficulty` reads easy / hard). `enemyDefs.ts` re-exports
+  accuracy, hp, reaction, reward; `parseDifficulty` reads easy / hard). `enemyDefs.ts` re-exports
   them; `ENEMY_KINDS` adds `sniper | enforcer | dog | droneOp | officer` (`emptyKinds()` for tallies; `quadruped`).
 - `Enemy`: `perceptionMul` (tier x officer buff), dog smell (`smelled` keeps an alerted dog on the target),
   `applyDamage` plates / shield (`shieldBlocks`), sniper `shotsHere` / `relocations` (`relocating` picks a post
@@ -95,7 +94,7 @@ Design authority: docs/design-bible.md (Section 5.7)
   `ARCHETYPE.radio`, stealth only), radio delays x tier reaction x officer.
 - Barks: `ai/barks.ts` (`BARKS`, `RADIO_BARKS`, `BarkVoice` cooldowns); `ui/hud/barks.ts` `BarkView` (pool, placed by
   `GameState.placeBark`); `bark` event -> `sfx.radio()` for radio lines.
-- `GameState.difficultyDef`; Perfectionist turns off `VisionState.sonarAllowed`.
+- `GameState.difficultyDef`.
 
 ## AI and modes
 - `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only

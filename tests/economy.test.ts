@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { canBuyHq, canBuySuit, CHALLENGES, challengeProgress, defaultHq, defaultSuit, hqStats, styleLines, suitLook, suitStats } from '../src/progression/suit';
+import { canBuyHq, canBuySuit, CHALLENGES, challengeProgress, defaultHq, defaultSuit, hqStats, suitLook, suitStats } from '../src/progression/suit';
 import { applyPreset, applySession, buyHq, buySuit, savePreset, wearSuit } from '../src/progression/profile';
-import { computeRewards } from '../src/progression/rewards';
 import { withAttachments } from '../src/progression/attachments';
 import { defaultSave, sanitizeSave, SAVE_VERSION } from '../src/save/schema';
 import { migrate } from '../src/save/migrations';
@@ -71,31 +70,20 @@ describe('suit', () => {
   });
 });
 
-describe('HQ, challenges, style cash', () => {
+describe('HQ, challenges', () => {
   it('HQ upgrades by level and price; their effects', () => {
     const h = defaultHq();
     expect(canBuyHq(h, 'radar', 1, 99999)).toMatchObject({ ok: false, reason: 'level' });
     expect(canBuyHq(h, 'radar', 10, 99999).ok).toBe(true);
     h.radar = 2;
-    h.marks = 1;
     h.restock = 1;
     expect(canBuyHq(h, 'radar', 10, 99999)).toMatchObject({ ok: false, reason: 'maxed' });
     expect(hqStats(h)).toMatchObject({ radar: 25, restock: true });
   });
   it('challenge progress from a session', () => {
-    const p = challengeProgress({ takedownsByKind: { above: 3, behind: 2 }, knockouts: 4, headshots: 1, executes: 2, gadgetKos: 1, mode: 'infiltration', won: true, detections: 0, alarms: 0 });
+    const p = challengeProgress({ takedownsByKind: { above: 3, behind: 2 }, knockouts: 4, headshots: 1, gadgetKos: 1, mode: 'infiltration', won: true, detections: 0, alarms: 0 });
     expect(p).toMatchObject({ aboveTakedowns: 3, knockouts: 4, ghostMissions: 1, hunterNoAlarm: 0 });
     expect(CHALLENGES.length).toBeGreaterThanOrEqual(6);
-  });
-  it('play styles pay cash in stealth modes', () => {
-    expect(styleLines({ ghost: 1000, panther: 0, assault: 200 }).map((l) => l.label)).toEqual(['Ghost (1000)', 'Assault (200)']);
-    const s = emptyStats('infiltration', 'embassy');
-    s.style = { ghost: 2000, panther: 500, assault: 0 };
-    const r = computeRewards(s, 'normal');
-    expect(r.lines.some((l) => l.label.startsWith('Ghost'))).toBe(true);
-    const w = emptyStats('wave', 'warehouse');
-    w.style = { ghost: 2000, panther: 0, assault: 0 };
-    expect(computeRewards(w, 'normal').lines.some((l) => l.label.startsWith('Ghost'))).toBe(false);
   });
 });
 
@@ -108,8 +96,8 @@ describe('profile ops and save v6', () => {
     expect(s.suit.worn.vest).toBe(1);
     expect(wearSuit(s, 'vest', 0)).toBe(true);
     expect(wearSuit(s, 'vest', 3)).toBe(false);
-    expect(buyHq(s, 'marks').ok).toBe(true);
-    expect(s.hq.marks).toBe(1);
+    expect(buyHq(s, 'restock').ok).toBe(true);
+    expect(s.hq.restock).toBe(1);
     s.unlocks.push('weapon:smg');
     s.loadout.primary = 'smg';
     expect(savePreset(s, 2, 'gas')).toBe(true);

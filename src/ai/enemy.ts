@@ -393,7 +393,7 @@ export class Enemy implements Damageable {
     return this.sight.exposure > 0;
   }
 
-  /** The animated body (sonar marks). */
+  /** The animated body (LKP ghost). */
   get bodyRig(): CharacterRig {
     return this.rig;
   }

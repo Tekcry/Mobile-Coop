@@ -104,7 +104,7 @@ export class PlayScreen extends Screen {
     this.body.replaceChildren(modeChoice, mapChoice, diff, ...this.weatherChoice(map), this.presetChoice(), this.desc, go);
   }
 
-  /** Infiltration: the mission board (best rating and play-style split per mission), insertion, difficulty. */
+  /** Infiltration: the mission board (best rating per mission), insertion, difficulty. */
   private buildMissions(): void {
     const m = missionById(this.missionId) ?? MISSIONS[0]!;
     if (!m.insertions.some((i) => i.id === this.insertion)) this.insertion = m.insertions[0]!.id;
@@ -152,8 +152,7 @@ export class PlayScreen extends Screen {
     const rules = (['noAlarms', 'noKills', 'undetected'] as const)
       .filter((k) => m.rules[k] !== 'off')
       .map((k) => `${k === 'noAlarms' ? 'No alarms' : k === 'noKills' ? 'No kills' : 'Undetected'} (${m.rules[k]})`);
-    // (3.5: the Ghost / Panther / Assault split is a parked Blacklist-era rating)
-    const best = rec ? `Best ${STARS(rec.rating)}${flags.legacy ? `  ·  Ghost ${rec.ghost} / Panther ${rec.panther} / Assault ${rec.assault}` : ''}  ·  ${rec.wins}/${rec.plays} won` : 'Not played yet';
+    const best = rec ? `Best ${STARS(rec.rating)}  ·  ${rec.wins}/${rec.plays} won` : 'Not played yet';
     this.desc.textContent = `Objectives: ${m.objectives.map((o) => o.label).join(', ')}${rules.length ? '  ·  Rules: ' + rules.join(', ') : ''}  ·  ${best}`;
     const go = button('Deploy', () => this.start({ map, mode: 'infiltration', difficulty: this.difficulty, seed: 1, missionId: m.id, insertion: this.insertion, weather: this.weatherFor(map) }), {
       icon: 'play',

@@ -30,7 +30,7 @@ export const TOUCH_DEFS: Record<TouchControlId, ControlDef> = {
   dash: { id: 'dash', action: 'dash', size: 56, icon: 'dash', label: 'Sprint (toggle)' },
   shoulder: { id: 'shoulder', action: 'shoulderSwap', size: 46, icon: 'shoulder', label: 'Swap shoulder' },
   pause: { id: 'pause', action: 'pause', size: 44, icon: 'pause', label: 'Pause' },
-  vision: { id: 'vision', action: 'vision', size: 56, icon: 'goggles', label: 'Goggles (night vision / sonar)' },
+  vision: { id: 'vision', action: 'vision', size: 56, icon: 'goggles', label: 'Night vision' },
   takedown: { id: 'takedown', action: 'interact', size: 72, icon: 'interact', label: 'Takedown (when on offer: tap knocks out, hold is lethal)' },
   ping: { id: 'ping', action: 'ping', size: 56, icon: 'ping', label: 'Ping (co-op)' },
   speed: { id: 'speed', action: null, size: 56, icon: 'dash', label: 'Speed (gear up / down)' },

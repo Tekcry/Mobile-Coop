@@ -8,6 +8,9 @@ Design authority: docs/design-bible.md (Section 5.11)
 - Save schema: `save/schema.ts` (`SAVE_VERSION`). Changing the shape = bump the version, add a
   migration in `save/migrations.ts` (input is the previous version's raw object), extend `sanitizeSave`,
   and add a test in `tests/save.test.ts` with a literal old save.
+- Schema v8 (locomotion 04): `MissionRecord` = `{ rating, score, plays, wins }`. Migration `7:` deletes the mission
+  `ghost / panther / assault`, `hq.sonar / hq.marks` and `challenges.progress.executes` (and `executes` from
+  `challenges.done`). HQ credits already spent on sonar / marks are not refunded (parked economy).
 - Export format: `{ magic: 'shoulder-strike-save', version, exportedAt, data }`; import also accepts bare
   saves of any known version.
 - New unlockables: add to `UNLOCKS` (or `registerUnlocks` from another module) with an id prefix

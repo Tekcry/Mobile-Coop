@@ -21,7 +21,7 @@ export class DogModel {
   private phase = 0;
   private down = 0;
   private downTarget = 0;
-  /** World position of the head (hit volume, sonar). */
+  /** World position of the head (hit volume). */
   readonly head = new Vector3();
 
   constructor(scene: Scene, lib: PartLibrary, color: string, dark: string) {

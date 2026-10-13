@@ -843,8 +843,7 @@ export class CharacterRig {
   private readonly glows: InstancedMesh[] = [];
   private lensOn = false;
 
-  /** The tri-lens lenses always glow faintly (the goggle glow, bible L7); brighter while a vision mode (night vision,
-   *  sonar) is on. */
+  /** The tri-lens lenses always glow faintly (the goggle glow, bible L7); brighter while a vision mode (night vision) is on. */
   setLensGlow(on: boolean): void {
     if (on === this.lensOn) return;
     this.lensOn = on;

@@ -161,14 +161,14 @@ export class InfiltrationMode implements GameMode {
     this.updateObjective();
   }
 
-  /** An objective done: score, play style, checkpoint, the next one. */
+  /** An objective done: score, checkpoint, the next one. */
   private completed(o: ObjectiveDef): void {
     const g = this.g;
     g.stats.objectives++;
     g.stats.score += 500;
     const unseen = !g.detected;
     if (unseen) this.unseenObjectives++;
-    g.style.record(unseen ? 'objectiveUnseen' : 'objective', g.detected);
+    g.style.record('objective', g.detected);
     g.events.emit('objective', { id: o.id });
     this.checkpoint.copyFrom(g.player.position);
     if (o.type === 'sabotage') g.hud.banner('CHARGE ARMED', 'Get out', 2000);
@@ -194,7 +194,6 @@ export class InfiltrationMode implements GameMode {
       // the sabotage charge goes off as you leave
       for (const o of this.def.objectives) if (o.type === 'sabotage') g.vfx.explosion(new Vector3(o.x, o.y + 0.6, o.z), 5);
     }
-    if (!g.detected && g.style.detections === 0) g.style.record('ghostExtract', false);
     g.events.emit('operationComplete', {});
     g.hud.banner('MISSION COMPLETE', this.def.name, 2600);
     g.slowBeat(0.4, 0.5);

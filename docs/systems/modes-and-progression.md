@@ -7,9 +7,9 @@ Design authority: docs/design-bible.md (Sections 5.6, 5.8 and 6)
 - Hunter = `ClearMode` (`id 'clear'`, labelled Hunter; `?mode=hunter`); `GameMode.onAlarm(at)` (from
   `StealthSystems.onAlarm`) returns true when the mode brings its own reinforcements: Hunter adds `hostilesLeft`
   more pending slots (alerted, not holding) at the entry point (`alarmAdded`).
-- Play styles: `game/playstyle.ts` `StyleTracker` (`GameState.style`; `GameState.detected` flips record
-  `detected`); kills / knock-outs / takedowns / executes from `enemyMgr.onKilled` (`Enemy.ko`), alarms and hidden
-  bodies from `StealthSystems`; `SessionStats.style / detections / knockouts`; results bars (`style-bars`).
+- Stealth rating hook: `game/playstyle.ts` `StealthRating` (`GameState.style`; counters `alarms / kills / knockouts /
+  detections`, no points; scoring is Phase 4). `GameState.detected` flips record `detected`; kills / knock-outs /
+  takedowns from `enemyMgr.onKilled` (`Enemy.ko`), alarms from `StealthSystems`; `SessionStats.detections / knockouts`.
 - Infiltration: `game/missions.ts` (`MISSIONS` from `config/missions.json`, `validateMissions`, `ObjectiveChain`,
   `DOWNLOAD`, `evaluateRules`, `missionRating`), `game/modes/infiltrationMode.ts` (insertion teleport, room squads
   with a fill like Hunter, per-objective interactables with `onUse`: kinds `terminal`, `charge`, `vip`, `intel`,
@@ -41,13 +41,13 @@ Design authority: docs/design-bible.md (Sections 5.6, 5.8 and 6)
   the def with attachment parts and the moved muzzle; `LoadoutEntry.attachments`; `PlayerWeapons` builds from it
   (slots carry `nonLethal`, `pen` = `PENETRATION[class]`, `scoped`). `penetrate()` casts back from beyond the hit
   to find the exit face. Back carry: a centre gun stands off `CENTRE_CLEAR` minus its top-to-bore depth.
-- `progression/suit.ts` (pure): `SUIT` tiers, `suitStats` (damage, noise, hands, sonar, gadgets), `suitLook`, `HQ`
-  + `hqStats` (radar, sonarRange, restock, reviveSpeed), `canBuySuit / canBuyHq`, `CHALLENGES` +
-  `challengeProgress`, `styleLines` (`STYLE_PAY`), presets. Profile ops `buySuit / wearSuit / buyHq / savePreset /
-  applyPreset`; `applySession` pays challenges (`SessionStats.takedownsByKind / executes / gadgetKos / alarms`).
+- `progression/suit.ts` (pure): `SUIT` tiers, `suitStats` (damage, noise, hands, gadgets), `suitLook`, `HQ`
+  + `hqStats` (radar, restock, reviveSpeed), `canBuySuit / canBuyHq`, `CHALLENGES` +
+  `challengeProgress`, presets. Profile ops `buySuit / wearSuit / buyHq / savePreset /
+  applyPreset`; `applySession` pays challenges (`SessionStats.takedownsByKind / gadgetKos / alarms`).
 - `GameOptions.suit / hq / gadget` (single player from the save in `main.ts`; the look via `suitLook`); GameState
   applies `target.armorMul`, `weapons.handsMul`, `takedown.handsMul`, gadget counts, footstep noise
-  x `suit.noise`, `sonarMul`, radar blips, restock on respawn. `ui/screens/loadoutScreen.ts` (Gear / HQ tabs;
+  x `suit.noise`, radar blips, restock on respawn. `ui/screens/loadoutScreen.ts` (Gear / HQ tabs;
   root page presets); Play screen Loadout row. Save v6; v7 (2.3) issues the 9mm SD (`STARTER_UNLOCKS`) as the
   default primary with the 552 secondary (a loadout / preset still on 552 + P45 moves to it). `?loadout=a,b` for
   autostart (tests).
@@ -73,4 +73,4 @@ Design authority: docs/design-bible.md (Sections 5.6, 5.8 and 6)
   a `campaign` argument (the Loadout screen passes `campaignUnlocked`), `unlockRow` shows them owned. Nothing is written to `unlocks` or credits.
   `SaveManager.openLoadout` (set from `main.ts` before `load`) makes `sanitizeSave(raw, openLoadout)` keep any known weapon as the loadout / a preset's weapon, so the
   choice survives a reload (no `SAVE_VERSION` change; the default sanitising, used by the tests and `?legacy=1`, still resets an unowned weapon).
-- `?autostart=...&mode=...` starts any mode whatever the flag. Training, snap cover, sonar and the drone are unchanged until roadmap Phase 3.
+- `?autostart=...&mode=...` starts any mode whatever the flag. Training, snap cover and the drone are unchanged until roadmap Phase 3.

@@ -10,7 +10,7 @@ import { WEAPONS, GRENADE } from '../weapons/weaponDefs';
 import { G } from '../physics/groups';
 import { Hitboxes } from '../ai/hitboxes';
 import { noiseRadius } from '../player/movement';
-import { hqStats } from '../progression/suit';
+import { defaultHq, hqStats } from '../progression/suit';
 import type { NetSession } from './session';
 import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
@@ -122,7 +122,7 @@ export class CoopHost implements NetAttachment {
   ) {
     const mode = g.opts.mode;
     this.score = isPvp(mode) ? new PvpScore(mode as PvpMode) : null;
-    this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? { radar: 0, sonar: 0, marks: 0, restock: 0, revive: 0 }).reviveSpeed;
+    this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? defaultHq()).reviveSpeed;
     g.remotePlayers = () => {
       const out = [];
       for (const r of this.remotes.values()) out.push(r.ref);
@@ -772,7 +772,6 @@ export class CoopHost implements NetAttachment {
       f: localFlags(g),
       w: g.weapons.current.def.id,
       hp: th.hp,
-      sh: th.shield,
     };
   }
 
@@ -812,7 +811,7 @@ export class CoopHost implements NetAttachment {
     const players: PlayerState[] = [this.selfState()];
     for (const r of this.remotes.values()) {
       if (!r.state) continue;
-      players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, sh: r.health.shield, f: ((r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead) & ~PF.spotted) | (r.ref.spotted ? PF.spotted : 0) });
+      players.push({ ...r.state, x: r.feet.x, y: r.feet.y, z: r.feet.z, hp: r.health.hp, f: ((r.alive ? r.state.f & ~PF.dead : r.state.f | PF.dead) & ~PF.spotted) | (r.ref.spotted ? PF.spotted : 0) });
     }
     const enemies: EnemyState[] = [];
     for (const e of this.g.enemyMgr?.enemies ?? []) {

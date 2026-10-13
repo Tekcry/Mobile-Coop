@@ -7,7 +7,7 @@ import { STARTER_UNLOCKS } from '../progression/unlocks';
 import { CHALLENGES, defaultHq, defaultPresets, defaultSuit, HQ, HQ_IDS, PRESETS, SUIT, SUIT_PIECES, type HqLevels, type LoadoutPreset, type SuitLoadout } from '../progression/suit';
 
 /** Current save schema version. Bump + add a migration in migrations.ts. */
-export const SAVE_VERSION = 7;
+export const SAVE_VERSION = 8;
 
 export interface WeaponProgress {
   upgrades: WeaponUpgrades;
@@ -25,13 +25,10 @@ export interface LifetimeStats {
   timePlayed: number;
 }
 
-/** Best result per Infiltration mission (rating 0-3 stars, play-style points of that run). */
+/** Best result per Infiltration mission (rating 0-3 stars). */
 export interface MissionRecord {
   rating: number;
   score: number;
-  ghost: number;
-  panther: number;
-  assault: number;
   plays: number;
   wins: number;
 }
@@ -154,9 +151,6 @@ export function sanitizeSave(raw: unknown, openLoadout = false): SaveData {
       missions[id] = {
         rating: int(r.rating, 0, 3, 0),
         score: int(r.score, 0, 1e9, 0),
-        ghost: int(r.ghost, 0, 1e9, 0),
-        panther: int(r.panther, 0, 1e9, 0),
-        assault: int(r.assault, 0, 1e9, 0),
         plays: int(r.plays, 0, 1e9, 0),
         wins: int(r.wins, 0, 1e9, 0),
       };

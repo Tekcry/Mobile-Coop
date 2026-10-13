@@ -280,7 +280,6 @@ export class CoopClient implements NetAttachment {
     const g = this.g;
     const h = g.target.health;
     h.hp = p.hp;
-    h.shield = p.sh;
     if (p.hp <= 0 && g.player.alive) {
       g.player.alive = false;
       if (!this.pvp) g.hud.banner('DOWN', g.opts.mode === 'sandbox' ? 'Respawning…' : 'A team-mate can revive you', 2500);
@@ -474,7 +473,6 @@ export class CoopClient implements NetAttachment {
         f: localFlags(g),
         w: g.weapons.current.def.id,
         hp: g.target.health.hp,
-        sh: g.target.health.shield,
         mv,
       }),
     });

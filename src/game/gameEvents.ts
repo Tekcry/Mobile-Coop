@@ -18,9 +18,8 @@ export interface GameEvents {
   body: { action: 'pickup' | 'drop' | 'hide' };
   /** A takedown started / finished / was broken off. */
   takedown: { phase: 'start' | 'done' | 'abort'; lethal: boolean; kind: string };
-  /** Goggles switched (audio) / a sonar pulse went out. */
-  vision: { mode: 'off' | 'night' | 'sonar' };
-  sonar: Record<string, never>;
+  /** Goggles switched (audio). */
+  vision: { mode: 'off' | 'night' };
   /** A door opened / closed (audio). */
   door: { how: 'quiet' | 'bash' | 'enemy' | 'close'; x: number; z: number };
   /** Gadgets (audio): thrown, gone off, placed, stuck, a pulse / ping, a dart, a remote view opened / closed. */

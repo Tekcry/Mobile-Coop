@@ -82,6 +82,38 @@ export const MIGRATIONS: Record<number, Migration> = {
     const presets = Array.isArray(s.presets) ? s.presets.map((p, i) => (i < 2 && issue(p) ? sd(p as Raw) : p)) : s.presets;
     return { ...s, version: 7, loadout, presets };
   },
+  // v7 -> v8: the style tracker and its cash, sonar and Mark & Execute are gone: mission records lose
+  // ghost / panther / assault, HQ loses sonar / marks (spent credits are not refunded), challenges lose executes
+  7: (s) => {
+    const missions: Raw = {};
+    if (isObj(s.missions)) {
+      for (const [id, r] of Object.entries(s.missions)) {
+        if (!isObj(r)) {
+          missions[id] = r;
+          continue;
+        }
+        const { ghost: _g, panther: _p, assault: _a, ...rest } = r;
+        missions[id] = rest;
+      }
+    }
+    let hq = s.hq;
+    if (isObj(hq)) {
+      const { sonar: _s, marks: _m, ...rest } = hq;
+      hq = rest;
+    }
+    let challenges = s.challenges;
+    if (isObj(challenges)) {
+      const prog = isObj(challenges.progress) ? challenges.progress : challenges.progress;
+      let progress = prog;
+      if (isObj(prog)) {
+        const { executes: _e, ...rest } = prog;
+        progress = rest;
+      }
+      const done = Array.isArray(challenges.done) ? challenges.done.filter((d) => d !== 'executes') : challenges.done;
+      challenges = { ...challenges, progress, done };
+    }
+    return { ...s, version: 8, missions: 'missions' in s ? missions : s.missions, hq, challenges };
+  },
 };
 
 export class SaveVersionError extends Error {}

@@ -1,7 +1,6 @@
 # Gadgets
-> Status: sonar is off the goggles button (Phase 1 Step 4b fix: `GameState` sets `VisionState.sonarAllowed` false; the
-> button cycles off / night vision) and its code is removed in Phase 3, when thermal replaces it; the tri-rotor drone is
-> parked (bible 6).
+> Status: sonar is removed (locomotion step 02; the vision button is night vision only until step 14 adds thermal /
+> electro); the tri-rotor drone is parked (bible 6).
 Purpose: the gadget set, the wheel, remote views and effects.
 Design authority: docs/design-bible.md (Section 5.5)
 

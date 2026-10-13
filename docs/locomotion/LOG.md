@@ -13,3 +13,6 @@ PLAN.md and step files 01-34 (three opus writers), decisions A6-A32 logged.
 
 ## 01 remove-mark-execute
 Mark & Execute gone end to end (game, HUD, input, touch layout v6, suit extraMarks, net `ex` / execCharges, tests, docs). Checks (opus checker): lint 0 errors; tests 1012/1013 (kestrel-owned fail); build ok; e2e quick 27 suites pass except e2e-progression without LEGACY (fails on pre-step code too; passes under --legacy). Note: deletions landed early in 87c397f (see REVIEW-NOTES).
+
+## 02-04 remove-sonar, remove-shield, remove-style (batched)
+Sonar gone (vision = night only); Health(100), no shield or regen, `sh` off the wire; StealthRating stub (alarms, kills, knockouts, detections), style cash and bars gone, MissionRecord {rating, score, plays, wins}, SAVE_VERSION 8 with v7 migration + literal v7 test, HQ sonar / marks and the executes challenge dropped, presets Silent / Flash / Loud (A33). Opus check PASS: lint 0 errors, tests 1013/1014 (kestrel-owned), build ok, e2e quick pass except timing flakes passing serially (e2e-stealth, e2e-levels, netmove, darkness), legacy suites pass. Toughness 150 -> 100 (pistol guard 26 dmg: 4 hits).

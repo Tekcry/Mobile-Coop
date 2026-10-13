@@ -8,7 +8,7 @@ const RADII = [0.15, 0.06, 0.05, 0.06, 0.05, 0.085, 0.06, 0.085, 0.06, 0.07, 0.0
 const DEPTH_ALWAYS = 519;
 
 /**
- * Frozen silhouettes of rigs (the LKP ghost, sonar marks): a pose captured from a `CharacterRig` drawn as
+ * Frozen silhouettes of rigs (the LKP ghost): a pose captured from a `CharacterRig` drawn as
  * capsule-ish limbs and a head, unlit and translucent. One thin-instanced cylinder mesh for every limb of
  * every figure plus one for the heads: 2 draw calls whatever the count. `overlay` draws them over the world
  * (seen through walls).

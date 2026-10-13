@@ -60,7 +60,7 @@ describe('move state (3.2.0 phase 1)', () => {
   });
 
   it('pstate carries a sanitised move state; a bad one is dropped, not the message', () => {
-    const ps: PlayerState = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80, sh: 20 } as PlayerState;
+    const ps: PlayerState = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80 } as PlayerState;
     const mv = { ...emptyMoveState(), m: 'cover' as const, sub: COVER_SUB.low | COVER_SUB.wallRight, s: 1.1, ph: 0.75 };
     const m = parseMessage(JSON.parse(JSON.stringify({ t: 'pstate', s: wirePlayerState({ ...ps, mv }) })));
     expect(m && m.t === 'pstate' && m.s.mv).toMatchObject({ m: 'cover', sub: 3, s: 1.1, ph: 0.75 });

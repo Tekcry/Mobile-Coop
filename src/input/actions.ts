@@ -25,7 +25,7 @@ export const BUTTON_ACTIONS = [
   'gadgetWheel',
   'shoulderSwap',
   'dash',
-  /** Goggles: cycle off -> night vision -> sonar. */
+  /** Goggles: toggle night vision. */
   'vision',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',

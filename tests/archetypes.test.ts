@@ -90,12 +90,10 @@ describe('roster and difficulty', () => {
       expect(t[k]).toBe(0);
     }
   });
-  it('tiers scale perception and damage; Perfectionist has no sonar', () => {
+  it('tiers scale perception and damage', () => {
     expect(DIFFICULTY.rookie.perception).toBeLessThan(DIFFICULTY.normal.perception);
     expect(DIFFICULTY.perfectionist.perception).toBeGreaterThan(DIFFICULTY.realistic.perception);
     expect(DIFFICULTY.realistic.damage).toBeGreaterThan(DIFFICULTY.normal.damage);
-    expect(DIFFICULTY.perfectionist.sonar).toBe(false);
-    expect(DIFFICULTY.normal.sonar).toBe(true);
   });
   it('reads the old difficulty names', () => {
     expect(parseDifficulty('easy')).toBe('rookie');

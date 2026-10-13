@@ -151,7 +151,7 @@ Design authority: docs/design-bible.md (Section 8)
   (+ the LOD pair) with per-vertex colour / pattern / `color2` / `vox` (the voxel-grid position: `VoxelBodyPlugin`
   per-voxel tone and fine seams), rigidly skinned: one flat bone per node a part hangs from, set each frame (skeleton
   `onBeforeComputeObservable`) to the node's world matrix relative to the root, so ragdolls (joints re-parented onto
-  physics nodes) still drive it. The smooth parts stay, invisible (hit volumes, clearances, ghost / sonar read the
+  physics nodes) still drive it. The smooth parts stay, invisible (hit volumes, clearances, ghost reads the
   joints). `rig.renderMeshes` (shadow casters), `rig.setHeadVisible` (camera fade), `setLensGlow` / `setFlash` reach
   the vertices (`setPartColor`). `PartLibrary.skinMaterial` (unfrozen twin of the part material + `VoxelBodyPlugin`,
   `mesh.metadata.skinMaterial` on the bases). Two draws per character (+ shadows).

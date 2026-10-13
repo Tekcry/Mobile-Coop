@@ -165,7 +165,6 @@ export class StealthSystems {
     this.release();
     this.g.hud.feedItem('Body hidden');
     this.g.events.emit('body', { action: 'hide' });
-    this.g.style.record('bodyHidden', this.g.detected);
   }
 
   private release(): void {

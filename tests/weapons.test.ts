@@ -119,18 +119,21 @@ describe('aim assist', () => {
   });
 });
 
-describe('health and shield', () => {
-  it('shield absorbs first and regenerates after a delay', () => {
-    const h = new Health(100, 50, 4, 25);
+describe('health', () => {
+  it('health has no regeneration: 10 s of update-free time after damage leaves hp unchanged', () => {
+    const h = new Health(100);
     expect(h.damage(70)).toBe(70);
-    expect(h.shield).toBe(0);
-    expect(h.hp).toBe(80);
-    h.update(3);
-    expect(h.shield).toBe(0);
-    h.update(1.5);
-    expect(h.shield).toBeGreaterThan(0);
-    h.update(10);
-    expect(h.shield).toBe(50);
+    expect(h.hp).toBe(30);
+    expect((h as unknown as { update?: unknown }).update).toBeUndefined();
+    expect(h.hp).toBe(30);
+  });
+  it('damage clamps at 0, heal clamps at maxHp', () => {
+    const h = new Health(100);
+    expect(h.damage(40)).toBe(40);
+    h.heal(500);
+    expect(h.hp).toBe(100);
+    expect(h.damage(250)).toBe(100);
+    expect(h.hp).toBe(0);
   });
   it('dies at zero and ignores further damage', () => {
     const h = new Health(30);

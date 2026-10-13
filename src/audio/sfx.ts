@@ -202,12 +202,6 @@ export class Sfx {
     else this.burst('ui', 0.15, 0, 'bandpass', 2600, 4, 0.03);
   }
 
-  /** Sonar pulse: a soft low ping with a falling tail. */
-  sonar(): void {
-    this.tone('ui', 0.12, 0, 'sine', 1300, 1250, 0.5, 0, 0.01);
-    this.tone('ui', 0.06, 0, 'sine', 650, 420, 0.9, 0.05, 0.05);
-  }
-
   /** Gadgets: a flashbang crack, a gas hiss, an EMP zap, a noisemaker chirp, a feed static blip, a dart pop,
    *  a beep (place / stick / select). */
   gadget(kind: 'flash' | 'gas' | 'emp' | 'chirp' | 'feed' | 'dart' | 'beep', gain = 1): void {

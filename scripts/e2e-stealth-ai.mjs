@@ -712,14 +712,14 @@ try {
       st.tap('vision');
       t.step(0.1);
       g.frameUpdate(0.1, 1);
-      // (Step 4b fix) no sonar: the second press turns the goggles off (thermal replaces sonar in Phase 3)
+      // the second press turns the goggles off (night vision only until step 14)
       t.step(0.4);
       g.frameUpdate(0.4, 1);
-      const off = { mode: v.mode, marks: g.sonarMarks.count, hud: document.querySelector('.tac-vision')?.textContent };
+      const off = { mode: v.mode, hud: document.querySelector('.tac-vision')?.textContent };
       return { night, off, nvOff: g.post['nv'] };
     });
     assert(r.night.mode === 'night' && r.night.nv > 0.9 && r.night.hud === 'NV', `the goggles button: night vision (${JSON.stringify(r.night)})`);
-    assert(r.off.mode === 'off' && r.off.marks === 0 && r.off.hud === '', `again: off, no sonar (${JSON.stringify(r.off)})`);
+    assert(r.off.mode === 'off' && r.off.hud === '', `again: off (${JSON.stringify(r.off)})`);
     assert(r.nvOff < 0.01, `night vision is off (${r.nvOff})`);
   });
 

@@ -12,8 +12,6 @@ import { GEARS } from '../../config/movement';
 export interface HudFrame {
   hp: number;
   maxHp: number;
-  shield: number;
-  maxShield: number;
   weapon: string;
   mag: number;
   magSize: number;
@@ -38,7 +36,6 @@ const COMPASS_PX_PER_RAD = 120;
 export class Hud {
   readonly el: HTMLElement;
   private hpFill: HTMLElement;
-  private shFill: HTMLElement;
   private hpText: HTMLElement;
   private wName: HTMLElement;
   private wMag: HTMLElement;
@@ -86,7 +83,6 @@ export class Hud {
 
   constructor(parent: HTMLElement) {
     this.hpFill = h('div', { class: 'bar-fill hp' });
-    this.shFill = h('div', { class: 'bar-fill sh' });
     this.hpText = h('div', { class: 'vital-text' });
     this.staminaFill = h('i');
     this.staminaBar = h('div', { class: 'bar stamina' }, this.staminaFill);
@@ -99,7 +95,6 @@ export class Hud {
     const vitals = h(
       'div',
       { class: 'hud-vitals' },
-      h('div', { class: 'bar shield' }, this.shFill),
       h('div', { class: 'bar health' }, this.hpFill),
       this.hpText,
       this.staminaBar,
@@ -214,7 +209,6 @@ export class Hud {
 
   update(f: HudFrame): void {
     const hpPct = Math.max(0, f.hp / f.maxHp);
-    const shPct = f.maxShield > 0 ? Math.max(0, f.shield / f.maxShield) : 0;
     this.set('hp', Math.round(hpPct * 200), () => {
       this.hpFill.style.width = `${hpPct * 100}%`;
       this.hpFill.classList.toggle('low', hpPct < 0.3);
@@ -222,7 +216,6 @@ export class Hud {
       // the screen edge reddens with damage: the only health readout without the bars
       this.vignette.style.opacity = String(this.healthBar ? (hpPct < 0.35 ? (0.35 - hpPct) * 2.2 : 0) : hpPct < 0.9 ? Math.min(0.95, Math.pow((0.9 - hpPct) / 0.9, 0.8) * 1.05) : 0);
     });
-    this.set('sh', Math.round(shPct * 200), () => (this.shFill.style.width = `${shPct * 100}%`));
     this.set('wn', f.weapon, () => (this.wName.textContent = f.weapon));
     this.set('mag', f.mag, () => {
       this.wMag.textContent = String(f.mag);
@@ -365,12 +358,12 @@ export class Hud {
     this.set('lightS', shadow, () => this.lightEl.classList.toggle('shadow', shadow));
   }
 
-  /** Goggles: the mode in use, or the sonar recharging (seconds left). */
-  setVision(mode: 'off' | 'night' | 'sonar', cooldown: number): void {
-    const text = mode === 'night' ? 'NV' : mode === 'sonar' ? 'SONAR' : cooldown > 0 ? `SONAR ${Math.ceil(cooldown)}` : '';
+  /** Goggles: the mode in use. */
+  setVision(mode: 'off' | 'night'): void {
+    const text = mode === 'night' ? 'NV' : '';
     this.set('vision', text, () => {
       this.visionEl.textContent = text;
-      this.visionEl.dataset.mode = mode === 'off' ? (cooldown > 0 ? 'cool' : 'off') : mode;
+      this.visionEl.dataset.mode = mode;
     });
   }
 

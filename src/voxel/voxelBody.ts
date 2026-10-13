@@ -3,7 +3,7 @@ import { greedyMesh } from './mesher';
 import { boundsOf, fillMesh, withApron, type GridSpec } from './meshVoxels';
 
 /**
- * Voxel characters (3.0): a rig's smooth parts (kept, invisible: hit volumes, clearances, the LKP ghost and sonar
+ * Voxel characters (3.0): a rig's smooth parts (kept, invisible: hit volumes, clearances, the LKP ghost
  * read them) voxelised at `size` in the world - every part hanging from one joint in one grid in that joint's space
  * (a later part over an earlier one: the balaclava over the head, a pouch over the carrier), meshed per part (greedy,
  * faces between parts culled) - merged into one mesh per character (the head on its own, for the camera's head fade)

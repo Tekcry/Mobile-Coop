@@ -2,8 +2,8 @@
 // choke), enforcer (shield stops frontal rounds, no frontal grab, pushes forward), sniper (laser, glint refuses a
 // mark, relocates after its shots), dog (smells a hidden crouched operator in the dark, a non-lethal takedown),
 // drone operator (its recon drone spots and alerts; shot down; EMP drops it), officer (buffs squadmates, runs the
-// alarm first), squad radio checks (a silent member is searched for), callouts, and Perfectionist (no
-// sonar). `node scripts/e2e-enemies.mjs [url] [--only=name]`
+// alarm first), squad radio checks (a silent member is searched for), callouts, and Perfectionist
+// (difficulty autostart). `node scripts/e2e-enemies.mjs [url] [--only=name]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
 const url = process.argv.slice(2).find((a) => !a.startsWith('--')) ?? 'http://localhost:4173/';
@@ -346,12 +346,9 @@ await run('autostart=warehouse&mode=clear&difficulty=perfectionist', [
       const r = await G(() => {
         const t = window.__t;
         const g = window.__app.current;
-        const v = g.vision;
-        const modes = [v.cycle(), v.cycle(), v.cycle()];
-        return { modes, def: g.difficultyDef.label };
+        return { def: g.difficultyDef.label };
       });
       assert(r.def === 'Perfectionist', `autostart takes the difficulty (${r.def})`);
-      assert(!r.modes.includes('sonar'), `no sonar (${r.modes.join(' -> ')})`);
     },
   ],
 ]);

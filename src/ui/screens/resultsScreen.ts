@@ -1,6 +1,4 @@
 import type { App } from '../../core/app';
-import { flags } from '../../core/flags';
-import { showEconomy } from '../../core/legacy';
 import type { SessionStats } from '../../game/modes/gameMode';
 import { h } from '../dom';
 import { Screen } from '../screen';
@@ -38,25 +36,6 @@ export class ResultsScreen extends Screen {
       row('Time', fmtTime(stats.time)),
       stats.mode === 'clear' || stats.mode === 'infiltration' ? row('Detected', stats.detections) : null,
     );
-    // play style (stealth modes): Ghost / Panther / Assault bars (3.5: parked, with `?legacy=1` only)
-    const st = stats.style;
-    const tot = st.ghost + st.panther + st.assault;
-    const styleEl =
-      showEconomy(flags.legacy) && (stats.mode === 'clear' || stats.mode === 'infiltration') && tot > 0
-        ? h(
-            'div',
-            { class: 'style-bars' },
-            ...(['ghost', 'panther', 'assault'] as const).map((k) =>
-              h(
-                'div',
-                { class: `style-bar ${k}` },
-                h('span', { text: k === 'ghost' ? 'Ghost' : k === 'panther' ? 'Panther' : 'Assault' }),
-                h('i', { attrs: { style: `--w:${Math.round((st[k] / tot) * 100)}%` } }),
-                h('b', { text: `${st[k]}` }),
-              ),
-            ),
-          )
-        : null;
     const rating =
       stats.mode === 'infiltration' && stats.rating !== undefined
         ? h('div', { class: 'mission-rating', text: `${'\u2605'.repeat(stats.rating)}${'\u2606'.repeat(3 - stats.rating)}${stats.bonuses?.length ? '  ' + stats.bonuses.join(' / ') : ''}` })
@@ -75,7 +54,6 @@ export class ResultsScreen extends Screen {
         h('div', { class: 'results-sub', text: subtitle }),
         grid,
         rating,
-        styleEl,
         rewards,
         list,
       ),
