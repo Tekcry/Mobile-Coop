@@ -36,7 +36,7 @@ describe('opening catalogue (ON9 decision 1)', () => {
     expect(shownSettings(op('door', { door: { reader: 'card' } }), rooms)).toContain('level');
     expect(shownSettings(op('arch'), rooms)).toEqual([]);
     expect(shownSettings(op('window-frosted'), rooms)).toEqual(['glass', 'blinds', 'breakable', 'opens']);
-    expect(cardRows('openings', op('slide-card'), { rooms, wall }).map((r) => r.id)).toEqual(['type', 'name', 'w', 'h', 'sill', 'at', 'stack', 'oneWay', 'locked', 'reader', 'level', 'alarmed', 'glass', 'breakable', 'id']);
+    expect(cardRows('openings', op('slide-card'), { rooms, wall }).map((r) => r.id)).toEqual(['type', 'name', 'w', 'h', 'sill', 'at', 'stack', 'oneWay', 'locked', 'reader', 'level', 'alarmed', 'glass', 'breakable', 'plate', 'id']);
   });
 
   it('realistic defaults per type', () => {

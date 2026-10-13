@@ -23,6 +23,7 @@ import type { LightGroup } from './lightCatalogue';
 import type { PresetFrom } from './presets';
 import { MISSION_TOOLS } from './missionCatalogue';
 import { SEC_TOOLS } from './securityCatalogue';
+import { SIGN_KINDS } from './signCatalogue';
 
 export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'Security', 'View'] as const;
 export type MenuTab = (typeof MENU_TABS)[number];
@@ -49,8 +50,10 @@ export interface MenuInput {
   view: ViewState;
   /** ON3: the number of things in a multi-selection (box select or Shift+click); its tiles replace the Selected tab's. */
   group?: number;
-  /** ON4: the Objects tab's group (its presets follow the group tiles). */
-  objGroup?: ObjGroup;
+  /** ON4: the Objects tab's group (its presets follow the group tiles); ON14: or Signs. */
+  objGroup?: ObjGroup | 'signs';
+  /** ON14: Align lines up on the first picked (else the outermost). */
+  alignFirst?: boolean;
   /** ON11: the Presets tab: the source shown, its presets, and the own preset Rename / Delete act on (the one last picked). */
   presets?: { from: PresetFrom; list: { id: string; name: string; desc: string }[]; mine: { id: string; name: string } | null };
   /** ON6: the Lights tab's group (its fittings follow the group tiles and Switch). */
@@ -127,6 +130,23 @@ export function viewTiles(v: ViewState): Tile[] {
   ];
 }
 
+/** ON14: what Mirror and Array take (a room brings its walls, doors and contents: arrange.ts). */
+const ARRANGE_COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'objects', 'signs', 'voids', 'stairs', 'ladders', 'lamps'];
+const mirrorTiles = (): Tile[] => [
+  { id: 'sel.mirrorX', icon: 'M', name: 'Mirror east-west', desc: 'About its own centre; one undo step', kind: 'go' },
+  { id: 'sel.mirrorZ', icon: 'M', name: 'Mirror north-south', desc: 'About its own centre; one undo step', kind: 'go' },
+  { id: 'sel.mirrorLine', icon: 'L', name: 'Mirror about a line', desc: 'A at a point on the line, A at a second', kind: 'go' },
+];
+const arrayTile: Tile = { id: 'sel.array', icon: 'Y', name: 'Array', desc: 'Copies along a line: the dot sets the spacing, D-pad the count, A', kind: 'go' };
+const ALIGN_TILES: readonly [string, string][] = [
+  ['left', 'Align left (west)'],
+  ['right', 'Align right (east)'],
+  ['top', 'Align top (north)'],
+  ['bottom', 'Align bottom (south)'],
+  ['cx', 'Align centres (x)'],
+  ['cz', 'Align centres (z)'],
+];
+
 /** The tiles of one tab, in order. */
 export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
   const copyFirst = inp.clipboard ? undefined : 'Copy something first (Selected > Copy)';
@@ -139,6 +159,13 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
           { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up, one edit', kind: 'go' },
           { id: 'sel.del', icon: 'X', name: `Delete ${inp.group} things`, desc: 'One edit; walls take their doors and windows', kind: 'go' },
           { id: 'sel.savePreset', icon: 'P', name: 'Save as preset', desc: 'Name it; it shows under Presets > Mine', kind: 'go' },
+          // ON14: mirror, align, evenly space and Array the set (one undo step each)
+          ...mirrorTiles(),
+          ...ALIGN_TILES.map((a): Tile => ({ id: `sel.align.${a[0]}`, icon: 'A', name: a[1], desc: inp.alignFirst ? 'To the first picked' : 'To the outermost', kind: 'go' })),
+          { id: 'sel.alignFirst', icon: 'F', name: 'Align to', desc: 'The outermost edge, or the first picked', kind: 'toggle', on: !!inp.alignFirst, value: inp.alignFirst ? 'First picked' : 'Outermost' },
+          { id: 'sel.distX', icon: 'E', name: 'Evenly space along x', desc: 'Equal gaps between the outer two', kind: 'go', disabled: inp.group < 3 ? 'Select three or more in a row' : undefined },
+          { id: 'sel.distZ', icon: 'E', name: 'Evenly space along z', desc: 'Equal gaps between the outer two', kind: 'go', disabled: inp.group < 3 ? 'Select three or more in a row' : undefined },
+          arrayTile,
         ];
       const s = inp.sel;
       if (!s) return [];
@@ -177,6 +204,11 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         // ON7: the light view with this lamp out (not saved)
         s.coll === 'lamps' && s.breakable === true && { id: 'sel.shot', icon: 'O', name: 'Preview shot out', desc: 'The light view with this lamp out (not saved)', kind: 'go' },
         s.coll === 'circuits' && { id: 'sel.addLamps', icon: 'L', name: 'Add lamps', desc: 'A on lamps puts them on this switch; B ends', kind: 'go' },
+        // ON14: mirror and Array; name plates on every door of the room's level or building
+        ...(ARRANGE_COLLS.includes(s.coll) ? mirrorTiles() : []),
+        ARRANGE_COLLS.includes(s.coll) && s.coll !== 'openings' && arrayTile,
+        s.coll === 'rooms' && { id: 'sel.platesLevel', icon: 'N', name: 'Name plates: this level', desc: 'Every door of the level without one, one edit', kind: 'go' },
+        s.coll === 'rooms' && { id: 'sel.platesBuilding', icon: 'N', name: 'Name plates: this building', desc: 'Every door of the building, every level', kind: 'go' },
         own && { id: 'sel.rename', icon: 'I', name: 'Rename id', desc: 'Every reference follows', kind: 'go' },
         types && { id: 'sel.type', icon: 'T', name: 'Change type', desc: 'The card\'s Type row: left / right', kind: 'go' },
         s.gap === true && { id: 'sel.closeGap', icon: 'G', name: 'Close gap', desc: 'The wall end moves onto the wall it nearly meets', kind: 'go' },
@@ -209,7 +241,10 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       const g = inp.objGroup ?? 'dataHall';
       return [
         ...GROUPS.map((q): Tile => ({ id: `objgroup.${q.id}`, icon: 'G', name: q.name, desc: 'A shows its objects', kind: 'toggle', on: q.id === g, value: q.id === g ? 'shown' : '' })),
-        ...groupPresets(g).map((p): Tile => ({ id: `obj.${p.id}`, icon: p.draw ? 'R' : p.mount === 'wall' ? 'W' : 'O', name: p.name, desc: p.draw ? 'A at the start, A at the end' : p.mount === 'wall' ? 'A on a wall; RB turns' : 'A places it; RB turns', kind: 'go' })),
+        // ON14: Signs (wayfinding and safety) as a sixth group
+        { id: 'objgroup.signs', icon: 'G', name: 'Signs', desc: 'A shows the signs', kind: 'toggle', on: g === 'signs', value: g === 'signs' ? 'shown' : '' },
+        ...(g === 'signs' ? SIGN_KINDS.map((k): Tile => ({ id: `sign.${k.id}`, icon: k.group === 'way' ? 'W' : 'S', name: k.name, desc: k.mount === 'wall' ? 'A on a wall face' : 'A on a wall face, or hung away from walls', kind: 'go' })) : []),
+        ...(g === 'signs' ? [] : groupPresets(g)).map((p): Tile => ({ id: `obj.${p.id}`, icon: p.draw ? 'R' : p.mount === 'wall' ? 'W' : 'O', name: p.name, desc: p.draw ? 'A at the start, A at the end' : p.mount === 'wall' ? 'A on a wall; RB turns' : 'A places it; RB turns', kind: 'go' })),
       ];
     }
     case 'Presets': {

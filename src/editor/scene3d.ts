@@ -3,7 +3,7 @@
  * tinted by access level, stairs, ladders, floor holes, pipe runs), picking, selection outlines and drag handles.
  * A dev tool: it rebuilds whole elements on change and never touches the game's renderer.
  */
-import { Color3, Color4, CreateBox, CreateLineSystem, DirectionalLight, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3, VertexData } from '../core/babylon';
+import { Color3, Color4, CreateBox, CreateLineSystem, DirectionalLight, DynamicTexture, Engine, FreeCamera, HemisphericLight, Matrix, Mesh, Scene, StandardMaterial, TransformNode, Vector3, VertexData } from '../core/babylon';
 import type { AbstractMesh } from '../core/babylon';
 import { cutRect, EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { WallJoin } from './geometry';
@@ -40,6 +40,9 @@ import type { SecurityTool } from './securityTool';
 import { ruleColour, voidOf } from './ceilings';
 import type { Ceiling, CrawlRecord } from './ceilings';
 import { ceilingType, crawlBoxes, hatchRect } from '../world/maps/kestrelCeilings';
+import { platePlace, plateColour } from './signs';
+import type { SignRecord } from './signs';
+import { PLATE, SIGN_F, signFace, signKind } from './signCatalogue';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
@@ -161,6 +164,58 @@ export class EditorScene {
     return m;
   }
 
+  /**
+   * ON14: a sign face: its words drawn on a canvas texture in its colours (the editor only; the walk test's panels are
+   * plain, signs.ts). One material per text and colours.
+   */
+  private textMat(text: string, bg: string, fg: string, w: number, h: number): StandardMaterial {
+    const k = `text|${text}|${bg}|${fg}|${w}|${h}`;
+    let m = this.mats.get(k);
+    if (m) return m;
+    const W = 512;
+    const H = Math.max(64, Math.min(512, Math.round((W * h) / Math.max(0.01, w) / 8) * 8));
+    const tex = new DynamicTexture(`signTex ${text}`, { width: W, height: H }, this.scene, true);
+    const ctx = tex.getContext() as CanvasRenderingContext2D;
+    ctx.fillStyle = bg;
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = fg;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    // the largest size that fits, wrapped onto two lines when it is long
+    const words = text.split(' ');
+    const lines = words.length > 3 && H > 120 ? [words.slice(0, Math.ceil(words.length / 2)).join(' '), words.slice(Math.ceil(words.length / 2)).join(' ')] : [text];
+    let size = Math.floor((H * 0.7) / lines.length);
+    ctx.font = `bold ${size}px sans-serif`;
+    while (size > 10 && Math.max(...lines.map((l) => ctx.measureText(l).width)) > W * 0.92) {
+      size -= 2;
+      ctx.font = `bold ${size}px sans-serif`;
+    }
+    lines.forEach((l, i) => ctx.fillText(l, W / 2, (H * (i + 0.5)) / lines.length));
+    tex.update();
+    m = new StandardMaterial(k, this.scene);
+    m.diffuseTexture = tex;
+    m.specularColor = new Color3(0.05, 0.05, 0.05);
+    m.emissiveColor = new Color3(0.35, 0.35, 0.35);
+    this.mats.set(k, m);
+    return m;
+  }
+
+  /** ON14: a sign: its face with its words (both sides when hung) and, hung, its rods to the ceiling. */
+  private buildSign(e: SignRecord): [Mesh[], string[]] {
+    const k = signKind(e.kind);
+    const f = this.floorOf(e.level);
+    const yaw = (e.facing * Math.PI) / 180;
+    const out: Mesh[] = [];
+    if (e.y - e.size[1] / 2 > this.cut) return [out, [e.level]];
+    out.push(this.box(`sign ${e.id}`, e.at[0], f + e.y, e.at[1], e.size[0], e.size[1], 0.03, yaw, this.textMat(signFace(e.text, e.arrow), k.bg, k.fg, e.size[0], e.size[1])));
+    if (e.hang) {
+      const rod = this.mat('sign rod', '#5c636a');
+      const top = f + e.y + e.size[1] / 2;
+      for (const s of [-0.35, 0.35]) out.push(this.box(`sign ${e.id} rod`, e.at[0] + Math.cos(yaw) * e.size[0] * s, top + SIGN_F.hangGap.value / 2, e.at[1] - Math.sin(yaw) * e.size[0] * s, 0.01, SIGN_F.hangGap.value, 0.01, 0, rod));
+    }
+    return [out, [e.level]];
+  }
+
   /** A box from its centre and size; `yaw` turns its local x onto a plan direction. */
   private box(name: string, cx: number, cy: number, cz: number, sx: number, sy: number, sz: number, yaw: number, mat: StandardMaterial): Mesh {
     const m = CreateBox(name, { width: Math.max(sx, 0.01), height: Math.max(sy, 0.01), depth: Math.max(sz, 0.01) }, this.scene);
@@ -200,6 +255,8 @@ export class EditorScene {
     // ON13: each room's ceiling (a piece of its own) and the crawl spaces
     for (const r of d.rooms) this.build(keyOf('ceilings', r.id));
     for (const c of d.crawls ?? []) this.build(keyOf('crawls', c.id));
+    // ON14: signs
+    for (const g of d.signs ?? []) this.build(keyOf('signs', g.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -274,6 +331,7 @@ export class EditorScene {
     else if (p.coll === 'devices') [meshes, levels] = this.buildDevice(e as unknown as Device);
     else if (p.coll === 'ceilings') [meshes, levels] = this.buildCeiling(e as Ceiling);
     else if (p.coll === 'crawls') [meshes, levels] = this.buildCrawl(e as CrawlRecord);
+    else if (p.coll === 'signs') [meshes, levels] = this.buildSign(e as SignRecord);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -302,6 +360,7 @@ export class EditorScene {
     }
     if (isMission(coll)) return missionCentre(coll, e);
     if (coll === 'devices') return deviceCentre(e as Device);
+    if (coll === 'signs') return (e as SignRecord).at;
     if (coll === 'crawls') {
       const pth = (e as CrawlRecord).path;
       return pth.length ? [(pth[0]![0] + pth[pth.length - 1]![0]) / 2, (pth[0]![1] + pth[pth.length - 1]![1]) / 2] : [0, 0];
@@ -703,6 +762,11 @@ export class EditorScene {
         const away = -swingSign({ ...o, door: { swing: ow } }, w, rooms);
         line([P(at, -away * 1.0, fy), P(at, away * 1.0, fy), P(at - 0.25, away * 0.7, fy)], '#2e8b57');
         line([P(at, away * 1.0, fy), P(at + 0.25, away * 0.7, fy)], '#2e8b57');
+      }
+      // ON14: the door's name plate beside the latch on the outside face, in its card level colour, with its text
+      if (typeof o.plate === 'string' && o.plate) {
+        const pp = platePlace(this.data, o);
+        if (pp && pp.y + PLATE.h / 2 < Math.min(w.h, this.cut)) out.push(this.box(`opening ${o.id} plate`, pp.at[0], f + pp.y, pp.at[1], PLATE.w, PLATE.h, 0.03, (pp.facing * Math.PI) / 180, this.textMat(o.plate, plateColour(o), PLATE.fg, PLATE.w, PLATE.h)));
       }
       // ON9 decision 9: the card level on a small plate over the door, in the plans' level colour
       const lv = set.door.level;

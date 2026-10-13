@@ -41,8 +41,10 @@ describe('tile menu model (ON0a)', () => {
     const t = menuTiles('Objects', { ...none, objGroup: 'goodsIn' });
     expect(t.slice(0, 5).map((x) => x.name)).toEqual(['Data hall', 'Plant', 'Office and security', 'Goods-in', 'Yard and roof']);
     expect(t.find((x) => x.id === 'objgroup.goodsIn')!.on).toBe(true);
-    expect(t.slice(5).map((x) => x.id)).toContain('obj.crate-1.0');
-    expect(menuTiles('Objects', none).slice(5, 7).map((x) => x.name)).toEqual(['Server rack 42U', 'Rack row']);
+    expect(t.slice(6).map((x) => x.id)).toContain('obj.crate-1.0');
+    expect(menuTiles('Objects', none).slice(6, 8).map((x) => x.name)).toEqual(['Server rack 42U', 'Rack row']);
+    // ON14: Signs is a sixth group; its tiles are the sign kinds
+    expect(menuTiles('Objects', { ...none, objGroup: 'signs' }).slice(6, 8).map((x) => x.id)).toEqual(['sign.direction', 'sign.room-sign']);
   });
 
   it('Lights tab (ON6): the five groups and Switch, then the fittings of the chosen group; a lamp has Aim and Circuit', () => {
@@ -55,7 +57,7 @@ describe('tile menu model (ON0a)', () => {
     expect(menuTiles('Lights', none).slice(7, 9).map((x) => x.name)).toEqual(['Downlight 90 mm', 'Troffer 600 x 600']);
     // ON7: a breakable lamp can be previewed shot out
     expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'downlight', breakable: true } })).toContain('Preview shot out');
-    expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'floodlight' } })).toEqual(['Move', 'Duplicate', 'Aim', 'Circuit', 'Rename id', 'Change type', 'Properties', 'Delete']);
+    expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'floodlight' } })).toEqual(['Move', 'Duplicate', 'Aim', 'Circuit', 'Mirror east-west', 'Mirror north-south', 'Mirror about a line', 'Array', 'Rename id', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'downlight' } })).not.toContain('Aim');
     expect(names('Selected', { ...none, sel: { coll: 'circuits', type: '' } })).toContain('Add lamps');
   });
@@ -65,10 +67,15 @@ describe('tile menu model (ON0a)', () => {
     expect(menuTiles('Build', none).find((t) => t.id === 'build.paste')!.disabled).toBeTruthy();
     expect(menuTiles('Build', room).find((t) => t.id === 'build.paste')!.disabled).toBeUndefined();
     expect(names('Openings', none)).toEqual(['Single door', 'Fire door', 'Double door', 'Glass swing door', 'Sliding glass door (automatic)', 'Sliding glass door (card)', 'Sliding door (manual)', 'Roller shutter', 'Gate', 'Sliding gate', 'Hatch', 'Arch (no leaf)', 'Fixed window', 'Opening window (top hung)', 'Frosted fixed window', 'Louvre window', 'Roof light']);
-    expect(names('Selected', room)).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Floor finish', 'Ceiling', 'Save as preset', 'Split', 'Rename id', 'Change type', 'Properties', 'Delete']);
-    expect(names('Selected', door)).toEqual(['Move', 'Duplicate', 'Rename id', 'Change type', 'Properties', 'Delete']);
-    expect(names('Selected', { ...none, sel: { coll: 'ladders', type: '' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Rename id', 'Properties', 'Delete']);
-    expect(names('Selected', { ...none, sel: { coll: 'stairs', type: 'main' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Fit', 'Turn climb 90', 'Rename id', 'Change type', 'Properties', 'Delete']);
+    expect(names('Selected', room)).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Floor finish', 'Ceiling', 'Save as preset', 'Split', 'Mirror east-west', 'Mirror north-south', 'Mirror about a line', 'Array', 'Name plates: this level', 'Name plates: this building', 'Rename id', 'Change type', 'Properties', 'Delete']);
+    expect(names('Selected', door)).toEqual(['Move', 'Duplicate', 'Mirror east-west', 'Mirror north-south', 'Mirror about a line', 'Rename id', 'Change type', 'Properties', 'Delete']);
+    expect(names('Selected', { ...none, sel: { coll: 'ladders', type: '' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Mirror east-west', 'Mirror north-south', 'Mirror about a line', 'Array', 'Rename id', 'Properties', 'Delete']);
+    expect(names('Selected', { ...none, sel: { coll: 'stairs', type: 'main' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Fit', 'Turn climb 90', 'Mirror east-west', 'Mirror north-south', 'Mirror about a line', 'Array', 'Rename id', 'Change type', 'Properties', 'Delete']);
+    // ON14: a set: mirror, align (to the outermost or the first picked), evenly space (three or more), Array
+    const two = menuTiles('Selected', { ...none, group: 2 });
+    expect(two.map((t) => t.id)).toEqual(expect.arrayContaining(['sel.mirrorX', 'sel.align.left', 'sel.align.cz', 'sel.alignFirst', 'sel.distX', 'sel.array']));
+    expect(two.find((t) => t.id === 'sel.distX')!.disabled).toBeTruthy();
+    expect(menuTiles('Selected', { ...none, group: 3 }).find((t) => t.id === 'sel.distX')!.disabled).toBeUndefined();
     expect(names('View', none).slice(0, 5)).toEqual(['Layout', 'Ghost other levels', 'Exploded', 'Cut walls at', 'Levels shown']);
   });
 

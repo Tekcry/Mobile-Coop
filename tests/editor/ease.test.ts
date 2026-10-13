@@ -120,7 +120,7 @@ describe('bookmarks (ON3 decision 7)', () => {
 describe('multi-select (ON3 decision 8)', () => {
   it('a box takes whole elements on its level only', () => {
     const d = tiny();
-    expect(boxPick(d, 'G', boxOf([10.2, 5.2], [-0.2, -3.2]))).toEqual(['rooms:R1', 'rooms:R2', 'walls:W1', 'walls:W2']);
+    expect(boxPick(d, 'G', boxOf([10.2, 5.2], [-0.2, -3.2]))).toEqual(['rooms:R1', 'rooms:R2', 'walls:W1', 'walls:W2', 'objects:OB1', 'objects:OB2']);
     expect(boxPick(d, 'G', [11, -1, 19, 5])).toEqual(['walls:W3', 'stairs:V-S1']);
     expect(boxPick(d, 'F', [-1, -1, 11, 6])).toEqual(['rooms:R3']);
   });

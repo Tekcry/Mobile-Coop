@@ -12,7 +12,7 @@ const r3 = (v: number): number => +v.toFixed(3);
 const EPS = 1e-6;
 
 /** What a box takes: whole elements on the editing level (doors and windows ride with their walls). */
-export const GROUP_COLLS: readonly Coll[] = ['rooms', 'walls', 'voids', 'stairs', 'ladders'];
+export const GROUP_COLLS: readonly Coll[] = ['rooms', 'walls', 'voids', 'stairs', 'ladders', 'objects', 'signs'];
 /** What Copy takes from a set (as single Copy: rooms, walls and floor holes; the walls bring their doors and windows). */
 export const COPY_COLLS: readonly Coll[] = ['rooms', 'walls', 'voids'];
 
@@ -30,6 +30,9 @@ export function boxPick(d: Campus, level: string, box: Rect): Key[] {
   for (const v of d.voids) if (v.level === level && rectIn(box, v.rect)) out.push(keyOf('voids', v.id));
   for (const s of d.stairs) if (s.from === level && rectIn(box, s.rect)) out.push(keyOf('stairs', s.id));
   for (const l of d.ladders) if (l.from === level && inBox(box, l.at[0], l.at[1])) out.push(keyOf('ladders', l.id));
+  // ON14: objects and signs too (align, evenly space, mirror)
+  for (const o of d.objects ?? []) if (o.level === level && rectIn(box, o.rect)) out.push(keyOf('objects', o.id));
+  for (const s of d.signs ?? []) if (s.level === level && inBox(box, s.at[0], s.at[1])) out.push(keyOf('signs', s.id));
   return out;
 }
 
@@ -46,7 +49,7 @@ export function movedElem(coll: Coll, e: Elem, dx: number, dz: number): Elem {
     w.a = [r3(w.a[0] + dx), r3(w.a[1] + dz)];
     w.b = [r3(w.b[0] + dx), r3(w.b[1] + dz)];
   }
-  if (coll === 'ladders') {
+  if (coll === 'ladders' || coll === 'signs') {
     const l = out as unknown as Ladder;
     l.at = [r3(l.at[0] + dx), r3(l.at[1] + dz)];
   }
@@ -99,7 +102,7 @@ export function itemsCentre(items: readonly ClipItem[]): Pt {
   return Number.isFinite(x0) ? [(x0 + x1) / 2, (z0 + z1) / 2] : [0, 0];
 }
 
-const NOUNS: Partial<Record<Coll, [string, string]>> = { rooms: ['room', 'rooms'], walls: ['wall', 'walls'], voids: ['floor hole', 'floor holes'], stairs: ['stair', 'stairs'], ladders: ['ladder', 'ladders'], openings: ['door or window', 'doors and windows'], roofs: ['roof', 'roofs'] };
+const NOUNS: Partial<Record<Coll, [string, string]>> = { rooms: ['room', 'rooms'], walls: ['wall', 'walls'], voids: ['floor hole', 'floor holes'], stairs: ['stair', 'stairs'], ladders: ['ladder', 'ladders'], openings: ['door or window', 'doors and windows'], roofs: ['roof', 'roofs'], objects: ['object', 'objects'], signs: ['sign', 'signs'] };
 
 /** "2 rooms and 8 walls" for a set of keys (or of copied items). */
 export function groupWords(keys: readonly Key[]): string {

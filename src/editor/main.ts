@@ -60,6 +60,10 @@ import type { PlayData } from './playFile';
 import { MissionTool } from './missionTool';
 import { SecurityTool } from './securityTool';
 import { CrawlTool } from './crawlTool';
+import { ArrangeTool } from './arrangeTool';
+import { SignTool } from './signTool';
+import { isDoor, moveSign, walkPanels } from './signs';
+import type { SignRecord } from './signs';
 import { ceilingWords, CRAWL_RULE } from './ceilings';
 import type { Ceiling, CrawlRecord } from './ceilings';
 import { hyp2 } from '../core/mathx';
@@ -69,7 +73,7 @@ import { dropObjectiveRefs, isMission, missionCentre, missionLevel, moveMission,
 import type { Extraction, Guard, Objective } from './mission';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission' | 'security' | 'crawl';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission' | 'security' | 'crawl' | 'arrange' | 'sign';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -234,7 +238,7 @@ export class Editor {
   roofTypeId: RoofType = 'gable';
   /** ON4: the Object tool's preset and group (Objects tab, D-pad left / right with the tool) and the ghost's quarter turns. */
   objPresetId = 'rack-row';
-  objGroup: ObjGroup = 'dataHall';
+  objGroup: ObjGroup | 'signs' = 'dataHall';
   objYaw = 0;
   /** ON6: the Light tool's fitting ('switch': Light > Switch), its group, the ghost's quarter turns, and the circuit A on
    *  lamps adds to after a switch is placed (B ends). */
@@ -252,6 +256,9 @@ export class Editor {
   readonly security: SecurityTool;
   /** ON13: the Crawl space tool and the ceiling voids view. */
   readonly crawl: CrawlTool;
+  /** ON14: mirror about a line and Array (the Arrange tool), align, evenly space, auto plates; the Sign tool. */
+  readonly arrange: ArrangeTool;
+  readonly signTool: SignTool;
   /** ON4: the stealth view (J; Hub > View): objects tinted by their badges in 3D and on the plan. */
   stealth = false;
   /** ON5: the Climb tool's piece (Climb tab tiles, D-pad left / right with the tool) and the finish view (N; Hub > View). */
@@ -291,6 +298,8 @@ export class Editor {
     this.view.mission = this.mission;
     this.security = new SecurityTool(this);
     this.crawl = new CrawlTool(this);
+    this.arrange = new ArrangeTool(this);
+    this.signTool = new SignTool(this);
     this.view.security = this.security;
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
@@ -404,6 +413,7 @@ export class Editor {
     }
     if (isMission(coll)) return missionCentre(coll, e);
     if (coll === 'devices') return deviceCentre(e as unknown as Device);
+    if (coll === 'signs') return (e as SignRecord).at;
     if (coll === 'crawls') {
       const p = (e as CrawlRecord).path;
       return p.length ? [(p[0]![0] + p[p.length - 1]![0]) / 2, (p[0]![1] + p[p.length - 1]![1]) / 2] : [0, 0];
@@ -731,6 +741,11 @@ export class Editor {
     if (d.coll === 'circuits') return e;
     // ON13: a crawl's leg follows the pointer at its end; a placed crawl moves whole
     if (d.coll === 'crawls') return this.crawl.dragged(d.before as unknown as CrawlRecord, d.isNew, d.start, x, z, fine ? this.fineGrid : this.objectGrid);
+    // ON14: a sign moves by its point (a wall sign along its wall)
+    if (d.coll === 'signs') {
+      const og = fine ? this.fineGrid : this.objectGrid;
+      return moveSign(this.model.data, d.before as SignRecord, snap(x - d.start[0], og), snap(z - d.start[1], og)) as Elem;
+    }
     // ON12: a beam being drawn follows the pointer at its far end; a placed device moves by its point
     if (d.coll === 'devices') {
       const og = fine ? this.fineGrid : this.objectGrid;
@@ -1067,6 +1082,10 @@ export class Editor {
       this.security.down(x, z, sx, sy, source);
     } else if (this.tool === 'crawl') {
       this.crawl.down(x, z, sx, sy, source);
+    } else if (this.tool === 'arrange') {
+      this.arrange.down(x, z);
+    } else if (this.tool === 'sign') {
+      this.signTool.down(x, z);
     } else if (this.tool === 'guard') {
       // ON7: a guard eye at the point, facing the way the camera looks
       const ct = this.view.camera.getTarget();
@@ -1611,9 +1630,9 @@ export class Editor {
   }
 
   /** The Objects tab's group (A on a group tile; the menu stays open). */
-  setObjectGroup(g: ObjGroup): void {
+  setObjectGroup(g: ObjGroup | 'signs'): void {
     this.objGroup = g;
-    this.status(`Objects: ${groupName(g)}`);
+    this.status(`Objects: ${g === 'signs' ? 'Signs' : groupName(g)}`);
   }
 
   /**
@@ -2152,6 +2171,8 @@ export class Editor {
     out += this.security.planMarkup((x, z) => this.toPlan(x, z), S);
     // ON13: crawl routes, ceiling hatches, voids (when on)
     out += this.crawl.planMarkup((x, z) => this.toPlan(x, z), S);
+    // ON14: signs and door name plates
+    out += this.signTool.planMarkup((x, z) => this.toPlan(x, z), S);
     // wall gaps on this level: a red ring and its size (ON0b decision 7)
     for (const gp of this.gaps()) {
       if (gp.level !== this.view.level) continue;
@@ -2372,7 +2393,8 @@ export class Editor {
     this.walkFrom = { pitch: o?.pitch ?? Math.max(ORBIT.PITCH_MIN, Math.min(ORBIT.PITCH_MAX, c.pitch || 0.9)), dist: o?.dist ?? ORBIT.DIST_START, selected: this.selected };
     try {
       // ON0b: the game gets the walls grown by their corner joins (the file keeps its centre lines)
-      const how = await this.walk.start(joinedCampus(this.model.data), campusText(this.model.data), spawn);
+      // ON14: name plates and signs go as thin panels (src/editor/signs.ts walkPanels)
+      const how = await this.walk.start({ ...joinedCampus(this.model.data), panels: walkPanels(this.model.data) }, campusText(this.model.data), spawn);
       // ON9 decision 8: sliding and glass doors are gaps in the game until stage DR
       const dr = this.model.data.openings.some((o) => DR_TYPES.has(o.type)) ? ` (${DR_NOTE})` : '';
       this.status(how === 'warm' ? `Walk test: same building, the player moves to the dot${dr}` : `Loading game...${dr}`);
@@ -2536,6 +2558,8 @@ export class Editor {
       case 'nudge': {
         const g = e?.shiftKey ? this.grid * 10 : this.grid;
         const c = e?.code ?? '';
+        // ON14: the arrow keys set the Array's count while the Arrange tool makes copies
+        if (this.tool === 'arrange' && this.arrange.mode === 'array' && (c === 'ArrowLeft' || c === 'ArrowRight')) return this.arrange.stepCount(c === 'ArrowLeft' ? -1 : 1);
         return this.nudge(c === 'ArrowLeft' ? [-g, 0] : c === 'ArrowRight' ? [g, 0] : c === 'ArrowUp' ? [0, g] : [0, -g]);
       }
       case 'undo': return this.undo();
@@ -2642,6 +2666,7 @@ export class Editor {
     if (s.coll === 'devices') return this.status('Security devices are not duplicated: place another with Y > Security');
     if (s.coll === 'ceilings') return this.status('A ceiling belongs to its room: duplicate the room');
     if (s.coll === 'crawls') return this.status('Crawl spaces are not duplicated: draw another with Y > Build > Crawl space');
+    if (s.coll === 'signs') return this.status('Signs are not duplicated: place another with Y > Objects > Signs, or use Selected > Array');
     if (s.coll === 'lamps') {
       const l = moveLamp(this.model.data as LampData, s.e as Lamp, g, -g);
       return this.commitLamps([{ ...l, id: '' }], null);
@@ -2789,6 +2814,8 @@ export class Editor {
       mission: this.mission.hint(),
       security: this.security.hint(),
       crawl: this.crawl.hint(),
+      arrange: this.arrange.hint(),
+      sign: this.signTool.hint(),
       lamp: this.lampFit === 'switch' ? 'Switch: A (click) on a wall face places a switch, then A on lamps puts them on it, B (Esc) ends' : this.fitting?.linear ? `Light (${this.fitting.name}): A (click) at the start, A (click) at the end` : `Light (${this.fitting?.name ?? ''}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
@@ -3465,6 +3492,8 @@ export class Editor {
       text('reason', 'Note');
       const names = (o.between ?? []).map((id) => (this.model.get<Room>('rooms', id)?.name as string | undefined) ?? id);
       rows.push(`<div class="row"><span>Between</span>${esc(names.join(' and ') || '-')}</div>`);
+      // ON14: the door's name plate text (empty: no plate); the card's Name plate row toggles it with its default
+      if (isDoor(o)) text('plate', 'Name plate');
     } else if (s.coll === 'stairs') {
       const st = e as Stair;
       const above = this.levelsAbove(st.from);
@@ -3521,6 +3550,12 @@ export class Editor {
       if (s.coll !== 'spawns' && s.coll !== 'extraction') text('name', 'Name');
       rows.push(`<p id="missionWords" class="dim">${esc(this.mission.footWords(s.coll, e) || cardWords(s.coll, e).size)}</p>`);
       if (s.coll === 'guards') rows.push('<div class="row"><button id="mEditPath">Edit path</button><button id="mPatrol">Play patrol</button><button id="mAlone">Mark alone here</button></div>');
+    } else if (s.coll === 'signs') {
+      // ON14: a sign: its text (typed or stepped through the site's names), the card's rows, what the game builds
+      const sg = e as SignRecord;
+      for (const r of cardRows('signs', s.e)) if (r.id !== 'id') stepRow(r);
+      if (cardRows('signs', s.e).some((r) => r.id === 'text')) text('text', 'Text');
+      rows.push(`<p id="signWords" class="dim">${esc(this.signTool.footWords(sg))}</p>`);
     } else if (s.coll === 'devices') {
       // ON12: a security device: its name and reason, the card's rows stepped with the mouse, what it does in the game
       text('name', 'Name');

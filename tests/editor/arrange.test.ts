@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { EditorModel } from '../../src/editor/model';
+import type { Change } from '../../src/editor/model';
 import { alignChanges, arrayChanges, arrayStep, distributeChanges, lineMirror, mirrorChanges, unitsOf } from '../../src/editor/arrange';
 import { hangsAtA } from '../../src/world/maps/kestrelDoors';
 import type { Campus, Key, Obj, Opening, Room, Stair, Wall } from '../../src/editor/types';
@@ -23,7 +24,7 @@ function office(): Campus {
   return d;
 }
 
-const run = (d: Campus, r: { changes: import('../../src/editor/model').Change[]; why?: string }): EditorModel => {
+const run = (d: Campus, r: { changes: Change[]; why?: string }): EditorModel => {
   expect(r.why).toBeUndefined();
   const m = new EditorModel(d);
   expect(m.commit('arrange', r.changes)).toBe(true);

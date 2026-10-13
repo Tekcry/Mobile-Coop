@@ -48,6 +48,9 @@ import type { MissionKind } from './missionCatalogue';
 import type { SecTool } from './securityCatalogue';
 import type { Device as SecDevice } from './security';
 import { ceilingFoot, crawlFoot } from './ceilings';
+import { isDoor, plateWords, signTexts } from './signs';
+import type { SignRecord } from './signs';
+import type { AlignMode } from './arrange';
 import type { Ceiling, CrawlRecord } from './ceilings';
 import { isMission } from './mission';
 import type { LightGroup } from './lightCatalogue';
@@ -80,6 +83,8 @@ const BAR = [
   ['mission', 'Mission'],
   ['security', 'Security'],
   ['crawl', 'Crawl space'],
+  ['arrange', 'Arrange'],
+  ['sign', 'Sign'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -265,7 +270,7 @@ export class PadControl {
     const s = this.ed.selectedElem();
     const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : s.coll === 'lamps' ? 'fixture' : 'kind'] ?? '') : '';
     const playing = !!s && s.coll === 'guards' && this.ed.mission.playing?.id === s.id;
-    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput(), lightGroup: this.ed.lightGroup, playing };
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, alignFirst: this.ed.arrange.alignFirst, presets: this.presetsInput(), lightGroup: this.ed.lightGroup, playing };
   }
 
   viewState(): ViewState {
@@ -401,6 +406,12 @@ export class PadControl {
       this.ed.stamp.from = t.id.slice(11) as PresetFrom;
       return this.renderMenu();
     }
+    if (t.id === 'sel.alignFirst') {
+      // ON14: Align to the first picked or the outermost; the menu stays open
+      this.ed.arrange.alignFirst = !this.ed.arrange.alignFirst;
+      this.ed.status(`Align to ${this.ed.arrange.alignFirst ? 'the first picked' : 'the outermost'}`);
+      return this.renderMenu();
+    }
     this.closeMenu();
     this.runMenu(t.id);
   }
@@ -467,6 +478,17 @@ export class PadControl {
       tool('stair');
     } else if (id === 'build.ladder') tool('ladder');
     else if (id === 'build.crawl') tool('crawl');
+    // ON14: mirror, align, evenly space, Array, name plates; the Sign tool
+    else if (id === 'sel.mirrorX' || id === 'sel.mirrorZ') ed.arrange.mirror(id === 'sel.mirrorX' ? 'x' : 'z');
+    else if (id === 'sel.mirrorLine') ed.arrange.start('mirror');
+    else if (id === 'sel.array') ed.arrange.start('array');
+    else if (id.startsWith('sel.align.')) ed.arrange.align(id.slice(10) as AlignMode);
+    else if (id === 'sel.distX' || id === 'sel.distZ') ed.arrange.distribute(id === 'sel.distX' ? 'x' : 'z');
+    else if (id === 'sel.platesLevel' || id === 'sel.platesBuilding') ed.arrange.plates(id === 'sel.platesLevel' ? 'level' : 'building');
+    else if (id.startsWith('sign.')) {
+      ed.signTool.setKind(id.slice(5));
+      tool('sign');
+    }
     else if (id === 'sel.ceiling' || id === 'sel.room') {
       // ON13: a room's ceiling, and back to the room
       const s = ed.selectedElem();
@@ -601,6 +623,11 @@ export class PadControl {
       const q = fs[(fs.findIndex((x) => x.id === f.id) + dir + fs.length) % fs.length]!;
       ed.setLampFit(q.id);
       ed.status(`Light: ${q.name}`);
+    } else if (ed.tool === 'arrange') {
+      // ON14: the Array's count
+      if (ed.arrange.mode === 'array') ed.arrange.stepCount(dir);
+    } else if (ed.tool === 'sign') {
+      ed.status(`Sign: ${ed.signTool.stepKind(dir)}`);
     } else if (ed.tool === 'stamp') {
       const p = ed.stamp.step(dir);
       if (p) ed.status(`Stamp: ${p.name}`);
@@ -664,6 +691,26 @@ export class PadControl {
     if (s.coll === 'guards') after = ed.mission.recycle(after);
     ed.commit([{ coll: s.coll, id: s.id, before: s.e, after }], merge);
     ed.renderPanel();
+  }
+
+  /** ON14: A on a sign's Text row or a door's Plate text row: the site's names and the on-screen keyboard. */
+  private openText(row: 'text' | 'plateText'): void {
+    const ed = this.ed;
+    const s = ed.selectedElem();
+    if (!s) return;
+    const field = row === 'text' ? 'text' : 'plate';
+    const cur = String((s.e as Record<string, unknown>)[field] ?? '');
+    this.latchSticks();
+    this.names.open(row === 'text' ? 'Sign text' : 'Name plate', signTexts(ed.model.data), cur, (text) => {
+      this.latchSticks();
+      ed.updateHint();
+      if (text === null || text === cur || !text) return;
+      const after = clone(s.e) as Elem & Record<string, unknown>;
+      after[field] = text;
+      ed.commit([{ coll: s.coll, id: s.id, before: s.e, after }]);
+      ed.renderPanel();
+    });
+    ed.updateHint();
   }
 
   /** A on the card's Name row: the name list and the on-screen keyboard. */
@@ -845,6 +892,7 @@ export class PadControl {
       const s = this.ed.selectedElem();
       const rowId = s ? cardRows(s.coll, s.e, this.cardCtx(s))[this.cardRow]?.id : undefined;
       if (rowId === 'name') this.openNames();
+      else if (rowId === 'text' || rowId === 'plateText') this.openText(rowId);
       else if (rowId === 'id') this.openRename();
       else {
         this.cardEditing = false;
@@ -1402,13 +1450,13 @@ export class PadControl {
     const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ed.tool === 'security' ? ed.security.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ed.tool === 'security' ? ed.security.barWords() : ed.tool === 'arrange' ? ed.arrange.barWords() : ed.tool === 'sign' ? ed.signTool.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'mission' ? ed.mission.barWords() : slot === 'security' ? ed.security.barWords() : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
+    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'mission' ? ed.mission.barWords() : slot === 'security' ? ed.security.barWords() : slot === 'arrange' ? ed.arrange.barWords() : slot === 'sign' ? ed.signTool.barWords() : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
     $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
@@ -1449,7 +1497,9 @@ export class PadControl {
       const secLine = s.coll === 'devices' ? `<div class="dim" data-security>${esc(ed.security.footWords(s.e as unknown as SecDevice))}</div>` : s.coll === 'objects' && (s.e as Obj).preset === 'security-desk' ? `<div class="dim" data-security>${esc(ed.security.deskWords(s.e as Obj))}</div>` : '';
       // ON13: a ceiling's void and the crawl rule; a crawl space's
       const ceilLine = s.coll === 'ceilings' ? `<div class="dim" data-ceiling>${esc(ceilingFoot(ed.model.data, s.e as Ceiling))}</div>` : s.coll === 'crawls' ? `<div class="dim" data-crawl>${esc(crawlFoot(s.e as CrawlRecord))}</div>` : '';
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}${secLine}${ceilLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON14: a sign's words; a door's name plate
+      const signLine = s.coll === 'signs' ? `<div class="dim" data-sign>${esc(ed.signTool.footWords(s.e as SignRecord))}</div>` : s.coll === 'openings' && isDoor(s.e as Opening) ? `<div class="dim" data-plate>${esc(plateWords(s.e as Opening))}</div>` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}${secLine}${ceilLine}${signLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1633,6 +1683,14 @@ export class PadControl {
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
         for (let i = 0; i < 4; i++) plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
       }
+    } else if ((ed.tool === 'arrange' || ed.tool === 'sign') && p && !ed.drag) {
+      // ON14: the mirrored or copied outlines; the sign on its wall face or hung
+      const g = ed.tool === 'arrange' ? ed.arrange.ghost(p[0], p[1], f) : ed.signTool.ghost(p[0], p[1], f);
+      words = g.words;
+      bad = g.bad;
+      key = g.key;
+      marks.push(...g.marks);
+      plan.push(...g.plan);
     } else if (ed.tool === 'crawl' && p && !ed.drag) {
       // ON13: where the crawl would start (a hatch, a vent, an open end) and its clear height
       const g = ed.crawl.ghost(p[0], p[1], f);
