@@ -29,7 +29,8 @@ Commit: "locomotion 21: D2 bob fixes (sway, heel kick, camera kick, breathing, s
 
 ## Task
 1. Lateral sway: every gait clip with amp > 0.0125 goes to amp <= 0.0115 (2.76 cm p2p), crouch, back and strafe clips
-   included (ASSUMED, next free A-number: D2 names walk; alternative: standing walk gears only). Measured sum incl. supportX <= 3 cm.
+   included: stricter than A7 (step 07 checks sway on stand 1-3 only); log as ASSUMED, next free A-number,
+   alternative: fix stand 1-3 only. Measured sum incl. supportX <= 3 cm.
 2. Heel strike: remove the pelvis-height kick (heelStrike no longer moves pelY). Keep `pelSpring` for D5.3 (step 22).
    Weight on heel strike stays in the clip's own single dip; optional chest follow-through <= 0.5 deg.
 3. Harness proves exactly one low and one high pelvis point per step on every gear, both stances.
@@ -52,6 +53,8 @@ Commit: "locomotion 21: D2 bob fixes (sway, heel kick, camera kick, breathing, s
 - Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget) on this VM, remotes included.
 
 ## Checks
+- Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
+  a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`; `node scripts/run-e2e.mjs e2e-anim e2e-move e2e-netmove e2e-coop e2e-bot`
   (netmove / coop are KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): pelvis p2p, one low / high, sway, head, settle, breathing, joint

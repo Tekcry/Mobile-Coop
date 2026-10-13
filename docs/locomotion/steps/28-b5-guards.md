@@ -43,6 +43,8 @@ Commit: "locomotion 28: guard batch: state postures readable at 15 m, reactions,
 - Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget); measure with ten guards (perf scene).
 
 ## Checks
+- Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
+  a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`;
   `node scripts/run-e2e.mjs e2e-enemies e2e-stealth-ai e2e-stealth e2e-takedown e2e-anim e2e-netmove e2e-coop`
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).

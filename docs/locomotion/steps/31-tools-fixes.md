@@ -40,6 +40,8 @@ Commit: "locomotion 31: pose viewer; fixes: thigh pistol vs elbow, brace prompt,
 - Anim per character <= 0.063 ms trend gate; the viewer adds nothing when closed.
 
 ## Checks
+- Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
+  a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`;
   `node scripts/run-e2e.mjs e2e-weapons-carry e2e-touch e2e-pad e2e-desktop e2e-coop e2e-bot`
   (coop, touch, pad KNOWN_FLAKY: any FAIL line fails the step).

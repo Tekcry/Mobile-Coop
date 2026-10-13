@@ -25,12 +25,13 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
 1. Back-to-wall dedicated clip set: enter (standing / crouched), slide loop, edge peek, lean-out aim, SWAT turn, exit,
    interrupted exit; replace the stand-ins from steps 11-12. Back and support hand on the wall < 1 cm.
 2. Takedowns: strike 0.70 -> 0.80 s; every kind (behind, front, side, above, below, window, drop, inverted, corner from
-   the wall) plays from the host's shared start time `t0` (cstart) on both machines.
+   the wall) plays from the host's shared start time: add 'takedown' and 'grab' to CKind (`cstart {.., t0}`), the
+   existing `td` result path stays; both machines play from t0.
 3. Grab / human shield / shove: >= 0.5 s grab, shared start time, attacker and victim aligned <= 3 cm.
 4. Carry: lift >= 1.0 s; put down gently (quiet) or drop (noise); hide spots remove the body.
 5. Drag (new verb): crouched, 0.9 m/s, hands at the collar, body pinned at the shoulders and trailing; silent on quiet
    floors, a scrape noise event on loud floors (noise.ts floor classes); interact hold switches drag <-> carry.
-6. Drag is a committed start: `cmove {k:'drag'}` -> host `cstart {t0}` or `cdeny`; the host decides who holds the
+6. Drag is a committed start: add 'drag' to CKind; `cmove {kind:'drag'}` -> host `cstart {.., t0}` or `cdeny`; the host decides who holds the
    body and syncs the body position (C11). New MoveState mode `drag` (appended).
 7. Hook H1: `DragTarget = guard | body | player`; only guard and body are wired; a downed team-mate is accepted by the
    type and rejected by the host with a `cdeny` reason (Phase 5). Unit test proves the type and the denial.
@@ -48,6 +49,8 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
 - Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget), remotes included.
 
 ## Checks
+- Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
+  a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`;
   `node scripts/run-e2e.mjs e2e-takedown e2e-stealth e2e-clip e2e-anim e2e-netmove e2e-coop e2e-bot`
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).

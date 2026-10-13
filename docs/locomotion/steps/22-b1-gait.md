@@ -17,8 +17,8 @@ Commit: "locomotion 22: speed-scaled gait, lean spring, stop settle, plant-and-p
 
 ## Numbers
 - Gear caps m/s (movement.ts:160): stand 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0; crouch 0.5 / 0.9 / 1.3 / 1.8 / 2.3 / 2.8.
-- D2 class per gear (ASSUMED, next free A-number): walk = stand G1-G3 (<= 2.0 m/s, 4 cm), run = G4-G5 (6 cm),
-  sprint = G6 (8 cm), crouch = all crouch gears (2.5 cm). Alternative: class by clip blend weight.
+- D2 class per gear (A7, set in step 07): walk = stand G1-G3 (<= 2.0 m/s, 4 cm), run = G4-G5 (6 cm),
+  sprint = G6 (8 cm), crouch = all crouch gears (2.5 cm).
 - Clip pelvis p2p today (AUDIT 2): creep 0.64, walk 0.96, brisk 1.28, jog 1.85, dash 2.35, crouchRun 1.6 cm.
   Target after D5.1: <= 60 % of the class limit (walk 2.4, run 3.6, sprint 4.8, crouch 1.5 cm).
 - Stop offsets: startShift -1.2 cm, stopSettle -1.6 cm, pivot -3 cm (actions.ts:192-216).
@@ -52,6 +52,8 @@ Commit: "locomotion 22: speed-scaled gait, lean spring, stop settle, plant-and-p
 - Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget), remotes included.
 
 ## Checks
+- Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
+  a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`; `node scripts/run-e2e.mjs e2e-anim e2e-move e2e-ct e2e-netmove e2e-coop e2e-bot`
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote), 60 and 120 Hz: batch 1 rows pass, nothing regresses vs step 21.

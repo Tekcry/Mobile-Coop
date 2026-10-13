@@ -41,6 +41,8 @@ Commit: "locomotion 25: weapon handling batch: aim, reload, swap, throw, attache
 - Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget), remotes included.
 
 ## Checks
+- Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
+  a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`;
   `node scripts/run-e2e.mjs e2e-weapons-carry e2e-combat e2e-anim e2e-netmove e2e-coop e2e-bot`
   (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).

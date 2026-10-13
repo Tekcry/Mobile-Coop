@@ -42,6 +42,8 @@ Commit: "locomotion 24: CT camera: capsule spring follow, landing dip, wall pull
 - No rig change, so no anim cost; sim cost still within the trend gate (sim p95 <= 3.31 ms on this VM).
 
 ## Checks
+- Steps 21-31: on PASS, refresh docs/locomotion/audit/anim-baseline.json with the new worst values (commit it);
+  a regression is > 10 % worse or a new fail (step 08 rule).
 - `npm run check`; `npm run e2e:quick`; `node scripts/run-e2e.mjs e2e-camera-bounds e2e-move e2e-ct e2e-desktop`.
 - `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): camera vertical oscillation and landing dip metrics pass; nothing regresses.
 - PC-PASS: `E2E_GPU=1 node scripts/shot.mjs` set at a corner, a 1.2 m duct, after a 3 m drop; anim-sheet `ots`
