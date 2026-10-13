@@ -106,7 +106,8 @@ function quickSuites() {
     if (hit) why.push(f);
   }
   console.log(`quick: ${files.length} changed file(s), ${why.length} reach the browser`);
-  return REQUIRED.filter((s) => picked.has(s)).concat([...picked].filter((s) => !REQUIRED.includes(s) && existsSync(`scripts/${s}.mjs`)));
+  // parked-content suites need LEGACY=1 (`npm run e2e:legacy`, report only); the quick run never lists them
+  return REQUIRED.filter((s) => picked.has(s)).concat([...picked].filter((s) => !REQUIRED.includes(s) && !LEGACY.includes(s) && existsSync(`scripts/${s}.mjs`)));
 }
 
 const all = named.length ? named : expand(legacyRun ? LEGACY : quick ? quickSuites() : REQUIRED);

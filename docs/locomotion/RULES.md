@@ -51,3 +51,5 @@ A6-A32 are already logged in DECISIONS.md. Do not re-log them; a new assumption 
 - Implementers run lint, unit tests, build and only the e2e suites their step file names (plus e2e-netmove / e2e-coop when they touch a movement state or src/net). The checker runs the full `npm run e2e:quick`.
 - Small Block A steps are batched: 02-04 run as one implement-and-check cycle (one commit per step is not required; the commit names every step it covers).
 - This VM has 4 cores, so run-e2e defaults to 1 job. Run e2e with `E2E_JOBS=2`; a timing failure that passes on a serial rerun is logged as flaky, not fixed.
+- Block end also merges origin/feature/kestrel into this branch (after the full e2e and perf trend), resolving conflicts per BRIEF 7.1, then reruns `npm run check` and `npm run e2e:quick`. Kestrel-owned failures go to REVIEW-NOTES.md.
+- Known pre-existing failures need no proof: tests/kestrelMap.test.ts (kestrel-owned). Checkers never build worktrees or old copies to prove a failure is pre-existing; if a new failure appears outside the step's files, report it with the log line and move on.
