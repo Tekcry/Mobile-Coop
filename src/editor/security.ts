@@ -124,6 +124,33 @@ function ceilingAt(d: SecData, level: string, x: number, z: number): number | nu
   return ceilingOf(d, r);
 }
 
+type Face = NonNullable<ReturnType<typeof faceAt>>;
+
+/**
+ * The wall face at the dot: one it is in front of (within facts light.wallReach, as the lamps), else, for a dot on a wall
+ * itself (the dot magnet pulls it onto wall lines), the face of that wall towards `from` (where the view is), else its +x /
+ * +z face.
+ */
+export function faceNear(d: Pick<Campus, 'walls'>, level: string, x: number, z: number, from: Pt | null): Face | null {
+  const f = faceAt(d.walls, level, x, z);
+  if (f) return f;
+  for (const w of d.walls) {
+    if (w.level !== level) continue;
+    const vertical = Math.abs(w.a[0] - w.b[0]) < EPS;
+    if (!vertical && Math.abs(w.a[1] - w.b[1]) > EPS) continue;
+    const axis: 0 | 1 = vertical ? 0 : 1;
+    const c = vertical ? w.a[0] : w.a[1];
+    const across = vertical ? x : z;
+    const along = vertical ? z : x;
+    const s0 = Math.min(vertical ? w.a[1] : w.a[0], vertical ? w.b[1] : w.b[0]);
+    const s1 = Math.max(vertical ? w.a[1] : w.a[0], vertical ? w.b[1] : w.b[0]);
+    if (Math.abs(across - c) > w.t / 2 + EPS || along < s0 - EPS || along > s1 + EPS) continue;
+    const n: 1 | -1 = from ? ((vertical ? from[0] : from[1]) >= c ? 1 : -1) : 1;
+    return { axis, pos: c + (n * w.t) / 2, n, s0, s1, id: w.id, gap: 0 };
+  }
+  return null;
+}
+
 /** Yaw (degrees) out of a wall face: +x 90, -x 270, +z 0, -z 180. */
 const faceYaw = (axis: 0 | 1, n: 1 | -1): number => (axis === 0 ? (n > 0 ? 90 : 270) : n > 0 ? 0 : 180);
 
@@ -146,8 +173,8 @@ export interface Placed<T> {
 }
 
 /** A camera at the dot: on a wall face within facts light.wallReach (facing out of it), else under the ceiling. */
-export function placeCamera(d: SecData, level: string, x: number, z: number, yaw: number, pan: boolean, grid: number): Placed<Camera> {
-  const face = faceAt(d.walls, level, x, z);
+export function placeCamera(d: SecData, level: string, x: number, z: number, yaw: number, pan: boolean, grid: number, from: Pt | null = null): Placed<Camera> {
+  const face = faceNear(d, level, x, z, from);
   const lift = SF.cameraMountDefault.value;
   let at: [number, number];
   let facing: number;
@@ -165,9 +192,9 @@ export function placeCamera(d: SecData, level: string, x: number, z: number, yaw
   }
   const ceil = ceilingAt(d, level, at[0], at[1]);
   if (mount === 'ceiling' && ceil === null) return { dev: null, why: 'Outside: a camera goes on a wall face here (move onto one)', words: '' };
-  const top = ceil === null ? SF.cameraMountMax.value : Math.min(ceil - DEVICE_SIZES.camera.h, SF.cameraMountMax.value);
+  const top = ceil === null ? SF.cameraMountMax.value : Math.min(ceil, SF.cameraMountMax.value);
   if (top < SF.cameraMountMin.value - EPS) return { dev: null, why: `The ceiling (${fmt(ceil ?? 0)} m) is under the camera mount range ${SF.cameraMountMin.value}-${SF.cameraMountMax.value} m (SN04)`, words: '' };
-  // (rounded down to 0.1 m: the housing stays under the ceiling)
+  // (the mount height: its bracket at most at the ceiling; rounded down to 0.1 m)
   const y = Math.floor((mount === 'ceiling' ? top : Math.min(lift, top)) * 10 + 1e-6) / 10;
   const room = roomAt(d.rooms, level, at[0], at[1])?.id ?? '';
   const c: Camera = { id: '', kind: 'camera', level, at, y, facing, mount, room, reason: reasonOf('camera', room) };
@@ -183,7 +210,7 @@ export const sweepSpan = (c: Pick<Camera, 'sweep'>): number => (c.sweep ? Math.a
  * A reader at the dot: by a door (within facts light.openingReach of its middle) it snaps beside the door on the dot's
  * side and binds to it; else on a wall face alone. Its level is the door's card level (else 1).
  */
-export function placeReader(d: SecData, level: string, x: number, z: number, tool: SecTool, grid: number): Placed<Reader> {
+export function placeReader(d: SecData, level: string, x: number, z: number, tool: SecTool, grid: number, from: Pt | null = null): Placed<Reader> {
   const type = tool === 'keypad' ? 'keypad' : 'card';
   const near = openingAt(d as LampData, level, x, z);
   const y = SF.readerHeight.value;
@@ -204,7 +231,7 @@ export function placeReader(d: SecData, level: string, x: number, z: number, too
     if (type === 'keypad') r.pin = true;
     return { dev: r, why: null, words: `a ${type === 'keypad' ? 'keypad' : 'card reader'} for door ${o.id}, level ${r.accessLevel}` };
   }
-  const face = faceAt(d.walls, level, x, z);
+  const face = faceNear(d, level, x, z, from);
   if (!face) return { dev: null, why: 'Move onto a door or a wall face', words: '' };
   const s = Math.min(face.s1, Math.max(face.s0, snap(face.axis === 0 ? z : x, grid)));
   const across = r2(face.pos + face.n * (DEVICE_SIZES.reader.d / 2));
@@ -222,8 +249,8 @@ function buildingOf(d: SecData, at: Pt): string {
 }
 
 /** A PIR at the dot: on a wall face (facing out, facts security.pirWallHeight) or under the ceiling; linked to the nearest motion lamp in range, else the alarm. */
-export function placePir(d: SecData, level: string, x: number, z: number, grid: number): Placed<Pir> {
-  const face = faceAt(d.walls, level, x, z);
+export function placePir(d: SecData, level: string, x: number, z: number, grid: number, from: Pt | null = null): Placed<Pir> {
+  const face = faceNear(d, level, x, z, from);
   let at: [number, number];
   let facing = 0;
   let mount: Pir['mount'] = 'ceiling';
@@ -239,7 +266,7 @@ export function placePir(d: SecData, level: string, x: number, z: number, grid: 
     at = [r2(snap(x, grid)), r2(snap(z, grid))];
     const c = ceilingAt(d, level, at[0], at[1]);
     if (c === null) return { dev: null, why: 'Outside: a motion sensor goes on a wall face here (move onto one)', words: '' };
-    y = Math.floor((c - DEVICE_SIZES.pir.h) * 10 + 1e-6) / 10;
+    y = Math.floor(c * 10 + 1e-6) / 10;
   }
   const room = roomAt(d.rooms, level, at[0], at[1])?.id ?? '';
   const p: Pir = { id: '', kind: 'pir', level, at, y, facing, mount, room, reason: reasonOf('pir', room) };
@@ -261,8 +288,8 @@ export function pirLamps(d: SecData, p: Pick<Pir, 'level' | 'at'>): Lamp[] {
 }
 
 /** A beam end at the dot: on a wall face within reach (snapped onto it), else a free post. */
-export function beamEnd(d: SecData, level: string, x: number, z: number, grid: number): { p: Pt; wall: string | null } {
-  const face = faceAt(d.walls, level, x, z);
+export function beamEnd(d: SecData, level: string, x: number, z: number, grid: number, from: Pt | null = null): { p: Pt; wall: string | null } {
+  const face = faceNear(d, level, x, z, from);
   if (!face) return { p: [r2(snap(x, grid)), r2(snap(z, grid))], wall: null };
   const s = Math.min(face.s1, Math.max(face.s0, snap(face.axis === 0 ? z : x, grid)));
   const across = r2(face.pos);
@@ -289,11 +316,11 @@ export function makeBeam(d: SecData, level: string, a: Pt, b: Pt, h: number, vis
 }
 
 /** A new device of a tool at the dot (a beam is drawn A to A by the tool). */
-export function placeDevice(d: SecData, tool: SecTool, level: string, x: number, z: number, yaw: number, grid: number): Placed<Device> {
+export function placeDevice(d: SecData, tool: SecTool, level: string, x: number, z: number, yaw: number, grid: number, from: Pt | null = null): Placed<Device> {
   const k = secTool(tool).kind;
-  if (k === 'camera') return placeCamera(d, level, x, z, yaw, tool === 'pan', grid);
-  if (k === 'reader') return placeReader(d, level, x, z, tool, grid);
-  return placePir(d, level, x, z, grid);
+  if (k === 'camera') return placeCamera(d, level, x, z, yaw, tool === 'pan', grid, from);
+  if (k === 'reader') return placeReader(d, level, x, z, tool, grid, from);
+  return placePir(d, level, x, z, grid, from);
 }
 
 // ---------- the reader's door (the model link) ----------
@@ -390,8 +417,17 @@ export function aimFor(c: CamView, px: number, pz: number): number {
 /** The ray the sight test casts (perception's losClear interface: the game's Ballistics, or a test's own). */
 export type SightRay = Parameters<typeof losClear>[0];
 
-const EYE = { x: 0, y: 0, z: 0 };
-const TO = { x: 0, y: 0, z: 0 };
+/** A point the ray test reads and writes (the game's Ballistics wants Babylon vectors: the light view hands its own). */
+export interface P3 {
+  x: number;
+  y: number;
+  z: number;
+}
+export interface RayPts {
+  eye: P3;
+  to: P3;
+}
+const PTS: RayPts = { eye: { x: 0, y: 0, z: 0 }, to: { x: 0, y: 0, z: 0 } };
 /** Body sample heights, as the guard view (ON7): the chest, else the head, of a 1.75 m body. */
 const SAMPLES = [
   [BODY_HEIGHT * 0.6, 0.3],
@@ -399,9 +435,11 @@ const SAMPLES = [
 ] as const;
 
 /** Does the camera see a body standing at (px, pz) on a floor at `floor`: in its frame (the game's inFrame) with a clear ray? */
-export function camSees(c: CamView, px: number, pz: number, floor: number, ray: SightRay): boolean {
+export function camSees(c: CamView, px: number, pz: number, floor: number, ray: SightRay, pts: RayPts = PTS): boolean {
   if (hyp2(px - c.x, pz - c.z) > CAMERA.range) return false;
   const yaw = aimFor(c, px, pz);
+  const EYE = pts.eye;
+  const TO = pts.to;
   EYE.x = c.x;
   EYE.y = c.y;
   EYE.z = c.z;
@@ -411,17 +449,17 @@ export function camSees(c: CamView, px: number, pz: number, floor: number, ray: 
     TO.x = px;
     TO.y = py;
     TO.z = pz;
-    if (losClear(ray, EYE, TO, slack)) return true;
+    if (losClear(ray, EYE as Parameters<typeof losClear>[1], TO as Parameters<typeof losClear>[2], slack)) return true;
   }
   return false;
 }
 
 /** The floor cells of a level a camera sees (1) on a floor at `floor` (cells already set stay set: several cameras share one array). */
-export function cameraCells(g: CellGrid, c: CamView, floor: number, ray: SightRay, out = new Uint8Array(g.nx * g.nz)): Uint8Array {
+export function cameraCells(g: CellGrid, c: CamView, floor: number, ray: SightRay, out = new Uint8Array(g.nx * g.nz), pts: RayPts = PTS): Uint8Array {
   for (let k = 0; k < g.nx * g.nz; k++) {
     if (out[k] || !g.walk[k]) continue;
     const [x, z] = cellCentre(g, k);
-    if (camSees(c, x, z, floor, ray)) out[k] = 1;
+    if (camSees(c, x, z, floor, ray, pts)) out[k] = 1;
   }
   return out;
 }
@@ -534,7 +572,7 @@ export function stepDevice(d: SecData, e: Device, row: string, dir: 1 | -1, step
     }
     if (row === 'y') {
       const ceil = ceilingAt(d, a.level, a.at[0], a.at[1]);
-      const top = Math.min(SF.cameraMountMax.value, ceil === null ? Infinity : ceil - DEVICE_SIZES.camera.h);
+      const top = Math.min(SF.cameraMountMax.value, ceil === null ? Infinity : ceil);
       const v = r2(Math.min(top, Math.max(SF.cameraMountMin.value, a.y + dir * step)));
       return v === a.y ? null : ({ ...a, y: v } as Camera);
     }

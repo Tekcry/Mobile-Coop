@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { aimFor, beamHeights, camSees, camView, cameraCells, coverage, deskFeeds, freeMonitor, joinSecurity, makeBeam, pirCovers, placeCamera, placePir, placeReader, readerLink, securityText, splitSecurity, stepDevice, turnDevice } from '../../src/editor/security';
+import { aimFor, faceNear, beamHeights, camSees, camView, cameraCells, coverage, deskFeeds, freeMonitor, joinSecurity, makeBeam, pirCovers, placeCamera, placePir, placeReader, readerLink, securityText, splitSecurity, stepDevice, turnDevice } from '../../src/editor/security';
 import type { Camera, Device, Pir, Reader, SecData, SightRay } from '../../src/editor/security';
 import { DEVICE_SIZES, LEVEL_COLOURS, READER_TYPES, SEC_TOOLS } from '../../src/editor/securityCatalogue';
 import { cellCentre, levelCells } from '../../src/editor/lightPreview';
@@ -86,8 +86,8 @@ describe('placing', () => {
     const w = placeCamera(d, 'G', 9.6, 8, 0, false, 0.1);
     expect(w.dev?.mount).toBe('wall');
     expect(w.dev?.facing).toBe(270);
-    expect(w.dev?.y).toBe(Math.floor((Math.min(SF('cameraMountDefault'), 2.7 - DEVICE_SIZES.camera.h) + 1e-6) * 10) / 10);
-    expect(w.dev!.y + DEVICE_SIZES.camera.h).toBeLessThanOrEqual(2.7);
+    // (the mount height: the bracket at most at the 2.7 m ceiling)
+    expect(w.dev?.y).toBe(Math.min(SF('cameraMountDefault'), 2.7));
     expect(w.dev!.y).toBeGreaterThanOrEqual(SF('cameraMountMin'));
     expect(w.dev?.room).toBe('R1');
     expect(w.dev?.reason).toMatch(/watches R1/);
@@ -131,6 +131,14 @@ describe('placing', () => {
     expect((del[0]!.after as unknown as { door: { reader: string } }).door.reader).toBe('none');
     const gone = readerLink(d, [{ coll: 'openings', id: 'D1', before: o as Elem, after: null }]);
     expect((gone[0]!.after as unknown as Reader).door).toBeUndefined();
+  });
+
+  it('a dot on a wall itself (the dot magnet) takes the face towards the view', () => {
+    const d = campus();
+    expect(faceNear(d, 'G', 10, 15, [3, 15])).toMatchObject({ id: 'W1', n: -1, pos: 9.9 });
+    expect(faceNear(d, 'G', 10.05, 15, [18, 15])).toMatchObject({ id: 'W1', n: 1, pos: 10.1 });
+    expect(placeCamera(d, 'G', 10, 15, 0, false, 0.1, [3, 15]).dev).toMatchObject({ mount: 'wall', facing: 270, room: 'R1' });
+    expect(faceNear(d, 'G', 5, 15, null)).toBeNull();
   });
 
   it('a reader away from a door goes alone on a wall face; with no face nothing', () => {

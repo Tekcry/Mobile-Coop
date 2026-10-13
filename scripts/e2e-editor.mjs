@@ -106,7 +106,7 @@ try {
   console.log('tile menu (Y tap): tabs, D-pad and A pick Wall, Y closes (ON0a)');
   await press(BTN.Y);
   let ms = await menuState();
-  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,Lights,Mission,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
+  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,Lights,Mission,Security,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
   assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
   await press(BTN.RB);
   const tabR = (await menuState()).tab;
@@ -564,6 +564,8 @@ try {
   assert((await E(() => window.__editor.pad.settings.rumble)) === false, 'the rumble setting survives a reload');
 
   console.log('Walk test as the player (ED2 Part B)');
+  // (the reload offers the unsaved draft a moment after the editor is up: wait for the offer before discarding it)
+  await page.waitForFunction(() => !document.getElementById('ask').classList.contains('hidden'), null, { timeout: 5000 }).catch(() => {});
   if (await E(() => !document.getElementById('ask').classList.contains('hidden'))) await page.click('#discard');
   // (the reload above disconnected the fake pad)
   await E(() => window.__pad.connect());
@@ -2541,6 +2543,167 @@ try {
     await E(() => { const ed = window.__editor; ed.mission.setStartAtInsertion(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
   }
 
+  // ---------- ON12: security devices ----------
+  console.log("ON12: a camera covering Building A's main doors (its cone by the light), a card reader on the bridge door at level 2, a beam across the yard gap, the coverage view, the walk test builds the camera");
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLightView(false); ed.setDarkMap(false); ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a pad button only until `probe` (evaluated in the page) changes, so a slow frame cannot repeat it
+    const holdTill = (btn, probe) => E(async ([b, src]) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const f = new Function(`return (${src})()`);
+      const v0 = f();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && f() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, [btn, probe]);
+    const menuProbe = "() => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; }";
+    const toTab = async (tab) => { for (let i = 0; i < 12 && (await menuState()).tab !== tab; i++) await holdTill(BTN.RB, menuProbe); return (await menuState()).tab === tab; };
+    const toTile = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 40 && (await menuState()).tile !== name; i++) await holdTill(btn, menuProbe); return (await menuState()).tile === name; };
+    const pickTile = async (tab, tile) => {
+      await press(BTN.Y);
+      const okTab = await toTab(tab);
+      const okTile = await toTile(tile);
+      await press(BTN.A);
+      return okTab && okTile;
+    };
+    const said = async (re) => { await page.waitForFunction((w) => new RegExp(w).test(document.getElementById('reticleText').textContent), re, { timeout: 8000 }).catch(() => {}); return dotText(); };
+    const cardProbe = "() => { const r = document.querySelector('#selCard .crow.on'); return r ? `${r.dataset.row}|${r.querySelector('b')?.textContent}` : ''; }";
+    const litRow = () => E(() => document.querySelector('#selCard .crow.on')?.dataset.row ?? '');
+    const toRow = async (row) => {
+      for (const btn of [BTN.DOWN, BTN.UP]) for (let i = 0; i < 16 && (await litRow()) !== row; i++) await holdTill(btn, cardProbe);
+      return (await litRow()) === row;
+    };
+    const devs = () => E(() => (window.__editor.model.data.devices ?? []).map((d) => JSON.parse(JSON.stringify(d))));
+    // the main doors: Building A's ground opening from a yard into a room of the building, its middle and the room
+    const main = await E(() => {
+      const d = window.__editor.model.data;
+      const room = (id) => d.rooms.find((r) => r.id === id);
+      const fa = d.meta.buildings.find((b) => b.id === 'A').footprint;
+      const inside = (r) => (r.rect[0] + r.rect[2]) / 2 > fa[0] && (r.rect[0] + r.rect[2]) / 2 < fa[2] && (r.rect[1] + r.rect[3]) / 2 > fa[1] && (r.rect[1] + r.rect[3]) / 2 < fa[3];
+      for (const o of d.openings) {
+        const w = d.walls.find((q) => q.id === o.wall);
+        if (!w || w.level !== 'G' || !/door|double/.test(o.type) || o.type === 'door') continue;
+        const [ra, rb] = (o.between ?? []).map(room);
+        const inA = [ra, rb].find((r) => r && inside(r) && r.kind !== 'yard');
+        if (!inA || ![ra, rb].some((r) => r?.kind === 'yard')) continue;
+        const L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+        return { id: o.id, x: w.a[0] + ((w.b[0] - w.a[0]) / L) * o.at, z: w.a[1] + ((w.b[1] - w.a[1]) / L) * o.at, room: inA.id, rect: inA.rect };
+      }
+      return null;
+    });
+    // the camera on the room's far wall (the wall to the ground corridor), straight across from the doors
+    // (0.7 m off the wall line: beyond the dot magnet's 0.5 m pull, inside the wall reach)
+    const far = main.z < (main.rect[1] + main.rect[3]) / 2 ? main.rect[3] - 0.7 : main.rect[1] + 0.7;
+    await press(BTN.Y);
+    const secTab = await toTab('Security');
+    const camTile = await toTile('Fixed camera');
+    const tiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((t) => t.textContent));
+    await shot('on12-security-tab');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.tool === 'security' && /^Security/.test(document.querySelector('#toolBar .slot')?.textContent ?? ''), null, { timeout: 5000 }).catch(() => {});
+    const t1 = await E(() => ({ tool: window.__editor.tool, kind: window.__editor.security.kind, bar: document.querySelector('#toolBar .slot')?.textContent ?? '' }));
+    await dotAt(main.x + 1.5, far);
+    const sCam = await said('A: a camera on');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.devices ?? []).length === 1, null, { timeout: 5000 }).catch(() => {});
+    const cam = (await devs())[0];
+    assert(secTab && camTile && tiles.join(',') === 'Fixed camera,Pan camera,Card reader,Keypad,Motion sensor,Beam' && t1.tool === 'security' && /^SecurityFixed camera/.test(t1.bar) && /A: a camera on .+ facing \d+ degrees/.test(sCam) && cam?.kind === 'camera' && cam.mount === 'wall' && cam.room === main.room && cam.y >= 2.4 && cam.y <= 3.5 && Math.abs(cam.facing - (main.z < far ? 180 : 0)) < 1 && /^CAM1$/.test(cam.id), `ON12: Y > Security (${tiles.join(', ')}) > Fixed camera ("${t1.bar}"); the dot said "${sCam}"; A puts ${cam?.id} on the wall of ${cam?.room} at ${cam?.y} m facing ${cam?.facing} degrees towards the main doors ${main.id}`);
+
+    // two troffers in the lobby (the Light tool, A) so part of the cone is lit
+    await E(() => { const ed = window.__editor; ed.setLampFit('troffer-600'); ed.setTool('lamp'); });
+    const lampsBefore = await E(() => (window.__editor.model.data.lamps ?? []).length);
+    for (const [lx, lz] of [[main.x + 1, main.z + 3], [main.x + 3, main.z + 5]]) {
+      await dotAt(lx, lz);
+      await press(BTN.A);
+    }
+    await page.waitForFunction((n) => (window.__editor.model.data.lamps ?? []).length >= n + 2, lampsBefore, { timeout: 5000 }).catch(() => {});
+    // selected: the light view's cells show what it sees: the floor inside the main doors is in its frame
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select('devices:CAM1'); });
+    const inside = [main.x, main.z < far ? main.z + 0.75 : main.z - 0.75];
+    await page.waitForFunction((p) => window.__editor.lights.state === 'ready' && window.__editor.lights.securityAt(p[0], p[1]) > 0, inside, { timeout: 180000 }).catch(() => {});
+    const cone = await E((p) => { const l = window.__editor.lights; return { at: l.securityAt(p[0], p[1]), n: l.securityCounts(), plan: !!document.querySelector('#planSvg #secMap'), frame: document.querySelectorAll('#planSvg .camFrame').length, legend: document.querySelector('#lightLegend [data-sec-legend]')?.textContent ?? '', foot: document.querySelector('#selCard [data-security]')?.textContent ?? '' }; }, inside);
+    // behind the camera (the corridor beyond its wall) is never in its frame
+    const behind = await E(([x, z]) => window.__editor.lights.securityAt(x, z), [main.x, main.z < far ? far + 1.5 : far - 1.5]);
+    await shot('on12-camera-cone');
+    assert(cone.at > 0 && behind === 0 && cone.n[1] + cone.n[2] + cone.n[3] > 20 && cone.n[2] + cone.n[3] > 0 && cone.plan && cone.frame >= 1 && /camera sees at once/.test(cone.legend) && /Range 18 m/.test(cone.foot), `ON12: the camera's cone (blue ${cone.n[1]}, amber ${cone.n[2]}, red ${cone.n[3]} cells) covers the floor inside ${main.id} (class ${cone.at}; the troffers light some of it), not the corridor behind its wall (${behind}); plan image and frame outline; card "${cone.foot}"`);
+
+    // a card reader on the bridge door (first floor, Building A side), then its access level to 2 on the card
+    const bridge = await E(() => {
+      const d = window.__editor.model.data;
+      const fa = d.meta.buildings.find((b) => b.id === 'A').footprint;
+      const inA = (id) => { const r = d.rooms.find((q) => q.id === id); return !!r && (r.rect[0] + r.rect[2]) / 2 < fa[2] && (r.rect[0] + r.rect[2]) / 2 > fa[0]; };
+      for (const o of d.openings) {
+        const w = d.walls.find((q) => q.id === o.wall);
+        if (!w || !(o.between ?? []).includes('K-BRIDGE') || !(o.between ?? []).some((r) => r !== 'K-BRIDGE' && inA(r))) continue;
+        const L = Math.hypot(w.b[0] - w.a[0], w.b[1] - w.a[1]);
+        const other = o.between.find((r) => r !== 'K-BRIDGE');
+        const rr = d.rooms.find((q) => q.id === other).rect;
+        return { id: o.id, level: w.level, x: w.a[0] + ((w.b[0] - w.a[0]) / L) * o.at, z: w.a[1] + ((w.b[1] - w.a[1]) / L) * o.at, side: other, cx: (rr[0] + rr[2]) / 2, cz: (rr[1] + rr[3]) / 2 };
+      }
+      return null;
+    });
+    await E((lv) => { const ed = window.__editor; ed.select(null); ed.setLevel(lv); }, bridge.level);
+    const rTile = await pickTile('Security', 'Card reader');
+    // (the dot on the bridge door's Building A side, half a metre off its middle along the wall)
+    const toSide = [Math.sign(bridge.cx - bridge.x) * 0.4, Math.sign(bridge.cz - bridge.z) * 0.4];
+    await dotAt(bridge.x + (Math.abs(toSide[0]) > 0 && Math.abs(bridge.cx - bridge.x) > Math.abs(bridge.cz - bridge.z) ? toSide[0] : 0.5), bridge.z + (Math.abs(bridge.cx - bridge.x) > Math.abs(bridge.cz - bridge.z) ? 0.5 : toSide[1]));
+    const sRd = await said('A: a card reader for door');
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.devices ?? []).some((d) => d.kind === 'reader'), null, { timeout: 5000 }).catch(() => {});
+    const rd0 = (await devs()).find((d) => d.kind === 'reader');
+    await E((id) => { const ed = window.__editor; ed.setTool('select'); ed.select(`devices:${id}`); ed.pad.editCard('type'); }, rd0.id);
+    const onRow = await toRow('level');
+    for (let i = 0; i < 8; i++) {
+      const lv = await E((id) => window.__editor.model.get('devices', id).accessLevel, rd0.id);
+      if (lv === 2) break;
+      await holdTill(lv > 2 ? BTN.LEFT : BTN.RIGHT, "() => String(window.__editor.model.get('devices', window.__editor.selected.slice(8))?.accessLevel)");
+    }
+    await E(() => { window.__editor.pad.cardEditing = false; });
+    const rd = await E((id) => window.__editor.model.get('devices', id), rd0.id);
+    const door = await E((id) => window.__editor.model.get('openings', id), bridge.id);
+    const rdPlan = await E(() => document.querySelectorAll('#planSvg .readerMark').length);
+    assert(rTile && /A: a card reader for door/.test(sRd) && onRow && rd.door === bridge.id && rd.accessLevel === 2 && rd.building === 'A' && door.door?.reader === 'card' && door.door?.level === 2 && door.locked === true && rdPlan >= 1, `ON12: Card reader by the bridge door ${bridge.id} (the dot said "${sRd}"): ${rd.id} binds it, the card's Access level row steps it to ${rd.accessLevel}; the door now has reader ${door.door?.reader}, card level ${door.door?.level}, locked ${door.locked}`);
+
+    // a beam across the yard gap between the buildings (ground): A on Building A's east wall, A on Building B's west wall
+    const gap = await E(() => { const d = window.__editor.model.data; const r = d.rooms.find((q) => q.id === 'S-GAP'); return r ? r.rect : null; });
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setLevel('G'); });
+    const bTile = await pickTile('Security', 'Beam');
+    const bz = gap[1] + 5;
+    await dotAt(gap[0] + 0.4, bz);
+    const sB = await said('A: a beam from');
+    await press(BTN.A);
+    await dotAt(gap[2] - 0.4, bz);
+    await press(BTN.A);
+    await page.waitForFunction(() => (window.__editor.model.data.devices ?? []).some((d) => d.kind === 'beam') && !window.__editor.drag, null, { timeout: 5000 }).catch(() => {});
+    const bm = (await devs()).find((d) => d.kind === 'beam');
+    const bLen = bm ? Math.hypot(bm.b[0] - bm.a[0], bm.b[2] - bm.a[2]) : 0;
+    assert(bTile && /A: a beam from/.test(sB) && !!bm && bm.room === 'S-GAP' && bm.a[1] === 1.4 && bm.b[1] === 1.4 && bLen > 10 && bLen <= 12 && bm.visible === false, `ON12: Beam across the yard gap: ${bm?.id} from (${bm?.a}) to (${bm?.b}), ${bLen.toFixed(2)} m at ${bm?.a[1]} m in ${bm?.room}`);
+
+    // Y > View > Security coverage: every camera cone and sensor fan of the level, the gaps clear and counted
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); ed.setLayout('plan'); });
+    await press(BTN.Y);
+    const vTab = await toTab('View');
+    const cTile = await toTile('Security coverage', BTN.DOWN);
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.security.coverage && window.__editor.lights.state === 'ready' && window.__editor.security.stats.watched > 0, null, { timeout: 180000 }).catch(() => {});
+    if ((await menuState()).open) await press(BTN.B);
+    const cov = await E((p) => { const ed = window.__editor; return { on: ed.security.coverage, stats: ed.security.stats, at: ed.lights.securityAt(p[0], p[1]), plan: !!document.querySelector('#planSvg #secMap'), legend: document.querySelector('#lightLegend [data-sec-legend]')?.textContent ?? '' }; }, inside);
+    await shot('on12-coverage-plan');
+    assert(vTab && cTile && cov.on && cov.stats.watched > 0 && cov.stats.gaps > cov.stats.watched && cov.at === 1 && cov.plan && /unwatched/.test(cov.legend), `ON12: Y > View > Security coverage: ${cov.stats.watched} watched cells, ${cov.stats.gaps} unwatched on Ground; the doors' floor is watched (${cov.at}); legend "${cov.legend}"`);
+    await E(() => { const ed = window.__editor; ed.setCoverage(false); ed.setLayout('both'); });
+
+    // the walk test builds the camera as the game's own S1 camera (readers and beams wait for S2-S3)
+    await dot(main.x, (main.rect[1] + main.rect[3]) / 2, 0);
+    await page.keyboard.press('Tab');
+    await walkIs('open', 120000);
+    const gCams = await gf().evaluate(() => { const s = window.__app.current.security; return s ? s.cameras.map((c) => c.def.id) : null; });
+    const beforeW12 = await edState();
+    await gf().evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { code: 'F10', key: 'F10' })));
+    await backCheck('F10 after the security walk', beforeW12);
+    assert(Array.isArray(gCams) && gCams.join() === 'CAM1', `ON12: the walk test builds the editor's camera in the game (${JSON.stringify(gCams)})`);
+    await E(() => { const ed = window.__editor; ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
+  }
+
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
   await E(() => { void window.__editor.save(); });
@@ -2562,6 +2725,12 @@ try {
   // ON8: the guard and the markers too, in the file's shapes (spawns as points, the extraction one object)
   const gd = playSaved?.guards?.[0];
   assert(gd?.id === 'GD1' && gd.closed === true && gd.loop.length === 4 && gd.cycle > 0 && !!gd.isolation && playSaved.spawns?.length === 1 && Array.isArray(playSaved.spawns[0]) && playSaved.spawns[0][2] === 'G' && playSaved.objectives?.[0]?.id === 'OBJ1' && playSaved.extraction?.rect?.join() === '10,20,16,24' && !('guards' in campusSaved) && !('spawns' in campusSaved), `ON8: the play file has guard ${gd?.id} (${gd?.loop?.length} stops, ${gd?.cycle} s), spawns ${JSON.stringify(playSaved?.spawns)}, ${playSaved?.objectives?.[0]?.id}, extraction ${JSON.stringify(playSaved?.extraction)}; the campus file none of them`);
+  // ON12: the devices go to the security file beside the campus file (zones and cards empty on its first save); the reader's door is in the campus file
+  const sandSec = path.join(sandbox, 'docs/kestrel/kestrel.security.json');
+  const secSaved = existsSync(sandSec) ? JSON.parse(readFileSync(sandSec, 'utf8')) : null;
+  const secKinds = (secSaved?.devices ?? []).map((d) => d.kind).sort().join(',');
+  const bridgeSaved = campusSaved.openings.find((o) => o.door?.reader === 'card' && o.door?.level === 2 && (o.between ?? []).includes('K-BRIDGE'));
+  assert(!!secSaved && secKinds === 'beam,camera,reader' && Array.isArray(secSaved.zones) && Array.isArray(secSaved.cards) && !('devices' in campusSaved) && !!bridgeSaved && bridgeSaved.locked === true && !existsSync(path.join(process.cwd(), 'docs/kestrel/kestrel.security.json')), `ON12: the save writes the sandbox security file (${secKinds}), the campus file none of them; the bridge door ${bridgeSaved?.id} saved with its reader and level 2`);
 } catch (e) {
 
   failed = true;

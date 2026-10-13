@@ -9,7 +9,7 @@ import { CAMERA } from '../config/security';
 import { hyp2 } from '../core/mathx';
 import { fmt } from './geometry';
 import { aimDevice, beamEnd, beamHeights, camClass, cameraCells, camView, coverage, deviceCentre, deviceFoot, deviceId, feedWords, isBeam, isCamera, isPir, isReader, makeBeam, moveDevice, pirCovers, placeDevice, sweepSpan, turnDevice } from './security';
-import type { Beam, Camera, Device, SecData, SightRay } from './security';
+import type { Beam, Camera, Device, RayPts, SecData, SightRay } from './security';
 import { DEVICE_COLOURS, levelColour, SEC_TOOLS, secTool, SF } from './securityCatalogue';
 import type { SecTool } from './securityCatalogue';
 import type { CellGrid } from './lightPreview';
@@ -29,6 +29,8 @@ export interface SecCtx {
   floor: number;
   level: string;
   ray: SightRay;
+  /** Two vectors the ray test reuses (the game's Ballistics takes Babylon vectors). */
+  pts: RayPts;
 }
 
 export class SecurityTool {
@@ -85,13 +87,19 @@ export class SecurityTool {
     return Math.round(((Math.atan2(ct.x - cp.x, ct.z - cp.z) / DEG + this.yaw) % 360 + 360) % 360 / 5) * 5;
   }
 
+  /** Where the view is (plan), so a dot on a wall picks the face towards it. */
+  private from(): Pt {
+    const cp = this.ed.view.camera.position;
+    return [cp.x, cp.z];
+  }
+
   /** A (a click) with the Security tool: a device at the dot; a beam starts (A again at its far end). */
   down(x: number, z: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad'): void {
     const ed = this.ed;
     const lv = ed.view.level;
     const grid = ed.objectGrid;
     if (this.kind === 'beam') {
-      const a = beamEnd(this.d, lv, x, z, grid);
+      const a = beamEnd(this.d, lv, x, z, grid, this.from());
       const id = deviceId(this.d, 'beam');
       const h = SF.beamHeightDefault.value;
       const b: Beam = { id, kind: 'beam', level: lv, a: [a.p[0], h, a.p[1]], b: [a.p[0], h, a.p[1]], visible: false, room: '', reason: '' };
@@ -99,7 +107,7 @@ export class SecurityTool {
       ed.beginDrag('devices', id, null, a.p, ed.viewFloor(), sx, sy, source, true);
       return ed.status(`Beam from ${a.wall ? `the face of ${a.wall}` : `a post at x ${fmt(a.p[0])}, z ${fmt(a.p[1])}`}: A (click) at the far end`);
     }
-    const p = placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid);
+    const p = placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid, this.from());
     if (!p.dev) return ed.status(p.why ?? 'Cannot go here');
     const dev = { ...p.dev, id: deviceId(this.d, p.dev.kind) } as Device;
     const text = `Added ${secTool(this.kind).name.toLowerCase()} ${dev.id}: ${p.words}`;
@@ -110,7 +118,7 @@ export class SecurityTool {
 
   /** The beam being drawn with its far end at the pointer (the editor's drag). */
   dragBeam(before: Beam, x: number, z: number): Beam {
-    const e = beamEnd(this.d, before.level, x, z, this.ed.objectGrid);
+    const e = beamEnd(this.d, before.level, x, z, this.ed.objectGrid, this.from());
     return { ...before, b: [e.p[0], before.a[1], e.p[1]] };
   }
 
@@ -131,13 +139,13 @@ export class SecurityTool {
     const marks: Mark[] = [];
     const plan: PlanShape[] = [];
     if (this.kind === 'beam') {
-      const e = beamEnd(this.d, lv, x, z, grid);
+      const e = beamEnd(this.d, lv, x, z, grid, this.from());
       const h = SF.beamHeightDefault.value;
       marks.push({ x: e.p[0], y: f + h / 2, z: e.p[1], sx: 0.08, sy: h, sz: 0.08, dx: 1, dz: 0, look: 'ghost' });
       plan.push({ kind: 'ring', p: e.p });
       return { words: `A: a beam from ${e.wall ? `the face of ${e.wall}` : 'a post here'}, ${fmt(h)} m (high)`, bad: false, key: `bm|${e.p.join()}`, marks, plan };
     }
-    const p = placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid);
+    const p = placeDevice(this.d, this.kind, lv, x, z, this.lookYaw(), grid, this.from());
     if (!p.dev) {
       marks.push({ x, y: f + 1.2, z, sx: 0.15, sy: 0.15, sz: 0.15, dx: 1, dz: 0, look: 'bad' });
       return { words: p.why ?? 'Cannot go here', bad: true, key: `sx|${this.kind}|${Math.round(x * 10)},${Math.round(z * 10)}`, marks, plan };
@@ -264,7 +272,7 @@ export class SecurityTool {
     const devs = this.devices.filter((e) => e.level === c.level);
     const g = c.grid;
     if (this.coverage) {
-      const cams = devs.filter(isCamera).map((e) => cameraCells(g, camView(this.d, e), c.floor, c.ray));
+      const cams = devs.filter(isCamera).map((e) => cameraCells(g, camView(this.d, e), c.floor, c.ray, undefined, c.pts));
       const cov = coverage(g, cams, devs.filter(isPir));
       this.stats = { watched: cov.watched, gaps: cov.gaps, level: c.level };
       return cov.cells;
@@ -274,7 +282,7 @@ export class SecurityTool {
     if (!e) return null;
     const out = new Uint8Array(g.nx * g.nz);
     if (isCamera(e)) {
-      cameraCells(g, camView(this.d, e), c.floor, c.ray, out);
+      cameraCells(g, camView(this.d, e), c.floor, c.ray, out, c.pts);
       for (let k = 0; k < out.length; k++) if (out[k]) out[k] = camClass(c.values[k]!);
       return out;
     }

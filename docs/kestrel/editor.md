@@ -82,6 +82,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Y, B | the light view (ON7): the 3D scene at night, lit by the game's own light bake of the editing level; the darkness map: the floor by the light meter's band (both on Hub > View too) |
 | Space > Lights > Guard view | the guard view tester (ON7): a click places a guard eye facing the way the camera looks; R turns the last eye 45 degrees; Esc or Delete removes it (Esc again leaves the tool) |
 | Space > Mission tiles | the Mission tools (ON8): Guard (a click places a guard, then clicks add its patrol stops; a click on the first stop closes the loop; R turns the last stop 45 degrees, + / - its wait, Backspace removes it, Page Up / Down the level of the next stop, Esc ends), Insertion, Extraction (click a corner, click the far corner), Objective, Intel, Checkpoint, Hide |
+| Space > Security tiles | the Security tools (ON12): Fixed camera, Pan camera (a click on a wall face mounts it facing out, elsewhere under the ceiling facing the way the view looks; R turns that ceiling ghost 45 degrees), Card reader and Keypad (a click by a door binds it to the door; on a wall face alone), Motion sensor, Beam (click one end, click the other); the card's rows in the side panel step them; Space > View > Security coverage |
 | 0, R | the Light tool (ON6): click places the fitting from the list beside it (a strip: click the start, click the end; R turns the ghost); Switch in the list: click a wall face for a switch, then click lamps to put them on it, Esc ends |
 | Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
@@ -863,7 +864,73 @@ object, as the schema has them). Ids are fresh and readable (GD1, OBJ1, H1, CP1)
 - **Walk test** (Hub > Play **Start at insertion 1**, on / off): Tab, L3 held and Hub > Play > Walk test start at
   insertion point 1 (facing north) instead of the dot. The markers are not built in the game yet (P08).
 
+## Security devices (ON12)
+Cameras, card readers and keypads, motion sensors (PIR) and infrared beams are placed as the security file's own records
+(`docs/kestrel/kestrel.security.json`, S0-security-spec.md section 6, schema.md section 4), so the security stages
+(S1-S4) and P04S read them. They ride in the editing document as `devices`, like the play file's records
+(`src/editor/security.ts`): undo, drafts, the save summary and the change log treat them as one with the campus; the save
+writes them to the security file only, and only when its text changed (a no-op save leaves it byte-identical); the file is
+made on the first save with a device, with empty `zones` and `cards`, and its zones, cards and other device kinds (desk,
+panel, mantrap, iris, fault) are kept as they are. Ids are fresh and readable (CAM1, RD1, PIR1, BM1). Every device gets its
+room (the room under it) and a plain reason ("watches G-FRONT", "controls door RA11"), which the side panel edits.
+
+- **Security tab** (Y; Space with the mouse): Fixed camera, Pan camera, Card reader, Keypad, Motion sensor, Beam. The tool
+  bar shows "Security" with the device under it; D-pad left / right with the tool steps the device.
+- **Cameras**: A (a click) on a wall face (within facts `light.wallReach`) mounts it there facing out of the wall; elsewhere
+  it hangs under the ceiling facing the way the view looks (RB / R turns that 45 degrees first). Mount height facts
+  `security.cameraMountDefault` 3.0 m (S0 section 6), kept inside SN04 2.4-3.5 m and at most the ceiling (its bracket);
+  a ceiling under 2.4 m refuses it with the reason; outdoors it needs a wall. A pan camera sweeps facts
+  `security.cameraSweepDefault` 90 degrees round its facing (SN13 caps it at 120). Its frame is the game's own: SN01 70 x
+  SN02 45 degrees, SN03 18 m (`src/config/security.ts` `CAMERA`), looking level.
+- **Aim**: Selected > **Aim** (camera or sensor): the right stick turns it (5 degree steps), A sets, B puts it back; the
+  card's Facing row steps facts `security.cameraAimStep` 5 degrees, Sweep `cameraSweepStep` 10 degrees; with the mouse the
+  side panel's arrows step the same rows. A pan camera's sweep turns with it.
+- **What a camera sees**: a selected camera tints the editing level's floor cells it sees, with the guard view's sight
+  code: a body at a cell is seen when its chest, else its head, is in the camera's frame (the game's `inFrame`, a pan camera
+  at the yaw of its sweep nearest the cell) and the ray from the lens is clear (perception's `losClear` through the
+  game's `Ballistics` on the light view's hidden physics scene: walls, closed doors, objects). The light at the cell then
+  decides (S0 2.1: the camera rate is the guard's `sightRate`, so the guard view's bands apply): red where the body is lit
+  (seen at once), amber between the thresholds (seen slowly), blue where it is in frame but hidden (too dark). In 3D and on
+  the plan, with a legend; the plan also draws every camera's frame outline (dashed, to its range; a pan camera's whole
+  sweep) and 3D draws the same outline on the floor. The cells need the exact light: selecting a camera starts the bake
+  (the light view's legend says "Baking light..." meanwhile).
+- **Readers and keypads**: A by a door (its middle within facts `light.openingReach`) places the reader beside the door on
+  the dot's side, at facts `security.readerHeight` 1.1 m, and binds it: the door gets the reader's type (ON9 `reader`: card,
+  card and PIN, keypad), the reader's access level as its card `level`, and `locked` (S0 2.3), in the same edit. Its card:
+  Type, Access level 0-5 (the plate's colour: grey, green, blue, yellow, orange, red), Building (A or B, from where it is),
+  Door, Height. Stepping the level or type keeps the door in step; deleting the reader sets the door's reader to none (it
+  stays locked); deleting the door drops it from the reader. A away from doors on a wall face: a reader alone.
+- **Motion sensors (PIR)**: on a wall face (facts `security.pirWallHeight` 2.4 m, its fan the half in front of the wall,
+  `pirWallFan`) or under the ceiling (a full circle). Range SN50 6 m on its level (S0 2.6 tests range only). The card's
+  Links to row picks the alarm or a motion (PIR) lamp of ON6 on its level within range; a new sensor links to the nearest
+  such lamp, else the alarm. Selected, its fan is tinted violet; the plan draws every fan dashed.
+- **Beams**: A at one end, A at the other: an end within reach of a wall face sits on the face, else on a post. Length SN48
+  1.5-12 m and height SN40 / SN41 (the card steps only 0.3, 0.4, 1.3, 1.4, 1.5 m; default 1.4, high) are checked on the
+  drop, with the reason when refused. Visible (on the card): drawn bright, else night vision only (S0 section 3, drawn dark
+  red and dashed on the plan). Every beam reports to the desk (the alarm, S0 2.5).
+- **Security desk link**: a camera's Desk row picks a security desk object (ON4 `security-desk`, any level) and takes the
+  next free monitor (Monitor row 1-16, facts `security.monitorMax`); the desk object's card and side panel list its feeds
+  ("Feeds: CAM1 on monitor 1, ...").
+- **Coverage view** (Hub > View and the tile menu's View: **Security coverage**): every camera cone (blue) and sensor fan
+  (violet) of the editing level tinted on the plan and the floor, the unwatched floor left clear, with the count of
+  unwatched cells and square metres in the legend. Change the level to see another. Not saved.
+- **Checks**: the checker's S0 rules (SC01-SC06: ids exist, readers on doors into higher zones, camera mount heights and
+  counts, beam heights, reasons, cards) run on the editor's devices with the file's zones and cards and show in Checks
+  (no new rules). With no device and no file they are skipped as before.
+- **Walk test**: cameras are built in the game as its own S1 cameras (`SecuritySystem`, housing and LED, the frame and the
+  meter). Readers are built by stage S2, beams and motion sensors by S3 (the door's lock and card level already apply).
+- **Card** (D-pad): a camera: Type (fixed / pan), Name, Facing, Sweep (pan), Height, Mount, Desk, Monitor, Id; a reader:
+  Type (card reader, card and PIN, keypad), Name, Access level, Building, Door, Height, Id; a sensor: Type, Name, Links to,
+  Mount, Height, Id; a beam: Type, Name, Height, Visible, Id. The card's foot says what it does in the game and which stage
+  builds it.
+
 ## What it does not do yet (ED2 parts B-H)
+- ON12: the desk, panel, mantrap, iris and fault devices, zones and cards are not placed or edited (kept from the file);
+  the desk link is stored on the camera (`desk`, `monitor`), not as a desk device's `feeds`. Coverage counts the editing
+  level only and needs the light bake; a pan camera's cone is its whole sweep (the time it watches each part is not
+  shown). A sensor fan is range only (no line of sight, as S0 2.6). Moving a reader away from its door keeps the binding.
+  Devices are not duplicated, boxed, copied or pasted, and presets carry none; renaming a door does not rename a reader's
+  `door`.
 - ON8: the walk grid is the editor's own plain rule set, not the game's nav grid (no raycast floors, ledge drops,
   ladder links or door locks; a door opening is open across its whole width); a leg to another level goes by the stair's
   middle (the climb counted along its slope), not its real flights. Guards are not built in the walk test (P07) and the
@@ -964,7 +1031,9 @@ object, as the schema has them). Ids are fresh and readable (GD1, OBJ1, H1, CP1)
 | `src/editor/lightPreview.ts` | ON7: the lights preview modes, the light bands at `LIGHT`, the darkness map's cells and contours, the guard view's classes from `PERCEPTION`, the quick light (`contribution`) (pure, `tests/editor/lightPreview.test.ts`) |
 | `src/editor/missionCatalogue.ts`, `src/editor/mission.ts`, `src/editor/missionTool.ts` | ON8: the guard kinds and walk speeds, the brief's roster, objective and hide kinds (data with sources); the mission records, the walk grid and leg search, length and cycle, path edits, the patrol as time, isolation, objective links and loops, the play file shapes (pure, `tests/editor/mission.test.ts`); the Mission tools in the editor: path editing, markers, picking, the patrol preview, plan marks and 3D labels |
 | `src/editor/lightView.ts` | ON7: the exact light through the game's pipeline (map builder, hidden physics scene, `bakeLevelLight`, `LightField`, `BakedLamps` on material clones), the quick light, the darkness map and guard view in 3D and on the plan, the eyes, the legend |
+| `src/editor/securityCatalogue.ts`, `src/editor/security.ts`, `src/editor/securityTool.ts` | ON12: the Security tab's devices, reader types, access level colours and drawn sizes (data with sources); the device records, placing (wall face, ceiling, by a door), the reader's door link, what a camera sees (`inFrame`, `losClear`), sensor fans, coverage and gaps, the card's rows and steps, the security file split (pure, `tests/editor/security.test.ts`); the Security tool in the editor: ghost and words, plan marks, labels, the light view's security cells |
+| `docs/kestrel/kestrel.security.json` | ON12: the security file (S0 section 6, schema.md section 4); the editor writes `devices` |
 | `docs/kestrel/kestrel.play.json` | ON6: the play file (schema.md section 3); the editor writes `lamps` and `circuits` |
 | `docs/kestrel/editor-presets.json` | ON11: Michael's own presets (schema.md section 7, own presets); written by the editor's Save |
-| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load (the campus file and, ON6, the play file), plan (one level, SVG), checks, save (both files), the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
+| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load (the campus file and, ON6, the play file; ON12, the security file), plan (one level, SVG), checks (ON12: the S0 security rules on the editor's devices), save (all three files), the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

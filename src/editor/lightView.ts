@@ -497,12 +497,19 @@ export class LightView {
     return k < 0 ? 0 : this.sec[k]!;
   }
 
+  /** How many cells of each security class (0-4) the editing level has now (the e2e reads it). */
+  securityCounts(): number[] {
+    const n = [0, 0, 0, 0, 0];
+    if (this.sec) for (let k = 0; k < this.sec.length; k++) n[this.sec[k]!]!++;
+    return n;
+  }
+
   private updateSecurity(draw = true): void {
     const c = this.cur;
     const g = this.grid;
     const v = this.values;
     const s = this.host.security;
-    this.sec = c && g && v && s && c.level === this.host.view.level ? s.cells({ grid: g, values: v, floor: c.floor, level: c.level, ray: c.ballistics }) : null;
+    this.sec = c && g && v && s && c.level === this.host.view.level ? s.cells({ grid: g, values: v, floor: c.floor, level: c.level, ray: c.ballistics, pts: { eye: this.a, to: this.b } }) : null;
     this.secVer++;
     if (draw) {
       this.drawOverlays();

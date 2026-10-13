@@ -319,8 +319,8 @@ export class EditorScene {
     const yaw = typeof e.facing === 'number' ? (e.facing * Math.PI) / 180 : 0;
     if (isCamera(e)) {
       const s = DEVICE_SIZES.camera;
-      out.push(this.box(`camera ${e.id}`, at[0], y, at[1], s.w, s.h, s.d, yaw, this.mat('camera', DEVICE_COLOURS.camera, 1, 0.2)));
-      const led = this.box(`camera ${e.id} led`, at[0] + Math.sin(yaw) * (s.d / 2), y + s.h / 2, at[1] + Math.cos(yaw) * (s.d / 2), 0.04, 0.04, 0.04, yaw, this.mat('camera led', '#ff2222', 1, 1));
+      out.push(this.box(`camera ${e.id}`, at[0], y - s.h / 2, at[1], s.w, s.h, s.d, yaw, this.mat('camera', DEVICE_COLOURS.camera, 1, 0.2)));
+      const led = this.box(`camera ${e.id} led`, at[0] + Math.sin(yaw) * (s.d / 2), y - s.h / 2, at[1] + Math.cos(yaw) * (s.d / 2), 0.04, 0.04, 0.04, yaw, this.mat('camera led', '#ff2222', 1, 1));
       out.push(led);
       const fl = this.security?.frameLines(e) ?? [];
       const fy = y0 + 0.07;
@@ -330,7 +330,7 @@ export class EditorScene {
       out.push(this.box(`reader ${e.id}`, at[0], y, at[1], s.w, s.h, s.d, yaw, this.mat(`reader level ${e.accessLevel}`, levelColour(e.accessLevel), 1, 0.4)));
     } else if (isPir(e)) {
       const s = DEVICE_SIZES.pir;
-      out.push(this.box(`pir ${e.id}`, at[0], y, at[1], s.w, s.h, s.d, yaw, this.mat('pir', DEVICE_COLOURS.pir, 1, 0.5)));
+      out.push(this.box(`pir ${e.id}`, at[0], y - s.h / 2, at[1], s.w, s.h, s.d, yaw, this.mat('pir', DEVICE_COLOURS.pir, 1, 0.5)));
       const r = SF.pirRange.value;
       const half = e.mount === 'wall' ? (SF.pirWallFan.value / 2) * (Math.PI / 180) : Math.PI;
       const pts: Vector3[] = [];

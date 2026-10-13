@@ -261,6 +261,19 @@ Shape and field rules are S0-security-spec.md section 6; they are not repeated h
 | zones[].id, rooms, secure | Zone id, its room ids, and whether it is the secure zone |
 | cards[].id, opens, heldBy | Card id, reader ids it opens, and the guard, civilian or object that holds it |
 
+ON12 (the level editor writes `devices`; `zones`, `cards` and the other kinds are kept): fields it adds, all optional for
+the stages that do not need them.
+| Field | On | Meaning |
+| --- | --- | --- |
+| `mount` | camera, pir | `wall` (on a wall face, facing out) or `ceiling` |
+| `desk`, `monitor` | camera | The security desk object (`objects[]`, preset `security-desk`) whose video wall shows it, and the monitor (1-16); the desk's feed list is every camera naming it |
+| `reader` | reader | `card`, `card-pin` or `keypad` (ON9's door reader ids); `pin` is true for the last two (S0 2.3) |
+| `alarm` | pir | true when it reports to the alarm instead of turning on a `lamp` |
+| `visible` | beam | true: the beam line is drawn; false: night vision only (S0 section 3) |
+| `name` | any | A readable name (optional) |
+A reader with a `door` also sets that opening's `door.reader`, `door.level` (its `accessLevel`) and `locked: true` in
+kestrel.arch / campus (one edit). `facing` is yaw degrees (0 = +Z) as S0; `y` and beam heights are above the level floor.
+
 ## 5. Plan renderer (scripts/kestrel/plans.mjs)
 `node scripts/kestrel/plans.mjs <arch.json> [--play <play.json>] [--security <security.json>] [--out docs/kestrel/plans]` writes, for each level `L`:
 - `L.svg` and `L.png`: the architecture only.
