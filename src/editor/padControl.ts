@@ -276,7 +276,7 @@ export class PadControl {
   viewState(): ViewState {
     const ed = this.ed;
     const v = ed.view.vis;
-    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths, coverage: ed.security.coverage, voids: ed.crawl.voids };
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths, coverage: ed.security.coverage, voids: ed.crawl.voids, night: ed.nightState() };
   }
 
   /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
@@ -454,6 +454,13 @@ export class PadControl {
     else if (id === 'view.paths') return ed.stepGuardPaths();
     else if (id === 'view.coverage') return ed.setCoverage(!ed.security.coverage);
     else if (id === 'view.voids') return ed.setVoidView(!ed.crawl.voids);
+    // ON15: the Moon and time panel and its rows
+    else if (id === 'view.night') return ed.setNightPanel(!ed.lights.moonShow);
+    else if (id === 'view.ntime') return press ? ed.nightBrief() : ed.stepNight('time', dir);
+    else if (id === 'view.nbear') return ed.stepNight('bearing', dir);
+    else if (id === 'view.nheight') return ed.stepNight('height', dir);
+    else if (id === 'view.nbright') return ed.stepNight('brightness', dir);
+    else if (id === 'view.nuse') return ed.useNightForMap();
     this.applyPanel(rebuild);
   }
 

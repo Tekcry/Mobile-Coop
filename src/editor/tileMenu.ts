@@ -38,6 +38,9 @@ export interface Tile {
   kind: TileKind;
   value?: string;
   on?: boolean;
+  /** ON15: a slider's place (0 to 1) and a marker on it (the hub draws them). */
+  frac?: number;
+  mark?: number;
   /** Greyed: A only says why. */
   disabled?: string;
 }
@@ -92,6 +95,8 @@ export interface ViewState {
   coverage?: boolean;
   /** ON13: the ceiling voids view. */
   voids?: boolean;
+  /** ON15: the Moon and time panel: on, and its rows' words (the time, bearing, height, brightness, whether the map uses it). */
+  night?: { on: boolean; time: string; frac: number; brief: number; bearing: string; height: string; brightness: string; used: boolean };
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -127,6 +132,20 @@ export function viewTiles(v: ViewState): Tile[] {
     // ON12: every camera cone and sensor fan of this level tinted, the unwatched floor clear
     { id: 'view.coverage', icon: 'S', name: 'Security coverage', desc: 'Camera cones and sensor fans; gaps stay clear', kind: 'toggle', on: !!v.coverage, value: onOff(!!v.coverage) },
     { id: 'view.voids', icon: 'V', name: 'Ceiling voids', desc: 'Each void see-through, green meets the crawl rule, red not', kind: 'toggle', on: !!v.voids, value: onOff(!!v.voids) },
+    // ON15: the moon's direction, height and brightness, and the time of night (its rows show while it is on)
+    { id: 'view.night', icon: 'O', name: 'Moon and time', desc: "The moon over this level; its arrow and shadow lines on the plan", kind: 'toggle', on: !!v.night?.on, value: onOff(!!v.night?.on) },
+    ...(v.night?.on ? nightTiles(v.night) : []),
+  ];
+}
+
+/** ON15: the Moon and time rows (left / right steps them; A on the time goes to the brief's night). */
+function nightTiles(n: NonNullable<ViewState['night']>): Tile[] {
+  return [
+    { id: 'view.ntime', icon: 'T', name: 'Time of night', desc: "Dusk to dawn; sets the bearing and height. A: the brief's night", kind: 'slider', on: true, value: n.time, frac: n.frac, mark: n.brief },
+    { id: 'view.nbear', icon: 'D', name: 'Moon bearing', desc: 'Compass bearing of the moon, 5 degree steps', kind: 'cycle', value: n.bearing },
+    { id: 'view.nheight', icon: 'H', name: 'Moon height', desc: 'Degrees above the horizon', kind: 'cycle', value: n.height },
+    { id: 'view.nbright', icon: 'M', name: 'Moon brightness', desc: 'New, quarter, half or full', kind: 'cycle', value: n.brightness },
+    { id: 'view.nuse', icon: 'U', name: 'Use for the map', desc: 'The walk test and the game use this moon (written on Save)', kind: 'go', value: n.used ? 'in use' : 'not yet' },
   ];
 }
 

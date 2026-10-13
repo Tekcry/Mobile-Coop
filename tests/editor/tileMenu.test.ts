@@ -23,12 +23,16 @@ describe('tile menu model (ON0a)', () => {
     expect(g).toContain('Delete');
     expect(names('Selected', { ...none, sel: { coll: 'guards', type: 'grunt' }, playing: true })[1]).toBe('Stop patrol');
     expect(names('Selected', { ...none, sel: { coll: 'objectives', type: 'intel' } }).slice(0, 2)).toEqual(['Needs first', 'Opens']);
-    expect(menuTiles('View', none).at(-3)!.value).toBe('All guards');
+    expect(menuTiles('View', none).at(-4)!.value).toBe('All guards');
     // ON12: the Security tab and the coverage view; a camera has Aim, no Duplicate
     expect(names('Security', none)).toEqual(['Fixed camera', 'Pan camera', 'Card reader', 'Keypad', 'Motion sensor', 'Beam']);
-    expect(menuTiles('View', none).at(-2)!.name).toBe('Security coverage');
+    expect(menuTiles('View', none).at(-3)!.name).toBe('Security coverage');
     // ON13: the ceiling voids view; Build > Crawl space; a room's Ceiling, a ceiling's Room, no Move, Duplicate or Rename
-    expect(menuTiles('View', none).at(-1)!.name).toBe('Ceiling voids');
+    expect(menuTiles('View', none).at(-2)!.name).toBe('Ceiling voids');
+    // ON15: Moon and time last; its rows only while it is on
+    expect(menuTiles('View', none).at(-1)!.name).toBe('Moon and time');
+    const nv = { ...none, view: { ...none.view, night: { on: true, time: '01:10 Brief', frac: 0.57, brief: 0.57, bearing: '205 (SW)', height: '54 degrees', brightness: 'New', used: false } } };
+    expect(menuTiles('View', nv).slice(-6).map((t) => t.name)).toEqual(['Moon and time', 'Time of night', 'Moon bearing', 'Moon height', 'Moon brightness', 'Use for the map']);
     expect(names('Selected', { ...none, sel: { coll: 'rooms', type: 'corridor' } })).toContain('Ceiling');
     expect(names('Selected', { ...none, sel: { coll: 'ceilings', type: '' } })).toEqual(['Room', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', { ...none, sel: { coll: 'crawls', type: '' } })).not.toContain('Duplicate');

@@ -185,6 +185,9 @@
       .hub-row.step b { font-size: 1.2em; }
       .hub-row .track { display: inline-block; flex: none; width: 160px; height: 8px; margin-left: auto; border-radius: 4px; background: #2c3440; align-self: center; }
       .hub-row .track i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+      /* ON15: a marker on a slider (the brief's night on the time of night) */
+      .hub-row .track { position: relative; }
+      .hub-row .track i.mark { position: absolute; top: -4px; width: 3px; height: 16px; border-radius: 1px; background: #e9e4c8; }
       .hub-row .track + b { margin-left: 0; min-width: 4.5em; text-align: right; }
       #reticle { position: absolute; left: 50%; top: 50%; width: 0; height: 0; pointer-events: none; z-index: 3; }
       #reticle::before { content: ''; position: absolute; left: -9px; top: -9px; width: 14px; height: 14px; border: 2px solid #fff; border-radius: 50%; box-shadow: 0 0 0 2px var(--accent); }

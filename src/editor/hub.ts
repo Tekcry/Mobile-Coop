@@ -100,6 +100,8 @@ export interface HubRow {
   fresh?: boolean;
   /** Slider rows: where the value sits, 0 to 1 (drawn as a bar). */
   slider?: number;
+  /** ON15: a marker on the slider (0 to 1; the brief's night on the time of night). */
+  mark?: number;
   /** ON3: an undone change (File tab), drawn grey until a new edit drops it. */
   undone?: boolean;
 }
@@ -188,7 +190,7 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
     }
     case 'View':
       return [
-        ...viewTiles(h.view).map((t) => ({ id: t.id, text: t.name, value: t.value, note: t.desc, kind: 'step' as const })),
+        ...viewTiles(h.view).map((t) => ({ id: t.id, text: t.name, value: t.value, note: t.desc, kind: 'step' as const, ...(t.frac !== undefined ? { slider: t.frac, mark: t.mark } : {}) })),
         // ON3 decision 7: bookmarks (Ctrl+1-9 save, Alt+1-9 go on the keyboard)
         { id: 'bm.save', text: 'Bookmarks: save this view', note: 'A name from the list or typed; Ctrl+1-9 on the keyboard', kind: 'go' as const },
         ...(h.bookmarks ?? []).map((b) => ({ id: `bm.go.${b.slot}`, text: `Go to: ${b.name}`, value: `${b.slot}`, note: `Alt+${b.slot} on the keyboard`, kind: 'go' as const })),

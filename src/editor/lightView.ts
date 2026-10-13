@@ -40,7 +40,10 @@ import { bakeLevelLight, type LightBake } from '../world/lightBake';
 import { LightField } from '../world/lightField';
 import { LIGHT, type LightRegistry } from '../world/lights';
 import { LevelBuilder, type BuiltLevel } from '../world/levelBuilder';
-import { kestrel, setKestrelDraft } from '../world/maps/kestrel';
+import { KESTREL_THEME, kestrel, setKestrelDraft } from '../world/maps/kestrel';
+import { nightTheme, type NightSetting } from '../world/maps/kestrelNight';
+import type { MapTheme } from '../world/mapDef';
+import { bearingWords, brightnessName, shadowWay } from './night';
 import type { CampusFile } from '../world/maps/kestrelCampus';
 import { campusLights } from '../world/maps/kestrelLights';
 import { lampLevel, type Lamp } from './lamps';
@@ -106,6 +109,13 @@ export class LightView {
   readonly eyes: Eye[] = [];
   /** The guard view tester is the tool. */
   guardTool = false;
+  /** ON15: the Moon and time panel's setting while it differs from the map's (null: the map's own night). */
+  night: NightSetting | null = null;
+  /** ON15: the panel is on: the moon's arrow and the building shadow lines on the plan (from the exact bake). */
+  moonShow = false;
+  /** ON15: the moon moved since the exact bake (the 3D shows the quick sky light; the map waits for the bake). */
+  moonQuick = false;
+  private moonVals: Float32Array | null = null;
   /** The game's light meter thresholds (`LIGHT`, bible L6), for the words and the tests. */
   readonly thresholds = { shadow: LIGHT.shadow, lit: LIGHT.lit };
 
@@ -151,7 +161,7 @@ export class LightView {
 
   /** Anything needs the exact light (the bake runs only then). */
   get wanted(): boolean {
-    return this.on || this.dark || this.eyes.length > 0 || this.guardTool || !!this.host.security?.wantsLight;
+    return this.on || this.dark || this.moonShow || this.eyes.length > 0 || this.guardTool || !!this.host.security?.wantsLight;
   }
 
   // ---------- switches ----------
@@ -170,6 +180,32 @@ export class LightView {
       this.lamps = null;
     }
     this.afterSwitch();
+  }
+
+  /** ON15: the map's theme under the night shown: the panel's while it differs, else the map's own (`meta.night`). */
+  theme(): MapTheme {
+    return nightTheme(KESTREL_THEME, this.night ?? this.host.model.data.meta.night);
+  }
+
+  /** ON15: the Moon and time panel on or off (its arrow and shadow lines need the exact bake). */
+  setMoonShow(on: boolean): void {
+    this.moonShow = on;
+    if (on && !(this.cur && this.cur.level === this.host.view.level && this.state === 'ready')) this.schedule(0);
+    this.afterSwitch();
+  }
+
+  /**
+   * ON15: the moon moved (the panel, null back to the map's own): quick while it moves - the 3D's sky light (the moon's
+   * direction and strength, the sky fill) at once; exact on release - the game's bake (`bakeMoon`) of the editing level
+   * 300 ms after the last step, which updates the shadows, the darkness map and the shadow lines.
+   */
+  setNight(n: NightSetting | null): void {
+    this.night = n;
+    if (this.look) this.skyLight();
+    if (!this.wanted) return;
+    this.moonQuick = true;
+    this.schedule(DEBOUNCE_MS);
+    this.host.drawPlanOverlay();
   }
 
   setDark(on: boolean): void {
@@ -311,6 +347,7 @@ export class LightView {
         if (this.on) this.render();
         if (old) this.disposeExact(old);
         this.state = 'ready';
+        this.moonQuick = false;
         this.bakes++;
         this.ms = performance.now() - t0;
       }
@@ -334,7 +371,9 @@ export class LightView {
     const floor = d.levels.find((l) => l.id === level)?.floor ?? 0;
     // (ON7 decision 8: the editing level's lamps only)
     const lamps = (d.lamps ?? []).filter((l) => lampLevel(d, l) === level);
-    const campus = JSON.parse(JSON.stringify({ ...d, lamps })) as CampusFile;
+    // (ON15: the night shown - the panel's, else the map's - goes in as the map's own, so the builder's theme is it)
+    const night = this.night ?? d.meta.night;
+    const campus = JSON.parse(JSON.stringify({ ...d, meta: { ...d.meta, night }, lamps })) as CampusFile;
     const ids: string[] = [];
     campusLights(campus as Parameters<typeof campusLights>[0], ids);
     setKestrelDraft(campus, null);
@@ -389,6 +428,8 @@ export class LightView {
     const d = this.host.model.data;
     this.grid = levelCells(d.rooms, d.voids, c.level);
     this.values = this.grid ? sampleCells(this.grid, (x, z) => c.field.bodyLevel(x, c.floor, z, BODY_HEIGHT)) : null;
+    // ON15: the moon's visibility on the ground (the bake's own grid, a hand above the floor): the shadow lines
+    this.moonVals = this.grid ? sampleCells(this.grid, (x, z) => c.field.moonAt(x, c.floor + 0.1, z)) : null;
     this.ver++;
     this.updateGuard(false);
     this.updateSecurity(false);
@@ -528,13 +569,11 @@ export class LightView {
     if (!hemi || !sun) return;
     if (on && !this.look) {
       this.look = { clear: this.scene.clearColor.clone(), hemi: hemi.intensity, sun: sun.intensity, dir: sun.direction.clone(), ground: hemi.groundColor.clone() };
-      const t = kestrel.theme;
+      const t = this.theme();
       const sky = Color3.FromHexString(t.sky);
       this.scene.clearColor = new Color4(sky.r, sky.g, sky.b, 1);
-      sun.direction = new Vector3(t.sunDir[0], t.sunDir[1], t.sunDir[2]).normalize();
-      sun.intensity = t.sunIntensity;
       hemi.groundColor = Color3.Black();
-      this.hemiLevel();
+      this.skyLight();
     } else if (!on && this.look) {
       this.scene.clearColor = this.look.clear;
       hemi.intensity = this.look.hemi;
@@ -550,8 +589,69 @@ export class LightView {
   private hemiLevel(): void {
     const hemi = this.scene.getLightByName('sky') as HemisphericLight | null;
     if (!hemi || !this.look) return;
-    const t = kestrel.theme;
+    const t = this.theme();
     hemi.intensity = this.lamps ? 0 : Math.max(0, (t.lightLevel ?? 0.75) - moonLight(t)) * (LIGHT_GAIN / LAMP_LEVEL_GAIN);
+  }
+
+  /** ON15: the moon as the scene's directional light (its direction and strength) and the sky fill, from the theme shown. */
+  private skyLight(): void {
+    const sun = this.scene.getLightByName('sun') as DirectionalLight | null;
+    if (!sun || !this.look) return;
+    const t = this.theme();
+    sun.direction = new Vector3(t.sunDir[0], t.sunDir[1], t.sunDir[2]).normalize();
+    sun.intensity = t.sunIntensity;
+    this.hemiLevel();
+  }
+
+  /** ON15: the moon's visibility at a plan point (the exact bake's, 0 in its shadow .. 1 open), NaN off the floor. */
+  moonCell(x: number, z: number): number {
+    if (!this.grid || !this.moonVals) return NaN;
+    const k = cellIndex(this.grid, x, z);
+    return k < 0 ? NaN : this.moonVals[k]!;
+  }
+
+  /** ON15: the moon's plan marks: the arrow the light travels along (from the moon's bearing) and the shadow lines. */
+  private moonMarkup(toPlan: (x: number, z: number) => [number, number], g: CellGrid): string {
+    const t = this.theme();
+    const len = Math.sqrt(t.sunDir[0] ** 2 + t.sunDir[2] ** 2);
+    let out = '<g id="moonMarks">';
+    const mv = this.moonVals;
+    if (mv && !this.moonQuick) {
+      const segs = contour(g, mv, 0.5);
+      let dpath = '';
+      for (const [x0, z0, x1, z1] of segs) {
+        const a = toPlan(x0, z0);
+        const b = toPlan(x1, z1);
+        dpath += `M${a[0].toFixed(1)} ${a[1].toFixed(1)}L${b[0].toFixed(1)} ${b[1].toFixed(1)}`;
+      }
+      if (dpath) out += `<path class="moonShadow" d="${dpath}" stroke="#b58cff" stroke-width="2" stroke-dasharray="5 3" fill="none"/>`;
+    }
+    if (len > 1e-6) {
+      const n = this.night ?? null;
+      const [wx, wz] = n ? shadowWay(n) : [t.sunDir[0] / len, t.sunDir[2] / len];
+      const ax = g.x0 + 6;
+      const az = g.z0 + g.nz * g.cell - 6;
+      const a = toPlan(ax, az);
+      const b = toPlan(ax + wx * 8, az + wz * 8);
+      const dx = b[0] - a[0];
+      const dy = b[1] - a[1];
+      const l = Math.sqrt(dx * dx + dy * dy) || 1;
+      const ux = dx / l;
+      const uy = dy / l;
+      const h1 = [b[0] - ux * 12 - uy * 7, b[1] - uy * 12 + ux * 7] as const;
+      const h2 = [b[0] - ux * 12 + uy * 7, b[1] - uy * 12 - ux * 7] as const;
+      const f = (v: number): string => v.toFixed(1);
+      out += `<g class="moonArrow"><circle cx="${f(a[0])}" cy="${f(a[1])}" r="9" fill="#e9e4c8" stroke="#000"/><line x1="${f(a[0])}" y1="${f(a[1])}" x2="${f(b[0])}" y2="${f(b[1])}" stroke="#e9e4c8" stroke-width="3"/><path d="M${f(b[0])} ${f(b[1])}L${f(h1[0])} ${f(h1[1])}L${f(h2[0])} ${f(h2[1])}Z" fill="#e9e4c8"/><text class="moonWords" x="${f(a[0] + 14)}" y="${f(a[1] - 12)}" font-size="13" font-weight="bold" fill="#e9e4c8" stroke="#000" stroke-width="0.6">${this.moonLabel()}</text></g>`;
+    }
+    return out + '</g>';
+  }
+
+  /** "Moon 205 (SW), 54 high, full" (the panel's, else the map's); the map's own moon when it has no night set. */
+  moonLabel(): string {
+    const t = this.theme();
+    const s = this.night ?? (this.host.model.data.meta.night as NightSetting | undefined) ?? null;
+    if (!s) return "Moon: the map's own";
+    return `Moon ${bearingWords(s.bearing)}, ${Math.round(s.height)} high, ${brightnessName(s.brightness).toLowerCase()}${t.sunIntensity > 0 ? '' : ' (no moon light)'}`;
   }
 
   /** The exact result on screen: a fresh `BakedLamps` and lit clones of the materials. */
@@ -796,6 +896,7 @@ export class LightView {
       if (this.planSec?.ver !== this.secVer) this.planSec = { url: this.cellImage(g, (k) => SEC_COL[sv[k]!] ?? null), ver: this.secVer };
       out += `<image id="secMap" href="${this.planSec.url}" ${box}/>`;
     }
+    if (this.moonShow) out += this.moonMarkup(toPlan, g);
     for (const e of this.eyes) {
       if (e.level !== c.level) continue;
       const a = toPlan(e.x, e.z);
@@ -819,7 +920,8 @@ export class LightView {
     const guard = this.eyes.length || this.guardTool ? '<div><i style="background:#f21f1a"></i>seen at once <i style="background:#ffad1a;margin-left:6px"></i>seen slowly</div>' : '';
     const s = this.host.security;
     const sec = this.sec && s ? (s.coverage ? `<div data-sec-legend><i style="background:#1c7dd6"></i>camera <i style="background:#7048e8;margin-left:6px"></i>sensor; clear: unwatched (${s.stats.gaps} cells, ${Math.round(s.stats.gaps * MAP_CELL * MAP_CELL)} m2)</div>` : '<div data-sec-legend><i style="background:#f21f1a"></i>camera sees at once <i style="background:#ffad1a;margin-left:6px"></i>slowly <i style="background:#1c7dd6;margin-left:6px"></i>too dark</div>') : '';
-    el.innerHTML = `<b>${this.on ? 'Lighting' : 'Light'}: ${modeWords(this.mode)}</b><div class="dim" data-light-state="${this.state}">${st}</div>${bands}${guard}${sec}`;
+    const moon = this.moonShow || this.night ? `<div data-moon-legend>${this.moonLabel()}${this.night ? ' (preview, not yet for the map)' : ''}${this.moonQuick ? '; quick: sky light only' : ''}</div>` : '';
+    el.innerHTML = `<b>${this.on ? 'Lighting' : 'Light'}: ${modeWords(this.mode)}</b><div class="dim" data-light-state="${this.state}">${st}</div>${moon}${bands}${guard}${sec}`;
   }
 
   /** Everything off: the exact result and overlays go. */
@@ -835,6 +937,8 @@ export class LightView {
     this.cur = null;
     this.grid = null;
     this.values = null;
+    this.moonVals = null;
+    this.moonQuick = false;
     this.guard = null;
     this.sec = null;
     this.state = 'off';

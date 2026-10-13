@@ -133,6 +133,16 @@ export class EditorModel {
     return this.savedText;
   }
 
+  /**
+   * ON15: one `meta` field set (the map's own night): unsaved until Save, written in the change log; not an undo step
+   * (setting it again with other values, or the file as saved, puts it back).
+   */
+  setMeta(key: string, value: unknown, text: string): void {
+    this.data.meta[key] = clone(value);
+    this.journal.push({ time: this.now().toISOString(), action: 'edit', text, changes: [] });
+    this.emit([]);
+  }
+
   /** Applies a change's `after` without recording it (live preview while dragging). The final commit records it. */
   preview(coll: Coll, after: Elem): void {
     const keys = [keyOf(coll, after.id)];

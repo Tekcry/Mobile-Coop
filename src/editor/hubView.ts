@@ -188,8 +188,9 @@ export class HubView {
     const tabs = HUB_TABS.map((t) => `<button data-tab="${t}" class="${t === this.tab ? 'on' : ''}">${t}</button>`).join('');
     const rows = this.rows
       .map((r) => {
-        const bar = r.slider !== undefined ? `<i class="track"><i style="width:${Math.round(r.slider * 100)}%"></i></i>` : '';
-        const steppers = r.kind === 'step' && (r.id === 'lv.height' || r.id.startsWith('bo.')) ? '<button data-step="-1" title="Step down">-</button><button data-step="1" title="Step up">+</button>' : '';
+        const mark = r.mark !== undefined ? `<i class="mark" title="Brief" style="left:${Math.round(r.mark * 100)}%"></i>` : '';
+        const bar = r.slider !== undefined ? `<i class="track">${r.slider === r.slider ? `<i style="width:${Math.round(r.slider * 100)}%"></i>` : ''}${mark}</i>` : '';
+        const steppers = r.kind === 'step' && (r.id === 'lv.height' || r.id.startsWith('bo.') || /^view\.n(time|bear|height|bright)$/.test(r.id)) ? '<button data-step="-1" title="Step down">-</button><button data-step="1" title="Step up">+</button>' : '';
         return `<div class="hub-row ${r.kind}${r.disabled ? ' off' : ''}${r.fresh ? ' bad' : ''}${r.undone ? ' undone' : ''}" data-row="${esc(r.id)}"><span>${esc(r.text)}</span>${r.note ? `<small>${esc(r.note)}</small>` : ''}${bar}${r.value ? `<b>${esc(r.value)}</b>` : ''}${steppers}</div>`;
       })
       .join('');

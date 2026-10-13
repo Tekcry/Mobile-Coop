@@ -241,6 +241,19 @@
     "maxSpawns": { "value": 4, "src": "schema.md section 3 spawns (1-4 players; co-op is 2-4)" },
     "previewRate": { "value": 1, "src": "ON8 brief decision 6: the patrol preview walks at the guard's own speed (real time)" }
   },
+  "moon": {
+    "latitude": { "value": 54, "src": "Overnight choice (ON15): RULES section 1 puts Kestrel in a northern British city and no doc gives a latitude; 54 degrees north (northern hemisphere: the moon's arc runs through the south)" },
+    "declination": { "value": 20, "src": "editor default: the simple sky path's moon declination, a winter full moon's (opposite the late-November sun at about -20 degrees), so it rises north of east at dusk, stands highest in the south at midnight and sets north of west at dawn" },
+    "dusk": { "value": 960, "src": "editor default: the slider's dusk, 16:00 (minutes after midnight); late November at 54 N the sun sets about 15:50" },
+    "dawn": { "value": 480, "src": "editor default: the slider's dawn, 08:00 (minutes after midnight); late November at 54 N the sun rises about 08:00" },
+    "timeStep": { "value": 10, "src": "editor default: the time-of-night slider steps 10 minutes" },
+    "bearingStep": { "value": 5, "src": "ON15 brief decision 1: the moon's compass bearing steps 5 degrees" },
+    "heightStep": { "value": 5, "src": "editor default: the moon's height steps 5 degrees, as the bearing" },
+    "heightMin": { "value": 5, "src": "editor default: the lowest moon height the bake takes (a moon on the horizon casts endless shadows)" },
+    "heightMax": { "value": 85, "src": "editor default: the highest moon height (straight overhead has no bearing)" },
+    "briefTime": { "value": 70, "src": "docs/kestrel/01-mission-brief.md section 2: a Tuesday in late November, 01:10 start (minutes after midnight)" },
+    "briefBrightness": { "value": "new", "src": "docs/kestrel/01-mission-brief.md section 2: a thin waning moon behind cloud, so the yard has no moonlight (the game's scale: new, no moon light)" }
+  },
   "render": {
     "pxPerM": { "value": 10, "src": "P03 prompt step 3" },
     "margin": { "value": 40, "src": "P03 prompt step 3" },

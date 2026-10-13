@@ -69,6 +69,8 @@ const NOUN: Record<string, [string, string]> = {
   spawns: ['insertion point', 'insertion points'],
   extraction: ['extraction zone', 'extraction zones'],
   buildings: ['building outline', 'building outlines'],
+  // ON15: the map's own night (meta.night)
+  night: ['moon and time setting', 'moon and time settings'],
 };
 const VERBS = ['added', 'removed', 'renamed', 'moved', 'resized', 'type changed', 'name changed', 'settings changed', 'changed'] as const;
 type Verb = (typeof VERBS)[number];
@@ -121,6 +123,8 @@ export function netChanges(saved: Campus, now: Campus): SummaryGroup[] {
   const bump = (noun: string, verb: Verb): void => void counts.set(`${noun}|${verb}`, (counts.get(`${noun}|${verb}`) ?? 0) + 1);
   const lists: [string, Elem[], Elem[]][] = SUMMARY_COLLS.map((c) => [c, ((saved[c] as Elem[] | undefined) ?? []), ((now[c] as Elem[] | undefined) ?? [])]);
   lists.push(['buildings', (saved.meta.buildings ?? []) as Elem[], (now.meta.buildings ?? []) as Elem[]]);
+  const night = (d: Campus): Elem[] => (d.meta.night ? [{ ...(d.meta.night as object), id: 'night' } as unknown as Elem] : []);
+  lists.push(['night', night(saved), night(now)]);
   for (const [coll, before, after] of lists) {
     const old = new Map(before.map((e) => [e.id, e]));
     const cur = new Map(after.map((e) => [e.id, e]));
@@ -140,11 +144,12 @@ export function netChanges(saved: Campus, now: Campus): SummaryGroup[] {
     for (const e of after) {
       const o = old.get(e.id);
       if (!o) continue;
-      const v = changeVerb(o as Record<string, unknown>, e as Record<string, unknown>);
+      const v0 = changeVerb(o as Record<string, unknown>, e as Record<string, unknown>);
+      const v = v0 && coll === 'night' ? 'changed' : v0;
       if (v) bump(nounOf(coll, e), v);
     }
   }
-  const order = ['levels', 'rooms', 'walls', 'door', 'window', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices', 'crawls', 'signs', 'buildings'];
+  const order = ['levels', 'rooms', 'walls', 'door', 'window', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior', 'lamps', 'circuits', 'guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices', 'crawls', 'signs', 'buildings', 'night'];
   const out: SummaryGroup[] = [];
   for (const noun of order)
     for (const verb of VERBS) {

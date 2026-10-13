@@ -54,6 +54,9 @@ import type { Circuit, Lamp, LampData, LampPlace, PlaceCtx as LampCtx } from './
 import { fittingOf, groupFittings, LIGHT_GROUPS, lightGroupName } from './lightCatalogue';
 import { LightView } from './lightView';
 import { LIGHT_MODES, modeName, modeWords, type LightMode } from './lightPreview';
+import { bearingWords, BRIEF_FRAC, briefNight, brightnessName, nightWords, panelNight, sameNight, stepNight, timeFrac, timeWords, type NightRow } from './night';
+import { readNight, type NightSetting } from '../world/maps/kestrelNight';
+import type { ViewState } from './tileMenu';
 import type { Fitting, LightGroup } from './lightCatalogue';
 import { joinPlay, playText, splitPlay } from './playFile';
 import type { PlayData } from './playFile';
@@ -1532,6 +1535,56 @@ export class Editor {
     this.drawPlanOverlay();
     this.voidLegend();
     this.status(on ? `Ceiling voids on: green meets the ${fmt(CRAWL_RULE)} m crawl rule, red does not; the legend gives each clear height` : 'Ceiling voids off');
+  }
+
+  // ---------- ON15: Moon and time ----------
+  /** The panel's setting once it has been stepped (else the map's own, or the brief's night). */
+  private nightSet: NightSetting | null = null;
+
+  /** The Moon and time panel's setting: as stepped, else the map's `meta.night`, else the brief's night. */
+  get night(): NightSetting {
+    return this.nightSet ?? panelNight(this.model.data.meta);
+  }
+
+  /** The panel's rows for the tile menu and the hub. */
+  nightState(): NonNullable<ViewState['night']> {
+    const n = this.night;
+    return { on: this.lights.moonShow, time: timeWords(n), frac: timeFrac(n), brief: BRIEF_FRAC, bearing: bearingWords(n.bearing), height: `${Math.round(n.height)} degrees`, brightness: brightnessName(n.brightness), used: sameNight(n, readNight(this.model.data.meta.night)) };
+  }
+
+  /** Hub > View / the tile menu's View "Moon and time": the panel's rows, the moon's arrow and shadow lines on the plan. */
+  setNightPanel(on: boolean): void {
+    this.lights.setMoonShow(on);
+    this.status(on ? `Moon and time: ${nightWords(this.night)}; left / right steps a row, Use for the map keeps it` : 'Moon and time off');
+    this.pad?.hub.render();
+  }
+
+  /** A row stepped: the light view previews it (quick sky light now, the exact bake on release). */
+  stepNight(row: NightRow, dir: 1 | -1): void {
+    this.setNight(stepNight(this.night, row, dir));
+  }
+
+  /** A on the time of night: back to the brief's night (01-mission-brief.md section 2). */
+  nightBrief(): void {
+    this.setNight(briefNight());
+  }
+
+  private setNight(n: NightSetting): void {
+    this.nightSet = n;
+    this.lights.setNight(sameNight(n, readNight(this.model.data.meta.night)) ? null : n);
+    this.status(`${nightWords(n)}${this.lights.night ? ' (preview; Use for the map keeps it)' : ''}`);
+    this.pad?.hub.render();
+  }
+
+  /** "Use for the map": the setting goes to the campus file's `meta.night` (on Save); the walk test and the game use it. */
+  useNightForMap(): void {
+    const n = this.night;
+    if (sameNight(n, readNight(this.model.data.meta.night))) return this.status(`The map already uses this moon: ${nightWords(n)}`);
+    this.model.setMeta('night', n, `Moon and time for the map: ${nightWords(n)}`);
+    this.lights.setNight(null);
+    this.updateBar();
+    this.status(`Moon and time for the map: ${nightWords(n)}; Save writes it to the campus file`);
+    this.pad?.hub.render();
   }
 
   /** The voids legend for the editing level (shown while the view is on). */
