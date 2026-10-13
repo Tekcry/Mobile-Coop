@@ -1,0 +1,89 @@
+# Locomotion run - decisions
+
+Authority: this file > docs/design-bible.md > PLAN.md > other docs > code.
+
+## Michael's decisions (2026-10-13), verbatim
+
+#### D1 Controls:
+
+- The controller is the primary design target, then keyboard and mouse.
+- Every verb is designed and tuned on the pad first, and is covered in e2e-pad and e2e-mouse.
+- Touch is a basic test and fallback scheme only: move and look, aim, fire (elbow strike while holstered), crouch, jump, one contextual action button (it carries back-to-wall, door peek, takedown, interact and traverse), and the vision toggle. No other touch work.
+- Keep e2e-touch passing for that basic scheme. Readability is judged on desktop first.
+- This replaces the bible's "touch and controller are equal" text and the Phase 3 touch control scheme spec.
+
+#### D2 No bobble. Starting limits; the audit may refine them only with cited biomechanics sources; the final values are frozen in config with unit tests:
+
+- Pelvis vertical travel, peak to peak per stride: crouch gears 2.5 cm or less, walk 4 cm, run 6 cm, sprint 8 cm. Exactly one low and one high point per step; no double bounce.
+- Head: vertical travel no more than the pelvis; pitch and roll oscillation 2 deg or less.
+- Lateral pelvis sway at walk: 3 cm or less.
+- Camera: no camera bob. The camera follows the smoothed capsule, never the head or pelvis. Vertical oscillation 0.5 cm or less in steady movement. A landing gets one damped dip and no rebound.
+- Weapon and kit sway settle within 0.2 s after a stop, with no secondary wobble. Idle breathing 1 cm or less.
+- Measured on every gear, in both stances, on flat floor, stairs and slopes, at 60 and 120 Hz, for local and remote poses.
+
+#### D3
+First Playable steps S3a and S3b are absorbed into this run.
+
+
+#### D4
+The phone perf budgets stay; nothing may regress them. The 0.04 ms per character animation budget holds, for remotes too.
+
+
+#### D5 Modern layer. Control stays instant (bible 5.12.1); weight lives in the body.
+
+1. Speed-scaled gait: stride length, pelvis height, arm swing and forward lean scale with speed; gears read as effort levels, never as playback rate (batch 1).
+2. Acceleration and turn lean on the upper body, through a damped spring; the root never overshoots (batch 1).
+3. Compression and one damped settle on stops, landings, drops and vault exits (batches 1 and 3).
+4. Plant-and-pivot steps on sharp direction changes; stride warping so the feet always match the capsule (batch 1).
+5. Exertion breathing after a sprint or climb, chest and shoulders only, cosmetic, no stamina (batch 1).
+6. Trained posture: soft knees, a stabilised level head, ready hands while holstered; heel-to-toe foot roll at the stealth gears, matching the noise model (batch 1).
+7. Weapon discipline when aiming: the muzzle never sweeps team-mates; low-ready in tight spaces (batch 2).
+8. Head and eye look-at toward noises, visible guards, nearby team-mates and the aim point, within neck limits (batch 1; guards in batch 5).
+9. Hand contact IK on door frames, corners and ledges; ducking under low geometry; turning sideways through tight gaps (batches 3-4).
+10. Full-body IK on stairs and slopes: pelvis drop, feet on treads, spine compensation (batch 1).
+11. Momentum-scaled traversal: the same input gives a fast, low vault from a sprint and a careful one from a walk.
+12. Pad: analog speed with gear snapping and hysteresis; a bumper or the rocker sets the maximum gear; Gamepad API rumble on landings, takedowns, shots and heavy footfalls.
+13. Camera: spring-damper follow of the capsule, slight look-ahead, smooth pull-in near walls, automatic shoulder swap at corners, a small field-of-view change by gear and stance, never a bob.
+Never: motion matching or captured data, root motion driving control, stamina penalties, player ragdoll beyond hit reactions.
+
+#### D6
+Michael's per-batch sign-off (bible 5.12.4) is replaced by one final review of the whole run.
+
+
+#### D7 Input options:
+
+- Full remapping of every action, for the pad and for keyboard and mouse, with conflict warnings and a reset to defaults.
+- Every hold action gets a hold or toggle setting (aim, crouch, back-to-wall, sprint, grab).
+- Custom difficulty: separate sliders for guard perception speed, guard aim and alarm tolerance, plus the existing presets. In co-op, the host's difficulty applies.
+- Settings persist in IndexedDB through src/save; a save-shape change follows the SAVE_VERSION rule.
+- Covered in e2e-pad and e2e-mouse (remap, then play) and in unit tests.
+
+#### D8 Co-op parity. Every feature in this run works smoothly in 2-4 player co-op, to bible 5.9 C11:
+
+- Networking:
+  - Every new or changed movement state, verb and clip has a networked MoveState mode, and remotes pose from it, never from position alone. Back-to-wall, door peek, holster / draw, elbow strike, medkit use, the dedicated clips and drag are included.
+  - Committed moves (elbow strike, takedowns, team moves, drag) are host-approved with a shared start time; the host decides interruptions.
+  - Health, medkit counts, the drawn / holstered state and the weapon in hand are host-authoritative.
+  - Vision modes, the camera, rumble, remapping and hold / toggle stay local and are never sent.
+  - The D5 layer runs on remotes from MoveState plus velocity, computed locally, with no extra bandwidth. Remote bodies look as weighty as the local one.
+- Avatar-to-avatar interaction:
+  - players never interpenetrate (capsule separation)
+  - shoulders turn to pass in tight spaces
+  - head look-at includes nearby team-mates
+  - muzzle discipline avoids team-mates
+  - two players can stack on one wall in back-to-wall
+  - every existing team move (boost, human ladder, split-jump boost, back-to-back, pull-up, rappel anchor, dual takedown) gets the D5 layer and contact IK, with no clipping between the two bodies
+- Hooks for Phase 5, not built now: drag and medkit use accept any target, including a downed team-mate (record it in PLAN.md as a hook). Sync, clutch saves, typed pings, new team moves and team results stay in Phase 5.
+- Tests:
+  - every new state adds an e2e-netmove case, with the remote pose error under its limit
+  - the bot partner exercises every team move and verb
+  - one ?net=local 4-player run covers back-to-wall stacking, takedowns, the elbow strike and medkits
+  - the anim-audit harness also runs on remote poses
+  - rubber-banding, or pose error above the e2e-netmove limits, fails the step
+
+
+## ASSUMED - for review
+
+Choices made during the unattended run. Each lists the option taken and the alternatives.
+
+- **A0 (ASSUMED - for review): audit document location.** Taken: `docs/locomotion/AUDIT.md` (the brief). Alternative: `docs/animation-audit.md` (bible 5.12.4). The brief is newer and names this folder as the run's memory.

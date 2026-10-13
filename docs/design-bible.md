@@ -2,7 +2,7 @@
 
 # Night Shift - Design Bible
 
-Version 1.12 - 2026-10-10 (1.12: the vertical slice is Mission 1 "Dead Line" at a modern colocation data centre, built through the prompt pack in docs/kestrel/; the 1934 Kestrel Exchange, Trunk Annex and Dead Line v1 / v2 maps are retired. 1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
+Version 1.13 - 2026-10-13 (1.13: Michael's decisions D1-D8 for the locomotion run (Phase 3 + 3b, branch feature/ct-locomotion) in new Section 5.17: controller first and touch a basic fallback, no bobble, S3a / S3b absorbed, phone budgets hold, the modern movement layer, one final review, remapping / hold-toggle / custom difficulty, co-op parity; 5.17 overrides older text. 1.12: the vertical slice is Mission 1 "Dead Line" at a modern colocation data centre, built through the prompt pack in docs/kestrel/; the 1934 Kestrel Exchange, Trunk Annex and Dead Line v1 / v2 maps are retired. 1.11: weapon holstered unless aiming, no hip fire, elbow strike on the fire button. 1.10: 1.10: darkness is dark - L7 rewritten, display brightness targets in L5, night vision as a lighting gain, goggle glow now. 1.9: 1.9: desktop visual target, CC0 textures for desktop detail, Phase 6b. 1.8: 1.8: Exchange Phase 2 approved, Space 8 lane camera, doors block light, baked moon, per-stop guard facing, the Client and the operators' real names. 1.7: 1.7: foundations - audio test, input parity, personal project, shared progress, connectivity test, solo-testable co-op, defaults. 1.6: 1.6: Mission 8 Confrontation - the traitor finale. 1.5: 1.5: story, title Night Shift, co-op engagement systems, civilians, awareness arcs, no quicksave, health numbers. 1.4: 1.4: braking stop at run / sprint locked. 1.3: animation realism standard and full animation audit in Phase 3b. 1.1: Kestrel Exchange restart, level design standard, branch state. 1.2: movement, camera, gunplay, animation, health and operators locked; Phase 3b added). Owner: Michael. Location in the repo: `docs/design-bible.md`.
 
 ---
 
@@ -110,7 +110,7 @@ The heart of the game is the light and shadow system. If a feature makes light l
 ### P7 - Phone and desktop are both first class
 
 - Phone: 60 fps sustained on a warm iPhone 17 Pro Max.
-- Every action is possible on touch through contextual prompts.
+- Touch is a basic fallback scheme (D1, Section 5.17): move and look, aim, fire, crouch, jump, one contextual action button and the vision toggle.
 - Gameplay never depends on graphics settings (crossplay fairness).
 
 ---
@@ -1236,6 +1236,90 @@ Either way the campaign completes. Both endings are recorded, which rewards a re
 
 **Budget:** desktop targets stay as in `docs/systems/performance.md` (the gaming-laptop target at Epic). High must still run well on mid-range desktop GPUs.
 
+### 5.17 Michael's decisions D1-D8 (2026-10-13, locomotion run)
+
+These override older bible text. Copy kept in `docs/locomotion/DECISIONS.md`.
+
+#### D1 Controls:
+
+- The controller is the primary design target, then keyboard and mouse.
+- Every verb is designed and tuned on the pad first, and is covered in e2e-pad and e2e-mouse.
+- Touch is a basic test and fallback scheme only: move and look, aim, fire (elbow strike while holstered), crouch, jump, one contextual action button (it carries back-to-wall, door peek, takedown, interact and traverse), and the vision toggle. No other touch work.
+- Keep e2e-touch passing for that basic scheme. Readability is judged on desktop first.
+- This replaces the bible's "touch and controller are equal" text and the Phase 3 touch control scheme spec.
+
+#### D2 No bobble. Starting limits; the audit may refine them only with cited biomechanics sources; the final values are frozen in config with unit tests:
+
+- Pelvis vertical travel, peak to peak per stride: crouch gears 2.5 cm or less, walk 4 cm, run 6 cm, sprint 8 cm. Exactly one low and one high point per step; no double bounce.
+- Head: vertical travel no more than the pelvis; pitch and roll oscillation 2 deg or less.
+- Lateral pelvis sway at walk: 3 cm or less.
+- Camera: no camera bob. The camera follows the smoothed capsule, never the head or pelvis. Vertical oscillation 0.5 cm or less in steady movement. A landing gets one damped dip and no rebound.
+- Weapon and kit sway settle within 0.2 s after a stop, with no secondary wobble. Idle breathing 1 cm or less.
+- Measured on every gear, in both stances, on flat floor, stairs and slopes, at 60 and 120 Hz, for local and remote poses.
+
+#### D3
+First Playable steps S3a and S3b are absorbed into this run.
+
+
+#### D4
+The phone perf budgets stay; nothing may regress them. The 0.04 ms per character animation budget holds, for remotes too.
+
+
+#### D5 Modern layer. Control stays instant (bible 5.12.1); weight lives in the body.
+
+1. Speed-scaled gait: stride length, pelvis height, arm swing and forward lean scale with speed; gears read as effort levels, never as playback rate (batch 1).
+2. Acceleration and turn lean on the upper body, through a damped spring; the root never overshoots (batch 1).
+3. Compression and one damped settle on stops, landings, drops and vault exits (batches 1 and 3).
+4. Plant-and-pivot steps on sharp direction changes; stride warping so the feet always match the capsule (batch 1).
+5. Exertion breathing after a sprint or climb, chest and shoulders only, cosmetic, no stamina (batch 1).
+6. Trained posture: soft knees, a stabilised level head, ready hands while holstered; heel-to-toe foot roll at the stealth gears, matching the noise model (batch 1).
+7. Weapon discipline when aiming: the muzzle never sweeps team-mates; low-ready in tight spaces (batch 2).
+8. Head and eye look-at toward noises, visible guards, nearby team-mates and the aim point, within neck limits (batch 1; guards in batch 5).
+9. Hand contact IK on door frames, corners and ledges; ducking under low geometry; turning sideways through tight gaps (batches 3-4).
+10. Full-body IK on stairs and slopes: pelvis drop, feet on treads, spine compensation (batch 1).
+11. Momentum-scaled traversal: the same input gives a fast, low vault from a sprint and a careful one from a walk.
+12. Pad: analog speed with gear snapping and hysteresis; a bumper or the rocker sets the maximum gear; Gamepad API rumble on landings, takedowns, shots and heavy footfalls.
+13. Camera: spring-damper follow of the capsule, slight look-ahead, smooth pull-in near walls, automatic shoulder swap at corners, a small field-of-view change by gear and stance, never a bob.
+Never: motion matching or captured data, root motion driving control, stamina penalties, player ragdoll beyond hit reactions.
+
+#### D6
+Michael's per-batch sign-off (bible 5.12.4) is replaced by one final review of the whole run.
+
+
+#### D7 Input options:
+
+- Full remapping of every action, for the pad and for keyboard and mouse, with conflict warnings and a reset to defaults.
+- Every hold action gets a hold or toggle setting (aim, crouch, back-to-wall, sprint, grab).
+- Custom difficulty: separate sliders for guard perception speed, guard aim and alarm tolerance, plus the existing presets. In co-op, the host's difficulty applies.
+- Settings persist in IndexedDB through src/save; a save-shape change follows the SAVE_VERSION rule.
+- Covered in e2e-pad and e2e-mouse (remap, then play) and in unit tests.
+
+#### D8 Co-op parity. Every feature in this run works smoothly in 2-4 player co-op, to bible 5.9 C11:
+
+- Networking:
+  - Every new or changed movement state, verb and clip has a networked MoveState mode, and remotes pose from it, never from position alone. Back-to-wall, door peek, holster / draw, elbow strike, medkit use, the dedicated clips and drag are included.
+  - Committed moves (elbow strike, takedowns, team moves, drag) are host-approved with a shared start time; the host decides interruptions.
+  - Health, medkit counts, the drawn / holstered state and the weapon in hand are host-authoritative.
+  - Vision modes, the camera, rumble, remapping and hold / toggle stay local and are never sent.
+  - The D5 layer runs on remotes from MoveState plus velocity, computed locally, with no extra bandwidth. Remote bodies look as weighty as the local one.
+- Avatar-to-avatar interaction:
+  - players never interpenetrate (capsule separation)
+  - shoulders turn to pass in tight spaces
+  - head look-at includes nearby team-mates
+  - muzzle discipline avoids team-mates
+  - two players can stack on one wall in back-to-wall
+  - every existing team move (boost, human ladder, split-jump boost, back-to-back, pull-up, rappel anchor, dual takedown) gets the D5 layer and contact IK, with no clipping between the two bodies
+- Hooks for Phase 5, not built now: drag and medkit use accept any target, including a downed team-mate (record it in PLAN.md as a hook). Sync, clutch saves, typed pings, new team moves and team results stay in Phase 5.
+- Tests:
+  - every new state adds an e2e-netmove case, with the remote pose error under its limit
+  - the bot partner exercises every team move and verb
+  - one ?net=local 4-player run covers back-to-wall stacking, takedowns, the elbow strike and medkits
+  - the anim-audit harness also runs on remote poses
+  - rubber-banding, or pose error above the e2e-netmove limits, fails the step
+
+
+---
+
 ## 6. Out of scope
 
 **Removed in Phase 3** (code deleted, tests and docs updated):
@@ -1313,7 +1397,7 @@ The standard's existing content stays. This bible adds the following:
   - the noise model
 - **Gameplay never reads** graphics presets, LOD, voxel layers or the governor.
 - **Offline:** the solo campaign works fully offline. Co-op needs internet.
-- **Controls (Michael, 2026-10-08):** touch and controller are equal on phone. Mouse and keyboard are equal on desktop.
+- **Controls (Michael, 2026-10-13, D1 in 5.17; replaces the 2026-10-08 "touch and controller are equal" rule):** the controller is the primary design target, then keyboard and mouse. Touch is a basic test and fallback scheme only.
   - Every verb works on all three and has e2e coverage (`e2e-touch`, `e2e-pad`, `e2e-mouse`).
   - Button prompts swap at once when a controller connects or disconnects.
 - **Touch control scheme (spec written in Phase 3)** - few buttons, the rest contextual:
@@ -1405,8 +1489,8 @@ The standard's existing content stays. This bible adds the following:
 | 0 | Foundation | Merge `dev` (3.2.1-3.4.0 phone work) into `ct-movement`; this bible installed; `CLAUDE.md` cut to a lean core with `docs/systems/`; old changelog / testing archived; parked modes behind `?legacy=1`; player-facing title renamed to Night Shift; `docs/story.md` installed; `docs/progress.md`. Spec: `docs/prompts/phase-0-foundation.md`. |
 | 1 | Light parity | Section 5.1 rules L1-L13: gameplay meter reads the bake; bake on every device; phone renders the lamp volume on the blockout (Phone check gate); parity test; continuous meter HUD; fuse boxes; door decision. |
 | 2 | Sound | First the audio source A/B test (S7, Michael picks). Then Section 5.2: noise zones, masking, sound meter, whistle, ambient beds; zones on the Warehouse and the Dead Line map. |
-| 3 | Pure CT conversion | The touch and controller control scheme spec (Section 8); holstered unless aiming, no hip fire, the elbow strike (5.4, 5.6); Back-to-wall (peek, lean-shoot, SWAT turn, corner takedown); remove snap cover, Mark & Execute, sonar, the style tracker and the regenerating shield; medkits; thermal and electro vision; door peek; curated arsenal with original names; hip fire and ADS spread; Training rewritten; cover e2e rewritten. |
-| 3b | Movement, camera and animation lock | The dev bot partner (C20) early. Then the full animation audit (5.12.4): inventory, audit harness, review, fixes in seven batches, Michael's sign-off per batch. Then the CT pulled-back camera and collision solver; drag; quick 180; momentum carry; spring layer; dedicated clips (rappel, fence, brace, back-to-wall, drag); guard body language; pose viewer; known fixes (thigh pistol vs elbow at slow crouch, brace prompt, human ladder by touch, thin fence); a phone feel pass with Michael; then the metrics freeze (Section 5.3). |
+| 3 | Pure CT conversion | The control scheme per D1 (5.17: pad first, then keyboard and mouse, basic touch); D7 remapping, hold / toggle and custom difficulty; holstered unless aiming, no hip fire, the elbow strike (5.4, 5.6); Back-to-wall (peek, lean-shoot, SWAT turn, corner takedown); remove snap cover, Mark & Execute, sonar, the style tracker and the regenerating shield; medkits; thermal and electro vision; door peek; curated arsenal with original names; hip fire and ADS spread; Training rewritten; cover e2e rewritten. |
+| 3b | Movement, camera and animation lock | The dev bot partner (C20) early. Then the full animation audit (5.12.4): inventory, audit harness, review, fixes in seven batches with the D5 modern layer and D8 co-op parity, one final review by Michael (D6). Then the CT pulled-back camera and collision solver; drag; quick 180; momentum carry; spring layer; dedicated clips (rappel, fence, brace, back-to-wall, drag); guard body language; pose viewer; known fixes (thigh pistol vs elbow at slow crouch, brace prompt, human ladder by touch, thin fence); a phone feel pass with Michael; then the metrics freeze (Section 5.3). |
 | 4 | Mission framework | Shared campaign progress with spoiler warnings and the per-player mission record (5.8). Section 5.8: triggers / actions, objective tiers, rules and alarm levels, checkpoints with Continue and Restart from checkpoint, text radio with solo / team variants and speaker colours (story Section 7), briefing, field terminal, stealth rating; Warehouse missions ported as test content. |
 | 5 | Co-op 2-4 | Connection test and network stats (C19); the bot partner extended; the first playtest night (C20). Section 5.9: per-player detection, `coopExtras`, new team moves and their clips, distinct operators (5.14) and team-mate outlines; Sync, clutch saves, dragging downed partners, medkit on a team-mate, typed pings with quick lines, team results and highlights (C12-C18); 4-player e2e, host-leave resume. |
 | 6 | CT verbs for the slice | Civilians (5.7); per-stop guard facing (5.7); lockpick, hack minigame, optic cable, interrogation, knife, cameras, lasers, camera jammer, sticky shocker, ring airfoil, light disruptor; curated campaign kit and loadout kits. |
