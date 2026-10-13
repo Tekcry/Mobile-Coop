@@ -1,3 +1,4 @@
+import type { CourseSummary } from '../course/courseRating';
 import type { Enemy } from '../../ai/enemy';
 import { emptyKinds, type EnemyKind } from '../../ai/enemyDefs';
 import type { HitInfo } from '../damage';
@@ -39,6 +40,8 @@ export interface SessionStats {
   alarms?: number;
   /** PvP: deaths (eliminations are `kills`). */
   deaths?: number;
+  /** Training course: the results panel (T1c). */
+  course?: CourseSummary;
 }
 
 export function emptyStats(mode: ModeId, mapId: string): SessionStats {
@@ -79,6 +82,8 @@ export interface GameMode {
   onInteract?(it: Interactable): void;
   /** Co-op host: a client reported a verb only it can see (course drills, DECISIONS C10). */
   onRemoteVerb?(id: string, verb: string): void;
+  /** The local player sent a ping (course drills). */
+  onLocalPing?(): void;
   /** Co-op host: a client's movement mode (from its `pstate`). */
   onRemoteMove?(id: string, mode: string): void;
   blips(): Blip[];

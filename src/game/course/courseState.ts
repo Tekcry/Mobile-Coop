@@ -35,6 +35,8 @@ export interface BayStats {
   kills: number;
   revives: number;
   teamMoves: number;
+  /** Bodies the guards found. */
+  bodies: number;
 }
 export type StatKind = Exclude<keyof BayStats, 'time'>;
 
@@ -57,6 +59,8 @@ export interface PackedCourse {
   groupsOff: string[];
   ticks: [number, number][];
   stats: BayStats[];
+  /** Per-player totals over the course (what a player did: knock-outs, kills, revives, team moves). */
+  pstats?: [BayStats, BayStats];
   /** Derived (for clients that mirror without running the state). */
   locks: string[];
   anchors: string[];
@@ -89,7 +93,7 @@ interface AirRt {
   t: number;
 }
 
-const newStats = (): BayStats => ({ time: 0, detections: 0, alarms: 0, knockouts: 0, kills: 0, revives: 0, teamMoves: 0 });
+export const newStats = (): BayStats => ({ time: 0, detections: 0, alarms: 0, knockouts: 0, kills: 0, revives: 0, teamMoves: 0, bodies: 0 });
 
 export class CourseState {
   /** Current bay index (0-based). */
@@ -107,6 +111,8 @@ export class CourseState {
   solo = false;
   readonly done: boolean[];
   readonly stats: BayStats[];
+  /** Per-player totals (only what `record` attributes to a player). */
+  readonly pstats: [BayStats, BayStats] = [newStats(), newStats()];
   /** Events since the last `clearEvents()`. */
   readonly events: CourseEvent[] = [];
 
@@ -285,9 +291,10 @@ export class CourseState {
     }
   }
 
-  /** Count a stat in the current bay. */
-  record(kind: StatKind, n = 1): void {
+  /** Count a stat in the current bay (and for player `p` when the stat is theirs). */
+  record(kind: StatKind, n = 1, p?: PlayerIdx): void {
     this.stats[this.bay]![kind] += n;
+    if (p !== undefined) this.pstats[p][kind] += n;
   }
 
   /** The players reached the end (the exit lift): refuses like an airlock while drills are open. */
@@ -469,6 +476,18 @@ export class CourseState {
     }
   }
 
+  /** Bumped whenever drill ticks may have changed (HUD change detection). */
+  get gen(): number {
+    return this.tickGen;
+  }
+
+  /** Is drill `d` player `p`'s to do (in bay `bayIdx`, default current)? `either` drills are both players'. */
+  drillIsFor(d: DrillDef, p: PlayerIdx, bayIdx = this.bay): boolean {
+    if (d.who === 'both' || d.who === 'either') return true;
+    const lead = leadOf(bayIdx);
+    return d.who === 'lead' ? p === lead : p !== lead;
+  }
+
   /** Player `p`'s part of the drill is still open. */
   drillOpenFor(d: DrillDef, p: PlayerIdx, bayIdx = this.bay): boolean {
     const n = this.ticks[this.drillIdx.get(d)!]!;
@@ -512,6 +531,7 @@ export class CourseState {
       t.kills += s.kills;
       t.revives += s.revives;
       t.teamMoves += s.teamMoves;
+      t.bodies += s.bodies;
     }
     return t;
   }
@@ -532,6 +552,7 @@ export class CourseState {
       groupsOff: [...this.groupsOff],
       ticks: this.ticks.map((n) => [n[0], n[1]]),
       stats: this.stats.map((s) => ({ ...s })),
+      pstats: [{ ...this.pstats[0] }, { ...this.pstats[1] }],
       locks: this.lockedDoors(),
       anchors: this.lockedAnchors(),
     };
@@ -581,6 +602,10 @@ export class CourseState {
       const q = p.stats[i];
       if (q) Object.assign(s, q);
     });
+    if (p.pstats) {
+      Object.assign(this.pstats[0], p.pstats[0]);
+      Object.assign(this.pstats[1], p.pstats[1]);
+    }
   }
 
   // ---- internals ----

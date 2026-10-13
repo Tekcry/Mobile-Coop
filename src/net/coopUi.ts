@@ -19,6 +19,8 @@ import { createLocalTransport } from './localTransport';
 import { createTrysteroTransport } from './trysteroTransport';
 import { CoopHost } from './coopHost';
 import { CoopClient } from './coopClient';
+import { loadCourseRecord, startableBays, type CourseRecord } from '../save/courseRecord';
+import { courseAllBaysFlag } from '../game/modes/courseMode';
 
 /** What the coop UI needs from the app shell (main.ts), so this module never imports it. */
 export interface CoopApi {
@@ -95,6 +97,7 @@ class CoopController {
         difficulty: s.difficulty,
         missionId: mission?.id,
         weather: map.weathers?.includes(s.weather) ? s.weather : undefined,
+        courseBay: s.mode === 'course' ? (s.bay ?? 1) : undefined,
         net: {
           role: session.role,
           attach: (g) => (session.isHost ? new CoopHost(g, session) : new CoopClient(g, session)),
@@ -395,8 +398,30 @@ class LobbyScreen extends Screen {
             ),
           ]
         : []),
+      ...(s.mode === 'course' ? [this.bayChoice()] : []),
     );
   }
+
+  /** Course mode: "Start at bay N" for the bays in the host's course record (every bay with the dev flag; D20, C9). */
+  private bayChoice(): HTMLElement {
+    const s = this.c.session;
+    if (this.courseRec === null) {
+      this.courseRec = undefined;
+      void loadCourseRecord().then((r) => {
+        this.courseRec = r;
+        if (this.c.session.mode === 'course') this.buildOpts();
+      });
+    }
+    const map = MAPS.find((m) => m.id === s.map);
+    const entry = this.courseRec?.courses[s.map];
+    const bays = startableBays(entry, courseAllBaysFlag(), courseAllBaysFlag() ? (map ? 9 : 0) : 0);
+    if (!bays.includes(s.courseBay)) s.courseBay = 1;
+    return choice('Start at', bays.map((n) => ({ value: String(n), label: n === 1 ? 'Bay 1' : `Bay ${n}${entry?.bays[n - 1] ? ` (${entry.bays[n - 1]})` : ''}` })), () => String(s.courseBay), (v) => {
+      s.courseBay = Number(v) || 1;
+    });
+  }
+  /** The host's course record (null: not read yet; undefined: loading). */
+  private courseRec: CourseRecord | null | undefined = null;
 
   private buildActions(keepFocus = false): void {
     const s = this.c.session;

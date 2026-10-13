@@ -83,3 +83,12 @@ Design authority: docs/design-bible.md (Section 5.10)
 ## 3.5 title
 - The game's name is Night Shift (main menu `NIGHT` / `SHIFT`, boot screen, page and app titles, install manifest "Night Shift" / "Night Shift (Preview CT)", short name
   "NS CT"). The internal ids keep the old names: IndexedDB `shoulder-strike`, the save export magic `shoulder-strike-save`, the co-op app id.
+
+## Course HUD (training course, T1c)
+`src/ui/hud/courseHud.ts`: the current bay's drills in teaching order with a P1 and a P2 tick column (a dash where the
+drill is not that player's), and this player's current step in large type (LANTERN's line; `{Y}` / `{Y:traverse}`
+tokens become prompt glyphs that follow the input mode). DOM is written only when the bay, the ticks
+(`CourseState.gen`) or the end change. A drill done shows a toast and LANTERN's line ("Moth: vault - done"). The next
+drill's marker is drawn by `PingView.marker` (on screen or on the edge); Settings > Gameplay "Course markers"
+(`gameplay.courseMarkers`, default on) hides it. The results screen shows a course panel (`SessionStats.course`:
+per-bay time, team and per-player numbers, the finale's Ghost / Silent / Loud tier, `courseRating.ts`).

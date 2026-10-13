@@ -21,3 +21,9 @@ export const COURSE_SEND = 2;
 export const RESTART_DELAY = 2;
 /** Radio lines and drill steps are at most this many characters (story rules). */
 export const COURSE_TEXT_MAX = 90;
+/** Light meter band for the course's `dark` drill verb: the body's light level below this is "dark" (TUNE). */
+export const COURSE_DARK = 0.25;
+/** ... and below this "dim" (above: lit). */
+export const COURSE_DIM = 0.6;
+/** Callsigns P1 and P2 go by in the course's toasts and radio ("Moth: ledge shimmy - done"; DECISIONS A19). */
+export const COURSE_CALLSIGNS = ['Wren', 'Moth'] as const;

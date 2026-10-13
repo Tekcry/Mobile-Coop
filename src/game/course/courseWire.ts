@@ -16,9 +16,17 @@ export interface CourseWire {
   rn: number;
 }
 
-/** Verbs only the client can see (gear, stance, vision, ping, aim, reload, swap): sent as `ctick` (C10). */
-export const CLIENT_VERBS = ['gear', 'stance', 'vision', 'ping', 'aim', 'reload', 'swap'] as const;
+/**
+ * Verbs only the client can see (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark): derived by
+ * `DrillDetect` on the client and sent as `ctick` (C10). Everything else the host derives from what it sees.
+ */
+export const CLIENT_VERBS = ['gear', 'sprint', 'stance', 'vision', 'ping', 'aim', 'fire', 'reload', 'swap', 'dark'] as const;
 export type ClientVerb = (typeof CLIENT_VERBS)[number];
+/** Is `v` a client-reported verb (allocation-free)? */
+export function isClientVerb(v: string): v is ClientVerb {
+  for (let i = 0; i < CLIENT_VERBS.length; i++) if (CLIENT_VERBS[i] === v) return true;
+  return false;
+}
 /** `ctick` messages a client may send per second (the host drops the rest). */
 export const CTICK_RATE = 4;
 
@@ -32,32 +40,5 @@ export class TickLimiter {
     if (this.tokens < 1) return false;
     this.tokens -= 1;
     return true;
-  }
-}
-
-/**
- * Rising edges of the stance, aim, reload and weapon-swap verbs (C10), one fixed step at a time. The first step only
- * primes (a match start is not a swap). Writes into `out` (cleared first): no allocation per step.
- */
-export class VerbEdges {
-  private crouch = false;
-  private ads = false;
-  private reload = false;
-  private weapon = '';
-  private primed = false;
-
-  step(crouch: boolean, ads: boolean, reload: boolean, weapon: string, out: ClientVerb[]): void {
-    out.length = 0;
-    if (this.primed) {
-      if (crouch !== this.crouch) out.push('stance');
-      if (ads && !this.ads) out.push('aim');
-      if (reload && !this.reload) out.push('reload');
-      if (weapon !== this.weapon) out.push('swap');
-    }
-    this.primed = true;
-    this.crouch = crouch;
-    this.ads = ads;
-    this.reload = reload;
-    this.weapon = weapon;
   }
 }

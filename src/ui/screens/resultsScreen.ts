@@ -6,6 +6,32 @@ import { h } from '../dom';
 import { Screen } from '../screen';
 import type { Hint } from '../prompts';
 import { button } from '../widgets';
+import { fmtCourseTime, TIER_LABEL, type CourseSummary } from '../../game/course/courseRating';
+
+/** The course panel (T1c, D31 / D32 / D23): per-bay times, team and per-player numbers, the finale's tier. */
+function coursePanel(c: CourseSummary): HTMLElement {
+  const cell = (t: string | number, tag: 'td' | 'th' = 'td'): HTMLElement => h(tag, { text: String(t) });
+  const keys = [
+    ['Detections', 'detections'],
+    ['Alarms', 'alarms'],
+    ['Knock-outs', 'knockouts'],
+    ['Kills', 'kills'],
+    ['Revives', 'revives'],
+    ['Team moves', 'teamMoves'],
+  ] as const;
+  const table = h(
+    'table',
+    { class: 'course-stats' },
+    h('tr', {}, cell('', 'th'), cell('Team', 'th'), cell('P1', 'th'), cell('P2', 'th')),
+    h('tr', {}, cell('Time'), cell(fmtCourseTime(c.team.time)), cell(''), cell('')),
+    ...keys.map(([label, k]) => h('tr', {}, cell(label), cell(c.team[k]), cell(c.players[0][k]), cell(c.players[1][k]))),
+  );
+  const bays = h('div', { class: 'course-bays' }, ...c.bays.map((b) => h('span', { text: `${b.id} ${fmtCourseTime(b.time)}` })));
+  const finale = c.finale
+    ? h('div', { class: `course-tier tier-${c.finale.tier}`, text: `${c.finale.bay}: ${TIER_LABEL[c.finale.tier]} (${c.finale.points}, ${fmtCourseTime(c.finale.time)})` })
+    : null;
+  return h('div', { class: 'course-panel' }, h('div', { class: 'course-note', text: 'No penalty in the drill bays.' }), finale, bays, table);
+}
 
 const fmtTime = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
@@ -61,6 +87,7 @@ export class ResultsScreen extends Screen {
       stats.mode === 'infiltration' && stats.rating !== undefined
         ? h('div', { class: 'mission-rating', text: `${'\u2605'.repeat(stats.rating)}${'\u2606'.repeat(3 - stats.rating)}${stats.bonuses?.length ? '  ' + stats.bonuses.join(' / ') : ''}` })
         : null;
+    const course = stats.course ? coursePanel(stats.course) : null;
     const list = h(
       'div',
       { class: 'menu-list row-dir', attrs: { 'data-wrap': '' } },
@@ -73,7 +100,7 @@ export class ResultsScreen extends Screen {
         { class: 'results-panel' },
         h('div', { class: `results-title ${won ? 'won' : 'lost'}`, text: won ? 'VICTORY' : 'DEFEAT' }),
         h('div', { class: 'results-sub', text: subtitle }),
-        grid,
+        course ?? grid,
         rating,
         styleEl,
         rewards,

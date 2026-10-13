@@ -124,6 +124,8 @@ export interface GameOptions {
    * run per match (its settings set before the map loads); the session carries the plan and the lines so far.
    */
   benchmark?: BenchSession;
+  /** Course mode: the bay to start at (1-based, D20; the lobby's "Start at bay N"). */
+  courseBay?: number;
   /** 3.0 weather (visual only; the map's `weathers`). */
   weather?: WeatherChoice;
 }
@@ -1944,7 +1946,8 @@ export class GameState implements AppState {
   }
 
   private markerPt = new Vector3();
-  private scr = { x: 0, y: 0 };
+  /** The last `project` result (percent of the view). */
+  readonly scr = { x: 0, y: 0 };
 
   /** Co-op pings showing (one per player; the newest replaces that player's last). */
   readonly pings: { by: string; x: number; y: number; z: number; target: string; color: string; t: number }[] = [];
@@ -1965,6 +1968,7 @@ export class GameState implements AppState {
     const hit = this.ballistics.ray(o, o.add(cam.forward.scale(120)), MASK.PLAYER_SHOT);
     if (!hit.hit) return;
     const t = hit.target && hit.target.team === 'enemy' ? hit.target.id : '';
+    this.mode?.onLocalPing?.();
     this.net?.ping?.(hit.point.x, hit.point.y, hit.point.z, t);
   }
 
@@ -2009,7 +2013,8 @@ export class GameState implements AppState {
     v.end();
   }
 
-  private project(x: number, y: number, z: number): boolean {
+  /** World point to percent of the view in `scr`; false when off screen (HUD markers). */
+  project(x: number, y: number, z: number): boolean {
     const m = this.markerPt.set(x, y, z);
     Vector3.TransformCoordinatesToRef(m, this.scene.getTransformMatrix(), m);
     if (!(m.z > 0 && m.z < 1 && Math.abs(m.x) < 1.05 && Math.abs(m.y) < 1.05)) return false;

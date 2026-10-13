@@ -2,7 +2,7 @@ import { emptyKinds } from '../src/ai/enemyDefs';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
 import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES, MAX_DOORS, capacity, PROTOCOL_VERSION } from '../src/net/protocol';
-import { TickLimiter, VerbEdges, type ClientVerb } from '../src/game/course/courseWire';
+import { TickLimiter } from '../src/game/course/courseWire';
 import { playersHostile, PvpScore } from '../src/net/pvp';
 import { mulberry } from '../src/core/rng';
 
@@ -409,18 +409,6 @@ describe('course messages (T1b)', () => {
     expect(m.ref.startsWith('bBring your partner/b')).toBe(true);
     expect(m.ref.length).toBeLessThanOrEqual(160);
     expect(m.rn).toBe(0);
-  });
-  it('stance, aim, reload and swap tick on their rising edges only (C10)', () => {
-    const e = new VerbEdges();
-    const out: ClientVerb[] = [];
-    e.step(false, false, false, 'pistol', out);
-    expect(out).toEqual([]);
-    e.step(true, true, true, 'rifle', out);
-    expect(out).toEqual(['stance', 'aim', 'reload', 'swap']);
-    e.step(true, true, true, 'rifle', out);
-    expect(out).toEqual([]);
-    e.step(false, false, false, 'rifle', out);
-    expect(out).toEqual(['stance']);
   });
   it('friendly fire (D38): course partners hurt each other, never themselves; co-op never; PvP by sides', () => {
     expect(playersHostile(null, true, 'a', 'b')).toBe(true);

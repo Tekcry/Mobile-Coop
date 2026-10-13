@@ -4,7 +4,7 @@
 // anchor lock) opens when the host acts and, after a forced both-down restart (both respawn in the airlock, the bay's
 // gates reset), when the client acts; the client sees door locks and the lamp group change within 0.5 s; friendly
 // fire (D38): a host shot and a client grenade down the partner, who is revived (co-op rules: no frag, no restart).
-import { launch, openPage, assert } from './e2e-lib.mjs';
+import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -124,6 +124,46 @@ try {
   await until(B, (n) => window.__course.wire.rn > n && /partner/i.test(window.__course.wire.ref), rn0, 5000, 'client refusal');
   const banner = await GB(() => document.body.innerText.includes(window.__course.wire.ref));
   assert(r2 === 'ok' && banner, `the client's own refusal is shown on the client ("${await GB(() => window.__course.wire.ref)}")`);
+  console.log('drills (T1c): refusal, both tick columns, client tick, markers');
+  await moveHost(11.6, 3.2);
+  const r2b = await use(A, 'c-A1');
+  d = await hostDebug();
+  assert(r2b === 'ok' && /speed gear/.test(d.refusal) && /vault/.test(d.refusal) && /panel/.test(d.refusal) && d.air.A1 !== 'cycling', `the airlock names the open drills and refuses ("${d.refusal}")`);
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) {
+    await until(P, () => document.querySelectorAll('.course-hud tr[data-drill] td[data-p="1"]').length === 3 && document.querySelectorAll('.course-hud tr[data-drill] td[data-p="2"]').length === 3, null, 8000, `${tag} HUD lists the drills`);
+  }
+  assert(true, 'both tick columns show on both pages');
+  // markers (D19): on by default, hidden by the setting (the client page renders frames)
+  await until(B, () => window.__app.current.hud.pings.markerShown, null, 8000, 'client marker shown');
+  await GB(() => window.__app.settings.update((s) => void (s.gameplay.courseMarkers = false)));
+  await until(B, () => !window.__app.current.hud.pings.markerShown, null, 8000, 'client marker hidden by the setting');
+  await GB(() => window.__app.settings.update((s) => void (s.gameplay.courseMarkers = true)));
+  assert(true, 'markers hide with the Course markers setting');
+  // the client's gear change reaches the host as a tick (ctick, C10); the host's own gear change ticks P1
+  await GB(() => { const gs = window.__app.current.player.controller.gears; gs.step(gs.gear > 1 ? -1 : 1); });
+  await until(A, () => window.__course.log[1].includes('gear'), null, 8000, 'client gear tick on the host');
+  await GA(() => { const gs = window.__app.current.player.controller.gears; gs.step(gs.gear > 1 ? -1 : 1); });
+  await until(A, () => window.__course.log[0].includes('gear'), null, 8000, 'host gear tick');
+  assert(true, "the client's gear change reaches the host as a tick");
+  // the client vaults the low wall (a real traversal through the pad's Y)
+  await GB(() => window.__pad.connect());
+  await wait(300);
+  let vaulted = false;
+  for (let i = 0; i < 3 && !vaulted; i++) {
+    await moveClient(2.9, 6.8, Math.PI / 2);
+    await wait(400);
+    await press(B, BTN.Y);
+    try {
+      await until(A, () => window.__course.log[1].includes('vault'), null, 4000, 'client vault tick');
+      vaulted = true;
+    } catch {}
+  }
+  assert(vaulted, 'the client vaults the low wall and the host ticks it');
+  // the host presses the panel
+  await moveHost(7, 1.6);
+  assert((await use(A, 'c-sw-l1')) === 'ok' && (await GA(() => window.__course.log[0].includes('switch'))), 'the host presses the panel (switch drill)');
+  await until(B, () => document.querySelectorAll('.course-hud td.done').length >= 4, null, 5000, 'client HUD shows the ticks');
+  await moveClient(11, 2.4);
   await moveHost(11.6, 3.2);
   const r3 = await use(B, 'c-A1');
   await until(A, () => window.__course.debug().air.A1 === 'cycling', null, 3000, 'airlock cycling');

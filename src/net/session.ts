@@ -21,6 +21,8 @@ export interface StartInfo {
   /** Infiltration: the mission ('' otherwise). */
   mission: string;
   weather: WeatherChoice;
+  /** Course mode: the bay to start at (1-based, D20). */
+  bay?: number;
 }
 
 export interface SessionEvents {
@@ -46,6 +48,8 @@ export class NetSession {
   difficulty: Difficulty = 'normal';
   mission = '';
   weather: WeatherChoice = 'clear';
+  /** Course mode: "Start at bay N" (host, 1-based; D20). */
+  courseBay = 1;
   phase: 'lobby' | 'playing' = 'lobby';
   private start: StartInfo | null = null;
   private closed = false;
@@ -123,7 +127,7 @@ export class NetSession {
       if (this.phase === 'lobby') this.setTeam(from, msg.team);
       return;
     }
-    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'ptd' || msg.t === 'tmove' || msg.t === 'ping' || msg.t === 'gadget') {
+    if (msg.t === 'pstate' || msg.t === 'shot' || msg.t === 'emote' || msg.t === 'blast' || msg.t === 'use' || msg.t === 'td' || msg.t === 'ptd' || msg.t === 'tmove' || msg.t === 'ping' || msg.t === 'gadget' || msg.t === 'ctick') {
       this.events.emit('game', { msg, from });
     }
   }
@@ -157,7 +161,7 @@ export class NetSession {
     if (from !== this.hostId) return;
     if (msg.t === 'start') {
       this.phase = 'playing';
-      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather };
+      this.start = { mode: msg.mode, map: msg.map, seed: msg.seed, difficulty: msg.difficulty, mission: msg.mission, weather: msg.weather, bay: msg.bay ?? 1 };
       this.events.emit('start', this.start);
       return;
     }
@@ -240,7 +244,7 @@ export class NetSession {
     if (!this.isHost) return null;
     this.phase = 'playing';
     if (this.overCapacity) return null;
-    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather };
+    this.start = { mode: this.mode, map: this.map, seed: Math.floor(Math.random() * 1e9), difficulty: this.difficulty, mission: this.mission, weather: this.weather, bay: this.mode === 'course' ? this.courseBay : 1 };
     this.send({ t: 'start', ...this.start, time: 0 });
     this.broadcastLobby();
     this.events.emit('start', this.start);

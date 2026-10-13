@@ -58,3 +58,11 @@ Design authority: docs/design-bible.md (Section 5.9)
   takedowns, gadgets and gates itself. Friendly fire (D38): `playersHostile` (pure, `net/pvp.ts`) makes partners hostile
   in course mode, so the PvP paths carry team damage (`friendly` flags, host `Hitboxes` + `RemotePlayer.shootable`,
   client `PvpTarget`, `blast`), with co-op rules otherwise: a partner at zero is downed and revivable, never a frag.
+
+## Course drill ticks (`ctick`, T1c)
+`src/game/course/drillDetect.ts` is the single place course verbs are derived (edge-triggered, one tick per
+occurrence); `CourseFeed` fills its snapshot from the game each fixed step. The host runs it for itself and on the
+remote's `pstate` mode (host-visible verbs, C10); the client runs it on its own snapshot and sends only the
+`CLIENT_VERBS` (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark) as `ctick` (rate-limited by
+`TickLimiter`). The client mirrors the course from the `course` message (HUD, markers, toasts, results). The `start`
+message carries `bay` (course "Start at bay N", D20).

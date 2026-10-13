@@ -45,12 +45,15 @@ export const courselab: MapDef = {
     }
     b.wallZ(58, 0, 8, [], H, WALL);
     const ladder = b.ladder(57.6, 6.5, 0, H, Math.PI / 2);
+    // L1's vault drill: a thin low wall (x 4, z 5.8..7.8)
+    b.block(4, 6.8, 0.3, 0.9, 2, '#6b7178');
     b.light({ x: 4, y: 2.8, z: 4, radius: 8, intensity: 1 });
     b.light({ x: 18, y: 2.8, z: 4, radius: 8, intensity: 1 });
     b.light({ x: 48, y: 2.8, z: 4, radius: 6, intensity: 1, group: MAINS_GROUP });
     const dev = (x: number, z: number, label?: string): CourseDevice => ({ x, y: 0, z, yaw: -Math.PI / 2, label });
     const devices: Record<string, CourseDevice> = {
       A1: { x: 11, y: 0, z: 1.6, yaw: 0 },
+      'sw-l1': dev(7.6, 1.5, 'Press panel'),
       'sw-lever': dev(21.2, 1.5),
       'h-hold': dev(29.2, 1.5),
       'h-timed': dev(33.2, 1.5),
@@ -75,7 +78,20 @@ export const courselab: MapDef = {
       id: 'courselab',
       airlocks: [{ id: 'A1', box: [8, 1, 14, 7], floorY: 0, nearDoor: 'A1-near', farDoor: 'A1-far' }],
       bays: [
-        { id: 'L1', entry: 'start', exit: 'A1', squad: [], gates: [], radio: [{ at: 'enter', text: 'Courselab. Both of you into the airlock.' }], drills: [], elements: [] },
+        {
+          id: 'L1',
+          entry: 'start',
+          exit: 'A1',
+          squad: [],
+          gates: [{ kind: 'pickup', id: 'g-l1', switchId: 'sw-l1', flag: 'l1-panel', perPlayer: false }],
+          radio: [{ at: 'enter', text: 'Courselab. Three drills, then both of you into the airlock.' }],
+          drills: [
+            { id: 'l-gear', verb: 'gear', who: 'both', name: 'speed gear', text: 'Change your pace. Step your speed gear up or down.', marker: { x: 3, y: 1, z: 2 } },
+            { id: 'l-vault', verb: 'vault', who: 'either', name: 'vault', text: 'Low wall by the far corner. Run at it and press {Y:traverse} to go over.', marker: { x: 4, y: 1.2, z: 6.8 } },
+            { id: 'l-switch', verb: 'switch', who: 'either', name: 'panel', text: 'Panel on the wall. Press it with {Y:traverse}. Thrilling, I know.', marker: 'sw-l1' },
+          ],
+          elements: [],
+        },
         {
           id: 'L2',
           entry: 'A1',

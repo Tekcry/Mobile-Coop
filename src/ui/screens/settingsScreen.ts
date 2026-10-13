@@ -222,6 +222,7 @@ export class SettingsScreen extends Screen {
             toggle('Cover-to-cover moves', () => s().gameplay.coverDash, (v) => upd((d) => void (d.gameplay.coverDash = v))),
             choice('Sprint', [{ value: false, label: 'Toggle' }, { value: true, label: 'Hold' }], () => s().gameplay.sprintHold, (v) => upd((d) => void (d.gameplay.sprintHold = v))),
             toggle('Camera recentres behind you while moving', () => s().gameplay.autoRecentre, (v) => upd((d) => void (d.gameplay.autoRecentre = v))),
+            toggle('Course markers', () => s().gameplay.courseMarkers, (v) => upd((d) => void (d.gameplay.courseMarkers = v))),
             toggle('Slow-motion beat on the last enemy in a room', () => s().gameplay.slowBeat, (v) => upd((d) => void (d.gameplay.slowBeat = v))),
             resetBtn('gameplay', 'gameplay'),
           ),

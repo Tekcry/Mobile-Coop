@@ -18,8 +18,9 @@ import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
 import { pvpInfo, type PvpMode } from './pvp';
 import { clampEnd, coopSessionStats } from './validate';
-import { applyCourseWire } from '../game/modes/courseMode';
-import { VerbEdges, type ClientVerb } from '../game/course/courseWire';
+import { applyCourseWire, clientCourseFrame, clientCourseSummary, disposeClientCourse } from '../game/modes/courseMode';
+import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
+import { CourseFeed } from '../game/course/courseFeed';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
@@ -63,7 +64,11 @@ export class CoopClient implements NetAttachment {
   ) {
     this.pvp = isPvp(g.opts.mode) ? (g.opts.mode as PvpMode) : null;
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
-    if (g.opts.mode === 'course') this.offs.push(g.events.on('vision', () => this.ctick('vision')));
+    if (g.opts.mode === 'course') {
+      const feed = new CourseFeed(g);
+      this.feed = feed;
+      this.offs.push(() => feed.dispose(), () => disposeClientCourse(g));
+    }
     g.explosions.onLocalBlast = (p) => {
       this.lastBlast = { p: p.clone(), t: this.time };
       s.toHost({ t: 'blast', x: p.x, y: p.y, z: p.z });
@@ -453,6 +458,7 @@ export class CoopClient implements NetAttachment {
     }
     Object.assign(this.g.stats, coopSessionStats(this.g.stats, end, this.s.selfId));
     if (this.pvp) this.g.stats.deaths = this.deaths;
+    if (this.inCourse) this.g.stats.course = clientCourseSummary(this.g) ?? undefined;
     this.g.endSession(end.won, end.subtitle);
   }
 
@@ -461,12 +467,13 @@ export class CoopClient implements NetAttachment {
     this.sendT -= dt;
     // the movement state: a new mode or sub-state (cover, a ladder, a vault) goes out at once, not on the next tick
     const mv = localMoveState(this.g, this.mvNow);
-    if (this.inCourse) {
-      if (this.mvSent.g !== 0 && mv.g !== this.mvSent.g) this.ctick('gear');
-      const eo = this.edgeOut;
-      const gp = this.g.player;
-      this.edges.step(gp.controller.crouched, gp.ads, this.g.weapons.reloading, this.g.weapons.current.def.id, eo);
-      for (let i = 0; i < eo.length; i++) this.ctick(eo[i]!);
+    if (this.feed) {
+      // drillDetect derives every verb; only the local-only ones go to the host (it derives the rest, C10)
+      const out = this.feed.step();
+      for (let i = 0; i < out.length; i++) {
+        const v = out[i]!;
+        if (isClientVerb(v)) this.ctick(v);
+      }
     }
     const changed = moveChanged(this.mvSent, mv);
     if (this.sendT > 0 && !changed) return;
@@ -500,6 +507,7 @@ export class CoopClient implements NetAttachment {
   private mvSent = emptyMoveState();
 
   frameUpdate(dt: number): void {
+    if (this.inCourse) clientCourseFrame(this.g);
     const t = this.renderTime;
     for (const a of this.avatars.values()) a.update(dt, t);
     for (const tg of this.targets.values()) tg.sync();
@@ -530,14 +538,13 @@ export class CoopClient implements NetAttachment {
   private get inCourse(): boolean {
     return this.g.opts.mode === 'course';
   }
-  /** Course mode: stance / aim / reload / swap edges (C10). */
-  private edges = new VerbEdges();
-  private edgeOut: ClientVerb[] = [];
+  /** Course mode: the local drill feed (C10). */
+  private feed: CourseFeed | null = null;
 
   /** Own ping: shown at once, the host relays it. */
 
   ping(x: number, y: number, z: number, target: string): void {
-    this.ctick('ping');
+    this.feed?.ping();
     const me = this.s.selfId;
     this.s.toHost({ t: 'ping', x, y, z, target });
     this.g.addPing(me, x, y, z, target, this.s.players.get(me)?.tag.color ?? '#4fdc7c');
