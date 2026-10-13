@@ -169,13 +169,10 @@ export class PlayerController {
   private crouchToggled = false;
   /** Disable movement (dead, cutscene, menus). */
   frozen = false;
-  /** External speed multipliers: weapon handling, and stance (leaning: hips planted). */
+  /** External speed multiplier: weapon handling. */
   speedMul = 1;
-  stanceMul = 1;
   /** Hard speed cap (m/s) set per step by other systems (leaning: hips planted, only a shuffle). */
   speedCap = Infinity;
-  /** Gentle world-space velocity bias (m/s) added to free movement (slicing-the-pie standoff). */
-  readonly steer = { x: 0, z: 0 };
 
   constructor(
     private scene: Scene,
@@ -449,12 +446,12 @@ export class PlayerController {
             ? 'crouch'
             : 'stand';
     // free movement: the speed gear's cap x the stick (overrides set their own velocity)
-    let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz, T, ov ? undefined : this.gears.gear) * this.speedMul * this.stanceMul);
+    let speedTarget = Math.min(this.speedCap, targetSpeed(mag, stance, lx, lz, T, ov ? undefined : this.gears.gear) * this.speedMul);
     if (input.reloading) speedTarget *= T.reloadMult;
     if (this.landT > 0) speedTarget = Math.min(speedTarget, T.sneakSpeed);
     const inv = mag > 0 ? speedTarget / Math.max(mag, 1e-3) : 0;
-    let tx = this.wish.x * inv + (mag > 0.1 ? this.steer.x : 0);
-    let tz = this.wish.z * inv + (mag > 0.1 ? this.steer.z : 0);
+    let tx = this.wish.x * inv;
+    let tz = this.wish.z * inv;
     if (this.sprint.sprinting && mag > 0) {
       tx = (this.wish.x / mag) * speedTarget;
       tz = (this.wish.z / mag) * speedTarget;

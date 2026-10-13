@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: 06 remove-cover-rig-net (next; all subagents opus)
+Current step: Block A end (full e2e, perf trend, kestrel merge), then 07 harness-local
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)
@@ -18,6 +18,7 @@ Last commit: see git log (locomotion 00)
 - step 01 remove-mark-execute.
 - steps 02-04 sonar, shield, style (SAVE_VERSION 8).
 - step 05 remove-cover-player (1 fix round).
+- step 06 remove-cover-rig-net (1 fix round). Block A done.
 
 ## Blocked
 (none)

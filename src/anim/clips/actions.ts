@@ -1,5 +1,5 @@
 /**
- * Action clips (authored in code). Weapon handling, cover choreography, traversal and transitions.
+ * Action clips (authored in code). Weapon handling, traversal and transitions.
  * Clips keyed over normalized time (duration 1) are sampled at the action's progress; timed clips
  * are keyed in seconds. Root-space metres at 1.75 m, radians.
  *
@@ -125,63 +125,6 @@ export const GRENADE = makeClip({
     hdPitch: [0, 0, 0.2, 0.15, 0.4, 0.1, 0.55, -0.1, 0.75, 0, 1, 0],
   },
   events: { pin: 0.32, release: 0.68 },
-});
-
-/**
- * Cover entry (0.8 s), side-signed channels (scaled by the wall side). Played big, like a film: the
- * body slams shoulder-first into the wall (hips thrown over, the spine whipping into it at contact,
- * ~0.3 s), rebounds a little and settles against it.
- */
-export const COVER_ENTER_SIDE = makeClip({
-  name: 'coverEnterSide',
-  duration: 0.8,
-  keys: {
-    pelX: [0, 0, 0.3, 0.12, 0.45, 0.06, 0.6, 0.075, 0.8, 0.05],
-    spRoll: [0, 0, 0.3, 0.26, 0.45, 0.1, 0.6, 0.14, 0.8, 0.09],
-    pelRoll: [0, 0, 0.3, 0.12, 0.5, 0.05, 0.8, 0.06],
-    hdRoll: [0, 0, 0.32, 0.18, 0.55, 0.04, 0.8, 0.05],
-  },
-});
-/** Cover entry, unsigned channels: the off hand slaps the wall, the body crunches down on impact and settles. */
-export const COVER_ENTER = makeClip({
-  name: 'coverEnter',
-  duration: 0.8,
-  keys: {
-    offCover: [0, 0, 0.15, 0.5, 0.3, 1, 0.8, 0.85],
-    pelY: [0, 0, 0.3, -0.1, 0.48, -0.025, 0.62, -0.04, 0.8, -0.03],
-    pelPitch: [0, 0, 0.3, 0.22, 0.5, 0.06, 0.8, 0.05],
-    spPitch: [0, 0, 0.3, 0.16, 0.5, 0.02, 0.8, 0.03],
-    hdPitch: [0, 0, 0.28, 0.24, 0.5, 0.02, 0.8, 0],
-  },
-});
-
-/** Leaving cover (0.5 s): a hard push off the wall, chest up, weapon coming off the compressed carry. */
-export const COVER_EXIT = makeClip({
-  name: 'coverExit',
-  duration: 0.5,
-  keys: {
-    pelPitch: [0, 0, 0.16, -0.18, 0.32, -0.06, 0.5, 0],
-    pelY: [0, 0, 0.14, 0.04, 0.3, 0.01, 0.5, 0],
-    spPitch: [0, 0, 0.18, -0.14, 0.36, -0.03, 0.5, 0],
-    hdPitch: [0, 0, 0.14, -0.1, 0.5, 0],
-  },
-});
-
-/**
- * Turn-and-swap or corner swing in cover (normalized): duck low through the turn (the head well below
- * the wall line), the weapon tucked in, then up again on the far side.
- */
-export const COVER_TURN = makeClip({
-  name: 'coverTurn',
-  duration: 1,
-  keys: {
-    pelY: [0, 0, 0.35, -0.1, 0.6, -0.08, 1, 0],
-    pelPitch: [0, 0, 0.35, 0.2, 0.65, 0.16, 1, 0],
-    spPitch: [0, 0, 0.35, 0.22, 0.65, 0.18, 1, 0],
-    hdPitch: [0, 0, 0.3, -0.12, 0.7, -0.08, 1, 0],
-    wpZ: [0, 0, 0.3, -0.08, 0.7, -0.08, 1, 0],
-    wpPitch: [0, 0, 0.3, 0.25, 0.7, 0.2, 1, 0],
-  },
 });
 
 /** Start from standstill (0.3 s shift, then fades during the first step): load the support foot. */

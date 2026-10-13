@@ -19,3 +19,6 @@ Sonar gone (vision = night only); Health(100), no shield or regen, `sh` off the 
 
 ## 05 remove-cover-player
 Player snap cover, glide, cover-to-cover, blind fire, coverAim and cornerController (A1) removed; enemy cover AI kept. Unplanned but correct: override cleared on respawn / revive; speedCap reset each fixed step (the corner controller used to do it). Round 1 FAIL (stuck vault override after traversal.reset -> e2e-anchors; lost touch pointer-events check) fixed; recheck PASS: lint 0 errors, tests 990/991 (kestrel-owned), build ok, e2e anchors / touch / traverse / stealth-ai / takedown / coop ok, netmove flaky (passes serially). Flanker and grenade flush lose their player trigger until step 11.
+
+## 06 remove-cover-rig-net
+Cover rig poses / clips gone, slot 1 `wall`, PROTOCOL_VERSION 3 (v2 hello refused, tested), A6 stance kept dormant, open-left mirroring restored dormant (renamed openLeft / EDGE_HAND_TIME, unit test), docs scrub, guard high-cover wallSide. Round 1 FAIL (deleted mirroring needed by D9; docs scrub incomplete; guard lean side) fixed; recheck PASS: lint 0 errors, tests 994/995 (kestrel-owned), build ok, 8 suites ok, netmove flaky (fence wrists 30-36 cm once in 2-job run, 0 serially). Block A complete.

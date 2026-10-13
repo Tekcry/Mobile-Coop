@@ -450,7 +450,7 @@ export class CoopClient implements NetAttachment {
   fixedUpdate(dt: number): void {
     this.time += dt;
     this.sendT -= dt;
-    // the movement state: a new mode or sub-state (cover, a ladder, a vault) goes out at once, not on the next tick
+    // the movement state: a new mode or sub-state (a ladder, a vault) goes out at once, not on the next tick
     const mv = localMoveState(this.g, this.mvNow);
     const changed = moveChanged(this.mvSent, mv);
     if (this.sendT > 0 && !changed) return;

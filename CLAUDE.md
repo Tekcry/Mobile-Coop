@@ -79,7 +79,7 @@ On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading 
 | `physics/` | Havok loading, collision groups, body budget |
 | `player/` | Character controller, movement, traversal and attach states, move state, camera |
 | `anim/` | Pure animation: motion driver, clips, graph, foot planner, IK |
-| `cover/` | Cover faces and state machine, corners and doorways (scheduled for removal in Phase 3) |
+| `cover/` | Cover data for enemy AI and level build (coverData, corners); back-to-wall reuses it |
 | `weapons/` | Data-driven weapons, ballistics, grenades, weapon carry, aim assist |
 | `ai/` | Enemy brains, nav grid, perception, alert states, patrols, archetypes |
 | `world/` | Level builder, map builders, anchors, rooms, lights, light rig, doors, surfaces |
@@ -110,7 +110,6 @@ On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading 
 | `docs/systems/world-and-characters.md` | Maps, level builder, Warehouse, the shared character rig | Maps, rig, animation |
 | `docs/systems/movement.md` | Movement, camera, CT movement phases, traversal anchors, corners | Movement work |
 | `docs/systems/lighting.md` | Light registry, baked lamps, phone look, lamp volume | Light work (Phase 1) |
-| `docs/systems/cover.md` | Snap cover and combat around cover (removal in Phase 3) | Phase 3 only |
 | `docs/systems/ai.md` | Perception, alert states, archetypes, nav grid, mode hooks | AI work |
 | `docs/systems/takedowns.md` | Takedowns, Mark & Execute (removal in Phase 3) | Takedown work |
 | `docs/systems/gadgets.md` | Gadgets, wheel, remote views | Gadget work |

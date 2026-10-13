@@ -1,6 +1,6 @@
 /**
  * Networked movement state (3.2.0 Chaos Theory movement, phase 1; pure, unit-tested). What a player is doing with
- * their body - free movement, cover, an attached state on an anchor, a committed move, a takedown - in a few
+ * their body - free movement, back to a wall, an attached state on an anchor, a committed move, a takedown - in a few
  * fields, so a co-op / PvP remote is posed by the same code as the local player (`poseFromMoveState`,
  * `AttachGrips`, `traversePath`) instead of guessed from positions.
  *
@@ -11,7 +11,8 @@ import type { TraverseKind } from '../anim/animGraph';
 /** Every mode on the wire, in a fixed order (an index is a u8). Later phases append, never reorder. */
 export const MOVE_MODES = [
   'ground',
-  'cover',
+  // back to a wall (A2: the old snap-cover slot, renamed; reserved - nothing sets it until step 11)
+  'wall',
   // attached (`ATTACH` kinds)
   'ladder',
   'pipeV',
@@ -72,11 +73,11 @@ export interface MoveState {
   m: MoveMode;
   /** Anchor index into `anchors.all` (attached modes) or -1. */
   a: number;
-  /** Position along the anchor (m); in cover: the low cover's top above the feet (0 = high cover). */
+  /** Position along the anchor (m). */
   s: number;
-  /** Sub-state bits (`COVER_SUB` / `ATTACH_SUB`; u16). */
+  /** Sub-state bits (`ATTACH_SUB`; u16). */
   sub: number;
-  /** Committed-move / attach blend progress 0..1; in cover: the lean (-1..1) as (lean + 1) / 2. */
+  /** Committed-move / attach blend progress 0..1. */
   ph: number;
   /** Takedown target id ('' = none). */
   tid: string;
@@ -89,15 +90,6 @@ export interface MoveState {
   u?: number;
   /** Weapon ready position (0 low, 1 high, 2 compressed; `WeaponCarry`), so the lowered gun is carried alike. */
   rd?: number;
-  /** Cover: the hiding curl 0..1 (`CharacterRig.curl`), so the remote hides (and is exposed) exactly as the owner. */
-  cu?: number;
-  /** Cover: the low-cover lift (m; `CharacterRig.lift`: hiding down, aiming over up). */
-  lf?: number;
-  /**
-   * Cover, still: the feet, as offsets from the feet position in the body frame (right, forward; m): the remote's
-   * feet step onto them (they set the kneel, and so the head height).
-   */
-  fp?: [number, number, number, number];
   /**
    * Attached, still: the planted grips on the anchor's axis [hand L, hand R, foot L, foot R] (`AttachGrips.planted`;
    * NaN / null = swinging): the remote's hands and feet settle on the same rungs.
@@ -109,9 +101,6 @@ export interface MoveState {
 export function emptyMoveState(): MoveState {
   return { m: 'ground', a: -1, s: 0, sub: 0, ph: 0, tid: '', g: 3, r: 0, ay: 0 };
 }
-
-/** Cover sub bits. */
-export const COVER_SUB = { low: 1, wallRight: 2, over: 4, blind: 8, gunClear: 16, kneel: 32, edgeL: 64, edgeR: 128, leftHand: 256 } as const;
 
 /**
  * Attached sub bits: the blend phase (2 bits), facing (+1), the exit pose (3 bits); (3.2.0) a horizontal pipe's
@@ -186,10 +175,6 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096): MoveState |
     out.gp = (o.gp as unknown[]).map((v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(-WORLD, Math.min(WORLD, v)) : NaN)) as [number, number, number, number];
   if ((m === 'rappel' || m === 'fence') && typeof o.u === 'number') out.u = num(o.u, -10, 10, 0);
   if (typeof o.rd === 'number' && Number.isFinite(o.rd)) out.rd = Math.max(0, Math.min(2, Math.round(o.rd)));
-  if (m === 'cover' && typeof o.cu === 'number') out.cu = num(o.cu, 0, 1, 0);
-  if (m === 'cover' && typeof o.lf === 'number') out.lf = num(o.lf, -1, 1, 0);
-  if (m === 'cover' && Array.isArray(o.fp) && o.fp.length === 4 && o.fp.every((v) => typeof v === 'number' && Number.isFinite(v)))
-    out.fp = (o.fp as number[]).map((v) => Math.max(-1, Math.min(1, v))) as [number, number, number, number];
   if (isAttachedMode(m) && a < 0) return null;
   const c = o.c;
   if (isCommittedMode(m) && typeof c === 'object' && c !== null && !Array.isArray(c)) {
@@ -215,52 +200,18 @@ export function packMoveState(mv: MoveState): Record<string, unknown> {
   const o: Record<string, unknown> = { m: MOVE_MODES.indexOf(mv.m), a: mv.a, s: round(mv.s), sub: mv.sub, ph: round(mv.ph), tid: mv.tid, g: mv.g, r: round(mv.r), ay: round(mv.ay) };
   if (mv.rd !== undefined) o.rd = mv.rd;
   if (mv.u !== undefined) o.u = round(mv.u);
-  if (mv.cu !== undefined) o.cu = Math.round(mv.cu * 100) / 100;
-  if (mv.lf !== undefined) o.lf = round(mv.lf);
   if (mv.gp) o.gp = mv.gp.map((v) => (Number.isNaN(v) ? null : round(v)));
-  if (mv.fp) o.fp = mv.fp.map((v) => Math.round(v * 100) / 100);
   if (mv.c) o.c = { ...mv.c };
   return o;
 }
 
 const round = (v: number): number => Math.round(v * 1000) / 1000;
 
-/** Body-frame foot offsets (right, forward) from world points around a root at `yaw` (Babylon: +z forward at 0). */
-export function footOffsets(rx: number, rz: number, yaw: number, lx: number, lz: number, qx: number, qz: number, out: [number, number, number, number]): [number, number, number, number] {
-  const c = Math.cos(yaw);
-  const s = Math.sin(yaw);
-  out[0] = (lx - rx) * c - (lz - rz) * s;
-  out[1] = (lx - rx) * s + (lz - rz) * c;
-  out[2] = (qx - rx) * c - (qz - rz) * s;
-  out[3] = (qx - rx) * s + (qz - rz) * c;
-  return out;
-}
-
-/** World foot points from body-frame offsets (`footOffsets` inverse) into `out` [lx, lz, rx, rz]. */
-export function footPoints(rx: number, rz: number, yaw: number, fp: readonly number[], out: number[]): number[] {
-  const c = Math.cos(yaw);
-  const s = Math.sin(yaw);
-  for (let k = 0; k < 2; k++) {
-    const r = fp[k * 2]!;
-    const f = fp[k * 2 + 1]!;
-    out[k * 2] = rx + r * c + f * s;
-    out[k * 2 + 1] = rz - r * s + f * c;
-  }
-  return out;
-}
-
 /** The pose families a move state drives on the rig (`RigPose` subset). */
 export interface MovePose {
-  cover: 'none' | 'low' | 'high';
+  /** Side of the wall (-1 left, 1 right, 0 none) and the lean around an edge (-1..1): back-to-wall (steps 11-12). */
   wallSide: number;
   lean: number;
-  peekOver: number;
-  coverTop: number;
-  coverMode: 'none' | 'hide' | 'over';
-  blind: boolean;
-  edgeLook: number;
-  peekClear: number;
-  kneel: boolean;
   traverse: TraverseKind;
   traverseT: number;
   melee: number;
@@ -269,43 +220,21 @@ export interface MovePose {
 }
 
 export function emptyMovePose(): MovePose {
-  return { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, coverTop: 0, coverMode: 'none', blind: false, edgeLook: 0, peekClear: 1, kneel: false, traverse: 'none', traverseT: 0, melee: -1, tumble: 0 };
+  return { wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0 };
 }
 
 /**
- * The pose families from a move state (cover, attached, committed, takedown). `cadence` is the climb cycle of the
+ * The pose families from a move state (attached, committed, takedown). `cadence` is the climb cycle of the
  * attach grips (`AttachGrips.cadence`). The local player and remotes both read it this way.
  */
 export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose): MovePose {
-  out.cover = 'none';
   out.wallSide = 0;
   out.lean = 0;
-  out.peekOver = 0;
-  out.coverTop = 0;
-  out.coverMode = 'none';
-  out.blind = false;
-  out.edgeLook = 0;
-  out.peekClear = 1;
-  out.kneel = false;
   out.traverse = 'none';
   out.traverseT = 0;
   out.melee = -1;
   out.tumble = 0;
   switch (mv.m) {
-    case 'cover': {
-      const low = (mv.sub & COVER_SUB.low) !== 0;
-      out.cover = low ? 'low' : 'high';
-      out.wallSide = mv.sub & COVER_SUB.wallRight ? 1 : -1;
-      out.lean = mv.ph * 2 - 1;
-      out.peekOver = mv.sub & COVER_SUB.over ? 1 : 0;
-      out.coverTop = low ? Math.max(0, mv.s) : 0;
-      out.coverMode = out.coverTop > 0 ? (out.peekOver > 0.5 ? 'over' : 'hide') : 'none';
-      out.blind = (mv.sub & COVER_SUB.blind) !== 0;
-      out.peekClear = mv.sub & COVER_SUB.gunClear ? 1 : 0;
-      out.kneel = (mv.sub & COVER_SUB.kneel) !== 0;
-      out.edgeLook = mv.sub & COVER_SUB.edgeL ? -1 : mv.sub & COVER_SUB.edgeR ? 1 : 0;
-      return out;
-    }
     case 'split':
       out.traverse = 'split';
       return out;

@@ -68,7 +68,7 @@ Design authority: docs/design-bible.md (Sections 5.12 and 7)
   shadows (`GameState.drawShadows`, `NetAttachment.shadows`), `CinematicPost.setGrade(MapTheme.grade)`.
 - Animation: callers pass a `RigPose` (speed, local move dir, grounded, crouch, kneel, aim = weapon raise 0..1,
   carry = ready-position weights, weight, aimPitch/aimYaw, kick, dash, slide, landing, reload/reloadEmpty, swap,
-  grenade, cover/wallSide/lean/peekOver/blind/edgeLook, traverse/traverseT, check, melee, gait phase, motion
+  grenade, wall/wallSide/lean, traverse/traverseT, check, melee, gait phase, motion
   state, acceleration, root velocity, goal yaw, stop point, stick intent, swap from/to slots) to
   `rig.animate(dt, pose)` every render frame (120 Hz). `rig.onPosed` callbacks run after each solved pose.
 - Clips (`anim/clips/*.ts`) are keyed curves over named pose channels (`anim/pose.ts`: pelvis, spine, head,
@@ -78,14 +78,15 @@ Design authority: docs/design-bible.md (Sections 5.12 and 7)
 - `AnimGraph` builds a source pose per frame: locomotion 2D blend space (`FORWARD_NODES` creep / walk / jog /
   sprint, `CROUCH_NODES` sneak / crouch walk / crouch run x forward/back/strafe), start / stop / pivot clips from
   the `MotionDriver` state, a first-order stick-intent lean (visible on the first frame), acceleration lean and
-  roll (leans into turns, <= 8 deg), cover enter/exit and tuck (reload / swap / grenade in cover), traversal,
+  roll (leans into turns, <= 8 deg), the flat-back wall stance and tuck (reload / swap / grenade at the wall), traversal,
   slide, land, reloads, per-slot swaps (`swapClipFor(from, to)`), grenade, ready positions blended to the aim
-  pose, head-first lean (head ~60 ms ahead, body/weapon out ~0.2 s, back ~0.2 s; gated by the 0.18 s hand swap),
+  pose, head-first lean (head ~60 ms ahead, body/weapon out ~0.2 s, back ~0.2 s; gated by the 0.18 s open-left hand
+  switch `EDGE_HAND_TIME`, dormant until step 12b drives `rig.openLeft`),
   breathing, recoil, heel-strike compression (`HEEL_KICK`), hit flinch (`rig.hit`, recovers 0.3-0.6 s). State
   switches trigger the `Inertializer` (offset decays critically damped per channel group, 120-250 ms).
 - Gait style: `GAIT_STYLE` (`clips/locomotion.ts`) keeps height smooth (small loading dip and rise, smaller still at
   jog / sprint) and shows the weight in hip sway and twist; armed, the body carries a tactical `HUNCH` (chest well
-  forward over the hips, knees bent, head up; deeper along cover; `crouch`: bent over the knees, half of it
+  forward over the hips, knees bent, head up; deeper at a wall; `crouch`: bent over the knees, half of it
   straightening into a raised weapon). Footfalls: a small `MOVEMENT.rootDip` speed check, `HEEL_KICK` and a tiny
   camera footstep kick.
 - `FootPlanner` (world space): contacts from the gait clock while moving (landing spot = where the hip will be
@@ -94,16 +95,15 @@ Design authority: docs/design-bible.md (Sections 5.12 and 7)
   resets the planner and the gait clock), error-driven idle steps (turning on the spot plants steps). Side-steps are 60% length
   (`stepLength(..., lateral)`). Two-bone IK puts feet on it and hands on the weapon's `grip`/`foregrip`/magazine
   well (wrists offset behind / under the palm points in weapon space, `WRIST_TRIGGER` / `WRIST_SUPPORT`, so the
-  elbows bend) or the cover surface; the pelvis drops so both feet stay reachable (each leg measured from its own hip
+  elbows bend) or the wall (`rig.wallHand`; the right hand takes it when `openLeft` puts the weapon in the left); the pelvis drops so both feet stay reachable (each leg measured from its own hip
   joint; a growing need is met at once, release eases); leg IK twist references stay defined in a deep sneak
   (kneecap away from the shin); planted feet measure reach from under the hip and toe off early at speed; a
   relaxed stance tolerates a front-back stagger (one settling step); the head is world-stabilised; the
   weapon's orientation lags by its mass. Legs solve (and are rate limited) before the head and weapon: knees never go under
-  `KNEE_FLOOR` (the hips rise), knees closer than `KNEE_GAP` bow outward (steeper pole), and low cover hiding
-  curls the back (`rig.curl`, graph `duck`) instead of crushing the legs. The weapon blends from the body to the
+  `KNEE_FLOOR` (the hips rise) and knees closer than `KNEE_GAP` bow outward (steeper pole). The weapon blends from the body to the
   aim by `aimW`, sits beside the head when aimed (`SIGHT_RAISE`, `NECK_WELD`), and `clearBody()` pushes it out
-  of the trunk, head and leg capsules (`rig.gunSpan` from `WeaponModel.hold`). Kneeling in cover mirrors
-  (`KNEEL_M`) so the gun is on the open side. A per-joint angular rate limit (`JOINT_RATE`) is the safety net
+  of the trunk, head and leg capsules (`rig.gunSpan` from `WeaponModel.hold`). `rig.openLeft` (dormant, D9 at
+  step 12b) mirrors the aim pocket (weapon x, yaw, roll) and swaps the grip and support arms. A per-joint angular rate limit (`JOINT_RATE`) is the safety net
   (`rig.limited`). The rig refreshes world matrices top-down once per node (`fresh`), never
   `computeWorldMatrix(true)` per joint (it re-forces the whole chain). Emotes return an `FkPose` slerped over the
   result. Rigs beyond `ANIM_LOD_DISTANCE` (22 m) animate at half rate; `animate` is a no-op after `dispose`.

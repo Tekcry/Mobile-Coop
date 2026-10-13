@@ -9,7 +9,7 @@ import { emptyKinds, ENEMY_KINDS, type EnemyKind } from '../ai/enemyDefs';
 import { hyp3 } from '../core/mathx';
 import { packMoveState, sanitizeMoveState, type MoveState } from '../player/moveState';
 
-export const PROTOCOL_VERSION = 2;
+export const PROTOCOL_VERSION = 3;
 /** Room cap on the wire (PvP); co-op modes take `COOP_MAX`. */
 export const MAX_PLAYERS = 8;
 export const COOP_MAX = 4;
@@ -47,7 +47,7 @@ export interface PlayerInfo {
 }
 
 /** Bit flags in player state. */
-/** Player flags; `silent`: footsteps make no noise this moment (cover glides / moves, climbing, vaults);
+/** Player flags; `silent`: footsteps make no noise this moment (climbing, vaults);
  *  `spotted` (host -> client): guards in combat know this player is there (no takedowns on them). */
 export const PF = { crouch: 1, ads: 2, firing: 4, roll: 8, grounded: 16, dead: 32, sprint: 64, quiet: 128, silent: 256, spotted: 512, driven: 1024 } as const;
 
@@ -62,7 +62,7 @@ export interface PlayerState {
   f: number;
   w: WeaponId;
   hp: number;
-  /** Movement state (3.2.0): cover, attached, committed moves, takedowns (`player/moveState.ts`). */
+  /** Movement state (3.2.0): back to a wall, attached, committed moves, takedowns (`player/moveState.ts`). */
   mv?: MoveState;
 }
 

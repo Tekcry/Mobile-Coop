@@ -295,7 +295,7 @@ export class TakedownController {
     e.holdAt(c.pos.x + fx * GRAB.hold, c.pos.y, c.pos.z + fz * GRAB.hold, c.yaw);
     if (gr.strikeT >= 0) {
       gr.strikeT += dt / this.handsMul;
-      g.player.coverPose.melee = a.lethal ? Math.min(1, gr.strikeT / GRAB_STRIKE) : -1;
+      g.player.pose.melee = a.lethal ? Math.min(1, gr.strikeT / GRAB_STRIKE) : -1;
       if (gr.strikeT >= GRAB_STRIKE) {
         c.speedCap = Infinity;
         this.grabs[a.lethal ? 'killed' : 'ko']++;
@@ -368,7 +368,7 @@ export class TakedownController {
     e.holdAt(vx, vy, vz, plan.kind === 'front' ? plan.faceYaw + Math.PI : plan.faceYaw);
     // the strike / choke pose
     const ks = (a.t - plan.approach) / plan.strike;
-    const pose = g.player.coverPose;
+    const pose = g.player.pose;
     pose.melee = a.lethal && ks >= 0 ? Math.min(1, ks) : -1;
     // (never finishes before the choice is made)
     if (a.t >= total && (a.decided || a.t >= TAKEDOWN.lethalHold)) this.finish();
@@ -405,7 +405,7 @@ export class TakedownController {
       // (a dead hostage's hit volumes are gone)
       if (this.active.e.alive) this.active.e.setSolid?.(true);
     }
-    g.player.coverPose.melee = -1;
+    g.player.pose.melee = -1;
     const rig = g.player.rig;
     rig.reachL.w = rig.reachR.w = 0;
     this.active = null;

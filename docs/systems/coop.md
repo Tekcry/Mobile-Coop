@@ -8,6 +8,7 @@ Design authority: docs/design-bible.md (Section 5.9)
 - `Transport` (`transport.ts`): `send(msg, to?)`, `onMessage/onPeerJoin/onPeerLeave`. `trysteroTransport`
   (WebRTC, Nostr signalling, room `ss-<code>`) or `localTransport` (BroadcastChannel, `?net=local`, for tests).
 - `protocol.ts`: every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps).
+- `PROTOCOL_VERSION` 3 (Block A of the locomotion run: `ex` and `sh` gone, MoveState slot 1 `cover` -> `wall`, reserved for back-to-wall until step 11; A2). A `hello` with another version is ignored by the host. `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits (`ATTACH_SUB`), phase, takedown target, gear, raise, aim twist, ready, grips, commit.
   Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
 - `NetSession`: lobby state (each `PlayerInfo` carries name, tag, look and the validated weapon `loadout`), ready/start, routing. Clients accept authoritative messages (lobby/start/snap/
   ev/end) only from the host; the host accepts gameplay messages only from lobby members. No host migration.

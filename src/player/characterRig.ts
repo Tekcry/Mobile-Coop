@@ -13,8 +13,8 @@ import { DEBUG_RIGS } from '../ui/debugVolumes';
 import { hyp2 } from '../core/mathx';
 
 /** Creates a unit-sized part mesh (instanced from the shared PartLibrary). `slot` names the colour/pattern slot. */
-/** Weapon changing hands at a left cover edge (s): 150-200 ms. */
-export const HAND_SWAP_TIME = 0.18;
+/** Weapon changing hands at an open-left back-to-wall edge (s): 150-200 ms (D9, driven from step 12b). */
+export const EDGE_HAND_TIME = 0.18;
 
 export type PartFactory = (shape: PartShape, hex: string, slot: string) => AbstractMesh;
 
@@ -55,28 +55,14 @@ export interface RigPose {
   dash?: number;
   /** Dash-in slide progress 0..1, or < 0. */
   slide?: number;
-  /** Turn-and-swap / corner swing in cover 0..1, or < 0. */
-  coverTurn?: number;
-  /** Edge peek: 1 when the line of fire clears the cover (the weapon comes up only then). */
-  peekClear?: number;
   /** Landing recovery 0..1. */
   landing?: number;
-  cover?: AnimInput['cover'];
-  /** Side of the cover surface in the character's frame (-1 left, 1 right). */
+  /** Back to a wall (the flat-back high stance). */
+  wall?: boolean;
+  /** Side of the wall in the character's frame (-1 left, 1 right). */
   wallSide?: number;
   /** Lean around an edge (-1 left .. 1 right), hips planted. */
   lean?: number;
-  /** Rise over low cover 0..1. */
-  peekOver?: number;
-  /**
-   * Low cover top above the feet (m; 0 = none) and what to do about it: 'hide' keeps the head below the
-   * top (ducks and hunches), 'over' raises just enough for the weapon to clear it (crouched aim).
-   */
-  coverTop?: number;
-  coverMode?: 'none' | 'hide' | 'over';
-  blind?: boolean;
-  /** Glance towards a nearby edge (-1 / 0 / 1). */
-  edgeLook?: number;
   /** Stick intent along the body, wanted minus current pace (-1..1), at render rate. */
   intent?: number;
   traverse?: TraverseKind;
@@ -183,18 +169,6 @@ export const SHOULDER_WELD = 0.04;
 export const WRIST_TRIGGER: readonly [number, number, number] = [0.01, -0.015, -0.065];
 export const WRIST_SUPPORT: readonly [number, number, number] = [0.015, -0.055, -0.035];
 
-/** Low cover: the head stays this far below the top when hiding; the aim pocket this far above it when
- *  aiming over. Hiding curls the back over the knees (`curl` 0..1, head drop ~`CURL_DROP` m at full curl) and
- *  sinks the pelvis only a little (`HIDE_DROP` at full curl), so the legs keep a real kneel (never folded
- *  through the floor); aiming over lifts the pelvis (up to `LIFT_RISE`). */
-export const HIDE_MARGIN = 0.07;
-export const OVER_CLEAR = 0.13;
-/** Aiming over low cover: the eye (head centre) rises this far above the top, so the weapon at the cheek
- *  clears it by ~`OVER_CLEAR`. */
-export const OVER_EYE = 0.31;
-export const HIDE_DROP = 0.07;
-export const CURL_DROP = 0.32;
-export const LIFT_RISE = 0.6;
 /** Knees point along the foot and this much outward (pole), so they never knock together in a side-step. */
 export const KNEE_OUT = 0.12;
 /** Closest the two knee centres may come (m): two kneecaps side by side. */
@@ -343,24 +317,12 @@ export class CharacterRig {
   gunPush = 0;
   /** Weapon node whose grips the hands follow (null = free arms). */
   heldWeapon: TransformNode | null = null;
-  /** Low cover height control: pelvis offset (m, + up) and its inputs (see `coverHeight`). */
-  lift = 0;
-  /** Hiding curl 0..1 (back over the knees, head tucked). */
-  curl = 0;
   /** (3.2.0) World aim of a raised weapon (`RigPose.aimWorldYaw`), null when body-relative. */
   private aimWorldYaw: number | null = null;
   private aimWorldPitch = 0;
-  /** (3.2.0) A curl set from outside (a co-op / PvP remote: the owner's own curl), else null (measured here). */
-  curlHold: number | null = null;
-  /** (3.2.0) A low-cover lift set from outside (a remote: the owner's), else null (height control here). */
-  liftHold: number | null = null;
   /** Head-only glance (see `RigPose.lookYaw`). */
   private lookYaw = 0;
   private lookPitch = 0;
-  /** Aiming over low cover: the weapon has cleared the top. */
-  overClear = false;
-  private coverTop = 0;
-  private coverMode: 'none' | 'hide' | 'over' = 'none';
   /** Depth (m) of gear on the back beyond the chest shell (carried weapons stand off it). */
   backGear = 0;
   /** Sideways reach (m) of the thigh's surface and gear from the hip joint. */
@@ -371,11 +333,14 @@ export class CharacterRig {
   emote: ((rig: CharacterRig, t: number) => FkPose | void) | null = null;
   emoteTime = 0;
   private emoteW = 0;
-  /** Weapon in the left hand (cover on the right side): grip/foregrip swap and mirrored aim pocket. */
-  leftHanded = false;
+  /**
+   * Weapon in the left hand (open side on the left at a back-to-wall edge, D9): grip / support swap and a
+   * mirrored aim pocket. Dormant until step 12b drives it (WALL_SUB.leftHand).
+   */
+  openLeft = false;
   private handBlend = 0;
-  /** World point for the off hand on the cover surface (set by the cover system), or null. */
-  coverHand: Vector3 | null = null;
+  /** World point for the off hand on the wall (back-to-wall contact IK, step 11), or null. */
+  wallHand: Vector3 | null = null;
   /**
    * World grips for the hands, independent of any weapon (rungs, pipe, ledge lip, a victim in a takedown):
    * the palm point and a weight 0..1. Weighted over the weapon / clip target; the wrist sits behind the palm
@@ -399,7 +364,7 @@ export class CharacterRig {
   private velX = 0;
   private velZ = 0;
   private pelvisDrop = 0;
-  /** Hand swap progress (cover edge prep): 0..1 while changing hands, else -1. */
+  /** Hand switch progress (open-left edge): 0..1 while changing hands, else -1. */
   handSwap = -1;
   private handFrom = 0;
   /** Smoothed world aim rotation of the weapon (inertia from the weapon's mass). */
@@ -902,15 +867,10 @@ export class CharacterRig {
     i.armed = s.armed ?? !!this.heldWeapon;
     i.dash = s.dash ?? 0;
     i.slide = s.slide ?? -1;
-    i.coverTurn = s.coverTurn ?? -1;
-    i.peekClear = s.peekClear ?? 1;
     i.landing = s.landing ?? 0;
-    i.cover = s.cover ?? 'none';
+    i.wall = s.wall ?? false;
     i.wallSide = s.wallSide ?? 0;
     i.lean = s.lean ?? 0;
-    i.peekOver = s.peekOver ?? 0;
-    i.blind = s.blind ?? false;
-    i.edgeLook = s.edgeLook ?? 0;
     i.traverse = s.traverse ?? 'none';
     i.traverseT = s.traverseT ?? 0;
     i.melee = s.melee ?? -1;
@@ -924,10 +884,6 @@ export class CharacterRig {
     i.accelFwd = s.accelFwd ?? 0;
     i.accelSide = s.accelSide ?? 0;
     i.intent = s.intent ?? 0;
-    this.coverTop = s.coverTop ?? 0;
-    this.coverMode = this.coverTop > 0 ? (s.coverMode ?? 'none') : 'none';
-    i.duck = this.curl;
-    i.aimOver = this.coverMode === 'over' ? 1 : 0;
     const yaw = this.root.rotation.y;
     // root velocity: supplied by the motion driver, else measured from the root's movement
     const rp = this.root.position;
@@ -948,14 +904,14 @@ export class CharacterRig {
       i.yawRate = d / dt;
     }
     this.prevYaw = yaw;
-    // weapon changing hands (cover edge prep): eased over HAND_SWAP_TIME; the graph tucks the weapon in
-    const handTarget = this.leftHanded ? 1 : 0;
+    // weapon changing hands (open-left wall edge, D9): eased over EDGE_HAND_TIME; the graph tucks the weapon in
+    const handTarget = this.openLeft ? 1 : 0;
     if (handTarget !== this.handBlend && this.handSwap < 0) {
       this.handSwap = 0;
       this.handFrom = this.handBlend;
     }
     if (this.handSwap >= 0) {
-      this.handSwap = Math.min(1, this.handSwap + dt / HAND_SWAP_TIME);
+      this.handSwap = Math.min(1, this.handSwap + dt / EDGE_HAND_TIME);
       const e = this.handSwap * this.handSwap * (3 - 2 * this.handSwap);
       this.handBlend = this.handFrom + (handTarget - this.handFrom) * e;
       if (this.handSwap >= 1) {
@@ -1019,44 +975,7 @@ export class CharacterRig {
     this.emoteW = Math.max(0, Math.min(1, this.emoteW + (fk ? dt : -dt) / 0.2));
     if (this.emoteW > 0 && this.lastFk) this.applyFk(this.lastFk, this.emoteW);
     if (this.emoteW === 0) this.lastFk = null;
-    this.coverHeight(dt);
     for (let k = 0; k < this.onPosed.length; k++) this.onPosed[k]!();
-  }
-
-  /**
-   * Low cover height control, from the pose just solved (applies next frame): 'hide' ducks (pelvis down,
-   * spine hunched through `duck`) until the top of the head is below the cover top; 'over' raises the
-   * pelvis from the crouch until the aim pocket is just above it (a crouched aim, not standing up).
-   * Elsewhere the lift eases back to zero. Proportional on the measured height error, so it adapts to
-   * builds, heights and the kneel.
-   */
-  private coverHeight(dt: number): void {
-    const rp = this.root.position;
-    let want = 0;
-    let tau = 0.12;
-    this.overClear = false;
-    let curl = 0;
-    // the head is fresh from the solve (an emote may have moved it since)
-    if (this.coverMode !== 'none' && this.emoteW > 0) fresh(this.neck);
-    if (this.coverMode === 'hide') {
-      const top = posIn(this.headNode, headPt).y + this.p.head.h * 0.5 - rp.y;
-      // curl the back (and sink a little) until the head is under the top; very low cover can leave the
-      // head showing rather than fold the legs into the floor
-      const err = top - (this.coverTop - HIDE_MARGIN);
-      curl = this.curlHold ?? Math.max(0, Math.min(1, this.curl + err / (CURL_DROP + HIDE_DROP)));
-      want = -HIDE_DROP * curl;
-      tau = 0.1;
-    } else if (this.coverMode === 'over') {
-      // rise until the eye (and so the weapon at the cheek, just below it) is over the top: measured on the
-      // head, not the weapon, so a weapon still held down never stalls the rise
-      const eye = posIn(this.headNode, headPt).y - rp.y;
-      want = this.lift + (this.coverTop + OVER_EYE - eye);
-      tau = 0.07;
-      this.overClear = eye >= this.coverTop + OVER_EYE - 0.04;
-    }
-    want = Math.max(-HIDE_DROP, Math.min(LIFT_RISE, this.liftHold ?? want));
-    this.lift += (want - this.lift) * (1 - Math.exp(-dt / tau));
-    this.curl += (curl - this.curl) * (1 - Math.exp(-dt / 0.1));
   }
 
   /**
@@ -1226,7 +1145,7 @@ export class CharacterRig {
     // at once (a lagging drop lets the trailing leg overstretch and the planted ankle slide at toe-off);
     // easing back up stays smooth
     const legLen = (p.thigh.len + p.calf.len) * 0.97;
-    const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y + this.lift - 0.03;
+    const hipY = rp.y + this.bodyPivot + this.pelvisRest + pe.y - 0.03;
     const yc = Math.cos(yaw);
     const ys = Math.sin(yaw);
     let need = 0;
@@ -1243,7 +1162,7 @@ export class CharacterRig {
     const turned = Math.abs(this.input.tumble) > 0.3;
     if (turned) need = 0;
     this.pelvisDrop = need > this.pelvisDrop ? approachTo(this.pelvisDrop, need, dt, 0.012) : approachTo(this.pelvisDrop, need, dt, 0.08);
-    this.hips.position.set(pe.x, this.pelvisRest + pe.y + this.lift - this.pelvisDrop, pe.z);
+    this.hips.position.set(pe.x, this.pelvisRest + pe.y - this.pelvisDrop, pe.z);
     Quaternion.RotationYawPitchRollToRef(pe.yaw, pe.pitch, pe.roll, this.hips.rotationQuaternion!);
     // the spine counters most of the pelvis tilt and twist so the chest stays square (gun platform)
     const sp = t.spine;
@@ -1262,7 +1181,7 @@ export class CharacterRig {
     // so the weapon below is placed against this frame's legs
     this.solveLegWorld(this.hipL, this.kneeL, this.ankleL, L.x, L.y + p.y.ankle + st.lY, L.z, L.yaw, L.pitch + st.lPitch, -1);
     this.solveLegWorld(this.hipR, this.kneeR, this.ankleR, R.x, R.y + p.y.ankle + st.rY, R.z, R.yaw, R.pitch + st.rPitch, 1);
-    // anatomy: a knee never sinks into the floor (deep kneel, hiding curl): lift the pelvis and solve again
+    // anatomy: a knee never sinks into the floor (deep kneel): lift the pelvis and solve again
     const floorY = Math.min(L.y, R.y) + KNEE_FLOOR;
     const kneeY = Math.min(this.kneeL.getAbsolutePosition().y, this.kneeR.getAbsolutePosition().y);
     if (kneeY < floorY - 0.002 && !turned) {
@@ -1304,7 +1223,7 @@ export class CharacterRig {
     this.setWorldRot(this.headNode, this.neck, tmpQ);
     this.limitJoint(this.headNode, dt);
 
-    // aim pocket: rest + layer offsets, mirrored to the left shoulder when switched hands in cover
+    // aim pocket: rest + layer offsets, mirrored to the left shoulder when the weapon is in the left hand
     const chestY = p.y.waist + 0.13 * (p.height / 1.75);
     // raised to the eye the shoulder girdle lifts into the stock
     const shY = p.y.shoulder - chestY + t.weld * SHOULDER_WELD;
@@ -1342,11 +1261,12 @@ export class CharacterRig {
       this.gunPush = this.clearBody();
     }
 
-    // arms: the dominant hand takes the grip, the other the foregrip / magazine / cover surface
+    // arms: the dominant hand takes the grip, the other the foregrip / magazine / wall (the wall contact moves
+    // to the right hand when the weapon is in the left)
     const gripW = this.heldWeapon ? t.grip : 0;
     const leftGrips = this.handBlend > 0.5;
-    this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? t.offCover : 0, !leftGrips, leftGrips ? t.offMag : 0);
-    this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : t.offCover, leftGrips, leftGrips ? 0 : t.offMag);
+    this.solveArm(1, gripW, leftGrips ? t.offGrip : 1, t.handR, leftGrips ? t.offWall : 0, !leftGrips, leftGrips ? t.offMag : 0);
+    this.solveArm(-1, gripW, leftGrips ? 1 : t.offGrip, t.handL, leftGrips ? 0 : t.offWall, leftGrips, leftGrips ? 0 : t.offMag);
     this.limitJoint(this.shoulderL, dt);
     this.limitJoint(this.shoulderR, dt);
     this.limitJoint(this.elbowL, dt);
@@ -1403,10 +1323,10 @@ export class CharacterRig {
   }
 
   /**
-   * Arm IK. `isGrip`: this hand holds the trigger grip (else the foregrip / magazine / cover surface).
-   * `coverW` blends the support hand onto the cover surface point (`coverHand`).
+   * Arm IK. `isGrip`: this hand holds the trigger grip (else the foregrip / magazine / wall).
+   * `wallW` blends the support hand onto the wall point (`wallHand`).
    */
-  private solveArm(side: 1 | -1, gripW: number, offW: number, free: { x: number; y: number; z: number }, coverW = 0, isGrip = side > 0, magW = 0): void {
+  private solveArm(side: 1 | -1, gripW: number, offW: number, free: { x: number; y: number; z: number }, wallW = 0, isGrip = side > 0, magW = 0): void {
     const sh = side > 0 ? this.shoulderR : this.shoulderL;
     const el = side > 0 ? this.elbowR : this.elbowL;
     const wr = side > 0 ? this.wristR : this.wristL;
@@ -1439,7 +1359,7 @@ export class CharacterRig {
         }
       }
     }
-    if (coverW > 0 && this.coverHand && !isGrip) Vector3.LerpToRef(target, this.coverHand, coverW, target);
+    if (wallW > 0 && this.wallHand && !isGrip) Vector3.LerpToRef(target, this.wallHand, wallW, target);
     // world grip (rung, pipe, lip): the wrist sits behind the palm along the reach from the shoulder
     const reach = side > 0 ? this.reachR : this.reachL;
     if (reach.w > 0) {
@@ -1462,7 +1382,7 @@ export class CharacterRig {
     boneRotation(tmpA, tmpE, tmpQ);
     this.setWorldRot(el, sh, tmpQ);
     // hand: follow the weapon when gripping, else continue the forearm
-    if (gripW > 0.5 && this.heldWeapon && !(coverW > 0.5 && !isGrip) && reach.w < 0.5) {
+    if (gripW > 0.5 && this.heldWeapon && !(wallW > 0.5 && !isGrip) && reach.w < 0.5) {
       // fingers wrap the grip: hand -Y along weapon -Y, palm facing the weapon's side
       Quaternion.RotationYawPitchRollToRef(0, isGrip ? 0.25 : -1.2, isGrip ? 0 : -side * 0.4, tmpQ2);
       this.heldWeapon.absoluteRotationQuaternion.multiplyToRef(tmpQ2, tmpQ3);

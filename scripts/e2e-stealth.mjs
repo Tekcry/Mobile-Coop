@@ -78,7 +78,7 @@ await G(() => {
         pitch: cm.pitch,
         speed: c.speed,
         sprint: c.dashing,
-        lean: p.coverPose.lean,
+        lean: p.pose.lean,
         dashS: cm['sDash'].x,
         leanS: cm['sLean'].x,
         coverS: cm['sCover'].x,

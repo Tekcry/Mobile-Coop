@@ -238,7 +238,7 @@ export class MotionDriver {
       daz *= cap / dl;
     }
     // never carry more acceleration than the current tuning allows (switching from a snappier tuning,
-    // e.g. the cover glide, would otherwise leave an acceleration the jerk limit cannot unwind in time)
+    // e.g. a slide, would otherwise leave an acceleration the jerk limit cannot unwind in time)
     const al = hyp2(this.ax, this.az);
     if (al > cap) {
       this.ax *= cap / al;

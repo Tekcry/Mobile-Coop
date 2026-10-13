@@ -15,27 +15,18 @@ import { CT, MOVEMENT } from '../config/movement';
 import { G } from '../physics/groups';
 import type { TraverseKind } from '../anim/animGraph';
 
-/** Pose inputs other systems (cover, corners, traversal) drive on the player's rig. */
+/** Pose inputs other systems (back-to-wall, traversal, takedowns, team moves) drive on the player's rig. */
 export interface PlayerPose {
-  cover: 'none' | 'low' | 'high';
-  /** Cover surface side in the character's frame (-1 left, 1 right). */
+  /** Back to a wall (set by back-to-wall, step 11). */
+  wall: boolean;
+  /** Wall side in the character's frame (-1 left, 1 right). */
   wallSide: number;
   /** Lean around an edge (-1 left .. 1 right), hips planted. */
   lean: number;
-  /** Low cover: rise over the top 0..1. */
-  peekOver: number;
-  /** Low cover top above the feet (m; 0 = not at low cover). */
-  top: number;
-  blind: boolean;
-  edgeLook: number;
   traverse: TraverseKind;
   traverseT: number;
   /** Dash-in slide 0..1, or < 0. */
   slide: number;
-  /** Turn-and-swap or corner swing in cover 0..1, or < 0. */
-  turn: number;
-  /** Edge peek: the line of fire from where the body is clears the cover (else the gun stays tucked). */
-  gunClear: boolean;
   /** Doorway check 0..1, or < 0. */
   check: number;
   /** Takedown strike progress 0..1, or < 0. */
@@ -59,7 +50,7 @@ export class Player {
   readonly carryIn = emptyCarryInput();
   private adsToggled = false;
   ads = false;
-  /** Aim regardless of input (Mark & Execute raises the weapon for its shots). */
+  /** Aim regardless of input (tests and scripted sequences). */
   forceAds = false;
   /** Set by weapons when firing (kept for callers; the carry's raise now drives the pose). */
   aimLockTimer = 0;
@@ -83,9 +74,9 @@ export class Player {
   /** Seconds since the last shot and weapon mass factor (set by PlayerWeapons). */
   sinceShot = 99;
   weaponWeight = 1;
-  /** Pose driven by cover / corners / traversal. */
-  readonly coverPose: PlayerPose = { cover: 'none', wallSide: 0, lean: 0, peekOver: 0, top: 0, blind: false, edgeLook: 0, traverse: 'none', traverseT: 0, slide: -1, turn: -1, gunClear: true, check: -1, melee: -1, tumble: 0 };
-  /** Context flags for the ready position (set by the corner/cover systems each step). */
+  /** Pose driven by back-to-wall / traversal / takedowns / team moves. */
+  readonly pose: PlayerPose = { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0 };
+  /** Context flags for the ready position (set by the corner systems each step). */
   context = { doorway: false };
   /** Called when landing from a fall (speed in m/s). */
   onLand: ((speed: number) => void) | null = null;
@@ -165,9 +156,9 @@ export class Player {
       this.ads = inp.down('ads');
     }
     // aiming while sprinting ends the sprint and raises the weapon
-    if (this.ads && c.sprinting && this.coverPose.traverse === 'none') c.cancelSprint();
+    if (this.ads && c.sprinting && this.pose.traverse === 'none') c.cancelSprint();
     if (this.forceAds) this.ads = true;
-    if (c.weaponBlocked || (this.coverPose.traverse !== 'none' && !this.attachAim)) this.ads = false;
+    if (c.weaponBlocked || (this.pose.traverse !== 'none' && !this.attachAim)) this.ads = false;
     if (inp.pressed('shoulderSwap')) this.cam.swapShoulder();
     this.aimLockTimer = Math.max(0, this.aimLockTimer - dt);
 
@@ -185,8 +176,8 @@ export class Player {
     ci.dashing = c.weaponBlocked;
     // reloading, swapping and throwing all keep the weapon tucked in and down
     ci.reloading = this.reload >= 0 || this.swapT >= 0 || this.grenadeT >= 0;
-    ci.traversing = this.coverPose.traverse !== 'none' && !this.attachAim;
-    ci.coverRaise = this.coverPose.lean !== 0 || this.coverPose.peekOver > 0.5 || this.coverPose.blind;
+    ci.traversing = this.pose.traverse !== 'none' && !this.attachAim;
+    ci.coverRaise = this.pose.lean !== 0;
     ci.weight = this.weaponWeight;
     this.carry.update(dt, ci);
 
@@ -237,12 +228,10 @@ export class Player {
     c.interpolate(alpha);
     this.cam.crouch = c.crouchBlend;
     this.cam.dash = c.dashing ? 1 : 0;
-    this.cam.lean = this.coverPose.lean;
-    this.cam.cover = this.coverPose.cover !== 'none' ? 1 : 0;
+    this.cam.lean = this.pose.lean;
+    this.cam.cover = this.pose.wall ? 1 : 0;
     this.cam.steady = Math.max(c.kneeling ? 1 : c.crouchBlend * 0.5, this.ads ? 0.8 : 0);
     this.cam.pace = c.speed;
-    this.cam.lift = this.rig.lift;
-    this.cam.coverTop = this.coverPose.top;
     this.cam.update(dt, c.renderPos, c.crouchBlend);
     this.world.frame(c.renderPos, dt);
 
@@ -250,7 +239,7 @@ export class Player {
     root.position.copyFrom(c.renderPos);
     root.rotation.y = c.renderYaw;
     this.kick = Math.max(0, this.kick - dt * 8);
-    const cp = this.coverPose;
+    const cp = this.pose;
     // aiming: the upper body follows the aim; not aiming the view orbits freely and only the head glances
     // towards where the camera looks (spine, arms and gun stay put until an action raises the weapon)
     const rel = wrapPi(this.cam.yaw - c.renderYaw);
@@ -291,21 +280,12 @@ export class Player {
     rp.swapFrom = this.swapFrom;
     rp.swapTo = this.swapTo;
     rp.grenade = this.grenadeT;
-    rp.cover = cp.cover;
+    rp.wall = cp.wall;
     rp.wallSide = cp.wallSide;
     rp.lean = cp.lean;
-    rp.peekOver = cp.peekOver;
-    rp.coverTop = cp.top;
-    // low cover: aiming over it rises just enough; otherwise stay below the top
-    rp.coverMode = cp.top > 0 ? (cp.peekOver > 0.5 ? 'over' : 'hide') : 'none';
-    rp.blind = cp.blind;
-    rp.edgeLook = cp.edgeLook;
     rp.traverse = cp.traverse;
     rp.traverseT = cp.traverseT;
     rp.slide = cp.slide;
-    rp.coverTurn = cp.turn;
-    // the weapon comes up only once it clears: past an edge (cover controller) or over the top (the rig's rise)
-    rp.peekClear = cp.gunClear && (cp.peekOver <= 0.5 || this.rig.overClear) ? 1 : 0;
     rp.check = cp.check;
     rp.melee = cp.melee;
     rp.tumble = cp.tumble;
@@ -352,15 +332,15 @@ export class Player {
   private lookIdleT = 0;
 
   /**
-   * Gentle auto-recentre: after `recentreDelay` s without look input while moving (not aiming, not in
-   * cover), the view eases round behind the travel direction. Never while the player is looking.
+   * Gentle auto-recentre: after `recentreDelay` s without look input while moving (not aiming, not at
+   * a wall), the view eases round behind the travel direction. Never while the player is looking.
    */
   private recentre(dt: number, look: { x: number; y: number }): void {
     const c = this.controller;
     this.lookIdleT = Math.abs(look.x) + Math.abs(look.y) > 1e-5 ? 0 : this.lookIdleT + dt;
     const T = MOVEMENT;
     if (!this.getSettings().gameplay.autoRecentre || this.lookIdleT < T.recentreDelay) return;
-    if (this.ads || this.aiming || c.override || this.coverPose.cover !== 'none' || c.speed < 0.5) return;
+    if (this.ads || this.aiming || c.override || this.pose.wall || c.speed < 0.5) return;
     const m = c.motion;
     const heading = Math.atan2(m.vx, m.vz);
     const err = wrapPi(heading - this.cam.yaw);

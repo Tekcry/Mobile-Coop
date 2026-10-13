@@ -41,7 +41,7 @@ const GADGET_DESC: Record<GadgetId, string> = {
   flash: 'Blinds guards facing it for a few seconds, then they come looking.',
   emp: 'Kills lights and electronics for a while; dazes guards close by.',
   noise: 'Sticks on and calls guards over to it. Draw them away.',
-  stickyCam: 'Stick it up and watch the room: ping to lure, gas once, mark.',
+  stickyCam: 'Stick it up and watch the room: ping to lure, gas once.',
   drone: 'Fly in through the gaps: stun dart and one shock burst.',
   mine: 'Placed, arms after 1.5 s: a frag-strength blast when a guard walks past.',
 };

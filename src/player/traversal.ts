@@ -298,7 +298,7 @@ export class TraversalController {
   fixedUpdate(dt: number, jumpPressed: boolean, blocked: boolean, dir: { x: number; z: number } | null = null, leapPressed = false): boolean {
     const p = this.player;
     const c = p.controller;
-    const pose = p.coverPose;
+    const pose = p.pose;
     if (this.attachCtl.active) {
       this.attachCtl.fixedUpdate(dt, jumpPressed);
       return true;

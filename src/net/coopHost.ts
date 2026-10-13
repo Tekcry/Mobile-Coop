@@ -952,7 +952,7 @@ export class CoopHost implements NetAttachment {
       this.recordHistory();
     }
     this.snapT -= dt;
-    // the host's own mode / sub-state changed (cover, a ladder, a vault): snapshot now
+    // the host's own mode / sub-state changed (a ladder, a vault): snapshot now
     const mv = localMoveState(this.g, this.mvNow);
     if (moveChanged(this.mvSent, mv)) {
       Object.assign(this.mvSent, mv);

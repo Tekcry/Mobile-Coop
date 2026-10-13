@@ -88,7 +88,7 @@ export class RemotePlayer implements Damageable {
     const dx = s.x - this.feet.x;
     const dz = s.z - this.feet.z;
     const d = hyp2(dx, dz);
-    // (3.2.0) free movement within the speed gear's pace; cover / traversal / the air keep the general cap
+    // (3.2.0) free movement within the speed gear's pace; traversal / the air keep the general cap
     const cap = moveSpeedCap(s.mv, (s.f & PF.crouch) !== 0, (s.f & PF.sprint) !== 0, (s.f & PF.driven) !== 0, (s.f & PF.grounded) !== 0);
     const max = Math.min(MAX_SPEED, cap) * dt + 0.75;
     if (d > max && this.teleportGrace <= 0 && this.state) {

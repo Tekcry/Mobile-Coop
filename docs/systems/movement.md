@@ -4,7 +4,7 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
 
 ## Movement and camera (stealth operative)
 - Chaos Theory movement (3.2.0, in progress): spec `docs/ct-movement.md`, status `docs/ct-movement-progress.md`.
-- 3.2.0 phase 0 (player free movement only; cover, traversal and enemies keep the rest of this section):
+- 3.2.0 phase 0 (player free movement only; traversal and enemies keep the rest of this section):
   speed gears (`player/speedGears.ts` pure, `GEARS` in `config/movement.ts`): 6 gears, spawn / respawn gear 3
   (`GameState` resets it when the player comes back alive; `?gear=N` for tests, `e2e-lib` adds `gear=4` = the 2.x jog
   unless a suite names a gear), kept through stance changes; `PlayerController.gears`, `speedUp` / `speedDown`
@@ -19,8 +19,7 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
   `PlayerController.stopHold` / `holdSpeed` from any stop (> 0.02 m/s) until the next input (a stick that moves the
   operator again, aim, stance change, an override, leaving the ground; teleport clears it; no kneel while held);
   `StickRelease` (`speedGears.ts`, pure; `CT.releaseRate` / `releaseFrom` / `releaseWindow`) keeps a springing-back
-  stick's deflection so the stop is from the full pace. Cover strafe = `coverPace(gear, crouched)` (`GEARS.coverMax`
-  2.8 / 1.8; `CoverController`) -> `RigPose.holdSpeed`: the graph keeps
+  stick's deflection so the stop is from the full pace. `RigPose.holdSpeed`: the graph keeps
   the locomotion pose at the frozen gait clock for that pace (`locoSpeed`; released, it blends out over `quickStop`),
   the planner `hold` takes no settling / idle steps (`anim-sheet` `crouchstop` / `walkstop`); starts
   reach 95% within `CT.startTime` 0.08 s (`ctTau` = startTime / 4), direction / gear changes re-target at once, no
@@ -32,14 +31,14 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
   tactical strip, `GEARS.pipsShow` 1.5 s after a change); touch rocker `speed` (`TOUCH_LAYOUT_VERSION` 4).
 - 3.2.0 phase 1 networked movement: `player/moveState.ts` (pure; in `player/` because single player builds it and
   must never import `src/net`): `MoveState {m (MOVE_MODES index on the wire, later phases append), a anchor, s, sub
-  (u16: `COVER_SUB` incl. `leftHand` / `ATTACH_SUB` phase + face + exit pose), ph, tid, g gear, r raise, ay aim
-  twist, rd ready, cover: cu curl / lf lift / fp feet (body frame, still), attached: gp planted grips (still), c
-  MoveCommit}`, `sanitizeMoveState`, `packMoveState`, `poseFromMoveState` (pose families for player and remotes),
+  (u16: `ATTACH_SUB` phase + face + exit pose), ph, tid, g gear, r raise, ay aim twist, rd ready, attached: gp
+  planted grips (still), c MoveCommit}`; slot 1 is `wall` (back-to-wall, reserved until step 11; it was `cover`,
+  A2; `PROTOCOL_VERSION` 3), `sanitizeMoveState`, `packMoveState`, `poseFromMoveState` (pose families for player and remotes),
   `moveChanged` (send at once). `game/localMoveState.ts` builds it from `GameState`. `player/attachGrips.ts`
   `AttachGrips` (hand / foot `GripStepper`s and rig targets; `AttachController.grips` and `RemoteAvatar` share it;
   `settleTo` onto the owner's planted grips) and `player/traversePath.ts` `traversePath` (committed move paths; the
   remote replays a `MoveCommit`). `PlayerState.mv` (`wirePlayerState`), `PF.driven`; `RemoteAvatar` poses from it
-  (`rig.curlHold` / `liftHold` / `footPins` -> `FootPlanner` pins); `validate.ts` `moveSpeedCap` (gear pace x
+  (`rig.footPins` -> `FootPlanner` pins); `validate.ts` `moveSpeedCap` (gear pace x
   `MOVE_TOLERANCE` 1.15) / `attachedClamp` (`ATTACH_SLACK` 0.5) in `RemotePlayer.accept`; `RemotePlayer.followPose`
   and `Hitboxes.sync(feet, head, hips)` lay the capsules along hips -> head; host `Hist` keeps the posed head / hips
   and the mode, `judge` uses them.
@@ -84,7 +83,7 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
   brace / boost / assist / ladderUp / top / bottom; `offer` = a braced mate within `partnerReach` + the boost target
   from `findJumpTarget` 1.15 m under `boostMax`: lips 3.75-4.5 m, beyond a wall jump). Y: tap at a braced mate = boost, held `TEAM.braceHold` = ladder, held with
   a mate within `mateRange` and a wall behind (`wallBehind`, one ray) = brace; B ends brace / bottom / top. Y order in
-  `GameState`: takedown > team > traversal (CT moves included) > interact; cover / traversal skip while a team move
+  `GameState`: takedown > team > traversal (CT moves included) > interact; traversal skips while a team move
   runs. NetAttachment `teamMates` / `teamRequest` / `teamEnd`; messages `tmove` (client -> host), `tstart` / `tdeny` /
   `tend` (host -> all); `CoopHost.onTeamMove` checks both sides (`teamSide`: MoveState mode, team in PvP, 1 s rate)
   and starts it on both (host included); `teamPairs` for the ladder's end. MoveState modes `brace`, `boost`, `stacked`
@@ -102,16 +101,14 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
   Horizontal pipes face along the pipe in every sub-state (`attachPose` pipeH yaw along `face`; `pipeFace(a, camYaw)`
   in `attachTo`; hands one ahead of the other, `pipeHands` either side of the top; inverted: legs straddle it, ankles
   crossed over the top); held back against the facing for `PIPE_TURN` 0.3 s it turns round (`backT`); `anchorFirst`
-  includes a pipe overhead. Touch action button (`GameState.promptAction`): the world prompt on offer (order: in cover
-  corner / move / vault else leave cover; attached vault / jumpTo / drop; out of cover moving or stick pushed: vault,
-  cover, jumpTo, drop - still: cover first), `TouchAction.press` / `down` / `up` = the prompt's tap / hold handlers;
+  includes a pipe overhead. Touch action button (`GameState.promptAction`): the world prompt on offer (attached: vault / jumpTo /
+  drop; else vault, jumpTo, drop), `TouchAction.press` / `down` / `up` = the prompt's tap / hold handlers;
   always shown, `tc-idle` when nothing is on offer; world prompts are indicators only (no pointer events).
 - All feel constants live in `config/movement.ts` (`MOVEMENT`, live-tunable in the debug overlay's Tune panel):
   crouched sneak 0.8 / crouch walk 1.8 / crouch run 2.6, standing walk 1.4 / jog 2.8, sprint 5.0 m/s (toggle or
   hold `gameplay.sprintHold`, no stamina, stands you up, weapon lowered at the low ready; aiming ends it via
   `cancelSprint`), aiming 1.4 / 1.0 crouched; strafe x0.9
-  and backstep x0.75 only while aiming; analog by stick bands (`sneakBand`, `walkBand`, `crouchWalkBand`); cover
-  2.3 / 1.25 crouched (a jog along the wall; `COVER_MOTION` never pivots), cover-to-cover run 3.6. Stance times: crouch 0.25 s, kneel 0.3 s, stand 0.28 s.
+  and backstep x0.75 only while aiming; analog by stick bands (`sneakBand`, `walkBand`, `crouchWalkBand`). Stance times: crouch 0.25 s, kneel 0.3 s, stand 0.28 s.
   `ENEMY_MOTION` / `ENEMY_CALM_MOTION` keep the enemies' slower, weighted tuning as standalone literals (3.2.0;
   `tests/motion.test.ts` pins them, so `MOVEMENT` changes never reach the guards).
 - `anim/motion.ts` `MotionDriver` (pure; player and enemies): first-frame response, 90% speed in 0.2-0.35 s
@@ -124,37 +121,35 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
 - `player/movement.ts` (pure): `targetSpeed(mag, stance, localX, localZ)`, `SprintGate` (toggle / hold, ends
   when the stick drops), `pickTraversal` (step <= 0.65 m, vault <= 1.25 m and thin, mantle <= 1.8 m, hop over gaps
   when sprinting), `noiseRadius(speed, crouched, sprinting)` (2.3: sneak, crouch walk and a slow walk 0; crouch
-  run ~2 m, jog ~3.4 m, sprint 9 m). `PlayerController.steps`: 'silent' while an override drives the step (cover
-  glides and moves along cover, climbing, vaults, attached), 'crouched' for a cover-to-cover run; footsteps only
+  run ~2 m, jog ~3.4 m, sprint 9 m). `PlayerController.steps`: 'silent' while an override drives the step
+  (climbing, vaults, attached); footsteps only
   when grounded (`PF.silent` carries it for co-op clients). Crouched targets are seen at 0.6x the distance.
 - Kneel = crouched and still. There is no free jump: `TraversalController` (`player/traversal.ts`) probes ahead
   (5 Hz, for the HUD prompt) and on traverse plays a committed step / vault / mantle / drop / hop, timed by speed
   and carrying momentum out (in stride). Footstep noise goes to `EnemyManager.hear` (investigate).
-- `PlayerController.override` lets cover/traversal drive a step (velocity + facing + turn rate + crouch, `glide`
-  for an eased path, `run` for cover-to-cover, or a kinematic feet path); `steer` is a gentle velocity bias
-  (slicing the pie); `stanceMul` / `speedCap` slow (leaning).
+- `PlayerController.override` lets traversal drive a step (velocity + facing + turn rate + crouch, `glide`
+  for an eased path, `run`, or a kinematic feet path); `speedMul` (weapon handling) / `speedCap` slow it.
 - Weapon carry (`weapons/weaponCarry.ts`, pure): ready position from context (`pickReady`: compressed near walls,
-  doorways, cover edges, sprinting, reloading; high in tight corridors/traversal; else low), raised only to aim or
+  doorways, sprinting, reloading; high in tight corridors/traversal; else low), raised only to aim or
   fire (raise ~170 ms, lower ~300 ms; `CARRY.raiseTime` x weapon `weight`), the trigger is live at
   `fireThreshold`, held `holdAfterFire` after the last shot. `PlayerWeapons` gates on `carry.canFire`.
   Raised = a cheek weld, never hip fire: `SIGHT_RAISE` (anim graph) lifts the gun so its sight line is level with
   the eye beside the head (stock high, elbows up) and the rig closes the loop on the posed head
   (`sightToEye`, any stance, hunch or lean), the neck flexes the head onto the stock (`out.weld` -> `NECK_WELD`) and the shoulders lift
   into it (`SHOULDER_WELD`). Ready poses (`READY_POSES`): low (stock in the shoulder, muzzle ~45 deg down across),
-  compressed (tight to the chest, muzzle forward-down, never swung across into a wall), high; in cover
-  `COVER_READY` (muzzle down along the wall, turned away from it, relative to the hand holding it;
-  `COVER_READY_CROUCH`: flatter, higher and further out, clear of the knees; coming up toward level as the body
-  leans out; carried flatter moving crouched). Gliding into cover the carry is compressed until the tuck takes
-  over; turning round at high cover (turn-and-swap, corner) it goes to the high ready, at low cover the tucked
-  muzzle comes up; crouched in the open the lowered muzzle lifts with the crouch.
+  compressed (tight to the chest, muzzle forward-down, never swung across into a wall), high; back to a wall
+  `WALL_READY` (muzzle down along the wall, turned away from it; coming up toward level as the body leans out;
+  `AnimInput.wall`, lower state `wall`: the flat-back high stance `WALL_STANCE` and the support hand on the wall,
+  `RigTargets.offWall` -> `CharacterRig.wallHand`; kept for back-to-wall, A6). Stepping to the wall the carry is
+  compressed until the tuck takes over; crouched in the open the lowered muzzle lifts with the crouch.
 - Camera (`config/camera.ts` `CAMERA` + `framing()`): free orbit - look input applies the same frame and nothing
   holds the view back (no twist clamp, no look cap); lowered, looking around only turns the head
   (`RigPose.lookYaw/lookPitch`): spine, arms and gun move with the camera only once raised (`aimYaw/aimPitch` x
   raise); Splinter Cell: Blacklist framing - the operative small in
   the left third (boom 2.2 / ADS 1.5, shoulder 0.62 / 0.58, pivot 1.62 / crouched 1.18, height -0.08; crouched
-  low in the lower left), a sneak frames a touch tighter, cover pulls back `coverBoom` to show the room. FOV is horizontal at 16:9 (`video.fovH`, default 75), Hor+. Springs
+  low in the lower left), a sneak frames a touch tighter, back to a wall pulls back `coverBoom` to show the room. FOV is horizontal at 16:9 (`video.fovH`, default 75), Hor+. Springs
   updated every render frame: follow 80-150 ms with look-ahead, aim framing 150-250 ms, shoulder swap ~250 ms on
-  an arc, auto shoulder in cover / at peeks, optional auto-recentre after 1.5 s of no look input
+  an arc, auto shoulder at peeks, optional auto-recentre after 1.5 s of no look input
   while moving (`gameplay.autoRecentre`), handheld drift (<= 0.15 deg), micro-bob (<= 1 cm), sprint FOV +4 deg.
   Tight spaces: the boom pulls in fast and eases out slowly, then `applyBodyFade` hides the head / body.
   Shake roll is `rotation.z`; the camera sets `updateUpVectorFromRotation` (Babylon otherwise rebuilds the up
@@ -182,7 +177,7 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
   reports pushing past an end (`edge`). Ladder 3 rungs/s (`LADDER_RUNG_RATE`; sprint held `LADDER_SPRINT_RATE` 5, drainpipe x`PIPE_SPRINT`), slide `LADDER_SLIDE`; zipline
   builds to `ZIP_SPEED` 6 m/s.
 - `TraversalController.attach` runs it: `attachTo(anchor, s, entry)`, `detach(reason)`; `input` (move, camera yaw,
-  drop) is filled by `GameState` each step. While attached it drives `override.kinematic`, sets `coverPose.traverse`
+  drop) is filled by `GameState` each step. While attached it drives `override.kinematic`, sets `pose.traverse`
   to the pose family (`hang` / `climb` / `crawl`, clips in `anim/clips/traverse.ts`; `traverseT` = climb cadence) and
   the rig's world targets; `GameState` stows the weapon (`PlayerWeapons.setStowed`: the swap's holster half, held)
   and sets `cam.attach` (framing preset `ATTACH_FRAMING` in `config/camera.ts`, blended by `blend`).
@@ -224,10 +219,3 @@ Design authority: docs/design-bible.md (Sections 4 and 5.3)
   weapon / clip hands; `plantL/R` (sole points) override the feet while off the ground planner.
 - Input: `drop` is raised with `crouch` by `InputState` (alias), `interactHold` after `INTERACT_HOLD` 0.3 s;
   `heldTime` / `holdProgress` for rings (`InputState.tick` from `InputManager.poll`).
-
-## Corners and doorways
-- `cover/corners.ts` (pure): `findDoorways` (0.7-1.8 m gaps between collinear high faces), `outsideCorners`,
-  `sliceSteer` (ease out to a ~1 m standoff approaching a corner), `doorSide`, `pickLean`.
-- `CornerController` (runs when not in cover/traversal): slice-the-pie steer + compressed ready near corners,
-  doorway compressed ready + check sweep on crossing, contextual lean while aiming with the aim line blocked
-  (probes centre/left/right; shoulder swap and restore; hips planted via `stanceMul`).

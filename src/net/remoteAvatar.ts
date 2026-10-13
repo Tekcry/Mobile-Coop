@@ -17,7 +17,7 @@ import { TEAM_COLORS } from './pvp';
 import { AttachGrips } from '../player/attachGrips';
 import { wrapPi } from '../anim/motion';
 import { RAPPEL } from '../config/movement';
-import { attachGripWeight, COVER_SUB, emptyMovePose, footPoints, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
+import { attachGripWeight, emptyMovePose, isAttachedMode, poseFromMoveState, unpackAttachSub, type MoveCommit, type MoveMode } from '../player/moveState';
 import { traversePath, type PathKind } from '../player/traversePath';
 import type { TraverseKind } from '../anim/animGraph';
 
@@ -26,7 +26,7 @@ let ropeKeys = 0;
 
 /**
  * Another player's body, rendered from interpolated states: rig animation from speed / flags and (3.2.0) their
- * movement state - cover, attached grips, committed moves replayed from their start, takedowns - posed by the same
+ * movement state - attached grips, committed moves replayed from their start, takedowns - posed by the same
  * code as the local player (`poseFromMoveState`, `AttachGrips`, `traversePath`); their weapon (stowed while both
  * hands are busy), and muzzle flashes + tracers while their firing flag is set.
  */
@@ -253,15 +253,8 @@ export class RemoteAvatar {
       mp.traverse = rp.pose;
       mp.traverseT = replayK;
     }
-    // weapon hand: the owner's (the cover controller swaps it at a left edge)
-    this.rig.leftHanded = mv?.m === 'cover' && (mv.sub & COVER_SUB.leftHand) !== 0;
-    // hiding at low cover: the owner's curl (its own height control is history dependent)
-    this.rig.curlHold = mv?.m === 'cover' && mv.cu !== undefined ? mv.cu : null;
-    this.rig.liftHold = mv?.m === 'cover' && mv.lf !== undefined ? mv.lf : null;
-    // still in cover: the feet step onto the owner's planted spots
-    const pins = this.rig.footPins;
-    if (mv?.m === 'cover' && mv.fp && st.speed < 0.05) footPoints(r.position.x, r.position.z, r.rotation.y, mv.fp, pins);
-    else pins[0] = pins[1] = pins[2] = pins[3] = NaN;
+    // weapon hand: stays right-handed until step 12b drives it from WALL_SUB.leftHand (D9 open-side edge)
+    this.rig.openLeft = false;
     const sy = Math.sin(this.yaw);
     const cy = Math.cos(this.yaw);
     const inv = moved > 1e-4 ? 1 / moved : 0;
@@ -273,7 +266,6 @@ export class RemoteAvatar {
       localZ: (lx * sy + lz * cy) * inv,
       grounded: (f & PF.grounded) !== 0 || mp.traverse !== 'none',
       crouch: this.crouch,
-      kneel: mp.kneel,
       aimPitch: (upside ? -this.pitch : this.pitch) * this.aim,
       aimYaw: mv ? (upside ? -wrapPi(mv.ay + Math.PI) : mv.ay) * this.aim : 0,
       aimWorldYaw: upside && mv ? this.yaw + mv.ay : undefined,
@@ -286,15 +278,8 @@ export class RemoteAvatar {
       carry: this.carryW,
       kick: this.kick,
       dash: (f & PF.sprint) !== 0 ? 1 : 0,
-      cover: mp.cover,
       wallSide: mp.wallSide,
       lean: mp.lean,
-      peekOver: mp.peekOver,
-      coverTop: mp.coverTop,
-      coverMode: mp.coverMode,
-      blind: mp.blind,
-      edgeLook: mp.edgeLook,
-      peekClear: mp.peekClear,
       traverse: mp.traverse,
       traverseT: mp.traverseT,
       melee: mp.melee,

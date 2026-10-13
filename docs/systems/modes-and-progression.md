@@ -73,4 +73,4 @@ Design authority: docs/design-bible.md (Sections 5.6, 5.8 and 6)
   a `campaign` argument (the Loadout screen passes `campaignUnlocked`), `unlockRow` shows them owned. Nothing is written to `unlocks` or credits.
   `SaveManager.openLoadout` (set from `main.ts` before `load`) makes `sanitizeSave(raw, openLoadout)` keep any known weapon as the loadout / a preset's weapon, so the
   choice survives a reload (no `SAVE_VERSION` change; the default sanitising, used by the tests and `?legacy=1`, still resets an unowned weapon).
-- `?autostart=...&mode=...` starts any mode whatever the flag. Training, snap cover and the drone are unchanged until roadmap Phase 3.
+- `?autostart=...&mode=...` starts any mode whatever the flag. Training and the drone are unchanged until roadmap Phase 3; snap cover is removed (back-to-wall replaces it).

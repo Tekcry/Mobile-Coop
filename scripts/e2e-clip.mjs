@@ -54,7 +54,7 @@ const res = await page.evaluate(([only, log]) => {
         if (dc < chest) { chest = dc; acc.chestAt = z; }
       }
     }
-    if (window.__dbg && (head < -0.01 || chest < -0.02)) acc.log.push(`t ${acc.n} HEAD ${(head * 100).toFixed(1)} TRUNK ${(chest * 100).toFixed(1)} lean ${p.rig.graph.leanOut.toFixed(2)} hand ${p.rig.leftHanded} hs ${p.rig['handSwap'].toFixed(2)} hb ${p.rig['handBlend'].toFixed(2)} push ${(p.rig.gunPush * 100).toFixed(1)} raise ${p.carry.raise.toFixed(2)} clear ${p.coverPose.gunClear}`);
+    if (window.__dbg && (head < -0.01 || chest < -0.02)) acc.log.push(`t ${acc.n} HEAD ${(head * 100).toFixed(1)} TRUNK ${(chest * 100).toFixed(1)} lean ${p.rig.graph.leanOut.toFixed(2)} push ${(p.rig.gunPush * 100).toFixed(1)} raise ${p.carry.raise.toFixed(2)}`);
     // limbs: elbows outside the trunk, knees and feet never through each other (positions forced fresh)
     for (const n of [rig.hipL, rig.kneeL, rig.ankleL, rig.hipR, rig.kneeR, rig.ankleR, rig.shoulderL, rig.elbowL, rig.shoulderR, rig.elbowR]) n.computeWorldMatrix(true);
     for (const e of [rig.elbowL, rig.elbowR]) acc.minElbow = Math.min(acc.minElbow, segDist(e.getAbsolutePosition(), pv, nk) - 0.1);
@@ -65,9 +65,9 @@ const res = await page.evaluate(([only, log]) => {
     acc.minHead = Math.min(acc.minHead, head);
     acc.minChest = Math.min(acc.minChest, chest);
     acc.n++;
-    if (pen > 0.02) { acc.wall++; if (window.__dbg) acc.log.push(`t ${acc.n} pen ${(pen*100).toFixed(0)} w ${g.weapons.current?.def?.id ?? g.weapons.slots?.[g.weapons.index]?.def?.id} sw ${g.weapons.swapT?.toFixed?.(2)} stow ${g.weapons.stowed} raise ${p.carry.raise.toFixed(2)} aim ${(p.cam.yaw).toFixed(2)} body ${c.yaw.toFixed(2)} hand ${p.rig.leftHanded}`); }
+    if (pen > 0.02) { acc.wall++; if (window.__dbg) acc.log.push(`t ${acc.n} pen ${(pen*100).toFixed(0)} w ${g.weapons.current?.def?.id ?? g.weapons.slots?.[g.weapons.index]?.def?.id} sw ${g.weapons.swapT?.toFixed?.(2)} stow ${g.weapons.stowed} raise ${p.carry.raise.toFixed(2)} aim ${(p.cam.yaw).toFixed(2)} body ${c.yaw.toFixed(2)}`); }
     acc.maxPen = Math.max(acc.maxPen, pen);
-    if (leg < 0) { acc.leg++; if (window.__dbg) acc.log.push(`t ${acc.n} LEG ${(leg*100).toFixed(1)} lean ${p.rig.graph.leanOut.toFixed(2)} hand ${p.rig.leftHanded} hs ${p.rig['handSwap'].toFixed(2)} clear ${p.coverPose.gunClear} body ${c.yaw.toFixed(2)} aim ${p.cam.yaw.toFixed(2)} crouch ${c.crouched} turn ${p.coverPose.turn.toFixed(2)}`); }
+    if (leg < 0) { acc.leg++; if (window.__dbg) acc.log.push(`t ${acc.n} LEG ${(leg*100).toFixed(1)} lean ${p.rig.graph.leanOut.toFixed(2)} body ${c.yaw.toFixed(2)} aim ${p.cam.yaw.toFixed(2)} crouch ${c.crouched}`); }
     acc.minLeg = Math.min(acc.minLeg, leg);
   };
   // traversal: no part of the body (trunk, head, thighs, calves, upper arms) goes into the world: each sample point
@@ -95,7 +95,7 @@ const res = await page.evaluate(([only, log]) => {
     if (hh.hit) { const d = V.Distance(hh.point, hc); if (d > pen) { pen = d; where = 'head'; } }
     for (const n of [rig.kneeL, rig.kneeR, rig.ankleL, rig.ankleR]) n.computeWorldMatrix(true);
     const kd = V.Distance(rig.kneeL.getAbsolutePosition(), rig.kneeR.getAbsolutePosition());
-    if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} feet ${c.pos.y.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} v ${g.traversal.attachCtl.m.v.toFixed(2)} pose ${p.coverPose.traverse}`);
+    if (window.__dbg && kd < 0.09) acc.log.push(`t ${acc.n} KNEES ${(kd * 100).toFixed(1)} feet ${c.pos.y.toFixed(2)} trav ${g.traversal.attachCtl.m.kind}/${g.traversal.attachCtl.m.phase} v ${g.traversal.attachCtl.m.v.toFixed(2)} pose ${p.pose.traverse}`);
     acc.minKnees = Math.min(acc.minKnees, kd);
     acc.minFeet = Math.min(acc.minFeet, V.Distance(rig.ankleL.getAbsolutePosition(), rig.ankleR.getAbsolutePosition()));
     acc.n++;

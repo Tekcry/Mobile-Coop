@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
   attachGripWeight,
-  COVER_SUB,
   emptyMovePose,
   emptyMoveState,
   isAttachedMode,
@@ -13,7 +12,7 @@ import {
   sanitizeMoveState,
   unpackAttachSub,
 } from '../src/player/moveState';
-import { parseMessage, wirePlayerState, type PlayerState } from '../src/net/protocol';
+import { parseMessage, PROTOCOL_VERSION, wirePlayerState, type PlayerState } from '../src/net/protocol';
 import { attachedClamp, MAX_FREE_SPEED, MOVE_TOLERANCE, moveSpeedCap } from '../src/net/validate';
 import { traversePath } from '../src/player/traversePath';
 import { AttachGrips } from '../src/player/attachGrips';
@@ -61,9 +60,9 @@ describe('move state (3.2.0 phase 1)', () => {
 
   it('pstate carries a sanitised move state; a bad one is dropped, not the message', () => {
     const ps: PlayerState = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80 } as PlayerState;
-    const mv = { ...emptyMoveState(), m: 'cover' as const, sub: COVER_SUB.low | COVER_SUB.wallRight, s: 1.1, ph: 0.75 };
+    const mv = { ...emptyMoveState(), m: 'wall' as const, sub: 3, s: 1.1, ph: 0.75 };
     const m = parseMessage(JSON.parse(JSON.stringify({ t: 'pstate', s: wirePlayerState({ ...ps, mv }) })));
-    expect(m && m.t === 'pstate' && m.s.mv).toMatchObject({ m: 'cover', sub: 3, s: 1.1, ph: 0.75 });
+    expect(m && m.t === 'pstate' && m.s.mv).toMatchObject({ m: 'wall', sub: 3, s: 1.1, ph: 0.75 });
     const bad = parseMessage({ t: 'pstate', s: { ...ps, mv: { m: 'teleport' } } });
     expect(bad && bad.t === 'pstate' && bad.s.mv).toBeUndefined();
   });
@@ -90,14 +89,29 @@ describe('move state (3.2.0 phase 1)', () => {
     expect(moveChanged({ ...a, c }, { ...a, c: { ...c, n: 2 } })).toBe(true);
   });
 
-  it('poses: cover bits, attached families and exits, committed moves and takedowns', () => {
+  it("slot 1 is 'wall' (A2: the old cover index, reserved for back-to-wall); it packs and sanitizes round trip", () => {
+    expect(MOVE_MODES.indexOf('wall')).toBe(1);
+    expect((MOVE_MODES as readonly string[]).includes('cover')).toBe(false);
+    const mv = { ...emptyMoveState(), m: 'wall' as const, sub: 5, s: 0.4, ph: 0.25, g: 2, r: 0.5, ay: 0.3 };
+    const wire = JSON.parse(JSON.stringify(packMoveState(mv)));
+    expect(wire.m).toBe(1);
+    expect(sanitizeMoveState(wire)).toEqual(mv);
+    // the retired cover-only fields are not carried
+    expect(sanitizeMoveState({ ...wire, cu: 0.5, lf: 0.1, fp: [0, 0, 0, 0] })).toEqual(mv);
+    // nothing poses from it yet (step 11)
     const out = emptyMovePose();
-    poseFromMoveState({ ...emptyMoveState(), m: 'cover', sub: COVER_SUB.low | COVER_SUB.over | COVER_SUB.edgeL | COVER_SUB.kneel, s: 1.1, ph: 1 }, 0, out);
-    expect(out).toMatchObject({ cover: 'low', wallSide: -1, lean: 1, peekOver: 1, coverTop: 1.1, coverMode: 'over', edgeLook: -1, kneel: true, peekClear: 0 });
-    poseFromMoveState({ ...emptyMoveState(), m: 'cover', sub: COVER_SUB.wallRight | COVER_SUB.gunClear, ph: 0.5 }, 0, out);
-    expect(out).toMatchObject({ cover: 'high', wallSide: 1, lean: 0, coverMode: 'none', peekClear: 1 });
+    poseFromMoveState(mv, 0, out);
+    expect(out).toMatchObject({ wallSide: 0, lean: 0, traverse: 'none' });
+  });
+
+  it('PROTOCOL_VERSION is 3 (Block A wire changes: ex, sh, cover -> wall)', () => {
+    expect(PROTOCOL_VERSION).toBe(3);
+  });
+
+  it('poses: attached families and exits, committed moves and takedowns', () => {
+    const out = emptyMovePose();
     poseFromMoveState({ ...emptyMoveState(), m: 'ladder', a: 0, sub: packAttachSub('on', 1, 'none') }, 0.3, out);
-    expect(out).toMatchObject({ cover: 'none', traverse: 'climb', traverseT: 0.3 });
+    expect(out).toMatchObject({ traverse: 'climb', traverseT: 0.3 });
     poseFromMoveState({ ...emptyMoveState(), m: 'ledge', a: 1, sub: packAttachSub('on', 1, 'none') }, 0.3, out);
     expect(out.traverse).toBe('hang');
     poseFromMoveState({ ...emptyMoveState(), m: 'ledge', a: 1, sub: packAttachSub('exit', 1, 'climbUp'), ph: 0.4 }, 0, out);
@@ -109,7 +123,7 @@ describe('move state (3.2.0 phase 1)', () => {
     poseFromMoveState({ ...emptyMoveState(), m: 'takedown', ph: 0.7, tid: 'e1' }, 0, out);
     expect(out).toMatchObject({ traverse: 'none', melee: 0.7 });
     poseFromMoveState(emptyMoveState(), 0, out);
-    expect(out).toMatchObject({ cover: 'none', traverse: 'none', melee: -1 });
+    expect(out).toMatchObject({ wallSide: 0, traverse: 'none', melee: -1 });
     for (const m of MOVE_MODES) expect(isAttachedMode(m)).toBe(['ladder', 'pipeV', 'pipeH', 'ledge', 'duct', 'zipline', 'split', 'wallJump', 'rappel', 'fence'].includes(m));
   });
 

@@ -513,7 +513,7 @@ export class AttachController {
       c.registerLanding(this.flipFall, 0, 0);
       this.flipping = false;
     }
-    const pose = this.player.coverPose;
+    const pose = this.player.pose;
     pose.traverse = 'none';
     pose.traverseT = 0;
     pose.tumble = 0;
@@ -886,7 +886,7 @@ export class AttachController {
     if (a.kind === 'rappel' && m.phase === 'on' && this.player.carry.raise > 0.1) yaw = this.input.camYaw;
     c.override = { kinematic: this.kin, yaw, turnRate: 30, crouch: a.kind === 'duct' };
     // pose family and cadence (the climb clips follow the hand steps)
-    const pose = this.player.coverPose;
+    const pose = this.player.pose;
     pose.tumble = tumble;
     const pm = this.pipeMode;
     const fam: TraverseKind =

@@ -29,14 +29,12 @@ export const CAMERA_TUNING = {
   },
 };
 
-/** Low cover: the camera eye sits this far above the top (m). */
-export const COVER_EYE = 0.26;
 
 /**
  * Weighted cinematic over-the-shoulder camera. Gameplay sets the look targets (`yaw`, `pitch`); the
  * rendered view follows them with slight inertia (critically damped, no overshoot). Position follows
  * the feet with a 150-250 ms lag and looks ahead along the movement; every framing change (crouch,
- * ADS, cover, lean, dash, shoulder swap) blends over 350-600 ms; the shoulder swap arcs back behind
+ * ADS, lean, dash, shoulder swap) blends over 350-600 ms; the shoulder swap arcs back behind
  * the head. Subtle handheld drift (steadier when kneeling or aiming) and a damped footstep micro-bob
  * give it weight. Walls (CAM): sphere casts run head -> pivot -> shoulder point -> camera, so neither the pivot, the
  * shoulder point nor the camera ever sits behind a surface, and the camera keeps its near plane clear of it; the boom pulls
@@ -73,10 +71,6 @@ export class ShoulderCamera {
   attachYaw = 0;
   private attachPreset: AttachFraming | null = null;
   private sAttach = new Spring(0);
-  /** Pelvis lift of the low cover height control (m): the pivot rises with a crouched aim over cover. */
-  lift = 0;
-  /** Low cover top above the feet (m; 0 = none): the eye stays just above it, so hiding still sees over. */
-  coverTop = 0;
   dash = 0;
   lean = 0;
   /** In cover (slow push-in). */
@@ -272,8 +266,7 @@ export class ShoulderCamera {
     }
     const attachW = this.sAttach.step(this.attach ? 1 : 0, 4 / Math.max(0.05, this.attachPreset?.blend ?? 0.25), dt);
     if (this.attachPreset && attachW > 1e-3) attachFraming(fr, this.attachPreset, Math.min(1, attachW));
-    const overEye = this.coverTop > 0 ? this.coverTop + COVER_EYE - T.height : 0;
-    const pivotY = this.sPivot.step(Math.max(fr.pivot + Math.max(0, this.lift), overEye), 10, dt);
+    const pivotY = this.sPivot.step(fr.pivot, 10, dt);
     // follow: feet height and position lag slightly; look ahead along the movement
     if (Number.isNaN(this.sFootY.x) || Math.abs(feet.y - this.sFootY.x) > 3) this.sFootY.reset(feet.y);
     const footY = this.sFootY.step(feet.y, 14, dt);

@@ -1,7 +1,7 @@
 import { emptyKinds } from '../src/ai/enemyDefs';
 import type { WeaponId } from '../src/weapons/weaponDefs';
 import { describe, expect, it } from 'vitest';
-import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES } from '../src/net/protocol';
+import { makeRoomCode, normalizeRoomCode, parseMessage, CODE_ALPHABET, MAX_ENEMIES, PROTOCOL_VERSION } from '../src/net/protocol';
 import { mulberry } from '../src/core/rng';
 
 const ps = { id: 'peerA', x: 1, y: 0, z: 2, yaw: 0.5, pitch: 0.1, speed: 3, f: 16, w: 'rifle', hp: 80 };
@@ -301,12 +301,22 @@ describe('net session', () => {
     let got = false;
     late.events.on('start', () => (got = true));
     // the late client subscribed after construction: a re-hello (reconnect) triggers the start again
-    late.transport.send({ t: 'hello', v: 2, name: 'Late', tag: {}, look: {} });
+    late.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'Late', tag: {}, look: {} });
     expect(got).toBe(true);
     let left = '';
     host.events.on('peerLeft', (p) => (left = p.name));
     void late.leave();
     expect(left).toBe('Late');
+  });
+  it('a peer on protocol version 2 is refused; version 3 joins', () => {
+    expect(PROTOCOL_VERSION).toBe(3);
+    const h = hub();
+    const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
+    const old = h.make('O');
+    old.send({ t: 'hello', v: 2, name: 'Old', tag: {}, look: {} }, 'H');
+    expect(host.players.has('O')).toBe(false);
+    old.send({ t: 'hello', v: 3, name: 'New', tag: {}, look: {} }, 'H');
+    expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
     const h = hub();
@@ -332,7 +342,7 @@ describe('net session', () => {
     const fifth = new NetSession(h.make('X'), 'client', 'ABCDE', prof('X'));
     let full = false;
     fifth.events.on('full', () => (full = true));
-    fifth.transport.send({ t: 'hello', v: 2, name: 'X', tag: {}, look: {} }, 'H');
+    fifth.transport.send({ t: 'hello', v: PROTOCOL_VERSION, name: 'X', tag: {}, look: {} }, 'H');
     expect(host.players.size).toBe(4);
     expect(full).toBe(true);
   });

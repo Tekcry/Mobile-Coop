@@ -371,7 +371,8 @@ export function sanitizeSettings(raw: unknown): Settings {
   const layout = {} as Record<TouchControlId, ControlPlacement>;
   // layouts from before the camera stick: keep customised placements of controls that still exist;
   // untouched (v1 default) ones and the new controls take the new defaults
-  // (v2 -> v3, v3 -> v4 and v4 -> v5 only add controls: every stored placement is kept, the new one takes its default spot)
+  // (v2 -> v3, v3 -> v4 and v4 -> v5 only add controls: every stored placement is kept, the new one takes its default spot;
+  // v5 -> v6 only removes the Mark and Execute buttons: their stored placements are dropped, every other one is kept)
   const fromV1 = num(t.layoutVersion, 1, 1, 99) < 2;
   for (const id of TOUCH_CONTROL_IDS) {
     const p = sub(lay, id);

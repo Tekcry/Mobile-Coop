@@ -4,7 +4,6 @@
 // turn rate), stance and aim transitions, weapon clip timings, foot locking (< 1 cm) in
 // every gait, transition continuity, hit flinch, camera follow lag / framing blends / shoulder swap /
 // bob / drift / sprint FOV / bounded angular velocity and acceleration, and 60 / 120 / 144 / 165 / 240 Hz parity.
-// (Cover choreography bars live in e2e-stealth.)
 import { launch, assert as hard } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';

@@ -26,10 +26,10 @@ export const CHANNELS = [
   'wpPitch',
   'wpYaw',
   'wpRoll',
-  // hands: grip weight (both hands on the weapon), off hand on the foregrip / cover surface
+  // hands: grip weight (both hands on the weapon), off hand on the foregrip / the wall
   'grip',
   'offGrip',
-  'offCover',
+  'offWall',
   // off hand on the weapon's magazine well (reloads)
   'offMag',
   // free hand targets (root space, used when not gripping: swaps, grenade, free arms)

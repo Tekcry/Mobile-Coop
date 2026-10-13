@@ -177,7 +177,7 @@ export class TeamController {
   private hold(): void {
     const c = this.g.player.controller;
     c.override = { velocity: { x: 0, z: 0 }, yaw: c.yaw, turnRate: 0 };
-    this.g.player.coverPose.traverse = 'brace';
+    this.g.player.pose.traverse = 'brace';
   }
 
   /** The lip / pipe / split a boost from this mate would toss onto (from the toss apex, at most `TEAM.boostMax` up). */
@@ -254,11 +254,11 @@ export class TeamController {
     boostPath(this.t, this.from.x, this.from.y, this.from.z, p.x, p.y, p.z, hang.x, gy, hang.z, 1.9 * (h / 1.75), this.pt);
     this.kin.set(this.pt.x, this.pt.y, this.pt.z);
     c.override = { kinematic: this.kin, yaw: hang.yaw, turnRate: 20 };
-    g.player.coverPose.traverse = 'climbUp';
-    g.player.coverPose.traverseT = Math.min(1, this.t / TEAM.boostTime);
+    g.player.pose.traverse = 'climbUp';
+    g.player.pose.traverseT = Math.min(1, this.t / TEAM.boostTime);
     if (this.t >= TEAM.boostTime) {
       c.override = null;
-      g.player.coverPose.traverse = 'none';
+      g.player.pose.traverse = 'none';
       this.state = 'none';
       this.start = null;
       g.traversal.attachCtl.attachTo(a, s.s, 'side', 1, 0.15);
@@ -281,11 +281,11 @@ export class TeamController {
       const e = k * k * (3 - 2 * k);
       this.kin.set(this.from.x + (p.x - this.from.x) * e, this.from.y + (top - this.from.y) * Math.min(1, e * 1.3), this.from.z + (p.z - this.from.z) * e);
       c.override = { kinematic: this.kin, yaw: c.yaw, turnRate: 10 };
-      g.player.coverPose.traverse = 'climbUp';
-      g.player.coverPose.traverseT = k;
+      g.player.pose.traverse = 'climbUp';
+      g.player.pose.traverseT = k;
       if (k >= 1) {
         this.state = 'top';
-        g.player.coverPose.traverse = 'none';
+        g.player.pose.traverse = 'none';
       }
       return;
     }
@@ -327,7 +327,7 @@ export class TeamController {
     this.offer = null;
     this.pressT = -1;
     g.player.controller.override = null;
-    if (g.player.coverPose.traverse === 'climbUp' || g.player.coverPose.traverse === 'brace') g.player.coverPose.traverse = 'none';
+    if (g.player.pose.traverse === 'climbUp' || g.player.pose.traverse === 'brace') g.player.pose.traverse = 'none';
   }
 
   /** Movement mode on the wire for this state (null: the regular one). */

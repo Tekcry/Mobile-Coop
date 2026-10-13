@@ -106,14 +106,14 @@ describe('graph', () => {
     for (let k = 0; k < 120; k++) g.update(dt, i);
     let prevY = g.out.pelvis.y;
     let maxJump = 0;
-    i.cover = 'high';
+    i.wall = true;
     i.wallSide = 1;
     for (let k = 0; k < 60; k++) {
       g.update(dt, i);
       maxJump = Math.max(maxJump, Math.abs(g.out.pelvis.y - prevY));
       prevY = g.out.pelvis.y;
     }
-    i.cover = 'none';
+    i.wall = false;
     i.traverse = 'vault';
     for (let k = 0; k < 90; k++) {
       i.traverseT = k / 90;

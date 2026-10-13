@@ -1,21 +1,20 @@
 /**
- * The local player's movement state (3.2.0 phase 1) for the co-op / PvP wire: which mode the body is in (free, cover,
+ * The local player's movement state (3.2.0 phase 1) for the co-op / PvP wire: which mode the body is in (free, wall,
  * attached, a committed move, a takedown) and the few numbers a remote needs to pose it with the same code
  * (`poseFromMoveState`, `AttachGrips`, `traversePath`). Built every fixed step a net session runs.
  */
 import { wrapPi } from '../anim/motion';
-import { COVER_SUB, footOffsets, packAttachSub, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
+import { packAttachSub, type ExitPose, type MoveMode, type MoveState } from '../player/moveState';
 import type { GameState } from './gameState';
 
 const EXIT_OF: Partial<Record<string, ExitPose>> = { climbUp: 'climbUp', mantle: 'mantle', ventDrop: 'ventDrop', drop: 'drop' };
 
 let gpBuf: number[] | null = null;
-let fpBuf: [number, number, number, number] | null = null;
 
 export function localMoveState(g: GameState, out: MoveState): MoveState {
   const p = g.player;
   const c = p.controller;
-  const pose = p.coverPose;
+  const pose = p.pose;
   const tr = g.traversal;
   out.g = c.gear;
   out.r = p.carry.raise;
@@ -27,9 +26,6 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   out.sub = 0;
   out.ph = 0;
   out.tid = '';
-  delete out.cu;
-  delete out.lf;
-  delete out.fp;
   delete out.gp;
   delete out.u;
   // (3.2.0 phase 5) a team move: braced, boosted, the human ladder
@@ -38,7 +34,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     out.m = tm;
     out.tid = g.team.partner;
     out.sub = tm === 'stacked' ? (g.team.state === 'bottom' ? 2 : 1) : 0;
-    out.ph = g.player.coverPose.traverse === 'climbUp' ? g.player.coverPose.traverseT : 0;
+    out.ph = pose.traverse === 'climbUp' ? pose.traverseT : 0;
     delete out.c;
     return out;
   }
@@ -96,30 +92,6 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
     return out;
   }
   delete out.c;
-  if (pose.cover !== 'none') {
-    out.m = 'cover';
-    let sub = 0;
-    if (pose.cover === 'low') sub |= COVER_SUB.low;
-    if (pose.wallSide > 0) sub |= COVER_SUB.wallRight;
-    if (pose.peekOver > 0.5) sub |= COVER_SUB.over;
-    if (pose.blind) sub |= COVER_SUB.blind;
-    if (pose.gunClear) sub |= COVER_SUB.gunClear;
-    if (c.kneeling) sub |= COVER_SUB.kneel;
-    if (pose.edgeLook < -0.5) sub |= COVER_SUB.edgeL;
-    else if (pose.edgeLook > 0.5) sub |= COVER_SUB.edgeR;
-    if (p.rig.leftHanded) sub |= COVER_SUB.leftHand;
-    out.sub = sub;
-    out.s = pose.top;
-    out.ph = (Math.max(-1, Math.min(1, pose.lean)) + 1) / 2;
-    if (pose.top > 0) {
-      out.cu = p.rig.curl;
-      out.lf = p.rig.lift;
-    }
-    const L = p.rig.planner.L;
-    const R = p.rig.planner.R;
-    if (c.speed < 0.05) out.fp = footOffsets(c.pos.x, c.pos.z, c.yaw, L.x, L.z, R.x, R.z, (fpBuf ??= [0, 0, 0, 0]));
-    return out;
-  }
   if (c.landT > 0.15 && c.lastLanding === 'heavy') {
     out.m = 'landing';
     out.ph = Math.max(0, Math.min(1, 1 - c.landT));

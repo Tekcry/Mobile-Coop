@@ -144,15 +144,15 @@ describe('gait and blending', () => {
     expect(h.weights.crouch).toBeGreaterThan(0.2);
     expect(h.weights.locomotion).toBeGreaterThan(0.2);
   });
-  it('state priority: traverse > slide > air > cover > kneel/crouch > locomotion', () => {
+  it('state priority: traverse > slide > air > wall > kneel/crouch > locomotion', () => {
     const i = defaultInput();
     expect(pickLower(i)).toBe('locomotion');
     i.crouch = 1;
     expect(pickLower(i)).toBe('crouch');
     i.kneel = true;
     expect(pickLower(i)).toBe('kneel');
-    i.cover = 'low';
-    expect(pickLower(i)).toBe('cover');
+    i.wall = true;
+    expect(pickLower(i)).toBe('wall');
     i.grounded = false;
     expect(pickLower(i)).toBe('air');
     i.slide = 0.2;
@@ -182,5 +182,57 @@ describe('gait and blending', () => {
     }
     expect(x).toBeCloseTo(1, 3);
     expect(max).toBeLessThanOrEqual(1 + 1e-6);
+  });
+});
+
+describe('open-left weapon hand (D9, dormant until step 12b)', () => {
+  it('mirrors the aim pocket and swaps the grip arm when openLeft is set', async () => {
+    const { NullEngine } = await import('@babylonjs/core/Engines/nullEngine');
+    const { Scene, TransformNode, Vector3, Quaternion } = await import('../src/core/babylon');
+    const { PartLibrary } = await import('../src/world/partLibrary');
+    const { CharacterRig, EDGE_HAND_TIME } = await import('../src/player/characterRig');
+    const { defaultLook } = await import('../src/cosmetics/avatarLook');
+    const scene = new Scene(new NullEngine());
+    const lib = new PartLibrary(scene);
+    const rig = new CharacterRig(scene, (shape, hex, slot) => lib.instance(shape, hex, slot), defaultLook());
+    const gun = new TransformNode('gun', scene);
+    gun.parent = rig.weaponPivot;
+    gun.rotationQuaternion = Quaternion.Identity();
+    rig.heldWeapon = gun;
+    const pose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0.3, kick: 0, armed: true };
+    const tmp = new Vector3();
+    const sample = (): { x: number; yaw: number; gripR: number; gripL: number } => {
+      const m = gun.getWorldMatrix();
+      const g = Vector3.TransformCoordinates(rig.grip, m);
+      const yawLocal = rig.weaponPivot.rotationQuaternion!.toEulerAngles().y;
+      return {
+        x: rig.weaponPivot.position.x,
+        yaw: yawLocal,
+        gripR: rig.wristR.getAbsolutePosition().subtractToRef(g, tmp).length(),
+        gripL: rig.wristL.getAbsolutePosition().subtractToRef(g, tmp).length(),
+      };
+    };
+    for (let k = 0; k < 90; k++) rig.animate(1 / 60, pose);
+    const right = sample();
+    rig.openLeft = true;
+    for (let k = 0; k < Math.ceil(EDGE_HAND_TIME * 60) + 90; k++) rig.animate(1 / 60, pose);
+    expect(rig.handSwap).toBe(-1);
+    const left = sample();
+    // the aim pocket mirrors to the left shoulder: pivot x flips sign
+    expect(right.x).toBeGreaterThan(0.02);
+    expect(left.x).toBeLessThan(-0.02);
+    expect(left.x).toBeCloseTo(-right.x, 2);
+    // the weapon's yaw offset flips with it
+    expect(Math.abs(right.yaw)).toBeGreaterThan(0.01);
+    expect(Math.sign(left.yaw)).toBe(-Math.sign(right.yaw));
+    // the grip arm swaps: the right wrist takes the trigger grip right-handed, the left wrist when open-left
+    // (grip accuracy on the mirrored side is step 12b's job: harness grips < 2 cm)
+    expect(right.gripR).toBeLessThan(right.gripL);
+    expect(left.gripL).toBeLessThan(left.gripR);
+    // and back: clearing the flag returns to the right hand
+    rig.openLeft = false;
+    for (let k = 0; k < Math.ceil(EDGE_HAND_TIME * 60) + 90; k++) rig.animate(1 / 60, pose);
+    expect(rig.weaponPivot.position.x).toBeCloseTo(right.x, 2);
+    scene.dispose();
   });
 });

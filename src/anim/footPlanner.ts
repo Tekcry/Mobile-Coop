@@ -91,7 +91,7 @@ export interface PlannerInput {
   hold: boolean;
   /**
    * (3.2.0) Pinned feet (world x / z; NaN = free): a co-op / PvP remote's still feet step to where the owner's are
-   * planted (cover), instead of where its own history put them.
+   * planted (back-to-wall, step 11), instead of where its own history put them.
    */
   pinLX: number;
   pinLZ: number;

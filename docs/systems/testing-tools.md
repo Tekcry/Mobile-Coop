@@ -14,9 +14,9 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   - `scripts/e2e-pad.mjs` controller-only navigation through every menu using a fake Gamepad API pad; 3.2.0 in a match:
     D-pad up / down gears, D-pad left tap vs hold (wheel), View tap goggles / hold emote
   - `scripts/e2e-touch.mjs` touch-only: taps menus, floating move stick, rate-based camera stick, drag-look,
-    fire button never moves the camera, control sizes, action button only for "use", take-cover prompt tap, no cover badge in cover, a push away leaves;
+    fire button never moves the camera, control sizes, action button only for "use";
     3.2.0 speed rocker (up / down halves, pips, HUD pips fade), a forward roll by touch, the jump button, the action
-    button dimmed when idle / taking cover at the prompt, prompts are indicators only
+    button dimmed when idle, prompts are indicators only
   - `scripts/e2e-mouse.mjs` PC mouse capture: click captures (never fires), look, fire, wheel = speed gear (3.2.0),
     X swaps, = / -, Esc pauses, Resume re-captures
   - `scripts/e2e-move.mjs` (3.2.0, `gear=none`: spawn gear 3) every gear's speed both stances, stick scaling, gear kept
@@ -33,10 +33,8 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   - `scripts/e2e-anchors.mjs` every placed anchor on every listed map (Proving, Warehouse) (ladders bottom / top, drainpipes, pipes, ziplines,
     ducts, windows both sides) is offered from its approach and engages; hangable lips per map
   - `scripts/e2e-stealth.mjs` real-time camera repro (free orbit: 360 deg looks standing, crouched, moving,
-    aiming, after a sprint / cover / lean, no residual offsets, level horizon after a shake) + headless cover bars: 3 m snap glide, hand
-    contact, sticky exit, sprint slide, edge peeks, peek in/out timing, left-edge hand switch, corner offered and swung on the button (never automatic), no spin from quick aim /
-    direction changes, tuck,
-    auto shoulder, routed cover-to-cover, push-back cancel
+    aiming, after a sprint / traversal, no residual offsets, level horizon after a shake); the player cover bars
+    left with snap cover (back-to-wall checks arrive with e2e-wall, step 11)
   - `scripts/e2e-weapons-carry.mjs` Free Roam loadout: five slots, back guns within 10 deg of the spine in six
     gaits, no clipping (both avatar styles, with a backpack), hands within 2 cm of the grips, swap reach + timing
   - `scripts/e2e-anim.mjs` quality bars in the running game: first-frame response, 3.2.0 Chaos Theory: 95% speed
@@ -59,16 +57,10 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
   - `scripts/e2e-combat.mjs` weapons, hits, headshots, reload, swap, grenades, barrels, death/respawn
   - `scripts/e2e-modes.mjs` wave progression, mission flow, enemy types, ragdolls
   - `scripts/e2e-progression.mjs` Loadout by controller (live weapon preview, lock line, upgrade, buy in place), suit / HQ by touch, rewards, IndexedDB persistence, export/import
-  - `scripts/e2e-cover.mjs` (A cover, B crouch, Y traverse) snap side-on, turn-and-swap, kneel, peek/blind
-    fire/vault, B keeps cover, stand/crouch at high cover + crouched edge peek, lean in place, outside corners (corner prompt + A, never automatic) /
-    inside corners, edge stop a step back, no cover badge, SWAT turn, cover-to-cover only when looking at it with the stick held towards it + slide + marker,
-    world prompts (low on the surface; 3.2.0: the touch action button does what they show), manual cover only (walking / sprinting into a wall never
-    snaps), crouched aim over low cover, keyboard Space; 3.2.0 cover strafe pace by gear
   - `scripts/e2e-clip.mjs` traversal: no body point (trunk, head, thighs, calves, upper arms; raycast from the hips)
     > 3 cm into the world while climbing, hanging, shimmying, climbing up, crawling, dropping through a vent,
-    vaulting a window, on a zipline or rolling; plus the weapon clipping sweep: every frame of wall-side movement, high / low cover (idle,
-    moving, turn-and-swap, reload, swap), edge-peek aim sweeps both edges standing / crouched (with step-out),
-    aim over, vault, aim every weapon, aim walking / crouched: no gun point inside the world (> 2 cm), legs grazed
+    vaulting a window, on a zipline or rolling; plus the weapon clipping sweep: every frame of walking / crouch-walking along a wall
+    (both sides), sprint, crouch run, aim every weapon, aim walking / crouched: no gun point inside the world (> 2 cm), legs grazed
     <= 2.5 cm, gun clear of the head (> -1 cm) and trunk (> -2 cm), elbows (> -3 cm), knees above the floor and
     > 9 cm apart, feet > 6 cm apart (`--only=name --log`)
   - `scripts/e2e-tactics.mjs` doorway check, contextual lean, slicing the pie, split hit volumes, suppression,
@@ -105,8 +97,8 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     but Training, Infiltration lists the Warehouse missions only
   - `scripts/e2e-training.mjs` the training course by touch: hints per device, each step advancing, the
     Takedown button, HUD defaults (no health bar, ammo fades), the results
-  - `scripts/e2e-netmove.mjs` (3.2.0) two pages `?net=local`, Free Roam on Proving: the client in low cover (+ over
-    peek), high cover (+ edge peek), ladder (+ after a climb), drainpipe, pipe, ledge, duct (hands / feet / head within
+  - `scripts/e2e-netmove.mjs` (3.2.0) two pages `?net=local`, Free Roam on Proving: the client on a
+    ladder (+ after a climb), drainpipe, pipe, ledge, duct (hands / feet / head within
     10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted, rappel +
     rope, fence); team moves (phase 5: the client braces and boosts the host onto the 4.2 m lip, the host braces and
     the client climbs the human ladder and grabs the lip, a request without a braced partner is denied); TDM: a host
@@ -132,14 +124,15 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     renderer booting in a match (`SHOTS=dir` saves the aspect screenshots)
   - `scripts/e2e-offline.mjs` service worker precache (every manifest entry), offline boot + match, backgrounding
     pauses, co-op offline state, v1 save in IndexedDB migrated on boot with a backup
-  Speed rules for suites: a wait for N simulated seconds is `stepHeadless` (or, where a suite wraps `state.fixedUpdate` and resolves when its condition holds, `window.__ff()` right after the wrapper is installed: it steps the loop until the wrapper takes itself off). `e2e-move` 112 s -> 12 s, `e2e-cover` 59 -> 7 s, `e2e-combat` 27 -> 4 s with the same checks. Fixed pauses after a match starts are `frames(page, n)`. Real time is kept where the suite is about it: the two-page co-op suites (`e2e-coop`, `e2e-netmove`: network sync and interpolation between two renderers), `e2e-stealth` (real-time camera), `e2e-mouse`, `e2e-pad`, `e2e-touch` (input timing), `e2e-desktop` (the benchmark flights, the 15 s resolution revert, shader compiles), `e2e-offline`, and the `rAF`-sampled foot-slide check in `e2e-move`. The light bake is about 0.5 s a page load and the voxel (Epic) bake cache is 190 MB, so neither is shared between browsers; `e2e-lightbake` bakes cold in four browsers at once on purpose.
+  Speed rules for suites: a wait for N simulated seconds is `stepHeadless` (or, where a suite wraps `state.fixedUpdate` and resolves when its condition holds, `window.__ff()` right after the wrapper is installed: it steps the loop until the wrapper takes itself off). `e2e-move` 112 s -> 12 s, `e2e-combat` 27 -> 4 s with the same checks. Fixed pauses after a match starts are `frames(page, n)`. Real time is kept where the suite is about it: the two-page co-op suites (`e2e-coop`, `e2e-netmove`: network sync and interpolation between two renderers), `e2e-stealth` (real-time camera), `e2e-mouse`, `e2e-pad`, `e2e-touch` (input timing), `e2e-desktop` (the benchmark flights, the 15 s resolution revert, shader compiles), `e2e-offline`, and the `rAF`-sampled foot-slide check in `e2e-move`. The light bake is about 0.5 s a page load and the voxel (Epic) bake cache is 190 MB, so neither is shared between browsers; `e2e-lightbake` bakes cold in four browsers at once on purpose.
   Long simulations use `window.__app.loop.stepHeadless(seconds)` (no rendering) to stay fast. `e2e-lib` adds
   `?gfx=min` (every graphics feature off, DPR 1; not saved) unless the params name a `gfx=` (a preset, or `user`
   for the saved settings): the PC renderer at Epic on software GL takes seconds per frame.
   - `node scripts/shot.mjs out.png "autostart=proving" 60 "<js>"` screenshot helper (`?autostart=<mapId>`)
   - `node scripts/rig-shot.mjs out.png [yaw]` close-up of the Loadout operator (proportion/silhouette checks)
   - `node scripts/anim-sheet.mjs out.png <walk|jog|sneak|crouchrun|sprint|start|stop|strafe|back|turn|crouch|dash|
-    reload|swap|grenade|cover|highcover|peek|vault> [frames] [interval] [side|front|back|ots]` contact sheet
+    reload|swap|grenade|vault> [frames] [interval] [side|front|back|ots]` contact sheet (the `cover` / `highcover` /
+    `lowpeek` / `peek` scenarios tap the removed cover action: dead until step 11 rewrites them for back-to-wall)
   - `node scripts/perf.mjs [--desktop | --phone] [--preset=<p> [--mobile]] [--budget]` (`--phone` (3.6): the real phone light look, its own budget; `--preset`: 3.1 phone budgets per preset; `--desktop`: the PC path at `?gfx=epic`; else the `?gfx=min` test
     path; `STEALTH=1`: ten unaware enemies perceiving) Warehouse, 10 enemies: main thread p95 (sim per 120 Hz frame +
     the render's JS), animation ms per character, allocations per second (top allocators), draw calls and triangles
@@ -170,7 +163,7 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
 - F3 / 3-finger tap. Buttons: Skeleton (bones, controller capsules, hit volumes and foot contacts as lines:
   green = planted, orange = swinging to its landing spot; things register in `ui/debugVolumes.ts`), Tune (sliders
   for `MOVEMENT`, `CAMERA`, `CARRY`) and slow motion (1x / 0.5x / 0.25x). Lines: display Hz + budget, pacing
-  p50/p95/p99 + drops, CPU per frame, quality + resolution scale, player, carry, cover, combat, anim (layer
+  p50/p95/p99 + drops, CPU per frame, quality + resolution scale, player, carry, combat, anim (layer
   weights, active clip timeline, `!limit` = joint-rate limiter hits). The bar graph is frame pacing against the
   budget line; `addTrace` graphs values per frame (weapon bob, speed, acceleration, camera angular velocity).
 

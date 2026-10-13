@@ -68,3 +68,4 @@ Assumes step 09 (draw phases 0.2-0.3 s), step 11 (WALL_SUB incl. `leftHand` 128,
 ## Commit
 "locomotion 12b: open-side weapon at wall edges (D9), low-wall side lean (D10)"
 Then LOG, STATE, AUDIT (S04), CHANGELOG, TESTING, docs/systems/movement.md, coop.md.
+- Note from step 06: the restored dormant openLeft mirroring leaves both wrists 0.25-0.45 m from the grip on the mirrored side (HEAD behaviour); 12b must close this to < 2 cm (grips solved for the mirrored weapon).

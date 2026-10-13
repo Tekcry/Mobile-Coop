@@ -3,7 +3,7 @@
  *
  * Lower body: a 2D blend space (speed x direction) over keyed locomotion cycles, standing and
  * crouched, all sampled at the gait clock so blends never fight the feet; a timed kneel pose; start
- * weight shift, stop settle and pivot clips driven by the motion driver's state; cover, traversal,
+ * weight shift, stop settle and pivot clips driven by the motion driver's state; back-to-wall, traversal,
  * slide and air poses. Switches between these are inertialized (the jump decays through a critically
  * damped curve per joint group), never cut or linearly faded.
  * Upper body: weapon ready positions blended to the raised aim pose; reload (tactical / empty), swap and
@@ -13,7 +13,7 @@
  * Feet are placed by the rig's world-space FootPlanner from the stance and gait values output here.
  */
 import type { Proportions } from '../player/proportions';
-import { overClip, addClip, mirrorClip, type Clip } from './clip';
+import { overClip, addClip, type Clip } from './clip';
 import { CH, Inertializer, lerpPose, newPose, type Pose } from './pose';
 import { stepLength, type MotionState } from './motion';
 import { MOVEMENT } from '../config/movement';
@@ -31,16 +31,13 @@ import {
   WALK_STRAFE_L,
   WALK_STRAFE_R,
 } from './clips/locomotion';
-import { COVER_ENTER, COVER_ENTER_SIDE, COVER_EXIT, COVER_TURN, DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
+import { DROP, GRENADE, LAND, MANTLE, PIVOT, RELOAD_EMPTY, RELOAD_TACTICAL, SLIDE, START_SHIFT, STEP_UP, STOP_SETTLE, swapClipFor, VAULT, type SwapReach } from './clips/actions';
 import { CLIMB, CLIMB_UP, CRAWL, HANG, BRACE, PIPE_INVERTED, PIPE_LEGS_UP, RAPPEL_HANG, ROLL, rollTumble, SPLIT_BRACE, VENT_DROP, WALL_KICK, WINDOW_VAULT } from './clips/traverse';
 import { hyp2 } from '../core/mathx';
 
-/** The kneel with the right knee up (the clip has the left knee up): in cover the raised knee is on the wall
- *  side, so the weapon (in the open-side hand) rests beside the kneeling leg, not across the raised one. */
-const KNEEL_M = mirrorClip(KNEEL);
 
 export const FADE = 0.2;
-export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'cover', 'traverse'] as const;
+export const LOWER_STATES = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'wall', 'traverse'] as const;
 export type LowerState = (typeof LOWER_STATES)[number];
 /** Committed moves (vault .. hop) and the attached pose family (hang, climb, crawl: keyed over the climb
  *  cadence, `traverseT`). */
@@ -87,26 +84,14 @@ export interface AnimInput {
   dash: number;
   /** Dash-in slide progress 0..1, or < 0. */
   slide: number;
-  /** Turn-and-swap / corner swing in cover 0..1, or < 0: a ducking spin. */
-  coverTurn: number;
-  /** Edge peek: 1 when the line of fire clears the cover, 0 while still stepping out (weapon stays tucked). */
-  peekClear: number;
   /** Landing recovery 0..1. */
   landing: number;
-  cover: 'none' | 'low' | 'high';
-  /** Which side the cover surface is on, in the character's frame (-1 left, 1 right, 0 none). */
+  /** Back to a wall (the flat-back high stance; back-to-wall, step 11 / A6). */
+  wall: boolean;
+  /** Which side the wall is on, in the character's frame (-1 left, 1 right, 0 none). */
   wallSide: number;
   /** Lean around an edge: -1 left .. 1 right (hips planted). */
   lean: number;
-  /** Low cover: rise to aim over the top 0..1. */
-  peekOver: number;
-  /** Ducking behind low cover 0..1 (hunch the spine, tuck the head; the rig lowers the pelvis). */
-  duck: number;
-  /** Crouched aim over low cover 0..1: lean over the top with the weapon up at the cheek. */
-  aimOver: number;
-  blind: boolean;
-  /** Head/muzzle turned towards a nearby edge: -1 left, 1 right, 0 none. */
-  edgeLook: number;
   traverse: TraverseKind;
   /** Traversal progress 0..1. */
   traverseT: number;
@@ -125,7 +110,7 @@ export interface AnimInput {
   quickStop: number;
   /**
    * Chaos Theory stop hold (3.2.0, m/s; 0 = none): stopped, the body holds the stride it stopped in - the locomotion
-   * pose at the frozen gait clock for this pace - until the next input (move, aim, stance, cover, traversal).
+   * pose at the frozen gait clock for this pace - until the next input (move, aim, stance, wall, traversal).
    */
   holdSpeed: number;
   /** Root acceleration in the body frame (m/s^2): forward, right. */
@@ -166,17 +151,10 @@ export function defaultInput(): AnimInput {
     armed: true,
     dash: 0,
     slide: -1,
-    coverTurn: -1,
-    peekClear: 1,
     landing: 0,
-    cover: 'none',
+    wall: false,
     wallSide: 0,
     lean: 0,
-    peekOver: 0,
-    duck: 0,
-    aimOver: 0,
-    blind: false,
-    edgeLook: 0,
     traverse: 'none',
     traverseT: 0,
     melee: -1,
@@ -213,10 +191,10 @@ export interface RigTargets {
   weapon: { x: number; y: number; z: number; pitch: number; yaw: number; roll: number };
   /** 1 = both hands on the weapon (IK), 0 = free arms (targets below). */
   grip: number;
-  /** Off hand: weights on the foregrip, the magazine well, the cover surface (rest = free target). */
+  /** Off hand: weights on the foregrip, the magazine well, the wall (rest = free target). */
   offGrip: number;
   offMag: number;
-  offCover: number;
+  offWall: number;
   handL: V3;
   handR: V3;
   /** Ideal stance per foot (root space, m) and heel raise / pitch offsets. */
@@ -244,7 +222,7 @@ export function emptyTargets(): RigTargets {
     grip: 1,
     offGrip: 1,
     offMag: 0,
-    offCover: 0,
+    offWall: 0,
     handL: { x: 0, y: 0, z: 0 },
     handR: { x: 0, y: 0, z: 0 },
     stance: { lX: -0.11, lZ: 0.04, rX: 0.11, rZ: -0.02, lY: 0, rY: 0, lPitch: 0, rPitch: 0 },
@@ -262,7 +240,7 @@ export function pickLower(i: AnimInput): LowerState {
   if (i.traverse !== 'none') return 'traverse';
   if (i.slide >= 0) return 'slide';
   if (!i.grounded) return 'air';
-  if (i.cover !== 'none') return 'cover';
+  if (i.wall) return 'wall';
   if (i.crouch > 0.5) return i.kneel ? 'kneel' : 'crouch';
   return 'locomotion';
 }
@@ -280,10 +258,10 @@ export const SIGHT_HEAD = { roll: 0.15 };
 export const HEEL_KICK = 0.45;
 /**
  * Tactical carriage with a weapon: the chest well forward over the hips, hips back, knees bent, head up (eyes
- * level) - never upright like a mannequin. More bent over moving along cover and crouched (`crouch`: over the
+ * level) - never upright like a mannequin. More bent over moving along a wall and crouched (`crouch`: over the
  * knees); a little more leaning into a raised weapon.
  */
-export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, cover: 0.2, coverDrop: 0.06, aim: 0.05, crouch: 0.34 };
+export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.2, wallDrop: 0.06, aim: 0.05, crouch: 0.34 };
 
 export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
@@ -293,15 +271,17 @@ export const READY_POSES = {
   compressed: { x: -0.06, y: -0.08, z: -0.12, pitch: 0.6, yaw: -0.12, roll: 0.1 },
 } as const;
 /**
- * In cover: tucked against the chest on the open side, muzzle down along the wall and angled away from it
- * (`yaw` is turned away from the wall side), so it never pokes into the cover; raised from here to aim.
+ * Back to a wall: tucked against the chest on the open side, muzzle down along the wall and angled away from it
+ * (`yaw` is turned away from the wall side), so it never pokes into the wall; raised from here to aim.
  */
-export const COVER_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, roll: 0 };
-/** Crouched / kneeling in cover: muzzle flatter and the gun carried higher, clear of the raised knee. */
-export const COVER_READY_CROUCH = { pitch: 0.22, y: 0.15, yaw: 0.24, x: 0.05 };
-/** Kneeling still in cover (added to the crouched carry): out beside the kneeling leg on the open side,
- *  muzzle angled down past the knee, clear of the raised thigh and the curled chest. */
-export const COVER_READY_KNEEL = { x: 0.12, y: 0.1, pitch: -0.25, yaw: 0.15 };
+export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, roll: 0 };
+/**
+ * The flat-back high stance (A6): the settled end of the old cover entry - hips over towards the wall, the spine
+ * and head rolled into it (side-signed by the wall side), a little lower and bent (unsigned).
+ */
+export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.05, pelY: -0.03, pelPitch: 0.05, spPitch: 0.03 };
+/** Seconds the support hand takes to settle onto the wall. */
+const WALL_HAND_TIME = 0.42;
 
 const TRAVERSE_CLIP: Record<Exclude<TraverseKind, 'none'>, Clip> = { vault: VAULT, mantle: MANTLE, step: STEP_UP, drop: DROP, hop: VAULT, roll: ROLL, hang: HANG, climb: CLIMB, crawl: CRAWL, climbUp: CLIMB_UP, ventDrop: VENT_DROP, windowVault: WINDOW_VAULT, split: SPLIT_BRACE, wallKick: WALL_KICK, pipeLegs: PIPE_LEGS_UP, pipeInv: PIPE_INVERTED, rappel: RAPPEL_HANG, brace: BRACE };
 
@@ -315,7 +295,7 @@ export interface ClipSlot {
 const SLOTS = 10;
 
 export class AnimGraph {
-  readonly weights: Record<LowerState, number> = { locomotion: 1, crouch: 0, kneel: 0, air: 0, slide: 0, cover: 0, traverse: 0 };
+  readonly weights: Record<LowerState, number> = { locomotion: 1, crouch: 0, kneel: 0, air: 0, slide: 0, wall: 0, traverse: 0 };
   state: LowerState = 'locomotion';
   /** Gait clock in use (driver's, or integrated from speed). */
   phase = 0;
@@ -335,43 +315,31 @@ export class AnimGraph {
   /** Pace the locomotion blend uses this frame (the speed, or the held stop's pace). */
   private locoSpeed = 0;
   private kneelW = 0;
-  private kneelClip: Clip = KNEEL;
   private startT = -1;
   private settleT = -1;
-  private exitT = -1;
   private landT = -1;
-  private coverT = 0;
+  private wallT = 0;
   private prevMotion: MotionState | '' = '';
-  private prevCover: AnimInput['cover'] = 'none';
   private prevAction = '';
   private raiseS = 0;
   private dashS = 0;
   private reloadW = 0;
-  /** Tucked in against the cover while reloading / swapping / throwing. */
+  /** Tucked in against the wall while reloading / swapping / throwing. */
   tuckW = 0;
-  /** In-cover ready weight (eased ~0.25 s). */
-  private coverReadyW = 0;
-  private clearW = 1;
-  private blindS = 0;
+  /** Back-to-wall ready weight (eased ~0.25 s). */
+  private wallReadyW = 0;
 
-  /** How far the body / weapon is leaned out (signed, follows the lean target) and raised for blind fire. */
+  /** How far the body / weapon is leaned out (signed, follows the lean target). */
   get leanOut(): number {
     return this.leanBody.x;
-  }
-
-  get blindOut(): number {
-    return this.blindS;
   }
   private leanHead = new Spring();
   private leanBody = new Spring();
   private wallS = 0;
-  private edgeS = 0;
   private dirX = 0;
   private dirZ = 1;
   private moveW = 0;
   private accelLean = new Spring();
-  private duckS = new Spring();
-  private overS = new Spring();
   private intentLean = 0;
   private accelRoll = new Spring();
   private pelSpring = new Spring();
@@ -512,11 +480,9 @@ export class AnimGraph {
     this.dirZ /= dn;
     this.raiseS = approach(this.raiseS, i.raise, 0.02, dt);
     this.dashS = approach(this.dashS, i.dash, 0.15, dt);
-    this.blindS = approach(this.blindS, i.blind ? 1 : 0, 0.12 * mass, dt);
     this.wallS = approach(this.wallS, i.wallSide, 0.2, dt);
-    this.edgeS = approach(this.edgeS, i.edgeLook, 0.22, dt);
-    const inCover = i.cover !== 'none';
-    this.coverT = inCover ? this.coverT + dt : 0;
+    const atWall = i.wall;
+    this.wallT = atWall ? this.wallT + dt : 0;
 
     // --- locomotion blend space, standing and crouched, then the posture blend
     const crouchK = clamp(i.crouch, 0, 1);
@@ -528,15 +494,12 @@ export class AnimGraph {
     else lerpPose(src, this.stand, this.crouch, crouchK);
     this.slot(crouchK > 0.5 ? 'crouch loco' : 'loco', 1, ph);
 
-    // --- kneel: one knee down behind low cover or when crouched and still (eased over kneelTime)
-    const wantKneel = (i.kneel || (i.cover === 'low' && still)) && i.peekOver < 0.5 && crouchK > 0.5;
+    // --- kneel: one knee down when crouched and still (eased over kneelTime)
+    const wantKneel = i.kneel && crouchK > 0.5;
     const kStep = dt / (wantKneel ? MOVEMENT.kneelTime : MOVEMENT.standTime);
     this.kneelW = clamp(this.kneelW + (wantKneel ? kStep : -kStep), 0, 1);
     const kw = smoothstep(this.kneelW);
-    const kneelClip = inCover && this.wallS > 0 ? KNEEL_M : KNEEL;
-    if (kneelClip !== this.kneelClip && kw > 0.01) trigger = true;
-    this.kneelClip = kneelClip;
-    overClip(src, kneelClip, this.idleT, kw);
+    overClip(src, KNEEL, this.idleT, kw);
     this.slot('kneel', kw, this.idleT);
 
     // --- start / stop / pivot clips from the motion driver
@@ -562,34 +525,23 @@ export class AnimGraph {
       this.slot('pivot', 1, t);
     }
 
-    // --- cover: side-on, shoulder to the wall; the entry is a timed clip; leaving pushes off
-    if (inCover && this.prevCover === 'none') trigger = true;
-    if (!inCover && this.prevCover !== 'none') {
-      this.exitT = 0;
-      trigger = true;
-    }
-    this.prevCover = i.cover;
-    if (inCover) {
-      const settled = Math.min(this.coverT, COVER_ENTER.duration);
-      addClip(src, COVER_ENTER_SIDE, settled, 1, this.wallS || 1);
-      addClip(src, COVER_ENTER, settled, 1);
-      this.slot('cover enter', this.coverT < COVER_ENTER.duration ? 1 : 0.3, settled);
-      if (i.coverTurn >= 0) {
-        addClip(src, COVER_TURN, clamp(i.coverTurn, 0, 1), 1);
-        this.slot('cover turn', 1, i.coverTurn);
-      }
-      // reloading, swapping or throwing in cover: tuck in closer to the wall, a little lower
+    // --- back to a wall: the flat-back high stance (A6), shoulder to the wall
+    if (atWall) {
+      const ws = this.wallS || 1;
+      const st = WALL_STANCE;
+      src[CH.pelX] = src[CH.pelX]! + st.pelX * ws;
+      src[CH.spRoll] = src[CH.spRoll]! + st.spRoll * ws;
+      src[CH.pelRoll] = src[CH.pelRoll]! + st.pelRoll * ws;
+      src[CH.hdRoll] = src[CH.hdRoll]! + st.hdRoll * ws;
+      src[CH.pelY] = src[CH.pelY]! + st.pelY;
+      src[CH.pelPitch] = src[CH.pelPitch]! + st.pelPitch;
+      src[CH.spPitch] = src[CH.spPitch]! + st.spPitch;
+      // reloading, swapping or throwing at the wall: tuck in closer to it, a little lower
       this.tuckW = approach(this.tuckW, i.reload >= 0 || i.swap >= 0 || i.grenade >= 0 ? 1 : 0, 0.12, dt);
       src[CH.pelX] = src[CH.pelX]! + this.wallS * 0.035 * this.tuckW;
       src[CH.pelY] = src[CH.pelY]! - 0.03 * this.tuckW;
       src[CH.spPitch] = src[CH.spPitch]! + 0.06 * this.tuckW;
     } else this.tuckW = 0;
-    if (this.exitT >= 0) {
-      addClip(src, COVER_EXIT, this.exitT, 1);
-      this.slot('cover exit', 1, this.exitT);
-      this.exitT += dt;
-      if (this.exitT > COVER_EXIT.duration) this.exitT = -1;
-    }
 
     // --- traversal, slide, air, landing
     if (i.traverse !== 'none') {
@@ -629,28 +581,19 @@ export class AnimGraph {
     src[CH.pelPitch] = src[CH.pelPitch]! + lean;
     src[CH.spPitch] = src[CH.spPitch]! - lean * 0.45;
     src[CH.pelRoll] = src[CH.pelRoll]! + roll;
-    // ducking behind low cover: curl the back over the knees, the head down but eyes forward
-    const duckS = this.duckS.step(i.duck, 16, dt);
-    src[CH.pelPitch] = src[CH.pelPitch]! + duckS * 0.45;
-    src[CH.spPitch] = src[CH.spPitch]! + duckS * 1.15;
-    src[CH.hdPitch] = src[CH.hdPitch]! - duckS * 0.7;
-    // crouched aim over low cover: the back straightens out of the crouch hunch and the weapon comes up
-    // to the cheek (the rig then rises only until the muzzle clears), so only eyes, head and gun show
-    const overS = this.overS.step(i.aimOver, 20, dt);
-    src[CH.spPitch] = src[CH.spPitch]! - overS * 0.18;
 
-    // --- tactical carriage (armed): hunched over the weapon; more bent over moving along cover
+    // --- tactical carriage (armed): hunched over the weapon; more bent over moving along a wall
     if (i.armed) {
       // (a reload opens the chest up a little so the support arm can reach the magazine well)
       const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW);
-      const along = inCover && i.cover === 'high' ? this.moveW : 0;
-      // crouched: bent well over the knees (half of it straightens into a raised weapon); in cover the cover
+      const along = atWall ? this.moveW : 0;
+      // crouched: bent well over the knees (half of it straightens into a raised weapon); at a wall the wall
       // hunch bends over the tucked weapon instead (the tuck stays clear of the thighs and the wall)
-      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (inCover ? 0 : 1);
-      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.cover * along + HUNCH.aim * this.raiseS + crouchBend;
+      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (atWall ? 0 : 1);
+      src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.wall * along + HUNCH.aim * this.raiseS + crouchBend;
       src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
-      src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - HUNCH.cover * 0.6 * along - crouchBend * 0.7;
-      src[CH.pelY] = src[CH.pelY]! - HUNCH.drop * hunch * (1 - crouchK * 0.6) - HUNCH.coverDrop * along;
+      src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - HUNCH.wall * 0.6 * along - crouchBend * 0.7;
+      src[CH.pelY] = src[CH.pelY]! - HUNCH.drop * hunch * (1 - crouchK * 0.6) - HUNCH.wallDrop * along;
     }
 
     // --- weapon actions (inertialized as they start and end)
@@ -681,7 +624,7 @@ export class AnimGraph {
     src[CH.pelX] = src[CH.pelX]! + bd * 0.17 * k;
     const check = i.check >= 0 ? Math.sin(i.check * Math.PI * 2) * 0.65 * Math.sin(Math.PI * i.check) : 0;
     src[CH.hdPitch] = src[CH.hdPitch]! - aimPitch * 0.45;
-    src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 * handS + this.edgeS * 0.45 + check + hd * 0.12;
+    src[CH.hdYaw] = src[CH.hdYaw]! + clamp(i.aimYaw, -1.2, 1.2) * 0.4 - raise * 0.18 * handS + check + hd * 0.12;
     src[CH.hdRoll] = src[CH.hdRoll]! + hd * 0.22;
     if (Math.abs(i.lean) > 0.01 || Math.abs(hd) > 0.01) this.slot('lean', Math.abs(hd), bd);
     if (i.check >= 0) this.slot('check', 1, i.check);
@@ -697,8 +640,7 @@ export class AnimGraph {
       cc = cc * (1 - swapBump) + swapBump;
     }
     // at an edge peek the weapon comes up only as the body leans out past the edge (never raised into it)
-    this.clearW = approach(this.clearW, i.peekClear, 0.08, dt);
-    const leanK = (peekOut ? smoothstep(Math.abs(bd) / Math.max(0.05, Math.abs(leanIn)) / 0.8) : 1) * this.clearW;
+    const leanK = peekOut ? smoothstep(Math.abs(bd) / Math.max(0.05, Math.abs(leanIn)) / 0.8) : 1;
     const raiseW = raise * leanK;
     const ready = 1 - raiseW * (1 - swapBump);
     const rl = READY_POSES.low;
@@ -706,50 +648,40 @@ export class AnimGraph {
     const rc = READY_POSES.compressed;
     const sway = (Math.sin(this.idleT * 1.3) * 0.005 + Math.sin(this.idleT * 0.7) * 0.003) * mass * (1 - kw * 0.5);
     const rec = this.recoil.step(i.kick, 26 / Math.sqrt(mass), dt);
-    const blindLow = i.cover === 'low' ? 1 : 0;
-    // raised: up to the eye (blind fire holds it out over / round the cover instead)
-    const sight = raiseW * (1 - this.blindS);
-    // in cover the ready is the cover tuck: muzzle down along the wall, turned away from it (the rig mirrors
+    // raised: up to the eye
+    const sight = raiseW;
+    // at a wall the ready is the wall tuck: muzzle down along the wall, turned away from it (the rig mirrors
     // yaw with the hand, so the away side is relative to the hand holding it)
-    this.coverReadyW = approach(this.coverReadyW, inCover ? 1 : 0, 0.25, dt);
-    // turning round at high cover (turn-and-swap, corner swing): the gun comes up to the high ready (muzzle up,
-    // tight in) while the hands change - nothing sticks out sideways into the wall (low cover keeps its tuck)
-    const turnK = inCover && i.cover === 'high' && i.coverTurn >= 0 ? Math.sin(Math.PI * clamp(i.coverTurn, 0, 1)) : 0;
-    const cw = this.coverReadyW * (1 - turnK);
-    const nw = 1 - this.coverReadyW;
+    this.wallReadyW = approach(this.wallReadyW, atWall ? 1 : 0, 0.25, dt);
+    const cw = this.wallReadyW;
+    const nw = 1 - this.wallReadyW;
     const awayYaw = (this.wallS === 0 ? 1 : -Math.sign(this.wallS)) * (i.hand < 0 ? -1 : 1);
-    const cr = COVER_READY;
-    // kneeling still (not leaning out): the carry moves out beside the kneeling leg
-    const kneelK = kw * (1 - Math.min(1, Math.abs(bd)));
-    // gliding into cover the open-ground carry comes in tight to the chest (compressed) until the tuck takes
-    // over, so a low-ready muzzle never reaches into the cover or the floor on the way in
-    const enterK = inCover ? 1 - smoothstep(this.coverT / COVER_ENTER.duration) : 0;
+    const cr = WALL_READY;
+    // stepping to the wall the open-ground carry comes in tight to the chest (compressed) until the tuck takes
+    // over, so a low-ready muzzle never reaches into the wall on the way in
+    const enterK = atWall ? 1 - smoothstep(this.wallT / WALL_HAND_TIME) : 0;
     cc += (cl + chh) * enterK;
     cl *= 1 - enterK;
     chh *= 1 - enterK;
     cl *= nw;
-    chh = chh * nw + this.coverReadyW * turnK;
+    chh *= nw;
     cc *= nw;
-    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + (cr.x + COVER_READY_CROUCH.x * crouchK + COVER_READY_KNEEL.x * kneelK + 0.06 * this.moveW * crouchK) * cw) + this.blindS * (1 - blindLow) * bd * 0.22 + sight * SIGHT_RAISE.x;
-    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + (cr.y + COVER_READY_CROUCH.y * crouchK + COVER_READY_KNEEL.y * kneelK + 0.08 * this.moveW * crouchK) * cw) + sway + this.blindS * (blindLow ? 0.42 : 0.1) + sight * SIGHT_RAISE.y;
+    src[CH.wpX] = ready * (rl.x * cl + rh.x * chh + rc.x * cc + cr.x * cw) + sight * SIGHT_RAISE.x;
+    src[CH.wpY] = ready * (rl.y * cl + rh.y * chh + rc.y * cc + cr.y * cw) + sway + sight * SIGHT_RAISE.y;
     src[CH.wpZ] = ready * (rl.z * cl + rh.z * chh + rc.z * cc + cr.z * cw) - (rec * 0.05) / Math.sqrt(mass) + sight * SIGHT_RAISE.z;
     src[CH.hdRoll] = src[CH.hdRoll]! + sight * SIGHT_HEAD.roll * handS;
     this.out.weld = sight;
     this.out.aimW = raiseW;
     // landing roll: the whole body turns over forward about the hips
     this.out.tumble = i.traverse === 'roll' ? rollTumble(i.traverseT) : i.tumble;
-    // crouched / kneeling the muzzle points out past the knees rather than down into them
     // leaning out at an edge the tucked muzzle comes up towards level (the lean would roll it onto the leg)
-    // turning round at low cover the tucked muzzle comes up towards level (pointing down it would reach the
-    // floor past the end of the cover as the body swings); moving crouched along cover it is carried flatter too
-    const lowTurn = inCover && i.cover === 'low' && i.coverTurn >= 0 ? Math.sin(Math.PI * clamp(i.coverTurn, 0, 1)) : 0;
-    const crPitch = ((cr.pitch - (cr.pitch - COVER_READY_CROUCH.pitch) * crouchK) * (1 - 0.6 * Math.min(1, Math.abs(bd))) + COVER_READY_KNEEL.pitch * kneelK) * (1 - 0.7 * lowTurn) - 0.3 * this.moveW * crouchK;
+    const crPitch = cr.pitch * (1 - 0.6 * Math.min(1, Math.abs(bd)));
     src[CH.wpPitch] = ready * (rl.pitch * cl + rh.pitch * chh + rc.pitch * cc + crPitch * cw) - (rec * 0.12) / mass + sway * 2;
-    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + (cr.yaw + COVER_READY_CROUCH.yaw * crouchK + COVER_READY_KNEEL.yaw * kneelK) * cw * awayYaw) + this.blindS * (1 - blindLow) * bd * 0.3 + check * 0.6 * ready + this.edgeS * 0.25 * ready;
+    src[CH.wpYaw] = ready * (rl.yaw * cl + rh.yaw * chh + rc.yaw * cc + cr.yaw * cw * awayYaw) + check * 0.6 * ready;
     src[CH.wpRoll] = ready * (rl.roll * cl + rh.roll * chh + rc.roll * cc + cr.roll * cw);
     // bent over in a crouch the lowered muzzle comes up with the chest and the gun sits further out, clear of
     // the thighs (the lowered weapon is oriented with the body, not the spine)
-    // (the open-ground carries only, crouching into cover included: the cover tucks have their own crouch pose)
+    // (the open-ground carries only: the wall tuck has its own pose)
     const bendK = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * ready * nw;
     src[CH.wpPitch] = src[CH.wpPitch]! - bendK * 1.1;
     src[CH.wpZ] = src[CH.wpZ]! + bendK * 0.16;
@@ -757,15 +689,13 @@ export class AnimGraph {
     // recoil absorbed through the shoulder and spine
     src[CH.spPitch] = src[CH.spPitch]! - rec * 0.05 / mass;
     src[CH.pelPitch] = src[CH.pelPitch]! - rec * 0.015 / mass;
-    // grip and off hand defaults (cover: off hand to the wall when settled and lowered)
+    // grip and off hand defaults (at a wall: off hand to the wall when settled and lowered)
     src[CH.grip] = i.armed ? 1 : 0;
     src[CH.offGrip] = 1;
     src[CH.offMag] = 0;
-    // the hand reaches the wall during the entry (0.18-0.42 s) and rests there while still and lowered
-    // the support hand reaches for the wall first (during the entry glide), then stays on it while
-    // holding still; moving along the cover takes it back to the weapon
-    const entering = this.coverT < COVER_ENTER.duration;
-    src[CH.offCover] = inCover ? 0.85 * ready * (entering ? 1 : 1 - this.moveW) * smoothstep((this.coverT - 0.18) / 0.24) : 0;
+    // the support hand reaches the wall (0.18-0.42 s) and rests there while still and lowered; moving along the
+    // wall takes it back to the weapon
+    src[CH.offWall] = atWall ? 0.85 * ready * (1 - this.moveW) * smoothstep((this.wallT - 0.18) / 0.24) : 0;
     // free hands hang at the sides (swing a little with the gait when unarmed)
     const swing = 0.1 * this.moveW * Math.sin(ph * Math.PI * 2);
     const shY = p.y.shoulder - 0.04 * k;
@@ -783,7 +713,7 @@ export class AnimGraph {
       overClip(src, i.reloadEmpty ? RELOAD_EMPTY : RELOAD_TACTICAL, rt, this.reloadW);
       this.slot(i.reloadEmpty ? 'reload empty' : 'reload', this.reloadW, rt);
       // held a little further out while reloading: the support arm reaches the magazine with the elbow clear of
-      // the chest (compact guns hunched in cover would fold it in)
+      // the chest (compact guns hunched at a wall would fold it in)
       src[CH.wpZ] = src[CH.wpZ]! + 0.07 * this.reloadW;
       // crouched / curled over, the reach to the pouch goes out to the side so the elbow clears the chest
       src[CH.hLX] = src[CH.hLX]! - 0.09 * this.reloadW * crouchK;
@@ -856,7 +786,7 @@ export class AnimGraph {
     o.grip = clamp(q[CH.grip]!, 0, 1);
     o.offGrip = clamp(q[CH.offGrip]!, 0, 1);
     o.offMag = clamp(q[CH.offMag]!, 0, 1);
-    o.offCover = clamp(q[CH.offCover]!, 0, 1);
+    o.offWall = clamp(q[CH.offWall]!, 0, 1);
     o.handL.x = q[CH.hLX]! * k;
     o.handL.y = q[CH.hLY]! * k;
     o.handL.z = q[CH.hLZ]! * k;
@@ -898,7 +828,6 @@ export class AnimGraph {
     ly.high = i.carryHigh;
     ly.compressed = i.carryComp;
     ly.reload = this.reloadW;
-    ly.blind = this.blindS;
     ly.dash = this.dashS;
     ly.kneel = smoothstep(this.kneelW);
     ly.inert = this.inert.maxOffset;

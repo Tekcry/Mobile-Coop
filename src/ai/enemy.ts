@@ -223,6 +223,8 @@ export class Enemy implements Damageable {
   private meP: P2 = [0, 0];
   private coverPose: 'none' | 'low' | 'high' = 'none';
   private coverPeek = 0;
+  /** Rendering only: side of the cover wall in the guard's frame for the flat-back stance (-1 left, 1 right, 0 unknown). */
+  private coverWallSide = 0;
   /** Last place the target was seen (aim point) and seconds since. */
   private lastKnown = new Vector3();
   private lastSeenT = 99;
@@ -488,6 +490,7 @@ export class Enemy implements Damageable {
     if (s !== 'inCover') {
       this.coverPose = 'none';
       this.coverPeek = 0;
+      this.coverWallSide = 0;
     }
     if (this.state === 'inCover' || this.state === 'seekCover') {
       if (s !== 'inCover') this.ctx.releaseCover(this);
@@ -1263,6 +1266,9 @@ export class Enemy implements Damageable {
         let pt: P2 = [cp.pos.x, cp.pos.z];
         this.coverPose = cp.low ? 'low' : 'high';
         this.coverPeek = 0;
+        // (rendering) the wall sits on the side away from the open edge the guard leans past
+        const wseg = cp.low ? undefined : this.ctx.coverSegments[cp.seg];
+        this.coverWallSide = wseg ? (cp.s < wseg.len / 2 ? -1 : 1) : 0;
         if (!cp.low && peeking) {
           const seg = this.ctx.coverSegments[cp.seg];
           const edge = seg ? nearestEdge(seg, cp.s) : null;
@@ -1687,7 +1693,8 @@ export class Enemy implements Damageable {
     rp.aim = aiming;
     rp.kick = this.def.melee ? 0 : this.kick;
     rp.melee = this.def.melee && this.kick > 0 ? 1 - this.kick : -1;
-    rp.cover = this.coverPose;
+    rp.wall = this.coverPose === 'high';
+    rp.wallSide = rp.wall ? this.coverWallSide : 0;
     rp.lean = this.coverPeek;
     rp.dash = !this.def.melee && sp > this.def.runSpeed * 0.8 && aiming < 0.5 ? 1 : 0;
     rp.phase = m.phase;
