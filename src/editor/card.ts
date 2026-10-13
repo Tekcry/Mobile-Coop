@@ -12,6 +12,43 @@ import { HOLE_KINDS, HOLE_NAMES, STAIR_FACTS, STAIR_TYPES, stairType, stairTypeO
 import type { Coll, Elem, Ladder, Opening, Rect, Roof, Room, Stair, Void, Wall } from './types';
 import { ROOF_LABELS, ROOF_TYPES, roofSettingWords, roofType, shownRoofSettings, stepRoofSetting, withRoofType } from './roofGeometry';
 import type { RoofSetting } from './roofGeometry';
+import { stepPreset, turnObject } from './objects';
+import { presetOf } from './catalogue';
+import type { Obj } from './types';
+
+/** ON4: an object's card: Type (the preset), Name, size, height, base, turn, see-through, no ledge. */
+function objectRows(o: Obj): CardRow[] {
+  return [
+    { id: 'type', label: 'Type', value: presetOf(o.preset)?.name ?? 'Object', kind: 'list' },
+    nameRow(o),
+    ...sizeRows(o.rect),
+    { id: 'h', label: 'Height', value: m(o.h), kind: 'len' },
+    { id: 'y', label: 'Base', value: m(o.y), kind: 'len' },
+    { id: 'yaw', label: 'Turn', value: `${o.yaw ?? 0} degrees`, kind: 'list' },
+    { id: 'seeThrough', label: 'See-through', value: o.seeThrough ? 'yes' : 'no', kind: 'flag' },
+    { id: 'noLedge', label: 'No ledge', value: o.noLedge ? 'yes' : 'no', kind: 'flag' },
+    idRow(o),
+  ];
+}
+
+/** ON4: one D-pad step on an object's own rows (size rows, name and id are the shared ones). */
+function stepObjectRow(o: Obj, row: string, dir: 1 | -1, step: number): Obj | null {
+  const a: Obj = { ...o };
+  if (row === 'type') return stepPreset(o, dir);
+  if (row === 'yaw') {
+    let t = o;
+    for (let i = 0; i < (dir > 0 ? 1 : 3); i++) t = turnObject(t, step);
+    return t;
+  }
+  if (row === 'h') a.h = Math.max(step, r3(o.h + dir * step));
+  else if (row === 'y') a.y = Math.max(0, r3(o.y + dir * step));
+  else if (row === 'seeThrough') {
+    if (o.seeThrough) delete a.seeThrough;
+    else a.seeThrough = true;
+  } else if (row === 'noLedge') a.noLedge = !o.noLedge;
+  else return null;
+  return a;
+}
 
 /** ON10: the roof settings that are lengths and flags (the rest step through a list or by a degree). */
 const ROOF_LEN: ReadonlySet<string> = new Set(['parapet', 'upstand', 'tooth', 'rise', 'overhang', 'fascia']);
@@ -119,6 +156,7 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
     ];
   }
   if (coll === 'roofs') return roofRows(e as Roof);
+  if (coll === 'objects') return objectRows(e as Obj);
   if (coll === 'voids') return [{ id: 'type', label: 'Type', value: HOLE_NAMES[(e as Void).kind] ?? (e as Void).kind, kind: 'list' }, nameRow(e), ...sizeRows((e as { rect: Rect }).rect), idRow(e)];
   if (coll === 'ladders') return [nameRow(e), { id: 'facing', label: 'Facing', value: DIR_WORDS[(e as Ladder).facing ?? 'N'] ?? '', kind: 'list' }, { id: 'to', label: 'To level', value: (e as Ladder).to, kind: 'list' }, idRow(e)];
   return [nameRow(e), idRow(e)];
@@ -156,6 +194,7 @@ export function cardWindow(n: number, lit: number, max = CARD_ROWS_SHOWN): [numb
 export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepCtx): Elem | null {
   const a = JSON.parse(JSON.stringify(e)) as Elem & Record<string, unknown>;
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
+  if (coll === 'objects' && row !== 'width' && row !== 'depth' && row !== 'name' && row !== 'id') return stepObjectRow(e as Obj, row, dir, c.step) as Elem | null;
   if (coll === 'roofs' && row !== 'width' && row !== 'depth' && row !== 'name' && row !== 'id') {
     const r = e as Roof;
     if (row === 'type') return withRoofType(r, wrap(ROOF_TYPES.map((t) => t.id), roofType(r.type).id, dir)) as Elem;

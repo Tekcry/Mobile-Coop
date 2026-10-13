@@ -16,6 +16,8 @@ export type LiveShape = { kind: 'line'; a: Pt; b: Pt; guide?: boolean } | { kind
 export interface LiveInfo {
   words: string;
   shapes: LiveShape[];
+  /** ON4: red at the dot (a row's aisle under the facts). */
+  bad?: boolean;
 }
 
 const r3 = (v: number): number => +v.toFixed(3);

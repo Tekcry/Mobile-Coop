@@ -13,6 +13,8 @@ const OPENING_DESC: Record<Motion, string> = { swing: 'Hinged leaf; A on a wall 
 import { ROOM_OPTIONS } from './roomWalls';
 import { STAIR_TYPES } from './vertical';
 import { ROOF_TYPES } from './roofGeometry';
+import { GROUPS, groupPresets } from './catalogue';
+import type { ObjGroup } from './catalogue';
 import type { Coll } from './types';
 
 export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Lights', 'Mission', 'View'] as const;
@@ -40,6 +42,8 @@ export interface MenuInput {
   view: ViewState;
   /** ON3: the number of things in a multi-selection (box select or Shift+click); its tiles replace the Selected tab's. */
   group?: number;
+  /** ON4: the Objects tab's group (its presets follow the group tiles). */
+  objGroup?: ObjGroup;
 }
 
 export interface ViewState {
@@ -57,6 +61,8 @@ export interface ViewState {
   /** ON3: room names floating in 3D (L) and the scale figure at the dot (K). */
   names?: boolean;
   figure?: boolean;
+  /** ON4: the stealth view (J). */
+  stealth?: boolean;
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -80,6 +86,7 @@ export function viewTiles(v: ViewState): Tile[] {
     { id: 'view.underlay', icon: 'U', name: 'Level below on the plan', desc: 'The floor under this one, faint', kind: 'toggle', on: v.underlay, value: onOff(v.underlay) },
     { id: 'view.names', icon: 'N', name: 'Room names in 3D', desc: 'On each floor, fading out by 40 m (L)', kind: 'toggle', on: !!v.names, value: onOff(!!v.names) },
     { id: 'view.figure', icon: 'K', name: 'Scale figure', desc: 'A 1.75 m person and a crouch at the dot (K)', kind: 'toggle', on: !!v.figure, value: onOff(!!v.figure) },
+    { id: 'view.stealth', icon: 'J', name: 'Stealth view', desc: 'Objects by what they give the player (J)', kind: 'toggle', on: !!v.stealth, value: onOff(!!v.stealth) },
   ];
 }
 
@@ -97,9 +104,9 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         ];
       const s = inp.sel;
       if (!s) return [];
-      const turns = ['rooms', 'walls', 'stairs', 'ladders'].includes(s.coll);
+      const turns = ['rooms', 'walls', 'stairs', 'ladders', 'objects'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects';
       const t: (Tile | false)[] = [
         { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
         { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
@@ -134,10 +141,18 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
     case 'Openings':
       // ON9: every door and window type of the catalogue, doors first
       return CATALOGUE.map((c): Tile => ({ id: c.id === 'window' ? 'build.window' : `${c.family}.${c.id}`, icon: c.family === 'window' ? 'W' : 'D', name: c.name, desc: OPENING_DESC[c.motion], kind: 'go' }));
+    case 'Objects': {
+      // ON4: the five groups first (A changes the group, the menu stays), then that group's presets
+      const g = inp.objGroup ?? 'dataHall';
+      return [
+        ...GROUPS.map((q): Tile => ({ id: `objgroup.${q.id}`, icon: 'G', name: q.name, desc: 'A shows its objects', kind: 'toggle', on: q.id === g, value: q.id === g ? 'shown' : '' })),
+        ...groupPresets(g).map((p): Tile => ({ id: `obj.${p.id}`, icon: p.draw ? 'R' : p.mount === 'wall' ? 'W' : 'O', name: p.name, desc: p.draw ? 'A at the start, A at the end' : p.mount === 'wall' ? 'A on a wall; RB turns' : 'A places it; RB turns', kind: 'go' })),
+      ];
+    }
     case 'View':
       return viewTiles(inp.view);
     default:
-      // Objects, Lights and Mission: the later parts add their tiles here
+      // Lights and Mission: the later parts add their tiles here
       return [];
   }
 }

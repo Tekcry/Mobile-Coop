@@ -29,7 +29,7 @@ import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpen
 import { WallChain } from './chain';
 import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './liveSizes';
 import type { LiveInfo, LiveShape } from './liveSizes';
-import type { Campus, Coll, Elem, Key, Ladder, Level, Opening, Pt, Rect, Roof, Room, Stair, Void, Wall } from './types';
+import type { Campus, Coll, Elem, Key, Ladder, Level, Obj, Opening, Pt, Rect, Roof, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
 import { BOOKMARK_NAMES, freeSlot, idIndex, netChanges, problemTarget, problemWords, putBookmark, readBookmarks, summaryWords } from './ease';
 import type { Bookmark, FindItem } from './ease';
@@ -41,9 +41,12 @@ import { fitStair, HOLE_KINDS, HOLE_NAMES, holeId, ladderId, newHole, proposeLad
 import type { StairTypeId } from './vertical';
 import { defaultBase, footprintAt, newRoof, ROOF_TYPES, roofId, roofType, roofWords, withRoofType } from './roofGeometry';
 import type { RoofType } from './roofGeometry';
+import { aisleOf, newObject, stealthTint, objectId, placeObject, rowCount, rowRect, turnObject } from './objects';
+import { GROUPS, groupName, presetOf, PRESETS } from './catalogue';
+import type { ObjGroup, Preset } from './catalogue';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -188,6 +191,12 @@ export class Editor {
   holeKind = 'liftshaft';
   /** ON10: the Roof tool's type (the Build tab's Roof tiles, D-pad left / right with the tool). */
   roofTypeId: RoofType = 'gable';
+  /** ON4: the Object tool's preset and group (Objects tab, D-pad left / right with the tool) and the ghost's quarter turns. */
+  objPresetId = 'rack-row';
+  objGroup: ObjGroup = 'dataHall';
+  objYaw = 0;
+  /** ON4: the stealth view (J; Hub > View): objects tinted by their badges in 3D and on the plan. */
+  stealth = false;
   /**
    * The Stair tool (ON2): A at the start corner ('aim': the dot points the climb, the proposal follows), A again ('proposed':
    * the ghost holds still with its words), A accepts, B cancels. The proposal is previewed in the model as a real stair.
@@ -577,6 +586,21 @@ export class Editor {
     const e = clone(d.before) as Elem & Record<string, unknown>;
     const dx = snap(x - d.start[0], g);
     const dz = snap(z - d.start[1], g);
+    if (d.coll === 'objects' && d.isNew) {
+      // ON4: a drawn row (racks, switchboards, low wall, tray, containment roof, cage mesh, walkway) from its start
+      const p = presetOf((d.before as Obj).preset);
+      if (!p) return e;
+      const row = rowRect(p, d.start, [snap(x, g), snap(z, g)], this.objectGrid);
+      (e as Obj).rect = row.rect;
+      if (row.yaw) (e as Obj).yaw = row.yaw;
+      else delete (e as Obj).yaw;
+      return e;
+    }
+    if (d.coll === 'objects') {
+      const r = (d.before as Obj).rect;
+      (e as Obj).rect = [r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz].map((v) => +v.toFixed(3)) as Rect;
+      return e;
+    }
     if (d.coll === 'rooms' || d.coll === 'stairs' || d.coll === 'voids' || d.coll === 'roofs') {
       const r = (d.before as Room).rect;
       // ON1 decision 7: the moving edges snap to wall lines, wall faces and other room edges (LB / Ctrl: off)
@@ -765,6 +789,13 @@ export class Editor {
     }
     let after = this.model.snapshot(d.coll, d.id);
     if (!after) return;
+    if (d.isNew && d.coll === 'objects') {
+      // ON4: a row is at least one unit; the Object tool stays on for the next row
+      this.commit([{ coll: d.coll, id: d.id, before: null, after }]);
+      this.select(keyOf(d.coll, d.id));
+      this.status(`Placed ${this.objectWords(after as Obj)}: A (click) starts the next`);
+      return;
+    }
     if (d.isNew) {
       const tiny = d.coll === 'walls' ? wallLen(after as Wall) < this.grid - 1e-6 : (after as Room).rect[2] - (after as Room).rect[0] < this.grid - 1e-6 || (after as Room).rect[3] - (after as Room).rect[1] < this.grid - 1e-6;
       if (tiny && d.coll === 'roofs') return this.roofOnFootprint(d.id, d.start);
@@ -831,6 +862,8 @@ export class Editor {
       const r = newRoof(this.model.data, lvl, [p[0], p[1], p[0], p[1]], this.roofTypeId, roofId(this.model.data));
       this.model.preview('roofs', r);
       this.beginDrag('roofs', r.id, null, p, this.viewFloor(), sx, sy, source, true);
+    } else if (this.tool === 'object') {
+      this.objectDown(x, z, sx, sy, source);
     } else if (this.tool === 'door' || this.tool === 'window') {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
@@ -923,6 +956,108 @@ export class Editor {
   /** ON10: the Roof tool's type (Build tab Roof tiles, D-pad left / right with the tool). */
   setRoofType(t: RoofType): void {
     this.roofTypeId = t;
+  }
+
+  // ---------- objects (ON4) ----------
+  /** The object grid (meta.objectGrid, 0.1 m). */
+  get objectGrid(): number {
+    const g = (this.model.data.meta as { objectGrid?: number }).objectGrid;
+    return typeof g === 'number' && g > 0 ? g : this.fineGrid;
+  }
+
+  get objPreset(): Preset {
+    return presetOf(this.objPresetId) ?? PRESETS[0]!;
+  }
+
+  /** The Object tool's preset (Objects tab tiles, D-pad left / right with the tool, the tool bar list); its group follows. */
+  setObjectPreset(id: string): void {
+    const p = presetOf(id);
+    if (!p) return;
+    this.objPresetId = p.id;
+    this.objGroup = p.group;
+    const sel = document.getElementById('objPreset') as HTMLSelectElement | null;
+    if (sel) sel.value = p.id;
+  }
+
+  /** The ghost where A would place the Object tool's preset now (null for a drawn row: A starts it). */
+  objectGhost(x: number, z: number): { rect: Rect; wall: string | null; why: string | null } | null {
+    const p = this.objPreset;
+    if (p.draw) return null;
+    return placeObject(p, this.objYaw, x, z, this.objectGrid, this.model.list('walls') as Wall[], this.view.level);
+  }
+
+  /** "Rack row (O001, 10 units, 6 m)" / "Desk (O004)". */
+  objectWords(o: Obj): string {
+    const n = rowCount(o);
+    return n ? `${o.name ?? o.id} (${o.id}, ${n} ${n === 1 ? 'unit' : 'units'}, ${fmt(Math.max(o.rect[2] - o.rect[0], o.rect[3] - o.rect[1]))} m)` : `${o.name ?? o.id} (${o.id})`;
+  }
+
+  /** The aisle beside an object (or the row being drawn) against the facts, for the card, the dot and the live words. */
+  objectAisle(o: Obj): ReturnType<typeof aisleOf> {
+    return aisleOf(o.rect, o.h, o.level, this.model.list('objects') as Obj[], o.id);
+  }
+
+  /** A (click) with the Object tool: a drawn preset starts its row; any other is placed at the dot (the tool stays on). */
+  private objectDown(x: number, z: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad'): void {
+    const pre = this.objPreset;
+    const lvl = this.view.level;
+    const id = objectId(this.model.data);
+    if (pre.draw) {
+      const start: Pt = [snap(x, this.objectGrid), snap(z, this.objectGrid)];
+      const row = rowRect(pre, start, start, this.objectGrid);
+      const o = newObject(id, lvl, pre, row.rect, row.yaw);
+      this.model.preview('objects', o);
+      this.beginDrag('objects', id, null, start, this.viewFloor(), sx, sy, source, true);
+      return;
+    }
+    const g = this.objectGhost(x, z);
+    if (!g) return;
+    if (g.why) return this.status(g.why);
+    const o = newObject(id, lvl, pre, g.rect, this.objYaw);
+    this.commitText(`Added ${o.name ?? ''} (${o.id}) ${fmt(o.rect[2] - o.rect[0])} x ${fmt(o.rect[3] - o.rect[1])} m${g.wall ? ` against ${g.wall}` : ''}`, [{ coll: 'objects', id: o.id, before: null, after: o }]);
+    this.select(keyOf('objects', o.id));
+    this.status(`Placed ${o.name ?? ''} (${o.id}): A (click) places another, RB (R) turns, B (Esc) puts the tool down`);
+  }
+
+  /** RB with the Object tool (R with the mouse): the ghost turns; with an object selected, the object turns. */
+  turnObjectNow(): void {
+    if (this.tool === 'object' && !this.drag) {
+      if (this.objPreset.draw) return this.status('A row turns with the way you draw it');
+      this.objYaw = (this.objYaw + 90) % 360;
+      return this.status(`${this.objPreset.name} turned to ${this.objYaw} degrees`);
+    }
+    const s = this.selectedElem();
+    if (s?.coll !== 'objects') return;
+    const after = turnObject(s.e as Obj, this.objectGrid);
+    this.commitText(`Turned ${(s.e as Obj).name ?? s.id} (${s.id}) to ${after.yaw ?? 0} degrees`, [{ coll: 'objects', id: s.id, before: s.e, after }]);
+  }
+
+  /** J (Hub > View): the stealth view on or off. */
+  setStealth(on: boolean): void {
+    this.stealth = on;
+    this.view.setStealth(on);
+    this.tintPlanObjects();
+    this.status(on ? 'Stealth view on (J): full cover green, crouch cover yellow, climb blue, see-through grey' : 'Stealth view off (J)');
+  }
+
+  /** The plan's objects tinted by badge while the stealth view is on (the plan draws them grey). */
+  tintPlanObjects(): void {
+    const svg = this.planSvg();
+    if (!svg) return;
+    for (const g of svg.querySelectorAll<SVGGElement>('g[data-id^="objects:"]')) {
+      const o = this.model.get<Obj>('objects', (g.dataset.id ?? '').slice(8));
+      const rect = g.querySelector('rect');
+      if (!rect) continue;
+      const tint = this.stealth && o ? stealthTint(o) : null;
+      if (tint) rect.setAttribute('style', `fill:${tint}`);
+      else rect.removeAttribute('style');
+    }
+  }
+
+  /** The Objects tab's group (A on a group tile; the menu stays open). */
+  setObjectGroup(g: ObjGroup): void {
+    this.objGroup = g;
+    this.status(`Objects: ${groupName(g)}`);
   }
 
   /**
@@ -1221,6 +1356,7 @@ export class Editor {
       overlay.id = 'overlay';
       svg.appendChild(overlay);
       this.decoratePlan();
+      if (this.stealth) this.tintPlanObjects();
       $('planStatus').textContent = '';
       this.highlightPlan();
       this.drawPlanOverlay();
@@ -1355,6 +1491,14 @@ export class Editor {
       const lw = liveWall(s as Wall, walls);
       const n = this.chain.walls.length;
       return this.chaining && n ? { ...lw, words: `${lw.words} (chain: ${n + 1} walls, ${fmt(this.chain.total + wallLen(s as Wall))} m)` } : lw;
+    }
+    if (d.coll === 'objects') {
+      const o = s as Obj;
+      const ai = this.objectAisle(o);
+      const r = o.rect;
+      const n = rowCount(o);
+      const size = d.isNew ? `${n ? `${n} ${n === 1 ? 'unit' : 'units'}, ` : ''}${fmt(Math.max(r[2] - r[0], r[3] - r[1]))} m` : `moved ${moveWordsOf(d.before, s)}`;
+      return { words: ai ? `${size}, ${ai.words}` : size, shapes: [], bad: !!ai && !ai.ok };
     }
     if ('rect' in s) {
       const r = (s as Room).rect;
@@ -1778,7 +1922,7 @@ export class Editor {
   /** Runs an action from the action map (keys now; the controller in Part C). */
   run(id: string, e?: { code: string; shiftKey: boolean }): void {
     const vis = this.view.vis;
-    const tools: Record<string, Tool> = { toolSelect: 'select', toolRoom: 'room', toolWall: 'wall', toolDoor: 'door', toolWindow: 'window', toolStair: 'stair', toolLadder: 'ladder', toolHole: 'hole' };
+    const tools: Record<string, Tool> = { toolSelect: 'select', toolRoom: 'room', toolWall: 'wall', toolDoor: 'door', toolWindow: 'window', toolStair: 'stair', toolLadder: 'ladder', toolHole: 'hole', toolObject: 'object' };
     if (tools[id]) return this.setTool(tools[id]);
     switch (id) {
       case 'walk': return void this.gameWalk();
@@ -1808,6 +1952,8 @@ export class Editor {
       case 'find': return this.find.open(true);
       case 'names': return this.setNames(!this.prefs.names);
       case 'figure': return this.setFigure(!this.prefs.figure);
+      case 'stealth': return this.setStealth(!this.stealth);
+      case 'turnObject': return this.turnObjectNow();
       case 'bookmarkSave': return this.saveBookmark(`View ${(e?.code ?? 'Digit1').slice(5)}`, Number((e?.code ?? 'Digit1').slice(5)));
       case 'bookmarkGo': return this.goBookmark(Number((e?.code ?? 'Digit1').slice(5)));
       case 'save': return void this.save();
@@ -1898,7 +2044,7 @@ export class Editor {
     const e = clone(s.e) as Elem & Record<string, unknown>;
     const g = this.grid * 2;
     const prefix = s.coll === 'rooms' ? `${(s.e as Room).level}-NEW` : s.coll === 'walls' ? `W${(s.e as Wall).level}-NEW` : s.coll === 'openings' ? 'O-NEW' : `${s.id}-COPY`;
-    e.id = s.coll === 'roofs' ? roofId(this.model.data) : this.model.freshId(s.coll, prefix);
+    e.id = s.coll === 'roofs' ? roofId(this.model.data) : s.coll === 'objects' ? objectId(this.model.data) : this.model.freshId(s.coll, prefix);
     if ('rect' in e) (e as Room).rect = (e as Room).rect.map((v, i) => +(v + (i % 2 ? -g : g)).toFixed(3)) as Rect;
     if (s.coll === 'walls') {
       (e as Wall).a = [(e as Wall).a[0] + g, (e as Wall).a[1] - g];
@@ -1998,6 +2144,7 @@ export class Editor {
       ladder: 'Ladder: A (click) on a wall face or a point; it climbs to the level above',
       hole: `Floor hole (${HOLE_NAMES[this.holeKind] ?? this.holeKind}): drag out a rectangle on the floor`,
       roof: `Roof (${roofType(this.roofTypeId).name}): A (click) at two corners, or A twice (a click) on a building to take its footprint`,
+      object: this.objPreset.draw ? `Object (${this.objPreset.name}): A (click) at the start, A (click) at the end` : `Object (${this.objPreset.name}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
     this.updateHint();
@@ -2014,7 +2161,7 @@ export class Editor {
         <span class="group seg" id="layout" title="V cycles"><button data-layout="3d">3D</button><button data-layout="both">Both</button><button data-layout="plan">Plan</button></span>
         <span class="group"><button id="splitDir" title="Side by side or stacked">Side by side</button><button id="swap" title="Swap the 3D and the plan">Swap</button><button id="minimap" title="Small plan in the corner of 3D only (M)">Small plan</button><button id="drawerBtn" title="Side panel (\` or I)">Panel</button></span>
         <span class="group" id="tools">
-          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${familyTypes('door').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button><select id="windowType" title="The Window tool's type">${familyTypes('window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="stair" title="6">6 Stair</button><select id="stairType" title="The Stair tool's type">${STAIR_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}</select><button data-tool="ladder" title="7">7 Ladder</button><button data-tool="hole" title="8">8 Floor hole</button><select id="holeKind" title="The Floor hole tool's kind">${HOLE_KINDS.map((k) => `<option value="${k}">${HOLE_NAMES[k] ?? k}</option>`).join('')}</select>
+          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${familyTypes('door').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button><select id="windowType" title="The Window tool's type">${familyTypes('window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="stair" title="6">6 Stair</button><select id="stairType" title="The Stair tool's type">${STAIR_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}</select><button data-tool="ladder" title="7">7 Ladder</button><button data-tool="hole" title="8">8 Floor hole</button><select id="holeKind" title="The Floor hole tool's kind">${HOLE_KINDS.map((k) => `<option value="${k}">${HOLE_NAMES[k] ?? k}</option>`).join('')}</select><button data-tool="object" title="9 (R turns)">9 Object</button><select id="objPreset" title="The Object tool's preset">${GROUPS.map((g) => `<optgroup label="${esc(g.name)}">${PRESETS.filter((p) => p.group === g.id).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select>
         </span>
         <span class="group"><button id="walk" title="Tab: the game's own player, unsaved edits included (Shift+Tab: quick walk)">Walk test (game)</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
         <span id="checksBadge"></span>
@@ -2050,6 +2197,11 @@ export class Editor {
     $('stairType').addEventListener('change', () => {
       this.setStairType($<HTMLSelectElement>('stairType').value as StairTypeId);
       this.setTool('stair');
+    });
+    $<HTMLSelectElement>('objPreset').value = this.objPresetId;
+    $('objPreset').addEventListener('change', () => {
+      this.setObjectPreset($<HTMLSelectElement>('objPreset').value);
+      this.setTool('object');
     });
     $('holeKind').addEventListener('change', () => {
       this.setHoleKind($<HTMLSelectElement>('holeKind').value);

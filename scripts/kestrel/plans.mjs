@@ -642,10 +642,13 @@ function baseLayers(level) {
   }
   out += rectEl(B, `fill="none" stroke="#999" stroke-width="${R('siteStroke')}" stroke-dasharray="${R('dashLong')}"`);
   for (const o of (arch.objects ?? []).filter(here)) {
-    out += rectEl(o.rect, `fill="#b9b9b9" stroke="#666" stroke-width="${R('objectStroke')}"`);
-    // an id that does not fit inside its object (a row of racks) is left off; the id stays in the arch file
-    const fits = (o.rect[2] - o.rect[0]) * S >= o.id.length * R('fontSmall') * R('charWidth') && (o.rect[3] - o.rect[1]) * S >= R('fontSmall') * R('lineHeight');
-    if (fits) out += labelLines(rectCentre(o.rect), [o.id], R('fontSmall'), 'fill="#222"');
+    // ON4: each object in a group the editor can find (the stealth view tints its rect), its name where it fits, else its id
+    out += `<g data-id="objects:${esc(o.id)}">` + rectEl(o.rect, `fill="${o.seeThrough ? 'none' : '#b9b9b9'}" stroke="#666" stroke-width="${R('objectStroke')}"${o.seeThrough ? ` stroke-dasharray="${R('dashShort')}"` : ''}`);
+    // a text that does not fit inside its object (a small box) is left off; the id stays in the arch file
+    const fitsText = (t) => (o.rect[2] - o.rect[0]) * S >= t.length * R('fontSmall') * R('charWidth') && (o.rect[3] - o.rect[1]) * S >= R('fontSmall') * R('lineHeight');
+    const text = [o.name, o.id].find((t) => typeof t === 'string' && t && fitsText(t));
+    if (text) out += labelLines(rectCentre(o.rect), [text], R('fontSmall'), 'fill="#222"');
+    out += '</g>';
   }
   for (const w of walls.filter(here)) out += `<g data-id="walls:${esc(w.id)}">${drawWall(w)}</g>`;
   for (const o of arch.openings ?? []) if (wallById.get(o.wall)?.level === level.id) out += `<g data-id="openings:${esc(o.id)}">${drawOpening(o)}</g>`;

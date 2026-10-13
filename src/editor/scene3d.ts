@@ -8,7 +8,13 @@ import type { AbstractMesh } from '../core/babylon';
 import { cutRect, EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { WallJoin } from './geometry';
 import type { EditorModel } from './model';
-import type { Campus, Coll, Key, Ladder, Level, Opening, Roof, Room, Service, Stair, Void, Wall } from './types';
+import type { Campus, Coll, Key, Ladder, Level, Obj, Opening, Roof, Room, Service, Stair, Void, Wall } from './types';
+import { stealthTint } from './objects';
+import { presetOf } from './catalogue';
+import type { ObjGroup } from './catalogue';
+
+/** ON4: object colours by catalogue group (the stealth view tints by badge instead). */
+const OBJ_HEX: Record<ObjGroup | 'other', string> = { dataHall: '#3d4450', plant: '#8a8f6a', office: '#9c8466', goodsIn: '#a3825a', yard: '#6f7780', other: '#8d9096' };
 import { roofHex, roofParapets, roofShape, roofTrim } from '../world/maps/kestrelRoofs';
 import type { RoofBox, RoofPlane } from '../world/maps/kestrelRoofs';
 import { keyOf, parseKey } from './types';
@@ -71,6 +77,8 @@ export class EditorScene {
   vis: VisSettings = { ...DEFAULT_VIS };
   /** Walk mode shows every level whatever the settings, unexploded. */
   showAll = false;
+  /** ON4: the stealth view (objects tinted by their badges). */
+  private stealth = false;
   private readonly nodes = new Map<Key, Mesh[]>();
   private readonly mats = new Map<string, StandardMaterial>();
   private handleMeshes: Mesh[] = [];
@@ -157,6 +165,7 @@ export class EditorScene {
     for (const l of d.ladders) this.build(keyOf('ladders', l.id));
     for (const v of d.voids) this.build(keyOf('voids', v.id));
     for (const r of d.roofs ?? []) this.build(keyOf('roofs', r.id));
+    for (const o of d.objects ?? []) this.build(keyOf('objects', o.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -216,6 +225,7 @@ export class EditorScene {
     else if (p.coll === 'ladders') [meshes, levels] = this.buildLadder(e as Ladder);
     else if (p.coll === 'voids') [meshes, levels] = this.buildVoid(e as Void);
     else if (p.coll === 'roofs') [meshes, levels] = this.buildRoof(e as Roof);
+    else if (p.coll === 'objects') [meshes, levels] = this.buildObject(e as Obj);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -469,6 +479,35 @@ export class EditorScene {
     const ew = l.facing === 'E' || l.facing === 'W';
     const m = this.box(`ladder ${l.id}`, l.at[0], (f0 + f1 + 1) / 2, l.at[1], ew ? 0.08 : 0.5, f1 + 1 - f0, ew ? 0.5 : 0.08, 0, this.mat('ladder', '#e0a100', 1, 0.2));
     return [[m], [l.from, l.to]];
+  }
+
+  /** ON4: an object as a box of its real size and base on its level; see-through ones drawn see-through. */
+  private buildObject(o: Obj): [Mesh[], string[]] {
+    const f = this.floorOf(o.level);
+    const [x0, z0, x1, z1] = o.rect;
+    const tint = this.stealth ? (stealthTint(o) ?? '#d0d0d0') : null;
+    const group = presetOf(o.preset)?.group ?? 'other';
+    const hex = tint ?? OBJ_HEX[group];
+    const mat = this.mat(`object ${hex}${o.seeThrough ? ' see' : ''}`, hex, o.seeThrough ? 0.45 : 1, tint ? 0.35 : 0);
+    const m = this.box(`object ${o.id}`, (x0 + x1) / 2, f + o.y + o.h / 2, (z0 + z1) / 2, x1 - x0, o.h, z1 - z0, 0, mat);
+    return [[m], [o.level]];
+  }
+
+  /** ON4: the stealth view on or off: every object is rebuilt with its tint. */
+  setStealth(on: boolean): void {
+    if (on === this.stealth) return;
+    this.stealth = on;
+    this.refresh((this.data.objects ?? []).map((o) => keyOf('objects', o.id)));
+  }
+
+  /** How many objects are drawn with a stealth tint (the e2e reads it). */
+  get stealthTinted(): number {
+    if (!this.stealth) return 0;
+    return (this.data.objects ?? []).filter((o) => {
+      const m = this.nodes.get(keyOf('objects', o.id))?.[0]?.material as StandardMaterial | null | undefined;
+      const t = stealthTint(o);
+      return !!m && !!t && m.diffuseColor.toHexString().toLowerCase() === t;
+    }).length;
   }
 
   private buildVoid(v: Void): [Mesh[], string[]] {

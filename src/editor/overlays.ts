@@ -10,6 +10,9 @@ import facts from '../../scripts/kestrel/facts.json';
 import { buildingAt, elementState } from './visibility';
 import type { VisSettings } from './visibility';
 import type { Editor } from './main';
+import { badgesOf, stealthTint } from './objects';
+import type { Badge } from './objects';
+import type { Obj } from './types';
 
 /** Floating names hide beyond this (facts.json render.roomNameRange). */
 export const NAME_RANGE = facts.render.roomNameRange.value;
@@ -18,6 +21,19 @@ const CROUCH = facts.player.crouchHeight.value;
 const RADIUS = facts.player.radius.value;
 const LABELS = 48;
 const MARKERS = 40;
+/** ON4: badge icons over objects (a fixed pool, nearest first is not needed: the first in range). */
+const BADGES = 64;
+const BADGE_ICON: Record<Badge, string> = { full: 'Full', crouch: 'Crouch', vault: 'Vault', climb: 'Climb', hang: 'Hang' };
+
+interface BadgeSpot {
+  text: string;
+  colour: string;
+  x: number;
+  y: number;
+  z: number;
+  level: string;
+  building: string;
+}
 
 interface NameSpot {
   name: string;
@@ -50,6 +66,11 @@ export class EditorOverlays {
   private problemKey = '';
   private fig: Mesh[] = [];
   private shownVis: VisSettings | null = null;
+  private readonly badgeEls: HTMLDivElement[] = [];
+  private readonly badgeText: string[] = [];
+  private badgesOn = 0;
+  private badgeSpots: BadgeSpot[] = [];
+  private badgeAt = -1;
 
   constructor(private readonly ed: Editor) {
     this.layer = document.createElement('div');
@@ -63,6 +84,14 @@ export class EditorOverlays {
       this.labels.push(d);
       this.labelText.push('');
     }
+    for (let i = 0; i < BADGES; i++) {
+      const d = document.createElement('div');
+      d.className = 'rname obadge';
+      d.style.display = 'none';
+      this.layer.appendChild(d);
+      this.badgeEls.push(d);
+      this.badgeText.push('');
+    }
   }
 
   /** Once per rendered frame. */
@@ -70,6 +99,70 @@ export class EditorOverlays {
     this.problemFrame();
     this.figureFrame();
     this.namesFrame();
+    this.badgesFrame();
+  }
+
+  // ---------- object badges (ON4) ----------
+  private badgesFrame(): void {
+    const ed = this.ed;
+    const view = ed.view;
+    const objs = (ed.model.data.objects ?? []) as Obj[];
+    if (!objs.length || ed.prefs.layout === 'plan' || ed.walk.state === 'open') return this.hideBadges(0);
+    if (this.badgeAt !== ed.dataVersion) {
+      this.badgeAt = ed.dataVersion;
+      const bs = ed.model.data.meta.buildings;
+      this.badgeSpots = objs.map((o) => {
+        const x = (o.rect[0] + o.rect[2]) / 2;
+        const z = (o.rect[1] + o.rect[3]) / 2;
+        const b = badgesOf(o).badges;
+        return { text: o.seeThrough ? 'See-through' : b.map((k) => BADGE_ICON[k]).join(' ') || '-', colour: stealthTint(o) ?? '#8d9096', x, y: o.y + o.h + 0.25, z, level: o.level, building: buildingAt(bs, x, z) };
+      });
+    }
+    const cam = view.camera.position;
+    const [fx, fy, fz] = ed.controls.forward();
+    const m = view.scene.getTransformMatrix();
+    const cv = view.engine.getRenderingCanvas();
+    const w = cv?.clientWidth ?? 0;
+    const h = cv?.clientHeight ?? 0;
+    const vis = this.visNow();
+    const levels = ed.model.data.levels;
+    let n = 0;
+    for (const s of this.badgeSpots) {
+      if (n >= BADGES) break;
+      if (elementState(vis, levels, view.level, [s.level], s.building) !== 'shown') continue;
+      const y = view.floorOf(s.level) + view.offsetOf(s.level) + s.y;
+      const dx = s.x - cam.x;
+      const dy = y - cam.y;
+      const dz = s.z - cam.z;
+      const d = hyp3(dx, dy, dz);
+      if (d > NAME_RANGE || dx * fx + dy * fy + dz * fz < 0.5) continue;
+      this.v.set(s.x, y, s.z);
+      Vector3.TransformCoordinatesToRef(this.v, m, this.out);
+      const sx = ((this.out.x + 1) / 2) * w;
+      const sy = ((1 - this.out.y) / 2) * h;
+      if (sx < 0 || sy < 0 || sx > w || sy > h) continue;
+      const el = this.badgeEls[n]!;
+      const key = `${s.text}|${s.colour}`;
+      if (this.badgeText[n] !== key) {
+        this.badgeText[n] = key;
+        el.textContent = s.text;
+        el.style.borderColor = s.colour;
+      }
+      el.style.transform = `translate(${sx.toFixed(0)}px, ${sy.toFixed(0)}px) translate(-50%, -50%)`;
+      if (n >= this.badgesOn) el.style.display = '';
+      n++;
+    }
+    this.hideBadges(n);
+  }
+
+  private hideBadges(from: number): void {
+    for (let i = from; i < this.badgesOn; i++) this.badgeEls[i]!.style.display = 'none';
+    this.badgesOn = from;
+  }
+
+  /** How many badge icons show (the e2e reads it). */
+  get badgesShown(): number {
+    return this.badgesOn;
   }
 
   // ---------- floating names ----------

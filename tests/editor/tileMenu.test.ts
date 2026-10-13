@@ -10,9 +10,17 @@ const door: MenuInput = { sel: { coll: 'openings', type: 'door' }, clipboard: fa
 const names = (tab: Parameters<typeof menuTiles>[0], inp: MenuInput): string[] => menuTiles(tab, inp).map((t) => t.name);
 
 describe('tile menu model (ON0a)', () => {
-  it('tabs: Selected only with a selection and first; empty tabs (Objects, Lights, Mission) hidden until later parts add tiles', () => {
-    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'View']);
-    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'View']);
+  it('tabs: Selected only with a selection and first; empty tabs (Lights, Mission) hidden until later parts add tiles', () => {
+    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'View']);
+    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'View']);
+  });
+
+  it('Objects tab (ON4): the five groups, then the presets of the chosen group', () => {
+    const t = menuTiles('Objects', { ...none, objGroup: 'goodsIn' });
+    expect(t.slice(0, 5).map((x) => x.name)).toEqual(['Data hall', 'Plant', 'Office and security', 'Goods-in', 'Yard and roof']);
+    expect(t.find((x) => x.id === 'objgroup.goodsIn')!.on).toBe(true);
+    expect(t.slice(5).map((x) => x.id)).toContain('obj.crate-1.0');
+    expect(menuTiles('Objects', none).slice(5, 7).map((x) => x.name)).toEqual(['Server rack 42U', 'Rack row']);
   });
 
   it('tile order: Build, Openings and the Selected tab per element kind', () => {

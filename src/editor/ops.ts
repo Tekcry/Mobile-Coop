@@ -43,7 +43,7 @@ export function cardWords(coll: Coll, e: Elem): { title: string; size: string } 
       const kind = capital((e as Room).kind);
       return { title: name || kind, size: name ? `${kind}, ${dims}` : dims };
     }
-    const kind = coll === 'stairs' ? 'Stair' : coll === 'roofs' ? `${roofType((e as { type: string }).type).name} roof` : 'Floor hole';
+    const kind = coll === 'stairs' ? 'Stair' : coll === 'roofs' ? `${roofType((e as { type: string }).type).name} roof` : coll === 'objects' ? 'Object' : 'Floor hole';
     return { title: name || kind, size: name ? `${kind}, ${dims}` : dims };
   }
   const at = (e as { at?: unknown }).at;
