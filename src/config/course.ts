@@ -1,0 +1,23 @@
+/**
+ * Course framework numbers (training bunker, pure). The course's own tuning lives here; the movement, enemy, weapon,
+ * perception and light tables never change for the course map (docs/training/RULES.md).
+ */
+
+/** Seconds an airlock takes to cycle once both players are inside and one pressed "Cycle" (TUNE). */
+export const AIRLOCK_CYCLE = 4;
+/** A player counts as inside an airlock when the feet are within this (m) of its floor (TUNE). */
+export const AIRLOCK_Y_TOL = 1.0;
+/** Airlock rooms are this size (m, square) ... */
+export const AIRLOCK_SIZE = 6;
+/** ... within this tolerance (m), checked by `validateCourse`. */
+export const AIRLOCK_SIZE_TOL = 0.5;
+/** A pair gate opens when both switches are pressed within this many seconds, either order (TUNE). */
+export const PAIR_WINDOW = 1.0;
+/** A timed hold stays open this many seconds after release unless the gate names its own `after` (TUNE). */
+export const TIMED_HOLD_AFTER = 6;
+/** The host resends the `course` message at least this often (s) even when nothing changed (TUNE). */
+export const COURSE_SEND = 2;
+/** Both players downed this long (s) restarts the current bay (TUNE). */
+export const RESTART_DELAY = 2;
+/** Radio lines and drill steps are at most this many characters (story rules). */
+export const COURSE_TEXT_MAX = 90;
