@@ -104,7 +104,7 @@ export const DEEP_LIPS: readonly PlantLip[] = [
   lipBox('B7', 'WB', 0.225, 4, 1.5, 30, M7.bench),
   lipBox('B7', 'AX', 19.85, 5.85, 28.15, 10, M7.annex),
   lipBox('B7', 'PR', 13.85, 9.85, 34.15, 26.15, M7.roof + M7.parapet, M7.roof),
-  lipBox('B8', 'SP', 56, 19, 60, 23, M8.scaffold),
+  lipBox('B8', 'SP', 56, 18, 60, 22, M8.scaffold),
   B9_COOP_LIP,
 ];
 
@@ -137,13 +137,16 @@ export const DEEP_DEVICES: readonly DeepDevice[] = [
   dev('B9-BEAM', 'beam', 'B9', 18.2, 44.2, 1.4, 90, { to: deepAt('B9', 25.8, 44.2, 1.4) }),
   dev('B9-PIR', 'pir', 'B9', 3, 12, M9.b2 + 2.5, 0),
   dev('B9-ALARM', 'alarm', 'B9', 20, 0.3, M9.b1 + 1.2, 0),
-  dev('B9-REINF', 'reinforce', 'B9', 40, 0.8, 0, 0, { door: 'B9-tunnel' }),
+  dev('B9-REINF', 'reinforce', 'B9', 43.2, 5.6, 0, 270, { door: 'B9-tunnel' }),
   dev('B9-MED', 'medkit', 'B9', 0.3, 40, 1.2, 90),
   dev('A8-MED', 'medkit', 'A8', 3, 5.7, 1.2, 180),
 ];
 
-/** B8 props T7a places: dummies on the lane stands (10, 25, 50 m; lanes 1-6) and the two explosive barrels (world). */
-export const B8_TARGETS: readonly P3[] = [0, 1, 2, 3, 4, 5].flatMap((i) => [10, 25, 50].map((m) => deepAt('B8', 8 + m, 4 + 4 * i)));
+/**
+ * B8 props T7a places: dummies on the lane stands (10, 25, 50 m; lanes 1-6) and the two explosive barrels (world).
+ * T5 fix: lanes 5 and 6's far stands are at 45 m (x 53): at 50 m they stood inside the scaffold and the CS cage.
+ */
+export const B8_TARGETS: readonly P3[] = [0, 1, 2, 3, 4, 5].flatMap((i) => [10, 25, i >= 4 ? 45 : 50].map((m) => deepAt('B8', 8 + m, 4 + 4 * i)));
 export const B8_BARRELS: readonly P3[] = [deepAt('B8', 38, 19.4), deepAt('B8', 38, 20.6)];
 
 /** What the Deep builder hands back to the map. */
@@ -215,7 +218,8 @@ function buildB7(b: LevelBuilder, lips: number[], r: DeepResult): void {
   storeyX(b, Z(10), X(13.85), X(34.15), [X(23.4)], [], Y(0), F, C.block);
   storeyX(b, Z(26), X(13.85), X(34.15), [X(23.4)], [{ c: X(18), kind: 'glazed' }], Y(0), F, C.block);
   storeyZ(b, X(14), Z(10.15), Z(25.85), [], [{ c: Z(14), kind: 'open' }, { c: Z(22), kind: 'glazed' }], Y(0), F, C.block);
-  storeyZ(b, X(34), Z(10.15), Z(25.85), [Z(17.4)], [{ c: Z(13), kind: 'open' }], Y(0), F, C.block);
+  // (T5 fix: the east open window is in the lobby at z 22.5; at z 13 it opened onto the timber stair)
+  storeyZ(b, X(34), Z(10.15), Z(25.85), [Z(17.4)], [{ c: Z(22.5), kind: 'open' }], Y(0), F, C.block);
   storeyX(b, Z(10), X(13.85), X(34.15), [], [{ c: X(21.25), kind: 'open' }], Y(F), F, C.block);
   storeyX(b, Z(26), X(13.85), X(34.15), [], [{ c: X(28), kind: 'fixed' }], Y(F), F, C.block);
   storeyZ(b, X(14), Z(10.15), Z(25.85), [], [], Y(F), F, C.block);
@@ -363,10 +367,10 @@ function buildB8(b: LevelBuilder, lips: number[], r: DeepResult): void {
   b.block(X(60.8875), Z(27.5625), 1.775, 7, 8.425, C.wall, Y(0));
   wallXDoors(b, Z(23.5), X(57.7), X(60.3), [X(58.4)], Y(0), 7, C.wall);
   r.doors['B8-cs'] = b.door(X(58.4), Y(0), Z(23.5), DOOR_W, Math.PI / 2, { locked: true, swing: -1 }).id;
-  // SP the sniper scaffold (x 56..60, z 19..23, 3.0: T5 moves it 1 m south off the cage) and its ladder
+  // SP the sniper scaffold (x 56..60, z 18..22, 3.0: T5 moves it 2 m south, 1.35 clear of CS's door) and its ladder
   lips.push(b.boxes.length);
-  b.block(X(58), Z(21), 4, M8.scaffold, 4, C.steel, Y(0));
-  r.anchors['B8-SP-ladder'] = b.ladder(X(55.7), Z(21), Y(0), Y(M8.scaffold), Math.PI / 2).id;
+  b.block(X(58), Z(20), 4, M8.scaffold, 4, C.steel, Y(0));
+  r.anchors['B8-SP-ladder'] = b.ladder(X(55.7), Z(20), Y(0), Y(M8.scaffold), Math.PI / 2).id;
   // the cease-fire switch at the far end (east wall)
   r.devices['sw-cease-fire'] = { x: X(61.6), y: Y(0), z: Z(9), yaw: -Math.PI / 2, label: 'Cease fire' };
 
@@ -392,15 +396,17 @@ function stairTower(b: LevelBuilder, west: boolean): void {
     b.door(X(d), Y(y), Z(4), DOOR_W, Math.PI / 2);
   }
   roof(b, west ? X(-0.225) : X(35.85), Z(-0.225), west ? X(8.15) : X(44.225), Z(4.15), Y(M9.tower));
-  const run = 5;
+  // (T5 fix) a 4.7 run (going 0.36) leaves the far landings 1.35 deep: room for the turn on the nav grid
+  const run = 4.7;
+  const top = 1.8 + run;
   const rise = M9.b1 / 2;
-  const cx = (mx(1.8) + mx(6.8)) / 2;
+  const cx = (mx(1.8) + mx(top)) / 2;
   for (const [lane, dir, y] of [[1.15, up, 0], [2.95, -up, rise], [1.15, up, M9.b1], [2.95, -up, M9.b1 + rise]] as const) {
     b.stairs(cx, Z(lane), 1.7, run, rise, 13, C.conc, dir, Y(y));
   }
   // the far landings (2.25 solid, 6.75 a deck), the door-end landings (4.5, 9.0); no spine (a 1.8 m lane would be a split)
-  const far0 = Math.min(mx(6.8), mx(7.85));
-  const far1 = Math.max(mx(6.8), mx(7.85));
+  const far0 = Math.min(mx(top), mx(7.85));
+  const far1 = Math.max(mx(top), mx(7.85));
   b.block((far0 + far1) / 2, Z(2.04), far1 - far0, rise, 3.62, C.conc, Y(0));
   deck(b, far0, Z(0.225), far1, Z(3.85), Y(M9.b1 + rise), C.conc);
   const near0 = Math.min(mx(0.225), mx(1.8));
@@ -413,11 +419,12 @@ function buildB9(b: LevelBuilder, lips: number[], r: DeepResult): void {
   const { X, Z, Y } = frame('B9');
   const H = M9.clear;
   b.floor(X(22), Z(29), 44.45, 58.45, C.vinyl, Y(0));
-  // outer walls: west (A8's far door at z 25.4), east, south (the staff tunnel door at x 39.4), north (z 58: L9's back)
+  // outer walls: west (A8's far door at z 25.4), east (the staff tunnel door at z 5, north of the SE tower), south,
+  // north (z 58: L9's back)
   wallZDoors(b, X(0), Z(-0.225), Z(52.225), [Z(25.4)], Y(0), H, C.wall, OUTER);
-  wallZAt(b, X(44), Z(-0.225), Z(52.225), [], Y(0), H, C.wall, OUTER);
-  wallXDoors(b, Z(0), X(-0.225), X(44.225), [X(39.4)], Y(0), H, C.wall, OUTER);
-  r.doors['B9-tunnel'] = b.door(X(39.4), Y(0), Z(0), DOOR_W, Math.PI / 2, { locked: true }).id;
+  wallZDoors(b, X(44), Z(-0.225), Z(52.225), [Z(5)], Y(0), H, C.wall, OUTER);
+  r.doors['B9-tunnel'] = b.door(X(44), Y(0), Z(5), DOOR_W, 0, { locked: true }).id;
+  wallXAt(b, Z(0), X(-0.225), X(44.225), [], Y(0), H, C.wall, OUTER);
   wallXAt(b, Z(52), X(-0.225), X(18), [], Y(0), H, C.wall, OUTER);
   wallXAt(b, Z(52), X(26), X(44.225), [], Y(0), H, C.wall, OUTER);
   roof(b, X(-0.225), Z(-0.225), X(44.225), Z(52.225), Y(H));
@@ -450,7 +457,9 @@ function buildB9(b: LevelBuilder, lips: number[], r: DeepResult): void {
   lips.push(b.boxes.length);
   deck(b, X(7), Z(37), X(8), Z(39), Y(b1), C.grate);
   deck(b, X(0.225), Z(39), X(8), Z(43.85), Y(b1), C.grate);
-  deck(b, X(8.15), Z(0.225), X(35.85), Z(8), Y(b1), C.grate);
+  // (T5 fix: x 8..36, no 0.15 slot between it and the west / east walkways)
+  deck(b, X(8), Z(4.15), X(36), Z(8), Y(b1), C.grate);
+  deck(b, X(8.15), Z(0.225), X(35.85), Z(4.15), Y(b1), C.grate);
   deck(b, X(36), Z(4.15), X(43.775), Z(43.85), Y(b1), C.grate);
   b.block(X(7.8), Z(38), 0.4, b1 - 0.3, 2, C.conc, Y(0));
   rail(b, X(8), Z(8), X(8), Z(37), Y(b1));
@@ -545,7 +554,7 @@ export function deepNavSeeds(): P3[] {
     // B7: cavern, house ground (lobby, back rooms), first floor, office, roof, annex (in, on), the bench
     s7(10, 20), s7(24, 22), s7(20, 13), s7(28, 20, M7.firstFloor), s7(19, 12, M7.firstFloor), s7(26, 18, M7.roof), s7(24, 8), s7(25, 8, M7.annex), s7(0.86, 15, M7.bench),
     // B8: the floor, the corridor behind the stands, the catwalk, the tower, the scaffold
-    s8(20, 14), s8(40, 27), s8(30, 30, M8.catwalk), s8(11, 29, M8.catwalk), s8(58, 21, M8.scaffold),
+    s8(20, 14), s8(40, 27), s8(30, 30, M8.catwalk), s8(11, 29, M8.catwalk), s8(58, 20, M8.scaffold),
     // B9: floor, ring (west, south, east), B-1 (west, south, east), B-2 (west, east), the bridge, the lobby, L9
     s9(20, 20), s9(4, 16), s9(20, 6), s9(40, 30), s9(6.5, 16, M9.b1), s9(20, 6.5, M9.b1), s9(37.5, 30, M9.b1),
     s9(3, 24, M9.b2), s9(40, 28, M9.b2), s9(22, 42.5, M9.b2), s9(22, 48), s9(22, 55),

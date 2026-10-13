@@ -1,18 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import { LevelBuilder } from '../src/world/levelBuilder';
+import { LevelBuilder, type BoxPiece } from '../src/world/levelBuilder';
 import { bunker } from '../src/world/maps/bunker';
 import { B2_METRICS, BUNKER_LIPS, UPPER_Y, at } from '../src/world/maps/bunkerUpper';
 import { getMap } from '../src/world/maps';
 import { isListedMap } from '../src/world/maps/listed';
 import { layoutKnownIds, validateCourse } from '../src/game/course/courseDef';
-import { findJumpTarget, generateLedges, HANG, LEDGE, REACH, type Ledge } from '../src/world/anchors';
+import { findJumpTarget, generateLedges, HANG, insideBox, LEDGE, REACH, type Ledge } from '../src/world/anchors';
 import { attachPose, attachRange, type AttachPose } from '../src/player/attach';
 import { buildCoverSegments } from '../src/cover/coverData';
 import { findSplitGaps } from '../src/player/splitJump';
 import { landingKind, pickTraversal } from '../src/player/movement';
 import type { SplitAnchor, TraversalAnchors } from '../src/world/anchors';
 import { B3_METRICS, B4_COOP_LIPS, B4_METRICS, PLANT_LIPS, PLANT_Y, plantAt } from '../src/world/maps/bunkerShaft';
-import { B7_METRICS, B8_METRICS, B9_COOP_LIP, B9_METRICS, BUNKER_COOP_LIPS, DEEP_LIPS, deepAt } from '../src/world/maps/bunkerDeep';
+import { B7_METRICS, B8_BARRELS, B8_METRICS, B8_TARGETS, B9_COOP_LIP, B9_METRICS, BUNKER_COOP_LIPS, DEEP_DEVICES, DEEP_LIPS, deepAt } from '../src/world/maps/bunkerDeep';
 import { RAPPEL, SPLIT, TEAM, WALL_JUMP } from '../src/config/movement';
 import { splitReach, wallJumpReach } from '../src/player/splitJump';
 import { B5_GROUPS, B5_LIPS, B5_METRICS, B6_METRICS, BUNKER_DEVICES, buildPlant, plantAt2, S6_METRICS, S6_RECT } from '../src/world/maps/bunkerPlant';
@@ -27,6 +27,78 @@ const lay = bunker.build(b, 0);
 const generated = generateLedges(b.boxes).ledges;
 const manual = b.anchors.ledges;
 const M = B2_METRICS;
+
+/**
+ * An analytic layered nav grid over a world rect from a builder's own pieces (navBuild's raycasts, as in the S6 test):
+ * every collide piece's top is a standing surface (a sloped piece: its ramp surface), kept when 1.7 is clear above it;
+ * flat pieces (not overhead) block; `extra` adds blockers (closed door leaves). No seed: every surface is kept, so
+ * `findPath` says whether two points join.
+ */
+function analyticNav(lb: LevelBuilder, rect: readonly [number, number, number, number], extra: readonly NavBlocker[] = [], cell = 0.5): NavGrid {
+  // the game's grid (navBuild) is 0.5 cells from the level's bounds; the rect snaps to that lattice
+  const snap = (v: number, o: number): number => o + Math.floor((v - o) / cell) * cell;
+  const minX = snap(rect[0], lb.bounds.minX);
+  const minZ = snap(rect[1], lb.bounds.minZ);
+  const maxX = rect[2];
+  const maxZ = rect[3];
+  const solid = lb.boxes.filter((p) => p.collide && p.c[0] + p.s[0] > minX - 1 && p.c[0] - p.s[0] < maxX + 1 && p.c[2] + p.s[2] > minZ - 1 && p.c[2] - p.s[2] < maxZ + 1);
+  // 4 m buckets (a piece's plan radius bounds its footprint at any yaw)
+  const B = 4;
+  const nbx = Math.ceil((maxX - minX) / B) + 1;
+  const nbz = Math.ceil((maxZ - minZ) / B) + 1;
+  const buckets: BoxPiece[][] = Array.from({ length: nbx * nbz }, () => []);
+  for (const p of solid) {
+    const rad = hyp2(p.s[0], p.s[2]) / 2 + 0.01;
+    const i0 = Math.max(0, Math.floor((p.c[0] - rad - minX) / B));
+    const i1 = Math.min(nbx - 1, Math.floor((p.c[0] + rad - minX) / B));
+    const k0 = Math.max(0, Math.floor((p.c[2] - rad - minZ) / B));
+    const k1 = Math.min(nbz - 1, Math.floor((p.c[2] + rad - minZ) / B));
+    for (let i = i0; i <= i1; i++) for (let k = k0; k <= k1; k++) buckets[k * nbx + i]!.push(p);
+  }
+  const surf = (x: number, z: number): { h: number; bottom: number }[] => {
+    const out: { h: number; bottom: number }[] = [];
+    const i = Math.min(nbx - 1, Math.max(0, Math.floor((x - minX) / B)));
+    const k = Math.min(nbz - 1, Math.max(0, Math.floor((z - minZ) / B)));
+    for (const p of buckets[k * nbx + i]!) {
+      const sy = Math.sin(p.yaw);
+      const cy = Math.cos(p.yaw);
+      const u = (x - p.c[0]) * sy + (z - p.c[2]) * cy;
+      const v = (x - p.c[0]) * cy - (z - p.c[2]) * sy;
+      if (Math.abs(v) > p.s[0] / 2) continue;
+      if (Math.abs(p.pitch) < 1e-3) {
+        if (Math.abs(u) <= p.s[2] / 2) out.push({ h: p.c[1] + p.s[1] / 2, bottom: p.c[1] - p.s[1] / 2 });
+      } else if (Math.abs(u) <= (p.s[2] * Math.cos(p.pitch)) / 2) {
+        const h = p.c[1] + (p.s[1] / 2) * Math.cos(p.pitch) + u * Math.tan(-p.pitch);
+        out.push({ h, bottom: h - 0.35 });
+      }
+    }
+    return out.sort((a, q) => q.h - a.h);
+  };
+  const blockers: NavBlocker[] = solid.filter((p) => Math.abs(p.pitch) < 1e-3 && !p.overhead).map((p) => ({ cx: p.c[0], cz: p.c[2], hx: p.s[0] / 2, hz: p.s[2] / 2, yaw: p.yaw, bottom: p.c[1] - p.s[1] / 2, top: p.c[1] + p.s[1] / 2 }));
+  for (const c of lb.cylinders) if (c.collide) blockers.push({ cx: c.c[0], cz: c.c[2], hx: c.r, hz: c.r, yaw: 0, bottom: c.c[1] - c.h / 2, top: c.c[1] + c.h / 2, round: true });
+  blockers.push(...extra);
+  return new NavGrid({
+    minX, maxX, minZ, maxZ, cell, agentRadius: 0.32, stepHeight: 0.45, layers: 5, blockers,
+    sample: () => ({ h: 0, ok: false }),
+    sampleLayers: (x, z) => {
+      const out: NavSample[] = [];
+      let ceiling = Infinity;
+      for (const s of surf(x, z)) {
+        if (s.h > ceiling) continue;
+        if (ceiling - s.h >= 1.7) out.push({ h: s.h, ok: true });
+        ceiling = Math.min(ceiling, s.bottom);
+      }
+      return out.reverse();
+    },
+  });
+}
+
+/** A closed door's leaf as a nav blocker (0.2 thick, the door's height). */
+function doorLeaf(d: { hinge: { x: number; y: number; z: number }; width: number; height: number; yaw: number }): NavBlocker {
+  const mx = d.hinge.x + (Math.sin(d.yaw) * d.width) / 2;
+  const mz = d.hinge.z + (Math.cos(d.yaw) * d.width) / 2;
+  return { cx: mx, cz: mz, hx: 0.1, hz: d.width / 2, yaw: d.yaw, bottom: d.hinge.y, top: d.hinge.y + d.height };
+}
 
 function inLip(l: Ledge, box: readonly number[], top: number): boolean {
   const ok = (x: number, z: number): boolean => x >= box[0]! && x <= box[2]! && z >= box[1]! && z <= box[3]!;
@@ -703,6 +775,81 @@ describe('Fallow (bunker) Deep level: House, Range, Plot (T5)', () => {
   const anchor = (id: string) => A.all.find((a) => a.id === c.anchors![id])!;
   const calm = { vyaw: 0, vCalm: true, los: true } as const;
 
+
+  // the B9 floor, B-1 (west, south, east, key A's cabin), B-2 (west, east) and the bridge (local x, z, y)
+  const b9pts: [string, number, number, number][] = [
+    ['B-1 W', 6.5, 16, B9_METRICS.b1], ['B-1 S', 20, 6.5, B9_METRICS.b1], ['B-1 E', 37.5, 30, B9_METRICS.b1], ['key A', 3.6, 26, B9_METRICS.b1],
+    ['B-2 W', 3, 24, B9_METRICS.b2], ['B-2 E', 40, 28, B9_METRICS.b2], ['bridge', 22, 42.5, B9_METRICS.b2],
+  ];
+
+  it('B9 stair towers (each alone, the other shut): plot floor -> B-1 -> B-2 and the bridge on a layered nav grid (0.25 and 0.5 cells)', () => {
+    const o = b9(0, 0);
+    const floor = b9(20, 20);
+    for (const [tower, other] of [['SW', 42.2], ['SE', 0.6]] as const) {
+      const shut = doorLeaf({ hinge: b9(other, 4), width: 1.2, height: 2.1, yaw: Math.PI / 2 });
+      for (const cell of [0.25, 0.5]) {
+        const nav = analyticNav(pb, [o.x - 1, o.z - 1, o.x + 45, o.z + 53], [shut], cell);
+        for (const [n, x, z, y] of b9pts) {
+          const p = b9(x, z);
+          expect(nav.heightAt(p.x, p.z, y), `${tower} ${cell} ${n}`).toBeCloseTo(y, 1);
+          expect(nav.findPath([floor.x, floor.z], [p.x, p.z], 400000, 0, y), `${tower} ${cell} ${n}`).not.toBeNull();
+        }
+      }
+    }
+  });
+
+  it('B8 lane targets and barrels stand clear of every colliding piece', () => {
+    const pts = [...B8_TARGETS, ...B8_BARRELS];
+    expect(pts.length).toBe(20);
+    for (const t of pts) {
+      for (const y of [0.6, 1.0, 1.6]) {
+        const hit = pb.boxes.find((p) => p.collide && insideBox(p, t.x, y, t.z, 0.25));
+        expect(hit, `${t.x - b8(0, 0).x} ${t.z - b8(0, 0).z} y ${y}`).toBeUndefined();
+      }
+    }
+  });
+
+  it('every Deep door and floor device stands on a floor, clear of any tower, stair or ramp', () => {
+    const ramps = pb.boxes.filter((p) => p.collide && Math.abs(p.pitch) > 1e-3);
+    // a ramp (a stair's collision) more than a step over the point: it stands in the flight, not at its foot
+    const onRamp = (x: number, z: number, y: number): boolean =>
+      ramps.some((p) => {
+        const u = (x - p.c[0]) * Math.sin(p.yaw) + (z - p.c[2]) * Math.cos(p.yaw);
+        const v = (x - p.c[0]) * Math.cos(p.yaw) - (z - p.c[2]) * Math.sin(p.yaw);
+        if (Math.abs(v) > p.s[0] / 2 || Math.abs(u) > (p.s[2] * Math.cos(p.pitch)) / 2) return false;
+        const h = p.c[1] + (p.s[1] / 2) * Math.cos(p.pitch) + u * Math.tan(-p.pitch);
+        return h > y + 0.45 && h - 0.35 < y + 1.8;
+      });
+    const floorAt = (x: number, z: number, y: number): boolean =>
+      pb.boxes.some((p) => p.collide && Math.abs(p.pitch) < 1e-3 && Math.abs(p.c[1] + p.s[1] / 2 - y) < 0.02 && insideBox(p, x, p.c[1], z));
+    const clear = (x: number, z: number, y: number): boolean => !pb.boxes.some((p) => p.collide && (insideBox(p, x, y + 0.5, z) || insideBox(p, x, y + 1.5, z)));
+    const spots: [string, number, number, number][] = [];
+    for (const d of A.doors) {
+      if (!inDeep(d.hinge.x, d.hinge.z)) continue;
+      const mx = d.hinge.x + (Math.sin(d.yaw) * d.width) / 2;
+      const mz = d.hinge.z + (Math.cos(d.yaw) * d.width) / 2;
+      // both sides; a side with no floor (the staff tunnel's far side, off the course) is skipped, never both
+      const sides = [-0.6, 0.6].map((s) => [`door ${d.id} ${s}`, mx + Math.cos(d.yaw) * s, mz - Math.sin(d.yaw) * s, d.hinge.y] as [string, number, number, number]);
+      const floored = sides.filter(([, x, z, y]) => floorAt(x, z, y));
+      expect(floored.length, `door ${d.id}`).toBeGreaterThan(0);
+      spots.push(...floored);
+    }
+    for (const [id, v] of Object.entries(c.devices)) if (inDeep(v.x, v.z)) spots.push([id, v.x, v.z, v.y]);
+    for (const v of DEEP_DEVICES) if (v.kind === 'reinforce') spots.push([v.id, v.pos.x, v.pos.z, v.pos.y]);
+    expect(spots.length).toBeGreaterThan(40);
+    for (const [n, x, z, y] of spots) {
+      expect(floorAt(x, z, y), `${n} floor`).toBe(true);
+      expect(clear(x, z, y), `${n} clear`).toBe(true);
+      expect(onRamp(x, z, y), `${n} ramp`).toBe(false);
+    }
+    // the staff tunnel door and its reinforcement point: on the plot floor, outside the SE tower (x 36..44, z 0..4)
+    const rf = DEEP_DEVICES.find((v) => v.id === 'B9-REINF')!;
+    expect(rf.local[1]).toBeGreaterThan(4.5);
+    const tn = A.doors.find((d) => hyp2(d.hinge.x - b9(44, 5).x, d.hinge.z - b9(44, 5).z) < 0.01);
+    expect(tn?.locked).toBe(true);
+    expect(A.doors.some((d) => Math.abs(d.hinge.z - b9(0, 0).z) < 0.5 && d.hinge.x > b9(36, 0).x && d.hinge.y < 1)).toBe(false);
+  });
+
   it('debug points B7, B7-roof, B8, B8-RT, B9, B9-B2, L9, A7, A8 stand on a floor', () => {
     for (const id of ['B7', 'B7-roof', 'B8', 'B8-RT', 'B9', 'B9-B2', 'L9', 'A7', 'A8']) {
       const d = play.debugPoints!.find((p) => p.id === id);
@@ -870,7 +1017,7 @@ describe('Fallow (bunker) Deep level: House, Range, Plot (T5)', () => {
 
   it('B8: catwalk 4.0, scaffold 3.0, CS door at the stair foot with no way round it (caged to 7.0)', () => {
     expect(topAt(b8(30, 30).x, b8(30, 30).z, B8_METRICS.catwalk)).toBe(true);
-    expect(topAt(b8(58, 21).x, b8(58, 21).z, B8_METRICS.scaffold)).toBe(true);
+    expect(topAt(b8(58, 20).x, b8(58, 20).z, B8_METRICS.scaffold)).toBe(true);
     const cs = A.doors.find((d) => d.id === c.doors['B8-cs'])!;
     expect(cs.locked).toBe(true);
     // the stair's landing is reached only from the catwalk or through CS: the cage walls stand 7.0 on both sides
@@ -911,6 +1058,7 @@ describe('Fallow (bunker) Deep level: House, Range, Plot (T5)', () => {
         else if (a.kind === 'zipline') link(a.a, a.b);
         else if (a.kind === 'duct') link(a.path[0]!, a.path[a.path.length - 1]!);
         else if (a.kind === 'rappel') link(a.top, { x: a.top.x + a.nx * 0.5, z: a.top.z + a.nz * 0.5 });
+        else if (a.kind === 'window') link({ x: a.c.x + Math.sin(a.yaw) * 0.8, z: a.c.z + Math.cos(a.yaw) * 0.8 }, { x: a.c.x - Math.sin(a.yaw) * 0.8, z: a.c.z - Math.cos(a.yaw) * 0.8 });
       }
       return out;
     };
@@ -940,5 +1088,24 @@ describe('Fallow (bunker) Deep level: House, Range, Plot (T5)', () => {
     const order = path!;
     for (const [a, e] of es) expect(Math.abs(order.indexOf(a) - order.indexOf(e)), `${a}-${e}`).toBe(1);
     for (const r of rooms.map((x) => x[0]).filter((x) => x !== 'B1')) expect(route(false, r), r).toBeNull();
+  });
+
+  // The graph above takes every floor in a bay as joined; this floods the floors themselves (the game's nav lattice)
+  // with every locked door shut: no bay or airlock floor on the Plant or Deep level walks into another one.
+  it('nav flood (Plant and Deep levels, locked doors shut): no bay or airlock floor reaches another', () => {
+    const shut = A.doors.filter((d) => d.locked).map(doorLeaf);
+    const nav = analyticNav(pb, [-1, -57, 163, 25], shut);
+    const ids = ['B5', 'A5', 'B6', 'S6', 'A6', 'B7', 'A7', 'B8', 'A8', 'B9', 'L9'];
+    const seeds = ids.map((id) => play.debugPoints!.find((d) => d.id === id)!);
+    for (const sd of seeds) expect(nav.heightAt(sd.pos.x, sd.pos.z, sd.pos.y), sd.id).toBeCloseTo(sd.pos.y, 1);
+    const joined: string[] = [];
+    for (let i = 0; i < seeds.length; i++) {
+      for (let k = i + 1; k < seeds.length; k++) {
+        const p = seeds[i]!.pos;
+        const q = seeds[k]!.pos;
+        if (nav.findPath([p.x, p.z], [q.x, q.z], 1e6, p.y, q.y)) joined.push(`${seeds[i]!.id}-${seeds[k]!.id}`);
+      }
+    }
+    expect(joined).toEqual([]);
   });
 });

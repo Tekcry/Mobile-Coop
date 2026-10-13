@@ -167,6 +167,13 @@ T4 checked: PASS after 1 fix round (1094b71: nav seeds per bay, mains lamp not d
   hanging feet, band 0.8-2.6); the B8 plywood 0.05 -> 0.1 (the 5 cm voxel grid); the scaffold z 20..24 -> 19..23; CS
   z 26..32 -> 24..30 with its landing z 30..32; WM runs wall to wall (x 0.5..43.5, BAYS 4..40) so the bench reaches it.
 
+- T5 checker fixes (2026-10-13, cloud): B7's ground-floor east open window z 13 -> 22.5 (the lobby; at 13 it opened onto
+  the timber stair); B8 lanes 5 and 6's far stands 50 m -> 45 m (x 58 -> 53: inside the scaffold and the CS cage);
+  the scaffold z 19..23 -> 18..22 (1.35 clear of CS's door, the floor side); B9 stair-tower flights run 5.0 -> 4.7
+  (going 0.36; far landings 1.35 deep); B-1 south walkway joined to the west / east walkways (no 0.15 slot); the staff
+  tunnel door and B9-REINF from the south wall (x 39.4, inside the SE tower's flight 1) to the east wall at z 5..6.2
+  (B9-REINF at 43.2, 5.6).
+
 ### Spec change requests (T5)
 - B7: the inverted takedown is over the annex roof's edge, not over the cavern floor (A40); B7-O's window stop and
   B7-R's ledge-pull stop move to the built window and parapet (A40, T7a routes).
