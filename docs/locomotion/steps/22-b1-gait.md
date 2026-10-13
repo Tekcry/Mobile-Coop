@@ -1,0 +1,60 @@
+# Step 22 - batch 1b: gait, lean, stops, pivots, quick 180, exertion (D5.1-D5.5)
+
+Model: implementer sonnet; checker opus. Depends on: 21.
+Commit: "locomotion 22: speed-scaled gait, lean spring, stop settle, plant-and-pivot, quick 180, exertion breathing"
+
+## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)
+- CLAUDE.md, docs/locomotion/RULES.md, this file; DECISIONS.md D2, D5.1-D5.5, D8.
+- docs/design-bible.md:763-784 (5.12.1 instant control), :171 and 5.3 "Add (3b)" (quick 180).
+- src/anim/animGraph.ts:435-471 (gait blend), :514 (dashS), :543-560 (startShift, stopSettle, pivot),
+  :619-632 (dash lower, accel / intent lean), :765-772 (arm swing 0.1), :810-826.
+- src/anim/clips/actions.ts:188-216 (startShift, stopSettle, pivot offsets).
+- src/anim/motion.ts:23, :73 (stepLength), :81-83 (rootModulation), :183-207 (pivot), :285-326, :346-356 (turn).
+- src/anim/footPlanner.ts:109 (PIN_TOL), :150-300 (step placement).
+- src/player/characterRig.ts:930-950 (remote vel / yawRate derive); src/net/remoteAvatar.ts:270-302 (rig input).
+- src/player/moveState.ts MOVE_MODES (append only) and src/game/localMoveState.ts (precedence).
+- src/config/movement.ts:159-160 (gear caps), :62 (pivotTime).
+
+## Numbers
+- Gear caps m/s (movement.ts:160): stand 0.8 / 1.3 / 2.0 / 2.8 / 3.8 / 5.0; crouch 0.5 / 0.9 / 1.3 / 1.8 / 2.3 / 2.8.
+- D2 class per gear (ASSUMED, next free A-number): walk = stand G1-G3 (<= 2.0 m/s, 4 cm), run = G4-G5 (6 cm),
+  sprint = G6 (8 cm), crouch = all crouch gears (2.5 cm). Alternative: class by clip blend weight.
+- Clip pelvis p2p today (AUDIT 2): creep 0.64, walk 0.96, brisk 1.28, jog 1.85, dash 2.35, crouchRun 1.6 cm.
+  Target after D5.1: <= 60 % of the class limit (walk 2.4, run 3.6, sprint 4.8, crouch 1.5 cm).
+- Stop offsets: startShift -1.2 cm, stopSettle -1.6 cm, pivot -3 cm (actions.ts:192-216).
+- Quick 180: >= 0.25 s (bible :826 table); travel turn 720 deg/s gives 0.25 s (motion.ts:346-356).
+  Fast turn rule: > 360 deg/s shows as a plant-and-pivot step (bible 5.12.1).
+- Braking stop gears 5-6: <= 0.3 s, <= 0.6 m, committed, same for remotes (bible 5.12.1).
+
+## Task
+1. D5.1: stride length, pelvis height, arm swing (0.1 fixed today) and forward lean scale with speed through one
+   effort curve per stance; gears read as effort, the clip playback rate stays tied to the gait clock.
+2. Pelvis p2p per class inside the targets above at every gear and both stances; one low / one high (step 21) holds.
+3. D5.2: accel and turn lean on the upper body only, through the existing damped springs (zeta >= 1); the root
+   never overshoots (harness root-overshoot metric 0).
+4. Remotes: derive accelFwd / accelSide and yawRate in characterRig.animate from the smoothed velX / velZ and yaw
+   deltas it already computes; pass `motion` (start / stop / pivot) derived from speed edges. No new wire field.
+5. D5.3 (stops): one damped settle on stop and start; the pelSpring (freed in step 21) carries it, critically damped,
+   no rebound. Gears 1-4 settle in 0.12-0.2 s with no foot slide; gears 5-6 keep the braking stop numbers.
+6. D5.4: turns over 360 deg/s use a plant-and-pivot step; restore the pivot for the CT path (motion.ts:183-207).
+7. Stride warping in the foot planner so planted feet match the capsule: slide < 1 cm (PIN_TOL 4 cm is only the
+   re-plant trigger, not the slide limit).
+8. Quick 180: stick flicked back (dot < -0.7) at gear >= 3 -> a dedicated pivot clip, 0.25-0.3 s, no foot slide,
+   control stays instant. New MoveState mode `quick180` appended to MOVE_MODES; remotes play the clip from it.
+9. D5.5: exertion breathing after >= 3 s at gear 6 or after a climb / mantle exit: chest and shoulders only,
+   amplitude decays to the idle level over 4-6 s, cosmetic, no stamina, never on the head.
+   Remotes drive it from their own MoveState history (time at g=6, attach exits).
+10. Guards share the rig: verify guard gait passes the same metrics (pivot 0.6 s guard value kept).
+11. Unit tests for the pure parts (effort curve, quick-180 detector, stride warp, accel derive) in tests/.
+
+## D8
+- New mode `quick180`: e2e-netmove case, remote pose error < 10 cm. No other wire change (size test).
+- Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget), remotes included.
+
+## Checks
+- `npm run check`; `npm run e2e:quick`; `node scripts/run-e2e.mjs e2e-anim e2e-move e2e-ct e2e-netmove e2e-coop e2e-bot`
+  (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).
+- `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote), 60 and 120 Hz: batch 1 rows pass, nothing regresses vs step 21.
+- `node scripts/perf-trend.mjs`.
+- PC-PASS: anim-sheet `start`, `stop`, `walkstop`, `turn`, `sprint`, and a new `quick180` scenario, side / front / ots,
+  local and remote: "one settle, no slide, lean returns without overshoot" (PROVISIONAL in the cloud).

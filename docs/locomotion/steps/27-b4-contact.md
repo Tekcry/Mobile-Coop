@@ -1,0 +1,57 @@
+# Step 27 - batch 4: stealth contact, drag (H1), contact IK (D5.9)
+
+Model: implementer sonnet; checker opus (network step). Depends on: 26.
+Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab / carry, drag verb, contact IK"
+
+## Read (anchors first: `grep -n`; Blocks A-C moved lines, the anchor wins over the number)
+- CLAUDE.md, docs/locomotion/RULES.md, this file; DECISIONS.md D5.9, D8, A5; PLAN.md H1, H3.
+- docs/design-bible.md 5.3 "Bodies" (`grep -n 'Drag (3b)' docs/design-bible.md`, +-10 lines); :680-685 (C11);
+  :824-834 (durations: grab 0.5, lift 1.0, takedown 1.0-1.5 s).
+- docs/locomotion/AUDIT.md 1e (S01-S08).
+- src/game/takedown.ts:28-66 (times, grab), :265-279 (approach path); src/game/takedownController.ts:272-278.
+- src/game/stealthSystems.ts:30-40, :115-130 (carrying, drop body, hiding spot).
+- src/player/wallController.ts (step 11-12; read its header and exported API only).
+- The generic committed-move protocol from step 10: `grep -n "cmove\|cstart\|cdeny" src/net/protocol.ts src/net/coopHost.ts`.
+- src/player/moveState.ts MOVE_MODES; src/game/localMoveState.ts (precedence); src/net/remoteAvatar.ts:157-215.
+- src/player/characterRig.ts:1410-1470 (solveArm, reach); src/config/noise.ts (floor loudness).
+
+## Numbers
+- Takedown today: approach 0.22 + strike 0.7 = 0.92 s (takedown.ts:32-33) vs bible 1.0 s -> strike 0.80 (total 1.02).
+- Grab >= 0.5 s; lift to carry >= 1.0 s (bible :832-833). Grab hesitate 1.5 s, hostage 0.42 m (takedown.ts:53-66).
+- Drag speed = crouch gear 2 = 0.9 m/s (movement.ts:160). Char-vs-char clip <= 3 cm; paired alignment <= 3 cm at
+  contact on host and client (bible :808, :859). Hand contacts < 1 cm.
+
+## Task
+1. Back-to-wall dedicated clip set: enter (standing / crouched), slide loop, edge peek, lean-out aim, SWAT turn, exit,
+   interrupted exit; replace the stand-ins from steps 11-12. Back and support hand on the wall < 1 cm.
+2. Takedowns: strike 0.70 -> 0.80 s; every kind (behind, front, side, above, below, window, drop, inverted, corner from
+   the wall) plays from the host's shared start time `t0` (cstart) on both machines.
+3. Grab / human shield / shove: >= 0.5 s grab, shared start time, attacker and victim aligned <= 3 cm.
+4. Carry: lift >= 1.0 s; put down gently (quiet) or drop (noise); hide spots remove the body.
+5. Drag (new verb): crouched, 0.9 m/s, hands at the collar, body pinned at the shoulders and trailing; silent on quiet
+   floors, a scrape noise event on loud floors (noise.ts floor classes); interact hold switches drag <-> carry.
+6. Drag is a committed start: `cmove {k:'drag'}` -> host `cstart {t0}` or `cdeny`; the host decides who holds the
+   body and syncs the body position (C11). New MoveState mode `drag` (appended).
+7. Hook H1: `DragTarget = guard | body | player`; only guard and body are wired; a downed team-mate is accepted by the
+   type and rejected by the host with a `cdeny` reason (Phase 5). Unit test proves the type and the denial.
+8. No climbing, sprint, back-to-wall or traversal while dragging or carrying (bible 5.3).
+9. D5.9: hand contact IK on door frames and outside corners when passing within 0.4 m at gears 1-3 (support hand
+   brushes, < 1 cm when touching); never while aiming.
+10. Duck under low geometry: head clearance probe; spine / knees flex to clear with >= 3 cm, no world clip > 3 cm.
+11. Sideways through gaps narrower than 0.7 m: torso turns up to 60 deg (spine limit) and steps sideways.
+12. Add `drag` to the bot partner command table (step 20) and to the e2e-bot suite.
+
+## D8
+- New mode `drag`: e2e-netmove case; host-approved start; body position synced; denial path tested.
+- Remote char-vs-char <= 3 cm and paired alignment <= 3 cm in the remote audit (takedown, grab, drag, carry).
+- D5.9 contact IK on remotes from their pose and local geometry probes; no new field.
+- Anim per character <= 0.063 ms trend gate (0.107 ms scaled budget), remotes included.
+
+## Checks
+- `npm run check`; `npm run e2e:quick`;
+  `node scripts/run-e2e.mjs e2e-takedown e2e-stealth e2e-clip e2e-anim e2e-netmove e2e-coop e2e-bot`
+  (netmove / coop KNOWN_FLAKY: any FAIL line fails the step).
+- `node scripts/anim-audit.mjs --compare=docs/locomotion/audit/anim-baseline.json` (local + remote): durations, contacts, char-vs-char, alignment; batches 1-3 pass.
+- `node scripts/perf-trend.mjs`.
+- PC-PASS: anim-sheet for back-to-wall set, each takedown kind, grab, carry, drag, duck, sideways gap, side / front,
+  local and remote: "no clipping between bodies, hands on contact" (PROVISIONAL in the cloud).
