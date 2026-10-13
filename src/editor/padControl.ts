@@ -43,6 +43,11 @@ import { badgeWords } from './objects';
 import { CLIMB_PIECES, finishOf, pieceOf } from './climbCatalogue';
 import type { ExtKind } from './climbCatalogue';
 import { pieceWords } from './climb';
+import { fittingOf, groupFittings } from './lightCatalogue';
+import type { LightGroup } from './lightCatalogue';
+import { aimDir } from './lightCatalogue';
+import { circuitWords, lampWords, withParams } from './lamps';
+import type { Circuit, Lamp, LampData } from './lamps';
 import { loudWords } from './finishes';
 import { groupPresets } from './catalogue';
 import type { ObjGroup } from './catalogue';
@@ -63,6 +68,7 @@ const BAR = [
   ['roof', 'Roof'],
   ['object', 'Object'],
   ['climb', 'Climb'],
+  ['lamp', 'Light'],
   ['stamp', 'Stamp'],
   ['measure', 'Measure'],
 ] as const;
@@ -247,8 +253,8 @@ export class PadControl {
   /** What the tiles depend on: the selection, the clipboard and the view toggles. */
   menuInput(): MenuInput {
     const s = this.ed.selectedElem();
-    const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : 'kind'] ?? '') : '';
-    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0 } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput() };
+    const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : s.coll === 'lamps' ? 'fixture' : 'kind'] ?? '') : '';
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0 } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput(), lightGroup: this.ed.lightGroup };
   }
 
   viewState(): ViewState {
@@ -374,6 +380,11 @@ export class PadControl {
       this.ed.setObjectGroup(t.id.slice(9) as ObjGroup);
       return this.renderMenu();
     }
+    if (t.id.startsWith('lightgroup.')) {
+      // ON6: a group tile shows that group's fittings; the menu stays open
+      this.ed.setLightGroup(t.id.slice(11) as LightGroup);
+      return this.renderMenu();
+    }
     if (t.id.startsWith('presetfrom.')) {
       // ON11: a source tile shows that source's presets; the menu stays open
       this.ed.stamp.from = t.id.slice(11) as PresetFrom;
@@ -451,6 +462,17 @@ export class PadControl {
       ed.setClimbKind(id.slice(6) as ExtKind);
       tool('climb');
     }
+    else if (id.startsWith('light.')) {
+      // ON6: a fitting, or Switch
+      ed.setLampFit(id.slice(6));
+      tool('lamp');
+    }
+    else if (id === 'sel.aim') this.startAim();
+    else if (id === 'sel.circuit') this.editCard('circuit');
+    else if (id === 'sel.addLamps') {
+      const s = ed.selectedElem();
+      if (s?.coll === 'circuits') ed.addLampsTo(s.id);
+    }
     else if (id.startsWith('preset.')) {
       // ON11: the Stamp tool with that preset
       this.ed.stamp.set(id.slice(7));
@@ -521,6 +543,14 @@ export class PadControl {
       const q = CLIMB_PIECES[(i + dir + CLIMB_PIECES.length) % CLIMB_PIECES.length]!;
       ed.setClimbKind(q.id);
       ed.status(`Climb: ${q.name}`);
+    } else if (ed.tool === 'lamp') {
+      // ON6: the next fitting in the group (Switch stays Switch)
+      const f = ed.fitting;
+      if (!f) return;
+      const fs = groupFittings(f.group);
+      const q = fs[(fs.findIndex((x) => x.id === f.id) + dir + fs.length) % fs.length]!;
+      ed.setLampFit(q.id);
+      ed.status(`Light: ${q.name}`);
     } else if (ed.tool === 'stamp') {
       const p = ed.stamp.step(dir);
       if (p) ed.status(`Stamp: ${p.name}`);
@@ -692,6 +722,7 @@ export class PadControl {
       return this.ed.find.frame(n.x, n.y, st.pressed(PAD.A), st.pressed(PAD.B), st.pressed(PAD.X), st.pressed(PAD.Y));
     }
     if (this.menu.isOpen) return this.menuFrame(now, dt);
+    if (this.aim) return this.aimFrame(dt);
     if (c.walking) return this.walkFrame();
     if (st.pressed(PAD.Y) && !this.ed.drag && !this.ed.groupDrag) return this.toggleMenu();
     if (st.viewTap === 'tap') this.topDown();
@@ -730,7 +761,7 @@ export class PadControl {
       else if (st.xTap === 'hold') this.ed.redo();
       if (st.rbTap === 'tap') {
         if (this.ed.splitting) this.ed.splitTurn();
-        else if (this.ed.tool === 'object' || this.ed.tool === 'stamp') this.ed.turnObjectNow();
+        else if (this.ed.tool === 'object' || this.ed.tool === 'stamp' || this.ed.tool === 'lamp') this.ed.turnObjectNow();
         else this.ed.frameSelected();
       }
     } else if (this.ed.chaining && st.pressed(PAD.X)) this.ed.chainRemoveLast(); // on press: a slow frame never turns it into a hold
@@ -753,6 +784,51 @@ export class PadControl {
     this.followDrag();
     const kz = plan ? Math.exp(Math.sign(zoom) * zoom * zoom * ORBIT.ZOOM_RATE * (fine ? ORBIT.PRECISION : 1) * dt) : 1;
     if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, kz);
+  }
+
+  /** ON6: Selected > Aim on a flood or twin spot: the lamp being aimed, its aim as it was, and the aim now. */
+  private aim: { id: string; before: Lamp; yaw: number; pitch: number } | null = null;
+
+  private startAim(): void {
+    const s = this.ed.selectedElem();
+    const l = s?.coll === 'lamps' ? (clone(s.e) as Lamp) : null;
+    if (!s || !l?.aim) return this.ed.status('Select a floodlight or a twin spot to aim it');
+    this.aim = { id: s.id, before: l, yaw: l.aim[0], pitch: l.aim[1] };
+    this.latchSticks();
+    this.ed.status(`Aim ${l.id}: the right stick turns and tips it, A sets, B puts it back`);
+    this.ed.updateHint();
+  }
+
+  /** The right stick turns (left / right, 90 degrees a second) and tips (up / down, 45) the aim, previewed; A sets it, B puts it back. */
+  private aimFrame(dt: number): void {
+    const st = this.st;
+    const a = this.aim!;
+    const ed = this.ed;
+    ed.controls.orbitIn = { panX: 0, panY: 0, orbitX: 0, tiltY: 0, zoom: 0, precision: false, rise: 0 };
+    if (st.pressed(PAD.B)) {
+      ed.model.preview('lamps', a.before as Elem);
+      this.aim = null;
+      ed.status(`Aim of ${a.id} put back`);
+      return ed.updateHint();
+    }
+    if (st.pressed(PAD.A)) {
+      const after = ed.model.snapshot<Lamp>('lamps', a.id);
+      this.aim = null;
+      if (after?.aim && JSON.stringify(after) !== JSON.stringify(a.before)) ed.commitText(`Aimed ${fittingOf(after.fixture)?.name ?? 'lamp'} (${a.id}) to ${after.aim[0]} degrees, ${after.aim[1]} down`, [{ coll: 'lamps', id: a.id, before: a.before as Elem, after: after as Elem }]);
+      ed.status(after?.aim ? `${a.id} aimed: turn ${after.aim[0]} degrees, ${after.aim[1]} down` : 'Aim set');
+      return ed.updateHint();
+    }
+    const dead = 0.2;
+    const x = Math.abs(st.rawR.x) > dead ? st.rawR.x : 0;
+    const y = Math.abs(st.rawR.y) > dead ? st.rawR.y : 0;
+    if (!x && !y) return;
+    a.yaw = (((a.yaw + x * 90 * dt) % 360) + 360) % 360;
+    a.pitch = Math.min(90, Math.max(-90, a.pitch + y * 45 * dt));
+    const aim: [number, number] = [Math.round(a.yaw) % 360, Math.round(a.pitch)];
+    const cur = ed.model.get<Lamp>('lamps', a.id);
+    if (cur?.aim && cur.aim[0] === aim[0] && cur.aim[1] === aim[1]) return;
+    ed.model.preview('lamps', withParams({ ...clone(a.before), aim }) as Elem);
+    ed.status(`Aim ${a.id}: turn ${aim[0]} degrees, ${aim[1]} down (beam ${aimDir(aim).map((v) => fmt(v)).join(', ')}); A sets, B puts it back`);
   }
 
   /** Quick walk (L3 tap from building): sticks walk and look, it runs, L3 toggles a slow walk, L3 held starts the walk test, B comes back; the dot, tool bar and card hide; A does nothing. */
@@ -1203,13 +1279,13 @@ export class PadControl {
     const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : '';
+    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
     $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
@@ -1242,7 +1318,9 @@ export class PadControl {
       // ON5: what the player can do with a climb piece (the reach rules); a room's footstep loudness by its floor finish
       const extLine = s.coll === 'exterior' ? `<div class="dim" data-climb>${esc(pieceWords(ed.model.data, s.e as Ext))}</div>` : '';
       const finLine = s.coll === 'rooms' && finishOf((s.e as Room).finish) ? `<div class="dim" data-finish>${esc(loudWords((s.e as Room).finish))}</div>` : '';
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON6: a lamp's lumens, colour, beam, reach and circuit; a switch's lamps
+      const lampLine = s.coll === 'lamps' ? `<div class="dim" data-lamp>${esc(lampWords(ed.model.data as LampData, s.e as Lamp))}</div>` : s.coll === 'circuits' ? `<div class="dim" data-lamp>${esc(circuitWords(s.e as Circuit))}</div>` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1425,6 +1503,55 @@ export class PadControl {
         marks.push({ x: (r[0] + r[2]) / 2, y: f + pre.y + pre.h / 2, z: (r[1] + r[3]) / 2, sx: r[2] - r[0], sy: pre.h, sz: r[3] - r[1], dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
         for (let i = 0; i < 4; i++) plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
+      }
+    } else if (ed.tool === 'lamp' && p) {
+      // ON6: the fitting's ghost at its mount height (red where it cannot go); Switch: the plate, or the lamp A adds
+      const fl = f - ed.floor();
+      if (ed.lampFit === 'switch') {
+        const g = ed.switchGhost(p[0], p[1]);
+        if (g.lamp) {
+          const l = g.lamp;
+          words = l.circuit === ed.circuitEdit ? `${l.id} is on ${ed.circuitEdit} already; B ends` : `A: put ${fittingOf(l.fixture)?.name ?? 'lamp'} (${l.id}) on switch ${ed.circuitEdit}`;
+          key = `sl|${l.id}|${ed.circuitEdit}|${l.circuit}`;
+          const lf = ed.floor(ed.levelOf('lamps', l));
+          marks.push({ x: l.at[0], y: fl + lf + l.at[1], z: l.at[2], sx: 0.5, sy: 0.3, sz: 0.5, dx: 1, dz: 0, look: 'ghost' });
+          plan.push({ kind: 'ring', p: [l.at[0], l.at[2]] });
+        } else if (g.sw) {
+          words = ed.circuitEdit ? `A: a new switch on ${g.sw.wall} (or A on a lamp for ${ed.circuitEdit}); B ends` : `A: a switch on ${g.sw.wall}`;
+          key = `sw|${g.sw.at.join()}|${ed.circuitEdit ?? ''}`;
+          marks.push({ x: g.sw.at[0], y: f + g.sw.at[1], z: g.sw.at[2], sx: 0.12, sy: 0.12, sz: 0.12, dx: 1, dz: 0, look: 'ghost' });
+          plan.push({ kind: 'ring', p: [g.sw.at[0], g.sw.at[2]] });
+        } else {
+          bad = !ed.circuitEdit;
+          words = ed.circuitEdit ? `Move onto a lamp to put it on ${ed.circuitEdit}; B ends` : (g.why ?? 'Move onto a wall face');
+          key = `swb|${p[0]},${p[1]}|${ed.circuitEdit ?? ''}`;
+          marks.push({ x: p[0], y: f + 1.2, z: p[1], sx: 0.12, sy: 0.12, sz: 0.12, dx: 1, dz: 0, look: bad ? 'bad' : 'ghost' });
+          plan.push({ kind: 'ring', p });
+        }
+      } else {
+        const fit = ed.fitting;
+        const g = ed.lampGhost(p[0], p[1]);
+        if (!g) {
+          words = `A: start a ${(fit?.name ?? '').toLowerCase()} here`;
+          key = `ls|${p[0]},${p[1]}|${ed.lampFit}`;
+          marks.push({ x: p[0], y: f + 1.5, z: p[1], sx: 0.1, sy: 3, sz: 0.1, dx: 1, dz: 0, look: 'ghost' });
+          plan.push({ kind: 'ring', p });
+        } else if (!g.lamps.length) {
+          bad = true;
+          words = g.why ?? 'Cannot go here';
+          key = `lb|${p[0]},${p[1]}|${ed.lampFit}`;
+          marks.push({ x: p[0], y: f + 1.5, z: p[1], sx: 0.1, sy: 3, sz: 0.1, dx: 1, dz: 0, look: 'bad' });
+          plan.push({ kind: 'ring', p });
+        } else {
+          const l0 = g.lamps[0]!;
+          words = `A: ${g.lamps.length > 1 ? `${g.lamps.length} x ` : ''}${fit?.name ?? ''} ${fmt(l0.at[1])} m up${g.on ? ` on ${g.on}` : ''}${g.post ? ' with a lamp post' : ''}; RB turns`;
+          key = `lg|${g.lamps.map((l) => l.at.join()).join(';')}|${ed.lampFit}|${ed.lampYaw}`;
+          for (const l of g.lamps) {
+            const fx = l.params.fixture;
+            marks.push({ x: l.at[0], y: f + l.at[1] + (fx?.oy ?? 0), z: l.at[2], sx: Math.max(0.08, fx?.sx ?? 0.2), sy: Math.max(0.05, fx?.sy ?? 0.1), sz: Math.max(0.08, fx?.sz ?? 0.2), dx: 1, dz: 0, look: 'ghost' });
+            plan.push({ kind: 'ring', p: [l.at[0], l.at[2]] });
+          }
+        }
       }
     } else if (ed.tool === 'stamp' && p) {
       // ON11: the whole group at the dot; red where the fit check would refuse it, with its words

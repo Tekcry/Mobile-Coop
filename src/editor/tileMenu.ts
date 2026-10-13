@@ -18,6 +18,8 @@ import type { ObjGroup } from './catalogue';
 import { CLIMB_PIECES } from './climbCatalogue';
 import type { Coll } from './types';
 import { PRESET_FROMS } from './presets';
+import { fittingOf, groupFittings, LIGHT_GROUPS } from './lightCatalogue';
+import type { LightGroup } from './lightCatalogue';
 import type { PresetFrom } from './presets';
 
 export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View'] as const;
@@ -49,6 +51,8 @@ export interface MenuInput {
   objGroup?: ObjGroup;
   /** ON11: the Presets tab: the source shown, its presets, and the own preset Rename / Delete act on (the one last picked). */
   presets?: { from: PresetFrom; list: { id: string; name: string; desc: string }[]; mine: { id: string; name: string } | null };
+  /** ON6: the Lights tab's group (its fittings follow the group tiles and Switch). */
+  lightGroup?: LightGroup;
 }
 
 export interface ViewState {
@@ -115,7 +119,7 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders', 'objects'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps';
       const t: (Tile | false)[] = [
         { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
         { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
@@ -127,6 +131,10 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         s.coll === 'rooms' && { id: 'sel.split', icon: 'S', name: 'Split', desc: 'A line across the room; RB turns it', kind: 'go' },
         s.coll === 'stairs' && { id: 'sel.fit', icon: 'F', name: 'Fit', desc: 'The smallest legal size from its start corner', kind: 'go' },
         s.coll === 'stairs' && { id: 'sel.turnClimb', icon: 'A', name: 'Turn climb 90', desc: 'The climb turns; the stair stays put', kind: 'go' },
+        // ON6: aim a flood or twin spot with the right stick; the circuit row; a switch takes more lamps
+        s.coll === 'lamps' && fittingOf(s.type)?.aimPitch !== undefined && { id: 'sel.aim', icon: 'A', name: 'Aim', desc: 'Right stick aims, A sets, B puts it back', kind: 'go' },
+        s.coll === 'lamps' && { id: 'sel.circuit', icon: 'C', name: 'Circuit', desc: "The card's Circuit row: left / right, or a new one", kind: 'go' },
+        s.coll === 'circuits' && { id: 'sel.addLamps', icon: 'L', name: 'Add lamps', desc: 'A on lamps puts them on this switch; B ends', kind: 'go' },
         { id: 'sel.rename', icon: 'I', name: 'Rename id', desc: 'Every reference follows', kind: 'go' },
         types && { id: 'sel.type', icon: 'T', name: 'Change type', desc: 'The card\'s Type row: left / right', kind: 'go' },
         s.gap === true && { id: 'sel.closeGap', icon: 'G', name: 'Close gap', desc: 'The wall end moves onto the wall it nearly meets', kind: 'go' },
@@ -178,10 +186,19 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
     case 'Climb':
       // ON5: climb pieces and exterior features (the catalogue's order)
       return CLIMB_PIECES.map((c): Tile => ({ id: `climb.${c.id}`, icon: c.place === 'draw' ? 'R' : c.place === 'point' ? 'O' : 'W', name: c.name, desc: c.desc, kind: 'go' }));
+    case 'Lights': {
+      // ON6: the five groups and Switch first (a group tile shows its fittings, the menu stays), then the group's fittings
+      const g = inp.lightGroup ?? 'interior';
+      return [
+        ...LIGHT_GROUPS.map((q): Tile => ({ id: `lightgroup.${q.id}`, icon: 'G', name: q.name, desc: 'A shows its fittings', kind: 'toggle', on: q.id === g, value: q.id === g ? 'shown' : '' })),
+        { id: 'light.switch', icon: 'S', name: 'Switch', desc: 'A on a wall face, then A on its lamps', kind: 'go' },
+        ...groupFittings(g).map((f): Tile => ({ id: `light.${f.id}`, icon: f.linear ? 'R' : f.mount === 'wall' || f.mount === 'sign' ? 'W' : 'L', name: f.name, desc: f.linear ? 'A at the start, A at the end' : f.mount === 'wall' ? 'A on a wall face' : f.mount === 'sign' ? 'A over a door' : f.mount === 'desk' || f.mount === 'object' ? `A on a ${f.onObjects?.[0]?.replace(/-/g, ' ') ?? 'object'}` : 'A places it; RB turns', kind: 'go' })),
+      ];
+    }
     case 'View':
       return viewTiles(inp.view);
     default:
-      // Lights and Mission: the later parts add their tiles here
+      // Mission: a later part adds its tiles here
       return [];
   }
 }

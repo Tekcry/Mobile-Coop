@@ -106,7 +106,7 @@ try {
   console.log('tile menu (Y tap): tabs, D-pad and A pick Wall, Y closes (ON0a)');
   await press(BTN.Y);
   let ms = await menuState();
-  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
+  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,Lights,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
   assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
   await press(BTN.RB);
   const tabR = (await menuState()).tab;

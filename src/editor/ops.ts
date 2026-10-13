@@ -10,6 +10,8 @@ import type { Campus, Coll, Elem, Ext, Opening, Rect, Room, Wall } from './types
 import { pieceOf } from './climbCatalogue';
 import { hyp2 } from '../core/mathx';
 import { CATALOGUE, settingsChangeWords, typeDefaults } from './openingCatalogue';
+import { fittingOf } from './lightCatalogue';
+import type { CircuitRecord, LampRecord } from '../world/maps/kestrelLights';
 
 /** Door and window sizes by type, from the ON9 catalogue (openingCatalogue.ts: the scale sheet's door facts or typical products). */
 export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: number }> = Object.fromEntries(CATALOGUE.map((c) => [c.id, { w: c.w, h: c.h, sill: c.sill }]));
@@ -37,6 +39,15 @@ export function cardWords(coll: Coll, e: Elem): { title: string; size: string } 
   if (coll === 'openings') {
     const o = e as Opening;
     return { title: name || (DOOR_NAMES[o.type] ?? capital(o.type)), size: `${fmt(o.w)} m wide, ${fmt(o.h)} m high` };
+  }
+  if (coll === 'lamps') {
+    // ON6: the fitting, its height and reach
+    const l = e as LampRecord;
+    return { title: name || (fittingOf(l.fixture)?.name ?? 'Lamp'), size: `${fmt(l.at[1])} m up, reach ${fmt(l.params.radius)} m, circuit ${l.circuit || 'none'}` };
+  }
+  if (coll === 'circuits') {
+    const c = e as CircuitRecord;
+    return { title: name || (c.switch ? 'Wall switch' : 'Circuit'), size: `${c.lamps.length} lamp${c.lamps.length === 1 ? '' : 's'}${c.switch ? ` on ${c.switch.wall}` : c.unswitchable ? `: ${c.unswitchable}` : ''}` };
   }
   if (coll === 'exterior') {
     // ON5: a climb piece: its kind, height and length
@@ -71,7 +82,7 @@ export function label(d: Campus, coll: Coll, e: Elem): string {
   const name = typeof e.name === 'string' && e.name ? `${e.name} ` : '';
   const lvlId = 'level' in e && typeof e.level === 'string' ? e.level : coll === 'openings' ? d.walls.find((w) => w.id === (e as Opening).wall)?.level : coll === 'stairs' || coll === 'ladders' ? (e as { from: string }).from : undefined;
   const lvl = lvlId ? `, ${levelName(d, lvlId)}` : '';
-  const kind = coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
+  const kind = coll === 'lamps' ? `lamp ${String((e as { fixture?: string }).fixture ?? '')} ` : coll === 'circuits' ? 'circuit ' : coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
   return `${kind}${name}(${e.id}${lvl})`;
 }
 
@@ -99,7 +110,14 @@ export function describeChange(d: Campus, c: Change): string {
     if (k === 'rect') parts.push(rectWords(va as Rect, vb as Rect));
     else if (k === 'a' || k === 'b') continue; // walls: below
     else if (k === 'at' && c.coll === 'openings') parts.push(`moved ${fmt(Math.abs((vb as number) - (va as number)))} m along its wall`);
-    else if (k === 'at' && Array.isArray(va)) parts.push(`moved ${moveWords((vb as number[])[0]! - (va as number[])[0]!, (vb as number[])[1]! - (va as number[])[1]!)}`);
+    else if (k === 'at' && Array.isArray(va) && va.length === 3) {
+      // ON6: a lamp's [x, y, z]: moved on the plan, or its height
+      const p = va as number[];
+      const q = vb as number[];
+      if (Math.abs(q[0]! - p[0]!) > EPS || Math.abs(q[2]! - p[2]!) > EPS) parts.push(`moved ${moveWords(q[0]! - p[0]!, q[2]! - p[2]!)}`);
+      if (Math.abs(q[1]! - p[1]!) > EPS) parts.push(`height ${fmt(p[1]!)} to ${fmt(q[1]!)} m`);
+    } else if (k === 'at' && Array.isArray(va)) parts.push(`moved ${moveWords((vb as number[])[0]! - (va as number[])[0]!, (vb as number[])[1]! - (va as number[])[1]!)}`);
+    else if (k === 'params' || (k === 'b' && c.coll === 'lamps')) continue;
     else if (k === 'between' || k === 'index') continue;
     else parts.push(fieldWords(c.coll, k, va, vb));
   }

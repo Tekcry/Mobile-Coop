@@ -26,6 +26,10 @@ import { catEntry, effective, GLASS_WALL_DEFAULT } from './openingCatalogue';
 import type { GlassData } from './openingCatalogue';
 import { hangsAtA, swingSign } from '../world/maps/kestrelDoors';
 import type { VisSettings } from './visibility';
+import { circuitLevel, lampCentre, lampLevel } from './lamps';
+import type { Circuit, Lamp } from './lamps';
+import { lampOnNormally } from '../world/maps/kestrelLights';
+import { aimDir, SWITCH } from './lightCatalogue';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
@@ -172,6 +176,8 @@ export class EditorScene {
     for (const r of d.roofs ?? []) this.build(keyOf('roofs', r.id));
     for (const o of d.objects ?? []) this.build(keyOf('objects', o.id));
     for (const x of d.exterior ?? []) this.build(keyOf('exterior', x.id));
+    for (const l of d.lamps ?? []) this.build(keyOf('lamps', l.id));
+    for (const c of d.circuits ?? []) this.build(keyOf('circuits', c.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -233,6 +239,8 @@ export class EditorScene {
     else if (p.coll === 'roofs') [meshes, levels] = this.buildRoof(e as Roof);
     else if (p.coll === 'objects') [meshes, levels] = this.buildObject(e as Obj);
     else if (p.coll === 'exterior') [meshes, levels] = this.buildExterior(e as Ext);
+    else if (p.coll === 'lamps') [meshes, levels] = this.buildLamp(e as Lamp);
+    else if (p.coll === 'circuits') [meshes, levels] = this.buildSwitch(e as Circuit);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -254,8 +262,70 @@ export class EditorScene {
     }
     if (coll === 'ladders') return (e as Ladder).at;
     if (coll === 'exterior') return [((e as Ext).a[0] + (e as Ext).b[0]) / 2, ((e as Ext).a[1] + (e as Ext).b[1]) / 2];
+    if (coll === 'lamps') return lampCentre(e as Lamp);
+    if (coll === 'circuits') {
+      const sw = (e as Circuit).switch;
+      return sw ? [sw.at[0], sw.at[2]] : [0, 0];
+    }
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
+  }
+
+  /**
+   * ON6: a lamp as its body (the fitting's box, or a strip along its line) and an emissive bulb at the light, as the
+   * game's light rig draws bulbs (a lamp off in its normal state, PIR or non-maintained, gets a dark bulb). Lighting the
+   * scene from the lamps is ON7.
+   */
+  private buildLamp(l: Lamp): [Mesh[], string[]] {
+    const lv = lampLevel(this.data, l);
+    if (!lv) return [[], []];
+    const f = this.floorOf(lv);
+    const fx = l.params.fixture;
+    const body = this.mat('lamp body', '#d9dce0');
+    const c = l.params.color;
+    const hex = `#${c.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0')).join('')}`;
+    const on = lampOnNormally(l);
+    const bulbMat = this.mat(`bulb ${on ? 'on' : 'off'}`, on ? hex : '#3a3d42', 1, on ? 1 : 0);
+    const out: Mesh[] = [];
+    const y = f + l.at[1];
+    if (l.b) {
+      const dx = l.b[0] - l.at[0];
+      const dz = l.b[2] - l.at[2];
+      const len = Math.sqrt(dx * dx + dz * dz);
+      const [cx, cz] = lampCentre(l);
+      const yaw = EditorScene.yaw(dx, dz);
+      out.push(this.box(`lamp ${l.id}`, cx, y + (fx?.oy ?? 0), cz, len, fx?.sy ?? 0.04, 0.06, yaw, body));
+      out.push(this.box(`bulb ${l.id}`, cx, y - 0.005, cz, len * 0.96, 0.02, 0.04, yaw, bulbMat));
+    } else {
+      const sx = fx?.sx ?? 0.15;
+      const sy = fx?.sy ?? 0.1;
+      const sz = fx?.sz ?? 0.15;
+      out.push(this.box(`lamp ${l.id}`, l.at[0], y + (fx?.oy ?? 0), l.at[2], sx, sy, sz, 0, body));
+      const bs = Math.max(0.06, Math.min(0.2, Math.min(sx, sz) * 0.8));
+      out.push(this.box(`bulb ${l.id}`, l.at[0], y, l.at[2], bs, 0.04, bs, 0, bulbMat));
+    }
+    // an aimed fitting (flood, twin spot): a thin 1.5 m rod along its beam, so the aim reads from any side
+    if (l.aim) {
+      const d = aimDir(l.aim);
+      for (const k of (l.heads ?? 1) > 1 ? [1, -1] : [1]) {
+        const rod = this.box(`aim ${l.id}`, l.at[0] + d[0] * k * 0.75, y + d[1] * 0.75, l.at[2] + d[2] * k * 0.75, 0.03, 0.03, 1.5, 0, bulbMat);
+        rod.rotation.y = ((l.aim[0] + (k < 0 ? 180 : 0)) * Math.PI) / 180;
+        rod.rotation.x = (l.aim[1] * Math.PI) / 180;
+        out.push(rod);
+      }
+    }
+    return [out, [lv]];
+  }
+
+  /** ON6: a wall switch: a small white plate on its wall face at its height. */
+  private buildSwitch(c: Circuit): [Mesh[], string[]] {
+    if (!c.switch) return [[], []];
+    const lv = circuitLevel(this.data, c);
+    if (!lv) return [[], []];
+    const w = this.data.walls.find((q) => q.id === c.switch!.wall);
+    const alongX = !!w && Math.abs(w.a[1] - w.b[1]) < Math.abs(w.a[0] - w.b[0]);
+    const m = this.box(`switch ${c.id}`, c.switch.at[0], this.floorOf(lv) + c.switch.at[1], c.switch.at[2], alongX ? SWITCH.w : SWITCH.d, SWITCH.h, alongX ? SWITCH.d : SWITCH.w, 0, this.mat('switch', '#f4f4f4', 1, 0.3));
+    return [[m], [lv]];
   }
 
   private levelNode(id: string): TransformNode {

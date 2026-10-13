@@ -18,6 +18,9 @@ import type { Campus, Ext, Obj } from './types';
 import { pieceRows, stepPiece } from './climb';
 import { finishOf } from './climbCatalogue';
 import { stepFinish } from './finishes';
+import { lampRows, stepLamp } from './lamps';
+import type { Lamp, LampData } from './lamps';
+import { fittingOf } from './lightCatalogue';
 
 /** ON4: an object's card: Type (the preset), Name, size, height, base, turn, see-through, no ledge. */
 function objectRows(o: Obj): CardRow[] {
@@ -162,6 +165,8 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
   }
   if (coll === 'roofs') return roofRows(e as Roof);
   if (coll === 'objects') return objectRows(e as Obj);
+  // ON6: a lamp: Type (the fitting), Name, lumens, colour temperature, beam, height, aim, the flags, circuit, owner
+  if (coll === 'lamps') return [{ id: 'type', label: 'Type', value: fittingOf((e as Lamp).fixture)?.name ?? (e as Lamp).fixture, kind: 'list' }, nameRow(e), ...lampRows(e as Lamp), idRow(e)];
   if (coll === 'exterior') {
     const rows = pieceRows(e as Ext);
     return [rows[0]!, nameRow(e), ...rows.slice(1), idRow(e)];
@@ -206,6 +211,7 @@ export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepC
   const a = JSON.parse(JSON.stringify(e)) as Elem & Record<string, unknown>;
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
   if (coll === 'exterior' && row !== 'name' && row !== 'id') return c.data ? stepPiece(c.data, e as Ext, row, dir, c.step) : null;
+  if (coll === 'lamps' && row !== 'name' && row !== 'id') return c.data ? stepLamp(c.data as unknown as LampData, e as Lamp, row, dir, c.step) : null;
   if (coll === 'rooms' && row === 'finish') {
     const f = stepFinish((e as Room).finish, dir);
     // the file has `finish: ""` on every room: keep the key where it is (a no-op save stays byte-identical)
