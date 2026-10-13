@@ -12,6 +12,8 @@ import { hyp2 } from '../core/mathx';
 import { CATALOGUE, settingsChangeWords, typeDefaults } from './openingCatalogue';
 import { fittingOf } from './lightCatalogue';
 import type { CircuitRecord, LampRecord } from '../world/maps/kestrelLights';
+import type { Extraction, Guard, Hide, Objective } from './mission';
+import { guardKind, hideKind, objectiveKind } from './missionCatalogue';
 
 /** Door and window sizes by type, from the ON9 catalogue (openingCatalogue.ts: the scale sheet's door facts or typical products). */
 export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: number }> = Object.fromEntries(CATALOGUE.map((c) => [c.id, { w: c.w, h: c.h, sill: c.sill }]));
@@ -32,6 +34,22 @@ export function slotDoorName(type: string): string {
 /** The selection card's words (ED3-pad1): a plain title (the name, else the kind) and one size line. The id is shown apart, small. */
 export function cardWords(coll: Coll, e: Elem): { title: string; size: string } {
   const name = typeof e.name === 'string' && e.name ? e.name : '';
+  // ON8: a guard (its role or kind, its stops and loop) and the mission markers
+  if (coll === 'guards') {
+    const g = e as unknown as Guard;
+    return { title: name || guardKind(g.kind).name, size: `${guardKind(g.kind).name}, ${g.loop.length} stop${g.loop.length === 1 ? '' : 's'}, ${Math.round(g.cycle)} s loop${g.closed ? '' : ' (open)'}` };
+  }
+  if (coll === 'objectives') {
+    const o = e as unknown as Objective;
+    return { title: name || objectiveKind(o.kind).name, size: `Objective ${o.order}${o.optional ? ', optional' : ''}${o.room ? `, in ${o.room}` : ''}` };
+  }
+  if (coll === 'hides') return { title: name || `Hiding place: ${hideKind((e as unknown as Hide).kind).name.toLowerCase()}`, size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
+  if (coll === 'checkpoints') return { title: name || 'Checkpoint', size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
+  if (coll === 'spawns') return { title: 'Insertion point', size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
+  if (coll === 'extraction') {
+    const r = (e as unknown as Extraction).rect;
+    return { title: 'Extraction zone', size: `${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m` };
+  }
   if (coll === 'walls') {
     const w = e as Wall;
     return { title: name || `${capital(w.kind)} wall`, size: `${fmt(wallLen(w))} m long, ${fmt(w.t)} m thick` };
@@ -82,7 +100,7 @@ export function label(d: Campus, coll: Coll, e: Elem): string {
   const name = typeof e.name === 'string' && e.name ? `${e.name} ` : '';
   const lvlId = 'level' in e && typeof e.level === 'string' ? e.level : coll === 'openings' ? d.walls.find((w) => w.id === (e as Opening).wall)?.level : coll === 'stairs' || coll === 'ladders' ? (e as { from: string }).from : undefined;
   const lvl = lvlId ? `, ${levelName(d, lvlId)}` : '';
-  const kind = coll === 'lamps' ? `lamp ${String((e as { fixture?: string }).fixture ?? '')} ` : coll === 'circuits' ? 'circuit ' : coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
+  const kind = coll === 'guards' ? 'guard ' : coll === 'objectives' ? `objective ${String((e as { kind?: string }).kind ?? '')} ` : coll === 'hides' ? 'hiding place ' : coll === 'checkpoints' ? 'checkpoint ' : coll === 'spawns' ? 'insertion point ' : coll === 'extraction' ? 'extraction zone ' : coll === 'lamps' ? `lamp ${String((e as { fixture?: string }).fixture ?? '')} ` : coll === 'circuits' ? 'circuit ' : coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
   return `${kind}${name}(${e.id}${lvl})`;
 }
 
@@ -110,6 +128,13 @@ export function describeChange(d: Campus, c: Change): string {
     if (k === 'rect') parts.push(rectWords(va as Rect, vb as Rect));
     else if (k === 'a' || k === 'b') continue; // walls: below
     else if (k === 'at' && c.coll === 'openings') parts.push(`moved ${fmt(Math.abs((vb as number) - (va as number)))} m along its wall`);
+    else if (k === 'at' && Array.isArray(va) && typeof va[2] === 'string') {
+      // ON8: a play point [x, z, level]
+      const p = va as [number, number, string];
+      const q = vb as [number, number, string];
+      parts.push(p[2] !== q[2] ? `moved to level ${levelName(d, q[2])}` : `moved ${moveWords(q[0] - p[0], q[1] - p[1])}`);
+    } else if (k === 'loop') parts.push(`patrol ${(vb as unknown[]).length} stops`);
+    else if (k === 'cycle' || k === 'closed' || k === 'isolation') continue;
     else if (k === 'at' && Array.isArray(va) && va.length === 3) {
       // ON6: a lamp's [x, y, z]: moved on the plan, or its height
       const p = va as number[];

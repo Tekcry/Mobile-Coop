@@ -212,6 +212,25 @@ export class LightView {
     return true;
   }
 
+  /** ON8: the patrol preview's eye walks with the guard (the caller throttles it). */
+  moveEye(e: Eye, x: number, z: number, yaw: number, level: string): void {
+    if (e.x === x && e.z === z && e.yaw === yaw && e.level === level) return;
+    e.x = x;
+    e.z = z;
+    e.yaw = yaw;
+    e.level = level;
+    this.updateGuard();
+  }
+
+  /** ON8: the patrol preview's eye goes when the preview stops. */
+  dropEye(e: Eye): void {
+    const i = this.eyes.indexOf(e);
+    if (i < 0) return;
+    this.eyes.splice(i, 1);
+    this.updateGuard();
+    if (!this.wanted) this.teardown();
+  }
+
   turnLastEye(deg: number): void {
     const e = this.eyes.at(-1);
     if (!e) return;

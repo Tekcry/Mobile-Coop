@@ -26,7 +26,7 @@ import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
 import { StampTool } from './stampTool';
 import { DR_NOTE, DR_TYPES } from '../world/maps/kestrelDoors';
 import { familyTypes, GLASS_WALL_DEFAULT, withOpeningType } from './openingCatalogue';
-import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_DEFAULTS, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
+import { cardWords, deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_DEFAULTS, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import { WallChain } from './chain';
 import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './liveSizes';
 import type { LiveInfo, LiveShape } from './liveSizes';
@@ -57,9 +57,12 @@ import { LIGHT_MODES, modeName, modeWords, type LightMode } from './lightPreview
 import type { Fitting, LightGroup } from './lightCatalogue';
 import { joinPlay, playText, splitPlay } from './playFile';
 import type { PlayData } from './playFile';
+import { MissionTool } from './missionTool';
+import { dropObjectiveRefs, isMission, missionCentre, missionLevel, moveMission, withCycle } from './mission';
+import type { Extraction, Guard, Objective } from './mission';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -172,6 +175,8 @@ export class Editor {
   readonly controls: CameraControls;
   /** ON7: the light view, darkness map, lights preview modes and the guard view tester. */
   readonly lights: LightView;
+  /** ON8: the guard and mission marker tools, path editing, the patrol preview. */
+  readonly mission: MissionTool;
   tool: Tool = 'select';
   selected: Key | null = null;
   /** ON3 multi-select (box select, Shift+click): two or more keys; `selected` is then null. */
@@ -249,12 +254,19 @@ export class Editor {
     this.model.link = (d, ch) => {
       const a = stairwellLink(d, ch);
       const b = circuitLink(d as LampData, ch);
-      return b.length ? [...a, ...b] : a;
+      // ON8: a deleted objective leaves the others' requires and unlocks
+      const c: Change[] = [];
+      for (const x of ch)
+        if (x.coll === 'objectives' && x.before && !x.after)
+          for (const o of dropObjectiveRefs((d.objectives ?? []) as Objective[], x.id)) if (!ch.some((y) => y.coll === 'objectives' && y.id === o.id)) c.push({ coll: 'objectives', id: o.id, before: (d.objectives ?? []).find((q) => q.id === o.id) as Elem, after: o as Elem });
+      return b.length || c.length ? [...a, ...b, ...c] : a;
     };
     this.chain = new WallChain(this.model);
     const canvas = $<HTMLCanvasElement>('c');
     this.view = new EditorScene(canvas, this.model);
     this.lights = new LightView(this);
+    this.mission = new MissionTool(this);
+    this.view.mission = this.mission;
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
     this.view.vis = parseVis(this.prefs.vis);
@@ -276,6 +288,7 @@ export class Editor {
       this.controls.update(Math.min(0.05, this.view.engine.getDeltaTime() / 1000));
       this.drawCameraMarker();
       this.overlays.frame();
+      this.mission.frame(Math.min(0.1, this.view.engine.getDeltaTime() / 1000));
     });
     new ResizeObserver(() => this.view.engine.resize()).observe($('view3d'));
 
@@ -317,6 +330,7 @@ export class Editor {
     if (coll === 'stairs' || coll === 'ladders') return (e as Stair).from;
     if (coll === 'lamps') return lampLevel(this.model.data, e as Lamp);
     if (coll === 'circuits') return circuitLevel(this.model.data, e as Circuit);
+    if (isMission(coll)) return missionLevel(coll, e);
     return (e as Room).level;
   }
 
@@ -342,6 +356,7 @@ export class Editor {
     if (this.pad?.menuOpen || this.find?.isOpen) return 'menu';
     if (this.chaining) return 'chain';
     if (this.drag || this.groupDrag) return 'drag';
+    if (this.mission.path) return 'path';
     if (this.tool !== 'select') return 'draw';
     if (this.selected && this.pad?.cardEditing) return 'card';
     return this.selected || this.group.length ? 'selected' : 'idle';
@@ -361,6 +376,7 @@ export class Editor {
       const sw = (e as Circuit).switch;
       return sw ? [sw.at[0], sw.at[2]] : [0, 0];
     }
+    if (isMission(coll)) return missionCentre(coll, e);
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
@@ -381,7 +397,9 @@ export class Editor {
       this.pad?.hub.render();
     } else this.view.refresh(keys);
     // ON7: a lamp being edited shows its quick light; the exact bake follows; new meshes take the lit materials
-    this.lights.changed(keys);
+    // (ON8: guards and markers are not building: no rebake)
+    const lk = keys.filter((k) => !MissionTool.isMissionKey(k));
+    if (lk.length) this.lights.changed(lk);
     this.lights.swap();
     if (this.selected && !this.selectedElem()) this.select(null);
     if (this.group.length && !this.groupDrag) {
@@ -410,7 +428,10 @@ export class Editor {
       this.group = [];
       this.view.setGroup([]);
     }
+    const was = this.selected;
     this.selected = key;
+    // ON8: with only the selected guard's path shown, a new selection redraws the guards
+    if (this.mission.paths === 'selected' && was !== key && (was?.startsWith('guards:') || key?.startsWith('guards:'))) this.view.refreshGuards();
     this.view.setSelected(key);
     const s = this.selectedElem();
     if (s?.coll === 'walls') this.wallTemplate = s.e as Wall;
@@ -669,12 +690,17 @@ export class Editor {
       return moveLamp(this.model.data as LampData, l0, snap(x - d.start[0], og), snap(z - d.start[1], og)) as Elem;
     }
     if (d.coll === 'circuits') return e;
+    // ON8: a guard moves whole (every stop), a marker by its point; the extraction zone is drawn below like a floor hole
+    if (isMission(d.coll) && (d.coll !== 'extraction' || !d.isNew)) {
+      const m = moveMission(d.coll, d.before, dx, dz) as Elem;
+      return d.coll === 'guards' ? (withCycle(this.model.data, m as Guard, (l) => this.mission.grids.get(this.model.data, l)) as Elem) : m;
+    }
     if (d.coll === 'objects') {
       const r = (d.before as Obj).rect;
       (e as Obj).rect = [r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz].map((v) => +v.toFixed(3)) as Rect;
       return e;
     }
-    if (d.coll === 'rooms' || d.coll === 'stairs' || d.coll === 'voids' || d.coll === 'roofs') {
+    if (d.coll === 'rooms' || d.coll === 'stairs' || d.coll === 'voids' || d.coll === 'roofs' || d.coll === 'extraction') {
       const r = (d.before as Room).rect;
       // ON1 decision 7: the moving edges snap to wall lines, wall faces and other room edges (LB / Ctrl: off)
       const lv = (d.before as Room).level;
@@ -881,6 +907,17 @@ export class Editor {
       this.commitLamps([after as Lamp], null);
       return;
     }
+    if (d.isNew && d.coll === 'extraction') {
+      // ON8: at least one grid step each way; it replaces the old zone in the same edit
+      const r = (after as Extraction).rect;
+      if (r[2] - r[0] < this.grid - 1e-6 || r[3] - r[1] < this.grid - 1e-6) {
+        this.model.drop(d.coll, d.id);
+        return this.status('Too small - A (click) at one corner, then at the far corner');
+      }
+      this.commitText(`${(this.model.data.extraction ?? []).length > 1 ? 'Moved' : 'Added'} the extraction zone: ${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m`, this.mission.extractionDone(after as Extraction));
+      this.select(keyOf('extraction', d.id));
+      return;
+    }
     if (d.isNew && d.coll === 'objects') {
       // ON4: a row is at least one unit; the Object tool stays on for the next row
       this.commit([{ coll: d.coll, id: d.id, before: null, after }]);
@@ -962,6 +999,8 @@ export class Editor {
       this.climbDown(x, z, sx, sy, source);
     } else if (this.tool === 'lamp') {
       this.lampDown(x, z, sx, sy, source);
+    } else if (this.tool === 'mission') {
+      this.mission.down(x, z, sx, sy, source);
     } else if (this.tool === 'guard') {
       // ON7: a guard eye at the point, facing the way the camera looks
       const ct = this.view.camera.getTarget();
@@ -1396,6 +1435,14 @@ export class Editor {
   }
 
   /** ON7: the lights preview mode (left / right on the View row); none changes the saved data. */
+  /** ON8: Hub > View "Guard paths": every guard's, or only the selected guard's. */
+  stepGuardPaths(): void {
+    this.mission.paths = this.mission.paths === 'all' ? 'selected' : 'all';
+    this.view.refreshGuards();
+    this.drawPlanOverlay();
+    this.status(this.mission.paths === 'all' ? 'Guard paths: every guard' : 'Guard paths: only the selected guard');
+  }
+
   stepLightMode(dir: 1 | -1): void {
     const k = LIGHT_MODES[(LIGHT_MODES.indexOf(this.lights.mode.kind) + dir + LIGHT_MODES.length) % LIGHT_MODES.length]!;
     const m: LightMode = { kind: k };
@@ -2004,6 +2051,8 @@ export class Editor {
     }
     // ON6: lamps and switches; the selected circuit's lines from its switch to its lamps
     out += this.lampMarks();
+    // ON8: guard paths and mission markers
+    out += this.mission.planMarkup((x, z) => this.toPlan(x, z), S);
     // wall gaps on this level: a red ring and its size (ON0b decision 7)
     for (const gp of this.gaps()) {
       if (gp.level !== this.view.level) continue;
@@ -2218,7 +2267,8 @@ export class Editor {
     if (this.drag) this.endDrag(true);
     if (this.quickWalking) this.quickWalk();
     const c = this.controls;
-    const spawn = this.walkSpawn();
+    // ON8: Hub > Play "Start at insertion 1" starts at the first insertion point instead of the dot
+    const spawn = this.mission.spawnPoint() ?? this.walkSpawn();
     const o = c.mode === 'orbit' ? c.orbit.s : null;
     this.walkFrom = { pitch: o?.pitch ?? Math.max(ORBIT.PITCH_MIN, Math.min(ORBIT.PITCH_MAX, c.pitch || 0.9)), dist: o?.dist ?? ORBIT.DIST_START, selected: this.selected };
     try {
@@ -2360,12 +2410,19 @@ export class Editor {
       case 'levelDown': return this.stepLevel(-1);
       case 'frame': return this.frameSelected();
       case 'chainRemove': return this.chainRemoveLast();
+      // ON8: path editing with the keys
+      case 'pathRemove': return this.mission.removeLast();
+      case 'pathFace': return this.mission.turnFace();
+      case 'pathWaitUp': return this.mission.stepWait(1);
+      case 'pathWaitDown': return this.mission.stepWait(-1);
       case 'cancel':
         if (this.find.isOpen) this.find.close();
         else if (this.groupDrag) this.endGroupDrag(true);
         else if (this.splitting) this.cancelSplit();
         else if (this.stairDraw) this.cancelStair();
         else if (this.drag) this.endDrag(true);
+        else if (this.mission.path) this.mission.endPath();
+        else if (this.mission.link) this.mission.endLink();
         else if (this.tool === 'guard' && this.lights.removeEye()) this.status(`Guard eye removed (${this.lights.eyes.length} left)`);
         else if (this.tool !== 'select') this.setTool('select');
         else this.select(null);
@@ -2480,6 +2537,7 @@ export class Editor {
     const g = this.grid * 2;
     const prefix = s.coll === 'rooms' ? `${(s.e as Room).level}-NEW` : s.coll === 'walls' ? `W${(s.e as Wall).level}-NEW` : s.coll === 'openings' ? 'O-NEW' : `${s.id}-COPY`;
     if (s.coll === 'circuits') return this.status('A switch is not duplicated: place another with Light > Switch');
+    if (isMission(s.coll)) return this.status('Guards and mission markers are not duplicated: place another with Y > Mission');
     if (s.coll === 'lamps') {
       const l = moveLamp(this.model.data as LampData, s.e as Lamp, g, -g);
       return this.commitLamps([{ ...l, id: '' }], null);
@@ -2596,6 +2654,11 @@ export class Editor {
     this.tool = t;
     if (this.lights.guardTool !== (t === 'guard')) this.lights.setGuardTool(t === 'guard');
     this.circuitEdit = null;
+    // ON8: another tool ends path editing and objective picking
+    if (t !== 'mission') {
+      this.mission.endPath(true);
+      this.mission.link = null;
+    }
     this.updateHandles();
     this.updateBar();
     const hint: Record<Tool, string> = {
@@ -2612,6 +2675,7 @@ export class Editor {
       stamp: `Stamp (${this.stamp.preset.name}): A (click) stamps it centred on the dot, RB (R) turns it`,
       object: this.objPreset.draw ? `Object (${this.objPreset.name}): A (click) at the start, A (click) at the end` : `Object (${this.objPreset.name}): A (click) places it, RB (R) turns it`,
       guard: 'Guard view: A (click) places a guard eye at the dot facing the way you look; the right stick (R) turns it; B (Esc, Delete) removes it. Red: seen at once (lit); amber: seen slowly',
+      mission: this.mission.hint(),
       lamp: this.lampFit === 'switch' ? 'Switch: A (click) on a wall face places a switch, then A on lamps puts them on it, B (Esc) ends' : this.fitting?.linear ? `Light (${this.fitting.name}): A (click) at the start, A (click) at the end` : `Light (${this.fitting?.name ?? ''}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
@@ -3325,6 +3389,11 @@ export class Editor {
       text('name', 'Name');
       text('unswitchable', 'No switch because');
       rows.push(`<p class="dim">${esc(circuitWords(c))}${c.lamps.length ? `: ${esc(c.lamps.join(', '))}` : ''}</p>`);
+    } else if (isMission(s.coll)) {
+      // ON8: a guard or mission marker: its name, the card's rows stepped with the mouse, and its words
+      if (s.coll !== 'spawns' && s.coll !== 'extraction') text('name', 'Name');
+      rows.push(`<p id="missionWords" class="dim">${esc(this.mission.footWords(s.coll, e) || cardWords(s.coll, e).size)}</p>`);
+      if (s.coll === 'guards') rows.push('<div class="row"><button id="mEditPath">Edit path</button><button id="mPatrol">Play patrol</button><button id="mAlone">Mark alone here</button></div>');
     } else if (s.coll === 'ladders') {
       const ld = e as Ladder;
       text('name', 'Name');
@@ -3334,7 +3403,7 @@ export class Editor {
       sel('to', 'To level', this.levelsAbove(ld.from).map((l) => [l.id, `${l.name} (${l.id})`]));
     }
     // ON9: door, window and glass settings, the card's rows, stepped with the mouse (the same step as the D-pad)
-    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || s.coll === 'lamps' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
+    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
       const ctx = s.coll === 'openings' ? { rooms: this.model.list('rooms') as Room[], wall: this.model.get<Wall>('walls', (e as Opening).wall) } : {};
       const set = cardRows(s.coll, s.e, ctx).filter((r) => !['type', 'name', 'w', 'h', 'sill', 'at', 'id', 't', 'len', 'width', 'depth', 'base'].includes(r.id));
       for (const r of set) rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);
@@ -3358,6 +3427,12 @@ export class Editor {
     });
     panel.querySelector<HTMLSelectElement>('[data-rooftype]')?.addEventListener('change', (ev) => this.commit([{ coll: 'roofs', id: s.id, before: s.e, after: withRoofType(s.e as Roof, (ev.target as HTMLSelectElement).value as RoofType) }]));
     document.getElementById('fitStair')?.addEventListener('click', () => this.fitSelected());
+    document.getElementById('mEditPath')?.addEventListener('click', () => this.mission.startPath(s.id));
+    document.getElementById('mPatrol')?.addEventListener('click', () => this.mission.togglePatrol(s.id));
+    document.getElementById('mAlone')?.addEventListener('click', () => {
+      const t = this.controls.orbit.s;
+      this.mission.markAlone(s.id, t.tx, t.tz);
+    });
     document.getElementById('turnClimb')?.addEventListener('click', () => this.turnStairClimb());
     $('del').addEventListener('click', () => this.deleteSelected());
     $('dup').addEventListener('click', () => this.duplicate());
@@ -3377,7 +3452,7 @@ export class Editor {
     const rooms = this.model.list('rooms') as Room[];
     const wall = coll === 'openings' ? this.model.get<Wall>('walls', (before as Opening).wall) : undefined;
     const after = stepCard(coll, before, row, dir, { step: coll === 'exterior' || coll === 'lamps' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data });
-    if (after) this.commit([{ coll, id, before, after }]);
+    if (after) this.commit([{ coll, id, before, after: coll === 'guards' ? this.mission.recycle(after) : after }]);
   }
 
   private setField(coll: Coll, id: string, path: string, raw: string, isNum: boolean): void {

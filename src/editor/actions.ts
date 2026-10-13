@@ -10,8 +10,8 @@ import { padWords } from './pad';
  * What the editor is doing right now; the hint bar and key dispatch read it. 'drag' is also a pad grab; 'menu' the tile
  * menu; 'card' the selection card being edited with the D-pad (ON0a).
  */
-export type Ctx = 'idle' | 'selected' | 'card' | 'drag' | 'draw' | 'chain' | 'menu' | 'hub';
-export const CTXS: readonly Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'chain', 'menu', 'hub'];
+export type Ctx = 'idle' | 'selected' | 'card' | 'drag' | 'draw' | 'chain' | 'path' | 'menu' | 'hub';
+export const CTXS: readonly Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'chain', 'path', 'menu', 'hub'];
 
 export type Group = 'Camera' | 'Edit' | 'Tools' | 'View' | 'File';
 export type Device = 'keys' | 'pad';
@@ -40,7 +40,7 @@ export interface Action {
 }
 
 const NOT_DRAG: Ctx[] = ['idle', 'selected', 'card', 'draw'];
-const NOT_MENU: Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'chain'];
+const NOT_MENU: Ctx[] = ['idle', 'selected', 'card', 'drag', 'draw', 'chain', 'path'];
 const SEL: Ctx[] = ['selected', 'card'];
 
 export const ACTIONS: readonly Action[] = [
@@ -53,8 +53,8 @@ export const ACTIONS: readonly Action[] = [
   { id: 'walk', name: 'walk test (game): the real player at the dot, unsaved edits included', group: 'Camera', keys: ['Tab'], pad: ['L3 hold'], ctx: NOT_DRAG, hint: ['idle'] },
   { id: 'quickWalk', name: 'quick walk at the dot, running (pad: L3 tap; L3 again walks slowly and back, B ends; L3 held is the walk test)', group: 'Camera', keys: ['Shift+Tab'], pad: ['L3'], ctx: NOT_DRAG, hint: ['idle'] , short: 'Walk' },
   { id: 'walkBack', name: 'back to the editor from the walk test (also Esc, then Back to editor)', group: 'Camera', keys: ['F10'], pad: ['View + Menu hold'], ctx: NOT_MENU, passive: true },
-  { id: 'levelUp', name: 'level up', group: 'Camera', keys: ['PageUp'], ctx: NOT_DRAG, hint: ['idle'] },
-  { id: 'levelDown', name: 'level down', group: 'Camera', keys: ['PageDown'], ctx: NOT_DRAG },
+  { id: 'levelUp', name: 'level up', group: 'Camera', keys: ['PageUp'], ctx: [...NOT_DRAG, 'path'], hint: ['idle', 'path'] },
+  { id: 'levelDown', name: 'level down', group: 'Camera', keys: ['PageDown'], ctx: [...NOT_DRAG, 'path'], hint: ['path'] },
   { id: 'padLevel', name: 'level up / down (nothing selected)', group: 'Camera', keys: [], pad: ['D-pad up/down'], ctx: ['idle', 'draw'], passive: true, short: 'Level' },
   { id: 'frame', name: 'go to the selection', group: 'Camera', keys: ['KeyF'], pad: ['RB'], ctx: SEL, hint: SEL, short: 'Go to' },
   { id: 'camHeight', name: 'camera up / down without tilting (LB held, right stick up / down)', group: 'Camera', keys: [], pad: ['LB + RS'], ctx: NOT_MENU, passive: true, short: 'Height' },
@@ -70,9 +70,17 @@ export const ACTIONS: readonly Action[] = [
   { id: 'precision', name: 'while held: slower camera, magnet off (the grid stays Settings > Grid)', group: 'Edit', keys: [], pad: ['LB'], ctx: NOT_MENU, hint: ['drag', 'draw', 'chain'], passive: true , short: 'Slow', shortIn: { chain: 'Fine' } },
   { id: 'padRotate', name: 'turn it 90 degrees about the dot (rooms, stairs, ladders, walls)', group: 'Edit', keys: [], pad: ['RB'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Turn 90' },
   { id: 'padNudge', name: 'nudge one grid step (as the camera faces)', group: 'Edit', keys: [], pad: ['D-pad'], ctx: ['drag'], hint: ['drag'], passive: true , short: 'Nudge' },
-  { id: 'cancel', name: 'cancel / leave the card / put the tool down / clear the selection; never deletes', group: 'Edit', keys: ['Escape'], pad: ['B'], ctx: NOT_MENU, hint: ['selected', 'card', 'drag', 'draw', 'chain'], short: 'Back', shortIn: { selected: 'Clear', chain: 'End chain' } },
+  { id: 'cancel', name: 'cancel / leave the card / put the tool down / clear the selection; never deletes', group: 'Edit', keys: ['Escape'], pad: ['B'], ctx: NOT_MENU, hint: ['selected', 'card', 'drag', 'draw', 'chain'], short: 'Back', shortIn: { selected: 'Clear', chain: 'End chain', path: 'End' } },
   { id: 'chainNext', name: 'wall chain: end this wall here and start the next from its end; on the first point the loop closes', group: 'Tools', keys: [], mouse: 'Click', pad: ['A'], ctx: ['chain'], hint: ['chain'], passive: true, short: 'Next wall' },
   { id: 'chainRemove', name: 'wall chain: remove the last finished wall', group: 'Tools', keys: ['Backspace'], pad: ['X'], ctx: ['chain'], hint: ['chain'], short: 'Remove last' },
+  // ON8: a guard's patrol path (Selected > Edit path, or right after placing a guard)
+  { id: 'pathStop', name: "guard path: a stop at the dot; on the first stop the loop closes", group: 'Tools', keys: [], mouse: 'Click', pad: ['A'], ctx: ['path'], hint: ['path'], passive: true, short: 'Stop' },
+  { id: 'pathFace', name: "guard path: turn the last stop's facing 45 degrees (pad: hold RB and aim with the right stick)", group: 'Tools', keys: ['KeyR'], pad: ['RB'], ctx: ['path'], hint: ['path'], short: 'Face' },
+  { id: 'pathWait', name: "guard path: the last stop's wait, 1 s steps from 0", group: 'Tools', keys: [], pad: ['D-pad up/down'], ctx: ['path'], hint: ['path'], passive: true, short: 'Wait' },
+  { id: 'pathWaitUp', name: "guard path: the last stop waits 1 s longer", group: 'Tools', keys: ['Equal'], ctx: ['path'], hint: ['path'] },
+  { id: 'pathWaitDown', name: "guard path: the last stop waits 1 s less", group: 'Tools', keys: ['Minus'], ctx: ['path'], hint: ['path'] },
+  { id: 'pathLevel', name: 'guard path: the level the next stop goes on (stairs and ladders between levels are its way)', group: 'Tools', keys: [], pad: ['D-pad left/right'], ctx: ['path'], passive: true },
+  { id: 'pathRemove', name: 'guard path: remove the last stop', group: 'Tools', keys: ['Backspace'], pad: ['X'], ctx: ['path'], hint: ['path'], short: 'Remove last' },
   { id: 'multi', name: 'add to the selection or take out (several things move, copy and delete together)', group: 'Edit', keys: [], mouse: 'Shift+click', ctx: NOT_MENU, passive: true },
   { id: 'padBox', name: 'box select: hold A where nothing is selected and move the dot; A on one of the set grabs them all', group: 'Edit', keys: [], pad: ['A hold'], ctx: ['idle', 'selected'], passive: true },
   { id: 'delete', name: 'delete', group: 'Edit', keys: ['Delete', 'Backspace'], ctx: SEL, hint: ['selected'] },
@@ -210,6 +218,7 @@ export const PAD_HINTS: Record<Ctx, readonly string[]> = {
   card: ['cardEdit', 'cardDone', 'menu', 'cancel', 'frame'],
   drag: ['padDrop', 'padNudge', 'padRotate', 'precision', 'cancel'],
   chain: ['chainNext', 'chainRemove', 'cancel', 'precision'],
+  path: ['pathStop', 'pathFace', 'pathWait', 'pathRemove', 'cancel'],
   draw: ['padDraw', 'toolVariant', 'menu', 'precision', 'cancel'],
   menu: ['menuMove', 'menuPick', 'menuTab', 'menuClose'],
   hub: ['hubTab', 'hubRow', 'hubChange', 'hubDo', 'hubClose'],

@@ -21,6 +21,7 @@ import { PRESET_FROMS } from './presets';
 import { fittingOf, groupFittings, LIGHT_GROUPS } from './lightCatalogue';
 import type { LightGroup } from './lightCatalogue';
 import type { PresetFrom } from './presets';
+import { MISSION_TOOLS } from './missionCatalogue';
 
 export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View'] as const;
 export type MenuTab = (typeof MENU_TABS)[number];
@@ -53,6 +54,8 @@ export interface MenuInput {
   presets?: { from: PresetFrom; list: { id: string; name: string; desc: string }[]; mine: { id: string; name: string } | null };
   /** ON6: the Lights tab's group (its fittings follow the group tiles and Switch). */
   lightGroup?: LightGroup;
+  /** ON8: a guard's patrol is playing (Selected: Stop patrol instead of Play patrol). */
+  playing?: boolean;
 }
 
 export interface ViewState {
@@ -79,6 +82,8 @@ export interface ViewState {
   dark?: boolean;
   lmode?: string;
   circuit?: string | null;
+  /** ON8: the guard paths shown: every guard's, or only the selected guard's. */
+  paths?: 'all' | 'selected';
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -109,6 +114,8 @@ export function viewTiles(v: ViewState): Tile[] {
     { id: 'view.dark', icon: 'B', name: 'Darkness map', desc: 'Floor by the light meter: hidden, grey, lit (B)', kind: 'toggle', on: !!v.dark, value: onOff(!!v.dark) },
     { id: 'view.lmode', icon: 'P', name: 'Lights preview', desc: 'Normal, mains off, switched off, motion on, shot out', kind: 'cycle', value: v.lmode ?? 'Normal' },
     ...(v.lmode === 'Switched off' ? [{ id: 'view.circuit', icon: 'C', name: 'Circuit off', desc: 'Left / right picks the circuit', kind: 'cycle' as const, value: v.circuit ?? 'none' }] : []),
+    // ON8: every guard's patrol path, or only the selected guard's
+    { id: 'view.paths', icon: 'G', name: 'Guard paths', desc: 'Every guard, or only the selected one', kind: 'cycle', value: v.paths === 'selected' ? 'Selected guard' : 'All guards' },
   ];
 }
 
@@ -129,10 +136,18 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders', 'objects'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides';
+      // ON8: mission records are not duplicated (a fresh one is placed with its tool)
+      const mission = ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction'].includes(s.coll);
       const t: (Tile | false)[] = [
+        // ON8: a guard: its path, the patrol preview and the isolation point first
+        s.coll === 'guards' && { id: 'sel.path', icon: 'P', name: 'Edit path', desc: 'A adds stops, A on the first closes the loop, B ends', kind: 'go' },
+        s.coll === 'guards' && { id: 'sel.patrol', icon: 'W', name: inp.playing ? 'Stop patrol' : 'Play patrol', desc: 'A guard walks the loop at its speed (not saved)', kind: 'go' },
+        s.coll === 'guards' && { id: 'sel.alone', icon: 'I', name: 'Mark alone here', desc: 'The point of the loop nearest the dot (or where the patrol is now)', kind: 'go' },
+        s.coll === 'objectives' && { id: 'sel.requires', icon: 'N', name: 'Needs first', desc: 'A on other objectives: this needs them first; B ends', kind: 'go' },
+        s.coll === 'objectives' && { id: 'sel.unlocks', icon: 'O', name: 'Opens', desc: 'A on other objectives: this opens them; B ends', kind: 'go' },
         { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
-        { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
+        !mission && { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
         turns && { id: 'sel.rotate', icon: 'R', name: 'Rotate 90', desc: 'A quarter turn', kind: 'go' },
         copies && { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Paste it from the Build tab', kind: 'go' },
         copies && { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up', kind: 'go' },
@@ -211,8 +226,10 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
     }
     case 'View':
       return viewTiles(inp.view);
+    case 'Mission':
+      // ON8: the guard and the mission markers (the play file's records)
+      return MISSION_TOOLS.map((m): Tile => ({ id: `mission.${m.id}`, icon: m.name[0]!, name: m.name, desc: m.desc, kind: 'go' }));
     default:
-      // Mission: a later part adds its tiles here
       return [];
   }
 }

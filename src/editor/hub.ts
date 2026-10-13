@@ -107,6 +107,8 @@ export interface HubRow {
 /** What the rows show; padControl fills it from the editor. */
 export interface HubInput {
   unsaved: number;
+  /** ON8: the walk test starts at insertion point 1 (on), and how many insertion points there are. */
+  insertion?: { on: boolean; n: number };
   /** The undo history, newest first. */
   changes: string[];
   /** ON3: the undone changes redo would bring back, newest first (the furthest redo first). */
@@ -145,6 +147,8 @@ export function hubRows(tab: HubTab, h: HubInput): HubRow[] {
       return [
         { id: 'play.quick', text: 'Quick walk at the dot', note: 'Same as L3 tap; runs, L3 slows to a walk, B comes back', kind: 'go' },
         { id: 'play.walk', text: 'Walk test as the player', note: 'The game itself, unsaved edits included; L3 held or Tab too', kind: 'go' },
+        // ON8: the walk test (Tab, L3 held, the row above) starts at the first insertion point instead of the dot
+        { id: 'play.insertion', text: 'Start at insertion 1', value: onOff(!!h.insertion?.on), note: h.insertion?.n ? 'The walk test starts at insertion point 1 (Tab and L3 held too)' : 'No insertion point yet: Y > Mission > Insertion', disabled: !h.insertion?.n && !h.insertion?.on, kind: 'step' },
         { id: 'play.find', text: 'Find a room, stair or object', note: 'An on-screen keyboard filters the list; A goes there (Ctrl+K on the keyboard)', kind: 'go' },
       ];
     case 'File':

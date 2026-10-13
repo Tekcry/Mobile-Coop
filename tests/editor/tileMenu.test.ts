@@ -10,9 +10,20 @@ const door: MenuInput = { sel: { coll: 'openings', type: 'door' }, clipboard: fa
 const names = (tab: Parameters<typeof menuTiles>[0], inp: MenuInput): string[] => menuTiles(tab, inp).map((t) => t.name);
 
 describe('tile menu model (ON0a)', () => {
-  it('tabs: Selected only with a selection and first; empty tabs (Mission) hidden until a later part adds tiles', () => {
-    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'View']);
-    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'View']);
+  it('tabs: Selected only with a selection and first; every tab has tiles (ON8 filled Mission)', () => {
+    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View']);
+    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View']);
+  });
+
+  it('Mission tab (ON8): Guard and the markers; a guard has Edit path, Play patrol and Mark alone here, no Duplicate', () => {
+    expect(names('Mission', none)).toEqual(['Guard', 'Insertion', 'Extraction', 'Objective', 'Intel', 'Checkpoint', 'Hide']);
+    const g = names('Selected', { ...none, sel: { coll: 'guards', type: 'grunt' } });
+    expect(g.slice(0, 4)).toEqual(['Edit path', 'Play patrol', 'Mark alone here', 'Move']);
+    expect(g).not.toContain('Duplicate');
+    expect(g).toContain('Delete');
+    expect(names('Selected', { ...none, sel: { coll: 'guards', type: 'grunt' }, playing: true })[1]).toBe('Stop patrol');
+    expect(names('Selected', { ...none, sel: { coll: 'objectives', type: 'intel' } }).slice(0, 2)).toEqual(['Needs first', 'Opens']);
+    expect(menuTiles('View', none).at(-1)!.value).toBe('All guards');
   });
 
   it('Objects tab (ON4): the five groups, then the presets of the chosen group', () => {

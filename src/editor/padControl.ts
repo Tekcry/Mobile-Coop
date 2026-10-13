@@ -44,6 +44,8 @@ import { CLIMB_PIECES, finishOf, pieceOf } from './climbCatalogue';
 import type { ExtKind } from './climbCatalogue';
 import { pieceWords } from './climb';
 import { fittingOf, groupFittings } from './lightCatalogue';
+import type { MissionKind } from './missionCatalogue';
+import { isMission } from './mission';
 import type { LightGroup } from './lightCatalogue';
 import { aimDir } from './lightCatalogue';
 import { circuitWords, lampWords, withParams } from './lamps';
@@ -71,6 +73,7 @@ const BAR = [
   ['lamp', 'Light'],
   ['stamp', 'Stamp'],
   ['guard', 'Guard view'],
+  ['mission', 'Mission'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -255,13 +258,14 @@ export class PadControl {
   menuInput(): MenuInput {
     const s = this.ed.selectedElem();
     const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : s.coll === 'lamps' ? 'fixture' : 'kind'] ?? '') : '';
-    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput(), lightGroup: this.ed.lightGroup };
+    const playing = !!s && s.coll === 'guards' && this.ed.mission.playing?.id === s.id;
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0, breakable: s.coll === 'lamps' && !!(s.e as Lamp).breakable } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput(), lightGroup: this.ed.lightGroup, playing };
   }
 
   viewState(): ViewState {
     const ed = this.ed;
     const v = ed.view.vis;
-    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null };
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths };
   }
 
   /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
@@ -430,6 +434,7 @@ export class PadControl {
     else if (id === 'view.dark') return ed.setDarkMap(!ed.lights.dark);
     else if (id === 'view.lmode') return ed.stepLightMode(dir);
     else if (id === 'view.circuit') return ed.stepLightCircuit(dir);
+    else if (id === 'view.paths') return ed.stepGuardPaths();
     this.applyPanel(rebuild);
   }
 
@@ -471,6 +476,19 @@ export class PadControl {
       // ON6: a fitting, or Switch
       ed.setLampFit(id.slice(6));
       tool('lamp');
+    }
+    else if (id.startsWith('mission.')) {
+      // ON8: the Guard tool or a mission marker
+      ed.mission.setKind(id.slice(8) as MissionKind);
+      tool('mission');
+    } else if (id === 'sel.path' || id === 'sel.patrol' || id === 'sel.alone' || id === 'sel.requires' || id === 'sel.unlocks') {
+      const s = ed.selectedElem();
+      if (!s) return;
+      const p = this.point();
+      if (id === 'sel.path') ed.mission.startPath(s.id);
+      else if (id === 'sel.patrol') ed.mission.togglePatrol(s.id);
+      else if (id === 'sel.alone') ed.mission.markAlone(s.id, p?.[0] ?? 0, p?.[1] ?? 0);
+      else ed.mission.startLink(s.id, id === 'sel.requires' ? 'requires' : 'unlocks');
     }
     else if (id === 'sel.aim') this.startAim();
     else if (id === 'sel.shot') ed.previewShot();
@@ -550,6 +568,9 @@ export class PadControl {
       const q = CLIMB_PIECES[(i + dir + CLIMB_PIECES.length) % CLIMB_PIECES.length]!;
       ed.setClimbKind(q.id);
       ed.status(`Climb: ${q.name}`);
+    } else if (ed.tool === 'mission') {
+      // ON8: the Guard tool's role (the mission brief's roster)
+      if (ed.mission.kind === 'guard' && !ed.mission.path) ed.status(`Guard: ${ed.mission.stepRole(dir)}`);
     } else if (ed.tool === 'lamp') {
       // ON6: the next fitting in the group (Switch stays Switch)
       const f = ed.fitting;
@@ -617,6 +638,8 @@ export class PadControl {
     const merge = { key: `${s.coll}:${s.id}|${row}`, at: now, within: CARD_MERGE_S };
     if (s.coll === 'rooms' && (row === 'width' || row === 'depth')) return ed.commitRoom(s.id, (after as Room).rect, merge);
     if (s.coll === 'openings') after = withBetween(ed.model, after as Opening);
+    // ON8: a guard's kind sets its walk speed: the loop's time again
+    if (s.coll === 'guards') after = ed.mission.recycle(after);
     ed.commit([{ coll: s.coll, id: s.id, before: s.e, after }], merge);
     ed.renderPanel();
   }
@@ -756,8 +779,16 @@ export class PadControl {
     // ON7: the guard view tester: the right stick's left / right turns the last eye (90 degrees a second), not the camera
     const turnEye = this.ed.tool === 'guard' && this.ed.lights.eyes.length > 0 && Math.abs(st.rawR.x) > 0.2;
     if (turnEye) this.ed.lights.turnLastEye(st.rawR.x * 90 * dt);
+    // ON8: path editing: RB held, the right stick aims the last stop (the way the stick points, from the camera's view)
+    const aimStop = !!this.ed.mission.path && st.down(PAD.RB) && st.rawR.x * st.rawR.x + st.rawR.y * st.rawR.y > 0.36;
+    if (aimStop) {
+      const yaw = plan ? 0 : this.ed.controls.yaw;
+      const deg = ((yaw + Math.atan2(st.rawR.x, -st.rawR.y)) * 180) / Math.PI;
+      this.stopAimed = true;
+      this.ed.mission.turnFace(Math.round(deg / 5) * 5);
+    }
     if (this.cardEditing) c.orbitIn = { panX: 0, panY: 0, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise };
-    else if (turnEye) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: 0, tiltY: 0, zoom: plan ? 0 : zoom, precision: fine, rise: 0, panScale };
+    else if (turnEye || aimStop || (this.ed.mission.path && st.down(PAD.RB))) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: 0, tiltY: 0, zoom: plan ? 0 : zoom, precision: fine, rise: 0, panScale };
     else if (!this.stickLatch) c.orbitIn = { panX: st.rawL.x, panY: -st.rawL.y, orbitX: st.rawR.x, tiltY: tilt, zoom: plan ? 0 : zoom, precision: fine, rise, panScale };
     else c.orbitIn = { ...c.orbitIn, zoom: plan ? 0 : zoom, precision: fine };
     // ON3: a set being moved follows the dot (A drops, B puts back); A held and moved draws a box
@@ -768,9 +799,16 @@ export class PadControl {
       // L3 tap: quick walk (running); L3 held 0.6 s: the walk test as the player (ON0b decision 4)
       if (st.l3Tap === 'tap') return this.ed.quickWalk();
       if (st.l3Tap === 'hold') return void this.ed.gameWalk();
-      if (st.xTap === 'tap') this.ed.undo();
+      // ON8: path editing: X (on press) removes the last stop, RB tap turns it 45 degrees (not after aiming with RB held)
+      if (this.ed.mission.path) {
+        if (st.pressed(PAD.X)) this.ed.mission.removeLast();
+        if (st.rbTap === 'tap' && !this.stopAimed) this.ed.mission.turnFace();
+        if (!st.down(PAD.RB)) this.stopAimed = false;
+      } else if (st.xTap === 'tap') this.ed.undo();
       else if (st.xTap === 'hold') this.ed.redo();
-      if (st.rbTap === 'tap') {
+      if (this.ed.mission.path) {
+        /* (RB is the stop's facing) */
+      } else if (st.rbTap === 'tap') {
         if (this.ed.splitting) this.ed.splitTurn();
         else if (this.ed.tool === 'object' || this.ed.tool === 'stamp' || this.ed.tool === 'lamp') this.ed.turnObjectNow();
         else this.ed.frameSelected();
@@ -796,6 +834,9 @@ export class PadControl {
     const kz = plan ? Math.exp(Math.sign(zoom) * zoom * zoom * ORBIT.ZOOM_RATE * (fine ? ORBIT.PRECISION : 1) * dt) : 1;
     if (this.device === 'pad' && c.mode === 'orbit' && (this.ed.prefs.layout !== '3d' || this.ed.isMinimap())) this.ed.planFollow(c.orbit.s.tx, c.orbit.s.tz, kz);
   }
+
+  /** ON8: RB held and the right stick aimed the last stop (the RB release is then no 45 degree turn). */
+  private stopAimed = false;
 
   /** ON6: Selected > Aim on a flood or twin spot: the lamp being aimed, its aim as it was, and the aim now. */
   private aim: { id: string; before: Lamp; yaw: number; pitch: number } | null = null;
@@ -1185,6 +1226,8 @@ export class PadControl {
       return ed.status('Measure cancelled');
     }
     if (ed.drag) ed.endDrag(true);
+    else if (ed.mission.path) ed.mission.endPath();
+    else if (ed.mission.link) ed.mission.endLink();
     else if (ed.tool === 'guard' && ed.lights.removeEye()) ed.status(`Guard eye removed (${ed.lights.eyes.length} left); B again leaves the guard view`);
     else if (ed.tool !== 'select') ed.setTool('select');
     else ed.select(null);
@@ -1211,6 +1254,13 @@ export class PadControl {
       return;
     }
     if (ed.drag) return;
+    // ON8: path editing: up / down the last stop's wait, left / right the level the next stop goes on
+    if (ed.mission.path) {
+      const n = this.nav(now, false);
+      if (n.y) ed.mission.stepWait(n.y < 0 ? 1 : -1);
+      if (n.x) ed.stepLevel(n.x > 0 ? 1 : -1);
+      return;
+    }
     // something selected, no tool: the D-pad edits the selection card (ON0a decision 4)
     if (ed.tool === 'select' && ed.selected && !this.measureFrom && !ed.splitting) return this.cardFrame(now);
     // nothing selected: up / down change level; with a tool, left / right flip its type (decision 5)
@@ -1291,13 +1341,13 @@ export class PadControl {
     const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
+    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'mission' ? ed.mission.barWords() : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
     $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
@@ -1332,7 +1382,9 @@ export class PadControl {
       const finLine = s.coll === 'rooms' && finishOf((s.e as Room).finish) ? `<div class="dim" data-finish>${esc(loudWords((s.e as Room).finish))}</div>` : '';
       // ON6: a lamp's lumens, colour, beam, reach and circuit; a switch's lamps
       const lampLine = s.coll === 'lamps' ? `<div class="dim" data-lamp>${esc(lampWords(ed.model.data as LampData, s.e as Lamp))}</div>` : s.coll === 'circuits' ? `<div class="dim" data-lamp>${esc(circuitWords(s.e as Circuit))}</div>` : '';
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON8: a guard's loop (length, cycle, the first red leg), an objective's links, an insertion's number
+      const missionLine = isMission(s.coll) ? `<div class="dim" data-mission>${esc(ed.mission.footWords(s.coll, s.e))}</div>` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1516,6 +1568,14 @@ export class PadControl {
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
         for (let i = 0; i < 4; i++) plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
       }
+    } else if (ed.tool === 'mission' && p) {
+      // ON8: the guard, a stop (its leg from the last stop, red where there is no way), an objective to pick, a marker
+      const g = ed.mission.ghost(p[0], p[1], f);
+      words = g.words;
+      bad = g.bad;
+      key = `ms|${g.key}`;
+      marks.push(...g.marks);
+      plan.push(...g.plan);
     } else if (ed.tool === 'lamp' && p) {
       // ON6: the fitting's ghost at its mount height (red where it cannot go); Switch: the plate, or the lamp A adds
       const fl = f - ed.floor();
