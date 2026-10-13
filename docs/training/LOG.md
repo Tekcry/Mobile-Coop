@@ -72,3 +72,15 @@ listed). `scripts/plan-svg.mjs` (headless via Vite SSR) writes `test-results/tra
 BUNKER_LIPS, step / vault / mantle, pipe reach, hang-drop, L1 / L2, gap 2.2, pad bands). Assumptions A25-A28. BAYS
 numbers moved within their windows (logged in A27): L1 column x 35 (-1), P x 38.85-42, cross wall x 44.2. Headless boot
 `?autostart=bunker&mode=course`: player at (2, 16, 84), no console errors.
+Check fix round 1: L2 / P moved 0.4 west (L2 x 37.85-38.45, P 38.45-42) so the 2.2 gap is hand to hand (lip ends 1.8
+apart; the engine's jump from the stub reaches L2 within 2.5); glass walls are invisible full-height collision boxes
+with a visual frame, no fence anchor (A26 corrected); Lane S ladder tops out on a ladder-head landing (x 30.2-31.0, z
+35-36, y 4.5) whose hang-only lip (`LHS`) chains into L1 (Lane N's downpipe steps sideways onto L1: no change);
+e2e-course boots `?autostart=bunker&mode=course` (spawn on y 16, no errors; `mode=course` is not an autostart flag, so it
+boots sandbox: the course itself starts from the co-op lobby). Tests 8 -> 11.
+
+### Spec change requests (T2)
+- B2 gate: the walkway's east-end doors into each lane (x 45.4-46.6 on z 15 / z 21) are locked at start and open with
+  that lane's x 24 gate lever (a second lever gate on the same switch). Unlocked, a player could enter a lane's east end
+  from the walkway and reach its second half through the open window at x 44.2, bypassing the gate. Route unchanged
+  for a player who plays the lane; the walkway to A2 stays open.

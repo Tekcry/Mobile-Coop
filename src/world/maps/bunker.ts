@@ -7,7 +7,8 @@ import { buildUpper, UPPER_Y, type UpperResult } from './bunkerUpper';
 export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as const;
 
 /**
- * The course data stub (T2): B1 and B2 with A1 and A2. B2's lane doors are lever gates (each lever in the other lane);
+ * The course data stub (T2): B1 and B2 with A1 and A2. B2's lane doors and the lanes' walkway doors at the east end
+ * are lever gates (each lever in the other lane opens both of a lane's doors);
  * B2 ends the course for now with the "Finish" device inside A2 (A2 is listed but never cycles until B3 exists, so
  * its far door stays locked). T7a completes the drills, radio and the later bays.
  */
@@ -28,6 +29,9 @@ function courseDef(): CourseDef {
         gates: [
           { kind: 'lever', id: 'g-lane-n', switchId: 'sw-lever-s', doorId: 'B2-lane-n' },
           { kind: 'lever', id: 'g-lane-s', switchId: 'sw-lever-n', doorId: 'B2-lane-s' },
+          // each lane's walkway door at its east end opens with the same lever (no way into the second half round the gate)
+          { kind: 'lever', id: 'g-exit-n', switchId: 'sw-lever-s', doorId: 'B2-exit-n' },
+          { kind: 'lever', id: 'g-exit-s', switchId: 'sw-lever-n', doorId: 'B2-exit-s' },
         ],
         radio: [],
         drills: [],
@@ -38,7 +42,7 @@ function courseDef(): CourseDef {
 }
 
 /** Course door ids the definition uses (the other doors stay plain, unlocked). */
-const COURSE_DOORS = ['A1-near', 'A1-far', 'A2-near', 'A2-far', 'B2-lane-n', 'B2-lane-s'] as const;
+const COURSE_DOORS = ['A1-near', 'A1-far', 'A2-near', 'A2-far', 'B2-lane-n', 'B2-lane-s', 'B2-exit-n', 'B2-exit-s'] as const;
 
 function pick(r: UpperResult): Record<string, number> {
   const out: Record<string, number> = {};

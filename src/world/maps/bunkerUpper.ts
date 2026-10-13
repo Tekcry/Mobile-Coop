@@ -49,6 +49,13 @@ const CROSS_E = 44.2;
 const ROOF_T = 0.3;
 const DOOR_W = 1.2;
 const DOOR_H = 2.1;
+/** L2 (BAYS item 11), 0.4 deep: its west end 1.8 past the stub's east end, so the hands are 2.2 apart (`gap`). */
+const L2_X0 = 37.85;
+const L2_X1 = 38.45;
+/** Lane S item 9: the ladder-head landing (x 30.2..31.0, z 35.0..36 against the wall, top at the beam). */
+const HEAD_X0 = 30.2;
+const HEAD_X1 = 31.0;
+const HEAD_Z = 35.0;
 
 /** B2 metrics (BAYS B2 table, local heights). */
 export const B2_METRICS = {
@@ -63,6 +70,7 @@ export const B2_METRICS = {
   l1Depth: 0.25,
   /** L2: 0.4 deep (climb up). */
   l2Depth: 0.4,
+  /** Item 11: hand to hand, the stub's grip to L2's nearest grip (the lip ends are 1.8 apart: edge margins). */
   gap: 2.2,
   platform: 4.5,
   /** Drop pads under P's east edge (tops) and the pit floor. */
@@ -114,8 +122,10 @@ function laneLips(lane: Lane): BunkerLip[] {
     { id: `G1${lane}`, bay: 'B2', box: box(13, 34.5, 17, 36), top: UPPER_Y + M.gallery },
     { id: `G2${lane}`, bay: 'B2', box: box(21, 34.5, 23, 36), top: UPPER_Y + M.gallery },
     { id: `L1${lane}`, bay: 'B2', box: box(31, 34.75, 36.05, 35.75), top: UPPER_Y + M.beam },
-    { id: `L2${lane}`, bay: 'B2', box: box(38.25, 35.6, 38.85, 35.6), top: UPPER_Y + M.beam },
-    { id: `P${lane}`, bay: 'B2', box: box(38.85, 32, 42, 36), top: UPPER_Y + M.platform },
+    { id: `L2${lane}`, bay: 'B2', box: box(L2_X0, 35.6, L2_X1, 35.6), top: UPPER_Y + M.beam },
+    { id: `P${lane}`, bay: 'B2', box: box(L2_X1, 32, 42, 36), top: UPPER_Y + M.platform },
+    // Lane S only: the ladder-head landing's lip (item 9), hang only, chained into L1
+    ...(lane === 'S' ? [{ id: 'LHS', bay: 'B2' as const, box: box(HEAD_X0, HEAD_Z, HEAD_X1, 35.75), top: UPPER_Y + M.beam }] : []),
   ];
 }
 
@@ -324,11 +334,16 @@ function buildLane(b: LevelBuilder, lane: Lane, lips: number[], r: UpperResult):
   // the lever for the other lane's door: x 22, beside the glass, after this lane's first half
   r.devices[`sw-lever-${lane.toLowerCase()}`] = { x: X(22), y, z: Z(21.4), yaw: lane === 'N' ? 0 : Math.PI, label: 'Pull lever' };
   // 8 trench x 28.4..29.6 (1.2 wide, 1.5 deep): built with the hall floor (holes)
-  // 9 up to L1: Lane N a cast-iron downpipe, Lane S a fixed ladder (x 30.8, against the wall)
+  // 9 up to L1: Lane N a cast-iron downpipe (at its top the climber steps sideways onto L1's west end); Lane S a
+  // fixed ladder up the front of a small ladder-head landing (x 30.2..31.0, z 35..36, top 4.5): the ladder's top
+  // step-off lands on it, and its lip (hang only) chains into L1
   if (lane === 'N') b.pipeV(X(30.8), Z(35.9), y, y + M.beam, facingWall);
-  else b.ladder(X(30.8), Z(35.6), y, y + M.beam, facingWall);
+  else {
+    b.block(X((HEAD_X0 + HEAD_X1) / 2), (Z(HEAD_Z) + Z(36)) / 2, HEAD_X1 - HEAD_X0, M.beam, 36 - HEAD_Z, C.steel, y);
+    b.ladder(X(30.6), Z(HEAD_Z - 0.4), y, y + M.beam, facingWall);
+  }
   // 10 beam ledge L1 (0.25, hang only) along the wall x 31..34.25, round the square column (x 34.5..35.5, 1 m off the
-  // wall) and a 0.3 stub past it; 11 the 2.2 gap to L2 (0.4 deep, x 38.25..38.85) beside platform P
+  // wall) and a 0.3 stub past it; 11 the 2.2 gap (hand to hand) to L2 (0.4 deep, x 37.85..38.45) beside platform P
   const bt = M.beam;
   const beamFrom = b.boxes.length;
   b.box(X(32.625), y + bt - 0.125, (Z(35.75) + Z(36)) / 2, 3.25, 0.25, 0.25, C.beam);
@@ -337,7 +352,7 @@ function buildLane(b: LevelBuilder, lane: Lane, lips: number[], r: UpperResult):
   b.box(X(35.625), y + bt - 0.125, (Z(34.75) + Z(36)) / 2, 0.25, 0.25, 1.25, C.beam);
   b.box(X(35.9), y + bt - 0.125, (Z(35.75) + Z(36)) / 2, 0.3, 0.25, 0.25, C.beam);
   b.box(X(35.0), y + B2_CLEAR / 2, (Z(35) + Z(36)) / 2, 1.0, B2_CLEAR, 1.0, C.wall);
-  b.box(X(38.55), y + bt - 0.2, (Z(35.6) + Z(36)) / 2, 0.6, 0.4, 0.4, C.beam);
+  b.box(X((L2_X0 + L2_X1) / 2), y + bt - 0.2, (Z(35.6) + Z(36)) / 2, L2_X1 - L2_X0, 0.4, 0.4, C.beam);
   b.mark(beamFrom, { noLedge: true });
   const top = y + bt;
   // manual lips (Lane N order west -> east; Lane S mirrored: a / b swapped so the normal still points out)
@@ -345,7 +360,9 @@ function buildLane(b: LevelBuilder, lane: Lane, lips: number[], r: UpperResult):
     const opts = { drop: bt, canHang: true, canClimbUp: climb };
     return mirrored ? b.ledge(X(bx), Z(bz), X(ax), Z(az), top, opts) : b.ledge(X(ax), Z(az), X(bx), Z(bz), top, opts);
   };
+  const head = lane === 'S' ? [lip(HEAD_X0, HEAD_Z, HEAD_X1, HEAD_Z, false), lip(HEAD_X1, HEAD_Z, HEAD_X1, 35.75, false)] : [];
   const l1 = [
+    ...head,
     lip(31, 35.75, 34.25, 35.75, false),
     lip(34.25, 35.75, 34.25, 34.75, false),
     lip(34.25, 34.75, 35.75, 34.75, false),
@@ -353,10 +370,10 @@ function buildLane(b: LevelBuilder, lane: Lane, lips: number[], r: UpperResult):
     lip(35.75, 35.75, 36.05, 35.75, false),
   ];
   link(l1, mirrored);
-  lip(38.25, 35.6, 38.85, 35.6, true);
-  // platform P (x 38.85..42, 4 deep on the wall, top 4.5): a lip piece
+  lip(L2_X0, 35.6, L2_X1, 35.6, true);
+  // platform P (x 38.45..42, 4 deep on the wall, top 4.5): a lip piece
   lips.push(b.boxes.length);
-  b.block(X(40.425), (Z(32) + Z(36)) / 2, 3.15, M.platform, 4, C.block, y);
+  b.block(X((L2_X1 + 42) / 2), (Z(32) + Z(36)) / 2, 42 - L2_X1, M.platform, 4, C.block, y);
   // 12 drop pads under P's east edge (x 42..44): 2.0 (pad top 2.5), 3.2 (pad 1.3), 5.0 (the pit floor at -0.5)
   b.block(X(43.025), (Z(34.67) + Z(36)) / 2, 2.05, M.padSoft, 1.33, C.pad, y);
   b.block(X(43.025), (Z(33.33) + Z(34.67)) / 2, 2.05, M.padRoll, 1.34, C.pad, y);
@@ -372,6 +389,23 @@ function buildLane(b: LevelBuilder, lane: Lane, lips: number[], r: UpperResult):
   // 14 floor marks (visual): "stop on the line" at x 46, "turn" at x 47.5
   b.box(X(46), y + 0.01, (Z(22) + Z(35)) / 2, 0.1, 0.02, 13, C.mark, 0, 0, false);
   b.box(X(47.5), y + 0.01, (Z(22) + Z(35)) / 2, 0.1, 0.02, 13, C.mark, 0, 0, false);
+}
+
+/** Glass thickness (the invisible collision box). */
+const GLASS_T = 0.1;
+
+/**
+ * A glazed partition along z from x0 to x1 (world), `h` tall: one invisible full-height collision box (never a lip:
+ * `noLedge`; no fence anchor, so it cannot be climbed) and a visual-only steel frame (posts every 3 m, sill and head
+ * rails); the pane itself is not drawn, so the run reads as see-through glass.
+ */
+function glassRun(b: LevelBuilder, x0: number, x1: number, z: number, y: number, h: number): void {
+  const from = b.boxes.length;
+  b.box((x0 + x1) / 2, y + h / 2, z, x1 - x0, h, GLASS_T, C.glass, 0, 0, true, false);
+  const n = Math.max(1, Math.round((x1 - x0) / 3));
+  for (let i = 0; i <= n; i++) b.box(x0 + ((x1 - x0) * i) / n, y + h / 2, z, 0.08, h, 0.08, C.steel, 0, 0, false);
+  for (const ry of [0.05, 2.4, h - 0.05]) b.box((x0 + x1) / 2, y + ry, z, x1 - x0, 0.1, 0.08, C.steel, 0, 0, false);
+  b.mark(from, { noLedge: true });
 }
 
 /** Holes in the hall floor for one lane (world rects): the trench and the drop pit. */
@@ -399,14 +433,22 @@ function buildB2(b: LevelBuilder, lips: number[], r: UpperResult): void {
   }
   buildLane(b, 'N', lips, r);
   buildLane(b, 'S', lips, r);
-  // the glass walls on z 15 and z 21 (toughened, see-through, never break): fence bodies (A26), full height, with
-  // the lane entry doors at the west end (x 1.0..2.2) and the walkway's east-end doors (x 45.4..46.6)
+  // the glass walls on z 15 and z 21 (toughened, see-through, never break; A26): a full-height invisible collision
+  // box (no anchor: nothing to climb) behind a visual-only frame (posts, rails), the glass itself unrendered. The lane
+  // entry doors at the west end (x 1.0..2.2); the walkway's east-end doors (x 45.4..46.6) are locked at start and
+  // open with their lane's x 24 gate (the same lever), so the window at x 44.2 is no way round the gate
   for (const z of [15, 21]) {
-    const runs: [number, number][] = [[0.225, 1.0], [2.2, 24], [24, CROSS_E], [CROSS_E, 45.4], [46.6, 47.775]];
-    for (const [a, e] of runs) b.fence(X(a), Z(z), X(e), Z(z), H, y, C.glass);
+    const runs: [number, number][] = [[0.225, 1.0], [2.2, 45.4], [46.6, 47.775]];
+    for (const [a, e] of runs) glassRun(b, X(a), X(e), Z(z), y, H);
+    for (const x0 of [1.0, 45.4]) {
+      const from = b.boxes.length;
+      b.box(X(x0 + DOOR_W / 2), y + (DOOR_H + H) / 2, Z(z), DOOR_W, H - DOOR_H, GLASS_T, C.glass, 0, 0, true, false);
+      b.box(X(x0 + DOOR_W / 2), y + DOOR_H + 0.05, Z(z), DOOR_W, 0.1, 0.08, C.steel, 0, 0, false);
+      b.mark(from, { noLedge: true });
+    }
     const lane = z === 21 ? 'n' : 's';
     r.doors[`B2-entry-${lane}`] = b.door(X(1.0), y, Z(z), DOOR_W, Math.PI / 2).id;
-    r.doors[`B2-exit-${lane}`] = b.door(X(45.4), y, Z(z), DOOR_W, Math.PI / 2).id;
+    r.doors[`B2-exit-${lane}`] = b.door(X(45.4), y, Z(z), DOOR_W, Math.PI / 2, { locked: true }).id;
   }
   roof(b, X(-0.225), Z(-OUTER), X(48.225), Z(36 + OUTER), y + H);
   r.debug.push({ id: 'B2', label: 'B2 The Lanes (walkway west end)', pos: at('B2', 2, 18), yaw: Math.PI / 2 });
