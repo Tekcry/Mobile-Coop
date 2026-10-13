@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: 07 harness-local (next)
+Current step: 08 harness-remote (next)
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)
@@ -19,6 +19,7 @@ Last commit: see git log (locomotion 00)
 - steps 02-04 sonar, shield, style (SAVE_VERSION 8).
 - step 05 remove-cover-player (1 fix round).
 - step 06 remove-cover-rig-net (1 fix round). Block A done.
+- step 07 harness-local (3 fix rounds).
 
 ## Blocked
 (none)

@@ -25,3 +25,6 @@ Cover rig poses / clips gone, slot 1 `wall`, PROTOCOL_VERSION 3 (v2 hello refuse
 
 ## Block A end
 Full e2e (2 jobs, 1903 s): all pass except e2e-stealth (flake, passes serially), e2e-netmove / e2e-darkness (known flaky) and e2e-kestrel (kestrel-owned, same on baseline). Perf A/B vs baseline: no regression. Merged origin/feature/kestrel (9 commits, no conflicts): lint 0 errors, tests 1026/1026 (kestrelMap fixed upstream), build ok, quick e2e ok except e2e-editor and e2e-kestrel (both kestrel-owned, identical on kestrel head).
+
+## 07 harness-local
+scripts/anim-audit.mjs + src/anim/audit/{limits,metrics}.ts + 25 unit tests. 3 fix rounds (r1: 13 metric definitions - overshoot vs cap, durations, wrist neutral, absolute grip, rising-edge strikes, vault drive, self-intersection arms / weapon, slope window, ray ground, polygon balance, weapon settle in chest frame, landing dip A35; r2: float tolerance, lowest sole point, local joint rate, 120 Hz step rounding, rebound; r3: deterministic idle phase, ground per sole point). Final: full run 47 s, quick 12 s, 92 rows, 563 fails, 0 flips across two runs. Real rig findings in steps/07-fixes-r1.md / r2.md, recorded at step 08.

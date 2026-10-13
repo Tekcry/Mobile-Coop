@@ -1,6 +1,7 @@
 # Changelog
 
 ## Locomotion run (Phase 3 + 3b, in progress, branch feature/ct-locomotion)
+- 07: animation audit harness (`node scripts/anim-audit.mjs`, `--quick`, `--only=`, `--shots`): drives the local player headless at 60 and 120 Hz over every gear, both stances, flat / stairs / ramp / 35 deg slope, stance, raise, swap, ladder, vault, mantle, drops and quick 180; measures the bible 5.12.2 limits, D2 and the measurable D5 items in a Babylon-free `src/anim/audit` module with unit tests; writes local.json and a fail list with frames. Report only for now.
 - 06: cover rig poses and clips removed (low-cover curl / lift, blind fire, cover turns, cover foot pins); MoveState slot 1 renamed `wall`, PROTOCOL_VERSION 3 (A2); flat-back stance kept as WALL_STANCE / wallHand / offWall (A6); the open-left weapon mirroring kept dormant for D9; e2e-cover and docs/systems/cover.md deleted; guards in high cover lean to the correct side.
 - 05: player snap cover removed (cover controller, glide, cover-to-cover, blind fire, cover aim limits, the doorway / corner lean (A1), coverDash setting); `cover` input kept as the context action; enemy cover AI (coverData, corners, tactics) unchanged. Fix: a reset mid-vault no longer leaves the vault override stuck.
 - 02: sonar removed (pulse, marks, ring, HUD, audio, difficulty flag, suit / HQ hooks); the vision button is night vision only.

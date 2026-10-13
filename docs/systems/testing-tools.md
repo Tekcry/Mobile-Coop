@@ -138,6 +138,24 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     the render's JS), animation ms per character, allocations per second (top allocators), draw calls and triangles
     over every pass (`PROFILE=1` CPU profile)
   - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
+  - `node scripts/anim-audit.mjs [url] [--quick] [--only=<scenario>] [--out=dir] [--shots] [--strict]` (locomotion step 07) animation
+    audit, local player, Proving Grounds (bible 5.12.2, 5.12.4.2, 5.17 D2 / D5). Bundles the pure `src/anim/audit/metrics.ts` +
+    `limits.ts` with esbuild into `test-results/anim-audit/lib`; the page only records joints / camera / capsule / planner every
+    rendered frame (60 and 120 Hz), node computes. Full run: flat every gear both stances at 60 + 120 Hz, stairs and the 20.4 deg ramp
+    every gear at 60, stairs and the 35 deg slope (stand 2 / 4 / 6, crouch 2 / 6) at 120, transitions (stance, quick 180, raise, swap,
+    vault over low cover, mantle onto the 0.9 m block (driven as e2e-move: settle, read the hint, one jump press; a harness
+    error when the expected move never runs), ladder, 0.9 / 2.4 m drops, idle, crouch tunnel) at both rates, 60 v 120 parity:
+    ~50 s on software GL. Slopes / stairs measure from one stride after the capsule starts climbing; feet against a world down-ray,
+    float / sink on the lowest sole point (heel or toe along the foot's axes, calibrated at rest; 1e-4 m tolerance, so an exact
+    2 cm float passes); joint rate in each joint's parent frame (hips in world); crouch / stand times round up to the 60 Hz sim
+    step at 120 Hz; weapon settle flags any > 2 mm rise within 0.25 s after a decline, counted from the stop;
+    hands as the absolute wrist-to-grip-target distance while the grip IK is on; wrists as the change from the neutral low-ready
+    grip; arms and the held weapon against the torso capsule. Body / weapon vs world is not measured here (covered by e2e-clip;
+    noted in both outputs). `--quick` (flat stand
+    2 / 4 / 6 + crouch 3 at both rates, idle): ~12 s. Writes `<out>/local.json` (per scenario and metric: worst, frame, limit, pass,
+    bible line) and `<out>/fails.txt` (scenario, Hz, metric, value, limit, frame), prints a summary table and the wall time. Report
+    mode exits 0 unless the harness errors; `--strict` exits 1 on any fail. `DUMP=1` also writes the raw recordings to `<out>/raw/`.
+    Serves `dist/` itself when no url is given and nothing is up on 4173 (`npm run build` first). `--shots` is PC only (`E2E_GPU=1`).
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
 ## GPU runs (Michael's PC only)
