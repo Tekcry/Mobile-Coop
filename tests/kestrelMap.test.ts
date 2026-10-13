@@ -72,14 +72,14 @@ describe('Kestrel B0 massing walk (block plan as volumes)', () => {
     }
   });
 
-  it('every room but a lift shaft has a spot to stand on, inside its rect', () => {
+  it('every room has a spot to stand on, inside its rect (the P03B revision dropped the lift shaft)', () => {
     const spots = debugSpots(arch);
-    expect(spots.length).toBe(arch.rooms.length - 1);
+    expect(spots.length).toBe(arch.rooms.length);
     for (const sp of spots) {
       const r = arch.rooms.find((q) => q.id === sp.room)!;
       expect(sp.x >= r.rect[0] && sp.x <= r.rect[2] && sp.z >= r.rect[1] && sp.z <= r.rect[3], sp.room).toBe(true);
     }
-    expect(arch.rooms.find((r) => !spots.some((s) => s.room === r.id))?.id).toBe('F-LIFT');
+    expect(arch.rooms.find((r) => !spots.some((s) => s.room === r.id))).toBeUndefined();
   });
 
   it('builds the layout: spawn at meta.entry on the ground, one room per zone', () => {

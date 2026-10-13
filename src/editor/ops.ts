@@ -6,7 +6,9 @@ import { roofType } from './roofGeometry';
 import { EPS, fmt, moveWords, roomsEitherSide, wallLen } from './geometry';
 import type { Change, EditorModel } from './model';
 import { WALL_T } from './roomWalls';
-import type { Campus, Coll, Elem, Opening, Rect, Room, Wall } from './types';
+import type { Campus, Coll, Elem, Ext, Opening, Rect, Room, Wall } from './types';
+import { pieceOf } from './climbCatalogue';
+import { hyp2 } from '../core/mathx';
 import { CATALOGUE, settingsChangeWords, typeDefaults } from './openingCatalogue';
 
 /** Door and window sizes by type, from the ON9 catalogue (openingCatalogue.ts: the scale sheet's door facts or typical products). */
@@ -36,6 +38,14 @@ export function cardWords(coll: Coll, e: Elem): { title: string; size: string } 
     const o = e as Opening;
     return { title: name || (DOOR_NAMES[o.type] ?? capital(o.type)), size: `${fmt(o.w)} m wide, ${fmt(o.h)} m high` };
   }
+  if (coll === 'exterior') {
+    // ON5: a climb piece: its kind, height and length
+    const x = e as Ext;
+    const kind = pieceOf(x.kind)?.name ?? capital(x.kind);
+    const len = hyp2(x.b[0] - x.a[0], x.b[1] - x.a[1]);
+    const dims = `${fmt(x.y1 - x.y0)} m high${len > EPS ? `, ${fmt(len)} m long` : ''}, top ${fmt(x.y1)} m`;
+    return { title: name || kind, size: name ? `${kind}, ${dims}` : dims };
+  }
   if ('rect' in e && Array.isArray(e.rect)) {
     const r = e.rect as Rect;
     const dims = `${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m`;
@@ -61,7 +71,7 @@ export function label(d: Campus, coll: Coll, e: Elem): string {
   const name = typeof e.name === 'string' && e.name ? `${e.name} ` : '';
   const lvlId = 'level' in e && typeof e.level === 'string' ? e.level : coll === 'openings' ? d.walls.find((w) => w.id === (e as Opening).wall)?.level : coll === 'stairs' || coll === 'ladders' ? (e as { from: string }).from : undefined;
   const lvl = lvlId ? `, ${levelName(d, lvlId)}` : '';
-  const kind = coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : '';
+  const kind = coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
   return `${kind}${name}(${e.id}${lvl})`;
 }
 
@@ -93,7 +103,7 @@ export function describeChange(d: Campus, c: Change): string {
     else if (k === 'between' || k === 'index') continue;
     else parts.push(fieldWords(c.coll, k, va, vb));
   }
-  if (c.coll === 'walls') {
+  if (c.coll === 'walls' || c.coll === 'exterior') {
     const wa = a as unknown as Wall;
     const wb = b as unknown as Wall;
     const da = [wb.a[0] - wa.a[0], wb.a[1] - wa.a[1]] as const;
@@ -122,8 +132,8 @@ export function describeChange(d: Campus, c: Change): string {
 const capital = (s: string): string => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** Field names in words; metre fields carry "m". */
-const FIELD_WORDS: Record<string, string> = { h: 'height', t: 'thickness', w: 'width', sill: 'sill', ceiling: 'ceiling', ring: 'access level', minShort: 'shortest side', risers: 'risers', width: 'width', floor: 'floor', height: 'height', key: 'key', reason: 'reason', finish: 'finish', building: 'building', up: 'climbs', facing: 'facing', name: 'name' };
-const METRES = new Set(['h', 't', 'w', 'sill', 'ceiling', 'minShort', 'width', 'floor', 'height']);
+const FIELD_WORDS: Record<string, string> = { h: 'height', t: 'thickness', w: 'width', sill: 'sill', ceiling: 'ceiling', ring: 'access level', minShort: 'shortest side', risers: 'risers', width: 'width', floor: 'floor', height: 'height', key: 'key', reason: 'reason', finish: 'floor finish', y0: 'bottom', y1: 'top', depth: 'depth', climbable: 'climbable', override: 'set by hand', size: 'size', building: 'building', up: 'climbs', facing: 'facing', name: 'name' };
+const METRES = new Set(['h', 't', 'w', 'sill', 'ceiling', 'minShort', 'width', 'floor', 'height', 'y0', 'y1', 'depth']);
 
 /** One field change in plain words (ED3-3a decision 19): no raw JSON. */
 function fieldWords(coll: Coll, k: string, va: unknown, vb: unknown): string {

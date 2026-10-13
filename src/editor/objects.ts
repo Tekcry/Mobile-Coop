@@ -65,7 +65,7 @@ export function placeRect(p: Pick<Preset, 'w' | 'd'>, yaw: number, x: number, z:
 }
 
 /** Axis-aligned wall faces on a level: plane `axis` (0: x = pos, 1: z = pos), the span on the other axis, outward normal. */
-function wallFaces(walls: readonly Wall[], level: string): { axis: 0 | 1; pos: number; n: 1 | -1; s0: number; s1: number; id: string }[] {
+export function wallFaces(walls: readonly Wall[], level: string): { axis: 0 | 1; pos: number; n: 1 | -1; s0: number; s1: number; id: string }[] {
   const out: { axis: 0 | 1; pos: number; n: 1 | -1; s0: number; s1: number; id: string }[] = [];
   for (const w of walls) {
     if (w.level !== level) continue;

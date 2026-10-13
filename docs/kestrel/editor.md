@@ -64,6 +64,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | 1 - 5 | tools: select, room (with walls, outside walls or room only, from the list beside it), wall, door (type from the list beside it), window (type from the list beside it, ON9) |
 | 6, 7, 8 | Stair (type from the list beside it), Ladder, Floor hole (kind from the list beside it) (ON2) |
 | Space > Build: Roof tiles | the Roof tool (ON10): drag out the outline, or one click on a building to take its footprint; type from its tile |
+| 9, R | the Object tool (ON4): click places the preset from the list beside it (a row: click the start, click the end); R turns the ghost, or the selected object, 90 degrees; with the Stamp tool (ON11, Space > Presets) R turns the preset and a click stamps it |
 | Click, drag | select and move; drag the orange handles to resize a room, stretch a wall or widen an opening |
 | Wall tool: click, click, ... | a wall chain (ON1): each click ends a wall and starts the next from its end; a click on the first point closes it; Esc or a right click ends it; Backspace removes the last wall |
 | Ctrl while dragging | the object grid (0.1 m) when Settings > Grid is coarser; the grid is 0.1 m by default (ON0b) |
@@ -75,6 +76,9 @@ views are generated from it, so this table and the editor cannot drift apart for
 | Ctrl+K | **Find** a room, stair or object by name and go there (ON3) |
 | Shift+click | add to the selection or take out: several things move, copy and delete together (ON3) |
 | L, K | room names floating in 3D; the scale figure at the dot (ON3) |
+| J | the stealth view (ON4): objects tinted by what they give the player |
+| N | the finish view (ON5): floors tinted by floor finish, with a legend of how loud footsteps are |
+| Space > Climb tiles | the Climb tool (ON5): a climb piece or exterior feature; click places it (a drawn one: click the start, click the end) |
 | Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
 | ` (backquote) or I | open / close the side panel |
@@ -191,11 +195,14 @@ wait until it closes. A row of tabs, then a grid of large tiles (a letter, the n
 
 | Tab | Tiles |
 | --- | --- |
-| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split (rooms), Fit and Turn climb 90 (stairs), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
+| Selected (first, only with a selection) | With several things selected (ON3): Move N things, Copy, Copy to level above, Delete N things. With one: Move, Duplicate, Rotate 90 (rooms, walls, stairs, ladders), Copy and Copy to level above (rooms, walls, floor holes), Split and Floor finish (rooms, ON5: lights the card's Floor finish row), Fit and Turn climb 90 (stairs), Save as preset (rooms, and a set: ON11), Rename id, Change type (lights the card's Type row), Properties (the full side panel), Delete |
 | Build | Select, Room with walls, Room with outside walls, Room only, Wall, Stair: Main dogleg, Stair: Fire dogleg, Straight stair, Ladder, Floor hole, Measure, Paste, Paste to level above (greyed until something is copied) |
 | Openings | one tile per door and window type (ON9): Single door, Fire door, Double door, Glass swing door, Sliding glass door (automatic), Sliding glass door (card), Sliding door (manual), Roller shutter, Gate, Sliding gate, Hatch, Arch (no leaf), Fixed window, Opening window (top hung), Frosted fixed window, Louvre window, Roof light |
-| Objects, Lights, Mission | shown once a later part adds tiles to them |
-| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3) |
+| Objects | the ON4 object groups and presets (below) |
+| Presets (ON11) | Start set, Module kit, Mine (A shows that source, the menu stays), then its presets (A picks the Stamp tool); under Mine also Rename and Delete for the preset last picked (below) |
+| Climb (ON5) | Downpipe, Horizontal pipe, Ledge or string course, Window sill, Parapet coping, Vent grille, Duct crawl, Fire escape stair, Lamp post, Chain-link fence |
+| Lights, Mission | shown once a later part adds tiles to them |
+| View (also Hub > View) | rows: Layout, Ghost other levels, Exploded (left / right: the gap), Cut walls at (A on / off, left / right 0.1 m), Levels shown, Building filter, Small plan, Labels, Level below on the plan, Room names in 3D, Scale figure (ON3), Stealth view (ON4), Finish view (ON5) |
 
 - The menu remembers the last tab and the tile on each tab while the editor runs. Hub > Settings > "Menu opens on"
   chooses the last tab (default) or always Build.
@@ -212,7 +219,8 @@ first** (door type, wall kind, room kind), then its own fields.
 | --- | --- |
 | Door or window | Type (flips through doors only, or windows only), Name, Width, Height, Sill, Along wall, then only the settings the type has (ON9, below) |
 | Wall | Type (interior, exterior, boundary, parapet, balustrade, glass partition), Name, Thickness, Height, Length (moves its end); a glass partition adds Glass, Blinds, Breakable |
-| Room | Type (room kind), Name, Width, Depth (east and north edges; walls follow as set), Access (ring 0-5) |
+| Room | Type (room kind), Name, Width, Depth (east and north edges; walls follow as set), Access (ring 0-5), Floor finish (ON5; the foot gives the footstep loudness) |
+| Climb piece (ON5) | Type (flips between pieces placed the same way: downpipe and vent; the drawn ones), Name, its heights and sizes (Bottom, Top, Height, Depth, Width, Length as the piece has them), Climbable (by hand: an override); the foot says what the player can do |
 | Stair | Type (Main dogleg, Fire dogleg, Straight), Name, Width, Depth, Climbs, To level (risers follow); the foot says whether it fits ("Fits: 25 risers", or "Needs 1.42 m more length for 25 risers") |
 | Floor hole, ladder | Type (stair well, lift shaft, riser, hatch, roof light), Name, Width, Depth (floor hole); Name, Facing, To level (ladder) |
 | Every card | ends with **Id**: A opens the keyboard (capitals kept); Done renames it and every reference (ON2) |
@@ -546,7 +554,158 @@ hand D-pad left / right changes the type, as for stairs):
   level or at its height) cut through. A flat roof whose top already has level floors under it (level R's roof rooms) adds
   no second slab, and no parapet on an edge that already has a parapet wall.
 
+## Objects and cover (ON4, ED2 Part F)
+The colocation campus's own furniture and plant, at real sizes, and what each piece means for a stealth player.
+
+- **Catalogue** (`src/editor/catalogue.ts`, one data list; Michael adds presets there only): five groups. Data hall
+  (server rack 42U, rack row, network rack, containment end door and roof, in-row cooler, CRAH, power distribution
+  cabinet, cable tray, gas suppression cylinders, cage mesh, crash cart, tape library, step ladder); Plant (UPS, battery
+  rack, LV switchboard section and row, generator, day tank, bulk fuel tank, chiller, condenser, pump set, pad
+  transformer, ring main unit, air handling unit); Office and security (desks, desk pod, chair, filing cabinet,
+  cupboard, lockers, reception counter, security desk, CCTV video wall, meeting table, sofa, kitchenette, fridge,
+  vending machine, water cooler, copier, shredder, whiteboard, pot plant); Goods-in (pallet, pallet stack, boxed
+  equipment, packing bench, roll cage, pallet jack, shelving, crates 1.0 and 1.2); Yard and roof (car, van, pickup,
+  skip, wheelie and bulk bins, bollard, boom gate, bike rack, smoking shelter roof, gas bottle cage, low wall, planter,
+  column, roof walkway). Each has its footprint, height, base height, `noLedge`, mount (floor, wall, ceiling),
+  see-through flag and a `src` (the brief, a fact, or "editor default: typical product"). The rack width is facts
+  `rules.rackWidth`, a column a storey (`room.storey`), the containment roof the aisle width (`rules.aisleMin`).
+- **Object tool**: Y > **Objects** tab: the five group tiles first (A shows that group, the menu stays open), then the
+  group's presets; A picks one. The tool bar shows "Object" with the preset under it; D-pad left / right steps the preset
+  within its group. The ghost sits at the dot on the 0.1 m object grid (`meta.objectGrid`) and backs onto a wall face
+  within `rules.aisleMaxGap` (0.3 m: a gap that small is closed anyway); **RB** turns it 90 degrees; **A** places it and
+  the tool stays on, so each A places another (the repeat). A wall-mounted preset (video wall, whiteboard) off a wall
+  makes the dot red: "Move onto a wall". Mouse: key 9 or the tool bar's Object button and list, click places, R turns.
+- **Rows**: rack row, LV switchboard row, low wall, cable tray, containment roof, cage mesh and walkway are drawn like
+  walls: A at the start, A at the end (mouse: drag). A row runs along the longer axis; racks and switchboard sections
+  snap to whole units (a 6 m rack row is 10 racks). While drawing, the dot gives the units, the length and the aisle to
+  the next parallel tall object: "aisle 1.8 m clear to O001", or red "aisle 1.2 m to O001: under 1.8 m", or "closed up"
+  for a gap of 0.3 m or less (facts `rules.aisleMin`, `aisleTallObject`, `aisleMaxGap`, as check A26).
+- **Card** (D-pad): Type (the presets of its group; a row keeps its length), Name, Width, Depth, Height, Base, Turn
+  (quarter turns about the centre, the corner kept on the grid), See-through, No ledge, Id. Its foot gives the stealth
+  badges and the aisle. Selected > Rotate 90 and R turn it too.
+- **Stealth badges** (`src/editor/objects.ts`, pure, from facts only): **Full cover** (top above `player.standHeight`),
+  **Crouch cover** (top above `player.crouchHeight`, up to standing), **Vault** (top over `traverse.stepMax`, at or under
+  `traverse.vaultMax`, the thin side at most `traverse.vaultDepth`), **Climb** (a mantle up to `traverse.mantleMax`, or a
+  lip from `lip.autoHeight` to `reach.grabMax`, not `noLedge`), **Hang** (a lip from `lip.autoHeight` to
+  `reach.jumpGrab`, at least `lip.minLength` long, not `noLedge`). Cover, vault and mantle need the object on the floor
+  (base 0). See-through gives no cover. A missing fact gives no badge and a "no fact" note. The `traverse` facts are F04
+  (`pickTraversal`); a test keeps them equal. Shown on the card and as a small label over each object in 3D.
+- **Stealth view** (J; Hub > View > Stealth view; Y > View): objects tinted in 3D and on the plan: full cover green,
+  crouch cover yellow, vault / climb / hang blue, see-through grey; others light grey.
+- **Plan**: `plans.mjs` draws each object's footprint with its name (its id where the name does not fit); see-through
+  ones dashed and unfilled.
+- **Walk test**: every object is a solid box of its real height and base (see-through ones too: collision is real), on
+  its level, through `campusToBuild` (`objectBoxes`); a `noLedge` object's top is never a hangable lip.
+
+## Climb pieces, exterior features and floor finishes (ON5)
+What the outside of a building gives a climbing player, and how loud each floor is underfoot.
+
+- **Climb tool**: Y > **Climb** tab, one tile per piece; A picks it and the tool bar shows "Climb" with the piece under
+  it; D-pad left / right steps the piece. The tool stays on, so each A places another. Mouse: Space, the Climb tab, a
+  tile; then click.
+- **How each goes in** (decision 8): a **downpipe** or **vent grille** backs onto the wall face nearest the dot (within
+  facts `climb.wallReach`, 1.2 m; off a wall the dot is red: "Move onto a wall face"); a **window sill** sits on the
+  window nearest the dot, on the dot's side, at the window's sill; a **parapet coping** runs along the top of the wall
+  nearest the dot; a **lamp post** stands at the dot; a **horizontal pipe**, **ledge or string course**, **duct
+  crawl**, **fire escape stair** and **chain-link fence** are drawn: A at the start, A at the end (mouse: drag). A
+  ledge drawn near a wall moves onto its face. RB has nothing to turn: the wall or the drawn line sets the way.
+- **Heights** (all facts, `scripts/kestrel/facts.json` group `climb` unless named): a downpipe runs from the floor to
+  the tallest wall top on that wall line at the spot (the roof parapet); a horizontal pipe at `reach.grabMax` over the
+  floor; a ledge's top at the floor line above (the storey height), `climb.ledgeDepth` deep (0.15-0.3 on the card); a
+  coping `climb.copingThick` on the wall top, the wall plus `climb.copingOverhang` each side; a vent `climb.ventW` x
+  `climb.ventH` with its bottom `climb.ventSill` up; a duct the crouch section (`duct.crouchWidth` x
+  `duct.crouchHeight`) from a vent at its start (its bottom) or the floor; a fire escape one storey,
+  `stair.fireWidth` wide, its risers by `stair.riserHeight`; a lamp post `climb.lampPost`; a fence `climb.fenceHeight`.
+  Everything is stored with absolute heights (`exterior[]`, schema.md).
+- **What the player can do** (decision 2; `src/editor/climb.ts`, pure, from the facts and the engine's own move list:
+  each piece's move is an `AnchorKind` that is also a `MOVE_MODES` entry, cited in `climbCatalogue.ts`), shown at the
+  dot, on the card's foot and in Properties:
+  - Downpipe (`pipeV`): climbable when at least `player.standHeight` long with its foot within `reach.grabMax`;
+    "top lip 9.5 m within reach" when a wall top (not one with a wall standing on it) or a ledge piece is within
+    `climb.pipeLipRise` (0.8 m) of its top and `climb.pipeLipReach` (1.0 m) across, as the game's `pipeLip`; else
+    "climb up and back down".
+  - Horizontal pipe (`pipeH`): hangable from `reach.grabMin` up and at least `lip.minLength` long; over
+    `reach.jumpGrab` it says to reach it from a pipe, ladder or ledge.
+  - Ledge, sill, coping (`ledge`, box tops as F09): a lip from `lip.autoHeight` up and `lip.minLength` long; climbing
+    onto it needs `lip.climbDepth`; a coping is measured from the ground outside.
+  - Vent (`duct`): the way into a duct whose end is within reach; else "a grille only".
+  - Duct (`duct`): crouch-move at the crawl rule size (`duct.crouchHeight` x `duct.crouchWidth`), a crawl under it,
+    refused narrower than the player; it names the vents at its ends.
+  - Fence (`fence`): climb over; it rattles when climbed fast (`climb.fenceRattle`, F14).
+  - Fire escape: walked (a stair, not a climb), its risers and going against the stair facts.
+  - Lamp post: "climbing a lamp post is not in the game yet".
+- **Climbable** (decision 3): set from those rules on every placement, move and card step. Properties > Climbable
+  (yes / no, with the Reason field) or the card's Climbable row overrides it: the piece keeps `override: true` and the
+  reason, its words add "Set by hand to ... : reason", and A23 leaves it out. Flipping back to the rules' value clears
+  the override.
+- **Walk test** (decision 4; `src/world/maps/kestrelExterior.ts`, shared): a climbable downpipe is the game's
+  `LevelBuilder.pipeV` (facing the wall), a horizontal pipe `pipeH`, a fence `fence`, a duct its sides and lid plus a
+  `duct` anchor with grates at both ends, a ledge, sill or coping a box whose top the builder makes a ledge (F09); a
+  fire escape is the builder's stairs, a lamp post a pillar, a vent a thin plate. A piece that is not climbable is
+  plain collision (a box with no ledge).
+- **Floor finishes** (decision 5): Selected > **Floor finish** on a room (or the card's Floor finish row, or
+  Properties): None, Carpet, Vinyl, Ceramic tile, Sealed concrete, Steel grating, Raised access floor, Gravel, Grass,
+  Asphalt; written to `rooms[].finish`.
+- **Footstep loudness** (decision 6; `src/editor/finishes.ts`): each finish sounds as one of the game's six floor
+  surfaces (`src/world/surfaces.ts`): carpet and grass as carpet, steel grating as grate, gravel as gravel, a raised
+  access floor as the hollow wood knock, the rest as concrete. The card and Properties give the game's own numbers:
+  the surface's multiplier on the footstep radius (`noiseRadius` at the game's jog and sprint speeds): "Steel grating:
+  loud, heard at 4.8 m jogging, 12.6 m sprinting (walking is silent)". The walk test marks each finished floor with its
+  surface, so footsteps there sound and carry as the card says.
+- **Finish view** (N; Hub > View; Y > View): floors tinted by finish in 3D and on the plan, with a legend (top right
+  of the 3D view) giving each finish's loudness word (quiet, normal, louder, loud).
+- **Plan**: `plans.mjs` draws each piece as before (a dot or a dashed line, green when climbable) in a group the editor
+  can click.
+
+## Room presets and stamping (ON11)
+Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and save his own groups to reuse.
+
+- **Presets** (`src/editor/presets.ts`): a group of rooms, walls, doors and windows, objects, stairs, floor holes and
+  ladders relative to an origin (its south-west corner at 0,0), with a name, a footprint and a `src`. The records are
+  the campus file's own (doors and windows as ON9, objects as ON4 with their catalogue ids); levels are relative
+  (`+0` the level stamped on, `+1` the one above).
+- **Start set** (16, sizes from facts, the module kit and typical products, each with its `src`): 4-desk office, 8-desk
+  open office, meeting room (8), manager's office, WC block (male, female, accessible), kitchenette, security control
+  room (desk, video wall, lockers), reception (counter, lounge), locker room, comms room (2 racks), store, plant room (UPS
+  and batteries), stair core (main dogleg over two levels; its well comes from the ON2 stairwell link), lift lobby (with a
+  lift shaft), data hall bay (two rows of 10 racks, a contained 1.8 m cold aisle, two CRAH units), goods-in bay (roller
+  shutter to the yard in an outside wall). Rooms are walled on every edge; shared edges are one wall.
+- **Module kit**: every module of `scripts/kestrel/modules.json` is a preset too, read from that file each time the
+  editor loads (the editor server runs `expand.mjs` on one placement per module at the origin; nothing is copied).
+- **Stamp tool**: Y > **Presets** > a preset (mouse: Space, click). The ghost of the whole group sits centred on the dot
+  (walls 1.2 m high, floors, objects; on the 0.1 m grid); **RB** (R) turns it 90 degrees; **D-pad left / right** steps to
+  the next preset of the same source; **A** (click) stamps it as **one undo step** with fresh ids (rooms `<level>-NEW`,
+  walls `W<level>-NEW`, doors `O-NEW`, objects `O001`...). Its walls merge with walls already on the same lines (the
+  ED3-3a rules: an existing wall is reused, never doubled; a door on a reused wall moves onto it, and is left out where a
+  door is already there). Walls take the level's height; rooms join the building under them; a stair gets the risers
+  for the real rise.
+- **Fit check**: the ghost turns red where the stamp would overlap a room already there (sharing an edge is fine; yards,
+  lanes and roof areas are outside ground) or where a wall already there runs through one of its rooms, with words at the
+  dot ("overlaps Admin Office by 1.2 m", "wall WG012 runs through Office for 5 m"); A then refuses with the same words.
+  A preset that needs a level above says so.
+- **Save your own**: select a room, or box select a set (ON3), then Selected > **Save as preset**; the name comes from
+  the list (the selected rooms' names and your presets') or the keyboard. A set keeps its selected walls with their doors
+  and windows; one room gets walls along its edges carrying the doors already there; objects standing wholly inside the
+  rooms come along. They show under Presets > **Mine**; Rename and Delete there act on the one last picked. Your presets
+  are written to `docs/kestrel/editor-presets.json` with the file save (the Save button shows `*`; through the editor
+  server, so the e2e test's sandbox copy is used there).
+
 ## What it does not do yet (ED2 parts B-H)
+- ON11: presets carry no lamps or circuits yet (the light records are ON6, which has not run); they join when they exist. The
+  ghost shows for the pad (the mouse sees the words after a click). A stamp lands where the dot puts it (no snapping of
+  its edges to nearby walls; the magnet still moves the dot). The fit check looks at rooms and walls, not objects, climb
+  pieces or roofs. Saving a preset takes rooms, walls, floor holes, stairs, ladders and objects, not roofs or climb
+  pieces. A module kit preset's walls are its expand walls (outside walls 0.45 m where the module has no neighbour).
+- ON5: pieces are straight (a duct or pipe is one run; no bends); a duct does not cut the walls it crosses (they stay
+  solid in the walk test). A fire escape is one straight flight with no landings (its words say when a real one would
+  need one). A downpipe's top lip counts wall tops and ledge pieces, not roof edges or object tops. A lamp post's lamp
+  is ON6. The editor draws a piece as one bar (no pipe brackets, fence mesh or grille slats). Finishes the game has no
+  surface for sound as the nearest one (vinyl, ceramic and asphalt as concrete, grass as carpet, a raised floor as
+  wood). Box select, Copy and Paste do not take climb pieces. A level's storey change does not move them (heights are
+  absolute).
+- ON4: objects are axis-aligned boxes (quarter turns only); a boom gate, smoking shelter or desk is one box (the shelter
+  is its roof slab). Box select, Copy and Paste do not take objects. Objects have no handles: change sizes on the card.
+  A row's side across the drawn line is centred on it (no side flip). The walk test draws every object in one grey.
 - ON10: outlines are rectangles along x and z (no L-shapes or angled roofs); one roof per outline, no valleys between
   roofs. A flat roof's fall is drawn, not built (level in 3D and in the walk test). Roof lights cut the walk test's roof
   but are not drawn as holes in the editor's 3D roof planes. Gutters and downpipes are roof settings drawn as boxes; ON5
@@ -558,7 +717,7 @@ hand D-pad left / right changes the type, as for stairs):
   and a frosted pane as clear). Hatches sit in walls; a floor or ceiling hatch is still a Floor hole. A roof light is a
   high window in a wall; a glazed hole in a roof slab is the Floor hole tool's Roof light. The card level does not change
   the room's access level (the Checks show A29 as before).
-- The tile menu's Objects, Lights and Mission tabs are empty (hidden) until the later parts add tiles. The on-screen
+- The tile menu's Lights and Mission tabs are empty (hidden) until the later parts add tiles. The on-screen
   keyboard has no lower-case or symbol page (words start with a capital, the rest is small; ids keep capitals).
 - ON2: building outlines are edited as edge rows on the Levels tab with the outlines drawn in 3D, not dragged on a site
   plan; the plan images do not draw them. Deleting a level leaves the levels above where they are. Free text that names an
@@ -597,11 +756,16 @@ hand D-pad left / right changes the type, as for stairs):
 | `src/editor/roomWalls.ts` | rooms and their walls: walls on an edge, the walls a new room needs, linked edits, Split, A's linked words (pure, `tests/editor/roomWalls.test.ts`) |
 | `src/editor/vertical.ts`, `src/editor/levels.ts` | ON2: the stair proposal, fit and Fit, the stairwell link, ladders, floor holes; add, duplicate, delete levels, storey heights, renaming ids with every reference, building outlines and the RULES 2 warnings (pure, `tests/editor/vertical.test.ts`) |
 | `src/editor/openingCatalogue.ts` | ON9: every door and window type (name, family, leaf, size with its source, the settings it has), realistic defaults per type, the settings in words and their steps, a type flip within the family (pure, `tests/editor/openingCatalogue.test.ts`) |
+| `src/editor/catalogue.ts`, `src/editor/objects.ts` | ON4: the object presets (one data list with sizes and sources); placing at the dot, backing onto walls, turning, drawn rows in whole units, aisles, stealth badges and tints (pure, `tests/editor/objects.test.ts`) |
 | `src/world/maps/kestrelDoors.ts` | ON9: the one copy of the door side maths (swing side, hinge or stack end), shared by the editor and the walk test, and the walk test's game doors and panes (pure) |
+| `src/editor/climbCatalogue.ts`, `src/editor/climb.ts`, `src/editor/finishes.ts` | ON5: the climb pieces (one data list: placing, engine move, source); placing at the dot, drawn pieces, the reach rules and words, `climbable` from the rules or by hand, the card's rows and steps; floor finish loudness from the game's own surface noise, the legend (pure, `tests/editor/climb.test.ts`) |
+| `src/world/maps/kestrelExterior.ts` | ON5: the one copy of the floor finishes and their game surfaces, and of how each climb piece builds in the walk test (the engine's builders or plain collision), shared by the editor and the walk test (pure) |
 | `src/editor/ease.ts`, `src/editor/group.ts` | ON3: the element a check line names, the save summary's net changes and words, the Find list and filter, the bookmark store; multi-select box pick, moving, copying and pasting a set as one edit (pure, `tests/editor/ease.test.ts`) |
 | `src/editor/overlays.ts`, `src/editor/findView.ts` | ON3: floating room names (pooled labels), red problem markers, the scale figure; the Find box and its on-screen keyboard |
 | `src/editor/roofGeometry.ts` | ON10: the roof types, settings and defaults with sources, a new roof, the footprint under the dot, the default eaves height, the card's rows and steps, the type flip, the steepness flag and the roof level check (pure, `tests/editor/roofGeometry.test.ts`) |
 | `src/world/maps/kestrelRoofs.ts` | ON10: the one copy of the roof geometry (planes, edges, ridges, hips, plan marks, the walk test's boxes and panes), shared by the editor, the walk test and `plans.mjs` (pure, import-free) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
-| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft; `KESTREL_EDITOR_SANDBOX` for tests |
+| `src/editor/presets.ts`, `src/editor/stampTool.ts` | ON11: the start set (data with sources), module kit presets from expand's output, turning and placing a group, the fit check, stamping as one change list with wall reuse, saving a selection, the own presets file; the Stamp tool's state, ghost cache and save (pure, `tests/editor/presets.test.ts`) |
+| `docs/kestrel/editor-presets.json` | ON11: Michael's own presets (schema.md section 7, own presets); written by the editor's Save |
+| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

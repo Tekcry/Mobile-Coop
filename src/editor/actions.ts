@@ -96,8 +96,8 @@ export const ACTIONS: readonly Action[] = [
   { id: 'toolLadder', name: 'ladder tool (click a wall face or a point: up to the level above)', group: 'Tools', keys: ['Digit7'], ctx: NOT_DRAG },
   { id: 'toolHole', name: 'floor hole tool (drag a rectangle; kind from the list)', group: 'Tools', keys: ['Digit8'], ctx: NOT_DRAG },
   { id: 'toolObject', name: 'object tool (click places the preset from the list; a row: click the start, click the end)', group: 'Tools', keys: ['Digit9'], ctx: NOT_DRAG },
-  { id: 'turnObject', name: "turn the Object tool's ghost or the selected object 90 degrees", group: 'Tools', keys: ['KeyR'], ctx: ['draw', 'selected'] },
-  { id: 'padTurnObject', name: "Object tool: turn the ghost 90 degrees", group: 'Tools', keys: [], pad: ['RB'], ctx: ['draw'], passive: true },
+  { id: 'turnObject', name: "turn the Object or Stamp tool's ghost, or the selected object, 90 degrees", group: 'Tools', keys: ['KeyR'], ctx: ['draw', 'selected'] },
+  { id: 'padTurnObject', name: 'Object and Stamp tools: turn the ghost 90 degrees', group: 'Tools', keys: [], pad: ['RB'], ctx: ['draw'], passive: true },
   { id: 'draw', name: 'draw on the editing level', group: 'Tools', keys: [], mouse: 'Drag', ctx: ['draw'], hint: ['draw'], passive: true },
 
   { id: 'layout', name: 'view: 3D, both, plan', group: 'View', keys: ['KeyV'], pad: ['View hold'], ctx: NOT_MENU, hint: ['idle'] },
@@ -111,6 +111,7 @@ export const ACTIONS: readonly Action[] = [
   { id: 'exploded', name: 'exploded view', group: 'View', keys: ['KeyX'], ctx: NOT_MENU },
   { id: 'names', name: 'room names floating in 3D (fade out by 40 m)', group: 'View', keys: ['KeyL'], ctx: NOT_MENU },
   { id: 'stealth', name: 'stealth view: objects tinted by what they do for the player (full cover green, crouch cover yellow, climb blue, see-through grey)', group: 'View', keys: ['KeyJ'], ctx: NOT_MENU },
+  { id: 'finishView', name: 'finish view: floors tinted by finish, with a legend of how loud footsteps are', group: 'View', keys: ['KeyN'], ctx: NOT_MENU },
   { id: 'figure', name: 'scale figure at the dot: a 1.75 m person and a 1.15 m crouch', group: 'View', keys: ['KeyK'], ctx: NOT_MENU },
   { id: 'bookmarkSave', name: 'save the camera as bookmark 1-9 (pad: Hub > View > Bookmarks)', group: 'View', keys: ['Ctrl+Digit1', 'Ctrl+Digit2', 'Ctrl+Digit3', 'Ctrl+Digit4', 'Ctrl+Digit5', 'Ctrl+Digit6', 'Ctrl+Digit7', 'Ctrl+Digit8', 'Ctrl+Digit9'], ctx: NOT_DRAG },
   { id: 'bookmarkGo', name: 'go to bookmark 1-9', group: 'View', keys: ['Alt+Digit1', 'Alt+Digit2', 'Alt+Digit3', 'Alt+Digit4', 'Alt+Digit5', 'Alt+Digit6', 'Alt+Digit7', 'Alt+Digit8', 'Alt+Digit9'], ctx: NOT_DRAG },

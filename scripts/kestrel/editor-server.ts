@@ -15,6 +15,12 @@ const CAMPUS = 'docs/kestrel/kestrel.campus.blocks.json';
 const PLANS = 'docs/kestrel/plans';
 const LOG_MD = 'docs/kestrel/editor-log.md';
 const LOG_JSONL = 'docs/kestrel/editor-log.jsonl';
+/** ON11: Michael's own room presets (saved with the file save). */
+const PRESETS = 'docs/kestrel/editor-presets.json';
+type ExpandMod = {
+  loadModules: () => Map<string, { id: string; name: string; source?: string }>;
+  expandLayout: (a: { layout: unknown; modules: unknown }) => { arch: Record<string, unknown>; errors: string[] };
+};
 /** Marks the file as owned by the editor; the P03B generator refuses to overwrite it (Michael, 2026-10-12). */
 const OWNER = 'level editor (docs/kestrel/editor.md)';
 
@@ -141,6 +147,26 @@ export function kestrelEditor(): Plugin {
             res.setHeader('content-disposition', 'attachment; filename="kestrel-editor.crt"');
             return send(res, 200, 'application/x-x509-ca-cert', readFileSync(f, 'utf8'));
           }
+          // ON11: the module kit as presets (every module expanded at the origin by expand.mjs, read fresh) and the own presets
+          if (url.pathname === '/__editor/presets' && req.method === 'GET') {
+            const ex = (await import(/* @vite-ignore */ pathToFileURL(path.join(root, 'scripts/kestrel/expand.mjs')).href)) as ExpandMod;
+            const mods = ex.loadModules();
+            // the levels it stands on (as src/editor/presets.ts KIT_LEVELS: +0, +1 and a roof) and the campus grids
+            const storey = (JSON.parse(readFileSync(path.join(root, 'scripts/kestrel/facts.json'), 'utf8')) as { room: { storey: { value: number } } }).room.storey.value;
+            const meta = (JSON.parse(readFileSync(path.join(store, CAMPUS), 'utf8')) as { meta: { grid?: number; objectGrid?: number } }).meta;
+            const levels = [
+              { id: 'P0', name: 'Base', floor: 0, height: storey },
+              { id: 'P1', name: 'Next', floor: storey, height: storey },
+              { id: 'R', name: 'Roof', floor: 2 * storey, height: 1 },
+            ];
+            const kit: unknown[] = [];
+            for (const m of mods.values()) {
+              const r = ex.expandLayout({ layout: { meta: { grid: meta.grid, objectGrid: meta.objectGrid }, levels, placements: [{ id: 'K', module: m.id, level: 'P0', at: [0, 0] }] }, modules: mods });
+              if (!r.errors.length) kit.push({ module: { id: m.id, name: m.name, source: m.source }, arch: r.arch });
+            }
+            const f = path.join(store, PRESETS);
+            return json(res, { kit, mine: existsSync(f) ? readFileSync(f, 'utf8') : '' });
+          }
           // the walk test's draft (ED2 Part B): the editor's campus held in this server's memory, never written to disk
           if (url.pathname === '/__editor/draft' && req.method === 'GET') {
             if (!isLocal(req)) return json(res, { error: 'the editor only runs on this PC (localhost)' }, 403);
@@ -171,6 +197,13 @@ export function kestrelEditor(): Plugin {
             const results = c.runChecks({ arch: data });
             const std = s.standardsCheck(data);
             return json(res, { results: results.filter((r) => r.status !== 'PASS'), summary: c.summary(results), standards: { fails: std.fails, info: std.info, line: s.summary(std) } });
+          }
+
+          if (url.pathname === '/__editor/presets') {
+            if (typeof data.text !== 'string' || !data.text.startsWith('{')) return json(res, { error: 'no presets' }, 400);
+            mkdirSync(path.dirname(path.join(store, PRESETS)), { recursive: true });
+            writeFileSync(path.join(store, PRESETS), data.text);
+            return json(res, { ok: true });
           }
 
           if (url.pathname === '/__editor/save') {

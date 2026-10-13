@@ -23,13 +23,14 @@ import type { Change, JournalEntry } from './model';
 import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb, WallGap } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
+import { StampTool } from './stampTool';
 import { DR_NOTE, DR_TYPES } from '../world/maps/kestrelDoors';
 import { familyTypes, GLASS_WALL_DEFAULT, withOpeningType } from './openingCatalogue';
 import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_DEFAULTS, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import { WallChain } from './chain';
 import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './liveSizes';
 import type { LiveInfo, LiveShape } from './liveSizes';
-import type { Campus, Coll, Elem, Key, Ladder, Level, Obj, Opening, Pt, Rect, Roof, Room, Stair, Void, Wall } from './types';
+import type { Campus, Coll, Elem, Ext, Key, Ladder, Level, Obj, Opening, Pt, Rect, Roof, Room, Stair, Void, Wall } from './types';
 import { keyOf, parseKey } from './types';
 import { BOOKMARK_NAMES, freeSlot, idIndex, netChanges, problemTarget, problemWords, putBookmark, readBookmarks, summaryWords } from './ease';
 import type { Bookmark, FindItem } from './ease';
@@ -44,9 +45,13 @@ import type { RoofType } from './roofGeometry';
 import { aisleOf, newObject, stealthTint, objectId, placeObject, rowCount, rowRect, turnObject } from './objects';
 import { GROUPS, groupName, presetOf, PRESETS } from './catalogue';
 import type { ObjGroup, Preset } from './catalogue';
+import { drawPiece, extId, movePiece, pieceLen, pieceName, pieceWords, placePiece, setClimbable, withRules } from './climb';
+import { FINISHES, finishOf, pieceOf } from './climbCatalogue';
+import type { ExtKind } from './climbCatalogue';
+import { finishLegend, loudWords } from './finishes';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -111,6 +116,7 @@ async function loadFile(): Promise<{ data: Campus; text: string; mtime: number }
 async function boot(): Promise<void> {
   const f = await loadFile();
   const ed = new Editor(f.data);
+  void ed.stamp.load();
   // exposed for the e2e smoke test and console poking (dev tool only)
   (window as unknown as { __editor: Editor }).__editor = ed;
   try {
@@ -197,6 +203,11 @@ export class Editor {
   objYaw = 0;
   /** ON4: the stealth view (J; Hub > View): objects tinted by their badges in 3D and on the plan. */
   stealth = false;
+  /** ON5: the Climb tool's piece (Climb tab tiles, D-pad left / right with the tool) and the finish view (N; Hub > View). */
+  climbKind: ExtKind = 'downpipe';
+  finishView = false;
+  /** ON11: the Stamp tool (Presets tab): the presets, the one it stamps, its turns, the own presets file. */
+  readonly stamp = new StampTool();
   /**
    * The Stair tool (ON2): A at the start corner ('aim': the dot points the climb, the proposal follows), A again ('proposed':
    * the ghost holds still with its words), A accepts, B cancels. The proposal is previewed in the model as a real stair.
@@ -310,6 +321,7 @@ export class Editor {
       return w ? wallPoint(w, (e as Opening).at) : [0, 0];
     }
     if (coll === 'ladders') return (e as Ladder).at;
+    if (coll === 'exterior') return [((e as Ext).a[0] + (e as Ext).b[0]) / 2, ((e as Ext).a[1] + (e as Ext).b[1]) / 2];
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
@@ -596,6 +608,13 @@ export class Editor {
       else delete (e as Obj).yaw;
       return e;
     }
+    if (d.coll === 'exterior') {
+      // ON5: a drawn piece from its start to the pointer (on the object grid); a placed one moves whole; the rules again
+      const x0 = d.before as Ext;
+      const og = fine ? this.fineGrid : this.objectGrid;
+      if (d.isNew) return drawPiece(x0.kind as ExtKind, x0.id, d.start, [snap(x, og), snap(z, og)], { data: this.model.data, level: x0.level ?? this.view.level, grid: og });
+      return movePiece(this.model.data, x0, snap(x - d.start[0], og), snap(z - d.start[1], og));
+    }
     if (d.coll === 'objects') {
       const r = (d.before as Obj).rect;
       (e as Obj).rect = [r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz].map((v) => +v.toFixed(3)) as Rect;
@@ -789,6 +808,16 @@ export class Editor {
     }
     let after = this.model.snapshot(d.coll, d.id);
     if (!after) return;
+    if (d.isNew && d.coll === 'exterior') {
+      // ON5: a drawn piece is at least one grid step long; the Climb tool stays on for the next
+      if (pieceLen(after as Ext) < this.objectGrid - 1e-6) {
+        this.model.drop(d.coll, d.id);
+        return this.status('Too short - A (click) at the start, then at the end');
+      }
+      this.commitText(`Added ${pieceName(after as Ext)}: ${pieceWords(this.model.data, after as Ext)}`, [{ coll: d.coll, id: d.id, before: null, after }]);
+      this.select(keyOf(d.coll, d.id));
+      return this.status(`Placed ${pieceName(after as Ext)}: A (click) starts the next`);
+    }
     if (d.isNew && d.coll === 'objects') {
       // ON4: a row is at least one unit; the Object tool stays on for the next row
       this.commit([{ coll: d.coll, id: d.id, before: null, after }]);
@@ -864,6 +893,10 @@ export class Editor {
       this.beginDrag('roofs', r.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'object') {
       this.objectDown(x, z, sx, sy, source);
+    } else if (this.tool === 'stamp') {
+      this.stampDown(x, z);
+    } else if (this.tool === 'climb') {
+      this.climbDown(x, z, sx, sy, source);
     } else if (this.tool === 'door' || this.tool === 'window') {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
@@ -1019,8 +1052,26 @@ export class Editor {
     this.status(`Placed ${o.name ?? ''} (${o.id}): A (click) places another, RB (R) turns, B (Esc) puts the tool down`);
   }
 
+  /** ON11: A (click) with the Stamp tool: the preset at the dot as one edit (the fit check refuses with its words). */
+  private stampDown(x: number, z: number): void {
+    const r = this.stamp.stamp(this.model.data, this.view.level, x, z, this.grid, this.model.rev);
+    if ('why' in r) return this.status(r.why);
+    this.commitText(r.words, r.changes);
+    this.status(`${r.words}: A (click) stamps another, RB (R) turns, B (Esc) puts the tool down`);
+  }
+
+  /** ON11: Selected > Save as preset: the selection (a set or one room) becomes an own preset, written with the next Save. */
+  savePreset(name: string): void {
+    const keys = this.group.length ? this.group : this.selected ? [this.selected] : [];
+    const p = this.stamp.saveSelection(this.model.data, keys, this.view.level, name);
+    if (!p) return this.status('Select rooms, walls or objects first (box select takes a set)');
+    this.updateBar();
+    this.status(`Saved preset ${p.name} (${p.size[0]} x ${p.size[1]} m): Presets tab > Mine; Save writes docs/kestrel/editor-presets.json`);
+  }
+
   /** RB with the Object tool (R with the mouse): the ghost turns; with an object selected, the object turns. */
   turnObjectNow(): void {
+    if (this.tool === 'stamp' && !this.drag) return this.status(`${this.stamp.preset.name} turned to ${this.stamp.turn()} degrees`);
     if (this.tool === 'object' && !this.drag) {
       if (this.objPreset.draw) return this.status('A row turns with the way you draw it');
       this.objYaw = (this.objYaw + 90) % 360;
@@ -1051,6 +1102,65 @@ export class Editor {
       const tint = this.stealth && o ? stealthTint(o) : null;
       if (tint) rect.setAttribute('style', `fill:${tint}`);
       else rect.removeAttribute('style');
+    }
+  }
+
+  // ---------- climb pieces and floor finishes (ON5) ----------
+  /** The Climb tool's piece (Climb tab tiles, D-pad left / right with the tool). */
+  setClimbKind(k: ExtKind): void {
+    if (pieceOf(k)) this.climbKind = k;
+  }
+
+  /** Where A would put the Climb tool's piece now (null for a drawn piece: A starts it), or why it cannot go. */
+  climbGhost(x: number, z: number): { e: Ext | null; why: string | null } | null {
+    const p = pieceOf(this.climbKind);
+    if (!p || p.place === 'draw') return null;
+    const r = placePiece(p.id, x, z, extId(this.model.data), { data: this.model.data, level: this.view.level, grid: this.objectGrid });
+    return { e: r.e, why: r.why };
+  }
+
+  /** A (click) with the Climb tool: a drawn piece starts at the dot; any other is placed (the tool stays on). */
+  private climbDown(x: number, z: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad'): void {
+    const p = pieceOf(this.climbKind);
+    if (!p) return;
+    const id = extId(this.model.data);
+    const ctx = { data: this.model.data, level: this.view.level, grid: this.objectGrid };
+    if (p.place === 'draw') {
+      const start: Pt = [snap(x, this.objectGrid), snap(z, this.objectGrid)];
+      this.model.preview('exterior', drawPiece(p.id, id, start, start, ctx));
+      this.beginDrag('exterior', id, null, start, this.viewFloor(), sx, sy, source, true);
+      return;
+    }
+    const r = placePiece(p.id, x, z, id, ctx);
+    if (!r.e) return this.status(r.why ?? 'Cannot go here');
+    this.commitText(`Added ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`, [{ coll: 'exterior', id, before: null, after: r.e }]);
+    this.select(keyOf('exterior', id));
+    this.status(`Placed ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`);
+  }
+
+  /** N (Hub > View): the finish view: floors tinted by finish in 3D and on the plan, with a legend. */
+  setFinishView(on: boolean): void {
+    this.finishView = on;
+    this.view.setFinishView(on);
+    this.tintPlanFinishes();
+    const lg = document.getElementById('finishLegend');
+    if (lg) {
+      lg.hidden = !on;
+      lg.innerHTML = on ? `<b>Floor finish</b>${finishLegend().map((f) => `<div><i style="background:${f.tint}"></i>${esc(f.name)} <span class="dim">${esc(f.word)}</span></div>`).join('')}<div><i class="none"></i>None <span class="dim">map default</span></div>` : '';
+    }
+    this.status(on ? 'Finish view on (N): floors tinted by finish; the legend gives how loud footsteps are' : 'Finish view off (N)');
+  }
+
+  /** The plan's rooms tinted by finish while the finish view is on. */
+  tintPlanFinishes(): void {
+    const svg = this.planSvg();
+    if (!svg) return;
+    for (const el of svg.querySelectorAll<SVGElement>('[data-id^="rooms:"]')) {
+      if (el.tagName.toLowerCase() === 'g') continue;
+      const r = this.model.get<Room>('rooms', (el.getAttribute('data-id') ?? '').slice(6));
+      const f = this.finishView && r ? finishOf(r.finish) : undefined;
+      if (f) el.setAttribute('style', `fill:${f.tint};fill-opacity:0.85`);
+      else el.removeAttribute('style');
     }
   }
 
@@ -1357,6 +1467,7 @@ export class Editor {
       svg.appendChild(overlay);
       this.decoratePlan();
       if (this.stealth) this.tintPlanObjects();
+      if (this.finishView) this.tintPlanFinishes();
       $('planStatus').textContent = '';
       this.highlightPlan();
       this.drawPlanOverlay();
@@ -1491,6 +1602,11 @@ export class Editor {
       const lw = liveWall(s as Wall, walls);
       const n = this.chain.walls.length;
       return this.chaining && n ? { ...lw, words: `${lw.words} (chain: ${n + 1} walls, ${fmt(this.chain.total + wallLen(s as Wall))} m)` } : lw;
+    }
+    if (d.coll === 'exterior') {
+      const e = s as Ext;
+      const L = pieceLen(e);
+      return { words: `${L > 0 ? `${fmt(L)} m: ` : ''}${pieceWords(this.model.data, e)}`, shapes: [] };
     }
     if (d.coll === 'objects') {
       const o = s as Obj;
@@ -1953,6 +2069,7 @@ export class Editor {
       case 'names': return this.setNames(!this.prefs.names);
       case 'figure': return this.setFigure(!this.prefs.figure);
       case 'stealth': return this.setStealth(!this.stealth);
+      case 'finishView': return this.setFinishView(!this.finishView);
       case 'turnObject': return this.turnObjectNow();
       case 'bookmarkSave': return this.saveBookmark(`View ${(e?.code ?? 'Digit1').slice(5)}`, Number((e?.code ?? 'Digit1').slice(5)));
       case 'bookmarkGo': return this.goBookmark(Number((e?.code ?? 'Digit1').slice(5)));
@@ -2044,7 +2161,11 @@ export class Editor {
     const e = clone(s.e) as Elem & Record<string, unknown>;
     const g = this.grid * 2;
     const prefix = s.coll === 'rooms' ? `${(s.e as Room).level}-NEW` : s.coll === 'walls' ? `W${(s.e as Wall).level}-NEW` : s.coll === 'openings' ? 'O-NEW' : `${s.id}-COPY`;
-    e.id = s.coll === 'roofs' ? roofId(this.model.data) : s.coll === 'objects' ? objectId(this.model.data) : this.model.freshId(s.coll, prefix);
+    e.id = s.coll === 'roofs' ? roofId(this.model.data) : s.coll === 'objects' ? objectId(this.model.data) : s.coll === 'exterior' ? extId(this.model.data) : this.model.freshId(s.coll, prefix);
+    if (s.coll === 'exterior') {
+      (e as Ext).a = [+((e as Ext).a[0] + g).toFixed(3), +((e as Ext).a[1] - g).toFixed(3)];
+      (e as Ext).b = [+((e as Ext).b[0] + g).toFixed(3), +((e as Ext).b[1] - g).toFixed(3)];
+    }
     if ('rect' in e) (e as Room).rect = (e as Room).rect.map((v, i) => +(v + (i % 2 ? -g : g)).toFixed(3)) as Rect;
     if (s.coll === 'walls') {
       (e as Wall).a = [(e as Wall).a[0] + g, (e as Wall).a[1] - g];
@@ -2092,6 +2213,17 @@ export class Editor {
 
   /** Writes the file, the plans and the change log now (after the summary). */
   async saveNow(): Promise<void> {
+    // ON11: own presets go with the file save (docs/kestrel/editor-presets.json)
+    let presets: boolean;
+    try {
+      presets = await this.stamp.save();
+    } catch (err) {
+      return this.status(`Saving the presets failed: ${String(err)}`);
+    }
+    if (presets && !this.model.dirty) {
+      this.updateBar();
+      return this.status(`Saved the presets (${this.stamp.mine.length} of yours) to docs/kestrel/editor-presets.json`);
+    }
     if (!this.model.dirty) {
       // edit then undo: the building is as saved, so the journal (and the draft) go without a write
       if (this.model.journal.length) {
@@ -2144,6 +2276,8 @@ export class Editor {
       ladder: 'Ladder: A (click) on a wall face or a point; it climbs to the level above',
       hole: `Floor hole (${HOLE_NAMES[this.holeKind] ?? this.holeKind}): drag out a rectangle on the floor`,
       roof: `Roof (${roofType(this.roofTypeId).name}): A (click) at two corners, or A twice (a click) on a building to take its footprint`,
+      climb: pieceOf(this.climbKind)?.place === 'draw' ? `Climb (${pieceOf(this.climbKind)?.name ?? ''}): A (click) at the start, A (click) at the end` : `Climb (${pieceOf(this.climbKind)?.name ?? ''}): A (click) places it`,
+      stamp: `Stamp (${this.stamp.preset.name}): A (click) stamps it centred on the dot, RB (R) turns it`,
       object: this.objPreset.draw ? `Object (${this.objPreset.name}): A (click) at the start, A (click) at the end` : `Object (${this.objPreset.name}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
@@ -2286,7 +2420,7 @@ export class Editor {
     $('walk').classList.toggle('on', this.walk.state !== 'off' && this.walk.state !== 'warm');
     $<HTMLButtonElement>('undo').disabled = !this.model.canUndo;
     $<HTMLButtonElement>('redo').disabled = !this.model.canRedo;
-    const n = this.model.dirty;
+    const n = this.model.dirty + (this.stamp.dirty ? 1 : 0);
     $('save').textContent = n ? 'Save *' : 'Saved';
     $('save').title = n ? `${n} unsaved step${n === 1 ? '' : 's'} (Ctrl+S)` : 'Nothing to save';
     const c = this.lastChecks;
@@ -2775,6 +2909,9 @@ export class Editor {
       text('name', 'Name');
       sel('kind', 'Kind', ROOM_KINDS.map((k) => [k, k]));
       sel('ring', 'Access', RING_NAMES.map((n, i) => [String(i), n]));
+      // ON5: the floor finish and how loud footsteps are on it (the game's own surface noise)
+      sel('finish', 'Floor finish', [['', 'None'], ...FINISHES.map((f): [string, string] => [f.id, f.name])]);
+      rows.push(`<p class="dim" data-finish-words>${esc(loudWords((e as Room).finish))}</p>`);
       rect((e as Room).rect);
     } else if (s.coll === 'walls') {
       const w = e as Wall;
@@ -2823,6 +2960,20 @@ export class Editor {
       const w = roofWords(this.model.data, rf);
       rows.push(`<p id="roofWords" class="${w.steep ? 'bad' : 'dim'}">${esc(w.ridge)}</p>`);
       if (w.warn) rows.push(`<p class="bad">${esc(w.warn)}</p>`);
+    } else if (s.coll === 'exterior') {
+      // ON5: the piece's words (the reach rules), its heights, and Climbable by hand with a reason
+      const x = e as Ext;
+      text('name', 'Name');
+      rows.push(`<div class="row"><span>Type</span><b>${esc(pieceOf(x.kind)?.name ?? x.kind)}</b></div>`);
+      num('y0', 'Bottom m', x.y0);
+      num('y1', 'Top m', x.y1);
+      num('a.0', 'Start x', x.a[0]);
+      num('a.1', 'Start z', x.a[1]);
+      num('b.0', 'End x', x.b[0]);
+      num('b.1', 'End z', x.b[1]);
+      rows.push(`<label class="row"><span>Climbable</span><select data-climbable><option value="true" ${x.climbable ? 'selected' : ''}>yes</option><option value="false" ${x.climbable ? '' : 'selected'}>no</option></select></label>`);
+      text('reason', 'Reason');
+      rows.push(`<p id="climbWords" class="dim">${esc(pieceWords(this.model.data, x))}${x.override ? ' (set by hand)' : ''}</p>`);
     } else if (s.coll === 'ladders') {
       const ld = e as Ladder;
       text('name', 'Name');
@@ -2832,7 +2983,7 @@ export class Editor {
       sel('to', 'To level', this.levelsAbove(ld.from).map((l) => [l.id, `${l.name} (${l.id})`]));
     }
     // ON9: door, window and glass settings, the card's rows, stepped with the mouse (the same step as the D-pad)
-    if (s.coll === 'openings' || s.coll === 'roofs' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
+    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
       const ctx = s.coll === 'openings' ? { rooms: this.model.list('rooms') as Room[], wall: this.model.get<Wall>('walls', (e as Opening).wall) } : {};
       const set = cardRows(s.coll, s.e, ctx).filter((r) => !['type', 'name', 'w', 'h', 'sill', 'at', 'id', 't', 'len', 'width', 'depth', 'base'].includes(r.id));
       for (const r of set) rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);
@@ -2850,6 +3001,10 @@ export class Editor {
       if (!this.renameSelected((ev.target as HTMLInputElement).value)) this.renderPanel();
     });
     panel.querySelector<HTMLSelectElement>('[data-stairtype]')?.addEventListener('change', (ev) => this.commit([{ coll: 'stairs', id: s.id, before: s.e, after: withStairType(s.e as Stair, (ev.target as HTMLSelectElement).value) }]));
+    panel.querySelector<HTMLSelectElement>('[data-climbable]')?.addEventListener('change', (ev) => {
+      const reason = (panel.querySelector<HTMLInputElement>('[data-k="reason"]')?.value ?? '').trim();
+      this.commit([{ coll: 'exterior', id: s.id, before: s.e, after: setClimbable(this.model.data, s.e as Ext, (ev.target as HTMLSelectElement).value === 'true', reason || 'set by hand') }]);
+    });
     panel.querySelector<HTMLSelectElement>('[data-rooftype]')?.addEventListener('change', (ev) => this.commit([{ coll: 'roofs', id: s.id, before: s.e, after: withRoofType(s.e as Roof, (ev.target as HTMLSelectElement).value as RoofType) }]));
     document.getElementById('fitStair')?.addEventListener('click', () => this.fitSelected());
     document.getElementById('turnClimb')?.addEventListener('click', () => this.turnStairClimb());
@@ -2870,7 +3025,7 @@ export class Editor {
     if (!before) return;
     const rooms = this.model.list('rooms') as Room[];
     const wall = coll === 'openings' ? this.model.get<Wall>('walls', (before as Opening).wall) : undefined;
-    const after = stepCard(coll, before, row, dir, { step: this.grid, rooms, wall });
+    const after = stepCard(coll, before, row, dir, { step: coll === 'exterior' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data });
     if (after) this.commit([{ coll, id, before, after }]);
   }
 
@@ -2897,6 +3052,8 @@ export class Editor {
       else delete (a as Wall).glass;
     }
     if (coll === 'openings') a = withBetween(this.model, a as Opening);
+    // ON5: a climb piece's flag follows the reach rules again (unless set by hand)
+    if (coll === 'exterior') a = withRules(this.model.data, a as Ext);
     this.commit([{ coll, id, before, after: a }]);
   }
 }

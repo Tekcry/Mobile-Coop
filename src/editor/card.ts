@@ -14,7 +14,10 @@ import { ROOF_LABELS, ROOF_TYPES, roofSettingWords, roofType, shownRoofSettings,
 import type { RoofSetting } from './roofGeometry';
 import { stepPreset, turnObject } from './objects';
 import { presetOf } from './catalogue';
-import type { Obj } from './types';
+import type { Campus, Ext, Obj } from './types';
+import { pieceRows, stepPiece } from './climb';
+import { finishOf } from './climbCatalogue';
+import { stepFinish } from './finishes';
 
 /** ON4: an object's card: Type (the preset), Name, size, height, base, turn, see-through, no ledge. */
 function objectRows(o: Obj): CardRow[] {
@@ -141,6 +144,8 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
       nameRow(e),
       ...sizeRows(r.rect),
       { id: 'ring', label: 'Access', value: RING_NAMES[r.ring ?? 0] ?? String(r.ring), kind: 'list' },
+      // ON5: the floor finish (its footstep loudness is on the card's foot)
+      { id: 'finish', label: 'Floor finish', value: finishOf(r.finish)?.name ?? 'None', kind: 'list' },
       idRow(e),
     ];
   }
@@ -157,6 +162,10 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
   }
   if (coll === 'roofs') return roofRows(e as Roof);
   if (coll === 'objects') return objectRows(e as Obj);
+  if (coll === 'exterior') {
+    const rows = pieceRows(e as Ext);
+    return [rows[0]!, nameRow(e), ...rows.slice(1), idRow(e)];
+  }
   if (coll === 'voids') return [{ id: 'type', label: 'Type', value: HOLE_NAMES[(e as Void).kind] ?? (e as Void).kind, kind: 'list' }, nameRow(e), ...sizeRows((e as { rect: Rect }).rect), idRow(e)];
   if (coll === 'ladders') return [nameRow(e), { id: 'facing', label: 'Facing', value: DIR_WORDS[(e as Ladder).facing ?? 'N'] ?? '', kind: 'list' }, { id: 'to', label: 'To level', value: (e as Ladder).to, kind: 'list' }, idRow(e)];
   return [nameRow(e), idRow(e)];
@@ -176,6 +185,8 @@ export interface StepCtx {
   /** Openings (ON9): the rooms and the wall, for the side settings and the type defaults. */
   rooms?: SideCtx['rooms'];
   wall?: SideCtx['wall'];
+  /** ON5: the file, for a climb piece's rules (heights, the lip at a downpipe's top, vents and ducts). */
+  data?: Pick<Campus, 'levels' | 'walls' | 'exterior' | 'openings'>;
 }
 
 /** At most this many card rows show while editing; more scroll with the lit row (ON9: a door has up to 16). */
@@ -194,6 +205,14 @@ export function cardWindow(n: number, lit: number, max = CARD_ROWS_SHOWN): [numb
 export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepCtx): Elem | null {
   const a = JSON.parse(JSON.stringify(e)) as Elem & Record<string, unknown>;
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
+  if (coll === 'exterior' && row !== 'name' && row !== 'id') return c.data ? stepPiece(c.data, e as Ext, row, dir, c.step) : null;
+  if (coll === 'rooms' && row === 'finish') {
+    const f = stepFinish((e as Room).finish, dir);
+    // the file has `finish: ""` on every room: keep the key where it is (a no-op save stays byte-identical)
+    if (f || 'finish' in e) a.finish = f;
+    else delete a.finish;
+    return a as Elem;
+  }
   if (coll === 'objects' && row !== 'width' && row !== 'depth' && row !== 'name' && row !== 'id') return stepObjectRow(e as Obj, row, dir, c.step) as Elem | null;
   if (coll === 'roofs' && row !== 'width' && row !== 'depth' && row !== 'name' && row !== 'id') {
     const r = e as Roof;

@@ -265,6 +265,8 @@ test('A22 trips on a wrong wall thickness', () => {
 
 test('A23 trips when one exterior kind mixes climbable values', () => {
   trips('A23', (a) => { a.exterior.push({ id: 'E002', kind: 'downpipe', a: [2.5, 12], b: [2.5, 12], y0: 0, y1: 6.6, climbable: false, reason: 'test pipe' }); });
+  // ON5: a flag set by hand in the editor (override, with a reason) does not trip it
+  trips('A23', (a) => { a.exterior.push({ id: 'E002', kind: 'downpipe', a: [2.5, 12], b: [2.5, 12], y0: 0, y1: 6.6, climbable: false, reason: 'anti-climb paint', override: true }); }, 'PASS');
 });
 
 test('A24 trips when an id is missing from the register and passes with a full register', () => {

@@ -46,6 +46,10 @@ export class EditorModel {
   private savedText: string;
   /** Bumped on every change to the data, so the text compare runs once per change, not once per read. */
   private version = 0;
+  /** ON5: the data's revision (any change, merged card steps too), for screens that redraw when it moves. */
+  get rev(): number {
+    return this.version;
+  }
   private dirtyAt = -1;
   private dirtyCache = 0;
 

@@ -6,6 +6,8 @@
  * (`kestrel.blocks.json`) does not pass through this module.
  */
 import { roofWalkPieces } from './kestrelRoofs';
+import { exteriorPieces, finishAreas } from './kestrelExterior';
+import type { ExtBuild, ExtPiece, FinishArea } from './kestrelExterior';
 import type { Dir, RoofBox, RoofData, RoofPane } from './kestrelRoofs';
 import type { ArchLevel, ArchOpening, ArchRoom, ArchStair, ArchVoid, ArchWall, KestrelArch, Pt, Rect4 } from './kestrelGeo';
 
@@ -40,6 +42,8 @@ export interface CampusFile {
   roofs?: RoofData[];
   /** ON4: placed objects: an axis-aligned footprint, the top `h` above the base `y` over its level's floor. */
   objects?: CampusObject[];
+  /** ON5: climb pieces and exterior features (kestrelExterior.ts). */
+  exterior?: ExtPiece[];
 }
 
 export interface CampusObject {
@@ -78,6 +82,9 @@ export interface CampusBuild {
   roofPanes: RoofPane[];
   /** ON4: every object as a solid box of its real height and base. */
   objectBoxes: ObjectBox[];
+  /** ON5: every climb piece as the engine's own builder call (or plain collision), and the floors marked by finish. */
+  exterior: ExtBuild[];
+  surfaces: FinishArea[];
 }
 
 /** Compass letter to yaw: north = +Z = 0, east = +X = 90 degrees (docs/kestrel/00-facts.md section 2). */
@@ -145,7 +152,9 @@ export function campusToBuild(f: CampusFile): CampusBuild {
     const [x0, z0, x1, z1] = o.rect;
     return { id: o.id, c: [(x0 + x1) / 2, floor(o.level) + o.y + o.h / 2, (z0 + z1) / 2], s: [x1 - x0, o.h, z1 - z0], noLedge: !!o.noLedge };
   });
-  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes };
+  // ON5: rooms with a floor finish sound as its game surface; climb pieces as the engine's builders
+  const surfaces = finishAreas(f.rooms as readonly (ArchRoom & { finish?: string })[], floor);
+  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes, exterior: exteriorPieces(f.exterior ?? []), surfaces };
 }
 
 /**

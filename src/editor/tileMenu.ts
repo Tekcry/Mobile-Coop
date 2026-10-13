@@ -15,9 +15,12 @@ import { STAIR_TYPES } from './vertical';
 import { ROOF_TYPES } from './roofGeometry';
 import { GROUPS, groupPresets } from './catalogue';
 import type { ObjGroup } from './catalogue';
+import { CLIMB_PIECES } from './climbCatalogue';
 import type { Coll } from './types';
+import { PRESET_FROMS } from './presets';
+import type { PresetFrom } from './presets';
 
-export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Lights', 'Mission', 'View'] as const;
+export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View'] as const;
 export type MenuTab = (typeof MENU_TABS)[number];
 /** go: A runs it; toggle: A or left / right flips it; cycle: steps a list; slider: A turns it on / off, left / right moves it. */
 export type TileKind = 'go' | 'toggle' | 'cycle' | 'slider';
@@ -44,6 +47,8 @@ export interface MenuInput {
   group?: number;
   /** ON4: the Objects tab's group (its presets follow the group tiles). */
   objGroup?: ObjGroup;
+  /** ON11: the Presets tab: the source shown, its presets, and the own preset Rename / Delete act on (the one last picked). */
+  presets?: { from: PresetFrom; list: { id: string; name: string; desc: string }[]; mine: { id: string; name: string } | null };
 }
 
 export interface ViewState {
@@ -63,6 +68,8 @@ export interface ViewState {
   figure?: boolean;
   /** ON4: the stealth view (J). */
   stealth?: boolean;
+  /** ON5: the finish view (N). */
+  finish?: boolean;
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -87,6 +94,7 @@ export function viewTiles(v: ViewState): Tile[] {
     { id: 'view.names', icon: 'N', name: 'Room names in 3D', desc: 'On each floor, fading out by 40 m (L)', kind: 'toggle', on: !!v.names, value: onOff(!!v.names) },
     { id: 'view.figure', icon: 'K', name: 'Scale figure', desc: 'A 1.75 m person and a crouch at the dot (K)', kind: 'toggle', on: !!v.figure, value: onOff(!!v.figure) },
     { id: 'view.stealth', icon: 'J', name: 'Stealth view', desc: 'Objects by what they give the player (J)', kind: 'toggle', on: !!v.stealth, value: onOff(!!v.stealth) },
+    { id: 'view.finish', icon: 'N', name: 'Finish view', desc: 'Floors tinted by finish, with a legend (N)', kind: 'toggle', on: !!v.finish, value: onOff(!!v.finish) },
   ];
 }
 
@@ -101,18 +109,21 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
           { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Rooms, walls (with their doors) and floor holes', kind: 'go' },
           { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up, one edit', kind: 'go' },
           { id: 'sel.del', icon: 'X', name: `Delete ${inp.group} things`, desc: 'One edit; walls take their doors and windows', kind: 'go' },
+          { id: 'sel.savePreset', icon: 'P', name: 'Save as preset', desc: 'Name it; it shows under Presets > Mine', kind: 'go' },
         ];
       const s = inp.sel;
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders', 'objects'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior';
       const t: (Tile | false)[] = [
         { id: 'sel.move', icon: 'M', name: 'Move', desc: 'Grab it, as A in the middle', kind: 'go' },
         { id: 'sel.dup', icon: 'D', name: 'Duplicate', desc: 'A copy beside it', kind: 'go' },
         turns && { id: 'sel.rotate', icon: 'R', name: 'Rotate 90', desc: 'A quarter turn', kind: 'go' },
         copies && { id: 'sel.copy', icon: 'C', name: 'Copy', desc: 'Paste it from the Build tab', kind: 'go' },
         copies && { id: 'sel.copyUp', icon: 'U', name: 'Copy to level above', desc: 'Same spot, one level up', kind: 'go' },
+        s.coll === 'rooms' && { id: 'sel.finish', icon: 'F', name: 'Floor finish', desc: "The card's Floor finish row: left / right", kind: 'go' },
+        s.coll === 'rooms' && { id: 'sel.savePreset', icon: 'P', name: 'Save as preset', desc: 'The room, its walls, doors and objects', kind: 'go' },
         s.coll === 'rooms' && { id: 'sel.split', icon: 'S', name: 'Split', desc: 'A line across the room; RB turns it', kind: 'go' },
         s.coll === 'stairs' && { id: 'sel.fit', icon: 'F', name: 'Fit', desc: 'The smallest legal size from its start corner', kind: 'go' },
         s.coll === 'stairs' && { id: 'sel.turnClimb', icon: 'A', name: 'Turn climb 90', desc: 'The climb turns; the stair stays put', kind: 'go' },
@@ -149,6 +160,24 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         ...groupPresets(g).map((p): Tile => ({ id: `obj.${p.id}`, icon: p.draw ? 'R' : p.mount === 'wall' ? 'W' : 'O', name: p.name, desc: p.draw ? 'A at the start, A at the end' : p.mount === 'wall' ? 'A on a wall; RB turns' : 'A places it; RB turns', kind: 'go' })),
       ];
     }
+    case 'Presets': {
+      // ON11: the three sources first (A shows that list, the menu stays), then its presets (A picks the Stamp tool)
+      const ps = inp.presets ?? { from: 'start' as PresetFrom, list: [], mine: null };
+      const pickFirst = ps.mine ? undefined : 'Pick one of your presets first (A on it), then come back';
+      return [
+        ...PRESET_FROMS.map((q): Tile => ({ id: `presetfrom.${q.id}`, icon: 'G', name: q.name, desc: 'A shows its presets', kind: 'toggle', on: q.id === ps.from, value: q.id === ps.from ? 'shown' : '' })),
+        ...(ps.from === 'mine'
+          ? [
+              { id: 'mine.rename', icon: 'I', name: ps.mine ? `Rename ${ps.mine.name}` : 'Rename a preset', desc: 'The name list and keyboard', kind: 'go', disabled: pickFirst } as Tile,
+              { id: 'mine.delete', icon: 'X', name: ps.mine ? `Delete ${ps.mine.name}` : 'Delete a preset', desc: 'Gone from the file at the next Save', kind: 'go', disabled: pickFirst } as Tile,
+            ]
+          : []),
+        ...ps.list.map((p): Tile => ({ id: `preset.${p.id}`, icon: 'S', name: p.name, desc: p.desc, kind: 'go' })),
+      ];
+    }
+    case 'Climb':
+      // ON5: climb pieces and exterior features (the catalogue's order)
+      return CLIMB_PIECES.map((c): Tile => ({ id: `climb.${c.id}`, icon: c.place === 'draw' ? 'R' : c.place === 'point' ? 'O' : 'W', name: c.name, desc: c.desc, kind: 'go' }));
     case 'View':
       return viewTiles(inp.view);
     default:

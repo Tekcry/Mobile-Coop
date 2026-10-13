@@ -8,7 +8,8 @@ import type { AbstractMesh } from '../core/babylon';
 import { cutRect, EPS, joinPieces, wallDir, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { WallJoin } from './geometry';
 import type { EditorModel } from './model';
-import type { Campus, Coll, Key, Ladder, Level, Obj, Opening, Roof, Room, Service, Stair, Void, Wall } from './types';
+import type { Campus, Coll, Ext, Key, Ladder, Level, Obj, Opening, Roof, Room, Service, Stair, Void, Wall } from './types';
+import { finishOf } from './climbCatalogue';
 import { stealthTint } from './objects';
 import { presetOf } from './catalogue';
 import type { ObjGroup } from './catalogue';
@@ -68,6 +69,8 @@ export interface Mark {
   look: 'lit' | 'ghost' | 'bad';
 }
 const MARK_POOL = 8;
+/** ON11: the most boxes a ghost shows (a module kit data hall bay has about 130 parts). */
+const MARK_MAX = 200;
 
 export class EditorScene {
   readonly engine: Engine;
@@ -79,6 +82,8 @@ export class EditorScene {
   showAll = false;
   /** ON4: the stealth view (objects tinted by their badges). */
   private stealth = false;
+  /** ON5: the finish view (room floors tinted by finish). */
+  private finishView = false;
   private readonly nodes = new Map<Key, Mesh[]>();
   private readonly mats = new Map<string, StandardMaterial>();
   private handleMeshes: Mesh[] = [];
@@ -166,6 +171,7 @@ export class EditorScene {
     for (const v of d.voids) this.build(keyOf('voids', v.id));
     for (const r of d.roofs ?? []) this.build(keyOf('roofs', r.id));
     for (const o of d.objects ?? []) this.build(keyOf('objects', o.id));
+    for (const x of d.exterior ?? []) this.build(keyOf('exterior', x.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -226,6 +232,7 @@ export class EditorScene {
     else if (p.coll === 'voids') [meshes, levels] = this.buildVoid(e as Void);
     else if (p.coll === 'roofs') [meshes, levels] = this.buildRoof(e as Roof);
     else if (p.coll === 'objects') [meshes, levels] = this.buildObject(e as Obj);
+    else if (p.coll === 'exterior') [meshes, levels] = this.buildExterior(e as Ext);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -246,6 +253,7 @@ export class EditorScene {
       return w ? wallPoint(w, (e as Opening).at) : [0, 0];
     }
     if (coll === 'ladders') return (e as Ladder).at;
+    if (coll === 'exterior') return [((e as Ext).a[0] + (e as Ext).b[0]) / 2, ((e as Ext).a[1] + (e as Ext).b[1]) / 2];
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
@@ -271,7 +279,9 @@ export class EditorScene {
 
   private buildRoom(r: Room): [Mesh[], string[]] {
     const f = this.floorOf(r.level);
-    const tint = r.kind === 'lane' ? OUTSIDE_TINT : (RING_TINT[r.ring ?? -1] ?? '#e0e0e0');
+    // ON5: the finish view tints a finished floor by its finish
+    const fin = this.finishView ? finishOf(r.finish as string | undefined) : undefined;
+    const tint = fin ? fin.tint : r.kind === 'lane' ? OUTSIDE_TINT : (RING_TINT[r.ring ?? -1] ?? '#e0e0e0');
     const [x0, z0, x1, z1] = r.rect;
     // a smaller room sits a hair higher, so a room drawn inside a yard does not flicker against it
     const lift = 0.012 * (1 - Math.min(1, ((x1 - x0) * (z1 - z0)) / 4000));
@@ -493,6 +503,46 @@ export class EditorScene {
     return [[m], [o.level]];
   }
 
+  /**
+   * ON5: a climb piece or exterior feature at its real heights (absolute y; drawn on the level it was placed from):
+   * a point piece as a thin post, a drawn one as a bar along its line, `depth` (or its section) across. Climbable pieces
+   * are drawn green, the rest steel grey.
+   */
+  private buildExterior(x: Ext): [Mesh[], string[]] {
+    const lv = x.level && this.data.levels.some((l) => l.id === x.level) ? x.level : (this.data.levels.reduce<Level | null>((a, l) => (!a || Math.abs(l.floor) < Math.abs(a.floor) ? l : a), null)?.id ?? '');
+    const mat = this.mat(`exterior ${x.climbable ? 'climb' : 'plain'}`, x.climbable ? '#2f9e57' : '#6d7378', x.kind === 'fence' ? 0.55 : 1);
+    const h = Math.max(0.05, x.y1 - x.y0);
+    const y = (x.y0 + x.y1) / 2;
+    const dx = x.b[0] - x.a[0];
+    const dz = x.b[1] - x.a[1];
+    const len = Math.sqrt(dx * dx + dz * dz);
+    const across = x.kind === 'duct' || x.kind === 'fire-escape' ? (x.size?.[0] ?? 0.3) : x.kind === 'fence' ? 0.06 : x.kind === 'pipe' ? 0.12 : Math.max(0.05, x.depth ?? 0.12);
+    let m: Mesh;
+    if (len < 1e-6) {
+      const w = x.kind === 'vent' ? (x.size?.[0] ?? 0.6) : x.kind === 'lamp-post' ? (x.size?.[0] ?? 0.15) : 0.12;
+      const ns = x.facing === 'N' || x.facing === 'S';
+      m = this.box(`exterior ${x.id}`, x.a[0], y, x.a[1], x.kind === 'vent' && !ns ? 0.05 : w, h, x.kind === 'vent' && ns ? 0.05 : w, 0, mat);
+    } else m = this.box(`exterior ${x.id}`, (x.a[0] + x.b[0]) / 2, y, (x.a[1] + x.b[1]) / 2, len, x.kind === 'pipe' ? 0.12 : h, across, EditorScene.yaw(dx, dz), mat);
+    return [[m], [lv]];
+  }
+
+  /** ON5: the finish view on or off: every room floor is rebuilt with its tint. */
+  setFinishView(on: boolean): void {
+    if (on === this.finishView) return;
+    this.finishView = on;
+    this.refresh(this.data.rooms.map((r) => keyOf('rooms', r.id)));
+  }
+
+  /** How many room floors are drawn with a finish tint (the e2e reads it). */
+  get finishTinted(): number {
+    if (!this.finishView) return 0;
+    return this.data.rooms.filter((r) => {
+      const f = finishOf(r.finish as string | undefined);
+      const m = this.nodes.get(keyOf('rooms', r.id))?.[0]?.material as StandardMaterial | null | undefined;
+      return !!f && !!m && m.diffuseColor.toHexString().toLowerCase() === f.tint;
+    }).length;
+  }
+
   /** ON4: the stealth view on or off: every object is rebuilt with its tint. */
   setStealth(on: boolean): void {
     if (on === this.stealth) return;
@@ -686,8 +736,10 @@ export class EditorScene {
    * shown; never picked. Callers pass a new list only when the part or ghost changed.
    */
   setMarks(ms: readonly Mark[]): void {
-    if (!this.markMeshes.length)
-      for (let i = 0; i < MARK_POOL; i++) {
+    // ON11: a stamp ghost needs more boxes than the pool: it grows to the list (made once, then reused)
+    const want = Math.min(MARK_MAX, Math.max(MARK_POOL, ms.length));
+    if (this.markMeshes.length < want)
+      for (let i = this.markMeshes.length; i < want; i++) {
         const m = this.box(`mark ${i}`, 0, 0, 0, 1, 1, 1, 0, this.mat('mark-lit', '#ffd166', 0.75, 0.8));
         m.isPickable = false;
         m.renderingGroupId = 1;

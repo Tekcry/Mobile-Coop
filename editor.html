@@ -74,6 +74,11 @@
       /* ON3: undone changes (File tab) stay grey until a new edit drops them */
       .hub-row.undone span { color: var(--dim); font-style: italic; }
       /* ON3: floating room names (a fixed pool), the save summary, Find, problem lines you can click */
+      /* ON5: the finish view's legend (top right of the 3D view) */
+      #finishLegend { position: absolute; right: 8px; top: 8px; z-index: 3; padding: 4px 8px; background: rgba(12, 14, 17, 0.75); border-radius: 4px; font-size: 12px; line-height: 1.5; pointer-events: none; }
+      #finishLegend[hidden] { display: none; }
+      #finishLegend i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; border: 1px solid #222; vertical-align: -1px; }
+      #finishLegend i.none { background: #e0e0e0; }
       #roomNames { position: absolute; inset: 0; overflow: hidden; pointer-events: none; z-index: 2; }
       .rname { position: absolute; left: 0; top: 0; padding: 1px 6px; border-radius: 4px; background: rgba(12, 14, 17, 0.6); color: #fff; font-size: 13px; white-space: nowrap; will-change: transform, opacity; }
       .rname.obadge { font-size: 11px; padding: 0 4px; border: 2px solid #8d9096; background: rgba(12, 14, 17, 0.7); }
@@ -258,6 +263,7 @@
           <canvas id="c" tabindex="0"></canvas>
           <div id="hud"></div>
           <div id="reticle" class="hidden"><div id="reticleText"></div></div>
+          <div id="finishLegend" hidden></div>
         </section>
         <div id="divider" title="Drag to resize"></div>
         <section id="planWrap"><div id="planSvg"></div><div id="planStatus"></div></section>
