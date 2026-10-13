@@ -1,6 +1,6 @@
 # Training run - state
 
-Current step: T0 facts (Block A) - not started
+Current step: T0 facts (Block A) - in progress (baseline done; agent a pending; checker pending)
 Last commit: 6300300 (design docs) + the run files commit
 Branch: feature/training-bunker (from origin/feature/kestrel)
 

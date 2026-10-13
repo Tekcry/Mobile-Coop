@@ -1,5 +1,7 @@
 # Night Shift - architecture and conventions
 
+On branch feature/training-bunker, follow docs/training/RULES.md and resume from docs/training/STATE.md (brief: docs/training/BRIEF.md).
+
 On branch feature/kestrel, skip 'Every session' steps 2-4 and the bible reading below: follow docs/kestrel/RULES.md and read only the files the prompt lists. Planner sessions (message begins 'Planner:') follow docs/kestrel/PLANNER.md.
 
 - Night Shift (renamed from Silent But Deadly) is an original third-person stealth game modelled on Splinter Cell: Chaos Theory.
