@@ -421,6 +421,15 @@ if (!failed) {
     assert(st.bay === 0, `Fallow: the course starts in bay B1 (bay index ${st.bay})`);
     const p = await F.evaluate(() => { const q = window.__app.current.player.position; return { x: q.x, y: q.y, z: q.z }; });
     assert(Math.abs(p.y - 16) < 0.3 && p.x > 0 && p.x < 24 && p.z > 72 && p.z < 96, `Fallow: the player spawns on the y 16 floor in B1 (${p.x.toFixed(1)}, ${p.y.toFixed(2)}, ${p.z.toFixed(1)})`);
+    // (T4 fix) the nav grid keeps every level (seeded per bay): A5 -> S6 and B5's floor (the SR) -> A5 have paths.
+    // Nav does not model doors (closed or locked): only the level's static pieces block it.
+    const navp = await F.evaluate(() => {
+      const nav = window.__app.current.nav;
+      const pt = (id) => window.__app.current.world.layout.debugPoints.find((d) => d.id === id).pos;
+      const path = (a, b) => { const p = pt(a); const q = pt(b); return !!nav && nav.findPath([p.x, p.z], [q.x, q.z], 200000, p.y, q.y) !== null; };
+      return { a5s6: path('A5', 'S6'), b5a5: path('B5-SR', 'A5'), hasNav: !!nav };
+    });
+    assert(navp.hasNav && navp.a5s6 && navp.b5a5, `Fallow: nav paths A5 -> S6 and B5 floor -> A5 exist (${JSON.stringify(navp)})`);
     const errs = eF.filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
     assert(errs.length === 0, `Fallow: no console errors (${errs.slice(0, 3).join(' | ')})`);
     await F.close();

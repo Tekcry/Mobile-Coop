@@ -63,6 +63,11 @@ export interface NavBuildInput {
   stepHeight: number;
   /** Seed point used to keep only the main connected region. */
   seed?: [number, number];
+  /**
+   * More flood seeds (x, y, z feet points) kept with `seed`'s region: a map whose parts are joined only by player
+   * routes the grid does not model (ropes, locked doors, one-way drops) seeds each part. None: `seed` alone, as before.
+   */
+  extraSeeds?: readonly (readonly [number, number, number])[];
 }
 
 export type P2 = [number, number];
@@ -210,7 +215,11 @@ export class NavGrid {
     }
     this.rasterBlockers(input);
     for (const l of input.links ?? []) this.addLink(l);
-    if (input.seed) this.keepRegion(this.nearestWalkable(input.seed[0], input.seed[1]));
+    if (input.seed) {
+      const seeds = [this.nearestWalkable(input.seed[0], input.seed[1])];
+      for (const p of input.extraSeeds ?? []) seeds.push(this.nearestWalkable(p[0], p[2], 12, p[1]));
+      this.keepRegion(seeds);
+    }
   }
 
   private rasterBlockers(input: NavBuildInput): void {
@@ -306,12 +315,16 @@ export class NavGrid {
     return best;
   }
 
-  /** Flood fill from a seed; anything unreachable becomes unwalkable. */
-  private keepRegion(seed: number): void {
-    if (seed < 0) return;
+  /** Flood fill from the seeds (the first the main one: none there, no fill); anything unreachable becomes unwalkable. */
+  private keepRegion(seeds: readonly number[]): void {
+    if (seeds[0]! < 0) return;
     const seen = new Uint8Array(this.walk.length);
-    const stack = [seed];
-    seen[seed] = 1;
+    const stack: number[] = [];
+    for (const sd of seeds) {
+      if (sd < 0 || seen[sd]) continue;
+      seen[sd] = 1;
+      stack.push(sd);
+    }
     while (stack.length) {
       const i = stack.pop()!;
       const n = this.fillNeighbours(i);

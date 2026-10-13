@@ -486,6 +486,8 @@ describe('Fallow (bunker) Standby Plant, Mock Site and Stair 6 (T4)', () => {
     // the mains gate starts shut: a lamp on the group is on (B5's work lamp); MB is a switch on that group
     expect(pb.lights.lights.some((l) => l.group === B5_GROUPS.mains && l.on)).toBe(true);
     expect(play.switches!.filter((s) => s.group === B5_GROUPS.mains).length).toBe(1);
+    // (T4 fix) every lamp on the mains group is neither destructible nor electric: shooting it or an EMP is not mains off
+    for (const l of pb.lights.lights.filter((q) => q.group === B5_GROUPS.mains)) expect([l.destructible, l.electric]).toEqual([false, false]);
     const g6 = c.def.bays[5]!.gates;
     const flagGate = (door: string) => g6.find((g) => g.kind === 'flag' && g.doorId === door);
     for (const [door, flag] of [['B6-rd1', 'card-1'], ['B6-rd2', 'card-2'], ['B6-rd3', 'card-3'], ['B6-rd4', 'card-4'], ['B6-exit', 'exit-code']]) expect(flagGate(door!), door).toMatchObject({ flag });
@@ -659,5 +661,15 @@ describe('Fallow (bunker) Standby Plant, Mock Site and Stair 6 (T4)', () => {
     expect(path).not.toBeNull();
     expect(nav.heightAt(s6.foot[0], s6.foot[1], 0)).toBeLessThan(0.2);
     expect(nav.heightAt(s6.head[0], s6.head[1], PLANT_Y)).toBeCloseTo(PLANT_Y, 0);
+  });
+});
+
+describe('Fallow nav seeds (T4 fix)', () => {
+  it('the layout seeds the nav flood at every debug point and hide spot, and in B4 / B5 / B6', () => {
+    const seeds = lay.navSeeds ?? [];
+    const has = (p: { x: number; y: number; z: number }) => seeds.some((q) => Math.abs(q.x - p.x) < 1e-6 && Math.abs(q.y - p.y) < 1e-6 && Math.abs(q.z - p.z) < 1e-6);
+    for (const d of lay.debugPoints ?? []) expect(has(d.pos), d.id).toBe(true);
+    for (const h of lay.hideSpots ?? []) expect(has(h.pos)).toBe(true);
+    for (const bay of ['B4', 'B5', 'B6'] as const) expect(lay.debugPoints!.some((d) => d.id === bay), bay).toBe(true);
   });
 });

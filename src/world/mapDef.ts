@@ -60,6 +60,11 @@ export interface MapLayout {
   hideSpots?: { pos: Vector3 }[];
   /** Where reinforcement squads come in. */
   reinforce?: Vector3[];
+  /**
+   * Extra nav flood seeds (feet points): parts of the level joined to the spawn only by routes the nav grid does not
+   * model (ropes, locked doors, one-way drops) are kept walkable. None: the spawn's region alone.
+   */
+  navSeeds?: Vector3[];
   /** Debug-menu teleport points (greybox maps): grouped, labelled, with the feet position and facing. */
   debugPoints?: { group: string; id: string; label: string; pos: Vector3; yaw: number }[];
   /** Security devices (Kestrel S0-S3): the match builds a `SecuritySystem` when present (cameras so far). */

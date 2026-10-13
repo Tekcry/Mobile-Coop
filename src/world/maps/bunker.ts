@@ -3,7 +3,7 @@ import type { MapDef, MapLayout } from '../mapDef';
 import type { CourseDef, GateDef } from '../../game/course/courseDef';
 import { buildUpper, UPPER_Y } from './bunkerUpper';
 import { buildShaft, buildShaftFloors, plantAt } from './bunkerShaft';
-import { B5_GROUPS, buildPlant, buildPlantFloors, plantAt2 } from './bunkerPlant';
+import { B5_GROUPS, B5_METRICS, buildPlant, buildPlantFloors, plantAt2 } from './bunkerPlant';
 
 /** Course footprint (BAYS 0: about 162 x 158 m in plan, every bay and airlock inside it). */
 export const BUNKER_BOUNDS = { minX: -1, maxX: 163, minZ: -57, maxZ: 103 } as const;
@@ -196,6 +196,7 @@ export const bunker: MapDef = {
       pickups: [],
       switches: pl.switches.map((s) => ({ pos: v(s.pos), yaw: s.yaw, group: s.group })),
       hideSpots: pl.hideSpots.map((p) => ({ pos: v(p) })),
+      navSeeds: [...debug.map((d) => d.pos), ...pl.hideSpots, ...bunkerNavSeeds()].map(v),
       debugPoints: debug.map((d) => ({ group: 'Fallow', id: d.id, label: d.label, pos: new Vector3(d.pos.x, d.pos.y, d.pos.z), yaw: d.yaw })),
       course: {
         def,
@@ -209,3 +210,18 @@ export const bunker: MapDef = {
   },
 };
 
+/**
+ * Nav flood seeds past the spawn's region (T4 fix): the bunker's levels are joined by ladders, ropes, drops and locked
+ * doors, so a single spawn seed drops everything from B4 on. The debug points and hide spots seed too (bunker.build).
+ */
+function bunkerNavSeeds(): { x: number; y: number; z: number }[] {
+  return [
+    // B4: the three cells, the valve gallery, the outlet platform
+    plantAt('B4', 11, 36), plantAt('B4', 11, 19), plantAt('B4', 11, 6), plantAt('B4', 34, 19, 4.4), plantAt('B4', 18, 1, 4.4),
+    // B5: the hall floor, the gallery, the switch room, the fuel bay, the pocket behind the landing stair
+    plantAt2('B5', 24, 12), plantAt2('B5', 12, 31, B5_METRICS.gallery), plantAt2('B5', 44, 28), plantAt2('B5', 42, 4), plantAt2('B5', 35, 27),
+    // B6: reception, corridor, open office, manager's office, locker room, records, mantrap, server room
+    plantAt2('B6', 39, 16), plantAt2('B6', 30, 16), plantAt2('B6', 26, 21), plantAt2('B6', 17, 29), plantAt2('B6', 8, 22),
+    plantAt2('B6', 27, 8), plantAt2('B6', 19, 7), plantAt2('B6', 10, 7),
+  ];
+}

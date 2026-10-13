@@ -139,3 +139,13 @@ Shared tests: voxelFit area bound for the bunker 164 x 160 (A36). Number changes
   cannot skip A5's cycle; it reaches only records (the planned alternate route past RD1); records has an exit button
   (no softlock for a solo runner).
 - S6: offset z -8 (top door in B6's west wall), mid landing 3.0 (stairs.ts rule).
+
+### T4 fix round (2026-10-13, cloud)
+- Nav seeds: `NavGrid` input `extraSeeds` and `MapLayout.navSeeds` (optional): the flood that drops unreachable cells
+  also starts from each extra seed. Fallow seeds its debug points, hide spots and the B4 cells / gallery / outlet, B5
+  floor / gallery / SR / fuel bay / stair pocket and the B6 rooms; other maps pass none (unchanged). Nav does not model
+  doors (closed or locked): only static level pieces block it. e2e-course asserts A5 -> S6 and SR -> A5 paths.
+- Mains gate: B5's work lamp (the only lamp on group 51) is `destructible: false, electric: false`: shooting it or an
+  EMP no longer reads as mains off (the A5-near bypass).
+- SR: a second plain door at the north end of the glazed west wall (local x 38, z 28.6..29.8) into the dark pocket
+  behind the landing stair (x 33..38). Both SR doors open onto the same hall floor: no gate bypass (A36).

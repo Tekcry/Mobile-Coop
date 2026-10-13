@@ -196,3 +196,22 @@ describe('NavGrid layers per column', () => {
     for (const h of [-4, 0, 4.5, 9, 12.6]) expect(g.heightAt(0, 0, h)).toBeCloseTo(h);
   });
 });
+
+describe('NavGrid extra flood seeds', () => {
+  // two floor islands split by a wall at x 0 (no link between them)
+  const islands = (extraSeeds?: [number, number, number][]) => new NavGrid({
+    minX: -10, maxX: 10, minZ: -10, maxZ: 10, cell: 0.5,
+    sample: (x) => ({ h: 0, ok: Math.abs(x) > 1 }),
+    blockers: [], agentRadius: 0.3, stepHeight: 0.45, seed: [-9, -9], extraSeeds,
+  });
+  it('the spawn seed alone drops the far island; an extra seed keeps it', () => {
+    expect(islands().findPath([5, 5], [6, 6])).toBeNull();
+    expect(islands([[5, 0, 5]]).findPath([5, 5], [6, 6])).not.toBeNull();
+    expect(islands([[5, 0, 5]]).findPath([-5, 5], [-6, 6])).not.toBeNull();
+  });
+  it('no extra seeds (or an empty list) keeps exactly the old region', () => {
+    const a = islands();
+    const b = islands([]);
+    for (let i = 0; i < 40 * 40; i++) expect(b.isWalkable(i)).toBe(a.isWalkable(i));
+  });
+});

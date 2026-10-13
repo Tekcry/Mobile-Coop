@@ -288,8 +288,13 @@ function buildB5(b: LevelBuilder, lips: number[], r: Plant2Result): void {
   r.anchors['B5-hang-drop'] = b.ledge(X(2), Z(31.725), X(2), Z(30.55), Y(M5.gallery), { canHang: true, canClimbUp: false }).id;
   r.hideSpots.push(plantAt2('B5', 1, 31));
 
-  // SR: the switch room (x 38..48, z 24..32), glazed west wall, door in the south wall at x 43.4, roofed at 3.2
-  glass(b, X(38), Z(24), X(38), Z(31.775), Y(0), 3.2);
+  // SR: the switch room (x 38..48, z 24..32), glazed west wall, door in the south wall at x 43.4, roofed at 3.2; a
+  // second plain door at the north end of the glazed wall (z 28.6) lets the breaker out into the dark pocket behind
+  // the landing stair (x 33..38): both open onto the same hall floor, no gate between them
+  glass(b, X(38), Z(24), X(38), Z(28.6), Y(0), 3.2);
+  glass(b, X(38), Z(28.6), X(38), Z(28.6 + DOOR_W), Y(DOOR_H), 3.2 - DOOR_H);
+  glass(b, X(38), Z(28.6 + DOOR_W), X(38), Z(31.775), Y(0), 3.2);
+  r.anchors['B5-SR-west'] = b.door(X(38), Y(0), Z(28.6), DOOR_W, 0, { swing: -1 }).id;
   wallXDoors(b, Z(24), X(38), X(47.775), [X(43.4)], Y(0), 3.2, C.wall);
   roof(b, X(37.95), Z(23.85), X(47.775), Z(31.775), Y(3.2));
   b.box(X(47.7), Y(1.4), Z(28), 0.12, 0.9, 1.6, C.steel, 0, 0, false);
@@ -546,7 +551,8 @@ export function buildPlant(b: LevelBuilder): Plant2Result {
   buildA6(b, r);
   const keep = new Set(lips);
   for (let k = from; k < b.boxes.length; k++) if (!keep.has(k)) b.boxes[k]!.noLedge = true;
-  b.light({ ...plantAt2('B5', 24, 16, 7.5), radius: 30, intensity: 0.9, group: B5_GROUPS.mains });
+  // the mains group's only lamp: never shot out or EMP'd (a dead lamp would read as mains off: the gate bypass)
+  b.light({ ...plantAt2('B5', 24, 16, 7.5), radius: 30, intensity: 0.9, group: B5_GROUPS.mains, destructible: false, electric: false });
   b.light({ ...plantAt2('B6', 27, 21, 5.5), radius: 26, intensity: 0.9 });
   b.light({ x: 14, y: 4.5, z: -6.5, radius: 12, intensity: 0.7 });
   return r;
