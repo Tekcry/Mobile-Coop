@@ -416,7 +416,6 @@ const MODES = NET_MODES;
 /** Mission ids are plain slugs ('' = none). */
 const mission = (v: unknown): string => (typeof v === 'string' && /^[a-z0-9-]{0,40}$/.test(v) ? v : '');
 
-/** Validate an incoming message. Returns null for anything malformed. */
 const COURSE_LIST = 256;
 const PHASES: readonly AirlockPhase[] = ['open', 'waiting', 'ready', 'cycling', 'sealed'];
 const ints = (v: unknown, lo: number, hi: number, max = COURSE_LIST): number[] => {
@@ -483,6 +482,7 @@ function parseCourse(raw: Obj): Msg | null {
   return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)) };
 }
 
+/** Validate an incoming message. Returns null for anything malformed. */
 export function parseMessage(raw: unknown): Msg | null {
   if (!isObj(raw)) return null;
   switch (raw.t) {

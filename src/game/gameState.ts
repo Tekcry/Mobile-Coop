@@ -178,6 +178,8 @@ export type RewardHook = (stats: SessionStats, opts: GameOptions) => Promise<HTM
 /** A play session on one map: world, player, combat systems, HUD. Modes plug in on top. */
 /** Gunshot noise radius (m) x the weapon's noise stat; at or below `SUPPRESSED_NOISE` a shot only raises
  *  suspicion; a bullet impact is heard within `IMPACT_NOISE`. */
+/** Solo: no remote players (one shared array, so the per-step accessor never allocates). */
+const NO_REMOTES: readonly PlayerRef[] = Object.freeze([]);
 const SHOT_NOISE = 28;
 /** Awareness arcs: shown for enemies in line of sight or within `ARC_NEAR` m, once the meter passes `ARC_MIN`. */
 const ARC_NEAR = 2.5;
@@ -295,7 +297,7 @@ export class GameState implements AppState {
   /** Input the operator gets while the wheel or a remote view has the real one (nothing held). */
   private readonly blankInp = new InputState();
   /** Remote players (coop) contribute here; local player is always included. */
-  remotePlayers: () => PlayerRef[] = () => [];
+  remotePlayers: () => readonly PlayerRef[] = () => NO_REMOTES;
   static rewardHook: RewardHook | null = null;
   readonly events = new EventBus<GameEvents>();
   private audio: { frame(dt: number): void; dispose(): void } | null = null;

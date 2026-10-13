@@ -26,6 +26,7 @@ import { GRAB } from '../game/takedown';
 import { PvpVictim } from './pvpVictim';
 import { checkTeamRequest, type TeamKind, type TeamSide } from '../game/teamMoves';
 import type { TeamMate } from '../game/teamController';
+import type { PlayerRef } from '../ai/enemy';
 
 /** (3.2.0) A PvP takedown's end: the attacker within this of the victim (m, horizontal / vertical). */
 const PTD_REACH = 2.5;
@@ -87,6 +88,10 @@ function alertCode(e: Enemy): number {
  */
 export class CoopHost implements NetAttachment {
   private remotes = new Map<string, RemotePlayer>();
+  /** The remotes' refs in join order, kept on join / leave so `g.remotePlayers()` never allocates. */
+  private readonly remoteRefs: PlayerRef[] = [];
+  /** The solo accessor this host replaced (restored on dispose). */
+  private readonly soloRemotes: () => readonly PlayerRef[];
   private queue: NetEvent[] = [];
   private time = 0;
   private snapT = 0;
@@ -133,11 +138,8 @@ export class CoopHost implements NetAttachment {
     this.ff = mode === 'course';
     if (this.ff) g.target.friendly = (h) => this.friendly(h, s.selfId);
     this.reviveTime = REVIVE_TIME / hqStats(g.opts.hq ?? { radar: 0, sonar: 0, marks: 0, restock: 0, revive: 0 }).reviveSpeed;
-    g.remotePlayers = () => {
-      const out = [];
-      for (const r of this.remotes.values()) out.push(r.ref);
-      return out;
-    };
+    this.soloRemotes = g.remotePlayers;
+    g.remotePlayers = () => this.remoteRefs;
     if (this.score) {
       this.score.add(s.selfId, s.players.get(s.selfId)?.team ?? 0);
       g.target.friendly = (h) => this.friendly(h, s.selfId);
@@ -298,6 +300,7 @@ export class CoopHost implements NetAttachment {
       r.shootable = this.ff;
     }
     this.remotes.set(p.id, r);
+    this.remoteRefs.push(r.ref);
     if (!this.tallies.has(p.id)) this.tallies.set(p.id, emptyTally());
   }
 
@@ -310,6 +313,8 @@ export class CoopHost implements NetAttachment {
     for (const [eid, s] of this.seized) if (s.by === id) this.release(eid);
     r.dispose();
     this.remotes.delete(id);
+    const i = this.remoteRefs.indexOf(r.ref);
+    if (i >= 0) this.remoteRefs.splice(i, 1);
     // a leaver can end a co-op match if everyone left standing is down
     if (this.g.mode && !this.g.anyPlayerAlive()) this.g.mode.onPlayerDeath();
   }
@@ -1140,7 +1145,8 @@ export class CoopHost implements NetAttachment {
     this.pvpBoxes.clear();
     for (const r of this.remotes.values()) r.dispose();
     this.remotes.clear();
-    this.g.remotePlayers = () => [];
+    this.remoteRefs.length = 0;
+    this.g.remotePlayers = this.soloRemotes;
     this.g.gadgets.onLocal = null;
   }
 }

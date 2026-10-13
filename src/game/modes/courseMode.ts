@@ -387,7 +387,10 @@ export class CourseMode implements GameMode {
     if (!groups) return;
     const want = new Set(Object.values(groups));
     for (const l of reg.lights) if (want.has(l.group) && l.destroyed) reg.restore(l.id);
-    for (const gid of want) reg.setGroup(gid, true);
+    for (const gid of want) {
+      reg.setGroup(gid, true);
+      this.g.stealth?.syncGroup(gid, true);
+    }
   }
 
   /** Door and anchor locks onto the world (and the door items' enabled flags, T0 Q3). */
@@ -489,6 +492,9 @@ export function applyCourseWire(g: GameState, w: CourseWire): void {
   const reg = g.world.level.lights;
   for (const l of reg.lights) if (l.destroyed && !w.lights.dead.includes(l.id)) reg.restore(l.id);
   for (const id of w.lights.dead) reg.kill(id);
-  for (const [gid, on] of w.lights.groups) reg.setGroup(gid, on);
+  for (const [gid, on] of w.lights.groups) {
+    reg.setGroup(gid, on);
+    g.stealth?.syncGroup(gid, on);
+  }
   (window as unknown as { __course?: unknown }).__course = { wire: w, debug: () => ({ bay: w.s.bay, locks: w.locks, anchors: w.anchors, lights: w.lights, ticks: w.s.ticks, refusal: w.ref, rn: w.rn, air: w.s.air }) };
 }

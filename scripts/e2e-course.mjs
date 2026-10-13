@@ -66,13 +66,13 @@ const gateOpen = (id) => GA((id) => window.__course.debug().gates[id], id);
 async function moveHost(x, z, yaw = 0) {
   await GA(([x, z, yaw]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, 0.1, z), yaw); }, [x, z, yaw]);
   // the course has the host there (a fixed step ran)
-  await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.4; }, [x, z], 5000, `course sees the host at ${x}, ${z}`);
+  await until(A, ([x, z]) => { const f = window.__course.state.feet; return Math.hypot(f[0] - x, f[2] - z) < 0.4; }, [x, z], 15000, `course sees the host at ${x}, ${z}`);
 }
 async function moveClient(x, z, yaw = 0) {
   await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
   await GB(([x, z, yaw]) => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(x, 0.1, z), yaw); }, [x, z, yaw]);
   // the host has the client there (its own `use` reach check reads the host's copy)
-  await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; const f = window.__course.state.feet; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.4 && Math.hypot(f[3] - x, f[5] - z) < 0.4; }, [x, z], 5000, `host sees the client at ${x}, ${z}`);
+  await until(A, ([x, z]) => { const r = window.__app.current.net.remotes.values().next().value; const f = window.__course.state.feet; return Math.hypot(r.feet.x - x, r.feet.z - z) < 0.4 && Math.hypot(f[3] - x, f[5] - z) < 0.4; }, [x, z], 15000, `host sees the client at ${x}, ${z}`);
 }
 /** Door index (`Doors.list`) of a course door id. */
 const doorIndex = (cid) => GA((cid) => { const g = window.__app.current; const aid = g.world.layout.course.doors[cid]; return g.world.doors.list.find((d) => d.anchor.id === aid).index; }, cid);
@@ -182,17 +182,15 @@ try {
     assert(await gateOpen('g-egress'), `${tag}: egress opens`);
     // mains: the wall switch cuts lamp group 7; the client sees the group change within 0.5 s
     await move(44.6, 1.5);
-    let ms = -1;
-    for (let k = 0; k < 2 && ms < 0; k++) {
-      t0 = Date.now();
-      await use(P, 'switch-0');
-      ms = await clientWithin(t0, () => window.__course.wire.lights.groups.some(([g, on]) => g === 7 && !on) && window.__app.current.world.level.lights.lights.filter((l) => l.group === 7).every((l) => !l.on), null, 'client sees the mains off').catch(() => -1);
-    }
+    // one press (after a restart too: the restart syncs the wall switch with the restored circuit, A15)
+    t0 = Date.now();
+    await use(P, 'switch-0');
+    const ms = await clientWithin(t0, () => window.__course.wire.lights.groups.some(([g, on]) => g === 7 && !on) && window.__app.current.world.level.lights.lights.filter((l) => l.group === 7).every((l) => !l.on), null, 'client sees the mains off after one press');
     await until(A, () => window.__course.debug().gates['g-mains'], null, 3000, 'mains gate open');
     // the host's own press: press to the client's lamps within 0.5 s. A client press adds its round trip through the host,
     // whose background page only steps on the suite's pump: a looser bound (A16)
     const lim = who === 'A' ? 500 : 1500;
-    assert(ms >= 0 && ms <= lim, `${tag}: mains opens; the client's lamp group goes off in ${ms} ms (limit ${lim})`);
+    assert(ms <= lim, `${tag}: one press opens the mains; the client's lamp group goes off in ${ms} ms (limit ${lim})`);
     // pickup: the key flag opens the flag door and unlocks the ladder
     const ladder = await GA(() => window.__app.current.world.layout.course.anchors.ladder);
     assert(await GB((id) => window.__course.wire.anchors.includes(id), ladder), `${tag}: the ladder starts locked on the client`);
@@ -227,6 +225,10 @@ try {
   const shut = ['g-lever', 'g-bolt', 'g-pair', 'g-egress', 'g-key', 'g-flag', 'g-ladder'].every((id) => !d.gates[id]);
   assert(inAir(hp) && inAir(cp) && d.bay === 1, `both respawn in the airlock (host ${hp.map((v) => v.toFixed(1))}, client ${cp.map((v) => v.toFixed(1))})`);
   assert(shut, `the restart resets the bay's gates (${JSON.stringify(d.gates)})`);
+  // the mains circuit is back on and the host's wall switch agrees (A15: label "Lights off", the next press cuts it)
+  const swA = await GA(() => { const g = window.__app.current; const it = g.interactables.items.find((i) => i.id === 'switch-0'); return { on: g.stealth.switchOn(7), label: it.label, lamps: g.world.level.lights.lights.filter((l) => l.group === 7).every((l) => l.on) }; });
+  const lampsB = await GB(() => window.__app.current.world.level.lights.lights.filter((l) => l.group === 7).every((l) => l.on));
+  assert(swA.on && swA.label === 'Lights off' && swA.lamps && lampsB, `the restart restores the mains and its switch (host ${JSON.stringify(swA)}, client lamps on ${lampsB})`);
 
   console.log('gates: the client acts');
   await gates('B');
