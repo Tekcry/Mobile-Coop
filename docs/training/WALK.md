@@ -43,7 +43,7 @@ The run's own list of risks is in docs/training/BLOCK-B-REVIEW.md (top 5 at the 
 (A1-A43).
 
 ## Notes
-Write to `docs/training/WALK-NOTES.md`, one line per note: bay, where (a debug point or x, z), what, and what you want.
+Either use the review page https://claude.ai/artifact/JMcAnistZtmPb6g3eyLMBs (a verdict and notes per bay, saved for the run: T5b reads its `feedback` collection with ArtifactData), or write to `docs/training/WALK-NOTES.md`, one line per note: bay, where (a debug point or x, z), what, and what you want.
 Example:
 
     B2 | Lane N trench (x 29) | trench too narrow to turn in | widen to 1.5

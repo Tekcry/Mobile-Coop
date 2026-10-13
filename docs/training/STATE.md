@@ -56,7 +56,7 @@ A1-A43 (DECISIONS.md; A6 revised per D21, A15 resolved)
    and the extra points (B3-RC, B3-G3, B3-rope ...).
 4. Per bay, about 5 minutes: the checklist table in docs/training/WALK.md. Start with the top 5 risks at the end of
    docs/training/BLOCK-B-REVIEW.md. It is dark (one work lamp per bay): use night vision.
-5. Notes in docs/training/WALK-NOTES.md, one line each, e.g. `B5 | B5-SR | breaker escape too long | move the ladder`.
+5. Notes on the review page https://claude.ai/artifact/JMcAnistZtmPb6g3eyLMBs (saved for the run), or in docs/training/WALK-NOTES.md, one line each, e.g. `B5 | B5-SR | breaker escape too long | move the ladder`.
    Then: `git add docs/training/WALK-NOTES.md`, `git commit -m "training: walk notes"`,
    `git push origin feature/training-bunker`.
 6. Then send in a Claude Code session on the PC (folder C:\NightShift\Mobile-Coop):
