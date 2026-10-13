@@ -57,3 +57,9 @@ Implementer: opus. Checker: opus (network measurement). (all subagents opus from
 - Pose error limit 10 cm (e2e-netmove.mjs:43 `compare` tol 0.1); netmove worst today 3.7 cm (STATE.md, low peek; gone with cover in 05),
   non-cover worst 1.1 cm (split aim). Interpolation delay 0.1 s (coopHost.ts:37).
 - Harness budget: <= 240 s total (local <= 180 s, remote <= 60 s); `--quick` <= 60 s.
+
+## Carried from step 07 checks
+- Find the wall-clock leak between scenarios (something advances outside stepHeadless between page.evaluate calls: render loop, rAF or timers); freeze / reset it per scenario; two full runs with zero flips before taking the baseline.
+- --compare tolerances: continuous metrics max(1e-4 m, 2%); gait angles 0.5 deg; wrist 2 deg; durations 1 frame; grip / self-clip 0.5 cm; traversal and drop scenarios (vault, mantle, drop09, drop24, turn180) joint rate 25 deg, selfWeapon / grip 1.5 cm (or excluded until the leak is fixed); any pass / fail flip is flagged; compare like modes only (--only and --quick are not comparable with full runs).
+- AUDIT.md: the corner sole model overstates steep toe-down sinks by ~1.5 cm (boot is rounded, partLibrary.ts ~157); slope35 sinks are toe sinks. raiseTime 0.225 s at 120 Hz may need the F4 sim-step rounding.
+- Record the real rig findings listed in steps/07-fixes-r1.md and 07-fixes-r2.md in AUDIT.md section 4.
