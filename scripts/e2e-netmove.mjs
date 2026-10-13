@@ -3,40 +3,22 @@
 // duct, rides a zipline and rolls; team moves (phase 5: brace + boost, the human ladder, a denial); the host's copy of the client is in the same mode with the hands, feet and head
 // within 10 cm of the client's own pose. PvP (Team Deathmatch): a host shot at a client hanging off a lip hits
 // the posed head.
-import { launch, openPage, assert } from './e2e-lib.mjs';
+import { assert } from './e2e-lib.mjs';
+import { until, hostAndJoin, localJoints as lj, remoteJoints as rj, allowTeleport, JOINTS } from './e2e-net-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 let failed = false;
 
-async function until(page, fn, arg, timeout = 15000, what = 'condition') {
-  try {
-    await page.waitForFunction(fn, arg, { timeout, polling: 100 });
-  } catch {
-    throw new Error(`timed out waiting for ${what}`);
-  }
-}
-
-const { browser, ctx, page: A, errors: eA } = await launch({ url, params: 'net=local' });
-let B = null;
-let eB = [];
+console.log('host opens a room, client joins');
+const { browser, A, B, pages: P2, errors: [eA, eB], startMode } = await hostAndJoin(url, 2);
 const GA = (f, a) => A.evaluate(f, a);
 const GB = (f, a) => B.evaluate(f, a);
-const pages = () => [A, B];
+const pages = () => P2;
 
 // joint world positions of a rig (wrists, ankles, head)
-const JOINTS = ['wristL', 'wristR', 'ankleL', 'ankleR', 'headNode'];
-const localJoints = () =>
-  GB((names) => {
-    const rig = window.__app.current.player.rig;
-    return Object.fromEntries(names.map((n) => { rig[n].computeWorldMatrix(true); const p = rig[n].getAbsolutePosition(); return [n, [p.x, p.y, p.z]]; }));
-  }, JOINTS);
-const remoteJoints = () =>
-  GA((names) => {
-    const r = window.__app.current.net.remotes.values().next().value;
-    const rig = r.avatar.rig;
-    return { mode: r.avatar.mode, j: Object.fromEntries(names.map((n) => { rig[n].computeWorldMatrix(true); const p = rig[n].getAbsolutePosition(); return [n, [p.x, p.y, p.z]]; })) };
-  }, JOINTS);
+const localJoints = () => lj(B);
+const remoteJoints = () => rj(A);
 const err = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);
 
 /** The client's pose mirrored on the host: same mode, joints within `tol` (m). */
@@ -77,7 +59,7 @@ async function compare(label, mode, tol = 0.1, joints = JOINTS) {
 
 /** Attach the client to the first anchor of `kind` (optionally filtered) at its middle, wait until it is on. */
 async function attach(kind, at = 0.5, entry = 'side') {
-  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await allowTeleport(A);
   const ok = await GB(([kind, at, entry]) => {
     const g = window.__app.current;
     g.traversal.detach?.('drop');
@@ -94,7 +76,7 @@ async function attach(kind, at = 0.5, entry = 'side') {
 
 /** Let the client go of whatever it holds and stand it on open floor. */
 async function reset() {
-  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await allowTeleport(A);
   await GB(() => {
     const g = window.__app.current;
     if (g.traversal.attached) g.traversal.detach('drop');
@@ -105,30 +87,6 @@ async function reset() {
 }
 
 try {
-  console.log('host opens a room, client joins');
-  await A.click('.main-menu .btn:has-text("Co-op")');
-  await A.click('.btn:has-text("Host a room")');
-  await until(A, () => !!document.querySelector('.lobby-screen') && !!window.__coop, null, 15000, 'host lobby');
-  const code = await GA(() => window.__coop.session.code);
-  const opened = await openPage(ctx, url, 'net=local');
-  B = opened.page;
-  eB = opened.errors;
-  await B.click('.main-menu .btn:has-text("Co-op")');
-  await B.click('.btn:has-text("Join with code")');
-  await B.keyboard.type(code.toLowerCase());
-  await B.keyboard.press('Enter');
-  await until(A, () => window.__coop.session.players.size === 2, null, 15000, 'host sees client');
-
-  async function startMode(mode, map) {
-    await GA(([m, mp]) => window.__coop.session.setSettings(m, mp, 'normal', ''), [mode, map]);
-    await GB(() => window.__coop.session.setReady(true));
-    await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready');
-    await GA(() => window.__coop.session.startMatch());
-    for (const P of pages()) await until(P, (m) => window.__app.current?.opts?.mode === m && !!window.__app.current.net && !window.__app.current.isEnded, mode, 40000, `${mode} match on both pages`);
-    await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state), null, 15000, 'client state reaches the host');
-    await GA(() => { window.__app.current.target.damageMul = 0; for (const r of window.__app.current.net.remotes.values()) r.damageMul = 0; });
-  }
-
   await startMode('sandbox', 'proving');
   const mv = await GA(() => window.__app.current.net.remotes.values().next().value.state.mv);
   assert(mv && mv.m === 'ground', `the client's move state reaches the host (${JSON.stringify(mv)})`);
@@ -182,7 +140,7 @@ try {
     }
   };
   const attachedNow = () => window.__app.current.traversal.attached;
-  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await allowTeleport(A);
   await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(10, 0, 24.8), Math.PI / 2); g.player.cam.yaw = Math.PI / 2; });
   await wait(600);
   await until(B, () => window.__app.current.traversal.attachCtl.split?.anchor.kind === 'split', null, 5000, 'split offered');
@@ -303,7 +261,7 @@ try {
     await until(P, () => window.__app.current.team.state === 'brace', null, 4000, `${label} braces`).catch(async (e) => { console.log(await P.evaluate(() => { const g = window.__app.current; return JSON.stringify({ mates: g.net.teamMates().map((m) => [m.id, m.pos.x, m.pos.z, m.mode]), pos: g.player.controller.pos, yaw: g.player.controller.yaw }); })); throw e; });
     await P.evaluate(() => window.__pad.set(3, 0));
   };
-  await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(3); });
+  await allowTeleport(A);
   await GB(() => { for (const a of window.__app.current.net.avatars?.values?.() ?? []) a.allowTeleport?.(3); });
   await placeTeam(B, 4, 27.05, Math.PI);
   const posB = () => GB(() => { const g = window.__app.current; const c = g.player.controller; return JSON.stringify([c.pos.x.toFixed(2), c.pos.z.toFixed(2), g.traversal.kind, !!c.override, g.player.alive]); });

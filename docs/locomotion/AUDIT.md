@@ -7,7 +7,7 @@ Detail files (file:line evidence, removal maps): [a - anim and rig](audit/a-anim
 ## Baselines (STATE.md, step 0, this VM, software GL)
 - Perf trend (`node scripts/perf-trend.mjs`, calib 9.9 ms): sim p95 2.65 ms, anim 0.0504 ms/char, alloc 11245 KB/s, draws 42, tris 0.14 M. +25% trip: sim 3.31 ms, anim 0.063 ms. Note: anim is already over the 0.04 ms D4 budget on this VM; the D4 verdict is a PC-PASS item.
 - e2e-netmove (limit 10 cm, 121 s), worst joint error cm: low cover 0.5, low peek 3.7, high cover 1.9, high edge peek 3.5, ladder 0.3, pipeV 0.2, pipeH 0.2, ledge 0, duct 0.2, split 0, split aim 1.1, wall-jump hang 0.2, pipe legs 0.4, inverted 0.1, rappel 0.2, fence 0.8. (The four cover cases go with Block A.)
-- Animation harness baseline: pending Block B.
+- Animation harness baseline (step 08 + fix round 3, `docs/locomotion/audit/anim-baseline.json`, two full runs, `--band`): local 554 fails (45 s; 690 before r1: the frozen camera's anim LOD halved the rig rate far from spawn), remote 100 / 101 fails (92-93 s incl. 9 s lobby; 13 remote scenarios, 120 Hz pump p95 jitter 0.9-1.4 ms; r1: 139 / 131 before the r3 placement settle), total 137-138 s (< 240 s). Local identical across the two runs (0 flips); remote is real time (17 remote flips between the runs); `--compare` gates remote `poseError` (gating part), `pops` at 60 Hz, `pairAlign` and `lodSkip` against the two runs' noise band; `lowerBody`, 120 Hz `pops` and the other remote metrics are report-only (A39). Values below: worst local 60 / 120 Hz (scenario); R = remote 60 / 120 Hz (step 08 r1 baseline; the r3 poseError numbers are in Section 4).
 
 ## 1. Inventory
 Owner: `both` = shared `CharacterRig` / `AnimGraph` (guards via `enemyRig` / `enemyPuppet`). Net: the MoveState mode (or snapshot field) remotes pose from. Batch: 1-7 per 5.12.4, A = Block A removal, C = Block C build.
@@ -214,35 +214,57 @@ Counts: 108 rows. pass 35, fix 43, rework 19, remove 10, not audited 1 (G02).
 ## 4. Harness metrics (Block B)
 | metric | limit | source | baseline |
 |---|---|---|---|
-| joint rotation per frame | <= 25 deg at 60 Hz (scaled) | bible :794 | pending Block B |
-| pelvis jump per frame | <= speed x dt + 2 cm | :795 | pending Block B |
-| teleports | none outside spawn / respawn / checkpoint | :796 | pending Block B |
-| transition blend | Inertializer 0.1-0.25 s | :797 | pending Block B |
-| planted foot slide / float / sink | < 1 cm / <= 2 cm / <= 1 cm | :801 | pending Block B |
-| hand contact | < 1 cm (grip < 2 cm) | :802 | pending Block B |
-| world clip / weapon | <= 3 cm / <= 2 cm | :806 | pending Block B |
-| self-intersection | <= 2 cm | :807 | pending Block B |
-| character vs character | <= 3 cm | :808 | pending Block B |
-| ROM (knee / elbow, wrist, neck, spine) | 0-150 deg +5; 70 / 25 deg; 80 deg; 60 deg | :812-816 | pending Block B |
-| balance (COM over support) | 10 cm margin | :818 | pending Block B |
-| action durations | table (crouch 0.25 / 0.3, 180 0.25, vault 0.5, rung 0.3, swap 0.6, takedown 1.0 s ...) | :824-834 | pending Block B |
-| frame-rate parity | same poses 60 / 120 Hz | :854 | pending Block B |
-| remote paired-move alignment | <= 3 cm | :859 | pending Block B |
-| pelvis p2p per gear | crouch 2.5, walk 4, run 6, sprint 8 cm | :1253 | pending Block B |
+| joint rotation per frame | <= 25 deg at 60 Hz (scaled) | bible :794 | 179.3 swap / 178.2 drop09 deg; R 90.0 stand6 / 111.5 crouch3 |
+| pelvis jump per frame | <= speed x dt + 2 cm | :795 | 24.3 cm stand6 / 9.2 drop09; R 10.6 stand6 / 6.9 stand4 |
+| teleports | none outside spawn / respawn / checkpoint | :796 | 0 / 0; R 0 / 0 |
+| transition blend | Inertializer 0.1-0.25 s | :797 | 0.317 s stance (both); R 0.184 stance |
+| planted foot slide / float / sink | < 1 cm / <= 2 cm / <= 1 cm | :801 | slide 8.3 stand6 / 17.5 slope35-stand6; float 24.3 drop09 / 24.1 drop24; sink 9.0 ramp-stand2 / 20.6 slope35-stand6 cm; R slide 19.7 / 14.2, float 3.2 / 16.9, sink 26.6 ramp / 0 cm |
+| hand contact | < 1 cm (grip < 2 cm) | :802 | grip 31.9 drop09 / 48.9 slope35-crouch2 cm; R 14.7 braceboost / 14.3 stand6 |
+| world clip / weapon | <= 3 cm / <= 2 cm | :806 | not measured (e2e-clip) |
+| self-intersection | <= 2 cm | :807 | forearmR 14.9 drop09 / 14.4 swap, thighs 14.8 turn180, weapon 7.4 ramp-crouch4 cm; R 14.8 braceboost / 1.0 |
+| character vs character | <= 3 cm | :808 | R brace + boost bodies 7.7 cm (pairPenetration) |
+| ROM (knee / elbow, wrist, neck, spine) | 0-150 deg +5; 70 / 25 deg; 80 deg; 60 deg | :812-816 | knee 151.8 drop09 / 156.9 ladder, elbow 172.5 swap / 179.4 drop09, wrist side 93.5 / 104.9, neck 31.3, spine 20.3 deg; R knee 147.9, elbow 132.9, wrist side 54.6, neck 6.8, spine 15.7 |
+| balance (COM over support) | 10 cm margin | :818 | 4.0 stand6 / 3.3 stairs-stand6 cm; R 10.8 stopidle |
+| action durations | table (crouch 0.25 / 0.3, 180 0.25, vault 0.5, rung 0.3, swap 0.6, takedown 1.0 s ...) | :824-834 | crouch 0.25, stand 0.283!, 180 0.25, raise 0.20 / 0.225, swap 0.9, vault 0.7, mantle 1.0, rung 0.35 s; R crouch 0.80, stand 0.85 (remote stance blend) |
+| frame-rate parity | same poses 60 / 120 Hz | :854 | feet 11.2 cm stand6, cam 0.2 cm, root 0 |
+| remote paired-move alignment | <= 3 cm | :859 | R 16.7 cm (climber sole vs braced hands at contact) |
+| pelvis p2p per gear | crouch 2.5, walk 4, run 6, sprint 8 cm | :1253 | 39.0 stand6 / 26.4 slope35-stand4 cm; R 22.5 ramp-stand3 / 2.9 stand6 |
 | one low / one high per step | exactly one each | :1253 | pending Block B |
-| head travel vs pelvis | head <= pelvis | :1254 | pending Block B |
-| head pitch / roll oscillation | <= 2 deg | :1254 | pending Block B |
-| lateral pelvis sway (walk) | <= 3 cm | :1255 | pending Block B |
-| camera vertical oscillation | <= 0.5 cm steady | :1256 | pending Block B |
-| landing dip | one damped dip, no rebound | :1256 | pending Block B |
-| weapon / kit sway settle | <= 0.2 s, no secondary wobble | :1257 | pending Block B |
-| idle breathing | <= 1 cm | :1257 | pending Block B |
-| D5 foot slide (stride warping) | < 1 cm vs capsule | :1273 | pending Block B |
-| D5 root overshoot | none | :1271 | pending Block B |
-| D5 head stability | level head | :1275 | pending Block B |
-| D5 stairs pelvis drop | feet on treads, smooth drop | :1279 | pending Block B |
+| head travel vs pelvis | head <= pelvis | :1254 | 42.3 stand6 / 25.0 slope35-stand4 cm; R 26.4 stairs-stand3 / 3.7 stand6 |
+| head pitch / roll oscillation | <= 2 deg | :1254 | 0.64 / 0.00 deg; R 0.42 / 0.00 |
+| lateral pelvis sway (walk) | <= 3 cm | :1255 | 5.6 stairs-stand2 / 5.6 slope35-stand2 cm; R 5.7 / 5.6 |
+| camera vertical oscillation | <= 0.5 cm steady | :1256 | 1.57 tunnel / 1.58 tunnel cm; R not measured (host camera) |
+| landing dip | one damped dip, no rebound | :1256 | pelvis 1 dip, camera 0 dips, no rebound |
+| weapon / kit sway settle | <= 0.2 s, no secondary wobble | :1257 | 0.58 crouch4 / 0.63 slope35-crouch6 s; R 1.18 stand4 / 0.77 stand6 |
+| idle breathing | <= 1 cm | :1257 | 0.35 / 0.35 cm; R 0.40 stopidle (from the settle + 0.2 s, 1.5 s tail) |
+| D5 foot slide (stride warping) | < 1 cm vs capsule | :1273 | as planted foot slide |
+| D5 root overshoot | none | :1271 | 0.994 / 1.025 tunnel (ratio of cap); R 0.986 / 0.989 |
+| D5 head stability | level head | :1275 | as head pitch / roll |
+| D5 stairs pelvis drop | feet on treads, smooth drop | :1279 | 11.3 ramp-stand6 / 6.6 slope35-stand4 cm; R 7.3 ramp |
 
 All metrics run at 60 and 120 Hz, both stances, flat / stairs / slopes, local and remote (`:1258`, D8 `:1317`). Line numbers are `docs/design-bible.md`.
+
+Remote-only (step 08 fix round 3, host's copy of the client, real time; A's player 3.5 m behind B's start, anim LOD skips 0 on both rigs in every row, camera distance <= 15.9 m; lag fitted on moving frames: 0.1 s, or INTERP_DELAY 0.1 s when a row has fewer than 20 moving frames: stance, braceboost). Each scenario starts once the copy has settled after placement (r3: speed < 0.05 and head, wrists, ankles within 1 cm for 0.3 s, e2e-netmove's rule; took 0.32-2.96 s, ~3 s timeout with a warning, none fired); settled ankles use the same 0.3 s still window on B's track. Split per A38.
+- `poseError` gating part (root, head, wrists, ankles on settled frames; limit 10 cm), runs 1 / 2 @60: stand2 12.0 / 11.1, stand4 47.8 / 47.9 (ankleR, settled after the stop), stand6 23.9 / 28.8, crouch3 12.5 / 14.9, stairs 27.4 / 28.3, ramp 28.0 / 39.7, stopidle 27.9 / 22.2, stance 16.4 / 29.7, braceboost 64.4 / 67.0 cm; @120: stand2 19.3 / 20.1, stand4 33.0 / 48.1, stand6 20.6 / 20.6, crouch3 30.8 / 36.9 cm. Every row fails. No row's worst frame is the placement transient any more (r1 / r2: stance@60, stand6@60 and stand6@120 peaked at frame 0; r3 worst frames 77, 228-243 and 462-491).
+- `gaitPhase` (reported) worst / median offset, cycles: @60 0.06-0.25 / 0.05-0.18 (stairs and ramp the largest); @120 0.49-0.50 / 0.21-0.24 (the pump's copy runs its own stride at up to half a cycle from the owner).
+- `lowerBody` (phase-aligned, root-relative, limit 10 cm): @60 13-140 cm, @120 46-147 cm (worst at stops and crouch: the copy's planner lands steps up to 0.8 m ahead of the root while the owner is mid-stride).
+- `pops` (rubber-banding only): @60 0-7 frames per row (root steps 0-1), @120 1-48 (crouch3 the worst; joint steps the owner's track does not have).
+- `pairAlign` 16.6 / 16.7 cm, `pairPenetration` 7.7 cm (brace + boost).
+- Gate (A39; A40 makes `poseError` report-only until step 22): `--compare` gates remote `poseError` (gating part), `pops` at 60 Hz, `pairAlign` and `lodSkip` against the baseline's two-run noise band (worse than the worse run by more than max(2x spread, 10%, 2 mm, 2 counts); `lodSkip` any rise). `lowerBody` and 120 Hz `pops` are report-only (both vary up to 2x between identical runs because of the page-side 120 Hz pump), as are `gaitPhase` and the other remote rows; the compare output names both lists.
+
+Real remote findings (not fixed; harness code only): the owner holds its stopped stride (CT stop hold, ankle 0.2 m forward, head 0.1 m lower) while the copy settles to the idle stance, so settled ankles and the head miss by 25-50 cm after every stop; during the accel the copy's head dips ~14 cm below the owner's; the copy needs more than 1.2 s to recover from a placement teleport (whole body, at 60 and 120 Hz: the fixed 800 ms wait left the whole body off at frame 0, arms ~45 cm low; the cause is placement, not the 120 Hz pump; r3 waits for the settle instead); the copy's brace pose holds a constant 31 cm head / 36 cm wrist offset from the owner's for the whole braceboost row (the brace stand-in clip, N01); the stance blend on the copy is the eased binary crouch flag (carried to step 20 / 30).
+
+Real rig findings carried from step 07 (not fixed; harness verified them):
+- Stairs / ramp / slope pelvis dips 12-25 cm per step; 30 Hz pelvis-height update on the ramp at 60 Hz; sprint pelvis deeper at 60 Hz than 120 Hz (12 cm flight-phase dip; flat stand 5-6); remote sprint pelvis p2p 39 cm at 60 Hz vs 2.8 at 120.
+- standTime 0.283 s < 0.30 s; raise ~0.19-0.2 s at the limit (raiseTime 0.225 s at 120 Hz may need the F4 sim-step rounding); stance blend 0.317 s > 0.25 s.
+- Head travel > pelvis travel; walk sway 4.7-5.6 cm (limit 3); camera oscillation 0.5-1.7 cm on slopes / stairs.
+- 35 deg slope sprint foot slide ~17-30 cm; foot planner resets to the capsule height, not the probed ground (2 cm at spawn, 13 cm after a 0.9 m drop, 16-19 cm after 2.4 m, ~6 cm after mantle, ~2.2 cm after vault, until the first step).
+- Toe-off foot pitch snap 25.5 deg per frame; quick 180 foot swing 53 deg per frame; drop24 hips 35 deg in one frame and a 30 Hz pose cadence walking off.
+- Right-arm IK unstable crouched on stairs / ramp / slope (elbow 25-37 deg per frame, wrist up to 100, gripR up to 49 cm); wrist pop when grip weight crosses 0.5 (swap, ladder, drops, vault); sprint foregrip out of reach (~2.5 cm); crouch wrist 22-27 deg sideways from the standing grip (PC-PASS 12).
+- Weapon settle 0.2-0.7 s with ~4 mm rebound; arms / weapon through the body in swap, vault, mantle, drops; tunnel 120 Hz stride modulation 2.5% over cap (minor).
+- Planted feet are not pitched to slopes (footPlanner.ts ~140, ~453 set pitch 0): toe sink 7.8 cm at 20.4 deg, 14.75 cm at 35 deg; slope35 sinks are toe sinks. The corner sole model overstates steep toe-down sinks by ~1.5 cm (rounded boot, partLibrary.ts ~157).
+- Stairs: the step boxes are collide=false; collision is a 20.4 deg slab through the back corner of each tread (levelBuilder.ts ~181-193), so feet-on-treads (D5.10) is measured against the visual tread tops computed from the stairs geometry (A36), not the collision ray.
+- Step 07 wall-clock leak: the engine render loop kept running `scene.render()` between page.evaluate calls with the loop manual; the local harness now stops it, and two full runs give identical local results (0 flips, including vault / mantle / drops / turn180).
 
 ## 5. Spot check (checker, step 1)
 62 rows checked across the four files (a 21, b 19, c 12, d 10) by opening each cited file:line. Passed 54, fixed 8, dropped 0.

@@ -3,12 +3,30 @@
 // capsule / foot-planner streams every rendered frame; node computes every metric with the pure, unit-tested
 // `src/anim/audit/metrics.ts` against `src/anim/audit/limits.ts` (bundled with esbuild at start).
 //
-//   node scripts/anim-audit.mjs [url] [--quick] [--only=<scenario>] [--out=dir] [--shots] [--strict]
+//   node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots] [--strict]
+//                               [--compare=<baseline.json>]
+//
+//   (default) local + remote; --local / --remote: one of them (step 08)
+//   --remote  host A and client B over ?net=local, sandbox on Proving: B moves with scripted input in real time, A records
+//             its copy of B every rendered frame (measured dt); 120 Hz through a page-side frame pump on A (A's loop manual)
+//             unless the pump jitters over 2 ms (then 'pending PC'). A's player stands 3.5 m behind B's start (its camera
+//             inside the copy's 22 m anim LOD; lodSkip fails any frame either rig skipped). Remote-only metrics (r1, A38):
+//             poseError = gating part (root, head, wrists, ankles on settled frames) vs B's own pose at t - lag;
+//             gaitPhase = the copy's stride phase offset from B's (reported); lowerBody = phase-aligned, root-relative
+//             hips / knees / ankles; pops = rubber-banding only (a root step unlike B's, or a joint step over the limit
+//             that B's own track does not have); pairAlign / pairPenetration (brace + boost)
+//   --compare prints regressions against a committed baseline (docs/locomotion/audit/anim-baseline.json): worse by more than
+//             max(10%, the metric's noise tolerance) or a new fail; like modes only. Remote rows gate only (A39)
+//             poseError (gating part), pops at 60 Hz, pairAlign and lodSkip, against the baseline's noise band; the
+//             other remote metrics (lowerBody, 120 Hz pops, the rest) are listed as report-only, not counted
+//   --band=<baseline.json>  an earlier full run: the baseline written by this run keeps, per gated remote metric, the
+//             worse of the two runs and their spread (`band`). The committed baseline is made this way (two runs)
 //
 //   --quick   flat only, stand 2 / 4 / 6 and crouch 3 at 60 and 120 Hz, plus stop / idle (< 60 s; steps 21-31)
 //   --only    run only the scenarios whose name contains this text
-//   --out     output folder (default test-results/anim-audit): local.json (per scenario and metric: worst, frame,
-//             limit, pass, bible line) and fails.txt (one line per fail)
+//   --out     output folder (default test-results/anim-audit): local.json / remote.json (per scenario and metric: worst,
+//             frame, limit, pass, bible line), fails.txt (one line per fail, tagged local / remote; remote frames are A's
+//             frames) and baseline.json (worst per scenario x metric, the --compare format)
 //   --shots   PNG of the first failing frame per failing scenario (PC only, E2E_GPU=1)
 //   --strict  exit 1 on any fail (step 32); by default it reports and exits 0 unless the harness itself errors
 //
@@ -18,6 +36,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { launch } from './e2e-lib.mjs';
+import { hostAndJoin, startMode, allowTeleport, JOINTS } from './e2e-net-lib.mjs';
 
 const T0 = Date.now();
 const args = process.argv.slice(2);
@@ -30,6 +49,16 @@ const ONLY = opt('only');
 const OUT = resolve(opt('out') ?? 'test-results/anim-audit');
 const SHOTS = flag('shots');
 const STRICT = flag('strict');
+const COMPARE = opt('compare');
+/** r1: an earlier run's baseline.json: this run's baseline then holds the two runs' noise band on the gated remote metrics. */
+const BAND = opt('band');
+const DO_LOCAL = flag('local') || !flag('remote');
+const DO_REMOTE = flag('remote') || !flag('local');
+/** remote.ts: INTERP_DELAY (coopHost.ts), the host renders remotes 0.1 s behind the newest snapshot. */
+const INTERP_DELAY = 0.1;
+/** config/movement.ts TEAM.boostTime (s); the climber's foot reaches the braced hands at 35% of it (teamMoves.ts boostPath). */
+const BOOST_TIME = 0.9;
+const BOOST_CONTACT_K = 0.35;
 
 // ---------------------------------------------------------------- pure metrics for node
 const LIB = resolve('test-results/anim-audit/lib');
@@ -64,9 +93,33 @@ if (!(await up())) {
 
 // ---------------------------------------------------------------- page recorder + driver
 const NODES = ['hips', 'spine', 'torso', 'neck', 'headNode', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR', 'weaponPivot'];
-const { browser, page, errors } = await launch({ url, params: 'autostart=proving' });
+/** The record layout (one Float32 row per rendered frame), local and remote alike; remote rows add REMOTE_EXTRA. */
+const LOWER = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'wall', 'traverse'];
+const names = ['t', 'tp'];
+for (const n of NODES) for (const k of ['x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']) names.push(`${n}.${k}`);
+names.push('cam.x', 'cam.y', 'cam.z', 'cap.x', 'cap.y', 'cap.z', 'fix.x', 'fix.y', 'fix.z', 'speed', 'gear', 'crouchBlend', 'crouched', 'yaw', 'grounded');
+for (const s of ['L', 'R']) for (const k of ['contact', 'landed', 'slide', 'x', 'y', 'z', 'yaw', 'gy', 'gyH', 'gyT']) names.push(`${s}.${k}`);
+names.push('lower', 'lowerW', 'grip.x', 'grip.y', 'grip.z', 'muz.x', 'muz.y', 'muz.z', 'hR.x', 'hR.y', 'hR.z', 'hL.x', 'hL.y', 'hL.z', 'wR', 'wL');
+names.push('raise', 'swapping', 'traverse', 'attached', 'ladderS', 'tgt');
+/** Remote rows: measured frame time, the copy's move mode, the host's own team-move clock and its own joints (paired moves). */
+const OWN = ['hips', 'neck', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
+const MODES = ['ground', 'brace', 'boost', 'assist', 'stacked'];
+/** (r1) lod: the copy's anim LOD skipped this frame (characterRig.ts lodDt > 0); phase: its gait clock (animGraph.phase);
+ *  camD: the host camera's horizontal distance to the copy (the LOD reads it, 22 m). */
+const REMOTE_EXTRA = ['dt', 'mode', 'team', 'lod', 'phase', 'camD', ...OWN.flatMap((n) => [`own.${n}.x`, `own.${n}.y`, `own.${n}.z`])];
+const RNAMES = [...names, ...REMOTE_EXTRA];
+const IDX = Object.fromEntries(names.map((n, i) => [n, i]));
+const K = names.length;
+const RIDX = Object.fromEntries(RNAMES.map((n, i) => [n, i]));
+const RK = RNAMES.length;
+
+let browser = null;
+let page = null;
+let errors = [];
 const G = (f, a) => page.evaluate(f, a);
-const names = await G(([NODES, W]) => {
+if (DO_LOCAL) {
+({ browser, page, errors } = await launch({ url, params: 'autostart=proving' }));
+await G(([NODES, W, names, LOWER]) => {
   const a = window.__app;
   const g = a.current;
   const p = g.player;
@@ -75,15 +128,12 @@ const names = await G(([NODES, W]) => {
   const V = p.position.constructor;
   g.target.damageMul = 0;
   a.loop.manual = true;
+  // step 07 carry (wall-clock leak between scenarios): with the loop manual the engine's render loop still ran
+  // `scene.render()` every display frame between the page.evaluate calls (render observers, timers and the physics
+  // bodies' interpolation ran on real time). The local harness only advances through stepHeadless: stop it.
+  g.scene.getEngine().stopRenderLoop();
   const st = a.input.state;
   const hooks = a.loop['hooks'];
-  const LOWER = ['locomotion', 'crouch', 'kneel', 'air', 'slide', 'wall', 'traverse'];
-  const names = ['t', 'tp'];
-  for (const n of NODES) for (const k of ['x', 'y', 'z', 'qx', 'qy', 'qz', 'qw']) names.push(`${n}.${k}`);
-  names.push('cam.x', 'cam.y', 'cam.z', 'cap.x', 'cap.y', 'cap.z', 'fix.x', 'fix.y', 'fix.z', 'speed', 'gear', 'crouchBlend', 'crouched', 'yaw', 'grounded');
-  for (const s of ['L', 'R']) for (const k of ['contact', 'landed', 'slide', 'x', 'y', 'z', 'yaw', 'gy', 'gyH', 'gyT']) names.push(`${s}.${k}`);
-  names.push('lower', 'lowerW', 'grip.x', 'grip.y', 'grip.z', 'muz.x', 'muz.y', 'muz.z', 'hR.x', 'hR.y', 'hR.z', 'hL.x', 'hL.y', 'hL.z', 'wR', 'wL');
-  names.push('raise', 'swapping', 'traverse', 'attached', 'ladderS', 'tgt');
   const K = names.length;
   const tmp = new V();
   // W: weapon-space wrist offsets (limits.ts WRIST_ON_GRIP / WRIST_ON_FOREGRIP, as e2e-weapons-carry)
@@ -115,7 +165,12 @@ const names = await G(([NODES, W]) => {
   };
   const aa = { frames: [], rec: false, tp: 0, halt: -1, kinds: new Set(), t: 0 };
   const orig = hooks.frameUpdate;
+  // step 08 r1: with the render loop stopped nothing refreshes the camera's world matrix (scene.render did), so its
+  // globalPosition froze at spawn and the rig's anim LOD (characterRig.ts animate, 22 m) halved the solve rate far from
+  // it: refresh the view matrix before every frame update
+  const cam = () => g.scene.activeCamera;
   hooks.frameUpdate = function (dt, alpha) {
+    cam()?.getViewMatrix(true);
     orig.call(this, dt, alpha);
     aa.t += dt;
     if (!aa.rec || (aa.halt >= 0 && aa.frames.length >= aa.halt)) return;
@@ -284,10 +339,8 @@ const names = await G(([NODES, W]) => {
       g.scene.render();
     },
   };
-  return names;
-}, [NODES, { grip: [...L.WRIST_ON_GRIP], fore: [...L.WRIST_ON_FOREGRIP] }]);
-const IDX = Object.fromEntries(names.map((n, i) => [n, i]));
-const K = names.length;
+}, [NODES, { grip: [...L.WRIST_ON_GRIP], fore: [...L.WRIST_ON_FOREGRIP] }, names, LOWER]);
+}
 
 // ---------------------------------------------------------------- scenarios
 const FLAT = { x: -26, z: -26, yaw: 0, y: 0 }; // open lane on the west side, heading north (15 m clear, steady camera)
@@ -453,20 +506,20 @@ async function record(sc, halt = -1) {
   const r = await G(() => window.__aa.end());
   const buf = Buffer.from(r.b64, 'base64');
   const data = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
-  return { m, n: r.n, data, kinds: r.kinds };
+  return { m, n: r.n, data, kinds: r.kinds, K, IDX };
 }
 
 // ---------------------------------------------------------------- analysis
 const col = (rec, name, a = 0, b = rec.n) => {
-  const i = IDX[name];
+  const i = rec.IDX[name];
   const out = new Float64Array(Math.max(0, b - a));
-  for (let f = a; f < b; f++) out[f - a] = rec.data[f * K + i];
+  for (let f = a; f < b; f++) out[f - a] = rec.data[f * rec.K + i];
   return out;
 };
 const vec = (rec, n, a = 0, b = rec.n, keys = ['x', 'y', 'z']) => {
-  const ii = keys.map((k) => IDX[`${n}.${k}`]);
+  const ii = keys.map((k) => rec.IDX[`${n}.${k}`]);
   const out = new Float64Array(Math.max(0, b - a) * ii.length);
-  for (let f = a; f < b; f++) ii.forEach((i, k) => (out[(f - a) * ii.length + k] = rec.data[f * K + i]));
+  for (let f = a; f < b; f++) ii.forEach((i, k) => (out[(f - a) * ii.length + k] = rec.data[f * rec.K + i]));
   return out;
 };
 const quat = (rec, n, a, b) => vec(rec, n, a, b, ['qx', 'qy', 'qz', 'qw']);
@@ -494,18 +547,20 @@ const res = (into, key, r, limit, line, unit = 'm', off = 0) =>
 /** Continuity, contact, ROM, self clip, balance over frames a..b. */
 function common(rec, hz, out, a, b, jumpLimit, balanceFrom = -1) {
   const tpm = col(rec, 'tp', a, b);
+  // remote rows: limits that scale with dt use each frame's measured dt (scaled to the nominal 1 / hz frame)
+  const dts = rec.remote ? col(rec, 'dt', a, b) : undefined;
   let worst = { worst: 0, frame: -1, pass: true, j: '' };
   for (const n of NODES) {
     // local frame: each joint relative to its rig parent (characterRig.ts), the hips in world
     const q = PARENT[n] ? M.localQuats(quat(rec, PARENT[n], a, b), quat(rec, n, a, b)) : quat(rec, n, a, b);
-    const r = M.jointRate(q, hz, tpm);
+    const r = M.jointRate(q, hz, tpm, undefined, dts);
     if (r.worst > worst.worst) worst = { ...r, j: n };
   }
   res(out, 'jointRate', { ...worst, extra: { joint: worst.j } }, L.JOINT_DEG_PER_S / hz, ':794', 'deg', a);
   const hips = vec(rec, 'hips', a, b);
-  res(out, 'pelvisJump', M.pelvisJump(hips, jumpLimit, tpm), jumpLimit, ':795', 'm', a);
+  res(out, 'pelvisJump', M.pelvisJump(hips, jumpLimit, tpm, dts, hz), jumpLimit, ':795', 'm', a);
   res(out, 'teleports', M.teleports(hips, tpm), 0, ':796', 'count', a);
-  const bl = M.blendTimes(col(rec, 'lower', a, b), col(rec, 'lowerW', a, b), 1 / hz);
+  const bl = M.blendTimes(col(rec, 'lower', a, b), col(rec, 'lowerW', a, b), rec.remote ? rec.dtMed : 1 / hz);
   if (bl.blends) res(out, 'blend', bl, `${L.BLEND_MIN}-${L.BLEND_MAX}`, ':797', 's', a);
   for (const s of ['L', 'R']) {
     const an = vec(rec, s === 'L' ? 'ankleL' : 'ankleR', a, b);
@@ -576,15 +631,15 @@ function common(rec, hz, out, a, b, jumpLimit, balanceFrom = -1) {
     const com = [];
     const feet = [];
     const con = [];
-    const P = (n, f) => [rec.data[f * K + IDX[`${n}.x`]], rec.data[f * K + IDX[`${n}.y`]], rec.data[f * K + IDX[`${n}.z`]]];
+    const P = (n, f) => [rec.data[f * rec.K + rec.IDX[`${n}.x`]], rec.data[f * rec.K + rec.IDX[`${n}.y`]], rec.data[f * rec.K + rec.IDX[`${n}.z`]]];
     for (let f = c0; f < b; f++) {
       const body = {};
       for (const n of ['hips', 'neck', 'shoulderL', 'shoulderR', 'elbowL', 'elbowR', 'wristL', 'wristR', 'hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR']) body[n] = P(n, f);
       body.head = P('headNode', f);
       const cm = M.centerOfMass(body);
       com.push(cm[0], cm[2]);
-      feet.push(...['L', 'R'].flatMap((s) => [rec.data[f * K + IDX[`${s}.x`]], rec.data[f * K + IDX[`${s}.z`]], rec.data[f * K + IDX[`${s}.yaw`]]]));
-      con.push(rec.data[f * K + IDX['L.contact']], rec.data[f * K + IDX['R.contact']]);
+      feet.push(...['L', 'R'].flatMap((s) => [rec.data[f * rec.K + rec.IDX[`${s}.x`]], rec.data[f * rec.K + rec.IDX[`${s}.z`]], rec.data[f * rec.K + rec.IDX[`${s}.yaw`]]]));
+      con.push(rec.data[f * rec.K + rec.IDX['L.contact']], rec.data[f * rec.K + rec.IDX['R.contact']]);
     }
     res(out, 'balance', M.balanceMargin(com, feet, con, FOOT), L.BALANCE_MARGIN, ':818', 'm', c0);
   }
@@ -618,7 +673,7 @@ function steady(rec, hz, out, a, b, band, lateral, cap, surface) {
   for (let i = 0, last = -1; i < strikes.length; i++) if (strikes[i]) (last >= 0 && si.push(i - last), (last = i));
   const win = si.length ? 2 * median(si) : Math.round(hz * 0.6);
   const camHP = sub(camY, M.smooth(camY, win));
-  res(out, 'cameraOsc', M.cameraOsc(camHP.slice(win >> 1, camHP.length - (win >> 1))), L.CAMERA_P2P, ':1256', 'm', a + (win >> 1));
+  if (!rec.remote) res(out, 'cameraOsc', M.cameraOsc(camHP.slice(win >> 1, camHP.length - (win >> 1))), L.CAMERA_P2P, ':1256', 'm', a + (win >> 1));
   const sp = col(rec, 'speed', a, b);
   const target = median(sp);
   out.speed = { value: target, cap };
@@ -695,13 +750,13 @@ function analyze(sc, rec) {
     const still = L.pelvisJumpLimit(0, hz);
     const moving = L.pelvisJumpByGear('stand', hz)[sc.kind === 'turn180' ? 3 : 2];
     common(rec, hz, out, 0, rec.n, ['turn180', 'vault', 'mantle', 'drop09', 'drop24', 'ladder'].includes(sc.kind) ? moving : still, sc.kind === 'idle' ? m.idle : -1);
-    const dt = 1 / hz;
+    const dt = rec.remote ? rec.dtMed : 1 / hz;
     if (sc.kind === 'stance') {
       // from the last frame before the press until crouchBlend is within 1e-4 of its target
       const cb = col(rec, 'crouchBlend');
       // crouchBlend is a sim-rate (60 Hz) signal: the time rounds up to the end of its sim step at 120 Hz
-      res(out, 'crouchTime', M.reachTime(cb.slice(0, m.up), m.down - 1, dt, L.MIN_DURATION.crouch, 1, L.STANCE_DONE_TOL, 1 / 60), L.MIN_DURATION.crouch, ':824', 's');
-      res(out, 'standTime', M.reachTime(cb, m.up - 1, dt, L.MIN_DURATION.stand, 0, L.STANCE_DONE_TOL, 1 / 60), L.MIN_DURATION.stand, ':825', 's');
+      res(out, 'crouchTime', M.reachTime(cb.slice(0, m.up), m.down - 1, dt, L.MIN_DURATION.crouch, 1, L.STANCE_DONE_TOL, rec.remote ? 0 : 1 / 60), L.MIN_DURATION.crouch, ':824', 's');
+      res(out, 'standTime', M.reachTime(cb, m.up - 1, dt, L.MIN_DURATION.stand, 0, L.STANCE_DONE_TOL, rec.remote ? 0 : 1 / 60), L.MIN_DURATION.stand, ':825', 's');
     } else if (sc.kind === 'turn180') {
       const yaw = col(rec, 'yaw');
       const y0 = yaw[m.rev - 1];
@@ -745,11 +800,869 @@ function analyze(sc, rec) {
   return out;
 }
 
+// ---------------------------------------------------------------- remote poses (step 08)
+/** Remote scenarios: B (client) moves in real time; A (host) records its copy of B. */
+function remoteScenarios() {
+  const out = [];
+  const g = (surface, stance, gear, hz, extra = {}) => out.push({ name: `${surface}-${stance}${gear}`, kind: 'gait', surface, stance, gear, hz, ...extra });
+  const flat = QUICK ? [['stand', 4], ['crouch', 3]] : [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 3]];
+  for (const [s, k] of flat) g('flat', s, k, 60);
+  if (!QUICK) {
+    g('stairs', 'stand', 3, 60);
+    g('ramp', 'stand', 3, 60);
+    out.push({ name: 'stopidle', kind: 'gait', surface: 'flat', stance: 'stand', gear: 3, hz: 60, steady: 1.0, idleTail: true });
+    out.push({ name: 'stance', kind: 'stance', hz: 60 });
+    for (const [s, k] of flat) g('flat', s, k, 120);
+    // last: it connects both fake pads (a connected pad's idle stick would hold B's scripted stick at 0 afterwards)
+    out.push({ name: 'braceboost', kind: 'boost', hz: 60 });
+  }
+  return out.filter((s) => !ONLY || s.name.includes(ONLY));
+}
+
+/** B's input timeline for a scenario (segments of `d` seconds: stick `y`, a tap at the segment start). */
+function remoteSegments(sc) {
+  if (sc.kind === 'stance') return [{ d: 0.3 }, { d: 0.8, tap: 'crouch' }, { d: 0.8, tap: 'crouch' }];
+  const s = SURF[sc.surface];
+  const crouch = sc.stance === 'crouch';
+  const cap = (crouch ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1];
+  // as the local drive: flat 1.0 s accel + a steady window; ramps / stairs a short accel and the window up the slope
+  // (remote runs in real time: a 1.5 s steady window, about three steps at a walk, and a 1.2 s stop keep it near 60 s)
+  let accel = ACCEL;
+  let steady = sc.steady ?? 1.5;
+  if (s.len) {
+    accel = 0.3;
+    steady = Math.min(3.0, Math.max(0.5, (s.len - 0.4) / cap - accel + 0.1));
+  }
+  // stopidle (r1): a 1.5 s idle tail, the breath measured after the stop settles
+  return [{ d: 0.3 }, { d: accel, y: 1 }, { d: steady, y: 1 }, { d: sc.idleTail ? 1.5 : 1.2 }];
+}
+
+/** Linear interpolation of B's track (rows of `w` floats, column 0 = t) at time t: column `c..c+2` -> out. */
+function sampleB(bd, w, n, t, c, out, hint) {
+  let i = Math.max(0, Math.min(n - 2, hint.i));
+  while (i < n - 2 && bd[(i + 1) * w] < t) i++;
+  while (i > 0 && bd[i * w] > t) i--;
+  hint.i = i;
+  const t0 = bd[i * w];
+  const t1 = bd[(i + 1) * w];
+  if (t < t0 || t > t1) return false;
+  const k = t1 > t0 ? (t - t0) / (t1 - t0) : 0;
+  for (let j = 0; j < 3; j++) out[j] = bd[i * w + c + j] + (bd[(i + 1) * w + c + j] - bd[i * w + c + j]) * k;
+  return true;
+}
+
+/** B's own track per frame: t, the BJ joint positions, its root (capsule) position, gait phase, yaw, anim LOD skip and
+ *  speed, then each NODES world quaternion (pops: a joint step the owner has too is not rubber-banding). */
+const LOWER_J = ['hipL', 'hipR', 'kneeL', 'kneeR', 'ankleL', 'ankleR'];
+const BJ = [...JOINTS, 'hips', 'hipL', 'hipR', 'kneeL', 'kneeR'];
+const B_POS = 1 + 3 * BJ.length;
+const B_PHASE = B_POS + 3;
+const B_YAW = B_POS + 4;
+const B_LOD = B_POS + 5;
+const B_SPEED = B_POS + 6;
+const B_Q = B_POS + 7;
+const BW = B_Q + 4 * NODES.length;
+
+/** Last B frame at or before time t (binary search; -1 before the track). */
+function bAt(bd, n, t) {
+  let lo = 0;
+  let hi = n - 1;
+  if (n === 0 || bd[0] > t) return -1;
+  while (lo < hi) {
+    const m = (lo + hi + 1) >> 1;
+    if (bd[m * BW] <= t) lo = m;
+    else hi = m - 1;
+  }
+  return lo;
+}
+const d3 = (p, i, q, j) => Math.hypot(p[i] - q[j], p[i + 1] - q[j + 1], p[i + 2] - q[j + 2]);
+/** Circular difference of two gait phases (cycle fractions), in [-0.5, 0.5). */
+const dPhase = (p, q) => ((((p - q) % 1) + 1.5) % 1) - 0.5;
+/** Root-relative joint in the body's yaw frame (x right, z forward): world joint (jx, jy, jz) minus root, rotated by -yaw. */
+function rel(jx, jy, jz, rx, ry, rz, yaw, out, o) {
+  const dx = jx - rx;
+  const dz = jz - rz;
+  const cs = Math.cos(yaw);
+  const sn = Math.sin(yaw);
+  out[o] = dx * cs - dz * sn;
+  out[o + 1] = jy - ry;
+  out[o + 2] = dx * sn + dz * cs;
+}
+/** e2e-netmove's settle rule on B's own track: its ankles and root still (< 1 cm) over the 0.3 s before time t
+ *  (e2e-netmove.mjs: two joint reads 0.3 s apart, speed < 0.05). */
+const SETTLE = 0.3;
+function settledB(bd, n, t) {
+  const i1 = bAt(bd, n, t);
+  const i0 = bAt(bd, n, t - SETTLE);
+  if (i1 < 0 || i0 < 0) return false;
+  const cols = [2, 3].map((k) => 1 + 3 * k).concat([B_POS]); // ankleL, ankleR (JOINTS 2, 3), root
+  for (let k = i0; k <= i1; k++) for (const c of cols) if (d3(bd, k * BW + c, bd, i1 * BW + c) >= 0.01) return false;
+  return Math.abs(bd[i1 * BW + B_SPEED]) < 0.05;
+}
+
+/**
+ * Remote-only metrics (r1 split, A38): lag; poseError = the gating part (root, head, wrists, plus the ankles on settled
+ * frames, e2e-netmove's rule) vs B's own pose at t - lag; gaitPhase = the copy's stride phase offset from B's (reported:
+ * no gait phase on the wire); lowerBody = the phase-aligned, root-relative hips / knees / ankles; pops = rubber-banding
+ * only (a root step of the copy unlike B's own over the same interval, or a joint step over the limit B's track does not
+ * have at t - lag).
+ */
+function remoteMetrics(sc, rec, b, out, a0, a1) {
+  const n = rec.n;
+  const t = col(rec, 't');
+  const cap = vec(rec, 'cap');
+  const bd = b.data;
+  // lag: the host renders INTERP_DELAY behind the newest snapshot it received (plus the send / receive latency): the
+  // shift in [0, INTERP_DELAY + 0.15] s that best lines A's root up with B's own root (r1: the search started at
+  // INTERP_DELAY and always ended there: the copy runs less than 0.1 s behind B's own clock on this VM)
+  const o = [0, 0, 0];
+  // fitted on the copy's moving frames (standing frames match at any shift and held the median at the search start)
+  const spd = col(rec, 'speed');
+  const movingN = spd.filter((v) => v > 0.5).length;
+  const lagErr = (lag) => {
+    const e = [];
+    const h = { i: 0 };
+    for (let i = a0; i < a1; i++) if (spd[i] > 0.5 && sampleB(bd, BW, b.n, t[i] - lag, B_POS, o, h)) e.push(Math.hypot(cap[i * 3] - o[0], cap[i * 3 + 1] - o[1], cap[i * 3 + 2] - o[2]));
+    return e.length ? median(e) : Infinity;
+  };
+  let lag = INTERP_DELAY;
+  let best = Infinity;
+  // r3: under 20 moving frames (a standing row: every shift ties) the lag stays INTERP_DELAY
+  if (movingN >= 20) for (let l = 0; l <= INTERP_DELAY + 0.15 + 1e-9; l += 0.0025) {
+    const e = lagErr(l);
+    if (e < best) [best, lag] = [e, l];
+  }
+  // (a) gating pose error
+  const GATE = ['wristL', 'wristR', 'headNode'];
+  const jv = Object.fromEntries(NODES.map((j) => [j, vec(rec, j)]));
+  let worst = 0;
+  let frame = -1;
+  let joint = '';
+  let used = 0;
+  let settledN = 0;
+  let allWorst = 0;
+  const per = [];
+  const h = { i: 0 };
+  for (let i = a0; i < a1; i++) {
+    const tb = t[i] - lag;
+    if (!sampleB(bd, BW, b.n, tb, B_POS, o, h)) continue;
+    let fw = d3(cap, i * 3, o, 0);
+    let fj = 'root';
+    const settled = settledB(bd, b.n, tb);
+    if (settled) settledN++;
+    for (let k = 0; k < JOINTS.length; k++) {
+      if (!sampleB(bd, BW, b.n, tb, 1 + 3 * k, o, h)) continue;
+      const e = d3(jv[JOINTS[k]], i * 3, o, 0);
+      allWorst = Math.max(allWorst, e);
+      if (!GATE.includes(JOINTS[k]) && !settled) continue;
+      if (e > fw) [fw, fj] = [e, JOINTS[k]];
+    }
+    used++;
+    per.push(fw);
+    if (fw > worst) [worst, frame, joint] = [fw, i, fj];
+  }
+  res(out, 'poseError', { worst, frame, pass: worst <= 0.1, extra: { joint, lag: +lag.toFixed(4), rootMedian: Number.isFinite(best) ? +best.toFixed(4) : null, lagFit: movingN >= 20, frames: used, settledFrames: settledN, median: +median(per).toFixed(4), over: per.filter((e) => e > 0.1).length, allJointsWorst: +allWorst.toFixed(4) } }, 0.1, ':858 / e2e-netmove 10 cm (gating: root, head, wrists, settled ankles; A38)', 'm');
+  // (b) gait phase offset (reported) and (c) the phase-aligned, root-relative lower body, on the copy's moving frames
+  const sp = col(rec, 'speed');
+  const ph = col(rec, 'phase');
+  const yaw = col(rec, 'yaw');
+  const offs = [];
+  let pWorst = 0;
+  let pFrame = -1;
+  let lWorst = 0;
+  let lFrame = -1;
+  let lJoint = '';
+  let lN = 0;
+  let lAt = null;
+  const ra = [0, 0, 0];
+  const rb = [0, 0, 0];
+  for (let i = a0; i < a1; i++) {
+    if (!(sp[i] > 0.3) || !Number.isFinite(ph[i])) continue;
+    const tb = t[i] - lag;
+    const k0 = bAt(bd, b.n, tb);
+    if (k0 < 0 || k0 >= b.n - 1 || !(bd[k0 * BW + B_SPEED] > 0.3)) continue;
+    const d = dPhase(ph[i], bd[k0 * BW + B_PHASE]);
+    offs.push(d);
+    if (Math.abs(d) > pWorst) [pWorst, pFrame] = [Math.abs(d), i];
+    // the B frame within half a second of t - lag whose phase is nearest the copy's (ties: the nearest in time)
+    let kb = -1;
+    let cb = Infinity;
+    for (let k = bAt(bd, b.n, tb - 0.5); k >= 0 && k < b.n && bd[k * BW] <= tb + 0.5; k++) {
+      const cst = Math.abs(dPhase(ph[i], bd[k * BW + B_PHASE])) + 0.05 * Math.abs(bd[k * BW] - tb);
+      if (cst < cb) [cb, kb] = [cst, k];
+    }
+    if (kb < 0) continue;
+    lN++;
+    const kr = kb * BW;
+    for (const j of LOWER_J) {
+      const jb = 1 + 3 * BJ.indexOf(j);
+      const v = jv[j];
+      rel(v[i * 3], v[i * 3 + 1], v[i * 3 + 2], cap[i * 3], cap[i * 3 + 1], cap[i * 3 + 2], yaw[i], ra, 0);
+      rel(bd[kr + jb], bd[kr + jb + 1], bd[kr + jb + 2], bd[kr + B_POS], bd[kr + B_POS + 1], bd[kr + B_POS + 2], bd[kr + B_YAW], rb, 0);
+      const e = d3(ra, 0, rb, 0);
+      if (e > lWorst) [lWorst, lFrame, lJoint, lAt] = [e, i, j, { copy: ra.map((x) => +x.toFixed(3)), own: rb.map((x) => +x.toFixed(3)), dt: +(bd[kr] - tb).toFixed(3), phase: [+ph[i].toFixed(3), +bd[kr + B_PHASE].toFixed(3)], yaw: [+yaw[i].toFixed(3), +bd[kr + B_YAW].toFixed(3)] }];
+    }
+  }
+  const absO = offs.map(Math.abs);
+  out.gaitPhase = { worst: +pWorst.toFixed(4), frame: pFrame, unit: 'cycle', line: 'A38 (reported, no gait phase on the wire)', median: +median(absO).toFixed(4), mean: +mean(offs).toFixed(4), frames: offs.length };
+  res(out, 'lowerBody', { worst: lWorst, frame: lFrame, pass: lWorst <= 0.1, extra: { joint: lJoint, frames: lN, at: lAt } }, 0.1, ':858 phase-aligned, root-relative (A38)', 'm');
+  // (4) pops: rubber-banding only
+  const dts = col(rec, 'dt');
+  const tpm = col(rec, 'tp');
+  const popAt = new Set();
+  let rootPops = 0;
+  let jointPops = 0;
+  const pa = [0, 0, 0];
+  const pb = [0, 0, 0];
+  const h2 = { i: 0 };
+  for (let i = Math.max(1, a0); i < a1; i++) {
+    if (tpm[i]) continue;
+    if (!sampleB(bd, BW, b.n, t[i - 1] - lag, B_POS, pa, h2) || !sampleB(bd, BW, b.n, t[i] - lag, B_POS, pb, h2)) continue;
+    const ex = Math.hypot(cap[i * 3] - cap[i * 3 - 3] - (pb[0] - pa[0]), cap[i * 3 + 1] - cap[i * 3 - 2] - (pb[1] - pa[1]), cap[i * 3 + 2] - cap[i * 3 - 1] - (pb[2] - pa[2]));
+    // the per-frame jump form of :795 (speed x dt + 2 cm): B's track is stamped when its frame ran (sim steps on a
+    // 16 ms timer), so one B frame of timing at the current speed is not a discontinuity; a snapback is
+    const kb = bAt(bd, b.n, t[i] - lag);
+    const v = Math.max(Math.abs(sp[i]), kb >= 0 ? Math.abs(bd[kb * BW + B_SPEED]) : 0);
+    if (ex > v * Math.max(dts[i] || 0, 1 / 60) + L.PELVIS_JUMP_SLACK) (popAt.add(i), rootPops++);
+  }
+  // B's own local joint rates (deg/s) per frame, the same local frames as the copy's
+  const bq = (nd, k) => [bd[k * BW + B_Q + 4 * NODES.indexOf(nd)], bd[k * BW + B_Q + 4 * NODES.indexOf(nd) + 1], bd[k * BW + B_Q + 4 * NODES.indexOf(nd) + 2], bd[k * BW + B_Q + 4 * NODES.indexOf(nd) + 3]];
+  const bTrack = (nd) => {
+    const q = new Float64Array(b.n * 4);
+    for (let k = 0; k < b.n; k++) q.set(bq(nd, k), k * 4);
+    return q;
+  };
+  const lim = L.JOINT_DEG_PER_S;
+  for (const nd of NODES) {
+    const q = PARENT[nd] ? M.localQuats(quat(rec, PARENT[nd], 0, n), quat(rec, nd, 0, n)) : quat(rec, nd, 0, n);
+    const qb = PARENT[nd] ? M.localQuats(bTrack(PARENT[nd]), bTrack(nd)) : bTrack(nd);
+    for (let i = Math.max(1, a0); i < a1; i++) {
+      if (tpm[i]) continue;
+      // the copy's step over at least one B frame (1/60 s: at 120 Hz the copy's frames split B's steps unevenly)
+      let j = i - 1;
+      while (j > a0 && t[i] - t[j] < 1 / 60 - 1e-3 && !tpm[j]) j--;
+      const rate = M.quatAngle(q, j * 4, q, i * 4) / Math.max(t[i] - t[j], 1e-3);
+      if (rate <= lim) continue;
+      // B's own fastest step of this joint around [t(j), t(i)] - lag (two frames either side, its frame-time jitter):
+      // over the limit = B has it
+      let bMax = 0;
+      const k1 = Math.min(b.n - 1, bAt(bd, b.n, t[i] - lag) + 2);
+      for (let k = Math.max(1, bAt(bd, b.n, t[j] - lag) - 1); k <= k1; k++) {
+        const dtb = bd[k * BW] - bd[(k - 1) * BW];
+        if (dtb > 0) bMax = Math.max(bMax, M.quatAngle(qb, (k - 1) * 4, qb, k * 4) / dtb);
+      }
+      if (bMax <= lim) (popAt.add(i), jointPops++);
+    }
+  }
+  const pf = [...popAt].sort((p, q) => p - q);
+  res(out, 'pops', { worst: pf.length, frame: pf[0] ?? -1, pass: pf.length === 0, extra: { root: rootPops, joint: jointPops, frames: pf.slice(0, 12) } }, 0, ':858 rubber-banding (RULES: fails from step 09)', 'count');
+  return lag;
+}
+
+/** Brace + boost (host side): the climber's foot on the braced hands at contact, and the two bodies' overlap. */
+function pairMetrics(rec, out) {
+  const team = col(rec, 'team');
+  let c = -1;
+  let b0 = -1;
+  let b1 = -1;
+  for (let i = 0; i < rec.n; i++) {
+    if (team[i] >= 0) {
+      if (b0 < 0) b0 = i;
+      b1 = i + 1;
+      if (c < 0 && team[i] >= BOOST_CONTACT_K * BOOST_TIME) c = i;
+    }
+  }
+  if (c < 0) {
+    res(out, 'pairAlign', { worst: NaN, frame: -1, pass: false, extra: { why: 'no boost recorded' } }, 0.03, ':859', 'm');
+    return;
+  }
+  const P = (n, f) => [rec.data[f * rec.K + rec.IDX[`${n}.x`]], rec.data[f * rec.K + rec.IDX[`${n}.y`]], rec.data[f * rec.K + rec.IDX[`${n}.z`]]];
+  const wl = P('wristL', c);
+  const wr = P('wristR', c);
+  const hands = [(wl[0] + wr[0]) / 2, (wl[1] + wr[1]) / 2, (wl[2] + wr[2]) / 2];
+  // the lower of the climber's feet: its sole (FOOT_REF under the ankle) against the middle of the braced wrists
+  const al = P('own.ankleL', c);
+  const ar = P('own.ankleR', c);
+  const foot = al[1] < ar[1] ? al : ar;
+  const d = Math.hypot(foot[0] - hands[0], foot[1] - FOOT_REF - hands[1], foot[2] - hands[2]);
+  res(out, 'pairAlign', { worst: d, frame: c, pass: d <= 0.03, extra: { foot: al[1] < ar[1] ? 'L' : 'R', hands: hands.map((v) => +v.toFixed(3)), sole: [foot[0], foot[1] - FOOT_REF, foot[2]].map((v) => +v.toFixed(3)) } }, 0.03, ':859', 'm');
+  // bodies: the torso capsules (hips -> neck) and the climber's legs against the braced torso, <= 3 cm overlap
+  const R = L.LIMB_RADIUS;
+  const v = (n) => vec(rec, n, b0, b1);
+  const pairs = [
+    ['torso', M.segmentDistance(v('own.hips'), v('own.neck'), v('hips'), v('neck'), 2 * R.torso, 0.03)],
+    ...['L', 'R'].flatMap((s) => [
+      [`thigh${s}`, M.segmentDistance(v(`own.hip${s}`), v(`own.knee${s}`), v('hips'), v('neck'), R.thigh + R.torso, 0.03)],
+      [`shank${s}`, M.segmentDistance(v(`own.knee${s}`), v(`own.ankle${s}`), v('hips'), v('neck'), R.shank + R.torso, 0.03)],
+    ]),
+  ];
+  const w = pairs.reduce((p, q) => (q[1].worst > p[1].worst ? q : p));
+  res(out, 'pairPenetration', { ...w[1], extra: { part: w[0] } }, 0.03, ':859', 'm', b0);
+}
+
+async function runRemote() {
+  const t0 = Date.now();
+  const E0 = Date.now();
+  const rep = { started: new Date().toISOString(), quick: QUICK, scenarios: [] };
+  // B keeps its real-time loop while A is in front: no background timer / renderer throttling
+  // (a small desktop viewport, DPR 1: software GL composites both pages' canvases in one GPU process; at the phone
+  // viewport (DPR 2.6) that alone held each page to 7 frames/s)
+  const net = await hostAndJoin(url, 2, { touch: false, viewport: { width: 640, height: 360 }, args: ['--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'] });
+  const { browser: rb, A, B } = net;
+  try {
+    await startMode(net.pages, 'sandbox', 'proving');
+    rep.lobbySeconds = (Date.now() - t0) / 1000;
+    // A: the recorder (its copy of B, every rendered frame, measured dt) and the 120 Hz frame pump
+    // software GL renders two match scenes at 2-12 frames/s on this VM, far from real time: there both pages skip the
+    // draw (scene.render), their loops still run every display frame in real time (input, sim, frame update: the poses
+    // are complete in frameUpdate; the recorders force the world matrices). GPU runs (E2E_GPU=1) keep the draw.
+    const noDraw = process.env.E2E_GPU !== '1';
+    rep.draw = !noDraw;
+    for (const P of [A, B]) await P.evaluate((off) => { if (off) window.__app.current.scene.render = () => {}; }, noDraw);
+    await A.evaluate(([NODES, W, names, LOWER, OWN, MODES, E0]) => {
+      const a = window.__app;
+      const g = a.current;
+      const r0 = g.net.remotes.values().next().value;
+      const av = r0.avatar;
+      const rig = av.rig;
+      const own = g.player.rig;
+      const V = g.player.position.constructor;
+      const K = names.length;
+      const tmp = new V();
+      let last = null;
+      const gu = rig.graph.update.bind(rig.graph);
+      rig.graph.update = (dt, i) => (last = gu(dt, i));
+      const eng = g.scene.getPhysicsEngine();
+      const rq = { membership: 2, collideWith: 1 };
+      const rFrom = new V();
+      const rTo = new V();
+      const groundAt = (x, y, z) => {
+        rFrom.set(x, y + 0.6, z);
+        rTo.set(x, y - 1.5, z);
+        const h = eng.raycast(rFrom, rTo, rq);
+        return h.hasHit ? h.hitPointWorld.y : NaN;
+      };
+      const sole = { L: [[0, -0.08, -0.06], [0, -0.08, 0.21]], R: [[0, -0.08, -0.06], [0, -0.08, 0.21]] };
+      const groundUnder = (an, q, o) => {
+        const tx = 2 * (q.y * o[2] - q.z * o[1]);
+        const ty = 2 * (q.z * o[0] - q.x * o[2]);
+        const tz = 2 * (q.x * o[1] - q.y * o[0]);
+        const px = an.x + o[0] + q.w * tx + (q.y * tz - q.z * ty);
+        const pz = an.z + o[2] + q.w * tz + (q.x * ty - q.y * tx);
+        return groundAt(px, an.y, pz);
+      };
+      const ar = { frames: [], rec: false, tp: 0, prev: 0, jit: [], pumpId: 0 };
+      const hooks = a.loop['hooks'];
+      const orig = hooks.frameUpdate;
+      hooks.frameUpdate = function (dt, alpha) {
+        // r1: the draw is off (scene.render stubbed) or the render loop stopped (pump): nothing else refreshes the
+        // camera's world matrix, and the rigs' anim LOD reads camera.globalPosition (characterRig.ts animate, 22 m)
+        const cm = g.scene.activeCamera;
+        cm?.getViewMatrix(true);
+        orig.call(this, dt, alpha);
+        const now = performance.now();
+        const mdt = ar.prev ? (now - ar.prev) / 1000 : dt;
+        ar.prev = now;
+        if (!ar.rec) return;
+        rig.root.computeWorldMatrix(true);
+        for (const d of rig.root.getDescendants(false)) d.computeWorldMatrix?.(true);
+        own.root.computeWorldMatrix(true);
+        for (const d of own.root.getDescendants(false)) d.computeWorldMatrix?.(true);
+        const f = new Float32Array(K);
+        let o = 0;
+        f[o++] = (performance.timeOrigin + now - E0) / 1000;
+        f[o++] = ar.tp;
+        ar.tp = 0;
+        for (const n of NODES) {
+          const pp = rig[n].getAbsolutePosition();
+          const q = rig[n].absoluteRotationQuaternion;
+          f[o++] = pp.x;
+          f[o++] = pp.y;
+          f[o++] = pp.z;
+          f[o++] = q.x;
+          f[o++] = q.y;
+          f[o++] = q.z;
+          f[o++] = q.w;
+        }
+        f[o++] = f[o++] = f[o++] = NaN; // the host's camera is its own
+        for (let k = 0; k < 2; k++) {
+          f[o++] = av.pos.x;
+          f[o++] = av.pos.y;
+          f[o++] = av.pos.z;
+        }
+        f[o++] = av['speed'];
+        f[o++] = NaN;
+        f[o++] = av['crouch'];
+        f[o++] = av['crouch'] > 0.5 ? 1 : 0;
+        f[o++] = av.yaw;
+        f[o++] = av.mode === 'ground' ? 1 : 0;
+        for (const s of ['L', 'R']) {
+          const fs = rig.planner[s];
+          f[o++] = fs.contact ? 1 : 0;
+          f[o++] = fs.landed ? 1 : 0;
+          f[o++] = fs.slide;
+          f[o++] = fs.x;
+          f[o++] = fs.y;
+          f[o++] = fs.z;
+          f[o++] = fs.yaw;
+          const ak = rig[s === 'L' ? 'ankleL' : 'ankleR'];
+          const an = ak.getAbsolutePosition();
+          f[o++] = groundAt(an.x, an.y, an.z);
+          f[o++] = groundUnder(an, ak.absoluteRotationQuaternion, sole[s][0]);
+          f[o++] = groundUnder(an, ak.absoluteRotationQuaternion, sole[s][1]);
+        }
+        const gr = rig.graph;
+        f[o++] = LOWER.indexOf(gr.state);
+        f[o++] = gr.weights?.[gr.state] ?? 1;
+        const hw = rig.heldWeapon;
+        const lg = rig.handBlend > 0.5;
+        const pts = [
+          [rig.grip.x, rig.grip.y, rig.grip.z],
+          [0, rig.gunSpan.bore, rig.gunSpan.z1],
+          lg ? [rig.foregrip.x + W.fore[0], rig.foregrip.y + W.fore[1], rig.foregrip.z + W.fore[2]] : [rig.grip.x + W.grip[0], rig.grip.y + W.grip[1], rig.grip.z + W.grip[2]],
+          lg ? [rig.grip.x - W.grip[0], rig.grip.y + W.grip[1], rig.grip.z + W.grip[2]] : [rig.foregrip.x - W.fore[0], rig.foregrip.y + W.fore[1], rig.foregrip.z + W.fore[2]],
+        ];
+        if (hw) hw.computeWorldMatrix(true);
+        for (const pt of pts) {
+          if (hw) {
+            tmp.set(pt[0], pt[1], pt[2]);
+            V.TransformCoordinatesToRef(tmp, hw.getWorldMatrix(), tmp);
+            f[o++] = tmp.x;
+            f[o++] = tmp.y;
+            f[o++] = tmp.z;
+          } else o += 3, (f[o - 1] = f[o - 2] = f[o - 3] = NaN);
+        }
+        const gw = hw && last ? last.grip : 0;
+        const offW = hw && last ? Math.min(1, last.offGrip) * last.grip : 0;
+        f[o++] = lg ? offW : gw;
+        f[o++] = lg ? gw : offW;
+        f[o++] = NaN; // raise (the copy has no carry clock)
+        f[o++] = 0;
+        f[o++] = av.mode === 'ground' ? 0 : 1;
+        f[o++] = 0;
+        f[o++] = NaN;
+        f[o++] = NaN;
+        // remote extras
+        f[o++] = mdt;
+        f[o++] = MODES.indexOf(av.mode);
+        f[o++] = g.team?.state === 'boost' ? g.team.t : -1;
+        f[o++] = rig['lodDt'] > 0 ? 1 : 0;
+        f[o++] = rig.graph.phase;
+        f[o++] = cm ? Math.sqrt((rig.root.position.x - cm.globalPosition.x) ** 2 + (rig.root.position.z - cm.globalPosition.z) ** 2) : NaN;
+        for (const n of OWN) {
+          const pp = own[n].getAbsolutePosition();
+          f[o++] = pp.x;
+          f[o++] = pp.y;
+          f[o++] = pp.z;
+        }
+        if (o !== K) throw new Error(`remote record layout ${o} != ${K}`);
+        ar.frames.push(f);
+      };
+      window.__ar = {
+        setSole(L, R) {
+          sole.L = L;
+          sole.R = R;
+        },
+        begin() {
+          ar.frames = [];
+          ar.rec = true;
+        },
+        teleported() {
+          ar.tp = 1;
+          r0.allowTeleport(1.5);
+        },
+        end() {
+          ar.rec = false;
+          const all = new Float32Array(ar.frames.length * K);
+          ar.frames.forEach((f, i) => all.set(f, i * K));
+          const u8 = new Uint8Array(all.buffer);
+          let s = '';
+          for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000));
+          return { b64: btoa(s), n: ar.frames.length };
+        },
+        /** 120 Hz: A's loop manual, the render loop off, an 8 ms page-side pump (fixed steps once 1/60 s of real time passed). */
+        pump(on) {
+          if (on) {
+            a.loop.manual = true;
+            g.scene.getEngine().stopRenderLoop();
+            let prev = performance.now();
+            let acc = 0;
+            ar.jit = [];
+            ar.pumpId = setInterval(() => {
+              const now = performance.now();
+              const dt = (now - prev) / 1000;
+              prev = now;
+              ar.jit.push(dt);
+              acc = Math.min(acc + dt, 0.1);
+              if (acc >= 1 / 60) {
+                acc -= 1 / 60;
+                a.loop.stepHeadless(1 / 60);
+              } else {
+                hooks.beforeFrame?.(dt);
+                hooks.frameUpdate(dt, acc * 60);
+              }
+            }, 8);
+          } else {
+            clearInterval(ar.pumpId);
+            a.loop.manual = false;
+            a.loop.start();
+          }
+        },
+        jitter: () => ar.jit,
+        /** Scenario start (r1): the copy's gait phase and idle clocks from zero (B resets its own in play). */
+        resetClocks() {
+          rig.graph.phase = 0;
+          rig.graph['idleT'] = 0;
+          rig.graph['stillT'] = 0;
+        },
+        /** The host's own player `back` m behind (x, z) facing `yaw`: its camera within the copy's anim LOD distance. */
+        place(x, z, yaw, y) {
+          const p = g.player;
+          p.controller.clearCrouchToggle();
+          p.controller.teleport(new V(x, y, z), yaw);
+          p.cam.yaw = yaw;
+          p.cam.pitch = 0;
+          p.cam.snap?.();
+        },
+      };
+    }, [NODES, { grip: [...L.WRIST_ON_GRIP], fore: [...L.WRIST_ON_FOREGRIP] }, RNAMES, LOWER, OWN, MODES, E0]);
+    // B: the scripted input timeline in real time (read in its beforeFrame) and its own joints every rendered frame
+    await B.evaluate(([BJ, E0, NODES]) => {
+      const a = window.__app;
+      const g = a.current;
+      const p = g.player;
+      const c = p.controller;
+      const st = a.input.state;
+      const rig = p.rig;
+      const V = p.position.constructor;
+      const hooks = a.loop['hooks'];
+      const ob = hooks.beforeFrame;
+      const of = hooks.frameUpdate;
+      const sec = () => (performance.timeOrigin + performance.now() - E0) / 1000;
+      const rb = { segs: null, i: -1, t0: 0, marks: [], frames: [], rec: false, done: true, n: 0, fps0: 0 };
+      hooks.beforeFrame = function (dt) {
+        rb.n++;
+        if (rb.segs && !rb.done) {
+          const t = sec() - rb.t0;
+          let k = 0;
+          let acc = 0;
+          while (k < rb.segs.length && t >= acc + rb.segs[k].d) acc += rb.segs[k++].d;
+          if (k >= rb.segs.length) {
+            rb.done = true;
+            st.move.x = st.move.y = 0;
+            rb.marks.push(sec());
+          } else {
+            const s = rb.segs[k];
+            if (k !== rb.i) {
+              rb.i = k;
+              rb.marks.push(sec());
+              if (s.tap) st.tap(s.tap);
+            }
+            st.move.x = s.x ?? 0;
+            st.move.y = s.y ?? 0;
+          }
+        }
+        return ob?.call(this, dt);
+      };
+      hooks.frameUpdate = function (dt, al) {
+        g.scene.activeCamera?.getViewMatrix(true); // r1: as A (no draw: the anim LOD reads the camera)
+        of.call(this, dt, al);
+        if (!rb.rec) return;
+        rig.root.computeWorldMatrix(true);
+        for (const d of rig.root.getDescendants(false)) d.computeWorldMatrix?.(true);
+        const f = [sec()];
+        for (const n of BJ) {
+          const q = rig[n].getAbsolutePosition();
+          f.push(q.x, q.y, q.z);
+        }
+        f.push(p.position.x, p.position.y, p.position.z, rig.graph.phase, c.yaw, rig['lodDt'] > 0 ? 1 : 0, c.speed);
+        for (const n of NODES) {
+          const q = rig[n].absoluteRotationQuaternion;
+          f.push(q.x, q.y, q.z, q.w);
+        }
+        rb.frames.push(f);
+      };
+      window.__rb = {
+        frames: () => rb.n,
+        tp(x, z, yaw, y, crouch, gear) {
+          if (crouch) c.setCrouchToggle();
+          else c.clearCrouchToggle();
+          if (gear) c.gears.set(gear);
+          st.move.x = st.move.y = 0;
+          c.teleport(new V(x, y, z), yaw);
+          p.cam.yaw = yaw;
+          p.cam.pitch = 0;
+          p.cam.snap?.();
+        },
+        stance(crouch, gear) {
+          if (crouch) c.setCrouchToggle();
+          else c.clearCrouchToggle();
+          if (gear) c.gears.set(gear);
+        },
+        play(segs) {
+          // r1: B's gait phase (motion driver and graph) and idle clocks from zero at the scenario start, as the copy's
+          c.motion.phase = 0;
+          c['prevPhase'] = 0;
+          rig.graph.phase = 0;
+          rig.graph['idleT'] = 0;
+          rig.graph['stillT'] = 0;
+          rb.segs = segs;
+          rb.i = -1;
+          rb.marks = [];
+          rb.frames = [];
+          rb.rec = true;
+          rb.done = false;
+          rb.t0 = sec();
+        },
+        done: () => rb.done,
+        end() {
+          rb.rec = false;
+          return { marks: rb.marks, frames: rb.frames };
+        },
+      };
+    }, [BJ, E0, NODES]);
+    await A.bringToFront();
+    // B is a background page now: Chromium holds its requestAnimationFrame to ~15 Hz (measured 50-67 ms apart). Its
+    // loop stays real time and not manual: the loop's own tick (real dt from performance.now()) runs from a 16 ms timer
+    // instead of rAF (background timers unthrottled by the launch switches).
+    await B.evaluate(() => {
+      const a = window.__app;
+      a.current.scene.getEngine().stopRenderLoop();
+      window.__bTick = setInterval(() => a.loop['tick'](), 16);
+    });
+    const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+    const stat = (P) => P.evaluate(() => { const s = window.__app.loop.stats; return { cpu: +s.frameCpuMs.toFixed(1), sim: +s.simMs.toFixed(1), phys: +s.physicsMs.toFixed(1) }; });
+    const toRec = (r) => {
+      const buf = Buffer.from(r.b64, 'base64');
+      const data = new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4);
+      const rec = { n: r.n, data, K: RK, IDX: RIDX, remote: true, kinds: [] };
+      const dt = col(rec, 'dt');
+      rec.dtMed = median(dt.slice(1));
+      return rec;
+    };
+    // r1: A's own player BEHIND m behind B's start, facing B's heading: A's camera stays within the copy's anim LOD
+    // distance (22 m) for the whole run (stand 6 covers about 11 m)
+    const BEHIND = 3.5;
+    const settleMs = [];
+    rep.placementSettleMs = settleMs; // r3: per placement (calibration first), ms until the copy settled
+    const place = async (x, z, yaw, y, crouch, gear) => {
+      await A.evaluate(() => window.__ar.teleported());
+      await A.evaluate(([x, z, yaw, y]) => window.__ar.place(x, z, yaw, y), [x - BEHIND * Math.sin(yaw), z - BEHIND * Math.cos(yaw), yaw, y]);
+      await B.evaluate(([x, z, yaw, y, crouch, gear]) => window.__rb.tp(x, z, yaw, y, crouch, gear), [x, z, yaw, y, crouch, gear]);
+      // r3: wait for the host's copy to settle (replaces a fixed 800 ms: the copy needs > 1.2 s to recover from the
+      // placement teleport): it reached B's new spot, then its speed < 0.05 and head, wrists and ankles within 1 cm for
+      // 0.3 s (e2e-netmove's rule); ~3 s timeout with a warning
+      await A.evaluate(() => window.__ar.resetClocks()); // the copy's idle shift (still > 2 s) is not placement motion
+      const st = await A.evaluate(([x, z, names]) => new Promise((res) => {
+        const t0 = performance.now();
+        let w0 = -1;
+        let ref = null;
+        const id = setInterval(() => {
+          const now = performance.now();
+          const r = window.__app.current.net.remotes.values().next().value;
+          const av = r?.avatar;
+          if (!av) return;
+          const rig = av.rig;
+          const there = (rig.root.position.x - x) ** 2 + (rig.root.position.z - z) ** 2 < 0.25;
+          const j = names.map((n) => { rig[n].computeWorldMatrix(true); const p = rig[n].getAbsolutePosition(); return [p.x, p.y, p.z]; });
+          const still = there && Math.abs(av['speed'] ?? 0) < 0.05 && ref !== null && j.every((p, k) => (p[0] - ref[k][0]) ** 2 + (p[1] - ref[k][1]) ** 2 + (p[2] - ref[k][2]) ** 2 < 1e-4);
+          if (!still) {
+            w0 = now;
+            ref = j;
+          } else if (now - w0 >= 300) {
+            clearInterval(id);
+            res({ ok: true, ms: Math.round(now - t0) });
+            return;
+          }
+          if (now - t0 > 3000) {
+            clearInterval(id);
+            res({ ok: false, ms: Math.round(now - t0), there, speed: av['speed'] });
+          }
+        }, 20);
+      }), [x, z, JOINTS]);
+      settleMs.push(st.ms);
+      if (!st.ok) console.log(`  warning: the host's copy did not settle after placement in ${st.ms} ms (there ${st.there}, speed ${st.speed})`);
+      await A.evaluate(() => window.__ar.resetClocks());
+    };
+    // rest calibration on the copy (its own FOOT_REF, sole axes and neutral grip)
+    await place(FLAT.x, FLAT.z, FLAT.yaw, FLAT.y, false, 3);
+    await A.evaluate(() => window.__ar.begin());
+    await wait(1000);
+    {
+      const rec = toRec(await A.evaluate(() => window.__ar.end()));
+      const fp = await A.evaluate(() => window.__app.current.net.remotes.values().next().value.avatar.rig.p.foot);
+      calibrate(rec, rep, fp);
+      rep.hostFps = 1 / rec.dtMed;
+      const sp = (s) => M.solePoints(SOLE[s].fwd, SOLE[s].up, FOOT.len, L.FOOT_BACK, FOOT_REF);
+      await A.evaluate(([l, r]) => window.__ar.setSole(l, r), [sp('L'), sp('R')]);
+    }
+    const scs = remoteScenarios();
+    let pumpOn = false;
+    rep.pump = null;
+    for (const sc of scs) {
+      const t1 = Date.now();
+      if (sc.hz === 120 && rep.pump && !rep.pump.ok) continue;
+      if (sc.hz !== 120 && pumpOn) {
+        await A.evaluate(() => window.__ar.pump(false));
+        pumpOn = false;
+      }
+      if (sc.hz === 120 && !pumpOn) {
+        // 120 Hz: the pump, its jitter measured first (p95 of |dt - median dt|); over 2 ms the rows are pending PC
+        await A.evaluate(() => window.__ar.pump(true));
+        pumpOn = true;
+        await wait(1500);
+        const j = await A.evaluate(() => window.__ar.jitter());
+        const med = median(j);
+        const dev = j.map((v) => Math.abs(v - med)).sort((p, q) => p - q);
+        rep.pump = { medianMs: +(med * 1000).toFixed(2), p95JitterMs: +(dev[Math.floor(dev.length * 0.95)] * 1000).toFixed(2), samples: j.length };
+        rep.pump.ok = rep.pump.p95JitterMs <= 2;
+        if (!rep.pump.ok) {
+          console.log(`remote 120 Hz: pump p95 jitter ${rep.pump.p95JitterMs} ms > 2 ms: 120 Hz remote rows pending PC`);
+          await A.evaluate(() => window.__ar.pump(false));
+          pumpOn = false;
+          continue;
+        }
+      }
+      let m = {};
+      let rec;
+      let b;
+      if (sc.kind === 'boost') {
+        // as e2e-netmove: the 4.2 m block north of Proving (south face z 27.5); B braces with its back to it, A boosts
+        await A.evaluate(() => window.__ar.teleported());
+        const placeTeam = (P, x, z, yaw) => P.evaluate(([x, z, yaw]) => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); window.__pad.connect(); for (let i = 0; i < 4; i++) window.__pad.axis(i, 0); for (let i = 0; i < 17; i++) window.__pad.set(i, 0); g.player.controller.clearCrouchToggle(); g.player.controller.teleport(new g.player.position.constructor(x, 0.05, z), yaw); g.player.cam.yaw = yaw; }, [x, z, yaw]);
+        await placeTeam(B, 4, 27.05, Math.PI);
+        await placeTeam(A, 4, 26.2, 0);
+        await wait(1000);
+        await B.evaluate(() => window.__pad.set(3, 1));
+        await B.waitForFunction(() => window.__app.current.team.state === 'brace', null, { timeout: 4000, polling: 50 });
+        await B.evaluate(() => window.__pad.set(3, 0));
+        await A.waitForFunction(() => window.__app.current.net.remotes.values().next().value?.avatar.mode === 'brace' && !!window.__app.current.team.offer?.boost, null, { timeout: 6000, polling: 50 });
+        await wait(400);
+        await A.evaluate(() => window.__ar.resetClocks());
+        await B.evaluate(() => window.__rb.play([{ d: 3.0 }]));
+        await A.evaluate(() => window.__ar.begin());
+        await wait(300);
+        await A.evaluate(() => window.__pad.set(3, 1));
+        await A.waitForFunction(() => window.__app.current.team['pressT'] >= 0, null, { timeout: 4000, polling: 20 });
+        await A.evaluate(() => window.__pad.set(3, 0));
+        await A.waitForFunction(() => window.__app.current.team.count.boosts === 1, null, { timeout: 4000, polling: 50 });
+        await A.waitForFunction(() => window.__app.current.team.state !== 'boost', null, { timeout: 4000, polling: 50 });
+        await wait(300);
+        rec = toRec(await A.evaluate(() => window.__ar.end()));
+        await B.waitForFunction(() => window.__rb.done(), null, { timeout: 6000, polling: 50 });
+        b = await B.evaluate(() => window.__rb.end());
+        await A.evaluate(() => { const g = window.__app.current; g.team.end(true); if (g.traversal.attached) g.traversal.detach('drop'); g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); });
+        for (const P of [A, B]) await P.evaluate(() => window.__pad.disconnect());
+      } else {
+        const segs = remoteSegments(sc);
+        const s = sc.kind === 'stance' ? FLAT : SURF[sc.surface];
+        await place(s.x, s.z, s.yaw, s.y, sc.stance === 'crouch', sc.gear ?? 3);
+        await A.evaluate(() => window.__ar.begin());
+        await B.evaluate((segs) => window.__rb.play(segs), segs);
+        await B.waitForFunction(() => window.__rb.done(), null, { timeout: 20000, polling: 50 });
+        await wait(INTERP_DELAY * 1000 + 300);
+        rec = toRec(await A.evaluate(() => window.__ar.end()));
+        b = await B.evaluate(() => window.__rb.end());
+        await B.evaluate(() => window.__rb.stance(false, 3));
+      }
+      const bn = b.frames.length;
+      const bd = new Float64Array(bn * BW);
+      b.frames.forEach((f, i) => bd.set(f, i * BW));
+      const bt = { n: bn, data: bd };
+      // B's own frame rate over the scenario (real time needs it near the display rate; under 30 the row is suspect)
+      const clientFps = bn > 1 ? (bn - 1) / (bd[(bn - 1) * BW] - bd[0]) : 0;
+      if (clientFps < 30) (rep.warnings ??= []).push(`${sc.name}@${sc.hz}: client ran at ${clientFps.toFixed(1)} frames/s`);
+      const t = col(rec, 't');
+      // B's marks (when its input changed) in A's frames: the first frame whose t - lag reaches the mark
+      const out = {};
+      const lag = remoteMetrics(sc, rec, bt, out, 0, rec.n);
+      if (process.env.DUMP) {
+        mkdirSync(`${OUT}/raw`, { recursive: true });
+        writeFileSync(`${OUT}/raw/remote-${sc.name}-${sc.hz}.json`, JSON.stringify({ names: RNAMES, n: rec.n, rec: Array.from(rec.data), BJ, BW, b: b.frames, marks: b.marks, lag }));
+      }
+      const fa = (tm) => {
+        let i = 0;
+        while (i < rec.n - 1 && t[i] - lag < tm) i++;
+        return i;
+      };
+      const mk = b.marks.map(fa);
+      if (sc.kind === 'gait') m = { start: mk[1], steady: mk[2], stop: mk[3], end: Math.min(rec.n, mk[4] ?? rec.n), cap: (sc.stance === 'crouch' ? [0.5, 0.9, 1.3, 1.8, 2.3, 2.8] : [0.8, 1.3, 2.0, 2.8, 3.8, 5.0])[sc.gear - 1] };
+      else if (sc.kind === 'stance') m = { down: mk[1], up: mk[2], end: mk[3] ?? rec.n };
+      rec.m = m;
+      let metrics;
+      if (sc.kind === 'boost') {
+        metrics = {};
+        common(rec, sc.hz, metrics, 0, rec.n, L.pelvisJumpLimit(0, sc.hz));
+        pairMetrics(rec, metrics);
+      } else metrics = analyze(sc, rec);
+      if (sc.idleTail) {
+        // r1: breath after the settle: the copy stopped (speed < 0.05, both feet planted to the end), then the 0.2 s sway
+        // settle (D2); measured to the end of the 1.5 s tail
+        const sp = col(rec, 'speed');
+        const cl = col(rec, 'L.contact');
+        const cr = col(rec, 'R.contact');
+        let st = m.end;
+        while (st > m.stop && sp[st - 1] < 0.05 && cl[st - 1] && cr[st - 1]) st--;
+        const from = Math.min(m.end - 2, st + Math.round(0.2 / rec.dtMed));
+        res(metrics, 'idleBreath', { ...M.oscP2P(col(rec, 'headNode.y', from, m.end), L.IDLE_BREATH), extra: { settle: +((st - m.stop) * rec.dtMed).toFixed(3), window: +((m.end - from) * rec.dtMed).toFixed(3) } }, L.IDLE_BREATH, ':1257', 'm', from);
+      }
+      // r1: every recorded frame solved at full rate on both pages (no anim LOD skip on A's copy or on B's own rig)
+      {
+        const lod = col(rec, 'lod');
+        const lf = [];
+        for (let i = 0; i < rec.n; i++) if (lod[i]) lf.push(i);
+        let bl = 0;
+        for (let i = 0; i < bt.n; i++) if (bd[i * BW + B_LOD]) bl++;
+        const cd = col(rec, 'camD').filter(Number.isFinite);
+        res(out, 'lodSkip', { worst: lf.length + bl, frame: lf[0] ?? -1, pass: lf.length + bl === 0, extra: { host: lf.length, client: bl, camDMax: +Math.max(0, ...cd).toFixed(2) } }, 0, 'r1 (anim LOD 22 m)', 'count');
+      }
+      Object.assign(metrics, out);
+      const entry = { name: sc.name, hz: sc.hz, kind: sc.kind, frames: rec.n, fps: +(1 / rec.dtMed).toFixed(1), clientFps: +clientFps.toFixed(1), loop: { host: await stat(A), client: await stat(B) }, ms: Date.now() - t1, metrics };
+      rep.scenarios.push(entry);
+      for (const [k, r] of Object.entries(metrics)) if (r && r.pass === false) fails.push({ tag: 'remote', scenario: sc.name, hz: sc.hz, metric: k, value: r.worst, limit: r.limit, frame: r.frame, unit: r.unit });
+    }
+    if (pumpOn) await A.evaluate(() => window.__ar.pump(false));
+    const errs = net.errors.flat().filter((e) => (e.startsWith('[error]') || e.startsWith('[pageerror]')) && !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
+    if (errs.length) rep.consoleErrors = errs.slice(0, 10);
+  } finally {
+    await rb.close();
+  }
+  rep.wallSeconds = (Date.now() - t0) / 1000;
+  return rep;
+}
+
+/** Rest calibration (standing still on flat ground): FOOT_REF (ankle above the sole), the sole axes, the neutral grip. */
+function calibrate(rec, rep, fp) {
+  const h = [];
+  // neutral low-ready grip (the rig's grip convention offset): elbow-to-wrist rotation on the last idle frame
+  for (const s of ['L', 'R']) WRIST_NEUTRAL[s] = M.relQuat(quat(rec, `elbow${s}`, rec.n - 1, rec.n), 0, quat(rec, `wrist${s}`, rec.n - 1, rec.n), 0);
+  rep.wristNeutral = { ...WRIST_NEUTRAL };
+  for (const s of ['L', 'R']) {
+    const an = col(rec, s === 'L' ? 'ankleL.y' : 'ankleR.y');
+    // the rig's ankle height above its sole (planner ground): float / sink are then read against the world ray
+    const gy = col(rec, `${s}.y`);
+    const c = col(rec, `${s}.contact`);
+    for (let i = 0; i < rec.n; i++) if (c[i]) h.push(an[i] - gy[i]);
+  }
+  FOOT_REF = median(h);
+  rep.footRef = FOOT_REF;
+  // foot axes in the ankle frame: world up and the planner's foot yaw on the last rest frame, by the inverse ankle quat
+  for (const s of ['L', 'R']) {
+    const q = quat(rec, s === 'L' ? 'ankleL' : 'ankleR', rec.n - 1, rec.n);
+    const inv = [-q[0], -q[1], -q[2], q[3]];
+    const yaw = col(rec, `${s}.yaw`, rec.n - 1, rec.n)[0];
+    SOLE[s] = { fwd: M.quatRotate(inv, 0, Math.sin(yaw), 0, Math.cos(yaw)), up: M.quatRotate(inv, 0, 0, 1, 0) };
+  }
+  rep.sole = { ...SOLE };
+  FOOT = { len: fp.len, width: fp.w };
+  rep.foot = FOOT;
+}
+
 // ---------------------------------------------------------------- run
 const report = { started: new Date().toISOString(), quick: QUICK, footRef: 0, notMeasured: NOT_MEASURED, scenarios: [] };
 const fails = [];
 const ends = {};
-try {
+if (DO_LOCAL) try {
   // rest ankle height above the sole (the planner's ground) and the neutral grip: standing still on flat ground
   await G(() => {
     const t = window.__aa;
@@ -761,31 +1674,9 @@ try {
   {
     const r = await G(() => window.__aa.end());
     const buf = Buffer.from(r.b64, 'base64');
-    const rec = { n: r.n, data: new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4) };
-    const h = [];
-    // neutral low-ready grip (the rig's grip convention offset): elbow-to-wrist rotation on the last idle frame
-    for (const s of ['L', 'R']) WRIST_NEUTRAL[s] = M.relQuat(quat(rec, `elbow${s}`, rec.n - 1, rec.n), 0, quat(rec, `wrist${s}`, rec.n - 1, rec.n), 0);
-    report.wristNeutral = WRIST_NEUTRAL;
-    for (const s of ['L', 'R']) {
-      const an = col(rec, s === 'L' ? 'ankleL.y' : 'ankleR.y');
-      // the rig's ankle height above its sole (planner ground): float / sink are then read against the world ray
-      const gy = col(rec, `${s}.y`);
-      const c = col(rec, `${s}.contact`);
-      for (let i = 0; i < rec.n; i++) if (c[i]) h.push(an[i] - gy[i]);
-    }
-    FOOT_REF = median(h);
-    report.footRef = FOOT_REF;
-    // foot axes in the ankle frame: world up and the planner's foot yaw on the last rest frame, by the inverse ankle quat
-    for (const s of ['L', 'R']) {
-      const q = quat(rec, s === 'L' ? 'ankleL' : 'ankleR', rec.n - 1, rec.n);
-      const inv = [-q[0], -q[1], -q[2], q[3]];
-      const yaw = col(rec, `${s}.yaw`, rec.n - 1, rec.n)[0];
-      SOLE[s] = { fwd: M.quatRotate(inv, 0, Math.sin(yaw), 0, Math.cos(yaw)), up: M.quatRotate(inv, 0, 0, 1, 0) };
-    }
-    report.sole = SOLE;
+    const rec = { n: r.n, data: new Float32Array(buf.buffer, buf.byteOffset, buf.byteLength / 4), K, IDX };
     const fp = await G(() => window.__app.current.player.rig.p.foot);
-    FOOT = { len: fp.len, width: fp.w };
-    report.foot = FOOT;
+    calibrate(rec, report, fp);
     const sp = (s) => M.solePoints(SOLE[s].fwd, SOLE[s].up, FOOT.len, L.FOOT_BACK, FOOT_REF);
     await G(([l, r]) => window.__aa.setSole(l, r), [sp('L'), sp('R')]);
   }
@@ -802,13 +1693,13 @@ try {
     }
     if (sc.kind === 'gait' && sc.surface === 'flat') {
       const f = rec.n - 1;
-      const v = (n) => rec.data[f * K + IDX[n]];
+      const v = (n) => rec.data[f * rec.K + rec.IDX[n]];
       ends[`${sc.name}@${sc.hz}`] = { x: v('fix.x'), z: v('fix.z'), yaw: v('yaw'), lx: v('L.x'), lz: v('L.z'), rx: v('R.x'), rz: v('R.z'), cx: v('cam.x'), cy: v('cam.y'), cz: v('cam.z') };
     }
     const entry = { name: sc.name, hz: sc.hz, kind: sc.kind, frames: rec.n, ms: Date.now() - t1, metrics };
     report.scenarios.push(entry);
     for (const [k, r] of Object.entries(metrics))
-      if (r && r.pass === false) fails.push({ scenario: sc.name, hz: sc.hz, metric: k, value: r.worst, limit: r.limit, frame: r.frame, unit: r.unit });
+      if (r && r.pass === false) fails.push({ tag: 'local', scenario: sc.name, hz: sc.hz, metric: k, value: r.worst, limit: r.limit, frame: r.frame, unit: r.unit });
   }
   // :854 frame-rate parity: the same flat run at 60 and 120 Hz ends in the same place
   for (const [k, a] of Object.entries(ends)) {
@@ -826,7 +1717,7 @@ try {
       parityCamV: { worst: Math.abs(a.cy - b.cy), frame: -1, limit: P.camV, pass: Math.abs(a.cy - b.cy) <= P.camV, line: ':854', unit: 'm' },
     };
     report.scenarios.push({ name: `${name}-parity`, hz: '60v120', kind: 'parity', metrics: pm });
-    for (const [mk, r] of Object.entries(pm)) if (!r.pass) fails.push({ scenario: `${name}-parity`, hz: '60v120', metric: mk, value: r.worst, limit: r.limit, frame: -1, unit: r.unit });
+    for (const [mk, r] of Object.entries(pm)) if (!r.pass) fails.push({ tag: 'local', scenario: `${name}-parity`, hz: '60v120', metric: mk, value: r.worst, limit: r.limit, frame: -1, unit: r.unit });
   }
   if (SHOTS) {
     mkdirSync(OUT, { recursive: true });
@@ -847,38 +1738,155 @@ try {
   server?.kill();
   process.exit(2);
 }
-await browser.close();
+if (browser) await browser.close();
+const localSeconds = (Date.now() - T0) / 1000;
+
+// ---------------------------------------------------------------- remote (step 08)
+const remote = DO_REMOTE
+  ? await runRemote().catch((e) => {
+      console.error('anim-audit remote harness error:', e?.stack ?? String(e));
+      server?.kill();
+      process.exit(2);
+    })
+  : null;
 server?.kill();
 
 // ---------------------------------------------------------------- output
 mkdirSync(OUT, { recursive: true });
-report.wallSeconds = (Date.now() - T0) / 1000;
-writeFileSync(`${OUT}/local.json`, JSON.stringify(report, null, 1));
+report.wallSeconds = localSeconds;
+if (DO_LOCAL) writeFileSync(`${OUT}/local.json`, JSON.stringify(report, null, 1));
+if (remote) writeFileSync(`${OUT}/remote.json`, JSON.stringify(remote, null, 1));
 const fmt = (v, unit) => (typeof v !== 'number' ? String(v) : unit === 'm' ? `${(v * 100).toFixed(2)} cm` : unit === 'deg' ? `${v.toFixed(1)} deg` : unit === 's' ? `${v.toFixed(3)} s` : v.toFixed(3));
 const fmtL = (v, unit) => (typeof v === 'number' ? fmt(v, unit) : String(v));
 writeFileSync(
   `${OUT}/fails.txt`,
   Object.entries(NOT_MEASURED).map(([k, v]) => `# ${k} (body / weapon vs world, :806-807): ${v}\n`).join('') +
-    fails.map((f) => `${f.scenario}\t${f.hz}\t${f.metric}\t${fmt(f.value, f.unit)}\tlimit ${fmtL(f.limit, f.unit)}\tframe ${f.frame}`).join('\n') +
+    (remote?.pump && !remote.pump.ok ? `# remote 120 Hz: pending PC (pump p95 jitter ${remote.pump.p95JitterMs} ms > 2 ms)\n` : '') +
+    fails.map((f) => `${f.tag}\t${f.scenario}\t${f.hz}\t${f.metric}\t${fmt(f.value, f.unit)}\tlimit ${fmtL(f.limit, f.unit)}\tframe ${f.frame}`).join('\n') +
     '\n',
 );
 const cm = (r) => (r ? `${(r.worst * 100).toFixed(2)}${r.pass ? '' : '!'}` : '-');
-console.log('\nscenario            Hz   speed  pelvisP2P  head   sway   cam    jump   slideMax  settle  fails');
-for (const s of report.scenarios) {
-  if (s.kind === 'parity') continue;
-  const x = s.metrics;
-  const nf = Object.values(x).filter((r) => r && r.pass === false).length;
-  const slide = Math.max(x.footSlideL?.worst ?? 0, x.footSlideR?.worst ?? 0);
-  console.log(
-    `${s.name.padEnd(19)} ${String(s.hz).padEnd(4)} ${x.speed ? x.speed.value.toFixed(2).padStart(5) : '    -'}  ${cm(x.pelvisP2P).padStart(9)}  ${cm(x.headTravel).padStart(5)}  ${cm(x.lateralSway).padStart(5)}  ${cm(x.cameraOsc).padStart(5)}  ${cm(x.pelvisJump).padStart(5)}  ${(slide * 100).toFixed(2).padStart(8)}  ${x.weaponSettle ? x.weaponSettle.worst.toFixed(2).padStart(6) : '     -'}  ${nf}`,
-  );
+for (const [tag, rp] of [['local', DO_LOCAL ? report : null], ['remote', remote]]) {
+  if (!rp) continue;
+  console.log(`\n${tag.padEnd(19)} Hz   speed  pelvisP2P  head   sway   cam    jump   slideMax  settle  ${tag === 'remote' ? 'pose   lower  phase  pops  lod  ' : ''}fails`);
+  for (const s of rp.scenarios) {
+    if (s.kind === 'parity') continue;
+    const x = s.metrics;
+    const nf = Object.values(x).filter((r) => r && r.pass === false).length;
+    const slide = Math.max(x.footSlideL?.worst ?? 0, x.footSlideR?.worst ?? 0);
+    console.log(
+      `${s.name.padEnd(19)} ${String(s.hz).padEnd(4)} ${x.speed ? x.speed.value.toFixed(2).padStart(5) : '    -'}  ${cm(x.pelvisP2P).padStart(9)}  ${cm(x.headTravel).padStart(5)}  ${cm(x.lateralSway).padStart(5)}  ${cm(x.cameraOsc).padStart(5)}  ${cm(x.pelvisJump).padStart(5)}  ${(slide * 100).toFixed(2).padStart(8)}  ${x.weaponSettle ? x.weaponSettle.worst.toFixed(2).padStart(6) : '     -'}  ${tag === 'remote' ? `${cm(x.poseError).padStart(5)}  ${cm(x.lowerBody).padStart(5)}  ${x.gaitPhase ? x.gaitPhase.worst.toFixed(2).padStart(5) : '    -'}  ${String(x.pops?.worst ?? '-').padStart(4)}  ${String(x.lodSkip?.worst ?? '-').padStart(3)}  ` : ''}${nf}`,
+    );
+  }
 }
 const byMetric = {};
-for (const f of fails) byMetric[f.metric] = (byMetric[f.metric] ?? 0) + 1;
-console.log(`\n(cm; ! = fail) ${report.scenarios.length} scenario rows, ${fails.length} fails`);
+for (const f of fails) byMetric[`${f.tag}:${f.metric}`] = (byMetric[`${f.tag}:${f.metric}`] ?? 0) + 1;
+const nLocal = fails.filter((f) => f.tag === 'local').length;
+const nRemote = fails.filter((f) => f.tag === 'remote').length;
+console.log(`\n(cm; ! = fail) fails: local ${DO_LOCAL ? nLocal : '-'}, remote ${remote ? nRemote : '-'}`);
 console.log('fails by metric: ' + (Object.entries(byMetric).map(([k, v]) => `${k} ${v}`).join(', ') || 'none'));
 const real = errors.filter((e) => e.startsWith('[error]') || e.startsWith('[pageerror]'));
-if (real.length) console.log('console problems:\n' + real.slice(0, 10).join('\n'));
-console.log(`wrote ${OUT}/local.json, ${OUT}/fails.txt`);
-console.log(`wall time ${report.wallSeconds.toFixed(1)} s${QUICK ? ' (quick)' : ''}`);
+if (real.length) console.log('console problems (local):\n' + real.slice(0, 10).join('\n'));
+if (remote?.consoleErrors) console.log('console problems (remote):\n' + remote.consoleErrors.join('\n'));
+if (remote?.warnings) console.log('remote warnings:\n  ' + remote.warnings.join('\n  '));
+if (remote) console.log(`remote: client ${Math.min(...remote.scenarios.map((s) => s.clientFps))}-${Math.max(...remote.scenarios.map((s) => s.clientFps))} frames/s, host ${remote.hostFps.toFixed(1)} fps; 120 Hz pump ${remote.pump ? `${remote.pump.medianMs} ms median, p95 jitter ${remote.pump.p95JitterMs} ms (${remote.pump.ok ? 'ok' : 'pending PC'})` : 'not run'}${remote.placementSettleMs ? `; placement settle ${Math.min(...remote.placementSettleMs)}-${Math.max(...remote.placementSettleMs)} ms` : ''}`);
+
+// ---------------------------------------------------------------- baseline + compare (step 08)
+const baseline = { mode: { quick: QUICK, only: ONLY ?? null, local: DO_LOCAL, remote: !!remote }, local: {}, remote: {} };
+for (const [tag, rp] of [['local', DO_LOCAL ? report : null], ['remote', remote]]) {
+  if (!rp) continue;
+  for (const sc of rp.scenarios) {
+    const row = {};
+    for (const [k, r] of Object.entries(sc.metrics)) if (r && typeof r.worst === 'number' && 'pass' in r) row[k] = { worst: +r.worst.toPrecision(5), pass: r.pass };
+    baseline[tag][`${sc.name}@${sc.hz}`] = row;
+  }
+}
+/** Remote metrics gated by --compare (r1, A39): against the noise band of the two baseline runs; the rest is report-only. */
+// (lowerBody is a worst-frame of single planner lunges: 0.58 -> 1.09 m between runs; 120 Hz pops vary up to 2x between
+// identical runs because of the page-side 120 Hz pump: both reported and failed, not gated)
+// A40: remote poseError is report-only until step 22 fixes the owner / copy stop-stride mismatch that dominates it
+// (identical runs read 20-41 cm); step 22 re-baselines from three runs and adds it back here.
+const REMOTE_GATED = ['pops', 'pairAlign', 'lodSkip'];
+/** Hz a gated remote metric is gated at (A39): pops at 60 Hz only; unlisted = every rate. */
+const REMOTE_GATED_HZ = { pops: ['60'] };
+const remoteGated = (metric, hz) => REMOTE_GATED.includes(metric) && (!REMOTE_GATED_HZ[metric] || REMOTE_GATED_HZ[metric].includes(String(hz)));
+const REMOTE_GATE_TEXT = 'gated: pops @60, pairAlign, lodSkip; report-only: poseError until step 22 (A40), lowerBody, pops @120, gaitPhase and the other remote rows (A39)';
+if (BAND && remote) {
+  const prev = JSON.parse(readFileSync(BAND, 'utf8'));
+  for (const [key, row] of Object.entries(baseline.remote)) {
+    const pr = prev.remote?.[key];
+    if (!pr) continue;
+    for (const m of REMOTE_GATED) {
+      const a = row[m];
+      const b = pr[m];
+      if (!a || !b) continue;
+      row[m] = { worst: Math.max(a.worst, b.worst), pass: a.pass && b.pass, band: +Math.abs(a.worst - b.worst).toPrecision(4), runs: [b.worst, a.worst] };
+    }
+  }
+  baseline.mode.band = true;
+}
+writeFileSync(`${OUT}/baseline.json`, JSON.stringify(baseline, null, 1) + '\n');
+/** Noise floor of a gated remote metric (a band of two runs can be 0): 2 mm for lengths, 2 frames for pop counts. */
+const bandFloor = (unit) => (unit === 'm' ? 0.002 : unit === 'count' ? 2 : 0);
+const TRAVERSAL = /^(vault|mantle|drop09|drop24|turn180)@/;
+/** Noise tolerance of one metric (step 07 carry): a change inside it is not a regression. */
+function tolerance(key, metric, unit, base, hz) {
+  const trav = TRAVERSAL.test(key);
+  if (metric === 'jointRate') return trav ? 25 : 0.5;
+  if (/^(grip|self)/.test(metric)) return trav ? 0.015 : 0.005;
+  if (/^wrist/.test(metric)) return 2;
+  if (unit === 's') return 1 / (Number(hz) || 60);
+  if (unit === 'deg') return 0.5;
+  if (unit === 'm') return Math.max(1e-4, 0.02 * Math.abs(base));
+  return 0;
+}
+let regressions = 0;
+if (COMPARE) {
+  const old = JSON.parse(readFileSync(COMPARE, 'utf8'));
+  const om = old.mode ?? {};
+  if (om.quick !== QUICK || (om.only ?? null) !== (ONLY ?? null)) {
+    console.log(`\ncompare: ${COMPARE} was a ${om.quick ? 'quick' : 'full'}${om.only ? ` --only=${om.only}` : ''} run; this one is ${QUICK ? 'quick' : 'full'}${ONLY ? ` --only=${ONLY}` : ''}: not comparable`);
+    process.exit(2);
+  }
+  const lines = [];
+  const flips = [];
+  const remoteNoise = [];
+  for (const tag of ['local', 'remote']) {
+    if (!baseline.mode[tag] || !om[tag]) continue;
+    for (const [key, row] of Object.entries(old[tag] ?? {})) {
+      const now = baseline[tag][key];
+      if (!now) {
+        lines.push(`${tag} ${key}: scenario missing`);
+        continue;
+      }
+      const hz = key.split('@')[1];
+      for (const [metric, o] of Object.entries(row)) {
+        const n = now[metric];
+        if (!n) continue;
+        if (o.pass !== n.pass) flips.push(`${tag} ${key} ${metric}: ${o.pass ? 'pass -> FAIL' : 'fail -> pass'} (${o.worst} -> ${n.worst})`);
+        // durations (a minimum time) get worse downward, everything else upward
+        const lowerWorse = /Time$/.test(metric);
+        const unit = (tag === 'local' ? report : remote)?.scenarios.find((s) => `${s.name}@${s.hz}` === key)?.metrics[metric]?.unit;
+        const worse = lowerWorse ? o.worst - n.worst : n.worst - o.worst;
+        if (tag === 'remote' && remoteGated(metric, hz)) {
+          // r1: gated against the noise band of the two baseline runs: worse than the worse of the two by more than
+          // max(2 x their spread (two samples understate the range), 10%, floor); lodSkip has no floor (any skip)
+          const tol = metric === 'lodSkip' ? 0 : Math.max(2 * (o.band ?? 0), 0.1 * Math.abs(o.worst), bandFloor(unit));
+          if (Number.isFinite(worse) ? worse > tol : o.pass && !n.pass) lines.push(`${tag} ${key} ${metric}: ${o.worst} -> ${n.worst} (band ${o.band ?? 'none'}, tol ${+tol.toPrecision(3)})${o.pass && !n.pass ? ' (new fail)' : ''}`);
+          continue;
+        }
+        const tol = Math.max(0.1 * Math.abs(o.worst), tolerance(key, metric, unit, o.worst, hz));
+        // the other remote rows are real time and not gated (A39: only remoteGated): listed as report-only, not counted
+        if ((o.pass && !n.pass) || (Number.isFinite(worse) && worse > tol)) (tag === 'remote' ? remoteNoise : lines).push(`${tag} ${key} ${metric}: ${o.worst} -> ${n.worst}${o.pass && !n.pass ? ' (new fail)' : ''}`);
+      }
+    }
+  }
+  regressions = lines.length;
+  if (baseline.mode.remote && om.remote) console.log(`\ncompare remote metrics: ${REMOTE_GATE_TEXT}`);
+  console.log(`${baseline.mode.remote && om.remote ? '' : '\n'}compare against ${COMPARE}: ${lines.length ? `${lines.length} regression(s)\n  ${lines.join('\n  ')}` : 'no regression'}`);
+  if (remoteNoise.length) console.log(`remote report-only changes beyond the local tolerances (lowerBody, pops @120 and other real-time rows; not regressions): ${remoteNoise.length}\n  ${remoteNoise.join('\n  ')}`);
+  console.log(`pass / fail flips: ${flips.length ? `${flips.length}\n  ${flips.join('\n  ')}` : 'none'}`);
+}
+console.log(`wrote ${OUT}/${DO_LOCAL ? 'local.json, ' : ''}${remote ? 'remote.json, ' : ''}fails.txt, baseline.json`);
+console.log(`wall time ${((Date.now() - T0) / 1000).toFixed(1)} s (local ${DO_LOCAL ? localSeconds.toFixed(1) : '-'} s, remote ${remote ? `${remote.wallSeconds.toFixed(1)} s incl. lobby ${remote.lobbySeconds.toFixed(1)} s` : '-'})${QUICK ? ' (quick)' : ''}`);
 process.exit(STRICT && fails.length ? 1 : 0);

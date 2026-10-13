@@ -31,6 +31,19 @@ describe('anim audit limits', () => {
 });
 
 describe('anim audit metrics', () => {
+  it('jointRate / pelvisJump with measured frame times scale each step to the nominal frame (remote poses)', () => {
+    // 20 deg in a frame that took 2 / 60 s reads 10 deg at 60 Hz (pass); 20 deg in 1 / 120 s reads 40 (fail, one pop)
+    const q = spinY(3, 20);
+    expect(M.jointRate(q, 60, undefined, undefined, [0, 2 / 60, 2 / 60]).worst).toBeCloseTo(10);
+    const r = M.jointRate(q, 60, undefined, undefined, [0, 1 / 60, 1 / 120]);
+    expect(r.worst).toBeCloseTo(40);
+    expect(r.over).toBe(1);
+    expect(r.pass).toBe(false);
+    // pelvis: 6 cm in a 2-frame gap vs a 5 cm per-frame limit passes; in a nominal frame it fails
+    const p = [0, 0, 0, 0.06, 0, 0];
+    expect(M.pelvisJump(p, 0.05, undefined, [0, 2 / 60], 60).pass).toBe(true);
+    expect(M.pelvisJump(p, 0.05, undefined, [0, 1 / 60], 60).over).toBe(1);
+  });
   it('jointRate scales with the frame rate (25 deg at 60 Hz, 12.5 deg at 120 Hz)', () => {
     expect(M.jointRate(spinY(30, 24), 60).pass).toBe(true);
     expect(M.jointRate(spinY(30, 26), 60).pass).toBe(false);

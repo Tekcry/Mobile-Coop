@@ -288,17 +288,28 @@ export function centerOfMass(b: BodyPoints): [number, number, number] {
 /**
  * :794 joint rotation per frame. `q` = world quats (stride 4), `hz` = sample rate. Limit 1500 deg/s, i.e. 25 deg
  * per 60 Hz frame, 12.5 deg per 120 Hz frame. `exempt[i]` skips the step into frame i (hits, impacts, teleports).
+ * `dt[i]` (remote poses, real-time frames): the measured frame time into frame i; each step is then scaled to a
+ * nominal 1 / `hz` frame (step x (1 / hz) / dt[i]), so the limit scales with the measured dt. `over` = frames over
+ * the limit (pops).
  */
-export function jointRate(q: Arr, hz: number, exempt?: Arr, degPerS = JOINT_DEG_PER_S): Result & { limit: number } {
+export function jointRate(q: Arr, hz: number, exempt?: Arr, degPerS = JOINT_DEG_PER_S, dt?: Arr): Result & { limit: number; over: number } {
   const limit = degPerS / hz;
   let worst = 0;
   let frame = -1;
+  let over = 0;
   for (let i = 1; i * 4 + 3 < q.length; i++) {
     if (masked(exempt, i)) continue;
-    const d = quatAngle(q, (i - 1) * 4, q, i * 4);
+    const d = quatAngle(q, (i - 1) * 4, q, i * 4) * dtScale(dt, i, hz);
+    if (d > limit) over++;
     if (d > worst || frame < 0) [worst, frame] = [d, i];
   }
-  return { ...result(worst, frame, worst <= limit), limit };
+  return { ...result(worst, frame, worst <= limit), limit, over };
+}
+
+/** (1 / hz) / dt[i]: a measured frame time `dt[i]` scaled to the nominal frame (1 without `dt` or a bad dt). */
+export function dtScale(dt: Arr | undefined, i: number, hz: number): number {
+  const d = dt ? at(dt, i) : NaN;
+  return d > 0 && Number.isFinite(d) ? 1 / (hz * d) : 1;
 }
 
 /** Per-frame local rotation stream conj(parent) * child (stride 4) for a local-frame `jointRate`. */
@@ -309,16 +320,18 @@ export function localQuats(parent: Arr, child: Arr): Float64Array {
   return out;
 }
 
-/** :795 pelvis displacement per frame vs `limit` (= gear cap x dt + 2 cm). */
-export function pelvisJump(p: Arr, limit: number, exempt?: Arr): Result {
+/** :795 pelvis displacement per frame vs `limit` (= gear cap x dt + 2 cm); `dt` / `hz` as `jointRate` (measured frame times). */
+export function pelvisJump(p: Arr, limit: number, exempt?: Arr, dt?: Arr, hz = 60): Result & { over: number } {
   let worst = 0;
   let frame = -1;
+  let over = 0;
   for (let i = 1; i * 3 + 2 < p.length; i++) {
     if (masked(exempt, i)) continue;
-    const d = len3(at(p, i * 3) - at(p, i * 3 - 3), at(p, i * 3 + 1) - at(p, i * 3 - 2), at(p, i * 3 + 2) - at(p, i * 3 - 1));
+    const d = len3(at(p, i * 3) - at(p, i * 3 - 3), at(p, i * 3 + 1) - at(p, i * 3 - 2), at(p, i * 3 + 2) - at(p, i * 3 - 1)) * dtScale(dt, i, hz);
+    if (d > limit) over++;
     if (d > worst || frame < 0) [worst, frame] = [d, i];
   }
-  return result(worst, frame, worst <= limit);
+  return { ...result(worst, frame, worst <= limit), over };
 }
 
 /** :796 teleports: frames whose root / pelvis moves more than `dist` (0.5 m). worst = count. */

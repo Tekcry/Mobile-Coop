@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: 08 harness-remote (next)
+Current step: Block B end (full e2e, perf), then 09 holster-draw
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)
@@ -20,6 +20,7 @@ Last commit: see git log (locomotion 00)
 - step 05 remove-cover-player (1 fix round).
 - step 06 remove-cover-rig-net (1 fix round). Block A done.
 - step 07 harness-local (3 fix rounds).
+- step 08 harness-remote (3 fix rounds + A40). Block B done.
 
 ## Blocked
 (none)

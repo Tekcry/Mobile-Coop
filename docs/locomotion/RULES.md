@@ -47,7 +47,7 @@ DECISIONS.md (D1-D8, then ASSUMED) > docs/design-bible.md (1.13, Section 5.17 ho
 Implement (subagent, no commit) -> check (fresh subagent: diff, re-run checks, anim-audit local + remote, bible + D1-D8, PC-PASS items, PASS or FAIL list) -> up to 3 fix rounds -> commit "locomotion NN: <summary>", push, update LOG, STATE, AUDIT, CHANGELOG, TESTING, docs/systems (coop.md for network changes). Block end: full `npm run e2e` + perf trend.
 
 ## ASSUMED decisions from step files
-A6-A38 are already logged in DECISIONS.md. Do not re-log them; a new assumption takes the next free number after the highest in DECISIONS.md.
+A6-A40 are already logged in DECISIONS.md. Do not re-log them; a new assumption takes the next free number after the highest in DECISIONS.md.
 
 ## Speed (user instruction, 2026-10-13, overrides the step loop in BRIEF section 6 where they differ)
 - Implementers run lint, unit tests, build and only the e2e suites their step file names (plus e2e-netmove / e2e-coop when they touch a movement state or src/net). The checker runs the full `npm run e2e:quick`.
@@ -55,3 +55,4 @@ A6-A38 are already logged in DECISIONS.md. Do not re-log them; a new assumption 
 - This VM has 4 cores, so run-e2e defaults to 1 job. Run e2e with `E2E_JOBS=2`; a timing failure that passes on a serial rerun is logged as flaky, not fixed.
 - Block end also merges origin/feature/kestrel into this branch (after the full e2e and perf trend), resolving conflicts per BRIEF 7.1, then reruns `npm run check` and `npm run e2e:quick`. Kestrel-owned failures go to REVIEW-NOTES.md.
 - Known pre-existing failures need no proof: e2e-editor and e2e-kestrel (kestrel-owned, REVIEW-NOTES); tests/kestrelMap.test.ts now passes. Checkers never build worktrees or old copies to prove a failure is pre-existing; if a new failure appears outside the step's files, report it with the log line and move on.
+- anim-audit `--compare`: a remote gated regression counts only if it reproduces on one rerun (same rule as e2e flakes; A39 gate noise). Local regressions count at once (local is deterministic).

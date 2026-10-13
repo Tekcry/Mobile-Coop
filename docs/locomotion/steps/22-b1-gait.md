@@ -60,3 +60,5 @@ Commit: "locomotion 22: speed-scaled gait, lean spring, stop settle, plant-and-p
 - `node scripts/perf-trend.mjs`.
 - PC-PASS: anim-sheet `start`, `stop`, `walkstop`, `turn`, `sprint`, and a new `quick180` scenario, side / front / ots,
   local and remote: "one settle, no slide, lean returns without overshoot" (PROVISIONAL in the cloud).
+- From step 08 (D8 finding): after a stop the owner holds its stopped stride (ankle 0.2 m forward, head 0.1 m lower) while the remote copy settles to idle (settled ankles / head miss by 25-50 cm); during acceleration the copy's head dips ~14 cm below the owner's. Make the remote stop and start poses follow MoveState + velocity like the owner (no extra bandwidth); the remote gating poseError must improve against docs/locomotion/audit/anim-baseline.json.
+- After the stop-stride fix, regenerate docs/locomotion/audit/anim-baseline.json from three full runs and put poseError back in REMOTE_GATED in scripts/anim-audit.mjs (A40).

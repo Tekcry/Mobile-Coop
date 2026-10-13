@@ -80,8 +80,10 @@ if (PROFILE) {
 }
 let warmed = true;
 
-export async function launch({ url = 'http://localhost:4173/', params = '', touch = true, viewport = { width: 1280, height: 640 }, touchViewport = null } = {}) {
-  const browser = await timed('launch', () => chromium.launch(launchOptions()));
+export async function launch({ url = 'http://localhost:4173/', params = '', touch = true, viewport = { width: 1280, height: 640 }, touchViewport = null, args = [] } = {}) {
+  // (`args`: extra Chromium switches, e.g. anim-audit's remote run keeps a background page's timers unthrottled)
+  const lo = launchOptions();
+  const browser = await timed('launch', () => chromium.launch({ ...lo, args: [...lo.args, ...args] }));
   const dev = devices['Pixel 7 landscape'] ?? devices['Pixel 5 landscape'];
   // (`touchViewport`: the phone held another way, e.g. upright)
   const ctx = await browser.newContext({ ...(touch ? { ...dev, ...(touchViewport ? { viewport: touchViewport, screen: touchViewport } : {}) } : { viewport }), acceptDownloads: true });

@@ -138,8 +138,8 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     the render's JS), animation ms per character, allocations per second (top allocators), draw calls and triangles
     over every pass (`PROFILE=1` CPU profile)
   - `node scripts/soak.mjs [minutes=10] [url]` (`MAP=`, `MODE=`) real-time soak: pacing, CPU, adaptive quality, heap growth (leak check)
-  - `node scripts/anim-audit.mjs [url] [--quick] [--only=<scenario>] [--out=dir] [--shots] [--strict]` (locomotion step 07) animation
-    audit, local player, Proving Grounds (bible 5.12.2, 5.12.4.2, 5.17 D2 / D5). Bundles the pure `src/anim/audit/metrics.ts` +
+  - `node scripts/anim-audit.mjs [url] [--local | --remote] [--quick] [--only=<scenario>] [--out=dir] [--shots] [--strict] [--compare=<file>] [--band=<file>]`
+    (locomotion steps 07-08) animation audit, local player and remote poses (default: both), Proving Grounds (bible 5.12.2, 5.12.4.2, 5.17 D2 / D5). Bundles the pure `src/anim/audit/metrics.ts` +
     `limits.ts` with esbuild into `test-results/anim-audit/lib`; the page only records joints / camera / capsule / planner every
     rendered frame (60 and 120 Hz), node computes. Full run: flat every gear both stances at 60 + 120 Hz, stairs and the 20.4 deg ramp
     every gear at 60, stairs and the 35 deg slope (stand 2 / 4 / 6, crouch 2 / 6) at 120, transitions (stance, quick 180, raise, swap,
@@ -156,6 +156,43 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     bible line) and `<out>/fails.txt` (scenario, Hz, metric, value, limit, frame), prints a summary table and the wall time. Report
     mode exits 0 unless the harness errors; `--strict` exits 1 on any fail. `DUMP=1` also writes the raw recordings to `<out>/raw/`.
     Serves `dist/` itself when no url is given and nothing is up on 4173 (`npm run build` first). `--shots` is PC only (`E2E_GPU=1`).
+    The local run stops the engine's render loop (only `stepHeadless` advances the page: the step 07 wall-clock leak) and
+    refreshes the camera's view matrix before every frame update (nothing else does then, and the rig's 22 m anim LOD reads
+    `camera.globalPosition`: frozen at spawn it halved the solve rate far from it).
+    Remote (step 08, `--remote`, also in the default run): host A and client B over `?net=local` (shared helpers in
+    `scripts/e2e-net-lib.mjs`: `hostAndJoin`, `startMode`, `until`, `localJoints`, `remoteJoints`, `allowTeleport`), sandbox on
+    Proving; B moves with scripted input in real time (its loop's own tick on a 16 ms timer: B is the background page and Chromium
+    holds its rAF to ~15 Hz); A is in front and records its copy of B every rendered frame with the measured dt, in the local record
+    layout plus dt, move mode, the host's team clock and own joints. Software GL: neither page draws (`scene.render` off; two drawn
+    match scenes ran at 2-12 frames/s); `E2E_GPU=1` keeps the draw. Same metric functions as local, continuity limits scaled per
+    frame to the measured dt; no camera metrics (A's camera is its own). Both pages refresh their camera view matrix every frame
+    and A's player stands 3.5 m behind B's start (A's camera within the copy's 22 m anim LOD); `lodSkip` fails a row with any
+    frame either rig skipped. Remote-only (step 08 r1, A38): `poseError` = the gating part (root, head, wrists, plus the ankles
+    on settled frames: B's ankles and root still < 1 cm for 1 s, e2e-netmove's rule) vs B's own pose at t - lag (lag fitted on
+    the moving frames in 0-0.25 s, <= 10 cm; `allJointsWorst` in the JSON); `gaitPhase` (reported, not gated: the copy's stride
+    phase offset from B's, cycles; no gait phase on the wire); `lowerBody` (hips / knees / ankles root-relative in each body's
+    yaw frame against B's frame of the nearest gait phase within 0.5 s, moving frames, <= 10 cm); `pops` = rubber-banding only:
+    a root step of the copy unlike B's own over the same interval by more than speed x dt + 2 cm, or a joint step (over at least
+    1/60 s) over the joint-rate limit that B's own track does not have around t - lag; `pairAlign` / `pairPenetration`
+    (brace + boost, host side, <= 3 cm). Each scenario starts with B's and the copy's gait phase and idle clocks at zero;
+    stop + idle has a 1.5 s idle tail, its breath measured from the settle (both feet planted, speed < 0.05) + 0.2 s. Scenarios: flat stand 2 / 4 / 6,
+    crouch 3, stairs and ramp stand 3, stop + idle, stance, brace + boost at 60 Hz; the flat set again at 120 Hz through an 8 ms
+    page-side frame pump on A (A's loop manual), skipped as "pending PC" when the pump's p95 jitter is over 2 ms. Writes
+    `<out>/remote.json`; `fails.txt` lines carry a `local` / `remote` tag (remote frames are A's frames). `--quick` remote: flat
+    stand 4 + crouch 3 at 60 Hz. Every run writes `<out>/baseline.json` (worst per scenario x metric); `--compare=<file>` lists
+    regressions against one (worse than max(10%, noise tolerance: 1e-4 m / 2%, 0.5 deg, wrist 2 deg, 1 frame, grip / self-clip
+    0.5 cm; traversal scenarios joint rate 25 deg, grip / self-clip 1.5 cm) or a new fail) and every pass / fail flip; like
+    modes only (a quick or `--only` run against a full baseline exits 2). Remote rows (A39, A40: `poseError` report-only until step 22) gate `poseError` (gating part, from step 22),
+    `pops` at 60 Hz, `pairAlign` and `lodSkip`, against the baseline's noise band (worse than the worse of its two runs by more
+    than max(2x their spread, 10%, 2 mm for lengths, 2 counts for pops); `lodSkip` any rise); `lowerBody`, 120 Hz `pops` (both
+    vary up to 2x between identical runs through the 120 Hz pump) and the other remote metrics are report-only: listed, not
+    counted. The compare output prints which remote metrics are gated and which are report-only. `--band=<baseline.json>` (an
+    earlier full run) makes this run's baseline keep both runs' worst and spread for those metrics. Committed baseline
+    (two full runs: `--out=r1`, then `--band=r1/baseline.json`): `docs/locomotion/audit/anim-baseline.json` (steps 21-31
+    run `--compare` against it and must show no regression).
+    In `run-e2e`: the REPORT list (`npm run e2e` runs it, printed REPORT ONLY, never fails the run; REQUIRED from step 32); the
+    quick map runs it (with `--quick`) for `src/anim/`, `src/player/` and `src/net/`, and with e2e-netmove for a change to
+    `scripts/e2e-net-lib.mjs` (the `-lib` helpers are never suites themselves; `e2e-lib.mjs` reruns CORE).
   Uses the preinstalled Chromium (Pixel 7 landscape emulation, SwiftShader GL - FPS there is not representative).
 
 ## GPU runs (Michael's PC only)

@@ -46,3 +46,8 @@ Design authority: docs/design-bible.md (Section 5.9)
   from `PvpScore.hostile`; host shots hit opponents through `Hitboxes` on their avatars; client shots hit
   `PvpTarget`s (hit volumes on opponent avatars) and are sent with the player id, rewound on the host
   (`RemotePlayer.history`, host `selfHist`). Results: eliminations / deaths (`SessionStats.deaths`).
+- Remote animation audit (locomotion step 08): `node scripts/anim-audit.mjs --remote` hosts and joins over `?net=local`
+  (helpers in `scripts/e2e-net-lib.mjs`, shared with e2e-netmove), drives the client in real time and scores the host's
+  copy (`RemotePlayer.avatar.rig`) with the local player's metrics (bible :858 "remote poses obey the same continuity
+  limits") plus pose error vs the owner at matched timestamps (`INTERP_DELAY` shifted, <= 10 cm), pops (rubber-banding)
+  and the brace + boost pair (<= 3 cm, :859). Report only in `npm run e2e` until step 32; `docs/systems/testing-tools.md`.

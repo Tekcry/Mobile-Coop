@@ -23,6 +23,10 @@ const SUITE_TIMEOUT = Number(process.env.E2E_SUITE_TIMEOUT ?? 600) * 1000;
 // Mission, PvP, the economy and cosmetics behind `?legacy=1`): `npm run e2e:legacy` runs them with LEGACY=1 (report only).
 const REQUIRED = ['smoke', 'e2e-pad', 'e2e-touch', 'e2e-mouse', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-weapons-carry', 'e2e-anim', 'e2e-combat', 'e2e-modes', 'e2e-clip', 'e2e-tactics', 'e2e-stealth-ai', 'e2e-takedown', 'e2e-gadgets', 'e2e-enemies', 'e2e-levels', 'e2e-missions', 'e2e-training', 'e2e-park', 'e2e-coop', 'e2e-netmove', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-feedback', 'e2e-desktop', 'e2e-offline', 'e2e-fp-map', 'e2e-fp-trunk', 'e2e-dead-line', 'e2e-dead-line-menu', 'e2e-dead-line-v2', 'e2e-dead-line-v2-menu', 'e2e-security', 'e2e-kestrel', 'e2e-camera-bounds'];
 const LEGACY = ['e2e-progression', 'e2e-cosmetics', 'e2e-clear'];
+// REPORT = suites `npm run e2e` runs whose result is printed as REPORT ONLY and never fails the run: the animation audit
+// harness (locomotion step 08; it becomes REQUIRED at step 32). A quick run passes it `--quick`.
+const REPORT = ['anim-audit'];
+const report = (s) => REPORT.includes(s.split(':')[0]);
 // A suite that is several independent sections (each its own browser) runs as one job per section: `e2e-desktop` = `e2e-desktop:1` .. `:4`
 // (`node scripts/e2e-desktop.mjs --part=N`; named alone it still runs whole). The sections' checks are the suite's, none dropped.
 const PARTS = { 'e2e-desktop': 4 };
@@ -45,8 +49,8 @@ const COVERS = {
   'src/player/shoulderCamera': ['e2e-camera-bounds', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-clip', 'e2e-weapons-carry', 'e2e-mouse'],
   'src/player/cameraBounds': ['e2e-camera-bounds', 'e2e-move', 'e2e-anim', 'e2e-clip'],
   'src/config/camera': ['e2e-camera-bounds', 'e2e-anim', 'e2e-clip', ...CORE],
-  'src/player/': ['e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-clip', 'e2e-weapons-carry', 'e2e-mouse'],
-  'src/anim/': ['e2e-anim', 'e2e-clip', 'e2e-weapons-carry', 'e2e-move'],
+  'src/player/': ['anim-audit', 'e2e-move', 'e2e-traverse', 'e2e-anchors', 'e2e-stealth', 'e2e-anim', 'e2e-ct', 'e2e-ct-warehouse', 'e2e-clip', 'e2e-weapons-carry', 'e2e-mouse'],
+  'src/anim/': ['anim-audit', 'e2e-anim', 'e2e-clip', 'e2e-weapons-carry', 'e2e-move'],
   'src/cover/': ['e2e-stealth', 'e2e-clip', 'e2e-tactics'],
   'src/weapons/': ['e2e-combat', 'e2e-weapons-carry', 'e2e-enemies', 'e2e-gadgets', 'e2e-clip'],
   'src/ai/': ['e2e-stealth-ai', 'e2e-enemies', 'e2e-levels', 'e2e-tactics', 'e2e-missions', 'e2e-takedown', 'e2e-fp-trunk'],
@@ -54,7 +58,7 @@ const COVERS = {
   'src/world/': ['e2e-security', 'e2e-kestrel', 'e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-levels', 'e2e-anchors', 'e2e-ct-warehouse', 'e2e-desktop', 'e2e-fp-map', 'e2e-fp-trunk', 'e2e-dead-line', 'e2e-dead-line-menu', 'e2e-dead-line-v2', 'e2e-dead-line-v2-menu'],
   'src/voxel/': ['e2e-lightbake', 'e2e-phonelamps', 'e2e-darkness', 'e2e-desktop'],
   'src/vfx/': ['e2e-desktop', 'e2e-darkness', 'e2e-phonelamps'],
-  'src/net/': ['e2e-coop', 'e2e-netmove'],
+  'src/net/': ['anim-audit', 'e2e-coop', 'e2e-netmove'],
   'src/security/': ['e2e-security'],
   'src/progression/': ['e2e-park'],
   'src/cosmetics/': ['e2e-park'],
@@ -65,7 +69,9 @@ const COVERS = {
   'src/config/': CORE,
 };
 // outside src/: a suite script or its helper reruns that suite (the helper and this runner rerun CORE); docs and tests need no browser
-const SCRIPT = /^scripts\/(smoke|e2e-[\w-]+)\.mjs$/;
+// (the -lib helpers are not suites: e2e-lib reruns CORE, e2e-net-lib the two-page suites in HELPERS)
+const SCRIPT = /^scripts\/(smoke|anim-audit|e2e-(?!(?:[\w-]*-)?lib\.mjs$)[\w-]+)\.mjs$/;
+const HELPERS = { 'scripts/e2e-net-lib.mjs': ['e2e-netmove', 'anim-audit'] };
 
 const argv = process.argv.slice(2);
 const flag = (n) => argv.includes(`--${n}`);
@@ -100,6 +106,7 @@ function quickSuites() {
   for (const f of files) {
     let hit = null;
     if (f.startsWith('src/')) hit = Object.entries(COVERS).find(([p]) => f.startsWith(p))?.[1] ?? CORE;
+    else if (HELPERS[f]) hit = HELPERS[f];
     else if (SCRIPT.test(f)) hit = [f.replace(/^scripts\/|\.mjs$/g, '')];
     else if (/^(scripts\/(e2e-lib|run-e2e)\.mjs|package\.json|index\.html|vite\.config\.\w+|public\/)/.test(f)) hit = CORE;
     for (const s of hit ?? []) picked.add(s);
@@ -110,7 +117,7 @@ function quickSuites() {
   return REQUIRED.filter((s) => picked.has(s)).concat([...picked].filter((s) => !REQUIRED.includes(s) && !LEGACY.includes(s) && existsSync(`scripts/${s}.mjs`)));
 }
 
-const all = named.length ? named : expand(legacyRun ? LEGACY : quick ? quickSuites() : REQUIRED);
+const all = named.length ? named : expand(legacyRun ? LEGACY : quick ? quickSuites() : [...REQUIRED, ...REPORT]);
 const fullRun = !named.length && !quick && !legacyRun;
 const jobs = flag('serial') ? 1 : Math.max(1, Number(opt('jobs') ?? process.env.E2E_JOBS ?? Math.min(5, Math.floor(cpus().length / 3))) || 1);
 if (flag('list')) {
@@ -154,10 +161,10 @@ const t00 = Date.now();
 async function runOne(s) {
   const t0 = Date.now();
   const streamed = jobs === 1;
-  if (streamed) console.log(`\n=== ${s} ===`);
+  if (streamed) console.log(`\n=== ${s}${report(s) ? " (REPORT ONLY: never fails the run)" : ""} ===`);
   else console.log(`[start] ${s}`);
   const [script, part] = s.split(':');
-  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : [])], { stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env });
+  const child = spawn(process.execPath, [`scripts/${script}.mjs`, url, ...(part ? [`--part=${part}`] : []), ...(quick && script === 'anim-audit' ? ['--quick'] : [])], { stdio: streamed ? 'inherit' : ['ignore', 'pipe', 'pipe'], env });
   let log = '';
   if (!streamed) {
     child.stdout.on('data', (d) => (log += d));
@@ -182,7 +189,7 @@ KILLED: ${s} ran past ${SUITE_TIMEOUT / 1000}s
   results.push({ s, code, sec });
   if (!streamed) {
     // the whole log in one block: parallel suites never interleave
-    console.log(`\n=== ${s} (${code === 0 ? 'ok' : 'FAIL'}, ${sec.toFixed(0)}s) ===\n${log.trimEnd()}`);
+    console.log(`\n=== ${s} (${report(s) ? `REPORT ONLY, exit ${code}` : code === 0 ? 'ok' : 'FAIL'}, ${sec.toFixed(0)}s) ===\n${log.trimEnd()}`);
     try {
       mkdirSync('test-results/e2e', { recursive: true });
       writeFileSync(`test-results/e2e/${s.replace(":", "-")}.log`, log);
@@ -197,12 +204,12 @@ await Promise.all(Array.from({ length: Math.min(jobs, queue.length) }, async () 
 }));
 server.kill();
 
-const allFailed = results.filter((r) => r.code !== 0);
+const allFailed = results.filter((r) => r.code !== 0 && !report(r.s));
 const failed = allFailed.filter((r) => !flaky(r.s));
 const flakyFailed = allFailed.filter((r) => flaky(r.s));
 const wall = (Date.now() - t00) / 1000;
 const sum = results.reduce((a, r) => a + r.sec, 0);
-console.log(`\ntimes (${process.env.E2E_GPU === '1' ? 'GPU' : 'software GL'}, ${jobs} at a time):\n  ${results.sort((a, b) => b.sec - a.sec).map((r) => `${r.s} ${r.code === 0 ? 'ok' : flaky(r.s) ? 'FAIL (KNOWN FLAKY)' : 'FAIL'} ${r.sec.toFixed(0)}s`).join('\n  ')}`);
+console.log(`\ntimes (${process.env.E2E_GPU === '1' ? 'GPU' : 'software GL'}, ${jobs} at a time):\n  ${results.sort((a, b) => b.sec - a.sec).map((r) => `${r.s} ${report(r.s) ? `REPORT ONLY (exit ${r.code})` : r.code === 0 ? 'ok' : flaky(r.s) ? 'FAIL (KNOWN FLAKY)' : 'FAIL'} ${r.sec.toFixed(0)}s`).join('\n  ')}`);
 console.log(`\nwall ${wall.toFixed(0)}s, suites summed ${sum.toFixed(0)}s${jobs > 1 ? ` (x${(sum / wall).toFixed(1)})` : ''}`);
 if (fullRun && !allFailed.length) {
   // keep the schedule current (the file is committed: a fresh checkout starts with a good order)
