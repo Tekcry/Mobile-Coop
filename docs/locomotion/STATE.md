@@ -1,6 +1,6 @@
 # Locomotion run - state
 
-Current step: Block B end (full e2e, perf), then 09 holster-draw
+Current step: 09 holster-draw (Block C)
 Last commit: see git log (locomotion 00)
 
 ## Baseline (step 0, this VM)

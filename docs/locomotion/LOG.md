@@ -34,3 +34,4 @@ Remote poses via ?net=local (A37: undrawn pages, 16 ms client tick). 3 fix round
 
 ## Block B end
 Full e2e (2 jobs): anim-audit report-only ok (129 s); stealth, mouse, weapons-carry, coop, netmove flaky (all pass serially); e2e-kestrel and e2e-camera-bounds (level U) kestrel-owned (identical on kestrel head). Perf trend: sim p95 2.5 / 2.7 ms, anim 0.0595 / 0.051 ms per char (baseline 0.0566): no rise.
+- Kestrel merge 2 (Block B end, 14 commits): lint 0 errors, tests 1090/1090, build ok, quick e2e ok except e2e-editor / e2e-kestrel (kestrel-owned) and e2e-mouse (flaky, passed serially in Block B).
