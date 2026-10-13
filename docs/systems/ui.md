@@ -91,4 +91,6 @@ tokens become prompt glyphs that follow the input mode). DOM is written only whe
 (`CourseState.gen`) or the end change. A drill done shows a toast and LANTERN's line ("Moth: vault - done"). The next
 drill's marker is drawn by `PingView.marker` (on screen or on the edge); Settings > Gameplay "Course markers"
 (`gameplay.courseMarkers`, default on) hides it. The results screen shows a course panel (`SessionStats.course`:
-per-bay time, team and per-player numbers, the finale's Ghost / Silent / Loud tier, `courseRating.ts`).
+per-bay time, team and per-player numbers, the finale's Ghost / Silent / Loud tier, `courseRating.ts`) on the host and
+the client; it is reached through the course end device ("Finish", `devices.end` in the last bay), refused while that
+bay's drills are open. The co-op lobby reads the course record again whenever it is shown ("Start at bay N").

@@ -18,7 +18,7 @@ import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
 import { pvpInfo, type PvpMode } from './pvp';
 import { clampEnd, coopSessionStats } from './validate';
-import { applyCourseWire, clientCourseFrame, clientCourseSummary, disposeClientCourse } from '../game/modes/courseMode';
+import { applyCourseWire, clientCourseFrame, clientCourseSummary, courseStartPos, disposeClientCourse } from '../game/modes/courseMode';
 import { isClientVerb, type ClientVerb } from '../game/course/courseWire';
 import { CourseFeed } from '../game/course/courseFeed';
 import { infoToHtml, localFlags } from './netShared';
@@ -65,8 +65,15 @@ export class CoopClient implements NetAttachment {
     this.pvp = isPvp(g.opts.mode) ? (g.opts.mode as PvpMode) : null;
     this.offs.push(s.events.on('game', ({ msg }) => this.receive(msg)));
     if (g.opts.mode === 'course') {
-      const feed = new CourseFeed(g);
+      // a bay-N start (D20): beside the host in that bay's entry airlock, before our first `pstate` (the host takes a
+      // first state anywhere)
+      const at = courseStartPos(g, g.opts.courseBay ?? 1, 1);
+      if (at) g.player.controller.teleport(at, g.player.cam.yaw);
+      const feed = new CourseFeed(g, true);
       this.feed = feed;
+      this.offs.push(g.events.on('takedown', (e) => {
+        if (e.phase === 'start') this.tdKind = e.kind;
+      }));
       this.offs.push(() => feed.dispose(), () => disposeClientCourse(g));
     }
     g.explosions.onLocalBlast = (p) => {
@@ -209,7 +216,8 @@ export class CoopClient implements NetAttachment {
       if (!p) {
         const np = new EnemyPuppet(g.scene, g.world, g.registry, e.id, e.k);
         np.onShot = (h) => this.sendShot(np.id, h);
-        np.onTakedown = (ph, lethal) => this.s.toHost({ t: 'td', target: np.id, ph, lethal });
+        // the kind of our own takedown (its 'start' event) goes with the result: the host ticks the course verb (A23)
+        np.onTakedown = (ph, lethal) => this.s.toHost(ph === 'done' && this.tdKind ? { t: 'td', target: np.id, ph, lethal, kind: this.tdKind } : { t: 'td', target: np.id, ph, lethal });
         this.puppets.set(e.id, np);
         p = np;
       }
@@ -540,6 +548,8 @@ export class CoopClient implements NetAttachment {
   }
   /** Course mode: the local drill feed (C10). */
   private feed: CourseFeed | null = null;
+  /** Course mode: the kind of our last takedown (sent with its `td` result). */
+  private tdKind = '';
 
   /** Own ping: shown at once, the host relays it. */
 

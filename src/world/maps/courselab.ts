@@ -14,7 +14,8 @@ const MAINS_GROUP = 7;
 /**
  * Courselab (debug map, course mode only, not listed; `?autostart=courselab&mode=course`): two 8 x 8 rooms joined by a
  * 6 x 6 airlock, then a strip of 4 m cells along +x, one gate kind per cell door (lever, bolt, hold, timed hold, pair,
- * egress, mains with a lamp group, flag via a pickup) and a ladder behind an anchorLock in the last cell.
+ * egress, mains with a lamp group, flag via a pickup) and a ladder behind an anchorLock in the last cell, beside the
+ * course end device ("Finish", `devices.end`).
  */
 export const courselab: MapDef = {
   id: 'courselab',
@@ -61,6 +62,8 @@ export const courselab: MapDef = {
       'sw-pb': dev(37.2, 6.5),
       'sw-egress': dev(41.2, 1.5),
       'sw-key': dev(49.2, 1.5, 'Take key'),
+      // the course end (the last bay's exit 'end'): refused while L2's drill is open
+      end: dev(57.2, 1.5, 'Finish'),
     };
     const gates: GateDef[] = [
       { kind: 'lever', id: 'g-lever', switchId: 'sw-lever', doorId: 'd0' },

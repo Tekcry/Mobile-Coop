@@ -101,8 +101,9 @@ describe('drillDetect (T1c)', () => {
     expect(out).toEqual([]);
   });
   it('client verbs are the local-only ones (C10)', () => {
-    for (const v of ['gear', 'stance', 'vision', 'ping', 'aim', 'reload', 'swap', 'sprint', 'fire', 'dark']) expect(isClientVerb(v)).toBe(true);
-    for (const v of ['vault', 'ladder', 'takedown', 'switch', 'teamMove']) expect(isClientVerb(v)).toBe(false);
+    for (const v of ['gear', 'stance', 'vision', 'ping', 'aim', 'reload', 'swap', 'sprint', 'fire', 'dark', 'gadget']) expect(isClientVerb(v)).toBe(true);
+    // host-resolved (A23): takedowns, doors, throws, team moves, movement modes
+    for (const v of ['vault', 'ladder', 'takedown', 'switch', 'teamMove', 'door', 'throw']) expect(isClientVerb(v)).toBe(false);
   });
 });
 

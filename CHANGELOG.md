@@ -1,5 +1,24 @@
 # Changelog
 
+## 3.7.0 - Training course framework (Block A, branch `feature/training-bunker`)
+- Course mode (T1a, T1b): `CourseState` (pure, host only) runs bays, airlocks and gates (lever, bolt, hold, timed hold,
+  pair, egress, mains, pickup / flag, anchor lock), checkpoints and bay restarts; `CourseMode` puts down the devices,
+  keeps door, anchor and lamp locks in step and speaks LANTERN's radio (text only, held while guards are alerted).
+  Co-op "Training course" takes two players (host P1, client P2): the `course` message mirrors state, locks and lights;
+  friendly fire is on (D38). Debug map `courselab` (`?autostart=courselab&mode=course`, not listed); dev solo flag
+  `?course=solo`.
+- Drills and tutorial (T1c): `drillDetect` derives every drill verb in one place (edge-triggered); the client reports
+  its local-only verbs as `ctick`; takedowns, thrown gadgets, doors and team moves resolve and tick on the host. The
+  tutorial HUD lists the bay's drills with P1 / P2 tick columns and the current step in LANTERN's voice; drill-done
+  toasts and radio on both pages; next-drill markers (Settings > Gameplay "Course markers"). Airlocks and the course
+  end device ("Finish", `devices.end`) refuse while drills are open, naming them. No skip path (D30).
+- Results: a course panel (per-bay and total time, detections, alarms, knock-outs, kills, revives, team moves, per
+  player and team; the finale's Ghost / Silent / Loud tier). Course record `course:fallow` (IndexedDB kv; no save
+  version change); the co-op lobby offers "Start at bay N" for finished bays, and both players start in that bay's
+  entry airlock.
+- Net: `PROTOCOL_VERSION` 3 (`course`, `ctick`, `start.bay`, `td.kind`). Tests: `tests/course*.test.ts`,
+  `tests/courseTutorial.test.ts`, e2e `e2e-course`.
+
 ## 3.6.x - First Playable (in progress)
 - Docs: 2026-10-10 cleanup (retired maps archived, docs match the new campaign).
 - Docs: story 2.0 (D1, approved): present-day campaign, Mission 1 Dead Line at Cinder Yard (Ostler Colocation's data centre), Mission 5 The Strongroom, Kestrel Exchange retired.

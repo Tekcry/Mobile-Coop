@@ -410,6 +410,15 @@ describe('course messages (T1b)', () => {
     expect(m.ref.length).toBeLessThanOrEqual(160);
     expect(m.rn).toBe(0);
   });
+  it("carries LANTERN's radio line (cleaned and capped) and the takedown kind", () => {
+    const m = parseMessage({ t: 'course', s: {}, lights: {}, locks: [], anchors: [], ref: '', rn: 0, rl: 'LANTERN: <i>Mind the gap</i>' + 'x'.repeat(300), rln: 3.4 });
+    if (m?.t !== 'course') throw new Error('not course');
+    expect(m.rl?.startsWith('LANTERN: iMind the gap/i')).toBe(true);
+    expect(m.rl?.length).toBeLessThanOrEqual(160);
+    expect(m.rln).toBe(3);
+    expect(parseMessage({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: 'grab' })).toEqual({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: 'grab' });
+    expect(parseMessage({ t: 'td', target: 'e1', ph: 'done', lethal: false, kind: '<x>' })).toEqual({ t: 'td', target: 'e1', ph: 'done', lethal: false });
+  });
   it('friendly fire (D38): course partners hurt each other, never themselves; co-op never; PvP by sides', () => {
     expect(playersHostile(null, true, 'a', 'b')).toBe(true);
     expect(playersHostile(null, true, 'a', 'a')).toBe(false);

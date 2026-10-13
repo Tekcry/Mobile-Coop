@@ -39,5 +39,11 @@ describe('courselab (T1b)', () => {
     expect(s.airlockPhase('A1')).toBe('sealed');
     expect(s.locked('A1-near')).toBe(true);
     expect(s.locked('A1-far')).toBe(false);
+    // T1c: the end device in the last bay finishes the course, refused while its drill is open
+    expect(lay.course?.devices.end).toBeDefined();
+    expect(s.finish()).toBe('Waiting: P1 or P2 - ladder');
+    s.tick(1, 'ladder');
+    expect(s.finish()).toBeNull();
+    expect(s.over).toBe(true);
   });
 });

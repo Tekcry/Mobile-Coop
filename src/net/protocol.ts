@@ -160,7 +160,7 @@ export type Msg =
   /** Client used a mirrored item (the host checks reach and that it is usable). */
   | { t: 'use'; id: string }
   /** Client takedown on a host enemy: seize it, finish it (lethal / not), or let go. */
-  | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean }
+  | { t: 'td'; target: string; ph: 'start' | 'done' | 'abort'; lethal: boolean; kind?: string }
   /** (3.2.0 phase 5) A client asks for a team move with a braced partner (boost onto anchor `target` at `s`, the
    *  grip at `gy`), or ends the human ladder. */
   | { t: 'tmove'; kind: 'boost' | 'ladder' | 'end'; partner: string; target: number; s: number; gy: number }
@@ -481,7 +481,7 @@ function parseCourse(raw: Obj): Msg | null {
     const g = num(x[0], -1, 4096);
     if (g !== null && typeof x[1] === 'boolean') groups.push([Math.round(g), x[1]]);
   }
-  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)) };
+  return { t: 'course', s: packed, locks: ints(raw.locks, 0, MAX_DOORS - 1, MAX_DOORS), anchors: ints(raw.anchors, 0, 1e5), lights: { groups, dead: ints(lights.dead, 0, 1e5, 1024) }, ref: safeText(raw.ref, 160) ?? '', rn: Math.round(n0(raw.rn, 0, 1e6)), rl: safeText(raw.rl, 160) ?? '', rln: Math.round(n0(raw.rln, 0, 1e6)) };
 }
 
 /** Validate an incoming message. Returns null for anything malformed. */
@@ -567,7 +567,8 @@ export function parseMessage(raw: unknown): Msg | null {
     case 'td': {
       const target = id(raw.target);
       const ph = oneOf(raw.ph, ['start', 'done', 'abort'] as const);
-      return target && ph ? { t: 'td', target, ph, lethal: raw.lethal === true } : null;
+      const kind = id(raw.kind);
+      return target && ph ? { t: 'td', target, ph, lethal: raw.lethal === true, ...(kind ? { kind } : {}) } : null;
     }
     case 'start': {
       const mode = oneOf(raw.mode, MODES);

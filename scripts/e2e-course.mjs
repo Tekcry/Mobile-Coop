@@ -4,6 +4,9 @@
 // anchor lock) opens when the host acts and, after a forced both-down restart (both respawn in the airlock, the bay's
 // gates reset), when the client acts; the client sees door locks and the lamp group change within 0.5 s; friendly
 // fire (D38): a host shot and a client grenade down the partner, who is revived (co-op rules: no frag, no restart).
+// T1c: drills, both tick columns, markers; the client's door is its own verb on the host; the end device refuses while
+// the last drill is open, LANTERN's radio reaches the client, results show the course panel on both pages, and a second
+// lobby starts at bay 2 with both players in its entry airlock.
 import { launch, openPage, assert, press, BTN } from './e2e-lib.mjs';
 
 const url = process.argv[2] ?? 'http://localhost:4173/';
@@ -327,6 +330,67 @@ try {
   const rv = await use(B, `revive-${hostId}`);
   await until(A, () => window.__app.current.player.alive, null, 5000, 'host revived by the client');
   assert(rv === 'ok' && (await hostDebug()).bay === 1, 'the client revives the host (no restart)');
+
+  console.log('course end (T1c): host-side client verbs, LANTERN on the client, finish, results, Start at bay 2');
+  // a plain door the client opens is the client's door verb (ticked on the host from its `use`), not the host's
+  const plainDoor = await GA(() => { const d = window.__app.current.world.doors.list.find((x) => Math.abs(x.cx - 54) < 0.6); return `door-${d.anchor.id}`; });
+  const hostDoors0 = await GA(() => window.__course.log[0].filter((v) => v === 'door').length);
+  await moveClient(53.3, 4);
+  assert((await use(B, plainDoor)) === 'ok', 'the client opens the ladder cell door');
+  await until(A, () => window.__course.log[1].includes('door'), null, 5000, 'client door tick on the host');
+  assert((await GA(() => window.__course.log[0].filter((v) => v === 'door').length)) === hostDoors0, "the client's door ticks P2 on the host, not P1");
+  // the end device refuses while L2's ladder drill is open
+  await moveHost(56.6, 1.5);
+  assert((await use(A, 'c-end')) === 'ok', 'the end device is live in the last bay');
+  d = await hostDebug();
+  assert(/ladder/.test(d.refusal) && !(await GA(() => window.__app.current.isEnded)), `the end refuses while the ladder drill is open ("${d.refusal}")`);
+  // the restart reset the key: take it again, then the client climbs the ladder (a real traversal through the pad's Y)
+  await moveClient(48.6, 1.5);
+  assert((await use(B, 'c-sw-key')) === 'ok', 'the client takes the key again');
+  const rln0 = await GB(() => window.__course.wire.rln ?? 0);
+  let climbed = false;
+  for (let i = 0; i < 3 && !climbed; i++) {
+    await moveClient(57.0, 6.5, Math.PI / 2);
+    await wait(400);
+    await press(B, BTN.Y);
+    try {
+      await until(A, () => window.__course.log[1].includes('ladder'), null, 4000, 'client ladder tick');
+      climbed = true;
+    } catch {}
+  }
+  assert(climbed, 'the client climbs the ladder and the host ticks it');
+  // LANTERN's radio reaches the client (the drillDone line, said on the host, mirrored through the course message)
+  await until(B, (n) => (window.__course.wire.rln ?? 0) > n && !!window.__course.wire.rl && document.body.textContent.includes(window.__course.wire.rl), rln0, 8000, 'client says the LANTERN line');
+  assert(true, `LANTERN's radio is said on the client ("${await GB(() => window.__course.wire.rl)}")`);
+  assert((await use(A, 'c-end')) === 'ok', 'the host presses Finish');
+  for (const [P, tag] of [[A, 'host'], [B, 'client']]) await until(P, () => !!document.querySelector('.results-screen .course-panel'), null, 15000, `${tag} results with the course panel`);
+  const panelB = await GB(() => document.querySelector('.results-screen .course-panel')?.textContent ?? '');
+  assert(/L1/.test(panelB) && /L2/.test(panelB) && /Team moves/.test(panelB), `results show the course panel on both pages (client: "${panelB.slice(0, 80)}")`);
+  // back to the lobby: the finished bays are offered
+  await A.click('.results-screen .btn:has-text("Play again")');
+  await until(A, () => !!document.querySelector('.lobby-screen') && window.__coop.session.phase === 'lobby', null, 15000, 'host back in the lobby');
+  await until(B, () => !!document.querySelector('.lobby-screen'), null, 15000, 'client back in the lobby');
+  const startRow = '.lobby-opts .row-choice:has-text("Start at")';
+  for (let i = 0; i < 4 && !/Bay 2/.test((await A.textContent(`${startRow} .choice-val`).catch(() => '')) ?? ''); i++) {
+    await A.click(`${startRow} .choice-arrow >> nth=1`).catch(() => {});
+    await wait(200);
+  }
+  const startVal = await A.textContent(`${startRow} .choice-val`).catch(() => '');
+  assert(/Bay 2/.test(startVal ?? '') && (await GA(() => window.__coop.session.courseBay)) === 2, `a second lobby offers "Start at bay 2" ("${startVal}")`);
+  pumpOn = false;
+  await GB(() => window.__coop.session.setReady(true));
+  await until(A, () => window.__coop.session.allReady, null, 8000, 'everyone ready again');
+  await GA(() => window.__coop.session.startMatch());
+  for (const P of [A, B]) await until(P, () => window.__app.current?.opts?.mode === 'course' && !!window.__app.current.net && !window.__app.current.isEnded && !document.querySelector('.results-screen'), null, 40000, 'second course match on both pages');
+  pumpOn = true;
+  await until(A, () => !!window.__course?.state && window.__course.debug().bay === 1, null, 15000, 'host course at bay 2');
+  const inA1 = (p) => p.x > 8 && p.x < 14 && p.z > 1 && p.z < 7;
+  await until(A, () => { const p = window.__app.current.player.position; return p.x > 8 && p.x < 14 && p.z > 1 && p.z < 7; }, null, 8000, 'host in the A1 airlock');
+  await until(B, () => { const p = window.__app.current.player.position; return p.x > 8 && p.x < 14 && p.z > 1 && p.z < 7; }, null, 8000, 'client in the A1 airlock');
+  await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.feet.x > 8 && r.feet.x < 14 && r.feet.z > 1 && r.feet.z < 7), null, 8000, 'host sees the client in the A1 airlock');
+  d = await hostDebug();
+  const posB = await GB(() => { const p = window.__app.current.player.position; return { x: p.x, z: p.z }; });
+  assert(d.bay === 1 && d.checkpoint === 'A1' && inA1(posB), `the bay-2 start puts both players at bay 2's entry airlock (client at ${posB.x.toFixed(1)}, ${posB.z.toFixed(1)})`);
 
   const errs = [...eA, ...eB].filter((e) => !/WebGL|GPU stall|swiftshader|Trystero|Nostr|ERR_|favicon/i.test(e));
   assert(errs.length === 0, `no console errors (${errs.slice(0, 3).join(' | ')})`);

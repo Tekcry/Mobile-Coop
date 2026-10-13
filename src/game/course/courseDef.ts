@@ -273,7 +273,8 @@ export interface CourseDevice {
 /**
  * The map's course (`MapLayout.course`): the definition plus how its string ids map onto the built level: doors and
  * anchors to their `TraversalAnchors` ids, light groups to `LightDef.group` numbers, devices (switches, holds, airlock
- * Cycle panels, keyed by the id the definition uses) and the squad slots by id.
+ * Cycle panels, keyed by the id the definition uses; `end` is the course end device, "Finish" in the last bay, which
+ * calls `CourseState.finish` and is refused like an airlock while that bay's drills are open) and the squad slots by id.
  */
 export interface CourseLayout {
   def: CourseDef;

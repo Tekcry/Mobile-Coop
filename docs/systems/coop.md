@@ -63,6 +63,12 @@ Design authority: docs/design-bible.md (Section 5.9)
 `src/game/course/drillDetect.ts` is the single place course verbs are derived (edge-triggered, one tick per
 occurrence); `CourseFeed` fills its snapshot from the game each fixed step. The host runs it for itself and on the
 remote's `pstate` mode (host-visible verbs, C10); the client runs it on its own snapshot and sends only the
-`CLIENT_VERBS` (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark) as `ctick` (rate-limited by
-`TickLimiter`). The client mirrors the course from the `course` message (HUD, markers, toasts, results). The `start`
-message carries `bay` (course "Start at bay N", D20).
+`CLIENT_VERBS` (gear, sprint, stance, vision, ping, aim, fire, reload, swap, dark, and gadget for a placed gadget) as
+`ctick` (rate-limited by `TickLimiter`). What resolves on the host ticks there (DECISIONS A23): a client's takedown
+(`td` done, with the client's takedown `kind`: `onRemoteTakedown`), thrown gadget (`gadget`: gadget and throw,
+`onRemoteGadget`), door (a door moved inside its `use`: `onRemoteUse`, `CourseFeed.remote`) and team moves (every
+`tstart`: `onTeamMove`, a teamMove verb and stat for each player in it). The client mirrors the course from the `course`
+message (HUD, markers, toasts, results) and says LANTERN's radio from its `rl` / `rln` (the host's last line and counter).
+At the end the host sends a final `course` before `end`, so the client's results read the final state. The `start`
+message carries `bay` (course "Start at bay N", D20); both players start in that bay's entry airlock
+(`courseStartPos`: the client moves there before its first `pstate`, which the host takes anywhere).

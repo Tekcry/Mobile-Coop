@@ -494,6 +494,7 @@ export class CoopHost implements NetAttachment {
         if (!r.alive || this.time - last < 1 || hyp2(msg.x - r.feet.x, msg.z - r.feet.z) > 40) return;
         this.gadgetAt.set(r.id, this.time);
         this.g.gadgets.remoteEffect(msg.kind, new Vector3(msg.x, msg.y, msg.z));
+        this.g.mode?.onRemoteGadget?.(r.id, msg.kind);
         this.push({ e: 'gadget', player: r.id, kind: msg.kind, x: msg.x, y: msg.y, z: msg.z });
         break;
       }
@@ -519,8 +520,12 @@ export class CoopHost implements NetAttachment {
       return;
     }
     if (it.kind === 'revive' && it.id === `revive-${r.id}`) return;
+    // course mode: what the item does is the client's (a door it opens is its door verb, DECISIONS A23)
+    const mode = this.g.mode;
+    mode?.onRemoteUse?.(r.id, true);
     if (it.onUse) it.onUse(it, r.id);
-    else this.g.mode?.onInteract?.(it);
+    else mode?.onInteract?.(it);
+    mode?.onRemoteUse?.(r.id, false);
   }
 
   /** Course mode: the course state, locks and lights to every client. */
@@ -560,6 +565,7 @@ export class CoopHost implements NetAttachment {
     else e.knockOut(hit);
     this.g.enemyMgr?.hear(r.feet, m.lethal ? 3 : 1.2);
     this.takedownDone(r.id);
+    this.g.mode?.onRemoteTakedown?.(r.id, m.kind ?? '');
   }
 
   // --- (3.2.0 phase 5) team moves ---
@@ -631,6 +637,7 @@ export class CoopHost implements NetAttachment {
     const start = { kind, a: by, b: partner, target: anchor ? target : -1, s: ss, t0: now };
     this.s.send({ t: 'tstart', ...start });
     if (by === self || partner === self) this.g.team.begin(start, self);
+    this.g.mode?.onTeamMove?.(by === self ? undefined : by, partner === self ? undefined : partner);
   }
 
   /** (3.2.0) PvP: hostile players as takedown victims for the host's own takedowns. */

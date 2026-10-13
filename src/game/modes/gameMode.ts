@@ -86,6 +86,14 @@ export interface GameMode {
   onLocalPing?(): void;
   /** Co-op host: a client's movement mode (from its `pstate`). */
   onRemoteMove?(id: string, mode: string): void;
+  /** Co-op host: a team move started between `a` and `b` (player ids; undefined = the host). */
+  onTeamMove?(a: string | undefined, b: string | undefined): void;
+  /** Co-op host: a client's `use` of an item is running (`active` true before its `onUse`, false after). */
+  onRemoteUse?(id: string, active: boolean): void;
+  /** Co-op host: a client's takedown finished (host-checked); `kind` is the client's takedown kind ('' unknown). */
+  onRemoteTakedown?(id: string, kind: string): void;
+  /** Co-op host: a client's thrown gadget took effect (host-checked). */
+  onRemoteGadget?(id: string, kind: string): void;
   blips(): Blip[];
   dispose(): void;
 }

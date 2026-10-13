@@ -17,18 +17,31 @@ export class CourseFeed {
   private offs: (() => void)[] = [];
   /** Verbs this step (reused). */
   readonly out: string[] = [];
+  /** Host: a client's `use` is running, so a door it moves is the client's (`remoteDoors`), not ours. */
+  remote = false;
+  /** Host: doors a client's `use` moved since the course mode last took them. */
+  remoteDoors = 0;
 
-  constructor(private g: GameState) {
+  /**
+   * `client`: the co-op client's feed. Its thrown gadgets reach the host as `gadget` messages (the host ticks gadget and
+   * throw), so only a placed gadget counts as its local `gadget` verb (DECISIONS A23).
+   */
+  constructor(
+    private g: GameState,
+    client = false,
+  ) {
     const s = this.snap;
     const ev = g.events;
     this.offs.push(
       ev.on('vision', () => s.visions++),
       ev.on('door', (e) => {
-        if (e.how !== 'enemy') s.doors++;
+        if (e.how === 'enemy') return;
+        if (this.remote) this.remoteDoors++;
+        else s.doors++;
       }),
       ev.on('gadget', (e) => {
         if (e.phase === 'throw') s.throws++;
-        if (e.phase === 'throw' || e.phase === 'place') s.gadgets++;
+        if (e.phase === 'place' || (e.phase === 'throw' && !client)) s.gadgets++;
       }),
       ev.on('takedown', (e) => {
         if (e.phase !== 'done') return;

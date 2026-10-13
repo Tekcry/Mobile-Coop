@@ -300,6 +300,9 @@ class LobbyScreen extends Screen {
   }
 
   override onShow(): void {
+    // back from a course's results: read the course record again (the bays just finished are offered, D20)
+    if (this.courseRec !== undefined) this.courseRec = null;
+    if (this.c.session.isHost && this.c.session.mode === 'course') this.buildOpts();
     const ev = this.c.session.events;
     this.off.push(
       ev.on('lobby', () => {

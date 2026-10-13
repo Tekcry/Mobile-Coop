@@ -64,6 +64,24 @@ function drawMarker(g: GameState, st: CourseState, lay: CourseLayout, me: Player
   else v.marker(Math.sin(Math.atan2(pt.x - p.x, pt.z - p.z) - g.player.cam.yaw) >= 0 ? 96 : 4, 45, dist, true);
 }
 
+/** Lateral offset (m, along z) of P2 from the middle of an entry airlock at a bay-N start. */
+const P2_START_DZ = 1.2;
+
+/**
+ * Where player `p` starts at bay `n` (1-based, D20): the middle of that bay's entry airlock (P2 beside P1), or null for
+ * bay 1 or a map without a course. The host (`CourseMode.start`) and the client (`CoopClient`) both use it.
+ */
+export function courseStartPos(g: GameState, n: number, p: PlayerIdx): Vector3 | null {
+  const lay = g.world.layout.course;
+  const bays = lay?.def.bays;
+  if (!lay || !bays || n <= 1) return null;
+  const bay = bays[Math.min(bays.length, Math.floor(n)) - 1];
+  const a = bay ? lay.def.airlocks.find((x) => x.id === bay.entry) : undefined;
+  if (!a) return null;
+  const z = (a.box[1] + a.box[3]) / 2 + (p === 1 ? P2_START_DZ : 0);
+  return new Vector3((a.box[0] + a.box[2]) / 2, a.floorY + 0.05, Math.min(a.box[3] - 0.4, z));
+}
+
 interface HoldRt {
   it: Interactable;
   id: string;
@@ -109,6 +127,11 @@ export class CourseMode implements GameMode {
   /** P2's last refusal and its counter (the `course` message's `ref` / `rn`: the client shows its own refusals). */
   private ref2 = '';
   private refN = 0;
+  /** LANTERN's last radio line and its counter (the `course` message's `rl` / `rln`: the client says it too). */
+  private radioLine = '';
+  private radioN = 0;
+  /** The course end device (`devices.end`, "Finish"): live only in the last bay. */
+  private endIt: Interactable | null = null;
 
   constructor(private g: GameState) {}
 
@@ -133,6 +156,12 @@ export class CourseMode implements GameMode {
       if (it) this.cycles.push({ it, id: a.id });
     }
     for (const b of lay.def.bays) for (const gate of b.gates) this.addGate(gate);
+    // the course end (the last bay's exit 'end'): refuses like an airlock while drills are open
+    const end = lay.devices.end ? this.device('end', 'Finish') : null;
+    if (end) {
+      end.onUse = (_it, by) => this.finish(this.idx(by));
+      this.endIt = end;
+    }
     const ev = g.events;
     this.feed = new CourseFeed(g);
     this.offs.push(
@@ -220,15 +249,29 @@ export class CourseMode implements GameMode {
 
   private press(cid: string, p: PlayerIdx): void {
     const why = this.state?.press(cid, p) ?? null;
+    this.refuse(why, p);
+    // a device worked (not refused) is the `switch` verb
+    if (!why && this.state) this.verb(p, VERBS.switch);
+    this.handle();
+  }
+
+  /** Show a refusal to whoever pressed (the client through the `course` message's `ref` / `rn`). */
+  private refuse(why: string | null, p: PlayerIdx): void {
     this.dirty = true;
-    if (why && p === 0) this.g.hud.banner('', why, 1800);
-    if (why) this.refusal = why;
-    if (why && p === 1) {
+    if (!why) return;
+    if (p === 0) this.g.hud.banner('', why, 1800);
+    this.refusal = why;
+    if (p === 1) {
       this.ref2 = why;
       this.refN++;
     }
-    // a device worked (not refused) is the `switch` verb
-    if (!why && this.state) this.verb(p, VERBS.switch);
+  }
+
+  /** The end device: `CourseState.finish` (refused while the last bay's drills are open). */
+  private finish(p: PlayerIdx): void {
+    const st = this.state;
+    if (!st || this.g.isEnded) return;
+    this.refuse(st.finish(), p);
     this.handle();
   }
 
@@ -260,14 +303,59 @@ export class CourseMode implements GameMode {
     this.verb(1, verb);
   }
 
+  /** The remote's host-visible counters through its detector (C10, A23). */
+  private stepRemote(): void {
+    const out = this.remoteOut;
+    this.remoteDet.step(this.remoteSnap, out);
+    for (let i = 0; i < out.length; i++) this.verb(1, out[i]!);
+  }
+
+  onRemoteUse(_id: string, active: boolean): void {
+    const f = this.feed;
+    if (!f) return;
+    f.remote = active;
+    if (active || f.remoteDoors === 0) return;
+    f.remoteDoors = 0;
+    this.remoteSnap.doors++;
+    this.stepRemote();
+  }
+
+  onRemoteTakedown(_id: string, kind: string): void {
+    this.remoteSnap.takedowns++;
+    this.remoteSnap.takedownKind = kind;
+    this.stepRemote();
+  }
+
+  onRemoteGadget(_id: string, _kind: string): void {
+    this.remoteSnap.gadgets++;
+    this.remoteSnap.throws++;
+    this.stepRemote();
+  }
+
+  /** A team move started (the host's `onTeamMove` check passed): a teamMove verb and stat for each player in it. */
+  onTeamMove(a: string | undefined, b: string | undefined): void {
+    const st = this.state;
+    if (!st) return;
+    const pa = this.idx(a);
+    const pb = this.idx(b);
+    st.record('teamMoves', 1, pa);
+    if (pb !== pa) st.pstats[pb].teamMoves++;
+    for (const p of pa === pb ? [pa] : [pa, pb]) {
+      if (p === 0) this.feed?.teamMove();
+      else {
+        this.remoteSnap.teamMoves++;
+        this.stepRemote();
+      }
+    }
+    this.dirty = true;
+  }
+
   onRemoteMove(_id: string, mode: string): void {
     if (mode === this.remoteMode) return;
     this.remoteMode = mode;
     // the remote's host-visible verbs through the same detector (C10); a first message only primes
     this.remoteSnap.mode = mode;
-    const out = this.remoteOut;
-    this.remoteDet.step(this.remoteSnap, out);
-    for (let i = 0; i < out.length; i++) this.verb(1, out[i]!);
+    this.stepRemote();
   }
 
   onLocalPing(): void {
@@ -323,6 +411,8 @@ export class CourseMode implements GameMode {
       if (this.restartT < 0) st.restart();
     }
     this.handle();
+    const endOn = !st.over && st.currentBay.exit === 'end';
+    if (this.endIt && this.endIt.enabled !== endOn) g.interactables!.setEnabled(this.endIt, endOn);
     // airlock prompts (cached strings: no allocation per step)
     const ints = g.interactables!;
     for (let i = 0; i < this.cycles.length; i++) {
@@ -334,8 +424,11 @@ export class CourseMode implements GameMode {
     // radio, held while any guard is alerted
     this.radioT -= dt;
     if (this.radioT <= 0 && this.radioQ.length && !(g.enemyMgr?.anyAlerted ?? false)) {
-      g.hud.barks.say('lantern', `LANTERN: ${this.radioQ.shift()!}`, true);
+      this.radioLine = `LANTERN: ${this.radioQ.shift()!}`;
+      this.radioN++;
+      g.hud.barks.say('lantern', this.radioLine, true);
       this.radioT = RADIO_GAP;
+      this.dirty = true;
     }
     this.sendT -= dt;
     if (this.dirty || this.sendT <= 0) {
@@ -425,6 +518,8 @@ export class CourseMode implements GameMode {
       recordRun(r, this.startBay === 0 ? sum.team.time : null, sum.finale);
     });
     this.g.stats.course = sum;
+    // the final state reaches the client before the match ends (its results read the mirror)
+    this.g.net?.course?.(this.wire());
     this.g.endSession(true, 'Course complete');
   }
 
@@ -503,7 +598,7 @@ export class CourseMode implements GameMode {
     for (const gid of Object.values(this.layout!.groups ?? {})) groups.push([gid, this.groupOn(gid)]);
     const dead: number[] = [];
     for (const l of g.world.level.lights.lights) if (l.destroyed) dead.push(l.id);
-    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN };
+    return { s: this.state!.pack(), locks, anchors: [...g.traversal.attachCtl.disabled], lights: { groups, dead }, ref: this.ref2, rn: this.refN, rl: this.radioLine, rln: this.radioN };
   }
 
   /** Test view (`window.__course.debug()`). */
@@ -571,6 +666,8 @@ interface ClientCourse {
   /** Open flags per drill and player before the last apply (drillDone toasts on the client). */
   open: boolean[];
   startBay: number;
+  /** The host's radio counter the client last said. */
+  radioN: number;
 }
 const mirrors = new WeakMap<GameState, ClientCourse>();
 
@@ -580,7 +677,7 @@ function mirrorOf(g: GameState): ClientCourse | null {
   const lay = g.world.layout.course;
   if (!lay) return null;
   const st = new CourseState(lay.def);
-  m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1 };
+  m = { st, lay, hud: new CourseHud(g.hud.el), open: [], startBay: -1, radioN: 0 };
   mirrors.set(g, m);
   return m;
 }
@@ -612,6 +709,10 @@ export function disposeClientCourse(g: GameState): void {
 function mirrorApply(g: GameState, w: CourseWire): void {
   const m = mirrorOf(g);
   if (!m) return;
+  // LANTERN's radio, as the host said it (held there while guards are alerted)
+  const rln = w.rln ?? 0;
+  if (rln > m.radioN && w.rl) g.hud.barks.say('lantern', w.rl, true);
+  m.radioN = rln;
   const st = m.st;
   const bayBefore = st.bay;
   const first = m.startBay < 0;
