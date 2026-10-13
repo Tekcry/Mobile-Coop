@@ -26,6 +26,8 @@ export interface Room {
   rect: Rect;
   ring?: number;
   building?: string;
+  /** Floor finish (ON5: src/editor/finishes.ts); '' for none. */
+  finish?: string;
   [k: string]: unknown;
 }
 
@@ -135,6 +137,35 @@ export interface Campus {
   roofs?: Roof[];
   /** ON4: placed objects (the campus file has the list, empty until the first object). */
   objects?: Obj[];
+  /** ON5: climb pieces and exterior features (the campus file has the list, empty until the first piece). */
+  exterior?: Ext[];
+  [k: string]: unknown;
+}
+
+/**
+ * ON5: a climb piece or exterior feature (schema.md `exterior`): plan points `a`, `b` (equal for a point piece) and the
+ * absolute bottom and top `y0`, `y1` (ground floor = 0). `climbable` comes from the reach rules (src/editor/climb.ts)
+ * unless `override` says it was set by hand (`reason` says why).
+ */
+export interface Ext {
+  id: string;
+  kind: string;
+  a: Pt;
+  b: Pt;
+  y0: number;
+  y1: number;
+  climbable: boolean;
+  reason: string;
+  /** ON5: the level it was placed from (the floor under it), the wall it backs onto, the way a climber faces. */
+  level?: string;
+  name?: string;
+  wall?: string;
+  facing?: string;
+  /** Ledge, sill and coping: how far it stands out across its line. */
+  depth?: number;
+  /** Vent: width x height; duct: the clear section, width x height; fire escape: [width, 0]. */
+  size?: [number, number];
+  override?: boolean;
   [k: string]: unknown;
 }
 
@@ -142,9 +173,9 @@ export interface Campus {
  * The collections the editor can change. `levels` and `buildings` (meta.buildings) change through the Levels tab only
  * (ON2; ON4 made `objects` an element); they are not in COLLS (nothing picks or draws them as elements), so a key of theirs parses to null.
  */
-export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects';
-export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | (Building & { [k: string]: unknown });
-export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects'];
+export type Coll = 'rooms' | 'walls' | 'openings' | 'stairs' | 'ladders' | 'voids' | 'roofs' | 'levels' | 'buildings' | 'objects' | 'exterior';
+export type Elem = Room | Wall | Opening | Stair | Ladder | Void | Roof | Level | Obj | Ext | (Building & { [k: string]: unknown });
+export const COLLS: readonly Coll[] = ['rooms', 'walls', 'openings', 'stairs', 'ladders', 'voids', 'roofs', 'objects', 'exterior'];
 
 /** A reference to one element: `rooms:G-FRONT`. */
 export type Key = `${Coll}:${string}`;

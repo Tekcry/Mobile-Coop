@@ -161,6 +161,27 @@
     "maxPir": { "value": 6, "src": "SN64" },
     "maxFaults": { "value": 2, "src": "SN65" }
   },
+  "climb": {
+    "pipeLipRise": { "value": 0.8, "src": "src/player/attachController.ts pipeLip: a drainpipe climbs off onto a hangable ledge whose top is within 0.8 of the pipe top" },
+    "pipeLipReach": { "value": 1.0, "src": "src/player/attachController.ts pipeLip: anchorsNear(pipe top, 1.0, ['ledge'])" },
+    "pipeRadius": { "value": 0.06, "src": "F12 (LevelBuilder.pipeV / pipeH radius default)" },
+    "wallReach": { "value": 1.2, "src": "ON5 editor default: a wall piece backs onto a wall face this near the dot (as the Ladder tool's reach)" },
+    "ledgeDepth": { "value": 0.2, "src": "ON5 brief decision 1: ledge or string course depth 0.15-0.3" },
+    "ledgeDepthMin": { "value": 0.15, "src": "ON5 brief decision 1" },
+    "ledgeDepthMax": { "value": 0.3, "src": "ON5 brief decision 1" },
+    "ledgeThick": { "value": 0.15, "src": "editor default: typical product (a stone string course, 150 mm high)" },
+    "sillDepth": { "value": 0.15, "src": "editor default: typical product (a precast window sill standing out from the wall face)" },
+    "sillThick": { "value": 0.1, "src": "editor default: typical product (a precast window sill, 100 mm)" },
+    "copingThick": { "value": 0.1, "src": "editor default: typical product (precast concrete coping, 100 mm)" },
+    "copingOverhang": { "value": 0.05, "src": "editor default: typical product (a 50 mm drip each side of the wall)" },
+    "ventW": { "value": 0.6, "src": "editor default: typical product (a 600 x 600 louvred grille)" },
+    "ventH": { "value": 0.6, "src": "editor default: typical product (a 600 x 600 louvred grille)" },
+    "ventSill": { "value": 0.3, "src": "editor default: a low wall grille, its bottom 300 mm above the floor" },
+    "lampPost": { "value": 6.0, "src": "editor default: typical product (a car park lighting column, 6 m)" },
+    "lampPostSize": { "value": 0.15, "src": "editor default: typical product (a 150 mm steel column)" },
+    "fenceHeight": { "value": 2.4, "src": "editor default: typical product (a security chain-link fence, 2.4 m)" },
+    "fenceRattle": { "value": 4, "src": "F14 (src/config/movement.ts FENCE.rattle; tests/editor/climb.test.ts keeps them equal)" }
+  },
   "render": {
     "pxPerM": { "value": 10, "src": "P03 prompt step 3" },
     "margin": { "value": 40, "src": "P03 prompt step 3" },

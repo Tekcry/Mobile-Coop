@@ -50,6 +50,8 @@ export function clearOfWalls(b: { readonly boxes: readonly BoxPiece[] }, x: numb
 
 /** ON4: placed objects in the walk test (one plain grey; the editor's stealth view tints them, never the game). */
 const OBJECT_COLOUR = '#7d8288';
+/** ON5: climb pieces and exterior features in the walk test (one plain steel grey). */
+const EXT_COLOUR = '#6d7378';
 
 /** The editor's campus: the builder's arch plus ladders and solid service boxes, spawned where the editor camera was. */
 function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
@@ -63,6 +65,23 @@ function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
     b.box(o.c[0], o.c[1], o.c[2], o.s[0], o.s[1], o.s[2], OBJECT_COLOUR);
     if (o.noLedge) b.mark(at, { noLedge: true });
   }
+  // ON5: climb pieces through the engine's own builders (a downpipe is pipeV, a pipe pipeH, a fence fence, a duct its hollow
+  // and a duct anchor, ledges are box tops); a piece that is not climbable is plain collision with no ledge
+  for (const o of c.exterior) {
+    if (o.t === 'pipeV') b.pipeV(o.x, o.z, o.y0, o.y1, o.side, EXT_COLOUR);
+    else if (o.t === 'pipeH') b.pipeH(o.a[0], o.a[1], o.b[0], o.b[1], o.y, EXT_COLOUR);
+    else if (o.t === 'fence') b.fence(o.a[0], o.a[1], o.b[0], o.b[1], o.h, o.y);
+    else if (o.t === 'duct') b.duct(o.path, o.entry, o.exit);
+    else if (o.t === 'stairs') b.stairs(o.x, o.z, o.w, o.len, o.rise, o.steps, EXT_COLOUR, o.yaw, o.y);
+    else if (o.t === 'pillar') b.pillar(o.x, o.z, o.r, o.h, EXT_COLOUR, o.y);
+    else {
+      const at = b.boxes.length;
+      b.box(o.c[0], o.c[1], o.c[2], o.s[0], o.s[1], o.s[2], EXT_COLOUR, o.yaw, 0, o.collide);
+      if (o.noLedge) b.mark(at, { noLedge: true });
+    }
+  }
+  // ON5: floors marked by finish (footstep loudness and sound, src/world/surfaces.ts)
+  for (const s of c.surfaces) b.surface(s.kind, s.rect[0], s.rect[2], s.rect[1], s.rect[3], s.top);
   // ON10: roofs as boxes the game stands on (strips tilted to a slope; too steep and the controller slides off), so the
   // moon and sky bakes see them as they see any box (bible 5.1); sawtooth glazing as the game's glass panes
   for (const r of c.roofBoxes) b.box(r.c[0], r.c[1], r.c[2], r.s[0], r.s[1], r.s[2], r.colour, r.yaw, r.pitch);

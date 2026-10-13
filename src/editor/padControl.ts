@@ -502,7 +502,7 @@ export class PadControl {
     const s = ed.selectedElem();
     if (!s) return;
     const cur = typeof s.e.name === 'string' ? s.e.name : '';
-    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole', roofs: 'Roof', levels: 'Level', buildings: 'Building', objects: 'Object' }[s.coll];
+    const what = { rooms: 'Room', walls: 'Wall', openings: 'Opening', stairs: 'Stair', ladders: 'Ladder', voids: 'Floor hole', roofs: 'Roof', levels: 'Level', buildings: 'Building', objects: 'Object', exterior: 'Climb piece' }[s.coll];
     this.latchSticks();
     this.names.open(`${what} name`, nameList(ed.model.list(s.coll)), cur, (name) => {
       this.latchSticks();
