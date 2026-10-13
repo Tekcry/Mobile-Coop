@@ -69,6 +69,8 @@ export interface Mark {
   look: 'lit' | 'ghost' | 'bad';
 }
 const MARK_POOL = 8;
+/** ON11: the most boxes a ghost shows (a module kit data hall bay has about 130 parts). */
+const MARK_MAX = 200;
 
 export class EditorScene {
   readonly engine: Engine;
@@ -734,8 +736,10 @@ export class EditorScene {
    * shown; never picked. Callers pass a new list only when the part or ghost changed.
    */
   setMarks(ms: readonly Mark[]): void {
-    if (!this.markMeshes.length)
-      for (let i = 0; i < MARK_POOL; i++) {
+    // ON11: a stamp ghost needs more boxes than the pool: it grows to the list (made once, then reused)
+    const want = Math.min(MARK_MAX, Math.max(MARK_POOL, ms.length));
+    if (this.markMeshes.length < want)
+      for (let i = this.markMeshes.length; i < want; i++) {
         const m = this.box(`mark ${i}`, 0, 0, 0, 1, 1, 1, 0, this.mat('mark-lit', '#ffd166', 0.75, 0.8));
         m.isPickable = false;
         m.renderingGroupId = 1;

@@ -23,6 +23,7 @@ import type { Change, JournalEntry } from './model';
 import { closeGap, fmt, gapWords, joinedCampus, joinPieces, moveWords, nearestWall, normRect, pieceObb, projectOnWall, setEdge, snap, wallDir, wallGaps, wallJoins, wallLen, wallPieces, wallPoint } from './geometry';
 import type { Edge, Obb, WallGap } from './geometry';
 import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
+import { StampTool } from './stampTool';
 import { DR_NOTE, DR_TYPES } from '../world/maps/kestrelDoors';
 import { familyTypes, GLASS_WALL_DEFAULT, withOpeningType } from './openingCatalogue';
 import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_DEFAULTS, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
@@ -50,7 +51,7 @@ import type { ExtKind } from './climbCatalogue';
 import { finishLegend, loudWords } from './finishes';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -115,6 +116,7 @@ async function loadFile(): Promise<{ data: Campus; text: string; mtime: number }
 async function boot(): Promise<void> {
   const f = await loadFile();
   const ed = new Editor(f.data);
+  void ed.stamp.load();
   // exposed for the e2e smoke test and console poking (dev tool only)
   (window as unknown as { __editor: Editor }).__editor = ed;
   try {
@@ -204,6 +206,8 @@ export class Editor {
   /** ON5: the Climb tool's piece (Climb tab tiles, D-pad left / right with the tool) and the finish view (N; Hub > View). */
   climbKind: ExtKind = 'downpipe';
   finishView = false;
+  /** ON11: the Stamp tool (Presets tab): the presets, the one it stamps, its turns, the own presets file. */
+  readonly stamp = new StampTool();
   /**
    * The Stair tool (ON2): A at the start corner ('aim': the dot points the climb, the proposal follows), A again ('proposed':
    * the ghost holds still with its words), A accepts, B cancels. The proposal is previewed in the model as a real stair.
@@ -889,6 +893,8 @@ export class Editor {
       this.beginDrag('roofs', r.id, null, p, this.viewFloor(), sx, sy, source, true);
     } else if (this.tool === 'object') {
       this.objectDown(x, z, sx, sy, source);
+    } else if (this.tool === 'stamp') {
+      this.stampDown(x, z);
     } else if (this.tool === 'climb') {
       this.climbDown(x, z, sx, sy, source);
     } else if (this.tool === 'door' || this.tool === 'window') {
@@ -1046,8 +1052,26 @@ export class Editor {
     this.status(`Placed ${o.name ?? ''} (${o.id}): A (click) places another, RB (R) turns, B (Esc) puts the tool down`);
   }
 
+  /** ON11: A (click) with the Stamp tool: the preset at the dot as one edit (the fit check refuses with its words). */
+  private stampDown(x: number, z: number): void {
+    const r = this.stamp.stamp(this.model.data, this.view.level, x, z, this.grid, this.model.rev);
+    if ('why' in r) return this.status(r.why);
+    this.commitText(r.words, r.changes);
+    this.status(`${r.words}: A (click) stamps another, RB (R) turns, B (Esc) puts the tool down`);
+  }
+
+  /** ON11: Selected > Save as preset: the selection (a set or one room) becomes an own preset, written with the next Save. */
+  savePreset(name: string): void {
+    const keys = this.group.length ? this.group : this.selected ? [this.selected] : [];
+    const p = this.stamp.saveSelection(this.model.data, keys, this.view.level, name);
+    if (!p) return this.status('Select rooms, walls or objects first (box select takes a set)');
+    this.updateBar();
+    this.status(`Saved preset ${p.name} (${p.size[0]} x ${p.size[1]} m): Presets tab > Mine; Save writes docs/kestrel/editor-presets.json`);
+  }
+
   /** RB with the Object tool (R with the mouse): the ghost turns; with an object selected, the object turns. */
   turnObjectNow(): void {
+    if (this.tool === 'stamp' && !this.drag) return this.status(`${this.stamp.preset.name} turned to ${this.stamp.turn()} degrees`);
     if (this.tool === 'object' && !this.drag) {
       if (this.objPreset.draw) return this.status('A row turns with the way you draw it');
       this.objYaw = (this.objYaw + 90) % 360;
@@ -2189,6 +2213,17 @@ export class Editor {
 
   /** Writes the file, the plans and the change log now (after the summary). */
   async saveNow(): Promise<void> {
+    // ON11: own presets go with the file save (docs/kestrel/editor-presets.json)
+    let presets: boolean;
+    try {
+      presets = await this.stamp.save();
+    } catch (err) {
+      return this.status(`Saving the presets failed: ${String(err)}`);
+    }
+    if (presets && !this.model.dirty) {
+      this.updateBar();
+      return this.status(`Saved the presets (${this.stamp.mine.length} of yours) to docs/kestrel/editor-presets.json`);
+    }
     if (!this.model.dirty) {
       // edit then undo: the building is as saved, so the journal (and the draft) go without a write
       if (this.model.journal.length) {
@@ -2242,6 +2277,7 @@ export class Editor {
       hole: `Floor hole (${HOLE_NAMES[this.holeKind] ?? this.holeKind}): drag out a rectangle on the floor`,
       roof: `Roof (${roofType(this.roofTypeId).name}): A (click) at two corners, or A twice (a click) on a building to take its footprint`,
       climb: pieceOf(this.climbKind)?.place === 'draw' ? `Climb (${pieceOf(this.climbKind)?.name ?? ''}): A (click) at the start, A (click) at the end` : `Climb (${pieceOf(this.climbKind)?.name ?? ''}): A (click) places it`,
+      stamp: `Stamp (${this.stamp.preset.name}): A (click) stamps it centred on the dot, RB (R) turns it`,
       object: this.objPreset.draw ? `Object (${this.objPreset.name}): A (click) at the start, A (click) at the end` : `Object (${this.objPreset.name}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
@@ -2384,7 +2420,7 @@ export class Editor {
     $('walk').classList.toggle('on', this.walk.state !== 'off' && this.walk.state !== 'warm');
     $<HTMLButtonElement>('undo').disabled = !this.model.canUndo;
     $<HTMLButtonElement>('redo').disabled = !this.model.canRedo;
-    const n = this.model.dirty;
+    const n = this.model.dirty + (this.stamp.dirty ? 1 : 0);
     $('save').textContent = n ? 'Save *' : 'Saved';
     $('save').title = n ? `${n} unsaved step${n === 1 ? '' : 's'} (Ctrl+S)` : 'Nothing to save';
     const c = this.lastChecks;

@@ -443,10 +443,11 @@ export function placedItems(pr: RoomPreset, origin: Pt, turns: number): { items:
   return { items: it, size };
 }
 
-/** The south-west corner that centres a footprint on the dot, on the grid. */
+/** The south-west corner that centres a footprint on the dot, on the grid (half an odd size rounds down, never a tie). */
 export function originAt(size: [number, number], x: number, z: number, grid: number): Pt {
-  const s = (v: number): number => (grid > 0 ? r3(Math.round(v / grid) * grid) : r3(v));
-  return [s(x - size[0] / 2), s(z - size[1] / 2)];
+  if (!(grid > 0)) return [r3(x - size[0] / 2), r3(z - size[1] / 2)];
+  const half = (v: number): number => Math.floor(v / 2 / grid + EPS) * grid;
+  return [r3(Math.round(x / grid) * grid - half(size[0])), r3(Math.round(z / grid) * grid - half(size[1]))];
 }
 
 /** `+n` to a level id: the n-th level above `base` by floor height, or null. */

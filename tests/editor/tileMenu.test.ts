@@ -11,8 +11,8 @@ const names = (tab: Parameters<typeof menuTiles>[0], inp: MenuInput): string[] =
 
 describe('tile menu model (ON0a)', () => {
   it('tabs: Selected only with a selection and first; empty tabs (Lights, Mission) hidden until later parts add tiles', () => {
-    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Climb', 'View']);
-    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Climb', 'View']);
+    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Presets', 'Climb', 'View']);
+    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'View']);
   });
 
   it('Objects tab (ON4): the five groups, then the presets of the chosen group', () => {
@@ -28,7 +28,7 @@ describe('tile menu model (ON0a)', () => {
     expect(menuTiles('Build', none).find((t) => t.id === 'build.paste')!.disabled).toBeTruthy();
     expect(menuTiles('Build', room).find((t) => t.id === 'build.paste')!.disabled).toBeUndefined();
     expect(names('Openings', none)).toEqual(['Single door', 'Fire door', 'Double door', 'Glass swing door', 'Sliding glass door (automatic)', 'Sliding glass door (card)', 'Sliding door (manual)', 'Roller shutter', 'Gate', 'Sliding gate', 'Hatch', 'Arch (no leaf)', 'Fixed window', 'Opening window (top hung)', 'Frosted fixed window', 'Louvre window', 'Roof light']);
-    expect(names('Selected', room)).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Floor finish', 'Split', 'Rename id', 'Change type', 'Properties', 'Delete']);
+    expect(names('Selected', room)).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Copy', 'Copy to level above', 'Floor finish', 'Save as preset', 'Split', 'Rename id', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', door)).toEqual(['Move', 'Duplicate', 'Rename id', 'Change type', 'Properties', 'Delete']);
     expect(names('Selected', { ...none, sel: { coll: 'ladders', type: '' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Rename id', 'Properties', 'Delete']);
     expect(names('Selected', { ...none, sel: { coll: 'stairs', type: 'main' } })).toEqual(['Move', 'Duplicate', 'Rotate 90', 'Fit', 'Turn climb 90', 'Rename id', 'Change type', 'Properties', 'Delete']);
@@ -128,5 +128,18 @@ describe('Climb tab (ON5)', () => {
     const none2: MenuInput = { sel: null, clipboard: false, view: { layout: '3d', ghost: false, exploded: false, gap: 3, cut: 0, preset: 'whole', building: 'all', minimap: false, labels: true, underlay: false } };
     expect(menuTiles('Climb', none2).map((t) => t.id)).toEqual(['climb.downpipe', 'climb.pipe', 'climb.ledge', 'climb.sill', 'climb.parapet', 'climb.vent', 'climb.duct', 'climb.fire-escape', 'climb.lamp-post', 'climb.fence']);
     expect(menuTiles('Selected', { ...none2, sel: { coll: 'exterior', type: 'downpipe' } }).map((t) => t.name)).toContain('Change type');
+  });
+});
+
+describe('ON11 Presets tab', () => {
+  it('shows the three sources, then the shown source presets; Mine adds Rename and Delete', () => {
+    const view = { layout: '3d', ghost: false, exploded: false, gap: 0, cut: 0, preset: 'whole', building: 'all', minimap: false, labels: true, underlay: false } as const;
+    const inp = { sel: null, clipboard: false, view, presets: { from: 'start' as const, list: [{ id: 'start.office-4', name: '4-desk office', desc: '6 x 5 m' }], mine: null } };
+    expect(menuTiles('Presets', inp).map((t) => t.id)).toEqual(['presetfrom.start', 'presetfrom.kit', 'presetfrom.mine', 'preset.start.office-4']);
+    const mine = { ...inp, presets: { from: 'mine' as const, list: [], mine: null } };
+    const tiles = menuTiles('Presets', mine);
+    expect(tiles.map((t) => t.id)).toEqual(['presetfrom.start', 'presetfrom.kit', 'presetfrom.mine', 'mine.rename', 'mine.delete']);
+    expect(tiles[3]!.disabled).toBeTruthy();
+    expect(menuTiles('Selected', { ...inp, group: 3 }).map((t) => t.name)).toContain('Save as preset');
   });
 });

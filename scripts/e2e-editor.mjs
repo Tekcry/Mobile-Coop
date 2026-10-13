@@ -87,7 +87,7 @@ try {
   console.log('tile menu (Y tap): tabs, D-pad and A pick Wall, Y closes (ON0a)');
   await press(BTN.Y);
   let ms = await menuState();
-  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Climb,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
+  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
   assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
   await press(BTN.RB);
   const tabR = (await menuState()).tab;
@@ -401,7 +401,7 @@ try {
   const selTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
   await shot('menu-selected');
   await press(BTN.B);
-  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Floor finish,Split,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
+  assert(!noSel.includes('Selected') && !rbOpen && selTiles.join(',') === 'Move,Duplicate,Rotate 90,Copy,Copy to level above,Floor finish,Save as preset,Split,Rename id,Change type,Properties,Delete', `Selected tab with a room: ${selTiles.join(', ')}; none without a selection; RB held opens nothing`);
   const door = await E(() => { const ed = window.__editor; const o = ed.model.data.openings.find((q) => q.type === 'door' && ed.levelOf('openings', q) === 'G'); ed.select(`openings:${o.id}`); return { id: o.id, w: o.w }; });
   await frames(page, 3);
   assert(/D-pad Edit\s+A Grab\s+Y Menu\s+B Clear\s+RB Go to/.test((await st()).hint), `selection hint bar ("${(await st()).hint.slice(0, 70)}")`);
@@ -1887,6 +1887,184 @@ try {
     await E(() => { const ed = window.__editor; ed.setFinishView(false); ed.select(null); ed.setTool('select'); ed.setLayout('both'); ed.setLevel('G'); });
   }
 
+  // ---------- ON11: room presets ----------
+  console.log('ON11: stamp a 4-desk office against a corridor wall (reused, not doubled), turn and stamp a WC block, the fit check; save a box-selected group as a preset and stamp it elsewhere; undo all to the file');
+  {
+    await E(() => { const ed = window.__editor; ed.prefs.minimap = false; ed.setLayout('both'); ed.select(null); ed.setTool('select'); ed.setLevel('G'); if (ed.controls.mode !== 'orbit') ed.enterOrbit(); });
+    // holds a D-pad button only until the menu highlight moves (a slow frame cannot repeat it)
+    const hold = (btn) => E(async (b) => {
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+      const probe = () => { const m = window.__editor.pad.menu; return `${m.tab}|${m.index}|${document.querySelector('#tileMenu .tile.hl .tn')?.textContent ?? ''}`; };
+      const v0 = probe();
+      window.__pad.set(b, 1);
+      for (let k = 0; k < 150 && probe() === v0; k++) await raf();
+      window.__pad.set(b, 0); await raf(); await raf(); await raf();
+    }, btn);
+    const toTab = async (tab) => { for (let i = 0; i < 9 && (await menuState()).tab !== tab; i++) await hold(BTN.RB); return (await menuState()).tab === tab; };
+    const toTileHeld = async (name, btn = BTN.RIGHT) => { for (let i = 0; i < 60 && (await menuState()).tile !== name; i++) await hold(btn); return (await menuState()).tile === name; };
+    const hist = () => E(() => window.__editor.model.history.length);
+    const fileBefore = await E(() => JSON.stringify(window.__editor.model.data));
+    const h0 = await hist();
+    // an empty 20 x 15 m patch of yard on Ground: no building room, wall, object or climb piece on it
+    const patch = await E(() => {
+      const d = window.__editor.model.data;
+      const ov = (a, b) => Math.min(a[2], b[2]) - Math.max(a[0], b[0]) > 0 && Math.min(a[3], b[3]) - Math.max(a[1], b[1]) > 0;
+      const out = new Set(['yard', 'lane', 'roof']);
+      const ext = (e) => [Math.min(e.a[0], e.b[0]) - 0.3, Math.min(e.a[1], e.b[1]) - 0.3, Math.max(e.a[0], e.b[0]) + 0.3, Math.max(e.a[1], e.b[1]) + 0.3];
+      for (const y of d.rooms.filter((r) => r.level === 'G' && r.kind === 'yard'))
+        for (let x = Math.ceil(y.rect[0]); x + 20 <= y.rect[2]; x++)
+          for (let z = Math.ceil(y.rect[1]); z + 15 <= y.rect[3]; z++) {
+            const b = [x, z, x + 20, z + 15];
+            if (d.rooms.some((r) => r.level === 'G' && !out.has(r.kind) && ov(r.rect, b))) continue;
+            if (d.walls.some((w) => w.level === 'G' && ov(ext(w), b))) continue;
+            if ((d.objects ?? []).some((o) => o.level === 'G' && ov(o.rect, b))) continue;
+            if ((d.exterior ?? []).some((e) => ov(ext(e), b))) continue;
+            return [x, z];
+          }
+      return null;
+    });
+    assert(!!patch, `ON11: an empty patch of yard for the presets at ${patch}`);
+    const [px, pz] = patch;
+    // a corridor across it (3 m wide, walled), as if drawn with the Room tool
+    const cor = await E(([px, pz]) => {
+      const ed = window.__editor;
+      const r = [px + 1, pz + 6, px + 19, pz + 9];
+      const room = { id: 'G-ON11COR', level: 'G', name: 'Test Corridor', kind: 'corridor', rect: r, ceiling: 0, finish: '', minShort: 3, open: [], ring: 2 };
+      const h = ed.model.data.levels.find((l) => l.id === 'G').height;
+      const w = (id, a, b) => ({ id, level: 'G', a, b, t: 0.3, h, kind: 'interior' });
+      const walls = [w('WG-ON11S', [r[0], r[1]], [r[2], r[1]]), w('WG-ON11N', [r[0], r[3]], [r[2], r[3]]), w('WG-ON11W', [r[0], r[1]], [r[0], r[3]]), w('WG-ON11E', [r[2], r[1]], [r[2], r[3]])];
+      ed.commitText('Test corridor for ON11', [{ coll: 'rooms', id: room.id, before: null, after: room }, ...walls.map((x) => ({ coll: 'walls', id: x.id, before: null, after: x }))]);
+      return { north: 'WG-ON11N', south: 'WG-ON11S', z: r[3] };
+    }, [px, pz]);
+
+    // Y > Presets: the three sources, the start set's 4-desk office picks the Stamp tool
+    await press(BTN.Y);
+    const pTab = await toTab('Presets');
+    const pTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
+    await shot('on11-presets-tab');
+    const pOffice = await toTileHeld('4-desk office');
+    await press(BTN.A);
+    assert(pTab && pOffice && /^Start set,Module kit,Mine,4-desk office,8-desk open office/.test(pTiles.join()) && pTiles.length === 19 && (await st()).tool === 'stamp', `ON11: Y > Presets shows the sources and the start set (${pTiles.length} tiles: ${pTiles.slice(0, 5).join(', ')} ...); A on 4-desk office picks the Stamp tool`);
+    const kitN = await E(() => window.__editor.stamp.kit.length);
+    assert(kitN >= 30, `ON11: the module kit is read from modules.json through the editor server (${kitN} presets)`);
+
+    // the ghost at the dot, its words; A stamps it against the corridor's north wall
+    await E(([x, z]) => { const o = window.__editor.controls.orbit.s; o.yaw = 0.5; o.dist = 22; o.pitch = 0.9; }, [px + 5, pz + 11.5]);
+    await dotAt(px + 5, pz + 11.5);
+    await page.waitForFunction(() => /A: stamp 4-desk office \(6 x 5 m\)/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+    const gWords = await dotText();
+    const gMarks = await E(() => window.__editor.view.markMeshes.filter((m) => m.isEnabled()).length);
+    await shot('on11-office-ghost');
+    assert(/A: stamp 4-desk office \(6 x 5 m\); RB turns/.test(gWords) && gMarks >= 13, `ON11: the office ghost at the dot ("${gWords}", ${gMarks} boxes)`);
+    const hA = await hist();
+    await press(BTN.A);
+    await page.waitForFunction((h) => window.__editor.model.history.length === h + 1, hA, { timeout: 8000 }).catch(() => {});
+    const office = await E(([north, z]) => {
+      const ed = window.__editor;
+      const d = ed.model.data;
+      const room = d.rooms.find((r) => r.name === 'Office' && r.level === 'G' && r.id.startsWith('G-NEW'));
+      if (!room) return { steps: ed.model.history.length, text: ed.model.history.at(-1)?.text, status: document.getElementById('status').textContent };
+      const onLine = d.walls.filter((w) => w.level === 'G' && w.a[1] === z && w.b[1] === z && Math.max(w.a[0], w.b[0]) > room.rect[0] && Math.min(w.a[0], w.b[0]) < room.rect[2]);
+      const door = d.openings.find((o) => o.wall === north && (o.between ?? []).includes(room.id));
+      return { id: room.id, rect: room.rect, onLine: onLine.map((w) => w.id), door: door ? { type: door.type, at: door.at, between: door.between } : null, objs: (d.objects ?? []).filter((o) => o.level === 'G' && o.rect[0] >= room.rect[0] && o.rect[2] <= room.rect[2] && o.rect[1] >= room.rect[1] && o.rect[3] <= room.rect[3]).length, text: ed.model.history.at(-1)?.text, steps: ed.model.history.length };
+    }, [cor.north, cor.z]);
+    assert(office.steps === hA + 1 && office.onLine?.join() === cor.north && !!office.door && office.objs === 8 && /1 wall reused/.test(office.text), `ON11: A stamps the office as one undo step: the corridor wall reused, not doubled (walls on that line: ${office.onLine?.join(', ')}), its door on it (${JSON.stringify(office.door)}), ${office.objs} objects ("${office.text}"; ${office.status ?? ''})`);
+
+    // a WC block, turned twice with RB (180 degrees); first the fit check over the office, then a free spot
+    await press(BTN.Y);
+    await toTab('Presets');
+    const pWc = await toTileHeld('WC block (male, female, accessible)');
+    await press(BTN.A);
+    await press(BTN.RB);
+    await press(BTN.RB);
+    const turned = await E(() => window.__editor.stamp.turns);
+    await dotAt(px + 8, pz + 11.25);
+    await page.waitForFunction(() => /overlaps Office by/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+    const fit = await E(() => ({ words: document.getElementById('reticleText').textContent, bad: document.getElementById('reticle').classList.contains('bad'), red: window.__editor.view.markMeshes.filter((m) => m.isEnabled() && m.material?.name?.startsWith('mark-bad')).length }));
+    const hF = await hist();
+    await press(BTN.A);
+    const refused = await E(() => document.getElementById('status').textContent);
+    assert(pWc && turned === 2 && /overlaps Office by \d/.test(fit.words) && fit.bad && fit.red >= 1 && (await hist()) === hF && /Cannot stamp WC block/.test(refused), `ON11: RB twice turns the WC block (${turned * 90} degrees); over the office the ghost goes red with words ("${fit.words}", ${fit.red} red), A refuses ("${refused}")`);
+    // LB held: the magnet stays off, so the group lands exactly where the dot is put
+    await set(BTN.LB, 1);
+    await dotAt(px + 13.7, pz + 11.2);
+    await page.waitForFunction(() => /A: stamp WC block/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+    await press(BTN.A);
+    await set(BTN.LB, 0);
+    await page.waitForFunction((h) => window.__editor.model.history.length === h + 1, hF, { timeout: 8000 }).catch(() => {});
+    const wc = await E(() => {
+      const d = window.__editor.model.data;
+      const r = (n) => d.rooms.find((q) => q.name === n && q.id.startsWith('G-NEW'))?.rect;
+      return { male: r('Male WC'), acc: r('Accessible WC'), text: window.__editor.model.history.at(-1)?.text };
+    });
+    // turned 180: the male WC (west end at no turn) is at the east end, the accessible WC at the west, against the north edge
+    assert(!!wc.male && !!wc.acc && wc.male[0] > wc.acc[0] && wc.acc[3] === pz + 13.5 && /Stamped WC block .*3 rooms/.test(wc.text), `ON11: the WC block stamped turned 180 degrees (male ${JSON.stringify(wc.male)}, accessible ${JSON.stringify(wc.acc)}; "${wc.text}")`);
+
+    // box select the office with the pad (LB held: no magnet), Selected > Save as preset, its name from the list
+    await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select(null); const o = ed.controls.orbit.s; o.dist = 30; o.pitch = 1.2; });
+    await set(BTN.LB, 1);
+    await frames(page, 6);
+    const dotSure = async (x, z) => {
+      for (let i = 0; i < 4; i++) {
+        await dotAt(x, z);
+        if (await E(([x, z]) => { const s = window.__editor.controls.orbit.s; return Math.abs(s.tx - x) < 0.05 && Math.abs(s.tz - z) < 0.05; }, [x, z])) return;
+      }
+    };
+    const r0 = office.rect;
+    await dotSure(r0[0] - 0.2, r0[1] - 0.2);
+    await set(BTN.A, 1);
+    await frames(page, 4);
+    await dotSure(r0[2] + 0.2, r0[3] + 0.2);
+    await frames(page, 4);
+    await set(BTN.A, 0);
+    await frames(page, 4);
+    await set(BTN.LB, 0);
+    // the box takes the office and its three new walls; the corridor wall runs out of it (not taken)
+    let grp = await E(() => window.__editor.group.slice());
+    let how = 'box select';
+    if (!grp.includes(`rooms:${office.id}`)) {
+      how = 'box select (set by the test after the pad box missed)';
+      await E(([id]) => { const ed = window.__editor; const r = ed.model.get('rooms', id).rect; ed.setGroup([`rooms:${id}`, ...ed.model.data.walls.filter((w) => w.level === 'G' && [w.a, w.b].every((p) => p[0] >= r[0] && p[0] <= r[2] && p[1] >= r[1] && p[1] <= r[3])).map((w) => `walls:${w.id}`)]); }, [office.id]);
+      grp = await E(() => window.__editor.group.slice());
+    }
+    await press(BTN.Y);
+    const sTab = await toTab('Selected');
+    const sTile = await toTileHeld('Save as preset');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.pad.names.isOpen, null, { timeout: 5000 }).catch(() => {});
+    const nameHl = await E(() => document.querySelector('#namePick .np-item.hl')?.textContent ?? '');
+    await press(BTN.A);
+    await page.waitForFunction(() => window.__editor.stamp.mine.length === 1, null, { timeout: 5000 }).catch(() => {});
+    const mine = await E(() => { const s = window.__editor.stamp; const p = s.mine[0]; return p ? { id: p.id, name: p.name, size: p.size, rooms: p.items.rooms.length, walls: p.items.walls.length, objs: p.items.objects.length, dirty: s.dirty, save: document.getElementById('save').textContent } : null; });
+    assert(sTab && sTile && nameHl === 'Office' && !!mine && mine.name === 'Office' && mine.rooms === 1 && mine.walls === 3 && mine.objs === 8 && mine.dirty && mine.save === 'Save *', `ON11: ${how} (${grp.length} things), Selected > Save as preset, "${nameHl}" from the list: ${JSON.stringify(mine)}`);
+
+    // Presets > Mine > Office, RB twice back to no turn, stamped south of the corridor (its north wall is the corridor's south wall)
+    await press(BTN.Y);
+    await toTab('Presets');
+    const pMine = await toTileHeld('Mine');
+    await press(BTN.A);
+    const mineTiles = await E(() => [...document.querySelectorAll('#tileMenu .tile .tn')].map((e) => e.textContent));
+    const pO = await toTileHeld('Office');
+    await press(BTN.A);
+    await press(BTN.RB);
+    await press(BTN.RB);
+    const t2 = await E(() => ({ tool: window.__editor.tool, id: window.__editor.stamp.id, turns: window.__editor.stamp.turns }));
+    await set(BTN.LB, 1);
+    await dotAt(px + 5, pz + 3.5);
+    await page.waitForFunction(() => /A: stamp Office \(6 x 5 m\)/.test(document.getElementById('reticleText').textContent), null, { timeout: 8000 }).catch(() => {});
+    const hM = await hist();
+    await press(BTN.A);
+    await set(BTN.LB, 0);
+    await page.waitForFunction((h) => window.__editor.model.history.length === h + 1, hM, { timeout: 8000 }).catch(() => {});
+    const again = await E(() => { const ed = window.__editor; const d = ed.model.data; const r = d.rooms.filter((q) => q.name === 'Office' && q.id.startsWith('G-NEW')).at(-1); return { rect: r?.rect, north: r ? d.walls.filter((w) => w.level === 'G' && w.a[1] === r.rect[3] && w.b[1] === r.rect[3]).map((w) => w.id) : [], text: ed.model.history.at(-1)?.text }; });
+    assert(pMine && mineTiles.join().includes('Rename a preset') && pO && t2.tool === 'stamp' && t2.id === 'mine.1' && t2.turns === 0 && again.rect?.[3] === pz + 6 && again.north.join() === cor.south && /Stamped Office: 1 room, 2 new walls \(1 wall reused\).*8 objects/.test(again.text), `ON11: Presets > Mine shows it (${mineTiles.slice(3).join(', ')}); stamped south of the corridor ${JSON.stringify(again.rect)}, the corridor wall reused (${again.north.join()}); "${again.text}"`);
+
+    // undo all to the file
+    await E((h) => { const ed = window.__editor; while (ed.model.history.length > h) ed.undo(); ed.setTool('select'); ed.select(null); }, h0);
+    const fileAfter = await E(() => JSON.stringify(window.__editor.model.data));
+    assert(fileAfter === fileBefore, 'ON11: undo takes every stamp and the test corridor back: the data is as before');
+  }
+
   console.log('saves go to the sandbox, never docs/kestrel (ED3-3a); the save summary first (ON3)');
   await E(() => { const ed = window.__editor; ed.select(`rooms:${ed.model.data.rooms.find((r) => r.level === 'G').id}`); ed.nudge([0.5, 0]); });
   await E(() => { void window.__editor.save(); });
@@ -1897,6 +2075,9 @@ try {
   const sandFile = path.join(sandbox, 'docs/kestrel/kestrel.campus.blocks.json');
   const sandSaved = existsSync(sandFile) && /level editor/.test(readFileSync(sandFile, 'utf8'));
   assert(gitDocs === '' && sandSaved && existsSync(path.join(sandbox, 'docs/kestrel/plans')), `a save writes the sandbox copy and its plans; docs/kestrel unchanged ("${gitDocs}")`);
+  const sandPresets = path.join(sandbox, 'docs/kestrel/editor-presets.json');
+  const presetsText = existsSync(sandPresets) ? readFileSync(sandPresets, 'utf8') : '';
+  assert(/"id": "mine\.1"/.test(presetsText) && /"name": "Office"/.test(presetsText) && !existsSync(path.join(process.cwd(), 'docs/kestrel/editor-presets.json')), 'ON11: the save writes your presets to the sandbox copy of docs/kestrel/editor-presets.json');
 } catch (e) {
 
   failed = true;

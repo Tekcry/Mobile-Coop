@@ -30,6 +30,7 @@ import { TileMenu } from './tileMenu';
 import type { MenuInput, ViewState } from './tileMenu';
 import { NamePick, TileMenuView } from './tileMenuView';
 import type { Mark } from './scene3d';
+import type { StampGhost } from './stampTool';
 import { presetPicks } from './visibility';
 import type { Coll, Elem, Ext, Key, Ladder, Obj, Opening, Pt, Rect, Roof, Room, Stair, Wall } from './types';
 import { keyOf, parseKey } from './types';
@@ -45,6 +46,8 @@ import { pieceWords } from './climb';
 import { loudWords } from './finishes';
 import { groupPresets } from './catalogue';
 import type { ObjGroup } from './catalogue';
+import { presetWords } from './presets';
+import type { PresetFrom } from './presets';
 
 type Focus = '3d' | 'drawer';
 /** Tool names on the tool bar, which shows the active tool only (ON0a: the Y menu picks tools). */
@@ -60,6 +63,7 @@ const BAR = [
   ['roof', 'Roof'],
   ['object', 'Object'],
   ['climb', 'Climb'],
+  ['stamp', 'Stamp'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -244,7 +248,7 @@ export class PadControl {
   menuInput(): MenuInput {
     const s = this.ed.selectedElem();
     const type = s ? String((s.e as unknown as Record<string, unknown>)[s.coll === 'openings' ? 'type' : 'kind'] ?? '') : '';
-    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0 } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup };
+    return { sel: s ? { coll: s.coll, type, gap: s.coll === 'walls' && this.ed.gapsOf(s.id).length > 0 } : null, clipboard: !!this.clipboard, view: this.viewState(), group: this.ed.group.length, objGroup: this.ed.objGroup, presets: this.presetsInput() };
   }
 
   viewState(): ViewState {
@@ -301,6 +305,57 @@ export class PadControl {
     this.renderMenu();
   }
 
+  /** ON11: the Presets tab's input: the source shown, its presets, the own preset Rename / Delete act on. */
+  private presetsInput(): NonNullable<MenuInput['presets']> {
+    const st = this.ed.stamp;
+    const cur = st.mine.find((p) => p.id === st.id);
+    return { from: st.from, list: st.list(st.from).map((p) => ({ id: p.id, name: p.name, desc: presetWords(p) })), mine: cur ? { id: cur.id, name: cur.name } : null };
+  }
+
+  /** ON11: Selected > Save as preset: a name from the list (your presets' names) or the keyboard. */
+  private openSavePreset(): void {
+    const ed = this.ed;
+    this.latchSticks();
+    // the names on offer: the selected rooms' names, then your presets' (A picks one; the last item types a new one)
+    const keys = ed.group.length ? ed.group : ed.selected ? [ed.selected] : [];
+    const roomNames = keys.filter((k) => k.startsWith('rooms:')).map((k) => ed.model.get<Room>('rooms', k.slice(6))?.name).filter((n): n is string => !!n);
+    const names = [...new Set([...roomNames, ...ed.stamp.mine.map((p) => p.name)])];
+    this.names.open('Preset name', names, names[0] ?? 'My preset', (name) => {
+      this.latchSticks();
+      ed.updateHint();
+      if (name) ed.savePreset(name);
+    });
+    ed.updateHint();
+  }
+
+  /** ON11: Presets > Mine > Rename (the name list and keyboard) and Delete (asks first). */
+  private openPresetRename(): void {
+    const ed = this.ed;
+    const p = ed.stamp.mine.find((q) => q.id === ed.stamp.id);
+    if (!p) return;
+    this.latchSticks();
+    this.names.open(`Rename ${p.name}`, ed.stamp.mine.map((q) => q.name), p.name, (name) => {
+      this.latchSticks();
+      ed.updateHint();
+      if (name && ed.stamp.rename(p.id, name)) {
+        ed.updateBar();
+        ed.status(`Preset renamed to ${name.trim()}; Save writes it`);
+      }
+    });
+    ed.updateHint();
+  }
+
+  private async deletePreset(): Promise<void> {
+    const ed = this.ed;
+    const p = ed.stamp.mine.find((q) => q.id === ed.stamp.id);
+    if (!p) return;
+    if (!(await ed.ask(`Delete your preset ${p.name}?`, 'Delete', 'Cancel'))) return;
+    ed.stamp.remove(p.id);
+    if (ed.tool === 'stamp') ed.setTool('select');
+    ed.updateBar();
+    ed.status(`Deleted preset ${p.name}; Save writes the presets file`);
+  }
+
   /** A on the highlighted tile (or a click): a View tile changes and the menu stays; anything else closes it and runs. */
   private pickTile(): void {
     const inp = this.menuInput();
@@ -317,6 +372,11 @@ export class PadControl {
     if (t.id.startsWith('objgroup.')) {
       // ON4: a group tile shows that group's objects; the menu stays open
       this.ed.setObjectGroup(t.id.slice(9) as ObjGroup);
+      return this.renderMenu();
+    }
+    if (t.id.startsWith('presetfrom.')) {
+      // ON11: a source tile shows that source's presets; the menu stays open
+      this.ed.stamp.from = t.id.slice(11) as PresetFrom;
       return this.renderMenu();
     }
     this.closeMenu();
@@ -391,6 +451,14 @@ export class PadControl {
       ed.setClimbKind(id.slice(6) as ExtKind);
       tool('climb');
     }
+    else if (id.startsWith('preset.')) {
+      // ON11: the Stamp tool with that preset
+      this.ed.stamp.set(id.slice(7));
+      tool('stamp');
+    }
+    else if (id === 'sel.savePreset') this.openSavePreset();
+    else if (id === 'mine.rename') this.openPresetRename();
+    else if (id === 'mine.delete') void this.deletePreset();
     else if (id === 'sel.finish') this.editCard('finish')
     else if (id === 'sel.fit') ed.fitSelected();
     else if (id === 'sel.turnClimb') ed.turnStairClimb();
@@ -453,6 +521,9 @@ export class PadControl {
       const q = CLIMB_PIECES[(i + dir + CLIMB_PIECES.length) % CLIMB_PIECES.length]!;
       ed.setClimbKind(q.id);
       ed.status(`Climb: ${q.name}`);
+    } else if (ed.tool === 'stamp') {
+      const p = ed.stamp.step(dir);
+      if (p) ed.status(`Stamp: ${p.name}`);
     } else if (ed.tool === 'roof') {
       const i = ROOF_TYPES.findIndex((t) => t.id === ed.roofTypeId);
       const t = ROOF_TYPES[(i + dir + ROOF_TYPES.length) % ROOF_TYPES.length]!;
@@ -659,7 +730,7 @@ export class PadControl {
       else if (st.xTap === 'hold') this.ed.redo();
       if (st.rbTap === 'tap') {
         if (this.ed.splitting) this.ed.splitTurn();
-        else if (this.ed.tool === 'object') this.ed.turnObjectNow();
+        else if (this.ed.tool === 'object' || this.ed.tool === 'stamp') this.ed.turnObjectNow();
         else this.ed.frameSelected();
       }
     } else if (this.ed.chaining && st.pressed(PAD.X)) this.ed.chainRemoveLast(); // on press: a slow frame never turns it into a hold
@@ -1355,6 +1426,14 @@ export class PadControl {
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
         for (let i = 0; i < 4; i++) plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
       }
+    } else if (ed.tool === 'stamp' && p) {
+      // ON11: the whole group at the dot; red where the fit check would refuse it, with its words
+      const g = ed.stamp.ghost(ed.model.data, ed.view.level, p[0], p[1], ed.grid, ed.model.rev);
+      const pre = ed.stamp.preset;
+      bad = !!g.why || g.problems.length > 0;
+      words = g.why ?? (g.problems.length ? `${g.problems[0]!.words}${g.problems.length > 1 ? ` (and ${g.problems.length - 1} more)` : ''}` : `A: stamp ${pre.name} (${fmt(g.size[0])} x ${fmt(g.size[1])} m); RB turns`);
+      key = `sp|${g.key}`;
+      this.stampMarks(g, f, marks, plan);
     } else if (ed.tool === 'climb' && p) {
       // ON5: the piece's ghost at the dot with what the player can do with it (red where it cannot go)
       const kind = pieceOf(ed.climbKind);
@@ -1447,6 +1526,33 @@ export class PadControl {
   }
 
   /** A box from a to b at height y (centre), sy tall and sz thick. */
+  /** ON11: the stamp ghost's boxes (walls 1.2 m high, floors, objects, red problem areas) and its plan outline. */
+  private stampMarks(g: StampGhost, f: number, marks: Mark[], plan: PlanShape[]): void {
+    const d = this.ed.model.data;
+    const base = this.ed.floor();
+    const lift = (rel: string): number => {
+      const id = g.levelOf(rel);
+      return (d.levels.find((l) => l.id === id)?.floor ?? base) - base;
+    };
+    for (const pr of g.problems) {
+      const r = pr.rect;
+      const y = f + (d.levels.find((l) => l.id === pr.level)?.floor ?? base) - base;
+      marks.push({ x: (r[0] + r[2]) / 2, y: y + 0.75, z: (r[1] + r[3]) / 2, sx: Math.max(0.1, r[2] - r[0]), sy: 1.5, sz: Math.max(0.1, r[3] - r[1]), dx: 1, dz: 0, look: 'bad' });
+    }
+    for (const w of g.items.walls) {
+      marks.push(this.bar(w.a, w.b, f + lift(w.level) + 0.6, 1.2, w.t, 'ghost'));
+      if (w.level === '+0') plan.push({ kind: 'line', a: w.a, b: w.b });
+    }
+    for (const r of g.items.rooms) {
+      const q = r.rect;
+      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(r.level) + 0.02, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: 0.04, sz: q[3] - q[1], dx: 1, dz: 0, look: 'ghost' });
+    }
+    for (const o of g.items.objects) {
+      const q = o.rect;
+      marks.push({ x: (q[0] + q[2]) / 2, y: f + lift(o.level) + (o.y ?? 0) + o.h / 2, z: (q[1] + q[3]) / 2, sx: q[2] - q[0], sy: o.h, sz: q[3] - q[1], dx: 1, dz: 0, look: 'ghost' });
+    }
+  }
+
   private bar(a: Pt, b: Pt, y: number, sy: number, sz: number, look: Mark['look']): Mark {
     const dx = b[0] - a[0];
     const dz = b[1] - a[1];

@@ -96,8 +96,8 @@ export const ACTIONS: readonly Action[] = [
   { id: 'toolLadder', name: 'ladder tool (click a wall face or a point: up to the level above)', group: 'Tools', keys: ['Digit7'], ctx: NOT_DRAG },
   { id: 'toolHole', name: 'floor hole tool (drag a rectangle; kind from the list)', group: 'Tools', keys: ['Digit8'], ctx: NOT_DRAG },
   { id: 'toolObject', name: 'object tool (click places the preset from the list; a row: click the start, click the end)', group: 'Tools', keys: ['Digit9'], ctx: NOT_DRAG },
-  { id: 'turnObject', name: "turn the Object tool's ghost or the selected object 90 degrees", group: 'Tools', keys: ['KeyR'], ctx: ['draw', 'selected'] },
-  { id: 'padTurnObject', name: "Object tool: turn the ghost 90 degrees", group: 'Tools', keys: [], pad: ['RB'], ctx: ['draw'], passive: true },
+  { id: 'turnObject', name: "turn the Object or Stamp tool's ghost, or the selected object, 90 degrees", group: 'Tools', keys: ['KeyR'], ctx: ['draw', 'selected'] },
+  { id: 'padTurnObject', name: 'Object and Stamp tools: turn the ghost 90 degrees', group: 'Tools', keys: [], pad: ['RB'], ctx: ['draw'], passive: true },
   { id: 'draw', name: 'draw on the editing level', group: 'Tools', keys: [], mouse: 'Drag', ctx: ['draw'], hint: ['draw'], passive: true },
 
   { id: 'layout', name: 'view: 3D, both, plan', group: 'View', keys: ['KeyV'], pad: ['View hold'], ctx: NOT_MENU, hint: ['idle'] },

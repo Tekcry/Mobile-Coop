@@ -203,3 +203,10 @@ describe('ON11 module kit and own presets', () => {
     expect(mine.items.openings[0]!.at).toBeCloseTo(1.5);
   });
 });
+
+describe('ON11 origin at the dot', () => {
+  it('rounds half an odd size down on the 0.1 grid (no ties)', () => {
+    expect(originAt([9.5, 4.5], 13.7, 11.2, 0.1)).toEqual([9, 9]);
+    expect(originAt([9.5, 4.5], 13.75, 11.25, 0.1)).toEqual([9.1, 9.1]);
+  });
+});
