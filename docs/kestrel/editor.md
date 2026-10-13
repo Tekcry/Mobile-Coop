@@ -79,6 +79,7 @@ views are generated from it, so this table and the editor cannot drift apart for
 | J | the stealth view (ON4): objects tinted by what they give the player |
 | N | the finish view (ON5): floors tinted by floor finish, with a legend of how loud footsteps are |
 | Space > Climb tiles | the Climb tool (ON5): a climb piece or exterior feature; click places it (a drawn one: click the start, click the end) |
+| 0, R | the Light tool (ON6): click places the fitting from the list beside it (a strip: click the start, click the end; R turns the ghost); Switch in the list: click a wall face for a switch, then click lamps to put them on it, Esc ends |
 | Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
 | ` (backquote) or I | open / close the side panel |
@@ -690,8 +691,73 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
   are written to `docs/kestrel/editor-presets.json` with the file save (the Save button shows `*`; through the editor
   server, so the e2e test's sandbox copy is used there).
 
+## Lights (ON6)
+Lamps are placed in the editor as the play file's own records (schema.md section 3 `lamps`, `circuits`), the same records
+the walk test builds and later parts read: nothing is entered twice.
+
+- **Play file**: the editor loads `docs/kestrel/kestrel.play.json` beside the campus file and writes it on the first save
+  that has lamps or circuits (only `lamps` and `circuits`; other parts add theirs; it keeps every other collection it has).
+  The two files are one document while editing (`src/editor/playFile.ts`): undo, the unsaved count, drafts, the save
+  summary and the change log treat them as one. The campus file never holds lamps. A save with no lamp change leaves the
+  play file alone; a no-op save writes neither (both byte-identical). `KESTREL_EDITOR_SANDBOX` covers it.
+- **Fitting catalogue** (`src/editor/lightCatalogue.ts`, one data list; Michael adds fittings there only): five groups.
+  Interior (downlight 90 mm, troffers 600 x 600 and 1200 x 300, LED strip in extrusion, pendant, under-cabinet strip, wall
+  uplight, stair step light, desk lamp); Plant and goods (high bay, LED batten 1500 mm, round and oval bulkheads, cage
+  light); Outside (floodlight, wall pack, pole lantern on a 6 m pole, bollard, PIR security flood); Emergency (twin spot,
+  maintained exit sign, maintained emergency bulkhead); Glow (CCTV monitor, video wall, rack status LEDs, vending machine
+  front, fridge door light). Each has its mount, body size, default height, lumens (per metre for strips), colour
+  temperature, beam, the emergency, motion and breakable defaults, the kind of circuit it goes on, and a `src`.
+- **One conversion** (`lightParams`): lumens, colour temperature and beam to the game's `LightInit` fields (radius,
+  intensity, colour, cone, fixture box). The reach grows with the square root of the beam-weighted lumens, the intensity
+  with the fourth root, calibrated so a 900 lm 60 degree downlight is the Warehouse office ceiling lamp (radius 4,
+  intensity 0.7; facts `light.cal*`). Beams under 100 degrees are spot cones along the aim; wider ones light the hemisphere
+  below, as the game's lamps do. Colour from the colour temperature, softened half way to white as the game's lamps are
+  (exit signs green, screens blue-white). The light itself is the game's own formula (`lampMath.ts`); there is no second one.
+- **Light tool**: Y > **Lights** tab: the five group tiles and **Switch** first (a group tile shows its fittings, the menu
+  stays open), then the group's fittings; A picks one. The tool bar shows "Light" with the fitting under it; D-pad left /
+  right steps the fitting within its group; RB turns the ghost. The ghost sits at the dot at the fitting's height: ceiling
+  fittings under the room's ceiling (or under the slab above, the level height less facts `room.slab`, when the room has
+  none), wall fittings backed onto the wall face within facts `light.wallReach`, desk lamps and monitors on a desk top,
+  glow fittings on the front of their object (rack LEDs: one per rack along the row), exit signs over the opening nearest
+  the dot (facts `light.openingReach`, `light.signAbove`), a pole lantern on the lamp post at the dot or with a new ON5
+  lamp post. Red with words where it cannot go ("Move onto a wall face"). A places it and the tool stays on. Strips and
+  battens are drawn: A at the start, A at the end. A light point stands at least facts `light.surfaceGap` (0.15 m) off its
+  ceiling or wall, as the game's map lamps do, so the light bake does not swallow it.
+- **Circuits**: a new lamp joins the nearest switch's circuit in its room, else a new circuit (no switch yet). Emergency,
+  photocell (outside) and equipment (glow) lamps join a circuit of their kind already in the room, else a new one; PIR,
+  desk and fridge lamps each get their own. Unswitchable circuits carry the real reason ("Emergency lighting: on its own
+  battery supply, no switch", "Photocell: on from dusk to dawn", "PIR: its motion sensor switches it", "Switched at the
+  lamp", "Equipment light: on with the equipment", "Door switch: on when the door opens"). A lamp's `circuit` is the one
+  source: every edit keeps the circuits' lamp lists in step (`circuitLink`, the model's link), so a lamp is on one circuit
+  only; a switchless circuit left with no lamps goes.
+- **Switches**: Y > Lights > **Switch**: A on a wall face places a switch (1.2 m up; a new circuit with `switch.at`,
+  `.wall`); then A on lamps puts each on it (facts `light.lampPick`), B ends. Selected > **Add lamps** on a switch does the
+  same for an existing one. With a lamp or switch selected the plan draws thin dashed lines from the switch to its lamps;
+  the plan marks every lamp (a dot in its colour, a strip as a line) and switch (a square with its id).
+- **Card** (D-pad): Type (the fittings of its group with the same mount), Name, Lumens (catalogue default shown), Colour
+  temp, Beam, Height, Aim turn and Aim down (aimed fittings), Emergency (no, maintained, non-maintained), Motion (PIR),
+  Breakable, Circuit (the circuits on its level, then a new one), Owner (Site, Building A, Building B, owners in use), Id.
+  Its foot gives lumens, colour, beam, reach and circuit. The side panel has the same rows for the mouse.
+- **Aim**: Selected > **Aim** on a floodlight, PIR flood or twin spot: the right stick turns (left / right) and tips (up /
+  down) the beam, previewed; A sets it in one undo step, B puts it back. A rod along the beam shows the aim in 3D (a twin
+  spot's second head points the other way along its wall).
+- **3D**: every lamp shows its body and an emissive bulb in its colour (a dark bulb for a lamp off in its normal state);
+  switches are small white plates. Lighting the editor's scene from the lamps is ON7.
+- **Walk test**: lamps build through the campus converter (`src/world/maps/kestrelLights.ts`, `campusToBuild().lights`)
+  into the game's own `LightRegistry` with `LevelBuilder.light`, the path every map's lights take, so the light meter and
+  the guards read them (bible 5.1). Circuits are switch groups (1, 2, ... in the circuits' order), breakable is
+  `destructible`, a twin spot is two lights. Not in the game yet: PIR triggering and mains-off; a PIR lamp and a
+  non-maintained emergency lamp build in their normal state, off (a maintained one is on); the fridge light is off.
+
 ## What it does not do yet (ED2 parts B-H)
-- ON11: presets carry no lamps or circuits yet (the light records are ON6, which has not run); they join when they exist. The
+- ON6: lamps do not light the editor's scene (ON7). PIR triggering and mains-off are not in the game (motion and
+  non-maintained lamps stay off in the walk test). Lamps keep their place when a room or wall moves (they are not linked to
+  rooms); a lamp whose room is deleted is skipped by the walk test. Strips are drawn on the ceiling or at their height
+  on a line, not backed onto a wall face. A wall fitting's body stands at its light point (0.15 m off the wall), not
+  against the wall. Renaming a wall or room id does not rename a switch's `wall` or a lamp's `room`; renaming a lamp id
+  keeps its circuit. Switches cannot be moved (delete and place again); Box select, Copy and Paste do not take lamps or
+  switches. `check.mjs` reads no lamp rules yet.
+- ON11: presets carry no lamps or circuits (the ON6 records are not part of a preset yet). The
   ghost shows for the pad (the mouse sees the words after a click). A stamp lands where the dot puts it (no snapping of
   its edges to nearby walls; the magnet still moves the dot). The fit check looks at rooms and walls, not objects, climb
   pieces or roofs. Saving a preset takes rooms, walls, floor holes, stairs, ladders and objects, not roofs or climb
@@ -699,7 +765,7 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
 - ON5: pieces are straight (a duct or pipe is one run; no bends); a duct does not cut the walls it crosses (they stay
   solid in the walk test). A fire escape is one straight flight with no landings (its words say when a real one would
   need one). A downpipe's top lip counts wall tops and ledge pieces, not roof edges or object tops. A lamp post's lamp
-  is ON6. The editor draws a piece as one bar (no pipe brackets, fence mesh or grille slats). Finishes the game has no
+  is the Light tool's pole lantern (ON6). The editor draws a piece as one bar (no pipe brackets, fence mesh or grille slats). Finishes the game has no
   surface for sound as the nearest one (vinyl, ceramic and asphalt as concrete, grass as carpet, a raised floor as
   wood). Box select, Copy and Paste do not take climb pieces. A level's storey change does not move them (heights are
   absolute).
@@ -717,7 +783,7 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
   and a frosted pane as clear). Hatches sit in walls; a floor or ceiling hatch is still a Floor hole. A roof light is a
   high window in a wall; a glazed hole in a roof slab is the Floor hole tool's Roof light. The card level does not change
   the room's access level (the Checks show A29 as before).
-- The tile menu's Lights and Mission tabs are empty (hidden) until the later parts add tiles. The on-screen
+- The tile menu's Mission tab is empty (hidden) until a later part adds tiles. The on-screen
   keyboard has no lower-case or symbol page (words start with a capital, the rest is small; ids keep capitals).
 - ON2: building outlines are edited as edge rows on the Levels tab with the outlines drawn in 3D, not dragged on a site
   plan; the plan images do not draw them. Deleting a level leaves the levels above where they are. Free text that names an
@@ -766,6 +832,9 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
 | `src/world/maps/kestrelRoofs.ts` | ON10: the one copy of the roof geometry (planes, edges, ridges, hips, plan marks, the walk test's boxes and panes), shared by the editor, the walk test and `plans.mjs` (pure, import-free) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
 | `src/editor/presets.ts`, `src/editor/stampTool.ts` | ON11: the start set (data with sources), module kit presets from expand's output, turning and placing a group, the fit check, stamping as one change list with wall reuse, saving a selection, the own presets file; the Stamp tool's state, ghost cache and save (pure, `tests/editor/presets.test.ts`) |
+| `src/editor/lightCatalogue.ts`, `src/editor/lamps.ts`, `src/editor/playFile.ts` | ON6: the fittings (one data list with sources) and the one lumens conversion; placing lamps and switches, linear fittings, default circuits, the circuit link, the card's rows and steps, words; the play file joined in and split out (pure, `tests/editor/lamps.test.ts`) |
+| `src/world/maps/kestrelLights.ts` | ON6: the lamp and circuit records and how the walk test builds them as the game's lights (pure) |
+| `docs/kestrel/kestrel.play.json` | ON6: the play file (schema.md section 3); the editor writes `lamps` and `circuits` |
 | `docs/kestrel/editor-presets.json` | ON11: Michael's own presets (schema.md section 7, own presets); written by the editor's Save |
-| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
+| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load (the campus file and, ON6, the play file), plan (one level, SVG), checks, save (both files), the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

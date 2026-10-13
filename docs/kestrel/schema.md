@@ -197,11 +197,17 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | lamps[].room | Room id the lamp is in |
 | lamps[].at | `[x, y, z]`, y above the room's floor |
 | lamps[].circuit | Circuit id it belongs to |
-| lamps[].params | Light parameters (radius, intensity, colour, cone) as `LightInit` fields (F25) |
+| lamps[].params | Light parameters (radius, intensity, colour, cone) as `LightInit` fields (F25); the editor also writes `kind`, `fixture` (the body box) and `on: false` for a light off in its normal state, from the fitting catalogue's one conversion (ON6) |
+| lamps[].aim | Optional `[yaw, pitch]` degrees for aimed fittings (floods, twin spots): yaw 0 north, 90 east; pitch below the horizontal (ON6) |
+| lamps[].b | Optional `[x, y, z]`: the other end of a linear fitting (strip, batten, troffer run), `at` being the first (ON6) |
+| lamps[].emergency | Optional: `maintained` (always on, also in mains-off) or `non-maintained` (on only in mains-off) (ON6) |
+| lamps[].motion, breakable | Optional `motion` true: a PIR lamp, off until movement; `breakable`: can be shot out (ON6) |
+| lamps[].heads, lumens, kelvin, beam, yaw, name, on | Optional (ON6): heads of a twin spot (2); lumens (per metre for a linear fitting), colour temperature and beam when changed from the catalogue; the body's quarter turn; a name; the object, wall, opening or lamp post it fixes to |
 | circuits[].id | Circuit id |
-| circuits[].switch | Where the switch is: `at` `[x, y, z]` and the `wall` id it is on |
+| circuits[].switch | Where the switch is: `at` `[x, y, z]` (y above the floor) and the `wall` id it is on; `null` for a circuit with no switch (ON6) |
 | circuits[].lamps | Lamp ids on the circuit |
-| circuits[].unswitchable | Empty, or the real reason it has no switch (photocell, emergency, cage) |
+| circuits[].unswitchable | Empty, or the real reason it has no switch (photocell, emergency, PIR, switched at the lamp, equipment, door switch) |
+| circuits[].name | Optional name (ON6) |
 | surfaces[].room, kind | Room id and its floor sound surface |
 | guards[].id, kind | Unique guard id and the guard kind (F20) |
 | guards[].employer, job | Who pays the guard, and what the guard is doing (level-design 16.8.2) |
