@@ -6,7 +6,7 @@ import type { DamageRegistry, Damageable, DamageResult, HitInfo } from '../game/
 import type { PlayerRef } from '../ai/enemy';
 import type { WeaponId } from '../weapons/weaponDefs';
 import { WEAPONS } from '../weapons/weaponDefs';
-import { attachedClamp, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
+import { attachedClamp, hostDrawPhase, hostWeapon, MAX_FREE_SPEED, moveSpeedCap, shotLimiter, type RateLimiter } from './validate';
 import type { TraversalAnchors } from '../world/anchors';
 import { PF, type PlayerState } from './protocol';
 import type { RemoteAvatar } from './remoteAvatar';
@@ -38,6 +38,9 @@ export class RemotePlayer implements Damageable {
   private limiters = new Map<WeaponId, RateLimiter>();
   private blastT = -Infinity;
   violations = 0;
+  /** (step 09) The validated lobby loadout (`PlayerInfo.loadout`) and the last weapon id accepted from it. */
+  loadout: readonly WeaponId[] = [];
+  private lastW: WeaponId | null = null;
   onDamaged: ((h: HitInfo, dealt: number) => void) | null = null;
   onDeath: (() => void) | null = null;
 
@@ -83,6 +86,10 @@ export class RemotePlayer implements Damageable {
    * towards the claim (the client snaps back on its next correction) and counted.
    */
   accept(s: PlayerState, now: number, anchors: TraversalAnchors | null = null): void {
+    // (step 09, D8) the weapon from the lobby loadout only; holstered while the host sees busy hands or downed
+    s.w = hostWeapon(s.w, this.loadout, this.lastW);
+    this.lastW = s.w;
+    if (s.mv) s.mv.dw = hostDrawPhase(s.mv, !this.alive);
     const dt = this.lastT < 0 ? 1 : Math.min(1, now - this.lastT);
     this.lastT = now;
     const dx = s.x - this.feet.x;

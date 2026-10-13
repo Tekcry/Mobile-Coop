@@ -143,6 +143,88 @@ try {
   const em = await holdBtn(BTN.SELECT, 500, () => !!window.__app.current.player.rig.emote);
   const v2 = await G(() => window.__app.current.vision.mode);
   assert(em.emote && v2 === vBefore, `View held: an emote, goggles untouched (${em.emote}, ${vBefore} -> ${v2})`);
+  // (step 09) holstered unless aiming: LT draws (<= 0.45 s), RT then fires; release holsters (<= 0.45 s); RT while
+  // holstered does nothing (fixed steps, the pad polled every step)
+  const dr = await G(() => {
+    const g = window.__app.current;
+    const L = window.__app.loop;
+    const w = g.weapons;
+    const shots = () => [...w.tally.values()].reduce((a, t) => a + t.shots, 0);
+    const until = (fn, max) => {
+      let t = 0;
+      while (!fn() && t < max) {
+        L.stepHeadless(1 / 60);
+        t += 1 / 60;
+      }
+      return t;
+    };
+    const s0 = shots();
+    // (fix 1) RT held while holstered never raises the carry (no aiming twist, no MoveState r, no turn rates)
+    const raise0 = g.player.carry.raise;
+    let raiseMax = raise0;
+    let aimed = false;
+    window.__pad.set(7, 1);
+    for (let k = 0; k < 18; k++) {
+      L.stepHeadless(1 / 60);
+      raiseMax = Math.max(raiseMax, g.player.carry.raise);
+      aimed = aimed || g.player.aiming;
+    }
+    window.__pad.set(7, 0);
+    L.stepHeadless(0.1);
+    const s1 = shots();
+    window.__pad.set(6, 1);
+    const tDraw = until(() => w.drawPhase === 2, 2);
+    until(() => g.player.cam.ads >= 0.9, 2);
+    window.__pad.set(7, 1);
+    L.stepHeadless(0.3);
+    window.__pad.set(7, 0);
+    const s2 = shots();
+    window.__pad.set(6, 0);
+    const tHol = until(() => w.drawPhase === 0, 2);
+    // (A43) releasing aim mid-reload finishes the reload, then holsters
+    const tapX = () => {
+      window.__pad.set(2, 1);
+      L.stepHeadless(1 / 60);
+      window.__pad.set(2, 0);
+      L.stepHeadless(1 / 60);
+    };
+    const cur = w.current;
+    cur.mag = Math.max(0, cur.stats.magSize - 3);
+    if (cur.reserve < 10) cur.reserve = 60;
+    window.__pad.set(6, 1);
+    until(() => w.drawPhase === 2 && g.player.cam.ads >= 0.9, 2);
+    tapX();
+    const relReloading = w.reloading;
+    L.stepHeadless(0.2);
+    window.__pad.set(6, 0);
+    let relDrop = false;
+    const relT = until(() => {
+      if (w.reloading && w.drawPhase !== 2) relDrop = true;
+      return !w.reloading;
+    }, 5);
+    const relFull = cur.mag === cur.stats.magSize;
+    const relHol = until(() => w.drawPhase === 0, 2);
+    // (A43) reload pressed while holstered: draws to low ready, reloads, holsters; RT held throughout never fires
+    cur.mag = Math.max(0, cur.stats.magSize - 3);
+    const s3 = shots();
+    window.__pad.set(7, 1);
+    tapX();
+    const hDraw = until(() => w.reloading, 2);
+    const hDrawn = w.drawPhase === 2 && !g.player.ads;
+    const hT = until(() => !w.reloading, 5);
+    const hFull = cur.mag === cur.stats.magSize;
+    const hHol = until(() => w.drawPhase === 0, 2);
+    window.__pad.set(7, 0);
+    const s4 = shots();
+    return { s0, s1, s2, tDraw, tHol, cls: cur.def.class, raise0, raiseMax, aimed, relReloading, relDrop, relT, relFull, relHol, hDraw, hDrawn, hT, hFull, hHol, s3, s4 };
+  });
+  assert(dr.raiseMax - dr.raise0 < 0.01 && !dr.aimed, `RT while holstered: carry.raise and aiming unchanged (${dr.raise0.toFixed(3)} -> max ${dr.raiseMax.toFixed(3)}, aiming ${dr.aimed})`);
+  assert(dr.relReloading && !dr.relDrop && dr.relFull && dr.relHol < 0.45, `LT released mid-reload: the reload finishes (${dr.relT.toFixed(2)} s, full ${dr.relFull}, stayed drawn ${!dr.relDrop}), then holsters (${dr.relHol.toFixed(2)} s)`);
+  assert(dr.hDraw <= 0.5 && dr.hDrawn && dr.hFull && dr.hHol < 0.45 && dr.s4 === dr.s3, `reload while holstered: draws to low ready (${dr.hDraw.toFixed(2)} s), reloads (${dr.hT.toFixed(2)} s, full ${dr.hFull}), holsters (${dr.hHol.toFixed(2)} s), never fires (${dr.s3} -> ${dr.s4})`);
+  assert(dr.s1 === dr.s0, `RT while holstered: shot tally unchanged (${dr.s0} -> ${dr.s1})`);
+  assert(dr.tDraw <= 0.45, `LT draws within 0.45 s (${dr.tDraw.toFixed(2)} s, ${dr.cls})`);
+  assert(dr.s2 > dr.s1, `drawn, RT fires (${dr.s1} -> ${dr.s2})`);
+  assert(dr.tHol <= 0.45, `LT released holsters within 0.45 s (${dr.tHol.toFixed(2)} s)`);
   await press(page, BTN.START);
   assert(await q('.pause-screen'), 'Start opens pause');
   await press(page, BTN.B);

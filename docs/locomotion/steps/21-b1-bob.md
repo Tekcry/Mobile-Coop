@@ -61,3 +61,4 @@ Commit: "locomotion 21: D2 bob fixes (sway, heel kick, camera kick, breathing, s
   rate pass for batch 1 rows; nothing else regresses. `node scripts/perf-trend.mjs` (rig touched).
 - PC-PASS: `E2E_GPU=1 node scripts/anim-sheet.mjs <out> <walk|jog|sneak|crouchrun|sprint|stop> 12 0.1 <side|front|ots>`
   - "no visible bob, one dip per step, sway <= 3 cm" (PROVISIONAL in the cloud).
+- From step 09: holstered-only local regressions vs the step-08 baseline: drop09@120 neckTwist 9.26 -> 13.95 deg; crouch balance flat-crouch4@120 3.1 -> 3.5 cm, stairs / ramp crouch3 0 -> 0.04 cm (gone when forced drawn). Fix with the D5.6 trained posture (ready hands / holstered carriage).

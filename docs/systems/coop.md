@@ -8,7 +8,19 @@ Design authority: docs/design-bible.md (Section 5.9)
 - `Transport` (`transport.ts`): `send(msg, to?)`, `onMessage/onPeerJoin/onPeerLeave`. `trysteroTransport`
   (WebRTC, Nostr signalling, room `ss-<code>`) or `localTransport` (BroadcastChannel, `?net=local`, for tests).
 - `protocol.ts`: every inbound message goes through `parseMessage` (shape, clamps, string sanitising, caps).
-- `PROTOCOL_VERSION` 3 (Block A of the locomotion run: `ex` and `sh` gone, MoveState slot 1 `cover` -> `wall`, reserved for back-to-wall until step 11; A2). A `hello` with another version is ignored by the host. `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits (`ATTACH_SUB`), phase, takedown target, gear, raise, aim twist, ready, grips, commit.
+- `PROTOCOL_VERSION` 4 (step 09: MoveState `dw`; 3 was Block A of the locomotion run: `ex` and `sh` gone, MoveState slot 1 `cover` -> `wall`, reserved for back-to-wall until step 11; A2). A `hello` with another version is ignored by the host. `PlayerState.mv` (`player/moveState.ts`): mode index (`MOVE_MODES`, append only), anchor, sub bits (`ATTACH_SUB`), phase, takedown target, gear, raise, aim twist, ready, grips, commit.
+- (step 09, D8, A20 / A41) Drawn state: every MoveState carries `dw` (0-3, the draw phase; sanitized to 0-3,
+  default 0). The host (`RemotePlayer.accept`, pure `validate.ts`) keeps `w` only if it is in the player's lobby
+  `loadout` (`hostWeapon`, else the last valid id; an empty loadout keeps the claim) and forces `dw` 0
+  (`hostDrawPhase`) while the claimed mode has busy hands (attached except split / rappel / inverted pipe, takedown,
+  brace / boost / stacked bottom) or the player is downed; snapshots carry the host's values. `takeShot` refuses a
+  client shot unless the host's `dw` is 2 (`hostShotAllowed`: no hip fire on the host) and unless the shot's weapon is
+  the one the host holds for it or in its lobby loadout (`hostShotWeapon`, before the rate limit and damage read it).
+  A client treats an echoed `dw` 0 as a host force only when the host's busy-hands rule on its own current MoveState
+  and the host's downed view agrees (`clientForcedHolster` / `hostHandsFree`), so latency never cancels a draw; then
+  it holsters locally (`forceHolster`, held until aim is released). Remotes take the weapon in hand
+  from `dw` (not `PF.ads`); a holster shows from the newest received state, not the interpolated one, so the remote
+  stows within 0.6 s of the release.
   Add a message: type in `Msg`, case in `parseMessage`, a test in `tests/net.test.ts`.
 - `NetSession`: lobby state (each `PlayerInfo` carries name, tag, look and the validated weapon `loadout`), ready/start, routing. Clients accept authoritative messages (lobby/start/snap/
   ev/end) only from the host; the host accepts gameplay messages only from lobby members. No host migration.

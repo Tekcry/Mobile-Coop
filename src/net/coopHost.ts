@@ -15,7 +15,7 @@ import type { NetSession } from './session';
 import { ITEM_KINDS, isPvp, MAX_DOORS, MAX_EVENTS, MAX_ENEMIES, MAX_ITEMS, PF, type EndStats, type EnemyState, type Msg, type NetEvent, type NetItem, type PlayerInfo, type PlayerState, wirePlayerState } from './protocol';
 import { RemoteAvatar } from './remoteAvatar';
 import { RemotePlayer } from './remotePlayer';
-import { checkBlast, checkShot, maxHitDamage } from './validate';
+import { checkBlast, checkShot, hostShotAllowed, hostShotWeapon, maxHitDamage } from './validate';
 import { localFlags, htmlToInfo } from './netShared';
 import { pickSpawn, PVP, PvpScore, pvpInfo, TEAM_NAMES, type PvpMode, type V2 } from './pvp';
 import { hyp2 } from '../core/mathx';
@@ -272,6 +272,7 @@ export class CoopHost implements NetAttachment {
     const r = new RemotePlayer(g.scene, g.registry, p.id, avatar, sc ? this.spawnFor(p.id) : this.spawnPoint(this.remotes.size + 1));
     r.onDamaged = (h) => this.push({ e: 'hurt', player: p.id, x: h.sourcePos.x, z: h.sourcePos.z, boom: h.kind === 'explosion' });
     r.onDeath = () => this.onRemoteDeath(r);
+    r.loadout = p.loadout;
     if (sc) {
       r.friendly = (h) => this.friendly(h, p.id);
       r.allowTeleport(3);
@@ -710,7 +711,9 @@ export class CoopHost implements NetAttachment {
     if (!r.alive || this.score) return;
     const enemy = this.g.enemyMgr?.enemies.find((e) => e.id === m.target);
     if (!enemy || !enemy.alive) return;
-    if (!r.takeShot(m.w, this.time)) return;
+    // (step 09, D8) no hip fire: the host's draw phase for the shooter must be drawn
+    // (fix 3) and only with the weapon it holds or one from its lobby loadout (the rate limit and damage read m.w)
+    if (!hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout) || !r.takeShot(m.w, this.time)) return;
     const feet = new Vector3();
     const pose = this.rewindHist(this.history.get(enemy.id), m.rt, feet);
     if (!pose) enemy.center(feet).addInPlaceFromFloats(0, -1, 0);
@@ -727,7 +730,9 @@ export class CoopHost implements NetAttachment {
     const self = m.target === this.s.selfId;
     const victim = self ? null : this.remotes.get(m.target)!;
     if (self ? !this.g.player.alive : !victim!.alive) return;
-    if (!r.takeShot(m.w, this.time)) return;
+    // (step 09, D8) no hip fire: the host's draw phase for the shooter must be drawn
+    // (fix 3) and only with the weapon it holds or one from its lobby loadout (the rate limit and damage read m.w)
+    if (!hostShotAllowed(r.state?.mv?.dw) || !hostShotWeapon(m.w, r.state?.w, r.loadout) || !r.takeShot(m.w, this.time)) return;
     const feet = new Vector3();
     const pose = this.rewindHist(self ? this.selfHist : victim!.history, m.rt, feet);
     if (!pose) feet.copyFrom(self ? this.g.player.position : victim!.feet);

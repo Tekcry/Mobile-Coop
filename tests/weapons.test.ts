@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GRENADE, validateWeaponDefs, WEAPONS, WEAPON_IDS } from '../src/weapons/weaponDefs';
-import { computeStats, damageAt, dps, falloffMult, MAX_UPGRADE, recoilKick, sampleSpread, spreadDeg } from '../src/weapons/weaponStats';
+import { computeStats, damageAt, dps, falloffMult, MAX_UPGRADE, recoilKick, playerSpreadDeg, sampleSpread, spreadDeg } from '../src/weapons/weaponStats';
 import raw from '../src/config/weapons.json';
 
 describe('weapon data', () => {
@@ -140,5 +140,37 @@ describe('health', () => {
     h.damage(100);
     expect(h.alive).toBe(false);
     expect(h.damage(5)).toBe(0);
+  });
+});
+
+import { DRAW_DRAWING, DRAW_HOLSTERED, fireReady } from '../src/weapons/drawState';
+
+describe('step 09: no hip fire, ADS spread', () => {
+  it('no shot while holstered or raising', () => {
+    expect(fireReady(DRAW_HOLSTERED, 1)).toBe(false);
+    expect(fireReady(DRAW_DRAWING, 1)).toBe(false);
+  });
+  it('spread table: crouched still < still < moving, monotonic in speed, ADS base', () => {
+    for (const id of WEAPON_IDS) {
+      const def = WEAPONS[id];
+      const s = computeStats(def);
+      const crouchStill = playerSpreadDeg(def, s, true, 0, 0);
+      const still = playerSpreadDeg(def, s, false, 0, 0);
+      expect(still).toBeCloseTo(Math.min(def.maxSpread, s.spreadAds), 6);
+      expect(crouchStill).toBeCloseTo(Math.min(def.maxSpread, s.spreadAds * 0.7), 6);
+      expect(crouchStill).toBeLessThan(still);
+      let prev = still;
+      for (const v of [0.5, 1, 2, 2.8]) {
+        const m = playerSpreadDeg(def, s, false, v, 0);
+        expect(m).toBeGreaterThan(prev - 1e-9);
+        prev = m;
+      }
+      expect(playerSpreadDeg(def, s, false, 2.8, 0)).toBeGreaterThan(still);
+      // gear 4 cap: faster adds nothing more
+      expect(playerSpreadDeg(def, s, false, 5, 0)).toBeCloseTo(playerSpreadDeg(def, s, false, 2.8, 0), 6);
+      // hip-fire attachment mods do not reach the player
+      const laser = computeStats(def, undefined, { damage: 1, magSize: 1, recoil: 1, spreadHip: 0.5, spreadAds: 1, adsZoom: 1, reload: 1, noise: 1 });
+      expect(playerSpreadDeg(def, laser, false, 0, 0)).toBeCloseTo(still, 6);
+    }
   });
 });

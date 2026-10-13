@@ -86,6 +86,9 @@ export interface MoveState {
   /** Weapon raise 0..1 and the aim's twist from the body (rad): the upper body follows the aim when raised. */
   r: number;
   ay: number;
+  /** (step 09) Draw phase (`weapons/drawState`): 0 holstered, 1 drawing, 2 drawn, 3 holstering. Every mode carries
+   *  it; the host forces 0 while hands are busy (D8). Remotes take the weapon in hand from it. */
+  dw: number;
   /** (3.2.0 phase 3) The attach controller's second axis: a rope's sideways offset, a fence's climb height (m). */
   u?: number;
   /** Weapon ready position (0 low, 1 high, 2 compressed; `WeaponCarry`), so the lowered gun is carried alike. */
@@ -99,7 +102,7 @@ export interface MoveState {
 }
 
 export function emptyMoveState(): MoveState {
-  return { m: 'ground', a: -1, s: 0, sub: 0, ph: 0, tid: '', g: 3, r: 0, ay: 0 };
+  return { m: 'ground', a: -1, s: 0, sub: 0, ph: 0, tid: '', g: 3, r: 0, ay: 0, dw: 0 };
 }
 
 /**
@@ -145,7 +148,7 @@ const TUMBLE: Record<PipeModeName, number> = { hands: 0, legsUp: -Math.PI / 2, i
  * next tick.
  */
 export function moveChanged(a: MoveState, b: MoveState): boolean {
-  return a.m !== b.m || a.sub !== b.sub || a.a !== b.a || a.tid !== b.tid || (a.c?.n ?? -1) !== (b.c?.n ?? -1);
+  return a.m !== b.m || a.sub !== b.sub || a.a !== b.a || a.tid !== b.tid || a.dw !== b.dw || (a.c?.n ?? -1) !== (b.c?.n ?? -1);
 }
 
 const num = (v: unknown, lo: number, hi: number, d: number): number => (typeof v === 'number' && Number.isFinite(v) ? Math.max(lo, Math.min(hi, v)) : d);
@@ -170,6 +173,7 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096): MoveState |
     g: Math.floor(num(o.g, 1, 6, 3)),
     r: num(o.r, 0, 1, 0),
     ay: num(o.ay, -Math.PI, Math.PI, 0),
+    dw: Math.round(num(o.dw, 0, 3, 0)),
   };
   if (isAttachedMode(m) && Array.isArray(o.gp) && o.gp.length === 4)
     out.gp = (o.gp as unknown[]).map((v) => (typeof v === 'number' && Number.isFinite(v) ? Math.max(-WORLD, Math.min(WORLD, v)) : NaN)) as [number, number, number, number];
@@ -197,7 +201,7 @@ export function sanitizeMoveState(raw: unknown, anchorCount = 4096): MoveState |
 
 /** Wire form: the mode as its index (the rest as is). */
 export function packMoveState(mv: MoveState): Record<string, unknown> {
-  const o: Record<string, unknown> = { m: MOVE_MODES.indexOf(mv.m), a: mv.a, s: round(mv.s), sub: mv.sub, ph: round(mv.ph), tid: mv.tid, g: mv.g, r: round(mv.r), ay: round(mv.ay) };
+  const o: Record<string, unknown> = { m: MOVE_MODES.indexOf(mv.m), a: mv.a, s: round(mv.s), sub: mv.sub, ph: round(mv.ph), tid: mv.tid, g: mv.g, r: round(mv.r), ay: round(mv.ay), dw: mv.dw };
   if (mv.rd !== undefined) o.rd = mv.rd;
   if (mv.u !== undefined) o.u = round(mv.u);
   if (mv.gp) o.gp = mv.gp.map((v) => (Number.isNaN(v) ? null : round(v)));
@@ -217,10 +221,12 @@ export interface MovePose {
   melee: number;
   /** Whole-body tumble (rad): a pipe hung legs up / inverted. */
   tumble: number;
+  /** (step 09) The weapon in the hand (`dw` drawing, drawn or holstering); false = holstered. */
+  drawn: boolean;
 }
 
 export function emptyMovePose(): MovePose {
-  return { wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0 };
+  return { wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, melee: -1, tumble: 0, drawn: false };
 }
 
 /**
@@ -234,6 +240,7 @@ export function poseFromMoveState(mv: MoveState, cadence: number, out: MovePose)
   out.traverseT = 0;
   out.melee = -1;
   out.tumble = 0;
+  out.drawn = mv.dw !== 0;
   switch (mv.m) {
     case 'split':
       out.traverse = 'split';

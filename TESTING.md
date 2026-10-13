@@ -5,6 +5,15 @@ or tap with three fingers.
 
 Checklists for versions before 3.0.0 are archived in [docs/archive/TESTING-pre-3.0.md](docs/archive/TESTING-pre-3.0.md).
 
+## Locomotion step 09 - holstered unless aiming, no hip fire (PC, controller, phone)
+- [ ] A match starts with every gun in its slot and the hands free; no crosshair.
+- [ ] Hold LT / RMB / the touch Aim button: the gun comes out (pistol about 0.3 s, rifle 0.4 s) and the crosshair shows; release: it goes back (0.4 s). Release and press again mid-draw: it comes straight back up.
+- [ ] RT / LMB / Fire while holstered: no shot, no click, no muzzle flash. Aim, then fire: shots land; crouched and still the cone is tightest, moving widens it.
+- [ ] With the mouse: hold RMB, then click LMB: it fires.
+- [ ] RT / LMB held while holstered: the body does not twist or turn as if aiming. Reload while aiming, then release aim mid-reload: the reload finishes, then the gun goes back. Reload while holstered: the gun comes out low, reloads, goes back; holding fire meanwhile never shoots.
+- [ ] On a ladder, pipe or lip the gun stays stowed while aiming; from a split / inverted pipe aiming draws the sidearm.
+- [ ] Co-op (two devices): the other player's gun is in their hands only while they aim, and goes back within about half a second of releasing; shots fired while holstered do nothing on the host.
+
 ## Dead Line v2 G1 - Area 1 greybox (PC and phone)
 - [ ] Main menu, Play, "Dead Line v2", Deploy: you start on Viaduct Road in the dark, facing south, under the railway bridge; walk to the lane mouth.
 - [ ] F3, Teleport: 8 encounters, 5 checkpoints, 4 spawns each put you on the ground at the marker.

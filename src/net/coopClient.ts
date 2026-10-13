@@ -17,7 +17,7 @@ import { PvpVictim } from './pvpVictim';
 import type { TeamMate } from '../game/teamController';
 import type { TeamKind } from '../game/teamMoves';
 import { pvpInfo, type PvpMode } from './pvp';
-import { clampEnd, coopSessionStats } from './validate';
+import { clampEnd, clientForcedHolster, coopSessionStats } from './validate';
 import { infoToHtml, localFlags } from './netShared';
 import { hyp3 } from '../core/mathx';
 import { localMoveState } from '../game/localMoveState';
@@ -278,6 +278,9 @@ export class CoopClient implements NetAttachment {
   private applySelf(p: PlayerState): void {
     this.selfSpotted = (p.f & PF.spotted) !== 0;
     const g = this.g;
+    // (step 09, D8) the host forced holstered (busy hands, downed): only when its own rule on this client's current
+    // MoveState agrees, so an echo that has not caught up with a draw yet (latency) never cancels it (fix 2)
+    if (p.mv && clientForcedHolster(p.mv.dw, g.weapons.drawPhase, this.mvNow, p.hp <= 0)) g.weapons.forceHolster();
     const h = g.target.health;
     h.hp = p.hp;
     if (p.hp <= 0 && g.player.alive) {

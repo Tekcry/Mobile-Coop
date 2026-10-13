@@ -9,3 +9,18 @@ Design authority: docs/design-bible.md (Section 5.6)
   projectiles; `Explosions` queues detonations (never recursive); `Vfx` pools every effect.
 - Anything shootable implements `Damageable` and registers its bodies with `DamageRegistry`.
 - HUD (`ui/hud/hud.ts`) only writes DOM when a value changes; minimap redraws at 20 Hz.
+- (step 09, A20 / A41) Holstered unless aiming: `weapons/drawState.ts` (pure) holds the draw phase (0 holstered,
+  1 drawing, 2 drawn, 3 holstering; draw 0.3 s pistol / 0.4 s primary, holster 0.4 s, a release mid-draw reverses
+  from the current progress). Aim pressed draws, released holsters, in every alert state. `PlayerWeapons` drives the
+  existing stow path from it (the swap timeline paced to the draw state; weapon-to-weapon swaps keep `SWAP_TIME` 0.9,
+  RB swaps while aiming too, a swap while holstered only changes the selection). A match starts holstered. Attached
+  stow and the one-handed sidearm (split, rappel, inverted pipe, hostage) win over aim. Grenades and gadgets work
+  holstered.
+- No hip fire: a shot needs the drawn phase and `cam.ads >= 0.9` (`fireReady`); fire while holstered does nothing
+  (no shot, dry click or bloom; step 10 binds the elbow strike there). Fire no longer raises aim (`player.ts`).
+  The crosshair shows only drawn and aiming.
+- Player spread (`playerSpreadDeg`, weaponStats.ts): base `spreadAds`; crouched and still x0.7; standing still x1;
+  moving adds `spreadMove x min(speed, 2.8) / 2.8`; bloom on top, capped at `maxSpread`. `spreadHip` and the hip-fire
+  attachment mods stay for guards and parked modes only.
+- Mouse: a second button pressed while another is held arrives as a chorded `pointermove` (no `pointerdown`);
+  `keyboardMouseSource` reads it, so RMB held then LMB fires.

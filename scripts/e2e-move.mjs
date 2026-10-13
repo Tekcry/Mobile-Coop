@@ -320,11 +320,12 @@ try {
   await sim(0.5);
   const sprintBefore = await page.evaluate(() => window.__app.current.player.controller.sprinting);
   await page.evaluate(() => window.__pad.set(6, 1));
-  await sim(0.5);
-  const aimSprint = await page.evaluate(() => { const p = window.__app.current.player; return { sprinting: p.controller.sprinting, raise: p.carry.raise, speed: p.controller.speed }; });
+  // (step 09) holstered while sprinting: aim draws first (0.4 s), then the weapon is up
+  await sim(0.8);
+  const aimSprint = await page.evaluate(() => { const g = window.__app.current; const p = g.player; return { sprinting: p.controller.sprinting, raise: p.carry.raise, speed: p.controller.speed, dw: g.weapons.drawPhase }; });
   await page.evaluate(() => { window.__pad.set(6, 0); window.__pad.axis(1, 0); });
   await settle();
-  assert(sprintBefore && !aimSprint.sprinting && aimSprint.raise > 0.85 && aimSprint.speed < 1.6, `aim while sprinting: sprint ends, weapon up (${aimSprint.raise.toFixed(2)}), aim pace (${aimSprint.speed.toFixed(2)} m/s)`);
+  assert(sprintBefore && !aimSprint.sprinting && aimSprint.dw === 2 && aimSprint.raise > 0.85 && aimSprint.speed < 1.6, `aim while sprinting: sprint ends, drawn (dw ${aimSprint.dw}), weapon up (${aimSprint.raise.toFixed(2)}), aim pace (${aimSprint.speed.toFixed(2)} m/s)`);
 
   // no free jump: jump in the open does nothing
   await tp(0, 0, -2, 0);

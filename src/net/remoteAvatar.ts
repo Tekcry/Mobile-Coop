@@ -79,6 +79,7 @@ export class RemoteAvatar {
     readonly info: PlayerInfo,
   ) {
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, info.look, 'remote-part'), info.look, 1.75, `remote-${info.id}`);
+    this.rig.carrier = true;
     for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.pouches = new GrenadePouches(world.parts, this.rig);
     for (const m of this.pouches.parts) world.addShadowCaster(m);
@@ -176,9 +177,11 @@ export class RemoteAvatar {
       if (replayK >= 1) this.replay = null;
     }
     const attached = !!mv && isAttachedMode(mv.m) && !rp;
-    // attached both hands are busy (the gun stowed), except a sidearm aimed from a split / an inverted hang
-    const sidearmOut = !!mv && mv.r > 0.05 && (mv.m === 'split' || mv.m === 'rappel' || (mv.m === 'pipeH' && unpackAttachSub(mv.sub).pipe === 'inverted'));
-    this.setWeapon(st.w, (attached && !sidearmOut) || mv?.m === 'takedown');
+    // (step 09) the weapon in hand from the owner's draw phase (host-authoritative `dw`: 0 holstered, which covers
+    // busy hands on an anchor and takedowns; the sidearm from a split / an inverted hang / a hostage is drawn)
+    // a holster shows from the newest state, not the interpolated one (a discrete hand state: no INTERP_DELAY on top
+    // of the 0.4 s holster, so the remote stows within 0.6 s of the release)
+    this.setWeapon(st.w, mv ? mv.dw === 0 || this.buf.latest()?.mv?.dw === 0 : false);
     const moved = hyp2(this.pos.x - this.prev.x, this.pos.z - this.prev.z);
     const inst = dt > 0 ? moved / dt : 0;
     // (3.2.0) the owner's own speed when it sends a move state (interpolation jitter is not a gait)

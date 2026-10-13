@@ -73,6 +73,9 @@ export class Player {
   private rigPose: RigPose = { speed: 0, localX: 0, localZ: 0, grounded: true, crouch: 0, aimPitch: 0, aim: 0, kick: 0, lookYaw: 0, lookPitch: 0 };
   /** Seconds since the last shot and weapon mass factor (set by PlayerWeapons). */
   sinceShot = 99;
+  /** (step 09) The weapon is drawn (`PlayerWeapons.drawPhase` 2, set by the weapons each step): only then does
+   *  the trigger raise the carry (holstered, fire does nothing). */
+  weaponDrawn = false;
   weaponWeight = 1;
   /** Pose driven by back-to-wall / traversal / takedowns / team moves. */
   readonly pose: PlayerPose = { wall: false, wallSide: 0, lean: 0, traverse: 'none', traverseT: 0, slide: -1, check: -1, melee: -1, tumble: 0 };
@@ -95,6 +98,7 @@ export class Player {
   ) {
     this.controller = new PlayerController(world.scene, spawn.pos, spawn.yaw);
     this.rig = new CharacterRig(world.scene, avatarFactory(world.parts, look, 'player-part'), look, 1.75, 'player');
+    this.rig.carrier = true;
     for (const m of this.rig.renderMeshes) world.addShadowCaster(m);
     this.cam = new ShoulderCamera(world.scene);
     this.cam.yaw = spawn.yaw;
@@ -170,7 +174,7 @@ export class Player {
     }
     const ci = this.carryIn;
     ci.ads = this.ads;
-    ci.fire = this.alive && inp.down('fire');
+    ci.fire = this.alive && this.weaponDrawn && inp.down('fire');
     ci.sinceShot = this.sinceShot;
     ci.doorway = this.context.doorway;
     ci.dashing = c.weaponBlocked;
@@ -191,7 +195,7 @@ export class Player {
       sprintHeld: inp.down('dash'),
       sprintToggle: !s.gameplay.sprintHold,
       ads: this.ads,
-      aiming: this.aiming || inp.down('fire'),
+      aiming: this.aiming,
       reloading: this.reload >= 0,
       gearUp: inp.pressed('speedUp'),
       gearDown: inp.pressed('speedDown'),

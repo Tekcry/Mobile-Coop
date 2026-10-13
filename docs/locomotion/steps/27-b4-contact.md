@@ -64,3 +64,4 @@ Commit: "locomotion 27: contact batch: back-to-wall clips, takedown timing, grab
 - PC-PASS: anim-sheet for back-to-wall set (left and right edges, pistol and rifle, low-wall side lean and
   over-the-top), each takedown kind, grab, carry, drag, duck, sideways gap, side / front,
   local and remote: "no clipping between bodies, hands on contact" (PROVISIONAL in the cloud).
+- From step 09: hostDrawPhase must force dw 0 while carrying or dragging a body (add with the drag MoveState mode).

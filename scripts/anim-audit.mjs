@@ -352,7 +352,8 @@ const ACCEL = 1.0;
 const STOP = 1.5;
 
 const gaits = [];
-const add = (surface, stance, gear, hz) => gaits.push({ name: `${surface}-${stance}${gear}`, kind: 'gait', surface, stance, gear, hz });
+// gaits run holstered (the game default, step 09); the `-aim` subset runs drawn and aimed (A42)
+const add = (surface, stance, gear, hz, aim = false) => gaits.push({ name: `${surface}-${stance}${gear}${aim ? '-aim' : ''}`, kind: 'gait', surface, stance, gear, hz, aim });
 if (QUICK) {
   for (const hz of [60, 120]) for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 3]]) add('flat', s, g, hz);
 } else {
@@ -361,10 +362,17 @@ if (QUICK) {
   for (const surface of ['stairs', 'slope35'])
     for (const [s, g] of [['stand', 2], ['stand', 4], ['stand', 6], ['crouch', 2], ['crouch', 6]]) add(surface, s, g, 120);
 }
+// the drawn subset runs last (step 09 fix 4): the page carries its clocks and springs from one scenario to the next, so
+// running it among the gaits shifted every later holstered row (idle breathing phase, tunnel head / camera)
+const aimGaits = [];
+for (const [s, g] of QUICK ? [['stand', 2]] : [['stand', 2], ['stand', 4], ['crouch', 3]]) {
+  add('flat', s, g, 60, true);
+  aimGaits.push(gaits.pop());
+}
 const TRANS = QUICK ? ['idle'] : ['stance', 'turn180', 'raise', 'swap', 'vault', 'mantle', 'ladder', 'drop09', 'drop24', 'idle', 'tunnel'];
 const transitions = [];
 for (const hz of [60, 120]) for (const t of TRANS) transitions.push({ name: t, kind: t, hz });
-const scenarios = [...gaits, ...transitions].filter((s) => !ONLY || s.name.includes(ONLY));
+const scenarios = [...gaits, ...transitions, ...aimGaits].filter((s) => !ONLY || s.name.includes(ONLY));
 
 /** Drive one scenario in the page; returns frame markers. */
 async function drive(sc, halt = -1) {
@@ -389,14 +397,17 @@ async function drive(sc, halt = -1) {
         steady = Math.min(3.0, Math.max(0.5, (s.len - 0.4) / cap - accel + 0.1));
       }
       t.tp(x, z, s.yaw, s.y);
+      // the drawn subset (A42): aim held from before the start (drawn and raised, 0.4 s draw + raise)
+      const ads = !!sc.aim;
+      if (ads) t.run(0.8, { ads }, hz);
       t.begin(halt);
-      t.run(0.3, {}, hz);
+      t.run(0.3, { ads }, hz);
       m.start = t.mark();
-      t.run(accel, { y: 1 }, hz);
+      t.run(accel, { y: 1, ads }, hz);
       m.steady = t.mark();
-      t.run(steady, { y: 1 }, hz);
+      t.run(steady, { y: 1, ads }, hz);
       m.stop = t.mark();
-      t.run(STOP, {}, hz);
+      t.run(STOP, { ads }, hz);
       m.end = t.mark();
       m.cap = cap;
       t.stance(false, 3);

@@ -80,6 +80,11 @@ export interface AnimInput {
   yawRate: number;
   /** Holding a weapon (two-hand grip). */
   armed: boolean;
+  /**
+   * (step 09, A42) Weapons carried slung / holstered with the hands empty, on foot: the arms take the ready-hands
+   * stand-in and the body keeps the armed carriage (holstering never changes pelvis or head motion, D2).
+   */
+  ready: boolean;
   /** Dash blend 0..1. */
   dash: number;
   /** Dash-in slide progress 0..1, or < 0. */
@@ -149,6 +154,7 @@ export function defaultInput(): AnimInput {
     grenade: -1,
     yawRate: 0,
     armed: true,
+    ready: false,
     dash: 0,
     slide: -1,
     landing: 0,
@@ -263,6 +269,16 @@ export const HEEL_KICK = 0.45;
  */
 export const HUNCH = { spine: 0.5, pelvis: 0.1, head: 0.34, drop: 0.07, wall: 0.2, wallDrop: 0.06, aim: 0.05, crouch: 0.34 };
 
+/**
+ * (step 09, A42) Ready hands while holstered on foot (a stand-in until the step 21 trained posture): elbows soft and
+ * bent (about 60-90 deg), hands in front at the belt line, a little inside the shoulders and clear of the slung long
+ * gun and the hip holster. The hands are placed from the chest: `torso` (m) is the spine-to-shoulder length used to
+ * follow the hunch / lean forward, and the pelvis offsets carry them too, so a lean or a start lunge never folds the arms; `x` in from the shoulder half-width, `y` below
+ * and `z` ahead of the leaned shoulder; `swing` the small fore-aft hand motion with the gait; `lag` (s) how far the
+ * hands ease behind the shoulders' follow.
+ */
+export const READY_HANDS = { torso: 0.45, x: -0.06, y: 0.4, z: -0.02, swing: 0.012, lag: 0.035 };
+
 export const READY_POSES = {
   // stock in the shoulder pocket, muzzle ~45 deg down and angled across the body, elbows bent and in
   low: { x: 0, y: -0.08, z: -0.02, pitch: 0.8, yaw: -0.6, roll: 0.2 },
@@ -280,6 +296,12 @@ export const WALL_READY = { x: 0.06, y: -0.24, z: 0.1, pitch: 1.05, yaw: 0.28, r
  * and head rolled into it (side-signed by the wall side), a little lower and bent (unsigned).
  */
 export const WALL_STANCE = { pelX: 0.05, spRoll: 0.09, pelRoll: 0.06, hdRoll: 0.05, pelY: -0.03, pelPitch: 0.05, spPitch: 0.03 };
+/** (step 09) Fade rate (1/s) of the swap overlay: in as a swap / draw / holster starts, out when it stops mid-clip. */
+const SWAP_FADE = 8;
+/** (step 09) Carriage ease (s) during a weapon-to-weapon swap: out before the reach to the slot (~0.2 s in). */
+const CARRY_SWAP_TAU = 0.08;
+/** (step 09) Grip weight rate (1/s): the hands take / leave the grip and the foregrip in at least 0.2 s. */
+const GRIP_RATE = 5;
 /** Seconds the support hand takes to settle onto the wall. */
 const WALL_HAND_TIME = 0.42;
 
@@ -350,6 +372,22 @@ export class AnimGraph {
   private yawLag = new Spring();
   private support = 0;
   private pelBase = new Spring(-0.04);
+  /** Support hand foregrip weight (eased: a draw / holster enters and leaves the swap clip mid-clip). */
+  private offGripS = 1;
+  /** Two-hand grip weight, eased on a draw / holster and a mid-clip swap entry. */
+  private gripS = 1;
+  /** Swap overlay weight and its last clip time (fades out when a holster stops it mid-clip). */
+  private swapW = 0;
+  private swapLastT = 0;
+  /** Armed carriage weight (armed, or holstered with ready hands), eased ~0.25 s. */
+  private carryW = 1;
+  /** Ready-hands weight (A42), eased ~0.25 s. */
+  private readyW = 0;
+  /** Grenade / melee hands weight (eased), for the ready-hands follow. */
+  private handClipW = 0;
+  /** Ready-hands follow of the chest and pelvis (m, root space), eased by READY_HANDS.lag. */
+  private readyFy = 0;
+  private readyFz = 0;
   private bobResidual = 0;
 
   constructor(private p: Proportions) {}
@@ -582,22 +620,36 @@ export class AnimGraph {
     src[CH.spPitch] = src[CH.spPitch]! - lean * 0.45;
     src[CH.pelRoll] = src[CH.pelRoll]! + roll;
 
-    // --- tactical carriage (armed): hunched over the weapon; more bent over moving along a wall
-    if (i.armed) {
+    // ready hands (A42): holstered on foot, eased so a draw / holster never pops the arms or the carriage
+    // a weapon-to-weapon swap (the outgoing and incoming slots differ; a draw / holster uses one slot) reaches
+    // both slots from an upright chest: its empty-hands beat is not a holstered carry, so neither the ready hands
+    // nor the carriage hold through it (the carriage eases out over the swap's first ~0.2 s and back after it)
+    const weaponSwap = i.swap >= 0 && i.swapFrom !== i.swapTo;
+    this.readyW = approach(this.readyW, !i.armed && i.ready && i.traverse === 'none' && !weaponSwap ? 1 : 0, 0.25, dt);
+    // the carriage weight: armed or holstered with ready hands (eased, so it never pops as the weapon leaves the
+    // hands at the end of a holster, or across a swap's empty-hands beat)
+    const carryOn = !weaponSwap && (i.armed || (i.ready && i.traverse === 'none'));
+    this.carryW = approach(this.carryW, carryOn ? 1 : 0, weaponSwap ? CARRY_SWAP_TAU : 0.25, dt);
+    // --- tactical carriage (armed, or holstered with ready hands): hunched over the weapon; more bent over moving
+    // along a wall (the same carriage either way: holstering never changes pelvis or head motion, D2)
+    const carryK = this.carryW;
+    if (carryK > 0) {
       // (a reload opens the chest up a little so the support arm can reach the magazine well)
-      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW);
-      const along = atWall ? this.moveW : 0;
+      const hunch = (1 - this.dashS * 0.4) * (1 - this.reloadW) * carryK;
+      const along = atWall ? this.moveW * carryK : 0;
       // crouched: bent well over the knees (half of it straightens into a raised weapon); at a wall the wall
       // hunch bends over the tucked weapon instead (the tuck stays clear of the thighs and the wall)
-      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (atWall ? 0 : 1);
+      const crouchBend = HUNCH.crouch * crouchK * (1 - 0.5 * this.raiseS) * (atWall ? 0 : 1) * carryK;
       src[CH.spPitch] = src[CH.spPitch]! + HUNCH.spine * hunch + HUNCH.wall * along + HUNCH.aim * this.raiseS + crouchBend;
       src[CH.pelPitch] = src[CH.pelPitch]! + HUNCH.pelvis * hunch;
       src[CH.hdPitch] = src[CH.hdPitch]! - HUNCH.head * hunch - HUNCH.wall * 0.6 * along - crouchBend * 0.7;
       src[CH.pelY] = src[CH.pelY]! - HUNCH.drop * hunch * (1 - crouchK * 0.6) - HUNCH.wallDrop * along;
     }
 
-    // --- weapon actions (inertialized as they start and end)
-    const action = i.reload >= 0 ? (i.reloadEmpty ? 'reloadE' : 'reloadT') : i.swap >= 0 ? 'swap' : i.grenade >= 0 ? 'grenade' : i.handSwap >= 0 ? 'hands' : '';
+    // --- weapon actions (inertialized as they start and end). Not the swap (step 09): its overlay fades in and out
+    // (SWAP_FADE), so it has no jump to absorb, and a draw / holster starts while the aim raise / lower is already
+    // moving - a trigger there carries the output's velocity on top of the source's own and overshoots
+    const action = i.reload >= 0 ? (i.reloadEmpty ? 'reloadE' : 'reloadT') : i.grenade >= 0 ? 'grenade' : i.handSwap >= 0 ? 'hands' : '';
     if (action !== this.prevAction) trigger = true;
     this.prevAction = action;
 
@@ -706,6 +758,21 @@ export class AnimGraph {
     src[CH.hRX] = p.shoulderHalf + 0.06;
     src[CH.hRY] = shY - armLen * 0.92;
     src[CH.hRZ] = 0.05 - swing * 0.3;
+    // ready hands (A42): forearms up, hands in front at the belt line (a slight counter swing with the gait)
+    const rw = this.readyW;
+    if (rw > 0) {
+      const rs = READY_HANDS.swing * this.moveW * Math.sin(ph * Math.PI * 2);
+      // body-relative here; the follow of the leaning chest and the pelvis is added after inertialization (below)
+      const rx = p.shoulderHalf + READY_HANDS.x;
+      const ry = shY - READY_HANDS.y;
+      const rz = READY_HANDS.z;
+      src[CH.hLX] = src[CH.hLX]! + (-rx - src[CH.hLX]!) * rw;
+      src[CH.hLY] = src[CH.hLY]! + (ry - src[CH.hLY]!) * rw;
+      src[CH.hLZ] = src[CH.hLZ]! + (rz + rs - src[CH.hLZ]!) * rw;
+      src[CH.hRX] = src[CH.hRX]! + (rx - src[CH.hRX]!) * rw;
+      src[CH.hRY] = src[CH.hRY]! + (ry - src[CH.hRY]!) * rw;
+      src[CH.hRZ] = src[CH.hRZ]! + (rz - rs - src[CH.hRZ]!) * rw;
+    }
     // reload / swap / grenade clips over the weapon layer
     this.reloadW = approach(this.reloadW, i.reload >= 0 ? 1 : 0, 0.08 * mass, dt);
     if (i.reload >= 0 || this.reloadW > 0.01) {
@@ -722,10 +789,29 @@ export class AnimGraph {
     // attached (hang, climb, crawl) the body belongs to the anchor pose and the hands to the grips: a weapon
     // stowed for it goes to its slot without the swap's reach
     const attachedPose = i.traverse === 'hang' || i.traverse === 'climb' || i.traverse === 'crawl' || i.traverse === 'climbUp' || i.traverse === 'ventDrop' || i.traverse === 'split' || i.traverse === 'wallKick' || i.traverse === 'pipeLegs' || i.traverse === 'pipeInv' || i.traverse === 'rappel' || i.traverse === 'brace';
-    if (i.swap >= 0 && !attachedPose) {
-      overClip(src, swapClipFor(i.swapFrom, i.swapTo), i.swap, 1);
-      this.slot('swap', 1, i.swap);
+    // (step 09) the swap clip overrides the chest and head pitch, so entering it from the carriage (hunched over a
+    // raised weapon, or the holstered ready carry) would snap the spine by up to ~0.6 rad in one frame - more than
+    // the inertializer hides. The overlay fades in over ~0.125 s (a holster from aim, a draw entering at the
+    // holstered beat, a swap), and a holster that settles in the slot before the clip's end (the overlay stops
+    // mid-clip) fades out from its last time at the same rate instead of cutting
+    const swapOn = i.swap >= 0 && !attachedPose;
+    if (swapOn) {
+      this.swapW = Math.min(1, this.swapW + SWAP_FADE * dt);
+      this.swapLastT = i.swap;
+    } else this.swapW = Math.max(0, this.swapW - SWAP_FADE * dt);
+    if (this.swapW > 0) {
+      const st = swapOn ? i.swap : this.swapLastT;
+      overClip(src, swapClipFor(i.swapFrom, i.swapTo), st, this.swapW);
+      this.slot('swap', this.swapW, st);
     }
+    // (step 09) a draw / holster puts the weapon into / out of the hands, and a draw enters the swap clip at its
+    // holstered beat, mid-clip (and a holster leaves it mid-clip): the grip weights move onto their targets at a
+    // limited rate (GRIP_RATE: a full change in 0.2 s) instead of jumping
+    const gStep = GRIP_RATE * dt;
+    this.gripS += clamp(src[CH.grip]! - this.gripS, -gStep, gStep);
+    src[CH.grip] = this.gripS;
+    this.offGripS += clamp(src[CH.offGrip]! - this.offGripS, -gStep, gStep);
+    src[CH.offGrip] = this.offGripS;
     if (i.grenade >= 0) {
       overClip(src, GRENADE, i.grenade, 1);
       this.slot('grenade', 1, i.grenade);
@@ -755,6 +841,25 @@ export class AnimGraph {
     // --- inertialize discrete switches, then output
     if (trigger) this.inert.trigger(src, dt);
     const pose = this.inert.apply(src, this.pose, dt);
+    // ready hands (A42) follow the shoulders as the chest leans (pelvis + spine pitch) and the pelvis moves, taken
+    // from the inertialized body: the follow is as continuous as the body, and the hands are never inertialized
+    // while they move with it (a stance or state switch mid-crouch would carry their velocity on top of the
+    // body's own and overshoot). Weighted by the share of the ready hands the clips above left in place.
+    this.handClipW = approach(this.handClipW, i.grenade >= 0 || i.melee >= 0 ? 1 : 0, 0.05, dt);
+    const fw = this.readyW * (1 - this.reloadW) * (1 - this.swapW) * (1 - this.handClipW);
+    // (the hands hang a touch behind the shoulders, READY_HANDS.lag: a fast crouch folds the chest and drops the
+    // pelvis together, and the hands ease through it instead of taking the sum of both at full speed)
+    const tp = pose[CH.spPitch]! + pose[CH.pelPitch]!;
+    this.readyFy = approach(this.readyFy, pose[CH.pelY]! - READY_HANDS.torso * (1 - Math.cos(tp)), READY_HANDS.lag, dt);
+    this.readyFz = approach(this.readyFz, pose[CH.pelZ]! + READY_HANDS.torso * Math.sin(tp), READY_HANDS.lag, dt);
+    if (fw > 0.0001) {
+      const fy = this.readyFy * fw;
+      const fz = this.readyFz * fw;
+      pose[CH.hLY] = pose[CH.hLY]! + fy;
+      pose[CH.hRY] = pose[CH.hRY]! + fy;
+      pose[CH.hLZ] = pose[CH.hLZ]! + fz;
+      pose[CH.hRZ] = pose[CH.hRZ]! + fz;
+    }
     this.writeTargets(pose, i, k, ph);
     this.out.weaponBob = this.bobResidual;
     return o;

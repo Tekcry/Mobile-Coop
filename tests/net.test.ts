@@ -308,14 +308,14 @@ describe('net session', () => {
     void late.leave();
     expect(left).toBe('Late');
   });
-  it('a peer on protocol version 2 is refused; version 3 joins', () => {
-    expect(PROTOCOL_VERSION).toBe(3);
+  it('a peer on protocol version 3 is refused; version 4 joins', () => {
+    expect(PROTOCOL_VERSION).toBe(4);
     const h = hub();
     const host = new NetSession(h.make('H'), 'host', 'ABCDE', prof('Host'));
     const old = h.make('O');
-    old.send({ t: 'hello', v: 2, name: 'Old', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 3, name: 'Old', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(false);
-    old.send({ t: 'hello', v: 3, name: 'New', tag: {}, look: {} }, 'H');
+    old.send({ t: 'hello', v: 4, name: 'New', tag: {}, look: {} }, 'H');
     expect(host.players.has('O')).toBe(true);
   });
   it('clients ignore authority claims from non-hosts and handle the host leaving', async () => {
@@ -384,5 +384,104 @@ describe('team moves (3.2.0 phase 5)', () => {
     expect(parseMessage({ t: 'tdeny', a: 'peerA', reason: 'notBraced' })).toEqual({ t: 'tdeny', a: 'peerA', reason: 'notBraced' });
     expect(parseMessage({ t: 'tend', a: 'peerA', b: 'peerB' })).toEqual({ t: 'tend', a: 'peerA', b: 'peerB' });
     expect(parseMessage({ t: 'tend', a: 'peerA' })).toBeNull();
+  });
+});
+
+import { clientForcedHolster, hostDrawPhase, hostShotAllowed, hostShotWeapon, hostWeapon } from '../src/net/validate';
+import { DrawState, DRAW_TIME_PRIMARY } from '../src/weapons/drawState';
+import { packMoveState, sanitizeMoveState, emptyMoveState, poseFromMoveState, emptyMovePose } from '../src/player/moveState';
+
+describe('step 09: host-authoritative drawn state (D8)', () => {
+  it('protocol 4', () => {
+    expect(PROTOCOL_VERSION).toBe(4);
+  });
+  it('dw packs and sanitizes (clamped 0-3, default 0)', () => {
+    const mv = { ...emptyMoveState(), dw: 2 };
+    expect(packMoveState(mv).dw).toBe(2);
+    expect(sanitizeMoveState(packMoveState(mv))!.dw).toBe(2);
+    expect(sanitizeMoveState({ m: 0, dw: 9 })!.dw).toBe(3);
+    expect(sanitizeMoveState({ m: 0, dw: -4 })!.dw).toBe(0);
+    expect(sanitizeMoveState({ m: 0, dw: 'x' })!.dw).toBe(0);
+    expect(sanitizeMoveState({ m: 0 })!.dw).toBe(0);
+    expect(sanitizeMoveState({ m: 0, dw: 1.4 })!.dw).toBe(1);
+    expect(poseFromMoveState({ ...emptyMoveState(), dw: 2 }, 1, emptyMovePose()).drawn).toBe(true);
+    expect(poseFromMoveState({ ...emptyMoveState(), dw: 0 }, 1, emptyMovePose()).drawn).toBe(false);
+  });
+  it('a literal pstate with an off-loadout weapon keeps the last valid id', () => {
+    const lobby: WeaponId[] = ['pistol', 'smg'];
+    const first = parseMessage({ t: 'pstate', s: { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'smg', hp: 100, mv: { m: 0, a: -1, s: 0, sub: 0, ph: 0, tid: '', g: 3, r: 0, ay: 0, dw: 2 } } });
+    expect(first?.t).toBe('pstate');
+    if (first?.t !== 'pstate') return;
+    let last = hostWeapon(first.s.w, lobby, null);
+    expect(last).toBe('smg');
+    const off = parseMessage({ t: 'pstate', s: { id: 'c1', x: 0, y: 0, z: 0, yaw: 0, pitch: 0, speed: 0, f: 0, w: 'rifle', hp: 100 } });
+    if (off?.t !== 'pstate') throw new Error('pstate expected');
+    last = hostWeapon(off.s.w, lobby, last);
+    expect(last).toBe('smg');
+    expect(hostWeapon('rifle' as WeaponId, lobby, null)).toBe('pistol');
+    expect(first.s.mv?.dw).toBe(2);
+  });
+  it('the host forces holstered while hands are busy or downed', () => {
+    const g = { ...emptyMoveState(), dw: 2 };
+    expect(hostDrawPhase(g, false)).toBe(2);
+    expect(hostDrawPhase(g, true)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'ladder', a: 0 }, false)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'takedown' }, false)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'brace' }, false)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'stacked', sub: 2 }, false)).toBe(0);
+    expect(hostDrawPhase({ ...g, m: 'stacked', sub: 1 }, false)).toBe(2);
+    expect(hostDrawPhase({ ...g, m: 'split', a: 0 }, false)).toBe(2);
+    expect(hostDrawPhase({ ...g, m: 'grab' }, false)).toBe(2);
+    expect(hostDrawPhase(undefined, false)).toBe(0);
+  });
+  it('the host refuses a shot unless drawn', () => {
+    expect(hostShotAllowed(0)).toBe(false);
+    expect(hostShotAllowed(1)).toBe(false);
+    expect(hostShotAllowed(3)).toBe(false);
+    expect(hostShotAllowed(undefined)).toBe(false);
+    expect(hostShotAllowed(2)).toBe(true);
+  });
+  it('fix 3: a shot counts only with the held weapon or one from the lobby loadout', () => {
+    const lobby: WeaponId[] = ['pistol', 'smg'];
+    expect(hostShotWeapon('smg' as WeaponId, 'smg', lobby)).toBe(true);
+    expect(hostShotWeapon('pistol' as WeaponId, 'smg', lobby)).toBe(true);
+    expect(hostShotWeapon('rifle' as WeaponId, 'smg', lobby)).toBe(false);
+    expect(hostShotWeapon('rifle' as WeaponId, undefined, lobby)).toBe(false);
+    // no lobby loadout sent: only the weapon the host holds for it (hostWeapon kept the claim)
+    expect(hostShotWeapon('rifle' as WeaponId, 'rifle', [])).toBe(true);
+    expect(hostShotWeapon('rifle' as WeaponId, 'smg', [])).toBe(false);
+    expect(hostShotWeapon('rifle' as WeaponId, undefined, [])).toBe(false);
+  });
+  it('fix 2: with >= 300 ms injected delay a legitimate draw is never cancelled', () => {
+    for (const delay of [0.3, 0.45, 0.8]) {
+      const dt = 1 / 60;
+      const draw = new DrawState();
+      const sent: { t: number; dw: number }[] = [];
+      let sendT = 0;
+      let forced = 0;
+      let echoed = 0;
+      for (let i = 0; i < 180; i++) {
+        const t = i * dt;
+        const aim = t >= 0.1 && t < 2.2;
+        draw.update(dt, aim, DRAW_TIME_PRIMARY);
+        const mv = { ...emptyMoveState(), dw: draw.phase };
+        sendT -= dt;
+        if (sendT <= 0) {
+          sendT = 1 / 20;
+          sent.push({ t, dw: hostDrawPhase(mv, false) });
+        }
+        // the host's echo of this client is what it saw `delay` seconds ago (holstered before any pstate)
+        while (sent.length && sent[0]!.t <= t - delay) echoed = sent.shift()!.dw;
+        if (clientForcedHolster(echoed, draw.phase, mv, false)) forced++;
+      }
+      expect(forced).toBe(0);
+    }
+    // a real force: the host sees this client downed, or its own mode says the hands are busy
+    const g = { ...emptyMoveState(), dw: 2 };
+    expect(clientForcedHolster(0, 2, g, true)).toBe(true);
+    expect(clientForcedHolster(0, 2, { ...g, m: 'takedown' }, false)).toBe(true);
+    expect(clientForcedHolster(0, 2, g, false)).toBe(false);
+    expect(clientForcedHolster(0, 0, g, true)).toBe(false);
+    expect(clientForcedHolster(2, 2, g, true)).toBe(false);
   });
 });

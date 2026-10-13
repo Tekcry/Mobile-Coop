@@ -90,13 +90,13 @@ try {
   assert(avatar === 1, 'client renders the host avatar');
   const hostSeesClient = await GA(() => { const r = window.__app.current.net.remotes.values().next().value; return r.avatar.rig.root.isEnabled(); });
   assert(hostSeesClient, 'host renders the client avatar');
-  // the client's whole loadout shows on its avatar: one in the hands, the rest carried in their slots
+  // the client's whole loadout shows on its avatar: (step 09) holstered unless aiming, so every weapon in its slot
   const carried = await GA(() => {
     const av = window.__app.current.net.remotes.values().next().value.avatar;
     const ms = [...av['models'].values()];
     return { n: ms.length, held: ms.filter((m) => m.slot === null && m.node.isEnabled()).length, slotted: ms.filter((m) => m.slot !== null && m.node.isEnabled()).map((m) => m.slot), loadout: av.info.loadout };
   });
-  assert(carried.loadout.length === 2 && carried.n === 2 && carried.held === 1 && carried.slotted.length === 1, `remote avatar carries its loadout (${JSON.stringify(carried)})`);
+  assert(carried.loadout.length === 2 && carried.n === 2 && carried.held === 0 && carried.slotted.length === 2, `remote avatar carries its loadout (${JSON.stringify(carried)})`);
 
   console.log('client hit is validated by the host and credited');
   // a humanoid on the ground (dogs and drones vary with the wave's draw)
@@ -104,7 +104,9 @@ try {
     const ps = [...window.__app.current.net.puppets.values()];
     return (ps.find((p) => p.def.kind === 'grunt' || p.def.kind === 'runner') ?? ps[0]).id;
   });
-  // a shot from far away must be rejected
+  // a shot from far away must be rejected (step 09: drawn, so the host's validation, not the holster gate, refuses it)
+  await GB(() => { window.__app.current.player.forceAds = true; });
+  await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn');
   const bogus = await GB((id) => {
     const g = window.__app.current;
     const p = g.net.puppets.get(id);
@@ -132,6 +134,32 @@ try {
     g.player.controller.teleport(p.pos.add(new p.pos.constructor(0, 0.2, 2.2)), Math.PI);
   }, victim);
   await wait(500);
+  // (step 09, D8) no hip fire on the host: a client shot while holstered is refused (the host enemy keeps its hp)
+  await GB(() => { window.__app.current.player.forceAds = false; });
+  await until(A, () => [...window.__app.current.net.remotes.values()].every((r) => r.state?.mv?.dw === 0), null, 5000, 'host sees the client holstered');
+  {
+    await GA(() => {
+      for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2);
+    });
+    const hostHp = (id) => GA((v) => window.__app.current.enemyMgr.enemies.find((e) => e.id === v)?.health.hp ?? -1, id);
+    const hp0 = await hostHp(victim);
+    const dw = await GB((id) => {
+      const g = window.__app.current;
+      const p = g.net.puppets.get(id);
+      if (!p) return -1;
+      const src = g.player.position.add(new p.pos.constructor(0, 1.58, 0));
+      const pt = p.center(new p.pos.constructor());
+      p.applyDamage({ amount: 40, point: pt, dir: pt.subtract(src).normalize(), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3 });
+      return g.weapons.drawPhase;
+    }, victim);
+    await wait(600);
+    const hp1 = await hostHp(victim);
+    assert(dw === 0 && hp1 === hp0, `a client shot while holstered is refused by the host (dw ${dw}, hp ${hp0} -> ${hp1})`);
+  }
+  // aim (drawn) for the shots that count
+  await GB(() => { window.__app.current.player.forceAds = true; });
+  await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn');
+  await until(A, () => { const av = window.__app.current.net.remotes.values().next().value.avatar; const ms = [...av['models'].values()]; return ms.filter((m) => m.slot === null && m.node.isEnabled()).length === 1 && ms.filter((m) => m.slot !== null && m.node.isEnabled()).length === 1; }, null, 3000, 'drawn: one weapon in the remote avatar\'s hands, the other slotted');
   let killed = false;
   for (let i = 0; i < 40 && !killed; i++) {
     // keep the host's teleport grace open until the client's moved state arrives (slow under a loaded
@@ -155,6 +183,7 @@ try {
     console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); return JSON.stringify({ puppet: p && [p.pos.x, p.pos.y, p.pos.z].map((n) => n.toFixed(2)), me: [g.player.position.x, g.player.position.y, g.player.position.z].map((n) => n.toFixed(2)) }); }, victim));
   }
   assert(killed, 'client shots kill the host enemy');
+  await GB(() => { window.__app.current.player.forceAds = false; });
   const selfB = await GB(() => window.__coop.session.selfId);
   const tally = await GA((id) => window.__app.current.net.tallies.get(id)?.kills ?? 0, selfB);
   assert(tally >= 1, `host credits the kill to the client (${tally})`);
@@ -491,6 +520,9 @@ try {
     return [p.x, p.y, p.z - 2.5];
   });
   await moveClient(B, hpos[0], hpos[1] + 0.1, hpos[2], 0);
+  // (step 09) no hip fire: the client aims (drawn on the host) before its shots count
+  await GB(() => { window.__app.current.player.forceAds = true; });
+  await until(A, () => [...window.__app.current.net.remotes.values()].some((r) => r.state?.mv?.dw === 2), null, 5000, 'host sees the client drawn (PvP)');
   let down = false;
   for (let i = 0; i < 40 && !down; i++) {
     await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
@@ -505,6 +537,7 @@ try {
     down = await GA(() => (window.__app.current.stats.deaths ?? 0) >= 1);
   }
   assert(down, 'client shots eliminate the host (validated, rewound)');
+  await GB(() => { window.__app.current.player.forceAds = false; });
   const sc = await GA((b) => window.__app.current.net.score.lines().find((l) => l.id === b), ids[1]);
   assert(sc?.k === 1, `the elimination is scored (${JSON.stringify(sc)})`);
   await until(B, () => /1/.test(document.querySelector('.hud-mode')?.textContent ?? ''), null, 5000, 'client HUD shows the score');

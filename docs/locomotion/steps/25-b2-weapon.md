@@ -55,3 +55,4 @@ Commit: "locomotion 25: weapon handling batch: aim, reload, swap, throw, attache
 - PC-PASS: anim-sheet `aim`, `reload`, `swap`, `grenade`, side / ots, local and remote; wall-edge lean at left and
   right edges, pistol and rifle (D9), local and remote; a muzzle-discipline sheet
   with the bot: "muzzle never crosses the mate, sway settles" (PROVISIONAL in the cloud).
+- From step 09: remotes show no draw / holster clip (the weapon pops in or out on dw); play the draw / holster on the remote copy from dw transitions (no extra bandwidth). PC-PASS 18.

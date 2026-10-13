@@ -34,6 +34,8 @@ const aimAt = (x, y, z) => G(([x, y, z]) => {
 }, [x, y, z]);
 try {
   await G(() => { window.__pad.connect(); window.__app.settings.update((s) => { s.gamepad.aimAssist = 'off'; }); });
+  // (step 09) no hip fire: aim held (drawn) for the firing checks
+  await G(() => { window.__app.current.player.forceAds = true; window.__app.loop.stepHeadless(0.8); });
   await press(page, BTN.LS);
   await sim(0.4);
   const w0 = await G(() => window.__app.current.weapons.current.def.id);

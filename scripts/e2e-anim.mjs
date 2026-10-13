@@ -211,7 +211,8 @@ try {
     t.run(0.8, { y: 1 });
     const moving = t.run(0.5, { y: 1, taps: { 1: 'crouch' } }, () => p.controller.speed);
     t.run(0.5, { y: 1, taps: { 1: 'crouch' } });
-    const raise = t.run(0.5, { ads: true }, (s) => [s, p.carry.raise]);
+    // (step 09) holstered unless aiming: aim draws first (0.3-0.4 s), the raise runs from the drawn hands
+    const raise = t.run(1.0, { ads: true }, (s) => [s, p.carry.raise, window.__app.current.weapons.drawPhase]);
     const lower = t.run(0.6, {}, (s) => [s, p.carry.raise]);
     return { down, up, minMoving: Math.min(...moving), raise, lower };
   });
@@ -219,7 +220,11 @@ try {
   const standT = stance.up.find(([, v]) => v <= 0.001)?.[0] ?? 99;
   assert(within(crouchT, 0.2, 0.3) && within(standT, 0.2, 0.3), `stance change: crouch ${f2(crouchT)} s, stand ${f2(standT)} s (0.2-0.3)`);
   assert(stance.minMoving > 1.6, `crouching while moving does not stop you (min ${f2(stance.minMoving)} m/s)`);
-  const raiseT = stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99;
+  const drawnT = stance.raise.find(([, , d]) => d === 2)?.[0] ?? 99;
+  assert(drawnT <= 0.45, `aim draws first: drawn in ${f2(drawnT)} s (<= 0.45)`);
+  // the raise starts while the draw finishes: timed from the last frame the weapon was still low
+  const lowT = [...stance.raise].reverse().find(([, v]) => v <= 0.1)?.[0] ?? 0;
+  const raiseT = (stance.raise.find(([, v]) => v >= 0.9)?.[0] ?? 99) - lowT;
   const lowerT = stance.lower.find(([, v]) => v <= 0.1)?.[0] ?? 99;
   assert(within(raiseT, 0.1, 0.2), `aim raise ${f2(raiseT)} s (120-200 ms)`);
   assert(within(lowerT, 0.22, 0.36), `aim lower ${f2(lowerT)} s (250-350 ms)`);
@@ -231,11 +236,13 @@ try {
     const g = window.__app.current;
     const w = g.weapons;
     t.tp(8, -14, -Math.PI / 2);
-    const dur = (flag, tap, prep) => {
+    // (step 09) reload and swap run drawn (aim held: holstered unless aiming); the grenade from holstered
+    const dur = (flag, tap, prep, ads = true) => {
+      if (ads) t.run(0.6, { ads });
       prep?.();
       let on = -1;
       let off = -1;
-      t.run(4.5, { taps: { 1: tap } }, (s) => {
+      t.run(4.5, { ads, taps: { 1: tap } }, (s) => {
         const v = flag();
         if (v && on < 0) on = s;
         if (!v && on >= 0 && off < 0) off = s;
@@ -247,7 +254,7 @@ try {
     const empty = dur(() => w.reloading, 'reload', () => (w.current.mag = 0));
     const swap = dur(() => w.swapping, 'swapNext');
     t.run(1, {});
-    const grenade = dur(() => w.throwing, 'grenade');
+    const grenade = dur(() => w.throwing, 'grenade', undefined, false);
     return { tactical, empty, swap, grenade };
   });
   assert(within(wpn.tactical, 2.45, 2.75), `tactical reload ${f2(wpn.tactical)} s (2.6 s)`);

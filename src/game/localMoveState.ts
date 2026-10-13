@@ -21,6 +21,7 @@ export function localMoveState(g: GameState, out: MoveState): MoveState {
   const w = p.carry.w;
   out.rd = w.high > w.low && w.high >= w.compressed ? 1 : w.compressed > w.low ? 2 : 0;
   out.ay = wrapPi(p.cam.yaw - c.yaw);
+  out.dw = g.weapons.drawPhase;
   out.a = -1;
   out.s = 0;
   out.sub = 0;

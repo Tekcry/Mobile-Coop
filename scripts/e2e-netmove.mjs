@@ -231,6 +231,44 @@ try {
   await compare('fence', 'fence', 0.1, ['wristL', 'wristR', 'ankleL', 'ankleR', 'headNode']);
   await reset();
 
+  console.log('drawn state (step 09): aim draws (weapon in hand on the host), release holsters');
+  await GB(() => { const g = window.__app.current; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; g.player.forceAds = true; });
+  await until(A, () => { const r = window.__app.current.net.remotes.values().next().value; return !!r && r.state?.mv?.dw === 2 && !!r.avatar.rig.heldWeapon; }, null, 6000, 'host remote has the weapon in hand');
+  await compare('drawn', 'ground');
+  // timestamps taken inside the pages (the client's sim: release and holstered; the host: dw 0 received, stowed)
+  await GA(() => {
+    const t = (window.__holT = { recv: 0, stow: 0 });
+    const tick = () => {
+      const r = window.__app.current.net.remotes.values().next().value;
+      if (r && !t.recv && r.state?.mv?.dw === 0) t.recv = Date.now();
+      if (r && !t.stow && !r.avatar.rig.heldWeapon) t.stow = Date.now();
+      if (!t.stow) requestAnimationFrame(tick);
+    };
+    requestAnimationFrame(tick);
+  });
+  await GB(() => new Promise((res) => {
+    const st = window.__app.current;
+    const t = (window.__holT = { rel: Date.now(), sim: 0, dw0: 0 });
+    st.player.forceAds = false;
+    const orig = st.fixedUpdate.bind(st);
+    st.fixedUpdate = (dt) => {
+      orig(dt);
+      t.sim += dt;
+      if (st.weapons.drawPhase === 0) { t.dw0 = Date.now(); st.fixedUpdate = orig; res(); }
+    };
+  }));
+  await until(A, () => window.__holT.stow > 0, null, 4000, 'host remote stowed');
+  const hbT = await GB(() => window.__holT);
+  const haT = await GA(() => window.__holT);
+  // wall time from release to the host's stow, less the client sim's own lag behind the wall clock (a loaded VM
+  // steps the client's 0.4 s holster over more than 0.4 s of wall time)
+  const lag = Math.max(0, hbT.dw0 - hbT.rel - hbT.sim * 1000);
+  const holMs = haT.stow - hbT.rel - lag;
+  console.log(`    holster: client sim ${(hbT.sim * 1000).toFixed(0)} ms (wall ${hbT.dw0 - hbT.rel} ms), host dw 0 after ${haT.recv - hbT.dw0} ms, stowed after ${haT.stow - hbT.dw0} ms`);
+  assert(holMs <= 600, `holstered: the host remote stows within 0.6 s of the release (${holMs.toFixed(0)} ms, client sim lag ${lag.toFixed(0)} ms)`);
+  await compare('holstered', 'ground');
+  await reset();
+
   console.log('committed moves: a forward roll');
   // sprint (gear 6) along open floor, tap crouch
   await GB(() => { const g = window.__app.current; g.player.controller.gears.gear = 6; g.player.controller.teleport(new g.player.position.constructor(0, 0.1, 0), 0); g.player.cam.yaw = 0; window.__pad.axis(1, -1); });

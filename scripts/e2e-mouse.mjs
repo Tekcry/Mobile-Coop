@@ -39,12 +39,47 @@ try {
   await page.waitForTimeout(200);
   s = await st();
   assert(Math.abs(s.yaw - yaw0) > 0.1, `captured mouse movement looks (yaw ${yaw0.toFixed(2)} -> ${s.yaw.toFixed(2)})`);
+  const mag = () => page.evaluate(() => window.__app.current.weapons.current.mag);
+  const dwNow = () => page.evaluate(() => window.__app.current.weapons.drawPhase);
+  const magA = await mag();
+  const carryNow = () => page.evaluate(() => { const p = window.__app.current.player; return { raise: p.carry.raise, aiming: p.aiming }; });
+  const c0 = await carryNow();
   await page.mouse.down();
   await page.waitForTimeout(100);
   assert((await st()).fire, 'left button fires while captured');
+  // (step 09 fix 1) LMB held while holstered never raises the carry or sets aiming
+  let raiseMax = c0.raise;
+  let aimed = false;
+  for (let i = 0; i < 5; i++) {
+    const c = await carryNow();
+    raiseMax = Math.max(raiseMax, c.raise);
+    aimed = aimed || c.aiming;
+    await page.waitForTimeout(50);
+  }
+  assert(raiseMax - c0.raise < 0.01 && !aimed, `LMB held while holstered: carry.raise and aiming unchanged (${c0.raise.toFixed(3)} -> max ${raiseMax.toFixed(3)}, aiming ${aimed})`);
   await page.mouse.up();
   await page.waitForTimeout(100);
   assert(!(await st()).fire, 'releasing the button stops firing');
+  // (step 09) no hip fire: LMB alone fires nothing; RMB draws, then LMB fires
+  const magB = await mag();
+  assert(magB === magA && (await dwNow()) === 0, `LMB alone (holstered) fires nothing (${magA} -> ${magB})`);
+  await page.mouse.down({ button: 'right' });
+  let drawn = false;
+  // (a loaded VM runs the page at a few frames a second: poll up to 8 s for the 0.4 s draw and the aim framing)
+  for (let i = 0; i < 160 && !drawn; i++) {
+    await page.waitForTimeout(50);
+    drawn = (await page.evaluate(() => { const g = window.__app.current; return g.weapons.drawPhase === 2 && g.player.cam.ads >= 0.9; }));
+  }
+  const dbg = await page.evaluate(() => { const g = window.__app.current; return { dw: g.weapons.drawPhase, cam: +g.player.cam.ads.toFixed(2), ads: g.player.ads }; });
+  assert(drawn, `RMB draws and aims (${JSON.stringify(dbg)})`);
+  // (software GL frames are slow: hold until a shot lands, up to 3 s)
+  await page.mouse.down();
+  for (let i = 0; i < 30 && (await mag()) >= magB; i++) await page.waitForTimeout(100);
+  await page.mouse.up();
+  await page.mouse.up({ button: 'right' });
+  const magC = await mag();
+  assert(magC < magB, `RMB held, LMB fires (${magB} -> ${magC})`);
+  await page.waitForTimeout(600);
   const s0 = await st();
   // wheel up: a faster gear, wheel down: a slower one (one notch, one gear); the weapon stays
   await page.mouse.wheel(0, -120);

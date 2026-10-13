@@ -24,6 +24,8 @@ export interface HudFrame {
   spreadPx: number;
   onTarget: boolean;
   ads: boolean;
+  /** (step 09) Crosshair shown (drawn and aiming only). */
+  crosshair: boolean;
   /** Camera yaw (radians) for the compass. */
   yaw: number;
   /** Compass markers: world bearing (radians) + label/colour. */
@@ -228,6 +230,7 @@ export class Hud {
     this.set('gap', gap, () => this.cross.style.setProperty('--gap', `${gap}px`));
     this.set('ot', f.onTarget, () => this.cross.classList.toggle('on-target', f.onTarget));
     this.set('ads', f.ads, () => this.cross.classList.toggle('ads', f.ads));
+    this.set('cx', f.crosshair, () => (this.cross.style.display = f.crosshair ? '' : 'none'));
     // ammo / gadget readout: on any change, a reload or a low magazine; fades after 3 s otherwise
     const now = performance.now();
     const ak = `${f.weapon}|${f.mag}|${f.reserve}|${f.grenades}|${f.gadget}`;

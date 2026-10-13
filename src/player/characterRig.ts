@@ -317,6 +317,12 @@ export class CharacterRig {
   gunPush = 0;
   /** Weapon node whose grips the hands follow (null = free arms). */
   heldWeapon: TransformNode | null = null;
+  /**
+   * (step 09, A42) Carries weapons slung / holstered (the player and remote players): with the hands empty on foot
+   * the arms take the ready hands and the body keeps the armed carriage. Remotes pose it from `dw` (their weapon in
+   * hand follows it), so local and remote match.
+   */
+  carrier = false;
   /** (3.2.0) World aim of a raised weapon (`RigPose.aimWorldYaw`), null when body-relative. */
   private aimWorldYaw: number | null = null;
   private aimWorldPitch = 0;
@@ -865,6 +871,7 @@ export class CharacterRig {
     i.swapTo = s.swapTo ?? 'backC';
     i.grenade = s.grenade ?? -1;
     i.armed = s.armed ?? !!this.heldWeapon;
+    i.ready = this.carrier && !this.heldWeapon;
     i.dash = s.dash ?? 0;
     i.slide = s.slide ?? -1;
     i.landing = s.landing ?? 0;

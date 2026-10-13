@@ -184,3 +184,58 @@ export function attachedClamp(mv: MoveState | undefined, anchors: TraversalAncho
   const p = attachPose(a, mv.s, sub.face, height, out, a.kind === 'pipeH' ? sub.pipe : 'hands', mv.u ?? 0);
   return hyp3(feet.x - p.x, feet.y - p.y, feet.z - p.z) > ATTACH_SLACK ? p : null;
 }
+
+/**
+ * (step 09, D8) The weapon a client may hold: `w` if it is in its validated lobby loadout, else the last valid id
+ * (`last`; the loadout's first entry before any). An empty loadout (none sent) keeps the claim.
+ */
+export function hostWeapon<W extends string>(w: W, loadout: readonly W[], last: W | null): W {
+  if (!loadout.length || loadout.includes(w)) return w;
+  return last ?? loadout[0]!;
+}
+
+/**
+ * (step 09, D8) The draw phase the host allows a client: forced 0 (holstered) while its hands are busy in the host's
+ * view - attached with a holster (every anchor kind; the one-handed sidearm from a split, a rappel or an inverted
+ * pipe is the exception), in a takedown (a hostage keeps the sidearm), in a team move with busy hands (braced,
+ * boosting, the bottom of the human ladder) - or downed.
+ */
+export function hostDrawPhase(mv: MoveState | undefined, downed: boolean): number {
+  if (!mv || !hostHandsFree(mv, downed)) return 0;
+  return Math.max(0, Math.min(3, Math.round(mv.dw)));
+}
+
+/** (step 09) The host's busy-hands rule alone (the mode, not `dw`): false forces holstered (see hostDrawPhase). */
+export function hostHandsFree(mv: MoveState, downed: boolean): boolean {
+  if (downed) return false;
+  const m = mv.m;
+  if (m === 'brace' || m === 'boost' || (m === 'stacked' && mv.sub !== 1)) return false;
+  if (m === 'takedown') return false;
+  if (isAttachedMode(m)) {
+    return m === 'split' || m === 'rappel' || (m === 'pipeH' && unpackAttachSub(mv.sub).pipe === 'inverted');
+  }
+  return true;
+}
+
+/** (step 09, D8) No hip fire on the host either: a client shot counts only while the host's draw phase is drawn. */
+export function hostShotAllowed(dw: number | undefined): boolean {
+  return dw === 2;
+}
+
+/**
+ * (step 09 fix 3, D8) The weapon a client shot counts with: only the one the host holds for it (`held`, the validated
+ * `PlayerState.w`) or one in its validated lobby loadout. Anything else (a stronger gun claimed per shot) is refused
+ * before the rate limit and damage read `WEAPONS[w]`.
+ */
+export function hostShotWeapon<W extends string>(w: W, held: W | undefined, loadout: readonly W[]): boolean {
+  return (held !== undefined && w === held) || loadout.includes(w);
+}
+
+/**
+ * (step 09 fix 2, D8) The echoed draw phase 0 is a host force (not latency) only when the host's busy-hands rule, run on
+ * this client's current MoveState mode and the host's downed view, also forces it while the local weapon is out. A draw the host
+ * simply has not seen yet mirrors as drawn and is never cancelled.
+ */
+export function clientForcedHolster(echoedDw: number, localDw: number, localMv: MoveState, downed: boolean): boolean {
+  return echoedDw === 0 && localDw !== 0 && !hostHandsFree(localMv, downed);
+}

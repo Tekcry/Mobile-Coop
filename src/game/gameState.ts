@@ -1094,7 +1094,7 @@ export class GameState implements AppState {
       this.enemyMgr?.hear(this.player.position, CT.rollNoise);
     }
     // attached (ladder, pipe, hang, duct) or carrying a body: both hands busy, the weapon goes to its slot
-    // (3.2.0) braced in a split or hanging inverted: aiming (or firing) draws the sidearm one-handed
+    // (3.2.0) braced in a split or hanging inverted: aiming (step 09: not firing) draws the sidearm one-handed
     const ac = this.traversal.attachCtl;
     const sidearm = ac.sidearmAim && this.weapons.sidearmIndex >= 0;
     const pl = this.player;
@@ -1109,9 +1109,9 @@ export class GameState implements AppState {
           : { yaw, range: SPLIT.aimYaw, pitchMin: SPLIT.pitchMin, pitchMax: SPLIT.pitchMax, inverted: false };
       }
     } else pl.attachAim = null;
-    // (3.2.0 phase 4) holding a hostage: the sidearm one-handed over their shoulder (aim or fire draws it)
+    // (3.2.0 phase 4) holding a hostage: the sidearm one-handed over their shoulder (step 09: aim alone draws it)
     const grabHold = this.takedown.hostage !== null;
-    const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads') || inp.down('fire'));
+    const draw = (sidearm || grabHold) && (pl.ads || inp.down('ads'));
     // (3.2.0 phase 5) braced / boosting / climbing up the ladder: hands busy (on top of it the weapon is free)
     const teamHands = this.team.active && this.team.state !== 'top';
     this.weapons.setAttachedStow((this.traversal.attached && !!this.traversal.attach.spec?.holster) || carrying || this.takedown.active !== null || teamHands, draw);
@@ -2158,6 +2158,8 @@ export class GameState implements AppState {
       grenades: this.weapons.gadgets.count,
       reloadProgress: this.weapons.reloadProgress,
       spreadPx,
+      // (step 09) the crosshair shows only drawn and aiming
+      crosshair: this.weapons.drawPhase === 2 && this.player.ads,
       onTarget: this.onTarget,
       ads: this.player.cam.ads > 0.5,
       yaw: cam.yaw,

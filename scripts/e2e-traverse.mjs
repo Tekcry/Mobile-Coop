@@ -160,7 +160,12 @@ try {
   assert(!i.attached && i.y > 3.5, `steps off at the top onto the tower (y ${f2(i.y)})`);
   await run(1.2);
   i = await I();
-  assert(i.held, 'weapon back in the hands after the ladder');
+  // (step 09) holstered unless aiming: off the ladder the weapon stays in its slot until aim draws it
+  assert(!i.held, 'weapon holstered after the ladder (drawn only while aiming)');
+  await run(0.8, 0, 0, [BTN.LT]);
+  i = await I();
+  assert(i.held, 'aim draws the weapon back into the hands after the ladder');
+  await run(0.8);
 
   // --- ladder from the top: turn round and step on, climb down, step off at the bottom
   await tp(26.7, 3.6, 11, -Math.PI / 2);
