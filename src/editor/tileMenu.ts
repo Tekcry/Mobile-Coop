@@ -22,8 +22,9 @@ import { fittingOf, groupFittings, LIGHT_GROUPS } from './lightCatalogue';
 import type { LightGroup } from './lightCatalogue';
 import type { PresetFrom } from './presets';
 import { MISSION_TOOLS } from './missionCatalogue';
+import { SEC_TOOLS } from './securityCatalogue';
 
-export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View'] as const;
+export const MENU_TABS = ['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'Security', 'View'] as const;
 export type MenuTab = (typeof MENU_TABS)[number];
 /** go: A runs it; toggle: A or left / right flips it; cycle: steps a list; slider: A turns it on / off, left / right moves it. */
 export type TileKind = 'go' | 'toggle' | 'cycle' | 'slider';
@@ -84,6 +85,8 @@ export interface ViewState {
   circuit?: string | null;
   /** ON8: the guard paths shown: every guard's, or only the selected guard's. */
   paths?: 'all' | 'selected';
+  /** ON12: the security coverage view. */
+  coverage?: boolean;
 }
 
 /** Tabs drawn as one column of rows (left / right changes values there instead of moving). */
@@ -116,6 +119,8 @@ export function viewTiles(v: ViewState): Tile[] {
     ...(v.lmode === 'Switched off' ? [{ id: 'view.circuit', icon: 'C', name: 'Circuit off', desc: 'Left / right picks the circuit', kind: 'cycle' as const, value: v.circuit ?? 'none' }] : []),
     // ON8: every guard's patrol path, or only the selected guard's
     { id: 'view.paths', icon: 'G', name: 'Guard paths', desc: 'Every guard, or only the selected one', kind: 'cycle', value: v.paths === 'selected' ? 'Selected guard' : 'All guards' },
+    // ON12: every camera cone and sensor fan of this level tinted, the unwatched floor clear
+    { id: 'view.coverage', icon: 'S', name: 'Security coverage', desc: 'Camera cones and sensor fans; gaps stay clear', kind: 'toggle', on: !!v.coverage, value: onOff(!!v.coverage) },
   ];
 }
 
@@ -136,9 +141,10 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
       if (!s) return [];
       const turns = ['rooms', 'walls', 'stairs', 'ladders', 'objects'].includes(s.coll);
       const copies = ['rooms', 'walls', 'voids'].includes(s.coll);
-      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides';
+      const types = s.coll === 'openings' || s.coll === 'rooms' || s.coll === 'walls' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs' || s.coll === 'objects' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || s.coll === 'devices';
       // ON8: mission records are not duplicated (a fresh one is placed with its tool)
-      const mission = ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction'].includes(s.coll);
+      // ON12: nor are security devices (a reader binds one door)
+      const mission = ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction', 'devices'].includes(s.coll);
       const t: (Tile | false)[] = [
         // ON8: a guard: its path, the patrol preview and the isolation point first
         s.coll === 'guards' && { id: 'sel.path', icon: 'P', name: 'Edit path', desc: 'A adds stops, A on the first closes the loop, B ends', kind: 'go' },
@@ -157,6 +163,7 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
         s.coll === 'stairs' && { id: 'sel.fit', icon: 'F', name: 'Fit', desc: 'The smallest legal size from its start corner', kind: 'go' },
         s.coll === 'stairs' && { id: 'sel.turnClimb', icon: 'A', name: 'Turn climb 90', desc: 'The climb turns; the stair stays put', kind: 'go' },
         // ON6: aim a flood or twin spot with the right stick; the circuit row; a switch takes more lamps
+        s.coll === 'devices' && (s.type === 'camera' || s.type === 'pir') && { id: 'sel.aim', icon: 'A', name: 'Aim', desc: 'Right stick turns it, A sets, B puts it back', kind: 'go' },
         s.coll === 'lamps' && fittingOf(s.type)?.aimPitch !== undefined && { id: 'sel.aim', icon: 'A', name: 'Aim', desc: 'Right stick aims, A sets, B puts it back', kind: 'go' },
         s.coll === 'lamps' && { id: 'sel.circuit', icon: 'C', name: 'Circuit', desc: "The card's Circuit row: left / right, or a new one", kind: 'go' },
         // ON7: the light view with this lamp out (not saved)
@@ -229,6 +236,9 @@ export function menuTiles(tab: MenuTab, inp: MenuInput): Tile[] {
     case 'Mission':
       // ON8: the guard and the mission markers (the play file's records)
       return MISSION_TOOLS.map((m): Tile => ({ id: `mission.${m.id}`, icon: m.name[0]!, name: m.name, desc: m.desc, kind: 'go' }));
+    case 'Security':
+      // ON12: cameras, readers, sensors and beams (the security file's records)
+      return SEC_TOOLS.map((t): Tile => ({ id: `security.${t.id}`, icon: t.name[0]!, name: t.name, desc: t.desc, kind: 'go' }));
     default:
       return [];
   }

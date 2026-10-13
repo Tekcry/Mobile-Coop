@@ -45,6 +45,8 @@ import type { ExtKind } from './climbCatalogue';
 import { pieceWords } from './climb';
 import { fittingOf, groupFittings } from './lightCatalogue';
 import type { MissionKind } from './missionCatalogue';
+import type { SecTool } from './securityCatalogue';
+import type { Device as SecDevice } from './security';
 import { isMission } from './mission';
 import type { LightGroup } from './lightCatalogue';
 import { aimDir } from './lightCatalogue';
@@ -74,6 +76,7 @@ const BAR = [
   ['stamp', 'Stamp'],
   ['guard', 'Guard view'],
   ['mission', 'Mission'],
+  ['security', 'Security'],
   ['measure', 'Measure'],
 ] as const;
 const DISPLAYS = [
@@ -265,7 +268,7 @@ export class PadControl {
   viewState(): ViewState {
     const ed = this.ed;
     const v = ed.view.vis;
-    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths };
+    return { layout: ed.prefs.layout, ghost: v.ghost, exploded: v.exploded, gap: v.gap, cut: v.section, preset: v.preset, building: v.building, minimap: ed.prefs.minimap, labels: !$('planSvg').classList.contains('nolabels'), underlay: v.underlay, names: ed.prefs.names, figure: ed.prefs.figure, stealth: ed.stealth, finish: ed.finishView, light: ed.lights.on, dark: ed.lights.dark, lmode: ed.lightModeName, circuit: ed.lights.mode.circuit ?? null, paths: ed.mission.paths, coverage: ed.security.coverage };
   }
 
   /** Y or Space: opens the menu (on the last tab, or Build per Settings), or closes it. */
@@ -435,6 +438,7 @@ export class PadControl {
     else if (id === 'view.lmode') return ed.stepLightMode(dir);
     else if (id === 'view.circuit') return ed.stepLightCircuit(dir);
     else if (id === 'view.paths') return ed.stepGuardPaths();
+    else if (id === 'view.coverage') return ed.setCoverage(!ed.security.coverage);
     this.applyPanel(rebuild);
   }
 
@@ -476,6 +480,11 @@ export class PadControl {
       // ON6: a fitting, or Switch
       ed.setLampFit(id.slice(6));
       tool('lamp');
+    }
+    else if (id.startsWith('security.')) {
+      // ON12: a camera, reader, keypad, motion sensor or beam
+      ed.security.setKind(id.slice(9) as SecTool);
+      tool('security');
     }
     else if (id.startsWith('mission.')) {
       // ON8: the Guard tool or a mission marker
@@ -568,6 +577,9 @@ export class PadControl {
       const q = CLIMB_PIECES[(i + dir + CLIMB_PIECES.length) % CLIMB_PIECES.length]!;
       ed.setClimbKind(q.id);
       ed.status(`Climb: ${q.name}`);
+    } else if (ed.tool === 'security') {
+      // ON12: the next device of the Security tab
+      ed.status(`Security: ${ed.security.stepKind(dir)}`);
     } else if (ed.tool === 'mission') {
       // ON8: the Guard tool's role (the mission brief's roster)
       if (ed.mission.kind === 'guard' && !ed.mission.path) ed.status(`Guard: ${ed.mission.stepRole(dir)}`);
@@ -753,6 +765,7 @@ export class PadControl {
     }
     if (this.menu.isOpen) return this.menuFrame(now, dt);
     if (this.aim) return this.aimFrame(dt);
+    if (this.devAim) return this.devAimFrame(dt);
     if (c.walking) return this.walkFrame();
     if (st.pressed(PAD.Y) && !this.ed.drag && !this.ed.groupDrag) return this.toggleMenu();
     if (st.viewTap === 'tap') this.topDown();
@@ -810,7 +823,7 @@ export class PadControl {
         /* (RB is the stop's facing) */
       } else if (st.rbTap === 'tap') {
         if (this.ed.splitting) this.ed.splitTurn();
-        else if (this.ed.tool === 'object' || this.ed.tool === 'stamp' || this.ed.tool === 'lamp') this.ed.turnObjectNow();
+        else if (this.ed.tool === 'object' || this.ed.tool === 'stamp' || this.ed.tool === 'lamp' || this.ed.tool === 'security') this.ed.turnObjectNow();
         else this.ed.frameSelected();
       }
     } else if (this.ed.chaining && st.pressed(PAD.X)) this.ed.chainRemoveLast(); // on press: a slow frame never turns it into a hold
@@ -840,9 +853,18 @@ export class PadControl {
 
   /** ON6: Selected > Aim on a flood or twin spot: the lamp being aimed, its aim as it was, and the aim now. */
   private aim: { id: string; before: Lamp; yaw: number; pitch: number } | null = null;
+  /** ON12: Selected > Aim on a camera or motion sensor: the device, its record as it was, and its yaw now. */
+  private devAim: { id: string; before: SecDevice; yaw: number } | null = null;
 
   private startAim(): void {
     const s = this.ed.selectedElem();
+    if (s?.coll === 'devices' && typeof (s.e as unknown as SecDevice).facing === 'number') {
+      const e = clone(s.e) as unknown as SecDevice;
+      this.devAim = { id: s.id, before: e, yaw: e.facing as number };
+      this.latchSticks();
+      this.ed.status(`Aim ${s.id}: the right stick turns it, A sets, B puts it back`);
+      return this.ed.updateHint();
+    }
     const l = s?.coll === 'lamps' ? (clone(s.e) as Lamp) : null;
     if (!s || !l?.aim) return this.ed.status('Select a floodlight or a twin spot to aim it');
     this.aim = { id: s.id, before: l, yaw: l.aim[0], pitch: l.aim[1] };
@@ -881,6 +903,35 @@ export class PadControl {
     if (cur?.aim && cur.aim[0] === aim[0] && cur.aim[1] === aim[1]) return;
     ed.model.preview('lamps', withParams({ ...clone(a.before), aim }) as Elem);
     ed.status(`Aim ${a.id}: turn ${aim[0]} degrees, ${aim[1]} down (beam ${aimDir(aim).map((v) => fmt(v)).join(', ')}); A sets, B puts it back`);
+  }
+
+  /** ON12: the right stick turns the camera or sensor (90 degrees a second, 5 degree steps), previewed; A sets it, B puts it back. */
+  private devAimFrame(dt: number): void {
+    const st = this.st;
+    const a = this.devAim!;
+    const ed = this.ed;
+    ed.controls.orbitIn = { panX: 0, panY: 0, orbitX: 0, tiltY: 0, zoom: 0, precision: false, rise: 0 };
+    if (st.pressed(PAD.B)) {
+      ed.model.preview('devices', a.before as unknown as Elem);
+      this.devAim = null;
+      ed.status(`Aim of ${a.id} put back`);
+      return ed.updateHint();
+    }
+    if (st.pressed(PAD.A)) {
+      const after = ed.model.snapshot('devices', a.id) as unknown as SecDevice | null;
+      this.devAim = null;
+      if (after && JSON.stringify(after) !== JSON.stringify(a.before)) ed.commitText(`Aimed ${a.id} to ${String(after.facing)} degrees`, [{ coll: 'devices', id: a.id, before: a.before as unknown as Elem, after: after as unknown as Elem }]);
+      ed.status(`${a.id} faces ${String(after?.facing ?? '')} degrees`);
+      return ed.updateHint();
+    }
+    const x = Math.abs(st.rawR.x) > 0.2 ? st.rawR.x : 0;
+    if (!x) return;
+    a.yaw = (((a.yaw + x * 90 * dt) % 360) + 360) % 360;
+    const yaw = Math.round(a.yaw / 5) * 5;
+    const cur = ed.model.get('devices', a.id) as unknown as SecDevice | undefined;
+    if (cur?.facing === yaw % 360) return;
+    ed.model.preview('devices', ed.security.aimed(a.before, yaw) as unknown as Elem);
+    ed.status(`Aim ${a.id}: ${yaw % 360} degrees; A sets, B puts it back`);
   }
 
   /** Quick walk (L3 tap from building): sticks walk and look, it runs, L3 toggles a slow walk, L3 held starts the walk test, B comes back; the dot, tool bar and card hide; A does nothing. */
@@ -1341,13 +1392,13 @@ export class PadControl {
     const winName = DOOR_NAMES[$<HTMLSelectElement>('windowType').value] ?? '';
     const roomName = ROOM_OPTIONS.find((o) => o.id === ed.roomOption)?.short ?? '';
     const s = ed.selectedElem();
-    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
+    const key = `${this.barSlot()}|${doorName}|${winName}|${roomName}|${ed.stairTypeId}|${ed.holeKind}|${ed.roofTypeId}|${ed.objPresetId}|${ed.objYaw}|${ed.climbKind}|${ed.lampFit}|${ed.lampYaw}|${ed.tool === 'mission' ? ed.mission.barWords() : ed.tool === 'security' ? ed.security.barWords() : ''}|${ed.circuitEdit ?? ''}|${ed.selected ?? ''}|${ed.model.journal.length}|${ed.model.rev}|${ed.model.dirty}|${this.cardRow}|${this.cardEditing}|${ed.model.history.length}`;
     if (key === this.barKey) return;
     this.barKey = key;
     const slot = this.barSlot();
     // the active tool only (the Y menu picks tools); its type under it
     const name = BAR.find(([id]) => id === slot)?.[1] ?? slot;
-    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'mission' ? ed.mission.barWords() : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
+    const sub = slot === 'door' ? doorName : slot === 'window' ? winName : slot === 'room' ? roomName : slot === 'stair' ? stairType(ed.stairTypeId).name : slot === 'hole' ? (HOLE_NAMES[ed.holeKind] ?? ed.holeKind) : slot === 'roof' ? roofType(ed.roofTypeId).name : slot === 'object' ? `${ed.objPreset.name}${ed.objYaw ? `, ${ed.objYaw} degrees` : ''}` : slot === 'climb' ? (pieceOf(ed.climbKind)?.name ?? '') : slot === 'mission' ? ed.mission.barWords() : slot === 'security' ? ed.security.barWords() : slot === 'lamp' ? (ed.lampFit === 'switch' ? (ed.circuitEdit ? `Switch ${ed.circuitEdit}: A adds lamps` : 'Switch') : `${ed.fitting?.name ?? ''}${ed.lampYaw ? `, ${ed.lampYaw} degrees` : ''}`) : '';
     $('toolBar').innerHTML = `<div class="slot on" data-slot="${slot}"><b>${name}</b>${sub ? `<small>${esc(sub)}</small>` : ''}</div>`;
     if (s) {
       const c = cardWords(s.coll, s.e);
@@ -1384,7 +1435,9 @@ export class PadControl {
       const lampLine = s.coll === 'lamps' ? `<div class="dim" data-lamp>${esc(lampWords(ed.model.data as LampData, s.e as Lamp))}</div>` : s.coll === 'circuits' ? `<div class="dim" data-lamp>${esc(circuitWords(s.e as Circuit))}</div>` : '';
       // ON8: a guard's loop (length, cycle, the first red leg), an objective's links, an insertion's number
       const missionLine = isMission(s.coll) ? `<div class="dim" data-mission>${esc(ed.mission.footWords(s.coll, s.e))}</div>` : '';
-      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
+      // ON12: what a device does in the game (and which stage builds it); a security desk's feeds
+      const secLine = s.coll === 'devices' ? `<div class="dim" data-security>${esc(ed.security.footWords(s.e as unknown as SecDevice))}</div>` : s.coll === 'objects' && (s.e as Obj).preset === 'security-desk' ? `<div class="dim" data-security>${esc(ed.security.deskWords(s.e as Obj))}</div>` : '';
+      const foot = this.cardEditing ? '' : `<div>${esc(c.size)}</div>${fitLine}${roofLine}${objLine}${extLine}${finLine}${lampLine}${missionLine}${secLine}<div>Level ${esc(lv?.name ?? '')}</div>`;
       $('selCard').innerHTML = `<b>${esc(c.title)}</b> <small class="id">${esc(s.e.id)}</small>${body}${foot}`;
       $('selCard').classList.toggle('editing', this.cardEditing);
     }
@@ -1568,6 +1621,14 @@ export class PadControl {
         const cs: Pt[] = [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]];
         for (let i = 0; i < 4; i++) plan.push({ kind: 'line', a: cs[i]!, b: cs[(i + 1) % 4]! });
       }
+    } else if (ed.tool === 'security' && p && !ed.drag) {
+      // ON12: the device A would place (on a wall face, under a ceiling, by a door), or why not
+      const g = ed.security.ghost(p[0], p[1], f);
+      words = g.words;
+      bad = g.bad;
+      key = `sec|${g.key}`;
+      marks.push(...g.marks);
+      plan.push(...g.plan);
     } else if (ed.tool === 'mission' && p) {
       // ON8: the guard, a stop (its leg from the last stop, red where there is no way), an objective to pick, a marker
       const g = ed.mission.ghost(p[0], p[1], f);

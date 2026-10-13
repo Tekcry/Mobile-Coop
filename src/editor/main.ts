@@ -58,11 +58,15 @@ import type { Fitting, LightGroup } from './lightCatalogue';
 import { joinPlay, playText, splitPlay } from './playFile';
 import type { PlayData } from './playFile';
 import { MissionTool } from './missionTool';
+import { SecurityTool } from './securityTool';
+import { hyp2 } from '../core/mathx';
+import { deviceCentre, isBeam, joinSecurity, readerLink, securityText, splitSecurity } from './security';
+import type { Beam, Device, SecData, SecurityFile } from './security';
 import { dropObjectiveRefs, isMission, missionCentre, missionLevel, moveMission, withCycle } from './mission';
 import type { Extraction, Guard, Objective } from './mission';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission' | 'security';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -117,16 +121,20 @@ function loadBookmarks(): Bookmark[] {
 /** A dashed shape the pad draws over the plan: a line (an edge, a wall, an opening) or a ring (a point). */
 export type PlanShape = LiveShape | { kind: 'ring'; p: Pt };
 
-async function loadFile(): Promise<{ data: Campus; text: string; mtime: number; play: PlayData | null; playText: string }> {
+async function loadFile(): Promise<{ data: Campus; text: string; mtime: number; play: PlayData | null; playText: string; sec: SecurityFile | null; secText: string }> {
   const res = await fetch('/__editor/campus', { cache: 'no-store' });
   if (!res.ok) throw new Error(`could not load the campus file (${res.status})`);
   // ON6: the play file's lamps and circuits join the campus data while editing (one document; playFile.ts)
   const pr = await fetch('/__editor/play', { cache: 'no-store' });
   const pText = pr.ok ? await pr.text() : '';
   const play = pText.startsWith('{') ? (JSON.parse(pText) as PlayData) : null;
-  const data = joinPlay(JSON.parse(await res.text()) as Campus, play);
-  const mtime = Math.max(Number(res.headers.get('x-mtime') ?? 0), Number(pr.headers.get('x-mtime') ?? 0));
-  return { data, text: campusText(data), mtime, play, playText: play ? pText : '' };
+  // ON12: the security file's devices join it too (security.ts)
+  const sr = await fetch('/__editor/security', { cache: 'no-store' });
+  const sText = sr.ok ? await sr.text() : '';
+  const sec = sText.startsWith('{') ? (JSON.parse(sText) as SecurityFile) : null;
+  const data = joinSecurity(joinPlay(JSON.parse(await res.text()) as Campus, play), sec);
+  const mtime = Math.max(Number(res.headers.get('x-mtime') ?? 0), Number(pr.headers.get('x-mtime') ?? 0), Number(sr.headers.get('x-mtime') ?? 0));
+  return { data, text: campusText(data), mtime, play, playText: play ? pText : '', sec, secText: sec ? sText : '' };
 }
 
 async function boot(): Promise<void> {
@@ -134,6 +142,8 @@ async function boot(): Promise<void> {
   const ed = new Editor(f.data);
   ed.playBase = f.play;
   ed.playLoaded = f.playText;
+  ed.secBase = f.sec;
+  ed.secLoaded = f.secText;
   void ed.stamp.load();
   // exposed for the e2e smoke test and console poking (dev tool only)
   (window as unknown as { __editor: Editor }).__editor = ed;
@@ -232,6 +242,11 @@ export class Editor {
   /** ON6: the play file as loaded (its other collections are kept on save) and its text then (null / '': none yet). */
   playBase: PlayData | null = null;
   playLoaded = '';
+  /** ON12: the security file as loaded (its zones and cards are kept on save) and its text then. */
+  secBase: SecurityFile | null = null;
+  secLoaded = '';
+  /** ON12: the Security tool (cameras, readers, sensors, beams) and the coverage view. */
+  readonly security: SecurityTool;
   /** ON4: the stealth view (J; Hub > View): objects tinted by their badges in 3D and on the plan. */
   stealth = false;
   /** ON5: the Climb tool's piece (Climb tab tiles, D-pad left / right with the tool) and the finish view (N; Hub > View). */
@@ -259,7 +274,9 @@ export class Editor {
       for (const x of ch)
         if (x.coll === 'objectives' && x.before && !x.after)
           for (const o of dropObjectiveRefs((d.objectives ?? []) as Objective[], x.id)) if (!ch.some((y) => y.coll === 'objectives' && y.id === o.id)) c.push({ coll: 'objectives', id: o.id, before: (d.objectives ?? []).find((q) => q.id === o.id) as Elem, after: o as Elem });
-      return b.length || c.length ? [...a, ...b, ...c] : a;
+      // ON12: a reader keeps its door's reader, card level and lock in step; a deleted door leaves its readers
+      const r = readerLink(d as unknown as SecData, ch);
+      return b.length || c.length || r.length ? [...a, ...b, ...c, ...r] : a;
     };
     this.chain = new WallChain(this.model);
     const canvas = $<HTMLCanvasElement>('c');
@@ -267,6 +284,8 @@ export class Editor {
     this.lights = new LightView(this);
     this.mission = new MissionTool(this);
     this.view.mission = this.mission;
+    this.security = new SecurityTool(this);
+    this.view.security = this.security;
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
     this.view.vis = parseVis(this.prefs.vis);
@@ -331,6 +350,7 @@ export class Editor {
     if (coll === 'lamps') return lampLevel(this.model.data, e as Lamp);
     if (coll === 'circuits') return circuitLevel(this.model.data, e as Circuit);
     if (isMission(coll)) return missionLevel(coll, e);
+    if (coll === 'devices') return (e as unknown as Device).level;
     return (e as Room).level;
   }
 
@@ -377,6 +397,7 @@ export class Editor {
       return sw ? [sw.at[0], sw.at[2]] : [0, 0];
     }
     if (isMission(coll)) return missionCentre(coll, e);
+    if (coll === 'devices') return deviceCentre(e as unknown as Device);
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
@@ -398,8 +419,10 @@ export class Editor {
     } else this.view.refresh(keys);
     // ON7: a lamp being edited shows its quick light; the exact bake follows; new meshes take the lit materials
     // (ON8: guards and markers are not building: no rebake)
-    const lk = keys.filter((k) => !MissionTool.isMissionKey(k));
+    // (ON12: nor are security devices: their cells are worked out again on the bake that is there)
+    const lk = keys.filter((k) => !MissionTool.isMissionKey(k) && !k.startsWith('devices:'));
     if (lk.length) this.lights.changed(lk);
+    else if (keys.some((k) => k.startsWith('devices:'))) this.lights.refreshSecurity();
     this.lights.swap();
     if (this.selected && !this.selectedElem()) this.select(null);
     if (this.group.length && !this.groupDrag) {
@@ -433,6 +456,8 @@ export class Editor {
     // ON8: with only the selected guard's path shown, a new selection redraws the guards
     if (this.mission.paths === 'selected' && was !== key && (was?.startsWith('guards:') || key?.startsWith('guards:'))) this.view.refreshGuards();
     this.view.setSelected(key);
+    // ON12: a selected camera or sensor shows what it sees (the light view's cells)
+    if (was !== key && (was?.startsWith('devices:') || key?.startsWith('devices:'))) this.lights.refreshSecurity();
     const s = this.selectedElem();
     if (s?.coll === 'walls') this.wallTemplate = s.e as Wall;
     this.updateHandles();
@@ -690,6 +715,13 @@ export class Editor {
       return moveLamp(this.model.data as LampData, l0, snap(x - d.start[0], og), snap(z - d.start[1], og)) as Elem;
     }
     if (d.coll === 'circuits') return e;
+    // ON12: a beam being drawn follows the pointer at its far end; a placed device moves by its point
+    if (d.coll === 'devices') {
+      const og = fine ? this.fineGrid : this.objectGrid;
+      const b = d.before as unknown as Device;
+      if (d.isNew && isBeam(b)) return this.security.dragBeam(b, x, z) as unknown as Elem;
+      return this.security.move(b, snap(x - d.start[0], og), snap(z - d.start[1], og)) as unknown as Elem;
+    }
     // ON8: a guard moves whole (every stop), a marker by its point; the extraction zone is drawn below like a floor hole
     if (isMission(d.coll) && (d.coll !== 'extraction' || !d.isNew)) {
       const m = moveMission(d.coll, d.before, dx, dz) as Elem;
@@ -907,6 +939,16 @@ export class Editor {
       this.commitLamps([after as Lamp], null);
       return;
     }
+    if (d.isNew && d.coll === 'devices') {
+      // ON12: a beam: its length and height checked (SN40-SN48), its room and reason; the tool stays on
+      const f = this.security.finishBeam(after as unknown as Beam);
+      this.model.drop(d.coll, d.id);
+      if (!f.beam) return this.status(`${f.why ?? 'Cannot go here'} - A (click) at one end, then at the other`);
+      const text = `Added beam ${f.beam.id}: ${fmt(hyp2(f.beam.b[0] - f.beam.a[0], f.beam.b[2] - f.beam.a[2]))} m at ${fmt(f.beam.a[1])} m`;
+      this.commitText(text, [{ coll: 'devices', id: f.beam.id, before: null, after: f.beam as unknown as Elem }]);
+      this.select(keyOf('devices', f.beam.id));
+      return this.status(`${text}: A (click) starts the next`);
+    }
     if (d.isNew && d.coll === 'extraction') {
       // ON8: at least one grid step each way; it replaces the old zone in the same edit
       const r = (after as Extraction).rect;
@@ -1001,6 +1043,8 @@ export class Editor {
       this.lampDown(x, z, sx, sy, source);
     } else if (this.tool === 'mission') {
       this.mission.down(x, z, sx, sy, source);
+    } else if (this.tool === 'security') {
+      this.security.down(x, z, sx, sy, source);
     } else if (this.tool === 'guard') {
       // ON7: a guard eye at the point, facing the way the camera looks
       const ct = this.view.camera.getTarget();
@@ -1191,6 +1235,10 @@ export class Editor {
       return this.status(`${this.fitting?.name ?? 'Light'} turned to ${this.lampYaw} degrees`);
     }
     if (this.tool === 'stamp' && !this.drag) return this.status(`${this.stamp.preset.name} turned to ${this.stamp.turn()} degrees`);
+    if (this.tool === 'security' && !this.drag) {
+      this.security.turn(45);
+      return this.status(`${this.security.toolName} on a ceiling turned ${this.security.yaw} degrees from the view`);
+    }
     if (this.tool === 'object' && !this.drag) {
       if (this.objPreset.draw) return this.status('A row turns with the way you draw it');
       this.objYaw = (this.objYaw + 90) % 360;
@@ -1436,6 +1484,14 @@ export class Editor {
 
   /** ON7: the lights preview mode (left / right on the View row); none changes the saved data. */
   /** ON8: Hub > View "Guard paths": every guard's, or only the selected guard's. */
+  /** ON12: the security coverage view (Hub > View, the tile menu's View): every camera and sensor of the level, gaps clear. */
+  setCoverage(on: boolean): void {
+    this.security.coverage = on;
+    this.lights.refreshSecurity();
+    this.status(on ? 'Security coverage: camera cones (blue) and sensor fans (violet) on this level; clear floor is unwatched' : 'Security coverage off');
+    this.pad?.hub.render();
+  }
+
   stepGuardPaths(): void {
     this.mission.paths = this.mission.paths === 'all' ? 'selected' : 'all';
     this.view.refreshGuards();
@@ -2053,6 +2109,8 @@ export class Editor {
     out += this.lampMarks();
     // ON8: guard paths and mission markers
     out += this.mission.planMarkup((x, z) => this.toPlan(x, z), S);
+    // ON12: security devices (camera frames, sensor fans, beams, reader plates)
+    out += this.security.planMarkup((x, z) => this.toPlan(x, z), S);
     // wall gaps on this level: a red ring and its size (ON0b decision 7)
     for (const gp of this.gaps()) {
       if (gp.level !== this.view.level) continue;
@@ -2538,6 +2596,7 @@ export class Editor {
     const prefix = s.coll === 'rooms' ? `${(s.e as Room).level}-NEW` : s.coll === 'walls' ? `W${(s.e as Wall).level}-NEW` : s.coll === 'openings' ? 'O-NEW' : `${s.id}-COPY`;
     if (s.coll === 'circuits') return this.status('A switch is not duplicated: place another with Light > Switch');
     if (isMission(s.coll)) return this.status('Guards and mission markers are not duplicated: place another with Y > Mission');
+    if (s.coll === 'devices') return this.status('Security devices are not duplicated: place another with Y > Security');
     if (s.coll === 'lamps') {
       const l = moveLamp(this.model.data as LampData, s.e as Lamp, g, -g);
       return this.commitLamps([{ ...l, id: '' }], null);
@@ -2621,11 +2680,14 @@ export class Editor {
     const savedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${localTime(now.toISOString()).slice(0, 5)}`;
     try {
       // ON6: the campus file without the play collections; the play file only when its text changed
-      const split = splitPlay(this.model.data, this.playBase);
+      // ON12: the devices go to the security file (only when its text changed); the rest splits as before
+      const sec = splitSecurity(this.model.data, this.secBase);
+      const sText = sec.security ? securityText(sec.security) : null;
+      const split = splitPlay(sec.data, this.playBase);
       const pText = split.play ? playText(split.play) : null;
       const r = await fetch('/__editor/save', {
         method: 'POST',
-        body: JSON.stringify({ campus: split.campus, playText: pText !== null && pText !== this.playLoaded ? pText : undefined, journal: this.model.journal, logText: logMarkdown(this.model.journal, savedAt) }),
+        body: JSON.stringify({ campus: split.campus, playText: pText !== null && pText !== this.playLoaded ? pText : undefined, securityText: sText !== null && sText !== this.secLoaded ? sText : undefined, journal: this.model.journal, logText: logMarkdown(this.model.journal, savedAt) }),
       });
       const reply = (await r.json()) as { ok?: boolean; error?: string; plans?: number; planLog?: string };
       if (!r.ok || !reply.ok) throw new Error(reply.error ?? String(r.status));
@@ -2633,6 +2695,10 @@ export class Editor {
       if (pText !== null) {
         this.playLoaded = pText;
         this.playBase = JSON.parse(pText) as PlayData;
+      }
+      if (sText !== null) {
+        this.secLoaded = sText;
+        this.secBase = JSON.parse(sText) as SecurityFile;
       }
       const n = this.model.journal.length;
       this.model.markSaved();
@@ -2676,6 +2742,7 @@ export class Editor {
       object: this.objPreset.draw ? `Object (${this.objPreset.name}): A (click) at the start, A (click) at the end` : `Object (${this.objPreset.name}): A (click) places it, RB (R) turns it`,
       guard: 'Guard view: A (click) places a guard eye at the dot facing the way you look; the right stick (R) turns it; B (Esc, Delete) removes it. Red: seen at once (lit); amber: seen slowly',
       mission: this.mission.hint(),
+      security: this.security.hint(),
       lamp: this.lampFit === 'switch' ? 'Switch: A (click) on a wall face places a switch, then A on lamps puts them on it, B (Esc) ends' : this.fitting?.linear ? `Light (${this.fitting.name}): A (click) at the start, A (click) at the end` : `Light (${this.fitting?.name ?? ''}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
@@ -3394,6 +3461,13 @@ export class Editor {
       if (s.coll !== 'spawns' && s.coll !== 'extraction') text('name', 'Name');
       rows.push(`<p id="missionWords" class="dim">${esc(this.mission.footWords(s.coll, e) || cardWords(s.coll, e).size)}</p>`);
       if (s.coll === 'guards') rows.push('<div class="row"><button id="mEditPath">Edit path</button><button id="mPatrol">Play patrol</button><button id="mAlone">Mark alone here</button></div>');
+    } else if (s.coll === 'devices') {
+      // ON12: a security device: its name and reason, the card's rows stepped with the mouse, what it does in the game
+      text('name', 'Name');
+      text('reason', 'Reason');
+      const t = cardRows('devices', s.e)[0]!;
+      rows.push(`<div class="row"><span>Type</span><span><button data-cstep="type" data-dir="-1">&#8249;</button> <b>${esc(t.value)}</b> <button data-cstep="type" data-dir="1">&#8250;</button></span></div>`);
+      rows.push(`<p id="securityWords" class="dim">${esc(cardWords('devices', s.e).size)}; ${esc(this.security.footWords(e as unknown as Device))}</p>`);
     } else if (s.coll === 'ladders') {
       const ld = e as Ladder;
       text('name', 'Name');
@@ -3402,8 +3476,10 @@ export class Editor {
       sel('facing', 'Facing', ['N', 'S', 'E', 'W'].map((d) => [d, d]));
       sel('to', 'To level', this.levelsAbove(ld.from).map((l) => [l.id, `${l.name} (${l.id})`]));
     }
+    // ON12: a security desk lists the cameras whose feeds it shows
+    if (s.coll === 'objects' && (e as Obj).preset === 'security-desk') rows.push(`<p class="dim" data-desk-feeds>${esc(this.security.deskWords(e as Obj))}</p>`);
     // ON9: door, window and glass settings, the card's rows, stepped with the mouse (the same step as the D-pad)
-    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
+    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || s.coll === 'devices' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
       const ctx = s.coll === 'openings' ? { rooms: this.model.list('rooms') as Room[], wall: this.model.get<Wall>('walls', (e as Opening).wall) } : {};
       const set = cardRows(s.coll, s.e, ctx).filter((r) => !['type', 'name', 'w', 'h', 'sill', 'at', 'id', 't', 'len', 'width', 'depth', 'base'].includes(r.id));
       for (const r of set) rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);

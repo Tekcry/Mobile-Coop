@@ -14,6 +14,8 @@ import { fittingOf } from './lightCatalogue';
 import type { CircuitRecord, LampRecord } from '../world/maps/kestrelLights';
 import type { Extraction, Guard, Hide, Objective } from './mission';
 import { guardKind, hideKind, objectiveKind } from './missionCatalogue';
+import { deviceWords } from './security';
+import type { Device } from './security';
 
 /** Door and window sizes by type, from the ON9 catalogue (openingCatalogue.ts: the scale sheet's door facts or typical products). */
 export const OPENING_DEFAULTS: Record<string, { w: number; h: number; sill: number }> = Object.fromEntries(CATALOGUE.map((c) => [c.id, { w: c.w, h: c.h, sill: c.sill }]));
@@ -44,6 +46,7 @@ export function cardWords(coll: Coll, e: Elem): { title: string; size: string } 
     return { title: name || objectiveKind(o.kind).name, size: `Objective ${o.order}${o.optional ? ', optional' : ''}${o.room ? `, in ${o.room}` : ''}` };
   }
   if (coll === 'hides') return { title: name || `Hiding place: ${hideKind((e as unknown as Hide).kind).name.toLowerCase()}`, size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
+  if (coll === 'devices') return deviceWords(e as unknown as Device);
   if (coll === 'checkpoints') return { title: name || 'Checkpoint', size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
   if (coll === 'spawns') return { title: 'Insertion point', size: `at x ${fmt((e as unknown as Hide).at[0])}, z ${fmt((e as unknown as Hide).at[1])}` };
   if (coll === 'extraction') {
@@ -100,7 +103,7 @@ export function label(d: Campus, coll: Coll, e: Elem): string {
   const name = typeof e.name === 'string' && e.name ? `${e.name} ` : '';
   const lvlId = 'level' in e && typeof e.level === 'string' ? e.level : coll === 'openings' ? d.walls.find((w) => w.id === (e as Opening).wall)?.level : coll === 'stairs' || coll === 'ladders' ? (e as { from: string }).from : undefined;
   const lvl = lvlId ? `, ${levelName(d, lvlId)}` : '';
-  const kind = coll === 'guards' ? 'guard ' : coll === 'objectives' ? `objective ${String((e as { kind?: string }).kind ?? '')} ` : coll === 'hides' ? 'hiding place ' : coll === 'checkpoints' ? 'checkpoint ' : coll === 'spawns' ? 'insertion point ' : coll === 'extraction' ? 'extraction zone ' : coll === 'lamps' ? `lamp ${String((e as { fixture?: string }).fixture ?? '')} ` : coll === 'circuits' ? 'circuit ' : coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
+  const kind = coll === 'guards' ? 'guard ' : coll === 'objectives' ? `objective ${String((e as { kind?: string }).kind ?? '')} ` : coll === 'hides' ? 'hiding place ' : coll === 'checkpoints' ? 'checkpoint ' : coll === 'spawns' ? 'insertion point ' : coll === 'extraction' ? 'extraction zone ' : coll === 'devices' ? `security ${String((e as { kind?: string }).kind ?? '')} ` : coll === 'lamps' ? `lamp ${String((e as { fixture?: string }).fixture ?? '')} ` : coll === 'circuits' ? 'circuit ' : coll === 'walls' ? `${(e as Wall).kind} wall ` : coll === 'openings' ? `${(e as Opening).type} ` : coll === 'roofs' ? `${(e as { type: string }).type} roof ` : coll === 'exterior' ? `${(pieceOf((e as Ext).kind)?.name ?? (e as Ext).kind).toLowerCase()} ` : '';
   return `${kind}${name}(${e.id}${lvl})`;
 }
 

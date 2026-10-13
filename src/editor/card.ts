@@ -23,6 +23,8 @@ import type { Lamp, LampData } from './lamps';
 import { fittingOf } from './lightCatalogue';
 import { EMPLOYERS, GUARD_KINDS, guardKind, HIDE_KINDS, hideKind, JOBS, OBJECTIVE_KINDS, objectiveKind, ROSTER } from './missionCatalogue';
 import type { Guard, Hide, Objective } from './mission';
+import { deviceRows, deviceType, stepDevice } from './security';
+import type { Device, SecData } from './security';
 
 /** ON8: a guard's card: Type (the game's guard kind), Role (the brief's roster: name, employer and job), Employer, Job. */
 function guardRows(g: Guard): CardRow[] {
@@ -214,6 +216,8 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
   }
   if (coll === 'hides') return [{ id: 'type', label: 'Type', value: hideKind((e as unknown as Hide).kind).name, kind: 'list' }, nameRow(e), idRow(e)];
   if (coll === 'spawns') return [idRow(e)];
+  // ON12: a security device: Type (fixed / pan camera, card reader / card and PIN / keypad), Name, its own rows
+  if (coll === 'devices') return [{ id: 'type', label: 'Type', value: deviceType(e as unknown as Device), kind: 'list' }, nameRow(e), ...deviceRows(e as unknown as Device), idRow(e)];
   if (coll === 'extraction') return sizeRows((e as unknown as { rect: Rect }).rect);
   // ON6: a lamp: Type (the fitting), Name, lumens, colour temperature, beam, height, aim, the flags, circuit, owner
   if (coll === 'lamps') return [{ id: 'type', label: 'Type', value: fittingOf((e as Lamp).fixture)?.name ?? (e as Lamp).fixture, kind: 'list' }, nameRow(e), ...lampRows(e as Lamp), idRow(e)];
@@ -262,6 +266,7 @@ export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepC
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
   if (coll === 'exterior' && row !== 'name' && row !== 'id') return c.data ? stepPiece(c.data, e as Ext, row, dir, c.step) : null;
   if ((coll === 'guards' || coll === 'objectives' || coll === 'hides') && row !== 'name' && row !== 'id') return stepMissionRow(coll, e, row, dir);
+  if (coll === 'devices' && row !== 'name' && row !== 'id') return c.data ? (stepDevice(c.data as unknown as SecData, e as unknown as Device, row, dir, c.step) as unknown as Elem | null) : null;
   if (coll === 'lamps' && row !== 'name' && row !== 'id') return c.data ? stepLamp(c.data as unknown as LampData, e as Lamp, row, dir, c.step) : null;
   if (coll === 'rooms' && row === 'finish') {
     const f = stepFinish((e as Room).finish, dir);

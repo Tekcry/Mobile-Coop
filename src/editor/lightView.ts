@@ -44,13 +44,16 @@ import { kestrel, setKestrelDraft } from '../world/maps/kestrel';
 import type { CampusFile } from '../world/maps/kestrelCampus';
 import { campusLights } from '../world/maps/kestrelLights';
 import { lampLevel, type Lamp } from './lamps';
-import { band, bearing, BODY_HEIGHT, cellCentre, cellIndex, contour, guardClass, inView, lampOnIn, levelCells, meterWords, modeWords, sampleCells, type CellGrid, type GuardClass, type LightMode } from './lightPreview';
+import { band, bearing, BODY_HEIGHT, cellCentre, MAP_CELL, cellIndex, contour, guardClass, inView, lampOnIn, levelCells, meterWords, modeWords, sampleCells, type CellGrid, type GuardClass, type LightMode } from './lightPreview';
 import type { EditorModel } from './model';
 import type { EditorScene } from './scene3d';
+import type { SecCtx } from './securityTool';
 
 /** What the light view needs from the editor. */
 export interface LightHost {
   readonly view: EditorScene;
+  /** ON12: the security tool's cells (camera cones by the light, coverage) and whether it needs the exact light. */
+  readonly security?: { readonly wantsLight: boolean; cells(c: SecCtx): Uint8Array | null; readonly coverage: boolean; readonly stats: { watched: number; gaps: number } };
   readonly model: EditorModel;
   readonly drag: unknown;
   readonly groupDrag: unknown;
@@ -84,6 +87,8 @@ interface Exact {
 /** Debounce of the exact bake after the last change (ON7 decision 2). */
 const DEBOUNCE_MS = 300;
 const COL = { hidden: [0.02, 0.02, 0.03, 0.72], grey: [0.5, 0.5, 0.52, 0.6], lit: [1, 1, 0.97, 0.5], red: [0.95, 0.12, 0.1, 0.55], amber: [1, 0.68, 0.1, 0.5] } as const;
+/** ON12: security cells: 1 in a camera's frame but hidden (blue), 2 amber, 3 red (as the guard view), 4 a sensor's fan (violet). */
+const SEC_COL: readonly (readonly number[] | null)[] = [null, [0.11, 0.49, 0.84, 0.45], COL.amber, COL.red, [0.44, 0.28, 0.91, 0.4]];
 const CONTOUR = { hidden: '#3aa0ff', lit: '#ffd23a' } as const;
 
 export class LightView {
@@ -121,6 +126,11 @@ export class LightView {
   private darkMesh: Mesh | null = null;
   private contourMesh: LinesMesh | null = null;
   private guardMesh: Mesh | null = null;
+  /** ON12: the security cells of the editing level, their 3D mesh and plan image. */
+  private sec: Uint8Array | null = null;
+  private secMesh: Mesh | null = null;
+  private planSec: { url: string; ver: number } | null = null;
+  private secVer = 0;
   private eyeMeshes: Mesh[] = [];
   private overlayMat: StandardMaterial | null = null;
   private look: { clear: Color4; hemi: number; sun: number; dir: Vector3; ground: Color3 } | null = null;
@@ -141,7 +151,7 @@ export class LightView {
 
   /** Anything needs the exact light (the bake runs only then). */
   get wanted(): boolean {
-    return this.on || this.dark || this.eyes.length > 0 || this.guardTool;
+    return this.on || this.dark || this.eyes.length > 0 || this.guardTool || !!this.host.security?.wantsLight;
   }
 
   // ---------- switches ----------
@@ -381,6 +391,7 @@ export class LightView {
     this.values = this.grid ? sampleCells(this.grid, (x, z) => c.field.bodyLevel(x, c.floor, z, BODY_HEIGHT)) : null;
     this.ver++;
     this.updateGuard(false);
+    this.updateSecurity(false);
     this.drawOverlays();
     this.legend();
     this.host.drawPlanOverlay();
@@ -457,6 +468,45 @@ export class LightView {
     this.guardVer++;
     if (draw) {
       this.drawOverlays();
+      this.host.drawPlanOverlay();
+    }
+  }
+
+  // ---------- security (ON12) ----------
+
+  /** The security cells change (a device, the selection, the coverage view): worked out again, or a bake first. */
+  refreshSecurity(): void {
+    if (!this.wanted) {
+      if (this.cur || this.sec) this.teardown();
+      this.sec = null;
+      this.legend();
+      this.host.drawPlanOverlay();
+      return;
+    }
+    if (!(this.cur && this.cur.level === this.host.view.level && this.state === 'ready')) {
+      if (this.state !== 'baking') this.schedule(0);
+      return;
+    }
+    this.updateSecurity(true);
+  }
+
+  /** The security class of the cell at a point (0 none, 1 hidden in frame, 2 amber, 3 red, 4 sensor). */
+  securityAt(x: number, z: number): number {
+    if (!this.grid || !this.sec) return 0;
+    const k = cellIndex(this.grid, x, z);
+    return k < 0 ? 0 : this.sec[k]!;
+  }
+
+  private updateSecurity(draw = true): void {
+    const c = this.cur;
+    const g = this.grid;
+    const v = this.values;
+    const s = this.host.security;
+    this.sec = c && g && v && s && c.level === this.host.view.level ? s.cells({ grid: g, values: v, floor: c.floor, level: c.level, ray: c.ballistics }) : null;
+    this.secVer++;
+    if (draw) {
+      this.drawOverlays();
+      this.legend();
       this.host.drawPlanOverlay();
     }
   }
@@ -625,6 +675,7 @@ export class LightView {
     this.darkMesh = this.disposeOverlay(this.darkMesh);
     this.contourMesh = this.disposeOverlay(this.contourMesh) as null;
     this.guardMesh = this.disposeOverlay(this.guardMesh);
+    this.secMesh = this.disposeOverlay(this.secMesh);
     for (const m of this.eyeMeshes) this.disposeOverlay(m);
     this.eyeMeshes = [];
     const c = this.cur;
@@ -657,6 +708,8 @@ export class LightView {
     if (g && gv) {
       this.guardMesh = this.cellMesh('guardView', g, y + 0.05, (k) => (gv[k] === 2 ? COL.red : gv[k] === 1 ? COL.amber : null));
     }
+    const sv = this.sec;
+    if (g && sv) this.secMesh = this.cellMesh('securityView', g, y + 0.055, (k) => SEC_COL[sv[k]!] ?? null);
     for (const e of this.eyes) {
       if (e.level !== c.level) continue;
       const head = CreateBox('guardEye', { width: 0.3, height: 0.3, depth: 0.3 }, this.scene);
@@ -731,6 +784,11 @@ export class LightView {
       if (this.planGuard?.ver !== this.guardVer) this.planGuard = { url: this.cellImage(g, (k) => (gv[k] === 2 ? COL.red : gv[k] === 1 ? COL.amber : null)), ver: this.guardVer };
       out += `<image id="guardMap" href="${this.planGuard.url}" ${box}/>`;
     }
+    const sv = this.sec;
+    if (sv) {
+      if (this.planSec?.ver !== this.secVer) this.planSec = { url: this.cellImage(g, (k) => SEC_COL[sv[k]!] ?? null), ver: this.secVer };
+      out += `<image id="secMap" href="${this.planSec.url}" ${box}/>`;
+    }
     for (const e of this.eyes) {
       if (e.level !== c.level) continue;
       const a = toPlan(e.x, e.z);
@@ -752,7 +810,9 @@ export class LightView {
     const st = this.state === 'baking' || (this.timer && !this.cur) ? 'Baking light...' : this.state === 'failed' ? `Light bake failed: ${this.error.slice(0, 80)}` : this.cur ? `Exact light (${Math.round(this.ms)} ms)` : 'Baking light...';
     const bands = this.dark ? `<div><i style="background:#060608"></i>hidden (under ${LIGHT.shadow})</div><div><i style="background:#808085"></i>grey</div><div><i style="background:#fffff7"></i>lit (over ${LIGHT.lit})</div>` : '';
     const guard = this.eyes.length || this.guardTool ? '<div><i style="background:#f21f1a"></i>seen at once <i style="background:#ffad1a;margin-left:6px"></i>seen slowly</div>' : '';
-    el.innerHTML = `<b>${this.on ? 'Lighting' : 'Light'}: ${modeWords(this.mode)}</b><div class="dim" data-light-state="${this.state}">${st}</div>${bands}${guard}`;
+    const s = this.host.security;
+    const sec = this.sec && s ? (s.coverage ? `<div data-sec-legend><i style="background:#1c7dd6"></i>camera <i style="background:#7048e8;margin-left:6px"></i>sensor; clear: unwatched (${s.stats.gaps} cells, ${Math.round(s.stats.gaps * MAP_CELL * MAP_CELL)} m2)</div>` : '<div data-sec-legend><i style="background:#f21f1a"></i>camera sees at once <i style="background:#ffad1a;margin-left:6px"></i>slowly <i style="background:#1c7dd6;margin-left:6px"></i>too dark</div>') : '';
+    el.innerHTML = `<b>${this.on ? 'Lighting' : 'Light'}: ${modeWords(this.mode)}</b><div class="dim" data-light-state="${this.state}">${st}</div>${bands}${guard}${sec}`;
   }
 
   /** Everything off: the exact result and overlays go. */
@@ -769,6 +829,7 @@ export class LightView {
     this.grid = null;
     this.values = null;
     this.guard = null;
+    this.sec = null;
     this.state = 'off';
     this.drawOverlays();
   }

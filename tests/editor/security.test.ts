@@ -191,7 +191,11 @@ describe('what a camera sees', () => {
     const cells = cameraCells(g, v, 0, ray);
     let east = 0;
     let west = 0;
-    for (let k = 0; k < cells.length; k++) if (cells[k]) (cellCentre(g, k)[0] > 10 ? east++ : west++);
+    for (let k = 0; k < cells.length; k++) {
+      if (!cells[k]) continue;
+      if (cellCentre(g, k)[0] > 10) east++;
+      else west++;
+    }
     expect(east).toBe(0);
     expect(west).toBeGreaterThan(50);
   });

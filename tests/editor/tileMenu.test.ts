@@ -11,8 +11,8 @@ const names = (tab: Parameters<typeof menuTiles>[0], inp: MenuInput): string[] =
 
 describe('tile menu model (ON0a)', () => {
   it('tabs: Selected only with a selection and first; every tab has tiles (ON8 filled Mission)', () => {
-    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View']);
-    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View']);
+    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'Security', 'View']);
+    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'Security', 'View']);
   });
 
   it('Mission tab (ON8): Guard and the markers; a guard has Edit path, Play patrol and Mark alone here, no Duplicate', () => {
@@ -23,7 +23,13 @@ describe('tile menu model (ON0a)', () => {
     expect(g).toContain('Delete');
     expect(names('Selected', { ...none, sel: { coll: 'guards', type: 'grunt' }, playing: true })[1]).toBe('Stop patrol');
     expect(names('Selected', { ...none, sel: { coll: 'objectives', type: 'intel' } }).slice(0, 2)).toEqual(['Needs first', 'Opens']);
-    expect(menuTiles('View', none).at(-1)!.value).toBe('All guards');
+    expect(menuTiles('View', none).at(-2)!.value).toBe('All guards');
+    // ON12: the Security tab and the coverage view; a camera has Aim, no Duplicate
+    expect(names('Security', none)).toEqual(['Fixed camera', 'Pan camera', 'Card reader', 'Keypad', 'Motion sensor', 'Beam']);
+    expect(menuTiles('View', none).at(-1)!.name).toBe('Security coverage');
+    const cam = names('Selected', { ...none, sel: { coll: 'devices', type: 'camera' } });
+    expect(cam).toContain('Aim');
+    expect(cam).not.toContain('Duplicate');
   });
 
   it('Objects tab (ON4): the five groups, then the presets of the chosen group', () => {

@@ -33,6 +33,10 @@ import { aimDir, SWITCH } from './lightCatalogue';
 import { isMission, missionCentre } from './mission';
 import type { Extraction, Guard, MissionColl, PatrolPose, PlayPt } from './mission';
 import type { MissionTool } from './missionTool';
+import { deviceCentre, isBeam, isCamera, isPir, isReader } from './security';
+import type { Device } from './security';
+import { DEVICE_COLOURS, DEVICE_SIZES, levelColour, SF } from './securityCatalogue';
+import type { SecurityTool } from './securityTool';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
@@ -100,6 +104,8 @@ export class EditorScene {
   private links: Mesh[] = [];
   /** ON8: the mission tool (guard colours, patrols, which paths show); set by the editor. */
   mission: MissionTool | null = null;
+  /** ON12: the security tool (camera frame outlines); set by the editor. */
+  security: SecurityTool | null = null;
   private figure: Mesh[] = [];
 
   constructor(
@@ -185,6 +191,7 @@ export class EditorScene {
     for (const l of d.lamps ?? []) this.build(keyOf('lamps', l.id));
     for (const c of d.circuits ?? []) this.build(keyOf('circuits', c.id));
     for (const coll of ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction'] as const) for (const e of (d[coll] ?? []) as { id: string }[]) this.build(keyOf(coll, e.id));
+    for (const e of d.devices ?? []) this.build(keyOf('devices', e.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -219,7 +226,7 @@ export class EditorScene {
       for (const w of this.data.walls) if (EditorScene.joinKey(old.get(w.id)) !== EditorScene.joinKey(this.joins.get(w.id))) todo.add(keyOf('walls', w.id));
     }
     // ON8: a building change can open or close a guard's way: its legs are worked out again
-    if ([...todo].some((k) => !isMission(k.slice(0, k.indexOf(':'))))) for (const g of this.data.guards ?? []) todo.add(keyOf('guards', g.id));
+    if ([...todo].some((k) => !isMission(k.slice(0, k.indexOf(':'))) && !k.startsWith('devices:'))) for (const g of this.data.guards ?? []) todo.add(keyOf('guards', g.id));
     for (const k of todo) this.build(k);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -251,6 +258,7 @@ export class EditorScene {
     else if (p.coll === 'lamps') [meshes, levels] = this.buildLamp(e as Lamp);
     else if (p.coll === 'circuits') [meshes, levels] = this.buildSwitch(e as Circuit);
     else if (isMission(p.coll)) [meshes, levels] = this.buildMission(p.coll, e);
+    else if (p.coll === 'devices') [meshes, levels] = this.buildDevice(e as unknown as Device);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -278,8 +286,64 @@ export class EditorScene {
       return sw ? [sw.at[0], sw.at[2]] : [0, 0];
     }
     if (isMission(coll)) return missionCentre(coll, e);
+    if (coll === 'devices') return deviceCentre(e as Device);
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
+  }
+
+  /**
+   * ON12: a security device: a camera's housing (SN05) facing its way with its frame outline on the floor (a pan
+   * camera: its whole sweep) to its range; a reader plate in its access level's colour; a PIR dome with its fan on the
+   * floor; a beam as a line between its ends (bright when visible, dark when night vision only) with posts. Their ids are
+   * labels (overlays.ts). The light view tints what a camera sees (lightView.ts).
+   */
+  private buildDevice(e: Device): [Mesh[], string[]] {
+    const out: Mesh[] = [];
+    const y0 = this.floorOf(e.level);
+    const line = (name: string, pts: Vector3[][], hex: string): void => {
+      const c = Color3.FromHexString(hex);
+      const cc = new Color4(c.r, c.g, c.b, 1);
+      out.push(CreateLineSystem(name, { lines: pts, colors: pts.map((l) => l.map(() => cc)) }, this.scene));
+    };
+    if (isBeam(e)) {
+      const a = new Vector3(e.a[0], y0 + e.a[1], e.a[2]);
+      const b = new Vector3(e.b[0], y0 + e.b[1], e.b[2]);
+      line(`beam ${e.id}`, [[a, b]], e.visible ? DEVICE_COLOURS.beam : '#7a1f1f');
+      const post = this.mat('beam post', '#495057', 1, 0.2);
+      for (const p of [e.a, e.b]) out.push(this.box(`beam ${e.id} post`, p[0], y0 + (p[1] + 0.1) / 2, p[2], DEVICE_SIZES.beamPost.w, p[1] + 0.1, DEVICE_SIZES.beamPost.d, 0, post));
+      return [out, [e.level]];
+    }
+    const at = e.at as [number, number] | undefined;
+    if (!at) return [[], [e.level]];
+    const y = y0 + (typeof e.y === 'number' ? e.y : 1);
+    const yaw = typeof e.facing === 'number' ? (e.facing * Math.PI) / 180 : 0;
+    if (isCamera(e)) {
+      const s = DEVICE_SIZES.camera;
+      out.push(this.box(`camera ${e.id}`, at[0], y, at[1], s.w, s.h, s.d, yaw, this.mat('camera', DEVICE_COLOURS.camera, 1, 0.2)));
+      const led = this.box(`camera ${e.id} led`, at[0] + Math.sin(yaw) * (s.d / 2), y + s.h / 2, at[1] + Math.cos(yaw) * (s.d / 2), 0.04, 0.04, 0.04, yaw, this.mat('camera led', '#ff2222', 1, 1));
+      out.push(led);
+      const fl = this.security?.frameLines(e) ?? [];
+      const fy = y0 + 0.07;
+      if (fl.length) line(`camera ${e.id} frame`, fl.map(([p, q]) => [new Vector3(p[0], fy, p[1]), new Vector3(q[0], fy, q[1])]), DEVICE_COLOURS.cone);
+    } else if (isReader(e)) {
+      const s = DEVICE_SIZES.reader;
+      out.push(this.box(`reader ${e.id}`, at[0], y, at[1], s.w, s.h, s.d, yaw, this.mat(`reader level ${e.accessLevel}`, levelColour(e.accessLevel), 1, 0.4)));
+    } else if (isPir(e)) {
+      const s = DEVICE_SIZES.pir;
+      out.push(this.box(`pir ${e.id}`, at[0], y, at[1], s.w, s.h, s.d, yaw, this.mat('pir', DEVICE_COLOURS.pir, 1, 0.5)));
+      const r = SF.pirRange.value;
+      const half = e.mount === 'wall' ? (SF.pirWallFan.value / 2) * (Math.PI / 180) : Math.PI;
+      const pts: Vector3[] = [];
+      const fy = y0 + 0.06;
+      if (e.mount === 'wall') pts.push(new Vector3(at[0], fy, at[1]));
+      for (let i = 0; i <= 36; i++) {
+        const a = yaw - half + (2 * half * i) / 36;
+        pts.push(new Vector3(at[0] + Math.sin(a) * r, fy, at[1] + Math.cos(a) * r));
+      }
+      if (e.mount === 'wall') pts.push(new Vector3(at[0], fy, at[1]));
+      line(`pir ${e.id} fan`, [pts], DEVICE_COLOURS.pirFan);
+    } else out.push(this.box(`device ${e.id}`, at[0], y, at[1], 0.2, 0.2, 0.2, yaw, this.mat('device', '#868e96', 1, 0.2)));
+    return [out, [e.level]];
   }
 
   /** ON8: every guard rebuilt (Hub > View "Guard paths", or the selection while it shows only the selected guard's). */

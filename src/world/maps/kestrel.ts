@@ -3,6 +3,7 @@ import { MOVEMENT } from '../../config/movement';
 import type { MapDef, MapLayout } from '../mapDef';
 import type { BoxPiece, LevelBuilder } from '../levelBuilder';
 import type { RoomDef } from '../rooms';
+import type { CameraDevice } from '../../security/data';
 import blocks from './kestrel.blocks.json';
 import { campusToBuild, type CampusFile } from './kestrelCampus';
 import { walkOpenings } from './kestrelDoors';
@@ -92,6 +93,9 @@ function buildDraft(b: LevelBuilder, d: NonNullable<typeof draft>): MapLayout {
   const ops = walkOpenings(c.arch);
   for (const o of ops.doors) b.door(o.hinge[0], o.hinge[1], o.hinge[2], o.width, o.yaw, { height: o.height, swing: o.swing, locked: o.locked });
   for (const p of ops.panes) b.windowAt(p.c[0], p.c[1], p.c[2], p.w, p.h, p.yaw, { breakable: p.breakable });
+  // ON12: the editor's cameras as the game's own security cameras (S1); readers, sensors and beams wait for S2-S3
+  const cams = ((d.campus as { devices?: { kind?: string }[] }).devices ?? []).filter((x): x is CameraDevice => x.kind === 'camera');
+  if (cams.length) layout.security = { devices: cams.map((q) => ({ id: q.id, kind: 'camera', level: q.level, at: q.at, y: q.y, facing: q.facing, ...(q.sweep ? { sweep: q.sweep } : {}), room: q.room, reason: q.reason })), levels: Object.fromEntries(c.arch.levels.map((l) => [l.id, l.floor])) };
   if (d.spawn) {
     const y = levelOf(c.arch, d.spawn.level).floor;
     const [x, z] = clearOfWalls(b, d.spawn.x, d.spawn.z, y, SPAWN_CLEAR);
