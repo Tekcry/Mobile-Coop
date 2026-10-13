@@ -26,6 +26,13 @@ import { catEntry, effective, GLASS_WALL_DEFAULT } from './openingCatalogue';
 import type { GlassData } from './openingCatalogue';
 import { hangsAtA, swingSign } from '../world/maps/kestrelDoors';
 import type { VisSettings } from './visibility';
+import { circuitLevel, lampCentre, lampLevel } from './lamps';
+import type { Circuit, Lamp } from './lamps';
+import { lampOnNormally } from '../world/maps/kestrelLights';
+import { aimDir, SWITCH } from './lightCatalogue';
+import { isMission, missionCentre } from './mission';
+import type { Extraction, Guard, MissionColl, PatrolPose, PlayPt } from './mission';
+import type { MissionTool } from './missionTool';
 
 /** Access level tints, as the plans draw them (scripts/kestrel/plans.mjs RING_TINT). */
 const RING_TINT = ['#d6ebc9', '#e6efc2', '#fbeab9', '#fbd9a8', '#f6c3a8', '#efb0c0'];
@@ -91,6 +98,9 @@ export class EditorScene {
   /** One node per level; exploded view lifts it. */
   private readonly levelNodes = new Map<string, TransformNode>();
   private links: Mesh[] = [];
+  /** ON8: the mission tool (guard colours, patrols, which paths show); set by the editor. */
+  mission: MissionTool | null = null;
+  private figure: Mesh[] = [];
 
   constructor(
     canvas: HTMLCanvasElement,
@@ -172,6 +182,9 @@ export class EditorScene {
     for (const r of d.roofs ?? []) this.build(keyOf('roofs', r.id));
     for (const o of d.objects ?? []) this.build(keyOf('objects', o.id));
     for (const x of d.exterior ?? []) this.build(keyOf('exterior', x.id));
+    for (const l of d.lamps ?? []) this.build(keyOf('lamps', l.id));
+    for (const c of d.circuits ?? []) this.build(keyOf('circuits', c.id));
+    for (const coll of ['guards', 'objectives', 'hides', 'checkpoints', 'spawns', 'extraction'] as const) for (const e of (d[coll] ?? []) as { id: string }[]) this.build(keyOf(coll, e.id));
     for (const s of d.services ?? []) this.buildService(s);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -205,6 +218,8 @@ export class EditorScene {
       this.joins = wallJoins(this.data.walls);
       for (const w of this.data.walls) if (EditorScene.joinKey(old.get(w.id)) !== EditorScene.joinKey(this.joins.get(w.id))) todo.add(keyOf('walls', w.id));
     }
+    // ON8: a building change can open or close a guard's way: its legs are worked out again
+    if ([...todo].some((k) => !isMission(k.slice(0, k.indexOf(':'))))) for (const g of this.data.guards ?? []) todo.add(keyOf('guards', g.id));
     for (const k of todo) this.build(k);
     this.applyVisibility();
     if (this.selected) this.outline(this.selected, true);
@@ -233,6 +248,9 @@ export class EditorScene {
     else if (p.coll === 'roofs') [meshes, levels] = this.buildRoof(e as Roof);
     else if (p.coll === 'objects') [meshes, levels] = this.buildObject(e as Obj);
     else if (p.coll === 'exterior') [meshes, levels] = this.buildExterior(e as Ext);
+    else if (p.coll === 'lamps') [meshes, levels] = this.buildLamp(e as Lamp);
+    else if (p.coll === 'circuits') [meshes, levels] = this.buildSwitch(e as Circuit);
+    else if (isMission(p.coll)) [meshes, levels] = this.buildMission(p.coll, e);
     const floor = Math.min(...levels.map((l) => this.floorOf(l)));
     const [bx, bz] = this.planCentre(p.coll, e);
     const building = (p.coll === 'rooms' ? (e as Room).building : undefined) ?? buildingAt(this.data.meta.buildings, bx, bz);
@@ -254,8 +272,195 @@ export class EditorScene {
     }
     if (coll === 'ladders') return (e as Ladder).at;
     if (coll === 'exterior') return [((e as Ext).a[0] + (e as Ext).b[0]) / 2, ((e as Ext).a[1] + (e as Ext).b[1]) / 2];
+    if (coll === 'lamps') return lampCentre(e as Lamp);
+    if (coll === 'circuits') {
+      const sw = (e as Circuit).switch;
+      return sw ? [sw.at[0], sw.at[2]] : [0, 0];
+    }
+    if (isMission(coll)) return missionCentre(coll, e);
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
+  }
+
+  /** ON8: every guard rebuilt (Hub > View "Guard paths", or the selection while it shows only the selected guard's). */
+  refreshGuards(): void {
+    for (const g of this.data.guards ?? []) this.build(keyOf('guards', g.id));
+    this.applyVisibility();
+    if (this.selected) this.outline(this.selected, true);
+  }
+
+  /**
+   * ON8: a guard (a see-through figure at its first stop; with its path shown, a line on the floor per leg, red where
+   * there is no way, arrows the way it walks, a pad at each stop with a wedge for its facing) or a mission marker
+   * (insertion: a blue post on a disc; objective: a diamond; hide: a grey box; checkpoint: a flag; extraction: a green
+   * zone on the floor). Their words are labels (overlays.ts).
+   */
+  private buildMission(coll: MissionColl, e: unknown): [Mesh[], string[]] {
+    const out: Mesh[] = [];
+    const mt = this.mission;
+    const fy = (l: string): number => this.floorOf(l);
+    const post = (name: string, at: PlayPt, h: number, hex: string, w = 0.1): Mesh => this.box(name, at[0], fy(at[2]) + h / 2, at[1], w, h, w, 0, this.mat(name.split(' ')[0]!, hex, 1, 0.25));
+    if (coll === 'guards') {
+      const g = e as Guard;
+      const s0 = g.loop[0];
+      if (!s0 || !mt) return [[], []];
+      const col = mt.colourOf(g.id);
+      const levels = [...new Set(g.loop.map((s) => s.at[2]))];
+      out.push(this.box(`guard ${g.id}`, s0.at[0], fy(s0.at[2]) + 0.875, s0.at[1], 0.45, 1.75, 0.3, (s0.face * Math.PI) / 180, this.mat('guard body', col, 0.45, 0.2)));
+      if (!mt.showsPath(g.id)) return [out, levels];
+      const pat = mt.patrolOf(g);
+      const lines: Vector3[][] = [];
+      const colors: Color4[][] = [];
+      const c = Color3.FromHexString(col);
+      const ok = new Color4(c.r, c.g, c.b, 1);
+      const bad = new Color4(0.88, 0.19, 0.19, 1);
+      for (const leg of pat.legs) {
+        for (let i = 1; i < leg.pts.length; i++) {
+          const a = leg.pts[i - 1]!;
+          const b = leg.pts[i]!;
+          if (a[2] !== b[2]) continue;
+          const y = fy(a[2]) + 0.08;
+          const cc = leg.ok ? ok : bad;
+          lines.push([new Vector3(a[0], y, a[1]), new Vector3(b[0], y, b[1])]);
+          colors.push([cc, cc]);
+          const L = Math.sqrt((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2);
+          if (L > 1.5) {
+            // an arrow at the middle, the way walked
+            const ux = (b[0] - a[0]) / L;
+            const uz = (b[1] - a[1]) / L;
+            const mx = (a[0] + b[0]) / 2;
+            const mz = (a[1] + b[1]) / 2;
+            const tip = new Vector3(mx + ux * 0.3, y, mz + uz * 0.3);
+            lines.push([new Vector3(mx - ux * 0.1 - uz * 0.25, y, mz - uz * 0.1 + ux * 0.25), tip, new Vector3(mx - ux * 0.1 + uz * 0.25, y, mz - uz * 0.1 - ux * 0.25)]);
+            colors.push([cc, cc, cc]);
+          }
+        }
+      }
+      if (lines.length) out.push(CreateLineSystem(`guard ${g.id} path`, { lines, colors }, this.scene));
+      const pad = this.mat('guard stop', col, 1, 0.3);
+      g.loop.forEach((s, i) => {
+        const y = fy(s.at[2]);
+        out.push(this.box(`guard ${g.id} stop ${i + 1}`, s.at[0], y + 0.03, s.at[1], i === 0 ? 0.6 : 0.4, 0.06, i === 0 ? 0.6 : 0.4, 0, pad));
+        const fx = Math.sin((s.face * Math.PI) / 180);
+        const fz = Math.cos((s.face * Math.PI) / 180);
+        out.push(this.box(`guard ${g.id} face ${i + 1}`, s.at[0] + fx * 0.45, y + 0.07, s.at[1] + fz * 0.45, 0.08, 0.04, 0.5, (s.face * Math.PI) / 180, pad));
+      });
+      if (g.isolation) out.push(post(`guard ${g.id} alone`, g.isolation.at, 0.3, col, 0.3));
+      return [out, levels];
+    }
+    if (coll === 'extraction') {
+      const x = e as Extraction;
+      const r = x.rect;
+      const y = fy(x.level);
+      out.push(this.box(`extraction ${x.id}`, (r[0] + r[2]) / 2, y + 0.04, (r[1] + r[3]) / 2, r[2] - r[0], 0.08, r[3] - r[1], 0, this.mat('extraction', '#2f9e44', 0.35, 0.3)));
+      for (const [cx, cz] of [[r[0], r[1]], [r[2], r[1]], [r[2], r[3]], [r[0], r[3]]] as const) out.push(post(`extraction ${x.id} corner`, [cx, cz, x.level], 1.2, '#2f9e44', 0.08));
+      return [out, [x.level]];
+    }
+    const at = (e as { at: PlayPt; id: string }).at;
+    const id = (e as { id: string }).id;
+    const y = fy(at[2]);
+    if (coll === 'spawns') {
+      out.push(post(`spawn ${id}`, at, 1.2, '#1c7ed6'), this.box(`spawn ${id} disc`, at[0], y + 0.02, at[1], 0.8, 0.04, 0.8, 0, this.mat('spawn disc', '#1c7ed6', 0.6, 0.3)));
+    } else if (coll === 'objectives') {
+      const kind = (e as { kind: string }).kind;
+      const m = this.box(`objective ${id}`, at[0], y + 1.3, at[1], 0.35, 0.35, 0.35, Math.PI / 4, this.mat(`objective ${kind === 'intel' ? 'intel' : 'goal'}`, kind === 'intel' ? '#f59f00' : '#e64980', 1, 0.4));
+      m.rotation.x = Math.PI / 4;
+      out.push(m, post(`objective ${id} stand`, at, 1.1, '#868e96', 0.05));
+    } else if (coll === 'hides') {
+      out.push(this.box(`hide ${id}`, at[0], y + 0.4, at[1], 0.7, 0.8, 0.7, 0, this.mat('hide', '#495057', 0.45, 0.1)));
+    } else {
+      out.push(post(`checkpoint ${id}`, at, 1.6, '#0ca678', 0.06), this.box(`checkpoint ${id} flag`, at[0] + 0.25, y + 1.4, at[1], 0.45, 0.3, 0.03, 0, this.mat('checkpoint flag', '#0ca678', 1, 0.3)));
+    }
+    return [out, [at[2]]];
+  }
+
+  /** ON8: the patrol preview's figure (a guard-sized box with a nose the way it faces), or none. */
+  setPatrolFigure(pose: PatrolPose | null, hex: string): void {
+    if (!pose) {
+      for (const m of this.figure) m.setEnabled(false);
+      return;
+    }
+    if (!this.figure.length) {
+      const body = CreateBox('patrolFigure', { width: 0.45, height: 1.75, depth: 0.3 }, this.scene);
+      const nose = CreateBox('patrolNose', { width: 0.12, height: 0.12, depth: 0.35 }, this.scene);
+      nose.parent = body;
+      nose.position.set(0, 0.6, 0.3);
+      const mat = new StandardMaterial('patrol figure', this.scene);
+      mat.diffuseColor = new Color3(0.95, 0.95, 0.95);
+      body.material = mat;
+      nose.material = mat;
+      body.isPickable = false;
+      nose.isPickable = false;
+      this.figure = [body, nose];
+    }
+    const body = this.figure[0]!;
+    for (const m of this.figure) m.setEnabled(true);
+    (body.material as StandardMaterial).emissiveColor = Color3.FromHexString(hex || '#ffffff').scale(0.6);
+    body.position.set(pose.x, this.floorOf(pose.level) + this.offsetOf(pose.level) + 0.875, pose.z);
+    body.rotation.y = pose.yaw;
+  }
+
+  /** The patrol figure's place now, or null (tests read it). */
+  get patrolFigureAt(): [number, number] | null {
+    const b = this.figure[0];
+    return b?.isEnabled() ? [b.position.x, b.position.z] : null;
+  }
+
+  /**
+   * ON6: a lamp as its body (the fitting's box, or a strip along its line) and an emissive bulb at the light, as the
+   * game's light rig draws bulbs (a lamp off in its normal state, PIR or non-maintained, gets a dark bulb). Lighting the
+   * scene from the lamps is ON7.
+   */
+  private buildLamp(l: Lamp): [Mesh[], string[]] {
+    const lv = lampLevel(this.data, l);
+    if (!lv) return [[], []];
+    const f = this.floorOf(lv);
+    const fx = l.params.fixture;
+    const body = this.mat('lamp body', '#d9dce0');
+    const c = l.params.color;
+    const hex = `#${c.map((v) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0')).join('')}`;
+    const on = lampOnNormally(l);
+    const bulbMat = this.mat(`bulb ${on ? 'on' : 'off'}`, on ? hex : '#3a3d42', 1, on ? 1 : 0);
+    const out: Mesh[] = [];
+    const y = f + l.at[1];
+    if (l.b) {
+      const dx = l.b[0] - l.at[0];
+      const dz = l.b[2] - l.at[2];
+      const len = Math.sqrt(dx * dx + dz * dz);
+      const [cx, cz] = lampCentre(l);
+      const yaw = EditorScene.yaw(dx, dz);
+      out.push(this.box(`lamp ${l.id}`, cx, y + (fx?.oy ?? 0), cz, len, fx?.sy ?? 0.04, 0.06, yaw, body));
+      out.push(this.box(`bulb ${l.id}`, cx, y - 0.005, cz, len * 0.96, 0.02, 0.04, yaw, bulbMat));
+    } else {
+      const sx = fx?.sx ?? 0.15;
+      const sy = fx?.sy ?? 0.1;
+      const sz = fx?.sz ?? 0.15;
+      out.push(this.box(`lamp ${l.id}`, l.at[0], y + (fx?.oy ?? 0), l.at[2], sx, sy, sz, 0, body));
+      const bs = Math.max(0.06, Math.min(0.2, Math.min(sx, sz) * 0.8));
+      out.push(this.box(`bulb ${l.id}`, l.at[0], y, l.at[2], bs, 0.04, bs, 0, bulbMat));
+    }
+    // an aimed fitting (flood, twin spot): a thin 1.5 m rod along its beam, so the aim reads from any side
+    if (l.aim) {
+      const d = aimDir(l.aim);
+      for (const k of (l.heads ?? 1) > 1 ? [1, -1] : [1]) {
+        const rod = this.box(`aim ${l.id}`, l.at[0] + d[0] * k * 0.75, y + d[1] * 0.75, l.at[2] + d[2] * k * 0.75, 0.03, 0.03, 1.5, 0, bulbMat);
+        rod.rotation.y = ((l.aim[0] + (k < 0 ? 180 : 0)) * Math.PI) / 180;
+        rod.rotation.x = (l.aim[1] * Math.PI) / 180;
+        out.push(rod);
+      }
+    }
+    return [out, [lv]];
+  }
+
+  /** ON6: a wall switch: a small white plate on its wall face at its height. */
+  private buildSwitch(c: Circuit): [Mesh[], string[]] {
+    if (!c.switch) return [[], []];
+    const lv = circuitLevel(this.data, c);
+    if (!lv) return [[], []];
+    const w = this.data.walls.find((q) => q.id === c.switch!.wall);
+    const alongX = !!w && Math.abs(w.a[1] - w.b[1]) < Math.abs(w.a[0] - w.b[0]);
+    const m = this.box(`switch ${c.id}`, c.switch.at[0], this.floorOf(lv) + c.switch.at[1], c.switch.at[2], alongX ? SWITCH.w : SWITCH.d, SWITCH.h, alongX ? SWITCH.d : SWITCH.w, 0, this.mat('switch', '#f4f4f4', 1, 0.3));
+    return [[m], [lv]];
   }
 
   private levelNode(id: string): TransformNode {

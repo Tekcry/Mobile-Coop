@@ -8,6 +8,9 @@
 import { roofWalkPieces } from './kestrelRoofs';
 import { exteriorPieces, finishAreas } from './kestrelExterior';
 import type { ExtBuild, ExtPiece, FinishArea } from './kestrelExterior';
+import { campusLights } from './kestrelLights';
+import type { CircuitRecord, LampRecord } from './kestrelLights';
+import type { LightInit } from '../lights';
 import type { Dir, RoofBox, RoofData, RoofPane } from './kestrelRoofs';
 import type { ArchLevel, ArchOpening, ArchRoom, ArchStair, ArchVoid, ArchWall, KestrelArch, Pt, Rect4 } from './kestrelGeo';
 
@@ -44,6 +47,9 @@ export interface CampusFile {
   objects?: CampusObject[];
   /** ON5: climb pieces and exterior features (kestrelExterior.ts). */
   exterior?: ExtPiece[];
+  /** ON6: the play file's lamps and circuits (the editor joins them in; kestrelLights.ts). */
+  lamps?: LampRecord[];
+  circuits?: CircuitRecord[];
 }
 
 export interface CampusObject {
@@ -85,6 +91,8 @@ export interface CampusBuild {
   /** ON5: every climb piece as the engine's own builder call (or plain collision), and the floors marked by finish. */
   exterior: ExtBuild[];
   surfaces: FinishArea[];
+  /** ON6: every lamp as the game's own light (circuits as switch groups). */
+  lights: LightInit[];
 }
 
 /** Compass letter to yaw: north = +Z = 0, east = +X = 90 degrees (docs/kestrel/00-facts.md section 2). */
@@ -154,7 +162,7 @@ export function campusToBuild(f: CampusFile): CampusBuild {
   });
   // ON5: rooms with a floor finish sound as its game surface; climb pieces as the engine's builders
   const surfaces = finishAreas(f.rooms as readonly (ArchRoom & { finish?: string })[], floor);
-  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes, exterior: exteriorPieces(f.exterior ?? []), surfaces };
+  return { arch, ladders, solids, roofBoxes, roofPanes, objectBoxes, exterior: exteriorPieces(f.exterior ?? []), surfaces, lights: campusLights(f) };
 }
 
 /**

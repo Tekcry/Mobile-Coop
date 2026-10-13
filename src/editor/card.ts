@@ -18,6 +18,47 @@ import type { Campus, Ext, Obj } from './types';
 import { pieceRows, stepPiece } from './climb';
 import { finishOf } from './climbCatalogue';
 import { stepFinish } from './finishes';
+import { lampRows, stepLamp } from './lamps';
+import type { Lamp, LampData } from './lamps';
+import { fittingOf } from './lightCatalogue';
+import { EMPLOYERS, GUARD_KINDS, guardKind, HIDE_KINDS, hideKind, JOBS, OBJECTIVE_KINDS, objectiveKind, ROSTER } from './missionCatalogue';
+import type { Guard, Hide, Objective } from './mission';
+
+/** ON8: a guard's card: Type (the game's guard kind), Role (the brief's roster: name, employer and job), Employer, Job. */
+function guardRows(g: Guard): CardRow[] {
+  const role = ROSTER.find((r) => r.name === g.name);
+  return [
+    { id: 'type', label: 'Type', value: guardKind(g.kind).name, kind: 'list' },
+    { id: 'role', label: 'Role', value: role?.name ?? '(own)', kind: 'list' },
+    { id: 'employer', label: 'Employer', value: g.employer || '(none)', kind: 'list' },
+    { id: 'job', label: 'Job', value: g.job || '(none)', kind: 'list' },
+  ];
+}
+
+/** ON8: one step of a mission record's own rows (null: nothing to step). */
+function stepMissionRow(coll: Coll, e: Elem, row: string, dir: 1 | -1): Elem | null {
+  if (coll === 'guards') {
+    const g = e as unknown as Guard;
+    if (row === 'type') return { ...g, kind: wrap(GUARD_KINDS.map((k) => k.id), g.kind, dir) } as unknown as Elem;
+    if (row === 'role') {
+      const i = ROSTER.findIndex((r) => r.name === g.name);
+      const r = ROSTER[(i < 0 ? (dir > 0 ? 0 : ROSTER.length - 1) : (i + dir + ROSTER.length) % ROSTER.length)]!;
+      return { ...g, name: r.name, employer: r.employer, job: r.job } as unknown as Elem;
+    }
+    if (row === 'employer') return { ...g, employer: wrap(EMPLOYERS, g.employer, dir) } as unknown as Elem;
+    if (row === 'job') return { ...g, job: wrap(JOBS, g.job, dir) } as unknown as Elem;
+    return null;
+  }
+  if (coll === 'objectives') {
+    const o = e as unknown as Objective;
+    if (row === 'type') return { ...o, kind: wrap(OBJECTIVE_KINDS.map((k) => k.id), o.kind, dir) } as unknown as Elem;
+    if (row === 'order') return o.order + dir < 1 ? null : ({ ...o, order: o.order + dir } as unknown as Elem);
+    if (row === 'optional') return { ...o, optional: !o.optional } as unknown as Elem;
+    return null;
+  }
+  if (coll === 'hides' && row === 'type') return { ...(e as unknown as Hide), kind: wrap(HIDE_KINDS.map((k) => k.id), (e as unknown as Hide).kind, dir) } as unknown as Elem;
+  return null;
+}
 
 /** ON4: an object's card: Type (the preset), Name, size, height, base, turn, see-through, no ledge. */
 function objectRows(o: Obj): CardRow[] {
@@ -162,6 +203,20 @@ export function cardRows(coll: Coll, e: Elem, ctx: SideCtx = {}): CardRow[] {
   }
   if (coll === 'roofs') return roofRows(e as Roof);
   if (coll === 'objects') return objectRows(e as Obj);
+  // ON8: guards and mission markers (the path is edited with Selected > Edit path)
+  if (coll === 'guards') {
+    const rows = guardRows(e as unknown as Guard);
+    return [rows[0]!, nameRow(e), ...rows.slice(1), idRow(e)];
+  }
+  if (coll === 'objectives') {
+    const o = e as unknown as Objective;
+    return [{ id: 'type', label: 'Type', value: objectiveKind(o.kind).name, kind: 'list' }, nameRow(e), { id: 'order', label: 'Order', value: String(o.order), kind: 'list' }, { id: 'optional', label: 'Optional', value: o.optional ? 'yes' : 'no', kind: 'flag' }, idRow(e)];
+  }
+  if (coll === 'hides') return [{ id: 'type', label: 'Type', value: hideKind((e as unknown as Hide).kind).name, kind: 'list' }, nameRow(e), idRow(e)];
+  if (coll === 'spawns') return [idRow(e)];
+  if (coll === 'extraction') return sizeRows((e as unknown as { rect: Rect }).rect);
+  // ON6: a lamp: Type (the fitting), Name, lumens, colour temperature, beam, height, aim, the flags, circuit, owner
+  if (coll === 'lamps') return [{ id: 'type', label: 'Type', value: fittingOf((e as Lamp).fixture)?.name ?? (e as Lamp).fixture, kind: 'list' }, nameRow(e), ...lampRows(e as Lamp), idRow(e)];
   if (coll === 'exterior') {
     const rows = pieceRows(e as Ext);
     return [rows[0]!, nameRow(e), ...rows.slice(1), idRow(e)];
@@ -206,6 +261,8 @@ export function stepCard(coll: Coll, e: Elem, row: string, dir: 1 | -1, c: StepC
   const a = JSON.parse(JSON.stringify(e)) as Elem & Record<string, unknown>;
   const len = (v: number): number => Math.max(c.step, r3(v + dir * c.step));
   if (coll === 'exterior' && row !== 'name' && row !== 'id') return c.data ? stepPiece(c.data, e as Ext, row, dir, c.step) : null;
+  if ((coll === 'guards' || coll === 'objectives' || coll === 'hides') && row !== 'name' && row !== 'id') return stepMissionRow(coll, e, row, dir);
+  if (coll === 'lamps' && row !== 'name' && row !== 'id') return c.data ? stepLamp(c.data as unknown as LampData, e as Lamp, row, dir, c.step) : null;
   if (coll === 'rooms' && row === 'finish') {
     const f = stepFinish((e as Room).finish, dir);
     // the file has `finish: ""` on every room: keep the key where it is (a no-op save stays byte-identical)

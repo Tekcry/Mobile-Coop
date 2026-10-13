@@ -23,7 +23,7 @@ import { ENEMY_CALM_MOTION, ENEMY_MOTION } from '../config/movement';
 import type { RigPose } from '../player/characterRig';
 import { clampToRoom, inRoom, roomAt, type RoomRect } from '../world/rooms';
 import { hyp2 } from '../core/mathx';
-import { instantDetect, noiseSuspicion, seenAt, sightRate, stepMeter, type SightInput } from './perception';
+import { EYE_STAND, instantDetect, losClear, noiseSuspicion, seenAt, sightRate, stepMeter, type SightInput } from './perception';
 import { ALERT, AlertMachine, emptyAlertInput, type AlertLevel } from './alertState';
 import { PatrolWalker, searchPoint, PATROL, type PatrolRoute } from './patrol';
 import { BODY, bodyNoticed } from './bodies';
@@ -433,7 +433,7 @@ export class Enemy implements Damageable {
   }
 
   private eye(out: Vector3): Vector3 {
-    return out.copyFrom(this.pos).addInPlaceFromFloats(0, (this.crouch > 0.5 ? 1.0 : 1.55) * this.def.scale, 0);
+    return out.copyFrom(this.pos).addInPlaceFromFloats(0, (this.crouch > 0.5 ? 1.0 : EYE_STAND) * this.def.scale, 0);
   }
 
   /** Say a line for `ev` (the dog growls whatever the event). */
@@ -893,8 +893,7 @@ export class Enemy implements Damageable {
   }
 
   private losTo(eye: Vector3, to: Vector3, slack: number): boolean {
-    const h = this.ctx.ballistics.ray(eye, to, G.STATIC);
-    return !h.hit || h.distance > Vector3.Distance(eye, to) - slack;
+    return losClear(this.ctx.ballistics, eye, to, slack);
   }
 
   /** Per fixed step: the awareness meter and the alert level. */

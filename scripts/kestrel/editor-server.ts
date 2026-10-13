@@ -17,6 +17,8 @@ const LOG_MD = 'docs/kestrel/editor-log.md';
 const LOG_JSONL = 'docs/kestrel/editor-log.jsonl';
 /** ON11: Michael's own room presets (saved with the file save). */
 const PRESETS = 'docs/kestrel/editor-presets.json';
+/** ON6: the play file (lamps and circuits; schema.md section 3), loaded and saved with the campus file. */
+const PLAY = 'docs/kestrel/kestrel.play.json';
 type ExpandMod = {
   loadModules: () => Map<string, { id: string; name: string; source?: string }>;
   expandLayout: (a: { layout: unknown; modules: unknown }) => { arch: Record<string, unknown>; errors: string[] };
@@ -113,6 +115,7 @@ export function kestrelEditor(): Plugin {
     if (!existsSync(f)) {
       mkdirSync(path.dirname(f), { recursive: true });
       copyFileSync(path.join(root, CAMPUS), f);
+      if (existsSync(path.join(root, PLAY))) copyFileSync(path.join(root, PLAY), path.join(store, PLAY));
     }
   };
 
@@ -139,6 +142,14 @@ export function kestrelEditor(): Plugin {
             // the file time lets the editor tell whether an unsaved draft is newer than the file
             res.setHeader('x-mtime', String(Math.floor(statSync(path.join(store, CAMPUS)).mtimeMs)));
             return send(res, 200, 'application/json', readFileSync(path.join(store, CAMPUS), 'utf8'));
+          }
+          // ON6: the play file, when there is one (the editor makes it on the first save with lamps)
+          if (url.pathname === '/__editor/play' && req.method === 'GET') {
+            const f = path.join(store, PLAY);
+            // (no file yet: an empty reply, not a 404, so the browser logs no error)
+            if (!existsSync(f)) return send(res, 200, 'application/json', '');
+            res.setHeader('x-mtime', String(Math.floor(statSync(f).mtimeMs)));
+            return send(res, 200, 'application/json', readFileSync(f, 'utf8'));
           }
           // the phone downloads this once to trust the editor's https certificate
           if (url.pathname === '/__editor/cert.crt' && req.method === 'GET') {
@@ -212,6 +223,11 @@ export function kestrelEditor(): Plugin {
             if (!campus?.meta) return json(res, { error: 'no campus' }, 400);
             campus.meta.editor = OWNER;
             writeFileSync(path.join(store, CAMPUS), JSON.stringify(campus, null, 1) + '\n');
+            // ON6: the play file, only when the editor's lamps or circuits changed it
+            if (typeof data.playText === 'string') {
+              if (!data.playText.startsWith('{')) return json(res, { error: 'bad play file' }, 400);
+              writeFileSync(path.join(store, PLAY), data.playText);
+            }
             const savedAt = new Date().toISOString();
             if (journal.length) {
               const logMd = path.join(store, LOG_MD);

@@ -26,7 +26,7 @@ import { GameWalk, type WalkReport, type WalkSpawn } from './gameWalk';
 import { StampTool } from './stampTool';
 import { DR_NOTE, DR_TYPES } from '../world/maps/kestrelDoors';
 import { familyTypes, GLASS_WALL_DEFAULT, withOpeningType } from './openingCatalogue';
-import { deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_DEFAULTS, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
+import { cardWords, deleteChanges, describeChange, describeEdit, DOOR_NAMES, label, newOpening, newRoom, newWall, OPENING_DEFAULTS, OPENING_TYPES, ROOM_KINDS, WALL_KINDS, withBetween } from './ops';
 import { WallChain } from './chain';
 import { centreOpening, edgeSnap, liveOpening, liveRoom, liveWall } from './liveSizes';
 import type { LiveInfo, LiveShape } from './liveSizes';
@@ -49,9 +49,20 @@ import { drawPiece, extId, movePiece, pieceLen, pieceName, pieceWords, placePiec
 import { FINISHES, finishOf, pieceOf } from './climbCatalogue';
 import type { ExtKind } from './climbCatalogue';
 import { finishLegend, loudWords } from './finishes';
+import { circuitId, circuitLevel, circuitLink, circuitWords, defaultCircuit, drawLamp, lampCentre, lampId, lampLength, lampLevel, lampLumens, lampNear, lampWords, moveLamp, placeLamp, placeSwitch } from './lamps';
+import type { Circuit, Lamp, LampData, LampPlace, PlaceCtx as LampCtx } from './lamps';
+import { fittingOf, groupFittings, LIGHT_GROUPS, lightGroupName } from './lightCatalogue';
+import { LightView } from './lightView';
+import { LIGHT_MODES, modeName, modeWords, type LightMode } from './lightPreview';
+import type { Fitting, LightGroup } from './lightCatalogue';
+import { joinPlay, playText, splitPlay } from './playFile';
+import type { PlayData } from './playFile';
+import { MissionTool } from './missionTool';
+import { dropObjectiveRefs, isMission, missionCentre, missionLevel, moveMission, withCycle } from './mission';
+import type { Extraction, Guard, Objective } from './mission';
 import { addLevel, countWords, deleteLevel, duplicateLevel, idProblem, levelContents, moveBuildingEdge, refCount, renameChanges, storeyChange, wallsAtHeight } from './levels';
 
-type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp';
+type Tool = 'select' | 'room' | 'wall' | 'door' | 'window' | 'stair' | 'ladder' | 'hole' | 'roof' | 'object' | 'climb' | 'stamp' | 'lamp' | 'guard' | 'mission';
 /** How far the Ladder tool looks for a wall to stand against (as the door ghost's reach). */
 const LADDER_REACH = 1.2;
 
@@ -106,16 +117,23 @@ function loadBookmarks(): Bookmark[] {
 /** A dashed shape the pad draws over the plan: a line (an edge, a wall, an opening) or a ring (a point). */
 export type PlanShape = LiveShape | { kind: 'ring'; p: Pt };
 
-async function loadFile(): Promise<{ data: Campus; text: string; mtime: number }> {
+async function loadFile(): Promise<{ data: Campus; text: string; mtime: number; play: PlayData | null; playText: string }> {
   const res = await fetch('/__editor/campus', { cache: 'no-store' });
   if (!res.ok) throw new Error(`could not load the campus file (${res.status})`);
-  const text = await res.text();
-  return { data: JSON.parse(text) as Campus, text, mtime: Number(res.headers.get('x-mtime') ?? 0) };
+  // ON6: the play file's lamps and circuits join the campus data while editing (one document; playFile.ts)
+  const pr = await fetch('/__editor/play', { cache: 'no-store' });
+  const pText = pr.ok ? await pr.text() : '';
+  const play = pText.startsWith('{') ? (JSON.parse(pText) as PlayData) : null;
+  const data = joinPlay(JSON.parse(await res.text()) as Campus, play);
+  const mtime = Math.max(Number(res.headers.get('x-mtime') ?? 0), Number(pr.headers.get('x-mtime') ?? 0));
+  return { data, text: campusText(data), mtime, play, playText: play ? pText : '' };
 }
 
 async function boot(): Promise<void> {
   const f = await loadFile();
   const ed = new Editor(f.data);
+  ed.playBase = f.play;
+  ed.playLoaded = f.playText;
   void ed.stamp.load();
   // exposed for the e2e smoke test and console poking (dev tool only)
   (window as unknown as { __editor: Editor }).__editor = ed;
@@ -155,6 +173,10 @@ export class Editor {
   readonly model: EditorModel;
   readonly view: EditorScene;
   readonly controls: CameraControls;
+  /** ON7: the light view, darkness map, lights preview modes and the guard view tester. */
+  readonly lights: LightView;
+  /** ON8: the guard and mission marker tools, path editing, the patrol preview. */
+  readonly mission: MissionTool;
   tool: Tool = 'select';
   selected: Key | null = null;
   /** ON3 multi-select (box select, Shift+click): two or more keys; `selected` is then null. */
@@ -201,6 +223,15 @@ export class Editor {
   objPresetId = 'rack-row';
   objGroup: ObjGroup = 'dataHall';
   objYaw = 0;
+  /** ON6: the Light tool's fitting ('switch': Light > Switch), its group, the ghost's quarter turns, and the circuit A on
+   *  lamps adds to after a switch is placed (B ends). */
+  lampFit = 'troffer-600';
+  lightGroup: LightGroup = 'interior';
+  lampYaw = 0;
+  circuitEdit: string | null = null;
+  /** ON6: the play file as loaded (its other collections are kept on save) and its text then (null / '': none yet). */
+  playBase: PlayData | null = null;
+  playLoaded = '';
   /** ON4: the stealth view (J; Hub > View): objects tinted by their badges in 3D and on the plan. */
   stealth = false;
   /** ON5: the Climb tool's piece (Climb tab tiles, D-pad left / right with the tool) and the finish view (N; Hub > View). */
@@ -219,10 +250,23 @@ export class Editor {
   constructor(data: Campus) {
     this.model = new EditorModel(data);
     // ON2: a stair's stairwell moves, resizes and goes with it in the same edit
-    this.model.link = stairwellLink;
+    // ON6: a lamp's circuit keeps the circuits' lamp lists in step in the same edit
+    this.model.link = (d, ch) => {
+      const a = stairwellLink(d, ch);
+      const b = circuitLink(d as LampData, ch);
+      // ON8: a deleted objective leaves the others' requires and unlocks
+      const c: Change[] = [];
+      for (const x of ch)
+        if (x.coll === 'objectives' && x.before && !x.after)
+          for (const o of dropObjectiveRefs((d.objectives ?? []) as Objective[], x.id)) if (!ch.some((y) => y.coll === 'objectives' && y.id === o.id)) c.push({ coll: 'objectives', id: o.id, before: (d.objectives ?? []).find((q) => q.id === o.id) as Elem, after: o as Elem });
+      return b.length || c.length ? [...a, ...b, ...c] : a;
+    };
     this.chain = new WallChain(this.model);
     const canvas = $<HTMLCanvasElement>('c');
     this.view = new EditorScene(canvas, this.model);
+    this.lights = new LightView(this);
+    this.mission = new MissionTool(this);
+    this.view.mission = this.mission;
     this.controls = new CameraControls(this.view.camera, canvas, () => !isTyping());
     this.view.level = data.levels.some((l) => l.id === 'G') ? 'G' : (data.levels[0]?.id ?? '');
     this.view.vis = parseVis(this.prefs.vis);
@@ -244,6 +288,7 @@ export class Editor {
       this.controls.update(Math.min(0.05, this.view.engine.getDeltaTime() / 1000));
       this.drawCameraMarker();
       this.overlays.frame();
+      this.mission.frame(Math.min(0.1, this.view.engine.getDeltaTime() / 1000));
     });
     new ResizeObserver(() => this.view.engine.resize()).observe($('view3d'));
 
@@ -283,6 +328,9 @@ export class Editor {
   levelOf(coll: Coll, e: Elem): string {
     if (coll === 'openings') return this.model.get<Wall>('walls', (e as Opening).wall)?.level ?? '';
     if (coll === 'stairs' || coll === 'ladders') return (e as Stair).from;
+    if (coll === 'lamps') return lampLevel(this.model.data, e as Lamp);
+    if (coll === 'circuits') return circuitLevel(this.model.data, e as Circuit);
+    if (isMission(coll)) return missionLevel(coll, e);
     return (e as Room).level;
   }
 
@@ -308,6 +356,7 @@ export class Editor {
     if (this.pad?.menuOpen || this.find?.isOpen) return 'menu';
     if (this.chaining) return 'chain';
     if (this.drag || this.groupDrag) return 'drag';
+    if (this.mission.path) return 'path';
     if (this.tool !== 'select') return 'draw';
     if (this.selected && this.pad?.cardEditing) return 'card';
     return this.selected || this.group.length ? 'selected' : 'idle';
@@ -322,6 +371,12 @@ export class Editor {
     }
     if (coll === 'ladders') return (e as Ladder).at;
     if (coll === 'exterior') return [((e as Ext).a[0] + (e as Ext).b[0]) / 2, ((e as Ext).a[1] + (e as Ext).b[1]) / 2];
+    if (coll === 'lamps') return lampCentre(e as Lamp);
+    if (coll === 'circuits') {
+      const sw = (e as Circuit).switch;
+      return sw ? [sw.at[0], sw.at[2]] : [0, 0];
+    }
+    if (isMission(coll)) return missionCentre(coll, e);
     const r = (e as Room).rect;
     return [(r[0] + r[2]) / 2, (r[1] + r[3]) / 2];
   }
@@ -341,6 +396,11 @@ export class Editor {
       this.view.setOutlines(this.outlines);
       this.pad?.hub.render();
     } else this.view.refresh(keys);
+    // ON7: a lamp being edited shows its quick light; the exact bake follows; new meshes take the lit materials
+    // (ON8: guards and markers are not building: no rebake)
+    const lk = keys.filter((k) => !MissionTool.isMissionKey(k));
+    if (lk.length) this.lights.changed(lk);
+    this.lights.swap();
     if (this.selected && !this.selectedElem()) this.select(null);
     if (this.group.length && !this.groupDrag) {
       const alive = this.group.filter((k) => {
@@ -368,7 +428,10 @@ export class Editor {
       this.group = [];
       this.view.setGroup([]);
     }
+    const was = this.selected;
     this.selected = key;
+    // ON8: with only the selected guard's path shown, a new selection redraws the guards
+    if (this.mission.paths === 'selected' && was !== key && (was?.startsWith('guards:') || key?.startsWith('guards:'))) this.view.refreshGuards();
     this.view.setSelected(key);
     const s = this.selectedElem();
     if (s?.coll === 'walls') this.wallTemplate = s.e as Wall;
@@ -615,12 +678,29 @@ export class Editor {
       if (d.isNew) return drawPiece(x0.kind as ExtKind, x0.id, d.start, [snap(x, og), snap(z, og)], { data: this.model.data, level: x0.level ?? this.view.level, grid: og });
       return movePiece(this.model.data, x0, snap(x - d.start[0], og), snap(z - d.start[1], og));
     }
+    if (d.coll === 'lamps') {
+      // ON6: a linear fitting drawn from its start to the pointer; a placed lamp moves whole (its room follows)
+      const l0 = d.before as Lamp;
+      const og = fine ? this.fineGrid : this.objectGrid;
+      const f = fittingOf(l0.fixture);
+      if (d.isNew && f) {
+        const r = drawLamp(f, d.start, [snap(x, og), snap(z, og)], { ...this.lampCtx(), level: lampLevel(this.model.data, l0) || this.view.level });
+        return r.lamp ? ({ ...r.lamp, id: l0.id, circuit: l0.circuit } as Elem) : e;
+      }
+      return moveLamp(this.model.data as LampData, l0, snap(x - d.start[0], og), snap(z - d.start[1], og)) as Elem;
+    }
+    if (d.coll === 'circuits') return e;
+    // ON8: a guard moves whole (every stop), a marker by its point; the extraction zone is drawn below like a floor hole
+    if (isMission(d.coll) && (d.coll !== 'extraction' || !d.isNew)) {
+      const m = moveMission(d.coll, d.before, dx, dz) as Elem;
+      return d.coll === 'guards' ? (withCycle(this.model.data, m as Guard, (l) => this.mission.grids.get(this.model.data, l)) as Elem) : m;
+    }
     if (d.coll === 'objects') {
       const r = (d.before as Obj).rect;
       (e as Obj).rect = [r[0] + dx, r[1] + dz, r[2] + dx, r[3] + dz].map((v) => +v.toFixed(3)) as Rect;
       return e;
     }
-    if (d.coll === 'rooms' || d.coll === 'stairs' || d.coll === 'voids' || d.coll === 'roofs') {
+    if (d.coll === 'rooms' || d.coll === 'stairs' || d.coll === 'voids' || d.coll === 'roofs' || d.coll === 'extraction') {
       const r = (d.before as Room).rect;
       // ON1 decision 7: the moving edges snap to wall lines, wall faces and other room edges (LB / Ctrl: off)
       const lv = (d.before as Room).level;
@@ -818,6 +898,26 @@ export class Editor {
       this.select(keyOf(d.coll, d.id));
       return this.status(`Placed ${pieceName(after as Ext)}: A (click) starts the next`);
     }
+    if (d.isNew && d.coll === 'lamps') {
+      // ON6: a linear fitting is at least one grid step long; it goes on its default circuit; the tool stays on
+      if (lampLength(after as Lamp) < this.objectGrid - 1e-6) {
+        this.model.drop(d.coll, d.id);
+        return this.status('Too short - A (click) at the start, then at the end');
+      }
+      this.commitLamps([after as Lamp], null);
+      return;
+    }
+    if (d.isNew && d.coll === 'extraction') {
+      // ON8: at least one grid step each way; it replaces the old zone in the same edit
+      const r = (after as Extraction).rect;
+      if (r[2] - r[0] < this.grid - 1e-6 || r[3] - r[1] < this.grid - 1e-6) {
+        this.model.drop(d.coll, d.id);
+        return this.status('Too small - A (click) at one corner, then at the far corner');
+      }
+      this.commitText(`${(this.model.data.extraction ?? []).length > 1 ? 'Moved' : 'Added'} the extraction zone: ${fmt(r[2] - r[0])} x ${fmt(r[3] - r[1])} m`, this.mission.extractionDone(after as Extraction));
+      this.select(keyOf('extraction', d.id));
+      return;
+    }
     if (d.isNew && d.coll === 'objects') {
       // ON4: a row is at least one unit; the Object tool stays on for the next row
       this.commit([{ coll: d.coll, id: d.id, before: null, after }]);
@@ -897,6 +997,17 @@ export class Editor {
       this.stampDown(x, z);
     } else if (this.tool === 'climb') {
       this.climbDown(x, z, sx, sy, source);
+    } else if (this.tool === 'lamp') {
+      this.lampDown(x, z, sx, sy, source);
+    } else if (this.tool === 'mission') {
+      this.mission.down(x, z, sx, sy, source);
+    } else if (this.tool === 'guard') {
+      // ON7: a guard eye at the point, facing the way the camera looks
+      const ct = this.view.camera.getTarget();
+      const cp = this.view.camera.position;
+      const f = { x: ct.x - cp.x, z: ct.z - cp.z };
+      const e = this.lights.addEye(x, z, Math.atan2(f.x, f.z));
+      this.status(`Guard eye ${this.lights.eyes.length} at x ${fmt(e.x)}, z ${fmt(e.z)}, facing ${Math.round(((e.yaw * 180) / Math.PI + 360) % 360)} degrees: red is seen at once (lit), amber slowly; right stick (R) turns it, B (Esc) removes it`);
     } else if (this.tool === 'door' || this.tool === 'window') {
       const w = (onWall ? this.model.get<Wall>('walls', onWall) : undefined) ?? nearestWall(this.model.list('walls') as Wall[], lvl, x, z, 1.2);
       if (!w) return this.status('Click on or next to a wall to put the opening in it');
@@ -1071,6 +1182,14 @@ export class Editor {
 
   /** RB with the Object tool (R with the mouse): the ghost turns; with an object selected, the object turns. */
   turnObjectNow(): void {
+    if (this.tool === 'guard') {
+      this.lights.turnLastEye(45);
+      return this.status(this.lights.eyes.length ? 'Guard eye turned 45 degrees' : 'Place a guard eye first (A or click)');
+    }
+    if (this.tool === 'lamp' && !this.drag) {
+      this.lampYaw = (this.lampYaw + 90) % 360;
+      return this.status(`${this.fitting?.name ?? 'Light'} turned to ${this.lampYaw} degrees`);
+    }
     if (this.tool === 'stamp' && !this.drag) return this.status(`${this.stamp.preset.name} turned to ${this.stamp.turn()} degrees`);
     if (this.tool === 'object' && !this.drag) {
       if (this.objPreset.draw) return this.status('A row turns with the way you draw it');
@@ -1105,6 +1224,171 @@ export class Editor {
     }
   }
 
+  // ---------- lights (ON6) ----------
+  /** The Light tool's fitting (Lights tab tiles, D-pad left / right with the tool, the tool bar list), or 'switch'. */
+  setLampFit(id: string): void {
+    const f = fittingOf(id);
+    if (id !== 'switch' && !f) return;
+    this.lampFit = id;
+    if (f) this.lightGroup = f.group;
+    this.circuitEdit = null;
+    const sel = document.getElementById('lampFit') as HTMLSelectElement | null;
+    if (sel) sel.value = id;
+    this.updateHint();
+  }
+
+  /** The Lights tab's group (A on a group tile; the menu stays open). */
+  setLightGroup(g: LightGroup): void {
+    this.lightGroup = g;
+    this.status(`Lights: ${lightGroupName(g)}`);
+  }
+
+  /** The Light tool's fitting (null with Switch). */
+  get fitting(): Fitting | null {
+    return this.lampFit === 'switch' ? null : (fittingOf(this.lampFit) ?? null);
+  }
+
+  lampCtx(): LampCtx {
+    return { data: this.model.data as LampData, level: this.view.level, grid: this.objectGrid, yaw: this.lampYaw };
+  }
+
+  /** Where A would put the fitting now (null for a linear one: A starts it, or with Switch). */
+  lampGhost(x: number, z: number): LampPlace | null {
+    const f = this.fitting;
+    return f && !f.linear ? placeLamp(f, x, z, this.lampCtx()) : null;
+  }
+
+  /** With Switch: the lamp A would put on the switch's circuit, else the switch A would place (or why not). */
+  switchGhost(x: number, z: number): { lamp: Lamp | null; sw: Circuit['switch']; why: string | null } {
+    const d = this.model.data as LampData;
+    if (this.circuitEdit) {
+      const l = lampNear(d, this.view.level, x, z);
+      if (l) return { lamp: l, sw: null, why: null };
+    }
+    const r = placeSwitch(x, z, this.lampCtx());
+    return { lamp: null, sw: r.sw, why: r.why };
+  }
+
+  /** A (click) with the Light tool: a linear fitting starts at the dot; any other is placed; Switch places or adds. */
+  private lampDown(x: number, z: number, sx: number, sy: number, source: '3d' | 'plan' | 'pad'): void {
+    if (this.lampFit === 'switch') return this.switchDown(x, z);
+    const f = this.fitting;
+    if (!f) return;
+    if (f.linear) {
+      const start: Pt = [snap(x, this.objectGrid), snap(z, this.objectGrid)];
+      const r = drawLamp(f, start, start, this.lampCtx());
+      if (!r.lamp) return this.status(r.why ?? 'Cannot go here');
+      const id = lampId(this.model.data as LampData);
+      this.model.preview('lamps', { ...r.lamp, id } as Elem);
+      this.beginDrag('lamps', id, null, start, this.viewFloor(), sx, sy, source, true);
+      return;
+    }
+    const g = placeLamp(f, x, z, this.lampCtx());
+    if (!g.lamps.length) return this.status(g.why ?? 'Cannot go here');
+    this.commitLamps(g.lamps, g.post);
+  }
+
+  /**
+   * New lamps as one edit (ON6 decision 11): each gets an id (a drawn one keeps its own), the first its default circuit
+   * (the switch in its room, or a new circuit of its kind) and the rest of the batch the same one (rack LEDs); a pole
+   * lantern brings its lamp post.
+   */
+  private commitLamps(news: Lamp[], post: Pt | null): void {
+    const d = this.model.data as LampData;
+    const changes: Change[] = [];
+    const lamps: Lamp[] = [];
+    let circ: { circuit: string; add: Circuit | null } | null = null;
+    for (const n of news) {
+      const id = n.id || lampId(d, lamps);
+      const l: Lamp = { ...n, id };
+      if (!circ) circ = defaultCircuit(d, l);
+      else if (circ.add) circ.add.lamps.push(id);
+      l.circuit = circ.circuit;
+      lamps.push(l);
+    }
+    if (!circ || !lamps.length) return;
+    if (post) {
+      const pe = placePiece('lamp-post', post[0], post[1], extId(this.model.data), { data: this.model.data, level: this.view.level, grid: this.objectGrid });
+      if (pe.e) {
+        changes.push({ coll: 'exterior', id: pe.e.id, before: null, after: pe.e });
+        for (const l of lamps) l.on = pe.e.id;
+      }
+    }
+    if (circ.add) changes.push({ coll: 'circuits', id: circ.add.id, before: null, after: circ.add as Elem });
+    for (const l of lamps) changes.push({ coll: 'lamps', id: l.id, before: null, after: l as Elem });
+    const f = fittingOf(lamps[0]!.fixture);
+    const cid = circ.circuit;
+    const c = circ.add ?? (d.circuits ?? []).find((q) => q.id === cid);
+    const onWhat = c ? (c.switch ? `on switch ${c.id}` : `on ${c.id}${c.unswitchable ? ` (${c.unswitchable.split(':')[0]})` : ''}`) : '';
+    const text = `Added ${lamps.length > 1 ? `${lamps.length} x ` : ''}${f?.name ?? 'lamp'} (${lamps.length > 1 ? `${lamps[0]!.id}-${lamps.at(-1)!.id}` : lamps[0]!.id}) ${onWhat}${post ? ' with its lamp post' : ''}`;
+    this.commitText(text, changes);
+    this.select(keyOf('lamps', lamps.at(-1)!.id));
+    this.status(`${text}: A (click) places another, B (Esc) puts the tool down`);
+  }
+
+  /** Switch: A on a wall face places a switch (a new circuit); then A on lamps puts them on it until B. */
+  private switchDown(x: number, z: number): void {
+    const d = this.model.data as LampData;
+    const g = this.switchGhost(x, z);
+    if (g.lamp && this.circuitEdit) {
+      const l = g.lamp;
+      if (l.circuit === this.circuitEdit) return this.status(`${l.id} is on ${this.circuitEdit} already: A on another lamp, B ends`);
+      this.commitText(`Put ${fittingOf(l.fixture)?.name ?? 'lamp'} (${l.id}) on switch ${this.circuitEdit}`, [{ coll: 'lamps', id: l.id, before: clone(l) as Elem, after: { ...clone(l), circuit: this.circuitEdit } as Elem }]);
+      const c = this.model.get<Circuit>('circuits', this.circuitEdit);
+      return this.status(`${c ? circuitWords(c) : this.circuitEdit}: A on more lamps adds them, B ends`);
+    }
+    if (!g.sw) return this.status(this.circuitEdit ? 'Move onto a lamp to put it on the switch (B ends), or onto a wall face for a new switch' : (g.why ?? 'Move onto a wall face'));
+    const id = circuitId(d);
+    const c: Circuit = { id, switch: g.sw, lamps: [], unswitchable: '' };
+    this.commitText(`Added switch ${id} on ${g.sw.wall}`, [{ coll: 'circuits', id, before: null, after: c as Elem }]);
+    this.circuitEdit = id;
+    this.select(keyOf('circuits', id));
+    this.status(`Switch ${id} on ${g.sw.wall}: A on lamps puts them on it, B ends`);
+    this.updateHint();
+  }
+
+  /** Selected > Add lamps on a switch: the Switch tool adding to that circuit. */
+  addLampsTo(id: string): void {
+    this.setTool('lamp');
+    this.setLampFit('switch');
+    this.circuitEdit = id;
+    this.status(`Switch ${id}: A on lamps puts them on it, B ends`);
+  }
+
+  /** The plan's lamps and switches on the editing level, and the selected circuit's switch lines (dashed). */
+  private lampMarks(): string {
+    const d = this.model.data as LampData;
+    const lv = this.view.level;
+    const s = this.selectedElem();
+    const sel = s?.coll === 'lamps' ? (s.e as Lamp).circuit : s?.coll === 'circuits' ? s.id : this.circuitEdit;
+    let out = '';
+    const hex = (c: readonly number[]): string => `rgb(${c.map((v) => Math.round(Math.min(1, v) * 255)).join(',')})`;
+    for (const l of d.lamps ?? []) {
+      if (lampLevel(d, l) !== lv) continue;
+      const a = this.toPlan(l.at[0], l.at[2]);
+      const on = s?.coll === 'lamps' && s.id === l.id;
+      const col = hex(l.params.color);
+      if (l.b) {
+        const b = this.toPlan(l.b[0], l.b[2]);
+        out += `<line data-id="lamps:${esc(l.id)}" class="lampMark" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${col}" stroke-width="6" stroke-linecap="round"/><line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${on ? '#ff7300' : '#333'}" stroke-width="1.5" pointer-events="none"/>`;
+      } else out += `<circle data-id="lamps:${esc(l.id)}" class="lampMark" cx="${a[0]}" cy="${a[1]}" r="6" fill="${col}" stroke="${on ? '#ff7300' : '#333'}" stroke-width="${on ? 3 : 1.5}"/>`;
+    }
+    for (const c of d.circuits ?? []) {
+      if (!c.switch || circuitLevel(d, c) !== lv) continue;
+      const a = this.toPlan(c.switch.at[0], c.switch.at[2]);
+      const on = sel === c.id;
+      out += `<rect data-id="circuits:${esc(c.id)}" class="switchMark" x="${a[0] - 6}" y="${a[1] - 6}" width="12" height="12" fill="#fff" stroke="${on ? '#ff7300' : '#222'}" stroke-width="${on ? 3 : 1.5}"/><text x="${a[0] + 8}" y="${a[1] - 8}" font-size="11" fill="#222" pointer-events="none">${esc(c.id)}</text>`;
+      if (!on) continue;
+      for (const id of c.lamps) {
+        const l = d.lamps?.find((q) => q.id === id);
+        if (!l) continue;
+        const b = this.toPlan(...lampCentre(l));
+        out += `<line class="circuitLine" x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="#222" stroke-width="1.2" stroke-dasharray="5 4" pointer-events="none"/>`;
+      }
+    }
+    return out;
+  }
+
   // ---------- climb pieces and floor finishes (ON5) ----------
   /** The Climb tool's piece (Climb tab tiles, D-pad left / right with the tool). */
   setClimbKind(k: ExtKind): void {
@@ -1136,6 +1420,73 @@ export class Editor {
     this.commitText(`Added ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`, [{ coll: 'exterior', id, before: null, after: r.e }]);
     this.select(keyOf('exterior', id));
     this.status(`Placed ${pieceName(r.e)}: ${pieceWords(this.model.data, r.e)}`);
+  }
+
+  /** ON7 Y (Hub > View): the light view: the 3D scene at night, lit by the game's own bake of the editing level. */
+  setLightView(on: boolean): void {
+    this.lights.setOn(on);
+    this.status(on ? `Light view on (Y): night, lit by the game's own light bake of this level (${modeWords(this.lights.mode)}); B shows the darkness map` : 'Light view off (Y)');
+  }
+
+  /** ON7 B (Hub > View): the darkness map: every floor cell by the light meter's band, the hidden and lit lines. */
+  setDarkMap(on: boolean): void {
+    this.lights.setDark(on);
+    this.status(on ? 'Darkness map on (B): black hidden, grey, white lit, by the game light meter at every 0.5 m of floor' : 'Darkness map off (B)');
+  }
+
+  /** ON7: the lights preview mode (left / right on the View row); none changes the saved data. */
+  /** ON8: Hub > View "Guard paths": every guard's, or only the selected guard's. */
+  stepGuardPaths(): void {
+    this.mission.paths = this.mission.paths === 'all' ? 'selected' : 'all';
+    this.view.refreshGuards();
+    this.drawPlanOverlay();
+    this.status(this.mission.paths === 'all' ? 'Guard paths: every guard' : 'Guard paths: only the selected guard');
+  }
+
+  stepLightMode(dir: 1 | -1): void {
+    const k = LIGHT_MODES[(LIGHT_MODES.indexOf(this.lights.mode.kind) + dir + LIGHT_MODES.length) % LIGHT_MODES.length]!;
+    const m: LightMode = { kind: k };
+    if (k === 'switched') m.circuit = this.lightCircuits()[0];
+    if (k === 'shot') {
+      const s = this.selectedElem();
+      const l = s?.coll === 'lamps' ? (s.e as Lamp) : null;
+      if (l?.breakable) m.lamp = l.id;
+    }
+    this.setLightMode(m);
+  }
+
+  /** The circuits with lamps on the editing level (the Switched off mode picks one). */
+  lightCircuits(): string[] {
+    const d = this.model.data;
+    const on = new Set((d.lamps ?? []).filter((l) => lampLevel(d, l) === this.view.level).map((l) => l.circuit));
+    return (d.circuits ?? []).filter((c) => on.has(c.id)).map((c) => c.id);
+  }
+
+  /** Switched off: the next circuit on this level. */
+  stepLightCircuit(dir: 1 | -1): void {
+    const cs = this.lightCircuits();
+    if (!cs.length) return this.status('No circuits with lamps on this level');
+    const i = cs.indexOf(this.lights.mode.circuit ?? '');
+    this.setLightMode({ kind: 'switched', circuit: cs[(i + dir + cs.length) % cs.length]! });
+  }
+
+  setLightMode(m: LightMode): void {
+    this.lights.setMode(m);
+    if (!this.lights.on && !this.lights.dark) this.lights.setOn(true);
+    this.status(`Lights preview: ${modeWords(m)} (not saved)`);
+  }
+
+  /** Selected > Preview shot out on a breakable lamp. */
+  previewShot(): void {
+    const s = this.selectedElem();
+    const l = s?.coll === 'lamps' ? (s.e as Lamp) : null;
+    if (!l?.breakable) return this.status('Select a breakable lamp to preview it shot out');
+    this.setLightMode({ kind: 'shot', lamp: l.id });
+  }
+
+  /** The lights preview mode's name (the View row). */
+  get lightModeName(): string {
+    return modeName(this.lights.mode.kind);
   }
 
   /** N (Hub > View): the finish view: floors tinted by finish in 3D and on the plan, with a legend. */
@@ -1608,6 +1959,11 @@ export class Editor {
       const L = pieceLen(e);
       return { words: `${L > 0 ? `${fmt(L)} m: ` : ''}${pieceWords(this.model.data, e)}`, shapes: [] };
     }
+    if (d.coll === 'lamps') {
+      const l = s as Lamp;
+      const L = lampLength(l);
+      return { words: d.isNew ? `${fmt(L)} m, ${fmt(lampLumens(l))} lm` : `moved ${moveWords(l.at[0] - (d.before as Lamp).at[0], l.at[2] - (d.before as Lamp).at[2])}`, shapes: [] };
+    }
     if (d.coll === 'objects') {
       const o = s as Obj;
       const ai = this.objectAisle(o);
@@ -1663,7 +2019,8 @@ export class Editor {
     const g = this.planSvg()?.querySelector('#overlay');
     if (!g) return;
     const S = this.planMap?.[3] ?? 1;
-    let out = '';
+    // ON7: the darkness map and the guard view under everything else
+    let out = this.lights.planMarkup((x, z) => this.toPlan(x, z), S);
     const s = this.selectedElem();
     if (s && this.levelOf(s.coll, s.e) === this.view.level) {
       if (s.coll === 'rooms' || s.coll === 'stairs' || s.coll === 'voids' || s.coll === 'roofs') {
@@ -1692,6 +2049,10 @@ export class Editor {
         out += `<rect data-handle="${h.id}" x="${p[0] - 7}" y="${p[1] - 7}" width="14" height="14" fill="#ff7300" stroke="#fff" stroke-width="2" style="cursor:move"/>`;
       }
     }
+    // ON6: lamps and switches; the selected circuit's lines from its switch to its lamps
+    out += this.lampMarks();
+    // ON8: guard paths and mission markers
+    out += this.mission.planMarkup((x, z) => this.toPlan(x, z), S);
     // wall gaps on this level: a red ring and its size (ON0b decision 7)
     for (const gp of this.gaps()) {
       if (gp.level !== this.view.level) continue;
@@ -1906,7 +2267,8 @@ export class Editor {
     if (this.drag) this.endDrag(true);
     if (this.quickWalking) this.quickWalk();
     const c = this.controls;
-    const spawn = this.walkSpawn();
+    // ON8: Hub > Play "Start at insertion 1" starts at the first insertion point instead of the dot
+    const spawn = this.mission.spawnPoint() ?? this.walkSpawn();
     const o = c.mode === 'orbit' ? c.orbit.s : null;
     this.walkFrom = { pitch: o?.pitch ?? Math.max(ORBIT.PITCH_MIN, Math.min(ORBIT.PITCH_MAX, c.pitch || 0.9)), dist: o?.dist ?? ORBIT.DIST_START, selected: this.selected };
     try {
@@ -1990,6 +2352,7 @@ export class Editor {
     this.syncLevelsUi();
     this.updateHint();
     this.refreshPlan(false);
+    this.lights.levelChanged();
   }
 
   stepLevel(dir: 1 | -1): void {
@@ -2038,7 +2401,7 @@ export class Editor {
   /** Runs an action from the action map (keys now; the controller in Part C). */
   run(id: string, e?: { code: string; shiftKey: boolean }): void {
     const vis = this.view.vis;
-    const tools: Record<string, Tool> = { toolSelect: 'select', toolRoom: 'room', toolWall: 'wall', toolDoor: 'door', toolWindow: 'window', toolStair: 'stair', toolLadder: 'ladder', toolHole: 'hole', toolObject: 'object' };
+    const tools: Record<string, Tool> = { toolSelect: 'select', toolRoom: 'room', toolWall: 'wall', toolDoor: 'door', toolWindow: 'window', toolStair: 'stair', toolLadder: 'ladder', toolHole: 'hole', toolObject: 'object', toolLamp: 'lamp' };
     if (tools[id]) return this.setTool(tools[id]);
     switch (id) {
       case 'walk': return void this.gameWalk();
@@ -2047,16 +2410,28 @@ export class Editor {
       case 'levelDown': return this.stepLevel(-1);
       case 'frame': return this.frameSelected();
       case 'chainRemove': return this.chainRemoveLast();
+      // ON8: path editing with the keys
+      case 'pathRemove': return this.mission.removeLast();
+      case 'pathFace': return this.mission.turnFace();
+      case 'pathWaitUp': return this.mission.stepWait(1);
+      case 'pathWaitDown': return this.mission.stepWait(-1);
       case 'cancel':
         if (this.find.isOpen) this.find.close();
         else if (this.groupDrag) this.endGroupDrag(true);
         else if (this.splitting) this.cancelSplit();
         else if (this.stairDraw) this.cancelStair();
         else if (this.drag) this.endDrag(true);
+        else if (this.mission.path) this.mission.endPath();
+        else if (this.mission.link) this.mission.endLink();
+        else if (this.tool === 'guard' && this.lights.removeEye()) this.status(`Guard eye removed (${this.lights.eyes.length} left)`);
         else if (this.tool !== 'select') this.setTool('select');
         else this.select(null);
         return;
-      case 'delete': return this.deleteSelected();
+      case 'delete':
+        if (this.tool === 'guard' && this.lights.removeEye()) return this.status(`Guard eye removed (${this.lights.eyes.length} left)`);
+        return this.deleteSelected();
+      case 'lightView': return this.setLightView(!this.lights.on);
+      case 'darkMap': return this.setDarkMap(!this.lights.dark);
       case 'duplicate': return this.duplicate();
       case 'nudge': {
         const g = e?.shiftKey ? this.grid * 10 : this.grid;
@@ -2161,6 +2536,12 @@ export class Editor {
     const e = clone(s.e) as Elem & Record<string, unknown>;
     const g = this.grid * 2;
     const prefix = s.coll === 'rooms' ? `${(s.e as Room).level}-NEW` : s.coll === 'walls' ? `W${(s.e as Wall).level}-NEW` : s.coll === 'openings' ? 'O-NEW' : `${s.id}-COPY`;
+    if (s.coll === 'circuits') return this.status('A switch is not duplicated: place another with Light > Switch');
+    if (isMission(s.coll)) return this.status('Guards and mission markers are not duplicated: place another with Y > Mission');
+    if (s.coll === 'lamps') {
+      const l = moveLamp(this.model.data as LampData, s.e as Lamp, g, -g);
+      return this.commitLamps([{ ...l, id: '' }], null);
+    }
     e.id = s.coll === 'roofs' ? roofId(this.model.data) : s.coll === 'objects' ? objectId(this.model.data) : s.coll === 'exterior' ? extId(this.model.data) : this.model.freshId(s.coll, prefix);
     if (s.coll === 'exterior') {
       (e as Ext).a = [+((e as Ext).a[0] + g).toFixed(3), +((e as Ext).a[1] - g).toFixed(3)];
@@ -2239,13 +2620,20 @@ export class Editor {
     const now = new Date();
     const savedAt = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')} ${localTime(now.toISOString()).slice(0, 5)}`;
     try {
+      // ON6: the campus file without the play collections; the play file only when its text changed
+      const split = splitPlay(this.model.data, this.playBase);
+      const pText = split.play ? playText(split.play) : null;
       const r = await fetch('/__editor/save', {
         method: 'POST',
-        body: JSON.stringify({ campus: this.model.data, journal: this.model.journal, logText: logMarkdown(this.model.journal, savedAt) }),
+        body: JSON.stringify({ campus: split.campus, playText: pText !== null && pText !== this.playLoaded ? pText : undefined, journal: this.model.journal, logText: logMarkdown(this.model.journal, savedAt) }),
       });
       const reply = (await r.json()) as { ok?: boolean; error?: string; plans?: number; planLog?: string };
       if (!r.ok || !reply.ok) throw new Error(reply.error ?? String(r.status));
       this.model.data.meta.editor = 'level editor (docs/kestrel/editor.md)';
+      if (pText !== null) {
+        this.playLoaded = pText;
+        this.playBase = JSON.parse(pText) as PlayData;
+      }
       const n = this.model.journal.length;
       this.model.markSaved();
       clearTimeout(this.draftTimer);
@@ -2264,6 +2652,13 @@ export class Editor {
     if (this.drag) this.endDrag(true);
     if (this.stairDraw) this.cancelStair();
     this.tool = t;
+    if (this.lights.guardTool !== (t === 'guard')) this.lights.setGuardTool(t === 'guard');
+    this.circuitEdit = null;
+    // ON8: another tool ends path editing and objective picking
+    if (t !== 'mission') {
+      this.mission.endPath(true);
+      this.mission.link = null;
+    }
     this.updateHandles();
     this.updateBar();
     const hint: Record<Tool, string> = {
@@ -2279,6 +2674,9 @@ export class Editor {
       climb: pieceOf(this.climbKind)?.place === 'draw' ? `Climb (${pieceOf(this.climbKind)?.name ?? ''}): A (click) at the start, A (click) at the end` : `Climb (${pieceOf(this.climbKind)?.name ?? ''}): A (click) places it`,
       stamp: `Stamp (${this.stamp.preset.name}): A (click) stamps it centred on the dot, RB (R) turns it`,
       object: this.objPreset.draw ? `Object (${this.objPreset.name}): A (click) at the start, A (click) at the end` : `Object (${this.objPreset.name}): A (click) places it, RB (R) turns it`,
+      guard: 'Guard view: A (click) places a guard eye at the dot facing the way you look; the right stick (R) turns it; B (Esc, Delete) removes it. Red: seen at once (lit); amber: seen slowly',
+      mission: this.mission.hint(),
+      lamp: this.lampFit === 'switch' ? 'Switch: A (click) on a wall face places a switch, then A on lamps puts them on it, B (Esc) ends' : this.fitting?.linear ? `Light (${this.fitting.name}): A (click) at the start, A (click) at the end` : `Light (${this.fitting?.name ?? ''}): A (click) places it, RB (R) turns it`,
     };
     this.status(hint[t]);
     this.updateHint();
@@ -2295,7 +2693,7 @@ export class Editor {
         <span class="group seg" id="layout" title="V cycles"><button data-layout="3d">3D</button><button data-layout="both">Both</button><button data-layout="plan">Plan</button></span>
         <span class="group"><button id="splitDir" title="Side by side or stacked">Side by side</button><button id="swap" title="Swap the 3D and the plan">Swap</button><button id="minimap" title="Small plan in the corner of 3D only (M)">Small plan</button><button id="drawerBtn" title="Side panel (\` or I)">Panel</button></span>
         <span class="group" id="tools">
-          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${familyTypes('door').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button><select id="windowType" title="The Window tool's type">${familyTypes('window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="stair" title="6">6 Stair</button><select id="stairType" title="The Stair tool's type">${STAIR_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}</select><button data-tool="ladder" title="7">7 Ladder</button><button data-tool="hole" title="8">8 Floor hole</button><select id="holeKind" title="The Floor hole tool's kind">${HOLE_KINDS.map((k) => `<option value="${k}">${HOLE_NAMES[k] ?? k}</option>`).join('')}</select><button data-tool="object" title="9 (R turns)">9 Object</button><select id="objPreset" title="The Object tool's preset">${GROUPS.map((g) => `<optgroup label="${esc(g.name)}">${PRESETS.filter((p) => p.group === g.id).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select>
+          <button data-tool="select" title="1">1 Select</button><button data-tool="room" title="2">2 Room</button><select id="roomOpt" title="What the room tool makes around a room">${ROOM_OPTIONS.map((o) => `<option value="${o.id}">${o.name}</option>`).join('')}</select><button id="follow" title="Stretching or moving a room takes its walls along (also in the hub's Settings)">Walls follow rooms</button><button data-tool="wall" title="3">3 Wall</button><button data-tool="door" title="4">4 Door</button><select id="doorType">${familyTypes('door').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="window" title="5">5 Window</button><select id="windowType" title="The Window tool's type">${familyTypes('window').map((t) => `<option value="${t}">${DOOR_NAMES[t] ?? t}</option>`).join('')}</select><button data-tool="stair" title="6">6 Stair</button><select id="stairType" title="The Stair tool's type">${STAIR_TYPES.map((t) => `<option value="${t.id}">${t.name}</option>`).join('')}</select><button data-tool="ladder" title="7">7 Ladder</button><button data-tool="hole" title="8">8 Floor hole</button><select id="holeKind" title="The Floor hole tool's kind">${HOLE_KINDS.map((k) => `<option value="${k}">${HOLE_NAMES[k] ?? k}</option>`).join('')}</select><button data-tool="lamp" title="0 (R turns)">0 Light</button><select id="lampFit" title="The Light tool's fitting">${LIGHT_GROUPS.map((g) => `<optgroup label="${esc(g.name)}">${groupFittings(g.id).map((f) => `<option value="${f.id}">${esc(f.name)}</option>`).join('')}</optgroup>`).join('')}<option value="switch">Switch</option></select><button data-tool="object" title="9 (R turns)">9 Object</button><select id="objPreset" title="The Object tool's preset">${GROUPS.map((g) => `<optgroup label="${esc(g.name)}">${PRESETS.filter((p) => p.group === g.id).map((p) => `<option value="${p.id}">${esc(p.name)}</option>`).join('')}</optgroup>`).join('')}</select>
         </span>
         <span class="group"><button id="walk" title="Tab: the game's own player, unsaved edits included (Shift+Tab: quick walk)">Walk test (game)</button><button id="undo" title="Ctrl+Z">Undo</button><button id="redo" title="Ctrl+Y">Redo</button><button id="save" title="Ctrl+S">Save</button><button id="revert" title="Throw away unsaved changes and reload the file">Revert to last save</button><button id="helpBtn" title="H">Help</button></span>
         <span id="checksBadge"></span>
@@ -2333,6 +2731,11 @@ export class Editor {
       this.setTool('stair');
     });
     $<HTMLSelectElement>('objPreset').value = this.objPresetId;
+    $<HTMLSelectElement>('lampFit').value = this.lampFit;
+    $('lampFit').addEventListener('change', () => {
+      this.setLampFit($<HTMLSelectElement>('lampFit').value);
+      this.setTool('lamp');
+    });
     $('objPreset').addEventListener('change', () => {
       this.setObjectPreset($<HTMLSelectElement>('objPreset').value);
       this.setTool('object');
@@ -2974,6 +3377,23 @@ export class Editor {
       rows.push(`<label class="row"><span>Climbable</span><select data-climbable><option value="true" ${x.climbable ? 'selected' : ''}>yes</option><option value="false" ${x.climbable ? '' : 'selected'}>no</option></select></label>`);
       text('reason', 'Reason');
       rows.push(`<p id="climbWords" class="dim">${esc(pieceWords(this.model.data, x))}${x.override ? ' (set by hand)' : ''}</p>`);
+    } else if (s.coll === 'lamps') {
+      // ON6: the fitting, then the card's rows stepped with the mouse; its words (lumens, reach, circuit)
+      text('name', 'Name');
+      text('owner', 'Owner');
+      const t = cardRows('lamps', s.e)[0]!;
+      rows.push(`<div class="row"><span>Type</span><span><button data-cstep="type" data-dir="-1">&#8249;</button> <b>${esc(t.value)}</b> <button data-cstep="type" data-dir="1">&#8250;</button></span></div>`);
+      rows.push(`<p id="lampWords" class="dim">${esc(lampWords(this.model.data as LampData, e as Lamp))}</p>`);
+    } else if (s.coll === 'circuits') {
+      const c = e as Circuit;
+      text('name', 'Name');
+      text('unswitchable', 'No switch because');
+      rows.push(`<p class="dim">${esc(circuitWords(c))}${c.lamps.length ? `: ${esc(c.lamps.join(', '))}` : ''}</p>`);
+    } else if (isMission(s.coll)) {
+      // ON8: a guard or mission marker: its name, the card's rows stepped with the mouse, and its words
+      if (s.coll !== 'spawns' && s.coll !== 'extraction') text('name', 'Name');
+      rows.push(`<p id="missionWords" class="dim">${esc(this.mission.footWords(s.coll, e) || cardWords(s.coll, e).size)}</p>`);
+      if (s.coll === 'guards') rows.push('<div class="row"><button id="mEditPath">Edit path</button><button id="mPatrol">Play patrol</button><button id="mAlone">Mark alone here</button></div>');
     } else if (s.coll === 'ladders') {
       const ld = e as Ladder;
       text('name', 'Name');
@@ -2983,7 +3403,7 @@ export class Editor {
       sel('to', 'To level', this.levelsAbove(ld.from).map((l) => [l.id, `${l.name} (${l.id})`]));
     }
     // ON9: door, window and glass settings, the card's rows, stepped with the mouse (the same step as the D-pad)
-    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
+    if (s.coll === 'openings' || s.coll === 'roofs' || s.coll === 'exterior' || s.coll === 'lamps' || s.coll === 'guards' || s.coll === 'objectives' || s.coll === 'hides' || (s.coll === 'walls' && (e as Wall).kind === 'glass')) {
       const ctx = s.coll === 'openings' ? { rooms: this.model.list('rooms') as Room[], wall: this.model.get<Wall>('walls', (e as Opening).wall) } : {};
       const set = cardRows(s.coll, s.e, ctx).filter((r) => !['type', 'name', 'w', 'h', 'sill', 'at', 'id', 't', 'len', 'width', 'depth', 'base'].includes(r.id));
       for (const r of set) rows.push(`<div class="row"><span>${esc(r.label)}</span><span><button data-cstep="${r.id}" data-dir="-1">&#8249;</button> <b>${esc(r.value)}</b> <button data-cstep="${r.id}" data-dir="1">&#8250;</button></span></div>`);
@@ -3007,6 +3427,12 @@ export class Editor {
     });
     panel.querySelector<HTMLSelectElement>('[data-rooftype]')?.addEventListener('change', (ev) => this.commit([{ coll: 'roofs', id: s.id, before: s.e, after: withRoofType(s.e as Roof, (ev.target as HTMLSelectElement).value as RoofType) }]));
     document.getElementById('fitStair')?.addEventListener('click', () => this.fitSelected());
+    document.getElementById('mEditPath')?.addEventListener('click', () => this.mission.startPath(s.id));
+    document.getElementById('mPatrol')?.addEventListener('click', () => this.mission.togglePatrol(s.id));
+    document.getElementById('mAlone')?.addEventListener('click', () => {
+      const t = this.controls.orbit.s;
+      this.mission.markAlone(s.id, t.tx, t.tz);
+    });
     document.getElementById('turnClimb')?.addEventListener('click', () => this.turnStairClimb());
     $('del').addEventListener('click', () => this.deleteSelected());
     $('dup').addEventListener('click', () => this.duplicate());
@@ -3025,8 +3451,8 @@ export class Editor {
     if (!before) return;
     const rooms = this.model.list('rooms') as Room[];
     const wall = coll === 'openings' ? this.model.get<Wall>('walls', (before as Opening).wall) : undefined;
-    const after = stepCard(coll, before, row, dir, { step: coll === 'exterior' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data });
-    if (after) this.commit([{ coll, id, before, after }]);
+    const after = stepCard(coll, before, row, dir, { step: coll === 'exterior' || coll === 'lamps' ? this.objectGrid : this.grid, rooms, wall, data: this.model.data });
+    if (after) this.commit([{ coll, id, before, after: coll === 'guards' ? this.mission.recycle(after) : after }]);
   }
 
   private setField(coll: Coll, id: string, path: string, raw: string, isNum: boolean): void {

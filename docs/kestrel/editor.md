@@ -79,6 +79,10 @@ views are generated from it, so this table and the editor cannot drift apart for
 | J | the stealth view (ON4): objects tinted by what they give the player |
 | N | the finish view (ON5): floors tinted by floor finish, with a legend of how loud footsteps are |
 | Space > Climb tiles | the Climb tool (ON5): a climb piece or exterior feature; click places it (a drawn one: click the start, click the end) |
+| Y, B | the light view (ON7): the 3D scene at night, lit by the game's own light bake of the editing level; the darkness map: the floor by the light meter's band (both on Hub > View too) |
+| Space > Lights > Guard view | the guard view tester (ON7): a click places a guard eye facing the way the camera looks; R turns the last eye 45 degrees; Esc or Delete removes it (Esc again leaves the tool) |
+| Space > Mission tiles | the Mission tools (ON8): Guard (a click places a guard, then clicks add its patrol stops; a click on the first stop closes the loop; R turns the last stop 45 degrees, + / - its wait, Backspace removes it, Page Up / Down the level of the next stop, Esc ends), Insertion, Extraction (click a corner, click the far corner), Objective, Intel, Checkpoint, Hide |
+| 0, R | the Light tool (ON6): click places the fitting from the list beside it (a strip: click the start, click the end; R turns the ghost); Switch in the list: click a wall face for a switch, then click lamps to put them on it, Esc ends |
 | Ctrl+1 - 9, Alt+1 - 9 | save the camera as bookmark 1-9; go to bookmark 1-9 (ON3) |
 | V | view: 3D only, both, plan only (cycles) |
 | ` (backquote) or I | open / close the side panel |
@@ -690,8 +694,198 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
   are written to `docs/kestrel/editor-presets.json` with the file save (the Save button shows `*`; through the editor
   server, so the e2e test's sandbox copy is used there).
 
+## Lights (ON6)
+Lamps are placed in the editor as the play file's own records (schema.md section 3 `lamps`, `circuits`), the same records
+the walk test builds and later parts read: nothing is entered twice.
+
+- **Play file**: the editor loads `docs/kestrel/kestrel.play.json` beside the campus file and writes it on the first save
+  that has lamps or circuits (only `lamps` and `circuits`; other parts add theirs; it keeps every other collection it has).
+  The two files are one document while editing (`src/editor/playFile.ts`): undo, the unsaved count, drafts, the save
+  summary and the change log treat them as one. The campus file never holds lamps. A save with no lamp change leaves the
+  play file alone; a no-op save writes neither (both byte-identical). `KESTREL_EDITOR_SANDBOX` covers it.
+- **Fitting catalogue** (`src/editor/lightCatalogue.ts`, one data list; Michael adds fittings there only): five groups.
+  Interior (downlight 90 mm, troffers 600 x 600 and 1200 x 300, LED strip in extrusion, pendant, under-cabinet strip, wall
+  uplight, stair step light, desk lamp); Plant and goods (high bay, LED batten 1500 mm, round and oval bulkheads, cage
+  light); Outside (floodlight, wall pack, pole lantern on a 6 m pole, bollard, PIR security flood); Emergency (twin spot,
+  maintained exit sign, maintained emergency bulkhead); Glow (CCTV monitor, video wall, rack status LEDs, vending machine
+  front, fridge door light). Each has its mount, body size, default height, lumens (per metre for strips), colour
+  temperature, beam, the emergency, motion and breakable defaults, the kind of circuit it goes on, and a `src`.
+- **One conversion** (`lightParams`): lumens, colour temperature and beam to the game's `LightInit` fields (radius,
+  intensity, colour, cone, fixture box). The reach grows with the square root of the beam-weighted lumens, the intensity
+  with the fourth root, calibrated so a 900 lm 60 degree downlight is the Warehouse office ceiling lamp (radius 4,
+  intensity 0.7; facts `light.cal*`). Beams under 100 degrees are spot cones along the aim; wider ones light the hemisphere
+  below, as the game's lamps do. Colour from the colour temperature, softened half way to white as the game's lamps are
+  (exit signs green, screens blue-white). The light itself is the game's own formula (`lampMath.ts`); there is no second one.
+- **Light tool**: Y > **Lights** tab: the five group tiles and **Switch** first (a group tile shows its fittings, the menu
+  stays open), then the group's fittings; A picks one. The tool bar shows "Light" with the fitting under it; D-pad left /
+  right steps the fitting within its group; RB turns the ghost. The ghost sits at the dot at the fitting's height: ceiling
+  fittings under the room's ceiling (or under the slab above, the level height less facts `room.slab`, when the room has
+  none), wall fittings backed onto the wall face within facts `light.wallReach`, desk lamps and monitors on a desk top,
+  glow fittings on the front of their object (rack LEDs: one per rack along the row), exit signs over the opening nearest
+  the dot (facts `light.openingReach`, `light.signAbove`), a pole lantern on the lamp post at the dot or with a new ON5
+  lamp post. Red with words where it cannot go ("Move onto a wall face"). A places it and the tool stays on. Strips and
+  battens are drawn: A at the start, A at the end. A light point stands at least facts `light.surfaceGap` (0.15 m) off its
+  ceiling or wall, as the game's map lamps do, so the light bake does not swallow it.
+- **Circuits**: a new lamp joins the nearest switch's circuit in its room, else a new circuit (no switch yet). Emergency,
+  photocell (outside) and equipment (glow) lamps join a circuit of their kind already in the room, else a new one; PIR,
+  desk and fridge lamps each get their own. Unswitchable circuits carry the real reason ("Emergency lighting: on its own
+  battery supply, no switch", "Photocell: on from dusk to dawn", "PIR: its motion sensor switches it", "Switched at the
+  lamp", "Equipment light: on with the equipment", "Door switch: on when the door opens"). A lamp's `circuit` is the one
+  source: every edit keeps the circuits' lamp lists in step (`circuitLink`, the model's link), so a lamp is on one circuit
+  only; a switchless circuit left with no lamps goes.
+- **Switches**: Y > Lights > **Switch**: A on a wall face places a switch (1.2 m up; a new circuit with `switch.at`,
+  `.wall`); then A on lamps puts each on it (facts `light.lampPick`), B ends. Selected > **Add lamps** on a switch does the
+  same for an existing one. With a lamp or switch selected the plan draws thin dashed lines from the switch to its lamps;
+  the plan marks every lamp (a dot in its colour, a strip as a line) and switch (a square with its id).
+- **Card** (D-pad): Type (the fittings of its group with the same mount), Name, Lumens (catalogue default shown), Colour
+  temp, Beam, Height, Aim turn and Aim down (aimed fittings), Emergency (no, maintained, non-maintained), Motion (PIR),
+  Breakable, Circuit (the circuits on its level, then a new one), Owner (Site, Building A, Building B, owners in use), Id.
+  Its foot gives lumens, colour, beam, reach and circuit. The side panel has the same rows for the mouse.
+- **Aim**: Selected > **Aim** on a floodlight, PIR flood or twin spot: the right stick turns (left / right) and tips (up /
+  down) the beam, previewed; A sets it in one undo step, B puts it back. A rod along the beam shows the aim in 3D (a twin
+  spot's second head points the other way along its wall).
+- **3D**: every lamp shows its body and an emissive bulb in its colour (a dark bulb for a lamp off in its normal state);
+  switches are small white plates. Lighting the editor's scene from the lamps is ON7.
+- **Walk test**: lamps build through the campus converter (`src/world/maps/kestrelLights.ts`, `campusToBuild().lights`)
+  into the game's own `LightRegistry` with `LevelBuilder.light`, the path every map's lights take, so the light meter and
+  the guards read them (bible 5.1). Circuits are switch groups (1, 2, ... in the circuits' order), breakable is
+  `destructible`, a twin spot is two lights. Not in the game yet: PIR triggering and mains-off; a PIR lamp and a
+  non-maintained emergency lamp build in their normal state, off (a maintained one is on); the fridge light is off.
+
+## Live lighting, darkness map, lights preview and guard view (ON7)
+What the editor shows is what the game computes (bible 5.1): every light value comes from the game's own light code.
+
+- **Light view** (Y; Hub > View or the tile menu's View tab: "Lighting"): the 3D scene switches from its flat massing
+  light to night: the Kestrel theme's sky, its moon as the scene's directional light, and the lamps.
+- **Exact light: the game's own pipeline, run in the editor page.** The editing level's campus (with only that level's
+  lamps) goes through the Kestrel map's builder (`kestrel.build`, the walk test's path, `campusLights` for the lamps), then
+  `LevelBuilder.build` on a hidden physics scene (the canonical light shapes, collision, the doors), then the game's
+  `bakeLevelLight` (lamp and moon visibility through the game's voxel worker pool, so the page stays usable while it
+  bakes, cached in IndexedDB as the game caches it), then the game's `LightField` with the doors closed. The 3D view uses
+  the game's `BakedLamps` and `LampPlugin` (the phone light look: standard materials and the lamp volume) on clones of
+  the editor's materials; the hemisphere goes off as on the phone (the plugin's ambient-grid fill replaces it). It runs
+  when the light view, darkness map or guard view comes on, 300 ms after any change on the level (a lamp edit, a wall,
+  object, opening, room, anything; while a drag is held it waits for the drop) and when the editing level changes. The
+  legend (bottom right of 3D) says "Baking light..." while it runs and "Exact light (n ms)" after; the previous result
+  stays on screen until the new one is ready.
+- **Quick light while dragging**: a lamp being dragged, aimed or stepped on the card shows at once as a Babylon range
+  light (the falloff `lampMath` takes from Babylon's lights; a spot as a spot) at its new place with its own baked light
+  switched off; the other lamps keep their exact bake. The exact bake follows on the drop (300 ms). The quick light is
+  3D only: the darkness map, the guard view and the meter never read it (the dot says "light: baking" meanwhile).
+- **Darkness map** (B; Hub > View "Darkness map"): every 0.5 m cell (facts `light.mapCell`) of the editing level's floor
+  (its rooms, less its floor holes) shaded by the game light meter's own sample, `LightField.bodyLevel` for a 1.75 m
+  body (facts `player.standHeight`; the brighter of chest and head, as `GameState.updateLight` reads it): black under
+  `LIGHT.shadow` (0.28, hidden), grey to `LIGHT.lit` (0.6), white above (lit). The two thresholds are drawn as contour
+  lines, blue "hidden" and yellow "lit", in 3D and on the plan (the plan's are labelled). From the exact bake only.
+- **Meter at the dot**: with the light view or the darkness map on, the dot's words end with the meter and its band
+  ("light 0.21 hidden").
+- **Lights preview** (Hub > View / tile menu View: "Lights preview", left / right): Normal (as the game builds the lamps:
+  PIR and non-maintained emergency lamps off); Mains off (only maintained and non-maintained emergency fittings, exit
+  signs among them, lit); Switched off (a "Circuit off" row appears: left / right picks the circuit on this level, it
+  turns off); Motion lights on (PIR lamps lit, as if triggered); Lamp shot out (select a breakable lamp, Selected >
+  **Preview shot out**). A mode switches the lamps in the game's registry (`setOn`, as a switch or a shot does) over the
+  same bake (the bake does not depend on which lamps are on), so it shows at once. Nothing is saved.
+- **Guard view tester** (Y > Lights > **Guard view**): A (a click) places a guard eye at the dot, facing the way the
+  camera looks, at the AI's standing eye height (`EYE_STAND` 1.55 m, `src/ai/perception.ts`, used by `Enemy.eye`); the
+  right stick's left / right turns the last eye (R: 45 degrees); B (Esc, Delete) removes it, B again leaves the tool.
+  Several eyes are allowed; none is saved. The floor the guard can see is tinted: within the AI's own field of view and
+  ranges (`PERCEPTION` focused cone 55 degrees to 25 m, peripheral to 100 degrees either side and 12 m, `fieldFactor`),
+  with line of sight by the AI's own test (`losClear`, the ray `Enemy.losTo` makes against static collision, closed doors
+  included, through the game's `Ballistics.ray` on the hidden physics scene) to the chest, else the head, of a body
+  standing there: red where the body is lit (noticed at once), amber between the thresholds (noticed slowly), clear
+  where it is hidden or out of sight.
+- **Performance**: only the editing level is baked; the darkness map and guard view are recomputed only when the bake,
+  the mode or an eye changes; the plan's map is one image (one pixel a cell), the 3D map one mesh.
+- **Walk test**: it builds the same lamps (ON6) through the same map builder and bake, so the game and the editor
+  agree; the e2e checks one cell's darkness map value against the walk test's light meter there (within 0.05).
+- **The Kestrel night (ON7)**: the map's theme is the mission's night (01-mission-brief.md section 2), at the game's
+  night-map levels (Embassy's: sky fill 0.28, moon 0.14, light level 0.22); it was the B0 massing walk's day light (0.9),
+  which lit every floor over the lit threshold. ON15 sets the moon.
+- **GPU**: the look and the frame time of the lit 3D view are Michael's check on the PC (CLAUDE.md GPU rule); the e2e runs
+  on software GL and checks values, not looks.
+
+## Guards and mission markers (ON8)
+Guards and the mission markers are placed in the editor as the play file's own records (schema.md section 3 `guards`,
+`spawns`, `objectives`, `extraction`, `hides`, `checkpoints`), so P06-P08 read them instead of typing them. They ride in
+the editing document like the lamps (`src/editor/playFile.ts`): undo, drafts, the save summary and the change log treat
+them as one with the campus; the save writes them to the play file only (spawns as bare points, the extraction as one
+object, as the schema has them). Ids are fresh and readable (GD1, OBJ1, H1, CP1).
+
+- **Mission tab** (Y; Space with the mouse): Guard, Insertion, Extraction, Objective, Intel, Checkpoint, Hide. The tool
+  bar shows "Mission" with the tool under it.
+- **Guard tool**: A (a click) places a guard (`guards[]`): kind, employer and job from the mission brief's roster (section
+  3, `src/editor/missionCatalogue.ts`; D-pad left / right with the tool picks the role, default Rounds officer), `space`
+  empty until P06. The guard stands at its first stop and path editing starts at once.
+- **Path editing** (right after placing, or Selected > **Edit path**): A (a click) adds a stop at the dot (`loop[]`: `at`,
+  `wait`, `face`; a new stop faces the way it was walked to); RB (R) turns the last stop 45 degrees, RB held aims it with
+  the right stick (the way the stick points from the camera's view); D-pad up / down (+ / -) changes its wait, 1 s steps
+  from 0; X (Backspace) removes the last stop; A on the first stop closes the loop (three stops at least); B (Esc) ends.
+  D-pad left / right (Page Up / Down) changes the level: a stop on another level is reached by the nearest stair or ladder
+  joining the two; with none, the leg is red with "No stair or ladder joins Ground and First". The dot shows the leg
+  from the last stop as you move ("A: stop 5 here, 9.5 m from stop 4", or "No way from stop 4 to here", red). A new
+  guard and its first path session are one undo step ("Added guard GD1, Rounds officer, 6 stops, 71 s loop"); a later
+  session is one step too ("Changed GD1's patrol ...").
+- **Walkability**: each leg is searched on a grid at the AI nav grid's cell (0.5 m) and agent radius (0.32 m), cited
+  from `src/ai/navBuild.ts` (facts `guard.navCell`, `guard.agentRadius`, `guard.stepHeight`): the floor is the level's
+  rooms less its floor holes; walls block by the radius except across door openings (on the floor, at least the
+  headroom tall); objects between the step height and the headroom block. The game's AI code is not used or changed.
+  The path is pulled tight where a straight line stays on the floor. A leg with no way through is red with "No way from
+  stop 3 to stop 4" (plan, 3D, card and dot).
+- **Cycle time**: `cycle` = loop length / the guard kind's patrol walk speed (facts `guard.walk`, F20: a looped patrol
+  walks at `walkSpeed`, `src/ai/enemy.ts`) + the waits; the card's foot says "Loop 84 m, 71 s; walks 0.9 m/s". It is
+  worked out again on every change of the guard (a moved stop, a new kind on the card); its legs are searched again
+  when the building around it changes.
+- **Drawing**: 3D: a line on the floor per leg in the guard's colour (red where there is no way) with arrows the way it
+  walks, a pad at each stop with a wedge for its facing, a see-through figure at the first stop, labels with the stop
+  number and its wait; plan: the same, one colour per guard, the wait as a number in the stop, the first stop with the
+  guard's id, a red leg's words beside it, an open loop's way back dashed. Hub > View (and the tile menu's View) **Guard
+  paths**: All guards, or Selected guard (only the selected guard's path; the others show their figure).
+- **Patrol preview** (Selected > **Play patrol**; Stop patrol ends it): a guard figure walks the loop at its own speed
+  (real time), waiting and facing at each stop, in 3D and on the plan. With the guard view on (the light view, the
+  darkness map or a guard eye from ON7), the preview has its own guard eye that walks with it, so its sight tint moves.
+  Not saved.
+- **Mark alone here** (Selected): sets `isolation` (`at`, `t`): the point of the loop nearest the dot and the time it is
+  there; while the preview plays, the figure's place and time now. Drawn as a dashed ring with "alone 31 s".
+- **Markers**: Insertion: A places a player start (`spawns`, 1-4, numbered in order; a fifth is refused). Extraction: A at
+  one corner, A at the far corner (the `extraction` rect; a new one replaces the old in the same edit). Objective: A
+  places one (`objectives[]`: kind from the list built from the brief's chain and F28 (zone, take, panel, intel, code,
+  plant, download, extract), the room under it, the next order, not optional). Intel: an objective of kind `intel`.
+  Checkpoint: `checkpoints[]`. Hide: `hides[]` (kind recess, locker, dark patch, under cover on the card). Each draws as a
+  labelled marker in 3D (insertion: a blue post and disc; objective: a diamond, amber for intel; hide: a grey box;
+  checkpoint: a flag; extraction: a green zone) and on the plan.
+- **Objectives' order**: Selected > **Needs first** on an objective, then A on other objectives: each is needed first (A
+  again takes it back); Selected > **Opens** does the reverse. `requires` and `unlocks` stay mirrored; a loop through
+  them is warned on the card and in the status line ("Objectives OBJ2, OBJ3 need each other ... none of them can be
+  done"). Deleting an objective takes its id out of the others.
+- **Card** (D-pad): a guard: Type (the game's guard kinds), Name, Role (the roster: name, employer and job together),
+  Employer, Job, Id; an objective: Type, Name, Order, Optional, Id; a hide: Type, Name, Id; the extraction: Width, Depth.
+  The side panel has the same rows for the mouse, and Edit path, Play patrol and Mark alone here for a guard.
+- **Walk test** (Hub > Play **Start at insertion 1**, on / off): Tab, L3 held and Hub > Play > Walk test start at
+  insertion point 1 (facing north) instead of the dot. The markers are not built in the game yet (P08).
+
 ## What it does not do yet (ED2 parts B-H)
-- ON11: presets carry no lamps or circuits yet (the light records are ON6, which has not run); they join when they exist. The
+- ON8: the walk grid is the editor's own plain rule set, not the game's nav grid (no raycast floors, ledge drops,
+  ladder links or door locks; a door opening is open across its whole width); a leg to another level goes by the stair's
+  middle (the climb counted along its slope), not its real flights. Guards are not built in the walk test (P07) and the
+  markers not in the game (P08); spawns face north. Renaming a guard or objective id does not rename the objective ids
+  in `requires` / `unlocks`. Guards and markers are not duplicated, boxed, copied or pasted, and presets carry none. The
+  patrol preview walks the drawn legs at the walk speed (no turning time). Lures, routes, spaces and radio are not edited.
+- ON7: only the editing level's lamps are baked (a lamp on another level lighting through a stair well is left out). The
+  lit 3D view lights world positions: an exploded or lifted level is lit where it would stand, not where it is drawn. A
+  material whose colour a view tints in place (stealth, finish view) keeps its untinted lit clone until the next bake.
+  The darkness map counts room floors less floor holes as walkable (objects and stairs are not taken out). The guard view
+  samples a standing body at the meter's chest and head heights (the game samples the pose's own chest, head and hips)
+  and does not model crouching, motion or distance in its colours (the light band and line of sight only). The quick
+  light is drawn by Babylon's range light (falloff and cone as the formula, no N.L difference from the bake). PIR
+  triggering and mains-off are previews only; the game still builds them in their normal state.
+- ON6: PIR triggering and mains-off are not in the game (motion and
+  non-maintained lamps stay off in the walk test). Lamps keep their place when a room or wall moves (they are not linked to
+  rooms); a lamp whose room is deleted is skipped by the walk test. Strips are drawn on the ceiling or at their height
+  on a line, not backed onto a wall face. A wall fitting's body stands at its light point (0.15 m off the wall), not
+  against the wall. Renaming a wall or room id does not rename a switch's `wall` or a lamp's `room`; renaming a lamp id
+  keeps its circuit. Switches cannot be moved (delete and place again); Box select, Copy and Paste do not take lamps or
+  switches. `check.mjs` reads no lamp rules yet.
+- ON11: presets carry no lamps or circuits (the ON6 records are not part of a preset yet). The
   ghost shows for the pad (the mouse sees the words after a click). A stamp lands where the dot puts it (no snapping of
   its edges to nearby walls; the magnet still moves the dot). The fit check looks at rooms and walls, not objects, climb
   pieces or roofs. Saving a preset takes rooms, walls, floor holes, stairs, ladders and objects, not roofs or climb
@@ -699,7 +893,7 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
 - ON5: pieces are straight (a duct or pipe is one run; no bends); a duct does not cut the walls it crosses (they stay
   solid in the walk test). A fire escape is one straight flight with no landings (its words say when a real one would
   need one). A downpipe's top lip counts wall tops and ledge pieces, not roof edges or object tops. A lamp post's lamp
-  is ON6. The editor draws a piece as one bar (no pipe brackets, fence mesh or grille slats). Finishes the game has no
+  is the Light tool's pole lantern (ON6). The editor draws a piece as one bar (no pipe brackets, fence mesh or grille slats). Finishes the game has no
   surface for sound as the nearest one (vinyl, ceramic and asphalt as concrete, grass as carpet, a raised floor as
   wood). Box select, Copy and Paste do not take climb pieces. A level's storey change does not move them (heights are
   absolute).
@@ -717,8 +911,7 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
   and a frosted pane as clear). Hatches sit in walls; a floor or ceiling hatch is still a Floor hole. A roof light is a
   high window in a wall; a glazed hole in a roof slab is the Floor hole tool's Roof light. The card level does not change
   the room's access level (the Checks show A29 as before).
-- The tile menu's Lights and Mission tabs are empty (hidden) until the later parts add tiles. The on-screen
-  keyboard has no lower-case or symbol page (words start with a capital, the rest is small; ids keep capitals).
+- The on-screen keyboard has no lower-case or symbol page (words start with a capital, the rest is small; ids keep capitals).
 - ON2: building outlines are edited as edge rows on the Levels tab with the outlines drawn in 3D, not dragged on a site
   plan; the plan images do not draw them. Deleting a level leaves the levels above where they are. Free text that names an
   id (a hole's `reason`, the documents) is not renamed. Renaming the ground level G makes the walk test start on the level
@@ -733,7 +926,7 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
 - With the mouse, wall ends do not snap to other walls (the pad's magnet does);
   a wall crossing another (an X, no end on it) is not a cross wall for door centring; live sizes measure straight walls
   along x or z for room edges (angled walls are skipped).
-- Lighting preview, props, guards and routes.
+- Props and routes.
 - Quick walk up stairs: change level with Page Up / Page Down (the walk test climbs stairs and ladders for real).
 - On the plan, the building filter hides rooms, walls and openings; their name labels stay.
 - Corner joins are drawn for the editor's 3D, the quick walk and the walk test; the plan images (`plans.mjs`) keep their own
@@ -766,6 +959,12 @@ Michael (2026-10-13): stamp a fitted-out office, WC block or stair core, and sav
 | `src/world/maps/kestrelRoofs.ts` | ON10: the one copy of the roof geometry (planes, edges, ridges, hips, plan marks, the walk test's boxes and panes), shared by the editor, the walk test and `plans.mjs` (pure, import-free) |
 | `src/world/maps/stairs.ts` | the one copy of the stair maths, shared by the editor and the walk test: `stairSize` (A11 sizing), `stairSplit`, `stairLayout` (flights and landings) (pure; `kestrelGeo.ts` re-exports `stairLayout`) |
 | `src/editor/presets.ts`, `src/editor/stampTool.ts` | ON11: the start set (data with sources), module kit presets from expand's output, turning and placing a group, the fit check, stamping as one change list with wall reuse, saving a selection, the own presets file; the Stamp tool's state, ghost cache and save (pure, `tests/editor/presets.test.ts`) |
+| `src/editor/lightCatalogue.ts`, `src/editor/lamps.ts`, `src/editor/playFile.ts` | ON6: the fittings (one data list with sources) and the one lumens conversion; placing lamps and switches, linear fittings, default circuits, the circuit link, the card's rows and steps, words; the play file joined in and split out (pure, `tests/editor/lamps.test.ts`) |
+| `src/world/maps/kestrelLights.ts` | ON6: the lamp and circuit records and how the walk test builds them as the game's lights (pure); ON7: the lamp id of each light |
+| `src/editor/lightPreview.ts` | ON7: the lights preview modes, the light bands at `LIGHT`, the darkness map's cells and contours, the guard view's classes from `PERCEPTION`, the quick light (`contribution`) (pure, `tests/editor/lightPreview.test.ts`) |
+| `src/editor/missionCatalogue.ts`, `src/editor/mission.ts`, `src/editor/missionTool.ts` | ON8: the guard kinds and walk speeds, the brief's roster, objective and hide kinds (data with sources); the mission records, the walk grid and leg search, length and cycle, path edits, the patrol as time, isolation, objective links and loops, the play file shapes (pure, `tests/editor/mission.test.ts`); the Mission tools in the editor: path editing, markers, picking, the patrol preview, plan marks and 3D labels |
+| `src/editor/lightView.ts` | ON7: the exact light through the game's pipeline (map builder, hidden physics scene, `bakeLevelLight`, `LightField`, `BakedLamps` on material clones), the quick light, the darkness map and guard view in 3D and on the plan, the eyes, the legend |
+| `docs/kestrel/kestrel.play.json` | ON6: the play file (schema.md section 3); the editor writes `lamps` and `circuits` |
 | `docs/kestrel/editor-presets.json` | ON11: Michael's own presets (schema.md section 7, own presets); written by the editor's Save |
-| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load, plan (one level, SVG), checks, save, the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
+| `scripts/kestrel/editor-server.ts` | dev-server endpoints: load (the campus file and, ON6, the play file), plan (one level, SVG), checks, save (both files), the walk test's draft, presets (the module kit expanded, the own presets file); `KESTREL_EDITOR_SANDBOX` for tests |
 | `scripts/kestrel/plans.mjs` | the same plan drawing the documents use; `--level` and `--svg-only` for the live view, `data-id` on rooms, walls and openings for clicks |

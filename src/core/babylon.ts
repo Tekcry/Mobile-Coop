@@ -5,6 +5,7 @@
  */
 export { Engine } from '@babylonjs/core/Engines/engine';
 export { Scene } from '@babylonjs/core/scene';
+export { EngineStore } from '@babylonjs/core/Engines/engineStore';
 export { Vector3, Vector2, Vector4, Quaternion, Matrix, TmpVectors } from '@babylonjs/core/Maths/math.vector';
 export { Skeleton } from '@babylonjs/core/Bones/skeleton';
 export { Bone } from '@babylonjs/core/Bones/bone';

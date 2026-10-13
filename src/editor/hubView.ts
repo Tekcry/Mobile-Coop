@@ -157,6 +157,7 @@ export class HubView {
     const bs = ed.model.data.meta.buildings ?? [];
     return {
       unsaved: ed.model.dirty,
+      insertion: { on: ed.mission.startAtInsertion, n: (ed.model.data.spawns ?? []).length },
       changes: ed.model.history.map((e) => e.text).reverse(),
       undone: ed.model.undone.map((e) => e.text),
       bookmarks: ed.bookmarks.map((b) => ({ slot: b.slot, name: b.name })),
@@ -256,6 +257,7 @@ export class HubView {
       this.close();
       return ed.gameWalk();
     }
+    if (id === 'play.insertion') ed.mission.setStartAtInsertion(!ed.mission.startAtInsertion);
     if (id === 'file.save') await ed.save();
     else if (id === 'file.revert') await ed.revert();
     else if (id.startsWith('undo.') && press) {

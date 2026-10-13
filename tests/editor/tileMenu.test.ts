@@ -10,9 +10,20 @@ const door: MenuInput = { sel: { coll: 'openings', type: 'door' }, clipboard: fa
 const names = (tab: Parameters<typeof menuTiles>[0], inp: MenuInput): string[] => menuTiles(tab, inp).map((t) => t.name);
 
 describe('tile menu model (ON0a)', () => {
-  it('tabs: Selected only with a selection and first; empty tabs (Lights, Mission) hidden until later parts add tiles', () => {
-    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Presets', 'Climb', 'View']);
-    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'View']);
+  it('tabs: Selected only with a selection and first; every tab has tiles (ON8 filled Mission)', () => {
+    expect(menuTabs(none)).toEqual(['Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View']);
+    expect(menuTabs(room)).toEqual(['Selected', 'Build', 'Openings', 'Objects', 'Presets', 'Climb', 'Lights', 'Mission', 'View']);
+  });
+
+  it('Mission tab (ON8): Guard and the markers; a guard has Edit path, Play patrol and Mark alone here, no Duplicate', () => {
+    expect(names('Mission', none)).toEqual(['Guard', 'Insertion', 'Extraction', 'Objective', 'Intel', 'Checkpoint', 'Hide']);
+    const g = names('Selected', { ...none, sel: { coll: 'guards', type: 'grunt' } });
+    expect(g.slice(0, 4)).toEqual(['Edit path', 'Play patrol', 'Mark alone here', 'Move']);
+    expect(g).not.toContain('Duplicate');
+    expect(g).toContain('Delete');
+    expect(names('Selected', { ...none, sel: { coll: 'guards', type: 'grunt' }, playing: true })[1]).toBe('Stop patrol');
+    expect(names('Selected', { ...none, sel: { coll: 'objectives', type: 'intel' } }).slice(0, 2)).toEqual(['Needs first', 'Opens']);
+    expect(menuTiles('View', none).at(-1)!.value).toBe('All guards');
   });
 
   it('Objects tab (ON4): the five groups, then the presets of the chosen group', () => {
@@ -21,6 +32,21 @@ describe('tile menu model (ON0a)', () => {
     expect(t.find((x) => x.id === 'objgroup.goodsIn')!.on).toBe(true);
     expect(t.slice(5).map((x) => x.id)).toContain('obj.crate-1.0');
     expect(menuTiles('Objects', none).slice(5, 7).map((x) => x.name)).toEqual(['Server rack 42U', 'Rack row']);
+  });
+
+  it('Lights tab (ON6): the five groups and Switch, then the fittings of the chosen group; a lamp has Aim and Circuit', () => {
+    const t = menuTiles('Lights', { ...none, lightGroup: 'emergency' });
+    expect(t.slice(0, 6).map((x) => x.name)).toEqual(['Interior', 'Plant and goods', 'Outside', 'Emergency', 'Glow', 'Switch']);
+    expect(t.find((x) => x.id === 'lightgroup.emergency')!.on).toBe(true);
+    // ON7: the guard view tester after Switch
+    expect(t[6]!.id).toBe('guard.view');
+    expect(t.slice(7).map((x) => x.id)).toEqual(['light.spitfire', 'light.exit-sign', 'light.emergency-bulkhead']);
+    expect(menuTiles('Lights', none).slice(7, 9).map((x) => x.name)).toEqual(['Downlight 90 mm', 'Troffer 600 x 600']);
+    // ON7: a breakable lamp can be previewed shot out
+    expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'downlight', breakable: true } })).toContain('Preview shot out');
+    expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'floodlight' } })).toEqual(['Move', 'Duplicate', 'Aim', 'Circuit', 'Rename id', 'Change type', 'Properties', 'Delete']);
+    expect(names('Selected', { ...none, sel: { coll: 'lamps', type: 'downlight' } })).not.toContain('Aim');
+    expect(names('Selected', { ...none, sel: { coll: 'circuits', type: '' } })).toContain('Add lamps');
   });
 
   it('tile order: Build, Openings and the Selected tab per element kind', () => {

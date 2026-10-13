@@ -21,9 +21,13 @@ describe('hub tabs and rows', () => {
 
   it('Play: quick walk, the walk test as the player (enabled), and Find (ON3)', () => {
     const r = hubRows('Play', input);
-    expect(r.map((x) => x.text)).toEqual(['Quick walk at the dot', 'Walk test as the player', 'Find a room, stair or object']);
+    expect(r.map((x) => x.text)).toEqual(['Quick walk at the dot', 'Walk test as the player', 'Start at insertion 1', 'Find a room, stair or object']);
     expect(r[1]!.disabled).toBeFalsy();
     expect(r[1]!.id).toBe('play.walk');
+    // ON8: greyed until there is an insertion point
+    expect(r[2]!.disabled).toBe(true);
+    const on = hubRows('Play', { ...input, insertion: { on: true, n: 1 } })[2]!;
+    expect([on.value, !!on.disabled]).toEqual(['on', false]);
   });
 
   it('File: undone changes grey above the list with "redo up to here" (ON3)', () => {
@@ -58,7 +62,7 @@ describe('hub tabs and rows', () => {
 
   it('Levels, View and Settings rows', () => {
     expect(hubRows('Levels', input).map((x) => [x.text, x.value])).toEqual([['First (4.2 m)', undefined], ['Ground (0 m)', 'editing']]);
-    expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Ghost other levels: off', 'Exploded: 3 m gap', 'Cut walls at: off', 'Levels shown: Up to this level', 'Building filter: Building A', 'Small plan: off', 'Labels: on', 'Level below on the plan: off', 'Room names in 3D: off', 'Scale figure: off', 'Stealth view: off', 'Finish view: off', 'Bookmarks: save this view: undefined']);
+    expect(hubRows('View', input).map((x) => `${x.text}: ${x.value}`)).toEqual(['Layout: 3D', 'Ghost other levels: off', 'Exploded: 3 m gap', 'Cut walls at: off', 'Levels shown: Up to this level', 'Building filter: Building A', 'Small plan: off', 'Labels: on', 'Level below on the plan: off', 'Room names in 3D: off', 'Scale figure: off', 'Stealth view: off', 'Finish view: off', 'Lighting: off', 'Darkness map: off', 'Lights preview: Normal', 'Guard paths: All guards', 'Bookmarks: save this view: undefined']);
     expect(hubRows('Settings', input).map((x) => x.value)).toEqual(['on', '0.1 m', '1.00x', '1.00x', 'Medium', '0.15', '1.00x', 'off', 'Normal', 'Last tab', 'on']);
     expect(hubRows('Settings', input).map((x) => x.text).slice(1, 6)).toEqual(['Grid', 'Pan speed', 'Orbit speed', 'Smoothing', 'Dead zone']);
     expect(hubRows('Settings', input).find((x) => x.id === 'set.repeat')!.slider).toBeCloseTo((1 - 0.5) / 1.5);

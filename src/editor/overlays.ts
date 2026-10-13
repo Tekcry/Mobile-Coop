@@ -13,6 +13,7 @@ import type { Editor } from './main';
 import { badgesOf, stealthTint } from './objects';
 import type { Badge } from './objects';
 import type { Obj } from './types';
+import type { MissionLabel } from './missionTool';
 
 /** Floating names hide beyond this (facts.json render.roomNameRange). */
 export const NAME_RANGE = facts.render.roomNameRange.value;
@@ -23,6 +24,8 @@ const LABELS = 48;
 const MARKERS = 40;
 /** ON4: badge icons over objects (a fixed pool, nearest first is not needed: the first in range). */
 const BADGES = 64;
+/** ON8: guard and mission marker labels (a fixed pool). */
+const MISSION_LABELS = 64;
 const BADGE_ICON: Record<Badge, string> = { full: 'Full', crouch: 'Crouch', vault: 'Vault', climb: 'Climb', hang: 'Hang' };
 
 interface BadgeSpot {
@@ -71,6 +74,11 @@ export class EditorOverlays {
   private badgesOn = 0;
   private badgeSpots: BadgeSpot[] = [];
   private badgeAt = -1;
+  private readonly mEls: HTMLDivElement[] = [];
+  private readonly mText: string[] = [];
+  private mOn = 0;
+  private mSpots: MissionLabel[] = [];
+  private mKey = '';
 
   constructor(private readonly ed: Editor) {
     this.layer = document.createElement('div');
@@ -83,6 +91,14 @@ export class EditorOverlays {
       this.layer.appendChild(d);
       this.labels.push(d);
       this.labelText.push('');
+    }
+    for (let i = 0; i < MISSION_LABELS; i++) {
+      const d = document.createElement('div');
+      d.className = 'rname obadge mlabel';
+      d.style.display = 'none';
+      this.layer.appendChild(d);
+      this.mEls.push(d);
+      this.mText.push('');
     }
     for (let i = 0; i < BADGES; i++) {
       const d = document.createElement('div');
@@ -100,6 +116,65 @@ export class EditorOverlays {
     this.figureFrame();
     this.namesFrame();
     this.badgesFrame();
+    this.missionFrame();
+  }
+
+  // ---------- guard and mission marker labels (ON8) ----------
+  private missionFrame(): void {
+    const ed = this.ed;
+    const view = ed.view;
+    const d = ed.model.data;
+    if ((!d.guards?.length && !d.spawns?.length && !d.objectives?.length && !d.hides?.length && !d.checkpoints?.length && !d.extraction?.length) || ed.prefs.layout === 'plan' || ed.walk.state === 'open') return this.hideMission(0);
+    const key = `${ed.dataVersion}|${ed.mission.paths}|${ed.selected ?? ''}|${ed.mission.path?.id ?? ''}`;
+    if (key !== this.mKey) {
+      this.mKey = key;
+      this.mSpots = ed.mission.labels();
+    }
+    const cam = view.camera.position;
+    const [fx, fy, fz] = ed.controls.forward();
+    const m = view.scene.getTransformMatrix();
+    const cv = view.engine.getRenderingCanvas();
+    const w = cv?.clientWidth ?? 0;
+    const h = cv?.clientHeight ?? 0;
+    const vis = this.visNow();
+    const levels = d.levels;
+    const bs = d.meta.buildings;
+    let n = 0;
+    for (const s of this.mSpots) {
+      if (n >= MISSION_LABELS) break;
+      if (elementState(vis, levels, view.level, [s.level], buildingAt(bs, s.x, s.z)) !== 'shown') continue;
+      const y = view.floorOf(s.level) + view.offsetOf(s.level) + s.y;
+      const dx = s.x - cam.x;
+      const dy = y - cam.y;
+      const dz = s.z - cam.z;
+      if (hyp3(dx, dy, dz) > NAME_RANGE || dx * fx + dy * fy + dz * fz < 0.5) continue;
+      this.v.set(s.x, y, s.z);
+      Vector3.TransformCoordinatesToRef(this.v, m, this.out);
+      const sx = ((this.out.x + 1) / 2) * w;
+      const sy = ((1 - this.out.y) / 2) * h;
+      if (sx < 0 || sy < 0 || sx > w || sy > h) continue;
+      const el = this.mEls[n]!;
+      const k = `${s.text}|${s.colour}`;
+      if (this.mText[n] !== k) {
+        this.mText[n] = k;
+        el.textContent = s.text;
+        el.style.borderColor = s.colour;
+      }
+      el.style.transform = `translate(${sx.toFixed(0)}px, ${sy.toFixed(0)}px) translate(-50%, -50%)`;
+      if (n >= this.mOn) el.style.display = '';
+      n++;
+    }
+    this.hideMission(n);
+  }
+
+  private hideMission(from: number): void {
+    for (let i = from; i < this.mOn; i++) this.mEls[i]!.style.display = 'none';
+    this.mOn = from;
+  }
+
+  /** How many mission labels show (the e2e reads it). */
+  get missionShown(): number {
+    return this.mOn;
   }
 
   // ---------- object badges (ON4) ----------

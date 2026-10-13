@@ -108,6 +108,23 @@
     "curbMin": { "value": 0.15, "src": "scale-sheet s3" },
     "curbMax": { "value": 0.4, "src": "scale-sheet s3" }
   },
+  "light": {
+    "calLumens": { "value": 900, "src": "ON6 brief decision 3 (editor): a 900 lm downlight is the calibration point" },
+    "calBeam": { "value": 60, "src": "ON6 brief decision 4: the 900 lm downlight beam (degrees)" },
+    "calRadius": { "value": 4, "src": "src/world/maps/warehouse.ts office ceiling lamp (21.45, 2.45, -22.9): radius 4" },
+    "calIntensity": { "value": 0.7, "src": "src/world/maps/warehouse.ts office ceiling lamp (21.45, 2.45, -22.9): intensity 0.7" },
+    "radiusMin": { "value": 0.5, "src": "editor default: smallest light reach the conversion gives (a step light)" },
+    "radiusMax": { "value": 20, "src": "editor default: longest light reach the conversion gives (lampBake boxes stay small)" },
+    "intensityMin": { "value": 0.15, "src": "editor default: dimmest intensity the conversion gives" },
+    "intensityMax": { "value": 1.4, "src": "editor default: brightest intensity the conversion gives (the game maps use up to 1.0)" },
+    "spotBeamMax": { "value": 100, "src": "editor default: beams narrower than this (degrees) are spot cones; wider light the hemisphere below (lampMath LAMP_CONE)" },
+    "wallReach": { "value": 0.8, "src": "editor default: a wall fitting or a switch backs onto a wall face within this distance of the dot (beyond the dot magnet's 0.5 m pull to a wall line)" },
+    "openingReach": { "value": 1.0, "src": "editor default: an exit sign snaps to an opening whose middle is within this distance of the dot" },
+    "signAbove": { "value": 0.15, "src": "editor default: an exit sign centre this far above the door head" },
+    "lampPick": { "value": 0.8, "src": "editor default: A with a switch adds the lamp within this distance of the dot" },
+    "mapCell": { "value": 0.5, "src": "ON7 brief decision 4: the darkness map and the guard view sample every 0.5 m cell of the level's floor" },
+    "surfaceGap": { "value": 0.15, "src": "map lamps hang 0.15 m under their ceilings (src/world/maps/mansion.ts H1 - 0.15): the light bake grows solids by half a 0.2 m cell, so a light point nearer a ceiling or wall is inside it and lights nothing" }
+  },
   "traverse": {
     "stepMax": { "value": 0.65, "src": "F04 (src/player/movement.ts pickTraversal: step up to 0.65, top clear)" },
     "vaultMax": { "value": 1.25, "src": "F04 (pickTraversal: vault up to 1.25)" },
@@ -181,6 +198,18 @@
     "lampPostSize": { "value": 0.15, "src": "editor default: typical product (a 150 mm steel column)" },
     "fenceHeight": { "value": 2.4, "src": "editor default: typical product (a security chain-link fence, 2.4 m)" },
     "fenceRattle": { "value": 4, "src": "F14 (src/config/movement.ts FENCE.rattle; tests/editor/climb.test.ts keeps them equal)" }
+  },
+  "guard": {
+    "navCell": { "value": 0.5, "src": "src/ai/navBuild.ts:72 (the AI nav grid cell, cell: 0.5); ON8 legs are searched on the same cell" },
+    "agentRadius": { "value": 0.32, "src": "src/ai/navBuild.ts:73 (agentRadius: 0.32, the guard's footprint the nav grid keeps clear)" },
+    "stepHeight": { "value": 0.45, "src": "src/ai/navBuild.ts:74 (stepHeight: 0.45): an object lower than this does not block a guard" },
+    "walk": { "value": { "grunt": 0.9, "runner": 1.3, "heavy": 0.75, "sniper": 0.85, "enforcer": 0.8, "dog": 1.1, "droneOp": 0.85, "officer": 0.85 }, "src": "F20 (src/config/enemies.json walkSpeed; tests/editor/mission.test.ts keeps them equal); a looped patrol walks at walkSpeed (src/ai/enemy.ts:988, a loop route's pace is 1)" },
+    "waitStep": { "value": 1, "src": "ON8 brief decision 2: a stop's wait steps 1 s, from 0" },
+    "faceStep": { "value": 45, "src": "ON8 editor: RB turns a stop's facing 45 degrees (the right stick aims it freely)" },
+    "stopPick": { "value": 0.75, "src": "ON8 editor: A within this of the first stop closes the loop; picks a stop" },
+    "connectorReach": { "value": 3, "src": "ON8 editor: a stair or ladder joins a leg at the walkable cell nearest it within this" },
+    "maxSpawns": { "value": 4, "src": "schema.md section 3 spawns (1-4 players; co-op is 2-4)" },
+    "previewRate": { "value": 1, "src": "ON8 brief decision 6: the patrol preview walks at the guard's own speed (real time)" }
   },
   "render": {
     "pxPerM": { "value": 10, "src": "P03 prompt step 3" },
