@@ -6,3 +6,4 @@
 - Flaky under E2E_JOBS=2 (pass serially): e2e-stealth (look input), e2e-levels (rack ladder runner). Add to docs/backlog.md flaky list at step 34 if they recur.
 - e2e-mouse ('losing the capture (Esc) pauses the match') flaked once under E2E_JOBS=2 at step 05; passes serially.
 - e2e-netmove new flake mode under 2 jobs: 'fence: joints within 10 cm' with wrists 30-36 cm (passes serially, 0 cm). Add to docs/backlog.md flaky entry at step 34 if it recurs.
+- Stale cover comments in src/game/takedownController.ts (~90, ~111): scrub in step 12 (corner takedown remap).
