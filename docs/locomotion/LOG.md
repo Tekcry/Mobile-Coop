@@ -31,3 +31,6 @@ scripts/anim-audit.mjs + src/anim/audit/{limits,metrics}.ts + 25 unit tests. 3 f
 
 ## 08 harness-remote
 Remote poses via ?net=local (A37: undrawn pages, 16 ms client tick). 3 fix rounds (r1: camera refresh - frozen camera had halved rig rate via anim LOD, local fails 690 -> 554; remote LOD placement; poseError split (A38); rubber-band pops; stopidle; clock resets; --band / --compare; run-e2e helper exclusion; r2: A39 gate scope; r3: settle wait after placement, lag fallback, 0.3 s settle, braceboost finding) plus A40 (remote poseError report-only until step 22). Final: lint 0 errors, tests 1052, build ok, compare no regression. Baseline: local 554 fails; remote 100 / 101. Real D8 findings: owner holds stopped stride while copy idles; copy head dips ~13 cm on acceleration; placement recovery > 1.2 s; remote crouch eased binary flag; brace pose offset 31 / 36 cm; gait phase not on the wire.
+
+## Block B end
+Full e2e (2 jobs): anim-audit report-only ok (129 s); stealth, mouse, weapons-carry, coop, netmove flaky (all pass serially); e2e-kestrel and e2e-camera-bounds (level U) kestrel-owned (identical on kestrel head). Perf trend: sim p95 2.5 / 2.7 ms, anim 0.0595 / 0.051 ms per char (baseline 0.0566): no rise.
