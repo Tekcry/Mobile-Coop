@@ -83,7 +83,7 @@ Design authority: docs/design-bible.md (Section 5.7)
 - `ai/archetypes.ts` (pure, `ARCHETYPE`): `heavyMult` (by `fromFront`), `shieldBlocks`, `grabRule` (heavy frontal =
   lethal only, enforcer frontal = none; `TakedownController` offers `lethalOnly`), `sniperRelocate`, `glint`,
   `smellRate`, `radioCheck`, `DIFFICULTY` tiers (`rookie | normal | realistic | perfectionist`: perception, damage,
-  accuracy, hp, reaction, reward, `execute`, `sonar`; `parseDifficulty` reads easy / hard). `enemyDefs.ts` re-exports
+  accuracy, hp, reaction, reward, `sonar`; `parseDifficulty` reads easy / hard). `enemyDefs.ts` re-exports
   them; `ENEMY_KINDS` adds `sniper | enforcer | dog | droneOp | officer` (`emptyKinds()` for tallies; `quadruped`).
 - `Enemy`: `perceptionMul` (tier x officer buff), dog smell (`smelled` keeps an alerted dog on the target),
   `applyDamage` plates / shield (`shieldBlocks`), sniper `shotsHere` / `relocations` (`relocating` picks a post
@@ -95,7 +95,7 @@ Design authority: docs/design-bible.md (Section 5.7)
   `ARCHETYPE.radio`, stealth only), radio delays x tier reaction x officer.
 - Barks: `ai/barks.ts` (`BARKS`, `RADIO_BARKS`, `BarkVoice` cooldowns); `ui/hud/barks.ts` `BarkView` (pool, placed by
   `GameState.placeBark`); `bark` event -> `sfx.radio()` for radio lines.
-- `GameState.difficultyDef`; Perfectionist turns off `ExecuteController` and `VisionState.sonarAllowed`.
+- `GameState.difficultyDef`; Perfectionist turns off `VisionState.sonarAllowed`.
 
 ## AI and modes
 - `buildNavGrid` (load time) -> `NavGrid` (pure). Enemies chase via the shared flow field, use A* only

@@ -46,9 +46,6 @@ const TD_REACH = 3;
 const TD_MAX = 6;
 /** Two takedowns by different players this close together (s) make a dual takedown. */
 const DUAL_WINDOW = 1.5;
-/** A client's execute: open this long (s) for this many kill shots once a charge is spent. */
-const EXEC_WINDOW = 5;
-const EXEC_SHOTS = 5;
 
 interface Hist {
   t: number;
@@ -228,9 +225,6 @@ export class CoopHost implements NetAttachment {
   duals = 0;
 
   private takedownDone(by: string): void {
-    // a remote's takedown earns it an execute charge (the host checks its execute shots against it)
-    const rr = this.remotes.get(by);
-    if (rr) rr.execCharges = Math.min(3, rr.execCharges + 1);
     const l = this.lastTd;
     if (l && l.by !== by && this.time - l.t <= DUAL_WINDOW) {
       const sub = `${this.name(l.by)} + ${this.name(by)}`;
@@ -720,20 +714,8 @@ export class CoopHost implements NetAttachment {
     const feet = new Vector3();
     const pose = this.rewindHist(this.history.get(enemy.id), m.rt, feet);
     if (!pose) enemy.center(feet).addInPlaceFromFloats(0, -1, 0);
-    let dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
+    const dmg = this.judge(r, m, feet, pose?.crouch ?? 0, enemy.def.scale);
     if (dmg <= 0) return;
-    // Mark & Execute: a kill shot while an execute is open (a charge opens one; a few shots, a few seconds)
-    if (m.ex) {
-      if (r.execUntil < this.time && r.execCharges > 0) {
-        r.execCharges--;
-        r.execUntil = this.time + EXEC_WINDOW;
-        r.execLeft = EXEC_SHOTS;
-      }
-      if (r.execUntil >= this.time && r.execLeft > 0) {
-        r.execLeft--;
-        dmg = 9999;
-      }
-    }
     const aim = (m.part === 'head' ? this.tmpH : this.tmpB).clone();
     enemy.applyDamage({ amount: dmg, point: aim, dir: new Vector3(m.dx, m.dy, m.dz), part: m.part, kind: 'bullet', attackerTeam: 'player', attackerId: r.id, weapon: m.w, sourcePos: new Vector3(m.ox, m.oy, m.oz), impulse: WEAPONS[m.w].impulse });
   }

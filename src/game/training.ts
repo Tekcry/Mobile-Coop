@@ -3,7 +3,7 @@
  * reports it. Optional, replayable, no story. The mode (`modes/trainingMode.ts`) fills `TrainingStatus` each step
  * and places the target marker; this only sequences.
  */
-export type TrainingStepId = 'move' | 'sneak' | 'cover' | 'vault' | 'ladder' | 'goggles' | 'takedown' | 'mark' | 'execute' | 'gadget';
+export type TrainingStepId = 'move' | 'sneak' | 'cover' | 'vault' | 'ladder' | 'goggles' | 'takedown' | 'gadget';
 
 export interface TrainingStep {
   id: TrainingStepId;
@@ -21,8 +21,6 @@ export const TRAINING_STEPS: readonly TrainingStep[] = [
   { id: 'ladder', text: 'Climb the ladder', hint: { pad: 'Y at the ladder', kbm: 'E at the ladder', touch: 'Tap "Climb"' } },
   { id: 'goggles', text: 'Switch your goggles on', hint: { pad: 'Tap the View button', kbm: 'N', touch: 'Goggles button' } },
   { id: 'takedown', text: 'Grab the guard from behind, then take him down', hint: { pad: 'Y grabs; Y again: tap knocks out, hold kills', kbm: 'E grabs; E again: tap / hold', touch: 'Takedown button: grab, then again' } },
-  { id: 'mark', text: 'Aim and mark both guards', hint: { pad: 'LT + RB', kbm: 'Right button + T', touch: 'Aim, then Mark' } },
-  { id: 'execute', text: 'Execute', hint: { pad: 'Y when the marks turn red', kbm: 'Y', touch: 'Execute button' } },
   { id: 'gadget', text: 'Throw a gadget', hint: { pad: 'Hold D-pad right, release', kbm: 'Hold G, release', touch: 'Hold the gadget button, release' } },
 ];
 
@@ -37,12 +35,10 @@ export interface TrainingStatus {
   onLadder: boolean;
   goggles: boolean;
   takedowns: number;
-  marks: number;
-  executes: number;
   thrown: number;
 }
 
-export const emptyTrainingStatus = (): TrainingStatus => ({ moved: 0, crouchedMoving: false, inCover: false, vaulted: false, onLadder: false, goggles: false, takedowns: 0, marks: 0, executes: 0, thrown: 0 });
+export const emptyTrainingStatus = (): TrainingStatus => ({ moved: 0, crouchedMoving: false, inCover: false, vaulted: false, onLadder: false, goggles: false, takedowns: 0, thrown: 0 });
 
 /** Is `id` done given the status? (`base` = the counters when the step began) */
 export function stepDone(id: TrainingStepId, s: TrainingStatus, base: TrainingStatus): boolean {
@@ -61,10 +57,6 @@ export function stepDone(id: TrainingStepId, s: TrainingStatus, base: TrainingSt
       return s.goggles;
     case 'takedown':
       return s.takedowns > base.takedowns;
-    case 'mark':
-      return s.marks >= 2;
-    case 'execute':
-      return s.executes > base.executes;
     case 'gadget':
       return s.thrown > base.thrown;
   }

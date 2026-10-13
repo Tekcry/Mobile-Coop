@@ -27,9 +27,6 @@ export const BUTTON_ACTIONS = [
   'dash',
   /** Goggles: cycle off -> night vision -> sonar. */
   'vision',
-  /** Mark the enemy under the crosshair (aiming) / run Mark & Execute when ready. */
-  'mark',
-  'execute',
   /** Co-op: ping the spot (or the guard) under the crosshair for the team. */
   'ping',
   /** Chaos Theory speed gears (3.2.0): one gear up / down. */

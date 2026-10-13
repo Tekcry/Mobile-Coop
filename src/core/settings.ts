@@ -20,8 +20,6 @@ export const TOUCH_CONTROL_IDS = [
   'shoulder',
   'pause',
   'vision',
-  'mark',
-  'execute',
   'gadgets',
   'takedown',
   'ping',
@@ -29,8 +27,8 @@ export const TOUCH_CONTROL_IDS = [
   'jump',
 ] as const;
 /** Touch layout format version (2: camera stick, contextual action button; 3: takedown button; 4: speed rocker; 5: jump
- *  button). */
-export const TOUCH_LAYOUT_VERSION = 5;
+ *  button; 6: Mark and Execute buttons removed). */
+export const TOUCH_LAYOUT_VERSION = 6;
 export type TouchControlId = (typeof TOUCH_CONTROL_IDS)[number];
 
 /** Control centre in normalised screen space (0..1) and per-control scale. */
@@ -182,8 +180,6 @@ export const DEFAULT_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   shoulder: { x: 0.68, y: 0.09, scale: 1 },
   pause: { x: 0.79, y: 0.09, scale: 1 },
   vision: { x: 0.655, y: 0.27, scale: 1 },
-  mark: { x: 0.965, y: 0.3, scale: 1 },
-  execute: { x: 0.44, y: 0.42, scale: 1 },
   gadgets: { x: 0.515, y: 0.62, scale: 1 },
   takedown: { x: 0.6, y: 0.62, scale: 1 },
   ping: { x: 0.57, y: 0.09, scale: 1 },
@@ -203,7 +199,6 @@ export const CLAW_LAYOUT: Record<TouchControlId, ControlPlacement> = {
   shoulder: { x: 0.5, y: 0.09, scale: 1 },
   pause: { x: 0.585, y: 0.09, scale: 1 },
   vision: { x: 0.57, y: 0.33, scale: 1 },
-  mark: { x: 0.9, y: 0.36, scale: 1 },
   gadgets: { x: 0.6, y: 0.62, scale: 1 },
 };
 

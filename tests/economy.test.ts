@@ -80,7 +80,7 @@ describe('HQ, challenges, style cash', () => {
     h.marks = 1;
     h.restock = 1;
     expect(canBuyHq(h, 'radar', 10, 99999)).toMatchObject({ ok: false, reason: 'maxed' });
-    expect(hqStats(h)).toMatchObject({ radar: 25, extraMarks: 1, restock: true });
+    expect(hqStats(h)).toMatchObject({ radar: 25, restock: true });
   });
   it('challenge progress from a session', () => {
     const p = challengeProgress({ takedownsByKind: { above: 3, behind: 2 }, knockouts: 4, headshots: 1, executes: 2, gadgetKos: 1, mode: 'infiltration', won: true, detections: 0, alarms: 0 });

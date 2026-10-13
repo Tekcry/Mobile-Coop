@@ -83,23 +83,31 @@ describe('touch layout migration (v1 -> v2)', () => {
   });
   it('v2 -> v3 keeps every customised placement and adds the takedown button', () => {
     const d = defaultSettings();
-    const s = sanitizeSettings({ touch: { layoutVersion: 2, layout: { mark: { x: 0.2, y: 0.2, scale: 1.2 }, look: { x: 0.8, y: 0.8, scale: 1 } } } });
-    expect(s.touch.layout.mark).toEqual({ x: 0.2, y: 0.2, scale: 1.2 });
+    const s = sanitizeSettings({ touch: { layoutVersion: 2, layout: { vision: { x: 0.2, y: 0.2, scale: 1.2 }, look: { x: 0.8, y: 0.8, scale: 1 } } } });
+    expect(s.touch.layout.vision).toEqual({ x: 0.2, y: 0.2, scale: 1.2 });
     expect(s.touch.layout.look).toEqual({ x: 0.8, y: 0.8, scale: 1 });
     expect(s.touch.layout.takedown).toEqual(d.touch.layout.takedown);
     expect(s.touch.layoutVersion).toBe(TOUCH_LAYOUT_VERSION);
   });
   it('v3 -> v4 keeps every stored placement and adds the speed rocker at its default spot', () => {
     const d = defaultSettings();
-    const stored = { mark: { x: 0.2, y: 0.2, scale: 1.2 }, look: { x: 0.8, y: 0.8, scale: 1 }, takedown: { x: 0.5, y: 0.3, scale: 0.9, alpha: 0.7 }, move: { x: 0.1, y: 0.6, scale: 1.1 } };
+    const stored = { vision: { x: 0.2, y: 0.2, scale: 1.2 }, look: { x: 0.8, y: 0.8, scale: 1 }, takedown: { x: 0.5, y: 0.3, scale: 0.9, alpha: 0.7 }, move: { x: 0.1, y: 0.6, scale: 1.1 } };
     const s = sanitizeSettings({ touch: { layoutVersion: 3, layout: stored } });
-    expect(s.touch.layout.mark).toEqual(stored.mark);
+    expect(s.touch.layout.vision).toEqual(stored.vision);
     expect(s.touch.layout.look).toEqual(stored.look);
     expect(s.touch.layout.takedown).toEqual(stored.takedown);
     expect(s.touch.layout.move).toEqual(stored.move);
     expect(s.touch.layout.speed).toEqual(d.touch.layout.speed);
     // right of the move stick's zone (the left 42%), clear of it by its centre
     expect(d.touch.layout.speed.x).toBeGreaterThan(0.42);
+    expect(s.touch.layoutVersion).toBe(TOUCH_LAYOUT_VERSION);
+  });
+  it('v5 -> v6 drops the removed mark / execute buttons and keeps the rest', () => {
+    const stored = { mark: { x: 0.2, y: 0.2, scale: 1 }, execute: { x: 0.3, y: 0.3, scale: 1 }, vision: { x: 0.4, y: 0.4, scale: 1 } };
+    const s = sanitizeSettings({ touch: { layoutVersion: 5, layout: stored } });
+    expect(s.touch.layout).not.toHaveProperty('mark');
+    expect(s.touch.layout).not.toHaveProperty('execute');
+    expect(s.touch.layout.vision).toEqual(stored.vision);
     expect(s.touch.layoutVersion).toBe(TOUCH_LAYOUT_VERSION);
   });
   it('v4 -> v5 keeps every stored placement and adds the jump button at its default spot', () => {
@@ -110,7 +118,7 @@ describe('touch layout migration (v1 -> v2)', () => {
     expect(s.touch.layout.action).toEqual(stored.action);
     expect(s.touch.layout.look).toEqual(stored.look);
     expect(s.touch.layout.jump).toEqual(d.touch.layout.jump);
-    expect(s.touch.layoutVersion).toBe(5);
+    expect(s.touch.layoutVersion).toBe(TOUCH_LAYOUT_VERSION);
   });
   it('accessibility settings are clamped', () => {
     const s = sanitizeSettings({ access: { hudScale: 9, shake: -1, subtitles: 'no', holdToggle: true } });

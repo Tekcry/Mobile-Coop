@@ -201,7 +201,7 @@ export class GadgetSystem {
     // the gadget button: held shows the arc, release throws; placed / flown ones go on the press
     const sel = g.weapons.gadgets.selected;
     const use = GADGETS[sel].use;
-    const busy = g.takedown.active !== null || g.execute.running !== null || (g.stealth?.carrying ?? false) || g.traversal.attached;
+    const busy = g.takedown.active !== null || (g.stealth?.carrying ?? false) || g.traversal.attached;
     if (inp.pressed('grenade') && !busy) {
       if (sel === 'drone' && this.drone) this.enterRemote('drone');
       else if (sel === 'stickyCam' && this.cams.length && g.weapons.gadgets.count === 0) this.enterRemote('cam', this.cams.length - 1);
@@ -631,7 +631,6 @@ export class GadgetSystem {
         this.gasCloud(c.p.x, c.p.y, c.p.z, GADGETS.stickyCam.radius, 5);
         g.events.emit('gadget', { kind: 'gas', phase: 'detonate' });
       }
-      if (inp.pressed('mark')) this.markFrom(c.p, c.yaw, c.pitch);
       return;
     }
     const dr = this.drone;
@@ -692,23 +691,11 @@ export class GadgetSystem {
       this.destroyDrone();
       return;
     }
-    if (inp.pressed('mark')) this.markFrom(this.a.set(s.x, s.y, s.z), s.yaw, dr.pitch);
   }
 
   private viewDir(yaw: number, pitch: number, out: Vector3): Vector3 {
     const cp = Math.cos(pitch);
     return out.set(Math.sin(yaw) * cp, Math.sin(pitch), Math.cos(yaw) * cp);
-  }
-
-  /** Mark the enemy under the feed's crosshair. */
-  private markFrom(p: Vector3, yaw: number, pitch: number): void {
-    const g = this.g;
-    this.viewDir(yaw, pitch, this.dir);
-    this.from.copyFrom(p).addInPlace(this.dir.scale(0.15));
-    this.b.copyFrom(this.dir).scaleInPlace(60).addInPlace(this.from);
-    const h = g.ballistics.ray(this.from, this.b, MASK.PLAYER_SHOT);
-    const t = h.target;
-    if (t && t.team === 'enemy' && t.alive && g.marks.toggle(t.id)) g.events.emit('mark', { on: g.marks.has(t.id) });
   }
 
   private enemyById(id: string): Enemy | null {
@@ -761,11 +748,11 @@ export class GadgetSystem {
       const n = `CAM ${this.camIdx + 1}/${this.cams.length}`;
       const gas = c && !c.gas ? (pad ? '  Y gas' : kb ? '  E gas' : '  Gas') : '';
       const next = this.cams.length > 1 ? (pad ? '  X next' : kb ? '  R next' : '') : '';
-      return pad ? `${n}  RT lure${gas}  RB mark${next}  B back` : kb ? `${n}  LMB lure${gas}  T mark${next}  C back` : `${n}  Fire lure${gas ? '  Action gas' : ''}  Crouch back`;
+      return pad ? `${n}  RT lure${gas}${next}  B back` : kb ? `${n}  LMB lure${gas}${next}  C back` : `${n}  Fire lure${gas ? '  Action gas' : ''}  Crouch back`;
     }
     const d = this.drone;
     const bat = d ? `${Math.ceil(d.s.battery)} s` : '';
-    return pad ? `DRONE ${bat}  RT dart  Y shock  RB mark  B back` : kb ? `DRONE ${bat}  LMB dart  E shock  T mark  C back` : `DRONE ${bat}  Fire dart  Action shock  Crouch back`;
+    return pad ? `DRONE ${bat}  RT dart  Y shock  B back` : kb ? `DRONE ${bat}  LMB dart  E shock  C back` : `DRONE ${bat}  Fire dart  Action shock  Crouch back`;
   }
 
   private actGas = { action: 'interact' as const, label: 'Gas', icon: 'gas' };

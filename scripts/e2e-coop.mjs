@@ -318,35 +318,6 @@ try {
   await GA(() => window.__app.current.net.ping(4, 0.5, -3, ''));
   await until(B, (id) => window.__app.current.pings.some((p) => p.by === id), hostId0, 5000, 'client shows the host ping');
   assert(true, 'a host ping reaches the client');
-  // Mark & Execute: the client's takedown earned it a charge; an execute shot downs a guard outright
-  const charges = await GA(() => [...window.__app.current.net.remotes.values()][0].execCharges);
-  assert(charges >= 1, `a client takedown earns an execute charge (${charges})`);
-  const exv = await GA(() => {
-    const g = window.__app.current;
-    const e = g.enemyMgr.enemies.find((x) => x.alive && x.def.kind === 'grunt') ?? g.enemyMgr.enemies.find((x) => x.alive && !x.def.quadruped && x.def.kind !== 'heavy' && x.def.kind !== 'enforcer');
-    e.pos.set(6, 0, -3.8);
-    return e.id;
-  });
-  await wait(600);
-  let executed = false;
-  for (let i = 0; i < 30 && !executed; i++) {
-    await GA(() => { for (const r of window.__app.current.net.remotes.values()) r.allowTeleport(2); });
-    await GB((id) => {
-      const g = window.__app.current;
-      const p = g.net.puppets.get(id);
-      if (!p) return;
-      const src = g.player.position.add(new p.pos.constructor(0, 1.58, 0));
-      const pt = p.center(new p.pos.constructor());
-      p.applyDamage({ amount: 5, point: pt, dir: pt.subtract(src).normalize(), part: 'body', kind: 'bullet', attackerTeam: 'player', attackerId: 'local', weapon: 'rifle', sourcePos: src, impulse: 3, execute: true });
-    }, exv);
-    await wait(250);
-    executed = await GA((id) => !window.__app.current.enemyMgr.enemies.some((e) => e.id === id && e.alive), exv);
-  }
-  if (!executed) {
-    console.log('    host:', await GA((id) => { const g = window.__app.current; const e = g.enemyMgr.enemies.find((x) => x.id === id); const r = g.net.remotes.values().next().value; return JSON.stringify({ kind: e?.def.kind, pos: e && [e.pos.x, e.pos.z], hp: e?.health.hp, client: [r.feet.x, r.feet.z], viol: r.violations, ch: r.execCharges, left: r.execLeft, until: r.execUntil, t: g.net.time }); }, exv));
-    console.log('    client:', await GB((id) => { const g = window.__app.current; const p = g.net.puppets.get(id); return JSON.stringify({ puppet: p && [p.pos.x, p.pos.z], me: [g.player.position.x, g.player.position.z] }); }, exv));
-  }
-  assert(executed, 'a client execute shot downs the guard (host checks the charge)');
   // gadgets: a client's gas cloud acts on the host's guards
   const gv = await GA(() => {
     const g = window.__app.current;
@@ -394,7 +365,7 @@ try {
       await GA((id) => {
         const g = window.__app.current;
         for (const r of g.net.remotes.values()) r.allowTeleport(2);
-        // (3.6: the checks above - an execute, a gas cloud - can leave guards in combat having spotted the client, and a
+        // (3.6: the checks above - a gas cloud - can leave guards in combat having spotted the client, and a
         // guard in combat who knows an operator is there cannot be taken by surprise (by design): calm the host first)
         for (const e of g.enemyMgr.enemies) e.aware.set('unaware');
         for (const r of g.net.remotes.values()) r.ref.spotted = false;

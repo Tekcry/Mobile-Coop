@@ -64,7 +64,7 @@ export interface TakedownVictim {
  * attacker's feet follow an eased path onto the aligned spot (a vault over low cover, a drop from above), the
  * victim is seized (brain off, a struggle pose, pulled over a lip or through a window), then the strike: tap =
  * non-lethal (a choke, the victim knocked out), held = lethal. Taking damage aborts it (the victim breaks free,
- * alerted). A melee takedown earns an Execute charge.
+ * alerted).
  */
 export class TakedownController {
   /** On offer this step. */
@@ -428,7 +428,6 @@ export class TakedownController {
     this.done[a.lethal ? 'lethal' : 'nonLethal']++;
     const kind = a.grab ? 'grab' : a.plan.kind;
     this.done.byKind[kind] = (this.done.byKind[kind] ?? 0) + 1;
-    g.marks.earn();
     const r = a.lethal ? NOISE_STRIKE : NOISE_CHOKE;
     g.enemyMgr?.hear(g.player.position, r);
     g.events.emit('takedown', { phase: 'done', lethal: a.lethal, kind });

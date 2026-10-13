@@ -31,9 +31,9 @@ describe('key bindings', () => {
     expect(b.reload).toEqual(['KeyR']);
   });
   it('stored binds are sanitised: two per action, duplicates dropped, missing ones defaulted', () => {
-    const b = sanitizeBinds({ reload: ['KeyT', 'KeyR', 'KeyU'], mark: ['KeyT'], cover: ['Bogus'], sprint: 'ShiftLeft' });
+    const b = sanitizeBinds({ reload: ['KeyT', 'KeyR', 'KeyU'], bogus: ['KeyT'], cover: ['Bogus'], sprint: 'ShiftLeft' });
     expect(b.reload).toEqual(['KeyT', 'KeyR']);
-    expect(b.mark).toEqual([]);
+    expect(b).not.toHaveProperty('bogus');
     expect(b.cover).toEqual([]);
     expect(b.sprint).toEqual(['ShiftLeft']);
     expect(Object.keys(b).length).toBe(BINDS.length);

@@ -120,7 +120,7 @@ export interface HqDef {
 export const HQ: Record<HqId, HqDef> = {
   radar: { name: 'Minimap radar', desc: 'Enemies within 15 m (level 2: 25 m) show on the minimap in stealth modes', prices: [1500, 3000], levels: [4, 9] },
   sonar: { name: 'Sonar amplifier', desc: 'Sonar range +20% per level', prices: [1000, 2000], levels: [3, 7] },
-  marks: { name: 'Execute capacity', desc: '+1 mark for Mark & Execute', prices: [2500], levels: [6] },
+  marks: { name: 'Execute capacity', desc: 'Retired', prices: [2500], levels: [6] },
   restock: { name: 'Supply drops', desc: 'Gadgets restock at checkpoints', prices: [1800], levels: [5] },
   revive: { name: 'Field medic training', desc: 'Co-op revives 30% faster per level', prices: [800, 1600], levels: [2, 6] },
 };
@@ -134,7 +134,6 @@ export function defaultHq(): HqLevels {
 export interface HqStats {
   radar: number;
   sonarRange: number;
-  extraMarks: number;
   restock: boolean;
   reviveSpeed: number;
 }
@@ -144,7 +143,6 @@ export function hqStats(h: HqLevels): HqStats {
   return {
     radar: lv('radar') === 0 ? 0 : lv('radar') === 1 ? 15 : 25,
     sonarRange: 1 + 0.2 * lv('sonar'),
-    extraMarks: lv('marks'),
     restock: lv('restock') > 0,
     reviveSpeed: 1 + 0.3 * lv('revive'),
   };

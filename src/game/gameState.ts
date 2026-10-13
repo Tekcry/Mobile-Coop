@@ -80,8 +80,6 @@ import { StealthSystems } from './stealthSystems';
 import { SecuritySystem } from '../security/securitySystem';
 import { SecurityView } from '../security/securityView';
 import { TakedownController, type TakedownVictim } from './takedownController';
-import { ExecuteController } from './executeController';
-import { MarkSet } from './marks';
 import { SURFACE_NOISE, surfaceAt, type Surface } from '../world/surfaces';
 import type { TouchAction } from '../input/touchControls';
 import type { WorldPromptId } from '../ui/hud/worldPrompts';
@@ -273,12 +271,10 @@ export class GameState implements AppState {
   private ended = false;
   private respawnAt: Vector3 | null = null;
   private interactTarget: Interactable | null = null;
-  /** Mark & Execute marks and charges; melee takedowns; the execute sequence. */
-  readonly marks = new MarkSet();
+  /** Melee takedowns. */
   readonly takedown: TakedownController;
   /** (3.2.0 phase 5) Co-op team moves (brace, boost, human ladder). */
   readonly team: TeamController;
-  readonly execute: ExecuteController;
   /** Suit and HQ effects for this session. */
   readonly suit: SuitStats;
   readonly hq: HqStats;
@@ -399,7 +395,6 @@ export class GameState implements AppState {
     this.ghost = new LkpGhost(this.scene);
     this.takedown = new TakedownController(this);
     this.team = new TeamController(this);
-    this.execute = new ExecuteController(this);
     this.gadgets = new GadgetSystem(this);
     // sonar is off the goggles button (bible 6: thermal replaces it in Phase 3, which deletes the code; Michael,
     // 2026-10-09): the button cycles off -> night vision -> off
@@ -411,7 +406,6 @@ export class GameState implements AppState {
     this.weapons.handsMul = this.suit.hands;
     this.takedown.handsMul = this.suit.hands;
     for (const id of GADGET_IDS) if (this.suit.gadgets) this.weapons.gadgets.counts[id] += this.suit.gadgets;
-    this.marks.max += this.hq.extraMarks;
     if (opts.gadget && (GADGET_IDS as readonly string[]).includes(opts.gadget)) this.weapons.gadgets.select(opts.gadget as GadgetId);
     this.hud.gadgets.onPick = (id) => {
       this.gadgets.select(id);
@@ -489,7 +483,7 @@ export class GameState implements AppState {
         }
         if (h.attackerId === 'local') this.hud.feedItem(`${e.def.name} ${h.part === 'head' ? 'headshot' : 'down'}${showEconomy(flags.legacy) ? `  +${e.def.xp} XP` : ''}`, 'kill');
         if (h.attackerId === 'local' || h.attackerId === '') {
-          const ev = h.kind === 'melee' ? (e.ko ? 'takedownNonLethal' : 'takedownLethal') : this.execute.running ? 'execute' : e.ko ? 'knockout' : 'kill';
+          const ev = h.kind === 'melee' ? (e.ko ? 'takedownNonLethal' : 'takedownLethal') : e.ko ? 'knockout' : 'kill';
           this.style.record(ev, this.detected);
           if (h.part === 'head' && !e.ko) this.style.record('headshot', this.detected);
           if (h.kind === 'explosion') this.style.record('explosion', this.detected);
@@ -744,7 +738,6 @@ export class GameState implements AppState {
     this.stats.detections = this.style.detections;
     this.stats.alarms = this.style.alarms;
     this.stats.takedownsByKind = { ...this.takedown.done.byKind };
-    this.stats.executes = this.execute.shots;
     this.stats.gadgetKos = this.gadgets.stats.gassed + this.gadgets.stats.darts + this.gadgets.stats.shocked + this.gadgets.stats.mineKills;
     this.hud.banner(won ? 'VICTORY' : 'DEFEAT', subtitle, 2500);
     setTimeout(() => {
@@ -907,11 +900,11 @@ export class GameState implements AppState {
     const ints = this.interactables;
     if (!ints) return;
     ints.update(dt);
-    // a takedown on offer / running or Mark & Execute ready takes the button
-    if (this.takedown.offer || this.takedown.active || this.execute.running || this.execute.ready) {
+    // a takedown on offer / running takes the button
+    if (this.takedown.offer || this.takedown.active) {
       if (this.interactTarget && !this.interactTarget.done) this.interactTarget.progress = 0;
       this.interactTarget = null;
-      this.hud.setInteract(this.execute.ready && !this.takedown.offer && !this.takedown.active ? 'Execute' : null);
+      this.hud.setInteract(null);
       return;
     }
     const carryIt = this.stealth?.carryTarget(this.player.position) ?? null;
@@ -1109,8 +1102,8 @@ export class GameState implements AppState {
     const coverWas = this.cover.state;
     // a body on the shoulder: no cover, no traversal, weapon stowed, slow
     const carrying = this.stealth?.carrying ?? false;
-    // a takedown or an execute running (from the last step): cover and traversal stand aside
-    const busy = this.takedown.active !== null || this.execute.running !== null;
+    // a takedown running (from the last step): cover and traversal stand aside
+    const busy = this.takedown.active !== null;
     if (!this.traversal.active && !carrying && !busy && !this.team.active) this.cover.fixedUpdate(dt, inp);
     // cover shot away / destroyed under the player: stumble out of it
     if (coverWas !== 'none' && this.cover.state === 'none' && this.cover.sm.reason === 'gone') this.stumble();
@@ -1125,7 +1118,7 @@ export class GameState implements AppState {
     ti.useHeld = inp.down('interact');
     ti.useHeldT = inp.heldTime('interact');
     ti.sprintHeld = inp.down('dash');
-    const offer = this.takedown.offer !== null || this.execute.ready;
+    const offer = this.takedown.offer !== null;
     // (3.2.0 phase 5) team moves come after a takedown on offer, before traversal
     const teamTook = this.team.fixedUpdate(dt, inp.pressed('jump') && !offer && !busy && !carrying, inp.down('jump'), inp.heldTime('jump'), inp.pressed('drop'));
     if (this.team.active) this.traversal.hint = null;
@@ -1165,17 +1158,15 @@ export class GameState implements AppState {
     this.corners.fixedUpdate(dt, this.cover.state === 'none' && !this.traversal.active);
     this.stealth?.fixedUpdate();
     this.security?.fixedUpdate(dt);
-    // Mark & Execute, then takedowns (Y / E: a takedown on offer, else execute when ready, else the rest)
-    // (co-op clients: takedowns and Mark & Execute on the host's enemies, through their puppets)
-    // (3.2.0 phase 4: PvP gets the drop, ledge pull and inverted takedowns on opponents - no grab, no Mark & Execute)
+    // takedowns (Y / E: a takedown on offer, else the rest)
+    // (co-op clients: takedowns on the host's enemies, through their puppets)
+    // (3.2.0 phase 4: PvP gets the drop, ledge pull and inverted takedowns on opponents - no grab)
     {
-      const execPressed = !this.pvp && !this.takedown.active && (inp.pressed('execute') || (this.execute.ready && inp.pressed('interact') && !this.takedown.offer && !this.traversal.attached));
       // (3.2.0) B shoves a held hostage away (and is not a crouch then)
       this.takedown.shovePressed = this.takedown.hostage !== null && inp.pressed('drop');
       if (this.takedown.shovePressed) this.player.controller.swallowCrouch = true;
       this.takedown.grabAllowed = !this.pvp;
-      const executing = !this.pvp && this.execute.fixedUpdate(dt, inp.pressed('mark'), execPressed);
-      if (!executing) this.takedown.fixedUpdate(dt, inp.pressed('interact') && !execPressed, inp.down('interact'));
+      this.takedown.fixedUpdate(dt, inp.pressed('interact'), inp.down('interact'));
     }
     this.suppression.update(dt);
     this.weapons.spreadMul = this.cover.spreadMul * this.suppression.spreadMul;
@@ -1749,20 +1740,7 @@ export class GameState implements AppState {
     }
     arcs.end();
     this.hud.setLight(this.lightLevel, this.lightLevel < LIGHT.shadow);
-    // Mark & Execute: chevrons over marked enemies (red when executable), the charge, touch buttons
-    const mk = this.hud.markers;
-    mk.begin();
-    if (em && this.marks.ids.length) {
-      for (const e of em.enemies) {
-        if (!e.alive || !this.marks.has(e.id)) continue;
-        if (this.project(e.pos.x, e.pos.y + 2.1 * e.def.scale, e.pos.z)) mk.add(this.scr.x, this.scr.y, this.execute.ready);
-      }
-    }
-    mk.end();
-    this.hud.setCharge(this.marks.charges, this.execute.ready);
     const touch = this.app.input.touch;
-    touch.setControlHidden('mark', (!this.player.ads && !this.gadgets.remote) || !em);
-    touch.setControlHidden('execute', !this.execute.ready);
     // touch v3: the takedown button only while one is on offer (and through the move, for the hold)
     touch.setControlHidden('takedown', !this.takedown.offer && !this.takedown.active);
     touch.setControlHidden('ping', !this.net || this.pvp);
@@ -1856,7 +1834,7 @@ export class GameState implements AppState {
 
   private scopeT = 0;
 
-  /** Difficulty tier rules (perception, damage, Mark & Execute / sonar allowed). */
+  /** Difficulty tier rules (perception, damage, sonar allowed). */
   get difficultyDef(): DifficultyDef {
     return DIFFICULTY[this.opts.difficulty ?? 'normal'];
   }

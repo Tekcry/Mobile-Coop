@@ -12,7 +12,6 @@ export type StyleEvent =
   | 'headshot'
   | 'takedownLethal'
   | 'takedownNonLethal'
-  | 'execute'
   | 'objective'
   | 'objectiveUnseen'
   | 'bodyHidden'
@@ -29,7 +28,6 @@ const POINTS: Record<StyleEvent, { unseen: [number, number, number]; seen: [numb
   headshot: { unseen: [0, 60, 0], seen: [0, 0, 40] },
   takedownLethal: { unseen: [0, 200, 0], seen: [0, 80, 80] },
   takedownNonLethal: { unseen: [220, 0, 0], seen: [80, 0, 60] },
-  execute: { unseen: [0, 250, 0], seen: [0, 120, 120] },
   objective: { unseen: [200, 100, 0], seen: [0, 0, 200] },
   objectiveUnseen: { unseen: [300, 0, 0], seen: [0, 0, 0] },
   bodyHidden: { unseen: [80, 40, 0], seen: [0, 0, 0] },
@@ -55,7 +53,7 @@ export class StyleTracker {
     this.points.assault += p[2];
     if (ev === 'detected') this.detections++;
     if (ev === 'alarm') this.alarms++;
-    if (ev === 'kill' || ev === 'takedownLethal' || ev === 'execute') this.kills++;
+    if (ev === 'kill' || ev === 'takedownLethal') this.kills++;
     if (ev === 'knockout' || ev === 'takedownNonLethal') this.knockouts++;
   }
 

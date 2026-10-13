@@ -34,9 +34,7 @@ Design authority: docs/design-bible.md (Section 5.9)
   (action `ping`: D-pad left, Z, touch `ping` in co-op): `GameState.sendPing` (aim ray) -> `NetAttachment.ping` ->
   `ping` msg / event (host rate 0.8 s, near the sender), `GameState.addPing` + `ui/hud/pings.ts` (follows a pinged
   guard, edge arrows off screen). Gadgets: `GadgetSystem.onLocal` reports gas / flash / EMP / noise effects; the
-  host relays them (`gadget` msg / event, 1 s rate, <= 40 m) and runs `remoteEffect` on its guards. Mark &
-  Execute on clients: a client takedown earns `RemotePlayer.execCharges` (<= 3); shots with `ex` open a 5 s /
-  5-shot window that kills outright. Dual takedowns: two players finishing within `DUAL_WINDOW` 1.5 s ->
+  host relays them (`gadget` msg / event, 1 s rate, <= 40 m) and runs `remoteEffect` on its guards. Dual takedowns: two players finishing within `DUAL_WINDOW` 1.5 s ->
   banner (relayed) + style.
 - PvP fairness: `pvpLoadout` (base damage), no suit / HQ in `tdm | ffa`, `maxHitDamage(def, head, false)` on the host.
   3.1.9: no graphics / FOV locks in PvP (the 3.1 shared look, FOV cap and Panini-off were removed: each player's own

@@ -307,7 +307,6 @@ export class CoopClient implements NetAttachment {
       rt: Math.max(0, this.renderTime),
       dist: len,
       dmg: Math.min(1000, h.amount),
-      ex: h.execute === true,
     });
   }
 

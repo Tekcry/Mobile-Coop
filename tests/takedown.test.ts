@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { approachPoint, GRAB, GRAB_KINDS, lethalFromHold, pickTakedown, TAKEDOWN, type TakedownInput } from '../src/game/takedown';
-import { EXECUTE, executeStep, MARK, MarkSet } from '../src/game/marks';
 
 const base = (o: Partial<TakedownInput> = {}): TakedownInput => ({ state: 'ground', ax: 0, ay: 0, az: 0, vx: 0, vy: 0, vz: 1.2, vyaw: 0, vCalm: true, los: true, ...o });
 
@@ -52,44 +51,6 @@ describe('takedown kinds', () => {
   it('tap is non-lethal, hold is lethal', () => {
     expect(lethalFromHold(0.1)).toBe(false);
     expect(lethalFromHold(TAKEDOWN.lethalHold)).toBe(true);
-  });
-});
-
-describe('mark & execute', () => {
-  it('marks toggle up to the max; the upgrade allows one more', () => {
-    const m = new MarkSet();
-    for (const id of ['a', 'b', 'c']) expect(m.toggle(id)).toBe(true);
-    expect(m.toggle('d')).toBe(false);
-    expect(m.toggle('b')).toBe(true);
-    expect(m.ids).toEqual(['a', 'c']);
-    const u = new MarkSet(MARK.maxUpgraded);
-    for (const id of ['a', 'b', 'c', 'd']) expect(u.toggle(id)).toBe(true);
-  });
-  it('ready only with a charge and every mark clear; consuming spends the charge', () => {
-    const m = new MarkSet();
-    m.toggle('a');
-    m.toggle('b');
-    expect(m.ready(() => true)).toBe(false);
-    m.earn();
-    m.earn();
-    expect(m.charges).toBe(1);
-    expect(m.ready((id) => id !== 'b')).toBe(false);
-    expect(m.ready(() => true)).toBe(true);
-    expect(m.consume()).toEqual(['a', 'b']);
-    expect(m.charges).toBe(0);
-    expect(m.ids.length).toBe(0);
-  });
-  it('prunes dead marks', () => {
-    const m = new MarkSet();
-    m.toggle('a');
-    m.toggle('b');
-    m.prune((id) => id === 'b');
-    expect(m.ids).toEqual(['b']);
-  });
-  it('the sequence visits each target in order, then ends', () => {
-    expect(executeStep(3, 0).index).toBe(0);
-    expect(executeStep(3, EXECUTE.perTarget * 1.5).index).toBe(1);
-    expect(executeStep(3, EXECUTE.perTarget * 3 + 0.01).index).toBe(-1);
   });
 });
 

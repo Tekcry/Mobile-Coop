@@ -25,8 +25,6 @@ export type BindId =
   | 'wheel'
   | 'shoulder'
   | 'goggles'
-  | 'mark'
-  | 'execute'
   | 'ping'
   | 'emote1'
   | 'emote2'
@@ -60,8 +58,6 @@ export const BINDS: readonly BindDef[] = [
   { id: 'wheel', label: 'Gadget wheel (hold)', actions: ['gadgetWheel'], defaults: ['Tab'] },
   { id: 'shoulder', label: 'Swap shoulder', actions: ['shoulderSwap'], defaults: ['KeyV'] },
   { id: 'goggles', label: 'Goggles', actions: ['vision'], defaults: ['KeyN'] },
-  { id: 'mark', label: 'Mark', actions: ['mark'], defaults: ['KeyT'] },
-  { id: 'execute', label: 'Execute', actions: ['execute'], defaults: ['KeyY'] },
   { id: 'ping', label: 'Ping (co-op)', actions: ['ping'], defaults: ['KeyZ'] },
   { id: 'emote1', label: 'Emote 1', actions: ['quick2'], defaults: ['KeyJ'] },
   { id: 'emote2', label: 'Emote 2', actions: ['quick3'], defaults: ['KeyK'] },

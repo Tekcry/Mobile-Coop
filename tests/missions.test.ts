@@ -105,7 +105,7 @@ describe('play styles', () => {
     expect(s.dominant()).toBe('ghost');
     s.record('takedownLethal', false);
     s.record('takedownLethal', false);
-    s.record('execute', false);
+    s.record('kill', false);
     expect(s.dominant()).toBe('panther');
     for (let i = 0; i < 8; i++) s.record('kill', true);
     s.record('alarm', true);

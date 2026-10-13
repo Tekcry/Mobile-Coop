@@ -75,10 +75,10 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     exposure HUD, enemy grenades/flanker, footstep noise investigation, a wall muffles a noise
   - `scripts/e2e-takedown.mjs` takedown kinds (ground rules, over low cover, above, below, window; 3.2.0: the grab -
     walk, sidearm, human shield, knock out / kill / shove - and drop attacks from a pipe / split, the inverted choke), tap / hold,
-    5 cm alignment, damage interrupt, Execute charge, marks through cover, no execute out of sight, execute; no takedown
+    5 cm alignment, damage interrupt; no takedown
     on a guard in combat who saw you, one alerted without seeing you still can be
   - `scripts/e2e-enemies.mjs` heavy (plates / back / face plate, lethal-only frontal takedown), enforcer (shield,
-    no frontal grab, pushes), sniper (laser, glint refuses a mark, relocates), dog (smell in the dark, takedown),
+    no frontal grab, pushes), sniper (laser, glint, relocates), dog (smell in the dark, takedown),
     drone operator (spots, shot down, EMP), officer (buff, alarm first), radio check, callouts, Perfectionist
   - `scripts/e2e-levels.mjs` multi-level AI: three storeys per column, Warehouse ladder links both ways, a runner
     chasing the player up a rack ladder and back down
@@ -94,7 +94,7 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     close by, a spotter taken out first tells nobody, LKP + ghost + converge + search ends, patrols
   - `scripts/e2e-coop.mjs` two pages over `?net=local` (a third for PvP): lobby, wave match, validated hits, revive, results;
     Hunter (puppet alert levels, door sync, a client door use, a client takedown, kept / hidden bodies, pings both
-    ways, a client execute, a client gas cloud on the host's guards, a dual takedown, a client reviving the host),
+    ways, a client gas cloud on the host's guards, a dual takedown, a client reviving the host),
     Infiltration objectives on the client, Team Deathmatch (teams, opponents-only hit volumes, no friendly fire,
     a validated elimination, respawn, results; 3.1.9: each player's own FOV, no cap) and
     Free-for-all; host leaving, offline
@@ -104,7 +104,7 @@ Design authority: docs/design-bible.md (Section 9, definition of done)
     rooms row; Wave keeps room tags; doorway checks; mini room set; the Play screen: Warehouse default for every mode
     but Training, Infiltration lists the Warehouse missions only
   - `scripts/e2e-training.mjs` the training course by touch: hints per device, each step advancing, the
-    Takedown / Mark / Execute buttons, HUD defaults (no health bar, ammo fades), the results
+    Takedown button, HUD defaults (no health bar, ammo fades), the results
   - `scripts/e2e-netmove.mjs` (3.2.0) two pages `?net=local`, Free Roam on Proving: the client in low cover (+ over
     peek), high cover (+ edge peek), ladder (+ after a climb), drainpipe, pipe, ledge, duct (hands / feet / head within
     10 cm on the host), zipline and a roll mirrored; CT moves (split, wall jump, pipe legs up / inverted, rappel +

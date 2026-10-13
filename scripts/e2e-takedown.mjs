@@ -1,8 +1,7 @@
-// Takedowns and Mark & Execute on the night Warehouse (Clear rules): ground behind / front / side (side only on a
+// Takedowns on the night Warehouse (Clear rules): ground behind / front / side (side only on a
 // calm guard), tap = non-lethal (knocked out) / hold = lethal, the attacker aligned within 5 cm, interrupted by
 // damage, over low cover, from above (a drop off the mezzanine), from below (hanging at the mezzanine lip),
-// through a window; an Execute charge per takedown, marks that persist through cover moves, no execute without
-// line of sight, every mark down; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
+// through a window; 3.2.0: the grab (walk, sidearm, human shield, knock out, kill, shove), drop attacks
 // from a pipe and a split, an inverted choke. `node scripts/e2e-takedown.mjs [url] [--only=name]`
 import { launch, assert, frames } from './e2e-lib.mjs';
 
@@ -27,10 +26,7 @@ try {
       V,
       reset() {
         g.takedown.reset();
-        g.execute.reset();
         em.clear();
-        g.marks.clear();
-        g.marks.charges = 0;
         g.cover.reset();
         g.traversal.reset();
         st.releaseAll();
@@ -99,7 +95,6 @@ try {
       t.press();
       t.run(1.0);
       const ko = em.bodies.find((b) => !b.lethal) !== undefined && !e.alive;
-      const charge = g.marks.charges;
       // front, held: lethal
       t.reset();
       t.tp(2, 0, -2.2, 0);
@@ -142,7 +137,7 @@ try {
       e5.update = () => {};
       t.step(0.2);
       const calledOffer = g.takedown.offer?.plan.kind ?? null;
-      return { offer, prompt, grabbed, aligned: run.aligned, ko, charge, offer2, lethal, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
+      return { offer, prompt, grabbed, aligned: run.aligned, ko, offer2, lethal, sideCalm, sideAlert, seenOffer, spotted, calledOffer, stats: g.takedown.done };
     });
     assert(r.spotted && r.seenOffer === null, `a guard in combat who saw you offers no takedown (${r.seenOffer}, spotted ${r.spotted})`);
     assert(r.calledOffer === 'front', `one alerted without seeing you still can be taken (${r.calledOffer})`);
@@ -150,7 +145,6 @@ try {
     assert(r.aligned < 0.05, `the attacker is aligned within 5 cm (${(r.aligned * 100).toFixed(1)} cm)`);
     assert(r.grabbed, 'from behind: grabbed and held');
     assert(r.ko, 'a tap is non-lethal: he is knocked out');
-    assert(r.charge === 1, `a takedown earns an Execute charge (${r.charge})`);
     assert(r.offer2 === 'front' && r.lethal, `from the front, held: lethal (${r.offer2}, ${r.lethal})`);
     assert(r.sideCalm === 'side' && r.sideAlert === null, `from the side only while he is calm (${r.sideCalm} / ${r.sideAlert})`);
   });
@@ -278,7 +272,6 @@ try {
       t.press(0.4);
       t.run(1.0);
       const killed = !e.alive && g.enemyMgr.bodies.some((b) => b.lethal);
-      const charges = g.marks.charges;
       t.reset();
       t.tp(2, 0, -2.2, 0);
       const e2 = t.spawn(2, -1, 0);
@@ -293,10 +286,9 @@ try {
       const crouched = g.player.controller.crouched;
       const stagger = e2['stagger'];
       t.step(1.2);
-      return { killed, charges, shoved, crouched, stagger, alerted: e2.alerted };
+      return { killed, shoved, crouched, stagger, alerted: e2.alerted };
     });
     assert(r.killed, 'held press: killed');
-    assert(r.charges >= 1, `a kill from the grab earns an Execute charge (${r.charges})`);
     assert(r.shoved && !r.crouched, `B shoves him away (not a crouch) (${r.shoved})`);
     assert(r.stagger > 0.6 && r.alerted, `he staggers about a second, then is alert (${r.stagger?.toFixed(2)})`);
   });
@@ -493,86 +485,6 @@ try {
     });
     assert(r.hint && r.offer === 'window', `at a window with a guard outside: pull him through (${r.offer}, window ${r.hint})`);
     assert(r.done, 'done');
-  });
-
-  await scen('execute', async () => {
-    const r = await G(() => {
-      const t = window.__t;
-      const g = window.__app.current;
-      const st = window.__app.input.state;
-      const em = g.enemyMgr;
-      // earn a charge
-      t.tp(2, 0, -2.2, 0);
-      const v = t.spawn(2, -1, 0);
-      t.step(0.4);
-      t.press();
-      t.run(1.4);
-      // (3.2.0: a grab from behind; the second press finishes it)
-      t.press();
-      t.run(1.0);
-      const charge = g.marks.charges;
-      // two guards ahead on the factory floor; aim at each and mark
-      t.tp(4, 0, -6, 0);
-      const a = t.spawn(4, 4, Math.PI);
-      const b = t.spawn(0.5, 5, Math.PI);
-      // blind and still (hit volumes keep following them)
-      for (const e of [a, b]) {
-        e['perceive'] = () => {};
-        e['decide'] = () => ({ point: null, speed: 0, face: null });
-      }
-      t.step(0.3);
-      // aim the crosshair (the over-shoulder camera's ray) at the guard's chest
-      const aimAt = (e) => {
-        st.set('t', 'ads', true);
-        for (let i = 0; i < 4; i++) {
-          g.frameUpdate(1 / 60, 1);
-          const cp = g.player.cam.camera.position;
-          const tx = e.pos.x - cp.x;
-          const ty = e.pos.y + 1.25 - cp.y;
-          const tz = e.pos.z - cp.z;
-          g.player.cam.yaw = Math.atan2(tx, tz);
-          g.player.cam.pitch = Math.atan2(ty, Math.hypot(tx, tz));
-          t.step(0.2);
-        }
-        st.tap('mark');
-        t.step(0.1);
-      };
-      aimAt(a);
-      aimAt(b);
-      st.set('t', 'ads', false);
-      const marked = g.marks.ids.length;
-      // marks persist through a cover move
-      window.__app.input.state.tap('cover');
-      t.step(0.8);
-      g.cover.reset();
-      t.step(0.3);
-      const kept = g.marks.ids.length;
-      // out of sight: not ready
-      t.tp(-2, 0, -13, 0);
-      t.step(0.5);
-      const hidden = g.execute.ready;
-      st.tap('execute');
-      t.step(0.2);
-      const noRun = !g.execute.running && a.alive && b.alive;
-      // back in view: ready, execute
-      t.tp(4, 0, -6, 0);
-      t.step(0.6);
-      const ready = g.execute.ready;
-      const chevrons = (() => { g.scene.render(); g.frameUpdate(0.016, 1); return g.hud.markers.shown; })();
-      st.tap('execute');
-      t.step(0.05);
-      const running = !!g.execute.running;
-      const scale = window.__app.loop.timeScale;
-      t.step(1.2);
-      return { charge, marked, kept, hidden, noRun, ready, chevrons, running, scale, down: !a.alive && !b.alive, after: window.__app.loop.timeScale, charges: g.marks.charges, vDown: !v.alive };
-    });
-    assert(r.charge === 1, 'a takedown earned a charge');
-    assert(r.marked === 2 && r.chevrons === 2, `aiming + mark marks two guards (${r.marked}, ${r.chevrons} chevrons)`);
-    assert(r.kept === 2, 'marks persist through a cover move');
-    assert(!r.hidden && r.noRun, 'out of sight: not ready, execute does nothing');
-    assert(r.ready && r.running && r.scale < 1, `in sight: execute runs, slowed (${r.scale})`);
-    assert(r.down, 'every marked guard goes down');
-    assert(r.after === 1 && r.charges === 0, 'normal speed after; the charge is spent');
   });
 
   const real = errors.filter((e) => !/GPU stall|WebGL|swiftshader|Automatic fallback|AudioContext/i.test(e));

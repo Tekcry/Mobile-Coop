@@ -150,7 +150,7 @@ export type Msg =
   | { t: 'team'; team: number }
   | { t: 'start'; mode: NetMode; map: string; seed: number; difficulty: Difficulty; time: number; mission: string; weather: WeatherChoice }
   | { t: 'pstate'; s: PlayerState }
-  | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number; ex: boolean }
+  | { t: 'shot'; w: WeaponId; ox: number; oy: number; oz: number; dx: number; dy: number; dz: number; target: string; part: 'head' | 'body'; rt: number; dist: number; dmg: number }
   /** `pk` is a bitmask of available pickups (bit i = pickup i). `info` is plain text, segments split by '|'. */
   | { t: 'snap'; time: number; players: PlayerState[]; enemies: EnemyState[]; obj: string; info: string; pk: number; items?: NetItem[]; doors?: number[]; score?: ScoreLine[]; tl?: number; bodies?: string[] }
   /** Client used a mirrored item (the host checks reach and that it is usable). */
@@ -522,7 +522,6 @@ export function parseMessage(raw: unknown): Msg | null {
         rt: num(raw.rt, 0, 1e7) ?? 0,
         dist: num(raw.dist, 0, 300) ?? 0,
         dmg: num(raw.dmg, 0, 1000) ?? 0,
-        ex: raw.ex === true,
       };
     }
     case 'snap': {

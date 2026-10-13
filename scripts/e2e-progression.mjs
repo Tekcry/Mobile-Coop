@@ -147,9 +147,9 @@ try {
   await page.waitForTimeout(500);
   const live = await G(() => {
     const g = window.__app.current;
-    return { armor: g.target.armorMul, marks: g.marks.max, weapon: g.weapons.slots[0].def.id, sup: g.weapons.slots[0].def.model.some((p) => p.role === 'suppressor'), noise: g.weapons.slots[0].stats.noise };
+    return { armor: g.target.armorMul, weapon: g.weapons.slots[0].def.id, sup: g.weapons.slots[0].def.model.some((p) => p.role === 'suppressor'), noise: g.weapons.slots[0].stats.noise };
   });
-  assert(live.armor < 1 && live.marks === 4, `in the match: vest armour (${live.armor}) and an extra mark (${live.marks})`);
+  assert(live.armor < 1, `in the match: vest armour (${live.armor})`);
   assert(live.weapon === 'ak' && live.sup && live.noise < 1, `the bought rifle with its suppressor, visible and quieter (${live.weapon}, noise ${live.noise})`);
   await G(() => window.__app.save.flush());
   await page.reload();

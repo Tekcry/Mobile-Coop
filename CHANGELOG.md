@@ -1,5 +1,8 @@
 # Changelog
 
+## Locomotion run (Phase 3 + 3b, in progress, branch feature/ct-locomotion)
+- 01: Mark & Execute removed (marks, execute, chevrons, charge pips, `ex` shot field, RB / T / Y bindings, touch buttons; touch layout v6).
+
 ## 3.6.x - First Playable (in progress)
 - Docs: 2026-10-10 cleanup (retired maps archived, docs match the new campaign).
 - Docs: story 2.0 (D1, approved): present-day campaign, Mission 1 Dead Line at Cinder Yard (Ostler Colocation's data centre), Mission 5 The Strongroom, Kestrel Exchange retired.

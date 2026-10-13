@@ -117,7 +117,7 @@ export class GamepadSource {
 
     for (const a of [
       'fire', 'ads', 'jump', 'crouch', 'cover', 'swapNext', 'swapPrev', 'interact', 'pause',
-      'shoulderSwap', 'dash', 'mark', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown',
+      'shoulderSwap', 'dash', 'grenade', 'gadgetWheel', 'speedUp', 'speedDown',
       'uiConfirm', 'uiBack', 'uiTabPrev', 'uiTabNext', 'uiAlt',
     ] as const) {
       this.state.set(SRC, a, frame.buttons[a] === true);
