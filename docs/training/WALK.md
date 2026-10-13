@@ -39,7 +39,7 @@ npm run dev
 
 Questions worth an answer: Is any space too big, too small or too samey? Is a move hard to find or to do? Can you get
 somewhere you should not (round a gate, over a wall, onto a roof)? Does a bay feel like the place BAYS describes?
-The run's own list of risks is in docs/training/REVIEW-NOTES.md and the assumptions in docs/training/DECISIONS.md
+The run's own list of risks is in docs/training/BLOCK-B-REVIEW.md (top 5 at the end) and docs/training/REVIEW-NOTES.md and the assumptions in docs/training/DECISIONS.md
 (A1-A43).
 
 ## Notes
