@@ -185,6 +185,7 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | vantages[].id, space, at | Vantage id, its space, and the point |
 | hides[].id, space, at | Hiding place id, its space, and the point |
 | hides[].kind | Recess, locker, dark patch or under cover |
+| hides[].name, checkpoints[].name | Optional (ON8): a name |
 | traversal[].id | Unique id of a planned climb or move |
 | traversal[].kind | Which engine move it is (ladder, drainpipe, split jump, wall jump and so on) |
 | traversal[].element | Arch element id it uses (exterior, object, wall or ladder id) |
@@ -213,17 +214,20 @@ Three JSON files describe the map before any code: `kestrel.arch.json` (the buil
 | guards[].employer, job | Who pays the guard, and what the guard is doing (level-design 16.8.2) |
 | guards[].space | Space id the guard belongs to |
 | guards[].loop | Patrol stops in order: `at` point, `wait` seconds, `face` yaw in degrees |
-| guards[].cycle | Seconds for one full loop |
-| guards[].isolation | The point and time `t` (s) at which the guard is alone and can be taken |
+| guards[].cycle | Seconds for one full loop: the loop's walked length / the kind's patrol walk speed (F20) + the waits (ON8, one decimal) |
+| guards[].isolation | The point and time `t` (s) at which the guard is alone and can be taken; absent until the editor's Mark alone here sets it (ON8) |
+| guards[].closed | Optional (ON8): true once the editor joined the last stop back to the first; an open path is unfinished (its cycle still counts the way back) |
+| guards[].name | Optional (ON8): the guard's role from the mission brief's roster ("Rounds officer") |
 | lures[].id, source | Lure id and what causes it (cooling trip, thrown item) |
 | lures[].guard | Guard id the lure pulls |
 | lures[].sendsTo | Point the guard goes to |
-| spawns | Player spawn points `[x, z, level]` (1-4 players) |
-| objectives[].id, kind | Objective id and its kind |
+| spawns | Player spawn points `[x, z, level]` (1-4 players), in order (insertion 1 first) |
+| objectives[].id, kind | Objective id and its kind: zone, take, panel, intel, code, plant, download, extract (ON8: the mission brief's chain and F28; an intel pickup is an objective of kind `intel`) |
+| objectives[].name | Optional (ON8): its name |
 | objectives[].room, at | Room id and play point where it is done |
 | objectives[].optional | True for the two optional objectives |
 | objectives[].order | Position in the chain (1-7) |
-| objectives[].requires, unlocks | Objective ids needed first, and those it opens |
+| objectives[].requires, unlocks | Objective ids needed first, and those it opens (ON8: the editor keeps the two mirrored and warns of a loop) |
 | extraction.level, rect | Level id and the rect of the exfiltration zone |
 | coop[].id, kind | Co-op route id and its kind (boost or ladder) |
 | coop[].wall | Wall id the co-op lip is on |

@@ -106,7 +106,7 @@ try {
   console.log('tile menu (Y tap): tabs, D-pad and A pick Wall, Y closes (ON0a)');
   await press(BTN.Y);
   let ms = await menuState();
-  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,Lights,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
+  assert(ms.open && ms.tab === 'Build' && ms.tabs.join(',') === 'Build,Openings,Objects,Presets,Climb,Lights,Mission,View', `Y tap opens the menu on Build; nothing selected: no Selected tab (${ms.tabs.join(', ')})`);
   assert(/D-pad Move\s+A Pick\s+LB \/ RB Tab\s+B Close/.test((await st()).hint), `menu hint bar ("${(await st()).hint.slice(0, 60)}")`);
   await press(BTN.RB);
   const tabR = (await menuState()).tab;
@@ -2458,7 +2458,7 @@ try {
     const card1 = await E(() => document.querySelector('#selCard [data-mission]')?.textContent ?? '');
     const hist1 = await E(() => window.__editor.model.history.map((h) => h.text));
     const expectCycle = Math.round((g1.length / 0.9 + 2) * 10) / 10;
-    assert(g1.g.closed && g1.path === null && g1.legs.length === 4 && g1.legs.every((l) => l.ok) && Math.abs(g1.cycle - expectCycle) < 0.11 && g1.g.cycle === g1.cycle && /^A: close the loop \(Loop/.test(sc) && /^Loop \d+ m, \d+ s; walks 0.9 m\/s/.test(card1) && hist1.length === h0 + 1 && /^Added guard GD1, Rounds officer, 4 stops, \d+ s loop$/.test(hist1.at(-1)), `ON8: A on the first stop closes the loop (dot "${sc}"): ${g1.legs.length} legs all walkable, ${g1.length.toFixed(1)} m, cycle ${g1.cycle} s (expected ${expectCycle}); the card says "${card1}"; one undo step "${hist1.at(-1)}"`);
+    assert(g1.g.closed && g1.path === null && g1.legs.length === 4 && g1.legs.every((l) => l.ok) && Math.abs(g1.cycle - expectCycle) < 0.11 && g1.g.cycle === g1.cycle && /A: close the loop \(Loop/.test(sc) && /^Loop \d+ m, \d+ s; walks 0.9 m\/s/.test(card1) && hist1.length === h0 + 1 && /^Added guard GD1, Rounds officer, 4 stops, \d+ s loop$/.test(hist1.at(-1)), `ON8: A on the first stop closes the loop (dot "${sc}"): ${g1.legs.length} legs all walkable, ${g1.length.toFixed(1)} m, cycle ${g1.cycle} s (expected ${expectCycle}); the card says "${card1}"; one undo step "${hist1.at(-1)}"`);
     await shot('on8-guard-path');
 
     // Selected > Edit path: a stop inside a closed room (no door) is red, with its words; X removes it; the loop closes again
@@ -2478,7 +2478,7 @@ try {
     await press(BTN.A);
     await page.waitForFunction(() => window.__editor.model.data.guards?.[0]?.closed === true, null, { timeout: 5000 }).catch(() => {});
     const g3 = await guard();
-    assert(m2 && redBad && /^No way from stop 4 to here/.test(sRed) && g2.legs[3].why === 'No way from stop 4 to stop 5' && !g2.legs[3].ok && red.plan > 0 && red.why.includes('No way from stop 4 to stop 5') && g3.g.loop.length === 4 && g3.g.closed && g3.legs.every((l) => l.ok), `ON8: Edit path, a stop in the closed room G-SOFF: the dot said "${sRed}" (red), leg 4 is red on the plan (${red.plan} pieces, "${red.why[0]}"); X removes it and A on the first stop closes the loop again (${g3.g.loop.length} stops)`);
+    assert(m2 && redBad && /- No way from stop 4 to here/.test(sRed) && g2.legs[3].why === 'No way from stop 4 to stop 5' && !g2.legs[3].ok && red.plan > 0 && red.why.includes('No way from stop 4 to stop 5') && g3.g.loop.length === 4 && g3.g.closed && g3.legs.every((l) => l.ok), `ON8: Edit path, a stop in the closed room G-SOFF: the dot said "${sRed}" (red), leg 4 is red on the plan (${red.plan} pieces, "${red.why[0]}"); X removes it and A on the first stop closes the loop again (${g3.g.loop.length} stops)`);
 
     // Selected > Play patrol: the figure walks the loop; Mark alone here sets the isolation point
     await E(() => { const ed = window.__editor; ed.setTool('select'); ed.select('guards:GD1'); });
